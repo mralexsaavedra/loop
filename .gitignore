@@ -1,0 +1,25 @@
+# --- Sensitive health data: NEVER commit ---
+# Raw Apple Health export and any parsed personal metrics stay local only.
+data/apple-health/*
+!data/apple-health/.gitkeep
+
+# Personal logs contain medical/behavioral data. Keep templates, ignore real data.
+data/weight/weight-log.md
+data/nutrition/food-log.md
+
+# Generated reports may quote personal metrics.
+analysis/reports/*
+!analysis/reports/.gitkeep
+
+# Profile holds personal identifiers. Decide consciously before un-ignoring.
+profile/about-me.md
+profile/baseline.md
+
+# OS / tooling noise
+.DS_Store
+*.log
+.atl/
+
+# Personal training programs
+data/training/*
+!data/training/.gitkeep
