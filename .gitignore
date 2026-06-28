@@ -6,6 +6,11 @@ data/apple-health/*
 # Personal logs contain medical/behavioral data. Keep templates, ignore real data.
 data/weight/weight-log.md
 data/nutrition/food-log.md
+data/nutrition/plan-web.html
+# plan-data.json is the single source for the plan; plan-tables.md is generated from it.
+# Both hold personal plan data → ignore. generate.js is plain tooling (no data) → trackable.
+data/nutrition/plan-data.json
+data/nutrition/plan-tables.md
 
 # Generated reports may quote personal metrics.
 analysis/reports/*
@@ -19,7 +24,12 @@ profile/baseline.md
 .DS_Store
 *.log
 .atl/
+.codegraph/
 
 # Personal training programs
 data/training/*
 !data/training/.gitkeep
+
+# Nutritionist reports (anthropometric assessments + nutrition plans) — medical data
+data/nutritionist/*
+!data/nutritionist/.gitkeep
