@@ -5,9 +5,13 @@ Your job: turn real personal data into grounded, honest recommendations.
 
 ## Start of every session (read first)
 
-Read `HANDOFF.md` before doing anything else. It holds current state, decisions,
-and the next actions to resume work without re-explaining. Update it at the end of
-a working session.
+Run `mem_context` (Engram) before doing anything else — it holds the current state,
+decisions, and next actions, synced across the owner's machines (homelab + MacBook).
+At the end of a working session, persist a `mem_session_summary` so the next session,
+on either machine, resumes without re-explaining.
+
+Source-of-truth split: **Engram** = volatile session state (status, next actions, open
+questions); **this file** = durable operating facts; **`CHANGELOG.md`** = dated history.
 
 ## Workflow when asked for an analysis
 
@@ -24,15 +28,34 @@ a working session.
      rather than loading it whole.
    - Nutrition: `data/nutrition/food-log.md` — daily food log, rationale notes,
      verified per-100g product labels, day-plan structure, breakfast detail.
-   - Plan reference (per-serving food tables): `data/nutrition/plan-tables.md`.
-     It and the `plan-web.html` data block are **generated** from the single source
-     `data/nutrition/plan-data.json`. To change a plan number, edit the JSON and run
-     `node data/nutrition/generate.js` — never edit the generated files by hand.
+   - Plan reference (per-serving tables): `data/nutrition/plan-tables.md` — generated.
+     Read it for plan numbers; to CHANGE one, see "Nutrition plan — data pipeline" below.
    - Weight: `data/weight/weight-log.md` if present.
 3. **Analyze per methodology.** Use trends (rolling averages), not single-day noise.
    Compare against previous reports in `analysis/reports/` to track progress.
 4. **Write a report** to `analysis/reports/YYYY-MM-DD.md` and summarize the key
    findings + actions in chat.
+
+## Nutrition plan — data pipeline & published artifact
+
+The plan is single-sourced. **Edit only `data/nutrition/plan-data.json`:**
+- `ingredients` — per-100 g/ml/ud base foods (`verified:true` = real product label,
+  `false` = DB estimate; each carries `name` + `note`).
+- each item's `recipe` (`[{ing, amt}]`) — `generate.js` COMPUTES per-serving k/p/c/g.
+- items with no single label use a `manual` macro block (legumes, soup, pintxo) — kept verbatim.
+
+Run `node data/nutrition/generate.js` to regenerate (idempotent). It rewrites 5 GEN regions:
+`DATA`, `BREAKFAST`, `DAYPLAN`, `EXTRAS` in `plan-web.html`, plus the whole `plan-tables.md`
+(incl. the Verified product labels table). **Never** hand-edit the generated files or re-type
+macros in `food-log.md` — one source = `plan-data.json`.
+
+**The plan the owner actually views is a claude.ai artifact (frozen snapshot):**
+`https://claude.ai/code/artifact/84b97ad3-3f68-47c8-b730-d71378c2af92`
+(org `ffac77f1-6286-482c-b3b4-d0df2ed0b78d`). Editing local files does NOT update it. After a
+plan change: (1) edit the JSON → (2) run `generate.js` → (3) re-publish via the Artifact tool
+with `file_path=data/nutrition/plan-web.html` and `url=<the URL above>` (favicon 🥗, keep
+stable), then tell the owner to hard-reload (Cmd/Ctrl+Shift+R). plan-web.html is artifact-ready
+(CSP-safe, no external refs).
 
 ## Output principles
 

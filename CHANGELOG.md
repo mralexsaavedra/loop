@@ -1,7 +1,8 @@
 # Changelog
 
-Dated history of structural work on this repo. **Current state lives in `HANDOFF.md`**;
-this file is the append-only narrative so HANDOFF can stay short and truthful.
+Dated history of structural work on this repo. **Current state lives in Engram**
+(`mem_context`, synced across the owner's machines); durable operating facts live in
+`CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
 ## 2026-06-30 — Closed the last duplicated source of truth (verified labels)
 
@@ -44,8 +45,8 @@ lines into one row), and `link` (a `jump()` target → row renders as an interac
 
 What the user views is a claude.ai artifact (frozen snapshot). Editing local files does NOT
 update it — a plan change must propagate through three layers (edit JSON → run generate.js →
-re-publish the artifact to the same URL). See HANDOFF "Published artifact" for the live URL
-and steps.
+re-publish the artifact to the same URL). See CLAUDE.md "Nutrition plan — data pipeline &
+published artifact" for the live URL and steps.
 
 ## 2026-06-27 — Deeper single source: ingredient layer
 
