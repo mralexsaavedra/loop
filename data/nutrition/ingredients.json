@@ -1,0 +1,778 @@
+{
+  "ingredients": {
+    "gambas": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Gamba pelada cruda (Hacendado, agua añadida)",
+      "note": "360 g/paq escurrido; 250 g ≈ 40 g protein; salt 1.0",
+      "k": 72,
+      "p": 16,
+      "c": 0.4,
+      "g": 0.5
+    },
+    "salpicon": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Salpicón de marisco (Hacendado)",
+      "note": "400 g/bandeja; 200 g ≈ 154 kcal/25 P; vinagreta aparte",
+      "k": 77,
+      "p": 12.3,
+      "c": 1.8,
+      "g": 1.9
+    },
+    "lomoembuchado": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Lomo embuchado lonchas",
+      "note": "37.5 g/pack; salty (3 g)",
+      "k": 199,
+      "p": 38,
+      "c": 0.5,
+      "g": 5
+    },
+    "jamonserrano": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Jamón serrano (Mercadona)",
+      "note": "very salty (4.9 g)",
+      "k": 258,
+      "p": 32.9,
+      "c": 0.75,
+      "g": 14.1
+    },
+    "pavo": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Pechuga pavo 92% lonchas",
+      "note": "lean; 1.9 g salt",
+      "k": 89,
+      "p": 19.5,
+      "c": 0.9,
+      "g": 1.3
+    },
+    "gnocchi": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Gnocchi (pasta fresca)",
+      "note": "ready weight",
+      "k": 174,
+      "p": 4.5,
+      "c": 37.6,
+      "g": 0.4
+    },
+    "batataprefrita": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Batata prefrita (frozen)",
+      "note": "from earlier photo",
+      "k": 163,
+      "p": 1.8,
+      "c": 28,
+      "g": 5
+    },
+    "patatashorno": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Patatas fritas horno/air-fryer (frozen)",
+      "note": "from earlier photo",
+      "k": 151,
+      "p": 2.3,
+      "c": 23,
+      "g": 5.9
+    },
+    "tranchete": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Queso lonchas fundido suave (tranchete, Hacendado)",
+      "note": "18.5 g/loncha ≈ 43 kcal; salt 2.9",
+      "k": 231,
+      "p": 10.5,
+      "c": 13.5,
+      "g": 15
+    },
+    "mozzarella": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Queso rallado mozzarella (Hacendado)",
+      "note": "30 g ≈ 85 kcal; salt 1.0",
+      "k": 283,
+      "p": 21,
+      "c": 2.6,
+      "g": 21
+    },
+    "salsatomate": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Salsa de tomate Zero s/azúcar (Hacendado)",
+      "note": "0 fat; 5.6 g sugars; salt 1.7",
+      "k": 83,
+      "p": 1.7,
+      "c": 17.8,
+      "g": 0
+    },
+    "tomatefrito": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Tomate frito",
+      "note": "~40 g serving ≈ 32 kcal",
+      "k": 81,
+      "p": 1.4,
+      "c": 11.6,
+      "g": 3
+    },
+    "soja": {
+      "per": 100,
+      "unit": "ml",
+      "verified": true,
+      "name": "Salsa de soja sin gluten (Hacendado)",
+      "note": "CONDIMENT only; VERY salty 16.4 g salt/100 ml",
+      "k": 57,
+      "p": 10,
+      "c": 2,
+      "g": 0
+    },
+    "allioli": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Allioli (Hacendado)",
+      "note": "15 g cda ≈ 107 kcal; sunflower oil — almost pure fat",
+      "k": 712,
+      "p": 1.1,
+      "c": 9.5,
+      "g": 78
+    },
+    "mayonesa": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Mayonesa (Hacendado)",
+      "note": "15 g cda ≈ 90 kcal; almost pure fat",
+      "k": 599,
+      "p": 0.6,
+      "c": 2.4,
+      "g": 65
+    },
+    "pisto": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Fritada pisto (Hacendado)",
+      "note": "brik 380 g; veg + a bit of oil",
+      "k": 92,
+      "p": 1.3,
+      "c": 10.4,
+      "g": 4.7
+    },
+    "guacamole": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Guacamole 95% aguacate",
+      "note": "confirms estimate",
+      "k": 149,
+      "p": 1.9,
+      "c": 2,
+      "g": 13.7
+    },
+    "panecillo": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Panecillo (pan de horno)",
+      "note": "45 g/unit ≈ 117 kcal",
+      "k": 259,
+      "p": 8.2,
+      "c": 51,
+      "g": 1.1
+    },
+    "pansemillas": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Pan molde semillas y pipas de calabaza",
+      "note": "41 g/slice = 119 kcal; 5.7 g fibre",
+      "k": 291,
+      "p": 11,
+      "c": 38,
+      "g": 9.3
+    },
+    "mantequillalight": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Mantequilla light (40% MG)",
+      "note": "",
+      "k": 384,
+      "p": 1.8,
+      "c": 1.9,
+      "g": 41
+    },
+    "confitura": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Confitura fresa 0% azúcares añadidos",
+      "note": "very light",
+      "k": 28,
+      "p": 0.3,
+      "c": 14.6,
+      "g": 0
+    },
+    "wheyup": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Whey — Uperform The Whey (concentrate)",
+      "note": "strawberry-banana flavour",
+      "k": 379,
+      "p": 71.5,
+      "c": 10.5,
+      "g": 5.7
+    },
+    "wheylp": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Whey — Life Pro Choco Monky (concentrate)",
+      "note": "mild flavour, blends as a sauce",
+      "k": 387,
+      "p": 72,
+      "c": 9.1,
+      "g": 6.8
+    },
+    "yogurgriego": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Yogur griego natural ligero",
+      "note": "125 g/ud; LOW protein (dessert yogurt)",
+      "k": 60,
+      "p": 5.8,
+      "c": 4.7,
+      "g": 2
+    },
+    "cerveza": {
+      "per": 100,
+      "unit": "ml",
+      "verified": true,
+      "name": "Cerveza especial Estrella Galicia (5.5%)",
+      "note": "botellín 250 ml ≈ 118 kcal",
+      "k": 47,
+      "p": 0,
+      "c": 3.6,
+      "g": 0
+    },
+    "chocolate": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Chocolate negro 85% extrafino (Hacendado)",
+      "note": "1 onza 8 g ≈ 48 kcal; 200 g/paq",
+      "k": 597,
+      "p": 12,
+      "c": 20,
+      "g": 49
+    },
+    "helado": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Helado sándwich nata (Hacendado)",
+      "note": "1 ud 103 g ≈ 332 kcal; caja 6 ud",
+      "k": 322,
+      "p": 5,
+      "c": 36.4,
+      "g": 12.9
+    },
+    "napolitana": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Napolitana relleno cacao (Hacendado)",
+      "note": "1 ud 46 g ≈ 204 kcal; 8/paq",
+      "k": 441,
+      "p": 5.6,
+      "c": 43,
+      "g": 27
+    },
+    "palomitas": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Palomitas maíz con sal microondas (Hacendado)",
+      "note": "90 g bag ≈ 410 kcal",
+      "k": 456,
+      "p": 9.8,
+      "c": 55,
+      "g": 20
+    },
+    "pollo": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 109,
+      "p": 22.9,
+      "c": 0,
+      "g": 2.3
+    },
+    "atun": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 109,
+      "p": 25,
+      "c": 0,
+      "g": 1.25
+    },
+    "merluza": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 89,
+      "p": 17.4,
+      "c": 0,
+      "g": 1.7
+    },
+    "panga": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 91,
+      "p": 15.1,
+      "c": 0,
+      "g": 3
+    },
+    "claras": {
+      "per": 100,
+      "unit": "ml",
+      "verified": false,
+      "k": 52,
+      "p": 10.8,
+      "c": 0.7,
+      "g": 0.2
+    },
+    "muslopollo": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 125,
+      "p": 20,
+      "c": 0,
+      "g": 4.5
+    },
+    "picada5": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 134,
+      "p": 21,
+      "c": 0,
+      "g": 4.7
+    },
+    "lomocerdo": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 145,
+      "p": 21,
+      "c": 0,
+      "g": 5.8
+    },
+    "filete": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 150,
+      "p": 21,
+      "c": 0,
+      "g": 6.8
+    },
+    "salmon": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 200,
+      "p": 20,
+      "c": 0,
+      "g": 13
+    },
+    "alitas": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 200,
+      "p": 18.2,
+      "c": 0,
+      "g": 14.1
+    },
+    "chuletacerdo": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 210,
+      "p": 19,
+      "c": 0,
+      "g": 15.2
+    },
+    "huevo": {
+      "per": 100,
+      "unit": "ud",
+      "verified": false,
+      "k": 72,
+      "p": 6.3,
+      "c": 0.4,
+      "g": 5
+    },
+    "picada20": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 251,
+      "p": 17,
+      "c": 0,
+      "g": 20
+    },
+    "hamburguesa": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 250,
+      "p": 18.2,
+      "c": 2.3,
+      "g": 20
+    },
+    "longaniza": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 321,
+      "p": 15.1,
+      "c": 1.1,
+      "g": 27.9
+    },
+    "arroz": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 360,
+      "p": 7,
+      "c": 79,
+      "g": 1
+    },
+    "pasta": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 357,
+      "p": 12,
+      "c": 74,
+      "g": 1.5
+    },
+    "patata": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 86,
+      "p": 1.9,
+      "c": 19.2,
+      "g": 0.1
+    },
+    "boniato": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 122,
+      "p": 2.1,
+      "c": 26,
+      "g": 0.12
+    },
+    "avena": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 380,
+      "p": 13.3,
+      "c": 60,
+      "g": 8.3
+    },
+    "leche": {
+      "per": 100,
+      "unit": "ml",
+      "verified": false,
+      "k": 46,
+      "p": 3.4,
+      "c": 4.8,
+      "g": 1.7
+    },
+    "levadura": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 85,
+      "p": 0,
+      "c": 14,
+      "g": 0
+    },
+    "avellanas": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 646,
+      "p": 15,
+      "c": 7,
+      "g": 61
+    },
+    "miel": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 304,
+      "p": 0.3,
+      "c": 82,
+      "g": 0
+    },
+    "platano": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 88,
+      "p": 0.8,
+      "c": 22.5,
+      "g": 0.3
+    },
+    "manzana": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 52,
+      "p": 0.3,
+      "c": 14,
+      "g": 0.2
+    },
+    "naranja": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 47,
+      "p": 0.9,
+      "c": 12,
+      "g": 0.1
+    },
+    "zumonaranja": {
+      "per": 100,
+      "unit": "ml",
+      "verified": true,
+      "name": "Zumo naranja con pulpa (Dia Saborfera)",
+      "note": "200 ml ≈ 75 kcal / 17 g sugar",
+      "k": 37,
+      "p": 0.6,
+      "c": 8.6,
+      "g": 0.1
+    },
+    "pera": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 57,
+      "p": 0.4,
+      "c": 15,
+      "g": 0.1
+    },
+    "melocoton": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 39,
+      "p": 0.9,
+      "c": 10,
+      "g": 0.2
+    },
+    "nectarina": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 44,
+      "p": 1,
+      "c": 10,
+      "g": 0.3
+    },
+    "paraguayo": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 39,
+      "p": 0.9,
+      "c": 10,
+      "g": 0.2
+    },
+    "pina": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 50,
+      "p": 0.5,
+      "c": 13,
+      "g": 0.1
+    },
+    "sandia": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 30,
+      "p": 0.6,
+      "c": 7.6,
+      "g": 0.2
+    },
+    "melon": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 34,
+      "p": 0.8,
+      "c": 8,
+      "g": 0.2
+    },
+    "uvas": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 69,
+      "p": 0.7,
+      "c": 18,
+      "g": 0.2
+    },
+    "kiwi": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 60,
+      "p": 1.1,
+      "c": 14.7,
+      "g": 0.5
+    },
+    "fresas": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 32,
+      "p": 0.7,
+      "c": 7.7,
+      "g": 0.3
+    },
+    "arandanos": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 57,
+      "p": 0.7,
+      "c": 14,
+      "g": 0.3
+    },
+    "ciruela": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 46,
+      "p": 0.7,
+      "c": 11,
+      "g": 0.2
+    },
+    "calabacin": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 17,
+      "p": 1.2,
+      "c": 3,
+      "g": 0.3
+    },
+    "pimiento": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 26,
+      "p": 1,
+      "c": 6,
+      "g": 0.3
+    },
+    "cebolla": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 40,
+      "p": 1.1,
+      "c": 9,
+      "g": 0.1
+    },
+    "zanahoria": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 41,
+      "p": 0.9,
+      "c": 10,
+      "g": 0.2
+    },
+    "guisantes": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 80,
+      "p": 5,
+      "c": 14,
+      "g": 0.4
+    },
+    "lentejas": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Lentils",
+      "k": 115,
+      "p": 9,
+      "c": 20,
+      "g": 0.4
+    },
+    "alubias": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Beans (alubias)",
+      "k": 120,
+      "p": 8,
+      "c": 21,
+      "g": 0.5
+    },
+    "garbanzos": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Chickpeas",
+      "k": 140,
+      "p": 9,
+      "c": 22,
+      "g": 2.5
+    },
+    "aceiteoliva": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "k": 900,
+      "p": 0,
+      "c": 0,
+      "g": 100
+    }
+  }
+}

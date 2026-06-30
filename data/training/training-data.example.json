@@ -1,0 +1,33 @@
+{
+  "program": "My Hybrid Program",
+  "coach": "Coach name",
+  "source": "your-program.pdf",
+  "_README": "Copy this file to training-data.json (gitignored) and replace these example days with your real program. Keys are ISO dates (YYYY-MM-DD); a date with no entry renders as a rest / unprogrammed day. Each day has: kind ('gym' or 'run'), a short focus chip, and blocks. A block has an optional label (A/B/C…), a title, and lines. Then run `npm run generate`.",
+  "days": {
+    "2026-01-05": {
+      "kind": "gym",
+      "focus": "Squat + metcon",
+      "blocks": [
+        { "label": "A", "title": "BACK SQUAT EVERY 3' × 5", "lines": ["3 reps @ RPE7"] },
+        { "label": "B", "title": "EMOM 12'", "lines": ["EVEN: 10 split squats per leg", "ODD: 10 push-ups"] },
+        { "label": "C", "title": "4 ROUNDS — 2' REST", "lines": ["20 cal bike", "10 box jump over", "10 thrusters", "Target: sub 2:30 per round"] }
+      ]
+    },
+    "2026-01-08": {
+      "kind": "run",
+      "focus": "Track",
+      "blocks": [
+        { "title": "Warm-up", "lines": ["10' Z1-Z2 + drills"] },
+        { "title": "Intervals", "lines": ["5×400m (90'' rest)", "4×600m (2' rest)"] },
+        { "title": "Cool-down", "lines": ["10' Z1 easy"] }
+      ]
+    },
+    "2026-01-10": {
+      "kind": "run",
+      "focus": "Long run",
+      "blocks": [
+        { "title": "LONG RUN", "lines": ["20' Z2", "3× (10' tempo + 3' Z2)", "10' easy"] }
+      ]
+    }
+  }
+}

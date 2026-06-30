@@ -1,0 +1,12 @@
+{
+  "name": "health-coach",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tooling for the plan single source of truth (data/nutrition + data/training).",
+  "license": "MIT",
+  "scripts": {
+    "generate": "node data/nutrition/generate.js && node data/training/generate-training.js",
+    "check": "node data/nutrition/generate.js --check && node data/training/generate-training.js --check",
+    "test": "node --test data/nutrition/*.test.js data/training/*.test.js"
+  }
+}
