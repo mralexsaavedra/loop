@@ -4,6 +4,27 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-06-30 — Food check-in: "Copiar para Claude" on the day-builder
+
+Closed the biggest data gap (food logging stopped 2025-11-26) by turning the existing
+day-builder in `plan-web.html` into a food log instead of adding a separate section.
+
+- Renamed "Arma tu día" → **"Registro de comida"**; intro reframed to "mark what you ate
+  → copy → paste into chat."
+- Added a free-text **"Fuera de plan / notas"** field (`#bld-notes`) for off-plan/social
+  meals the builder's plan-only dropdowns can't represent (the real blind spot: pintxos,
+  restaurants, weekend).
+- Added **"📋 Copiar para Claude"** (`#bld-copy`): exports a plain-text block — day type,
+  each selected meal, nonzero extras, the notes, and the COMPUTED totals vs target — to the
+  clipboard (`navigator.clipboard` + `execCommand` fallback + a visible readonly textarea).
+- Live calculator, **no persistence** (chosen over a localStorage accumulator): copy the
+  current day in the moment. Photos still go straight to chat.
+- All additions live OUTSIDE the GEN regions (logic inside the builder IIFE: `LAST` totals
+  captured in `recalc()`, `XN` extras-name map, `buildDayText()`/`copyDay()`). Verified
+  byte-identical after `npm run generate`; `npm test` 8/8. Republished to the artifact URL.
+- Why the builder, not a new section: it already computes exact macros from real labels —
+  reusing it avoids duplicate logging surfaces and gives precise data instead of estimates.
+
 ## 2026-06-30 — Closed the last duplicated source of truth (verified labels)
 
 Repo deep-review found the verified per-100 g product labels were maintained in TWO
