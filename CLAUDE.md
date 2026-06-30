@@ -44,10 +44,13 @@ The plan is single-sourced. **Edit only `data/nutrition/plan-data.json`:**
 - each item's `recipe` (`[{ing, amt}]`) — `generate.js` COMPUTES per-serving k/p/c/g.
 - items with no single label use a `manual` macro block (legumes, soup, pintxo) — kept verbatim.
 
-Run `node data/nutrition/generate.js` to regenerate (idempotent). It rewrites 5 GEN regions:
-`DATA`, `BREAKFAST`, `DAYPLAN`, `EXTRAS` in `plan-web.html`, plus the whole `plan-tables.md`
-(incl. the Verified product labels table). **Never** hand-edit the generated files or re-type
-macros in `food-log.md` — one source = `plan-data.json`.
+Run `npm run generate` (or `node data/nutrition/generate.js`) to regenerate (idempotent). It
+rewrites 5 GEN regions: `DATA`, `BREAKFAST`, `DAYPLAN`, `EXTRAS` in `plan-web.html`, plus the
+whole `plan-tables.md` (incl. the Legumes and Verified product labels tables). **Never**
+hand-edit the generated files or re-type macros in `food-log.md` — one source = `plan-data.json`.
+- `npm run check` — validate the JSON (unknown/orphan ingredients, day totals) without writing.
+- `npm test` — run the generator's test suite (`node --test`, zero deps). Generation runs
+  `validate()` first, so a bad edit fails loudly instead of producing wrong macros.
 
 **The plan the owner actually views is a claude.ai artifact (frozen snapshot):**
 `https://claude.ai/code/artifact/84b97ad3-3f68-47c8-b730-d71378c2af92`

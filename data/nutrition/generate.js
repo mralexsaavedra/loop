@@ -15,7 +15,7 @@ const path = require('path');
 
 const DIR = __dirname;
 const data = JSON.parse(fs.readFileSync(path.join(DIR, 'plan-data.json'), 'utf8'));
-const { ingredients: ING, data: RAW, extras: RAWEX, quesoKeys: QUESO, vegKeys: VEG, dayPlan: DAYPLAN, extrasDisplay: EXTRASDISPLAY } = data;
+const { ingredients: ING, data: RAW, extras: RAWEX, quesoKeys: QUESO, vegKeys: VEG, dayPlan: DAYPLAN, extrasDisplay: EXTRASDISPLAY, legumeKeys: LEGUMES, legumePlate: LEGUME_PLATE } = data;
 
 /* ---------- compute per-serving macros from the ingredient layer ---------- */
 const rk = n => Math.round(n);                 // kcal -> integer
@@ -248,24 +248,21 @@ const htmlBlock = [
 ].join('\n');
 
 const htmlPath = path.join(DIR, 'plan-web.html');
-let html = fs.readFileSync(htmlPath, 'utf8');
-const reBlock = /[ \t]*\/\* GEN:DATA START[\s\S]*?\/\* GEN:DATA END \*\//;
-if (!reBlock.test(html)) { console.error('ERROR: GEN:DATA markers not found in plan-web.html'); process.exit(1); }
-html = html.replace(reBlock, htmlBlock);
-
-const reBrk = /[ \t]*<!-- GEN:BREAKFAST START[\s\S]*?<!-- GEN:BREAKFAST END -->/;
-if (!reBrk.test(html)) { console.error('ERROR: GEN:BREAKFAST markers not found in plan-web.html'); process.exit(1); }
-html = html.replace(reBrk, brkBlock());
-
-const reDay = /[ \t]*<!-- GEN:DAYPLAN START[\s\S]*?<!-- GEN:DAYPLAN END -->/;
-if (!reDay.test(html)) { console.error('ERROR: GEN:DAYPLAN markers not found in plan-web.html'); process.exit(1); }
-html = html.replace(reDay, dayPlanBlock());
-
-const reEx = /[ \t]*<!-- GEN:EXTRAS START[\s\S]*?<!-- GEN:EXTRAS END -->/;
-if (!reEx.test(html)) { console.error('ERROR: GEN:EXTRAS markers not found in plan-web.html'); process.exit(1); }
-html = html.replace(reEx, extrasDisplayBlock());
-
-fs.writeFileSync(htmlPath, html);
+/* Pure: take current plan-web.html text, replace the 5 GEN regions, return new text.
+   Throws (not process.exit) on a missing marker so callers/tests can handle it. */
+function buildHtml(html) {
+  const regions = [
+    [/[ \t]*\/\* GEN:DATA START[\s\S]*?\/\* GEN:DATA END \*\//, htmlBlock, 'GEN:DATA'],
+    [/[ \t]*<!-- GEN:BREAKFAST START[\s\S]*?<!-- GEN:BREAKFAST END -->/, brkBlock(), 'GEN:BREAKFAST'],
+    [/[ \t]*<!-- GEN:DAYPLAN START[\s\S]*?<!-- GEN:DAYPLAN END -->/, dayPlanBlock(), 'GEN:DAYPLAN'],
+    [/[ \t]*<!-- GEN:EXTRAS START[\s\S]*?<!-- GEN:EXTRAS END -->/, extrasDisplayBlock(), 'GEN:EXTRAS'],
+  ];
+  for (const [re, block, name] of regions) {
+    if (!re.test(html)) throw new Error(name + ' markers not found in plan-web.html');
+    html = html.replace(re, block);
+  }
+  return html;
+}
 
 /* ---------- render plan-tables.md ---------- */
 const real = arr => arr.filter(o => !o.none);
@@ -279,6 +276,7 @@ function mdTable(items) {
 }
 function extraItems(keys) { return keys.map(k => EX[k]); }
 
+function buildTables() {
 const md = [];
 md.push('# Plan — reference tables');
 md.push('');
@@ -318,6 +316,21 @@ md.push('');
 md.push('**😴 Rest day**');
 md.push('');
 md.push(mdTable(real(D.carboCena.rest)));
+md.push('');
+
+/* Legumes detail — per ~300 g cooked plate, COMPUTED from the legume ingredients.
+   This used to be a hand-typed table in food-log.md duplicating the ingredient macros;
+   it now renders from the single source (and is why those ingredients aren't orphans). */
+md.push(`## Legumes — per ~${LEGUME_PLATE} g plate (carb + protein hybrid)`);
+md.push('');
+md.push('> The plan\'s "Legumbre (plato hondo)" row is a deliberate composite (any legume, ~345–420 kcal');
+md.push('> by plate fullness). Per-type detail below is computed from the `ingredients` layer.');
+md.push('');
+const legumeRows = LEGUMES.map(k => {
+  const ing = ING[k]; const f = LEGUME_PLATE / ing.per;
+  return `| ${ing.name || k} | ~${LEGUME_PLATE} g | ${rk(ing.k * f)} | ${rm(ing.p * f)} | ${rm(ing.c * f)} | ${rm(ing.g * f)} |`;
+});
+md.push(['| Source | Amount | kcal | P | C | F |\n|---|---|---|---|---|---|', ...legumeRows].join('\n'));
 md.push('');
 
 md.push('## Post-workout (~25–30 g protein)');
@@ -365,6 +378,50 @@ const labelRows = Object.values(ING)
 md.push([labelHead, ...labelRows].join('\n'));
 md.push('');
 
-fs.writeFileSync(path.join(DIR, 'plan-tables.md'), md.join('\n'));
+return md.join('\n');
+}
 
-console.log('Generated: plan-web.html (GEN:DATA block) + plan-tables.md');
+/* ---------- integrity validation ----------
+   Runs before every generate, and standalone via `node generate.js --check`.
+   Catches the failure modes that would silently corrupt the plan numbers. */
+function validate() {
+  const errors = [];
+  const used = new Set();
+  // every {ing,...} reference anywhere (recipe lines, dayPlan parts, breakfast lines)
+  const walk = o => {
+    if (Array.isArray(o)) return o.forEach(walk);
+    if (o && typeof o === 'object') {
+      if (typeof o.ing === 'string') { used.add(o.ing); if (!ING[o.ing]) errors.push('references unknown ingredient: ' + o.ing); }
+      for (const k of Object.keys(o)) if (k !== 'ingredients') walk(o[k]);
+    }
+  };
+  walk(RAW); walk(RAWEX); walk(DAYPLAN);
+  (LEGUMES || []).forEach(k => { used.add(k); if (!ING[k]) errors.push('legumeKeys references unknown ingredient: ' + k); });
+  // no orphan ingredients (defined but never referenced anywhere)
+  for (const k of Object.keys(ING)) if (!used.has(k)) errors.push('orphan ingredient (defined, never used): ' + k);
+  // key lists must resolve to real resolved-extras entries
+  [...(QUESO || []), ...(VEG || [])].forEach(k => { if (!EX[k]) errors.push('queso/veg key has no extras entry: ' + k); });
+  // day totals within a sane band — catches a gross bad edit, not a tight target
+  const band = { train: [2000, 2800], rest: [1700, 2400] };
+  for (const day of ['train', 'rest']) {
+    const total = DAYPLAN[day].meals.reduce((s, m) => s + mealMacros(m).k, 0);
+    const [lo, hi] = band[day];
+    if (total < lo || total > hi) errors.push(`${day}-day total ${Math.round(total)} kcal outside sane band ${lo}-${hi}`);
+  }
+  if (errors.length) throw new Error('plan-data.json validation failed:\n  - ' + errors.join('\n  - '));
+  return true;
+}
+
+function main() {
+  validate();
+  fs.writeFileSync(htmlPath, buildHtml(fs.readFileSync(htmlPath, 'utf8')));
+  fs.writeFileSync(path.join(DIR, 'plan-tables.md'), buildTables());
+  console.log('Generated: plan-web.html (GEN:DATA block) + plan-tables.md');
+}
+
+if (require.main === module) {
+  if (process.argv.includes('--check')) { validate(); console.log('Validation OK: ingredients, recipes, day totals consistent.'); }
+  else main();
+}
+
+module.exports = { ING, D, EX, MACRO, resolve, macro, mealMacros, buildHtml, buildTables, validate, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE };

@@ -1,0 +1,11 @@
+{
+  "name": "health-coach",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tooling for the nutrition plan single source of truth (data/nutrition).",
+  "scripts": {
+    "generate": "node data/nutrition/generate.js",
+    "check": "node data/nutrition/generate.js --check",
+    "test": "node --test data/nutrition/*.test.js"
+  }
+}
