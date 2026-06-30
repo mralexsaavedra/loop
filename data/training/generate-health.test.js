@@ -11,7 +11,8 @@ const gen = require('./generate-health.js');
 
 const {
   byDayMean, rollAvg, lastDays, downsample, valueDaysAgo, spark,
-  aggBody, aggEnergy, aggRecovery, healthBlock, buildHtml,
+  stdev, median, wrapNight, clockStr, paceStr,
+  aggBody, aggActivity, aggRunning, aggEnergy, aggRecovery, healthBlock, buildHtml,
 } = gen;
 const htmlPath = path.join(__dirname, '..', 'nutrition', 'plan-web.html');
 
@@ -133,6 +134,63 @@ test('aggEnergy returns empty state without expenditure series', () => {
   assert.deepEqual(aggEnergy(null, null, null), { hasData: false });
 });
 
+test('aggEnergy surfaces the macro split when intake logged protein/carb/fat', () => {
+  const act = series('2026-06-30', 60, () => 500);
+  const basal = series('2026-06-30', 60, () => 1700);
+  // 20 logged days with macros: 150 p / 200 c / 60 g -> 1400+800+540... use round values
+  const diet = series('2026-06-30', 20, () => 2000).map(r => ({ ...r, p: 150, c: 200, g: 67 }));
+  const out = aggEnergy(act, basal, diet);
+  assert.ok(out.macros, 'macro block present when macros logged');
+  assert.equal(out.macros.p, 150);
+  assert.equal(out.macros.pPct + out.macros.cPct + out.macros.gPct, 100, 'macro %s sum to 100');
+});
+
+/* ---------- activity (NEAT + movement) ---------- */
+
+test('aggActivity trends steps and drops no-wear days from the NEAT average', () => {
+  const steps = series('2026-06-30', 40, () => 10000);
+  steps[steps.length - 1].value = 0;   // device left at home -> not a real low-NEAT day
+  steps[steps.length - 2].value = 50;
+  const out = aggActivity(steps, null, null, null);
+  assert.equal(out.hasData, true);
+  assert.equal(out.steps.avg30, 10000, 'no-wear days excluded, average stays clean');
+  assert.ok(out.steps.days30 >= 30);
+});
+
+test('aggActivity surfaces exercise/distance/flights independently', () => {
+  const ex = series('2026-06-30', 40, () => 45);
+  const dist = series('2026-06-30', 40, () => 8.2);
+  const out = aggActivity(null, ex, dist, null);
+  assert.equal(out.hasData, true);
+  assert.equal(out.exercise.avg30, 45);
+  assert.equal(out.distance.avg30, 8.2, 'distance keeps 1 decimal');
+});
+
+test('aggActivity returns empty state when no series exist', () => {
+  assert.deepEqual(aggActivity(null, null, null, null), { hasData: false });
+});
+
+/* ---------- running performance (sparse sessions, not a trend) ---------- */
+
+test('aggRunning shows recent sessions newest-first with pace from speed', () => {
+  const rows = [
+    { date: '2026-05-02', speed: 11.69, power: 269, gct: 235, vosc: 10.3, stride: 1.20 },
+    { date: '2026-06-22', speed: 10.0, power: 240, gct: 250, vosc: 10.0, stride: 1.10 },
+    { date: '2026-06-25', speed: 3.0, power: null, gct: null, vosc: null, stride: null }, // a walk -> dropped
+  ];
+  const out = aggRunning(rows);
+  assert.equal(out.hasData, true);
+  assert.equal(out.count, 2, 'sub-5 km/h walk excluded');
+  assert.equal(out.sessions[0].date, '2026-06-22', 'newest first');
+  assert.equal(out.sessions[0].pace, '6:00', '10 km/h -> 6:00 /km');
+  assert.equal(out.sessions[1].pace, '5:08', '11.69 km/h -> 5:08 /km');
+});
+
+test('aggRunning returns empty state with no runs', () => {
+  assert.deepEqual(aggRunning(null), { hasData: false });
+  assert.deepEqual(aggRunning([{ date: '2026-06-25', speed: 4 }]), { hasData: false });
+});
+
 /* ---------- recovery ---------- */
 
 test('aggRecovery averages HRV per day and exposes the good-direction trends', () => {
@@ -148,8 +206,51 @@ test('aggRecovery averages HRV per day and exposes the good-direction trends', (
   assert.ok(out.rhr.spark && out.hrv.spark, 'trends render');
 });
 
+test('aggRecovery scores sleep consistency, target adherence and bedtime regularity', () => {
+  // 40 nights: 7.5h on even days, 6.5h on odd -> avg 7.0, half hit the 7.5 target
+  const sleep = series('2026-06-30', 40, i => (i % 2 ? 6.5 : 7.5), 'Watch')
+    .map((r, i) => ({ ...r, bedtime: 23.5 + (i % 2 ? 0.5 : 0), waketime: 7 }));
+  const out = aggRecovery(null, null, null, sleep);
+  assert.equal(out.sleep.target, 7.5);
+  assert.ok(out.sleep.pctTarget >= 45 && out.sleep.pctTarget <= 55, 'about half the nights hit 7.5h');
+  assert.ok(out.sleep.sd > 0, 'duration varies -> non-zero consistency sd');
+  assert.ok(out.sleep.bedtime, 'median bedtime computed');
+  assert.equal(typeof out.sleep.bedtimeSd, 'number', 'bedtime regularity in minutes');
+});
+
+test('aggRecovery surfaces respiratory / wrist-temp / walking-HR signals', () => {
+  const resp = series('2026-06-30', 40, () => 16, 'Watch');
+  const temp = series('2026-06-30', 30, () => 35.8, 'Watch');
+  const whr = series('2026-06-30', 30, () => 70, 'Watch');
+  const out = aggRecovery(null, null, null, null, resp, temp, whr);
+  assert.equal(out.hasData, true);
+  assert.equal(out.respiratory.latest, 16);
+  assert.equal(out.wristTemp.latest, 35.8);
+  assert.equal(out.walkingHr.latest, 70);
+});
+
 test('aggRecovery returns empty state when no recovery series exist', () => {
   assert.deepEqual(aggRecovery(null, null, null, null), { hasData: false });
+});
+
+/* ---------- formatting helpers ---------- */
+
+test('paceStr converts decimal minutes/km to m:ss', () => {
+  assert.equal(paceStr(5 + 8 / 60), '5:08');
+  assert.equal(paceStr(6), '6:00');
+  assert.equal(paceStr(4.999), '5:00', 'rolls 59.94s up to the next minute');
+});
+
+test('clockStr + wrapNight handle after-midnight bedtimes', () => {
+  assert.equal(clockStr(23.5), '23:30');
+  assert.equal(wrapNight(0.5), 24.5, 'after-midnight shifted onto the night scale');
+  assert.equal(clockStr(24.5), '00:30', 'and wraps back for display');
+});
+
+test('stdev + median are correct', () => {
+  assert.equal(median([3, 1, 2]), 2);
+  assert.equal(median([1, 2, 3, 4]), 2.5);
+  assert.equal(stdev([2, 2, 2]), 0);
 });
 
 /* ---------- baking / HTML wiring ---------- */
