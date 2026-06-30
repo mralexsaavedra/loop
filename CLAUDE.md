@@ -28,10 +28,11 @@ questions); **this file** = durable operating facts; **`CHANGELOG.md`** = dated 
      cache. Caveats: body metrics carry a `source` column (weight mixes scales — compare
      body fat within one scale only); steps are deduped to max-per-device per day (summing
      devices double-counts — that is why an earlier "15–18k" NEAT figure was inflated).
-   - Nutrition: `data/nutrition/food-log.md` — daily food log, rationale notes,
-     verified per-100g product labels, day-plan structure, breakfast detail.
-   - Plan reference (per-serving tables): `data/nutrition/plan-tables.md` — generated.
-     Read it for plan numbers; to CHANGE one, see "Nutrition plan — data pipeline" below.
+   - Nutrition: `data/nutrition/food-log.md` — the daily food log + rationale notes only.
+     Per-serving tables, verified product labels, legume detail, and breakfast components are
+     GENERATED into `plan-tables.md` from `plan-data.json`; food-log just points to them.
+   - Plan reference (all per-serving tables): `data/nutrition/plan-tables.md` — generated.
+     Read it for any plan number; to CHANGE one, see "Nutrition plan — data pipeline" below.
    - Weight: `data/weight/weight-log.md` if present.
    - Training programs: `data/training/*.pdf` — the coach's programmed sessions
      (strength / metcon / endurance blocks). Use for modality balance & periodization.

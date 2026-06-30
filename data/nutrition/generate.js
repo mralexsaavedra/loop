@@ -276,6 +276,15 @@ function mdTable(items) {
 }
 function extraItems(keys) { return keys.map(k => EX[k]); }
 
+/* breakfast detail as markdown — same recipes/source as the plan-web GEN:BREAKFAST block,
+   so plan-tables.md carries the breakfast reference too (food-log no longer hand-maintains it). */
+function brkTableMd(item) {
+  const r = resolve(item);
+  const cap = `${item.tier} ${item.cap} · ~${r.k} kcal · ${Math.round(r.p)} P · ${Math.round(r.c)} C · ${Math.round(r.g)} G`;
+  const rows = brkRows(item.recipe).map(row => `| ${row.name} | ${brkQty(row)} | ${rk(row.k)} | ${rm(row.p)} | ${rm(row.c)} | ${rm(row.g)} |`);
+  return [`**${cap}**`, '', '| Componente | Cant. | kcal | P | C | G |', '|---|---|---|---|---|---|', ...rows].join('\n');
+}
+
 function buildTables() {
 const md = [];
 md.push('# Plan — reference tables');
@@ -286,6 +295,12 @@ md.push('> the per-serving reference, COMPUTED from the per-100g ingredient laye
 md.push('> product labels live in `plan-data.json` (`ingredients`, verified:true).');
 md.push('> Not a doctor — see `CLAUDE.md`.');
 md.push('');
+
+md.push('## Breakfasts (A/B/C — itemized components)');
+md.push('');
+md.push('> Generated from the `desayuno` recipes in `plan-data.json` — same source as the plan-web cards.');
+md.push('');
+RAW.desayuno.filter(o => !o.none).forEach(item => { md.push(brkTableMd(item)); md.push(''); });
 
 md.push('## Protein (~40 g protein/serving, raw weight)');
 md.push('');
@@ -392,6 +407,11 @@ function validate() {
     if (Array.isArray(o)) return o.forEach(walk);
     if (o && typeof o === 'object') {
       if (typeof o.ing === 'string') { used.add(o.ing); if (!ING[o.ing]) errors.push('references unknown ingredient: ' + o.ing); }
+      // hand-typed manual blocks are computed by nobody → sanity-check kcal vs Atwater (4·p+4·c+9·g)
+      if (o.manual) {
+        const m = o.manual, at = 4 * m.p + 4 * m.c + 9 * m.g;
+        if (Math.abs(at - m.k) > Math.max(25, m.k * 0.15)) errors.push(`manual block fails Atwater sanity (k=${m.k} vs ~${Math.round(at)}): ${o.n || o.l || '?'}`);
+      }
       for (const k of Object.keys(o)) if (k !== 'ingredients') walk(o[k]);
     }
   };
@@ -401,6 +421,16 @@ function validate() {
   for (const k of Object.keys(ING)) if (!used.has(k)) errors.push('orphan ingredient (defined, never used): ' + k);
   // key lists must resolve to real resolved-extras entries
   [...(QUESO || []), ...(VEG || [])].forEach(k => { if (!EX[k]) errors.push('queso/veg key has no extras entry: ' + k); });
+  // dayPlan `match` must resolve unambiguously (exact name/label, or exactly one substring hit)
+  for (const day of ['train', 'rest']) for (const meal of DAYPLAN[day].meals) for (const part of (meal.parts || [])) {
+    if (!part.match) continue;
+    const bucket = part.tier ? (RAW[part.use] && RAW[part.use][part.tier]) : RAW[part.use];
+    if (!Array.isArray(bucket)) { errors.push(`dayPlan ${day} part: no bucket data.${part.use}${part.tier ? '.' + part.tier : ''}`); continue; }
+    if (!bucket.some(o => o.n === part.match || o.l === part.match)) {
+      const hits = bucket.filter(o => (o.n && o.n.includes(part.match)) || (o.l && o.l.includes(part.match))).length;
+      if (hits !== 1) errors.push(`dayPlan ${day} part "${part.match}" resolves ambiguously (${hits} substring hits, no exact) in ${part.use}`);
+    }
+  }
   // day totals within a sane band — catches a gross bad edit, not a tight target
   const band = { train: [2000, 2800], rest: [1700, 2400] };
   for (const day of ['train', 'rest']) {

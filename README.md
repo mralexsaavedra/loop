@@ -22,12 +22,14 @@ instead of generic advice with no data behind it.
    this, any analysis is guessing.
 2. **Drop your data.**
    - Apple Health: iPhone → Health app → your photo → *Export All Health Data*.
-     Unzip and place `export.xml` in `data/apple-health/`.
+     Unzip and place `export.xml` in `data/apple-health/`. Claude caches it into small
+     per-metric CSVs via `node data/apple-health/extract.js` (re-run when you drop a new export).
    - Nutrition: copy `data/nutrition/food-log.example.md` → `food-log.md` and log meals there.
-   - Weight: tracked automatically from Apple Health, or log in
-     `data/weight/weight-log.md`.
-3. **Ask Claude to run an analysis.** It reads `CLAUDE.md`, follows
-   `analysis/methodology.md`, and writes a report to `analysis/reports/`.
+   - Weight: tracked automatically from Apple Health, or copy
+     `data/weight/weight-log.example.md` → `weight-log.md` and log there.
+3. **Ask Claude to run an analysis.** It reads `CLAUDE.md` (which starts by recalling
+   prior context from Engram), follows `analysis/methodology.md`, and writes a report to
+   `analysis/reports/`.
 
 ## Privacy
 
