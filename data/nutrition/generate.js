@@ -350,6 +350,21 @@ md.push('');
 md.push(mdTable(extraItems(QUESO)));
 md.push('');
 
+/* Verified product labels (per-100g/ml/ud) — the single source for packaged-food
+   macros. Rendered from `ingredients` where verified:true, so food-log.md no
+   longer hand-maintains a second copy. */
+md.push('## Verified product labels (real, per 100 g/ml/ud)');
+md.push('');
+md.push('> From the user\'s actual product photos — these OVERRIDE generic/database estimates.');
+md.push('> SINGLE SOURCE: the `ingredients` (verified:true) in `plan-data.json`. Do not re-type these anywhere else.');
+md.push('');
+const labelHead = '| Product | Per | kcal | P | C | F | Note |\n|---|---|---|---|---|---|---|';
+const labelRows = Object.values(ING)
+  .filter(i => i.verified && i.name)
+  .map(i => `| ${i.name} | 100 ${i.unit} | ${i.k} | ${i.p} | ${i.c} | ${i.g} | ${i.note || ''} |`);
+md.push([labelHead, ...labelRows].join('\n'));
+md.push('');
+
 fs.writeFileSync(path.join(DIR, 'plan-tables.md'), md.join('\n'));
 
 console.log('Generated: plan-web.html (GEN:DATA block) + plan-tables.md');
