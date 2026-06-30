@@ -219,6 +219,25 @@ const dayPlanBlock = () => [
   '  <!-- GEN:DAYPLAN END -->',
 ].join('\n');
 
+/* ---------- live-calculator TARGET (generated into GEN:DATA) ----------
+   The Registro calculator grades the day against TARGET and prints "objetivo ~k".
+   k is DERIVED from the same day total the summary card shows, so it is impossible
+   for the displayed target to drift from the plan it prescribes (this used to be a
+   hand-maintained static line that went stale). p (protein goal) and fatMax (fat
+   ceiling) are genuine owner-set targets read from plan-data.json `targets`, with
+   safe defaults so a plan without that block still generates. */
+const TARGET_DEFAULTS = { train: { p: 170, fatMax: 75 }, rest: { p: 170, fatMax: 70 } };
+const dayTotalK = day => rk(DAYPLAN[day].meals.reduce((s, m) => s + mealMacros(m).k, 0));
+function targetFor(day) {
+  const cfg = (data.targets && data.targets[day]) || {};
+  const def = TARGET_DEFAULTS[day];
+  return { k: dayTotalK(day), p: cfg.p != null ? cfg.p : def.p, fatMax: cfg.fatMax != null ? cfg.fatMax : def.fatMax };
+}
+const targetJS = () => {
+  const one = day => { const t = targetFor(day); return `${day}:{k:${t.k},p:${t.p},fatMax:${t.fatMax}}`; };
+  return '    var TARGET = {' + one('train') + ', ' + one('rest') + '};';
+};
+
 /* ---------- extras stepper labels (generated into plan-web.html) ----------
    The .extras group labels (qty · ~kcal · note) used to be hand-written and
    duplicated the generated EXTRAS macros. They are now rendered from
@@ -257,6 +276,7 @@ const htmlBlock = [
   jsExtras(),
   '    var QUESO_KEYS=' + keysJS(QUESO) + ';',
   '    var VEG_KEYS=' + keysJS(VEG) + ';',
+  targetJS(),
   '    /* GEN:DATA END */',
 ].join('\n');
 
@@ -476,4 +496,4 @@ if (require.main === module) {
   else main();
 }
 
-module.exports = { ING, D, EX, MACRO, resolve, macro, mealMacros, buildHtml, buildTables, validate, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE };
+module.exports = { ING, D, EX, MACRO, resolve, macro, mealMacros, buildHtml, buildTables, validate, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE, dayTotalK, targetFor };

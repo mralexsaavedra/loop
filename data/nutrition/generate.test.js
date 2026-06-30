@@ -106,6 +106,21 @@ test('legume detail table is single-sourced (computed, not hand-typed)', () => {
   assert.match(tables, new RegExp(`Lentils \\| ~${LEGUME_PLATE} g \\| ${k} `));
 });
 
+test('live-calculator TARGET is single-sourced: k equals the generated day total', () => {
+  // Regression guard. TARGET used to be a hand-maintained static line that drifted from
+  // the plan (the Registro calculator graded "objetivo ~2570" while the plan prescribed
+  // ~2440). Now generate.js emits TARGET inside GEN:DATA with k DERIVED from the day total,
+  // so it cannot drift. p/fatMax stay owner-set (plan-data.json `targets`, with defaults).
+  const html = fs.readFileSync(path.join(__dirname, 'plan-web.html'), 'utf8');
+  const out = buildHtml(html);
+  const count = (out.match(/var TARGET\s*=/g) || []).length;
+  assert.equal(count, 1, 'exactly one var TARGET (generated inside GEN:DATA, no leftover static line)');
+  const m = out.match(/var TARGET = \{train:\{k:(\d+),[^}]*\},\s*rest:\{k:(\d+),/);
+  assert.ok(m, 'TARGET must be emitted with train/rest k');
+  assert.equal(+m[1], gen.dayTotalK('train'), 'train target k must equal the generated day total');
+  assert.equal(+m[2], gen.dayTotalK('rest'), 'rest target k must equal the generated day total');
+});
+
 test('generation is idempotent (buildTables + buildHtml are stable)', () => {
   assert.equal(buildTables(), buildTables());
   const html = fs.readFileSync(path.join(__dirname, 'plan-web.html'), 'utf8');

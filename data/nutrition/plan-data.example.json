@@ -520,6 +520,11 @@
       ]
     }
   },
+  "targets": {
+    "_doc": "Live-calculator goals for the Registro tab. kcal is NOT set here — generate.js derives it from each day's prescribed total so it can never drift. p = protein goal (g), fatMax = fat ceiling (g).",
+    "train": { "p": 150, "fatMax": 75 },
+    "rest": { "p": 150, "fatMax": 70 }
+  },
   "dayPlan": {
     "train": {
       "kcalNote": "More carbs to fuel training. Protein target <b>~150 g</b>.",
