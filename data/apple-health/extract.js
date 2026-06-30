@@ -35,9 +35,19 @@ const minutesBetween = (start, end) => (Date.parse(end.slice(0, 19).replace(' ',
 const addDay = d => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + 1); return t.toISOString().slice(0, 10); };
 
 // sparse readings: [{date, value, source}]
-const readings = { weight: [], bodyfat: [], rhr: [], vo2max: [], hrv: [] };
+const readings = { weight: [], bodyfat: [], rhr: [], vo2max: [], hrv: [], leanmass: [], wristTemp: [] };
 // daily sums: Map<date, number>  (energy is single-source per the export → summing is correct)
 const daily = { active: new Map(), basal: new Map() };
+// per-source daily totals for series logged by MULTIPLE devices (iPhone + Watch): we take the
+// MAX across sources per day (summing would double-count, exactly like steps). Map<date, Map<src, sum>>
+const maxSrc = { exercise: new Map(), distance: new Map(), flights: new Map() };
+// daily means: Map<date, {s, n}>  (many readings/day → average them)
+const meanDaily = { respiratory: new Map(), walkingHr: new Map() };
+// running performance: Map<date, {speed:{s,n}, power:{s,n}, gct:{s,n}, vosc:{s,n}, stride:{s,n}}>
+// samples are recorded DURING runs; we keep per-day means (only days he ran have rows). 0s are junk.
+const running = new Map();
+// sleep clock: Map<night, {start, end}> earliest asleep start / latest asleep end (for bedtime regularity)
+const sleepClock = new Map();
 // steps come from 3 devices (iPhone/Zepp/Mi Fit) → keep per-source, take max/day (summing double-counts)
 const stepsBySrc = new Map();
 // dietary daily: Map<date, {kcal,p,c,g}>
@@ -49,6 +59,14 @@ const workouts = []; // {date, type, durationMin, energyKcal, source}
 const Q = 'HKQuantityTypeIdentifier';
 const addSum = (map, d, v) => { if (d && v != null) map.set(d, (map.get(d) || 0) + v); };
 const addDiet = (d, key, v) => { if (!d || v == null) return; const o = diet.get(d) || { kcal: 0, p: 0, c: 0, g: 0 }; o[key] += v; diet.set(d, o); };
+const addMean = (map, d, v) => { if (!d || v == null) return; const o = map.get(d) || { s: 0, n: 0 }; o.s += v; o.n++; map.set(d, o); };
+// per-source daily accumulator (later collapsed to max-across-sources per day)
+const addMaxSrc = (map, d, src, v) => { if (!d || v == null) return; const m = map.get(d) || new Map(); m.set(src, (m.get(src) || 0) + v); map.set(d, m); };
+// add a running-metric sample for a day; drop non-positive values (Zepp emits 0 placeholders)
+const addRun = (d, key, v) => { if (!d || !(v > 0)) return; const o = running.get(d) || {}; const m = o[key] || { s: 0, n: 0 }; m.s += v; m.n++; o[key] = m; running.set(d, o); };
+const runMean = (o, key) => (o[key] && o[key].n ? o[key].s / o[key].n : null);
+// local clock as a decimal hour from "YYYY-MM-DD HH:MM:SS +ZZZZ" -> e.g. 23:30 -> 23.5
+const clockHour = dt => +(+dt.slice(11, 13) + (+dt.slice(14, 16)) / 60).toFixed(2);
 
 function handleRecord(line) {
   const type = attr(line, 'type');
@@ -72,6 +90,18 @@ function handleRecord(line) {
     case Q + 'DietaryProtein':       return addDiet(d, 'p', v);
     case Q + 'DietaryCarbohydrates': return addDiet(d, 'c', v);
     case Q + 'DietaryFatTotal':      return addDiet(d, 'g', v);
+    case Q + 'LeanBodyMass':         return v != null && readings.leanmass.push({ date: d, value: +v.toFixed(2), source: src });
+    case Q + 'AppleSleepingWristTemperature': return v != null && readings.wristTemp.push({ date: d, value: +v.toFixed(2), source: src });
+    case Q + 'AppleExerciseTime':       return addMaxSrc(maxSrc.exercise, d, src, v);
+    case Q + 'DistanceWalkingRunning':  return addMaxSrc(maxSrc.distance, d, src, v);
+    case Q + 'FlightsClimbed':          return addMaxSrc(maxSrc.flights, d, src, v);
+    case Q + 'RespiratoryRate':         return addMean(meanDaily.respiratory, d, v);
+    case Q + 'WalkingHeartRateAverage': return addMean(meanDaily.walkingHr, d, v);
+    case Q + 'RunningSpeed':            return addRun(d, 'speed', v);
+    case Q + 'RunningPower':            return addRun(d, 'power', v);
+    case Q + 'RunningGroundContactTime':  return addRun(d, 'gct', v);
+    case Q + 'RunningVerticalOscillation':return addRun(d, 'vosc', v);
+    case Q + 'RunningStrideLength':     return addRun(d, 'stride', v);
     case 'HKCategoryTypeIdentifierSleepAnalysis': {
       const val = attr(line, 'value') || '';
       if (!/Asleep/.test(val)) return; // count asleep stages only (skip InBed / Awake)
@@ -83,7 +113,12 @@ function handleRecord(line) {
       const night = hour >= 18 ? addDay(day(start)) : day(start);
       const bySrc = sleep.get(night) || new Map();
       bySrc.set(src, (bySrc.get(src) || 0) + mins);
-      return sleep.set(night, bySrc);
+      sleep.set(night, bySrc);
+      // earliest asleep start / latest asleep end of the night -> bedtime & wake regularity
+      const ck = sleepClock.get(night) || { start: start, end: end };
+      if (Date.parse(start.slice(0, 19).replace(' ', 'T')) < Date.parse(ck.start.slice(0, 19).replace(' ', 'T'))) ck.start = start;
+      if (Date.parse(end.slice(0, 19).replace(' ', 'T')) > Date.parse(ck.end.slice(0, 19).replace(' ', 'T'))) ck.end = end;
+      return sleepClock.set(night, ck);
     }
   }
 }
@@ -138,12 +173,37 @@ rl.on('close', () => {
   counts.dietary = csv('dietary-daily.csv', 'date,kcal,protein_g,carbs_g,fat_g',
     [...diet.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1)
       .map(([d, o]) => `${d},${Math.round(o.kcal)},${o.p.toFixed(1)},${o.c.toFixed(1)},${o.g.toFixed(1)}`));
-  // sleep — max minutes across sources per night (avoids cross-source double count)
-  counts.sleep = csv('sleep-daily.csv', 'date,asleep_hours,source',
+  // sleep — max minutes across sources per night (avoids cross-source double count).
+  // bedtime/waketime = earliest asleep start / latest asleep end of the night (decimal local hour).
+  counts.sleep = csv('sleep-daily.csv', 'date,asleep_hours,source,bedtime,waketime',
     [...sleep.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, bySrc]) => {
       let best = null;
       for (const [s, m] of bySrc) if (!best || m > best.m) best = { s, m };
-      return `${d},${(best.m / 60).toFixed(2)},${best.s || ''}`;
+      const ck = sleepClock.get(d);
+      const bt = ck ? clockHour(ck.start) : '';
+      const wt = ck ? clockHour(ck.end) : '';
+      return `${d},${(best.m / 60).toFixed(2)},${best.s || ''},${bt},${wt}`;
+    }));
+  // activity: MAX across sources per day (iPhone + Watch both log these → summing double-counts)
+  const dumpMaxSrc = (map, file, col, dec) => csv(file, `date,${col}`,
+    [...map.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, bySrc]) => {
+      let best = null; for (const [s, v] of bySrc) if (!best || v > best.v) best = { s, v };
+      return `${d},${dec != null ? best.v.toFixed(dec) : Math.round(best.v)}`;
+    }));
+  counts.exercise = dumpMaxSrc(maxSrc.exercise, 'exercise-minutes-daily.csv', 'minutes');
+  counts.flights = dumpMaxSrc(maxSrc.flights, 'flights-daily.csv', 'flights');
+  counts.distance = dumpMaxSrc(maxSrc.distance, 'distance-daily.csv', 'km', 2);
+  // daily means
+  const dumpMean = (map, file, col, dec = 1) => csv(file, `date,${col}`,
+    [...map.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, o]) => `${d},${(o.s / o.n).toFixed(dec)}`));
+  counts.respiratory = dumpMean(meanDaily.respiratory, 'respiratory-daily.csv', 'brpm');
+  counts.walking_hr = dumpMean(meanDaily.walkingHr, 'walking-hr-daily.csv', 'bpm', 0);
+  // running performance — per-day means over a run's samples (only days he ran get a row)
+  counts.running = csv('running-daily.csv', 'date,speed_kmh,power_w,gct_ms,vosc_cm,stride_m,samples',
+    [...running.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, o]) => {
+      const f = (k, dec) => { const m = runMean(o, k); return m == null ? '' : m.toFixed(dec); };
+      const n = Math.max(...['speed', 'power', 'gct', 'vosc', 'stride'].map(k => o[k] ? o[k].n : 0));
+      return `${d},${f('speed', 2)},${f('power', 0)},${f('gct', 0)},${f('vosc', 1)},${f('stride', 2)},${n}`;
     }));
   // workouts
   sortByDate(workouts);
@@ -161,12 +221,18 @@ rl.on('close', () => {
       steps: range([...stepsBySrc.keys()].sort()),
       dietary: range([...diet.keys()].sort()),
       workouts: range(workouts.map(w => w.date).sort()),
+      running: range([...running.keys()].sort()),
+      distance: range([...maxSrc.distance.keys()].sort()),
     },
     notes: [
       'Body metrics keep a source column — weight mixes scales/apps; compare body fat within one scale only.',
       'steps = max across devices per day (iPhone/Zepp/Mi Fit overlap → summing would double-count).',
       'active/basal energy + dietary are per-day sums (energy validated single-source; logging stopped 2025-11-26).',
       'sleep is best-effort: asleep intervals only, max across sources per night; verify against the Watch trend.',
+      'sleep bedtime/waketime = earliest asleep start / latest asleep end of the night, decimal local hour.',
+      'exercise/distance/flights = max across devices per day (iPhone+Watch overlap → summing double-counts, like steps); respiratory & walking-HR are per-day means.',
+      'running-daily = per-day MEANS over a run\'s samples (only days with a run get a row); 0-valued samples (Zepp placeholders) dropped. speed km/h, power W, gct ms, vosc cm, stride m.',
+      'leanmass & wristTemp are sparse, source-tagged (leanmass mixes scales like weight; wrist temp is sleeping-watch only).',
       'workout energy_kcal may be blank on newer exports (stats moved to child elements).',
       'Regenerate after dropping a new export: node data/apple-health/extract.js',
     ],
