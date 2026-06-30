@@ -19,8 +19,8 @@ instead of generic advice with no data behind it.
 - **[Claude Code](https://claude.com/claude-code)** — the repo is designed to be read and
   operated by it. `CLAUDE.md` is the operating manual the agent reads on each session.
 - **Node.js** — only for the plan tooling (`npm run generate`, `npm run check`,
-  `npm test`), which builds both the nutrition plan and the training tabs. Zero runtime
-  dependencies.
+  `npm test`), which builds the nutrition plan, the training tabs, and the health dashboard.
+  Zero runtime dependencies.
 - **A persistent-memory tool (optional).** The workflow uses [Engram](https://github.com/)
   for cross-session state if present, but it is **not required** — without it, durable
   state lives entirely in the tracked files and `CHANGELOG.md`.
@@ -37,6 +37,9 @@ instead of generic advice with no data behind it.
    - Apple Health: iPhone → Health app → your photo → *Export All Health Data*.
      Unzip and place `export.xml` in `data/apple-health/`. Claude caches it into small
      per-metric CSVs via `node data/apple-health/extract.js` (re-run when you drop a new export).
+     After `npm run generate`, the plan page gains a 💗 **Health** tab — weight & body-fat
+     trends, energy expenditure, and recovery (resting HR, HRV, VO₂max, sleep) — built straight
+     from this export, with each metric carrying its own data-honesty caveat.
    - Nutrition: copy `data/nutrition/food-log.example.md` → `food-log.md` and log meals there.
    - Weight: tracked automatically from Apple Health, or copy
      `data/weight/weight-log.example.md` → `weight-log.md` and log there.

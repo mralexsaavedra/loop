@@ -41,6 +41,8 @@ data/training/*
 !data/training/.gitkeep
 !data/training/generate-training.js
 !data/training/generate-training.test.js
+!data/training/generate-health.js
+!data/training/generate-health.test.js
 !data/training/training-data.example.json
 
 # Nutritionist reports (anthropometric assessments + nutrition plans) — medical data

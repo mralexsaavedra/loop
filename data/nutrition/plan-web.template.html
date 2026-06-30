@@ -89,6 +89,21 @@
   .dash-note{background:var(--surface);border:1px solid var(--line);border-radius:12px;
     padding:12px 14px;margin-top:18px;color:var(--muted);font-size:12.5px;line-height:1.55}
 
+  /* health tab — body / energy / recovery */
+  .hsub{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:24px 0 2px}
+  .hsub:first-child{margin-top:8px}
+  .mtrend{margin:14px 0 4px}
+  .mtrend-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .mtrend-top h4{font-size:13.5px;font-weight:700;margin:0}
+  .mtrend-val{font-size:18px;font-weight:750;letter-spacing:-.01em;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .mtrend-val small{font-size:11px;color:var(--muted);font-weight:600;margin-left:3px}
+  .spark{display:block;width:100%;height:46px;margin:6px 0 0}
+  .spark .area{fill:var(--accent-soft);opacity:.55}
+  .spark .line{fill:none;stroke:var(--accent);stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round;stroke-linecap:round}
+  .spark-ax{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);margin-top:3px}
+  .dlt{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;margin-left:6px;white-space:nowrap}
+  .dlt.good{color:var(--lean)} .dlt.bad{color:var(--fat)} .dlt.flat{color:var(--muted)}
+
   /* day summary */
   .summary{display:flex;align-items:baseline;gap:10px;margin:14px 0 4px;flex-wrap:wrap}
   .kcal{font-size:38px;font-weight:750;letter-spacing:-.03em;line-height:1}
@@ -234,6 +249,7 @@
       <button id="t-tablas" role="tab" aria-pressed="false" onclick="setTab('tablas')">📊 Tables</button>
       <button id="t-hoy" role="tab" aria-pressed="false" onclick="setTab('hoy')">🏋️ Today</button>
       <button id="t-dash" role="tab" aria-pressed="false" onclick="setTab('dash')">📈 Workouts</button>
+      <button id="t-health" role="tab" aria-pressed="false" onclick="setTab('health')">💗 Health</button>
     </div>
     <div class="toggle subtoggle" id="day-toggle" role="group" aria-label="Day type">
       <button id="b-train" aria-pressed="true" onclick="setDay('train')">🏋️ Training</button>
@@ -495,6 +511,10 @@
     <div id="train-dash"></div>
   </div>
 
+  <div class="tab-panel" data-tab="health" hidden>
+    <div id="health"></div>
+  </div>
+
   <footer>
     Example cutting plan (~2.150 kcal/day average). Replace these foods, targets and notes with your own data in <code>plan-data.json</code>, then run <code>npm run generate</code>.<br><br>
     Figures are approximate and for guidance only — not medical advice. For clinical questions, consult a professional.
@@ -515,7 +535,7 @@
     document.querySelectorAll('.tab-panel').forEach(function(p){
       p.hidden = (p.getAttribute('data-tab') !== name);
     });
-    [['t-dia','dia'],['t-registro','registro'],['t-tablas','tablas'],['t-hoy','hoy'],['t-dash','dash']].forEach(function(pair){
+    [['t-dia','dia'],['t-registro','registro'],['t-tablas','tablas'],['t-hoy','hoy'],['t-dash','dash'],['t-health','health']].forEach(function(pair){
       var b = document.getElementById(pair[0]);
       if(b) b.setAttribute('aria-pressed', pair[1] === name);
     });
@@ -602,6 +622,78 @@
       var mod='<div class="dash-sec"><h3>Modality split</h3><p class="hint">By minutes · last '+DASH.weeks+' weeks.</p>'+mb+'</div>';
       var note='<div class="dash-note"><b>How to read this.</b> These labels come from the Apple Watch itself. <b>HIIT dominates because the watch tags almost any high-heart-rate gym work as “HIIT” — including your program’s STRENGTH block</b> (squat, clean, press…). Your real strength volume is higher than the “Strength” bar: it only counts when logged separately (e.g. Hevy). <b>Running is under-logged</b>. Volume and frequency (above) are reliable — frequency counts <b>distinct days</b>. Workout calories are omitted: recent exports leave them blank.</div>';
       host.innerHTML='<p class="dash-as">Data through '+esc(fmtD(DASH.asOf))+' (latest Apple Health export).</p>'+cards+vol+mod+note;
+    }
+    render();
+  })();
+
+  /* ---- health ("Health" tab) ---- */
+  (function(){
+    /* GEN:HEALTH START — generated from apple-health extract CSVs by generate-health.js. DO NOT EDIT BY HAND.
+       This seed has no health export, so it renders the empty state. */
+    var HEALTH = {body:{hasData:false},energy:{hasData:false},recovery:{hasData:false}};
+    /* GEN:HEALTH END */
+    function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+    function fmtD(iso){ var p=iso.split('-'); return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }
+    function ago(iso){ var d=Math.round((Date.now()-new Date(iso+'T00:00:00'))/86400000); if(d<45) return d+' days ago'; var m=Math.round(d/30); return m<12?(m+' month'+(m>1?'s':'')+' ago'):(Math.round(m/12*10)/10+' yr ago'); }
+    function sparkSvg(sp){
+      if(!sp||!sp.v||sp.v.length<2) return '';
+      var v=sp.v,n=v.length,mn=Math.min.apply(null,v),mx=Math.max.apply(null,v),rng=(mx-mn)||1,pad=10;
+      var pts=v.map(function(y,i){ var x=100*i/(n-1),yy=pad+(100-2*pad)*(1-(y-mn)/rng); return x.toFixed(2)+','+yy.toFixed(2); });
+      return '<svg class="spark" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'+
+        '<path class="area" d="M0,100 L'+pts.join(' L')+' L100,100 Z"/>'+
+        '<path class="line" d="M'+pts.join(' L')+'"/></svg>';
+    }
+    function delta(d,unit,goodDir){ // goodDir: -1 lower-better, 1 higher-better, 0 neutral
+      if(d==null) return '';
+      var dir=d<0?-1:d>0?1:0, cls=(goodDir===0||dir===0)?'flat':(dir===goodDir?'good':'bad');
+      return '<span class="dlt '+cls+'">'+(d>0?'▲ +':d<0?'▼ ':'■ ')+(Math.round(d*10)/10)+(unit||'')+'</span>';
+    }
+    function trend(title,valHtml,deltaHtml,sp){
+      var ax=sp?'<div class="spark-ax"><span>'+esc(fmtD(sp.from))+'</span><span>'+esc(fmtD(sp.to))+'</span></div>':'';
+      return '<div class="mtrend"><div class="mtrend-top"><h4>'+esc(title)+'</h4>'+
+        '<div class="mtrend-val">'+valHtml+(deltaHtml||'')+'</div></div>'+sparkSvg(sp)+ax+'</div>';
+    }
+    function card(num,lbl){ return '<div class="dash-card"><div class="dash-num">'+esc(num)+'</div><div class="dash-lbl">'+esc(lbl)+'</div></div>'; }
+    function note(html){ return '<div class="dash-note">'+html+'</div>'; }
+
+    function render(){
+      var host=document.getElementById('health'); if(!host) return;
+      var B=HEALTH.body||{}, E=HEALTH.energy||{}, R=HEALTH.recovery||{}, out=[];
+      if(!B.hasData && !E.hasData && !R.hasData){
+        host.innerHTML='<div class="train-empty">No health data yet. Drop your Apple Health export into <code>data/apple-health/</code>, run <code>extract.js</code>, then regenerate.</div>';
+        return;
+      }
+      /* body composition */
+      if(B.hasData){
+        out.push('<div class="hsub">Body composition</div>');
+        if(B.weight) out.push(trend('Weight', B.weight.latest+'<small>kg</small>', delta(B.weight.d30,' kg',0), B.weight.spark));
+        if(B.bodyfat) out.push(trend('Body fat', B.bodyfat.latest+'<small>%</small>', delta(B.bodyfat.delta,' pp',-1), B.bodyfat.spark));
+        var wsrc=B.weight?B.weight.source:'', bsrc=B.bodyfat?B.bodyfat.source:'';
+        out.push(note('<b>How to read this.</b> Weight mixes scales/apps'+(B.weight?(' ('+B.weight.sources+' sources)'):'')+', so the trend is a <b>7-day rolling average</b>; the headline is your latest reading'+(wsrc?(' ('+esc(wsrc)+')'):'')+'. Δ is vs ~30 days ago. Body fat is bioimpedance (<b>±3–5%</b>) and only comparable <b>within one scale</b> — shown for '+(bsrc?esc(bsrc):'one source')+' only; Δ is since the first reading on that scale.'));
+      }
+      /* energy */
+      if(E.hasData){
+        out.push('<div class="hsub">Energy</div>');
+        out.push(trend('Daily expenditure', E.tdeeAvg+'<small>kcal/day</small>', '', E.spark));
+        if(E.balance){
+          var b=E.balance;
+          out.push('<div class="dash-cards">'+card(b.intakeAvg+' kcal','avg intake')+card(b.tdeeAvg+' kcal','avg burn')+card((b.net<0?'':'+')+b.net,(b.net<0?'deficit/day':'surplus/day'))+'</div>');
+          out.push(note('Balance over '+esc(fmtD(b.from))+'–'+esc(fmtD(b.to))+' ('+b.days+' logged days). Negative = deficit. This is <b>historical</b> — based on the last window where intake was logged.'));
+        } else {
+          out.push(note('<b>Expenditure only.</b> Active + resting energy from the Apple Watch (7-day rolling, last '+E.tdeeDays+' days) — it runs low on days the watch wasn’t worn. <b>Intake can’t be scored:</b> it was logged on too few recent days'+(E.lastIntake?(' (last on '+esc(fmtD(E.lastIntake))+', '+ago(E.lastIntake)+')'):'')+' to compute a real deficit. For proven targets, see the nutritionist history in <code>data/nutritionist</code>.'));
+        }
+      }
+      /* recovery */
+      if(R.hasData){
+        out.push('<div class="hsub">Recovery</div>');
+        if(R.rhr) out.push(trend('Resting HR', R.rhr.latest+'<small>bpm</small>', delta(R.rhr.d30,' bpm',-1), R.rhr.spark));
+        if(R.hrv) out.push(trend('HRV', R.hrv.latest+'<small>ms</small>', delta(R.hrv.d30,' ms',1), R.hrv.spark));
+        if(R.vo2max) out.push(trend('VO₂max', R.vo2max.latest+'<small>ml/kg/min</small>', delta(Math.round((R.vo2max.latest-R.vo2max.first)*10)/10,'',1), R.vo2max.spark));
+        if(R.sleep) out.push(trend('Sleep', R.sleep.avg+'<small>h avg</small>', '', R.sleep.spark));
+        var rd=R.rhr?R.rhr.spark:(R.hrv?R.hrv.spark:null);
+        out.push(note('<b>How to read this.</b> <b>↓ resting HR, ↑ HRV and ↑ VO₂max</b> are the good directions. HRV is the daily average of several readings; resting-HR Δ is vs ~30 days ago. Sleep is best-effort (asleep intervals, max across sources) — treat it as a trend, not a precise figure.'));
+      }
+      host.innerHTML='<p class="dash-as">Body &amp; recovery from your latest Apple Health export.</p>'+out.join('');
     }
     render();
   })();

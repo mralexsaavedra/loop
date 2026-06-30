@@ -162,10 +162,35 @@ the grid visually — `pdftotext` interleaves the day columns.
 
 **Fresh-clone bootstrap:** copy `data/training/training-data.example.json` →
 `training-data.json`, edit in the real program, then `npm run generate`.
-`plan-web.template.html` already ships both training tabs (example program + empty dashboard),
-so the nutrition bootstrap (copy `plan-web.template.html` → `plan-web.html`) brings them along.
-`npm run generate` runs both generators; `npm run check` validates both; `npm test` runs both
-suites. Never hand-edit the GEN:TRAINING / GEN:DASHBOARD blocks.
+`plan-web.template.html` already ships all three extra tabs (example program, empty dashboard,
+empty health), so the nutrition bootstrap (copy `plan-web.template.html` → `plan-web.html`)
+brings them along. `npm run generate` runs all three generators; `npm run check` validates all
+three; `npm test` runs all three suites. Never hand-edit the GEN:TRAINING / GEN:DASHBOARD /
+GEN:HEALTH blocks.
+
+## Health tab — "Salud / Health" body & recovery pipeline
+
+A third generator, `data/training/generate-health.js` (TRACKED; same single-source pattern),
+bakes the GEN:HEALTH region: one tab, three stacked sections built from the Apple Health
+extract CSVs (all OPTIONAL — absent CSVs render an empty state, never fail the build).
+
+- **Body composition** — `weight.csv` + `bodyfat.csv`. Weight trend is a 7-day rolling average
+  (it mixes scales/apps, so the raw series is noisy); body fat uses ONLY the most recent
+  dominant source (never mixes scales) and is flagged bioimpedance ±3–5%.
+- **Energy** — `active-energy-daily.csv` + `basal-energy-daily.csv` give expenditure (TDEE,
+  7-day rolling); `dietary-daily.csv` gives intake. Data honesty: intake logging is sparse and
+  abandoned, so the balance (deficit/surplus) is shown ONLY when ≥7 logged days exist in the
+  recent window; otherwise the page shows expenditure alone and says intake can't be scored.
+  Implausible basal readings (double-counts / no-wear) are dropped via a sane band.
+- **Recovery** — `rhr.csv`, `hrv.csv` (averaged per day — several readings/day), `vo2max.csv`,
+  `sleep-daily.csv`. The page states the good directions (↓ resting HR, ↑ HRV, ↑ VO₂max) and
+  that sleep is best-effort.
+
+Trends render as inline SVG sparklines (CSP-safe). Generation is idempotent — no today-relative
+values are baked (staleness like "logged X months ago" is computed client-side from the data
+dates). Aggregation lives in pure functions (`aggBody`/`aggEnergy`/`aggRecovery`) so the test
+suite injects synthetic series without touching disk. The live `plan-web.html` is localized to
+Spanish (es-ES dates, comma decimals); the tracked `plan-web.template.html` seed is English.
 
 ## Output principles
 
