@@ -173,26 +173,45 @@ GEN:HEALTH blocks.
 ## Health tab — "Salud / Health" body & recovery pipeline
 
 A third generator, `data/training/generate-health.js` (TRACKED; same single-source pattern),
-bakes the GEN:HEALTH region: one tab, three stacked sections built from the Apple Health
+bakes the GEN:HEALTH region: one tab, FIVE stacked sections built from the Apple Health
 extract CSVs (all OPTIONAL — absent CSVs render an empty state, never fail the build).
 
-- **Body composition** — `weight.csv` + `bodyfat.csv`. Weight trend is a 7-day rolling average
-  (it mixes scales/apps, so the raw series is noisy); body fat uses ONLY the most recent
-  dominant source (never mixes scales) and is flagged bioimpedance ±3–5%.
+- **Body composition** — `weight.csv` + `bodyfat.csv` + `leanmass.csv`. Weight trend is a 7-day
+  rolling average (it mixes scales/apps, so the raw series is noisy). Body fat and lean mass use
+  ONLY the most recent source and are flagged bioimpedance ±3–5%. IMPORTANT: the source tag does
+  NOT isolate a scale switch (the same app re-tags an old scale's readings — e.g. 22.8%→14.7%
+  overnight in Nov 2025), so their Δ + sparkline use only the last `BODYCOMP_WINDOW` (150) days
+  to avoid celebrating that artifact as real change.
+- **Activity (NEAT + movement)** — `steps-daily.csv` (NEAT), `exercise-minutes-daily.csv`,
+  `distance-daily.csv`, `flights-daily.csv`. Each is a daily total → 30-day average, Δ vs the
+  prior 30 days, 7-day rolling sparkline (generic `dailyTrend`). All four are deduped
+  max-per-device by extract.js (iPhone + Watch overlap → summing double-counts, like steps);
+  near-zero step/distance days (device not carried) are dropped as missing data.
 - **Energy** — `active-energy-daily.csv` + `basal-energy-daily.csv` give expenditure (TDEE,
-  7-day rolling); `dietary-daily.csv` gives intake. Data honesty: intake logging is sparse and
-  abandoned, so the balance (deficit/surplus) is shown ONLY when ≥7 logged days exist in the
-  recent window; otherwise the page shows expenditure alone and says intake can't be scored.
-  Implausible basal readings (double-counts / no-wear) are dropped via a sane band.
-- **Recovery** — `rhr.csv`, `hrv.csv` (averaged per day — several readings/day), `vo2max.csv`,
-  `sleep-daily.csv`. The page states the good directions (↓ resting HR, ↑ HRV, ↑ VO₂max) and
-  that sleep is best-effort.
+  7-day rolling); `dietary-daily.csv` gives intake AND the macro split (protein/carbs/fat, g + %
+  kcal). Data honesty: intake logging is sparse and abandoned, so the balance (deficit/surplus)
+  AND the macro split are shown ONLY when ≥7 logged days exist in the recent window; otherwise
+  the page shows expenditure alone and says intake can't be scored. Implausible basal readings
+  (double-counts / no-wear) are dropped via a sane band.
+- **Running** — `running-daily.csv` (RunningSpeed/Power/GroundContactTime/VerticalOscillation/
+  StrideLength, per-day means over a run's samples). Coverage is SPARSE (only days with a watch-
+  tracked run), so this renders as a RECENT-SESSIONS table (newest first, pace = 60/speed,
+  power, GCT, vertical osc, stride), NOT a trend — and says how many sessions exist. Sub-5 km/h
+  rows (walks / GPS garbage) are dropped.
+- **Recovery** — `rhr.csv`, `hrv.csv` (averaged per day), `vo2max.csv`, `sleep-daily.csv`,
+  `respiratory-daily.csv`, `wristTemp.csv`, `walking-hr-daily.csv`. Good directions stated on
+  screen (↓ resting/walking HR, ↑ HRV, ↑ VO₂max; respiratory & sleeping wrist temp are change-
+  not-absolute signals). Sleep adds CONSISTENCY: % of nights ≥ `SLEEP_TARGET` (7.5 h), night-to-
+  night spread (sd), and bedtime/wake-time regularity (median ± sd in minutes; after-midnight
+  bedtimes wrapped onto a night scale). Sleep bedtime/waketime come from the extended
+  `sleep-daily.csv` (extract.js emits earliest asleep start / latest end per night).
 
 Trends render as inline SVG sparklines (CSP-safe). Generation is idempotent — no today-relative
-values are baked (staleness like "logged X months ago" is computed client-side from the data
-dates). Aggregation lives in pure functions (`aggBody`/`aggEnergy`/`aggRecovery`) so the test
-suite injects synthetic series without touching disk. The live `plan-web.html` is localized to
-Spanish (es-ES dates, comma decimals); the tracked `plan-web.template.html` seed is English.
+values are baked (staleness is computed client-side from the data dates). Aggregation lives in
+pure functions (`aggBody`/`aggActivity`/`aggEnergy`/`aggRunning`/`aggRecovery` + helpers
+`dailyTrend`/`signalTrend`) so the test suite injects synthetic series without touching disk. The
+live `plan-web.html` is localized to Spanish (es-ES dates, comma decimals); the tracked
+`plan-web.template.html` seed is English.
 
 ## Output principles
 

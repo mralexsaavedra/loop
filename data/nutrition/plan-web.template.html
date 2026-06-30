@@ -89,7 +89,14 @@
   .dash-note{background:var(--surface);border:1px solid var(--line);border-radius:12px;
     padding:12px 14px;margin-top:18px;color:var(--muted);font-size:12.5px;line-height:1.55}
 
-  /* health tab — body / energy / recovery */
+  /* health tab — body / activity / energy / running / recovery */
+  .dash-cards.c2{grid-template-columns:repeat(2,1fr)}
+  .run-tbl-wrap{overflow-x:auto;margin:10px 0 4px;-webkit-overflow-scrolling:touch}
+  .run-tbl{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+  .run-tbl th{font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:700;text-align:right;padding:6px 9px;border-bottom:1px solid var(--line)}
+  .run-tbl td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  .run-tbl th:first-child,.run-tbl td:first-child{text-align:left}
+  .run-tbl tr:last-child td{border-bottom:none}
   .hsub{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:24px 0 2px}
   .hsub:first-child{margin-top:8px}
   .mtrend{margin:14px 0 4px}
@@ -630,7 +637,7 @@
   (function(){
     /* GEN:HEALTH START — generated from apple-health extract CSVs by generate-health.js. DO NOT EDIT BY HAND.
        This seed has no health export, so it renders the empty state. */
-    var HEALTH = {body:{hasData:false},energy:{hasData:false},recovery:{hasData:false}};
+    var HEALTH = {body:{hasData:false},activity:{hasData:false},energy:{hasData:false},running:{hasData:false},recovery:{hasData:false}};
     /* GEN:HEALTH END */
     function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
     function fmtD(iso){ var p=iso.split('-'); return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }
@@ -656,10 +663,18 @@
     function card(num,lbl){ return '<div class="dash-card"><div class="dash-num">'+esc(num)+'</div><div class="dash-lbl">'+esc(lbl)+'</div></div>'; }
     function note(html){ return '<div class="dash-note">'+html+'</div>'; }
 
+    function runsTable(s){
+      var head='<tr><th>Date</th><th>Pace</th><th>Power</th><th>GCT</th><th>Osc.</th><th>Stride</th></tr>';
+      var rows=s.map(function(r){
+        var d=function(v,u){ return v!=null?(v+u):'—'; };
+        return '<tr><td>'+esc(fmtD(r.date))+'</td><td>'+esc(r.pace)+'/km</td><td>'+d(r.power,' W')+'</td><td>'+d(r.gct,' ms')+'</td><td>'+d(r.vosc,' cm')+'</td><td>'+d(r.stride,' m')+'</td></tr>';
+      }).join('');
+      return '<div class="run-tbl-wrap"><table class="run-tbl">'+head+rows+'</table></div>';
+    }
     function render(){
       var host=document.getElementById('health'); if(!host) return;
-      var B=HEALTH.body||{}, E=HEALTH.energy||{}, R=HEALTH.recovery||{}, out=[];
-      if(!B.hasData && !E.hasData && !R.hasData){
+      var B=HEALTH.body||{}, A=HEALTH.activity||{}, E=HEALTH.energy||{}, Run=HEALTH.running||{}, R=HEALTH.recovery||{}, out=[];
+      if(!B.hasData && !A.hasData && !E.hasData && !Run.hasData && !R.hasData){
         host.innerHTML='<div class="train-empty">No health data yet. Drop your Apple Health export into <code>data/apple-health/</code>, run <code>extract.js</code>, then regenerate.</div>';
         return;
       }
@@ -668,20 +683,38 @@
         out.push('<div class="hsub">Body composition</div>');
         if(B.weight) out.push(trend('Weight', B.weight.latest+'<small>kg</small>', delta(B.weight.d30,' kg',0), B.weight.spark));
         if(B.bodyfat) out.push(trend('Body fat', B.bodyfat.latest+'<small>%</small>', delta(B.bodyfat.delta,' pp',-1), B.bodyfat.spark));
+        if(B.lean) out.push(trend('Lean mass', B.lean.latest+'<small>kg</small>', delta(B.lean.delta,' kg',1), B.lean.spark));
         var wsrc=B.weight?B.weight.source:'', bsrc=B.bodyfat?B.bodyfat.source:'';
-        out.push(note('<b>How to read this.</b> Weight mixes scales/apps'+(B.weight?(' ('+B.weight.sources+' sources)'):'')+', so the trend is a <b>7-day rolling average</b>; the headline is your latest reading'+(wsrc?(' ('+esc(wsrc)+')'):'')+'. Δ is vs ~30 days ago. Body fat is bioimpedance (<b>±3–5%</b>) and only comparable <b>within one scale</b> — shown for '+(bsrc?esc(bsrc):'one source')+' only; Δ is since the first reading on that scale.'));
+        out.push(note('<b>How to read this.</b> Weight mixes scales/apps'+(B.weight?(' ('+B.weight.sources+' sources)'):'')+', so the trend is a <b>7-day rolling average</b>; the headline is your latest reading'+(wsrc?(' ('+esc(wsrc)+')'):'')+'. Δ is vs ~30 days ago. Body fat and lean mass are bioimpedance (<b>±3–5%</b>) and only comparable <b>within one scale</b>'+(bsrc?(' ('+esc(bsrc)+')'):'')+'; their Δ is since the first reading on that scale.'));
+      }
+      /* activity / NEAT */
+      if(A.hasData){
+        out.push('<div class="hsub">Activity</div>');
+        if(A.steps) out.push(trend('Steps', A.steps.avg30+'<small>/day</small>', delta(A.steps.d30,'',1), A.steps.spark));
+        if(A.exercise) out.push(trend('Exercise minutes', A.exercise.avg30+'<small>min/day</small>', delta(A.exercise.d30,'',1), A.exercise.spark));
+        if(A.distance) out.push(trend('Distance', A.distance.avg30+'<small>km/day</small>', delta(A.distance.d30,'',1), A.distance.spark));
+        if(A.flights) out.push(trend('Flights climbed', A.flights.avg30+'<small>/day</small>', delta(A.flights.d30,'',1), A.flights.spark));
+        out.push(note('<b>Steps = NEAT</b>, your biggest energy lever outside training. All are ~30-day averages (7-day rolling); Δ is vs the prior 30 days. Near-zero step/distance days are dropped (device not carried) and the <b>max per device</b> is used so iPhone + watch aren’t double-counted.'));
       }
       /* energy */
       if(E.hasData){
         out.push('<div class="hsub">Energy</div>');
-        out.push(trend('Daily expenditure', E.tdeeAvg+'<small>kcal/day</small>', '', E.spark));
+        if(E.tdeeAvg!=null) out.push(trend('Daily expenditure', E.tdeeAvg+'<small>kcal/day</small>', '', E.spark));
         if(E.balance){
           var b=E.balance;
           out.push('<div class="dash-cards">'+card(b.intakeAvg+' kcal','avg intake')+card(b.tdeeAvg+' kcal','avg burn')+card((b.net<0?'':'+')+b.net,(b.net<0?'deficit/day':'surplus/day'))+'</div>');
-          out.push(note('Balance over '+esc(fmtD(b.from))+'–'+esc(fmtD(b.to))+' ('+b.days+' logged days). Negative = deficit. This is <b>historical</b> — based on the last window where intake was logged.'));
+          if(E.macros){var m=E.macros;
+            out.push('<div class="dash-cards">'+card(m.p+' g · '+m.pPct+'%','protein')+card(m.c+' g · '+m.cPct+'%','carbs')+card(m.g+' g · '+m.gPct+'%','fat')+'</div>');}
+          out.push(note('Balance over '+esc(fmtD(b.from))+'–'+esc(fmtD(b.to))+' ('+b.days+' logged days). Negative = deficit. This is <b>historical</b> — based on the last window where intake was logged.'+(E.macros?(' The macro split is the average of those days.'):'')));
         } else {
-          out.push(note('<b>Expenditure only.</b> Active + resting energy from the Apple Watch (7-day rolling, last '+E.tdeeDays+' days) — it runs low on days the watch wasn’t worn. <b>Intake can’t be scored:</b> it was logged on too few recent days'+(E.lastIntake?(' (last on '+esc(fmtD(E.lastIntake))+', '+ago(E.lastIntake)+')'):'')+' to compute a real deficit. For proven targets, see the nutritionist history in <code>data/nutritionist</code>.'));
+          out.push(note('<b>Expenditure only.</b> Active + resting energy from the Apple Watch (7-day rolling, last '+E.tdeeDays+' days) — it runs low on days the watch wasn’t worn. <b>Intake can’t be scored:</b> it was logged on too few recent days'+(E.lastIntake?(' (last on '+esc(fmtD(E.lastIntake))+', '+ago(E.lastIntake)+')'):'')+' to compute a real deficit or macro split. For proven targets, see the nutritionist history in <code>data/nutritionist</code>.'));
         }
+      }
+      /* running */
+      if(Run.hasData){
+        out.push('<div class="hsub">Running</div>');
+        out.push(runsTable(Run.sessions));
+        out.push(note('Your <b>'+Run.count+'</b> runs with watch metrics (most recent first). <b>Not a trend</b> — too few for that — but it is your real engine data: pace (from GPS speed), power, ground-contact time (GCT), vertical oscillation and stride. For Hyrox, lowering compromised pace is the priority.'));
       }
       /* recovery */
       if(R.hasData){
@@ -689,11 +722,21 @@
         if(R.rhr) out.push(trend('Resting HR', R.rhr.latest+'<small>bpm</small>', delta(R.rhr.d30,' bpm',-1), R.rhr.spark));
         if(R.hrv) out.push(trend('HRV', R.hrv.latest+'<small>ms</small>', delta(R.hrv.d30,' ms',1), R.hrv.spark));
         if(R.vo2max) out.push(trend('VO₂max', R.vo2max.latest+'<small>ml/kg/min</small>', delta(Math.round((R.vo2max.latest-R.vo2max.first)*10)/10,'',1), R.vo2max.spark));
-        if(R.sleep) out.push(trend('Sleep', R.sleep.avg+'<small>h avg</small>', '', R.sleep.spark));
-        var rd=R.rhr?R.rhr.spark:(R.hrv?R.hrv.spark:null);
-        out.push(note('<b>How to read this.</b> <b>↓ resting HR, ↑ HRV and ↑ VO₂max</b> are the good directions. HRV is the daily average of several readings; resting-HR Δ is vs ~30 days ago. Sleep is best-effort (asleep intervals, max across sources) — treat it as a trend, not a precise figure.'));
+        if(R.walkingHr) out.push(trend('Walking HR', R.walkingHr.latest+'<small>bpm</small>', delta(R.walkingHr.d30,' bpm',-1), R.walkingHr.spark));
+        if(R.respiratory) out.push(trend('Respiratory rate', R.respiratory.latest+'<small>brpm</small>', delta(R.respiratory.d30,'',0), R.respiratory.spark));
+        if(R.wristTemp) out.push(trend('Wrist temp (sleep)', R.wristTemp.latest+'<small>°C</small>', '', R.wristTemp.spark));
+        if(R.sleep){
+          out.push(trend('Sleep', R.sleep.avg+'<small>h avg</small>', '', R.sleep.spark));
+          var sl=R.sleep, c2=[];
+          if(sl.pctTarget!=null) c2.push(card(sl.pctTarget+'%','nights ≥ '+sl.target+' h'));
+          if(sl.sd!=null) c2.push(card('±'+sl.sd+' h','night-to-night spread'));
+          if(sl.bedtime) c2.push(card(sl.bedtime+' ±'+sl.bedtimeSd+'′','bedtime'));
+          if(sl.wake) c2.push(card(sl.wake+' ±'+sl.wakeSd+'′','wake time'));
+          if(c2.length) out.push('<div class="dash-cards c2">'+c2.join('')+'</div>');
+        }
+        out.push(note('<b>↓ resting HR, ↑ HRV, ↑ VO₂max and ↓ walking HR</b> are the good directions. Respiratory rate and wrist temperature (sleep only) are recovery/illness signals — watch the change, not the absolute value. For sleep, beyond the average the <b>consistency</b> matters (±h and schedule regularity in minutes): sleeping a similar amount each night recovers better than averaging 7 h across 5- and 9-hour nights.'));
       }
-      host.innerHTML='<p class="dash-as">Body &amp; recovery from your latest Apple Health export.</p>'+out.join('');
+      host.innerHTML='<p class="dash-as">Body, activity &amp; recovery from your latest Apple Health export.</p>'+out.join('');
     }
     render();
   })();
