@@ -41,10 +41,16 @@ instead of generic advice with no data behind it.
      `data/weight/weight-log.example.md` → `weight-log.md` and log there.
    - Plan UI (optional): to get the interactive plan page, copy
      `data/nutrition/plan-web.template.html` → `plan-web.html` and
-     `data/nutrition/plan-data.example.json` → `plan-data.json`. Edit your foods,
-     servings and targets in the JSON, then run `npm run generate` — it computes the
-     macros and rewrites `plan-web.html` (and `plan-tables.md`) from that single source.
-     Both copies are gitignored and stay local; the `.template` / `.example` seeds are tracked.
+     `data/nutrition/plan-data.example.json` → `plan-data.json`. The food database
+     ships ready: `data/nutrition/ingredients.json` (TRACKED, public — per-100g/ml/ud
+     macros and verified product labels) is reusable and already in the clone. Your
+     personal plan — recipes, day structure, protein targets — lives in `plan-data.json`
+     (gitignored, local-only). Edit your servings and day plan there (referencing
+     ingredient keys from `ingredients.json`), then run `npm run generate` — it MERGES
+     `ingredients.json` + `plan-data.json`, computes the macros, and rewrites
+     `plan-web.html` (and `plan-tables.md`) from that single source. `plan-web.html` and
+     `plan-data.json` are gitignored and stay local; `ingredients.json`, the `.template`
+     and `.example` seeds are tracked.
 3. **Ask Claude to run an analysis.** It reads `CLAUDE.md`, follows
    `analysis/methodology.md`, and writes a report to `analysis/reports/`.
 

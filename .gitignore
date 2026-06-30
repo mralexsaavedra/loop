@@ -9,13 +9,17 @@ data/apple-health/*
 data/weight/weight-log.md
 data/nutrition/food-log.md
 data/nutrition/plan-web.html
-# plan-data.json is the single source for the plan; plan-tables.md is generated from it.
-# Both hold personal plan data → ignore. generate.js is plain tooling (no data) → trackable.
+# plan-data.json holds the PERSONAL plan (recipes, day structure, targets); plan-tables.md
+# is generated from it. Both hold personal plan data → ignore.
 data/nutrition/plan-data.json
 data/nutrition/plan-tables.md
+# NOTE: ingredients.json (the public, reusable food DB — per-100g macros + product labels)
+# and generate.js (plain tooling) carry NO personal plan data and are intentionally TRACKED.
+# generate.js MERGES the tracked ingredients.json with the personal plan-data.json.
 # The .template/.example seeds carry NO personal data and are intentionally TRACKED
 # (they are the public starting point a fresh clone copies to the names ignored above).
-# Patterns above match the exact personal filenames only, so the seeds stay trackable.
+# Patterns above match the exact personal filenames only, so ingredients.json and the
+# seeds stay trackable.
 
 # Generated reports may quote personal metrics.
 analysis/reports/*

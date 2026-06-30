@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /* Generator for the nutrition plan.
- * Single source of truth: plan-data.json
- *   - `ingredients`: per-100g/ml/ud base foods (verified = real product label).
- *   - each item carries a `recipe` ([{ing, amt}]) OR a `manual` macro block
+ * Two sources, merged in memory:
+ *   - ingredients.json (TRACKED, public food DB): `ingredients` =
+ *     per-100g/ml/ud base foods (verified = real product label). Reusable.
+ *   - plan-data.json (GITIGNORED, personal plan): `data`/`dayPlan`/`extras`/etc.
+ *     Each item carries a `recipe` ([{ing, amt}]) OR a `manual` macro block
  *     (ranges/estimates with no single label) OR `none` (the "— ninguno —" row).
  * This script COMPUTES per-serving k/p/c/g from ingredient*amt, then outputs
  * (DO NOT edit by hand):
@@ -14,7 +16,18 @@ const fs = require('fs');
 const path = require('path');
 
 const DIR = __dirname;
-const data = JSON.parse(fs.readFileSync(path.join(DIR, 'plan-data.json'), 'utf8'));
+const ingPath = path.join(DIR, 'ingredients.json');
+if (!fs.existsSync(ingPath)) {
+  throw new Error('ingredients.json not found at ' + ingPath + ' — it is the public food DB the plan depends on. A fresh clone ships it; do not delete it.');
+}
+const ingFile = JSON.parse(fs.readFileSync(ingPath, 'utf8'));
+if (!ingFile.ingredients || typeof ingFile.ingredients !== 'object') {
+  throw new Error('ingredients.json must contain a top-level "ingredients" object.');
+}
+const plan = JSON.parse(fs.readFileSync(path.join(DIR, 'plan-data.json'), 'utf8'));
+// Merge: public ingredient DB + personal plan. `ingredients` comes only from
+// ingredients.json (plan-data.json no longer carries it).
+const data = Object.assign({}, plan, { ingredients: ingFile.ingredients });
 const { ingredients: ING, data: RAW, extras: RAWEX, quesoKeys: QUESO, vegKeys: VEG, dayPlan: DAYPLAN, extrasDisplay: EXTRASDISPLAY, legumeKeys: LEGUMES, legumePlate: LEGUME_PLATE } = data;
 
 /* ---------- compute per-serving macros from the ingredient layer ---------- */
@@ -401,6 +414,7 @@ return md.join('\n');
    Catches the failure modes that would silently corrupt the plan numbers. */
 function validate() {
   const errors = [];
+  const warnings = [];
   const used = new Set();
   // every {ing,...} reference anywhere (recipe lines, dayPlan parts, breakfast lines)
   const walk = o => {
@@ -417,8 +431,10 @@ function validate() {
   };
   walk(RAW); walk(RAWEX); walk(DAYPLAN);
   (LEGUMES || []).forEach(k => { used.add(k); if (!ING[k]) errors.push('legumeKeys references unknown ingredient: ' + k); });
-  // no orphan ingredients (defined but never referenced anywhere)
-  for (const k of Object.keys(ING)) if (!used.has(k)) errors.push('orphan ingredient (defined, never used): ' + k);
+  // Unused ingredients are a WARNING, not an error: ingredients.json is a shared
+  // public food DB that may legitimately hold more foods than a given plan uses
+  // (e.g. the example plan references only a subset). It is NOT corruption.
+  for (const k of Object.keys(ING)) if (!used.has(k)) warnings.push('ingredient defined in ingredients.json but not used by this plan: ' + k);
   // key lists must resolve to real resolved-extras entries
   [...(QUESO || []), ...(VEG || [])].forEach(k => { if (!EX[k]) errors.push('queso/veg key has no extras entry: ' + k); });
   // dayPlan `match` must resolve unambiguously (exact name/label, or exactly one substring hit)
@@ -439,18 +455,24 @@ function validate() {
     if (total < lo || total > hi) errors.push(`${day}-day total ${Math.round(total)} kcal outside sane band ${lo}-${hi}`);
   }
   if (errors.length) throw new Error('plan-data.json validation failed:\n  - ' + errors.join('\n  - '));
-  return true;
+  return { ok: true, warnings };
+}
+
+function reportWarnings(warnings) {
+  if (warnings && warnings.length) {
+    console.warn('Validation warnings (' + warnings.length + '):\n  - ' + warnings.join('\n  - '));
+  }
 }
 
 function main() {
-  validate();
+  reportWarnings(validate().warnings);
   fs.writeFileSync(htmlPath, buildHtml(fs.readFileSync(htmlPath, 'utf8')));
   fs.writeFileSync(path.join(DIR, 'plan-tables.md'), buildTables());
   console.log('Generated: plan-web.html (GEN:DATA block) + plan-tables.md');
 }
 
 if (require.main === module) {
-  if (process.argv.includes('--check')) { validate(); console.log('Validation OK: ingredients, recipes, day totals consistent.'); }
+  if (process.argv.includes('--check')) { reportWarnings(validate().warnings); console.log('Validation OK: ingredients, recipes, day totals consistent.'); }
   else main();
 }
 

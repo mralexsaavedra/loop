@@ -1,18 +1,50 @@
 /* Tests for the nutrition plan generator. Zero dependencies — Node's built-in
  * runner:  node --test  (from data/nutrition/) or  npm test.
- * Importing generate.js does NOT write files (I/O is guarded by require.main). */
+ * Importing generate.js does NOT write files (I/O is guarded by require.main).
+ * The generator merges two files: ingredients.json (public food DB) +
+ * plan-data.json (personal plan). These tests exercise the merged result. */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
+const os = require('node:os');
 const gen = require('./generate.js');
 
 const { ING, D, macro, mealMacros, buildTables, buildHtml, validate, DAYPLAN, LEGUMES, LEGUME_PLATE } = gen;
 const find = (arr, sub) => arr.find(o => (o.n || '').includes(sub));
 const close = (a, b, tol = 0.5) => Math.abs(a - b) <= tol;
 
-test('validate() passes on the committed plan-data.json', () => {
-  assert.equal(validate(), true);
+test('validate() passes on the merged ingredients.json + plan-data.json', () => {
+  const res = validate();
+  assert.equal(res.ok, true);
+  // the owner's real plan uses every ingredient in the DB → no unused warnings
+  assert.deepEqual(res.warnings, [], 'real plan should leave no unused ingredients: ' + res.warnings.join(', '));
+});
+
+test('the food DB lives in ingredients.json, not plan-data.json', () => {
+  const planRaw = JSON.parse(fs.readFileSync(path.join(__dirname, 'plan-data.json'), 'utf8'));
+  assert.ok(!('ingredients' in planRaw), 'plan-data.json must NOT carry an ingredients block (it ships in ingredients.json)');
+  const ingRaw = JSON.parse(fs.readFileSync(path.join(__dirname, 'ingredients.json'), 'utf8'));
+  assert.ok(ingRaw.ingredients && typeof ingRaw.ingredients === 'object', 'ingredients.json must have a top-level ingredients object');
+  // generate.js merged them: every key the recipes resolve against comes from the public DB.
+  assert.deepEqual(Object.keys(ING).sort(), Object.keys(ingRaw.ingredients).sort());
+});
+
+test('generate.js fails clearly when ingredients.json is missing', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-no-ing-'));
+  try {
+    fs.copyFileSync(path.join(__dirname, 'generate.js'), path.join(dir, 'generate.js'));
+    fs.copyFileSync(path.join(__dirname, 'plan-data.json'), path.join(dir, 'plan-data.json'));
+    // a plan-web.html target so the error is the missing-ingredients one, not a missing template
+    fs.writeFileSync(path.join(dir, 'plan-web.html'), '');
+    assert.throws(
+      () => execFileSync(process.execPath, ['generate.js', '--check'], { cwd: dir, stdio: 'pipe' }),
+      /ingredients\.json not found/,
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('macro() computes per-serving from the ingredient layer', () => {

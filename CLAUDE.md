@@ -69,7 +69,8 @@ available) so the next session resumes with their context.
      devices double-counts — that is why an earlier "15–18k" NEAT figure was inflated).
    - Nutrition: `data/nutrition/food-log.md` — the daily food log + rationale notes only.
      Per-serving tables, verified product labels, legume detail, and breakfast components are
-     GENERATED into `plan-tables.md` from `plan-data.json`; food-log just points to them.
+     GENERATED into `plan-tables.md` from `ingredients.json` (public food DB) merged with
+     `plan-data.json` (personal plan); food-log just points to them.
    - Plan reference (all per-serving tables): `data/nutrition/plan-tables.md` — generated.
      Read it for any plan number; to CHANGE one, see "Nutrition plan — data pipeline" below.
    - Weight: `data/weight/weight-log.md` if present.
@@ -85,23 +86,37 @@ available) so the next session resumes with their context.
 
 ## Nutrition plan — data pipeline & published artifact
 
-**Fresh-clone bootstrap:** the tracked seeds `plan-web.template.html` and
-`plan-data.example.json` are the public starting point. A new clone copies
-`plan-web.template.html` → `plan-web.html` and `plan-data.example.json` → `plan-data.json`,
-then edits the JSON and runs `npm run generate`. The real `plan-web.html` / `plan-data.json`
-stay gitignored (personal); the `.template` / `.example` seeds carry no personal data.
+**Two files, merged by generate.js:**
+- `data/nutrition/ingredients.json` (TRACKED, **public** food DB) — the reusable
+  `{ "ingredients": { … } }` of per-100 g/ml/ud base foods (`verified:true` = real product
+  label, `false` = DB estimate; each carries `name` + `note`). This is shareable and is the
+  one piece of the plan that goes public. It may hold MORE foods than any single plan uses.
+- `data/nutrition/plan-data.json` (GITIGNORED, **personal** plan) — the owner's actual diet:
+  `data`/`dayPlan`/`extras`/`extrasDisplay`/`quesoKeys`/`vegKeys`/`legumeKeys`/`legumePlate`.
+  Each item's `recipe` (`[{ing, amt}]`) references ingredient keys from `ingredients.json`;
+  `generate.js` COMPUTES per-serving k/p/c/g. Items with no single label use a `manual`
+  macro block (legumes, soup, pintxo) — kept verbatim.
 
-The plan is single-sourced. **Edit only `data/nutrition/plan-data.json`:**
-- `ingredients` — per-100 g/ml/ud base foods (`verified:true` = real product label,
-  `false` = DB estimate; each carries `name` + `note`).
-- each item's `recipe` (`[{ing, amt}]`) — `generate.js` COMPUTES per-serving k/p/c/g.
-- items with no single label use a `manual` macro block (legumes, soup, pintxo) — kept verbatim.
+`generate.js` MERGES the two in memory (public ingredients + personal plan), then computes
+macros. It fails with a clear error if `ingredients.json` is missing.
+
+**Fresh-clone bootstrap:** `ingredients.json` ships in the clone (tracked). The tracked seeds
+`plan-web.template.html` and `plan-data.example.json` are the public starting point. A new
+clone copies `plan-web.template.html` → `plan-web.html` and `plan-data.example.json` →
+`plan-data.json` (the example references real keys from `ingredients.json`), then edits the
+plan JSON and runs `npm run generate`. The real `plan-web.html` / `plan-data.json` stay
+gitignored (personal); `ingredients.json` and the `.template` / `.example` seeds are tracked.
+
+**To change a plan number, edit `plan-data.json` (servings/day plan) or `ingredients.json`
+(a food's macros/label) — never the generated files.**
 
 Run `npm run generate` (or `node data/nutrition/generate.js`) to regenerate (idempotent). It
 rewrites 5 GEN regions: `DATA`, `BREAKFAST`, `DAYPLAN`, `EXTRAS` in `plan-web.html`, plus the
 whole `plan-tables.md` (incl. the Legumes and Verified product labels tables). **Never**
-hand-edit the generated files or re-type macros in `food-log.md` — one source = `plan-data.json`.
-- `npm run check` — validate the JSON (unknown/orphan ingredients, day totals) without writing.
+hand-edit the generated files or re-type macros in `food-log.md` — one source pair = the two JSONs.
+- `npm run check` — validate (unknown-ingredient refs, day totals, Atwater, ambiguous matches)
+  without writing. Ingredients defined in `ingredients.json` but unused by the current plan are
+  a non-fatal WARNING (expected for a shared DB), not an error.
 - `npm test` — run the generator's test suite (`node --test`, zero deps). Generation runs
   `validate()` first, so a bad edit fails loudly instead of producing wrong macros.
 
