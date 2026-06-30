@@ -85,6 +85,12 @@ available) so the next session resumes with their context.
 
 ## Nutrition plan — data pipeline & published artifact
 
+**Fresh-clone bootstrap:** the tracked seeds `plan-web.template.html` and
+`plan-data.example.json` are the public starting point. A new clone copies
+`plan-web.template.html` → `plan-web.html` and `plan-data.example.json` → `plan-data.json`,
+then edits the JSON and runs `npm run generate`. The real `plan-web.html` / `plan-data.json`
+stay gitignored (personal); the `.template` / `.example` seeds carry no personal data.
+
 The plan is single-sourced. **Edit only `data/nutrition/plan-data.json`:**
 - `ingredients` — per-100 g/ml/ud base foods (`verified:true` = real product label,
   `false` = DB estimate; each carries `name` + `note`).

@@ -13,6 +13,9 @@ data/nutrition/plan-web.html
 # Both hold personal plan data → ignore. generate.js is plain tooling (no data) → trackable.
 data/nutrition/plan-data.json
 data/nutrition/plan-tables.md
+# The .template/.example seeds carry NO personal data and are intentionally TRACKED
+# (they are the public starting point a fresh clone copies to the names ignored above).
+# Patterns above match the exact personal filenames only, so the seeds stay trackable.
 
 # Generated reports may quote personal metrics.
 analysis/reports/*

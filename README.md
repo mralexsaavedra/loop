@@ -39,6 +39,12 @@ instead of generic advice with no data behind it.
    - Nutrition: copy `data/nutrition/food-log.example.md` → `food-log.md` and log meals there.
    - Weight: tracked automatically from Apple Health, or copy
      `data/weight/weight-log.example.md` → `weight-log.md` and log there.
+   - Plan UI (optional): to get the interactive plan page, copy
+     `data/nutrition/plan-web.template.html` → `plan-web.html` and
+     `data/nutrition/plan-data.example.json` → `plan-data.json`. Edit your foods,
+     servings and targets in the JSON, then run `npm run generate` — it computes the
+     macros and rewrites `plan-web.html` (and `plan-tables.md`) from that single source.
+     Both copies are gitignored and stay local; the `.template` / `.example` seeds are tracked.
 3. **Ask Claude to run an analysis.** It reads `CLAUDE.md`, follows
    `analysis/methodology.md`, and writes a report to `analysis/reports/`.
 

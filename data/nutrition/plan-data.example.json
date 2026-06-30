@@ -1,0 +1,760 @@
+{
+  "_doc": "EXAMPLE plan data. Copy this file to plan-data.json, replace the ingredients/recipes with your own foods, then run `node generate.js`. SINGLE SOURCE OF TRUTH: edit ingredient labels/macros in `ingredients` (per-100g/ml/ud; verified=real product label) and serving sizes in each item's `recipe` (amt in the ingredient's unit). generate.js COMPUTES per-serving k/p/c/g from ingredient*amt and writes the DATA/EXTRAS block in plan-web.html + plan-tables.md. Items with `manual` are ranges/estimates with no single label — kept verbatim.",
+  "ingredients": {
+    "chicken": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Chicken breast",
+      "k": 110,
+      "p": 23,
+      "c": 0,
+      "g": 2
+    },
+    "whitefish": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "White fish",
+      "k": 90,
+      "p": 18,
+      "c": 0,
+      "g": 1.5
+    },
+    "eggwhites": {
+      "per": 100,
+      "unit": "ml",
+      "verified": false,
+      "name": "Egg whites",
+      "k": 52,
+      "p": 11,
+      "c": 0.7,
+      "g": 0.2
+    },
+    "salmon": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Salmon",
+      "k": 200,
+      "p": 20,
+      "c": 0,
+      "g": 13
+    },
+    "wheyexample": {
+      "per": 100,
+      "unit": "g",
+      "verified": true,
+      "name": "Whey protein (example label)",
+      "note": "replace with your real product label",
+      "k": 380,
+      "p": 72,
+      "c": 8,
+      "g": 6
+    },
+    "rice": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Rice (dry)",
+      "k": 360,
+      "p": 7,
+      "c": 79,
+      "g": 1
+    },
+    "pasta": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Pasta (dry)",
+      "k": 357,
+      "p": 12,
+      "c": 74,
+      "g": 1.5
+    },
+    "potato": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Potato",
+      "k": 86,
+      "p": 1.9,
+      "c": 19.2,
+      "g": 0.1
+    },
+    "sweetpotato": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Sweet potato",
+      "k": 122,
+      "p": 2.1,
+      "c": 26,
+      "g": 0.12
+    },
+    "oats": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Oats",
+      "k": 380,
+      "p": 13.3,
+      "c": 60,
+      "g": 8.3
+    },
+    "milk": {
+      "per": 100,
+      "unit": "ml",
+      "verified": false,
+      "name": "Milk",
+      "k": 46,
+      "p": 3.4,
+      "c": 4.8,
+      "g": 1.7
+    },
+    "wholewheatbread": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Whole-wheat bread",
+      "note": "approx per 100 g",
+      "k": 250,
+      "p": 9,
+      "c": 45,
+      "g": 3.5
+    },
+    "jam": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Jam (no added sugar)",
+      "k": 30,
+      "p": 0.3,
+      "c": 14,
+      "g": 0
+    },
+    "lightbutter": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Light butter",
+      "k": 384,
+      "p": 1.8,
+      "c": 1.9,
+      "g": 41
+    },
+    "turkeyham": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Turkey ham",
+      "k": 90,
+      "p": 19,
+      "c": 1,
+      "g": 1.3
+    },
+    "tuna": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Tuna (in water)",
+      "k": 109,
+      "p": 25,
+      "c": 0,
+      "g": 1.25
+    },
+    "banana": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Banana",
+      "k": 88,
+      "p": 0.8,
+      "c": 22.5,
+      "g": 0.3
+    },
+    "apple": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Apple",
+      "k": 52,
+      "p": 0.3,
+      "c": 14,
+      "g": 0.2
+    },
+    "orange": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Orange",
+      "k": 47,
+      "p": 0.9,
+      "c": 12,
+      "g": 0.1
+    },
+    "greekyogurt": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Light greek yogurt",
+      "note": "low protein (dessert yogurt)",
+      "k": 60,
+      "p": 5.8,
+      "c": 4.7,
+      "g": 2
+    },
+    "nuts": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Mixed nuts",
+      "k": 620,
+      "p": 15,
+      "c": 12,
+      "g": 54
+    },
+    "honey": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Honey",
+      "k": 304,
+      "p": 0.3,
+      "c": 82,
+      "g": 0
+    },
+    "cheeseslice": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Cheese slice",
+      "k": 230,
+      "p": 10.5,
+      "c": 13.5,
+      "g": 15
+    },
+    "tomatosauce": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Tomato sauce",
+      "k": 80,
+      "p": 1.7,
+      "c": 17,
+      "g": 0
+    },
+    "oliveoil": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Olive oil",
+      "k": 900,
+      "p": 0,
+      "c": 0,
+      "g": 100
+    },
+    "zucchini": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Zucchini",
+      "k": 17,
+      "p": 1.2,
+      "c": 3,
+      "g": 0.3
+    },
+    "pepper": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Bell pepper",
+      "k": 26,
+      "p": 1,
+      "c": 6,
+      "g": 0.3
+    },
+    "chocolate": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Dark chocolate",
+      "k": 597,
+      "p": 12,
+      "c": 20,
+      "g": 49
+    },
+    "beer": {
+      "per": 100,
+      "unit": "ml",
+      "verified": false,
+      "name": "Beer",
+      "k": 47,
+      "p": 0,
+      "c": 3.6,
+      "g": 0
+    },
+    "lentils": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Lentils (cooked)",
+      "k": 115,
+      "p": 9,
+      "c": 20,
+      "g": 0.4
+    },
+    "chickpeas": {
+      "per": 100,
+      "unit": "g",
+      "verified": false,
+      "name": "Chickpeas (cooked)",
+      "k": 140,
+      "p": 9,
+      "c": 22,
+      "g": 2.5
+    }
+  },
+  "data": {
+    "desayuno": [
+      {
+        "l": "— none —",
+        "none": 1
+      },
+      {
+        "l": "🥞 A · Oat pancake",
+        "tier": "🟢",
+        "cap": "A — Oat pancake",
+        "recipe": [
+          { "ing": "oats", "amt": 60, "label": "Oats" },
+          { "ing": "eggwhites", "amt": 150, "label": "Egg whites" },
+          { "ing": "wheyexample", "amt": 20, "label": "Whey (sauce)" },
+          { "ing": "milk", "amt": 145, "label": "Coffee with milk" }
+        ]
+      },
+      {
+        "l": "🍞 B · Toast + protein",
+        "tier": "🔴",
+        "cap": "B — Toast (rest day)",
+        "recipe": [
+          { "ing": "wholewheatbread", "amt": 80, "label": "Bread", "q": "2 slices (80 g)" },
+          { "ing": "jam", "amt": 20, "label": "Jam" },
+          { "ing": "lightbutter", "amt": 10, "label": "Light butter" },
+          { "ing": "wheyexample", "amt": 25, "label": "Protein anchor", "q": "1 serving", "link": "acc-anclaje" },
+          { "ing": "milk", "amt": 145, "label": "Coffee with milk" }
+        ]
+      }
+    ],
+    "postre": [
+      {
+        "l": "— none —",
+        "none": 1
+      },
+      {
+        "l": "🍌 Banana",
+        "cat": "fruit",
+        "n": "Banana",
+        "q": "1 (120 g)",
+        "recipe": [{ "ing": "banana", "amt": 120 }]
+      },
+      {
+        "l": "🍎 Apple",
+        "cat": "fruit",
+        "n": "Apple",
+        "q": "1 (150 g)",
+        "recipe": [{ "ing": "apple", "amt": 150 }]
+      },
+      {
+        "l": "🍊 Orange",
+        "cat": "fruit",
+        "n": "Orange",
+        "q": "1 (130 g)",
+        "recipe": [{ "ing": "orange", "amt": 130 }]
+      },
+      {
+        "l": "🥛 Yogurt only",
+        "cat": "yogurt",
+        "n": "Light greek yogurt",
+        "q": "125 g",
+        "recipe": [{ "ing": "greekyogurt", "amt": 125 }]
+      },
+      {
+        "l": "🍨 Yogurt + nuts + honey",
+        "cat": "yogurt",
+        "n": "Yogurt + nuts (15 g) + honey (8 g)",
+        "q": "—",
+        "recipe": [
+          { "ing": "greekyogurt", "amt": 125 },
+          { "ing": "nuts", "amt": 15 },
+          { "ing": "honey", "amt": 8 }
+        ]
+      }
+    ],
+    "proteina": [
+      {
+        "l": "— none —",
+        "none": 1
+      },
+      {
+        "l": "🟢 Chicken breast (175 g)",
+        "t": "lean",
+        "n": "Chicken breast",
+        "q": "175 g",
+        "recipe": [{ "ing": "chicken", "amt": 175 }]
+      },
+      {
+        "l": "🟢 White fish (220 g)",
+        "t": "lean",
+        "n": "White fish",
+        "q": "220 g",
+        "recipe": [{ "ing": "whitefish", "amt": 220 }]
+      },
+      {
+        "l": "🟢 Tuna (160 g)",
+        "t": "lean",
+        "n": "Tuna",
+        "q": "160 g",
+        "recipe": [{ "ing": "tuna", "amt": 160 }]
+      },
+      {
+        "l": "🟢 Egg whites (370 ml)",
+        "t": "lean",
+        "n": "Egg whites",
+        "q": "370 ml",
+        "recipe": [{ "ing": "eggwhites", "amt": 370 }]
+      },
+      {
+        "l": "🟡 Turkey ham (200 g)",
+        "t": "mod",
+        "n": "Turkey ham",
+        "q": "200 g",
+        "recipe": [{ "ing": "turkeyham", "amt": 200 }]
+      },
+      {
+        "l": "🔴 Salmon (200 g)",
+        "t": "fat",
+        "n": "Salmon",
+        "q": "200 g",
+        "note": "healthy omega-3",
+        "recipe": [{ "ing": "salmon", "amt": 200 }]
+      }
+    ],
+    "postentreno": [
+      {
+        "l": "— none —",
+        "none": 1
+      },
+      {
+        "l": "🍌 Banana + shake (20 g whey)",
+        "n": "Banana + whey shake",
+        "q": "banana + 20 g + 180 ml milk",
+        "recipe": [
+          { "ing": "banana", "amt": 120 },
+          { "ing": "wheyexample", "amt": 20 },
+          { "ing": "milk", "amt": 180 }
+        ]
+      },
+      {
+        "l": "🦃 Turkey ham (120 g) + toast",
+        "n": "Turkey ham + toast",
+        "q": "120 g + 1 slice",
+        "recipe": [
+          { "ing": "turkeyham", "amt": 120 },
+          { "ing": "wholewheatbread", "amt": 40 }
+        ]
+      }
+    ],
+    "anclaje": [
+      {
+        "l": "— none —",
+        "none": 1
+      },
+      {
+        "l": "🥤 Whey shake + milk (30 g + 100 ml)",
+        "n": "Whey shake + milk",
+        "q": "30 g + 100 ml",
+        "recipe": [
+          { "ing": "wheyexample", "amt": 30 },
+          { "ing": "milk", "amt": 100 }
+        ]
+      },
+      {
+        "l": "🐟 Tuna (100 g)",
+        "n": "Tuna",
+        "q": "100 g",
+        "recipe": [{ "ing": "tuna", "amt": 100 }]
+      },
+      {
+        "l": "🦃 Turkey ham (130 g)",
+        "n": "Turkey ham",
+        "q": "130 g",
+        "recipe": [{ "ing": "turkeyham", "amt": 130 }]
+      }
+    ],
+    "carboComida": {
+      "train": [
+        {
+          "l": "— none —",
+          "none": 1
+        },
+        {
+          "l": "🍚 Rice (130 g dry)",
+          "n": "Rice",
+          "q": "130 g",
+          "recipe": [{ "ing": "rice", "amt": 130 }]
+        },
+        {
+          "l": "🍝 Pasta (130 g dry)",
+          "n": "Pasta",
+          "q": "130 g",
+          "recipe": [{ "ing": "pasta", "amt": 130 }]
+        },
+        {
+          "l": "🫘 Legumes (bowl)",
+          "n": "Legumes (bowl)",
+          "q": "~300 g",
+          "note": "range ~345–420 by bowl",
+          "manual": { "k": 380, "p": 25, "c": 63, "g": 4 }
+        }
+      ],
+      "rest": [
+        {
+          "l": "— none —",
+          "none": 1
+        },
+        {
+          "l": "🍚 Rice (100 g dry)",
+          "n": "Rice",
+          "q": "100 g",
+          "recipe": [{ "ing": "rice", "amt": 100 }]
+        },
+        {
+          "l": "🍝 Pasta (100 g dry)",
+          "n": "Pasta",
+          "q": "100 g",
+          "recipe": [{ "ing": "pasta", "amt": 100 }]
+        },
+        {
+          "l": "🫘 Legumes (bowl)",
+          "n": "Legumes (bowl)",
+          "q": "~300 g",
+          "note": "range ~345–420 by bowl",
+          "manual": { "k": 380, "p": 25, "c": 63, "g": 4 }
+        }
+      ]
+    },
+    "carboCena": {
+      "train": [
+        {
+          "l": "— none —",
+          "none": 1
+        },
+        {
+          "l": "🥔 Potato (385 g)",
+          "n": "Potato",
+          "q": "385 g",
+          "recipe": [{ "ing": "potato", "amt": 385 }]
+        },
+        {
+          "l": "🍠 Sweet potato (270 g)",
+          "n": "Sweet potato",
+          "q": "270 g",
+          "recipe": [{ "ing": "sweetpotato", "amt": 270 }]
+        }
+      ],
+      "rest": [
+        {
+          "l": "— none —",
+          "none": 1
+        },
+        {
+          "l": "🥔 Potato (240 g)",
+          "n": "Potato",
+          "q": "240 g",
+          "recipe": [{ "ing": "potato", "amt": 240 }]
+        },
+        {
+          "l": "🍠 Sweet potato (167 g)",
+          "n": "Sweet potato",
+          "q": "167 g",
+          "recipe": [{ "ing": "sweetpotato", "amt": 167 }]
+        }
+      ]
+    }
+  },
+  "extras": {
+    "cafe": {
+      "recipe": [{ "ing": "milk", "amt": 145 }]
+    },
+    "aceite": {
+      "recipe": [{ "ing": "oliveoil", "amt": 10 }]
+    },
+    "cheeseslice": {
+      "n": "Cheese slice",
+      "q": "1 slice (20 g)",
+      "recipe": [{ "ing": "cheeseslice", "amt": 20 }]
+    },
+    "tomatosauce": {
+      "n": "Tomato sauce",
+      "q": "50 g",
+      "recipe": [{ "ing": "tomatosauce", "amt": 50 }]
+    },
+    "zucchini": {
+      "n": "Zucchini",
+      "q": "100 g",
+      "recipe": [{ "ing": "zucchini", "amt": 100 }]
+    },
+    "pepper": {
+      "n": "Bell pepper",
+      "q": "100 g",
+      "recipe": [{ "ing": "pepper", "amt": 100 }]
+    },
+    "beer": {
+      "recipe": [{ "ing": "beer", "amt": 250 }]
+    },
+    "chocolate": {
+      "recipe": [{ "ing": "chocolate", "amt": 8 }]
+    }
+  },
+  "dayPlan": {
+    "train": {
+      "kcalNote": "More carbs to fuel training. Protein target <b>~150 g</b>.",
+      "meals": [
+        {
+          "name": "Breakfast",
+          "jump": "acc-desayunos",
+          "desc": "Oat pancake",
+          "parts": [{ "use": "desayuno", "match": "Oat pancake" }]
+        },
+        {
+          "name": "Lunch",
+          "jump": "acc-proteina",
+          "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-comida')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-fruta')\">fruit</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
+          "parts": [
+            { "use": "proteina", "match": "Chicken breast" },
+            { "use": "carboComida", "tier": "train", "match": "Rice" },
+            { "use": "postre", "match": "Apple" },
+            { "ing": "zucchini", "amt": 150 }
+          ]
+        },
+        {
+          "name": "Post-workout",
+          "jump": "acc-postentreno",
+          "desc": "Banana + whey shake, or turkey ham + toast",
+          "parts": [{ "use": "postentreno", "match": "Banana" }]
+        },
+        {
+          "name": "Dinner",
+          "jump": "acc-proteina",
+          "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-cena')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-postre')\">dessert</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
+          "parts": [
+            { "use": "proteina", "match": "White fish" },
+            { "use": "carboCena", "tier": "train", "match": "Potato" },
+            { "use": "postre", "match": "nuts" },
+            { "ing": "zucchini", "amt": 150 }
+          ]
+        },
+        {
+          "name": "Cooking oil",
+          "jump": null,
+          "desc": "Spray / drizzle — count it",
+          "pcf": false,
+          "parts": [{ "ing": "oliveoil", "amt": 15 }]
+        }
+      ]
+    },
+    "rest": {
+      "kcalNote": "Fewer carbs (no training to fuel). Protein stays <b>~150 g</b>.",
+      "meals": [
+        {
+          "name": "Breakfast",
+          "jump": "acc-desayunos",
+          "descHtml": "Toast + jam + <button class=\"lnk\" onclick=\"jump('acc-anclaje')\">protein anchor</button>",
+          "parts": [{ "use": "desayuno", "match": "Toast" }]
+        },
+        {
+          "name": "Lunch",
+          "jump": "acc-proteina",
+          "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-comida')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-fruta')\">fruit</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
+          "parts": [
+            { "use": "proteina", "match": "Chicken breast" },
+            { "use": "carboComida", "tier": "rest", "match": "Rice" },
+            { "use": "postre", "match": "Apple" },
+            { "ing": "zucchini", "amt": 150 }
+          ]
+        },
+        {
+          "name": "Protein anchor",
+          "jump": "acc-anclaje",
+          "desc": "Whey shake, tuna or turkey ham",
+          "parts": [{ "use": "anclaje", "match": "Whey shake + milk" }]
+        },
+        {
+          "name": "Dinner",
+          "jump": "acc-proteina",
+          "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-cena')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-postre')\">dessert</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
+          "parts": [
+            { "use": "proteina", "match": "White fish" },
+            { "use": "carboCena", "tier": "rest", "match": "Potato" },
+            { "use": "postre", "match": "nuts" },
+            { "ing": "zucchini", "amt": 150 }
+          ]
+        },
+        {
+          "name": "Cooking oil",
+          "jump": null,
+          "desc": "Spray / drizzle — count it",
+          "pcf": false,
+          "parts": [{ "ing": "oliveoil", "amt": 11 }]
+        }
+      ]
+    }
+  },
+  "extrasDisplay": [
+    {
+      "header": "Coffee & oil",
+      "headerNote": "Breakfast already includes its coffee; count the rest here. Oil ≈ 1 tablespoon.",
+      "items": [
+        { "key": "cafe", "emoji": "☕", "name": "Coffee with milk", "qty": "145 ml milk", "note": null },
+        { "key": "aceite", "emoji": "🫒", "name": "Oil", "qty": "1 tablespoon", "note": "10 g fat" }
+      ]
+    },
+    {
+      "header": "Cheese & sauces",
+      "headerNote": null,
+      "items": [
+        { "key": "cheeseslice", "emoji": "🧀", "name": "Cheese slice", "qty": "1 slice 20 g", "note": null },
+        { "key": "tomatosauce", "emoji": "🍅", "name": "Tomato sauce", "qty": "50 g", "note": null }
+      ]
+    },
+    {
+      "header": "Vegetables · per 100 g",
+      "headerNote": null,
+      "items": [
+        { "key": "zucchini", "emoji": "🥒", "name": "Zucchini", "qty": "100 g", "note": null },
+        { "key": "pepper", "emoji": "🫑", "name": "Bell pepper", "qty": "100 g", "note": null }
+      ]
+    },
+    {
+      "header": "Treats",
+      "headerNote": "Beer and chocolate with your real labels.",
+      "items": [
+        { "key": "beer", "emoji": "🍺", "name": "Beer", "qty": "1 bottle 250 ml", "note": null },
+        { "key": "chocolate", "emoji": "🍫", "name": "Chocolate", "qty": "1 square 8 g", "note": null }
+      ]
+    }
+  ],
+  "quesoKeys": [
+    "cheeseslice",
+    "tomatosauce"
+  ],
+  "vegKeys": [
+    "zucchini",
+    "pepper"
+  ],
+  "legumePlate": 300,
+  "legumeKeys": [
+    "lentils",
+    "chickpeas"
+  ]
+}

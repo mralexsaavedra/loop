@@ -1,0 +1,659 @@
+<title>Weekly Nutrition Plan</title>
+<style>
+  :root{
+    --ground:#F1F4F2; --surface:#FFFFFF; --ink:#14211C; --muted:#5C6B63;
+    --accent:#2E6BA8; --accent-soft:#E7EFF8; --line:#E3E8E4;
+    --on-accent:#FFFFFF; --tip-ink:#1B4A77;
+    --lean:#2F7D4F; --lean-bg:#EAF4ED;
+    --mod:#A9731A; --mod-bg:#F8F0DF;
+    --fat:#A6443B; --fat-bg:#F8E8E5;
+    --sans:-apple-system,system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --ground:#0E1512; --surface:#161F1B; --ink:#E8EEEA; --muted:#9DAAA2;
+      --accent:#7FB3E6; --accent-soft:#172838; --line:#253229;
+      --on-accent:#08110E; --tip-ink:#C8DEF5;
+      --lean:#6FD08C; --lean-bg:#16301F;
+      --mod:#E0B25A; --mod-bg:#33280F;
+      --fat:#E88A7F; --fat-bg:#3A201C;
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{background:var(--ground);color:var(--ink);font-family:var(--sans);
+    line-height:1.5;font-variant-numeric:tabular-nums;
+    padding-bottom:64px}
+  .wrap{max-width:680px;margin:0 auto;padding:0 16px}
+
+  /* header */
+  header{padding:26px 0 14px}
+  .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:700}
+  h1{font-size:27px;line-height:1.1;letter-spacing:-.02em;margin-top:6px;text-wrap:balance}
+  .sub{color:var(--muted);font-size:14px;margin-top:8px}
+
+  /* sticky day control */
+  .sticky{position:sticky;top:0;z-index:20;background:var(--ground);
+    padding:10px 0 8px;border-bottom:1px solid var(--line)}
+  .toggle{display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);
+    border-radius:13px;padding:5px}
+  .toggle button{flex:1;border:0;background:transparent;color:var(--muted);
+    font-family:inherit;font-size:14.5px;font-weight:650;padding:11px 8px;border-radius:9px;
+    cursor:pointer;transition:background .15s,color .15s}
+  .toggle button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+  .toggle button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .tabs button{font-size:14px;padding:11px 6px}
+  .subtoggle{margin-top:8px}
+  .tab-panel[hidden]{display:none}
+
+  /* day summary */
+  .summary{display:flex;align-items:baseline;gap:10px;margin:14px 0 4px;flex-wrap:wrap}
+  .kcal{font-size:38px;font-weight:750;letter-spacing:-.03em;line-height:1}
+  .kcal span{font-size:15px;font-weight:600;color:var(--muted);letter-spacing:0}
+  .macros{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0 2px}
+  .mac{background:var(--surface);border:1px solid var(--line);border-radius:9px;
+    padding:7px 11px;font-size:13px;font-weight:600;display:flex;gap:6px;align-items:baseline}
+  .mac b{font-size:15px}
+  .mac .lbl{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+  .deficit{font-size:12.5px;color:var(--muted);margin-top:8px}
+  .deficit b{color:var(--accent)}
+
+  /* section heads */
+  h2{font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);
+    font-weight:700;margin:30px 0 12px;display:flex;align-items:center;gap:10px}
+  h2::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  /* meal cards */
+  .meal{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:14px 16px;margin-bottom:10px}
+  .meal-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+  .meal-name{font-size:16px;font-weight:680;letter-spacing:-.01em}
+  button.meal-name{background:none;border:0;font-family:inherit;cursor:pointer;
+    color:var(--ink);display:inline-flex;align-items:center;gap:6px;text-align:left}
+  button.meal-name::after{content:"›";color:var(--accent);font-weight:800;font-size:18px;line-height:1}
+  button.meal-name:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:5px}
+  .meal-kcal{font-size:15px;font-weight:700;color:var(--accent);white-space:nowrap}
+  .meal-desc{color:var(--muted);font-size:13.5px;margin-top:5px}
+  .meal-pcf{font-size:11.5px;color:var(--muted);margin-top:9px;letter-spacing:.02em;
+    display:flex;gap:12px;flex-wrap:wrap}
+  .meal-pcf span b{color:var(--ink);font-weight:650}
+  .day-panel[hidden]{display:none}
+  .combo-h{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);
+    font-weight:700;margin:18px 0 8px}
+
+  /* day builder */
+  .builder{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:10px}
+  .bld-row{margin:0}
+  .bld-row label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--muted);font-weight:700;margin-bottom:5px}
+  .builder select{width:100%;font:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--line);
+    border-radius:10px;background:var(--ground);color:var(--ink);-webkit-appearance:none;appearance:none}
+  .builder .bld-row + .bld-row{margin-top:10px}
+  .bld-check{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:600;cursor:pointer;margin-top:11px}
+  .bld-check input{width:18px;height:18px;accent-color:var(--accent)}
+  .extras{display:flex;flex-direction:column;gap:11px;margin-top:4px}
+  .extra{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;font-weight:600}
+  .extra span small{display:block;font-weight:500;font-size:11.5px;color:var(--muted);margin-top:2px;letter-spacing:.01em}
+  .stepper{display:flex;align-items:center;gap:13px}
+  .stepper button{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);
+    background:var(--ground);color:var(--ink);font-size:19px;font-weight:700;cursor:pointer;line-height:1}
+  .stepper button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .stepper .cnt{min-width:16px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+  .readout{background:var(--accent-soft);border:1px solid var(--accent);border-radius:14px;padding:14px 16px;margin-top:16px}
+  .read-kcal{font-size:26px;font-weight:750;letter-spacing:-.02em;line-height:1.1}
+  .read-kcal span{font-size:12.5px;color:var(--muted);font-weight:600;letter-spacing:0}
+  .read-macros{display:flex;gap:7px;flex-wrap:wrap;margin:11px 0 4px}
+  .verdict{font-size:13px;line-height:1.45;margin-top:8px}
+  .verdict div{margin:5px 0}
+  .v-ok{color:var(--lean);font-weight:600} .v-warn{color:var(--mod);font-weight:600} .v-bad{color:var(--fat);font-weight:600}
+
+  /* inline link to a table */
+  .lnk{background:none;border:0;padding:0;font:inherit;color:var(--accent);
+    font-weight:650;cursor:pointer;text-decoration:underline;
+    text-underline-offset:2px;text-decoration-thickness:1px}
+  .lnk:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+
+  /* equivalence accordions */
+  details{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    margin-bottom:10px;overflow:hidden;scroll-margin-top:72px}
+  summary{padding:15px 16px;font-size:15.5px;font-weight:680;cursor:pointer;
+    list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  summary::-webkit-details-marker{display:none}
+  summary .chev{color:var(--muted);font-size:13px;transition:transform .2s}
+  details[open] summary .chev{transform:rotate(90deg)}
+  summary:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+  .acc-body{padding:0 16px 16px}
+  .acc-note{font-size:12.5px;color:var(--muted);margin:-2px 0 12px}
+
+  /* tables */
+  .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:420px}
+  caption{text-align:left;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);font-weight:700;padding:14px 0 7px}
+  th,td{padding:8px 9px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+  th:first-child,td:first-child{text-align:left;white-space:normal;min-width:135px}
+  thead th{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+  tbody tr:last-child td{border-bottom:0}
+  td.kc{font-weight:700}
+
+  /* tier tag */
+  .tier{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;
+    padding:7px 11px;border-radius:8px;margin:14px 0 4px}
+  .tier.lean{background:var(--lean-bg);color:var(--lean)}
+  .tier.mod{background:var(--mod-bg);color:var(--mod)}
+  .tier.fat{background:var(--fat-bg);color:var(--fat)}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .dot.lean{background:var(--lean)} .dot.mod{background:var(--mod)} .dot.fat{background:var(--fat)}
+
+  /* supplements */
+  .supp{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+  .supp:last-child{border-bottom:0}
+  .supp .when{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--accent);background:var(--accent-soft);padding:5px 9px;border-radius:7px;white-space:nowrap;flex:none;min-width:74px;text-align:center}
+  .supp .what{font-size:14px;font-weight:620}
+  .supp .what small{display:block;color:var(--muted);font-weight:500;font-size:12.5px;margin-top:2px}
+
+  .tip{background:var(--accent-soft);border-radius:11px;padding:12px 14px;font-size:13px;
+    color:var(--tip-ink);margin-top:6px}
+  .tip b{font-weight:700}
+
+  footer{margin:34px 0 10px;font-size:11.5px;color:var(--muted);line-height:1.6;
+    border-top:1px solid var(--line);padding-top:14px}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+  /* builder copy/export + off-plan notes (not generated — outside GEN regions) */
+  #bld-notes{width:100%;font:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--line);
+    border-radius:10px;background:var(--ground);color:var(--ink);min-height:54px;resize:vertical;
+    line-height:1.45;-webkit-appearance:none;appearance:none}
+  .btn{font:inherit;font-weight:680;font-size:14.5px;padding:12px 16px;border-radius:11px;
+    border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);cursor:pointer}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .btn-ghost{background:transparent;color:var(--accent)}
+  .btn-row{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+  .bld-msg{color:var(--lean);font-size:12.5px;font-weight:650;margin-top:10px;min-height:16px}
+  #bld-output{display:none;width:100%;margin-top:12px;font:inherit;font-size:12.5px;line-height:1.45;
+    padding:11px 12px;border:1px solid var(--accent);border-radius:10px;background:var(--accent-soft);
+    color:var(--ink);min-height:120px;resize:vertical}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="kicker">Nutrition · Example plan</div>
+    <h1>Weekly Nutrition Plan</h1>
+    <p class="sub">Pick the day type and see what to eat. Tap a meal name or an underlined source to open its table. Everything inside a table is interchangeable — the calories add up the same.</p>
+  </header>
+
+  <div class="sticky">
+    <div class="toggle tabs" role="tablist" aria-label="Sections">
+      <button id="t-dia" role="tab" aria-pressed="true" onclick="setTab('dia')">🍽️ My day</button>
+      <button id="t-registro" role="tab" aria-pressed="false" onclick="setTab('registro')">📋 Log</button>
+      <button id="t-tablas" role="tab" aria-pressed="false" onclick="setTab('tablas')">📊 Tables</button>
+    </div>
+    <div class="toggle subtoggle" id="day-toggle" role="group" aria-label="Day type">
+      <button id="b-train" aria-pressed="true" onclick="setDay('train')">🏋️ Training</button>
+      <button id="b-rest" aria-pressed="false" onclick="setDay('rest')">😴 Rest</button>
+    </div>
+  </div>
+
+  <div class="tab-panel" data-tab="dia">
+  <!-- GEN:DAYPLAN START — generated from plan-data.json by generate.js. DO NOT EDIT BY HAND. -->
+  <div class="day-panel" data-day="train">
+    <div class="summary">
+      <div class="kcal">~2.300 <span>kcal</span></div>
+    </div>
+    <div class="macros">
+      <div class="mac"><span class="lbl">Prot</span><b>150 g</b></div>
+      <div class="mac"><span class="lbl">Carb</span><b>270 g</b></div>
+      <div class="mac"><span class="lbl">Grasa</span><b>55 g</b></div>
+    </div>
+    <p class="deficit">More carbs to fuel training. Protein target <b>~150 g</b>.</p>
+
+    <h2>El día</h2>
+    <div class="meal">
+      <div class="meal-top"><button class="meal-name" onclick="jump('acc-desayunos')">Breakfast</button><div class="meal-kcal">~450 kcal</div></div>
+      <div class="meal-desc">Oat pancake</div>
+      <div class="meal-pcf"><span><b>40</b> P</span><span><b>50</b> C</span><span><b>10</b> G</span></div>
+    </div>
+  </div>
+  <div class="day-panel" data-day="rest" hidden>
+    <div class="summary">
+      <div class="kcal">~2.000 <span>kcal</span></div>
+    </div>
+    <div class="macros">
+      <div class="mac"><span class="lbl">Prot</span><b>150 g</b></div>
+      <div class="mac"><span class="lbl">Carb</span><b>220 g</b></div>
+      <div class="mac"><span class="lbl">Grasa</span><b>55 g</b></div>
+    </div>
+    <p class="deficit">Fewer carbs (no training to fuel). Protein stays <b>~150 g</b>.</p>
+
+    <h2>El día</h2>
+    <div class="meal">
+      <div class="meal-top"><button class="meal-name" onclick="jump('acc-desayunos')">Breakfast</button><div class="meal-kcal">~440 kcal</div></div>
+      <div class="meal-desc">Toast + jam + protein anchor</div>
+      <div class="meal-pcf"><span><b>30</b> P</span><span><b>45</b> C</span><span><b>15</b> G</span></div>
+    </div>
+  </div>
+  <!-- GEN:DAYPLAN END -->
+  </div>
+
+  <div class="tab-panel" data-tab="registro" hidden>
+  <!-- DAY BUILDER / REGISTRO -->
+  <h2>Food log</h2>
+  <p class="acc-note" style="margin:-4px 0 10px">Tick what you ate today (it follows the day type from the selector above). It tells you on the spot if you are short on protein, if you go over, and what to cut. Anything the plan does not cover (eating out, weekend, restaurant) write it in <b>Off plan</b>. When you want, paste it: press <b>Copy for Claude</b> and paste it into the chat. Nothing is saved — live calculator.</p>
+  <div class="builder">
+    <div class="bld-row"><label>Breakfast</label><select id="bld-desayuno"></select></div>
+
+    <div class="combo-h">Lunch</div>
+    <div class="bld-row"><label>Protein</label><select id="bld-prot-comida"></select></div>
+    <div class="bld-row"><label>Carb</label><select id="bld-carbo-comida"></select></div>
+    <div class="bld-row"><label>Dessert</label><select id="bld-postre-comida"></select></div>
+
+    <div class="combo-h" id="bld-pe-label">Post-workout</div>
+    <div class="bld-row"><label>Option</label><select id="bld-postentreno"></select></div>
+
+    <div class="combo-h">Dinner</div>
+    <div class="bld-row"><label>Protein</label><select id="bld-prot-cena"></select></div>
+    <div class="bld-row"><label>Carb</label><select id="bld-carbo-cena"></select></div>
+    <div class="bld-row"><label>Dessert</label><select id="bld-postre-cena"></select></div>
+
+    <!-- GEN:EXTRAS START — generated from plan-data.json by generate.js. DO NOT EDIT BY HAND. -->
+    <div class="combo-h">Coffee &amp; oil</div>
+    <p class="acc-note" style="margin:-2px 0 6px">Breakfast already includes its coffee; count the rest here. Oil ≈ 1 tablespoon.</p>
+    <div class="extras">
+      <div class="extra"><span>☕ Coffee with milk<small>145 ml milk · ~67 kcal</small></span><div class="stepper"><button type="button" aria-label="less Coffee with milk" onclick="bump('cafe',-1)">−</button><span class="cnt" id="x-cafe">0</span><button type="button" aria-label="more Coffee with milk" onclick="bump('cafe',1)">+</button></div></div>
+      <div class="extra"><span>🫒 Oil<small>1 tablespoon · ~90 kcal · 10 g fat</small></span><div class="stepper"><button type="button" aria-label="less Oil" onclick="bump('aceite',-1)">−</button><span class="cnt" id="x-aceite">0</span><button type="button" aria-label="more Oil" onclick="bump('aceite',1)">+</button></div></div>
+    </div>
+    <!-- GEN:EXTRAS END -->
+
+    <div class="combo-h">Off plan / notes</div>
+    <p class="acc-note" style="margin:-2px 0 6px">Anything not in the lists: eating out, restaurant, the weekend, or how you felt. Free text.</p>
+    <textarea id="bld-notes" placeholder="E.g.: ate out — set menu (lentils + breaded fish + flan). 2 beers. Heavy meal."></textarea>
+
+    <div class="readout">
+      <div class="read-kcal" id="r-kcal">—</div>
+      <div class="read-macros" id="r-macros"></div>
+      <div class="verdict" id="r-verdict"></div>
+    </div>
+
+    <div class="btn-row">
+      <button type="button" class="btn" id="bld-copy">📋 Copy for Claude</button>
+    </div>
+    <div class="bld-msg" id="bld-msg"></div>
+    <textarea id="bld-output" readonly aria-label="Log text to copy"></textarea>
+  </div>
+  </div>
+
+  <div class="tab-panel" data-tab="tablas" hidden>
+  <!-- EQUIVALENCES -->
+  <h2>Equivalences</h2>
+
+  <details id="acc-desayunos">
+    <summary>☕ Breakfasts <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <p class="acc-note">Pick the breakfast that fits the day. Target ~35–40 g protein. The protein anchor options live in the <button class="lnk" onclick="jump('acc-anclaje')">🥛 Protein anchor</button> table.</p>
+      <!-- GEN:BREAKFAST START — generated from plan-data.json by generate.js. DO NOT EDIT BY HAND. -->
+      <div class="table-scroll"><table>
+        <caption>🟢 A — Oat pancake · ~450 kcal · 40 P · 50 C · 10 G</caption>
+        <thead><tr><th>Componente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody>
+          <tr><td>Oats</td><td>60 g</td><td class="kc">228</td><td>8</td><td>36</td><td>5</td></tr>
+          <tr><td>Egg whites</td><td>150 ml</td><td class="kc">78</td><td>16,5</td><td>1,1</td><td>0,3</td></tr>
+          <tr><td>Whey (sauce)</td><td>20 g</td><td class="kc">76</td><td>14,4</td><td>1,6</td><td>1,2</td></tr>
+          <tr><td>Coffee with milk</td><td>145 ml</td><td class="kc">67</td><td>4,9</td><td>7</td><td>2,5</td></tr>
+        </tbody>
+      </table></div>
+      <!-- GEN:BREAKFAST END -->
+    </div>
+  </details>
+
+  <details id="acc-carbo-comida">
+    <summary>🍚 Lunch carbs <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <p class="acc-note">Dry weight. Carbs dropped here are made up at dinner. Pasta shape does not matter: same dry weight = same macros.</p>
+      <div class="table-scroll"><table>
+        <caption>🏋️ Training</caption>
+        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-cc-train"></tbody>
+      </table></div>
+      <div class="table-scroll"><table>
+        <caption>😴 Rest</caption>
+        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-cc-rest"></tbody>
+      </table></div>
+    </div>
+  </details>
+
+  <details id="acc-carbo-cena">
+    <summary>🥔 Dinner carbs <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <p class="acc-note">Cooked/ready weight. Larger portion: absorbs the carbs dropped from lunch.</p>
+      <div class="table-scroll"><table>
+        <caption>🏋️ Training</caption>
+        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-cce-train"></tbody>
+      </table></div>
+      <div class="table-scroll"><table>
+        <caption>😴 Rest</caption>
+        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-cce-rest"></tbody>
+      </table></div>
+    </div>
+  </details>
+
+  <details id="acc-proteina">
+    <summary>🥩 Protein <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <p class="acc-note">~40 g protein per serving, raw weight. Lean every day; leave the red for treats.</p>
+      <div class="tier lean"><span class="dot lean"></span>Lean — daily base</div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-prot-lean"></tbody>
+      </table></div>
+      <div class="tier mod"><span class="dot mod"></span>Moderate — with awareness</div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-prot-mod"></tbody>
+      </table></div>
+      <div class="tier fat"><span class="dot fat"></span>Fatty — occasional</div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-prot-fat"></tbody>
+      </table></div>
+    </div>
+  </details>
+
+  <details id="acc-anclaje">
+    <summary>🥛 Protein anchor (~25 g) <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <p class="acc-note">Quick options for the rest day. The light yogurt does NOT count as protein.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Opción</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-anclaje"></tbody>
+      </table></div>
+    </div>
+  </details>
+
+  <details id="acc-postentreno">
+    <summary>🍌 Post-workout <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <p class="acc-note">~25–30 g protein. The shake already carries its carb (banana); the cold cuts go with 1 slice of toast. Timing is not critical.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Opción</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-pe"></tbody>
+      </table></div>
+    </div>
+  </details>
+
+  <details id="acc-fruta">
+    <summary>🍎 Fruit <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <p class="acc-note">As dessert or with the meal. Standard reference values, per piece/serving.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Fruta</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-fruta"></tbody>
+      </table></div>
+    </div>
+  </details>
+
+  <details id="acc-postre">
+    <summary>🍨 Dessert <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <p class="acc-note">For lunch and dinner. Fruit is the lightest; the yogurt with nuts and honey is the richest. The light yogurt does NOT count as protein.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Opción</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-postre"></tbody>
+      </table></div>
+    </div>
+  </details>
+
+  <details id="acc-verduras">
+    <summary>🥦 Vegetables <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <p class="acc-note">Eat them almost freely in a cut — they fill you up and add little. Standard reference values, per 100 g.</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Verdura</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-verduras"></tbody>
+      </table></div>
+    </div>
+  </details>
+
+  <details id="acc-quesos">
+    <summary>🧀 Cheeses &amp; sauces <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <p class="acc-note">They add fat/salt → count them, they are not "free".</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Item</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-quesos"></tbody>
+      </table></div>
+    </div>
+  </details>
+
+  <h2>Supplements</h2>
+  <div class="meal" style="padding:6px 16px">
+    <div class="supp"><span class="when">Lunch</span><div class="what">Creatine monohydrate<small>3 g, with water</small></div></div>
+    <div class="supp"><span class="when">Dinner</span><div class="what">Magnesium<small>follow product dosage · may support sleep</small></div></div>
+    <div class="supp"><span class="when">Workout</span><div class="what">Electrolytes<small>on hot days / long sessions</small></div></div>
+  </div>
+
+  <h2>How to use it</h2>
+  <div class="tip">
+    <b>Inside each table, every option is worth the same.</b> Pick the food you fancy and look at its grams — the day total does not change. For protein, lean <b style="color:var(--lean)">green</b> every day; leave the <b style="color:var(--fat)">red</b> for treats. Count the fat added by oily carbs.
+  </div>
+  </div>
+
+  <footer>
+    Example cutting plan (~2.150 kcal/day average). Replace these foods, targets and notes with your own data in <code>plan-data.json</code>, then run <code>npm run generate</code>.<br><br>
+    Figures are approximate and for guidance only — not medical advice. For clinical questions, consult a professional.
+  </footer>
+</div>
+
+<script>
+  function setDay(day){
+    document.querySelectorAll('.day-panel').forEach(function(p){
+      p.hidden = (p.getAttribute('data-day') !== day);
+    });
+    var t = document.getElementById('b-train'), r = document.getElementById('b-rest');
+    t.setAttribute('aria-pressed', day === 'train');
+    r.setAttribute('aria-pressed', day === 'rest');
+    if(window.bldRefresh) window.bldRefresh();
+  }
+  function setTab(name, scrollTop){
+    document.querySelectorAll('.tab-panel').forEach(function(p){
+      p.hidden = (p.getAttribute('data-tab') !== name);
+    });
+    [['t-dia','dia'],['t-registro','registro'],['t-tablas','tablas']].forEach(function(pair){
+      var b = document.getElementById(pair[0]);
+      if(b) b.setAttribute('aria-pressed', pair[1] === name);
+    });
+    var dt = document.getElementById('day-toggle');
+    if(dt) dt.style.display = (name === 'tablas') ? 'none' : '';
+    if(scrollTop !== false) window.scrollTo({top:0, behavior:'auto'});
+  }
+  function jump(id){
+    var el = document.getElementById(id);
+    if(!el) return;
+    var panel = el.closest && el.closest('.tab-panel');
+    if(panel) setTab(panel.getAttribute('data-tab'), false);
+    el.open = true;
+    setTimeout(function(){ el.scrollIntoView({behavior:'smooth', block:'start'}); }, 30);
+  }
+
+  /* ---- day builder ---- */
+  (function(){
+    /* GEN:DATA START — generated from plan-data.json by generate.js. DO NOT EDIT BY HAND.
+       Edit data/nutrition/plan-data.json (ingredients + recipes) and run `node data/nutrition/generate.js`.
+       Macros below are COMPUTED from ingredient*amt — do not hand-tune them here.
+       Item fields: l = dropdown label · n/q = table name/amount · k/p/c/g = macros ·
+       t = protein tier · note = caption · none = the "— ninguno —" option (skipped in tables). */
+    var DATA = {
+      desayuno:[
+        {l:'— none —',none:1,k:0,p:0,c:0,g:0},
+        {l:'🥞 A · Oat pancake',k:450,p:40,c:50,g:10},
+        {l:'🍞 B · Toast + protein',k:440,p:30,c:45,g:15}
+      ],
+      postre:[
+        {l:'— none —',none:1,k:0,p:0,c:0,g:0},
+        {l:'🍌 Banana',cat:'fruit',n:'Banana',q:'1 (120 g)',k:106,p:1,c:27,g:0.4},
+        {l:'🥛 Yogurt only',cat:'yogurt',n:'Light greek yogurt',q:'125 g',k:75,p:7.3,c:5.9,g:2.5}
+      ],
+      proteina:[
+        {l:'— none —',none:1,k:0,p:0,c:0,g:0},
+        {l:'🟢 Chicken breast (175 g)',t:'lean',n:'Chicken breast',q:'175 g',k:193,p:40.3,c:0,g:3.5}
+      ],
+      postentreno:[
+        {l:'— none —',none:1,k:0,p:0,c:0,g:0},
+        {l:'🍌 Banana + shake (20 g whey)',n:'Banana + whey shake',q:'banana + 20 g + 180 ml milk',k:265,p:21,c:38,g:5}
+      ],
+      anclaje:[
+        {l:'— none —',none:1,k:0,p:0,c:0,g:0},
+        {l:'🥤 Whey shake + milk (30 g + 100 ml)',n:'Whey shake + milk',q:'30 g + 100 ml',k:160,p:25,c:8,g:3.5}
+      ],
+      carboComida:{
+        train:[
+          {l:'— none —',none:1,k:0,p:0,c:0,g:0},
+          {l:'🍚 Rice (130 g dry)',n:'Rice',q:'130 g',k:468,p:9.1,c:102.7,g:1.3}
+        ],
+        rest:[
+          {l:'— none —',none:1,k:0,p:0,c:0,g:0},
+          {l:'🍚 Rice (100 g dry)',n:'Rice',q:'100 g',k:360,p:7,c:79,g:1}
+        ]
+      },
+      carboCena:{
+        train:[
+          {l:'— none —',none:1,k:0,p:0,c:0,g:0},
+          {l:'🥔 Potato (385 g)',n:'Potato',q:'385 g',k:331,p:7.3,c:73.9,g:0.4}
+        ],
+        rest:[
+          {l:'— none —',none:1,k:0,p:0,c:0,g:0},
+          {l:'🥔 Potato (240 g)',n:'Potato',q:'240 g',k:206,p:4.6,c:46.1,g:0.2}
+        ]
+      }
+    };
+    var EXTRAS = {
+      cafe:{k:67,p:4.9,c:7,g:2.5},
+      aceite:{k:90,p:0,c:0,g:10}
+    };
+    var QUESO_KEYS=['cheeseslice','tomatosauce'];
+    var VEG_KEYS=['zucchini','pepper'];
+    /* GEN:DATA END */
+    var TARGET = {train:{k:2300,p:150,fatMax:75}, rest:{k:2000,p:150,fatMax:70}};
+    var X = {cafe:0,aceite:0,cheeseslice:0,tomatosauce:0,zucchini:0,pepper:0,beer:0,chocolate:0};
+    var LAST={k:0,p:0,c:0,g:0};
+    var XN={cafe:'coffee with milk',aceite:'oil',cheeseslice:'cheese slice',tomatosauce:'tomato sauce',zucchini:'zucchini',pepper:'bell pepper',beer:'beer',chocolate:'chocolate'};
+
+    function el(id){return document.getElementById(id);}
+    function mkOpt(o){var e=document.createElement('option');e.textContent=o.l;e.dataset.k=o.k;e.dataset.p=o.p;e.dataset.c=o.c;e.dataset.g=o.g;return e;}
+    function fill(id,arr){var s=el(id);s.innerHTML='';arr.forEach(function(o){s.appendChild(mkOpt(o));});}
+    function val(id){var s=el(id),o=s.options[s.selectedIndex];return o?{k:+o.dataset.k,p:+o.dataset.p,c:+o.dataset.c,g:+o.dataset.g}:{k:0,p:0,c:0,g:0};}
+    function day(){return el('b-rest').getAttribute('aria-pressed')==='true'?'rest':'train';}
+    function repopDay(){var d=day();fill('bld-carbo-comida',DATA.carboComida[d]);fill('bld-carbo-cena',DATA.carboCena[d]);fill('bld-postentreno',d==='train'?DATA.postentreno:DATA.anclaje);el('bld-pe-label').textContent=(d==='train'?'Post-workout':'Protein anchor');}
+    function mac(l,n){return '<div class="mac"><span class="lbl">'+l+'</span><b>'+n+' g</b></div>';}
+
+    window.bump = function(key,d){X[key]=Math.max(0,X[key]+d);el('x-'+key).textContent=X[key];recalc();};
+
+    function recalc(){
+      var d=day(), t=TARGET[d];
+      var tot={k:0,p:0,c:0,g:0};
+      ['bld-desayuno','bld-prot-comida','bld-carbo-comida','bld-postre-comida','bld-postentreno','bld-prot-cena','bld-carbo-cena','bld-postre-cena'].forEach(function(id){var v=val(id);tot.k+=v.k;tot.p+=v.p;tot.c+=v.c;tot.g+=v.g;});
+      var postreK=val('bld-postre-comida').k+val('bld-postre-cena').k;
+      var exK=0, INDULGE={beer:1,chocolate:1};
+      Object.keys(X).forEach(function(key){var n=X[key];if(n){var e=EXTRAS[key];if(!e)return;tot.k+=n*e.k;tot.p+=n*e.p;tot.c+=n*e.c;tot.g+=n*e.g;if(INDULGE[key])exK+=n*e.k;}});
+      var rk=Math.round(tot.k), rp=Math.round(tot.p), rc=Math.round(tot.c), rg=Math.round(tot.g);
+
+      el('r-kcal').innerHTML=rk+' <span>kcal · target ~'+t.k+'</span>';
+      el('r-macros').innerHTML=mac('Prot',rp)+mac('Carb',rc)+mac('Grasa',rg);
+
+      var v=[];
+      if(rp>=t.p-10) v.push(['ok','Protein ✓ — '+rp+' g']);
+      else if(rp>=t.p-40) v.push(['warn','Protein a little short ('+rp+' g, target ~'+t.p+'). Add an anchor (~25 g) or raise the serving.']);
+      else v.push(['bad','Protein very short ('+rp+' g, target ~'+t.p+'). Add lean protein.']);
+
+      var diff=rk-t.k;
+      if(diff>200){
+        var cut=[];
+        if(exK>0) cut.push('the extras weigh ~'+Math.round(exK)+' kcal');
+        if(postreK>120) cut.push('lighten the dessert (fruit or plain yogurt)');
+        cut.push('drop a portion of the dinner carb');
+        v.push(['bad','You are ~'+diff+' kcal over. To balance: '+cut.join(' · ')+'.']);
+      } else if(diff<-300){
+        v.push(['warn','You are ~'+(-diff)+' kcal under. Fine for a cut if you are not hungry; if you are, raise the carb (do not drop protein).']);
+      } else {
+        v.push(['ok','Calories on target ('+(diff>=0?'+':'')+diff+' kcal).']);
+      }
+
+      if(rg>t.fatMax) v.push(['warn','Fat high ('+rg+' g). Usually from fatty protein or oily carbs — switch to lean/potato.']);
+      if(X.beer>0){var ak=X.beer*EXTRAS.beer.k;v.push(['warn','🍺 '+X.beer+' beer(s) ≈ '+ak+' kcal of alcohol (empty). Trim ~'+ak+' kcal of carbs, not protein.']);}
+      if(X.chocolate>0) v.push(['warn','🍫 Sweet treats: count them as the day\'s carbs. If you go over, cut the dinner carb or skip dessert.']);
+
+      el('r-verdict').innerHTML=v.map(function(x){return '<div class="v-'+x[0]+'">'+x[1]+'</div>';}).join('');
+      LAST={k:rk,p:rp,c:rc,g:rg};
+    }
+
+    /* ---- paint the equivalence tables from the SAME DATA/EXTRAS (single source) ---- */
+    function fnum(n){return (''+n).replace('.',',');}
+    function rowHtml(o){
+      var name=o.n+(o.note?' <small>'+o.note+'</small>':'');
+      return '<tr><td>'+name+'</td><td>'+(o.q||'')+'</td><td class="kc">'+o.k+'</td><td>'+fnum(o.p)+'</td><td>'+fnum(o.c)+'</td><td>'+fnum(o.g)+'</td></tr>';
+    }
+    function paint(id,arr){var t=el(id);if(t)t.innerHTML=arr.map(rowHtml).join('');}
+    function eatable(arr){return arr.filter(function(o){return !o.none;});}
+    function byTier(t){return DATA.proteina.filter(function(o){return o.t===t;});}
+    function extraRows(keys){return keys.map(function(k){return rowHtml(EXTRAS[k]);}).join('');}
+
+    paint('tb-prot-lean',byTier('lean'));
+    paint('tb-prot-mod',byTier('mod'));
+    paint('tb-prot-fat',byTier('fat'));
+    paint('tb-cc-train',eatable(DATA.carboComida.train));
+    paint('tb-cc-rest',eatable(DATA.carboComida.rest));
+    paint('tb-cce-train',eatable(DATA.carboCena.train));
+    paint('tb-cce-rest',eatable(DATA.carboCena.rest));
+    paint('tb-pe',eatable(DATA.postentreno));
+    paint('tb-anclaje',eatable(DATA.anclaje));
+    paint('tb-fruta',DATA.postre.filter(function(o){return o.cat==='fruit';}));
+    var tbP=el('tb-postre');
+    if(tbP) tbP.innerHTML='<tr><td><button class="lnk" onclick="jump(\'acc-fruta\')">Fruit (1 piece)</button></td><td>varies</td><td class="kc">30–105</td><td>1</td><td>7–27</td><td>0</td></tr>'+DATA.postre.filter(function(o){return o.cat==='yogurt';}).map(rowHtml).join('');
+    paint('tb-verduras',VEG_KEYS.map(function(k){return EXTRAS[k];}));
+    paint('tb-quesos',QUESO_KEYS.map(function(k){return EXTRAS[k];}));
+
+    fill('bld-desayuno',DATA.desayuno);
+    fill('bld-prot-comida',DATA.proteina);
+    fill('bld-prot-cena',DATA.proteina);
+    fill('bld-postre-comida',DATA.postre);
+    fill('bld-postre-cena',DATA.postre);
+    repopDay();
+    window.bldRefresh=function(){repopDay();recalc();};
+    ['bld-desayuno','bld-prot-comida','bld-carbo-comida','bld-postre-comida','bld-postentreno','bld-prot-cena','bld-carbo-cena','bld-postre-cena'].forEach(function(id){el(id).addEventListener('change',recalc);});
+
+    /* ---- copy the day's selections + computed totals as plain text to paste into chat ---- */
+    function todayStr(){var dt=new Date(),m=('0'+(dt.getMonth()+1)).slice(-2),da=('0'+dt.getDate()).slice(-2);return dt.getFullYear()+'-'+m+'-'+da;}
+    function pick(id){var s=el(id),o=s.options[s.selectedIndex];if(!o)return null;var t=o.textContent;return /none|ningun/i.test(t)?null:t;}
+    function combine(){var parts=[].slice.call(arguments).map(pick).filter(Boolean);return parts.length?parts.join(' + '):null;}
+    function bldMsg(t){var m=el('bld-msg');m.textContent=t;if(t){setTimeout(function(){if(m.textContent===t)m.textContent='';},5000);}}
+    function buildDayText(){
+      recalc();
+      var d=day(), t=TARGET[d];
+      var lines=['LOG — '+todayStr()+' · '+(d==='train'?'Training':'Rest')];
+      var des=pick('bld-desayuno'); if(des) lines.push('Breakfast: '+des);
+      var com=combine('bld-prot-comida','bld-carbo-comida','bld-postre-comida'); if(com) lines.push('Lunch: '+com);
+      var pe=pick('bld-postentreno'); if(pe) lines.push((el('bld-pe-label').textContent||'Post-workout')+': '+pe);
+      var cen=combine('bld-prot-cena','bld-carbo-cena','bld-postre-cena'); if(cen) lines.push('Dinner: '+cen);
+      var ex=Object.keys(X).filter(function(k){return X[k]>0;}).map(function(k){return X[k]+'× '+(XN[k]||k);});
+      if(ex.length) lines.push('Extras: '+ex.join(', '));
+      var notes=el('bld-notes').value.trim(); if(notes) lines.push('Off plan: '+notes);
+      lines.push('TOTAL (computed): ~'+LAST.k+' kcal · '+LAST.p+' P · '+LAST.c+' C · '+LAST.g+' G  (target ~'+t.k+' kcal / '+t.p+' P)');
+      return lines.join('\n');
+    }
+    function copyDay(){
+      var text=buildDayText();
+      var ta=el('bld-output');ta.style.display='block';ta.value=text;ta.focus();ta.select();
+      function fallback(){try{document.execCommand('copy');bldMsg('Copied ✓ — paste it into the chat (or select the text and copy it manually).');}catch(e){bldMsg('Select the text above and copy it manually.');}}
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){bldMsg('Copied ✓ — paste it into the chat with Claude.');},fallback);
+      } else { fallback(); }
+    }
+    el('bld-copy').addEventListener('click',copyDay);
+
+    recalc();
+  })();
+</script>
