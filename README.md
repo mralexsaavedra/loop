@@ -16,12 +16,14 @@ instead of generic advice with no data behind it.
 
 ## How to use it
 
-1. **Fill your profile.** Edit `profile/about-me.md` and `profile/baseline.md`.
-   Without this, any analysis is guessing.
+1. **Fill your profile.** Copy the templates `profile/about-me.example.md` →
+   `profile/about-me.md` and `profile/baseline.example.md` → `profile/baseline.md`, then
+   fill them in. The `.md` (non-example) names are gitignored — they stay local. Without
+   this, any analysis is guessing.
 2. **Drop your data.**
    - Apple Health: iPhone → Health app → your photo → *Export All Health Data*.
      Unzip and place `export.xml` in `data/apple-health/`.
-   - Nutrition: log meals in `data/nutrition/food-log.md` (see template).
+   - Nutrition: copy `data/nutrition/food-log.example.md` → `food-log.md` and log meals there.
    - Weight: tracked automatically from Apple Health, or log in
      `data/weight/weight-log.md`.
 3. **Ask Claude to run an analysis.** It reads `CLAUDE.md`, follows

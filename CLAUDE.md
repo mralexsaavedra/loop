@@ -31,6 +31,11 @@ questions); **this file** = durable operating facts; **`CHANGELOG.md`** = dated 
    - Plan reference (per-serving tables): `data/nutrition/plan-tables.md` — generated.
      Read it for plan numbers; to CHANGE one, see "Nutrition plan — data pipeline" below.
    - Weight: `data/weight/weight-log.md` if present.
+   - Training programs: `data/training/*.pdf` — the coach's programmed sessions
+     (strength / metcon / endurance blocks). Use for modality balance & periodization.
+   - Nutritionist history: `data/nutritionist/` — 2023 anthropometric assessments +
+     nutrition plans, and `RESUMEN-y-comparativa.md`. Reference for proven-effective
+     targets (e.g. the rest-day calorie floor the owner lost fat on).
 3. **Analyze per methodology.** Use trends (rolling averages), not single-day noise.
    Compare against previous reports in `analysis/reports/` to track progress.
 4. **Write a report** to `analysis/reports/YYYY-MM-DD.md` and summarize the key
