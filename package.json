@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Tooling for the nutrition plan single source of truth (data/nutrition).",
+  "license": "MIT",
   "scripts": {
     "generate": "node data/nutrition/generate.js",
     "check": "node data/nutrition/generate.js --check",

@@ -14,6 +14,16 @@ instead of generic advice with no data behind it.
   **on demand** (when you drop new data) or **on a schedule** (e.g. weekly).
 - **Is not:** medical advice. See the disclaimer below.
 
+## Requirements
+
+- **[Claude Code](https://claude.com/claude-code)** — the repo is designed to be read and
+  operated by it. `CLAUDE.md` is the operating manual the agent reads on each session.
+- **Node.js** — only for the nutrition tooling (`npm run generate`, `npm run check`,
+  `npm test`). Zero runtime dependencies.
+- **A persistent-memory tool (optional).** The workflow uses [Engram](https://github.com/)
+  for cross-session state if present, but it is **not required** — without it, durable
+  state lives entirely in the tracked files and `CHANGELOG.md`.
+
 ## How to use it
 
 1. **Fill your profile.** Copy the templates `profile/about-me.example.md` →
@@ -34,8 +44,18 @@ instead of generic advice with no data behind it.
 ## Privacy
 
 Raw health data is **medical-grade sensitive** and is excluded from git via
-`.gitignore`. It lives only on local disk. Before pushing this repo to any remote
-or server, confirm no personal data is staged: `git status`.
+`.gitignore`. It lives only on local disk. The tracked tree is **framework + tooling +
+`.example` templates only** — never your data.
+
+Before pushing to any remote, confirm nothing personal is staged or in history:
+
+```sh
+git status                 # working tree clean of personal data
+git log --all --oneline -- profile/ data/   # should show only .example / tooling / .gitkeep
+```
+
+If you ever committed real data by accident, rewrite history (e.g. `git filter-repo`)
+before going public — `.gitignore` does not retroactively remove data from past commits.
 
 ## Disclaimer
 
@@ -43,3 +63,8 @@ Recommendations here are general guidance derived from your data and standard
 nutrition/training principles. They are **not** a substitute for a licensed
 physician or registered dietitian, especially for any clinical condition,
 medication, or prescribed diet.
+
+## License
+
+MIT — see [LICENSE](LICENSE). The license covers the framework and tooling. Any data
+you add is yours and stays local (gitignored).

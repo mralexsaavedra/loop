@@ -5,13 +5,16 @@ Your job: turn real personal data into grounded, honest recommendations.
 
 ## Start of every session (read first)
 
-Run `mem_context` (Engram) before doing anything else — it holds the current state,
-decisions, and next actions, synced across the owner's machines (homelab + MacBook).
-At the end of a working session, persist a `mem_session_summary` so the next session,
-on either machine, resumes without re-explaining.
+**If a persistent-memory tool (e.g. Engram `mem_context`) is available**, run it before
+doing anything else — it holds the current state, decisions, and next actions, synced
+across machines. At the end of a working session, persist a session summary so the next
+session resumes without re-explaining. **Engram is optional**: without it the system still
+works fully — durable state lives in the files below and in `CHANGELOG.md`. Skip the memory
+calls and read the files directly.
 
-Source-of-truth split: **Engram** = volatile session state (status, next actions, open
-questions); **this file** = durable operating facts; **`CHANGELOG.md`** = dated history.
+Source-of-truth split: **persistent memory (optional)** = volatile session state (status,
+next actions, open questions); **this file** = durable operating facts; **`CHANGELOG.md`** =
+dated history. If you have no memory tool, this file + `CHANGELOG.md` are the full state.
 
 ## Workflow when asked for an analysis
 
@@ -60,13 +63,14 @@ hand-edit the generated files or re-type macros in `food-log.md` — one source 
 - `npm test` — run the generator's test suite (`node --test`, zero deps). Generation runs
   `validate()` first, so a bad edit fails loudly instead of producing wrong macros.
 
-**The plan the owner actually views is a claude.ai artifact (frozen snapshot):**
-`https://claude.ai/code/artifact/84b97ad3-3f68-47c8-b730-d71378c2af92`
-(org `ffac77f1-6286-482c-b3b4-d0df2ed0b78d`). Editing local files does NOT update it. After a
-plan change: (1) edit the JSON → (2) run `generate.js` → (3) re-publish via the Artifact tool
-with `file_path=data/nutrition/plan-web.html` and `url=<the URL above>` (favicon 🥗, keep
-stable), then tell the owner to hard-reload (Cmd/Ctrl+Shift+R). plan-web.html is artifact-ready
-(CSP-safe, no external refs).
+**The plan the owner actually views is a claude.ai artifact (frozen snapshot).** The first
+time you publish, create a new artifact from `data/nutrition/plan-web.html` and record ITS
+url here (the owner's personal artifact URL is intentionally not committed — keep it local,
+e.g. in your optional memory store or an untracked note). Editing local files does NOT update
+the published artifact. After a plan change: (1) edit the JSON → (2) run `generate.js` →
+(3) re-publish via the Artifact tool with `file_path=data/nutrition/plan-web.html` and
+`url=<your artifact URL>` (favicon 🥗, keep stable), then hard-reload (Cmd/Ctrl+Shift+R).
+plan-web.html is artifact-ready (CSP-safe, no external refs).
 
 ## Output principles
 
