@@ -20,12 +20,14 @@ questions); **this file** = durable operating facts; **`CHANGELOG.md`** = dated 
    - `profile/baseline.md` — starting metrics.
    - `analysis/methodology.md` — the framework you MUST follow for any number you produce.
 2. **Load the data:**
-   - Apple Health: parse `data/apple-health/export.xml`. It is XML with `<Record>`
-     elements (type, value, unit, startDate) and `<Workout>` elements
-     (workoutActivityType, duration, totalEnergyBurned, startDate). Extract weight
-     (`HKQuantityTypeIdentifierBodyMass`), heart rate, resting HR, VO2 max, steps,
-     and workouts. The file can be hundreds of MB — stream/grep by record type
-     rather than loading it whole.
+   - Apple Health: **read the cached extract first** — `data/apple-health/extract/*.csv`
+     (weight, bodyfat, rhr, vo2max, hrv, steps-daily, active/basal-energy-daily,
+     dietary-daily, sleep-daily, workouts) + `_meta.json` (ranges, row counts, caveats).
+     Regenerate after a new export is dropped: `node data/apple-health/extract.js`. The
+     raw `export.xml` is ~700 MB — only stream/grep it directly for a series not in the
+     cache. Caveats: body metrics carry a `source` column (weight mixes scales — compare
+     body fat within one scale only); steps are deduped to max-per-device per day (summing
+     devices double-counts — that is why an earlier "15–18k" NEAT figure was inflated).
    - Nutrition: `data/nutrition/food-log.md` — daily food log, rationale notes,
      verified per-100g product labels, day-plan structure, breakfast detail.
    - Plan reference (per-serving tables): `data/nutrition/plan-tables.md` — generated.

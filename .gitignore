@@ -2,6 +2,8 @@
 # Raw Apple Health export and any parsed personal metrics stay local only.
 data/apple-health/*
 !data/apple-health/.gitkeep
+# extract.js is plain tooling (no data) → trackable; its extract/ output stays ignored.
+!data/apple-health/extract.js
 
 # Personal logs contain medical/behavioral data. Keep templates, ignore real data.
 data/weight/weight-log.md
