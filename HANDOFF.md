@@ -81,3 +81,47 @@ a label or a serving gram in ONE place → it propagates to plan-web.html + plan
 - To change a number now: edit `ingredients` (a label) or an item's `recipe.amt` (a
   serving) in `plan-data.json`, then `node data/nutrition/generate.js`. Never hand-edit
   the generated macros in plan-web.html / plan-tables.md.
+
+### Breakfast detail tables now generated too (2026-06-30)
+The "☕ Desayunos" A/B/C component tables in `plan-web.html` were still HAND-WRITTEN HTML
+(a surviving second source — they drifted: a breakfast change in the JSON did not reach
+them). They are now GENERATED between `<!-- GEN:BREAKFAST START/END -->` markers by
+`generate.js`. Presentation lives in `plan-data.json`:
+- each `desayuno` item carries `tier` (🟢/🟡/🔴) + `cap` (caption title);
+- recipe lines may carry display-only `label` (row name), `q` (quantity override, e.g.
+  "2 lonchas (25 g)"), and `group`+`glabel` (merge lines into one row, e.g. batter+sauce milk).
+- recipe lines may also carry `link` (a `jump()` target id) → the row name renders as an
+  interactive `<button class="lnk">` instead of plain text (used by the C "anclaje" row →
+  `acc-anclaje`, with `q: "1 ración"`).
+- `resolve()` strips `tier`/`cap` so the JS DATA block items stay `{l,k,p,c,g}`.
+Now there is ONE source for breakfasts too — no hand-maintained plan table remains.
+
+### The plan artifact is a published snapshot — RE-PUBLISH after edits (2026-06-30)
+What the user actually views is a claude.ai artifact (frozen snapshot), URL:
+`https://claude.ai/code/artifact/84b97ad3-3f68-47c8-b730-d71378c2af92` (org
+`ffac77f1-6286-482c-b3b4-d0df2ed0b78d`). Editing local files does NOT update it.
+A plan change must propagate through THREE layers:
+1. edit `plan-data.json` (source);
+2. `node data/nutrition/generate.js` → regenerates plan-web.html + plan-tables.md;
+3. RE-PUBLISH: call the Artifact tool with `file_path=data/nutrition/plan-web.html` and
+   `url=<the artifact URL above>` to redeploy to the SAME link (favicon 🥗, keep stable),
+   then tell the user to hard-reload (Cmd/Ctrl+Shift+R).
+plan-web.html is already artifact-ready (starts with `<title>`+`<style>`, no html/head/body
+wrapper, no external refs → CSP-safe).
+
+### Single source of truth CLOSED 100% (2026-06-30)
+The last hand-written data in plan-web.html is now generated too:
+- **Day-summary cards** (both `.day-panel`) ← `dayPlan` in plan-data.json, between
+  `<!-- GEN:DAYPLAN START/END -->`. Each meal lists `parts`: raw `{ing,amt}` OR a reference
+  `{use, tier?, match}` to a table item (matched by `n`/`l`). So the day cards are LINKED to
+  the tables — e.g. the cena card pulls carboCena "Patata", so changing the dinner carb
+  updates the card automatically. generate.js: `resolvePart()` + `dayPanel()`.
+- **Extras stepper labels** (café/aceite, quesos/salsas, verduras, extras) ← `extrasDisplay`
+  in plan-data.json, between `<!-- GEN:EXTRAS START/END -->`. kcal pulled from resolved EXTRAS;
+  `bump('key')`/`id="x-key"` preserved (calculator intact). generate.js: `extraRow()`.
+- Day totals are now COMPUTED (train ~2.440 / 175P / 312C / 56G; rest ~2.031 / 165P / 225C /
+  54G) — they differ from the old hand figures (2.570/2.150) because they're honest sums of
+  the referenced parts, not typed estimates. NOTE: rest-day protein ~165 g is a touch under the
+  ~170 g target in the canonical example (user can pick higher-protein options to close it).
+There is now NO hand-written plan data in plan-web.html. Five GEN regions: DATA, BREAKFAST,
+DAYPLAN, EXTRAS (+ plan-tables.md). Edit plan-data.json → run generate.js → re-publish artifact.

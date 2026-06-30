@@ -15,7 +15,7 @@ const path = require('path');
 
 const DIR = __dirname;
 const data = JSON.parse(fs.readFileSync(path.join(DIR, 'plan-data.json'), 'utf8'));
-const { ingredients: ING, data: RAW, extras: RAWEX, quesoKeys: QUESO, vegKeys: VEG } = data;
+const { ingredients: ING, data: RAW, extras: RAWEX, quesoKeys: QUESO, vegKeys: VEG, dayPlan: DAYPLAN, extrasDisplay: EXTRASDISPLAY } = data;
 
 /* ---------- compute per-serving macros from the ingredient layer ---------- */
 const rk = n => Math.round(n);                 // kcal -> integer
@@ -30,7 +30,8 @@ function macro(recipe, key) {
 const MACRO = ['k', 'p', 'c', 'g'];
 function resolve(o) {
   const out = {};
-  for (const k of Object.keys(o)) { if (k !== 'recipe' && k !== 'manual') out[k] = o[k]; }
+  const SKIP = { recipe: 1, manual: 1, tier: 1, cap: 1 }; // tier/cap are breakfast-table-only
+  for (const k of Object.keys(o)) { if (!SKIP[k]) out[k] = o[k]; }
   if (o.recipe) { out.k = rk(macro(o.recipe, 'k')); MACRO.slice(1).forEach(f => out[f] = rm(macro(o.recipe, f))); }
   else if (o.manual) { MACRO.forEach(f => out[f] = o.manual[f]); }
   else if (o.none) { MACRO.forEach(f => out[f] = 0); }
@@ -86,6 +87,150 @@ function jsExtras() {
 }
 const keysJS = k => '[' + k.map(x => "'" + x + "'").join(',') + ']';
 
+/* ---------- breakfast detail tables (generated into plan-web.html) ----------
+   These per-component reference tables used to be hand-written HTML (a second
+   source of truth that drifted). They are now generated from the same recipes.
+   Recipe lines may carry display-only fields: `label` (row name), `q` (quantity
+   override), `group`+`glabel` (merge several lines into one row, e.g. milk used
+   in batter + sauce). Item-level `tier` (🟢/🟡/🔴) + `cap` drive the caption. */
+const nd = n => { const r = Math.round(n * 10) / 10; return String(r).replace('.', ','); }; // 1 decimal, comma sep
+const lineMacro = (line, key) => { const ing = ING[line.ing]; if (!ing) throw new Error('unknown ingredient: ' + line.ing); return ing[key] * (line.amt / ing.per); };
+function brkRows(recipe) {
+  const rows = [], byGroup = {};
+  for (const line of recipe) {
+    const ing = ING[line.ing];
+    const m = { k: lineMacro(line, 'k'), p: lineMacro(line, 'p'), c: lineMacro(line, 'c'), g: lineMacro(line, 'g') };
+    if (line.group && byGroup[line.group] != null) { // merge into the row that opened this group
+      const row = rows[byGroup[line.group]];
+      row.amt += line.amt; MACRO.forEach(f => row[f] += m[f]);
+      continue;
+    }
+    if (line.group) byGroup[line.group] = rows.length;
+    rows.push({ name: line.glabel || line.label || line.ing, q: line.q || null, link: line.link || null, amt: line.amt, unit: ing.unit, k: m.k, p: m.p, c: m.c, g: m.g });
+  }
+  return rows;
+}
+const brkQty = row => row.q ? row.q : (row.unit === 'ud' ? String(row.amt / 100) : row.amt + ' ' + row.unit);
+function brkTable(item) {
+  const r = resolve(item);
+  const cap = `${item.tier} ${item.cap} · ~${r.k} kcal · ${Math.round(r.p)} P · ${Math.round(r.c)} C · ${Math.round(r.g)} G`;
+  const trs = brkRows(item.recipe).map(row => {
+    const name = row.link ? `<button class="lnk" onclick="jump('${row.link}')">${row.name}</button>` : row.name;
+    return `          <tr><td>${name}</td><td>${brkQty(row)}</td><td class="kc">${rk(row.k)}</td><td>${nd(row.p)}</td><td>${nd(row.c)}</td><td>${nd(row.g)}</td></tr>`;
+  }).join('\n');
+  return [
+    '      <div class="table-scroll"><table>',
+    `        <caption>${cap}</caption>`,
+    '        <thead><tr><th>Componente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>',
+    '        <tbody>',
+    trs,
+    '        </tbody>',
+    '      </table></div>',
+  ].join('\n');
+}
+const brkBlock = () => [
+  '      <!-- GEN:BREAKFAST START — generated from plan-data.json by generate.js. DO NOT EDIT BY HAND. -->',
+  RAW.desayuno.filter(o => !o.none).map(brkTable).join('\n'),
+  '      <!-- GEN:BREAKFAST END -->',
+].join('\n');
+
+/* ---------- day-summary cards (generated into plan-web.html) ----------
+   Both .day-panel cards are rendered from `dayPlan` in plan-data.json. A meal's
+   macros are the sum of its parts. A "part" is either a raw ingredient
+   ({ing, amt}) or a reference to a resolved item in data[use] (or data[use][tier])
+   whose `n` or `l` matches `match` (priority: exact n, exact l, n-includes, l-includes). */
+function resolvePart(part) {
+  if (part.ing) {
+    const ing = ING[part.ing];
+    if (!ing) throw new Error('dayPlan part: unknown ingredient: ' + part.ing);
+    const f = part.amt / ing.per;
+    return { k: ing.k * f, p: ing.p * f, c: ing.c * f, g: ing.g * f };
+  }
+  const bucket = part.tier ? (RAW[part.use] && RAW[part.use][part.tier]) : RAW[part.use];
+  if (!Array.isArray(bucket)) throw new Error('dayPlan part: no items at data.' + part.use + (part.tier ? '.' + part.tier : ''));
+  const m = part.match;
+  const find = pred => bucket.find(pred);
+  const item =
+    find(o => o.n === m) ||
+    find(o => o.l === m) ||
+    find(o => o.n && o.n.includes(m)) ||
+    find(o => o.l && o.l.includes(m));
+  if (!item) throw new Error('dayPlan part: no match for "' + m + '" in data.' + part.use + (part.tier ? '.' + part.tier : ''));
+  const r = resolve(item);
+  return { k: r.k, p: r.p, c: r.c, g: r.g };
+}
+function mealMacros(meal) {
+  return meal.parts.reduce((s, part) => {
+    const m = resolvePart(part);
+    return { k: s.k + m.k, p: s.p + m.p, c: s.c + m.c, g: s.g + m.g };
+  }, { k: 0, p: 0, c: 0, g: 0 });
+}
+const dotThousands = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+function dayPanel(day, plan) {
+  const meals = plan.meals.map(meal => ({ meal, m: mealMacros(meal) }));
+  const total = meals.reduce((s, x) => s + x.m.k, 0);
+  const totP = meals.reduce((s, x) => s + x.m.p, 0);
+  const totC = meals.reduce((s, x) => s + x.m.c, 0);
+  const totG = meals.reduce((s, x) => s + x.m.g, 0);
+  const lines = [];
+  lines.push(`  <div class="day-panel" data-day="${day}"${day === 'rest' ? ' hidden' : ''}>`);
+  lines.push('    <div class="summary">');
+  lines.push(`      <div class="kcal">~${dotThousands(rk(total))} <span>kcal</span></div>`);
+  lines.push('    </div>');
+  lines.push('    <div class="macros">');
+  lines.push(`      <div class="mac"><span class="lbl">Prot</span><b>${rk(totP)} g</b></div>`);
+  lines.push(`      <div class="mac"><span class="lbl">Carb</span><b>${rk(totC)} g</b></div>`);
+  lines.push(`      <div class="mac"><span class="lbl">Grasa</span><b>${rk(totG)} g</b></div>`);
+  lines.push('    </div>');
+  lines.push(`    <p class="deficit">${plan.kcalNote}</p>`);
+  lines.push('');
+  lines.push('    <h2>El día</h2>');
+  for (const { meal, m } of meals) {
+    const name = meal.jump
+      ? `<button class="meal-name" onclick="jump('${meal.jump}')">${meal.name}</button>`
+      : `<div class="meal-name">${meal.name}</div>`;
+    lines.push('    <div class="meal">');
+    lines.push(`      <div class="meal-top">${name}<div class="meal-kcal">~${rk(m.k)} kcal</div></div>`);
+    const desc = meal.descHtml != null ? meal.descHtml : meal.desc;
+    if (desc != null) lines.push(`      <div class="meal-desc">${desc}</div>`);
+    if (meal.pcf !== false) lines.push(`      <div class="meal-pcf"><span><b>${rk(m.p)}</b> P</span><span><b>${rk(m.c)}</b> C</span><span><b>${rk(m.g)}</b> G</span></div>`);
+    lines.push('    </div>');
+  }
+  lines.push('  </div>');
+  return lines.join('\n');
+}
+const dayPlanBlock = () => [
+  '  <!-- GEN:DAYPLAN START — generated from plan-data.json by generate.js. DO NOT EDIT BY HAND. -->',
+  dayPanel('train', DAYPLAN.train),
+  dayPanel('rest', DAYPLAN.rest),
+  '  <!-- GEN:DAYPLAN END -->',
+].join('\n');
+
+/* ---------- extras stepper labels (generated into plan-web.html) ----------
+   The .extras group labels (qty · ~kcal · note) used to be hand-written and
+   duplicated the generated EXTRAS macros. They are now rendered from
+   `extrasDisplay`; kcal comes from the resolved EX[key].k. The `key` MUST equal
+   the live-calculator key used by bump('key',...) and id="x-key". */
+function extraRow(item) {
+  const ex = EX[item.key];
+  if (!ex) throw new Error('extrasDisplay: unknown extras key: ' + item.key);
+  const label = `${item.qty} · ~${ex.k} kcal` + (item.note ? ` · ${item.note}` : '');
+  return `      <div class="extra"><span>${item.emoji} ${item.name}<small>${label}</small></span><div class="stepper"><button type="button" aria-label="menos ${item.name}" onclick="bump('${item.key}',-1)">−</button><span class="cnt" id="x-${item.key}">0</span><button type="button" aria-label="más ${item.name}" onclick="bump('${item.key}',1)">+</button></div></div>`;
+}
+function extrasGroup(group) {
+  const lines = [`    <div class="combo-h">${group.header}</div>`];
+  if (group.headerNote) lines.push(`    <p class="acc-note" style="margin:-2px 0 6px">${group.headerNote}</p>`);
+  lines.push('    <div class="extras">');
+  group.items.forEach(item => lines.push(extraRow(item)));
+  lines.push('    </div>');
+  return lines.join('\n');
+}
+const extrasDisplayBlock = () => [
+  '    <!-- GEN:EXTRAS START — generated from plan-data.json by generate.js. DO NOT EDIT BY HAND. -->',
+  EXTRASDISPLAY.map(extrasGroup).join('\n'),
+  '    <!-- GEN:EXTRAS END -->',
+].join('\n');
+
 const GEN_HEAD =
 `    /* GEN:DATA START — generated from plan-data.json by generate.js. DO NOT EDIT BY HAND.
        Edit data/nutrition/plan-data.json (ingredients + recipes) and run \`node data/nutrition/generate.js\`.
@@ -107,6 +252,19 @@ let html = fs.readFileSync(htmlPath, 'utf8');
 const reBlock = /[ \t]*\/\* GEN:DATA START[\s\S]*?\/\* GEN:DATA END \*\//;
 if (!reBlock.test(html)) { console.error('ERROR: GEN:DATA markers not found in plan-web.html'); process.exit(1); }
 html = html.replace(reBlock, htmlBlock);
+
+const reBrk = /[ \t]*<!-- GEN:BREAKFAST START[\s\S]*?<!-- GEN:BREAKFAST END -->/;
+if (!reBrk.test(html)) { console.error('ERROR: GEN:BREAKFAST markers not found in plan-web.html'); process.exit(1); }
+html = html.replace(reBrk, brkBlock());
+
+const reDay = /[ \t]*<!-- GEN:DAYPLAN START[\s\S]*?<!-- GEN:DAYPLAN END -->/;
+if (!reDay.test(html)) { console.error('ERROR: GEN:DAYPLAN markers not found in plan-web.html'); process.exit(1); }
+html = html.replace(reDay, dayPlanBlock());
+
+const reEx = /[ \t]*<!-- GEN:EXTRAS START[\s\S]*?<!-- GEN:EXTRAS END -->/;
+if (!reEx.test(html)) { console.error('ERROR: GEN:EXTRAS markers not found in plan-web.html'); process.exit(1); }
+html = html.replace(reEx, extrasDisplayBlock());
+
 fs.writeFileSync(htmlPath, html);
 
 /* ---------- render plan-tables.md ---------- */
