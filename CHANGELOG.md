@@ -4,6 +4,26 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-06-30 — Per-workout HR → intensity + load-vs-recovery
+
+Made the training data carry intensity, not just duration, and used it for the one analytical
+view Strava can't build for a strength/HIIT athlete.
+
+- `extract.js` now keeps each `<Workout>` OPEN across lines (`handleWorkoutOpen/Stat/Close`) to
+  read its child `<WorkoutStatistics>`: per-workout HR (`hr_avg/hr_min/hr_max`, bpm) and the
+  energy the opening tag drops on newer exports. `workouts.csv` gains 3 HR columns; 305/387
+  sessions carry HR (Apple-Watch-era).
+- **Entrenos** gains an *Intensity (HR)* section: duration-weighted mean HR + peak per modality
+  (`aggregateDashboard` → `modality[].avgHr/peakHr` + `intensity{}`). HR honestly under-reads
+  strength (avg 89 vs run 153), said on-screen — never folded into a single "load" number.
+- **Salud** gains a 6th section, *Load vs recovery*: weekly cardiovascular load index
+  (`Σ(min × avgHR) / 100`) vs weekly HRV + resting HR, with a high- vs low-load split
+  (`aggLoadRecovery`). `generate-health.js` reads `workouts.csv` directly rather than importing
+  `generate-training.js` (which throws without `training-data.json` — would break fresh clones).
+- Honesty baked into captions: cardiovascular (not total) load, few weeks, association not
+  causation. Tests: +2 training, +3 health (59 green). Both `plan-web.html` (es) and
+  `plan-web.template.html` (en) updated.
+
 ## 2026-06-30 — Plan artifact split into 3 tabs
 
 The artifact had grown into one long scroll mixing two different tasks: *consulting* the

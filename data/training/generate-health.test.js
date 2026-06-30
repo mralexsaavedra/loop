@@ -12,7 +12,7 @@ const gen = require('./generate-health.js');
 const {
   byDayMean, rollAvg, lastDays, downsample, valueDaysAgo, spark,
   stdev, median, wrapNight, clockStr, paceStr,
-  aggBody, aggActivity, aggRunning, aggEnergy, aggRecovery, healthBlock, buildHtml,
+  aggBody, aggActivity, aggRunning, aggEnergy, aggRecovery, aggLoadRecovery, healthBlock, buildHtml,
 } = gen;
 const htmlPath = path.join(__dirname, '..', 'nutrition', 'plan-web.html');
 
@@ -231,6 +231,52 @@ test('aggRecovery surfaces respiratory / wrist-temp / walking-HR signals', () =>
 
 test('aggRecovery returns empty state when no recovery series exist', () => {
   assert.deepEqual(aggRecovery(null, null, null, null), { hasData: false });
+});
+
+/* ---------- load vs recovery (cross-tab) ---------- */
+
+test('aggLoadRecovery builds weekly HR-weighted load aligned to recovery, ignoring HR-less sessions', () => {
+  const workouts = [
+    { date: '2026-06-24', dur: 30, hrAvg: 140 },  // Wed -> week 2026-06-22; 30*140/100 = 42
+    { date: '2026-06-25', dur: 20, hrAvg: 150 },  // same week;            20*150/100 = 30 -> 72
+    { date: '2026-06-26', dur: 60, hrAvg: null },  // no HR -> excluded from load
+  ];
+  const hrv = series('2026-06-28', 14, () => 60);
+  const rhr = series('2026-06-28', 14, () => 48);
+  const out = aggLoadRecovery(workouts, hrv, rhr);
+  assert.equal(out.hasData, true);
+  assert.equal(out.weeks, 12);
+  assert.equal(out.series.length, 12, 'always 12 weekly slots');
+  const wk = out.series.find(s => s.w === '2026-06-22');
+  assert.equal(wk.load, 72, 'Σ(min × avgHR)/100, HR-less session excluded');
+  assert.equal(wk.hrv, 60);
+  assert.equal(wk.rhr, 48);
+});
+
+test('aggLoadRecovery needs HR-tagged workouts AND at least one recovery marker', () => {
+  const hrv = series('2026-06-28', 14, () => 60);
+  assert.deepEqual(aggLoadRecovery(null, hrv, null), { hasData: false });
+  assert.deepEqual(aggLoadRecovery([{ date: '2026-06-24', dur: 30, hrAvg: null }], hrv, null), { hasData: false });
+  assert.deepEqual(aggLoadRecovery([{ date: '2026-06-24', dur: 30, hrAvg: 140 }], null, null), { hasData: false });
+});
+
+test('aggLoadRecovery splits high- vs low-load weeks for an honest recovery read', () => {
+  const workouts = [
+    { date: '2026-06-03', dur: 60, hrAvg: 150 }, // week 06-01, load 90 (heavy)
+    { date: '2026-06-10', dur: 30, hrAvg: 100 }, // week 06-08, load 30 (light)
+    { date: '2026-06-17', dur: 60, hrAvg: 150 }, // week 06-15, load 90 (heavy)
+    { date: '2026-06-24', dur: 30, hrAvg: 100 }, // week 06-22, load 30 (light)
+  ];
+  // HRV lower in the heavy weeks, higher in the light weeks (one reading per week)
+  const hrv = [
+    { date: '2026-06-03', value: 50 }, { date: '2026-06-10', value: 70 },
+    { date: '2026-06-17', value: 52 }, { date: '2026-06-24', value: 72 },
+  ];
+  const out = aggLoadRecovery(workouts, hrv, null);
+  assert.equal(out.split.hrvHigh, 51, 'mean HRV in heavy weeks');
+  assert.equal(out.split.hrvLow, 71, 'mean HRV in light weeks');
+  assert.ok(out.split.hrvHigh < out.split.hrvLow, 'heavier load weeks show lower HRV');
+  assert.equal(out.split.rhrHigh, null, 'no RHR series -> null, never fabricated');
 });
 
 /* ---------- formatting helpers ---------- */

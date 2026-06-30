@@ -628,7 +628,15 @@
       var mb=DASH.modality.map(function(m){ return '<div class="mrow"><span class="mlbl">'+esc(LBL[m.key]||m.key)+'</span><div class="mtrack"><i style="width:'+m.pct+'%"></i></div><span class="mval">'+m.pct+'% · '+esc(hc(m.min))+'</span></div>'; }).join('');
       var mod='<div class="dash-sec"><h3>Modality split</h3><p class="hint">By minutes · last '+DASH.weeks+' weeks.</p>'+mb+'</div>';
       var note='<div class="dash-note"><b>How to read this.</b> These labels come from the Apple Watch itself. <b>HIIT dominates because the watch tags almost any high-heart-rate gym work as “HIIT” — including your program’s STRENGTH block</b> (squat, clean, press…). Your real strength volume is higher than the “Strength” bar: it only counts when logged separately (e.g. Hevy). <b>Running is under-logged</b>. Volume and frequency (above) are reliable — frequency counts <b>distinct days</b>. Workout calories are omitted: recent exports leave them blank.</div>';
-      host.innerHTML='<p class="dash-as">Data through '+esc(fmtD(DASH.asOf))+' (latest Apple Health export).</p>'+cards+vol+mod+note;
+      var intens='';
+      if(DASH.intensity && DASH.intensity.avgHr){
+        var im=DASH.modality.filter(function(m){return m.avgHr;}).slice().sort(function(a,b){return b.avgHr-a.avgHr;});
+        var imax=Math.max.apply(null,im.map(function(m){return m.avgHr;}))||1;
+        var ir=im.map(function(m){ var w=Math.round(100*m.avgHr/imax); return '<div class="mrow"><span class="mlbl">'+esc(LBL[m.key]||m.key)+'</span><div class="mtrack"><i style="width:'+w+'%"></i></div><span class="mval">'+m.avgHr+' bpm · peak '+m.peakHr+'</span></div>'; }).join('');
+        var iq=DASH.intensity;
+        intens='<div class="dash-sec"><h3>Intensity (heart rate)</h3><p class="hint">Mean HR per modality, minute-weighted · '+iq.withHr+'/'+iq.total+' sessions with HR · last '+DASH.weeks+' weeks.</p>'+ir+'<div class="dash-note"><b>Mind the strength caveat.</b> HR measures CARDIOVASCULAR effort, not muscular: strength runs a low pulse even under heavy load, so it lands at the bottom here. Use it to read running and HIIT, not to judge strength.</div></div>';
+      }
+      host.innerHTML='<p class="dash-as">Data through '+esc(fmtD(DASH.asOf))+' (latest Apple Health export).</p>'+cards+vol+mod+intens+note;
     }
     render();
   })();
@@ -673,8 +681,8 @@
     }
     function render(){
       var host=document.getElementById('health'); if(!host) return;
-      var B=HEALTH.body||{}, A=HEALTH.activity||{}, E=HEALTH.energy||{}, Run=HEALTH.running||{}, R=HEALTH.recovery||{}, out=[];
-      if(!B.hasData && !A.hasData && !E.hasData && !Run.hasData && !R.hasData){
+      var B=HEALTH.body||{}, A=HEALTH.activity||{}, E=HEALTH.energy||{}, Run=HEALTH.running||{}, R=HEALTH.recovery||{}, LR=HEALTH.loadRecovery||{}, out=[];
+      if(!B.hasData && !A.hasData && !E.hasData && !Run.hasData && !R.hasData && !LR.hasData){
         host.innerHTML='<div class="train-empty">No health data yet. Drop your Apple Health export into <code>data/apple-health/</code>, run <code>extract.js</code>, then regenerate.</div>';
         return;
       }
@@ -735,6 +743,23 @@
           if(c2.length) out.push('<div class="dash-cards c2">'+c2.join('')+'</div>');
         }
         out.push(note('<b>↓ resting HR, ↑ HRV, ↑ VO₂max and ↓ walking HR</b> are the good directions. Respiratory rate and wrist temperature (sleep only) are recovery/illness signals — watch the change, not the absolute value. For sleep, beyond the average the <b>consistency</b> matters (±h and schedule regularity in minutes): sleeping a similar amount each night recovers better than averaging 7 h across 5- and 9-hour nights.'));
+      }
+      /* load vs recovery (cross-tab) */
+      if(LR.hasData){
+        out.push('<div class="hsub">Load vs recovery</div>');
+        var s=LR.series, lmax=Math.max.apply(null,s.map(function(x){return x.load;}))||1;
+        var lbars=s.map(function(x){ var h=Math.round(100*x.load/lmax); return '<div class="wbar'+(x.load?'':' zero')+'" title="'+esc(fmtD(x.w)+': load '+x.load)+'"><i style="height:'+h+'%"></i></div>'; }).join('');
+        var lax='<div class="waxis"><span>'+esc(fmtD(s[0].w))+'</span><span>'+esc(fmtD(s[s.length-1].w))+'</span></div>';
+        out.push('<div class="dash-sec"><h3>Weekly cardiovascular load</h3><p class="hint">Index = minutes × mean HR ÷ 100 · last '+LR.weeks+' weeks.</p><div class="wbars">'+lbars+'</div>'+lax+'</div>');
+        if(LR.split){
+          var sp=LR.split, cc=[];
+          if(sp.hrvHigh!=null) cc.push(card(sp.hrvHigh+' ms','HRV · higher-load weeks'));
+          if(sp.hrvLow!=null) cc.push(card(sp.hrvLow+' ms','HRV · easy weeks'));
+          if(sp.rhrHigh!=null) cc.push(card(nf(sp.rhrHigh)+' bpm','resting HR · higher-load'));
+          if(sp.rhrLow!=null) cc.push(card(nf(sp.rhrLow)+' bpm','resting HR · easy'));
+          if(cc.length) out.push('<div class="dash-cards c2">'+cc.join('')+'</div>');
+        }
+        out.push(note('<b>The view Strava can\'t give you:</b> your load crossed with your recovery. <b>Lower HRV and/or higher resting HR in higher-load weeks</b> is expected — your body registers the stimulus. What you watch for is that it <b>rebounds</b> in easy weeks; if it doesn\'t, you\'re accumulating fatigue. Caveats: HR <b>under-reads strength</b> (so this is CARDIOVASCULAR load, not total), it\'s only a few weeks, and this is <b>association, not causation</b>.'));
       }
       host.innerHTML='<p class="dash-as">Body, activity &amp; recovery from your latest Apple Health export.</p>'+out.join('');
     }

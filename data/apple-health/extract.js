@@ -54,7 +54,7 @@ const stepsBySrc = new Map();
 const diet = new Map();
 // sleep: Map<date, Map<source, minutes>>  (max across sources per night avoids double-count)
 const sleep = new Map();
-const workouts = []; // {date, type, durationMin, energyKcal, source}
+const workouts = []; // {date, type, durationMin, energyKcal, hrAvg, hrMin, hrMax, source}
 
 const Q = 'HKQuantityTypeIdentifier';
 const addSum = (map, d, v) => { if (d && v != null) map.set(d, (map.get(d) || 0) + v); };
@@ -123,14 +123,35 @@ function handleRecord(line) {
   }
 }
 
-function handleWorkout(line) {
-  workouts.push({
+// A <Workout> spans multiple lines: an opening tag, then child <WorkoutStatistics>/<MetadataEntry>
+// lines, then </Workout>. The opening tag alone lacks intensity, so we keep the workout OPEN across
+// lines and attach its child stats before pushing it on close.
+let curWorkout = null;
+function handleWorkoutOpen(line) {
+  curWorkout = {
     date: day(attr(line, 'startDate')),
     type: (attr(line, 'workoutActivityType') || '').replace('HKWorkoutActivityType', ''),
     durationMin: num(attr(line, 'duration')),
-    energyKcal: num(attr(line, 'totalEnergyBurned')), // may be null on newer exports (stats live in children)
+    energyKcal: num(attr(line, 'totalEnergyBurned')), // legacy attr; null on newer exports (see child stats)
     source: attr(line, 'sourceName'),
-  });
+    hrAvg: null, hrMin: null, hrMax: null,
+  };
+  if (line.indexOf('</Workout>') !== -1) handleWorkoutClose(); // self-contained on one line (rare)
+}
+// child stats carry per-workout HR (avg/min/max) and, on newer exports, the energy the opening tag drops
+function handleWorkoutStat(line) {
+  if (!curWorkout) return;
+  const t = attr(line, 'type');
+  if (t === Q + 'HeartRate') {
+    curWorkout.hrAvg = num(attr(line, 'average'));
+    curWorkout.hrMin = num(attr(line, 'minimum'));
+    curWorkout.hrMax = num(attr(line, 'maximum'));
+  } else if (t === Q + 'ActiveEnergyBurned' && curWorkout.energyKcal == null) {
+    curWorkout.energyKcal = num(attr(line, 'sum'));
+  }
+}
+function handleWorkoutClose() {
+  if (curWorkout) { workouts.push(curWorkout); curWorkout = null; }
 }
 
 const csv = (file, header, rows) => {
@@ -144,9 +165,11 @@ let lineCount = 0;
 const rl = readline.createInterface({ input: fs.createReadStream(SRC, { encoding: 'utf8' }), crlfDelay: Infinity });
 rl.on('line', line => {
   lineCount++;
-  // cheap prefilter before regex work
+  // cheap prefilter before regex work ('<Workout ' has a trailing space → won't match '<WorkoutStatistics')
   if (line.indexOf('<Record ') !== -1) handleRecord(line);
-  else if (line.indexOf('<Workout ') !== -1) handleWorkout(line);
+  else if (line.indexOf('<Workout ') !== -1) handleWorkoutOpen(line);
+  else if (line.indexOf('<WorkoutStatistics ') !== -1) handleWorkoutStat(line);
+  else if (line.indexOf('</Workout>') !== -1) handleWorkoutClose();
 });
 rl.on('close', () => {
   const counts = {};
@@ -207,8 +230,9 @@ rl.on('close', () => {
     }));
   // workouts
   sortByDate(workouts);
-  counts.workouts = csv('workouts.csv', 'date,type,duration_min,energy_kcal,source',
-    workouts.map(w => `${w.date},${w.type},${w.durationMin ?? ''},${w.energyKcal ?? ''},${w.source || ''}`));
+  const bpm = v => (v != null ? Math.round(v) : '');
+  counts.workouts = csv('workouts.csv', 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source',
+    workouts.map(w => `${w.date},${w.type},${w.durationMin ?? ''},${w.energyKcal ?? ''},${bpm(w.hrAvg)},${bpm(w.hrMin)},${bpm(w.hrMax)},${w.source || ''}`));
 
   const allDates = sortByDate([...readings.weight]).map(r => r.date);
   const meta = {
@@ -233,7 +257,7 @@ rl.on('close', () => {
       'exercise/distance/flights = max across devices per day (iPhone+Watch overlap → summing double-counts, like steps); respiratory & walking-HR are per-day means.',
       'running-daily = per-day MEANS over a run\'s samples (only days with a run get a row); 0-valued samples (Zepp placeholders) dropped. speed km/h, power W, gct ms, vosc cm, stride m.',
       'leanmass & wristTemp are sparse, source-tagged (leanmass mixes scales like weight; wrist temp is sleeping-watch only).',
-      'workout energy_kcal may be blank on newer exports (stats moved to child elements).',
+      'workouts now carry hr_avg/hr_min/hr_max (bpm) and energy_kcal pulled from child <WorkoutStatistics> (per-workout intensity; HR coverage is Apple-Watch-era, ~2025+).',
       'Regenerate after dropping a new export: node data/apple-health/extract.js',
     ],
   };

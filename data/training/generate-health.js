@@ -406,11 +406,65 @@ function buildRecovery() {
   );
 }
 
+/* ---------- load vs recovery (cross-tab synthesis) ----------
+ * The one view Strava can't build for this athlete: weekly CARDIOVASCULAR load against the two
+ * autonomic markers that respond to it — HRV (up = recovered) and resting HR (down = recovered).
+ * Load index = Σ(duration_min × avgHR) / 100 over sessions that carry HR. This UNDER-reads
+ * strength on purpose (low HR, high muscular load) — it is a cardiovascular load, said on-screen.
+ * Honest scope, all surfaced in the caption: HR-tagged sessions only, ~12 weeks, association not
+ * causation. Sleep duration stays in Recovery; here we keep the markers that track training stress. */
+const LR_WEEKS = 12;
+const isoLocal = (dt) => dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+function weekStart(date) { const dt = new Date(date + 'T00:00:00'); dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7)); return isoLocal(dt); }
+// workouts.csv: date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source -> [{date, dur, hrAvg}]
+function readWorkoutLoad() {
+  const p = path.join(EXTRACT, 'workouts.csv');
+  if (!fs.existsSync(p)) return null;
+  const rows = fs.readFileSync(p, 'utf8').trim().split('\n').slice(1).filter(Boolean).map(l => {
+    const c = l.split(','); const hr = parseFloat(c[4]);
+    return { date: c[0], dur: parseFloat(c[2]) || 0, hrAvg: Number.isFinite(hr) && hr > 0 ? hr : null };
+  }).filter(r => ISO.test(r.date));
+  return rows.length ? rows : null;
+}
+// Pure: HR-tagged workouts + hrv + rhr series -> weekly load aligned with weekly recovery means,
+// plus a high- vs low-load split for an honest "does my body feel the load?" read.
+function aggLoadRecovery(workouts, hrv, rhr) {
+  const hw = (workouts || []).filter(w => w.hrAvg != null && w.dur > 0);
+  if (!hw.length || (!hrv && !rhr)) return { hasData: false };
+  const asOf = hw.map(w => w.date).sort()[hw.length - 1];
+  const start = new Date(weekStart(asOf) + 'T00:00:00'); start.setDate(start.getDate() - 7 * (LR_WEEKS - 1));
+  const wk = {};
+  for (let i = 0; i < LR_WEEKS; i++) { const d = new Date(start); d.setDate(d.getDate() + 7 * i); wk[isoLocal(d)] = { load: 0 }; }
+  hw.forEach(w => { const k = weekStart(w.date); if (wk[k]) wk[k].load += w.dur * w.hrAvg / 100; });
+  const weeklyMean = (s) => {
+    const out = {}; if (!s) return out;
+    const acc = {}; byDayMean(s).forEach(p => { const k = weekStart(p.date); if (wk[k]) (acc[k] = acc[k] || []).push(p.value); });
+    Object.keys(acc).forEach(k => { out[k] = meanOf(acc[k]); }); return out;
+  };
+  const hrvW = weeklyMean(hrv), rhrW = weeklyMean(rhr);
+  const series = Object.keys(wk).sort().map(k => ({
+    w: k, load: Math.round(wk[k].load),
+    hrv: hrvW[k] != null ? Math.round(hrvW[k]) : null,
+    rhr: rhrW[k] != null ? round(rhrW[k], 1) : null,
+  }));
+  // high vs low load weeks (only weeks that had HR-tagged training), split at the median load
+  let split = null;
+  const active = series.filter(s => s.load > 0);
+  if (active.length >= 4) {
+    const med = median(active.map(s => s.load));
+    const high = active.filter(s => s.load >= med), low = active.filter(s => s.load < med);
+    const m = (arr, k) => { const v = arr.map(s => s[k]).filter(x => x != null); return v.length ? round(meanOf(v), 1) : null; };
+    split = { hrvHigh: m(high, 'hrv'), hrvLow: m(low, 'hrv'), rhrHigh: m(high, 'rhr'), rhrLow: m(low, 'rhr') };
+  }
+  return { hasData: true, weeks: LR_WEEKS, series, split };
+}
+function buildLoadRecovery() { return aggLoadRecovery(readWorkoutLoad(), readSeries('hrv.csv'), readSeries('rhr.csv')); }
+
 /* ---------- assemble + bake ---------- */
 function buildHealth() {
   return {
     body: buildBody(), activity: buildActivity(), energy: buildEnergy(),
-    running: buildRunning(), recovery: buildRecovery(),
+    running: buildRunning(), recovery: buildRecovery(), loadRecovery: buildLoadRecovery(),
   };
 }
 
@@ -449,7 +503,8 @@ module.exports = {
   readSeries, readTable, readDietary, readRunning, readSleep,
   byDayMean, rollAvg, lastDays, downsample, valueDaysAgo, spark,
   meanOf, stdev, median, wrapNight, clockStr, paceStr, dailyTrend, signalTrend,
-  aggBody, aggActivity, aggRunning, aggEnergy, aggRecovery,
-  buildBody, buildActivity, buildRunning, buildEnergy, buildRecovery,
+  aggBody, aggActivity, aggRunning, aggEnergy, aggRecovery, aggLoadRecovery,
+  buildBody, buildActivity, buildRunning, buildEnergy, buildRecovery, buildLoadRecovery,
+  weekStart, readWorkoutLoad,
   buildHealth, healthBlock, buildHtml,
 };

@@ -131,10 +131,12 @@ function modalityGroup(type) {
   // NOTE: the Watch labels most gym work (incl. the program's strength blocks) as HIIT,
   // so 'strength' under-counts real strength volume — surfaced as a caveat in the page.
 }
+// header: date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source
+const hr = s => { const n = parseFloat(s); return Number.isFinite(n) && n > 0 ? n : null; }; // blank/0 -> null
 function parseWorkouts(text) {
   return text.trim().split('\n').slice(1).filter(Boolean).map(l => {
     const p = l.split(',');
-    return { date: p[0], type: p[1] || '', dur: parseFloat(p[2]) || 0 };
+    return { date: p[0], type: p[1] || '', dur: parseFloat(p[2]) || 0, hrAvg: hr(p[4]), hrMax: hr(p[6]) };
   }).filter(r => ISO.test(r.date));
 }
 const WEEKS = 12; // dashboard window
@@ -166,13 +168,31 @@ function aggregateDashboard(rows) {
   };
   // modality split by minutes over the window (Watch auto-labels — see caveat in page)
   const mg = { strength: 0, hiit: 0, run: 0, other: 0 };
-  win.forEach(r => { mg[modalityGroup(r.type)] += r.dur; });
+  // per-modality HR: duration-weighted avg over sessions that carry HR, plus peak. FC is honest for
+  // conditioning/running but UNDER-reads strength (low HR, high muscular load) — surfaced as a caveat.
+  const hrAgg = { strength: { s: 0, d: 0, peak: 0 }, hiit: { s: 0, d: 0, peak: 0 }, run: { s: 0, d: 0, peak: 0 }, other: { s: 0, d: 0, peak: 0 } };
+  let iS = 0, iD = 0, iPeak = 0, iWith = 0;
+  win.forEach(r => {
+    const k = modalityGroup(r.type);
+    mg[k] += r.dur;
+    if (r.hrAvg != null) {
+      hrAgg[k].s += r.hrAvg * r.dur; hrAgg[k].d += r.dur;
+      if (r.hrMax > hrAgg[k].peak) hrAgg[k].peak = r.hrMax;
+      iS += r.hrAvg * r.dur; iD += r.dur; iWith++;
+      if (r.hrMax > iPeak) iPeak = r.hrMax;
+    }
+  });
   const tot = Object.values(mg).reduce((a, b) => a + b, 0) || 1;
   const modality = Object.keys(mg)
-    .map(k => ({ key: k, min: Math.round(mg[k]), pct: Math.round(100 * mg[k] / tot) }))
+    .map(k => ({
+      key: k, min: Math.round(mg[k]), pct: Math.round(100 * mg[k] / tot),
+      avgHr: hrAgg[k].d ? Math.round(hrAgg[k].s / hrAgg[k].d) : null,
+      peakHr: hrAgg[k].peak || null,
+    }))
     .filter(m => m.min > 0)
     .sort((a, b) => b.min - a.min);
-  return { hasData: true, asOf, weeks: WEEKS, weeklyMin: weeks, recent, modality };
+  const intensity = { avgHr: iD ? Math.round(iS / iD) : null, peakHr: iPeak || null, withHr: iWith, total: win.length };
+  return { hasData: true, asOf, weeks: WEEKS, weeklyMin: weeks, recent, modality, intensity };
 }
 function loadDashboard() {
   if (!fs.existsSync(csvPath)) return { hasData: false };

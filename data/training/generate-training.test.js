@@ -90,10 +90,43 @@ test('weekStart returns the Monday of the week (June 2026 weeks start on Mondays
   assert.equal(weekStart('2026-06-22'), '2026-06-22'); // Mon -> itself
 });
 
+test('parseWorkouts captures per-workout HR (avg/max), null when blank', () => {
+  const rows = parseWorkouts(
+    'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source\n' +
+    '2026-06-24,HighIntensityIntervalTraining,20,150,135,90,178,Apple Watch\n' +
+    '2026-06-23,TraditionalStrengthTraining,60,300,,,,Strava\n', // old row, no HR
+  );
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].hrAvg, 135);
+  assert.equal(rows[0].hrMax, 178);
+  assert.equal(rows[1].hrAvg, null, 'blank HR -> null, never 0');
+  assert.equal(rows[1].hrMax, null);
+});
+
+test('aggregateDashboard adds duration-weighted avg HR + peak per modality and overall, ignoring HR-less rows', () => {
+  const d = aggregateDashboard([
+    { date: '2026-06-24', type: 'HighIntensityIntervalTraining', dur: 10, hrAvg: 120, hrMax: 150 },
+    { date: '2026-06-24', type: 'HighIntensityIntervalTraining', dur: 30, hrAvg: 140, hrMax: 180 },
+    { date: '2026-06-22', type: 'Running', dur: 30, hrAvg: 150, hrMax: 175 },
+    { date: '2026-06-15', type: 'TraditionalStrengthTraining', dur: 40, hrAvg: null, hrMax: null }, // no HR -> excluded
+  ]);
+  const hiit = d.modality.find(m => m.key === 'hiit');
+  // duration-weighted: (120*10 + 140*30) / 40 = 135
+  assert.equal(hiit.avgHr, 135, 'weighted by minutes, not a flat mean');
+  assert.equal(hiit.peakHr, 180);
+  const strength = d.modality.find(m => m.key === 'strength');
+  assert.equal(strength.avgHr, null, 'no HR-tagged sessions -> null, not 0');
+  // overall intensity: (120*10 + 140*30 + 150*30) / 70 = 141.4 -> 141
+  assert.equal(d.intensity.avgHr, 141);
+  assert.equal(d.intensity.peakHr, 180);
+  assert.equal(d.intensity.withHr, 3, '3 of 4 sessions carry HR');
+  assert.equal(d.intensity.total, 4);
+});
+
 test('parseWorkouts skips the header and bad rows', () => {
-  const rows = parseWorkouts('date,type,duration_min,energy_kcal,source\n2026-06-24,Running,30,,Watch\nbad-line');
+  const rows = parseWorkouts('date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source\n2026-06-24,Running,30,,,,,Watch\nbad-line');
   assert.equal(rows.length, 1);
-  assert.deepEqual(rows[0], { date: '2026-06-24', type: 'Running', dur: 30 });
+  assert.deepEqual(rows[0], { date: '2026-06-24', type: 'Running', dur: 30, hrAvg: null, hrMax: null });
 });
 
 test('aggregateDashboard counts DISTINCT days and groups minutes by modality', () => {
