@@ -1,3 +1,7 @@
+# --- Local-only notes (private: personal URLs, secrets, scratch). NEVER commit ---
+# Convention: any *.local.md is a per-machine note (e.g. the personal artifact URL).
+*.local.md
+
 # --- Sensitive health data: NEVER commit ---
 # Raw Apple Health export and any parsed personal metrics stay local only.
 data/apple-health/*

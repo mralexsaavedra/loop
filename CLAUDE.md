@@ -125,14 +125,16 @@ hand-edit the generated files or re-type macros in `food-log.md` — one source 
 - `npm test` — run the generator's test suite (`node --test`, zero deps). Generation runs
   `validate()` first, so a bad edit fails loudly instead of producing wrong macros.
 
-**The plan the owner actually views is a claude.ai artifact (frozen snapshot).** The first
-time you publish, create a new artifact from `data/nutrition/plan-web.html` and record ITS
-url here (the owner's personal artifact URL is intentionally not committed — keep it local,
-e.g. in your optional memory store or an untracked note). Editing local files does NOT update
-the published artifact. After a plan change: (1) edit the JSON → (2) run `generate.js` →
-(3) re-publish via the Artifact tool with `file_path=data/nutrition/plan-web.html` and
-`url=<your artifact URL>` (favicon 🥗, keep stable), then hard-reload (Cmd/Ctrl+Shift+R).
-plan-web.html is artifact-ready (CSP-safe, no external refs).
+**The plan the owner actually views is a claude.ai artifact (frozen snapshot).** The owner's
+personal artifact URL lives in **`data/nutrition/artifact.local.md`** (gitignored, never
+committed) — **read that file before re-publishing** so you never have to ask for the URL
+again; it is also mirrored in persistent memory for other machines, but the local file is the
+deterministic source. The first time you publish (no `artifact.local.md` yet), create a new
+artifact from `data/nutrition/plan-web.html` and write its URL into that file. Editing local
+files does NOT update the published artifact. After a plan change: (1) edit the JSON → (2) run
+`generate.js` → (3) re-publish via the Artifact tool with `file_path=data/nutrition/plan-web.html`
+and `url=<the URL from artifact.local.md>` (favicon 🥗, keep stable), then hard-reload
+(Cmd/Ctrl+Shift+R). plan-web.html is artifact-ready (CSP-safe, no external refs).
 
 ## Training tabs — "Hoy / Today" + "Entrenos / Workouts" pipeline
 
