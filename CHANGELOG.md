@@ -4,6 +4,21 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-06-30 — Plan artifact split into 3 tabs
+
+The artifact had grown into one long scroll mixing two different tasks: *consulting* the
+plan (what to eat, equivalence tables) vs *logging* what was eaten. Reorganized into tabs.
+
+- Three `<div class="tab-panel" data-tab="…">`: **🍽️ Mi día** (day-plan cards), **📋 Registro**
+  (the builder + Copiar para Claude), **📊 Tablas** (equivalences + suplementación + cómo usarlo).
+- Sticky tab bar (`.toggle.tabs`) above the Entreno/Descanso day toggle; the day toggle shows
+  on Mi día + Registro and hides on Tablas (irrelevant there).
+- `setTab(name, scrollTop)` switches panels + aria state; `jump(id)` now finds the target's
+  panel via `closest('.tab-panel')`, switches to it, then opens + scrolls — so the meal links
+  on Mi día (Proteína, carbo…) navigate correctly to their accordion on Tablas.
+- Tab wrappers live OUTSIDE the GEN regions (markers intact). Verified byte-identical after
+  `npm run generate`, `<div>` balanced 194/194, `npm test` 8/8. Republished to the artifact URL.
+
 ## 2026-06-30 — Food check-in: "Copiar para Claude" on the day-builder
 
 Closed the biggest data gap (food logging stopped 2025-11-26) by turning the existing
