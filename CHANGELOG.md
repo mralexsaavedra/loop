@@ -4,6 +4,34 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-07-01 — Whoop redesign, design tokens & per-run distance
+
+Full visual redesign of the published artifact to a Whoop-style dark dashboard, a tokenized
+design system, and a new per-run distance metric.
+
+- **Whoop dark theme** across all tabs: dark-always `:root` (dropped the light media query),
+  recovery-green accent `#15E26A` + strain-blue for volume/load, the lean/mod/fat zone colors
+  reused, hero numbers in a monospace stack, accent glows + a radial-gradient atmosphere. Pure
+  `<style>` rewrite — every class name kept, no GEN region touched.
+- **Navigation restructured**: the top pill tabs became a fixed **bottom tab-bar on mobile**
+  (icon over label) and a fixed full-height **left sidebar on desktop** (≥900px), with the
+  content full-bleed (no max-width cap). The Entreno/Descanso toggle moved out of the nav into
+  the content flow. Each tab split into `.tico`/`.tlbl` spans; `id`/`onclick`/`aria` preserved
+  so `setTab`/`setDay` are untouched.
+- **Design system fully tokenized**: brand colors as `--accent-rgb`/`--strain-rgb` triples so
+  `rgba()` glows track a single source; consolidated **type (11 steps), radius (6), space (12)**
+  scales replacing 22 ad-hoc font sizes / 11 radii / ~94 spacing literals. Layout-shell
+  dimensions (sidebar width, `calc/clamp/env`) deliberately left literal.
+- **Per-run distance**: `extract.js` now reads each workout's `DistanceWalkingRunning` child
+  stat → `workouts.csv` gains a `distance_km` column (appended, so `generate-training.js` column
+  indices are unaffected). `generate-health.js` joins running-workout km by date into the
+  **Salud → Carrera** table (new Dist column, which also now spans the full desktop width).
+  Distance shows `—` on days with no matching running workout — honest, not guessed.
+- Desktop grids fill the width (auto-fit) on Salud tiles, Mi día meals and the Registro form
+  (centered). Verified: `npm run check` OK, `npm test` 61/61 (+1 for the distance join),
+  GEN 14/14. Both `plan-web.html` (es) and `plan-web.template.html` (en) updated; artifact
+  republished.
+
 ## 2026-06-30 — Per-workout HR → intensity + load-vs-recovery
 
 Made the training data carry intensity, not just duration, and used it for the one analytical

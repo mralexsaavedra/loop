@@ -134,7 +134,7 @@ function handleWorkoutOpen(line) {
     durationMin: num(attr(line, 'duration')),
     energyKcal: num(attr(line, 'totalEnergyBurned')), // legacy attr; null on newer exports (see child stats)
     source: attr(line, 'sourceName'),
-    hrAvg: null, hrMin: null, hrMax: null,
+    hrAvg: null, hrMin: null, hrMax: null, distanceKm: null,
   };
   if (line.indexOf('</Workout>') !== -1) handleWorkoutClose(); // self-contained on one line (rare)
 }
@@ -148,6 +148,8 @@ function handleWorkoutStat(line) {
     curWorkout.hrMax = num(attr(line, 'maximum'));
   } else if (t === Q + 'ActiveEnergyBurned' && curWorkout.energyKcal == null) {
     curWorkout.energyKcal = num(attr(line, 'sum'));
+  } else if (t === Q + 'DistanceWalkingRunning') {
+    curWorkout.distanceKm = num(attr(line, 'sum')); // GPS distance for the session (run/walk)
   }
 }
 function handleWorkoutClose() {
@@ -231,8 +233,9 @@ rl.on('close', () => {
   // workouts
   sortByDate(workouts);
   const bpm = v => (v != null ? Math.round(v) : '');
-  counts.workouts = csv('workouts.csv', 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source',
-    workouts.map(w => `${w.date},${w.type},${w.durationMin ?? ''},${w.energyKcal ?? ''},${bpm(w.hrAvg)},${bpm(w.hrMin)},${bpm(w.hrMax)},${w.source || ''}`));
+  const km2 = v => (v != null ? Math.round(v * 100) / 100 : '');
+  counts.workouts = csv('workouts.csv', 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source,distance_km',
+    workouts.map(w => `${w.date},${w.type},${w.durationMin ?? ''},${w.energyKcal ?? ''},${bpm(w.hrAvg)},${bpm(w.hrMin)},${bpm(w.hrMax)},${w.source || ''},${km2(w.distanceKm)}`));
 
   const allDates = sortByDate([...readings.weight]).map(r => r.date);
   const meta = {

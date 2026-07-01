@@ -191,6 +191,14 @@ test('aggRunning returns empty state with no runs', () => {
   assert.deepEqual(aggRunning([{ date: '2026-06-25', speed: 4 }]), { hasData: false });
 });
 
+test('aggRunning attaches per-day workout distance when provided, null otherwise', () => {
+  const rows = [{ date: '2026-05-02', speed: 11.69, power: 269, gct: 235, vosc: 10.3, stride: 1.20 }];
+  const withDist = aggRunning(rows, { '2026-05-02': 6.014 });
+  assert.equal(withDist.sessions[0].dist, 6.01, 'km rounded to 2 decimals');
+  const noDist = aggRunning(rows);
+  assert.equal(noDist.sessions[0].dist, null, 'dist is null when no distance map is passed');
+});
+
 /* ---------- recovery ---------- */
 
 test('aggRecovery averages HRV per day and exposes the good-direction trends', () => {

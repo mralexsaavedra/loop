@@ -77,6 +77,21 @@ function readDietary() {
 }
 // running-daily.csv: date,speed_kmh,power_w,gct_ms,vosc_cm,stride_m,samples
 function readRunning() { return readTable('running-daily.csv', { speed: 1, power: 2, gct: 3, vosc: 4, stride: 5 }); }
+// workouts.csv: date,type,…,source,distance_km. Sum running-workout GPS distance (km) per day.
+// readTable can't be used (it coerces `type` to a number), so parse directly.
+function readRunDistByDate() {
+  const p = path.join(EXTRACT, 'workouts.csv');
+  if (!fs.existsSync(p)) return {};
+  const out = {};
+  for (const l of fs.readFileSync(p, 'utf8').trim().split('\n').slice(1)) {
+    if (!l) continue;
+    const c = l.split(',');
+    if (!/^Running/i.test(c[1] || '')) continue;
+    const km = parseFloat(c[8]);
+    if (Number.isFinite(km) && km > 0) out[c[0]] = (out[c[0]] || 0) + km;
+  }
+  return out;
+}
 // sleep-daily.csv: date,asleep_hours,source,bedtime,waketime -> [{date, value:hours, bedtime, waketime}]
 function readSleep() {
   const rows = readTable('sleep-daily.csv', { value: 1, bedtime: 3, waketime: 4 });
@@ -321,12 +336,14 @@ function buildActivity() {
  * SPARSE (a handful of sessions, not a daily series). We therefore show the most recent sessions
  * as a readout, NOT a trend — and say how many sessions exist. pace = 60 / speed(km/h). */
 const RUN_MIN_KMH = 5;  // drop sub-5 km/h rows (walking / GPS garbage) — these aren't runs
-function aggRunning(rows) {
+function aggRunning(rows, distByDate) {
   if (!rows || !rows.length) return { hasData: false };
   const runs = rows.filter(r => r.speed != null && r.speed >= RUN_MIN_KMH);
   if (!runs.length) return { hasData: false };
+  const dist = distByDate || {};
   const sessions = runs.slice(-8).reverse().map(r => ({
     date: r.date,
+    dist: dist[r.date] != null ? round(dist[r.date], 2) : null, // GPS km from the day's running workout(s)
     pace: paceStr(60 / r.speed),
     speed: round(r.speed, 1),
     power: r.power != null ? Math.round(r.power) : null,
@@ -336,7 +353,7 @@ function aggRunning(rows) {
   }));
   return { hasData: true, count: runs.length, sessions };
 }
-function buildRunning() { return aggRunning(readRunning()); }
+function buildRunning() { return aggRunning(readRunning(), readRunDistByDate()); }
 
 /* ---------- recovery ---------- */
 const SLEEP_TARGET = 7.5;  // baseline.md: target 7.5–8 h; the highest-leverage recovery lever
