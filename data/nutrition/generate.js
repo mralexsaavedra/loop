@@ -188,7 +188,7 @@ function dayPanel(day, plan) {
   const lines = [];
   lines.push(`  <div class="day-panel" data-day="${day}"${day === 'rest' ? ' hidden' : ''}>`);
   lines.push('    <div class="summary">');
-  lines.push(`      <div class="kcal">~${dotThousands(rk(total))} <span>kcal</span></div>`);
+  lines.push(`      <div class="kcal">~${dotThousands(rk(total))}<span>kcal</span></div>`);
   lines.push('    </div>');
   lines.push('    <div class="macros">');
   lines.push(`      <div class="mac"><span class="lbl">Prot</span><b>${rk(totP)} g</b></div>`);
