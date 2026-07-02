@@ -8,6 +8,13 @@ data/apple-health/*
 !data/apple-health/.gitkeep
 # extract.js is plain tooling (no data) → trackable; its extract/ output stays ignored.
 !data/apple-health/extract.js
+# The Apple Health export ships as an `export*.zip` / `exportación.zip` archive and
+# unzips to an `apple_health_export/` folder (a ~400MB+ export_cda.xml + workout-routes
+# GPX). These often land OUTSIDE data/apple-health/ (e.g. straight in data/), so ignore
+# them wherever they appear — a raw export drop must never be committable.
+**/apple_health_export/
+**/export*.zip
+**/exportación.zip
 
 # Personal logs contain medical/behavioral data. Keep templates, ignore real data.
 data/weight/weight-log.md
