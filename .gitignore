@@ -59,3 +59,11 @@ data/training/*
 # Nutritionist reports (anthropometric assessments + nutrition plans) — medical data
 data/nutritionist/*
 !data/nutritionist/.gitkeep
+
+# Gear manuals / device docs dropped locally (public docs, but keep the repo clean).
+data/gear/*
+!data/gear/.gitkeep
+
+# Clinical documents (ER reports, discharge notes, lab results) — medical data, NEVER commit.
+data/clinical/*
+!data/clinical/.gitkeep
