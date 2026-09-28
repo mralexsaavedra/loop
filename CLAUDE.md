@@ -73,6 +73,19 @@ available) so the next session resumes with their context.
      cache. Caveats: body metrics carry a `source` column (weight mixes scales — compare
      body fat within one scale only); steps are deduped to max-per-device per day (summing
      devices double-counts — that is why an earlier "15–18k" NEAT figure was inflated).
+     Between exports, `npm run sync` (`data/apple-health/sync-shortcut.js`) pulls iOS Shortcut
+     payloads from the optional `services/health-ingest` service (`GET /export/raw`) and merges
+     hrv/rhr/weight/bodyfat/leanmass/steps/energy/sleep into those CSVs: export rows always win,
+     Shortcut rows are rebuilt each run and fill only dates the export lacks — so re-run sync after
+     `extract.js`. Sync is incremental (local gitignored `extract/.shortcut-cache.json` of deduped
+     samples + last payload id; `npm run sync -- --full` rebuilds it). Daily totals: the latest
+     payload wins, and each payload's oldest (window-truncated) day is ignored. They are tagged `source=Shortcut` except body comp (keeps the real scale source
+     for the latest-source logic) and energy (no source column); `_meta.json` `shortcutSync.owned`
+     lists every date sync wrote. Shortcut steps = MAX of per-device day totals (`steps_watch`,
+     `steps_phone`; source `Shortcut Watch`/`Shortcut iPhone`), mirroring max-per-device — a
+     merged iOS `steps` total sums the devices (double-counts), so that key is ignored.
+     Unreachable service → exits non-zero without touching files. Row helpers are shared in
+     `samples.js`, so both paths format rows identically.
    - Nutrition: `data/nutrition/food-log.md` — the daily food log + rationale notes only.
      Per-serving tables, verified product labels, legume detail, and breakfast components are
      GENERATED into `plan-tables.md` from `ingredients.json` (public food DB) merged with

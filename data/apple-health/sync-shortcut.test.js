@@ -1,0 +1,518 @@
+/* Tests for the iOS Shortcut sync (ingest service -> extract CSVs). Pure functions only,
+ * SYNTHETIC fixtures (no real personal values), no network, no disk. */
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const sync = require('./sync-shortcut.js');
+
+const {
+  METRICS, SHORTCUT_SOURCE, parseNumber, parsePayload, collectSamples, buildRows,
+  unionMinutes, mergeCsv, updateMeta, resolveToken, fetchAllPayloads, planSync,
+  foldPayloads, emptyCache, CACHE_FILE, writeAtomic, syncDir,
+} = sync;
+
+test('parseNumber() accepts dot and comma decimals', () => {
+  assert.equal(parseNumber('12.5'), 12.5);
+  assert.equal(parseNumber('12,5'), 12.5);
+  assert.equal(parseNumber(' 60 '), 60);
+  assert.equal(parseNumber(''), null);
+  assert.equal(parseNumber('x'), null);
+});
+
+test('METRICS is a per-metric table covering the implemented metrics', () => {
+  assert.deepEqual(Object.keys(METRICS).sort(),
+    ['active_energy', 'basal_energy', 'bodyfat', 'hrv', 'leanmass', 'rhr', 'sleep', 'steps', 'weight']);
+  for (const m of Object.values(METRICS)) {
+    assert.ok(m.csv && m.header && m.kind);
+  }
+});
+
+test('parsePayload() parses point metrics and sleep intervals, skipping junk', () => {
+  const out = parsePayload({
+    hrv: '2030-01-02T08:00:00+01:00;40.123\n2030-01-02T09:00:00+01:00;50,5\n\n45.2\nbad;line',
+    rhr: '2030-01-02T00:05:00+01:00;55',
+    weight: '2030-01-02T07:00:00+01:00;70.30000000000001',
+    sleep: '2030-01-01T23:00:00+01:00;2030-01-02T01:00:00+01:00;Core\n2030-01-02T01:00:00+01:00;bad;Deep',
+    unknownMetric: '2030-01-02T00:00:00+01:00;1',
+  });
+  assert.deepEqual(out.hrv, [
+    { start: '2030-01-02 08:00:00 +0100', value: 40.123 },
+    { start: '2030-01-02 09:00:00 +0100', value: 50.5 },
+  ]);
+  assert.equal(out.rhr.length, 1);
+  assert.equal(out.weight[0].value, 70.30000000000001);
+  assert.deepEqual(out.sleep, [
+    { start: '2030-01-01 23:00:00 +0100', end: '2030-01-02 01:00:00 +0100', stage: 'Core' },
+  ]);
+  assert.equal(out.unknownMetric, undefined);
+});
+
+test('parsePayload() tolerates a non-object or non-string field', () => {
+  assert.deepEqual(parsePayload(null), {});
+  assert.deepEqual(parsePayload({ hrv: 42 }), {});
+  assert.deepEqual(parsePayload({ test: 'hello' }), {});
+});
+
+test('collectSamples() dedups overlapping payloads', () => {
+  const p1 = { hrv: '2030-01-02T08:00:00+01:00;40\n2030-01-03T08:00:00+01:00;41',
+    sleep: '2030-01-01T23:00:00+01:00;2030-01-02T01:00:00+01:00;Core' };
+  const p2 = { hrv: '2030-01-03T08:00:00+01:00;41\n2030-01-04T08:00:00+01:00;42',
+    sleep: '2030-01-01T23:00:00+01:00;2030-01-02T01:00:00+01:00;Core\n2030-01-01T23:00:00+01:00;2030-01-02T01:00:00+01:00;Deep' };
+  const s = collectSamples([p1, p2]);
+  assert.equal(s.hrv.length, 3);
+  assert.equal(s.sleep.length, 2, 'same interval with a different stage is a distinct sample');
+});
+
+test('unionMinutes() merges overlapping intervals (no double count)', () => {
+  const iv = [
+    { start: '2030-01-01 23:00:00 +0100', end: '2030-01-02 01:00:00 +0100' },
+    { start: '2030-01-02 00:30:00 +0100', end: '2030-01-02 02:00:00 +0100' },
+    { start: '2030-01-02 03:00:00 +0100', end: '2030-01-02 04:00:00 +0100' },
+  ];
+  assert.equal(unionMinutes(iv), 240);
+  assert.equal(unionMinutes([]), 0);
+});
+
+test('buildRows() formats point metrics like extract.js, sorted, tagged Shortcut', () => {
+  const rows = buildRows('hrv', [
+    { start: '2030-01-03 08:00:00 +0100', value: 41.26 },
+    { start: '2030-01-02 08:00:00 +0100', value: 40.04 },
+  ]);
+  assert.deepEqual(rows, [
+    { date: '2030-01-02', line: '2030-01-02,40,' + SHORTCUT_SOURCE },
+    { date: '2030-01-03', line: '2030-01-03,41.3,' + SHORTCUT_SOURCE },
+  ]);
+  const w = buildRows('weight', [{ start: '2030-01-02 07:00:00 +0100', value: 70.30000000000001 }]);
+  assert.equal(w[0].line, '2030-01-02,70.3,' + SHORTCUT_SOURCE);
+});
+
+test('buildRows() sleep: asleep stages only, night = wake-up date, union minutes, bed/wake clock', () => {
+  const rows = buildRows('sleep', [
+    { start: '2030-01-01 23:30:00 +0100', end: '2030-01-02 01:00:00 +0100', stage: 'Core' },
+    { start: '2030-01-02 01:00:00 +0100', end: '2030-01-02 01:30:00 +0100', stage: 'Awake' },
+    { start: '2030-01-02 01:30:00 +0100', end: '2030-01-02 03:00:00 +0100', stage: 'Deep' },
+    { start: '2030-01-02 03:00:00 +0100', end: '2030-01-02 07:15:00 +0100', stage: 'REM' },
+    { start: '2030-01-02 22:00:00 +0100', end: '2030-01-02 23:00:00 +0100', stage: 'InBed' },
+    { start: '2030-01-02 22:30:00 +0100', end: '2030-01-03 06:30:00 +0100', stage: 'Asleep' },
+  ]);
+  assert.deepEqual(rows, [
+    { date: '2030-01-02', line: `2030-01-02,7.25,${SHORTCUT_SOURCE},23.5,7.25` },
+    { date: '2030-01-03', line: `2030-01-03,8.00,${SHORTCUT_SOURCE},22.5,6.5` },
+  ]);
+});
+
+test('buildRows() sleep accepts localized stage names and ignores unknown ones', () => {
+  const rows = buildRows('sleep', [
+    { start: '2030-01-02 00:00:00 +0100', end: '2030-01-02 01:00:00 +0100', stage: 'Profundo' },
+    { start: '2030-01-02 01:00:00 +0100', end: '2030-01-02 02:00:00 +0100', stage: 'Despierto' },
+    { start: '2030-01-02 02:00:00 +0100', end: '2030-01-02 03:00:00 +0100', stage: 'Whatever' },
+  ]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].line, `2030-01-02,1.00,${SHORTCUT_SOURCE},0,1`);
+});
+
+const HDR = 'date,value,source';
+test('mergeCsv(): export rows win, shortcut rows fill only missing dates, sorted', () => {
+  const existing = [HDR, '2030-01-01,40,Watch', '2030-01-02,41,Watch', ''].join('\n');
+  const rows = [
+    { date: '2030-01-02', line: '2030-01-02,99,Shortcut' },
+    { date: '2030-01-03', line: '2030-01-03,42,Shortcut' },
+    { date: '2030-01-03', line: '2030-01-03,43,Shortcut' },
+  ];
+  const r = mergeCsv(existing, HDR, rows);
+  assert.equal(r.text, [HDR, '2030-01-01,40,Watch', '2030-01-02,41,Watch',
+    '2030-01-03,42,Shortcut', '2030-01-03,43,Shortcut', ''].join('\n'));
+  assert.equal(r.added, 2);
+  assert.equal(r.rows, 4);
+  assert.deepEqual(r.dates, ['2030-01-01', '2030-01-02', '2030-01-03']);
+});
+
+test('mergeCsv() is idempotent (re-run replaces its own previous rows)', () => {
+  const existing = [HDR, '2030-01-01,40,Watch', ''].join('\n');
+  const rows = [{ date: '2030-01-02', line: '2030-01-02,42,Shortcut' }];
+  const once = mergeCsv(existing, HDR, rows).text;
+  const twice = mergeCsv(once, HDR, rows).text;
+  assert.equal(twice, once);
+});
+
+test('mergeCsv() drops stale shortcut rows once an export covers that date', () => {
+  // simulates: sync added 01-02, then a new export (re-extract) delivered 01-02 itself
+  const existing = [HDR, '2030-01-01,40,Watch', '2030-01-02,41,Watch', ''].join('\n');
+  const r = mergeCsv(existing, HDR, [{ date: '2030-01-02', line: '2030-01-02,99,Shortcut' }]);
+  assert.equal(r.added, 0);
+  assert.ok(!r.text.includes('Shortcut'));
+});
+
+test('mergeCsv() creates the file content when no CSV exists yet', () => {
+  const r = mergeCsv(null, HDR, [{ date: '2030-01-02', line: '2030-01-02,42,Shortcut' }]);
+  assert.equal(r.text, HDR + '\n2030-01-02,42,Shortcut\n');
+});
+
+test('mergeCsv() keeps export rows in their original order within a date', () => {
+  const existing = [HDR, '2030-01-01,2,B', '2030-01-01,1,A', ''].join('\n');
+  const r = mergeCsv(existing, HDR, []);
+  assert.equal(r.text, existing);
+});
+
+test('updateMeta() refreshes row counts + ranges and records the sync, deterministically', () => {
+  const meta = { rows: { hrv: 1, weight: 1, steps: 9 }, ranges: { weight: 'a..b', steps: 'x..y' }, notes: ['n1'] };
+  const stats = {
+    hrv: { rows: 3, added: 2, dates: ['2030-01-01', '2030-01-03'], addedDates: ['2030-01-02', '2030-01-03'] },
+    weight: { rows: 2, added: 1, dates: ['2030-01-01', '2030-01-05'], addedDates: ['2030-01-05'] },
+  };
+  const out = updateMeta(meta, stats, { payloads: 4, lastPayloadId: '12' });
+  assert.equal(out.rows.hrv, 3);
+  assert.equal(out.rows.weight, 2);
+  assert.equal(out.rows.steps, 9);
+  assert.equal(out.ranges.weight, '2030-01-01..2030-01-05');
+  assert.equal(out.ranges.steps, 'x..y');
+  assert.deepEqual(out.shortcutSync.added, { hrv: 2, weight: 1 });
+  assert.equal(out.shortcutSync.ranges.hrv, '2030-01-02..2030-01-03');
+  assert.equal(out.shortcutSync.lastPayloadId, '12');
+  assert.equal(out.notes.filter(n => /Shortcut/.test(n)).length, 1);
+  const again = updateMeta(out, stats, { payloads: 4, lastPayloadId: '12' });
+  assert.deepEqual(again, out, 'idempotent: no duplicated note, no timestamps');
+  assert.equal(meta.rows.hrv, 1, 'input not mutated');
+});
+
+test('resolveToken() prefers env, falls back to the .env file text', () => {
+  assert.equal(resolveToken({ INGEST_TOKEN: 'fromenv' }, 'INGEST_TOKEN=fromfile'), 'fromenv');
+  assert.equal(resolveToken({}, '# c\nOTHER=1\nINGEST_TOKEN="fromfile"\n'), 'fromfile');
+  assert.equal(resolveToken({}, null), null);
+});
+
+function fakeFetch(pages, calls) {
+  return async (url, opts) => {
+    calls.push({ url: String(url), auth: opts.headers.authorization });
+    const since = Number(new URL(url).searchParams.get('since_id'));
+    const body = pages.filter(p => Number(p.id) > since).slice(0, 2);
+    return { ok: true, status: 200, json: async () => body };
+  };
+}
+
+test('fetchAllPayloads() pages by since_id until a short page', async () => {
+  const pages = [1, 2, 3].map(id => ({ id: String(id), received_at: 't', payload: { hrv: '' } }));
+  const calls = [];
+  const out = await fetchAllPayloads({ baseUrl: 'http://h:1', token: 'tok', automation: 'a', limit: 2, fetchImpl: fakeFetch(pages, calls) });
+  assert.deepEqual(out.map(p => p.id), ['1', '2', '3']);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].auth, 'Bearer tok');
+  assert.match(calls[0].url, /\/export\/raw\?automation=a&since_id=0&limit=2$/);
+});
+
+test('fetchAllPayloads() throws on a non-OK response', async () => {
+  const fetchImpl = async () => ({ ok: false, status: 401, json: async () => ({}) });
+  await assert.rejects(fetchAllPayloads({ baseUrl: 'http://h', token: 't', automation: 'a', fetchImpl }), /401/);
+});
+
+test('planSync() computes every CSV + meta without touching disk', () => {
+  const payloads = [
+    { id: '1', payload: { hrv: '2030-01-03T08:00:00+01:00;42', rhr: '2030-01-03T00:05:00+01:00;50' } },
+    { id: '2', payload: { hrv: '2030-01-03T08:00:00+01:00;42\n2030-01-01T08:00:00+01:00;30' } },
+  ];
+  const files = {
+    'hrv.csv': [HDR, '2030-01-01,40,Watch', ''].join('\n'),
+    '_meta.json': JSON.stringify({ rows: {}, ranges: {}, notes: [] }),
+  };
+  const plan = planSync(payloads, name => files[name] ?? null);
+  assert.equal(plan.writes['hrv.csv'], [HDR, '2030-01-01,40,Watch', '2030-01-03,42,Shortcut', ''].join('\n'));
+  assert.equal(plan.writes['rhr.csv'], [HDR, '2030-01-03,50,Shortcut', ''].join('\n'));
+  assert.equal(plan.stats.hrv.added, 1);
+  assert.equal(plan.stats.weight.added, 0);
+  const meta = JSON.parse(plan.writes['_meta.json']);
+  assert.equal(meta.rows.hrv, 2);
+  assert.equal(meta.ranges.restingHR, '2030-01-03..2030-01-03');
+  assert.equal(meta.shortcutSync.lastPayloadId, '2');
+});
+
+test('planSync() writes nothing at all when there is no data and no file', () => {
+  const plan = planSync([], () => null);
+  assert.deepEqual(plan.writes, {});
+});
+
+test('planSync() creates _meta.json (with the ownership ledger) when it is missing', () => {
+  const plan = planSync([{ id: '1', payload: { rhr: '2030-01-03T00:05:00+01:00;50' } }], () => null);
+  const meta = JSON.parse(plan.writes['_meta.json']);
+  assert.deepEqual(meta.shortcutSync.owned['rhr.csv'], ['2030-01-03']);
+});
+
+// ---- body composition (point + source) --------------------------------------------------
+
+test('parsePayload() reads an optional per-sample source; malformed sources become null', () => {
+  const out = parsePayload({
+    bodyfat: '2030-01-02T07:00:00+01:00;14.6;Scale App\n2030-01-03T07:00:00+01:00;14.5;14,5 %\n2030-01-04T07:00:00+01:00;14.4',
+    leanmas: '2030-01-02T07:00:00+01:00;60.1;Scale App',
+    weight: '',
+  });
+  assert.deepEqual(out.bodyfat, [
+    { start: '2030-01-02 07:00:00 +0100', value: 14.6, source: 'Scale App' },
+    { start: '2030-01-03 07:00:00 +0100', value: 14.5, source: null },
+    { start: '2030-01-04 07:00:00 +0100', value: 14.4, source: null },
+  ]);
+  assert.equal(out.leanmass, undefined, 'misspelled key is ignored');
+  assert.equal(out.weight, undefined, 'empty string = no data');
+});
+
+test('collectSamples() keeps the sourced copy of a duplicated sample', () => {
+  const bad = { bodyfat: '2030-01-02T07:00:00+01:00;14.6;14,6 %' };
+  const good = { bodyfat: '2030-01-02T07:00:00+01:00;14.6;Scale App' };
+  const s = collectSamples([bad, good]);
+  assert.equal(s.bodyfat.length, 1);
+  assert.equal(s.bodyfat[0].source, 'Scale App');
+});
+
+test('buildRows() bodyfat: percent scale (fractions converted), real source kept', () => {
+  const rows = buildRows('bodyfat', [
+    { start: '2030-01-02 07:00:00 +0100', value: 0.146, source: 'Scale App' },
+    { start: '2030-01-03 07:00:00 +0100', value: 14.5, source: 'Scale, Inc' },
+    { start: '2030-01-04 07:00:00 +0100', value: 14.4, source: null },
+  ]);
+  assert.deepEqual(rows.map(r => r.line), [
+    '2030-01-02,14.6,Scale App',
+    '2030-01-03,14.5,Scale  Inc',
+    '2030-01-04,14.4,' + SHORTCUT_SOURCE,
+  ]);
+});
+
+test('buildRows() leanmass keeps kg with 2 decimals and the real source', () => {
+  const rows = buildRows('leanmass', [{ start: '2030-01-02 07:00:00 +0100', value: 60.123456, source: 'Scale App' }]);
+  assert.equal(rows[0].line, '2030-01-02,60.12,Scale App');
+});
+
+// ---- daily totals (already grouped by day on the phone) ---------------------------------
+
+test('parsePayload() + buildRows() daily totals map to the extract daily schemas', () => {
+  const p = parsePayload({
+    active_energy: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:00:00+01:00;500.6',
+    basal_energy: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:00:00+01:00;1700,2',
+  });
+  assert.deepEqual(buildRows('active_energy', p.active_energy.slice(1)).map(r => r.line), ['2030-01-02,501']);
+  assert.deepEqual(buildRows('basal_energy', p.basal_energy.slice(1)).map(r => r.line), ['2030-01-02,1700']);
+  assert.equal(METRICS.active_energy.header, 'date,kcal');
+  assert.equal(METRICS.steps.header, 'date,steps,source');
+});
+
+test('collectSamples() daily totals: latest payload wins; each payload\'s oldest (truncated) day is ignored', () => {
+  const s = collectSamples([
+    { active_energy: '2030-01-02T00:03:00+01:00;900\n2030-01-03T00:01:00+01:00;100' },
+    { active_energy: '2030-01-02T09:00:00+01:00;400\n2030-01-03T00:01:00+01:00;700' },
+  ]);
+  assert.deepEqual(buildRows('active_energy', s.active_energy).map(r => r.line), ['2030-01-03,700']);
+});
+
+// ---- steps: per-device day totals, max-per-device like extract.js ----------------------
+
+const WATCH = METRICS.steps.devices.steps_watch;
+const PHONE = METRICS.steps.devices.steps_phone;
+
+test('steps = MAX(watch, phone) per day, source = the winning device', () => {
+  const s = collectSamples([{
+    steps_watch: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:03:00+01:00;8000.4\n2030-01-03T00:01:00+01:00;3000\n2030-01-04T00:00:00+01:00;0',
+    steps_phone: '2030-01-01T00:00:00+01:00;1\n2030-01-02T07:00:00+01:00;6000\n2030-01-03T08:00:00+01:00;5000\n2030-01-05T09:00:00+01:00;4000',
+  }]);
+  assert.deepEqual(buildRows('steps', s.steps).map(r => r.line), [
+    `2030-01-02,8000,${WATCH}`,
+    `2030-01-03,5000,${PHONE}`,
+    `2030-01-05,4000,${PHONE}`,
+  ]);
+  assert.ok(WATCH.startsWith(SHORTCUT_SOURCE) && PHONE.startsWith(SHORTCUT_SOURCE));
+});
+
+test('steps: a day with only zeros is no data; a tie goes to the watch', () => {
+  const s = collectSamples([{
+    steps_watch: '2030-01-02T00:00:00+01:00;0\n2030-01-03T00:00:00+01:00;500',
+    steps_phone: '2030-01-02T00:00:00+01:00;0\n2030-01-03T00:00:00+01:00;500',
+  }]);
+  assert.deepEqual(buildRows('steps', s.steps).map(r => r.line), [`2030-01-03,500,${WATCH}`]);
+});
+
+test('steps: the legacy merged `steps` key (double-counted) is ignored', () => {
+  const s = collectSamples([
+    { steps: '2030-01-02T00:03:00+01:00;99999' },
+    { steps_watch: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:03:00+01:00;7000' },
+  ]);
+  assert.deepEqual(buildRows('steps', s.steps).map(r => r.line), [`2030-01-02,7000,${WATCH}`]);
+  assert.deepEqual(collectSamples([{ steps: '2030-01-02T00:03:00+01:00;99999' }]), {});
+});
+
+test('steps: latest payload per device, then max across devices', () => {
+  const s = collectSamples([
+    { steps_watch: '2030-01-01T00:00:00+01:00;1\n2030-01-02T09:00:00+01:00;2000', steps_phone: '2030-01-01T00:00:00+01:00;1\n2030-01-02T09:00:00+01:00;2500' },
+    { steps_watch: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:01:00+01:00;9000', steps_phone: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:01:00+01:00;2600' },
+  ]);
+  assert.deepEqual(buildRows('steps', s.steps).map(r => r.line), [`2030-01-02,9000,${WATCH}`]);
+});
+
+test('mergeCsv() also drops device-tagged Shortcut rows without a ledger', () => {
+  const H = 'date,steps,source';
+  const existing = [H, '2030-01-01,5000,Watch', `2030-01-02,100,${WATCH}`, ''].join('\n');
+  const r = mergeCsv(existing, H, []);
+  assert.equal(r.text, [H, '2030-01-01,5000,Watch', ''].join('\n'));
+});
+
+// ---- ownership ledger (rows without a Shortcut tag) ------------------------------------
+
+test('mergeCsv() strips previously owned dates even without a source tag', () => {
+  const H = 'date,kcal';
+  const existing = [H, '2030-01-01,500', '2030-01-02,100', ''].join('\n');
+  const r = mergeCsv(existing, H, [{ date: '2030-01-02', line: '2030-01-02,600' }],
+    { sourceCol: null, ownedDates: ['2030-01-02'] });
+  assert.equal(r.text, [H, '2030-01-01,500', '2030-01-02,600', ''].join('\n'));
+  assert.deepEqual(r.addedDates, ['2030-01-02']);
+});
+
+test('planSync() updates a growing partial day and stays idempotent via the ledger', () => {
+  const H = 'date,kcal';
+  const files = { 'active-energy-daily.csv': [H, '2030-01-01,500', ''].join('\n'), '_meta.json': '{"rows":{},"ranges":{},"notes":[]}' };
+  const read = name => files[name] ?? null;
+  const apply = plan => Object.assign(files, plan.writes);
+  apply(planSync([{ id: '1', payload: { active_energy: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:00:00+01:00;100' } }], read));
+  apply(planSync([{ id: '1', payload: { active_energy: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:00:00+01:00;100' } },
+    { id: '2', payload: { active_energy: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:00:00+01:00;600' } }], read));
+  assert.equal(files['active-energy-daily.csv'], [H, '2030-01-01,500', '2030-01-02,600', ''].join('\n'));
+  const again = planSync([{ id: '1', payload: { active_energy: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:00:00+01:00;100' } },
+    { id: '2', payload: { active_energy: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:00:00+01:00;600' } }], read);
+  assert.deepEqual(again.writes, {}, 'second identical run changes nothing');
+});
+
+test('planSync() keeps real-source bodyfat rows replaceable via the ledger', () => {
+  const H = 'date,value,source';
+  const files = { 'bodyfat.csv': [H, '2030-01-01,15,Scale App', ''].join('\n'), '_meta.json': '{"rows":{},"ranges":{},"notes":[]}' };
+  const read = name => files[name] ?? null;
+  Object.assign(files, planSync([{ id: '1', payload: { bodyfat: '2030-01-02T07:00:00+01:00;14.6;Scale App' } }], read).writes);
+  Object.assign(files, planSync([{ id: '2', payload: { bodyfat: '2030-01-02T07:00:00+01:00;14.6;Scale App\n2030-01-02T19:00:00+01:00;14.8;Scale App' } }], read).writes);
+  assert.equal(files['bodyfat.csv'], [H, '2030-01-01,15,Scale App', '2030-01-02,14.6,Scale App', '2030-01-02,14.8,Scale App', ''].join('\n'));
+});
+
+// ---- daily totals: latest payload wins, except each payload's truncated oldest day -------
+
+const daily = (...pairs) => pairs.map(([d, v]) => `${d}T00:00:00+01:00;${v}`).join('\n');
+const activeRows = cache => buildRows('active_energy', Object.values(cache.samples.active_energy)).map(r => r.line);
+
+test('foldPayloads(): a later lower value corrects an earlier inflated one', () => {
+  const c = foldPayloads(emptyCache(), [
+    { id: '1', payload: { active_energy: daily(['2030-01-01', 100], ['2030-01-02', 5000], ['2030-01-03', 400]) } },
+    { id: '2', payload: { active_energy: daily(['2030-01-01', 90], ['2030-01-02', 800], ['2030-01-03', 450]) } },
+  ]);
+  assert.deepEqual(activeRows(c), ['2030-01-02,800', '2030-01-03,450']);
+});
+
+test('foldPayloads(): a truncated oldest day never overwrites a full one', () => {
+  const c = foldPayloads(emptyCache(), [
+    { id: '1', payload: { active_energy: daily(['2030-01-01', 100], ['2030-01-02', 900], ['2030-01-03', 400]) } },
+    { id: '2', payload: { active_energy: daily(['2030-01-02', 300], ['2030-01-03', 700], ['2030-01-04', 50]) } },
+  ]);
+  assert.deepEqual(activeRows(c), ['2030-01-02,900', '2030-01-03,700', '2030-01-04,50']);
+});
+
+test('foldPayloads(): truncation is per device series for steps', () => {
+  const c = foldPayloads(emptyCache(), [
+    { id: '1', payload: { steps_watch: daily(['2030-01-01', 10], ['2030-01-02', 9000]), steps_phone: daily(['2030-01-02', 10]) } },
+    { id: '2', payload: { steps_watch: daily(['2030-01-02', 20], ['2030-01-03', 1]), steps_phone: daily(['2030-01-02', 30], ['2030-01-03', 5000]) } },
+  ]);
+  // watch 01-02: full 9000 (payload 1) survives the later truncated 20; phone's 01-02 is truncated in both
+  assert.deepEqual(buildRows('steps', Object.values(c.samples.steps)).map(r => r.line),
+    [`2030-01-02,9000,${WATCH}`, `2030-01-03,5000,${PHONE}`]);
+});
+
+test('foldPayloads(): skips payloads at or below lastPayloadId (re-fold is a no-op)', () => {
+  const items = [{ id: '1', payload: { active_energy: daily(['2030-01-01', 1], ['2030-01-02', 500]) } },
+    { id: '2', payload: { active_energy: daily(['2030-01-01', 1], ['2030-01-02', 600]) } }];
+  const c = foldPayloads(emptyCache(), items);
+  assert.equal(c.lastPayloadId, '2');
+  assert.equal(c.payloads, 2);
+  assert.deepEqual(foldPayloads(c, items), c);
+  assert.deepEqual(foldPayloads(c, [items[0]]), c, 'an old payload replayed out of order changes nothing');
+});
+
+test('planSync() reads the cache and only folds new payloads; --full ignores it', () => {
+  const files = {};
+  const read = name => files[name] ?? null;
+  Object.assign(files, planSync([{ id: '1', payload: { rhr: '2030-01-02T00:05:00+01:00;50' } }], read).writes);
+  assert.ok(files[CACHE_FILE]);
+  Object.assign(files, planSync([{ id: '2', payload: { rhr: '2030-01-03T00:05:00+01:00;51' } }], read).writes);
+  assert.equal(files['rhr.csv'], ['date,value,source', '2030-01-02,50,Shortcut', '2030-01-03,51,Shortcut', ''].join('\n'));
+  const full = planSync([{ id: '2', payload: { rhr: '2030-01-03T00:05:00+01:00;51' } }], read, { full: true });
+  assert.equal(full.writes['rhr.csv'], ['date,value,source', '2030-01-03,51,Shortcut', ''].join('\n'));
+});
+
+test('planSync() refuses a corrupt cache (suggests --full) instead of guessing', () => {
+  assert.throws(() => planSync([], name => (name === CACHE_FILE ? '{not json' : null)), /--full/);
+});
+
+// ---- fetch: incremental + timeout ------------------------------------------------------
+
+test('fetchAllPayloads() starts from the given since_id', async () => {
+  const calls = [];
+  await fetchAllPayloads({ baseUrl: 'http://h', token: 't', automation: 'a', sinceId: '7', fetchImpl: fakeFetch([], calls) });
+  assert.match(calls[0].url, /since_id=7&/);
+});
+
+test('fetchAllPayloads() aborts a hung request with a clear timeout error', async () => {
+  const fetchImpl = (url, { signal }) => new Promise((resolve, reject) => {
+    signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+  });
+  await assert.rejects(fetchAllPayloads({ baseUrl: 'http://h', token: 't', automation: 'a', timeoutMs: 20, fetchImpl }), /timed out/);
+});
+
+// ---- disk: atomic writes + the extract.js <-> sync contract ----------------------------
+
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
+
+test('writeAtomic() replaces the file and leaves no temp file behind', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-atomic-'));
+  const f = path.join(dir, 'a.csv');
+  fs.writeFileSync(f, 'old\n');
+  writeAtomic(f, 'new\n');
+  assert.equal(fs.readFileSync(f, 'utf8'), 'new\n');
+  assert.deepEqual(fs.readdirSync(dir), ['a.csv']);
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('contract: a re-extract drops Shortcut rows + ledger, the next sync restores them from cache', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-contract-'));
+  for (const f of ['extract.js', 'samples.js']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
+  const Q = 'HKQuantityTypeIdentifier';
+  fs.writeFileSync(path.join(dir, 'export.xml'), [
+    `<Record type="${Q}HeartRateVariabilitySDNN" sourceName="W" startDate="2030-01-01 08:00:00 +0100" endDate="2030-01-01 08:00:00 +0100" value="40"/>`,
+    `<Record type="${Q}ActiveEnergyBurned" sourceName="W" startDate="2030-01-01 10:00:00 +0100" endDate="2030-01-01 10:05:00 +0100" value="300"/>`,
+  ].join('\n') + '\n');
+  const extract = () => execFileSync(process.execPath, [path.join(dir, 'extract.js')], { stdio: 'ignore' });
+  const out = path.join(dir, 'extract');
+  const read = f => fs.readFileSync(path.join(out, f), 'utf8');
+  const items = [{ id: '1', payload: {
+    hrv: '2030-01-01T09:00:00+01:00;99\n2030-01-02T08:00:00+01:00;42',
+    active_energy: daily(['2029-12-31', 1], ['2030-01-01', 999], ['2030-01-02', 500]),
+  } }];
+
+  extract();
+  syncDir(out, items);
+  const hrvSynced = read('hrv.csv'), energySynced = read('active-energy-daily.csv');
+  assert.equal(hrvSynced, 'date,value,source\n2030-01-01,40,W\n2030-01-02,42,Shortcut\n', 'export wins on 01-01');
+  assert.equal(energySynced, 'date,kcal\n2030-01-01,300\n2030-01-02,500\n');
+  assert.ok(JSON.parse(read('_meta.json')).shortcutSync);
+
+  extract(); // a new export drop rewrites CSVs + _meta.json, leaves the cache alone
+  assert.ok(!read('hrv.csv').includes('Shortcut'));
+  assert.equal(read('active-energy-daily.csv'), 'date,kcal\n2030-01-01,300\n');
+  assert.equal(JSON.parse(read('_meta.json')).shortcutSync, undefined);
+  assert.ok(fs.existsSync(path.join(out, CACHE_FILE)));
+
+  syncDir(out, []); // nothing new on the server -> rebuilt from the cache alone
+  assert.equal(read('hrv.csv'), hrvSynced);
+  assert.equal(read('active-energy-daily.csv'), energySynced);
+  assert.deepEqual(syncDir(out, []).writes, {}, 'second sync is a no-op');
+  fs.rmSync(dir, { recursive: true });
+});
+
+// ---- DST fall-back (Europe/Madrid, last Sunday of October: +02:00 -> +01:00) --------------
+
+test('sleep across the DST fall-back: real minutes, one night, wall-clock bed/wake', () => {
+  const s = collectSamples([{ sleep: [
+    '2026-10-24T23:30:00+02:00;2026-10-25T02:30:00+02:00;Core', // 3 h in summer time
+    '2026-10-25T02:00:00+01:00;2026-10-25T06:00:00+01:00;Deep', // 4 h after clocks go back
+  ].join('\n') }]);
+  assert.deepEqual(buildRows('sleep', s.sleep).map(r => r.line), [`2026-10-25,7.00,${SHORTCUT_SOURCE},23.5,6`]);
+});

@@ -2,6 +2,7 @@ import http from 'node:http'
 import { isAuthorized } from './auth.js'
 import { createPool, migrate, insertRawPayload, ping } from './db.js'
 import { createStravaSync, startSyncLoop, isConfigured as stravaConfigured } from './sync.js'
+import { createExportHandler } from './export.js'
 
 const PORT = Number(process.env.PORT ?? 8088)
 const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES ?? 32 * 1024 * 1024)
@@ -18,6 +19,7 @@ if (!DATABASE_URL) {
 }
 
 const pool = createPool(DATABASE_URL)
+const handleExport = createExportHandler({ pool, token: INGEST_TOKEN })
 
 // Strava is optional: without credentials the service still ingests Apple Health.
 const STRAVA_ENABLED = stravaConfigured(process.env)
@@ -112,6 +114,11 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'POST' && url.pathname === '/ingest/health-auto-export') {
       await handleIngest(req, res, 'health-auto-export')
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/export/raw') {
+      await handleExport(req, res, url)
       return
     }
 

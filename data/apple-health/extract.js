@@ -27,12 +27,8 @@ if (!fs.existsSync(SRC)) { console.error('ERROR: export.xml not found at ' + SRC
 fs.mkdirSync(OUT, { recursive: true });
 
 const attr = (s, name) => { const m = s.match(new RegExp(' ' + name + '="([^"]*)"')); return m ? m[1] : null; };
-const day = dt => (dt || '').slice(0, 10);              // "2026-06-12 09:10:00 +0200" -> "2026-06-12"
-const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
-// minutes between two "YYYY-MM-DD HH:MM:SS +ZZZZ" stamps (same tz → ignore offset, parse naive-local)
-const minutesBetween = (start, end) => (Date.parse(end.slice(0, 19).replace(' ', 'T')) - Date.parse(start.slice(0, 19).replace(' ', 'T'))) / 60000;
-// add one calendar day to "YYYY-MM-DD" (UTC math → no host-tz drift)
-const addDay = d => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + 1); return t.toISOString().slice(0, 10); };
+// shared with sync-shortcut.js so export- and Shortcut-derived rows are formatted identically
+const { READING_HEADER, SLEEP_HEADER, day, num, absMs, minutesBetween, sleepNight, readingRow, sleepRow } = require('./samples.js');
 
 // sparse readings: [{date, value, source}]
 const readings = { weight: [], bodyfat: [], rhr: [], vo2max: [], hrv: [], leanmass: [], wristTemp: [] };
@@ -65,8 +61,6 @@ const addMaxSrc = (map, d, src, v) => { if (!d || v == null) return; const m = m
 // add a running-metric sample for a day; drop non-positive values (Zepp emits 0 placeholders)
 const addRun = (d, key, v) => { if (!d || !(v > 0)) return; const o = running.get(d) || {}; const m = o[key] || { s: 0, n: 0 }; m.s += v; m.n++; o[key] = m; running.set(d, o); };
 const runMean = (o, key) => (o[key] && o[key].n ? o[key].s / o[key].n : null);
-// local clock as a decimal hour from "YYYY-MM-DD HH:MM:SS +ZZZZ" -> e.g. 23:30 -> 23.5
-const clockHour = dt => +(+dt.slice(11, 13) + (+dt.slice(14, 16)) / 60).toFixed(2);
 
 function handleRecord(line) {
   const type = attr(line, 'type');
@@ -109,15 +103,14 @@ function handleRecord(line) {
       const mins = minutesBetween(start, end);
       if (!(mins > 0)) return;
       // attribute to the wake-up date so an evening→morning night isn't split across two rows
-      const hour = +start.slice(11, 13);
-      const night = hour >= 18 ? addDay(day(start)) : day(start);
+      const night = sleepNight(start);
       const bySrc = sleep.get(night) || new Map();
       bySrc.set(src, (bySrc.get(src) || 0) + mins);
       sleep.set(night, bySrc);
       // earliest asleep start / latest asleep end of the night -> bedtime & wake regularity
       const ck = sleepClock.get(night) || { start: start, end: end };
-      if (Date.parse(start.slice(0, 19).replace(' ', 'T')) < Date.parse(ck.start.slice(0, 19).replace(' ', 'T'))) ck.start = start;
-      if (Date.parse(end.slice(0, 19).replace(' ', 'T')) > Date.parse(ck.end.slice(0, 19).replace(' ', 'T'))) ck.end = end;
+      if (absMs(start) < absMs(ck.start)) ck.start = start;
+      if (absMs(end) > absMs(ck.end)) ck.end = end;
       return sleepClock.set(night, ck);
     }
   }
@@ -178,7 +171,7 @@ rl.on('close', () => {
   // sparse readings
   for (const [k, arr] of Object.entries(readings)) {
     sortByDate(arr);
-    counts[k] = csv(`${k}.csv`, 'date,value,source', arr.map(r => `${r.date},${r.value},${r.source || ''}`));
+    counts[k] = csv(`${k}.csv`, READING_HEADER, arr.map(readingRow));
   }
   // daily sums
   const dumpDaily = (map, file, col) => {
@@ -200,14 +193,11 @@ rl.on('close', () => {
       .map(([d, o]) => `${d},${Math.round(o.kcal)},${o.p.toFixed(1)},${o.c.toFixed(1)},${o.g.toFixed(1)}`));
   // sleep — max minutes across sources per night (avoids cross-source double count).
   // bedtime/waketime = earliest asleep start / latest asleep end of the night (decimal local hour).
-  counts.sleep = csv('sleep-daily.csv', 'date,asleep_hours,source,bedtime,waketime',
+  counts.sleep = csv('sleep-daily.csv', SLEEP_HEADER,
     [...sleep.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, bySrc]) => {
       let best = null;
       for (const [s, m] of bySrc) if (!best || m > best.m) best = { s, m };
-      const ck = sleepClock.get(d);
-      const bt = ck ? clockHour(ck.start) : '';
-      const wt = ck ? clockHour(ck.end) : '';
-      return `${d},${(best.m / 60).toFixed(2)},${best.s || ''},${bt},${wt}`;
+      return sleepRow(d, best.m, best.s, sleepClock.get(d));
     }));
   // activity: MAX across sources per day (iPhone + Watch both log these → summing double-counts)
   const dumpMaxSrc = (map, file, col, dec) => csv(file, `date,${col}`,

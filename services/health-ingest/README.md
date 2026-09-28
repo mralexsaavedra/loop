@@ -24,9 +24,46 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 | GET    | `/healthz`                    | none   | `200` when the database answers |
 | POST   | `/ingest/health-auto-export`  | bearer | `202` with the stored row id |
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
+| GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]`; `400` on a bad query |
 
 Bearer token is compared in constant time; it is the entire security boundary
 for the endpoint, because Health Auto Export can only send a static header.
+
+## iOS Shortcut ingestion
+
+A plain iOS Shortcut can feed the same endpoint as Health Auto Export: it runs
+"Find Health Samples" queries, joins each result into a newline-separated string
+and POSTs one JSON object to `/ingest/health-auto-export` with the bearer token
+and an `Automation-Name` header (stored in `raw_payload.automation`).
+
+```json
+{
+  "hrv":    "2030-01-02T08:00:00+01:00;42.1\n…",
+  "rhr":    "2030-01-02T00:05:00+01:00;55\n…",
+  "weight": "2030-01-02T07:00:00+01:00;70.3\n…",
+  "sleep":  "2030-01-01T23:30:00+01:00;2030-01-02T01:00:00+01:00;Core\n…"
+}
+```
+
+Point metrics are `start;value[;source]` (body fat / lean mass carry the scale's
+source), daily totals grouped by day on the phone (active/basal energy, and steps sent
+per device as `steps_watch` / `steps_phone`, because a merged steps total sums the
+devices) are `start;value`, sleep is `start;end;stage`. A key is omitted or empty when its query
+returned nothing. Runs may overlap (rolling window); the reader dedups.
+
+### Reading payloads back: `GET /export/raw`
+
+| Query        | Meaning |
+| ------------ | ------- |
+| `automation` | required; matches the `Automation-Name` header |
+| `since_id`   | return rows with `id >` this (default `0`) |
+| `limit`      | page size, default 500, max 1000 |
+
+Rows come back oldest first; page by passing the last `id` as `since_id`. Same
+constant-time bearer check as ingest, and only counts are logged. The repo's
+`npm run sync` (`data/apple-health/sync-shortcut.js`) uses it to merge Shortcut
+samples into the Apple Health extract CSVs (export rows win; Shortcut rows fill
+only dates the export does not cover, tagged `source=Shortcut`).
 
 ## Strava
 
@@ -67,6 +104,13 @@ npm test
 ```
 
 ## Exposing it
+
+**Plain HTTP on the LAN.** The service itself speaks plain HTTP: on the local
+network, the bearer token and every health payload travel unencrypted and are
+readable by anyone on that network. That is acceptable only on a trusted home
+network. For anything else (guest/shared Wi-Fi, VPN-less remote access, the
+internet), put it behind a TLS-terminating reverse proxy and rotate the token
+(`openssl rand -hex 32`, update `.env` and the clients) if it may have been exposed.
 
 The iPhone must reach the endpoint from outside the LAN. Point the reverse proxy
 at `apps:8088`.
