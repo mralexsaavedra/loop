@@ -1039,7 +1039,7 @@
   "|||.tabnav|||display": "flex",
   "|||.tabnav|||gap": "var(--sp-1)",
   "|||.tabnav|||left": "0",
-  "|||.tabnav|||padding": "6px 6px calc(6px + env(safe-area-inset-bottom))",
+  "|||.tabnav|||padding": "6px calc(6px + env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) calc(6px + env(safe-area-inset-left))",
   "|||.tabnav|||position": "fixed",
   "|||.tabnav|||right": "0",
   "|||.tabnav|||z-index": "30",

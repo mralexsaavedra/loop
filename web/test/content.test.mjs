@@ -137,7 +137,7 @@ test('example build: every former tab lives as a section in its new tab, in orde
   const html = fs.readFileSync(examplePath, 'utf8');
   assertSectionInPanel(html, 'hoy', 'home');
   for (const key of ['dia', 'registro', 'tablas']) assertSectionInPanel(html, key, 'nutricion');
-  assertSectionInPanel(html, 'dash', 'health');
+  assertSectionInPanel(html, 'dash', 'entreno');
   const nutricion = sliceTabPanel(html, 'nutricion');
   const order = ['dia', 'registro', 'tablas'].map((k) => nutricion.indexOf(`data-section="${k}"`));
   assert.deepEqual([...order].sort((a, b) => a - b), order, 'Nutrición order: Mi día, Registro, Tablas');
