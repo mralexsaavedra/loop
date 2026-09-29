@@ -443,7 +443,13 @@ is the newest day, and the trend is the line under it.
   sleep-duration reading, and the page then labels it by date + "no sleep data", never "last night".
   Context = `trend7` (mean composite of the 7 days ending asOf) and `trendDir` = `delta7` (this
   week's trend7 − last week's): two non-overlapping 7-day means differ with noise √2 × σ_7 ≈ 0.46,
-  so it is cut at `TREND_DIR_CUTOFF` = `BAND_CUTOFF` × √2 ≈ 0.7: up / steady / down. Shown with per-component trends and the last 14 raw dailies. Gated ("insufficient")
+  so it is cut at `TREND_DIR_CUTOFF` = `BAND_CUTOFF` × √2 ≈ 0.7: up / steady / down. The recovery
+  detail card (Salud `#score-recovery`, Whoop-style) spans the full grid row: headline (last night's
+  composite as the big number + band word; the 7-day trend is a small secondary line) | 14-day
+  sparkline | compact contributors (state dot, name, latest value + unit, baseline · MAD · n for HRV,
+  RHR, sleep duration, sleep regularity), side by side on wide screens and stacked on phones; the
+  confidence + SDNN chips stay on one line and the raw last-14-days lists fold into a `<details>`
+  ("Last 14 days" / "Últimos 14 días"). Gated ("insufficient")
   unless components with ≥ 14 baseline days carry ≥ 0.60 of the weight, include HRV or RHR, and there
   are ≥ 7 composite days in the last 14.
 - **Load** is PER MODALITY (gym / run / bike; `other` is shown raw, never scored) and Relative-Effort-only
