@@ -468,6 +468,32 @@ test('load dial default: several sessions today -> the one with the highest RE; 
   assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [second]: 94 }), { now: addDays(ASOF, 1) })), first);
 });
 
+test('load dial default: a session today opens its modality even when that modality is gated (greyed, gated copy, no number)', () => {
+  const D = buildDials(fixtureScores(), HEALTH).load;
+  const gated = D.modalities.find((m) => m.state === 'gated');
+  assert.ok(gated, 'fixture needs a gated modality');
+  const html = withDials(withToday(fixtureScores(), { [gated.key]: 50 }));
+  assert.equal(pressedMod(html), gated.key, 'today\'s session beats the first ungated modality');
+  assert.equal(visibleFig(html), gated.key);
+  assert.match(html, new RegExp(`<figure class="dial dial-load dial-off[^"]*" data-dmod="${gated.key}"`), 'shown in its gated state (greyed)');
+  assert.ok(figOf(html, gated.key).includes(enT.dials.load.gated), 'with the gated copy');
+  assert.doesNotMatch(figOf(html, gated.key), /dial-num/, 'no number on a gated dial');
+});
+
+test('load dial default: ranking = highest RE today, then modality order; a session without RE beats nothing; gating does not change the rank', () => {
+  const keys = buildDials(fixtureScores(), HEALTH).load.modalities.map((m) => m.key);
+  const gated = buildDials(fixtureScores(), HEALTH).load.modalities.find((m) => m.state === 'gated').key;
+  const ok = keys.filter((k) => k !== gated);
+  // tie on RE -> the earlier modality in the switch order
+  const [a, b] = ok;
+  assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [b]: 60, [a]: 60 }))), keys.indexOf(a) < keys.indexOf(b) ? a : b);
+  // a gated modality with the highest RE today wins over an ungated one
+  assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [gated]: 80, [a]: 60 }))), gated);
+  assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [gated]: 40, [a]: 60 }))), a);
+  // rows without RE (noEffort) on a gated modality still beat nothing today
+  assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [gated]: 0 }))), gated);
+});
+
 test('dials: stale data greys the dial; fresh data does not', () => {
   const s = fixtureScores();
   assert.doesNotMatch(dialOf(withDials(s, { now: addDays(ASOF, 1) }), 'dial-sleep'), /sc-stale/);
