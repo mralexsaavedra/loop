@@ -4,6 +4,7 @@
 export const es = {
   heading: 'Ingesta registrada',
   asOfTpl: '{date}',
+  todayLbl: 'Hoy, en curso',
   targetLbl: { train: 'Objetivo día de entreno', rest: 'Objetivo día de descanso' },
   ofTpl: 'de {target} {unit}',
   rings: { k: 'Energía', p: 'Proteína', c: 'Carbohidratos', g: 'Grasa' },
@@ -17,6 +18,7 @@ export const es = {
 export const en = {
   heading: 'Logged intake',
   asOfTpl: '{date}',
+  todayLbl: 'Today, so far',
   targetLbl: { train: 'Training-day target', rest: 'Rest-day target' },
   ofTpl: 'of {target} {unit}',
   rings: { k: 'Energy', p: 'Protein', c: 'Carbs', g: 'Fat' },

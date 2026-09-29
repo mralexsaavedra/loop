@@ -127,6 +127,23 @@ test('setDay calls window.bldRefresh() when nutrition.js has registered it (lega
   assert.equal(refreshed, true);
 });
 
+test('setDay survives a throwing or non-function window.intakeRefresh (optional intake rings)', () => {
+  const doc = new StubDocument();
+  const restPanel = doc.el(null, { classes: ['day-panel'], attrs: { 'data-day': 'rest' }, hidden: true });
+  doc.el('b-train', { attrs: { 'aria-pressed': 'true' } });
+  doc.el('b-rest', { attrs: { 'aria-pressed': 'false' } });
+  const { window } = makeContext(doc);
+
+  window.intakeRefresh = () => { throw new Error('boom'); };
+  assert.doesNotThrow(() => window.setDay('rest'));
+  assert.equal(restPanel.hidden, false);
+  assert.equal(doc.getElementById('b-rest').getAttribute('aria-pressed'), 'true');
+
+  window.intakeRefresh = 'not a function';
+  assert.doesNotThrow(() => window.setDay('train'));
+  assert.equal(restPanel.hidden, true);
+});
+
 test('jump() opens the target <details>, switches to its tab (without scrolling the page top), then scrolls it into view', async () => {
   const doc = new StubDocument();
   const { panels } = makeTabPage(doc);
