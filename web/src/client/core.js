@@ -92,6 +92,15 @@ function jump(id) {
   }, 30);
 }
 
+/** jump(id) when the target exists and is not in a hidden section; otherwise open `tab`. Used by
+ * Inicio's score cards to land on their Salud detail even when that detail has no data yet. */
+function jumpOr(id, tab) {
+  var el = document.getElementById(id);
+  var section = el && el.closest && el.closest('.tab-section');
+  if (el && !(section && section.hidden)) jump(id);
+  else setTab(tab);
+}
+
 function bump(key, delta) {
   var el = document.getElementById('x-' + key);
   if (!el) return;
@@ -103,4 +112,5 @@ function bump(key, delta) {
 window.setTab = setTab;
 window.setDay = setDay;
 window.jump = jump;
+window.jumpOr = jumpOr;
 window.bump = bump;

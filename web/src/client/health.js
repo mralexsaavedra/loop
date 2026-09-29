@@ -104,6 +104,11 @@
     return '<div class="run-tbl-wrap"><table class="run-tbl">' + head + rows + '</table></div>';
   }
 
+  // section sub-heading with a stable `hl-<key>` anchor (jump target for Inicio's score cards)
+  function sub(key) {
+    return '<div class="hsub" id="hl-' + key + '">' + T.sections[key] + '</div>';
+  }
+
   function render() {
     var host = document.getElementById('health');
     if (!host) return;
@@ -114,7 +119,7 @@
     }
     /* body composition */
     if (B.hasData) {
-      out.push('<div class="hsub">' + T.sections.body + '</div>');
+      out.push(sub('body'));
       if (B.weight) out.push(trend(T.trend.weight.title, nf(B.weight.latest) + '<small>' + T.trend.weight.unit + '</small>', delta(B.weight.d30, T.trend.weight.deltaUnit, 0), B.weight.spark));
       if (B.bodyfat) out.push(trend(T.trend.bodyfat.title, nf(B.bodyfat.latest) + '<small>' + T.trend.bodyfat.unit + '</small>', delta(B.bodyfat.delta, T.trend.bodyfat.deltaUnit, -1), B.bodyfat.spark));
       if (B.lean) out.push(trend(T.trend.lean.title, nf(B.lean.latest) + '<small>' + T.trend.lean.unit + '</small>', delta(B.lean.delta, T.trend.lean.deltaUnit, 1), B.lean.spark));
@@ -126,7 +131,7 @@
     }
     /* activity / NEAT */
     if (A.hasData) {
-      out.push('<div class="hsub">' + T.sections.activity + '</div>');
+      out.push(sub('activity'));
       if (A.steps) out.push(trend(T.trend.steps.title, nf(A.steps.avg30) + '<small>' + T.trend.steps.unit + '</small>', delta(A.steps.d30, T.trend.steps.deltaUnit, 1), A.steps.spark));
       if (A.exercise) out.push(trend(T.trend.exercise.title, nf(A.exercise.avg30) + '<small>' + T.trend.exercise.unit + '</small>', delta(A.exercise.d30, T.trend.exercise.deltaUnit, 1), A.exercise.spark));
       if (A.distance) out.push(trend(T.trend.distance.title, nf(A.distance.avg30) + '<small>' + T.trend.distance.unit + '</small>', delta(A.distance.d30, T.trend.distance.deltaUnit, 1), A.distance.spark));
@@ -135,7 +140,7 @@
     }
     /* energy */
     if (E.hasData) {
-      out.push('<div class="hsub">' + T.sections.energy + '</div>');
+      out.push(sub('energy'));
       if (E.tdeeAvg != null) out.push(trend(T.trend.expenditure.title, nf(E.tdeeAvg) + '<small>' + T.trend.expenditure.unit + '</small>', '', E.spark));
       if (E.balance) {
         var b = E.balance;
@@ -165,13 +170,13 @@
     }
     /* running */
     if (Run.hasData) {
-      out.push('<div class="hsub">' + T.sections.running + '</div>');
+      out.push(sub('running'));
       out.push(runsTable(Run.sessions));
       out.push(note(format(T.runningNote, { count: Run.count })));
     }
     /* recovery */
     if (R.hasData) {
-      out.push('<div class="hsub">' + T.sections.recovery + '</div>');
+      out.push(sub('recovery'));
       if (R.rhr) out.push(trend(T.trend.rhr.title, R.rhr.latest + '<small>' + T.trend.rhr.unit + '</small>', delta(R.rhr.d30, T.trend.rhr.deltaUnit, -1), R.rhr.spark));
       if (R.hrv) out.push(trend(T.trend.hrv.title, R.hrv.latest + '<small>' + T.trend.hrv.unit + '</small>', delta(R.hrv.d30, T.trend.hrv.deltaUnit, 1), R.hrv.spark));
       if (R.vo2max) out.push(trend(T.trend.vo2max.title, nf(R.vo2max.latest) + '<small>' + T.trend.vo2max.unit + '</small>', delta(Math.round((R.vo2max.latest - R.vo2max.first) * 10) / 10, '', 1), R.vo2max.spark));
@@ -191,7 +196,7 @@
     }
     /* load vs recovery (cross-tab) */
     if (LR.hasData) {
-      out.push('<div class="hsub">' + T.sections.load + '</div>');
+      out.push(sub('load'));
       var s = LR.series, lmax = Math.max.apply(null, s.map(function (x) { return x.load; })) || 1;
       var lbars = s
         .map(function (x) {

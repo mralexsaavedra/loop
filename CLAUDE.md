@@ -143,6 +143,9 @@ sidebar on wide ones); the former tabs live on as SECTIONS (`data-section="<key>
 always stay in the build. Nutrición disappears when all three of its sections are hidden; the
 visible tab on load is the first remaining one; hiding every tab fails the build.
 `setTab('<legacy key>')` still works (it opens the hosting tab and scrolls to the section).
+Tapping a score card on Inicio opens its Salud detail (recovery → the Recovery sub-section
+`#hl-recovery`, a modality load card → Entrenamiento `#sec-dash`) via core.js `jumpOr`, falling
+back to the Salud tab when that detail has no data; the cards are not links when Salud is hidden.
 
 ## Nutrition plan — data pipeline & published artifact
 
