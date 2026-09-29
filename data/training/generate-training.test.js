@@ -168,12 +168,18 @@ test('buildHtml replaces BOTH GEN regions and stays idempotent', () => {
 });
 
 test('validate() rejects a malformed program (bad date / empty blocks)', () => {
+  // generate-training.js now requires ../../lib/training/{program,dashboard}.mjs (astro-plan-web
+  // slice 2) — mirror the real repo depth (data/training/ two levels below lib/) so that
+  // relative require still resolves when this test runs the copy standalone.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'train-bad-'));
   try {
-    fs.copyFileSync(path.join(__dirname, 'generate-training.js'), path.join(dir, 'generate-training.js'));
-    fs.writeFileSync(path.join(dir, 'training-data.json'), JSON.stringify({ days: { 'not-a-date': { focus: 'x', blocks: [] } } }));
+    const genDir = path.join(dir, 'data', 'training');
+    fs.mkdirSync(genDir, { recursive: true });
+    fs.cpSync(path.join(__dirname, '..', '..', 'lib', 'training'), path.join(dir, 'lib', 'training'), { recursive: true });
+    fs.copyFileSync(path.join(__dirname, 'generate-training.js'), path.join(genDir, 'generate-training.js'));
+    fs.writeFileSync(path.join(genDir, 'training-data.json'), JSON.stringify({ days: { 'not-a-date': { focus: 'x', blocks: [] } } }));
     assert.throws(
-      () => execFileSync(process.execPath, ['generate-training.js', '--check'], { cwd: dir, stdio: 'pipe' }),
+      () => execFileSync(process.execPath, ['generate-training.js', '--check'], { cwd: genDir, stdio: 'pipe' }),
       /validation failed/,
     );
   } finally {
