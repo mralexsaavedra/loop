@@ -161,8 +161,9 @@
 
 /* Inicio dials — Sleep / Recovery / Load. 270 degree open arcs; geometry is baked (view/dial.mjs).
  * --dial-c is the dial's meaning colour: sleep, recovery band (good / trend / low), load = strain.
- * No percentage anywhere: recovery marks a trend on a zoned scale, sleep fills to a stated target,
- * load marks acute/chronic with 1.0x at the top of the arc. */
+ * No percentage anywhere: recovery marks last night on a zoned scale (7-day trend underneath),
+ * sleep fills to a stated target, load marks the day's RE with the typical training day at the top
+ * of the arc (a rest day has no fill). */
 .sc-dials {
   padding: var(--sp-7) var(--sp-5) var(--sp-6);
 }
@@ -233,20 +234,6 @@
 .dial-zone-above {
   stroke: var(--good);
 }
-.dial-lz-detraining,
-.dial-lz-ramping {
-  stroke: var(--mid);
-  opacity: 0.2;
-}
-.dial-lz-below,
-.dial-lz-above {
-  stroke: var(--strain);
-  opacity: 0.18;
-}
-.dial-lz-steady {
-  stroke: var(--strain);
-  opacity: 0.34;
-}
 .dial-fill {
   fill: none;
   stroke: var(--dial-c);
@@ -311,6 +298,16 @@
 .dial-sub {
   font-size: var(--fs-2xs);
   color: var(--muted);
+}
+.dial-when,
+.dial-trend {
+  display: block;
+}
+.dial-when {
+  color: var(--ink);
+}
+.dial-nodata {
+  color: var(--mid);
 }
 .dial-off .dial-svg {
   opacity: 0.45;
@@ -407,4 +404,10 @@
   .dial-word {
     font-size: 11px;
   }
+}
+.sc-today {
+  font-size: var(--fs-md);
+  font-weight: 650;
+  color: var(--ink);
+  margin: 0 0 var(--sp-2);
 }
