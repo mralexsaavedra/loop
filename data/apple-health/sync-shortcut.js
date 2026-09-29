@@ -339,12 +339,16 @@ function planSync(items, readFile, { full = false } = {}) {
 const { writeAtomic } = common;
 
 // plan + apply against a directory of extract CSVs (used by main and the contract test)
+// _meta.json is shared with sync-strava.js (both scripts can touch the same extract/ dir), so
+// the whole read-plan-write sequence runs under an exclusive lock to prevent a lost update.
 function syncDir(dir, items, opts = {}) {
-  const readFile = name => { const p = path.join(dir, name); return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null; };
-  const plan = planSync(items, readFile, opts);
-  if (Object.keys(plan.writes).length) fs.mkdirSync(dir, { recursive: true });
-  for (const [name, text] of Object.entries(plan.writes)) writeAtomic(path.join(dir, name), text);
-  return plan;
+  fs.mkdirSync(dir, { recursive: true }); // the lockfile itself needs the directory to exist
+  return common.withLock(path.join(dir, '_meta.json.lock'), () => {
+    const readFile = name => { const p = path.join(dir, name); return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null; };
+    const plan = planSync(items, readFile, opts);
+    for (const [name, text] of Object.entries(plan.writes)) writeAtomic(path.join(dir, name), text);
+    return plan;
+  });
 }
 
 const { resolveToken } = common;

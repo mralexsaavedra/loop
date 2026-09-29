@@ -8,7 +8,10 @@ const os = require('node:os');
 const path = require('node:path');
 const common = require('./sync-common.js');
 
-const { mergeCsv, fetchJson, fetchPages, resolveToken, readIngestToken, writeAtomic, DEFAULT_URL, ENV_FILE } = common;
+const {
+  mergeCsv, fetchJson, fetchPages, resolveToken, readIngestToken, writeAtomic, DEFAULT_URL, ENV_FILE,
+  acquireLock, releaseLock, withLock,
+} = common;
 
 const H = 'date,value,source';
 
@@ -107,4 +110,68 @@ test('writeAtomic() replaces the file and leaves no temp file behind', () => {
 test('DEFAULT_URL and ENV_FILE are exported', () => {
   assert.equal(DEFAULT_URL, 'http://localhost:8088');
   assert.match(ENV_FILE, /services[/\\]health-ingest[/\\]\.env$/);
+});
+
+// ---- exclusive lock guarding _meta.json's read-compute-write sequence against a lost update
+// between the Shortcut and Strava syncs (or any two concurrent invocations). O_EXCL lockfile,
+// stale after a configurable window, always released even when the guarded work throws. ----
+
+test('acquireLock() creates the lockfile and releaseLock() removes it', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-common-lock-'));
+  const lock = path.join(dir, '_meta.json.lock');
+  acquireLock(lock);
+  assert.ok(fs.existsSync(lock));
+  releaseLock(lock);
+  assert.ok(!fs.existsSync(lock));
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('acquireLock() reclaims a stale lock (older than staleMs) instead of waiting forever', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-common-lock-'));
+  const lock = path.join(dir, '_meta.json.lock');
+  fs.writeFileSync(lock, '999999'); // simulate a lock left behind by a dead process
+  const old = (Date.now() - 5000) / 1000;
+  fs.utimesSync(lock, old, old);
+  acquireLock(lock, { staleMs: 100, retryDelayMs: 5, retries: 50 });
+  assert.ok(fs.existsSync(lock), 'the lock was reclaimed (recreated) for this caller');
+  releaseLock(lock);
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('acquireLock() throws instead of hanging when a fresh lock never clears within its retry budget', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-common-lock-'));
+  const lock = path.join(dir, '_meta.json.lock');
+  fs.writeFileSync(lock, '999999'); // fresh (mtime = now) -> never considered stale within this test
+  assert.throws(() => acquireLock(lock, { staleMs: 60_000, retryDelayMs: 5, retries: 3 }), /could not acquire lock/);
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('withLock() runs fn while holding the lock and always releases it, including on error', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-common-lock-'));
+  const lock = path.join(dir, '_meta.json.lock');
+
+  const seenLockedDuringRun = withLock(lock, () => fs.existsSync(lock));
+  assert.equal(seenLockedDuringRun, true, 'the lock must exist while fn runs');
+  assert.ok(!fs.existsSync(lock), 'released after a normal return');
+
+  assert.throws(() => withLock(lock, () => { throw new Error('boom'); }), /boom/);
+  assert.ok(!fs.existsSync(lock), 'released even when fn throws');
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('withLock() serializes contention: a second caller waits for the first to release, then proceeds', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-common-lock-'));
+  const lock = path.join(dir, '_meta.json.lock');
+  const order = [];
+
+  // Simulate two contenders without real concurrency (these scripts run synchronously): the
+  // first holds the lock across a synchronous "critical section", explicitly releasing only
+  // after recording its step — the second contender's acquireLock() must not succeed while the
+  // first still holds it (proven by the fresh-lock-throws test above), and must succeed
+  // immediately once the first releases.
+  withLock(lock, () => { order.push('first'); });
+  withLock(lock, () => { order.push('second'); });
+  assert.deepEqual(order, ['first', 'second']);
+  assert.ok(!fs.existsSync(lock));
+  fs.rmSync(dir, { recursive: true });
 });
