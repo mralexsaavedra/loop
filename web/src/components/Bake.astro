@@ -7,8 +7,9 @@
  * I18N_HOY/I18N_DASH (astro-plan-web slice 5) — the Hoy/Entrenos tabs
  * render no <Bake> of their own, same "one shared Bake" pattern already
  * used for Tablas, see web/src/tabs/Registro.astro (the sole call site)
- * and web/src/tabs/Hoy.astro/Entrenos.astro's file headers. HEALTH lands
- * in slice 6, per design's Key Interfaces `Bake` row.
+ * and web/src/tabs/Hoy.astro/Entrenos.astro's file headers. HEALTH/
+ * I18N_HEALTH (astro-plan-web slice 6, Salud tab) follow the same
+ * pattern — see web/src/tabs/Salud.astro's file header.
  */
 import { jsonForScript } from '../../../lib/serialize.mjs';
 
@@ -28,10 +29,12 @@ interface Props {
   dash: any; // lib/training/dashboard.mjs's loadDashboard() result
   hoyTemplates: Record<string, string>;
   dashTemplates: Record<string, any>;
+  health: any; // lib/health/aggregate.mjs's buildHealth() result
+  healthTemplates: Record<string, any>;
 }
 const {
   nut, targetTrain, targetRest, verdictTemplates, logTemplates, peLabel, copyMsg, copyFallbackMsg, locale, tablasLabels,
-  training, trainingMeta, dash, hoyTemplates, dashTemplates,
+  training, trainingMeta, dash, hoyTemplates, dashTemplates, health, healthTemplates,
 } = Astro.props;
 
 const globals = {
@@ -58,6 +61,8 @@ const globals = {
   DASH: dash,
   I18N_HOY: hoyTemplates,
   I18N_DASH: dashTemplates,
+  HEALTH: health,
+  I18N_HEALTH: healthTemplates,
 };
 
 const bakeSource = Object.entries(globals)

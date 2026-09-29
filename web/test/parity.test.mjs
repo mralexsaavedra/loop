@@ -1,5 +1,6 @@
-/* Legacy-vs-Astro parity for the tabs built so far (Mi día + Registro +
- * Tablas + Hoy + Entrenos — astro-plan-web slice 5 adds Hoy/Entrenos). Per spec's "Automated
+/* Legacy-vs-Astro parity for all 6 tabs (Mi día + Registro + Tablas + Hoy +
+ * Entrenos + Salud — astro-plan-web slice 5 added Hoy/Entrenos, slice 6
+ * adds Salud). Per spec's "Automated
  * parity check": compares id sets + onclick sets (structure/wiring) and
  * spot-checks normalized text for the ported tabs. Pixel diffs are not
  * required; the owner does a visual review at cutover (slice 6/7) — see
@@ -51,7 +52,7 @@ const ROOT = path.dirname(WEB_ROOT);
 const goldenPath = path.join(WEB_ROOT, 'test', '.golden', 'personal', 'plan-web.html');
 const astroPath = path.join(WEB_ROOT, 'dist', 'personal', 'index.html');
 
-const PORTED = ['dia', 'registro', 'tablas', 'hoy', 'dash'];
+const PORTED = ['dia', 'registro', 'tablas', 'hoy', 'dash', 'health'];
 
 function extractTabPanel(html, tabKey) {
   const startRe = new RegExp(`<div class="tab-panel" data-tab="${tabKey}"[^>]*>`);
@@ -163,10 +164,11 @@ function runBuiltScripts(html, seed, preSeed, fixedDateIso) {
   // computed fruit-summary row) is asserted on below, but registering all
   // of them mirrors the real DOM shape paint()/el() run against.
   ['tb-prot-lean', 'tb-prot-mod', 'tb-prot-fat', 'tb-cc-train', 'tb-cc-rest', 'tb-cce-train', 'tb-cce-rest', 'tb-pe', 'tb-anclaje', 'tb-fruta', 'tb-postre', 'tb-verduras', 'tb-quesos'].forEach((id) => doc.el(id, { tag: 'tbody' }));
-  // Hoy/Entrenos hosts (astro-plan-web slice 5) — same "register the real
-  // DOM shape" rationale as the Tablas tbodies above.
+  // Hoy/Entrenos/Salud hosts (astro-plan-web slices 5-6) — same "register
+  // the real DOM shape" rationale as the Tablas tbodies above.
   doc.el('train-today', { tag: 'div' });
   doc.el('train-dash', { tag: 'div' });
+  doc.el('health', { tag: 'div' });
   if (preSeed) preSeed(doc);
 
   const window = { scrollTo() {}, navigator: {} };
@@ -312,5 +314,61 @@ test('Astro (example, en): #train-dash renders the documented empty state (no Ap
   const { doc } = runBuiltScripts(fs.readFileSync(examplePath, 'utf8'));
   const text = doc.getElementById('train-dash').innerHTML;
   assert.match(text, /No workout data yet/);
+  assert.match(text, /data\/apple-health\//);
+});
+
+/* ---- Salud (#health) — astro-plan-web slice 6. Fully client-rendered
+ * (empty <div id="health"> server-side on both legacy and Astro), same
+ * treatment as Hoy/Entrenos above. HEALTH is a fully precomputed snapshot
+ * baked at build time (no `new Date()` "what day is it" branching), so no
+ * fixed Date is needed here — both scripts run against the SAME real
+ * `Date.now()` when executed together in one test, which keeps the one
+ * genuinely wall-clock-dependent bit (energy section's `ago()` "last
+ * logged X ago" caveat) deterministic between golden and Astro.
+ *
+ * KNOWN_DEVIATION (content, not structure): the running section's closing
+ * note. The owner's live personal page ends with a Hyrox-specific goal
+ * ("Para Hyrox, bajar el ritmo comprometido es la prioridad.") that is
+ * intentionally NOT reproduced in the generic dict — personal
+ * customization, not generic copy — see
+ * web/src/i18n/health-templates.mjs's header. The exact-match test below
+ * asserts on everything except that one clause.
+ */
+
+test('Astro (personal, es): #health matches the golden legacy script (normalized text, excluding the owner\'s Hyrox-specific running goal — see KNOWN_DEVIATIONS)', { skip: !haveFixtures && 'golden/Astro personal fixtures not built' }, () => {
+  const golden = runGoldenScripts();
+  const astro = runBuiltScripts(fs.readFileSync(astroPath, 'utf8'));
+  const personalOnlySentence = 'para hyrox, bajar el ritmo comprometido es la prioridad.';
+  const genericSentence = 'mejorar el ritmo al mismo esfuerzo es la señal a vigilar.';
+  const goldenText = normalizedText(golden.doc.getElementById('health').innerHTML).toLowerCase();
+  const astroText = normalizedText(astro.doc.getElementById('health').innerHTML).toLowerCase();
+  assert.ok(goldenText.length > 0, 'golden #health must not be empty (the owner has real Apple Health data baked in)');
+  assert.match(goldenText, /para hyrox, bajar el ritmo comprometido es la prioridad\./, 'sanity-check the personal customization is really present in golden');
+  assert.equal(astroText, goldenText.replace(personalOnlySentence, genericSentence));
+});
+
+test('Astro (personal, es): #health renders es-locale comma-decimal numbers and es-ES short dates (nf())', { skip: !fs.existsSync(astroPath) && 'personal fixture not built' }, () => {
+  const { doc } = runBuiltScripts(fs.readFileSync(astroPath, 'utf8'));
+  const html = doc.getElementById('health').innerHTML;
+  assert.ok(html.length > 0);
+  // Spot-check a representative set of real-valued (non-integer) fields
+  // that go through nf() — see health.js's file header for exactly which
+  // call sites apply it. The load-vs-recovery split's hrvHigh/hrvLow cards
+  // are a deliberate exception (kept period-decimal, matching the golden
+  // legacy page's own output byte-for-byte — see the exact-match test
+  // above) so this check is scoped, not a blanket "no periods" regex.
+  assert.match(html, /75,6<small>kg<\/small>/, 'weight trend value must use a comma decimal');
+  assert.match(html, /14,8<small>%<\/small>/, 'body fat trend value must use a comma decimal');
+  assert.match(html, />9,7<small>km\/día/, 'distance trend value must use a comma decimal');
+  assert.match(html, /54,3<small>ml\/kg\/min/, 'VO₂max trend value must use a comma decimal');
+  assert.match(html, />31 mar</, 'es build must use es-ES short-date formatting (day-first, abbreviated month)');
+});
+
+test('Astro (example, en): #health renders the documented empty state (no Apple Health export in example mode)', () => {
+  const examplePath = path.join(WEB_ROOT, 'dist', 'example', 'index.html');
+  assert.ok(fs.existsSync(examplePath), `missing ${examplePath} — run npm run pretest first`);
+  const { doc } = runBuiltScripts(fs.readFileSync(examplePath, 'utf8'));
+  const text = doc.getElementById('health').innerHTML;
+  assert.match(text, /No health data yet/);
   assert.match(text, /data\/apple-health\//);
 });

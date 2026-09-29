@@ -11,6 +11,7 @@ import { es as esTpl, en as enTpl } from '../src/i18n/verdict-templates.mjs';
 import { es as esLog, en as enLog } from '../src/i18n/log-templates.mjs';
 import { es as esHoy, en as enHoy } from '../src/i18n/hoy-templates.mjs';
 import { es as esDash, en as enDash } from '../src/i18n/dash-templates.mjs';
+import { es as esHealth, en as enHealth } from '../src/i18n/health-templates.mjs';
 
 function keyTree(obj, prefix = '') {
   const keys = [];
@@ -117,6 +118,34 @@ test('dash-templates.mjs modalityLabels covers the same modality keys (strength/
   assert.deepEqual(Object.keys(esDash.modalityLabels).sort(), Object.keys(enDash.modalityLabels).sort());
   for (const [locale, labels] of [['es', esDash.modalityLabels], ['en', enDash.modalityLabels]]) {
     for (const [key, str] of Object.entries(labels)) assert.notEqual(str.trim(), '', `${locale} dash-templates.modalityLabels.${key} must not be empty`);
+  }
+});
+
+test('health-templates.mjs (Salud tab client format strings) has identical key trees in es/en, all string leaves non-empty (deltaUnit legitimately empty for unit-less deltas, matches legacy delta(d,\'\',goodDir) call sites)', () => {
+  assert.deepEqual(keyTree(esHealth), keyTree(enHealth));
+  for (const [locale, dict] of [['es', esHealth], ['en', enHealth]]) {
+    for (const [path, value] of leaves(dict)) {
+      if (path.endsWith('.deltaUnit')) continue;
+      if (typeof value === 'string') assert.notEqual(value.trim(), '', `${locale} health-templates.${path} must not be empty`);
+    }
+  }
+});
+
+test('health-templates.mjs note/card sub-dictionaries have the placeholders health.js relies on', () => {
+  for (const [locale, dict] of [['es', esHealth], ['en', enHealth]]) {
+    assert.match(dict.bodyNote.main, /\{sourcesClause\}/, `${locale} bodyNote.main must contain {sourcesClause}`);
+    assert.match(dict.bodyNote.main, /\{sourceClause\}/, `${locale} bodyNote.main must contain {sourceClause}`);
+    assert.match(dict.bodyNote.main, /\{bfSourceClause\}/, `${locale} bodyNote.main must contain {bfSourceClause}`);
+    assert.match(dict.energyBalanceNote.main, /\{from\}/);
+    assert.match(dict.energyBalanceNote.main, /\{to\}/);
+    assert.match(dict.energyBalanceNote.main, /\{days\}/);
+    assert.match(dict.energyBalanceNote.main, /\{macroClause\}/);
+    assert.match(dict.energyExpenditureNote.main, /\{tdeeDays\}/);
+    assert.match(dict.energyExpenditureNote.main, /\{lastIntakeClause\}/);
+    assert.match(dict.runningNote, /\{count\}/, `${locale} runningNote must contain {count}`);
+    assert.match(dict.loadSec.hint, /\{weeks\}/);
+    assert.match(dict.loadSec.barTitleTpl, /\{date\}/);
+    assert.match(dict.loadSec.barTitleTpl, /\{load\}/);
   }
 });
 

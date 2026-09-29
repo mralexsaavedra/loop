@@ -12,6 +12,7 @@ import { es as esVerdict, en as enVerdict } from '../i18n/verdict-templates.mjs'
 import { es as esLog, en as enLog } from '../i18n/log-templates.mjs';
 import { es as esHoy, en as enHoy } from '../i18n/hoy-templates.mjs';
 import { es as esDash, en as enDash } from '../i18n/dash-templates.mjs';
+import { es as esHealth, en as enHealth } from '../i18n/health-templates.mjs';
 
 interface Props {
   nut: any; // buildNutrition() result
@@ -22,13 +23,15 @@ interface Props {
   training: Record<string, any>; // training.days — astro-plan-web slice 5, forwarded to <Bake> (see its file header)
   trainingMeta: { program: string; coach: string; source: string; first: string; last: string; count: number };
   dash: any;
+  health: any; // lib/health/aggregate.mjs's buildHealth() result — astro-plan-web slice 6
 }
-const { nut, dict, page, plan, locale, training, trainingMeta, dash } = Astro.props;
+const { nut, dict, page, plan, locale, training, trainingMeta, dash, health } = Astro.props;
 const t = dict.strings.registro;
 const verdictTemplates = locale === 'es' ? esVerdict : enVerdict;
 const logTemplates = locale === 'es' ? esLog : enLog;
 const hoyTemplates = locale === 'es' ? esHoy : enHoy;
 const dashTemplates = locale === 'es' ? esDash : enDash;
+const healthTemplates = locale === 'es' ? esHealth : enHealth;
 const targetTrain = nut.targetFor('train');
 const targetRest = nut.targetFor('rest');
 ---
@@ -90,4 +93,6 @@ const targetRest = nut.targetFor('rest');
   dash={dash}
   hoyTemplates={hoyTemplates}
   dashTemplates={dashTemplates}
+  health={health}
+  healthTemplates={healthTemplates}
 />

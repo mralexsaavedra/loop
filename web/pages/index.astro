@@ -2,8 +2,8 @@
 /* Entry page for the Astro build (astro-plan-web migration). Loads the
  * env contract (locale/data-mode/inputs) at build time, computes the
  * nutrition + training view-models, and composes the shared Plan layout
- * with the tabs built so far (Mi día + Registro + Tablas — slices 3-4;
- * Hoy + Entrenos — slice 5; Salud lands in slice 6). See spec:
+ * with all 6 tabs (Mi día + Registro + Tablas — slices 3-4; Hoy +
+ * Entrenos — slice 5; Salud — slice 6). See spec:
  * plan-web-single-file-build.
  */
 import Plan from '../layouts/Plan.astro';
@@ -12,11 +12,13 @@ import Registro from '../src/tabs/Registro.astro';
 import Tablas from '../src/tabs/Tablas.astro';
 import Hoy from '../src/tabs/Hoy.astro';
 import Entrenos from '../src/tabs/Entrenos.astro';
+import Salud from '../src/tabs/Salud.astro';
 import { resolveEnv } from '../src/env.mjs';
 import { buildNutrition } from '../../lib/nutrition/macros.mjs';
 import { getDict } from '../src/i18n/index.mjs';
 import { trainingMeta } from '../../lib/training/program.mjs';
 import { loadDashboard } from '../../lib/training/dashboard.mjs';
+import { buildHealth } from '../../lib/health/aggregate.mjs';
 import { filterTabs } from '../../lib/nav/tabs.mjs';
 
 const env = resolveEnv();
@@ -25,6 +27,7 @@ const nut = buildNutrition(ingredients, plan);
 const dict = getDict(locale);
 const trainMeta = trainingMeta(training);
 const dash = loadDashboard(extractDir);
+const health = buildHealth(extractDir);
 
 const TABS_ALL = [
   { key: 'dia', icon: dict.strings.nav.tabs.dia.icon, label: dict.strings.nav.tabs.dia.label },
@@ -32,6 +35,7 @@ const TABS_ALL = [
   { key: 'tablas', icon: dict.strings.nav.tabs.tablas.icon, label: dict.strings.nav.tabs.tablas.label },
   { key: 'hoy', icon: dict.strings.nav.tabs.hoy.icon, label: dict.strings.nav.tabs.hoy.label },
   { key: 'dash', icon: dict.strings.nav.tabs.dash.icon, label: dict.strings.nav.tabs.dash.label },
+  { key: 'health', icon: dict.strings.nav.tabs.health.icon, label: dict.strings.nav.tabs.health.label },
 ];
 // hideTabs only removes the NAV BUTTON — Hoy/Entrenos panels below always
 // render regardless (see lib/nav/tabs.mjs's file header).
@@ -42,8 +46,9 @@ const title = plan.page?.title || 'Plan';
 
 <Plan title={title} locale={locale} page={plan.page} dict={dict} tabs={TABS} activeTab="dia">
   <Dia nut={nut} dict={dict} page={plan.page} />
-  <Registro nut={nut} dict={dict} page={plan.page} plan={plan} locale={locale} training={training.days} trainingMeta={trainMeta} dash={dash} />
+  <Registro nut={nut} dict={dict} page={plan.page} plan={plan} locale={locale} training={training.days} trainingMeta={trainMeta} dash={dash} health={health} />
   <Tablas nut={nut} dict={dict} page={plan.page} />
   <Hoy />
   <Entrenos />
+  <Salud />
 </Plan>
