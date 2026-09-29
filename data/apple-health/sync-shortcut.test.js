@@ -21,7 +21,7 @@ test('parseNumber() accepts dot and comma decimals', () => {
 test('METRICS is a per-metric table covering the implemented metrics', () => {
   assert.deepEqual(Object.keys(METRICS).sort(),
     ['active_energy', 'basal_energy', 'bodyfat', 'hr_recovery', 'hrv', 'leanmass', 'respiratory', 'rhr', 'sleep',
-      'steps', 'vo2max', 'walking_hr', 'weight', 'wrist_temp']);
+      'steps', 'vo2max', 'waist', 'walking_hr', 'weight', 'wrist_temp']);
   for (const m of Object.values(METRICS)) {
     assert.ok(m.csv && m.header && m.kind);
   }
@@ -569,5 +569,32 @@ test('extract.js writes hr-recovery.csv in the same schema the sync uses', () =>
   const out = path.join(dir, 'extract');
   assert.equal(fs.readFileSync(path.join(out, 'hr-recovery.csv'), 'utf8'), 'date,value,source\n2030-01-02,25.3,W\n');
   assert.equal(JSON.parse(fs.readFileSync(path.join(out, '_meta.json'), 'utf8')).rows.hrRecovery, 1);
+  fs.rmSync(dir, { recursive: true });
+});
+
+// ---- waist circumference ----------------------------------------------------------------
+
+test('waist: point samples in cm -> waist.csv (1 decimal, tagged Shortcut); metres are converted', () => {
+  const s = collectSamples([{ waist: '2030-01-02T08:00:00+01:00;84.26\n2030-01-09T08:00:00+01:00;0,835' }]);
+  assert.deepEqual(buildRows('waist', s.waist).map(r => r.line),
+    [`2030-01-02,84.3,${SHORTCUT_SOURCE}`, `2030-01-09,83.5,${SHORTCUT_SOURCE}`]);
+  assert.equal(METRICS.waist.csv, 'waist.csv');
+  assert.equal(METRICS.waist.header, 'date,value,source');
+});
+
+test('extract.js writes waist.csv (cm) in the same schema the sync uses', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-waist-'));
+  for (const f of ['extract.js', 'samples.js']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
+  fs.writeFileSync(path.join(dir, 'export.xml'), [
+    '<Record type="HKQuantityTypeIdentifierWaistCircumference" sourceName="Health" unit="cm" startDate="2030-01-02 08:00:00 +0100" endDate="2030-01-02 08:00:00 +0100" value="84.26"/>',
+    '<Record type="HKQuantityTypeIdentifierWaistCircumference" sourceName="Health" unit="m" startDate="2030-01-09 08:00:00 +0100" endDate="2030-01-09 08:00:00 +0100" value="0.835"/>',
+    '<Record type="HKQuantityTypeIdentifierWaistCircumference" sourceName="Health" unit="in" startDate="2030-01-16 08:00:00 +0100" endDate="2030-01-16 08:00:00 +0100" value="33"/>',
+    '',
+  ].join('\n'));
+  execFileSync(process.execPath, [path.join(dir, 'extract.js')], { stdio: 'ignore' });
+  const out = path.join(dir, 'extract');
+  assert.equal(fs.readFileSync(path.join(out, 'waist.csv'), 'utf8'),
+    'date,value,source\n2030-01-02,84.3,Health\n2030-01-09,83.5,Health\n2030-01-16,83.8,Health\n');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(out, '_meta.json'), 'utf8')).rows.waist, 3);
   fs.rmSync(dir, { recursive: true });
 });

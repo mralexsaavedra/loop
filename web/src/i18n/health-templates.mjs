@@ -59,6 +59,13 @@ export const es = {
     sourcesClause: ' ({n} fuentes)',
     sourceClause: ' ({src})',
   },
+  waist: {
+    titleTpl: 'Cintura · {date}',
+    unit: 'cm',
+    deltaUnit: ' cm',
+    noteTpl: '<b>Cintura</b>: {n} medidas con cinta desde el {first}; Δ = última vs primera. Mídela a la altura del ombligo, de pie, al final de una espiración normal, cada 2-4 semanas.',
+    emptyHtml: '<b>Aún no hay medidas de cintura.</b> Regístrala en Salud (Medidas corporales → Perímetro de cintura) y añade la clave <code>waist</code> a tu Atajo — ver <code>docs/ios-shortcut.md</code>.',
+  },
   activityNoteHtml: '<b>Pasos = NEAT</b>, tu mayor palanca de gasto fuera del entreno. Todo son medias de ~30 días (media móvil 7d); Δ vs los 30 días previos. Se descartan días casi sin pasos/distancia (dispositivo no llevado) y se toma el <b>máximo por dispositivo</b> para no duplicar iPhone + reloj.',
   energyBalanceNote: {
     main: 'Balance entre {from}–{to} ({days} días registrados). Negativo = déficit. Es <b>histórico</b> — basado en la última ventana con ingesta registrada.{macroClause}',
@@ -127,6 +134,13 @@ export const en = {
     main: '<b>How to read this.</b> Weight mixes scales/apps{sourcesClause}, so the trend is a <b>7-day rolling average</b>; the headline is your latest reading{sourceClause}. Δ is vs ~30 days ago. Body fat and lean mass are bioimpedance (<b>±3-5%</b>) and only comparable <b>within one scale</b>{bfSourceClause}; their Δ is since the first reading on that scale.',
     sourcesClause: ' ({n} sources)',
     sourceClause: ' ({src})',
+  },
+  waist: {
+    titleTpl: 'Waist · {date}',
+    unit: 'cm',
+    deltaUnit: ' cm',
+    noteTpl: '<b>Waist</b>: {n} tape measurements since {first}; Δ = latest vs first. Measure at navel height, standing, at the end of a normal breath out, every 2-4 weeks.',
+    emptyHtml: '<b>No waist measurements yet.</b> Log it in Health (Body Measurements → Waist Circumference) and add the <code>waist</code> key to your Shortcut — see <code>docs/ios-shortcut.md</code>.',
   },
   activityNoteHtml: '<b>Steps = NEAT</b>, your biggest energy lever outside training. All are ~30-day averages (7-day rolling); Δ is vs the prior 30 days. Near-zero step/distance days are dropped (device not carried) and the <b>max per device</b> is used so iPhone + watch aren’t double-counted.',
   energyBalanceNote: {
