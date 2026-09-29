@@ -1,10 +1,11 @@
-/* Home tab (Inicio / Home): recovery trend + per-modality load. Reuses the Whoop-dark tokens.
- * Colour appears ONLY on the direction arrows; cards are neutral, never a grade fill. */
+/* Home tab (Inicio / Home): dials + recovery trend + per-modality load, on the shared tokens.
+ * Colour carries meaning only: the direction arrows and each dial's meaning colour (band / sleep /
+ * strain). Cards stay neutral, never a grade fill. */
 #home {
   display: block;
 }
 .sc-card {
-  background: var(--surface);
+  background: var(--card-bg);
   border: 1px solid var(--line);
   border-radius: var(--r-lg, 14px);
   padding: var(--sp-5, 16px);
@@ -19,7 +20,10 @@
 }
 .sc-head h3 {
   margin: 0 0 var(--sp-3, 8px);
-  font-size: var(--fs-md, 15px);
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
 }
 .sc-asof {
   color: var(--muted);
@@ -45,7 +49,7 @@
 }
 .sc-arrow-above,
 .sc-arrow-ramping {
-  color: var(--accent);
+  color: var(--good);
 }
 .sc-arrow-below,
 .sc-arrow-detraining {
@@ -153,4 +157,254 @@
 .sc-load-card[role="button"]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Inicio dials — Sleep / Recovery / Load. 270 degree open arcs; geometry is baked (view/dial.mjs).
+ * --dial-c is the dial's meaning colour: sleep, recovery band (good / trend / low), load = strain.
+ * No percentage anywhere: recovery marks a trend on a zoned scale, sleep fills to a stated target,
+ * load marks acute/chronic with 1.0x at the top of the arc. */
+.sc-dials {
+  padding: var(--sp-7) var(--sp-5) var(--sp-6);
+}
+.dials {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-3);
+  justify-items: center;
+}
+.dial {
+  --dial-c: var(--trend);
+  margin: 0;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.dial[hidden],
+.dial-cap[hidden] {
+  display: none;
+}
+.dial-sleep {
+  --dial-c: var(--sleep);
+}
+.dial-band-above {
+  --dial-c: var(--good);
+}
+.dial-band-at {
+  --dial-c: var(--trend);
+}
+.dial-band-below {
+  --dial-c: var(--low);
+}
+.dial-load {
+  --dial-c: var(--strain);
+}
+.dial-ring {
+  position: relative;
+  width: 100%;
+  max-width: var(--dial-size);
+  aspect-ratio: 1;
+}
+.dial-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.dial-track {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+.dial-zone {
+  fill: none;
+  stroke-width: 10;
+  opacity: 0.26;
+}
+.dial-zone-below {
+  stroke: var(--low);
+}
+.dial-zone-at {
+  stroke: var(--trend);
+}
+.dial-zone-above {
+  stroke: var(--good);
+}
+.dial-lz-detraining,
+.dial-lz-ramping {
+  stroke: var(--mid);
+  opacity: 0.2;
+}
+.dial-lz-below,
+.dial-lz-above {
+  stroke: var(--strain);
+  opacity: 0.18;
+}
+.dial-lz-steady {
+  stroke: var(--strain);
+  opacity: 0.34;
+}
+.dial-fill {
+  fill: none;
+  stroke: var(--dial-c);
+  stroke-width: 10;
+  stroke-linecap: round;
+  stroke-dasharray: 100 100;
+  animation: dial-in 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.dial-dot {
+  fill: var(--ground);
+  stroke: var(--dial-c);
+  stroke-width: 3;
+  animation: dial-dot 0.9s both;
+}
+.dial-mid {
+  fill: var(--muted);
+}
+.dial-centre {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding-top: 4px;
+}
+.dial-num {
+  font-family: var(--num);
+  font-weight: 700;
+  font-size: clamp(19px, 6vw, var(--fs-dial));
+  line-height: 1;
+  letter-spacing: 0;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.dial-num small {
+  font-size: 0.55em;
+  margin-left: 1px;
+  color: var(--muted);
+}
+.dial-num-sm {
+  font-size: clamp(14px, 4.4vw, 18px);
+}
+.dial-word {
+  max-width: 76%;
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--dial-c);
+}
+.dial-lbl {
+  margin-top: -4px;
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.dial-sub {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+.dial-off .dial-svg {
+  opacity: 0.45;
+}
+.dial-off .dial-word,
+.dial-off .dial-lbl {
+  color: var(--muted);
+}
+.dial-foot {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line-soft);
+}
+.dial-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.dial-switch-lbl {
+  margin-right: auto;
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.dial-mod {
+  min-height: 30px;
+  padding: var(--sp-1) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.dial-mod[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.dial-mod:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.dial-scale {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-2xs);
+  color: var(--faint);
+}
+.dial-cap {
+  margin-top: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+@keyframes dial-in {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes dial-dot {
+  0%,
+  70% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dial-fill,
+  .dial-dot {
+    animation: none;
+  }
+}
+@media (min-width: 900px) {
+  .sc-dials {
+    --dial-size: 150px;
+  }
+  .dial-num {
+    font-size: 34px;
+  }
+  .dial-num-sm {
+    font-size: 22px;
+  }
+  .dial-word {
+    font-size: 11px;
+  }
 }

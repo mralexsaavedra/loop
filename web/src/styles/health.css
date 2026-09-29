@@ -46,10 +46,10 @@
 }
 .hsub {
   font-size: var(--fs-xs);
-  letter-spacing: 0.16em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--accent);
-  font-weight: 800;
+  color: var(--ink);
+  font-weight: 700;
   margin: var(--sp-11) 0 var(--sp-2);
   display: flex;
   align-items: center;
@@ -60,15 +60,15 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 8px 1px var(--accent);
+  background: var(--trend);
+  box-shadow: none;
 }
 .hsub:first-child {
   margin-top: var(--sp-3);
 }
 .mtrend {
   margin: var(--sp-5) 0 var(--sp-1);
-  background: var(--surface);
+  background: var(--card-bg);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   padding: var(--sp-7) var(--sp-8) var(--sp-6);
@@ -92,7 +92,7 @@
   font-family: var(--num);
   font-size: var(--fs-4xl);
   font-weight: 700;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   color: var(--ink);
   line-height: 1;
@@ -111,12 +111,12 @@
   margin: var(--sp-6) 0 0;
 }
 .spark .area {
-  fill: var(--accent);
+  fill: var(--trend);
   opacity: 0.12;
 }
 .spark .line {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--trend);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
   stroke-linejoin: round;

@@ -4,7 +4,7 @@
 
 /* equivalence accordions */
 details {
-  background: var(--surface);
+  background: var(--card-bg);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   margin-bottom: var(--sp-4);
@@ -160,7 +160,7 @@ td.kc {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--accent);
+  color: var(--trend);
   background: var(--accent-soft);
   padding: var(--sp-2) var(--sp-4);
   border-radius: var(--r-xs);

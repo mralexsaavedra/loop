@@ -12,6 +12,7 @@
  * pattern — see web/src/tabs/Salud.astro's file header.
  */
 import { jsonForScript } from '../../../lib/serialize.mjs';
+import { buildDials } from '../view/dial.mjs';
 
 interface Props {
   nut: any; // buildNutrition() result
@@ -66,6 +67,7 @@ const globals = {
   HEALTH: health,
   I18N_HEALTH: healthTemplates,
   SCORES: scores,
+  DIALS: buildDials(scores, health), // Inicio dial geometry over SCORES + the stated sleep target (view/dial.mjs)
   I18N_SCORE: scoreTemplates,
 };
 

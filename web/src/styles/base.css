@@ -18,10 +18,10 @@ header {
 }
 .kicker {
   font-size: var(--fs-2xs);
-  letter-spacing: 0.22em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--accent);
-  font-weight: 800;
+  color: var(--muted);
+  font-weight: 700;
   display: inline-flex;
   align-items: center;
   gap: var(--sp-3);
@@ -31,8 +31,7 @@ header {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 10px 1px var(--accent);
+  background: var(--good);
 }
 h1 {
   font-size: var(--fs-4xl);
@@ -40,7 +39,7 @@ h1 {
   letter-spacing: -0.03em;
   margin-top: var(--sp-4);
   text-wrap: balance;
-  font-weight: 800;
+  font-weight: 700;
 }
 .sub {
   color: var(--muted);
@@ -64,8 +63,10 @@ h1 {
   background: transparent;
   color: var(--muted);
   font-family: inherit;
-  font-size: var(--fs-lg);
-  font-weight: 650;
+  font-size: var(--fs-sm);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
   padding: var(--sp-5) var(--sp-3);
   border-radius: var(--r-sm);
   cursor: pointer;
@@ -74,7 +75,7 @@ h1 {
 .toggle button[aria-pressed="true"] {
   background: var(--accent);
   color: var(--on-accent);
-  box-shadow: 0 6px 18px -8px rgba(var(--accent-rgb), 0.7);
+  box-shadow: none;
 }
 .toggle button:focus-visible {
   outline: 2px solid var(--accent);
@@ -93,7 +94,7 @@ h1 {
   z-index: 30;
   display: flex;
   gap: var(--sp-1);
-  background: rgba(16, 18, 22, 0.92);
+  background: rgba(14, 19, 23, 0.94);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--line);
@@ -121,18 +122,22 @@ h1 {
 }
 .tabnav .tlbl {
   font-size: var(--fs-2xs);
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
 }
+/* active tab: ink label + a 2px accent bar on the edge facing the content */
 .tabnav button[aria-pressed="true"] {
-  color: var(--accent);
+  color: var(--ink);
+  box-shadow: inset 0 2px 0 var(--accent);
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
 }
 .tabnav button[aria-pressed="true"] .tico {
-  filter: drop-shadow(0 0 8px rgba(var(--accent-rgb), 0.6));
+  filter: none;
 }
 .tabnav button:focus-visible {
   outline: 2px solid var(--accent);
@@ -145,10 +150,10 @@ h1 {
 /* section heads */
 h2 {
   font-size: var(--fs-xs);
-  letter-spacing: 0.18em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 800;
+  color: var(--ink);
+  font-weight: 700;
   margin: var(--sp-11) 0 var(--sp-5);
   display: flex;
   align-items: center;
@@ -208,6 +213,7 @@ footer {
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+    animation: none !important;
   }
 }
 
@@ -236,7 +242,7 @@ footer {
     align-items: center;
     margin: 0 calc(-1 * clamp(24px, 3vw, 52px)) var(--sp-5);
     padding: var(--sp-3) clamp(24px, 3vw, 52px);
-    background: rgba(14, 17, 22, 0.88);
+    background: rgba(14, 19, 23, 0.9);
     border-top: 0;
     border-bottom: 1px solid var(--line);
   }
@@ -252,17 +258,19 @@ footer {
     font-size: var(--fs-2xl);
   }
   .tabnav .tlbl {
-    font-size: var(--fs-lg);
-    font-weight: 650;
-    letter-spacing: 0;
+    font-size: var(--fs-xs);
+    font-weight: var(--label-weight);
+    letter-spacing: var(--label-track);
   }
   .tabnav button:hover {
     background: var(--surface);
     color: var(--muted);
   }
   .tabnav button[aria-pressed="true"] {
-    background: var(--accent-soft);
-    color: var(--accent);
+    background: transparent;
+    color: var(--ink);
+    box-shadow: inset 0 -2px 0 var(--accent);
+    border-radius: 0;
   }
   .tabnav button[aria-pressed="true"] .tico {
     filter: none;

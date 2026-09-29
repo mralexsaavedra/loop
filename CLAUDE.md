@@ -147,6 +147,20 @@ Tapping a score card on Inicio opens its Salud detail (recovery → the Recovery
 `#hl-recovery`, a modality load card → Entrenamiento `#sec-dash`) via core.js `jumpOr`, falling
 back to the Salud tab when that detail has no data; the cards are not links when Salud is hidden.
 
+**Look & typography.** Dark, data-first design language: colour carries meaning, never decoration.
+All colours are tokens in `web/src/styles/tokens.css` (AA-checked ratios listed in its header):
+`--good`/`--mid`/`--low` = state, `--trend` = neutral data lines/sparklines, `--strain` = load,
+`--sleep` = sleep, `--accent` = ACTIONS only (buttons, links, active nav, focus). Headings and
+labels are caps, semibold, `--label-track` (+0.08em). Numbers use `--num` = "HC Num", a
+numerals-only subset (~1.5 KB: digits, + - , . % × h space) of **D-DIN Bold, SIL OFL 1.1**, inlined as
+a base64 `@font-face` by `web/layouts/Plan.astro` (`?inline` import) so the page stays one file with
+zero font requests. The OFL forbids the Reserved Font Name "D-DIN" on a modified version, so the
+subset is renamed; licence text in `web/src/fonts/OFL.txt`. Rebuild it with
+`python3 scripts/subset-num-font.py D-DIN-Bold.ttf` (needs `fonttools` + `brotli`); the output guard
+test pins that the committed woff2 is what gets inlined and stays under a 40 KB budget. Text stays
+the system sans stack (0 bytes). Never embed a commercial font or copy another product's name,
+logo, icons or exact brand hex values.
+
 ## Nutrition plan — data pipeline & published artifact
 
 **Two files, merged in memory (by both `generate.js` and the Astro build, from the same
@@ -319,7 +333,7 @@ pure functions (`aggBody`/`aggActivity`/`aggEnergy`/`aggRunning`/`aggRecovery` +
 personal (`LOCALE=es`) build is localized to Spanish (es-ES dates, comma decimals); the example
 (`LOCALE=en`, `web/src/i18n/en.mjs` + `*-templates.mjs` en dicts) build is English.
 
-## Home tab — "Inicio / Home" recovery trend + per-modality load
+## Home tab — "Inicio / Home" dials, recovery trend + per-modality load
 
 `lib/score/*` (same single-source pattern) feeds the first tab; `web/src/client/score.js` renders it,
 `buildScores(extractDir)` bakes `SCORES` (only `asOf` dates — staleness is computed client-side, so
@@ -338,6 +352,17 @@ tab and hiding every tab is a build error.
   junk (`dur <= 10` AND `re` null or ≤ 2), then SUM. The series starts at the first date with any RE
   (`reEpoch`); acute 7d vs chronic 42d EWMA; a modality gates ("baselineBuilding") under 28 days since the
   epoch, under 8 non-zero days, or chronic < 1. The 0-100 `relScore` exists only within a modality.
+- **Dials** (top of the tab: Sleep / Recovery / Load) only VISUALISE baked values — no new metric and
+  no percentage. `web/src/view/dial.mjs` (`buildDials(scores, health)`, unit-tested, baked as `DIALS`)
+  pre-computes the 270° arc geometry; `score.js` only formats numbers and joins SVG strings.
+  Recovery: arc = −3…+3 MAD, three tinted zones cut at ±`BAND_CUTOFF`, fill from baseline to a marker
+  at `trend7`, centre = short band word + signed delta in sd, coloured by band. Sleep: fill = the
+  sleep-duration component's newest night / the stated target (`health.recovery.sleep.target`, 7.5 h),
+  capped at a full arc, target labelled on screen. Load: ONE dial with a gym/run/bike switch (default =
+  first ungated modality); position = acute/chronic as `trendPct` states it (`1 + trendPct/100`, arc
+  midpoint = 1.0×, end = 2×), zones at the existing trend bands; a gated modality is greyed with the
+  existing `baselineBuilding` copy and no number. Stale data (> 3 days) greys a dial; the fill
+  animation is off under `prefers-reduced-motion`.
 - **Advice** is one descriptive sentence per rule (`lib/score/advice.mjs`, copy in `advice-copy.mjs`),
   never an instruction; hidden when data is insufficient or stale (> 3 days).
 - Caveats shown on the page: RE is HR-derived (credits the metcon more than heavy sets), modalities are

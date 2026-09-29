@@ -29,7 +29,7 @@
   font-size: var(--fs-xl);
 }
 .train-block {
-  background: var(--surface);
+  background: var(--card-bg);
   border: 1px solid var(--line);
   border-left: 3px solid var(--strain);
   border-radius: var(--r-md);
@@ -74,7 +74,7 @@
 .train-block li.goal {
   list-style: none;
   margin-left: -18px;
-  color: var(--accent);
+  color: var(--good);
   font-weight: 700;
 }
 .train-empty {
@@ -106,7 +106,7 @@
   margin: var(--sp-4) 0 var(--sp-1);
 }
 .dash-card {
-  background: var(--surface);
+  background: var(--card-bg);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   padding: var(--sp-7) var(--sp-5);
@@ -200,7 +200,7 @@
 .mtrack i {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  background: var(--trend);
   border-radius: var(--r-xs);
 }
 .mrow .mval {
