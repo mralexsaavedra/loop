@@ -113,11 +113,12 @@
 
   function runsTable(s) {
     var RT = T.runningTable;
-    var head = '<tr><th>' + RT.dateH + '</th><th>' + RT.distH + '</th><th>' + RT.paceH + '</th><th>' + RT.powerH + '</th><th>' + RT.gctH + '</th><th>' + RT.oscH + '</th><th>' + RT.strideH + '</th></tr>';
+    // same leading columns as the rides table (workouts.csv), then the watch running dynamics
+    var head = '<tr><th>' + RT.dateH + '</th><th>' + RT.distH + '</th><th>' + RT.timeH + '</th><th>' + RT.paceH + '</th><th>' + RT.hrH + '</th><th>' + RT.reH + '</th><th>' + RT.elevH + '</th><th>' + RT.powerH + '</th><th>' + RT.gctH + '</th><th>' + RT.oscH + '</th><th>' + RT.strideH + '</th></tr>';
     var rows = s
       .map(function (r) {
         var d = function (v, u) { return v != null ? nf(v) + u : '—'; };
-        return '<tr><td>' + esc(fmtD(r.date)) + '</td><td>' + d(r.dist, ' km') + '</td><td>' + esc(r.pace) + '/km</td><td>' + d(r.power, ' W') + '</td><td>' + d(r.gct, ' ms') + '</td><td>' + d(r.vosc, ' cm') + '</td><td>' + d(r.stride, ' m') + '</td></tr>';
+        return '<tr><td>' + esc(fmtD(r.date)) + '</td><td>' + d(r.dist, ' km') + '</td><td>' + esc(r.time) + '</td><td>' + (r.pace ? esc(r.pace) + '/km' : '—') + '</td><td>' + d(r.hrAvg, ' ' + T.trend.rhr.unit) + '</td><td>' + d(r.re, '') + '</td><td>' + d(r.elev, ' m') + '</td><td>' + d(r.power, ' W') + '</td><td>' + d(r.gct, ' ms') + '</td><td>' + d(r.vosc, ' cm') + '</td><td>' + d(r.stride, ' m') + '</td></tr>';
       })
       .join('');
     return '<div class="run-tbl-wrap"><table class="run-tbl">' + head + rows + '</table></div>';
