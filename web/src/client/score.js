@@ -29,11 +29,12 @@ function scMod(key, btn) {
   var STALE_DAYS = 3; // older data is greyed and gets no advice
   var MS_PER_DAY = 86400000;
   var ES = LOCALE === 'es';
-  // score cards open their Salud detail — only when the Salud tab is reachable (not hidden by page.hideTabs)
-  var LINK = !!document.getElementById('t-health');
-  function linkAttrs(id) {
-    if (!LINK) return '';
-    var call = "jumpOr('" + id + "','health')";
+  // score cards open their detail (Salud / Entreno) — only when that tab is reachable (its nav
+  // button exists, i.e. page.hideTabs does not hide it)
+  function linkAttrs(id, tab) {
+    tab = tab || 'health';
+    if (!document.getElementById('t-' + tab)) return '';
+    var call = "jumpOr('" + id + "','" + tab + "')";
     return ' role="button" tabindex="0" onclick="' + call + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + call + '}"';
   }
 
@@ -161,7 +162,7 @@ function scMod(key, btn) {
   /* ---- load ---- */
   function loadCard(m) {
     var lt = T.load;
-    var out = ['<div class="sc-load-card" data-mod="' + esc(m.key) + '"' + linkAttrs('sec-dash') + '>'];
+    var out = ['<div class="sc-load-card" data-mod="' + esc(m.key) + '"' + linkAttrs('sec-dash', 'entreno') + '>'];
     out.push('<div class="sc-comp-top"><b>' + esc(lt.modalities[m.key]) + '</b><span class="sc-comp-val">' + esc(format(lt.dayRe, { value: num(m.load, 0, false) })) + '</span></div>');
     out.push('<div class="sc-sub">' + (m.relScore != null
       ? esc(format(lt.relLbl, { score: m.relScore, modality: ADV_MOD[m.key] }))

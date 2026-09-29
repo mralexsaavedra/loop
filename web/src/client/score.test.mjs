@@ -41,14 +41,14 @@ function fixtureScores({ days = 49, shift = 2 } = {}) {
 
 const HEALTH = { recovery: { hasData: true, sleep: { target: 7.5 } } };
 
-function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, dials, dialsHost } = {}) {
+function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, dials, dialsHost } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
   class FakeDate extends RealDate {
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
   const ctx = {
-    document: { getElementById: (id) => (id === 'home' ? host : id === 'home-dials' && dialsHost ? dialsHost : id === 't-health' && healthNav ? {} : null) },
+    document: { getElementById: (id) => (id === 'home' ? host : id === 'home-dials' && dialsHost ? dialsHost : id === 't-health' && healthNav ? {} : id === 't-entreno' && entrenoNav ? {} : null) },
     SCORES: scores, DIALS: dials, I18N_SCORE: T || (locale === 'es' ? esT : enT), LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite,
   };
   vm.createContext(ctx);
@@ -204,7 +204,9 @@ test('score cards link to their Salud detail when the Salud tab is reachable, an
   const s = fixtureScores();
   const linked = render(s, { now: addDays(ASOF, 1), healthNav: true });
   assert.match(linked, /<div class="sc-card sc-recovery[^"]*" role="button" tabindex="0" onclick="jumpOr\('hl-recovery','health'\)"/);
-  assert.equal(count(linked, `onclick="jumpOr('sec-dash','health')"`), s.load.modalities.length, 'every load card links to the Entrenamiento section');
+  assert.equal(count(linked, `onclick="jumpOr('sec-dash','entreno')"`), s.load.modalities.length, 'every load card links to the Entrenamiento section in Entreno');
+  const noEntreno = render(s, { now: addDays(ASOF, 1), healthNav: true, entrenoNav: false });
+  assert.doesNotMatch(noEntreno, /jumpOr\('sec-dash'/, 'no load-card link when Entreno is hidden');
   assert.match(linked, /onkeydown=/, 'keyboard users can activate the card');
   const unlinked = render(s, { now: addDays(ASOF, 1), healthNav: false });
   assert.doesNotMatch(unlinked, /jumpOr\(/, 'no link when page.hideTabs hides the Salud tab');

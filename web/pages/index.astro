@@ -1,10 +1,11 @@
 ---
 /* Entry page for the Astro build. Loads the env contract (locale/data-mode/inputs) at build
  * time, computes the nutrition + training + health view-models, and composes the shared Plan
- * layout with THREE top-level tabs (Whoop-style):
- *   - Inicio/Home (`home`)       scores (recovery, load, advice) + "today you eat" card + programmed session (hoy)
- *   - Nutrición (`nutricion`)    Mi día (dia) + Registro (registro) + Tablas (tablas) sections
- *   - Salud/Health (`health`)    body & recovery + the Entrenamiento section (dash)
+ * layout with FOUR top-level tabs, one question each (Whoop-style):
+ *   - Inicio/Home (`home`)          today: dials, monitor, advice + "today you eat" card + programmed session (hoy)
+ *   - Entreno/Training (`entreno`)  training detail + the Entrenamiento dashboard section (dash)
+ *   - Salud/Health (`health`)       recovery, sleep, body, activity, energy
+ *   - Nutrición (`nutricion`)       Mi día (dia) + Registro (registro) + Tablas (tablas) sections
  * The former tab keys now name sections; `page.hideTabs` hides a section by its legacy key and a
  * tab by its top-level key (lib/nav/tabs.mjs resolveNav). See spec: plan-web-single-file-build.
  */
@@ -23,7 +24,7 @@ import { getDict } from '../src/i18n/index.mjs';
 import { trainingMeta } from '../../lib/training/program.mjs';
 import { loadDashboard } from '../../lib/training/dashboard.mjs';
 import { buildHealth } from '../../lib/health/aggregate.mjs';
-import { resolveNav, activeTabKey } from '../../lib/nav/tabs.mjs';
+import { resolveNav, activeTabKey, TAB_KEYS, sectionsOf, showDayToggle } from '../../lib/nav/tabs.mjs';
 import { buildScores } from '../../lib/score/index.mjs';
 import { buildIntake } from '../../lib/nutrition/intake.mjs';
 import { dayViewModel } from '../src/view/day-totals.mjs';
@@ -40,31 +41,36 @@ const scores = buildScores(extractDir);
 const intake = buildIntake(extractDir, { train: dayViewModel(nut, 'train').totals, rest: dayViewModel(nut, 'rest').totals });
 
 const navTab = (key: string) => ({ key, icon: dict.strings.nav.tabs[key].icon, label: dict.strings.nav.tabs[key].label });
-// `sections` = the section keys a tab is made of ENTIRELY (hiding all of them drops the tab).
-const TABS_ALL = [navTab('home'), { ...navTab('nutricion'), sections: ['dia', 'registro', 'tablas'] }, navTab('health')];
+// `sections` = the section keys a tab is made of ENTIRELY (hiding all of them drops the tab): only
+// Nutrición; the other tabs hold blocks beyond their legacy sections.
+const TABS_ALL = TAB_KEYS.map((key) => (key === 'nutricion' ? { ...navTab(key), sections: sectionsOf(key) } : navTab(key)));
 // hideTabs removes a NAV BUTTON (top-level key) or renders a SECTION `hidden` (legacy key); panels
 // and sections always render. The visible panel is the first tab of the FILTERED list; throws if
 // every tab is hidden.
-const { tabs: TABS, hiddenSections } = resolveNav(TABS_ALL, plan.page?.hideTabs);
+const hideTabs = plan.page?.hideTabs;
+const { tabs: TABS, hiddenSections } = resolveNav(TABS_ALL, hideTabs);
 const activeTab = activeTabKey(TABS);
 const isHidden = (key: string) => hiddenSections.includes(key);
+const isTabVisible = (key: string) => TABS.some((t) => t.key === key);
 
 const title = plan.page?.title || 'Plan';
 ---
 
-<Plan title={title} locale={locale} page={plan.page} dict={dict} tabs={TABS} activeTab={activeTab}>
+<Plan title={title} locale={locale} page={plan.page} dict={dict} tabs={TABS} activeTab={activeTab} dayToggle={showDayToggle(hideTabs)}>
   <div class="tab-panel" data-tab="home" hidden={activeTab !== 'home'}>
     <Home />
-    <EatCard nut={nut} dict={dict} />
+    <EatCard nut={nut} dict={dict} link={isTabVisible('nutricion')} />
     <Hoy dict={dict} hidden={isHidden('hoy')} />
+  </div>
+  <div class="tab-panel" data-tab="entreno" hidden={activeTab !== 'entreno'}>
+    <Entrenos dict={dict} hidden={isHidden('dash')} />
+  </div>
+  <div class="tab-panel" data-tab="health" hidden={activeTab !== 'health'}>
+    <Salud />
   </div>
   <div class="tab-panel" data-tab="nutricion" hidden={activeTab !== 'nutricion'}>
     <Dia nut={nut} dict={dict} page={plan.page} hidden={isHidden('dia')} />
     <Registro nut={nut} dict={dict} page={plan.page} plan={plan} locale={locale} training={training.days} trainingMeta={trainMeta} dash={dash} health={health} scores={scores} intake={intake} hidden={isHidden('registro')} />
     <Tablas nut={nut} dict={dict} page={plan.page} hidden={isHidden('tablas')} />
-  </div>
-  <div class="tab-panel" data-tab="health" hidden={activeTab !== 'health'}>
-    <Salud />
-    <Entrenos dict={dict} hidden={isHidden('dash')} />
   </div>
 </Plan>

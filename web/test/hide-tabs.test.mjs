@@ -1,6 +1,6 @@
 /* Integration check for plan-data.json's `page.hideTabs[]` (astro-plan-web
- * slice 5; three-tab layout) — see lib/nav/tabs.mjs for the unit-tested pure logic.
- * Top-level keys (home/nutricion/health) remove a nav button; the legacy keys
+ * slice 5; four-tab layout) — see lib/nav/tabs.mjs for the unit-tested pure logic.
+ * Top-level keys (home/entreno/health/nutricion) remove a nav button; the legacy keys
  * (hoy/dia/registro/tablas/dash) now hide the matching SECTION inside a tab. This test
  * is DATA-DRIVEN: it reads whichever `hideTabs` array the personal plan
  * actually declares (instead of hardcoding the owner's current `["hoy"]`),
@@ -30,10 +30,10 @@ const exampleHtmlPath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.h
 const personalPlanPath = path.join(REPO_ROOT, 'data', 'nutrition', 'plan-data.json');
 const examplePlanPath = path.join(REPO_ROOT, 'data', 'nutrition', 'plan-data.example.json');
 
+import { TAB_KEYS, SECTION_TAB, sectionsOf, showDayToggle } from '../../lib/nav/tabs.mjs';
+
 // Every top-level nav key -> its nav <button id> (see web/pages/index.astro's TABS_ALL).
-const NAV_ID = { home: 't-home', nutricion: 't-nutricion', health: 't-health' };
-// Legacy tab keys, now sections -> the tab panel that hosts them (lib/nav/tabs.mjs SECTION_TAB).
-const SECTION_TAB = { hoy: 'home', dia: 'nutricion', registro: 'nutricion', tablas: 'nutricion', dash: 'health' };
+const NAV_ID = Object.fromEntries(TAB_KEYS.map((k) => [k, 't-' + k]));
 
 function readHideTabs(planPath) {
   const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
@@ -65,7 +65,7 @@ function assertHonours(html, hideTabs) {
     assert.ok(key in states, `section "${key}" must always render (hideTabs only hides it)`);
     assert.equal(states[key], hidden.has(key), `section "${key}" hidden=${states[key]}, expected ${hidden.has(key)}`);
   }
-  const allSectionsGone = ['dia', 'registro', 'tablas'].every((k) => hidden.has(k));
+  const allSectionsGone = sectionsOf('nutricion').every((k) => hidden.has(k));
   for (const [key, navId] of Object.entries(NAV_ID)) {
     const expectHidden = hidden.has(key) || (key === 'nutricion' && allSectionsGone);
     const re = new RegExp(`id="${navId}"`);
@@ -75,8 +75,14 @@ function assertHonours(html, hideTabs) {
     assert.match(html, new RegExp(`class="tab-panel" data-tab="${key}"`), `the ${key} tab-panel must still render`);
   }
   const { nav, visible } = navOrderAndVisiblePanels(html);
-  assert.ok(nav.length <= 3);
+  assert.ok(nav.length <= TAB_KEYS.length);
   assert.deepEqual(visible, [nav[0]], 'exactly one panel visible: the first nav button\'s');
+  // the train/rest toggle is off when only Tablas (or nothing) is left in Nutrición
+  const toggle = html.match(/<div class="toggle subtoggle" id="day-toggle"[^>]*>/)[0];
+  assert.equal(/\sdata-off(?=[\s=>])/.test(toggle), !showDayToggle(hideTabs), `day toggle data-off for hideTabs=${JSON.stringify(hideTabs)}`);
+  // the "today you eat" card links to Nutrición only when that tab is reachable
+  const nutVisible = nav.includes('nutricion');
+  assert.equal(/class="[^"]*eat-link/.test(html), nutVisible, `eat-card link present=${nutVisible}`);
 }
 
 test('personal build honours plan-data.json\'s page.hideTabs (nav buttons + sections)', {
@@ -94,20 +100,20 @@ test('example build does not hide any tab or section, regardless of the personal
 });
 
 for (const [label, file] of [['example', exampleHtmlPath], ['personal', personalHtmlPath]]) {
-  test(`${label} build: exactly 3 nav items max, one un-hidden panel = the first nav button's tab (R7.1)`, {
+  test(`${label} build: at most 4 nav items, one un-hidden panel = the first nav button's tab (R7.1)`, {
     skip: !fs.existsSync(file) && `${label} fixture not built`,
   }, () => {
     const { nav, visible, all } = navOrderAndVisiblePanels(fs.readFileSync(file, 'utf8'));
-    assert.ok(nav.length > 0 && nav.length <= 3);
+    assert.ok(nav.length > 0 && nav.length <= 4);
     assert.equal(visible.length, 1, `un-hidden panels: ${visible.join(',')}`);
     assert.equal(visible[0], nav[0]);
-    assert.deepEqual(all, ['home', 'nutricion', 'health'], 'the three panels always render, in order');
+    assert.deepEqual(all, ['home', 'entreno', 'health', 'nutricion'], 'the four panels always render, in order');
   });
 }
 
-test('example build: exactly 3 nav items, Home first and the active panel', () => {
+test('example build: exactly 4 nav items (Inicio, Entreno, Salud, Nutrición), Home first and the active panel', () => {
   const { nav, visible } = navOrderAndVisiblePanels(fs.readFileSync(exampleHtmlPath, 'utf8'));
-  assert.deepEqual(nav, ['home', 'nutricion', 'health']);
+  assert.deepEqual(nav, ['home', 'entreno', 'health', 'nutricion']);
   assert.deepEqual(visible, ['home']);
 });
 
@@ -137,7 +143,7 @@ function buildWithHideTabs(hideTabs) {
 }
 
 test('build-level: legacy keys hide their sections; top-level keys hide their tab', () => {
-  for (const hideTabs of [['hoy'], ['dia', 'dash'], ['registro', 'tablas', 'home'], ['dia', 'registro', 'tablas'], ['health']]) {
+  for (const hideTabs of [['hoy'], ['dia', 'dash'], ['registro', 'tablas', 'home'], ['dia', 'registro', 'tablas'], ['health'], ['dia', 'registro', 'entreno']]) {
     const { r, html } = buildWithHideTabs(hideTabs);
     assert.equal(r.status, 0, `build with hideTabs=${JSON.stringify(hideTabs)} failed:\n${r.stderr}`);
     assertHonours(html, hideTabs);
@@ -145,7 +151,7 @@ test('build-level: legacy keys hide their sections; top-level keys hide their ta
 });
 
 test('build-level: hiding EVERY top-level tab fails the Astro build with a clear message (no orphan visible panel)', () => {
-  for (const hideTabs of [Object.keys(NAV_ID), ['home', 'health', 'dia', 'registro', 'tablas']]) {
+  for (const hideTabs of [Object.keys(NAV_ID), ['home', 'entreno', 'health', 'dia', 'registro', 'tablas']]) {
     const { r } = buildWithHideTabs(hideTabs);
     assert.notEqual(r.status, 0, `the build must fail for hideTabs=${JSON.stringify(hideTabs)}`);
     assert.match(r.stdout + r.stderr, /every tab is hidden/i);
