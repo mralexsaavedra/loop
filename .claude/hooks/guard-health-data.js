@@ -59,6 +59,7 @@ const PERSONAL = [
   'web/dist/',
   'web/test/.golden/',
   'services/plan-web/site/',
+  'web/.test-dist/',
 ];
 
 // Intentionally tracked exceptions (the "!" rules in .gitignore). Force-adding
