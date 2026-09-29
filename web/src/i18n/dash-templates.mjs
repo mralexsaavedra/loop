@@ -6,11 +6,9 @@
  * `note1Html`/`note2Html` are TRUSTED markup (same trust boundary as
  * es.mjs/en.mjs's `...Html`-suffixed generic dict entries — tracked,
  * non-personal copy, never user input) — see design's Trusted markup row.
- * The owner's live personal page adds one plan-specific parenthetical to
- * note1 ("tu plan lleva pista + tirada larga") that is intentionally NOT
- * reproduced here: it is personal customization, not generic copy, and
- * belongs in plan-data.json's `page.notes` if the owner wants it back —
- * see web/test/parity.test.mjs's KNOWN_DEVIATIONS.
+ * The notes stay generic on purpose: a plan-specific aside (which sessions the owner's
+ * program contains) is personal customization and belongs in plan-data.json's `page.notes`,
+ * never in this tracked file.
  */
 export const es = {
   modalityLabels: { strength: 'Fuerza', hiit: 'Gimnasio', run: 'Carrera', bike: 'Ciclismo', other: 'Otro cardio' },

@@ -17,13 +17,10 @@
  * health.js itself from the shared `LOCALE` global — same pattern as
  * training-dash.js's `hc()`.
  *
- * KNOWN_DEVIATION (content, not structure — see web/test/parity.test.mjs):
- * `runningNote` here is a GENERIC translation of the tracked template's
- * "Improving pace at the same effort is the signal to watch." The owner's
- * live personal page instead ends with a Hyrox-specific goal ("Para Hyrox,
- * bajar el ritmo comprometido es la prioridad.") — personal customization
- * that doesn't belong in tracked/generic copy, same rationale as
- * dash-templates.mjs's `note1Html` deviation.
+ * `runningNote` ends with a GENERIC closing line ("Improving pace at the same effort is the
+ * signal to watch.") on purpose: it holds for any runner whatever their goal. A goal-specific
+ * sentence (a target race, a pace to hit) is personal copy and belongs in the owner's
+ * plan-data.json `page` block, never in this tracked file.
  */
 export const es = {
   emptyMsg: 'Aún no hay datos de salud. Suelta tu export de Apple Health en <code>data/apple-health/</code>, corre <code>extract.js</code> y regenera.',

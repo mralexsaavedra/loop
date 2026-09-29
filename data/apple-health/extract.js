@@ -42,11 +42,11 @@ const maxSrc = { exercise: new Map(), distance: new Map(), flights: new Map() };
 // daily means: Map<date, {s, n}>  (many readings/day → average them)
 const meanDaily = { respiratory: new Map(), walkingHr: new Map() };
 // running performance: Map<date, {speed:{s,n}, power:{s,n}, gct:{s,n}, vosc:{s,n}, stride:{s,n}}>
-// samples are recorded DURING runs; we keep per-day means (only days he ran have rows). 0s are junk.
+// samples are recorded DURING runs; we keep per-day means (only days with a run have rows). 0s are junk.
 const running = new Map();
 // sleep clock: Map<night, {start, end}> earliest asleep start / latest asleep end (for bedtime regularity)
 const sleepClock = new Map();
-// steps come from 3 devices (iPhone/Zepp/Mi Fit) → keep per-source, take max/day (summing double-counts)
+// steps can come from several devices (phone, watch, other trackers) → keep per-source, take max/day (summing double-counts)
 const stepsBySrc = new Map();
 // dietary daily: Map<date, {kcal,p,c,g}>
 const diet = new Map();
@@ -216,7 +216,7 @@ rl.on('close', () => {
     [...map.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, o]) => `${d},${(o.s / o.n).toFixed(dec)}`));
   counts.respiratory = dumpMean(meanDaily.respiratory, 'respiratory-daily.csv', 'brpm');
   counts.walking_hr = dumpMean(meanDaily.walkingHr, 'walking-hr-daily.csv', 'bpm', 0);
-  // running performance — per-day means over a run's samples (only days he ran get a row)
+  // running performance — per-day means over a run's samples (only days with a run get a row)
   counts.running = csv('running-daily.csv', 'date,speed_kmh,power_w,gct_ms,vosc_cm,stride_m,samples',
     [...running.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, o]) => {
       const f = (k, dec) => { const m = runMean(o, k); return m == null ? '' : m.toFixed(dec); };
@@ -243,15 +243,15 @@ rl.on('close', () => {
     },
     notes: [
       'Body metrics keep a source column — weight mixes scales/apps; compare body fat within one scale only.',
-      'steps = max across devices per day (iPhone/Zepp/Mi Fit overlap → summing would double-count).',
-      'active/basal energy + dietary are per-day sums (energy validated single-source; logging stopped 2025-11-26).',
+      'steps = max across devices per day (phone + watch + other trackers overlap → summing would double-count).',
+      'active/basal energy + dietary are per-day sums (energy validated single-source; intake exists only on days a food app logged it).',
       'sleep is best-effort: asleep intervals only, max across sources per night; verify against the Watch trend.',
       'sleep bedtime/waketime = earliest asleep start / latest asleep end of the night, decimal local hour.',
       'exercise/distance/flights = max across devices per day (iPhone+Watch overlap → summing double-counts, like steps); respiratory & walking-HR are per-day means.',
       'running-daily = per-day MEANS over a run\'s samples (only days with a run get a row); 0-valued samples (Zepp placeholders) dropped. speed km/h, power W, gct ms, vosc cm, stride m.',
       'hr-recovery.csv = Cardio Recovery (HeartRateRecoveryOneMinute, bpm drop 1 min after a workout), one row per sample.',
       'leanmass & wristTemp are sparse, source-tagged (leanmass mixes scales like weight; wrist temp is sleeping-watch only).',
-      'workouts now carry hr_avg/hr_min/hr_max (bpm) and energy_kcal pulled from child <WorkoutStatistics> (per-workout intensity; HR coverage is Apple-Watch-era, ~2025+).',
+      'workouts now carry hr_avg/hr_min/hr_max (bpm) and energy_kcal pulled from child <WorkoutStatistics> (per-workout intensity; HR coverage starts when a watch was first worn).',
       'workouts.csv has 11 columns; relative_effort and kilojoules are filled only by Strava rows (npm run sync:strava) and stay empty on export rows. Re-run this script after the first sync:strava to re-emit every row at 11 columns.',
       'Regenerate after dropping a new export: node data/apple-health/extract.js',
     ],
