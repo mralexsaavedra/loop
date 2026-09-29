@@ -103,7 +103,9 @@ test('day totals fall within the sane band validate() enforces', () => {
   // Invariant: any plan's day totals sit inside the bands validate() guards (a gross bad
   // edit lands outside). Exact owner targets are not portable, so we assert the band.
   const total = day => DAYPLAN[day].meals.reduce((s, m) => s + mealMacros(m).k, 0);
-  const band = { train: [2000, 2800], rest: [1700, 2400] };
+  // Same band validate() uses: the plan's optional validation.kcalBand, else the default.
+  const planRaw = JSON.parse(fs.readFileSync(gen.PLAN_PATH, 'utf8'));
+  const band = (planRaw.validation && planRaw.validation.kcalBand) || { train: [2000, 2800], rest: [1700, 2400] };
   for (const day of ['train', 'rest']) {
     const t = total(day);
     assert.ok(t >= band[day][0] && t <= band[day][1], `${day} total ${Math.round(t)} kcal must be within ${band[day].join('-')}`);
