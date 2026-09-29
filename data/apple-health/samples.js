@@ -8,6 +8,9 @@
 
 const READING_HEADER = 'date,value,source';
 const SLEEP_HEADER = 'date,asleep_hours,source,bedtime,waketime';
+// workouts.csv, written by BOTH extract.js and sync-strava.js. relative_effort / kilojoules are
+// filled only by Strava rows; Apple export rows leave the two trailing columns empty.
+const WORKOUTS_HEADER = 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source,distance_km,relative_effort,kilojoules';
 
 // "2026-06-12 09:10:00 +0200" -> "2026-06-12"
 const day = dt => (dt || '').slice(0, 10);
@@ -46,8 +49,15 @@ const readingRow = r => `${r.date},${r.value},${r.source || ''}`;
 const sleepRow = (date, minutes, source, ck) =>
   `${date},${(minutes / 60).toFixed(2)},${source || ''},${ck ? clockHour(ck.start) : ''},${ck ? clockHour(ck.end) : ''}`;
 
+// one parsed Apple workout -> workouts.csv row (11 columns; the two effort columns stay empty)
+const workoutRow = w => {
+  const bpm = v => (v != null ? Math.round(v) : '');
+  const km2 = v => (v != null ? Math.round(v * 100) / 100 : '');
+  return `${w.date},${w.type},${w.durationMin ?? ''},${w.energyKcal ?? ''},${bpm(w.hrAvg)},${bpm(w.hrMin)},${bpm(w.hrMax)},${w.source || ''},${km2(w.distanceKm)},,`;
+};
+
 module.exports = {
-  READING_HEADER, SLEEP_HEADER,
+  READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow,
   day, num, localMs, absMs, minutesBetween, addDay, clockHour, sleepNight, isoToExportStamp,
   readingRow, sleepRow,
 };

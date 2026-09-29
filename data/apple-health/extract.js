@@ -28,7 +28,7 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const attr = (s, name) => { const m = s.match(new RegExp(' ' + name + '="([^"]*)"')); return m ? m[1] : null; };
 // shared with sync-shortcut.js so export- and Shortcut-derived rows are formatted identically
-const { READING_HEADER, SLEEP_HEADER, day, num, absMs, minutesBetween, sleepNight, readingRow, sleepRow } = require('./samples.js');
+const { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, absMs, minutesBetween, sleepNight, readingRow, sleepRow } = require('./samples.js');
 
 // sparse readings: [{date, value, source}]
 const readings = { weight: [], bodyfat: [], rhr: [], vo2max: [], hrv: [], leanmass: [], wristTemp: [], hrRecovery: [] };
@@ -225,10 +225,7 @@ rl.on('close', () => {
     }));
   // workouts
   sortByDate(workouts);
-  const bpm = v => (v != null ? Math.round(v) : '');
-  const km2 = v => (v != null ? Math.round(v * 100) / 100 : '');
-  counts.workouts = csv('workouts.csv', 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source,distance_km',
-    workouts.map(w => `${w.date},${w.type},${w.durationMin ?? ''},${w.energyKcal ?? ''},${bpm(w.hrAvg)},${bpm(w.hrMin)},${bpm(w.hrMax)},${w.source || ''},${km2(w.distanceKm)}`));
+  counts.workouts = csv('workouts.csv', WORKOUTS_HEADER, workouts.map(workoutRow));
 
   const allDates = sortByDate([...readings.weight]).map(r => r.date);
   const meta = {
@@ -255,6 +252,7 @@ rl.on('close', () => {
       'hr-recovery.csv = Cardio Recovery (HeartRateRecoveryOneMinute, bpm drop 1 min after a workout), one row per sample.',
       'leanmass & wristTemp are sparse, source-tagged (leanmass mixes scales like weight; wrist temp is sleeping-watch only).',
       'workouts now carry hr_avg/hr_min/hr_max (bpm) and energy_kcal pulled from child <WorkoutStatistics> (per-workout intensity; HR coverage is Apple-Watch-era, ~2025+).',
+      'workouts.csv has 11 columns; relative_effort and kilojoules are filled only by Strava rows (npm run sync:strava) and stay empty on export rows. Re-run this script after the first sync:strava to re-emit every row at 11 columns.',
       'Regenerate after dropping a new export: node data/apple-health/extract.js',
     ],
   };

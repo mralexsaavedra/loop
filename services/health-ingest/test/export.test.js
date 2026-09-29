@@ -112,6 +112,8 @@ test('lists strava activities with a parameterized, id-ordered query exposing on
   assert.match(pool.calls[0].sql, /LIMIT \$2/)
   assert.match(pool.calls[0].sql, /payload->>'start_date_local'/)
   assert.match(pool.calls[0].sql, /payload->'moving_time'/)
+  assert.match(pool.calls[0].sql, /payload->'suffer_score' AS suffer_score/)
+  assert.match(pool.calls[0].sql, /payload->'kilojoules' AS kilojoules/)
   assert.doesNotMatch(pool.calls[0].sql, /\bname\b/)
   assert.doesNotMatch(pool.calls[0].sql, /SELECT \*/)
 })
@@ -146,4 +148,16 @@ test('strava export handler returns 200 and logs counts + since_id only, never f
   assert.equal(parsed.since_id, '5')
   assert.equal(parsed.count, 1)
   assert.ok(!logged[0].includes('150'), 'field values never logged')
+})
+
+test('strava export passes suffer_score/kilojoules through, and null when the activity has none', async () => {
+  const pool = fakePool([
+    { id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1800, suffer_score: 87, kilojoules: null },
+    { id: '2', start_local: '2026-08-21T07:00:00', sport_type: 'Ride', moving_time: 3600, suffer_score: null, kilojoules: 640.5 }
+  ])
+  const rows = await listStravaActivities(pool, { sinceId: '0', limit: 5 })
+  assert.equal(rows[0].suffer_score, 87)
+  assert.equal(rows[0].kilojoules, null)
+  assert.equal(rows[1].suffer_score, null)
+  assert.equal(rows[1].kilojoules, 640.5)
 })

@@ -26,6 +26,7 @@
 const fs = require('fs')
 const path = require('path')
 const common = require('./sync-common.js')
+const { WORKOUTS_HEADER } = require('./samples.js')
 
 const STRAVA_SOURCE = 'Strava API'
 // SYNC_STRAVA_OUT_DIR / INGEST_ENV_FILE overrides exist ONLY so the child-process error-path
@@ -33,7 +34,6 @@ const STRAVA_SOURCE = 'Strava API'
 // personal data/apple-health/extract or services/health-ingest/.env — unset in production.
 const OUT = process.env.SYNC_STRAVA_OUT_DIR || path.join(__dirname, 'extract')
 const WORKOUTS_CSV = 'workouts.csv'
-const WORKOUTS_HEADER = 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source,distance_km'
 
 // sport_type -> workouts.csv `type` (matches extract.js's HKWorkoutActivityType-derived strings).
 // Anything not in this table lands on Other (routed to the dashboard's 'hiit' bucket) and is
@@ -58,6 +58,9 @@ function translateType (sportType) {
 const numOrNull = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 const round2 = (v) => Math.round(v * 100) / 100
 const bpmRound = (v) => Math.round(v)
+// Relative Effort is an integer score; 0 and 1 are genuine values, only absence is blank
+const reCell = (v) => (numOrNull(v) != null ? Math.round(v) : '')
+const kjCell = (v) => (numOrNull(v) != null ? round2(v) : '')
 
 /**
  * One Strava activity -> one workouts.csv row, or null when there is no usable duration or
@@ -90,7 +93,9 @@ function toRow (activity) {
     '',
     hrMax != null ? bpmRound(hrMax) : '',
     STRAVA_SOURCE,
-    distanceKm != null ? distanceKm : ''
+    distanceKm != null ? distanceKm : '',
+    reCell(activity.suffer_score),
+    kjCell(activity.kilojoules)
   ].join(',')
 
   return { date, line, mapped, sportType, hasHr: hrAvg != null }
