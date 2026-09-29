@@ -1,17 +1,31 @@
 ---
-// Shared page shell. All 6 tabs (added in later slices) render inside this
-// layout's <slot />. Script order at the end of <body> (per design): bake →
-// core → nutrition → training-today → training-dash → health. This slice
-// only wires `core` — the rest land as their tabs do.
+/* Shared page shell — header (personal copy), tab nav + day toggle, footer
+ * (personal copy), and the end-of-body script order per design: bake (each
+ * tab's own Bake, e.g. Registro's) → core (setTab/setDay/jump/bump) →
+ * nutrition → training-today → training-dash → health (the last three land
+ * in slices 5-6). Tabs render inside <slot />.
+ */
 import '../src/styles/tokens.css';
 import coreScript from '../src/client/core.js?raw';
+import nutritionScript from '../src/client/nutrition.js?raw';
 
 interface Props {
   title: string;
+  locale: string;
+  page?: {
+    kicker?: string;
+    h1?: string;
+    sub?: string;
+    footerHtml?: string;
+  };
+  dict: any;
+  tabs: { key: string; icon: string; label: string }[];
+  activeTab?: string;
 }
 
-const { title } = Astro.props;
-const locale = process.env.LOCALE === 'es' ? 'es' : 'en';
+const { title, locale, page = {}, dict, tabs, activeTab = tabs[0]?.key } = Astro.props;
+const navLabels: Record<string, string> = { dia: 't-dia', registro: 't-registro', tablas: 't-tablas', hoy: 't-hoy', dash: 't-dash', health: 't-health' };
+const showDayToggle = activeTab === 'dia' || activeTab === 'registro';
 ---
 
 <!DOCTYPE html>
@@ -22,7 +36,37 @@ const locale = process.env.LOCALE === 'es' ? 'es' : 'en';
     <title>{title}</title>
   </head>
   <body>
-    <slot />
-    <script is:inline set:html={coreScript}></script>
+    <div class="wrap">
+      <header>
+        {page.kicker && <div class="kicker">{page.kicker}</div>}
+        {page.h1 && <h1>{page.h1}</h1>}
+        {page.sub && <p class="sub">{page.sub}</p>}
+      </header>
+
+      <nav class="tabnav" role="tablist" aria-label={dict.strings.nav.ariaLabel}>
+        {tabs.map((tab) => (
+          <button
+            id={navLabels[tab.key]}
+            role="tab"
+            aria-pressed={tab.key === activeTab}
+            onclick={`setTab('${tab.key}')`}
+          >
+            <span class="tico">{tab.icon}</span><span class="tlbl">{tab.label}</span>
+          </button>
+        ))}
+      </nav>
+      <div class="toggle subtoggle" id="day-toggle" role="group" aria-label={dict.strings.dayToggle.ariaLabel} style={showDayToggle ? undefined : 'display:none'}>
+        <button id="b-train" aria-pressed="true" onclick="setDay('train')">{dict.strings.dayToggle.train}</button>
+        <button id="b-rest" aria-pressed="false" onclick="setDay('rest')">{dict.strings.dayToggle.rest}</button>
+      </div>
+
+      <slot />
+
+      {page.footerHtml && (
+        <footer set:html={page.footerHtml} />
+      )}
+    </div>
+    <script is:inline set:html={coreScript} />
+    <script is:inline set:html={nutritionScript} />
   </body>
 </html>

@@ -1,15 +1,31 @@
 ---
-// Scaffold stub for the astro-plan-web migration (slice 1). The 6 tabs
-// (Mi día, Registro, Tablas, Hoy, Entrenos, Salud) land in slices 3–6,
-// wired to real plan/training/health data via lib/ (slice 2). This page
-// only proves the build pipeline: one self-contained HTML file, zero
-// external requests — see spec: plan-web-single-file-build.
+/* Entry page for the Astro build (astro-plan-web migration). Loads the
+ * env contract (locale/data-mode/inputs) at build time, computes the
+ * nutrition view-model, and composes the shared Plan layout with the
+ * tabs built so far (Mi día + Registro — slice 3; Tablas/Hoy/Entrenos/
+ * Salud land in slices 4-6). See spec: plan-web-single-file-build.
+ */
 import Plan from '../layouts/Plan.astro';
+import Dia from '../src/tabs/Dia.astro';
+import Registro from '../src/tabs/Registro.astro';
+import { resolveEnv } from '../src/env.mjs';
+import { buildNutrition } from '../../lib/nutrition/macros.mjs';
+import { getDict } from '../src/i18n/index.mjs';
+
+const env = resolveEnv();
+const { locale, plan, ingredients } = env;
+const nut = buildNutrition(ingredients, plan);
+const dict = getDict(locale);
+
+const TABS = [
+  { key: 'dia', icon: dict.strings.nav.tabs.dia.icon, label: dict.strings.nav.tabs.dia.label },
+  { key: 'registro', icon: dict.strings.nav.tabs.registro.icon, label: dict.strings.nav.tabs.registro.label },
+];
+
+const title = plan.page?.title || 'Plan';
 ---
 
-<Plan title="Plan — build scaffold">
-  <main class="scaffold-placeholder">
-    <h1>Astro build scaffold</h1>
-    <p>Tabs land in later slices of the astro-plan-web migration.</p>
-  </main>
+<Plan title={title} locale={locale} page={plan.page} dict={dict} tabs={TABS} activeTab="dia">
+  <Dia nut={nut} dict={dict} page={plan.page} />
+  <Registro nut={nut} dict={dict} page={plan.page} plan={plan} locale={locale} />
 </Plan>

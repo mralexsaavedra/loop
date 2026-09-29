@@ -1,0 +1,60 @@
+---
+/* Server-rendered "Mi día" day card — ported from generate.js's dayPanel()
+ * string-builder (data/nutrition/generate.js), now an Astro template driven
+ * by lib/nutrition/macros.mjs's buildNutrition() output instead of writing
+ * an HTML string into a GEN:DAYPLAN region. Markup/classes/ids match the
+ * legacy `.day-panel[data-day]` contract verbatim (see web/src/client/core.js
+ * and web/test/parity.test.mjs). */
+interface Meal {
+  name: string;
+  jump?: string | null;
+  desc?: string;
+  descHtml?: string;
+  pcf?: boolean;
+}
+interface Props {
+  day: 'train' | 'rest';
+  meals: { meal: Meal; m: { k: number; p: number; c: number; g: number } }[];
+  totals: { k: number; p: number; c: number; g: number };
+  kcalNote: string;
+  hidden: boolean;
+  dict: any;
+}
+
+const { day, meals, totals, kcalNote, hidden, dict } = Astro.props;
+const rk = (n: number) => Math.round(n);
+const dotThousands = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+---
+<div class="day-panel" data-day={day} hidden={hidden}>
+  <div class="summary">
+    <div class="kcal">~{dotThousands(rk(totals.k))}<span>kcal</span></div>
+  </div>
+  <div class="macros">
+    <div class="mac"><span class="lbl">Prot</span><b>{rk(totals.p)} g</b></div>
+    <div class="mac"><span class="lbl">Carb</span><b>{rk(totals.c)} g</b></div>
+    <div class="mac"><span class="lbl">Grasa</span><b>{rk(totals.g)} g</b></div>
+  </div>
+  <p class="deficit" set:html={kcalNote} />
+
+  <h2>{dict.strings.dia.sectionHeading}</h2>
+  {meals.map(({ meal, m }) => (
+    <div class="meal">
+      <div class="meal-top">
+        {meal.jump ? (
+          <button class="meal-name" onclick={`jump('${meal.jump}')`}>{meal.name}</button>
+        ) : (
+          <div class="meal-name">{meal.name}</div>
+        )}
+        <div class="meal-kcal">~{rk(m.k)} kcal</div>
+      </div>
+      {meal.descHtml != null ? (
+        <div class="meal-desc" set:html={meal.descHtml} />
+      ) : meal.desc != null ? (
+        <div class="meal-desc">{meal.desc}</div>
+      ) : null}
+      {meal.pcf !== false && (
+        <div class="meal-pcf"><span><b>{rk(m.p)}</b> P</span><span><b>{rk(m.c)}</b> C</span><span><b>{rk(m.g)}</b> G</span></div>
+      )}
+    </div>
+  ))}
+</div>

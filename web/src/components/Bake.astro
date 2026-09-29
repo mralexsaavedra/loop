@@ -1,0 +1,47 @@
+---
+/* Bakes JSON-safe globals for the client scripts (classic, is:inline — no
+ * ES modules, see design's Scripts row) using lib/serialize.mjs's
+ * `jsonForScript` for safe embedding inside a <script> tag. Scoped, for
+ * now, to what the Mi día + Registro tabs need (astro-plan-web slice 3);
+ * later slices extend this with TRAINING/TRAINING_META/DASH/HEALTH per
+ * design's Key Interfaces `Bake` row.
+ */
+import { jsonForScript } from '../../../lib/serialize.mjs';
+
+interface Props {
+  nut: any; // buildNutrition() result
+  targetTrain: { k: number; p: number; fatMax: number };
+  targetRest: { k: number; p: number; fatMax: number };
+  verdictTemplates: Record<string, string>;
+  logTemplates: Record<string, string>;
+  peLabel: { train: string; rest: string };
+  copyMsg: string;
+  copyFallbackMsg: string;
+  locale: string;
+}
+const { nut, targetTrain, targetRest, verdictTemplates, logTemplates, peLabel, copyMsg, copyFallbackMsg, locale } = Astro.props;
+
+const globals = {
+  DATA: nut.D,
+  EXTRAS: nut.EX,
+  QUESO_KEYS: nut.QUESO,
+  VEG_KEYS: nut.VEG,
+  TARGET: { train: targetTrain, rest: targetRest },
+  EXTRA_KEYS: nut.extraKeys,
+  EXTRA_NAMES: nut.extraNames,
+  INDULGE: nut.indulge,
+  ALCOHOL_KEYS: nut.alcoholKeys,
+  MEAL_REPLACE_KEYS: nut.mealReplaceKeys,
+  I18N_VERDICT: verdictTemplates,
+  I18N_LOG: logTemplates,
+  PE_LABEL: peLabel,
+  COPY_MSG: copyMsg,
+  COPY_FALLBACK_MSG: copyFallbackMsg,
+  LOCALE: locale,
+};
+
+const bakeSource = Object.entries(globals)
+  .map(([name, value]) => `var ${name} = ${jsonForScript(value)};`)
+  .join('\n');
+---
+<script is:inline set:html={bakeSource}></script>
