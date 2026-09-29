@@ -28,7 +28,10 @@ const path = require('path');
 const common = require('./sync-common.js');
 
 const STRAVA_SOURCE = 'Strava API';
-const OUT = path.join(__dirname, 'extract');
+// SYNC_STRAVA_OUT_DIR / INGEST_ENV_FILE overrides exist ONLY so the child-process error-path
+// tests below can point main() at a disposable tmp dir / tmp env file instead of the real
+// personal data/apple-health/extract or services/health-ingest/.env — unset in production.
+const OUT = process.env.SYNC_STRAVA_OUT_DIR || path.join(__dirname, 'extract');
 const WORKOUTS_CSV = 'workouts.csv';
 const WORKOUTS_HEADER = 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source,distance_km';
 
@@ -250,5 +253,6 @@ module.exports = {
   updateMeta,
   planSync,
   syncDir,
-  fetchActivities
+  fetchActivities,
+  main
 }
