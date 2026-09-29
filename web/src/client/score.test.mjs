@@ -165,3 +165,12 @@ test('es locale uses decimal commas for MAD values', () => {
   const v = Math.abs(s.recovery.trend7).toFixed(1).replace('.', ',');
   assert.ok(html.includes(v), `expected ${v} in es render`);
 });
+
+test('baked date strings are validated before rendering: a non-ISO asOf/reEpoch never reaches the markup', () => {
+  const s = fixtureScores();
+  s.recovery.asOf = '<img src=x onerror=alert(1)>';
+  s.load.asOf = '2026-09-29"><i id=xss>';
+  s.load.reEpoch = 'javascript:1';
+  const html = render(s);
+  assert.doesNotMatch(html, /<img|id=xss|javascript:|onerror/);
+});

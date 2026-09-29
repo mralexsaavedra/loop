@@ -17,6 +17,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import os from 'node:os';
+import { spawnSync } from 'node:child_process';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
@@ -94,4 +96,27 @@ test('example build: Home is the first nav button and the active panel', () => {
   const { nav, visible } = navOrderAndVisiblePanels(fs.readFileSync(exampleHtmlPath, 'utf8'));
   assert.equal(nav[0], 'home');
   assert.deepEqual(visible, ['home']);
+});
+
+test('build-level: hiding EVERY tab fails the Astro build with a clear message (no orphan visible panel)', () => {
+  // Uses a throwaway repo root under os.tmpdir() holding copies of the tracked example inputs, with
+  // hideTabs listing every nav key; HC_REPO_ROOT points env.mjs at it, so no repo file is touched.
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'hide-all-'));
+  try {
+    fs.mkdirSync(path.join(tmp, 'data', 'nutrition'), { recursive: true });
+    fs.mkdirSync(path.join(tmp, 'data', 'training'), { recursive: true });
+    fs.copyFileSync(path.join(REPO_ROOT, 'data', 'nutrition', 'ingredients.json'), path.join(tmp, 'data', 'nutrition', 'ingredients.json'));
+    fs.copyFileSync(path.join(REPO_ROOT, 'data', 'training', 'training-data.example.json'), path.join(tmp, 'data', 'training', 'training-data.example.json'));
+    const plan = JSON.parse(fs.readFileSync(examplePlanPath, 'utf8'));
+    plan.page = { ...(plan.page || {}), hideTabs: Object.keys(NAV_ID) };
+    fs.writeFileSync(path.join(tmp, 'data', 'nutrition', 'plan-data.example.json'), JSON.stringify(plan));
+    const r = spawnSync(path.join(REPO_ROOT, 'node_modules', '.bin', 'astro'), ['build', '--root', WEB_ROOT, '--outDir', path.join(tmp, 'out')], {
+      env: { ...process.env, HC_REPO_ROOT: tmp, DATA_MODE: 'example', LOCALE: 'en' },
+      encoding: 'utf8',
+    });
+    assert.notEqual(r.status, 0, 'the build must fail');
+    assert.match(r.stdout + r.stderr, /every tab is hidden/i);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });

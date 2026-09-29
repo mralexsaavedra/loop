@@ -1,4 +1,4 @@
-/* "Inicio / Home" tab: recovery TREND (MAD units, never a 0-100 grade) + per-modality load,
+/* Home tab: recovery TREND (MAD units, never a 0-100 grade) + per-modality load,
  * rendered client-side from SCORES / I18N_SCORE / LOCALE baked by components/Bake.astro.
  *
  * Classic script (is:inline, no module scope). Only `asOf` is baked: staleness is computed here
@@ -33,6 +33,7 @@
     return num(x, 0, true) + (ES ? ' %' : '%');
   }
   function daysOld(iso) {
+    iso = isoDate(iso);
     if (!iso) return null;
     var p = iso.split('-');
     var d = new Date(+p[0], +p[1] - 1, +p[2]);
@@ -57,11 +58,17 @@
       '<path class="line" d="M' + pts.join(' L') + '"/></svg>'
     );
   }
+  var GLYPH = { above: '▲', ramping: '▲', below: '▼', detraining: '▼', at: '■', steady: '■' };
+  // baked dates are interpolated into markup: accept only a real ISO date, anything else renders as absent
+  function isoDate(s) {
+    return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+  }
   function arrow(band) {
-    var g = band === 'above' || band === 'ramping' ? '▲' : band === 'below' || band === 'detraining' ? '▼' : '■';
+    var g = GLYPH[band] || GLYPH.at;
     return '<span class="sc-arrow sc-arrow-' + esc(band) + '" aria-hidden="true">' + g + '</span>';
   }
   function asOfHtml(iso) {
+    iso = isoDate(iso);
     return iso ? '<span class="sc-asof">' + esc(format(T.asOfLbl, { date: iso })) + '</span>' : '';
   }
   function staleHtml(iso) {
@@ -148,7 +155,7 @@
       ['scored', 'unscored', 'invalid', 'droppedJunk', 'preEpoch'].map(function (k) {
         return '<span><b class="sc-cov-' + k + '">' + (c[k] || 0) + '</b> ' + esc(lt.coverage[k]) + '</span>';
       }).join(' · ') + '</div>');
-    out.push('<div class="sc-note">' + esc(L.reEpoch ? format(lt.preEpochNote, { date: L.reEpoch }) : lt.noEpochNote) + '</div>');
+    out.push('<div class="sc-note">' + esc(isoDate(L.reEpoch) ? format(lt.preEpochNote, { date: L.reEpoch }) : lt.noEpochNote) + '</div>');
     out.push('</div>');
     return out.join('');
   }
