@@ -226,6 +226,24 @@ export function migrateNotes({ plan, html }) {
   return { plan: next, changed };
 }
 
+/** Writes `content` to `filePath`, backing up the file's CURRENT contents
+ * to `<filePath>.bak` first — but only if no `.bak` already exists, so a
+ * later run of this idempotent script never clobbers the TRUE original
+ * with an already-migrated intermediate state. Writes the target
+ * atomically (temp file in the same directory + rename) so a crash or
+ * interruption mid-write can never leave `filePath` truncated or
+ * corrupted. No-op backup step (nothing to back up yet) if `filePath`
+ * does not exist. */
+export function writeWithBackup(filePath, content) {
+  const backupPath = filePath + '.bak';
+  if (fs.existsSync(filePath) && !fs.existsSync(backupPath)) {
+    fs.copyFileSync(filePath, backupPath);
+  }
+  const tmpPath = path.join(path.dirname(filePath), `.${path.basename(filePath)}.tmp-${process.pid}-${Date.now()}`);
+  fs.writeFileSync(tmpPath, content);
+  fs.renameSync(tmpPath, filePath);
+}
+
 function main() {
   if (!fs.existsSync(PLAN_PATH)) {
     console.error(`migrate-plan-data: ${path.relative(ROOT, PLAN_PATH)} not found — nothing to migrate (fresh clone / example-only setup).`);
@@ -248,9 +266,11 @@ function main() {
     return;
   }
 
-  fs.copyFileSync(PLAN_PATH, BACKUP_PATH);
-  fs.writeFileSync(PLAN_PATH, JSON.stringify(migrated, null, 2) + '\n');
-  console.log(`migrate-plan-data: wrote plan.locale/page/indulgeKeys/alcoholKeys/mealReplaceKeys + extrasDisplay copyName's + page.notes/offPlanPlaceholder into ${path.relative(ROOT, PLAN_PATH)} (backup at ${path.relative(ROOT, BACKUP_PATH)}).`);
+  writeWithBackup(PLAN_PATH, JSON.stringify(migrated, null, 2) + '\n');
+  const backupNote = fs.existsSync(BACKUP_PATH)
+    ? `backup at ${path.relative(ROOT, BACKUP_PATH)}`
+    : 'no backup written (unexpected — please report this)';
+  console.log(`migrate-plan-data: wrote plan.locale/page/indulgeKeys/alcoholKeys/mealReplaceKeys + extrasDisplay copyName's + page.notes/offPlanPlaceholder into ${path.relative(ROOT, PLAN_PATH)} (${backupNote}).`);
   console.log(`  page.title=${JSON.stringify(migrated.page.title)}`);
   console.log(`  indulgeKeys=${JSON.stringify(migrated.indulgeKeys)}`);
   console.log(`  alcoholKeys=${JSON.stringify(migrated.alcoholKeys)}`);

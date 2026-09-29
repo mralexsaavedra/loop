@@ -14,7 +14,10 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { migrate, migrateNotes } from './migrate-plan-data.mjs';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { migrate, migrateNotes, writeWithBackup } from './migrate-plan-data.mjs';
 
 function fixtureHtml() {
   // The <style> block's desktop media query legitimately contains the bare
@@ -253,4 +256,73 @@ test('migrateNotes() is safe to run on a plan already migrated by migrate() (rea
 test('migrateNotes() degrades gracefully when an accordion/section is absent from the html (e.g. a plan without Legumes/Soups)', () => {
   const { plan } = migrateNotes({ plan: fixturePlan(), html: fixtureHtml() });
   assert.equal(plan.page.notes['tablas.carboComida'], undefined, 'fixture has no acc-carbo-comida -> not set, not a throw');
+});
+
+// ---- writeWithBackup(): the CLI's file-IO contract. A real run of this
+// script had NOT actually left a `plan-data.json.bak` behind despite the
+// script's own log message claiming one was written — this exercises that
+// contract directly (against a throwaway tmp dir, never the real repo
+// files) instead of leaving it untested, which is how the gap slipped
+// through originally.
+function withTmpDir(fn) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'migrate-plan-data-test-'));
+  try {
+    return fn(dir);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test('writeWithBackup() backs up the file to <file>.bak BEFORE writing new content', () => {
+  withTmpDir((dir) => {
+    const target = path.join(dir, 'plan-data.json');
+    const backup = target + '.bak';
+    fs.writeFileSync(target, 'ORIGINAL');
+
+    writeWithBackup(target, 'UPDATED');
+
+    assert.ok(fs.existsSync(backup), 'expected a .bak file to exist after writeWithBackup()');
+    assert.equal(fs.readFileSync(backup, 'utf8'), 'ORIGINAL', 'the .bak must hold the pre-write content');
+    assert.equal(fs.readFileSync(target, 'utf8'), 'UPDATED', 'the target must hold the new content');
+  });
+});
+
+test('writeWithBackup() never overwrites an existing .bak (preserves the TRUE original across repeated runs)', () => {
+  withTmpDir((dir) => {
+    const target = path.join(dir, 'plan-data.json');
+    const backup = target + '.bak';
+    fs.writeFileSync(target, 'TRUE_ORIGINAL');
+    fs.writeFileSync(backup, 'TRUE_ORIGINAL'); // simulates a .bak already written by a prior run
+
+    writeWithBackup(target, 'SECOND_UPDATE');
+    writeWithBackup(target, 'THIRD_UPDATE');
+
+    assert.equal(fs.readFileSync(backup, 'utf8'), 'TRUE_ORIGINAL', 'a pre-existing .bak must never be overwritten, even across multiple later runs');
+    assert.equal(fs.readFileSync(target, 'utf8'), 'THIRD_UPDATE');
+  });
+});
+
+test('writeWithBackup() writes the target atomically (temp file + rename, no partial writes left behind)', () => {
+  withTmpDir((dir) => {
+    const target = path.join(dir, 'plan-data.json');
+    fs.writeFileSync(target, 'ORIGINAL');
+
+    writeWithBackup(target, 'UPDATED');
+
+    const leftovers = fs.readdirSync(dir).filter((f) => f !== 'plan-data.json' && f !== 'plan-data.json.bak');
+    assert.deepEqual(leftovers, [], `expected no leftover temp files, found: ${leftovers.join(', ')}`);
+    assert.equal(fs.readFileSync(target, 'utf8'), 'UPDATED');
+  });
+});
+
+test('writeWithBackup() skips the backup step (nothing to back up) when the target file does not exist yet', () => {
+  withTmpDir((dir) => {
+    const target = path.join(dir, 'plan-data.json');
+    const backup = target + '.bak';
+
+    writeWithBackup(target, 'FIRST_WRITE');
+
+    assert.equal(fs.existsSync(backup), false, 'no prior file existed — there is nothing meaningful to back up');
+    assert.equal(fs.readFileSync(target, 'utf8'), 'FIRST_WRITE');
+  });
 });
