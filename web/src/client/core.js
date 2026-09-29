@@ -9,13 +9,14 @@
  * minification/bundling that would otherwise hide them.
  *
  * Ported VERBATIM (same DOM contract) from the legacy hand-maintained
- * `<script>` block in data/nutrition/plan-web.template.html — ids
- * (t-dia/b-train/b-rest/...), `.tab-panel[data-tab]` / `.day-panel[data-day]`
- * classes, and `onclick="setTab(...)"` / `onclick="jump(...)"` /
- * `onclick="bump(key,delta)"` markup — NOT slice 1's invented
- * `data-tab-btn`/`data-tab-panel` attribute scheme, so the legacy-vs-Astro
- * parity test (id sets + onclick sets) passes. See design's carried-over
- * IMPORTANT note (slice 1 -> slice 3) and web/test/parity.test.mjs.
+ * `<script>` block of the pre-Astro generated page (deleted at the
+ * astro-plan-web cutover) — ids (t-dia/b-train/b-rest/...),
+ * `.tab-panel[data-tab]` / `.day-panel[data-day]` classes, and
+ * `onclick="setTab(...)"` / `onclick="jump(...)"` / `onclick="bump(key,
+ * delta)"` markup — NOT slice 1's invented `data-tab-btn`/`data-tab-panel`
+ * attribute scheme. Parity with the legacy behavior (id sets + onclick
+ * sets) was verified throughout the migration by a since-retired parity
+ * test suite; web/src/client/core.test.mjs now covers this contract.
  *
  * `bump` deviates from legacy in ONE way: legacy's `bump` is defined
  * inline inside the day-builder IIFE, closing directly over its own `X`

@@ -1,8 +1,8 @@
 /* "Salud / Health" tab — body composition, activity (NEAT), energy balance,
  * running performance and recovery, ported verbatim from the legacy
- * `<script>` IIFE in data/nutrition/plan-web.template.html ("health"),
- * adapted to read HEALTH/LOCALE from globals baked by
- * web/src/components/Bake.astro and I18N_HEALTH
+ * `<script>` IIFE ("health") of the pre-Astro generated page (deleted at
+ * the astro-plan-web cutover), adapted to read HEALTH/LOCALE from globals
+ * baked by web/src/components/Bake.astro and I18N_HEALTH
  * (web/src/i18n/health-templates.mjs) instead of hardcoded English
  * strings — same pattern as client/training-today.js and
  * client/training-dash.js.

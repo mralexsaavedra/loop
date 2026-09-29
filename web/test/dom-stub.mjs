@@ -62,7 +62,9 @@ export class StubElement {
     // vice versa — but setting textContent DOES recompute innerHTML's
     // escaped form, matching the browser's actual text-node serialization.
     // `configurable: true` lets a test override either property later
-    // (see web/test/parity.test.mjs's runBuiltScripts() <select> override).
+    // (used by the now-retired parity.test.mjs's runBuiltScripts() <select>
+    // override during the astro-plan-web migration; kept for any future
+    // test that needs the same escape hatch).
     Object.defineProperty(this, 'textContent', {
       configurable: true,
       enumerable: true,

@@ -1,8 +1,9 @@
 /* "Hoy / Today" tab — today's PROGRAMMED training session. Ported
  * verbatim (same DOM contract, same three-branch empty-state logic) from
- * the legacy `<script>` IIFE in data/nutrition/plan-web.template.html,
- * adapted to read TRAINING/TRAINING_META/LOCALE from globals baked by
- * web/src/components/Bake.astro instead of a hand-typed JS literal, and
+ * the legacy `<script>` IIFE of the pre-Astro generated page (deleted at
+ * the astro-plan-web cutover), adapted to read TRAINING/TRAINING_META/LOCALE
+ * from globals baked by web/src/components/Bake.astro instead of a
+ * hand-typed JS literal, and
  * I18N_HOY (web/src/i18n/hoy-templates.mjs) instead of hardcoded English
  * strings — same "deliberate documented duplicate" pattern already used by
  * client/nutrition.js (classic script, is:inline, no ES modules — see
