@@ -31,6 +31,16 @@ function matchesSelector(el, sel) {
   return el.tag === sel;
 }
 
+/** Matches real DOM `div.textContent = s; div.innerHTML` serialization:
+ * `&`, `<`, `>` are escaped; quotes are NOT (browsers only escape quotes
+ * when serializing an ATTRIBUTE value, never inside a text node). This is
+ * the browser behavior the legacy/Astro client scripts' `esc()` helper
+ * relies on (`document.createElement('div'); d.textContent=s; return
+ * d.innerHTML;`) — see web/src/client/training-today.js. */
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 export class StubElement {
   constructor(tag, opts = {}) {
     this.tag = tag;
@@ -45,6 +55,29 @@ export class StubElement {
     }
     this.hidden = !!opts.hidden;
     this.open = !!opts.open;
+    this._text = '';
+    this._html = '';
+    // Independent accessors (not a shared backing field) so setting
+    // innerHTML directly never retroactively populates textContent, and
+    // vice versa — but setting textContent DOES recompute innerHTML's
+    // escaped form, matching the browser's actual text-node serialization.
+    // `configurable: true` lets a test override either property later
+    // (see web/test/parity.test.mjs's runBuiltScripts() <select> override).
+    Object.defineProperty(this, 'textContent', {
+      configurable: true,
+      enumerable: true,
+      get: () => this._text,
+      set: (v) => {
+        this._text = v == null ? '' : String(v);
+        this._html = escapeHtml(this._text);
+      },
+    });
+    Object.defineProperty(this, 'innerHTML', {
+      configurable: true,
+      enumerable: true,
+      get: () => this._html,
+      set: (v) => { this._html = v == null ? '' : String(v); },
+    });
     this.textContent = opts.textContent || '';
     this.style = {};
     this.parent = opts.parent || null;
