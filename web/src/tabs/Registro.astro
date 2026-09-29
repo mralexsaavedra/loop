@@ -10,6 +10,8 @@ import Note from '../components/Note.astro';
 import Bake from '../components/Bake.astro';
 import { es as esVerdict, en as enVerdict } from '../i18n/verdict-templates.mjs';
 import { es as esLog, en as enLog } from '../i18n/log-templates.mjs';
+import { es as esHoy, en as enHoy } from '../i18n/hoy-templates.mjs';
+import { es as esDash, en as enDash } from '../i18n/dash-templates.mjs';
 
 interface Props {
   nut: any; // buildNutrition() result
@@ -17,11 +19,16 @@ interface Props {
   page?: { notes?: Record<string, string> };
   plan: any;
   locale: string;
+  training: Record<string, any>; // training.days — astro-plan-web slice 5, forwarded to <Bake> (see its file header)
+  trainingMeta: { program: string; coach: string; source: string; first: string; last: string; count: number };
+  dash: any;
 }
-const { nut, dict, page, plan, locale } = Astro.props;
+const { nut, dict, page, plan, locale, training, trainingMeta, dash } = Astro.props;
 const t = dict.strings.registro;
 const verdictTemplates = locale === 'es' ? esVerdict : enVerdict;
 const logTemplates = locale === 'es' ? esLog : enLog;
+const hoyTemplates = locale === 'es' ? esHoy : enHoy;
+const dashTemplates = locale === 'es' ? esDash : enDash;
 const targetTrain = nut.targetFor('train');
 const targetRest = nut.targetFor('rest');
 ---
@@ -78,4 +85,9 @@ const targetRest = nut.targetFor('rest');
   copyFallbackMsg={t.copiedFallbackMsg}
   locale={locale}
   tablasLabels={{ fruitPortionLabel: dict.strings.tablas.fruta.portionLabel, fruitPortionQty: dict.strings.tablas.fruta.portionQty }}
+  training={training}
+  trainingMeta={trainingMeta}
+  dash={dash}
+  hoyTemplates={hoyTemplates}
+  dashTemplates={dashTemplates}
 />

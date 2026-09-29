@@ -1,13 +1,14 @@
 ---
 /* Bakes JSON-safe globals for the client scripts (classic, is:inline — no
  * ES modules, see design's Scripts row) using lib/serialize.mjs's
- * `jsonForScript` for safe embedding inside a <script> tag. Scoped, for
- * now, to what the Mi día + Registro tabs need (astro-plan-web slice 3);
- * later slices extend this with TRAINING/TRAINING_META/DASH/HEALTH per
- * design's Key Interfaces `Bake` row. FRUIT_SUMMARY/I18N_TABLAS (slice 4)
- * are consumed by the SAME nutrition.js script, from the Tablas tab's
- * client-painted fruit-summary row — Tablas.astro renders no <Bake> of its
- * own, see its file header.
+ * `jsonForScript` for safe embedding inside a <script> tag. Started scoped
+ * to what Mi día + Registro need (slice 3), extended by Tablas' shared
+ * FRUIT_SUMMARY/I18N_TABLAS (slice 4) and now TRAINING/TRAINING_META/DASH/
+ * I18N_HOY/I18N_DASH (astro-plan-web slice 5) — the Hoy/Entrenos tabs
+ * render no <Bake> of their own, same "one shared Bake" pattern already
+ * used for Tablas, see web/src/tabs/Registro.astro (the sole call site)
+ * and web/src/tabs/Hoy.astro/Entrenos.astro's file headers. HEALTH lands
+ * in slice 6, per design's Key Interfaces `Bake` row.
  */
 import { jsonForScript } from '../../../lib/serialize.mjs';
 
@@ -22,8 +23,16 @@ interface Props {
   copyFallbackMsg: string;
   locale: string;
   tablasLabels: { fruitPortionLabel: string; fruitPortionQty: string };
+  training: Record<string, any>; // training.days, verbatim (astro-plan-web slice 5)
+  trainingMeta: { program: string; coach: string; source: string; first: string; last: string; count: number };
+  dash: any; // lib/training/dashboard.mjs's loadDashboard() result
+  hoyTemplates: Record<string, string>;
+  dashTemplates: Record<string, any>;
 }
-const { nut, targetTrain, targetRest, verdictTemplates, logTemplates, peLabel, copyMsg, copyFallbackMsg, locale, tablasLabels } = Astro.props;
+const {
+  nut, targetTrain, targetRest, verdictTemplates, logTemplates, peLabel, copyMsg, copyFallbackMsg, locale, tablasLabels,
+  training, trainingMeta, dash, hoyTemplates, dashTemplates,
+} = Astro.props;
 
 const globals = {
   DATA: nut.D,
@@ -44,6 +53,11 @@ const globals = {
   COPY_MSG: copyMsg,
   COPY_FALLBACK_MSG: copyFallbackMsg,
   LOCALE: locale,
+  TRAINING: training,
+  TRAINING_META: trainingMeta,
+  DASH: dash,
+  I18N_HOY: hoyTemplates,
+  I18N_DASH: dashTemplates,
 };
 
 const bakeSource = Object.entries(globals)

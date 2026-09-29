@@ -2,8 +2,8 @@
 /* Shared page shell — header (personal copy), tab nav + day toggle, footer
  * (personal copy), and the end-of-body script order per design: bake (each
  * tab's own Bake, e.g. Registro's) → core (setTab/setDay/jump/bump) →
- * nutrition → training-today → training-dash → health (the last three land
- * in slices 5-6). Tabs render inside <slot />.
+ * nutrition → training-today → training-dash → health (the last one lands
+ * in slice 6). Tabs render inside <slot />.
  */
 import '../src/styles/tokens.css';
 import '../src/styles/base.css';
@@ -14,6 +14,8 @@ import '../src/styles/training.css';
 import '../src/styles/health.css';
 import coreScript from '../src/client/core.js?raw';
 import nutritionScript from '../src/client/nutrition.js?raw';
+import trainingTodayScript from '../src/client/training-today.js?raw';
+import trainingDashScript from '../src/client/training-dash.js?raw';
 
 interface Props {
   title: string;
@@ -74,5 +76,7 @@ const showDayToggle = activeTab === 'dia' || activeTab === 'registro';
     </div>
     <script is:inline set:html={coreScript} />
     <script is:inline set:html={nutritionScript} />
+    <script is:inline set:html={trainingTodayScript} />
+    <script is:inline set:html={trainingDashScript} />
   </body>
 </html>
