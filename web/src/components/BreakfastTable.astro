@@ -1,0 +1,40 @@
+---
+/* One breakfast option's itemized table — ported from generate.js's
+ * brkTable() string builder (data/nutrition/generate.js), now driven by
+ * lib/nutrition/macros.mjs's buildNutrition().breakfast entries instead of
+ * a GEN:BREAKFAST HTML string. Markup matches legacy verbatim: table
+ * headers ("Componente"/"Cant.") are NOT localized in the legacy source
+ * either (same in the es personal page and the en template) — kept literal
+ * here for parity, not routed through i18n.
+ */
+interface Row {
+  name: string;
+  link: string | null;
+  qty: string;
+  k: number;
+  p: string;
+  c: string;
+  g: string;
+}
+interface Props {
+  cap: string;
+  rows: Row[];
+}
+const { cap, rows } = Astro.props;
+---
+<div class="table-scroll"><table>
+  <caption>{cap}</caption>
+  <thead><tr><th>Componente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+  <tbody>
+    {rows.map((row) => (
+      <tr>
+        <td>{row.link ? <button class="lnk" onclick={`jump('${row.link}')`}>{row.name}</button> : row.name}</td>
+        <td>{row.qty}</td>
+        <td class="kc">{row.k}</td>
+        <td>{row.p}</td>
+        <td>{row.c}</td>
+        <td>{row.g}</td>
+      </tr>
+    ))}
+  </tbody>
+</table></div>

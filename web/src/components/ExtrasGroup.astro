@@ -1,0 +1,40 @@
+---
+/* One "extras" stepper group in the Registro builder (Café y aceite, Queso
+ * y salsas, ...) — ported from generate.js's extrasGroup()/extraRow()
+ * string builders. `key`/id contract (`x-<key>`, `bump('<key>',...)`) is
+ * legacy-verbatim — see web/src/client/core.js and web/test/parity.test.mjs.
+ */
+interface Item {
+  key: string;
+  emoji: string;
+  name: string;
+  qty: string;
+  note?: string | null;
+}
+interface Props {
+  group: { header: string; headerNote?: string; items: Item[] };
+  extras: Record<string, { k: number }>;
+  dict: any;
+}
+const { group, extras, dict } = Astro.props;
+const t = dict.strings.registro;
+---
+<div class="combo-h">{group.header}</div>
+{group.headerNote && <p class="acc-note" style="margin:-2px 0 6px">{group.headerNote}</p>}
+<div class="extras">
+  {group.items.map((item) => {
+    const ex = extras[item.key];
+    if (!ex) throw new Error('extrasDisplay: unknown extras key: ' + item.key);
+    const label = `${item.qty} · ~${ex.k} kcal` + (item.note ? ` · ${item.note}` : '');
+    return (
+      <div class="extra">
+        <span>{item.emoji} {item.name}<small>{label}</small></span>
+        <div class="stepper">
+          <button type="button" aria-label={t.lessAriaLabel(item.name)} onclick={`bump('${item.key}',-1)`}>−</button>
+          <span class="cnt" id={`x-${item.key}`}>0</span>
+          <button type="button" aria-label={t.moreAriaLabel(item.name)} onclick={`bump('${item.key}',1)`}>+</button>
+        </div>
+      </div>
+    );
+  })}
+</div>

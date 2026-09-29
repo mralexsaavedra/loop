@@ -2,6 +2,10 @@
 # Convention: any *.local.md is a per-machine note (e.g. the personal artifact URL).
 *.local.md
 
+# One-shot migration backups (e.g. plan-data.json.bak written by
+# scripts/migrate-plan-data.mjs before rewriting a personal data file).
+*.bak
+
 # --- Sensitive health data: NEVER commit ---
 # Raw Apple Health export and any parsed personal metrics stay local only.
 data/apple-health/*
@@ -26,6 +30,8 @@ data/nutrition/food-log.md
 data/nutrition/plan-web.html
 # The LAN copy of plan-web.html served by services/plan-web — same personal content.
 services/plan-web/site/
+# refresh.sh's flock lock file (runtime-only, never content).
+services/plan-web/.refresh.lock
 # plan-data.json holds the PERSONAL plan (recipes, day structure, targets); plan-tables.md
 # is generated from it. Both hold personal plan data → ignore.
 data/nutrition/plan-data.json
@@ -53,13 +59,10 @@ profile/baseline.md
 .codegraph/
 
 # Personal training programs (PDFs, podcasts, the real program JSON stay local).
-# The generator, its tests, and the public example seed ARE tracked.
+# The tooling now lives in lib/training/ + lib/health/ (tracked by default,
+# no exception needed) and scripts/build-web.mjs. The public example seed IS tracked.
 data/training/*
 !data/training/.gitkeep
-!data/training/generate-training.js
-!data/training/generate-training.test.js
-!data/training/generate-health.js
-!data/training/generate-health.test.js
 !data/training/training-data.example.json
 
 # Nutritionist reports (anthropometric assessments + nutrition plans) — medical data
@@ -73,3 +76,17 @@ data/gear/*
 # Clinical documents (ER reports, discharge notes, lab results) — medical data, NEVER commit.
 data/clinical/*
 !data/clinical/.gitkeep
+
+# Golden legacy-output fixtures (astro-plan-web migration): a local snapshot of
+# generator output used to check byte-identity during the lib/ extraction. Quotes
+# personal plan/training/health data → never commit.
+web/test/.golden/
+
+# Astro build (web/): installed deps, build output, and Astro/Vite caches.
+# (A bare "node_modules/" pattern matches at any depth, so this also covers
+# the nested web/node_modules/ that Astro/Vite create for their own caches
+# since web/ is the Astro project root.)
+node_modules/
+web/dist/
+web/.astro/
+web/.test-dist/

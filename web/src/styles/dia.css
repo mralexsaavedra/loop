@@ -1,0 +1,180 @@
+/* Mi día tab — day-summary hero, meal cards, day-panel wrapper. Ported
+ * verbatim (selectors + declarations) from the legacy
+ * plan-web.template.html <style> block. */
+
+/* day summary — hero number */
+.summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  margin: var(--sp-8) 0 var(--sp-5);
+  padding: var(--sp-9) var(--sp-9) var(--sp-8);
+  background: radial-gradient(120% 120% at 0% 0%, var(--accent-soft), var(--surface) 70%);
+  border: 1px solid rgba(var(--accent-rgb), 0.22);
+  border-radius: var(--r-xl);
+  box-shadow: var(--card-shadow);
+}
+.kcal {
+  font-family: var(--num);
+  font-size: var(--fs-hero);
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 0.95;
+  color: var(--accent);
+  text-shadow: 0 0 28px rgba(var(--accent-rgb), 0.35);
+}
+.kcal span {
+  font-family: var(--sans);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0;
+  text-shadow: none;
+  margin-left: var(--sp-1);
+}
+.macros {
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin: var(--sp-5) 0 var(--sp-1);
+}
+.mac {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: var(--sp-3) var(--sp-5);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  display: flex;
+  gap: var(--sp-3);
+  align-items: baseline;
+}
+.mac b {
+  font-size: var(--fs-xl);
+  font-family: var(--num);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.mac .lbl {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.deficit {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  margin-top: var(--sp-4);
+}
+.deficit b {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* meal cards */
+.meal {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent-dim);
+  border-radius: var(--r-lg);
+  padding: var(--sp-7) var(--sp-7);
+  margin-bottom: var(--sp-4);
+  box-shadow: var(--card-shadow);
+}
+.meal-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-5);
+}
+.meal-name {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+button.meal-name {
+  background: none;
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  text-align: left;
+}
+button.meal-name::after {
+  content: "›";
+  color: var(--accent);
+  font-weight: 800;
+  font-size: var(--fs-2xl);
+  line-height: 1;
+}
+button.meal-name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--r-xs);
+}
+.meal-kcal {
+  font-family: var(--num);
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+  letter-spacing: -0.02em;
+}
+.meal-desc {
+  color: var(--muted);
+  font-size: var(--fs-md);
+  margin-top: var(--sp-2);
+}
+.meal-pcf {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-top: var(--sp-4);
+  letter-spacing: 0.02em;
+  display: flex;
+  gap: var(--sp-6);
+  flex-wrap: wrap;
+}
+.meal-pcf span b {
+  color: var(--ink);
+  font-weight: 700;
+  font-family: var(--num);
+}
+.day-panel[hidden] {
+  display: none;
+}
+.combo-h {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 800;
+  margin: var(--sp-9) 0 var(--sp-3);
+}
+
+@media (min-width: 900px) {
+  /* Mi día — hero/summary full width, meals flow into 2 columns */
+  .day-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--sp-5);
+    align-items: start;
+  }
+  .day-panel[hidden] {
+    display: none;
+  }
+  .day-panel > .summary,
+  .day-panel > .macros,
+  .day-panel > .deficit,
+  .day-panel > h2 {
+    grid-column: 1 / -1;
+  }
+  .summary {
+    max-width: 520px;
+  }
+}

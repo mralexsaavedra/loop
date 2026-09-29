@@ -1,0 +1,283 @@
+/* Shared app shell — header copy, day-type toggle, tab navigation, section
+ * heads, footer, and generic inline components (link, tip). Ported
+ * verbatim (selectors + declarations) from the legacy
+ * plan-web.template.html <style> block. Mobile-first; the trailing
+ * @media block holds this file's desktop (>=900px) overrides, matching
+ * the legacy source's single combined desktop query. Per-tab rules live
+ * in dia.css / registro.css / tablas.css / training.css / health.css. */
+
+.wrap {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 var(--sp-7);
+}
+
+/* header */
+header {
+  padding: var(--sp-11) 0 var(--sp-6);
+}
+.kicker {
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.kicker::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px 1px var(--accent);
+}
+h1 {
+  font-size: var(--fs-4xl);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin-top: var(--sp-4);
+  text-wrap: balance;
+  font-weight: 800;
+}
+.sub {
+  color: var(--muted);
+  font-size: var(--fs-lg);
+  margin-top: var(--sp-4);
+  max-width: 46ch;
+}
+
+/* day-type toggle (pills) — used by #day-toggle */
+.toggle {
+  display: flex;
+  gap: var(--sp-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--sp-2);
+}
+.toggle button {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--fs-lg);
+  font-weight: 650;
+  padding: var(--sp-5) var(--sp-3);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+}
+.toggle button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 6px 18px -8px rgba(var(--accent-rgb), 0.7);
+}
+.toggle button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.subtoggle {
+  margin-top: var(--sp-5);
+}
+
+/* main nav — bottom tab bar (mobile) → left sidebar (desktop >=900px) */
+.tabnav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  gap: var(--sp-1);
+  background: rgba(16, 18, 22, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+  padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+}
+.tabnav button {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--faint);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-1);
+  border-radius: var(--r-sm);
+  transition: color 0.15s, background 0.15s;
+}
+.tabnav .tico {
+  font-size: var(--fs-3xl);
+  line-height: 1;
+}
+.tabnav .tlbl {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.tabnav button[aria-pressed="true"] {
+  color: var(--accent);
+}
+.tabnav button[aria-pressed="true"] .tico {
+  filter: drop-shadow(0 0 8px rgba(var(--accent-rgb), 0.6));
+}
+.tabnav button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.tab-panel[hidden] {
+  display: none;
+}
+
+/* section heads */
+h2 {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 800;
+  margin: var(--sp-11) 0 var(--sp-5);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+}
+h2::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--line), transparent);
+}
+
+/* inline link to a table */
+.lnk {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  font-weight: 650;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: rgba(var(--accent-rgb), 0.4);
+}
+.lnk:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+.tip {
+  background: linear-gradient(var(--accent-soft), var(--surface));
+  border: 1px solid rgba(var(--accent-rgb), 0.22);
+  border-radius: var(--r-md);
+  padding: var(--sp-6) var(--sp-7);
+  font-size: var(--fs-md);
+  color: var(--tip-ink);
+  margin-top: var(--sp-2);
+  line-height: 1.55;
+}
+.tip b {
+  font-weight: 700;
+  color: var(--accent-ink);
+}
+
+footer {
+  margin: var(--sp-12) 0 var(--sp-4);
+  font-size: var(--fs-xs);
+  color: var(--faint);
+  line-height: 1.6;
+  border-top: 1px solid var(--line);
+  padding-top: var(--sp-7);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+@media (min-width: 900px) {
+  body {
+    padding-bottom: var(--sp-12);
+  }
+  /* full-bleed app shell: fixed sidebar flush to the left edge, content fills the rest */
+  .wrap {
+    max-width: none;
+    margin: 0;
+    display: block;
+    padding: 0 clamp(24px, 3vw, 52px) 0 calc(236px + clamp(24px, 3vw, 52px));
+  }
+
+  /* main nav → fixed full-height left sidebar (flush to the viewport edge) */
+  .tabnav {
+    position: fixed;
+    left: 0;
+    right: auto;
+    top: 0;
+    bottom: 0;
+    width: 236px;
+    z-index: 30;
+    flex-direction: column;
+    gap: var(--sp-1);
+    align-items: stretch;
+    background: var(--rail);
+    border-top: 0;
+    border-right: 1px solid var(--line);
+    padding: var(--sp-10) var(--sp-7);
+    overflow-y: auto;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .tabnav button {
+    flex: 0 0 auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--sp-5);
+    padding: var(--sp-5) var(--sp-6);
+    border-radius: var(--r-sm);
+  }
+  .tabnav .tico {
+    font-size: var(--fs-2xl);
+  }
+  .tabnav .tlbl {
+    font-size: var(--fs-lg);
+    font-weight: 650;
+    letter-spacing: 0;
+  }
+  .tabnav button:hover {
+    background: var(--surface);
+    color: var(--muted);
+  }
+  .tabnav button[aria-pressed="true"] {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .tabnav button[aria-pressed="true"] .tico {
+    filter: none;
+  }
+  .subtoggle {
+    max-width: 400px;
+  }
+
+  header {
+    padding: var(--sp-11) 0 var(--sp-7);
+  }
+  h1 {
+    font-size: var(--fs-5xl);
+  }
+}

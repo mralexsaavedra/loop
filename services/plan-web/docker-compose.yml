@@ -1,6 +1,7 @@
-# Serves the generated plan page (data/nutrition/plan-web.html) on the LAN.
-# refresh.sh copies the page into ./site; only that directory is mounted, so
-# nothing else under data/ is reachable over HTTP.
+# Serves the Astro-built plan page (web/dist/personal/index.html) on the LAN.
+# refresh.sh rebuilds it and copies the output into ./site; only that
+# directory is mounted, so nothing else under data/ or web/ is reachable
+# over HTTP.
 services:
   plan-web:
     image: nginx:alpine

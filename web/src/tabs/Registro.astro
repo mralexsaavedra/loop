@@ -1,0 +1,98 @@
+---
+/* "Registro" (day builder / live calculator) tab — ported from the legacy
+ * DAY BUILDER / REGISTRO markup (data/nutrition/plan-web.html) plus its
+ * GEN:EXTRAS region. Dropdown OPTIONS and all computation are filled/run
+ * client-side by web/src/client/nutrition.js from globals baked by Bake
+ * below — same as legacy (the `<select>`s render empty here).
+ */
+import ExtrasGroup from '../components/ExtrasGroup.astro';
+import Note from '../components/Note.astro';
+import Bake from '../components/Bake.astro';
+import { es as esVerdict, en as enVerdict } from '../i18n/verdict-templates.mjs';
+import { es as esLog, en as enLog } from '../i18n/log-templates.mjs';
+import { es as esHoy, en as enHoy } from '../i18n/hoy-templates.mjs';
+import { es as esDash, en as enDash } from '../i18n/dash-templates.mjs';
+import { es as esHealth, en as enHealth } from '../i18n/health-templates.mjs';
+
+interface Props {
+  nut: any; // buildNutrition() result
+  dict: any;
+  page?: { notes?: Record<string, string> };
+  plan: any;
+  locale: string;
+  training: Record<string, any>; // training.days — astro-plan-web slice 5, forwarded to <Bake> (see its file header)
+  trainingMeta: { program: string; coach: string; source: string; first: string; last: string; count: number };
+  dash: any;
+  health: any; // lib/health/aggregate.mjs's buildHealth() result — astro-plan-web slice 6
+}
+const { nut, dict, page, plan, locale, training, trainingMeta, dash, health } = Astro.props;
+const t = dict.strings.registro;
+const verdictTemplates = locale === 'es' ? esVerdict : enVerdict;
+const logTemplates = locale === 'es' ? esLog : enLog;
+const hoyTemplates = locale === 'es' ? esHoy : enHoy;
+const dashTemplates = locale === 'es' ? esDash : enDash;
+const healthTemplates = locale === 'es' ? esHealth : enHealth;
+const targetTrain = nut.targetFor('train');
+const targetRest = nut.targetFor('rest');
+---
+<div class="tab-panel" data-tab="registro" hidden>
+  <h2>{t.heading}</h2>
+  <Note id="registro.intro" page={page} class="acc-note" style="margin:-4px 0 10px" />
+  <div class="builder">
+    <div class="bld-row"><label>{t.desayuno}</label><select id="bld-desayuno"></select></div>
+
+    <div class="combo-h">{t.comida}</div>
+    <div class="bld-row"><label>{t.proteina}</label><select id="bld-prot-comida"></select></div>
+    <div class="bld-row"><label>{t.carbo}</label><select id="bld-carbo-comida"></select></div>
+    <div class="bld-row"><label>{t.postre}</label><select id="bld-postre-comida"></select></div>
+
+    <div class="combo-h" id="bld-pe-label">{t.postentreno}</div>
+    <div class="bld-row"><label>{t.opcion}</label><select id="bld-postentreno"></select></div>
+
+    <div class="combo-h">{t.cena}</div>
+    <div class="bld-row"><label>{t.proteina}</label><select id="bld-prot-cena"></select></div>
+    <div class="bld-row"><label>{t.carbo}</label><select id="bld-carbo-cena"></select></div>
+    <div class="bld-row"><label>{t.postre}</label><select id="bld-postre-cena"></select></div>
+
+    {/* extrasDisplay groups — legacy GEN:EXTRAS region equivalent */}
+    {(plan.extrasDisplay || []).map((group: any) => (
+      <ExtrasGroup group={group} extras={nut.EX} dict={dict} />
+    ))}
+
+    <div class="combo-h">{t.offPlanHeading}</div>
+    <Note id="registro.offPlan" page={page} fallback={t.offPlanNoteHtml} class="acc-note" style="margin:-2px 0 6px" />
+    <textarea id="bld-notes" placeholder={page?.offPlanPlaceholder || t.offPlanPlaceholder} />
+
+    <div class="readout">
+      <div class="read-kcal" id="r-kcal">—</div>
+      <div class="read-macros" id="r-macros" />
+      <div class="verdict" id="r-verdict" />
+    </div>
+
+    <div class="btn-row">
+      <button type="button" class="btn" id="bld-copy">{t.copyButton}</button>
+    </div>
+    <div class="bld-msg" id="bld-msg" />
+    <textarea id="bld-output" readonly aria-label={t.copyOutputLabel} />
+  </div>
+</div>
+
+<Bake
+  nut={nut}
+  targetTrain={targetTrain}
+  targetRest={targetRest}
+  verdictTemplates={verdictTemplates}
+  logTemplates={logTemplates}
+  peLabel={{ train: t.postentreno, rest: t.anclaje }}
+  copyMsg={t.copiedMsg}
+  copyFallbackMsg={t.copiedFallbackMsg}
+  locale={locale}
+  tablasLabels={{ fruitPortionLabel: dict.strings.tablas.fruta.portionLabel, fruitPortionQty: dict.strings.tablas.fruta.portionQty }}
+  training={training}
+  trainingMeta={trainingMeta}
+  dash={dash}
+  hoyTemplates={hoyTemplates}
+  dashTemplates={dashTemplates}
+  health={health}
+  healthTemplates={healthTemplates}
+/>

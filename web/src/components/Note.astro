@@ -1,0 +1,28 @@
+---
+/* Renders a personal, trusted-HTML note slot: `plan.page.notes[id]` if the
+ * owner's plan-data.json defines one (see scripts/migrate-plan-data.mjs),
+ * else a generic dictionary default (which may be empty — some notes are
+ * personal-only and have no generic fallback, e.g. a plan-specific
+ * disclaimer). See design's "Personal copy" row: components render
+ * `<Note id="registro.intro"/>` = `page.notes[id]` else dict default.
+ *
+ * Trusted markup (`set:html`) — same trust boundary as legacy's inline
+ * personal HTML notes; content originates from the owner's own data file
+ * or the tracked generic dictionary, never from user input.
+ */
+interface Props {
+  id: string;
+  page?: { notes?: Record<string, string> };
+  fallback?: string;
+  class?: string;
+  style?: string;
+  /** false when the note content is already a self-contained block element
+   * (e.g. Tablas' Supplements `<div class="meal">...</div>`) and must NOT
+   * be wrapped in an extra `<p>` — see web/src/tabs/Tablas.astro. */
+  wrap?: boolean;
+}
+
+const { id, page, fallback = '', class: className, style, wrap = true } = Astro.props;
+const html = page?.notes?.[id] ?? fallback;
+---
+{html ? (wrap ? <p class={className} style={style} set:html={html} /> : <Fragment set:html={html} />) : null}

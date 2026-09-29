@@ -1,0 +1,72 @@
+---
+/* Bakes JSON-safe globals for the client scripts (classic, is:inline — no
+ * ES modules, see design's Scripts row) using lib/serialize.mjs's
+ * `jsonForScript` for safe embedding inside a <script> tag. Started scoped
+ * to what Mi día + Registro need (slice 3), extended by Tablas' shared
+ * FRUIT_SUMMARY/I18N_TABLAS (slice 4) and now TRAINING/TRAINING_META/DASH/
+ * I18N_HOY/I18N_DASH (astro-plan-web slice 5) — the Hoy/Entrenos tabs
+ * render no <Bake> of their own, same "one shared Bake" pattern already
+ * used for Tablas, see web/src/tabs/Registro.astro (the sole call site)
+ * and web/src/tabs/Hoy.astro/Entrenos.astro's file headers. HEALTH/
+ * I18N_HEALTH (astro-plan-web slice 6, Salud tab) follow the same
+ * pattern — see web/src/tabs/Salud.astro's file header.
+ */
+import { jsonForScript } from '../../../lib/serialize.mjs';
+
+interface Props {
+  nut: any; // buildNutrition() result
+  targetTrain: { k: number; p: number; fatMax: number };
+  targetRest: { k: number; p: number; fatMax: number };
+  verdictTemplates: Record<string, string>;
+  logTemplates: Record<string, string>;
+  peLabel: { train: string; rest: string };
+  copyMsg: string;
+  copyFallbackMsg: string;
+  locale: string;
+  tablasLabels: { fruitPortionLabel: string; fruitPortionQty: string };
+  training: Record<string, any>; // training.days, verbatim (astro-plan-web slice 5)
+  trainingMeta: { program: string; coach: string; source: string; first: string; last: string; count: number };
+  dash: any; // lib/training/dashboard.mjs's loadDashboard() result
+  hoyTemplates: Record<string, string>;
+  dashTemplates: Record<string, any>;
+  health: any; // lib/health/aggregate.mjs's buildHealth() result
+  healthTemplates: Record<string, any>;
+}
+const {
+  nut, targetTrain, targetRest, verdictTemplates, logTemplates, peLabel, copyMsg, copyFallbackMsg, locale, tablasLabels,
+  training, trainingMeta, dash, hoyTemplates, dashTemplates, health, healthTemplates,
+} = Astro.props;
+
+const globals = {
+  DATA: nut.D,
+  EXTRAS: nut.EX,
+  QUESO_KEYS: nut.QUESO,
+  VEG_KEYS: nut.VEG,
+  TARGET: { train: targetTrain, rest: targetRest },
+  EXTRA_KEYS: nut.extraKeys,
+  EXTRA_NAMES: nut.extraNames,
+  INDULGE: nut.indulge,
+  ALCOHOL_KEYS: nut.alcoholKeys,
+  MEAL_REPLACE_KEYS: nut.mealReplaceKeys,
+  FRUIT_SUMMARY: nut.fruitSummary,
+  I18N_VERDICT: verdictTemplates,
+  I18N_LOG: logTemplates,
+  I18N_TABLAS: tablasLabels,
+  PE_LABEL: peLabel,
+  COPY_MSG: copyMsg,
+  COPY_FALLBACK_MSG: copyFallbackMsg,
+  LOCALE: locale,
+  TRAINING: training,
+  TRAINING_META: trainingMeta,
+  DASH: dash,
+  I18N_HOY: hoyTemplates,
+  I18N_DASH: dashTemplates,
+  HEALTH: health,
+  I18N_HEALTH: healthTemplates,
+};
+
+const bakeSource = Object.entries(globals)
+  .map(([name, value]) => `var ${name} = ${jsonForScript(value)};`)
+  .join('\n');
+---
+<script is:inline set:html={bakeSource}></script>

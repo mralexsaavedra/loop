@@ -1,0 +1,234 @@
+/* Hoy (training "today") + Entrenos (training dashboard) tabs. Ported
+ * verbatim (selectors + declarations) from the legacy
+ * plan-web.template.html <style> block. Markup for these tabs lands in
+ * slice 5 — these rules are ported ahead of the markup (corrective apply
+ * pass) so that slice only needs to add markup. */
+
+/* training — "Today" tab */
+.train-head {
+  margin: var(--sp-8) 0 var(--sp-6);
+}
+.train-day {
+  font-size: var(--fs-sm);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 800;
+}
+.train-focus {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  padding: var(--sp-3) var(--sp-6);
+  background: var(--strain-soft);
+  color: var(--strain-ink);
+  border: 1px solid rgba(var(--strain-rgb), 0.25);
+  border-radius: var(--r-pill);
+  font-weight: 700;
+  font-size: var(--fs-xl);
+}
+.train-block {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--strain);
+  border-radius: var(--r-md);
+  padding: var(--sp-6) var(--sp-7);
+  margin: var(--sp-4) 0;
+  box-shadow: var(--card-shadow);
+}
+.train-block-top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-3);
+}
+.blabel {
+  flex: none;
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-xs);
+  background: var(--strain);
+  color: var(--on-strain);
+  font-weight: 800;
+  font-size: var(--fs-md);
+}
+.train-block h3 {
+  font-size: var(--fs-xl);
+  font-weight: 750;
+  margin: 0;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+.train-block ul {
+  margin: 0;
+  padding-left: var(--sp-8);
+}
+.train-block li {
+  margin: var(--sp-1) 0;
+  font-size: var(--fs-lg);
+  color: var(--ink);
+}
+.train-block li.goal {
+  list-style: none;
+  margin-left: -18px;
+  color: var(--accent);
+  font-weight: 700;
+}
+.train-empty {
+  background: var(--surface);
+  border: 1px dashed var(--line);
+  border-radius: var(--r-md);
+  padding: var(--sp-10) var(--sp-7);
+  text-align: center;
+  color: var(--muted);
+  margin-top: var(--sp-7);
+}
+.train-meta {
+  color: var(--faint);
+  font-size: var(--fs-sm);
+  margin-top: var(--sp-8);
+  line-height: 1.5;
+}
+
+/* training dashboard — "Workouts" tab */
+.dash-as {
+  color: var(--faint);
+  font-size: var(--fs-sm);
+  margin: var(--sp-6) 0 var(--sp-1);
+}
+.dash-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-3);
+  margin: var(--sp-4) 0 var(--sp-1);
+}
+.dash-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--sp-7) var(--sp-5);
+  text-align: center;
+  box-shadow: var(--card-shadow);
+}
+.dash-num {
+  font-family: var(--num);
+  font-size: var(--fs-4xl);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.dash-lbl {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-top: var(--sp-2);
+  line-height: 1.3;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+.dash-sec {
+  margin-top: var(--sp-10);
+}
+.dash-sec h3 {
+  font-size: var(--fs-lg);
+  font-weight: 750;
+  margin: 0 0 var(--sp-1);
+  letter-spacing: -0.01em;
+}
+.dash-sec .hint {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  margin: 0 0 var(--sp-5);
+}
+.wbars {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-1);
+  height: 120px;
+  margin-top: var(--sp-2);
+}
+.wbar {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
+}
+.wbar i {
+  display: block;
+  background: linear-gradient(var(--strain), var(--strain-soft));
+  border-radius: var(--r-xs) var(--r-xs) 0 0;
+  min-height: 2px;
+  box-shadow: 0 0 12px -2px rgba(var(--strain-rgb), 0.5);
+}
+.wbar.zero i {
+  background: var(--line);
+  box-shadow: none;
+}
+.waxis {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-2xs);
+  color: var(--faint);
+  margin-top: var(--sp-3);
+}
+.mrow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin: var(--sp-3) 0;
+  font-size: var(--fs-md);
+}
+.mrow .mlbl {
+  flex: none;
+  width: 108px;
+  color: var(--ink);
+}
+.mtrack {
+  flex: 1;
+  background: var(--surface-2);
+  border-radius: var(--r-xs);
+  height: 14px;
+  overflow: hidden;
+}
+.mtrack i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  border-radius: var(--r-xs);
+}
+.mrow .mval {
+  flex: none;
+  width: 92px;
+  text-align: right;
+  color: var(--muted);
+  font-family: var(--num);
+  font-size: var(--fs-sm);
+}
+.dash-note {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--sp-6) var(--sp-7);
+  margin-top: var(--sp-8);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+.dash-note b {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+@media (min-width: 900px) {
+  /* Entrenos — more room for the volume bars */
+  #train-dash .wbars {
+    height: 150px;
+  }
+}
