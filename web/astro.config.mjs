@@ -29,6 +29,17 @@ export default defineConfig({
         allow: ['..'],
       },
     },
+    build: {
+      // esbuild's default CSS minifier rewrites some declarations into
+      // functionally-equivalent-but-textually-different forms (e.g.
+      // `background:transparent` → `background:0 0`, `rgba(...)` → hex,
+      // `::before` → `:before`). Harmless for rendering, but it defeats the
+      // CSS parity guard's byte-level "every legacy declaration is present"
+      // check (web/test/css-parity.test.mjs) and makes web/src/styles/*.css
+      // harder to diff against the legacy source. The page is small — the
+      // minification bytes saved aren't worth that.
+      cssMinify: false,
+    },
   },
   // No public/ directory by design: zero external assets, everything is
   // baked into the single output file. (Astro tolerates a missing public/
