@@ -1,0 +1,28 @@
+---
+// Shared page shell. All 6 tabs (added in later slices) render inside this
+// layout's <slot />. Script order at the end of <body> (per design): bake →
+// core → nutrition → training-today → training-dash → health. This slice
+// only wires `core` — the rest land as their tabs do.
+import '../src/styles/tokens.css';
+import coreScript from '../src/client/core.js?raw';
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+const locale = process.env.LOCALE === 'es' ? 'es' : 'en';
+---
+
+<!DOCTYPE html>
+<html lang={locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <slot />
+    <script is:inline set:html={coreScript}></script>
+  </body>
+</html>

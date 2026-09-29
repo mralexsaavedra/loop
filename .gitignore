@@ -78,3 +78,12 @@ data/clinical/*
 # generator output used to check byte-identity during the lib/ extraction. Quotes
 # personal plan/training/health data → never commit.
 web/test/.golden/
+
+# Astro build (web/): installed deps, build output, and Astro/Vite caches.
+# (A bare "node_modules/" pattern matches at any depth, so this also covers
+# the nested web/node_modules/ that Astro/Vite create for their own caches
+# since web/ is the Astro project root.)
+node_modules/
+web/dist/
+web/.astro/
+web/.test-dist/
