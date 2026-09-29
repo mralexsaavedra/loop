@@ -1,0 +1,140 @@
+/* Home tab (Inicio / Home): recovery trend + per-modality load. Reuses the Whoop-dark tokens.
+ * Colour appears ONLY on the direction arrows; cards are neutral, never a grade fill. */
+#home {
+  display: block;
+}
+.sc-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg, 14px);
+  padding: var(--sp-5, 16px);
+  margin: 0 0 var(--sp-5, 16px);
+  box-shadow: var(--card-shadow);
+}
+.sc-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sc-head h3 {
+  margin: 0 0 var(--sp-3, 8px);
+  font-size: var(--fs-md, 15px);
+}
+.sc-asof {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-family: var(--num);
+}
+.sc-val {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--num);
+  font-size: 22px;
+  font-weight: 700;
+}
+.sc-sub {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  margin: 4px 0;
+}
+.sc-arrow {
+  font-size: 0.8em;
+  color: var(--muted);
+}
+.sc-arrow-above,
+.sc-arrow-ramping {
+  color: var(--accent);
+}
+.sc-arrow-below,
+.sc-arrow-detraining {
+  color: var(--fat);
+}
+.sc-arrow-at,
+.sc-arrow-steady {
+  color: var(--muted);
+}
+.sc-spark .spark {
+  width: 100%;
+  height: 44px;
+}
+.sc-spark-lbl {
+  color: var(--faint);
+  font-size: var(--fs-2xs);
+}
+.sc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.sc-chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+.sc-comp,
+.sc-load-card {
+  border-top: 1px solid var(--line-soft);
+  padding: 10px 0;
+}
+.sc-comp-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+.sc-comp-val {
+  font-family: var(--num);
+}
+.sc-comp-base {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  margin-left: auto;
+}
+.sc-raw {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 6px;
+  font-family: var(--num);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.sc-raw-lbl {
+  flex-basis: 100%;
+  font-family: var(--sans);
+  font-size: var(--fs-2xs);
+  color: var(--faint);
+}
+.sc-gated,
+.sc-insufficient,
+.sc-note,
+.sc-other,
+.sc-cov {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  margin: 6px 0;
+}
+.sc-advice {
+  font-size: var(--fs-md, 15px);
+  border-color: var(--accent-dim);
+}
+.sc-caveats {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.sc-stale {
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+.sc-stale-note {
+  color: var(--mod);
+  font-size: var(--fs-xs);
+  margin: 4px 0;
+}

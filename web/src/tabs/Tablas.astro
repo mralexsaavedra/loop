@@ -31,11 +31,12 @@ interface Props {
   nut: any; // buildNutrition() result
   dict: any;
   page?: { notes?: Record<string, string> };
+  activeTab: string;
 }
-const { nut, dict, page } = Astro.props;
+const { nut, dict, page, activeTab } = Astro.props;
 const t = dict.strings.tablas;
 ---
-<div class="tab-panel" data-tab="tablas" hidden>
+<div class="tab-panel" data-tab="tablas" hidden={activeTab !== 'tablas'}>
   <h2>{t.heading}</h2>
 
   <details id="acc-desayunos">

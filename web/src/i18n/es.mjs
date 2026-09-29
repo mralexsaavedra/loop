@@ -9,6 +9,7 @@ export default {
     nav: {
       ariaLabel: 'Secciones',
       tabs: {
+        home: { icon: '🏠', label: 'Inicio' },
         dia: { icon: '🍽️', label: 'Mi día' },
         registro: { icon: '📋', label: 'Registro' },
         tablas: { icon: '📊', label: 'Tablas' },

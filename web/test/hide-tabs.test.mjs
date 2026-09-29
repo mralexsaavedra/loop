@@ -27,7 +27,7 @@ const personalPlanPath = path.join(REPO_ROOT, 'data', 'nutrition', 'plan-data.js
 const examplePlanPath = path.join(REPO_ROOT, 'data', 'nutrition', 'plan-data.example.json');
 
 // Every nav-tab key -> its nav <button id> (see web/pages/index.astro's TABS_ALL).
-const NAV_ID = { dia: 't-dia', registro: 't-registro', tablas: 't-tablas', hoy: 't-hoy', dash: 't-dash', health: 't-health' };
+const NAV_ID = { home: 't-home', dia: 't-dia', registro: 't-registro', tablas: 't-tablas', hoy: 't-hoy', dash: 't-dash', health: 't-health' };
 
 function readHideTabs(planPath) {
   const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
@@ -68,4 +68,30 @@ test('example build does not hide any tab, regardless of the personal plan\'s hi
   for (const navId of Object.values(NAV_ID)) {
     assert.match(html, new RegExp(`id="${navId}"`), `example build must keep every nav button, including #${navId}`);
   }
+});
+
+/** nav button ids in document order -> tab keys, and the keys of every panel WITHOUT `hidden`. */
+function navOrderAndVisiblePanels(html) {
+  const idToKey = Object.fromEntries(Object.entries(NAV_ID).map(([k, v]) => [v, k]));
+  const nav = [...html.matchAll(/<button id="(t-[a-z]+)"/g)].map((m) => idToKey[m[1]]);
+  const panels = [...html.matchAll(/<div class="tab-panel" data-tab="([a-z]+)"( hidden)?[^>]*>/g)];
+  return { nav, visible: panels.filter((m) => !m[2]).map((m) => m[1]), all: panels.map((m) => m[1]) };
+}
+
+for (const [label, file] of [['example', exampleHtmlPath], ['personal', personalHtmlPath]]) {
+  test(`${label} build: exactly one panel is un-hidden and it is the first nav button's tab (R7.1)`, {
+    skip: !fs.existsSync(file) && `${label} fixture not built`,
+  }, () => {
+    const { nav, visible, all } = navOrderAndVisiblePanels(fs.readFileSync(file, 'utf8'));
+    assert.ok(nav.length > 0);
+    assert.equal(visible.length, 1, `un-hidden panels: ${visible.join(',')}`);
+    assert.equal(visible[0], nav[0]);
+    assert.ok(all.includes('home'), 'the home panel always renders');
+  });
+}
+
+test('example build: Home is the first nav button and the active panel', () => {
+  const { nav, visible } = navOrderAndVisiblePanels(fs.readFileSync(exampleHtmlPath, 'utf8'));
+  assert.equal(nav[0], 'home');
+  assert.deepEqual(visible, ['home']);
 });

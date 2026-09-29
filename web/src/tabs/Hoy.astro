@@ -12,7 +12,12 @@
  * documented legacy contract ("the panel + baked training-data.json stay
  * intact; uncomment to reactivate").
  */
+
+interface Props {
+  activeTab: string;
+}
+const { activeTab } = Astro.props;
 ---
-<div class="tab-panel" data-tab="hoy" hidden>
+<div class="tab-panel" data-tab="hoy" hidden={activeTab !== 'hoy'}>
   <div id="train-today"></div>
 </div>
