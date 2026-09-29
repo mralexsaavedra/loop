@@ -113,12 +113,19 @@ test('dash-templates.mjs (Entrenos tab client format strings) has identical keys
   }
 });
 
-test('dash-templates.mjs modalityLabels covers the same modality keys (strength/hiit/run/other) in es/en, all non-empty', () => {
-  assert.deepEqual(Object.keys(esDash.modalityLabels).sort(), ['hiit', 'other', 'run', 'strength']);
+test('dash-templates.mjs modalityLabels covers the same modality keys (strength/hiit/run/bike/other) in es/en, all non-empty', () => {
+  assert.deepEqual(Object.keys(esDash.modalityLabels).sort(), ['bike', 'hiit', 'other', 'run', 'strength']);
   assert.deepEqual(Object.keys(esDash.modalityLabels).sort(), Object.keys(enDash.modalityLabels).sort());
   for (const [locale, labels] of [['es', esDash.modalityLabels], ['en', enDash.modalityLabels]]) {
     for (const [key, str] of Object.entries(labels)) assert.notEqual(str.trim(), '', `${locale} dash-templates.modalityLabels.${key} must not be empty`);
   }
+});
+
+test('dash-templates.mjs asOfLine credits both Apple Health and Strava as data sources', () => {
+  assert.match(esDash.asOfLine, /Apple Health/);
+  assert.match(esDash.asOfLine, /Strava/);
+  assert.match(enDash.asOfLine, /Apple Health/);
+  assert.match(enDash.asOfLine, /Strava/);
 });
 
 test('health-templates.mjs (Salud tab client format strings) has identical key trees in es/en, all string leaves non-empty (deltaUnit legitimately empty for unit-less deltas, matches legacy delta(d,\'\',goodDir) call sites)', () => {
