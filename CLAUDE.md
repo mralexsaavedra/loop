@@ -128,8 +128,8 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   lives in `plan-data.json`'s `page` block (`page.notes.<slotId>`, `page.hideTabs: ["hoy"]`,
   etc.) — never hardcoded in tracked Astro/JS source, which stays fully generic.
 
-**Tabs and sections.** Three top-level tabs (nav = fixed bottom bar on narrow screens, left
-sidebar on wide ones); the former tabs live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
+**Tabs and sections.** Three top-level tabs (nav = fixed bottom bar with safe-area inset on
+narrow screens, sticky top bar on wide ones); the former tabs live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
 
 | Tab (key) | Content, top to bottom |
 | --- | --- |
