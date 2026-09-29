@@ -32,6 +32,7 @@ function setTab(name, scrollTop) {
     p.hidden = p.getAttribute('data-tab') !== name;
   });
   [
+    ['t-home', 'home'],
     ['t-dia', 'dia'],
     ['t-registro', 'registro'],
     ['t-tablas', 'tablas'],

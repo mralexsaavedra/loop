@@ -51,7 +51,8 @@ export async function listRawPayloads (pool, { automation, sinceId, limit }) {
  * `start_local` is read from the JSONB payload, not the `start_local` column:
  * the upsert in strava.js never refreshes that column on an edit, so it can
  * go stale. The numeric fields go through `payload->'field'` (jsonb), which
- * never raises a cast error even if a field is absent. `name` and the raw
+ * never raises a cast error even if a field is absent (`suffer_score` = Strava
+ * Relative Effort; both it and `kilojoules` are null when the activity has none). `name` and the raw
  * payload are never selected — privacy boundary for this endpoint.
  */
 export async function listStravaActivities (pool, { sinceId, limit }) {
@@ -63,7 +64,9 @@ export async function listStravaActivities (pool, { sinceId, limit }) {
             payload->'elapsed_time' AS elapsed_time,
             payload->'distance' AS distance,
             payload->'average_heartrate' AS average_heartrate,
-            payload->'max_heartrate' AS max_heartrate
+            payload->'max_heartrate' AS max_heartrate,
+            payload->'suffer_score' AS suffer_score,
+            payload->'kilojoules' AS kilojoules
        FROM strava_activity
       WHERE id > $1
       ORDER BY id ASC

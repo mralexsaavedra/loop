@@ -11,7 +11,12 @@
  * "salud") — this matches the legacy page exactly (`id="health"`,
  * `setTab('health')`); "Salud" is only the nav LABEL text.
  */
+
+interface Props {
+  activeTab: string;
+}
+const { activeTab } = Astro.props;
 ---
-<div class="tab-panel" data-tab="health" hidden>
+<div class="tab-panel" data-tab="health" hidden={activeTab !== 'health'}>
   <div id="health"></div>
 </div>

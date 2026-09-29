@@ -3,6 +3,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const strava = require('./sync-strava.js');
+const samples = require('./samples.js');
 
 const {
   STRAVA_SOURCE, SPORT_TYPE_MAP, translateType, toRow, buildRows, planSync, syncDir,
@@ -37,7 +38,7 @@ test('translateType falls back to Other for an unmapped sport_type without throw
 test('toRow prefers moving_time over elapsed_time, converts to minutes (2 decimals)', () => {
   const r = toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1830, elapsed_time: 2000 });
   assert.equal(r.date, '2026-08-20');
-  assert.match(r.line, /^2026-08-20,Running,30\.5,,,,,Strava API,$/);
+  assert.match(r.line, /^2026-08-20,Running,30\.5,,,,,Strava API,,,$/);
 });
 
 test('toRow falls back to elapsed_time when moving_time is missing or zero', () => {
@@ -49,17 +50,38 @@ test('toRow falls back to elapsed_time when moving_time is missing or zero', () 
 
 test('toRow blanks HR/distance when absent, fills them (rounded/2dp) when present', () => {
   const noHr = toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 3600 });
-  assert.equal(noHr.line, '2026-08-20,Cycling,60,,,,,Strava API,');
+  assert.equal(noHr.line, '2026-08-20,Cycling,60,,,,,Strava API,,,');
   const withHrDist = toRow({
     id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 3600,
     average_heartrate: 142.6, max_heartrate: 171.2, distance: 25123.456,
   });
-  assert.equal(withHrDist.line, '2026-08-20,Cycling,60,,143,,171,Strava API,25.12');
+  assert.equal(withHrDist.line, '2026-08-20,Cycling,60,,143,,171,Strava API,25.12,,');
 });
 
-test('toRow produces a 9-column CSV row', () => {
+test('toRow produces an 11-column CSV row matching WORKOUTS_HEADER', () => {
   const r = toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 600, average_heartrate: 140, max_heartrate: 160, distance: 2000 });
-  assert.equal(r.line.split(',').length, 9);
+  assert.equal(r.line.split(',').length, 11);
+  assert.equal(WORKOUTS_HEADER.split(',').length, 11);
+  assert.equal(WORKOUTS_HEADER, samples.WORKOUTS_HEADER, 'one shared header constant');
+  assert.match(WORKOUTS_HEADER, /,distance_km,relative_effort,kilojoules$/);
+});
+
+test('toRow writes relative_effort (suffer_score) and kilojoules; blank when absent; 0 is kept', () => {
+  const base = { id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1800 };
+  assert.equal(toRow({ ...base, suffer_score: 87 }).line, '2026-08-20,Running,30,,,,,Strava API,,87,');
+  assert.equal(toRow({ ...base, suffer_score: 0, kilojoules: 0 }).line, '2026-08-20,Running,30,,,,,Strava API,,0,0');
+  assert.equal(toRow({ ...base, suffer_score: 87.4, kilojoules: 640.55 }).line, '2026-08-20,Running,30,,,,,Strava API,,87,640.55');
+  assert.equal(toRow({ ...base, suffer_score: null, kilojoules: null }).line, '2026-08-20,Running,30,,,,,Strava API,,,');
+});
+
+test('planSync: a 9-column CSV merges under the 11-col header; old rows are kept verbatim (mixed width)', () => {
+  const oldHeader = 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source,distance_km';
+  const files = { [WORKOUTS_CSV]: [oldHeader, '2026-08-20,Running,30,,140,,165,Watch,5'].join('\n') + '\n' };
+  const plan = planSync([{ id: '2', start_local: '2026-08-21T07:00:00', sport_type: 'Run', moving_time: 1800, suffer_score: 55 }], (n) => files[n] ?? null);
+  const lines = plan.writes[WORKOUTS_CSV].trim().split('\n');
+  assert.equal(lines[0], WORKOUTS_HEADER);
+  assert.ok(lines.includes('2026-08-20,Running,30,,140,,165,Watch,5'), 'old 9-col row untouched');
+  assert.ok(lines.includes('2026-08-21,Running,30,,,,,Strava API,,55,'));
 });
 
 test('toRow returns null when there is no usable duration (skip the activity, not the sync)', () => {

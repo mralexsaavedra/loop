@@ -94,3 +94,20 @@ test('example build renders lib-provided extras item names in the Registro tab',
     }
   }
 });
+
+test('example build: t-home is the first nav button and pressed; the Home panel is visible, Mi día hidden', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const firstBtn = html.match(/<button id="(t-[a-z]+)"[^>]*>/);
+  assert.equal(firstBtn[1], 't-home');
+  assert.match(firstBtn[0], /aria-pressed="true"/);
+  assert.match(html, /<div class="tab-panel" data-tab="home">/);
+  assert.match(html, /<div class="tab-panel" data-tab="dia" hidden>/);
+  assert.match(html, /<div id="home"><\/div>/);
+});
+
+test('example build (no extract): SCORES is baked as the empty state and the Home scripts are inline classic scripts', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  assert.match(html, /var SCORES = \{"hasData":false/);
+  assert.match(html, /var I18N_SCORE = /);
+  assert.match(html, /getElementById\('home'\)/);
+});
