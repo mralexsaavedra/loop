@@ -33,6 +33,7 @@
 (function () {
   var DATE_LOCALE = LOCALE === 'es' ? 'es-ES' : 'en-GB';
   var T = I18N_HEALTH;
+  var MS_PER_DAY = 86400000;
 
   function esc(s) {
     var d = document.createElement('div');
@@ -53,7 +54,7 @@
   }
   function ago(iso) {
     if (!iso) return '';
-    var d = Math.round((Date.now() - new Date(iso + 'T00:00:00')) / 86400000);
+    var d = Math.round((Date.now() - new Date(iso + 'T00:00:00')) / MS_PER_DAY);
     if (d < 45) return format(T.agoDaysTpl, { d: d });
     var m = Math.round(d / 30);
     if (m < 12) return format(m > 1 ? T.agoMonthsTpl : T.agoMonthTpl, { m: m });
@@ -83,7 +84,7 @@
     if (!iso) return null;
     var p = iso.split('-');
     var n = new Date(Date.now());
-    return Math.round((new Date(n.getFullYear(), n.getMonth(), n.getDate()) - new Date(+p[0], +p[1] - 1, +p[2])) / 86400000);
+    return Math.round((new Date(n.getFullYear(), n.getMonth(), n.getDate()) - new Date(+p[0], +p[1] - 1, +p[2])) / MS_PER_DAY);
   }
   // Today first: the headline is the newest value; `opt.date` tags it with its date (a daily total
   // dated today reads "today, so far", since it is partial until midnight); `ctxHtml` (30-day mean
