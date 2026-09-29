@@ -30,12 +30,12 @@ function makeContext(doc) {
 
 function makeTabPage(doc) {
   // nav buttons — legacy ids, aria-pressed toggled by setTab
-  const tabs = ['dia', 'registro', 'tablas', 'hoy', 'dash', 'health'];
-  const navIds = { dia: 't-dia', registro: 't-registro', tablas: 't-tablas', hoy: 't-hoy', dash: 't-dash', health: 't-health' };
-  tabs.forEach((t) => doc.el(navIds[t], { attrs: { 'aria-pressed': String(t === 'dia') } }));
+  const tabs = ['home', 'dia', 'registro', 'tablas', 'hoy', 'dash', 'health'];
+  const navIds = { home: 't-home', dia: 't-dia', registro: 't-registro', tablas: 't-tablas', hoy: 't-hoy', dash: 't-dash', health: 't-health' };
+  tabs.forEach((t) => doc.el(navIds[t], { attrs: { 'aria-pressed': String(t === 'home') } }));
   // tab panels — legacy `.tab-panel[data-tab]` contract, NOT data-tab-panel
   const panels = {};
-  tabs.forEach((t) => { panels[t] = doc.el(null, { classes: ['tab-panel'], attrs: { 'data-tab': t }, hidden: t !== 'dia' }); });
+  tabs.forEach((t) => { panels[t] = doc.el(null, { classes: ['tab-panel'], attrs: { 'data-tab': t }, hidden: t !== 'home' }); });
   doc.el('day-toggle', { attrs: {} });
   return { navIds, panels };
 }
@@ -166,4 +166,17 @@ test('bump() calls window.bldRecalc() after updating the counter (nutrition.js r
   window.bump('aceite', 1);
 
   assert.equal(recalced, 1);
+});
+
+test('setTab knows the Home tab: t-home <-> home', () => {
+  const doc = new StubDocument();
+  const { panels, navIds } = makeTabPage(doc);
+  const { window } = makeContext(doc);
+  window.setTab('registro');
+  window.setTab('home');
+  assert.equal(panels.home.hidden, false);
+  assert.equal(panels.registro.hidden, true);
+  assert.equal(doc.getElementById(navIds.home).getAttribute('aria-pressed'), 'true');
+  assert.equal(doc.getElementById(navIds.registro).getAttribute('aria-pressed'), 'false');
+  assert.equal(doc.getElementById('day-toggle').style.display, 'none');
 });

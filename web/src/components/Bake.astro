@@ -31,10 +31,12 @@ interface Props {
   dashTemplates: Record<string, any>;
   health: any; // lib/health/aggregate.mjs's buildHealth() result
   healthTemplates: Record<string, any>;
+  scores: any; // lib/score/index.mjs's buildScores() result (Home tab; only asOf dates, no build-time now)
+  scoreTemplates: Record<string, any>;
 }
 const {
   nut, targetTrain, targetRest, verdictTemplates, logTemplates, peLabel, copyMsg, copyFallbackMsg, locale, tablasLabels,
-  training, trainingMeta, dash, hoyTemplates, dashTemplates, health, healthTemplates,
+  training, trainingMeta, dash, hoyTemplates, dashTemplates, health, healthTemplates, scores, scoreTemplates,
 } = Astro.props;
 
 const globals = {
@@ -63,6 +65,8 @@ const globals = {
   I18N_DASH: dashTemplates,
   HEALTH: health,
   I18N_HEALTH: healthTemplates,
+  SCORES: scores,
+  I18N_SCORE: scoreTemplates,
 };
 
 const bakeSource = Object.entries(globals)

@@ -13,6 +13,7 @@ import { es as esLog, en as enLog } from '../i18n/log-templates.mjs';
 import { es as esHoy, en as enHoy } from '../i18n/hoy-templates.mjs';
 import { es as esDash, en as enDash } from '../i18n/dash-templates.mjs';
 import { es as esHealth, en as enHealth } from '../i18n/health-templates.mjs';
+import { es as esScore, en as enScore } from '../i18n/score-templates.mjs';
 
 interface Props {
   nut: any; // buildNutrition() result
@@ -24,18 +25,21 @@ interface Props {
   trainingMeta: { program: string; coach: string; source: string; first: string; last: string; count: number };
   dash: any;
   health: any; // lib/health/aggregate.mjs's buildHealth() result — astro-plan-web slice 6
+  scores: any; // lib/score/index.mjs's buildScores() result — whoop-daily (Home tab)
+  activeTab: string;
 }
-const { nut, dict, page, plan, locale, training, trainingMeta, dash, health } = Astro.props;
+const { nut, dict, page, plan, locale, training, trainingMeta, dash, health, scores, activeTab } = Astro.props;
 const t = dict.strings.registro;
 const verdictTemplates = locale === 'es' ? esVerdict : enVerdict;
 const logTemplates = locale === 'es' ? esLog : enLog;
 const hoyTemplates = locale === 'es' ? esHoy : enHoy;
 const dashTemplates = locale === 'es' ? esDash : enDash;
 const healthTemplates = locale === 'es' ? esHealth : enHealth;
+const scoreTemplates = locale === 'es' ? esScore : enScore;
 const targetTrain = nut.targetFor('train');
 const targetRest = nut.targetFor('rest');
 ---
-<div class="tab-panel" data-tab="registro" hidden>
+<div class="tab-panel" data-tab="registro" hidden={activeTab !== 'registro'}>
   <h2>{t.heading}</h2>
   <Note id="registro.intro" page={page} class="acc-note" style="margin:-4px 0 10px" />
   <div class="builder">
@@ -95,4 +99,6 @@ const targetRest = nut.targetFor('rest');
   dashTemplates={dashTemplates}
   health={health}
   healthTemplates={healthTemplates}
+  scores={scores}
+  scoreTemplates={scoreTemplates}
 />

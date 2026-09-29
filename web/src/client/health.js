@@ -52,6 +52,7 @@
     return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(DATE_LOCALE, { day: 'numeric', month: 'short' });
   }
   function ago(iso) {
+    if (!iso) return '';
     var d = Math.round((Date.now() - new Date(iso + 'T00:00:00')) / 86400000);
     if (d < 45) return format(T.agoDaysTpl, { d: d });
     var m = Math.round(d / 30);

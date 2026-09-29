@@ -107,7 +107,7 @@ available) so the next session resumes with their context.
 
 ## The plan page — Astro single-file build
 
-The plan page (all 6 tabs: Mi día, Registro, Tablas, Hoy, Entrenos, Salud) is ONE Astro project
+The plan page (all 7 tabs: Inicio/Home, Mi día, Registro, Tablas, Hoy, Entrenos, Salud) is ONE Astro project
 in `web/` that builds to a single self-contained HTML file — no external requests, no
 `_astro/` asset directory, CSP-safe. `scripts/build-web.mjs` drives the build:
 
@@ -247,7 +247,7 @@ pastes/screenshots the sessions and you transcribe into `training-data.json`. Fo
 
 **Fresh-clone bootstrap:** copy `data/training/training-data.example.json` →
 `training-data.json`, edit in the real program, then `npm run generate` (part of the shared
-nutrition bootstrap above — one `npm run generate` builds all 6 tabs together). This step is
+nutrition bootstrap above — one `npm run generate` builds all 7 tabs together). This step is
 optional — skipping it (or deleting `training-data.json` later) still builds, with Hoy
 permanently in its rest/unprogrammed state. `npm run check` validates training-data.json when
 it exists (`build-web.mjs --check`); `npm test` covers the training lib with its own unit tests
@@ -296,6 +296,38 @@ pure functions (`aggBody`/`aggActivity`/`aggEnergy`/`aggRunning`/`aggRecovery` +
 `dailyTrend`/`signalTrend`) so the test suite injects synthetic series without touching disk. The
 personal (`LOCALE=es`) build is localized to Spanish (es-ES dates, comma decimals); the example
 (`LOCALE=en`, `web/src/i18n/en.mjs` + `*-templates.mjs` en dicts) build is English.
+
+## Home tab — "Inicio / Home" recovery trend + per-modality load
+
+`lib/score/*` (same single-source pattern) feeds the first tab; `web/src/client/score.js` renders it,
+`buildScores(extractDir)` bakes `SCORES` (only `asOf` dates — staleness is computed client-side, so
+consecutive builds are byte-identical). The tab is first and active by default; the visible panel is
+derived from the FILTERED nav list (`activeTabKey`), so `page.hideTabs: ["home"]` hands over to the next
+tab and hiding every tab is a build error.
+
+- **Recovery** is a 7-day smoothed TREND in MAD units, never a 0-100 grade: HRV (daytime SDNN), resting
+  HR, sleep duration and sleep regularity vs a median/MAD baseline (42 days ending asOf-1), z clamped
+  ±3, weights .40/.25/.25/.10. Band: ≥ +0.5 above / within ±0.5 at / ≤ -0.5 below baseline
+  (`BAND_CUTOFF` in `recovery.mjs`). Shown with per-component trends and the last 14 raw dailies.
+  Gated ("insufficient") unless components with ≥ 14 baseline days carry ≥ 0.60 of the weight, include
+  HRV or RHR, and there are ≥ 7 composite days in the last 14.
+- **Load** is PER MODALITY (gym / run / bike; `other` is shown raw, never scored) and Relative-Effort-only
+  (Strava `suffer_score`; Apple rows have no RE and are counted as `unscored`). Same-day rows: drop
+  junk (`dur <= 10` AND `re` null or ≤ 2), then SUM. The series starts at the first date with any RE
+  (`reEpoch`); acute 7d vs chronic 42d EWMA; a modality gates ("baselineBuilding") under 28 days since the
+  epoch, under 8 non-zero days, or chronic < 1. The 0-100 `relScore` exists only within a modality.
+- **Advice** is one descriptive sentence per rule (`lib/score/advice.mjs`, copy in `advice-copy.mjs`),
+  never an instruction; hidden when data is insufficient or stale (> 3 days).
+- Caveats shown on the page: RE is HR-derived (credits the metcon more than heavy sets), modalities are
+  not comparable, "gym" is the Watch auto-label, no comparable load before the RE epoch, same-day rows
+  are summed (a real two-a-day is indistinguishable), HRV is daytime SDNN, not medical advice.
+- **workouts.csv now has 11 columns** (`… ,distance_km,relative_effort,kilojoules`), written by both
+  `extract.js` and `sync-strava.js` from the shared `WORKOUTS_HEADER`. The first `sync:strava` after the
+  upgrade writes the 11-column header over 9-column export rows (mixed width, tolerated by every
+  reader); re-running `node data/apple-health/extract.js` afterwards (needs `export.xml`) is the
+  REQUIRED step that re-emits every row at 11 columns. Rollout: rebuild the ingest image
+  (`docker compose up -d --build health-ingest`, without it `/export/strava` lacks the new fields) →
+  `npm run sync:strava` → `extract.js` → `npm run generate`.
 
 ## Output principles
 
