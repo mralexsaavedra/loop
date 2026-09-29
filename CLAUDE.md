@@ -75,8 +75,8 @@ available) so the next session resumes with their context.
      devices double-counts — summing inflates the NEAT figure).
      Between exports, `npm run sync` (`data/apple-health/sync-shortcut.js`) pulls iOS Shortcut
      payloads from the optional `services/health-ingest` service (`GET /export/raw`) and merges
-     hrv/rhr/vo2max/weight/bodyfat/leanmass/steps/energy/sleep/respiratory/walking-HR/wrist-temp/
-     hr-recovery into those CSVs: export rows always win,
+     hrv/rhr/vo2max/weight/bodyfat/leanmass/waist/steps/energy/sleep/respiratory/walking-HR/
+     wrist-temp/hr-recovery into those CSVs: export rows always win,
      Shortcut rows are rebuilt each run and fill only dates the export lacks — so re-run sync after
      `extract.js`. Sync is incremental (local gitignored `extract/.shortcut-cache.json` of deduped
      samples + last payload id; `npm run sync -- --full` rebuilds it). Daily totals: the latest
@@ -302,6 +302,10 @@ render it.
   NOT isolate a scale switch (the same app re-tags an old scale's readings, which can show as an
   overnight jump of several points), so their Δ + sparkline use only the last `BODYCOMP_WINDOW` (150) days
   to avoid celebrating that artifact as real change.
+  **Waist** (`waist.csv`, cm; written by extract.js from `WaistCircumference` and by the
+  Shortcut `waist` key) is a sparse manual tape measurement: every reading is a point (no rolling
+  average), the headline carries its measurement date, Δ = latest vs first. No waist data → the
+  section shows a hint on how to start logging it instead.
 - **Activity (NEAT + movement)** — `steps-daily.csv` (NEAT), `exercise-minutes-daily.csv`,
   `distance-daily.csv`, `flights-daily.csv`. Each is a daily total → 30-day average, Δ vs the
   prior 30 days, 7-day rolling sparkline (generic `dailyTrend`). All four are deduped

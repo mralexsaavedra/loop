@@ -74,6 +74,9 @@ const METRICS = {
     row: (date, v) => `${date},${v.toFixed(1)}` },
   walking_hr:  { kind: 'daily', csv: 'walking-hr-daily.csv', header: 'date,bpm', metaKey: 'walking_hr', sourceCol: null, skipZero: true,
     row: (date, v) => `${date},${v.toFixed(0)}` },
+  // Waist circumference in cm (a Shortcut on a metric phone reports cm; a value under 3 is metres
+  // and is converted). Sparse, manual measurements -> one row per sample, like weight.
+  waist:    { kind: 'point', csv: 'waist.csv', header: S.READING_HEADER, metaKey: 'waist', fmt: v => +(v < 3 ? v * 100 : v).toFixed(1) },
   sleep:    { kind: 'interval', csv: 'sleep-daily.csv', header: S.SLEEP_HEADER, metaKey: 'sleep' },
 };
 // "Shortcut" or a device-tagged "Shortcut <device>" (steps) -> a row this sync wrote

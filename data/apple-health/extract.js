@@ -31,7 +31,7 @@ const attr = (s, name) => { const m = s.match(new RegExp(' ' + name + '="([^"]*)
 const { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, absMs, minutesBetween, sleepNight, readingRow, sleepRow } = require('./samples.js');
 
 // sparse readings: [{date, value, source}]
-const readings = { weight: [], bodyfat: [], rhr: [], vo2max: [], hrv: [], leanmass: [], wristTemp: [], hrRecovery: [] };
+const readings = { weight: [], bodyfat: [], rhr: [], vo2max: [], hrv: [], leanmass: [], wristTemp: [], hrRecovery: [], waist: [] };
 // output file per readings key (default `${key}.csv`)
 const READING_FILE = { hrRecovery: 'hr-recovery.csv' };
 // daily sums: Map<date, number>  (energy is single-source per the export → summing is correct)
@@ -88,6 +88,10 @@ function handleRecord(line) {
     case Q + 'DietaryFatTotal':      return addDiet(d, 'g', v);
     case Q + 'LeanBodyMass':         return v != null && readings.leanmass.push({ date: d, value: +v.toFixed(2), source: src });
     case Q + 'HeartRateRecoveryOneMinute': return v != null && readings.hrRecovery.push({ date: d, value: +v.toFixed(1), source: src }); // Cardio Recovery, bpm
+    case Q + 'WaistCircumference': { // stored in cm whatever unit the export used
+      const cm = v == null ? null : { m: v * 100, in: v * 2.54, ft: v * 30.48 }[attr(line, 'unit')] ?? v;
+      return cm != null && readings.waist.push({ date: d, value: +cm.toFixed(1), source: src });
+    }
     case Q + 'AppleSleepingWristTemperature': return v != null && readings.wristTemp.push({ date: d, value: +v.toFixed(2), source: src });
     case Q + 'AppleExerciseTime':       return addMaxSrc(maxSrc.exercise, d, src, v);
     case Q + 'DistanceWalkingRunning':  return addMaxSrc(maxSrc.distance, d, src, v);
@@ -250,6 +254,7 @@ rl.on('close', () => {
       'exercise/distance/flights = max across devices per day (iPhone+Watch overlap → summing double-counts, like steps); respiratory & walking-HR are per-day means.',
       'running-daily = per-day MEANS over a run\'s samples (only days with a run get a row); 0-valued samples (Zepp placeholders) dropped. speed km/h, power W, gct ms, vosc cm, stride m.',
       'hr-recovery.csv = Cardio Recovery (HeartRateRecoveryOneMinute, bpm drop 1 min after a workout), one row per sample.',
+      'waist.csv = WaistCircumference in cm (sparse, manual measurements, one row per sample).',
       'leanmass & wristTemp are sparse, source-tagged (leanmass mixes scales like weight; wrist temp is sleeping-watch only).',
       'workouts now carry hr_avg/hr_min/hr_max (bpm) and energy_kcal pulled from child <WorkoutStatistics> (per-workout intensity; HR coverage starts when a watch was first worn).',
       'workouts.csv has 11 columns; relative_effort and kilojoules are filled only by Strava rows (npm run sync:strava) and stay empty on export rows. Re-run this script after the first sync:strava to re-emit every row at 11 columns.',
