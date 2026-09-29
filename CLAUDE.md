@@ -142,7 +142,7 @@ narrow screens, sticky top bar on wide ones); the former tabs live on as SECTION
 
 | Tab (key) | Content, top to bottom |
 | --- | --- |
-| 🏠 Inicio (`home`) | recovery trend + per-modality load, then the advice sentence; "today you eat" card (day toggle + that day's kcal/macros, link to Nutrición); programmed session (`hoy`) |
+| 🏠 Inicio (`home`) | Sleep / Recovery / Load dials (today first); health monitor; recovery (last night + 7-day trend) + per-modality load cards, then the advice sentence; "today you eat" card (day toggle + that day's kcal/macros, link to Nutrición); programmed session (`hoy`) |
 | 🍽️ Nutrición (`nutricion`) | Mi día plan (`dia`); Registro (`registro`, collapsible); Tablas (`tablas`, collapsible) — the global train/rest toggle shows here |
 | 💗 Salud (`health`) | body & recovery sections; Entrenamiento dashboard (`dash`) |
 
@@ -153,8 +153,9 @@ always stay in the build. Nutrición disappears when all three of its sections a
 visible tab on load is the first remaining one; hiding every tab fails the build.
 `setTab('<legacy key>')` still works (it opens the hosting tab and scrolls to the section).
 Tapping a score card on Inicio opens its Salud detail (recovery → the Recovery sub-section
-`#hl-recovery`, a modality load card → Entrenamiento `#sec-dash`) via core.js `jumpOr`, falling
-back to the Salud tab when that detail has no data; the cards are not links when Salud is hidden.
+`#hl-recovery`, a modality load card → Entrenamiento `#sec-dash`, a health-monitor card → its trend
+`#hl-rhr` / `#hl-hrv` / `#hl-respiratory` / `#hl-wristTemp` / `#hl-sleep`) via core.js `jumpOr`,
+falling back to the Salud tab when that detail has no data; the cards are not links when Salud is hidden.
 
 **Look & typography.** Dark, data-first design language: colour carries meaning, never decoration.
 All colours are tokens in `web/src/styles/tokens.css` (AA-checked ratios listed in its header):
@@ -317,6 +318,14 @@ stacked sections (body, activity, energy, running, cycling, recovery, load vs re
 empty state, never fail the build); `web/src/tabs/Salud.astro` + `web/src/client/health.js`
 render it.
 
+**Today first.** Every trend card's headline is the NEWEST value with its date (a daily total dated
+the viewer's today reads "today, so far" / "hoy, en curso", decided client-side); the 30-day mean
+(`avg30`, mean of the daily values over the last 30 days) and the Δ form the context line under it;
+sparklines are unchanged (7-day rolling). HRV's headline is the newest DAY's mean (it used to be the
+7-day rolling value); sleep's is last night (`sleep.latest`), with the 30-night mean as context;
+expenditure's is the newest day's TDEE (`tdeeLatest`). Each recovery trend carries an `hl-<key>`
+anchor for Inicio's health monitor.
+
 - **Body composition** — `weight.csv` + `bodyfat.csv` + `leanmass.csv`. Weight trend is a 7-day
   rolling average (it mixes scales/apps, so the raw series is noisy). Body fat and lean mass use
   ONLY the most recent source and are flagged bioimpedance ±3–5%. IMPORTANT: the source tag does
@@ -328,8 +337,8 @@ render it.
   average), the headline carries its measurement date, Δ = latest vs first. No waist data → the
   section shows a hint on how to start logging it instead.
 - **Activity (NEAT + movement)** — `steps-daily.csv` (NEAT), `exercise-minutes-daily.csv`,
-  `distance-daily.csv`, `flights-daily.csv`. Each is a daily total → 30-day average, Δ vs the
-  prior 30 days, 7-day rolling sparkline (generic `dailyTrend`). All four are deduped
+  `distance-daily.csv`, `flights-daily.csv`. Each is a daily total → latest day (headline) + 30-day
+  average and Δ vs the prior 30 days (context), 7-day rolling sparkline (generic `dailyTrend`). All four are deduped
   max-per-device by extract.js (iPhone + Watch overlap → summing double-counts, like steps);
   near-zero step/distance days (device not carried) are dropped as missing data.
 - **Energy** — `active-energy-daily.csv` + `basal-energy-daily.csv` give expenditure (TDEE,
@@ -366,7 +375,7 @@ pure functions (`aggBody`/`aggActivity`/`aggEnergy`/`aggRunning`/`aggRecovery` +
 personal (`LOCALE=es`) build is localized to Spanish (es-ES dates, comma decimals); the example
 (`LOCALE=en`, `web/src/i18n/en.mjs` + `*-templates.mjs` en dicts) build is English.
 
-## Home tab — "Inicio / Home" dials, recovery trend + per-modality load
+## Home tab — "Inicio / Home" dials, health monitor, recovery + per-modality load
 
 `lib/score/*` (same single-source pattern) feeds the first tab; `web/src/client/score.js` renders it,
 `buildScores(extractDir)` bakes `SCORES` (only `asOf` dates — staleness is computed client-side, so
@@ -374,30 +383,58 @@ consecutive builds are byte-identical). The tab is first and active by default; 
 derived from the FILTERED nav list (`activeTabKey`), so `page.hideTabs: ["home"]` hands over to the next
 tab and hiding every tab is a build error.
 
-- **Recovery** is a 7-day smoothed TREND in MAD units, never a 0-100 grade: HRV (daytime SDNN), resting
-  HR, sleep duration and sleep regularity vs a median/MAD baseline (42 days ending asOf-1), z clamped
-  ±3, weights .40/.25/.25/.10. Band: ≥ +0.5 above / within ±0.5 at / ≤ -0.5 below baseline
-  (`BAND_CUTOFF` in `recovery.mjs`). Shown with per-component trends and the last 14 raw dailies.
-  Gated ("insufficient") unless components with ≥ 14 baseline days carry ≥ 0.60 of the weight, include
-  HRV or RHR, and there are ≥ 7 composite days in the last 14.
+**Today first, trend as context** (Bevel/Whoop-style, but no invented 0-100 scale): every headline
+is the newest day, and the trend is the line under it.
+
+- **Recovery** is in MAD units, never a 0-100 grade: HRV (daytime SDNN), resting HR, sleep duration and
+  sleep regularity vs a median/MAD baseline (42 days ending asOf-1), z clamped ±3, weights
+  .40/.25/.25/.10. Band: ≥ +0.5 above / within ±0.5 at / ≤ -0.5 below baseline (`BAND_CUTOFF` in
+  `recovery.mjs`). Headline = `today`, the composite of the asOf day alone (last night), same baseline
+  and bands; it is `null` unless the components present that day carry ≥ 0.60 of the weight AND
+  include HRV or RHR (a sleep-only night is too thin), in which case the page says "no data for last
+  night" and shows the trend instead. Context = `trend7` (mean composite of the 7 days ending asOf)
+  and `trendDir` = `delta7` (this week's trend7 − last week's) cut at the same ±`BAND_CUTOFF`: up /
+  steady / down. Shown with per-component trends and the last 14 raw dailies. Gated ("insufficient")
+  unless components with ≥ 14 baseline days carry ≥ 0.60 of the weight, include HRV or RHR, and there
+  are ≥ 7 composite days in the last 14.
 - **Load** is PER MODALITY (gym / run / bike; `other` is shown raw, never scored) and Relative-Effort-only
   (Strava `suffer_score`; Apple rows have no RE and are counted as `unscored`). Same-day rows: drop
   junk (`dur <= 10` AND `re` null or ≤ 2), then SUM. The series starts at the first date with any RE
   (`reEpoch`); acute 7d vs chronic 42d EWMA; a modality gates ("baselineBuilding") under 28 days since the
   epoch, under 8 non-zero days, or chronic < 1. The 0-100 `relScore` exists only within a modality.
+  Today first: `load` is the asOf day's summed RE (asOf = newest workout date, so the page labels it
+  today / yesterday / its date client-side) and `typical` = the median of the NON-ZERO days in the 42
+  days before asOf (asOf excluded; `value: null` under 4 such days — `TYPICAL_WINDOW_DAYS` /
+  `MIN_TYPICAL_DAYS` in `load.mjs`).
+- **Health monitor** (`lib/score/monitor.mjs`, baked as `SCORES.monitor` even when `hasData` is false;
+  `components/HealthMonitor.astro` + `client/monitor.js`, under the dials): cards for respiratory
+  rate, resting HR, HRV, sleeping wrist temperature and sleep duration. Each = the newest daily value
+  (per-day median of plausibility-clamped samples) + unit, its date when it is not from the viewer's
+  today, and Normal / High / Low (es: Normal / Alto / Bajo) vs a personal band = median ± 1.5 × scaled
+  MAD (`robustBaseline`, floored per signal) over the 42 days BEFORE that value; < 14 baseline days →
+  value + "building baseline", no band; a missing series → "No data". A vertical range bar (inline
+  SVG, geometry baked as fractions) marks the band and the value. Tone: HRV high = good / low = bad,
+  RHR high = bad / low = good, short sleep = bad; respiratory rate and wrist temp are change signals,
+  so out of band is `watch` (`--mid`), never `--low`. Greyed when > 3 days old.
 - **Dials** (top of the tab: Sleep / Recovery / Load) only VISUALISE baked values — no new metric and
   no percentage. `web/src/view/dial.mjs` (`buildDials(scores, health)`, unit-tested, baked as `DIALS`)
   pre-computes the 270° arc geometry; `score.js` only formats numbers and joins SVG strings.
   Recovery: arc = −3…+3 MAD, three tinted zones cut at ±`BAND_CUTOFF`, fill from baseline to a marker
-  at `trend7`, centre = short band word + signed delta in sd, coloured by band. Sleep: fill = the
+  at last night's composite (`today`; falls back to `trend7` with a "no data for last night" note),
+  centre = short band word + signed value in sd, coloured by that band; under it "Last night" (or the
+  night's date) and "7-day trend: steady · +0.5 sd". Sleep: fill = the
   sleep-duration component's newest night / the stated target (`health.recovery.sleep.target`, 7.5 h),
   capped at a full arc, target labelled on screen. Load: ONE dial with a gym/run/bike switch (default =
-  first ungated modality); position = acute/chronic as `trendPct` states it (`1 + trendPct/100`, arc
-  midpoint = 1.0×, end = 2×), zones at the existing trend bands; a gated modality is greyed with the
-  existing `baselineBuilding` copy and no number. Stale data (> 3 days) greys a dial; the fill
+  first ungated modality); centre = the asOf day's RE, position = RE / typical day (arc midpoint =
+  the typical training day, end = 2×, no zones), a 0 RE day reads "Rest" with no fill; the caption
+  says "Today: RE 28 · typical day ~42" and keeps acute/chronic as context ("7-day vs 42-day load:
+  -6% · steady"). A gated modality (`baselineBuilding`, or `fewDays` when there is no typical day) is
+  greyed with its copy and no number. Stale data (> 3 days) greys a dial; the fill
   animation is off under `prefers-reduced-motion`.
 - **Advice** is one descriptive sentence per rule (`lib/score/advice.mjs`, copy in `advice-copy.mjs`),
-  never an instruction; hidden when data is insufficient or stale (> 3 days).
+  never an instruction; hidden when data is insufficient or stale (> 3 days). The rules still read the
+  7-day trend, and every sentence names that window ("Over the last 7 days recovery has…") so it reads
+  as the context under last night's headline.
 - Caveats shown on the page: RE is HR-derived (credits the metcon more than heavy sets), modalities are
   not comparable, "gym" is the Watch auto-label, no comparable load before the RE epoch, same-day rows
   are summed (a real two-a-day is indistinguishable), HRV is daytime SDNN, not medical advice.
