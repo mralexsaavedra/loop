@@ -156,6 +156,15 @@ test('example build: glance on Inicio, detail behind it — Entreno holds load d
   assert.match(sliceTabPanel(html, 'health'), /<div id="health"><\/div>/);
 });
 
+test('example build: Inicio reads today top to bottom — dials, monitor, timeline, advice, eat card, programmed session; the timeline is baked from demo data', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const home = sliceTabPanel(html, 'home');
+  const at = ['id="home-dials"', 'id="monitor"', 'id="timeline"', 'id="home"', 'class="eat-card"', 'data-section="hoy"'].map((n) => home.indexOf(n));
+  assert.ok(at.every((v, i) => v !== -1 && (i === 0 || v > at[i - 1])), `Inicio order ${at}`);
+  assert.match(html, /"timeline":\{"asOf":"\d{4}-\d{2}-\d{2}","days":\[\{"date"/, 'demo data fills the timeline');
+  assert.match(html, /getElementById\('timeline'\)/, 'timeline.js is inlined');
+});
+
 test('example build: Registro and Tablas are collapsible <details> folds with a summary', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   for (const key of ['registro', 'tablas']) {
