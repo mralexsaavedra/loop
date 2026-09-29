@@ -10,8 +10,9 @@
 (function () {
   var T = I18N_INTAKE;
   var DATE_LOCALE = LOCALE === 'es' ? 'es-ES' : 'en-GB';
-  var R = 18;
-  var C = 2 * Math.PI * R;
+  var RING_R = 18; // ring radius in the 44-unit viewBox (centre 22, 4 units of stroke room)
+  var C = 2 * Math.PI * RING_R;
+  var OVER_TARGET_RATIO = 1.1; // beyond 110% of the target the ring is styled as over
 
   function format(tpl, vars) {
     return tpl.replace(/\{(\w+)\}/g, function (_, k) {
@@ -51,15 +52,15 @@
     var frac = has ? actual / target : null;
     var pct = has ? Math.round(frac * 100) : null;
     var len = has ? Math.min(1, Math.max(0, frac)) * C : 0;
-    var cls = 'ring ring-' + key + (has ? (frac > 1.1 ? ' ring-over' : '') : ' ring-none');
+    var cls = 'ring ring-' + key + (has ? (frac > OVER_TARGET_RATIO ? ' ring-over' : '') : ' ring-none');
     var fill = has && len > 0
-      ? '<circle class="ring-fill" cx="22" cy="22" r="' + R + '" stroke-dasharray="' + len.toFixed(2) + ' ' + C.toFixed(2) + '" transform="rotate(-90 22 22)"/>'
+      ? '<circle class="ring-fill" cx="22" cy="22" r="' + RING_R + '" stroke-dasharray="' + len.toFixed(2) + ' ' + C.toFixed(2) + '" transform="rotate(-90 22 22)"/>'
       : '';
-    var aria = T.rings[key] + ': ' + (has ? actual + ' ' + format(T.ofTpl, { target: target, unit: T.units[key] }) : T.missing);
+    var aria = T.rings[key] + ': ' + (has ? nf(actual) + ' ' + format(T.ofTpl, { target: target, unit: T.units[key] }) : T.missing);
     return (
       '<figure class="' + cls + '" role="img" aria-label="' + esc(aria) + '">' +
       '<div class="ring-art"><svg viewBox="0 0 44 44" aria-hidden="true">' +
-      '<circle class="ring-track" cx="22" cy="22" r="' + R + '"/>' + fill + '</svg>' +
+      '<circle class="ring-track" cx="22" cy="22" r="' + RING_R + '"/>' + fill + '</svg>' +
       '<span class="ring-pct">' + (has ? pct + '%' : '—') + '</span></div>' +
       '<figcaption><span class="ring-lbl">' + T.rings[key] + '</span>' +
       '<span class="ring-val"><b>' + (has ? nf(actual) : '—') + '</b> ' + format(T.ofTpl, { target: target, unit: T.units[key] }) + '</span></figcaption>' +
@@ -77,9 +78,11 @@
       return;
     }
     var d = dayType(), t = INTAKE.target[d];
+    // today's log is still filling up: say so, so partial rings are not read as a finished day
+    var asOf = L.date === iso(new Date()) ? T.todayLbl : format(T.asOfTpl, { date: fmtD(L.date) });
     host.innerHTML =
       '<div class="intake-card">' +
-      '<div class="intake-head"><h3>' + T.heading + '</h3><span class="intake-asof">' + esc(format(T.asOfTpl, { date: fmtD(L.date) })) + '</span></div>' +
+      '<div class="intake-head"><h3>' + T.heading + '</h3><span class="intake-asof">' + esc(asOf) + '</span></div>' +
       '<div class="intake-target">' + T.targetLbl[d] + '</div>' +
       '<div class="intake-rings">' + ring('k', L.k, t.k) + ring('p', L.p, t.p) + ring('c', L.c, t.c) + ring('g', L.g, t.g) + '</div>' +
       '<p class="intake-note">' + T.noteHtml + '</p>' +
