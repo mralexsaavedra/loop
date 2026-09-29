@@ -842,5 +842,17 @@
   "alcoholKeys": [
     "beer"
   ],
-  "mealReplaceKeys": []
+  "mealReplaceKeys": [],
+  "validation": {
+    "kcalBand": {
+      "train": [
+        2000,
+        2800
+      ],
+      "rest": [
+        1700,
+        2400
+      ]
+    }
+  }
 }
