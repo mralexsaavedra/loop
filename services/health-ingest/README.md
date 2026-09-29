@@ -25,6 +25,7 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 | POST   | `/ingest/health-auto-export`  | bearer | `202` with the stored row id |
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
 | GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]`; `400` on a bad query |
+| GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate}]`; `400` on a bad query |
 
 Bearer token is compared in constant time; it is the entire security boundary
 for the endpoint, because Health Auto Export can only send a static header.
@@ -66,6 +67,28 @@ constant-time bearer check as ingest, and only counts are logged. The repo's
 `npm run sync` (`data/apple-health/sync-shortcut.js`) uses it to merge Shortcut
 samples into the Apple Health extract CSVs (export rows win; Shortcut rows fill
 only dates the export does not cover, tagged `source=Shortcut`).
+
+### Reading Strava activities back: `GET /export/strava`
+
+| Query        | Meaning |
+| ------------ | ------- |
+| `since_id`   | return rows with `id >` this (default `0`) |
+| `limit`      | page size, default 500, max 1000 |
+
+Rows come back oldest first, one per stored `strava_activity`, with only the
+fields the workout sync needs — never the activity `name` or the full stored
+payload. `start_local` is read from the JSON payload (`start_date_local`)
+rather than the `start_local` column, because the upsert in `sync.js` never
+refreshes that column on an edit. Same constant-time bearer check as every
+other endpoint here, and only counts are logged. The repo's
+`data/apple-health/sync-strava.js` uses it to merge Strava activities into the
+Apple Health extract CSVs the same way the Shortcut sync does (export rows
+win; Strava rows fill only dates the export does not cover, tagged
+`source=Strava API`).
+
+If the image predates this endpoint, `GET /export/strava` answers `404` — the
+`health-ingest` container needs a rebuild/restart (`docker compose up -d
+--build health-ingest`) before the Strava sync can run.
 
 ## Strava
 
