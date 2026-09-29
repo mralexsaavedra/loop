@@ -1,16 +1,23 @@
 /* Inicio dial view-model: 270 degree open-arc geometry + value->arc mapping for the Sleep,
  * Recovery and Load dials. Pure presentation glue over values buildScores()/buildHealth() already
- * produce (recovery 7-day trend + band, per-modality trend band/trendPct, the sleep-duration
- * component's newest night, the stated sleep target). No new metric and no percentage score.
- * Baked by components/Bake.astro as DIALS; client/score.js turns it into inline SVG. */
-import { BAND_CUTOFF } from '../../../lib/score/recovery.mjs';
-import { RAMPING_PCT, ABOVE_PCT, EASING_PCT, DETRAINING_PCT } from '../../../lib/score/load.mjs';
+ * produce. TODAY FIRST, the trend as context:
+ *   - Recovery: marker = last night's composite (recovery.today) in MAD units, zones cut at the
+ *     single-day DAY_BAND_CUTOFF; the 7-day trend + its direction ride along as `trend` for the line
+ *     under the dial. With no composite for last night the dial falls back to trend7 (zones at
+ *     BAND_CUTOFF) and says so (mode 'trend').
+ *   - Load: the arc midpoint is the typical training day of the modality and the end twice it. The
+ *     VIEWER's today is picked client-side from `days` (the recent session days, each with its
+ *     pre-computed fill/marker when it has RE), so nothing today-relative is baked: a day with rows
+ *     but no RE reads "no effort data", a day with no rows reads rest (with `last` as context);
+ *     acute/chronic (trendPct/band) stays as context.
+ *   - Sleep: the sleep-duration component's newest night over the stated target.
+ * No new metric and no percentage score. Baked by components/Bake.astro as DIALS;
+ * client/score.js turns it into inline SVG. */
+import { BAND_CUTOFF, DAY_BAND_CUTOFF, Z_CLAMP } from '../../../lib/score/recovery.mjs';
 
 // 120-unit viewBox, 50-unit radius, 10-unit stroke; the arc opens at the bottom.
 export const DIAL = { c: 60, r: 50, stroke: 10, start: 135, sweep: 270 };
-// The recovery trend is already clamped per signal at +-3 MAD; the dial uses the same range.
-const RECOVERY_CLAMP = 3;
-// Load: the arc midpoint is 1.0x (this week = the six-week norm), the end is 2x.
+// Load: the arc midpoint is the typical training day (1x), the end is 2x.
 const LOAD_MAX_RATIO = 2;
 
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -39,20 +46,21 @@ export function arcPath(f0, f1) {
 }
 
 export function recoveryFrac(v) {
-  return isNum(v) ? (clamp(v, -RECOVERY_CLAMP, RECOVERY_CLAMP) + RECOVERY_CLAMP) / (2 * RECOVERY_CLAMP) : null;
+  // the recovery z is clamped per signal at +-Z_CLAMP MAD; the dial uses the same range
+  return isNum(v) ? (clamp(v, -Z_CLAMP, Z_CLAMP) + Z_CLAMP) / (2 * Z_CLAMP) : null;
 }
 
 export function sleepFrac(hours, target) {
   return isNum(hours) && isNum(target) && target > 0 ? clamp(hours / target, 0, 1) : null;
 }
 
-/** acute/chronic, exactly as the baked trendPct states it (the value the band was cut from). */
-export function loadRatio(trend) {
-  return trend && trend.ok && isNum(trend.trendPct) ? r2(1 + trend.trendPct / 100) : null;
+export function loadFrac(dayOverTypical) {
+  return clamp(dayOverTypical / LOAD_MAX_RATIO, 0, 1);
 }
 
-export function loadFrac(ratio) {
-  return clamp(ratio / LOAD_MAX_RATIO, 0, 1);
+/** The day's RE as a fraction of the arc: typical day = midpoint, 2x typical = end. */
+export function loadDayFrac(day, typical) {
+  return isNum(day) && isNum(typical) && typical > 0 ? loadFrac(day / typical) : null;
 }
 
 function zones(edges, bands, toFrac) {
@@ -63,13 +71,20 @@ function zones(edges, bands, toFrac) {
 function recoveryDial(R) {
   if (!R) return { state: 'none' };
   if (R.gated || !isNum(R.trend7)) return { state: 'gated', asOf: R.asOf || null };
-  const f = recoveryFrac(R.trend7);
+  const today = R.today && isNum(R.today.value) ? R.today : null;
+  const value = today ? today.value : R.trend7;
+  const f = recoveryFrac(value);
+  const cut = today ? DAY_BAND_CUTOFF : BAND_CUTOFF;
   return {
     state: 'ok',
+    mode: today ? 'today' : 'trend',
     asOf: R.asOf || null,
-    band: R.band,
-    value: R.trend7,
-    zones: zones([-BAND_CUTOFF, BAND_CUTOFF], ['below', 'at', 'above'], recoveryFrac),
+    date: today ? today.date : null,
+    sleep: today ? today.sleep !== false : null,
+    band: today ? today.band : R.band,
+    value,
+    trend: { value: R.trend7, band: R.band, dir: R.trendDir || null },
+    zones: zones([-cut, cut], ['below', 'at', 'above'], recoveryFrac),
     fill: arcPath(0.5, f),
     marker: polar(fracToAngle(f)),
   };
@@ -87,19 +102,28 @@ function sleepDial(R, H) {
 function loadDial(L) {
   if (!L || !Array.isArray(L.modalities) || !L.modalities.length) return { state: 'none' };
   const modalities = L.modalities.map((m) => {
-    const ratio = loadRatio(m.trend);
-    if (ratio == null) return { key: m.key, state: 'gated', reason: (m.trend && m.trend.reason) || 'baselineBuilding' };
-    const f = loadFrac(ratio);
-    return { key: m.key, state: 'ok', ratio, trendPct: m.trend.trendPct, band: m.trend.band, fill: arcPath(0, f), marker: polar(fracToAngle(f)) };
+    const t = m.trend || {};
+    if (!t.ok || !isNum(t.trendPct)) return { key: m.key, state: 'gated', reason: t.reason || 'baselineBuilding' };
+    const typical = m.typical && isNum(m.typical.value) ? m.typical.value : null;
+    if (typical == null || !(typical > 0)) return { key: m.key, state: 'gated', reason: 'fewDays' };
+    const days = (Array.isArray(m.recent) ? m.recent : []).map((d) => {
+      const re = isNum(d.re) ? d.re : 0;
+      const out = { date: d.date, re, unscored: d.unscored || 0 };
+      if (re > 0) {
+        const f = loadDayFrac(re, typical);
+        out.fill = arcPath(0, f);
+        out.marker = polar(fracToAngle(f));
+      }
+      return out;
+    });
+    return { key: m.key, state: 'ok', typical, trendPct: t.trendPct, band: t.band, days, last: m.last || null };
   });
   const first = modalities.find((m) => m.state === 'ok') || modalities[0];
-  const edges = [DETRAINING_PCT, EASING_PCT, ABOVE_PCT, RAMPING_PCT].map((p) => 1 + p / 100);
   return {
     state: 'ok',
     asOf: L.asOf || null,
     defaultKey: first.key,
     modalities,
-    zones: zones(edges, ['detraining', 'below', 'steady', 'above', 'ramping'], loadFrac),
     mid: polar(fracToAngle(0.5), DIAL.r - DIAL.stroke),
   };
 }

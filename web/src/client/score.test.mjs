@@ -41,14 +41,14 @@ function fixtureScores({ days = 49, shift = 2 } = {}) {
 
 const HEALTH = { recovery: { hasData: true, sleep: { target: 7.5 } } };
 
-function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, dials } = {}) {
+function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, dials, dialsHost } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
   class FakeDate extends RealDate {
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
   const ctx = {
-    document: { getElementById: (id) => (id === 'home' ? host : id === 't-health' && healthNav ? {} : null) },
+    document: { getElementById: (id) => (id === 'home' ? host : id === 'home-dials' && dialsHost ? dialsHost : id === 't-health' && healthNav ? {} : null) },
     SCORES: scores, DIALS: dials, I18N_SCORE: T || (locale === 'es' ? esT : enT), LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite,
   };
   vm.createContext(ctx);
@@ -78,6 +78,18 @@ test('full render: recovery trend with band, per-component rows and 14 raw daili
   assert.match(html, new RegExp(`sc-band-${s.recovery.band}`));
   assert.equal(count(html, 'class="spark"'), 1 + s.load.modalities.length, 'inline SVG sparklines (recovery + one per modality)');
   assert.doesNotMatch(html, /<script|src=|href=/i, 'no scripts or external refs in the rendered markup');
+});
+
+test('recovery card leads with last night (MAD + band), then the 7-day trend; says so when last night is missing', () => {
+  const s = fixtureScores();
+  const html = render(s);
+  const t = s.recovery.today;
+  const line = enT.recovery.todayLbl.replace('{value}', (t.value > 0 ? '+' : '') + t.value.toFixed(1));
+  assert.ok(html.includes(line), line);
+  assert.ok(html.indexOf('sc-today') < html.indexOf('class="sc-val"'), 'last night before the trend');
+  assert.match(html, new RegExp(`sc-today sc-band-${t.band}`));
+  s.recovery.today = null;
+  assert.ok(render(s).includes(enT.recovery.noToday));
 });
 
 test('colour only on the direction arrow: no grade-fill classes on the recovery card', () => {
@@ -216,21 +228,84 @@ test('dials: three dials (sleep, recovery, load) render first, before the recove
   assert.doesNotMatch(html, /<script|src=|href=/i);
 });
 
+test('dials: with a #home-dials host (Home.astro) the dials render there, so the health monitor can sit between them and the cards', () => {
+  const s = fixtureScores();
+  const dialsHost = { innerHTML: '' };
+  const html = render(s, { dials: buildDials(s, HEALTH), dialsHost });
+  assert.match(dialsHost.innerHTML, /class="sc-card sc-dials"/);
+  assert.doesNotMatch(html, /sc-dials/);
+  assert.match(html, /sc-recovery/);
+});
+
 test('dials: absent DIALS global renders the cards exactly as before (no dial card)', () => {
   const html = render(fixtureScores());
   assert.doesNotMatch(html, /sc-dials/);
 });
 
-test('recovery dial: band word in caps class + signed delta in sd, coloured by band, never a percentage', () => {
+test('recovery dial: headline = LAST NIGHT (band word + signed sd, coloured by that band), 7-day trend + direction underneath, never a percentage', () => {
   const s = fixtureScores();
+  assert.ok(s.recovery.today, 'fixture has a composite for the asOf night');
   const d = dialOf(withDials(s), 'dial-rec');
-  assert.match(d, new RegExp(`dial-band-${s.recovery.band}`));
-  assert.ok(d.includes(enT.dials.recovery.bands[s.recovery.band]));
-  const sd = (s.recovery.trend7 > 0 ? '+' : '') + s.recovery.trend7.toFixed(1);
-  assert.ok(d.includes(`${sd} sd`), `expected ${sd} sd`);
+  const t = s.recovery.today;
+  assert.match(d, new RegExp(`dial-band-${t.band}`));
+  assert.ok(d.includes(enT.dials.recovery.bands[t.band]));
+  const sd = (v) => (v > 0 ? '+' : '') + v.toFixed(1);
+  assert.ok(d.includes(`${sd(t.value)} sd`), `expected ${sd(t.value)} sd`);
+  assert.ok(d.includes(enT.dials.recovery.lastNight), 'says it is last night when the data is from today');
+  const trendLine = enT.dials.recovery.trendLine.replace('{dir}', enT.dials.recovery.dirs[s.recovery.trendDir]).replace('{value}', sd(s.recovery.trend7));
+  assert.ok(d.includes(trendLine), `expected "${trendLine}"`);
   assert.doesNotMatch(d, /%/);
   assert.equal(count(d, 'class="dial-zone'), 3, 'below / at / above zones');
   assert.match(d, /class="dial-dot"/);
+});
+
+test('recovery dial: an older night is labelled with its date, not "last night"', () => {
+  const s = fixtureScores();
+  const d = dialOf(withDials(s, { now: addDays(ASOF, 2) }), 'dial-rec');
+  assert.ok(!d.includes(enT.dials.recovery.lastNight));
+  assert.ok(d.includes(ASOF));
+});
+
+test('recovery dial: a composite without a sleep-duration reading is labelled by date + "no sleep data", never "last night"', () => {
+  const s = fixtureScores();
+  s.recovery.today = { ...s.recovery.today, sleep: false };
+  const d = dialOf(withDials(s), 'dial-rec');
+  assert.ok(!d.includes(enT.dials.recovery.lastNight + '<'));
+  assert.ok(d.includes(ASOF));
+  assert.ok(d.includes(enT.dials.recovery.noSleep));
+  const card = render(s);
+  assert.ok(!card.includes('Last night:'), 'the recovery card does not call it last night either');
+  assert.ok(card.includes(enT.recovery.todayNoSleepLbl.split('{')[0]) || card.includes(ASOF));
+});
+
+test('recovery card: an older night is labelled by its date, not "Last night"', () => {
+  const s = fixtureScores();
+  const html = render(s, { now: addDays(ASOF, 1) });
+  assert.ok(!html.includes('Last night:'));
+  assert.ok(html.includes(enT.recovery.todayDateLbl.split(':')[0].replace('{date}', ASOF)));
+});
+
+test('resilience: a throwing dial or card never blanks Inicio (empty-state fallback)', () => {
+  const s = fixtureScores();
+  const dials = buildDials(s, HEALTH);
+  dials.load.modalities = null; // loadDials would throw on .map
+  const html = render(s, { dials });
+  assert.match(html, /sc-recovery/, 'the cards still render');
+  const s2 = fixtureScores();
+  s2.recovery.components = 'broken'; // recoveryHtml would throw on .forEach
+  const html2 = render(s2, { dials: buildDials(fixtureScores(), HEALTH) });
+  assert.match(html2, /sc-dials/, 'the dials still render');
+  assert.match(html2, /sc-load/, 'the load card still renders');
+  assert.match(html2, /sc-card-error/, 'the broken card shows its fallback');
+});
+
+test('recovery dial: no composite for last night -> shows the trend and says there is no data for last night', () => {
+  const s = fixtureScores();
+  s.recovery.today = null;
+  const d = dialOf(withDials(s), 'dial-rec');
+  assert.ok(d.includes(enT.dials.recovery.noLastNight));
+  assert.ok(!d.includes(enT.dials.recovery.lastNight + '<'));
+  assert.match(d, new RegExp(`dial-band-${s.recovery.band}`));
 });
 
 test('recovery dial: gated shows no number and is greyed', () => {
@@ -261,15 +336,72 @@ test('load dial: one visible modality (default = first ungated), switch for all 
     const vis = new RegExp(`<figure class="dial dial-load[^"]*" data-dmod="${m.key}"${m.key === D.defaultKey ? '>' : ' hidden>'}`);
     assert.match(html, vis, m.key);
   }
-  const run = D.modalities.find((m) => m.key === 'run');
-  assert.ok(html.includes(run.ratio.toFixed(2) + '<small>×</small>'), 'ratio shown as N.NN×');
   for (const g of D.modalities.filter((m) => m.state === 'gated')) {
     const i = html.indexOf(`data-dmod="${g.key}"`, html.indexOf('<figure class="dial dial-load'));
     const fig = html.slice(i, html.indexOf('</figure>', i));
-    assert.doesNotMatch(fig, /×/, 'gated: no number');
-    assert.match(html, new RegExp(`dial-cap[^>]*data-dmod="${g.key}"[^>]*>${enT.load.gated.baselineBuilding.slice(0, 20)}`));
+    assert.doesNotMatch(fig, /dial-num/, 'gated: no number');
+    assert.match(html, new RegExp(`dial-cap[^>]*data-dmod="${g.key}"[^>]*>${enT.load.gated[g.reason].slice(0, 20)}`));
   }
-  assert.ok(html.includes(enT.dials.load.scale), '1x = usual scale label');
+  assert.ok(html.includes(enT.dials.load.scale), 'typical-day scale label');
+  assert.doesNotMatch(html, /×/, 'no acute/chronic ratio as the headline any more');
+});
+
+const figOf = (html, key) => {
+  const i = html.indexOf(`data-dmod="${key}"`, html.indexOf('<figure class="dial dial-load'));
+  return html.slice(i, html.indexOf('</figure>', i));
+};
+const capOf = (html, key) => {
+  const m = html.match(new RegExp(`<div class="dial-cap" data-dmod="${key}"[^>]*>([\\s\\S]*?)</div>`));
+  return m ? m[1] : '';
+};
+
+// run sessions around ASOF: a scored day 2 days before, an unscored day 1 day before, a scored ASOF
+function withRecent(s, recent, last) {
+  const run = s.load.modalities.find((m) => m.key === 'run');
+  run.recent = recent;
+  run.last = last;
+  return s;
+}
+const RECENT = [
+  { date: addDays(ASOF, -2), re: 44, unscored: 0 },
+  { date: addDays(ASOF, -1), re: 0, unscored: 2 },
+  { date: ASOF, re: 57, unscored: 0 },
+];
+
+test('load dial: the VIEWER\'s today with a workout -> today\'s RE vs the typical day; acute/chronic stays as context', () => {
+  const s = withRecent(fixtureScores(), RECENT, { date: ASOF, re: 57 });
+  const html = withDials(s);
+  const d = buildDials(s, HEALTH).load.modalities.find((m) => m.key === 'run');
+  assert.equal(d.state, 'ok');
+  const fig = figOf(html, 'run');
+  assert.ok(fig.includes('<b class="dial-num">57</b>'));
+  assert.ok(fig.includes(`d="${d.days[2].fill}"`), 'the baked geometry of that day');
+  const cap = capOf(html, 'run');
+  assert.ok(cap.includes('Today: RE 57'), cap);
+  assert.ok(cap.includes('typical day ~' + Math.round(d.typical)), cap);
+  assert.ok(cap.includes('7-day vs 42-day load: ' + (d.trendPct > 0 ? '+' : '') + d.trendPct + '%'), 'trend context kept');
+});
+
+test('load dial: rows today but no Relative Effort -> "no effort data", never rest', () => {
+  const s = withRecent(fixtureScores(), RECENT, { date: addDays(ASOF, -2), re: 44 });
+  const html = withDials(s, { now: addDays(ASOF, -1) });
+  const fig = figOf(html, 'run');
+  assert.ok(fig.includes(enT.dials.load.noEffort));
+  assert.doesNotMatch(fig, new RegExp(enT.dials.load.rest));
+  assert.doesNotMatch(fig, /dial-num|dial-dot/);
+  assert.ok(capOf(html, 'run').startsWith(enT.dials.load.noEffortLine.split('·')[0].trim()));
+});
+
+test('load dial: no session today -> "No session yet today" with the last session (date + RE) as context', () => {
+  const s = withRecent(fixtureScores(), RECENT, { date: ASOF, re: 57 });
+  const html = withDials(s, { now: addDays(ASOF, 1) });
+  const fig = figOf(html, 'run');
+  assert.ok(fig.includes(enT.dials.load.rest));
+  assert.doesNotMatch(fig, /dial-num|dial-dot/);
+  const cap = capOf(html, 'run');
+  assert.ok(cap.startsWith('No session yet today · last session ' + ASOF + ': RE 57'), cap);
+  const none = withRecent(fixtureScores(), [], null);
+  assert.ok(capOf(withDials(none), 'run').startsWith('No session yet today · typical day'), 'no last session known');
 });
 
 test('dials: stale data greys the dial; fresh data does not', () => {

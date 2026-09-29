@@ -8,6 +8,9 @@
  *
  * Dials (Sleep / Recovery / Load): all geometry comes pre-computed in DIALS (web/src/view/dial.mjs,
  * baked by components/Bake.astro); this file only formats the baked numbers and joins SVG strings.
+ * Today first: recovery = last night's composite with the 7-day trend underneath, load = the day's
+ * RE vs the typical training day with acute/chronic as the caption. The "last night" / "today" /
+ * "yesterday" words are decided here from Date.now(), never baked.
  */
 // Load dial modality switch: shows the chosen modality's dial + caption, hides the others.
 function scMod(key, btn) {
@@ -23,7 +26,8 @@ function scMod(key, btn) {
   if (!host) return;
   var T = I18N_SCORE;
   var S = typeof SCORES === 'undefined' ? null : SCORES;
-  var STALE_DAYS = 3;
+  var STALE_DAYS = 3; // older data is greyed and gets no advice
+  var MS_PER_DAY = 86400000;
   var ES = LOCALE === 'es';
   // score cards open their Salud detail — only when the Salud tab is reachable (not hidden by page.hideTabs)
   var LINK = !!document.getElementById('t-health');
@@ -58,7 +62,7 @@ function scMod(key, btn) {
     var d = new Date(+p[0], +p[1] - 1, +p[2]);
     var n = new Date(Date.now());
     n = new Date(n.getFullYear(), n.getMonth(), n.getDate());
-    return Math.round((n - d) / 86400000);
+    return Math.round((n - d) / MS_PER_DAY);
   }
   function isStale(iso) {
     var d = daysOld(iso);
@@ -118,6 +122,17 @@ function scMod(key, btn) {
     if (R.gated) {
       out.push('<div class="sc-insufficient">' + esc(rt.insufficient) + '</div></div>');
       return out.join('');
+    }
+    if (R.today) {
+      // "Last night" only when that day has a sleep-duration reading; otherwise the date + "no sleep data"
+      // ...and only when it is dated the viewer's today; an older night carries its date
+      var tv = { date: isoDate(R.today.date) || '', value: num(R.today.value, 1, true) };
+      var tl = R.today.sleep === false ? format(rt.todayNoSleepLbl, tv)
+        : daysOld(R.today.date) === 0 ? format(rt.todayLbl, tv)
+        : format(rt.todayDateLbl, tv);
+      out.push('<div class="sc-today sc-band-' + esc(R.today.band) + '">' + esc(tl) + ' · ' + esc(rt.bands[R.today.band]) + '</div>');
+    } else {
+      out.push('<div class="sc-note">' + esc(rt.noToday) + '</div>');
     }
     out.push('<div class="sc-val">' + arrow(R.band) + '<span class="sc-num">' + esc(format(rt.trendLbl, { value: num(R.trend7, 1, true) })) + '</span></div>');
     out.push('<div class="sc-sub sc-band-' + esc(R.band) + '">' + esc(rt.bands[R.band]) +
@@ -221,6 +236,24 @@ function scMod(key, btn) {
       '<b class="dial-num">' + esc(h) + '<small> h</small></b>',
       dt.sleep.label, esc(format(dt.sleep.target, { value: target })));
   }
+  // "Last night" only when the night's data is dated today AND has a sleep reading; else its date
+  function nightLbl(iso, hasSleep, rt) {
+    return daysOld(iso) === 0 && hasSleep ? rt.lastNight : format(T.asOfLbl, { date: isoDate(iso) || '' });
+  }
+  // the viewer's today as an ISO date (local calendar), to pick today's session day client-side
+  function todayIso() {
+    var n = new Date(Date.now());
+    return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
+  }
+  // one modality's state for the viewer's today: 'trained' (RE > 0), 'noEffort' (rows, no RE), 'rest'
+  function loadToday(m) {
+    var t = todayIso();
+    var day = null;
+    (m.days || []).forEach(function (x) { if (x.date === t) day = x; });
+    if (day && day.re > 0) return { kind: 'trained', day: day };
+    if (day && day.unscored > 0) return { kind: 'noEffort', day: day };
+    return { kind: 'rest', day: null };
+  }
   function recDial(d, dt) {
     var rt = dt.recovery;
     if (d.state !== 'ok') {
@@ -229,26 +262,48 @@ function scMod(key, btn) {
     }
     var v = num(d.value, 1, true);
     var zones = d.zones.map(function (z) { return { cls: 'dial-zone-' + z.band, d: z.d }; });
-    return dialFig('dial-rec dial-band-' + esc(d.band), isStale(d.asOf), '', format(rt.aria, { value: v, band: rt.bands[d.band] }),
+    var tr = d.trend || {};
+    var trendTxt = tr.dir && rt.dirs[tr.dir]
+      ? format(rt.trendLine, { dir: rt.dirs[tr.dir], value: num(tr.value, 1, true) })
+      : format(rt.trendLineNoDir, { value: num(tr.value, 1, true) });
+    var today = d.mode === 'today';
+    var when = today ? nightLbl(d.date, d.sleep !== false, rt) : '';
+    var sub = today
+      ? '<span class="dial-when">' + esc(when) + '</span>' + (d.sleep === false ? '<span class="dial-when dial-nodata">' + esc(rt.noSleep) + '</span>' : '') +
+        '<span class="dial-trend">' + esc(trendTxt) + '</span>'
+      : '<span class="dial-when dial-nodata">' + esc(rt.noLastNight) + '</span>';
+    var aria = today
+      ? format(rt.aria, { when: when, value: v, band: rt.bands[d.band] })
+      : format(rt.ariaTrend, { value: v, band: rt.bands[d.band] });
+    return dialFig('dial-rec dial-band-' + esc(d.band), isStale(d.asOf), '', aria,
       dialSvg({ zones: zones, fill: d.fill, dot: d.marker }),
       '<span class="dial-word">' + esc(rt.bands[d.band]) + '</span><b class="dial-num dial-num-sm">' + esc(format(rt.delta, { value: v })) + '</b>',
-      rt.label, esc(rt.sub));
+      rt.label, sub);
   }
   function loadDials(d, dt) {
     var lt = dt.load;
     var stale = isStale(d.asOf);
-    var zones = d.zones.map(function (z) { return { cls: 'dial-lz-' + z.band, d: z.d }; });
     var figs = d.modalities.map(function (m) {
       var hid = m.key === d.defaultKey ? '' : ' hidden';
       var extra = ' data-dmod="' + attr(m.key) + '"' + hid;
       var mod = T.load.modalities[m.key] || m.key;
       if (m.state !== 'ok') {
-        return dialFig('dial-load dial-off', stale, extra, '', dialSvg({ zones: zones, mid: d.mid }), offCentre(lt.gated), lt.label, esc(mod));
+        return dialFig('dial-load dial-off', stale, extra, '', dialSvg({ mid: d.mid }), offCentre(lt.gated), lt.label, esc(mod));
       }
-      var r = num(m.ratio, 2, false);
-      return dialFig('dial-load dial-lband-' + esc(m.band), stale, extra, format(lt.aria, { modality: mod, value: r, band: lt.bands[m.band] }),
-        dialSvg({ zones: zones, fill: m.fill, dot: m.marker, mid: d.mid }),
-        '<b class="dial-num">' + esc(r) + '<small>×</small></b><span class="dial-word">' + esc(lt.bands[m.band]) + '</span>',
+      var typ = num(m.typical, 0, false);
+      var td = loadToday(m);
+      if (td.kind === 'noEffort') {
+        return dialFig('dial-load dial-noeffort', stale, extra, format(lt.ariaNoEffort, { modality: mod, typical: typ }),
+          dialSvg({ mid: d.mid }), offCentre(lt.noEffort), lt.label, esc(mod));
+      }
+      if (td.kind === 'rest') {
+        return dialFig('dial-load dial-rest', stale, extra, format(lt.ariaRest, { modality: mod, typical: typ }),
+          dialSvg({ mid: d.mid }), offCentre(lt.rest), lt.label, esc(mod));
+      }
+      var day = num(td.day.re, 0, false);
+      return dialFig('dial-load', stale, extra, format(lt.aria, { modality: mod, day: day, typical: typ }),
+        dialSvg({ fill: td.day.fill, dot: td.day.marker, mid: d.mid }),
+        '<b class="dial-num">' + esc(day) + '</b><span class="dial-word">' + esc(lt.unit) + '</span>',
         lt.label, esc(mod));
     });
     return figs.join('');
@@ -258,11 +313,22 @@ function scMod(key, btn) {
       return '<button type="button" class="dial-mod" data-dmod="' + attr(m.key) + '" aria-pressed="' + (m.key === d.defaultKey ? 'true' : 'false') +
         '" onclick="scMod(\'' + attr(m.key) + '\',this)">' + esc(T.load.modalities[m.key] || m.key) + '</button>';
     }).join('');
-    // caption per modality: the existing band sentence, or the existing baselineBuilding copy when gated
+    // caption per modality: the day vs its typical day, then the acute/chronic trend as context;
+    // a gated modality keeps its existing copy
+    var lt = dt.load;
     var caps = d.modalities.map(function (m) {
-      var txt = m.state === 'ok'
-        ? format(T.load.trendLbl, { pct: pct(m.trendPct) }) + ' · ' + T.load.bands[m.band]
-        : T.load.gated[m.reason] || T.load.gated.baselineBuilding;
+      var txt;
+      if (m.state === 'ok') {
+        var typ = num(m.typical, 0, false);
+        var td = loadToday(m);
+        var head = td.kind === 'trained' ? format(lt.dayLine, { day: num(td.day.re, 0, false), typical: typ })
+          : td.kind === 'noEffort' ? format(lt.noEffortLine, { typical: typ })
+          : m.last && isoDate(m.last.date) ? format(lt.restLastLine, { date: m.last.date, re: num(m.last.re, 0, false), typical: typ })
+          : format(lt.restLine, { typical: typ });
+        txt = head + ' · ' + format(T.load.trendLbl, { pct: pct(m.trendPct) }) + ' · ' + T.load.bands[m.band];
+      } else {
+        txt = T.load.gated[m.reason] || T.load.gated.baselineBuilding;
+      }
       return '<div class="dial-cap" data-dmod="' + attr(m.key) + '"' + (m.key === d.defaultKey ? '' : ' hidden') + '>' + esc(txt) + '</div>';
     }).join('');
     return '<div class="dial-foot"><div class="dial-switch" role="group" aria-label="' + attr(dt.load.switchLabel) + '">' +
@@ -279,20 +345,33 @@ function scMod(key, btn) {
       '</div>' + (hasLoad ? loadSwitch(D.load, dt) : '') + '</div>';
   }
 
+  // one broken block must never blank Inicio: render it as an empty state instead
+  function safe(fn, arg) {
+    try {
+      return fn(arg);
+    } catch (e) {
+      return '<div class="sc-card sc-card-error">' + esc((T.recovery && T.recovery.cardError) || '') + '</div>';
+    }
+  }
+
   function render() {
     if (!S || !S.hasData) {
       host.innerHTML = '<div class="train-empty">' + esc(T.emptyMsg) + '</div>';
       return;
     }
-    var out = [dialsHtml()];
+    // Home.astro gives the dials their own host above the health monitor; without it they lead #home
+    var dialsHost = document.getElementById('home-dials');
+    var out = [];
+    if (dialsHost) dialsHost.innerHTML = safe(dialsHtml);
+    else out.push(safe(dialsHtml));
     var anyStale = (S.recovery && isStale(S.recovery.asOf)) || (S.load && isStale(S.load.asOf));
-    if (S.recovery) out.push(recoveryHtml(S.recovery));
-    if (S.load) out.push(loadHtml(S.load));
+    if (S.recovery) out.push(safe(recoveryHtml, S.recovery));
+    if (S.load) out.push(safe(loadHtml, S.load));
     // the advice sentence reads as the conclusion of the two cards above it
     if (S.advice && !anyStale && T.advice[S.advice.key]) {
       out.push('<div class="sc-card sc-advice">' + esc(adviceText(S.advice)) + '</div>');
     }
-    out.push(caveatsHtml());
+    out.push(safe(caveatsHtml));
     host.innerHTML = out.join('');
   }
   render();

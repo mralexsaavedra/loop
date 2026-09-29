@@ -33,6 +33,7 @@
 (function () {
   var DATE_LOCALE = LOCALE === 'es' ? 'es-ES' : 'en-GB';
   var T = I18N_HEALTH;
+  var MS_PER_DAY = 86400000;
 
   function esc(s) {
     var d = document.createElement('div');
@@ -53,7 +54,7 @@
   }
   function ago(iso) {
     if (!iso) return '';
-    var d = Math.round((Date.now() - new Date(iso + 'T00:00:00')) / 86400000);
+    var d = Math.round((Date.now() - new Date(iso + 'T00:00:00')) / MS_PER_DAY);
     if (d < 45) return format(T.agoDaysTpl, { d: d });
     var m = Math.round(d / 30);
     if (m < 12) return format(m > 1 ? T.agoMonthsTpl : T.agoMonthTpl, { m: m });
@@ -74,16 +75,34 @@
   }
   function delta(d, unit, goodDir) {
     // goodDir: -1 lower-better, 1 higher-better, 0 neutral
-    if (d == null) return '';
+    if (d == null || !isFinite(d)) return '';
     var dir = d < 0 ? -1 : d > 0 ? 1 : 0, cls = goodDir === 0 || dir === 0 ? 'flat' : dir === goodDir ? 'good' : 'bad';
     return '<span class="dlt ' + cls + '">' + (d > 0 ? '▲ +' : d < 0 ? '▼ ' : '■ ') + nf(Math.round(d * 10) / 10) + (unit || '') + '</span>';
   }
-  function trend(title, valHtml, deltaHtml, sp) {
+  // whole days between an ISO date and the viewer's today (local calendar, from Date.now())
+  function daysOld(iso) {
+    if (!iso) return null;
+    var p = iso.split('-');
+    var n = new Date(Date.now());
+    return Math.round((new Date(n.getFullYear(), n.getMonth(), n.getDate()) - new Date(+p[0], +p[1] - 1, +p[2])) / MS_PER_DAY);
+  }
+  // Today first: the headline is the newest value; `opt.date` tags it with its date (a daily total
+  // dated today reads "today, so far", since it is partial until midnight); `ctxHtml` (30-day mean
+  // and/or Δ) is the context line under it; `opt.id` = an hl-<key> anchor for Inicio's monitor.
+  function trend(title, valHtml, ctxHtml, sp, opt) {
+    opt = opt || {};
     var ax = sp ? '<div class="spark-ax"><span>' + esc(fmtD(sp.from)) + '</span><span>' + esc(fmtD(sp.to)) + '</span></div>' : '';
+    var when = opt.date ? (opt.soFar && daysOld(opt.date) === 0 ? T.soFar : fmtD(opt.date)) : '';
     return (
-      '<div class="mtrend"><div class="mtrend-top"><h4>' + esc(title) + '</h4>' +
-      '<div class="mtrend-val">' + valHtml + (deltaHtml || '') + '</div></div>' + sparkSvg(sp) + ax + '</div>'
+      '<div class="mtrend"' + (opt.id ? ' id="hl-' + opt.id + '"' : '') + '><div class="mtrend-top"><h4>' + esc(title) + '</h4>' +
+      '<div class="mtrend-val">' + valHtml + (when ? '<span class="mtrend-date">' + esc(when) + '</span>' : '') + '</div></div>' +
+      (ctxHtml ? '<div class="mtrend-ctx">' + ctxHtml + '</div>' : '') + sparkSvg(sp) + ax + '</div>'
     );
+  }
+  // context line: "30-day avg X" and the Δ badge, whichever exist
+  function ctx(avgTpl, avg, unit, deltaHtml) {
+    var a = avg != null && isFinite(avg) ? esc(format(avgTpl, { value: nf(avg) + (unit || '') })) : '';
+    return [a, deltaHtml || ''].filter(Boolean).join(' · ');
   }
   function card(num, lbl) {
     return '<div class="dash-card"><div class="dash-num">' + esc(num) + '</div><div class="dash-lbl">' + esc(lbl) + '</div></div>';
@@ -124,6 +143,14 @@
   function render() {
     var host = document.getElementById('health');
     if (!host) return;
+    // one broken trend card must never blank the tab: it is skipped, the rest still render
+    function add(fn) {
+      try {
+        out.push(fn());
+      } catch (e) {
+        /* skip this card */
+      }
+    }
     var B = HEALTH.body || {}, A = HEALTH.activity || {}, E = HEALTH.energy || {}, Run = HEALTH.running || {}, R = HEALTH.recovery || {}, LR = HEALTH.loadRecovery || {}, Cyc = HEALTH.cycling || {}, out = [];
     if (!B.hasData && !A.hasData && !E.hasData && !Run.hasData && !Cyc.hasData && !R.hasData && !LR.hasData) {
       host.innerHTML = '<div class="train-empty">' + T.emptyMsg + '</div>';
@@ -132,10 +159,10 @@
     /* body composition */
     if (B.hasData) {
       out.push(sub('body'));
-      if (B.weight) out.push(trend(T.trend.weight.title, nf(B.weight.latest) + '<small>' + T.trend.weight.unit + '</small>', delta(B.weight.d30, T.trend.weight.deltaUnit, 0), B.weight.spark));
-      if (B.bodyfat) out.push(trend(T.trend.bodyfat.title, nf(B.bodyfat.latest) + '<small>' + T.trend.bodyfat.unit + '</small>', delta(B.bodyfat.delta, T.trend.bodyfat.deltaUnit, -1), B.bodyfat.spark));
-      if (B.lean) out.push(trend(T.trend.lean.title, nf(B.lean.latest) + '<small>' + T.trend.lean.unit + '</small>', delta(B.lean.delta, T.trend.lean.deltaUnit, 1), B.lean.spark));
-      if (B.waist) out.push(trend(format(T.waist.titleTpl, { date: fmtD(B.waist.latestDate) }), nf(B.waist.latest) + '<small>' + T.waist.unit + '</small>', delta(B.waist.delta, T.waist.deltaUnit, -1), B.waist.spark));
+      if (B.weight) add(function () { return trend(T.trend.weight.title, nf(B.weight.latest) + '<small>' + T.trend.weight.unit + '</small>', delta(B.weight.d30, T.trend.weight.deltaUnit, 0), B.weight.spark, { date: B.weight.latestDate }); });
+      if (B.bodyfat) add(function () { return trend(T.trend.bodyfat.title, nf(B.bodyfat.latest) + '<small>' + T.trend.bodyfat.unit + '</small>', delta(B.bodyfat.delta, T.trend.bodyfat.deltaUnit, -1), B.bodyfat.spark, { date: B.bodyfat.latestDate }); });
+      if (B.lean) add(function () { return trend(T.trend.lean.title, nf(B.lean.latest) + '<small>' + T.trend.lean.unit + '</small>', delta(B.lean.delta, T.trend.lean.deltaUnit, 1), B.lean.spark, { date: B.lean.latestDate }); });
+      if (B.waist) add(function () { return trend(format(T.waist.titleTpl, { date: fmtD(B.waist.latestDate) }), nf(B.waist.latest) + '<small>' + T.waist.unit + '</small>', delta(B.waist.delta, T.waist.deltaUnit, -1), B.waist.spark); });
       var wsrc = B.weight ? B.weight.source : '', bsrc = B.bodyfat ? B.bodyfat.source : '';
       var sourcesClause = B.weight ? format(T.bodyNote.sourcesClause, { n: B.weight.sources }) : '';
       var wsrcClause = wsrc ? format(T.bodyNote.sourceClause, { src: esc(wsrc) }) : '';
@@ -146,16 +173,17 @@
     /* activity / NEAT */
     if (A.hasData) {
       out.push(sub('activity'));
-      if (A.steps) out.push(trend(T.trend.steps.title, nf(A.steps.avg30) + '<small>' + T.trend.steps.unit + '</small>', delta(A.steps.d30, T.trend.steps.deltaUnit, 1), A.steps.spark));
-      if (A.exercise) out.push(trend(T.trend.exercise.title, nf(A.exercise.avg30) + '<small>' + T.trend.exercise.unit + '</small>', delta(A.exercise.d30, T.trend.exercise.deltaUnit, 1), A.exercise.spark));
-      if (A.distance) out.push(trend(T.trend.distance.title, nf(A.distance.avg30) + '<small>' + T.trend.distance.unit + '</small>', delta(A.distance.d30, T.trend.distance.deltaUnit, 1), A.distance.spark));
-      if (A.flights) out.push(trend(T.trend.flights.title, nf(A.flights.avg30) + '<small>' + T.trend.flights.unit + '</small>', delta(A.flights.d30, T.trend.flights.deltaUnit, 1), A.flights.spark));
+      ['steps', 'exercise', 'distance', 'flights'].forEach(function (k) {
+        var a = A[k], tt = T.trend[k];
+        if (!a) return;
+        add(function () { return trend(tt.title, nf(a.latest) + '<small>' + tt.unit + '</small>', ctx(T.avg30Tpl, a.avg30, tt.avgUnit, delta(a.d30, tt.deltaUnit, 1)), a.spark, { date: a.latestDate, soFar: true }); });
+      });
       out.push(note(T.activityNoteHtml));
     }
     /* energy */
     if (E.hasData) {
       out.push(sub('energy'));
-      if (E.tdeeAvg != null) out.push(trend(T.trend.expenditure.title, nf(E.tdeeAvg) + '<small>' + T.trend.expenditure.unit + '</small>', '', E.spark));
+      if (E.tdeeLatest != null) add(function () { return trend(T.trend.expenditure.title, nf(E.tdeeLatest) + '<small>' + T.trend.expenditure.unit + '</small>', ctx(T.avg30Tpl, E.tdeeAvg, T.trend.expenditure.avgUnit, ''), E.spark, { date: E.tdeeLatestDate, soFar: true }); });
       if (E.balance) {
         var b = E.balance;
         out.push(
@@ -199,14 +227,15 @@
     /* recovery */
     if (R.hasData) {
       out.push(sub('recovery'));
-      if (R.rhr) out.push(trend(T.trend.rhr.title, R.rhr.latest + '<small>' + T.trend.rhr.unit + '</small>', delta(R.rhr.d30, T.trend.rhr.deltaUnit, -1), R.rhr.spark));
-      if (R.hrv) out.push(trend(T.trend.hrv.title, R.hrv.latest + '<small>' + T.trend.hrv.unit + '</small>', delta(R.hrv.d30, T.trend.hrv.deltaUnit, 1), R.hrv.spark));
-      if (R.vo2max) out.push(trend(T.trend.vo2max.title, nf(R.vo2max.latest) + '<small>' + T.trend.vo2max.unit + '</small>', delta(Math.round((R.vo2max.latest - R.vo2max.first) * 10) / 10, '', 1), R.vo2max.spark));
-      if (R.walkingHr) out.push(trend(T.trend.walkingHr.title, R.walkingHr.latest + '<small>' + T.trend.walkingHr.unit + '</small>', delta(R.walkingHr.d30, T.trend.walkingHr.deltaUnit, -1), R.walkingHr.spark));
-      if (R.respiratory) out.push(trend(T.trend.respiratory.title, nf(R.respiratory.latest) + '<small>' + T.trend.respiratory.unit + '</small>', delta(R.respiratory.d30, '', 0), R.respiratory.spark));
-      if (R.wristTemp) out.push(trend(T.trend.wristTemp.title, nf(R.wristTemp.latest) + '<small>' + T.trend.wristTemp.unit + '</small>', '', R.wristTemp.spark));
+      var TR = T.trend;
+      if (R.rhr) add(function () { return trend(TR.rhr.title, R.rhr.latest + '<small>' + TR.rhr.unit + '</small>', ctx(T.avg30Tpl, R.rhr.avg30, ' ' + TR.rhr.unit, delta(R.rhr.d30, TR.rhr.deltaUnit, -1)), R.rhr.spark, { date: R.rhr.latestDate, id: 'rhr' }); });
+      if (R.hrv) add(function () { return trend(TR.hrv.title, R.hrv.latest + '<small>' + TR.hrv.unit + '</small>', ctx(T.avg30Tpl, R.hrv.avg30, ' ' + TR.hrv.unit, delta(R.hrv.d30, TR.hrv.deltaUnit, 1)), R.hrv.spark, { date: R.hrv.latestDate, id: 'hrv' }); });
+      if (R.vo2max) add(function () { return trend(TR.vo2max.title, nf(R.vo2max.latest) + '<small>' + TR.vo2max.unit + '</small>', delta(Math.round((R.vo2max.latest - R.vo2max.first) * 10) / 10, '', 1), R.vo2max.spark, { date: R.vo2max.latestDate }); });
+      if (R.walkingHr) add(function () { return trend(TR.walkingHr.title, R.walkingHr.latest + '<small>' + TR.walkingHr.unit + '</small>', ctx(T.avg30Tpl, R.walkingHr.avg30, ' ' + TR.walkingHr.unit, delta(R.walkingHr.d30, TR.walkingHr.deltaUnit, -1)), R.walkingHr.spark, { date: R.walkingHr.latestDate }); });
+      if (R.respiratory) add(function () { return trend(TR.respiratory.title, nf(R.respiratory.latest) + '<small>' + TR.respiratory.unit + '</small>', ctx(T.avg30Tpl, R.respiratory.avg30, ' ' + TR.respiratory.unit, delta(R.respiratory.d30, '', 0)), R.respiratory.spark, { date: R.respiratory.latestDate, id: 'respiratory' }); });
+      if (R.wristTemp) add(function () { return trend(TR.wristTemp.title, nf(R.wristTemp.latest) + '<small>' + TR.wristTemp.unit + '</small>', ctx(T.avg30Tpl, R.wristTemp.avg30, ' ' + TR.wristTemp.unit, ''), R.wristTemp.spark, { date: R.wristTemp.latestDate, id: 'wristTemp' }); });
       if (R.sleep) {
-        out.push(trend(T.trend.sleep.title, nf(R.sleep.avg) + '<small>' + T.trend.sleep.unit + '</small>', '', R.sleep.spark));
+        add(function () { return trend(TR.sleep.title, nf(R.sleep.latest) + '<small>' + TR.sleep.unit + '</small>', ctx(T.avgNightsTpl, R.sleep.avg, ' ' + TR.sleep.unit, ''), R.sleep.spark, { date: R.sleep.latestDate, id: 'sleep' }); });
         var sl = R.sleep, c2 = [];
         if (sl.pctTarget != null) c2.push(card(sl.pctTarget + '%', format(T.sleepCards.nightsTargetLbl, { target: nf(sl.target) })));
         if (sl.sd != null) c2.push(card('±' + nf(sl.sd) + ' h', T.sleepCards.sdLbl));
