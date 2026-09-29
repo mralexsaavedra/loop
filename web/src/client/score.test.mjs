@@ -41,14 +41,14 @@ function fixtureScores({ days = 49, shift = 2 } = {}) {
 
 const HEALTH = { recovery: { hasData: true, sleep: { target: 7.5 } } };
 
-function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, dials } = {}) {
+function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, dials, dialsHost } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
   class FakeDate extends RealDate {
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
   const ctx = {
-    document: { getElementById: (id) => (id === 'home' ? host : id === 't-health' && healthNav ? {} : null) },
+    document: { getElementById: (id) => (id === 'home' ? host : id === 'home-dials' && dialsHost ? dialsHost : id === 't-health' && healthNav ? {} : null) },
     SCORES: scores, DIALS: dials, I18N_SCORE: T || (locale === 'es' ? esT : enT), LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite,
   };
   vm.createContext(ctx);
@@ -226,6 +226,15 @@ test('dials: three dials (sleep, recovery, load) render first, before the recove
   assert.ok(html.indexOf('sc-dials') < html.indexOf('sc-recovery'));
   assert.equal(count(html, 'class="dial-svg"'), 2 + s.load.modalities.length, 'one svg per dial, one per load modality');
   assert.doesNotMatch(html, /<script|src=|href=/i);
+});
+
+test('dials: with a #home-dials host (Home.astro) the dials render there, so the health monitor can sit between them and the cards', () => {
+  const s = fixtureScores();
+  const dialsHost = { innerHTML: '' };
+  const html = render(s, { dials: buildDials(s, HEALTH), dialsHost });
+  assert.match(dialsHost.innerHTML, /class="sc-card sc-dials"/);
+  assert.doesNotMatch(html, /sc-dials/);
+  assert.match(html, /sc-recovery/);
 });
 
 test('dials: absent DIALS global renders the cards exactly as before (no dial card)', () => {
