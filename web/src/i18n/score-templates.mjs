@@ -67,6 +67,8 @@ export const en = {
       noSleep: 'No sleep data for this night',
       aria: 'Recovery {when}: {value} sd vs baseline, {band}',
       ariaTrend: 'No data for last night. Recovery 7-day trend {value} sd vs baseline: {band}',
+      // shown under the dials only when Salud (the recovery detail + caveats) is hidden
+      caveatLine: 'Recovery = HRV (daytime SDNN, not a nocturnal reading), resting HR and sleep vs your own 42-day baseline. Descriptive, not medical advice.',
     },
     load: {
       label: 'Load',
@@ -83,6 +85,8 @@ export const en = {
       aria: '{modality} today: Relative Effort {day}, typical training day {typical}',
       ariaNoEffort: '{modality} today: session without Relative Effort data, typical training day {typical}',
       ariaRest: '{modality}: no session yet today, typical training day {typical}',
+      // shown under the dials only when Entreno's load detail (with the full caveats) is hidden
+      caveatLine: 'Load = Relative Effort, which is HR-derived (it credits the metcon more than heavy sets); modalities are not comparable; there is no comparable load before Relative Effort tracking started; same-day rows are summed.',
     },
   },
   monitor: {
@@ -185,6 +189,8 @@ export const es = {
       noSleep: 'Sin datos de sueño esa noche',
       aria: 'Recuperación {when}: {value} sd frente a la base, {band}',
       ariaTrend: 'Sin datos de anoche. Tendencia de recuperación de 7 días {value} sd frente a la base: {band}',
+      // solo bajo los diales cuando Salud (el detalle de recuperación y sus advertencias) está oculta
+      caveatLine: 'Recuperación = VFC (SDNN diurna, no una lectura nocturna), FC en reposo y sueño frente a tu propia base de 42 días. Descriptivo, no es consejo médico.',
     },
     load: {
       label: 'Carga',
@@ -201,6 +207,8 @@ export const es = {
       aria: '{modality} hoy: Esfuerzo Relativo {day}, día típico de entreno {typical}',
       ariaNoEffort: '{modality} hoy: sesión sin dato de Esfuerzo Relativo, día típico de entreno {typical}',
       ariaRest: '{modality}: sin sesión hoy (aún), día típico de entreno {typical}',
+      // solo bajo los diales cuando el detalle de carga de Entreno (con todas las advertencias) está oculto
+      caveatLine: 'Carga = Esfuerzo Relativo, que se deriva de la FC (reconoce más el metcon que las series pesadas); las modalidades no son comparables; no hay carga comparable antes de que empezara el seguimiento del Esfuerzo Relativo; las filas del mismo día se suman.',
     },
   },
   monitor: {

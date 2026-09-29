@@ -498,7 +498,11 @@ is the newest day, and the trend is the line under it.
   as the context under last night's headline.
 - Caveats shown on the page: RE is HR-derived (credits the metcon more than heavy sets), modalities are
   not comparable, "gym" is the Watch auto-label, no comparable load before the RE epoch, same-day rows
-  are summed (a real two-a-day is indistinguishable), HRV is daytime SDNN, not medical advice.
+  are summed (a real two-a-day is indistinguishable), HRV is daytime SDNN, not medical advice. They
+  live with each dial's detail (the caveats card in Entreno's `load` section; the recovery card in
+  Salud) and must stay reachable wherever the dial is shown: when `page.hideTabs` hides Entreno (or
+  its `load` section), score.js writes a compact load caveat line under the dials on Inicio
+  (`dials.load.caveatLine`); when it hides Salud, a compact recovery line (`dials.recovery.caveatLine`).
 - **One same-day merge rule** (`lib/training/sessions.mjs` `mergeSameDay(rows, keyFn, { dropJunk })`),
   used by EVERY workouts.csv reader: the load series, the timeline, the Entreno calendar/cumulative
   time and the running/cycling tables (the key is the reader's modality bucket). Per (date, key):
