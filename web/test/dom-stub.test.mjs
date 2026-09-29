@@ -7,9 +7,10 @@
  * `&`/`<`/`>` are escaped, quotes are NOT (real browsers only escape quotes
  * when serializing an ATTRIBUTE, not a text node) — see
  * web/src/client/training-today.js. Also covers that innerHTML/textContent
- * stay independently overridable (web/test/parity.test.mjs's
- * runBuiltScripts() redefines <select>.innerHTML with Object.defineProperty
- * and must keep working). */
+ * stay independently overridable — used by the now-retired parity.test.mjs
+ * and by web/src/client/nutrition.test.mjs's `<select>` stub, both of which
+ * redefine element properties with Object.defineProperty and need that to
+ * keep working. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { StubDocument, StubElement } from './dom-stub.mjs';
@@ -26,6 +27,15 @@ test('createElement + textContent does NOT escape quotes (real textContent->inne
   const el = doc.createElement('div');
   el.textContent = 'a "quoted" value';
   assert.equal(el.innerHTML, 'a "quoted" value');
+});
+
+test('registerCustom makes a caller-supplied node findable via getElementById and querySelectorAll', () => {
+  const doc = new StubDocument();
+  const node = { tag: 'select', classes: new Set(), attrs: { id: 'my-select' } };
+  const registered = doc.registerCustom('my-select', node);
+  assert.equal(registered, node, 'returns the same node it was given');
+  assert.equal(doc.getElementById('my-select'), node);
+  assert.deepEqual(doc.querySelectorAll('select'), [node]);
 });
 
 test('textContent getter returns the raw (unescaped) value that was set', () => {

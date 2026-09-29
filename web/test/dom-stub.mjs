@@ -143,4 +143,14 @@ export class StubDocument {
   createElement(tag) {
     return new StubElement(tag);
   }
+  /** Registers a caller-supplied node object (not a StubElement) so
+   * getElementById/querySelectorAll can find it — for tests that need DOM
+   * surface StubElement doesn't implement (e.g. `<select>`'s `.options`/
+   * `.selectedIndex`), without changing StubElement's shape for every
+   * other test that doesn't need it. */
+  registerCustom(id, node) {
+    this._byId.set(id, node);
+    this.all.push(node);
+    return node;
+  }
 }
