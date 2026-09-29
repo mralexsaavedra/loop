@@ -114,6 +114,7 @@ test('lists strava activities with a parameterized, id-ordered query exposing on
   assert.match(pool.calls[0].sql, /payload->'moving_time'/)
   assert.match(pool.calls[0].sql, /payload->'suffer_score' AS suffer_score/)
   assert.match(pool.calls[0].sql, /payload->'kilojoules' AS kilojoules/)
+  assert.match(pool.calls[0].sql, /payload->'total_elevation_gain' AS total_elevation_gain/)
   assert.doesNotMatch(pool.calls[0].sql, /\bname\b/)
   assert.doesNotMatch(pool.calls[0].sql, /SELECT \*/)
 })
@@ -160,4 +161,14 @@ test('strava export passes suffer_score/kilojoules through, and null when the ac
   assert.equal(rows[0].kilojoules, null)
   assert.equal(rows[1].suffer_score, null)
   assert.equal(rows[1].kilojoules, 640.5)
+})
+
+test('strava export passes total_elevation_gain through (metres), null when the activity has none', async () => {
+  const pool = fakePool([
+    { id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 3600, total_elevation_gain: 412.4 },
+    { id: '2', start_local: '2026-08-21T07:00:00', sport_type: 'VirtualRide', moving_time: 3600, total_elevation_gain: null }
+  ])
+  const rows = await listStravaActivities(pool, { sinceId: '0', limit: 5 })
+  assert.equal(rows[0].total_elevation_gain, 412.4)
+  assert.equal(rows[1].total_elevation_gain, null)
 })

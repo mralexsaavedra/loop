@@ -257,7 +257,7 @@ rl.on('close', () => {
       'waist.csv = WaistCircumference in cm (sparse, manual measurements, one row per sample).',
       'leanmass & wristTemp are sparse, source-tagged (leanmass mixes scales like weight; wrist temp is sleeping-watch only).',
       'workouts now carry hr_avg/hr_min/hr_max (bpm) and energy_kcal pulled from child <WorkoutStatistics> (per-workout intensity; HR coverage starts when a watch was first worn).',
-      'workouts.csv has 11 columns; relative_effort and kilojoules are filled only by Strava rows (npm run sync:strava) and stay empty on export rows. Re-run this script after the first sync:strava to re-emit every row at 11 columns.',
+      'workouts.csv has 12 columns; relative_effort, kilojoules and elevation_m are filled only by Strava rows (npm run sync:strava) and stay empty on export rows. Readers tolerate shorter rows from older runs.',
       'Regenerate after dropping a new export: node data/apple-health/extract.js',
     ],
   };

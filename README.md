@@ -38,7 +38,7 @@ instead of generic advice with no data behind it.
    - Apple Health: iPhone → Health app → your photo → *Export All Health Data*.
      Unzip and place `export.xml` in `data/apple-health/`. Claude caches it into small
      per-metric CSVs via `node data/apple-health/extract.js` (re-run when you drop a new export).
-     After `npm run generate`, the plan page opens on a 🏠 **Home** tab (a 7-day recovery trend in MAD units and per-modality load from Strava Relative Effort; both need the Apple Health extract / Strava sync and show an empty state without them; `workouts.csv` now has 11 columns, see CLAUDE.md for the rollout) and gains a 💗 **Health** tab with five sections built
+     After `npm run generate`, the plan page opens on a 🏠 **Home** tab (a 7-day recovery trend in MAD units and per-modality load from Strava Relative Effort; both need the Apple Health extract / Strava sync and show an empty state without them; `workouts.csv` has 12 columns, see CLAUDE.md for the rollout) and gains a 💗 **Health** tab with five sections built
      straight from this export — body composition (weight, body fat, lean mass), activity (steps/
      NEAT, exercise minutes, distance, flights), energy expenditure + macro split, running
      performance (recent sessions: pace, power, form), and recovery (resting & walking HR, HRV,
