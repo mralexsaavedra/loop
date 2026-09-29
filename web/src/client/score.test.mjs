@@ -266,6 +266,32 @@ test('recovery dial: an older night is labelled with its date, not "last night"'
   assert.ok(d.includes(ASOF));
 });
 
+test('recovery dial: a composite without a sleep-duration reading is labelled by date + "no sleep data", never "last night"', () => {
+  const s = fixtureScores();
+  s.recovery.today = { ...s.recovery.today, sleep: false };
+  const d = dialOf(withDials(s), 'dial-rec');
+  assert.ok(!d.includes(enT.dials.recovery.lastNight + '<'));
+  assert.ok(d.includes(ASOF));
+  assert.ok(d.includes(enT.dials.recovery.noSleep));
+  const card = render(s);
+  assert.ok(!card.includes('Last night:'), 'the recovery card does not call it last night either');
+  assert.ok(card.includes(enT.recovery.todayNoSleepLbl.split('{')[0]) || card.includes(ASOF));
+});
+
+test('resilience: a throwing dial or card never blanks Inicio (empty-state fallback)', () => {
+  const s = fixtureScores();
+  const dials = buildDials(s, HEALTH);
+  dials.load.modalities = null; // loadDials would throw on .map
+  const html = render(s, { dials });
+  assert.match(html, /sc-recovery/, 'the cards still render');
+  const s2 = fixtureScores();
+  s2.recovery.components = 'broken'; // recoveryHtml would throw on .forEach
+  const html2 = render(s2, { dials: buildDials(fixtureScores(), HEALTH) });
+  assert.match(html2, /sc-dials/, 'the dials still render');
+  assert.match(html2, /sc-load/, 'the load card still renders');
+  assert.match(html2, /sc-card-error/, 'the broken card shows its fallback');
+});
+
 test('recovery dial: no composite for last night -> shows the trend and says there is no data for last night', () => {
   const s = fixtureScores();
   s.recovery.today = null;
@@ -322,30 +348,53 @@ const capOf = (html, key) => {
   return m ? m[1] : '';
 };
 
-test('load dial: headline = the day RE vs the typical training day; acute/chronic moves to the context line', () => {
-  const s = fixtureScores();
+// run sessions around ASOF: a scored day 2 days before, an unscored day 1 day before, a scored ASOF
+function withRecent(s, recent, last) {
   const run = s.load.modalities.find((m) => m.key === 'run');
-  run.load = 57; // a training day on asOf
+  run.recent = recent;
+  run.last = last;
+  return s;
+}
+const RECENT = [
+  { date: addDays(ASOF, -2), re: 44, unscored: 0 },
+  { date: addDays(ASOF, -1), re: 0, unscored: 2 },
+  { date: ASOF, re: 57, unscored: 0 },
+];
+
+test('load dial: the VIEWER\'s today with a workout -> today\'s RE vs the typical day; acute/chronic stays as context', () => {
+  const s = withRecent(fixtureScores(), RECENT, { date: ASOF, re: 57 });
   const html = withDials(s);
   const d = buildDials(s, HEALTH).load.modalities.find((m) => m.key === 'run');
   assert.equal(d.state, 'ok');
-  assert.ok(figOf(html, 'run').includes('<b class="dial-num">57</b>'));
+  const fig = figOf(html, 'run');
+  assert.ok(fig.includes('<b class="dial-num">57</b>'));
+  assert.ok(fig.includes(`d="${d.days[2].fill}"`), 'the baked geometry of that day');
   const cap = capOf(html, 'run');
   assert.ok(cap.includes('Today: RE 57'), cap);
   assert.ok(cap.includes('typical day ~' + Math.round(d.typical)), cap);
   assert.ok(cap.includes('7-day vs 42-day load: ' + (d.trendPct > 0 ? '+' : '') + d.trendPct + '%'), 'trend context kept');
 });
 
-test('load dial: a 0 RE day reads as rest (no number, no marker); older asOf is labelled yesterday / by date', () => {
-  const s = fixtureScores();
-  s.load.modalities.find((m) => m.key === 'run').load = 0;
-  const html = withDials(s);
+test('load dial: rows today but no Relative Effort -> "no effort data", never rest', () => {
+  const s = withRecent(fixtureScores(), RECENT, { date: addDays(ASOF, -2), re: 44 });
+  const html = withDials(s, { now: addDays(ASOF, -1) });
+  const fig = figOf(html, 'run');
+  assert.ok(fig.includes(enT.dials.load.noEffort));
+  assert.doesNotMatch(fig, new RegExp(enT.dials.load.rest));
+  assert.doesNotMatch(fig, /dial-num|dial-dot/);
+  assert.ok(capOf(html, 'run').startsWith(enT.dials.load.noEffortLine.split('·')[0].trim()));
+});
+
+test('load dial: no session today -> "Rest today" with the last session (date + RE) as context', () => {
+  const s = withRecent(fixtureScores(), RECENT, { date: ASOF, re: 57 });
+  const html = withDials(s, { now: addDays(ASOF, 1) });
   const fig = figOf(html, 'run');
   assert.ok(fig.includes(enT.dials.load.rest));
   assert.doesNotMatch(fig, /dial-num|dial-dot/);
-  assert.ok(capOf(html, 'run').startsWith('Today: rest'));
-  assert.ok(capOf(withDials(s, { now: addDays(ASOF, 1) }), 'run').startsWith('Yesterday: rest'));
-  assert.ok(capOf(withDials(s, { now: addDays(ASOF, 2) }), 'run').startsWith(ASOF + ': rest'));
+  const cap = capOf(html, 'run');
+  assert.ok(cap.startsWith('Rest today · last session ' + ASOF + ': RE 57'), cap);
+  const none = withRecent(fixtureScores(), [], null);
+  assert.ok(capOf(withDials(none), 'run').startsWith('Rest today · typical day'), 'no last session known');
 });
 
 test('dials: stale data greys the dial; fresh data does not', () => {
