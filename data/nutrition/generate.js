@@ -27,7 +27,34 @@ const ingFile = JSON.parse(fs.readFileSync(ingPath, 'utf8'));
 if (!ingFile.ingredients || typeof ingFile.ingredients !== 'object') {
   throw new Error('ingredients.json must contain a top-level "ingredients" object.');
 }
-const plan = JSON.parse(fs.readFileSync(path.join(DIR, 'plan-data.json'), 'utf8'));
+
+// The personal plan-data.json is gitignored — a fresh clone with no bootstrap
+// step run has only the tracked plan-data.example.json. Rather than crash
+// module load (which used to take down every test in generate.test.js, not
+// just the personal-data-dependent ones), fall back to the example seed with
+// a clear, loud warning. `npm run generate`/`check` on such a clone then
+// validates + regenerates plan-tables.md from the PUBLIC example plan
+// instead of failing outright — matching build-web.mjs's own DATA_MODE
+// fallback story (lib/load/inputs.mjs), just without an explicit flag here
+// since this script has always been personal-plan-only by convention.
+const PLAN_PATH = fs.existsSync(path.join(DIR, 'plan-data.json'))
+  ? path.join(DIR, 'plan-data.json')
+  : path.join(DIR, 'plan-data.example.json');
+const usedExampleFallback = PLAN_PATH.endsWith('plan-data.example.json');
+if (usedExampleFallback) {
+  if (!fs.existsSync(PLAN_PATH)) {
+    throw new Error(
+      'Neither plan-data.json nor plan-data.example.json found in ' + DIR +
+      ' — plan-data.example.json ships tracked in every clone; do not delete it.',
+    );
+  }
+  console.warn(
+    'generate.js: personal plan-data.json not found — falling back to plan-data.example.json ' +
+    '(fresh-clone default). This validates/regenerates the PUBLIC example plan-tables.md, not ' +
+    'your personal plan. Copy plan-data.example.json -> plan-data.json to use your own plan.',
+  );
+}
+const plan = JSON.parse(fs.readFileSync(PLAN_PATH, 'utf8'));
 // The existence checks above MUST run before this require — a test copies only this
 // file (no lib/) into a temp dir to assert the "ingredients.json not found" error; if
 // this require ran first, a missing-lib require would mask that error.
@@ -201,4 +228,4 @@ if (require.main === module) {
   else main();
 }
 
-module.exports = { ING, D, EX, MACRO, resolve, macro, mealMacros, buildTables, validate, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE, dayTotalK, targetFor };
+module.exports = { ING, D, EX, MACRO, resolve, macro, mealMacros, buildTables, validate, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE, dayTotalK, targetFor, PLAN_PATH, usedExampleFallback };

@@ -7,7 +7,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const os = require('node:os');
 const gen = require('./generate.js');
 
@@ -28,7 +28,7 @@ test('validate() passes on the merged ingredients.json + plan-data.json', () => 
 });
 
 test('the food DB lives in ingredients.json, not plan-data.json', () => {
-  const planRaw = JSON.parse(fs.readFileSync(path.join(__dirname, 'plan-data.json'), 'utf8'));
+  const planRaw = JSON.parse(fs.readFileSync(gen.PLAN_PATH, 'utf8'));
   assert.ok(!('ingredients' in planRaw), 'plan-data.json must NOT carry an ingredients block (it ships in ingredients.json)');
   const ingRaw = JSON.parse(fs.readFileSync(path.join(__dirname, 'ingredients.json'), 'utf8'));
   assert.ok(ingRaw.ingredients && typeof ingRaw.ingredients === 'object', 'ingredients.json must have a top-level ingredients object');
@@ -40,13 +40,39 @@ test('generate.js fails clearly when ingredients.json is missing', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-no-ing-'));
   try {
     fs.copyFileSync(path.join(__dirname, 'generate.js'), path.join(dir, 'generate.js'));
-    fs.copyFileSync(path.join(__dirname, 'plan-data.json'), path.join(dir, 'plan-data.json'));
+    fs.copyFileSync(gen.PLAN_PATH, path.join(dir, 'plan-data.json'));
     assert.throws(
       () => execFileSync(process.execPath, ['generate.js', '--check'], { cwd: dir, stdio: 'pipe' }),
       /ingredients\.json not found/,
     );
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('generate.js falls back to plan-data.example.json (with a clear warning) when the personal plan-data.json is absent — fresh clone with no seeds copied', () => {
+  // Mirrors repo structure (data/nutrition/generate.js + ../../lib/nutrition/macros.mjs)
+  // so generate.js's own require() resolves, WITHOUT ever copying the real
+  // (possibly personal) plan-data.json — only ingredients.json + the tracked
+  // .example seed, exactly like a fresh `git clone` with no bootstrap step run.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-no-personal-'));
+  try {
+    const nutDir = path.join(root, 'data', 'nutrition');
+    fs.mkdirSync(nutDir, { recursive: true });
+    fs.mkdirSync(path.join(root, 'lib', 'nutrition'), { recursive: true });
+    fs.copyFileSync(path.join(__dirname, 'generate.js'), path.join(nutDir, 'generate.js'));
+    fs.copyFileSync(path.join(__dirname, 'ingredients.json'), path.join(nutDir, 'ingredients.json'));
+    fs.copyFileSync(path.join(__dirname, 'plan-data.example.json'), path.join(nutDir, 'plan-data.example.json'));
+    fs.copyFileSync(
+      path.join(__dirname, '..', '..', 'lib', 'nutrition', 'macros.mjs'),
+      path.join(root, 'lib', 'nutrition', 'macros.mjs'),
+    );
+    const res = spawnSync(process.execPath, ['generate.js', '--check'], { cwd: nutDir, encoding: 'utf8' });
+    assert.equal(res.status, 0, `expected success, got status=${res.status}, stderr=${res.stderr}`);
+    assert.match(res.stderr, /plan-data\.example\.json/, 'must say clearly it is validating the example seed, not silently succeed');
+    assert.match(res.stdout, /Validation OK/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
