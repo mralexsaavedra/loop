@@ -442,7 +442,7 @@ is the newest day, and the trend is the line under it.
   first ungated modality) for the VIEWER's today, picked client-side from the baked `recent` days (each
   with its pre-computed arc): a session with RE → centre = today's RE, position = RE / typical day (arc
   midpoint = the typical training day, end = 2×, no zones), caption "Today: RE 28 · typical day ~42";
-  rows today but no RE → "No effort data" (never rest); no rows today → "Rest today" with "last session
+  rows today but no RE → "No effort data" (never rest); no rows today → "No session yet today" with "last session
   <date>: RE <n>" as context. Every caption keeps acute/chronic as context ("7-day vs 42-day load: -6% ·
   steady"). A gated modality (`baselineBuilding`, or `fewDays` when there is no typical day) is greyed
   with its copy and no number. Each dial block / card renders through a try/catch with an empty-state
