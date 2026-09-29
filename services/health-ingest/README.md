@@ -25,7 +25,7 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 | POST   | `/ingest/health-auto-export`  | bearer | `202` with the stored row id |
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
 | GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]`; `400` on a bad query |
-| GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate}]`; `400` on a bad query |
+| GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain}]`; `400` on a bad query |
 
 Bearer token is compared in constant time; it is the entire security boundary
 for the endpoint, because Health Auto Export can only send a static header.
@@ -46,12 +46,14 @@ and an `Automation-Name` header (stored in `raw_payload.automation`).
 }
 ```
 
-Point metrics (hrv, rhr, vo2max, weight, bodyfat, leanmass, wrist_temp,
+Point metrics (hrv, rhr, vo2max, weight, bodyfat, leanmass, waist, wrist_temp,
 hr_recovery) are
 `start;value[;source]` (body fat / lean mass carry the scale's source), day-grouped values from the phone (active/basal energy, respiratory and
-walking_hr means where `0` = no data, and steps sent
+walking_hr means where `0` = no data, dietary intake as `diet_kcal` / `diet_protein` /
+`diet_carbs` / `diet_fat`, and steps sent
 per device as `steps_watch` / `steps_phone`, because a merged steps total sums the
-devices) are `start;value`, sleep is `start;end;stage`. A key is omitted or empty when its query
+devices) are `start;value`, sleep is `start;end;stage`. The full key table and a
+step-by-step build are in [`docs/ios-shortcut.md`](../../docs/ios-shortcut.md). A key is omitted or empty when its query
 returned nothing. Runs may overlap (rolling window); the reader dedups.
 
 ### Reading payloads back: `GET /export/raw`
@@ -88,7 +90,16 @@ win; Strava rows fill only dates the export does not cover, tagged
 
 If the image predates this endpoint, `GET /export/strava` answers `404` — the
 `health-ingest` container needs a rebuild/restart (`docker compose up -d
---build health-ingest`) before the Strava sync can run.
+--build health-ingest`) before the Strava sync can run. The same applies when a
+new field is added to the response (e.g. `total_elevation_gain`, which feeds the
+`elevation_m` column of `workouts.csv`): an un-rebuilt image still answers, but
+without the field, so the column stays blank until the rebuild and the next
+`npm run sync:strava` (which prints a stale-image warning when no activity carries
+elevation).
+
+After adding new Shortcut keys (e.g. `waist`, `diet_*`), run `npm run sync -- --full` once so
+payloads already in the local cache are re-parsed; send `waist` in centimetres (see
+`docs/ios-shortcut.md`).
 
 ## Strava
 
@@ -138,7 +149,7 @@ internet), put it behind a TLS-terminating reverse proxy and rotate the token
 (`openssl rand -hex 32`, update `.env` and the clients) if it may have been exposed.
 
 The iPhone must reach the endpoint from outside the LAN. Point the reverse proxy
-at `apps:8088`.
+at `<your-host>:8088` (the `INGEST_PORT` in `.env`).
 
 Two caveats:
 

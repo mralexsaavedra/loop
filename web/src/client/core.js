@@ -68,6 +68,10 @@ function setDay(day) {
   t.setAttribute('aria-pressed', day === 'train');
   r.setAttribute('aria-pressed', day === 'rest');
   if (window.bldRefresh) window.bldRefresh();
+  // the intake rings are optional: a failure there must never break the train/rest toggle
+  if (typeof window.intakeRefresh === 'function') {
+    try { window.intakeRefresh(); } catch (e) { /* rings keep their previous state */ }
+  }
 }
 
 function jump(id) {

@@ -72,11 +72,12 @@ available) so the next session resumes with their context.
      raw `export.xml` is ~700 MB — only stream/grep it directly for a series not in the
      cache. Caveats: body metrics carry a `source` column (weight mixes scales — compare
      body fat within one scale only); steps are deduped to max-per-device per day (summing
-     devices double-counts — that is why an earlier "15–18k" NEAT figure was inflated).
-     Between exports, `npm run sync` (`data/apple-health/sync-shortcut.js`) pulls iOS Shortcut
+     devices double-counts — summing inflates the NEAT figure).
+     Between exports, `npm run sync` (`data/apple-health/sync-shortcut.js`; how to build the Shortcut and
+     every payload key: `docs/ios-shortcut.md` — keep its key table in sync with the `METRICS` table) pulls iOS Shortcut
      payloads from the optional `services/health-ingest` service (`GET /export/raw`) and merges
-     hrv/rhr/vo2max/weight/bodyfat/leanmass/steps/energy/sleep/respiratory/walking-HR/wrist-temp/
-     hr-recovery into those CSVs: export rows always win,
+     hrv/rhr/vo2max/weight/bodyfat/leanmass/waist/steps/energy/dietary/sleep/respiratory/
+     walking-HR/wrist-temp/hr-recovery into those CSVs: export rows always win,
      Shortcut rows are rebuilt each run and fill only dates the export lacks — so re-run sync after
      `extract.js`. Sync is incremental (local gitignored `extract/.shortcut-cache.json` of deduped
      samples + last payload id; `npm run sync -- --full` rebuilds it). Daily totals: the latest
@@ -97,9 +98,9 @@ available) so the next session resumes with their context.
    - Training programs: the owner's programmed sessions — the current source is noted in
      `profile/about-me.md` (a coach PDF in `data/training/*.pdf`, or an external training app).
      Strength / metcon / endurance blocks — use for modality balance & periodization.
-   - Nutritionist history: `data/nutritionist/` — 2023 anthropometric assessments +
+   - Nutritionist history: `data/nutritionist/` — past anthropometric assessments +
      nutrition plans, and `RESUMEN-y-comparativa.md`. Reference for proven-effective
-     targets (e.g. the rest-day calorie floor the owner lost fat on).
+     targets (e.g. a rest-day calorie floor that already worked).
 3. **Analyze per methodology.** Use trends (rolling averages), not single-day noise.
    Compare against previous reports in `analysis/reports/` to track progress.
 4. **Write a report** to `analysis/reports/YYYY-MM-DD.md` and summarize the key
@@ -116,14 +117,22 @@ node scripts/build-web.mjs [--mode personal|example] [--locale es|en]   # or DAT
 ```
 
 writing `web/dist/<mode>/index.html`. `npm run build` = personal/es (default); `npm run
-build:example` = example/en (tracked seeds only, no personal files needed). All pure compute
+build:example` = example/en (tracked seeds + the synthetic demo extract, no personal files needed). All pure compute
 (macros, training program/dashboard, health aggregation) lives in root `lib/*.mjs`, shared by
 the Astro build, `data/nutrition/generate.js`, and the test suite — one source, not three.
 
 - `LOCALE`: env var → `plan.locale` → `en` (the owner's `plan-data.json` sets `locale:"es"`).
 - `DATA_MODE=personal|example`: personal reads the gitignored real files; example reads the
-  tracked `.example` seeds. Optional data (Apple Health extract CSVs) renders a defined empty
-  state when absent, in either mode — the build never fails on missing optional data.
+  tracked `.example` seeds plus the tracked, clearly SYNTHETIC demo extract in `data/demo/extract/`
+  (so the example page shows every dial and section). Optional data (Apple Health extract CSVs)
+  renders a defined empty state when absent, in either mode — the build never fails on missing
+  optional data.
+- **Demo data** — `scripts/make-demo-data.mjs` (`npm run demo:data`) writes the demo extract from a
+  seeded PRNG and a FIXED end date (deterministic bytes; `--end/--days/--seed` to change them). Every
+  row is tagged `Demo …`; `data/demo/README.md` says it is fake. A test fails if the tracked files
+  drift from the generator, so re-run it after changing the generator or a CSV schema. Never put real
+  measurements in `data/demo/` (it is tracked); the example page reads as stale a few days after
+  the demo end date, which is the normal staleness handling.
 - All personal COPY (page title/kicker/h1/sub/footer, per-slot notes, which tabs/sections to hide)
   lives in `plan-data.json`'s `page` block (`page.notes.<slotId>`, `page.hideTabs: ["hoy"]`,
   etc.) — never hardcoded in tracked Astro/JS source, which stays fully generic.
@@ -185,8 +194,8 @@ error if `ingredients.json` is missing.
 plan/program), then `npm ci && npm run generate`. The real `plan-data.json` /
 `training-data.json` / `plan-tables.md` / `web/dist/personal/` stay gitignored (personal);
 `ingredients.json` and the `.example` seeds are tracked. `npm run build:example` builds from
-the tracked seeds alone — no copying, no personal files, useful to sanity-check the pipeline
-on a bare clone.
+the tracked seeds plus the tracked synthetic demo extract in `data/demo/extract/` — no copying,
+no personal files, useful to sanity-check the pipeline on a bare clone.
 
 **To change a plan number, edit `plan-data.json` (servings/day plan) or `ingredients.json`
 (a food's macros/label) — never the generated files.**
@@ -204,6 +213,18 @@ the two JSONs.
   non-fatal WARNING (expected for a shared DB), not an error.
 - `npm test` — the full test suite (`node --test`, zero deps beyond `astro`). `pretest`
   builds the example (+ personal, if present) fixtures the web/ tests read.
+
+**Intake rings (top of Mi día).** `lib/nutrition/intake.mjs` bakes the most recent LOGGED day of
+`dietary-daily.csv` (kcal > 0) plus the plan's train/rest day totals (the same numbers Mi día
+shows); `web/src/client/intake.js` draws four rings (kcal, protein, carbs, fat) against the target
+of the day type picked in the train/rest toggle. The rings show ONLY when that day is within the
+last 3 days of the viewer's clock (decided client-side, so builds stay byte-identical); otherwise
+an empty state says how to enable them (a food app that writes nutrition to Apple Health + the
+Shortcut `diet_kcal`/`diet_protein`/`diet_carbs`/`diet_fat` keys, which sync folds into one
+`dietary-daily.csv` row per day, export rows winning). A ring never fills from the target: a macro
+missing on the logged day renders an empty ring with a dash. When the logged day is the viewer's
+today it is labelled as in progress ("Hoy, en curso" / "Today, so far"), so partial rings are not
+read as a finished day.
 
 **The plan the owner actually views is a claude.ai artifact (frozen snapshot).** The owner's
 personal artifact URL lives in **`data/nutrition/artifact.local.md`** (gitignored, never
@@ -292,16 +313,20 @@ plus the build-output/i18n/hide-tabs integration tests.
 ## Health tab — "Salud / Health" body & recovery pipeline
 
 `lib/health/{read,stats,aggregate}.mjs` (same single-source pattern) compute the Salud tab's
-FIVE stacked sections from the Apple Health extract CSVs (all OPTIONAL — absent CSVs render an
+stacked sections (body, activity, energy, running, cycling, recovery, load vs recovery) from the Apple Health extract CSVs (all OPTIONAL — absent CSVs render an
 empty state, never fail the build); `web/src/tabs/Salud.astro` + `web/src/client/health.js`
 render it.
 
 - **Body composition** — `weight.csv` + `bodyfat.csv` + `leanmass.csv`. Weight trend is a 7-day
   rolling average (it mixes scales/apps, so the raw series is noisy). Body fat and lean mass use
   ONLY the most recent source and are flagged bioimpedance ±3–5%. IMPORTANT: the source tag does
-  NOT isolate a scale switch (the same app re-tags an old scale's readings — e.g. 22.8%→14.7%
-  overnight in Nov 2025), so their Δ + sparkline use only the last `BODYCOMP_WINDOW` (150) days
+  NOT isolate a scale switch (the same app re-tags an old scale's readings, which can show as an
+  overnight jump of several points), so their Δ + sparkline use only the last `BODYCOMP_WINDOW` (150) days
   to avoid celebrating that artifact as real change.
+  **Waist** (`waist.csv`, cm; written by extract.js from `WaistCircumference` and by the
+  Shortcut `waist` key) is a sparse manual tape measurement: every reading is a point (no rolling
+  average), the headline carries its measurement date, Δ = latest vs first. No waist data → the
+  section shows a hint on how to start logging it instead.
 - **Activity (NEAT + movement)** — `steps-daily.csv` (NEAT), `exercise-minutes-daily.csv`,
   `distance-daily.csv`, `flights-daily.csv`. Each is a daily total → 30-day average, Δ vs the
   prior 30 days, 7-day rolling sparkline (generic `dailyTrend`). All four are deduped
@@ -318,6 +343,14 @@ render it.
   tracked run), so this renders as a RECENT-SESSIONS table (newest first, pace = 60/speed,
   power, GCT, vertical osc, stride), NOT a trend — and says how many sessions exist. Sub-5 km/h
   rows (walks / GPS garbage) are dropped.
+- **Cycling** — `workouts.csv` rows of any Cycling type (Watch rides and `sync:strava` rides), shown
+  right after Running as a RECENT-RIDES table with the same style and row budget (8, newest first) so
+  run and bike carry equal weight: date, distance, time (Strava moving time / Watch duration),
+  elevation gain, avg HR, relative effort, kJ, plus the ride count. Same-day rows merge into ONE ride
+(the Watch fragments a session): sums for time/distance/kJ/elevation/RE, duration-weighted avg HR,
+and the count is distinct ride days. Elevation / RE / kJ come from
+  Strava only; a field the source did not record renders as a dash, never 0. When only one of run /
+  bike has data, the other shows its empty-state line; with neither, both are omitted.
 - **Recovery** — `rhr.csv`, `hrv.csv` (averaged per day), `vo2max.csv`, `sleep-daily.csv`,
   `respiratory-daily.csv`, `wristTemp.csv`, `walking-hr-daily.csv`. Good directions stated on
   screen (↓ resting/walking HR, ↑ HRV, ↑ VO₂max; respiratory & sleeping wrist temp are change-
@@ -368,13 +401,15 @@ tab and hiding every tab is a build error.
 - Caveats shown on the page: RE is HR-derived (credits the metcon more than heavy sets), modalities are
   not comparable, "gym" is the Watch auto-label, no comparable load before the RE epoch, same-day rows
   are summed (a real two-a-day is indistinguishable), HRV is daytime SDNN, not medical advice.
-- **workouts.csv now has 11 columns** (`… ,distance_km,relative_effort,kilojoules`), written by both
-  `extract.js` and `sync-strava.js` from the shared `WORKOUTS_HEADER`. The first `sync:strava` after the
-  upgrade writes the 11-column header over 9-column export rows (mixed width, tolerated by every
-  reader); re-running `node data/apple-health/extract.js` afterwards (needs `export.xml`) is the
-  REQUIRED step that re-emits every row at 11 columns. Rollout: rebuild the ingest image
-  (`docker compose up -d --build health-ingest`, without it `/export/strava` lacks the new fields) →
-  `npm run sync:strava` → `extract.js` → `npm run generate`.
+- **workouts.csv has 12 columns** (`… ,distance_km,relative_effort,kilojoules,elevation_m`), written by
+  both `extract.js` and `sync-strava.js` from the shared `WORKOUTS_HEADER`. The three trailing columns
+  are Strava-only (export rows leave them empty). Every reader is POSITIONAL and tolerates shorter
+  rows, so a file mixing 9-, 11- and 12-column rows (older runs under a newer header) reads fine:
+  an absent column is null. Re-running `node data/apple-health/extract.js` (needs `export.xml`)
+  re-emits every export row at full width. Rollout for a new Strava field (e.g. `elevation_m` from
+  `total_elevation_gain`): rebuild the ingest image (`docker compose up -d --build health-ingest`;
+  without it `/export/strava` lacks the field and the column stays blank) → `npm run sync:strava` →
+  `npm run generate`.
 
 ## Output principles
 

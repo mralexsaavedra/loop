@@ -26,6 +26,9 @@ data/apple-health/*
 **/apple_health_export/
 **/export*.zip
 **/exportación.zip
+# data/demo/ is intentionally TRACKED: clearly synthetic CSVs from scripts/make-demo-data.mjs
+# that the example build reads (see data/demo/README.md). Never put real measurements there.
+!data/demo/
 
 # Personal logs contain medical/behavioral data. Keep templates, ignore real data.
 data/weight/weight-log.md

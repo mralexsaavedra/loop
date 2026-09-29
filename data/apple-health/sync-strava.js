@@ -61,6 +61,8 @@ const bpmRound = (v) => Math.round(v)
 // Relative Effort is an integer score; 0 and 1 are genuine values, only absence is blank
 const reCell = (v) => (numOrNull(v) != null ? Math.round(v) : '')
 const kjCell = (v) => (numOrNull(v) != null ? round2(v) : '')
+// metres climbed, 1 decimal; 0 is a genuine value (a flat or indoor ride)
+const elevCell = (v) => (numOrNull(v) != null ? Math.round(v * 10) / 10 : '')
 
 /**
  * One Strava activity -> one workouts.csv row, or null when there is no usable duration or
@@ -95,7 +97,8 @@ function toRow (activity) {
     STRAVA_SOURCE,
     distanceKm != null ? distanceKm : '',
     reCell(activity.suffer_score),
-    kjCell(activity.kilojoules)
+    kjCell(activity.kilojoules),
+    elevCell(activity.total_elevation_gain)
   ].join(',')
 
   return { date, line, mapped, sportType, hasHr: hrAvg != null }
@@ -217,6 +220,16 @@ function fetchActivities ({ baseUrl, token, sinceId = '0', limit = 500, timeoutM
   })
 }
 
+// An ingest image built before elevation was added stores activities without
+// total_elevation_gain, so the elevation_m column would silently stay blank. Strava always sends
+// the field (0 for an indoor ride), so its absence on EVERY activity points at a stale image.
+function staleImageWarning (activities) {
+  if (!activities || !activities.length) return null
+  if (activities.some(a => a && a.total_elevation_gain != null)) return null
+  return 'WARNING: no activity carries total_elevation_gain — the ingest image is probably stale. ' +
+    'Rebuild it (docker compose up -d --build health-ingest) and re-run to fill elevation_m.'
+}
+
 async function main () {
   const t0 = Date.now()
   const baseUrl = process.env.INGEST_URL || common.DEFAULT_URL
@@ -239,6 +252,8 @@ async function main () {
     process.exit(1)
   }
 
+  const stale = staleImageWarning(activities)
+  if (stale) console.error(stale)
   const plan = syncDir(OUT, activities)
   const durationMs = Date.now() - t0
   console.log(`Synced ${activities.length} Strava activities in ${durationMs}ms; ${plan.merged.added} row(s) added for ${range(plan.merged.addedDates)}; ${plan.merged.rows} rows total`)
@@ -263,5 +278,6 @@ module.exports = {
   planSync,
   syncDir,
   fetchActivities,
+  staleImageWarning,
   main
 }
