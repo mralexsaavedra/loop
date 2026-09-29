@@ -134,3 +134,17 @@ details.sec-fold > summary:hover > h2 {
     scroll-margin-top: 72px;
   }
 }
+
+/* no intake ever logged: the one-line hint in the Registro fold summary / at the top of Mi día */
+details.sec-fold > summary > .sec-hint {
+  flex: 0 1 auto;
+  margin-top: var(--sp-11);
+  margin-bottom: var(--sp-5);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.intake-hint {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin: 0 0 var(--sp-5);
+}

@@ -168,6 +168,12 @@ test('example build: Inicio reads today top to bottom — dials, monitor, timeli
   assert.match(html, /getElementById\('timeline'\)/, 'timeline.js is inlined');
 });
 
+test('example build (demo intake logged): Mi día keeps the intake rings host and Registro carries no "no food logged" hint', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  assert.match(sliceSection(html, 'dia'), /<div id="intake"><\/div>/);
+  assert.doesNotMatch(sliceSection(html, 'registro'), /class="sec-hint"/);
+});
+
 test('example build: Registro and Tablas are collapsible <details> folds with a summary', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   for (const key of ['registro', 'tablas']) {
