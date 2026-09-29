@@ -7,6 +7,7 @@
  */
 import DayPanel from '../components/DayPanel.astro';
 import Note from '../components/Note.astro';
+import { dayViewModel } from '../view/day-totals.mjs';
 
 interface Props {
   nut: any; // buildNutrition() result
@@ -16,17 +17,8 @@ interface Props {
 }
 const { nut, dict, page, hidden } = Astro.props;
 
-function dayViewModel(day: 'train' | 'rest') {
-  const cfg = nut.DAYPLAN[day];
-  const meals = cfg.meals.map((meal: any) => ({ meal, m: nut.mealMacros(meal) }));
-  const totals = meals.reduce(
-    (s: any, x: any) => ({ k: s.k + x.m.k, p: s.p + x.m.p, c: s.c + x.m.c, g: s.g + x.m.g }),
-    { k: 0, p: 0, c: 0, g: 0 },
-  );
-  return { day, meals, totals, kcalNote: cfg.kcalNote };
-}
-const train = dayViewModel('train');
-const rest = dayViewModel('rest');
+const train = dayViewModel(nut, 'train');
+const rest = dayViewModel(nut, 'rest');
 ---
 <section class="tab-section" data-section="dia" id="sec-dia" hidden={hidden}>
   <DayPanel day={train.day} meals={train.meals} totals={train.totals} kcalNote={train.kcalNote} hidden={false} dict={dict} />

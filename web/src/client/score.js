@@ -173,11 +173,12 @@
     }
     var out = [];
     var anyStale = (S.recovery && isStale(S.recovery.asOf)) || (S.load && isStale(S.load.asOf));
+    if (S.recovery) out.push(recoveryHtml(S.recovery));
+    if (S.load) out.push(loadHtml(S.load));
+    // the advice sentence reads as the conclusion of the two cards above it
     if (S.advice && !anyStale && T.advice[S.advice.key]) {
       out.push('<div class="sc-card sc-advice">' + esc(adviceText(S.advice)) + '</div>');
     }
-    if (S.recovery) out.push(recoveryHtml(S.recovery));
-    if (S.load) out.push(loadHtml(S.load));
     out.push(caveatsHtml());
     host.innerHTML = out.join('');
   }

@@ -133,7 +133,7 @@ sidebar on wide ones); the former tabs live on as SECTIONS (`data-section="<key>
 
 | Tab (key) | Content, top to bottom |
 | --- | --- |
-| 🏠 Inicio (`home`) | recovery trend + per-modality load + advice; programmed session (`hoy`) |
+| 🏠 Inicio (`home`) | recovery trend + per-modality load, then the advice sentence; "today you eat" card (day toggle + that day's kcal/macros, link to Nutrición); programmed session (`hoy`) |
 | 🍽️ Nutrición (`nutricion`) | Mi día plan (`dia`); Registro (`registro`, collapsible); Tablas (`tablas`, collapsible) — the global train/rest toggle shows here |
 | 💗 Salud (`health`) | body & recovery sections; Entrenamiento dashboard (`dash`) |
 

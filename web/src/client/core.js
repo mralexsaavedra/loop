@@ -54,8 +54,14 @@ function setTab(name, scrollTop) {
 }
 
 function setDay(day) {
-  document.querySelectorAll('.day-panel').forEach(function (p) {
-    p.hidden = p.getAttribute('data-day') !== day;
+  // Mi día panels + Inicio's "today you eat" blocks share one day-type state
+  ['.day-panel', '.eat-day'].forEach(function (sel) {
+    document.querySelectorAll(sel).forEach(function (p) {
+      p.hidden = p.getAttribute('data-day') !== day;
+    });
+  });
+  document.querySelectorAll('[data-set-day]').forEach(function (b) {
+    b.setAttribute('aria-pressed', b.getAttribute('data-set-day') === day);
   });
   var t = document.getElementById('b-train');
   var r = document.getElementById('b-rest');

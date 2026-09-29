@@ -149,3 +149,31 @@ test('example build: Registro and Tablas are collapsible <details> folds with a 
     assert.match(sec, /<summary/);
   }
 });
+
+test('example build: Inicio carries a compact "today you eat" card with the Mi día totals, a day toggle and a link to Nutrición', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const { nut } = loadExampleNut();
+  const home = sliceTabPanel(html, 'home');
+  const cardAt = home.indexOf('class="eat-card"');
+  assert.ok(cardAt !== -1, 'eat card missing from the Inicio panel');
+  assert.ok(home.indexOf('<div id="home">') < cardAt && cardAt < home.indexOf('data-section="hoy"'), 'order: scores, eat card, programmed session');
+  const card = home.slice(cardAt, home.indexOf('data-section="hoy"'));
+  for (const day of ['train', 'rest']) {
+    const t = nut.DAYPLAN[day].meals.reduce((s, meal) => {
+      const m = nut.mealMacros(meal);
+      return { k: s.k + m.k, p: s.p + m.p, c: s.c + m.c, g: s.g + m.g };
+    }, { k: 0, p: 0, c: 0, g: 0 });
+    // each block runs from its opening tag to the next eat-day block / the card's link
+    const blocks = card.split('<div class="eat-day"').slice(1);
+    const block = blocks.find((b) => b.startsWith(` data-day="${day}"`));
+    assert.ok(block, `eat-day block for ${day} missing`);
+    assert.equal(/^ data-day="[a-z]+" hidden/.test(block), day === 'rest', 'train shown by default, rest hidden');
+    for (const v of [dotThousands(Math.round(t.k)), `${Math.round(t.p)} g`, `${Math.round(t.c)} g`, `${Math.round(t.g)} g`]) {
+      assert.ok(block.split('eat-link')[0].includes(v), `expected "${v}" in the ${day} eat-day block`);
+    }
+  }
+  assert.match(card, /data-set-day="train"[^>]*onclick="setDay\('train'\)"|onclick="setDay\('train'\)"[^>]*data-set-day="train"/);
+  assert.match(card, /onclick="setDay\('rest'\)"/);
+  assert.match(card, /onclick="setTab\('nutricion'\)"[^>]*>See full plan/);
+  assert.doesNotMatch(card, /class="meal"/, 'the full meal plan is NOT duplicated on Inicio');
+});
