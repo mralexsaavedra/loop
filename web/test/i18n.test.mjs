@@ -14,6 +14,7 @@ import { es as esDash, en as enDash } from '../src/i18n/dash-templates.mjs';
 import { es as esHealth, en as enHealth } from '../src/i18n/health-templates.mjs';
 import { es as esScore, en as enScore } from '../src/i18n/score-templates.mjs';
 import { es as esIntake, en as enIntake } from '../src/i18n/intake-templates.mjs';
+import { es as esAct, en as enAct } from '../src/i18n/activity-templates.mjs';
 import { ADVICE_COPY } from '../../lib/score/advice-copy.mjs';
 
 function keyTree(obj, prefix = '') {
@@ -247,5 +248,27 @@ test('intake-templates.mjs (Mi día intake rings) has identical key trees in es/
     assert.match(dict.ofTpl, /\{unit\}/);
     assert.match(dict.emptyHtml, /\{days\}/);
     assert.match(dict.emptyHtml, /diet_kcal/, `${locale} empty state names the Shortcut keys`);
+  }
+});
+
+test('activity-templates.mjs (Entreno calendar + cumulative time) has identical key trees in es/en, no empty strings, 5 levels and 7 weekdays', () => {
+  assert.deepEqual(keyTree(esAct), keyTree(enAct));
+  for (const [locale, dict] of [['es', esAct], ['en', enAct]]) {
+    for (const [path, value] of leaves(dict)) {
+      if (typeof value === 'string') assert.notEqual(value.trim(), '', `${locale} activity-templates.${path} must not be empty`);
+    }
+    assert.equal(dict.levels.length, 5, `${locale} levels`);
+    assert.equal(dict.weekdays.length, 7, `${locale} weekdays`);
+    assert.match(dict.calHint, /\{days\}/);
+    assert.match(dict.staleNote, /\{days\}/);
+  }
+});
+
+test('score-templates.mjs timeline copy has the placeholders timeline.js relies on', () => {
+  for (const dict of [esScore, enScore]) {
+    assert.match(dict.timeline.dateHeading, /\{date\}/);
+    assert.match(dict.timeline.minutes, /\{n\}/);
+    assert.match(dict.timeline.re, /\{n\}/);
+    assert.deepEqual(Object.keys(dict.timeline.modalities), ['gym', 'run', 'bike', 'other']);
   }
 });
