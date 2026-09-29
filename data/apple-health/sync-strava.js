@@ -23,17 +23,17 @@
  * set, so a date dropping out of the ledger (e.g. after extract.js rewrote _meta.json) can
  * never leave a stale Strava-tagged row behind — see the orphan-safety test.
  */
-const fs = require('fs');
-const path = require('path');
-const common = require('./sync-common.js');
+const fs = require('fs')
+const path = require('path')
+const common = require('./sync-common.js')
 
-const STRAVA_SOURCE = 'Strava API';
+const STRAVA_SOURCE = 'Strava API'
 // SYNC_STRAVA_OUT_DIR / INGEST_ENV_FILE overrides exist ONLY so the child-process error-path
 // tests below can point main() at a disposable tmp dir / tmp env file instead of the real
 // personal data/apple-health/extract or services/health-ingest/.env — unset in production.
-const OUT = process.env.SYNC_STRAVA_OUT_DIR || path.join(__dirname, 'extract');
-const WORKOUTS_CSV = 'workouts.csv';
-const WORKOUTS_HEADER = 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source,distance_km';
+const OUT = process.env.SYNC_STRAVA_OUT_DIR || path.join(__dirname, 'extract')
+const WORKOUTS_CSV = 'workouts.csv'
+const WORKOUTS_HEADER = 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source,distance_km'
 
 // sport_type -> workouts.csv `type` (matches extract.js's HKWorkoutActivityType-derived strings).
 // Anything not in this table lands on Other (routed to the dashboard's 'hiit' bucket) and is
@@ -47,17 +47,17 @@ const SPORT_TYPE_MAP = {
   Crossfit: 'CrossTraining',
   Walk: 'Walking', Hike: 'Hiking', Swim: 'Swimming',
   Rowing: 'Rowing', VirtualRow: 'Rowing',
-  Elliptical: 'Elliptical', Pilates: 'Pilates', Yoga: 'Yoga',
-};
-const FALLBACK_TYPE = 'Other';
+  Elliptical: 'Elliptical', Pilates: 'Pilates', Yoga: 'Yoga'
+}
+const FALLBACK_TYPE = 'Other'
 
 function translateType (sportType) {
-  return SPORT_TYPE_MAP[sportType] || FALLBACK_TYPE;
+  return SPORT_TYPE_MAP[sportType] || FALLBACK_TYPE
 }
 
-const numOrNull = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-const round2 = (v) => Math.round(v * 100) / 100;
-const bpmRound = (v) => Math.round(v);
+const numOrNull = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+const round2 = (v) => Math.round(v * 100) / 100
+const bpmRound = (v) => Math.round(v)
 
 /**
  * One Strava activity -> one workouts.csv row, or null when there is no usable duration or
@@ -65,24 +65,24 @@ const bpmRound = (v) => Math.round(v);
  * duration; elapsed time would inflate rides with café stops).
  */
 function toRow (activity) {
-  const startLocal = activity && activity.start_local;
-  if (!startLocal || typeof startLocal !== 'string') return null;
-  const date = startLocal.slice(0, 10);
+  const startLocal = activity && activity.start_local
+  if (!startLocal || typeof startLocal !== 'string') return null
+  const date = startLocal.slice(0, 10)
 
-  const movingTime = numOrNull(activity.moving_time);
-  const elapsedTime = numOrNull(activity.elapsed_time);
-  const durationSec = movingTime > 0 ? movingTime : elapsedTime;
-  if (!(durationSec > 0)) return null;
-  const durationMin = round2(durationSec / 60);
+  const movingTime = numOrNull(activity.moving_time)
+  const elapsedTime = numOrNull(activity.elapsed_time)
+  const durationSec = movingTime > 0 ? movingTime : elapsedTime
+  if (!(durationSec > 0)) return null
+  const durationMin = round2(durationSec / 60)
 
-  const sportType = activity.sport_type;
-  const mapped = Object.prototype.hasOwnProperty.call(SPORT_TYPE_MAP, sportType);
-  const type = translateType(sportType);
+  const sportType = activity.sport_type
+  const mapped = Object.prototype.hasOwnProperty.call(SPORT_TYPE_MAP, sportType)
+  const type = translateType(sportType)
 
-  const hrAvg = numOrNull(activity.average_heartrate);
-  const hrMax = numOrNull(activity.max_heartrate);
-  const distance = numOrNull(activity.distance);
-  const distanceKm = distance > 0 ? round2(distance / 1000) : null;
+  const hrAvg = numOrNull(activity.average_heartrate)
+  const hrMax = numOrNull(activity.max_heartrate)
+  const distance = numOrNull(activity.distance)
+  const distanceKm = distance > 0 ? round2(distance / 1000) : null
 
   const line = [
     date, type, durationMin, '',
