@@ -12,9 +12,12 @@ data/apple-health/*
 !data/apple-health/.gitkeep
 # extract.js is plain tooling (no data) → trackable; its extract/ output stays ignored.
 !data/apple-health/extract.js
-# Shared sample helpers + the Shortcut sync and their tests are tooling (synthetic fixtures only).
+# Shared sample helpers + the Shortcut/Strava syncs and their tests are tooling (synthetic
+# fixtures only, no personal values).
 !data/apple-health/samples.js
+!data/apple-health/sync-common.js
 !data/apple-health/sync-shortcut.js
+!data/apple-health/sync-strava.js
 !data/apple-health/*.test.js
 # The Apple Health export ships as an `export*.zip` / `exportación.zip` archive and
 # unzips to an `apple_health_export/` folder (a ~400MB+ export_cda.xml + workout-routes

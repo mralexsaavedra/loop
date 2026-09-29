@@ -1,0 +1,40 @@
+#!/usr/bin/env node
+/* Runner behind `npm run sync`: runs the Shortcut sync AND the Strava sync sequentially, even
+ * when one fails — a shell `&&` chain would skip the second script the moment the first exits
+ * non-zero, and `;` both loses the exit code and is shell-specific. Both scripts write
+ * _meta.json, so running them one after another (not in parallel) avoids a write race.
+ *
+ * Run: node scripts/sync-all.mjs [-- extra args forwarded to each script]
+ */
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const DIR = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.dirname(DIR);
+const SCRIPTS = [
+  path.join(ROOT, 'data', 'apple-health', 'sync-shortcut.js'),
+  path.join(ROOT, 'data', 'apple-health', 'sync-strava.js'),
+];
+
+/**
+ * Pure-ish: runs every script in order via `spawn(execPath, [...args, script])`, regardless of
+ * earlier failures, and returns 0 only if every one of them exited 0. `spawn` is injected for
+ * testing (defaults to `spawnSync` with inherited stdio).
+ */
+export function runAll (scripts, args, spawn) {
+  let exitCode = 0;
+  for (const script of scripts) {
+    const result = spawn(process.execPath, [...args, script]);
+    if (!result || result.status !== 0) exitCode = 1;
+  }
+  return exitCode;
+}
+
+function realSpawn (cmd, spawnArgs) {
+  return spawnSync(cmd, spawnArgs, { stdio: 'inherit' });
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  process.exit(runAll(SCRIPTS, process.argv.slice(2), realSpawn));
+}
