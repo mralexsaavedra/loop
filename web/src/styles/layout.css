@@ -47,7 +47,7 @@ details.sec-fold > summary:hover > h2 {
 
 /* Inicio — compact "today you eat" card (same card language as the score cards) */
 .eat-card {
-  background: linear-gradient(160deg, rgba(var(--accent-rgb), 0.07), var(--surface) 55%);
+  background: var(--card-bg);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   padding: var(--sp-7);
@@ -62,7 +62,10 @@ details.sec-fold > summary:hover > h2 {
   gap: var(--sp-4);
 }
 .eat-head h3 {
-  font-size: var(--fs-md);
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
 }
 .eat-toggle {
   flex: 0 1 260px;

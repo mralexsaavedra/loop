@@ -147,6 +147,20 @@ Tapping a score card on Inicio opens its Salud detail (recovery → the Recovery
 `#hl-recovery`, a modality load card → Entrenamiento `#sec-dash`) via core.js `jumpOr`, falling
 back to the Salud tab when that detail has no data; the cards are not links when Salud is hidden.
 
+**Look & typography.** Dark, data-first design language: colour carries meaning, never decoration.
+All colours are tokens in `web/src/styles/tokens.css` (AA-checked ratios listed in its header):
+`--good`/`--mid`/`--low` = state, `--trend` = neutral data lines/sparklines, `--strain` = load,
+`--sleep` = sleep, `--accent` = ACTIONS only (buttons, links, active nav, focus). Headings and
+labels are caps, semibold, `--label-track` (+0.08em). Numbers use `--num` = "HC Num", a
+numerals-only subset (~1.5 KB: digits, + - , . % × h space) of **D-DIN Bold, SIL OFL 1.1**, inlined as
+a base64 `@font-face` by `web/layouts/Plan.astro` (`?inline` import) so the page stays one file with
+zero font requests. The OFL forbids the Reserved Font Name "D-DIN" on a modified version, so the
+subset is renamed; licence text in `web/src/fonts/OFL.txt`. Rebuild it with
+`python3 scripts/subset-num-font.py D-DIN-Bold.ttf` (needs `fonttools` + `brotli`); the output guard
+test pins that the committed woff2 is what gets inlined and stays under a 40 KB budget. Text stays
+the system sans stack (0 bytes). Never embed a commercial font or copy another product's name,
+logo, icons or exact brand hex values.
+
 ## Nutrition plan — data pipeline & published artifact
 
 **Two files, merged in memory (by both `generate.js` and the Astro build, from the same

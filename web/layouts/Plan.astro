@@ -20,6 +20,10 @@ import trainingTodayScript from '../src/client/training-today.js?raw';
 import trainingDashScript from '../src/client/training-dash.js?raw';
 import healthScript from '../src/client/health.js?raw';
 import scoreScript from '../src/client/score.js?raw';
+// Numerals font: a ~1.5 KB subset of D-DIN Bold (SIL OFL 1.1, renamed "HC Num" as the OFL requires
+// for a modified version; licence in src/fonts/OFL.txt, rebuild with scripts/subset-num-font.py).
+// `?inline` makes Vite hand back a base64 data: URL, so the page stays one self-contained file.
+import numFontUrl from '../src/fonts/hc-num-bold.woff2?inline';
 
 interface Props {
   title: string;
@@ -39,6 +43,8 @@ const { title, locale, page = {}, dict, tabs, activeTab = tabs[0]?.key } = Astro
 const navLabels: Record<string, string> = { home: 't-home', nutricion: 't-nutricion', health: 't-health' };
 // the global train/rest toggle belongs to the Nutrición tab (core.js setTab mirrors this)
 const showDayToggle = activeTab === 'nutricion';
+// unicode-range = exactly the subset's glyphs, so letters in a --num element fall back to --sans
+const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) format("woff2");font-weight:100 900;font-style:normal;font-display:swap;unicode-range:U+20,U+25,U+2B-2E,U+30-39,U+68,U+D7}`;
 ---
 
 <!DOCTYPE html>
@@ -47,6 +53,7 @@ const showDayToggle = activeTab === 'nutricion';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{title}</title>
+    <style is:inline set:html={numFontFace}></style>
   </head>
   <body>
     <div class="wrap">
