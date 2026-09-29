@@ -117,7 +117,7 @@ node scripts/build-web.mjs [--mode personal|example] [--locale es|en]   # or DAT
 ```
 
 writing `web/dist/<mode>/index.html`. `npm run build` = personal/es (default); `npm run
-build:example` = example/en (tracked seeds only, no personal files needed). All pure compute
+build:example` = example/en (tracked seeds + the synthetic demo extract, no personal files needed). All pure compute
 (macros, training program/dashboard, health aggregation) lives in root `lib/*.mjs`, shared by
 the Astro build, `data/nutrition/generate.js`, and the test suite — one source, not three.
 
@@ -194,8 +194,8 @@ error if `ingredients.json` is missing.
 plan/program), then `npm ci && npm run generate`. The real `plan-data.json` /
 `training-data.json` / `plan-tables.md` / `web/dist/personal/` stay gitignored (personal);
 `ingredients.json` and the `.example` seeds are tracked. `npm run build:example` builds from
-the tracked seeds alone — no copying, no personal files, useful to sanity-check the pipeline
-on a bare clone.
+the tracked seeds plus the tracked synthetic demo extract in `data/demo/extract/` — no copying,
+no personal files, useful to sanity-check the pipeline on a bare clone.
 
 **To change a plan number, edit `plan-data.json` (servings/day plan) or `ingredients.json`
 (a food's macros/label) — never the generated files.**
@@ -222,7 +222,9 @@ last 3 days of the viewer's clock (decided client-side, so builds stay byte-iden
 an empty state says how to enable them (a food app that writes nutrition to Apple Health + the
 Shortcut `diet_kcal`/`diet_protein`/`diet_carbs`/`diet_fat` keys, which sync folds into one
 `dietary-daily.csv` row per day, export rows winning). A ring never fills from the target: a macro
-missing on the logged day renders an empty ring with a dash.
+missing on the logged day renders an empty ring with a dash. When the logged day is the viewer's
+today it is labelled as in progress ("Hoy, en curso" / "Today, so far"), so partial rings are not
+read as a finished day.
 
 **The plan the owner actually views is a claude.ai artifact (frozen snapshot).** The owner's
 personal artifact URL lives in **`data/nutrition/artifact.local.md`** (gitignored, never
@@ -344,7 +346,9 @@ render it.
 - **Cycling** — `workouts.csv` rows of any Cycling type (Watch rides and `sync:strava` rides), shown
   right after Running as a RECENT-RIDES table with the same style and row budget (8, newest first) so
   run and bike carry equal weight: date, distance, time (Strava moving time / Watch duration),
-  elevation gain, avg HR, relative effort, kJ, plus the ride count. Elevation / RE / kJ come from
+  elevation gain, avg HR, relative effort, kJ, plus the ride count. Same-day rows merge into ONE ride
+(the Watch fragments a session): sums for time/distance/kJ/elevation/RE, duration-weighted avg HR,
+and the count is distinct ride days. Elevation / RE / kJ come from
   Strava only; a field the source did not record renders as a dash, never 0. When only one of run /
   bike has data, the other shows its empty-state line; with neither, both are omitted.
 - **Recovery** — `rhr.csv`, `hrv.csv` (averaged per day), `vo2max.csv`, `sleep-daily.csv`,
