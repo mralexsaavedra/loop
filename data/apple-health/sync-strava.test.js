@@ -341,3 +341,74 @@ test('end-to-end: an unmapped sport_type translates to Other and lands in the da
   assert.ok(hiit, 'the unmapped-type row must show up in the hiit bucket');
   assert.equal(hiit.min, 30);
 });
+
+// ---- main() error paths via a real child process: no token / unreachable service / 404 old
+// image must all exit 1 and touch NO file. SYNC_STRAVA_OUT_DIR/INGEST_ENV_FILE point main() at
+// disposable tmp paths instead of the real personal extract dir / the real service .env. ----
+
+const SCRIPT = path.join(__dirname, 'sync-strava.js');
+
+function runScript (env) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-strava-main-'));
+  const outDir = path.join(dir, 'extract'); // deliberately not pre-created
+  const envFile = path.join(dir, 'no-such.env'); // deliberately missing -> no token from file
+  try {
+    execFileSync(process.execPath, [SCRIPT], {
+      env: { PATH: process.env.PATH, SYNC_STRAVA_OUT_DIR: outDir, INGEST_ENV_FILE: envFile, ...env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return { status: 0, outDir };
+  } catch (err) {
+    return { status: err.status, stderr: err.stderr.toString(), outDir };
+  }
+}
+
+test('main(): missing token -> exit 1, no files written', () => {
+  const { status, stderr, outDir } = runScript({});
+  assert.equal(status, 1);
+  assert.match(stderr, /no ingest token/);
+  assert.ok(!fs.existsSync(outDir), 'the out dir must never be created when there is no token');
+});
+
+test('main(): unreachable ingest service (no listener on the port) -> exit 1, no files written, cause code surfaced (not bare "fetch failed")', () => {
+  // a real, syntactically valid port with nothing bound to it -> the child's own OS-level TCP
+  // connect gets refused; this does NOT depend on reaching a server hosted by another process.
+  const { status, stderr, outDir } = runScript({ INGEST_TOKEN: 'a'.repeat(64), INGEST_URL: 'http://127.0.0.1:48231' });
+  assert.equal(status, 1);
+  assert.doesNotMatch(stderr, /\(fetch failed\)/, 'must not surface the bare undici message');
+  assert.match(stderr, /ECONNREFUSED|ECONNRESET|EHOSTUNREACH|refused/i);
+  assert.ok(!fs.existsSync(outDir), 'no file must be written when the service is unreachable');
+});
+
+test('main(): 404 from an old ingest image -> exit 1, no files written, clear rebuild message', () => {
+  // The sandbox isolates localhost between sibling processes (a server hosted by THIS test
+  // process is unreachable from a plain execFileSync child — verified: the child times out
+  // rather than connecting). So the 404 server is started INSIDE the same child process that
+  // then calls main(), via a small harness script — still "via child process" end-to-end.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-strava-404-'));
+  const outDir = path.join(dir, 'extract');
+  const envFile = path.join(dir, 'no-such.env');
+  const harness = path.join(dir, 'harness.js');
+  fs.writeFileSync(harness, `
+    const http = require('http');
+    const server = http.createServer((req, res) => { res.writeHead(404); res.end(); });
+    server.listen(0, '127.0.0.1', () => {
+      process.env.INGEST_URL = 'http://127.0.0.1:' + server.address().port;
+      require(${JSON.stringify(SCRIPT)}).main();
+    });
+  `);
+  let result;
+  try {
+    execFileSync(process.execPath, [harness], {
+      env: { PATH: process.env.PATH, INGEST_TOKEN: 'a'.repeat(64), SYNC_STRAVA_OUT_DIR: outDir, INGEST_ENV_FILE: envFile },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    result = { status: 0 };
+  } catch (err) {
+    result = { status: err.status, stderr: err.stderr.toString() };
+  }
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /rebuild\/restart the health-ingest container/);
+  assert.ok(!fs.existsSync(outDir), 'no file must be written on a 404');
+  fs.rmSync(dir, { recursive: true });
+});
