@@ -87,6 +87,52 @@ function scMod(key, btn) {
   var ADV_MOD = ES ? { gym: 'gimnasio', run: 'carrera', bike: 'bici' } : { gym: 'gym', run: 'run', bike: 'bike' };
 
   /* ---- recovery ---- */
+  // Whoop-style detail: headline (last night, big number + band word) | 14-day sparkline |
+  // compact contributors; the 7-day trend is a small secondary line and the raw last-14-days lists
+  // are folded into a <details>. Every number is the same as the glance on Inicio.
+  function compDec(c) {
+    return c.unit === 'h' ? 2 : c.unit === 'min' ? 0 : 1;
+  }
+  function recHeadline(R, rt) {
+    var out = [];
+    if (R.today) {
+      // "Last night" only when that day has a sleep-duration reading AND is dated the viewer's today;
+      // otherwise the night's date (+ "no sleep data")
+      var d = isoDate(R.today.date) || '';
+      var when = R.today.sleep === false ? format(rt.whenNoSleep, { date: d })
+        : daysOld(R.today.date) === 0 ? rt.whenLastNight
+        : format(rt.whenDate, { date: d });
+      out.push('<div class="rec-when">' + esc(when) + '</div>');
+      out.push('<div class="rec-big sc-band-' + esc(R.today.band) + '"><b class="rec-num">' + esc(num(R.today.value, 1, true)) + '</b>' +
+        '<small class="rec-unit">MAD</small><span class="rec-band">' + esc(rt.bands[R.today.band]) + '</span></div>');
+      out.push('<div class="rec-vs">' + esc(rt.vsBaseLbl) + '</div>');
+    } else {
+      out.push('<div class="sc-note">' + esc(rt.noToday) + '</div>');
+    }
+    out.push('<div class="rec-trend">' + arrow(R.band) + esc(format(rt.trendLbl, { value: num(R.trend7, 1, true) })) +
+      ' · <span class="sc-band-' + esc(R.band) + '">' + esc(rt.bands[R.band]) + '</span>' +
+      (R.delta7 != null ? ' · ' + esc(format(rt.deltaLbl, { value: num(R.delta7, 1, true) })) : '') + '</div>');
+    out.push('<div class="sc-chips rec-chips"><span class="sc-chip">' + esc(format(rt.confLbl, { level: rt.confLevels[R.confidence.level] })) + '</span>' +
+      '<span class="sc-chip">' + esc(rt.sdnnLbl) + '</span></div>');
+    return '<div class="rec-head">' + out.join('') + '</div>';
+  }
+  function recContributor(c, rt) {
+    var dec = compDec(c);
+    var last = c.daily && c.daily.length ? c.daily[c.daily.length - 1] : null;
+    return '<div class="rec-comp" data-comp="' + esc(c.key) + '">' +
+      '<span class="rec-dot sc-dot-' + esc(c.band) + '" aria-hidden="true"></span>' +
+      '<span class="rec-comp-name">' + esc(rt.components[c.key]) + '</span>' +
+      '<span class="rec-comp-val"><b>' + (last ? esc(num(last.value, dec, false)) : '—') + '</b> ' + esc(c.unit) + '</span>' +
+      '<span class="rec-comp-base">' + esc(format(rt.baselineLbl, { value: num(c.baseline, dec, false), unit: c.unit })) +
+      ' · ' + esc(num(c.trend7, 1, true)) + ' MAD · ' + esc(format(rt.nLbl, { n: c.n })) + '</span></div><!--/comp-->';
+  }
+  function recRaw(comps, rt) {
+    return '<details class="rec-raw"><summary>' + esc(rt.rawSummary) + '</summary>' + comps.map(function (c) {
+      var dec = compDec(c);
+      return '<div class="sc-raw"><span class="sc-raw-lbl">' + esc(format(rt.rawCompLbl, { name: rt.components[c.key], unit: c.unit })) + '</span>' +
+        c.daily.map(function (d) { return '<span class="sc-raw-v">' + esc(num(d.value, dec, false)) + '</span>'; }).join('') + '</div>';
+    }).join('') + '</details>';
+  }
   function recoveryHtml(R) {
     var stale = isStale(R.asOf);
     var rt = T.recovery;
@@ -97,33 +143,11 @@ function scMod(key, btn) {
       out.push('<div class="sc-insufficient">' + esc(rt.insufficient) + '</div></div>');
       return out.join('');
     }
-    if (R.today) {
-      // "Last night" only when that day has a sleep-duration reading; otherwise the date + "no sleep data"
-      // ...and only when it is dated the viewer's today; an older night carries its date
-      var tv = { date: isoDate(R.today.date) || '', value: num(R.today.value, 1, true) };
-      var tl = R.today.sleep === false ? format(rt.todayNoSleepLbl, tv)
-        : daysOld(R.today.date) === 0 ? format(rt.todayLbl, tv)
-        : format(rt.todayDateLbl, tv);
-      out.push('<div class="sc-today sc-band-' + esc(R.today.band) + '">' + esc(tl) + ' · ' + esc(rt.bands[R.today.band]) + '</div>');
-    } else {
-      out.push('<div class="sc-note">' + esc(rt.noToday) + '</div>');
-    }
-    out.push('<div class="sc-val">' + arrow(R.band) + '<span class="sc-num">' + esc(format(rt.trendLbl, { value: num(R.trend7, 1, true) })) + '</span></div>');
-    out.push('<div class="sc-sub sc-band-' + esc(R.band) + '">' + esc(rt.bands[R.band]) +
-      (R.delta7 != null ? ' · ' + esc(format(rt.deltaLbl, { value: num(R.delta7, 1, true) })) : '') + '</div>');
-    out.push('<div class="sc-spark">' + sparkSvg(R.spark && R.spark.v) + '<div class="sc-spark-lbl">' + esc(rt.sparkLbl) + '</div></div>');
-    out.push('<div class="sc-chips"><span class="sc-chip">' + esc(format(rt.confLbl, { level: rt.confLevels[R.confidence.level] })) + '</span>' +
-      '<span class="sc-chip">' + esc(rt.sdnnLbl) + '</span></div>');
-    (R.components || []).forEach(function (c) {
-      var dec = c.unit === 'h' ? 2 : c.unit === 'min' ? 0 : 1;
-      out.push('<div class="sc-comp"><div class="sc-comp-top">' + arrow(c.band) +
-        '<b>' + esc(rt.components[c.key]) + '</b>' +
-        '<span class="sc-comp-val">' + esc(num(c.trend7, 1, true)) + ' MAD</span>' +
-        '<span class="sc-comp-base">' + esc(format(rt.baselineLbl, { value: num(c.baseline, dec, false), unit: c.unit })) + ' · ' + esc(format(rt.nLbl, { n: c.n })) + '</span></div>' +
-        '<div class="sc-raw"><span class="sc-raw-lbl">' + esc(format(rt.last14Lbl, { unit: c.unit })) + '</span>' +
-        c.daily.map(function (d) { return '<span class="sc-raw-v">' + esc(num(d.value, dec, false)) + '</span>'; }).join('') +
-        '</div></div>');
-    });
+    var comps = R.components || [];
+    out.push('<div class="rec-layout">' + recHeadline(R, rt) +
+      '<div class="sc-spark rec-spark">' + sparkSvg(R.spark && R.spark.v) + '<div class="sc-spark-lbl">' + esc(rt.sparkLbl) + '</div></div>' +
+      '<div class="rec-contrib">' + comps.map(function (c) { return recContributor(c, rt); }).join('') + '</div></div>');
+    if (comps.length) out.push(recRaw(comps, rt));
     if (R.missing && R.missing.length) {
       out.push('<div class="sc-note">' + esc(format(rt.missingLbl, { list: R.missing.map(function (k) { return rt.components[k]; }).join(', ') })) + '</div>');
     }

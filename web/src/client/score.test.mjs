@@ -107,23 +107,72 @@ test('full render: recovery trend with band, per-component rows and 14 raw daili
   assert.match(html, /sc-recovery/);
   assert.match(html, /MAD/);
   assert.match(html, /daytime SDNN/i);
-  assert.equal(count(html, 'class="sc-comp"'), 4);
+  assert.equal(count(html, 'class="rec-comp"'), 4);
   assert.equal(count(html, 'class="sc-raw-v"'), 4 * 14);
   assert.match(html, new RegExp(`sc-band-${s.recovery.band}`));
   assert.equal(count(html, 'class="spark"'), 1 + s.load.modalities.length, 'inline SVG sparklines (recovery + one per modality)');
   assert.doesNotMatch(html, /<script|src=|href=/i, 'no scripts or external refs in the rendered markup');
 });
 
-test('recovery card leads with last night (MAD + band), then the 7-day trend; says so when last night is missing', () => {
+const recCard = (s, opts = {}) => { const hosts = {}; render(s, { ...opts, hosts }); return hosts.rec.innerHTML; };
+const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+test('recovery card (Whoop-style): the HEADLINE is last night (big number + band word); the 7-day trend is a small secondary line', () => {
   const s = fixtureScores();
-  const html = render(s);
+  const html = recCard(s);
   const t = s.recovery.today;
-  const line = enT.recovery.todayLbl.replace('{value}', (t.value > 0 ? '+' : '') + t.value.toFixed(1));
-  assert.ok(html.includes(line), line);
-  assert.ok(html.indexOf('sc-today') < html.indexOf('class="sc-val"'), 'last night before the trend');
-  assert.match(html, new RegExp(`sc-today sc-band-${t.band}`));
+  const v = (t.value > 0 ? '+' : '') + t.value.toFixed(1);
+  const big = html.match(/<div class="rec-big sc-band-([a-z]+)">([\s\S]*?)<\/div>/);
+  assert.ok(big, 'a big-number headline');
+  assert.equal(big[1], t.band, 'coloured by last night\'s band');
+  assert.equal(text(big[2]), `${v} MAD ${enT.recovery.bands[t.band]}`, 'last night\'s value + band word');
+  assert.match(html, new RegExp(`<div class="rec-when">${enT.recovery.whenLastNight}</div>`));
+  const trend = html.match(/<div class="rec-trend">([\s\S]*?)<\/div>/);
+  assert.ok(trend, 'the 7-day trend is its own small line');
+  assert.ok(text(trend[1]).includes(enT.recovery.trendLbl.replace('{value}', (s.recovery.trend7 > 0 ? '+' : '') + s.recovery.trend7.toFixed(1))));
+  assert.ok(html.indexOf('rec-big') < html.indexOf('rec-trend'), 'headline first, trend under it');
+  assert.doesNotMatch(html, /class="sc-val"/, 'the trend is never the big heading any more');
   s.recovery.today = null;
-  assert.ok(render(s).includes(enT.recovery.noToday));
+  const none = recCard(s);
+  assert.ok(none.includes(enT.recovery.noToday));
+  assert.doesNotMatch(none, /rec-big/, 'no night composite -> no big number');
+  assert.match(none, /rec-trend/);
+});
+
+test('recovery card: contributors are compact rows (state dot, name, latest value + unit, baseline · MAD · n) and the raw 14-day lists are folded', () => {
+  const s = fixtureScores();
+  const html = recCard(s);
+  const rows = [...html.matchAll(/<div class="rec-comp" data-comp="([a-zA-Z]+)">([\s\S]*?)<\/div><!--\/comp-->/g)];
+  assert.deepEqual(rows.map((r) => r[1]), s.recovery.components.map((c) => c.key));
+  for (const [i, c] of s.recovery.components.entries()) {
+    const body = rows[i][2];
+    const dec = c.unit === 'h' ? 2 : c.unit === 'min' ? 0 : 1;
+    const last = c.daily[c.daily.length - 1].value;
+    assert.match(body, new RegExp(`<span class="rec-dot sc-dot-${c.band}"`), 'state colour dot');
+    assert.ok(body.includes(enT.recovery.components[c.key]));
+    assert.ok(text(body).includes(`${last.toFixed(dec)} ${c.unit}`), 'latest value + unit');
+    assert.ok(text(body).includes(enT.recovery.baselineLbl.replace('{value}', c.baseline.toFixed(dec)).replace('{unit}', c.unit)), 'baseline');
+    assert.ok(text(body).includes(`${(c.trend7 > 0 ? '+' : '') + c.trend7.toFixed(1)} MAD`), 'MAD vs baseline');
+    assert.ok(text(body).includes(`n=${c.n}`));
+    assert.doesNotMatch(body, /sc-raw-v/, 'no raw number list inline');
+  }
+  const fold = html.match(/<details class="rec-raw"><summary>([^<]*)<\/summary>([\s\S]*?)<\/details>/);
+  assert.ok(fold, 'the raw lists sit in a collapsed <details>');
+  assert.equal(fold[1], enT.recovery.rawSummary);
+  assert.equal(count(fold[2], 'class="sc-raw-v"'), 4 * 14, 'every raw value kept, just folded');
+  assert.equal(esT.recovery.rawSummary, 'Últimos 14 días');
+  assert.equal(enT.recovery.rawSummary, 'Last 14 days');
+  assert.match(recCard(s, { locale: 'es' }), /<summary>Últimos 14 días<\/summary>/);
+});
+
+test('recovery card: confidence + SDNN chips on ONE line; layout blocks headline | sparkline | contributors', () => {
+  const html = recCard(fixtureScores());
+  const chips = html.match(/<div class="sc-chips rec-chips">([\s\S]*?)<\/div>/);
+  assert.ok(chips);
+  assert.equal(count(chips[1], 'class="sc-chip"'), 2);
+  const at = ['class="rec-head"', 'class="sc-spark rec-spark"', 'class="rec-contrib"'].map((n) => html.indexOf(n));
+  assert.ok(at.every((v, i) => v !== -1 && (i === 0 || v > at[i - 1])), `order ${at}`);
+  assert.match(html, /<div class="rec-layout">/);
 });
 
 test('colour only on the direction arrow: no grade-fill classes on the recovery card', () => {
@@ -324,16 +373,16 @@ test('recovery dial: a composite without a sleep-duration reading is labelled by
   assert.ok(!d.includes(enT.dials.recovery.lastNight + '<'));
   assert.ok(d.includes(ASOF));
   assert.ok(d.includes(enT.dials.recovery.noSleep));
-  const card = render(s);
-  assert.ok(!card.includes('Last night:'), 'the recovery card does not call it last night either');
-  assert.ok(card.includes(enT.recovery.todayNoSleepLbl.split('{')[0]) || card.includes(ASOF));
+  const card = recCard(s);
+  assert.ok(!card.includes(`<div class="rec-when">${enT.recovery.whenLastNight}</div>`), 'the recovery card does not call it last night either');
+  assert.ok(card.includes(`<div class="rec-when">${enT.recovery.whenNoSleep.replace('{date}', ASOF)}</div>`));
 });
 
 test('recovery card: an older night is labelled by its date, not "Last night"', () => {
   const s = fixtureScores();
-  const html = render(s, { now: addDays(ASOF, 1) });
-  assert.ok(!html.includes('Last night:'));
-  assert.ok(html.includes(enT.recovery.todayDateLbl.split(':')[0].replace('{date}', ASOF)));
+  const html = recCard(s, { now: addDays(ASOF, 1) });
+  assert.ok(!html.includes(`<div class="rec-when">${enT.recovery.whenLastNight}</div>`));
+  assert.ok(html.includes(`<div class="rec-when">${enT.recovery.whenDate.replace('{date}', ASOF)}</div>`));
 });
 
 test('resilience: a throwing dial or card never blanks Inicio (empty-state fallback)', () => {

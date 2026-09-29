@@ -211,6 +211,17 @@ test('example build: Inicio carries a compact "today you eat" card with the Mi d
   assert.doesNotMatch(card, /class="meal"/, 'the full meal plan is NOT duplicated on Inicio');
 });
 
+test('example build: the Salud recovery detail card spans the full grid row, headline | sparkline | contributors side by side on wide screens', async () => {
+  const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  const map = ruleDeclarationMap(parseCssRules(css));
+  const wide = [...map.entries()].filter(([k]) => k.startsWith('(min-width:900px)|||'));
+  assert.ok(wide.some(([k, v]) => k.endsWith('|||grid-column') && k.split('|||')[1].split(',').map((x) => x.trim()).includes('#health > #score-recovery') && v === '1 / -1'), '#score-recovery spans 1 / -1');
+  assert.ok(wide.some(([k, v]) => k === '(min-width:900px)|||.rec-layout|||grid-template-columns' && (v.match(/minmax\(/g) || []).length === 3), 'three columns on wide screens');
+  assert.ok(![...map.keys()].some((k) => k.startsWith('|||.rec-layout|||grid-template-columns')), 'stacked (one column) on phones');
+});
+
 test('example build: the shared client helpers (util.js) are inlined FIRST, right after the baked HC_CONST, before every other script', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
