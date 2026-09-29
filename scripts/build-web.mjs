@@ -58,25 +58,49 @@ export function resolveLocale({ repoRoot, mode, explicitLocale }) {
   return resolveEnv({ HC_REPO_ROOT: repoRoot, DATA_MODE: mode, LOCALE: explicitLocale || undefined }).locale;
 }
 
+const DEFAULT_STALE_STAGING_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
+
+/** True if `pid` names a process that is currently running. Uses the
+ * `kill(pid, 0)` idiom (no signal sent — just existence/permission check):
+ * ESRCH means "no such process" (dead); any other error (e.g. EPERM, a live
+ * process owned by someone else) or a successful call means it's alive. An
+ * unparseable pid is treated as unknown, which callers must treat as alive
+ * (conservative — never guess a directory is safe to delete). */
+function isPidAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return true;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err.code !== 'ESRCH';
+  }
+}
+
 /** Removes orphaned `.staging-*` directories left behind by a crashed/killed
  * previous build. A clean run always renames its own staging dir away
- * before exiting, so anything else matching `.staging-*` in `dir` is an
- * orphan that would otherwise accumulate forever. Only removes entries
- * strictly OLDER than `buildStartTime` (never a dir some concurrent run
- * just created) and never `currentStagingDir` itself. Returns the list of
- * removed paths. */
-export function sweepStaleStaging({ dir, currentStagingDir, buildStartTime }) {
+ * before exiting, so a leftover `.staging-<mode>-<pid>` MIGHT be an orphan —
+ * but might also be a genuinely in-flight concurrent build, so directory
+ * age alone is never sufficient. Only removes an entry when BOTH:
+ *   1. its encoded PID is no longer alive (isPidAlive() false), AND
+ *   2. its mtime is older than `maxAgeMs` (default 10 min) — a grace
+ *      period in case the dead process's directory write is still
+ *      mid-flush on a slow filesystem.
+ * Never touches `currentStagingDir` itself. Returns the list of removed
+ * paths. */
+export function sweepStaleStaging({ dir, currentStagingDir, now = Date.now(), maxAgeMs = DEFAULT_STALE_STAGING_MAX_AGE_MS }) {
   if (!fs.existsSync(dir)) return [];
   const swept = [];
   for (const name of fs.readdirSync(dir)) {
     if (!name.startsWith('.staging-')) continue;
     const entryPath = path.join(dir, name);
     if (entryPath === currentStagingDir) continue;
+    const pidMatch = name.match(/-(\d+)$/);
+    const pid = pidMatch ? Number(pidMatch[1]) : NaN;
+    if (isPidAlive(pid)) continue; // in-flight build (or unparseable name) — never touch
     const { mtimeMs } = fs.statSync(entryPath);
-    if (mtimeMs < buildStartTime) {
-      fs.rmSync(entryPath, { recursive: true, force: true });
-      swept.push(entryPath);
-    }
+    if (now - mtimeMs < maxAgeMs) continue; // dead but too recent — grace period
+    fs.rmSync(entryPath, { recursive: true, force: true });
+    swept.push(entryPath);
   }
   return swept;
 }
@@ -108,12 +132,11 @@ function main() {
   // web/test/build-fixtures.mjs to build test fixtures into web/.test-dist/
   // instead, so `npm test` never overwrites the live personal build that
   // services/plan-web/refresh.sh publishes from (design's Testing Strategy).
-  const buildStartTime = Date.now();
   const outDir = args.outdir ? path.resolve(ROOT, args.outdir) : path.join(WEB_ROOT, 'dist', mode);
   const stagingParent = path.dirname(outDir);
   const stagingDir = path.join(stagingParent, `.staging-${mode}-${process.pid}`);
   fs.mkdirSync(stagingParent, { recursive: true });
-  const swept = sweepStaleStaging({ dir: stagingParent, currentStagingDir: stagingDir, buildStartTime });
+  const swept = sweepStaleStaging({ dir: stagingParent, currentStagingDir: stagingDir });
   if (swept.length) {
     console.warn(`build-web: swept ${swept.length} orphaned staging dir(s) from a previous crashed/killed build: ${swept.map((p) => path.relative(ROOT, p)).join(', ')}`);
   }

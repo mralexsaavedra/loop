@@ -102,7 +102,12 @@ test('resolveLocale: example mode defaults to en when plan-data.example.json has
 /* sweepStaleStaging — guards against .staging-<mode>-<pid> dirs left behind
  * by a crashed/killed previous build accumulating forever (a clean run
  * always renames its own staging dir away before exiting, so anything else
- * found here is an orphan). */
+ * found here MIGHT be an orphan — but might also be a genuinely in-flight
+ * concurrent build, so mtime age alone is not enough: only remove a dir
+ * whose OWNING PID IS NO LONGER ALIVE (process.kill(pid,0) -> ESRCH) AND is
+ * older than a safety threshold. A dead-but-recent dir is kept for one
+ * grace period in case its process is still mid-flush. */
+const DEAD_PID = 999999999; // exceeds Linux's pid_max (4194304) — guaranteed no such process
 function makeStagingDir(dir, name, { ageMs = 0 } = {}) {
   const p = path.join(dir, name);
   fs.mkdirSync(p, { recursive: true });
@@ -112,14 +117,41 @@ function makeStagingDir(dir, name, { ageMs = 0 } = {}) {
   return p;
 }
 
-test('sweepStaleStaging removes orphaned .staging-* dirs older than the current run', () => {
+test('sweepStaleStaging removes a dir whose owning PID is dead AND older than the safety threshold', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-sweep-'));
   try {
-    const orphan = makeStagingDir(dir, '.staging-personal-11111', { ageMs: 60_000 });
-    const current = path.join(dir, '.staging-personal-22222'); // not created yet — this run's own
-    const swept = sweepStaleStaging({ dir, currentStagingDir: current, buildStartTime: Date.now() });
+    const orphan = makeStagingDir(dir, `.staging-personal-${DEAD_PID}`, { ageMs: 11 * 60_000 });
+    const current = path.join(dir, `.staging-personal-${process.pid}`); // not created yet — this run's own
+    const swept = sweepStaleStaging({ dir, currentStagingDir: current });
     assert.deepEqual(swept, [orphan]);
-    assert.equal(fs.existsSync(orphan), false, 'the orphaned staging dir must be removed');
+    assert.equal(fs.existsSync(orphan), false, 'a dead+old orphan must be removed');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('sweepStaleStaging NEVER removes a dir whose owning PID is still alive, no matter how old', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-sweep-'));
+  try {
+    // Uses THIS test process's own pid as the "owner" — guaranteed alive.
+    const live = makeStagingDir(dir, `.staging-personal-${process.pid}`, { ageMs: 60 * 60_000 });
+    const current = path.join(dir, `.staging-example-${DEAD_PID}`);
+    const swept = sweepStaleStaging({ dir, currentStagingDir: current });
+    assert.deepEqual(swept, [], 'a live-owned dir must never be swept, regardless of age');
+    assert.equal(fs.existsSync(live), true);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('sweepStaleStaging keeps a dir whose owning PID is dead but too RECENT (grace period)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-sweep-'));
+  try {
+    const recent = makeStagingDir(dir, `.staging-personal-${DEAD_PID}`, { ageMs: 5_000 }); // dead pid, 5s old
+    const current = path.join(dir, `.staging-example-${DEAD_PID + 1}`);
+    const swept = sweepStaleStaging({ dir, currentStagingDir: current, maxAgeMs: 10 * 60_000 });
+    assert.deepEqual(swept, [], 'dead but younger than the safety threshold must be kept');
+    assert.equal(fs.existsSync(recent), true);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -128,8 +160,8 @@ test('sweepStaleStaging removes orphaned .staging-* dirs older than the current 
 test('sweepStaleStaging never removes the current run\'s own staging dir, even if it already exists', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-sweep-'));
   try {
-    const current = makeStagingDir(dir, '.staging-personal-33333', { ageMs: 60_000 });
-    const swept = sweepStaleStaging({ dir, currentStagingDir: current, buildStartTime: Date.now() });
+    const current = makeStagingDir(dir, `.staging-personal-${process.pid}`, { ageMs: 60 * 60_000 });
+    const swept = sweepStaleStaging({ dir, currentStagingDir: current });
     assert.deepEqual(swept, []);
     assert.equal(fs.existsSync(current), true, 'must never remove its own staging dir');
   } finally {
@@ -137,15 +169,14 @@ test('sweepStaleStaging never removes the current run\'s own staging dir, even i
   }
 });
 
-test('sweepStaleStaging never removes a staging dir created AFTER buildStartTime (a genuinely concurrent build)', () => {
+test('sweepStaleStaging treats a dir whose name has no parseable PID as unknown/alive — never removes it', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-sweep-'));
   try {
-    const buildStartTime = Date.now() - 5000;
-    const concurrent = makeStagingDir(dir, '.staging-example-44444', { ageMs: 0 }); // mtime = now, after buildStartTime
-    const current = path.join(dir, '.staging-personal-55555');
-    const swept = sweepStaleStaging({ dir, currentStagingDir: current, buildStartTime });
-    assert.deepEqual(swept, []);
-    assert.equal(fs.existsSync(concurrent), true);
+    const weird = makeStagingDir(dir, '.staging-not-a-pid', { ageMs: 60 * 60_000 });
+    const current = path.join(dir, `.staging-example-${DEAD_PID}`);
+    const swept = sweepStaleStaging({ dir, currentStagingDir: current });
+    assert.deepEqual(swept, [], 'an unparseable name must be treated conservatively, never removed');
+    assert.equal(fs.existsSync(weird), true);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -153,5 +184,5 @@ test('sweepStaleStaging never removes a staging dir created AFTER buildStartTime
 
 test('sweepStaleStaging is a no-op when the directory does not exist yet', () => {
   const missing = path.join(os.tmpdir(), 'hc-sweep-does-not-exist-' + process.pid);
-  assert.deepEqual(sweepStaleStaging({ dir: missing, currentStagingDir: path.join(missing, '.staging-x'), buildStartTime: Date.now() }), []);
+  assert.deepEqual(sweepStaleStaging({ dir: missing, currentStagingDir: path.join(missing, '.staging-x') }), []);
 });
