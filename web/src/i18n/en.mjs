@@ -5,15 +5,25 @@ export default {
   strings: {
     nav: {
       ariaLabel: 'Sections',
+      // three top-level tabs; the former tabs are now sections (see `sections`)
       tabs: {
         home: { icon: '🏠', label: 'Home' },
-        dia: { icon: '🍽️', label: 'My day' },
-        registro: { icon: '📋', label: 'Log' },
-        tablas: { icon: '📊', label: 'Tables' },
-        hoy: { icon: '🏋️', label: 'Today' },
-        dash: { icon: '📈', label: 'Workouts' },
+        nutricion: { icon: '🍽️', label: 'Nutrition' },
         health: { icon: '💗', label: 'Health' },
       },
+      // headings of the sections that used to be tabs of their own (Mi día/Registro/Tablas keep theirs)
+      sections: {
+        hoy: "Today's session",
+        dash: 'Training',
+      },
+    },
+    // Inicio's compact nutrition card (day toggle + that day's totals + link to Nutrición)
+    eat: {
+      heading: 'Today you eat',
+      fullPlan: 'See full plan',
+      protein: 'Protein',
+      carbs: 'Carbs',
+      fat: 'Fat',
     },
     dayToggle: {
       ariaLabel: 'Day type',
