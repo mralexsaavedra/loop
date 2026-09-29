@@ -125,6 +125,20 @@ test('cycling section: recent rides table (newest first) with count, same table 
   assert.ok(html.indexOf('hl-running') < html.indexOf('hl-cycling'), 'cycling follows running');
 });
 
+test('running table matches the cycling one: date, distance, time, pace, avg HR, RE, elevation, then the watch dynamics (dash when absent)', () => {
+  const html = renderWith({
+    body: none, activity: none, energy: none, recovery: none, loadRecovery: none, cycling: none,
+    running: { hasData: true, count: 5, sessions: [
+      { date: '2026-06-22', dist: 7.7, time: '0:41', pace: '5:18', hrAvg: 152, re: 57, elev: 35, power: null, gct: null, vosc: null, stride: null },
+      { date: '2026-06-20', dist: null, time: '0:30', pace: null, hrAvg: null, re: null, elev: null, power: 240, gct: 250, vosc: 10, stride: 1.1 },
+    ] },
+  });
+  assert.match(html, /<tr><th>Date<\/th><th>Dist<\/th><th>Time<\/th><th>Pace<\/th><th>Avg HR<\/th><th>Effort<\/th><th>Elev\.<\/th><th>Power<\/th><th>GCT<\/th><th>Osc\.<\/th><th>Stride<\/th><\/tr>/);
+  assert.match(html, /<td>22 Jun<\/td><td>7.7 km<\/td><td>0:41<\/td><td>5:18\/km<\/td><td>152 bpm<\/td><td>57<\/td><td>35 m<\/td><td>—<\/td><td>—<\/td><td>—<\/td><td>—<\/td>/, 'a Strava-only run: dynamics are dashes');
+  assert.match(html, /<td>20 Jun<\/td><td>—<\/td><td>0:30<\/td><td>—<\/td><td>—<\/td><td>—<\/td><td>—<\/td><td>240 W<\/td><td>250 ms<\/td><td>10 cm<\/td><td>1.1 m<\/td>/, 'no distance: no pace');
+  assert.match(html, /<b>5<\/b> runs/);
+});
+
 test('run and bike sections render symmetric empty states when the other has data', () => {
   const html = renderWith({
     body: none, activity: none, energy: none, recovery: none, loadRecovery: none,
@@ -132,7 +146,7 @@ test('run and bike sections render symmetric empty states when the other has dat
     cycling: { hasData: true, count: 1, sessions: [{ date: '2026-06-10', dist: 40, time: '1:30', elev: 400, hrAvg: 140, re: 90, kj: 1300 }] },
   });
   assert.match(html, /id="hl-running"/);
-  assert.match(html, /No runs with watch metrics yet/);
+  assert.match(html, /No runs yet/);
   const html2 = renderWith({
     body: none, activity: none, energy: none, recovery: none, loadRecovery: none, cycling: none,
     running: { hasData: true, count: 1, sessions: [{ date: '2026-06-02', dist: 8, pace: '5:30', speed: 10.9, power: null, gct: null, vosc: null, stride: null }] },
