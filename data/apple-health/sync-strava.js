@@ -183,16 +183,20 @@ function planSync (activities, readFile) {
 // (belt and braces): even though every run rebuilds its own rows from the source tag alone (so
 // a crash between the two renames can never turn a Strava row into a pseudo-export row), writing
 // the ledger first means a reader that only sees the new _meta.json still gets accurate metadata.
+// _meta.json is shared with sync-shortcut.js (both scripts can touch the same extract/ dir), so
+// the whole read-plan-write sequence runs under an exclusive lock to prevent a lost update.
 function syncDir (dir, activities, { writeAtomic = common.writeAtomic } = {}) {
-  const readFile = (name) => {
-    const p = path.join(dir, name)
-    return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null
-  }
-  const plan = planSync(activities, readFile)
-  if (Object.keys(plan.writes).length) fs.mkdirSync(dir, { recursive: true })
-  if (plan.writes['_meta.json'] != null) writeAtomic(path.join(dir, '_meta.json'), plan.writes['_meta.json'])
-  if (plan.writes[WORKOUTS_CSV] != null) writeAtomic(path.join(dir, WORKOUTS_CSV), plan.writes[WORKOUTS_CSV])
-  return plan
+  fs.mkdirSync(dir, { recursive: true }) // the lockfile itself needs the directory to exist
+  return common.withLock(path.join(dir, '_meta.json.lock'), () => {
+    const readFile = (name) => {
+      const p = path.join(dir, name)
+      return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null
+    }
+    const plan = planSync(activities, readFile)
+    if (plan.writes['_meta.json'] != null) writeAtomic(path.join(dir, '_meta.json'), plan.writes['_meta.json'])
+    if (plan.writes[WORKOUTS_CSV] != null) writeAtomic(path.join(dir, WORKOUTS_CSV), plan.writes[WORKOUTS_CSV])
+    return plan
+  })
 }
 
 // full pull, paged via since_id, from GET /export/strava

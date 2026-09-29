@@ -90,4 +90,74 @@ function mergeCsv(existingText, header, rows, { sourceCol = 2, isOwn = () => fal
   };
 }
 
-module.exports = { DEFAULT_URL, ENV_FILE, writeAtomic, resolveToken, readIngestToken, fetchJson, fetchPages, mergeCsv };
+const LOCK_STALE_MS = 2 * 60 * 1000; // 2 minutes — long enough for any real sync, short enough not to wedge a retry indefinitely
+const LOCK_RETRY_DELAY_MS = 100;
+const LOCK_RETRIES = 50; // ~5s total wait against a fresh (non-stale) lock before giving up
+
+// synchronous sleep (Atomics.wait blocks the event loop deliberately — these are short-lived
+// CLI scripts, not servers, so a blocking wait beats a busy-spin loop burning CPU).
+function sleepSync (ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/**
+ * Exclusive O_EXCL lockfile guarding a read-compute-write sequence against a lost update when
+ * two sync scripts (or two invocations of the same one) touch the same _meta.json concurrently.
+ * A lock older than `staleMs` is assumed abandoned by a crashed process and is reclaimed rather
+ * than waited out forever.
+ */
+function acquireLock (lockFile, { staleMs = LOCK_STALE_MS, retryDelayMs = LOCK_RETRY_DELAY_MS, retries = LOCK_RETRIES } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const fd = fs.openSync(lockFile, 'wx'); // O_CREAT | O_EXCL: fails if the file already exists
+      fs.writeSync(fd, String(process.pid));
+      fs.closeSync(fd);
+      return;
+    } catch (err) {
+      if (err.code !== 'EEXIST') throw err;
+      try {
+        const stat = fs.statSync(lockFile);
+        if (Date.now() - stat.mtimeMs > staleMs) {
+          fs.rmSync(lockFile, { force: true });
+          continue; // retry immediately, no need to sleep
+        }
+      } catch {
+        continue; // the lock vanished between the failed open and this stat — just retry
+      }
+      if (attempt === retries) throw new Error(`could not acquire lock ${lockFile} (held and not stale)`);
+      sleepSync(retryDelayMs);
+    }
+  }
+}
+
+function releaseLock (lockFile) {
+  try {
+    fs.unlinkSync(lockFile);
+  } catch {
+    // already gone — releasing an already-released lock is not an error
+  }
+}
+
+/** Runs `fn` while holding `lockFile`; the lock is always released, even if `fn` throws. */
+function withLock (lockFile, fn, opts) {
+  acquireLock(lockFile, opts);
+  try {
+    return fn();
+  } finally {
+    releaseLock(lockFile);
+  }
+}
+
+module.exports = {
+  DEFAULT_URL,
+  ENV_FILE,
+  writeAtomic,
+  resolveToken,
+  readIngestToken,
+  fetchJson,
+  fetchPages,
+  mergeCsv,
+  acquireLock,
+  releaseLock,
+  withLock,
+};
