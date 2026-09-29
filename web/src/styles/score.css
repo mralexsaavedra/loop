@@ -499,6 +499,12 @@
 .hm-none .hm-val {
   color: var(--faint);
 }
+.hm-stale {
+  opacity: 0.55;
+}
+.hm-stale .hm-status {
+  color: var(--faint);
+}
 .hm-range,
 .hm-date {
   font-size: var(--fs-2xs);

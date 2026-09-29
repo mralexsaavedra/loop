@@ -122,6 +122,29 @@ test('cards jump to their Salud trend via jumpOr only when the Salud tab is reac
   assert.doesNotMatch(render(monitor()), /jumpOr/);
 });
 
+test('per-card staleness: a card whose own date is > 3 days old loses its tone and says "no recent data"', () => {
+  const html = render(monitor(), { now: addDays(ASOF, 1) }); // sleep is now 4 days old, the rest 1 day
+  const sleep = cardOf(html, 'sleep');
+  assert.match(sleep, /hm-stale/);
+  assert.doesNotMatch(sleep, /hm-tone-/);
+  assert.ok(sleep.includes(enT.monitor.status.stale));
+  assert.ok(!sleep.includes(`>${enT.monitor.status.low}<`), 'no Low for an old reading');
+  assert.match(cardOf(html, 'respiratory'), /hm-tone-watch/, 'fresh cards keep their tone');
+});
+
+test('resilience: a throwing card falls back to its empty state; a missing monitor dict renders nothing', () => {
+  const mon = monitor();
+  Object.defineProperty(mon.cards[1], 'value', { get() { throw new Error('boom'); } });
+  const html = render(mon);
+  assert.match(cardOf(html, 'rhr'), /hm-none/);
+  assert.match(cardOf(html, 'hrv'), /hm-num/, 'the other cards still render');
+  const host = { innerHTML: '' };
+  const ctx = { document: { getElementById: (id) => (id === 'monitor' ? host : null) }, SCORES: { monitor: monitor() }, I18N_SCORE: {}, LOCALE: 'en', Date, Math, String, Number, Array, Object, JSON };
+  vm.createContext(ctx);
+  assert.doesNotThrow(() => vm.runInContext(source, ctx));
+  assert.equal(host.innerHTML, '');
+});
+
 test('stale monitor (> 3 days) is greyed; absent SCORES or host never throws', () => {
   assert.match(render(monitor(), { now: addDays(ASOF, 5) }), /hm sc-card sc-stale|sc-stale/);
   assert.doesNotThrow(() => render(undefined));
