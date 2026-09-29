@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { buildScores } from '../../../lib/score/index.mjs';
 import { renderAdvice } from '../../../lib/score/advice-copy.mjs';
 import { es as esT, en as enT } from '../i18n/score-templates.mjs';
+import { buildDials } from '../view/dial.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'score.js'), 'utf8');
@@ -38,7 +39,9 @@ function fixtureScores({ days = 49, shift = 2 } = {}) {
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }
 
-function render(scores, { locale = 'en', now = ASOF, T, healthNav = false } = {}) {
+const HEALTH = { recovery: { hasData: true, sleep: { target: 7.5 } } };
+
+function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, dials } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
   class FakeDate extends RealDate {
@@ -46,7 +49,7 @@ function render(scores, { locale = 'en', now = ASOF, T, healthNav = false } = {}
   }
   const ctx = {
     document: { getElementById: (id) => (id === 'home' ? host : id === 't-health' && healthNav ? {} : null) },
-    SCORES: scores, I18N_SCORE: T || (locale === 'es' ? esT : enT), LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite,
+    SCORES: scores, DIALS: dials, I18N_SCORE: T || (locale === 'es' ? esT : enT), LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite,
   };
   vm.createContext(ctx);
   vm.runInContext(source, ctx);
@@ -193,4 +196,113 @@ test('score cards link to their Salud detail when the Salud tab is reachable, an
   assert.match(linked, /onkeydown=/, 'keyboard users can activate the card');
   const unlinked = render(s, { now: addDays(ASOF, 1), healthNav: false });
   assert.doesNotMatch(unlinked, /jumpOr\(/, 'no link when page.hideTabs hides the Salud tab');
+});
+
+/* ---- Inicio dials (Sleep / Recovery / Load) ---- */
+const withDials = (s, opts = {}) => render(s, { dials: buildDials(s, HEALTH), ...opts });
+const dialOf = (html, cls) => {
+  const i = html.indexOf(`class="dial ${cls}`);
+  assert.ok(i !== -1, `missing dial ${cls}`);
+  return html.slice(i, html.indexOf('</figure>', i));
+};
+
+test('dials: three dials (sleep, recovery, load) render first, before the recovery card', () => {
+  const s = fixtureScores();
+  const html = withDials(s);
+  assert.match(html, /class="sc-card sc-dials"/);
+  for (const c of ['dial-sleep', 'dial-rec']) dialOf(html, c);
+  assert.ok(html.indexOf('sc-dials') < html.indexOf('sc-recovery'));
+  assert.equal(count(html, 'class="dial-svg"'), 2 + s.load.modalities.length, 'one svg per dial, one per load modality');
+  assert.doesNotMatch(html, /<script|src=|href=/i);
+});
+
+test('dials: absent DIALS global renders the cards exactly as before (no dial card)', () => {
+  const html = render(fixtureScores());
+  assert.doesNotMatch(html, /sc-dials/);
+});
+
+test('recovery dial: band word in caps class + signed delta in sd, coloured by band, never a percentage', () => {
+  const s = fixtureScores();
+  const d = dialOf(withDials(s), 'dial-rec');
+  assert.match(d, new RegExp(`dial-band-${s.recovery.band}`));
+  assert.ok(d.includes(enT.dials.recovery.bands[s.recovery.band]));
+  const sd = (s.recovery.trend7 > 0 ? '+' : '') + s.recovery.trend7.toFixed(1);
+  assert.ok(d.includes(`${sd} sd`), `expected ${sd} sd`);
+  assert.doesNotMatch(d, /%/);
+  assert.equal(count(d, 'class="dial-zone'), 3, 'below / at / above zones');
+  assert.match(d, /class="dial-dot"/);
+});
+
+test('recovery dial: gated shows no number and is greyed', () => {
+  const s = fixtureScores({ days: 10 });
+  const d = dialOf(withDials(s), 'dial-rec');
+  assert.match(d, /dial-off/);
+  assert.doesNotMatch(d, /sd<|dial-dot/);
+});
+
+test('sleep dial: last night hours, target labelled on screen, fill capped (es decimal comma)', () => {
+  const s = fixtureScores();
+  const last = s.recovery.components.find((c) => c.key === 'sleepDur').daily.at(-1).value;
+  const d = dialOf(withDials(s, { locale: 'es', T: esT }), 'dial-sleep');
+  assert.ok(d.includes(last.toFixed(1).replace('.', ',')), 'hours with a comma');
+  assert.ok(d.includes('7,5'), 'target on screen');
+  assert.ok(d.includes(esT.dials.sleep.label));
+  assert.doesNotMatch(d, /%/);
+});
+
+test('load dial: one visible modality (default = first ungated), switch for all three, gated greyed with the existing copy', () => {
+  const s = fixtureScores();
+  const html = withDials(s);
+  const D = buildDials(s, HEALTH).load;
+  assert.equal(count(html, 'class="dial-mod"'), 3, 'gym / run / bike switch');
+  assert.match(html, new RegExp(`class="dial-mod" data-dmod="${D.defaultKey}" aria-pressed="true"`));
+  assert.equal(count(html, 'aria-pressed="true"'), 1);
+  for (const m of D.modalities) {
+    const vis = new RegExp(`<figure class="dial dial-load[^"]*" data-dmod="${m.key}"${m.key === D.defaultKey ? '>' : ' hidden>'}`);
+    assert.match(html, vis, m.key);
+  }
+  const run = D.modalities.find((m) => m.key === 'run');
+  assert.ok(html.includes(run.ratio.toFixed(2) + '<small>×</small>'), 'ratio shown as N.NN×');
+  for (const g of D.modalities.filter((m) => m.state === 'gated')) {
+    const i = html.indexOf(`data-dmod="${g.key}"`, html.indexOf('<figure class="dial dial-load'));
+    const fig = html.slice(i, html.indexOf('</figure>', i));
+    assert.doesNotMatch(fig, /×/, 'gated: no number');
+    assert.match(html, new RegExp(`dial-cap[^>]*data-dmod="${g.key}"[^>]*>${enT.load.gated.baselineBuilding.slice(0, 20)}`));
+  }
+  assert.ok(html.includes(enT.dials.load.scale), '1x = usual scale label');
+});
+
+test('dials: stale data greys the dial; fresh data does not', () => {
+  const s = fixtureScores();
+  assert.doesNotMatch(dialOf(withDials(s, { now: addDays(ASOF, 1) }), 'dial-sleep'), /sc-stale/);
+  const stale = withDials(s, { now: addDays(ASOF, 5) });
+  for (const c of ['dial-sleep', 'dial-rec']) assert.match(dialOf(stale, c), /sc-stale/);
+  assert.match(stale, /<figure class="dial dial-load[^"]* sc-stale"[^>]*data-dmod="run"/);
+});
+
+test('dials: a null asOf / date never produces NaN/undefined text', () => {
+  const s = fixtureScores();
+  s.recovery.asOf = null; s.load.asOf = null;
+  const dials = buildDials(s, HEALTH);
+  dials.sleep.date = null;
+  assert.doesNotMatch(render(s, { dials }), /NaN|undefined|null/);
+});
+
+test('scMod: the switch shows only the chosen modality and moves aria-pressed', () => {
+  const el = (key, isBtn) => ({
+    key, hidden: false, pressed: null,
+    classList: { contains: (c) => isBtn && c === 'dial-mod' },
+    getAttribute: (a) => (a === 'data-dmod' ? key : null),
+    setAttribute(a, v) { if (a === 'aria-pressed') this.pressed = v; },
+  });
+  const btns = ['gym', 'run', 'bike'].map((k) => el(k, true));
+  const panes = ['gym', 'run', 'bike'].flatMap((k) => [el(k, false), el(k, false)]);
+  const root = { querySelectorAll: () => [...btns, ...panes] };
+  btns.forEach((b) => { b.closest = () => root; });
+  const ctx = { document: { getElementById: () => null } };
+  vm.createContext(ctx);
+  vm.runInContext(source, ctx);
+  ctx.scMod('bike', btns[2]);
+  assert.deepEqual(btns.map((b) => b.pressed), ['false', 'false', 'true']);
+  assert.deepEqual(panes.map((p) => p.hidden), [true, true, true, true, false, false]);
 });
