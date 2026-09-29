@@ -68,7 +68,10 @@
     out.push('<div class="hm-body"><div class="hm-lbl">' + esc(lbl) + '</div>');
     out.push('<div class="hm-val"><b class="hm-num">' + esc(num(c.value, c.dec)) + '</b><small>' + esc(T.units[c.key] || c.unit) + '</small></div>');
     out.push('<div class="hm-status">' + esc(T.status[c.status] || '') + '</div>');
-    if (c.band) out.push('<div class="hm-range">' + esc(T.rangeLbl.replace('{lo}', num(c.band.lo, c.dec)).replace('{hi}', num(c.band.hi, c.dec))) + '</div>');
+    // the range is written one decimal finer than the value (max 2), so a value just past the edge
+    // never reads as sitting on it (e.g. 15.1 vs "14.2–15.1" for a High)
+    var rd = Math.min(c.dec + 1, 2);
+    if (c.band) out.push('<div class="hm-range">' + esc(T.rangeLbl.replace('{lo}', num(c.band.lo, rd)).replace('{hi}', num(c.band.hi, rd))) + '</div>');
     if (daysOld(c.date) !== 0 && isoDate(c.date)) out.push('<div class="hm-date">' + esc(c.date) + '</div>');
     out.push('</div>' + close);
     return out.join('');
