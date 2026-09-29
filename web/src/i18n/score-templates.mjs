@@ -1,8 +1,8 @@
 /* Home tab ("Inicio / Home") copy — es/en, baked as I18N_SCORE and read by client/score.js.
  * The advice sentences are NOT duplicated here: they come from lib/score/advice-copy.mjs, the
  * single source that the lib-level snapshot test pins. Keys are placeholder templates ({name})
- * filled client-side; the four load caveats below are the accurate replacements for the retired
- * blanket "HR under-weights strength" claim (false for this data). */
+ * filled client-side; the caveats below state the real limits of Relative Effort (it is HR-derived,
+ * so it credits metcon work more than heavy low-rep sets) instead of a blanket claim about strength. */
 import { ADVICE_COPY } from '../../../lib/score/advice-copy.mjs';
 
 export const en = {
