@@ -146,6 +146,16 @@ test('example build: every former tab lives as a section in its new tab, in orde
   assert.match(sliceTabPanel(html, 'health'), /<div id="health"><\/div>/);
 });
 
+test('example build: glance on Inicio, detail behind it — Entreno holds load detail, run/bike/load-vs-recovery, then the dashboard; Salud holds the rest', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const home = sliceTabPanel(html, 'home');
+  assert.doesNotMatch(home, /id="score-load"|id="health-train"|id="health"/, 'no detail hosts on Inicio');
+  const entreno = sliceTabPanel(html, 'entreno');
+  const at = (id) => entreno.indexOf(`id="${id}"`);
+  assert.ok(at('score-load') !== -1 && at('score-load') < at('health-train') && at('health-train') < at('sec-dash'), 'Entreno order: load detail, run/bike/load vs recovery, dashboard');
+  assert.match(sliceTabPanel(html, 'health'), /<div id="health"><\/div>/);
+});
+
 test('example build: Registro and Tablas are collapsible <details> folds with a summary', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   for (const key of ['registro', 'tablas']) {

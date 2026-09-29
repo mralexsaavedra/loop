@@ -36,8 +36,11 @@ export const es = {
     running: 'Carrera',
     cycling: 'Ciclismo',
     recovery: 'Recuperación',
+    sleep: 'Sueño',
     load: 'Carga vs recuperación',
   },
+  // Entreno's share of this renderer (#health-train: running, cycling, load vs recovery)
+  trainEmptyMsg: 'Aún no hay carreras, salidas en bici ni carga. Aparecen con los entrenos del reloj o desde Strava (<code>npm run sync:strava</code>).',
   trend: {
     weight: { title: 'Peso', unit: 'kg', deltaUnit: ' kg' },
     bodyfat: { title: 'Grasa corporal', unit: '%', deltaUnit: ' pp' },
@@ -120,8 +123,11 @@ export const en = {
     running: 'Running',
     cycling: 'Cycling',
     recovery: 'Recovery',
+    sleep: 'Sleep',
     load: 'Load vs recovery',
   },
+  // Entreno's share of this renderer (#health-train: running, cycling, load vs recovery)
+  trainEmptyMsg: 'No runs, rides or load data yet. They appear with Watch workouts or from Strava (<code>npm run sync:strava</code>).',
   trend: {
     weight: { title: 'Weight', unit: 'kg', deltaUnit: ' kg' },
     bodyfat: { title: 'Body fat', unit: '%', deltaUnit: ' pp' },

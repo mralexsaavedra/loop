@@ -143,18 +143,17 @@
   margin: 4px 0;
 }
 
-/* score cards that open their Salud detail (score.js adds role="button" only when Salud is reachable) */
-.sc-card[role="button"],
-.sc-load-card[role="button"] {
+/* dials that open their detail in Salud / Entreno (score.js adds role="button" only when that tab
+   is reachable) */
+.dial[role="button"] {
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  border-radius: var(--r-md);
+  transition: background 0.15s;
 }
-.sc-card[role="button"]:hover,
-.sc-load-card[role="button"]:hover {
-  border-color: rgba(var(--accent-rgb), 0.35);
+.dial[role="button"]:hover {
+  background: rgba(var(--accent-rgb), 0.06);
 }
-.sc-card[role="button"]:focus-visible,
-.sc-load-card[role="button"]:focus-visible {
+.dial[role="button"]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

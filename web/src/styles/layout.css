@@ -6,7 +6,8 @@
 .tab-section[hidden] {
   display: none;
 }
-.tab-section {
+.tab-section,
+.jump-anchor {
   scroll-margin-top: 16px;
 }
 
@@ -128,6 +129,7 @@ details.sec-fold > summary:hover > h2 {
 @media (min-width: 900px) {
   /* jump() targets clear the sticky top nav */
   .tab-section,
+  .jump-anchor,
   .hsub {
     scroll-margin-top: 72px;
   }

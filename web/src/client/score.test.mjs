@@ -41,19 +41,28 @@ function fixtureScores({ days = 49, shift = 2 } = {}) {
 
 const HEALTH = { recovery: { hasData: true, sleep: { target: 7.5 } } };
 
-function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, dials, dialsHost } = {}) {
+// Returns #home + #score-recovery (Salud) + #score-load (Entreno), in that order; pass `hosts` to
+// inspect each one separately.
+function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, dials, dialsHost, hosts = {} } = {}) {
   const host = { innerHTML: '' };
+  const rec = (hosts.rec = hosts.rec || { innerHTML: '' });
+  const load = (hosts.load = hosts.load || { innerHTML: '' });
+  hosts.home = host;
   const RealDate = Date;
   class FakeDate extends RealDate {
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
+  const byId = {
+    home: host, 'score-recovery': rec, 'score-load': load,
+    'home-dials': dialsHost || null, 't-health': healthNav ? {} : null, 't-entreno': entrenoNav ? {} : null,
+  };
   const ctx = {
-    document: { getElementById: (id) => (id === 'home' ? host : id === 'home-dials' && dialsHost ? dialsHost : id === 't-health' && healthNav ? {} : id === 't-entreno' && entrenoNav ? {} : null) },
+    document: { getElementById: (id) => byId[id] || null },
     SCORES: scores, DIALS: dials, I18N_SCORE: T || (locale === 'es' ? esT : enT), LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite,
   };
   vm.createContext(ctx);
   vm.runInContext(source, ctx);
-  return host.innerHTML;
+  return host.innerHTML + rec.innerHTML + load.innerHTML;
 }
 const count = (html, needle) => html.split(needle).length - 1;
 
@@ -190,26 +199,41 @@ test('baked date strings are validated before rendering: a non-ISO asOf/reEpoch 
   assert.doesNotMatch(html, /<img|id=xss|javascript:|onerror/);
 });
 
-test('Home order: recovery card, then load cards, then the advice sentence, then caveats', () => {
+test('glance vs detail (Whoop): Inicio keeps the dials + advice; the recovery card goes to Salud, load cards + caveats to Entreno', () => {
   const s = fixtureScores();
-  const html = render(s, { now: addDays(ASOF, 1) });
-  const at = (needle) => html.indexOf(needle);
-  assert.ok(at('sc-recovery') !== -1 && at('sc-load') !== -1 && at('sc-advice') !== -1);
-  assert.ok(at('sc-recovery') < at('sc-load'), 'recovery before load');
-  assert.ok(at('sc-load') < at('sc-advice'), 'advice after the load cards');
-  assert.ok(at('sc-advice') < at('sc-caveat'), 'caveats last');
+  const hosts = {};
+  render(s, { now: addDays(ASOF, 1), dials: buildDials(s, HEALTH), hosts });
+  assert.match(hosts.home.innerHTML, /sc-dials/);
+  assert.match(hosts.home.innerHTML, /sc-advice/);
+  assert.doesNotMatch(hosts.home.innerHTML, /sc-recovery|sc-load|sc-caveat/, 'no detail cards on Inicio');
+  assert.ok(hosts.home.innerHTML.indexOf('sc-dials') < hosts.home.innerHTML.indexOf('sc-advice'), 'advice under the dials');
+  assert.match(hosts.rec.innerHTML, /sc-recovery/);
+  assert.doesNotMatch(hosts.rec.innerHTML, /sc-load|sc-advice/);
+  const load = hosts.load.innerHTML;
+  assert.ok(load.indexOf('sc-load') !== -1 && load.indexOf('sc-load') < load.indexOf('sc-caveat'), 'load cards, then caveats');
+  assert.doesNotMatch(load, /sc-recovery|sc-advice/);
 });
 
-test('score cards link to their Salud detail when the Salud tab is reachable, and only then', () => {
+test('detail cards are not links any more (they ARE the detail); the dials open it instead', () => {
   const s = fixtureScores();
-  const linked = render(s, { now: addDays(ASOF, 1), healthNav: true });
-  assert.match(linked, /<div class="sc-card sc-recovery[^"]*" role="button" tabindex="0" onclick="jumpOr\('hl-recovery','health'\)"/);
-  assert.equal(count(linked, `onclick="jumpOr('sec-dash','entreno')"`), s.load.modalities.length, 'every load card links to the Entrenamiento section in Entreno');
-  const noEntreno = render(s, { now: addDays(ASOF, 1), healthNav: true, entrenoNav: false });
-  assert.doesNotMatch(noEntreno, /jumpOr\('sec-dash'/, 'no load-card link when Entreno is hidden');
-  assert.match(linked, /onkeydown=/, 'keyboard users can activate the card');
-  const unlinked = render(s, { now: addDays(ASOF, 1), healthNav: false });
-  assert.doesNotMatch(unlinked, /jumpOr\(/, 'no link when page.hideTabs hides the Salud tab');
+  const hosts = {};
+  render(s, { now: addDays(ASOF, 1), healthNav: true, hosts });
+  assert.doesNotMatch(hosts.rec.innerHTML + hosts.load.innerHTML, /jumpOr\(/);
+});
+
+test('dial taps: sleep -> Salud #hl-sleep, recovery -> Salud #hl-recovery, load -> Entreno #score-load; only when that tab is reachable', () => {
+  const s = fixtureScores();
+  const dials = buildDials(s, HEALTH);
+  const linked = render(s, { now: addDays(ASOF, 1), dials, healthNav: true, entrenoNav: true });
+  assert.match(dialOf(linked, 'dial-sleep'), /role="button" tabindex="0" onclick="jumpOr\('hl-sleep','health'\)"/);
+  assert.match(dialOf(linked, 'dial-rec'), /onclick="jumpOr\('hl-recovery','health'\)"/);
+  assert.equal(count(linked, `onclick="jumpOr('score-load','entreno')"`), s.load.modalities.length, 'every load-modality dial opens the Entreno load detail');
+  assert.match(linked, /onkeydown=/, 'keyboard users can activate a dial');
+  const noEntreno = render(s, { now: addDays(ASOF, 1), dials, healthNav: true, entrenoNav: false });
+  assert.doesNotMatch(noEntreno, /jumpOr\('score-load'/, 'no load link when Entreno is hidden');
+  assert.match(noEntreno, /jumpOr\('hl-recovery'/);
+  const unlinked = render(s, { now: addDays(ASOF, 1), dials, healthNav: false, entrenoNav: false });
+  assert.doesNotMatch(unlinked, /jumpOr\(/, 'no links when page.hideTabs hides Salud and Entreno');
 });
 
 /* ---- Inicio dials (Sleep / Recovery / Load) ---- */

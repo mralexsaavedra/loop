@@ -17,6 +17,7 @@ import Registro from '../src/tabs/Registro.astro';
 import Tablas from '../src/tabs/Tablas.astro';
 import Hoy from '../src/tabs/Hoy.astro';
 import Entrenos from '../src/tabs/Entrenos.astro';
+import TrainingDetail from '../src/tabs/TrainingDetail.astro';
 import Salud from '../src/tabs/Salud.astro';
 import { resolveEnv } from '../src/env.mjs';
 import { buildNutrition } from '../../lib/nutrition/macros.mjs';
@@ -63,6 +64,7 @@ const title = plan.page?.title || 'Plan';
     <Hoy dict={dict} hidden={isHidden('hoy')} />
   </div>
   <div class="tab-panel" data-tab="entreno" hidden={activeTab !== 'entreno'}>
+    <TrainingDetail />
     <Entrenos dict={dict} hidden={isHidden('dash')} />
   </div>
   <div class="tab-panel" data-tab="health" hidden={activeTab !== 'health'}>
