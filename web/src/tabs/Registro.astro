@@ -1,5 +1,5 @@
 ---
-/* "Registro" (day builder / live calculator) tab — ported from the legacy
+/* "Registro" (day builder / live calculator) — collapsible second section of the Nutrición tab; ported from the legacy
  * DAY BUILDER / REGISTRO markup (data/nutrition/plan-web.html) plus its
  * GEN:EXTRAS region. Dropdown OPTIONS and all computation are filled/run
  * client-side by web/src/client/nutrition.js from globals baked by Bake
@@ -26,9 +26,9 @@ interface Props {
   dash: any;
   health: any; // lib/health/aggregate.mjs's buildHealth() result — astro-plan-web slice 6
   scores: any; // lib/score/index.mjs's buildScores() result — whoop-daily (Home tab)
-  activeTab: string;
+  hidden: boolean; // page.hideTabs includes "registro"
 }
-const { nut, dict, page, plan, locale, training, trainingMeta, dash, health, scores, activeTab } = Astro.props;
+const { nut, dict, page, plan, locale, training, trainingMeta, dash, health, scores, hidden } = Astro.props;
 const t = dict.strings.registro;
 const verdictTemplates = locale === 'es' ? esVerdict : enVerdict;
 const logTemplates = locale === 'es' ? esLog : enLog;
@@ -39,8 +39,9 @@ const scoreTemplates = locale === 'es' ? esScore : enScore;
 const targetTrain = nut.targetFor('train');
 const targetRest = nut.targetFor('rest');
 ---
-<div class="tab-panel" data-tab="registro" hidden={activeTab !== 'registro'}>
-  <h2>{t.heading}</h2>
+<details class="tab-section sec-fold" data-section="registro" id="sec-registro" hidden={hidden}>
+  <summary><h2>{t.heading}</h2><span class="chev">›</span></summary>
+  <div class="sec-body">
   <Note id="registro.intro" page={page} class="acc-note" style="margin:-4px 0 10px" />
   <div class="builder">
     <div class="bld-row"><label>{t.desayuno}</label><select id="bld-desayuno"></select></div>
@@ -79,7 +80,8 @@ const targetRest = nut.targetFor('rest');
     <div class="bld-msg" id="bld-msg" />
     <textarea id="bld-output" readonly aria-label={t.copyOutputLabel} />
   </div>
-</div>
+  </div>
+</details>
 
 <Bake
   nut={nut}

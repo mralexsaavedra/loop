@@ -13,6 +13,7 @@ import '../src/styles/tablas.css';
 import '../src/styles/training.css';
 import '../src/styles/health.css';
 import '../src/styles/score.css';
+import '../src/styles/layout.css';
 import coreScript from '../src/client/core.js?raw';
 import nutritionScript from '../src/client/nutrition.js?raw';
 import trainingTodayScript from '../src/client/training-today.js?raw';
@@ -35,8 +36,9 @@ interface Props {
 }
 
 const { title, locale, page = {}, dict, tabs, activeTab = tabs[0]?.key } = Astro.props;
-const navLabels: Record<string, string> = { home: 't-home', dia: 't-dia', registro: 't-registro', tablas: 't-tablas', hoy: 't-hoy', dash: 't-dash', health: 't-health' };
-const showDayToggle = activeTab === 'dia' || activeTab === 'registro';
+const navLabels: Record<string, string> = { home: 't-home', nutricion: 't-nutricion', health: 't-health' };
+// the global train/rest toggle belongs to the Nutrición tab (core.js setTab mirrors this)
+const showDayToggle = activeTab === 'nutricion';
 ---
 
 <!DOCTYPE html>

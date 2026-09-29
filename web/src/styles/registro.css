@@ -231,7 +231,7 @@
   /* Registro — fill the width: form fields + steppers flow into responsive
      grids; full-width headers/controls span all columns and keep each
      group together */
-  .tab-panel[data-tab="registro"] .builder {
+  .tab-section[data-section="registro"] .builder {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: var(--sp-5) var(--sp-7);

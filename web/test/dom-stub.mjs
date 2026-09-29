@@ -108,6 +108,10 @@ export class StubElement {
   dispatch(evt) {
     (this._listeners[evt] || []).forEach((fn) => fn.call(this));
   }
+  /** Real-DOM alias of `parent`, so client code can walk ancestors the browser way. */
+  get parentElement() {
+    return this.parent;
+  }
   closest(sel) {
     let el = this;
     while (el) {

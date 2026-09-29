@@ -1,5 +1,5 @@
 ---
-/* "Tablas" (equivalence reference) tab — ported from the legacy hand-
+/* "Tablas" (equivalence reference) — collapsible third section of the Nutrición tab; ported from the legacy hand-
  * maintained `data/nutrition/plan-web.html` `data-tab="tablas"` panel.
  *
  * Two kinds of content, per design:
@@ -31,13 +31,14 @@ interface Props {
   nut: any; // buildNutrition() result
   dict: any;
   page?: { notes?: Record<string, string> };
-  activeTab: string;
+  hidden: boolean; // page.hideTabs includes "tablas"
 }
-const { nut, dict, page, activeTab } = Astro.props;
+const { nut, dict, page, hidden } = Astro.props;
 const t = dict.strings.tablas;
 ---
-<div class="tab-panel" data-tab="tablas" hidden={activeTab !== 'tablas'}>
-  <h2>{t.heading}</h2>
+<details class="tab-section sec-fold" data-section="tablas" id="sec-tablas" hidden={hidden}>
+  <summary><h2>{t.heading}</h2><span class="chev">›</span></summary>
+  <div class="sec-body">
 
   <details id="acc-desayunos">
     <summary>{t.desayunos.icon} {t.desayunos.label} <span class="chev">›</span></summary>
@@ -180,3 +181,4 @@ const t = dict.strings.tablas;
   <h2>{t.howToHeading}</h2>
   <div class="tip" set:html={t.howToHtml} />
 </div>
+</details>
