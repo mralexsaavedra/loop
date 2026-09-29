@@ -430,6 +430,44 @@ test('load dial: no session today -> "No session yet today" with the last sessio
   assert.ok(capOf(withDials(none), 'run').startsWith('No session yet today · typical day'), 'no last session known');
 });
 
+/* the load dial opens on what happened TODAY (viewer's clock), not on the first ungated modality */
+function withToday(s, reByKey) {
+  for (const m of s.load.modalities) {
+    const re = reByKey[m.key];
+    m.recent = re == null ? [{ date: addDays(ASOF, -3), re: 30, unscored: 0 }] : [{ date: ASOF, re, unscored: re > 0 ? 0 : 1 }];
+    m.last = re > 0 ? { date: ASOF, re } : { date: addDays(ASOF, -3), re: 30 };
+  }
+  return s;
+}
+const pressedMod = (html) => (html.match(/class="dial-mod" data-dmod="([a-z]+)" aria-pressed="true"/) || [])[1];
+const visibleFig = (html) => (html.match(/<figure class="dial dial-load[^"]*" data-dmod="([a-z]+)"[^>]*?(?<!hidden)>/) || [])[1];
+const visibleCap = (html) => (html.match(/<div class="dial-cap" data-dmod="([a-z]+)">/) || [])[1];
+
+test('load dial default: the modality with a session on the viewer\'s today, not the first ungated one', () => {
+  const ok = buildDials(fixtureScores(), HEALTH).load.modalities.filter((m) => m.state === 'ok').map((m) => m.key);
+  assert.ok(ok.length >= 2, `fixture needs two ungated modalities, got ${ok}`);
+  const [first, second] = ok;
+  const s = withToday(fixtureScores(), { [second]: 94 });
+  const html = withDials(s);
+  assert.equal(pressedMod(html), second, 'switch starts on today\'s modality');
+  assert.equal(visibleFig(html), second, 'its dial is the visible one');
+  assert.equal(visibleCap(html), second, 'and its caption');
+  assert.ok(figOf(html, second).includes('<b class="dial-num">94</b>'));
+  assert.match(html, new RegExp(`<figure class="dial dial-load[^"]*" data-dmod="${first}" hidden`), 'the first ungated one is behind the switch');
+  assert.equal(count(html, 'aria-pressed="true"'), 1);
+});
+
+test('load dial default: several sessions today -> the one with the highest RE; none today -> the first ungated', () => {
+  const ok = buildDials(fixtureScores(), HEALTH).load.modalities.filter((m) => m.state === 'ok').map((m) => m.key);
+  const [first, second] = ok;
+  assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [first]: 20, [second]: 60 }))), second);
+  assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [first]: 70, [second]: 60 }))), first);
+  // a session without RE today still beats a modality with nothing today
+  assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [second]: 0 }))), second);
+  // the clock decides: the same data viewed the next day falls back to the first ungated modality
+  assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [second]: 94 }), { now: addDays(ASOF, 1) })), first);
+});
+
 test('dials: stale data greys the dial; fresh data does not', () => {
   const s = fixtureScores();
   assert.doesNotMatch(dialOf(withDials(s, { now: addDays(ASOF, 1) }), 'dial-sleep'), /sc-stale/);

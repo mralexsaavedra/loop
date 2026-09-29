@@ -284,11 +284,25 @@ function scMod(key, btn) {
       '<span class="dial-word">' + esc(rt.bands[d.band]) + '</span><b class="dial-num dial-num-sm">' + esc(format(rt.delta, { value: v })) + '</b>',
       rt.label, sub);
   }
+  // The modality the switch opens on, for the VIEWER's today (never baked): the ungated modality with
+  // a session today (highest RE if several; a session without RE still beats nothing), else the baked
+  // default (the first ungated one).
+  function openKey(d) {
+    var best = null, bestRe = -1;
+    d.modalities.forEach(function (m) {
+      if (m.state !== 'ok') return;
+      var td = loadToday(m);
+      var re = td.kind === 'trained' ? td.day.re : td.kind === 'noEffort' ? 0 : -1;
+      if (re > bestRe) { best = m.key; bestRe = re; }
+    });
+    return best || d.defaultKey;
+  }
   function loadDials(d, dt) {
     var lt = dt.load;
     var stale = isStale(d.asOf);
+    var open = openKey(d);
     var figs = d.modalities.map(function (m) {
-      var hid = m.key === d.defaultKey ? '' : ' hidden';
+      var hid = m.key === open ? '' : ' hidden';
       var extra = ' data-dmod="' + attr(m.key) + '"' + hid;
       var mod = T.load.modalities[m.key] || m.key;
       if (m.state !== 'ok') {
@@ -313,8 +327,9 @@ function scMod(key, btn) {
     return figs.join('');
   }
   function loadSwitch(d, dt) {
+    var open = openKey(d);
     var btns = d.modalities.map(function (m) {
-      return '<button type="button" class="dial-mod" data-dmod="' + attr(m.key) + '" aria-pressed="' + (m.key === d.defaultKey ? 'true' : 'false') +
+      return '<button type="button" class="dial-mod" data-dmod="' + attr(m.key) + '" aria-pressed="' + (m.key === open ? 'true' : 'false') +
         '" onclick="scMod(\'' + attr(m.key) + '\',this)">' + esc(T.load.modalities[m.key] || m.key) + '</button>';
     }).join('');
     // caption per modality: the day vs its typical day, then the acute/chronic trend as context;
@@ -333,7 +348,7 @@ function scMod(key, btn) {
       } else {
         txt = T.load.gated[m.reason] || T.load.gated.baselineBuilding;
       }
-      return '<div class="dial-cap" data-dmod="' + attr(m.key) + '"' + (m.key === d.defaultKey ? '' : ' hidden') + '>' + esc(txt) + '</div>';
+      return '<div class="dial-cap" data-dmod="' + attr(m.key) + '"' + (m.key === open ? '' : ' hidden') + '>' + esc(txt) + '</div>';
     }).join('');
     return '<div class="dial-foot"><div class="dial-switch" role="group" aria-label="' + attr(dt.load.switchLabel) + '">' +
       '<span class="dial-switch-lbl">' + esc(dt.load.label) + '</span>' + btns + '</div>' +
