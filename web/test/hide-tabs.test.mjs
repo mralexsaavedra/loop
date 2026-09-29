@@ -157,3 +157,15 @@ test('build-level: hiding EVERY top-level tab fails the Astro build with a clear
     assert.match(r.stdout + r.stderr, /every tab is hidden/i);
   }
 });
+
+test('build-level: with NO logged intake at all (no extract), the intake rings and Registro collapse to one line in the Registro fold summary; with Registro hidden the line stays in Mi día', () => {
+  const { r, html } = buildWithHideTabs([]);
+  assert.equal(r.status, 0, r.stderr);
+  const dia = html.slice(html.indexOf('data-section="dia"'), html.indexOf('data-section="registro"'));
+  assert.doesNotMatch(dia, /<div id="intake">/, 'no rings host in Mi día');
+  const summary = html.match(/data-section="registro"[^>]*>\s*<summary>([\s\S]*?)<\/summary>/)[1];
+  assert.match(summary, /<span class="sec-hint">No food logged/, 'one-line hint in the Registro fold summary');
+  const hidden = buildWithHideTabs(['registro']);
+  assert.equal(hidden.r.status, 0, hidden.r.stderr);
+  assert.match(hidden.html, /<div id="intake"><\/div>/, 'Registro hidden: Mi día keeps the host, intake.js writes the line');
+});

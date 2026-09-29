@@ -70,10 +70,11 @@ test('intake older than 3 days -> empty state explaining how to enable it', () =
   assert.match(host.innerHTML, /diet_kcal/);
 });
 
-test('no intake at all -> the same empty state', () => {
+test('no intake ever logged -> ONE line hint, not a full empty card (the owner may not log food)', () => {
   const { host } = run({ latest: null, today: '2030-01-10' });
-  assert.doesNotMatch(host.innerHTML, /class="ring /);
-  assert.match(host.innerHTML, /No recent intake/);
+  assert.doesNotMatch(host.innerHTML, /class="ring |intake-card/);
+  assert.match(host.innerHTML, /^<p class="intake-hint">[^\n]*<\/p>$/);
+  assert.match(host.innerHTML, /No food logged/);
 });
 
 // the ring circumference the fill arc is measured against (r = 18 in a 44-unit viewBox)

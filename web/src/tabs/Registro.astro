@@ -39,11 +39,14 @@ const dashTemplates = locale === 'es' ? esDash : enDash;
 const healthTemplates = locale === 'es' ? esHealth : enHealth;
 const scoreTemplates = locale === 'es' ? esScore : enScore;
 const intakeTemplates = locale === 'es' ? esIntake : enIntake;
+// no intake ever logged (build-time, deterministic): the intake rings and this fold collapse to ONE
+// line — the hint sits in the fold summary and Mi día renders no rings host (web/pages/index.astro)
+const noIntake = !intake?.latest;
 const targetTrain = nut.targetFor('train');
 const targetRest = nut.targetFor('rest');
 ---
 <details class="tab-section sec-fold" data-section="registro" id="sec-registro" hidden={hidden}>
-  <summary><h2>{t.heading}</h2><span class="chev">›</span></summary>
+  <summary><h2>{t.heading}</h2>{noIntake && <span class="sec-hint" set:html={intakeTemplates.noneHtml} />}<span class="chev">›</span></summary>
   <div class="sec-body">
   <Note id="registro.intro" page={page} class="acc-note" style="margin:-4px 0 10px" />
   <div class="builder">

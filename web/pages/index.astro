@@ -73,7 +73,7 @@ const title = plan.page?.title || 'Plan';
     <Salud />
   </div>
   <div class="tab-panel" data-tab="nutricion" hidden={activeTab !== 'nutricion'}>
-    <Dia nut={nut} dict={dict} page={plan.page} hidden={isHidden('dia')} />
+    <Dia nut={nut} dict={dict} page={plan.page} hidden={isHidden('dia')} intakeHost={!!intake.latest || isHidden('registro')} />
     <Registro nut={nut} dict={dict} page={plan.page} plan={plan} locale={locale} training={training.days} trainingMeta={trainMeta} dash={dash} health={health} scores={scores} intake={intake} hidden={isHidden('registro')} />
     <Tablas nut={nut} dict={dict} page={plan.page} hidden={isHidden('tablas')} />
   </div>

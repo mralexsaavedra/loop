@@ -72,7 +72,13 @@
     var host = document.getElementById('intake');
     if (!host) return;
     var L = INTAKE.latest;
-    if (!L || !isFresh(L.date)) {
+    // never logged at all: one line, not a card (with Registro visible, Dia.astro renders no host
+    // and the line sits in the Registro fold summary instead)
+    if (!L) {
+      host.innerHTML = '<p class="intake-hint">' + T.noneHtml + '</p>';
+      return;
+    }
+    if (!isFresh(L.date)) {
       var last = L ? format(T.lastTpl, { date: esc(fmtD(L.date)) }) : '';
       host.innerHTML = '<div class="intake-card intake-empty"><h3>' + T.heading + '</h3><p>' + format(T.emptyHtml, { days: INTAKE.freshDays }) + last + '</p></div>';
       return;
