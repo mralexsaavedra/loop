@@ -1,0 +1,164 @@
+/* Client-side (browser, classic-script) format strings for the "Salud /
+ * Health" tab (astro-plan-web slice 6) — same rationale/constraint as
+ * hoy-templates.mjs / dash-templates.mjs: web/src/client/health.js is a
+ * classic script and cannot import an ES module, so it can only receive
+ * plain JSON-safe data baked by Bake.astro (I18N_HEALTH). No functions or
+ * RegExp allowed here — every dynamic fragment is a `{placeholder}` string
+ * substituted client-side via the shared `format(tpl, vars)` helper (see
+ * health.js), including two-level nesting for the notes that have optional
+ * clauses (e.g. `sourcesClause`/`sourceClause` built from a sub-template,
+ * then spliced into the note's `main` template) — this preserves the exact
+ * conditional-concatenation structure of the legacy `<script>` IIFE while
+ * staying JSON-safe.
+ *
+ * Ported from the legacy `<script>` IIFE in
+ * data/nutrition/plan-web.template.html ("health"). Decimal-comma display
+ * (`nf()` in health.js) and the `es-ES`/`en-GB` date locale are handled in
+ * health.js itself from the shared `LOCALE` global — same pattern as
+ * training-dash.js's `hc()`.
+ *
+ * KNOWN_DEVIATION (content, not structure — see web/test/parity.test.mjs):
+ * `runningNote` here is a GENERIC translation of the tracked template's
+ * "Improving pace at the same effort is the signal to watch." The owner's
+ * live personal page instead ends with a Hyrox-specific goal ("Para Hyrox,
+ * bajar el ritmo comprometido es la prioridad.") — personal customization
+ * that doesn't belong in tracked/generic copy, same rationale as
+ * dash-templates.mjs's `note1Html` deviation.
+ */
+export const es = {
+  emptyMsg: 'Aún no hay datos de salud. Suelta tu export de Apple Health en <code>data/apple-health/</code>, corre <code>extract.js</code> y regenera.',
+  introMsg: 'Cuerpo, actividad y recuperación de tu último export de Apple Health.',
+  agoDaysTpl: 'hace {d} días',
+  agoMonthTpl: 'hace {m} mes',
+  agoMonthsTpl: 'hace {m} meses',
+  agoYearsTpl: 'hace {y} años',
+  sections: {
+    body: 'Composición corporal',
+    activity: 'Actividad',
+    energy: 'Energía',
+    running: 'Carrera',
+    recovery: 'Recuperación',
+    load: 'Carga vs recuperación',
+  },
+  trend: {
+    weight: { title: 'Peso', unit: 'kg', deltaUnit: ' kg' },
+    bodyfat: { title: 'Grasa corporal', unit: '%', deltaUnit: ' pp' },
+    lean: { title: 'Masa magra', unit: 'kg', deltaUnit: ' kg' },
+    steps: { title: 'Pasos', unit: '/día', deltaUnit: '' },
+    exercise: { title: 'Min. de ejercicio', unit: 'min/día', deltaUnit: '' },
+    distance: { title: 'Distancia', unit: 'km/día', deltaUnit: '' },
+    flights: { title: 'Pisos subidos', unit: '/día', deltaUnit: '' },
+    expenditure: { title: 'Gasto diario', unit: 'kcal/día' },
+    rhr: { title: 'FC en reposo', unit: 'ppm', deltaUnit: ' ppm' },
+    hrv: { title: 'VFC', unit: 'ms', deltaUnit: ' ms' },
+    vo2max: { title: 'VO₂máx', unit: 'ml/kg/min', deltaUnit: '' },
+    walkingHr: { title: 'FC al caminar', unit: 'ppm', deltaUnit: ' ppm' },
+    respiratory: { title: 'Frecuencia respiratoria', unit: 'rpm', deltaUnit: '' },
+    wristTemp: { title: 'Temp. de muñeca (sueño)', unit: '°C' },
+    sleep: { title: 'Sueño', unit: 'h media' },
+  },
+  bodyNote: {
+    main: '<b>Cómo leer esto.</b> El peso mezcla básculas/apps{sourcesClause}, así que la tendencia es una <b>media móvil de 7 días</b>; el número grande es tu última lectura{sourceClause}. Δ es respecto a hace ~30 días. La grasa corporal y la masa magra son bioimpedancia (<b>±3-5%</b>) y solo comparables <b>dentro de una misma báscula</b>{bfSourceClause}; su Δ es desde la primera lectura en esa báscula.',
+    sourcesClause: ' ({n} fuentes)',
+    sourceClause: ' ({src})',
+  },
+  activityNoteHtml: '<b>Pasos = NEAT</b>, tu mayor palanca de gasto fuera del entreno. Todo son medias de ~30 días (media móvil 7d); Δ vs los 30 días previos. Se descartan días casi sin pasos/distancia (dispositivo no llevado) y se toma el <b>máximo por dispositivo</b> para no duplicar iPhone + reloj.',
+  energyBalanceNote: {
+    main: 'Balance entre {from}–{to} ({days} días registrados). Negativo = déficit. Es <b>histórico</b> — basado en la última ventana con ingesta registrada.{macroClause}',
+    macroClause: ' El split de macros es la media de esos días.',
+  },
+  energyExpenditureNote: {
+    main: '<b>Solo gasto.</b> Energía activa + basal del Apple Watch (media móvil 7 días, últimos {tdeeDays} días) — baja los días que no llevaste el reloj. <b>La ingesta no se puede puntuar:</b> se registró en muy pocos días recientes{lastIntakeClause} para calcular un déficit o un split de macros real. Para objetivos probados, mira el histórico del nutricionista en <code>data/nutritionist</code>.',
+    lastIntakeClause: ' (último el {date}, {ago})',
+  },
+  energyCards: {
+    intakeAvgLbl: 'ingesta media',
+    tdeeAvgLbl: 'gasto medio',
+    deficitLbl: 'déficit/día',
+    surplusLbl: 'superávit/día',
+    proteinLbl: 'proteína',
+    carbsLbl: 'carbohidratos',
+    fatLbl: 'grasa',
+  },
+  runningTable: { dateH: 'Fecha', distH: 'Dist', paceH: 'Ritmo', powerH: 'Pot.', gctH: 'TCS', oscH: 'Osc.', strideH: 'Zancada' },
+  runningNote: 'Tus <b>{count}</b> sesiones de carrera con métricas del reloj (más recientes arriba). <b>No es una tendencia</b> — son muy pocas para eso —, pero es tu dato real de motor: ritmo (de la velocidad GPS), potencia, tiempo de contacto con el suelo (TCS), oscilación vertical y zancada. Mejorar el ritmo al mismo esfuerzo es la señal a vigilar.',
+  sleepCards: {
+    nightsTargetLbl: 'noches ≥ {target} h',
+    sdLbl: 'variación noche a noche',
+    bedtimeLbl: 'hora de acostarse',
+    wakeLbl: 'hora de despertar',
+  },
+  recoveryNoteHtml: '<b>↓ FC en reposo, ↑ VFC, ↑ VO₂máx y ↓ FC al caminar</b> son las direcciones buenas. La frecuencia respiratoria y la temperatura de muñeca (solo durante el sueño) sirven como señal de recuperación/enfermedad — mira el cambio, no el valor absoluto. En sueño, además de la media importan la <b>consistencia</b> (±h y la regularidad de horarios en minutos): dormir parecido cada noche recupera mejor que promediar 7 h con noches de 5 y 9.',
+  loadSec: { heading: 'Carga cardiovascular semanal', hint: 'Índice = minutos × pulso medio ÷ 100 · últimas {weeks} semanas.', barTitleTpl: '{date}: carga {load}' },
+  loadCards: { hrvHighLbl: 'VFC · semanas de + carga', hrvLowLbl: 'VFC · semanas suaves', rhrHighLbl: 'FC reposo · + carga', rhrLowLbl: 'FC reposo · suaves' },
+  loadNoteHtml: '<b>La vista que Strava no puede darte:</b> tu carga cruzada con tu recuperación. <b>VFC más baja y/o FC en reposo más alta en las semanas de más carga</b> es lo esperable — tu cuerpo acusa el estímulo. Lo que vigilas es que <b>rebote</b> en las semanas suaves; si no rebota, estás acumulando fatiga. Ojo: la FC <b>infrarrepresenta la fuerza</b> (por eso es «carga cardiovascular», no total), son pocas semanas y esto es <b>asociación, no causa</b>.',
+};
+
+export const en = {
+  emptyMsg: 'No health data yet. Drop your Apple Health export into <code>data/apple-health/</code>, run <code>extract.js</code>, then regenerate.',
+  introMsg: 'Body, activity &amp; recovery from your latest Apple Health export.',
+  agoDaysTpl: '{d} days ago',
+  agoMonthTpl: '{m} month ago',
+  agoMonthsTpl: '{m} months ago',
+  agoYearsTpl: '{y} yr ago',
+  sections: {
+    body: 'Body composition',
+    activity: 'Activity',
+    energy: 'Energy',
+    running: 'Running',
+    recovery: 'Recovery',
+    load: 'Load vs recovery',
+  },
+  trend: {
+    weight: { title: 'Weight', unit: 'kg', deltaUnit: ' kg' },
+    bodyfat: { title: 'Body fat', unit: '%', deltaUnit: ' pp' },
+    lean: { title: 'Lean mass', unit: 'kg', deltaUnit: ' kg' },
+    steps: { title: 'Steps', unit: '/day', deltaUnit: '' },
+    exercise: { title: 'Exercise minutes', unit: 'min/day', deltaUnit: '' },
+    distance: { title: 'Distance', unit: 'km/day', deltaUnit: '' },
+    flights: { title: 'Flights climbed', unit: '/day', deltaUnit: '' },
+    expenditure: { title: 'Daily expenditure', unit: 'kcal/day' },
+    rhr: { title: 'Resting HR', unit: 'bpm', deltaUnit: ' bpm' },
+    hrv: { title: 'HRV', unit: 'ms', deltaUnit: ' ms' },
+    vo2max: { title: 'VO₂max', unit: 'ml/kg/min', deltaUnit: '' },
+    walkingHr: { title: 'Walking HR', unit: 'bpm', deltaUnit: ' bpm' },
+    respiratory: { title: 'Respiratory rate', unit: 'brpm', deltaUnit: '' },
+    wristTemp: { title: 'Wrist temp (sleep)', unit: '°C' },
+    sleep: { title: 'Sleep', unit: 'h avg' },
+  },
+  bodyNote: {
+    main: '<b>How to read this.</b> Weight mixes scales/apps{sourcesClause}, so the trend is a <b>7-day rolling average</b>; the headline is your latest reading{sourceClause}. Δ is vs ~30 days ago. Body fat and lean mass are bioimpedance (<b>±3-5%</b>) and only comparable <b>within one scale</b>{bfSourceClause}; their Δ is since the first reading on that scale.',
+    sourcesClause: ' ({n} sources)',
+    sourceClause: ' ({src})',
+  },
+  activityNoteHtml: '<b>Steps = NEAT</b>, your biggest energy lever outside training. All are ~30-day averages (7-day rolling); Δ is vs the prior 30 days. Near-zero step/distance days are dropped (device not carried) and the <b>max per device</b> is used so iPhone + watch aren’t double-counted.',
+  energyBalanceNote: {
+    main: 'Balance over {from}–{to} ({days} logged days). Negative = deficit. This is <b>historical</b> — based on the last window where intake was logged.{macroClause}',
+    macroClause: ' The macro split is the average of those days.',
+  },
+  energyExpenditureNote: {
+    main: '<b>Expenditure only.</b> Active + resting energy from the Apple Watch (7-day rolling, last {tdeeDays} days) — it runs low on days the watch wasn’t worn. <b>Intake can’t be scored:</b> it was logged on too few recent days{lastIntakeClause} to compute a real deficit or macro split. For proven targets, see the nutritionist history in <code>data/nutritionist</code>.',
+    lastIntakeClause: ' (last on {date}, {ago})',
+  },
+  energyCards: {
+    intakeAvgLbl: 'avg intake',
+    tdeeAvgLbl: 'avg burn',
+    deficitLbl: 'deficit/day',
+    surplusLbl: 'surplus/day',
+    proteinLbl: 'protein',
+    carbsLbl: 'carbs',
+    fatLbl: 'fat',
+  },
+  runningTable: { dateH: 'Date', distH: 'Dist', paceH: 'Pace', powerH: 'Power', gctH: 'GCT', oscH: 'Osc.', strideH: 'Stride' },
+  runningNote: 'Your <b>{count}</b> runs with watch metrics (most recent first). <b>Not a trend</b> — too few for that — but it is your real engine data: pace (from GPS speed), power, ground-contact time (GCT), vertical oscillation and stride. Improving pace at the same effort is the signal to watch.',
+  sleepCards: {
+    nightsTargetLbl: 'nights ≥ {target} h',
+    sdLbl: 'night-to-night spread',
+    bedtimeLbl: 'bedtime',
+    wakeLbl: 'wake time',
+  },
+  recoveryNoteHtml: '<b>↓ resting HR, ↑ HRV, ↑ VO₂max and ↓ walking HR</b> are the good directions. Respiratory rate and wrist temperature (sleep only) are recovery/illness signals — watch the change, not the absolute value. For sleep, beyond the average the <b>consistency</b> matters (±h and schedule regularity in minutes): sleeping a similar amount each night recovers better than averaging 7 h across 5- and 9-hour nights.',
+  loadSec: { heading: 'Weekly cardiovascular load', hint: 'Index = minutes × mean HR ÷ 100 · last {weeks} weeks.', barTitleTpl: '{date}: load {load}' },
+  loadCards: { hrvHighLbl: 'HRV · higher-load weeks', hrvLowLbl: 'HRV · easy weeks', rhrHighLbl: 'resting HR · higher-load', rhrLowLbl: 'resting HR · easy' },
+  loadNoteHtml: '<b>The view Strava can’t give you:</b> your load crossed with your recovery. <b>Lower HRV and/or higher resting HR in higher-load weeks</b> is expected — your body registers the stimulus. What you watch for is that it <b>rebounds</b> in easy weeks; if it doesn’t, you’re accumulating fatigue. Caveats: HR <b>under-reads strength</b> (so this is CARDIOVASCULAR load, not total), it’s only a few weeks, and this is <b>association, not causation</b>.',
+};
