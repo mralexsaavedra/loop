@@ -1,15 +1,18 @@
 #!/usr/bin/env node
-/* Generator for the nutrition plan.
+/* Generator for the nutrition plan's human-readable reference tables.
  * Two sources, merged in memory:
  *   - ingredients.json (TRACKED, public food DB): `ingredients` =
  *     per-100g/ml/ud base foods (verified = real product label). Reusable.
  *   - plan-data.json (GITIGNORED, personal plan): `data`/`dayPlan`/`extras`/etc.
  *     Each item carries a `recipe` ([{ing, amt}]) OR a `manual` macro block
  *     (ranges/estimates with no single label) OR `none` (the "— ninguno —" row).
- * This script COMPUTES per-serving k/p/c/g from ingredient*amt, then outputs
- * (DO NOT edit by hand):
- *   - the GEN:DATA block inside plan-web.html  (flat JS DATA/EXTRAS objects)
- *   - plan-tables.md                           (human-readable reference tables)
+ * This script COMPUTES per-serving k/p/c/g from ingredient*amt, validates the
+ * plan's integrity, then writes plan-tables.md (DO NOT edit by hand).
+ *
+ * The single-file page (plan-web.html equivalent) is built separately by the
+ * Astro pipeline (`node scripts/build-web.mjs`, wired into `npm run generate`)
+ * using the SAME lib/nutrition/macros.mjs — this file no longer emits HTML.
+ *
  * Run:  node data/nutrition/generate.js
  */
 const fs = require('fs');
@@ -35,199 +38,10 @@ const { buildNutrition, validateNutrition } = require(path.join(DIR, '..', '..',
 const nut = buildNutrition(ingFile.ingredients, plan);
 const {
   ING, RAW, RAWEX, QUESO, VEG, DAYPLAN, LEGUMES, LEGUME_PLATE,
-  D, EX, MACRO, rk, rm, nd, dotThousands,
-  resolve, macro, lineMacro, brkRows, brkQty, mealMacros,
+  D, EX, MACRO, rk, rm,
+  resolve, macro, brkRows, brkQty, mealMacros,
   dayTotalK, targetFor,
 } = nut;
-const { extrasDisplay: EXTRASDISPLAY } = plan;
-
-/* ---------- serialize resolved data back to readable JS for the HTML block ---------- */
-function jsVal(v) {
-  if (typeof v === 'number') return String(v);
-  if (typeof v === 'string') return "'" + v.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
-  throw new Error('unexpected value: ' + v);
-}
-function jsItem(o) {
-  return '{' + Object.keys(o).map(k => k + ':' + jsVal(o[k])).join(',') + '}';
-}
-function jsArr(arr, indent) {
-  const pad = ' '.repeat(indent);
-  return '[\n' + arr.map(o => pad + '  ' + jsItem(o)).join(',\n') + '\n' + pad + ']';
-}
-function jsData() {
-  const lines = ['    var DATA = {'];
-  const keys = Object.keys(D);
-  keys.forEach((key, i) => {
-    const v = D[key];
-    const comma = i < keys.length - 1 ? ',' : '';
-    if (Array.isArray(v)) {
-      lines.push('      ' + key + ':' + jsArr(v, 6) + comma);
-    } else { // {train, rest}
-      const subs = Object.keys(v);
-      lines.push('      ' + key + ':{');
-      subs.forEach((s, j) => lines.push('        ' + s + ':' + jsArr(v[s], 8) + (j < subs.length - 1 ? ',' : '')));
-      lines.push('      }' + comma);
-    }
-  });
-  lines.push('    };');
-  return lines.join('\n');
-}
-function jsExtras() {
-  const lines = ['    var EXTRAS = {'];
-  const keys = Object.keys(EX);
-  keys.forEach((k, i) => lines.push('      ' + k + ':' + jsItem(EX[k]) + (i < keys.length - 1 ? ',' : '')));
-  lines.push('    };');
-  return lines.join('\n');
-}
-const keysJS = k => '[' + k.map(x => "'" + x + "'").join(',') + ']';
-
-/* ---------- breakfast detail tables (generated into plan-web.html) ----------
-   These per-component reference tables used to be hand-written HTML (a second
-   source of truth that drifted). They are now generated from the same recipes.
-   Recipe lines may carry display-only fields: `label` (row name), `q` (quantity
-   override), `group`+`glabel` (merge several lines into one row, e.g. milk used
-   in batter + sauce). Item-level `tier` (🟢/🟡/🔴) + `cap` drive the caption.
-   nd/lineMacro/brkRows/brkQty come from lib/nutrition/macros.mjs (destructured above). */
-function brkTable(item) {
-  const r = resolve(item);
-  const cap = `${item.tier} ${item.cap} · ~${r.k} kcal · ${Math.round(r.p)} P · ${Math.round(r.c)} C · ${Math.round(r.g)} G`;
-  const trs = brkRows(item.recipe).map(row => {
-    const name = row.link ? `<button class="lnk" onclick="jump('${row.link}')">${row.name}</button>` : row.name;
-    return `          <tr><td>${name}</td><td>${brkQty(row)}</td><td class="kc">${rk(row.k)}</td><td>${nd(row.p)}</td><td>${nd(row.c)}</td><td>${nd(row.g)}</td></tr>`;
-  }).join('\n');
-  return [
-    '      <div class="table-scroll"><table>',
-    `        <caption>${cap}</caption>`,
-    '        <thead><tr><th>Componente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>',
-    '        <tbody>',
-    trs,
-    '        </tbody>',
-    '      </table></div>',
-  ].join('\n');
-}
-const brkBlock = () => [
-  '      <!-- GEN:BREAKFAST START — generated from plan-data.json by generate.js. DO NOT EDIT BY HAND. -->',
-  RAW.desayuno.filter(o => !o.none).map(brkTable).join('\n'),
-  '      <!-- GEN:BREAKFAST END -->',
-].join('\n');
-
-/* ---------- day-summary cards (generated into plan-web.html) ----------
-   Both .day-panel cards are rendered from `dayPlan` in plan-data.json. A meal's
-   macros are the sum of its parts. A "part" is either a raw ingredient
-   ({ing, amt}) or a reference to a resolved item in data[use] (or data[use][tier])
-   whose `n` or `l` matches `match` (priority: exact n, exact l, n-includes, l-includes).
-   resolvePart/mealMacros/dotThousands come from lib/nutrition/macros.mjs. */
-function dayPanel(day, plan) {
-  const meals = plan.meals.map(meal => ({ meal, m: mealMacros(meal) }));
-  const total = meals.reduce((s, x) => s + x.m.k, 0);
-  const totP = meals.reduce((s, x) => s + x.m.p, 0);
-  const totC = meals.reduce((s, x) => s + x.m.c, 0);
-  const totG = meals.reduce((s, x) => s + x.m.g, 0);
-  const lines = [];
-  lines.push(`  <div class="day-panel" data-day="${day}"${day === 'rest' ? ' hidden' : ''}>`);
-  lines.push('    <div class="summary">');
-  lines.push(`      <div class="kcal">~${dotThousands(rk(total))}<span>kcal</span></div>`);
-  lines.push('    </div>');
-  lines.push('    <div class="macros">');
-  lines.push(`      <div class="mac"><span class="lbl">Prot</span><b>${rk(totP)} g</b></div>`);
-  lines.push(`      <div class="mac"><span class="lbl">Carb</span><b>${rk(totC)} g</b></div>`);
-  lines.push(`      <div class="mac"><span class="lbl">Grasa</span><b>${rk(totG)} g</b></div>`);
-  lines.push('    </div>');
-  lines.push(`    <p class="deficit">${plan.kcalNote}</p>`);
-  lines.push('');
-  lines.push('    <h2>El día</h2>');
-  for (const { meal, m } of meals) {
-    const name = meal.jump
-      ? `<button class="meal-name" onclick="jump('${meal.jump}')">${meal.name}</button>`
-      : `<div class="meal-name">${meal.name}</div>`;
-    lines.push('    <div class="meal">');
-    lines.push(`      <div class="meal-top">${name}<div class="meal-kcal">~${rk(m.k)} kcal</div></div>`);
-    const desc = meal.descHtml != null ? meal.descHtml : meal.desc;
-    if (desc != null) lines.push(`      <div class="meal-desc">${desc}</div>`);
-    if (meal.pcf !== false) lines.push(`      <div class="meal-pcf"><span><b>${rk(m.p)}</b> P</span><span><b>${rk(m.c)}</b> C</span><span><b>${rk(m.g)}</b> G</span></div>`);
-    lines.push('    </div>');
-  }
-  lines.push('  </div>');
-  return lines.join('\n');
-}
-const dayPlanBlock = () => [
-  '  <!-- GEN:DAYPLAN START — generated from plan-data.json by generate.js. DO NOT EDIT BY HAND. -->',
-  dayPanel('train', DAYPLAN.train),
-  dayPanel('rest', DAYPLAN.rest),
-  '  <!-- GEN:DAYPLAN END -->',
-].join('\n');
-
-/* ---------- live-calculator TARGET (generated into GEN:DATA) ----------
-   The Registro calculator grades the day against TARGET and prints "objetivo ~k".
-   k is DERIVED from the same day total the summary card shows, so it is impossible
-   for the displayed target to drift from the plan it prescribes (this used to be a
-   hand-maintained static line that went stale). p (protein goal) and fatMax (fat
-   ceiling) are genuine owner-set targets read from plan-data.json `targets`, with
-   safe defaults so a plan without that block still generates.
-   dayTotalK/targetFor come from lib/nutrition/macros.mjs. */
-const targetJS = () => {
-  const one = day => { const t = targetFor(day); return `${day}:{k:${t.k},p:${t.p},fatMax:${t.fatMax}}`; };
-  return '    var TARGET = {' + one('train') + ', ' + one('rest') + '};';
-};
-
-/* ---------- extras stepper labels (generated into plan-web.html) ----------
-   The .extras group labels (qty · ~kcal · note) used to be hand-written and
-   duplicated the generated EXTRAS macros. They are now rendered from
-   `extrasDisplay`; kcal comes from the resolved EX[key].k. The `key` MUST equal
-   the live-calculator key used by bump('key',...) and id="x-key". */
-function extraRow(item) {
-  const ex = EX[item.key];
-  if (!ex) throw new Error('extrasDisplay: unknown extras key: ' + item.key);
-  const label = `${item.qty} · ~${ex.k} kcal` + (item.note ? ` · ${item.note}` : '');
-  return `      <div class="extra"><span>${item.emoji} ${item.name}<small>${label}</small></span><div class="stepper"><button type="button" aria-label="menos ${item.name}" onclick="bump('${item.key}',-1)">−</button><span class="cnt" id="x-${item.key}">0</span><button type="button" aria-label="más ${item.name}" onclick="bump('${item.key}',1)">+</button></div></div>`;
-}
-function extrasGroup(group) {
-  const lines = [`    <div class="combo-h">${group.header}</div>`];
-  if (group.headerNote) lines.push(`    <p class="acc-note" style="margin:-2px 0 6px">${group.headerNote}</p>`);
-  lines.push('    <div class="extras">');
-  group.items.forEach(item => lines.push(extraRow(item)));
-  lines.push('    </div>');
-  return lines.join('\n');
-}
-const extrasDisplayBlock = () => [
-  '    <!-- GEN:EXTRAS START — generated from plan-data.json by generate.js. DO NOT EDIT BY HAND. -->',
-  EXTRASDISPLAY.map(extrasGroup).join('\n'),
-  '    <!-- GEN:EXTRAS END -->',
-].join('\n');
-
-const GEN_HEAD =
-`    /* GEN:DATA START — generated from plan-data.json by generate.js. DO NOT EDIT BY HAND.
-       Edit data/nutrition/plan-data.json (ingredients + recipes) and run \`node data/nutrition/generate.js\`.
-       Macros below are COMPUTED from ingredient*amt — do not hand-tune them here.
-       Item fields: l = dropdown label · n/q = table name/amount · k/p/c/g = macros ·
-       t = protein tier · note = caption · none = the "— ninguno —" option (skipped in tables). */`;
-
-const htmlBlock = [
-  GEN_HEAD,
-  jsData(),
-  jsExtras(),
-  '    var QUESO_KEYS=' + keysJS(QUESO) + ';',
-  '    var VEG_KEYS=' + keysJS(VEG) + ';',
-  targetJS(),
-  '    /* GEN:DATA END */',
-].join('\n');
-
-const htmlPath = path.join(DIR, 'plan-web.html');
-/* Pure: take current plan-web.html text, replace the 5 GEN regions, return new text.
-   Throws (not process.exit) on a missing marker so callers/tests can handle it. */
-function buildHtml(html) {
-  const regions = [
-    [/[ \t]*\/\* GEN:DATA START[\s\S]*?\/\* GEN:DATA END \*\//, htmlBlock, 'GEN:DATA'],
-    [/[ \t]*<!-- GEN:BREAKFAST START[\s\S]*?<!-- GEN:BREAKFAST END -->/, brkBlock(), 'GEN:BREAKFAST'],
-    [/[ \t]*<!-- GEN:DAYPLAN START[\s\S]*?<!-- GEN:DAYPLAN END -->/, dayPlanBlock(), 'GEN:DAYPLAN'],
-    [/[ \t]*<!-- GEN:EXTRAS START[\s\S]*?<!-- GEN:EXTRAS END -->/, extrasDisplayBlock(), 'GEN:EXTRAS'],
-  ];
-  for (const [re, block, name] of regions) {
-    if (!re.test(html)) throw new Error(name + ' markers not found in plan-web.html');
-    html = html.replace(re, block);
-  }
-  return html;
-}
 
 /* ---------- render plan-tables.md ---------- */
 const real = arr => arr.filter(o => !o.none);
@@ -378,9 +192,8 @@ function reportWarnings(warnings) {
 
 function main() {
   reportWarnings(validate().warnings);
-  fs.writeFileSync(htmlPath, buildHtml(fs.readFileSync(htmlPath, 'utf8')));
   fs.writeFileSync(path.join(DIR, 'plan-tables.md'), buildTables());
-  console.log('Generated: plan-web.html (GEN:DATA block) + plan-tables.md');
+  console.log('Generated: plan-tables.md');
 }
 
 if (require.main === module) {
@@ -388,4 +201,4 @@ if (require.main === module) {
   else main();
 }
 
-module.exports = { ING, D, EX, MACRO, resolve, macro, mealMacros, buildHtml, buildTables, validate, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE, dayTotalK, targetFor };
+module.exports = { ING, D, EX, MACRO, resolve, macro, mealMacros, buildTables, validate, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE, dayTotalK, targetFor };

@@ -11,8 +11,12 @@ const { execFileSync } = require('node:child_process');
 const os = require('node:os');
 const gen = require('./generate.js');
 
-const { ING, D, macro, mealMacros, buildTables, buildHtml, validate, DAYPLAN, LEGUMES, LEGUME_PLATE } = gen;
+const { ING, D, macro, mealMacros, buildTables, validate, DAYPLAN, LEGUMES, LEGUME_PLATE } = gen;
 const close = (a, b, tol = 0.5) => Math.abs(a - b) <= tol;
+
+test('generate.js no longer builds plan-web.html — buildHtml is not exported (astro-plan-web cutover)', () => {
+  assert.equal(gen.buildHtml, undefined, 'HTML splicing moved to the Astro build; generate.js now only validates + writes plan-tables.md');
+});
 
 test('validate() passes on the merged ingredients.json + plan-data.json', () => {
   const res = validate();
@@ -37,8 +41,6 @@ test('generate.js fails clearly when ingredients.json is missing', () => {
   try {
     fs.copyFileSync(path.join(__dirname, 'generate.js'), path.join(dir, 'generate.js'));
     fs.copyFileSync(path.join(__dirname, 'plan-data.json'), path.join(dir, 'plan-data.json'));
-    // a plan-web.html target so the error is the missing-ingredients one, not a missing template
-    fs.writeFileSync(path.join(dir, 'plan-web.html'), '');
     assert.throws(
       () => execFileSync(process.execPath, ['generate.js', '--check'], { cwd: dir, stdio: 'pipe' }),
       /ingredients\.json not found/,
@@ -109,21 +111,14 @@ test('legume detail table is single-sourced (computed, not hand-typed)', () => {
 test('live-calculator TARGET is single-sourced: k equals the generated day total', () => {
   // Regression guard. TARGET used to be a hand-maintained static line that drifted from
   // the plan (the Registro calculator graded "objetivo ~2570" while the plan prescribed
-  // ~2440). Now generate.js emits TARGET inside GEN:DATA with k DERIVED from the day total,
-  // so it cannot drift. p/fatMax stay owner-set (plan-data.json `targets`, with defaults).
-  const html = fs.readFileSync(path.join(__dirname, 'plan-web.html'), 'utf8');
-  const out = buildHtml(html);
-  const count = (out.match(/var TARGET\s*=/g) || []).length;
-  assert.equal(count, 1, 'exactly one var TARGET (generated inside GEN:DATA, no leftover static line)');
-  const m = out.match(/var TARGET = \{train:\{k:(\d+),[^}]*\},\s*rest:\{k:(\d+),/);
-  assert.ok(m, 'TARGET must be emitted with train/rest k');
-  assert.equal(+m[1], gen.dayTotalK('train'), 'train target k must equal the generated day total');
-  assert.equal(+m[2], gen.dayTotalK('rest'), 'rest target k must equal the generated day total');
+  // ~2440). targetFor(day).k is DERIVED from the same day total the Astro build bakes
+  // (lib/nutrition/macros.mjs), so it cannot drift. p/fatMax stay owner-set (plan-data.json
+  // `targets`, with defaults).
+  for (const day of ['train', 'rest']) {
+    assert.equal(gen.targetFor(day).k, gen.dayTotalK(day), `${day} target k must equal the generated day total`);
+  }
 });
 
-test('generation is idempotent (buildTables + buildHtml are stable)', () => {
+test('generation is idempotent (buildTables is stable)', () => {
   assert.equal(buildTables(), buildTables());
-  const html = fs.readFileSync(path.join(__dirname, 'plan-web.html'), 'utf8');
-  const once = buildHtml(html);
-  assert.equal(buildHtml(once), once, 're-running buildHtml on its own output must be a no-op');
 });
