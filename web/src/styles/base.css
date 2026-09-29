@@ -231,7 +231,7 @@ footer {
     padding: 0 clamp(24px, 3vw, 52px);
   }
 
-  /* main nav → sticky full-bleed top bar (three tabs fit on one row) */
+  /* main nav → sticky full-bleed top bar (four tabs fit on one row) */
   .tabnav {
     position: sticky;
     left: auto;

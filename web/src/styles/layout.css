@@ -1,4 +1,4 @@
-/* Three-tab layout — sections inside a tab panel (the former tabs) and the collapsible
+/* Four-tab layout — sections inside a tab panel (the former tabs) and the collapsible
  * section folds (Registro, Tablas). A fold is a <details class="tab-section sec-fold"> whose
  * <summary> carries the section's h2; it must NOT look like an equivalence accordion card
  * (tablas.css styles bare `details`/`summary`), so those card rules are reset here. */
