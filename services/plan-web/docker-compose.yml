@@ -1,0 +1,13 @@
+# Serves the generated plan page (data/nutrition/plan-web.html) on the LAN.
+# refresh.sh copies the page into ./site; only that directory is mounted, so
+# nothing else under data/ is reachable over HTTP.
+services:
+  plan-web:
+    image: nginx:alpine
+    container_name: plan-web
+    restart: unless-stopped
+    ports:
+      - "${PLAN_WEB_PORT:-8090}:80"
+    volumes:
+      - ./site:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro

@@ -24,6 +24,8 @@ data/apple-health/*
 data/weight/weight-log.md
 data/nutrition/food-log.md
 data/nutrition/plan-web.html
+# The LAN copy of plan-web.html served by services/plan-web — same personal content.
+services/plan-web/site/
 # plan-data.json holds the PERSONAL plan (recipes, day structure, targets); plan-tables.md
 # is generated from it. Both hold personal plan data → ignore.
 data/nutrition/plan-data.json
