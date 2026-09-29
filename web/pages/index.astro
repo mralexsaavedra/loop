@@ -2,7 +2,7 @@
 /* Entry page for the Astro build. Loads the env contract (locale/data-mode/inputs) at build
  * time, computes the nutrition + training + health view-models, and composes the shared Plan
  * layout with THREE top-level tabs (Whoop-style):
- *   - Inicio/Home (`home`)       scores (recovery, load, advice) + the programmed-session section (hoy)
+ *   - Inicio/Home (`home`)       scores (recovery, load, advice) + "today you eat" card + programmed session (hoy)
  *   - Nutrición (`nutricion`)    Mi día (dia) + Registro (registro) + Tablas (tablas) sections
  *   - Salud/Health (`health`)    body & recovery + the Entrenamiento section (dash)
  * The former tab keys now name sections; `page.hideTabs` hides a section by its legacy key and a
@@ -10,6 +10,7 @@
  */
 import Plan from '../layouts/Plan.astro';
 import Home from '../src/tabs/Home.astro';
+import EatCard from '../src/components/EatCard.astro';
 import Dia from '../src/tabs/Dia.astro';
 import Registro from '../src/tabs/Registro.astro';
 import Tablas from '../src/tabs/Tablas.astro';
@@ -50,6 +51,7 @@ const title = plan.page?.title || 'Plan';
 <Plan title={title} locale={locale} page={plan.page} dict={dict} tabs={TABS} activeTab={activeTab}>
   <div class="tab-panel" data-tab="home" hidden={activeTab !== 'home'}>
     <Home />
+    <EatCard nut={nut} dict={dict} />
     <Hoy dict={dict} hidden={isHidden('hoy')} />
   </div>
   <div class="tab-panel" data-tab="nutricion" hidden={activeTab !== 'nutricion'}>

@@ -174,3 +174,13 @@ test('baked date strings are validated before rendering: a non-ISO asOf/reEpoch 
   const html = render(s);
   assert.doesNotMatch(html, /<img|id=xss|javascript:|onerror/);
 });
+
+test('Home order: recovery card, then load cards, then the advice sentence, then caveats', () => {
+  const s = fixtureScores();
+  const html = render(s, { now: addDays(ASOF, 1) });
+  const at = (needle) => html.indexOf(needle);
+  assert.ok(at('sc-recovery') !== -1 && at('sc-load') !== -1 && at('sc-advice') !== -1);
+  assert.ok(at('sc-recovery') < at('sc-load'), 'recovery before load');
+  assert.ok(at('sc-load') < at('sc-advice'), 'advice after the load cards');
+  assert.ok(at('sc-advice') < at('sc-caveat'), 'caveats last');
+});

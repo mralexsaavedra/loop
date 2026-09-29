@@ -17,6 +17,14 @@ export default {
         dash: 'Training',
       },
     },
+    // Inicio's compact nutrition card (day toggle + that day's totals + link to Nutrición)
+    eat: {
+      heading: 'Today you eat',
+      fullPlan: 'See full plan',
+      protein: 'Protein',
+      carbs: 'Carbs',
+      fat: 'Fat',
+    },
     dayToggle: {
       ariaLabel: 'Day type',
       train: '🏋️ Training',
