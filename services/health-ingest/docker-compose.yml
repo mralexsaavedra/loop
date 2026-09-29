@@ -38,17 +38,5 @@ services:
       timeout: 5s
       retries: 3
 
-  health-web:
-    build: ../web
-    container_name: health-web
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@health-db:5432/${POSTGRES_DB}
-    ports:
-      - "${WEB_PORT:-3001}:3000"
-    depends_on:
-      health-db:
-        condition: service_healthy
-
 volumes:
   health-db-data:

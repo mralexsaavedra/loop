@@ -95,9 +95,10 @@ Decimal commas (`42,1`) are accepted.
 What the sync does with each shape:
 
 - **Point keys** keep one row per sample. `bodyfat` accepts a fraction (`0.184`) or a percent
-  (`18.4`); `waist` accepts cm, or metres (`0.84`), which it converts.
+  (`18.4`); `waist` accepts cm, or metres (`0.84`), which it converts. Send it in **centimetres**:
+  the metres check (value below 3) cannot tell inches from cm, so `33` in would be stored as 33 cm.
 - **Day totals**: the oldest day of each key is dropped (a "last N days" query starts mid-day, so
-  that day is partial), and the latest payload wins for a day. A `0` on `respiratory`/`walking_hr`
+  that day is partial; the four `diet_*` keys share one oldest day, since they fold into one row), and the latest payload wins for a day. A `0` on `respiratory`/`walking_hr`
   (from *Fill Missing*) means no data. Steps keep the **max** of watch and phone per day.
 - **Dietary**: the four `diet_*` keys become one row per day. A day without `diet_kcal`, or with
   0 kcal, is skipped; a missing macro stays blank. These feed the intake rings in Nutrición.
@@ -125,6 +126,12 @@ npm run generate    # rebuilds the page
 
 `data/apple-health/extract/_meta.json` → `shortcutSync.owned` lists every date the sync wrote
 per CSV. `npm run sync -- --full` rebuilds the local sample cache from every stored payload.
+
+**After adding new keys** (e.g. `waist`, `diet_*`): run `npm run sync -- --full` once. The
+incremental sync only parses payloads newer than the cache, so keys already sitting in cached
+payloads are picked up only by a full rebuild. For Strava elevation, rebuild the ingest image
+(`docker compose up -d --build health-ingest`) before `npm run sync:strava`; the sync warns when
+no activity carries elevation.
 
 ## Next step
 

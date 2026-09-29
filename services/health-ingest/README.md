@@ -94,7 +94,12 @@ If the image predates this endpoint, `GET /export/strava` answers `404` — the
 new field is added to the response (e.g. `total_elevation_gain`, which feeds the
 `elevation_m` column of `workouts.csv`): an un-rebuilt image still answers, but
 without the field, so the column stays blank until the rebuild and the next
-`npm run sync:strava`.
+`npm run sync:strava` (which prints a stale-image warning when no activity carries
+elevation).
+
+After adding new Shortcut keys (e.g. `waist`, `diet_*`), run `npm run sync -- --full` once so
+payloads already in the local cache are re-parsed; send `waist` in centimetres (see
+`docs/ios-shortcut.md`).
 
 ## Strava
 
@@ -144,7 +149,7 @@ internet), put it behind a TLS-terminating reverse proxy and rotate the token
 (`openssl rand -hex 32`, update `.env` and the clients) if it may have been exposed.
 
 The iPhone must reach the endpoint from outside the LAN. Point the reverse proxy
-at `apps:8088`.
+at `<your-host>:8088` (the `INGEST_PORT` in `.env`).
 
 Two caveats:
 
