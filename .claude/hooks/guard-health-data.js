@@ -60,10 +60,6 @@ const PERSONAL = [
 const ALLOWED = [
   '.gitkeep',
   'extract.js',
-  'generate-training.js',
-  'generate-training.test.js',
-  'generate-health.js',
-  'generate-health.test.js',
   'training-data.example.json',
   'plan-data.example.json',
 ];

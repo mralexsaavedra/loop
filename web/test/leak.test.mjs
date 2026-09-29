@@ -3,8 +3,8 @@
  * data.json's coach/program/source) must NOT appear verbatim in any
  * TRACKED file (what `git ls-files` would commit). Strings that are also
  * present in the tracked public food DB (ingredients.json name/note) or
- * the tracked .example/.template seeds are allowlisted — they are
- * legitimately public/generic content, not a leak.
+ * the tracked .example seeds are allowlisted — they are legitimately
+ * public/generic content, not a leak.
  *
  * Skips gracefully when the personal files are absent (fresh clone / CI
  * without the owner's gitignored data) — see spec's Fresh-clone bootstrap.
@@ -53,10 +53,7 @@ function buildAllowlist() {
   const trainingExample = readJsonIfExists(path.join(ROOT, 'data', 'training', 'training-data.example.json'));
   if (trainingExample) collectStrings(trainingExample, allow);
 
-  const templatePath = path.join(ROOT, 'data', 'nutrition', 'plan-web.template.html');
-  const templateHtml = fs.existsSync(templatePath) ? fs.readFileSync(templatePath, 'utf8') : '';
-
-  return { allow, templateHtml };
+  return { allow };
 }
 
 /** Personal-only strings to scan for: plan-data.json's page.* (title/
@@ -105,13 +102,12 @@ test('no personal plan-data.json `page.*` / training-data.json coach-program-sou
     return;
   }
 
-  const { allow, templateHtml } = buildAllowlist();
+  const { allow } = buildAllowlist();
   const tracked = trackedFileContents();
 
   const leaks = [];
   for (const str of personal) {
     if (allow.has(str)) continue;
-    if (templateHtml.includes(str)) continue;
     for (const [file, content] of tracked) {
       if (content.includes(str)) leaks.push({ string: str, file });
     }
