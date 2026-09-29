@@ -48,6 +48,7 @@ const KCAL_HEADER = 'date,kcal';
 const METRICS = {
   hrv:      { kind: 'point', csv: 'hrv.csv', header: S.READING_HEADER, metaKey: 'hrv', fmt: v => +v.toFixed(1) },
   rhr:      { kind: 'point', csv: 'rhr.csv', header: S.READING_HEADER, metaKey: 'rhr', rangeKey: 'restingHR', fmt: v => +v.toFixed(2) },
+  vo2max:   { kind: 'point', csv: 'vo2max.csv', header: S.READING_HEADER, metaKey: 'vo2max', fmt: v => +v.toFixed(2) },
   weight:   { kind: 'point', csv: 'weight.csv', header: S.READING_HEADER, metaKey: 'weight', rangeKey: 'weight', fmt: v => +v.toFixed(2) },
   // body fat is stored as a PERCENT (extract.js converts HealthKit's fraction) -> accept both scales.
   // Real scale source kept: generate-health's body-comp uses the LATEST SOURCE only, so a
@@ -62,6 +63,17 @@ const METRICS = {
     row: (date, v) => `${date},${Math.round(v)}` },
   basal_energy:  { kind: 'daily', csv: 'basal-energy-daily.csv', header: KCAL_HEADER, metaKey: 'basal_energy', sourceCol: null,
     row: (date, v) => `${date},${Math.round(v)}` },
+  // Sleeping wrist temperature: one sample per night, dated by its START date exactly like
+  // extract.js (no sleep-night roll-over), so a 23:xx and a 00:xx sample land on different dates.
+  wrist_temp:  { kind: 'point', csv: 'wristTemp.csv', header: S.READING_HEADER, metaKey: 'wristTemp', fmt: v => +v.toFixed(2) },
+  // Cardio Recovery (bpm drop 1 min after a workout): one row per workout sample (per-day means
+  // would hide which session it was; readers can average). extract.js writes the same CSV.
+  hr_recovery: { kind: 'point', csv: 'hr-recovery.csv', header: S.READING_HEADER, metaKey: 'hrRecovery', fmt: v => +v.toFixed(1) },
+  // day-grouped means (extract.js: per-day mean of all samples); "fill missing" 0 rows = no data
+  respiratory: { kind: 'daily', csv: 'respiratory-daily.csv', header: 'date,brpm', metaKey: 'respiratory', sourceCol: null, skipZero: true,
+    row: (date, v) => `${date},${v.toFixed(1)}` },
+  walking_hr:  { kind: 'daily', csv: 'walking-hr-daily.csv', header: 'date,bpm', metaKey: 'walking_hr', sourceCol: null, skipZero: true,
+    row: (date, v) => `${date},${v.toFixed(0)}` },
   sleep:    { kind: 'interval', csv: 'sleep-daily.csv', header: S.SLEEP_HEADER, metaKey: 'sleep' },
 };
 // "Shortcut" or a device-tagged "Shortcut <device>" (steps) -> a row this sync wrote
@@ -168,8 +180,10 @@ function foldPayloads(cache, items) {
     .sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
   for (const item of fresh) {
     for (const [metric, parsed] of Object.entries(parsePayload(item.payload))) {
-      const kind = METRICS[metric].kind;
-      const samples = isDailyKind(kind) ? dropTruncatedOldest(parsed) : parsed;
+      const def = METRICS[metric], kind = def.kind;
+      // zeros still mark the window start, so drop the truncated oldest day BEFORE the zeros
+      let samples = isDailyKind(kind) ? dropTruncatedOldest(parsed) : parsed;
+      if (def.skipZero) samples = samples.filter(x => x.value > 0);
       const seen = out.samples[metric] || (out.samples[metric] = {});
       for (const s of samples) {
         const k = DEDUP_KEY[kind](s);

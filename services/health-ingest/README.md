@@ -45,8 +45,10 @@ and an `Automation-Name` header (stored in `raw_payload.automation`).
 }
 ```
 
-Point metrics are `start;value[;source]` (body fat / lean mass carry the scale's
-source), daily totals grouped by day on the phone (active/basal energy, and steps sent
+Point metrics (hrv, rhr, vo2max, weight, bodyfat, leanmass, wrist_temp,
+hr_recovery) are
+`start;value[;source]` (body fat / lean mass carry the scale's source), day-grouped values from the phone (active/basal energy, respiratory and
+walking_hr means where `0` = no data, and steps sent
 per device as `steps_watch` / `steps_phone`, because a merged steps total sums the
 devices) are `start;value`, sleep is `start;end;stage`. A key is omitted or empty when its query
 returned nothing. Runs may overlap (rolling window); the reader dedups.

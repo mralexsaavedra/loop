@@ -20,7 +20,8 @@ test('parseNumber() accepts dot and comma decimals', () => {
 
 test('METRICS is a per-metric table covering the implemented metrics', () => {
   assert.deepEqual(Object.keys(METRICS).sort(),
-    ['active_energy', 'basal_energy', 'bodyfat', 'hrv', 'leanmass', 'rhr', 'sleep', 'steps', 'weight']);
+    ['active_energy', 'basal_energy', 'bodyfat', 'hr_recovery', 'hrv', 'leanmass', 'respiratory', 'rhr', 'sleep',
+      'steps', 'vo2max', 'walking_hr', 'weight', 'wrist_temp']);
   for (const m of Object.values(METRICS)) {
     assert.ok(m.csv && m.header && m.kind);
   }
@@ -515,4 +516,58 @@ test('sleep across the DST fall-back: real minutes, one night, wall-clock bed/wa
     '2026-10-25T02:00:00+01:00;2026-10-25T06:00:00+01:00;Deep', // 4 h after clocks go back
   ].join('\n') }]);
   assert.deepEqual(buildRows('sleep', s.sleep).map(r => r.line), [`2026-10-25,7.00,${SHORTCUT_SOURCE},23.5,6`]);
+});
+
+test('vo2max: point samples without a source merge into vo2max.csv tagged Shortcut', () => {
+  const s = collectSamples([{ vo2max: '2030-01-02T10:00:00+01:00;45.123\n2030-01-05T10:00:00+01:00;45,6' }]);
+  assert.deepEqual(buildRows('vo2max', s.vo2max).map(r => r.line),
+    [`2030-01-02,45.12,${SHORTCUT_SOURCE}`, `2030-01-05,45.6,${SHORTCUT_SOURCE}`]);
+  const H = 'date,value,source';
+  const r = mergeCsv([H, '2030-01-02,44,Watch', ''].join('\n'), METRICS.vo2max.header, buildRows('vo2max', s.vo2max));
+  assert.equal(r.text, [H, '2030-01-02,44,Watch', `2030-01-05,45.6,${SHORTCUT_SOURCE}`, ''].join('\n'));
+  assert.equal(METRICS.vo2max.csv, 'vo2max.csv');
+});
+
+// ---- recovery signals ------------------------------------------------------------------
+
+test('respiratory: day-grouped mean -> date,brpm (1 decimal); 0 = no data; oldest day dropped', () => {
+  const s = collectSamples([{ respiratory: daily(['2030-01-01', 15], ['2030-01-02', 14.46], ['2030-01-03', 0], ['2030-01-04', 15.25]) }]);
+  assert.deepEqual(buildRows('respiratory', s.respiratory).map(r => r.line), ['2030-01-02,14.5', '2030-01-04,15.3']);
+  assert.equal(METRICS.respiratory.header, 'date,brpm');
+  assert.equal(METRICS.respiratory.csv, 'respiratory-daily.csv');
+  assert.equal(METRICS.respiratory.sourceCol, null);
+});
+
+test('walking_hr: day-grouped mean -> date,bpm (integer)', () => {
+  const s = collectSamples([{ walking_hr: daily(['2030-01-01', 90], ['2030-01-03', 95.6], ['2030-01-05', 0]) }]);
+  assert.deepEqual(buildRows('walking_hr', s.walking_hr).map(r => r.line), ['2030-01-03,96']);
+  assert.equal(METRICS.walking_hr.header, 'date,bpm');
+  assert.equal(METRICS.walking_hr.csv, 'walking-hr-daily.csv');
+});
+
+test('wrist_temp: dated by the sample START date (like extract.js), one row per sample', () => {
+  const s = collectSamples([{ wrist_temp: '2030-01-01T23:10:00+01:00;36.123\n2030-01-03T00:20:00+01:00;36,4' }]);
+  assert.deepEqual(buildRows('wrist_temp', s.wrist_temp).map(r => r.line),
+    [`2030-01-01,36.12,${SHORTCUT_SOURCE}`, `2030-01-03,36.4,${SHORTCUT_SOURCE}`]);
+  assert.equal(METRICS.wrist_temp.csv, 'wristTemp.csv');
+});
+
+test('hr_recovery: one row per workout sample -> hr-recovery.csv', () => {
+  const s = collectSamples([{ hr_recovery: '2030-01-02T19:00:00+01:00;25.26\n2030-01-02T20:00:00+01:00;30' }]);
+  assert.deepEqual(buildRows('hr_recovery', s.hr_recovery).map(r => r.line),
+    [`2030-01-02,25.3,${SHORTCUT_SOURCE}`, `2030-01-02,30,${SHORTCUT_SOURCE}`]);
+  assert.equal(METRICS.hr_recovery.csv, 'hr-recovery.csv');
+  assert.equal(METRICS.hr_recovery.metaKey, 'hrRecovery', 'same rows key extract.js writes');
+});
+
+test('extract.js writes hr-recovery.csv in the same schema the sync uses', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-hrr-'));
+  for (const f of ['extract.js', 'samples.js']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
+  fs.writeFileSync(path.join(dir, 'export.xml'),
+    '<Record type="HKQuantityTypeIdentifierHeartRateRecoveryOneMinute" sourceName="W" startDate="2030-01-02 19:00:00 +0100" endDate="2030-01-02 19:01:00 +0100" value="25.26"/>\n');
+  execFileSync(process.execPath, [path.join(dir, 'extract.js')], { stdio: 'ignore' });
+  const out = path.join(dir, 'extract');
+  assert.equal(fs.readFileSync(path.join(out, 'hr-recovery.csv'), 'utf8'), 'date,value,source\n2030-01-02,25.3,W\n');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(out, '_meta.json'), 'utf8')).rows.hrRecovery, 1);
+  fs.rmSync(dir, { recursive: true });
 });

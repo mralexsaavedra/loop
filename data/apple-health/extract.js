@@ -31,7 +31,9 @@ const attr = (s, name) => { const m = s.match(new RegExp(' ' + name + '="([^"]*)
 const { READING_HEADER, SLEEP_HEADER, day, num, absMs, minutesBetween, sleepNight, readingRow, sleepRow } = require('./samples.js');
 
 // sparse readings: [{date, value, source}]
-const readings = { weight: [], bodyfat: [], rhr: [], vo2max: [], hrv: [], leanmass: [], wristTemp: [] };
+const readings = { weight: [], bodyfat: [], rhr: [], vo2max: [], hrv: [], leanmass: [], wristTemp: [], hrRecovery: [] };
+// output file per readings key (default `${key}.csv`)
+const READING_FILE = { hrRecovery: 'hr-recovery.csv' };
 // daily sums: Map<date, number>  (energy is single-source per the export → summing is correct)
 const daily = { active: new Map(), basal: new Map() };
 // per-source daily totals for series logged by MULTIPLE devices (iPhone + Watch): we take the
@@ -85,6 +87,7 @@ function handleRecord(line) {
     case Q + 'DietaryCarbohydrates': return addDiet(d, 'c', v);
     case Q + 'DietaryFatTotal':      return addDiet(d, 'g', v);
     case Q + 'LeanBodyMass':         return v != null && readings.leanmass.push({ date: d, value: +v.toFixed(2), source: src });
+    case Q + 'HeartRateRecoveryOneMinute': return v != null && readings.hrRecovery.push({ date: d, value: +v.toFixed(1), source: src }); // Cardio Recovery, bpm
     case Q + 'AppleSleepingWristTemperature': return v != null && readings.wristTemp.push({ date: d, value: +v.toFixed(2), source: src });
     case Q + 'AppleExerciseTime':       return addMaxSrc(maxSrc.exercise, d, src, v);
     case Q + 'DistanceWalkingRunning':  return addMaxSrc(maxSrc.distance, d, src, v);
@@ -171,7 +174,7 @@ rl.on('close', () => {
   // sparse readings
   for (const [k, arr] of Object.entries(readings)) {
     sortByDate(arr);
-    counts[k] = csv(`${k}.csv`, READING_HEADER, arr.map(readingRow));
+    counts[k] = csv(READING_FILE[k] || `${k}.csv`, READING_HEADER, arr.map(readingRow));
   }
   // daily sums
   const dumpDaily = (map, file, col) => {
@@ -249,6 +252,7 @@ rl.on('close', () => {
       'sleep bedtime/waketime = earliest asleep start / latest asleep end of the night, decimal local hour.',
       'exercise/distance/flights = max across devices per day (iPhone+Watch overlap → summing double-counts, like steps); respiratory & walking-HR are per-day means.',
       'running-daily = per-day MEANS over a run\'s samples (only days with a run get a row); 0-valued samples (Zepp placeholders) dropped. speed km/h, power W, gct ms, vosc cm, stride m.',
+      'hr-recovery.csv = Cardio Recovery (HeartRateRecoveryOneMinute, bpm drop 1 min after a workout), one row per sample.',
       'leanmass & wristTemp are sparse, source-tagged (leanmass mixes scales like weight; wrist temp is sleeping-watch only).',
       'workouts now carry hr_avg/hr_min/hr_max (bpm) and energy_kcal pulled from child <WorkoutStatistics> (per-workout intensity; HR coverage is Apple-Watch-era, ~2025+).',
       'Regenerate after dropping a new export: node data/apple-health/extract.js',

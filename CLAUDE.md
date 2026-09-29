@@ -75,7 +75,8 @@ available) so the next session resumes with their context.
      devices double-counts — that is why an earlier "15–18k" NEAT figure was inflated).
      Between exports, `npm run sync` (`data/apple-health/sync-shortcut.js`) pulls iOS Shortcut
      payloads from the optional `services/health-ingest` service (`GET /export/raw`) and merges
-     hrv/rhr/weight/bodyfat/leanmass/steps/energy/sleep into those CSVs: export rows always win,
+     hrv/rhr/vo2max/weight/bodyfat/leanmass/steps/energy/sleep/respiratory/walking-HR/wrist-temp/
+     hr-recovery into those CSVs: export rows always win,
      Shortcut rows are rebuilt each run and fill only dates the export lacks — so re-run sync after
      `extract.js`. Sync is incremental (local gitignored `extract/.shortcut-cache.json` of deduped
      samples + last payload id; `npm run sync -- --full` rebuilds it). Daily totals: the latest
