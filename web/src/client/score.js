@@ -3,9 +3,21 @@
  *
  * Classic script (is:inline, no module scope). Only `asOf` is baked: staleness is computed here
  * from Date.now(), so consecutive builds stay byte-identical. Colour is used only on the
- * direction arrows. Advice uses the same templates and number formatting as
+ * direction arrows and the dials' meaning colours. Advice uses the same templates and number formatting as
  * lib/score/advice-copy.mjs (a test asserts the two sentences are identical).
+ *
+ * Dials (Sleep / Recovery / Load): all geometry comes pre-computed in DIALS (web/src/view/dial.mjs,
+ * baked by components/Bake.astro); this file only formats the baked numbers and joins SVG strings.
  */
+// Load dial modality switch: shows the chosen modality's dial + caption, hides the others.
+function scMod(key, btn) {
+  var root = btn && btn.closest ? btn.closest('.sc-dials') : null;
+  if (!root) return;
+  root.querySelectorAll('[data-dmod]').forEach(function (el) {
+    if (el.classList.contains('dial-mod')) el.setAttribute('aria-pressed', el === btn ? 'true' : 'false');
+    else el.hidden = el.getAttribute('data-dmod') !== key;
+  });
+}
 (function () {
   var host = document.getElementById('home');
   if (!host) return;
@@ -173,12 +185,106 @@
       keys.map(function (k) { return '<li class="sc-caveat">' + esc(T.caveats[k]) + '</li>'; }).join('') + '</ul></div>';
   }
 
+
+  /* ---- dials ---- */
+  var D = typeof DIALS === 'undefined' ? null : DIALS;
+  function attr(v) { return esc(String(v)); }
+  // parts: zones [{cls, d}], fill d, dot {x,y}, mid {x,y}; paths are baked, never computed here
+  function dialSvg(parts) {
+    var out = ['<svg class="dial-svg" viewBox="0 0 120 120" aria-hidden="true">'];
+    out.push('<path class="dial-track" d="' + attr(D.track) + '"/>');
+    (parts.zones || []).forEach(function (z) {
+      if (z.d) out.push('<path class="dial-zone ' + attr(z.cls) + '" d="' + attr(z.d) + '"/>');
+    });
+    if (parts.fill) out.push('<path class="dial-fill" pathLength="100" d="' + attr(parts.fill) + '"/>');
+    if (parts.mid) out.push('<circle class="dial-mid" cx="' + attr(parts.mid.x) + '" cy="' + attr(parts.mid.y) + '" r="2"/>');
+    if (parts.dot) out.push('<circle class="dial-dot" cx="' + attr(parts.dot.x) + '" cy="' + attr(parts.dot.y) + '" r="6.5"/>');
+    out.push('</svg>');
+    return out.join('');
+  }
+  function dialFig(cls, stale, extra, aria, svg, centre, label, sub) {
+    return '<figure class="dial ' + cls + (stale ? ' sc-stale' : '') + '"' + (extra || '') + '>' +
+      '<div class="dial-ring"' + (aria ? ' role="img" aria-label="' + attr(aria) + '"' : '') + '>' + svg +
+      '<div class="dial-centre" aria-hidden="true">' + centre + '</div></div>' +
+      '<figcaption class="dial-lbl">' + esc(label) + '</figcaption>' +
+      (sub ? '<div class="dial-sub">' + sub + '</div>' : '') + '</figure>';
+  }
+  function offCentre(word) {
+    return '<span class="dial-word">' + esc(word) + '</span>';
+  }
+  function sleepDial(d, dt) {
+    var target = d.target != null ? num(d.target, 1, false) : '';
+    if (d.state !== 'ok') return dialFig('dial-sleep dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.sleep.label, '');
+    var h = num(d.hours, 1, false);
+    return dialFig('dial-sleep', isStale(d.date), '', format(dt.sleep.aria, { value: h, target: target }),
+      dialSvg({ fill: d.fill, dot: d.marker }),
+      '<b class="dial-num">' + esc(h) + '<small> h</small></b>',
+      dt.sleep.label, esc(format(dt.sleep.target, { value: target })));
+  }
+  function recDial(d, dt) {
+    var rt = dt.recovery;
+    if (d.state !== 'ok') {
+      var word = d.state === 'gated' ? rt.gated : dt.none;
+      return dialFig('dial-rec dial-off', isStale(d.asOf), '', '', dialSvg({}), offCentre(word), rt.label, esc(rt.sub));
+    }
+    var v = num(d.value, 1, true);
+    var zones = d.zones.map(function (z) { return { cls: 'dial-zone-' + z.band, d: z.d }; });
+    return dialFig('dial-rec dial-band-' + esc(d.band), isStale(d.asOf), '', format(rt.aria, { value: v, band: rt.bands[d.band] }),
+      dialSvg({ zones: zones, fill: d.fill, dot: d.marker }),
+      '<span class="dial-word">' + esc(rt.bands[d.band]) + '</span><b class="dial-num dial-num-sm">' + esc(format(rt.delta, { value: v })) + '</b>',
+      rt.label, esc(rt.sub));
+  }
+  function loadDials(d, dt) {
+    var lt = dt.load;
+    var stale = isStale(d.asOf);
+    var zones = d.zones.map(function (z) { return { cls: 'dial-lz-' + z.band, d: z.d }; });
+    var figs = d.modalities.map(function (m) {
+      var hid = m.key === d.defaultKey ? '' : ' hidden';
+      var extra = ' data-dmod="' + attr(m.key) + '"' + hid;
+      var mod = T.load.modalities[m.key] || m.key;
+      if (m.state !== 'ok') {
+        return dialFig('dial-load dial-off', stale, extra, '', dialSvg({ zones: zones, mid: d.mid }), offCentre(lt.gated), lt.label, esc(mod));
+      }
+      var r = num(m.ratio, 2, false);
+      return dialFig('dial-load dial-lband-' + esc(m.band), stale, extra, format(lt.aria, { modality: mod, value: r, band: lt.bands[m.band] }),
+        dialSvg({ zones: zones, fill: m.fill, dot: m.marker, mid: d.mid }),
+        '<b class="dial-num">' + esc(r) + '<small>×</small></b><span class="dial-word">' + esc(lt.bands[m.band]) + '</span>',
+        lt.label, esc(mod));
+    });
+    return figs.join('');
+  }
+  function loadSwitch(d, dt) {
+    var btns = d.modalities.map(function (m) {
+      return '<button type="button" class="dial-mod" data-dmod="' + attr(m.key) + '" aria-pressed="' + (m.key === d.defaultKey ? 'true' : 'false') +
+        '" onclick="scMod(\'' + attr(m.key) + '\',this)">' + esc(T.load.modalities[m.key] || m.key) + '</button>';
+    }).join('');
+    // caption per modality: the existing band sentence, or the existing baselineBuilding copy when gated
+    var caps = d.modalities.map(function (m) {
+      var txt = m.state === 'ok'
+        ? format(T.load.trendLbl, { pct: pct(m.trendPct) }) + ' · ' + T.load.bands[m.band]
+        : T.load.gated[m.reason] || T.load.gated.baselineBuilding;
+      return '<div class="dial-cap" data-dmod="' + attr(m.key) + '"' + (m.key === d.defaultKey ? '' : ' hidden') + '>' + esc(txt) + '</div>';
+    }).join('');
+    return '<div class="dial-foot"><div class="dial-switch" role="group" aria-label="' + attr(dt.load.switchLabel) + '">' +
+      '<span class="dial-switch-lbl">' + esc(dt.load.label) + '</span>' + btns + '</div>' +
+      '<div class="dial-scale">' + esc(dt.load.scale) + '</div>' + caps + '</div>';
+  }
+  function dialsHtml() {
+    if (!D || !T.dials) return '';
+    var dt = T.dials;
+    var hasLoad = D.load && D.load.state === 'ok';
+    return '<div class="sc-card sc-dials" role="group" aria-label="' + attr(dt.ariaLabel) + '"><div class="dials">' +
+      sleepDial(D.sleep || {}, dt) + recDial(D.recovery || {}, dt) +
+      (hasLoad ? loadDials(D.load, dt) : dialFig('dial-load dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.load.label, '')) +
+      '</div>' + (hasLoad ? loadSwitch(D.load, dt) : '') + '</div>';
+  }
+
   function render() {
     if (!S || !S.hasData) {
       host.innerHTML = '<div class="train-empty">' + esc(T.emptyMsg) + '</div>';
       return;
     }
-    var out = [];
+    var out = [dialsHtml()];
     var anyStale = (S.recovery && isStale(S.recovery.asOf)) || (S.load && isStale(S.load.asOf));
     if (S.recovery) out.push(recoveryHtml(S.recovery));
     if (S.load) out.push(loadHtml(S.load));

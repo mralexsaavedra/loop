@@ -125,6 +125,7 @@ test('example build (no extract): SCORES is baked as the empty state and the Hom
   const html = fs.readFileSync(examplePath, 'utf8');
   assert.match(html, /var SCORES = \{"hasData":false/);
   assert.match(html, /var I18N_SCORE = /);
+  assert.match(html, /var DIALS = \{"track":"M[^"]+","sleep":\{"state":"none"\},"recovery":\{"state":"none"\},"load":\{"state":"none"\}\}/, 'dials baked, all empty without data');
   assert.match(html, /getElementById\('home'\)/);
 });
 
