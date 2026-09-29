@@ -43,7 +43,7 @@ const HEALTH = { recovery: { hasData: true, sleep: { target: 7.5 } } };
 
 // Returns #home + #score-recovery (Salud) + #score-load (Entreno), in that order; pass `hosts` to
 // inspect each one separately.
-function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, dials, dialsHost, hosts = {} } = {}) {
+function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, loadSectionHidden = false, dials, dialsHost, hosts = {} } = {}) {
   const host = { innerHTML: '' };
   const rec = (hosts.rec = hosts.rec || { innerHTML: '' });
   const load = (hosts.load = hosts.load || { innerHTML: '' });
@@ -55,6 +55,7 @@ function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entre
   const byId = {
     home: host, 'score-recovery': rec, 'score-load': load,
     'home-dials': dialsHost || null, 't-health': healthNav ? {} : null, 't-entreno': entrenoNav ? {} : null,
+    'sec-load': { hidden: loadSectionHidden },
   };
   const ctx = {
     document: { getElementById: (id) => byId[id] || null },
@@ -492,6 +493,41 @@ test('load dial default: ranking = highest RE today, then modality order; a sess
   assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [gated]: 40, [a]: 60 }))), a);
   // rows without RE (noEffort) on a gated modality still beat nothing today
   assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [gated]: 0 }))), gated);
+});
+
+test('caveats stay reachable: Entreno hidden (or its load section hidden) -> a compact load caveat line under the dials', () => {
+  const s = fixtureScores();
+  const line = (html) => (html.match(/<div class="dial-caveat dial-caveat-load">([^<]*)<\/div>/) || [])[1];
+  const hosts = {};
+  withDials(s, { healthNav: true, entrenoNav: false, hosts });
+  assert.equal(line(hosts.home.innerHTML), enT.dials.load.caveatLine, 'Entreno hidden: the line sits on Inicio');
+  assert.match(enT.dials.load.caveatLine, /HR-derived/);
+  assert.match(enT.dials.load.caveatLine, /not comparable/);
+  assert.match(enT.dials.load.caveatLine, /before/);
+  assert.match(enT.dials.load.caveatLine, /summed/);
+  withDials(s, { healthNav: true, entrenoNav: true, loadSectionHidden: true, hosts });
+  assert.equal(line(hosts.home.innerHTML), enT.dials.load.caveatLine, 'load section hidden: same');
+  withDials(s, { healthNav: true, entrenoNav: true, hosts });
+  assert.equal(line(hosts.home.innerHTML), undefined, 'Entreno reachable: the full caveats live there, no line on Inicio');
+  assert.match(hosts.load.innerHTML, /sc-caveats/, 'and Entreno keeps its caveats card');
+  const es = {};
+  withDials(s, { locale: 'es', healthNav: true, entrenoNav: false, hosts: es });
+  assert.equal(line(es.home.innerHTML), esT.dials.load.caveatLine);
+});
+
+test('caveats stay reachable: Salud hidden -> a compact recovery caveat line under the dials', () => {
+  const s = fixtureScores();
+  const line = (html) => (html.match(/<div class="dial-caveat dial-caveat-rec">([^<]*)<\/div>/) || [])[1];
+  const hosts = {};
+  withDials(s, { healthNav: false, entrenoNav: true, hosts });
+  assert.equal(line(hosts.home.innerHTML), enT.dials.recovery.caveatLine);
+  assert.match(enT.dials.recovery.caveatLine, /SDNN/);
+  assert.match(enT.dials.recovery.caveatLine, /not medical advice/i);
+  withDials(s, { healthNav: true, entrenoNav: true, hosts });
+  assert.equal(line(hosts.home.innerHTML), undefined);
+  const es = {};
+  withDials(s, { locale: 'es', healthNav: false, entrenoNav: true, hosts: es });
+  assert.equal(line(es.home.innerHTML), esT.dials.recovery.caveatLine);
 });
 
 test('dials: stale data greys the dial; fresh data does not', () => {

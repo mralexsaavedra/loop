@@ -354,6 +354,24 @@ function scMod(key, btn) {
       '<span class="dial-switch-lbl">' + esc(dt.load.label) + '</span>' + btns + '</div>' +
       '<div class="dial-scale">' + esc(dt.load.scale) + '</div>' + caps + '</div>';
   }
+  // Data honesty: the full caveats live with each dial's detail (load: Entreno #score-load,
+  // recovery: Salud). When page.hideTabs makes that detail unreachable (tab hidden, or Entreno's
+  // load section hidden), a compact caveat line goes under the dials instead.
+  function detailReachable(tab, sectionId) {
+    if (!document.getElementById('t-' + tab)) return false;
+    var sec = sectionId ? document.getElementById(sectionId) : null;
+    return !(sec && sec.hidden);
+  }
+  function caveatLines(dt, hasLoad) {
+    var out = '';
+    if (D.recovery && D.recovery.state === 'ok' && !detailReachable('health') && dt.recovery.caveatLine) {
+      out += '<div class="dial-caveat dial-caveat-rec">' + esc(dt.recovery.caveatLine) + '</div>';
+    }
+    if (hasLoad && !detailReachable('entreno', 'sec-load') && dt.load.caveatLine) {
+      out += '<div class="dial-caveat dial-caveat-load">' + esc(dt.load.caveatLine) + '</div>';
+    }
+    return out;
+  }
   function dialsHtml() {
     if (!D || !T.dials) return '';
     var dt = T.dials;
@@ -361,7 +379,7 @@ function scMod(key, btn) {
     return '<div class="sc-card sc-dials" role="group" aria-label="' + attr(dt.ariaLabel) + '"><div class="dials">' +
       sleepDial(D.sleep || {}, dt) + recDial(D.recovery || {}, dt) +
       (hasLoad ? loadDials(D.load, dt) : dialFig('dial-load dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.load.label, '')) +
-      '</div>' + (hasLoad ? loadSwitch(D.load, dt) : '') + '</div>';
+      '</div>' + (hasLoad ? loadSwitch(D.load, dt) : '') + caveatLines(dt, hasLoad) + '</div>';
   }
 
   // one broken block must never blank Inicio: render it as an empty state instead
