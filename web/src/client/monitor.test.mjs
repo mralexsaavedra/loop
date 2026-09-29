@@ -75,14 +75,14 @@ test('status word + tone class: respiratory out of band is watch (not bad), rest
   assert.ok(sleep.includes(`>${enT.monitor.status.low}<`));
 });
 
-test('the range bar is an inline SVG with the band and the marker; the normal range is written out', () => {
+test('the range bar is an inline SVG with the band and the marker; the normal range is written out one decimal finer than the value', () => {
   const html = render(monitor());
   const rhr = cardOf(html, 'rhr');
   assert.match(rhr, /<svg class="hm-bar"[^>]*aria-hidden="true"/);
   assert.match(rhr, /class="hm-band"/);
   assert.match(rhr, /class="hm-mark"/);
   const c = monitor().cards.find((x) => x.key === 'rhr');
-  assert.ok(rhr.includes(enT.monitor.rangeLbl.replace('{lo}', c.band.lo.toFixed(c.dec)).replace('{hi}', c.band.hi.toFixed(c.dec))));
+  assert.ok(rhr.includes(enT.monitor.rangeLbl.replace('{lo}', c.band.lo.toFixed(1)).replace('{hi}', c.band.hi.toFixed(1))));
   assert.doesNotMatch(rhr, /style=/, 'geometry via SVG attributes, not inline styles');
 });
 
