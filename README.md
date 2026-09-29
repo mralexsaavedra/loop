@@ -60,7 +60,9 @@ instead of generic advice with no data behind it.
      single source, via the Astro project in `web/`. `plan-data.json` and `web/dist/` are
      gitignored and stay local; `ingredients.json` and the `.example` seed are tracked.
      `npm run build:example` builds the same page from the tracked seed alone, with no
-     personal files needed — useful to sanity-check the pipeline on a bare clone.
+     personal files needed — useful to sanity-check the pipeline on a bare clone. It reads
+     the synthetic demo extract in `data/demo/` (clearly fake, see its README), so every dial
+     and section shows what your own data will look like.
    - Training (optional): copy `data/training/training-data.example.json` →
      `training-data.json` and fill in your program by date — Claude can transcribe a coach's
      PDF for you. Run `npm run generate` and the plan page gains a 🏋️ **Today** tab (today's

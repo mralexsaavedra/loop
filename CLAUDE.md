@@ -122,8 +122,16 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
 
 - `LOCALE`: env var → `plan.locale` → `en` (the owner's `plan-data.json` sets `locale:"es"`).
 - `DATA_MODE=personal|example`: personal reads the gitignored real files; example reads the
-  tracked `.example` seeds. Optional data (Apple Health extract CSVs) renders a defined empty
-  state when absent, in either mode — the build never fails on missing optional data.
+  tracked `.example` seeds plus the tracked, clearly SYNTHETIC demo extract in `data/demo/extract/`
+  (so the example page shows every dial and section). Optional data (Apple Health extract CSVs)
+  renders a defined empty state when absent, in either mode — the build never fails on missing
+  optional data.
+- **Demo data** — `scripts/make-demo-data.mjs` (`npm run demo:data`) writes the demo extract from a
+  seeded PRNG and a FIXED end date (deterministic bytes; `--end/--days/--seed` to change them). Every
+  row is tagged `Demo …`; `data/demo/README.md` says it is fake. A test fails if the tracked files
+  drift from the generator, so re-run it after changing the generator or a CSV schema. Never put real
+  measurements in `data/demo/` (it is tracked); the example page reads as stale a few days after
+  the demo end date, which is the normal staleness handling.
 - All personal COPY (page title/kicker/h1/sub/footer, per-slot notes, which tabs/sections to hide)
   lives in `plan-data.json`'s `page` block (`page.notes.<slotId>`, `page.hideTabs: ["hoy"]`,
   etc.) — never hardcoded in tracked Astro/JS source, which stays fully generic.
