@@ -164,7 +164,9 @@ Verified product labels tables), then builds `web/dist/personal/index.html`. **N
 hand-edit `plan-tables.md`, `web/dist/`, or re-type macros in `food-log.md` — the source is
 the two JSONs.
 - `npm run check` — validators only, no build: `generate.js --check` (unknown-ingredient
-  refs, day totals, Atwater, ambiguous matches) + `build-web.mjs --check` (training-data.json
+  refs, day totals, Atwater, ambiguous matches) — the day-total kcal sanity band defaults to
+  train 2000–2800 / rest 1700–2400 and a plan can override it with optional
+  `validation.kcalBand = { train: [min, max], rest: [min, max] }` in `plan-data.json` — + `build-web.mjs --check` (training-data.json
   integrity). Ingredients defined in `ingredients.json` but unused by the current plan are a
   non-fatal WARNING (expected for a shared DB), not an error.
 - `npm test` — the full test suite (`node --test`, zero deps beyond `astro`). `pretest`
