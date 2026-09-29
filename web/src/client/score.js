@@ -125,9 +125,11 @@ function scMod(key, btn) {
     }
     if (R.today) {
       // "Last night" only when that day has a sleep-duration reading; otherwise the date + "no sleep data"
-      var tl = R.today.sleep === false
-        ? format(rt.todayNoSleepLbl, { date: isoDate(R.today.date) || '', value: num(R.today.value, 1, true) })
-        : format(rt.todayLbl, { value: num(R.today.value, 1, true) });
+      // ...and only when it is dated the viewer's today; an older night carries its date
+      var tv = { date: isoDate(R.today.date) || '', value: num(R.today.value, 1, true) };
+      var tl = R.today.sleep === false ? format(rt.todayNoSleepLbl, tv)
+        : daysOld(R.today.date) === 0 ? format(rt.todayLbl, tv)
+        : format(rt.todayDateLbl, tv);
       out.push('<div class="sc-today sc-band-' + esc(R.today.band) + '">' + esc(tl) + ' · ' + esc(rt.bands[R.today.band]) + '</div>');
     } else {
       out.push('<div class="sc-note">' + esc(rt.noToday) + '</div>');

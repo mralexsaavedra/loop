@@ -278,6 +278,13 @@ test('recovery dial: a composite without a sleep-duration reading is labelled by
   assert.ok(card.includes(enT.recovery.todayNoSleepLbl.split('{')[0]) || card.includes(ASOF));
 });
 
+test('recovery card: an older night is labelled by its date, not "Last night"', () => {
+  const s = fixtureScores();
+  const html = render(s, { now: addDays(ASOF, 1) });
+  assert.ok(!html.includes('Last night:'));
+  assert.ok(html.includes(enT.recovery.todayDateLbl.split(':')[0].replace('{date}', ASOF)));
+});
+
 test('resilience: a throwing dial or card never blanks Inicio (empty-state fallback)', () => {
   const s = fixtureScores();
   const dials = buildDials(s, HEALTH);
