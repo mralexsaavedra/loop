@@ -73,8 +73,8 @@ function toRow (activity) {
   const durationMin = round2(durationSec / 60);
 
   const sportType = activity.sport_type;
-  const mapped = Object.prototype.hasOwnProperty.call(SPORT_TYPE_MAP, sportType)
-  const type = mapped ? SPORT_TYPE_MAP[sportType] : FALLBACK_TYPE;
+  const mapped = Object.prototype.hasOwnProperty.call(SPORT_TYPE_MAP, sportType);
+  const type = translateType(sportType);
 
   const hrAvg = numOrNull(activity.average_heartrate);
   const hrMax = numOrNull(activity.max_heartrate);
@@ -142,12 +142,16 @@ function planSync (activities, readFile) {
   const existing = readFile(WORKOUTS_CSV)
   const metaText = readFile('_meta.json')
   const prevMeta = metaText != null ? JSON.parse(metaText) : null
-  const ledger = (prevMeta && prevMeta.stravaSync && prevMeta.stravaSync.owned && prevMeta.stravaSync.owned[WORKOUTS_CSV]) || []
 
+  // Crash-window safety: a row is dropped ONLY when its own source tag is the exact
+  // "Strava API" match — never by a ledger date. A ledger can go stale (e.g. extract.js
+  // crashes between rewriting workouts.csv and _meta.json, leaving a pre-crash ledger next to
+  // a fresh export CSV); dropping by ledger date would delete a real export/manual row that
+  // merely happens to share a date the ledger once claimed. `stravaSync.owned` in _meta.json
+  // stays pure REPORTING metadata (which dates this sync added last run), never a merge input.
   const merged = common.mergeCsv(existing, WORKOUTS_HEADER, rows, {
     sourceCol: 7,
-    isOwn: (s) => s === STRAVA_SOURCE,
-    ownedDates: ledger
+    isOwn: (s) => s === STRAVA_SOURCE
   })
 
   const writes = {}

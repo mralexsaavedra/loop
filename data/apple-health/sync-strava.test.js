@@ -83,12 +83,17 @@ test('buildRows counts unmapped sport types and rows written without HR, skippin
 
 // ---- merge: export wins by date, historical Strava rows survive, same-day kept, idempotent, orphan ----
 
-test('planSync: export-covered dates win, a mixed day drops the Strava row', () => {
+test('planSync: export-covered dates win; the export row itself is preserved, only the Strava row is dropped', () => {
   const files = { [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-20,Running,30,,140,,165,Watch,5'].join('\n') + '\n' };
   const read = (name) => files[name] ?? null;
-  const activities = [{ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 1800 }];
+  const activities = [
+    { id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 1800 }, // covered -> dropped
+    { id: '2', start_local: '2026-08-21T07:00:00', sport_type: 'Ride', moving_time: 1800 } // uncovered -> forces a write
+  ];
   const plan = planSync(activities, read);
-  assert.ok(!plan.writes[WORKOUTS_CSV] || !plan.writes[WORKOUTS_CSV].includes('Strava API'), 'the export row on 08-20 wins; the Strava row is dropped');
+  assert.match(plan.writes[WORKOUTS_CSV], /2026-08-20,Running,30,,140,,165,Watch,5/, 'the export row survives');
+  assert.doesNotMatch(plan.writes[WORKOUTS_CSV], /2026-08-20,Cycling,.*Strava API/, 'the Strava row for the covered date is dropped');
+  assert.match(plan.writes[WORKOUTS_CSV], /2026-08-21,Cycling,30,,,,,Strava API,/, 'the uncovered date is added');
 });
 
 test('planSync: historical source=Strava rows (not Strava API) survive untouched', () => {
@@ -96,6 +101,34 @@ test('planSync: historical source=Strava rows (not Strava API) survive untouched
   const read = (name) => files[name] ?? null;
   const plan = planSync([], read);
   assert.ok(!plan.writes[WORKOUTS_CSV] || plan.writes[WORKOUTS_CSV].includes('2026-08-15,Running,25,,,,,Strava,4'));
+});
+
+// ---- crash-window safety: the merge must drop a row ONLY by its exact source tag, never by a
+// ledger date, so a stale/mismatched ledger (e.g. from a crash between extract.js's CSV write
+// and its _meta.json write) can never delete a real export/manual row. The ledger stays pure
+// reporting metadata. ----
+
+test('planSync: a ledger claiming a date must not delete a non-Strava row on that date', () => {
+  const files = {
+    [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-20,Running,30,,140,,165,Watch,5'].join('\n') + '\n',
+    '_meta.json': JSON.stringify({ rows: {}, ranges: {}, notes: [], stravaSync: { owned: { [WORKOUTS_CSV]: ['2026-08-20'] } } })
+  };
+  const read = (name) => files[name] ?? null;
+  // force a write so the merged text is actually inspectable
+  const plan = planSync([{ id: '1', start_local: '2026-08-21T07:00:00', sport_type: 'Ride', moving_time: 1800 }], read);
+  assert.match(plan.writes[WORKOUTS_CSV], /2026-08-20,Running,30,,140,,165,Watch,5/, 'the ledgered-but-non-Strava row must survive');
+});
+
+test('planSync: simulated crash (fresh export CSV, stale pre-crash ledger in _meta.json) never drops the fresh export row', () => {
+  const files = {
+    // extract.js already rewrote workouts.csv with a fresh export row on 08-20...
+    [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-20,Running,28,,138,,162,W,5.1'].join('\n') + '\n',
+    // ...but _meta.json still carries the OLD ledger from BEFORE the crash (claims 08-20 + 08-21 as Strava-owned)
+    '_meta.json': JSON.stringify({ rows: {}, ranges: {}, notes: [], stravaSync: { owned: { [WORKOUTS_CSV]: ['2026-08-20', '2026-08-21'] } } })
+  };
+  const read = (name) => files[name] ?? null;
+  const plan = planSync([{ id: '1', start_local: '2026-08-21T07:00:00', sport_type: 'Ride', moving_time: 1800 }], read);
+  assert.match(plan.writes[WORKOUTS_CSV], /2026-08-20,Running,28,,138,,162,W,5\.1/, 'the fresh export row must survive the stale ledger');
 });
 
 test('planSync: same-day activities (no export coverage) are all kept as separate rows', () => {
