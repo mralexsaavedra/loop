@@ -284,13 +284,13 @@ function scMod(key, btn) {
       '<span class="dial-word">' + esc(rt.bands[d.band]) + '</span><b class="dial-num dial-num-sm">' + esc(format(rt.delta, { value: v })) + '</b>',
       rt.label, sub);
   }
-  // The modality the switch opens on, for the VIEWER's today (never baked): the ungated modality with
-  // a session today (highest RE if several; a session without RE still beats nothing), else the baked
-  // default (the first ungated one).
+  // The modality the switch opens on, for the VIEWER's today (never baked): the modality with a
+  // session today, gated or not (a gated one opens in its gated state) — highest RE first, ties by
+  // modality order, a session without RE still beats nothing — else the baked default (the first
+  // ungated one).
   function openKey(d) {
     var best = null, bestRe = -1;
     d.modalities.forEach(function (m) {
-      if (m.state !== 'ok') return;
       var td = loadToday(m);
       var re = td.kind === 'trained' ? td.day.re : td.kind === 'noEffort' ? 0 : -1;
       if (re > bestRe) { best = m.key; bestRe = re; }

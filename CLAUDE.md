@@ -472,9 +472,10 @@ is the newest day, and the trend is the line under it.
   night has no sleep reading) and "7-day trend: steady · +0.5 sd". Sleep: fill = the
   sleep-duration component's newest night / the stated target (`health.recovery.sleep.target`, 7.5 h),
   capped at a full arc, target labelled on screen. Load: ONE dial with a gym/run/bike switch that opens
-  (client-side, from the viewer's today) on the ungated modality with a session today — highest RE if
-  several, a session without RE still beats none — else on the baked `defaultKey` (first ungated
-  modality), for the VIEWER's today, picked client-side from the baked `recent` days (each
+  (client-side, from the viewer's today) on the modality with a session today, GATED OR NOT (a gated
+  one opens in its greyed gated state, no number; gated modalities bake their `days` without
+  geometry) — highest RE first, ties by modality order (gym, run, bike), a session without RE still
+  beats none — else on the baked `defaultKey` (first ungated modality), for the VIEWER's today, picked client-side from the baked `recent` days (each
   with its pre-computed arc): a session with RE → centre = today's RE, position = RE / typical day (arc
   midpoint = the typical training day, end = 2×, no zones), caption "Today: RE 28 · typical day ~42";
   rows today but no RE → "No effort data" (never rest); no rows today → "No session yet today" with "last session
