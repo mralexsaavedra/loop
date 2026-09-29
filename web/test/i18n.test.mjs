@@ -9,6 +9,8 @@ import assert from 'node:assert/strict';
 import { es, en } from '../src/i18n/index.mjs';
 import { es as esTpl, en as enTpl } from '../src/i18n/verdict-templates.mjs';
 import { es as esLog, en as enLog } from '../src/i18n/log-templates.mjs';
+import { es as esHoy, en as enHoy } from '../src/i18n/hoy-templates.mjs';
+import { es as esDash, en as enDash } from '../src/i18n/dash-templates.mjs';
 
 function keyTree(obj, prefix = '') {
   const keys = [];
@@ -80,6 +82,41 @@ test('log-templates.mjs (client-side "copy for Claude" format strings) has ident
       assert.equal(typeof str, 'string');
       assert.notEqual(str.trim(), '', `${locale} log-templates.${key} must not be empty`);
     }
+  }
+});
+
+test('hoy-templates.mjs (Hoy tab client format strings) has identical keys in es/en, all non-empty', () => {
+  assert.deepEqual(Object.keys(esHoy).sort(), Object.keys(enHoy).sort());
+  for (const [locale, tpl] of [['es', esHoy], ['en', enHoy]]) {
+    for (const [key, str] of Object.entries(tpl)) {
+      assert.equal(typeof str, 'string');
+      assert.notEqual(str.trim(), '', `${locale} hoy-templates.${key} must not be empty`);
+    }
+  }
+});
+
+test('hoy-templates.mjs goalLineRe is a valid, locale-specific regex source (compilable with `new RegExp`)', () => {
+  assert.doesNotThrow(() => new RegExp(esHoy.goalLineRe, 'i'));
+  assert.doesNotThrow(() => new RegExp(enHoy.goalLineRe, 'i'));
+  assert.notEqual(esHoy.goalLineRe, enHoy.goalLineRe, 'the goal-line marker word differs by locale ("Objetivo" vs "Target/Goal")');
+});
+
+test('dash-templates.mjs (Entrenos tab client format strings) has identical keys in es/en, all non-empty (nested modalityLabels checked separately)', () => {
+  assert.deepEqual(Object.keys(esDash).sort(), Object.keys(enDash).sort());
+  for (const [locale, tpl] of [['es', esDash], ['en', enDash]]) {
+    for (const [key, val] of Object.entries(tpl)) {
+      if (key === 'modalityLabels') continue;
+      assert.equal(typeof val, 'string');
+      assert.notEqual(val.trim(), '', `${locale} dash-templates.${key} must not be empty`);
+    }
+  }
+});
+
+test('dash-templates.mjs modalityLabels covers the same modality keys (strength/hiit/run/other) in es/en, all non-empty', () => {
+  assert.deepEqual(Object.keys(esDash.modalityLabels).sort(), ['hiit', 'other', 'run', 'strength']);
+  assert.deepEqual(Object.keys(esDash.modalityLabels).sort(), Object.keys(enDash.modalityLabels).sort());
+  for (const [locale, labels] of [['es', esDash.modalityLabels], ['en', enDash.modalityLabels]]) {
+    for (const [key, str] of Object.entries(labels)) assert.notEqual(str.trim(), '', `${locale} dash-templates.modalityLabels.${key} must not be empty`);
   }
 });
 
