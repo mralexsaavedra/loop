@@ -49,8 +49,7 @@ conversationally — do not make them fill a form alone. Replicate a real coach 
    provides (PDF grids → render to PNG and read visually; a login-gated training app → have them
    paste/screenshot the sessions), see the training pipeline section — then
    `npm run generate`). The 🏠 Inicio tab then shows today's programmed session and the
-   Entrenamiento section of 💗 Salud fills itself from the Apple Health workouts already extracted in
-   step 4. Don't block onboarding on this — profile + baseline are enough to start.
+   🏃 Entreno tab fills itself from the Apple Health workouts already extracted in step 4. Don't block onboarding on this — profile + baseline are enough to start.
 6. **Confirm and offer the first analysis.** Summarize what you captured, ask them to
    correct anything, then offer to run an initial analysis per the workflow below.
 
@@ -108,7 +107,7 @@ available) so the next session resumes with their context.
 
 ## The plan page — Astro single-file build
 
-The plan page (3 tabs, Whoop-style — see "Tabs and sections" below) is ONE Astro project
+The plan page (4 tabs, Whoop-style — see "Tabs and sections" below) is ONE Astro project
 in `web/` that builds to a single self-contained HTML file — no external requests, no
 `_astro/` asset directory, CSP-safe. `scripts/build-web.mjs` drives the build:
 
@@ -137,25 +136,34 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   lives in `plan-data.json`'s `page` block (`page.notes.<slotId>`, `page.hideTabs: ["hoy"]`,
   etc.) — never hardcoded in tracked Astro/JS source, which stays fully generic.
 
-**Tabs and sections.** Three top-level tabs (nav = fixed bottom bar with safe-area inset on
-narrow screens, sticky top bar on wide ones); the former tabs live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
+**Tabs and sections.** Four top-level tabs, one question each (Whoop-style: the glance on Inicio,
+the detail one tap away). Nav = fixed bottom bar on narrow screens (four equal buttons that fit a
+360px phone, safe-area insets on bottom/left/right), sticky top bar on wide ones. The former tabs
+live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
 
 | Tab (key) | Content, top to bottom |
 | --- | --- |
-| 🏠 Inicio (`home`) | Sleep / Recovery / Load dials (today first); health monitor; recovery (last night + 7-day trend) + per-modality load cards, then the advice sentence; "today you eat" card (day toggle + that day's kcal/macros, link to Nutrición); programmed session (`hoy`) |
-| 🍽️ Nutrición (`nutricion`) | Mi día plan (`dia`); Registro (`registro`, collapsible); Tablas (`tablas`, collapsible) — the global train/rest toggle shows here |
-| 💗 Salud (`health`) | body & recovery sections; Entrenamiento dashboard (`dash`) |
+| 🏠 Inicio (`home`) | TODAY: Sleep / Recovery / Load dials; health monitor; today's timeline (last night's sleep + the day's workouts); the advice sentence; "today you eat" card (day toggle + that day's kcal/macros, link to Nutrición); programmed session (`hoy`) |
+| 🏃 Entreno (`entreno`) | per-modality load cards + caveats (`#score-load`, the detail behind the load dial); 30-day activity calendar + cumulative training time (`#train-activity`); running table, cycling table, load vs recovery (`#health-train`); Entrenamiento dashboard (`dash`) |
+| 💗 Salud (`health`) | recovery (`#hl-recovery`, with the recovery detail card `#score-recovery`, then the recovery trends); sleep (`#hl-sleep`); body composition; daily activity; energy expenditure |
+| 🍽️ Nutrición (`nutricion`) | Mi día plan (`dia`); Registro (`registro`, collapsible); Tablas (`tablas`, collapsible) — the global train/rest toggle shows here, and only while Mi día or Registro is visible |
 
-`page.hideTabs` semantics (resolved by `lib/nav/tabs.mjs` `resolveNav`): a top-level key
-(`home`/`nutricion`/`health`) removes that nav button; a legacy key (`hoy`/`dia`/`registro`/
-`tablas`/`dash`) renders that section `hidden`. Panels, sections, baked globals and scripts
-always stay in the build. Nutrición disappears when all three of its sections are hidden; the
-visible tab on load is the first remaining one; hiding every tab fails the build.
-`setTab('<legacy key>')` still works (it opens the hosting tab and scrolls to the section).
-Tapping a score card on Inicio opens its Salud detail (recovery → the Recovery sub-section
-`#hl-recovery`, a modality load card → Entrenamiento `#sec-dash`, a health-monitor card → its trend
-`#hl-rhr` / `#hl-hrv` / `#hl-respiratory` / `#hl-wristTemp` / `#hl-sleep`) via core.js `jumpOr`,
-falling back to the Salud tab when that detail has no data; the cards are not links when Salud is hidden.
+`lib/nav/tabs.mjs` is the ONE source of the tab keys (`TAB_KEYS`) and of the legacy-section map
+(`SECTION_TAB`); the page derives each tab's section list from it (`sectionsOf`) and bakes both as
+`NAV` for core.js. `page.hideTabs` semantics (resolved by `resolveNav`): a top-level key
+(`home`/`entreno`/`health`/`nutricion`) removes that nav button; a legacy key (`hoy`/`dash`/`dia`/
+`registro`/`tablas`) renders that section `hidden`. Panels, sections, baked globals and scripts
+always stay in the build. Nutrición disappears when all three of its sections are hidden (Entreno
+does not when `dash` is hidden: it holds more); the visible tab on load is the first remaining one;
+hiding every tab fails the build. `setTab('<legacy key>')` still works (it opens the hosting tab and
+scrolls to the section — `setTab('dash')` opens Entreno). The train/rest toggle is marked `data-off`
+when only Tablas is left (`showDayToggle`), and the "today you eat" card drops its link when
+Nutrición is hidden.
+Taps (core.js `jumpOr`, falling back to the tab when the target has no data; nothing is a link when
+its tab is hidden): sleep dial → Salud `#hl-sleep`; recovery dial → Salud `#hl-recovery`; load dial
+→ Entreno `#score-load`; a health-monitor card → its Salud trend (`#hl-rhr` / `#hl-hrv` /
+`#hl-respiratory` / `#hl-wristTemp` / `#hl-sleep`); a timeline row → `#hl-sleep` (sleep) or
+`#score-load` (a workout). The detail cards themselves are not links.
 
 **Look & typography.** Dark, data-first design language: colour carries meaning, never decoration.
 All colours are tokens in `web/src/styles/tokens.css` (AA-checked ratios listed in its header):
@@ -225,7 +233,10 @@ Shortcut `diet_kcal`/`diet_protein`/`diet_carbs`/`diet_fat` keys, which sync fol
 `dietary-daily.csv` row per day, export rows winning). A ring never fills from the target: a macro
 missing on the logged day renders an empty ring with a dash. When the logged day is the viewer's
 today it is labelled as in progress ("Hoy, en curso" / "Today, so far"), so partial rings are not
-read as a finished day.
+read as a finished day. When NO intake was ever logged (`INTAKE.latest` null, decided at build
+time), the rings and Registro collapse to ONE line: Mi día renders no rings host and the Registro
+fold summary carries the hint (`noneHtml`); with Registro hidden, intake.js writes that line at the
+top of Mi día instead.
 
 **The plan the owner actually views is a claude.ai artifact (frozen snapshot).** The owner's
 personal artifact URL lives in **`data/nutrition/artifact.local.md`** (gitignored, never
@@ -242,9 +253,22 @@ files does NOT update the published artifact. After a plan change: (1) edit the 
 ## Training tabs — "Hoy / Today" + "Entrenos / Workouts" pipeline
 
 The same single-file build carries two training sections (programmed session in Inicio,
-Entrenamiento in Salud — they were tabs before the three-tab layout), computed by `lib/training/program.mjs`
+Entrenamiento at the bottom of Entreno — they were tabs before the tab layout), computed by `lib/training/program.mjs`
 (programmed sessions) and `lib/training/dashboard.mjs` (executed-workout aggregation) and
 rendered by `web/src/tabs/{Hoy,Entrenos}.astro`. Same single-source pattern as nutrition.
+
+**🏃 Entreno tab, above the dashboard** (`web/src/tabs/TrainingDetail.astro`, hosts only): the
+per-modality load cards + caveats (`#score-load`, client/score.js), then the **30-day activity
+calendar** and **cumulative training time** (`#train-activity`, `lib/training/activity.mjs` →
+`ACTIVITY`, baked in TrainingDetail with `I18N_ACTIVITY`; client/training-activity.js), then running,
+cycling and load vs recovery (`#health-train`, client/health.js). The calendar/cumulative follow the
+dashboard's rules: duration not kcal, DISTINCT days (same-day rows summed), dashboard modality
+buckets. Only the last 63 data days are baked (two 30-day windows + 3 days of viewer slack), one entry
+per active day; the client ends both windows at the VIEWER's today, or at the data date (greyed, with
+a note) when that is more than 3 days old. Calendar = Monday-first weeks, ONE sequential hue
+(`--strain`) in five levels by total minutes (none, < 30, 30–59, 60–89, 90+), an SVG `<title>` per
+cell; cumulative = the running sum of daily minutes, last 30 days (`--strain`) vs the previous 30
+(dashed `--faint`), totals written in the legend, a hover target per day.
 
 **🏋️ Hoy / Today — programmed session.** Source: `data/training/training-data.json`
 (GITIGNORED, personal, and OPTIONAL — see below) — the programmed sessions keyed by ISO
@@ -305,7 +329,7 @@ pastes/screenshots the sessions and you transcribe into `training-data.json`. Fo
 
 **Fresh-clone bootstrap:** copy `data/training/training-data.example.json` →
 `training-data.json`, edit in the real program, then `npm run generate` (part of the shared
-nutrition bootstrap above — one `npm run generate` builds all 3 tabs together). This step is
+nutrition bootstrap above — one `npm run generate` builds all 4 tabs together). This step is
 optional — skipping it (or deleting `training-data.json` later) still builds, with Hoy
 permanently in its rest/unprogrammed state. `npm run check` validates training-data.json when
 it exists (`build-web.mjs --check`); `npm test` covers the training lib with its own unit tests
@@ -313,10 +337,11 @@ plus the build-output/i18n/hide-tabs integration tests.
 
 ## Health tab — "Salud / Health" body & recovery pipeline
 
-`lib/health/{read,stats,aggregate}.mjs` (same single-source pattern) compute the Salud tab's
-stacked sections (body, activity, energy, running, cycling, recovery, load vs recovery) from the Apple Health extract CSVs (all OPTIONAL — absent CSVs render an
-empty state, never fail the build); `web/src/tabs/Salud.astro` + `web/src/client/health.js`
-render it.
+`lib/health/{read,stats,aggregate}.mjs` (same single-source pattern) compute the stacked sections
+from the Apple Health extract CSVs (all OPTIONAL — absent CSVs render an empty state, never fail the
+build); `web/src/client/health.js` renders them into TWO hosts, each with its own empty state:
+`#health` (Salud: recovery with `#score-recovery` right under its heading, sleep, body composition,
+activity, energy — in that order) and `#health-train` (Entreno: running, cycling, load vs recovery).
 
 **Today first.** Every trend card's headline is the NEWEST value with its date (a daily total dated
 the viewer's today reads "today, so far" / "hoy, en curso", decided client-side); the 30-day mean
@@ -350,11 +375,14 @@ anchor for Inicio's health monitor.
   AND the macro split are shown ONLY when ≥7 logged days exist in the recent window; otherwise
   the page shows expenditure alone and says intake can't be scored. Implausible basal readings
   (double-counts / no-wear) are dropped via a sane band.
-- **Running** — `running-daily.csv` (RunningSpeed/Power/GroundContactTime/VerticalOscillation/
-  StrideLength, per-day means over a run's samples). Coverage is SPARSE (only days with a watch-
-  tracked run), so this renders as a RECENT-SESSIONS table (newest first, pace = 60/speed,
-  power, GCT, vertical osc, stride), NOT a trend — and says how many sessions exist. Sub-5 km/h
-  rows (walks / GPS garbage) are dropped.
+- **Running** — `workouts.csv` Running rows (Watch export AND `sync:strava`, via `readRuns`), merged
+  per day exactly like the rides, as a RECENT-RUNS table (same row budget, newest first): date,
+  distance, time, pace = time / distance (none without a distance), avg HR, relative effort,
+  elevation, then the watch running dynamics (power, GCT, vertical osc, stride) LEFT-joined by date
+  from `running-daily.csv` (export.xml only — a Strava-only run shows dashes there; a dynamics-only
+  day never adds a run; sub-5 km/h dynamics are walks / GPS garbage and are not joined). Count =
+  distinct run days. It used to read only `running-daily.csv`, which froze the table at the last
+  export.
 - **Cycling** — `workouts.csv` rows of any Cycling type (Watch rides and `sync:strava` rides), shown
   right after Running as a RECENT-RIDES table with the same style and row budget (8, newest first) so
   run and bike carry equal weight: date, distance, time (Strava moving time / Watch duration),
@@ -369,7 +397,8 @@ and the count is distinct ride days. Elevation / RE / kJ come from
   not-absolute signals). Sleep adds CONSISTENCY: % of nights ≥ `SLEEP_TARGET` (7.5 h), night-to-
   night spread (sd), and bedtime/wake-time regularity (median ± sd in minutes; after-midnight
   bedtimes wrapped onto a night scale). Sleep bedtime/waketime come from the extended
-  `sleep-daily.csv` (extract.js emits earliest asleep start / latest end per night).
+  `sleep-daily.csv` (extract.js emits earliest asleep start / latest end per night). Sleep renders
+  as its own Salud section; its heading is the `#hl-sleep` anchor.
 
 Trends render as inline SVG sparklines (CSP-safe). The build is idempotent — no today-relative
 values are baked (staleness is computed client-side from the data dates). Aggregation lives in
@@ -378,9 +407,11 @@ pure functions (`aggBody`/`aggActivity`/`aggEnergy`/`aggRunning`/`aggRecovery` +
 personal (`LOCALE=es`) build is localized to Spanish (es-ES dates, comma decimals); the example
 (`LOCALE=en`, `web/src/i18n/en.mjs` + `*-templates.mjs` en dicts) build is English.
 
-## Home tab — "Inicio / Home" dials, health monitor, recovery + per-modality load
+## Home tab — "Inicio / Home" dials, health monitor, timeline; recovery + load detail
 
-`lib/score/*` (same single-source pattern) feeds the first tab; `web/src/client/score.js` renders it,
+`lib/score/*` (same single-source pattern) feeds the first tab; `web/src/client/score.js` renders it
+(dials + advice on Inicio; the recovery card into Salud's `#score-recovery` and the per-modality load
+cards + caveats into Entreno's `#score-load` — glance vs detail),
 `buildScores(extractDir)` bakes `SCORES` (only `asOf` dates — staleness is computed client-side, so
 consecutive builds are byte-identical). The tab is first and active by default; the visible panel is
 derived from the FILTERED nav list (`activeTabKey`), so `page.hideTabs: ["home"]` hands over to the next
@@ -438,8 +469,10 @@ is the newest day, and the trend is the line under it.
   sd, coloured by that band; under it "Last night" (or the night's date, + "no sleep data" when the
   night has no sleep reading) and "7-day trend: steady · +0.5 sd". Sleep: fill = the
   sleep-duration component's newest night / the stated target (`health.recovery.sleep.target`, 7.5 h),
-  capped at a full arc, target labelled on screen. Load: ONE dial with a gym/run/bike switch (default =
-  first ungated modality) for the VIEWER's today, picked client-side from the baked `recent` days (each
+  capped at a full arc, target labelled on screen. Load: ONE dial with a gym/run/bike switch that opens
+  (client-side, from the viewer's today) on the ungated modality with a session today — highest RE if
+  several, a session without RE still beats none — else on the baked `defaultKey` (first ungated
+  modality), for the VIEWER's today, picked client-side from the baked `recent` days (each
   with its pre-computed arc): a session with RE → centre = today's RE, position = RE / typical day (arc
   midpoint = the typical training day, end = 2×, no zones), caption "Today: RE 28 · typical day ~42";
   rows today but no RE → "No effort data" (never rest); no rows today → "No session yet today" with "last session
@@ -448,6 +481,14 @@ is the newest day, and the trend is the line under it.
   with its copy and no number. Each dial block / card renders through a try/catch with an empty-state
   fallback, so one throw never blanks Inicio. Stale data (> 3 days) greys a dial; the fill
   animation is off under `prefers-reduced-motion`.
+- **Today's timeline** (`lib/score/timeline.mjs`, baked as `SCORES.timeline` even when `hasData` is
+  false; `#timeline` + `client/timeline.js`, under the monitor): per day, last night's sleep
+  (`sleep-daily.csv`, dated the wake-up day) and that day's workouts by Home modality (gym / run /
+  bike / other) with minutes and RE when the source recorded it. Junk rows are dropped and same-day
+  rows of one modality merge (load rules; the row says "N parts"). Only the last 3 data days are
+  baked; the client shows the viewer's today, else the newest earlier day under "Latest day · <date>"
+  with "nothing logged yet today", greyed when > 3 days old; no baked days → empty state. No sleep
+  that night → "No sleep recorded", never 0 h.
 - **Advice** is one descriptive sentence per rule (`lib/score/advice.mjs`, copy in `advice-copy.mjs`),
   never an instruction; hidden when data is insufficient or stale (> 3 days). The rules still read the
   7-day trend, and every sentence names that window ("Over the last 7 days recovery has…") so it reads
