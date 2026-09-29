@@ -326,7 +326,11 @@ function scMod(key, btn) {
       host.innerHTML = '<div class="train-empty">' + esc(T.emptyMsg) + '</div>';
       return;
     }
-    var out = [dialsHtml()];
+    // Home.astro gives the dials their own host above the health monitor; without it they lead #home
+    var dialsHost = document.getElementById('home-dials');
+    var out = [];
+    if (dialsHost) dialsHost.innerHTML = dialsHtml();
+    else out.push(dialsHtml());
     var anyStale = (S.recovery && isStale(S.recovery.asOf)) || (S.load && isStale(S.load.asOf));
     if (S.recovery) out.push(recoveryHtml(S.recovery));
     if (S.load) out.push(loadHtml(S.load));

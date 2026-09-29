@@ -1,8 +1,13 @@
 ---
-/* "Inicio / Home" scores block: Sleep/Recovery/Load dials + recovery trend + per-modality load + advice. Client-rendered
- * entirely by web/src/client/score.js from SCORES baked by <Bake> (see Registro.astro, which hosts
+/* "Inicio / Home" scores block, today first: Sleep/Recovery/Load dials (#home-dials), the health
+ * monitor right under them, then the recovery (last night + 7-day trend) and per-modality load
+ * cards + advice (#home). Client-rendered by web/src/client/score.js (dials + cards) and
+ * web/src/client/monitor.js (monitor) from SCORES baked by <Bake> (see Registro.astro, which hosts
  * the shared Bake call). Rendered inside the `home` tab panel (web/pages/index.astro), above the
  * nutrition card and the programmed-session section.
  */
+import HealthMonitor from '../components/HealthMonitor.astro';
 ---
+<div id="home-dials"></div>
+<HealthMonitor />
 <div id="home"></div>
