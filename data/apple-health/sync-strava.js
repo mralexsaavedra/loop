@@ -93,19 +93,22 @@ function toRow (activity) {
   return { date, line, mapped, sportType, hasHr: hrAvg != null }
 }
 
-// many activities -> { rows: [{date,line}], unmapped: {sport_type: n}, noHr: n }
+// many activities -> { rows: [{date,line,hasHr}], unmapped: {sport_type: n}, dropped: n }.
+// `dropped` counts activities toRow() could not translate at all (no date/duration) — these
+// never reach the merge. `hasHr` travels with each row so the caller can count noHr AFTER
+// merging, against rows actually written, not against every translated activity (a date the
+// export already covers is dropped by the merge and must not inflate noHr).
 function buildRows (activities) {
   const rows = []
   const unmapped = {}
-  let noHr = 0
+  let dropped = 0
   for (const activity of activities) {
     const r = toRow(activity)
-    if (!r) continue
+    if (!r) { dropped++; continue }
     if (!r.mapped) unmapped[r.sportType || 'null'] = (unmapped[r.sportType || 'null'] || 0) + 1
-    if (!r.hasHr) noHr++
-    rows.push({ date: r.date, line: r.line })
+    rows.push({ date: r.date, line: r.line, hasHr: r.hasHr })
   }
-  return { rows, unmapped, noHr }
+  return { rows, unmapped, dropped }
 }
 
 const range = (dates) => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a')
@@ -124,6 +127,7 @@ function updateMeta (meta, merged, info) {
     activities: info.activities,
     added: merged.added,
     noHr: info.noHr,
+    dropped: info.dropped,
     range: range(merged.addedDates),
     unmapped: info.unmapped,
     owned: { [WORKOUTS_CSV]: merged.addedDates }
@@ -138,7 +142,7 @@ function updateMeta (meta, merged, info) {
 
 // Pure planner: activities (full pull) + a reader (name -> text|null) -> files to write.
 function planSync (activities, readFile) {
-  const { rows, unmapped, noHr } = buildRows(activities)
+  const { rows, unmapped, dropped } = buildRows(activities)
   const existing = readFile(WORKOUTS_CSV)
   const metaText = readFile('_meta.json')
   const prevMeta = metaText != null ? JSON.parse(metaText) : null
@@ -154,17 +158,22 @@ function planSync (activities, readFile) {
     isOwn: (s) => s === STRAVA_SOURCE
   })
 
+  // noHr counts rows actually WRITTEN (i.e. on a date the merge added), not every translated
+  // activity — a date the export already covers never reaches the CSV and must not inflate it.
+  const addedDateSet = new Set(merged.addedDates)
+  const noHr = rows.filter((r) => addedDateSet.has(r.date) && !r.hasHr).length
+
   const writes = {}
   const csvHasContent = !(existing == null && rows.length === 0) // never create an empty CSV
   if (csvHasContent && merged.text !== existing) writes[WORKOUTS_CSV] = merged.text
 
   if (csvHasContent || prevMeta) {
-    const meta = updateMeta(prevMeta || {}, merged, { activities: activities.length, unmapped, noHr })
+    const meta = updateMeta(prevMeta || {}, merged, { activities: activities.length, unmapped, noHr, dropped })
     const text = JSON.stringify(meta, null, 2) + '\n'
     if (text !== metaText) writes['_meta.json'] = text
   }
 
-  return { writes, merged, unmapped, noHr }
+  return { writes, merged, unmapped, noHr, dropped }
 }
 
 // plan + apply against a directory of extract CSVs. _meta.json is written BEFORE workouts.csv
@@ -197,8 +206,9 @@ function fetchActivities ({ baseUrl, token, sinceId = '0', limit = 500, timeoutM
 }
 
 async function main () {
+  const t0 = Date.now()
   const baseUrl = process.env.INGEST_URL || common.DEFAULT_URL
-  const token = common.readIngestToken(process.env)
+  const token = common.readIngestToken(process.env, process.env.INGEST_ENV_FILE || common.ENV_FILE)
   if (!token) {
     console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/health-ingest/.env. No files touched.')
     process.exit(1)
@@ -211,14 +221,17 @@ async function main () {
     if (err.status === 404) {
       console.error('ERROR: ingest service has no /export/strava — rebuild/restart the health-ingest container. No files touched.')
     } else {
-      console.error(`ERROR: could not read from the ingest service at ${baseUrl} (${err.cause && err.cause.code || err.message}). Is it running? No files touched.`)
+      const cause = (err.cause && err.cause.code) || (err.cause && err.cause.message) || err.message
+      console.error(`ERROR: could not read from the ingest service at ${baseUrl} (${cause}). Is it running? No files touched.`)
     }
     process.exit(1)
   }
 
   const plan = syncDir(OUT, activities)
-  console.log(`Synced ${activities.length} Strava activities; ${plan.merged.added} row(s) added for ${range(plan.merged.addedDates)}; ${plan.merged.rows} rows total`)
+  const durationMs = Date.now() - t0
+  console.log(`Synced ${activities.length} Strava activities in ${durationMs}ms; ${plan.merged.added} row(s) added for ${range(plan.merged.addedDates)}; ${plan.merged.rows} rows total`)
   if (plan.noHr) console.log(`  ${plan.noHr} row(s) written without HR`)
+  if (plan.dropped) console.log(`  ${plan.dropped} activity(ies) dropped (no usable date/duration)`)
   if (Object.keys(plan.unmapped).length) console.log(`  unmapped sport types: ${JSON.stringify(plan.unmapped)}`)
   if (!Object.keys(plan.writes).length) console.log('  (no changes)')
 }
