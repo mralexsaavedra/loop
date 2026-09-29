@@ -14,14 +14,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { checkTraining, resolveLocale, sweepStaleStaging } from './build-web.mjs';
 
-function fixtureRepo({ trainingDays, personalLocale = 'es' } = {}) {
+function fixtureRepo({ trainingDays, personalLocale = 'es', withTraining = true } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-buildweb-check-'));
   fs.mkdirSync(path.join(root, 'data', 'nutrition'), { recursive: true });
   fs.mkdirSync(path.join(root, 'data', 'training'), { recursive: true });
   fs.writeFileSync(path.join(root, 'data', 'nutrition', 'ingredients.json'), JSON.stringify({ ingredients: { egg: { per: 100, k: 155, p: 13, c: 1.1, g: 11, unit: 'ud' } } }));
   fs.writeFileSync(path.join(root, 'data', 'nutrition', 'plan-data.json'), JSON.stringify({ locale: personalLocale, data: {}, extras: {} }));
   fs.writeFileSync(path.join(root, 'data', 'nutrition', 'plan-data.example.json'), JSON.stringify({ locale: 'en', data: {}, extras: {} }));
-  fs.writeFileSync(path.join(root, 'data', 'training', 'training-data.json'), JSON.stringify({ days: trainingDays ?? {} }));
+  if (withTraining) fs.writeFileSync(path.join(root, 'data', 'training', 'training-data.json'), JSON.stringify({ days: trainingDays ?? {} }));
   fs.writeFileSync(path.join(root, 'data', 'training', 'training-data.example.json'), JSON.stringify({ days: {} }));
   return root;
 }
@@ -47,6 +47,26 @@ test('checkTraining(personal) throws with a clear message on a malformed program
       () => checkTraining({ repoRoot: root, mode: 'personal' }),
       /not-a-date.*not an ISO date/s,
     );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('checkTraining(personal) skips validation and reports ok when training-data.json is simply ABSENT (optional, not malformed)', () => {
+  const root = fixtureRepo({ withTraining: false });
+  try {
+    const res = checkTraining({ repoRoot: root, mode: 'personal' });
+    assert.equal(res.ok, true);
+    assert.equal(res.skipped, true, 'must be distinguishable from an actually-validated program');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('checkTraining(personal) still throws when training-data.json EXISTS but is malformed/empty (absent != empty)', () => {
+  const root = fixtureRepo({ trainingDays: {} }); // file present, {days:{}} — a real validation error, not "absent"
+  try {
+    assert.throws(() => checkTraining({ repoRoot: root, mode: 'personal' }), /"days" is empty/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

@@ -42,8 +42,20 @@ const WEB_ROOT = path.join(ROOT, 'web');
 const ASTRO_BIN = path.join(ROOT, 'node_modules', '.bin', 'astro');
 
 /** Pure: loads training-data(.example).json for `mode` and validates it.
- * Throws with validateProgram's error message on a malformed program. */
+ * Throws with validateProgram's error message on a malformed program.
+ * training-data.json is OPTIONAL in personal mode (see lib/load/inputs.mjs)
+ * — when the file is simply ABSENT, there is nothing to validate and that
+ * is not an error, so this skips validateProgram entirely rather than
+ * routing the resulting empty `{days:{}}` through it (which would
+ * otherwise fail with a misleading "days is empty" for a user who
+ * deliberately has no programmed-training file). A file that EXISTS but is
+ * empty/malformed still fails validation normally — only true absence is
+ * optional. */
 export function checkTraining({ repoRoot, mode }) {
+  if (mode !== 'example') {
+    const trainingPath = path.join(repoRoot, 'data', 'training', 'training-data.json');
+    if (!fs.existsSync(trainingPath)) return { ok: true, skipped: true };
+  }
   const { training } = loadInputs({ repoRoot, dataMode: mode });
   return validateProgram(training);
 }
@@ -111,8 +123,12 @@ function main() {
   const explicitLocale = args.locale || process.env.LOCALE || null;
 
   if (args.check) {
-    checkTraining({ repoRoot: ROOT, mode });
-    console.log(`build-web --check: training-data.json OK (mode=${mode})`);
+    const res = checkTraining({ repoRoot: ROOT, mode });
+    console.log(
+      res.skipped
+        ? `build-web --check: training-data.json not present (mode=${mode}) — optional, skipping (Hoy/Entrenos will render their empty state)`
+        : `build-web --check: training-data.json OK (mode=${mode})`,
+    );
     return;
   }
 

@@ -189,12 +189,22 @@ The same single-file build carries two training tabs, computed by `lib/training/
 rendered by `web/src/tabs/{Hoy,Entrenos}.astro`. Same single-source pattern as nutrition.
 
 **🏋️ Hoy / Today — programmed session.** Source: `data/training/training-data.json`
-(GITIGNORED, personal) — the programmed sessions keyed by ISO date (`days["YYYY-MM-DD"]`);
-a date with no entry renders as a rest / unprogrammed day. The build bakes it into a page-level
-JSON global; the page picks "today" client-side with `new Date()`. The artifact is a frozen
-snapshot, so the baked program must cover the current date — regenerate + re-publish when a
-new block lands. NOTE: program files are often exported/named by a training partner, not the
-coach — never infer the coach's identity from a filename; take it from `profile/about-me.md`.
+(GITIGNORED, personal, and OPTIONAL — see below) — the programmed sessions keyed by ISO
+date (`days["YYYY-MM-DD"]`); a date with no entry renders as a rest / unprogrammed day. The
+build bakes it into a page-level JSON global; the page picks "today" client-side with `new
+Date()`. The artifact is a frozen snapshot, so the baked program must cover the current date —
+regenerate + re-publish when a new block lands. NOTE: program files are often exported/named by
+a training partner, not the coach — never infer the coach's identity from a filename; take it
+from `profile/about-me.md`.
+
+**`training-data.json` itself is OPTIONAL for the personal build.** If it does not exist at
+all, the build still succeeds — `lib/load/inputs.mjs` degrades to an empty program
+(`{days:{}}`), and Hoy renders every day as a rest/unprogrammed day (same empty state a real
+file with no sessions produces); Entrenos is unaffected (it reads Apple Health `workouts.csv`,
+not this file). `npm run check` likewise treats a genuinely absent file as "nothing to
+validate" rather than an error — it only fails if the file exists but is malformed/empty. This
+is distinct from `page.hideTabs: ["hoy"]` below, which removes the NAV BUTTON; leaving the file
+absent keeps the tab visible but permanently in its empty state.
 
 **The Hoy tab is optional and source-agnostic.** The program can come from any dated source
 (coach PDFs, a spreadsheet, or a login-gated training app whose content can't be scraped). If
@@ -221,9 +231,11 @@ pastes/screenshots the sessions and you transcribe into `training-data.json`. Fo
 
 **Fresh-clone bootstrap:** copy `data/training/training-data.example.json` →
 `training-data.json`, edit in the real program, then `npm run generate` (part of the shared
-nutrition bootstrap above — one `npm run generate` builds all 6 tabs together). `npm run
-check` validates training-data.json too (`build-web.mjs --check`); `npm test` covers the
-training lib with its own unit tests plus the build-output/i18n/hide-tabs integration tests.
+nutrition bootstrap above — one `npm run generate` builds all 6 tabs together). This step is
+optional — skipping it (or deleting `training-data.json` later) still builds, with Hoy
+permanently in its rest/unprogrammed state. `npm run check` validates training-data.json when
+it exists (`build-web.mjs --check`); `npm test` covers the training lib with its own unit tests
+plus the build-output/i18n/hide-tabs integration tests.
 
 ## Health tab — "Salud / Health" body & recovery pipeline
 

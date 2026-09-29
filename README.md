@@ -67,6 +67,8 @@ instead of generic advice with no data behind it.
      programmed session) and a 📈 **Workouts** dashboard, built from the Apple Health workouts
      you exported above (frequency, weekly volume, modality — duration-based, since the watch
      leaves calories blank). Your real program stays gitignored; only the example seed is tracked.
+     Skipping this step entirely is fine too — the build still succeeds with no
+     `training-data.json`; the **Today** tab just stays in its rest/unprogrammed state.
 3. **Ask Claude to run an analysis.** It reads `CLAUDE.md`, follows
    `analysis/methodology.md`, and writes a report to `analysis/reports/`.
 
