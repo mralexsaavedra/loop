@@ -4,7 +4,10 @@
  * `jsonForScript` for safe embedding inside a <script> tag. Scoped, for
  * now, to what the Mi día + Registro tabs need (astro-plan-web slice 3);
  * later slices extend this with TRAINING/TRAINING_META/DASH/HEALTH per
- * design's Key Interfaces `Bake` row.
+ * design's Key Interfaces `Bake` row. FRUIT_SUMMARY/I18N_TABLAS (slice 4)
+ * are consumed by the SAME nutrition.js script, from the Tablas tab's
+ * client-painted fruit-summary row — Tablas.astro renders no <Bake> of its
+ * own, see its file header.
  */
 import { jsonForScript } from '../../../lib/serialize.mjs';
 
@@ -18,8 +21,9 @@ interface Props {
   copyMsg: string;
   copyFallbackMsg: string;
   locale: string;
+  tablasLabels: { fruitPortionLabel: string; fruitPortionQty: string };
 }
-const { nut, targetTrain, targetRest, verdictTemplates, logTemplates, peLabel, copyMsg, copyFallbackMsg, locale } = Astro.props;
+const { nut, targetTrain, targetRest, verdictTemplates, logTemplates, peLabel, copyMsg, copyFallbackMsg, locale, tablasLabels } = Astro.props;
 
 const globals = {
   DATA: nut.D,
@@ -32,8 +36,10 @@ const globals = {
   INDULGE: nut.indulge,
   ALCOHOL_KEYS: nut.alcoholKeys,
   MEAL_REPLACE_KEYS: nut.mealReplaceKeys,
+  FRUIT_SUMMARY: nut.fruitSummary,
   I18N_VERDICT: verdictTemplates,
   I18N_LOG: logTemplates,
+  I18N_TABLAS: tablasLabels,
   PE_LABEL: peLabel,
   COPY_MSG: copyMsg,
   COPY_FALLBACK_MSG: copyFallbackMsg,

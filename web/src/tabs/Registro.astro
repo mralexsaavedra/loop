@@ -50,8 +50,8 @@ const targetRest = nut.targetFor('rest');
     ))}
 
     <div class="combo-h">{t.offPlanHeading}</div>
-    <p class="acc-note" style="margin:-2px 0 6px">{t.offPlanNote}</p>
-    <textarea id="bld-notes" placeholder={t.offPlanPlaceholder} />
+    <Note id="registro.offPlan" page={page} fallback={t.offPlanNoteHtml} class="acc-note" style="margin:-2px 0 6px" />
+    <textarea id="bld-notes" placeholder={page?.offPlanPlaceholder || t.offPlanPlaceholder} />
 
     <div class="readout">
       <div class="read-kcal" id="r-kcal">—</div>
@@ -77,4 +77,5 @@ const targetRest = nut.targetFor('rest');
   copyMsg={t.copiedMsg}
   copyFallbackMsg={t.copiedFallbackMsg}
   locale={locale}
+  tablasLabels={{ fruitPortionLabel: dict.strings.tablas.fruta.portionLabel, fruitPortionQty: dict.strings.tablas.fruta.portionQty }}
 />

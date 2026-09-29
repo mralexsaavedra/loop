@@ -148,9 +148,11 @@
   }
 
   /* ---- paint the equivalence tables from the SAME DATA/EXTRAS ----
-     Table ids (tb-prot-lean, tb-cc-train, ...) live in the Tablas tab,
-     not built yet (astro-plan-web slice 4) — el()/paint() no-op via the
-     `if(t)` guard until then, same graceful-degrade pattern as legacy. */
+     Table ids (tb-prot-lean, tb-cc-train, ...) live in the Tablas tab
+     (web/src/tabs/Tablas.astro, astro-plan-web slice 4). el()/paint() stay
+     a no-op via the `if(t)` guard whenever an id is absent (e.g. running
+     this script against a fixture DOM that only has Registro's elements) —
+     same graceful-degrade pattern as legacy. */
   function fnum(n) { return ('' + n).replace('.', ','); }
   function rowHtml(o) {
     var name = o.n + (o.note ? ' <small>' + o.note + '</small>' : '');
@@ -159,6 +161,17 @@
   function paint(id, arr) { var t = el(id); if (t) t.innerHTML = arr.map(rowHtml).join(''); }
   function eatable(arr) { return arr.filter(function (o) { return !o.none; }); }
   function byTier(t) { return DATA.proteina.filter(function (o) { return o.t === t; }); }
+  /* The Postre/Dessert table's first row is a computed fruit-range summary
+   * (kcal/carb min-max + average protein/fat over every fruit-cat postre
+   * item — see lib/nutrition/macros.mjs's fruitSummary), not a single
+   * DATA.postre entry, so it does not fit rowHtml()'s single-value shape.
+   * FRUIT_SUMMARY is null when the plan has no fruit items (degrade to no
+   * summary row, same convention as elsewhere). */
+  function fruitSummaryRowHtml(fs) {
+    if (!fs) return '';
+    var label = '<button class="lnk" onclick="jump(\'acc-fruta\')">' + I18N_TABLAS.fruitPortionLabel + '</button>';
+    return '<tr><td>' + label + '</td><td>' + I18N_TABLAS.fruitPortionQty + '</td><td class="kc">' + fs.kMin + '–' + fs.kMax + '</td><td>' + fnum(fs.p) + '</td><td>' + fs.cMin + '–' + fs.cMax + '</td><td>' + fnum(fs.g) + '</td></tr>';
+  }
 
   paint('tb-prot-lean', byTier('lean'));
   paint('tb-prot-mod', byTier('mod'));
@@ -170,6 +183,8 @@
   paint('tb-pe', eatable(DATA.postentreno));
   paint('tb-anclaje', eatable(DATA.anclaje));
   paint('tb-fruta', DATA.postre.filter(function (o) { return o.cat === 'fruit'; }));
+  var tbPostre = el('tb-postre');
+  if (tbPostre) tbPostre.innerHTML = fruitSummaryRowHtml(FRUIT_SUMMARY) + DATA.postre.filter(function (o) { return o.cat === 'yogurt'; }).map(rowHtml).join('');
   paint('tb-verduras', VEG_KEYS.map(function (k) { return EXTRAS[k]; }));
   paint('tb-quesos', QUESO_KEYS.map(function (k) { return EXTRAS[k]; }));
 

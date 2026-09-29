@@ -16,9 +16,13 @@ interface Props {
   fallback?: string;
   class?: string;
   style?: string;
+  /** false when the note content is already a self-contained block element
+   * (e.g. Tablas' Supplements `<div class="meal">...</div>`) and must NOT
+   * be wrapped in an extra `<p>` — see web/src/tabs/Tablas.astro. */
+  wrap?: boolean;
 }
 
-const { id, page, fallback = '', class: className, style } = Astro.props;
+const { id, page, fallback = '', class: className, style, wrap = true } = Astro.props;
 const html = page?.notes?.[id] ?? fallback;
 ---
-{html ? <p class={className} style={style} set:html={html} /> : null}
+{html ? (wrap ? <p class={className} style={style} set:html={html} /> : <Fragment set:html={html} />) : null}

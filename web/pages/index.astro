@@ -8,6 +8,7 @@
 import Plan from '../layouts/Plan.astro';
 import Dia from '../src/tabs/Dia.astro';
 import Registro from '../src/tabs/Registro.astro';
+import Tablas from '../src/tabs/Tablas.astro';
 import { resolveEnv } from '../src/env.mjs';
 import { buildNutrition } from '../../lib/nutrition/macros.mjs';
 import { getDict } from '../src/i18n/index.mjs';
@@ -20,6 +21,7 @@ const dict = getDict(locale);
 const TABS = [
   { key: 'dia', icon: dict.strings.nav.tabs.dia.icon, label: dict.strings.nav.tabs.dia.label },
   { key: 'registro', icon: dict.strings.nav.tabs.registro.icon, label: dict.strings.nav.tabs.registro.label },
+  { key: 'tablas', icon: dict.strings.nav.tabs.tablas.icon, label: dict.strings.nav.tabs.tablas.label },
 ];
 
 const title = plan.page?.title || 'Plan';
@@ -28,4 +30,5 @@ const title = plan.page?.title || 'Plan';
 <Plan title={title} locale={locale} page={plan.page} dict={dict} tabs={TABS} activeTab="dia">
   <Dia nut={nut} dict={dict} page={plan.page} />
   <Registro nut={nut} dict={dict} page={plan.page} plan={plan} locale={locale} />
+  <Tablas nut={nut} dict={dict} page={plan.page} />
 </Plan>
