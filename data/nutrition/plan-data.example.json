@@ -522,8 +522,14 @@
   },
   "targets": {
     "_doc": "Live-calculator goals for the Registro tab. kcal is NOT set here — generate.js derives it from each day's prescribed total so it can never drift. p = protein goal (g), fatMax = fat ceiling (g).",
-    "train": { "p": 150, "fatMax": 75 },
-    "rest": { "p": 150, "fatMax": 70 }
+    "train": {
+      "p": 150,
+      "fatMax": 75
+    },
+    "rest": {
+      "p": 150,
+      "fatMax": 70
+    }
   },
   "dayPlan": {
     "train": {
@@ -711,14 +717,16 @@
           "emoji": "☕",
           "name": "Coffee with milk",
           "qty": "145 ml milk",
-          "note": null
+          "note": null,
+          "copyName": "coffee with milk"
         },
         {
           "key": "aceite",
           "emoji": "🫒",
           "name": "Oil",
           "qty": "1 tablespoon",
-          "note": "10 g fat"
+          "note": "10 g fat",
+          "copyName": "oil"
         }
       ]
     },
@@ -731,14 +739,16 @@
           "emoji": "🧀",
           "name": "Cheese slice",
           "qty": "1 slice 20 g",
-          "note": null
+          "note": null,
+          "copyName": "cheese slice"
         },
         {
           "key": "tomatosauce",
           "emoji": "🍅",
           "name": "Tomato sauce",
           "qty": "50 g",
-          "note": null
+          "note": null,
+          "copyName": "tomato sauce"
         }
       ]
     },
@@ -751,14 +761,16 @@
           "emoji": "🥒",
           "name": "Zucchini",
           "qty": "100 g",
-          "note": null
+          "note": null,
+          "copyName": "zucchini"
         },
         {
           "key": "pepper",
           "emoji": "🫑",
           "name": "Bell pepper",
           "qty": "100 g",
-          "note": null
+          "note": null,
+          "copyName": "bell pepper"
         }
       ]
     },
@@ -771,14 +783,16 @@
           "emoji": "🍺",
           "name": "Beer",
           "qty": "1 bottle 250 ml",
-          "note": null
+          "note": null,
+          "copyName": "beer"
         },
         {
           "key": "chocolate",
           "emoji": "🍫",
           "name": "Chocolate",
           "qty": "1 square 8 g",
-          "note": null
+          "note": null,
+          "copyName": "chocolate"
         }
       ]
     }
@@ -795,5 +809,25 @@
   "legumeKeys": [
     "lentejas",
     "garbanzos"
-  ]
+  ],
+  "locale": "en",
+  "page": {
+    "title": "Weekly Nutrition Plan",
+    "kicker": "Health & performance · Example",
+    "h1": "Health & Performance Panel",
+    "sub": "Nutrition, training and recovery, driven by real data — not guesswork.",
+    "footerHtml": "Personal data from Apple Health and your own plan and training program. This page is a snapshot — it may not reflect the last few days.<br><br>\n    Figures are for guidance only — not medical advice. For clinical questions, consult a professional.",
+    "notes": {
+      "dia.footnote": "Example cutting plan. Replace these foods, targets and notes with your own data in <code>plan-data.json</code>, then run <code>npm run generate</code>.",
+      "registro.intro": "Tick what you ate today (it follows the day type from the selector above). It tells you on the spot if you are short on protein, if you go over, and what to cut. Anything the plan does not cover (eating out, weekend, restaurant) write it in <b>Off plan</b>. When you want, paste it: press <b>Copy for Claude</b> and paste it into the chat. Nothing is saved — live calculator."
+    }
+  },
+  "indulgeKeys": [
+    "beer",
+    "chocolate"
+  ],
+  "alcoholKeys": [
+    "beer"
+  ],
+  "mealReplaceKeys": []
 }
