@@ -121,11 +121,15 @@ test('example build: t-home is the first nav button and pressed; the Home panel 
   assert.match(html, /<div id="home"><\/div>/);
 });
 
-test('example build (no extract): SCORES is baked as the empty state and the Home scripts are inline classic scripts', () => {
+test('example build (synthetic demo extract): SCORES, dials and every Salud section are populated; Home scripts are inline classic scripts', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
-  assert.match(html, /var SCORES = \{"hasData":false/);
+  assert.match(html, /var SCORES = \{"hasData":true/);
   assert.match(html, /var I18N_SCORE = /);
-  assert.match(html, /var DIALS = \{"track":"M[^"]+","sleep":\{"state":"none"\},"recovery":\{"state":"none"\},"load":\{"state":"none"\}\}/, 'dials baked, all empty without data');
+  assert.match(html, /var DIALS = \{"track":"M[^"]+","sleep":\{"state":"ok"[\s\S]*"recovery":\{"state":"ok"[\s\S]*"load":\{"state":"ok"/, 'dials baked and ungated from demo data');
+  const health = JSON.parse(html.match(/var HEALTH = (\{.*?\});\n/)[1]);
+  for (const k of ['body', 'activity', 'energy', 'running', 'cycling', 'recovery', 'loadRecovery']) assert.equal(health[k].hasData, true, `HEALTH.${k}`);
+  assert.match(html, /Demo Scale/, 'the page names the synthetic source');
+  assert.match(html, /var INTAKE = \{"latest":\{"date":"\d{4}-\d{2}-\d{2}"/);
   assert.match(html, /getElementById\('home'\)/);
 });
 

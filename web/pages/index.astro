@@ -25,6 +25,8 @@ import { loadDashboard } from '../../lib/training/dashboard.mjs';
 import { buildHealth } from '../../lib/health/aggregate.mjs';
 import { resolveNav, activeTabKey } from '../../lib/nav/tabs.mjs';
 import { buildScores } from '../../lib/score/index.mjs';
+import { buildIntake } from '../../lib/nutrition/intake.mjs';
+import { dayViewModel } from '../src/view/day-totals.mjs';
 
 const env = resolveEnv();
 const { locale, plan, ingredients, training, extractDir } = env;
@@ -34,6 +36,8 @@ const trainMeta = trainingMeta(training);
 const dash = loadDashboard(extractDir);
 const health = buildHealth(extractDir);
 const scores = buildScores(extractDir);
+// intake rings target = the same day totals Mi día shows for a train / rest day
+const intake = buildIntake(extractDir, { train: dayViewModel(nut, 'train').totals, rest: dayViewModel(nut, 'rest').totals });
 
 const navTab = (key: string) => ({ key, icon: dict.strings.nav.tabs[key].icon, label: dict.strings.nav.tabs[key].label });
 // `sections` = the section keys a tab is made of ENTIRELY (hiding all of them drops the tab).
@@ -56,7 +60,7 @@ const title = plan.page?.title || 'Plan';
   </div>
   <div class="tab-panel" data-tab="nutricion" hidden={activeTab !== 'nutricion'}>
     <Dia nut={nut} dict={dict} page={plan.page} hidden={isHidden('dia')} />
-    <Registro nut={nut} dict={dict} page={plan.page} plan={plan} locale={locale} training={training.days} trainingMeta={trainMeta} dash={dash} health={health} scores={scores} hidden={isHidden('registro')} />
+    <Registro nut={nut} dict={dict} page={plan.page} plan={plan} locale={locale} training={training.days} trainingMeta={trainMeta} dash={dash} health={health} scores={scores} intake={intake} hidden={isHidden('registro')} />
     <Tablas nut={nut} dict={dict} page={plan.page} hidden={isHidden('tablas')} />
   </div>
   <div class="tab-panel" data-tab="health" hidden={activeTab !== 'health'}>

@@ -104,6 +104,18 @@
     return '<div class="run-tbl-wrap"><table class="run-tbl">' + head + rows + '</table></div>';
   }
 
+  function ridesTable(s) {
+    var CT = T.cyclingTable;
+    var head = '<tr><th>' + CT.dateH + '</th><th>' + CT.distH + '</th><th>' + CT.timeH + '</th><th>' + CT.elevH + '</th><th>' + CT.hrH + '</th><th>' + CT.reH + '</th><th>' + CT.kjH + '</th></tr>';
+    var rows = s
+      .map(function (r) {
+        var d = function (v, u) { return v != null ? nf(v) + u : '—'; };
+        return '<tr><td>' + esc(fmtD(r.date)) + '</td><td>' + d(r.dist, ' km') + '</td><td>' + esc(r.time) + '</td><td>' + d(r.elev, ' m') + '</td><td>' + d(r.hrAvg, ' ' + T.trend.rhr.unit) + '</td><td>' + d(r.re, '') + '</td><td>' + d(r.kj, ' kJ') + '</td></tr>';
+      })
+      .join('');
+    return '<div class="run-tbl-wrap"><table class="run-tbl">' + head + rows + '</table></div>';
+  }
+
   // section sub-heading with a stable `hl-<key>` anchor (jump target for Inicio's score cards)
   function sub(key) {
     return '<div class="hsub" id="hl-' + key + '">' + T.sections[key] + '</div>';
@@ -112,8 +124,8 @@
   function render() {
     var host = document.getElementById('health');
     if (!host) return;
-    var B = HEALTH.body || {}, A = HEALTH.activity || {}, E = HEALTH.energy || {}, Run = HEALTH.running || {}, R = HEALTH.recovery || {}, LR = HEALTH.loadRecovery || {}, out = [];
-    if (!B.hasData && !A.hasData && !E.hasData && !Run.hasData && !R.hasData && !LR.hasData) {
+    var B = HEALTH.body || {}, A = HEALTH.activity || {}, E = HEALTH.energy || {}, Run = HEALTH.running || {}, R = HEALTH.recovery || {}, LR = HEALTH.loadRecovery || {}, Cyc = HEALTH.cycling || {}, out = [];
+    if (!B.hasData && !A.hasData && !E.hasData && !Run.hasData && !Cyc.hasData && !R.hasData && !LR.hasData) {
       host.innerHTML = '<div class="train-empty">' + T.emptyMsg + '</div>';
       return;
     }
@@ -123,11 +135,13 @@
       if (B.weight) out.push(trend(T.trend.weight.title, nf(B.weight.latest) + '<small>' + T.trend.weight.unit + '</small>', delta(B.weight.d30, T.trend.weight.deltaUnit, 0), B.weight.spark));
       if (B.bodyfat) out.push(trend(T.trend.bodyfat.title, nf(B.bodyfat.latest) + '<small>' + T.trend.bodyfat.unit + '</small>', delta(B.bodyfat.delta, T.trend.bodyfat.deltaUnit, -1), B.bodyfat.spark));
       if (B.lean) out.push(trend(T.trend.lean.title, nf(B.lean.latest) + '<small>' + T.trend.lean.unit + '</small>', delta(B.lean.delta, T.trend.lean.deltaUnit, 1), B.lean.spark));
+      if (B.waist) out.push(trend(format(T.waist.titleTpl, { date: fmtD(B.waist.latestDate) }), nf(B.waist.latest) + '<small>' + T.waist.unit + '</small>', delta(B.waist.delta, T.waist.deltaUnit, -1), B.waist.spark));
       var wsrc = B.weight ? B.weight.source : '', bsrc = B.bodyfat ? B.bodyfat.source : '';
       var sourcesClause = B.weight ? format(T.bodyNote.sourcesClause, { n: B.weight.sources }) : '';
       var wsrcClause = wsrc ? format(T.bodyNote.sourceClause, { src: esc(wsrc) }) : '';
       var bsrcClause = bsrc ? format(T.bodyNote.sourceClause, { src: esc(bsrc) }) : '';
       out.push(note(format(T.bodyNote.main, { sourcesClause: sourcesClause, sourceClause: wsrcClause, bfSourceClause: bsrcClause })));
+      out.push(note(B.waist ? format(T.waist.noteTpl, { n: B.waist.points, first: esc(fmtD(B.waist.firstDate)) }) : T.waist.emptyHtml));
     }
     /* activity / NEAT */
     if (A.hasData) {
@@ -168,11 +182,19 @@
         out.push(note(format(T.energyExpenditureNote.main, { tdeeDays: E.tdeeDays, lastIntakeClause: lastIntakeClause })));
       }
     }
-    /* running */
-    if (Run.hasData) {
+    /* running + cycling: rendered as a pair with the same table style and row budget, so run and
+       bike carry equal weight; when only one has data the other states its empty case */
+    if (Run.hasData || Cyc.hasData) {
       out.push(sub('running'));
-      out.push(runsTable(Run.sessions));
-      out.push(note(format(T.runningNote, { count: Run.count })));
+      if (Run.hasData) {
+        out.push(runsTable(Run.sessions));
+        out.push(note(format(T.runningNote, { count: Run.count })));
+      } else out.push(note(T.runningEmptyHtml));
+      out.push(sub('cycling'));
+      if (Cyc.hasData) {
+        out.push(ridesTable(Cyc.sessions));
+        out.push(note(format(T.cyclingNote, { count: Cyc.count })));
+      } else out.push(note(T.cyclingEmptyHtml));
     }
     /* recovery */
     if (R.hasData) {

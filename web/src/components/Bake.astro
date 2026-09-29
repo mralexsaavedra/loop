@@ -34,10 +34,12 @@ interface Props {
   healthTemplates: Record<string, any>;
   scores: any; // lib/score/index.mjs's buildScores() result (Home tab; only asOf dates, no build-time now)
   scoreTemplates: Record<string, any>;
+  intake: any; // lib/nutrition/intake.mjs's buildIntake() result (no build-time now)
+  intakeTemplates: Record<string, any>;
 }
 const {
   nut, targetTrain, targetRest, verdictTemplates, logTemplates, peLabel, copyMsg, copyFallbackMsg, locale, tablasLabels,
-  training, trainingMeta, dash, hoyTemplates, dashTemplates, health, healthTemplates, scores, scoreTemplates,
+  training, trainingMeta, dash, hoyTemplates, dashTemplates, health, healthTemplates, scores, scoreTemplates, intake, intakeTemplates,
 } = Astro.props;
 
 const globals = {
@@ -69,6 +71,8 @@ const globals = {
   SCORES: scores,
   DIALS: buildDials(scores, health), // Inicio dial geometry over SCORES + the stated sleep target (view/dial.mjs)
   I18N_SCORE: scoreTemplates,
+  INTAKE: intake,
+  I18N_INTAKE: intakeTemplates,
 };
 
 const bakeSource = Object.entries(globals)

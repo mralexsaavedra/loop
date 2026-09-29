@@ -38,13 +38,16 @@ instead of generic advice with no data behind it.
    - Apple Health: iPhone → Health app → your photo → *Export All Health Data*.
      Unzip and place `export.xml` in `data/apple-health/`. Claude caches it into small
      per-metric CSVs via `node data/apple-health/extract.js` (re-run when you drop a new export).
-     After `npm run generate`, the plan page opens on a 🏠 **Home** tab (a 7-day recovery trend in MAD units and per-modality load from Strava Relative Effort; both need the Apple Health extract / Strava sync and show an empty state without them; `workouts.csv` now has 11 columns, see CLAUDE.md for the rollout) and gains a 💗 **Health** tab with five sections built
-     straight from this export — body composition (weight, body fat, lean mass), activity (steps/
+     After `npm run generate`, the plan page opens on a 🏠 **Home** tab (a 7-day recovery trend in MAD units and per-modality load from Strava Relative Effort; both need the Apple Health extract / Strava sync and show an empty state without them; `workouts.csv` has 12 columns, see CLAUDE.md for the rollout) and gains a 💗 **Health** tab with sections built
+     straight from this export — body composition (weight, body fat, lean mass, waist), activity (steps/
      NEAT, exercise minutes, distance, flights), energy expenditure + macro split, running
-     performance (recent sessions: pace, power, form), and recovery (resting & walking HR, HRV,
+     performance (recent sessions: pace, power, form), cycling (recent rides), and recovery (resting & walking HR, HRV,
      VO₂max, respiratory rate, wrist temp, plus sleep duration AND consistency). The extractor
      auto-discovers whatever your devices logged; absent metrics simply render an empty state, and
      each one carries its own data-honesty caveat.
+   - Apple Health, between exports (optional): an iOS Shortcut can push recent samples to the
+     self-hosted `services/health-ingest` service, and `npm run sync` merges them in. Step-by-step
+     build, every payload key and the known gotchas: [`docs/ios-shortcut.md`](docs/ios-shortcut.md).
    - Nutrition: copy `data/nutrition/food-log.example.md` → `food-log.md` and log meals there.
    - Weight: tracked automatically from Apple Health, or copy
      `data/weight/weight-log.example.md` → `weight-log.md` and log there.
@@ -60,7 +63,9 @@ instead of generic advice with no data behind it.
      single source, via the Astro project in `web/`. `plan-data.json` and `web/dist/` are
      gitignored and stay local; `ingredients.json` and the `.example` seed are tracked.
      `npm run build:example` builds the same page from the tracked seed alone, with no
-     personal files needed — useful to sanity-check the pipeline on a bare clone.
+     personal files needed — useful to sanity-check the pipeline on a bare clone. It reads
+     the synthetic demo extract in `data/demo/` (clearly fake, see its README), so every dial
+     and section shows what your own data will look like.
    - Training (optional): copy `data/training/training-data.example.json` →
      `training-data.json` and fill in your program by date — Claude can transcribe a coach's
      PDF for you. Run `npm run generate` and the plan page gains a 🏋️ **Today** tab (today's

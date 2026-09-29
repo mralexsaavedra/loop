@@ -13,6 +13,7 @@ import { es as esHoy, en as enHoy } from '../src/i18n/hoy-templates.mjs';
 import { es as esDash, en as enDash } from '../src/i18n/dash-templates.mjs';
 import { es as esHealth, en as enHealth } from '../src/i18n/health-templates.mjs';
 import { es as esScore, en as enScore } from '../src/i18n/score-templates.mjs';
+import { es as esIntake, en as enIntake } from '../src/i18n/intake-templates.mjs';
 import { ADVICE_COPY } from '../../lib/score/advice-copy.mjs';
 
 function keyTree(obj, prefix = '') {
@@ -234,4 +235,17 @@ test('Entrenamiento dashboard labels the watch "hiit" bucket as gym (matches Ini
   // the on-screen caveat must name the bar by its visible label
   assert.match(esDash.note1Html, /«Gimnasio»/);
   assert.match(enDash.note1Html, /“Gym”/);
+});
+
+test('intake-templates.mjs (Mi día intake rings) has identical key trees in es/en, no empty leaves, and the placeholders intake.js relies on', () => {
+  assert.deepEqual(keyTree(esIntake), keyTree(enIntake));
+  for (const [locale, dict] of [['es', esIntake], ['en', enIntake]]) {
+    for (const [p, value] of leaves(dict)) {
+      if (typeof value === 'string') assert.notEqual(value.trim(), '', `${locale} intake-templates.${p} must not be empty`);
+    }
+    assert.match(dict.ofTpl, /\{target\}/);
+    assert.match(dict.ofTpl, /\{unit\}/);
+    assert.match(dict.emptyHtml, /\{days\}/);
+    assert.match(dict.emptyHtml, /diet_kcal/, `${locale} empty state names the Shortcut keys`);
+  }
 });

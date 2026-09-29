@@ -7,7 +7,7 @@ const samples = require('./samples.js');
 
 const {
   STRAVA_SOURCE, SPORT_TYPE_MAP, translateType, toRow, buildRows, planSync, syncDir,
-  fetchActivities, updateMeta, WORKOUTS_HEADER, WORKOUTS_CSV,
+  fetchActivities, updateMeta, WORKOUTS_HEADER, WORKOUTS_CSV, staleImageWarning,
 } = strava;
 
 // ---- sport_type -> type mapping table ----------------------------------------------------
@@ -38,7 +38,7 @@ test('translateType falls back to Other for an unmapped sport_type without throw
 test('toRow prefers moving_time over elapsed_time, converts to minutes (2 decimals)', () => {
   const r = toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1830, elapsed_time: 2000 });
   assert.equal(r.date, '2026-08-20');
-  assert.match(r.line, /^2026-08-20,Running,30\.5,,,,,Strava API,,,$/);
+  assert.match(r.line, /^2026-08-20,Running,30\.5,,,,,Strava API,,,,$/);
 });
 
 test('toRow falls back to elapsed_time when moving_time is missing or zero', () => {
@@ -50,38 +50,45 @@ test('toRow falls back to elapsed_time when moving_time is missing or zero', () 
 
 test('toRow blanks HR/distance when absent, fills them (rounded/2dp) when present', () => {
   const noHr = toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 3600 });
-  assert.equal(noHr.line, '2026-08-20,Cycling,60,,,,,Strava API,,,');
+  assert.equal(noHr.line, '2026-08-20,Cycling,60,,,,,Strava API,,,,');
   const withHrDist = toRow({
     id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 3600,
     average_heartrate: 142.6, max_heartrate: 171.2, distance: 25123.456,
   });
-  assert.equal(withHrDist.line, '2026-08-20,Cycling,60,,143,,171,Strava API,25.12,,');
+  assert.equal(withHrDist.line, '2026-08-20,Cycling,60,,143,,171,Strava API,25.12,,,');
 });
 
-test('toRow produces an 11-column CSV row matching WORKOUTS_HEADER', () => {
+test('toRow produces a 12-column CSV row matching WORKOUTS_HEADER', () => {
   const r = toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 600, average_heartrate: 140, max_heartrate: 160, distance: 2000 });
-  assert.equal(r.line.split(',').length, 11);
-  assert.equal(WORKOUTS_HEADER.split(',').length, 11);
+  assert.equal(r.line.split(',').length, 12);
+  assert.equal(WORKOUTS_HEADER.split(',').length, 12);
   assert.equal(WORKOUTS_HEADER, samples.WORKOUTS_HEADER, 'one shared header constant');
-  assert.match(WORKOUTS_HEADER, /,distance_km,relative_effort,kilojoules$/);
+  assert.match(WORKOUTS_HEADER, /,distance_km,relative_effort,kilojoules,elevation_m$/);
 });
 
 test('toRow writes relative_effort (suffer_score) and kilojoules; blank when absent; 0 is kept', () => {
   const base = { id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1800 };
-  assert.equal(toRow({ ...base, suffer_score: 87 }).line, '2026-08-20,Running,30,,,,,Strava API,,87,');
-  assert.equal(toRow({ ...base, suffer_score: 0, kilojoules: 0 }).line, '2026-08-20,Running,30,,,,,Strava API,,0,0');
-  assert.equal(toRow({ ...base, suffer_score: 87.4, kilojoules: 640.55 }).line, '2026-08-20,Running,30,,,,,Strava API,,87,640.55');
-  assert.equal(toRow({ ...base, suffer_score: null, kilojoules: null }).line, '2026-08-20,Running,30,,,,,Strava API,,,');
+  assert.equal(toRow({ ...base, suffer_score: 87 }).line, '2026-08-20,Running,30,,,,,Strava API,,87,,');
+  assert.equal(toRow({ ...base, suffer_score: 0, kilojoules: 0 }).line, '2026-08-20,Running,30,,,,,Strava API,,0,0,');
+  assert.equal(toRow({ ...base, suffer_score: 87.4, kilojoules: 640.55 }).line, '2026-08-20,Running,30,,,,,Strava API,,87,640.55,');
+  assert.equal(toRow({ ...base, suffer_score: null, kilojoules: null }).line, '2026-08-20,Running,30,,,,,Strava API,,,,');
 });
 
-test('planSync: a 9-column CSV merges under the 11-col header; old rows are kept verbatim (mixed width)', () => {
+test('toRow writes total_elevation_gain as elevation_m (1 decimal); blank when absent; 0 is kept', () => {
+  const base = { start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 3600 };
+  assert.equal(toRow({ ...base, total_elevation_gain: 412.37 }).line, '2026-08-20,Cycling,60,,,,,Strava API,,,,412.4');
+  assert.equal(toRow({ ...base, total_elevation_gain: 0 }).line, '2026-08-20,Cycling,60,,,,,Strava API,,,,0');
+  assert.equal(toRow({ ...base, total_elevation_gain: null }).line, '2026-08-20,Cycling,60,,,,,Strava API,,,,');
+});
+
+test('planSync: a 9-column CSV merges under the 12-col header; old rows are kept verbatim (mixed width)', () => {
   const oldHeader = 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source,distance_km';
   const files = { [WORKOUTS_CSV]: [oldHeader, '2026-08-20,Running,30,,140,,165,Watch,5'].join('\n') + '\n' };
   const plan = planSync([{ id: '2', start_local: '2026-08-21T07:00:00', sport_type: 'Run', moving_time: 1800, suffer_score: 55 }], (n) => files[n] ?? null);
   const lines = plan.writes[WORKOUTS_CSV].trim().split('\n');
   assert.equal(lines[0], WORKOUTS_HEADER);
   assert.ok(lines.includes('2026-08-20,Running,30,,140,,165,Watch,5'), 'old 9-col row untouched');
-  assert.ok(lines.includes('2026-08-21,Running,30,,,,,Strava API,,55,'));
+  assert.ok(lines.includes('2026-08-21,Running,30,,,,,Strava API,,55,,'));
 });
 
 test('toRow returns null when there is no usable duration (skip the activity, not the sync)', () => {
@@ -305,7 +312,7 @@ test('fetchActivities surfaces a 404 distinctly (old ingest image) via err.statu
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 
 test('syncDir writes _meta.json and workouts.csv atomically (temp+rename, no leftovers)', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'strava-atomic-'));
@@ -432,5 +439,46 @@ test('main(): 404 from an old ingest image -> exit 1, no files written, clear re
   assert.equal(result.status, 1);
   assert.match(result.stderr, /rebuild\/restart the health-ingest container/);
   assert.ok(!fs.existsSync(outDir), 'no file must be written on a 404');
+  fs.rmSync(dir, { recursive: true });
+});
+
+// ---- stale ingest image: activities come back but none carries total_elevation_gain ------
+
+test('staleImageWarning(): warns only when activities exist and NONE carries total_elevation_gain', () => {
+  const act = (extra) => ({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 60, ...extra });
+  assert.equal(staleImageWarning([]), null, 'nothing fetched -> nothing to judge');
+  assert.equal(staleImageWarning([act({ total_elevation_gain: 0 })]), null, '0 m (indoor ride) is a real value');
+  assert.equal(staleImageWarning([act({}), act({ total_elevation_gain: 120 })]), null, 'one activity with the field is enough');
+  assert.match(staleImageWarning([act({}), act({})]), /docker compose up -d --build health-ingest/);
+});
+
+test('main(): activities without elevation -> exit 0, rows written, stale-image warning on stderr', () => {
+  // same in-child server harness as the 404 test (localhost is isolated between sibling processes)
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-strava-stale-'));
+  const outDir = path.join(dir, 'extract');
+  const envFile = path.join(dir, 'no-such.env');
+  const harness = path.join(dir, 'harness.js');
+  const body = JSON.stringify([{ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 3600, distance: 20000 }]);
+  fs.writeFileSync(harness, `
+    const http = require('http');
+    const server = http.createServer((req, res) => {
+      const since = Number(new URL(req.url, 'http://x').searchParams.get('since_id'));
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(since >= 1 ? '[]' : ${JSON.stringify(body)});
+    });
+    server.listen(0, '127.0.0.1', async () => {
+      process.env.INGEST_URL = 'http://127.0.0.1:' + server.address().port;
+      await require(${JSON.stringify(SCRIPT)}).main();
+      server.close();
+    });
+  `);
+  const r = spawnSync(process.execPath, [harness], {
+    env: { PATH: process.env.PATH, INGEST_TOKEN: 'a'.repeat(64), SYNC_STRAVA_OUT_DIR: outDir, INGEST_ENV_FILE: envFile },
+    encoding: 'utf8',
+  });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stderr, /ingest image is probably stale/);
+  assert.match(r.stderr, /docker compose up -d --build health-ingest/);
+  assert.ok(fs.existsSync(path.join(outDir, WORKOUTS_CSV)), 'the sync still writes its rows');
   fs.rmSync(dir, { recursive: true });
 });

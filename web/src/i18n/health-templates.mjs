@@ -17,13 +17,10 @@
  * health.js itself from the shared `LOCALE` global — same pattern as
  * training-dash.js's `hc()`.
  *
- * KNOWN_DEVIATION (content, not structure — see web/test/parity.test.mjs):
- * `runningNote` here is a GENERIC translation of the tracked template's
- * "Improving pace at the same effort is the signal to watch." The owner's
- * live personal page instead ends with a Hyrox-specific goal ("Para Hyrox,
- * bajar el ritmo comprometido es la prioridad.") — personal customization
- * that doesn't belong in tracked/generic copy, same rationale as
- * dash-templates.mjs's `note1Html` deviation.
+ * `runningNote` ends with a GENERIC closing line ("Improving pace at the same effort is the
+ * signal to watch.") on purpose: it holds for any runner whatever their goal. A goal-specific
+ * sentence (a target race, a pace to hit) is personal copy and belongs in the owner's
+ * plan-data.json `page` block, never in this tracked file.
  */
 export const es = {
   emptyMsg: 'Aún no hay datos de salud. Suelta tu export de Apple Health en <code>data/apple-health/</code>, corre <code>extract.js</code> y regenera.',
@@ -37,6 +34,7 @@ export const es = {
     activity: 'Actividad',
     energy: 'Energía',
     running: 'Carrera',
+    cycling: 'Ciclismo',
     recovery: 'Recuperación',
     load: 'Carga vs recuperación',
   },
@@ -62,6 +60,13 @@ export const es = {
     sourcesClause: ' ({n} fuentes)',
     sourceClause: ' ({src})',
   },
+  waist: {
+    titleTpl: 'Cintura · {date}',
+    unit: 'cm',
+    deltaUnit: ' cm',
+    noteTpl: '<b>Cintura</b>: {n} medidas con cinta desde el {first}; Δ = última vs primera. Mídela a la altura del ombligo, de pie, al final de una espiración normal, cada 2-4 semanas.',
+    emptyHtml: '<b>Aún no hay medidas de cintura.</b> Regístrala en Salud (Medidas corporales → Perímetro de cintura) y añade la clave <code>waist</code> a tu Atajo — ver <code>docs/ios-shortcut.md</code>.',
+  },
   activityNoteHtml: '<b>Pasos = NEAT</b>, tu mayor palanca de gasto fuera del entreno. Todo son medias de ~30 días (media móvil 7d); Δ vs los 30 días previos. Se descartan días casi sin pasos/distancia (dispositivo no llevado) y se toma el <b>máximo por dispositivo</b> para no duplicar iPhone + reloj.',
   energyBalanceNote: {
     main: 'Balance entre {from}–{to} ({days} días registrados). Negativo = déficit. Es <b>histórico</b> — basado en la última ventana con ingesta registrada.{macroClause}',
@@ -82,6 +87,10 @@ export const es = {
   },
   runningTable: { dateH: 'Fecha', distH: 'Dist', paceH: 'Ritmo', powerH: 'Pot.', gctH: 'TCS', oscH: 'Osc.', strideH: 'Zancada' },
   runningNote: 'Tus <b>{count}</b> sesiones de carrera con métricas del reloj (más recientes arriba). <b>No es una tendencia</b> — son muy pocas para eso —, pero es tu dato real de motor: ritmo (de la velocidad GPS), potencia, tiempo de contacto con el suelo (TCS), oscilación vertical y zancada. Mejorar el ritmo al mismo esfuerzo es la señal a vigilar.',
+  runningEmptyHtml: '<b>Aún no hay carreras con métricas del reloj.</b> Aparecen cuando el reloj registra una carrera con GPS (ritmo, potencia, TCS).',
+  cyclingTable: { dateH: 'Fecha', distH: 'Dist', timeH: 'Tiempo', elevH: 'Desn.', hrH: 'FC media', reH: 'Esf.', kjH: 'Trabajo' },
+  cyclingNote: 'Tus <b>{count}</b> salidas en bici (más recientes arriba). Tiempo = en movimiento (Strava) o duración del entreno (reloj); desnivel positivo, esfuerzo relativo (Esf.) y trabajo en kJ solo llegan de Strava — un guion es un dato que la fuente no registró, nunca un cero. Igual que en carrera: no es una tendencia; compara esfuerzo y FC en rutas parecidas.',
+  cyclingEmptyHtml: '<b>Aún no hay salidas en bici.</b> Aparecen desde los entrenos de ciclismo del reloj o desde Strava (<code>npm run sync:strava</code>).',
   sleepCards: {
     nightsTargetLbl: 'noches ≥ {target} h',
     sdLbl: 'variación noche a noche',
@@ -106,6 +115,7 @@ export const en = {
     activity: 'Activity',
     energy: 'Energy',
     running: 'Running',
+    cycling: 'Cycling',
     recovery: 'Recovery',
     load: 'Load vs recovery',
   },
@@ -131,6 +141,13 @@ export const en = {
     sourcesClause: ' ({n} sources)',
     sourceClause: ' ({src})',
   },
+  waist: {
+    titleTpl: 'Waist · {date}',
+    unit: 'cm',
+    deltaUnit: ' cm',
+    noteTpl: '<b>Waist</b>: {n} tape measurements since {first}; Δ = latest vs first. Measure at navel height, standing, at the end of a normal breath out, every 2-4 weeks.',
+    emptyHtml: '<b>No waist measurements yet.</b> Log it in Health (Body Measurements → Waist Circumference) and add the <code>waist</code> key to your Shortcut — see <code>docs/ios-shortcut.md</code>.',
+  },
   activityNoteHtml: '<b>Steps = NEAT</b>, your biggest energy lever outside training. All are ~30-day averages (7-day rolling); Δ is vs the prior 30 days. Near-zero step/distance days are dropped (device not carried) and the <b>max per device</b> is used so iPhone + watch aren’t double-counted.',
   energyBalanceNote: {
     main: 'Balance over {from}–{to} ({days} logged days). Negative = deficit. This is <b>historical</b> — based on the last window where intake was logged.{macroClause}',
@@ -151,6 +168,10 @@ export const en = {
   },
   runningTable: { dateH: 'Date', distH: 'Dist', paceH: 'Pace', powerH: 'Power', gctH: 'GCT', oscH: 'Osc.', strideH: 'Stride' },
   runningNote: 'Your <b>{count}</b> runs with watch metrics (most recent first). <b>Not a trend</b> — too few for that — but it is your real engine data: pace (from GPS speed), power, ground-contact time (GCT), vertical oscillation and stride. Improving pace at the same effort is the signal to watch.',
+  runningEmptyHtml: '<b>No runs with watch metrics yet.</b> They appear once the watch records a GPS run (pace, power, GCT).',
+  cyclingTable: { dateH: 'Date', distH: 'Dist', timeH: 'Time', elevH: 'Elev.', hrH: 'Avg HR', reH: 'Effort', kjH: 'Work' },
+  cyclingNote: 'Your <b>{count}</b> rides (most recent first). Time = moving time (Strava) or workout duration (watch); elevation gain, relative effort and work in kJ come from Strava only — a dash is a value the source did not record, never a zero. As with running, this is not a trend; compare effort and HR on similar routes.',
+  cyclingEmptyHtml: '<b>No rides yet.</b> They appear from the watch’s cycling workouts or from Strava (<code>npm run sync:strava</code>).',
   sleepCards: {
     nightsTargetLbl: 'nights ≥ {target} h',
     sdLbl: 'night-to-night spread',
