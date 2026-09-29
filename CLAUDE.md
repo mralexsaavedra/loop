@@ -75,8 +75,8 @@ available) so the next session resumes with their context.
      devices double-counts — summing inflates the NEAT figure).
      Between exports, `npm run sync` (`data/apple-health/sync-shortcut.js`) pulls iOS Shortcut
      payloads from the optional `services/health-ingest` service (`GET /export/raw`) and merges
-     hrv/rhr/vo2max/weight/bodyfat/leanmass/waist/steps/energy/sleep/respiratory/walking-HR/
-     wrist-temp/hr-recovery into those CSVs: export rows always win,
+     hrv/rhr/vo2max/weight/bodyfat/leanmass/waist/steps/energy/dietary/sleep/respiratory/
+     walking-HR/wrist-temp/hr-recovery into those CSVs: export rows always win,
      Shortcut rows are rebuilt each run and fill only dates the export lacks — so re-run sync after
      `extract.js`. Sync is incremental (local gitignored `extract/.shortcut-cache.json` of deduped
      samples + last payload id; `npm run sync -- --full` rebuilds it). Daily totals: the latest
@@ -204,6 +204,16 @@ the two JSONs.
   non-fatal WARNING (expected for a shared DB), not an error.
 - `npm test` — the full test suite (`node --test`, zero deps beyond `astro`). `pretest`
   builds the example (+ personal, if present) fixtures the web/ tests read.
+
+**Intake rings (top of Mi día).** `lib/nutrition/intake.mjs` bakes the most recent LOGGED day of
+`dietary-daily.csv` (kcal > 0) plus the plan's train/rest day totals (the same numbers Mi día
+shows); `web/src/client/intake.js` draws four rings (kcal, protein, carbs, fat) against the target
+of the day type picked in the train/rest toggle. The rings show ONLY when that day is within the
+last 3 days of the viewer's clock (decided client-side, so builds stay byte-identical); otherwise
+an empty state says how to enable them (a food app that writes nutrition to Apple Health + the
+Shortcut `diet_kcal`/`diet_protein`/`diet_carbs`/`diet_fat` keys, which sync folds into one
+`dietary-daily.csv` row per day, export rows winning). A ring never fills from the target: a macro
+missing on the logged day renders an empty ring with a dash.
 
 **The plan the owner actually views is a claude.ai artifact (frozen snapshot).** The owner's
 personal artifact URL lives in **`data/nutrition/artifact.local.md`** (gitignored, never

@@ -68,6 +68,7 @@ function setDay(day) {
   t.setAttribute('aria-pressed', day === 'train');
   r.setAttribute('aria-pressed', day === 'rest');
   if (window.bldRefresh) window.bldRefresh();
+  if (window.intakeRefresh) window.intakeRefresh();
 }
 
 function jump(id) {

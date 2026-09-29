@@ -2,7 +2,7 @@
 /* Shared page shell — header (personal copy), tab nav + day toggle, footer
  * (personal copy), and the end-of-body script order per design: bake (each
  * tab's own Bake, e.g. Registro's) → core (setTab/setDay/jump/bump) →
- * nutrition → training-today → training-dash → health. Tabs render inside
+ * nutrition → intake → training-today → training-dash → health. Tabs render inside
  * <slot />.
  */
 import '../src/styles/tokens.css';
@@ -20,6 +20,7 @@ import trainingTodayScript from '../src/client/training-today.js?raw';
 import trainingDashScript from '../src/client/training-dash.js?raw';
 import healthScript from '../src/client/health.js?raw';
 import scoreScript from '../src/client/score.js?raw';
+import intakeScript from '../src/client/intake.js?raw';
 // Numerals font: a ~1.5 KB subset of D-DIN Bold (SIL OFL 1.1, renamed "HC Num" as the OFL requires
 // for a modified version; licence in src/fonts/OFL.txt, rebuild with scripts/subset-num-font.py).
 // `?inline` makes Vite hand back a base64 data: URL, so the page stays one self-contained file.
@@ -88,6 +89,7 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
     </div>
     <script is:inline set:html={coreScript} />
     <script is:inline set:html={nutritionScript} />
+    <script is:inline set:html={intakeScript} />
     <script is:inline set:html={trainingTodayScript} />
     <script is:inline set:html={trainingDashScript} />
     <script is:inline set:html={healthScript} />
