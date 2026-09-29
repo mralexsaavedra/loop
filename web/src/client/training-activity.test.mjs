@@ -21,12 +21,13 @@ for (let i = 30; i < 60; i += 3) rows.push({ date: addDays(ASOF, -i), type: 'Hig
 rows.push({ date: ASOF, type: 'Cycling', dur: 45 });
 const ACT = activityFromRows(rows);
 
-function render(activity, { locale = 'en', now = ASOF } = {}) {
+function render(activity, { locale = 'en', now = ASOF, at } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
+  const stamp = at || now + 'T12:00:00';
   class FakeDate extends RealDate {
-    constructor(...a) { super(...(a.length ? a : [now + 'T12:00:00'])); }
-    static now() { return new RealDate(now + 'T12:00:00').getTime(); }
+    constructor(...a) { super(...(a.length ? a : [stamp])); }
+    static now() { return new RealDate(stamp).getTime(); }
   }
   const ctx = {
     document: { getElementById: (id) => (id === 'train-activity' ? host : null) },
@@ -69,6 +70,20 @@ test('the viewer a day ahead of the data: windows end today (today empty), not s
   assert.equal(c[29].level, 0);
   assert.equal(c[28].title, `${ASOF}: 1 h 45 min (Run 1 h, Bike 45 min)`);
   assert.doesNotMatch(html, /sc-stale|act-stale/);
+});
+
+test('clock skew: the viewer\'s today EARLIER than the data -> windows end at the data date (its sessions stay visible), not stale', () => {
+  for (const opts of [{ now: addDays(ASOF, -1) }, { now: addDays(ASOF, -40) }, { at: addDays(ASOF, -1) + 'T23:59:00' }]) {
+    const html = render(ACT, opts);
+    assert.equal(cells(html)[29].title, `${ASOF}: 1 h 45 min (Run 1 h, Bike 45 min)`, JSON.stringify(opts));
+    assert.doesNotMatch(html, /act-stale/);
+  }
+});
+
+test('clock edge: 23:59 ends the windows that day, 00:01 the next', () => {
+  assert.equal(cells(render(ACT, { at: ASOF + 'T23:59:00' }))[29].title, `${ASOF}: 1 h 45 min (Run 1 h, Bike 45 min)`);
+  const next = cells(render(ACT, { at: addDays(ASOF, 1) + 'T00:01:00' }));
+  assert.equal(next[29].title, `${addDays(ASOF, 1)}: no training`);
 });
 
 test('stale data (> 3 days old): windows end at the data date, the block is greyed with a note', () => {

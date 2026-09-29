@@ -64,6 +64,18 @@ test('the recovery detail card host (#score-recovery) sits right under the recov
   assert.match(out.health, /id="hl-recovery">[^<]*<\/div><div id="score-recovery"><\/div>/);
 });
 
+test('isolation: a throw in the Salud half renders its empty state and the Entreno half still renders (and vice versa)', () => {
+  const out = {};
+  const brokenBody = { hasData: true, get weight() { throw new Error('boom'); } };
+  assert.doesNotThrow(() => renderWith({ ...full(), body: brokenBody }, { out }));
+  assert.match(out.health, /train-empty/, 'Salud falls back to its empty state');
+  assert.ok(out.health.includes(enHealth.emptyMsg));
+  assert.match(out.train, /id="hl-running"/, 'Entreno unaffected');
+  assert.doesNotThrow(() => renderWith({ ...full(), running: { hasData: true, count: 1, sessions: null } }, { out }));
+  assert.ok(out.train.includes(enHealth.trainEmptyMsg), 'Entreno falls back to its empty state');
+  assert.match(out.health, /id="hl-recovery"/, 'Salud unaffected');
+});
+
 test('each host has its own empty state', () => {
   const out = {};
   renderWith({ body: none, activity: none, energy: none, running: none, cycling: none, recovery: none, loadRecovery: none }, { out });

@@ -382,38 +382,53 @@ function scMod(key, btn) {
       '</div>' + (hasLoad ? loadSwitch(D.load, dt) : '') + caveatLines(dt, hasLoad) + '</div>';
   }
 
-  // one broken block must never blank Inicio: render it as an empty state instead
-  function safe(fn, arg) {
+  // one broken block must never blank Inicio: render it as an empty state instead (or `fallback`,
+  // e.g. '' for the optional advice sentence)
+  function safe(fn, arg, fallback) {
     try {
       return fn(arg);
     } catch (e) {
-      return '<div class="sc-card sc-card-error">' + esc((T.recovery && T.recovery.cardError) || '') + '</div>';
+      return fallback != null ? fallback : '<div class="sc-card sc-card-error">' + esc((T.recovery && T.recovery.cardError) || '') + '</div>';
     }
+  }
+
+  // Writes one host inside its own try/catch: a throwing block or host never stops the others.
+  function write(id, fn) {
+    var el = typeof id === 'string' ? document.getElementById(id) : id;
+    if (!el) return;
+    try {
+      el.innerHTML = fn();
+    } catch (e) {
+      /* this host keeps whatever it had; the other blocks still render */
+    }
+  }
+  function emptyHtml() {
+    return '<div class="train-empty">' + esc(T.emptyMsg) + '</div>';
+  }
+  function adviceHtml() {
+    var anyStale = (S.recovery && isStale(S.recovery.asOf)) || (S.load && isStale(S.load.asOf));
+    if (!S.advice || anyStale || !T.advice[S.advice.key]) return '';
+    return '<div class="sc-card sc-advice">' + esc(adviceText(S.advice)) + '</div>';
   }
 
   // Glance vs detail (Whoop): Inicio keeps the dials + the advice sentence; the recovery card is the
   // detail behind the recovery dial (Salud, #score-recovery), the per-modality load cards + caveats
-  // the detail behind the load dial (Entreno, #score-load). A missing host skips its block.
+  // the detail behind the load dial (Entreno, #score-load). A missing host skips its block; with no
+  // data every host gets the empty state.
   function render() {
     if (!S || !S.hasData) {
-      host.innerHTML = '<div class="train-empty">' + esc(T.emptyMsg) + '</div>';
+      write(host, emptyHtml);
+      write('score-recovery', emptyHtml);
+      write('score-load', emptyHtml);
       return;
     }
     // Home.astro gives the dials their own host above the health monitor; without it they lead #home
     var dialsHost = document.getElementById('home-dials');
-    var out = [];
-    if (dialsHost) dialsHost.innerHTML = safe(dialsHtml);
-    else out.push(safe(dialsHtml));
-    var anyStale = (S.recovery && isStale(S.recovery.asOf)) || (S.load && isStale(S.load.asOf));
+    if (dialsHost) write(dialsHost, function () { return safe(dialsHtml); });
     // the advice sentence reads as the conclusion of the dials above it
-    if (S.advice && !anyStale && T.advice[S.advice.key]) {
-      out.push('<div class="sc-card sc-advice">' + esc(adviceText(S.advice)) + '</div>');
-    }
-    host.innerHTML = out.join('');
-    var recHost = document.getElementById('score-recovery');
-    if (recHost && S.recovery) recHost.innerHTML = safe(recoveryHtml, S.recovery);
-    var loadHost = document.getElementById('score-load');
-    if (loadHost) loadHost.innerHTML = (S.load ? safe(loadHtml, S.load) : '') + safe(caveatsHtml);
+    write(host, function () { return (dialsHost ? '' : safe(dialsHtml)) + safe(adviceHtml, null, ''); });
+    if (S.recovery) write('score-recovery', function () { return safe(recoveryHtml, S.recovery); });
+    write('score-load', function () { return (S.load ? safe(loadHtml, S.load) : '') + safe(caveatsHtml); });
   }
   render();
 })();

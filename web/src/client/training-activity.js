@@ -4,8 +4,8 @@
  *
  * Classic script (is:inline, no module scope). ACTIVITY holds one entry per active day of the last
  * 63 data days; both windows end HERE at the viewer's today (from Date.now(), never baked, so builds
- * stay byte-identical) — or at the data's own date when that is more than STALE_DAYS old, greyed
- * with a note. Colour = one sequential hue (--strain, via .cal-l1…4 in training.css) for total
+ * stay byte-identical) — or at the data's own date when that is more than STALE_DAYS old (greyed
+ * with a note) or AFTER the viewer's today (clock / timezone skew: its sessions stay visible). Colour = one sequential hue (--strain, via .cal-l1…4 in training.css) for total
  * minutes; every cell and chart day carries an SVG <title> for hover. Geometry lives in attributes
  * (no inline styles). A throw renders the empty state, never a blank tab.
  */
@@ -96,7 +96,7 @@
     var today = iso(new Date(Date.now()));
     var age = Math.round((parse(today) - parse(A.asOf)) / MS_PER_DAY);
     var stale = age > STALE_DAYS;
-    var end = stale ? A.asOf : today;
+    var end = stale || age < 0 ? A.asOf : today;
     var byDate = {};
     A.days.forEach(function (d) { byDate[d.date] = d; });
     var dates = [], prevDates = [];

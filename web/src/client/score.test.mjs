@@ -73,6 +73,28 @@ test('empty state: no data renders .train-empty and nothing else', () => {
   assert.doesNotMatch(html, /sc-card/);
 });
 
+test('no data: #score-recovery (Salud) and #score-load (Entreno) get an empty state too, never stay blank', () => {
+  const hosts = {};
+  render({ hasData: false, asOf: null, reEpoch: null, recovery: null, load: null, advice: null }, { hosts });
+  assert.match(hosts.rec.innerHTML, /train-empty/);
+  assert.match(hosts.load.innerHTML, /train-empty/);
+});
+
+test('isolation: a throwing advice or host write never blanks the other blocks', () => {
+  const s = fixtureScores();
+  s.advice = { key: Object.keys(enT.advice)[0], get vars() { throw new Error('boom'); } };
+  const hosts = {};
+  assert.doesNotThrow(() => render(s, { hosts }));
+  assert.match(hosts.rec.innerHTML, /sc-recovery/, 'recovery card still written');
+  assert.match(hosts.load.innerHTML, /sc-load/, 'load card still written');
+  const s2 = fixtureScores();
+  const brokenRec = {};
+  Object.defineProperty(brokenRec, 'innerHTML', { set() { throw new Error('boom'); }, get() { return ''; } });
+  const h2 = { rec: brokenRec };
+  assert.doesNotThrow(() => render(s2, { hosts: h2 }));
+  assert.match(h2.load.innerHTML, /sc-load/, 'a failing #score-recovery write does not stop #score-load');
+});
+
 test('a missing host element or missing SCORES does not throw', () => {
   assert.doesNotThrow(() => render(undefined));
 });
