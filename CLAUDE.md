@@ -302,7 +302,7 @@ plus the build-output/i18n/hide-tabs integration tests.
 ## Health tab — "Salud / Health" body & recovery pipeline
 
 `lib/health/{read,stats,aggregate}.mjs` (same single-source pattern) compute the Salud tab's
-FIVE stacked sections from the Apple Health extract CSVs (all OPTIONAL — absent CSVs render an
+stacked sections (body, activity, energy, running, cycling, recovery, load vs recovery) from the Apple Health extract CSVs (all OPTIONAL — absent CSVs render an
 empty state, never fail the build); `web/src/tabs/Salud.astro` + `web/src/client/health.js`
 render it.
 
@@ -332,6 +332,12 @@ render it.
   tracked run), so this renders as a RECENT-SESSIONS table (newest first, pace = 60/speed,
   power, GCT, vertical osc, stride), NOT a trend — and says how many sessions exist. Sub-5 km/h
   rows (walks / GPS garbage) are dropped.
+- **Cycling** — `workouts.csv` rows of any Cycling type (Watch rides and `sync:strava` rides), shown
+  right after Running as a RECENT-RIDES table with the same style and row budget (8, newest first) so
+  run and bike carry equal weight: date, distance, time (Strava moving time / Watch duration),
+  elevation gain, avg HR, relative effort, kJ, plus the ride count. Elevation / RE / kJ come from
+  Strava only; a field the source did not record renders as a dash, never 0. When only one of run /
+  bike has data, the other shows its empty-state line; with neither, both are omitted.
 - **Recovery** — `rhr.csv`, `hrv.csv` (averaged per day), `vo2max.csv`, `sleep-daily.csv`,
   `respiratory-daily.csv`, `wristTemp.csv`, `walking-hr-daily.csv`. Good directions stated on
   screen (↓ resting/walking HR, ↑ HRV, ↑ VO₂max; respiratory & sleeping wrist temp are change-
@@ -382,13 +388,15 @@ tab and hiding every tab is a build error.
 - Caveats shown on the page: RE is HR-derived (credits the metcon more than heavy sets), modalities are
   not comparable, "gym" is the Watch auto-label, no comparable load before the RE epoch, same-day rows
   are summed (a real two-a-day is indistinguishable), HRV is daytime SDNN, not medical advice.
-- **workouts.csv now has 11 columns** (`… ,distance_km,relative_effort,kilojoules`), written by both
-  `extract.js` and `sync-strava.js` from the shared `WORKOUTS_HEADER`. The first `sync:strava` after the
-  upgrade writes the 11-column header over 9-column export rows (mixed width, tolerated by every
-  reader); re-running `node data/apple-health/extract.js` afterwards (needs `export.xml`) is the
-  REQUIRED step that re-emits every row at 11 columns. Rollout: rebuild the ingest image
-  (`docker compose up -d --build health-ingest`, without it `/export/strava` lacks the new fields) →
-  `npm run sync:strava` → `extract.js` → `npm run generate`.
+- **workouts.csv has 12 columns** (`… ,distance_km,relative_effort,kilojoules,elevation_m`), written by
+  both `extract.js` and `sync-strava.js` from the shared `WORKOUTS_HEADER`. The three trailing columns
+  are Strava-only (export rows leave them empty). Every reader is POSITIONAL and tolerates shorter
+  rows, so a file mixing 9-, 11- and 12-column rows (older runs under a newer header) reads fine:
+  an absent column is null. Re-running `node data/apple-health/extract.js` (needs `export.xml`)
+  re-emits every export row at full width. Rollout for a new Strava field (e.g. `elevation_m` from
+  `total_elevation_gain`): rebuild the ingest image (`docker compose up -d --build health-ingest`;
+  without it `/export/strava` lacks the field and the column stays blank) → `npm run sync:strava` →
+  `npm run generate`.
 
 ## Output principles
 

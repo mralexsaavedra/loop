@@ -25,7 +25,7 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 | POST   | `/ingest/health-auto-export`  | bearer | `202` with the stored row id |
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
 | GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]`; `400` on a bad query |
-| GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate}]`; `400` on a bad query |
+| GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain}]`; `400` on a bad query |
 
 Bearer token is compared in constant time; it is the entire security boundary
 for the endpoint, because Health Auto Export can only send a static header.
@@ -88,7 +88,11 @@ win; Strava rows fill only dates the export does not cover, tagged
 
 If the image predates this endpoint, `GET /export/strava` answers `404` — the
 `health-ingest` container needs a rebuild/restart (`docker compose up -d
---build health-ingest`) before the Strava sync can run.
+--build health-ingest`) before the Strava sync can run. The same applies when a
+new field is added to the response (e.g. `total_elevation_gain`, which feeds the
+`elevation_m` column of `workouts.csv`): an un-rebuilt image still answers, but
+without the field, so the column stays blank until the rebuild and the next
+`npm run sync:strava`.
 
 ## Strava
 

@@ -58,3 +58,36 @@ test('body section without waist data says how to add it (empty state)', () => {
   });
   assert.match(html, /No waist measurements yet/);
 });
+
+test('cycling section: recent rides table (newest first) with count, same table style as running', () => {
+  const html = renderWith({
+    body: none, activity: none, energy: none, recovery: none, loadRecovery: none,
+    running: { hasData: true, count: 1, sessions: [{ date: '2026-06-02', dist: 8, pace: '5:30', speed: 10.9, power: null, gct: null, vosc: null, stride: null }] },
+    cycling: { hasData: true, count: 12, sessions: [
+      { date: '2026-06-10', dist: 40.25, time: '1:30', elev: 412, hrAvg: 141, re: 96, kj: 1310 },
+      { date: '2026-06-04', dist: null, time: '1:00', elev: null, hrAvg: null, re: null, kj: null },
+    ] },
+  });
+  assert.match(html, /<div class="hsub" id="hl-cycling">Cycling<\/div>/);
+  assert.match(html, /<table class="run-tbl">.*Elev\./s);
+  assert.match(html, /40.25 km<\/td><td>1:30<\/td><td>412 m<\/td><td>141 bpm<\/td><td>96<\/td><td>1310 kJ<\/td>/);
+  assert.match(html, /<td>4 Jun<\/td><td>—<\/td><td>1:00<\/td><td>—<\/td>/, 'missing fields are a dash, never 0');
+  assert.match(html, /<b>12<\/b> rides/);
+  assert.ok(html.indexOf('hl-running') < html.indexOf('hl-cycling'), 'cycling follows running');
+});
+
+test('run and bike sections render symmetric empty states when the other has data', () => {
+  const html = renderWith({
+    body: none, activity: none, energy: none, recovery: none, loadRecovery: none,
+    running: none,
+    cycling: { hasData: true, count: 1, sessions: [{ date: '2026-06-10', dist: 40, time: '1:30', elev: 400, hrAvg: 140, re: 90, kj: 1300 }] },
+  });
+  assert.match(html, /id="hl-running"/);
+  assert.match(html, /No runs with watch metrics yet/);
+  const html2 = renderWith({
+    body: none, activity: none, energy: none, recovery: none, loadRecovery: none, cycling: none,
+    running: { hasData: true, count: 1, sessions: [{ date: '2026-06-02', dist: 8, pace: '5:30', speed: 10.9, power: null, gct: null, vosc: null, stride: null }] },
+  });
+  assert.match(html2, /id="hl-cycling"/);
+  assert.match(html2, /No rides yet/);
+});
