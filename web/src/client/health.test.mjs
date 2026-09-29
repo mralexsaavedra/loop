@@ -91,3 +91,61 @@ test('run and bike sections render symmetric empty states when the other has dat
   assert.match(html2, /id="hl-cycling"/);
   assert.match(html2, /No rides yet/);
 });
+
+/* ---- today first: latest value + its date lead, the 30-day mean and delta are the context line ---- */
+function renderAt(HEALTH, now) {
+  const RealDate = Date;
+  class FakeDate extends RealDate {
+    constructor(...a) { super(...(a.length ? a : [now + 'T12:00:00'])); }
+    static now() { return new RealDate(now + 'T12:00:00').getTime(); }
+  }
+  const doc = new StubDocument();
+  const host = doc.el('health');
+  const ctx = { document: doc, window: {}, HEALTH, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date: FakeDate, JSON };
+  vm.createContext(ctx);
+  vm.runInContext(source, ctx);
+  return host.innerHTML;
+}
+const sp = { v: [1, 2], from: '2026-06-01', to: '2026-06-30' };
+
+test('activity: headline = the latest day with its date, "so far" when it is today; 30-day avg + delta underneath', () => {
+  const H = {
+    body: none, energy: none, running: none, recovery: none, loadRecovery: none,
+    activity: { hasData: true, steps: { latest: 9039, latestDate: '2026-06-30', avg30: 8500, days30: 31, d30: 300, spark: sp } },
+  };
+  const past = renderAt(H, '2026-07-02');
+  assert.match(past, /9039<small>[^<]*<\/small><span class="mtrend-date">30 Jun<\/span>/);
+  assert.match(past, /<div class="mtrend-ctx">30-day avg 8500[^<]*<span class="dlt good">▲ \+300<\/span><\/div>/);
+  const today = renderAt(H, '2026-06-30');
+  assert.match(today, /<span class="mtrend-date">today, so far<\/span>/);
+});
+
+test('recovery: resting HR / HRV / sleep lead with the newest value + date; trends carry hl-<key> anchors for the health monitor', () => {
+  const H = {
+    body: none, activity: none, energy: none, running: none, loadRecovery: none,
+    recovery: {
+      hasData: true,
+      rhr: { latest: 52, latestDate: '2026-06-30', avg30: 50.4, d30: -1, spark: sp },
+      hrv: { latest: 71, latestDate: '2026-06-30', avg30: 60, d30: 2, spark: sp },
+      respiratory: { latest: 14.8, latestDate: '2026-06-29', avg30: 14.5, d30: 0.1, spark: sp },
+      wristTemp: { latest: 36.1, latestDate: '2026-06-29', avg30: 36.05, d30: 0, spark: sp },
+      sleep: { latest: 6.4, avg: 7.2, nights: 30, latestDate: '2026-06-30', spark: sp, target: 7.5, pctTarget: 40, sd: 0.6 },
+    },
+  };
+  const html = renderAt(H, '2026-07-01');
+  for (const k of ['rhr', 'hrv', 'respiratory', 'wristTemp', 'sleep']) assert.match(html, new RegExp(`<div class="mtrend" id="hl-${k}">`), k);
+  assert.match(html, /71<small>ms<\/small><span class="mtrend-date">30 Jun<\/span>/);
+  assert.match(html, /30-day avg 60 ms/);
+  assert.match(html, /6.4<small>h<\/small><span class="mtrend-date">30 Jun<\/span>/);
+  assert.match(html, /30-night avg 7.2 h/);
+  assert.match(html, /<div class="hsub" id="hl-recovery">/, 'the section anchor is kept');
+});
+
+test('energy: expenditure headline = the newest day TDEE with its date; 30-day avg as context', () => {
+  const html = renderAt({
+    body: none, activity: none, running: none, recovery: none, loadRecovery: none,
+    energy: { hasData: true, tdeeLatest: 2600, tdeeLatestDate: '2026-06-29', tdeeAvg: 2400, tdeeDays: 30, spark: sp, balance: null, intakeDays: 0 },
+  }, '2026-07-01');
+  assert.match(html, /2600<small>kcal<\/small><span class="mtrend-date">29 Jun<\/span>/);
+  assert.match(html, /30-day avg 2400 kcal/);
+});

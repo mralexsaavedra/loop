@@ -97,6 +97,18 @@
   color: var(--ink);
   line-height: 1;
 }
+.mtrend-date {
+  font-family: var(--sans);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--faint);
+  margin-left: var(--sp-2);
+}
+.mtrend-ctx {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
 .mtrend-val small {
   font-size: var(--fs-sm);
   color: var(--muted);
