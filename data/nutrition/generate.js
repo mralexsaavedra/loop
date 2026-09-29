@@ -25,40 +25,21 @@ if (!ingFile.ingredients || typeof ingFile.ingredients !== 'object') {
   throw new Error('ingredients.json must contain a top-level "ingredients" object.');
 }
 const plan = JSON.parse(fs.readFileSync(path.join(DIR, 'plan-data.json'), 'utf8'));
-// Merge: public ingredient DB + personal plan. `ingredients` comes only from
-// ingredients.json (plan-data.json no longer carries it).
-const data = Object.assign({}, plan, { ingredients: ingFile.ingredients });
-const { ingredients: ING, data: RAW, extras: RAWEX, quesoKeys: QUESO, vegKeys: VEG, dayPlan: DAYPLAN, extrasDisplay: EXTRASDISPLAY, legumeKeys: LEGUMES, legumePlate: LEGUME_PLATE } = data;
+// The existence checks above MUST run before this require — a test copies only this
+// file (no lib/) into a temp dir to assert the "ingredients.json not found" error; if
+// this require ran first, a missing-lib require would mask that error.
+const { buildNutrition, validateNutrition } = require(path.join(DIR, '..', '..', 'lib', 'nutrition', 'macros.mjs'));
 
-/* ---------- compute per-serving macros from the ingredient layer ---------- */
-const rk = n => Math.round(n);                 // kcal -> integer
-const rm = n => Math.round(n * 10) / 10;       // macros -> 1 decimal (.0 dropped)
-function macro(recipe, key) {
-  return recipe.reduce((s, r) => {
-    const ing = ING[r.ing];
-    if (!ing) throw new Error('unknown ingredient: ' + r.ing);
-    return s + ing[key] * (r.amt / ing.per);
-  }, 0);
-}
-const MACRO = ['k', 'p', 'c', 'g'];
-function resolve(o) {
-  const out = {};
-  const SKIP = { recipe: 1, manual: 1, tier: 1, cap: 1 }; // tier/cap are breakfast-table-only
-  for (const k of Object.keys(o)) { if (!SKIP[k]) out[k] = o[k]; }
-  if (o.recipe) { out.k = rk(macro(o.recipe, 'k')); MACRO.slice(1).forEach(f => out[f] = rm(macro(o.recipe, f))); }
-  else if (o.manual) { MACRO.forEach(f => out[f] = o.manual[f]); }
-  else if (o.none) { MACRO.forEach(f => out[f] = 0); }
-  else throw new Error('item has neither recipe, manual nor none: ' + (o.n || o.l));
-  return out;
-}
-// resolved copies used for both outputs
-const D = {};
-for (const [cat, v] of Object.entries(RAW)) {
-  if (Array.isArray(v)) D[cat] = v.map(resolve);
-  else { D[cat] = {}; for (const [sub, arr] of Object.entries(v)) D[cat][sub] = arr.map(resolve); }
-}
-const EX = {};
-for (const [k, o] of Object.entries(RAWEX)) EX[k] = resolve(o);
+// Pure macro computation now lives in lib/nutrition/macros.mjs (astro-plan-web slice 2) —
+// `ingredients` comes only from ingredients.json (plan-data.json no longer carries it).
+const nut = buildNutrition(ingFile.ingredients, plan);
+const {
+  ING, RAW, RAWEX, QUESO, VEG, DAYPLAN, LEGUMES, LEGUME_PLATE,
+  D, EX, MACRO, rk, rm, nd, dotThousands,
+  resolve, macro, lineMacro, brkRows, brkQty, mealMacros,
+  dayTotalK, targetFor,
+} = nut;
+const { extrasDisplay: EXTRASDISPLAY } = plan;
 
 /* ---------- serialize resolved data back to readable JS for the HTML block ---------- */
 function jsVal(v) {
@@ -105,25 +86,8 @@ const keysJS = k => '[' + k.map(x => "'" + x + "'").join(',') + ']';
    source of truth that drifted). They are now generated from the same recipes.
    Recipe lines may carry display-only fields: `label` (row name), `q` (quantity
    override), `group`+`glabel` (merge several lines into one row, e.g. milk used
-   in batter + sauce). Item-level `tier` (🟢/🟡/🔴) + `cap` drive the caption. */
-const nd = n => { const r = Math.round(n * 10) / 10; return String(r).replace('.', ','); }; // 1 decimal, comma sep
-const lineMacro = (line, key) => { const ing = ING[line.ing]; if (!ing) throw new Error('unknown ingredient: ' + line.ing); return ing[key] * (line.amt / ing.per); };
-function brkRows(recipe) {
-  const rows = [], byGroup = {};
-  for (const line of recipe) {
-    const ing = ING[line.ing];
-    const m = { k: lineMacro(line, 'k'), p: lineMacro(line, 'p'), c: lineMacro(line, 'c'), g: lineMacro(line, 'g') };
-    if (line.group && byGroup[line.group] != null) { // merge into the row that opened this group
-      const row = rows[byGroup[line.group]];
-      row.amt += line.amt; MACRO.forEach(f => row[f] += m[f]);
-      continue;
-    }
-    if (line.group) byGroup[line.group] = rows.length;
-    rows.push({ name: line.glabel || line.label || line.ing, q: line.q || null, link: line.link || null, amt: line.amt, unit: ing.unit, k: m.k, p: m.p, c: m.c, g: m.g });
-  }
-  return rows;
-}
-const brkQty = row => row.q ? row.q : (row.unit === 'ud' ? String(row.amt / 100) : row.amt + ' ' + row.unit);
+   in batter + sauce). Item-level `tier` (🟢/🟡/🔴) + `cap` drive the caption.
+   nd/lineMacro/brkRows/brkQty come from lib/nutrition/macros.mjs (destructured above). */
 function brkTable(item) {
   const r = resolve(item);
   const cap = `${item.tier} ${item.cap} · ~${r.k} kcal · ${Math.round(r.p)} P · ${Math.round(r.c)} C · ${Math.round(r.g)} G`;
@@ -151,34 +115,8 @@ const brkBlock = () => [
    Both .day-panel cards are rendered from `dayPlan` in plan-data.json. A meal's
    macros are the sum of its parts. A "part" is either a raw ingredient
    ({ing, amt}) or a reference to a resolved item in data[use] (or data[use][tier])
-   whose `n` or `l` matches `match` (priority: exact n, exact l, n-includes, l-includes). */
-function resolvePart(part) {
-  if (part.ing) {
-    const ing = ING[part.ing];
-    if (!ing) throw new Error('dayPlan part: unknown ingredient: ' + part.ing);
-    const f = part.amt / ing.per;
-    return { k: ing.k * f, p: ing.p * f, c: ing.c * f, g: ing.g * f };
-  }
-  const bucket = part.tier ? (RAW[part.use] && RAW[part.use][part.tier]) : RAW[part.use];
-  if (!Array.isArray(bucket)) throw new Error('dayPlan part: no items at data.' + part.use + (part.tier ? '.' + part.tier : ''));
-  const m = part.match;
-  const find = pred => bucket.find(pred);
-  const item =
-    find(o => o.n === m) ||
-    find(o => o.l === m) ||
-    find(o => o.n && o.n.includes(m)) ||
-    find(o => o.l && o.l.includes(m));
-  if (!item) throw new Error('dayPlan part: no match for "' + m + '" in data.' + part.use + (part.tier ? '.' + part.tier : ''));
-  const r = resolve(item);
-  return { k: r.k, p: r.p, c: r.c, g: r.g };
-}
-function mealMacros(meal) {
-  return meal.parts.reduce((s, part) => {
-    const m = resolvePart(part);
-    return { k: s.k + m.k, p: s.p + m.p, c: s.c + m.c, g: s.g + m.g };
-  }, { k: 0, p: 0, c: 0, g: 0 });
-}
-const dotThousands = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+   whose `n` or `l` matches `match` (priority: exact n, exact l, n-includes, l-includes).
+   resolvePart/mealMacros/dotThousands come from lib/nutrition/macros.mjs. */
 function dayPanel(day, plan) {
   const meals = plan.meals.map(meal => ({ meal, m: mealMacros(meal) }));
   const total = meals.reduce((s, x) => s + x.m.k, 0);
@@ -225,14 +163,8 @@ const dayPlanBlock = () => [
    for the displayed target to drift from the plan it prescribes (this used to be a
    hand-maintained static line that went stale). p (protein goal) and fatMax (fat
    ceiling) are genuine owner-set targets read from plan-data.json `targets`, with
-   safe defaults so a plan without that block still generates. */
-const TARGET_DEFAULTS = { train: { p: 170, fatMax: 75 }, rest: { p: 170, fatMax: 70 } };
-const dayTotalK = day => rk(DAYPLAN[day].meals.reduce((s, m) => s + mealMacros(m).k, 0));
-function targetFor(day) {
-  const cfg = (data.targets && data.targets[day]) || {};
-  const def = TARGET_DEFAULTS[day];
-  return { k: dayTotalK(day), p: cfg.p != null ? cfg.p : def.p, fatMax: cfg.fatMax != null ? cfg.fatMax : def.fatMax };
-}
+   safe defaults so a plan without that block still generates.
+   dayTotalK/targetFor come from lib/nutrition/macros.mjs. */
 const targetJS = () => {
   const one = day => { const t = targetFor(day); return `${day}:{k:${t.k},p:${t.p},fatMax:${t.fatMax}}`; };
   return '    var TARGET = {' + one('train') + ', ' + one('rest') + '};';
@@ -431,51 +363,11 @@ return md.join('\n');
 
 /* ---------- integrity validation ----------
    Runs before every generate, and standalone via `node generate.js --check`.
-   Catches the failure modes that would silently corrupt the plan numbers. */
+   Catches the failure modes that would silently corrupt the plan numbers.
+   Logic now lives in lib/nutrition/macros.mjs (validateNutrition), rebuilding
+   its own `nut` from (ingredients, plan) so it stays a 0-arg call here. */
 function validate() {
-  const errors = [];
-  const warnings = [];
-  const used = new Set();
-  // every {ing,...} reference anywhere (recipe lines, dayPlan parts, breakfast lines)
-  const walk = o => {
-    if (Array.isArray(o)) return o.forEach(walk);
-    if (o && typeof o === 'object') {
-      if (typeof o.ing === 'string') { used.add(o.ing); if (!ING[o.ing]) errors.push('references unknown ingredient: ' + o.ing); }
-      // hand-typed manual blocks are computed by nobody → sanity-check kcal vs Atwater (4·p+4·c+9·g)
-      if (o.manual) {
-        const m = o.manual, at = 4 * m.p + 4 * m.c + 9 * m.g;
-        if (Math.abs(at - m.k) > Math.max(25, m.k * 0.15)) errors.push(`manual block fails Atwater sanity (k=${m.k} vs ~${Math.round(at)}): ${o.n || o.l || '?'}`);
-      }
-      for (const k of Object.keys(o)) if (k !== 'ingredients') walk(o[k]);
-    }
-  };
-  walk(RAW); walk(RAWEX); walk(DAYPLAN);
-  (LEGUMES || []).forEach(k => { used.add(k); if (!ING[k]) errors.push('legumeKeys references unknown ingredient: ' + k); });
-  // Unused ingredients are a WARNING, not an error: ingredients.json is a shared
-  // public food DB that may legitimately hold more foods than a given plan uses
-  // (e.g. the example plan references only a subset). It is NOT corruption.
-  for (const k of Object.keys(ING)) if (!used.has(k)) warnings.push('ingredient defined in ingredients.json but not used by this plan: ' + k);
-  // key lists must resolve to real resolved-extras entries
-  [...(QUESO || []), ...(VEG || [])].forEach(k => { if (!EX[k]) errors.push('queso/veg key has no extras entry: ' + k); });
-  // dayPlan `match` must resolve unambiguously (exact name/label, or exactly one substring hit)
-  for (const day of ['train', 'rest']) for (const meal of DAYPLAN[day].meals) for (const part of (meal.parts || [])) {
-    if (!part.match) continue;
-    const bucket = part.tier ? (RAW[part.use] && RAW[part.use][part.tier]) : RAW[part.use];
-    if (!Array.isArray(bucket)) { errors.push(`dayPlan ${day} part: no bucket data.${part.use}${part.tier ? '.' + part.tier : ''}`); continue; }
-    if (!bucket.some(o => o.n === part.match || o.l === part.match)) {
-      const hits = bucket.filter(o => (o.n && o.n.includes(part.match)) || (o.l && o.l.includes(part.match))).length;
-      if (hits !== 1) errors.push(`dayPlan ${day} part "${part.match}" resolves ambiguously (${hits} substring hits, no exact) in ${part.use}`);
-    }
-  }
-  // day totals within a sane band — catches a gross bad edit, not a tight target
-  const band = { train: [2000, 2800], rest: [1700, 2400] };
-  for (const day of ['train', 'rest']) {
-    const total = DAYPLAN[day].meals.reduce((s, m) => s + mealMacros(m).k, 0);
-    const [lo, hi] = band[day];
-    if (total < lo || total > hi) errors.push(`${day}-day total ${Math.round(total)} kcal outside sane band ${lo}-${hi}`);
-  }
-  if (errors.length) throw new Error('plan-data.json validation failed:\n  - ' + errors.join('\n  - '));
-  return { ok: true, warnings };
+  return validateNutrition(ingFile.ingredients, plan);
 }
 
 function reportWarnings(warnings) {
