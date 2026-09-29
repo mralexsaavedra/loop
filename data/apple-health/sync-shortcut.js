@@ -39,6 +39,8 @@ const OUT = path.join(__dirname, 'extract');
 //   kind deviceDaily : like daily, but one payload key PER DEVICE (`devices`: key -> source
 //                   label); the day's value = MAX across devices, exactly like extract.js's
 //                   max-per-device dedupe (summing iPhone + Watch double-counts)
+//   kind fieldsDaily : like daily, but one payload key PER CSV COLUMN (`fields`: key -> column);
+//                   the day's row joins every column (dietary intake: kcal + three macros)
 //   kind interval : "start;end;stage"        -> one row per night    (sleep-daily schema)
 //   withSource    : keep the payload's per-sample source in the CSV (else "Shortcut")
 //   sourceCol     : index of the CSV source column, null when the schema has none
@@ -77,6 +79,13 @@ const METRICS = {
   // Waist circumference in cm (a Shortcut on a metric phone reports cm; a value under 3 is metres
   // and is converted). Sparse, manual measurements -> one row per sample, like weight.
   waist:    { kind: 'point', csv: 'waist.csv', header: S.READING_HEADER, metaKey: 'waist', fmt: v => +(v < 3 ? v * 100 : v).toFixed(1) },
+  // Food intake logged by a nutrition app that writes to Health: FOUR day-grouped payload keys
+  // (`fields`: key -> CSV column) folded into ONE dietary-daily.csv row per day, the exact schema
+  // extract.js writes. A day without kcal (or 0 kcal = "fill missing") is no data; a macro missing
+  // on a logged day stays blank, never 0.
+  dietary:  { kind: 'fieldsDaily', csv: 'dietary-daily.csv', header: 'date,kcal,protein_g,carbs_g,fat_g', metaKey: 'dietary', rangeKey: 'dietary', sourceCol: null,
+    fields: { diet_kcal: 'kcal', diet_protein: 'protein', diet_carbs: 'carbs', diet_fat: 'fat' },
+    row: (date, f) => [date, Math.round(f.kcal), ...['protein', 'carbs', 'fat'].map(k => (f[k] != null ? f[k].toFixed(1) : ''))].join(',') },
   sleep:    { kind: 'interval', csv: 'sleep-daily.csv', header: S.SLEEP_HEADER, metaKey: 'sleep' },
 };
 // "Shortcut" or a device-tagged "Shortcut <device>" (steps) -> a row this sync wrote
@@ -126,6 +135,7 @@ const DEDUP_KEY = {
   point: s => `${s.start}|${s.value}`,
   daily: s => S.day(s.start),
   deviceDaily: s => `${S.day(s.start)}|${s.device}`,
+  fieldsDaily: s => `${S.day(s.start)}|${s.field}`,
   interval: s => `${s.start}|${s.end}|${s.stage}`,
 };
 // which of two duplicates to keep (a = already cached, b = from a LATER payload):
@@ -136,19 +146,22 @@ const PREFER = {
   point: (a, b) => (a.source == null && b.source != null ? b : a),
   daily: (a, b) => b,
   deviceDaily: (a, b) => b,
+  fieldsDaily: (a, b) => b,
   interval: a => a,
 };
-const isDailyKind = kind => kind === 'daily' || kind === 'deviceDaily';
+const isDailyKind = kind => kind === 'daily' || kind === 'deviceDaily' || kind === 'fieldsDaily';
 
 // A "last N days" query starts mid-day, so the OLDEST date of each daily series (per device for
-// steps) is a truncated total. Drop it: the previous run delivered that day complete.
+// steps, per payload key for dietary) is a truncated total. Drop it: the previous run delivered
+// that day complete.
+const seriesOf = s => s.device || s.field || '';
 function dropTruncatedOldest(samples) {
   const oldest = new Map(); // series -> oldest date
   for (const s of samples) {
-    const k = s.device || '', d = S.day(s.start);
+    const k = seriesOf(s), d = S.day(s.start);
     if (!oldest.has(k) || d < oldest.get(k)) oldest.set(k, d);
   }
-  return samples.filter(s => S.day(s.start) !== oldest.get(s.device || ''));
+  return samples.filter(s => S.day(s.start) !== oldest.get(seriesOf(s)));
 }
 
 // one payload object -> { metric: [sample] } for known metrics only
@@ -157,10 +170,11 @@ function parsePayload(payload) {
   if (!payload || typeof payload !== 'object') return out;
   const lines = raw => (typeof raw === 'string' ? raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean) : []);
   for (const [metric, def] of Object.entries(METRICS)) {
-    const samples = def.kind === 'deviceDaily'
-      ? Object.entries(def.devices).flatMap(([key, device]) =>
-        lines(payload[key]).map(PARSERS.daily).filter(Boolean).map(s => ({ ...s, device })))
-      : lines(payload[metric]).map(l => PARSERS[def.kind](l, def)).filter(Boolean);
+    const perKey = (keys, tag) => Object.entries(keys).flatMap(([key, label]) =>
+      lines(payload[key]).map(PARSERS.daily).filter(Boolean).map(s => ({ ...s, [tag]: label })));
+    const samples = def.kind === 'deviceDaily' ? perKey(def.devices, 'device')
+      : def.kind === 'fieldsDaily' ? perKey(def.fields, 'field')
+        : lines(payload[metric]).map(l => PARSERS[def.kind](l, def)).filter(Boolean);
     if (samples.length) out[metric] = samples;
   }
   return out;
@@ -241,6 +255,15 @@ function buildRows(metric, samples) {
     return [...best.keys()].sort().filter(d => best.get(d).value > 0)
       .map(date => ({ date, line: def.row(date, best.get(date).value, best.get(date).device) }));
   }
+  if (def.kind === 'fieldsDaily') {
+    const days = new Map(); // date -> { column: value }
+    for (const s of samples) {
+      const date = S.day(s.start);
+      days.set(date, { ...days.get(date), [s.field]: s.value });
+    }
+    return [...days.keys()].sort().filter(d => days.get(d).kcal > 0)
+      .map(date => ({ date, line: def.row(date, days.get(date)) }));
+  }
   if (def.kind === 'daily') {
     return [...samples].sort(byStart).map(s => { const date = S.day(s.start); return { date, line: def.row(date, s.value) }; });
   }
@@ -274,7 +297,7 @@ function mergeCsv(existingText, header, rows, opts = {}) {
 }
 
 const range = dates => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a');
-const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of asleep intervals per night; Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored).';
+const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of asleep intervals per night; Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored). Shortcut dietary = diet_kcal/diet_protein/diet_carbs/diet_fat day totals joined into one row per day (no kcal = no row).';
 
 // Pure: refresh the rows/ranges extract.js wrote for the touched CSVs + record the sync.
 // Deterministic (no timestamps) so re-running an unchanged sync rewrites identical bytes.

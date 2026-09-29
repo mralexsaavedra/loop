@@ -20,7 +20,7 @@ test('parseNumber() accepts dot and comma decimals', () => {
 
 test('METRICS is a per-metric table covering the implemented metrics', () => {
   assert.deepEqual(Object.keys(METRICS).sort(),
-    ['active_energy', 'basal_energy', 'bodyfat', 'hr_recovery', 'hrv', 'leanmass', 'respiratory', 'rhr', 'sleep',
+    ['active_energy', 'basal_energy', 'bodyfat', 'dietary', 'hr_recovery', 'hrv', 'leanmass', 'respiratory', 'rhr', 'sleep',
       'steps', 'vo2max', 'waist', 'walking_hr', 'weight', 'wrist_temp']);
   for (const m of Object.values(METRICS)) {
     assert.ok(m.csv && m.header && m.kind);
@@ -597,4 +597,48 @@ test('extract.js writes waist.csv (cm) in the same schema the sync uses', () => 
     'date,value,source\n2030-01-02,84.3,Health\n2030-01-09,83.5,Health\n2030-01-16,83.8,Health\n');
   assert.equal(JSON.parse(fs.readFileSync(path.join(out, '_meta.json'), 'utf8')).rows.waist, 3);
   fs.rmSync(dir, { recursive: true });
+});
+
+// ---- dietary intake: four day-grouped keys -> one dietary-daily.csv row per day -----------
+
+const DIET_H = 'date,kcal,protein_g,carbs_g,fat_g';
+
+test('dietary: diet_kcal/protein/carbs/fat day totals merge into one dietary-daily.csv row per day', () => {
+  const s = collectSamples([{
+    diet_kcal: daily(['2030-01-01', 300], ['2030-01-02', 2104.6], ['2030-01-03', 1850]),
+    diet_protein: daily(['2030-01-01', 20], ['2030-01-02', 151.26], ['2030-01-03', 140]),
+    diet_carbs: daily(['2030-01-01', 30], ['2030-01-02', 220], ['2030-01-03', 190.04]),
+    diet_fat: daily(['2030-01-01', 5], ['2030-01-02', 70.56]),
+  }]);
+  assert.deepEqual(buildRows('dietary', s.dietary).map(r => r.line), [
+    '2030-01-02,2105,151.3,220.0,70.6',
+    '2030-01-03,1850,140.0,190.0,',
+  ], 'oldest (truncated) day dropped per key; a macro missing on a day stays blank, never 0');
+  assert.equal(METRICS.dietary.csv, 'dietary-daily.csv');
+  assert.equal(METRICS.dietary.header, DIET_H, 'the exact schema extract.js writes');
+  assert.equal(METRICS.dietary.sourceCol, null);
+});
+
+test('dietary: a day without kcal (or with 0 kcal) is no data; latest payload wins per key', () => {
+  const s = collectSamples([
+    { diet_kcal: daily(['2030-01-01', 1], ['2030-01-02', 900], ['2030-01-03', 0]), diet_protein: daily(['2030-01-01', 1], ['2030-01-04', 50]) },
+    { diet_kcal: daily(['2030-01-01', 5], ['2030-01-02', 950], ['2030-01-03', 0], ['2030-01-05', 2000]), diet_protein: daily(['2030-01-02', 1], ['2030-01-05', 160]) },
+  ]);
+  assert.deepEqual(buildRows('dietary', s.dietary).map(r => r.line), [
+    '2030-01-02,950,,,',
+    '2030-01-05,2000,160.0,,',
+  ], '01-02 corrected by the later payload; 01-03 (0 kcal) and 01-04 (protein only) are no data');
+});
+
+test('dietary: export rows win; Shortcut rows fill only dates the export lacks and stay replaceable via the ledger', () => {
+  const payload = { diet_kcal: daily(['2030-01-01', 1], ['2030-01-02', 2000], ['2030-01-03', 2100]), diet_protein: daily(['2030-01-01', 1], ['2030-01-02', 150], ['2030-01-03', 155]) };
+  const files = { 'dietary-daily.csv': [DIET_H, '2030-01-02,1900,140.0,200.0,60.0', ''].join('\n') };
+  const plan = planSync([{ id: '1', payload }], name => files[name] ?? null);
+  assert.equal(plan.writes['dietary-daily.csv'], [DIET_H, '2030-01-02,1900,140.0,200.0,60.0', '2030-01-03,2100,155.0,,', ''].join('\n'));
+  const meta = JSON.parse(plan.writes['_meta.json']);
+  assert.deepEqual(meta.shortcutSync.owned['dietary-daily.csv'], ['2030-01-03']);
+  // a second sync over the file it wrote is idempotent (its own row is rebuilt, not duplicated)
+  const files2 = { ...files, ...plan.writes };
+  const again = planSync([], name => files2[name] ?? null);
+  assert.equal(again.writes['dietary-daily.csv'], undefined);
 });
