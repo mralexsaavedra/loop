@@ -24,6 +24,7 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { loadInputs } from '../lib/load/inputs.mjs';
 import { validateProgram } from '../lib/training/program.mjs';
+import { resolveEnv } from '../web/src/env.mjs';
 
 function parseArgs(argv) {
   const out = {};
@@ -31,6 +32,7 @@ function parseArgs(argv) {
     if (argv[i] === '--mode') out.mode = argv[++i];
     else if (argv[i] === '--locale') out.locale = argv[++i];
     else if (argv[i] === '--check') out.check = true;
+    else if (argv[i] === '--outdir') out.outdir = argv[++i];
   }
   return out;
 }
@@ -46,10 +48,20 @@ export function checkTraining({ repoRoot, mode }) {
   return validateProgram(training);
 }
 
+/** Pure: resolves the build locale using the SAME precedence contract as
+ * web/src/env.mjs's resolveEnv (env/CLI > plan.locale > 'en') — delegates to
+ * it directly instead of re-implementing the fallback, so the CLI path can
+ * never drift from the Astro build's own resolution again. `explicitLocale`
+ * is the CLI `--locale` flag or a pre-existing `LOCALE` env var; pass
+ * null/undefined when neither was given. */
+export function resolveLocale({ repoRoot, mode, explicitLocale }) {
+  return resolveEnv({ HC_REPO_ROOT: repoRoot, DATA_MODE: mode, LOCALE: explicitLocale || undefined }).locale;
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const mode = args.mode || process.env.DATA_MODE || 'personal';
-  const locale = args.locale || process.env.LOCALE || (mode === 'example' ? 'en' : 'es');
+  const explicitLocale = args.locale || process.env.LOCALE || null;
 
   if (args.check) {
     checkTraining({ repoRoot: ROOT, mode });
@@ -57,14 +69,25 @@ function main() {
     return;
   }
 
+  // Resolved with the SAME precedence env.mjs's resolveEnv uses (explicit >
+  // plan.locale > 'en') — see resolveLocale() above. Previously this
+  // defaulted personal builds to a hardcoded 'es' regardless of what the
+  // plan itself declared, making plan.locale dead through this CLI path.
+  const locale = resolveLocale({ repoRoot: ROOT, mode, explicitLocale });
+
   // Consumed by web/src/env.mjs from slice 2 onward, and by the layout's
   // <html lang> in the meantime.
   process.env.DATA_MODE = mode;
   process.env.LOCALE = locale;
   process.env.HC_REPO_ROOT = ROOT;
 
-  const outDir = path.join(WEB_ROOT, 'dist', mode);
-  const stagingDir = path.join(WEB_ROOT, 'dist', `.staging-${process.pid}`);
+  // --outdir overrides the default web/dist/<mode> destination — used by
+  // web/test/build-fixtures.mjs to build test fixtures into web/.test-dist/
+  // instead, so `npm test` never overwrites the live personal build that
+  // services/plan-web/refresh.sh publishes from (design's Testing Strategy).
+  const outDir = args.outdir ? path.resolve(ROOT, args.outdir) : path.join(WEB_ROOT, 'dist', mode);
+  const stagingDir = path.join(path.dirname(outDir), `.staging-${mode}-${process.pid}`);
+  fs.mkdirSync(path.dirname(stagingDir), { recursive: true });
   fs.rmSync(stagingDir, { recursive: true, force: true });
 
   try {

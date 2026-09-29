@@ -12,14 +12,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { checkTraining } from './build-web.mjs';
+import { checkTraining, resolveLocale } from './build-web.mjs';
 
-function fixtureRepo({ trainingDays } = {}) {
+function fixtureRepo({ trainingDays, personalLocale = 'es' } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-buildweb-check-'));
   fs.mkdirSync(path.join(root, 'data', 'nutrition'), { recursive: true });
   fs.mkdirSync(path.join(root, 'data', 'training'), { recursive: true });
   fs.writeFileSync(path.join(root, 'data', 'nutrition', 'ingredients.json'), JSON.stringify({ ingredients: { egg: { per: 100, k: 155, p: 13, c: 1.1, g: 11, unit: 'ud' } } }));
-  fs.writeFileSync(path.join(root, 'data', 'nutrition', 'plan-data.json'), JSON.stringify({ locale: 'es', data: {}, extras: {} }));
+  fs.writeFileSync(path.join(root, 'data', 'nutrition', 'plan-data.json'), JSON.stringify({ locale: personalLocale, data: {}, extras: {} }));
   fs.writeFileSync(path.join(root, 'data', 'nutrition', 'plan-data.example.json'), JSON.stringify({ locale: 'en', data: {}, extras: {} }));
   fs.writeFileSync(path.join(root, 'data', 'training', 'training-data.json'), JSON.stringify({ days: trainingDays ?? {} }));
   fs.writeFileSync(path.join(root, 'data', 'training', 'training-data.example.json'), JSON.stringify({ days: {} }));
@@ -62,6 +62,38 @@ test('checkTraining(example) validates the tracked training-data.example.json, n
       () => checkTraining({ repoRoot: root, mode: 'example' }),
       /"days" is empty/,
     );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+/* resolveLocale — design contract: env > plan.locale > 'en' (web/src/env.mjs's
+ * resolveEnv). Regression guard: build-web.mjs used to compute its own
+ * locale default independently of plan.locale (`mode === 'example' ? 'en' :
+ * 'es'`), which forced es for EVERY personal build regardless of what the
+ * plan itself declared, making plan.locale dead through the CLI path. */
+test('resolveLocale: personal mode with no explicit locale follows plan.locale, not a hardcoded default', () => {
+  const root = fixtureRepo({ personalLocale: 'en' });
+  try {
+    assert.equal(resolveLocale({ repoRoot: root, mode: 'personal', explicitLocale: null }), 'en');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('resolveLocale: an explicit locale (CLI --locale or LOCALE env) wins over plan.locale', () => {
+  const root = fixtureRepo({ personalLocale: 'en' });
+  try {
+    assert.equal(resolveLocale({ repoRoot: root, mode: 'personal', explicitLocale: 'es' }), 'es');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('resolveLocale: example mode defaults to en when plan-data.example.json has no locale override', () => {
+  const root = fixtureRepo();
+  try {
+    assert.equal(resolveLocale({ repoRoot: root, mode: 'example', explicitLocale: null }), 'en');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
