@@ -7,7 +7,7 @@ const samples = require('./samples.js');
 
 const {
   STRAVA_SOURCE, SPORT_TYPE_MAP, translateType, toRow, buildRows, planSync, syncDir,
-  fetchActivities, updateMeta, WORKOUTS_HEADER, WORKOUTS_CSV,
+  fetchActivities, updateMeta, WORKOUTS_HEADER, WORKOUTS_CSV, staleImageWarning,
 } = strava;
 
 // ---- sport_type -> type mapping table ----------------------------------------------------
@@ -312,7 +312,7 @@ test('fetchActivities surfaces a 404 distinctly (old ingest image) via err.statu
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 
 test('syncDir writes _meta.json and workouts.csv atomically (temp+rename, no leftovers)', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'strava-atomic-'));
@@ -439,5 +439,46 @@ test('main(): 404 from an old ingest image -> exit 1, no files written, clear re
   assert.equal(result.status, 1);
   assert.match(result.stderr, /rebuild\/restart the health-ingest container/);
   assert.ok(!fs.existsSync(outDir), 'no file must be written on a 404');
+  fs.rmSync(dir, { recursive: true });
+});
+
+// ---- stale ingest image: activities come back but none carries total_elevation_gain ------
+
+test('staleImageWarning(): warns only when activities exist and NONE carries total_elevation_gain', () => {
+  const act = (extra) => ({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 60, ...extra });
+  assert.equal(staleImageWarning([]), null, 'nothing fetched -> nothing to judge');
+  assert.equal(staleImageWarning([act({ total_elevation_gain: 0 })]), null, '0 m (indoor ride) is a real value');
+  assert.equal(staleImageWarning([act({}), act({ total_elevation_gain: 120 })]), null, 'one activity with the field is enough');
+  assert.match(staleImageWarning([act({}), act({})]), /docker compose up -d --build health-ingest/);
+});
+
+test('main(): activities without elevation -> exit 0, rows written, stale-image warning on stderr', () => {
+  // same in-child server harness as the 404 test (localhost is isolated between sibling processes)
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-strava-stale-'));
+  const outDir = path.join(dir, 'extract');
+  const envFile = path.join(dir, 'no-such.env');
+  const harness = path.join(dir, 'harness.js');
+  const body = JSON.stringify([{ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 3600, distance: 20000 }]);
+  fs.writeFileSync(harness, `
+    const http = require('http');
+    const server = http.createServer((req, res) => {
+      const since = Number(new URL(req.url, 'http://x').searchParams.get('since_id'));
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(since >= 1 ? '[]' : ${JSON.stringify(body)});
+    });
+    server.listen(0, '127.0.0.1', async () => {
+      process.env.INGEST_URL = 'http://127.0.0.1:' + server.address().port;
+      await require(${JSON.stringify(SCRIPT)}).main();
+      server.close();
+    });
+  `);
+  const r = spawnSync(process.execPath, [harness], {
+    env: { PATH: process.env.PATH, INGEST_TOKEN: 'a'.repeat(64), SYNC_STRAVA_OUT_DIR: outDir, INGEST_ENV_FILE: envFile },
+    encoding: 'utf8',
+  });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stderr, /ingest image is probably stale/);
+  assert.match(r.stderr, /docker compose up -d --build health-ingest/);
+  assert.ok(fs.existsSync(path.join(outDir, WORKOUTS_CSV)), 'the sync still writes its rows');
   fs.rmSync(dir, { recursive: true });
 });
