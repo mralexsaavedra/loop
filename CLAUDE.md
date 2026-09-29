@@ -220,8 +220,22 @@ lives in `profile/about-me.md` (gitignored), never in a tracked file.
 (frequency, weekly volume, modality split). If the CSV is absent (fresh clone), the tab
 shows an empty state — it never fails the build. Data-honesty rules are baked in: use DURATION
 not kcal (blank on recent exports); count DISTINCT DAYS not raw rows (the Watch fragments one
-session into several records); the modality split (strength/hiit/run/other) reflects the
+session into several records); the modality split (strength/hiit/run/bike/other) reflects the
 WATCH's auto-labels, which over-tag HIIT and under-count strength — the page says so on-screen.
+
+**Strava sync (`npm run sync:strava`, part of `npm run sync`).** Pulls every activity the
+ingest service (`services/health-ingest`) has stored from Strava via `GET /export/strava` and
+merges translated rows into `workouts.csv`, tagged `source=Strava API`, so a ride logged only on
+Strava (no Watch record) still shows up — normally grouped into the `bike` modality. Cycling-family
+sport types (incl. e-bike and virtual/indoor rides) all translate to the same `Cycling` type as
+Apple Health uses, so they land in the same `bike` bucket. Accepted limitations: date-level
+precedence means a Strava-only activity on a date that ALSO has an Apple Health export row is
+dropped (never double-counted, but a mixed day can lose a Strava-only session); a Strava activity
+deleted upstream is never removed from the local CSV (ingest never deletes); an edit made more
+than 7 days ago is never picked up (the ingest service's Strava loop only re-reads a 7-day
+overlap window). `GET /export/strava` requires an ingest image rebuild/restart
+(`docker compose up -d --build health-ingest`) — an un-rebuilt image answers `404` and the sync
+exits non-zero with a message saying so, touching no files.
 
 **Source of the program:** whatever the owner's coach/app provides — a coach PDF, a spreadsheet,
 or a login-gated training app. For a source that can't be fetched (a login-gated app), the owner
