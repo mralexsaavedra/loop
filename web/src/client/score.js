@@ -117,7 +117,7 @@ function scMod(key, btn) {
   function recoveryHtml(R) {
     var stale = isStale(R.asOf);
     var rt = T.recovery;
-    var out = ['<div class="sc-card sc-recovery' + (stale ? ' sc-stale' : '') + '"' + linkAttrs('hl-recovery') + '>'];
+    var out = ['<div class="sc-card sc-recovery' + (stale ? ' sc-stale' : '') + '">'];
     out.push('<div class="sc-head"><h3>' + esc(rt.heading) + '</h3>' + asOfHtml(R.asOf) + '</div>');
     if (stale) out.push(staleHtml(R.asOf));
     if (R.gated) {
@@ -162,7 +162,7 @@ function scMod(key, btn) {
   /* ---- load ---- */
   function loadCard(m) {
     var lt = T.load;
-    var out = ['<div class="sc-load-card" data-mod="' + esc(m.key) + '"' + linkAttrs('sec-dash', 'entreno') + '>'];
+    var out = ['<div class="sc-load-card" data-mod="' + esc(m.key) + '">'];
     out.push('<div class="sc-comp-top"><b>' + esc(lt.modalities[m.key]) + '</b><span class="sc-comp-val">' + esc(format(lt.dayRe, { value: num(m.load, 0, false) })) + '</span></div>');
     out.push('<div class="sc-sub">' + (m.relScore != null
       ? esc(format(lt.relLbl, { score: m.relScore, modality: ADV_MOD[m.key] }))
@@ -218,8 +218,11 @@ function scMod(key, btn) {
     out.push('</svg>');
     return out.join('');
   }
+  // Whoop-style drill-down: the dial is the glance, a tap opens its detail in another tab
+  var DIAL_LINK = { 'dial-sleep': ['hl-sleep', 'health'], 'dial-rec': ['hl-recovery', 'health'], 'dial-load': ['score-load', 'entreno'] };
   function dialFig(cls, stale, extra, aria, svg, centre, label, sub) {
-    return '<figure class="dial ' + cls + (stale ? ' sc-stale' : '') + '"' + (extra || '') + '>' +
+    var to = DIAL_LINK[cls.split(' ')[0]];
+    return '<figure class="dial ' + cls + (stale ? ' sc-stale' : '') + '"' + (extra || '') + (to ? linkAttrs(to[0], to[1]) : '') + '>' +
       '<div class="dial-ring"' + (aria ? ' role="img" aria-label="' + attr(aria) + '"' : '') + '>' + svg +
       '<div class="dial-centre" aria-hidden="true">' + centre + '</div></div>' +
       '<figcaption class="dial-lbl">' + esc(label) + '</figcaption>' +
@@ -355,6 +358,9 @@ function scMod(key, btn) {
     }
   }
 
+  // Glance vs detail (Whoop): Inicio keeps the dials + the advice sentence; the recovery card is the
+  // detail behind the recovery dial (Salud, #score-recovery), the per-modality load cards + caveats
+  // the detail behind the load dial (Entreno, #score-load). A missing host skips its block.
   function render() {
     if (!S || !S.hasData) {
       host.innerHTML = '<div class="train-empty">' + esc(T.emptyMsg) + '</div>';
@@ -366,14 +372,15 @@ function scMod(key, btn) {
     if (dialsHost) dialsHost.innerHTML = safe(dialsHtml);
     else out.push(safe(dialsHtml));
     var anyStale = (S.recovery && isStale(S.recovery.asOf)) || (S.load && isStale(S.load.asOf));
-    if (S.recovery) out.push(safe(recoveryHtml, S.recovery));
-    if (S.load) out.push(safe(loadHtml, S.load));
-    // the advice sentence reads as the conclusion of the two cards above it
+    // the advice sentence reads as the conclusion of the dials above it
     if (S.advice && !anyStale && T.advice[S.advice.key]) {
       out.push('<div class="sc-card sc-advice">' + esc(adviceText(S.advice)) + '</div>');
     }
-    out.push(safe(caveatsHtml));
     host.innerHTML = out.join('');
+    var recHost = document.getElementById('score-recovery');
+    if (recHost && S.recovery) recHost.innerHTML = safe(recoveryHtml, S.recovery);
+    var loadHost = document.getElementById('score-load');
+    if (loadHost) loadHost.innerHTML = (S.load ? safe(loadHtml, S.load) : '') + safe(caveatsHtml);
   }
   render();
 })();

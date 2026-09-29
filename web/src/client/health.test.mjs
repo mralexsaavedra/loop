@@ -13,30 +13,79 @@ import { en as enHealth } from '../i18n/health-templates.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'health.js'), 'utf8');
 
-test('each rendered Salud section heading has a stable hl-<section> anchor id', () => {
-  const doc = new StubDocument();
-  const host = doc.el('health');
-  const HEALTH = {
+test('each rendered section heading has a stable hl-<section> anchor id', () => {
+  const html = renderWith({
     body: { hasData: false }, activity: { hasData: false }, energy: { hasData: false },
     running: { hasData: true, count: 0, sessions: [] },
     recovery: { hasData: true },
     loadRecovery: { hasData: false },
-  };
-  const ctx = { document: doc, window: {}, HEALTH, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date, JSON };
-  vm.createContext(ctx);
-  vm.runInContext(source, ctx);
-  assert.match(host.innerHTML, /<div class="hsub" id="hl-recovery">/);
-  assert.match(host.innerHTML, /<div class="hsub" id="hl-running">/);
-  assert.doesNotMatch(host.innerHTML, /id="hl-body"/, 'sections without data render no anchor');
+  });
+  assert.match(html, /<div class="hsub" id="hl-recovery">/);
+  assert.match(html, /<div class="hsub" id="hl-running">/);
+  assert.doesNotMatch(html, /id="hl-body"/, 'sections without data render no anchor');
 });
 
-function renderWith(HEALTH) {
+const full = () => ({
+  body: { hasData: true, weight: { latest: 80, latestDate: '2026-06-01', source: 's', sources: 1, d30: null, spark: null } },
+  activity: { hasData: true, steps: { latest: 9000, latestDate: '2026-06-30', avg30: 8500, d30: 1, spark: null } },
+  energy: { hasData: true, tdeeLatest: 2600, tdeeLatestDate: '2026-06-29', tdeeAvg: 2400, tdeeDays: 30, spark: null, balance: null },
+  running: { hasData: true, count: 1, sessions: [{ date: '2026-06-02', dist: 8, time: '44:00', pace: '5:30', hrAvg: null, re: null, elev: null, power: null, gct: null, vosc: null, stride: null }] },
+  cycling: { hasData: true, count: 1, sessions: [{ date: '2026-06-10', dist: 40, time: '1:30', elev: 400, hrAvg: 140, re: 90, kj: 1300 }] },
+  recovery: {
+    hasData: true,
+    rhr: { latest: 52, latestDate: '2026-06-30', avg30: 50.4, d30: -1, spark: null },
+    sleep: { latest: 6.4, avg: 7.2, nights: 30, latestDate: '2026-06-30', spark: null, target: 7.5, pctTarget: 40, sd: 0.6 },
+  },
+  loadRecovery: { hasData: true, weeks: 2, series: [{ w: '2026-06-01', load: 10 }, { w: '2026-06-08', load: 0 }], split: null },
+});
+
+test('Salud answers "how is my body": recovery, sleep, body, activity, energy in that order; training blocks go to Entreno', () => {
+  const out = {};
+  renderWith(full(), { out });
+  const at = (k) => out.health.indexOf(`id="hl-${k}"`);
+  const order = ['recovery', 'sleep', 'body', 'activity', 'energy'].map(at);
+  assert.ok(order.every((v, i) => v !== -1 && (i === 0 || v > order[i - 1])), `Salud order ${order}`);
+  for (const k of ['running', 'cycling', 'load']) {
+    assert.equal(at(k), -1, `${k} is not in Salud`);
+    assert.notEqual(out.train.indexOf(`id="hl-${k}"`), -1, `${k} is in Entreno`);
+  }
+  const t = (k) => out.train.indexOf(`id="hl-${k}"`);
+  assert.ok(t('running') < t('cycling') && t('cycling') < t('load'), 'Entreno order: running, cycling, load vs recovery');
+  assert.match(out.health, /<div class="hsub" id="hl-sleep">/, 'sleep is its own section (monitor + sleep dial land here)');
+  assert.equal(out.health.split('id="hl-sleep"').length - 1, 1, 'one hl-sleep id');
+});
+
+test('the recovery detail card host (#score-recovery) sits right under the recovery heading', () => {
+  const out = {};
+  renderWith(full(), { out });
+  assert.match(out.health, /id="hl-recovery">[^<]*<\/div><div id="score-recovery"><\/div>/);
+  // even with no recovery trends, a baked recovery score still gets its section + host
+  renderWith({ ...full(), recovery: none }, { out, SCORES: { recovery: { asOf: '2026-06-30' } } });
+  assert.match(out.health, /id="hl-recovery">[^<]*<\/div><div id="score-recovery"><\/div>/);
+});
+
+test('each host has its own empty state', () => {
+  const out = {};
+  renderWith({ body: none, activity: none, energy: none, running: none, cycling: none, recovery: none, loadRecovery: none }, { out });
+  assert.match(out.health, /train-empty/);
+  assert.match(out.train, /train-empty/);
+  const onlyBody = {};
+  renderWith({ ...full(), running: none, cycling: none, loadRecovery: none }, { out: onlyBody });
+  assert.doesNotMatch(onlyBody.health, /train-empty/);
+  assert.match(onlyBody.train, /train-empty/);
+});
+
+// Salud (#health) + Entreno (#health-train) hosts; returns both, Salud first, or each via `out`.
+function renderWith(HEALTH, { DateCls = Date, SCORES, out = {} } = {}) {
   const doc = new StubDocument();
   const host = doc.el('health');
-  const ctx = { document: doc, window: {}, HEALTH, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date, JSON };
+  const train = doc.el('health-train');
+  const ctx = { document: doc, window: {}, HEALTH, SCORES, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date: DateCls, JSON };
   vm.createContext(ctx);
   vm.runInContext(source, ctx);
-  return host.innerHTML;
+  out.health = host.innerHTML;
+  out.train = train.innerHTML;
+  return host.innerHTML + train.innerHTML;
 }
 const none = { hasData: false };
 
@@ -99,12 +148,7 @@ function renderAt(HEALTH, now) {
     constructor(...a) { super(...(a.length ? a : [now + 'T12:00:00'])); }
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
-  const doc = new StubDocument();
-  const host = doc.el('health');
-  const ctx = { document: doc, window: {}, HEALTH, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date: FakeDate, JSON };
-  vm.createContext(ctx);
-  vm.runInContext(source, ctx);
-  return host.innerHTML;
+  return renderWith(HEALTH, { DateCls: FakeDate });
 }
 const sp = { v: [1, 2], from: '2026-06-01', to: '2026-06-30' };
 
@@ -133,7 +177,8 @@ test('recovery: resting HR / HRV / sleep lead with the newest value + date; tren
     },
   };
   const html = renderAt(H, '2026-07-01');
-  for (const k of ['rhr', 'hrv', 'respiratory', 'wristTemp', 'sleep']) assert.match(html, new RegExp(`<div class="mtrend" id="hl-${k}">`), k);
+  for (const k of ['rhr', 'hrv', 'respiratory', 'wristTemp']) assert.match(html, new RegExp(`<div class="mtrend" id="hl-${k}">`), k);
+  assert.match(html, /<div class="hsub" id="hl-sleep">/, 'sleep: the section heading is the anchor');
   assert.match(html, /71<small>ms<\/small><span class="mtrend-date">30 Jun<\/span>/);
   assert.match(html, /30-day avg 60 ms/);
   assert.match(html, /6.4<small>h<\/small><span class="mtrend-date">30 Jun<\/span>/);
