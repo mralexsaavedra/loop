@@ -1,40 +1,61 @@
-/* Design tokens ported verbatim from the legacy plan-web.template.html
- * :root block — "Whoop-inspired dark system, dark is the design, not a
- * fallback." Ported byte-for-byte (values only) so later slices reuse the
- * exact palette/scale without redesigning. See design doc: "Theme: Whoop
- * dark unchanged; tokens in tokens.css". */
+/* Design tokens — dark, data-first system (colour carries meaning, never decoration).
+ * Score colours are OUR shifted hues (not any vendor's published values), each checked for
+ * WCAG AA (>= 4.5:1) as text on --surface and --ground:
+ *   ink 15.97 · muted 7.13 · faint 5.38 · good 9.91 · mid 10.92 · low 5.35 · trend 7.68 ·
+ *   strain 5.98 · sleep 6.86 · accent 10.84 (on --surface; ratios on --ground are higher).
+ * --accent is reserved for ACTIONS (buttons, links, active nav, focus); state uses
+ * --good / --mid / --low; --trend is the neutral (unjudged) data colour for lines. */
+
 :root {
-  --ground: #0b0c0f;
-  --surface: #15171e;
-  --surface-2: #1b1e27;
-  --ink: #f3f6fb;
-  --muted: #8b94a7;
-  --faint: #767e90;
-  --line: #23262f;
-  --line-soft: #1b1e25;
-  --accent: #15e26a;
-  --accent-rgb: 21, 226, 106;
-  --accent-dim: #0fb957;
-  --accent-soft: #0d2a1b;
-  --accent-ink: #74f3ac;
-  --on-accent: #04140b;
+  --ground: #0e1317;
+  --ground-top: #1a2328;
+  --surface: #151b20;
+  --surface-2: #1b232a;
+  --ink: #f2f6f8;
+  --muted: #9aa8b3;
+  --faint: #84919c;
+  --line: #25303a;
+  --line-soft: #1c252d;
+  /* state */
+  --good: #2fe06a;
+  --mid: #f5c83a;
+  --low: #ff4d5e;
+  /* data */
+  --trend: #6fb3e8;
+  --sleep: #86a7bf;
+  /* action */
+  --accent: #1ee8a0;
+  --accent-rgb: 30, 232, 160;
+  --accent-dim: #17b37c;
+  --accent-soft: #0c2a21;
+  --accent-ink: #7af2c6;
+  --on-accent: #03140d;
   --on-strain: #04121f;
-  --rail: #0e1116;
-  --strain: #3aa8ff;
-  --strain-rgb: 58, 168, 255;
-  --strain-soft: #0e2233;
-  --strain-ink: #8fccff;
-  --tip-ink: #9fe9c2;
-  --lean: #19e07a;
-  --lean-bg: #0e2a1b;
-  --mod: #ffc93c;
-  --mod-bg: #2c2410;
-  --fat: #ff5b6e;
-  --fat-bg: #2e1419;
+  --rail: #10161a;
+  --strain: #2a9df4;
+  --strain-rgb: 42, 157, 244;
+  --strain-soft: #0d2233;
+  --strain-ink: #8dc8f7;
+  --tip-ink: #a6ecd2;
+  --lean: var(--good);
+  --lean-bg: #0f2a1a;
+  --mod: var(--mid);
+  --mod-bg: #2a2410;
+  --fat: var(--low);
+  --fat-bg: #2c1519;
   --glow: 0 0 0 1px rgba(var(--accent-rgb), 0.14), 0 8px 30px -12px rgba(var(--accent-rgb), 0.45);
-  --card-shadow: 0 1px 0 rgba(255, 255, 255, 0.02) inset, 0 12px 28px -22px rgba(0, 0, 0, 0.9);
+  --card-bg: linear-gradient(180deg, var(--surface-2), var(--surface) 70%);
+  --card-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 14px 30px -24px rgba(0, 0, 0, 0.95);
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --num: "SF Mono", ui-monospace, "JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace;
+  /* numbers: "HC Num" = numerals-only subset of D-DIN Bold (SIL OFL 1.1, renamed as the OFL
+   * requires for a modified version; inlined by layouts/Plan.astro). Letters fall back to --sans. */
+  --num: "HC Num", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* labels: caps, semibold, tracked */
+  --label-track: 0.08em;
+  --label-weight: 650;
+  /* dials */
+  --dial-size: 112px;
+  --fs-dial: 26px;
   /* type scale */
   --fs-2xs: 10.5px;
   --fs-xs: 11.5px;
@@ -80,13 +101,12 @@ html {
 }
 
 body {
-  background: var(--ground);
+  background-color: var(--ground);
   color: var(--ink);
   font-family: var(--sans);
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
   padding-bottom: calc(80px + env(safe-area-inset-bottom));
-  background-image: radial-gradient(120% 60% at 50% -10%, rgba(var(--accent-rgb), 0.1), transparent 60%),
-    radial-gradient(90% 40% at 100% 0%, rgba(var(--strain-rgb), 0.06), transparent 55%);
-  background-attachment: fixed;
+  background-image: linear-gradient(180deg, var(--ground-top) 0, var(--ground) 560px);
+  background-repeat: no-repeat;
 }

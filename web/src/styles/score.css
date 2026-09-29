@@ -4,7 +4,7 @@
   display: block;
 }
 .sc-card {
-  background: var(--surface);
+  background: var(--card-bg);
   border: 1px solid var(--line);
   border-radius: var(--r-lg, 14px);
   padding: var(--sp-5, 16px);
@@ -19,7 +19,10 @@
 }
 .sc-head h3 {
   margin: 0 0 var(--sp-3, 8px);
-  font-size: var(--fs-md, 15px);
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
 }
 .sc-asof {
   color: var(--muted);
@@ -45,7 +48,7 @@
 }
 .sc-arrow-above,
 .sc-arrow-ramping {
-  color: var(--accent);
+  color: var(--good);
 }
 .sc-arrow-below,
 .sc-arrow-detraining {

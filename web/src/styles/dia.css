@@ -19,10 +19,9 @@
   font-family: var(--num);
   font-size: var(--fs-hero);
   font-weight: 700;
-  letter-spacing: -0.05em;
+  letter-spacing: -0.01em;
   line-height: 0.95;
-  color: var(--accent);
-  text-shadow: 0 0 28px rgba(var(--accent-rgb), 0.35);
+  color: var(--ink);
 }
 .kcal span {
   font-family: var(--sans);
@@ -70,13 +69,13 @@
   margin-top: var(--sp-4);
 }
 .deficit b {
-  color: var(--accent);
+  color: var(--good);
   font-weight: 700;
 }
 
 /* meal cards */
 .meal {
-  background: var(--surface);
+  background: var(--card-bg);
   border: 1px solid var(--line);
   border-left: 3px solid var(--accent-dim);
   border-radius: var(--r-lg);
@@ -122,7 +121,7 @@ button.meal-name:focus-visible {
   font-family: var(--num);
   font-size: var(--fs-xl);
   font-weight: 700;
-  color: var(--accent);
+  color: var(--ink);
   white-space: nowrap;
   letter-spacing: -0.02em;
 }
@@ -152,7 +151,7 @@ button.meal-name:focus-visible {
   font-size: var(--fs-xs);
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--muted);
   font-weight: 800;
   margin: var(--sp-9) 0 var(--sp-3);
 }
