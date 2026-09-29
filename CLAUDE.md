@@ -105,79 +105,109 @@ available) so the next session resumes with their context.
 4. **Write a report** to `analysis/reports/YYYY-MM-DD.md` and summarize the key
    findings + actions in chat.
 
+## The plan page — Astro single-file build
+
+The plan page (all 6 tabs: Mi día, Registro, Tablas, Hoy, Entrenos, Salud) is ONE Astro project
+in `web/` that builds to a single self-contained HTML file — no external requests, no
+`_astro/` asset directory, CSP-safe. `scripts/build-web.mjs` drives the build:
+
+```
+node scripts/build-web.mjs [--mode personal|example] [--locale es|en]   # or DATA_MODE/LOCALE env vars
+```
+
+writing `web/dist/<mode>/index.html`. `npm run build` = personal/es (default); `npm run
+build:example` = example/en (tracked seeds only, no personal files needed). All pure compute
+(macros, training program/dashboard, health aggregation) lives in root `lib/*.mjs`, shared by
+the Astro build, `data/nutrition/generate.js`, and the test suite — one source, not three.
+
+- `LOCALE`: env var → `plan.locale` → `en` (the owner's `plan-data.json` sets `locale:"es"`).
+- `DATA_MODE=personal|example`: personal reads the gitignored real files; example reads the
+  tracked `.example` seeds. Optional data (Apple Health extract CSVs) renders a defined empty
+  state when absent, in either mode — the build never fails on missing optional data.
+- All personal COPY (page title/kicker/h1/sub/footer, per-slot notes, which nav tabs to hide)
+  lives in `plan-data.json`'s `page` block (`page.notes.<slotId>`, `page.hideTabs: ["hoy"]`,
+  etc.) — never hardcoded in tracked Astro/JS source, which stays fully generic.
+
 ## Nutrition plan — data pipeline & published artifact
 
-**Two files, merged by generate.js:**
+**Two files, merged in memory (by both `generate.js` and the Astro build, from the same
+`lib/nutrition/macros.mjs`):**
 - `data/nutrition/ingredients.json` (TRACKED, **public** food DB) — the reusable
   `{ "ingredients": { … } }` of per-100 g/ml/ud base foods (`verified:true` = real product
   label, `false` = DB estimate; each carries `name` + `note`). This is shareable and is the
   one piece of the plan that goes public. It may hold MORE foods than any single plan uses.
 - `data/nutrition/plan-data.json` (GITIGNORED, **personal** plan) — the owner's actual diet:
-  `data`/`dayPlan`/`extras`/`extrasDisplay`/`quesoKeys`/`vegKeys`/`legumeKeys`/`legumePlate`.
-  Each item's `recipe` (`[{ing, amt}]`) references ingredient keys from `ingredients.json`;
-  `generate.js` COMPUTES per-serving k/p/c/g. Items with no single label use a `manual`
-  macro block (legumes, soup, pintxo) — kept verbatim.
+  `data`/`dayPlan`/`extras`/`extrasDisplay`/`quesoKeys`/`vegKeys`/`legumeKeys`/`legumePlate`/
+  `page`. Each item's `recipe` (`[{ing, amt}]`) references ingredient keys from
+  `ingredients.json`; macros are COMPUTED, never hand-typed. Items with no single label use a
+  `manual` macro block (legumes, soup, pintxo) — kept verbatim.
 
-`generate.js` MERGES the two in memory (public ingredients + personal plan), then computes
-macros. It fails with a clear error if `ingredients.json` is missing.
+`data/nutrition/generate.js` now only VALIDATES the merged plan and writes `plan-tables.md`
+(the human-readable reference tables) — it no longer emits any HTML. It fails with a clear
+error if `ingredients.json` is missing.
 
-**Fresh-clone bootstrap:** `ingredients.json` ships in the clone (tracked). The tracked seeds
-`plan-web.template.html` and `plan-data.example.json` are the public starting point. A new
-clone copies `plan-web.template.html` → `plan-web.html` and `plan-data.example.json` →
-`plan-data.json` (the example references real keys from `ingredients.json`), then edits the
-plan JSON and runs `npm run generate`. The real `plan-web.html` / `plan-data.json` stay
-gitignored (personal); `ingredients.json` and the `.template` / `.example` seeds are tracked.
+**Fresh-clone bootstrap:** `ingredients.json` ships in the clone (tracked). Copy
+`data/nutrition/plan-data.example.json` → `plan-data.json` and
+`data/training/training-data.example.json` → `training-data.json` (edit both in your real
+plan/program), then `npm ci && npm run generate`. The real `plan-data.json` /
+`training-data.json` / `plan-tables.md` / `web/dist/personal/` stay gitignored (personal);
+`ingredients.json` and the `.example` seeds are tracked. `npm run build:example` builds from
+the tracked seeds alone — no copying, no personal files, useful to sanity-check the pipeline
+on a bare clone.
 
 **To change a plan number, edit `plan-data.json` (servings/day plan) or `ingredients.json`
 (a food's macros/label) — never the generated files.**
 
-Run `npm run generate` (or `node data/nutrition/generate.js`) to regenerate (idempotent). It
-rewrites 5 GEN regions: `DATA`, `BREAKFAST`, `DAYPLAN`, `EXTRAS` in `plan-web.html`, plus the
-whole `plan-tables.md` (incl. the Legumes and Verified product labels tables). **Never**
-hand-edit the generated files or re-type macros in `food-log.md` — one source pair = the two JSONs.
-- `npm run check` — validate (unknown-ingredient refs, day totals, Atwater, ambiguous matches)
-  without writing. Ingredients defined in `ingredients.json` but unused by the current plan are
-  a non-fatal WARNING (expected for a shared DB), not an error.
-- `npm test` — run the generator's test suite (`node --test`, zero deps). Generation runs
-  `validate()` first, so a bad edit fails loudly instead of producing wrong macros.
+Run `npm run generate` (or `node data/nutrition/generate.js && node scripts/build-web.mjs`) to
+regenerate (idempotent): validates the plan, writes `plan-tables.md` (incl. the Legumes and
+Verified product labels tables), then builds `web/dist/personal/index.html`. **Never**
+hand-edit `plan-tables.md`, `web/dist/`, or re-type macros in `food-log.md` — the source is
+the two JSONs.
+- `npm run check` — validators only, no build: `generate.js --check` (unknown-ingredient
+  refs, day totals, Atwater, ambiguous matches) + `build-web.mjs --check` (training-data.json
+  integrity). Ingredients defined in `ingredients.json` but unused by the current plan are a
+  non-fatal WARNING (expected for a shared DB), not an error.
+- `npm test` — the full test suite (`node --test`, zero deps beyond `astro`). `pretest`
+  builds the example (+ personal, if present) fixtures the web/ tests read.
 
 **The plan the owner actually views is a claude.ai artifact (frozen snapshot).** The owner's
 personal artifact URL lives in **`data/nutrition/artifact.local.md`** (gitignored, never
 committed) — **read that file before re-publishing** so you never have to ask for the URL
 again; it is also mirrored in persistent memory for other machines, but the local file is the
 deterministic source. The first time you publish (no `artifact.local.md` yet), create a new
-artifact from `data/nutrition/plan-web.html` and write its URL into that file. Editing local
+artifact from `web/dist/personal/index.html` and write its URL into that file. Editing local
 files does NOT update the published artifact. After a plan change: (1) edit the JSON → (2) run
-`generate.js` → (3) re-publish via the Artifact tool with `file_path=data/nutrition/plan-web.html`
-and `url=<the URL from artifact.local.md>` (favicon 🥗, keep stable), then hard-reload
-(Cmd/Ctrl+Shift+R). plan-web.html is artifact-ready (CSP-safe, no external refs).
+`npm run generate` → (3) re-publish via the Artifact tool with
+`file_path=web/dist/personal/index.html` and `url=<the URL from artifact.local.md>` (favicon
+🥗, keep stable), then hard-reload (Cmd/Ctrl+Shift+R). The build output is artifact-ready
+(CSP-safe, no external refs, no `<script type="module">` — every script is `is:inline`).
 
 ## Training tabs — "Hoy / Today" + "Entrenos / Workouts" pipeline
 
-The same `plan-web.html` artifact carries two training tabs, generated by
-`data/training/generate-training.js` (TRACKED; separate from the nutrition generator). Same
-single-source pattern as nutrition.
+The same single-file build carries two training tabs, computed by `lib/training/program.mjs`
+(programmed sessions) and `lib/training/dashboard.mjs` (executed-workout aggregation) and
+rendered by `web/src/tabs/{Hoy,Entrenos}.astro`. Same single-source pattern as nutrition.
 
 **🏋️ Hoy / Today — programmed session.** Source: `data/training/training-data.json`
 (GITIGNORED, personal) — the programmed sessions keyed by ISO date (`days["YYYY-MM-DD"]`);
-a date with no entry renders as a rest / unprogrammed day. The generator bakes it into the
-GEN:TRAINING region; the page picks "today" client-side with `new Date()`. The artifact is a
-frozen snapshot, so the baked program must cover the current date — regenerate + re-publish
-when a new block lands. NOTE: program files are often exported/named by a training partner, not
-the coach — never infer the coach's identity from a filename; take it from `profile/about-me.md`.
+a date with no entry renders as a rest / unprogrammed day. The build bakes it into a page-level
+JSON global; the page picks "today" client-side with `new Date()`. The artifact is a frozen
+snapshot, so the baked program must cover the current date — regenerate + re-publish when a
+new block lands. NOTE: program files are often exported/named by a training partner, not the
+coach — never infer the coach's identity from a filename; take it from `profile/about-me.md`.
 
 **The Hoy tab is optional and source-agnostic.** The program can come from any dated source
 (coach PDFs, a spreadsheet, or a login-gated training app whose content can't be scraped). If
 the owner's program lives in an external app they open directly, maintaining a dated copy here
-is redundant — the tab can be hidden by commenting out the `t-hoy` nav button in `plan-web.html`
-(the panel + baked `training-data.json` stay intact; uncomment to reactivate). Keep the tab in
-the public `plan-web.template.html` seed as a working example — never hide it there. Which
-program/app the owner actually uses is personal → it lives in `profile/about-me.md` (gitignored),
-never in this tracked file.
+is redundant — set `page.hideTabs: ["hoy"]` in `plan-data.json` to omit the nav button (the
+tab panel + baked training data stay fully wired, just unreachable via nav; remove the entry
+to reactivate). Keep the tab visible in the example build (`plan-data.example.json` has no
+`hideTabs`) as a working example. Which program/app the owner actually uses is personal → it
+lives in `profile/about-me.md` (gitignored), never in a tracked file.
 
 **📈 Entrenos / Workouts — executed-sessions dashboard.** Source (OPTIONAL):
-`data/apple-health/extract/workouts.csv`. The generator aggregates it into the GEN:DASHBOARD
-region (frequency, weekly volume, modality split). If the CSV is absent (fresh clone), the tab
+`data/apple-health/extract/workouts.csv`. `lib/training/dashboard.mjs` aggregates it
+(frequency, weekly volume, modality split). If the CSV is absent (fresh clone), the tab
 shows an empty state — it never fails the build. Data-honesty rules are baked in: use DURATION
 not kcal (blank on recent exports); count DISTINCT DAYS not raw rows (the Watch fragments one
 session into several records); the modality split (strength/hiit/run/other) reflects the
@@ -190,18 +220,17 @@ pastes/screenshots the sessions and you transcribe into `training-data.json`. Fo
 (`pdftoppm -png -r 130`) and reading the grid visually (`pdftotext` interleaves the day columns).
 
 **Fresh-clone bootstrap:** copy `data/training/training-data.example.json` →
-`training-data.json`, edit in the real program, then `npm run generate`.
-`plan-web.template.html` already ships all three extra tabs (example program, empty dashboard,
-empty health), so the nutrition bootstrap (copy `plan-web.template.html` → `plan-web.html`)
-brings them along. `npm run generate` runs all three generators; `npm run check` validates all
-three; `npm test` runs all three suites. Never hand-edit the GEN:TRAINING / GEN:DASHBOARD /
-GEN:HEALTH blocks.
+`training-data.json`, edit in the real program, then `npm run generate` (part of the shared
+nutrition bootstrap above — one `npm run generate` builds all 6 tabs together). `npm run
+check` validates training-data.json too (`build-web.mjs --check`); `npm test` covers the
+training lib with its own unit tests plus the build-output/i18n/hide-tabs integration tests.
 
 ## Health tab — "Salud / Health" body & recovery pipeline
 
-A third generator, `data/training/generate-health.js` (TRACKED; same single-source pattern),
-bakes the GEN:HEALTH region: one tab, FIVE stacked sections built from the Apple Health
-extract CSVs (all OPTIONAL — absent CSVs render an empty state, never fail the build).
+`lib/health/{read,stats,aggregate}.mjs` (same single-source pattern) compute the Salud tab's
+FIVE stacked sections from the Apple Health extract CSVs (all OPTIONAL — absent CSVs render an
+empty state, never fail the build); `web/src/tabs/Salud.astro` + `web/src/client/health.js`
+render it.
 
 - **Body composition** — `weight.csv` + `bodyfat.csv` + `leanmass.csv`. Weight trend is a 7-day
   rolling average (it mixes scales/apps, so the raw series is noisy). Body fat and lean mass use
@@ -233,12 +262,12 @@ extract CSVs (all OPTIONAL — absent CSVs render an empty state, never fail the
   bedtimes wrapped onto a night scale). Sleep bedtime/waketime come from the extended
   `sleep-daily.csv` (extract.js emits earliest asleep start / latest end per night).
 
-Trends render as inline SVG sparklines (CSP-safe). Generation is idempotent — no today-relative
+Trends render as inline SVG sparklines (CSP-safe). The build is idempotent — no today-relative
 values are baked (staleness is computed client-side from the data dates). Aggregation lives in
 pure functions (`aggBody`/`aggActivity`/`aggEnergy`/`aggRunning`/`aggRecovery` + helpers
 `dailyTrend`/`signalTrend`) so the test suite injects synthetic series without touching disk. The
-live `plan-web.html` is localized to Spanish (es-ES dates, comma decimals); the tracked
-`plan-web.template.html` seed is English.
+personal (`LOCALE=es`) build is localized to Spanish (es-ES dates, comma decimals); the example
+(`LOCALE=en`, `web/src/i18n/en.mjs` + `*-templates.mjs` en dicts) build is English.
 
 ## Output principles
 
