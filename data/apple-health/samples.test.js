@@ -69,3 +69,10 @@ test('readingRow() and sleepRow() match the extract CSV schemas', () => {
   assert.equal(s.sleepRow('2030-01-02', 450, 'X', ck), '2030-01-02,7.50,X,23.5,7.25');
   assert.equal(s.sleepRow('2030-01-02', 450, 'X', null), '2030-01-02,7.50,X,,');
 });
+
+test('WORKOUTS_HEADER has 11 columns and workoutRow() emits two trailing empty effort columns', () => {
+  assert.equal(s.WORKOUTS_HEADER.split(',').length, 11);
+  const line = s.workoutRow({ date: '2030-01-01', type: 'Running', durationMin: 30, energyKcal: null, hrAvg: 140.4, hrMin: null, hrMax: 165, source: 'Watch', distanceKm: 5.004 });
+  assert.equal(line, '2030-01-01,Running,30,,140,,165,Watch,5,,');
+  assert.equal(line.split(',').length, 11);
+});
