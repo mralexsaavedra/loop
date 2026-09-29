@@ -26,12 +26,12 @@
 const fs = require('fs');
 const path = require('path');
 const S = require('./samples.js');
+const common = require('./sync-common.js');
 
 const SHORTCUT_SOURCE = 'Shortcut';
-const DEFAULT_URL = 'http://localhost:8088';
+const { DEFAULT_URL, ENV_FILE } = common;
 const DEFAULT_AUTOMATION = 'atajo-salud';
 const OUT = path.join(__dirname, 'extract');
-const ENV_FILE = path.join(__dirname, '..', '..', 'services', 'health-ingest', '.env');
 
 // Per-metric table. Adding a metric = one entry (+ a new `kind` only if its line shape is new).
 //   kind point    : "start;value[;source]"   -> one row per sample   (date,value,source)
@@ -264,23 +264,10 @@ function buildRows(metric, samples) {
 // Merge shortcut rows into an existing CSV text (null = no file). Rows the sync wrote before
 // (source=Shortcut, or a date in ownedDates) are dropped first — rebuilt every run — then rows
 // are added only for dates with no export row. Stable sort keeps export rows' original order.
-function mergeCsv(existingText, header, rows, { sourceCol = 2, ownedDates = [] } = {}) {
-  const lines = existingText ? existingText.split('\n').filter(Boolean) : [];
-  const body = lines.length && lines[0].startsWith('date,') ? lines.slice(1) : lines;
-  const owned = new Set(ownedDates);
-  const kept = body
-    .filter(l => !owned.has(l.slice(0, 10)) && (sourceCol == null || !isShortcutSource(l.split(',')[sourceCol])))
-    .map(line => ({ date: line.slice(0, 10), line }));
-  const covered = new Set(kept.map(r => r.date));
-  const added = rows.filter(r => !covered.has(r.date));
-  const all = [...kept, ...added].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-  return {
-    text: [header, ...all.map(r => r.line)].join('\n') + '\n',
-    added: added.length,
-    rows: all.length,
-    dates: [...new Set(all.map(r => r.date))],
-    addedDates: [...new Set(added.map(r => r.date))].sort(),
-  };
+// Thin wrapper over sync-common's generic mergeCsv: this script's own ownership rule
+// (isShortcutSource) is the default unless a caller overrides it.
+function mergeCsv(existingText, header, rows, opts = {}) {
+  return common.mergeCsv(existingText, header, rows, { isOwn: isShortcutSource, ...opts });
 }
 
 const range = dates => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a');
@@ -349,12 +336,7 @@ function planSync(items, readFile, { full = false } = {}) {
   return { writes, stats, cache };
 }
 
-// write to a temp file in the same directory, then rename: a crash never leaves a half file
-function writeAtomic(file, text) {
-  const tmp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, text);
-  fs.renameSync(tmp, file);
-}
+const { writeAtomic } = common;
 
 // plan + apply against a directory of extract CSVs (used by main and the contract test)
 function syncDir(dir, items, opts = {}) {
@@ -365,43 +347,15 @@ function syncDir(dir, items, opts = {}) {
   return plan;
 }
 
-// token: env first, then INGEST_TOKEN=... from the service's .env text
-function resolveToken(env, envFileText) {
-  if (env.INGEST_TOKEN) return env.INGEST_TOKEN;
-  if (!envFileText) return null;
-  const m = /^\s*INGEST_TOKEN\s*=\s*(.*)$/m.exec(envFileText);
-  if (!m) return null;
-  return m[1].trim().replace(/^(['"])(.*)\1$/, '$2') || null;
-}
-
-// one request (headers + body) under a hard timeout
-async function fetchJson(url, token, { fetchImpl, timeoutMs }) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetchImpl(url, { headers: { authorization: `Bearer ${token}` }, signal: ctrl.signal });
-    if (!res.ok) throw new Error(`ingest service answered HTTP ${res.status}`);
-    return await res.json();
-  } catch (err) {
-    if (err.name === 'AbortError' || ctrl.signal.aborted) throw new Error(`request timed out after ${timeoutMs / 1000} s`);
-    throw err;
-  } finally {
-    clearTimeout(timer);
-  }
-}
+const { resolveToken } = common;
 
 // page through GET /export/raw from since_id until a short page
-async function fetchAllPayloads({ baseUrl, token, automation, sinceId = '0', limit = 500, timeoutMs = 15000, fetchImpl = fetch }) {
-  const all = [];
-  let since = sinceId;
-  for (;;) {
-    const url = `${baseUrl.replace(/\/+$/, '')}/export/raw?automation=${encodeURIComponent(automation)}&since_id=${since}&limit=${limit}`;
-    const page = await fetchJson(url, token, { fetchImpl, timeoutMs });
-    if (!Array.isArray(page)) throw new Error('unexpected response shape (expected an array)');
-    all.push(...page);
-    if (page.length < limit) return all;
-    since = page[page.length - 1].id;
-  }
+function fetchAllPayloads({ baseUrl, token, automation, sinceId = '0', limit = 500, timeoutMs = 15000, fetchImpl = fetch }) {
+  return common.fetchPages({
+    baseUrl, token, sinceId, limit, timeoutMs, fetchImpl,
+    buildUrl: ({ baseUrl: base, since, limit: lim }) =>
+      `${base}/export/raw?automation=${encodeURIComponent(automation)}&since_id=${since}&limit=${lim}`,
+  });
 }
 
 async function main() {

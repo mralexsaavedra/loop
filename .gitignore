@@ -14,6 +14,7 @@ data/apple-health/*
 !data/apple-health/extract.js
 # Shared sample helpers + the Shortcut sync and their tests are tooling (synthetic fixtures only).
 !data/apple-health/samples.js
+!data/apple-health/sync-common.js
 !data/apple-health/sync-shortcut.js
 !data/apple-health/*.test.js
 # The Apple Health export ships as an `export*.zip` / `exportación.zip` archive and
