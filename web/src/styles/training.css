@@ -232,3 +232,126 @@
     height: 150px;
   }
 }
+
+/* Entreno — 30-day activity calendar: ONE sequential hue (--strain = load), level = total minutes */
+.cal-svg {
+  display: block;
+  width: 100%;
+  max-width: 280px;
+  margin-top: var(--sp-3);
+}
+.cal-wd {
+  fill: var(--faint);
+  font-size: 9px;
+  font-weight: var(--label-weight);
+}
+.cal-cell,
+.cal-legend-sw {
+  fill: var(--strain);
+  background: var(--strain);
+}
+.cal-l0 {
+  fill: var(--surface-2);
+  background: var(--surface-2);
+  stroke: var(--line);
+}
+.cal-l1 {
+  fill-opacity: 0.3;
+}
+.cal-l2 {
+  fill-opacity: 0.55;
+}
+.cal-l3 {
+  fill-opacity: 0.8;
+}
+.cal-l4 {
+  fill-opacity: 1;
+}
+.cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-5);
+  margin-top: var(--sp-4);
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+.cal-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.cal-legend-sw {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+}
+.cal-legend-sw.cal-l1 {
+  background: rgba(var(--strain-rgb), 0.3);
+}
+.cal-legend-sw.cal-l2 {
+  background: rgba(var(--strain-rgb), 0.55);
+}
+.cal-legend-sw.cal-l3 {
+  background: rgba(var(--strain-rgb), 0.8);
+}
+
+/* cumulative training time: current window = --strain line, previous = recessive dashed --faint */
+.cum-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: var(--sp-3);
+}
+.cum-base {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.cum-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.cum-cur {
+  stroke: var(--strain);
+}
+.cum-prev {
+  stroke: var(--faint);
+  stroke-dasharray: 4 3;
+}
+.cum-hit {
+  fill: transparent;
+}
+.cum-hit:hover {
+  fill: rgba(var(--strain-rgb), 0.08);
+}
+.cum-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-7);
+  margin-top: var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.cum-legend b {
+  color: var(--ink);
+  font-family: var(--num);
+}
+.cum-key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.cum-sw {
+  width: 14px;
+  height: 0;
+  border-top: 2px solid var(--strain);
+}
+.cum-sw.cum-prev {
+  border-top: 2px dashed var(--faint);
+}
+.act-stale {
+  opacity: 0.55;
+}

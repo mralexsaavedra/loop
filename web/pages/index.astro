@@ -24,6 +24,7 @@ import { buildNutrition } from '../../lib/nutrition/macros.mjs';
 import { getDict } from '../src/i18n/index.mjs';
 import { trainingMeta } from '../../lib/training/program.mjs';
 import { loadDashboard } from '../../lib/training/dashboard.mjs';
+import { buildActivity } from '../../lib/training/activity.mjs';
 import { buildHealth } from '../../lib/health/aggregate.mjs';
 import { resolveNav, activeTabKey, TAB_KEYS, sectionsOf, showDayToggle } from '../../lib/nav/tabs.mjs';
 import { buildScores } from '../../lib/score/index.mjs';
@@ -36,6 +37,7 @@ const nut = buildNutrition(ingredients, plan);
 const dict = getDict(locale);
 const trainMeta = trainingMeta(training);
 const dash = loadDashboard(extractDir);
+const activity = buildActivity(extractDir);
 const health = buildHealth(extractDir);
 const scores = buildScores(extractDir);
 // intake rings target = the same day totals Mi día shows for a train / rest day
@@ -64,7 +66,7 @@ const title = plan.page?.title || 'Plan';
     <Hoy dict={dict} hidden={isHidden('hoy')} />
   </div>
   <div class="tab-panel" data-tab="entreno" hidden={activeTab !== 'entreno'}>
-    <TrainingDetail />
+    <TrainingDetail activity={activity} locale={locale} />
     <Entrenos dict={dict} hidden={isHidden('dash')} />
   </div>
   <div class="tab-panel" data-tab="health" hidden={activeTab !== 'health'}>

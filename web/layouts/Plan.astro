@@ -2,7 +2,7 @@
 /* Shared page shell — header (personal copy), tab nav + day toggle, footer
  * (personal copy), and the end-of-body script order per design: bake (each
  * tab's own Bake, e.g. Registro's) → core (setTab/setDay/jump/bump) →
- * nutrition → intake → training-today → training-dash → health → score → monitor → timeline. Tabs render inside
+ * nutrition → intake → training-today → training-dash → training-activity → health → score → monitor → timeline. Tabs render inside
  * <slot />.
  */
 import '../src/styles/tokens.css';
@@ -18,6 +18,7 @@ import coreScript from '../src/client/core.js?raw';
 import nutritionScript from '../src/client/nutrition.js?raw';
 import trainingTodayScript from '../src/client/training-today.js?raw';
 import trainingDashScript from '../src/client/training-dash.js?raw';
+import trainingActivityScript from '../src/client/training-activity.js?raw';
 import healthScript from '../src/client/health.js?raw';
 import scoreScript from '../src/client/score.js?raw';
 import monitorScript from '../src/client/monitor.js?raw';
@@ -100,6 +101,7 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
     <script is:inline set:html={intakeScript} />
     <script is:inline set:html={trainingTodayScript} />
     <script is:inline set:html={trainingDashScript} />
+    <script is:inline set:html={trainingActivityScript} />
     <script is:inline set:html={healthScript} />
     <script is:inline set:html={scoreScript} />
     <script is:inline set:html={monitorScript} />

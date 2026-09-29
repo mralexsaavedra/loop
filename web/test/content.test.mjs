@@ -152,7 +152,10 @@ test('example build: glance on Inicio, detail behind it — Entreno holds load d
   assert.doesNotMatch(home, /id="score-load"|id="health-train"|id="health"/, 'no detail hosts on Inicio');
   const entreno = sliceTabPanel(html, 'entreno');
   const at = (id) => entreno.indexOf(`id="${id}"`);
-  assert.ok(at('score-load') !== -1 && at('score-load') < at('health-train') && at('health-train') < at('sec-dash'), 'Entreno order: load detail, run/bike/load vs recovery, dashboard');
+  assert.ok(at('score-load') !== -1 && at('score-load') < at('train-activity') && at('train-activity') < at('health-train') && at('health-train') < at('sec-dash'), 'Entreno order: load detail, calendar + cumulative, run/bike/load vs recovery, dashboard');
+  assert.match(html, /var ACTIVITY = \{"hasData":true,"asOf":"\d{4}-\d{2}-\d{2}","days":\[/, 'demo data fills the calendar');
+  assert.match(html, /var I18N_ACTIVITY = /);
+  assert.match(html, /getElementById\('train-activity'\)/, 'training-activity.js is inlined');
   assert.match(sliceTabPanel(html, 'health'), /<div id="health"><\/div>/);
 });
 

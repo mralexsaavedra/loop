@@ -1,12 +1,25 @@
 ---
 /* Entreno tab, above the Entrenamiento dashboard section (Entrenos.astro): the detail behind
- * Inicio's load dial (Whoop keeps the glance on Home and the detail one tap away), then the running
- * and cycling tables and load vs recovery. Hosts only — all client-rendered from globals baked by
- * <Bake> (hosted by Registro.astro):
- *   #score-load    per-modality load cards + caveats (client/score.js, SCORES)
- *   #health-train  running, cycling, load vs recovery (client/health.js, HEALTH)
+ * Inicio's load dial (Whoop keeps the glance on Home and the detail one tap away), the 30-day
+ * activity calendar + cumulative training time, then the running and cycling tables and load vs
+ * recovery. Client-rendered hosts:
+ *   #score-load      per-modality load cards + caveats (client/score.js, SCORES from the shared <Bake>)
+ *   #train-activity  calendar + cumulative time (client/training-activity.js, ACTIVITY baked HERE)
+ *   #health-train    running, cycling, load vs recovery (client/health.js, HEALTH from the shared <Bake>)
  * `jump-anchor` gives #score-load the same scroll margin as a section (the load dial jumps here).
+ * ACTIVITY carries only the data's own dates (no build-time now), so builds stay byte-identical.
  */
+import { jsonForScript } from '../../../lib/serialize.mjs';
+import { es as esActivity, en as enActivity } from '../i18n/activity-templates.mjs';
+
+interface Props {
+  activity: any; // lib/training/activity.mjs buildActivity() result
+  locale: string;
+}
+const { activity, locale } = Astro.props;
+const bake = `var ACTIVITY = ${jsonForScript(activity)};\nvar I18N_ACTIVITY = ${jsonForScript(locale === 'es' ? esActivity : enActivity)};`;
 ---
 <div id="score-load" class="jump-anchor"></div>
+<div id="train-activity"></div>
 <div id="health-train"></div>
+<script is:inline set:html={bake}></script>
