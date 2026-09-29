@@ -16,7 +16,7 @@
  *   node --input-type=module -e "
  *     import fs from 'node:fs';
  *     import { parseCssRules, ruleDeclarationMap } from './web/test/css-scan.mjs';
- *     const html = fs.readFileSync('web/dist/example/index.html', 'utf8');
+ *     const html = fs.readFileSync('web/.test-dist/en-example/index.html', 'utf8');
  *     const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map(m => m[1]).join('\n');
  *     const map = ruleDeclarationMap(parseCssRules(css));
  *     const obj = Object.fromEntries([...map.entries()].sort(([a], [b]) => a.localeCompare(b)));
@@ -38,7 +38,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
 
 const expectedFixturePath = path.join(here, 'fixtures', 'css-expected.json');
-const outputHtmlPath = path.join(WEB_ROOT, 'dist', 'example', 'index.html');
+const outputHtmlPath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html');
 
 // Selectors/declarations that are known, deliberate deviations from the
 // checked-in expectation — none currently. Format: `${media}|||${selector}|||${prop}`

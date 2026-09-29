@@ -8,6 +8,11 @@
  * design's Testing Strategy: "pretest builds fixtures once ...
  * es-personal only if personal inputs exist".
  *
+ * Fixtures build into web/.test-dist/{en-example,es-personal} via
+ * build-web.mjs's --outdir, NEVER into web/dist/<mode> — that is the live
+ * output services/plan-web/refresh.sh publishes from, and `npm test` must
+ * never overwrite it (a prior version of this script did exactly that).
+ *
  * Run: node web/test/build-fixtures.mjs  (normally via `npm run pretest`)
  */
 import { fileURLToPath } from 'node:url';
@@ -18,15 +23,16 @@ import { execFileSync } from 'node:child_process';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.dirname(path.dirname(here)); // web/test -> web -> repo root
 const buildScript = path.join(ROOT, 'scripts', 'build-web.mjs');
+const testDistDir = path.join(ROOT, 'web', '.test-dist');
 
-execFileSync(process.execPath, [buildScript, '--mode', 'example', '--locale', 'en'], {
+execFileSync(process.execPath, [buildScript, '--mode', 'example', '--locale', 'en', '--outdir', path.join(testDistDir, 'en-example')], {
   stdio: 'inherit',
   cwd: ROOT,
 });
 
 const personalPlanPath = path.join(ROOT, 'data', 'nutrition', 'plan-data.json');
 if (fs.existsSync(personalPlanPath)) {
-  execFileSync(process.execPath, [buildScript, '--mode', 'personal', '--locale', 'es'], {
+  execFileSync(process.execPath, [buildScript, '--mode', 'personal', '--locale', 'es', '--outdir', path.join(testDistDir, 'es-personal')], {
     stdio: 'inherit',
     cwd: ROOT,
   });

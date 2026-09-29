@@ -1,12 +1,13 @@
 /* Integration check for plan-data.json's `page.hideTabs[]` (astro-plan-web
  * slice 5) — see lib/nav/tabs.mjs for the unit-tested pure logic. This test
- * exercises the REAL owner data end-to-end: the personal plan-data.json
- * now carries `hideTabs: ["hoy"]` to mirror the owner's live personal page,
- * which has its `t-hoy` nav <button> hand-commented-out (see CLAUDE.md's
- * "Hoy tab is optional and source-agnostic" + the golden fixture at
- * web/test/.golden/personal/plan-web.html). The example build must NOT
- * hide it — CLAUDE.md: "Keep the tab in the public plan-web.template.html
- * seed as a working example — never hide it there."
+ * is DATA-DRIVEN: it reads whichever `hideTabs` array the personal plan
+ * actually declares (instead of hardcoding the owner's current `["hoy"]`),
+ * so it keeps passing whenever the owner's plan changes which tab(s) it
+ * hides — or hides none at all. See CLAUDE.md's "Hoy tab is optional and
+ * source-agnostic". The example build must never hide anything — CLAUDE.md:
+ * "Keep the tab in the public plan-web.template.html seed as a working
+ * example — never hide it there." (that file is gone post-cutover; the
+ * example plan itself is the working example now).
  *
  * Skips gracefully when the personal fixture is absent (fresh clone / CI
  * without the owner's data), same pattern as web/test/leak.test.mjs.
@@ -19,20 +20,46 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
-const personalPath = path.join(WEB_ROOT, 'dist', 'personal', 'index.html');
-const examplePath = path.join(WEB_ROOT, 'dist', 'example', 'index.html');
+const REPO_ROOT = path.dirname(WEB_ROOT);
+const personalHtmlPath = path.join(WEB_ROOT, '.test-dist', 'es-personal', 'index.html');
+const exampleHtmlPath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html');
+const personalPlanPath = path.join(REPO_ROOT, 'data', 'nutrition', 'plan-data.json');
+const examplePlanPath = path.join(REPO_ROOT, 'data', 'nutrition', 'plan-data.example.json');
 
-test('personal build (hideTabs: ["hoy"]) omits the t-hoy nav button but keeps the #train-today panel + script intact', { skip: !fs.existsSync(personalPath) && 'personal fixture not built' }, () => {
-  const html = fs.readFileSync(personalPath, 'utf8');
-  assert.doesNotMatch(html, /id="t-hoy"/, 'the Hoy nav button must be omitted, matching the owner\'s hand-commented legacy button');
-  assert.match(html, /id="t-dash"/, 'other nav buttons (e.g. Entrenos) must NOT be affected');
-  assert.match(html, /id="train-today"/, 'the Hoy tab-panel itself must still render — hideTabs only removes the nav button');
-  assert.match(html, /var TRAINING = /, 'the baked TRAINING global must still be present — the panel stays fully wired, just unreachable via nav');
+// Every nav-tab key -> its nav <button id> (see web/pages/index.astro's TABS_ALL).
+const NAV_ID = { dia: 't-dia', registro: 't-registro', tablas: 't-tablas', hoy: 't-hoy', dash: 't-dash', health: 't-health' };
+
+function readHideTabs(planPath) {
+  const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
+  return plan.page?.hideTabs || [];
+}
+
+test('personal build omits the nav button for every key in plan-data.json\'s page.hideTabs, keeps the rest — and always keeps the tab panel + script', {
+  skip: !fs.existsSync(personalHtmlPath) && 'personal fixture not built (no plan-data.json — run npm run pretest)',
+}, () => {
+  const html = fs.readFileSync(personalHtmlPath, 'utf8');
+  const hideTabs = readHideTabs(personalPlanPath);
+
+  for (const [key, navId] of Object.entries(NAV_ID)) {
+    const buttonRe = new RegExp(`id="${navId}"`);
+    if (hideTabs.includes(key)) {
+      assert.doesNotMatch(html, buttonRe, `hideTabs includes "${key}" — its nav button #${navId} must be omitted`);
+    } else {
+      assert.match(html, buttonRe, `"${key}" is not in hideTabs — its nav button #${navId} must be present`);
+    }
+    // hideTabs only removes the NAV BUTTON — every tab panel (and its baked
+    // globals/script) always renders, matching the legacy "hand-commented
+    // nav button, panel stays wired" contract (lib/nav/tabs.mjs's header).
+    assert.match(html, new RegExp(`data-tab="${key}"`), `the #${key} tab-panel itself must still render regardless of hideTabs`);
+  }
 });
 
-test('example build does not hide any tab — Hoy stays a working example per CLAUDE.md', () => {
-  assert.ok(fs.existsSync(examplePath), `missing ${examplePath} — run npm run pretest first`);
-  const html = fs.readFileSync(examplePath, 'utf8');
-  assert.match(html, /id="t-hoy"/);
-  assert.match(html, /id="t-dash"/);
+test('example build does not hide any tab, regardless of the personal plan\'s hideTabs', () => {
+  assert.ok(fs.existsSync(exampleHtmlPath), `missing ${exampleHtmlPath} — run npm run pretest first`);
+  const html = fs.readFileSync(exampleHtmlPath, 'utf8');
+  const exampleHideTabs = readHideTabs(examplePlanPath);
+  assert.deepEqual(exampleHideTabs, [], 'the tracked plan-data.example.json must not hide any tab — it is the public working example');
+  for (const navId of Object.values(NAV_ID)) {
+    assert.match(html, new RegExp(`id="${navId}"`), `example build must keep every nav button, including #${navId}`);
+  }
 });

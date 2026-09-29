@@ -20,7 +20,7 @@ import { scanHtml } from './html-scan.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
-const distDir = path.join(WEB_ROOT, 'dist', 'example');
+const distDir = path.join(WEB_ROOT, '.test-dist', 'en-example');
 const htmlPath = path.join(distDir, 'index.html');
 
 test('example build is a single self-contained file with no external references', () => {
