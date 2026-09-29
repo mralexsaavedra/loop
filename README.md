@@ -43,7 +43,9 @@ instead of generic advice with no data behind it.
      is in MAD units and load uses Strava Relative Effort, and both show an empty state without the
      Apple Health extract / Strava sync; `workouts.csv` has 12 columns, see CLAUDE.md for the
      rollout). 🏃 **Training** holds the per-modality load detail, a 30-day activity calendar,
-     cumulative training time, recent runs and rides, load vs recovery and the workouts dashboard.
+     cumulative training time, recent runs and rides, load vs recovery and the workouts dashboard
+     (a workout logged by both the Watch and Strava on one day counts once, as the Strava copy, and
+     accidental 2-minute Watch stubs are ignored).
      💗 **Health** holds recovery (resting & walking HR, HRV, VO₂max, respiratory rate, wrist temp),
      sleep (duration AND consistency), body composition (weight, body fat, lean mass, waist),
      activity (steps/NEAT, exercise minutes, distance, flights) and energy expenditure + macro split. The extractor
