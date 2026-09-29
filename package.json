@@ -13,7 +13,7 @@
     "build": "node scripts/build-web.mjs",
     "build:example": "node scripts/build-web.mjs --mode example --locale en",
     "pretest": "node web/test/build-fixtures.mjs",
-    "test": "node --test \"lib/**/*.test.mjs\" \"web/test/*.test.mjs\" data/nutrition/*.test.js data/training/*.test.js data/apple-health/*.test.js",
+    "test": "node --test \"lib/**/*.test.mjs\" \"web/**/*.test.mjs\" data/nutrition/*.test.js data/training/*.test.js data/apple-health/*.test.js",
     "sync": "node data/apple-health/sync-shortcut.js"
   },
   "dependencies": {
