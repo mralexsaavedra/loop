@@ -10,9 +10,10 @@ import Note from '../components/Note.astro';
 interface Props {
   nut: any; // buildNutrition() result
   dict: any;
+  activeTab: string;
   page?: { notes?: Record<string, string> };
 }
-const { nut, dict, page } = Astro.props;
+const { nut, dict, page, activeTab } = Astro.props;
 
 function dayViewModel(day: 'train' | 'rest') {
   const cfg = nut.DAYPLAN[day];
@@ -26,7 +27,7 @@ function dayViewModel(day: 'train' | 'rest') {
 const train = dayViewModel('train');
 const rest = dayViewModel('rest');
 ---
-<div class="tab-panel" data-tab="dia">
+<div class="tab-panel" data-tab="dia" hidden={activeTab !== 'dia'}>
   <DayPanel day={train.day} meals={train.meals} totals={train.totals} kcalNote={train.kcalNote} hidden={false} dict={dict} />
   <DayPanel day={rest.day} meals={rest.meals} totals={rest.totals} kcalNote={rest.kcalNote} hidden={true} dict={dict} />
   <Note

@@ -6,6 +6,7 @@ export default {
     nav: {
       ariaLabel: 'Sections',
       tabs: {
+        home: { icon: '🏠', label: 'Home' },
         dia: { icon: '🍽️', label: 'My day' },
         registro: { icon: '📋', label: 'Log' },
         tablas: { icon: '📊', label: 'Tables' },

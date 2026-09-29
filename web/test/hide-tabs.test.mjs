@@ -17,6 +17,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import os from 'node:os';
+import { spawnSync } from 'node:child_process';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
@@ -27,7 +29,7 @@ const personalPlanPath = path.join(REPO_ROOT, 'data', 'nutrition', 'plan-data.js
 const examplePlanPath = path.join(REPO_ROOT, 'data', 'nutrition', 'plan-data.example.json');
 
 // Every nav-tab key -> its nav <button id> (see web/pages/index.astro's TABS_ALL).
-const NAV_ID = { dia: 't-dia', registro: 't-registro', tablas: 't-tablas', hoy: 't-hoy', dash: 't-dash', health: 't-health' };
+const NAV_ID = { home: 't-home', dia: 't-dia', registro: 't-registro', tablas: 't-tablas', hoy: 't-hoy', dash: 't-dash', health: 't-health' };
 
 function readHideTabs(planPath) {
   const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
@@ -67,5 +69,54 @@ test('example build does not hide any tab, regardless of the personal plan\'s hi
   assert.deepEqual(exampleHideTabs, [], 'the tracked plan-data.example.json must not hide any tab — it is the public working example');
   for (const navId of Object.values(NAV_ID)) {
     assert.match(html, new RegExp(`id="${navId}"`), `example build must keep every nav button, including #${navId}`);
+  }
+});
+
+/** nav button ids in document order -> tab keys, and the keys of every panel WITHOUT `hidden`. */
+function navOrderAndVisiblePanels(html) {
+  const idToKey = Object.fromEntries(Object.entries(NAV_ID).map(([k, v]) => [v, k]));
+  const nav = [...html.matchAll(/<button id="(t-[a-z]+)"/g)].map((m) => idToKey[m[1]]);
+  const panels = [...html.matchAll(/<div class="tab-panel" data-tab="([a-z]+)"( hidden)?[^>]*>/g)];
+  return { nav, visible: panels.filter((m) => !m[2]).map((m) => m[1]), all: panels.map((m) => m[1]) };
+}
+
+for (const [label, file] of [['example', exampleHtmlPath], ['personal', personalHtmlPath]]) {
+  test(`${label} build: exactly one panel is un-hidden and it is the first nav button's tab (R7.1)`, {
+    skip: !fs.existsSync(file) && `${label} fixture not built`,
+  }, () => {
+    const { nav, visible, all } = navOrderAndVisiblePanels(fs.readFileSync(file, 'utf8'));
+    assert.ok(nav.length > 0);
+    assert.equal(visible.length, 1, `un-hidden panels: ${visible.join(',')}`);
+    assert.equal(visible[0], nav[0]);
+    assert.ok(all.includes('home'), 'the home panel always renders');
+  });
+}
+
+test('example build: Home is the first nav button and the active panel', () => {
+  const { nav, visible } = navOrderAndVisiblePanels(fs.readFileSync(exampleHtmlPath, 'utf8'));
+  assert.equal(nav[0], 'home');
+  assert.deepEqual(visible, ['home']);
+});
+
+test('build-level: hiding EVERY tab fails the Astro build with a clear message (no orphan visible panel)', () => {
+  // Uses a throwaway repo root under os.tmpdir() holding copies of the tracked example inputs, with
+  // hideTabs listing every nav key; HC_REPO_ROOT points env.mjs at it, so no repo file is touched.
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'hide-all-'));
+  try {
+    fs.mkdirSync(path.join(tmp, 'data', 'nutrition'), { recursive: true });
+    fs.mkdirSync(path.join(tmp, 'data', 'training'), { recursive: true });
+    fs.copyFileSync(path.join(REPO_ROOT, 'data', 'nutrition', 'ingredients.json'), path.join(tmp, 'data', 'nutrition', 'ingredients.json'));
+    fs.copyFileSync(path.join(REPO_ROOT, 'data', 'training', 'training-data.example.json'), path.join(tmp, 'data', 'training', 'training-data.example.json'));
+    const plan = JSON.parse(fs.readFileSync(examplePlanPath, 'utf8'));
+    plan.page = { ...(plan.page || {}), hideTabs: Object.keys(NAV_ID) };
+    fs.writeFileSync(path.join(tmp, 'data', 'nutrition', 'plan-data.example.json'), JSON.stringify(plan));
+    const r = spawnSync(path.join(REPO_ROOT, 'node_modules', '.bin', 'astro'), ['build', '--root', WEB_ROOT, '--outDir', path.join(tmp, 'out')], {
+      env: { ...process.env, HC_REPO_ROOT: tmp, DATA_MODE: 'example', LOCALE: 'en' },
+      encoding: 'utf8',
+    });
+    assert.notEqual(r.status, 0, 'the build must fail');
+    assert.match(r.stdout + r.stderr, /every tab is hidden/i);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
   }
 });

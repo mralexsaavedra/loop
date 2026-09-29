@@ -12,6 +12,8 @@ import { es as esLog, en as enLog } from '../src/i18n/log-templates.mjs';
 import { es as esHoy, en as enHoy } from '../src/i18n/hoy-templates.mjs';
 import { es as esDash, en as enDash } from '../src/i18n/dash-templates.mjs';
 import { es as esHealth, en as enHealth } from '../src/i18n/health-templates.mjs';
+import { es as esScore, en as enScore } from '../src/i18n/score-templates.mjs';
+import { ADVICE_COPY } from '../../lib/score/advice-copy.mjs';
 
 function keyTree(obj, prefix = '') {
   const keys = [];
@@ -170,4 +172,56 @@ test('every verdict function produces a non-empty string for representative dumm
       assert.notEqual(result.trim(), '', `${locale}.verdict.${key} must not return an empty string`);
     }
   }
+});
+
+test('score-templates.mjs (Home tab) has identical key trees in es/en and no empty leaves', () => {
+  assert.deepEqual(keyTree(esScore), keyTree(enScore));
+  for (const [locale, dict] of [['es', esScore], ['en', enScore]]) {
+    for (const [p, v] of leaves(dict)) {
+      assert.equal(typeof v, 'string', `${locale}.${p} must be a string`);
+      assert.notEqual(v.trim(), '', `${locale}.${p} must not be empty`);
+    }
+  }
+});
+
+test('score-templates.mjs reuses the advice copy from lib/score/advice-copy.mjs (single source)', () => {
+  assert.deepEqual(esScore.advice, ADVICE_COPY.es);
+  assert.deepEqual(enScore.advice, ADVICE_COPY.en);
+});
+
+test('score-templates.mjs carries the four accurate caveats, SDNN and the not-medical note; never the false strength claim', () => {
+  for (const [locale, dict] of [['es', esScore], ['en', enScore]]) {
+    for (const k of ['re', 'notComparable', 'gymLabel', 'noEpoch', 'residual', 'sdnn', 'notMedical']) {
+      assert.ok(dict.caveats[k], `${locale}.caveats.${k}`);
+    }
+    assert.match(dict.caveats.sdnn, /SDNN/);
+    const all = JSON.stringify(dict);
+    assert.doesNotMatch(all, /under-?weights? strength|infrarrepresenta/i, `${locale} must not repeat the retired strength caveat`);
+  }
+  assert.match(enScore.caveats.re, /HR-derived/);
+  assert.match(enScore.caveats.re, /metcon/);
+  assert.match(enScore.caveats.notComparable, /not comparable/i);
+  assert.match(enScore.caveats.gymLabel, /auto-label/i);
+  assert.match(enScore.caveats.notMedical, /not medical advice/i);
+});
+
+test('score-templates.mjs placeholders that score.js fills are present', () => {
+  for (const dict of [esScore, enScore]) {
+    assert.match(dict.asOfLbl, /\{date\}/);
+    assert.match(dict.staleNote, /\{days\}/);
+    assert.match(dict.load.relLbl, /\{modality\}/);
+    assert.match(dict.load.preEpochNote, /\{date\}/);
+    assert.match(dict.load.otherLine, /\{minutes\}/);
+    assert.match(dict.recovery.trendLbl, /\{value\}/);
+  }
+});
+
+test('Salud copy no longer claims HR under-reads/under-represents strength, and says the index counts only sessions with heart rate', () => {
+  for (const [locale, dict] of [['es', esHealth], ['en', enHealth]]) {
+    assert.doesNotMatch(dict.loadNoteHtml, /under-reads strength|infrarrepresenta/i, locale);
+  }
+  assert.match(esHealth.loadSec.hint, /solo sesiones con pulso/);
+  assert.match(enHealth.loadSec.hint, /only sessions with heart rate/);
+  assert.match(esHealth.loadNoteHtml, /metcon/);
+  assert.match(enHealth.loadNoteHtml, /metcon/);
 });

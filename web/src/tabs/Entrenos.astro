@@ -5,7 +5,12 @@
  * baked by <Bake> (see web/src/tabs/Registro.astro). See Hoy.astro's
  * header for the shared hideTabs/Bake-placement notes.
  */
+
+interface Props {
+  activeTab: string;
+}
+const { activeTab } = Astro.props;
 ---
-<div class="tab-panel" data-tab="dash" hidden>
+<div class="tab-panel" data-tab="dash" hidden={activeTab !== 'dash'}>
   <div id="train-dash"></div>
 </div>

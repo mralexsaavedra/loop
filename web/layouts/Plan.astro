@@ -12,11 +12,13 @@ import '../src/styles/registro.css';
 import '../src/styles/tablas.css';
 import '../src/styles/training.css';
 import '../src/styles/health.css';
+import '../src/styles/score.css';
 import coreScript from '../src/client/core.js?raw';
 import nutritionScript from '../src/client/nutrition.js?raw';
 import trainingTodayScript from '../src/client/training-today.js?raw';
 import trainingDashScript from '../src/client/training-dash.js?raw';
 import healthScript from '../src/client/health.js?raw';
+import scoreScript from '../src/client/score.js?raw';
 
 interface Props {
   title: string;
@@ -33,7 +35,7 @@ interface Props {
 }
 
 const { title, locale, page = {}, dict, tabs, activeTab = tabs[0]?.key } = Astro.props;
-const navLabels: Record<string, string> = { dia: 't-dia', registro: 't-registro', tablas: 't-tablas', hoy: 't-hoy', dash: 't-dash', health: 't-health' };
+const navLabels: Record<string, string> = { home: 't-home', dia: 't-dia', registro: 't-registro', tablas: 't-tablas', hoy: 't-hoy', dash: 't-dash', health: 't-health' };
 const showDayToggle = activeTab === 'dia' || activeTab === 'registro';
 ---
 
@@ -80,5 +82,6 @@ const showDayToggle = activeTab === 'dia' || activeTab === 'registro';
     <script is:inline set:html={trainingTodayScript} />
     <script is:inline set:html={trainingDashScript} />
     <script is:inline set:html={healthScript} />
+    <script is:inline set:html={scoreScript} />
   </body>
 </html>
