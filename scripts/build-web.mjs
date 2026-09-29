@@ -58,6 +58,29 @@ export function resolveLocale({ repoRoot, mode, explicitLocale }) {
   return resolveEnv({ HC_REPO_ROOT: repoRoot, DATA_MODE: mode, LOCALE: explicitLocale || undefined }).locale;
 }
 
+/** Removes orphaned `.staging-*` directories left behind by a crashed/killed
+ * previous build. A clean run always renames its own staging dir away
+ * before exiting, so anything else matching `.staging-*` in `dir` is an
+ * orphan that would otherwise accumulate forever. Only removes entries
+ * strictly OLDER than `buildStartTime` (never a dir some concurrent run
+ * just created) and never `currentStagingDir` itself. Returns the list of
+ * removed paths. */
+export function sweepStaleStaging({ dir, currentStagingDir, buildStartTime }) {
+  if (!fs.existsSync(dir)) return [];
+  const swept = [];
+  for (const name of fs.readdirSync(dir)) {
+    if (!name.startsWith('.staging-')) continue;
+    const entryPath = path.join(dir, name);
+    if (entryPath === currentStagingDir) continue;
+    const { mtimeMs } = fs.statSync(entryPath);
+    if (mtimeMs < buildStartTime) {
+      fs.rmSync(entryPath, { recursive: true, force: true });
+      swept.push(entryPath);
+    }
+  }
+  return swept;
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const mode = args.mode || process.env.DATA_MODE || 'personal';
@@ -85,9 +108,15 @@ function main() {
   // web/test/build-fixtures.mjs to build test fixtures into web/.test-dist/
   // instead, so `npm test` never overwrites the live personal build that
   // services/plan-web/refresh.sh publishes from (design's Testing Strategy).
+  const buildStartTime = Date.now();
   const outDir = args.outdir ? path.resolve(ROOT, args.outdir) : path.join(WEB_ROOT, 'dist', mode);
-  const stagingDir = path.join(path.dirname(outDir), `.staging-${mode}-${process.pid}`);
-  fs.mkdirSync(path.dirname(stagingDir), { recursive: true });
+  const stagingParent = path.dirname(outDir);
+  const stagingDir = path.join(stagingParent, `.staging-${mode}-${process.pid}`);
+  fs.mkdirSync(stagingParent, { recursive: true });
+  const swept = sweepStaleStaging({ dir: stagingParent, currentStagingDir: stagingDir, buildStartTime });
+  if (swept.length) {
+    console.warn(`build-web: swept ${swept.length} orphaned staging dir(s) from a previous crashed/killed build: ${swept.map((p) => path.relative(ROOT, p)).join(', ')}`);
+  }
   fs.rmSync(stagingDir, { recursive: true, force: true });
 
   try {
