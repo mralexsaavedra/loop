@@ -252,3 +252,24 @@ test('setDay also switches the Inicio "today you eat" card (.eat-day) and every 
   assert.equal(cardTrain.getAttribute('aria-pressed'), 'false');
   assert.equal(cardRest.getAttribute('aria-pressed'), 'true');
 });
+
+test('jumpOr() jumps to a reachable target, else falls back to opening the given tab', async () => {
+  const doc = new StubDocument();
+  const { panels, sections } = makeTabPage(doc);
+  const target = doc.el('hl-recovery', { parent: panels.health });
+  const { window } = makeContext(doc);
+
+  window.jumpOr('hl-recovery', 'health');
+  assert.equal(panels.health.hidden, false);
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(target._scrolledIntoView, true);
+
+  window.setTab('home');
+  window.jumpOr('hl-missing', 'health');
+  assert.equal(panels.health.hidden, false, 'missing target: open the tab instead');
+
+  window.setTab('home');
+  sections.dash.hidden = true;
+  window.jumpOr('sec-dash', 'health');
+  assert.equal(panels.health.hidden, false, 'target in a hidden section: open the tab instead');
+});

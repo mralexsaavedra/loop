@@ -13,6 +13,13 @@
   var S = typeof SCORES === 'undefined' ? null : SCORES;
   var STALE_DAYS = 3;
   var ES = LOCALE === 'es';
+  // score cards open their Salud detail — only when the Salud tab is reachable (not hidden by page.hideTabs)
+  var LINK = !!document.getElementById('t-health');
+  function linkAttrs(id) {
+    if (!LINK) return '';
+    var call = "jumpOr('" + id + "','health')";
+    return ' role="button" tabindex="0" onclick="' + call + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + call + '}"';
+  }
 
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -93,7 +100,7 @@
   function recoveryHtml(R) {
     var stale = isStale(R.asOf);
     var rt = T.recovery;
-    var out = ['<div class="sc-card sc-recovery' + (stale ? ' sc-stale' : '') + '">'];
+    var out = ['<div class="sc-card sc-recovery' + (stale ? ' sc-stale' : '') + '"' + linkAttrs('hl-recovery') + '>'];
     out.push('<div class="sc-head"><h3>' + esc(rt.heading) + '</h3>' + asOfHtml(R.asOf) + '</div>');
     if (stale) out.push(staleHtml(R.asOf));
     if (R.gated) {
@@ -127,7 +134,7 @@
   /* ---- load ---- */
   function loadCard(m) {
     var lt = T.load;
-    var out = ['<div class="sc-load-card" data-mod="' + esc(m.key) + '">'];
+    var out = ['<div class="sc-load-card" data-mod="' + esc(m.key) + '"' + linkAttrs('sec-dash') + '>'];
     out.push('<div class="sc-comp-top"><b>' + esc(lt.modalities[m.key]) + '</b><span class="sc-comp-val">' + esc(format(lt.dayRe, { value: num(m.load, 0, false) })) + '</span></div>');
     out.push('<div class="sc-sub">' + (m.relScore != null
       ? esc(format(lt.relLbl, { score: m.relScore, modality: ADV_MOD[m.key] }))
