@@ -50,7 +50,13 @@ test('personal build omits the nav button for every key in plan-data.json\'s pag
     // hideTabs only removes the NAV BUTTON — every tab panel (and its baked
     // globals/script) always renders, matching the legacy "hand-commented
     // nav button, panel stays wired" contract (lib/nav/tabs.mjs's header).
-    assert.match(html, new RegExp(`data-tab="${key}"`), `the #${key} tab-panel itself must still render regardless of hideTabs`);
+    // Matches the exact `class="tab-panel" data-tab="..."` opening-tag text,
+    // NOT a bare `data-tab="..."` substring — the inlined <style> block also
+    // contains `[data-tab="..."] .foo {...}` CSS attribute-selector text
+    // (present regardless of hideTabs), which a bare substring search would
+    // match even when the real markup div were missing (see the same fix in
+    // web/test/content.test.mjs, found by RED in the previous batch).
+    assert.match(html, new RegExp(`class="tab-panel" data-tab="${key}"`), `the #${key} tab-panel itself must still render regardless of hideTabs`);
   }
 });
 

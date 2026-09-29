@@ -94,11 +94,14 @@ function trackedFileContents() {
   return contents;
 }
 
-test('no personal plan-data.json `page.*` / training-data.json coach-program-source string leaks into any tracked file', () => {
+test('no personal plan-data.json `page.*` / training-data.json coach-program-source string leaks into any tracked file', (t) => {
   const personal = personalStrings();
   if (personal.size === 0) {
     // fresh clone / no personal data present — nothing to guard, per spec's
     // Fresh-clone bootstrap (personal files are gitignored and optional).
+    // t.skip() (not a silent return) so the test report visibly shows this
+    // ran-but-skipped instead of looking identical to a passing assertion.
+    t.skip('no personal data present (fresh clone / CI) — nothing to guard');
     return;
   }
 
