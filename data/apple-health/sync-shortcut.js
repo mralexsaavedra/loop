@@ -152,9 +152,10 @@ const PREFER = {
 const isDailyKind = kind => kind === 'daily' || kind === 'deviceDaily' || kind === 'fieldsDaily';
 
 // A "last N days" query starts mid-day, so the OLDEST date of each daily series (per device for
-// steps, per payload key for dietary) is a truncated total. Drop it: the previous run delivered
-// that day complete.
-const seriesOf = s => s.device || s.field || '';
+// steps) is a truncated total. Drop it: the previous run delivered that day complete. The dietary
+// keys fold into one row and share one query window, so their oldest day is computed across the
+// whole group: a macro with no entry on the window start keeps its first (complete) day.
+const seriesOf = s => s.device || '';
 function dropTruncatedOldest(samples) {
   const oldest = new Map(); // series -> oldest date
   for (const s of samples) {

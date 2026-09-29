@@ -613,7 +613,7 @@ test('dietary: diet_kcal/protein/carbs/fat day totals merge into one dietary-dai
   assert.deepEqual(buildRows('dietary', s.dietary).map(r => r.line), [
     '2030-01-02,2105,151.3,220.0,70.6',
     '2030-01-03,1850,140.0,190.0,',
-  ], 'oldest (truncated) day dropped per key; a macro missing on a day stays blank, never 0');
+  ], 'oldest (truncated) day of the group dropped; a macro missing on a day stays blank, never 0');
   assert.equal(METRICS.dietary.csv, 'dietary-daily.csv');
   assert.equal(METRICS.dietary.header, DIET_H, 'the exact schema extract.js writes');
   assert.equal(METRICS.dietary.sourceCol, null);
@@ -622,12 +622,25 @@ test('dietary: diet_kcal/protein/carbs/fat day totals merge into one dietary-dai
 test('dietary: a day without kcal (or with 0 kcal) is no data; latest payload wins per key', () => {
   const s = collectSamples([
     { diet_kcal: daily(['2030-01-01', 1], ['2030-01-02', 900], ['2030-01-03', 0]), diet_protein: daily(['2030-01-01', 1], ['2030-01-04', 50]) },
-    { diet_kcal: daily(['2030-01-01', 5], ['2030-01-02', 950], ['2030-01-03', 0], ['2030-01-05', 2000]), diet_protein: daily(['2030-01-02', 1], ['2030-01-05', 160]) },
+    { diet_kcal: daily(['2030-01-01', 5], ['2030-01-02', 950], ['2030-01-03', 0], ['2030-01-05', 2000]), diet_protein: daily(['2030-01-01', 1], ['2030-01-05', 160]) },
   ]);
   assert.deepEqual(buildRows('dietary', s.dietary).map(r => r.line), [
     '2030-01-02,950,,,',
     '2030-01-05,2000,160.0,,',
   ], '01-02 corrected by the later payload; 01-03 (0 kcal) and 01-04 (protein only) are no data');
+});
+
+test('dietary: the truncated oldest day is shared by the whole key group, not computed per key', () => {
+  // protein has no entry on the window start (01-01), so its first entry (01-02) is a complete
+  // day — dropping it per key would lose a real macro.
+  const s = collectSamples([{
+    diet_kcal: daily(['2030-01-01', 300], ['2030-01-02', 2000], ['2030-01-03', 1900]),
+    diet_protein: daily(['2030-01-02', 150], ['2030-01-03', 140]),
+  }]);
+  assert.deepEqual(buildRows('dietary', s.dietary).map(r => r.line), [
+    '2030-01-02,2000,150.0,,',
+    '2030-01-03,1900,140.0,,',
+  ]);
 });
 
 test('dietary: export rows win; Shortcut rows fill only dates the export lacks and stay replaceable via the ledger', () => {
