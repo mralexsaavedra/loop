@@ -320,7 +320,10 @@ render it.
 
 **Today first.** Every trend card's headline is the NEWEST value with its date (a daily total dated
 the viewer's today reads "today, so far" / "hoy, en curso", decided client-side); the 30-day mean
-(`avg30`, mean of the daily values over the last 30 days) and the Δ form the context line under it;
+(`avg30`, `avg30Of`: mean of the daily values over the last 30 days — for the daily TOTALS of
+`dailyTrend` the 30 days ending the day BEFORE the latest, since the build cannot know whether that
+day is complete) and the Δ (`d30Of`) form the context line under it; a non-finite value is never
+printed and a card that throws is skipped, never blanking the tab;
 sparklines are unchanged (7-day rolling). HRV's headline is the newest DAY's mean (it used to be the
 7-day rolling value); sleep's is last night (`sleep.latest`), with the 30-night mean as context;
 expenditure's is the newest day's TDEE (`tdeeLatest`). Each recovery trend carries an `hl-<key>`
@@ -389,12 +392,16 @@ is the newest day, and the trend is the line under it.
 - **Recovery** is in MAD units, never a 0-100 grade: HRV (daytime SDNN), resting HR, sleep duration and
   sleep regularity vs a median/MAD baseline (42 days ending asOf-1), z clamped ±3, weights
   .40/.25/.25/.10. Band: ≥ +0.5 above / within ±0.5 at / ≤ -0.5 below baseline (`BAND_CUTOFF` in
-  `recovery.mjs`). Headline = `today`, the composite of the asOf day alone (last night), same baseline
-  and bands; it is `null` unless the components present that day carry ≥ 0.60 of the weight AND
-  include HRV or RHR (a sleep-only night is too thin), in which case the page says "no data for last
-  night" and shows the trend instead. Context = `trend7` (mean composite of the 7 days ending asOf)
-  and `trendDir` = `delta7` (this week's trend7 − last week's) cut at the same ±`BAND_CUTOFF`: up /
-  steady / down. Shown with per-component trends and the last 14 raw dailies. Gated ("insufficient")
+  `recovery.mjs`). Headline = `today`, the composite of the asOf day alone (last night), same
+  baseline; a single day is noisier than the 7-day mean (measured σ_daily 0.782 vs σ_7 0.328,
+  `MEASURED_SIGMA`), so its band is cut at `DAY_BAND_CUTOFF` = `BAND_CUTOFF` × σ_daily/σ_7 ≈ 1.2 (same
+  false-flip rate). `today` is `null` unless the components present that day carry ≥ 0.60 of the
+  weight AND include HRV or RHR (a sleep-only night is too thin), in which case the page says "no data
+  for last night" and shows the trend instead; `today.sleep` is false when that day has no
+  sleep-duration reading, and the page then labels it by date + "no sleep data", never "last night".
+  Context = `trend7` (mean composite of the 7 days ending asOf) and `trendDir` = `delta7` (this
+  week's trend7 − last week's): two non-overlapping 7-day means differ with noise √2 × σ_7 ≈ 0.46,
+  so it is cut at `TREND_DIR_CUTOFF` = `BAND_CUTOFF` × √2 ≈ 0.7: up / steady / down. Shown with per-component trends and the last 14 raw dailies. Gated ("insufficient")
   unless components with ≥ 14 baseline days carry ≥ 0.60 of the weight, include HRV or RHR, and there
   are ≥ 7 composite days in the last 14.
 - **Load** is PER MODALITY (gym / run / bike; `other` is shown raw, never scored) and Relative-Effort-only
@@ -402,10 +409,12 @@ is the newest day, and the trend is the line under it.
   junk (`dur <= 10` AND `re` null or ≤ 2), then SUM. The series starts at the first date with any RE
   (`reEpoch`); acute 7d vs chronic 42d EWMA; a modality gates ("baselineBuilding") under 28 days since the
   epoch, under 8 non-zero days, or chronic < 1. The 0-100 `relScore` exists only within a modality.
-  Today first: `load` is the asOf day's summed RE (asOf = newest workout date, so the page labels it
-  today / yesterday / its date client-side) and `typical` = the median of the NON-ZERO days in the 42
-  days before asOf (asOf excluded; `value: null` under 4 such days — `TYPICAL_WINDOW_DAYS` /
-  `MIN_TYPICAL_DAYS` in `load.mjs`).
+  Today first: `typical` = the median of the NON-ZERO days in the 42 days before asOf (asOf
+  excluded; `value: null` under 6 such days — `TYPICAL_WINDOW_DAYS` / `MIN_TYPICAL_DAYS` in
+  `load.mjs`). `recent` = the session days of the last `RECENT_DAYS` (14) ending asOf, each
+  `{date, re, unscored}` (only dates with valid non-junk rows in that modality; `unscored` = rows
+  without RE), and `last` = the newest day with RE > 0. The VIEWER's today is picked client-side from
+  `recent`, so nothing today-relative is baked.
 - **Health monitor** (`lib/score/monitor.mjs`, baked as `SCORES.monitor` even when `hasData` is false;
   `components/HealthMonitor.astro` + `client/monitor.js`, under the dials): cards for respiratory
   rate, resting HR, HRV, sleeping wrist temperature and sleep duration. Each = the newest daily value
@@ -413,23 +422,31 @@ is the newest day, and the trend is the line under it.
   today, and Normal / High / Low (es: Normal / Alto / Bajo) vs a personal band = median ± 1.5 × scaled
   MAD (`robustBaseline`, floored per signal) over the 42 days BEFORE that value; < 14 baseline days →
   value + "building baseline", no band; a missing series → "No data". A vertical range bar (inline
-  SVG, geometry baked as fractions) marks the band and the value. Tone: HRV high = good / low = bad,
-  RHR high = bad / low = good, short sleep = bad; respiratory rate and wrist temp are change signals,
-  so out of band is `watch` (`--mid`), never `--low`. Greyed when > 3 days old.
+  SVG, geometry baked as fractions) marks the band and the value. Band = median ± 2 × scaled MAD
+  (`BAND_K`: ~5% false flags per card; HRV in log space like `recovery.mjs`, so asymmetric in ms).
+  Tone: HRV high = good / low = bad, RHR high = bad / low = good, short sleep = bad; respiratory rate
+  and wrist temp are change signals, so out of band is `watch` (`--mid`), never `--low`. A card whose
+  OWN date is > 3 days before the viewer's today is greyed with "no recent data" and no tone; the
+  whole block greys when its newest date is > 3 days old. Display units come from the i18n dict. A
+  card that throws falls back to its empty state.
 - **Dials** (top of the tab: Sleep / Recovery / Load) only VISUALISE baked values — no new metric and
   no percentage. `web/src/view/dial.mjs` (`buildDials(scores, health)`, unit-tested, baked as `DIALS`)
   pre-computes the 270° arc geometry; `score.js` only formats numbers and joins SVG strings.
   Recovery: arc = −3…+3 MAD, three tinted zones cut at ±`BAND_CUTOFF`, fill from baseline to a marker
-  at last night's composite (`today`; falls back to `trend7` with a "no data for last night" note),
-  centre = short band word + signed value in sd, coloured by that band; under it "Last night" (or the
-  night's date) and "7-day trend: steady · +0.5 sd". Sleep: fill = the
+  at last night's composite (`today`, zones cut at ±`DAY_BAND_CUTOFF`; falls back to `trend7`, zones at
+  ±`BAND_CUTOFF`, with a "no data for last night" note), centre = short band word + signed value in
+  sd, coloured by that band; under it "Last night" (or the night's date, + "no sleep data" when the
+  night has no sleep reading) and "7-day trend: steady · +0.5 sd". Sleep: fill = the
   sleep-duration component's newest night / the stated target (`health.recovery.sleep.target`, 7.5 h),
   capped at a full arc, target labelled on screen. Load: ONE dial with a gym/run/bike switch (default =
-  first ungated modality); centre = the asOf day's RE, position = RE / typical day (arc midpoint =
-  the typical training day, end = 2×, no zones), a 0 RE day reads "Rest" with no fill; the caption
-  says "Today: RE 28 · typical day ~42" and keeps acute/chronic as context ("7-day vs 42-day load:
-  -6% · steady"). A gated modality (`baselineBuilding`, or `fewDays` when there is no typical day) is
-  greyed with its copy and no number. Stale data (> 3 days) greys a dial; the fill
+  first ungated modality) for the VIEWER's today, picked client-side from the baked `recent` days (each
+  with its pre-computed arc): a session with RE → centre = today's RE, position = RE / typical day (arc
+  midpoint = the typical training day, end = 2×, no zones), caption "Today: RE 28 · typical day ~42";
+  rows today but no RE → "No effort data" (never rest); no rows today → "Rest today" with "last session
+  <date>: RE <n>" as context. Every caption keeps acute/chronic as context ("7-day vs 42-day load: -6% ·
+  steady"). A gated modality (`baselineBuilding`, or `fewDays` when there is no typical day) is greyed
+  with its copy and no number. Each dial block / card renders through a try/catch with an empty-state
+  fallback, so one throw never blanks Inicio. Stale data (> 3 days) greys a dial; the fill
   animation is off under `prefers-reduced-motion`.
 - **Advice** is one descriptive sentence per rule (`lib/score/advice.mjs`, copy in `advice-copy.mjs`),
   never an instruction; hidden when data is insufficient or stale (> 3 days). The rules still read the
