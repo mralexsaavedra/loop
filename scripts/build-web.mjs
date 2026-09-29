@@ -10,17 +10,27 @@
  *
  * Usage: node scripts/build-web.mjs [--mode personal|example] [--locale es|en]
  *   DATA_MODE / LOCALE env vars are equivalent to --mode / --locale.
+ *
+ * `--check` skips the Astro build entirely and only validates the
+ * programmed training data for the given mode (fast, no astro binary
+ * invoked). This replaces the training validation the retired
+ * data/training/generate-training.js --check used to provide — nutrition
+ * validation stays in `node data/nutrition/generate.js --check` (`npm run
+ * check` chains both).
  */
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { loadInputs } from '../lib/load/inputs.mjs';
+import { validateProgram } from '../lib/training/program.mjs';
 
 function parseArgs(argv) {
   const out = {};
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--mode') out.mode = argv[++i];
     else if (argv[i] === '--locale') out.locale = argv[++i];
+    else if (argv[i] === '--check') out.check = true;
   }
   return out;
 }
@@ -29,10 +39,23 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const WEB_ROOT = path.join(ROOT, 'web');
 const ASTRO_BIN = path.join(ROOT, 'node_modules', '.bin', 'astro');
 
+/** Pure: loads training-data(.example).json for `mode` and validates it.
+ * Throws with validateProgram's error message on a malformed program. */
+export function checkTraining({ repoRoot, mode }) {
+  const { training } = loadInputs({ repoRoot, dataMode: mode });
+  return validateProgram(training);
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const mode = args.mode || process.env.DATA_MODE || 'personal';
   const locale = args.locale || process.env.LOCALE || (mode === 'example' ? 'en' : 'es');
+
+  if (args.check) {
+    checkTraining({ repoRoot: ROOT, mode });
+    console.log(`build-web --check: training-data.json OK (mode=${mode})`);
+    return;
+  }
 
   // Consumed by web/src/env.mjs from slice 2 onward, and by the layout's
   // <html lang> in the meantime.
@@ -63,4 +86,4 @@ function main() {
   console.log(`build-web: wrote ${path.relative(ROOT, outDir)}/index.html (mode=${mode}, locale=${locale})`);
 }
 
-main();
+if (process.argv[1] === fileURLToPath(import.meta.url)) main();
