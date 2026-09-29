@@ -27,24 +27,29 @@
  * optional `window.bldRecalc()` hook — the same optional-global-hook
  * pattern legacy already uses for `setDay` -> `window.bldRefresh`.
  */
+/* Three top-level tabs (Inicio / Nutrición / Salud). The former tab keys now name sections
+ * (`#sec-<key>`) inside one of them — mirror of lib/nav/tabs.mjs's SECTION_TAB — so an old
+ * `setTab('tablas')` still lands on the same content. */
+var SECTION_TAB = { hoy: 'home', dia: 'nutricion', registro: 'nutricion', tablas: 'nutricion', dash: 'health' };
+
 function setTab(name, scrollTop) {
+  if (SECTION_TAB[name]) {
+    jump('sec-' + name);
+    return;
+  }
   document.querySelectorAll('.tab-panel').forEach(function (p) {
     p.hidden = p.getAttribute('data-tab') !== name;
   });
   [
     ['t-home', 'home'],
-    ['t-dia', 'dia'],
-    ['t-registro', 'registro'],
-    ['t-tablas', 'tablas'],
-    ['t-hoy', 'hoy'],
-    ['t-dash', 'dash'],
+    ['t-nutricion', 'nutricion'],
     ['t-health', 'health'],
   ].forEach(function (pair) {
     var b = document.getElementById(pair[0]);
     if (b) b.setAttribute('aria-pressed', pair[1] === name);
   });
   var dt = document.getElementById('day-toggle');
-  if (dt) dt.style.display = name === 'dia' || name === 'registro' ? '' : 'none';
+  if (dt) dt.style.display = name === 'nutricion' ? '' : 'none';
   if (scrollTop !== false) window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
@@ -62,9 +67,20 @@ function setDay(day) {
 function jump(id) {
   var el = document.getElementById(id);
   if (!el) return;
+  // a section hidden by page.hideTabs stays unreachable
+  var section = el.closest && el.closest('.tab-section');
+  if (section && section.hidden) return;
   var panel = el.closest && el.closest('.tab-panel');
   if (panel) setTab(panel.getAttribute('data-tab'), false);
   el.open = true;
+  // open every enclosing <details> (e.g. a table inside the collapsed Tablas fold)
+  var up = el.parentElement;
+  while (up && up.closest) {
+    up = up.closest('details');
+    if (!up) break;
+    up.open = true;
+    up = up.parentElement;
+  }
   setTimeout(function () {
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 30);

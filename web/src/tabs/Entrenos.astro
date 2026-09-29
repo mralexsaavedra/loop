@@ -1,16 +1,16 @@
 ---
-/* "Entrenos" (executed-workouts dashboard) tab — ported verbatim from the
- * legacy `data-tab="dash"` panel in data/nutrition/plan-web.html.
- * Client-rendered entirely by web/src/client/training-dash.js from DASH
- * baked by <Bake> (see web/src/tabs/Registro.astro). See Hoy.astro's
- * header for the shared hideTabs/Bake-placement notes.
+/* "Entrenamiento / Training" (executed-workouts dashboard) — a SECTION of the Salud/Health tab (it
+ * was the "Entrenos" tab before the three-tab layout). Client-rendered entirely by
+ * web/src/client/training-dash.js from DASH baked by <Bake> (see web/src/tabs/Registro.astro).
+ * `page.hideTabs: ["dash"]` renders it `hidden` (see Hoy.astro's header).
  */
-
 interface Props {
-  activeTab: string;
+  dict: any;
+  hidden: boolean;
 }
-const { activeTab } = Astro.props;
+const { dict, hidden } = Astro.props;
 ---
-<div class="tab-panel" data-tab="dash" hidden={activeTab !== 'dash'}>
+<section class="tab-section" data-section="dash" id="sec-dash" hidden={hidden}>
+  <h2>{dict.strings.nav.sections.dash}</h2>
   <div id="train-dash"></div>
-</div>
+</section>

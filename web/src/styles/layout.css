@@ -1,0 +1,46 @@
+/* Three-tab layout — sections inside a tab panel (the former tabs) and the collapsible
+ * section folds (Registro, Tablas). A fold is a <details class="tab-section sec-fold"> whose
+ * <summary> carries the section's h2; it must NOT look like an equivalence accordion card
+ * (tablas.css styles bare `details`/`summary`), so those card rules are reset here. */
+
+.tab-section[hidden] {
+  display: none;
+}
+.tab-section {
+  scroll-margin-top: 16px;
+}
+
+/* collapsible section fold */
+details.sec-fold {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+  margin-bottom: 0;
+}
+details.sec-fold[open] {
+  box-shadow: none;
+}
+details.sec-fold > summary {
+  padding: 0;
+  font-size: inherit;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  border-radius: var(--r-sm);
+}
+details.sec-fold > summary > h2 {
+  flex: 1;
+}
+details.sec-fold > summary > .chev {
+  margin-top: var(--sp-11);
+  margin-bottom: var(--sp-5);
+  font-size: var(--fs-2xl);
+}
+details.sec-fold[open] > summary > .chev {
+  transform: rotate(90deg);
+}
+details.sec-fold > summary:hover > h2 {
+  color: var(--ink);
+}

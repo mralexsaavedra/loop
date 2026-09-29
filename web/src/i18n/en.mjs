@@ -5,14 +5,16 @@ export default {
   strings: {
     nav: {
       ariaLabel: 'Sections',
+      // three top-level tabs; the former tabs are now sections (see `sections`)
       tabs: {
         home: { icon: '🏠', label: 'Home' },
-        dia: { icon: '🍽️', label: 'My day' },
-        registro: { icon: '📋', label: 'Log' },
-        tablas: { icon: '📊', label: 'Tables' },
-        hoy: { icon: '🏋️', label: 'Today' },
-        dash: { icon: '📈', label: 'Workouts' },
+        nutricion: { icon: '🍽️', label: 'Nutrition' },
         health: { icon: '💗', label: 'Health' },
+      },
+      // headings of the sections that used to be tabs of their own (Mi día/Registro/Tablas keep theirs)
+      sections: {
+        hoy: "Today's session",
+        dash: 'Training',
       },
     },
     dayToggle: {
