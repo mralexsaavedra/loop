@@ -73,7 +73,8 @@ available) so the next session resumes with their context.
      cache. Caveats: body metrics carry a `source` column (weight mixes scales — compare
      body fat within one scale only); steps are deduped to max-per-device per day (summing
      devices double-counts — summing inflates the NEAT figure).
-     Between exports, `npm run sync` (`data/apple-health/sync-shortcut.js`) pulls iOS Shortcut
+     Between exports, `npm run sync` (`data/apple-health/sync-shortcut.js`; how to build the Shortcut and
+     every payload key: `docs/ios-shortcut.md` — keep its key table in sync with the `METRICS` table) pulls iOS Shortcut
      payloads from the optional `services/health-ingest` service (`GET /export/raw`) and merges
      hrv/rhr/vo2max/weight/bodyfat/leanmass/waist/steps/energy/dietary/sleep/respiratory/
      walking-HR/wrist-temp/hr-recovery into those CSVs: export rows always win,
