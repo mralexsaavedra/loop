@@ -121,3 +121,11 @@ details.sec-fold > summary:hover > h2 {
   margin-top: var(--sp-6);
   font-size: var(--fs-md);
 }
+
+@media (min-width: 900px) {
+  /* jump() targets clear the sticky top nav */
+  .tab-section,
+  .hsub {
+    scroll-margin-top: 72px;
+  }
+}
