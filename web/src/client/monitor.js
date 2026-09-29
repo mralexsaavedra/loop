@@ -19,33 +19,16 @@
   var M = S && S.monitor;
   var T = typeof I18N_SCORE === 'undefined' || !I18N_SCORE ? null : I18N_SCORE.monitor;
   if (!M || !M.cards || !T) return;
-  var ES = LOCALE === 'es';
-  var STALE_DAYS = 3; // a reading older than this is shown greyed, with no status
-  var MS_PER_DAY = 86400000;
+  var STALE_DAYS = HC.STALE_DAYS; // a reading older than this is shown greyed, with no status (baked)
   // range bar geometry (SVG user units): the bar is BAR_H tall, the value mark MARK_H thick
   var BAR_H = 100;
   var MARK_H = 3;
   var LINK = !!document.getElementById('t-health');
 
-  function esc(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
+  // shared helpers (web/src/client/util.js)
+  var esc = HC.esc, isoDate = HC.isoDate, daysOld = HC.daysOld;
   function num(x, dec) {
-    var s = Number(x).toFixed(dec);
-    if (Number(s) === 0) s = (0).toFixed(dec);
-    return ES ? s.replace('.', ',') : s;
-  }
-  function isoDate(s) {
-    return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
-  }
-  function daysOld(iso) {
-    iso = isoDate(iso);
-    if (!iso) return null;
-    var p = iso.split('-');
-    var d = new Date(+p[0], +p[1] - 1, +p[2]);
-    var n = new Date(Date.now());
-    n = new Date(n.getFullYear(), n.getMonth(), n.getDate());
-    return Math.round((n - d) / MS_PER_DAY);
+    return HC.num(x, dec, false);
   }
   function linkAttrs(key) {
     if (!LINK) return '';

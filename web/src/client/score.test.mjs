@@ -11,6 +11,7 @@ import { buildScores } from '../../../lib/score/index.mjs';
 import { renderAdvice } from '../../../lib/score/advice-copy.mjs';
 import { es as esT, en as enT } from '../i18n/score-templates.mjs';
 import { buildDials } from '../view/dial.mjs';
+import { loadUtil } from '../../test/client-util.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'score.js'), 'utf8');
@@ -62,6 +63,7 @@ function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entre
     SCORES: scores, DIALS: dials, I18N_SCORE: T || (locale === 'es' ? esT : enT), LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite,
   };
   vm.createContext(ctx);
+  loadUtil(ctx);
   vm.runInContext(source, ctx);
   return host.innerHTML + rec.innerHTML + load.innerHTML;
 }
@@ -581,6 +583,7 @@ test('scMod: the switch shows only the chosen modality and moves aria-pressed', 
   btns.forEach((b) => { b.closest = () => root; });
   const ctx = { document: { getElementById: () => null } };
   vm.createContext(ctx);
+  loadUtil(ctx);
   vm.runInContext(source, ctx);
   ctx.scMod('bike', btns[2]);
   assert.deepEqual(btns.map((b) => b.pressed), ['false', 'false', 'true']);

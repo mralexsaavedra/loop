@@ -7,11 +7,12 @@
  * strings — same pattern as client/training-today.js and
  * client/training-dash.js.
  *
- * `esc()` calls sit at EXACTLY the same spots as the legacy source
- * (fmtD()/source strings/titles) — static I18N_HEALTH copy is trusted the
- * same way legacy's hardcoded literals were, so it is NOT re-escaped (see
- * design's Trusted markup row: dict content is generic/tracked, never user
- * input).
+ * `esc()` / `nf()` / `format()` / `daysOld()` are the shared helpers of
+ * client/util.js (window.HC). `esc()` calls sit at EXACTLY the same spots as
+ * the legacy source (fmtD()/source strings/titles) — static I18N_HEALTH copy
+ * is trusted the same way legacy's hardcoded literals were, so it is NOT
+ * re-escaped (see design's Trusted markup row: dict content is
+ * generic/tracked, never user input).
  *
  * `nf()` (decimal-comma display) is the one LOCALE-sensitive number format
  * here, same rationale as training-dash.js's `hc()`: the tracked English
@@ -33,28 +34,15 @@
 (function () {
   var DATE_LOCALE = LOCALE === 'es' ? 'es-ES' : 'en-GB';
   var T = I18N_HEALTH;
-  var MS_PER_DAY = 86400000;
-
-  function esc(s) {
-    var d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
-  }
-  function nf(n) {
-    return LOCALE === 'es' ? String(n).replace('.', ',') : String(n);
-  }
-  function format(tpl, vars) {
-    return tpl.replace(/\{(\w+)\}/g, function (_, k) {
-      return vars && vars[k] != null ? vars[k] : '';
-    });
-  }
+  // shared helpers (web/src/client/util.js)
+  var esc = HC.esc, nf = HC.nf, format = HC.format, daysOld = HC.daysOld;
   function fmtD(iso) {
     var p = iso.split('-');
     return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(DATE_LOCALE, { day: 'numeric', month: 'short' });
   }
   function ago(iso) {
     if (!iso) return '';
-    var d = Math.round((Date.now() - new Date(iso + 'T00:00:00')) / MS_PER_DAY);
+    var d = Math.round((Date.now() - new Date(iso + 'T00:00:00')) / HC.MS_PER_DAY);
     if (d < 45) return format(T.agoDaysTpl, { d: d });
     var m = Math.round(d / 30);
     if (m < 12) return format(m > 1 ? T.agoMonthsTpl : T.agoMonthTpl, { m: m });
@@ -78,13 +66,6 @@
     if (d == null || !isFinite(d)) return '';
     var dir = d < 0 ? -1 : d > 0 ? 1 : 0, cls = goodDir === 0 || dir === 0 ? 'flat' : dir === goodDir ? 'good' : 'bad';
     return '<span class="dlt ' + cls + '">' + (d > 0 ? '▲ +' : d < 0 ? '▼ ' : '■ ') + nf(Math.round(d * 10) / 10) + (unit || '') + '</span>';
-  }
-  // whole days between an ISO date and the viewer's today (local calendar, from Date.now())
-  function daysOld(iso) {
-    if (!iso) return null;
-    var p = iso.split('-');
-    var n = new Date(Date.now());
-    return Math.round((new Date(n.getFullYear(), n.getMonth(), n.getDate()) - new Date(+p[0], +p[1] - 1, +p[2])) / MS_PER_DAY);
   }
   // Today first: the headline is the newest value; `opt.date` tags it with its date (a daily total
   // dated today reads "today, so far", since it is partial until midnight); `ctxHtml` (30-day mean

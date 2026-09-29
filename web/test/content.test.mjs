@@ -210,3 +210,14 @@ test('example build: Inicio carries a compact "today you eat" card with the Mi d
   assert.match(card, /onclick="setTab\('nutricion'\)"[^>]*>See full plan/);
   assert.doesNotMatch(card, /class="meal"/, 'the full meal plan is NOT duplicated on Inicio');
 });
+
+test('example build: the shared client helpers (util.js) are inlined FIRST, right after the baked HC_CONST, before every other script', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  const utilIdx = scripts.findIndex((s) => /\bvar HC = \(function/.test(s));
+  const constIdx = scripts.findIndex((s) => /\bvar HC_CONST = \{"staleDays":\d+\}/.test(s));
+  const coreIdx = scripts.findIndex((s) => /function setTab\(/.test(s));
+  assert.ok(constIdx !== -1 && utilIdx !== -1 && coreIdx !== -1, `HC_CONST ${constIdx}, util ${utilIdx}, core ${coreIdx}`);
+  assert.ok(constIdx <= utilIdx && utilIdx < coreIdx, 'HC_CONST, then util.js, then core.js and the rest');
+  assert.match(html, /var ACTIVITY = \{[^;]*"windowDays":30,"levelMin":\[1,30,60,90\]\}/, 'calendar constants baked from lib');
+});

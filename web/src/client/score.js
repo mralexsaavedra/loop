@@ -26,9 +26,8 @@ function scMod(key, btn) {
   if (!host) return;
   var T = I18N_SCORE;
   var S = typeof SCORES === 'undefined' ? null : SCORES;
-  var STALE_DAYS = 3; // older data is greyed and gets no advice
-  var MS_PER_DAY = 86400000;
-  var ES = LOCALE === 'es';
+  var STALE_DAYS = HC.STALE_DAYS; // older data is greyed and gets no advice (baked)
+  var ES = HC.isEs();
   // score cards open their detail (Salud / Entreno) — only when that tab is reachable (its nav
   // button exists, i.e. page.hideTabs does not hide it)
   function linkAttrs(id, tab) {
@@ -38,32 +37,10 @@ function scMod(key, btn) {
     return ' role="button" tabindex="0" onclick="' + call + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + call + '}"';
   }
 
-  function esc(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-  function format(tpl, vars) {
-    return tpl.replace(/\{(\w+)\}/g, function (_, k) {
-      return vars && vars[k] != null ? vars[k] : '';
-    });
-  }
-  // fixed decimals, optional leading "+"; a value that rounds to zero carries no sign
-  function num(x, dec, signed) {
-    var s = Number(x).toFixed(dec);
-    if (Number(s) === 0) s = (0).toFixed(dec);
-    else if (signed && Number(s) > 0) s = '+' + s;
-    return ES ? s.replace('.', ',') : s;
-  }
+  // shared helpers (web/src/client/util.js)
+  var esc = HC.esc, format = HC.format, num = HC.num, isoDate = HC.isoDate, daysOld = HC.daysOld, todayIso = HC.todayIso;
   function pct(x) {
     return num(x, 0, true) + (ES ? ' %' : '%');
-  }
-  function daysOld(iso) {
-    iso = isoDate(iso);
-    if (!iso) return null;
-    var p = iso.split('-');
-    var d = new Date(+p[0], +p[1] - 1, +p[2]);
-    var n = new Date(Date.now());
-    n = new Date(n.getFullYear(), n.getMonth(), n.getDate());
-    return Math.round((n - d) / MS_PER_DAY);
   }
   function isStale(iso) {
     var d = daysOld(iso);
@@ -83,10 +60,6 @@ function scMod(key, btn) {
     );
   }
   var GLYPH = { above: '▲', ramping: '▲', below: '▼', detraining: '▼', at: '■', steady: '■' };
-  // baked dates are interpolated into markup: accept only a real ISO date, anything else renders as absent
-  function isoDate(s) {
-    return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
-  }
   function arrow(band) {
     var g = GLYPH[band] || GLYPH.at;
     return '<span class="sc-arrow sc-arrow-' + esc(band) + '" aria-hidden="true">' + g + '</span>';
@@ -243,11 +216,6 @@ function scMod(key, btn) {
   // "Last night" only when the night's data is dated today AND has a sleep reading; else its date
   function nightLbl(iso, hasSleep, rt) {
     return daysOld(iso) === 0 && hasSleep ? rt.lastNight : format(T.asOfLbl, { date: isoDate(iso) || '' });
-  }
-  // the viewer's today as an ISO date (local calendar), to pick today's session day client-side
-  function todayIso() {
-    var n = new Date(Date.now());
-    return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
   }
   // one modality's state for the viewer's today: 'trained' (RE > 0), 'noEffort' (rows, no RE), 'rest'
   function loadToday(m) {

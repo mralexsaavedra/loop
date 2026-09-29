@@ -19,6 +19,7 @@ export const es = {
   staleNote: 'Datos de hace {days} días: las ventanas terminan el {date}.',
   empty: 'Aún no hay entrenos. Aparecen con los entrenos del reloj o desde Strava (<code>npm run sync:strava</code>).',
   modalityLabels: { strength: 'Fuerza', hiit: 'Gimnasio', run: 'Carrera', bike: 'Bici', other: 'Otro' },
+  units: { h: 'h', min: 'min' },
   note: 'Días distintos, no registros (el reloj divide una sesión); duración, no kcal. Las modalidades son las etiquetas automáticas del reloj.',
 };
 
@@ -39,5 +40,6 @@ export const en = {
   staleNote: 'Data is {days} days old: the windows end on {date}.',
   empty: 'No workouts yet. They appear with Watch workouts or from Strava (<code>npm run sync:strava</code>).',
   modalityLabels: { strength: 'Strength', hiit: 'Gym', run: 'Run', bike: 'Bike', other: 'Other' },
+  units: { h: 'h', min: 'min' },
   note: 'Distinct days, not records (the watch splits a session); duration, not kcal. Modalities are the watch’s auto-labels.',
 };
