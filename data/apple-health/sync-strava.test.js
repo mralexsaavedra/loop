@@ -68,17 +68,38 @@ test('toRow returns null when there is no usable duration (skip the activity, no
   assert.equal(toRow({ id: '1', start_local: null, sport_type: 'Run', moving_time: 600 }), null, 'no start_local -> no date -> skip');
 });
 
-// ---- buildRows: aggregates unmapped + noHr counts ----------------------------------------
+test('toRow slices start_local as plain text regardless of trailing Z or a UTC offset', () => {
+  const withZ = toRow({ id: '1', start_local: '2026-08-20T07:00:00Z', sport_type: 'Run', moving_time: 600 });
+  const withOffset = toRow({ id: '2', start_local: '2026-08-20T07:00:00+02:00', sport_type: 'Run', moving_time: 600 });
+  assert.equal(withZ.date, '2026-08-20');
+  assert.equal(withOffset.date, '2026-08-20');
+});
 
-test('buildRows counts unmapped sport types and rows written without HR, skipping durationless activities', () => {
+// ---- buildRows: aggregates unmapped + dropped counts, tags each row with hasHr -----------
+
+test('buildRows counts unmapped sport types and dropped (durationless/dateless) activities', () => {
   const out = buildRows([
     { id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1800, average_heartrate: 140 },
     { id: '2', start_local: '2026-08-21T07:00:00', sport_type: 'Kickball', moving_time: 1200 },
     { id: '3', start_local: '2026-08-22T07:00:00', sport_type: 'Ride', moving_time: 0, elapsed_time: 0 },
+    { id: '4', start_local: null, sport_type: 'Run', moving_time: 600 },
   ]);
-  assert.equal(out.rows.length, 2, 'the durationless activity is skipped entirely');
+  assert.equal(out.rows.length, 2, 'the durationless/dateless activities are skipped entirely');
   assert.deepEqual(out.unmapped, { Kickball: 1 });
-  assert.equal(out.noHr, 1, 'the Kickball row has no HR');
+  assert.equal(out.dropped, 2, 'activity 3 (no duration) and activity 4 (no date) are both dropped');
+});
+
+test('buildRows tags each row with whether it has HR (for post-merge noHr accounting)', () => {
+  const out = buildRows([
+    { id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1800, average_heartrate: 140 },
+    { id: '2', start_local: '2026-08-21T07:00:00', sport_type: 'Run', moving_time: 1800 },
+  ]);
+  assert.deepEqual(out.rows.map((r) => r.hasHr), [true, false]);
+});
+
+test('buildRows falls back to a "null" unmapped key when sport_type is missing', () => {
+  const out = buildRows([{ id: '1', start_local: '2026-08-20T07:00:00', sport_type: undefined, moving_time: 600 }]);
+  assert.deepEqual(out.unmapped, { null: 1 });
 });
 
 // ---- merge: export wins by date, historical Strava rows survive, same-day kept, idempotent, orphan ----
@@ -203,6 +224,20 @@ test('unmapped and noHr counts land in _meta.json stravaSync', () => {
   const meta = JSON.parse(plan.writes['_meta.json']);
   assert.deepEqual(meta.stravaSync.unmapped, { Frisbee: 1 });
   assert.equal(meta.stravaSync.noHr, 2);
+  assert.equal(meta.stravaSync.dropped, 0);
+});
+
+test('noHr in _meta.json only counts rows actually WRITTEN, not activities dropped by export-wins or lacking duration', () => {
+  const files = { [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-20,Running,30,,140,,165,Watch,5'].join('\n') + '\n' };
+  const read = (name) => files[name] ?? null;
+  const plan = planSync([
+    { id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 1800 }, // covered date -> DROPPED by merge, no HR either way
+    { id: '2', start_local: '2026-08-21T07:00:00', sport_type: 'Ride', moving_time: 1800 }, // uncovered, no HR -> WRITTEN, counts
+    { id: '3', start_local: '2026-08-22T07:00:00', sport_type: 'Run' } // no duration -> DROPPED before merge entirely
+  ], read);
+  const meta = JSON.parse(plan.writes['_meta.json']);
+  assert.equal(meta.stravaSync.noHr, 1, 'only the one written HR-less row counts, not the merge-dropped or duration-dropped activities');
+  assert.equal(meta.stravaSync.dropped, 1, 'the durationless activity is counted as dropped');
 });
 
 // ---- fetchActivities: paging, timeout, non-array, 404 message ---------------------------
@@ -291,4 +326,18 @@ test('contract: an extract.js rewrite drops the CSV/ledger; the next Strava sync
   syncDir(out, activities); // nothing changed on Strava's side -> rebuilt from the fresh pull alone
   assert.equal(read(WORKOUTS_CSV), beforeReextract);
   fs.rmSync(dir, { recursive: true });
+});
+
+// ---- end-to-end: an unmapped Strava sport_type -> 'Other' -> the dashboard's 'hiit' bucket ----
+
+test('end-to-end: an unmapped sport_type translates to Other and lands in the dashboard hiit bucket', async () => {
+  const { modalityGroup, parseWorkouts, aggregateDashboard } = await import('../../lib/training/dashboard.mjs');
+  const row = toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Curling', moving_time: 1800 });
+  assert.match(row.line, /^2026-08-20,Other,/);
+  assert.equal(modalityGroup('Other'), 'hiit');
+  const parsed = parseWorkouts([WORKOUTS_HEADER, row.line].join('\n'));
+  const dash = aggregateDashboard(parsed);
+  const hiit = dash.modality.find((m) => m.key === 'hiit');
+  assert.ok(hiit, 'the unmapped-type row must show up in the hiit bucket');
+  assert.equal(hiit.min, 30);
 });
