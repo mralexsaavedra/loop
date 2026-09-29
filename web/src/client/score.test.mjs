@@ -123,7 +123,7 @@ test('load: one card per modality (gym/run/bike), gated ones show the reason and
 test('coverage counters and the other line are shown; the other line says it is not scored', () => {
   const s = fixtureScores();
   const html = render(s);
-  for (const k of ['scored', 'unscored', 'invalid', 'droppedJunk', 'preEpoch']) {
+  for (const k of ['scored', 'unscored', 'invalid', 'droppedJunk', 'superseded', 'preEpoch']) {
     assert.match(html, new RegExp(`sc-cov-${k}">${s.load.coverage[k]}<`), k);
   }
   assert.ok(s.load.coverage.droppedJunk >= 1);

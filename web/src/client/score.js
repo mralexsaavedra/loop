@@ -187,7 +187,7 @@ function scMod(key, btn) {
     out.push('<div class="sc-other">' + esc(format(lt.otherLine, { days: o.windowDays || 28, minutes: num(o.minutes || 0, 0, false), re: num(o.re || 0, 0, false), sessions: o.sessions || 0 })) + '</div>');
     var c = L.coverage || {};
     out.push('<div class="sc-cov"><b>' + esc(lt.coverageHeading) + ':</b> ' +
-      ['scored', 'unscored', 'invalid', 'droppedJunk', 'preEpoch'].map(function (k) {
+      ['scored', 'unscored', 'invalid', 'droppedJunk', 'superseded', 'preEpoch'].map(function (k) {
         return '<span><b class="sc-cov-' + k + '">' + (c[k] || 0) + '</b> ' + esc(lt.coverage[k]) + '</span>';
       }).join(' · ') + '</div>');
     out.push('<div class="sc-note">' + esc(isoDate(L.reEpoch) ? format(lt.preEpochNote, { date: L.reEpoch }) : lt.noEpochNote) + '</div>');

@@ -262,8 +262,9 @@ per-modality load cards + caveats (`#score-load`, client/score.js), then the **3
 calendar** and **cumulative training time** (`#train-activity`, `lib/training/activity.mjs` →
 `ACTIVITY`, baked in TrainingDetail with `I18N_ACTIVITY`; client/training-activity.js), then running,
 cycling and load vs recovery (`#health-train`, client/health.js). The calendar/cumulative follow the
-dashboard's rules: duration not kcal, DISTINCT days (same-day rows summed), dashboard modality
-buckets. Only the last 63 data days are baked (two 30-day windows + 3 days of viewer slack), one entry
+dashboard's rules: duration not kcal, DISTINCT days, dashboard modality buckets, and the shared
+same-day rule (`lib/training/sessions.mjs`: junk stubs dropped, one source per date + bucket, then
+summed). Only the last 63 data days are baked (two 30-day windows + 3 days of viewer slack), one entry
 per active day; the client ends both windows at the VIEWER's today, or at the data date (greyed, with
 a note) when that is more than 3 days old. Calendar = Monday-first weeks, ONE sequential hue
 (`--strain`) in five levels by total minutes (none, < 30, 30–59, 60–89, 90+), an SVG `<title>` per
@@ -387,8 +388,8 @@ anchor for Inicio's health monitor.
   right after Running as a RECENT-RIDES table with the same style and row budget (8, newest first) so
   run and bike carry equal weight: date, distance, time (Strava moving time / Watch duration),
   elevation gain, avg HR, relative effort, kJ, plus the ride count. Same-day rows merge into ONE ride
-(the Watch fragments a session): sums for time/distance/kJ/elevation/RE, duration-weighted avg HR,
-and the count is distinct ride days. Elevation / RE / kJ come from
+  under the shared same-day rule (junk stubs dropped, the Strava copy wins over a Watch copy): sums
+  for time/distance/kJ/elevation/RE, duration-weighted avg HR, and the count is distinct ride days. Elevation / RE / kJ come from
   Strava only; a field the source did not record renders as a dash, never 0. When only one of run /
   bike has data, the other shows its empty-state line; with neither, both are omitted.
 - **Recovery** — `rhr.csv`, `hrv.csv` (averaged per day), `vo2max.csv`, `sleep-daily.csv`,
@@ -436,8 +437,8 @@ is the newest day, and the trend is the line under it.
   unless components with ≥ 14 baseline days carry ≥ 0.60 of the weight, include HRV or RHR, and there
   are ≥ 7 composite days in the last 14.
 - **Load** is PER MODALITY (gym / run / bike; `other` is shown raw, never scored) and Relative-Effort-only
-  (Strava `suffer_score`; Apple rows have no RE and are counted as `unscored`). Same-day rows: drop
-  junk (`dur <= 10` AND `re` null or ≤ 2), then SUM. The series starts at the first date with any RE
+  (Strava `suffer_score`; Apple rows have no RE and are counted as `unscored`). Same-day rows follow
+  the shared rule below (junk dropped, one source, then SUM). The series starts at the first date with any RE
   (`reEpoch`); acute 7d vs chronic 42d EWMA; a modality gates ("baselineBuilding") under 28 days since the
   epoch, under 8 non-zero days, or chronic < 1. The 0-100 `relScore` exists only within a modality.
   Today first: `typical` = the median of the NON-ZERO days in the 42 days before asOf (asOf
@@ -484,8 +485,8 @@ is the newest day, and the trend is the line under it.
 - **Today's timeline** (`lib/score/timeline.mjs`, baked as `SCORES.timeline` even when `hasData` is
   false; `#timeline` + `client/timeline.js`, under the monitor): per day, last night's sleep
   (`sleep-daily.csv`, dated the wake-up day) and that day's workouts by Home modality (gym / run /
-  bike / other) with minutes and RE when the source recorded it. Junk rows are dropped and same-day
-  rows of one modality merge (load rules; the row says "N parts"). Only the last 3 data days are
+  bike / other) with minutes and RE when the source recorded it. Rows follow the shared same-day
+  rule (junk dropped, one source, same-day rows of one modality merge; the row says "N parts"). Only the last 3 data days are
   baked; the client shows the viewer's today, else the newest earlier day under "Latest day · <date>"
   with "nothing logged yet today", greyed when > 3 days old; no baked days → empty state. No sleep
   that night → "No sleep recorded", never 0 h.
@@ -496,6 +497,16 @@ is the newest day, and the trend is the line under it.
 - Caveats shown on the page: RE is HR-derived (credits the metcon more than heavy sets), modalities are
   not comparable, "gym" is the Watch auto-label, no comparable load before the RE epoch, same-day rows
   are summed (a real two-a-day is indistinguishable), HRV is daytime SDNN, not medical advice.
+- **One same-day merge rule** (`lib/training/sessions.mjs` `mergeSameDay(rows, keyFn, { dropJunk })`),
+  used by EVERY workouts.csv reader: the load series, the timeline, the Entreno calendar/cumulative
+  time and the running/cycling tables (the key is the reader's modality bucket). Per (date, key):
+  drop invalid rows (`dur <= 0`); drop junk (`isJunk`: `dur <= 11` AND `re` null or ≤ 2 — so a 2-min
+  Watch stub never colours a rest day); when a Strava row (`source` "Strava API" or legacy "Strava")
+  AND a Watch row exist for the same date and key, keep ONLY the Strava rows (they carry RE /
+  elevation / kJ) instead of summing a double-counted session — sync:strava's date-level precedence
+  should prevent the pair but has known holes; the load coverage counts these as `superseded`; then
+  the remaining rows are summed as ONE session (a session logged in parts adds up; a real two-a-day
+  is indistinguishable).
 - **workouts.csv has 12 columns** (`… ,distance_km,relative_effort,kilojoules,elevation_m`), written by
   both `extract.js` and `sync-strava.js` from the shared `WORKOUTS_HEADER`. The three trailing columns
   are Strava-only (export rows leave them empty). Every reader is POSITIONAL and tolerates shorter
