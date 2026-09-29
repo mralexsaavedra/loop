@@ -392,16 +392,16 @@ test('load dial: rows today but no Relative Effort -> "no effort data", never re
   assert.ok(capOf(html, 'run').startsWith(enT.dials.load.noEffortLine.split('·')[0].trim()));
 });
 
-test('load dial: no session today -> "Rest today" with the last session (date + RE) as context', () => {
+test('load dial: no session today -> "No session yet today" with the last session (date + RE) as context', () => {
   const s = withRecent(fixtureScores(), RECENT, { date: ASOF, re: 57 });
   const html = withDials(s, { now: addDays(ASOF, 1) });
   const fig = figOf(html, 'run');
   assert.ok(fig.includes(enT.dials.load.rest));
   assert.doesNotMatch(fig, /dial-num|dial-dot/);
   const cap = capOf(html, 'run');
-  assert.ok(cap.startsWith('Rest today · last session ' + ASOF + ': RE 57'), cap);
+  assert.ok(cap.startsWith('No session yet today · last session ' + ASOF + ': RE 57'), cap);
   const none = withRecent(fixtureScores(), [], null);
-  assert.ok(capOf(withDials(none), 'run').startsWith('Rest today · typical day'), 'no last session known');
+  assert.ok(capOf(withDials(none), 'run').startsWith('No session yet today · typical day'), 'no last session known');
 });
 
 test('dials: stale data greys the dial; fresh data does not', () => {
