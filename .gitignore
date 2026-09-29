@@ -73,3 +73,8 @@ data/gear/*
 # Clinical documents (ER reports, discharge notes, lab results) — medical data, NEVER commit.
 data/clinical/*
 !data/clinical/.gitkeep
+
+# Golden legacy-output fixtures (astro-plan-web migration): a local snapshot of
+# generator output used to check byte-identity during the lib/ extraction. Quotes
+# personal plan/training/health data → never commit.
+web/test/.golden/
