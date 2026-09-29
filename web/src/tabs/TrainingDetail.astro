@@ -6,7 +6,9 @@
  *   #score-load      per-modality load cards + caveats (client/score.js, SCORES from the shared <Bake>)
  *   #train-activity  calendar + cumulative time (client/training-activity.js, ACTIVITY baked HERE)
  *   #health-train    running, cycling, load vs recovery (client/health.js, HEALTH from the shared <Bake>)
- * `jump-anchor` gives #score-load the same scroll margin as a section (the load dial jumps here).
+ * Each host is a SECTION (load / calendar / sessions, lib/nav/tabs.mjs SECTION_TAB), so
+ * `page.hideTabs` can hide it; hiding all of them and `dash` drops the Entreno button. The load
+ * dial jumps to #score-load; `jump-anchor` gives it the same scroll margin as a section.
  * ACTIVITY carries only the data's own dates (no build-time now), so builds stay byte-identical.
  */
 import { jsonForScript } from '../../../lib/serialize.mjs';
@@ -15,11 +17,18 @@ import { es as esActivity, en as enActivity } from '../i18n/activity-templates.m
 interface Props {
   activity: any; // lib/training/activity.mjs buildActivity() result
   locale: string;
+  hidden?: { load?: boolean; calendar?: boolean; sessions?: boolean };
 }
-const { activity, locale } = Astro.props;
+const { activity, locale, hidden = {} } = Astro.props;
 const bake = `var ACTIVITY = ${jsonForScript(activity)};\nvar I18N_ACTIVITY = ${jsonForScript(locale === 'es' ? esActivity : enActivity)};`;
 ---
-<div id="score-load" class="jump-anchor"></div>
-<div id="train-activity"></div>
-<div id="health-train"></div>
+<section class="tab-section" data-section="load" id="sec-load" hidden={!!hidden.load}>
+  <div id="score-load" class="jump-anchor"></div>
+</section>
+<section class="tab-section" data-section="calendar" id="sec-calendar" hidden={!!hidden.calendar}>
+  <div id="train-activity"></div>
+</section>
+<section class="tab-section" data-section="sessions" id="sec-sessions" hidden={!!hidden.sessions}>
+  <div id="health-train"></div>
+</section>
 <script is:inline set:html={bake}></script>

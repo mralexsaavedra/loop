@@ -65,9 +65,10 @@ function assertHonours(html, hideTabs) {
     assert.ok(key in states, `section "${key}" must always render (hideTabs only hides it)`);
     assert.equal(states[key], hidden.has(key), `section "${key}" hidden=${states[key]}, expected ${hidden.has(key)}`);
   }
-  const allSectionsGone = sectionsOf('nutricion').every((k) => hidden.has(k));
+  // Nutrición and Entreno are made ONLY of sections: hiding all of them drops the tab
+  const allSectionsGone = (tab) => ['nutricion', 'entreno'].includes(tab) && sectionsOf(tab).every((k) => hidden.has(k));
   for (const [key, navId] of Object.entries(NAV_ID)) {
-    const expectHidden = hidden.has(key) || (key === 'nutricion' && allSectionsGone);
+    const expectHidden = hidden.has(key) || allSectionsGone(key);
     const re = new RegExp(`id="${navId}"`);
     if (expectHidden) assert.doesNotMatch(html, re, `"${key}" hidden — nav button #${navId} must be omitted`);
     else assert.match(html, re, `"${key}" visible — nav button #${navId} must be present`);
@@ -143,7 +144,10 @@ function buildWithHideTabs(hideTabs) {
 }
 
 test('build-level: legacy keys hide their sections; top-level keys hide their tab', () => {
-  for (const hideTabs of [['hoy'], ['dia', 'dash'], ['registro', 'tablas', 'home'], ['dia', 'registro', 'tablas'], ['health'], ['dia', 'registro', 'entreno']]) {
+  for (const hideTabs of [
+    ['hoy'], ['dash'], ['entreno'], ['entreno', 'dash'], ['dia', 'dash'], ['registro', 'tablas', 'home'],
+    ['dia', 'registro', 'tablas'], ['health'], ['dia', 'registro', 'entreno'], ['load', 'calendar', 'sessions', 'dash'],
+  ]) {
     const { r, html } = buildWithHideTabs(hideTabs);
     assert.equal(r.status, 0, `build with hideTabs=${JSON.stringify(hideTabs)} failed:\n${r.stderr}`);
     assertHonours(html, hideTabs);

@@ -144,17 +144,18 @@ live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
 | Tab (key) | Content, top to bottom |
 | --- | --- |
 | 🏠 Inicio (`home`) | TODAY: Sleep / Recovery / Load dials; health monitor; today's timeline (last night's sleep + the day's workouts); the advice sentence; "today you eat" card (day toggle + that day's kcal/macros, link to Nutrición); programmed session (`hoy`) |
-| 🏃 Entreno (`entreno`) | per-modality load cards + caveats (`#score-load`, the detail behind the load dial); 30-day activity calendar + cumulative training time (`#train-activity`); running table, cycling table, load vs recovery (`#health-train`); Entrenamiento dashboard (`dash`) |
+| 🏃 Entreno (`entreno`) | per-modality load cards + caveats (`load`: `#score-load`, the detail behind the load dial); 30-day activity calendar + cumulative training time (`calendar`: `#train-activity`); running table, cycling table, load vs recovery (`sessions`: `#health-train`); Entrenamiento dashboard (`dash`) |
 | 💗 Salud (`health`) | recovery (`#hl-recovery`, with the recovery detail card `#score-recovery`, then the recovery trends); sleep (`#hl-sleep`); body composition; daily activity; energy expenditure |
 | 🍽️ Nutrición (`nutricion`) | Mi día plan (`dia`); Registro (`registro`, collapsible); Tablas (`tablas`, collapsible) — the global train/rest toggle shows here, and only while Mi día or Registro is visible |
 
 `lib/nav/tabs.mjs` is the ONE source of the tab keys (`TAB_KEYS`) and of the legacy-section map
 (`SECTION_TAB`); the page derives each tab's section list from it (`sectionsOf`) and bakes both as
 `NAV` for core.js. `page.hideTabs` semantics (resolved by `resolveNav`): a top-level key
-(`home`/`entreno`/`health`/`nutricion`) removes that nav button; a legacy key (`hoy`/`dash`/`dia`/
-`registro`/`tablas`) renders that section `hidden`. Panels, sections, baked globals and scripts
-always stay in the build. Nutrición disappears when all three of its sections are hidden (Entreno
-does not when `dash` is hidden: it holds more); the visible tab on load is the first remaining one;
+(`home`/`entreno`/`health`/`nutricion`) removes that nav button; a section key (`hoy`/`load`/
+`calendar`/`sessions`/`dash`/`dia`/`registro`/`tablas`) renders that section `hidden`. Panels,
+sections, baked globals and scripts always stay in the build. Nutrición and Entreno are made ONLY of
+sections (they carry `sections` in `resolveNav`): each disappears when ALL its sections are hidden —
+hiding `dash` alone hides only the dashboard, Entreno stays; the visible tab on load is the first remaining one;
 hiding every tab fails the build. `setTab('<legacy key>')` still works (it opens the hosting tab and
 scrolls to the section — `setTab('dash')` opens Entreno). The train/rest toggle is marked `data-off`
 when only Tablas is left (`showDayToggle`), and the "today you eat" card drops its link when
