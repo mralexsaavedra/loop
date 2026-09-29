@@ -5,8 +5,10 @@
  * Classic script (is:inline, no module scope). The build bakes only the last few data days; the
  * VIEWER's today is picked here from Date.now(), so consecutive builds stay byte-identical. When
  * today has nothing yet, the newest earlier day is shown under its date with a "nothing logged yet
- * today" line; data older than STALE_DAYS is greyed. A throw renders the card's fallback, never a
- * blank Inicio. A row opens its detail (sleep -> Salud, a workout -> Entreno's load detail) only
+ * today" line; data older than STALE_DAYS is greyed. When the viewer's clock is EARLIER than every
+ * baked day (clock / timezone skew), the newest baked day is shown under its date instead of the
+ * empty state. A throw (even a missing LOCALE global) renders the card's fallback, never a blank
+ * Inicio. A row opens its detail (sleep -> Salud, a workout -> Entreno's load detail) only
  * when that tab is reachable.
  */
 (function () {
@@ -16,7 +18,7 @@
   var TL = S && S.timeline;
   var T = typeof I18N_SCORE === 'undefined' || !I18N_SCORE ? null : I18N_SCORE.timeline;
   if (!TL || !T) return;
-  var ES = LOCALE === 'es';
+  var ES = false; // set inside the try: a missing LOCALE global must hit the fallback, not throw
   var STALE_DAYS = 3;
   var MS_PER_DAY = 86400000;
 
@@ -59,14 +61,19 @@
 
   function html() {
     var today = todayIso();
-    var day = null;
+    var day = null, newest = null;
     (TL.days || []).forEach(function (d) {
-      if (isoDate(d.date) && d.date <= today && (!day || d.date > day.date)) day = d;
+      if (!isoDate(d.date)) return;
+      if (!newest || d.date > newest.date) newest = d;
+      if (d.date <= today && (!day || d.date > day.date)) day = d;
     });
+    // clock skew: every baked day is after the viewer's today -> the newest one, under its date
+    var ahead = !day && !!newest;
+    if (ahead) day = newest;
     if (!day) return card('<div class="sc-head"><h3>' + esc(T.heading) + '</h3></div><div class="sc-note">' + esc(T.empty) + '</div>', false);
     var isToday = day.date === today;
     var out = ['<div class="sc-head"><h3>' + esc(isToday ? T.heading : format(T.dateHeading, { date: day.date })) + '</h3></div>'];
-    if (!isToday) out.push('<div class="sc-note">' + esc(T.noToday) + '</div>');
+    if (!isToday && !ahead) out.push('<div class="sc-note">' + esc(T.noToday) + '</div>');
     var list = [];
     list.push(day.sleep != null
       ? row('tl-sleep', linkAttrs('hl-sleep', 'health'), T.sleep, format(T.sleepVal, { hours: num(day.sleep, 1) }))
@@ -84,6 +91,7 @@
   }
 
   try {
+    ES = LOCALE === 'es';
     host.innerHTML = html();
   } catch (e) {
     host.innerHTML = '<div class="sc-card sc-card-error">' + esc((I18N_SCORE.recovery && I18N_SCORE.recovery.cardError) || '') + '</div>';

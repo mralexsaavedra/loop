@@ -266,8 +266,9 @@ cycling and load vs recovery (`#health-train`, client/health.js). The calendar/c
 dashboard's rules: duration not kcal, DISTINCT days, dashboard modality buckets, and the shared
 same-day rule (`lib/training/sessions.mjs`: junk stubs dropped, one source per date + bucket, then
 summed). Only the last 63 data days are baked (two 30-day windows + 3 days of viewer slack), one entry
-per active day; the client ends both windows at the VIEWER's today, or at the data date (greyed, with
-a note) when that is more than 3 days old. Calendar = Monday-first weeks, ONE sequential hue
+per active day; the client ends both windows at the VIEWER's today, or at the data date when that is
+more than 3 days old (greyed, with a note) or AFTER the viewer's today (clock / timezone skew, so the
+newest sessions stay visible). Calendar = Monday-first weeks, ONE sequential hue
 (`--strain`) in five levels by total minutes (none, < 30, 30–59, 60–89, 90+), an SVG `<title>` per
 cell; cumulative = the running sum of daily minutes, last 30 days (`--strain`) vs the previous 30
 (dashed `--faint`), totals written in the legend, a hover target per day.
@@ -341,7 +342,8 @@ plus the build-output/i18n/hide-tabs integration tests.
 
 `lib/health/{read,stats,aggregate}.mjs` (same single-source pattern) compute the stacked sections
 from the Apple Health extract CSVs (all OPTIONAL — absent CSVs render an empty state, never fail the
-build); `web/src/client/health.js` renders them into TWO hosts, each with its own empty state:
+build); `web/src/client/health.js` renders them into TWO hosts, each with its own empty state and
+its own try/catch (a throw in one half renders that half's empty state, never blanks the other):
 `#health` (Salud: recovery with `#score-recovery` right under its heading, sleep, body composition,
 activity, energy — in that order) and `#health-train` (Entreno: running, cycling, load vs recovery).
 
@@ -482,7 +484,9 @@ is the newest day, and the trend is the line under it.
   <date>: RE <n>" as context. Every caption keeps acute/chronic as context ("7-day vs 42-day load: -6% ·
   steady"). A gated modality (`baselineBuilding`, or `fewDays` when there is no typical day) is greyed
   with its copy and no number. Each dial block / card renders through a try/catch with an empty-state
-  fallback, so one throw never blanks Inicio. Stale data (> 3 days) greys a dial; the fill
+  fallback, and every host write (`#home`, `#home-dials`, `#score-recovery`, `#score-load`, the advice)
+  is isolated, so one throw never blanks Inicio or the other hosts; with no score data every host gets
+  the empty state. Stale data (> 3 days) greys a dial; the fill
   animation is off under `prefers-reduced-motion`.
 - **Today's timeline** (`lib/score/timeline.mjs`, baked as `SCORES.timeline` even when `hasData` is
   false; `#timeline` + `client/timeline.js`, under the monitor): per day, last night's sleep
@@ -490,7 +494,9 @@ is the newest day, and the trend is the line under it.
   bike / other) with minutes and RE when the source recorded it. Rows follow the shared same-day
   rule (junk dropped, one source, same-day rows of one modality merge; the row says "N parts"). Only the last 3 data days are
   baked; the client shows the viewer's today, else the newest earlier day under "Latest day · <date>"
-  with "nothing logged yet today", greyed when > 3 days old; no baked days → empty state. No sleep
+  with "nothing logged yet today", greyed when > 3 days old; when the viewer's clock is EARLIER than
+  every baked day (clock / timezone skew) → the newest baked day under its date (no "nothing logged"
+  line, not greyed); no baked days → empty state. No sleep
   that night → "No sleep recorded", never 0 h.
 - **Advice** is one descriptive sentence per rule (`lib/score/advice.mjs`, copy in `advice-copy.mjs`),
   never an instruction; hidden when data is insufficient or stale (> 3 days). The rules still read the

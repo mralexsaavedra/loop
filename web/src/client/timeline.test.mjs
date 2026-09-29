@@ -19,17 +19,18 @@ const TL = timelineFromInputs(
   [{ date: '2026-09-28', value: 7.1 }, { date: '2026-09-29', value: 6.86 }],
 );
 
-function render(timeline, { locale = 'en', now = ASOF, healthNav = false, entrenoNav = false, T } = {}) {
+function render(timeline, { locale = 'en', now = ASOF, at, healthNav = false, entrenoNav = false, T, noLocale = false } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
+  const stamp = at || now + 'T12:00:00';
   class FakeDate extends RealDate {
-    constructor(...a) { super(...(a.length ? a : [now + 'T12:00:00'])); }
-    static now() { return new RealDate(now + 'T12:00:00').getTime(); }
+    constructor(...a) { super(...(a.length ? a : [stamp])); }
+    static now() { return new RealDate(stamp).getTime(); }
   }
   const byId = { timeline: host, 't-health': healthNav ? {} : null, 't-entreno': entrenoNav ? {} : null };
   const ctx = {
     document: { getElementById: (id) => byId[id] || null },
-    SCORES: timeline === undefined ? undefined : { timeline }, I18N_SCORE: T || (locale === 'es' ? esT : enT), LOCALE: locale,
+    SCORES: timeline === undefined ? undefined : { timeline }, I18N_SCORE: T || (locale === 'es' ? esT : enT), ...(noLocale ? {} : { LOCALE: locale }),
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
   vm.createContext(ctx);
@@ -57,6 +58,26 @@ test('today not in the data: the newest earlier day, labelled by its date, and "
   const earlier = render(TL, { now: '2026-09-28' });
   assert.ok(earlier.includes(`<h3>${enT.timeline.heading}</h3>`), 'viewer a day behind the data: their today is the 28th');
   assert.deepEqual(rows(earlier).map((r) => r.cls), ['tl-sleep', 'tl-gym']);
+});
+
+test('clock edge: 23:59 is still that day, 00:01 is the next one (local calendar)', () => {
+  assert.ok(render(TL, { at: '2026-09-29T23:59:00' }).includes(`<h3>${enT.timeline.heading}</h3>`));
+  const after = render(TL, { at: '2026-09-30T00:01:00' });
+  assert.ok(after.includes(enT.timeline.dateHeading.replace('{date}', '2026-09-29')));
+  assert.ok(after.includes(enT.timeline.noToday));
+  const behind = render(TL, { at: '2026-09-28T00:01:00' });
+  assert.deepEqual(rows(behind).map((r) => r.cls), ['tl-sleep', 'tl-gym'], 'just after midnight on the 28th: the 28th');
+});
+
+test('clock skew: the viewer\'s today EARLIER than every baked day -> the newest baked day under its date, never the empty state', () => {
+  const html = render(TL, { now: '2026-09-20' });
+  assert.ok(html.includes(enT.timeline.dateHeading.replace('{date}', '2026-09-29')), 'labelled by its date');
+  assert.ok(!html.includes(enT.timeline.empty), 'not the empty state');
+  assert.ok(!html.includes(enT.timeline.noToday), 'no "nothing logged yet today": the day is ahead of the viewer\'s clock');
+  assert.equal(rows(html).length, 3);
+  assert.doesNotMatch(html, /sc-stale/, 'a day ahead of the clock is not stale');
+  const midnight = render(TL, { at: '2026-09-27T23:59:00' });
+  assert.ok(midnight.includes(enT.timeline.dateHeading.replace('{date}', '2026-09-29')), '23:59 the day before the window: same fallback');
 });
 
 test('a day without a sleep reading says so, never 0 h', () => {
@@ -89,6 +110,12 @@ test('rows open their detail only when that tab is reachable: sleep -> Salud #hl
   assert.match(linked, /<li class="tl-row tl-sleep" role="button" tabindex="0" onclick="jumpOr\('hl-sleep','health'\)"/);
   assert.match(linked, /<li class="tl-row tl-run" role="button" tabindex="0" onclick="jumpOr\('score-load','entreno'\)"/);
   assert.doesNotMatch(render(TL), /jumpOr/);
+});
+
+test('resilience: a missing LOCALE global renders the card fallback inside the try, never throws', () => {
+  let html;
+  assert.doesNotThrow(() => { html = render(TL, { noLocale: true }); });
+  assert.match(html, /sc-card-error/);
 });
 
 test('resilience: a broken baked day renders the card fallback, never throws', () => {

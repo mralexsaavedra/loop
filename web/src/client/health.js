@@ -146,154 +146,173 @@
   //                                      body composition, activity, energy
   //   #health-train (Entreno)            running, cycling, load vs recovery
   // A missing host skips its half; each half has its own empty state.
+  // Each half renders inside its own try/catch: a throw in one never blanks the other, and the
+  // broken half falls back to its own empty state.
   function render() {
-    var B = HEALTH.body || {}, A = HEALTH.activity || {}, E = HEALTH.energy || {}, Run = HEALTH.running || {}, R = HEALTH.recovery || {}, LR = HEALTH.loadRecovery || {}, Cyc = HEALTH.cycling || {};
-    var SC = typeof SCORES === 'undefined' || !SCORES ? null : SCORES;
-    var recScore = !!(SC && SC.recovery);
-    var out;
-    // one broken trend card must never blank the tab: it is skipped, the rest still render
-    function add(fn) {
+    var host = document.getElementById('health');
+    if (host) {
+      try {
+        renderSalud(host);
+      } catch (e) {
+        host.innerHTML = '<div class="train-empty">' + T.emptyMsg + '</div>';
+      }
+    }
+    var train = document.getElementById('health-train');
+    if (train) {
+      try {
+        renderEntreno(train);
+      } catch (e) {
+        train.innerHTML = '<div class="train-empty">' + T.trainEmptyMsg + '</div>';
+      }
+    }
+  }
+  // one broken trend card must never blank the tab: it is skipped, the rest still render
+  function adder(out) {
+    return function (fn) {
       try {
         out.push(fn());
       } catch (e) {
         /* skip this card */
       }
-    }
+    };
+  }
 
-    var host = document.getElementById('health');
-    if (host) {
-      out = [];
-      if (!B.hasData && !A.hasData && !E.hasData && !R.hasData && !recScore) {
-        host.innerHTML = '<div class="train-empty">' + T.emptyMsg + '</div>';
-      } else {
-        /* recovery: the recovery dial's detail card lands in #score-recovery, right under the heading */
-        if (R.hasData || recScore) {
-          out.push(sub('recovery'));
-          out.push('<div id="score-recovery"></div>');
+  function renderSalud(host) {
+    var B = HEALTH.body || {}, A = HEALTH.activity || {}, E = HEALTH.energy || {}, R = HEALTH.recovery || {};
+    var SC = typeof SCORES === 'undefined' || !SCORES ? null : SCORES;
+    var recScore = !!(SC && SC.recovery);
+    var out = [];
+    var add = adder(out);
+    if (!B.hasData && !A.hasData && !E.hasData && !R.hasData && !recScore) {
+      host.innerHTML = '<div class="train-empty">' + T.emptyMsg + '</div>';
+    } else {
+      /* recovery: the recovery dial's detail card lands in #score-recovery, right under the heading */
+      if (R.hasData || recScore) {
+        out.push(sub('recovery'));
+        out.push('<div id="score-recovery"></div>');
+      }
+      var TR = T.trend;
+      if (R.hasData) {
+        if (R.rhr) add(function () { return trend(TR.rhr.title, R.rhr.latest + '<small>' + TR.rhr.unit + '</small>', ctx(T.avg30Tpl, R.rhr.avg30, ' ' + TR.rhr.unit, delta(R.rhr.d30, TR.rhr.deltaUnit, -1)), R.rhr.spark, { date: R.rhr.latestDate, id: 'rhr' }); });
+        if (R.hrv) add(function () { return trend(TR.hrv.title, R.hrv.latest + '<small>' + TR.hrv.unit + '</small>', ctx(T.avg30Tpl, R.hrv.avg30, ' ' + TR.hrv.unit, delta(R.hrv.d30, TR.hrv.deltaUnit, 1)), R.hrv.spark, { date: R.hrv.latestDate, id: 'hrv' }); });
+        if (R.vo2max) add(function () { return trend(TR.vo2max.title, nf(R.vo2max.latest) + '<small>' + TR.vo2max.unit + '</small>', delta(Math.round((R.vo2max.latest - R.vo2max.first) * 10) / 10, '', 1), R.vo2max.spark, { date: R.vo2max.latestDate }); });
+        if (R.walkingHr) add(function () { return trend(TR.walkingHr.title, R.walkingHr.latest + '<small>' + TR.walkingHr.unit + '</small>', ctx(T.avg30Tpl, R.walkingHr.avg30, ' ' + TR.walkingHr.unit, delta(R.walkingHr.d30, TR.walkingHr.deltaUnit, -1)), R.walkingHr.spark, { date: R.walkingHr.latestDate }); });
+        if (R.respiratory) add(function () { return trend(TR.respiratory.title, nf(R.respiratory.latest) + '<small>' + TR.respiratory.unit + '</small>', ctx(T.avg30Tpl, R.respiratory.avg30, ' ' + TR.respiratory.unit, delta(R.respiratory.d30, '', 0)), R.respiratory.spark, { date: R.respiratory.latestDate, id: 'respiratory' }); });
+        if (R.wristTemp) add(function () { return trend(TR.wristTemp.title, nf(R.wristTemp.latest) + '<small>' + TR.wristTemp.unit + '</small>', ctx(T.avg30Tpl, R.wristTemp.avg30, ' ' + TR.wristTemp.unit, ''), R.wristTemp.spark, { date: R.wristTemp.latestDate, id: 'wristTemp' }); });
+        /* sleep: its own section; the heading is the hl-sleep anchor (sleep dial + monitor card) */
+        if (R.sleep) {
+          out.push(sub('sleep'));
+          add(function () { return trend(TR.sleep.title, nf(R.sleep.latest) + '<small>' + TR.sleep.unit + '</small>', ctx(T.avgNightsTpl, R.sleep.avg, ' ' + TR.sleep.unit, ''), R.sleep.spark, { date: R.sleep.latestDate }); });
+          var sl = R.sleep, c2 = [];
+          if (sl.pctTarget != null) c2.push(card(sl.pctTarget + '%', format(T.sleepCards.nightsTargetLbl, { target: nf(sl.target) })));
+          if (sl.sd != null) c2.push(card('±' + nf(sl.sd) + ' h', T.sleepCards.sdLbl));
+          if (sl.bedtime) c2.push(card(sl.bedtime + ' ±' + sl.bedtimeSd + '′', T.sleepCards.bedtimeLbl));
+          if (sl.wake) c2.push(card(sl.wake + ' ±' + sl.wakeSd + '′', T.sleepCards.wakeLbl));
+          if (c2.length) out.push('<div class="dash-cards c2">' + c2.join('') + '</div>');
         }
-        var TR = T.trend;
-        if (R.hasData) {
-          if (R.rhr) add(function () { return trend(TR.rhr.title, R.rhr.latest + '<small>' + TR.rhr.unit + '</small>', ctx(T.avg30Tpl, R.rhr.avg30, ' ' + TR.rhr.unit, delta(R.rhr.d30, TR.rhr.deltaUnit, -1)), R.rhr.spark, { date: R.rhr.latestDate, id: 'rhr' }); });
-          if (R.hrv) add(function () { return trend(TR.hrv.title, R.hrv.latest + '<small>' + TR.hrv.unit + '</small>', ctx(T.avg30Tpl, R.hrv.avg30, ' ' + TR.hrv.unit, delta(R.hrv.d30, TR.hrv.deltaUnit, 1)), R.hrv.spark, { date: R.hrv.latestDate, id: 'hrv' }); });
-          if (R.vo2max) add(function () { return trend(TR.vo2max.title, nf(R.vo2max.latest) + '<small>' + TR.vo2max.unit + '</small>', delta(Math.round((R.vo2max.latest - R.vo2max.first) * 10) / 10, '', 1), R.vo2max.spark, { date: R.vo2max.latestDate }); });
-          if (R.walkingHr) add(function () { return trend(TR.walkingHr.title, R.walkingHr.latest + '<small>' + TR.walkingHr.unit + '</small>', ctx(T.avg30Tpl, R.walkingHr.avg30, ' ' + TR.walkingHr.unit, delta(R.walkingHr.d30, TR.walkingHr.deltaUnit, -1)), R.walkingHr.spark, { date: R.walkingHr.latestDate }); });
-          if (R.respiratory) add(function () { return trend(TR.respiratory.title, nf(R.respiratory.latest) + '<small>' + TR.respiratory.unit + '</small>', ctx(T.avg30Tpl, R.respiratory.avg30, ' ' + TR.respiratory.unit, delta(R.respiratory.d30, '', 0)), R.respiratory.spark, { date: R.respiratory.latestDate, id: 'respiratory' }); });
-          if (R.wristTemp) add(function () { return trend(TR.wristTemp.title, nf(R.wristTemp.latest) + '<small>' + TR.wristTemp.unit + '</small>', ctx(T.avg30Tpl, R.wristTemp.avg30, ' ' + TR.wristTemp.unit, ''), R.wristTemp.spark, { date: R.wristTemp.latestDate, id: 'wristTemp' }); });
-          /* sleep: its own section; the heading is the hl-sleep anchor (sleep dial + monitor card) */
-          if (R.sleep) {
-            out.push(sub('sleep'));
-            add(function () { return trend(TR.sleep.title, nf(R.sleep.latest) + '<small>' + TR.sleep.unit + '</small>', ctx(T.avgNightsTpl, R.sleep.avg, ' ' + TR.sleep.unit, ''), R.sleep.spark, { date: R.sleep.latestDate }); });
-            var sl = R.sleep, c2 = [];
-            if (sl.pctTarget != null) c2.push(card(sl.pctTarget + '%', format(T.sleepCards.nightsTargetLbl, { target: nf(sl.target) })));
-            if (sl.sd != null) c2.push(card('±' + nf(sl.sd) + ' h', T.sleepCards.sdLbl));
-            if (sl.bedtime) c2.push(card(sl.bedtime + ' ±' + sl.bedtimeSd + '′', T.sleepCards.bedtimeLbl));
-            if (sl.wake) c2.push(card(sl.wake + ' ±' + sl.wakeSd + '′', T.sleepCards.wakeLbl));
-            if (c2.length) out.push('<div class="dash-cards c2">' + c2.join('') + '</div>');
-          }
-          out.push(note(T.recoveryNoteHtml));
-        }
-        /* body composition */
-        if (B.hasData) {
-          out.push(sub('body'));
-          if (B.weight) add(function () { return trend(T.trend.weight.title, nf(B.weight.latest) + '<small>' + T.trend.weight.unit + '</small>', delta(B.weight.d30, T.trend.weight.deltaUnit, 0), B.weight.spark, { date: B.weight.latestDate }); });
-          if (B.bodyfat) add(function () { return trend(T.trend.bodyfat.title, nf(B.bodyfat.latest) + '<small>' + T.trend.bodyfat.unit + '</small>', delta(B.bodyfat.delta, T.trend.bodyfat.deltaUnit, -1), B.bodyfat.spark, { date: B.bodyfat.latestDate }); });
-          if (B.lean) add(function () { return trend(T.trend.lean.title, nf(B.lean.latest) + '<small>' + T.trend.lean.unit + '</small>', delta(B.lean.delta, T.trend.lean.deltaUnit, 1), B.lean.spark, { date: B.lean.latestDate }); });
-          if (B.waist) add(function () { return trend(format(T.waist.titleTpl, { date: fmtD(B.waist.latestDate) }), nf(B.waist.latest) + '<small>' + T.waist.unit + '</small>', delta(B.waist.delta, T.waist.deltaUnit, -1), B.waist.spark); });
-          var wsrc = B.weight ? B.weight.source : '', bsrc = B.bodyfat ? B.bodyfat.source : '';
-          var sourcesClause = B.weight ? format(T.bodyNote.sourcesClause, { n: B.weight.sources }) : '';
-          var wsrcClause = wsrc ? format(T.bodyNote.sourceClause, { src: esc(wsrc) }) : '';
-          var bsrcClause = bsrc ? format(T.bodyNote.sourceClause, { src: esc(bsrc) }) : '';
-          out.push(note(format(T.bodyNote.main, { sourcesClause: sourcesClause, sourceClause: wsrcClause, bfSourceClause: bsrcClause })));
-          out.push(note(B.waist ? format(T.waist.noteTpl, { n: B.waist.points, first: esc(fmtD(B.waist.firstDate)) }) : T.waist.emptyHtml));
-        }
-        /* activity / NEAT */
-        if (A.hasData) {
-          out.push(sub('activity'));
-          ['steps', 'exercise', 'distance', 'flights'].forEach(function (k) {
-            var a = A[k], tt = T.trend[k];
-            if (!a) return;
-            add(function () { return trend(tt.title, nf(a.latest) + '<small>' + tt.unit + '</small>', ctx(T.avg30Tpl, a.avg30, tt.avgUnit, delta(a.d30, tt.deltaUnit, 1)), a.spark, { date: a.latestDate, soFar: true }); });
-          });
-          out.push(note(T.activityNoteHtml));
-        }
-        /* energy */
-        if (E.hasData) {
-          out.push(sub('energy'));
-          if (E.tdeeLatest != null) add(function () { return trend(T.trend.expenditure.title, nf(E.tdeeLatest) + '<small>' + T.trend.expenditure.unit + '</small>', ctx(T.avg30Tpl, E.tdeeAvg, T.trend.expenditure.avgUnit, ''), E.spark, { date: E.tdeeLatestDate, soFar: true }); });
-          if (E.balance) {
-            var b = E.balance;
+        out.push(note(T.recoveryNoteHtml));
+      }
+      /* body composition */
+      if (B.hasData) {
+        out.push(sub('body'));
+        if (B.weight) add(function () { return trend(T.trend.weight.title, nf(B.weight.latest) + '<small>' + T.trend.weight.unit + '</small>', delta(B.weight.d30, T.trend.weight.deltaUnit, 0), B.weight.spark, { date: B.weight.latestDate }); });
+        if (B.bodyfat) add(function () { return trend(T.trend.bodyfat.title, nf(B.bodyfat.latest) + '<small>' + T.trend.bodyfat.unit + '</small>', delta(B.bodyfat.delta, T.trend.bodyfat.deltaUnit, -1), B.bodyfat.spark, { date: B.bodyfat.latestDate }); });
+        if (B.lean) add(function () { return trend(T.trend.lean.title, nf(B.lean.latest) + '<small>' + T.trend.lean.unit + '</small>', delta(B.lean.delta, T.trend.lean.deltaUnit, 1), B.lean.spark, { date: B.lean.latestDate }); });
+        if (B.waist) add(function () { return trend(format(T.waist.titleTpl, { date: fmtD(B.waist.latestDate) }), nf(B.waist.latest) + '<small>' + T.waist.unit + '</small>', delta(B.waist.delta, T.waist.deltaUnit, -1), B.waist.spark); });
+        var wsrc = B.weight ? B.weight.source : '', bsrc = B.bodyfat ? B.bodyfat.source : '';
+        var sourcesClause = B.weight ? format(T.bodyNote.sourcesClause, { n: B.weight.sources }) : '';
+        var wsrcClause = wsrc ? format(T.bodyNote.sourceClause, { src: esc(wsrc) }) : '';
+        var bsrcClause = bsrc ? format(T.bodyNote.sourceClause, { src: esc(bsrc) }) : '';
+        out.push(note(format(T.bodyNote.main, { sourcesClause: sourcesClause, sourceClause: wsrcClause, bfSourceClause: bsrcClause })));
+        out.push(note(B.waist ? format(T.waist.noteTpl, { n: B.waist.points, first: esc(fmtD(B.waist.firstDate)) }) : T.waist.emptyHtml));
+      }
+      /* activity / NEAT */
+      if (A.hasData) {
+        out.push(sub('activity'));
+        ['steps', 'exercise', 'distance', 'flights'].forEach(function (k) {
+          var a = A[k], tt = T.trend[k];
+          if (!a) return;
+          add(function () { return trend(tt.title, nf(a.latest) + '<small>' + tt.unit + '</small>', ctx(T.avg30Tpl, a.avg30, tt.avgUnit, delta(a.d30, tt.deltaUnit, 1)), a.spark, { date: a.latestDate, soFar: true }); });
+        });
+        out.push(note(T.activityNoteHtml));
+      }
+      /* energy */
+      if (E.hasData) {
+        out.push(sub('energy'));
+        if (E.tdeeLatest != null) add(function () { return trend(T.trend.expenditure.title, nf(E.tdeeLatest) + '<small>' + T.trend.expenditure.unit + '</small>', ctx(T.avg30Tpl, E.tdeeAvg, T.trend.expenditure.avgUnit, ''), E.spark, { date: E.tdeeLatestDate, soFar: true }); });
+        if (E.balance) {
+          var b = E.balance;
+          out.push(
+            '<div class="dash-cards">' +
+            card(nf(b.intakeAvg) + ' kcal', T.energyCards.intakeAvgLbl) +
+            card(nf(b.tdeeAvg) + ' kcal', T.energyCards.tdeeAvgLbl) +
+            card((b.net < 0 ? '' : '+') + nf(b.net), b.net < 0 ? T.energyCards.deficitLbl : T.energyCards.surplusLbl) +
+            '</div>',
+          );
+          if (E.macros) {
+            var m = E.macros;
             out.push(
               '<div class="dash-cards">' +
-              card(nf(b.intakeAvg) + ' kcal', T.energyCards.intakeAvgLbl) +
-              card(nf(b.tdeeAvg) + ' kcal', T.energyCards.tdeeAvgLbl) +
-              card((b.net < 0 ? '' : '+') + nf(b.net), b.net < 0 ? T.energyCards.deficitLbl : T.energyCards.surplusLbl) +
+              card(m.p + ' g · ' + m.pPct + '%', T.energyCards.proteinLbl) +
+              card(m.c + ' g · ' + m.cPct + '%', T.energyCards.carbsLbl) +
+              card(m.g + ' g · ' + m.gPct + '%', T.energyCards.fatLbl) +
               '</div>',
             );
-            if (E.macros) {
-              var m = E.macros;
-              out.push(
-                '<div class="dash-cards">' +
-                card(m.p + ' g · ' + m.pPct + '%', T.energyCards.proteinLbl) +
-                card(m.c + ' g · ' + m.cPct + '%', T.energyCards.carbsLbl) +
-                card(m.g + ' g · ' + m.gPct + '%', T.energyCards.fatLbl) +
-                '</div>',
-              );
-            }
-            var macroClause = E.macros ? T.energyBalanceNote.macroClause : '';
-            out.push(note(format(T.energyBalanceNote.main, { from: esc(fmtD(b.from)), to: esc(fmtD(b.to)), days: b.days, macroClause: macroClause })));
-          } else {
-            var lastIntakeClause = E.lastIntake ? format(T.energyExpenditureNote.lastIntakeClause, { date: esc(fmtD(E.lastIntake)), ago: ago(E.lastIntake) }) : '';
-            out.push(note(format(T.energyExpenditureNote.main, { tdeeDays: E.tdeeDays, lastIntakeClause: lastIntakeClause })));
           }
+          var macroClause = E.macros ? T.energyBalanceNote.macroClause : '';
+          out.push(note(format(T.energyBalanceNote.main, { from: esc(fmtD(b.from)), to: esc(fmtD(b.to)), days: b.days, macroClause: macroClause })));
+        } else {
+          var lastIntakeClause = E.lastIntake ? format(T.energyExpenditureNote.lastIntakeClause, { date: esc(fmtD(E.lastIntake)), ago: ago(E.lastIntake) }) : '';
+          out.push(note(format(T.energyExpenditureNote.main, { tdeeDays: E.tdeeDays, lastIntakeClause: lastIntakeClause })));
         }
-        host.innerHTML = '<p class="dash-as">' + T.introMsg + '</p>' + out.join('');
       }
+      host.innerHTML = '<p class="dash-as">' + T.introMsg + '</p>' + out.join('');
     }
+  }
 
-    var train = document.getElementById('health-train');
-    if (train) {
-      out = [];
-      if (!Run.hasData && !Cyc.hasData && !LR.hasData) {
-        train.innerHTML = '<div class="train-empty">' + T.trainEmptyMsg + '</div>';
-      } else {
-        /* running + cycling: rendered as a pair with the same table style and row budget, so run and
-           bike carry equal weight; when only one has data the other states its empty case */
-        if (Run.hasData || Cyc.hasData) {
-          out.push(sub('running'));
-          if (Run.hasData) {
-            out.push(runsTable(Run.sessions));
-            out.push(note(format(T.runningNote, { count: Run.count })));
-          } else out.push(note(T.runningEmptyHtml));
-          out.push(sub('cycling'));
-          if (Cyc.hasData) {
-            out.push(ridesTable(Cyc.sessions));
-            out.push(note(format(T.cyclingNote, { count: Cyc.count })));
-          } else out.push(note(T.cyclingEmptyHtml));
-        }
-        /* load vs recovery (cross-tab) */
-        if (LR.hasData) {
-          out.push(sub('load'));
-          var s = LR.series, lmax = Math.max.apply(null, s.map(function (x) { return x.load; })) || 1;
-          var lbars = s
-            .map(function (x) {
-              var h = Math.round((100 * x.load) / lmax);
-              return '<div class="wbar' + (x.load ? '' : ' zero') + '" title="' + esc(format(T.loadSec.barTitleTpl, { date: fmtD(x.w), load: x.load })) + '"><i style="height:' + h + '%"></i></div>';
-            })
-            .join('');
-          var lax = '<div class="waxis"><span>' + esc(fmtD(s[0].w)) + '</span><span>' + esc(fmtD(s[s.length - 1].w)) + '</span></div>';
-          out.push('<div class="dash-sec"><h3>' + T.loadSec.heading + '</h3><p class="hint">' + format(T.loadSec.hint, { weeks: LR.weeks }) + '</p><div class="wbars">' + lbars + '</div>' + lax + '</div>');
-          if (LR.split) {
-            var sp = LR.split, cc = [];
-            if (sp.hrvHigh != null) cc.push(card(sp.hrvHigh + ' ms', T.loadCards.hrvHighLbl));
-            if (sp.hrvLow != null) cc.push(card(sp.hrvLow + ' ms', T.loadCards.hrvLowLbl));
-            if (sp.rhrHigh != null) cc.push(card(nf(sp.rhrHigh) + ' ' + T.trend.rhr.unit, T.loadCards.rhrHighLbl));
-            if (sp.rhrLow != null) cc.push(card(nf(sp.rhrLow) + ' ' + T.trend.rhr.unit, T.loadCards.rhrLowLbl));
-            if (cc.length) out.push('<div class="dash-cards c2">' + cc.join('') + '</div>');
-          }
-          out.push(note(T.loadNoteHtml));
-        }
-        train.innerHTML = out.join('');
+  function renderEntreno(train) {
+    var Run = HEALTH.running || {}, LR = HEALTH.loadRecovery || {}, Cyc = HEALTH.cycling || {};
+    var out = [];
+    if (!Run.hasData && !Cyc.hasData && !LR.hasData) {
+      train.innerHTML = '<div class="train-empty">' + T.trainEmptyMsg + '</div>';
+    } else {
+      /* running + cycling: rendered as a pair with the same table style and row budget, so run and
+         bike carry equal weight; when only one has data the other states its empty case */
+      if (Run.hasData || Cyc.hasData) {
+        out.push(sub('running'));
+        if (Run.hasData) {
+          out.push(runsTable(Run.sessions));
+          out.push(note(format(T.runningNote, { count: Run.count })));
+        } else out.push(note(T.runningEmptyHtml));
+        out.push(sub('cycling'));
+        if (Cyc.hasData) {
+          out.push(ridesTable(Cyc.sessions));
+          out.push(note(format(T.cyclingNote, { count: Cyc.count })));
+        } else out.push(note(T.cyclingEmptyHtml));
       }
+      /* load vs recovery (cross-tab) */
+      if (LR.hasData) {
+        out.push(sub('load'));
+        var s = LR.series, lmax = Math.max.apply(null, s.map(function (x) { return x.load; })) || 1;
+        var lbars = s
+          .map(function (x) {
+            var h = Math.round((100 * x.load) / lmax);
+            return '<div class="wbar' + (x.load ? '' : ' zero') + '" title="' + esc(format(T.loadSec.barTitleTpl, { date: fmtD(x.w), load: x.load })) + '"><i style="height:' + h + '%"></i></div>';
+          })
+          .join('');
+        var lax = '<div class="waxis"><span>' + esc(fmtD(s[0].w)) + '</span><span>' + esc(fmtD(s[s.length - 1].w)) + '</span></div>';
+        out.push('<div class="dash-sec"><h3>' + T.loadSec.heading + '</h3><p class="hint">' + format(T.loadSec.hint, { weeks: LR.weeks }) + '</p><div class="wbars">' + lbars + '</div>' + lax + '</div>');
+        if (LR.split) {
+          var sp = LR.split, cc = [];
+          if (sp.hrvHigh != null) cc.push(card(sp.hrvHigh + ' ms', T.loadCards.hrvHighLbl));
+          if (sp.hrvLow != null) cc.push(card(sp.hrvLow + ' ms', T.loadCards.hrvLowLbl));
+          if (sp.rhrHigh != null) cc.push(card(nf(sp.rhrHigh) + ' ' + T.trend.rhr.unit, T.loadCards.rhrHighLbl));
+          if (sp.rhrLow != null) cc.push(card(nf(sp.rhrLow) + ' ' + T.trend.rhr.unit, T.loadCards.rhrLowLbl));
+          if (cc.length) out.push('<div class="dash-cards c2">' + cc.join('') + '</div>');
+        }
+        out.push(note(T.loadNoteHtml));
+      }
+      train.innerHTML = out.join('');
     }
   }
 
