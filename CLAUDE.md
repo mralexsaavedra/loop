@@ -243,7 +243,9 @@ lives in `profile/about-me.md` (gitignored), never in a tracked file.
 shows an empty state — it never fails the build. Data-honesty rules are baked in: use DURATION
 not kcal (blank on recent exports); count DISTINCT DAYS not raw rows (the Watch fragments one
 session into several records); the modality split (strength/hiit/run/bike/other) reflects the
-WATCH's auto-labels, which over-tag HIIT and under-count strength — the page says so on-screen.
+WATCH's auto-labels, which over-tag HIIT and under-count strength — the page says so on-screen. The
+`hiit` bucket is LABELLED "Gimnasio"/"Gym" (display only, same bucket) so it matches Inicio's gym
+load card; `strength` keeps its own label.
 
 **Strava sync (`npm run sync:strava`, part of `npm run sync`).** Pulls every activity the
 ingest service (`services/health-ingest`) has stored from Strava via `GET /export/strava` and
