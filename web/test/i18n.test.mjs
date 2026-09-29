@@ -225,3 +225,13 @@ test('Salud copy no longer claims HR under-reads/under-represents strength, and 
   assert.match(esHealth.loadNoteHtml, /metcon/);
   assert.match(enHealth.loadNoteHtml, /metcon/);
 });
+
+test('Entrenamiento dashboard labels the watch "hiit" bucket as gym (matches Inicio), strength stays separate', () => {
+  assert.equal(esDash.modalityLabels.hiit, 'Gimnasio');
+  assert.equal(enDash.modalityLabels.hiit, 'Gym');
+  assert.equal(esDash.modalityLabels.strength, 'Fuerza');
+  assert.equal(enDash.modalityLabels.strength, 'Strength');
+  // the on-screen caveat must name the bar by its visible label
+  assert.match(esDash.note1Html, /«Gimnasio»/);
+  assert.match(enDash.note1Html, /“Gym”/);
+});

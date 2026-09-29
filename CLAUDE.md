@@ -48,8 +48,8 @@ conversationally — do not make them fill a form alone. Replicate a real coach 
    `training-data.json`** and transcribe their program by date from whatever their coach/app
    provides (PDF grids → render to PNG and read visually; a login-gated training app → have them
    paste/screenshot the sessions), see the training pipeline section — then
-   `npm run generate`). The 🏋️ Hoy tab then shows today's programmed session and the
-   📈 Entrenos dashboard fills itself from the Apple Health workouts already extracted in
+   `npm run generate`). The 🏠 Inicio tab then shows today's programmed session and the
+   Entrenamiento section of 💗 Salud fills itself from the Apple Health workouts already extracted in
    step 4. Don't block onboarding on this — profile + baseline are enough to start.
 6. **Confirm and offer the first analysis.** Summarize what you captured, ask them to
    correct anything, then offer to run an initial analysis per the workflow below.
@@ -107,7 +107,7 @@ available) so the next session resumes with their context.
 
 ## The plan page — Astro single-file build
 
-The plan page (all 7 tabs: Inicio/Home, Mi día, Registro, Tablas, Hoy, Entrenos, Salud) is ONE Astro project
+The plan page (3 tabs, Whoop-style — see "Tabs and sections" below) is ONE Astro project
 in `web/` that builds to a single self-contained HTML file — no external requests, no
 `_astro/` asset directory, CSP-safe. `scripts/build-web.mjs` drives the build:
 
@@ -124,9 +124,28 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
 - `DATA_MODE=personal|example`: personal reads the gitignored real files; example reads the
   tracked `.example` seeds. Optional data (Apple Health extract CSVs) renders a defined empty
   state when absent, in either mode — the build never fails on missing optional data.
-- All personal COPY (page title/kicker/h1/sub/footer, per-slot notes, which nav tabs to hide)
+- All personal COPY (page title/kicker/h1/sub/footer, per-slot notes, which tabs/sections to hide)
   lives in `plan-data.json`'s `page` block (`page.notes.<slotId>`, `page.hideTabs: ["hoy"]`,
   etc.) — never hardcoded in tracked Astro/JS source, which stays fully generic.
+
+**Tabs and sections.** Three top-level tabs (nav = fixed bottom bar with safe-area inset on
+narrow screens, sticky top bar on wide ones); the former tabs live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
+
+| Tab (key) | Content, top to bottom |
+| --- | --- |
+| 🏠 Inicio (`home`) | recovery trend + per-modality load, then the advice sentence; "today you eat" card (day toggle + that day's kcal/macros, link to Nutrición); programmed session (`hoy`) |
+| 🍽️ Nutrición (`nutricion`) | Mi día plan (`dia`); Registro (`registro`, collapsible); Tablas (`tablas`, collapsible) — the global train/rest toggle shows here |
+| 💗 Salud (`health`) | body & recovery sections; Entrenamiento dashboard (`dash`) |
+
+`page.hideTabs` semantics (resolved by `lib/nav/tabs.mjs` `resolveNav`): a top-level key
+(`home`/`nutricion`/`health`) removes that nav button; a legacy key (`hoy`/`dia`/`registro`/
+`tablas`/`dash`) renders that section `hidden`. Panels, sections, baked globals and scripts
+always stay in the build. Nutrición disappears when all three of its sections are hidden; the
+visible tab on load is the first remaining one; hiding every tab fails the build.
+`setTab('<legacy key>')` still works (it opens the hosting tab and scrolls to the section).
+Tapping a score card on Inicio opens its Salud detail (recovery → the Recovery sub-section
+`#hl-recovery`, a modality load card → Entrenamiento `#sec-dash`) via core.js `jumpOr`, falling
+back to the Salud tab when that detail has no data; the cards are not links when Salud is hidden.
 
 ## Nutrition plan — data pipeline & published artifact
 
@@ -186,7 +205,8 @@ files does NOT update the published artifact. After a plan change: (1) edit the 
 
 ## Training tabs — "Hoy / Today" + "Entrenos / Workouts" pipeline
 
-The same single-file build carries two training tabs, computed by `lib/training/program.mjs`
+The same single-file build carries two training sections (programmed session in Inicio,
+Entrenamiento in Salud — they were tabs before the three-tab layout), computed by `lib/training/program.mjs`
 (programmed sessions) and `lib/training/dashboard.mjs` (executed-workout aggregation) and
 rendered by `web/src/tabs/{Hoy,Entrenos}.astro`. Same single-source pattern as nutrition.
 
@@ -205,15 +225,15 @@ all, the build still succeeds — `lib/load/inputs.mjs` degrades to an empty pro
 file with no sessions produces); Entrenos is unaffected (it reads Apple Health `workouts.csv`,
 not this file). `npm run check` likewise treats a genuinely absent file as "nothing to
 validate" rather than an error — it only fails if the file exists but is malformed/empty. This
-is distinct from `page.hideTabs: ["hoy"]` below, which removes the NAV BUTTON; leaving the file
-absent keeps the tab visible but permanently in its empty state.
+is distinct from `page.hideTabs: ["hoy"]` below, which hides the SECTION; leaving the file
+absent keeps the section visible but permanently in its empty state.
 
-**The Hoy tab is optional and source-agnostic.** The program can come from any dated source
+**The Hoy section is optional and source-agnostic.** The program can come from any dated source
 (coach PDFs, a spreadsheet, or a login-gated training app whose content can't be scraped). If
 the owner's program lives in an external app they open directly, maintaining a dated copy here
-is redundant — set `page.hideTabs: ["hoy"]` in `plan-data.json` to omit the nav button (the
-tab panel + baked training data stay fully wired, just unreachable via nav; remove the entry
-to reactivate). Keep the tab visible in the example build (`plan-data.example.json` has no
+is redundant — set `page.hideTabs: ["hoy"]` in `plan-data.json` to hide the section in Inicio
+(the markup + baked training data stay fully wired, just `hidden`; remove the entry to
+reactivate). Keep the section visible in the example build (`plan-data.example.json` has no
 `hideTabs`) as a working example. Which program/app the owner actually uses is personal → it
 lives in `profile/about-me.md` (gitignored), never in a tracked file.
 
@@ -223,7 +243,9 @@ lives in `profile/about-me.md` (gitignored), never in a tracked file.
 shows an empty state — it never fails the build. Data-honesty rules are baked in: use DURATION
 not kcal (blank on recent exports); count DISTINCT DAYS not raw rows (the Watch fragments one
 session into several records); the modality split (strength/hiit/run/bike/other) reflects the
-WATCH's auto-labels, which over-tag HIIT and under-count strength — the page says so on-screen.
+WATCH's auto-labels, which over-tag HIIT and under-count strength — the page says so on-screen. The
+`hiit` bucket is LABELLED "Gimnasio"/"Gym" (display only, same bucket) so it matches Inicio's gym
+load card; `strength` keeps its own label.
 
 **Strava sync (`npm run sync:strava`, part of `npm run sync`).** Pulls every activity the
 ingest service (`services/health-ingest`) has stored from Strava via `GET /export/strava` and
@@ -247,7 +269,7 @@ pastes/screenshots the sessions and you transcribe into `training-data.json`. Fo
 
 **Fresh-clone bootstrap:** copy `data/training/training-data.example.json` →
 `training-data.json`, edit in the real program, then `npm run generate` (part of the shared
-nutrition bootstrap above — one `npm run generate` builds all 7 tabs together). This step is
+nutrition bootstrap above — one `npm run generate` builds all 3 tabs together). This step is
 optional — skipping it (or deleting `training-data.json` later) still builds, with Hoy
 permanently in its rest/unprogrammed state. `npm run check` validates training-data.json when
 it exists (`build-web.mjs --check`); `npm test` covers the training lib with its own unit tests

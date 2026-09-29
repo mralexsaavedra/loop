@@ -1,22 +1,9 @@
 ---
-/* "Salud" (body composition, activity, energy, running, recovery) tab —
- * ported verbatim from the legacy `data-tab="health"` panel in
- * data/nutrition/plan-web.html. Client-rendered entirely by
- * web/src/client/health.js from HEALTH baked by <Bake> (see
- * web/src/tabs/Registro.astro, which hosts the shared Bake call — same
- * pattern already used for Tablas/Hoy/Entrenos, astro-plan-web slice 6).
- *
- * The legacy nav button id is `t-health` (see web/layouts/Plan.astro's
- * `navLabels`) but the tab KEY and panel/host id are `health` (not
- * "salud") — this matches the legacy page exactly (`id="health"`,
- * `setTab('health')`); "Salud" is only the nav LABEL text.
+/* "Salud" (body composition, activity, energy, running, recovery) — the main block of the
+ * Salud/Health tab, client-rendered entirely by web/src/client/health.js from HEALTH baked by
+ * <Bake> (see web/src/tabs/Registro.astro, which hosts the shared Bake call). The tab KEY and
+ * host id are `health` (not "salud"); "Salud" is only the nav LABEL text. The tab panel wrapper
+ * lives in web/pages/index.astro, followed by the Entrenamiento section (Entrenos.astro).
  */
-
-interface Props {
-  activeTab: string;
-}
-const { activeTab } = Astro.props;
 ---
-<div class="tab-panel" data-tab="health" hidden={activeTab !== 'health'}>
-  <div id="health"></div>
-</div>
+<div id="health"></div>

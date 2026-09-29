@@ -1,23 +1,19 @@
 ---
-/* "Hoy" (today's programmed training session) tab — ported verbatim from
- * the legacy `data-tab="hoy"` panel in data/nutrition/plan-web.html. Client-
- * rendered entirely by web/src/client/training-today.js from TRAINING/
- * TRAINING_META baked by <Bake> (see web/src/tabs/Registro.astro, which
- * hosts the shared Bake call — same pattern already used for Tablas'
- * FRUIT_SUMMARY, astro-plan-web slice 4).
+/* "Hoy" (today's programmed training session) — a SECTION of the Inicio/Home tab (it was a tab of
+ * its own before the three-tab layout). Client-rendered entirely by
+ * web/src/client/training-today.js from TRAINING/TRAINING_META baked by <Bake> (see
+ * web/src/tabs/Registro.astro, which hosts the shared Bake call).
  *
- * `hideTabs` (plan.page.hideTabs) only removes this tab's NAV BUTTON
- * (see web/pages/index.astro + lib/nav/tabs.mjs) — this panel, its baked
- * globals and its client script always render, matching CLAUDE.md's
- * documented legacy contract ("the panel + baked training-data.json stay
- * intact; uncomment to reactivate").
+ * `page.hideTabs: ["hoy"]` renders this section `hidden` (see lib/nav/tabs.mjs resolveNav) — the
+ * markup, its baked globals and its client script always stay in the build.
  */
-
 interface Props {
-  activeTab: string;
+  dict: any;
+  hidden: boolean;
 }
-const { activeTab } = Astro.props;
+const { dict, hidden } = Astro.props;
 ---
-<div class="tab-panel" data-tab="hoy" hidden={activeTab !== 'hoy'}>
+<section class="tab-section" data-section="hoy" id="sec-hoy" hidden={hidden}>
+  <h2>{dict.strings.nav.sections.hoy}</h2>
   <div id="train-today"></div>
-</div>
+</section>

@@ -38,14 +38,14 @@ function fixtureScores({ days = 49, shift = 2 } = {}) {
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }
 
-function render(scores, { locale = 'en', now = ASOF, T } = {}) {
+function render(scores, { locale = 'en', now = ASOF, T, healthNav = false } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
   class FakeDate extends RealDate {
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
   const ctx = {
-    document: { getElementById: (id) => (id === 'home' ? host : null) },
+    document: { getElementById: (id) => (id === 'home' ? host : id === 't-health' && healthNav ? {} : null) },
     SCORES: scores, I18N_SCORE: T || (locale === 'es' ? esT : enT), LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite,
   };
   vm.createContext(ctx);
@@ -173,4 +173,24 @@ test('baked date strings are validated before rendering: a non-ISO asOf/reEpoch 
   s.load.reEpoch = 'javascript:1';
   const html = render(s);
   assert.doesNotMatch(html, /<img|id=xss|javascript:|onerror/);
+});
+
+test('Home order: recovery card, then load cards, then the advice sentence, then caveats', () => {
+  const s = fixtureScores();
+  const html = render(s, { now: addDays(ASOF, 1) });
+  const at = (needle) => html.indexOf(needle);
+  assert.ok(at('sc-recovery') !== -1 && at('sc-load') !== -1 && at('sc-advice') !== -1);
+  assert.ok(at('sc-recovery') < at('sc-load'), 'recovery before load');
+  assert.ok(at('sc-load') < at('sc-advice'), 'advice after the load cards');
+  assert.ok(at('sc-advice') < at('sc-caveat'), 'caveats last');
+});
+
+test('score cards link to their Salud detail when the Salud tab is reachable, and only then', () => {
+  const s = fixtureScores();
+  const linked = render(s, { now: addDays(ASOF, 1), healthNav: true });
+  assert.match(linked, /<div class="sc-card sc-recovery[^"]*" role="button" tabindex="0" onclick="jumpOr\('hl-recovery','health'\)"/);
+  assert.equal(count(linked, `onclick="jumpOr('sec-dash','health')"`), s.load.modalities.length, 'every load card links to the Entrenamiento section');
+  assert.match(linked, /onkeydown=/, 'keyboard users can activate the card');
+  const unlinked = render(s, { now: addDays(ASOF, 1), healthNav: false });
+  assert.doesNotMatch(unlinked, /jumpOr\(/, 'no link when page.hideTabs hides the Salud tab');
 });

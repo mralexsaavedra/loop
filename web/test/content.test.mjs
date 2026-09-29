@@ -43,6 +43,22 @@ function sliceTabPanel(html, key) {
   return html.slice(divStart, end);
 }
 
+/** Slices one section (a former tab: dia/registro/tablas/hoy/dash) out of its tab panel — from its
+ * `class="tab-section" data-section="..."` opening tag to the next section or tab panel. */
+function sliceSection(html, key) {
+  const m = new RegExp(`<(section|details) class="tab-section[^"]*" data-section="${key}"`).exec(html);
+  assert.ok(m, `section data-section="${key}" not found in built HTML`);
+  const rest = html.slice(m.index + m[0].length);
+  const next = rest.search(/<(section|details) class="tab-section|<div class="tab-panel"/);
+  return html.slice(m.index, next === -1 ? html.length : m.index + m[0].length + next);
+}
+
+/** The top-level tab panel that hosts a section (the section must sit INSIDE it). */
+function assertSectionInPanel(html, key, tab) {
+  const panel = sliceTabPanel(html, tab);
+  assert.match(panel, new RegExp(`data-section="${key}"`), `section "${key}" must live inside the "${tab}" tab panel`);
+}
+
 function loadExampleNut() {
   const { ingredients, plan } = loadInputs({ repoRoot: REPO_ROOT, dataMode: 'example' });
   const nut = buildNutrition(ingredients, plan);
@@ -53,7 +69,7 @@ test('example build renders lib-computed day kcal/protein totals in the Mi día 
   assert.ok(fs.existsSync(examplePath), `missing ${examplePath} — run \`npm run pretest\` first`);
   const html = fs.readFileSync(examplePath, 'utf8');
   const { nut } = loadExampleNut();
-  const diaHtml = sliceTabPanel(html, 'dia');
+  const diaHtml = sliceSection(html, 'dia');
 
   for (const day of ['train', 'rest']) {
     const totals = nut.DAYPLAN[day].meals.reduce((s, meal) => {
@@ -71,7 +87,7 @@ test('example build renders a lib-computed breakfast component row in the Tablas
   assert.ok(fs.existsSync(examplePath), `missing ${examplePath} — run \`npm run pretest\` first`);
   const html = fs.readFileSync(examplePath, 'utf8');
   const { nut } = loadExampleNut();
-  const tablasHtml = sliceTabPanel(html, 'tablas');
+  const tablasHtml = sliceSection(html, 'tablas');
 
   assert.ok(nut.breakfast.length > 0, 'example plan must have at least one breakfast option to make this test meaningful');
   const row = nut.breakfast[0].rows[0];
@@ -84,7 +100,7 @@ test('example build renders lib-provided extras item names in the Registro tab',
   assert.ok(fs.existsSync(examplePath), `missing ${examplePath} — run \`npm run pretest\` first`);
   const html = fs.readFileSync(examplePath, 'utf8');
   const { plan } = loadExampleNut();
-  const registroHtml = sliceTabPanel(html, 'registro');
+  const registroHtml = sliceSection(html, 'registro');
 
   assert.ok(plan.extrasDisplay?.length > 0, 'example plan must declare at least one extrasDisplay group to make this test meaningful');
   for (const group of plan.extrasDisplay) {
@@ -95,13 +111,13 @@ test('example build renders lib-provided extras item names in the Registro tab',
   }
 });
 
-test('example build: t-home is the first nav button and pressed; the Home panel is visible, Mi día hidden', () => {
+test('example build: t-home is the first nav button and pressed; the Home panel is visible, Nutrición hidden', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const firstBtn = html.match(/<button id="(t-[a-z]+)"[^>]*>/);
   assert.equal(firstBtn[1], 't-home');
   assert.match(firstBtn[0], /aria-pressed="true"/);
   assert.match(html, /<div class="tab-panel" data-tab="home">/);
-  assert.match(html, /<div class="tab-panel" data-tab="dia" hidden>/);
+  assert.match(html, /<div class="tab-panel" data-tab="nutricion" hidden>/);
   assert.match(html, /<div id="home"><\/div>/);
 });
 
@@ -110,4 +126,54 @@ test('example build (no extract): SCORES is baked as the empty state and the Hom
   assert.match(html, /var SCORES = \{"hasData":false/);
   assert.match(html, /var I18N_SCORE = /);
   assert.match(html, /getElementById\('home'\)/);
+});
+
+test('example build: every former tab lives as a section in its new tab, in order', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  assertSectionInPanel(html, 'hoy', 'home');
+  for (const key of ['dia', 'registro', 'tablas']) assertSectionInPanel(html, key, 'nutricion');
+  assertSectionInPanel(html, 'dash', 'health');
+  const nutricion = sliceTabPanel(html, 'nutricion');
+  const order = ['dia', 'registro', 'tablas'].map((k) => nutricion.indexOf(`data-section="${k}"`));
+  assert.deepEqual([...order].sort((a, b) => a - b), order, 'Nutrición order: Mi día, Registro, Tablas');
+  assert.match(sliceSection(html, 'hoy'), /<div id="train-today"><\/div>/);
+  assert.match(sliceSection(html, 'dash'), /<div id="train-dash"><\/div>/);
+  assert.match(sliceTabPanel(html, 'health'), /<div id="health"><\/div>/);
+});
+
+test('example build: Registro and Tablas are collapsible <details> folds with a summary', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  for (const key of ['registro', 'tablas']) {
+    const sec = sliceSection(html, key);
+    assert.match(sec, /^<details class="tab-section/, `${key} must be a <details> fold`);
+    assert.match(sec, /<summary/);
+  }
+});
+
+test('example build: Inicio carries a compact "today you eat" card with the Mi día totals, a day toggle and a link to Nutrición', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const { nut } = loadExampleNut();
+  const home = sliceTabPanel(html, 'home');
+  const cardAt = home.indexOf('class="eat-card"');
+  assert.ok(cardAt !== -1, 'eat card missing from the Inicio panel');
+  assert.ok(home.indexOf('<div id="home">') < cardAt && cardAt < home.indexOf('data-section="hoy"'), 'order: scores, eat card, programmed session');
+  const card = home.slice(cardAt, home.indexOf('data-section="hoy"'));
+  for (const day of ['train', 'rest']) {
+    const t = nut.DAYPLAN[day].meals.reduce((s, meal) => {
+      const m = nut.mealMacros(meal);
+      return { k: s.k + m.k, p: s.p + m.p, c: s.c + m.c, g: s.g + m.g };
+    }, { k: 0, p: 0, c: 0, g: 0 });
+    // each block runs from its opening tag to the next eat-day block / the card's link
+    const blocks = card.split('<div class="eat-day"').slice(1);
+    const block = blocks.find((b) => b.startsWith(` data-day="${day}"`));
+    assert.ok(block, `eat-day block for ${day} missing`);
+    assert.equal(/^ data-day="[a-z]+" hidden/.test(block), day === 'rest', 'train shown by default, rest hidden');
+    for (const v of [dotThousands(Math.round(t.k)), `${Math.round(t.p)} g`, `${Math.round(t.c)} g`, `${Math.round(t.g)} g`]) {
+      assert.ok(block.split('eat-link')[0].includes(v), `expected "${v}" in the ${day} eat-day block`);
+    }
+  }
+  assert.match(card, /data-set-day="train"[^>]*onclick="setDay\('train'\)"|onclick="setDay\('train'\)"[^>]*data-set-day="train"/);
+  assert.match(card, /onclick="setDay\('rest'\)"/);
+  assert.match(card, /onclick="setTab\('nutricion'\)"[^>]*>See full plan/);
+  assert.doesNotMatch(card, /class="meal"/, 'the full meal plan is NOT duplicated on Inicio');
 });
