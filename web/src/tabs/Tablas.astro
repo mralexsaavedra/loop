@@ -1,0 +1,181 @@
+---
+/* "Tablas" (equivalence reference) tab — ported from the legacy hand-
+ * maintained `data/nutrition/plan-web.html` `data-tab="tablas"` panel.
+ *
+ * Two kinds of content, per design:
+ *  - Breakfasts: SERVER-rendered from buildNutrition().breakfast (the
+ *    computed equivalent of generate.js's GEN:BREAKFAST region) via
+ *    <BreakfastTable>.
+ *  - Every other equivalence table (protein tiers, lunch/dinner carbs,
+ *    post-workout, anchor, fruit+dessert, vegetables, cheeses): CLIENT-
+ *    painted at runtime by web/src/client/nutrition.js's paint() calls
+ *    (already ported in slice 3, no-op until these `tb-*` ids exist) from
+ *    the SAME DATA/EXTRAS globals baked by Registro's <Bake> — this tab
+ *    renders no script of its own and no new <Bake>, matching Plan.astro's
+ *    documented script order (bake → core → nutrition, emitted once).
+ *
+ * Personal copy: accordion notes, the "Legumes"/"Soups" accordions (no
+ * generic/structured data source yet — see design's Personal copy
+ * pattern) and the Supplements list are all `<Note>` slots
+ * (`plan.page.notes['tablas.*']`, extracted by
+ * scripts/migrate-plan-data.mjs from the legacy page) with generic
+ * dictionary fallbacks. "Legumes"/"Soups" have NO generic fallback (they
+ * render nothing when absent — a fresh clone / example build legitimately
+ * has no owner-specific extra reference tables), same degrade-gracefully
+ * convention used for missing Apple Health data elsewhere.
+ */
+import BreakfastTable from '../components/BreakfastTable.astro';
+import Note from '../components/Note.astro';
+
+interface Props {
+  nut: any; // buildNutrition() result
+  dict: any;
+  page?: { notes?: Record<string, string> };
+}
+const { nut, dict, page } = Astro.props;
+const t = dict.strings.tablas;
+---
+<div class="tab-panel" data-tab="tablas" hidden>
+  <h2>{t.heading}</h2>
+
+  <details id="acc-desayunos">
+    <summary>{t.desayunos.icon} {t.desayunos.label} <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <Note id="tablas.desayunos" page={page} fallback={t.desayunos.noteHtml} class="acc-note" />
+      {nut.breakfast.map((b: any) => <BreakfastTable cap={b.cap} rows={b.rows} />)}
+    </div>
+  </details>
+
+  <details id="acc-carbo-comida">
+    <summary>{t.carboComida.icon} {t.carboComida.label} <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <Note id="tablas.carboComida" page={page} fallback={t.carboComida.note} class="acc-note" />
+      <div class="table-scroll"><table>
+        <caption>{t.trainCaption}</caption>
+        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-cc-train" />
+      </table></div>
+      <div class="table-scroll"><table>
+        <caption>{t.restCaption}</caption>
+        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-cc-rest" />
+      </table></div>
+    </div>
+  </details>
+
+  <details id="acc-carbo-cena">
+    <summary>{t.carboCena.icon} {t.carboCena.label} <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <Note id="tablas.carboCena" page={page} fallback={t.carboCena.note} class="acc-note" />
+      <div class="table-scroll"><table>
+        <caption>{t.trainCaption}</caption>
+        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-cce-train" />
+      </table></div>
+      <div class="table-scroll"><table>
+        <caption>{t.restCaption}</caption>
+        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-cce-rest" />
+      </table></div>
+    </div>
+  </details>
+
+  <details id="acc-proteina">
+    <summary>{t.proteina.icon} {t.proteina.label} <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <Note id="tablas.proteina" page={page} fallback={t.proteina.note} class="acc-note" />
+      <div class="tier lean"><span class="dot lean" />{t.proteina.lean}</div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-prot-lean" />
+      </table></div>
+      <div class="tier mod"><span class="dot mod" />{t.proteina.mod}</div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-prot-mod" />
+      </table></div>
+      <div class="tier fat"><span class="dot fat" />{t.proteina.fat}</div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-prot-fat" />
+      </table></div>
+    </div>
+  </details>
+
+  <Fragment set:html={page?.notes?.['tablas.legumbresDetailsHtml'] ?? ''} />
+
+  <details id="acc-anclaje">
+    <summary>{t.anclaje.icon} {t.anclaje.label} <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <Note id="tablas.anclaje" page={page} fallback={t.anclaje.note} class="acc-note" />
+      <div class="table-scroll"><table>
+        <thead><tr><th>Opción</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-anclaje" />
+      </table></div>
+    </div>
+  </details>
+
+  <details id="acc-postentreno">
+    <summary>{t.postentreno.icon} {t.postentreno.label} <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <Note id="tablas.postentreno" page={page} fallback={t.postentreno.note} class="acc-note" />
+      <div class="table-scroll"><table>
+        <thead><tr><th>Opción</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-pe" />
+      </table></div>
+    </div>
+  </details>
+
+  <details id="acc-fruta">
+    <summary>{t.fruta.icon} {t.fruta.label} <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <Note id="tablas.fruta" page={page} fallback={t.fruta.note} class="acc-note" />
+      <div class="table-scroll"><table>
+        <thead><tr><th>Fruta</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-fruta" />
+      </table></div>
+    </div>
+  </details>
+
+  <details id="acc-postre">
+    <summary>{t.postre.icon} {t.postre.label} <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <Note id="tablas.postre" page={page} fallback={t.postre.note} class="acc-note" />
+      <div class="table-scroll"><table>
+        <thead><tr><th>Opción</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-postre" />
+      </table></div>
+      <Note id="tablas.postreExtra" page={page} style="margin-top:10px" class="acc-note" />
+    </div>
+  </details>
+
+  <Fragment set:html={page?.notes?.['tablas.sopasDetailsHtml'] ?? ''} />
+
+  <details id="acc-verduras">
+    <summary>{t.verduras.icon} {t.verduras.label} <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <Note id="tablas.verduras" page={page} fallback={t.verduras.note} class="acc-note" />
+      <div class="table-scroll"><table>
+        <thead><tr><th>Verdura</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-verduras" />
+      </table></div>
+    </div>
+  </details>
+
+  <details id="acc-quesos">
+    <summary>{t.quesos.icon} {t.quesos.label} <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <Note id="tablas.quesos" page={page} fallback={t.quesos.note} class="acc-note" />
+      <div class="table-scroll"><table>
+        <thead><tr><th>Item</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
+        <tbody id="tb-quesos" />
+      </table></div>
+    </div>
+  </details>
+
+  <h2>{t.supplementsHeading}</h2>
+  <Note id="tablas.supplements" page={page} fallback={t.supplementsFallbackHtml} wrap={false} />
+
+  <h2>{t.howToHeading}</h2>
+  <div class="tip" set:html={t.howToHtml} />
+</div>

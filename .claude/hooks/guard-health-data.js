@@ -53,6 +53,13 @@ const PERSONAL = [
   'profile/about-me.md',
   'profile/baseline.md',
   '.local.md',
+  // Astro build output / test fixtures / served site — all gitignored and all
+  // derived from the personal data above (baked JSON globals, rendered
+  // copy). Same leak surface as the source files themselves.
+  'web/dist/',
+  'web/test/.golden/',
+  'services/plan-web/site/',
+  'web/.test-dist/',
 ];
 
 // Intentionally tracked exceptions (the "!" rules in .gitignore). Force-adding
@@ -60,10 +67,6 @@ const PERSONAL = [
 const ALLOWED = [
   '.gitkeep',
   'extract.js',
-  'generate-training.js',
-  'generate-training.test.js',
-  'generate-health.js',
-  'generate-health.test.js',
   'training-data.example.json',
   'plan-data.example.json',
 ];

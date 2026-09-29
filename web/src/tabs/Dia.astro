@@ -1,0 +1,38 @@
+---
+/* "Mi día" tab — ported from the legacy GEN:DAYPLAN region + its trailing
+ * hand-written footnote (data/nutrition/plan-web.html), server-rendered
+ * from lib/nutrition/macros.mjs's buildNutrition() output instead of a
+ * generated HTML string. See spec: plan-web-single-file-build (tab parity).
+ */
+import DayPanel from '../components/DayPanel.astro';
+import Note from '../components/Note.astro';
+
+interface Props {
+  nut: any; // buildNutrition() result
+  dict: any;
+  page?: { notes?: Record<string, string> };
+}
+const { nut, dict, page } = Astro.props;
+
+function dayViewModel(day: 'train' | 'rest') {
+  const cfg = nut.DAYPLAN[day];
+  const meals = cfg.meals.map((meal: any) => ({ meal, m: nut.mealMacros(meal) }));
+  const totals = meals.reduce(
+    (s: any, x: any) => ({ k: s.k + x.m.k, p: s.p + x.m.p, c: s.c + x.m.c, g: s.g + x.m.g }),
+    { k: 0, p: 0, c: 0, g: 0 },
+  );
+  return { day, meals, totals, kcalNote: cfg.kcalNote };
+}
+const train = dayViewModel('train');
+const rest = dayViewModel('rest');
+---
+<div class="tab-panel" data-tab="dia">
+  <DayPanel day={train.day} meals={train.meals} totals={train.totals} kcalNote={train.kcalNote} hidden={false} dict={dict} />
+  <DayPanel day={rest.day} meals={rest.meals} totals={rest.totals} kcalNote={rest.kcalNote} hidden={true} dict={dict} />
+  <Note
+    id="dia.footnote"
+    page={page}
+    class="acc-note"
+    style="border-top:1px solid var(--line);padding-top:14px;margin-top:18px"
+  />
+</div>

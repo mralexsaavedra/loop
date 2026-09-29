@@ -18,9 +18,10 @@ instead of generic advice with no data behind it.
 
 - **[Claude Code](https://claude.com/claude-code)** — the repo is designed to be read and
   operated by it. `CLAUDE.md` is the operating manual the agent reads on each session.
-- **Node.js** — only for the plan tooling (`npm run generate`, `npm run check`,
-  `npm test`), which builds the nutrition plan, the training tabs, and the health dashboard.
-  Zero runtime dependencies.
+- **Node.js** (`>=22.12`) — for the plan tooling (`npm run generate`, `npm run check`,
+  `npm test`), which builds the nutrition plan, the training tabs, and the health dashboard
+  into a single self-contained page via [Astro](https://astro.build) (`npm ci` first to
+  install it).
 - **A persistent-memory tool (optional).** The workflow uses [Engram](https://github.com/)
   for cross-session state if present, but it is **not required** — without it, durable
   state lives entirely in the tracked files and `CHANGELOG.md`.
@@ -48,23 +49,26 @@ instead of generic advice with no data behind it.
    - Weight: tracked automatically from Apple Health, or copy
      `data/weight/weight-log.example.md` → `weight-log.md` and log there.
    - Plan UI (optional): to get the interactive plan page, copy
-     `data/nutrition/plan-web.template.html` → `plan-web.html` and
-     `data/nutrition/plan-data.example.json` → `plan-data.json`. The food database
-     ships ready: `data/nutrition/ingredients.json` (TRACKED, public — per-100g/ml/ud
-     macros and verified product labels) is reusable and already in the clone. Your
-     personal plan — recipes, day structure, protein targets — lives in `plan-data.json`
+     `data/nutrition/plan-data.example.json` → `plan-data.json`. The food database ships
+     ready: `data/nutrition/ingredients.json` (TRACKED, public — per-100g/ml/ud macros and
+     verified product labels) is reusable and already in the clone. Your personal plan —
+     recipes, day structure, protein targets, and page copy — lives in `plan-data.json`
      (gitignored, local-only). Edit your servings and day plan there (referencing
-     ingredient keys from `ingredients.json`), then run `npm run generate` — it MERGES
-     `ingredients.json` + `plan-data.json`, computes the macros, and rewrites
-     `plan-web.html` (and `plan-tables.md`) from that single source. `plan-web.html` and
-     `plan-data.json` are gitignored and stay local; `ingredients.json`, the `.template`
-     and `.example` seeds are tracked.
+     ingredient keys from `ingredients.json`), then run `npm ci && npm run generate` — it
+     MERGES `ingredients.json` + `plan-data.json`, computes the macros, and builds the
+     single-file page at `web/dist/personal/index.html` (plus `plan-tables.md`) from that
+     single source, via the Astro project in `web/`. `plan-data.json` and `web/dist/` are
+     gitignored and stay local; `ingredients.json` and the `.example` seed are tracked.
+     `npm run build:example` builds the same page from the tracked seed alone, with no
+     personal files needed — useful to sanity-check the pipeline on a bare clone.
    - Training (optional): copy `data/training/training-data.example.json` →
      `training-data.json` and fill in your program by date — Claude can transcribe a coach's
      PDF for you. Run `npm run generate` and the plan page gains a 🏋️ **Today** tab (today's
      programmed session) and a 📈 **Workouts** dashboard, built from the Apple Health workouts
      you exported above (frequency, weekly volume, modality — duration-based, since the watch
      leaves calories blank). Your real program stays gitignored; only the example seed is tracked.
+     Skipping this step entirely is fine too — the build still succeeds with no
+     `training-data.json`; the **Today** tab just stays in its rest/unprogrammed state.
 3. **Ask Claude to run an analysis.** It reads `CLAUDE.md`, follows
    `analysis/methodology.md`, and writes a report to `analysis/reports/`.
 

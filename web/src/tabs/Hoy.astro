@@ -1,0 +1,18 @@
+---
+/* "Hoy" (today's programmed training session) tab — ported verbatim from
+ * the legacy `data-tab="hoy"` panel in data/nutrition/plan-web.html. Client-
+ * rendered entirely by web/src/client/training-today.js from TRAINING/
+ * TRAINING_META baked by <Bake> (see web/src/tabs/Registro.astro, which
+ * hosts the shared Bake call — same pattern already used for Tablas'
+ * FRUIT_SUMMARY, astro-plan-web slice 4).
+ *
+ * `hideTabs` (plan.page.hideTabs) only removes this tab's NAV BUTTON
+ * (see web/pages/index.astro + lib/nav/tabs.mjs) — this panel, its baked
+ * globals and its client script always render, matching CLAUDE.md's
+ * documented legacy contract ("the panel + baked training-data.json stay
+ * intact; uncomment to reactivate").
+ */
+---
+<div class="tab-panel" data-tab="hoy" hidden>
+  <div id="train-today"></div>
+</div>

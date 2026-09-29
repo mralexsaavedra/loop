@@ -1,0 +1,169 @@
+/* Salud tab — body / activity / energy / running / recovery sections.
+ * Ported verbatim (selectors + declarations) from the legacy
+ * plan-web.template.html <style> block. Markup lands in slice 6 — these
+ * rules are ported ahead of the markup (corrective apply pass) so that
+ * slice only needs to add markup. Base .dash-cards/.dash-card grid rules
+ * (shared with Entrenos) live in training.css; this file only adds the
+ * 2-column variant used here. */
+
+.dash-cards.c2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.run-tbl-wrap {
+  overflow-x: auto;
+  margin: var(--sp-4) 0 var(--sp-1);
+  -webkit-overflow-scrolling: touch;
+}
+.run-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  font-family: var(--num);
+}
+.run-tbl th {
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 700;
+  text-align: right;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--sans);
+}
+.run-tbl td {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  white-space: nowrap;
+}
+.run-tbl th:first-child,
+.run-tbl td:first-child {
+  text-align: left;
+}
+.run-tbl tr:last-child td {
+  border-bottom: none;
+}
+.hsub {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 800;
+  margin: var(--sp-11) 0 var(--sp-2);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.hsub::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px 1px var(--accent);
+}
+.hsub:first-child {
+  margin-top: var(--sp-3);
+}
+.mtrend {
+  margin: var(--sp-5) 0 var(--sp-1);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--sp-7) var(--sp-8) var(--sp-6);
+  box-shadow: var(--card-shadow);
+}
+.mtrend-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.mtrend-top h4 {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  margin: 0;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.mtrend-val {
+  font-family: var(--num);
+  font-size: var(--fs-4xl);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+  color: var(--ink);
+  line-height: 1;
+}
+.mtrend-val small {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  font-weight: 600;
+  margin-left: var(--sp-1);
+  font-family: var(--sans);
+}
+.spark {
+  display: block;
+  width: 100%;
+  height: 60px;
+  margin: var(--sp-6) 0 0;
+}
+.spark .area {
+  fill: var(--accent);
+  opacity: 0.12;
+}
+.spark .line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.spark-ax {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-2xs);
+  color: var(--faint);
+  margin-top: var(--sp-1);
+}
+.dlt {
+  font-family: var(--num);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  margin-left: var(--sp-3);
+  white-space: nowrap;
+}
+.dlt.good {
+  color: var(--lean);
+}
+.dlt.bad {
+  color: var(--fat);
+}
+.dlt.flat {
+  color: var(--muted);
+}
+
+@media (min-width: 900px) {
+  /* Salud — metric tiles as a responsive multi-column dashboard grid */
+  #health {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(258px, 1fr));
+    gap: var(--sp-5);
+    align-items: start;
+  }
+  #health > .dash-as,
+  #health > .hsub,
+  #health > .dash-note,
+  #health > .dash-sec,
+  #health > .dash-cards,
+  #health > .run-tbl-wrap,
+  #health > .train-empty {
+    grid-column: 1 / -1;
+  }
+  #health .mtrend {
+    margin: 0;
+  }
+}
