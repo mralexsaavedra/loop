@@ -72,7 +72,7 @@ available) so the next session resumes with their context.
      raw `export.xml` is ~700 MB — only stream/grep it directly for a series not in the
      cache. Caveats: body metrics carry a `source` column (weight mixes scales — compare
      body fat within one scale only); steps are deduped to max-per-device per day (summing
-     devices double-counts — that is why an earlier "15–18k" NEAT figure was inflated).
+     devices double-counts — summing inflates the NEAT figure).
      Between exports, `npm run sync` (`data/apple-health/sync-shortcut.js`) pulls iOS Shortcut
      payloads from the optional `services/health-ingest` service (`GET /export/raw`) and merges
      hrv/rhr/vo2max/weight/bodyfat/leanmass/steps/energy/sleep/respiratory/walking-HR/wrist-temp/
@@ -97,9 +97,9 @@ available) so the next session resumes with their context.
    - Training programs: the owner's programmed sessions — the current source is noted in
      `profile/about-me.md` (a coach PDF in `data/training/*.pdf`, or an external training app).
      Strength / metcon / endurance blocks — use for modality balance & periodization.
-   - Nutritionist history: `data/nutritionist/` — 2023 anthropometric assessments +
+   - Nutritionist history: `data/nutritionist/` — past anthropometric assessments +
      nutrition plans, and `RESUMEN-y-comparativa.md`. Reference for proven-effective
-     targets (e.g. the rest-day calorie floor the owner lost fat on).
+     targets (e.g. a rest-day calorie floor that already worked).
 3. **Analyze per methodology.** Use trends (rolling averages), not single-day noise.
    Compare against previous reports in `analysis/reports/` to track progress.
 4. **Write a report** to `analysis/reports/YYYY-MM-DD.md` and summarize the key
@@ -299,8 +299,8 @@ render it.
 - **Body composition** — `weight.csv` + `bodyfat.csv` + `leanmass.csv`. Weight trend is a 7-day
   rolling average (it mixes scales/apps, so the raw series is noisy). Body fat and lean mass use
   ONLY the most recent source and are flagged bioimpedance ±3–5%. IMPORTANT: the source tag does
-  NOT isolate a scale switch (the same app re-tags an old scale's readings — e.g. 22.8%→14.7%
-  overnight in Nov 2025), so their Δ + sparkline use only the last `BODYCOMP_WINDOW` (150) days
+  NOT isolate a scale switch (the same app re-tags an old scale's readings, which can show as an
+  overnight jump of several points), so their Δ + sparkline use only the last `BODYCOMP_WINDOW` (150) days
   to avoid celebrating that artifact as real change.
 - **Activity (NEAT + movement)** — `steps-daily.csv` (NEAT), `exercise-minutes-daily.csv`,
   `distance-daily.csv`, `flights-daily.csv`. Each is a daily total → 30-day average, Δ vs the
