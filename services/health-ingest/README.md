@@ -46,12 +46,14 @@ and an `Automation-Name` header (stored in `raw_payload.automation`).
 }
 ```
 
-Point metrics (hrv, rhr, vo2max, weight, bodyfat, leanmass, wrist_temp,
+Point metrics (hrv, rhr, vo2max, weight, bodyfat, leanmass, waist, wrist_temp,
 hr_recovery) are
 `start;value[;source]` (body fat / lean mass carry the scale's source), day-grouped values from the phone (active/basal energy, respiratory and
-walking_hr means where `0` = no data, and steps sent
+walking_hr means where `0` = no data, dietary intake as `diet_kcal` / `diet_protein` /
+`diet_carbs` / `diet_fat`, and steps sent
 per device as `steps_watch` / `steps_phone`, because a merged steps total sums the
-devices) are `start;value`, sleep is `start;end;stage`. A key is omitted or empty when its query
+devices) are `start;value`, sleep is `start;end;stage`. The full key table and a
+step-by-step build are in [`docs/ios-shortcut.md`](../../docs/ios-shortcut.md). A key is omitted or empty when its query
 returned nothing. Runs may overlap (rolling window); the reader dedups.
 
 ### Reading payloads back: `GET /export/raw`

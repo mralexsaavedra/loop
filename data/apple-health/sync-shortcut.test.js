@@ -642,3 +642,13 @@ test('dietary: export rows win; Shortcut rows fill only dates the export lacks a
   const again = planSync([], name => files2[name] ?? null);
   assert.equal(again.writes['dietary-daily.csv'], undefined);
 });
+
+// ---- docs drift guard --------------------------------------------------------------------
+
+test('docs/ios-shortcut.md documents every payload key the sync reads (and no retired one)', () => {
+  const doc = fs.readFileSync(path.join(__dirname, '..', '..', 'docs', 'ios-shortcut.md'), 'utf8');
+  const keys = Object.entries(METRICS).flatMap(([metric, def]) =>
+    def.devices ? Object.keys(def.devices) : def.fields ? Object.keys(def.fields) : [metric]);
+  const rows = new Set([...doc.matchAll(/^\| `([a-z0-9_]+)` \|/gm)].map(m => m[1]));
+  assert.deepEqual([...rows].sort(), [...keys].sort(), 'the key table must list exactly the keys in METRICS');
+});
