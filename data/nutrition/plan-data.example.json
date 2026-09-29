@@ -819,8 +819,21 @@
     "footerHtml": "Personal data from Apple Health and your own plan and training program. This page is a snapshot — it may not reflect the last few days.<br><br>\n    Figures are for guidance only — not medical advice. For clinical questions, consult a professional.",
     "notes": {
       "dia.footnote": "Example cutting plan. Replace these foods, targets and notes with your own data in <code>plan-data.json</code>, then run <code>npm run generate</code>.",
-      "registro.intro": "Tick what you ate today (it follows the day type from the selector above). It tells you on the spot if you are short on protein, if you go over, and what to cut. Anything the plan does not cover (eating out, weekend, restaurant) write it in <b>Off plan</b>. When you want, paste it: press <b>Copy for Claude</b> and paste it into the chat. Nothing is saved — live calculator."
-    }
+      "registro.intro": "Tick what you ate today (it follows the day type from the selector above). It tells you on the spot if you are short on protein, if you go over, and what to cut. Anything the plan does not cover (eating out, weekend, restaurant) write it in <b>Off plan</b>. When you want, paste it: press <b>Copy for Claude</b> and paste it into the chat. Nothing is saved — live calculator.",
+      "registro.offPlan": "Anything not in the lists: eating out, restaurant, the weekend, or how you felt. Free text.",
+      "tablas.desayunos": "Pick the breakfast that fits the day. Target ~35–40 g protein. The protein anchor options live in the <button class=\"lnk\" onclick=\"jump('acc-anclaje')\">🥛 Protein anchor</button> table.",
+      "tablas.carboComida": "Dry weight. Carbs dropped here are made up at dinner. Pasta shape does not matter: same dry weight = same macros.",
+      "tablas.carboCena": "Cooked/ready weight. Larger portion: absorbs the carbs dropped from lunch.",
+      "tablas.proteina": "~40 g protein per serving, raw weight. Lean every day; leave the red for treats.",
+      "tablas.anclaje": "Quick options for the rest day. The light yogurt does NOT count as protein.",
+      "tablas.postentreno": "~25–30 g protein. The shake already carries its carb (banana); the cold cuts go with 1 slice of toast. Timing is not critical.",
+      "tablas.fruta": "As dessert or with the meal. Standard reference values, per piece/serving.",
+      "tablas.postre": "For lunch and dinner. Fruit is the lightest; the yogurt with nuts and honey is the richest. The light yogurt does NOT count as protein.",
+      "tablas.verduras": "Eat them almost freely in a cut — they fill you up and add little. Standard reference values, per 100 g.",
+      "tablas.quesos": "They add fat/salt → count them, they are not \"free\".",
+      "tablas.supplements": "<div class=\"meal\" style=\"padding:6px 16px\">\n    <div class=\"supp\"><span class=\"when\">Lunch</span><div class=\"what\">Creatine monohydrate<small>3 g, with water</small></div></div>\n    <div class=\"supp\"><span class=\"when\">Dinner</span><div class=\"what\">Magnesium<small>follow product dosage · may support sleep</small></div></div>\n    <div class=\"supp\"><span class=\"when\">Workout</span><div class=\"what\">Electrolytes<small>on hot days / long sessions</small></div></div>\n  </div>"
+    },
+    "offPlanPlaceholder": "E.g.: ate out — set menu (lentils + breaded fish + flan). 2 beers. Heavy meal."
   },
   "indulgeKeys": [
     "beer",

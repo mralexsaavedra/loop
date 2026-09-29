@@ -14,7 +14,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { migrate } from './migrate-plan-data.mjs';
+import { migrate, migrateNotes } from './migrate-plan-data.mjs';
 
 function fixtureHtml() {
   // The <style> block's desktop media query legitimately contains the bare
@@ -44,7 +44,71 @@ function fixtureHtml() {
   <div class="tab-panel" data-tab="registro" hidden>
   <h2>Food log</h2>
   <p class="acc-note" style="margin:-4px 0 10px">Registro intro fixture text.</p>
-  <div class="builder"></div>
+  <div class="builder">
+    <!-- an extrasDisplay group's own combo-h + optional headerNote <p class="acc-note">
+         immediately after it — same shape as the real off-plan block. A regex not
+         anchored past GEN:EXTRAS END would wrongly match THIS pair first and, being
+         non-greedy only up to the single <textarea id="bld-notes"> in the document,
+         swallow everything in between as the "note". Kept to guard that regression. -->
+    <div class="combo-h">Coffee</div>
+    <p class="acc-note" style="margin:-2px 0 6px">Extras group header-note fixture text (NOT the off-plan note).</p>
+    <div class="extras"></div>
+    <!-- GEN:EXTRAS END -->
+    <div class="combo-h">Off plan / notes</div>
+    <p class="acc-note" style="margin:-2px 0 6px">Off-plan fixture note text.</p>
+    <textarea id="bld-notes" placeholder="Off-plan fixture placeholder text."></textarea>
+  </div>
+  </div>
+  <div class="tab-panel" data-tab="tablas" hidden>
+  <h2>Equivalences</h2>
+  <details id="acc-desayunos">
+    <summary>☕ Breakfasts <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <p class="acc-note">Desayunos fixture note text.</p>
+    </div>
+  </details>
+  <details id="acc-proteina">
+    <summary>🥩 Protein <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <p class="acc-note">Proteina fixture note text.</p>
+    </div>
+  </details>
+  <details id="acc-legumbres">
+    <summary>🫘 Legumes <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <p class="acc-note">Legumbres fixture note text.</p>
+      <div class="table-scroll"><table><tbody><tr><td>Fixture legume</td></tr></tbody></table></div>
+    </div>
+  </details>
+  <details id="acc-postre">
+    <summary>🍨 Dessert <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <p class="acc-note">Postre fixture note text.</p>
+      <div class="table-scroll"><table>
+        <tbody id="tb-postre"></tbody>
+      </table></div>
+      <p class="acc-note" style="margin-top:10px">Postre extra fixture note text.</p>
+    </div>
+  </details>
+  <details id="acc-sopas">
+    <summary>🍜 Soups <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <p class="acc-note">Sopas fixture note text.</p>
+      <div class="table-scroll"><table><tbody><tr><td>Fixture soup</td></tr></tbody></table></div>
+    </div>
+  </details>
+  <details id="acc-quesos">
+    <summary>🧀 Cheeses &amp; sauces <span class="chev">›</span></summary>
+    <div class="acc-body">
+      <p class="acc-note">Quesos fixture note text.</p>
+    </div>
+  </details>
+  <h2>Supplements</h2>
+  <div class="meal" style="padding:6px 16px">
+    <div class="supp"><span class="when">Lunch</span><div class="what">Fixture supplement<small>fixture dose</small></div></div>
+  </div>
+  <h2>How to use it</h2>
+  <div class="tip">Fixture tip text.</div>
   </div>
   <footer>
     Fixture footer line one.<br><br>
@@ -123,4 +187,70 @@ test('migrate() is idempotent: running twice does not change an already-migrated
   const twice = migrate({ plan: once.plan, html: fixtureHtml() });
   assert.equal(twice.changed, false, 'already has plan.page -> no-op');
   assert.deepEqual(twice.plan, once.plan);
+});
+
+// ---- astro-plan-web slice 4 follow-up: migrateNotes() lifts the Registro
+// off-plan note/placeholder (left hardcoded in tracked i18n dicts by slice
+// 3) and the Tablas tab's per-accordion notes + opaque Legumes/Soups/
+// Supplements blocks (no structured plan-data source yet) into
+// plan.page.notes / plan.page.offPlanPlaceholder. Independently idempotent
+// PER FIELD — unlike migrate()'s all-or-nothing `plan.page` short-circuit,
+// so it can run again on an already-migrated plan (real usage: the owner's
+// plan-data.json already has plan.page from slice 3) without disturbing
+// fields slice 3 already wrote.
+test('migrateNotes() extracts the Registro off-plan note + placeholder', () => {
+  const { plan, changed } = migrateNotes({ plan: fixturePlan(), html: fixtureHtml() });
+  assert.equal(changed, true);
+  assert.equal(plan.page.notes['registro.offPlan'], 'Off-plan fixture note text.');
+  assert.equal(plan.page.offPlanPlaceholder, 'Off-plan fixture placeholder text.');
+});
+
+test('migrateNotes() extracts per-accordion Tablas notes by details id', () => {
+  const { plan } = migrateNotes({ plan: fixturePlan(), html: fixtureHtml() });
+  assert.equal(plan.page.notes['tablas.desayunos'], 'Desayunos fixture note text.');
+  assert.equal(plan.page.notes['tablas.proteina'], 'Proteina fixture note text.');
+  assert.equal(plan.page.notes['tablas.quesos'], 'Quesos fixture note text.');
+});
+
+test('migrateNotes() extracts the optional postre extra note (present only for accordions that have one)', () => {
+  const { plan } = migrateNotes({ plan: fixturePlan(), html: fixtureHtml() });
+  assert.equal(plan.page.notes['tablas.postre'], 'Postre fixture note text.');
+  assert.equal(plan.page.notes['tablas.postreExtra'], 'Postre extra fixture note text.');
+});
+
+test('migrateNotes() extracts whole opaque Legumes/Soups <details> blocks verbatim (no structured plan-data source yet)', () => {
+  const { plan } = migrateNotes({ plan: fixturePlan(), html: fixtureHtml() });
+  assert.match(plan.page.notes['tablas.legumbresDetailsHtml'], /^<details id="acc-legumbres">[\s\S]*<\/details>$/);
+  assert.match(plan.page.notes['tablas.legumbresDetailsHtml'], /Fixture legume/);
+  assert.match(plan.page.notes['tablas.sopasDetailsHtml'], /^<details id="acc-sopas">[\s\S]*<\/details>$/);
+  assert.match(plan.page.notes['tablas.sopasDetailsHtml'], /Fixture soup/);
+});
+
+test('migrateNotes() extracts the Supplements block between its heading and "How to use it"', () => {
+  const { plan } = migrateNotes({ plan: fixturePlan(), html: fixtureHtml() });
+  assert.match(plan.page.notes['tablas.supplements'], /^<div class="meal" style="padding:6px 16px">[\s\S]*<\/div>$/);
+  assert.match(plan.page.notes['tablas.supplements'], /Fixture supplement/);
+  assert.doesNotMatch(plan.page.notes['tablas.supplements'], /How to use it/, 'must not swallow the next heading');
+});
+
+test('migrateNotes() is idempotent per-field: a second run does not overwrite fields already present, and reports changed:false when nothing new is found', () => {
+  const once = migrateNotes({ plan: fixturePlan(), html: fixtureHtml() });
+  assert.equal(once.changed, true);
+  const twice = migrateNotes({ plan: once.plan, html: fixtureHtml() });
+  assert.equal(twice.changed, false, 'every field once() found is already present -> no-op');
+  assert.deepEqual(twice.plan, once.plan);
+});
+
+test('migrateNotes() is safe to run on a plan already migrated by migrate() (real-world order: migrate() then migrateNotes())', () => {
+  const { plan: afterMigrate } = migrate({ plan: fixturePlan(), html: fixtureHtml() });
+  const { plan: afterNotes, changed } = migrateNotes({ plan: afterMigrate, html: fixtureHtml() });
+  assert.equal(changed, true);
+  assert.equal(afterNotes.page.title, 'Sample Plan', 'migrate()\'s own fields are preserved');
+  assert.equal(afterNotes.page.notes['dia.footnote'], 'Dia footnote fixture text.', 'migrate()\'s own notes are preserved');
+  assert.equal(afterNotes.page.notes['registro.offPlan'], 'Off-plan fixture note text.');
+});
+
+test('migrateNotes() degrades gracefully when an accordion/section is absent from the html (e.g. a plan without Legumes/Soups)', () => {
+  const { plan } = migrateNotes({ plan: fixturePlan(), html: fixtureHtml() });
+  assert.equal(plan.page.notes['tablas.carboComida'], undefined, 'fixture has no acc-carbo-comida -> not set, not a throw');
 });

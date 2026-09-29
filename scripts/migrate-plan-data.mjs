@@ -112,6 +112,120 @@ export function migrate({ plan, html }) {
   return { plan: next, changed: true };
 }
 
+/** Extracts the first `<p class="acc-note"...>...</p>` inside `<details
+ * id="detailsId">...</details>` — the per-accordion coaching note in the
+ * Tablas tab. Non-greedy up to the FIRST acc-note, which is always the
+ * accordion's own intro note (a details element's body has at most one
+ * such note before any table). */
+function noteInDetails(html, detailsId) {
+  return between(html, new RegExp(`<details id="${detailsId}"[\\s\\S]*?<p class="acc-note"[^>]*>([\\s\\S]*?)</p>`));
+}
+
+/** Extracts a whole `<details id="detailsId">...</details>` block verbatim.
+ * Used for accordions with NO structured plan-data source yet (Legumes,
+ * Soups) — kept as opaque personal HTML instead of inventing a new schema
+ * field for a single-slice's worth of content (see design's Personal copy
+ * pattern: `page.notes[id]`, just a bigger blob than usual here). Safe as a
+ * non-greedy match up to the first `</details>` since these accordions do
+ * not nest another `<details>` inside. */
+function detailsBlock(html, detailsId) {
+  return between(html, new RegExp(`(<details id="${detailsId}">[\\s\\S]*?</details>)`));
+}
+
+/** Extracts the Postre/Dessert accordion's OPTIONAL second note (a personal-
+ * only breakdown line after the table — no template equivalent). Anchored
+ * on the accordion's own `tb-postre` table close so it never accidentally
+ * grabs a later accordion's note. */
+function postreExtraNote(html) {
+  return between(
+    html,
+    /<details id="acc-postre">[\s\S]*?<tbody id="tb-postre">\s*<\/tbody>\s*<\/table><\/div>\s*<p class="acc-note"[^>]*>([\s\S]*?)<\/p>\s*<\/div>\s*<\/details>/,
+  );
+}
+
+/** Extracts Registro's "off plan / notes" note — anchored on the
+ * `GEN:EXTRAS END` marker (unique, always immediately precedes the off-plan
+ * block) rather than on the heading's own text (differs between the es
+ * personal page, "Fuera de plan / notas", and the en template, "Off plan /
+ * notes") or on a bare "next combo-h" search: several extrasDisplay groups
+ * ALSO render a `<div class="combo-h">` immediately followed by a
+ * `<p class="acc-note">` (a group's optional `headerNote`) — a regex not
+ * anchored past GEN:EXTRAS END would match one of those first and, being
+ * non-greedy only up to the single `<textarea id="bld-notes">` anchor in
+ * the whole document, swallow everything in between. */
+function offPlanNote(html) {
+  return between(html, /<!-- GEN:EXTRAS END -->\s*<div class="combo-h">[^<]*<\/div>\s*<p class="acc-note"[^>]*>([\s\S]*?)<\/p>\s*<textarea id="bld-notes"/);
+}
+
+/** Extracts the off-plan textarea's `placeholder` attribute value. */
+function offPlanPlaceholder(html) {
+  return between(html, /<textarea id="bld-notes" placeholder="([\s\S]*?)"><\/textarea>/);
+}
+
+/** Extracts the Supplements section's inner HTML, anchored between its own
+ * heading and the NEXT heading ("How to use it" / "Cómo usarlo") — both are
+ * unique per document, so this anchor is robust even though the div itself
+ * contains nested `.supp` divs (a bare non-greedy `</div>` match would stop
+ * at the FIRST nested close, not the div's own outer close). */
+function supplementsHtml(html) {
+  return between(html, /<h2>(?:Suplementaci[oó]n|Supplements)<\/h2>\s*([\s\S]*?)\s*<h2>(?:C[oó]mo usarlo|How to use it)<\/h2>/);
+}
+
+const NOTE_SLOTS = [
+  ['registro.offPlan', offPlanNote],
+  ['tablas.desayunos', (h) => noteInDetails(h, 'acc-desayunos')],
+  ['tablas.carboComida', (h) => noteInDetails(h, 'acc-carbo-comida')],
+  ['tablas.carboCena', (h) => noteInDetails(h, 'acc-carbo-cena')],
+  ['tablas.proteina', (h) => noteInDetails(h, 'acc-proteina')],
+  ['tablas.anclaje', (h) => noteInDetails(h, 'acc-anclaje')],
+  ['tablas.postentreno', (h) => noteInDetails(h, 'acc-postentreno')],
+  ['tablas.fruta', (h) => noteInDetails(h, 'acc-fruta')],
+  ['tablas.postre', (h) => noteInDetails(h, 'acc-postre')],
+  ['tablas.postreExtra', postreExtraNote],
+  ['tablas.verduras', (h) => noteInDetails(h, 'acc-verduras')],
+  ['tablas.quesos', (h) => noteInDetails(h, 'acc-quesos')],
+  ['tablas.legumbresDetailsHtml', (h) => detailsBlock(h, 'acc-legumbres')],
+  ['tablas.sopasDetailsHtml', (h) => detailsBlock(h, 'acc-sopas')],
+  ['tablas.supplements', supplementsHtml],
+];
+
+/** Slice-4 follow-up migration: lifts additional personal copy that slice 3
+ * left hardcoded in tracked i18n dicts (Registro's off-plan note/
+ * placeholder) or that has no structured plan-data source yet (Tablas' per-
+ * accordion notes, the opaque Legumes/Soups accordions, the Supplements
+ * block) into `plan.page.notes` / `plan.page.offPlanPlaceholder`.
+ *
+ * Independently idempotent PER FIELD — unlike `migrate()`'s all-or-nothing
+ * `plan.page` short-circuit — so it is safe to run again on an
+ * already-migrated plan (real usage: the owner's plan-data.json already
+ * has `plan.page` from slice 3) without disturbing fields slice 3 already
+ * wrote, and safe to extend with more slots in a future slice. */
+export function migrateNotes({ plan, html }) {
+  const next = structuredClone(plan);
+  next.page = next.page || {};
+  next.page.notes = next.page.notes || {};
+  let changed = false;
+
+  for (const [id, extract] of NOTE_SLOTS) {
+    if (next.page.notes[id] != null) continue;
+    const value = extract(html);
+    if (value != null) {
+      next.page.notes[id] = value;
+      changed = true;
+    }
+  }
+
+  if (next.page.offPlanPlaceholder == null) {
+    const placeholder = offPlanPlaceholder(html);
+    if (placeholder != null) {
+      next.page.offPlanPlaceholder = placeholder;
+      changed = true;
+    }
+  }
+
+  return { plan: next, changed };
+}
+
 function main() {
   if (!fs.existsSync(PLAN_PATH)) {
     console.error(`migrate-plan-data: ${path.relative(ROOT, PLAN_PATH)} not found — nothing to migrate (fresh clone / example-only setup).`);
@@ -126,20 +240,23 @@ function main() {
 
   const plan = JSON.parse(fs.readFileSync(PLAN_PATH, 'utf8'));
   const html = fs.readFileSync(HTML_PATH, 'utf8');
-  const { plan: migrated, changed } = migrate({ plan, html });
+  const { plan: afterMigrate, changed: changed1 } = migrate({ plan, html });
+  const { plan: migrated, changed: changed2 } = migrateNotes({ plan: afterMigrate, html });
 
-  if (!changed) {
-    console.log('migrate-plan-data: already migrated (plan.page present) — no-op.');
+  if (!changed1 && !changed2) {
+    console.log('migrate-plan-data: already migrated (plan.page + all known note slots present) — no-op.');
     return;
   }
 
   fs.copyFileSync(PLAN_PATH, BACKUP_PATH);
   fs.writeFileSync(PLAN_PATH, JSON.stringify(migrated, null, 2) + '\n');
-  console.log(`migrate-plan-data: wrote plan.locale/page/indulgeKeys/alcoholKeys/mealReplaceKeys + extrasDisplay copyName's into ${path.relative(ROOT, PLAN_PATH)} (backup at ${path.relative(ROOT, BACKUP_PATH)}).`);
+  console.log(`migrate-plan-data: wrote plan.locale/page/indulgeKeys/alcoholKeys/mealReplaceKeys + extrasDisplay copyName's + page.notes/offPlanPlaceholder into ${path.relative(ROOT, PLAN_PATH)} (backup at ${path.relative(ROOT, BACKUP_PATH)}).`);
   console.log(`  page.title=${JSON.stringify(migrated.page.title)}`);
   console.log(`  indulgeKeys=${JSON.stringify(migrated.indulgeKeys)}`);
   console.log(`  alcoholKeys=${JSON.stringify(migrated.alcoholKeys)}`);
   console.log(`  mealReplaceKeys=${JSON.stringify(migrated.mealReplaceKeys)}`);
+  console.log(`  page.notes keys=${JSON.stringify(Object.keys(migrated.page.notes))}`);
+  console.log(`  page.offPlanPlaceholder=${JSON.stringify(migrated.page.offPlanPlaceholder)}`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();
