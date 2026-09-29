@@ -149,3 +149,19 @@ test('energy: expenditure headline = the newest day TDEE with its date; 30-day a
   assert.match(html, /2600<small>kcal<\/small><span class="mtrend-date">29 Jun<\/span>/);
   assert.match(html, /30-day avg 2400 kcal/);
 });
+
+test('resilience: a non-finite avg30 / d30 never prints NaN or Infinity; one broken trend never blanks the tab', () => {
+  const html = renderAt({
+    body: none, energy: none, running: none, loadRecovery: none,
+    activity: { hasData: true, steps: { latest: 9000, latestDate: '2026-06-30', avg30: NaN, d30: Infinity, spark: sp } },
+    recovery: {
+      hasData: true,
+      rhr: { get latest() { throw new Error('boom'); }, latestDate: '2026-06-30' },
+      hrv: { latest: 70, latestDate: '2026-06-30', avg30: 61, d30: NaN, spark: sp },
+    },
+  }, '2026-07-01');
+  assert.doesNotMatch(html, /NaN|Infinity/);
+  assert.match(html, /9000<small>/, 'the steps card still shows its headline');
+  assert.match(html, /70<small>ms/, 'the HRV card renders after the broken resting-HR card');
+  assert.match(html, /30-day avg 61 ms/);
+});
