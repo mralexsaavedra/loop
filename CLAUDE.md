@@ -333,7 +333,7 @@ pure functions (`aggBody`/`aggActivity`/`aggEnergy`/`aggRunning`/`aggRecovery` +
 personal (`LOCALE=es`) build is localized to Spanish (es-ES dates, comma decimals); the example
 (`LOCALE=en`, `web/src/i18n/en.mjs` + `*-templates.mjs` en dicts) build is English.
 
-## Home tab — "Inicio / Home" recovery trend + per-modality load
+## Home tab — "Inicio / Home" dials, recovery trend + per-modality load
 
 `lib/score/*` (same single-source pattern) feeds the first tab; `web/src/client/score.js` renders it,
 `buildScores(extractDir)` bakes `SCORES` (only `asOf` dates — staleness is computed client-side, so
@@ -352,6 +352,17 @@ tab and hiding every tab is a build error.
   junk (`dur <= 10` AND `re` null or ≤ 2), then SUM. The series starts at the first date with any RE
   (`reEpoch`); acute 7d vs chronic 42d EWMA; a modality gates ("baselineBuilding") under 28 days since the
   epoch, under 8 non-zero days, or chronic < 1. The 0-100 `relScore` exists only within a modality.
+- **Dials** (top of the tab: Sleep / Recovery / Load) only VISUALISE baked values — no new metric and
+  no percentage. `web/src/view/dial.mjs` (`buildDials(scores, health)`, unit-tested, baked as `DIALS`)
+  pre-computes the 270° arc geometry; `score.js` only formats numbers and joins SVG strings.
+  Recovery: arc = −3…+3 MAD, three tinted zones cut at ±`BAND_CUTOFF`, fill from baseline to a marker
+  at `trend7`, centre = short band word + signed delta in sd, coloured by band. Sleep: fill = the
+  sleep-duration component's newest night / the stated target (`health.recovery.sleep.target`, 7.5 h),
+  capped at a full arc, target labelled on screen. Load: ONE dial with a gym/run/bike switch (default =
+  first ungated modality); position = acute/chronic as `trendPct` states it (`1 + trendPct/100`, arc
+  midpoint = 1.0×, end = 2×), zones at the existing trend bands; a gated modality is greyed with the
+  existing `baselineBuilding` copy and no number. Stale data (> 3 days) greys a dial; the fill
+  animation is off under `prefers-reduced-motion`.
 - **Advice** is one descriptive sentence per rule (`lib/score/advice.mjs`, copy in `advice-copy.mjs`),
   never an instruction; hidden when data is insufficient or stale (> 3 days).
 - Caveats shown on the page: RE is HR-derived (credits the metcon more than heavy sets), modalities are

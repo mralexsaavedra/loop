@@ -90,7 +90,7 @@ function loadDial(L) {
     const ratio = loadRatio(m.trend);
     if (ratio == null) return { key: m.key, state: 'gated', reason: (m.trend && m.trend.reason) || 'baselineBuilding' };
     const f = loadFrac(ratio);
-    return { key: m.key, state: 'ok', ratio, band: m.trend.band, fill: arcPath(0, f), marker: polar(fracToAngle(f)) };
+    return { key: m.key, state: 'ok', ratio, trendPct: m.trend.trendPct, band: m.trend.band, fill: arcPath(0, f), marker: polar(fracToAngle(f)) };
   });
   const first = modalities.find((m) => m.state === 'ok') || modalities[0];
   const edges = [DETRAINING_PCT, EASING_PCT, ABOVE_PCT, RAMPING_PCT].map((p) => 1 + p / 100);
