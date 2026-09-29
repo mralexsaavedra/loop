@@ -15,64 +15,43 @@
   var A = typeof ACTIVITY === 'undefined' ? null : ACTIVITY;
   var T = typeof I18N_ACTIVITY === 'undefined' ? null : I18N_ACTIVITY;
   if (!T) return;
-  var WINDOW = 30;
-  var STALE_DAYS = 3;
-  var MS_PER_DAY = 86400000;
-  // total-minute level cuts: < 30, 30–59, 60–89, 90+ (a "session" is ~45–75 min)
-  var LEVEL_MIN = [1, 30, 60, 90];
+  // calendar geometry (SVG user units): square cells with a gap, a weekday header row on top
+  var CAL_CELL = 16, CAL_GAP = 4, CAL_STEP = CAL_CELL + CAL_GAP, CAL_HEAD = 14, CAL_WD_Y = 10, CAL_RX = 4;
+  // cumulative chart geometry: viewBox width / height and the inner padding
+  var CUM_W = 300, CUM_H = 110, CUM_PAD = 6;
+  // shared helpers (web/src/client/util.js); window and level cuts are baked in ACTIVITY
+  var esc = HC.esc, format = HC.format, shift = HC.shiftIso, parse = HC.parseIso;
 
-  function esc(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-  function format(tpl, vars) {
-    return tpl.replace(/\{(\w+)\}/g, function (_, k) {
-      return vars && vars[k] != null ? vars[k] : '';
-    });
-  }
   function hm(min) {
-    min = Math.round(min);
-    var h = Math.floor(min / 60), m = min % 60;
-    return h ? h + ' h' + (m ? ' ' + m + ' min' : '') : m + ' min';
+    return HC.duration(min, T.units);
   }
-  function iso(d) {
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-  }
-  function parse(s) {
-    var p = s.split('-');
-    return new Date(+p[0], +p[1] - 1, +p[2]);
-  }
-  function shift(s, n) {
-    var d = parse(s);
-    d.setDate(d.getDate() + n);
-    return iso(d);
-  }
-  function level(min) {
+  function level(min, cuts) {
     var l = 0;
-    LEVEL_MIN.forEach(function (cut, i) { if (min >= cut) l = i + 1; });
+    cuts.forEach(function (cut, i) { if (min >= cut) l = i + 1; });
     return l;
   }
 
   function calendar(dates, byDate) {
-    var CELL = 16, GAP = 4, STEP = CELL + GAP, HEAD = 14;
+    var CELL = CAL_CELL, GAP = CAL_GAP, STEP = CAL_STEP, HEAD = CAL_HEAD;
     var offset = (parse(dates[0]).getDay() + 6) % 7; // Monday = 0
     var rows = Math.ceil((offset + dates.length) / 7);
     var out = ['<svg class="cal-svg" viewBox="0 0 ' + (7 * STEP - GAP) + ' ' + (HEAD + rows * STEP - GAP) + '" role="img" aria-label="' + esc(T.calAria) + '">'];
     T.weekdays.forEach(function (w, i) {
-      out.push('<text class="cal-wd" x="' + (i * STEP + CELL / 2) + '" y="10" text-anchor="middle">' + esc(w) + '</text>');
+      out.push('<text class="cal-wd" x="' + (i * STEP + CELL / 2) + '" y="' + CAL_WD_Y + '" text-anchor="middle">' + esc(w) + '</text>');
     });
     dates.forEach(function (date, i) {
       var k = offset + i, d = byDate[date];
       var min = d ? d.min : 0;
       var mods = d ? Object.keys(d.mods).map(function (m) { return (T.modalityLabels[m] || m) + ' ' + hm(d.mods[m]); }).join(', ') : '';
       var title = min > 0 ? format(T.cellTitle, { date: date, time: hm(min) }) + (Object.keys(d.mods).length > 1 ? ' (' + mods + ')' : '') : format(T.cellRest, { date: date });
-      out.push('<rect class="cal-cell cal-l' + level(min) + '" x="' + ((k % 7) * STEP) + '" y="' + (HEAD + Math.floor(k / 7) * STEP) + '" width="' + CELL + '" height="' + CELL + '" rx="4"><title>' + esc(title) + '</title></rect>');
+      out.push('<rect class="cal-cell cal-l' + level(min, A.levelMin) + '" x="' + ((k % 7) * STEP) + '" y="' + (HEAD + Math.floor(k / 7) * STEP) + '" width="' + CELL + '" height="' + CELL + '" rx="' + CAL_RX + '"><title>' + esc(title) + '</title></rect>');
     });
     out.push('</svg>');
     return out.join('');
   }
 
   function cumulative(cur, prev) {
-    var W = 300, H = 110, PAD = 6;
+    var W = CUM_W, H = CUM_H, PAD = CUM_PAD;
     var max = Math.max(cur[cur.length - 1], prev[prev.length - 1]) || 1;
     function pts(v) {
       return v.map(function (y, i) {
@@ -93,9 +72,10 @@
 
   function html() {
     if (!A || !A.hasData || !Array.isArray(A.days)) return '<div class="train-empty">' + T.empty + '</div>';
-    var today = iso(new Date(Date.now()));
-    var age = Math.round((parse(today) - parse(A.asOf)) / MS_PER_DAY);
-    var stale = age > STALE_DAYS;
+    var today = HC.todayIso();
+    var age = HC.daysOld(A.asOf);
+    var stale = age > HC.STALE_DAYS;
+    var WINDOW = A.windowDays;
     var end = stale || age < 0 ? A.asOf : today;
     var byDate = {};
     A.days.forEach(function (d) { byDate[d.date] = d; });

@@ -12,6 +12,7 @@
  * ACTIVITY carries only the data's own dates (no build-time now), so builds stay byte-identical.
  */
 import { jsonForScript } from '../../../lib/serialize.mjs';
+import { activityBake } from '../../../lib/training/activity.mjs';
 import { es as esActivity, en as enActivity } from '../i18n/activity-templates.mjs';
 
 interface Props {
@@ -20,7 +21,7 @@ interface Props {
   hidden?: { load?: boolean; calendar?: boolean; sessions?: boolean };
 }
 const { activity, locale, hidden = {} } = Astro.props;
-const bake = `var ACTIVITY = ${jsonForScript(activity)};\nvar I18N_ACTIVITY = ${jsonForScript(locale === 'es' ? esActivity : enActivity)};`;
+const bake = `var ACTIVITY = ${jsonForScript(activityBake(activity))};\nvar I18N_ACTIVITY = ${jsonForScript(locale === 'es' ? esActivity : enActivity)};`;
 ---
 <section class="tab-section" data-section="load" id="sec-load" hidden={!!hidden.load}>
   <div id="score-load" class="jump-anchor"></div>

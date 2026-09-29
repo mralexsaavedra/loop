@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { timelineFromInputs } from '../../../lib/score/timeline.mjs';
 import { es as esT, en as enT } from '../i18n/score-templates.mjs';
+import { loadUtil } from '../../test/client-util.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'timeline.js'), 'utf8');
@@ -34,6 +35,7 @@ function render(timeline, { locale = 'en', now = ASOF, at, healthNav = false, en
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
   vm.createContext(ctx);
+  loadUtil(ctx);
   vm.runInContext(source, ctx);
   return host.innerHTML;
 }

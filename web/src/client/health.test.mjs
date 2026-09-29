@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { en as enHealth } from '../i18n/health-templates.mjs';
+import { loadUtil } from '../../test/client-util.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'health.js'), 'utf8');
@@ -94,6 +95,7 @@ function renderWith(HEALTH, { DateCls = Date, SCORES, out = {} } = {}) {
   const train = doc.el('health-train');
   const ctx = { document: doc, window: {}, HEALTH, SCORES, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date: DateCls, JSON };
   vm.createContext(ctx);
+  loadUtil(ctx);
   vm.runInContext(source, ctx);
   out.health = host.innerHTML;
   out.train = train.innerHTML;

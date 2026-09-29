@@ -1,7 +1,8 @@
 ---
 /* Shared page shell — header (personal copy), tab nav + day toggle, footer
  * (personal copy), and the end-of-body script order per design: bake (each
- * tab's own Bake, e.g. Registro's) → core (setTab/setDay/jump/bump) →
+ * tab's own Bake, e.g. Registro's) → NAV + HC_CONST → util (window.HC, the shared client helpers,
+ * FIRST so every later script can read it) → core (setTab/setDay/jump/bump) →
  * nutrition → intake → training-today → training-dash → training-activity → health → score → monitor → timeline. Tabs render inside
  * <slot />.
  */
@@ -14,6 +15,7 @@ import '../src/styles/training.css';
 import '../src/styles/health.css';
 import '../src/styles/score.css';
 import '../src/styles/layout.css';
+import utilScript from '../src/client/util.js?raw';
 import coreScript from '../src/client/core.js?raw';
 import nutritionScript from '../src/client/nutrition.js?raw';
 import trainingTodayScript from '../src/client/training-today.js?raw';
@@ -30,6 +32,7 @@ import intakeScript from '../src/client/intake.js?raw';
 import numFontUrl from '../src/fonts/hc-num-bold.woff2?inline';
 import { jsonForScript } from '../../lib/serialize.mjs';
 import { TAB_KEYS, SECTION_TAB } from '../../lib/nav/tabs.mjs';
+import { hcConst } from '../../lib/stale.mjs';
 
 interface Props {
   title: string;
@@ -51,7 +54,8 @@ const { title, locale, page = {}, dict, tabs, activeTab = tabs[0]?.key, dayToggl
 // keeps it hidden for good when it would drive nothing visible
 const showDayToggle = dayToggle && activeTab === 'nutricion';
 // core.js reads the tab keys and the legacy-section map from this ONE baked copy of lib/nav/tabs.mjs
-const navSource = `var NAV = ${jsonForScript({ tabs: TAB_KEYS, sectionTab: SECTION_TAB })};`;
+// ...and util.js reads the page-level constants (lib/stale.mjs) from HC_CONST, never client literals
+const navSource = `var NAV = ${jsonForScript({ tabs: TAB_KEYS, sectionTab: SECTION_TAB })};\nvar HC_CONST = ${jsonForScript(hcConst())};`;
 // unicode-range = exactly the subset's glyphs, so letters in a --num element fall back to --sans
 const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) format("woff2");font-weight:100 900;font-style:normal;font-display:swap;unicode-range:U+20,U+25,U+2B-2E,U+30-39,U+68,U+D7}`;
 ---
@@ -96,6 +100,7 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
       )}
     </div>
     <script is:inline set:html={navSource} />
+    <script is:inline set:html={utilScript} />
     <script is:inline set:html={coreScript} />
     <script is:inline set:html={nutritionScript} />
     <script is:inline set:html={intakeScript} />

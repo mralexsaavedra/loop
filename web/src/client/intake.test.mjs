@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { en as enIntake, es as esIntake } from '../i18n/intake-templates.mjs';
+import { loadUtil } from '../../test/client-util.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'intake.js'), 'utf8');
@@ -32,6 +33,7 @@ function run({ latest, today, day = 'train', locale = 'en' }) {
     Math, String, Number, JSON, Date: fixedDate(today),
   };
   vm.createContext(ctx);
+  loadUtil(ctx);
   vm.runInContext(source, ctx);
   return { host, window, doc };
 }

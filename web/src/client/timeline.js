@@ -18,34 +18,8 @@
   var TL = S && S.timeline;
   var T = typeof I18N_SCORE === 'undefined' || !I18N_SCORE ? null : I18N_SCORE.timeline;
   if (!TL || !T) return;
-  var ES = false; // set inside the try: a missing LOCALE global must hit the fallback, not throw
-  var STALE_DAYS = 3;
-  var MS_PER_DAY = 86400000;
-
-  function esc(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-  function format(tpl, vars) {
-    return tpl.replace(/\{(\w+)\}/g, function (_, k) {
-      return vars && vars[k] != null ? vars[k] : '';
-    });
-  }
-  function num(x, dec) {
-    var s = Number(x).toFixed(dec);
-    return ES ? s.replace('.', ',') : s;
-  }
-  function isoDate(s) {
-    return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
-  }
-  function todayIso() {
-    var n = new Date(Date.now());
-    return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
-  }
-  function daysOld(iso) {
-    var p = iso.split('-');
-    var n = new Date(Date.now());
-    return Math.round((new Date(n.getFullYear(), n.getMonth(), n.getDate()) - new Date(+p[0], +p[1] - 1, +p[2])) / MS_PER_DAY);
-  }
+  // shared helpers (web/src/client/util.js); HC.num reads LOCALE at call time, inside the try below
+  var esc = HC.esc, format = HC.format, num = HC.num, isoDate = HC.isoDate, todayIso = HC.todayIso, daysOld = HC.daysOld;
   function linkAttrs(id, tab) {
     if (!document.getElementById('t-' + tab)) return '';
     var call = "jumpOr('" + id + "','" + tab + "')";
@@ -87,11 +61,11 @@
     });
     out.push('<ul class="tl-list">' + list.join('') + '</ul>');
     if (day.items.length) out.push('<div class="sc-note">' + esc(T.note) + '</div>');
-    return card(out.join(''), daysOld(day.date) > STALE_DAYS);
+    return card(out.join(''), daysOld(day.date) > HC.STALE_DAYS);
   }
 
   try {
-    ES = LOCALE === 'es';
+    if (typeof LOCALE === 'undefined') throw new Error('LOCALE is not baked');
     host.innerHTML = html();
   } catch (e) {
     host.innerHTML = '<div class="sc-card sc-card-error">' + esc((I18N_SCORE.recovery && I18N_SCORE.recovery.cardError) || '') + '</div>';

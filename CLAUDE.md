@@ -132,6 +132,13 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   drift from the generator, so re-run it after changing the generator or a CSV schema. Never put real
   measurements in `data/demo/` (it is tracked); the example page reads as stale a few days after
   the demo end date, which is the normal staleness handling.
+- **Shared client helpers.** `web/src/client/util.js` is inlined FIRST (right after `var NAV` and
+  `var HC_CONST`, baked by `layouts/Plan.astro` from `lib/stale.mjs`) and exposes the global `HC`
+  (window.HC): `esc`, `format`, `isoDate`, `todayIso`, `daysOld`, `shiftIso`, `nf`, `num`, `duration`
+  (units from the i18n dict), `MS_PER_DAY`, `STALE_DAYS`. The client scripts read these instead of
+  redefining them (a test guards it), and constants come baked from `lib/` (`STALE_DAYS` via
+  `HC_CONST`; the calendar's `windowDays` / `levelMin` via `activityBake` into `ACTIVITY`), never as
+  client literals. Tests load it with `web/test/client-util.mjs` `loadUtil(ctx)`.
 - All personal COPY (page title/kicker/h1/sub/footer, per-slot notes, which tabs/sections to hide)
   lives in `plan-data.json`'s `page` block (`page.notes.<slotId>`, `page.hideTabs: ["hoy"]`,
   etc.) — never hardcoded in tracked Astro/JS source, which stays fully generic.

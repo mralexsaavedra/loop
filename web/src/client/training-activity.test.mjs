@@ -6,8 +6,9 @@ import vm from 'node:vm';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { activityFromRows } from '../../../lib/training/activity.mjs';
+import { activityFromRows, activityBake } from '../../../lib/training/activity.mjs';
 import { es as esT, en as enT } from '../i18n/activity-templates.mjs';
+import { loadUtil } from '../../test/client-util.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'training-activity.js'), 'utf8');
@@ -31,9 +32,10 @@ function render(activity, { locale = 'en', now = ASOF, at } = {}) {
   }
   const ctx = {
     document: { getElementById: (id) => (id === 'train-activity' ? host : null) },
-    ACTIVITY: activity, I18N_ACTIVITY: locale === 'es' ? esT : enT, LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON,
+    ACTIVITY: activity == null ? activity : activityBake(activity), I18N_ACTIVITY: locale === 'es' ? esT : enT, LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
   vm.createContext(ctx);
+  loadUtil(ctx);
   vm.runInContext(source, ctx);
   return host.innerHTML;
 }
