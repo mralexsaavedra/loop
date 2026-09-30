@@ -27,6 +27,12 @@ services:
       STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
       STRAVA_REFRESH_TOKEN: ${STRAVA_REFRESH_TOKEN:-}
       STRAVA_SYNC_MINUTES: ${STRAVA_SYNC_MINUTES:-30}
+      TRIGGER_DIR: /trigger
+    # POST /sync writes /trigger/refresh; the host watches ./trigger/refresh with
+    # services/plan-web/systemd/plan-web-refresh.path. The container runs as the
+    # image's `node` user (uid 1000): chown the host dir to 1000 (see README).
+    volumes:
+      - ./trigger:/trigger
     ports:
       - "${INGEST_PORT}:8088"
     depends_on:
