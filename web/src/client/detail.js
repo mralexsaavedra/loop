@@ -25,6 +25,11 @@
  * the URL follows). A re-open while the close's history.back() is in flight waits for its popstate
  * before writing history. Every view renders inside a try/catch with a message fallback; no NaN is ever
  * printed (non-finite values render as a dash). A day tap re-renders only the calendar + day panel.
+ *
+ * Registered views: another script (inlined BEFORE this one) may add window.HCViews[<key>] =
+ * {title(), render() -> {head, body}} (client/profile.js adds `profile`). An opener with
+ * data-detail="<key>" then opens that view in this same modal (focus, inert, Esc, Back), with the deep
+ * link #<key> instead of #detail/<metric>; a view that throws gets the same message fallback.
  */
 (function () {
   var host = document.getElementById('detail');
@@ -40,6 +45,8 @@
   // overnight signals: their day detail is the whole night (sleep, bed / wake, the night's signals)
   var NIGHT_KEYS = ['sleep', 'recovery', 'hrv', 'rhr', 'respiratory', 'wristTemp'];
   var HASH_RE = /^#detail\/([A-Za-z-]+)(?:\/(\d{4}-\d{2}-\d{2}))?$/;
+  // a registered view (window.HCViews, e.g. the profile sheet of client/profile.js) deep-links as #<key>
+  var VIEW_HASH_RE = /^#([a-z][a-z-]*)$/;
   // daily totals whose newest day fills up during the day (the extract's "so far" value)
   var PARTIAL_KINDS = ['total'];
   // kinds whose missing recent days mean stale data (a sparse reading or a rest day is not staleness)
@@ -62,6 +69,12 @@
   }
   function own(o, k) {
     return !!o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, k);
+  }
+  // views registered by other scripts before this one: {<key>: {title(): string, render(): {head, body}}}
+  function viewOf(key) {
+    var all = typeof window !== 'undefined' && window.HCViews && typeof window.HCViews === 'object' ? window.HCViews : null;
+    var v = own(all, key) ? all[key] : null;
+    return v && typeof v.render === 'function' ? v : null;
   }
   function metric(key) {
     var m = own(D.metrics, key) ? D.metrics[key] : null;
@@ -136,6 +149,8 @@
     return (own(T.metrics, key) && T.metrics[key].unit) || '';
   }
   function titleOf(key) {
+    var vw = viewOf(key);
+    if (vw) return (typeof vw.title === 'function' && vw.title()) || key;
     return (own(T.metrics, key) && T.metrics[key].title) || key;
   }
   function valUnit(v, dec, unit) {
@@ -497,7 +512,12 @@
 
   /* ---------- view ---------- */
   function viewHtml() {
-    var key = state.key, m = metric(key);
+    var key = state.key, vw = viewOf(key);
+    if (vw) {
+      var r = vw.render() || {};
+      return head(key, r.head || '') + '<div class="dt-body">' + (r.body || '') + '</div>';
+    }
+    var m = metric(key);
     if (!m) return head(key) + '<div class="dt-body"><p class="dt-empty">' + esc(T.empty) + '</p></div>';
     var ve = viewEnd(), end = ve.end;
     var sel = state.date && state.date >= m.start && state.date <= end ? state.date : lastDataDate(m, end);
@@ -553,6 +573,7 @@
     return !!state && !host.hidden;
   }
   function hashOf() {
+    if (viewOf(state.key)) return '#' + state.key;
     return '#detail/' + state.key + (state.date ? '/' + state.date : '');
   }
   // true when the history entry was written; a sandboxed frame may refuse it (the view still works,
@@ -648,7 +669,10 @@
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* see setHash */ }
   }
   function fromHash() {
-    var mm = HASH_RE.exec((typeof location !== 'undefined' && location.hash) || '');
+    var hash = (typeof location !== 'undefined' && location.hash) || '';
+    var vm = VIEW_HASH_RE.exec(hash);
+    if (vm) return viewOf(vm[1]) ? { key: vm[1], date: null } : null;
+    var mm = HASH_RE.exec(hash);
     // own keys only (no "constructor" / "toString"), and only a metric the page has data for
     if (!mm || !own(T.metrics, mm[1]) || !metric(mm[1])) return null;
     return { key: mm[1], date: mm[2] || null };
@@ -704,7 +728,7 @@
     if (isOpen()) {
       if (e.key === 'Escape' || e.key === 'Esc') { e.preventDefault(); close(); return; }
       if (e.key === 'Tab' && host.querySelectorAll) {
-        var f = Array.prototype.slice.call(host.querySelectorAll('button:not([disabled])'));
+        var f = Array.prototype.slice.call(host.querySelectorAll('button:not([disabled]), summary'));
         if (!f.length) return;
         var i = f.indexOf(document.activeElement);
         if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }

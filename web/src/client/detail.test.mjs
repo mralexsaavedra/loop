@@ -30,7 +30,7 @@ const valueOn = (m, iso) => { const i = dayIndex(m, iso); return i >= 0 && i < m
 
 // parts: true = the sheet's sub-parts (calendar, day panel, chart selection) resolve to stub elements,
 // so a day tap can update them in place; query = extra host.querySelector answers (sel -> element)
-function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync = false, parts = false, query = {} } = {}) {
+function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync = false, parts = false, query = {}, views = null } = {}) {
   const listeners = { doc: {}, win: {} };
   const host = new StubElement('div', { attrs: { id: 'detail' }, hidden: true });
   const closeBtn = { focused: 0, focus() { this.focused++; } };
@@ -85,6 +85,7 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
     Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite, parseInt, setTimeout: (fn) => fn(),
   };
   win.history = history;
+  if (views) win.HCViews = views;
   win.location = loc;
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -563,4 +564,57 @@ test('opener delegation: a click on a control inside a card opens nothing; the c
   s.key('Escape');
   s.click(card);
   assert.equal(s.host.hidden, false);
+});
+
+/* ---------- registered views (window.HCViews): the profile sheet reuses the modal ---------- */
+const profileView = (over = {}) => ({
+  profile: { title: () => 'Profile', render: () => ({ head: '<div class="pf-head">H</div>', body: '<p class="pf-body">B</p>' }), ...over },
+});
+
+test('a registered view opens from its opener: its title + head + body in the same modal, #<key> pushed, Esc closes', () => {
+  const s = setup({ views: profileView() });
+  const btn = new StubElement('button', { attrs: { 'data-detail': 'profile', 'aria-haspopup': 'dialog' } });
+  btn.focused = 0;
+  btn.focus = () => { btn.focused++; };
+  s.click(btn);
+  const html = s.host.innerHTML;
+  assert.equal(s.host.hidden, false);
+  assert.ok(html.includes('id="dt-title">Profile<'));
+  assert.ok(html.includes('class="pf-head"') && html.includes('class="pf-body"'));
+  assert.doesNotMatch(html, /dt-range|dt-chart|dt-cal/, 'no metric chrome');
+  assert.deepEqual(s.calls[0], ['push', '#profile']);
+  assert.equal(s.wrap.getAttribute('inert'), '');
+  s.key('Escape');
+  assert.equal(s.host.hidden, true);
+  assert.equal(btn.focused, 1, 'focus returns to the avatar');
+});
+
+test('deep link #profile opens the registered view on load; an unregistered #profile is ignored', () => {
+  const s = setup({ views: profileView(), hash: '#profile' });
+  assert.equal(s.host.hidden, false);
+  assert.equal(s.api.state().key, 'profile');
+  assert.equal(s.calls.filter((c) => c[0] === 'push').length, 0);
+  assert.equal(setup({ hash: '#profile' }).host.hidden, true);
+  assert.equal(setup({ views: profileView(), hash: '#constructor' }).host.hidden, true, 'own keys only');
+});
+
+test('Back (popstate to #profile) reopens the view; to no hash closes it', () => {
+  const s = setup({ views: profileView() });
+  s.loc.hash = '#profile';
+  s.popstate();
+  assert.equal(s.api.state().key, 'profile');
+  s.loc.hash = '';
+  s.popstate();
+  assert.equal(s.host.hidden, true);
+});
+
+test('a view that throws renders the error message, never a blank sheet', () => {
+  const s = setup({ views: profileView({ render: () => { throw new Error('boom'); } }) });
+  s.api.open('profile');
+  assert.equal(s.host.hidden, false);
+  assert.ok(s.host.innerHTML.includes(enT.viewError));
+});
+
+test('the Tab trap also cycles through <summary> (a view may fold content in <details>)', () => {
+  assert.match(source, /querySelectorAll\('button:not\(\[disabled\]\), summary'\)/);
 });
