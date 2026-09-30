@@ -71,17 +71,34 @@ function settleWithin (promise, ms) {
  * has published as `processedSeq` in status.json, so the page waits for
  * `processedSeq >= seq` — no clock comparison anywhere.
  *
- * Cost is bounded WITHOUT ever refusing the owner (no 429):
+ * Cost is bounded WITHOUT ever refusing the owner (no 429) and WITHOUT ever
+ * dropping a call that may carry newer data:
  *   - a click while a trigger is still pending (its Strava pull + write not
- *     done yet) or within MIN_TRIGGER_INTERVAL_MS of the last one COALESCES:
- *     202 {seq: <current>, coalesced: true}, no work at all;
- *   - otherwise a new seq is assigned; the Strava pull is skipped when the
- *     last successful pull is < MIN_STRAVA_INTERVAL_MS old; the trigger file
- *     is written once the pull settles (bounded by waitMs).
- * So a flood costs at most one rebuild per minute and one Strava pull per 5 min.
+ *     done yet) coalesces onto that seq: 202 {seq: <current>, coalesced: true}.
+ *     Safe, because the rebuild has not started, so it will see the new data;
+ *   - a click within MIN_TRIGGER_INTERVAL_MS of the last accepted one, once its
+ *     write is done, DEFERS: a new seq is assigned now and ONE trigger write is
+ *     scheduled for lastAcceptedAt + MIN_TRIGGER_INTERVAL_MS, answered as
+ *     202 {seq: <deferred>, coalesced: true, deferred: true}. Later clicks in
+ *     the window reuse that seq (no pile-up). Without this, a Shortcut that
+ *     POSTs a payload and then calls /sync seconds after a click would be
+ *     folded into a rebuild that already ran without its data;
+ *   - otherwise a new seq is assigned and run at once.
+ * A run skips the Strava pull when the last successful pull is
+ * < MIN_STRAVA_INTERVAL_MS old (checked when the run starts, so a deferred run
+ * obeys its own cooldown); the trigger file is written once the pull settles
+ * (bounded by waitMs). So a flood costs at most one rebuild per minute and one
+ * Strava pull per 5 min.
  *
- * Returns synchronously with `status`/`body` plus `done` (the background work)
- * so the HTTP layer answers at once and tests can await the side effects.
+ * Nothing new is persisted: the deferred seq goes through the same
+ * nextTriggerSeq(). On shutdown call flush(): it writes a pending deferred seq
+ * at once, without a Strava pull. If the process dies without it, the deferred
+ * write is lost; the next hourly refresh republishes the data, and a client
+ * waiting on that seq times out with the generic message.
+ *
+ * Returns synchronously with `status`/`body` plus `done` (the background work;
+ * for a deferred answer, the deferred write) so the HTTP layer answers at once
+ * and tests can await the side effects.
  */
 export function createSyncTrigger ({
   runStrava,
@@ -95,40 +112,78 @@ export function createSyncTrigger ({
 }) {
   let pending = false
   let lastAcceptedAt = -Infinity
+  // { seq, timer, done, resolve } while a deferred write is scheduled
+  let deferred = null
+
+  function run (seq, { skipStrava = false } = {}) {
+    pending = true
+    lastAcceptedAt = now()
+
+    const stravaMode = !runStrava ? 'disabled' : skipStrava || status.stravaFresh(minStravaIntervalMs) ? 'recent' : 'started'
+    // async wrapper: starts the pull now, and turns a synchronous throw into a rejection
+    const strava = stravaMode === 'started' ? (async () => runStrava())() : Promise.resolve()
+
+    const done = settleWithin(strava, stravaMode === 'started' ? waitMs : 0)
+      .then(() => writeTrigger(seq))
+      .then(
+        async () => {
+          pending = false
+          await status.recordTrigger(seq)
+          log(JSON.stringify({ event: 'sync_triggered', seq }))
+        },
+        async (err) => {
+          pending = false
+          // the message stays in the log; status only ever gets the coarse code
+          log(JSON.stringify({ event: 'trigger_write_failed', seq, code: err.code ?? null, message: err.message }))
+          await status.recordTriggerError(seq)
+        }
+      )
+      .catch((err) => log(JSON.stringify({ event: 'trigger_status_failed', message: err.message })))
+      .finally(() => { pending = false })
+
+    return { stravaMode, done }
+  }
+
+  function fireDeferred (opts) {
+    const d = deferred
+    if (!d) return Promise.resolve()
+    deferred = null
+    clearTimeout(d.timer)
+    const { done } = run(d.seq, opts)
+    d.resolve(done)
+    return done
+  }
+
+  function schedule (t) {
+    if (!deferred) {
+      const seq = status.nextTriggerSeq()
+      let resolve
+      const done = new Promise((r) => { resolve = r })
+      const delay = Math.max(0, lastAcceptedAt + minTriggerIntervalMs - t)
+      const timer = setTimeout(() => { fireDeferred() }, delay)
+      timer.unref?.()
+      deferred = { seq, timer, done, resolve }
+      log(JSON.stringify({ event: 'sync_deferred', seq, delayMs: delay }))
+    }
+    return { status: 202, body: { ok: true, seq: deferred.seq, coalesced: true, deferred: true }, done: deferred.done }
+  }
 
   return {
     handle () {
       const t = now()
-      if (pending || t - lastAcceptedAt < minTriggerIntervalMs) {
+      if (deferred) return schedule(t)
+      if (pending) {
         return { status: 202, body: { ok: true, seq: status.currentSeq(), coalesced: true }, done: Promise.resolve() }
       }
-      pending = true
-      lastAcceptedAt = t
+      if (t - lastAcceptedAt < minTriggerIntervalMs) return schedule(t)
       const seq = status.nextTriggerSeq()
-
-      const stravaMode = !runStrava ? 'disabled' : status.stravaFresh(minStravaIntervalMs) ? 'recent' : 'started'
-      // async wrapper: starts the pull now, and turns a synchronous throw into a rejection
-      const strava = stravaMode === 'started' ? (async () => runStrava())() : Promise.resolve()
-
-      const done = settleWithin(strava, stravaMode === 'started' ? waitMs : 0)
-        .then(() => writeTrigger(seq))
-        .then(
-          async () => {
-            pending = false
-            await status.recordTrigger(seq)
-            log(JSON.stringify({ event: 'sync_triggered', seq }))
-          },
-          async (err) => {
-            pending = false
-            // the message stays in the log; status only ever gets the coarse code
-            log(JSON.stringify({ event: 'trigger_write_failed', seq, code: err.code ?? null, message: err.message }))
-            await status.recordTriggerError(seq)
-          }
-        )
-        .catch((err) => log(JSON.stringify({ event: 'trigger_status_failed', message: err.message })))
-        .finally(() => { pending = false })
-
+      const { stravaMode, done } = run(seq)
       return { status: 202, body: { ok: true, seq, coalesced: false, strava: stravaMode }, done }
+    },
+
+    /** Shutdown: write a pending deferred seq now (no Strava pull). No-op when none is pending. */
+    flush () {
+      return fireDeferred({ skipStrava: true })
     }
   }
 }

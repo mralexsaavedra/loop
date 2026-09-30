@@ -42,15 +42,16 @@ let stravaLoop = null
 // kicks the (shared, never overlapping) Strava pull unless one succeeded in the
 // last 5 min, then atomically writes `seq` to TRIGGER_DIR/refresh, which the
 // host watches with a systemd path unit to rebuild the plan page. Repeated
-// clicks coalesce (never 429). Unauthenticated; see sync-routes.js.
-const syncRoutes = createSyncRoutes({
-  status: syncStatus,
-  trigger: createSyncTrigger({
-    runStrava: stravaSync ? () => stravaSync.runOnce() : null,
-    writeTrigger: createTriggerWriter({ dir: TRIGGER_DIR }),
-    status: syncStatus
-  })
+// clicks coalesce (never 429); a click inside the 60 s window after a finished
+// write gets a deferred seq, written when the window closes, so a Shortcut
+// payload that lands right after a rebuild still gets published.
+// Unauthenticated; see sync-routes.js.
+const syncTrigger = createSyncTrigger({
+  runStrava: stravaSync ? () => stravaSync.runOnce() : null,
+  writeTrigger: createTriggerWriter({ dir: TRIGGER_DIR }),
+  status: syncStatus
 })
+const syncRoutes = createSyncRoutes({ status: syncStatus, trigger: syncTrigger })
 
 function send (res, status, body) {
   const payload = JSON.stringify(body)
@@ -203,7 +204,10 @@ async function start () {
 for (const signal of ['SIGTERM', 'SIGINT']) {
   process.on(signal, () => {
     stravaLoop?.stop()
-    server.close(() => pool.end().then(() => process.exit(0)))
+    // Write a pending deferred seq now instead of losing it (bounded: a stuck
+    // write must not block shutdown; the hourly refresh is the fallback).
+    const flushed = Promise.race([syncTrigger.flush(), new Promise((resolve) => setTimeout(resolve, 3_000).unref())])
+    server.close(() => flushed.then(() => pool.end()).then(() => process.exit(0)))
   })
 }
 
