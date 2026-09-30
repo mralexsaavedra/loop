@@ -145,6 +145,15 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
 - All personal COPY (page title/kicker/h1/sub/footer, per-slot notes, which tabs/sections to hide)
   lives in `plan-data.json`'s `page` block (`page.notes.<slotId>`, `page.hideTabs: ["hoy"]`,
   etc.) — never hardcoded in tracked Astro/JS source, which stays fully generic.
+- **Header is optional.** Only `page.title` is required; `page.h1` / `page.sub` / `page.kicker` are
+  optional (the validator only checks them when present: h1 a non-empty string, sub a string). With
+  none of them there is no visible header — the page opens straight onto the dials, Whoop-style — and
+  `layouts/Plan.astro` renders a visually hidden `<h1 class="sr-only">` with the page title so the
+  document keeps one h1; an absent / empty sub renders nothing. The example plan keeps its h1 / sub,
+  so they still render there. The **top bar** (`.topbar`, above the nav) always carries the viewer's
+  date ("mié 30 sept" / "Wed 30 Sep", small caps like the other labels), written client-side by
+  `web/src/client/today-date.js` with `HC.fmtDate` (nothing time-based baked, builds stay
+  byte-identical), next to the freshness line / Sync button.
 
 **Tabs and sections.** Four top-level tabs, one question each (Whoop-style: the glance on Inicio,
 the detail one tap away). Nav = fixed bottom bar on narrow screens (four equal buttons that fit a
