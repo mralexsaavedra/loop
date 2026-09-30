@@ -418,6 +418,36 @@ test('kcal dial + bars fill from intake logged today (logged / target), a missin
   assert.match(h, /Logged today so far/);
 });
 
+test('the page food log (window.foodTotals) fills the dial + bars first, labelled as logged here; an Apple Health day is the fallback', () => {
+  const food = { date: TODAY, k: 1000, p: 60, c: 120, g: 30, n: 3, missing: { protein: false, carbs: false, fat: false }, src: 'log' };
+  const intake = { latest: { date: TODAY, k: 1800, p: 100, c: 200, g: 50 }, freshDays: 3 };
+  const h = run({ intake, hooks: { foodTotals: () => food } }).els['nutri-target'].innerHTML;
+  assert.match(h, /aria-label="Logged today: 1,000 of 2,500 kcal"/);
+  assert.match(h, /stroke-dasharray="40 100"/);
+  assert.ok(h.includes(enN.target.loggedFoodNote));
+  assert.doesNotMatch(h, /what your food app wrote/);
+  const miss = run({ hooks: { foodTotals: () => ({ ...food, missing: { protein: true, carbs: false, fat: true } }) } }).els['nutri-target'].innerHTML;
+  assert.ok(miss.includes(enN.target.loggedFoodMissing));
+  // no entries today (null), a stale day or a throwing hook: the Apple Health intake as before
+  for (const foodTotals of [() => null, () => ({ ...food, date: '2030-01-09' }), () => { throw new Error('x'); }]) {
+    const f = run({ intake, hooks: { foodTotals } }).els['nutri-target'].innerHTML;
+    assert.match(f, /aria-label="Logged today: 1,800 of 2,500 kcal"/);
+    assert.match(f, /what your food app wrote/);
+  }
+});
+
+test('HCNutri.refresh re-renders Resumen de hoy (the food log calls it after every add / delete)', () => {
+  let food = null;
+  const calls = [];
+  const s = run({ hooks: { foodTotals: () => food, bldRefresh: () => calls.push('bld'), intakeRefresh: () => calls.push('intake') } });
+  assert.doesNotMatch(s.els['nutri-target'].innerHTML, /nt-dial-fill/);
+  food = { date: TODAY, k: 500, p: 10, c: 10, g: 10, n: 1, missing: { protein: false, carbs: false, fat: false }, src: 'log' };
+  calls.length = 0;
+  s.api.refresh();
+  assert.match(s.els['nutri-target'].innerHTML, /nt-dial-fill/);
+  assert.deepEqual(calls, ['bld', 'intake'], 'the builder and the rings follow');
+});
+
 test('day type segments: the detected type carries the subtle "auto" mark', () => {
   const s = run({ items: [{ modality: 'gym', dur: 60 }] });
   assert.equal(s.labels.gym.classes.has('seg-auto'), true);

@@ -8,7 +8,9 @@
  * Data honesty: a ring fills ONLY from logged intake. No fresh intake (never logged, or nothing in
  * the last INTAKE.freshDays days) -> the block renders NOTHING (host hidden, no help text); a macro missing on the logged day -> an empty ring with a dash, never a ring drawn
  * from the target. Intake logged TODAY is shown by Resumen de hoy's kcal dial + macro bars
- * (client/nutri-day.js), so with Nutrición on the page the rings then step aside (host hidden). nutri-day.js calls window.intakeRefresh() after every goal / day type / ride change. */
+ * (client/nutri-day.js), so with Nutrición on the page the rings then step aside (host hidden). nutri-day.js calls window.intakeRefresh() after every goal / day type / ride change.
+ * On the LAN page, today's own food log (window.foodTotals, client/food.js) takes the place of the
+ * Apple Health day whenever it has entries (labelled "Logged today"). */
 (function () {
   var T = I18N_INTAKE;
   var DATE_LOCALE = LOCALE === 'es' ? 'es-ES' : 'en-GB';
@@ -51,6 +53,13 @@
     var host = document.getElementById('intake');
     if (!host) return;
     var L = INTAKE.latest;
+    // today's page food log (client/food.js, LAN page only) wins over the Apple Health day
+    if (typeof window.foodTotals === 'function') {
+      try {
+        var F = window.foodTotals();
+        if (F && F.date === HC.todayIso() && F.n > 0) L = F;
+      } catch (e) { /* keep the Apple Health day */ }
+    }
     host.hidden = false;
     // logged TODAY and Resumen de hoy is on the page: its kcal dial + macro bars already show it
     if (L && L.date === HC.todayIso() && typeof window.nutriTarget === 'function') {
@@ -73,7 +82,7 @@
       } catch (e) { /* keep the plan total */ }
     }
     // today's log is still filling up: say so, so partial rings are not read as a finished day
-    var asOf = L.date === HC.todayIso() ? T.todayLbl : format(T.asOfTpl, { date: fmtD(L.date) });
+    var asOf = L.src === 'log' ? T.foodLbl : L.date === HC.todayIso() ? T.todayLbl : format(T.asOfTpl, { date: fmtD(L.date) });
     host.innerHTML =
       '<div class="intake-card">' +
       '<div class="intake-head"><h3>' + T.heading + '</h3><span class="intake-asof">' + esc(asOf) + '</span></div>' +

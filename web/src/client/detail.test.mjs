@@ -615,8 +615,31 @@ test('a view that throws renders the error message, never a blank sheet', () => 
   assert.ok(s.host.innerHTML.includes(enT.viewError));
 });
 
-test('the Tab trap also cycles through <summary> (a view may fold content in <details>) and a radio group (its checked radio)', () => {
-  assert.match(source, /querySelectorAll\('button:not\(\[disabled\]\), summary, input\[type="radio"\]:checked'\)/);
+test('the Tab trap also cycles through <summary> (a view may fold content in <details>), a radio group (its checked radio) and form fields (the food log add sheet)', () => {
+  assert.match(source, /'button:not\(\[disabled\]\), summary, input\[type="radio"\]:checked, input:not\(\[type="radio"\]\):not\(\[type="hidden"\]\):not\(\[disabled\]\), select:not\(\[disabled\]\), textarea:not\(\[disabled\]\)'/);
+});
+
+test('Tab from a text field inside a view moves on normally; only the last control wraps to the first', () => {
+  const s = setup({ views: profileView() });
+  s.api.open('profile');
+  const mk = () => ({ focused: 0, focus() { this.focused++; } });
+  const first = mk(), field = mk(), last = mk();
+  s.host.querySelectorAll = () => [first, field, last];
+  s.ctx.document.activeElement = field;
+  const mid = s.key('Tab', field);
+  assert.equal(mid.prevented, false, 'the browser moves focus to the next control');
+  s.ctx.document.activeElement = last;
+  const wrap = s.key('Tab', last);
+  assert.equal(wrap.prevented, true);
+  assert.equal(first.focused, 1);
+});
+
+test('HCDetail.open(key, date, {opener}) returns focus to that opener on close (a tapped button that the browser did not focus)', () => {
+  const s = setup({ views: profileView() });
+  const opener = { focused: 0, focus() { this.focused++; }, isConnected: true };
+  s.api.open('profile', null, { opener });
+  s.api.close();
+  assert.equal(opener.focused, 1);
 });
 
 test('HCDetail.open(key, date, {focus}) moves focus to that control of the view (the goal chip -> the goal radio), else the close button', () => {

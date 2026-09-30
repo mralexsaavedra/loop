@@ -23,10 +23,11 @@ function fixedDate(iso) {
   };
 }
 
-function run({ latest, today, locale = 'en', nutriTarget = null }) {
+function run({ latest, today, locale = 'en', nutriTarget = null, foodTotals = null }) {
   const doc = new StubDocument();
   const host = doc.el('intake');
   const window = nutriTarget ? { nutriTarget } : {};
+  if (foodTotals) window.foodTotals = foodTotals;
   const ctx = {
     document: doc, window, INTAKE: { latest, target: TARGET, freshDays: 3 }, I18N_INTAKE: locale === 'es' ? esIntake : enIntake, LOCALE: locale,
     Math, String, Number, JSON, Date: fixedDate(today),
@@ -154,4 +155,16 @@ test('intake logged TODAY with Nutrición present: no rings (the kcal dial and m
   assert.equal(host.hidden, true);
   const y = run({ latest: { date: '2030-01-09', k: 1525, p: 75, c: 212, g: 30 }, today: '2030-01-10', nutriTarget }).host;
   assert.equal(y.hidden, false, 'an earlier fresh day still shows its rings');
+});
+
+test('today\'s page food log (window.foodTotals) wins over the Apple Health day: with Nutrición it steps aside, alone it draws the rings labelled as logged here', () => {
+  const food = () => ({ date: '2030-01-10', k: 1200, p: 85, c: 130, g: 40, n: 2, missing: { protein: false, carbs: false, fat: false }, src: 'log' });
+  const nutriTarget = () => ({ k: 2400, p: 170, c: 260, g: 70, label: 'x' });
+  const aside = run({ latest: { date: '2030-01-09', k: 900, p: 1, c: 1, g: 1 }, today: '2030-01-10', nutriTarget, foodTotals: food }).host;
+  assert.equal(aside.hidden, true, 'the dial of Resumen de hoy shows today\'s log');
+  const alone = run({ latest: { date: '2030-01-09', k: 900, p: 1, c: 1, g: 1 }, today: '2030-01-10', foodTotals: food }).host.innerHTML;
+  assert.match(alone, /50%/);
+  assert.match(alone, /class="intake-asof">Logged today</);
+  const broken = run({ latest: { date: '2030-01-09', k: 1200, p: 1, c: 1, g: 1 }, today: '2030-01-10', foodTotals: () => { throw new Error('x'); } }).host.innerHTML;
+  assert.match(broken, /1200/, 'a throwing hook falls back to the Apple Health day');
 });
