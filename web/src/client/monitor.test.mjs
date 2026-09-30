@@ -31,7 +31,7 @@ function monitor() {
   });
 }
 
-function render(mon, { locale = 'en', now = ASOF, healthNav = false } = {}) {
+function render(mon, { locale = 'en', now = ASOF, healthNav = false, detail = false } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
   class FakeDate extends RealDate {
@@ -42,6 +42,7 @@ function render(mon, { locale = 'en', now = ASOF, healthNav = false } = {}) {
     SCORES: mon === undefined ? undefined : { monitor: mon }, I18N_SCORE: locale === 'es' ? esT : enT, LOCALE: locale,
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
+  if (detail) ctx.DETAIL = { metrics: {} };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
@@ -116,12 +117,15 @@ test('es: Alto / Bajo / Normal, decimal comma, Spanish units', () => {
   assert.ok(cardOf(html, 'rhr').includes(esT.monitor.units.rhr));
 });
 
-test('cards jump to their Salud trend via jumpOr only when the Salud tab is reachable', () => {
-  const linked = render(monitor(), { healthNav: true });
-  for (const k of ['respiratory', 'rhr', 'hrv', 'wristTemp', 'sleep']) {
-    assert.match(cardOf(linked, k), new RegExp(`onclick="jumpOr\\('hl-${k}','health'\\)"`), k);
+test('every card (also an empty or stale one) opens its detail view, whatever tabs are hidden; no jump into another tab', () => {
+  for (const nav of [true, false]) {
+    const linked = render(monitor(), { healthNav: nav, detail: true });
+    for (const k of ['respiratory', 'rhr', 'hrv', 'wristTemp', 'sleep']) {
+      assert.match(cardOf(linked, k), new RegExp(`data-hm="${k}" data-detail="${k}" role="button" tabindex="0" aria-haspopup="dialog"`), k);
+    }
+    assert.doesNotMatch(linked, /jumpOr|onclick/);
   }
-  assert.doesNotMatch(render(monitor()), /jumpOr/);
+  assert.doesNotMatch(render(monitor()), /data-detail/, 'no detail sheet baked: plain cards');
 });
 
 test('per-card staleness: a card whose own date is > 3 days old loses its tone and says "no recent data"', () => {
