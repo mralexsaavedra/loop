@@ -271,8 +271,8 @@ calendar** and **cumulative training time** (`#train-activity`, `lib/training/ac
 `ACTIVITY`, baked in TrainingDetail with `I18N_ACTIVITY`; client/training-activity.js), then running,
 cycling and load vs recovery (`#health-train`, client/health.js). The calendar/cumulative follow the
 dashboard's rules: duration not kcal, DISTINCT days, dashboard modality buckets, and the shared
-same-day rule (`lib/training/sessions.mjs`: junk stubs dropped, one source per date + bucket, then
-summed). Only the last 63 data days are baked (two 30-day windows + 3 days of viewer slack), one entry
+same-day rule (`lib/training/sessions.mjs` `DISPLAY_RULE`: stubs under 3 min dropped, one source per
+date + bucket, then summed); the workouts dashboard uses the same rule, so its days/minutes agree. Only the last 63 data days are baked (two 30-day windows + 3 days of viewer slack), one entry
 per active day; the client ends both windows at the VIEWER's today, or at the data date when that is
 more than 3 days old (greyed, with a note) or AFTER the viewer's today (clock / timezone skew, so the
 newest sessions stay visible). Calendar = Monday-first weeks, ONE sequential hue
@@ -312,7 +312,8 @@ lives in `profile/about-me.md` (gitignored), never in a tracked file.
 (frequency, weekly volume, modality split). If the CSV is absent (fresh clone), the tab
 shows an empty state — it never fails the build. Data-honesty rules are baked in: use DURATION
 not kcal (blank on recent exports); count DISTINCT DAYS not raw rows (the Watch fragments one
-session into several records); the modality split (strength/hiit/run/bike/other) reflects the
+session into several records) after the shared same-day `DISPLAY_RULE` (stubs dropped, a Watch copy
+of a Strava session counted once — same totals as the calendar); the modality split (strength/hiit/run/bike/other) reflects the
 WATCH's auto-labels, which over-tag HIIT and under-count strength — the page says so on-screen. The
 `hiit` bucket is LABELLED "Gimnasio"/"Gym" (display only, same bucket) so it matches Inicio's gym
 load card; `strength` keeps its own label.
@@ -398,7 +399,7 @@ anchor for Inicio's health monitor.
   right after Running as a RECENT-RIDES table with the same style and row budget (8, newest first) so
   run and bike carry equal weight: date, distance, time (Strava moving time / Watch duration),
   elevation gain, avg HR, relative effort, kJ, plus the ride count. Same-day rows merge into ONE ride
-  under the shared same-day rule (junk stubs dropped, the Strava copy wins over a Watch copy): sums
+  under the shared same-day rule (`DISPLAY_RULE`: stubs dropped, the Strava copy wins over a Watch copy): sums
   for time/distance/kJ/elevation/RE, duration-weighted avg HR, and the count is distinct ride days. Elevation / RE / kJ come from
   Strava only; a field the source did not record renders as a dash, never 0. When only one of run /
   bike has data, the other shows its empty-state line; with neither, both are omitted.
@@ -505,7 +506,7 @@ is the newest day, and the trend is the line under it.
   false; `#timeline` + `client/timeline.js`, under the monitor): per day, last night's sleep
   (`sleep-daily.csv`, dated the wake-up day) and that day's workouts by Home modality (gym / run /
   bike / other) with minutes and RE when the source recorded it. Rows follow the shared same-day
-  rule (junk dropped, one source, same-day rows of one modality merge; the row says "N parts"). Only the last 3 data days are
+  rule (`DISPLAY_RULE`: stubs dropped, one source, same-day rows of one modality merge; the row says "N parts"). Only the last 3 data days are
   baked; the client shows the viewer's today, else the newest earlier day under "Latest day · <date>"
   with "nothing logged yet today", greyed when > 3 days old; when the viewer's clock is EARLIER than
   every baked day (clock / timezone skew) → the newest baked day under its date (no "nothing logged"
@@ -522,14 +523,21 @@ is the newest day, and the trend is the line under it.
   Salud) and must stay reachable wherever the dial is shown: when `page.hideTabs` hides Entreno (or
   its `load` section), score.js writes a compact load caveat line under the dials on Inicio
   (`dials.load.caveatLine`); when it hides Salud, a compact recovery line (`dials.recovery.caveatLine`).
-- **One same-day merge rule** (`lib/training/sessions.mjs` `mergeSameDay(rows, keyFn, { dropJunk })`),
+- **One same-day merge rule** (`lib/training/sessions.mjs` `mergeSameDay(rows, keyFn, { dropJunk, dropStub })`),
   used by EVERY workouts.csv reader: the load series, the timeline, the Entreno calendar/cumulative
-  time and the running/cycling tables (the key is the reader's modality bucket). Per (date, key):
-  drop invalid rows (`dur <= 0`); drop junk (`isJunk`: `dur <= 11` AND `re` null or ≤ 2 — so a 2-min
-  Watch stub never colours a rest day); when a Strava row (`source` "Strava API" or legacy "Strava")
-  AND a Watch row exist for the same date and key, keep ONLY the Strava rows (they carry RE /
-  elevation / kJ) instead of summing a double-counted session — sync:strava's date-level precedence
-  should prevent the pair but has known holes; the load coverage counts these as `superseded`; then
+  time, the workouts dashboard and the running/cycling tables (the key is the reader's modality
+  bucket). Per (date, key): drop invalid rows (`dur <= 0`); then the short-row filter depends on the
+  reader — LOAD scoring (default) drops junk (`isJunk`: `dur <= 11` AND `re` null or ≤ 2), while the
+  DISPLAY readers (timeline, calendar/cumulative, dashboard, run/ride tables) pass `DISPLAY_RULE` and
+  drop only stubs (`isStub`: `dur < STUB_MAX_MIN` = 3, accidental Watch starts) — Watch rows and no-HR
+  Strava rows have `re` null by design, so the junk rule would hide real 9-10 min sessions from the
+  pages that list sessions (they still add no load); when a Strava row (`source` "Strava API" or
+  legacy "Strava") AND a Watch row exist for the same date and key, and the Strava rows' total
+  duration is ≥ `SUPERSEDE_MIN_COVERAGE` (0.5) × the Watch rows' total, keep ONLY the Strava rows
+  (they carry RE / elevation / kJ) instead of summing a double-counted session — sync:strava's
+  date-level precedence should prevent the pair but has known holes; below that coverage the rows
+  are most likely different sessions and both are kept; the load coverage counts superseded rows as
+  `superseded`; then
   the remaining rows are summed as ONE session (a session logged in parts adds up; a real two-a-day
   is indistinguishable).
 - **workouts.csv has 12 columns** (`… ,distance_km,relative_effort,kilojoules,elevation_m`), written by
