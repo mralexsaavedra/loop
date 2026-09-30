@@ -31,6 +31,7 @@ import timelineScript from '../src/client/timeline.js?raw';
 import intakeScript from '../src/client/intake.js?raw';
 import freshnessScript from '../src/client/freshness.js?raw';
 import detailScript from '../src/client/detail.js?raw';
+import todayDateScript from '../src/client/today-date.js?raw';
 import { es as esSync, en as enSync } from '../src/i18n/sync-templates.mjs';
 import { es as esDate, en as enDate } from '../src/i18n/date-templates.mjs';
 // Numerals font: a ~1.5 KB subset of D-DIN Bold (SIL OFL 1.1, renamed "HC Num" as the OFL requires
@@ -80,16 +81,25 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
   </head>
   <body>
     <div class="wrap">
-      <header>
-        {page.kicker && <div class="kicker">{page.kicker}</div>}
-        {page.h1 && <h1>{page.h1}</h1>}
-        {page.sub && <p class="sub">{page.sub}</p>}
-      </header>
+      {/* page.h1 / page.sub are optional: without them the page opens straight onto the dials and a
+          visually hidden h1 (the page title) keeps one h1 in the document */}
+      {(page.kicker || page.h1 || page.sub) && (
+        <header>
+          {page.kicker && <div class="kicker">{page.kicker}</div>}
+          {page.h1 && <h1>{page.h1}</h1>}
+          {page.sub && <p class="sub">{page.sub}</p>}
+        </header>
+      )}
+      {!page.h1 && <h1 class="sr-only">{title}</h1>}
 
-      <div class="fresh" id="freshness" role="group" aria-label={syncT.ariaLabel} hidden>
-        <p class="fresh-line" id="fresh-line"></p>
-        <button type="button" class="fresh-btn" id="sync-btn">{syncT.button}</button>
-        <p class="fresh-msg" id="sync-msg" role="status" aria-live="polite"></p>
+      {/* top bar: the viewer's date (client/today-date.js, nothing baked) + the freshness line / Sync */}
+      <div class="topbar">
+        <time id="today-date" class="today-date"></time>
+        <div class="fresh" id="freshness" role="group" aria-label={syncT.ariaLabel} hidden>
+          <p class="fresh-line" id="fresh-line"></p>
+          <button type="button" class="fresh-btn" id="sync-btn">{syncT.button}</button>
+          <p class="fresh-msg" id="sync-msg" role="status" aria-live="polite"></p>
+        </div>
       </div>
 
       <nav class="tabnav" role="tablist" aria-label={dict.strings.nav.ariaLabel}>
@@ -119,6 +129,7 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
     <script is:inline set:html={navSource} />
     <script is:inline set:html={utilScript} />
     <script is:inline set:html={coreScript} />
+    <script is:inline set:html={todayDateScript} />
     <script is:inline set:html={nutritionScript} />
     <script is:inline set:html={intakeScript} />
     <script is:inline set:html={trainingTodayScript} />
