@@ -4,6 +4,30 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-09-30 — Nutrition v2, part 1: goals, day types, scaled plan, ride fuelling
+
+Nutrición opens on today. A goal (maintain / cut / bulk) and a day type (rest, gym or run, a ~2 h
+ride, a ride over 2.5 h — detected from today's workouts or programmed session, overridable for the
+day) pick one of 12 targets (`targets.byGoal`, carbs as the remainder, approved defaults when
+absent). Plan de hoy scales the plan's carb-flex parts by one clamped factor to hit it and says what
+is left over; ride days add before / during / after fuelling ranges (orientative); supplements from
+`profile.json` sit under their meal. Registro is now "Constructor de día" / "Day builder". Existing
+personal plans upgrade with `scripts/migrate-plan-v2.mjs` (dated backup, idempotent). Logging and a
+product catalogue are part 2.
+
+The goal later moved out of the way (owner feedback: too prominent): Resumen de hoy keeps only the
+day-type selector and shows the goal as a small chip next to today's kcal; the chip opens the profile
+sheet, whose new "Objetivo" setting (first section) sets it, with each option's kcal/day change vs
+maintain derived from the targets. Same storage key (`hc.nutri.goal`), same refresh path.
+
+Review fixes, same day: only real training raises the day type (walks, commutes and stubs no longer
+make a rest day a gym day); the ride's minutes re-scale the meals (the page re-solves from a baked
+scaling model, a picked duration is kept for the day); whole-unit portions round first and the gram
+portions absorb the rest; the train/rest toggle is gone — the day builder and the intake rings use
+today's target (on ride days the meals part, with the ride fuel on its own line); a lighter manual
+day type gives way to a harder one detected later, with a note. The migration marks staples only
+(fruit and honey opt-in) and `--reset-flex` re-derives the markers of an already-migrated plan.
+
 ## 2026-09-30 — Profile sheet (avatar button)
 
 A round avatar at the right of the top bar (photo, initials or a generic icon) opens a

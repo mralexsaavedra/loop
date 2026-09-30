@@ -63,10 +63,11 @@ test('generate.js falls back to plan-data.example.json (with a clear warning) wh
     fs.copyFileSync(path.join(__dirname, 'generate.js'), path.join(nutDir, 'generate.js'));
     fs.copyFileSync(path.join(__dirname, 'ingredients.json'), path.join(nutDir, 'ingredients.json'));
     fs.copyFileSync(path.join(__dirname, 'plan-data.example.json'), path.join(nutDir, 'plan-data.example.json'));
-    fs.copyFileSync(
-      path.join(__dirname, '..', '..', 'lib', 'nutrition', 'macros.mjs'),
-      path.join(root, 'lib', 'nutrition', 'macros.mjs'),
-    );
+    // the whole lib/nutrition module set (macros.mjs imports its siblings), tests left out
+    for (const f of fs.readdirSync(path.join(__dirname, '..', '..', 'lib', 'nutrition'))) {
+      if (!f.endsWith('.mjs') || f.endsWith('.test.mjs')) continue;
+      fs.copyFileSync(path.join(__dirname, '..', '..', 'lib', 'nutrition', f), path.join(root, 'lib', 'nutrition', f));
+    }
     const res = spawnSync(process.execPath, ['generate.js', '--check'], { cwd: nutDir, encoding: 'utf8' });
     assert.equal(res.status, 0, `expected success, got status=${res.status}, stderr=${res.stderr}`);
     assert.match(res.stderr, /plan-data\.example\.json/, 'must say clearly it is validating the example seed, not silently succeed');
@@ -145,6 +146,13 @@ test('live-calculator TARGET is single-sourced: k equals the generated day total
   for (const day of ['train', 'rest']) {
     assert.equal(gen.targetFor(day).k, gen.dayTotalK(day), `${day} target k must equal the generated day total`);
   }
+});
+
+test('plan-tables.md lists the 12 goal x day type targets with the scaled plan totals (single-sourced from lib/nutrition/scale.mjs)', () => {
+  const tables = buildTables();
+  assert.match(tables, /## Daily targets by goal and day type/);
+  const rows = tables.split('\n').filter((l) => /^\| (maintain|cut|bulk) \| (rest|gym|bike|bikeLong) \|/.test(l));
+  assert.equal(rows.length, 12);
 });
 
 test('generation is idempotent (buildTables is stable)', () => {

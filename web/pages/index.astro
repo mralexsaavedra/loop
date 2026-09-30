@@ -5,7 +5,7 @@
  *   - Inicio/Home (`home`)          today: dials, monitor, advice + "today you eat" card + programmed session (hoy)
  *   - Entreno/Training (`entreno`)  load (load), calendar (calendar), run/ride tables (sessions), dashboard (dash)
  *   - Salud/Health (`health`)       recovery, sleep, body, activity, energy
- *   - Nutrición (`nutricion`)       Mi día (dia) + Registro (registro) + Tablas (tablas) sections
+ *   - Nutrición (`nutricion`)       today (dia: Resumen de hoy + Plan de hoy + Avituallamiento) + the day builder (registro) + Tablas (tablas)
  * The former tab keys now name sections; `page.hideTabs` hides a section by its legacy key and a
  * tab by its top-level key (lib/nav/tabs.mjs resolveNav). See spec: plan-web-single-file-build.
  */
@@ -26,13 +26,15 @@ import { trainingMeta } from '../../lib/training/program.mjs';
 import { loadDashboard } from '../../lib/training/dashboard.mjs';
 import { buildActivity } from '../../lib/training/activity.mjs';
 import { buildHealth } from '../../lib/health/aggregate.mjs';
-import { resolveNav, activeTabKey, TAB_KEYS, sectionsOf, showDayToggle } from '../../lib/nav/tabs.mjs';
+import { resolveNav, activeTabKey, TAB_KEYS, sectionsOf } from '../../lib/nav/tabs.mjs';
 import { buildScores } from '../../lib/score/index.mjs';
 import { buildIntake } from '../../lib/nutrition/intake.mjs';
 import { dayViewModel } from '../src/view/day-totals.mjs';
 import DetailSheet from '../src/components/DetailSheet.astro';
 import { buildDetail } from '../../lib/detail/detail.mjs';
 import { loadProfile } from '../../lib/profile/profile.mjs';
+import { goalOptions } from '../../lib/profile/goal.mjs';
+import { resolveTargets } from '../../lib/nutrition/targets.mjs';
 
 const env = resolveEnv();
 const { locale, plan, ingredients, training, extractDir, repoRoot, dataMode } = env;
@@ -45,8 +47,9 @@ const health = buildHealth(extractDir);
 const scores = buildScores(extractDir);
 // the detail sheet behind every card: the last 365 days per metric (only the data's own dates)
 const detail = buildDetail(extractDir);
-// the avatar + profile sheet: manual profile.json + the Strava snapshot + the latest weigh-in (all optional)
-const profile = loadProfile({ repoRoot, dataMode, extractDir });
+// the avatar + profile sheet: manual profile.json + the Strava snapshot + the latest weigh-in (all optional),
+// plus the Goal setting's options (kcal/day vs maintain per goal, from the plan's resolved targets)
+const profile = { ...loadProfile({ repoRoot, dataMode, extractDir }), goals: goalOptions(resolveTargets(plan)) };
 // intake rings target = the same day totals Mi día shows for a train / rest day
 const intake = buildIntake(extractDir, { train: dayViewModel(nut, 'train').totals, rest: dayViewModel(nut, 'rest').totals });
 
@@ -67,10 +70,10 @@ const isTabVisible = (key: string) => TABS.some((t) => t.key === key);
 const title = plan.page?.title || 'Plan';
 ---
 
-<Plan title={title} locale={locale} page={plan.page} dict={dict} tabs={TABS} activeTab={activeTab} dayToggle={showDayToggle(hideTabs)} profile={profile}>
+<Plan title={title} locale={locale} page={plan.page} dict={dict} tabs={TABS} activeTab={activeTab} profile={profile}>
   <div class="tab-panel" data-tab="home" hidden={activeTab !== 'home'}>
     <Home />
-    <EatCard nut={nut} dict={dict} link={isTabVisible('nutricion')} />
+    <EatCard locale={locale} link={isTabVisible('nutricion')} />
     <Hoy dict={dict} hidden={isHidden('hoy')} />
   </div>
   <div class="tab-panel" data-tab="entreno" hidden={activeTab !== 'entreno'}>
@@ -81,7 +84,7 @@ const title = plan.page?.title || 'Plan';
     <Salud />
   </div>
   <div class="tab-panel" data-tab="nutricion" hidden={activeTab !== 'nutricion'}>
-    <Dia nut={nut} dict={dict} page={plan.page} hidden={isHidden('dia')} intakeHost={!!intake.latest || isHidden('registro')} />
+    <Dia nut={nut} plan={plan} locale={locale} page={plan.page} hidden={isHidden('dia')} intakeHost={!!intake.latest || isHidden('registro')} supplements={profile.supplements} weight={profile.weight} />
     <Registro nut={nut} dict={dict} page={plan.page} plan={plan} locale={locale} training={training.days} trainingMeta={trainMeta} dash={dash} health={health} scores={scores} intake={intake} hidden={isHidden('registro')} />
     <Tablas nut={nut} dict={dict} page={plan.page} hidden={isHidden('tablas')} />
   </div>

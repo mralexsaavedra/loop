@@ -80,8 +80,17 @@ instead of generic advice with no data behind it.
      personal files needed — useful to sanity-check the pipeline on a bare clone. It reads
      the synthetic demo extract in `data/demo/` (clearly fake, see its README), so every dial
      and section shows what your own data will look like.
+     🍽️ **Nutrition** opens on **today**: pick a goal (maintain / lose / gain); the day type (rest,
+     gym or run, a ~2 h ride, a long ride) is detected from today's workouts or programmed session
+     and can be overridden for the day. It shows today's target kcal and protein / fat / carbs
+     (`targets.byGoal` in `plan-data.json`), today's meals with the carb portions (parts marked
+     `"flex": "carb"`) scaled to hit it, supplements from `profile.json` under their meal, and on
+     ride days before / during / after fuelling ranges (orientative, not medical advice).
+     **Already have a `plan-data.json` from before this?** Run
+     `node scripts/migrate-plan-v2.mjs --dry-run` to see what it would add, then without
+     `--dry-run` (it backs the file up first and is safe to re-run), then `npm run check && npm run generate`.
    - Profile (optional): copy `profile/profile.example.json` → `profile/profile.json` (birthdate,
-     height, devices; gitignored) and run `npm run generate`. The round **avatar** at the top right
+     height, devices, supplements; gitignored) and run `npm run generate`. The round **avatar** at the top right
      opens your profile: photo or initials, name, age (worked out on your device), city, height,
      latest weigh-in, and — with the ingest service's Strava connection and `npm run sync` — your
      bikes and shoes with their kilometres (a gentle replace hint past ~700 km) and the devices

@@ -17,6 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadInputs } from '../../lib/load/inputs.mjs';
 import { buildNutrition } from '../../lib/nutrition/macros.mjs';
+import * as nutriToday from '../../lib/nutrition/today.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
@@ -65,22 +66,30 @@ function loadExampleNut() {
   return { plan, nut };
 }
 
-test('example build renders lib-computed day kcal/protein totals in the Mi día tab', () => {
+test('example build: the dia section carries Resumen de hoy (day type radios only, target host, intake host), Plan de hoy and the ride-fuelling block, and bakes the 12 lib-computed plans', () => {
   assert.ok(fs.existsSync(examplePath), `missing ${examplePath} — run \`npm run pretest\` first`);
   const html = fs.readFileSync(examplePath, 'utf8');
-  const { nut } = loadExampleNut();
-  const diaHtml = sliceSection(html, 'dia');
-
-  for (const day of ['train', 'rest']) {
-    const totals = nut.DAYPLAN[day].meals.reduce((s, meal) => {
-      const m = nut.mealMacros(meal);
-      return { k: s.k + m.k, p: s.p + m.p, c: s.c + m.c, g: s.g + m.g };
-    }, { k: 0, p: 0, c: 0, g: 0 });
-    const kcalText = dotThousands(Math.round(totals.k));
-    const proteinText = `${Math.round(totals.p)} g`;
-    assert.ok(diaHtml.includes(kcalText), `expected the "${day}" day kcal total "${kcalText}" in the Mi día tab, got:\n${diaHtml.slice(0, 400)}`);
-    assert.ok(diaHtml.includes(proteinText), `expected the "${day}" day protein total "${proteinText}" in the Mi día tab`);
-  }
+  const { plan, nut } = loadExampleNut();
+  const dia = sliceSection(html, 'dia');
+  const at = ["Today's summary", 'id="nutri-daytype"', 'id="nutri-target"', 'id="intake"', "Today's plan", 'id="nutri-plan"', 'id="nutri-fuel-block"', 'Ride fuelling'].map((n) => {
+    const i = dia.indexOf(n.replace("'", '&#39;')); // Astro escapes the apostrophe in text
+    return i !== -1 ? i : dia.indexOf(n);
+  });
+  at.forEach((i, n) => assert.ok(i !== -1, `marker ${n} missing from the dia section`));
+  assert.deepEqual([...at].sort((x, y) => x - y), at, 'order: summary, plan, fuelling');
+  // labelled radios: the 4 day types are the ONLY control; the goal lives in the profile sheet (a chip
+  // next to today's kcal, client-rendered, opens it)
+  assert.equal((dia.match(/<input type="radio" name="nutri-day"/g) || []).length, 4);
+  assert.doesNotMatch(dia, /nutri-goal"|name="nutri-goal/, 'no goal radio group in Nutrición');
+  assert.match(dia, /<div class="nutri-block" id="nutri-fuel-block" hidden>/, 'fuelling shows only on bike day types (client-side)');
+  // the baked plans are the lib's own
+  const m = html.match(/var NUTRI = (\{.*?\});\n/);
+  assert.ok(m, 'NUTRI bake missing');
+  const baked = JSON.parse(m[1]);
+  const { buildNutriToday } = nutriToday;
+  const expected = buildNutriToday(nut, plan, { units: { g: 'g', ml: 'ml', ud: 'pc' }, dec: '.', supplements: baked.supplements, weight: baked.weight });
+  assert.deepEqual(baked.plans, JSON.parse(JSON.stringify(expected.plans)));
+  assert.equal(baked.supplements.length, 3, 'the synthetic example supplements ride along');
 });
 
 test('example build renders a lib-computed breakfast component row in the Tablas tab', () => {
@@ -183,31 +192,15 @@ test('example build: Registro and Tablas are collapsible <details> folds with a 
   }
 });
 
-test('example build: Inicio carries a compact "today you eat" card with the Mi día totals, a day toggle and a link to Nutrición', () => {
+test('example build: Inicio carries a compact "today you eat" card (filled client-side with today\'s target) and a link to Nutrición', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
-  const { nut } = loadExampleNut();
   const home = sliceTabPanel(html, 'home');
   const cardAt = home.indexOf('class="eat-card"');
   assert.ok(cardAt !== -1, 'eat card missing from the Inicio panel');
   assert.ok(home.indexOf('<div id="home">') < cardAt && cardAt < home.indexOf('data-section="hoy"'), 'order: scores, eat card, programmed session');
   const card = home.slice(cardAt, home.indexOf('data-section="hoy"'));
-  for (const day of ['train', 'rest']) {
-    const t = nut.DAYPLAN[day].meals.reduce((s, meal) => {
-      const m = nut.mealMacros(meal);
-      return { k: s.k + m.k, p: s.p + m.p, c: s.c + m.c, g: s.g + m.g };
-    }, { k: 0, p: 0, c: 0, g: 0 });
-    // each block runs from its opening tag to the next eat-day block / the card's link
-    const blocks = card.split('<div class="eat-day"').slice(1);
-    const block = blocks.find((b) => b.startsWith(` data-day="${day}"`));
-    assert.ok(block, `eat-day block for ${day} missing`);
-    assert.equal(/^ data-day="[a-z]+" hidden/.test(block), day === 'rest', 'train shown by default, rest hidden');
-    for (const v of [dotThousands(Math.round(t.k)), `${Math.round(t.p)} g`, `${Math.round(t.c)} g`, `${Math.round(t.g)} g`]) {
-      assert.ok(block.split('eat-link')[0].includes(v), `expected "${v}" in the ${day} eat-day block`);
-    }
-  }
-  assert.match(card, /data-set-day="train"[^>]*onclick="setDay\('train'\)"|onclick="setDay\('train'\)"[^>]*data-set-day="train"/);
-  assert.match(card, /onclick="setDay\('rest'\)"/);
-  assert.match(card, /onclick="setTab\('nutricion'\)"[^>]*>See full plan/);
+  assert.match(card, /<div id="eat-body" aria-live="polite"><\/div>/);
+  assert.match(card, /onclick="setTab\('nutricion'\)"[^>]*>See the full plan/);
   assert.doesNotMatch(card, /class="meal"/, 'the full meal plan is NOT duplicated on Inicio');
 });
 

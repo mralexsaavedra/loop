@@ -30,7 +30,7 @@ const exampleHtmlPath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.h
 const personalPlanPath = path.join(REPO_ROOT, 'data', 'nutrition', 'plan-data.json');
 const examplePlanPath = path.join(REPO_ROOT, 'data', 'nutrition', 'plan-data.example.json');
 
-import { TAB_KEYS, SECTION_TAB, sectionsOf, showDayToggle } from '../../lib/nav/tabs.mjs';
+import { TAB_KEYS, SECTION_TAB, sectionsOf } from '../../lib/nav/tabs.mjs';
 
 // Every top-level nav key -> its nav <button id> (see web/pages/index.astro's TABS_ALL).
 const NAV_ID = Object.fromEntries(TAB_KEYS.map((k) => [k, 't-' + k]));
@@ -78,9 +78,8 @@ function assertHonours(html, hideTabs) {
   const { nav, visible } = navOrderAndVisiblePanels(html);
   assert.ok(nav.length <= TAB_KEYS.length);
   assert.deepEqual(visible, [nav[0]], 'exactly one panel visible: the first nav button\'s');
-  // the train/rest toggle is off when only Tablas (or nothing) is left in Nutrición
-  const toggle = html.match(/<div class="toggle subtoggle" id="day-toggle"[^>]*>/)[0];
-  assert.equal(/\sdata-off(?=[\s=>])/.test(toggle), !showDayToggle(hideTabs), `day toggle data-off for hideTabs=${JSON.stringify(hideTabs)}`);
+  // no train/rest toggle: Resumen de hoy's day-type selector is the only one, whatever is hidden
+  assert.doesNotMatch(html, /id="day-toggle"|id="b-train"|id="b-rest"|setDay\(/, `no train/rest toggle for hideTabs=${JSON.stringify(hideTabs)}`);
   // the "today you eat" card links to Nutrición only when that tab is reachable
   const nutVisible = nav.includes('nutricion');
   assert.equal(/class="[^"]*eat-link/.test(html), nutVisible, `eat-card link present=${nutVisible}`);

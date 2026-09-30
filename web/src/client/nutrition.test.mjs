@@ -63,16 +63,20 @@ const MEAL_IDS = ['bld-desayuno', 'bld-prot-comida', 'bld-carbo-comida', 'bld-po
 /** Builds a fresh vm context, DOM and globals for one scenario, runs the
  * REAL nutrition.js source in it, and returns { doc, window } for the test
  * to drive further (change selects / bump extras) before reading output. */
-function run({ globals, restDay }) {
+function run({ globals, restDay, nutriTarget }) {
   const doc = new StubDocument();
-  doc.el('b-rest', { attrs: { 'aria-pressed': restDay ? 'true' : 'false' } });
   MEAL_IDS.forEach((id) => makeSelect(doc, id));
   doc.el('r-kcal');
   doc.el('r-macros');
   doc.el('r-verdict');
+  doc.el('bld-pe-label');
   globals.EXTRA_KEYS.forEach((k) => doc.el('x-' + k, { textContent: '0' }));
 
+  // today's target comes from Resumen de hoy (client/nutri-day.js window.nutriTarget); the legacy
+  // scenarios below hand it the train / rest target they were written against
+  const day = restDay ? 'rest' : 'train';
   const window = {};
+  if (nutriTarget !== null) window.nutriTarget = nutriTarget || (() => ({ ...globals.TARGET[day], day }));
   const ctx = { document: doc, window, setTimeout, console, Math, Number, String, navigator: {} };
   Object.assign(ctx, globals);
   vm.createContext(ctx);
@@ -206,4 +210,30 @@ test('nutrition.js calcDay matches lib/nutrition/calc.mjs calcDay — scenario C
   assert.deepEqual(actualTotals, expected.totals);
   assert.deepEqual(actualVerdict, expected.verdict.map((v) => v[0]));
   assert.deepEqual(actualVerdict, ['bad', 'warn', 'warn', 'warn'], 'sanity: proteinVeryShort + underBudget + fatHigh + sweetTreats');
+});
+
+const optionLabels = (doc, id) => doc.getElementById(id).options.map((o) => o.textContent);
+
+test('the day builder follows today\'s target from Resumen de hoy (goal x day type), not a train/rest toggle', () => {
+  const globals = nutData({ proteina: [{ l: 'Chicken', k: 200, p: 40, c: 0, g: 3 }] });
+  let t = { k: 3050, p: 150, c: 477, g: 60, fatMax: 75, day: 'train', dayType: 'gym' };
+  const { doc, window } = run({ globals, nutriTarget: () => t });
+  assert.match(doc.getElementById('r-kcal').innerHTML, /\/ 3050/);
+  assert.deepEqual(optionLabels(doc, 'bld-carbo-comida'), ['Rice']);
+  assert.equal(doc.getElementById('bld-pe-label').textContent, 'Post-entreno');
+  // Resumen de hoy switches to rest: nutri-day.js calls bldRefresh, the lists and the target follow
+  t = { k: 2500, p: 150, c: 340, g: 60, fatMax: 75, day: 'rest', dayType: 'rest' };
+  window.bldRefresh();
+  assert.match(doc.getElementById('r-kcal').innerHTML, /\/ 2500/);
+  assert.deepEqual(optionLabels(doc, 'bld-carbo-comida'), ['Rice small']);
+  assert.deepEqual(optionLabels(doc, 'bld-postentreno'), ['Cottage cheese']);
+  assert.equal(doc.getElementById('bld-pe-label').textContent, 'Ancla');
+});
+
+test('without a (working) nutriTarget the builder uses the plan\'s training-day target', () => {
+  const globals = nutData({ proteina: [{ l: 'Chicken', k: 200, p: 40, c: 0, g: 3 }] });
+  const { doc } = run({ globals, nutriTarget: null });
+  assert.match(doc.getElementById('r-kcal').innerHTML, /\/ 2000/);
+  const broken = run({ globals, nutriTarget: () => { throw new Error('x'); } });
+  assert.match(broken.doc.getElementById('r-kcal').innerHTML, /\/ 2000/);
 });

@@ -18,24 +18,8 @@ export default {
         dash: 'Workouts',
       },
     },
-    // Inicio's compact nutrition card (day toggle + that day's totals + link to Nutrición)
-    eat: {
-      heading: 'Today you eat',
-      fullPlan: 'See full plan',
-      protein: 'Protein',
-      carbs: 'Carbs',
-      fat: 'Fat',
-    },
-    dayToggle: {
-      ariaLabel: 'Day type',
-      train: '🏋️ Training',
-      rest: '😴 Rest',
-    },
-    dia: {
-      sectionHeading: 'The day',
-    },
     registro: {
-      heading: 'Food log',
+      heading: 'Day builder',
       desayuno: 'Breakfast',
       comida: 'Lunch',
       proteina: 'Protein',

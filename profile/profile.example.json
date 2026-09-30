@@ -1,5 +1,5 @@
 {
-  "_comment": "TEMPLATE with SYNTHETIC values. Copy to profile/profile.json (gitignored) and edit. Every field is optional. name / city override what Strava reports; birthdate gives the age (computed by the page, never stored); devices: type = watch | bike-computer | ems | other, since = YYYY-MM.",
+  "_comment": "TEMPLATE with SYNTHETIC values. Copy to profile/profile.json (gitignored) and edit. Every field is optional. name / city override what Strava reports; birthdate gives the age (computed by the page, never stored); devices: type = watch | bike-computer | ems | other, since = YYYY-MM; supplements: meal = breakfast | lunch | preworkout | postworkout | dinner | snack (shown under that meal in Nutrición, no macros), dose is free text.",
   "name": "Sam Sample",
   "city": "Exampleville",
   "birthdate": "1990-06-15",
@@ -8,5 +8,10 @@
     { "name": "Sample Watch", "type": "watch", "since": "2024-03" },
     { "name": "Sample Bike Computer", "type": "bike-computer", "since": "2025-01" },
     { "name": "Sample EMS Suit", "type": "ems" }
+  ],
+  "supplements": [
+    { "name": "Sample Creatine", "dose": "3 g", "meal": "lunch" },
+    { "name": "Sample Magnesium", "dose": "1 capsule", "meal": "dinner" },
+    { "name": "Sample Electrolytes", "dose": "1 tablet in 500 ml", "meal": "preworkout" }
   ]
 }

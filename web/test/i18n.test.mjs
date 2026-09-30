@@ -14,6 +14,9 @@ import { es as esDash, en as enDash } from '../src/i18n/dash-templates.mjs';
 import { es as esHealth, en as enHealth } from '../src/i18n/health-templates.mjs';
 import { es as esScore, en as enScore } from '../src/i18n/score-templates.mjs';
 import { es as esIntake, en as enIntake } from '../src/i18n/intake-templates.mjs';
+import { es as esNutri, en as enNutri } from '../src/i18n/nutri-templates.mjs';
+import { GOALS, DAY_TYPES } from '../../lib/nutrition/targets.mjs';
+import { MEAL_SLOTS } from '../../lib/nutrition/slots.mjs';
 import { es as esAct, en as enAct } from '../src/i18n/activity-templates.mjs';
 import { es as esSync, en as enSync } from '../src/i18n/sync-templates.mjs';
 import { es as esDate, en as enDate } from '../src/i18n/date-templates.mjs';
@@ -252,6 +255,26 @@ test('intake-templates.mjs (Mi día intake rings) has identical key trees in es/
     assert.match(dict.ofTpl, /\{unit\}/);
     assert.match(dict.emptyHtml, /\{days\}/);
     assert.match(dict.emptyHtml, /diet_kcal/, `${locale} empty state names the Shortcut keys`);
+  }
+});
+
+test('nutri-templates.mjs (Resumen de hoy / Plan de hoy / Avituallamiento) has identical key trees in es/en, every goal / day type / meal slot, and the placeholders nutri-day.js relies on', () => {
+  assert.deepEqual(keyTree(esNutri), keyTree(enNutri));
+  for (const [locale, dict] of [['es', esNutri], ['en', enNutri]]) {
+    for (const [p, value] of leaves(dict)) {
+      if (typeof value === 'string') assert.notEqual(value.trim(), '', `${locale} nutri-templates.${p} must not be empty`);
+    }
+    assert.deepEqual(Object.keys(dict.goals), GOALS);
+    assert.deepEqual(Object.keys(dict.dayTypes), DAY_TYPES);
+    assert.deepEqual(Object.keys(dict.dayIcons), DAY_TYPES);
+    assert.deepEqual(Object.keys(dict.plan.meals), MEAL_SLOTS);
+    assert.match(dict.backToAuto, /\{type\}/);
+    assert.match(dict.why.ride, /\{dur\}/);
+    for (const k of ['remShort', 'remShortBike']) assert.match(dict[k], /\{k\}[\s\S]*\{g\}/);
+    for (const k of ['k', 'fuel', 'total']) assert.match(dict.planLineBike, new RegExp('\\{' + k + '\\}'));
+    assert.match(dict.macroOff, /\{macro\}[\s\S]*\{plan\}[\s\S]*\{target\}/);
+    assert.match(dict.fuel.duringCarbs, /\{rate\}[\s\S]*\{total\}/);
+    assert.match(dict.fuel.disclaimer, locale === 'es' ? /no es consejo médico/i : /not medical advice/i);
   }
 });
 

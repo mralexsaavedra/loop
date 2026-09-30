@@ -114,6 +114,43 @@
   font-size: var(--fs-xs);
   margin-bottom: var(--sp-5);
 }
+/* Goal setting: three labelled radios, each a >= 44 px row with a one-line description */
+.pf-goal {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.pf-goal legend {
+  padding: 0;
+}
+.pf-goal-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: 44px;
+  padding: var(--sp-2) 0;
+  cursor: pointer;
+}
+.pf-goal-opt input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  flex: none;
+  accent-color: var(--accent);
+}
+.pf-goal-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pf-goal-name {
+  font-weight: 600;
+}
+.pf-goal-desc {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
 .pf-sub-h {
   margin: var(--sp-6) 0 var(--sp-2);
 }

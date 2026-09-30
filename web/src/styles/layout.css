@@ -68,17 +68,6 @@ details.sec-fold > summary:hover > h2 {
   letter-spacing: var(--label-track);
   text-transform: uppercase;
 }
-.eat-toggle {
-  flex: 0 1 260px;
-  padding: var(--sp-1);
-}
-.eat-toggle button {
-  font-size: var(--fs-sm);
-  padding: var(--sp-2) var(--sp-3);
-}
-.eat-day[hidden] {
-  display: none;
-}
 .eat-kcal {
   font-family: var(--num);
   font-size: var(--fs-4xl);

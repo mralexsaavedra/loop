@@ -33,9 +33,11 @@ const STRAVA = {
 const MANUAL = { birthdate: '1990-05-17', heightCm: 178, devices: [{ name: 'Demo Watch 2', type: 'watch', since: '2028-03' }, { name: 'Demo EMS suit', type: 'ems' }] };
 const FULL = buildProfile({ manual: MANUAL, strava: STRAVA, weight: { kg: 71.4, date: '2030-01-04' } });
 
-function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null } = {}) {
+// nutri = a stand-in for client/nutri-day.js's window.HCNutri (the goal's owner), or null
+function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null, nutri = null } = {}) {
   const img = photo ? { getAttribute: (k) => (k === 'src' ? photo : null) } : null;
-  const win = {};
+  const win = nutri ? { HCNutri: nutri } : {};
+  const listeners = {};
   const RealDate = Date;
   class FakeDate extends RealDate {
     constructor(...a) { super(...(a.length ? a : [now + 'T12:00:00'])); }
@@ -44,7 +46,10 @@ function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null
   const { photo: _p, ...baked } = profile; // Avatar.astro bakes the photo once, in the button's <img>
   const ctx = {
     window: win,
-    document: { getElementById: (id) => (id === 'avatar-img' ? img : null) },
+    document: {
+      getElementById: (id) => (id === 'avatar-img' ? img : null),
+      addEventListener: (t, fn) => { (listeners[t] = listeners[t] || []).push(fn); },
+    },
     PROFILE: { ...baked, photo: Boolean(profile.photo) },
     I18N_PROFILE: locale === 'es' ? esP : enP,
     I18N_DATE: locale === 'es' ? esDate : enDate,
@@ -54,7 +59,8 @@ function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
-  return { win, view: win.HCViews && win.HCViews.profile, api: win.HCProfile };
+  const fire = (t, target) => (listeners[t] || []).forEach((fn) => fn({ target }));
+  return { win, fire, view: win.HCViews && win.HCViews.profile, api: win.HCProfile };
 }
 const html = (s) => { const r = s.view.render(); return r.head + r.body; };
 const clean = (h) => assert.doesNotMatch(h, /NaN|undefined|null|Infinity|<script|href=/);
@@ -163,4 +169,64 @@ test('without PROFILE or I18N_PROFILE the script registers nothing', () => {
   loadUtil(ctx);
   vm.runInContext(source, ctx);
   assert.equal(win.HCViews, undefined);
+});
+
+test('supplements: listed with dose and meal (es/en), section omitted when there are none', () => {
+  const withSupps = buildProfile({ manual: { ...MANUAL, supplements: [{ name: 'Demo Creatine', dose: '3 g', meal: 'lunch' }, { name: 'Demo Mg', meal: 'dinner' }] }, strava: STRAVA });
+  const h = html(setup({ profile: withSupps }));
+  assert.match(h, /<h3 class="pf-h">Supplements<\/h3>/);
+  assert.ok(h.includes('Demo Creatine'));
+  assert.ok(h.includes('3 g · Lunch'));
+  assert.ok(h.includes('Dinner'));
+  clean(h);
+  const es = html(setup({ profile: withSupps, locale: 'es' }));
+  assert.match(es, /<h3 class="pf-h">Suplementos<\/h3>/);
+  assert.ok(es.includes('3 g · Comida'));
+  assert.doesNotMatch(html(setup()), /Supplements/);
+});
+
+/* ---------- Goal setting: the plan's goal, owned by client/nutri-day.js (hc.nutri.goal) ---------- */
+const GOALS = [{ goal: 'maintain', kcal: 0, bikeKept: false }, { goal: 'cut', kcal: -320, bikeKept: true }, { goal: 'bulk', kcal: 300, bikeKept: false }];
+function nutriStub(goal = 'maintain') {
+  const n = { set: [], state: () => ({ goal }), setGoal: (g) => { n.set.push(g); goal = g; return true; } };
+  return n;
+}
+
+test('goal setting: first section under the header, three labelled radios with one-line descriptions, the current goal checked', () => {
+  const s = setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub('cut') });
+  const r = s.view.render();
+  assert.ok(r.body.startsWith('<section class="pf-sec pf-goal-sec">'), 'Goal comes first in the body');
+  assert.match(r.body, /<fieldset class="pf-goal" id="pf-goal"><legend class="pf-h">Goal<\/legend>/);
+  assert.equal((r.body.match(/<input type="radio" name="pf-goal"/g) || []).length, 3);
+  assert.match(r.body, /<input type="radio" name="pf-goal" value="cut" checked>/);
+  assert.doesNotMatch(r.body, /value="maintain" checked/);
+  assert.ok(r.body.includes('Maintain your weight'));
+  assert.ok(r.body.includes('Gentle deficit (~−320 kcal/day, bike days untouched)'));
+  assert.ok(r.body.includes('Gentle surplus (~+300 kcal/day)'));
+  clean(r.body);
+});
+
+test('goal setting (es): Objetivo, Mantener / Bajar / Ganar with their descriptions, thousands-free kcal', () => {
+  const b = setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), locale: 'es' }).view.render().body;
+  assert.match(b, /<legend class="pf-h">Objetivo<\/legend>/);
+  for (const w of ['Mantener', 'Bajar', 'Ganar', 'Mantener tu peso', 'Déficit suave (~−320 kcal/día, sin tocar los días de bici)', 'Superávit suave (~+300 kcal/día)']) assert.ok(b.includes(w), w);
+});
+
+test('goal setting: changing a radio hands the goal to Nutrición (HCNutri.setGoal); other inputs and unknown goals are ignored', () => {
+  const n = nutriStub();
+  const s = setup({ profile: { ...FULL, goals: GOALS }, nutri: n });
+  s.fire('change', { name: 'pf-goal', value: 'bulk' });
+  s.fire('change', { name: 'pf-goal', value: 'shred' });
+  s.fire('change', { name: 'nutri-day', value: 'cut' });
+  assert.deepEqual(n.set, ['bulk']);
+  assert.match(s.view.render().body, /value="bulk" checked>/, 'a re-render shows the new goal');
+});
+
+test('goal setting is omitted without Nutrición (no HCNutri) or without options; the onboarding sheet still carries it', () => {
+  assert.doesNotMatch(html(setup({ profile: { ...FULL, goals: GOALS } })), /pf-goal/);
+  assert.doesNotMatch(html(setup({ profile: { ...FULL, goals: [] }, nutri: nutriStub() })), /pf-goal/);
+  const empty = buildProfile({});
+  const b = setup({ profile: { ...empty, goals: GOALS }, nutri: nutriStub() }).view.render().body;
+  assert.match(b, /id="pf-goal"/);
+  assert.match(b, /pf-onboard/);
 });
