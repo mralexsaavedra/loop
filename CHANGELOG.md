@@ -4,6 +4,16 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-09-30 — On-demand page refresh + data freshness
+
+The LAN page no longer waits for the hourly cron: a Sync button (and a last Shortcut step) calls
+health-ingest `POST /sync` (unauthenticated, 1 per 60 s globally), which pulls Strava and writes a
+trigger file; a systemd path unit on the host runs `refresh.sh`. `refresh.sh` now writes
+`site/status.json`, publishes only `main` (unless `PLAN_WEB_ALLOW_BRANCH=1`) and time-boxes each step.
+The header shows how old the Shortcut, Strava and page data are (`GET /sync/status`, timestamps
+only). Strava refresh-token rotation is persisted; `/healthz` flags a Strava pull stale for 6 h.
+Details: `CLAUDE.md` (LAN page + on-demand refresh), `services/plan-web/README.md`.
+
 ## 2026-07-01 — Whoop redesign, design tokens & per-run distance
 
 Full visual redesign of the published artifact to a Whoop-style dark dashboard, a tokenized

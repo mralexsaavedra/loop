@@ -6,7 +6,7 @@ data, so that keeping the dataset fresh requires no manual work.
 Two sources feed it:
 
 - **Apple Health**, pushed from the iPhone by [Health Auto Export][hae] over HTTP.
-- **Strava**, pulled from its API (not implemented yet).
+- **Strava**, pulled from its API on a timer (and on demand, see `POST /sync`).
 
 ## Why raw first
 
@@ -21,7 +21,9 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 
 | Method | Path                          | Auth   | Response |
 | ------ | ----------------------------- | ------ | -------- |
-| GET    | `/healthz`                    | none   | `200` when the database answers |
+| GET    | `/healthz`                    | none   | `200` when the database answers; `degraded: true, reason: "strava_stale"` when Strava is configured and has not synced for 6 h |
+| POST   | `/sync`                       | none   | `202` `{ok, strava, requestedAt}`; `429` + `Retry-After` inside the 60 s global limit |
+| GET    | `/sync/status`                | none   | `200` `{lastShortcutAt, lastStravaOkAt, lastStravaError, lastTriggerAt, stravaConfigured}` |
 | POST   | `/ingest/health-auto-export`  | bearer | `202` with the stored row id |
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
 | GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]`; `400` on a bad query |
@@ -29,6 +31,40 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 
 Bearer token is compared in constant time; it is the entire security boundary
 for the endpoint, because Health Auto Export can only send a static header.
+
+## On-demand refresh: `POST /sync` and `GET /sync/status`
+
+The plan page's **Sync** button (through plan-web's nginx, `/api/sync`) and the
+last step of the iOS Shortcut call `POST /sync`. It answers `202` at once, then:
+
+1. kicks the Strava pull now. The timer loop, `POST /sync` and
+   `POST /sync/strava` share ONE in-flight run, so they never overlap;
+2. once that pull settles (at most 90 s), writes the request time to
+   `$TRIGGER_DIR/refresh` (`/trigger/refresh`, bind-mounted from
+   `./trigger/refresh`). A failed pull still writes it, so the page rebuilds
+   from what is stored.
+
+The host watches that file with a systemd path unit and runs
+`services/plan-web/refresh.sh` (install steps: `services/plan-web/README.md`).
+
+`GET /sync/status` feeds the page's freshness line: the newest payload's
+`received_at`, the last Strava success, the last Strava error (one line, at most
+120 characters, cleared by the next success), the last trigger, and whether
+Strava is configured. The Strava times and the trigger are kept in memory and in
+the single-row `sync_status` table (`sql/003_sync.sql`), so a restart keeps them.
+
+**Why these two routes have no token.** The page is a static file and cannot
+hold a secret. `POST /sync` only schedules work the service already does on a
+timer: it reads no body, returns only the request time, and a GLOBAL limit lets
+one request per 60 s through (`429` + `Retry-After` otherwise).
+`GET /sync/status` returns timestamps and a short error string, never health
+data or the payload itself (tests pin the exact key set). The data endpoints
+(`/ingest`, `/export`, `/sync/strava`) keep the bearer token, and plan-web
+proxies only these two routes.
+
+The trigger directory must be writable by the container's `node` user
+(uid 1000): `mkdir -p trigger && sudo chown 1000:1000 trigger`. A failed write is
+logged (`trigger_write_failed`) and never fails the request.
 
 ## iOS Shortcut ingestion
 
@@ -111,9 +147,15 @@ into `strava_activity` by id. Each run re-reads a seven-day overlap window, so a
 activity edited after upload — renamed, or given a description by the coach — is
 picked up on the next pass rather than frozen at its first version.
 
-Only the refresh token is durable; access tokens are refreshed in memory with a
-60-second slack. A failed or rate-limited sync is logged and never takes the
-ingest endpoint down with it.
+Access tokens are refreshed in memory with a 60-second slack. The refresh token
+is the durable credential, and Strava may **rotate** it on any refresh: the
+service stores the rotated value in the single-row `strava_token` table and
+prefers it over `STRAVA_REFRESH_TOKEN`, which stays the bootstrap for a fresh
+database. If the stored token is rejected (for example after you re-authorized
+and put a new token in `.env`), the env token is tried once. A failing store
+never blocks a refresh. The token is never returned by any endpoint or logged.
+A failed or rate-limited sync is logged and never takes the ingest endpoint
+down with it.
 
 To obtain the credentials: create an application at
 <https://www.strava.com/settings/api>, then run the authorization-code flow once
@@ -130,6 +172,7 @@ token). `.env` is gitignored and must stay that way.
 | `POSTGRES_*`        | Database credentials |
 | `INGEST_PORT`       | Host port; the reverse proxy target points here |
 | `MAX_BODY_BYTES`    | Upload ceiling, default 32 MB |
+| `TRIGGER_DIR`       | Where `POST /sync` writes `refresh`; compose sets `/trigger` (bind mount of `./trigger`) |
 
 ## Running
 
