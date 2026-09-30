@@ -205,12 +205,21 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   personal band (`signalBand`, median ± 2 scaled MADs over the 42 days before the newest day; walking
   HR gets the same kind of band); daily totals keep the Salud floors (a < 200-step day is missing) and
   get a "usual day" band = p25–p75 of the 90 days before the newest (`quartileBand`); energy = basal
-  (sane band) + active, with both parts; body fat / lean mass = the most recent scale only; sleep also
-  carries bed / wake times and the 7.5 h target; `recovery` = for each day, the composite the dial
-  showed THAT morning (`recoveryFromInputs` with the inputs cut at that day, its own baseline, not
-  today's) + that day's 7-day trend; `workouts` = minutes per day after the display rule (0 = rest);
-  `load-<m>` = RE per day after the load rule (`null` = sessions without RE), with the card's typical
-  day and calendar cuts at 0.5 / 1 / 1.5 typical days; `sessions` = one entry per date + modality after
+  (sane band) + active, with both parts (a day missing either part is missing, never basal alone —
+  the Salud expenditure card uses the same rule) + `roll`, the card's calendar 7-day rolling average;
+  weight = day means + `roll` (the Salud card's calendar 7-day rolling average, only on reading days)
+  + `latest` (the card's latest raw reading); body fat / lean mass = the most recent scale only AND
+  only its last `BODYCOMP_WINDOW` days (`windowDays`), so a scale-switch artefact never shows; sleep
+  also carries bed / wake times and the 7.5 h target; `recovery` = for each day, the composite the
+  dial showed THAT morning (`recoveryFromInputs` with the inputs cut at that day, its own baseline, not
+  today's) + that day's 7-day trend (`t7`), `cut` = `DAY_BAND_CUTOFF`, `cutTrend` = `BAND_CUTOFF`, and
+  `head` = the dial's own headline (`recoveryHead`, from the same full-input `recoveryFromInputs`
+  call: mode today/trend, date, value, band, sleep, trend {value, band, dir}); `workouts` = minutes
+  per day after the display rule, zero-filled (rest) from the first session up to `asOf` (a day after
+  asOf is missing); `load-<m>` = RE per day after the load rule (`null` = sessions without RE), with
+  the card's typical day (the same `typicalDay` value the load dial puts at its arc midpoint),
+  calendar cuts at 0.5 / 1 / 1.5 typical days, and the dial's `gate` (null / `baselineBuilding` /
+  `fewDays`) + `last` scored session; `sessions` = one entry per date + modality after
   `mergeSameDay` DISPLAY_RULE (minutes, km, elevation, avg HR, RE, parts, source; the source is the
   precedence family, so "Apple Watch de <name>" is written "Apple Watch"). Size: ~26 KB on the demo,
   ~62 KB on a real year; the whole feature adds ~71 KB to the demo page.
@@ -225,7 +234,19 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   that day in `load-run` / `load-bike` (the row is a mouse target, its date cell a real button). Every
   opener shows the same chevron, pointer, focus ring and ≥ 44px target (`web/src/styles/detail.css`).
 - **The sheet** (`detail.js`, one renderer, per-view try/catch with a message fallback, no NaN ever
-  printed): header = metric, latest value + date, the band / target / typical day in words; a
+  printed): header = metric, latest value + date, the band / target / typical day in words. The
+  header NEVER contradicts the card it opens from: recovery = the dial's headline (`head`: last
+  night's value + day band + "Last night" / the night's date, the 7-day trend as the secondary line
+  coloured by the TREND band; the chart's zone is the trend band at ±`cutTrend`, the daily points use
+  the day band); load = the dial's today logic (today's RE vs the typical day; a session without RE;
+  else "no session yet today" + the last session; a gated modality shows its gate copy — the copy is
+  imported from `score-templates.mjs`, so the words are the dial's); weight / energy = the cards'
+  7-day rolling average (`roll`, also the chart line) with the latest reading / day underneath; a
+  daily total's newest day, when it is the viewer's today, is "Today, in progress" (neutral
+  `partial` colour in the header, chart and calendar, never compared with the median); training time
+  shows the newest day in range ("Rest" on a rest day). The band note says colours are the CURRENT
+  range (static, as of the newest day), except recovery, scored per day; a signal / total / sleep /
+  recovery metric whose own last day is > 3 days before the view end says so. A
   30 d / 90 d / 1 yr switch; an inline SVG chart (points for signals, bars for totals and load, the
   7-day average line that breaks where fewer than 3 of 7 days have data, the band shaded, target /
   typical dashed; a missing day is a gap); a Monday-first month calendar (es/en weekday letters) with
@@ -241,10 +262,21 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
 - **Modal + history** — `#detail` (role="dialog", aria-modal, labelled by the title) renders in
   `layouts/Plan.astro`'s `overlay` slot OUTSIDE `.wrap`, which goes `inert` while open (page scroll
   locked); focus moves to the close button, Tab stays inside, Esc / the close button / a tap on the
-  backdrop close it and focus returns to the opener. Opening pushes `#detail/<metric>[/<date>]`
-  (picking a day replaces it), so browser Back closes the sheet; a page opened with that hash opens
-  the view. A frame that refuses history writes (sandboxed artifact) still gets the sheet, and closing
-  then never calls `history.back()`.
+  backdrop close it and focus returns to the opener (none — a deep link or a forward navigation —
+  → the visible tab's heading, given `tabindex="-1"`); `.wrap` also gets `aria-hidden` while open
+  (fallback where `inert` is unsupported). A control whose re-render removed or disabled it hands
+  focus to the close button. Opening pushes `#detail/<metric>[/<date>]` (picking a day replaces it),
+  so browser Back closes the sheet; a page opened with that hash opens the view — only for an OWN key
+  of both `DETAIL.metrics` and the copy (no `constructor`), and a date must round-trip
+  (`HC.isoDate` rejects 2026-02-31); a bad or out-of-range date falls back to the default day and the
+  URL is replaced to match. A re-open while the close's `history.back()` is in flight (`pendingBack`)
+  writes no history until that popstate arrives, which then pushes the new sheet's entry instead of
+  closing it. A frame that refuses history writes (sandboxed artifact) still gets the sheet, and
+  closing then never calls `history.back()` (and leaves no lock / inert / aria-hidden behind). The
+  7-day line is computed once per (metric, range); a day tap re-renders only the calendar and the day
+  panel and moves the chart's selection rect. The opener delegation ignores a click / Enter on a
+  control inside a card (a, button, summary, input, select, textarea, `role="button"`) other than the
+  opener itself.
 
 ## Nutrition plan — data pipeline & published artifact
 
@@ -426,7 +458,7 @@ day is complete) and the Δ (`d30Of`) form the context line under it; a non-fini
 printed and a card that throws is skipped, never blanking the tab;
 sparklines are unchanged (7-day rolling). HRV's headline is the newest DAY's mean (it used to be the
 7-day rolling value); sleep's is last night (`sleep.latest`), with the 30-night mean as context;
-expenditure's is the newest day's TDEE (`tdeeLatest`). Each recovery trend carries an `hl-<key>`
+expenditure's is the newest day's TDEE (`tdeeLatest`; a day counts only with BOTH active and basal energy, never basal alone). Each recovery trend carries an `hl-<key>`
 anchor for Inicio's health monitor.
 
 - **Body composition** — `weight.csv` + `bodyfat.csv` + `leanmass.csv`. Weight trend is a 7-day
