@@ -26,6 +26,9 @@ const PERSONAL_PATHS = [
   'web/test/.golden/personal/blocks.json',
   'services/plan-web/site/index.html',
   'web/.test-dist/es-personal/index.html',
+  'data/profile/strava-profile.json',
+  'data/profile/avatar.jpg',
+  'profile/profile.json',
 ];
 
 for (const p of PERSONAL_PATHS) {
@@ -38,6 +41,13 @@ for (const p of PERSONAL_PATHS) {
 test('allows a force-add of an unrelated tracked file', () => {
   const res = runHook(['git', 'add', '-f', 'README.md'].join(' '));
   assert.equal(res.status, 0);
+});
+
+test('allows a force-add of the tracked profile tooling and example', () => {
+  for (const p of ['data/profile/sync-profile.js', 'data/profile/sync-profile.test.js', 'data/profile/.gitkeep', 'profile/profile.example.json']) {
+    const res = runHook(['git', 'add', '-f', p].join(' '));
+    assert.equal(res.status, 0, p);
+  }
 });
 
 test('allows a plain git add -A', () => {

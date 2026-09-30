@@ -62,6 +62,15 @@ analysis/reports/*
 # Profile holds personal identifiers. Decide consciously before un-ignoring.
 profile/about-me.md
 profile/baseline.md
+# Manual profile card data (birthdate, height, devices). The .example seed is tracked.
+profile/profile.json
+
+# Strava profile snapshot + avatar pulled by data/profile/sync-profile.js (name, city, gear,
+# photo) — personal. The sync script, its test and .gitkeep are plain tooling → tracked.
+data/profile/*
+!data/profile/.gitkeep
+!data/profile/sync-profile.js
+!data/profile/sync-profile.test.js
 
 # OS / tooling noise
 .DS_Store

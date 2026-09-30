@@ -52,6 +52,8 @@ const PERSONAL = [
   'analysis/reports/',
   'profile/about-me.md',
   'profile/baseline.md',
+  'profile/profile.json',
+  'data/profile/',
   '.local.md',
   // Astro build output / test fixtures / served site — all gitignored and all
   // derived from the personal data above (baked JSON globals, rendered
@@ -69,6 +71,8 @@ const ALLOWED = [
   'extract.js',
   'training-data.example.json',
   'plan-data.example.json',
+  'sync-profile.js',
+  'sync-profile.test.js',
 ];
 
 function touchesPersonal(cmd) {
