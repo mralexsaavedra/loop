@@ -3,8 +3,9 @@
  * (personal copy), and the end-of-body script order per design: bake (each
  * tab's own Bake, e.g. Registro's) → NAV + HC_CONST → util (window.HC, the shared client helpers,
  * FIRST so every later script can read it) → core (setTab/setDay/jump/bump) →
- * nutrition → intake → training-today → training-dash → training-activity → health → score → monitor → timeline. Tabs render inside
- * <slot />.
+ * nutrition → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → freshness.
+ * Tabs render inside <slot />. The freshness line + Sync button (#freshness) render hidden; freshness.js
+ * shows them only when the page's server answers /api/sync/status (see services/plan-web/README.md).
  */
 import '../src/styles/tokens.css';
 import '../src/styles/base.css';
@@ -26,6 +27,8 @@ import scoreScript from '../src/client/score.js?raw';
 import monitorScript from '../src/client/monitor.js?raw';
 import timelineScript from '../src/client/timeline.js?raw';
 import intakeScript from '../src/client/intake.js?raw';
+import freshnessScript from '../src/client/freshness.js?raw';
+import { es as esSync, en as enSync } from '../src/i18n/sync-templates.mjs';
 // Numerals font: a ~1.5 KB subset of D-DIN Bold (SIL OFL 1.1, renamed "HC Num" as the OFL requires
 // for a modified version; licence in src/fonts/OFL.txt, rebuild with scripts/subset-num-font.py).
 // `?inline` makes Vite hand back a base64 data: URL, so the page stays one self-contained file.
@@ -55,7 +58,8 @@ const { title, locale, page = {}, dict, tabs, activeTab = tabs[0]?.key, dayToggl
 const showDayToggle = dayToggle && activeTab === 'nutricion';
 // core.js reads the tab keys and the legacy-section map from this ONE baked copy of lib/nav/tabs.mjs
 // ...and util.js reads the page-level constants (lib/stale.mjs) from HC_CONST, never client literals
-const navSource = `var NAV = ${jsonForScript({ tabs: TAB_KEYS, sectionTab: SECTION_TAB })};\nvar HC_CONST = ${jsonForScript(hcConst())};`;
+const syncT = locale === 'es' ? esSync : enSync;
+const navSource = `var NAV = ${jsonForScript({ tabs: TAB_KEYS, sectionTab: SECTION_TAB })};\nvar HC_CONST = ${jsonForScript(hcConst())};\nvar I18N_SYNC = ${jsonForScript(syncT)};`;
 // unicode-range = exactly the subset's glyphs, so letters in a --num element fall back to --sans
 const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) format("woff2");font-weight:100 900;font-style:normal;font-display:swap;unicode-range:U+20,U+25,U+2B-2E,U+30-39,U+68,U+D7}`;
 ---
@@ -75,6 +79,12 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
         {page.h1 && <h1>{page.h1}</h1>}
         {page.sub && <p class="sub">{page.sub}</p>}
       </header>
+
+      <div class="fresh" id="freshness" role="group" aria-label={syncT.ariaLabel} hidden>
+        <p class="fresh-line" id="fresh-line"></p>
+        <button type="button" class="fresh-btn" id="sync-btn">{syncT.button}</button>
+        <p class="fresh-msg" id="sync-msg" role="status" aria-live="polite"></p>
+      </div>
 
       <nav class="tabnav" role="tablist" aria-label={dict.strings.nav.ariaLabel}>
         {tabs.map((tab) => (
@@ -111,5 +121,6 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
     <script is:inline set:html={scoreScript} />
     <script is:inline set:html={monitorScript} />
     <script is:inline set:html={timelineScript} />
+    <script is:inline set:html={freshnessScript} />
   </body>
 </html>
