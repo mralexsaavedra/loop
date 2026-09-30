@@ -27,7 +27,8 @@
   var CW = 320, CH = 140, CPAD = 8;
   // a 7-day average needs at least 3 days with data (same floor as the recovery trend)
   var ROLL_DAYS = 7, ROLL_MIN = 3;
-  var NIGHT_KEYS = ['sleep', 'recovery', 'hrv', 'rhr', 'respiratory', 'wristTemp', 'walkingHr'];
+  // overnight signals: their day detail is the whole night (sleep, bed / wake, the night's signals)
+  var NIGHT_KEYS = ['sleep', 'recovery', 'hrv', 'rhr', 'respiratory', 'wristTemp'];
   var HASH_RE = /^#detail\/([A-Za-z-]+)(?:\/(\d{4}-\d{2}-\d{2}))?$/;
   var state = null;
   var opener = null;
@@ -302,7 +303,7 @@
       var rv = at(rec.v, rec, iso);
       if (rv != null) out.push(row(titleOf('recovery'), format(T.day.recValue, { value: signed(rv, 1), band: T.day.bands[rv >= rec.cut ? 'above' : rv <= -rec.cut ? 'below' : 'at'] })));
     }
-    ['hrv', 'rhr', 'respiratory', 'wristTemp', 'walkingHr'].forEach(function (k) {
+    ['hrv', 'rhr', 'respiratory', 'wristTemp'].forEach(function (k) {
       var mk = metric(k);
       if (!mk) return;
       var v = at(mk.v, mk, iso);
@@ -361,7 +362,7 @@
       : m.kind === 'total' ? totalHtml(key, m, iso)
       : m.kind === 'sparse' ? sparseHtml(key, m, iso)
       : NIGHT_KEYS.indexOf(key) !== -1 ? nightHtml(key, m, iso)
-      : totalHtml(key, m, iso);
+      : totalHtml(key, m, iso); // a daytime signal (walking HR): the value vs its personal median
     return '<section class="dt-dayd" aria-live="polite"><h3 class="dt-day-h">' + esc(format(T.day.heading, { date: HC.fmtDate(iso) })) + '</h3>' + body + '</section>';
   }
 
@@ -400,11 +401,16 @@
   function hashOf() {
     return '#detail/' + state.key + (state.date ? '/' + state.date : '');
   }
+  // true when the history entry was written; a sandboxed frame may refuse it (the view still works,
+  // only Back / deep links do not), and then closing must never call history.back()
   function setHash(push) {
     try {
       if (push) history.pushState({ hcDetail: true }, '', hashOf());
       else history.replaceState({ hcDetail: true }, '', hashOf());
-    } catch (e) { /* sandboxed frame: the view still works, only Back / deep links do not */ }
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
   function focusEl(sel) {
     var el = host.querySelector ? host.querySelector(sel) : null;
@@ -422,8 +428,8 @@
     if (!wasOpen) opener = opts.opener || document.activeElement || null;
     state = { key: key, date: isoDate(date), range: RANGES[0], month: null, pushed: wasOpen ? state.pushed : !!opts.pushed };
     if (opts.push !== false) {
-      setHash(!wasOpen);
-      if (!wasOpen) state.pushed = true;
+      var written = setHash(!wasOpen);
+      if (!wasOpen) state.pushed = written;
     }
     render();
     host.hidden = false;
