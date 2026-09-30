@@ -3,6 +3,9 @@ import { isAuthorized } from './auth.js'
 import { createPool, migrate, insertRawPayload, ping } from './db.js'
 import { createStravaSync, startSyncLoop, isConfigured as stravaConfigured } from './sync.js'
 import { createExportHandler, createStravaExportHandler } from './export.js'
+import { createSyncStatus } from './status.js'
+import { createRateLimiter, createTriggerWriter, createSyncTrigger } from './trigger.js'
+import { createSyncRoutes } from './sync-routes.js'
 
 const PORT = Number(process.env.PORT ?? 8088)
 const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES ?? 32 * 1024 * 1024)
@@ -24,8 +27,24 @@ const handleStravaExport = createStravaExportHandler({ pool, token: INGEST_TOKEN
 
 // Strava is optional: without credentials the service still ingests Apple Health.
 const STRAVA_ENABLED = stravaConfigured(process.env)
-const stravaSync = STRAVA_ENABLED ? createStravaSync(pool, process.env) : null
+const syncStatus = createSyncStatus({ pool, stravaConfigured: STRAVA_ENABLED })
+const stravaSync = STRAVA_ENABLED ? createStravaSync(pool, process.env, { status: syncStatus }) : null
 let stravaLoop = null
+
+// On-demand refresh: POST /sync kicks the (shared, never overlapping) Strava
+// pull, then writes TRIGGER_DIR/refresh, which the host watches with a systemd
+// path unit to rebuild the plan page. Unauthenticated + globally rate limited;
+// see sync-routes.js for the reasoning.
+const TRIGGER_DIR = process.env.TRIGGER_DIR ?? '/trigger'
+const syncRoutes = createSyncRoutes({
+  status: syncStatus,
+  trigger: createSyncTrigger({
+    limiter: createRateLimiter({ intervalMs: 60_000 }),
+    runStrava: stravaSync ? () => stravaSync.runOnce() : null,
+    writeTrigger: createTriggerWriter({ dir: TRIGGER_DIR }),
+    status: syncStatus
+  })
+})
 
 function send (res, status, body) {
   const payload = JSON.stringify(body)
@@ -109,7 +128,20 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && url.pathname === '/healthz') {
       await ping(pool)
-      send(res, 200, { ok: true, strava: STRAVA_ENABLED ? 'enabled' : 'disabled' })
+      // Still 200 when degraded: the container is alive and ingesting; the flag
+      // says the Strava pull has not succeeded for 6 h (see status.js).
+      send(res, 200, { ok: true, strava: STRAVA_ENABLED ? 'enabled' : 'disabled', ...syncStatus.health() })
+      return
+    }
+
+    if (req.method === 'POST' && url.pathname === '/sync') {
+      req.resume() // any body is ignored: drain it, never buffer it
+      syncRoutes.handleSync(req, res)
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/sync/status') {
+      await syncRoutes.handleStatus(req, res)
       return
     }
 
@@ -152,6 +184,7 @@ const server = http.createServer(async (req, res) => {
 
 async function start () {
   await migrate(pool)
+  await syncStatus.load()
   if (stravaSync) {
     stravaLoop = startSyncLoop(stravaSync, {
       intervalMinutes: Number(process.env.STRAVA_SYNC_MINUTES ?? 30)

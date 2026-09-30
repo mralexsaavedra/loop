@@ -95,3 +95,94 @@ test('flags a rate limit distinctly from other failures', async () => {
     (err) => err.rateLimited === true && /rate limit/.test(err.message)
   )
 })
+
+// --- refresh token rotation ------------------------------------------------
+
+function memoryStore (initial = null) {
+  const saved = []
+  return { saved, load: async () => initial, save: async (token) => { saved.push(token); initial = token } }
+}
+
+function rotatingFetch (seen, { rotateTo = null, failFor = [] } = {}) {
+  return async (url, init) => {
+    const body = JSON.parse(init.body)
+    seen.push(body.refresh_token)
+    if (failFor.includes(body.refresh_token)) return { ok: false, status: 400 }
+    return okJson({
+      access_token: `acc-${seen.length}`,
+      expires_at: Math.floor(Date.now() / 1000) + 30, // inside the slack: every call refreshes
+      ...(rotateTo ? { refresh_token: rotateTo(seen.length) } : {})
+    })
+  }
+}
+
+test('persists a rotated refresh token and uses it on the next refresh', async () => {
+  const seen = []
+  const store = memoryStore()
+  const getToken = createTokenProvider({
+    clientId: 'id', clientSecret: 'secret', refreshToken: 'env-token', store,
+    fetchImpl: rotatingFetch(seen, { rotateTo: (n) => `rotated-${n}` })
+  })
+
+  await getToken()
+  await getToken()
+  assert.deepEqual(seen, ['env-token', 'rotated-1'], 'the second refresh uses the rotated token, not the env value')
+  assert.deepEqual(store.saved, ['rotated-1', 'rotated-2'])
+})
+
+test('prefers the stored token over the env value from the first refresh', async () => {
+  const seen = []
+  const getToken = createTokenProvider({
+    clientId: 'id', clientSecret: 'secret', refreshToken: 'env-token', store: memoryStore('stored-token'),
+    fetchImpl: rotatingFetch(seen)
+  })
+  await getToken()
+  assert.deepEqual(seen, ['stored-token'])
+})
+
+test('an unchanged refresh token is not re-saved', async () => {
+  const store = memoryStore('same')
+  const getToken = createTokenProvider({
+    clientId: 'id', clientSecret: 'secret', refreshToken: 'env-token', store,
+    fetchImpl: rotatingFetch([], { rotateTo: () => 'same' })
+  })
+  await getToken()
+  assert.deepEqual(store.saved, [])
+})
+
+test('a rejected stored token falls back to the env bootstrap token once', async () => {
+  const seen = []
+  const store = memoryStore('revoked')
+  const getToken = createTokenProvider({
+    clientId: 'id', clientSecret: 'secret', refreshToken: 'env-token', store,
+    fetchImpl: rotatingFetch(seen, { failFor: ['revoked'], rotateTo: () => 'fresh' }),
+    log: () => {}
+  })
+  assert.equal(await getToken(), 'acc-2')
+  assert.deepEqual(seen, ['revoked', 'env-token'])
+  assert.deepEqual(store.saved, ['fresh'])
+})
+
+test('a rejected env token is not retried', async () => {
+  const seen = []
+  const getToken = createTokenProvider({
+    clientId: 'id', clientSecret: 'secret', refreshToken: 'env-token', store: memoryStore(),
+    fetchImpl: rotatingFetch(seen, { failFor: ['env-token'] }),
+    log: () => {}
+  })
+  await assert.rejects(getToken, /token refresh failed: 400/)
+  assert.deepEqual(seen, ['env-token'])
+})
+
+test('a failing token store never blocks the refresh', async () => {
+  const seen = []
+  const getToken = createTokenProvider({
+    clientId: 'id', clientSecret: 'secret', refreshToken: 'env-token',
+    store: { load: async () => { throw new Error('db down') }, save: async () => { throw new Error('db down') } },
+    fetchImpl: rotatingFetch(seen, { rotateTo: () => 'rotated' }),
+    log: () => {}
+  })
+  assert.equal(await getToken(), 'acc-1')
+  await getToken()
+  assert.deepEqual(seen, ['env-token', 'rotated'], 'the rotated token is kept in memory even when it cannot be persisted')
+})
