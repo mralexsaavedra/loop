@@ -59,7 +59,7 @@ function scMod(key, btn) {
       '<path class="line" d="M' + pts.join(' L') + '"/></svg>'
     );
   }
-  var GLYPH = { above: '▲', ramping: '▲', below: '▼', detraining: '▼', at: '■', steady: '■' };
+  var GLYPH = { above: '▲', ramping: '▲', below: '▼', wellBelow: '▼', at: '■', steady: '■' };
   function arrow(band) {
     var g = GLYPH[band] || GLYPH.at;
     return '<span class="sc-arrow sc-arrow-' + esc(band) + '" aria-hidden="true">' + g + '</span>';
@@ -169,6 +169,7 @@ function scMod(key, btn) {
     } else {
       out.push('<div class="sc-gated">' + esc(lt.gated[(m.trend && m.trend.reason) || 'baselineBuilding']) + '</div>');
     }
+    if (m.unscoredAcute > 0) out.push('<div class="sc-note">' + esc(format(lt.unscoredNote, { n: m.unscoredAcute })) + '</div>');
     out.push('<div class="sc-spark">' + sparkSvg(m.spark && m.spark.v) + '</div>');
     out.push('</div>');
     return out.join('');
@@ -337,6 +338,7 @@ function scMod(key, btn) {
           : m.last && isoDate(m.last.date) ? format(lt.restLastLine, { date: m.last.date, re: num(m.last.re, 0, false), typical: typ })
           : format(lt.restLine, { typical: typ });
         txt = head + ' · ' + format(T.load.trendLbl, { pct: pct(m.trendPct) }) + ' · ' + T.load.bands[m.band];
+        if (m.unscored > 0) txt += ' · ' + format(T.load.unscoredNote, { n: m.unscored });
       } else {
         txt = T.load.gated[m.reason] || T.load.gated.baselineBuilding;
       }

@@ -40,7 +40,8 @@ export const en = {
     relLbl: '{score}/100 vs your own {modality} days',
     noRel: 'No relative score yet (needs 8 active days)',
     trendLbl: '7-day vs 42-day load: {pct}',
-    bands: { ramping: 'ramping', above: 'above usual', steady: 'steady', below: 'below usual', detraining: 'detraining' },
+    bands: { ramping: 'ramping', above: 'above usual', steady: 'steady', below: 'below usual', wellBelow: 'well below usual' },
+    unscoredNote: 'Includes {n} session(s) without effort data in the last 7 days (not counted as rest).',
     gated: {
       baselineBuilding: 'Trend still building: needs 4+ weeks of Relative Effort, 8+ active days and a non-trivial baseline.',
       fewDays: 'Too few training days of this modality in the last 6 weeks to say what a typical day is.',
@@ -165,7 +166,8 @@ export const es = {
     relLbl: '{score}/100 frente a tus propios días de {modality}',
     noRel: 'Aún sin puntuación relativa (necesita 8 días activos)',
     trendLbl: 'Carga 7 días frente a 42 días: {pct}',
-    bands: { ramping: 'en subida', above: 'por encima de lo habitual', steady: 'estable', below: 'por debajo de lo habitual', detraining: 'en descenso' },
+    bands: { ramping: 'en subida', above: 'por encima de lo habitual', steady: 'estable', below: 'por debajo de lo habitual', wellBelow: 'muy por debajo de lo habitual' },
+    unscoredNote: 'Incluye {n} sesión(es) sin dato de esfuerzo en los últimos 7 días (no cuentan como descanso).',
     gated: {
       baselineBuilding: 'Tendencia en formación: necesita 4+ semanas de Esfuerzo Relativo, 8+ días activos y una base no trivial.',
       fewDays: 'Hay muy pocos días de entreno de esta modalidad en las últimas 6 semanas para saber cómo es un día típico.',
