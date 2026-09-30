@@ -1,0 +1,12 @@
+{
+  "_comment": "TEMPLATE with SYNTHETIC values. Copy to profile/profile.json (gitignored) and edit. Every field is optional. name / city override what Strava reports; birthdate gives the age (computed by the page, never stored); devices: type = watch | bike-computer | ems | other, since = YYYY-MM.",
+  "name": "Sam Sample",
+  "city": "Exampleville",
+  "birthdate": "1990-06-15",
+  "heightCm": 175,
+  "devices": [
+    { "name": "Sample Watch", "type": "watch", "since": "2024-03" },
+    { "name": "Sample Bike Computer", "type": "bike-computer", "since": "2025-01" },
+    { "name": "Sample EMS Suit", "type": "ems" }
+  ]
+}
