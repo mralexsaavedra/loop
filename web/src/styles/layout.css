@@ -148,3 +148,60 @@ details.sec-fold > summary > .sec-hint {
   color: var(--muted);
   margin: 0 0 var(--sp-5);
 }
+
+/* header freshness line + Sync button (client/freshness.js). Rendered hidden; shown only when the
+ * page's server answers /api/sync/status. State colours per tokens.css: >24 h --mid, >72 h --low. */
+.fresh {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3) var(--sp-5);
+  margin: 0 0 var(--sp-5);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.fresh[hidden] {
+  display: none;
+}
+.fresh-line {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.fresh-mid {
+  color: var(--mid);
+}
+.fresh-low {
+  color: var(--low);
+}
+.fresh-hint {
+  font-style: normal;
+}
+.fresh-btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 var(--sp-7);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.fresh-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.fresh-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.fresh-msg {
+  flex-basis: 100%;
+}
+.fresh-msg:empty {
+  display: none;
+}

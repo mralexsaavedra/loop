@@ -2,3 +2,5 @@
 .env.*
 !.env.example
 node_modules/
+# POST /sync trigger file (runtime only, bind-mounted into the container)
+trigger/

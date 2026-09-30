@@ -1,0 +1,187 @@
+# plan-web
+
+Serves the personal plan page (`web/dist/personal/index.html`) on the LAN with
+nginx, and refreshes it hourly (cron) or on demand (the page's **Sync** button,
+or the iOS Shortcut).
+
+| File | Role |
+| ---- | ---- |
+| `refresh.sh` | Sync data, rebuild, publish into `./site`, write `site/status.json` |
+| `docker-compose.yml` | nginx serving `./site` (read-only) and proxying two ingest routes |
+| `nginx.conf.template` | nginx config, rendered with `INGEST_PORT` at container start |
+| `systemd/plan-web-refresh.path` | Watches the ingest trigger file |
+| `systemd/plan-web-refresh.service` | Runs `refresh.sh` (as the repo owner, hardened) when it changes |
+
+`./site`, `.refresh.lock`, `.refresh-state` and the ingest `trigger/` directory
+are gitignored.
+
+## How a refresh works (sequence protocol)
+
+Nothing compares clocks. Every accepted click gets a **sequence number**, and
+the page waits until a publish covers it.
+
+```
+Sync button / Shortcut
+  -> POST /api/sync (plan-web nginx) -> POST /sync (health-ingest, host port)
+       202 {seq, coalesced}
+       1. pulls Strava now, unless the last successful pull is < 5 min old
+       2. writes `seq` atomically to services/health-ingest/trigger/refresh
+  -> systemd plan-web-refresh.path (PathModified) -> plan-web-refresh.service
+  -> refresh.sh, per pass: remember the trigger seq it starts from ->
+       npm run sync -> npm ci (only if the lockfile changed) -> npm run generate
+  -> site/index.html + site/status.json {publishedAt, commit, branch, processedSeq}
+  -> the page polls every 5 s and reloads once processedSeq >= its seq
+```
+
+- **Clicks during a run are never lost.** After each pass `refresh.sh` re-reads
+  the trigger file and runs again (at most 3 passes) when the seq advanced,
+  whatever systemd's path unit did with the extra change.
+- **Repeated clicks coalesce.** A click while a trigger is still pending, or
+  within 60 s of the last one, gets the current seq back
+  (`{coalesced: true}`) and causes no work. Nobody is ever refused (no `429`).
+- **Failures fail fast.** An early exit adds `{error, errorSeq}` to
+  `status.json` without touching `publishedAt`/`processedSeq`; the page shows
+  "No se pudo actualizar: <reason>". Codes: `branch`, `install`, `build`,
+  `sanity`, `lock`. If ingest could not write the trigger file, its
+  `/sync/status` reports `lastTriggerError: "trigger_write"` with the seq, and
+  the page fails fast on that too. Otherwise it gives up after 5 min.
+
+The hourly cron keeps running `refresh.sh`; both paths share the same `flock`.
+Cron skips a tick while a run is active (not an error: the running pass
+re-checks the seq); the on-demand unit sets `PLAN_WEB_WAIT_LOCK=1` and waits
+up to 900 s, then reports `lock`.
+
+### refresh.sh guarantees
+
+- A failed sync (ingest down) still rebuilds from the CSVs on disk.
+- `sync` and `generate` each run under `timeout` (`PLAN_WEB_STEP_TIMEOUT`,
+  default 300 s); `npm ci` has its own `PLAN_WEB_CI_TIMEOUT` (default 900 s).
+- A failed install, failed build or invalid output keeps serving the last good
+  page; `status.json` keeps its last good publish and only gains the error code.
+- **Branch guard:** only `main` is published. With another branch checked out
+  the run writes the `branch` code, logs a line and exits 0 (fine for cron).
+  Set `PLAN_WEB_ALLOW_BRANCH=1` to publish it anyway.
+- `status.json` is written atomically; `processedSeq` never goes backwards.
+
+## The freshness line on the page
+
+The page header shows `Atajo: hace 5 min · Strava: hace 2 h · Página: hace 1 min`
+(English build: `Shortcut · Strava · Page`), computed in the browser from
+`GET /api/sync/status` and `/status.json`. A source older than 24 h turns
+amber with a short hint, older than 72 h red. When `/api/sync/status` is not
+reachable (the example build, a `file://` open, a claude.ai artifact, a clone
+without the ingest service) the line and the button are not shown at all.
+
+## Security and exposure model
+
+`POST /sync` and `GET /sync/status` are **unauthenticated** by design: the page
+is a static file and cannot hold a secret. That is acceptable because:
+
+- `POST /sync` only schedules work the services already do on a timer. It reads
+  no body and returns only a sequence number. Cost is bounded without locking
+  anyone out: at most **one rebuild per minute** and **one Strava pull per
+  5 min**, however many requests arrive.
+- `GET /sync/status` returns timestamps, sequence numbers and **coarse codes**
+  (`strava_auth`, `strava_network`, `strava_other`, `strava_token_save`,
+  `trigger_write`), cached for 5 s. Never health data, never raw error text
+  (that stays in the container logs).
+
+What each proxy may forward:
+
+| Proxy | Forwards | Never |
+| ----- | -------- | ----- |
+| **LAN nginx** (this service) | `POST /api/sync` -> `/sync`, `GET /api/sync/status` -> `/sync/status` (exact match, method restricted) | anything else under `/api/` (404), `/ingest`, `/export` |
+| **Public reverse proxy** (if any, in front of health-ingest) | `/ingest/*` (bearer token) and `POST /sync` (for the Shortcut's last step); `/sync/status` optional | `/export/*`, `/sync/strava`, `/healthz` |
+
+## Install (host)
+
+Replace `/path/to/health-coach` with your clone's absolute path and
+`REPO_OWNER` with the user that owns the clone. Follow the steps **in order**.
+
+1. **Trigger directory first** (before any `docker compose up`, or Docker creates
+   it root-owned and the container cannot write it). It must be writable by the
+   ingest container's `node` user (uid 1000):
+
+   ```sh
+   mkdir -p /path/to/health-coach/services/health-ingest/trigger
+   sudo chown 1000:1000 /path/to/health-coach/services/health-ingest/trigger
+   ```
+
+2. **Rebuild the ingest service** so it mounts the directory and runs
+   `sql/003_sync.sql` (idempotent):
+
+   ```sh
+   cd /path/to/health-coach/services/health-ingest && docker compose up -d --build
+   ```
+
+3. **First `npm ci` by hand**, as the repo owner (a cold install can take
+   minutes; the unit's timeout is meant for incremental reinstalls):
+
+   ```sh
+   cd /path/to/health-coach && npm ci --no-audit --no-fund
+   ```
+
+4. **Verify the checkout is `main`** (otherwise every run only writes the
+   `branch` code):
+
+   ```sh
+   git -C /path/to/health-coach rev-parse --abbrev-ref HEAD   # main
+   ```
+
+5. **Recreate plan-web** so it picks up the nginx template, the host-gateway
+   alias and `INGEST_PORT` (set `INGEST_PORT` in `services/plan-web/.env` if the
+   ingest port is not 8088):
+
+   ```sh
+   cd /path/to/health-coach/services/plan-web && docker compose up -d
+   ```
+
+6. **Install the systemd units** (fill in both placeholders):
+
+   ```sh
+   for u in plan-web-refresh.path plan-web-refresh.service; do
+     sed -e 's#/path/to/health-coach#/your/absolute/clone#g' -e 's#REPO_OWNER#youruser#g' \
+       /path/to/health-coach/services/plan-web/systemd/$u \
+       | sudo tee /etc/systemd/system/$u >/dev/null
+   done
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now plan-web-refresh.path
+   ```
+
+   If `node`/`npm` are not in `/usr/local/bin` or `/usr/bin`, add an
+   `Environment=PATH=...` line to the service (see the comment in the unit).
+
+7. **Smoke test** end to end:
+
+   ```sh
+   curl -s -X POST localhost:8090/api/sync         # 202 {"ok":true,"seq":N,"coalesced":false,...}
+   curl -s localhost:8090/api/sync/status          # triggerSeq N, codes only
+   journalctl -u plan-web-refresh.service -f       # refresh.sh output
+   cat /path/to/health-coach/services/plan-web/site/status.json   # processedSeq >= N
+   ```
+
+The ingest port must be reachable from the Docker bridge (the default
+`"${INGEST_PORT}:8088"` publish is; a `127.0.0.1:`-only publish is not).
+
+The existing cron entry (e.g. `0 * * * * /path/to/health-coach/services/plan-web/refresh.sh`,
+in the repo owner's crontab) stays as the fallback.
+
+### The service user and the hardening, and their tradeoffs
+
+- **`User=REPO_OWNER`**: the build runs as the user that owns the clone, the
+  same one as the cron job. Use `root` only when the clone itself is
+  root-owned. Running as the owner is also why `refresh.sh` needs no git
+  `safe.directory` override (git only complains about a repo owned by another user).
+- **`ProtectSystem=strict` + `ReadWritePaths=<clone>`**: the whole filesystem is
+  read-only except the clone, which the build writes (`node_modules`, the
+  extract CSVs, `web/dist`, `./site`). Tradeoff: a tool that writes somewhere
+  else fails with `EROFS`; add that path to `ReadWritePaths`.
+- **`ProtectHome=read-only`**: home directories stay readable (node/npm installed
+  with nvm keep working) but not writable; a clone that lives in a home
+  directory is still writable through `ReadWritePaths`. npm gets a writable
+  cache through `CacheDirectory=` (`/var/cache/plan-web-refresh`), and Astro
+  telemetry / npm update checks are off so nothing writes to `$HOME`. If your
+  setup needs a writable home, drop `ProtectHome` rather than the other
+  settings.
+- **`NoNewPrivileges=yes`, `PrivateTmp=yes`**: no setuid escalation, a private
+  `/tmp`. No known downside for this build.

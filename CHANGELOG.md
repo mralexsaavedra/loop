@@ -4,6 +4,22 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-09-30 — On-demand page refresh + data freshness
+
+The LAN page no longer waits for the hourly cron: a Sync button (and a last Shortcut step) calls
+health-ingest `POST /sync` (unauthenticated), which assigns a persisted sequence number, pulls
+Strava (at most once per 5 min) and atomically writes the seq to a trigger file; a systemd path unit
+on the host runs `refresh.sh` (as the repo owner, hardened). Repeated clicks coalesce onto the
+pending seq (at most one rebuild per minute, never a `429`). `refresh.sh` publishes
+`site/status.json` `{publishedAt, commit, branch, processedSeq}`, re-runs (max 3 passes) when the seq
+advanced mid-run, reports early exits as coarse codes (`branch`, `install`, `build`, `sanity`,
+`lock`) without touching the last good publish, publishes only `main` and time-boxes each step
+(`npm ci` 900 s). The page waits for `processedSeq >= seq` (no clock comparison) and fails fast
+with a reason. The header shows how old the Shortcut, Strava and page data are (`GET /sync/status`,
+timestamps + coarse codes only, cached 5 s). Strava refresh-token rotation is persisted with
+retries; `/healthz` flags Strava stale 6 h after its last persisted success.
+Details: `CLAUDE.md` (LAN page + on-demand refresh), `services/plan-web/README.md`.
+
 ## 2026-07-01 — Whoop redesign, design tokens & per-run distance
 
 Full visual redesign of the published artifact to a Whoop-style dark dashboard, a tokenized

@@ -1,4 +1,4 @@
-import { createTokenProvider, fetchActivitiesSince, upsertActivities, lastSyncedStart } from './strava.js'
+import { createTokenProvider, createTokenStore, fetchActivitiesSince, upsertActivities, lastSyncedStart, classifyStravaError } from './strava.js'
 
 const DEFAULT_INTERVAL_MINUTES = 30
 // How far back to re-read on every run, so an activity edited after upload
@@ -9,11 +9,41 @@ export function isConfigured (env) {
   return Boolean(env.STRAVA_CLIENT_ID && env.STRAVA_CLIENT_SECRET && env.STRAVA_REFRESH_TOKEN)
 }
 
-export function createStravaSync (pool, env) {
+/**
+ * Wraps a sync run so every caller (the interval loop, POST /sync, POST
+ * /sync/strava) shares ONE in-flight run instead of overlapping, and records
+ * each outcome in the freshness status (status.js) — as a COARSE code only
+ * (classifyStravaError); the message is rethrown for the caller's log.
+ */
+export function guardSync (run, { status = null } = {}) {
+  let inflight = null
+
+  return function runOnce () {
+    if (inflight) return inflight
+    inflight = (async () => {
+      try {
+        const result = await run()
+        await status?.recordStravaOk()
+        return result
+      } catch (err) {
+        await status?.recordStravaError(classifyStravaError(err))
+        throw err
+      } finally {
+        inflight = null
+      }
+    })()
+    return inflight
+  }
+}
+
+export function createStravaSync (pool, env, { status = null } = {}) {
   const getAccessToken = createTokenProvider({
     clientId: env.STRAVA_CLIENT_ID,
     clientSecret: env.STRAVA_CLIENT_SECRET,
-    refreshToken: env.STRAVA_REFRESH_TOKEN
+    // bootstrap only: a rotated token persisted in strava_token wins (strava.js)
+    refreshToken: env.STRAVA_REFRESH_TOKEN,
+    store: createTokenStore(pool),
+    onSaveResult: status ? (ok) => status.recordTokenSave(ok) : null
   })
 
   async function runOnce () {
@@ -29,7 +59,7 @@ export function createStravaSync (pool, env) {
     return { count, since }
   }
 
-  return { runOnce }
+  return { runOnce: guardSync(runOnce, { status }) }
 }
 
 export function startSyncLoop (sync, { intervalMinutes = DEFAULT_INTERVAL_MINUTES, log = console.log } = {}) {
