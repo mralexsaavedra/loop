@@ -464,10 +464,11 @@ is the newest day, and the trend is the line under it.
   ("Last 14 days" / "Últimos 14 días"). Gated ("insufficient")
   unless components with ≥ 14 baseline days carry ≥ 0.60 of the weight, include HRV or RHR, and there
   are ≥ 7 composite days in the last 14. "Last night" is the newest COMPLETE day of the last week
-  (`completeDay`): its HRV counts only with ≥ max(min(3, usual), 50% of usual) samples (usual = median
-  daily sample count over the baseline), and the day needs ≥ 0.60 of the weight incl. HRV or RHR; a
-  partial newest day falls back to the previous complete one, labelled by its date. The monitor's and
-  Salud's HRV headline use the same completeness rule.
+  (`completeDay`): it needs BOTH a resting-HR value and an HRV day with ≥ max(min(3, usual), 50% of
+  usual) samples (usual = median daily sample count over the baseline), plus ≥ 0.60 of the weight; a
+  partial newest day (e.g. no RHR yet) falls back to the previous complete one, labelled by its date,
+  and stays in the trend and baselines. The monitor cards and Salud's HRV headline keep per-signal
+  completeness (HRV sample floor only).
 - **Load** is PER MODALITY (gym / run / bike; `other` is shown raw, never scored) and Relative-Effort-only
   (Strava `suffer_score`; Apple rows have no RE and are counted as `unscored`). Same-day rows follow
   the shared rule below (junk dropped, one source, then SUM). The series starts at the first date with any RE
