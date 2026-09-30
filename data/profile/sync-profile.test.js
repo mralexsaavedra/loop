@@ -80,9 +80,10 @@ test('planAvatar keeps the previous avatar when the service has no snapshot yet'
   assert.equal(planAvatar({ next: { ...BODY, fetchedAt: null, profileMedium: null }, prev: BODY, avatarExists: true }), 'keep');
 });
 
-test('checkAvatar accepts a small JPEG only', () => {
+test('checkAvatar accepts a small JPEG or PNG only', () => {
   assert.equal(checkAvatar(JPEG), null);
-  assert.match(checkAvatar(PNG), /not a JPEG/);
+  assert.equal(checkAvatar(PNG), null);
+  assert.match(checkAvatar(Buffer.from('GIF89a-not-allowed')), /not a JPEG or PNG/);
   assert.match(checkAvatar(Buffer.alloc(0)), /empty/);
   const big = Buffer.concat([JPEG, Buffer.alloc(MAX_AVATAR_BYTES)]);
   assert.match(checkAvatar(big), /too large/);
@@ -122,10 +123,12 @@ test('downloadAvatar refuses redirects (redirect: error)', async () => {
   assert.ok(opts.signal, 'the timeout signal is passed');
 });
 
-test('downloadAvatar requires Content-Type image/jpeg as well as the JPEG magic bytes', async () => {
-  await assert.rejects(downloadAvatar(PHOTO, { fetchImpl: async () => imgRes(JPEG, 'image/png') }), /content-type/i);
+test('downloadAvatar requires an image Content-Type and JPEG/PNG magic bytes', async () => {
   await assert.rejects(downloadAvatar(PHOTO, { fetchImpl: async () => imgRes(JPEG, 'text/html') }), /content-type/i);
-  await assert.rejects(downloadAvatar(PHOTO, { fetchImpl: async () => imgRes(PNG, 'image/jpeg') }), /not a JPEG/);
+  await assert.rejects(downloadAvatar(PHOTO, { fetchImpl: async () => imgRes(Buffer.from('<html>'), 'image/jpeg') }), /not a JPEG or PNG/);
+  // Strava really serves some photos as PNG bytes labelled image/jpeg under a .jpg URL
+  const png = await downloadAvatar(PHOTO, { fetchImpl: async () => imgRes(PNG, 'image/jpeg') });
+  assert.ok(png.equals(PNG));
   const ok = await downloadAvatar(PHOTO, { fetchImpl: async () => imgRes(JPEG, 'Image/JPEG; charset=binary') });
   assert.ok(ok.equals(JPEG));
 });
@@ -177,7 +180,7 @@ test('syncProfile tolerates a failed avatar download: the snapshot is written, t
   const dir = tmpDir('avatar-fail');
   await syncProfile(dir, BODY, { fetchImpl: async () => imgRes(JPEG) });
   const next = { ...BODY, profileMedium: PHOTO_NEW };
-  const r = await syncProfile(dir, next, { fetchImpl: async () => imgRes(PNG, 'image/png') });
+  const r = await syncProfile(dir, next, { fetchImpl: async () => imgRes(Buffer.from('<html>not an image</html>'), 'image/jpeg') });
   assert.equal(r.profileWritten, true);
   assert.match(r.avatar, /^failed: /);
   assert.ok(fs.readFileSync(path.join(dir, AVATAR_FILE)).equals(JPEG), 'previous avatar untouched');

@@ -8,7 +8,7 @@
  *          services/health-ingest/.env, like the other syncs).
  * Writes : data/profile/strava-profile.json (only when its content changed, temp file + rename)
  *          and data/profile/avatar.jpg (Strava's `profile_medium`: only from Strava's photo hosts,
- *          https, no redirects, image/jpeg + JPEG magic bytes, streamed with a hard
+ *          https, no redirects, image/jpeg|png + JPEG/PNG magic bytes, streamed with a hard
  *          MAX_AVATAR_BYTES cap). The snapshot's `avatarSourceUrl` = the URL the saved photo came
  *          from, set only after a successful download (photo written first, then the JSON); a
  *          download is planned whenever it differs from profileMedium or the file is missing, so a
@@ -92,11 +92,19 @@ function isAllowedAvatarUrl (value) {
 function checkAvatar (buf) {
   if (!buf || !buf.length) return 'empty image'
   if (buf.length > MAX_AVATAR_BYTES) return `too large (${buf.length} bytes, cap ${MAX_AVATAR_BYTES})`
-  if (!(buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff)) return 'not a JPEG'
+  if (!imageKind(buf)) return 'not a JPEG or PNG'
   return null
 }
 
 /** Reads the body chunk by chunk and gives up (cancelling the stream) as soon as it passes `cap`. */
+// JPEG (FF D8 FF) or PNG (89 50 4E 47); null otherwise
+function imageKind (buf) {
+  if (!buf || buf.length < 4) return null
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpeg'
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'png'
+  return null
+}
+
 async function readCapped (res, cap) {
   if (!res.body || typeof res.body.getReader !== 'function') throw new Error('avatar response has no body')
   const reader = res.body.getReader()
@@ -124,9 +132,10 @@ async function downloadAvatar (url, { fetchImpl = fetch, timeoutMs = 15000 } = {
     const res = await fetchImpl(url, { signal: ctrl.signal, redirect: 'error' })
     if (!res.ok) throw new Error(`avatar download answered HTTP ${res.status}`)
     const type = String(res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase()
-    if (type !== 'image/jpeg') {
+    // Strava labels some PNG photos image/jpeg, so the bytes decide the format, not the header
+    if (type !== 'image/jpeg' && type !== 'image/png') {
       await res.body?.cancel().catch(() => {})
-      throw new Error(`unexpected content-type ${type || '(none)'}, expected image/jpeg`)
+      throw new Error(`unexpected content-type ${type || '(none)'}, expected image/jpeg or image/png`)
     }
     const announced = Number(res.headers.get('content-length'))
     if (announced > MAX_AVATAR_BYTES) {
