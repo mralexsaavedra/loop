@@ -166,13 +166,14 @@ h2::after {
   color: var(--accent-ink);
 }
 
+/* footer (personal copy): compact and muted */
 footer {
-  margin: var(--sp-12) 0 var(--sp-4);
-  font-size: var(--fs-xs);
+  margin: var(--sp-11) 0 var(--sp-4);
+  font-size: var(--fs-2xs);
   color: var(--faint);
-  line-height: 1.6;
-  border-top: 1px solid var(--line);
-  padding-top: var(--sp-7);
+  line-height: 1.55;
+  border-top: 1px solid var(--line-soft);
+  padding-top: var(--sp-5);
 }
 
 @media (prefers-reduced-motion: reduce) {

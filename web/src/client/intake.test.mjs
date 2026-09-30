@@ -50,7 +50,7 @@ test('fresh intake without Nutrición today: four rings (kcal, protein, carbs, f
 
 test('no train/rest toggle any more: intakeRefresh re-renders against today\'s target as it is now', () => {
   let t = { k: 2500, p: 150, c: 340, g: 60, fuelK: 0, label: "Today's target · Rest · Maintain" };
-  const { host, window, doc } = run({ latest: { date: '2030-01-10', k: 1000, p: 80, c: 90, g: 35 }, today: '2030-01-10', nutriTarget: () => t });
+  const { host, window, doc } = run({ latest: { date: '2030-01-09', k: 1000, p: 80, c: 90, g: 35 }, today: '2030-01-10', nutriTarget: () => t });
   assert.equal(doc.getElementById('b-train'), null);
   assert.match(host.innerHTML, /of 2500 kcal/);
   t = { k: 3050, p: 150, c: 477, g: 60, fuelK: 0, label: "Today's target · Gym or run · Maintain" };
@@ -61,13 +61,13 @@ test('no train/rest toggle any more: intakeRefresh re-renders against today\'s t
 
 test('bike days: the rings compare against the MEALS target and the ride fuel is its own line', () => {
   const nutriTarget = () => ({ k: 3070, p: 150, c: 437, g: 60, fuelK: 480, label: "Today's meals · Ride ~2 h · Maintain" });
-  const html = run({ latest: { date: '2030-01-10', k: 1535, p: 75, c: 200, g: 30 }, today: '2030-01-10', nutriTarget }).host.innerHTML;
+  const html = run({ latest: { date: '2030-01-09', k: 1535, p: 75, c: 200, g: 30 }, today: '2030-01-10', nutriTarget }).host.innerHTML;
   assert.match(html, /of 3070 kcal/);
   assert.match(html, /50%/);
   assert.match(html, /class="intake-fuel">\+ 480 kcal on the bike</);
-  const es = run({ latest: { date: '2030-01-10', k: 1535, p: 75, c: 200, g: 30 }, today: '2030-01-10', locale: 'es', nutriTarget }).host.innerHTML;
+  const es = run({ latest: { date: '2030-01-09', k: 1535, p: 75, c: 200, g: 30 }, today: '2030-01-10', locale: 'es', nutriTarget }).host.innerHTML;
   assert.match(es, /\+ 480 kcal en la bici/);
-  const rest = run({ latest: { date: '2030-01-10', k: 1535, p: 75, c: 200, g: 30 }, today: '2030-01-10', nutriTarget: () => ({ k: 2500, p: 150, c: 340, g: 60, fuelK: 0, label: 'x' }) }).host.innerHTML;
+  const rest = run({ latest: { date: '2030-01-09', k: 1535, p: 75, c: 200, g: 30 }, today: '2030-01-10', nutriTarget: () => ({ k: 2500, p: 150, c: 340, g: 60, fuelK: 0, label: 'x' }) }).host.innerHTML;
   assert.doesNotMatch(rest, /intake-fuel/);
 });
 
@@ -139,10 +139,19 @@ test('a logged day that is the viewer\'s today is labelled as in progress, not a
 
 test('with Nutrición today (window.nutriTarget), the rings measure against that goal x day type target', () => {
   const nutriTarget = () => ({ k: 3050, p: 150, c: 424, g: 60, label: "Today's target · Gym or run · Maintain" });
-  const html = run({ latest: { date: '2030-01-10', k: 1525, p: 75, c: 212, g: 30 }, today: '2030-01-10', nutriTarget }).host.innerHTML;
+  const html = run({ latest: { date: '2030-01-09', k: 1525, p: 75, c: 212, g: 30 }, today: '2030-01-10', nutriTarget }).host.innerHTML;
   assert.match(html, /of 3050 kcal/);
   assert.match(html, /50%/);
   assert.match(html, /Today&#39;s target · Gym or run · Maintain|Today's target · Gym or run · Maintain/);
-  const broken = run({ latest: { date: '2030-01-10', k: 1200, p: 1, c: 1, g: 1 }, today: '2030-01-10', nutriTarget: () => { throw new Error('x'); } }).host.innerHTML;
+  const broken = run({ latest: { date: '2030-01-09', k: 1200, p: 1, c: 1, g: 1 }, today: '2030-01-10', nutriTarget: () => { throw new Error('x'); } }).host.innerHTML;
   assert.match(broken, /of 2400 kcal/, 'falls back to the plan\'s training-day total');
+});
+
+test('intake logged TODAY with Nutrición present: no rings (the kcal dial and macro bars of Resumen de hoy show it)', () => {
+  const nutriTarget = () => ({ k: 3050, p: 150, c: 424, g: 60, label: 'x' });
+  const { host } = run({ latest: { date: '2030-01-10', k: 1525, p: 75, c: 212, g: 30 }, today: '2030-01-10', nutriTarget });
+  assert.equal(host.innerHTML, '');
+  assert.equal(host.hidden, true);
+  const y = run({ latest: { date: '2030-01-09', k: 1525, p: 75, c: 212, g: 30 }, today: '2030-01-10', nutriTarget }).host;
+  assert.equal(y.hidden, false, 'an earlier fresh day still shows its rings');
 });

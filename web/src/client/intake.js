@@ -7,7 +7,8 @@
  *
  * Data honesty: a ring fills ONLY from logged intake. No fresh intake -> empty state with how to
  * enable it; a macro missing on the logged day -> an empty ring with a dash, never a ring drawn
- * from the target. nutri-day.js calls window.intakeRefresh() after every goal / day type / ride change. */
+ * from the target. Intake logged TODAY is shown by Resumen de hoy's kcal dial + macro bars
+ * (client/nutri-day.js), so with Nutrición on the page the rings then step aside (host hidden). nutri-day.js calls window.intakeRefresh() after every goal / day type / ride change. */
 (function () {
   var T = I18N_INTAKE;
   var DATE_LOCALE = LOCALE === 'es' ? 'es-ES' : 'en-GB';
@@ -50,6 +51,13 @@
     var host = document.getElementById('intake');
     if (!host) return;
     var L = INTAKE.latest;
+    host.hidden = false;
+    // logged TODAY and Resumen de hoy is on the page: its kcal dial + macro bars already show it
+    if (L && L.date === HC.todayIso() && typeof window.nutriTarget === 'function') {
+      host.innerHTML = '';
+      host.hidden = true;
+      return;
+    }
     // never logged at all: one line, not a card (with Registro visible, Dia.astro renders no host
     // and the line sits in the Registro fold summary instead)
     if (!L) {
