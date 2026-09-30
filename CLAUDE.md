@@ -326,10 +326,10 @@ sport types (incl. e-bike and virtual/indoor rides) all translate to the same `C
 Apple Health uses, so they land in the same `bike` bucket. Strava rows are ALWAYS kept, also on
 dates the export covers (Strava is the only source of Relative Effort, kJ and elevation), and are
 rebuilt each run and removed only by their `Strava API` tag. Dedupe happens at READ time: every
-workouts.csv reader goes through `lib/training/sessions.mjs` `mergeSameDay`, where the Strava rows of
-a date + physical modality (Inicio's gym / run / bike / other) supersede the Watch rows when they
-cover at least half of the Watch minutes (`SUPERSEDE_MIN_COVERAGE`); lower coverage = a different
-session, both counted. Accepted limitations: a Strava activity
+workouts.csv reader goes through `lib/training/sessions.mjs` `mergeSameDay`, which keeps ONE source
+per date + physical modality (Inicio's gym / run / bike / other): "Strava API" > "Strava" (the Strava
+app's HealthKit copy) > Apple Watch > any other app, when the winner covers at least half of the
+loser's minutes (`SUPERSEDE_MIN_COVERAGE`); lower coverage = a different session, both counted. Accepted limitations: a Strava activity
 deleted upstream is never removed from the local CSV (ingest never deletes); an edit made more
 than 7 days ago is never picked up (the ingest service's Strava loop only re-reads a 7-day
 overlap window). `GET /export/strava` requires an ingest image rebuild/restart
@@ -553,13 +553,18 @@ is the newest day, and the trend is the line under it.
   DISPLAY readers (timeline, calendar/cumulative, dashboard, run/ride tables) pass `DISPLAY_RULE` and
   drop only stubs (`isStub`: `dur < STUB_MAX_MIN` = 3, accidental Watch starts) — Watch rows and no-HR
   Strava rows have `re` null by design, so the junk rule would hide real 9-10 min sessions from the
-  pages that list sessions (they still add no load); when a Strava row (`source` "Strava API" or
-  legacy "Strava") AND a Watch row exist for the same date and key, and the Strava rows' total
-  duration is ≥ `SUPERSEDE_MIN_COVERAGE` (0.5) × the Watch rows' total, keep ONLY the Strava rows
-  (they carry RE / elevation / kJ) instead of summing a double-counted session — sync:strava keeps
-  every Strava row, so this is THE dedupe; below that coverage the rows
-  are most likely different sessions and both are kept; the load coverage counts superseded rows as
-  `superseded`; then
+  pages that list sessions (they still add no load); then ONE source per session, because several
+  apps mirror the SAME workout into Apple Health (workouts.csv carries Watch, Hevy, Zepp, ROXFIT, Nike,
+  the Strava app's HealthKit copy "Strava" and sync:strava's "Strava API" rows): rows are grouped by
+  `source`; fragments of ONE source are kept together (the Watch splits sessions); across sources one
+  source's rows are kept, never a sum, by `SOURCE_PRECEDENCE` ("Strava API" > "Strava" > `/Apple
+  Watch/i` > any other app; among other apps the longest total wins) — sync:strava keeps every Strava
+  row, so this is THE dedupe. A higher-precedence source replaces a lower one only when its total
+  duration is ≥ `SUPERSEDE_MIN_COVERAGE` (0.5) × the lower one's total; below that they are most
+  likely different sessions and both source groups are kept. When the kept source has no HR (or no
+  RE) and a replaced copy does, the kept rows inherit it (HR duration-weighted, max of max; RE spread
+  by duration), so HR-based readers (load vs recovery) keep the session. The load coverage counts
+  replaced rows as `superseded`; then
   the remaining rows are summed as ONE session (a session logged in parts adds up; a real two-a-day
   is indistinguishable).
 - **workouts.csv has 12 columns** (`… ,distance_km,relative_effort,kilojoules,elevation_m`), written by
