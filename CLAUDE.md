@@ -545,8 +545,9 @@ is the newest day, and the trend is the line under it.
   (`dials.load.caveatLine`); when it hides Salud, a compact recovery line (`dials.recovery.caveatLine`).
 - **One same-day merge rule** (`lib/training/sessions.mjs` `mergeSameDay(rows, keyFn, { dropJunk, dropStub })`),
   used by EVERY workouts.csv reader: the load series, the timeline, the Entreno calendar/cumulative
-  time, the workouts dashboard and the running/cycling tables (the key is the reader's modality
-  bucket). Per (date, key): drop invalid rows (`dur <= 0`); then the short-row filter depends on the
+  time, the workouts dashboard, the running/cycling tables and Salud's load vs recovery (the key is
+  the physical modality — Inicio's gym / run / bike / other — or one constant for a single-family
+  table; Entreno buckets the surviving rows into its five display buckets afterwards). Per (date, key): drop invalid rows (`dur <= 0`); then the short-row filter depends on the
   reader — LOAD scoring (default) drops junk (`isJunk`: `dur <= 11` AND `re` null or ≤ 2), while the
   DISPLAY readers (timeline, calendar/cumulative, dashboard, run/ride tables) pass `DISPLAY_RULE` and
   drop only stubs (`isStub`: `dur < STUB_MAX_MIN` = 3, accidental Watch starts) — Watch rows and no-HR
@@ -554,8 +555,8 @@ is the newest day, and the trend is the line under it.
   pages that list sessions (they still add no load); when a Strava row (`source` "Strava API" or
   legacy "Strava") AND a Watch row exist for the same date and key, and the Strava rows' total
   duration is ≥ `SUPERSEDE_MIN_COVERAGE` (0.5) × the Watch rows' total, keep ONLY the Strava rows
-  (they carry RE / elevation / kJ) instead of summing a double-counted session — sync:strava's
-  date-level precedence should prevent the pair but has known holes; below that coverage the rows
+  (they carry RE / elevation / kJ) instead of summing a double-counted session — sync:strava keeps
+  every Strava row, so this is THE dedupe; below that coverage the rows
   are most likely different sessions and both are kept; the load coverage counts superseded rows as
   `superseded`; then
   the remaining rows are summed as ONE session (a session logged in parts adds up; a real two-a-day
