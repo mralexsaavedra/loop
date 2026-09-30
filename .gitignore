@@ -41,6 +41,8 @@ services/plan-web/.refresh.lock
 # refresh.sh last-good-publish state (JSON fragment reused by error writes; runtime-only).
 services/plan-web/.refresh-state
 services/plan-web/.refresh-state.tmp
+# health-ingest on-demand refresh trigger (runtime file written by POST /sync).
+services/health-ingest/trigger/
 # plan-data.json holds the PERSONAL plan (recipes, day structure, targets); plan-tables.md
 # is generated from it. Both hold personal plan data → ignore.
 data/nutrition/plan-data.json
