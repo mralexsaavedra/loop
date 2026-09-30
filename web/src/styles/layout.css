@@ -149,14 +149,47 @@ details.sec-fold > summary > .sec-hint {
   margin: 0 0 var(--sp-5);
 }
 
-/* header freshness line + Sync button (client/freshness.js). Rendered hidden; shown only when the
- * page's server answers /api/sync/status. State colours per tokens.css: >24 h --mid, >72 h --low. */
-.fresh {
+/* top bar: the viewer's date (client/today-date.js) + the freshness group, above the nav. With no
+ * visible header (page.h1 / page.sub absent) it is the first thing on the page, so it carries the top
+ * safe-area inset itself. */
+.topbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-3) var(--sp-5);
+  padding-top: max(var(--sp-5), env(safe-area-inset-top));
   margin: 0 0 var(--sp-5);
+}
+/* the date: a small caps label like every other label on the page */
+.today-date {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+/* one h1 per document even without a visible header: read by assistive tech, never drawn */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* freshness line + Sync button (client/freshness.js). Rendered hidden; shown only when the
+ * page's server answers /api/sync/status. State colours per tokens.css: >24 h --mid, >72 h --low. */
+.fresh {
+  display: flex;
+  flex: 1 1 260px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3) var(--sp-5);
+  min-width: 0;
   font-size: var(--fs-xs);
   color: var(--muted);
 }

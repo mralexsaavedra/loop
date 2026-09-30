@@ -30,6 +30,8 @@ import { resolveNav, activeTabKey, TAB_KEYS, sectionsOf, showDayToggle } from '.
 import { buildScores } from '../../lib/score/index.mjs';
 import { buildIntake } from '../../lib/nutrition/intake.mjs';
 import { dayViewModel } from '../src/view/day-totals.mjs';
+import DetailSheet from '../src/components/DetailSheet.astro';
+import { buildDetail } from '../../lib/detail/detail.mjs';
 
 const env = resolveEnv();
 const { locale, plan, ingredients, training, extractDir } = env;
@@ -40,6 +42,8 @@ const dash = loadDashboard(extractDir);
 const activity = buildActivity(extractDir);
 const health = buildHealth(extractDir);
 const scores = buildScores(extractDir);
+// the detail sheet behind every card: the last 365 days per metric (only the data's own dates)
+const detail = buildDetail(extractDir);
 // intake rings target = the same day totals Mi día shows for a train / rest day
 const intake = buildIntake(extractDir, { train: dayViewModel(nut, 'train').totals, rest: dayViewModel(nut, 'rest').totals });
 
@@ -78,4 +82,5 @@ const title = plan.page?.title || 'Plan';
     <Registro nut={nut} dict={dict} page={plan.page} plan={plan} locale={locale} training={training.days} trainingMeta={trainMeta} dash={dash} health={health} scores={scores} intake={intake} hidden={isHidden('registro')} />
     <Tablas nut={nut} dict={dict} page={plan.page} hidden={isHidden('tablas')} />
   </div>
+  <DetailSheet slot="overlay" detail={detail} locale={locale} />
 </Plan>

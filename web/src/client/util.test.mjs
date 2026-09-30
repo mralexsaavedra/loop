@@ -8,14 +8,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { UTIL_SOURCE, HC_CONST_BAKE } from '../../test/client-util.mjs';
 import { STALE_DAYS } from '../../../lib/stale.mjs';
+import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 
-function load({ locale = 'en', at = '2026-09-29T12:00:00', HC_CONST = HC_CONST_BAKE } = {}) {
+function load({ locale = 'en', at = '2026-09-29T12:00:00', HC_CONST = HC_CONST_BAKE, I18N_DATE = locale === 'es' ? esDate : enDate } = {}) {
   const RealDate = Date;
   class FakeDate extends RealDate {
     constructor(...a) { super(...(a.length ? a : [at])); }
     static now() { return new RealDate(at).getTime(); }
   }
-  const ctx = { LOCALE: locale, HC_CONST, Date: FakeDate, Math, String, Number, Array, Object, JSON };
+  const ctx = { LOCALE: locale, HC_CONST, I18N_DATE, Date: FakeDate, Math, String, Number, Array, Object, JSON };
   vm.createContext(ctx);
   vm.runInContext(UTIL_SOURCE, ctx);
   return ctx.HC;
@@ -39,6 +40,11 @@ test('isoDate accepts only real ISO dates; todayIso / daysOld use the viewer\'s 
   assert.equal(HC.isoDate('2026-09-29'), '2026-09-29');
   assert.equal(HC.isoDate('29/09/2026'), null);
   assert.equal(HC.isoDate(null), null);
+  // the shape alone is not enough: the date must round-trip through the calendar
+  assert.equal(HC.isoDate('2026-02-31'), null);
+  assert.equal(HC.isoDate('2026-13-01'), null);
+  assert.equal(HC.isoDate('2026-00-10'), null);
+  assert.equal(HC.isoDate('2024-02-29'), '2024-02-29');
   assert.equal(HC.todayIso(), '2026-09-29');
   assert.equal(HC.daysOld('2026-09-26'), 3);
   assert.equal(HC.daysOld('2026-09-30'), -1);
@@ -63,6 +69,40 @@ test('duration: one formatter, units from the i18n dict', () => {
   assert.equal(HC.duration(60, U), '1 h');
   assert.equal(HC.duration(105.4, U), '1 h 45 min');
   assert.equal(HC.duration(0, U), '0 min');
+});
+
+test('fmtDate: one shared date formatter, "lun 29 sept" in es / "Mon 29 Sep" in en; names from the baked I18N_DATE', () => {
+  assert.equal(load({ locale: 'es' }).fmtDate('2026-09-29'), 'mar 29 sept');
+  assert.equal(load().fmtDate('2026-09-28'), 'Mon 28 Sep');
+  assert.equal(load({ locale: 'es' }).fmtDate('2026-05-04'), 'lun 4 may');
+  assert.equal(load().fmtDate('2026-09-28', { weekday: false }), '28 Sep');
+  assert.equal(load({ locale: 'es' }).fmtMonth('2026-09-01'), 'septiembre 2026');
+  assert.equal(load().fmtMonth('2026-01-15'), 'January 2026');
+  // never "undefined" / "NaN": a bad date or a missing dict renders empty / the ISO date itself
+  assert.equal(load().fmtDate('bad'), '');
+  assert.equal(load().fmtDate(null), '');
+  assert.equal(load({ I18N_DATE: null }).fmtDate('2026-09-28'), '2026-09-28');
+  assert.equal(load({ I18N_DATE: null }).fmtMonth('2026-09-28'), '2026-09');
+});
+
+test('detailAttrs: the ONE opener markup for the detail sheet (data-detail [+ data-date], a 44px button role), empty when the sheet is not baked', () => {
+  const RealDate = Date;
+  const ctx = { LOCALE: 'en', HC_CONST: HC_CONST_BAKE, DETAIL: { metrics: {} }, Date: RealDate, Math, String, Number, Array, Object, JSON };
+  vm.createContext(ctx);
+  vm.runInContext(UTIL_SOURCE, ctx);
+  assert.equal(ctx.HC.detailAttrs('sleep'), ' data-detail="sleep" role="button" tabindex="0" aria-haspopup="dialog"');
+  assert.equal(ctx.HC.detailAttrs('load-run', '2026-09-20'), ' data-detail="load-run" data-date="2026-09-20" role="button" tabindex="0" aria-haspopup="dialog"');
+  assert.equal(ctx.HC.detailAttrs('hrv', 'bad'), ' data-detail="hrv" role="button" tabindex="0" aria-haspopup="dialog"', 'a non-ISO date is dropped');
+  // on an element that is already focusable (a <button>) or a mouse-only target (an SVG cell, a table row)
+  assert.equal(ctx.HC.detailAttrs('workouts', '2026-09-20', { plain: true }), ' data-detail="workouts" data-date="2026-09-20"');
+  assert.equal(ctx.HC.detailAttrs('a"b'), ' data-detail="a&quot;b" role="button" tabindex="0" aria-haspopup="dialog"');
+  assert.equal(load().detailAttrs('sleep'), '', 'no DETAIL baked: no opener');
+});
+
+test('weekdayIndex is Monday-first (0 = Monday … 6 = Sunday)', () => {
+  const HC = load();
+  assert.equal(HC.weekdayIndex('2026-09-28'), 0);
+  assert.equal(HC.weekdayIndex('2026-10-04'), 6);
 });
 
 test('the client scripts share HC instead of redefining the helpers or hard-coding the baked constants', () => {

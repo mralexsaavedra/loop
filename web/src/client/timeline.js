@@ -8,8 +8,8 @@
  * today" line; data older than STALE_DAYS is greyed. When the viewer's clock is EARLIER than every
  * baked day (clock / timezone skew), the newest baked day is shown under its date instead of the
  * empty state. A throw (even a missing LOCALE global) renders the card's fallback, never a blank
- * Inicio. A row opens its detail (sleep -> Salud, a workout -> Entreno's load detail) only
- * when that tab is reachable.
+ * Inicio. A row opens the detail sheet on its day (sleep -> the sleep view, a workout -> its
+ * modality's load view, "other" -> training time), whatever tabs page.hideTabs hides.
  */
 (function () {
   var host = document.getElementById('timeline');
@@ -20,10 +20,10 @@
   if (!TL || !T) return;
   // shared helpers (web/src/client/util.js); HC.num reads LOCALE at call time, inside the try below
   var esc = HC.esc, format = HC.format, num = HC.num, isoDate = HC.isoDate, todayIso = HC.todayIso, daysOld = HC.daysOld;
-  function linkAttrs(id, tab) {
-    if (!document.getElementById('t-' + tab)) return '';
-    var call = "jumpOr('" + id + "','" + tab + "')";
-    return ' role="button" tabindex="0" onclick="' + call + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + call + '}"';
+  // a row opens the detail sheet on its day (client/detail.js): sleep -> the sleep view, a scored
+  // modality -> its load view, anything else -> training time
+  function modDetail(mod) {
+    return mod === 'gym' || mod === 'run' || mod === 'bike' ? 'load-' + mod : 'workouts';
   }
   function row(cls, link, lbl, val) {
     return '<li class="tl-row ' + cls + '"' + link + '><span class="tl-dot" aria-hidden="true"></span><span class="tl-lbl">' + esc(lbl) + '</span>' +
@@ -49,15 +49,16 @@
     var out = ['<div class="sc-head"><h3>' + esc(isToday ? T.heading : format(T.dateHeading, { date: day.date })) + '</h3></div>'];
     if (!isToday && !ahead) out.push('<div class="sc-note">' + esc(T.noToday) + '</div>');
     var list = [];
+    var sleepLink = HC.detailAttrs('sleep', day.date);
     list.push(day.sleep != null
-      ? row('tl-sleep', linkAttrs('hl-sleep', 'health'), T.sleep, format(T.sleepVal, { hours: num(day.sleep, 1) }))
-      : row('tl-sleep tl-none', linkAttrs('hl-sleep', 'health'), T.noSleep, ''));
+      ? row('tl-sleep', sleepLink, T.sleep, format(T.sleepVal, { hours: num(day.sleep, 1) }))
+      : row('tl-sleep tl-none', sleepLink, T.noSleep, ''));
     day.items.forEach(function (it) {
       var parts = [format(T.minutes, { n: num(it.dur, 0) })];
       if (it.re != null) parts.push(format(T.re, { n: num(it.re, 0) }));
       if (it.sessions > 1) parts.push(format(T.parts, { n: it.sessions }));
       var mod = String(it.modality).replace(/[^a-z]/g, '');
-      list.push(row('tl-' + mod, linkAttrs('score-load', 'entreno'), T.modalities[mod] || mod, parts.join(' · ')));
+      list.push(row('tl-' + mod, HC.detailAttrs(modDetail(mod), day.date), T.modalities[mod] || mod, parts.join(' · ')));
     });
     out.push('<ul class="tl-list">' + list.join('') + '</ul>');
     if (day.items.length) out.push('<div class="sc-note">' + esc(T.note) + '</div>');

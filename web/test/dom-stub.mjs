@@ -109,8 +109,15 @@ export class StubElement {
     (this._listeners[evt] || []).forEach((fn) => fn.call(this));
   }
   /** Real-DOM alias of `parent`, so client code can walk ancestors the browser way. */
+  removeAttribute(name) {
+    delete this.attrs[name];
+  }
   get parentElement() {
     return this.parent;
+  }
+  /** Real-DOM tag name (upper case), for code that checks what kind of element it is. */
+  get tagName() {
+    return this.tag.toUpperCase();
   }
   closest(sel) {
     let el = this;

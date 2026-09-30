@@ -10,7 +10,7 @@
  * watch / normal), never the raw direction: respiratory rate and wrist temp only ever reach
  * "watch". A card whose OWN date is more than STALE_DAYS old drops its tone and status ("no recent
  * data"), whatever the other cards say. One card throwing never blanks the block: it falls back to
- * its empty state.
+ * its empty state. A tap on any card opens its detail sheet (HC.detailAttrs -> client/detail.js).
  */
 (function () {
   var host = document.getElementById('monitor');
@@ -23,17 +23,15 @@
   // range bar geometry (SVG user units): the bar is BAR_H tall, the value mark MARK_H thick
   var BAR_H = 100;
   var MARK_H = 3;
-  var LINK = !!document.getElementById('t-health');
 
   // shared helpers (web/src/client/util.js)
   var esc = HC.esc, isoDate = HC.isoDate, daysOld = HC.daysOld;
   function num(x, dec) {
     return HC.num(x, dec, false);
   }
+  // every card opens its detail sheet (client/detail.js); the monitor keys are the detail metric keys
   function linkAttrs(key) {
-    if (!LINK) return '';
-    var call = "jumpOr('hl-" + key + "','health')";
-    return ' role="button" tabindex="0" onclick="' + call + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + call + '}"';
+    return HC.detailAttrs(key);
   }
   // vertical range bar, 0 = bottom, 1 = top (viewBox 0..BAR_H tall)
   function bar(b) {

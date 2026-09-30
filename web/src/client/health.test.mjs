@@ -89,11 +89,12 @@ test('each host has its own empty state', () => {
 });
 
 // Salud (#health) + Entreno (#health-train) hosts; returns both, Salud first, or each via `out`.
-function renderWith(HEALTH, { DateCls = Date, SCORES, out = {} } = {}) {
+function renderWith(HEALTH, { DateCls = Date, SCORES, out = {}, detail = false } = {}) {
   const doc = new StubDocument();
   const host = doc.el('health');
   const train = doc.el('health-train');
   const ctx = { document: doc, window: {}, HEALTH, SCORES, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date: DateCls, JSON };
+  if (detail) ctx.DETAIL = { metrics: {} };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
@@ -170,15 +171,36 @@ test('run and bike sections render symmetric empty states when the other has dat
 });
 
 /* ---- today first: latest value + its date lead, the 30-day mean and delta are the context line ---- */
-function renderAt(HEALTH, now) {
+function renderAt(HEALTH, now, opts = {}) {
   const RealDate = Date;
   class FakeDate extends RealDate {
     constructor(...a) { super(...(a.length ? a : [now + 'T12:00:00'])); }
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
-  return renderWith(HEALTH, { DateCls: FakeDate });
+  return renderWith(HEALTH, { DateCls: FakeDate, ...opts });
 }
 const sp = { v: [1, 2], from: '2026-06-01', to: '2026-06-30' };
+
+test('every Salud trend card opens its detail view; run / ride rows open that day in the load view (a real button in the date cell for keyboards)', () => {
+  const tr = (latest) => ({ latest, latestDate: '2026-06-30', avg30: latest, d30: 0, spark: sp });
+  const H = {
+    body: { hasData: true, weight: { ...tr(80), source: 's', sources: 1 }, bodyfat: { ...tr(18), delta: 0, source: 's' }, lean: { ...tr(60), delta: 0, source: 's' },
+      waist: { latest: 85, latestDate: '2026-06-01', firstDate: '2026-03-01', points: 2, delta: -1, spark: sp } },
+    activity: { hasData: true, steps: tr(9000), exercise: tr(30), distance: tr(6), flights: tr(10) },
+    energy: { hasData: true, tdeeLatest: 2500, tdeeLatestDate: '2026-06-30', tdeeAvg: 2400, tdeeDays: 30, spark: sp, balance: null },
+    recovery: { hasData: true, rhr: tr(52), hrv: tr(60), vo2max: { latest: 45, latestDate: '2026-06-30', first: 44, spark: sp }, walkingHr: tr(95),
+      respiratory: tr(14.5), wristTemp: tr(36), sleep: { latest: 7, avg: 7, nights: 30, latestDate: '2026-06-30', spark: sp, target: 7.5 } },
+    running: { hasData: true, count: 1, sessions: [{ date: '2026-06-22', dist: 7.7, time: '0:41', pace: '5:18', hrAvg: 152, re: 57, elev: 35 }] },
+    cycling: { hasData: true, count: 1, sessions: [{ date: '2026-06-10', dist: 40, time: '1:30', elev: 400, hrAvg: 140, re: 90, kj: 1300 }] },
+    loadRecovery: none,
+  };
+  const html = renderAt(H, '2026-07-01', { detail: true });
+  const keys = ['rhr', 'hrv', 'vo2max', 'walkingHr', 'respiratory', 'wristTemp', 'sleep', 'weight', 'bodyfat', 'lean', 'waist', 'steps', 'exercise', 'distance', 'flights', 'energy'];
+  for (const k of keys) assert.match(html, new RegExp(`<div class="mtrend"(?: id="hl-\\w+")? data-detail="${k}" role="button" tabindex="0" aria-haspopup="dialog">`), k);
+  assert.match(html, /<tr data-detail="load-run" data-date="2026-06-22"><td class="dt-cell"><button type="button" class="dt-row-btn" data-detail="load-run" data-date="2026-06-22" aria-haspopup="dialog">22 Jun<\/button><\/td>/);
+  assert.match(html, /<tr data-detail="load-bike" data-date="2026-06-10"><td class="dt-cell"><button type="button" class="dt-row-btn"/);
+  assert.doesNotMatch(renderAt(H, '2026-07-01'), /data-detail/, 'no detail sheet baked: plain cards and rows');
+});
 
 test('activity: headline = the latest day with its date, "so far" when it is today; 30-day avg + delta underneath', () => {
   const H = {
