@@ -4,6 +4,17 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-09-30 — Profile sheet (avatar button)
+
+A round avatar at the right of the top bar (photo, initials or a generic icon) opens a
+Strava / WHOOP-style profile in the existing detail sheet (`#profile`): name, age (computed on the
+viewer's device), city, height, latest weigh-in, Strava bikes and shoes with kilometres (a gentle
+replace hint on shoes past ~700 km, retired gear folded) and devices (manual + seen on Strava
+activities). The ingest service now keeps a 24 h Strava athlete + gear snapshot and serves it at
+`GET /export/athlete`; `npm run sync` pulls it and the avatar into gitignored `data/profile/`;
+`profile/profile.json` (template `profile.example.json`) holds the manual fields and wins over
+Strava. Gear needs the `profile:read_all` scope; without it the page says how to re-authorize.
+
 ## 2026-09-30 — On-demand page refresh + data freshness
 
 The LAN page no longer waits for the hourly cron: a Sync button (and a last Shortcut step) calls
