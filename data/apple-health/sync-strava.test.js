@@ -131,19 +131,34 @@ test('buildRows falls back to a "null" unmapped key when sport_type is missing',
   assert.deepEqual(out.unmapped, { null: 1 });
 });
 
-// ---- merge: export wins by date, historical Strava rows survive, same-day kept, idempotent, orphan ----
+// ---- merge: Strava API rows are ALWAYS kept (dedupe happens at read time), historical Strava rows
+// survive, same-day kept, idempotent, orphan ----
 
-test('planSync: export-covered dates win; the export row itself is preserved, only the Strava row is dropped', () => {
-  const files = { [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-20,Running,30,,140,,165,Watch,5'].join('\n') + '\n' };
+test('planSync: a date the export covers keeps BOTH the export row and the Strava row', () => {
+  const files = { [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-20,Cycling,62,,140,,165,Watch,20'].join('\n') + '\n' };
   const read = (name) => files[name] ?? null;
   const activities = [
-    { id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 1800 }, // covered -> dropped
-    { id: '2', start_local: '2026-08-21T07:00:00', sport_type: 'Ride', moving_time: 1800 } // uncovered -> forces a write
+    { id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 3600, suffer_score: 40 },
+    { id: '2', start_local: '2026-08-21T07:00:00', sport_type: 'Ride', moving_time: 1800 }
   ];
   const plan = planSync(activities, read);
-  assert.match(plan.writes[WORKOUTS_CSV], /2026-08-20,Running,30,,140,,165,Watch,5/, 'the export row survives');
-  assert.doesNotMatch(plan.writes[WORKOUTS_CSV], /2026-08-20,Cycling,.*Strava API/, 'the Strava row for the covered date is dropped');
-  assert.match(plan.writes[WORKOUTS_CSV], /2026-08-21,Cycling,30,,,,,Strava API,/, 'the uncovered date is added');
+  const text = plan.writes[WORKOUTS_CSV];
+  assert.match(text, /2026-08-20,Cycling,62,,140,,165,Watch,20/, 'the export row survives');
+  assert.match(text, /2026-08-20,Cycling,60,,,,,Strava API,,40,,/, 'the Strava row on the covered date is kept (it carries the RE)');
+  assert.match(text, /2026-08-21,Cycling,30,,,,,Strava API,/, 'the uncovered date is added');
+  assert.deepEqual(JSON.parse(plan.writes['_meta.json']).stravaSync.owned[WORKOUTS_CSV], ['2026-08-20', '2026-08-21']);
+});
+
+test('planSync: a later export rewrite followed by a sync restores every Strava row, whatever the export covers', () => {
+  const activities = [{ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'HighIntensityIntervalTraining', moving_time: 3000, suffer_score: 55 }];
+  const files = {};
+  const read = (name) => files[name] ?? null;
+  Object.assign(files, planSync(activities, read).writes);
+  // extract.js rewrites workouts.csv from a fresh export that now has a Watch row on the same date
+  files[WORKOUTS_CSV] = [WORKOUTS_HEADER, '2026-08-20,HighIntensityIntervalTraining,52,,130,,170,Watch,,,,'].join('\n') + '\n';
+  Object.assign(files, planSync(activities, read).writes);
+  assert.match(files[WORKOUTS_CSV], /2026-08-20,HighIntensityIntervalTraining,50,,,,,Strava API,,55,,/);
+  assert.match(files[WORKOUTS_CSV], /,Watch,/);
 });
 
 test('planSync: historical source=Strava rows (not Strava API) survive untouched', () => {
@@ -256,16 +271,16 @@ test('unmapped and noHr counts land in _meta.json stravaSync', () => {
   assert.equal(meta.stravaSync.dropped, 0);
 });
 
-test('noHr in _meta.json only counts rows actually WRITTEN, not activities dropped by export-wins or lacking duration', () => {
+test('noHr in _meta.json counts every written HR-less row, never an activity dropped for lacking a duration', () => {
   const files = { [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-20,Running,30,,140,,165,Watch,5'].join('\n') + '\n' };
   const read = (name) => files[name] ?? null;
   const plan = planSync([
-    { id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 1800 }, // covered date -> DROPPED by merge, no HR either way
-    { id: '2', start_local: '2026-08-21T07:00:00', sport_type: 'Ride', moving_time: 1800 }, // uncovered, no HR -> WRITTEN, counts
+    { id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 1800 }, // export-covered date, still WRITTEN, no HR -> counts
+    { id: '2', start_local: '2026-08-21T07:00:00', sport_type: 'Ride', moving_time: 1800, average_heartrate: 140 }, // has HR -> not counted
     { id: '3', start_local: '2026-08-22T07:00:00', sport_type: 'Run' } // no duration -> DROPPED before merge entirely
   ], read);
   const meta = JSON.parse(plan.writes['_meta.json']);
-  assert.equal(meta.stravaSync.noHr, 1, 'only the one written HR-less row counts, not the merge-dropped or duration-dropped activities');
+  assert.equal(meta.stravaSync.noHr, 1, 'only the written HR-less row counts, not the duration-dropped activity');
   assert.equal(meta.stravaSync.dropped, 1, 'the durationless activity is counted as dropped');
 });
 
