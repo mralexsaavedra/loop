@@ -8,7 +8,7 @@ import { createSyncStatus } from './status.js'
 import { createTriggerWriter, createSyncTrigger, readTriggerSeq } from './trigger.js'
 import { createSyncRoutes } from './sync-routes.js'
 import { createFoodStore } from './food-db.js'
-import { createFoodRoutes } from './food.js'
+import { createFoodRoutes, parseAllowedHosts } from './food.js'
 import { createOffClient } from './off.js'
 
 const PORT = Number(process.env.PORT ?? 8088)
@@ -60,9 +60,18 @@ const syncRoutes = createSyncRoutes({ status: syncStatus, trigger: syncTrigger }
 
 // Food log (Nutrición part 2): products, recipes, the daily log and a server-side Open Food Facts
 // lookup under /food/*. Unauthenticated and LAN-only like /sync (a static page cannot hold a
-// secret); cross-site writes are blocked by the required X-HC-Food header + JSON content type, which
-// force a CORS preflight this server never approves. A public proxy must never forward /food/*.
-const foodRoutes = createFoodRoutes({ store: createFoodStore(pool), off: createOffClient() })
+// secret). A Host allowlist (DNS rebinding), an Origin check on writes and the required X-HC-Food
+// header + JSON content type (a CORS preflight this server never approves) keep other websites out;
+// see food.js. A public proxy must never forward /food/*.
+// FOOD_ALLOWED_HOSTS: extra host names (besides IP literals, localhost, host.docker.internal) the
+// page may be reached by; mirrors plan-web's PLAN_WEB_EXTRA_HOSTS. Empty by default.
+let foodReady = false // set once 006_food.sql ran; until then (or if it failed) /food/* answers 503
+const foodRoutes = createFoodRoutes({
+  store: createFoodStore(pool),
+  off: createOffClient(),
+  available: () => foodReady,
+  allowedHosts: parseAllowedHosts(process.env.FOOD_ALLOWED_HOSTS)
+})
 
 function send (res, status, body) {
   const payload = JSON.stringify(body)
@@ -208,7 +217,8 @@ const server = http.createServer(async (req, res) => {
 })
 
 async function start () {
-  await migrate(pool)
+  // a failing food migration is logged (food_migration_failed) and only disables /food/*
+  foodReady = (await migrate(pool)).food === true
   await syncStatus.load() // never throws: a failed load is retried on the next status read
   // A seq handed out but never written (crash before the write) leaves the DB
   // ahead of the trigger file: write it once, shortly after boot, so the host

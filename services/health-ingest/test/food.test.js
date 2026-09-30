@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
-import { createFoodRoutes, FOOD_BODY_LIMIT } from '../src/food.js'
+import { createFoodRoutes, FOOD_BODY_LIMIT, hostAllowed, parseAllowedHosts } from '../src/food.js'
 
 /** In-memory stand-in for src/food-db.js createFoodStore (same method contract). */
 function memoryStore () {
@@ -57,7 +57,9 @@ function memoryStore () {
       return true
     },
     async listLog (date) { return clone(db.log.filter((e) => e.date === date)) },
+    async getLogByRequest (requestId) { return clone(db.log.find((e) => e.requestId === requestId) ?? null) },
     async insertLog (e) {
+      if (e.requestId && db.log.some((x) => x.requestId === e.requestId)) return null
       const row = { id: ++seq, ...clone(e), createdAt: stamp() }
       db.log.push(row)
       return clone(row)
@@ -88,8 +90,8 @@ function stubOff () {
   }
 }
 
-async function setup ({ store = memoryStore(), off = stubOff(), writeLimit, log = () => {} } = {}) {
-  const routes = createFoodRoutes({ store, off, writeLimit, log })
+async function setup ({ store = memoryStore(), off = stubOff(), writeLimit, log = () => {}, available, allowedHosts } = {}) {
+  const routes = createFoodRoutes({ store, off, writeLimit, log, available, allowedHosts })
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost')
     if (!(await routes.handle(req, res, url))) { res.writeHead(404); res.end() }
@@ -105,7 +107,23 @@ async function setup ({ store = memoryStore(), off = stubOff(), writeLimit, log 
     const text = await res.text()
     return { status: res.status, headers: res.headers, body: text ? JSON.parse(text) : null }
   }
-  return { store, off, call, close: () => new Promise((resolve) => server.close(resolve)) }
+  /** A raw request with any Host / Origin (fetch does not let a test forge Host). */
+  function rawCall (method, path, { host, headers = {}, body } = {}) {
+    const port = server.address().port
+    const payload = body === undefined ? undefined : JSON.stringify(body)
+    const h = { 'x-hc-food': '1', host: host ?? `127.0.0.1:${port}`, ...headers }
+    if (payload !== undefined) { h['content-type'] = 'application/json'; h['content-length'] = Buffer.byteLength(payload) }
+    return new Promise((resolve, reject) => {
+      const req = http.request({ host: '127.0.0.1', port, method, path, headers: h }, (res) => {
+        let text = ''
+        res.on('data', (c) => { text += c })
+        res.on('end', () => resolve({ status: res.statusCode, body: text ? JSON.parse(text) : null }))
+      })
+      req.on('error', reject)
+      req.end(payload)
+    })
+  }
+  return { store, off, call, rawCall, close: () => new Promise((resolve) => server.close(resolve)) }
 }
 
 const YOGURT = { name: 'Yogur natural', brand: 'Hacendado', store: 'mercadona', barcode: '8480000123456', unit: 'g', per100: { kcal: 60, protein: 10, carbs: 4, fat: 0.2 }, servingSize: 125, source: 'label' }
@@ -395,4 +413,106 @@ test('handle() returns false for non-/food paths so the server keeps routing', a
   const routes = createFoodRoutes({ store: memoryStore(), off: stubOff(), log: () => {} })
   assert.equal(await routes.handle({ method: 'GET', headers: {} }, {}, new URL('http://x/foods')), false)
   assert.equal(await routes.handle({ method: 'GET', headers: {} }, {}, new URL('http://x/sync')), false)
+})
+
+test('DNS rebinding: a Host that is not an IP literal, localhost, host.docker.internal or allowlisted -> 421, reads included', async () => {
+  const t = await setup({ allowedHosts: ['plan.lan'] })
+  try {
+    for (const host of ['evil.example', 'evil.example:8090', 'plan.lan.evil.example', '192.168.1.10.nip.io', '[::1].evil.example']) {
+      const r = await t.rawCall('GET', '/food/products', { host })
+      assert.equal(r.status, 421, host)
+      assert.deepEqual(r.body, { error: 'misdirected' })
+    }
+    for (const host of ['192.168.1.10:8090', '127.0.0.1', 'localhost:8088', 'LOCALHOST', 'host.docker.internal:8088', '[::1]:8088', '[fd00::12]', 'plan.lan', 'Plan.Lan:8090']) {
+      assert.equal((await t.rawCall('GET', '/food/products', { host })).status, 200, host)
+    }
+  } finally { await t.close() }
+})
+
+test('writes with an Origin header: its host must pass the same check (403 forbidden_origin otherwise); no Origin is fine', async () => {
+  const t = await setup()
+  try {
+    const body = { date: '2030-01-10', meal: 'snack', refType: 'quick', label: 'x', kcal: 10 }
+    for (const origin of ['http://evil.example', 'https://evil.example:8090', 'null', 'not a url']) {
+      const r = await t.rawCall('POST', '/food/log', { body, headers: { origin } })
+      assert.equal(r.status, 403, origin)
+      assert.deepEqual(r.body, { error: 'forbidden_origin' })
+    }
+    assert.equal(t.store.db.log.length, 0)
+    assert.equal((await t.rawCall('POST', '/food/log', { body, headers: { origin: 'http://192.168.1.10:8090' } })).status, 201)
+    assert.equal((await t.rawCall('POST', '/food/log', { body, headers: { origin: 'http://[fd00::12]:8090' } })).status, 201)
+    assert.equal((await t.rawCall('POST', '/food/log', { body })).status, 201)
+    assert.equal((await t.rawCall('DELETE', '/food/log/999', { headers: { origin: 'http://evil.example' } })).status, 403)
+    assert.equal((await t.rawCall('GET', '/food/products', { headers: { origin: 'http://evil.example' } })).status, 200, 'reads: CORS already hides the answer')
+  } finally { await t.close() }
+})
+
+test('numbers are rounded to 1 decimal BEFORE the bounds: 0.04 becomes 0 and is refused where > 0 is required', async () => {
+  const t = await setup()
+  try {
+    assert.deepEqual((await t.call('POST', '/food/products', { body: { ...YOGURT, servingSize: 0.04 } })).body, { error: 'invalid', field: 'servingSize' })
+    const ok = await t.call('POST', '/food/products', { body: { ...YOGURT, barcode: null, servingSize: 0.05 } })
+    assert.equal(ok.status, 201)
+    assert.equal(ok.body.product.servingSize, 0.1)
+    assert.deepEqual((await t.call('POST', '/food/products', { body: { ...YOGURT, barcode: null, per100: { ...YOGURT.per100, kcal: 900.04 }, force: true } })).status, 201, '900.04 rounds to 900: within the bound')
+    assert.deepEqual((await t.call('POST', '/food/products', { body: { ...YOGURT, barcode: null, per100: { ...YOGURT.per100, kcal: 900.05 }, force: true } })).body, { error: 'invalid', field: 'per100.kcal' })
+    const id = ok.body.product.id
+    assert.deepEqual((await t.call('POST', '/food/recipes', { body: { name: 'R', kind: 'batch', cookedWeightG: 0.04, ingredients: [{ productId: id, amount: 10 }] } })).body, { error: 'invalid', field: 'cookedWeightG' })
+    assert.deepEqual((await t.call('POST', '/food/recipes', { body: { name: 'R', kind: 'serving', servings: 1, ingredients: [{ productId: id, amount: 0.04 }] } })).body, { error: 'invalid', field: 'ingredients.amount' })
+    assert.deepEqual((await t.call('POST', '/food/log', { body: { date: '2030-01-10', meal: 'lunch', refType: 'product', refId: id, amount: 0.04, unit: 'g' } })).body, { error: 'invalid', field: 'amount' })
+  } finally { await t.close() }
+})
+
+test('the food tables failed to migrate: every /food route answers 503 food_unavailable (the rest of the service is untouched)', async () => {
+  const t = await setup({ available: () => false })
+  try {
+    for (const [m, path] of [['GET', '/food/products'], ['GET', '/food/log?date=2030-01-10'], ['GET', '/food/off?q=avena']]) {
+      const r = await t.call(m, path)
+      assert.equal(r.status, 503, path)
+      assert.deepEqual(r.body, { error: 'food_unavailable' })
+    }
+    assert.equal((await t.call('POST', '/food/log', { body: { date: '2030-01-10', meal: 'snack', refType: 'quick', label: 'x', kcal: 1 } })).status, 503)
+    assert.equal(t.off.calls.length, 0)
+  } finally { await t.close() }
+})
+
+test('idempotent add: a retry with the same requestId returns the existing row (200), never a duplicate', async () => {
+  const t = await setup()
+  try {
+    const body = { date: '2030-01-10', meal: 'snack', refType: 'quick', label: 'Barrita', kcal: 200, requestId: '0b8f7a4e-3c21-4d7e-9a55-1f2e3d4c5b6a' }
+    const first = await t.call('POST', '/food/log', { body })
+    assert.equal(first.status, 201)
+    const again = await t.call('POST', '/food/log', { body })
+    assert.equal(again.status, 200)
+    assert.equal(again.body.entry.id, first.body.entry.id)
+    assert.equal(again.body.totals.count, 1)
+    assert.equal(t.store.db.log.length, 1)
+    assert.equal((await t.call('POST', '/food/log', { body: { ...body, requestId: 'other-request-0001' } })).status, 201)
+    assert.deepEqual((await t.call('POST', '/food/log', { body: { ...body, requestId: 'bad id!' } })).body, { error: 'invalid', field: 'requestId' })
+    assert.deepEqual((await t.call('POST', '/food/log', { body: { ...body, requestId: 'short' } })).body, { error: 'invalid', field: 'requestId' })
+  } finally { await t.close() }
+})
+
+test('a concurrent retry that loses the insert race still answers the winner (200)', async () => {
+  const store = memoryStore()
+  const insert = store.insertLog
+  store.insertLog = async (e) => { await insert(e); return null } // stored, but this call lost the race
+  const t = await setup({ store })
+  try {
+    const r = await t.call('POST', '/food/log', { body: { date: '2030-01-10', meal: 'snack', refType: 'quick', label: 'x', kcal: 5, requestId: 'race-request-0001' } })
+    assert.equal(r.status, 200)
+    assert.equal(r.body.entry.label, 'x')
+  } finally { await t.close() }
+})
+
+test('hostAllowed / parseAllowedHosts: literals, local names and the allowlist only', () => {
+  assert.equal(hostAllowed(''), false)
+  assert.equal(hostAllowed(null), false)
+  assert.equal(hostAllowed('10.0.0.5'), true)
+  assert.equal(hostAllowed('[fe80::1]'), true)
+  assert.equal(hostAllowed('fe80::1'), false, 'a bare v6 address is not a Host value')
+  assert.equal(hostAllowed('nas.local'), false)
+  assert.equal(hostAllowed('nas.local', parseAllowedHosts(' Plan.Lan, nas.local ')), true)
+  assert.deepEqual(parseAllowedHosts(''), [])
+  assert.deepEqual(parseAllowedHosts(undefined), [])
 })

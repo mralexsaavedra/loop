@@ -11,7 +11,7 @@ const PRODUCT_COLS = `id, name, brand, store, barcode, unit, kcal_100, protein_1
   serving_size, source, off_code, archived, created_at, updated_at`
 const RECIPE_COLS = 'id, name, kind, servings, cooked_weight_g, ingredients, archived, created_at, updated_at'
 const LOG_COLS = `id, to_char(date, 'YYYY-MM-DD') AS date, meal, ref_type, ref_id, label, amount, unit,
-  kcal, protein, carbs, fat, created_at`
+  kcal, protein, carbs, fat, request_id, created_at`
 
 function num (v) {
   if (v == null) return null
@@ -70,6 +70,7 @@ export function logFromRow (r) {
     protein: num(r.protein),
     carbs: num(r.carbs),
     fat: num(r.fat),
+    requestId: r.request_id ?? null,
     createdAt: iso(r.created_at)
   }
 }
@@ -181,14 +182,21 @@ export function createFoodStore (pool) {
       return rows.map(logFromRow)
     },
 
+    async getLogByRequest (requestId) {
+      const { rows } = await pool.query(`SELECT ${LOG_COLS} FROM food_log WHERE request_id = $1`, [requestId])
+      return rows[0] ? logFromRow(rows[0]) : null
+    },
+
+    /** null when a row with the same request id already exists (a concurrent retry won the race). */
     async insertLog (e) {
       const { rows } = await pool.query(
-        `INSERT INTO food_log (date, meal, ref_type, ref_id, label, amount, unit, kcal, protein, carbs, fat)
-         VALUES ($1::date, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        `INSERT INTO food_log (date, meal, ref_type, ref_id, label, amount, unit, kcal, protein, carbs, fat, request_id)
+         VALUES ($1::date, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         ON CONFLICT (request_id) WHERE request_id IS NOT NULL DO NOTHING
          RETURNING ${LOG_COLS}`,
-        [e.date, e.meal, e.refType, e.refId ?? null, e.label, e.amount, e.unit, e.kcal, e.protein, e.carbs, e.fat]
+        [e.date, e.meal, e.refType, e.refId ?? null, e.label, e.amount, e.unit, e.kcal, e.protein, e.carbs, e.fat, e.requestId ?? null]
       )
-      return logFromRow(rows[0])
+      return rows[0] ? logFromRow(rows[0]) : null
     },
 
     async deleteLog (id) {

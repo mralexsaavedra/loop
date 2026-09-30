@@ -7,11 +7,13 @@
  *
  * OFF etiquette: a descriptive User-Agent (no personal data), at most 10 searches / min and 100
  * product reads / min (token buckets; over the limit -> 429 off_rate_limited without calling OFF),
- * an in-memory LRU cache (24 h, not-found for 1 h) so a repeated scan costs nothing, an 8 s timeout,
+ * an in-memory LRU cache (24 h, not-found for 1 h, an upstream failure for 60 s) so a repeated scan
+ * costs nothing, one shared request for concurrent identical lookups, an 8 s timeout,
  * no redirects and a response size cap. Errors are coarse codes: off_not_found (404),
  * off_rate_limited (429), off_unavailable (502: network, timeout, 5xx, oversized or malformed body).
  */
 import { createTokenBucket } from './limits.js'
+import { round1 } from './food-calc.js'
 
 export const OFF_BASE = 'https://world.openfoodfacts.org'
 export const OFF_USER_AGENT = 'health-coach/1.0 (self-hosted personal food log)'
@@ -19,12 +21,15 @@ const FIELDS = 'code,product_name,product_name_es,brands,stores,quantity,product
 const KJ_PER_KCAL = 4.184
 const MAX_RESULTS = 10
 const NOT_FOUND_TTL_MS = 3_600_000
+// an upstream 429 / 5xx / timeout is remembered this long, so retries do not hammer OFF
+const FAILURE_TTL_MS = 60_000
 
 function offError (status, code) {
   return Object.assign(new Error(code), { status, code })
 }
-function round1 (v) {
-  return Math.round(v * 10 + 1e-9) / 10
+/** A failure that came from OFF (or the way there): cached briefly, see FAILURE_TTL_MS. */
+function upstream (status, code) {
+  return Object.assign(offError(status, code), { upstream: true })
 }
 /** A number in [0, max] (numeric strings accepted), else null. */
 function value (v, max) {
@@ -67,9 +72,9 @@ export function normalizeOffProduct (p) {
 
 async function readCapped (res, max) {
   const declared = Number(res.headers?.get?.('content-length'))
-  if (Number.isFinite(declared) && declared > max) throw offError(502, 'off_unavailable')
+  if (Number.isFinite(declared) && declared > max) throw upstream(502, 'off_unavailable')
   const reader = res.body?.getReader?.()
-  if (!reader) throw offError(502, 'off_unavailable')
+  if (!reader) throw upstream(502, 'off_unavailable')
   const chunks = []
   let size = 0
   for (;;) {
@@ -78,14 +83,14 @@ async function readCapped (res, max) {
     size += chunk.byteLength
     if (size > max) {
       reader.cancel().catch(() => {})
-      throw offError(502, 'off_unavailable')
+      throw upstream(502, 'off_unavailable')
     }
     chunks.push(chunk)
   }
   try {
     return JSON.parse(Buffer.concat(chunks.map((c) => Buffer.from(c))).toString('utf8'))
   } catch {
-    throw offError(502, 'off_unavailable')
+    throw upstream(502, 'off_unavailable')
   }
 }
 
@@ -117,6 +122,25 @@ export function createOffClient ({
     cache.set(key, { ...entry, expires: now() + ttl })
   }
 
+  const inflight = new Map()
+  /** Cache (values and failures), then one shared in-flight request per key. Our own token-bucket
+   * refusal is not cached (it clears as soon as a token is back). */
+  function lookup (key, load) {
+    const hit = cached(key)
+    if (hit) return hit.error ? Promise.reject(offError(hit.error.status, hit.error.code)) : Promise.resolve(hit.value)
+    if (inflight.has(key)) return inflight.get(key)
+    const p = load().then((value) => {
+      remember(key, { value }, cacheTtlMs)
+      return value
+    }, (err) => {
+      if (err && err.ttl) remember(key, { error: { status: err.status, code: err.code } }, err.ttl)
+      else if (err && err.upstream) remember(key, { error: { status: err.status, code: err.code } }, FAILURE_TTL_MS)
+      throw offError(err.status ?? 502, err.code ?? 'off_unavailable')
+    }).finally(() => inflight.delete(key))
+    inflight.set(key, p)
+    return p
+  }
+
   async function get (url, bucket) {
     if (!buckets[bucket].take()) throw offError(429, 'off_rate_limited')
     // the timeout covers the whole exchange, body included
@@ -131,50 +155,40 @@ export function createOffClient ({
           signal: ctl.signal
         })
       } catch {
-        throw offError(502, 'off_unavailable')
+        throw upstream(502, 'off_unavailable')
       }
-      if (res.status === 429) throw offError(429, 'off_rate_limited')
+      if (res.status === 429) throw upstream(429, 'off_rate_limited')
       if (res.status === 404) return { status: 404, body: null }
-      if (!res.ok) throw offError(502, 'off_unavailable')
+      if (!res.ok) throw upstream(502, 'off_unavailable')
       return { status: res.status, body: await readCapped(res, maxBytes) }
     } catch (err) {
-      throw err && err.code ? err : offError(502, 'off_unavailable')
+      throw err && err.code ? err : upstream(502, 'off_unavailable')
     } finally {
       clearTimeout(timer)
     }
   }
 
   return {
-    async byBarcode (code) {
-      const key = `p:${code}`
-      const hit = cached(key)
-      if (hit) {
-        if (hit.notFound) throw offError(404, 'off_not_found')
-        return hit.value
-      }
-      const r = await get(`${OFF_BASE}/api/v2/product/${encodeURIComponent(code)}?fields=${FIELDS}`, 'product')
-      if (r.status === 404 || !r.body || r.body.status === 0 || !r.body.product) {
-        remember(key, { notFound: true }, Math.min(NOT_FOUND_TTL_MS, cacheTtlMs))
-        throw offError(404, 'off_not_found')
-      }
-      const value = normalizeOffProduct({ code, ...r.body.product })
-      remember(key, { value }, cacheTtlMs)
-      return value
+    byBarcode (code) {
+      return lookup(`p:${code}`, async () => {
+        const r = await get(`${OFF_BASE}/api/v2/product/${encodeURIComponent(code)}?fields=${FIELDS}`, 'product')
+        if (r.status === 404 || !r.body || r.body.status === 0 || !r.body.product) {
+          throw Object.assign(offError(404, 'off_not_found'), { ttl: Math.min(NOT_FOUND_TTL_MS, cacheTtlMs) })
+        }
+        return normalizeOffProduct({ code, ...r.body.product })
+      })
     },
 
-    async search (q) {
+    search (q) {
       const terms = q.replace(/\s+/g, ' ').trim()
-      const key = `s:${terms.toLowerCase()}`
-      const hit = cached(key)
-      if (hit) return hit.value
-      const params = new URLSearchParams({
-        search_terms: terms, search_simple: '1', action: 'process', json: '1', page_size: String(MAX_RESULTS), fields: FIELDS
+      return lookup(`s:${terms.toLowerCase()}`, async () => {
+        const params = new URLSearchParams({
+          search_terms: terms, search_simple: '1', action: 'process', json: '1', page_size: String(MAX_RESULTS), fields: FIELDS
+        })
+        const r = await get(`${OFF_BASE}/cgi/search.pl?${params}`, 'search')
+        const products = Array.isArray(r.body?.products) ? r.body.products : []
+        return products.map(normalizeOffProduct).filter((p) => p.code).slice(0, MAX_RESULTS)
       })
-      const r = await get(`${OFF_BASE}/cgi/search.pl?${params}`, 'search')
-      const products = Array.isArray(r.body?.products) ? r.body.products : []
-      const value = products.map(normalizeOffProduct).filter((p) => p.code).slice(0, MAX_RESULTS)
-      remember(key, { value }, cacheTtlMs)
-      return value
     }
   }
 }
