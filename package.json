@@ -14,10 +14,11 @@
     "build:example": "node scripts/build-web.mjs --mode example --locale en",
     "demo:data": "node scripts/make-demo-data.mjs",
     "pretest": "node web/test/build-fixtures.mjs",
-    "test": "node --test \"lib/**/*.test.mjs\" \"web/**/*.test.mjs\" \"scripts/*.test.mjs\" \".claude/hooks/*.test.js\" data/nutrition/*.test.js data/training/*.test.js data/apple-health/*.test.js",
+    "test": "node --test \"lib/**/*.test.mjs\" \"web/**/*.test.mjs\" \"scripts/*.test.mjs\" \".claude/hooks/*.test.js\" data/nutrition/*.test.js data/training/*.test.js data/apple-health/*.test.js data/profile/*.test.js",
     "sync": "node scripts/sync-all.mjs",
     "sync:shortcut": "node data/apple-health/sync-shortcut.js",
-    "sync:strava": "node data/apple-health/sync-strava.js"
+    "sync:strava": "node data/apple-health/sync-strava.js",
+    "sync:profile": "node data/profile/sync-profile.js"
   },
   "dependencies": {
     "astro": "7.3.5"

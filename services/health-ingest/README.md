@@ -28,6 +28,7 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
 | GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]`; `400` on a bad query |
 | GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain}]`; `400` on a bad query |
+| GET    | `/export/athlete`             | bearer | `200` with the latest athlete snapshot: `{fetchedAt, firstname, lastname, city, state, country, profile, profileMedium, measurementPreference, athleteType, bikes, shoes, gearScopeMissing, devices}` (nulls / empty lists when nothing is stored) |
 
 Bearer token is compared in constant time; it is the entire security boundary
 for the endpoint, because Health Auto Export can only send a static header.
@@ -183,6 +184,76 @@ new field is added to the response (e.g. `total_elevation_gain`, which feeds the
 without the field, so the column stays blank until the rebuild and the next
 `npm run sync:strava` (which prints a stale-image warning when no activity carries
 elevation).
+
+### Reading the athlete profile back: `GET /export/athlete`
+
+The sync loop also refreshes a snapshot of the Strava **athlete** (name, city/state/country,
+profile photo URLs, measurement preference, athlete type) and their **gear** at most once per
+24 h (`src/athlete.js`, table `strava_athlete` from `sql/004_athlete.sql` +
+`sql/005_athlete_refresh.sql`). It starts in the background AFTER a successful activity pull has
+been recorded, so `POST /sync` and the status never wait on it: `GET /athlete`, then `GET /gear/{id}`
+for every bike / shoe on the athlete plus every `gear_id` seen on stored activities (brand, model,
+frame type, weight, distance in metres, retired flag). Only one refresh runs at a time, and its
+Strava calls are aborted after 60 s. A failed refresh is logged (`strava_athlete_failed`), its time
+is stored in the row (`last_failure_at`, so a restart does not retry at once), it is retried after
+1 h, and it never fails the activity sync or its status. When a `GET /gear/{id}` fails transiently
+(5xx / network) the snapshot is still saved, flagged `gear_partial`, and refreshed again after 1 h
+instead of 24 h; a 4xx for one gear id (missing scope, not the athlete's) is a final answer.
+
+The response carries profile fields only: never the athlete id, username, sex, body weight or the
+raw payload (the repo takes body weight from the scale). `devices` is derived from the stored
+activities' `device_name` (`[{name, count, lastUsed}]`, `lastUsed` = the local start day of the
+newest activity); summary activities normally carry it, and an activity without it is simply not
+counted. Photo URLs are returned only when they are `https://` (Strava sends a relative
+placeholder path when the athlete has no photo). The repo's `npm run sync`
+(`data/profile/sync-profile.js`) reads it into the gitignored `data/profile/`.
+
+**Gear needs the `profile:read_all` scope.** Strava returns `bikes` / `shoes` (and
+`measurement_preference`) on `GET /athlete` only for a token granted `profile:read_all`. With a
+`read,activity:read_all` token they are absent: the service then sets `gearScopeMissing: true`
+(coarse flag, never an error) and still tries `GET /gear/{id}` for the gear ids seen on
+activities. To grant the scope (nothing the running service uses changes until step 4, so every
+step before it can be abandoned safely):
+
+1. Back up `.env`: `cp .env .env.bak`.
+2. Run `node scripts/strava-auth.js` (it asks for
+   `scope=read,activity:read_all,profile:read_all`; the authorize URL is
+   `https://www.strava.com/oauth/authorize?client_id=<id>&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=read,activity:read_all,profile:read_all`)
+   and let it write the new refresh token into `.env`. Check the URL Strava redirects to: its
+   `scope=` parameter must include `profile:read_all` (the consent screen lets you untick it).
+3. Verify the new token BEFORE dropping the stored one. With the values from `.env` (type them or
+   `set -a; . ./.env; set +a` in a subshell; never paste them into a shared log):
+   ```bash
+   curl -s -X POST https://www.strava.com/oauth/token \
+     -d client_id="$STRAVA_CLIENT_ID" -d client_secret="$STRAVA_CLIENT_SECRET" \
+     -d grant_type=refresh_token -d refresh_token="$STRAVA_REFRESH_TOKEN" | grep -o '"token_type":"Bearer"'
+   ```
+   It must print `"token_type":"Bearer"`; an `errors` / `invalid` body means the token in `.env` is
+   wrong, so stop here and restore `.env.bak`. If the response carries a `refresh_token` different
+   from the one in `.env`, Strava rotated it: put the new value in `.env` (the old one no longer works).
+4. Back up, then drop the stored rotated token, which still carries the OLD scopes and would
+   otherwise keep winning over `.env` (it is not rejected, just narrower):
+   ```bash
+   docker exec health-db psql -U health -d health -c "DROP TABLE IF EXISTS strava_token_backup; CREATE TABLE strava_token_backup AS TABLE strava_token"
+   docker exec health-db psql -U health -d health -c "DELETE FROM strava_token"
+   ```
+5. Force a fresh snapshot instead of waiting 24 h:
+   `docker exec health-db psql -U health -d health -c "DELETE FROM strava_athlete"`, then restart
+   (`docker compose up -d --force-recreate health-ingest`, which also re-reads `.env`).
+6. Check it worked: `curl -s localhost:8088/sync/status` must show no `lastStravaError`
+   `strava_auth` after the first pull, and `GET /export/athlete` must carry `gearScopeMissing: false`.
+   Then `docker exec health-db psql -U health -d health -c "DROP TABLE strava_token_backup"`.
+
+**Rollback** (step 6 shows `strava_auth`): restore the old credentials and restart:
+`cp .env.bak .env`, then
+`docker exec health-db psql -U health -d health -c "INSERT INTO strava_token SELECT * FROM strava_token_backup ON CONFLICT (id) DO NOTHING"`
+and `docker compose up -d --force-recreate health-ingest`. The service is back on the old token and
+the old scopes; re-run the steps from 2 when ready. Before step 4 nothing needs rolling back (the
+stored token is untouched): just `cp .env.bak .env`.
+
+`GET /export/athlete` needs an image rebuild (`docker compose up -d --build health-ingest`,
+which also runs the idempotent `004_athlete.sql`); an older image answers `404` and the profile
+sync keeps its previous files.
 
 After adding new Shortcut keys (e.g. `waist`, `diet_*`), run `npm run sync -- --full` once so
 payloads already in the local cache are re-parsed; send `waist` in centimetres (see

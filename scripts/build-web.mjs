@@ -24,6 +24,7 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { loadInputs } from '../lib/load/inputs.mjs';
 import { validateProgram } from '../lib/training/program.mjs';
+import { checkManualProfile } from '../lib/profile/profile.mjs';
 import { resolveEnv } from '../web/src/env.mjs';
 
 function parseArgs(argv) {
@@ -58,6 +59,19 @@ export function checkTraining({ repoRoot, mode }) {
   }
   const { training } = loadInputs({ repoRoot, dataMode: mode });
   return validateProgram(training);
+}
+
+/** Prints the manual-profile check and returns the exit code: the BUILD only warns on a malformed
+ * profile/profile.json and ignores it, so `npm run check` is where it fails, with the reason. */
+export function reportProfileCheck(res, mode, { log = console.log, error = console.error } = {}) {
+  if (res.error) {
+    error(`build-web --check: ERROR: ${res.error}`);
+    return 1;
+  }
+  log(res.skipped
+    ? `build-web --check: profile.json not present (mode=${mode}) — optional, skipping`
+    : `build-web --check: profile.json OK (mode=${mode})`);
+  return 0;
 }
 
 /** Pure: resolves the build locale using the SAME precedence contract as
@@ -129,6 +143,7 @@ function main() {
         ? `build-web --check: training-data.json not present (mode=${mode}) — optional, skipping (Hoy/Entrenos will render their empty state)`
         : `build-web --check: training-data.json OK (mode=${mode})`,
     );
+    process.exitCode = reportProfileCheck(checkManualProfile({ repoRoot: ROOT, mode }), mode);
     return;
   }
 

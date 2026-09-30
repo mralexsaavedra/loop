@@ -80,6 +80,14 @@ instead of generic advice with no data behind it.
      personal files needed — useful to sanity-check the pipeline on a bare clone. It reads
      the synthetic demo extract in `data/demo/` (clearly fake, see its README), so every dial
      and section shows what your own data will look like.
+   - Profile (optional): copy `profile/profile.example.json` → `profile/profile.json` (birthdate,
+     height, devices; gitignored) and run `npm run generate`. The round **avatar** at the top right
+     opens your profile: photo or initials, name, age (worked out on your device), city, height,
+     latest weigh-in, and — with the ingest service's Strava connection and `npm run sync` — your
+     bikes and shoes with their kilometres (a gentle replace hint past ~700 km) and the devices
+     seen on your activities. Strava shares gear only with the `profile:read_all` permission; the
+     re-authorization steps are in [`services/health-ingest/README.md`](services/health-ingest/README.md).
+     `#profile` links straight to it.
    - Training (optional): copy `data/training/training-data.example.json` →
      `training-data.json` and fill in your program by date — Claude can transcribe a coach's
      PDF for you. Run `npm run generate` and the Home tab gains today's
