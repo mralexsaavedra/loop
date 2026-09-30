@@ -19,7 +19,7 @@
   var T = typeof I18N_PROFILE === 'undefined' || !I18N_PROFILE ? null : I18N_PROFILE;
   if (!P || !T || typeof window === 'undefined') return;
   var esc = HC.esc, format = HC.format;
-  var PHOTO_RE = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
+  var PHOTO_RE = /^data:image\/(?:jpeg|png);base64,[A-Za-z0-9+/=]+$/;
   var ICON = '<svg class="pf-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="4"/><path d="M4 20.5c1.4-4 4.4-6 8-6s6.6 2 8 6"/></svg>';
 
   function list(v) {
