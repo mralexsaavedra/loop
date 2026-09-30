@@ -44,12 +44,11 @@ function memStorage(init = {}) {
 function run({ nutri = bake(), items = [], programmed = null, locale = 'en', storage = memStorage(), today = TODAY, hooks = true, extra = {} } = {}) {
   const doc = new StubDocument();
   const els = {};
-  for (const id of ['nutri-goal', 'nutri-daytype', 'nutri-daytype-src', 'nutri-why', 'nutri-target', 'nutri-plan', 'nutri-fuel-block', 'nutri-ride-wrap', 'nutri-fuel-body', 'eat-body', 'intake', 'r-verdict']) els[id] = doc.el(id);
+  for (const id of ['nutri-daytype', 'nutri-daytype-src', 'nutri-why', 'nutri-target', 'nutri-plan', 'nutri-fuel-block', 'nutri-ride-wrap', 'nutri-fuel-body', 'eat-body', 'intake', 'r-verdict']) els[id] = doc.el(id);
   els['nutri-auto'] = doc.el('nutri-auto', { tag: 'button', hidden: true });
   els['nutri-note'] = doc.el('nutri-note', { hidden: true });
   els['nutri-fuel-block'].hidden = true;
   const radios = {};
-  for (const g of ['maintain', 'cut', 'bulk']) radios['g-' + g] = doc.el(null, { tag: 'input', attrs: { name: 'nutri-goal', value: g } });
   for (const d of ['rest', 'gym', 'bike', 'bikeLong']) radios['d-' + d] = doc.el(null, { tag: 'input', attrs: { name: 'nutri-day', value: d } });
   const calls = [];
   const window = { localStorage: storage };
@@ -116,7 +115,7 @@ test('planFor / solveScale ports agree with lib/nutrition/scale.mjs (example pla
 
 test('no workout, nothing programmed: rest (auto), the default goal, rest target and plan; no fuelling block', () => {
   const { els, radios, calls } = run();
-  assert.deepEqual(checkedOf(radios, 'g-'), ['maintain']);
+  assert.equal(checkedOf(radios, 'g-').length, 0, 'no goal radios in Nutrición (the goal lives in the profile sheet)');
   assert.deepEqual(checkedOf(radios, 'd-'), ['rest']);
   assert.equal(els['nutri-daytype-src'].textContent, '(auto)');
   assert.equal(els['nutri-auto'].hidden, true);
@@ -240,23 +239,24 @@ test('override vs detection: yesterday\'s override has expired at midnight (no n
   assert.equal(s.els['nutri-note'].hidden, true);
 });
 
-test('goal choice persists; an unknown stored goal or broken storage falls back to the plan default', () => {
+test('goal choice (HCNutri.setGoal, from the profile sheet) persists; an unknown stored goal or broken storage falls back to the plan default', () => {
   const s = run();
-  s.fire('nutri-goal', 'change', { name: 'nutri-goal', value: 'cut' });
+  assert.equal(s.api.setGoal('cut'), true);
+  assert.equal(s.api.setGoal('shred'), false, 'an unknown goal is refused');
   assert.equal(s.storage.data['hc.nutri.goal'], 'cut');
   assert.match(s.els['nutri-target'].innerHTML, /<b>2,150<\/b>/);
   assert.equal(run({ storage: memStorage({ 'hc.nutri.goal': 'bulk' }) }).api.state().goal, 'bulk');
   assert.equal(run({ storage: memStorage({ 'hc.nutri.goal': 'shred', 'hc.nutri.dayType': '{broken' }) }).api.state().goal, 'maintain');
   const throwing = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } };
   const t = run({ storage: throwing });
-  t.fire('nutri-goal', 'change', { value: 'bulk' });
+  t.api.setGoal('bulk');
   assert.equal(t.api.state().goal, 'bulk', 'works without storage');
 });
 
 test('every goal x day type renders a target and a plan (all 12)', () => {
   const s = run();
   for (const g of ['maintain', 'cut', 'bulk']) for (const d of ['rest', 'gym', 'bike', 'bikeLong']) {
-    s.fire('nutri-goal', 'change', { value: g });
+    s.api.setGoal(g);
     s.fire('nutri-daytype', 'change', { value: d });
     const t = s.els['nutri-target'].innerHTML + s.els['nutri-plan'].innerHTML;
     assert.doesNotMatch(t, /NaN|undefined|null|could not be shown/, `${g}/${d}`);
@@ -326,7 +326,7 @@ test('window.nutriTarget: today\'s target (goal x day type) for the day builder 
 test('a failing day builder never leaves the rings stale; a failing ring refresh says so', () => {
   const calls = [];
   const s = run({ hooks: { bldRefresh: () => { throw new Error('x'); }, intakeRefresh: () => calls.push('intake') } });
-  s.fire('nutri-goal', 'change', { value: 'cut' });
+  s.api.setGoal('cut');
   assert.deepEqual(calls, ['intake', 'intake']);
   const t = run({ hooks: { intakeRefresh: () => { throw new Error('x'); } } });
   assert.match(t.els.intake.innerHTML, /could not be shown/);
@@ -351,4 +351,36 @@ test('per-block isolation: a broken plan shows a one-line message there, the sum
 test('no day builder / rings scripts and no NUTRI: nothing throws', () => {
   assert.doesNotThrow(() => run({ hooks: false }));
   assert.doesNotThrow(() => run({ nutri: null }));
+});
+
+test('setGoal refreshes everything that reads the target at once: summary, chip, plan, Inicio card, builder and rings (nutriTarget)', () => {
+  const s = run();
+  const plan0 = s.els['nutri-plan'].innerHTML;
+  s.calls.length = 0;
+  s.api.setGoal('cut');
+  assert.equal(s.window.nutriTarget().k, 2150);
+  assert.deepEqual(s.calls, [['bld', 2150], ['intake', 2150]]);
+  assert.match(s.els['nutri-target'].innerHTML, /<b>2,150<\/b>/);
+  assert.match(s.els['nutri-target'].innerHTML, /id="nutri-goal-chip"[^>]*>· Lose<\/button>/);
+  assert.notEqual(s.els['nutri-plan'].innerHTML, plan0);
+  assert.match(s.els['eat-body'].innerHTML, /· Lose/);
+});
+
+test('goal chip: low-emphasis button next to today\'s kcal, labelled for screen readers; the day line no longer repeats the goal', () => {
+  const h = run().els['nutri-target'].innerHTML;
+  assert.match(h, /<div class="nt-kcal"><b>2,500<\/b><span>kcal<\/span><button type="button" class="nt-goal" id="nutri-goal-chip" aria-haspopup="dialog" aria-label="Goal: Maintain. Change it in your profile">· Maintain<\/button><\/div>/);
+  assert.match(h, /<span class="nt-day">😴 Rest<\/span>/);
+  const es = run({ locale: 'es', nutri: bake({ units: { g: 'g', ml: 'ml', ud: 'ud' }, dec: ',' }) }).els['nutri-target'].innerHTML;
+  assert.match(es, /<b>2\.500<\/b><span>kcal<\/span><button[^>]*aria-label="Objetivo: Mantener\. Cámbialo en tu perfil">· Mantener<\/button>/);
+});
+
+test('goal chip: a tap opens the profile sheet focused on the goal setting; without the sheet it does nothing', () => {
+  const opened = [];
+  const s = run({ hooks: { HCDetail: { open: (...a) => opened.push(a) } } });
+  const chip = { id: 'nutri-goal-chip', closest: (sel) => (sel === '#nutri-goal-chip' ? chip : null) };
+  s.fire('nutri-target', 'click', chip);
+  assert.deepEqual(JSON.parse(JSON.stringify(opened)), [['profile', null, { focus: '#pf-goal input:checked' }]]);
+  s.fire('nutri-target', 'click', { closest: () => null });
+  assert.equal(opened.length, 1, 'a tap elsewhere in the summary opens nothing');
+  assert.doesNotThrow(() => run().fire('nutri-target', 'click', chip));
 });

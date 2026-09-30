@@ -15,6 +15,11 @@ is left over; ride days add before / during / after fuelling ranges (orientative
 personal plans upgrade with `scripts/migrate-plan-v2.mjs` (dated backup, idempotent). Logging and a
 product catalogue are part 2.
 
+The goal later moved out of the way (owner feedback: too prominent): Resumen de hoy keeps only the
+day-type selector and shows the goal as a small chip next to today's kcal; the chip opens the profile
+sheet, whose new "Objetivo" setting (first section) sets it, with each option's kcal/day change vs
+maintain derived from the targets. Same storage key (`hc.nutri.goal`), same refresh path.
+
 Review fixes, same day: only real training raises the day type (walks, commutes and stubs no longer
 make a rest day a gym day); the ride's minutes re-scale the meals (the page re-solves from a baked
 scaling model, a picked duration is kept for the day); whole-unit portions round first and the gram

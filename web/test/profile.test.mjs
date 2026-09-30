@@ -10,6 +10,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { es as esP, en as enP } from '../src/i18n/profile-templates.mjs';
+import { loadInputs } from '../../lib/load/inputs.mjs';
+import { resolveTargets } from '../../lib/nutrition/targets.mjs';
+import { goalOptions } from '../../lib/profile/goal.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
@@ -67,6 +70,10 @@ test('example build: ONE avatar button in the top bar (initials, no photo) openi
   assert.ok(p.bikes.length && p.shoes.length && p.devices.length);
   assert.equal('age' in p, false, 'the age is computed client-side');
   assert.ok(html.indexOf('window.HCViews.profile') < html.indexOf('var VIEW_HASH_RE'), 'profile.js registers its view before detail.js runs');
+  const { plan } = loadInputs({ repoRoot: REPO_ROOT, dataMode: 'example' });
+  assert.deepEqual(p.goals, goalOptions(resolveTargets(plan)), 'the goal setting\'s options are the lib\'s own');
+  assert.equal(p.goals.length, 3);
+  assert.ok(html.indexOf('window.HCNutri = {') < html.indexOf('window.HCViews.profile'), 'nutri-day.js (the goal\'s owner) runs before profile.js');
   const nav = (html.match(/<nav class="tabnav"[\s\S]*?<\/nav>/) || [''])[0];
   assert.ok(nav && !nav.includes('profile'), 'not a tab');
 });

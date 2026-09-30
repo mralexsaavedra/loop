@@ -33,6 +33,8 @@ import { dayViewModel } from '../src/view/day-totals.mjs';
 import DetailSheet from '../src/components/DetailSheet.astro';
 import { buildDetail } from '../../lib/detail/detail.mjs';
 import { loadProfile } from '../../lib/profile/profile.mjs';
+import { goalOptions } from '../../lib/profile/goal.mjs';
+import { resolveTargets } from '../../lib/nutrition/targets.mjs';
 
 const env = resolveEnv();
 const { locale, plan, ingredients, training, extractDir, repoRoot, dataMode } = env;
@@ -45,8 +47,9 @@ const health = buildHealth(extractDir);
 const scores = buildScores(extractDir);
 // the detail sheet behind every card: the last 365 days per metric (only the data's own dates)
 const detail = buildDetail(extractDir);
-// the avatar + profile sheet: manual profile.json + the Strava snapshot + the latest weigh-in (all optional)
-const profile = loadProfile({ repoRoot, dataMode, extractDir });
+// the avatar + profile sheet: manual profile.json + the Strava snapshot + the latest weigh-in (all optional),
+// plus the Goal setting's options (kcal/day vs maintain per goal, from the plan's resolved targets)
+const profile = { ...loadProfile({ repoRoot, dataMode, extractDir }), goals: goalOptions(resolveTargets(plan)) };
 // intake rings target = the same day totals Mi día shows for a train / rest day
 const intake = buildIntake(extractDir, { train: dayViewModel(nut, 'train').totals, rest: dayViewModel(nut, 'rest').totals });
 
