@@ -16,6 +16,12 @@
  * via `option.dataset.none === '1'` (set below in mkOpt from the baked
  * item's `none` field) instead of legacy's locale-fragile
  * `/ninguno|none/i.test(optionText)` regex.
+ *
+ * Today's target is the ONE from Resumen de hoy (client/nutri-day.js window.nutriTarget: goal x day
+ * type, on bike days the meals part): its kcal / protein / fat ceiling drive the verdict, and its base
+ * day (train / rest) picks the carb and post-workout option lists. There is no train/rest toggle any
+ * more; nutri-day.js calls window.bldRefresh() after every change. Without nutriTarget (never in a
+ * normal build) the plan's training-day target (TARGET.train) is used.
  */
 (function () {
   var X = {};
@@ -51,10 +57,16 @@
     var o = s && s.options[s.selectedIndex];
     return o ? { k: +o.dataset.k, p: +o.dataset.p, c: +o.dataset.c, g: +o.dataset.g } : { k: 0, p: 0, c: 0, g: 0 };
   }
-  function day() {
-    var r = el('b-rest');
-    return r && r.getAttribute('aria-pressed') === 'true' ? 'rest' : 'train';
+  function today() {
+    if (typeof window.nutriTarget === 'function') {
+      try {
+        var nt = window.nutriTarget();
+        if (nt && nt.k > 0) return { day: nt.day === 'rest' ? 'rest' : 'train', target: { k: nt.k, p: nt.p, fatMax: nt.fatMax } };
+      } catch (e) { /* fall back to the plan's training-day target */ }
+    }
+    return { day: 'train', target: TARGET.train };
   }
+  function day() { return today().day; }
   function repopDay() {
     var d = day();
     fill('bld-carbo-comida', DATA.carboComida[d]);
@@ -74,14 +86,13 @@
   // core.js's generic bump() (DOM-only) is not used for THIS tab's steppers —
   // Registro registers the richer window.bump above (keeps X in sync for
   // buildDayText's extras summary) and core.js's bldRecalc hook is unused
-  // here since bump is fully overridden. Kept only for setDay's bldRefresh.
+  // here since bump is fully overridden. (nutri-day.js calls window.bldRefresh.)
 
   var indulgeSet = {};
   INDULGE.forEach(function (k) { indulgeSet[k] = 1; });
 
   function calcDay() {
-    var d = day();
-    var t = TARGET[d];
+    var t = today().target;
     var tot = { k: 0, p: 0, c: 0, g: 0 };
     ['bld-desayuno', 'bld-prot-comida', 'bld-carbo-comida', 'bld-postre-comida', 'bld-postentreno', 'bld-prot-cena', 'bld-carbo-cena', 'bld-postre-cena'].forEach(function (id) {
       var v = val(id);
@@ -223,7 +234,7 @@
   }
   function buildDayText() {
     recalc();
-    var d = day(), t = TARGET[d];
+    var cur = today(), d = cur.day, t = cur.target;
     var dayLabel = d === 'train' ? I18N_LOG.dayLabelTrain : I18N_LOG.dayLabelRest;
     var lines = [format(I18N_LOG.header, { date: todayStr(), dayLabel: dayLabel })];
     var des = pick('bld-desayuno'); if (des) lines.push(format(I18N_LOG.breakfast, { v: des }));

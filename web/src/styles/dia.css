@@ -210,6 +210,11 @@ button.meal-name:focus-visible {
   font-size: var(--fs-2xs);
   margin: var(--sp-1) 0 var(--sp-5);
 }
+.intake-fuel {
+  display: block;
+  color: var(--muted);
+  margin-top: var(--sp-1);
+}
 .intake-rings {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

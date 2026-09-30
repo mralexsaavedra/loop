@@ -21,11 +21,6 @@ export default {
         dash: 'Entrenamiento',
       },
     },
-    dayToggle: {
-      ariaLabel: 'Tipo de día',
-      train: '🏋️ Entreno',
-      rest: '😴 Descanso',
-    },
     registro: {
       heading: 'Constructor de día',
       desayuno: 'Desayuno',

@@ -4,9 +4,9 @@
  * the built page (see astro.config.mjs / layouts/Plan.astro).
  *
  * Contract under test (astro-plan-web slice 3, per design's IMPORTANT note
- * carried from slice 1): setTab/setDay/jump/bump must use the LEGACY
- * markup contract — ids like `t-dia`/`b-train`, `.tab-panel[data-tab]`,
- * `.day-panel[data-day]` — not slice 1's invented `data-tab-btn` scheme,
+ * carried from slice 1): setTab/jump/bump must use the LEGACY
+ * markup contract — ids like `t-dia`, `.tab-panel[data-tab]`
+ * — not slice 1's invented `data-tab-btn` scheme,
  * so the parity test (legacy vs Astro id/onclick sets) passes.
  */
 import { test } from 'node:test';
@@ -31,7 +31,7 @@ function makeContext(doc) {
   return ctx;
 }
 
-function makeTabPage(doc, { dayToggleOff = false } = {}) {
+function makeTabPage(doc) {
   // four top-level tabs (Inicio / Entreno / Salud / Nutrición) — nav ids t-<key>, aria-pressed toggled by setTab
   const tabs = [...TAB_KEYS];
   const navIds = Object.fromEntries(tabs.map((t) => [t, 't-' + t]));
@@ -45,7 +45,6 @@ function makeTabPage(doc, { dayToggleOff = false } = {}) {
     const fold = key === 'registro' || key === 'tablas';
     sections[key] = doc.el(`sec-${key}`, { tag: fold ? 'details' : 'section', classes: ['tab-section'], attrs: { 'data-section': key }, parent: panels[tab] });
   });
-  doc.el('day-toggle', { attrs: dayToggleOff ? { 'data-off': '' } : {} });
   return { navIds, panels, sections };
 }
 
@@ -63,14 +62,6 @@ test('setTab shows the Entreno tab (t-entreno) and hides the others', () => {
   assert.equal(panels.home.hidden, true);
   assert.equal(doc.getElementById(navIds.entreno).getAttribute('aria-pressed'), 'true');
   assert.equal(doc.getElementById(navIds.home).getAttribute('aria-pressed'), 'false');
-});
-
-test('a day toggle marked data-off (only Tablas left in Nutrición) never shows', () => {
-  const doc = new StubDocument();
-  makeTabPage(doc, { dayToggleOff: true });
-  const { window } = makeContext(doc);
-  window.setTab('nutricion');
-  assert.equal(doc.getElementById('day-toggle').style.display, 'none');
 });
 
 test('setTab shows only the matching .tab-panel[data-tab] and hides the rest (legacy contract)', () => {
@@ -97,19 +88,6 @@ test('setTab toggles aria-pressed on the nav button ids (t-home, t-nutricion, t-
   assert.equal(doc.getElementById(navIds.nutricion).getAttribute('aria-pressed'), 'false');
 });
 
-test('setTab shows the day-toggle only on the Nutrición tab', () => {
-  const doc = new StubDocument();
-  makeTabPage(doc);
-  const { window } = makeContext(doc);
-  const dayToggle = doc.getElementById('day-toggle');
-
-  window.setTab('health');
-  assert.equal(dayToggle.style.display, 'none');
-
-  window.setTab('nutricion');
-  assert.equal(dayToggle.style.display, '');
-});
-
 test('setTab scrolls to top unless called with scrollTop=false (used internally by jump())', () => {
   const doc = new StubDocument();
   makeTabPage(doc);
@@ -120,54 +98,6 @@ test('setTab scrolls to top unless called with scrollTop=false (used internally 
 
   window.setTab('nutricion');
   assert.equal(window._scrolledTop, true);
-});
-
-test('setDay toggles .day-panel[data-day] hidden state and b-train/b-rest aria-pressed', () => {
-  const doc = new StubDocument();
-  const trainPanel = doc.el(null, { classes: ['day-panel'], attrs: { 'data-day': 'train' }, hidden: false });
-  const restPanel = doc.el(null, { classes: ['day-panel'], attrs: { 'data-day': 'rest' }, hidden: true });
-  doc.el('b-train', { attrs: { 'aria-pressed': 'true' } });
-  doc.el('b-rest', { attrs: { 'aria-pressed': 'false' } });
-  const { window } = makeContext(doc);
-
-  window.setDay('rest');
-
-  assert.equal(trainPanel.hidden, true);
-  assert.equal(restPanel.hidden, false);
-  assert.equal(doc.getElementById('b-train').getAttribute('aria-pressed'), 'false');
-  assert.equal(doc.getElementById('b-rest').getAttribute('aria-pressed'), 'true');
-});
-
-test('setDay calls window.bldRefresh() when nutrition.js has registered it (legacy hook pattern)', () => {
-  const doc = new StubDocument();
-  doc.el(null, { classes: ['day-panel'], attrs: { 'data-day': 'train' } });
-  doc.el(null, { classes: ['day-panel'], attrs: { 'data-day': 'rest' } });
-  doc.el('b-train', { attrs: { 'aria-pressed': 'true' } });
-  doc.el('b-rest', { attrs: { 'aria-pressed': 'false' } });
-  const { window } = makeContext(doc);
-  let refreshed = false;
-  window.bldRefresh = () => { refreshed = true; };
-
-  window.setDay('rest');
-
-  assert.equal(refreshed, true);
-});
-
-test('setDay survives a throwing or non-function window.intakeRefresh (optional intake rings)', () => {
-  const doc = new StubDocument();
-  const restPanel = doc.el(null, { classes: ['day-panel'], attrs: { 'data-day': 'rest' }, hidden: true });
-  doc.el('b-train', { attrs: { 'aria-pressed': 'true' } });
-  doc.el('b-rest', { attrs: { 'aria-pressed': 'false' } });
-  const { window } = makeContext(doc);
-
-  window.intakeRefresh = () => { throw new Error('boom'); };
-  assert.doesNotThrow(() => window.setDay('rest'));
-  assert.equal(restPanel.hidden, false);
-  assert.equal(doc.getElementById('b-rest').getAttribute('aria-pressed'), 'true');
-
-  window.intakeRefresh = 'not a function';
-  assert.doesNotThrow(() => window.setDay('train'));
-  assert.equal(restPanel.hidden, true);
 });
 
 test('jump() opens the target <details>, switches to its tab (without scrolling the page top), then scrolls it into view', async () => {
@@ -228,7 +158,6 @@ test('setTab knows the Home tab: t-home <-> home', () => {
   assert.equal(panels.nutricion.hidden, true);
   assert.equal(doc.getElementById(navIds.home).getAttribute('aria-pressed'), 'true');
   assert.equal(doc.getElementById(navIds.nutricion).getAttribute('aria-pressed'), 'false');
-  assert.equal(doc.getElementById('day-toggle').style.display, 'none');
 });
 
 test('setTab with a legacy tab key opens the tab that now hosts that section and scrolls to it', async () => {
@@ -277,26 +206,6 @@ test('jump() is a no-op for a target inside a section hidden by page.hideTabs', 
   assert.equal(target._scrolledIntoView, false);
 });
 
-test('setDay also switches the Inicio "today you eat" card (.eat-day) and every [data-set-day] toggle button', () => {
-  const doc = new StubDocument();
-  doc.el(null, { classes: ['day-panel'], attrs: { 'data-day': 'train' } });
-  doc.el(null, { classes: ['day-panel'], attrs: { 'data-day': 'rest' }, hidden: true });
-  const eatTrain = doc.el(null, { classes: ['eat-day'], attrs: { 'data-day': 'train' } });
-  const eatRest = doc.el(null, { classes: ['eat-day'], attrs: { 'data-day': 'rest' }, hidden: true });
-  doc.el('b-train', { attrs: { 'aria-pressed': 'true' } });
-  doc.el('b-rest', { attrs: { 'aria-pressed': 'false' } });
-  const cardTrain = doc.el(null, { tag: 'button', attrs: { 'data-set-day': 'train', 'aria-pressed': 'true' } });
-  const cardRest = doc.el(null, { tag: 'button', attrs: { 'data-set-day': 'rest', 'aria-pressed': 'false' } });
-  const { window } = makeContext(doc);
-
-  window.setDay('rest');
-
-  assert.equal(eatTrain.hidden, true);
-  assert.equal(eatRest.hidden, false);
-  assert.equal(cardTrain.getAttribute('aria-pressed'), 'false');
-  assert.equal(cardRest.getAttribute('aria-pressed'), 'true');
-});
-
 test('jumpOr() jumps to a reachable target, else falls back to opening the given tab', async () => {
   const doc = new StubDocument();
   const { panels, sections } = makeTabPage(doc);
@@ -316,4 +225,12 @@ test('jumpOr() jumps to a reachable target, else falls back to opening the given
   sections.dash.hidden = true;
   window.jumpOr('sec-dash', 'entreno');
   assert.equal(panels.entreno.hidden, false, 'target in a hidden section: open the tab instead');
+});
+
+test('the train/rest toggle is gone: core.js exposes no setDay (Resumen de hoy picks the day type)', () => {
+  const doc = new StubDocument();
+  makeTabPage(doc);
+  const { window } = makeContext(doc);
+  assert.equal(window.setDay, undefined);
+  assert.doesNotMatch(source, /day-toggle|b-train|b-rest/);
 });

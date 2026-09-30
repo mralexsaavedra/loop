@@ -18,11 +18,6 @@ export default {
         dash: 'Workouts',
       },
     },
-    dayToggle: {
-      ariaLabel: 'Day type',
-      train: '🏋️ Training',
-      rest: '😴 Rest',
-    },
     registro: {
       heading: 'Day builder',
       desayuno: 'Breakfast',
