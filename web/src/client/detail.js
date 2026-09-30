@@ -52,6 +52,9 @@
   // kinds whose missing recent days mean stale data (a sparse reading or a rest day is not staleness)
   var STALE_KINDS = ['signal', 'sleep', 'recovery', 'total'];
   var BAND_STATE = { above: 'good', at: 'normal', below: 'bad' };
+  // the Tab trap's stops, in document order: buttons, folds, a radio group's checked radio and form
+  // fields (a registered view may hold a small form, e.g. the food log's add sheet)
+  var TRAP = 'button:not([disabled]), summary, input[type="radio"]:checked, input:not([type="radio"]):not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])';
   var state = null;
   var opener = null;
   // true between close()'s history.back() and its popstate: history must not be written meanwhile
@@ -734,7 +737,7 @@
     if (isOpen()) {
       if (e.key === 'Escape' || e.key === 'Esc') { e.preventDefault(); close(); return; }
       if (e.key === 'Tab' && host.querySelectorAll) {
-        var f = Array.prototype.slice.call(host.querySelectorAll('button:not([disabled]), summary, input[type="radio"]:checked'));
+        var f = Array.prototype.slice.call(host.querySelectorAll(TRAP));
         if (!f.length) return;
         var i = f.indexOf(document.activeElement);
         if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
@@ -761,8 +764,11 @@
   });
 
   window.HCDetail = {
-    // opts.focus: a control of the view to focus (the goal chip opens the profile sheet on its goal)
-    open: function (key, date, opts) { open(key, date, { opener: document.activeElement || null, focus: opts && typeof opts.focus === 'string' ? opts.focus : null }); },
+    // opts.focus: a control of the view to focus (the goal chip opens the profile sheet on its goal);
+    // opts.opener: where focus returns on close (default: the focused element)
+    open: function (key, date, opts) {
+      open(key, date, { opener: (opts && opts.opener) || document.activeElement || null, focus: opts && typeof opts.focus === 'string' ? opts.focus : null });
+    },
     close: close,
     state: function () { return state; },
     dayState: dayState,

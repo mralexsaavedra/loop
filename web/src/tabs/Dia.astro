@@ -9,7 +9,11 @@
  *                        three macro bars (protein / carbs / fat), then the intake rings (#intake,
  *                        only with intake logged in the last 3 days; otherwise nothing);
  *   2. Plan de hoy     — the day's meals with the carb-flex portions scaled to (goal × day type);
- *   3. Avituallamiento — before -> during -> after the ride as a 3-step timeline, bike day types only.
+ *   3. Registrar       — today's food log by meal slot + the add sheet (client/food.js, Nutrición part
+ *                        2). Ships `hidden` and appears only on the LAN page, when the food API answers
+ *                        (never in the claude.ai artifact or the example build); baked here: I18N_FOOD
+ *                        + FOOD_CONST (meal slots / stores / units from lib/nutrition/foodlog.mjs);
+ *   4. Avituallamiento — before -> during -> after the ride as a 3-step timeline, bike day types only.
  * The day-type control is server-rendered (real labelled radios); the numbers
  * are client-rendered by client/nutri-day.js from NUTRI (lib/nutrition/today.mjs: the 12 precomputed
  * plans), baked here with I18N_NUTRI. Today's day type is picked on the viewer's clock, so builds
@@ -19,6 +23,8 @@ import Note from '../components/Note.astro';
 import { jsonForScript } from '../../../lib/serialize.mjs';
 import { buildNutriToday } from '../../../lib/nutrition/today.mjs';
 import { es as esNutri, en as enNutri } from '../i18n/nutri-templates.mjs';
+import { es as esFood, en as enFood } from '../i18n/food-templates.mjs';
+import { FOOD_MEALS, FOOD_STORES, FOOD_UNITS } from '../../../lib/nutrition/foodlog.mjs';
 import { arcPath } from '../view/dial.mjs';
 
 interface Props {
@@ -35,7 +41,8 @@ const { nut, plan, locale, page, hidden, intakeHost = true, supplements = [], we
 const T = locale === 'es' ? esNutri : enNutri;
 const es = locale === 'es';
 const nutri = buildNutriToday(nut, plan, { supplements, weight, units: { g: 'g', ml: 'ml', ud: es ? 'ud' : 'pc' }, dec: es ? ',' : '.' });
-const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForScript(T)};\nvar NUTRI_ARC = ${jsonForScript(arcPath(0, 1))};`;
+const F = locale === 'es' ? esFood : enFood;
+const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForScript(T)};\nvar NUTRI_ARC = ${jsonForScript(arcPath(0, 1))};\nvar I18N_FOOD = ${jsonForScript(F)};\nvar FOOD_CONST = ${jsonForScript({ meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS })};`;
 // simple 24-unit line icons for the day-type segments (stroke = currentColor; no emoji, no vendor icons)
 const BIKE = '<circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M5.5 16.5 9 9.5h6l3.5 7M9 9.5l3.5 7h-7M13 6.5h3l-1 3"/>';
 const DAY_ICONS: Record<string, string> = {
@@ -69,6 +76,13 @@ const DAY_ICONS: Record<string, string> = {
   <div class="nutri-block">
     <h2>{T.headings.plan}</h2>
     <div id="nutri-plan"></div>
+  </div>
+
+  {/* food log (client/food.js): hidden until the LAN food API answers */}
+  <div class="nutri-block food-block" id="food-log-block" hidden>
+    <h2>{F.headings.log}</h2>
+    <div id="food-log"></div>
+    <p class="food-msg" id="food-msg" role="status" aria-live="polite"></p>
   </div>
 
   <div class="nutri-block" id="nutri-fuel-block" hidden>

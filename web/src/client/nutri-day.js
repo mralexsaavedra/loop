@@ -23,6 +23,9 @@
  *   builder (client/nutrition.js) and the intake rings (client/intake.js) the MEALS target (on bike days
  *   the day target minus the ride fuel, with the fuel as its own figure), and every goal / day type /
  *   duration change refreshes both directly.
+ * - Logged intake: the dial + bars fill from today's page food log (window.foodTotals, client/food.js,
+ *   LAN page only) when it has entries, else from the Apple Health day (INTAKE); HCNutri.refresh() is
+ *   the food log's hook after every add / delete.
  * Each block renders in its own try/catch: a failure shows a one-line message there, never a blank tab. */
 (function () {
   var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;
@@ -293,9 +296,16 @@
     }
   }
   var OVER_RATIO = 1.1; // past 110 % of the target a bar is flagged (--mid), like the intake rings
-  // intake logged TODAY (INTAKE, baked by components/Bake.astro; the date is checked on the viewer's
-  // clock): only then do the dial and the bars fill. Never from the target.
+  // intake logged TODAY: first the page's own food log (window.foodTotals, client/food.js: today's
+  // entries on the LAN page, src 'log'), else the Apple Health day (INTAKE, baked by
+  // components/Bake.astro); the date is checked on the viewer's clock. Only then do the dial and the
+  // bars fill. Never from the target.
   function intakeToday() {
+    var F = null;
+    if (typeof window.foodTotals === 'function') {
+      try { F = window.foodTotals(); } catch (e) { F = null; }
+    }
+    if (F && F.date === todayIso() && F.n > 0) return F;
     var I = typeof INTAKE === 'undefined' || !INTAKE ? null : INTAKE;
     var L = I && I.latest;
     return L && L.date === todayIso() && L.k > 0 ? L : null;
@@ -356,7 +366,8 @@
     host.innerHTML =
       '<div class="nt-top">' + dialHtml(t, L) + goalChipHtml() + '</div>' +
       '<div class="nt-side"><div class="nt-bars">' + barHtml(T.target.p, t.p, L, L && L.p) + barHtml(T.target.c, t.c, L, L && L.c) + barHtml(T.target.f, t.f, L, L && L.g) + '</div>' +
-      (L ? '<p class="nt-cnote">' + esc(T.target.loggedNote) + '</p>' : '') +
+      (L ? '<p class="nt-cnote">' + esc(L.src === 'log' ? T.target.loggedFoodNote : T.target.loggedNote) + '</p>' : '') +
+      (L && L.missing && (L.missing.protein || L.missing.carbs || L.missing.fat) ? '<p class="nt-cnote">' + esc(T.target.loggedFoodMissing) + '</p>' : '') +
       '<p class="nt-cnote">' + esc(T.target.cNote) + '</p>' +
       (x ? '<p class="nt-plan">' + esc(line) + '</p>' + remainderHtml(x) + macroOffHtml(x) : '') + '</div>';
   }
@@ -560,6 +571,8 @@
   };
   window.HCNutri = {
     setGoal: setGoal,
+    // the food log (client/food.js) calls this after every add / delete: the dial, bars, rings, builder
+    refresh: function () { refresh(false); },
     detectDayType: detectDayType,
     fuelPlan: fuelPlan,
     solveScale: solveScale,

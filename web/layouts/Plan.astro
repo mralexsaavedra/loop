@@ -3,7 +3,7 @@
  * (personal copy), and the end-of-body script order per design: bake (each
  * tab's own Bake, e.g. Registro's) → NAV + HC_CONST → util (window.HC, the shared client helpers,
  * FIRST so every later script can read it) → core (setTab/jump/bump) →
- * nutrition → nutri-day → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → profile → detail → freshness.
+ * nutrition → nutri-day → food → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → profile → detail → freshness.
  * Tabs render inside <slot />; the detail sheet (components/DetailSheet.astro) renders in the `overlay`
  * slot, after .wrap, so detail.js can make the page behind it inert. The top bar is ONE row on phones: date · status dot + short
  * freshness (#fresh-sum, per-source detail in the #fresh-pop popover) · icon-only Sync · avatar. #freshness renders hidden; freshness.js
@@ -21,10 +21,12 @@ import '../src/styles/score.css';
 import '../src/styles/layout.css';
 import '../src/styles/detail.css';
 import '../src/styles/profile.css';
+import '../src/styles/food.css';
 import utilScript from '../src/client/util.js?raw';
 import coreScript from '../src/client/core.js?raw';
 import nutritionScript from '../src/client/nutrition.js?raw';
 import nutriDayScript from '../src/client/nutri-day.js?raw';
+import foodScript from '../src/client/food.js?raw';
 import trainingTodayScript from '../src/client/training-today.js?raw';
 import trainingDashScript from '../src/client/training-dash.js?raw';
 import trainingActivityScript from '../src/client/training-activity.js?raw';
@@ -142,6 +144,7 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
     <script is:inline set:html={todayDateScript} />
     <script is:inline set:html={nutritionScript} />
     <script is:inline set:html={nutriDayScript} />
+    <script is:inline set:html={foodScript} />
     <script is:inline set:html={intakeScript} />
     <script is:inline set:html={trainingTodayScript} />
     <script is:inline set:html={trainingDashScript} />

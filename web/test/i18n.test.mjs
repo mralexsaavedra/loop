@@ -15,6 +15,8 @@ import { es as esHealth, en as enHealth } from '../src/i18n/health-templates.mjs
 import { es as esScore, en as enScore } from '../src/i18n/score-templates.mjs';
 import { es as esIntake, en as enIntake } from '../src/i18n/intake-templates.mjs';
 import { es as esNutri, en as enNutri } from '../src/i18n/nutri-templates.mjs';
+import { es as esFood, en as enFood } from '../src/i18n/food-templates.mjs';
+import { FOOD_MEALS, FOOD_STORES, FOOD_UNITS } from '../../lib/nutrition/foodlog.mjs';
 import { GOALS, DAY_TYPES } from '../../lib/nutrition/targets.mjs';
 import { MEAL_SLOTS } from '../../lib/nutrition/slots.mjs';
 import { es as esAct, en as enAct } from '../src/i18n/activity-templates.mjs';
@@ -344,4 +346,31 @@ test('date-templates.mjs (HC.fmtDate names) has identical key trees in es/en, 7 
   }
   assert.equal(esDate.weekdays[0], 'lun');
   assert.equal(enDate.weekdays[0], 'Mon');
+});
+
+test('food-templates.mjs (Registrar / add sheet / Mis productos / Mis recetas) has identical key trees in es/en, every meal slot, store and unit, a line per server error code, and the placeholders food.js relies on', () => {
+  assert.deepEqual(keyTree(esFood), keyTree(enFood));
+  for (const [locale, dict] of [['es', esFood], ['en', enFood]]) {
+    for (const [p, value] of leaves(dict)) {
+      if (typeof value === 'string') assert.notEqual(value.trim(), '', `${locale} food-templates.${p} must not be empty`);
+    }
+    assert.deepEqual(Object.keys(dict.meals), [...FOOD_MEALS]);
+    assert.deepEqual(Object.keys(dict.stores), [...FOOD_STORES]);
+    for (const u of [...FOOD_UNITS, 'serving', 'servings']) assert.ok(dict.units[u], `${locale} unit ${u}`);
+    for (const code of ['invalid', 'atwater', 'barcode_exists', 'unknown_product', 'unknown_recipe', 'recipe_incomplete', 'unit', 'not_found',
+      'rate_limited', 'off_not_found', 'off_rate_limited', 'off_unavailable', 'payload_too_large', 'offline', 'generic']) {
+      assert.ok(dict.errors[code], `${locale} errors.${code}`);
+    }
+    assert.match(dict.errors.invalid, /\{field\}/);
+    assert.match(dict.addAria, /\{meal\}/);
+    assert.match(dict.delAria, /\{label\}/);
+    assert.match(dict.added, /\{label\}[\s\S]*\{k\}/);
+    assert.match(dict.sheet.per100, /\{unit\}/);
+    for (const k of ['editAria', 'archiveAria', 'confirmAria']) {
+      assert.match(dict.products[k], /\{name\}/);
+      assert.match(dict.recipes[k], /\{name\}/);
+    }
+    assert.match(dict.recipes.removeAria, /\{n\}/);
+  }
+  assert.equal(esFood.macroAbbr.f, 'G', 'es: grasa');
 });

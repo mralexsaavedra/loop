@@ -5,7 +5,8 @@
  *   - Inicio/Home (`home`)          today: dials, monitor, advice + "today you eat" card + programmed session (hoy)
  *   - Entreno/Training (`entreno`)  load (load), calendar (calendar), run/ride tables (sessions), dashboard (dash)
  *   - Salud/Health (`health`)       recovery, sleep, body, activity, energy
- *   - Nutrición (`nutricion`)       today (dia: Resumen de hoy + Plan de hoy + Avituallamiento) + the day builder (registro) + Tablas (tablas)
+ *   - Nutrición (`nutricion`)       today (dia: Resumen de hoy + Plan de hoy + Registrar + Avituallamiento) + the day builder (registro)
+ *                                   + Mis productos / Mis recetas (LAN only, with dia) + Tablas (tablas)
  * The former tab keys now name sections; `page.hideTabs` hides a section by its legacy key and a
  * tab by its top-level key (lib/nav/tabs.mjs resolveNav). See spec: plan-web-single-file-build.
  */
@@ -15,6 +16,7 @@ import EatCard from '../src/components/EatCard.astro';
 import Dia from '../src/tabs/Dia.astro';
 import Registro from '../src/tabs/Registro.astro';
 import Tablas from '../src/tabs/Tablas.astro';
+import Food from '../src/tabs/Food.astro';
 import Hoy from '../src/tabs/Hoy.astro';
 import Entrenos from '../src/tabs/Entrenos.astro';
 import TrainingDetail from '../src/tabs/TrainingDetail.astro';
@@ -86,6 +88,7 @@ const title = plan.page?.title || 'Plan';
   <div class="tab-panel" data-tab="nutricion" hidden={activeTab !== 'nutricion'}>
     <Dia nut={nut} plan={plan} locale={locale} page={plan.page} hidden={isHidden('dia')} intakeHost={!!intake.latest} supplements={profile.supplements} weight={profile.weight} />
     <Registro nut={nut} dict={dict} page={plan.page} plan={plan} locale={locale} training={training.days} trainingMeta={trainMeta} dash={dash} health={health} scores={scores} intake={intake} hidden={isHidden('registro')} />
+    {!isHidden('dia') && <Food locale={locale} />}
     <Tablas nut={nut} dict={dict} page={plan.page} hidden={isHidden('tablas')} />
   </div>
   <DetailSheet slot="overlay" detail={detail} locale={locale} />
