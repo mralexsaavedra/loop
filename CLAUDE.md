@@ -407,7 +407,8 @@ anchor for Inicio's health monitor.
   for time/distance/kJ/elevation/RE, duration-weighted avg HR, and the count is distinct ride days. Elevation / RE / kJ come from
   Strava only; a field the source did not record renders as a dash, never 0. When only one of run /
   bike has data, the other shows its empty-state line; with neither, both are omitted.
-- **Recovery** — `rhr.csv`, `hrv.csv` (averaged per day), `vo2max.csv`, `sleep-daily.csv`,
+- **Recovery** — `rhr.csv`, `hrv.csv` (both as the clamped per-day MEDIAN, `score/recovery.mjs`
+  `dailySignal`, the same series Inicio's recovery and monitor use), `vo2max.csv`, `sleep-daily.csv`,
   `respiratory-daily.csv`, `wristTemp.csv`, `walking-hr-daily.csv`. Good directions stated on
   screen (↓ resting/walking HR, ↑ HRV, ↑ VO₂max; respiratory & sleeping wrist temp are change-
   not-absolute signals). Sleep adds CONSISTENCY: % of nights ≥ `SLEEP_TARGET` (7.5 h), night-to-
