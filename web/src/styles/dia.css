@@ -302,15 +302,11 @@ button.meal-name:focus-visible {
   font-size: var(--fs-md);
   color: var(--ink);
 }
-.intake-note,
-.intake-empty p {
+.intake-note {
   margin-top: var(--sp-5);
   color: var(--muted);
   font-size: var(--fs-xs);
   line-height: 1.45;
-}
-.intake-empty p {
-  margin-top: var(--sp-2);
 }
 @keyframes ring-in {
   0% {

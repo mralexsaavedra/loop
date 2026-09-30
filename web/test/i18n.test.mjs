@@ -253,8 +253,7 @@ test('intake-templates.mjs (Mi día intake rings) has identical key trees in es/
     }
     assert.match(dict.ofTpl, /\{target\}/);
     assert.match(dict.ofTpl, /\{unit\}/);
-    assert.match(dict.emptyHtml, /\{days\}/);
-    assert.match(dict.emptyHtml, /diet_kcal/, `${locale} empty state names the Shortcut keys`);
+    assert.equal(dict.emptyHtml, undefined, `${locale}: no stale-intake help text (the block renders nothing)`);
   }
 });
 

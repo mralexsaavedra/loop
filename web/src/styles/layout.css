@@ -124,7 +124,7 @@ details.sec-fold > summary:hover > h2 {
   }
 }
 
-/* no intake ever logged: the one-line hint in the Registro fold summary / at the top of Mi día */
+/* no intake ever logged: the one-line hint in the Registro fold summary */
 details.sec-fold > summary > .sec-hint {
   flex: 0 1 auto;
   margin-top: var(--sp-11);
@@ -132,12 +132,6 @@ details.sec-fold > summary > .sec-hint {
   font-size: var(--fs-xs);
   color: var(--muted);
 }
-.intake-hint {
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  margin: 0 0 var(--sp-5);
-}
-
 /* top bar: ONE row on phones (no wrap down to 360 px): the viewer's date (client/today-date.js) ·
  * status dot + short freshness · icon-only Sync · avatar. With no visible header (page.h1 / page.sub
  * absent) it is the first thing on the page, so it carries the top safe-area inset itself. */

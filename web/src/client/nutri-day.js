@@ -347,6 +347,7 @@
     var g = T.goals[state.goal];
     return '<button type="button" class="nt-goal" id="nutri-goal-chip" aria-haspopup="dialog" aria-label="' + esc(format(T.goalChip, { goal: g })) + '">' + esc(g) + '</button>';
   }
+  // the dial (.nt-top) and the bars + notes (.nt-side): stacked on phones, two columns >= 900 px (nutri.css)
   function renderTarget(host, x) {
     var t = target(), L = intakeToday();
     var line = !x ? '' : x.fuelK > 0
@@ -354,10 +355,10 @@
       : format(T.planLine, { k: kf(x.tot.k), p: x.tot.p, c: x.tot.c, f: x.tot.g });
     host.innerHTML =
       '<div class="nt-top">' + dialHtml(t, L) + goalChipHtml() + '</div>' +
-      '<div class="nt-bars">' + barHtml(T.target.p, t.p, L, L && L.p) + barHtml(T.target.c, t.c, L, L && L.c) + barHtml(T.target.f, t.f, L, L && L.g) + '</div>' +
+      '<div class="nt-side"><div class="nt-bars">' + barHtml(T.target.p, t.p, L, L && L.p) + barHtml(T.target.c, t.c, L, L && L.c) + barHtml(T.target.f, t.f, L, L && L.g) + '</div>' +
       (L ? '<p class="nt-cnote">' + esc(T.target.loggedNote) + '</p>' : '') +
       '<p class="nt-cnote">' + esc(T.target.cNote) + '</p>' +
-      (x ? '<p class="nt-plan">' + esc(line) + '</p>' + remainderHtml(x) + macroOffHtml(x) : '');
+      (x ? '<p class="nt-plan">' + esc(line) + '</p>' + remainderHtml(x) + macroOffHtml(x) : '') + '</div>';
   }
   var PILL_SVG = '<svg class="supp-ico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-45 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><path d="M12 8.5v7"/></g></svg>';
   function suppLine(text) {
