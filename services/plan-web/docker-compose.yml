@@ -1,8 +1,9 @@
 # Serves the Astro-built plan page (web/dist/personal/index.html) on the LAN.
 # refresh.sh rebuilds it and copies the output into ./site; only that
 # directory is mounted, so nothing else under data/ or web/ is reachable
-# over HTTP. /api/sync and /api/sync/status (and nothing else) are proxied
-# to the health-ingest service on the host, see nginx.conf.template.
+# over HTTP. /api/sync, /api/sync/status and /api/food/* (and nothing else)
+# are proxied to the health-ingest service on the host, and only requests
+# naming an allowed Host are answered, see nginx.conf.template.
 services:
   plan-web:
     image: nginx:alpine
@@ -13,8 +14,12 @@ services:
     environment:
       # health-ingest's host port (its INGEST_PORT); substituted into the nginx template
       INGEST_PORT: ${INGEST_PORT:-8088}
+      # extra host names the page may be reached by (besides IP literals and localhost), comma or
+      # space separated; rendered by hosts.sh. Mirror them in health-ingest's FOOD_ALLOWED_HOSTS.
+      PLAN_WEB_EXTRA_HOSTS: ${PLAN_WEB_EXTRA_HOSTS:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./site:/usr/share/nginx/html:ro
       - ./nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./hosts.sh:/docker-entrypoint.d/15-hc-hosts.sh:ro
