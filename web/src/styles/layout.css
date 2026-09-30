@@ -138,24 +138,28 @@ details.sec-fold > summary > .sec-hint {
   margin: 0 0 var(--sp-5);
 }
 
-/* top bar: the viewer's date (client/today-date.js) + the freshness group, above the nav. With no
- * visible header (page.h1 / page.sub absent) it is the first thing on the page, so it carries the top
- * safe-area inset itself. */
+/* top bar: ONE row on phones (no wrap down to 360 px): the viewer's date (client/today-date.js) ·
+ * status dot + short freshness · icon-only Sync · avatar. With no visible header (page.h1 / page.sub
+ * absent) it is the first thing on the page, so it carries the top safe-area inset itself. */
 .topbar {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: var(--sp-3) var(--sp-5);
-  padding-top: max(var(--sp-5), env(safe-area-inset-top));
+  gap: var(--sp-3);
+  min-height: 52px;
+  padding-top: max(var(--sp-3), env(safe-area-inset-top));
   margin: 0 0 var(--sp-5);
 }
 /* the date: a small caps label like every other label on the page */
 .today-date {
+  flex: none;
   font-size: var(--fs-2xs);
-  font-weight: 600;
+  font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
   color: var(--muted);
+  white-space: nowrap;
 }
 /* one h1 per document even without a visible header: read by assistive tech, never drawn */
 .sr-only {
@@ -170,14 +174,16 @@ details.sec-fold > summary > .sec-hint {
   border: 0;
 }
 
-/* freshness line + Sync button (client/freshness.js). Rendered hidden; shown only when the
- * page's server answers /api/sync/status. State colours per tokens.css: >24 h --mid, >72 h --low. */
+/* freshness (client/freshness.js). Rendered hidden; shown only when the page's server answers
+ * /api/sync/status. The summary is a dot + the Shortcut age; the dot carries the worst source level
+ * (tokens: fresh = --good, > 24 h --mid, > 72 h --low); the per-source line lives in #fresh-pop. */
 .fresh {
   display: flex;
-  flex: 1 1 260px;
-  flex-wrap: wrap;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: var(--sp-3) var(--sp-5);
+  justify-content: flex-end;
+  gap: var(--sp-1);
   min-width: 0;
   font-size: var(--fs-xs);
   color: var(--muted);
@@ -185,9 +191,65 @@ details.sec-fold > summary > .sec-hint {
 .fresh[hidden] {
   display: none;
 }
-.fresh-line {
-  flex: 1 1 220px;
+.fresh-sum {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
   min-width: 0;
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.fresh-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-pill);
+  background: var(--good);
+}
+.fresh-sum-mid .fresh-dot {
+  background: var(--mid);
+}
+.fresh-sum-low .fresh-dot {
+  background: var(--low);
+}
+.fresh-short {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fresh-sum:focus-visible,
+.fresh-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.fresh-pop {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  left: 0;
+  right: 0;
+  padding: var(--sp-5) var(--sp-6);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--card-shadow);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  color: var(--muted);
+}
+.fresh-pop[hidden] {
+  display: none;
+}
+.fresh-item {
+  white-space: nowrap;
 }
 .fresh-mid {
   color: var(--mid);
@@ -197,32 +259,63 @@ details.sec-fold > summary > .sec-hint {
 }
 .fresh-hint {
   font-style: normal;
+  white-space: normal;
 }
+/* icon-only Sync: a 44 px round target, the circular arrows spin while syncing */
 .fresh-btn {
-  min-height: 44px;
-  min-width: 44px;
-  padding: 0 var(--sp-7);
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   border: 0;
   border-radius: var(--r-pill);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-family: inherit;
-  font-size: var(--fs-sm);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
+  background: none;
+  color: var(--ink);
   cursor: pointer;
 }
-.fresh-btn:disabled {
-  opacity: 0.6;
+.fresh-btn:hover {
+  background: var(--surface-2);
+}
+.fresh-ico {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.fresh-btn.is-busy {
+  color: var(--accent);
   cursor: default;
 }
-.fresh-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+.fresh-btn.is-busy .fresh-ico {
+  animation: fresh-spin 0.9s linear infinite;
 }
+@keyframes fresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fresh-btn.is-busy .fresh-ico {
+    animation: none;
+  }
+}
+/* the sync status/failure line: out of the row flow, under the bar, only while it has text */
 .fresh-msg {
-  flex-basis: 100%;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  max-width: 100%;
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  background: var(--ground);
+  border-radius: var(--r-xs);
 }
 .fresh-msg:empty {
   display: none;

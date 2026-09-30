@@ -255,7 +255,9 @@ test('example build: the freshness line + Sync button ship HIDDEN (shown only wh
   assert.ok(block, 'freshness block present');
   assert.match(block[0], /\shidden(?=[\s>])/, 'hidden until freshness.js confirms the endpoint');
   assert.ok(html.indexOf('id="freshness"') < html.indexOf('class="tabnav"'), 'in the header area, above the tab nav');
-  assert.match(html, /<button type="button" class="fresh-btn" id="sync-btn">Sync<\/button>/);
+  assert.match(html, /<button type="button" class="fresh-btn" id="sync-btn" aria-label="Sync" title="Sync"><svg class="fresh-ico"/, 'icon-only Sync, labelled');
+  assert.match(html, /<button type="button" class="fresh-sum" id="fresh-sum" aria-expanded="false" aria-controls="fresh-pop">/);
+  assert.match(html, /<div class="fresh-pop" id="fresh-pop" hidden><p class="fresh-line" id="fresh-line"><\/p><\/div>/, 'per-source detail in a popover');
   assert.match(html, /var I18N_SYNC = \{"ariaLabel":"Data freshness"/);
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
   assert.match(scripts.at(-1), /\/api\/sync\/status/, 'freshness.js is the last script');

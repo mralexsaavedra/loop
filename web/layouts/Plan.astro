@@ -5,8 +5,9 @@
  * FIRST so every later script can read it) → core (setTab/jump/bump) →
  * nutrition → nutri-day → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → profile → detail → freshness.
  * Tabs render inside <slot />; the detail sheet (components/DetailSheet.astro) renders in the `overlay`
- * slot, after .wrap, so detail.js can make the page behind it inert. The freshness line + Sync button (#freshness) render hidden; freshness.js
- * shows them only when the page's server answers /api/sync/status (see services/plan-web/README.md).
+ * slot, after .wrap, so detail.js can make the page behind it inert. The top bar is ONE row on phones: date · status dot + short
+ * freshness (#fresh-sum, per-source detail in the #fresh-pop popover) · icon-only Sync · avatar. #freshness renders hidden; freshness.js
+ * shows it only when the page's server answers /api/sync/status (see services/plan-web/README.md).
  */
 import '../src/styles/tokens.css';
 import '../src/styles/base.css';
@@ -99,8 +100,9 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
       <div class="topbar">
         <time id="today-date" class="today-date"></time>
         <div class="fresh" id="freshness" role="group" aria-label={syncT.ariaLabel} hidden>
-          <p class="fresh-line" id="fresh-line"></p>
-          <button type="button" class="fresh-btn" id="sync-btn">{syncT.button}</button>
+          <button type="button" class="fresh-sum" id="fresh-sum" aria-expanded="false" aria-controls="fresh-pop"><span class="fresh-dot" aria-hidden="true"></span><span class="fresh-short" id="fresh-short"></span></button>
+          <button type="button" class="fresh-btn" id="sync-btn" aria-label={syncT.button} title={syncT.button}><svg class="fresh-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9" /><path d="M18.5 3v4.2h-4.2M5.5 21v-4.2h4.2" /></svg></button>
+          <div class="fresh-pop" id="fresh-pop" hidden><p class="fresh-line" id="fresh-line"></p></div>
           <p class="fresh-msg" id="sync-msg" role="status" aria-live="polite"></p>
         </div>
         {profile && <Avatar profile={profile} locale={locale} />}
