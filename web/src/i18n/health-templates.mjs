@@ -41,6 +41,7 @@ export const es = {
   },
   // Entreno's share of this renderer (#health-train: running, cycling, load vs recovery)
   trainEmptyMsg: 'Aún no hay carreras, salidas en bici ni carga. Aparecen con los entrenos del reloj o desde Strava (<code>npm run sync:strava</code>).',
+  bodyCompPointsTpl: '{n} lecturas en los últimos {days} días',
   trend: {
     weight: { title: 'Peso', unit: 'kg', deltaUnit: ' kg' },
     bodyfat: { title: 'Grasa corporal', unit: '%', deltaUnit: ' pp' },
@@ -104,7 +105,7 @@ export const es = {
     wakeLbl: 'hora de despertar',
   },
   recoveryNoteHtml: '<b>↓ FC en reposo, ↑ VFC, ↑ VO₂máx y ↓ FC al caminar</b> son las direcciones buenas. La frecuencia respiratoria y la temperatura de muñeca (solo durante el sueño) sirven como señal de recuperación/enfermedad — mira el cambio, no el valor absoluto. En sueño, además de la media importan la <b>consistencia</b> (±h y la regularidad de horarios en minutos): dormir parecido cada noche recupera mejor que promediar 7 h con noches de 5 y 9.',
-  loadSec: { heading: 'Carga cardiovascular semanal', hint: 'Índice = minutos × pulso medio ÷ 100 · solo sesiones con pulso · últimas {weeks} semanas.', barTitleTpl: '{date}: carga {load}' },
+  loadSec: { heading: 'Carga cardiovascular semanal', hint: 'Índice = minutos × pulso medio ÷ 100 · solo sesiones con pulso (gimnasio, carrera y bici) · últimas {weeks} semanas completas.', barTitleTpl: '{date}: carga {load}' },
   loadCards: { hrvHighLbl: 'VFC · semanas de + carga', hrvLowLbl: 'VFC · semanas suaves', rhrHighLbl: 'FC reposo · + carga', rhrLowLbl: 'FC reposo · suaves' },
   loadNoteHtml: '<b>La vista que Strava no puede darte:</b> tu carga cruzada con tu recuperación. <b>VFC más baja y/o FC en reposo más alta en las semanas de más carga</b> es lo esperable — tu cuerpo acusa el estímulo. Lo que vigilas es que <b>rebote</b> en las semanas suaves; si no rebota, estás acumulando fatiga. Ojo: la FC refleja el trabajo cardiovascular: dentro de una sesión de gimnasio pesa más el <b>metcon</b> que las series pesadas (por eso es «carga cardiovascular», no total), son pocas semanas y esto es <b>asociación, no causa</b>.',
 };
@@ -128,6 +129,7 @@ export const en = {
   },
   // Entreno's share of this renderer (#health-train: running, cycling, load vs recovery)
   trainEmptyMsg: 'No runs, rides or load data yet. They appear with Watch workouts or from Strava (<code>npm run sync:strava</code>).',
+  bodyCompPointsTpl: '{n} readings in the last {days} days',
   trend: {
     weight: { title: 'Weight', unit: 'kg', deltaUnit: ' kg' },
     bodyfat: { title: 'Body fat', unit: '%', deltaUnit: ' pp' },
@@ -191,7 +193,7 @@ export const en = {
     wakeLbl: 'wake time',
   },
   recoveryNoteHtml: '<b>↓ resting HR, ↑ HRV, ↑ VO₂max and ↓ walking HR</b> are the good directions. Respiratory rate and wrist temperature (sleep only) are recovery/illness signals — watch the change, not the absolute value. For sleep, beyond the average the <b>consistency</b> matters (±h and schedule regularity in minutes): sleeping a similar amount each night recovers better than averaging 7 h across 5- and 9-hour nights.',
-  loadSec: { heading: 'Weekly cardiovascular load', hint: 'Index = minutes × mean HR ÷ 100 · only sessions with heart rate · last {weeks} weeks.', barTitleTpl: '{date}: load {load}' },
+  loadSec: { heading: 'Weekly cardiovascular load', hint: 'Index = minutes × mean HR ÷ 100 · only sessions with heart rate (gym, run and bike) · last {weeks} complete weeks.', barTitleTpl: '{date}: load {load}' },
   loadCards: { hrvHighLbl: 'HRV · higher-load weeks', hrvLowLbl: 'HRV · easy weeks', rhrHighLbl: 'resting HR · higher-load', rhrLowLbl: 'resting HR · easy' },
   loadNoteHtml: '<b>The view Strava can’t give you:</b> your load crossed with your recovery. <b>Lower HRV and/or higher resting HR in higher-load weeks</b> is expected — your body registers the stimulus. What you watch for is that it <b>rebounds</b> in easy weeks; if it doesn’t, you’re accumulating fatigue. Caveats: HR reflects cardiovascular work: within a gym session it credits the <b>metcon</b> more than the heavy sets (so this is CARDIOVASCULAR load, not total), it’s only a few weeks, and this is <b>association, not causation</b>.',
 };

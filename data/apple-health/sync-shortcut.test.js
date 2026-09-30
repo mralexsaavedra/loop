@@ -545,10 +545,10 @@ test('walking_hr: day-grouped mean -> date,bpm (integer)', () => {
   assert.equal(METRICS.walking_hr.csv, 'walking-hr-daily.csv');
 });
 
-test('wrist_temp: dated by the sample START date (like extract.js), one row per sample', () => {
+test('wrist_temp: dated by the wake-up night (like sleep and extract.js), one row per sample', () => {
   const s = collectSamples([{ wrist_temp: '2030-01-01T23:10:00+01:00;36.123\n2030-01-03T00:20:00+01:00;36,4' }]);
   assert.deepEqual(buildRows('wrist_temp', s.wrist_temp).map(r => r.line),
-    [`2030-01-01,36.12,${SHORTCUT_SOURCE}`, `2030-01-03,36.4,${SHORTCUT_SOURCE}`]);
+    [`2030-01-02,36.12,${SHORTCUT_SOURCE}`, `2030-01-03,36.4,${SHORTCUT_SOURCE}`]);
   assert.equal(METRICS.wrist_temp.csv, 'wristTemp.csv');
 });
 
@@ -664,4 +664,33 @@ test('docs/ios-shortcut.md documents every payload key the sync reads (and no re
     def.devices ? Object.keys(def.devices) : def.fields ? Object.keys(def.fields) : [metric]);
   const rows = new Set([...doc.matchAll(/^\| `([a-z0-9_]+)` \|/gm)].map(m => m[1]));
   assert.deepEqual([...rows].sort(), [...keys].sort(), 'the key table must list exactly the keys in METRICS');
+});
+
+// ---- extract.js <-> sync parity for sleep (naps) and wrist temperature -------------------
+
+test('extract.js and the Shortcut sync write identical sleep rows (nap excluded) and wrist-temp dates', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-sleep-'));
+  for (const f of ['extract.js', 'samples.js']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
+  const iv = [
+    ['2030-01-01T23:30:00+01:00', '2030-01-02T03:00:00+01:00', 'Core'],
+    ['2030-01-02T04:30:00+01:00', '2030-01-02T07:00:00+01:00', 'REM'],
+    ['2030-01-02T17:40:00+01:00', '2030-01-02T18:40:00+01:00', 'Core'], // nap across 18:00
+    ['2030-01-03T00:00:00+01:00', '2030-01-03T07:30:00+01:00', 'Deep'],
+  ];
+  const stamp = t => t.replace('T', ' ').replace(/([+-]\d{2}):(\d{2})$/, ' $1$2');
+  const xmlStage = { Core: 'HKCategoryValueSleepAnalysisAsleepCore', REM: 'HKCategoryValueSleepAnalysisAsleepREM', Deep: 'HKCategoryValueSleepAnalysisAsleepDeep' };
+  fs.writeFileSync(path.join(dir, 'export.xml'), [
+    ...iv.map(([a, b, st]) => `<Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="${SHORTCUT_SOURCE}" startDate="${stamp(a)}" endDate="${stamp(b)}" value="${xmlStage[st]}"/>`),
+    `<Record type="HKQuantityTypeIdentifierAppleSleepingWristTemperature" sourceName="${SHORTCUT_SOURCE}" startDate="2030-01-01 23:40:00 +0100" endDate="2030-01-02 07:00:00 +0100" value="36.1"/>`,
+    '',
+  ].join('\n'));
+  execFileSync(process.execPath, [path.join(dir, 'extract.js')], { stdio: 'ignore' });
+  const out = path.join(dir, 'extract');
+  const sync = collectSamples([{ sleep: iv.map(x => x.join(';')).join('\n'), wrist_temp: '2030-01-01T23:40:00+01:00;36.1' }]);
+  const csvOf = (header, rows) => [header, ...rows.map(r => r.line)].join('\n') + '\n';
+  const exportSleep = fs.readFileSync(path.join(out, 'sleep-daily.csv'), 'utf8');
+  assert.equal(exportSleep, csvOf(METRICS.sleep.header, buildRows('sleep', sync.sleep)));
+  assert.match(exportSleep, /^2030-01-02,6\.00,/m, 'the nap adds no minutes');
+  assert.equal(fs.readFileSync(path.join(out, 'wristTemp.csv'), 'utf8'), csvOf(METRICS.wrist_temp.header, buildRows('wrist_temp', sync.wrist_temp)));
+  fs.rmSync(dir, { recursive: true });
 });

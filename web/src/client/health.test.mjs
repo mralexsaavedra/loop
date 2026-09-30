@@ -238,3 +238,12 @@ test('resilience: a non-finite avg30 / d30 never prints NaN or Infinity; one bro
   assert.match(html, /70<small>ms/, 'the HRV card renders after the broken resting-HR card');
   assert.match(html, /30-day avg 61 ms/);
 });
+
+test('body composition: body fat and lean mass say how many readings their window holds', () => {
+  const bc = (latest) => ({ latest, latestDate: '2026-06-01', source: 'Scale', points: 30, windowPoints: 4, windowDays: 150, delta: -0.8, spark: null });
+  const html = renderWith({
+    body: { hasData: true, bodyfat: bc(18.2), lean: bc(62.1) },
+    activity: none, energy: none, running: none, recovery: none, loadRecovery: none,
+  });
+  assert.equal(html.split('4 readings in the last 150 days').length - 1, 2);
+});

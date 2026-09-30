@@ -65,9 +65,9 @@ const METRICS = {
     row: (date, v) => `${date},${Math.round(v)}` },
   basal_energy:  { kind: 'daily', csv: 'basal-energy-daily.csv', header: KCAL_HEADER, metaKey: 'basal_energy', sourceCol: null,
     row: (date, v) => `${date},${Math.round(v)}` },
-  // Sleeping wrist temperature: one sample per night, dated by its START date exactly like
-  // extract.js (no sleep-night roll-over), so a 23:xx and a 00:xx sample land on different dates.
-  wrist_temp:  { kind: 'point', csv: 'wristTemp.csv', header: S.READING_HEADER, metaKey: 'wristTemp', fmt: v => +v.toFixed(2) },
+  // Sleeping wrist temperature: one sample per night, dated by the wake-up night exactly like
+  // extract.js and sleep-daily.csv (samples.js wristTempDate: a 23:xx and a 00:xx start agree).
+  wrist_temp:  { kind: 'point', csv: 'wristTemp.csv', header: S.READING_HEADER, metaKey: 'wristTemp', dateOf: S.wristTempDate, fmt: v => +v.toFixed(2) },
   // Cardio Recovery (bpm drop 1 min after a workout): one row per workout sample (per-day means
   // would hide which session it was; readers can average). extract.js writes the same CSV.
   hr_recovery: { kind: 'point', csv: 'hr-recovery.csv', header: S.READING_HEADER, metaKey: 'hrRecovery', fmt: v => +v.toFixed(1) },
@@ -220,19 +220,10 @@ function collectSamples(payloads) {
   return samplesOf(foldPayloads(emptyCache(), payloads.map((payload, i) => ({ id: String(i + 1), payload }))));
 }
 
-// total minutes covered by the union of intervals (overlaps counted once). The Shortcut carries
-// no per-sample source, so this stands in for extract.js's "max across sources": for a single
-// device it equals the plain sum; for overlapping devices it avoids the double count.
-function unionMinutes(intervals) {
-  const iv = intervals.map(i => [S.absMs(i.start), S.absMs(i.end)]).filter(([a, b]) => b > a).sort((x, y) => x[0] - y[0]);
-  let total = 0, curA = null, curB = null;
-  for (const [a, b] of iv) {
-    if (curB == null || a > curB) { if (curB != null) total += curB - curA; curA = a; curB = b; }
-    else if (b > curB) curB = b;
-  }
-  if (curB != null) total += curB - curA;
-  return total / 60000;
-}
+// total minutes covered by the union of intervals (overlaps counted once), shared with
+// samples.js sleepNights: the Shortcut carries no per-sample source, so all its segments are one
+// source and overlapping devices are never double-counted.
+const unionMinutes = S.unionMinutes;
 
 const byStart = (a, b) => (S.absMs(a.start) - S.absMs(b.start)) || (a.start < b.start ? -1 : a.start > b.start ? 1 : 0);
 
@@ -240,8 +231,9 @@ const byStart = (a, b) => (S.absMs(a.start) - S.absMs(b.start)) || (a.start < b.
 function buildRows(metric, samples) {
   const def = METRICS[metric];
   if (def.kind === 'point') {
+    const dateOf = def.dateOf || S.day;
     return [...samples].sort(byStart).map(s => {
-      const date = S.day(s.start);
+      const date = dateOf(s.start, s.end);
       return { date, line: S.readingRow({ date, value: def.fmt(s.value), source: (def.withSource && s.source && s.source.replace(/,/g, ' ')) || SHORTCUT_SOURCE }) };
     });
   }
@@ -268,24 +260,10 @@ function buildRows(metric, samples) {
   if (def.kind === 'daily') {
     return [...samples].sort(byStart).map(s => { const date = S.day(s.start); return { date, line: def.row(date, s.value) }; });
   }
-  // sleep: asleep stages only, grouped by wake-up night (same rule as extract.js)
-  const nights = new Map();
-  for (const s of samples) {
-    if (!isAsleep(s.stage) || !(S.minutesBetween(s.start, s.end) > 0)) continue;
-    const night = S.sleepNight(s.start);
-    const arr = nights.get(night) || [];
-    arr.push(s);
-    nights.set(night, arr);
-  }
-  return [...nights.keys()].sort().map(date => {
-    const segs = nights.get(date);
-    const ck = { start: segs[0].start, end: segs[0].end };
-    for (const s of segs) {
-      if (S.absMs(s.start) < S.absMs(ck.start)) ck.start = s.start;
-      if (S.absMs(s.end) > S.absMs(ck.end)) ck.end = s.end;
-    }
-    return { date, line: S.sleepRow(date, unionMinutes(segs), SHORTCUT_SOURCE, ck) };
-  });
+  // sleep: asleep stages only, main sleep per wake-up night, naps excluded (samples.js
+  // sleepNights, the same rule as extract.js)
+  const segs = samples.filter(s => isAsleep(s.stage)).map(s => ({ start: s.start, end: s.end, source: SHORTCUT_SOURCE }));
+  return S.sleepNights(segs).map(n => ({ date: n.date, line: S.sleepRow(n.date, n.minutes, n.source, n.ck) }));
 }
 
 // Merge shortcut rows into an existing CSV text (null = no file). Rows the sync wrote before
@@ -298,7 +276,7 @@ function mergeCsv(existingText, header, rows, opts = {}) {
 }
 
 const range = dates => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a');
-const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of asleep intervals per night; Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored). Shortcut dietary = diet_kcal/diet_protein/diet_carbs/diet_fat day totals joined into one row per day (no kcal = no row).';
+const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of the main-sleep asleep intervals per wake-up night (naps excluded, samples.js sleepNights); Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored). Shortcut dietary = diet_kcal/diet_protein/diet_carbs/diet_fat day totals joined into one row per day (no kcal = no row).';
 
 // Pure: refresh the rows/ranges extract.js wrote for the touched CSVs + record the sync.
 // Deterministic (no timestamps) so re-running an unchanged sync rewrites identical bytes.

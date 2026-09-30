@@ -197,8 +197,10 @@
       if (B.hasData) {
         out.push(sub('body'));
         if (B.weight) add(function () { return trend(T.trend.weight.title, nf(B.weight.latest) + '<small>' + T.trend.weight.unit + '</small>', delta(B.weight.d30, T.trend.weight.deltaUnit, 0), B.weight.spark, { date: B.weight.latestDate }); });
-        if (B.bodyfat) add(function () { return trend(T.trend.bodyfat.title, nf(B.bodyfat.latest) + '<small>' + T.trend.bodyfat.unit + '</small>', delta(B.bodyfat.delta, T.trend.bodyfat.deltaUnit, -1), B.bodyfat.spark, { date: B.bodyfat.latestDate }); });
-        if (B.lean) add(function () { return trend(T.trend.lean.title, nf(B.lean.latest) + '<small>' + T.trend.lean.unit + '</small>', delta(B.lean.delta, T.trend.lean.deltaUnit, 1), B.lean.spark, { date: B.lean.latestDate }); });
+        // bioimpedance: the Δ and sparkline cover only the recent window, so say how many readings it holds
+        var bcPts = function (m) { return m.windowPoints != null && m.windowDays != null ? esc(format(T.bodyCompPointsTpl, { n: m.windowPoints, days: m.windowDays })) : ''; };
+        if (B.bodyfat) add(function () { return trend(T.trend.bodyfat.title, nf(B.bodyfat.latest) + '<small>' + T.trend.bodyfat.unit + '</small>', [delta(B.bodyfat.delta, T.trend.bodyfat.deltaUnit, -1), bcPts(B.bodyfat)].filter(Boolean).join(' · '), B.bodyfat.spark, { date: B.bodyfat.latestDate }); });
+        if (B.lean) add(function () { return trend(T.trend.lean.title, nf(B.lean.latest) + '<small>' + T.trend.lean.unit + '</small>', [delta(B.lean.delta, T.trend.lean.deltaUnit, 1), bcPts(B.lean)].filter(Boolean).join(' · '), B.lean.spark, { date: B.lean.latestDate }); });
         if (B.waist) add(function () { return trend(format(T.waist.titleTpl, { date: fmtD(B.waist.latestDate) }), nf(B.waist.latest) + '<small>' + T.waist.unit + '</small>', delta(B.waist.delta, T.waist.deltaUnit, -1), B.waist.spark); });
         var wsrc = B.weight ? B.weight.source : '', bsrc = B.bodyfat ? B.bodyfat.source : '';
         var sourcesClause = B.weight ? format(T.bodyNote.sourcesClause, { n: B.weight.sources }) : '';
