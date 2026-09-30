@@ -3,6 +3,7 @@ import { isAuthorized } from './auth.js'
 import { createPool, migrate, insertRawPayload, ping } from './db.js'
 import { createStravaSync, startSyncLoop, isConfigured as stravaConfigured } from './sync.js'
 import { createExportHandler, createStravaExportHandler } from './export.js'
+import { createAthleteExportHandler } from './athlete.js'
 import { createSyncStatus } from './status.js'
 import { createTriggerWriter, createSyncTrigger, readTriggerSeq } from './trigger.js'
 import { createSyncRoutes } from './sync-routes.js'
@@ -24,6 +25,7 @@ if (!DATABASE_URL) {
 const pool = createPool(DATABASE_URL)
 const handleExport = createExportHandler({ pool, token: INGEST_TOKEN })
 const handleStravaExport = createStravaExportHandler({ pool, token: INGEST_TOKEN })
+const handleAthleteExport = createAthleteExportHandler({ pool, token: INGEST_TOKEN })
 
 // Strava is optional: without credentials the service still ingests Apple Health.
 const STRAVA_ENABLED = stravaConfigured(process.env)
@@ -164,6 +166,11 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && url.pathname === '/export/strava') {
       await handleStravaExport(req, res, url)
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/export/athlete') {
+      await handleAthleteExport(req, res)
       return
     }
 

@@ -49,6 +49,25 @@ test('works without a status recorder', async () => {
   assert.deepEqual(await runOnce(), { count: 0 })
 })
 
+test('createStravaSync refreshes the athlete snapshot after the activity pull; a profile failure never fails the run', async () => {
+  const { createStravaSync } = await import('../src/sync.js')
+  const client = { query: async () => ({ rows: [] }), release () {} }
+  const pool = { connect: async () => client, query: async () => ({ rows: [] }) }
+  const urls = []
+  const fetchImpl = async (url) => {
+    const u = String(url)
+    urls.push(u)
+    if (u.includes('/oauth/token')) return { ok: true, status: 200, json: async () => ({ access_token: 't', expires_at: Math.floor(Date.now() / 1000) + 3600 }) }
+    if (u.includes('/athlete/activities')) return { ok: true, status: 200, json: async () => [] }
+    return { ok: false, status: 500 }
+  }
+  const sync = createStravaSync(pool, { STRAVA_CLIENT_ID: 'i', STRAVA_CLIENT_SECRET: 's', STRAVA_REFRESH_TOKEN: 'r' }, { fetchImpl, log: () => {} })
+  const result = await sync.runOnce()
+  assert.equal(result.count, 0)
+  assert.equal(result.athlete, 'failed')
+  assert.ok(urls.some((u) => u.endsWith('/api/v3/athlete')), 'the athlete endpoint was called')
+})
+
 test('a rejected token is recorded as strava_auth', async () => {
   const status = fakeStatus()
   const runOnce = guardSync(async () => { throw new Error('strava token refresh failed: 401') }, { status })

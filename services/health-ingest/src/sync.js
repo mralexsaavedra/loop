@@ -1,4 +1,5 @@
 import { createTokenProvider, createTokenStore, fetchActivitiesSince, upsertActivities, lastSyncedStart, classifyStravaError } from './strava.js'
+import { createAthleteRefresher } from './athlete.js'
 
 const DEFAULT_INTERVAL_MINUTES = 30
 // How far back to re-read on every run, so an activity edited after upload
@@ -36,15 +37,19 @@ export function guardSync (run, { status = null } = {}) {
   }
 }
 
-export function createStravaSync (pool, env, { status = null } = {}) {
+export function createStravaSync (pool, env, { status = null, fetchImpl = fetch, log = console.log } = {}) {
   const getAccessToken = createTokenProvider({
     clientId: env.STRAVA_CLIENT_ID,
     clientSecret: env.STRAVA_CLIENT_SECRET,
     // bootstrap only: a rotated token persisted in strava_token wins (strava.js)
     refreshToken: env.STRAVA_REFRESH_TOKEN,
     store: createTokenStore(pool),
-    onSaveResult: status ? (ok) => status.recordTokenSave(ok) : null
+    onSaveResult: status ? (ok) => status.recordTokenSave(ok) : null,
+    fetchImpl
   })
+  // the athlete profile + gear snapshot rides on the same run, at most once per 24 h (athlete.js);
+  // it never throws, so a profile failure can not fail the activity pull or its status
+  const athlete = createAthleteRefresher({ pool, getAccessToken, fetchImpl, log })
 
   async function runOnce () {
     const newest = await lastSyncedStart(pool)
@@ -54,9 +59,9 @@ export function createStravaSync (pool, env, { status = null } = {}) {
       ? Math.floor((new Date(newest).getTime() - OVERLAP_DAYS * 86_400_000) / 1000)
       : null
 
-    const activities = await fetchActivitiesSince(getAccessToken, since)
+    const activities = await fetchActivitiesSince(getAccessToken, since, fetchImpl)
     const count = await upsertActivities(pool, activities)
-    return { count, since }
+    return { count, since, athlete: await athlete.maybeRefresh() }
   }
 
   return { runOnce: guardSync(runOnce, { status }) }
