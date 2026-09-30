@@ -35,9 +35,18 @@ const clockHour = dt => +(+dt.slice(11, 13) + (+dt.slice(14, 16)) / 60).toFixed(
 // a sleep segment belongs to the WAKE-UP date: starts at/after 18:00 roll to the next day,
 // so an evening->morning night is never split across two rows
 const sleepNight = start => (+start.slice(11, 13) >= 18 ? addDay(day(start)) : day(start));
-// Sleeping wrist temperature is one sample per night that starts when sleep starts (23:xx or
-// 00:xx): dated by the same wake-up night as sleep-daily.csv, so both describe the same night.
-const wristTempDate = start => sleepNight(start);
+// Night of an interval by its MIDPOINT (wall clock), with the 18:00 roll-over: the rule every sleep
+// block is dated by (sleepBlocks), so an evening-to-morning night is never split across two rows.
+function midpointNight(start, end) {
+  const midIso = new Date((localMs(start) + localMs(end)) / 2).toISOString(); // wall clock read as UTC
+  const date = midIso.slice(0, 10);
+  return +midIso.slice(11, 13) >= 18 ? addDay(date) : date;
+}
+// Sleeping wrist temperature is one sample per night spanning the sleep: dated by the SAME rule as a
+// sleep block (midpoint + 18:00 roll-over), so a 17:30-23:30 sample and the sleep-daily.csv row of
+// that block describe the same night. A sample with no end (Shortcut point payloads carry only the
+// start) falls back to the start-based sleepNight, which agrees for the usual 23:xx / 00:xx starts.
+const wristTempDate = (start, end) => (end ? midpointNight(start, end) : sleepNight(start));
 
 // total minutes covered by the union of intervals [{start, end}] (overlaps counted once)
 function unionMinutes(intervals) {
@@ -57,12 +66,20 @@ function unionMinutes(intervals) {
  * (so a nap that crosses 18:00 is never split across two nights). A block whose midpoint falls in
  * the plausible main-sleep window of its night (MAIN_FROM_HOUR the evening before .. MAIN_TO_HOUR
  * on the wake-up day) can be main sleep: the longest such block is the ANCHOR, and other in-window
- * blocks within SPLIT_GAP_MIN of it join the night (a split night with a long 3 am wake-up stays
- * one night). Everything else is a NAP and adds neither minutes nor bed/wake times; a day with
- * only naps has no night row. Across sources the one with the most main-sleep minutes wins (the
- * max-across-sources rule that avoids a cross-device double count). */
+ * blocks join the night when the awake gap to it is short enough: up to SPLIT_GAP_MIN for a block
+ * BEFORE the anchor or one that starts before MID_NIGHT_BEFORE_HOUR on the wake-up date (a split
+ * night with a long 3 am wake-up stays one night), but only up to AFTER_END_GAP_MIN for a block that
+ * starts AFTER the night's end at or after that hour (so a morning nap at 09:00 after waking at 06:30
+ * is not absorbed into the night, while dozing off again within the hour still is). Everything else
+ * is a NAP and adds neither minutes nor bed/wake times; a day with only naps has no night row.
+ * Across sources the one with the most main-sleep minutes wins (the max-across-sources rule that
+ * avoids a cross-device double count).
+ * Known limitation: night-shift sleep (a main sleep by day, e.g. 09:00-16:00) falls outside the
+ * main-sleep window and is treated as a nap; supporting it would need a per-user sleep window. */
 const BLOCK_GAP_MIN = 60; // longer awake gaps start a new block
 const SPLIT_GAP_MIN = 180; // an awake stretch this long mid-night still belongs to the night
+const AFTER_END_GAP_MIN = 60; // a block starting after the night ended joins only within this gap
+const MID_NIGHT_BEFORE_HOUR = 5; // a block starting before 05:00 on the wake-up date is mid-night
 const MAIN_FROM_HOUR = 20; // evening before the wake-up date
 const MAIN_TO_HOUR = 12; // wake-up date
 const MIN_MS = 60000;
@@ -83,9 +100,7 @@ function sleepBlocks(segs) {
   }
   for (const bl of blocks) {
     const mid = (localMs(bl.start) + localMs(bl.end)) / 2;
-    const midIso = new Date(mid).toISOString(); // wall clock read as UTC
-    const date = midIso.slice(0, 10), hour = +midIso.slice(11, 13);
-    bl.night = hour >= 18 ? addDay(date) : date;
+    bl.night = midpointNight(bl.start, bl.end);
     const prev = new Date(bl.night + 'T00:00:00Z'); prev.setUTCDate(prev.getUTCDate() - 1);
     const from = Date.parse(prev.toISOString().slice(0, 10) + `T${String(MAIN_FROM_HOUR).padStart(2, '0')}:00:00Z`);
     const to = Date.parse(bl.night + `T${String(MAIN_TO_HOUR).padStart(2, '0')}:00:00Z`);
@@ -100,13 +115,16 @@ function mainSleep(blocks) {
   const cand = blocks.filter(b => b.main);
   if (!cand.length) return null;
   const anchor = cand.reduce((x, y) => (y.minutes > x.minutes ? y : x));
+  const midNightEnd = Date.parse(anchor.night + `T${String(MID_NIGHT_BEFORE_HOUR).padStart(2, '0')}:00:00Z`);
+  // awake gap a block may have to the current night span [a, b] and still join it (see above)
+  const maxGap = (bl, b) => (bl.a > b && localMs(bl.start) >= midNightEnd ? AFTER_END_GAP_MIN : SPLIT_GAP_MIN);
   const kept = [anchor];
   let a = anchor.a, b = anchor.b, grew = true;
   while (grew) {
     grew = false;
     for (const bl of cand) {
       if (kept.includes(bl)) continue;
-      if (Math.max(bl.a - b, a - bl.b) <= SPLIT_GAP_MIN * MIN_MS) {
+      if (Math.max(bl.a - b, a - bl.b) <= maxGap(bl, b) * MIN_MS) {
         kept.push(bl); a = Math.min(a, bl.a); b = Math.max(b, bl.b); grew = true;
       }
     }

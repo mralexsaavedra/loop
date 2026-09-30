@@ -140,3 +140,45 @@ test('wristTempDate(): sleeping wrist temperature is dated by the wake-up night,
   assert.equal(s.wristTempDate('2030-01-01 23:10:00 +0100'), '2030-01-02');
   assert.equal(s.wristTempDate('2030-01-02 00:20:00 +0100'), '2030-01-02');
 });
+
+test('sleepNights(): a morning nap starting 2.5 h after the night ends is NOT absorbed (after-end gap cap)', () => {
+  const rows = nightRows([
+    seg('2030-01-01 23:00:00 +0100', '2030-01-02 06:30:00 +0100'),
+    seg('2030-01-02 09:00:00 +0100', '2030-01-02 10:00:00 +0100'),
+  ]);
+  assert.deepEqual(rows, ['2030-01-02,7.50,W,23,6.5']);
+});
+
+test('sleepNights(): falling back asleep within the after-end gap after an early-morning wake still joins the night', () => {
+  const rows = nightRows([
+    seg('2030-01-01 23:00:00 +0100', '2030-01-02 05:30:00 +0100'),
+    seg('2030-01-02 06:25:00 +0100', '2030-01-02 07:30:00 +0100'), // 55 min awake, starts after 05:00
+  ]);
+  assert.deepEqual(rows, ['2030-01-02,7.58,W,23,7.5']);
+});
+
+test('sleepNights(): a 1 h wake at 02:30 (23:00-02:30 + 03:30-07:00) is one night', () => {
+  const rows = nightRows([
+    seg('2030-01-01 23:00:00 +0100', '2030-01-02 02:30:00 +0100'),
+    seg('2030-01-02 03:30:00 +0100', '2030-01-02 07:00:00 +0100'),
+  ]);
+  assert.deepEqual(rows, ['2030-01-02,7.00,W,23,7']);
+});
+
+test('sleepNights(): a mid-night wake-up longer than the after-end cap still joins when the block starts before 05:00', () => {
+  const rows = nightRows([
+    seg('2030-01-01 23:00:00 +0100', '2030-01-02 01:30:00 +0100'),
+    seg('2030-01-02 03:30:00 +0100', '2030-01-02 08:00:00 +0100'), // 2 h awake, back asleep at 03:30
+  ]);
+  assert.deepEqual(rows, ['2030-01-02,7.00,W,23,8']);
+});
+
+test('wristTempDate(start, end): dated by the midpoint with the 18:00 roll-over, exactly like a sleep block', () => {
+  // a 17:30-23:30 block: its midpoint (20:30) belongs to the next wake-up date, like sleepNights
+  assert.equal(s.wristTempDate('2030-01-01 17:30:00 +0100', '2030-01-01 23:30:00 +0100'), '2030-01-02');
+  const nights = s.sleepNights([seg('2030-01-01 17:30:00 +0100', '2030-01-01 23:30:00 +0100')]);
+  assert.equal(nights[0].date, '2030-01-02', 'sleepNights dates the same block identically');
+  assert.equal(s.wristTempDate('2030-01-01 23:10:00 +0100', '2030-01-02 07:00:00 +0100'), '2030-01-02');
+  // without an end (a Shortcut point sample) the start alone decides, as before
+  assert.equal(s.wristTempDate('2030-01-01 17:30:00 +0100'), '2030-01-01');
+});
