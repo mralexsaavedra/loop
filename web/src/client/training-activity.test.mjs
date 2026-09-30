@@ -22,7 +22,7 @@ for (let i = 30; i < 60; i += 3) rows.push({ date: addDays(ASOF, -i), type: 'Hig
 rows.push({ date: ASOF, type: 'Cycling', dur: 45 });
 const ACT = activityFromRows(rows);
 
-function render(activity, { locale = 'en', now = ASOF, at } = {}) {
+function render(activity, { locale = 'en', now = ASOF, at, detail = false } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
   const stamp = at || now + 'T12:00:00';
@@ -34,12 +34,24 @@ function render(activity, { locale = 'en', now = ASOF, at } = {}) {
     document: { getElementById: (id) => (id === 'train-activity' ? host : null) },
     ACTIVITY: activity == null ? activity : activityBake(activity), I18N_ACTIVITY: locale === 'es' ? esT : enT, LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
+  if (detail) ctx.DETAIL = { metrics: {} };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
   return host.innerHTML;
 }
 const cells = (html) => [...html.matchAll(/<rect class="cal-cell cal-l(\d)"[^>]*><title>([^<]*)<\/title>/g)].map((m) => ({ level: +m[1], title: m[2] }));
+
+test('the calendar and the cumulative chart open the training-time detail; a tap on a day cell opens that day', () => {
+  const html = render(ACT, { detail: true });
+  const secs = [...html.matchAll(/<div class="dash-sec"([^>]*)>/g)].map((m) => m[1]);
+  assert.deepEqual(secs, [' data-detail="workouts" role="button" tabindex="0" aria-haspopup="dialog"', ' data-detail="workouts" role="button" tabindex="0" aria-haspopup="dialog"']);
+  const days = [...html.matchAll(/<rect class="cal-cell cal-l\d" data-detail="workouts" data-date="(\d{4}-\d{2}-\d{2})"/g)].map((m) => m[1]);
+  assert.equal(days.length, 30);
+  assert.equal(days[29], ASOF);
+  assert.doesNotMatch(html, /<rect[^>]*tabindex/, 'cells are mouse targets; the section is the keyboard opener');
+  assert.doesNotMatch(render(ACT), /data-detail/, 'no detail sheet baked: plain calendar');
+});
 
 test('calendar: 30 day cells ending at the viewer\'s today, level by total minutes, a title per cell (hover)', () => {
   const html = render(ACT);

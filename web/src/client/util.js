@@ -89,6 +89,16 @@ var HC = (function () {
     var d = parseIso(iso);
     return format(N.monthTpl, { month: N.monthsLong[d.getMonth()], year: d.getFullYear() });
   }
+  // The ONE opener markup of the detail sheet (client/detail.js listens for [data-detail] clicks and
+  // Enter / Space): data-detail="<metric>" [data-date="<iso>"] plus a button role and a tab stop;
+  // opts.plain = only the data attributes (a real <button>, or a mouse-only target such as an SVG
+  // calendar cell or a table row whose keyboard path is another opener). '' when the sheet is not baked.
+  function detailAttrs(key, date, opts) {
+    if (typeof DETAIL === 'undefined') return '';
+    var d = isoDate(date);
+    var out = ' data-detail="' + esc(key) + '"' + (d ? ' data-date="' + d + '"' : '');
+    return opts && opts.plain ? out : out + ' role="button" tabindex="0" aria-haspopup="dialog"';
+  }
   // minutes -> "1 h 45 min" / "45 min" / "1 h"; units = {h, min} from the page's i18n dict
   function duration(min, units) {
     min = Math.round(min);
@@ -114,5 +124,6 @@ var HC = (function () {
     weekdayIndex: weekdayIndex,
     fmtDate: fmtDate,
     fmtMonth: fmtMonth,
+    detailAttrs: detailAttrs,
   };
 })();

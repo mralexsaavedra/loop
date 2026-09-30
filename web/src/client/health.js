@@ -69,13 +69,14 @@
   }
   // Today first: the headline is the newest value; `opt.date` tags it with its date (a daily total
   // dated today reads "today, so far", since it is partial until midnight); `ctxHtml` (30-day mean
-  // and/or Δ) is the context line under it; `opt.id` = an hl-<key> anchor for Inicio's monitor.
+  // and/or Δ) is the context line under it; `opt.id` = an hl-<key> anchor for Inicio's monitor;
+  // `opt.detail` = the detail-sheet metric a tap on the card opens (client/detail.js).
   function trend(title, valHtml, ctxHtml, sp, opt) {
     opt = opt || {};
     var ax = sp ? '<div class="spark-ax"><span>' + esc(fmtD(sp.from)) + '</span><span>' + esc(fmtD(sp.to)) + '</span></div>' : '';
     var when = opt.date ? (opt.soFar && daysOld(opt.date) === 0 ? T.soFar : fmtD(opt.date)) : '';
     return (
-      '<div class="mtrend"' + (opt.id ? ' id="hl-' + opt.id + '"' : '') + '><div class="mtrend-top"><h4>' + esc(title) + '</h4>' +
+      '<div class="mtrend"' + (opt.id ? ' id="hl-' + opt.id + '"' : '') + (opt.detail ? HC.detailAttrs(opt.detail) : '') + '><div class="mtrend-top"><h4>' + esc(title) + '</h4>' +
       '<div class="mtrend-val">' + valHtml + (when ? '<span class="mtrend-date">' + esc(when) + '</span>' : '') + '</div></div>' +
       (ctxHtml ? '<div class="mtrend-ctx">' + ctxHtml + '</div>' : '') + sparkSvg(sp) + ax + '</div>'
     );
@@ -92,6 +93,15 @@
     return '<div class="dash-note">' + html + '</div>';
   }
 
+  // A run / ride row opens that day in its load view (client/detail.js): the whole row is a mouse
+  // target and the date cell holds a real button for keyboards. Plain '<tr><td>date' when the detail
+  // sheet is not baked. Returns the row up to the opening of its second cell.
+  function rowOpen(key, date) {
+    var attrs = HC.detailAttrs(key, date, { plain: true });
+    if (!attrs) return '<tr><td>' + esc(fmtD(date)) + '</td><td>';
+    return '<tr' + attrs + '><td class="dt-cell"><button type="button" class="dt-row-btn"' + attrs + ' aria-haspopup="dialog">' + esc(fmtD(date)) + '</button></td><td>';
+  }
+
   function runsTable(s) {
     var RT = T.runningTable;
     // same leading columns as the rides table (workouts.csv), then the watch running dynamics
@@ -99,7 +109,7 @@
     var rows = s
       .map(function (r) {
         var d = function (v, u) { return v != null ? nf(v) + u : '—'; };
-        return '<tr><td>' + esc(fmtD(r.date)) + '</td><td>' + d(r.dist, ' km') + '</td><td>' + esc(r.time) + '</td><td>' + (r.pace ? esc(r.pace) + '/km' : '—') + '</td><td>' + d(r.hrAvg, ' ' + T.trend.rhr.unit) + '</td><td>' + d(r.re, '') + '</td><td>' + d(r.elev, ' m') + '</td><td>' + d(r.power, ' W') + '</td><td>' + d(r.gct, ' ms') + '</td><td>' + d(r.vosc, ' cm') + '</td><td>' + d(r.stride, ' m') + '</td></tr>';
+        return rowOpen('load-run', r.date) + d(r.dist, ' km') + '</td><td>' + esc(r.time) + '</td><td>' + (r.pace ? esc(r.pace) + '/km' : '—') + '</td><td>' + d(r.hrAvg, ' ' + T.trend.rhr.unit) + '</td><td>' + d(r.re, '') + '</td><td>' + d(r.elev, ' m') + '</td><td>' + d(r.power, ' W') + '</td><td>' + d(r.gct, ' ms') + '</td><td>' + d(r.vosc, ' cm') + '</td><td>' + d(r.stride, ' m') + '</td></tr>';
       })
       .join('');
     return '<div class="run-tbl-wrap"><table class="run-tbl">' + head + rows + '</table></div>';
@@ -111,7 +121,7 @@
     var rows = s
       .map(function (r) {
         var d = function (v, u) { return v != null ? nf(v) + u : '—'; };
-        return '<tr><td>' + esc(fmtD(r.date)) + '</td><td>' + d(r.dist, ' km') + '</td><td>' + esc(r.time) + '</td><td>' + d(r.elev, ' m') + '</td><td>' + d(r.hrAvg, ' ' + T.trend.rhr.unit) + '</td><td>' + d(r.re, '') + '</td><td>' + d(r.kj, ' kJ') + '</td></tr>';
+        return rowOpen('load-bike', r.date) + d(r.dist, ' km') + '</td><td>' + esc(r.time) + '</td><td>' + d(r.elev, ' m') + '</td><td>' + d(r.hrAvg, ' ' + T.trend.rhr.unit) + '</td><td>' + d(r.re, '') + '</td><td>' + d(r.kj, ' kJ') + '</td></tr>';
       })
       .join('');
     return '<div class="run-tbl-wrap"><table class="run-tbl">' + head + rows + '</table></div>';
@@ -174,16 +184,16 @@
       }
       var TR = T.trend;
       if (R.hasData) {
-        if (R.rhr) add(function () { return trend(TR.rhr.title, R.rhr.latest + '<small>' + TR.rhr.unit + '</small>', ctx(T.avg30Tpl, R.rhr.avg30, ' ' + TR.rhr.unit, delta(R.rhr.d30, TR.rhr.deltaUnit, -1)), R.rhr.spark, { date: R.rhr.latestDate, id: 'rhr' }); });
-        if (R.hrv) add(function () { return trend(TR.hrv.title, R.hrv.latest + '<small>' + TR.hrv.unit + '</small>', ctx(T.avg30Tpl, R.hrv.avg30, ' ' + TR.hrv.unit, delta(R.hrv.d30, TR.hrv.deltaUnit, 1)), R.hrv.spark, { date: R.hrv.latestDate, id: 'hrv' }); });
-        if (R.vo2max) add(function () { return trend(TR.vo2max.title, nf(R.vo2max.latest) + '<small>' + TR.vo2max.unit + '</small>', delta(Math.round((R.vo2max.latest - R.vo2max.first) * 10) / 10, '', 1), R.vo2max.spark, { date: R.vo2max.latestDate }); });
-        if (R.walkingHr) add(function () { return trend(TR.walkingHr.title, R.walkingHr.latest + '<small>' + TR.walkingHr.unit + '</small>', ctx(T.avg30Tpl, R.walkingHr.avg30, ' ' + TR.walkingHr.unit, delta(R.walkingHr.d30, TR.walkingHr.deltaUnit, -1)), R.walkingHr.spark, { date: R.walkingHr.latestDate }); });
-        if (R.respiratory) add(function () { return trend(TR.respiratory.title, nf(R.respiratory.latest) + '<small>' + TR.respiratory.unit + '</small>', ctx(T.avg30Tpl, R.respiratory.avg30, ' ' + TR.respiratory.unit, delta(R.respiratory.d30, '', 0)), R.respiratory.spark, { date: R.respiratory.latestDate, id: 'respiratory' }); });
-        if (R.wristTemp) add(function () { return trend(TR.wristTemp.title, nf(R.wristTemp.latest) + '<small>' + TR.wristTemp.unit + '</small>', ctx(T.avg30Tpl, R.wristTemp.avg30, ' ' + TR.wristTemp.unit, ''), R.wristTemp.spark, { date: R.wristTemp.latestDate, id: 'wristTemp' }); });
+        if (R.rhr) add(function () { return trend(TR.rhr.title, R.rhr.latest + '<small>' + TR.rhr.unit + '</small>', ctx(T.avg30Tpl, R.rhr.avg30, ' ' + TR.rhr.unit, delta(R.rhr.d30, TR.rhr.deltaUnit, -1)), R.rhr.spark, { date: R.rhr.latestDate, id: 'rhr', detail: 'rhr' }); });
+        if (R.hrv) add(function () { return trend(TR.hrv.title, R.hrv.latest + '<small>' + TR.hrv.unit + '</small>', ctx(T.avg30Tpl, R.hrv.avg30, ' ' + TR.hrv.unit, delta(R.hrv.d30, TR.hrv.deltaUnit, 1)), R.hrv.spark, { date: R.hrv.latestDate, id: 'hrv', detail: 'hrv' }); });
+        if (R.vo2max) add(function () { return trend(TR.vo2max.title, nf(R.vo2max.latest) + '<small>' + TR.vo2max.unit + '</small>', delta(Math.round((R.vo2max.latest - R.vo2max.first) * 10) / 10, '', 1), R.vo2max.spark, { date: R.vo2max.latestDate, detail: 'vo2max' }); });
+        if (R.walkingHr) add(function () { return trend(TR.walkingHr.title, R.walkingHr.latest + '<small>' + TR.walkingHr.unit + '</small>', ctx(T.avg30Tpl, R.walkingHr.avg30, ' ' + TR.walkingHr.unit, delta(R.walkingHr.d30, TR.walkingHr.deltaUnit, -1)), R.walkingHr.spark, { date: R.walkingHr.latestDate, detail: 'walkingHr' }); });
+        if (R.respiratory) add(function () { return trend(TR.respiratory.title, nf(R.respiratory.latest) + '<small>' + TR.respiratory.unit + '</small>', ctx(T.avg30Tpl, R.respiratory.avg30, ' ' + TR.respiratory.unit, delta(R.respiratory.d30, '', 0)), R.respiratory.spark, { date: R.respiratory.latestDate, id: 'respiratory', detail: 'respiratory' }); });
+        if (R.wristTemp) add(function () { return trend(TR.wristTemp.title, nf(R.wristTemp.latest) + '<small>' + TR.wristTemp.unit + '</small>', ctx(T.avg30Tpl, R.wristTemp.avg30, ' ' + TR.wristTemp.unit, ''), R.wristTemp.spark, { date: R.wristTemp.latestDate, id: 'wristTemp', detail: 'wristTemp' }); });
         /* sleep: its own section; the heading is the hl-sleep anchor (sleep dial + monitor card) */
         if (R.sleep) {
           out.push(sub('sleep'));
-          add(function () { return trend(TR.sleep.title, nf(R.sleep.latest) + '<small>' + TR.sleep.unit + '</small>', ctx(T.avgNightsTpl, R.sleep.avg, ' ' + TR.sleep.unit, ''), R.sleep.spark, { date: R.sleep.latestDate }); });
+          add(function () { return trend(TR.sleep.title, nf(R.sleep.latest) + '<small>' + TR.sleep.unit + '</small>', ctx(T.avgNightsTpl, R.sleep.avg, ' ' + TR.sleep.unit, ''), R.sleep.spark, { date: R.sleep.latestDate, detail: 'sleep' }); });
           var sl = R.sleep, c2 = [];
           if (sl.pctTarget != null) c2.push(card(sl.pctTarget + '%', format(T.sleepCards.nightsTargetLbl, { target: nf(sl.target) })));
           if (sl.sd != null) c2.push(card('±' + nf(sl.sd) + ' h', T.sleepCards.sdLbl));
@@ -196,12 +206,12 @@
       /* body composition */
       if (B.hasData) {
         out.push(sub('body'));
-        if (B.weight) add(function () { return trend(T.trend.weight.title, nf(B.weight.latest) + '<small>' + T.trend.weight.unit + '</small>', delta(B.weight.d30, T.trend.weight.deltaUnit, 0), B.weight.spark, { date: B.weight.latestDate }); });
+        if (B.weight) add(function () { return trend(T.trend.weight.title, nf(B.weight.latest) + '<small>' + T.trend.weight.unit + '</small>', delta(B.weight.d30, T.trend.weight.deltaUnit, 0), B.weight.spark, { date: B.weight.latestDate, detail: 'weight' }); });
         // bioimpedance: the Δ and sparkline cover only the recent window, so say how many readings it holds
         var bcPts = function (m) { return m.windowPoints != null && m.windowDays != null ? esc(format(T.bodyCompPointsTpl, { n: m.windowPoints, days: m.windowDays })) : ''; };
-        if (B.bodyfat) add(function () { return trend(T.trend.bodyfat.title, nf(B.bodyfat.latest) + '<small>' + T.trend.bodyfat.unit + '</small>', [delta(B.bodyfat.delta, T.trend.bodyfat.deltaUnit, -1), bcPts(B.bodyfat)].filter(Boolean).join(' · '), B.bodyfat.spark, { date: B.bodyfat.latestDate }); });
-        if (B.lean) add(function () { return trend(T.trend.lean.title, nf(B.lean.latest) + '<small>' + T.trend.lean.unit + '</small>', [delta(B.lean.delta, T.trend.lean.deltaUnit, 1), bcPts(B.lean)].filter(Boolean).join(' · '), B.lean.spark, { date: B.lean.latestDate }); });
-        if (B.waist) add(function () { return trend(format(T.waist.titleTpl, { date: fmtD(B.waist.latestDate) }), nf(B.waist.latest) + '<small>' + T.waist.unit + '</small>', delta(B.waist.delta, T.waist.deltaUnit, -1), B.waist.spark); });
+        if (B.bodyfat) add(function () { return trend(T.trend.bodyfat.title, nf(B.bodyfat.latest) + '<small>' + T.trend.bodyfat.unit + '</small>', [delta(B.bodyfat.delta, T.trend.bodyfat.deltaUnit, -1), bcPts(B.bodyfat)].filter(Boolean).join(' · '), B.bodyfat.spark, { date: B.bodyfat.latestDate, detail: 'bodyfat' }); });
+        if (B.lean) add(function () { return trend(T.trend.lean.title, nf(B.lean.latest) + '<small>' + T.trend.lean.unit + '</small>', [delta(B.lean.delta, T.trend.lean.deltaUnit, 1), bcPts(B.lean)].filter(Boolean).join(' · '), B.lean.spark, { date: B.lean.latestDate, detail: 'lean' }); });
+        if (B.waist) add(function () { return trend(format(T.waist.titleTpl, { date: fmtD(B.waist.latestDate) }), nf(B.waist.latest) + '<small>' + T.waist.unit + '</small>', delta(B.waist.delta, T.waist.deltaUnit, -1), B.waist.spark, { detail: 'waist' }); });
         var wsrc = B.weight ? B.weight.source : '', bsrc = B.bodyfat ? B.bodyfat.source : '';
         var sourcesClause = B.weight ? format(T.bodyNote.sourcesClause, { n: B.weight.sources }) : '';
         var wsrcClause = wsrc ? format(T.bodyNote.sourceClause, { src: esc(wsrc) }) : '';
@@ -215,14 +225,14 @@
         ['steps', 'exercise', 'distance', 'flights'].forEach(function (k) {
           var a = A[k], tt = T.trend[k];
           if (!a) return;
-          add(function () { return trend(tt.title, nf(a.latest) + '<small>' + tt.unit + '</small>', ctx(T.avg30Tpl, a.avg30, tt.avgUnit, delta(a.d30, tt.deltaUnit, 1)), a.spark, { date: a.latestDate, soFar: true }); });
+          add(function () { return trend(tt.title, nf(a.latest) + '<small>' + tt.unit + '</small>', ctx(T.avg30Tpl, a.avg30, tt.avgUnit, delta(a.d30, tt.deltaUnit, 1)), a.spark, { date: a.latestDate, soFar: true, detail: k }); });
         });
         out.push(note(T.activityNoteHtml));
       }
       /* energy */
       if (E.hasData) {
         out.push(sub('energy'));
-        if (E.tdeeLatest != null) add(function () { return trend(T.trend.expenditure.title, nf(E.tdeeLatest) + '<small>' + T.trend.expenditure.unit + '</small>', ctx(T.avg30Tpl, E.tdeeAvg, T.trend.expenditure.avgUnit, ''), E.spark, { date: E.tdeeLatestDate, soFar: true }); });
+        if (E.tdeeLatest != null) add(function () { return trend(T.trend.expenditure.title, nf(E.tdeeLatest) + '<small>' + T.trend.expenditure.unit + '</small>', ctx(T.avg30Tpl, E.tdeeAvg, T.trend.expenditure.avgUnit, ''), E.spark, { date: E.tdeeLatestDate, soFar: true, detail: 'energy' }); });
         if (E.balance) {
           var b = E.balance;
           out.push(

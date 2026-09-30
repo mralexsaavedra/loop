@@ -80,6 +80,20 @@ test('fmtDate: one shared date formatter, "lun 29 sept" in es / "Mon 29 Sep" in 
   assert.equal(load({ I18N_DATE: null }).fmtMonth('2026-09-28'), '2026-09');
 });
 
+test('detailAttrs: the ONE opener markup for the detail sheet (data-detail [+ data-date], a 44px button role), empty when the sheet is not baked', () => {
+  const RealDate = Date;
+  const ctx = { LOCALE: 'en', HC_CONST: HC_CONST_BAKE, DETAIL: { metrics: {} }, Date: RealDate, Math, String, Number, Array, Object, JSON };
+  vm.createContext(ctx);
+  vm.runInContext(UTIL_SOURCE, ctx);
+  assert.equal(ctx.HC.detailAttrs('sleep'), ' data-detail="sleep" role="button" tabindex="0" aria-haspopup="dialog"');
+  assert.equal(ctx.HC.detailAttrs('load-run', '2026-09-20'), ' data-detail="load-run" data-date="2026-09-20" role="button" tabindex="0" aria-haspopup="dialog"');
+  assert.equal(ctx.HC.detailAttrs('hrv', 'bad'), ' data-detail="hrv" role="button" tabindex="0" aria-haspopup="dialog"', 'a non-ISO date is dropped');
+  // on an element that is already focusable (a <button>) or a mouse-only target (an SVG cell, a table row)
+  assert.equal(ctx.HC.detailAttrs('workouts', '2026-09-20', { plain: true }), ' data-detail="workouts" data-date="2026-09-20"');
+  assert.equal(ctx.HC.detailAttrs('a"b'), ' data-detail="a&quot;b" role="button" tabindex="0" aria-haspopup="dialog"');
+  assert.equal(load().detailAttrs('sleep'), '', 'no DETAIL baked: no opener');
+});
+
 test('weekdayIndex is Monday-first (0 = Monday … 6 = Sunday)', () => {
   const HC = load();
   assert.equal(HC.weekdayIndex('2026-09-28'), 0);

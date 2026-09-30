@@ -20,7 +20,7 @@ const TL = timelineFromInputs(
   [{ date: '2026-09-28', value: 7.1 }, { date: '2026-09-29', value: 6.86 }],
 );
 
-function render(timeline, { locale = 'en', now = ASOF, at, healthNav = false, entrenoNav = false, T, noLocale = false } = {}) {
+function render(timeline, { locale = 'en', now = ASOF, at, healthNav = false, entrenoNav = false, T, noLocale = false, detail = false } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
   const stamp = at || now + 'T12:00:00';
@@ -34,6 +34,7 @@ function render(timeline, { locale = 'en', now = ASOF, at, healthNav = false, en
     SCORES: timeline === undefined ? undefined : { timeline }, I18N_SCORE: T || (locale === 'es' ? esT : enT), ...(noLocale ? {} : { LOCALE: locale }),
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
+  if (detail) ctx.DETAIL = { metrics: {} };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
@@ -107,11 +108,15 @@ test('es: decimal comma, Spanish labels, merged parts counted', () => {
   ]);
 });
 
-test('rows open their detail only when that tab is reachable: sleep -> Salud #hl-sleep, a workout -> Entreno #score-load', () => {
-  const linked = render(TL, { healthNav: true, entrenoNav: true });
-  assert.match(linked, /<li class="tl-row tl-sleep" role="button" tabindex="0" onclick="jumpOr\('hl-sleep','health'\)"/);
-  assert.match(linked, /<li class="tl-row tl-run" role="button" tabindex="0" onclick="jumpOr\('score-load','entreno'\)"/);
-  assert.doesNotMatch(render(TL), /jumpOr/);
+test('rows open the detail sheet on that day: sleep -> the sleep view, a scored modality -> its load view, other -> training time', () => {
+  const linked = render(TL, { detail: true });
+  assert.match(linked, /<li class="tl-row tl-sleep" data-detail="sleep" data-date="2026-09-29" role="button" tabindex="0" aria-haspopup="dialog">/);
+  assert.match(linked, /<li class="tl-row tl-run" data-detail="load-run" data-date="2026-09-29" role="button"/);
+  assert.match(linked, /<li class="tl-row tl-bike" data-detail="load-bike" data-date="2026-09-29" role="button"/);
+  const other = render(timelineFromInputs([w('2026-09-29', 'Walking', 40)], []), { detail: true });
+  assert.match(other, /<li class="tl-row tl-other" data-detail="workouts" data-date="2026-09-29"/);
+  assert.doesNotMatch(linked, /jumpOr|onclick/);
+  assert.doesNotMatch(render(TL), /data-detail/, 'no detail sheet baked: plain rows');
 });
 
 test('resilience: a missing LOCALE global renders the card fallback inside the try, never throws', () => {

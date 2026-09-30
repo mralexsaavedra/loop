@@ -28,14 +28,6 @@ function scMod(key, btn) {
   var S = typeof SCORES === 'undefined' ? null : SCORES;
   var STALE_DAYS = HC.STALE_DAYS; // older data is greyed and gets no advice (baked)
   var ES = HC.isEs();
-  // score cards open their detail (Salud / Entreno) — only when that tab is reachable (its nav
-  // button exists, i.e. page.hideTabs does not hide it)
-  function linkAttrs(id, tab) {
-    tab = tab || 'health';
-    if (!document.getElementById('t-' + tab)) return '';
-    var call = "jumpOr('" + id + "','" + tab + "')";
-    return ' role="button" tabindex="0" onclick="' + call + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + call + '}"';
-  }
 
   // shared helpers (web/src/client/util.js)
   var esc = HC.esc, format = HC.format, num = HC.num, isoDate = HC.isoDate, daysOld = HC.daysOld, todayIso = HC.todayIso;
@@ -137,7 +129,10 @@ function scMod(key, btn) {
     var stale = isStale(R.asOf);
     var rt = T.recovery;
     var out = ['<div class="sc-card sc-recovery' + (stale ? ' sc-stale' : '') + '">'];
-    out.push('<div class="sc-head"><h3>' + esc(rt.heading) + '</h3>' + asOfHtml(R.asOf) + '</div>');
+    // the card holds a <details> fold, so it is not itself an opener: a real button opens the history
+    var hist = HC.detailAttrs('recovery', null, { plain: true });
+    out.push('<div class="sc-head"><h3>' + esc(rt.heading) + '</h3>' + asOfHtml(R.asOf) +
+      (hist ? '<button type="button" class="dt-open-btn"' + hist + ' aria-haspopup="dialog">' + esc(rt.historyBtn) + '</button>' : '') + '</div>');
     if (stale) out.push(staleHtml(R.asOf));
     if (R.gated) {
       out.push('<div class="sc-insufficient">' + esc(rt.insufficient) + '</div></div>');
@@ -159,7 +154,7 @@ function scMod(key, btn) {
   /* ---- load ---- */
   function loadCard(m) {
     var lt = T.load;
-    var out = ['<div class="sc-load-card" data-mod="' + esc(m.key) + '">'];
+    var out = ['<div class="sc-load-card" data-mod="' + esc(m.key) + '"' + HC.detailAttrs('load-' + m.key) + '>'];
     out.push('<div class="sc-comp-top"><b>' + esc(lt.modalities[m.key]) + '</b><span class="sc-comp-val">' + esc(format(lt.dayRe, { value: num(m.load, 0, false) })) + '</span></div>');
     out.push('<div class="sc-sub">' + (m.relScore != null
       ? esc(format(lt.relLbl, { score: m.relScore, modality: ADV_MOD[m.key] }))
@@ -216,11 +211,12 @@ function scMod(key, btn) {
     out.push('</svg>');
     return out.join('');
   }
-  // Whoop-style drill-down: the dial is the glance, a tap opens its detail in another tab
-  var DIAL_LINK = { 'dial-sleep': ['hl-sleep', 'health'], 'dial-rec': ['hl-recovery', 'health'], 'dial-load': ['score-load', 'entreno'] };
-  function dialFig(cls, stale, extra, aria, svg, centre, label, sub) {
-    var to = DIAL_LINK[cls.split(' ')[0]];
-    return '<figure class="dial ' + cls + (stale ? ' sc-stale' : '') + '"' + (extra || '') + (to ? linkAttrs(to[0], to[1]) : '') + '>' +
+  // Whoop-style drill-down: the dial is the glance, a tap opens its detail sheet (client/detail.js);
+  // a load dial opens its own modality (detailKey), the no-load placeholder opens training time
+  var DIAL_DETAIL = { 'dial-sleep': 'sleep', 'dial-rec': 'recovery', 'dial-load': 'workouts' };
+  function dialFig(cls, stale, extra, aria, svg, centre, label, sub, detailKey) {
+    var to = detailKey || DIAL_DETAIL[cls.split(' ')[0]];
+    return '<figure class="dial ' + cls + (stale ? ' sc-stale' : '') + '"' + (extra || '') + (to ? HC.detailAttrs(to) : '') + '>' +
       '<div class="dial-ring"' + (aria ? ' role="img" aria-label="' + attr(aria) + '"' : '') + '>' + svg +
       '<div class="dial-centre" aria-hidden="true">' + centre + '</div></div>' +
       '<figcaption class="dial-lbl">' + esc(label) + '</figcaption>' +
@@ -298,24 +294,25 @@ function scMod(key, btn) {
       var hid = m.key === open ? '' : ' hidden';
       var extra = ' data-dmod="' + attr(m.key) + '"' + hid;
       var mod = T.load.modalities[m.key] || m.key;
+      var dk = 'load-' + m.key;
       if (m.state !== 'ok') {
-        return dialFig('dial-load dial-off', stale, extra, '', dialSvg({ mid: d.mid }), offCentre(lt.gated), lt.label, esc(mod));
+        return dialFig('dial-load dial-off', stale, extra, '', dialSvg({ mid: d.mid }), offCentre(lt.gated), lt.label, esc(mod), dk);
       }
       var typ = num(m.typical, 0, false);
       var td = loadToday(m);
       if (td.kind === 'noEffort') {
         return dialFig('dial-load dial-noeffort', stale, extra, format(lt.ariaNoEffort, { modality: mod, typical: typ }),
-          dialSvg({ mid: d.mid }), offCentre(lt.noEffort), lt.label, esc(mod));
+          dialSvg({ mid: d.mid }), offCentre(lt.noEffort), lt.label, esc(mod), dk);
       }
       if (td.kind === 'rest') {
         return dialFig('dial-load dial-rest', stale, extra, format(lt.ariaRest, { modality: mod, typical: typ }),
-          dialSvg({ mid: d.mid }), offCentre(lt.rest), lt.label, esc(mod));
+          dialSvg({ mid: d.mid }), offCentre(lt.rest), lt.label, esc(mod), dk);
       }
       var day = num(td.day.re, 0, false);
       return dialFig('dial-load', stale, extra, format(lt.aria, { modality: mod, day: day, typical: typ }),
         dialSvg({ fill: td.day.fill, dot: td.day.marker, mid: d.mid }),
         '<b class="dial-num">' + esc(day) + '</b><span class="dial-word">' + esc(lt.unit) + '</span>',
-        lt.label, esc(mod));
+        lt.label, esc(mod), dk);
     });
     return figs.join('');
   }
