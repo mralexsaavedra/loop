@@ -61,7 +61,7 @@ steps: `services/plan-web/README.md`).
 - A click while the previous trigger is still pending (pull + write not done)
   gets `202 {seq: <current>, coalesced: true}` and causes no work: the rebuild
   has not started, so it will include whatever just arrived.
-- A click within 60 s of the last accepted one, after its write, may carry
+- A click within 60 s of the last completed write may carry
   newer data (the Shortcut POSTs its payload, then calls `/sync`, seconds after
   a Sync click). It gets a NEW seq, `202 {seq, coalesced: true, deferred: true}`,
   and ONE trigger write is scheduled for the end of the 60 s window. Later
@@ -70,11 +70,15 @@ steps: `services/plan-web/README.md`).
 
 There is no `429`, so nobody can lock the owner out, and cost stays bounded: at
 most one trigger write (= one rebuild) per minute and one Strava pull per 5 min.
-Nothing new is persisted (the deferred seq is an ordinary `trigger_seq`). On
-`SIGTERM`/`SIGINT` a pending deferred write is flushed at once (no Strava pull,
-bounded to 3 s); if the process dies without that, the write is lost, the next
-hourly refresh republishes the data and a page waiting on that seq times out
-after 5 min (normally 60 s + rebuild).
+The 60 s window runs from the write's completion, not from the click, so a slow
+Strava pull cannot produce two writes seconds apart. Nothing new is persisted
+(the deferred seq is an ordinary `trigger_seq`). On `SIGTERM`/`SIGINT` a pending
+deferred write is flushed at once (no Strava pull) and an in-flight run is
+awaited for up to 2 s; past that the persisted seq is written directly, so the
+trigger file and the DB agree (all bounded to 3 s). If the process dies without
+that, the DB seq is ahead of the trigger file: at boot the service writes it
+once (after 5 s, and no earlier than 60 s after the last recorded write), so
+the host rebuild processes it and a waiting page completes.
 
 `GET /sync/status` feeds the page's freshness line and the Sync button:
 the newest payload's `received_at`, the last Strava success, the last Strava

@@ -323,3 +323,119 @@ test('a trigger write failure is recorded as trigger_write for that seq and logg
   assert.equal(logs.at(-1).event, 'trigger_write_failed')
   assert.equal(logs.at(-1).code, 'EACCES')
 })
+
+test('flush() awaits an in-flight (non-deferred) run so its write lands before shutdown', withFakeTimers(async () => {
+  let finishStrava
+  const { trigger, written } = deferredSetup({
+    runStrava: () => new Promise((resolve) => { finishStrava = resolve }),
+    waitMs: 90_000
+  })
+  const res = trigger.handle()
+  assert.equal(res.body.seq, 2)
+  let flushed = false
+  const f = trigger.flush().then(() => { flushed = true })
+  mock.timers.tick(1_000)
+  await drain()
+  assert.equal(flushed, false, 'flush waits for the in-flight run')
+  assert.equal(written.length, 0)
+  finishStrava()
+  await f
+  assert.deepEqual(written, [{ seq: 2, at: 1_000 }])
+}))
+
+test('flush(): when the in-flight run outlives its budget, the persisted seq is written directly (no Strava)', withFakeTimers(async () => {
+  let pulls = 0
+  const { trigger, written, logs } = deferredSetup({
+    runStrava: () => { pulls += 1; return new Promise(() => {}) }, // hung pull
+    waitMs: 90_000
+  })
+  trigger.handle() // seq 2, stuck behind the hung pull
+  const f = trigger.flush({ waitMs: 2_000 })
+  mock.timers.tick(1_999)
+  await drain()
+  assert.equal(written.length, 0)
+  mock.timers.tick(1)
+  await f
+  assert.deepEqual(written, [{ seq: 2, at: 2_000 }], 'file seq now matches the persisted seq')
+  assert.equal(pulls, 1, 'no extra Strava pull')
+  assert.ok(logs.some((l) => l.event === 'sync_flush_forced' && l.seq === 2))
+}))
+
+test('flush() with nothing pending or in flight is a no-op', withFakeTimers(async () => {
+  const { trigger, written } = deferredSetup()
+  await trigger.flush()
+  assert.equal(written.length, 0)
+  await trigger.handle().done
+  await trigger.flush()
+  assert.equal(written.length, 1)
+}))
+
+test('boot recovery: a DB seq ahead of the trigger file is written once, after the boot delay', withFakeTimers(async () => {
+  const { trigger, written, status } = deferredSetup({ status: fakeStatus({ seq: 7 }) })
+  const done = trigger.recover({ fileSeq: 5, delayMs: 5_000 })
+  mock.timers.tick(4_999)
+  await drain()
+  assert.equal(written.length, 0)
+  mock.timers.tick(1)
+  await done
+  assert.deepEqual(written, [{ seq: 7, at: 5_000 }])
+  assert.equal(status.seq, 7, 'no new seq is handed out')
+  mock.timers.tick(10 * 60_000)
+  await drain()
+  assert.equal(written.length, 1, 'written once')
+}))
+
+test('boot recovery respects the min interval since the last recorded write', withFakeTimers(async () => {
+  const { trigger, written } = deferredSetup({ status: fakeStatus({ seq: 7 }) })
+  const done = trigger.recover({ fileSeq: 6, delayMs: 5_000, lastWrittenAt: T0 - 20_000 })
+  mock.timers.tick(39_999)
+  await drain()
+  assert.equal(written.length, 0)
+  mock.timers.tick(1)
+  await done
+  assert.deepEqual(written, [{ seq: 7, at: 40_000 }])
+}))
+
+test('boot recovery: nothing to do when the file already carries the seq', withFakeTimers(async () => {
+  const a = deferredSetup({ status: fakeStatus({ seq: 4 }) })
+  await a.trigger.recover({ fileSeq: 4, delayMs: 5_000 })
+  mock.timers.tick(60_000)
+  await drain()
+  assert.equal(a.written.length, 0)
+}))
+
+test('boot recovery: a click during the delay shares the recovered seq (one write)', withFakeTimers(async () => {
+  const b = deferredSetup({ status: fakeStatus({ seq: 4 }) })
+  b.trigger.recover({ fileSeq: 3, delayMs: 5_000 })
+  mock.timers.tick(1_000)
+  const click = b.trigger.handle()
+  assert.deepEqual(click.body, { ok: true, seq: 4, coalesced: true, deferred: true })
+  mock.timers.tick(4_000)
+  await click.done
+  assert.deepEqual(b.written, [{ seq: 4, at: 5_000 }])
+}))
+
+test('the min interval is measured from write COMPLETION: a slow Strava pull cannot yield two writes seconds apart', withFakeTimers(async () => {
+  let okAgo = null
+  const status = fakeStatus({ seq: 1 })
+  status.stravaFresh = (ms) => okAgo != null && okAgo < ms
+  const { trigger, written } = deferredSetup({
+    runStrava: () => new Promise((resolve) => setTimeout(() => { okAgo = 0; resolve() }, 59_000)),
+    status,
+    waitMs: 90_000
+  })
+  const first = trigger.handle()
+  mock.timers.tick(59_000)
+  await first.done
+  assert.deepEqual(written, [{ seq: 2, at: 59_000 }])
+  mock.timers.tick(1_000) // t0+60 s: 1 s after the write, 60 s after the run started
+  okAgo = 1_000
+  const next = trigger.handle()
+  assert.deepEqual(next.body, { ok: true, seq: 3, coalesced: true, deferred: true })
+  mock.timers.tick(58_999)
+  await drain()
+  assert.equal(written.length, 1)
+  mock.timers.tick(1)
+  await next.done
+  assert.deepEqual(written, [{ seq: 2, at: 59_000 }, { seq: 3, at: 119_000 }])
+}))
