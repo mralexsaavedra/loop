@@ -13,6 +13,11 @@ import { es as esT, en as enT } from '../i18n/detail-templates.mjs';
 import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { StubElement } from '../../test/dom-stub.mjs';
+import { buildScores } from '../../../lib/score/index.mjs';
+import { buildHealth } from '../../../lib/health/aggregate.mjs';
+import { buildDials } from '../view/dial.mjs';
+
+const format = (tpl, vars) => tpl.replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? vars[k] : ''));
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'detail.js'), 'utf8');
@@ -23,13 +28,28 @@ const addDays = (d, n) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t
 const dayIndex = (m, iso) => Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(m.start + 'T00:00:00Z')) / 86400000);
 const valueOn = (m, iso) => { const i = dayIndex(m, iso); return i >= 0 && i < m.v.length ? m.v[i] : null; };
 
-function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '' } = {}) {
+// parts: true = the sheet's sub-parts (calendar, day panel, chart selection) resolve to stub elements,
+// so a day tap can update them in place; query = extra host.querySelector answers (sel -> element)
+function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync = false, parts = false, query = {} } = {}) {
   const listeners = { doc: {}, win: {} };
   const host = new StubElement('div', { attrs: { id: 'detail' }, hidden: true });
   const closeBtn = { focused: 0, focus() { this.focused++; } };
-  host.querySelector = (sel) => (sel.includes('close') ? closeBtn : null);
+  const part = { cal: new StubElement('div'), day: new StubElement('div'), sel: new StubElement('rect') };
+  let hostWrites = 0;
+  const desc = Object.getOwnPropertyDescriptor(host, 'innerHTML');
+  Object.defineProperty(host, 'innerHTML', { configurable: true, get: desc.get, set: (v) => { hostWrites++; desc.set(v); } });
+  host.querySelector = (sel) => {
+    if (sel in query) return query[sel];
+    if (sel.includes('close')) return closeBtn;
+    if (parts && sel === '[data-dt-part="cal"]') return part.cal;
+    if (parts && sel === '[data-dt-part="day"]') return part.day;
+    if (parts && sel === '.dt-sel') return part.sel;
+    return null;
+  };
   host.querySelectorAll = () => [];
   const wrap = new StubElement('div', { classes: ['wrap'] });
+  const heading = { focused: 0, attrs: {}, focus() { this.focused++; }, hasAttribute(k) { return k in this.attrs; }, setAttribute(k, v) { this.attrs[k] = v; } };
+  const panel = { hidden: false, querySelector: (sel) => (sel.includes('h2') ? heading : null) };
   const root = new StubElement('html');
   const loc = { hash, pathname: '/', search: '' };
   const calls = [];
@@ -38,11 +58,17 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '' } = {}) {
     state: null,
     pushState(state, _t, url) { calls.push(['push', url]); this.state = state; loc.hash = url; },
     replaceState(state, _t, url) { calls.push(['replace', url]); this.state = state; loc.hash = url.startsWith('#') ? url : ''; },
-    back() { calls.push(['back']); this.state = null; loc.hash = ''; fire('win', 'popstate', {}); },
+    back() {
+      calls.push(['back']);
+      const pop = () => { this.state = null; loc.hash = ''; fire('win', 'popstate', {}); };
+      if (backAsync) pendingPops.push(pop); else pop();
+    },
   };
+  const pendingPops = [];
   const doc = {
     getElementById: (id) => (id === 'detail' ? host : null),
     querySelector: (sel) => (sel === '.wrap' ? wrap : null),
+    querySelectorAll: (sel) => (sel === '.tab-panel' ? [{ hidden: true, querySelector: () => null }, panel] : []),
     addEventListener: (t, fn) => { (listeners.doc[t] = listeners.doc[t] || []).push(fn); },
     documentElement: root,
     activeElement: null,
@@ -65,7 +91,9 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '' } = {}) {
   vm.runInContext(source, ctx);
   const api = win.HCDetail;
   return {
-    ctx, host, wrap, root, loc, calls, api, closeBtn,
+    ctx, host, wrap, root, loc, calls, api, closeBtn, part, heading,
+    hostWrites: () => hostWrites,
+    flushBack: () => { while (pendingPops.length) pendingPops.shift()(); },
     click: (target) => fire('doc', 'click', { target, preventDefault() {} }),
     key: (key, target = host) => { const e = { key, target, prevented: false, preventDefault() { this.prevented = true; } }; fire('doc', 'keydown', e); return e; },
     popstate: () => fire('win', 'popstate', {}),
@@ -329,4 +357,210 @@ test('es: Spanish copy, decimal comma, Spanish dates', () => {
   assert.ok(html.includes(`${v.toFixed(1).replace('.', ',')} h`));
   assert.match(html, /(lun|dom) 2[78] sept/);
   clean(html);
+});
+
+/* ---------- the sheet never contradicts the card it opens from ---------- */
+
+const DEMO_DIR = path.join(here, '..', '..', '..', 'data', 'demo', 'extract');
+const DIALS = buildDials(buildScores(DEMO_DIR), buildHealth(DEMO_DIR));
+const headOf = (html) => html.split('<div class="dt-body">')[0];
+const sgn = (v, dec) => (v > 0 ? '+' : '') + v.toFixed(dec);
+const copy = () => JSON.parse(JSON.stringify(DEMO));
+
+test('recovery header = the dial: last night\'s value, day band and "last night" label; the 7-day trend is the secondary line with its own band', () => {
+  const s = setup();
+  s.api.open('recovery');
+  const h = headOf(s.host.innerHTML);
+  const d = DIALS.recovery;
+  assert.equal(d.mode, 'today');
+  const bandState = { above: 'good', at: 'normal', below: 'bad' };
+  assert.ok(h.includes(`dt-c-${bandState[d.band]}">${sgn(d.value, 1)}<`), 'same value and band as the dial');
+  assert.ok(h.includes(enT.day.bands[d.band]), 'band word');
+  assert.ok(h.includes(enT.rec.lastNight), 'dated the viewer\'s today: "last night"');
+  const trend = format(enT.rec.trendLine, { dir: enT.rec.dirs[d.trend.dir], value: sgn(d.trend.value, 1) });
+  assert.ok(h.includes(`dt-sub dt-c-${bandState[d.trend.band]}">${trend}`), 'trend line coloured by the TREND band');
+  const later = setup({ now: addDays(NOW, 1) });
+  later.api.open('recovery');
+  assert.ok(!headOf(later.host.innerHTML).includes(enT.rec.lastNight), 'a day later the night is dated, like the dial');
+  assert.ok(headOf(later.host.innerHTML).includes('Mon 28 Sep'));
+  // the chart's zone is the 7-day trend band; both cuts are stated
+  const html = s.host.innerHTML;
+  assert.ok(html.includes(enT.chartKey.baseline));
+  assert.ok(html.includes('±1.2') && html.includes('±0.5'), 'day cut and trend cut both stated');
+  assert.ok(html.includes(enT.bands.perDayNote), 'recovery colours are per day');
+});
+
+test('weight header = the Salud card\'s 7-day rolling average (the chart line), with the latest raw reading underneath', () => {
+  const s = setup();
+  s.api.open('weight');
+  const h = headOf(s.host.innerHTML);
+  const w = DEMO.metrics.weight;
+  const roll = w.roll[w.roll.length - 1];
+  assert.ok(h.includes(`>${roll.toFixed(1)}<`), 'rolling average as the headline');
+  assert.ok(h.includes(format(enT.roll7Lbl, { date: 'Mon 28 Sep' })));
+  assert.ok(h.includes(format(enT.latestReading, { value: w.latest.value.toFixed(1), unit: 'kg', date: 'Mon 28 Sep' })));
+  assert.match(s.host.innerHTML, /<path class="dt-line"/, 'the baked rolling line is drawn');
+});
+
+test('energy header = the 7-day rolling expenditure of the newest COMPLETE day; today (in progress) is only the secondary line', () => {
+  const e = DEMO.metrics.energy;
+  const s = setup(); // the viewer's today = the newest data day
+  s.api.open('energy');
+  let h = headOf(s.host.innerHTML);
+  assert.ok(h.includes(`>${e.roll[e.roll.length - 2]}<`), 'yesterday\'s rolling value, not the partial day');
+  assert.ok(h.includes(format(enT.latestDaySoFar, { value: String(e.v[e.v.length - 1]), unit: 'kcal' })));
+  const later = setup({ now: addDays(NOW, 1) });
+  later.api.open('energy');
+  h = headOf(later.host.innerHTML);
+  assert.ok(h.includes(`>${e.roll[e.roll.length - 1]}<`), 'the newest day is complete once the viewer\'s day moved on');
+  assert.ok(h.includes(format(enT.latestDay, { value: String(e.v[e.v.length - 1]), unit: 'kcal', date: 'Mon 28 Sep' })));
+});
+
+test('a daily total\'s newest day, when it is the viewer\'s today, reads "today, in progress" in neutral colour everywhere and is not compared', () => {
+  const s = setup();
+  s.api.open('steps', NOW);
+  const html = s.host.innerHTML;
+  assert.ok(headOf(html).includes(enT.todaySoFar));
+  assert.ok(headOf(html).includes('dt-c-partial'));
+  assert.match(html, new RegExp(`class="dt-day dt-s-partial"[^>]*data-date="${NOW}"`));
+  assert.match(html, /class="dt-bar dt-s-partial"/);
+  const day = html.split('class="dt-dayd"')[1];
+  assert.ok(day.includes(enT.todaySoFar) && !day.includes('vs your median'), 'the day detail is not compared with the median');
+  const later = setup({ now: addDays(NOW, 1) });
+  later.api.open('steps', NOW);
+  assert.doesNotMatch(later.host.innerHTML, /dt-s-partial/, 'a finished day gets its state again');
+});
+
+test('load header = the dial: today\'s RE vs the typical day, else "no session yet today" + the last session; the typical line is the dial\'s typical day', () => {
+  for (const m of DIALS.load.modalities) assert.equal(DEMO.metrics['load-' + m.key].typical, m.typical, `${m.key}: same typical day as the dial`);
+  const s = setup();
+  s.api.open('load-gym');
+  const gym = DEMO.metrics['load-gym'];
+  assert.ok(headOf(s.host.innerHTML).includes(format(enT.load.dayLine, { day: '28', typical: gym.typical.toFixed(0) })));
+  s.api.open('load-run');
+  const run = DEMO.metrics['load-run'];
+  assert.ok(headOf(s.host.innerHTML).includes(format(enT.load.restLastLine, { date: 'Sat 26 Sep', re: String(run.last.re), typical: run.typical.toFixed(0) })));
+  const gated = copy();
+  gated.metrics['load-bike'].gate = 'fewDays';
+  const g = setup({ detail: gated });
+  g.api.open('load-bike');
+  assert.ok(headOf(g.host.innerHTML).includes(enT.load.gated.fewDays));
+});
+
+test('training time: rest days are 0 up to the data\'s asOf, days after it are missing; the header\'s latest is the newest day ("rest" on a rest day)', () => {
+  const s = setup({ now: addDays(NOW, 2) });
+  s.api.open('workouts');
+  const html = s.host.innerHTML;
+  assert.match(html, new RegExp(`class="dt-day dt-s-none"[^>]*data-date="${addDays(NOW, 1)}"`), 'after asOf: no data yet');
+  assert.match(html, new RegExp(`class="dt-day dt-s-rest"[^>]*data-date="${addDays(NOW, -1)}"`), 'a day without a session: rest');
+  assert.ok(headOf(html).includes('>37<'));
+  const rest = copy();
+  rest.metrics.workouts.v[rest.metrics.workouts.v.length - 1] = 0;
+  const r = setup({ detail: rest });
+  r.api.open('workouts');
+  assert.ok(headOf(r.host.innerHTML).includes(enT.restDay));
+});
+
+test('notes: colours are against the current range (static); a metric whose own last day is > 3 days old says so', () => {
+  const s = setup();
+  s.api.open('hrv');
+  assert.ok(s.host.innerHTML.includes(enT.bands.staticNote));
+  assert.ok(!s.host.innerHTML.includes('dt-mstale'));
+  const old = copy();
+  const m = old.metrics.hrv;
+  for (let i = 1; i <= 5; i++) m.v[m.v.length - i] = null;
+  const o = setup({ detail: old });
+  o.api.open('hrv');
+  assert.ok(o.host.innerHTML.includes(format(enT.metricStale, { date: 'Wed 23 Sep' })));
+});
+
+/* ---------- resilience / accessibility ---------- */
+
+test('close then an immediate re-open (Back still pending) keeps the new sheet open and gives it its own history entry', () => {
+  const s = setup({ backAsync: true });
+  s.click(new StubElement('div', { attrs: { 'data-detail': 'sleep' } }));
+  s.click(act('close'));
+  assert.deepEqual(s.calls.at(-1), ['back']);
+  s.api.open('steps');
+  assert.equal(s.calls.filter((c) => c[0] === 'push').length, 1, 'no history write while Back is in flight');
+  s.flushBack();
+  assert.equal(s.host.hidden, false, 'the late popstate does not close the new sheet');
+  assert.deepEqual(s.calls.at(-1), ['push', '#detail/steps']);
+  assert.equal(s.api.state().pushed, true);
+  s.click(act('close'));
+  s.flushBack();
+  assert.equal(s.host.hidden, true);
+  assert.equal(s.calls.filter((c) => c[0] === 'push').length, 2, 'a plain close + popstate writes nothing more');
+});
+
+test('hash validation: the metric must be an own key of both DETAIL and the copy; a bad or out-of-range date falls back and the URL follows', () => {
+  assert.equal(setup({ hash: '#detail/constructor' }).host.hidden, true);
+  assert.equal(setup({ hash: '#detail/toString' }).host.hidden, true);
+  const noVo2 = copy();
+  delete noVo2.metrics.vo2max;
+  assert.equal(setup({ detail: noVo2, hash: '#detail/vo2max' }).host.hidden, true, 'no data for that metric: no deep link');
+  for (const bad of ['2026-02-31', '2020-01-01']) {
+    const s = setup({ hash: `#detail/sleep/${bad}` });
+    assert.equal(s.host.hidden, false);
+    assert.equal(s.api.state().date, NOW);
+    assert.deepEqual(s.calls.at(-1), ['replace', `#detail/sleep/${NOW}`]);
+  }
+});
+
+test('focus: a disabled or missing control after a re-render hands focus to the close button; a deep-linked sheet returns focus to the tab heading', () => {
+  const disabled = { disabled: true, focused: 0, focus() { this.focused++; } };
+  const s = setup({ query: { '[data-dir="-1"]': disabled } });
+  s.api.open('sleep');
+  const before = s.closeBtn.focused;
+  s.click(act('month', { 'data-dir': '-1' }));
+  assert.equal(disabled.focused, 0);
+  assert.equal(s.closeBtn.focused, before + 1);
+  const d = setup({ hash: '#detail/rhr' });
+  assert.equal(d.wrap.getAttribute('aria-hidden'), 'true', 'page hidden from assistive tech while open');
+  d.key('Escape');
+  assert.equal(d.heading.focused, 1, 'no opener: the visible tab\'s heading');
+  assert.equal(d.heading.attrs.tabindex, '-1');
+  assert.equal(d.wrap.getAttribute('aria-hidden'), null);
+});
+
+test('a throwing history.pushState leaves no lock behind: no dt-lock, inert or aria-hidden after close', () => {
+  const s = setup();
+  s.ctx.history.pushState = () => { throw new Error('SecurityError'); };
+  s.click(new StubElement('div', { attrs: { 'data-detail': 'sleep' } }));
+  assert.equal(s.host.hidden, false);
+  s.click(act('close'));
+  assert.equal(s.host.hidden, true);
+  assert.ok(!s.root.classes.has('dt-lock'));
+  assert.equal(s.wrap.getAttribute('inert'), null);
+  assert.equal(s.wrap.getAttribute('aria-hidden'), null);
+});
+
+test('a day tap re-renders only the calendar and the day panel (the chart is not rebuilt; its selection moves)', () => {
+  const s = setup({ parts: true });
+  s.api.open('sleep');
+  const writes = s.hostWrites();
+  const d = addDays(NOW, -5);
+  s.click(act('day', { 'data-date': d }));
+  assert.equal(s.hostWrites(), writes, 'the sheet (and its SVG chart) is not re-rendered');
+  assert.match(s.part.cal.innerHTML, new RegExp(`data-date="${d}" aria-pressed="true"`));
+  assert.ok(s.part.day.innerHTML.includes('Wed 23 Sep'));
+  assert.ok(s.part.sel.getAttribute('x') != null, 'the chart selection moved');
+  assert.deepEqual(s.calls.at(-1), ['replace', `#detail/sleep/${d}`]);
+});
+
+test('opener delegation: a click on a control inside a card opens nothing; the card itself (or plain content in it) opens the sheet', () => {
+  const s = setup();
+  const card = new StubElement('div', { attrs: { 'data-detail': 'hrv', role: 'button' } });
+  const inner = new StubElement('button', { parent: card });
+  const link = new StubElement('a', { parent: card });
+  const text = new StubElement('span', { parent: card });
+  s.click(inner);
+  s.click(link);
+  assert.equal(s.host.hidden, true);
+  assert.equal(s.key('Enter', inner).prevented, false);
+  s.click(text);
+  assert.equal(s.api.state().key, 'hrv');
+  s.key('Escape');
+  s.click(card);
+  assert.equal(s.host.hidden, false);
 });

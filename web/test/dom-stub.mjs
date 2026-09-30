@@ -115,6 +115,10 @@ export class StubElement {
   get parentElement() {
     return this.parent;
   }
+  /** Real-DOM tag name (upper case), for code that checks what kind of element it is. */
+  get tagName() {
+    return this.tag.toUpperCase();
+  }
   closest(sel) {
     let el = this;
     while (el) {

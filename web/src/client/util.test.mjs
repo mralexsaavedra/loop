@@ -40,6 +40,11 @@ test('isoDate accepts only real ISO dates; todayIso / daysOld use the viewer\'s 
   assert.equal(HC.isoDate('2026-09-29'), '2026-09-29');
   assert.equal(HC.isoDate('29/09/2026'), null);
   assert.equal(HC.isoDate(null), null);
+  // the shape alone is not enough: the date must round-trip through the calendar
+  assert.equal(HC.isoDate('2026-02-31'), null);
+  assert.equal(HC.isoDate('2026-13-01'), null);
+  assert.equal(HC.isoDate('2026-00-10'), null);
+  assert.equal(HC.isoDate('2024-02-29'), '2024-02-29');
   assert.equal(HC.todayIso(), '2026-09-29');
   assert.equal(HC.daysOld('2026-09-26'), 3);
   assert.equal(HC.daysOld('2026-09-30'), -1);

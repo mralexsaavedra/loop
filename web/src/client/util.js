@@ -26,9 +26,10 @@ var HC = (function () {
       return vars && vars[k] != null ? vars[k] : '';
     });
   }
-  // baked dates are interpolated into markup: accept only a real ISO date, anything else is absent
+  // baked dates are interpolated into markup: accept only a real ISO date (the shape AND a calendar
+  // round trip, so 2026-02-31 is rejected), anything else is absent
   function isoDate(s) {
-    return typeof s === 'string' && ISO_RE.test(s) ? s : null;
+    return typeof s === 'string' && ISO_RE.test(s) && isoOf(parseIso(s)) === s ? s : null;
   }
   function isoOf(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');

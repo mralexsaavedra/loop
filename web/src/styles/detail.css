@@ -62,6 +62,19 @@ html.dt-lock body {
   color: var(--faint);
   font-size: var(--fs-xs);
 }
+.dt-word {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+/* secondary header line (the recovery trend, the latest raw reading, today so far); a state colour
+   class (.dt-c-*, defined further down) overrides the muted grey */
+.dt-sub {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  margin-top: var(--sp-1);
+}
 .dt-band-txt {
   color: var(--muted);
   font-size: var(--fs-xs);
@@ -219,10 +232,13 @@ html.dt-lock body {
 .dt-s-l4 { fill: var(--strain); background: var(--strain); }
 .dt-s-rest,
 .dt-s-none { background: var(--surface); }
+/* today's daily total, still filling up: neutral, never a state */
+.dt-s-partial { fill: var(--trend); fill-opacity: 0.35; background: transparent; }
 .dt-c-good { color: var(--good); }
 .dt-c-bad { color: var(--low); }
 .dt-c-mid,
 .dt-c-watch { color: var(--mid); }
+.dt-c-partial { color: var(--muted); }
 
 /* month calendar */
 .dt-cal-head {
@@ -281,6 +297,10 @@ button.dt-day {
 .dt-s-none.dt-day {
   border-color: var(--line-soft);
   color: var(--faint);
+}
+.dt-s-partial.dt-day {
+  border-color: var(--line);
+  border-style: dashed;
 }
 .dt-day[aria-pressed="true"] {
   border-color: var(--ink);
