@@ -15,6 +15,14 @@ is left over; ride days add before / during / after fuelling ranges (orientative
 personal plans upgrade with `scripts/migrate-plan-v2.mjs` (dated backup, idempotent). Logging and a
 product catalogue are part 2.
 
+Review fixes, same day: only real training raises the day type (walks, commutes and stubs no longer
+make a rest day a gym day); the ride's minutes re-scale the meals (the page re-solves from a baked
+scaling model, a picked duration is kept for the day); whole-unit portions round first and the gram
+portions absorb the rest; the train/rest toggle is gone — the day builder and the intake rings use
+today's target (on ride days the meals part, with the ride fuel on its own line); a lighter manual
+day type gives way to a harder one detected later, with a note. The migration marks staples only
+(fruit and honey opt-in) and `--reset-flex` re-derives the markers of an already-migrated plan.
+
 ## 2026-09-30 — Profile sheet (avatar button)
 
 A round avatar at the right of the top bar (photo, initials or a generic icon) opens a

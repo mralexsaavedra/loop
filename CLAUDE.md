@@ -165,7 +165,7 @@ live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
 | 🏠 Inicio (`home`) | TODAY: Sleep / Recovery / Load dials; health monitor; today's timeline (last night's sleep + the day's workouts); the advice sentence; "today you eat" card (today's day type + goal and target kcal/macros, link to Nutrición); programmed session (`hoy`) |
 | 🏃 Entreno (`entreno`) | per-modality load cards + caveats (`load`: `#score-load`, the detail behind the load dial); 30-day activity calendar + cumulative training time (`calendar`: `#train-activity`); running table, cycling table, load vs recovery (`sessions`: `#health-train`); Entrenamiento dashboard (`dash`) |
 | 💗 Salud (`health`) | recovery (`#hl-recovery`, with the recovery detail card `#score-recovery`, then the recovery trends); sleep (`#hl-sleep`); body composition; daily activity; energy expenditure |
-| 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Plan de hoy, Avituallamiento on bike days — see "Nutrition v2" below); Constructor de día / Day builder (`registro`, collapsible); Tablas (`tablas`, collapsible) — the global train/rest toggle shows only when `dia` is hidden and Registro is visible |
+| 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Plan de hoy, Avituallamiento on bike days — see "Nutrition v2" below); Constructor de día / Day builder (`registro`, collapsible); Tablas (`tablas`, collapsible) — there is no train/rest toggle: Resumen de hoy's day type is the one selector |
 
 `lib/nav/tabs.mjs` is the ONE source of the tab keys (`TAB_KEYS`) and of the legacy-section map
 (`SECTION_TAB`); the page derives each tab's section list from it (`sectionsOf`) and bakes both as
@@ -176,10 +176,10 @@ sections, baked globals and scripts always stay in the build. Nutrición and Ent
 sections (they carry `sections` in `resolveNav`): each disappears when ALL its sections are hidden —
 hiding `dash` alone hides only the dashboard, Entreno stays; the visible tab on load is the first remaining one;
 hiding every tab fails the build. `setTab('<legacy key>')` still works (it opens the hosting tab and
-scrolls to the section — `setTab('dash')` opens Entreno). The train/rest toggle is marked `data-off`
-unless it is the only way to drive the day builder (`showDayToggle`: Registro visible, `dia` hidden —
-otherwise Resumen de hoy's day type drives the same train/rest state), and the "today you eat" card
-drops its link when Nutrición is hidden.
+scrolls to the section — `setTab('dash')` opens Entreno). The old global train/rest toggle (and core.js
+`setDay`) is gone: the day builder and the intake rings read today's target from Resumen de hoy (see
+"Nutrition v2"), whatever `page.hideTabs` hides; the "today you eat" card drops its link when
+Nutrición is hidden.
 Taps open the **detail sheet** (see "Detail views" below), never a jump into another tab, so they
 work whatever `page.hideTabs` hides (core.js `jumpOr` stays as API but no card uses it any more).
 
@@ -405,8 +405,9 @@ the two JSONs.
 **Intake rings (in Resumen de hoy).** `lib/nutrition/intake.mjs` bakes the most recent LOGGED day of
 `dietary-daily.csv` (kcal > 0) plus the plan's train/rest base day totals (a fallback);
 `web/src/client/intake.js` draws four rings (kcal, protein, carbs, fat) against TODAY's target
-(`window.nutriTarget()` from client/nutri-day.js: the goal × day type picked above), falling back to
-the train/rest base total when that hook is absent or throws. The rings show ONLY when that day is within the
+(`window.nutriTarget()` from client/nutri-day.js: the goal × day type picked above; on bike days the
+MEALS target = day target − ride fuel, with the fuel on its own line "+ X kcal en la bici"), falling
+back to the plan's training-day total when that hook is absent or throws. The rings show ONLY when that day is within the
 last 3 days of the viewer's clock (decided client-side, so builds stay byte-identical); otherwise
 an empty state says how to enable them (a food app that writes nutrition to Apple Health + the
 Shortcut `diet_kcal`/`diet_protein`/`diet_carbs`/`diet_fat` keys, which sync folds into one
@@ -436,21 +437,28 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   numbers: maintain 2500 / 3050 / 3550 / 4200 kcal with 150 P / 60 F; cut 2150 / 2700 / 3550 / 4200
   with 160 / 55; bulk 2800 / 3350 / 3850 / 4500 with 150 / 70 — rest / gym / bike / bikeLong), so an
   old plan keeps working. Default goal = `page.goal` (else maintain). `targets.train` / `targets.rest`
-  (p, fatMax) still feed the day builder only.
+  are only the fallback of the day builder when Resumen de hoy's `nutriTarget()` is missing.
 - **Portion scaling** — `lib/nutrition/scale.mjs`: plans keep their two base days; `BASE_DAY` maps
   rest → `dayPlan.rest`, gym / bike / bikeLong → `dayPlan.train`. A dayPlan part marked
   `flex: "carb"` (rice, pasta, bread, potato, fruit, honey…; `null` opts a part out of the migration)
   is scalable, every other part stays fixed. The base day's macros come from the existing engine
-  (ingredients.json, never hand-typed); ONE factor scales every carb-flex part so the meals hit
-  (target − ride fuel), clamped to `SCALE_MIN`–`SCALE_MAX` (0.6–2.0×). Amounts round to 5 g / 5 ml
-  (never below one step; `ud` stays whole units; a `manual` block scales as a whole and shows "×1.3")
-  and the totals are recomputed from the ROUNDED amounts. The rest is `rem` (target − ride fuel −
+  (ingredients.json, never hand-typed) and are baked as a compact SCALING MODEL per base day
+  (`planModel`: per meal the fixed macros, the flex parts' lines `[unit, amt, k, p, c, g]` or a manual
+  block). `solveScale` = ONE factor for every carb-flex part so the meals hit (target − ride fuel),
+  clamped to `SCALE_MIN`–`SCALE_MAX` (0.6–2.0×), rounded to 2 decimals and labelled with 2 decimals
+  ("×1.45"). Whole units (`ud`) round first at that factor, then the factor is RE-SOLVED on the
+  remaining g / ml parts so the day still lands within tolerance; with only `ud` parts flexible the
+  remainder is reported honestly (plus a one-line note). Amounts round to 5 g / 5 ml (never below one
+  step; a `manual` block scales as a whole and shows "×1.30") and the totals are recomputed from the
+  ROUNDED amounts. The rest is `rem` (target − ride fuel −
   meals, kcal): beyond `REMAINDER_TOLERANCE_K` (75) the page says it ("~X kcal short: add ~Y g of
   carbs" / on bike days "add them to the ride fuel" / "over: trim fat or extras"). Protein and fat are
-  NOT scaled: a plan more than `MACRO_TOLERANCE_G` (15 g) off the target says so. `buildDayPlans`
-  precomputes all 12 plans compactly (meal structure once per base day; per plan the target, meal
-  macros, flex amounts in part order, totals, factor, clamp, ride fuel, remainder). The 12 rows are
-  also a table in `plan-tables.md` ("Daily targets by goal and day type"). Item parts show their `q`
+  NOT scaled: a plan more than `MACRO_TOLERANCE_G` (15 g) off the target says so. `planFor(bake, goal,
+  dayType, minutes)` gives one plan for a ride of `minutes` (meals target `mt` = target − ride fuel,
+  the fuel being all carbs); the page bakes only `{base, t}` per (goal, day type) + the two models and
+  runs a line-by-line port of `solveScale` / `planFor` (parity test), so a new ride duration re-scales
+  Plan de hoy. `buildDayPlans` precomputes the 12 plans at the default ride minutes for the table in
+  `plan-tables.md` ("Daily targets by goal and day type"). Item parts show their `q`
   only when it states an amount (a "—" placeholder is replaced by the recipe amounts); an `{ing}`
   part shows its `label`, else the ingredient's `name`, else its key — give `{ing}` parts a `label`.
 - **Day-type detection** (`lib/nutrition/daytype.mjs` = the reference; nutri-day.js ports it over the
@@ -463,9 +471,16 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   DEMANDING of done and programmed wins (a gym morning with a long ride programmed → bikeLong; a tie
   goes to what was done, whose ride minutes are real). `training-data.json` accepts `kind: "bike"` +
   `durationMin` for this. The manual override and the goal are kept in localStorage (`hc.nutri.goal`,
-  `hc.nutri.dayType` = `{date, type}`, so the override expires the next day), every access wrapped;
-  the label says "(auto)" / "(elegido)", with a "use the detected one" button. The chosen day type
-  calls core.js `setDay(train|rest)` so Registro and the intake rings follow.
+  `hc.nutri.dayType` = `{date, type, auto}`, so the override expires the next day), every access
+  wrapped; the label says "(auto)" / "(elegido)", with a "use the detected one" button. An override
+  LESS demanding than a type detected later that day (`auto` rose since it was picked: picked gym,
+  then a long ride synced) is dropped on load with a one-line note ("Detectada salida larga: cambiado
+  a Bici larga"); a more demanding one (planning a ride) or a deliberate downgrade stays. Today's
+  target is the ONE source for Nutrición: `window.nutriTarget()` = the MEALS target (`k, p, c, g`,
+  `fatMax` = fat + 15 g, `fuelK`, `day` = base day train / rest, label) feeds the day builder
+  (Constructor de día: verdict target + which option lists) and the intake rings, and every goal /
+  day type / ride change calls `window.bldRefresh()` and `window.intakeRefresh()` directly, each on
+  its own (a failing one shows a one-line message, never leaves the other stale).
 - **Resumen de hoy** — goal + day type radios, today's target kcal + P / F / C ("carbs are the rest"),
   the plan line (meals total; on bike days "meals + ride fuel = total"), remainder / macro notes, then
   the intake rings. Inicio's "today you eat" card (`#eat-body`) shows the same day type, goal and target.
@@ -485,14 +500,21 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   protein). g/kg uses the latest weigh-in (`profile.weight`, else rates only). Duration = today's
   recorded ride, else a picker (1–6 h, default 2 h / 3.5 h); carbs in practical units (gel ~25 g,
   banana ~25 g, bar ~40 g, a 500 ml bottle at 6–8 % ≈ 30–40 g) and a mix idea (a bottle per hour +
-  gels). The on-bike carbs count inside the day total (plan point = the range midpoint × hours). It
-  says it is orientative, not medical advice.
-- **Migration** — `node scripts/migrate-plan-v2.mjs [--dry-run] [--file <path>]` upgrades an existing
-  personal plan-data.json in place, idempotently: adds `targets.byGoal` (defaults) when absent, marks
-  `flex: "carb"` on dayPlan parts that are pure carbs (an `{ing}` in `CARB_KEYS`, or a `{use, match}`
-  item whose recipe uses only `CARB_KEYS` ingredients; mixed items and `manual` blocks stay fixed; a part
-  that already has a `flex` key is left alone), sets `page.goal: "maintain"` when absent. Backs up to
-  `plan-data.json.pre-v2-<date>.bak` first (never overwriting a backup), writes nothing when nothing
+  gels). The on-bike carbs count inside the day total (plan point = the range midpoint × hours), so
+  the duration also re-scales the meals. A recorded ride uses its real minutes (shown, not pickable);
+  a picked duration is kept per date and day type (`hc.nutri.rideMin` = `{date, type, min}`, expires
+  the next day). It says it is orientative, not medical advice.
+- **Migration** — `node scripts/migrate-plan-v2.mjs [--dry-run] [--reset-flex] [--include-fruit]
+  [--file <path>]` upgrades an existing personal plan-data.json in place, idempotently: adds
+  `targets.byGoal` (defaults) when absent, marks `flex: "carb"` on dayPlan parts that are carb STAPLES
+  (an `{ing}` in `STAPLE_KEYS` — rice, pasta, bread, potato, oats, couscous / quinoa, wheat wraps — or a
+  `{use, match}` item whose recipe uses only those; fruit, honey, jam, juice only with `--include-fruit`;
+  mixed items and `manual` blocks stay fixed; a part that already has a `flex` key is left alone), sets
+  `page.goal: "maintain"` when absent. `--reset-flex` re-derives the markers of an already-migrated
+  plan (removes a `flex: "carb"` the current set no longer covers, marks unmarked staples, never touches
+  `flex: null`). A non-object `targets` / `page` is an error. Every run prints the carb factor +
+  remainder per (goal, day type). Backs up to `plan-data.json.pre-v2-<local date>.bak` first (never
+  overwriting a backup), writes atomically (temp + rename, 2-space JSON), writes nothing when nothing
   changes. Then `npm run check && npm run generate` and re-publish.
 
 **The plan the owner actually views is a claude.ai artifact (frozen snapshot).** The owner's
