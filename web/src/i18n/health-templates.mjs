@@ -41,6 +41,7 @@ export const es = {
   },
   // Entreno's share of this renderer (#health-train: running, cycling, load vs recovery)
   trainEmptyMsg: 'Aún no hay carreras, salidas en bici ni carga. Aparecen con los entrenos del reloj o desde Strava (<code>npm run sync:strava</code>).',
+  bodyCompPointsTpl: '{n} lecturas en los últimos {days} días',
   trend: {
     weight: { title: 'Peso', unit: 'kg', deltaUnit: ' kg' },
     bodyfat: { title: 'Grasa corporal', unit: '%', deltaUnit: ' pp' },
@@ -128,6 +129,7 @@ export const en = {
   },
   // Entreno's share of this renderer (#health-train: running, cycling, load vs recovery)
   trainEmptyMsg: 'No runs, rides or load data yet. They appear with Watch workouts or from Strava (<code>npm run sync:strava</code>).',
+  bodyCompPointsTpl: '{n} readings in the last {days} days',
   trend: {
     weight: { title: 'Weight', unit: 'kg', deltaUnit: ' kg' },
     bodyfat: { title: 'Body fat', unit: '%', deltaUnit: ' pp' },
