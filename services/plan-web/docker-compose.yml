@@ -1,7 +1,8 @@
 # Serves the Astro-built plan page (web/dist/personal/index.html) on the LAN.
 # refresh.sh rebuilds it and copies the output into ./site; only that
 # directory is mounted, so nothing else under data/ or web/ is reachable
-# over HTTP.
+# over HTTP. /api/sync and /api/sync/status (and nothing else) are proxied
+# to the health-ingest service on the host, see nginx.conf.template.
 services:
   plan-web:
     image: nginx:alpine
@@ -9,6 +10,11 @@ services:
     restart: unless-stopped
     ports:
       - "${PLAN_WEB_PORT:-8090}:80"
+    environment:
+      # health-ingest's host port (its INGEST_PORT); substituted into the nginx template
+      INGEST_PORT: ${INGEST_PORT:-8088}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./site:/usr/share/nginx/html:ro
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx.conf.template:/etc/nginx/templates/default.conf.template:ro

@@ -1,0 +1,20 @@
+# Started by plan-web-refresh.path. refresh.sh already serializes runs with
+# flock; PLAN_WEB_WAIT_LOCK=1 makes this on-demand run WAIT for a running
+# cron refresh instead of skipping, so a Sync click is never dropped.
+# Replace /path/to/health-coach with your clone's absolute path.
+[Unit]
+Description=Rebuild and publish the plan page (on demand)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/path/to/health-coach
+Environment=PLAN_WEB_WAIT_LOCK=1
+# systemd's default PATH has /usr/local/bin and /usr/bin; if node/npm live
+# elsewhere (nvm, asdf, ...), add their bin directory here, e.g.
+# Environment=PATH=/opt/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/path/to/health-coach/services/plan-web/refresh.sh
+# Worst case: waiting for the lock (900 s) + sync, npm ci, generate (300 s each).
+TimeoutStartSec=1900
