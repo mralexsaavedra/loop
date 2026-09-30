@@ -295,7 +295,20 @@ end of the top bar (`web/src/components/Avatar.astro`: the photo, else the initi
 person icon; ≥ 44px; NOT a tab). It reuses the detail sheet: `web/src/client/profile.js` (inlined
 before detail.js) registers `window.HCViews.profile`, and detail.js renders any registered view in
 the same modal (focus, inert, Esc, Back) with the deep link `#profile` instead of
-`#detail/<metric>`; the Tab trap also cycles through `<summary>`.
+`#detail/<metric>`; the Tab trap also cycles through `<summary>` and a checked radio.
+`HCDetail.open(key, date, { focus: '<selector>' })` opens a view focused (and scrolled) on one of its
+controls instead of the close button.
+
+- **Goal setting ("Objetivo")** — the FIRST section under the header (also on the onboarding sheet):
+  three labelled radios Mantener / Bajar / Ganar, each with a one-line description ("Mantener tu
+  peso", "Déficit suave (~−320 kcal/día, sin tocar los días de bici)", "Superávit suave (~+300
+  kcal/día)"). The kcal come from `lib/profile/goal.mjs` `goalOptions(resolveTargets(plan))` (mean
+  goal − maintain over rest + gym, rounded to 10; "bike days untouched" only when bike / bikeLong
+  equal maintain), baked as `PROFILE.goals` by `web/pages/index.astro`, never typed. The goal itself
+  belongs to Nutrición (`client/nutri-day.js`, inlined before profile.js): the checked radio is
+  `HCNutri.state().goal` and a change calls `HCNutri.setGoal`, which writes the SAME key as before
+  (`hc.nutri.goal`, fallback `page.goal`) and refreshes the summary, plan, fuelling, Inicio card, rings,
+  builder and the kcal chip at once. No `HCNutri` or no options → the section is omitted.
 
 - **Sources** (all optional, merged by `lib/profile/profile.mjs` `loadProfile` → `buildProfile`;
   manual wins over Strava for the same field):
@@ -425,8 +438,8 @@ Part 1 of the Nutrición redesign: compute + display only (food logging, a write
 product catalogue are part 2). The `dia` section (key kept for `page.hideTabs`) holds three blocks,
 top to bottom, all client-rendered by `web/src/client/nutri-day.js` from ONE bake, `NUTRI`
 (`lib/nutrition/today.mjs` `buildNutriToday`, in `web/src/tabs/Dia.astro`, ~6 KB on the example) +
-`I18N_NUTRI` (`web/src/i18n/nutri-templates.mjs`, es/en). The radios are server-rendered (labelled,
-≥ 44 px, the plan's default goal pre-checked); everything time-based is decided on the viewer's clock,
+`I18N_NUTRI` (`web/src/i18n/nutri-templates.mjs`, es/en). The day-type radios are server-rendered
+(labelled, ≥ 44 px) and are the only control in Resumen de hoy (the goal is set in the profile sheet); everything time-based is decided on the viewer's clock,
 so builds stay byte-identical. Each block renders in its own try/catch (a one-line message on failure).
 
 - **Day types (4) and goals (3)** — `lib/nutrition/targets.mjs`: `rest`, `gym` (a gym or run session,
@@ -481,7 +494,10 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   (Constructor de día: verdict target + which option lists) and the intake rings, and every goal /
   day type / ride change calls `window.bldRefresh()` and `window.intakeRefresh()` directly, each on
   its own (a failing one shows a one-line message, never leaves the other stale).
-- **Resumen de hoy** — goal + day type radios, today's target kcal + P / F / C ("carbs are the rest"),
+- **Resumen de hoy** — day type radios, today's target kcal + P / F / C ("carbs are the rest") with the
+  goal as a small muted chip next to the kcal ("3.050 kcal · Mantener", a ≥ 44 px button via padding,
+  `#nutri-goal-chip`) that opens the profile sheet focused on its Objetivo setting (`HCDetail.open(
+  'profile', null, { focus: '#pf-goal input:checked' })`),
   the plan line (meals total; on bike days "meals + ride fuel = total"), remainder / macro notes, then
   the intake rings. Inicio's "today you eat" card (`#eat-body`) shows the same day type, goal and target.
 - **Plan de hoy** — the base day's meals with the scaled amounts (flex parts tagged "scaled"), meal

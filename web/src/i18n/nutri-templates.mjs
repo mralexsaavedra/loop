@@ -4,7 +4,7 @@
  * substituted client-side; `...Html` entries are trusted, tracked, generic markup. Neutral Spanish. */
 export const es = {
   headings: { summary: 'Resumen de hoy', plan: 'Plan de hoy', fuel: 'Avituallamiento' },
-  goalLegend: 'Objetivo',
+  goalChip: 'Objetivo: {goal}. Cámbialo en tu perfil',
   goals: { maintain: 'Mantener', cut: 'Bajar', bulk: 'Ganar' },
   dayLegend: 'Tipo de día',
   dayTypes: { rest: 'Descanso', gym: 'Gimnasio o carrera', bike: 'Bici ~2 h', bikeLong: 'Bici larga' },
@@ -83,7 +83,7 @@ export const es = {
 
 export const en = {
   headings: { summary: "Today's summary", plan: "Today's plan", fuel: 'Ride fuelling' },
-  goalLegend: 'Goal',
+  goalChip: 'Goal: {goal}. Change it in your profile',
   goals: { maintain: 'Maintain', cut: 'Lose', bulk: 'Gain' },
   dayLegend: 'Day type',
   dayTypes: { rest: 'Rest', gym: 'Gym or run', bike: 'Ride ~2 h', bikeLong: 'Long ride' },

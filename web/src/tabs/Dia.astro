@@ -1,11 +1,12 @@
 ---
 /* First section of the Nutrición tab (section key `dia`, kept for page.hideTabs back-compat; it was
  * "Mi día"). Three blocks, top to bottom:
- *   1. Resumen de hoy  — goal (maintain / cut / bulk) and day type (rest / gym / bike / bikeLong)
- *                        radios, today's target kcal + P / F / C, then the intake rings (#intake);
+ *   1. Resumen de hoy  — day type (rest / gym / bike / bikeLong) radios, today's target kcal + P / F / C
+ *                        with the goal as a small chip (the goal itself is set in the profile sheet,
+ *                        client/profile.js), then the intake rings (#intake);
  *   2. Plan de hoy     — the day's meals with the carb-flex portions scaled to (goal × day type);
  *   3. Avituallamiento — before / during / after the ride, on bike day types only.
- * The controls are server-rendered (real labelled radios, the default goal pre-checked); the numbers
+ * The day-type control is server-rendered (real labelled radios); the numbers
  * are client-rendered by client/nutri-day.js from NUTRI (lib/nutrition/today.mjs: the 12 precomputed
  * plans), baked here with I18N_NUTRI. Today's day type is picked on the viewer's clock, so builds
  * stay byte-identical.
@@ -35,14 +36,6 @@ const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForSc
   <div class="nutri-block" id="nutri-summary">
     <h2>{T.headings.summary}</h2>
     <div class="nutri-card">
-      <fieldset class="seg" id="nutri-goal">
-        <legend class="seg-lbl">{T.goalLegend}</legend>
-        <div class="seg-opts">
-          {nutri.goals.map((g: string) => (
-            <label class="seg-opt"><input type="radio" name="nutri-goal" value={g} checked={g === nutri.goal} /><span>{T.goals[g]}</span></label>
-          ))}
-        </div>
-      </fieldset>
       <fieldset class="seg" id="nutri-daytype">
         <legend class="seg-lbl">{T.dayLegend}<span class="seg-src" id="nutri-daytype-src"></span></legend>
         <div class="seg-opts">

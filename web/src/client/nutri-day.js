@@ -1,4 +1,4 @@
-/* Nutrición day blocks — Resumen de hoy (goal + day type + today's target), Plan de hoy (the day's
+/* Nutrición day blocks — Resumen de hoy (day type + today's target), Plan de hoy (the day's
  * meals scaled to that target) and Avituallamiento (bike day types only) — plus Inicio's "today you
  * eat" card. Classic script (is:inline). Reads NUTRI (lib/nutrition/today.mjs: the 12 goal × day type
  * targets, one scaling model per base day, fuelling rates, detection thresholds, latest weigh-in) +
@@ -10,8 +10,11 @@
  *   both over the same cases). A manual override is kept in localStorage WITH its date (so it expires
  *   the next day) and the type detected when it was picked: an override LESS demanding than a type
  *   detected later that day (picked gym, then a long ride synced) is dropped with a one-line note; a
- *   more demanding one (planning a ride) stays. The goal is kept too. Storage is a per-viewer
- *   convenience: every access is wrapped and the page works without it.
+ *   more demanding one (planning a ride) stays. Storage is a per-viewer convenience: every access is
+ *   wrapped and the page works without it.
+ * - Goal: set in the profile sheet (client/profile.js, "Objetivo") through window.HCNutri.setGoal, kept
+ *   in localStorage (hc.nutri.goal, falling back to page.goal). Resumen de hoy shows it only as a small
+ *   chip next to today's kcal; a tap opens the profile sheet (#profile) focused on that setting.
  * - Plan: planFor / solveScale port lib/nutrition/scale.mjs over the baked models (parity test): the
  *   meals aim at target − ride fuel for the ride's minutes (a recorded ride's real minutes, else the
  *   picker, kept per date like the override, else the default), so changing the duration re-scales
@@ -257,7 +260,6 @@
     });
   }
   function renderControls() {
-    setChecked('nutri-goal', state.goal);
     setChecked('nutri-day', dayType());
     var src = $('nutri-daytype-src');
     if (src) src.textContent = state.override ? T.chosen : T.auto;
@@ -292,6 +294,11 @@
     return out;
   }
   function target() { return N.plans[state.goal][dayType()].t; }
+  // the goal as a low-emphasis chip next to today's kcal; it opens the profile sheet's goal setting
+  function goalChipHtml() {
+    var g = T.goals[state.goal];
+    return '<button type="button" class="nt-goal" id="nutri-goal-chip" aria-haspopup="dialog" aria-label="' + esc(format(T.goalChip, { goal: g })) + '">· ' + esc(g) + '</button>';
+  }
   function renderTarget(host, x) {
     var t = target(), d = dayType();
     var line = !x ? '' : x.fuelK > 0
@@ -299,8 +306,8 @@
       : format(T.planLine, { k: kf(x.tot.k), p: x.tot.p, c: x.tot.c, f: x.tot.g });
     host.innerHTML =
       '<div class="nt-head"><span class="nt-lbl">' + esc(T.target.heading) + '</span>' +
-      '<span class="nt-day">' + esc(T.dayIcons[d] + ' ' + T.dayTypes[d] + ' · ' + T.goals[state.goal]) + '</span></div>' +
-      '<div class="nt-kcal"><b>' + esc(kf(t.kcal)) + '</b><span>' + esc(T.target.kcal) + '</span></div>' +
+      '<span class="nt-day">' + esc(T.dayIcons[d] + ' ' + T.dayTypes[d]) + '</span></div>' +
+      '<div class="nt-kcal"><b>' + esc(kf(t.kcal)) + '</b><span>' + esc(T.target.kcal) + '</span>' + goalChipHtml() + '</div>' +
       '<div class="nt-macros">' + macroCell(T.target.p, t.p, 'nt-p') + macroCell(T.target.f, t.f, 'nt-f') + macroCell(T.target.c, t.c, 'nt-c') + '</div>' +
       '<p class="nt-cnote">' + esc(T.target.cNote) + '</p>' +
       (x ? '<p class="nt-plan">' + esc(line) + '</p>' + remainderHtml(x) + macroOffHtml(x) : '');
@@ -432,12 +439,19 @@
     var el = $(id);
     if (el && el.addEventListener) el.addEventListener(evt, fn);
   }
-  on('nutri-goal', 'change', function (e) {
-    var v = e && e.target && e.target.value;
-    if (N.goals.indexOf(v) < 0) return;
+  // the goal is changed from the profile sheet (client/profile.js); false = not a known goal
+  function setGoal(v) {
+    if (N.goals.indexOf(v) < 0) return false;
     state.goal = v;
     save(KEY_GOAL, v);
     refresh();
+    return true;
+  }
+  on('nutri-target', 'click', function (e) {
+    var t = e && e.target;
+    var chip = t && t.closest ? t.closest('#nutri-goal-chip') : null;
+    if (!chip || !window.HCDetail || typeof window.HCDetail.open !== 'function') return;
+    window.HCDetail.open('profile', null, { focus: '#pf-goal input:checked' });
   });
   on('nutri-daytype', 'change', function (e) {
     var v = e && e.target && e.target.value;
@@ -474,6 +488,7 @@
     };
   };
   window.HCNutri = {
+    setGoal: setGoal,
     detectDayType: detectDayType,
     fuelPlan: fuelPlan,
     solveScale: solveScale,

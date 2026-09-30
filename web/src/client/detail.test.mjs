@@ -615,6 +615,18 @@ test('a view that throws renders the error message, never a blank sheet', () => 
   assert.ok(s.host.innerHTML.includes(enT.viewError));
 });
 
-test('the Tab trap also cycles through <summary> (a view may fold content in <details>)', () => {
-  assert.match(source, /querySelectorAll\('button:not\(\[disabled\]\), summary'\)/);
+test('the Tab trap also cycles through <summary> (a view may fold content in <details>) and a radio group (its checked radio)', () => {
+  assert.match(source, /querySelectorAll\('button:not\(\[disabled\]\), summary, input\[type="radio"\]:checked'\)/);
+});
+
+test('HCDetail.open(key, date, {focus}) moves focus to that control of the view (the goal chip -> the goal radio), else the close button', () => {
+  const radio = { focused: 0, focus() { this.focused++; } };
+  const s = setup({ views: profileView(), query: { '#pf-goal input:checked': radio } });
+  s.api.open('profile', null, { focus: '#pf-goal input:checked' });
+  assert.equal(radio.focused, 1);
+  assert.equal(s.api.state().key, 'profile');
+  const t = setup({ views: profileView() });
+  const before = t.closeBtn.focused;
+  t.api.open('profile', null, { focus: '#pf-goal input:checked' });
+  assert.equal(t.closeBtn.focused, before + 1, 'no such control: the close button');
 });

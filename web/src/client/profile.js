@@ -2,6 +2,11 @@
  * client/detail.js in its modal, deep link #profile), opened by the avatar button in the top bar
  * (components/Avatar.astro, data-detail="profile"). Strava-style card, honest data only:
  *   header  — photo (or initials, or a generic icon), full name, age, location;
+ *   Goal    — Mantener / Bajar / Ganar radios, each with its kcal/day change vs maintain (PROFILE.goals,
+ *             lib/profile/goal.mjs). The goal itself belongs to Nutrición (client/nutri-day.js, inlined
+ *             earlier): the checked radio is window.HCNutri.state().goal and a change calls
+ *             HCNutri.setGoal, which stores it (hc.nutri.goal) and refreshes the summary, plan, fuelling,
+ *             rings, builder and the kcal chip. No HCNutri or no options -> the section is omitted;
  *   Body    — height (manual) + the latest weigh-in with its date (never Strava's weight);
  *   Gear    — bikes and shoes from Strava with km (1 decimal), retired ones folded, a gentle hint on
  *             shoes past SHOE_REPLACE_KM, or a note when the token lacks the profile:read_all scope;
@@ -141,9 +146,42 @@
     return out.length ? section(S.heading, out.join('')) : '';
   }
 
+  // the plan's goal: owned by client/nutri-day.js (window.HCNutri); a ready-made description per option
+  function nutri() {
+    var n = window.HCNutri;
+    return n && typeof n.setGoal === 'function' && typeof n.state === 'function' ? n : null;
+  }
+  function goalDesc(o) {
+    var G = T.goal;
+    if (o.goal === 'maintain') return G.maintain;
+    if (!fin(o.kcal) || o.kcal === 0) return G.same;
+    var kcal = (o.kcal < 0 ? '\u2212' : '+') + HC.num(Math.abs(o.kcal), 0);
+    var key = (o.kcal < 0 ? 'deficit' : 'surplus') + (o.bikeKept ? 'BikeKept' : '');
+    return format(G[key], { kcal: kcal });
+  }
+  function goalHtml() {
+    var n = nutri(), G = T.goal;
+    var opts = list(P.goals).filter(function (o) { return o && G.options[o.goal]; });
+    if (!n || !opts.length) return '';
+    var cur = n.state().goal;
+    return '<section class="pf-sec pf-goal-sec"><fieldset class="pf-goal" id="pf-goal"><legend class="pf-h">' + esc(G.heading) + '</legend>' +
+      opts.map(function (o) {
+        return '<label class="pf-goal-opt"><input type="radio" name="pf-goal" value="' + esc(o.goal) + '"' + (o.goal === cur ? ' checked' : '') + '>' +
+          '<span class="pf-goal-txt"><b class="pf-goal-name">' + esc(G.options[o.goal]) + '</b><small class="pf-goal-desc">' + esc(goalDesc(o)) + '</small></span></label>';
+      }).join('') + '</fieldset></section>';
+  }
+  if (document.addEventListener) {
+    document.addEventListener('change', function (e) {
+      var t = e && e.target;
+      if (!t || t.name !== 'pf-goal') return;
+      var n = nutri(), ok = list(P.goals).some(function (o) { return o && o.goal === t.value; });
+      if (n && ok) n.setGoal(t.value);
+    });
+  }
+
   function render() {
-    if (!P.hasData) return { head: headHtml(), body: note(T.onboarding, 'pf-onboard') };
-    return { head: headHtml(), body: bodyHtml() + gearHtml() + devicesHtml() + supplementsHtml() + stravaHtml() + note(T.note, 'pf-foot') };
+    if (!P.hasData) return { head: headHtml(), body: goalHtml() + note(T.onboarding, 'pf-onboard') };
+    return { head: headHtml(), body: goalHtml() + bodyHtml() + gearHtml() + devicesHtml() + supplementsHtml() + stravaHtml() + note(T.note, 'pf-foot') };
   }
 
   window.HCViews = window.HCViews || {};

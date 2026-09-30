@@ -66,21 +66,21 @@ function loadExampleNut() {
   return { plan, nut };
 }
 
-test('example build: the dia section carries Resumen de hoy (goal + day type radios, target host, intake host), Plan de hoy and the ride-fuelling block, and bakes the 12 lib-computed plans', () => {
+test('example build: the dia section carries Resumen de hoy (day type radios only, target host, intake host), Plan de hoy and the ride-fuelling block, and bakes the 12 lib-computed plans', () => {
   assert.ok(fs.existsSync(examplePath), `missing ${examplePath} — run \`npm run pretest\` first`);
   const html = fs.readFileSync(examplePath, 'utf8');
   const { plan, nut } = loadExampleNut();
   const dia = sliceSection(html, 'dia');
-  const at = ["Today's summary", 'id="nutri-goal"', 'id="nutri-daytype"', 'id="nutri-target"', 'id="intake"', "Today's plan", 'id="nutri-plan"', 'id="nutri-fuel-block"', 'Ride fuelling'].map((n) => {
+  const at = ["Today's summary", 'id="nutri-daytype"', 'id="nutri-target"', 'id="intake"', "Today's plan", 'id="nutri-plan"', 'id="nutri-fuel-block"', 'Ride fuelling'].map((n) => {
     const i = dia.indexOf(n.replace("'", '&#39;')); // Astro escapes the apostrophe in text
     return i !== -1 ? i : dia.indexOf(n);
   });
   at.forEach((i, n) => assert.ok(i !== -1, `marker ${n} missing from the dia section`));
   assert.deepEqual([...at].sort((x, y) => x - y), at, 'order: summary, plan, fuelling');
-  // labelled radios: 3 goals (the plan default pre-checked) + 4 day types
-  assert.equal((dia.match(/<input type="radio" name="nutri-goal"/g) || []).length, 3);
+  // labelled radios: the 4 day types are the ONLY control; the goal lives in the profile sheet (a chip
+  // next to today's kcal, client-rendered, opens it)
   assert.equal((dia.match(/<input type="radio" name="nutri-day"/g) || []).length, 4);
-  assert.match(dia, /<label class="seg-opt"><input type="radio" name="nutri-goal" value="maintain" checked/);
+  assert.doesNotMatch(dia, /nutri-goal"|name="nutri-goal/, 'no goal radio group in Nutrición');
   assert.match(dia, /<div class="nutri-block" id="nutri-fuel-block" hidden>/, 'fuelling shows only on bike day types (client-side)');
   // the baked plans are the lib's own
   const m = html.match(/var NUTRI = (\{.*?\});\n/);

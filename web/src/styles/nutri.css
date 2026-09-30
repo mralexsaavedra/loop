@@ -125,6 +125,29 @@
   color: var(--muted);
   margin-left: var(--sp-2);
 }
+/* the goal: a low-emphasis chip next to the kcal (muted label style); the padding makes a >= 44 px
+   tap target without making it louder. It opens the profile sheet's goal setting. */
+.nt-goal {
+  min-height: 44px;
+  margin-left: var(--sp-1);
+  padding: var(--sp-3) var(--sp-2);
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--label-weight);
+  vertical-align: middle;
+  cursor: pointer;
+}
+.nt-goal:hover {
+  color: var(--ink);
+}
+.nt-goal:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
 .nt-macros {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

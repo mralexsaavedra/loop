@@ -619,7 +619,8 @@
     if (root && root.classList) root.classList[on ? 'add' : 'remove']('dt-lock');
   }
   // opts: opener (focus returns there), push (false = do not write history), pushed (the entry is
-  // ours), syncUrl (rewrite the hash when the asked date is not the day shown)
+  // ours), syncUrl (rewrite the hash when the asked date is not the day shown), focus (a selector of the
+  // view's control to focus instead of the close button, e.g. the profile sheet's goal radio)
   function open(key, date, opts) {
     opts = opts || {};
     var wasOpen = isOpen();
@@ -643,7 +644,12 @@
       state.date = state.sel;
       setHash(false);
     }
-    focusEl('[data-dt-act="close"]');
+    focusEl(opts.focus || '[data-dt-act="close"]');
+    if (opts.focus) scrollTo(opts.focus);
+  }
+  function scrollTo(sel) {
+    var el = q(sel);
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
   }
   function hide() {
     if (!state) return;
@@ -728,7 +734,7 @@
     if (isOpen()) {
       if (e.key === 'Escape' || e.key === 'Esc') { e.preventDefault(); close(); return; }
       if (e.key === 'Tab' && host.querySelectorAll) {
-        var f = Array.prototype.slice.call(host.querySelectorAll('button:not([disabled]), summary'));
+        var f = Array.prototype.slice.call(host.querySelectorAll('button:not([disabled]), summary, input[type="radio"]:checked'));
         if (!f.length) return;
         var i = f.indexOf(document.activeElement);
         if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
@@ -755,7 +761,8 @@
   });
 
   window.HCDetail = {
-    open: function (key, date) { open(key, date, { opener: document.activeElement || null }); },
+    // opts.focus: a control of the view to focus (the goal chip opens the profile sheet on its goal)
+    open: function (key, date, opts) { open(key, date, { opener: document.activeElement || null, focus: opts && typeof opts.focus === 'string' ? opts.focus : null }); },
     close: close,
     state: function () { return state; },
     dayState: dayState,
