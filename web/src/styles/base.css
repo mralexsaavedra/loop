@@ -98,7 +98,9 @@ h1 {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--line);
-  padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+  /* four buttons share the width (flex: 1, min-width: 0) and fit a 360px phone; the insets keep
+     them clear of the home indicator and of rounded corners in landscape */
+  padding: 6px calc(6px + env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) calc(6px + env(safe-area-inset-left));
 }
 .tabnav button {
   flex: 1;
@@ -229,7 +231,7 @@ footer {
     padding: 0 clamp(24px, 3vw, 52px);
   }
 
-  /* main nav → sticky full-bleed top bar (three tabs fit on one row) */
+  /* main nav → sticky full-bleed top bar (four tabs fit on one row) */
   .tabnav {
     position: sticky;
     left: auto;

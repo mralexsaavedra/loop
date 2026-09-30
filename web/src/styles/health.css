@@ -172,7 +172,8 @@
   #health > .dash-sec,
   #health > .dash-cards,
   #health > .run-tbl-wrap,
-  #health > .train-empty {
+  #health > .train-empty,
+  #health > #score-recovery {
     grid-column: 1 / -1;
   }
   #health .mtrend {

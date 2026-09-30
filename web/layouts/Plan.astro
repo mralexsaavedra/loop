@@ -1,8 +1,9 @@
 ---
 /* Shared page shell — header (personal copy), tab nav + day toggle, footer
  * (personal copy), and the end-of-body script order per design: bake (each
- * tab's own Bake, e.g. Registro's) → core (setTab/setDay/jump/bump) →
- * nutrition → intake → training-today → training-dash → health → score → monitor. Tabs render inside
+ * tab's own Bake, e.g. Registro's) → NAV + HC_CONST → util (window.HC, the shared client helpers,
+ * FIRST so every later script can read it) → core (setTab/setDay/jump/bump) →
+ * nutrition → intake → training-today → training-dash → training-activity → health → score → monitor → timeline. Tabs render inside
  * <slot />.
  */
 import '../src/styles/tokens.css';
@@ -14,18 +15,24 @@ import '../src/styles/training.css';
 import '../src/styles/health.css';
 import '../src/styles/score.css';
 import '../src/styles/layout.css';
+import utilScript from '../src/client/util.js?raw';
 import coreScript from '../src/client/core.js?raw';
 import nutritionScript from '../src/client/nutrition.js?raw';
 import trainingTodayScript from '../src/client/training-today.js?raw';
 import trainingDashScript from '../src/client/training-dash.js?raw';
+import trainingActivityScript from '../src/client/training-activity.js?raw';
 import healthScript from '../src/client/health.js?raw';
 import scoreScript from '../src/client/score.js?raw';
 import monitorScript from '../src/client/monitor.js?raw';
+import timelineScript from '../src/client/timeline.js?raw';
 import intakeScript from '../src/client/intake.js?raw';
 // Numerals font: a ~1.5 KB subset of D-DIN Bold (SIL OFL 1.1, renamed "HC Num" as the OFL requires
 // for a modified version; licence in src/fonts/OFL.txt, rebuild with scripts/subset-num-font.py).
 // `?inline` makes Vite hand back a base64 data: URL, so the page stays one self-contained file.
 import numFontUrl from '../src/fonts/hc-num-bold.woff2?inline';
+import { jsonForScript } from '../../lib/serialize.mjs';
+import { TAB_KEYS, SECTION_TAB } from '../../lib/nav/tabs.mjs';
+import { hcConst } from '../../lib/stale.mjs';
 
 interface Props {
   title: string;
@@ -39,12 +46,16 @@ interface Props {
   dict: any;
   tabs: { key: string; icon: string; label: string }[];
   activeTab?: string;
+  dayToggle?: boolean; // false = neither Mi día nor Registro is visible (lib/nav/tabs.mjs showDayToggle)
 }
 
-const { title, locale, page = {}, dict, tabs, activeTab = tabs[0]?.key } = Astro.props;
-const navLabels: Record<string, string> = { home: 't-home', nutricion: 't-nutricion', health: 't-health' };
-// the global train/rest toggle belongs to the Nutrición tab (core.js setTab mirrors this)
-const showDayToggle = activeTab === 'nutricion';
+const { title, locale, page = {}, dict, tabs, activeTab = tabs[0]?.key, dayToggle = true } = Astro.props;
+// the global train/rest toggle belongs to the Nutrición tab (core.js setTab mirrors this); data-off
+// keeps it hidden for good when it would drive nothing visible
+const showDayToggle = dayToggle && activeTab === 'nutricion';
+// core.js reads the tab keys and the legacy-section map from this ONE baked copy of lib/nav/tabs.mjs
+// ...and util.js reads the page-level constants (lib/stale.mjs) from HC_CONST, never client literals
+const navSource = `var NAV = ${jsonForScript({ tabs: TAB_KEYS, sectionTab: SECTION_TAB })};\nvar HC_CONST = ${jsonForScript(hcConst())};`;
 // unicode-range = exactly the subset's glyphs, so letters in a --num element fall back to --sans
 const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) format("woff2");font-weight:100 900;font-style:normal;font-display:swap;unicode-range:U+20,U+25,U+2B-2E,U+30-39,U+68,U+D7}`;
 ---
@@ -68,7 +79,7 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
       <nav class="tabnav" role="tablist" aria-label={dict.strings.nav.ariaLabel}>
         {tabs.map((tab) => (
           <button
-            id={navLabels[tab.key]}
+            id={`t-${tab.key}`}
             role="tab"
             aria-pressed={tab.key === activeTab}
             onclick={`setTab('${tab.key}')`}
@@ -77,7 +88,7 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
           </button>
         ))}
       </nav>
-      <div class="toggle subtoggle" id="day-toggle" role="group" aria-label={dict.strings.dayToggle.ariaLabel} style={showDayToggle ? undefined : 'display:none'}>
+      <div class="toggle subtoggle" id="day-toggle" role="group" aria-label={dict.strings.dayToggle.ariaLabel} data-off={dayToggle ? undefined : ''} style={showDayToggle ? undefined : 'display:none'}>
         <button id="b-train" aria-pressed="true" onclick="setDay('train')">{dict.strings.dayToggle.train}</button>
         <button id="b-rest" aria-pressed="false" onclick="setDay('rest')">{dict.strings.dayToggle.rest}</button>
       </div>
@@ -88,13 +99,17 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
         <footer set:html={page.footerHtml} />
       )}
     </div>
+    <script is:inline set:html={navSource} />
+    <script is:inline set:html={utilScript} />
     <script is:inline set:html={coreScript} />
     <script is:inline set:html={nutritionScript} />
     <script is:inline set:html={intakeScript} />
     <script is:inline set:html={trainingTodayScript} />
     <script is:inline set:html={trainingDashScript} />
+    <script is:inline set:html={trainingActivityScript} />
     <script is:inline set:html={healthScript} />
     <script is:inline set:html={scoreScript} />
     <script is:inline set:html={monitorScript} />
+    <script is:inline set:html={timelineScript} />
   </body>
 </html>

@@ -16,36 +16,62 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
+import { TAB_KEYS, SECTION_TAB } from '../../../lib/nav/tabs.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'core.js'), 'utf8');
 
 function makeContext(doc) {
   const window = { scrollTo: () => { window._scrolledTop = true; } };
-  const ctx = { document: doc, window, setTimeout, console, Math, Number, String };
+  // the page bakes NAV from lib/nav/tabs.mjs (layouts/Plan.astro) before core.js runs
+  const NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB } };
+  const ctx = { document: doc, window, setTimeout, console, Math, Number, String, NAV };
   vm.createContext(ctx);
   vm.runInContext(source, ctx);
   return ctx;
 }
 
-function makeTabPage(doc) {
-  // three top-level tabs (Inicio / Nutrición / Salud) — nav ids t-<key>, aria-pressed toggled by setTab
-  const tabs = ['home', 'nutricion', 'health'];
-  const navIds = { home: 't-home', nutricion: 't-nutricion', health: 't-health' };
+function makeTabPage(doc, { dayToggleOff = false } = {}) {
+  // four top-level tabs (Inicio / Entreno / Salud / Nutrición) — nav ids t-<key>, aria-pressed toggled by setTab
+  const tabs = [...TAB_KEYS];
+  const navIds = Object.fromEntries(tabs.map((t) => [t, 't-' + t]));
   tabs.forEach((t) => doc.el(navIds[t], { attrs: { 'aria-pressed': String(t === 'home') } }));
   // tab panels — `.tab-panel[data-tab]` contract
   const panels = {};
   tabs.forEach((t) => { panels[t] = doc.el(null, { classes: ['tab-panel'], attrs: { 'data-tab': t }, hidden: t !== 'home' }); });
   // former tabs, now sections inside a panel (id sec-<key>); registro/tablas are <details> folds
-  const SECTION_TAB = { hoy: 'home', dia: 'nutricion', registro: 'nutricion', tablas: 'nutricion', dash: 'health' };
   const sections = {};
   Object.entries(SECTION_TAB).forEach(([key, tab]) => {
     const fold = key === 'registro' || key === 'tablas';
     sections[key] = doc.el(`sec-${key}`, { tag: fold ? 'details' : 'section', classes: ['tab-section'], attrs: { 'data-section': key }, parent: panels[tab] });
   });
-  doc.el('day-toggle', { attrs: {} });
+  doc.el('day-toggle', { attrs: dayToggleOff ? { 'data-off': '' } : {} });
   return { navIds, panels, sections };
 }
+
+test('core.js keeps no hand-copied SECTION_TAB: it reads the baked NAV', () => {
+  assert.doesNotMatch(source, /hoy:\s*'home'/);
+  assert.doesNotMatch(source, /'t-health'/);
+});
+
+test('setTab shows the Entreno tab (t-entreno) and hides the others', () => {
+  const doc = new StubDocument();
+  const { panels, navIds } = makeTabPage(doc);
+  const { window } = makeContext(doc);
+  window.setTab('entreno');
+  assert.equal(panels.entreno.hidden, false);
+  assert.equal(panels.home.hidden, true);
+  assert.equal(doc.getElementById(navIds.entreno).getAttribute('aria-pressed'), 'true');
+  assert.equal(doc.getElementById(navIds.home).getAttribute('aria-pressed'), 'false');
+});
+
+test('a day toggle marked data-off (only Tablas left in Nutrición) never shows', () => {
+  const doc = new StubDocument();
+  makeTabPage(doc, { dayToggleOff: true });
+  const { window } = makeContext(doc);
+  window.setTab('nutricion');
+  assert.equal(doc.getElementById('day-toggle').style.display, 'none');
+});
 
 test('setTab shows only the matching .tab-panel[data-tab] and hides the rest (legacy contract)', () => {
   const doc = new StubDocument();
@@ -220,7 +246,8 @@ test('setTab with a legacy tab key opens the tab that now hosts that section and
   assert.equal(sections.tablas._scrolledIntoView, true);
 
   window.setTab('dash');
-  assert.equal(panels.health.hidden, false);
+  assert.equal(panels.entreno.hidden, false, 'the Entrenamiento dashboard now lives in Entreno');
+  assert.equal(panels.nutricion.hidden, true);
 });
 
 test('jump() into a table nested in a collapsed section fold opens the fold too', () => {
@@ -287,6 +314,6 @@ test('jumpOr() jumps to a reachable target, else falls back to opening the given
 
   window.setTab('home');
   sections.dash.hidden = true;
-  window.jumpOr('sec-dash', 'health');
-  assert.equal(panels.health.hidden, false, 'target in a hidden section: open the tab instead');
+  window.jumpOr('sec-dash', 'entreno');
+  assert.equal(panels.entreno.hidden, false, 'target in a hidden section: open the tab instead');
 });

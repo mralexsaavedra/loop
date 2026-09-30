@@ -1,5 +1,5 @@
 ---
-/* "Mi día" — first section of the Nutrición/Nutrition tab (a tab of its own before the three-tab
+/* "Mi día" — first section of the Nutrición/Nutrition tab (a tab of its own before the tab
  * layout); ported from the legacy GEN:DAYPLAN region + its trailing
  * hand-written footnote (data/nutrition/plan-web.html), server-rendered
  * from lib/nutrition/macros.mjs's buildNutrition() output instead of a
@@ -14,15 +14,16 @@ interface Props {
   dict: any;
   hidden: boolean; // page.hideTabs includes "dia"
   page?: { notes?: Record<string, string> };
+  intakeHost?: boolean; // false = no intake ever logged and the Registro fold summary carries the one-line hint
 }
-const { nut, dict, page, hidden } = Astro.props;
+const { nut, dict, page, hidden, intakeHost = true } = Astro.props;
 
 const train = dayViewModel(nut, 'train');
 const rest = dayViewModel(nut, 'rest');
 ---
 <section class="tab-section" data-section="dia" id="sec-dia" hidden={hidden}>
   {/* intake rings: client-rendered by client/intake.js from INTAKE (baked in Registro's Bake) */}
-  <div id="intake"></div>
+  {intakeHost && <div id="intake"></div>}
   <DayPanel day={train.day} meals={train.meals} totals={train.totals} kcalNote={train.kcalNote} hidden={false} dict={dict} />
   <DayPanel day={rest.day} meals={rest.meals} totals={rest.totals} kcalNote={rest.kcalNote} hidden={true} dict={dict} />
   <Note

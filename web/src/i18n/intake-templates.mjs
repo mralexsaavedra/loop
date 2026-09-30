@@ -13,6 +13,8 @@ export const es = {
   noteHtml: 'Lo que tu app de comida escribió en Salud para ese día, frente al total del plan del tipo de día elegido arriba. Un día a medio registrar se ve incompleto: es el registro, no necesariamente lo que comiste.',
   emptyHtml: '<b>No hay ingesta reciente.</b> Los anillos aparecen cuando hay comida registrada en los últimos {days} días. Registra lo que comes en una app que escriba nutrición en Apple Health y añade las claves <code>diet_kcal</code>, <code>diet_protein</code>, <code>diet_carbs</code> y <code>diet_fat</code> a tu Atajo — ver <code>docs/ios-shortcut.md</code>.',
   lastTpl: ' Último día registrado: {date}.',
+  // no intake ever logged: one line (in the Registro fold summary, or here when Registro is hidden)
+  noneHtml: 'Sin comida registrada: los anillos de ingesta aparecen si una app de comida escribe en Apple Health.',
 };
 
 export const en = {
@@ -27,4 +29,6 @@ export const en = {
   noteHtml: 'What your food app wrote to Health for that day, against the plan total for the day type picked above. A half-logged day looks short: it is the log, not necessarily what you ate.',
   emptyHtml: '<b>No recent intake.</b> The rings appear when food was logged within the last {days} days. Log what you eat in an app that writes nutrition to Apple Health and add the <code>diet_kcal</code>, <code>diet_protein</code>, <code>diet_carbs</code> and <code>diet_fat</code> keys to your Shortcut — see <code>docs/ios-shortcut.md</code>.',
   lastTpl: ' Last logged day: {date}.',
+  // no intake ever logged: one line (in the Registro fold summary, or here when Registro is hidden)
+  noneHtml: 'No food logged: the intake rings appear once a food app writes to Apple Health.',
 };

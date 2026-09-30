@@ -38,11 +38,17 @@ instead of generic advice with no data behind it.
    - Apple Health: iPhone → Health app → your photo → *Export All Health Data*.
      Unzip and place `export.xml` in `data/apple-health/`. Claude caches it into small
      per-metric CSVs via `node data/apple-health/extract.js` (re-run when you drop a new export).
-     After `npm run generate`, the plan page opens on a 🏠 **Home** tab (a 7-day recovery trend in MAD units and per-modality load from Strava Relative Effort; both need the Apple Health extract / Strava sync and show an empty state without them; `workouts.csv` has 12 columns, see CLAUDE.md for the rollout) and gains a 💗 **Health** tab with sections built
-     straight from this export — body composition (weight, body fat, lean mass, waist), activity (steps/
-     NEAT, exercise minutes, distance, flights), energy expenditure + macro split, running
-     performance (recent sessions: pace, power, form), cycling (recent rides), and recovery (resting & walking HR, HRV,
-     VO₂max, respiratory rate, wrist temp, plus sleep duration AND consistency). The extractor
+     After `npm run generate`, the plan page has four tabs. 🏠 **Home** is today at a glance (sleep,
+     recovery-trend and load dials, a health monitor, today's timeline of sleep + workouts; recovery
+     is in MAD units and load uses Strava Relative Effort, and both show an empty state without the
+     Apple Health extract / Strava sync; `workouts.csv` has 12 columns, see CLAUDE.md for the
+     rollout). 🏃 **Training** holds the per-modality load detail, a 30-day activity calendar,
+     cumulative training time, recent runs and rides, load vs recovery and the workouts dashboard
+     (a workout logged by both the Watch and Strava on one day counts once, as the Strava copy, and
+     accidental 2-minute Watch stubs are ignored).
+     💗 **Health** holds recovery (resting & walking HR, HRV, VO₂max, respiratory rate, wrist temp),
+     sleep (duration AND consistency), body composition (weight, body fat, lean mass, waist),
+     activity (steps/NEAT, exercise minutes, distance, flights) and energy expenditure + macro split. The extractor
      auto-discovers whatever your devices logged; absent metrics simply render an empty state, and
      each one carries its own data-honesty caveat.
    - Apple Health, between exports (optional): an iOS Shortcut can push recent samples to the
@@ -68,12 +74,12 @@ instead of generic advice with no data behind it.
      and section shows what your own data will look like.
    - Training (optional): copy `data/training/training-data.example.json` →
      `training-data.json` and fill in your program by date — Claude can transcribe a coach's
-     PDF for you. Run `npm run generate` and the plan page gains a 🏋️ **Today** tab (today's
-     programmed session) and a 📈 **Workouts** dashboard, built from the Apple Health workouts
+     PDF for you. Run `npm run generate` and the Home tab gains today's
+     programmed session; the Training tab's 📈 **Workouts** dashboard is built from the Apple Health workouts
      you exported above (frequency, weekly volume, modality — duration-based, since the watch
      leaves calories blank). Your real program stays gitignored; only the example seed is tracked.
      Skipping this step entirely is fine too — the build still succeeds with no
-     `training-data.json`; the **Today** tab just stays in its rest/unprogrammed state.
+     `training-data.json`; today's session just stays in its rest/unprogrammed state.
 3. **Ask Claude to run an analysis.** It reads `CLAUDE.md`, follows
    `analysis/methodology.md`, and writes a report to `analysis/reports/`.
 

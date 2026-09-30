@@ -9,34 +9,97 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { en as enHealth } from '../i18n/health-templates.mjs';
+import { loadUtil } from '../../test/client-util.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'health.js'), 'utf8');
 
-test('each rendered Salud section heading has a stable hl-<section> anchor id', () => {
-  const doc = new StubDocument();
-  const host = doc.el('health');
-  const HEALTH = {
+test('each rendered section heading has a stable hl-<section> anchor id', () => {
+  const html = renderWith({
     body: { hasData: false }, activity: { hasData: false }, energy: { hasData: false },
     running: { hasData: true, count: 0, sessions: [] },
     recovery: { hasData: true },
     loadRecovery: { hasData: false },
-  };
-  const ctx = { document: doc, window: {}, HEALTH, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date, JSON };
-  vm.createContext(ctx);
-  vm.runInContext(source, ctx);
-  assert.match(host.innerHTML, /<div class="hsub" id="hl-recovery">/);
-  assert.match(host.innerHTML, /<div class="hsub" id="hl-running">/);
-  assert.doesNotMatch(host.innerHTML, /id="hl-body"/, 'sections without data render no anchor');
+  });
+  assert.match(html, /<div class="hsub" id="hl-recovery">/);
+  assert.match(html, /<div class="hsub" id="hl-running">/);
+  assert.doesNotMatch(html, /id="hl-body"/, 'sections without data render no anchor');
 });
 
-function renderWith(HEALTH) {
+const full = () => ({
+  body: { hasData: true, weight: { latest: 80, latestDate: '2026-06-01', source: 's', sources: 1, d30: null, spark: null } },
+  activity: { hasData: true, steps: { latest: 9000, latestDate: '2026-06-30', avg30: 8500, d30: 1, spark: null } },
+  energy: { hasData: true, tdeeLatest: 2600, tdeeLatestDate: '2026-06-29', tdeeAvg: 2400, tdeeDays: 30, spark: null, balance: null },
+  running: { hasData: true, count: 1, sessions: [{ date: '2026-06-02', dist: 8, time: '44:00', pace: '5:30', hrAvg: null, re: null, elev: null, power: null, gct: null, vosc: null, stride: null }] },
+  cycling: { hasData: true, count: 1, sessions: [{ date: '2026-06-10', dist: 40, time: '1:30', elev: 400, hrAvg: 140, re: 90, kj: 1300 }] },
+  recovery: {
+    hasData: true,
+    rhr: { latest: 52, latestDate: '2026-06-30', avg30: 50.4, d30: -1, spark: null },
+    sleep: { latest: 6.4, avg: 7.2, nights: 30, latestDate: '2026-06-30', spark: null, target: 7.5, pctTarget: 40, sd: 0.6 },
+  },
+  loadRecovery: { hasData: true, weeks: 2, series: [{ w: '2026-06-01', load: 10 }, { w: '2026-06-08', load: 0 }], split: null },
+});
+
+test('Salud answers "how is my body": recovery, sleep, body, activity, energy in that order; training blocks go to Entreno', () => {
+  const out = {};
+  renderWith(full(), { out });
+  const at = (k) => out.health.indexOf(`id="hl-${k}"`);
+  const order = ['recovery', 'sleep', 'body', 'activity', 'energy'].map(at);
+  assert.ok(order.every((v, i) => v !== -1 && (i === 0 || v > order[i - 1])), `Salud order ${order}`);
+  for (const k of ['running', 'cycling', 'load']) {
+    assert.equal(at(k), -1, `${k} is not in Salud`);
+    assert.notEqual(out.train.indexOf(`id="hl-${k}"`), -1, `${k} is in Entreno`);
+  }
+  const t = (k) => out.train.indexOf(`id="hl-${k}"`);
+  assert.ok(t('running') < t('cycling') && t('cycling') < t('load'), 'Entreno order: running, cycling, load vs recovery');
+  assert.match(out.health, /<div class="hsub" id="hl-sleep">/, 'sleep is its own section (monitor + sleep dial land here)');
+  assert.equal(out.health.split('id="hl-sleep"').length - 1, 1, 'one hl-sleep id');
+});
+
+test('the recovery detail card host (#score-recovery) sits right under the recovery heading', () => {
+  const out = {};
+  renderWith(full(), { out });
+  assert.match(out.health, /id="hl-recovery">[^<]*<\/div><div id="score-recovery"><\/div>/);
+  // even with no recovery trends, a baked recovery score still gets its section + host
+  renderWith({ ...full(), recovery: none }, { out, SCORES: { recovery: { asOf: '2026-06-30' } } });
+  assert.match(out.health, /id="hl-recovery">[^<]*<\/div><div id="score-recovery"><\/div>/);
+});
+
+test('isolation: a throw in the Salud half renders its empty state and the Entreno half still renders (and vice versa)', () => {
+  const out = {};
+  const brokenBody = { hasData: true, get weight() { throw new Error('boom'); } };
+  assert.doesNotThrow(() => renderWith({ ...full(), body: brokenBody }, { out }));
+  assert.match(out.health, /train-empty/, 'Salud falls back to its empty state');
+  assert.ok(out.health.includes(enHealth.emptyMsg));
+  assert.match(out.train, /id="hl-running"/, 'Entreno unaffected');
+  assert.doesNotThrow(() => renderWith({ ...full(), running: { hasData: true, count: 1, sessions: null } }, { out }));
+  assert.ok(out.train.includes(enHealth.trainEmptyMsg), 'Entreno falls back to its empty state');
+  assert.match(out.health, /id="hl-recovery"/, 'Salud unaffected');
+});
+
+test('each host has its own empty state', () => {
+  const out = {};
+  renderWith({ body: none, activity: none, energy: none, running: none, cycling: none, recovery: none, loadRecovery: none }, { out });
+  assert.match(out.health, /train-empty/);
+  assert.match(out.train, /train-empty/);
+  const onlyBody = {};
+  renderWith({ ...full(), running: none, cycling: none, loadRecovery: none }, { out: onlyBody });
+  assert.doesNotMatch(onlyBody.health, /train-empty/);
+  assert.match(onlyBody.train, /train-empty/);
+});
+
+// Salud (#health) + Entreno (#health-train) hosts; returns both, Salud first, or each via `out`.
+function renderWith(HEALTH, { DateCls = Date, SCORES, out = {} } = {}) {
   const doc = new StubDocument();
   const host = doc.el('health');
-  const ctx = { document: doc, window: {}, HEALTH, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date, JSON };
+  const train = doc.el('health-train');
+  const ctx = { document: doc, window: {}, HEALTH, SCORES, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date: DateCls, JSON };
   vm.createContext(ctx);
+  loadUtil(ctx);
   vm.runInContext(source, ctx);
-  return host.innerHTML;
+  out.health = host.innerHTML;
+  out.train = train.innerHTML;
+  return host.innerHTML + train.innerHTML;
 }
 const none = { hasData: false };
 
@@ -76,6 +139,20 @@ test('cycling section: recent rides table (newest first) with count, same table 
   assert.ok(html.indexOf('hl-running') < html.indexOf('hl-cycling'), 'cycling follows running');
 });
 
+test('running table matches the cycling one: date, distance, time, pace, avg HR, RE, elevation, then the watch dynamics (dash when absent)', () => {
+  const html = renderWith({
+    body: none, activity: none, energy: none, recovery: none, loadRecovery: none, cycling: none,
+    running: { hasData: true, count: 5, sessions: [
+      { date: '2026-06-22', dist: 7.7, time: '0:41', pace: '5:18', hrAvg: 152, re: 57, elev: 35, power: null, gct: null, vosc: null, stride: null },
+      { date: '2026-06-20', dist: null, time: '0:30', pace: null, hrAvg: null, re: null, elev: null, power: 240, gct: 250, vosc: 10, stride: 1.1 },
+    ] },
+  });
+  assert.match(html, /<tr><th>Date<\/th><th>Dist<\/th><th>Time<\/th><th>Pace<\/th><th>Avg HR<\/th><th>Effort<\/th><th>Elev\.<\/th><th>Power<\/th><th>GCT<\/th><th>Osc\.<\/th><th>Stride<\/th><\/tr>/);
+  assert.match(html, /<td>22 Jun<\/td><td>7.7 km<\/td><td>0:41<\/td><td>5:18\/km<\/td><td>152 bpm<\/td><td>57<\/td><td>35 m<\/td><td>—<\/td><td>—<\/td><td>—<\/td><td>—<\/td>/, 'a Strava-only run: dynamics are dashes');
+  assert.match(html, /<td>20 Jun<\/td><td>—<\/td><td>0:30<\/td><td>—<\/td><td>—<\/td><td>—<\/td><td>—<\/td><td>240 W<\/td><td>250 ms<\/td><td>10 cm<\/td><td>1.1 m<\/td>/, 'no distance: no pace');
+  assert.match(html, /<b>5<\/b> runs/);
+});
+
 test('run and bike sections render symmetric empty states when the other has data', () => {
   const html = renderWith({
     body: none, activity: none, energy: none, recovery: none, loadRecovery: none,
@@ -83,7 +160,7 @@ test('run and bike sections render symmetric empty states when the other has dat
     cycling: { hasData: true, count: 1, sessions: [{ date: '2026-06-10', dist: 40, time: '1:30', elev: 400, hrAvg: 140, re: 90, kj: 1300 }] },
   });
   assert.match(html, /id="hl-running"/);
-  assert.match(html, /No runs with watch metrics yet/);
+  assert.match(html, /No runs yet/);
   const html2 = renderWith({
     body: none, activity: none, energy: none, recovery: none, loadRecovery: none, cycling: none,
     running: { hasData: true, count: 1, sessions: [{ date: '2026-06-02', dist: 8, pace: '5:30', speed: 10.9, power: null, gct: null, vosc: null, stride: null }] },
@@ -99,12 +176,7 @@ function renderAt(HEALTH, now) {
     constructor(...a) { super(...(a.length ? a : [now + 'T12:00:00'])); }
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
-  const doc = new StubDocument();
-  const host = doc.el('health');
-  const ctx = { document: doc, window: {}, HEALTH, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date: FakeDate, JSON };
-  vm.createContext(ctx);
-  vm.runInContext(source, ctx);
-  return host.innerHTML;
+  return renderWith(HEALTH, { DateCls: FakeDate });
 }
 const sp = { v: [1, 2], from: '2026-06-01', to: '2026-06-30' };
 
@@ -133,7 +205,8 @@ test('recovery: resting HR / HRV / sleep lead with the newest value + date; tren
     },
   };
   const html = renderAt(H, '2026-07-01');
-  for (const k of ['rhr', 'hrv', 'respiratory', 'wristTemp', 'sleep']) assert.match(html, new RegExp(`<div class="mtrend" id="hl-${k}">`), k);
+  for (const k of ['rhr', 'hrv', 'respiratory', 'wristTemp']) assert.match(html, new RegExp(`<div class="mtrend" id="hl-${k}">`), k);
+  assert.match(html, /<div class="hsub" id="hl-sleep">/, 'sleep: the section heading is the anchor');
   assert.match(html, /71<small>ms<\/small><span class="mtrend-date">30 Jun<\/span>/);
   assert.match(html, /30-day avg 60 ms/);
   assert.match(html, /6.4<small>h<\/small><span class="mtrend-date">30 Jun<\/span>/);
