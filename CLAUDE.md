@@ -596,42 +596,63 @@ is the newest day, and the trend is the line under it.
 ## LAN page + on-demand refresh — `services/plan-web` + `services/health-ingest`
 
 Besides the claude.ai artifact, `services/plan-web` serves `web/dist/personal/index.html` on the LAN
-(nginx, `./site` only). `refresh.sh` rebuilds and publishes it hourly (cron) AND on demand:
+(nginx, `./site` only). `refresh.sh` rebuilds and publishes it hourly (cron) AND on demand, under a
+**sequence protocol** (no clock comparison anywhere):
 
 - **Trigger.** The page's Sync button (`POST /api/sync`, proxied by plan-web nginx) or the last
   Shortcut step (`POST https://<your-host>/sync`, `docs/ios-shortcut.md`) hits health-ingest
-  `POST /sync`: it answers `202`, kicks the shared Strava pull (the timer loop, `POST /sync` and
-  `POST /sync/strava` share ONE in-flight run), then, once the pull settles (≤ 90 s), writes the request
-  time to `services/health-ingest/trigger/refresh` (container `/trigger`, gitignored, uid 1000 must
-  own it). The host's systemd `services/plan-web/systemd/plan-web-refresh.path` (PathModified) starts
-  `plan-web-refresh.service` (root oneshot, `PLAN_WEB_WAIT_LOCK=1` so it waits for a running cron
-  refresh instead of dropping the click). Units ship with `/path/to/health-coach` placeholders;
-  install steps in `services/plan-web/README.md`.
+  `POST /sync`. A new click gets the next `trigger_seq` (persisted in `sync_status`; resumed at startup
+  from max(DB, trigger file), never backwards) and answers `202 {seq, coalesced:false}`; it kicks the
+  shared Strava pull (timer loop, `POST /sync` and `POST /sync/strava` share ONE in-flight run) unless
+  the last success is < 5 min old, then, once the pull settles (≤ 90 s), writes `seq\n` ATOMICALLY to
+  `services/health-ingest/trigger/refresh` (temp file + rename, `O_NOFOLLOW`, a symlinked target is
+  refused; container `/trigger`, gitignored, uid 1000 must own it). **Coalescing, never 429:** a click
+  while a trigger is pending or within 60 s of the last accepted one gets `{seq:<current>,
+  coalesced:true}` and does nothing, so cost is ≤ 1 rebuild/min and ≤ 1 Strava pull/5 min and nobody
+  can lock the owner out. A failed trigger write is exposed as `lastTriggerError: "trigger_write"` +
+  `lastTriggerErrorSeq`. The host's `services/plan-web/systemd/plan-web-refresh.path` (PathModified,
+  also fires on the rename) starts `plan-web-refresh.service` (oneshot as the repo owner,
+  `User=REPO_OWNER` placeholder, hardened: `NoNewPrivileges`, `ProtectSystem=strict` +
+  `ReadWritePaths=<clone>`, `ProtectHome=read-only`, `PrivateTmp`, npm cache via `CacheDirectory`;
+  `PLAN_WEB_WAIT_LOCK=1` so it waits for a running cron refresh). Units ship with
+  `/path/to/health-coach` + `REPO_OWNER` placeholders; the ordered install steps (trigger dir +
+  chown BEFORE compose up → ingest rebuild → first `npm ci` by hand → verify checkout is `main` →
+  plan-web up → units → smoke test) are in `services/plan-web/README.md`.
 - **refresh.sh** keeps its resilience rules (failed sync still rebuilds, flock, `npm ci` only on a
-  lockfile change, a failed build keeps the last good page) and adds: `sync` / `npm ci` / `generate`
-  each under `timeout` (`PLAN_WEB_STEP_TIMEOUT`, 300 s); a **branch guard** (not on `main` → log +
-  exit 0, unless `PLAN_WEB_ALLOW_BRANCH=1`); and after a successful publish, `site/status.json` =
-  `{publishedAt, commit, branch}` written atomically (served `no-cache`).
+  lockfile change, a failed build keeps the last good page). Each pass records the trigger seq it
+  started from; a successful publish writes `site/status.json` = `{publishedAt, commit, branch,
+  processedSeq}` atomically (`processedSeq` never goes backwards; the last good fragment is kept in
+  `services/plan-web/.refresh-state`, outside `./site`). After a pass it re-reads the trigger and runs
+  again (max 3 passes) if the seq advanced, so clicks during a run are never lost. Early exits add
+  `{error, errorSeq}` WITHOUT touching `publishedAt`/`processedSeq`: codes `branch` (branch guard,
+  still exit 0, unless `PLAN_WEB_ALLOW_BRANCH=1`), `install`, `build`, `sanity`, `lock` (on-demand lock
+  wait timed out; a cron skip is not an error). `sync` / `generate` run under `PLAN_WEB_STEP_TIMEOUT`
+  (300 s), `npm ci` under `PLAN_WEB_CI_TIMEOUT` (900 s). No git `safe.directory` override (the unit
+  runs as the owner).
 - **Freshness line** (`web/src/client/freshness.js`, copy `web/src/i18n/sync-templates.mjs`, markup
-  in `layouts/Plan.astro` above the nav): at view time it reads `GET /api/sync/status` (ingest:
-  `lastShortcutAt` = newest payload `received_at`, `lastStravaOkAt`, `lastStravaError`,
-  `lastTriggerAt`, `stravaConfigured` — timestamps only, persisted in the `sync_status` table) and
+  in `layouts/Plan.astro` above the nav): at view time it reads `GET /api/sync/status` and
   `/status.json`, and renders "Atajo: hace 5 min · Strava: hace 2 h · Página: hace 1 min": > 24 h
-  `--mid` + a short hint, > 72 h `--low`. Sync POSTs, polls `/status.json` every 5 s until a publish
-  newer than the one seen at click time lands (2 min clock-skew allowance), then reloads; 4 min →
-  "No se pudo actualizar, reintenta"; 429 → "Espera un momento". The block ships `hidden` and stays
-  hidden when `/api/sync/status` is unreachable (example build, file://, the claude.ai artifact, a
-  clone without ingest). Nothing time-based is baked, so builds stay byte-identical.
-- **Security reasoning.** `POST /sync` and `GET /sync/status` are UNAUTHENTICATED on purpose (a
+  `--mid` + a short hint, > 72 h `--low`. Sync POSTs, then polls both every 5 s: `processedSeq >= seq`
+  → reload; `errorSeq >= seq` (status.json) or `lastTriggerErrorSeq >= seq` (ingest) → fail fast with
+  "No se pudo actualizar: <reason>" (`errors` map; unknown code → generic reason); 5 min → "No se pudo
+  actualizar, reintenta". The block ships `hidden` and stays hidden when `/api/sync/status` is
+  unreachable (example build, file://, the claude.ai artifact, a clone without ingest). Nothing
+  time-based is baked, so builds stay byte-identical.
+- **Security + exposure.** `POST /sync` and `GET /sync/status` are UNAUTHENTICATED on purpose (a
   static page cannot hold a secret): the trigger only schedules work the services already do on a
-  timer, reads no body, and is limited GLOBALLY to 1 request per 60 s (`429` + `Retry-After`); status
-  returns timestamps and a short error string, never health data (tests pin the key set). plan-web
-  nginx proxies EXACTLY those two paths (exact-match, method-restricted); every other `/api/` path
-  is a 404 and `/ingest` / `/export` are never proxied.
-- **Health + tokens.** `/healthz` stays 200 but adds `degraded: true` when Strava is configured and has
-  not succeeded for 6 h. A refresh token rotated by Strava is stored in `strava_token` and preferred
-  over `STRAVA_REFRESH_TOKEN` (the bootstrap); a rejected stored token falls back to the env one once.
-  Rolling this out needs an ingest rebuild (`docker compose up -d --build`, runs `sql/003_sync.sql`).
+  timer, reads no body and returns only a seq; status returns timestamps, seqs and COARSE codes
+  (`strava_auth`, `strava_network`, `strava_other`, `strava_token_save`, `trigger_write`), cached 5 s,
+  never health data or raw error text (messages stay in logs; tests pin the key set and no leaks).
+  plan-web nginx proxies EXACTLY `/api/sync` + `/api/sync/status` (exact-match, method-restricted;
+  every other `/api/` path 404). A public reverse proxy in front of ingest must forward ONLY
+  `/ingest/*` and `/sync` (`/sync/status` optional), never `/export/*` or `/sync/strava`.
+- **Health + tokens.** `/healthz` stays 200 but adds `degraded: true` when Strava is configured and its
+  PERSISTED last success is > 6 h old or missing (a restart does not reset it). A refresh token rotated
+  by Strava is stored in `strava_token` (3 save attempts with backoff; on failure it is kept in memory,
+  status shows `strava_token_save`, and the save is retried next refresh) and preferred over
+  `STRAVA_REFRESH_TOKEN` (the bootstrap); a failed store read is retried next refresh; a rejected
+  stored token falls back to the env one once. Rolling this out needs an ingest rebuild
+  (`docker compose up -d --build`, runs the idempotent `sql/003_sync.sql`).
 
 ## Output principles
 
