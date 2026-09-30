@@ -529,6 +529,75 @@
     "rest": {
       "p": 150,
       "fatMax": 70
+    },
+    "byGoal": {
+      "_doc": "Daily targets per goal (maintain / cut / bulk) and day type (rest; gym = a gym or run session ~1 h; bike = a ride ~2 h; bikeLong = a ride over 2.5 h). kcal, p = protein (g), f = fat (g); carbs are the remainder. Plan de hoy scales the parts marked flex:\"carb\" so the day lands on kcal.",
+      "maintain": {
+        "rest": {
+          "kcal": 2500,
+          "p": 150,
+          "f": 60
+        },
+        "gym": {
+          "kcal": 3050,
+          "p": 150,
+          "f": 60
+        },
+        "bike": {
+          "kcal": 3550,
+          "p": 150,
+          "f": 60
+        },
+        "bikeLong": {
+          "kcal": 4200,
+          "p": 150,
+          "f": 60
+        }
+      },
+      "cut": {
+        "rest": {
+          "kcal": 2150,
+          "p": 160,
+          "f": 55
+        },
+        "gym": {
+          "kcal": 2700,
+          "p": 160,
+          "f": 55
+        },
+        "bike": {
+          "kcal": 3550,
+          "p": 160,
+          "f": 55
+        },
+        "bikeLong": {
+          "kcal": 4200,
+          "p": 160,
+          "f": 55
+        }
+      },
+      "bulk": {
+        "rest": {
+          "kcal": 2800,
+          "p": 150,
+          "f": 70
+        },
+        "gym": {
+          "kcal": 3350,
+          "p": 150,
+          "f": 70
+        },
+        "bike": {
+          "kcal": 3850,
+          "p": 150,
+          "f": 70
+        },
+        "bikeLong": {
+          "kcal": 4500,
+          "p": 150,
+          "f": 70
+        }
+      }
     }
   },
   "dayPlan": {
@@ -541,10 +610,23 @@
           "desc": "Oat pancake",
           "parts": [
             {
-              "use": "desayuno",
-              "match": "Oat pancake"
+              "ing": "avena",
+              "amt": 60,
+              "label": "Oats",
+              "flex": "carb"
+            },
+            {
+              "ing": "claras",
+              "amt": 150,
+              "label": "Egg whites"
+            },
+            {
+              "ing": "leche",
+              "amt": 145,
+              "label": "Coffee with milk"
             }
-          ]
+          ],
+          "slot": "breakfast"
         },
         {
           "name": "Lunch",
@@ -552,23 +634,28 @@
           "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-comida')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-fruta')\">fruit</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
           "parts": [
             {
-              "use": "proteina",
-              "match": "Chicken breast"
+              "ing": "pollo",
+              "amt": 140,
+              "label": "Chicken breast"
             },
             {
               "use": "carboComida",
               "tier": "train",
-              "match": "Rice"
+              "match": "Rice",
+              "flex": "carb"
             },
             {
               "use": "postre",
-              "match": "Apple"
+              "match": "Apple",
+              "flex": "carb"
             },
             {
               "ing": "calabacin",
-              "amt": 150
+              "amt": 150,
+              "label": "Zucchini"
             }
-          ]
+          ],
+          "slot": "lunch"
         },
         {
           "name": "Post-workout",
@@ -576,10 +663,23 @@
           "desc": "Banana + whey shake, or turkey ham + toast",
           "parts": [
             {
-              "use": "postentreno",
-              "match": "Banana"
+              "ing": "platano",
+              "amt": 120,
+              "label": "Banana",
+              "flex": "carb"
+            },
+            {
+              "ing": "wheyup",
+              "amt": 20,
+              "label": "Whey"
+            },
+            {
+              "ing": "leche",
+              "amt": 180,
+              "label": "Milk"
             }
-          ]
+          ],
+          "slot": "postworkout"
         },
         {
           "name": "Dinner",
@@ -587,13 +687,15 @@
           "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-cena')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-postre')\">dessert</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
           "parts": [
             {
-              "use": "proteina",
-              "match": "White fish"
+              "ing": "merluza",
+              "amt": 170,
+              "label": "White fish"
             },
             {
               "use": "carboCena",
               "tier": "train",
-              "match": "Potato"
+              "match": "Potato",
+              "flex": "carb"
             },
             {
               "use": "postre",
@@ -601,9 +703,11 @@
             },
             {
               "ing": "calabacin",
-              "amt": 150
+              "amt": 150,
+              "label": "Zucchini"
             }
-          ]
+          ],
+          "slot": "dinner"
         },
         {
           "name": "Cooking oil",
@@ -613,7 +717,8 @@
           "parts": [
             {
               "ing": "aceiteoliva",
-              "amt": 15
+              "amt": 15,
+              "label": "Olive oil"
             }
           ]
         }
@@ -628,10 +733,34 @@
           "descHtml": "Toast + jam + <button class=\"lnk\" onclick=\"jump('acc-anclaje')\">protein anchor</button>",
           "parts": [
             {
-              "use": "desayuno",
-              "match": "Toast"
+              "ing": "panecillo",
+              "amt": 80,
+              "label": "Bread",
+              "flex": "carb"
+            },
+            {
+              "ing": "confitura",
+              "amt": 20,
+              "label": "Jam",
+              "flex": "carb"
+            },
+            {
+              "ing": "mantequillalight",
+              "amt": 10,
+              "label": "Light butter"
+            },
+            {
+              "ing": "wheyup",
+              "amt": 20,
+              "label": "Protein anchor (whey)"
+            },
+            {
+              "ing": "leche",
+              "amt": 145,
+              "label": "Coffee with milk"
             }
-          ]
+          ],
+          "slot": "breakfast"
         },
         {
           "name": "Lunch",
@@ -639,23 +768,28 @@
           "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-comida')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-fruta')\">fruit</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
           "parts": [
             {
-              "use": "proteina",
-              "match": "Chicken breast"
+              "ing": "pollo",
+              "amt": 140,
+              "label": "Chicken breast"
             },
             {
               "use": "carboComida",
               "tier": "rest",
-              "match": "Rice"
+              "match": "Rice",
+              "flex": "carb"
             },
             {
               "use": "postre",
-              "match": "Apple"
+              "match": "Apple",
+              "flex": "carb"
             },
             {
               "ing": "calabacin",
-              "amt": 150
+              "amt": 150,
+              "label": "Zucchini"
             }
-          ]
+          ],
+          "slot": "lunch"
         },
         {
           "name": "Protein anchor",
@@ -663,10 +797,23 @@
           "desc": "Whey shake, tuna or turkey ham",
           "parts": [
             {
-              "use": "anclaje",
-              "match": "Whey shake + milk"
+              "ing": "wheyup",
+              "amt": 20,
+              "label": "Whey shake"
+            },
+            {
+              "ing": "leche",
+              "amt": 100,
+              "label": "Milk"
+            },
+            {
+              "ing": "platano",
+              "amt": 120,
+              "label": "Banana",
+              "flex": "carb"
             }
-          ]
+          ],
+          "slot": "snack"
         },
         {
           "name": "Dinner",
@@ -674,13 +821,15 @@
           "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-cena')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-postre')\">dessert</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
           "parts": [
             {
-              "use": "proteina",
-              "match": "White fish"
+              "ing": "merluza",
+              "amt": 170,
+              "label": "White fish"
             },
             {
               "use": "carboCena",
               "tier": "rest",
-              "match": "Potato"
+              "match": "Potato",
+              "flex": "carb"
             },
             {
               "use": "postre",
@@ -688,9 +837,11 @@
             },
             {
               "ing": "calabacin",
-              "amt": 150
+              "amt": 150,
+              "label": "Zucchini"
             }
-          ]
+          ],
+          "slot": "dinner"
         },
         {
           "name": "Cooking oil",
@@ -700,7 +851,8 @@
           "parts": [
             {
               "ing": "aceiteoliva",
-              "amt": 11
+              "amt": 11,
+              "label": "Olive oil"
             }
           ]
         }
@@ -833,7 +985,8 @@
       "tablas.quesos": "They add fat/salt → count them, they are not \"free\".",
       "tablas.supplements": "<div class=\"meal\" style=\"padding:6px 16px\">\n    <div class=\"supp\"><span class=\"when\">Lunch</span><div class=\"what\">Creatine monohydrate<small>3 g, with water</small></div></div>\n    <div class=\"supp\"><span class=\"when\">Dinner</span><div class=\"what\">Magnesium<small>follow product dosage · may support sleep</small></div></div>\n    <div class=\"supp\"><span class=\"when\">Workout</span><div class=\"what\">Electrolytes<small>on hot days / long sessions</small></div></div>\n  </div>"
     },
-    "offPlanPlaceholder": "E.g.: ate out — set menu (lentils + breaded fish + flan). 2 beers. Heavy meal."
+    "offPlanPlaceholder": "E.g.: ate out — set menu (lentils + breaded fish + flan). 2 beers. Heavy meal.",
+    "goal": "maintain"
   },
   "indulgeKeys": [
     "beer",
