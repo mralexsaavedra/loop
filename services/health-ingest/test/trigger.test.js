@@ -1,4 +1,4 @@
-import test from 'node:test'
+import test, { mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -121,31 +121,140 @@ test('a click while the previous trigger is still pending coalesces onto it and 
   assert.deepEqual(written, [1])
 })
 
-test('within 60 s of a trigger write, clicks coalesce onto the current seq (never 429)', async () => {
-  const c = clock()
-  const written = []
-  const trigger = createSyncTrigger({
-    runStrava: null,
-    writeTrigger: async (seq) => { written.push(seq) },
-    status: fakeStatus(),
-    now: c.now,
-    log: () => {}
-  })
-  await trigger.handle().done
-  for (let i = 0; i < 50; i++) {
-    c.advance(1_000)
-    const res = trigger.handle()
-    assert.equal(res.status, 202)
-    assert.deepEqual(res.body, { ok: true, seq: 1, coalesced: true })
-    await res.done
+const T0 = Date.parse('2030-01-02T10:00:00Z')
+
+/** Fake clock AND fake setTimeout, so the deferred write can be driven by tick(). */
+function withFakeTimers (fn) {
+  return async () => {
+    mock.timers.enable({ apis: ['setTimeout', 'Date'], now: T0 })
+    try { await fn() } finally { mock.timers.reset() }
   }
-  assert.deepEqual(written, [1], 'a flood costs at most one rebuild per minute')
-  c.advance(10_000) // 60 s after the first write
-  const next = trigger.handle()
-  assert.deepEqual(next.body, { ok: true, seq: 2, coalesced: false, strava: 'disabled' })
-  await next.done
-  assert.deepEqual(written, [1, 2])
-})
+}
+
+/** Lets the promise chain that a fired timer started run to completion. */
+async function drain () {
+  for (let i = 0; i < 20; i++) await Promise.resolve()
+}
+
+function deferredSetup ({ runStrava = null, status = fakeStatus({ seq: 1 }), waitMs } = {}) {
+  const written = []
+  const logs = []
+  const trigger = createSyncTrigger({
+    runStrava,
+    writeTrigger: async (seq) => { written.push({ seq, at: Date.now() - T0 }) },
+    status,
+    now: () => Date.now(),
+    ...(waitMs != null ? { waitMs } : {}),
+    log: (line) => logs.push(JSON.parse(line))
+  })
+  return { trigger, written, status, logs }
+}
+
+test('a click 19 s after an accepted one is NOT dropped: it gets a NEW deferred seq written at t0+60 s', withFakeTimers(async () => {
+  const { trigger, written, status } = deferredSetup()
+  const first = trigger.handle()
+  assert.deepEqual(first.body, { ok: true, seq: 2, coalesced: false, strava: 'disabled' })
+  await first.done
+  assert.deepEqual(written, [{ seq: 2, at: 0 }])
+
+  mock.timers.tick(19_000)
+  const late = trigger.handle()
+  assert.equal(late.status, 202)
+  assert.deepEqual(late.body, { ok: true, seq: 3, coalesced: true, deferred: true })
+
+  mock.timers.tick(40_999)
+  await drain()
+  assert.equal(written.length, 1, 'nothing is written before the 60 s window closes')
+  mock.timers.tick(1)
+  await late.done
+  assert.deepEqual(written, [{ seq: 2, at: 0 }, { seq: 3, at: 60_000 }])
+  assert.deepEqual(status.events, ['trigger 2', 'trigger 3'])
+}))
+
+test('several clicks inside the window share ONE deferred seq (no pile-up, one write)', withFakeTimers(async () => {
+  const { trigger, written } = deferredSetup()
+  await trigger.handle().done
+  const answers = []
+  for (const gap of [5_000, 10_000, 30_000]) {
+    mock.timers.tick(gap)
+    answers.push(trigger.handle())
+  }
+  assert.deepEqual(answers.map((a) => a.body), [
+    { ok: true, seq: 3, coalesced: true, deferred: true },
+    { ok: true, seq: 3, coalesced: true, deferred: true },
+    { ok: true, seq: 3, coalesced: true, deferred: true }
+  ])
+  mock.timers.tick(15_000)
+  await Promise.all(answers.map((a) => a.done))
+  assert.deepEqual(written.map((w) => w.seq), [2, 3])
+  mock.timers.tick(10 * 60_000)
+  await drain()
+  assert.equal(written.length, 2, 'no further write without a new click')
+}))
+
+test('a flood keeps the cost bound: at most one trigger write per 60 s window', withFakeTimers(async () => {
+  const { trigger, written } = deferredSetup()
+  await trigger.handle().done
+  for (let i = 0; i < 180; i++) {
+    mock.timers.tick(1_000)
+    const res = trigger.handle()
+    assert.equal(res.status, 202, 'never 429')
+    await drain() // real requests are spread out: let a fired write finish
+  }
+  await drain()
+  const at = written.map((w) => w.at)
+  for (let i = 1; i < at.length; i++) assert.ok(at[i] - at[i - 1] >= 60_000, `writes ${at[i - 1]} -> ${at[i]} are >= 60 s apart`)
+  assert.deepEqual(written.map((w) => w.seq), [2, 3, 4, 5])
+}))
+
+test('after the deferred write, the next click inside ITS window defers again from that write', withFakeTimers(async () => {
+  const { trigger, written } = deferredSetup()
+  await trigger.handle().done
+  mock.timers.tick(19_000)
+  trigger.handle() // deferred seq 3, written at t0+60 s
+  mock.timers.tick(41_000)
+  await drain()
+  mock.timers.tick(10_000) // t0+70 s: 10 s after the deferred write
+  const res = trigger.handle()
+  assert.deepEqual(res.body, { ok: true, seq: 4, coalesced: true, deferred: true })
+  mock.timers.tick(50_000)
+  await res.done
+  assert.deepEqual(written, [{ seq: 2, at: 0 }, { seq: 3, at: 60_000 }, { seq: 4, at: 120_000 }])
+}))
+
+test('the deferred write pulls Strava only when its own 5 min cooldown allows', withFakeTimers(async () => {
+  let pulls = 0
+  let okAgo = null
+  const status = fakeStatus({ seq: 1 })
+  status.stravaFresh = (ms) => okAgo != null && okAgo < ms
+  const { trigger, written } = deferredSetup({ runStrava: async () => { pulls += 1; okAgo = 0 }, status })
+  const first = trigger.handle()
+  assert.equal(first.body.strava, 'started')
+  await first.done
+  mock.timers.tick(19_000)
+  okAgo = 19_000
+  const late = trigger.handle()
+  mock.timers.tick(41_000)
+  okAgo = 60_000
+  await late.done
+  assert.equal(pulls, 1, 'a pull 60 s ago is within the cooldown: the deferred write skips it')
+  assert.deepEqual(written.map((w) => w.seq), [2, 3])
+}))
+
+test('flush() writes a pending deferred seq at once (shutdown) and cancels its timer', withFakeTimers(async () => {
+  const { trigger, written } = deferredSetup()
+  await trigger.handle().done
+  mock.timers.tick(19_000)
+  const late = trigger.handle()
+  await trigger.flush()
+  await late.done
+  assert.deepEqual(written, [{ seq: 2, at: 0 }, { seq: 3, at: 19_000 }])
+  mock.timers.tick(60_000)
+  await drain()
+  assert.equal(written.length, 2, 'the cancelled timer does not write again')
+  await trigger.flush() // nothing pending: a no-op
+  assert.equal(written.length, 2)
+}))
 
 test('Strava is pulled at most once per 5 min: a recent success skips the pull, the trigger is still written', async () => {
   let stravaRuns = 0
