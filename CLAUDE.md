@@ -190,7 +190,12 @@ work whatever `page.hideTabs` hides (core.js `jumpOr` stays as API but no card u
 **Look & typography.** Dark, data-first design language: colour carries meaning, never decoration.
 All colours are tokens in `web/src/styles/tokens.css` (AA-checked ratios listed in its header):
 `--good`/`--mid`/`--low` = state, `--trend` = neutral data lines/sparklines, `--strain` = load,
-`--sleep` = sleep, `--accent` = ACTIONS only (buttons, links, active nav, focus). Headings and
+`--sleep` = sleep, `--accent` = ACTIONS only (buttons, links, active nav, focus). Layout: on wide
+screens (>= 900 px) the background and the sticky nav bar stay full-bleed while the top bar, nav
+buttons, tab panels and footer are centred and capped at `--content-max` (1160 px); Nutrición's summary
+card turns into two columns (kcal dial | day type + macro bars) and Plan de hoy into a 2-column meal
+grid. Nav tab icons are inline SVG line icons keyed by tab (`TAB_ICONS` in `web/layouts/Plan.astro`,
+same drawing as the day-type icons; the active tab paints its icon in `--accent`) — no emoji. Headings and
 labels are caps, semibold, `--label-track` (+0.08em). Numbers use `--num` = "HC Num", a
 numerals-only subset (~1.5 KB: digits, + - , . % × h space) of **D-DIN Bold, SIL OFL 1.1**, inlined as
 a base64 `@font-face` by `web/layouts/Plan.astro` (`?inline` import) so the page stays one file with
@@ -426,15 +431,15 @@ the two JSONs.
 MEALS target = day target − ride fuel, with the fuel on its own line "+ X kcal en la bici"), falling
 back to the plan's training-day total when that hook is absent or throws. The rings show ONLY when that day is within the
 last 3 days of the viewer's clock (decided client-side, so builds stay byte-identical); otherwise
-an empty state says how to enable them (a food app that writes nutrition to Apple Health + the
+the block renders NOTHING (host hidden, no help text — the upcoming in-page logging replaces it).
+Intake arrives from a food app that writes nutrition to Apple Health + the
 Shortcut `diet_kcal`/`diet_protein`/`diet_carbs`/`diet_fat` keys, which sync folds into one
-`dietary-daily.csv` row per day, export rows winning). A ring never fills from the target: a macro
+`dietary-daily.csv` row per day, export rows winning. A ring never fills from the target: a macro
 missing on the logged day renders an empty ring with a dash. When the logged day is the viewer's
 today it is labelled as in progress ("Hoy, en curso" / "Today, so far"), so partial rings are not
 read as a finished day. When NO intake was ever logged (`INTAKE.latest` null, decided at build
 time), the rings and Registro collapse to ONE line: Resumen de hoy renders no rings host and the
-Registro fold summary carries the hint (`noneHtml`); with Registro hidden, intake.js writes that line
-under Resumen de hoy instead.
+Registro fold summary carries the hint (`noneHtml`); with Registro hidden, nothing is shown.
 
 ## Nutrition v2 — goals, day types, portion scaling, ride fuelling, supplements
 
