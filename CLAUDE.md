@@ -568,8 +568,8 @@ is the newest day, and the trend is the line under it.
   apps mirror the SAME workout into Apple Health (workouts.csv carries Watch, Hevy, Zepp, ROXFIT, Nike,
   the Strava app's HealthKit copy "Strava" and sync:strava's "Strava API" rows): rows are grouped by
   `source`; fragments of ONE source are kept together (the Watch splits sessions); across sources one
-  source's rows are kept, never a sum, by `SOURCE_PRECEDENCE` ("Strava API" > "Strava" > `/Apple
-  Watch/i` > any other app; among other apps the longest total wins) — sync:strava keeps every Strava
+  source's rows are kept, never a sum, by `SOURCE_PRECEDENCE` ("Strava API" > "Strava" >
+  `/Apple\s+Watch/i` (Health writes a no-break space in the device name) > any other app; among other apps the longest total wins) — sync:strava keeps every Strava
   row, so this is THE dedupe. A higher-precedence source replaces a lower one only when its total
   duration is ≥ `SUPERSEDE_MIN_COVERAGE` (0.5) × the lower one's total; below that they are most
   likely different sessions and both source groups are kept. When the kept source has no HR (or no
