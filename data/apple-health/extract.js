@@ -28,7 +28,7 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const attr = (s, name) => { const m = s.match(new RegExp(' ' + name + '="([^"]*)"')); return m ? m[1] : null; };
 // shared with sync-shortcut.js so export- and Shortcut-derived rows are formatted identically
-const { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, absMs, minutesBetween, sleepNight, readingRow, sleepRow } = require('./samples.js');
+const { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights } = require('./samples.js');
 
 // sparse readings: [{date, value, source}]
 const readings = { weight: [], bodyfat: [], rhr: [], vo2max: [], hrv: [], leanmass: [], wristTemp: [], hrRecovery: [], waist: [] };
@@ -44,14 +44,13 @@ const meanDaily = { respiratory: new Map(), walkingHr: new Map() };
 // running performance: Map<date, {speed:{s,n}, power:{s,n}, gct:{s,n}, vosc:{s,n}, stride:{s,n}}>
 // samples are recorded DURING runs; we keep per-day means (only days with a run have rows). 0s are junk.
 const running = new Map();
-// sleep clock: Map<night, {start, end}> earliest asleep start / latest asleep end (for bedtime regularity)
-const sleepClock = new Map();
 // steps can come from several devices (phone, watch, other trackers) → keep per-source, take max/day (summing double-counts)
 const stepsBySrc = new Map();
 // dietary daily: Map<date, {kcal,p,c,g}>
 const diet = new Map();
-// sleep: Map<date, Map<source, minutes>>  (max across sources per night avoids double-count)
-const sleep = new Map();
+// asleep segments [{start, end, source}] -> nights via samples.js sleepNights (naps excluded,
+// max across sources per night avoids a double count) — the same rule sync-shortcut.js uses
+const sleepSegs = [];
 const workouts = []; // {date, type, durationMin, energyKcal, hrAvg, hrMin, hrMax, source}
 
 const Q = 'HKQuantityTypeIdentifier';
@@ -92,7 +91,8 @@ function handleRecord(line) {
       const cm = v == null ? null : { m: v * 100, in: v * 2.54, ft: v * 30.48 }[attr(line, 'unit')] ?? v;
       return cm != null && readings.waist.push({ date: d, value: +cm.toFixed(1), source: src });
     }
-    case Q + 'AppleSleepingWristTemperature': return v != null && readings.wristTemp.push({ date: d, value: +v.toFixed(2), source: src });
+    // dated by the wake-up night (like sleep-daily.csv), not the sample's start date
+    case Q + 'AppleSleepingWristTemperature': return v != null && readings.wristTemp.push({ date: wristTempDate(attr(line, 'startDate')), value: +v.toFixed(2), source: src });
     case Q + 'AppleExerciseTime':       return addMaxSrc(maxSrc.exercise, d, src, v);
     case Q + 'DistanceWalkingRunning':  return addMaxSrc(maxSrc.distance, d, src, v);
     case Q + 'FlightsClimbed':          return addMaxSrc(maxSrc.flights, d, src, v);
@@ -107,18 +107,8 @@ function handleRecord(line) {
       const val = attr(line, 'value') || '';
       if (!/Asleep/.test(val)) return; // count asleep stages only (skip InBed / Awake)
       const start = attr(line, 'startDate'), end = attr(line, 'endDate');
-      const mins = minutesBetween(start, end);
-      if (!(mins > 0)) return;
-      // attribute to the wake-up date so an evening→morning night isn't split across two rows
-      const night = sleepNight(start);
-      const bySrc = sleep.get(night) || new Map();
-      bySrc.set(src, (bySrc.get(src) || 0) + mins);
-      sleep.set(night, bySrc);
-      // earliest asleep start / latest asleep end of the night -> bedtime & wake regularity
-      const ck = sleepClock.get(night) || { start: start, end: end };
-      if (absMs(start) < absMs(ck.start)) ck.start = start;
-      if (absMs(end) > absMs(ck.end)) ck.end = end;
-      return sleepClock.set(night, ck);
+      if (!(minutesBetween(start, end) > 0)) return;
+      return sleepSegs.push({ start, end, source: src });
     }
   }
 }
@@ -198,14 +188,10 @@ rl.on('close', () => {
   counts.dietary = csv('dietary-daily.csv', 'date,kcal,protein_g,carbs_g,fat_g',
     [...diet.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1)
       .map(([d, o]) => `${d},${Math.round(o.kcal)},${o.p.toFixed(1)},${o.c.toFixed(1)},${o.g.toFixed(1)}`));
-  // sleep — max minutes across sources per night (avoids cross-source double count).
-  // bedtime/waketime = earliest asleep start / latest asleep end of the night (decimal local hour).
+  // sleep — main sleep per wake-up night (naps excluded), max minutes across sources.
+  // bedtime/waketime = earliest start / latest end of that main sleep (decimal local hour).
   counts.sleep = csv('sleep-daily.csv', SLEEP_HEADER,
-    [...sleep.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, bySrc]) => {
-      let best = null;
-      for (const [s, m] of bySrc) if (!best || m > best.m) best = { s, m };
-      return sleepRow(d, best.m, best.s, sleepClock.get(d));
-    }));
+    sleepNights(sleepSegs).map(n => sleepRow(n.date, n.minutes, n.source, n.ck)));
   // activity: MAX across sources per day (iPhone + Watch both log these → summing double-counts)
   const dumpMaxSrc = (map, file, col, dec) => csv(file, `date,${col}`,
     [...map.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, bySrc]) => {
@@ -249,8 +235,9 @@ rl.on('close', () => {
       'Body metrics keep a source column — weight mixes scales/apps; compare body fat within one scale only.',
       'steps = max across devices per day (phone + watch + other trackers overlap → summing would double-count).',
       'active/basal energy + dietary are per-day sums (energy validated single-source; intake exists only on days a food app logged it).',
-      'sleep is best-effort: asleep intervals only, max across sources per night; verify against the Watch trend.',
-      'sleep bedtime/waketime = earliest asleep start / latest asleep end of the night, decimal local hour.',
+      'sleep is best-effort: asleep intervals only, main sleep per wake-up night (naps excluded: blocks outside the 20:00-12:00 window or far from the main block), max across sources per night; verify against the Watch trend.',
+      'sleep bedtime/waketime = earliest start / latest end of the night\'s main sleep, decimal local hour.',
+      'wristTemp is dated by the wake-up night (18:00 roll-over, like sleep), not the sample start date.',
       'exercise/distance/flights = max across devices per day (iPhone+Watch overlap → summing double-counts, like steps); respiratory & walking-HR are per-day means.',
       'running-daily = per-day MEANS over a run\'s samples (only days with a run get a row); 0-valued samples (Zepp placeholders) dropped. speed km/h, power W, gct ms, vosc cm, stride m.',
       'hr-recovery.csv = Cardio Recovery (HeartRateRecoveryOneMinute, bpm drop 1 min after a workout), one row per sample.',
