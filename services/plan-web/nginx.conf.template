@@ -6,11 +6,27 @@
 # The Astro build already declares <meta charset="utf-8">, but nginx sending
 # the header too is cheap insurance against browsers guessing Latin-1 and
 # garbling accents/emoji before the <head> is parsed.
+
+# DNS rebinding: a hostile page whose own name is made to resolve to this LAN address would be
+# same-origin with the plan page (all health data, and /api/food/* read + write). So every request
+# must name this server by an IP literal (v4 or bracketed v6), localhost, or a name listed in
+# PLAN_WEB_EXTRA_HOSTS (rendered by hosts.sh into the included file, empty by default); anything else
+# gets 421 before any location runs. $host is already lowercased and without the port.
+map $host $hc_host_ok {
+    default 0;
+    localhost 1;
+    "~^[0-9]{1,3}(\.[0-9]{1,3}){3}$" 1;
+    "~^\[[0-9a-f:.]+\]$" 1;
+    include /etc/nginx/hc-extra-hosts.map;
+}
+
 server {
     listen 80;
     root /usr/share/nginx/html;
     index index.html;
     charset utf-8;
+
+    if ($hc_host_ok = 0) { return 421; }
 
     # Always revalidate: the page is regenerated hourly and on demand.
     add_header Cache-Control "no-cache";
@@ -28,10 +44,11 @@ server {
     #     sequence numbers and coarse error codes, never health data or raw
     #     errors;
     #   - the food log, /api/food/* -> ingest /food/* (products, recipes, the
-    #     daily log, the Open Food Facts lookup). The service demands the
-    #     X-HC-Food header on every request and a JSON body on writes, which
-    #     forces a CORS preflight it never approves, so another website cannot
-    #     write here from a LAN browser. LAN only: never publish this server.
+    #     daily log, the Open Food Facts lookup). With the Host map above, the
+    #     service's own Host / Origin checks and its required X-HC-Food header +
+    #     JSON body (a CORS preflight it never approves), a website opened in a
+    #     LAN browser can neither read nor write it. Anything on the LAN that
+    #     talks to it directly can: LAN only, never publish this server.
     # The bearer-protected ingest data endpoints are never proxied: everything
     # else under /api/ is a 404.
     location = /api/sync {
@@ -56,6 +73,8 @@ server {
         limit_except GET POST PUT DELETE { deny all; }
         client_max_body_size 16k;
         proxy_set_header X-HC-Food $http_x_hc_food;
+        # the hop's Host: a name the ingest Host check accepts (the browser's Origin is passed on)
+        proxy_set_header Host host.docker.internal;
         proxy_connect_timeout 5s;
         proxy_read_timeout 15s;
         proxy_pass http://host.docker.internal:${INGEST_PORT}/food/;
