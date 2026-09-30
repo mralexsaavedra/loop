@@ -284,6 +284,10 @@ test('sync-templates.mjs (freshness line + Sync button) has identical key trees 
     for (const k of ['minAgo', 'hAgo', 'dAgo']) assert.match(dict[k], /\{n\}/, `${locale}.${k}`);
     assert.deepEqual(Object.keys(dict.labels), ['shortcut', 'strava', 'page']);
     assert.deepEqual(Object.keys(dict.hints), ['shortcut', 'strava', 'page']);
+    assert.match(dict.failedCode, /\{reason\}/, `${locale}.failedCode`);
+    // every coarse code refresh.sh (status.json error) or ingest (lastTriggerError) can report, + a fallback
+    assert.deepEqual(Object.keys(dict.errors), ['branch', 'install', 'build', 'sanity', 'lock', 'trigger_write', 'unknown']);
+    assert.equal(dict.wait, undefined, 'no 429 copy: POST /sync never refuses, it coalesces');
   }
   assert.equal(esSync.button, 'Sincronizar');
   assert.equal(enSync.button, 'Sync');

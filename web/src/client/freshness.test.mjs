@@ -83,6 +83,9 @@ const freshStatus = {
   lastStravaOkAt: iso(NOW - 2 * H),
   lastStravaError: null,
   lastTriggerAt: null,
+  lastTriggerError: null,
+  lastTriggerErrorSeq: null,
+  triggerSeq: 0,
   stravaConfigured: true,
 };
 
@@ -116,7 +119,7 @@ test('English copy', async () => {
 test('> 24 h = mid colour + hint, > 72 h = low colour + hint', async () => {
   const s = setup({
     routes: {
-      'GET /api/sync/status': json({ ...freshStatus, lastShortcutAt: iso(NOW - 30 * H), lastStravaOkAt: iso(NOW - 80 * H), lastStravaError: 'strava token refresh failed: 401' }),
+      'GET /api/sync/status': json({ ...freshStatus, lastShortcutAt: iso(NOW - 30 * H), lastStravaOkAt: iso(NOW - 80 * H), lastStravaError: 'strava_auth' }),
       'GET /status.json': json({ publishedAt: iso(NOW - MIN) }),
     },
   });
@@ -141,13 +144,16 @@ test('Strava configured but never succeeded -> "nunca" in the low colour; no Sho
   assert.match(s.line.innerHTML, /fresh-low">Strava: nunca/);
 });
 
-test('Sync: POST, "Sincronizando…", polls status.json every 5 s, reloads once a newer publish lands', async () => {
-  const published = [iso(NOW - H), iso(NOW - H), iso(NOW - H), iso(NOW + 40 * 1000)];
+const accepted = (seq, coalesced = false) => json({ ok: true, seq, coalesced }, 202);
+
+test('Sync: POST, "Sincronizando…", polls every 5 s, reloads once status.json processedSeq reaches the click seq', async () => {
+  const pages = [{ processedSeq: 6 }, { processedSeq: 6 }, { processedSeq: 7 }];
+  let polls = 0;
   const s = setup({
     routes: {
       'GET /api/sync/status': json(freshStatus),
-      'GET /status.json': (n) => json({ publishedAt: published[Math.min(n - 1, published.length - 1)] }),
-      'POST /api/sync': json({ ok: true }, 202),
+      'GET /status.json': (n) => (n === 1 ? json({ publishedAt: iso(NOW - H), processedSeq: 6 }) : json({ publishedAt: iso(NOW - H), ...pages[Math.min(polls++, pages.length - 1)] })),
+      'POST /api/sync': accepted(7),
     },
   });
   await s.advance(0);
@@ -156,19 +162,49 @@ test('Sync: POST, "Sincronizando…", polls status.json every 5 s, reloads once 
   assert.ok(s.calls.includes('POST /api/sync'));
   assert.equal(s.msg.textContent, 'Sincronizando…');
   assert.equal(s.btn.disabled, true);
-  assert.deepEqual(s.reloads, []);
 
   await s.advance(5000);
-  assert.deepEqual(s.reloads, [], 'first poll still sees the old publish');
+  assert.deepEqual(s.reloads, []);
   await s.advance(5000);
-  assert.equal(s.reloads.length, 1, 'second poll sees the newer publish and reloads');
-  const polls = s.calls.filter((c) => c === 'GET /status.json').length;
+  assert.deepEqual(s.reloads, [], 'processedSeq 6 < 7: keep waiting');
+  await s.advance(5000);
+  assert.equal(s.reloads.length, 1, 'processedSeq 7 >= 7: reload');
+  const count = s.calls.filter((c) => c === 'GET /status.json').length;
   await s.advance(60_000);
-  assert.equal(s.calls.filter((c) => c === 'GET /status.json').length, polls, 'polling stops after the reload');
+  assert.equal(s.calls.filter((c) => c === 'GET /status.json').length, count, 'polling stops after the reload');
+});
+
+test('Sync: no clock comparison: a publish stamped far in the past still counts when its processedSeq covers the click', async () => {
+  const s = setup({
+    routes: {
+      'GET /api/sync/status': json(freshStatus),
+      'GET /status.json': json({ publishedAt: '2001-01-01T00:00:00Z', processedSeq: 9 }),
+      'POST /api/sync': accepted(9, true),
+    },
+  });
+  await s.advance(0);
+  s.btn.dispatch('click');
+  await s.advance(5000);
+  assert.equal(s.reloads.length, 1);
+});
+
+test('Sync: a newer publishedAt with a LOWER processedSeq does not count (an hourly run that started before the click)', async () => {
+  const s = setup({
+    routes: {
+      'GET /api/sync/status': json(freshStatus),
+      'GET /status.json': json({ publishedAt: iso(NOW + 10 * MIN), processedSeq: 3 }),
+      'POST /api/sync': accepted(4),
+    },
+  });
+  await s.advance(0);
+  s.btn.dispatch('click');
+  await s.advance(30_000);
+  assert.deepEqual(s.reloads, []);
+  assert.equal(s.msg.textContent, 'Sincronizando…');
 });
 
 test('Sync: a second click while syncing does nothing', async () => {
-  const s = setup({ routes: { 'GET /api/sync/status': json(freshStatus), 'GET /status.json': json({ publishedAt: iso(NOW - H) }), 'POST /api/sync': json({ ok: true }, 202) } });
+  const s = setup({ routes: { 'GET /api/sync/status': json(freshStatus), 'GET /status.json': json({ processedSeq: 0 }), 'POST /api/sync': accepted(1) } });
   await s.advance(0);
   s.btn.dispatch('click');
   s.btn.dispatch('click');
@@ -176,23 +212,71 @@ test('Sync: a second click while syncing does nothing', async () => {
   assert.equal(s.calls.filter((c) => c === 'POST /api/sync').length, 1);
 });
 
-test('Sync: 429 -> "Espera un momento", button enabled again, no polling', async () => {
-  const s = setup({ routes: { 'GET /api/sync/status': json(freshStatus), 'GET /status.json': json({ publishedAt: iso(NOW - H) }), 'POST /api/sync': json({ error: 'rate limited' }, 429) } });
+for (const [code, reason] of [['build', 'falló la generación de la página'], ['branch', 'el servidor no está en la rama main'], ['install', 'falló la instalación de dependencias'], ['sanity', 'la página generada no es válida'], ['lock', 'otra actualización sigue en curso']]) {
+  test(`Sync: refresh.sh error "${code}" for this seq fails fast with its reason`, async () => {
+    const s = setup({
+      routes: {
+        'GET /api/sync/status': json(freshStatus),
+        'GET /status.json': (n) => (n === 1 ? json({ processedSeq: 4 }) : json({ processedSeq: 4, error: code, errorSeq: 5 })),
+        'POST /api/sync': accepted(5),
+      },
+    });
+    await s.advance(0);
+    s.btn.dispatch('click');
+    await s.advance(5000);
+    assert.equal(s.msg.textContent, `No se pudo actualizar: ${reason}`);
+    assert.equal(s.btn.disabled, false);
+    assert.deepEqual(s.reloads, []);
+  });
+}
+
+test('Sync: an error from an OLDER seq is ignored (it predates the click)', async () => {
+  const s = setup({
+    routes: {
+      'GET /api/sync/status': json(freshStatus),
+      'GET /status.json': json({ processedSeq: 3, error: 'build', errorSeq: 4 }),
+      'POST /api/sync': accepted(5),
+    },
+  });
   await s.advance(0);
   s.btn.dispatch('click');
-  await s.advance(0);
-  assert.equal(s.msg.textContent, 'Espera un momento');
-  assert.equal(s.btn.disabled, false);
-  const polls = s.calls.filter((c) => c === 'GET /status.json').length;
-  await s.advance(30_000);
-  assert.equal(s.calls.filter((c) => c === 'GET /status.json').length, polls);
+  await s.advance(15_000);
+  assert.equal(s.msg.textContent, 'Sincronizando…');
 });
 
-test('Sync: no newer publish within 4 min -> "No se pudo actualizar, reintenta", no reload', async () => {
-  const s = setup({ routes: { 'GET /api/sync/status': json(freshStatus), 'GET /status.json': json({ publishedAt: iso(NOW - H) }), 'POST /api/sync': json({ ok: true }, 202) } });
+test('Sync: an unknown error code still fails fast, with a generic reason (never the raw code)', async () => {
+  const s = setup({
+    routes: {
+      'GET /api/sync/status': json(freshStatus),
+      'GET /status.json': json({ processedSeq: 0, error: '<b>weird</b>', errorSeq: 1 }),
+      'POST /api/sync': accepted(1),
+    },
+  });
   await s.advance(0);
   s.btn.dispatch('click');
-  await s.advance(3 * 60_000);
+  await s.advance(5000);
+  assert.equal(s.msg.textContent, 'No se pudo actualizar: error desconocido');
+});
+
+test('Sync: the ingest trigger write failing for this seq fails fast (lastTriggerError)', async () => {
+  const s = setup({
+    routes: {
+      'GET /api/sync/status': (n) => json(n === 1 ? freshStatus : { ...freshStatus, lastTriggerError: 'trigger_write', lastTriggerErrorSeq: 2 }),
+      'GET /status.json': json({ processedSeq: 1 }),
+      'POST /api/sync': accepted(2),
+    },
+  });
+  await s.advance(0);
+  s.btn.dispatch('click');
+  await s.advance(5000);
+  assert.equal(s.msg.textContent, 'No se pudo actualizar: el servicio no pudo avisar al servidor');
+});
+
+test('Sync: nothing processed within 5 min -> "No se pudo actualizar, reintenta", no reload', async () => {
+  const s = setup({ routes: { 'GET /api/sync/status': json(freshStatus), 'GET /status.json': json({ processedSeq: 0 }), 'POST /api/sync': accepted(1) } });
+  await s.advance(0);
+  s.btn.dispatch('click');
+  await s.advance(4 * 60_000);
   assert.equal(s.msg.textContent, 'Sincronizando…');
   await s.advance(60_000 + 5000);
   assert.equal(s.msg.textContent, 'No se pudo actualizar, reintenta');
@@ -200,25 +284,24 @@ test('Sync: no newer publish within 4 min -> "No se pudo actualizar, reintenta",
   assert.deepEqual(s.reloads, []);
 });
 
-test('Sync: a network error on POST -> the failure message', async () => {
-  const s = setup({ routes: { 'GET /api/sync/status': json(freshStatus), 'GET /status.json': json({ publishedAt: iso(NOW - H) }), 'POST /api/sync': new TypeError('Failed to fetch') } });
-  await s.advance(0);
-  s.btn.dispatch('click');
-  await s.advance(0);
-  assert.equal(s.msg.textContent, 'No se pudo actualizar, reintenta');
+test('Sync: a network error, a non-2xx answer or a reply without a seq -> the failure message at once', async () => {
+  for (const post of [new TypeError('Failed to fetch'), json({ error: 'x' }, 502), json({ ok: true }, 202)]) {
+    const s = setup({ routes: { 'GET /api/sync/status': json(freshStatus), 'GET /status.json': json({ processedSeq: 0 }), 'POST /api/sync': post } });
+    await s.advance(0);
+    s.btn.dispatch('click');
+    await s.advance(0);
+    assert.equal(s.msg.textContent, 'No se pudo actualizar, reintenta');
+    assert.equal(s.btn.disabled, false);
+  }
 });
 
-test('an hourly publish that predates the click by more than the skew allowance does not count', async () => {
-  // baseline read fails (null), then status.json shows a publish from 10 min before the click
+test('Sync: English failure copy', async () => {
   const s = setup({
-    routes: {
-      'GET /api/sync/status': json(freshStatus),
-      'GET /status.json': (n) => (n <= 2 ? json({}, 404) : json({ publishedAt: iso(NOW - 10 * MIN) })),
-      'POST /api/sync': json({ ok: true }, 202),
-    },
+    locale: 'en',
+    routes: { 'GET /api/sync/status': json(freshStatus), 'GET /status.json': json({ processedSeq: 0, error: 'build', errorSeq: 1 }), 'POST /api/sync': accepted(1) },
   });
   await s.advance(0);
   s.btn.dispatch('click');
-  await s.advance(15_000);
-  assert.deepEqual(s.reloads, []);
+  await s.advance(5000);
+  assert.equal(s.msg.textContent, 'Could not update: the page build failed');
 });

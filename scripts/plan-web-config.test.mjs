@@ -86,6 +86,15 @@ test('refresh.sh does not override the safe.directory setting (the unit runs as 
   assert.doesNotMatch(read(PLAN_WEB, 'refresh.sh'), /safe\.directory/);
 });
 
+test('every error code refresh.sh can write has a human reason in the page copy (es + en)', async () => {
+  const { es, en } = await import('../web/src/i18n/sync-templates.mjs');
+  const codes = [...read(PLAN_WEB, 'refresh.sh').matchAll(/^\s*fail ([a-z_]+) /gm)].map((m) => m[1]);
+  assert.deepEqual([...new Set(codes)].sort(), ['branch', 'build', 'install', 'lock', 'sanity']);
+  for (const code of [...codes, 'trigger_write']) {
+    assert.ok(es.errors[code] && en.errors[code], code);
+  }
+});
+
 test('no personal paths in the tracked plan-web files', () => {
   for (const text of [nginx, planCompose, pathUnit, serviceUnit, read(PLAN_WEB, 'refresh.sh'), read(PLAN_WEB, 'README.md')]) {
     assert.doesNotMatch(text, /\/root\/|\/home\/|\/Users\//);
