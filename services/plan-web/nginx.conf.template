@@ -1,0 +1,51 @@
+# nginx:alpine renders this template into /etc/nginx/conf.d/default.conf at
+# start, substituting ONLY variables defined in the container environment
+# (${INGEST_PORT}, see docker-compose.yml); nginx's own $variables are left
+# untouched.
+#
+# The Astro build already declares <meta charset="utf-8">, but nginx sending
+# the header too is cheap insurance against browsers guessing Latin-1 and
+# garbling accents/emoji before the <head> is parsed.
+server {
+    listen 80;
+    root /usr/share/nginx/html;
+    index index.html;
+    charset utf-8;
+
+    # Always revalidate: the page is regenerated hourly and on demand.
+    add_header Cache-Control "no-cache";
+
+    # Written by refresh.sh after every publish; the page polls it after a Sync.
+    location = /status.json {
+        default_type application/json;
+        add_header Cache-Control "no-cache, no-store";
+    }
+
+    # On-demand refresh. EXACTLY two ingest routes are reachable from here,
+    # both unauthenticated by design (POST /sync coalesces repeated clicks and
+    # returns a sequence number; status returns timestamps, sequence numbers
+    # and coarse error codes, never health data or raw errors). The
+    # bearer-protected ingest data endpoints are never proxied: everything
+    # else under /api/ is a 404.
+    location = /api/sync {
+        limit_except POST { deny all; }
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 15s;
+        proxy_pass http://host.docker.internal:${INGEST_PORT}/sync;
+    }
+
+    location = /api/sync/status {
+        limit_except GET { deny all; }
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 15s;
+        proxy_pass http://host.docker.internal:${INGEST_PORT}/sync/status;
+    }
+
+    location /api/ {
+        return 404;
+    }
+}

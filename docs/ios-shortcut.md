@@ -8,7 +8,8 @@ extract CSVs, so the dashboard stays fresh between full `export.xml` drops.
 
 1. Run the ingest service (`services/health-ingest`) somewhere your phone can reach over HTTPS.
 2. Build the Shortcut below: one **Find Health Samples** per payload key, each turned into text,
-   then one **Get Contents of URL** POST.
+   then one **Get Contents of URL** POST, and (optional) a second POST to `/sync` that refreshes
+   the page right away.
 3. Add a personal automation that runs it when you open an app you use every day.
 4. On your computer: `npm run sync && npm run generate`.
 
@@ -28,7 +29,7 @@ ingest service.
 
 ## Build the Shortcut
 
-Repeat steps 1 to 3 for every key you want (see the key table). Step 4 runs once at the end.
+Repeat steps 1 to 3 for every key you want (see the key table). Steps 4 and 5 run once at the end.
 
 1. **Find Health Samples** where *Type* is the metric (e.g. *Heart Rate Variability*).
    - *Start Date is in the last* N days (see "Window" in the table).
@@ -50,6 +51,22 @@ Repeat steps 1 to 3 for every key you want (see the key table). Step 4 runs once
    - Request Body: **JSON**, one *Text* field per key, set to the combined text from step 3.
 
 The service answers `202` with the stored row id. A `401` means the token does not match.
+
+5. **Get Contents of URL** (Spanish UI: *Obtener contenido de URL*), right after step 4:
+   - URL: `https://<your-host>/sync`
+   - Method: `POST`
+   - No headers and no body needed.
+
+   This only **triggers a refresh**: the ingest service pulls Strava and the host rebuilds the
+   plan page (see `services/plan-web/README.md`), so the page shows what you just sent within a
+   minute or two instead of at the next hourly run. It sends and returns no health data (only a
+   sequence number), needs no token, and never refuses: a second call within a minute just joins
+   the refresh already queued (`"coalesced": true`), which is fine. Skip this step if you do not
+   run `services/plan-web`.
+
+   Your public reverse proxy must forward `/sync` for this step (and `/ingest/*` for step 4),
+   and nothing else from the ingest service: never `/export/*` (see
+   `services/health-ingest/README.md`, exposure model).
 
 Example body (two lines per key shown):
 

@@ -15,6 +15,7 @@ import { es as esHealth, en as enHealth } from '../src/i18n/health-templates.mjs
 import { es as esScore, en as enScore } from '../src/i18n/score-templates.mjs';
 import { es as esIntake, en as enIntake } from '../src/i18n/intake-templates.mjs';
 import { es as esAct, en as enAct } from '../src/i18n/activity-templates.mjs';
+import { es as esSync, en as enSync } from '../src/i18n/sync-templates.mjs';
 import { ADVICE_COPY } from '../../lib/score/advice-copy.mjs';
 
 function keyTree(obj, prefix = '') {
@@ -271,4 +272,23 @@ test('score-templates.mjs timeline copy has the placeholders timeline.js relies 
     assert.match(dict.timeline.re, /\{n\}/);
     assert.deepEqual(Object.keys(dict.timeline.modalities), ['gym', 'run', 'bike', 'other']);
   }
+});
+
+test('sync-templates.mjs (freshness line + Sync button) has identical key trees in es/en, no empty leaves, {n} where freshness.js substitutes it', () => {
+  assert.deepEqual(keyTree(esSync), keyTree(enSync));
+  for (const [locale, dict] of [['es', esSync], ['en', enSync]]) {
+    for (const [path, value] of leaves(dict)) {
+      assert.equal(typeof value, 'string', `${locale} sync-templates.${path}`);
+      assert.notEqual(value.trim(), '', `${locale} sync-templates.${path} must not be empty`);
+    }
+    for (const k of ['minAgo', 'hAgo', 'dAgo']) assert.match(dict[k], /\{n\}/, `${locale}.${k}`);
+    assert.deepEqual(Object.keys(dict.labels), ['shortcut', 'strava', 'page']);
+    assert.deepEqual(Object.keys(dict.hints), ['shortcut', 'strava', 'page']);
+    assert.match(dict.failedCode, /\{reason\}/, `${locale}.failedCode`);
+    // every coarse code refresh.sh (status.json error) or ingest (lastTriggerError) can report, + a fallback
+    assert.deepEqual(Object.keys(dict.errors), ['branch', 'install', 'build', 'sanity', 'lock', 'trigger_write', 'unknown']);
+    assert.equal(dict.wait, undefined, 'no 429 copy: POST /sync never refuses, it coalesces');
+  }
+  assert.equal(esSync.button, 'Sincronizar');
+  assert.equal(enSync.button, 'Sync');
 });

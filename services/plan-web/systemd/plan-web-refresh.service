@@ -1,0 +1,46 @@
+# Started by plan-web-refresh.path. refresh.sh already serializes runs with
+# flock; PLAN_WEB_WAIT_LOCK=1 makes this on-demand run WAIT for a running
+# cron refresh instead of skipping, and refresh.sh re-reads the trigger seq
+# after each pass, so a Sync click is never dropped.
+# Replace /path/to/health-coach with your clone's absolute path and REPO_OWNER
+# with the user that owns the clone (see services/plan-web/README.md).
+[Unit]
+Description=Rebuild and publish the plan page (on demand)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# The user that OWNS the clone, the same one whose crontab runs refresh.sh.
+# Use root only when the clone itself is root-owned: git refuses a repo owned
+# by another user ("dubious ownership"), and running the build as that owner
+# is what avoids it, so no safe.directory override is needed.
+User=REPO_OWNER
+WorkingDirectory=/path/to/health-coach
+Environment=PLAN_WEB_WAIT_LOCK=1
+# systemd's default PATH has /usr/local/bin and /usr/bin; if node/npm live
+# elsewhere (nvm, asdf, ...), add their bin directory here, e.g.
+# Environment=PATH=/opt/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/path/to/health-coach/services/plan-web/refresh.sh
+# Worst case: waiting for the lock (900 s) + up to 3 passes of
+# sync (300 s) + npm ci (900 s) + generate (300 s).
+TimeoutStartSec=5600
+
+# --- Hardening ---------------------------------------------------------------
+# The build only needs to write inside the clone. Everything else is read-only.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/path/to/health-coach
+# Home directories are visible read-only (node/npm from nvm keep working);
+# ReadWritePaths above still makes a clone that lives under a home directory
+# writable. npm/astro would otherwise write caches and config into $HOME, so
+# they get a writable cache dir (created and owned for User= by systemd) and
+# telemetry/update checks are off. If a build fails with EROFS / "read-only
+# file system" in `journalctl -u plan-web-refresh`, add that path to
+# ReadWritePaths (or, last resort, drop ProtectHome).
+ProtectHome=read-only
+CacheDirectory=plan-web-refresh
+Environment=npm_config_cache=/var/cache/plan-web-refresh
+Environment=npm_config_update_notifier=false
+Environment=ASTRO_TELEMETRY_DISABLED=1
