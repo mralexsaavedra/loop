@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { migratePlanV2, runMigration, CARB_KEYS, backupPath } from './migrate-plan-v2.mjs';
+import { migratePlanV2, runMigration, STAPLE_KEYS, FRUIT_KEYS, backupPath, localDate, parseArgs } from './migrate-plan-v2.mjs';
 import { DEFAULT_BY_GOAL } from '../lib/nutrition/targets.mjs';
 import { validateNutrition } from '../lib/nutrition/macros.mjs';
 
@@ -52,14 +52,19 @@ function fixture() {
   };
 }
 
-test('the carb key list covers the obvious carb staples (es + en keys), and no protein / fat food', () => {
-  for (const k of ['arroz', 'rice', 'pasta', 'pan', 'panecillo', 'bread', 'patata', 'potato', 'boniato', 'avena', 'oats', 'miel', 'honey', 'platano', 'banana', 'manzana', 'apple', 'naranja', 'pera', 'uvas']) {
-    assert.ok(CARB_KEYS.includes(k), k);
+test('the default flex set is carb STAPLES only; fruit, honey, jam and juice are opt-in (--include-fruit)', () => {
+  for (const k of ['arroz', 'rice', 'pasta', 'pan', 'panecillo', 'bread', 'patata', 'potato', 'avena', 'oats', 'cuscus', 'couscous', 'quinoa', 'wrap', 'tortillatrigo']) {
+    assert.ok(STAPLE_KEYS.includes(k), k);
   }
-  for (const k of ['pollo', 'wheyup', 'leche', 'aceiteoliva', 'avellanas', 'lentejas']) assert.ok(!CARB_KEYS.includes(k), k);
+  for (const k of ['miel', 'honey', 'platano', 'banana', 'manzana', 'apple', 'naranja', 'zumonaranja', 'mermelada', 'pera']) {
+    assert.ok(!STAPLE_KEYS.includes(k), `${k} is not a staple`);
+    assert.ok(FRUIT_KEYS.includes(k), `${k} is opt-in`);
+  }
+  assert.ok(!STAPLE_KEYS.includes('tortilla'), 'a Spanish "tortilla" is an omelette, not a wrap');
+  for (const k of ['pollo', 'wheyup', 'leche', 'aceiteoliva', 'avellanas', 'lentejas']) assert.ok(!STAPLE_KEYS.includes(k) && !FRUIT_KEYS.includes(k), k);
 });
 
-test('adds targets.byGoal (the approved numbers), page.goal and flex markers on pure-carb parts only', () => {
+test('adds targets.byGoal (the approved numbers), page.goal and flex markers on staple-carb parts only', () => {
   const { plan, changes } = migratePlanV2(fixture(), ING);
   for (const g of Object.keys(DEFAULT_BY_GOAL)) assert.deepEqual(plan.targets.byGoal[g], JSON.parse(JSON.stringify(DEFAULT_BY_GOAL[g])));
   assert.equal(plan.targets.train.p, 150, 'the day builder targets stay');
@@ -68,8 +73,8 @@ test('adds targets.byGoal (the approved numbers), page.goal and flex markers on 
   const tr = plan.dayPlan.train.meals;
   assert.equal(tr[0].parts[0].flex, undefined, 'protein stays fixed');
   assert.equal(tr[0].parts[1].flex, 'carb', 'rice item');
-  assert.equal(tr[0].parts[2].flex, 'carb', 'fruit item');
-  assert.deepEqual(tr[1].parts.map((p) => p.flex), [undefined, 'carb', 'carb'], 'milk fixed; bread + honey flex');
+  assert.equal(tr[0].parts[2].flex, undefined, 'fruit is not scaled by default');
+  assert.deepEqual(tr[1].parts.map((p) => p.flex), [undefined, 'carb', undefined], 'milk fixed; bread flex; honey not by default');
   assert.equal(tr[2].parts[0].flex, undefined, 'banana + whey is mixed: not scaled');
   assert.deepEqual(tr[3].parts.map((p) => p.flex), [undefined, 'carb', undefined, undefined], 'potato flex; legumes (manual) and oil fixed');
   assert.equal(plan.dayPlan.rest.meals[0].parts[2].flex, null, 'an explicit flex: null opts a part out');
@@ -77,6 +82,73 @@ test('adds targets.byGoal (the approved numbers), page.goal and flex markers on 
   assert.match(changes.join('\n'), /targets\.byGoal/);
   assert.match(changes.join('\n'), /page\.goal/);
   assert.match(changes.join('\n'), /train · Comida · Arroz/);
+});
+
+test('--include-fruit also marks fruit and honey (still never a mixed item)', () => {
+  const { plan } = migratePlanV2(fixture(), ING, { includeFruit: true });
+  const tr = plan.dayPlan.train.meals;
+  assert.equal(tr[0].parts[2].flex, 'carb', 'apple');
+  assert.deepEqual(tr[1].parts.map((p) => p.flex), [undefined, 'carb', 'carb']);
+  assert.equal(tr[2].parts[0].flex, undefined, 'banana + whey stays fixed');
+});
+
+// a plan migrated by the first version of this script (fruit + honey were marked too)
+function oldMigrated() {
+  const plan = migratePlanV2(fixture(), ING, { includeFruit: true }).plan;
+  plan.dayPlan.rest.meals[1].parts[1].flex = null; // the owner opted a potato out by hand
+  return plan;
+}
+
+test('--reset-flex re-derives the markers: drops the non-staple "carb" marks, keeps staples and opt-outs', () => {
+  const { plan, changes } = migratePlanV2(oldMigrated(), ING, { resetFlex: true });
+  const tr = plan.dayPlan.train.meals;
+  assert.equal(tr[0].parts[1].flex, 'carb', 'rice stays');
+  assert.equal('flex' in tr[0].parts[2], false, 'apple: mark removed');
+  assert.deepEqual(tr[1].parts.map((p) => p.flex), [undefined, 'carb', undefined], 'honey unmarked, bread kept');
+  assert.equal('flex' in tr[1].parts[2], false);
+  assert.equal(plan.dayPlan.rest.meals[1].parts[1].flex, null, 'a flex: null opt-out is never touched');
+  assert.equal(plan.dayPlan.rest.meals[0].parts[2].flex, null);
+  assert.match(changes.join('\n'), /train · Comida · Manzana: removed flex "carb"/);
+  assert.match(changes.join('\n'), /train · Pre-entreno · miel: removed flex "carb"/);
+  // idempotent
+  assert.deepEqual(migratePlanV2(plan, ING, { resetFlex: true }).changes, []);
+  // with --include-fruit the fruit marks are part of the set again: nothing removed
+  assert.deepEqual(migratePlanV2(oldMigrated(), ING, { resetFlex: true, includeFruit: true }).changes, []);
+});
+
+test('--reset-flex also marks staples that were never marked; without it existing flex keys are left alone', () => {
+  const p = oldMigrated();
+  delete p.dayPlan.train.meals[3].parts[1].flex; // potato lost its mark
+  const reset = migratePlanV2(p, ING, { resetFlex: true }).plan;
+  assert.equal(reset.dayPlan.train.meals[3].parts[1].flex, 'carb');
+  const plain = migratePlanV2(oldMigrated(), ING);
+  assert.equal(plain.plan.dayPlan.train.meals[0].parts[2].flex, 'carb', 'no reset: the old fruit mark stays');
+});
+
+test('a non-object targets or page is an error, never replaced', () => {
+  const t = fixture();
+  t.targets = [1, 2];
+  assert.throws(() => migratePlanV2(t, ING), /targets.*must be an object/);
+  const p = fixture();
+  p.page = 'x';
+  assert.throws(() => migratePlanV2(p, ING), /page.*must be an object/);
+  const n = fixture();
+  delete n.targets;
+  n.page = null;
+  const r = migratePlanV2(n, ING).plan;
+  assert.equal(typeof r.targets.byGoal, 'object', 'absent / null blocks are created');
+  assert.equal(r.page.goal, 'maintain');
+});
+
+test('localDate is the local calendar date (the backup name), not the UTC one', () => {
+  assert.equal(localDate(new Date(2030, 0, 10, 0, 30)), '2030-01-10');
+  assert.equal(localDate(new Date(2030, 11, 31, 23, 59)), '2030-12-31');
+});
+
+test('parseArgs: flags and --file', () => {
+  assert.deepEqual(parseArgs(['--reset-flex', '--dry-run', '--include-fruit', '--file', 'x.json']), { dryRun: true, resetFlex: true, includeFruit: true, file: 'x.json' });
+  assert.deepEqual(parseArgs([]), { dryRun: false, resetFlex: false, includeFruit: false, file: null });
+  assert.throws(() => parseArgs(['--nope']), /unknown option/);
 });
 
 test('idempotent: a migrated plan has nothing left to change; an existing byGoal / goal is kept', () => {
@@ -149,4 +221,45 @@ test('runMigration --dry-run reports without touching the file; an existing same
 
 test('runMigration: a missing plan file is a clear error', () => {
   assert.throws(() => runMigration({ file: '/nonexistent/plan-data.json', ingredientsFile: '/nonexistent/i.json', log: () => {} }), /not found/);
+});
+
+test('runMigration --dry-run prints the resulting carb factor and remainder per goal x day type', () => {
+  const { dir, file, ingFile } = tmpPlan();
+  try {
+    const log = [];
+    runMigration({ file, ingredientsFile: ingFile, today: '2030-01-10', dryRun: true, log: (l) => log.push(l) });
+    const out = log.join('\n');
+    for (const g of ['maintain', 'cut', 'bulk']) for (const d of ['rest', 'gym', 'bike', 'bikeLong']) {
+      assert.match(out, new RegExp(`${g} +${d} +×\\d+\\.\\d\\d( \\((min|max)\\))? +remainder +[+-]?\\d+ kcal`), `${g}/${d}`);
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('runMigration writes atomically (no temp file left), 2-space JSON with a trailing newline', () => {
+  const { dir, file, ingFile } = tmpPlan();
+  try {
+    runMigration({ file, ingredientsFile: ingFile, today: '2030-01-10', log: () => {} });
+    const out = fs.readFileSync(file, 'utf8');
+    assert.ok(out.endsWith('}\n'));
+    assert.match(out, /^\{\n  "data": \{\n    "carbo"/);
+    assert.deepEqual(fs.readdirSync(dir).sort(), ['ingredients.json', 'plan-data.json', 'plan-data.json.pre-v2-2030-01-10.bak']);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('runMigration --reset-flex backs up first and only then rewrites', () => {
+  const { dir, file, ingFile } = tmpPlan();
+  try {
+    fs.writeFileSync(file, JSON.stringify(oldMigrated(), null, 2) + '\n');
+    const before = fs.readFileSync(file, 'utf8');
+    const r = runMigration({ file, ingredientsFile: ingFile, today: '2030-01-10', resetFlex: true, log: () => {} });
+    assert.equal(r.written, true);
+    assert.equal(fs.readFileSync(r.backup, 'utf8'), before);
+    assert.equal('flex' in JSON.parse(fs.readFileSync(file, 'utf8')).dayPlan.train.meals[0].parts[2], false);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
