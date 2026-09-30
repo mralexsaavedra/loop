@@ -138,6 +138,27 @@ test('deep link: a page opened with #detail/<metric>/<date> opens that view on l
   assert.equal(setup({ hash: '#detail/sleep/2026-13-99x' }).host.hidden, true);
 });
 
+test('a frame that refuses history writes (sandboxed artifact): the view still opens and closing never calls history.back()', () => {
+  const s = setup();
+  s.ctx.history.pushState = () => { throw new Error('SecurityError'); };
+  s.ctx.history.replaceState = () => { throw new Error('SecurityError'); };
+  s.api.open('sleep');
+  assert.equal(s.host.hidden, false);
+  s.click(act('close'));
+  assert.equal(s.host.hidden, true);
+  assert.equal(s.calls.filter((c) => c[0] === 'back').length, 0, 'back() would navigate away from the page');
+});
+
+test('walking HR (a daytime signal) shows the day value vs its personal median, not a night', () => {
+  const s = setup();
+  const m = DEMO.metrics.walkingHr;
+  const d = addDays(m.start, m.v.length - 2);
+  s.api.open('walkingHr', d);
+  const html = s.host.innerHTML;
+  assert.ok(html.includes('vs your median'));
+  assert.ok(!html.includes(enT.day.asleep), 'no sleep rows');
+});
+
 test('Enter or Space on a card opener opens its view', () => {
   const s = setup();
   const e = s.key('Enter', new StubElement('div', { attrs: { 'data-detail': 'weight' } }));
