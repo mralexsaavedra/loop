@@ -120,7 +120,7 @@ function loadDial(L) {
       }
       return out;
     });
-    return { key: m.key, state: 'ok', typical, trendPct: t.trendPct, band: t.band, days, last: m.last || null };
+    return { key: m.key, state: 'ok', typical, trendPct: t.trendPct, band: t.band, days, last: m.last || null, unscored: m.unscoredAcute || 0 };
   });
   const first = modalities.find((m) => m.state === 'ok') || modalities[0];
   return {

@@ -323,9 +323,13 @@ ingest service (`services/health-ingest`) has stored from Strava via `GET /expor
 merges translated rows into `workouts.csv`, tagged `source=Strava API`, so a ride logged only on
 Strava (no Watch record) still shows up — normally grouped into the `bike` modality. Cycling-family
 sport types (incl. e-bike and virtual/indoor rides) all translate to the same `Cycling` type as
-Apple Health uses, so they land in the same `bike` bucket. Accepted limitations: date-level
-precedence means a Strava-only activity on a date that ALSO has an Apple Health export row is
-dropped (never double-counted, but a mixed day can lose a Strava-only session); a Strava activity
+Apple Health uses, so they land in the same `bike` bucket. Strava rows are ALWAYS kept, also on
+dates the export covers (Strava is the only source of Relative Effort, kJ and elevation), and are
+rebuilt each run and removed only by their `Strava API` tag. Dedupe happens at READ time: every
+workouts.csv reader goes through `lib/training/sessions.mjs` `mergeSameDay`, which keeps ONE source
+per date + physical modality (Inicio's gym / run / bike / other): "Strava API" > "Strava" (the Strava
+app's HealthKit copy) > Apple Watch > any other app, when the winner covers at least half of the
+loser's minutes (`SUPERSEDE_MIN_COVERAGE`); lower coverage = a different session, both counted. Accepted limitations: a Strava activity
 deleted upstream is never removed from the local CSV (ingest never deletes); an edit made more
 than 7 days ago is never picked up (the ingest service's Strava loop only re-reads a 7-day
 overlap window). `GET /export/strava` requires an ingest image rebuild/restart
@@ -384,7 +388,8 @@ anchor for Inicio's health monitor.
 - **Energy** — `active-energy-daily.csv` + `basal-energy-daily.csv` give expenditure (TDEE,
   7-day rolling); `dietary-daily.csv` gives intake AND the macro split (protein/carbs/fat, g + %
   kcal). Data honesty: intake logging is sparse and abandoned, so the balance (deficit/surplus)
-  AND the macro split are shown ONLY when ≥7 logged days exist in the recent window; otherwise
+  AND the macro split are shown ONLY when intake was logged within the last 14 days of the newest
+  expenditure day and ≥7 logged days exist in the 90 days ending at that day; otherwise
   the page shows expenditure alone and says intake can't be scored. Implausible basal readings
   (double-counts / no-wear) are dropped via a sane band.
 - **Running** — `workouts.csv` Running rows (Watch export AND `sync:strava`, via `readRuns`), merged
@@ -403,13 +408,26 @@ anchor for Inicio's health monitor.
   for time/distance/kJ/elevation/RE, duration-weighted avg HR, and the count is distinct ride days. Elevation / RE / kJ come from
   Strava only; a field the source did not record renders as a dash, never 0. When only one of run /
   bike has data, the other shows its empty-state line; with neither, both are omitted.
-- **Recovery** — `rhr.csv`, `hrv.csv` (averaged per day), `vo2max.csv`, `sleep-daily.csv`,
+- **Recovery** — `rhr.csv`, `hrv.csv` (both as the clamped per-day MEDIAN, `score/recovery.mjs`
+  `dailySignal`, the same series Inicio's recovery and monitor use), `vo2max.csv`, `sleep-daily.csv`,
   `respiratory-daily.csv`, `wristTemp.csv`, `walking-hr-daily.csv`. Good directions stated on
   screen (↓ resting/walking HR, ↑ HRV, ↑ VO₂max; respiratory & sleeping wrist temp are change-
   not-absolute signals). Sleep adds CONSISTENCY: % of nights ≥ `SLEEP_TARGET` (7.5 h), night-to-
-  night spread (sd), and bedtime/wake-time regularity (median ± sd in minutes; after-midnight
-  bedtimes wrapped onto a night scale). Sleep bedtime/waketime come from the extended
-  `sleep-daily.csv` (extract.js emits earliest asleep start / latest end per night). Sleep renders
+  night spread (sd), and bedtime/wake-time regularity (median ± a ROBUST sd = 1.4826 × MAD, in
+  minutes; after-midnight bedtimes wrapped onto a night scale). Sleep bedtime/waketime come from the
+  extended `sleep-daily.csv`: extract.js and sync-shortcut.js share `samples.js` `sleepNights`, which
+  keeps only the MAIN sleep of each wake-up night (asleep segments chained with gaps < 60 min; the
+  longest block whose midpoint falls 20:00-12:00, plus in-window blocks within 3 h of it when they lie
+  before it or start before 05:00 on the wake-up date, so a split night with a 3 am wake-up stays one
+  night, but within only 60 min when they start after the night's end from 05:00 on
+  (`AFTER_END_GAP_MIN`), so a 09:00 nap after a 06:30 wake-up is not absorbed). Naps (incl. one that
+  crosses 18:00) add neither minutes nor bed/wake times; a nap-only day has no row. Sleeping wrist
+  temperature is dated by the same midpoint + 18:00 roll-over rule as a sleep block (`wristTempDate(start,
+  end)`; a Shortcut sample with only a start falls back to its start). Known limitation: night-shift
+  sleep (a daytime main sleep) falls outside the 20:00-12:00 window and is treated as a nap. No
+  migration: rows of `sleep-daily.csv` / `wristTemp.csv` that came from an earlier export keep the old
+  convention until `node data/apple-health/extract.js` is re-run on a new export (Shortcut rows are
+  rebuilt by every sync). Sleep renders
   as its own Salud section; its heading is the `#hl-sleep` anchor.
 
 Trends render as inline SVG sparklines (CSP-safe). The build is idempotent — no today-relative
@@ -452,12 +470,26 @@ is the newest day, and the trend is the line under it.
   confidence + SDNN chips stay on one line and the raw last-14-days lists fold into a `<details>`
   ("Last 14 days" / "Últimos 14 días"). Gated ("insufficient")
   unless components with ≥ 14 baseline days carry ≥ 0.60 of the weight, include HRV or RHR, and there
-  are ≥ 7 composite days in the last 14.
+  are ≥ 7 composite days in the last 14. "Last night" is the newest COMPLETE day among asOf and the 2
+  days before it (`MAX_TODAY_FALLBACK_DAYS`): it needs a sleep-duration reading AND a resting-HR value
+  AND — only when HRV is a scored component (the user has an HRV baseline) — an HRV day with ≥
+  max(min(3, usual), 50% of usual) samples (`completeDay`; usual = median daily sample count over the
+  baseline; only plausible samples inside the HRV clamp range count, identical rows once), plus ≥ 0.60
+  of the weight. A user without Watch HRV is scored on sleep + resting HR. A partial newest day (e.g.
+  no RHR yet) falls back to the previous complete one, labelled by its date, and stays in the trend and
+  baselines; with no complete day in those 3 the headline is the trend with a "no recent complete
+  night" note. The monitor cards and Salud's HRV headline keep per-signal
+  completeness (HRV sample floor only).
 - **Load** is PER MODALITY (gym / run / bike; `other` is shown raw, never scored) and Relative-Effort-only
   (Strava `suffer_score`; Apple rows have no RE and are counted as `unscored`). Same-day rows follow
   the shared rule below (junk dropped, one source, then SUM). The series starts at the first date with any RE
   (`reEpoch`); acute 7d vs chronic 42d EWMA; a modality gates ("baselineBuilding") under 28 days since the
   epoch, under 8 non-zero days, or chronic < 1. The 0-100 `relScore` exists only within a modality.
+  A day whose rows in a modality are ALL unscored is MISSING, not rest: both EWMAs carry forward
+  over it without decay, and a modality whose last 7 days hold such sessions says so on its card and
+  dial caption ("includes N sessions without effort data"). Trend bands: ramping ≥ +30%, above ≥
+  +10%, steady, below ≤ −10%, well below < −30% (never "detraining": the data cannot tell a deload
+  or missing effort data from fitness loss).
   Today first: `typical` = the median of the NON-ZERO days in the 42 days before asOf (asOf
   excluded; `value: null` under 6 such days — `TYPICAL_WINDOW_DAYS` / `MIN_TYPICAL_DAYS` in
   `load.mjs`). `recent` = the session days of the last `RECENT_DAYS` (14) ending asOf, each
@@ -483,7 +515,7 @@ is the newest day, and the trend is the line under it.
   pre-computes the 270° arc geometry; `score.js` only formats numbers and joins SVG strings.
   Recovery: arc = −3…+3 MAD, three tinted zones cut at ±`BAND_CUTOFF`, fill from baseline to a marker
   at last night's composite (`today`, zones cut at ±`DAY_BAND_CUTOFF`; falls back to `trend7`, zones at
-  ±`BAND_CUTOFF`, with a "no data for last night" note), centre = short band word + signed value in
+  ±`BAND_CUTOFF`, with a "no recent complete night" note), centre = short band word + signed value in
   sd, coloured by that band; under it "Last night" (or the night's date, + "no sleep data" when the
   night has no sleep reading) and "7-day trend: steady · +0.5 sd". Sleep: fill = the
   sleep-duration component's newest night / the stated target (`health.recovery.sleep.target`, 7.5 h),
@@ -525,19 +557,30 @@ is the newest day, and the trend is the line under it.
   (`dials.load.caveatLine`); when it hides Salud, a compact recovery line (`dials.recovery.caveatLine`).
 - **One same-day merge rule** (`lib/training/sessions.mjs` `mergeSameDay(rows, keyFn, { dropJunk, dropStub })`),
   used by EVERY workouts.csv reader: the load series, the timeline, the Entreno calendar/cumulative
-  time, the workouts dashboard and the running/cycling tables (the key is the reader's modality
-  bucket). Per (date, key): drop invalid rows (`dur <= 0`); then the short-row filter depends on the
+  time, the workouts dashboard, the running/cycling tables and Salud's load vs recovery (the key is
+  the physical modality — Inicio's gym / run / bike / other — or one constant for a single-family
+  table; Entreno buckets the surviving rows into its five display buckets afterwards). Per (date, key): drop invalid rows (`dur <= 0`); then the short-row filter depends on the
   reader — LOAD scoring (default) drops junk (`isJunk`: `dur <= 11` AND `re` null or ≤ 2), while the
   DISPLAY readers (timeline, calendar/cumulative, dashboard, run/ride tables) pass `DISPLAY_RULE` and
   drop only stubs (`isStub`: `dur < STUB_MAX_MIN` = 3, accidental Watch starts) — Watch rows and no-HR
   Strava rows have `re` null by design, so the junk rule would hide real 9-10 min sessions from the
-  pages that list sessions (they still add no load); when a Strava row (`source` "Strava API" or
-  legacy "Strava") AND a Watch row exist for the same date and key, and the Strava rows' total
-  duration is ≥ `SUPERSEDE_MIN_COVERAGE` (0.5) × the Watch rows' total, keep ONLY the Strava rows
-  (they carry RE / elevation / kJ) instead of summing a double-counted session — sync:strava's
-  date-level precedence should prevent the pair but has known holes; below that coverage the rows
-  are most likely different sessions and both are kept; the load coverage counts superseded rows as
-  `superseded`; then
+  pages that list sessions (they still add no load); then ONE source per session, because several
+  apps mirror the SAME workout into Apple Health (workouts.csv carries Watch, Hevy, Zepp, ROXFIT, Nike,
+  the Strava app's HealthKit copy "Strava" and sync:strava's "Strava API" rows): rows are grouped by
+  `source`; fragments of ONE source are kept together (the Watch splits sessions); across sources one
+  source's rows are kept, never a sum, by `SOURCE_PRECEDENCE` (`/^Strava API\b/i` > `/^Strava\b(?! API\b)/i` >
+  `/^Apple\s+Watch\b/i` (anchored; `\s` matches the no-break space Health writes in the device name) > any
+  other app; within one rank the longest total wins, then the group with HR, then with RE, then source
+  name ascending — deterministic, never file order) — sync:strava keeps every Strava
+  row, so this is THE dedupe. A higher-precedence source replaces a lower one only when its total
+  duration is ≥ `SUPERSEDE_MIN_COVERAGE` (0.5) × the lower one's total; below that they are most
+  likely different sessions and both source groups are kept. Known limitation: rows carry no start
+  time, so a higher-precedence copy covering ≥ 0.5 of a lower source's total can absorb a genuine
+  SECOND session of that lower source; planned fix = add `start_time` to workouts.csv and match copies
+  by time overlap. When the kept source has no HR (or no
+  RE) and a replaced copy does, the kept rows inherit it (HR duration-weighted, max of max; RE spread
+  by duration), so HR-based readers (load vs recovery) keep the session. The load coverage counts
+  replaced rows as `superseded`; then
   the remaining rows are summed as ONE session (a session logged in parts adds up; a real two-a-day
   is indistinguishable).
 - **workouts.csv has 12 columns** (`… ,distance_km,relative_effort,kilojoules,elevation_m`), written by
