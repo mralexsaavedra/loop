@@ -21,9 +21,9 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 
 | Method | Path                          | Auth   | Response |
 | ------ | ----------------------------- | ------ | -------- |
-| GET    | `/healthz`                    | none   | `200` when the database answers; `degraded: true, reason: "strava_stale"` when Strava is configured and has not synced for 6 h |
-| POST   | `/sync`                       | none   | `202` `{ok, strava, requestedAt}`; `429` + `Retry-After` inside the 60 s global limit |
-| GET    | `/sync/status`                | none   | `200` `{lastShortcutAt, lastStravaOkAt, lastStravaError, lastTriggerAt, stravaConfigured}` |
+| GET    | `/healthz`                    | none   | `200` when the database answers; `degraded: true, reason: "strava_stale"` when Strava is configured and its last PERSISTED success is older than 6 h (or it never succeeded) |
+| POST   | `/sync`                       | none   | `202` `{ok, seq, coalesced, strava?}`; never refuses (repeated clicks coalesce) |
+| GET    | `/sync/status`                | none   | `200` `{lastShortcutAt, lastStravaOkAt, lastStravaError, lastTriggerAt, lastTriggerError, lastTriggerErrorSeq, triggerSeq, stravaConfigured}` (coarse codes only, cached 5 s) |
 | POST   | `/ingest/health-auto-export`  | bearer | `202` with the stored row id |
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
 | GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]`; `400` on a bad query |
@@ -35,36 +35,69 @@ for the endpoint, because Health Auto Export can only send a static header.
 ## On-demand refresh: `POST /sync` and `GET /sync/status`
 
 The plan page's **Sync** button (through plan-web's nginx, `/api/sync`) and the
-last step of the iOS Shortcut call `POST /sync`. It answers `202` at once, then:
+last step of the iOS Shortcut call `POST /sync`. It uses a **sequence
+protocol**: no clock is compared anywhere.
 
-1. kicks the Strava pull now. The timer loop, `POST /sync` and
-   `POST /sync/strava` share ONE in-flight run, so they never overlap;
-2. once that pull settles (at most 90 s), writes the request time to
+1. A new click gets the next **trigger sequence** (`trigger_seq`, persisted in
+   `sync_status`; at startup it resumes from the max of the DB value and the
+   trigger file, so it never goes backwards). The answer is `202 {seq, coalesced: false}`.
+2. It kicks the Strava pull, unless the last successful pull is less than
+   5 min old. The timer loop, `POST /sync` and `POST /sync/strava` share ONE
+   in-flight run, so they never overlap.
+3. Once the pull settles (at most 90 s), it writes `seq` to
    `$TRIGGER_DIR/refresh` (`/trigger/refresh`, bind-mounted from
-   `./trigger/refresh`). A failed pull still writes it, so the page rebuilds
-   from what is stored.
+   `./trigger/refresh`) **atomically**: a temp file in the same directory,
+   opened `O_CREAT|O_EXCL|O_NOFOLLOW`, then renamed over the target. A symlink
+   at the target is refused. A failed pull still writes it, so the page
+   rebuilds from what is stored.
 
 The host watches that file with a systemd path unit and runs
-`services/plan-web/refresh.sh` (install steps: `services/plan-web/README.md`).
+`services/plan-web/refresh.sh`, which publishes `processedSeq` in its
+`status.json`; the page reloads once `processedSeq >= seq` (details and install
+steps: `services/plan-web/README.md`).
 
-`GET /sync/status` feeds the page's freshness line: the newest payload's
-`received_at`, the last Strava success, the last Strava error (one line, at most
-120 characters, cleared by the next success), the last trigger, and whether
-Strava is configured. The Strava times and the trigger are kept in memory and in
-the single-row `sync_status` table (`sql/003_sync.sql`), so a restart keeps them.
+**Coalescing instead of rate limiting.** A click while the previous trigger is
+still pending (pull + write not done), or within 60 s of the last accepted one,
+gets `202 {seq: <current>, coalesced: true}` and causes no work. There is no
+`429`, so nobody can lock the owner out, and cost stays bounded: at most one
+trigger write (= one rebuild) per minute and one Strava pull per 5 min.
+
+`GET /sync/status` feeds the page's freshness line and the Sync button:
+the newest payload's `received_at`, the last Strava success, the last Strava
+failure as a **coarse code** (`strava_auth`, `strava_network`, `strava_other`,
+or `strava_token_save` when a rotated refresh token could not be stored),
+the last trigger time, `lastTriggerError` (`trigger_write`) with the seq it
+failed for, the current `triggerSeq`, and whether Strava is configured. Raw
+error messages only go to the logs. The snapshot is cached for 5 s. State is
+kept in memory and in the single-row `sync_status` table (`sql/003_sync.sql`),
+so a restart keeps it; a failed DB read at startup is retried on the next
+status request.
 
 **Why these two routes have no token.** The page is a static file and cannot
 hold a secret. `POST /sync` only schedules work the service already does on a
-timer: it reads no body, returns only the request time, and a GLOBAL limit lets
-one request per 60 s through (`429` + `Retry-After` otherwise).
-`GET /sync/status` returns timestamps and a short error string, never health
-data or the payload itself (tests pin the exact key set). The data endpoints
-(`/ingest`, `/export`, `/sync/strava`) keep the bearer token, and plan-web
-proxies only these two routes.
+timer, reads no body and returns only a sequence number. `GET /sync/status`
+returns timestamps, sequence numbers and codes, never health data, raw errors
+or the payload itself (tests pin the exact key set and that no error text
+leaks). The data endpoints (`/ingest`, `/export`, `/sync/strava`) keep the
+bearer token.
 
-The trigger directory must be writable by the container's `node` user
-(uid 1000): `mkdir -p trigger && sudo chown 1000:1000 trigger`. A failed write is
-logged (`trigger_write_failed`) and never fails the request.
+**Exposure model.** A public reverse proxy in front of this service should
+forward ONLY `/ingest/*` and `POST /sync` (the Shortcut's last step);
+`/sync/status` is optional. Never expose `/export/*` or `/sync/strava`. The LAN
+plan-web nginx proxies only `/api/sync` and `/api/sync/status`.
+
+**Deploy order.** Create the trigger directory and hand it to the container's
+`node` user (uid 1000) BEFORE `docker compose up`, or Docker creates it
+root-owned: `mkdir -p trigger && sudo chown 1000:1000 trigger`. Then
+`docker compose up -d --build` (runs the idempotent `003_sync.sql`). The full
+host sequence is in `services/plan-web/README.md`. A failed write is logged
+(`trigger_write_failed`), exposed as `trigger_write`, and never fails the request.
+
+**Strava token persistence.** A rotated refresh token is saved with up to 3
+attempts and growing backoff; if all fail it is kept in memory, status reports
+`strava_token_save`, and the save is retried on the next refresh. A failed read
+of the stored token is retried on the next refresh too (the env token is used
+meanwhile).
 
 ## iOS Shortcut ingestion
 
