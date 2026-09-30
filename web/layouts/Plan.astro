@@ -3,7 +3,7 @@
  * (personal copy), and the end-of-body script order per design: bake (each
  * tab's own Bake, e.g. Registro's) → NAV + HC_CONST → util (window.HC, the shared client helpers,
  * FIRST so every later script can read it) → core (setTab/setDay/jump/bump) →
- * nutrition → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → detail → freshness.
+ * nutrition → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → profile → detail → freshness.
  * Tabs render inside <slot />; the detail sheet (components/DetailSheet.astro) renders in the `overlay`
  * slot, after .wrap, so detail.js can make the page behind it inert. The freshness line + Sync button (#freshness) render hidden; freshness.js
  * shows them only when the page's server answers /api/sync/status (see services/plan-web/README.md).
@@ -18,6 +18,7 @@ import '../src/styles/health.css';
 import '../src/styles/score.css';
 import '../src/styles/layout.css';
 import '../src/styles/detail.css';
+import '../src/styles/profile.css';
 import utilScript from '../src/client/util.js?raw';
 import coreScript from '../src/client/core.js?raw';
 import nutritionScript from '../src/client/nutrition.js?raw';
@@ -31,6 +32,8 @@ import timelineScript from '../src/client/timeline.js?raw';
 import intakeScript from '../src/client/intake.js?raw';
 import freshnessScript from '../src/client/freshness.js?raw';
 import detailScript from '../src/client/detail.js?raw';
+import profileScript from '../src/client/profile.js?raw';
+import Avatar from '../src/components/Avatar.astro';
 import todayDateScript from '../src/client/today-date.js?raw';
 import { es as esSync, en as enSync } from '../src/i18n/sync-templates.mjs';
 import { es as esDate, en as enDate } from '../src/i18n/date-templates.mjs';
@@ -55,9 +58,10 @@ interface Props {
   tabs: { key: string; icon: string; label: string }[];
   activeTab?: string;
   dayToggle?: boolean; // false = neither Mi día nor Registro is visible (lib/nav/tabs.mjs showDayToggle)
+  profile?: any; // lib/profile/profile.mjs loadProfile() result: the avatar button + the profile sheet
 }
 
-const { title, locale, page = {}, dict, tabs, activeTab = tabs[0]?.key, dayToggle = true } = Astro.props;
+const { title, locale, page = {}, dict, tabs, activeTab = tabs[0]?.key, dayToggle = true, profile = null } = Astro.props;
 // the global train/rest toggle belongs to the Nutrición tab (core.js setTab mirrors this); data-off
 // keeps it hidden for good when it would drive nothing visible
 const showDayToggle = dayToggle && activeTab === 'nutricion';
@@ -92,7 +96,8 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
       )}
       {!page.h1 && <h1 class="sr-only">{title}</h1>}
 
-      {/* top bar: the viewer's date (client/today-date.js, nothing baked) + the freshness line / Sync */}
+      {/* top bar: the viewer's date (client/today-date.js, nothing baked) + the freshness line / Sync +
+          the avatar button that opens the profile sheet (components/Avatar.astro, client/profile.js) */}
       <div class="topbar">
         <time id="today-date" class="today-date"></time>
         <div class="fresh" id="freshness" role="group" aria-label={syncT.ariaLabel} hidden>
@@ -100,6 +105,7 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
           <button type="button" class="fresh-btn" id="sync-btn">{syncT.button}</button>
           <p class="fresh-msg" id="sync-msg" role="status" aria-live="polite"></p>
         </div>
+        {profile && <Avatar profile={profile} locale={locale} />}
       </div>
 
       <nav class="tabnav" role="tablist" aria-label={dict.strings.nav.ariaLabel}>
@@ -139,6 +145,7 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
     <script is:inline set:html={scoreScript} />
     <script is:inline set:html={monitorScript} />
     <script is:inline set:html={timelineScript} />
+    <script is:inline set:html={profileScript} />
     <script is:inline set:html={detailScript} />
     <script is:inline set:html={freshnessScript} />
   </body>

@@ -1,0 +1,30 @@
+---
+/* The avatar button in the top bar (Strava / WHOOP style, not a tab): the owner's photo (a small JPEG
+ * inlined as a data URI, so the page stays one file with no request), else their initials, else a
+ * generic person icon. It opens the profile sheet — client/profile.js registers the `profile` view of
+ * the detail sheet (client/detail.js: same modal, focus handling and deep link #profile). Bakes PROFILE
+ * (lib/profile/profile.mjs) with `photo` reduced to a flag, since the data URI already sits in the
+ * <img> once, and I18N_PROFILE.
+ */
+import { jsonForScript } from '../../../lib/serialize.mjs';
+import { es as esProfile, en as enProfile } from '../i18n/profile-templates.mjs';
+
+interface Props {
+  profile: any; // lib/profile/profile.mjs loadProfile() result
+  locale: string;
+}
+const { profile, locale } = Astro.props;
+const T = locale === 'es' ? esProfile : enProfile;
+const { photo, ...rest } = profile;
+const bake = `var PROFILE = ${jsonForScript({ ...rest, photo: Boolean(photo) })};\nvar I18N_PROFILE = ${jsonForScript(T)};`;
+---
+<button type="button" id="avatar-btn" class="avatar-btn" data-detail="profile" aria-haspopup="dialog" aria-label={T.open}>
+  {photo ? (
+    <img id="avatar-img" class="avatar-img" src={photo} alt="" width="36" height="36" />
+  ) : profile.initials ? (
+    <span class="avatar-ini" aria-hidden="true">{profile.initials}</span>
+  ) : (
+    <svg class="avatar-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="4" /><path d="M4 20.5c1.4-4 4.4-6 8-6s6.6 2 8 6" /></svg>
+  )}
+</button>
+<script is:inline set:html={bake}></script>
