@@ -155,7 +155,8 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   `web/src/client/today-date.js` with `HC.fmtDate` (nothing time-based baked, builds stay
   byte-identical). The bar is ONE row on phones (no wrap at 360 px): date · status dot + short
   freshness (`#fresh-sum`, the Shortcut age; the dot carries the worst source level; tap = the
-  per-source popover `#fresh-pop`) · icon-only Sync (`#sync-btn`, circular-arrows SVG, `aria-label`,
+  per-source popover `#fresh-pop`, right-aligned under the bar, capped at the bar width, z 40 like the
+  sync line `#sync-msg` so both overlay the sticky nav (z 30) but not the detail sheet (z 60)) · icon-only Sync (`#sync-btn`, circular-arrows SVG, `aria-label`,
   44 px, class `is-busy` spins it while syncing, no spin under reduced motion) · avatar (36 px circle
   in a 44 px target).
 
@@ -193,8 +194,10 @@ All colours are tokens in `web/src/styles/tokens.css` (AA-checked ratios listed 
 `--sleep` = sleep, `--accent` = ACTIONS only (buttons, links, active nav, focus). Layout: on wide
 screens (>= 900 px) the background and the sticky nav bar stay full-bleed while the top bar, nav
 buttons, tab panels and footer are centred and capped at `--content-max` (1160 px); Nutrición's summary
-card turns into two columns (kcal dial | day type + macro bars) and Plan de hoy into a 2-column meal
-grid. Nav tab icons are inline SVG line icons keyed by tab (`TAB_ICONS` in `web/layouts/Plan.astro`,
+card turns into two columns (kcal dial | day type + macro bars) and Plan de hoy into a masonry-like
+2-column flow (CSS `columns: 2`, cards `break-inside: avoid`, read down column 1 then column 2, so a
+short card never leaves a row-height gap); Entreno puts the 30-day calendar (natural width) and the
+cumulative chart (rest of the row, height-capped at 240 px) in ONE row (`.act-pair`). Nav tab icons are inline SVG line icons keyed by tab (`TAB_ICONS` in `web/layouts/Plan.astro`,
 same drawing as the day-type icons; the active tab paints its icon in `--accent`) — no emoji. Headings and
 labels are caps, semibold, `--label-track` (+0.08em). Numbers use `--num` = "HC Num", a
 numerals-only subset (~1.5 KB: digits, + - , . % × h space) of **D-DIN Bold, SIL OFL 1.1**, inlined as
@@ -251,7 +254,8 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   button (the card holds a `<details>` fold, so it is not itself a button); Entreno load cards →
   `load-<m>`; the calendar and cumulative time → workouts (a day cell → that day); run / ride rows →
   that day in `load-run` / `load-bike` (the row is a mouse target, its date cell a real button). Every
-  opener shows the same chevron, pointer, focus ring and ≥ 44px target (`web/src/styles/detail.css`).
+  opener shows the same chevron, pointer, focus ring and ≥ 44px target (`web/src/styles/detail.css`);
+  the chevron is centred on a one-line opener and pinned to the header row (top-right) of a tall card.
 - **The sheet** (`detail.js`, one renderer, per-view try/catch with a message fallback, no NaN ever
   printed): header = metric, latest value + date, the band / target / typical day in words. The
   header NEVER contradicts the card it opens from: recovery = the dial's headline (`head`: last
