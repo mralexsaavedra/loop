@@ -463,11 +463,15 @@ is the newest day, and the trend is the line under it.
   confidence + SDNN chips stay on one line and the raw last-14-days lists fold into a `<details>`
   ("Last 14 days" / "Últimos 14 días"). Gated ("insufficient")
   unless components with ≥ 14 baseline days carry ≥ 0.60 of the weight, include HRV or RHR, and there
-  are ≥ 7 composite days in the last 14. "Last night" is the newest COMPLETE day of the last week
-  (`completeDay`): it needs BOTH a resting-HR value and an HRV day with ≥ max(min(3, usual), 50% of
-  usual) samples (usual = median daily sample count over the baseline), plus ≥ 0.60 of the weight; a
-  partial newest day (e.g. no RHR yet) falls back to the previous complete one, labelled by its date,
-  and stays in the trend and baselines. The monitor cards and Salud's HRV headline keep per-signal
+  are ≥ 7 composite days in the last 14. "Last night" is the newest COMPLETE day among asOf and the 2
+  days before it (`MAX_TODAY_FALLBACK_DAYS`): it needs a sleep-duration reading AND a resting-HR value
+  AND — only when HRV is a scored component (the user has an HRV baseline) — an HRV day with ≥
+  max(min(3, usual), 50% of usual) samples (`completeDay`; usual = median daily sample count over the
+  baseline; only plausible samples inside the HRV clamp range count, identical rows once), plus ≥ 0.60
+  of the weight. A user without Watch HRV is scored on sleep + resting HR. A partial newest day (e.g.
+  no RHR yet) falls back to the previous complete one, labelled by its date, and stays in the trend and
+  baselines; with no complete day in those 3 the headline is the trend with a "no recent complete
+  night" note. The monitor cards and Salud's HRV headline keep per-signal
   completeness (HRV sample floor only).
 - **Load** is PER MODALITY (gym / run / bike; `other` is shown raw, never scored) and Relative-Effort-only
   (Strava `suffer_score`; Apple rows have no RE and are counted as `unscored`). Same-day rows follow
@@ -504,7 +508,7 @@ is the newest day, and the trend is the line under it.
   pre-computes the 270° arc geometry; `score.js` only formats numbers and joins SVG strings.
   Recovery: arc = −3…+3 MAD, three tinted zones cut at ±`BAND_CUTOFF`, fill from baseline to a marker
   at last night's composite (`today`, zones cut at ±`DAY_BAND_CUTOFF`; falls back to `trend7`, zones at
-  ±`BAND_CUTOFF`, with a "no data for last night" note), centre = short band word + signed value in
+  ±`BAND_CUTOFF`, with a "no recent complete night" note), centre = short band word + signed value in
   sd, coloured by that band; under it "Last night" (or the night's date, + "no sleep data" when the
   night has no sleep reading) and "7-day trend: steady · +0.5 sd". Sleep: fill = the
   sleep-duration component's newest night / the stated target (`health.recovery.sleep.target`, 7.5 h),
