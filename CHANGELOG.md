@@ -4,6 +4,28 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-09-30 — Nutrition v2, part 2: food log, my products, my recipes
+
+The owner logs what he eats from the LAN page. Nutrición gains Registrar (today's log by meal slot,
+right after Plan de hoy) with an add sheet (his products grouped Mercadona / Dia / Eroski / other, his
+recipes, or a quick label + kcal), and two folds next to the day builder: Mis productos (barcode or
+text lookup on Open Food Facts, done by the ingest service; every value confirmed or typed from the
+label before saving, missing ones flagged, never guessed) and Mis recetas (per-serving recipes such
+as tortitas or a shake, batch recipes such as lentejas weighed cooked; macros always computed from
+the products). Today's log fills the kcal dial, the macro bars and the rings; without entries the
+Apple Health intake shows as before.
+
+Storage and API live in `services/health-ingest` (`sql/006_food.sql`, `/food/*`; log entries keep a
+macro snapshot so later product edits never rewrite history), reached through plan-web's new
+`/api/food/` proxy. The routes are unauthenticated and LAN-only like `/sync`: a required
+`X-HC-Food` header plus JSON bodies force a CORS preflight the service never approves, bodies are
+capped at 16 KB, writes rate limited, errors coarse codes; a public proxy must never forward
+`/food/*`. The UI ships hidden and appears only when the API answers at view time, so the claude.ai
+artifact and the example build are unchanged and builds stay byte-identical. One macro formula
+(`lib/nutrition/foodlog.mjs`) with parity-tested ports in the service and the page. Rollout: rebuild
+the ingest image, restart plan-web, regenerate. Out of scope: label OCR, supermarket scraping, CSV
+export of the log for the analysis pipeline (next slice), Apple Health write-back.
+
 ## 2026-09-30 — Nutrition v2, part 1: goals, day types, scaled plan, ride fuelling
 
 Nutrición opens on today. A goal (maintain / cut / bulk) and a day type (rest, gym or run, a ~2 h

@@ -170,7 +170,7 @@ live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
 | 🏠 Inicio (`home`) | TODAY: Sleep / Recovery / Load dials; health monitor; today's timeline (last night's sleep + the day's workouts); the advice sentence; "today you eat" card (today's day type + goal and target kcal/macros, link to Nutrición); programmed session (`hoy`) |
 | 🏃 Entreno (`entreno`) | per-modality load cards + caveats (`load`: `#score-load`, the detail behind the load dial); 30-day activity calendar + cumulative training time (`calendar`: `#train-activity`); running table, cycling table, load vs recovery (`sessions`: `#health-train`); Entrenamiento dashboard (`dash`) |
 | 💗 Salud (`health`) | recovery (`#hl-recovery`, with the recovery detail card `#score-recovery`, then the recovery trends); sleep (`#hl-sleep`); body composition; daily activity; energy expenditure |
-| 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Plan de hoy, Avituallamiento on bike days — see "Nutrition v2" below); Constructor de día / Day builder (`registro`, collapsible); Tablas (`tablas`, collapsible) — there is no train/rest toggle: Resumen de hoy's day type is the one selector |
+| 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Plan de hoy, Registrar (LAN page only), Avituallamiento on bike days — see "Nutrition v2" and "Nutrition v2 part 2" below); Constructor de día / Day builder (`registro`, collapsible); Mis productos + Mis recetas (collapsible, LAN page only, no section key: rendered with `dia`); Tablas (`tablas`, collapsible) — there is no train/rest toggle: Resumen de hoy's day type is the one selector |
 
 `lib/nav/tabs.mjs` is the ONE source of the tab keys (`TAB_KEYS`) and of the legacy-section map
 (`SECTION_TAB`); the page derives each tab's section list from it (`sectionsOf`) and bakes both as
@@ -435,7 +435,9 @@ the two JSONs.
 MEALS target = day target − ride fuel, with the fuel on its own line "+ X kcal en la bici"), falling
 back to the plan's training-day total when that hook is absent or throws. The rings show ONLY when that day is within the
 last 3 days of the viewer's clock (decided client-side, so builds stay byte-identical); otherwise
-the block renders NOTHING (host hidden, no help text — the upcoming in-page logging replaces it).
+the block renders NOTHING (host hidden, no help text). On the LAN page, today's own food log
+(`window.foodTotals`, see "Nutrition v2 part 2") takes the place of the Apple Health day whenever it
+has entries.
 Intake arrives from a food app that writes nutrition to Apple Health + the
 Shortcut `diet_kcal`/`diet_protein`/`diet_carbs`/`diet_fat` keys, which sync folds into one
 `dietary-daily.csv` row per day, export rows winning. A ring never fills from the target: a macro
@@ -447,8 +449,8 @@ Registro fold summary carries the hint (`noneHtml`); with Registro hidden, nothi
 
 ## Nutrition v2 — goals, day types, portion scaling, ride fuelling, supplements
 
-Part 1 of the Nutrición redesign: compute + display only (food logging, a write endpoint and a
-product catalogue are part 2). The `dia` section (key kept for `page.hideTabs`) holds three blocks,
+Part 1 of the Nutrición redesign: compute + display (food logging, the write endpoint and the
+product catalogue are part 2, next section). The `dia` section (key kept for `page.hideTabs`) holds three blocks,
 top to bottom, all client-rendered by `web/src/client/nutri-day.js` from ONE bake, `NUTRI`
 (`lib/nutrition/today.mjs` `buildNutriToday`, in `web/src/tabs/Dia.astro`, ~6 KB on the example) +
 `I18N_NUTRI` (`web/src/i18n/nutri-templates.mjs`, es/en). The day-type radios are server-rendered
@@ -514,7 +516,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   `arcPath(0, 1)`; target kcal centred in `--num`). The dial and the three macro bars (Protein /
   Carbs / Fat, grams in `--num`) fill ONLY from intake logged on the viewer's today (`INTAKE.latest`
   dated today: fill = logged / target via `pathLength` 100, `--trend`, > 110 % `--mid`, a missing macro
-  = an empty bar with a dash); otherwise the empty track + the target. The goal is a muted chip under
+  = an empty bar with a dash; today's page food log, `window.foodTotals`, wins over `INTAKE` when it has
+  entries, with its own note); otherwise the empty track + the target. The goal is a muted chip under
   the dial (a ≥ 44 px button, `#nutri-goal-chip`) that opens the profile sheet focused on its Objetivo
   setting (`HCDetail.open('profile', null, { focus: '#pf-goal input:checked' })`), then the plan line
   (meals total; on bike days "meals + ride fuel = total"), remainder / macro notes, then the intake
@@ -571,6 +574,95 @@ files does NOT update the published artifact. After a plan change: (1) edit the 
 `file_path=web/dist/personal/index.html` and `url=<the URL from artifact.local.md>` (favicon
 🥗, keep stable), then hard-reload (Cmd/Ctrl+Shift+R). The build output is artifact-ready
 (CSP-safe, no external refs, no `<script type="module">` — every script is `is:inline`).
+
+## Nutrition v2 part 2 — food log, products, recipes (LAN page only)
+
+The owner logs what he eats from the LAN page (`services/plan-web`), with his usual supermarket
+products and his own recipes; Resumen de hoy fills from that log. Honest data: macros come only from
+product labels / Open Food Facts values the owner confirmed, recipes are computed, unknown macros stay
+unknown.
+
+- **Formula** — `lib/nutrition/foodlog.mjs` is the ONE reference (constants `FOOD_STORES`
+  mercadona / dia / eroski / other, `FOOD_UNITS` g / ml, `ENTRY_UNITS` + serving, `FOOD_MEALS` =
+  `slots.mjs` `MEAL_SLOTS`, `RECIPE_KINDS`, `REF_TYPES`; `productEntry`, `recipeBasis`,
+  `recipeEntry`, `dayTotals`, `atwaterOk`). A product entry = per-100 × amount in the product's own
+  unit, or servings × its `servingSize` (no serving size → no serving; never g ↔ ml). A recipe =
+  the sum of its ingredients (amounts in each product's unit): kind `serving` ÷ servings, kind
+  `batch` × 100 ÷ total COOKED weight (per 100 g cooked); a missing product = incomplete, not
+  loggable. Entries round once (kcal whole, macros 1 decimal) and day totals sum the rounded
+  snapshots; a macro unknown on any entry is flagged in `missing` (the sum is then a minimum).
+  Atwater: 4p + 4c + 9f within ±25 % of kcal or 10 kcal. Ports: `services/health-ingest/src/food-calc.js`
+  (the service is built from its own directory) and `web/src/client/food.js` (`window.HCFood`);
+  `lib/nutrition/foodlog.test.mjs` and `web/src/client/food.test.mjs` run all three over
+  `FOODLOG_CASES`, so a formula change is made in all three.
+- **Storage + API** — `services/health-ingest`: `sql/006_food.sql` (idempotent) = `food_product`
+  (per-100 kcal / protein / carbs / fat, store, unit g / ml, serving size?, barcode? unique among
+  ACTIVE products, source off / label / manual, off_code?, archived), `food_recipe` (kind, servings
+  XOR cooked_weight_g, ingredients JSONB `[{productId, amount}]`, archived), `food_log` (the owner's
+  LOCAL date sent by the page, meal slot, ref_type product / recipe / quick, ref_id?, label, amount +
+  unit, SNAPSHOT kcal / protein / carbs / fat taken at log time — a later product edit never rewrites
+  history; macros NULL only on a quick entry that did not state them). `src/food.js` routes:
+  `GET/POST /food/products`, `PUT/DELETE /food/products/:id` (DELETE = archive),
+  `GET/POST /food/recipes` (+ computed `perServing` / `per100`), `PUT/DELETE /food/recipes/:id`,
+  `GET /food/log?date=` (entries + `dayTotals`), `POST /food/log` (returns the entry + the day's
+  totals), `DELETE /food/log/:id`, `GET /food/off?barcode=<8–14 digits>|q=<text>`. Strict hand-written
+  validation (unknown keys refused, trimmed + capped strings, per-100 kcal ≤ 900 and macros ≤ 100 g,
+  amounts ≤ 5000, dates round-trip, recipe macros never accepted from the client) and `400 atwater`
+  unless `force: true` (the page offers "save anyway"). Errors are coarse `{error, field?}` codes
+  (`invalid`, `atwater`, `barcode_exists`, `unknown_product`, `unknown_recipe`, `recipe_incomplete`,
+  `unit`, `not_found`, `rate_limited`, `off_*`, `payload_too_large`, `internal`), never DB text.
+  `src/food-db.js` = the parameterized store (NUMERIC → numbers, the date via `to_char`).
+- **Open Food Facts** — `src/off.js`, SERVER side only (the page never calls OFF): v2 product API /
+  `cgi/search.pl`, User-Agent `health-coach/1.0 (self-hosted personal food log)` (no personal data),
+  8 s timeout, `redirect: 'error'`, 1 MB response cap, in-memory LRU cache (24 h; not-found 1 h),
+  token buckets (≤ 10 searches / min, ≤ 100 product reads / min; over → `429 off_rate_limited`
+  without calling OFF). Only normalized fields leave it: `{code, name (es first), brand, stores, unit,
+  per100 {kcal (kcal, else kJ ÷ 4.184), protein, carbs, fat}, servingSize, complete}`; a missing or
+  implausible nutriment is `null`, never 0, and `complete: false`. Nothing is stored until the owner
+  saves the product (`source: "off"`). No `?store=` bias (not trivial with OFF's search).
+- **Security** — the routes are UNAUTHENTICATED (a static page cannot hold a secret) and LAN only.
+  Every `/food` request must carry `X-HC-Food: 1` (else `403`) and every write
+  `Content-Type: application/json` (else `415`): a cross-site page can send neither without a CORS
+  preflight, and the service never answers one with CORS headers, so a malicious website opened on a
+  LAN device cannot write the log. Bodies ≤ 16 KB (`413`), writes ≤ 60 / min per client address
+  (`429`; behind plan-web that is nginx's address, one shared budget). plan-web nginx proxies the
+  prefix `/api/food/` → ingest `/food/` (GET / POST / PUT / DELETE, body passed, `client_max_body_size
+  16k`, `X-HC-Food` forwarded). A public reverse proxy must NEVER forward `/food/*`.
+- **Page** — `web/src/client/food.js` (inlined after nutri-day.js, before intake.js; copy
+  `web/src/i18n/food-templates.mjs` es / en baked as `I18N_FOOD` + `FOOD_CONST` in `Dia.astro`;
+  styles `web/src/styles/food.css`, tokens only). Everything is decided at VIEW time like the
+  freshness line: the Registrar block (`#food-log-block`, in `dia` right after Plan de hoy) and the
+  two folds (`web/src/tabs/Food.astro`: `#food-products`, `#food-recipes`, before Tablas, rendered only
+  when `dia` is visible, no section key) ship `hidden` and appear only when `GET /api/food/products`
+  answers — so the claude.ai artifact, file:// and the example build show nothing new and builds stay
+  byte-identical. Nothing of the log is kept in the browser. **Registrar**: the day total, then one
+  restrained card per meal slot (label, amount, kcal in `--num`, P / C / G line, a 44 px delete button
+  with an aria-label, "+ Añadir"). **Add sheet**: a registered detail-sheet view
+  (`window.HCViews['food-add']`, deep link `#food-add`, registered only once the API answered; focus
+  trap / Esc / Back from detail.js, whose Tab trap now includes form fields and whose
+  `HCDetail.open(key, date, {opener})` returns focus to the tapped button): meal select, tabs Mis
+  productos (search, grouped by store) / Mis recetas / Rápido (label + kcal + optional macros), amount
+  in g / ml / servings (servings only with a serving size; a per-serving recipe in servings, a batch
+  one in grams of cooked food), live preview from the ported formula, `aria-live` results; save
+  closes it, re-renders Registrar and announces "Añadido: …". **Mis productos**: list by store
+  (per-100 line, serving, Editar, Archivar with a confirm step); add = barcode or text lookup → OFF
+  cards showing what OFF has (missing values marked) → "Usar este" fills the form with the missing
+  fields flagged (`--mid`) → the owner confirms every value and the store → save; "desde la etiqueta"
+  = the same form empty (`source: "label"`). **Mis recetas**: list with per serving / per 100 g
+  cooked macros; editor = name, kind, servings or cooked weight, ingredient rows (product select +
+  amount, add / remove) and a live preview. Errors = one line from the coarse codes ("offline" → the
+  server is unreachable and nothing was saved).
+- **Wiring** — `window.foodTotals()` = `{date, k, p, c, g, n, missing, src: 'log'}` when the API
+  answered and TODAY (the viewer's local date) has ≥ 1 entry, else null. nutri-day.js' dial + bars and
+  intake.js prefer it over `INTAKE` (labelled "Registrado hoy en esta página" / the rings' "Registrado
+  hoy"; a `missing` macro adds "esas barras son un mínimo"); after every add / delete food.js calls
+  `HCNutri.refresh()` (new: re-renders Resumen de hoy, which refreshes the builder and the rings, each
+  in its own try/catch). A page left open past midnight reloads the log on `visibilitychange`.
+- **Rollout** — `cd services/health-ingest && docker compose up -d --build health-ingest` (runs
+  `006_food.sql`), restart plan-web (`docker compose up -d` in `services/plan-web`, new nginx
+  location), then `npm run generate` (or wait for the hourly refresh). Out of scope: label photos /
+  OCR (send them to Claude in chat), scraping any supermarket site, exporting the log to CSV for the
+  analysis pipeline (next slice), Apple Health write-back.
 
 ## Training tabs — "Hoy / Today" + "Entrenos / Workouts" pipeline
 
@@ -966,9 +1058,11 @@ Besides the claude.ai artifact, `services/plan-web` serves `web/dist/personal/in
   timer, reads no body and returns only a seq; status returns timestamps, seqs and COARSE codes
   (`strava_auth`, `strava_network`, `strava_other`, `strava_token_save`, `trigger_write`), cached 5 s,
   never health data or raw error text (messages stay in logs; tests pin the key set and no leaks).
-  plan-web nginx proxies EXACTLY `/api/sync` + `/api/sync/status` (exact-match, method-restricted;
-  every other `/api/` path 404). A public reverse proxy in front of ingest must forward ONLY
-  `/ingest/*` and `/sync` (`/sync/status` optional), never `/export/*` or `/sync/strava`.
+  plan-web nginx proxies EXACTLY `/api/sync` + `/api/sync/status` (exact-match, method-restricted)
+  plus the food log prefix `/api/food/*` → ingest `/food/*` (GET / POST / PUT / DELETE, 16 KB, the
+  `X-HC-Food` header forwarded; see "Nutrition v2 part 2"); every other `/api/` path 404. A public
+  reverse proxy in front of ingest must forward ONLY `/ingest/*` and `/sync` (`/sync/status`
+  optional), never `/export/*`, `/sync/strava` or `/food/*`.
 - **Health + tokens.** `/healthz` stays 200 but adds `degraded: true` when Strava is configured and its
   PERSISTED last success is > 6 h old or missing (a restart does not reset it). A refresh token rotated
   by Strava is stored in `strava_token` (3 save attempts with backoff; on failure it is kept in memory,
