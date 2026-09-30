@@ -232,3 +232,16 @@ test('example build: the shared client helpers (util.js) are inlined FIRST, righ
   assert.ok(constIdx <= utilIdx && utilIdx < coreIdx, 'HC_CONST, then util.js, then core.js and the rest');
   assert.match(html, /var ACTIVITY = \{[^;]*"windowDays":30,"levelMin":\[1,30,60,90\]\}/, 'calendar constants baked from lib');
 });
+
+test('example build: the freshness line + Sync button ship HIDDEN (shown only when /api/sync/status answers), copy baked, script last', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const block = /<div class="fresh" id="freshness"[^>]*>/.exec(html);
+  assert.ok(block, 'freshness block present');
+  assert.match(block[0], /\shidden(?=[\s>])/, 'hidden until freshness.js confirms the endpoint');
+  assert.ok(html.indexOf('id="freshness"') < html.indexOf('class="tabnav"'), 'in the header area, above the tab nav');
+  assert.match(html, /<button type="button" class="fresh-btn" id="sync-btn">Sync<\/button>/);
+  assert.match(html, /var I18N_SYNC = \{"ariaLabel":"Data freshness"/);
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  assert.match(scripts.at(-1), /\/api\/sync\/status/, 'freshness.js is the last script');
+  assert.doesNotMatch(html, /\/export\/|\/ingest\//, 'the page never names a data endpoint');
+});
