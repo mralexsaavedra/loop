@@ -77,3 +77,66 @@ test('WORKOUTS_HEADER has 12 columns and workoutRow() emits three trailing empty
   assert.equal(line, '2030-01-01,Running,30,,140,,165,Watch,5,,,');
   assert.equal(line.split(',').length, 12);
 });
+
+// ---- sleepNights(): one main-sleep night per wake-up date, naps excluded ----------------
+
+const seg = (start, end, source = 'W') => ({ start, end, source });
+const nightRows = segs => s.sleepNights(segs).map(n => s.sleepRow(n.date, n.minutes, n.source, n.ck));
+
+test('sleepNights(): a nap crossing 18:00 is not split across two nights and never sets bed/wake', () => {
+  const rows = nightRows([
+    seg('2030-01-01 23:30:00 +0100', '2030-01-02 07:00:00 +0100'),
+    // nap 17:40-18:40 on 01-02 (a short awake gap inside it)
+    seg('2030-01-02 17:40:00 +0100', '2030-01-02 18:10:00 +0100'),
+    seg('2030-01-02 18:12:00 +0100', '2030-01-02 18:40:00 +0100'),
+    seg('2030-01-03 00:00:00 +0100', '2030-01-03 07:30:00 +0100'),
+  ]);
+  assert.deepEqual(rows, [
+    '2030-01-02,7.50,W,23.5,7',
+    '2030-01-03,7.50,W,0,7.5',
+  ]);
+});
+
+test('sleepNights(): an afternoon nap adds neither minutes nor a wake time to the night', () => {
+  const rows = nightRows([
+    seg('2030-01-01 23:00:00 +0100', '2030-01-02 07:00:00 +0100'),
+    seg('2030-01-02 15:00:00 +0100', '2030-01-02 15:45:00 +0100'),
+  ]);
+  assert.deepEqual(rows, ['2030-01-02,8.00,W,23,7']);
+});
+
+test('sleepNights(): a split night with a long wake-up at 3 am stays ONE night', () => {
+  const rows = nightRows([
+    seg('2030-01-01 23:00:00 +0100', '2030-01-02 03:00:00 +0100'),
+    // awake 03:00-04:30 (90 min, longer than the block gap)
+    seg('2030-01-02 04:30:00 +0100', '2030-01-02 07:30:00 +0100'),
+  ]);
+  assert.deepEqual(rows, ['2030-01-02,7.00,W,23,7.5']);
+});
+
+test('sleepNights(): a nap-only day yields no night row', () => {
+  assert.deepEqual(nightRows([seg('2030-01-02 15:00:00 +0100', '2030-01-02 16:00:00 +0100')]), []);
+});
+
+test('sleepNights(): a late doze hours after waking is a nap, not a later wake time', () => {
+  const rows = nightRows([
+    seg('2030-01-01 23:00:00 +0100', '2030-01-02 06:00:00 +0100'),
+    seg('2030-01-02 10:00:00 +0100', '2030-01-02 10:40:00 +0100'),
+  ]);
+  assert.deepEqual(rows, ['2030-01-02,7.00,W,23,6']);
+});
+
+test('sleepNights(): per source, the source with the most main-sleep minutes wins; overlaps count once', () => {
+  const rows = nightRows([
+    seg('2030-01-01 23:00:00 +0100', '2030-01-02 03:00:00 +0100', 'A'),
+    seg('2030-01-02 02:00:00 +0100', '2030-01-02 06:00:00 +0100', 'A'), // overlaps 1 h
+    seg('2030-01-01 23:30:00 +0100', '2030-01-02 07:00:00 +0100', 'B'),
+    seg('2030-01-02 14:00:00 +0100', '2030-01-02 16:00:00 +0100', 'A'), // nap: never makes A win
+  ]);
+  assert.deepEqual(rows, ['2030-01-02,7.50,B,23.5,7']);
+});
+
+test('wristTempDate(): sleeping wrist temperature is dated by the wake-up night, like sleep', () => {
+  assert.equal(s.wristTempDate('2030-01-01 23:10:00 +0100'), '2030-01-02');
+  assert.equal(s.wristTempDate('2030-01-02 00:20:00 +0100'), '2030-01-02');
+});

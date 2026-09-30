@@ -411,9 +411,14 @@ anchor for Inicio's health monitor.
   `respiratory-daily.csv`, `wristTemp.csv`, `walking-hr-daily.csv`. Good directions stated on
   screen (↓ resting/walking HR, ↑ HRV, ↑ VO₂max; respiratory & sleeping wrist temp are change-
   not-absolute signals). Sleep adds CONSISTENCY: % of nights ≥ `SLEEP_TARGET` (7.5 h), night-to-
-  night spread (sd), and bedtime/wake-time regularity (median ± sd in minutes; after-midnight
-  bedtimes wrapped onto a night scale). Sleep bedtime/waketime come from the extended
-  `sleep-daily.csv` (extract.js emits earliest asleep start / latest end per night). Sleep renders
+  night spread (sd), and bedtime/wake-time regularity (median ± a ROBUST sd = 1.4826 × MAD, in
+  minutes; after-midnight bedtimes wrapped onto a night scale). Sleep bedtime/waketime come from the
+  extended `sleep-daily.csv`: extract.js and sync-shortcut.js share `samples.js` `sleepNights`, which
+  keeps only the MAIN sleep of each wake-up night (asleep segments chained with gaps < 60 min; the
+  longest block whose midpoint falls 20:00-12:00, plus in-window blocks within 3 h of it, so a split
+  night with a 3 am wake-up stays one night). Naps (incl. one that crosses 18:00) add neither minutes
+  nor bed/wake times; a nap-only day has no row. Sleeping wrist temperature is dated by the same
+  wake-up night (`wristTempDate`). Sleep renders
   as its own Salud section; its heading is the `#hl-sleep` anchor.
 
 Trends render as inline SVG sparklines (CSP-safe). The build is idempotent — no today-relative
