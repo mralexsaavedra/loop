@@ -231,6 +231,8 @@ test('example build: the shared client helpers (util.js) are inlined FIRST, righ
   assert.ok(constIdx !== -1 && utilIdx !== -1 && coreIdx !== -1, `HC_CONST ${constIdx}, util ${utilIdx}, core ${coreIdx}`);
   assert.ok(constIdx <= utilIdx && utilIdx < coreIdx, 'HC_CONST, then util.js, then core.js and the rest');
   assert.match(html, /var ACTIVITY = \{[^;]*"windowDays":30,"levelMin":\[1,30,60,90\]\}/, 'calendar constants baked from lib');
+  const dateIdx = scripts.findIndex((s) => /\bvar I18N_DATE = \{"weekdays":\["Mon"/.test(s));
+  assert.ok(dateIdx !== -1 && dateIdx <= utilIdx, 'the date names of HC.fmtDate are baked before util.js');
 });
 
 test('example build: the freshness line + Sync button ship HIDDEN (shown only when /api/sync/status answers), copy baked, script last', () => {

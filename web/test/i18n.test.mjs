@@ -16,6 +16,7 @@ import { es as esScore, en as enScore } from '../src/i18n/score-templates.mjs';
 import { es as esIntake, en as enIntake } from '../src/i18n/intake-templates.mjs';
 import { es as esAct, en as enAct } from '../src/i18n/activity-templates.mjs';
 import { es as esSync, en as enSync } from '../src/i18n/sync-templates.mjs';
+import { es as esDate, en as enDate } from '../src/i18n/date-templates.mjs';
 import { ADVICE_COPY } from '../../lib/score/advice-copy.mjs';
 
 function keyTree(obj, prefix = '') {
@@ -291,4 +292,17 @@ test('sync-templates.mjs (freshness line + Sync button) has identical key trees 
   }
   assert.equal(esSync.button, 'Sincronizar');
   assert.equal(enSync.button, 'Sync');
+});
+
+test('date-templates.mjs (HC.fmtDate names) has identical key trees in es/en, 7 Monday-first weekdays and 12 months', () => {
+  assert.deepEqual(keyTree(esDate), keyTree(enDate));
+  for (const [locale, dict] of [['es', esDate], ['en', enDate]]) {
+    for (const [path, value] of leaves(dict)) assert.notEqual(String(value).trim(), '', `${locale} date-templates.${path} must not be empty`);
+    for (const k of ['weekdays', 'weekdaysMin']) assert.equal(dict[k].length, 7, `${locale}.${k}`);
+    for (const k of ['months', 'monthsLong']) assert.equal(dict[k].length, 12, `${locale}.${k}`);
+    assert.match(dict.dayTpl, /\{weekday\}.*\{day\}.*\{month\}/);
+    assert.match(dict.monthTpl, /\{month\}.*\{year\}/);
+  }
+  assert.equal(esDate.weekdays[0], 'lun');
+  assert.equal(enDate.weekdays[0], 'Mon');
 });
