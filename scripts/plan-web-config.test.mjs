@@ -1,6 +1,7 @@
 /* Static guards for the on-demand refresh wiring (services/plan-web nginx + compose + systemd units,
- * services/health-ingest compose). They pin the SECURITY boundary: the public plan-web server may
- * proxy exactly two ingest routes (POST /sync, GET /sync/status), never a data endpoint. */
+ * services/health-ingest compose). They pin the SECURITY boundary: the plan-web server may proxy
+ * exactly two exact ingest routes (POST /sync, GET /sync/status) plus the food log prefix
+ * (/api/food/ -> /food/), never a bearer-protected data endpoint. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -21,15 +22,28 @@ function locations(conf) {
   return [...conf.matchAll(/location\s+([^{]+?)\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g)].map((m) => ({ spec: m[1].trim(), body: m[2] }));
 }
 
-test('nginx proxies ONLY /api/sync and /api/sync/status, as exact locations, to the host ingest port', () => {
+test('nginx proxies ONLY /api/sync and /api/sync/status (exact) and the /api/food/ prefix, to the host ingest port', () => {
   const proxied = locations(nginx).filter((l) => /proxy_pass\s/.test(l.body));
-  assert.deepEqual(proxied.map((l) => l.spec).sort(), ['= /api/sync', '= /api/sync/status']);
+  assert.deepEqual(proxied.map((l) => l.spec).sort(), ['/api/food/', '= /api/sync', '= /api/sync/status']);
   const target = (spec) => /proxy_pass\s+([^;]+);/.exec(proxied.find((l) => l.spec === spec).body)[1];
   assert.equal(target('= /api/sync'), 'http://host.docker.internal:${INGEST_PORT}/sync');
   assert.equal(target('= /api/sync/status'), 'http://host.docker.internal:${INGEST_PORT}/sync/status');
   assert.match(proxied.find((l) => l.spec === '= /api/sync').body, /limit_except POST/);
   assert.match(proxied.find((l) => l.spec === '= /api/sync/status').body, /limit_except GET/);
-  assert.equal((nginx.match(/proxy_pass\s/g) || []).length, 2, 'no other proxy_pass anywhere');
+  assert.equal((nginx.match(/proxy_pass\s/g) || []).length, 3, 'no other proxy_pass anywhere');
+});
+
+test('nginx /api/food/: ingest /food/ only, GET/POST/PUT/DELETE, the body passed, 16 KB cap, the X-HC-Food header forwarded', () => {
+  const food = locations(nginx).find((l) => l.spec === '/api/food/');
+  assert.ok(food, 'a prefix location for the food log');
+  assert.match(food.body, /proxy_pass\s+http:\/\/host\.docker\.internal:\$\{INGEST_PORT\}\/food\/;/);
+  assert.match(food.body, /limit_except GET POST PUT DELETE \{ deny all; \}/);
+  assert.doesNotMatch(food.body, /proxy_pass_request_body off/, 'writes carry a JSON body');
+  assert.match(food.body, /client_max_body_size 16k;/, 'same cap as the service');
+  assert.match(food.body, /proxy_set_header X-HC-Food \$http_x_hc_food;/);
+  assert.match(food.body, /proxy_connect_timeout 5s;/);
+  assert.match(food.body, /proxy_read_timeout 15s;/);
+  assert.doesNotMatch(food.body, /add_header\s+Access-Control/i, 'never approves a cross-site request');
 });
 
 test('nginx: everything else under /api is a 404; data endpoints are never named', () => {
