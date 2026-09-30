@@ -164,3 +164,17 @@ test('without PROFILE or I18N_PROFILE the script registers nothing', () => {
   vm.runInContext(source, ctx);
   assert.equal(win.HCViews, undefined);
 });
+
+test('supplements: listed with dose and meal (es/en), section omitted when there are none', () => {
+  const withSupps = buildProfile({ manual: { ...MANUAL, supplements: [{ name: 'Demo Creatine', dose: '3 g', meal: 'lunch' }, { name: 'Demo Mg', meal: 'dinner' }] }, strava: STRAVA });
+  const h = html(setup({ profile: withSupps }));
+  assert.match(h, /<h3 class="pf-h">Supplements<\/h3>/);
+  assert.ok(h.includes('Demo Creatine'));
+  assert.ok(h.includes('3 g · Lunch'));
+  assert.ok(h.includes('Dinner'));
+  clean(h);
+  const es = html(setup({ profile: withSupps, locale: 'es' }));
+  assert.match(es, /<h3 class="pf-h">Suplementos<\/h3>/);
+  assert.ok(es.includes('3 g · Comida'));
+  assert.doesNotMatch(html(setup()), /Supplements/);
+});
