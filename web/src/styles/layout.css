@@ -224,12 +224,17 @@ details.sec-fold > summary > .sec-hint {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+/* the popover and the sync line overlay everything but the detail sheet (z 60): above the tab nav
+ * (z 30, sticky on wide screens), right-aligned under the top bar next to their trigger, never wider
+ * than the bar (so it stays inside a 360 px viewport). .topbar sets no z-index, so these z-indices
+ * compete in the root stacking context with the nav's. */
 .fresh-pop {
   position: absolute;
-  z-index: 20;
+  z-index: 40;
   top: 100%;
-  left: 0;
   right: 0;
+  width: max-content;
+  max-width: min(360px, 100%);
   padding: var(--sp-5) var(--sp-6);
   background: var(--surface-2);
   border: 1px solid var(--line);
@@ -302,6 +307,7 @@ details.sec-fold > summary > .sec-hint {
 /* the sync status/failure line: out of the row flow, under the bar, only while it has text */
 .fresh-msg {
   position: absolute;
+  z-index: 40;
   top: 100%;
   right: 0;
   max-width: 100%;

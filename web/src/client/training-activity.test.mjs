@@ -44,13 +44,19 @@ const cells = (html) => [...html.matchAll(/<rect class="cal-cell cal-l(\d)"[^>]*
 
 test('the calendar and the cumulative chart open the training-time detail; a tap on a day cell opens that day', () => {
   const html = render(ACT, { detail: true });
-  const secs = [...html.matchAll(/<div class="dash-sec"([^>]*)>/g)].map((m) => m[1]);
+  const secs = [...html.matchAll(/<div class="dash-sec act-(?:cal|cum)"([^>]*)>/g)].map((m) => m[1]);
   assert.deepEqual(secs, [' data-detail="workouts" role="button" tabindex="0" aria-haspopup="dialog"', ' data-detail="workouts" role="button" tabindex="0" aria-haspopup="dialog"']);
   const days = [...html.matchAll(/<rect class="cal-cell cal-l\d" data-detail="workouts" data-date="(\d{4}-\d{2}-\d{2})"/g)].map((m) => m[1]);
   assert.equal(days.length, 30);
   assert.equal(days[29], ASOF);
   assert.doesNotMatch(html, /<rect[^>]*tabindex/, 'cells are mouse targets; the section is the keyboard opener');
   assert.doesNotMatch(render(ACT), /data-detail/, 'no detail sheet baked: plain calendar');
+});
+
+test('calendar and cumulative chart share one .act-pair wrapper (one row on wide screens); the chart stretches to a capped height', () => {
+  const html = render(ACT);
+  assert.match(html, /<div class="act-pair"><div class="dash-sec act-cal"[^>]*>[\s\S]*<div class="dash-sec act-cum"[^>]*>[\s\S]*<\/svg><\/div><\/div><div class="dash-note">/);
+  assert.match(html, /<svg class="cum-svg" viewBox="0 0 \d+ \d+" preserveAspectRatio="none"/);
 });
 
 test('calendar: 30 day cells ending at the viewer\'s today, level by total minutes, a title per cell (hover)', () => {

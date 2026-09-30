@@ -362,3 +362,26 @@
 .act-stale {
   opacity: 0.55;
 }
+/* the section openers' chevron sits on the h3 line (the section has no padding of its own) */
+.dash-sec[data-detail][role="button"]::after {
+  top: 12px;
+}
+/* >= 900 px: calendar (natural width) and cumulative chart (the rest) share ONE row; the chart is
+ * height-capped (its viewBox stretches, strokes stay non-scaling). Phones keep them stacked. */
+@media (min-width: 900px) {
+  .act-pair {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--sp-12);
+    align-items: start;
+  }
+  .act-cal {
+    max-width: 380px;
+  }
+  .act-cal .cal-svg {
+    width: 280px;
+  }
+  .act-cum .cum-svg {
+    height: 240px;
+  }
+}
