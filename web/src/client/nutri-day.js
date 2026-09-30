@@ -305,7 +305,7 @@
     if (typeof window.foodTotals === 'function') {
       try { F = window.foodTotals(); } catch (e) { F = null; }
     }
-    if (F && F.date === todayIso() && F.n > 0) return F;
+    if (F) return F; // foodTotals already means "today, >= 1 entry" (see its contract in food.js)
     var I = typeof INTAKE === 'undefined' || !INTAKE ? null : INTAKE;
     var L = I && I.latest;
     return L && L.date === todayIso() && L.k > 0 ? L : null;
@@ -328,14 +328,18 @@
       (L ? '<span class="nt-logged"><b>' + esc(kf(L.k)) + '</b> ' + esc(T.target.logged) + '</span>' : '') + '</div></figure>';
   }
   // one macro bar: grams in --num; with intake today "logged / target" and a fill, else the target only
-  function barHtml(label, target, L, logged) {
+  // min = some of today's food-log entries lack this macro: the logged sum is a minimum ("≥")
+  function barHtml(label, target, L, logged, min) {
     var has = L && logged != null && target > 0;
     var over = has && logged / target > OVER_RATIO;
-    var val = L ? '<b>' + (logged != null ? esc(kf(logged)) : '—') + '</b> / ' + esc(kf(target)) + ' g' : '<b>' + esc(kf(target)) + '</b> g';
+    var val = L ? '<b>' + (logged != null ? (min ? '≥ ' : '') + esc(kf(logged)) : '—') + '</b> / ' + esc(kf(target)) + ' g' : '<b>' + esc(kf(target)) + '</b> g';
     var pct = has ? pctOf(logged, target) : 0;
     return '<div class="nt-bar' + (over ? ' nt-bar-over' : '') + '"><div class="nt-bar-top"><span class="nt-bar-lbl">' + esc(label) + '</span>' +
       '<span class="nt-bar-val">' + val + '</span></div><div class="nt-bar-track">' +
       (pct > 0 ? '<span class="nt-bar-fill" style="width:' + pct + '%"></span>' : '') + '</div></div>';
+  }
+  function minOf(L, macro) {
+    return !!(L && L.missing && L.missing[macro]);
   }
   function remainderHtml(x) {
     var rem = x.rem, bike = x.fuelK > 0;
@@ -365,7 +369,7 @@
       : format(T.planLine, { k: kf(x.tot.k), p: x.tot.p, c: x.tot.c, f: x.tot.g });
     host.innerHTML =
       '<div class="nt-top">' + dialHtml(t, L) + goalChipHtml() + '</div>' +
-      '<div class="nt-side"><div class="nt-bars">' + barHtml(T.target.p, t.p, L, L && L.p) + barHtml(T.target.c, t.c, L, L && L.c) + barHtml(T.target.f, t.f, L, L && L.g) + '</div>' +
+      '<div class="nt-side"><div class="nt-bars">' + barHtml(T.target.p, t.p, L, L && L.p, minOf(L, 'protein')) + barHtml(T.target.c, t.c, L, L && L.c, minOf(L, 'carbs')) + barHtml(T.target.f, t.f, L, L && L.g, minOf(L, 'fat')) + '</div>' +
       (L ? '<p class="nt-cnote">' + esc(L.src === 'log' ? T.target.loggedFoodNote : T.target.loggedNote) + '</p>' : '') +
       (L && L.missing && (L.missing.protein || L.missing.carbs || L.missing.fat) ? '<p class="nt-cnote">' + esc(T.target.loggedFoodMissing) + '</p>' : '') +
       '<p class="nt-cnote">' + esc(T.target.cNote) + '</p>' +
