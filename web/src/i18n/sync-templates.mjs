@@ -1,5 +1,7 @@
 /* Client-side copy for the header freshness line + Sync button (web/src/client/freshness.js), baked
- * as I18N_SYNC by layouts/Plan.astro. JSON-safe only: `{n}` placeholders, substituted client-side.
+ * as I18N_SYNC by layouts/Plan.astro. JSON-safe only: `{n}` / `{reason}` placeholders, substituted
+ * client-side. `errors` maps the coarse refresh/ingest failure codes (refresh.sh status.json `error`,
+ * ingest `lastTriggerError`) to a short reason.
  * Plain text (escaped when rendered), no markup. */
 export const es = {
   ariaLabel: 'Frescura de los datos',
@@ -13,7 +15,16 @@ export const es = {
   button: 'Sincronizar',
   syncing: 'Sincronizando…',
   failed: 'No se pudo actualizar, reintenta',
-  wait: 'Espera un momento',
+  failedCode: 'No se pudo actualizar: {reason}',
+  errors: {
+    branch: 'el servidor no está en la rama main',
+    install: 'falló la instalación de dependencias',
+    build: 'falló la generación de la página',
+    sanity: 'la página generada no es válida',
+    lock: 'otra actualización sigue en curso',
+    trigger_write: 'el servicio no pudo avisar al servidor',
+    unknown: 'error desconocido',
+  },
 };
 
 export const en = {
@@ -28,5 +39,14 @@ export const en = {
   button: 'Sync',
   syncing: 'Syncing…',
   failed: 'Could not update, try again',
-  wait: 'Wait a moment',
+  failedCode: 'Could not update: {reason}',
+  errors: {
+    branch: 'the server is not on the main branch',
+    install: 'installing dependencies failed',
+    build: 'the page build failed',
+    sanity: 'the built page is not valid',
+    lock: 'another refresh is still running',
+    trigger_write: 'the service could not notify the server',
+    unknown: 'unknown error',
+  },
 };

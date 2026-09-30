@@ -10,9 +10,13 @@
  * reachable (example build, file://, a claude.ai artifact, a clone without the ingest service) the
  * line AND the button stay hidden — nothing to sync against.
  *
- * Sync: POST /api/sync, then poll /status.json every POLL_MS until a publish newer than the one seen
- * at click time lands (not older than the click minus SKEW_MS, to tolerate a phone/server clock
- * offset), then reload. TIMEOUT_MS without one -> failure message; 429 -> "wait a moment". */
+ * Sync, sequence protocol (no clock comparison at all): POST /api/sync answers 202 {seq, coalesced};
+ * then every POLL_MS read /status.json (refresh.sh) and /api/sync/status (ingest):
+ *   - status.json processedSeq >= seq            -> reload (a publish that covers the click);
+ *   - status.json errorSeq >= seq with `error`   -> fail fast, "No se pudo actualizar: <reason>";
+ *   - ingest lastTriggerErrorSeq >= seq          -> fail fast (the trigger file could not be written);
+ *   - TIMEOUT_MS without either                  -> the generic failure message.
+ * Error codes are mapped through I18N_SYNC.errors; an unknown code shows the generic reason. */
 (function () {
   var host = document.getElementById('freshness');
   if (!host) return;
@@ -33,8 +37,7 @@
     var LOW_HOURS = 72;
     var DAYS_AFTER_HOURS = 48; // "hace 30 h" up to 2 days, then "hace 3 d"
     var POLL_MS = 5000;
-    var TIMEOUT_MS = 4 * MIN_MS;
-    var SKEW_MS = 2 * MIN_MS;
+    var TIMEOUT_MS = 5 * MIN_MS;
 
     var busy = false;
 
@@ -89,17 +92,36 @@
       msg.textContent = text;
     }
 
-    function poll(clickAt, baseline) {
-      var deadline = clickAt + TIMEOUT_MS;
+    function isSeq(n) {
+      return typeof n === 'number' && isFinite(n) && n >= 0 && Math.floor(n) === n;
+    }
+
+    function reason(code) {
+      var known = Object.prototype.hasOwnProperty.call(T.errors, code) && code !== 'unknown';
+      return format(T.failedCode, { reason: known ? T.errors[code] : T.errors.unknown });
+    }
+
+    // What the latest reads say about `seq`: 'done', an error code, or null (keep waiting).
+    function verdict(seq, page, status) {
+      if (page && isSeq(page.processedSeq) && page.processedSeq >= seq) return 'done';
+      if (page && page.error && isSeq(page.errorSeq) && page.errorSeq >= seq) return String(page.error);
+      if (status && status.lastTriggerError && isSeq(status.lastTriggerErrorSeq) && status.lastTriggerErrorSeq >= seq) {
+        return String(status.lastTriggerError);
+      }
+      return null;
+    }
+
+    function poll(seq) {
+      var deadline = Date.now() + TIMEOUT_MS;
       function tick() {
-        getJson(PAGE_URL).then(function (page) {
-          var p = page && page.publishedAt;
-          var t = p ? Date.parse(p) : NaN;
-          if (p && p !== baseline && t > clickAt - SKEW_MS) {
+        Promise.all([getJson(PAGE_URL), getJson(STATUS_URL)]).then(function (res) {
+          var v = verdict(seq, res[0], res[1]);
+          if (v === 'done') {
             window.location.reload();
             return;
           }
-          if (Date.now() >= deadline) finish(T.failed);
+          if (v) finish(reason(v));
+          else if (Date.now() >= deadline) finish(T.failed);
           else setTimeout(tick, POLL_MS);
         });
       }
@@ -111,17 +133,11 @@
       busy = true;
       btn.disabled = true;
       msg.textContent = T.syncing;
-      var clickAt = Date.now();
-      var baseline = null;
-      getJson(PAGE_URL)
-        .then(function (page) {
-          baseline = (page && page.publishedAt) || null;
-          return fetch(SYNC_URL, { method: 'POST' });
-        })
-        .then(function (r) {
-          if (r.status === 429) finish(T.wait);
-          else if (!r.ok) finish(T.failed);
-          else poll(clickAt, baseline);
+      fetch(SYNC_URL, { method: 'POST' })
+        .then(function (r) { return r && r.ok ? r.json() : null; })
+        .then(function (body) {
+          if (body && isSeq(body.seq)) poll(body.seq);
+          else finish(T.failed);
         })
         .catch(function () { finish(T.failed); });
     }
