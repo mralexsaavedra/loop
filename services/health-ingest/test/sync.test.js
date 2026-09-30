@@ -7,7 +7,7 @@ function fakeStatus () {
   return {
     events,
     recordStravaOk: async () => { events.push('ok') },
-    recordStravaError: async (message) => { events.push(`error: ${message}`) }
+    recordStravaError: async (code) => { events.push(`error: ${code}`) }
   }
 }
 
@@ -37,7 +37,7 @@ test('a successful run records ok; a failed one records the error and rethrows',
   await runOnce()
   fail = true
   await assert.rejects(runOnce(), /activities failed: 500/)
-  assert.deepEqual(status.events, ['ok', 'error: strava activities failed: 500'])
+  assert.deepEqual(status.events, ['ok', 'error: strava_other'], 'status gets the coarse code, never the message')
 
   fail = false
   await runOnce()
@@ -47,4 +47,11 @@ test('a successful run records ok; a failed one records the error and rethrows',
 test('works without a status recorder', async () => {
   const runOnce = guardSync(async () => ({ count: 0 }))
   assert.deepEqual(await runOnce(), { count: 0 })
+})
+
+test('a rejected token is recorded as strava_auth', async () => {
+  const status = fakeStatus()
+  const runOnce = guardSync(async () => { throw new Error('strava token refresh failed: 401') }, { status })
+  await assert.rejects(runOnce())
+  assert.deepEqual(status.events, ['error: strava_auth'])
 })

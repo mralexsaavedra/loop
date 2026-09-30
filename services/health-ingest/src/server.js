@@ -4,7 +4,7 @@ import { createPool, migrate, insertRawPayload, ping } from './db.js'
 import { createStravaSync, startSyncLoop, isConfigured as stravaConfigured } from './sync.js'
 import { createExportHandler, createStravaExportHandler } from './export.js'
 import { createSyncStatus } from './status.js'
-import { createRateLimiter, createTriggerWriter, createSyncTrigger } from './trigger.js'
+import { createTriggerWriter, createSyncTrigger, readTriggerSeq } from './trigger.js'
 import { createSyncRoutes } from './sync-routes.js'
 
 const PORT = Number(process.env.PORT ?? 8088)
@@ -27,19 +27,25 @@ const handleStravaExport = createStravaExportHandler({ pool, token: INGEST_TOKEN
 
 // Strava is optional: without credentials the service still ingests Apple Health.
 const STRAVA_ENABLED = stravaConfigured(process.env)
-const syncStatus = createSyncStatus({ pool, stravaConfigured: STRAVA_ENABLED })
+// POST /sync writes TRIGGER_DIR/refresh (see below); its sequence number seeds
+// the status so the sequence never goes backwards even if the DB row is lost.
+const TRIGGER_DIR = process.env.TRIGGER_DIR ?? '/trigger'
+const syncStatus = createSyncStatus({
+  pool,
+  stravaConfigured: STRAVA_ENABLED,
+  readTriggerSeq: () => readTriggerSeq(TRIGGER_DIR)
+})
 const stravaSync = STRAVA_ENABLED ? createStravaSync(pool, process.env, { status: syncStatus }) : null
 let stravaLoop = null
 
-// On-demand refresh: POST /sync kicks the (shared, never overlapping) Strava
-// pull, then writes TRIGGER_DIR/refresh, which the host watches with a systemd
-// path unit to rebuild the plan page. Unauthenticated + globally rate limited;
-// see sync-routes.js for the reasoning.
-const TRIGGER_DIR = process.env.TRIGGER_DIR ?? '/trigger'
+// On-demand refresh, sequence protocol: POST /sync assigns a sequence number,
+// kicks the (shared, never overlapping) Strava pull unless one succeeded in the
+// last 5 min, then atomically writes `seq` to TRIGGER_DIR/refresh, which the
+// host watches with a systemd path unit to rebuild the plan page. Repeated
+// clicks coalesce (never 429). Unauthenticated; see sync-routes.js.
 const syncRoutes = createSyncRoutes({
   status: syncStatus,
   trigger: createSyncTrigger({
-    limiter: createRateLimiter({ intervalMs: 60_000 }),
     runStrava: stravaSync ? () => stravaSync.runOnce() : null,
     writeTrigger: createTriggerWriter({ dir: TRIGGER_DIR }),
     status: syncStatus
@@ -184,7 +190,7 @@ const server = http.createServer(async (req, res) => {
 
 async function start () {
   await migrate(pool)
-  await syncStatus.load()
+  await syncStatus.load() // never throws: a failed load is retried on the next status read
   if (stravaSync) {
     stravaLoop = startSyncLoop(stravaSync, {
       intervalMinutes: Number(process.env.STRAVA_SYNC_MINUTES ?? 30)

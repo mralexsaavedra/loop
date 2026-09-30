@@ -1,4 +1,4 @@
-import { createTokenProvider, createTokenStore, fetchActivitiesSince, upsertActivities, lastSyncedStart } from './strava.js'
+import { createTokenProvider, createTokenStore, fetchActivitiesSince, upsertActivities, lastSyncedStart, classifyStravaError } from './strava.js'
 
 const DEFAULT_INTERVAL_MINUTES = 30
 // How far back to re-read on every run, so an activity edited after upload
@@ -12,7 +12,8 @@ export function isConfigured (env) {
 /**
  * Wraps a sync run so every caller (the interval loop, POST /sync, POST
  * /sync/strava) shares ONE in-flight run instead of overlapping, and records
- * each outcome in the freshness status (status.js). Errors are rethrown.
+ * each outcome in the freshness status (status.js) — as a COARSE code only
+ * (classifyStravaError); the message is rethrown for the caller's log.
  */
 export function guardSync (run, { status = null } = {}) {
   let inflight = null
@@ -25,7 +26,7 @@ export function guardSync (run, { status = null } = {}) {
         await status?.recordStravaOk()
         return result
       } catch (err) {
-        await status?.recordStravaError(err.message)
+        await status?.recordStravaError(classifyStravaError(err))
         throw err
       } finally {
         inflight = null
@@ -41,7 +42,8 @@ export function createStravaSync (pool, env, { status = null } = {}) {
     clientSecret: env.STRAVA_CLIENT_SECRET,
     // bootstrap only: a rotated token persisted in strava_token wins (strava.js)
     refreshToken: env.STRAVA_REFRESH_TOKEN,
-    store: createTokenStore(pool)
+    store: createTokenStore(pool),
+    onSaveResult: status ? (ok) => status.recordTokenSave(ok) : null
   })
 
   async function runOnce () {

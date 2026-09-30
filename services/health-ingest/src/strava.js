@@ -10,25 +10,60 @@ const PAGE_SIZE = 100
  * `strava_token` table, see createTokenStore) and preferred over the env
  * value, which stays the bootstrap. If the stored token is rejected (e.g. the
  * owner re-authorized and put a new token in .env), the env token is tried
- * once. A failing store never blocks a refresh: the rotated token is still
- * kept in memory.
+ * once.
+ *
+ * Store failures never block a refresh, and never silently lose a rotation:
+ *   - a failed load is retried on the next refresh (the env token is used
+ *     meanwhile, but is not pinned as "the stored one");
+ *   - a save is retried SAVE_ATTEMPTS times with growing backoff; if it still
+ *     fails the rotated token is kept in memory, `onSaveResult(false)` is
+ *     reported (status code strava_token_save) and the save is tried again on
+ *     the next refresh even if Strava does not rotate again.
  */
-export function createTokenProvider ({ clientId, clientSecret, refreshToken, store = null, fetchImpl = fetch, log = console.log }) {
+const SAVE_ATTEMPTS = 3
+const SAVE_BACKOFF_MS = 250
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+export function createTokenProvider ({
+  clientId,
+  clientSecret,
+  refreshToken,
+  store = null,
+  fetchImpl = fetch,
+  sleep = delay,
+  onSaveResult = null,
+  log = console.log
+}) {
   let accessToken = null
   let expiresAt = 0
-  let current = null
-  let loaded = false
+  let current = null // from a successful store load or a rotation
+  let loaded = false // true only after a store load SUCCEEDED
+  let unsaved = null // a rotated token whose save failed
 
   async function loadCurrent () {
-    if (loaded) return current
-    loaded = true
+    if (current) return current
+    if (!store || loaded) return refreshToken
     try {
-      current = (store && await store.load()) || null
+      const stored = await store.load()
+      loaded = true
+      if (stored) current = stored
     } catch (err) {
       log(JSON.stringify({ event: 'strava_token_load_failed', message: err.message }))
     }
-    current = current || refreshToken
-    return current
+    return current || refreshToken
+  }
+
+  async function saveWithRetry (token) {
+    for (let attempt = 1; attempt <= SAVE_ATTEMPTS; attempt++) {
+      try {
+        await store.save(token)
+        return true
+      } catch (err) {
+        log(JSON.stringify({ event: 'strava_token_save_failed', attempt, message: err.message }))
+        if (attempt < SAVE_ATTEMPTS) await sleep(SAVE_BACKOFF_MS * 2 ** (attempt - 1))
+      }
+    }
+    return false
   }
 
   function requestToken (token) {
@@ -63,16 +98,35 @@ export function createTokenProvider ({ clientId, clientSecret, refreshToken, sto
     expiresAt = body.expires_at * 1000
 
     const rotated = body.refresh_token
-    current = rotated || used
-    if (rotated && rotated !== used && store) {
-      try {
-        await store.save(rotated)
-      } catch (err) {
-        log(JSON.stringify({ event: 'strava_token_save_failed', message: err.message }))
-      }
+    if (rotated) current = rotated
+    else if (loaded || used !== refreshToken) current = used
+
+    if (rotated && store && (rotated !== used || unsaved === rotated)) {
+      const ok = await saveWithRetry(rotated)
+      unsaved = ok ? null : rotated
+      try { await onSaveResult?.(ok) } catch {}
     }
     return accessToken
   }
+}
+
+const NETWORK_CODES = new Set(['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN', 'ENETUNREACH', 'EHOSTUNREACH', 'EPIPE',
+  'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT', 'UND_ERR_SOCKET'])
+
+/**
+ * Coarse, non-sensitive code for a failed pull (GET /sync/status exposes only
+ * this; the message stays in the logs): strava_auth (the token or the grant
+ * was rejected), strava_network (could not reach Strava), strava_other.
+ */
+export function classifyStravaError (err) {
+  if (!err) return 'strava_other'
+  const message = String(err.message ?? '')
+  if (/token refresh failed: (400|401|403)\b/.test(message) || /activities failed: (401|403)\b/.test(message)) return 'strava_auth'
+  const code = err.code ?? err.cause?.code
+  if (err.name === 'AbortError' || err.name === 'TimeoutError' || NETWORK_CODES.has(code) || (err.name === 'TypeError' && /fetch failed/.test(message))) {
+    return 'strava_network'
+  }
+  return 'strava_other'
 }
 
 /** Persistence for the rotated refresh token (single row, sql/003_sync.sql). */
