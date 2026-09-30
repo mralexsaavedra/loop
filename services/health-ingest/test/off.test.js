@@ -131,3 +131,33 @@ test('the cache expires after its TTL and is bounded (LRU)', async () => {
   await off.byBarcode('11111111')
   assert.equal(n, 5)
 })
+
+test('an upstream 429 / 5xx / timeout is remembered for ~60 s (no hammering), then retried', async () => {
+  let t = 0
+  let n = 0
+  const off = createOffClient({ now: () => t, fetch: async () => { n++; return json({}, { status: 503 }) } })
+  await assert.rejects(off.byBarcode('12345678'), (e) => e.code === 'off_unavailable')
+  await assert.rejects(off.byBarcode('12345678'), (e) => e.code === 'off_unavailable')
+  assert.equal(n, 1, 'served from the negative cache')
+  t = 61_000
+  await assert.rejects(off.byBarcode('12345678'))
+  assert.equal(n, 2)
+  let m = 0
+  const limited = createOffClient({ now: () => t, fetch: async () => { m++; return json({}, { status: 429 }) } })
+  await assert.rejects(limited.search('avena'), (e) => e.code === 'off_rate_limited')
+  await assert.rejects(limited.search('avena'), (e) => e.code === 'off_rate_limited')
+  assert.equal(m, 1)
+})
+
+test('concurrent identical misses share ONE upstream request', async () => {
+  let n = 0
+  let release
+  const gate = new Promise((resolve) => { release = resolve })
+  const off = createOffClient({ fetch: async () => { n++; await gate; return json({ status: 1, product: PRODUCT }) } })
+  const a = off.byBarcode('8480000123456')
+  const b = off.byBarcode('8480000123456')
+  release()
+  const [x, y] = await Promise.all([a, b])
+  assert.equal(n, 1)
+  assert.deepEqual(x, y)
+})

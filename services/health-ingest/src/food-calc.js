@@ -1,11 +1,14 @@
-/* The food log's macro formula, server side: a line-by-line port of lib/nutrition/foodlog.mjs (the
- * reference; this service is built from its own directory, so it cannot import it). The repo's
- * lib/nutrition/foodlog.test.mjs runs this file and the reference over the same FOODLOG_CASES, so a
- * change here must be made there too (and in the page's port, web/src/client/food.js).
+/* The food log's macro formula and shared input limits, server side: a LITERAL, line-by-line port of
+ * lib/nutrition/foodlog.mjs, which is AUTHORITATIVE. This service is built from its own directory (see
+ * the Dockerfile), so it cannot import lib/. That is also why the code keeps the reference's style
+ * (`var`, semicolons) instead of this service's: a diff against the reference stays empty. The repo's
+ * lib/nutrition/foodlog.test.mjs runs this file and the reference over the same FOODLOG_CASES and checks
+ * that every constant (FOOD_LIMITS included) is equal, so a change is made there first, then copied here
+ * (and into the page's port, web/src/client/food.js).
  *
  * Nothing is converted between g and ml, a serving exists only when the product states its size, a
  * recipe with a missing product has no macros, and a log entry stores its rounded SNAPSHOT (kcal
- * whole, macros 1 decimal) so a later product edit never rewrites history. Pure: no I/O. Semicolons kept as in the reference, so the port stays line-by-line. */
+ * whole, macros 1 decimal) so a later product edit never rewrites history. Pure: no I/O. */
 
 export const FOOD_STORES = Object.freeze(['mercadona', 'dia', 'eroski', 'other']);
 export const FOOD_UNITS = Object.freeze(['g', 'ml']);
@@ -19,6 +22,25 @@ export const FOOD_MEALS = Object.freeze(['breakfast', 'lunch', 'preworkout', 'po
 // 10 kcal for near-zero foods (fibre, polyols and alcohol make real labels deviate: "save anyway")
 export const ATWATER_TOL = 0.25;
 export const ATWATER_ABS_KCAL = 10;
+// Shared input limits: the ingest validation (services/health-ingest/src/food-calc.js carries a copy,
+// pinned equal by a test) and the page (baked as FOOD_CONST.limits) read the same numbers.
+export const FOOD_LIMITS = Object.freeze({
+  nameMax: 120, // product / recipe name, quick-entry label
+  brandMax: 80,
+  queryMin: 2, // Open Food Facts text search
+  queryMax: 80,
+  barcodePattern: '^[0-9]{8,14}$', // EAN-8 … GTIN-14
+  kcal100Max: 900, // per 100 g / ml (pure fat is ~900)
+  macro100Max: 100, // g per 100 g / ml
+  servingMax: 5000, // g / ml
+  amountMax: 5000, // one log entry: g, ml or servings
+  ingredientAmountMax: 10000, // g / ml of one recipe ingredient
+  ingredientsMax: 40,
+  cookedMax: 20000, // g, a batch recipe's cooked weight
+  servingsMax: 100,
+  quickKcalMax: 5000,
+  quickMacroMax: 500,
+});
 const MACROS = ['protein', 'carbs', 'fat'];
 
 function fin(v) {
@@ -79,14 +101,20 @@ export function recipeBasis(recipe, byId) {
   if (complete && recipe.kind === 'batch' && fin(recipe.cookedWeightG) && recipe.cookedWeightG > 0) per100 = times(totals, 100 / recipe.cookedWeightG);
   return { complete: complete && (perServing != null || per100 != null), missing: missing, rawWeight: raw, totals: totals, perServing: perServing, per100: per100 };
 }
+/** An entry from a recipe basis ({perServing} or {per100}): servings of a per-serving recipe,
+ * grams of a batch one (rounded); else null. */
+export function entryFromBasis(basis, kind, amount, unit) {
+  if (!basis || !fin(amount) || amount <= 0) return null;
+  if (kind === 'serving' && unit === 'serving' && basis.perServing) return roundMacros(times(basis.perServing, amount));
+  if (kind === 'batch' && unit === 'g' && basis.per100) return roundMacros(times(basis.per100, amount / 100));
+  return null;
+}
 /** A recipe entry's macros (rounded): servings of a per-serving recipe, grams of a batch one; else null. */
 export function recipeEntry(recipe, byId, amount, unit) {
   if (!fin(amount) || amount <= 0) return null;
   var b = recipeBasis(recipe, byId);
   if (!b.complete) return null;
-  if (recipe.kind === 'serving' && unit === 'serving') return roundMacros(times(b.perServing, amount));
-  if (recipe.kind === 'batch' && unit === 'g') return roundMacros(times(b.per100, amount / 100));
-  return null;
+  return entryFromBasis(b, recipe.kind, amount, unit);
 }
 /** The day from its entries' snapshots: sums of the known values; a macro unknown on any entry is
  * flagged in `missing` (the sum is then a lower bound, and the page says so). */

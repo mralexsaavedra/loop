@@ -16,10 +16,11 @@ const PRODUCT_ROW = {
   created_at: new Date('2030-01-10T10:00:00Z'), updated_at: new Date('2030-01-10T11:00:00Z')
 }
 
-test('migration 006_food.sql is registered last and is idempotent', async () => {
+test('migration 006_food.sql is registered (as the optional food group) and is idempotent', async () => {
   // db.js loads pg, which the test run does not install: read its migration list as text
   const db = await readFile(fileURLToPath(new URL('../src/db.js', import.meta.url)), 'utf8')
-  assert.match(db, /'005_athlete_refresh\.sql', '006_food\.sql'\]/)
+  assert.match(db, /'005_athlete_refresh\.sql'\]/)
+  assert.match(db, /OPTIONAL_MIGRATIONS = \{ food: \['006_food\.sql'\] \}/, 'the food tables are an isolated, optional group')
   const sql = await readFile(fileURLToPath(new URL('../sql/006_food.sql', import.meta.url)), 'utf8')
   for (const table of ['food_product', 'food_recipe', 'food_log']) {
     assert.match(sql, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}\\b`))
@@ -74,4 +75,17 @@ test('recipes keep ingredients as JSON; log rows come back with a YYYY-MM-DD dat
   assert.match(logSql, /to_char\(date, 'YYYY-MM-DD'\) AS date/)
   assert.match(logSql, /ORDER BY created_at, id/)
   assert.deepEqual(pool.calls.at(-1).values, ['2030-01-10'])
+})
+
+test('insertLog is idempotent on the request id (ON CONFLICT DO NOTHING -> null); getLogByRequest finds the stored row', async () => {
+  const pool = fakePool(() => ({ rows: [] }))
+  const store = createFoodStore(pool)
+  const r = await store.insertLog({ date: '2030-01-10', meal: 'snack', refType: 'quick', label: 'x', amount: 1, unit: 'serving', kcal: 1, protein: null, carbs: null, fat: null, requestId: 'abc-12345' })
+  assert.equal(r, null)
+  assert.match(pool.calls[0].sql, /ON CONFLICT \(request_id\) WHERE request_id IS NOT NULL DO NOTHING/)
+  assert.equal(pool.calls[0].values.at(-1), 'abc-12345')
+  await store.getLogByRequest('abc-12345')
+  assert.match(pool.calls[1].sql, /WHERE request_id = \$1/)
+  const sql = await readFile(fileURLToPath(new URL('../sql/006_food.sql', import.meta.url)), 'utf8')
+  assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS food_log_request_uq ON food_log \(request_id\) WHERE request_id IS NOT NULL/)
 })

@@ -11,31 +11,42 @@
  *   GET    /food/off?barcode=|q=     Open Food Facts lookup, server side (src/off.js); saves nothing
  *
  * Security. A static page cannot hold a secret, so these routes are UNAUTHENTICATED like /sync and
- * meant for the LAN only (a public reverse proxy must NEVER forward /food/*, see README). What keeps
- * a malicious website opened on a LAN device from writing here: every request must carry the custom
- * header `X-HC-Food: 1` (403 otherwise) and every write `Content-Type: application/json` (415): both
- * force a CORS preflight, which this server never approves (it sends no CORS headers at all), so a
- * cross-site request is never sent. Bodies are capped at 16 KB (413), writes are rate limited per
- * client address (429), and every error is a COARSE code ({error, field?}), never raw DB text.
+ * meant for the LAN only (a public reverse proxy must NEVER forward /food/*, see README). Layers:
+ *   - Host check (DNS rebinding): the Host must be an IP literal, localhost, host.docker.internal (the
+ *     plan-web proxy hop) or a name in FOOD_ALLOWED_HOSTS, else 421. A rebinding page (its own name
+ *     resolved to a LAN address) is refused here and, first, by plan-web's nginx Host map;
+ *   - on writes, an Origin header (when the browser sends one) must name an allowed host too (403);
+ *   - every request must carry the custom header `X-HC-Food: 1` (403) and every write
+ *     `Content-Type: application/json` (415): from another site both force a CORS preflight, which this
+ *     server never approves (it sends no CORS headers at all), so a plain cross-site request is not sent.
+ * Together they stop a website opened on a LAN device from reading or writing the log; none of them
+ * stops a device on the LAN that talks to the service directly (that is the LAN-only trust model).
+ * Bodies are capped at 16 KB (413), writes share one rate limit per client address (429; behind
+ * plan-web every request comes from nginx, so it is one shared budget), the whole feature answers 503
+ * food_unavailable when its tables failed to migrate, and every error is a COARSE code
+ * ({error, field?}), never raw DB text.
  *
  * Validation is strict and by hand: unknown keys are refused, strings trimmed and length-capped,
- * numbers finite and in sane ranges (per 100: kcal <= 900, each macro <= 100 g), dates must round
- * trip, and a label whose kcal disagree with 4 p + 4 c + 9 f by more than 25 % is refused with
+ * numbers finite, rounded to 1 decimal and THEN checked against the shared FOOD_LIMITS (so 0.04 g is
+ * 0 and refused where > 0 is required), dates must round trip, and a label whose kcal disagree with 4 p + 4 c + 9 f by more than 25 % is refused with
  * `atwater` unless the request says `force: true` (fibre / polyols make real labels deviate).
  */
 import {
-  FOOD_STORES, FOOD_UNITS, ENTRY_UNITS, FOOD_SOURCES, RECIPE_KINDS, REF_TYPES, FOOD_MEALS,
+  FOOD_STORES, FOOD_UNITS, ENTRY_UNITS, FOOD_SOURCES, RECIPE_KINDS, REF_TYPES, FOOD_MEALS, FOOD_LIMITS as L,
   round1, roundMacros, productEntry, recipeBasis, recipeEntry, dayTotals, atwaterOk
 } from './food-calc.js'
 import { createWindowLimiter } from './limits.js'
 
 export const FOOD_BODY_LIMIT = 16 * 1024
 export const FOOD_WRITE_LIMIT = 60 // per client address per minute
-const MAX_AMOUNT = 5000 // g, ml or servings in one entry
-const MAX_INGREDIENTS = 40
+// limits: FOOD_LIMITS (food-calc.js, a copy of lib/nutrition/foodlog.mjs, which is authoritative)
 const ID_RE = /^[1-9][0-9]{0,15}$/
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/
-const BARCODE_RE = /^[0-9]{8,14}$/
+const BARCODE_RE = new RegExp(L.barcodePattern)
+const REQUEST_ID_RE = /^[A-Za-z0-9-]{8,64}$/ // the page's per-add id (a UUID), makes a retry idempotent
+const IPV4_RE = /^\d{1,3}(\.\d{1,3}){3}$/
+const IPV6_RE = /^\[[0-9a-f:.]+\]$/
+const LOCAL_HOSTS = ['localhost', 'host.docker.internal']
 const OFF_CODE_RE = /^[0-9]{1,14}$/
 const WRITE_METHODS = new Set(['POST', 'PUT', 'DELETE'])
 
@@ -75,13 +86,15 @@ function str (v, field, max, optional = false) {
   if (!s || s.length > max) bad(field)
   return s
 }
+// rounded FIRST (1 decimal, the stored precision), then bound-checked: 0.04 is 0, 900.04 is 900
 function number (v, field, { min = 0, max, above = false, optional = false, integer = false }) {
   if (optional && absent(v)) return null
   if (typeof v !== 'number' || !Number.isFinite(v)) bad(field)
-  if (above ? v <= min : v < min) bad(field)
-  if (v > max) bad(field)
   if (integer && !Number.isInteger(v)) bad(field)
-  return integer ? v : round1(v)
+  const n = integer ? v : round1(v)
+  if (above ? n <= min : n < min) bad(field)
+  if (n > max) bad(field)
+  return n
 }
 function oneOf (v, field, list) {
   if (!list.includes(v)) bad(field)
@@ -113,25 +126,51 @@ export function validDate (s) {
   return y >= 2000 && y <= 2100 && d.toISOString().slice(0, 10) === s ? s : null
 }
 
+/** An allowed host name (no port): an IP literal, localhost, host.docker.internal or an allowlisted name. */
+export function hostAllowed (hostname, extra = []) {
+  const h = String(hostname || '').toLowerCase()
+  if (!h) return false
+  return IPV4_RE.test(h) || IPV6_RE.test(h) || LOCAL_HOSTS.includes(h) || extra.includes(h)
+}
+/** The host part of a Host header ("192.168.1.10:8090" -> "192.168.1.10", "[::1]:8088" -> "[::1]"). */
+function hostOfHeader (v) {
+  const s = String(v || '').trim()
+  const m = /^(\[[^\]]*\]|[^:]*)(?::\d+)?$/.exec(s)
+  return m ? m[1] : ''
+}
+/** The host of an Origin header, or null when it is not a URL ("null", garbage). */
+function hostOfOrigin (v) {
+  try {
+    const u = new URL(v)
+    return /^https?:$/.test(u.protocol) ? u.hostname : null
+  } catch {
+    return null
+  }
+}
+/** FOOD_ALLOWED_HOSTS: comma / space separated names, lowercased. */
+export function parseAllowedHosts (v) {
+  return String(v || '').split(/[\s,]+/).map((s) => s.trim().toLowerCase()).filter(Boolean)
+}
+
 export function validateProduct (body) {
   strictKeys(body, ['name', 'brand', 'store', 'barcode', 'unit', 'per100', 'servingSize', 'source', 'offCode', 'force'])
   const p = {
-    name: str(body.name, 'name', 120),
-    brand: str(body.brand, 'brand', 80, true),
+    name: str(body.name, 'name', L.nameMax),
+    brand: str(body.brand, 'brand', L.brandMax, true),
     store: oneOf(body.store, 'store', FOOD_STORES),
     barcode: pattern(body.barcode, 'barcode', BARCODE_RE),
     unit: oneOf(body.unit, 'unit', FOOD_UNITS),
     per100: null,
-    servingSize: number(body.servingSize, 'servingSize', { max: 5000, above: true, optional: true }),
+    servingSize: number(body.servingSize, 'servingSize', { max: L.servingMax, above: true, optional: true }),
     source: oneOf(body.source, 'source', FOOD_SOURCES),
     offCode: pattern(body.offCode, 'offCode', OFF_CODE_RE)
   }
   strictKeys(body.per100, ['kcal', 'protein', 'carbs', 'fat'], 'per100.')
   p.per100 = {
-    kcal: number(body.per100.kcal, 'per100.kcal', { max: 900 }),
-    protein: number(body.per100.protein, 'per100.protein', { max: 100 }),
-    carbs: number(body.per100.carbs, 'per100.carbs', { max: 100 }),
-    fat: number(body.per100.fat, 'per100.fat', { max: 100 })
+    kcal: number(body.per100.kcal, 'per100.kcal', { max: L.kcal100Max }),
+    protein: number(body.per100.protein, 'per100.protein', { max: L.macro100Max }),
+    carbs: number(body.per100.carbs, 'per100.carbs', { max: L.macro100Max }),
+    fat: number(body.per100.fat, 'per100.fat', { max: L.macro100Max })
   }
   const force = flag(body.force, 'force')
   if (!force && !atwaterOk(p.per100)) throw httpError(400, 'atwater')
@@ -141,45 +180,46 @@ export function validateProduct (body) {
 export function validateRecipe (body) {
   strictKeys(body, ['name', 'kind', 'servings', 'cookedWeightG', 'ingredients'])
   const kind = oneOf(body.kind, 'kind', RECIPE_KINDS)
-  const r = { name: str(body.name, 'name', 120), kind, servings: null, cookedWeightG: null, ingredients: [] }
+  const r = { name: str(body.name, 'name', L.nameMax), kind, servings: null, cookedWeightG: null, ingredients: [] }
   if (kind === 'serving') {
     if (!absent(body.cookedWeightG)) bad('cookedWeightG')
-    r.servings = number(body.servings, 'servings', { min: 1, max: 100, integer: true })
+    r.servings = number(body.servings, 'servings', { min: 1, max: L.servingsMax, integer: true })
   } else {
     if (!absent(body.servings)) bad('servings')
-    r.cookedWeightG = number(body.cookedWeightG, 'cookedWeightG', { max: 20000, above: true })
+    r.cookedWeightG = number(body.cookedWeightG, 'cookedWeightG', { max: L.cookedMax, above: true })
   }
-  if (!Array.isArray(body.ingredients) || body.ingredients.length < 1 || body.ingredients.length > MAX_INGREDIENTS) bad('ingredients')
+  if (!Array.isArray(body.ingredients) || body.ingredients.length < 1 || body.ingredients.length > L.ingredientsMax) bad('ingredients')
   r.ingredients = body.ingredients.map((ing) => {
     strictKeys(ing, ['productId', 'amount'], 'ingredients.')
-    return { productId: id(ing.productId, 'ingredients.productId'), amount: number(ing.amount, 'ingredients.amount', { max: 10000, above: true }) }
+    return { productId: id(ing.productId, 'ingredients.productId'), amount: number(ing.amount, 'ingredients.amount', { max: L.ingredientAmountMax, above: true }) }
   })
   return r
 }
 
 /** Shape only; the snapshot needs the store (see addLog). */
 export function validateLog (body) {
-  strictKeys(body, ['date', 'meal', 'refType', 'refId', 'amount', 'unit', 'label', 'kcal', 'protein', 'carbs', 'fat', 'force'])
+  strictKeys(body, ['date', 'meal', 'refType', 'refId', 'amount', 'unit', 'label', 'kcal', 'protein', 'carbs', 'fat', 'force', 'requestId'])
   const e = {
     date: validDate(body.date) ?? bad('date'),
     meal: oneOf(body.meal, 'meal', FOOD_MEALS),
-    refType: oneOf(body.refType, 'refType', REF_TYPES)
+    refType: oneOf(body.refType, 'refType', REF_TYPES),
+    requestId: pattern(body.requestId, 'requestId', REQUEST_ID_RE)
   }
   if (e.refType === 'quick') {
     for (const k of ['refId', 'amount', 'unit']) if (!absent(body[k])) bad(k)
-    e.label = str(body.label, 'label', 120)
+    e.label = str(body.label, 'label', L.nameMax)
     e.macros = {
-      kcal: number(body.kcal, 'kcal', { max: 5000 }),
-      protein: number(body.protein, 'protein', { max: 500, optional: true }),
-      carbs: number(body.carbs, 'carbs', { max: 500, optional: true }),
-      fat: number(body.fat, 'fat', { max: 500, optional: true })
+      kcal: number(body.kcal, 'kcal', { max: L.quickKcalMax }),
+      protein: number(body.protein, 'protein', { max: L.quickMacroMax, optional: true }),
+      carbs: number(body.carbs, 'carbs', { max: L.quickMacroMax, optional: true }),
+      fat: number(body.fat, 'fat', { max: L.quickMacroMax, optional: true })
     }
     e.force = flag(body.force, 'force')
     return e
   }
   for (const k of ['label', 'kcal', 'protein', 'carbs', 'fat', 'force']) if (!absent(body[k])) bad(k)
   e.refId = id(body.refId, 'refId')
-  e.amount = number(body.amount, 'amount', { max: MAX_AMOUNT, above: true })
+  e.amount = number(body.amount, 'amount', { max: L.amountMax, above: true })
   e.unit = oneOf(body.unit, 'unit', ENTRY_UNITS)
   return e
 }
@@ -259,7 +299,7 @@ export function recipeView (recipe, byId) {
   }
 }
 
-export function createFoodRoutes ({ store, off, now = Date.now, log = console.log, writeLimit = FOOD_WRITE_LIMIT }) {
+export function createFoodRoutes ({ store, off, now = Date.now, log = console.log, writeLimit = FOOD_WRITE_LIMIT, available = () => true, allowedHosts = [] }) {
   const writes = createWindowLimiter({ limit: writeLimit, windowMs: 60_000, now })
 
   async function recipeViews (recipes) {
@@ -275,7 +315,15 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
     if (found.filter((p) => !p.archived).length !== ids.length) throw httpError(400, 'unknown_product')
   }
 
+  /** The row this request id already stored, if any (a retry of the same add). */
+  async function existing (requestId) {
+    return requestId ? store.getLogByRequest(requestId) : null
+  }
+
+  /** {entry, created}: a retry with a known requestId returns the stored row, never a duplicate. */
   async function addLog (e) {
+    const prior = await existing(e.requestId)
+    if (prior) return { entry: prior, created: false }
     let macros, label, amount, unit
     if (e.refType === 'quick') {
       macros = roundMacros(e.macros)
@@ -303,9 +351,14 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
       amount = e.amount
       unit = e.unit
     }
-    return store.insertLog({
-      date: e.date, meal: e.meal, refType: e.refType, refId: e.refType === 'quick' ? null : e.refId, label, amount, unit, ...macros
+    const entry = await store.insertLog({
+      date: e.date, meal: e.meal, refType: e.refType, refId: e.refType === 'quick' ? null : e.refId, label, amount, unit, ...macros, requestId: e.requestId
     })
+    if (entry) return { entry, created: true }
+    // a concurrent retry stored it first (the unique request id): answer that row
+    const winner = await existing(e.requestId)
+    if (!winner) throw new Error('log insert returned no row')
+    return { entry: winner, created: false }
   }
 
   async function dispatch (req, res, url, idParam) {
@@ -352,8 +405,8 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
         return send(res, 200, { date, entries, totals: dayTotals(entries) })
       }
       const e = validateLog(await readJson(req))
-      const entry = await addLog(e)
-      return send(res, 201, { entry, totals: dayTotals(await store.listLog(e.date)) })
+      const { entry, created } = await addLog(e)
+      return send(res, created ? 201 : 200, { entry, totals: dayTotals(await store.listLog(e.date)) })
     }
     if (path.startsWith('/food/log/')) {
       if (idParam == null || !(await store.deleteLog(idParam))) throw httpError(404, 'not_found')
@@ -366,7 +419,7 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
       return send(res, 200, { product: await off.byBarcode(barcode) })
     }
     const q = (url.searchParams.get('q') ?? '').replace(/\s+/g, ' ').trim()
-    if (q.length < 2 || q.length > 80) bad('q')
+    if (q.length < L.queryMin || q.length > L.queryMax) bad('q')
     return send(res, 200, { results: await off.search(q) })
   }
 
@@ -376,7 +429,9 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
       const path = url.pathname
       if (path !== '/food' && !path.startsWith('/food/')) return false
       try {
+        if (!hostAllowed(hostOfHeader(req.headers.host), allowedHosts)) throw httpError(421, 'misdirected')
         if (req.headers['x-hc-food'] !== '1') throw httpError(403, 'forbidden')
+        if (!available()) throw httpError(503, 'food_unavailable')
         let route = null
         let match = null
         for (const r of ROUTES) {
@@ -390,6 +445,8 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
           return true
         }
         if (WRITE_METHODS.has(req.method)) {
+          const origin = req.headers.origin
+          if (origin !== undefined && !hostAllowed(hostOfOrigin(origin), allowedHosts)) throw httpError(403, 'forbidden_origin')
           if (!writes.take(req.socket?.remoteAddress ?? 'unknown')) throw httpError(429, 'rate_limited')
           if (req.method !== 'DELETE' && !isJson(req)) throw httpError(415, 'unsupported_media_type')
         }

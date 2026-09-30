@@ -33,7 +33,7 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 | GET    | `/food/recipes`               | header | `200` `{recipes}` with macros COMPUTED from the products (`perServing` or `per100` cooked) |
 | POST / PUT / DELETE | `/food/recipes[/:id]`  | header | create / edit / archive, same rules |
 | GET    | `/food/log?date=YYYY-MM-DD`   | header | `200` `{date, entries, totals}` |
-| POST / DELETE | `/food/log[/:id]`      | header | add `201` `{entry, totals}` (macros snapshotted) / delete `200` |
+| POST / DELETE | `/food/log[/:id]`      | header | add `201` `{entry, totals}` (macros snapshotted; a retry with the same `requestId` answers `200` with the stored row) / delete `200` |
 | GET    | `/food/off?barcode=` / `?q=`  | header | `200` `{product}` / `{results}` from Open Food Facts, normalized; nothing saved |
 | GET    | `/export/athlete`             | bearer | `200` with the latest athlete snapshot: `{fetchedAt, firstname, lastname, city, state, country, profile, profileMedium, measurementPreference, athleteType, bikes, shoes, gearScopeMissing, devices}` (nulls / empty lists when nothing is stored) |
 
@@ -164,15 +164,36 @@ own recipes (Mis recetas), through plan-web's `/api/food/` proxy. Tables in
   `complete: false`, and the page asks the owner to fill it from the label.
   Nothing from OFF is stored until the owner saves the product.
 
-**Why no token, and why cross-site writes still fail.** Like `/sync`, a static
+**Why no token, and what keeps other websites out.** Like `/sync`, a static
 page cannot hold a secret, so `/food/*` is unauthenticated and meant for the LAN
-ONLY. Every request must send `X-HC-Food: 1` (`403` otherwise) and every write
-`Content-Type: application/json` (`415`): a malicious website opened on a LAN
-device can only send either one after a CORS preflight, and this service never
-answers one with CORS headers, so the browser never sends the request. Writes
-are also rate limited to 60 / min per client address (behind plan-web that is
-nginx's address, so effectively one shared budget). **A public reverse proxy
-must NEVER forward `/food/*`** (same list as `/export/*`).
+ONLY. Layers, in order:
+
+1. **Host** (DNS rebinding): the `Host` must be an IP literal (v4 or bracketed
+   v6), `localhost`, `host.docker.internal` (the plan-web proxy hop) or a name in
+   `FOOD_ALLOWED_HOSTS`, else `421 misdirected`. plan-web's nginx refuses other
+   names first (see its README).
+2. **Origin** on writes: when the browser sends one, its host must pass the same
+   check, else `403 forbidden_origin`.
+3. `X-HC-Food: 1` on every request (`403`) and `Content-Type: application/json`
+   on writes (`415`): from another site both need a CORS preflight, which this
+   service never approves (no CORS headers at all).
+
+Together they stop a website opened in a LAN browser from reading or writing
+the log; they do not stop a device ON the LAN that calls the service directly
+(the LAN-only trust model). Writes share one rate limit of 60 / min per client
+address; behind plan-web every request comes from nginx, so it is one shared
+budget. **A public reverse proxy must NEVER forward `/food/*`** (same list as
+`/export/*`).
+
+**Isolated migration.** `006_food.sql` runs as an optional group: if it fails,
+the service logs `food_migration_failed` and keeps ingesting, syncing and
+pulling Strava; only `/food/*` answers `503 food_unavailable` until a restart
+runs it successfully.
+
+**Idempotent adds.** The page sends a `requestId` (a UUID) with each add and
+reuses it when it retries after a timeout or a lost answer; a unique index on
+`food_log.request_id` makes the retry return the stored row instead of a
+duplicate.
 
 **Rollout.** `docker compose up -d --build health-ingest` (runs `006_food.sql`),
 then restart plan-web so its nginx picks up the `/api/food/` proxy
@@ -355,6 +376,7 @@ token). `.env` is gitignored and must stay that way.
 | `INGEST_PORT`       | Host port; the reverse proxy target points here |
 | `MAX_BODY_BYTES`    | Upload ceiling, default 32 MB |
 | `TRIGGER_DIR`       | Where `POST /sync` writes `refresh`; compose sets `/trigger` (bind mount of `./trigger`) |
+| `FOOD_ALLOWED_HOSTS` | Extra host names (comma / space separated) the `/food/*` Host + Origin checks accept besides IP literals, `localhost` and `host.docker.internal`; empty by default. Mirror plan-web's `PLAN_WEB_EXTRA_HOSTS` |
 
 ## Running
 

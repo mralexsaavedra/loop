@@ -58,7 +58,10 @@ CREATE TABLE IF NOT EXISTS food_log (
   protein     NUMERIC(6,1) CHECK (protein IS NULL OR protein >= 0),
   carbs       NUMERIC(6,1) CHECK (carbs IS NULL OR carbs >= 0),
   fat         NUMERIC(6,1) CHECK (fat IS NULL OR fat >= 0),
+  request_id  TEXT         CHECK (request_id IS NULL OR request_id ~ '^[A-Za-z0-9-]{8,64}$'),
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
   CONSTRAINT food_log_ref_chk CHECK ((ref_type = 'quick') = (ref_id IS NULL))
 );
 CREATE INDEX IF NOT EXISTS food_log_date_idx ON food_log (date);
+-- the page's per-add id: a retry of the same add (after a timeout / lost answer) finds this row
+CREATE UNIQUE INDEX IF NOT EXISTS food_log_request_uq ON food_log (request_id) WHERE request_id IS NOT NULL;

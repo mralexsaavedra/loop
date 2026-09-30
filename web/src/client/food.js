@@ -85,13 +85,17 @@
     if (complete && recipe.kind === 'batch' && fin(recipe.cookedWeightG) && recipe.cookedWeightG > 0) per100 = times(totals, 100 / recipe.cookedWeightG);
     return { complete: complete && (perServing != null || per100 != null), missing: missing, rawWeight: raw, totals: totals, perServing: perServing, per100: per100 };
   }
+  function entryFromBasis(basis, kind, amount, unit) {
+    if (!basis || !fin(amount) || amount <= 0) return null;
+    if (kind === 'serving' && unit === 'serving' && basis.perServing) return roundMacros(times(basis.perServing, amount));
+    if (kind === 'batch' && unit === 'g' && basis.per100) return roundMacros(times(basis.per100, amount / 100));
+    return null;
+  }
   function recipeEntry(recipe, byId, amount, unit) {
     if (!fin(amount) || amount <= 0) return null;
     var b = recipeBasis(recipe, byId);
     if (!b.complete) return null;
-    if (recipe.kind === 'serving' && unit === 'serving') return roundMacros(times(b.perServing, amount));
-    if (recipe.kind === 'batch' && unit === 'g') return roundMacros(times(b.per100, amount / 100));
-    return null;
+    return entryFromBasis(b, recipe.kind, amount, unit);
   }
   function dayTotals(entries) {
     var t = { kcal: 0, protein: 0, carbs: 0, fat: 0, count: 0, missing: { protein: false, carbs: false, fat: false } };
@@ -874,6 +878,7 @@
     productEntry: productEntry,
     recipeBasis: recipeBasis,
     recipeEntry: recipeEntry,
+    entryFromBasis: entryFromBasis,
     dayTotals: dayTotals,
     atwaterOk: atwaterOk,
     roundMacros: roundMacros,
