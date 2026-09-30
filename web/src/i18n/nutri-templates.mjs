@@ -12,6 +12,11 @@ export const es = {
   auto: '(auto)',
   chosen: '(elegido)',
   backToAuto: 'Usar el detectado: {type}',
+  autoRaised: {
+    gym: 'Detectado entrenamiento: cambiado a {type}.',
+    bike: 'Detectada salida en bici: cambiado a {type}.',
+    bikeLong: 'Detectada salida larga: cambiado a {type}.',
+  },
   why: {
     ride: 'Bici registrada hoy: {dur}.',
     workout: 'Entreno registrado hoy.',
@@ -20,6 +25,7 @@ export const es = {
   },
   target: {
     heading: 'Objetivo de hoy',
+    mealsHeading: 'Comidas de hoy',
     kcal: 'kcal',
     p: 'Proteína',
     f: 'Grasa',
@@ -43,6 +49,7 @@ export const es = {
     otherSupps: 'Otros suplementos de hoy',
     suppIcon: '💊',
     empty: 'El plan no tiene comidas para este tipo de día.',
+    unitsOnly: 'Solo las raciones por unidades son ajustables y no se pueden partir: el plan no puede acercarse más al objetivo.',
     meals: { breakfast: 'Desayuno', lunch: 'Comida', preworkout: 'Pre-entreno', postworkout: 'Post-entreno', dinner: 'Cena', snack: 'Tentempié' },
   },
   fuel: {
@@ -84,6 +91,11 @@ export const en = {
   auto: '(auto)',
   chosen: '(chosen)',
   backToAuto: 'Use the detected one: {type}',
+  autoRaised: {
+    gym: 'Workout detected: switched to {type}.',
+    bike: 'Ride detected: switched to {type}.',
+    bikeLong: 'Long ride detected: switched to {type}.',
+  },
   why: {
     ride: 'Ride recorded today: {dur}.',
     workout: 'Workout recorded today.',
@@ -92,6 +104,7 @@ export const en = {
   },
   target: {
     heading: "Today's target",
+    mealsHeading: "Today's meals",
     kcal: 'kcal',
     p: 'Protein',
     f: 'Fat',
@@ -115,6 +128,7 @@ export const en = {
     otherSupps: 'Other supplements today',
     suppIcon: '💊',
     empty: 'The plan has no meals for this day type.',
+    unitsOnly: 'Only whole-unit portions are adjustable and they cannot be split: the plan cannot get closer to the target.',
     meals: { breakfast: 'Breakfast', lunch: 'Lunch', preworkout: 'Pre-workout', postworkout: 'Post-workout', dinner: 'Dinner', snack: 'Snack' },
   },
   fuel: {

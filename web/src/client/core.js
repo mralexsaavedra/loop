@@ -10,8 +10,8 @@
  *
  * Ported VERBATIM (same DOM contract) from the legacy hand-maintained
  * `<script>` block of the pre-Astro generated page (deleted at the
- * astro-plan-web cutover) — ids (t-dia/b-train/b-rest/...),
- * `.tab-panel[data-tab]` / `.day-panel[data-day]` classes, and
+ * astro-plan-web cutover) — ids (t-dia/...),
+ * `.tab-panel[data-tab]` classes, and
  * `onclick="setTab(...)"` / `onclick="jump(...)"` / `onclick="bump(key,
  * delta)"` markup — NOT slice 1's invented `data-tab-btn`/`data-tab-panel`
  * attribute scheme. Parity with the legacy behavior (id sets + onclick
@@ -25,7 +25,7 @@
  * module boundary, so `bump` reads/writes the counter straight from the DOM
  * (the single source of truth for the displayed count) and calls an
  * optional `window.bldRecalc()` hook — the same optional-global-hook
- * pattern legacy already uses for `setDay` -> `window.bldRefresh`.
+ * pattern nutri-day.js uses for `window.bldRefresh` / `window.intakeRefresh`.
  */
 /* Four top-level tabs (Inicio / Entreno / Salud / Nutrición), nav buttons `#t-<key>`. The former
  * tab keys now name sections (`#sec-<key>`) inside one of them, so an old `setTab('tablas')` still
@@ -46,31 +46,7 @@ function setTab(name, scrollTop) {
     var b = document.getElementById('t-' + key);
     if (b) b.setAttribute('aria-pressed', key === name);
   });
-  // the train/rest toggle belongs to Nutrición; data-off = it drives nothing visible (lib/nav/tabs.mjs showDayToggle)
-  var dt = document.getElementById('day-toggle');
-  if (dt) dt.style.display = name === 'nutricion' && dt.getAttribute('data-off') == null ? '' : 'none';
   if (scrollTop !== false) window.scrollTo({ top: 0, behavior: 'auto' });
-}
-
-function setDay(day) {
-  // Mi día panels + Inicio's "today you eat" blocks share one day-type state
-  ['.day-panel', '.eat-day'].forEach(function (sel) {
-    document.querySelectorAll(sel).forEach(function (p) {
-      p.hidden = p.getAttribute('data-day') !== day;
-    });
-  });
-  document.querySelectorAll('[data-set-day]').forEach(function (b) {
-    b.setAttribute('aria-pressed', b.getAttribute('data-set-day') === day);
-  });
-  var t = document.getElementById('b-train');
-  var r = document.getElementById('b-rest');
-  t.setAttribute('aria-pressed', day === 'train');
-  r.setAttribute('aria-pressed', day === 'rest');
-  if (window.bldRefresh) window.bldRefresh();
-  // the intake rings are optional: a failure there must never break the train/rest toggle
-  if (typeof window.intakeRefresh === 'function') {
-    try { window.intakeRefresh(); } catch (e) { /* rings keep their previous state */ }
-  }
 }
 
 function jump(id) {
@@ -113,7 +89,6 @@ function bump(key, delta) {
 }
 
 window.setTab = setTab;
-window.setDay = setDay;
 window.jump = jump;
 window.jumpOr = jumpOr;
 window.bump = bump;

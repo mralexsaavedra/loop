@@ -1,28 +1,34 @@
 /* Nutrición day blocks — Resumen de hoy (goal + day type + today's target), Plan de hoy (the day's
  * meals scaled to that target) and Avituallamiento (bike day types only) — plus Inicio's "today you
- * eat" card. Classic script (is:inline). Reads NUTRI (lib/nutrition/today.mjs: the 12 precomputed
- * goal × day type plans, fuelling rates, detection thresholds, latest weigh-in) + I18N_NUTRI, baked
- * by web/src/tabs/Dia.astro, and SCORES.timeline / TRAINING (Bake.astro) for today's workouts and
- * programmed session. Everything time-based is decided HERE on the viewer's clock, so builds stay
- * byte-identical.
+ * eat" card. Classic script (is:inline). Reads NUTRI (lib/nutrition/today.mjs: the 12 goal × day type
+ * targets, one scaling model per base day, fuelling rates, detection thresholds, latest weigh-in) +
+ * I18N_NUTRI, baked by web/src/tabs/Dia.astro, and SCORES.timeline / TRAINING (Bake.astro) for today's
+ * workouts and programmed session. Everything time-based is decided HERE on the viewer's clock, so
+ * builds stay byte-identical.
  *
  * - Day type: detectDayType ports lib/nutrition/daytype.mjs over the baked NUTRI.detect (a test runs
- *   both over the same cases). A manual override is kept in localStorage WITH its date, so it expires
- *   the next day; the goal is kept too. Storage is a per-viewer convenience: every access is wrapped
- *   and the page works without it.
- * - Fuelling: fuelPlan ports lib/nutrition/fuel.mjs over NUTRI.fuel.rates (pinned by a test). The ride
- *   duration = today's recorded ride when there is one, else the picker (default 2 h / 3.5 h).
- * - The chosen day type drives the legacy train/rest state (core.js setDay: Registro, intake rings), and
- *   window.nutriTarget() hands the intake rings today's target.
+ *   both over the same cases). A manual override is kept in localStorage WITH its date (so it expires
+ *   the next day) and the type detected when it was picked: an override LESS demanding than a type
+ *   detected later that day (picked gym, then a long ride synced) is dropped with a one-line note; a
+ *   more demanding one (planning a ride) stays. The goal is kept too. Storage is a per-viewer
+ *   convenience: every access is wrapped and the page works without it.
+ * - Plan: planFor / solveScale port lib/nutrition/scale.mjs over the baked models (parity test): the
+ *   meals aim at target − ride fuel for the ride's minutes (a recorded ride's real minutes, else the
+ *   picker, kept per date like the override, else the default), so changing the duration re-scales
+ *   Plan de hoy. fuelPlan ports lib/nutrition/fuel.mjs over NUTRI.fuel.rates.
+ * - Today's target is the ONE source for the rest of Nutrición: window.nutriTarget() hands the day
+ *   builder (client/nutrition.js) and the intake rings (client/intake.js) the MEALS target (on bike days
+ *   the day target minus the ride fuel, with the fuel as its own figure), and every goal / day type /
+ *   duration change refreshes both directly.
  * Each block renders in its own try/catch: a failure shows a one-line message there, never a blank tab. */
 (function () {
   var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;
   var T = typeof I18N_NUTRI === 'undefined' || !I18N_NUTRI ? null : I18N_NUTRI;
   if (!N || !T) return;
   var esc = HC.esc, format = HC.format, todayIso = HC.todayIso;
-  var KEY_GOAL = 'hc.nutri.goal', KEY_DAY = 'hc.nutri.dayType';
+  var KEY_GOAL = 'hc.nutri.goal', KEY_DAY = 'hc.nutri.dayType', KEY_RIDE = 'hc.nutri.rideMin';
   var RANK = { rest: 0, gym: 1, bike: 2, bikeLong: 3 };
-  var state = { goal: N.goal, override: null, auto: null, rideMin: null };
+  var state = { goal: N.goal, override: null, auto: null, ride: null, raised: null };
 
   function $(id) { return document.getElementById(id); }
   function kf(n) { // thousands separator: 3.050 (es) / 3,050 (en)
@@ -40,6 +46,12 @@
   }
   function save(key, value) {
     try { var s = store(); if (!s) return; if (value == null) s.removeItem(key); else s.setItem(key, value); } catch (e) { /* ignored */ }
+  }
+  function loadToday(key, today) { // a {date, …} value stored today, else null (yesterday's has expired)
+    try {
+      var o = JSON.parse(load(key) || 'null');
+      return o && typeof o === 'object' && o.date === today ? o : null;
+    } catch (e) { return null; }
   }
 
   /* ---------- day type detection (port of lib/nutrition/daytype.mjs) ---------- */
@@ -120,16 +132,98 @@
     };
   }
 
+  /* ---------- portion scaling (port of lib/nutrition/scale.mjs solveScale / planFor) ---------- */
+  function round2(v) { return Math.round(v * 100) / 100; }
+  function stepAmount(amt, unit) {
+    if (unit === 'ud') return Math.max(100, Math.round(amt / 100) * 100);
+    return Math.max(N.scale.step, Math.round(amt / N.scale.step) * N.scale.step);
+  }
+  function fmtFactor(f, dec) { return f.toFixed(2).replace('.', dec); }
+  function fmtAmt(amt, unit, units) {
+    return unit === 'ud' ? round2(amt / 100) + ' ' + units.ud : round2(amt) + ' ' + (units[unit] || unit);
+  }
+  function limit(f) {
+    if (f < N.scale.min) return [N.scale.min, 'min'];
+    if (f > N.scale.max) return [N.scale.max, 'max'];
+    return [f, null];
+  }
+  function solveScale(model, target, fmt) {
+    var units = fmt.units, dec = fmt.dec;
+    var fixedK = 0, udK = 0, contK = 0;
+    model.fixed.forEach(function (f) { fixedK += f[0]; });
+    model.flex.forEach(function (x) {
+      if (x.mb) contK += x.mb[0];
+      else x.ln.forEach(function (l) { if (l[0] === 'ud') udK += l[2]; else contK += l[2]; });
+    });
+    var lc = udK + contK > 0 ? limit((target - fixedK) / (udK + contK)) : [1, null];
+    var f0 = round2(lc[0]), clamp = lc[1];
+    var amountAt = function (l, s) { return s === 1 ? l[1] : stepAmount(l[1] * s, l[0]); };
+    var factor = f0;
+    if (udK > 0 && contK > 0) {
+      var udNowK = 0;
+      model.flex.forEach(function (x) {
+        if (x.ln) x.ln.forEach(function (l) { if (l[0] === 'ud') udNowK += l[2] * (amountAt(l, f0) / l[1]); });
+      });
+      lc = limit((target - fixedK - udNowK) / contK);
+      factor = round2(lc[0]);
+      clamp = lc[1];
+    }
+    var meals = model.fixed.map(function (f) { return f.slice(); });
+    var q = [];
+    model.flex.forEach(function (x) {
+      var m = meals[x.m], i;
+      if (x.mb) {
+        for (i = 0; i < 4; i++) m[i] += x.mb[i] * factor;
+        q.push(factor === 1 ? x.q : (x.q + ' ×' + fmtFactor(factor, dec)).trim());
+        return;
+      }
+      q.push(x.ln.map(function (l) {
+        var amt = amountAt(l, l[0] === 'ud' ? f0 : factor);
+        var r = amt / l[1];
+        for (var j = 0; j < 4; j++) m[j] += l[j + 2] * r;
+        return fmtAmt(amt, l[0], units);
+      }).join(' + '));
+    });
+    var totals = { k: 0, p: 0, c: 0, g: 0 };
+    meals.forEach(function (m) { totals.k += m[0]; totals.p += m[1]; totals.c += m[2]; totals.g += m[3]; });
+    return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, meals: meals, q: q, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
+  }
+  function planFor(bake, goal, d, minutes) {
+    var x = bake.plans[goal][d];
+    var fuel = isBike(d) ? fuelPlan({ dayType: d, minutes: minutes }) : null;
+    var fuelK = fuel ? fuel.kcal : 0;
+    var fuelC = fuel ? fuel.during.planG : 0;
+    var s = solveScale(bake.base[x.base], x.t.kcal - fuelK, bake.fmt);
+    var tot = { k: Math.round(s.totals.k), p: Math.round(s.totals.p), c: Math.round(s.totals.c), g: Math.round(s.totals.g) };
+    return {
+      base: x.base,
+      t: x.t,
+      minutes: fuel ? fuel.minutes : null,
+      fuelK: fuelK,
+      fuelC: fuelC,
+      mt: { k: x.t.kcal - fuelK, p: x.t.p, c: x.t.c - fuelC, f: x.t.f },
+      meals: s.meals.map(function (m) { return m.map(Math.round); }),
+      flex: s.q,
+      tot: tot,
+      factor: s.factor,
+      clamp: s.clamp,
+      udOnly: s.udOnly,
+      rem: x.t.kcal - fuelK - tot.k,
+    };
+  }
+
   /* ---------- state ---------- */
   function dayType() { return state.override || (state.auto ? state.auto.type : 'rest'); }
-  function current() { return N.plans[state.goal][dayType()]; }
+  function recordedMin(d) { return state.auto && state.auto.rideMin && state.auto.type === d ? state.auto.rideMin : null; }
   function rideMinutes() {
     var d = dayType();
     if (!isBike(d)) return null;
-    if (state.rideMin) return state.rideMin;
-    if (state.auto && state.auto.rideMin && state.auto.type === d) return state.auto.rideMin;
+    var rec = recordedMin(d);
+    if (rec) return rec; // a recorded ride's real minutes
+    if (state.ride && state.ride.type === d) return state.ride.min;
     return N.fuel.defaults[d];
   }
+  function current() { return planFor(N, state.goal, dayType(), rideMinutes()); }
   function fuelNow() {
     var w = N.weight;
     return fuelPlan({ dayType: dayType(), minutes: rideMinutes(), weightKg: w ? w.kg : null });
@@ -139,10 +233,17 @@
     state.auto = detectDayType(todayInput(today));
     var g = load(KEY_GOAL);
     if (N.goals.indexOf(g) >= 0) state.goal = g;
-    try {
-      var o = JSON.parse(load(KEY_DAY) || 'null');
-      if (o && o.date === today && N.dayTypes.indexOf(o.type) >= 0 && o.type !== state.auto.type) state.override = o.type;
-    } catch (e) { /* a broken stored value is ignored */ }
+    var o = loadToday(KEY_DAY, today);
+    if (o && N.dayTypes.indexOf(o.type) >= 0 && o.type !== state.auto.type) {
+      var detectedLater = !(o.auto in RANK) || RANK[state.auto.type] > RANK[o.auto];
+      if (RANK[o.type] < RANK[state.auto.type] && detectedLater) {
+        // picked gym, then a long ride synced: the detected (more demanding) type wins
+        save(KEY_DAY, null);
+        state.raised = state.auto.type;
+      } else state.override = o.type;
+    }
+    var r = loadToday(KEY_RIDE, today);
+    if (r && N.dayTypes.indexOf(r.type) >= 0 && typeof r.min === 'number' && r.min > 0) state.ride = { type: r.type, min: r.min };
   }
 
   /* ---------- blocks ---------- */
@@ -167,16 +268,20 @@
     }
     var why = $('nutri-why');
     if (why) why.textContent = format(T.why[state.auto.why], { dur: state.auto.rideMin ? dur(state.auto.rideMin) : '' });
+    var note = $('nutri-note');
+    if (note) {
+      note.hidden = !state.raised;
+      note.textContent = state.raised ? format(T.autoRaised[state.raised], { type: T.dayTypes[state.raised] }) : '';
+    }
   }
   function macroCell(label, value, cls) {
     return '<div class="nt-mac ' + cls + '"><b>' + esc(kf(value)) + ' g</b><span>' + esc(label) + '</span></div>';
   }
-  function remainderHtml(x, fuel) {
-    var tol = N.tolerance;
-    var rem = fuel ? x.t.kcal - x.tot.k - fuel.kcal : x.rem;
-    if (Math.abs(rem) <= tol) return '';
+  function remainderHtml(x) {
+    var rem = x.rem, bike = x.fuelK > 0;
+    if (Math.abs(rem) <= N.tolerance) return '';
     var k = kf(Math.abs(rem)), g = Math.round(Math.abs(rem) / 4 / 5) * 5;
-    var tpl = rem > 0 ? (fuel ? T.remShortBike : T.remShort) : (fuel ? T.remOverBike : T.remOver);
+    var tpl = rem > 0 ? (bike ? T.remShortBike : T.remShort) : (bike ? T.remOverBike : T.remOver);
     return '<p class="nt-rem ' + (rem > 0 ? 'nt-short' : 'nt-over') + '">' + esc(format(tpl, { k: k, g: g })) + '</p>';
   }
   function macroOffHtml(x) {
@@ -186,11 +291,11 @@
     });
     return out;
   }
-  function renderTarget(host) {
-    var x = current(), t = x.t, d = dayType();
-    var fuel = isBike(d) ? fuelNow() : null;
-    var line = fuel
-      ? format(T.planLineBike, { k: kf(x.tot.k), fuel: kf(fuel.kcal), total: kf(x.tot.k + fuel.kcal) })
+  function target() { return N.plans[state.goal][dayType()].t; }
+  function renderTarget(host, x) {
+    var t = target(), d = dayType();
+    var line = !x ? '' : x.fuelK > 0
+      ? format(T.planLineBike, { k: kf(x.tot.k), fuel: kf(x.fuelK), total: kf(x.tot.k + x.fuelK) })
       : format(T.planLine, { k: kf(x.tot.k), p: x.tot.p, c: x.tot.c, f: x.tot.g });
     host.innerHTML =
       '<div class="nt-head"><span class="nt-lbl">' + esc(T.target.heading) + '</span>' +
@@ -198,13 +303,13 @@
       '<div class="nt-kcal"><b>' + esc(kf(t.kcal)) + '</b><span>' + esc(T.target.kcal) + '</span></div>' +
       '<div class="nt-macros">' + macroCell(T.target.p, t.p, 'nt-p') + macroCell(T.target.f, t.f, 'nt-f') + macroCell(T.target.c, t.c, 'nt-c') + '</div>' +
       '<p class="nt-cnote">' + esc(T.target.cNote) + '</p>' +
-      '<p class="nt-plan">' + esc(line) + '</p>' + remainderHtml(x, fuel) + macroOffHtml(x);
+      (x ? '<p class="nt-plan">' + esc(line) + '</p>' + remainderHtml(x) + macroOffHtml(x) : '');
   }
   function suppLine(s) {
     return '<div class="meal-supp">' + esc(T.plan.suppIcon + ' ' + s.name + (s.dose ? ' ' + s.dose : '')) + '</div>';
   }
-  function renderPlan(host) {
-    var x = current(), base = N.base[x.base];
+  function renderPlan(host, x) {
+    var base = N.base[x.base];
     if (!base || !base.meals.length) { host.innerHTML = '<p class="nutri-empty">' + esc(T.plan.empty) + '</p>'; return; }
     var supps = (N.supplements || []).slice();
     var used = {};
@@ -236,16 +341,19 @@
         }).join('') + '</div>';
     }
     var ftpl = x.clamp === 'max' ? T.plan.factorMax : x.clamp === 'min' ? T.plan.factorMin : T.plan.factor;
-    if (x.factor !== 1 || x.clamp) html += '<p class="nutri-factor">' + esc(format(ftpl, { factor: HC.nf(x.factor) })) + '</p>';
+    if (x.factor !== 1 || x.clamp) html += '<p class="nutri-factor">' + esc(format(ftpl, { factor: fmtFactor(x.factor, N.fmt.dec) })) + '</p>';
+    if (x.udOnly && Math.abs(x.rem) > N.tolerance) html += '<p class="nutri-factor">' + esc(T.plan.unitsOnly) + '</p>';
     host.innerHTML = html;
   }
   function renderRidePicker(host) {
-    var d = dayType(), rec = state.auto && state.auto.rideMin && state.auto.type === d ? state.auto.rideMin : null;
+    var d = dayType(), rec = recordedMin(d);
+    if (rec) {
+      host.innerHTML = '<p class="fuel-dur">' + esc(T.fuel.durationLabel + ': ' + format(T.fuel.recorded, { dur: dur(rec) })) + '</p>';
+      return;
+    }
     var sel = rideMinutes();
     var opts = '';
-    if (rec) opts += '<option value="' + rec + '"' + (sel === rec ? ' selected' : '') + '>' + esc(format(T.fuel.recorded, { dur: dur(rec) })) + '</option>';
     N.fuel.durations.forEach(function (m) {
-      if (m === rec) return;
       opts += '<option value="' + m + '"' + (sel === m ? ' selected' : '') + '>' + esc(dur(m)) + '</option>';
     });
     host.innerHTML = '<label class="fuel-dur" for="nutri-ride">' + esc(T.fuel.durationLabel) + '</label><select id="nutri-ride" class="fuel-select">' + opts + '</select>';
@@ -280,7 +388,7 @@
       '<p class="fuel-note fuel-disclaimer">' + esc(F.disclaimer) + '</p>';
   }
   function renderEat(host) {
-    var x = current(), t = x.t, d = dayType(), E = T.eat;
+    var t = target(), d = dayType(), E = T.eat;
     host.innerHTML =
       '<div class="eat-day-type">' + esc(format(E.dayGoal, { day: T.dayIcons[d] + ' ' + T.dayTypes[d] + ' ' + (state.override ? T.chosen : T.auto), goal: T.goals[state.goal] })) + '</div>' +
       '<div class="eat-kcal">~' + esc(kf(t.kcal)) + '<span>kcal</span></div>' +
@@ -290,28 +398,33 @@
       '<div class="eat-mac"><b>' + t.f + ' g</b><span>' + esc(T.target.f) + '</span></div></div>';
   }
 
-  function syncLegacyDay() {
-    // Registro and the intake rings still think in train / rest (core.js setDay)
-    if (typeof window.setDay !== 'function') return;
-    try { window.setDay(dayType() === 'rest' ? 'rest' : 'train'); } catch (e) { /* the legacy toggle is optional */ }
+  // the day builder and the intake rings read nutriTarget(); refresh each one directly and on its
+  // own, so a failure in one never leaves the other stale
+  function refreshDependents() {
+    if (typeof window.bldRefresh === 'function') {
+      try { window.bldRefresh(); } catch (e) { var r = $('r-verdict'); if (r) r.innerHTML = '<p class="nutri-failed">' + esc(T.failed) + '</p>'; }
+    }
+    if (typeof window.intakeRefresh === 'function') {
+      try { window.intakeRefresh(); } catch (e) { var h = $('intake'); if (h) h.innerHTML = '<p class="nutri-failed">' + esc(T.failed) + '</p>'; }
+    }
   }
-  function renderFuel(full) {
+  function renderFuel(picker) {
     var block = $('nutri-fuel-block'), bike = isBike(dayType());
     if (block) block.hidden = !bike;
     if (!bike) return;
-    if (full) guard($('nutri-ride-wrap'), renderRidePicker);
+    if (picker) guard($('nutri-ride-wrap'), renderRidePicker);
     guard($('nutri-fuel-body'), renderFuelBody);
   }
-  function renderAll() {
+  function refresh(picker) {
     try { renderControls(); } catch (e) { /* controls keep their server-rendered state */ }
-    guard($('nutri-target'), renderTarget);
-    guard($('nutri-plan'), renderPlan);
-    renderFuel(true);
+    var x = null;
+    try { x = current(); } catch (e) { x = null; }
+    var withPlan = function (fn) { return function (host) { if (!x) throw new Error('no plan'); fn(host, x); }; };
+    guard($('nutri-target'), function (host) { renderTarget(host, x); }); // the target shows even without a plan
+    guard($('nutri-plan'), withPlan(renderPlan));
+    renderFuel(picker !== false);
     guard($('eat-body'), renderEat);
-  }
-  function refresh() {
-    renderAll();
-    syncLegacyDay();
+    refreshDependents();
   }
 
   /* ---------- events ---------- */
@@ -330,32 +443,42 @@
     var v = e && e.target && e.target.value;
     if (N.dayTypes.indexOf(v) < 0) return;
     state.override = v === state.auto.type ? null : v;
-    state.rideMin = null;
-    save(KEY_DAY, state.override ? JSON.stringify({ date: todayIso(), type: state.override }) : null);
+    state.raised = null;
+    save(KEY_DAY, state.override ? JSON.stringify({ date: todayIso(), type: state.override, auto: state.auto.type }) : null);
     refresh();
   });
   on('nutri-auto', 'click', function () {
     state.override = null;
-    state.rideMin = null;
+    state.raised = null;
     save(KEY_DAY, null);
     refresh();
   });
   on('nutri-ride-wrap', 'change', function (e) {
     var v = e && e.target ? Number(e.target.value) : NaN;
-    if (!(v > 0)) return;
-    state.rideMin = v;
-    guard($('nutri-target'), renderTarget);
-    renderFuel(false);
+    var d = dayType();
+    if (!(v > 0) || !isBike(d)) return;
+    state.ride = { type: d, min: v };
+    save(KEY_RIDE, JSON.stringify({ date: todayIso(), type: d, min: v }));
+    refresh(false); // keep the select (and its focus) in place
   });
 
+  /** Today's MEALS target for the day builder and the intake rings: on bike days the day target minus
+   * the ride fuel (all carbs), with the fuel handed over separately; `day` = the base day (train /
+   * rest) whose option lists the day builder offers; fatMax = the fat target + the plan tolerance. */
   window.nutriTarget = function () {
     var x = current(), d = dayType();
-    return { k: x.t.kcal, p: x.t.p, c: x.t.c, g: x.t.f, label: T.target.heading + ' · ' + T.dayTypes[d] + ' · ' + T.goals[state.goal] };
+    var head = x.fuelK > 0 ? T.target.mealsHeading : T.target.heading;
+    return {
+      k: x.mt.k, p: x.mt.p, c: x.mt.c, g: x.mt.f, fatMax: x.mt.f + N.macroTol, fuelK: x.fuelK,
+      day: x.base, dayType: d, label: head + ' · ' + T.dayTypes[d] + ' · ' + T.goals[state.goal],
+    };
   };
   window.HCNutri = {
     detectDayType: detectDayType,
     fuelPlan: fuelPlan,
-    state: function () { return { goal: state.goal, dayType: dayType(), override: state.override, auto: state.auto, rideMin: rideMinutes() }; },
+    solveScale: solveScale,
+    planFor: planFor,
+    state: function () { return { goal: state.goal, dayType: dayType(), override: state.override, auto: state.auto, rideMin: rideMinutes(), raised: state.raised }; },
   };
 
   try { init(); } catch (e) { state.auto = { type: 'rest', why: 'none', rideMin: null }; }

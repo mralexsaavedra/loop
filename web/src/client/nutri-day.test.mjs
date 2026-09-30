@@ -15,6 +15,7 @@ import { buildNutrition } from '../../../lib/nutrition/macros.mjs';
 import { buildNutriToday } from '../../../lib/nutrition/today.mjs';
 import { DAYTYPE_CASES } from '../../../lib/nutrition/daytype.mjs';
 import { fuelPlan } from '../../../lib/nutrition/fuel.mjs';
+import { planFor, solveScale } from '../../../lib/nutrition/scale.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, '..', '..', '..');
@@ -40,18 +41,23 @@ function memStorage(init = {}) {
   return { data: m, getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: (k) => { delete m[k]; } };
 }
 
-function run({ nutri = bake(), items = [], programmed = null, locale = 'en', storage = memStorage(), today = TODAY, setDay = null, extra = {} } = {}) {
+function run({ nutri = bake(), items = [], programmed = null, locale = 'en', storage = memStorage(), today = TODAY, hooks = true, extra = {} } = {}) {
   const doc = new StubDocument();
   const els = {};
-  for (const id of ['nutri-goal', 'nutri-daytype', 'nutri-daytype-src', 'nutri-why', 'nutri-target', 'nutri-plan', 'nutri-fuel-block', 'nutri-ride-wrap', 'nutri-fuel-body', 'eat-body']) els[id] = doc.el(id);
+  for (const id of ['nutri-goal', 'nutri-daytype', 'nutri-daytype-src', 'nutri-why', 'nutri-target', 'nutri-plan', 'nutri-fuel-block', 'nutri-ride-wrap', 'nutri-fuel-body', 'eat-body', 'intake', 'r-verdict']) els[id] = doc.el(id);
   els['nutri-auto'] = doc.el('nutri-auto', { tag: 'button', hidden: true });
+  els['nutri-note'] = doc.el('nutri-note', { hidden: true });
   els['nutri-fuel-block'].hidden = true;
   const radios = {};
   for (const g of ['maintain', 'cut', 'bulk']) radios['g-' + g] = doc.el(null, { tag: 'input', attrs: { name: 'nutri-goal', value: g } });
   for (const d of ['rest', 'gym', 'bike', 'bikeLong']) radios['d-' + d] = doc.el(null, { tag: 'input', attrs: { name: 'nutri-day', value: d } });
   const calls = [];
   const window = { localStorage: storage };
-  if (setDay !== false) window.setDay = setDay || ((d) => calls.push(d));
+  // the day builder and the intake rings: both read window.nutriTarget() when refreshed
+  if (hooks === true) {
+    window.bldRefresh = () => calls.push(['bld', window.nutriTarget().k]);
+    window.intakeRefresh = () => calls.push(['intake', window.nutriTarget().k]);
+  } else if (hooks) Object.assign(window, hooks);
   const ctx = {
     document: doc, window, NUTRI: nutri, I18N_NUTRI: locale === 'es' ? esN : enN, I18N_DATE: locale === 'es' ? esDate : enDate, LOCALE: locale,
     SCORES: { timeline: { asOf: today, days: [{ date: today, sleep: 7.5, items }] } },
@@ -64,6 +70,7 @@ function run({ nutri = bake(), items = [], programmed = null, locale = 'en', sto
   const fire = (id, evt, target) => els[id]._listeners[evt].forEach((fn) => fn({ target }));
   return { els, radios, window, calls, storage, fire, api: window.HCNutri };
 }
+const plain = (v) => JSON.parse(JSON.stringify(v));
 const checkedOf = (radios, prefix) => Object.entries(radios).filter(([k, r]) => k.startsWith(prefix) && r.checked).map(([k]) => k.slice(prefix.length));
 
 test('detectDayType port agrees with lib/nutrition/daytype.mjs on every shared case', () => {
@@ -75,6 +82,35 @@ test('fuelPlan port agrees with lib/nutrition/fuel.mjs', () => {
   const { api } = run();
   for (const dayType of ['bike', 'bikeLong', 'gym']) for (const minutes of [45, 60, 120, 135, 210, 330]) for (const weightKg of [null, 58.4, 70, 91.2]) {
     assert.deepEqual(JSON.parse(JSON.stringify(api.fuelPlan({ dayType, minutes, weightKg }))), JSON.parse(JSON.stringify(fuelPlan({ dayType, minutes, weightKg }))), `${dayType} ${minutes} ${weightKg}`);
+  }
+});
+
+// a synthetic plan with whole-unit (ud) and manual flex parts, so the parity covers every branch
+const SYN_ING = {
+  arroz: { per: 100, k: 360, p: 7, c: 79, g: 1, unit: 'g' },
+  pollo: { per: 100, k: 100, p: 20, c: 0, g: 2, unit: 'g' },
+  bollo: { per: 100, k: 200, p: 6, c: 40, g: 2, unit: 'ud' },
+  zumo: { per: 100, k: 45, p: 0.5, c: 10, g: 0, unit: 'ml' },
+};
+const SYN_PLAN = {
+  data: { legume: [{ n: 'Lentils', q: '1 bowl', manual: { k: 300, p: 20, c: 50, g: 2 } }] },
+  extras: {},
+  dayPlan: {
+    train: { meals: [{ name: 'Breakfast', parts: [{ ing: 'bollo', amt: 200, flex: 'carb' }, { ing: 'zumo', amt: 250, flex: 'carb' }] }, { name: 'Lunch', parts: [{ ing: 'pollo', amt: 300 }, { use: 'legume', match: 'Lentils', flex: 'carb' }, { ing: 'arroz', amt: 120, flex: 'carb' }] }] },
+    rest: { meals: [{ name: 'Lunch', parts: [{ ing: 'pollo', amt: 300 }, { ing: 'bollo', amt: 100, flex: 'carb' }] }] },
+  },
+};
+
+test('planFor / solveScale ports agree with lib/nutrition/scale.mjs (example plan + units, manual and ml parts)', () => {
+  const syn = plain(buildNutriToday(buildNutrition(SYN_ING, SYN_PLAN), SYN_PLAN, { units: { g: 'g', ml: 'ml', ud: 'pc' }, dec: ',' }));
+  for (const nutri of [bake(), syn]) {
+    const { api } = run({ nutri });
+    for (const g of ['maintain', 'cut', 'bulk']) for (const d of ['rest', 'gym', 'bike', 'bikeLong']) for (const min of [null, 60, 120, 185, 240, 360]) {
+      assert.deepEqual(plain(api.planFor(nutri, g, d, min)), plain(planFor(nutri, g, d, min)), `${g}/${d}/${min}`);
+    }
+    for (const day of ['train', 'rest']) for (let target = 300; target < 5000; target += 173) {
+      assert.deepEqual(plain(api.solveScale(nutri.base[day], target, nutri.fmt)), plain(solveScale(nutri.base[day], target, nutri.fmt)), `${day}/${target}`);
+    }
   }
 });
 
@@ -91,33 +127,59 @@ test('no workout, nothing programmed: rest (auto), the default goal, rest target
   assert.match(els['nutri-plan'].innerHTML, /class="meal-name">Breakfast</);
   assert.match(els['nutri-plan'].innerHTML, /class="mp mp-flex"><span class="mp-l">Bread<\/span><span class="mp-q">\d+ g<\/span><span class="mp-tag"/);
   assert.equal(els['nutri-fuel-block'].hidden, true);
-  assert.deepEqual(calls, ['rest'], 'the legacy train/rest state follows the day type');
+  assert.deepEqual(calls, [['bld', 2500], ['intake', 2500]], 'the day builder and the rings are refreshed with today\'s target');
 });
 
-test('a long ride recorded today: bikeLong (auto) with its minutes, the ride fuel block, the plan counts the fuel', () => {
+test('a long ride recorded today: bikeLong (auto) with its real minutes, the ride fuel block, the plan counts the fuel', () => {
   const { els, radios, api, calls } = run({ items: [{ modality: 'gym', dur: 50 }, { modality: 'bike', dur: 185 }] });
   assert.deepEqual(checkedOf(radios, 'd-'), ['bikeLong']);
   assert.match(els['nutri-why'].textContent, /Ride recorded today: 3 h 5 min/);
   assert.equal(els['nutri-fuel-block'].hidden, false);
-  assert.match(els['nutri-ride-wrap'].innerHTML, /<option value="185" selected>3 h 5 min \(recorded\)<\/option>/);
+  assert.match(els['nutri-ride-wrap'].innerHTML, /Ride duration: 3 h 5 min \(recorded\)/);
+  assert.doesNotMatch(els['nutri-ride-wrap'].innerHTML, /<select/, 'a recorded ride is not re-picked');
   assert.match(els['nutri-fuel-body'].innerHTML, /60–90 g\/h/);
   assert.match(els['nutri-fuel-body'].innerHTML, /Not medical advice/);
   assert.match(els['nutri-fuel-body'].innerHTML, /70\.0 kg/);
   assert.match(els['nutri-fuel-body'].innerHTML, /185–280 g \(~230 g\) in total/);
   assert.match(els['nutri-target'].innerHTML, /Meals [\d,]+ kcal \+ ride fuel [\d,]+ kcal = [\d,]+ kcal/);
   assert.equal(api.state().rideMin, 185);
-  assert.deepEqual(calls, ['train']);
+  const x = planFor(bake(), 'maintain', 'bikeLong', 185);
+  assert.deepEqual(calls, [['bld', x.mt.k], ['intake', x.mt.k]], 'rings and builder get the meals target');
 });
 
-test('a programmed bike session: bike (auto), picker defaults to 2 h; picking 3 h re-renders fuel and the day total', () => {
-  const { els, fire, api } = run({ programmed: { kind: 'bike', focus: 'Ride', blocks: [] } });
+test('a programmed bike session: bike (auto), picker defaults to 2 h; picking 3 h re-scales the meals, fuel, rings', () => {
+  const { els, fire, api, calls, storage } = run({ programmed: { kind: 'bike', focus: 'Ride', blocks: [] } });
   assert.equal(api.state().dayType, 'bike');
   assert.match(els['nutri-ride-wrap'].innerHTML, /<option value="120" selected>2 h<\/option>/);
   assert.match(els['nutri-fuel-body'].innerHTML, /120 g in total/);
+  const two = planFor(bake(), 'maintain', 'bike', 120);
+  const three = planFor(bake(), 'maintain', 'bike', 180);
+  assert.match(els['nutri-target'].innerHTML, new RegExp('Meals ' + two.tot.k.toLocaleString('en') + ' kcal'));
+  const planBefore = els['nutri-plan'].innerHTML;
+  calls.length = 0;
   fire('nutri-ride-wrap', 'change', { id: 'nutri-ride', value: '180' });
   assert.equal(api.state().rideMin, 180);
   assert.match(els['nutri-fuel-body'].innerHTML, /180 g in total/);
   assert.match(els['nutri-target'].innerHTML, /ride fuel 720 kcal/);
+  assert.match(els['nutri-target'].innerHTML, new RegExp('Meals ' + three.tot.k.toLocaleString('en') + ' kcal'));
+  assert.ok(three.tot.k < two.tot.k, 'a longer ride leaves less for the meals');
+  assert.notEqual(els['nutri-plan'].innerHTML, planBefore, 'Plan de hoy re-rendered with the new amounts');
+  assert.deepEqual(calls, [['bld', three.mt.k], ['intake', three.mt.k]]);
+  assert.deepEqual(JSON.parse(storage.data['hc.nutri.rideMin']), { date: TODAY, type: 'bike', min: 180 });
+});
+
+test('the picked ride duration is kept for the day (and that day type) only; a recorded ride wins over it', () => {
+  const programmed = { kind: 'bike' };
+  const kept = run({ programmed, storage: memStorage({ 'hc.nutri.rideMin': JSON.stringify({ date: TODAY, type: 'bike', min: 240 }) }) });
+  assert.equal(kept.api.state().rideMin, 240);
+  assert.match(kept.els['nutri-ride-wrap'].innerHTML, /<option value="240" selected>4 h<\/option>/);
+  const expired = run({ programmed, storage: memStorage({ 'hc.nutri.rideMin': JSON.stringify({ date: '2030-01-09', type: 'bike', min: 240 }) }) });
+  assert.equal(expired.api.state().rideMin, 120, 'yesterday\'s pick expired at midnight');
+  const otherType = run({ programmed, storage: memStorage({ 'hc.nutri.rideMin': JSON.stringify({ date: TODAY, type: 'bikeLong', min: 300 }) }) });
+  assert.equal(otherType.api.state().rideMin, 120);
+  const rec = run({ items: [{ modality: 'bike', dur: 100 }], storage: memStorage({ 'hc.nutri.rideMin': JSON.stringify({ date: TODAY, type: 'bike', min: 240 }) }) });
+  assert.equal(rec.api.state().rideMin, 100, 'the recorded ride\'s real minutes');
+  assert.equal(run({ programmed, storage: memStorage({ 'hc.nutri.rideMin': '{broken' }) }).api.state().rideMin, 120);
 });
 
 test('manual override: stored with its date, "(chosen)", back-to-auto button; picking the detected type clears it', () => {
@@ -127,9 +189,9 @@ test('manual override: stored with its date, "(chosen)", back-to-auto button; pi
   assert.equal(s.els['nutri-daytype-src'].textContent, '(chosen)');
   assert.equal(s.els['nutri-auto'].hidden, false);
   assert.match(s.els['nutri-auto'].textContent, /Use the detected one: Rest/);
-  assert.deepEqual(JSON.parse(s.storage.data['hc.nutri.dayType']), { date: TODAY, type: 'gym' });
+  assert.deepEqual(JSON.parse(s.storage.data['hc.nutri.dayType']), { date: TODAY, type: 'gym', auto: 'rest' });
   assert.match(s.els['nutri-target'].innerHTML, /<b>3,050<\/b>/);
-  assert.deepEqual(s.calls, ['rest', 'train']);
+  assert.deepEqual(s.calls.map((c) => c[1]), [2500, 2500, 3050, 3050], 'builder + rings follow every day type change');
   s.els['nutri-auto']._listeners.click[0]();
   assert.equal(s.api.state().dayType, 'rest');
   assert.equal(s.storage.data['hc.nutri.dayType'], undefined);
@@ -140,9 +202,42 @@ test('manual override: stored with its date, "(chosen)", back-to-auto button; pi
 test('a stored override from another day has expired; today\'s is honoured', () => {
   const old = run({ storage: memStorage({ 'hc.nutri.dayType': JSON.stringify({ date: '2030-01-09', type: 'bike' }) }) });
   assert.equal(old.api.state().dayType, 'rest');
-  const fresh = run({ storage: memStorage({ 'hc.nutri.dayType': JSON.stringify({ date: TODAY, type: 'bike' }) }) });
+  const fresh = run({ storage: memStorage({ 'hc.nutri.dayType': JSON.stringify({ date: TODAY, type: 'bike', auto: 'rest' }) }) });
   assert.equal(fresh.api.state().dayType, 'bike');
   assert.equal(fresh.els['nutri-daytype-src'].textContent, '(chosen)');
+  assert.equal(fresh.els['nutri-note'].hidden, true);
+});
+
+test('override vs detection: a LESS demanding override is dropped when a harder day is detected later, with a note', () => {
+  const storage = memStorage({ 'hc.nutri.dayType': JSON.stringify({ date: TODAY, type: 'gym', auto: 'rest' }) });
+  const s = run({ items: [{ modality: 'bike', dur: 190 }], storage });
+  assert.equal(s.api.state().dayType, 'bikeLong');
+  assert.equal(s.api.state().override, null);
+  assert.equal(s.storage.data['hc.nutri.dayType'], undefined, 'the stale override is cleared');
+  assert.equal(s.els['nutri-note'].hidden, false);
+  assert.equal(s.els['nutri-note'].textContent, 'Long ride detected: switched to Long ride.');
+  assert.equal(s.els['nutri-daytype-src'].textContent, '(auto)');
+  const es = run({ locale: 'es', items: [{ modality: 'bike', dur: 190 }], storage: memStorage({ 'hc.nutri.dayType': JSON.stringify({ date: TODAY, type: 'gym' }) }) });
+  assert.equal(es.els['nutri-note'].textContent, 'Detectada salida larga: cambiado a Bici larga.', 'an override stored without the detected type is treated the same');
+  // picking a type again hides the note
+  s.fire('nutri-daytype', 'change', { value: 'bike' });
+  assert.equal(s.els['nutri-note'].hidden, true);
+});
+
+test('override vs detection: a MORE demanding override (planning a ride) stays; so does a deliberate downgrade', () => {
+  const plan = run({ items: [{ modality: 'gym', dur: 60 }], storage: memStorage({ 'hc.nutri.dayType': JSON.stringify({ date: TODAY, type: 'bikeLong', auto: 'rest' }) }) });
+  assert.equal(plan.api.state().dayType, 'bikeLong');
+  assert.equal(plan.els['nutri-note'].hidden, true);
+  // picked rest although gym was already detected at the time: nothing new detected since, keep it
+  const down = run({ items: [{ modality: 'gym', dur: 60 }], storage: memStorage({ 'hc.nutri.dayType': JSON.stringify({ date: TODAY, type: 'rest', auto: 'gym' }) }) });
+  assert.equal(down.api.state().dayType, 'rest');
+  assert.equal(down.els['nutri-note'].hidden, true);
+});
+
+test('override vs detection: yesterday\'s override has expired at midnight (no note)', () => {
+  const s = run({ items: [{ modality: 'bike', dur: 190 }], storage: memStorage({ 'hc.nutri.dayType': JSON.stringify({ date: '2030-01-09', type: 'gym', auto: 'rest' }) }) });
+  assert.equal(s.api.state().dayType, 'bikeLong');
+  assert.equal(s.els['nutri-note'].hidden, true);
 });
 
 test('goal choice persists; an unknown stored goal or broken storage falls back to the plan default', () => {
@@ -181,17 +276,31 @@ test('supplements sit under the meal of their slot; one with no such meal today 
 test('a remainder beyond the tolerance is stated with what to do; within it nothing is said', () => {
   const nutri = bake();
   assert.doesNotMatch(run({ nutri }).els['nutri-target'].innerHTML, /short|over:/);
-  nutri.plans.maintain.rest.rem = 300;
-  nutri.plans.maintain.rest.tot.k -= 300;
-  assert.match(run({ nutri }).els['nutri-target'].innerHTML, /~300 kcal short: add ~75 g of carbs/);
-  nutri.plans.maintain.rest.rem = -200;
-  assert.match(run({ nutri }).els['nutri-target'].innerHTML, /~200 kcal over: trim fat or extras/);
+  nutri.base.rest.flex = []; // nothing to scale: the whole gap is the remainder
+  nutri.plans.maintain.rest.t = { ...nutri.plans.maintain.rest.t, kcal: nutri.plans.maintain.rest.t.kcal + 400 };
+  const x = planFor(nutri, 'maintain', 'rest', null);
+  assert.ok(x.rem > 75, `rem ${x.rem}`);
+  const grams = Math.round(x.rem / 4 / 5) * 5;
+  assert.match(run({ nutri }).els['nutri-target'].innerHTML, new RegExp('~' + x.rem.toLocaleString('en') + ' kcal short: add ~' + grams + ' g of carbs'));
+  nutri.plans.maintain.rest.t = { ...nutri.plans.maintain.rest.t, kcal: 700 };
+  assert.match(run({ nutri }).els['nutri-target'].innerHTML, /kcal over: trim fat or extras/);
 });
 
 test('protein or fat far from the target is flagged (they are not scaled)', () => {
   const nutri = bake();
-  nutri.plans.maintain.rest.tot.p = 120;
-  assert.match(run({ nutri }).els['nutri-target'].innerHTML, /plan's protein \(120 g\) is off the target \(150 g\)/);
+  nutri.plans.maintain.rest.t = { ...nutri.plans.maintain.rest.t, p: 220 };
+  assert.match(run({ nutri }).els['nutri-target'].innerHTML, /plan's protein \(\d+ g\) is off the target \(220 g\)/);
+});
+
+test('only whole-unit portions flexible: the unrounded remainder is reported with a note', () => {
+  const syn = plain(buildNutriToday(buildNutrition(SYN_ING, SYN_PLAN), SYN_PLAN));
+  syn.plans.maintain.rest.t = { kcal: 950, p: 60, f: 8, c: 138 };
+  const x = planFor(syn, 'maintain', 'rest', null);
+  assert.equal(x.udOnly, true);
+  assert.ok(Math.abs(x.rem) > 75, `rem ${x.rem}`);
+  const html = run({ nutri: syn }).els['nutri-plan'].innerHTML;
+  assert.match(html, /Only whole-unit portions are adjustable/);
+  assert.match(html, new RegExp('Carb portions ×' + x.factor.toFixed(2)));
 });
 
 test('Inicio card: day type + goal and today\'s target kcal / macros', () => {
@@ -202,18 +311,32 @@ test('Inicio card: day type + goal and today\'s target kcal / macros', () => {
   assert.match(h, /<b>150 g<\/b><span>Protein/);
 });
 
-test('window.nutriTarget gives the intake rings today\'s target', () => {
+test('window.nutriTarget: today\'s target (goal x day type) for the day builder and the rings; on bike days the MEALS target', () => {
   const { window } = run();
   const t = window.nutriTarget();
-  assert.deepEqual([t.k, t.p, t.c, t.g], [2500, 150, 340, 60]);
-  assert.match(t.label, /Rest · Maintain/);
+  assert.deepEqual([t.k, t.p, t.c, t.g, t.fatMax, t.fuelK, t.day, t.dayType], [2500, 150, 340, 60, 75, 0, 'rest', 'rest']);
+  assert.match(t.label, /Today's target · Rest · Maintain/);
+  const bike = run({ programmed: { kind: 'bike' } }).window.nutriTarget();
+  const x = planFor(bake(), 'maintain', 'bike', 120);
+  assert.deepEqual([bike.k, bike.c, bike.fuelK, bike.day], [x.t.kcal - x.fuelK, x.t.c - x.fuelC, x.fuelK, 'train']);
+  assert.equal(bike.fuelK, 480);
+  assert.match(bike.label, /Today's meals · Ride ~2 h · Maintain/);
+});
+
+test('a failing day builder never leaves the rings stale; a failing ring refresh says so', () => {
+  const calls = [];
+  const s = run({ hooks: { bldRefresh: () => { throw new Error('x'); }, intakeRefresh: () => calls.push('intake') } });
+  s.fire('nutri-goal', 'change', { value: 'cut' });
+  assert.deepEqual(calls, ['intake', 'intake']);
+  const t = run({ hooks: { intakeRefresh: () => { throw new Error('x'); } } });
+  assert.match(t.els.intake.innerHTML, /could not be shown/);
 });
 
 test('Spanish: labels, thousands with a dot, decimal comma in the carb factor', () => {
-  const { els } = run({ locale: 'es' });
+  const { els } = run({ locale: 'es', nutri: bake({ units: { g: 'g', ml: 'ml', ud: 'ud' }, dec: ',' }) });
   assert.match(els['nutri-target'].innerHTML, /<b>2\.500<\/b>/);
   assert.match(els['nutri-target'].innerHTML, /Proteína/);
-  assert.match(els['nutri-plan'].innerHTML, /Raciones de carbohidratos ×1,\d+/);
+  assert.match(els['nutri-plan'].innerHTML, /Raciones de carbohidratos ×\d,\d\d /);
   assert.equal(els['nutri-daytype-src'].textContent, '(auto)');
 });
 
@@ -225,7 +348,7 @@ test('per-block isolation: a broken plan shows a one-line message there, the sum
   assert.match(els['nutri-target'].innerHTML, /2,500/);
 });
 
-test('no setDay (Registro script absent) and no NUTRI: nothing throws', () => {
-  assert.doesNotThrow(() => run({ setDay: false }));
+test('no day builder / rings scripts and no NUTRI: nothing throws', () => {
+  assert.doesNotThrow(() => run({ hooks: false }));
   assert.doesNotThrow(() => run({ nutri: null }));
 });

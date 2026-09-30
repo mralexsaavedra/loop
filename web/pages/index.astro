@@ -26,7 +26,7 @@ import { trainingMeta } from '../../lib/training/program.mjs';
 import { loadDashboard } from '../../lib/training/dashboard.mjs';
 import { buildActivity } from '../../lib/training/activity.mjs';
 import { buildHealth } from '../../lib/health/aggregate.mjs';
-import { resolveNav, activeTabKey, TAB_KEYS, sectionsOf, showDayToggle } from '../../lib/nav/tabs.mjs';
+import { resolveNav, activeTabKey, TAB_KEYS, sectionsOf } from '../../lib/nav/tabs.mjs';
 import { buildScores } from '../../lib/score/index.mjs';
 import { buildIntake } from '../../lib/nutrition/intake.mjs';
 import { dayViewModel } from '../src/view/day-totals.mjs';
@@ -67,7 +67,7 @@ const isTabVisible = (key: string) => TABS.some((t) => t.key === key);
 const title = plan.page?.title || 'Plan';
 ---
 
-<Plan title={title} locale={locale} page={plan.page} dict={dict} tabs={TABS} activeTab={activeTab} dayToggle={showDayToggle(hideTabs)} profile={profile}>
+<Plan title={title} locale={locale} page={plan.page} dict={dict} tabs={TABS} activeTab={activeTab} profile={profile}>
   <div class="tab-panel" data-tab="home" hidden={activeTab !== 'home'}>
     <Home />
     <EatCard locale={locale} link={isTabVisible('nutricion')} />
