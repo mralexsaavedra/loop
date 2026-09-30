@@ -36,9 +36,13 @@ Sync button / Shortcut
 - **Clicks during a run are never lost.** After each pass `refresh.sh` re-reads
   the trigger file and runs again (at most 3 passes) when the seq advanced,
   whatever systemd's path unit did with the extra change.
-- **Repeated clicks coalesce.** A click while a trigger is still pending, or
-  within 60 s of the last one, gets the current seq back
-  (`{coalesced: true}`) and causes no work. Nobody is ever refused (no `429`).
+- **Repeated clicks coalesce, never dropped.** A click while a trigger is still
+  pending gets the current seq back (`{coalesced: true}`) and causes no work.
+  A click within 60 s of the last one, after its write, gets a NEW seq
+  (`{coalesced: true, deferred: true}`) whose trigger write happens when the
+  60 s window closes, so data sent right after a rebuild (the Shortcut's
+  payload) is still published; later clicks reuse it. The page's 5 min wait
+  covers the 60 s delay plus the rebuild. Nobody is ever refused (no `429`).
 - **Failures fail fast.** An early exit adds `{error, errorSeq}` to
   `status.json` without touching `publishedAt`/`processedSeq`; the page shows
   "No se pudo actualizar: <reason>". Codes: `branch`, `install`, `build`,

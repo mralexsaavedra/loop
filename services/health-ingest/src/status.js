@@ -101,6 +101,12 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
 
     currentSeq () { return state.triggerSeq },
 
+    /** When the last trigger write was recorded (epoch ms), or null; seeds the boot recovery's min interval. */
+    lastTriggerAtMs () {
+      const t = state.triggerAt ? Date.parse(state.triggerAt) : NaN
+      return Number.isFinite(t) ? t : null
+    },
+
     /** Synchronous increment (so two concurrent clicks can never share a new seq); persisted best-effort. */
     nextTriggerSeq () {
       state.triggerSeq += 1

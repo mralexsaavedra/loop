@@ -3,8 +3,9 @@
  * purpose: the static plan page cannot hold a secret. That is safe because
  * POST /sync only schedules work the service already does on a timer and
  * never refuses or locks anyone out: repeated clicks COALESCE onto the pending
- * sequence (at most one rebuild per minute, one Strava pull per 5 min, see
- * trigger.js), it reads no body and returns only a sequence number.
+ * sequence, or onto ONE deferred sequence written when the 60 s window closes
+ * (at most one rebuild per minute, one Strava pull per 5 min, see trigger.js),
+ * it reads no body and returns only a sequence number.
  * GET /sync/status returns timestamps, sequence numbers and coarse error codes
  * (status.js), cached for 5 s, never health data or raw error text. The data
  * endpoints (/ingest, /export) keep their bearer token; a public reverse proxy

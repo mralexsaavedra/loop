@@ -1,4 +1,4 @@
-import test from 'node:test'
+import test, { mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { createSyncRoutes } from '../src/sync-routes.js'
 import { createSyncTrigger } from '../src/trigger.js'
@@ -52,15 +52,24 @@ test('POST /sync answers 202 {seq, coalesced} JSON without any auth header', asy
   assert.deepEqual(written, [42])
 })
 
-test('a second POST /sync within 60 s is NOT refused: 202, coalesced onto the same seq, no Retry-After', async () => {
-  const { routes, written } = await setup()
-  await routes.handleSync({ headers: {} }, fakeRes())
-  const res = fakeRes()
-  await routes.handleSync({ headers: {} }, res)
-  assert.equal(res.status, 202)
-  assert.deepEqual(res.body, { ok: true, seq: 42, coalesced: true })
-  assert.equal(res.headers['retry-after'], undefined)
-  assert.deepEqual(written, [42])
+test('a second POST /sync within 60 s is NOT refused or dropped: 202 with a NEW deferred seq, written when the window closes', async () => {
+  mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.parse('2030-01-02T10:00:00Z') })
+  try {
+    const { routes, written } = await setup({ now: () => Date.now() })
+    await routes.handleSync({ headers: {} }, fakeRes())
+    mock.timers.tick(19_000)
+    const res = fakeRes()
+    const done = routes.handleSync({ headers: {} }, res)
+    assert.equal(res.status, 202)
+    assert.deepEqual(res.body, { ok: true, seq: 43, coalesced: true, deferred: true })
+    assert.equal(res.headers['retry-after'], undefined)
+    assert.deepEqual(written, [42])
+    mock.timers.tick(41_000)
+    await done
+    assert.deepEqual(written, [42, 43])
+  } finally {
+    mock.timers.reset()
+  }
 })
 
 test('GET /sync/status: exact key set, no-store, the trigger seq', async () => {

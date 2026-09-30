@@ -42,15 +42,16 @@ let stravaLoop = null
 // kicks the (shared, never overlapping) Strava pull unless one succeeded in the
 // last 5 min, then atomically writes `seq` to TRIGGER_DIR/refresh, which the
 // host watches with a systemd path unit to rebuild the plan page. Repeated
-// clicks coalesce (never 429). Unauthenticated; see sync-routes.js.
-const syncRoutes = createSyncRoutes({
-  status: syncStatus,
-  trigger: createSyncTrigger({
-    runStrava: stravaSync ? () => stravaSync.runOnce() : null,
-    writeTrigger: createTriggerWriter({ dir: TRIGGER_DIR }),
-    status: syncStatus
-  })
+// clicks coalesce (never 429); a click inside the 60 s window after a finished
+// write gets a deferred seq, written when the window closes, so a Shortcut
+// payload that lands right after a rebuild still gets published.
+// Unauthenticated; see sync-routes.js.
+const syncTrigger = createSyncTrigger({
+  runStrava: stravaSync ? () => stravaSync.runOnce() : null,
+  writeTrigger: createTriggerWriter({ dir: TRIGGER_DIR }),
+  status: syncStatus
 })
+const syncRoutes = createSyncRoutes({ status: syncStatus, trigger: syncTrigger })
 
 function send (res, status, body) {
   const payload = JSON.stringify(body)
@@ -191,6 +192,13 @@ const server = http.createServer(async (req, res) => {
 async function start () {
   await migrate(pool)
   await syncStatus.load() // never throws: a failed load is retried on the next status read
+  // A seq handed out but never written (crash before the write) leaves the DB
+  // ahead of the trigger file: write it once, shortly after boot, so the host
+  // rebuild processes it and a waiting client completes.
+  syncTrigger.recover({
+    fileSeq: await readTriggerSeq(TRIGGER_DIR),
+    lastWrittenAt: syncStatus.lastTriggerAtMs()
+  })
   if (stravaSync) {
     stravaLoop = startSyncLoop(stravaSync, {
       intervalMinutes: Number(process.env.STRAVA_SYNC_MINUTES ?? 30)
@@ -203,7 +211,12 @@ async function start () {
 for (const signal of ['SIGTERM', 'SIGINT']) {
   process.on(signal, () => {
     stravaLoop?.stop()
-    server.close(() => pool.end().then(() => process.exit(0)))
+    // Write a pending deferred seq now and let an in-flight run finish; if it
+    // outlives flush's own 2 s budget, flush writes the persisted seq directly
+    // (no Strava pull). Hard-capped at 3 s: a stuck write must not block
+    // shutdown (boot recovery and the hourly refresh are the fallbacks).
+    const flushed = Promise.race([syncTrigger.flush(), new Promise((resolve) => setTimeout(resolve, 3_000).unref())])
+    server.close(() => flushed.then(() => pool.end()).then(() => process.exit(0)))
   })
 }
 

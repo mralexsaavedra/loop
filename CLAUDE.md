@@ -606,10 +606,17 @@ Besides the claude.ai artifact, `services/plan-web` serves `web/dist/personal/in
   shared Strava pull (timer loop, `POST /sync` and `POST /sync/strava` share ONE in-flight run) unless
   the last success is < 5 min old, then, once the pull settles (≤ 90 s), writes `seq\n` ATOMICALLY to
   `services/health-ingest/trigger/refresh` (temp file + rename, `O_NOFOLLOW`, a symlinked target is
-  refused; container `/trigger`, gitignored, uid 1000 must own it). **Coalescing, never 429:** a click
-  while a trigger is pending or within 60 s of the last accepted one gets `{seq:<current>,
-  coalesced:true}` and does nothing, so cost is ≤ 1 rebuild/min and ≤ 1 Strava pull/5 min and nobody
-  can lock the owner out. A failed trigger write is exposed as `lastTriggerError: "trigger_write"` +
+  refused; container `/trigger`, gitignored, uid 1000 must own it). **Coalescing, never 429, never
+  dropped:** a click while a trigger is still pending (write not done, so the rebuild will see any new
+  data) gets `{seq:<current>, coalesced:true}`; a click within 60 s of the last COMPLETED write
+  (window measured from the rename, so a slow pull cannot yield two writes seconds apart) gets a NEW seq, `{seq, coalesced:true, deferred:true}`, and ONE trigger write is scheduled for
+  the end of the window (later clicks reuse it), so a Shortcut payload POSTed right after a rebuild
+  is still published (the deferred run pulls Strava only if its own 5 min cooldown allows). Cost stays
+  ≤ 1 rebuild/min and ≤ 1 Strava pull/5 min and nobody can lock the owner out. Nothing new is
+  persisted; SIGTERM flushes a pending deferred write and awaits an in-flight run (2 s, then writes
+  the persisted seq directly; 3 s hard cap); after a crash, boot finds the DB seq ahead of the trigger
+  file and writes it once (5 s after boot, ≥ 60 s after the last recorded write), so a waiting page
+  completes (it times out after 5 min: 60 s + ≤ 90 s pull + rebuild fits). A failed trigger write is exposed as `lastTriggerError: "trigger_write"` +
   `lastTriggerErrorSeq`. The host's `services/plan-web/systemd/plan-web-refresh.path` (PathModified,
   also fires on the rename) starts `plan-web-refresh.service` (oneshot as the repo owner,
   `User=REPO_OWNER` placeholder, hardened: `NoNewPrivileges`, `ProtectSystem=strict` +
