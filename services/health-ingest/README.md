@@ -28,10 +28,18 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
 | GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]`; `400` on a bad query |
 | GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain}]`; `400` on a bad query |
+| GET    | `/food/products`              | header | `200` `{products}`: active products (per-100 macros, store, serving size) |
+| POST / PUT / DELETE | `/food/products[/:id]` | header | create `201` / edit `200` / archive `200`; `409 barcode_exists`, `400 atwater` unless `force` |
+| GET    | `/food/recipes`               | header | `200` `{recipes}` with macros COMPUTED from the products (`perServing` or `per100` cooked) |
+| POST / PUT / DELETE | `/food/recipes[/:id]`  | header | create / edit / archive, same rules |
+| GET    | `/food/log?date=YYYY-MM-DD`   | header | `200` `{date, entries, totals}` |
+| POST / DELETE | `/food/log[/:id]`      | header | add `201` `{entry, totals}` (macros snapshotted) / delete `200` |
+| GET    | `/food/off?barcode=` / `?q=`  | header | `200` `{product}` / `{results}` from Open Food Facts, normalized; nothing saved |
 | GET    | `/export/athlete`             | bearer | `200` with the latest athlete snapshot: `{fetchedAt, firstname, lastname, city, state, country, profile, profileMedium, measurementPreference, athleteType, bikes, shoes, gearScopeMissing, devices}` (nulls / empty lists when nothing is stored) |
 
 Bearer token is compared in constant time; it is the entire security boundary
 for the endpoint, because Health Auto Export can only send a static header.
+`header` = no token, but the request must carry `X-HC-Food: 1` (see "Food log" below).
 
 ## On-demand refresh: `POST /sync` and `GET /sync/status`
 
@@ -102,8 +110,9 @@ bearer token.
 
 **Exposure model.** A public reverse proxy in front of this service should
 forward ONLY `/ingest/*` and `POST /sync` (the Shortcut's last step);
-`/sync/status` is optional. Never expose `/export/*` or `/sync/strava`. The LAN
-plan-web nginx proxies only `/api/sync` and `/api/sync/status`.
+`/sync/status` is optional. Never expose `/export/*`, `/sync/strava` or
+`/food/*`. The LAN plan-web nginx proxies only `/api/sync`, `/api/sync/status`
+and `/api/food/*`.
 
 **Deploy order.** Create the trigger directory and hand it to the container's
 `node` user (uid 1000) BEFORE `docker compose up`, or Docker creates it
@@ -117,6 +126,57 @@ attempts and growing backoff; if all fail it is kept in memory, status reports
 `strava_token_save`, and the save is retried on the next refresh. A failed read
 of the stored token is retried on the next refresh too (the env token is used
 meanwhile).
+
+## Food log: `/food/*`
+
+The LAN plan page's Nutrición tab logs what the owner eats (Registrar), keeps his
+supermarket products (Mis productos: Mercadona / Dia / Eroski / other) and his
+own recipes (Mis recetas), through plan-web's `/api/food/` proxy. Tables in
+`sql/006_food.sql` (idempotent, runs on every start): `food_product`,
+`food_recipe`, `food_log`.
+
+- **Products** hold per-100 g / ml kcal, protein, carbs and fat from the label or
+  Open Food Facts, confirmed by the owner (`source`: `off` / `label` / `manual`),
+  plus an optional serving size (one yogurt) and barcode (unique among active
+  products). Delete = archive, so recipes and old entries keep their reference.
+- **Recipes** list `[{productId, amount}]` (amount in the product's unit). Kind
+  `serving` (tortitas, crepes, a shake: N servings) or `batch` (lentejas: total
+  cooked weight, macros per 100 g cooked). Macros are always COMPUTED
+  (`src/food-calc.js`, a port of `lib/nutrition/foodlog.mjs`, pinned by a parity
+  test), never typed.
+- **Log entries** carry the owner's LOCAL date (sent by the page), a meal slot
+  (`breakfast`, `lunch`, `preworkout`, `postworkout`, `dinner`, `snack`) and a
+  SNAPSHOT of their macros taken at log time, so editing a product later never
+  rewrites history. A quick entry (`refType: quick`) is a label + kcal with
+  optional macros; unknown macros stay `null`, never 0, and the day totals flag
+  them (`missing`).
+- **Validation**: strict JSON (unknown keys refused), body ≤ 16 KB (`413`),
+  strings trimmed and capped, per-100 kcal ≤ 900 and macros ≤ 100 g, dates must
+  round trip, and a label whose kcal disagree with 4 p + 4 c + 9 f by more than
+  25 % (or 10 kcal) answers `400 atwater` unless the body says `force: true`
+  (fibre / polyols make real labels deviate; the page offers "save anyway").
+  Errors are coarse codes `{error, field?}`, never raw DB text.
+- **Open Food Facts** (`GET /food/off`, `src/off.js`): server side only, with a
+  descriptive User-Agent, an 8 s timeout, no redirects, a 1 MB response cap, an
+  in-memory 24 h LRU cache and token buckets (≤ 10 searches / min, ≤ 100 product
+  reads / min; over → `429 off_rate_limited` without calling OFF). Only
+  normalized fields are returned; a nutriment OFF lacks is `null` with
+  `complete: false`, and the page asks the owner to fill it from the label.
+  Nothing from OFF is stored until the owner saves the product.
+
+**Why no token, and why cross-site writes still fail.** Like `/sync`, a static
+page cannot hold a secret, so `/food/*` is unauthenticated and meant for the LAN
+ONLY. Every request must send `X-HC-Food: 1` (`403` otherwise) and every write
+`Content-Type: application/json` (`415`): a malicious website opened on a LAN
+device can only send either one after a CORS preflight, and this service never
+answers one with CORS headers, so the browser never sends the request. Writes
+are also rate limited to 60 / min per client address (behind plan-web that is
+nginx's address, so effectively one shared budget). **A public reverse proxy
+must NEVER forward `/food/*`** (same list as `/export/*`).
+
+**Rollout.** `docker compose up -d --build health-ingest` (runs `006_food.sql`),
+then restart plan-web so its nginx picks up the `/api/food/` proxy
+(`services/plan-web/README.md`).
 
 ## iOS Shortcut ingestion
 

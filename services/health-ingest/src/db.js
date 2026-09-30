@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import pg from 'pg'
 
-const MIGRATIONS = ['001_init.sql', '002_strava.sql', '003_sync.sql', '004_athlete.sql', '005_athlete_refresh.sql']
+const MIGRATIONS = ['001_init.sql', '002_strava.sql', '003_sync.sql', '004_athlete.sql', '005_athlete_refresh.sql', '006_food.sql']
 
 export function createPool (connectionString) {
   return new pg.Pool({ connectionString, max: 4, idleTimeoutMillis: 30_000 })
