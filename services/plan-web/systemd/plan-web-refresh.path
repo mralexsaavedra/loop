@@ -1,6 +1,9 @@
 # Rebuilds the plan page on demand: health-ingest's POST /sync writes this
 # trigger file (container /trigger/refresh, bind-mounted from the host path
-# below) and systemd starts plan-web-refresh.service.
+# below; written atomically, so the change arrives as a rename, which
+# PathModified also reacts to) and systemd starts plan-web-refresh.service.
+# A trigger that lands while the service is still running may not re-fire
+# the unit; refresh.sh covers that by re-reading the trigger seq after each pass.
 # Replace /path/to/health-coach with your clone's absolute path, then see
 # services/plan-web/README.md for the install steps.
 [Unit]
