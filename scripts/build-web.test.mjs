@@ -206,3 +206,17 @@ test('sweepStaleStaging is a no-op when the directory does not exist yet', () =>
   const missing = path.join(os.tmpdir(), 'hc-sweep-does-not-exist-' + process.pid);
   assert.deepEqual(sweepStaleStaging({ dir: missing, currentStagingDir: path.join(missing, '.staging-x') }), []);
 });
+
+test('reportProfileCheck: a malformed profile.json fails --check with the reason; absent / valid pass', async () => {
+  const { reportProfileCheck } = await import('./build-web.mjs');
+  const out = [];
+  const io = { log: (m) => out.push(['log', m]), error: (m) => out.push(['error', m]) };
+  assert.equal(reportProfileCheck({ ok: false, skipped: false, error: 'x/profile.json — profile.json is invalid:\n  - heightCm must be a number' }, 'personal', io), 1);
+  assert.equal(out[0][0], 'error');
+  assert.match(out[0][1], /ERROR: .*heightCm must be a number/s);
+  assert.equal(reportProfileCheck({ ok: true, skipped: true, error: null }, 'personal', io), 0);
+  assert.equal(reportProfileCheck({ ok: true, skipped: false, error: null }, 'example', io), 0);
+  assert.match(out[2][1], /profile\.json OK \(mode=example\)/);
+  const src = fs.readFileSync(new URL('./build-web.mjs', import.meta.url), 'utf8');
+  assert.match(src, /process\.exitCode = reportProfileCheck\(checkManualProfile\(/, '--check wires the strict profile check');
+});
