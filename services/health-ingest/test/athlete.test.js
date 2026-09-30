@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   fetchAthlete, fetchGearDetails, gearIdsOf, isGearScopeMissing, buildGear,
   saveAthlete, loadAthlete, listDevices, activityGearIds, toAthleteExport,
-  createAthleteRefresher, createAthleteExportHandler, ATHLETE_REFRESH_MS, ATHLETE_RETRY_MS
+  createAthleteRefresher, createAthleteExportHandler, ATHLETE_REFRESH_MS, ATHLETE_RETRY_MS, GEAR_PARTIAL_RETRY_MS
 } from '../src/athlete.js'
 
 const TOKEN = 'a'.repeat(64)
@@ -72,7 +72,23 @@ test('fetchGearDetails fetches each id and tolerates a failed one', async () => 
     return okJson({ id: 'b1', brand_name: 'Brand', model_name: 'Model', frame_type: 3, weight: 8.2 })
   })
   assert.deepEqual(urls, ['https://www.strava.com/api/v3/gear/b1', 'https://www.strava.com/api/v3/gear/g2'])
-  assert.deepEqual(out, { b1: { id: 'b1', brand_name: 'Brand', model_name: 'Model', frame_type: 3, weight: 8.2 } })
+  assert.deepEqual(out.details, { b1: { id: 'b1', brand_name: 'Brand', model_name: 'Model', frame_type: 3, weight: 8.2 } })
+  assert.equal(out.partial, false, 'a 403 is a definite answer (scope / not owned), not a transient gap')
+})
+
+test('fetchGearDetails flags a transient failure (5xx / network) as partial', async () => {
+  const out = await fetchGearDetails(async () => 'tok', ['b1', 'g2', 'g3'], async (url) => {
+    const u = String(url)
+    if (u.endsWith('/g2')) return { ok: false, status: 503 }
+    if (u.endsWith('/g3')) throw new Error('socket hang up')
+    return okJson({ id: 'b1' })
+  })
+  assert.deepEqual(Object.keys(out.details), ['b1'])
+  assert.equal(out.partial, true)
+})
+
+test('fetchGearDetails still aborts the whole refresh on a 429', async () => {
+  await assert.rejects(fetchGearDetails(async () => 'tok', ['b1'], async () => ({ ok: false, status: 429 })), (err) => err.rateLimited === true)
 })
 
 test('fetchGearDetails only requests well-formed gear ids (no path injection)', async () => {
@@ -181,13 +197,14 @@ test('toAthleteExport with no snapshot still returns devices and empty gear', ()
 
 // ---- refresher: at most once per 24 h, never throws -------------------------------------
 
-function refresherPool (fetchedAt) {
-  const state = { row: fetchedAt ? { fetched_at: new Date(fetchedAt), athlete: {}, gear: {}, gear_scope_missing: false } : null, saved: null }
+function refresherPool (fetchedAt, extra = {}) {
+  const state = { row: fetchedAt ? { fetched_at: new Date(fetchedAt), athlete: {}, gear: {}, gear_scope_missing: false, gear_partial: false, last_ok_at: null, last_failure_at: null, ...extra } : null, saved: null, failure: null }
   return {
     state,
     pool: fakePool([
       [/FROM strava_athlete/, () => (state.row ? [state.row] : [])],
       [/gear_id/, [{ id: 'b1' }]],
+      [/last_failure_at\) VALUES/, (values) => { state.failure = values; state.row = { ...(state.row || { fetched_at: null, athlete: {}, gear: {} }), last_failure_at: values[0] }; return [] }],
       [/INSERT INTO strava_athlete/, (values) => { state.saved = values; return [] }]
     ])
   }
@@ -232,6 +249,100 @@ test('refresher never throws; after a failure it waits the retry delay', async (
   assert.equal(calls, 2)
 })
 
+test('refresher persists the failure time so a restarted service does not retry immediately', async () => {
+  const now = Date.parse('2030-01-02T12:00:00Z')
+  const { pool, state } = refresherPool(null)
+  const first = createAthleteRefresher({ pool, getAccessToken: async () => 'tok', fetchImpl: async () => ({ ok: false, status: 500 }), now: () => now, log: () => {} })
+  assert.equal(await first.maybeRefresh(), 'failed')
+  assert.ok(state.failure, 'failure written to strava_athlete')
+  assert.equal(new Date(state.failure[0]).getTime(), now)
+
+  let calls = 0
+  const restarted = createAthleteRefresher({ pool, getAccessToken: async () => 'tok', fetchImpl: async () => { calls++; return okJson(ATHLETE) }, now: () => now + 60_000, log: () => {} })
+  assert.equal(await restarted.maybeRefresh(), 'backoff', 'a fresh process reads the persisted failure')
+  assert.equal(calls, 0)
+})
+
+test('refresher: a stored failure older than the last success does not block a due refresh', async () => {
+  const now = Date.parse('2030-01-03T12:00:00Z')
+  const old = now - ATHLETE_REFRESH_MS - 60_000
+  const { pool } = refresherPool(old, { last_ok_at: new Date(old), last_failure_at: new Date(old - 1000) })
+  const r = createAthleteRefresher({ pool, getAccessToken: async () => 'tok', fetchImpl: async (url) => okJson(String(url).endsWith('/athlete') ? ATHLETE : { id: 'b1' }), now: () => now, log: () => {} })
+  assert.equal(await r.maybeRefresh(), 'refreshed')
+})
+
+test('refresher stores last_ok_at and clears last_failure_at on success', async () => {
+  const now = Date.parse('2030-01-02T12:00:00Z')
+  const { pool, state } = refresherPool(null)
+  const r = createAthleteRefresher({ pool, getAccessToken: async () => 'tok', fetchImpl: async (url) => okJson(String(url).endsWith('/athlete') ? ATHLETE : { id: 'b1' }), now: () => now, log: () => {} })
+  assert.equal(await r.maybeRefresh(), 'refreshed')
+  const insert = pool.calls.find((c) => /INSERT INTO strava_athlete/.test(c.sql) && /gear_partial/.test(c.sql))
+  assert.match(insert.sql, /last_ok_at/)
+  assert.match(insert.sql, /last_failure_at = NULL/)
+  assert.equal(state.saved[3], false, 'gear_partial false when every gear call answered')
+})
+
+test('refresher saves a partial gear snapshot and retries it after GEAR_PARTIAL_RETRY_MS, not 24 h', async () => {
+  const now = Date.parse('2030-01-02T12:00:00Z')
+  const { pool, state } = refresherPool(null)
+  const r = createAthleteRefresher({
+    pool,
+    getAccessToken: async () => 'tok',
+    fetchImpl: async (url) => (String(url).endsWith('/athlete') ? okJson(ATHLETE) : { ok: false, status: 502 }),
+    now: () => now,
+    log: () => {}
+  })
+  assert.equal(await r.maybeRefresh(), 'refreshed')
+  assert.equal(state.saved[3], true, 'gear_partial stored')
+  assert.ok(GEAR_PARTIAL_RETRY_MS < ATHLETE_REFRESH_MS)
+
+  const younger = refresherPool(now, { gear_partial: true })
+  const r2 = createAthleteRefresher({ pool: younger.pool, getAccessToken: async () => 'tok', fetchImpl: async () => okJson(ATHLETE), now: () => now + GEAR_PARTIAL_RETRY_MS - 1000, log: () => {} })
+  assert.equal(await r2.maybeRefresh(), 'fresh')
+  const older = refresherPool(now, { gear_partial: true })
+  const r3 = createAthleteRefresher({ pool: older.pool, getAccessToken: async () => 'tok', fetchImpl: async (url) => okJson(String(url).endsWith('/athlete') ? ATHLETE : { id: 'b1' }), now: () => now + GEAR_PARTIAL_RETRY_MS + 1000, log: () => {} })
+  assert.equal(await r3.maybeRefresh(), 'refreshed')
+})
+
+test('refresher: concurrent calls share one in-flight refresh (it never overlaps itself)', async () => {
+  const { pool } = refresherPool(null)
+  let athleteCalls = 0
+  let release
+  const gate = new Promise((resolve) => { release = resolve })
+  const r = createAthleteRefresher({
+    pool,
+    getAccessToken: async () => 'tok',
+    fetchImpl: async (url) => {
+      if (String(url).endsWith('/athlete')) { athleteCalls++; await gate; return okJson(ATHLETE) }
+      return okJson({ id: 'b1' })
+    },
+    log: () => {}
+  })
+  const a = r.maybeRefresh()
+  const b = r.maybeRefresh()
+  release()
+  assert.equal(await a, 'refreshed')
+  assert.equal(await b, 'refreshed')
+  assert.equal(athleteCalls, 1)
+})
+
+test('refresher aborts its Strava calls after its own timeout and records a failure', async () => {
+  const { pool, state } = refresherPool(null)
+  const logs = []
+  const r = createAthleteRefresher({
+    pool,
+    getAccessToken: async () => 'tok',
+    timeoutMs: 20,
+    fetchImpl: (url, opts) => new Promise((resolve, reject) => {
+      opts.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })))
+    }),
+    log: (l) => logs.push(l)
+  })
+  assert.equal(await r.maybeRefresh(), 'failed')
+  assert.ok(state.failure)
+  assert.match(logs.join('\n'), /timed out/)
+})
+
 test('refresher records gearScopeMissing for a read-only token and still stores the athlete', async () => {
   const { pool, state } = refresherPool(null)
   const { bikes, shoes, ...summary } = ATHLETE
@@ -273,6 +384,14 @@ test('athlete export answers the filtered snapshot and logs no field values', as
 })
 
 // ---- schema + wiring ---------------------------------------------------------------------
+
+test('sql/005_athlete_refresh.sql adds the refresh bookkeeping columns idempotently, and db.js runs it after 004', async () => {
+  const { readFileSync } = await import('node:fs')
+  const sql = readFileSync(new URL('../sql/005_athlete_refresh.sql', import.meta.url), 'utf8')
+  for (const col of ['gear_partial', 'last_ok_at', 'last_failure_at']) assert.match(sql, new RegExp(`ADD COLUMN IF NOT EXISTS ${col}\\b`))
+  assert.match(sql, /fetched_at DROP NOT NULL/, 'a failure-only row has no snapshot yet')
+  assert.match(readFileSync(new URL('../src/db.js', import.meta.url), 'utf8'), /'004_athlete\.sql', '005_athlete_refresh\.sql'/)
+})
 
 test('sql/004_athlete.sql defines every strava_athlete column athlete.js reads or writes, and db.js runs it', async () => {
   const { readFileSync } = await import('node:fs')

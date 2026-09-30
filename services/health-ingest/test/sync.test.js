@@ -49,23 +49,60 @@ test('works without a status recorder', async () => {
   assert.deepEqual(await runOnce(), { count: 0 })
 })
 
-test('createStravaSync refreshes the athlete snapshot after the activity pull; a profile failure never fails the run', async () => {
+test('afterOk runs once per successful run, after the status is recorded, and the caller does not wait for it', async () => {
+  const status = fakeStatus()
+  let finishAfter
+  let afterCalls = 0
+  const runOnce = guardSync(async () => ({ count: 1 }), {
+    status,
+    afterOk: () => { afterCalls++; status.events.push('after'); return new Promise((resolve) => { finishAfter = resolve }) }
+  })
+  const [a, b] = await Promise.all([runOnce(), runOnce()])
+  assert.deepEqual(a, { count: 1 })
+  assert.equal(b, a)
+  assert.equal(afterCalls, 1, 'one hook per shared run')
+  assert.deepEqual(status.events, ['ok', 'after'], 'the activity outcome is recorded first')
+  finishAfter()
+})
+
+test('afterOk is skipped on a failed run, and a throwing / rejecting hook never fails the run', async () => {
+  let afterCalls = 0
+  const failing = guardSync(async () => { throw new Error('strava activities failed: 500') }, { afterOk: () => { afterCalls++ } })
+  await assert.rejects(failing())
+  assert.equal(afterCalls, 0)
+
+  const logs = []
+  const sync = guardSync(async () => ({ count: 0 }), { afterOk: () => { throw new Error('boom') }, log: (l) => logs.push(l) })
+  assert.deepEqual(await sync(), { count: 0 })
+  const rejecting = guardSync(async () => ({ count: 0 }), { afterOk: async () => { throw new Error('later') }, log: (l) => logs.push(l) })
+  assert.deepEqual(await rejecting(), { count: 0 })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(logs.length, 2)
+})
+
+test('createStravaSync returns the activity result without waiting for the athlete refresh, which then runs in the background', async () => {
   const { createStravaSync } = await import('../src/sync.js')
   const client = { query: async () => ({ rows: [] }), release () {} }
   const pool = { connect: async () => client, query: async () => ({ rows: [] }) }
   const urls = []
+  let releaseAthlete
+  const athleteGate = new Promise((resolve) => { releaseAthlete = resolve })
   const fetchImpl = async (url) => {
     const u = String(url)
     urls.push(u)
     if (u.includes('/oauth/token')) return { ok: true, status: 200, json: async () => ({ access_token: 't', expires_at: Math.floor(Date.now() / 1000) + 3600 }) }
     if (u.includes('/athlete/activities')) return { ok: true, status: 200, json: async () => [] }
+    if (u.endsWith('/api/v3/athlete')) { await athleteGate; return { ok: false, status: 500 } }
     return { ok: false, status: 500 }
   }
   const sync = createStravaSync(pool, { STRAVA_CLIENT_ID: 'i', STRAVA_CLIENT_SECRET: 's', STRAVA_REFRESH_TOKEN: 'r' }, { fetchImpl, log: () => {} })
   const result = await sync.runOnce()
   assert.equal(result.count, 0)
-  assert.equal(result.athlete, 'failed')
-  assert.ok(urls.some((u) => u.endsWith('/api/v3/athlete')), 'the athlete endpoint was called')
+  assert.equal(result.athlete, undefined, 'the activity result no longer carries the profile outcome')
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.ok(urls.some((u) => u.endsWith('/api/v3/athlete')), 'the athlete refresh was kicked off')
+  releaseAthlete()
+  assert.equal(await sync.athleteIdle(), 'failed', 'the background refresh settles on its own and never throws')
 })
 
 test('a rejected token is recorded as strava_auth', async () => {

@@ -15,6 +15,10 @@ const GEAR_URL = 'https://www.strava.com/api/v3/gear/'
 export const ATHLETE_REFRESH_MS = 24 * 3600 * 1000
 // after a failed refresh, wait this long before the next attempt (the sync loop runs every 30 min)
 export const ATHLETE_RETRY_MS = 3600 * 1000
+// a snapshot whose gear list is incomplete (a transient /gear/{id} failure) is refreshed this soon
+export const GEAR_PARTIAL_RETRY_MS = 3600 * 1000
+// hard cap on one whole refresh (athlete + every gear call); its Strava calls are aborted past it
+export const ATHLETE_TIMEOUT_MS = 60 * 1000
 const MAX_GEAR = 20
 // Strava gear ids: "b<digits>" for bikes, "g<digits>" for shoes
 const GEAR_ID_RE = /^[bg]\d{1,18}$/
@@ -25,30 +29,39 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 const str = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null)
 const httpsUrl = (v) => (typeof v === 'string' && /^https:\/\/[^\s"'<>]+$/.test(v) ? v : null)
 
-async function stravaGet (url, getAccessToken, fetchImpl, label) {
+async function stravaGet (url, getAccessToken, fetchImpl, label, signal) {
   const token = await getAccessToken()
-  const res = await fetchImpl(url, { headers: { authorization: `Bearer ${token}` } })
+  const res = await fetchImpl(url, { headers: { authorization: `Bearer ${token}` }, signal })
   if (res.status === 429) throw Object.assign(new Error('strava rate limit reached'), { rateLimited: true })
   if (!res.ok) throw new Error(`strava ${label} failed: ${res.status}`)
   return res.json()
 }
 
-export function fetchAthlete (getAccessToken, fetchImpl = fetch) {
-  return stravaGet(ATHLETE_URL, getAccessToken, fetchImpl, 'athlete')
+export function fetchAthlete (getAccessToken, fetchImpl = fetch, signal) {
+  return stravaGet(ATHLETE_URL, getAccessToken, fetchImpl, 'athlete', signal)
 }
 
-/** GET /gear/{id} per well-formed id; a failed id is skipped. Returns {id: detail}. */
-export async function fetchGearDetails (getAccessToken, ids, fetchImpl = fetch) {
-  const out = {}
+/**
+ * GET /gear/{id} per well-formed id; a failed id is skipped. Returns {details: {id: detail}, partial}.
+ * `partial` = some id failed TRANSIENTLY (5xx / network), so the list is worth retrying soon. A 4xx
+ * (403 without profile:read_all, 404 for gear that is not the athlete's) is a definite answer and
+ * does not make the snapshot partial, or a read-only token would re-poll every gear id hourly
+ * forever. A 429 or an abort still fails the whole refresh.
+ */
+export async function fetchGearDetails (getAccessToken, ids, fetchImpl = fetch, signal) {
+  const details = {}
+  let partial = false
   for (const id of ids) {
     if (!GEAR_ID_RE.test(String(id))) continue
     try {
-      out[id] = await stravaGet(GEAR_URL + id, getAccessToken, fetchImpl, 'gear')
+      details[id] = await stravaGet(GEAR_URL + id, getAccessToken, fetchImpl, 'gear', signal)
     } catch (err) {
-      if (err.rateLimited) throw err
+      if (err.rateLimited || err.name === 'AbortError' || signal?.aborted) throw err
+      const status = Number(/: (\d{3})$/.exec(err.message)?.[1])
+      if (!(status >= 400 && status < 500)) partial = true
     }
   }
-  return out
+  return { details, partial }
 }
 
 const gearList = (athlete) => [
@@ -111,21 +124,36 @@ export function buildGear (athlete, details = {}) {
   return { bikes, shoes }
 }
 
-export async function saveAthlete (pool, { athlete, gear, gearScopeMissing }) {
+export async function saveAthlete (pool, { athlete, gear, gearScopeMissing, gearPartial = false }) {
   await pool.query(
-    `INSERT INTO strava_athlete (id, fetched_at, athlete, gear, gear_scope_missing)
-     VALUES (1, now(), $1, $2, $3)
+    `INSERT INTO strava_athlete (id, fetched_at, athlete, gear, gear_scope_missing, gear_partial, last_ok_at, last_failure_at)
+     VALUES (1, now(), $1, $2, $3, $4, now(), NULL)
      ON CONFLICT (id) DO UPDATE
        SET fetched_at = now(), athlete = EXCLUDED.athlete, gear = EXCLUDED.gear,
-           gear_scope_missing = EXCLUDED.gear_scope_missing`,
+           gear_scope_missing = EXCLUDED.gear_scope_missing, gear_partial = EXCLUDED.gear_partial,
+           last_ok_at = now(), last_failure_at = NULL`,
     // stringified: node-postgres would turn a JS array into a PG array literal, not JSON
-    [JSON.stringify(athlete ?? {}), JSON.stringify(gear ?? { bikes: [], shoes: [] }), Boolean(gearScopeMissing)]
+    [JSON.stringify(athlete ?? {}), JSON.stringify(gear ?? { bikes: [], shoes: [] }), Boolean(gearScopeMissing), Boolean(gearPartial)]
+  )
+}
+
+/** Stamps a failed refresh; before any snapshot exists it creates a row with no snapshot (fetched_at NULL). */
+export async function recordAthleteFailure (pool, at) {
+  await pool.query(
+    `INSERT INTO strava_athlete (id, fetched_at, athlete, last_failure_at) VALUES (1, NULL, '{}', $1)
+     ON CONFLICT (id) DO UPDATE SET last_failure_at = EXCLUDED.last_failure_at`,
+    [new Date(at).toISOString()]
   )
 }
 
 export async function loadAthlete (pool) {
-  const { rows } = await pool.query('SELECT fetched_at, athlete, gear, gear_scope_missing FROM strava_athlete WHERE id = 1')
+  const { rows } = await pool.query('SELECT fetched_at, athlete, gear, gear_scope_missing, gear_partial, last_ok_at, last_failure_at FROM strava_athlete WHERE id = 1')
   return rows[0] ?? null
+}
+
+const epochMs = (v) => {
+  const t = v ? new Date(v).getTime() : 0
+  return Number.isFinite(t) ? t : 0
 }
 
 /** Devices seen on stored activities (Strava's `device_name`), newest use first. */
@@ -177,35 +205,57 @@ export function toAthleteExport (row, devices) {
 }
 
 /**
- * maybeRefresh(): fetch /athlete (+ gear) when the stored snapshot is older than 24 h, at most
- * one attempt per ATHLETE_RETRY_MS after a failure. Never throws: a profile failure must not
- * fail the activity sync. Returns 'refreshed' | 'fresh' | 'backoff' | 'failed'.
+ * maybeRefresh(): fetch /athlete (+ gear) when the stored snapshot is older than 24 h (1 h when its
+ * gear list was partial), at most one attempt per ATHLETE_RETRY_MS after a failure. The failure time
+ * is persisted in strava_athlete, so a restart does not retry immediately. Concurrent calls share one
+ * in-flight refresh (it never overlaps itself), and the whole refresh is capped at `timeoutMs` (its
+ * Strava calls are aborted). Never throws: returns 'refreshed' | 'fresh' | 'backoff' | 'failed'.
  */
-export function createAthleteRefresher ({ pool, getAccessToken, fetchImpl = fetch, now = Date.now, log = console.log }) {
+export function createAthleteRefresher ({ pool, getAccessToken, fetchImpl = fetch, now = Date.now, log = console.log, timeoutMs = ATHLETE_TIMEOUT_MS }) {
+  // in-memory copy of the last failure: still backs off when the failure could not be persisted
   let lastFailure = 0
+  let inflight = null
+
+  async function refresh () {
+    if (lastFailure && now() - lastFailure < ATHLETE_RETRY_MS) return 'backoff'
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+    try {
+      const row = await loadAthlete(pool)
+      const failedAt = epochMs(row?.last_failure_at)
+      if (failedAt > epochMs(row?.last_ok_at) && now() - failedAt < ATHLETE_RETRY_MS) return 'backoff'
+      const fetchedAt = epochMs(row?.fetched_at)
+      const maxAge = row?.gear_partial ? GEAR_PARTIAL_RETRY_MS : ATHLETE_REFRESH_MS
+      if (fetchedAt && now() - fetchedAt < maxAge) return 'fresh'
+
+      const athlete = await fetchAthlete(getAccessToken, fetchImpl, ctrl.signal)
+      const usedIds = await activityGearIds(pool)
+      const { details, partial } = await fetchGearDetails(getAccessToken, gearIdsOf(athlete, usedIds), fetchImpl, ctrl.signal)
+      const gear = buildGear(athlete, details)
+      const gearScopeMissing = isGearScopeMissing(athlete, usedIds)
+      await saveAthlete(pool, { athlete, gear, gearScopeMissing, gearPartial: partial })
+      lastFailure = 0
+      log(JSON.stringify({ event: 'strava_athlete', bikes: gear.bikes.length, shoes: gear.shoes.length, gearScopeMissing, gearPartial: partial }))
+      return 'refreshed'
+    } catch (err) {
+      lastFailure = now()
+      const message = ctrl.signal.aborted ? `timed out after ${timeoutMs} ms` : err.message
+      log(JSON.stringify({ event: 'strava_athlete_failed', message, rateLimited: Boolean(err.rateLimited) }))
+      try {
+        await recordAthleteFailure(pool, lastFailure)
+      } catch (dbErr) {
+        log(JSON.stringify({ event: 'strava_athlete_failure_not_saved', message: dbErr.message }))
+      }
+      return 'failed'
+    } finally {
+      clearTimeout(timer)
+    }
+  }
 
   return {
-    async maybeRefresh () {
-      if (lastFailure && now() - lastFailure < ATHLETE_RETRY_MS) return 'backoff'
-      try {
-        const row = await loadAthlete(pool)
-        const fetchedAt = row?.fetched_at ? new Date(row.fetched_at).getTime() : 0
-        if (fetchedAt && now() - fetchedAt < ATHLETE_REFRESH_MS) return 'fresh'
-
-        const athlete = await fetchAthlete(getAccessToken, fetchImpl)
-        const usedIds = await activityGearIds(pool)
-        const details = await fetchGearDetails(getAccessToken, gearIdsOf(athlete, usedIds), fetchImpl)
-        const gear = buildGear(athlete, details)
-        const gearScopeMissing = isGearScopeMissing(athlete, usedIds)
-        await saveAthlete(pool, { athlete, gear, gearScopeMissing })
-        lastFailure = 0
-        log(JSON.stringify({ event: 'strava_athlete', bikes: gear.bikes.length, shoes: gear.shoes.length, gearScopeMissing }))
-        return 'refreshed'
-      } catch (err) {
-        lastFailure = now()
-        log(JSON.stringify({ event: 'strava_athlete_failed', message: err.message, rateLimited: Boolean(err.rateLimited) }))
-        return 'failed'
-      }
+    maybeRefresh () {
+      if (!inflight) inflight = refresh().finally(() => { inflight = null })
+      return inflight
     }
   }
 }
