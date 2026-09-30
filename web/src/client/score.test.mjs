@@ -638,3 +638,15 @@ test('scMod: the switch shows only the chosen modality and moves aria-pressed', 
   assert.deepEqual(btns.map((b) => b.pressed), ['false', 'false', 'true']);
   assert.deepEqual(panes.map((p) => p.hidden), [true, true, true, true, false, false]);
 });
+
+test('load: sessions without effort data in the acute window are noted on the card and the dial caption', () => {
+  const s = fixtureScores();
+  const run = s.load.modalities.find((m) => m.key === 'run');
+  run.unscoredAcute = 2;
+  const html = render(s);
+  const note = enT.load.unscoredNote.replace('{n}', '2');
+  assert.ok(html.includes(note), 'card note');
+  assert.equal(count(html, 'without effort data in the last 7 days'), 1, 'only the run card');
+  const dhtml = withDials(s);
+  assert.ok(capOf(dhtml, 'run').includes(note), 'dial caption');
+});

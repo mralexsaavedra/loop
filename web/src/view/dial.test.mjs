@@ -69,7 +69,7 @@ const mod = (key, trend, recent = [], typical = { value: null, n: 0 }, last = nu
 const LOAD = { asOf: '2026-09-29', modalities: [
   mod('gym', { ok: false, reason: 'baselineBuilding', trendPct: null, band: null }, [{ date: '2026-09-29', re: 30, unscored: 0 }], { value: 40, n: 9 }),
   mod('run', { ok: true, trendPct: 20, band: 'above' }, [{ date: '2026-09-27', re: 0, unscored: 1 }, { date: '2026-09-29', re: 132, unscored: 0 }], { value: 110, n: 12 }, { date: '2026-09-29', re: 132 }),
-  mod('bike', { ok: true, trendPct: -40, band: 'detraining' }, [], { value: 90, n: 6 }, { date: '2026-09-01', re: 70 }),
+  mod('bike', { ok: true, trendPct: -40, band: 'wellBelow' }, [], { value: 90, n: 6 }, { date: '2026-09-01', re: 70 }),
 ] };
 const HEALTH = { recovery: { hasData: true, sleep: { target: 7.5 } } };
 

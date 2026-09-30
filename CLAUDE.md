@@ -472,6 +472,11 @@ is the newest day, and the trend is the line under it.
   the shared rule below (junk dropped, one source, then SUM). The series starts at the first date with any RE
   (`reEpoch`); acute 7d vs chronic 42d EWMA; a modality gates ("baselineBuilding") under 28 days since the
   epoch, under 8 non-zero days, or chronic < 1. The 0-100 `relScore` exists only within a modality.
+  A day whose rows in a modality are ALL unscored is MISSING, not rest: both EWMAs carry forward
+  over it without decay, and a modality whose last 7 days hold such sessions says so on its card and
+  dial caption ("includes N sessions without effort data"). Trend bands: ramping ≥ +30%, above ≥
+  +10%, steady, below ≤ −10%, well below < −30% (never "detraining": the data cannot tell a deload
+  or missing effort data from fitness loss).
   Today first: `typical` = the median of the NON-ZERO days in the 42 days before asOf (asOf
   excluded; `value: null` under 6 such days — `TYPICAL_WINDOW_DAYS` / `MIN_TYPICAL_DAYS` in
   `load.mjs`). `recent` = the session days of the last `RECENT_DAYS` (14) ending asOf, each
