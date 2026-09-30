@@ -1,0 +1,27 @@
+{
+  "fetchedAt": "2026-09-28T06:00:00.000Z",
+  "firstname": "Demo",
+  "lastname": "Athlete",
+  "city": "Demotown",
+  "state": null,
+  "country": "Nowhere",
+  "profile": null,
+  "profileMedium": null,
+  "measurementPreference": "meters",
+  "athleteType": "cyclist",
+  "bikes": [
+    { "id": "b1", "name": "Demo Road Bike", "brand": "Demo Cycles", "model": "Roadster", "frameType": "road", "weightKg": 8.4, "distanceM": 8421300, "retired": false, "primary": true },
+    { "id": "b2", "name": "Demo Gravel Bike", "brand": "Demo Cycles", "model": "Dirt", "frameType": "gravel", "weightKg": 9.6, "distanceM": 2150800, "retired": false, "primary": false },
+    { "id": "b3", "name": "Demo Old Bike", "brand": null, "model": null, "frameType": null, "weightKg": null, "distanceM": 15230000, "retired": true, "primary": false }
+  ],
+  "shoes": [
+    { "id": "g1", "name": "Demo Daily Trainers", "brand": "Demo Shoes", "model": "Daily", "distanceM": 734600, "retired": false, "primary": true },
+    { "id": "g2", "name": "Demo Racers", "brand": "Demo Shoes", "model": "Fast", "distanceM": 212400, "retired": false, "primary": false },
+    { "id": "g3", "name": "Demo Worn Trainers", "brand": null, "model": null, "distanceM": 902100, "retired": true, "primary": false }
+  ],
+  "gearScopeMissing": false,
+  "devices": [
+    { "name": "Demo Watch", "count": 212, "lastUsed": "2026-09-27" },
+    { "name": "Demo Phone App", "count": 9, "lastUsed": "2026-06-02" }
+  ]
+}

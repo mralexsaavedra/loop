@@ -1,4 +1,5 @@
 import { createTokenProvider, createTokenStore, fetchActivitiesSince, upsertActivities, lastSyncedStart, classifyStravaError } from './strava.js'
+import { createAthleteRefresher } from './athlete.js'
 
 const DEFAULT_INTERVAL_MINUTES = 30
 // How far back to re-read on every run, so an activity edited after upload
@@ -14,9 +15,22 @@ export function isConfigured (env) {
  * /sync/strava) shares ONE in-flight run instead of overlapping, and records
  * each outcome in the freshness status (status.js) — as a COARSE code only
  * (classifyStravaError); the message is rethrown for the caller's log.
+ *
+ * `afterOk` (optional) is started once per SUCCESSFUL run, after the outcome is recorded, and is
+ * NOT awaited: callers get the activity result immediately. A throw / rejection from it is logged
+ * and never fails the run.
  */
-export function guardSync (run, { status = null } = {}) {
+export function guardSync (run, { status = null, afterOk = null, log = console.log } = {}) {
   let inflight = null
+
+  function startAfterOk () {
+    const logFailure = (err) => log(JSON.stringify({ event: 'sync_after_ok_failed', message: err?.message }))
+    try {
+      Promise.resolve(afterOk()).catch(logFailure)
+    } catch (err) {
+      logFailure(err)
+    }
+  }
 
   return function runOnce () {
     if (inflight) return inflight
@@ -24,6 +38,7 @@ export function guardSync (run, { status = null } = {}) {
       try {
         const result = await run()
         await status?.recordStravaOk()
+        if (afterOk) startAfterOk()
         return result
       } catch (err) {
         await status?.recordStravaError(classifyStravaError(err))
@@ -36,15 +51,23 @@ export function guardSync (run, { status = null } = {}) {
   }
 }
 
-export function createStravaSync (pool, env, { status = null } = {}) {
+export function createStravaSync (pool, env, { status = null, fetchImpl = fetch, log = console.log } = {}) {
   const getAccessToken = createTokenProvider({
     clientId: env.STRAVA_CLIENT_ID,
     clientSecret: env.STRAVA_CLIENT_SECRET,
     // bootstrap only: a rotated token persisted in strava_token wins (strava.js)
     refreshToken: env.STRAVA_REFRESH_TOKEN,
     store: createTokenStore(pool),
-    onSaveResult: status ? (ok) => status.recordTokenSave(ok) : null
+    onSaveResult: status ? (ok) => status.recordTokenSave(ok) : null,
+    fetchImpl
   })
+  // the athlete profile + gear snapshot is kicked off AFTER a successful activity pull has been
+  // recorded, in the background (at most once per 24 h, one in flight at a time, own timeout —
+  // athlete.js); it never throws, so a profile failure or a slow Strava can not delay or fail the
+  // activity pull, its status or a waiting POST /sync
+  const athlete = createAthleteRefresher({ pool, getAccessToken, fetchImpl, log })
+  let athleteRun = Promise.resolve(null)
+  const kickAthlete = () => { athleteRun = athlete.maybeRefresh(); return athleteRun }
 
   async function runOnce () {
     const newest = await lastSyncedStart(pool)
@@ -54,12 +77,16 @@ export function createStravaSync (pool, env, { status = null } = {}) {
       ? Math.floor((new Date(newest).getTime() - OVERLAP_DAYS * 86_400_000) / 1000)
       : null
 
-    const activities = await fetchActivitiesSince(getAccessToken, since)
+    const activities = await fetchActivitiesSince(getAccessToken, since, fetchImpl)
     const count = await upsertActivities(pool, activities)
     return { count, since }
   }
 
-  return { runOnce: guardSync(runOnce, { status }) }
+  return {
+    runOnce: guardSync(runOnce, { status, afterOk: kickAthlete, log }),
+    // the latest background athlete refresh (tests / graceful shutdown); resolves, never rejects
+    athleteIdle: () => athleteRun
+  }
 }
 
 export function startSyncLoop (sync, { intervalMinutes = DEFAULT_INTERVAL_MINUTES, log = console.log } = {}) {

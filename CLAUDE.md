@@ -287,6 +287,74 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   control inside a card (a, button, summary, input, select, textarea, `role="button"`) other than the
   opener itself.
 
+## Profile — avatar button + profile sheet
+
+Strava / WHOOP-style profile, honest data only, opened from a round **avatar button** at the right
+end of the top bar (`web/src/components/Avatar.astro`: the photo, else the initials, else a generic
+person icon; ≥ 44px; NOT a tab). It reuses the detail sheet: `web/src/client/profile.js` (inlined
+before detail.js) registers `window.HCViews.profile`, and detail.js renders any registered view in
+the same modal (focus, inert, Esc, Back) with the deep link `#profile` instead of
+`#detail/<metric>`; the Tab trap also cycles through `<summary>`.
+
+- **Sources** (all optional, merged by `lib/profile/profile.mjs` `loadProfile` → `buildProfile`;
+  manual wins over Strava for the same field):
+  1. `profile/profile.json` (gitignored; tracked template `profile/profile.example.json`, synthetic):
+     `birthdate` (YYYY-MM-DD), `heightCm`, `devices: [{name, type: watch|bike-computer|ems|other,
+     since?: YYYY-MM}]`, optional `name` / `city` overrides. Validated by `validateManual`: at build
+     time a malformed file is IGNORED with a `WARNING:` naming the reason (the page still builds from
+     the Strava + derived data); `npm run check` (`build-web.mjs --check`, `checkManualProfile`)
+     FAILS on it with the same reason.
+  2. `data/profile/strava-profile.json` + `data/profile/avatar.jpg` (gitignored), written by
+     `data/profile/sync-profile.js` (`npm run sync:profile`, last step of `npm run sync`) from the
+     ingest service's `GET /export/athlete`: name, city / country, photo URL, athlete type (focus),
+     bikes / shoes (name, brand / model, frame type, weight, distance in m, retired, primary),
+     `gearScopeMissing`, and devices seen on stored activities (`device_name` → count + last day;
+     the kind is guessed by `deviceType` from explicit brand + model lines only — Apple Watch, Garmin
+     Forerunner / fēnix / Venu / Instinct / vivoactive / Epix → watch; Garmin Edge, Wahoo ELEMNT,
+     Hammerhead Karoo, COROS DURA → bike computer; Polar H10 / Verity sensors and anything unknown →
+     other). The snapshot is rewritten only when its content changed. The avatar (`profile_medium`)
+     is downloaded only from Strava's photo hosts (`AVATAR_HOSTS`: `dgalywyr863hv.cloudfront.net` or
+     `*.strava.com`, https, `redirect: 'error'`), streamed with a hard 60 KB cap, and kept only if
+     the response is `image/jpeg` AND starts with the JPEG magic bytes. `avatarSourceUrl` in the
+     snapshot records the URL the saved photo came from, set only after a successful download (the
+     photo is written before the JSON); a download is planned whenever it differs from
+     `profileMedium` or the file is missing, so a failed download is retried next run and keeps the
+     old photo (warning, exit 0). Strava with no photo → the avatar is removed. No token /
+     unreachable service / an ingest image without the endpoint (404) → exit 1, no file touched; any
+     other failure → a one-line `ERROR:` and exit 1. A broken snapshot file is ignored by the build,
+     never fatal.
+  3. Derived: weight = the newest row of `weight.csv` with its date (never Strava's weight). The AGE is
+     computed client-side from `birthdate` on the viewer's clock, so builds stay byte-identical.
+- **Ingest side** (`services/health-ingest/src/athlete.js`, table `strava_athlete`,
+  `sql/004_athlete.sql` + `005_athlete_refresh.sql`): after a successful Strava pull has been
+  recorded, the sync kicks off (in the background, not awaited by `POST /sync`; one refresh in
+  flight; Strava calls aborted after 60 s) a refresh of `GET /athlete` + `GET /gear/{id}` (the
+  athlete's gear and every `gear_id` on stored activities, ≤ 20) at most once per 24 h; a failure is
+  logged, stored in the row (`last_failure_at`, so a restart does not retry at once), retried after
+  1 h, and never fails the activity pull. A transient (5xx / network) `/gear/{id}` failure saves the
+  snapshot with `gear_partial` and refreshes it again after 1 h; a 4xx for one id is final.
+  `GET /export/athlete` (bearer, like
+  every `/export/*`) returns profile fields only — never the athlete id, username, sex, weight or raw
+  payload; photo URLs only when `https://`. Strava returns bikes / shoes only for a token with
+  `profile:read_all`; without it `gearScopeMissing: true` (coarse flag) and the sheet says how to
+  re-authorize (steps in `services/health-ingest/README.md`: back up `.env`, re-run
+  `scripts/strava-auth.js`, VERIFY the new token against Strava's token endpoint, only then back up
+  and delete the stored `strava_token` row, which keeps the old scopes, and the `strava_athlete` row
+  to refresh now; rollback = restore `.env.bak` + the backed-up token row). Rollout: `docker compose up -d --build health-ingest` → `npm run sync` → `npm run generate`.
+- **Build**: `Avatar.astro` bakes `PROFILE` (the `photo` data URI replaced by a boolean — the image
+  is inlined ONCE, in the button's `<img id="avatar-img">`, and profile.js copies it from there only
+  if it is a `data:image/jpeg;base64,` URI) + `I18N_PROFILE` (`web/src/i18n/profile-templates.mjs`,
+  es/en). Example mode reads the synthetic `profile/profile.example.json` +
+  `data/demo/strava-profile.json` and never a photo (initials).
+- **Sheet**: header (photo / initials / icon, full name, age, location); Cuerpo / Body (height,
+  latest weight + weigh-in date); Material / Gear (bikes, shoes; km to 1 decimal in `--num`, primary
+  badge, retired ones folded in a `<details>`, a `--mid` hint on active shoes ≥ `SHOE_REPLACE_KM`
+  (700): "consider replacing, ~700–800 km typical life"; the scope note instead when gear is missing);
+  Dispositivos / Devices (manual first, Strava-derived ones deduped by name, case-insensitive, usage
+  merged into a manual entry of the same name); Strava (focus + snapshot date). Nothing known at all
+  → only the onboarding hint (copy `profile.example.json`, run `npm run sync`). Styles:
+  `web/src/styles/profile.css` (tokens only).
+
 ## Nutrition plan — data pipeline & published artifact
 
 **Two files, merged in memory (by both `generate.js` and the Astro build, from the same

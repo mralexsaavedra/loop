@@ -1,0 +1,245 @@
+/* Avatar button (components/Avatar.astro) + the profile sheet (client/profile.js, rendered inside the
+ * detail sheet, detail.css). Colour = meaning only: --accent for the action (the avatar's focus ring),
+ * --mid for the gentle shoe-replacement hint and the missing-scope note, everything else neutral. */
+
+/* the avatar sits at the right end of the top bar, a >= 44px target */
+.avatar-btn {
+  flex: none;
+  order: 3;
+  margin-left: auto;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--ink);
+  overflow: hidden;
+  cursor: pointer;
+}
+.avatar-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.avatar-ini,
+.pf-ini {
+  font-size: var(--fs-md);
+  font-weight: var(--label-weight);
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+.avatar-icon,
+.pf-icon {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+/* sheet header: big avatar + name + age · city */
+.pf-id {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-5);
+}
+.pf-avatar {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.pf-avatar .pf-ini {
+  font-size: var(--fs-4xl);
+}
+.pf-avatar .pf-icon {
+  width: 36px;
+  height: 36px;
+}
+.pf-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.pf-who {
+  min-width: 0;
+}
+.pf-name {
+  font-size: var(--fs-3xl);
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.pf-meta {
+  margin-top: var(--sp-1);
+  color: var(--muted);
+  font-size: var(--fs-md);
+}
+
+/* sections: caps label headings like every other label on the page */
+.pf-sec {
+  padding: var(--sp-7);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--card-bg);
+}
+.pf-h,
+.pf-sub-h,
+.pf-lbl {
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.pf-h {
+  font-size: var(--fs-xs);
+  margin-bottom: var(--sp-5);
+}
+.pf-sub-h {
+  margin: var(--sp-6) 0 var(--sp-2);
+}
+.pf-h + .pf-sub-h {
+  margin-top: 0;
+}
+.pf-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--sp-6);
+}
+.pf-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.pf-num {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  white-space: nowrap;
+}
+.pf-num small {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.pf-val,
+.pf-km {
+  font-family: var(--num);
+  color: var(--ink);
+}
+.pf-val {
+  font-size: var(--fs-4xl);
+  line-height: 1.1;
+}
+.pf-km {
+  font-size: var(--fs-2xl);
+}
+.pf-sub,
+.pf-item-sub {
+  color: var(--faint);
+  font-size: var(--fs-xs);
+}
+.pf-list {
+  list-style: none;
+}
+.pf-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  min-height: 44px;
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--line-soft);
+}
+.pf-list .pf-item:first-child {
+  border-top: 0;
+}
+.pf-item-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-3);
+  min-width: 0;
+}
+.pf-item-name {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.pf-item-sub,
+.pf-hint {
+  flex-basis: 100%;
+}
+.pf-badge {
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.pf-hint,
+.pf-note-warn {
+  color: var(--mid);
+  font-size: var(--fs-xs);
+}
+.pf-retired {
+  margin-top: var(--sp-3);
+}
+.pf-retired summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.pf-retired summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.pf-retired .pf-item-name,
+.pf-retired .pf-km {
+  color: var(--muted);
+}
+.pf-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  min-height: 32px;
+}
+.pf-row-val {
+  font-size: var(--fs-lg);
+}
+.pf-note {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.pf-sec .pf-note {
+  margin-top: var(--sp-3);
+}
+.pf-foot {
+  font-size: var(--fs-xs);
+  color: var(--faint);
+}
