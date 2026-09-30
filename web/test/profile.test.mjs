@@ -95,8 +95,16 @@ test('build-level: no profile data at all -> a generic icon and hasData false (t
   assert.equal(baked(html).hasData, false);
 });
 
-test('build-level: a malformed profile/profile.json fails the build with a clear message', () => {
-  const { r } = build({ mode: 'personal', files: { 'profile/profile.json': JSON.stringify({ heightCm: 'tall' }) } });
-  assert.notEqual(r.status, 0);
-  assert.match(r.stderr + r.stdout, /heightCm/);
+test('build-level: a malformed profile/profile.json does NOT fail the build: a clear warning, the file ignored, Strava data kept', () => {
+  const { r, html } = build({
+    mode: 'personal',
+    files: {
+      'profile/profile.json': JSON.stringify({ heightCm: 'tall', name: 'Ignored Name' }),
+      'data/profile/strava-profile.json': JSON.stringify({ fetchedAt: '2030-01-01T00:00:00Z', firstname: 'Pat', lastname: 'Demo', bikes: [], shoes: [], devices: [] }),
+    },
+  });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stderr + r.stdout, /WARNING: .*profile\.json is invalid[\s\S]*heightCm/);
+  assert.equal(baked(html).name, 'Pat Demo');
+  assert.equal(baked(html).heightCm, null);
 });
