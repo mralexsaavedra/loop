@@ -2,6 +2,16 @@
  * I18N_PROFILE. {name} placeholders are filled client-side. Neutral Spanish. */
 export const en = {
   title: 'Profile',
+  goal: {
+    heading: 'Goal',
+    options: { maintain: 'Maintain', cut: 'Lose', bulk: 'Gain' },
+    maintain: 'Maintain your weight',
+    deficit: 'Gentle deficit (~{kcal} kcal/day)',
+    deficitBikeKept: 'Gentle deficit (~{kcal} kcal/day, bike days untouched)',
+    surplus: 'Gentle surplus (~{kcal} kcal/day)',
+    surplusBikeKept: 'Gentle surplus (~{kcal} kcal/day, bike days untouched)',
+    same: 'Same targets as maintain',
+  },
   open: 'Open profile',
   age: '{n} years',
   onboarding: 'Nothing here yet. Copy profile/profile.example.json to profile/profile.json (birthdate, height, devices) and run npm run sync to add your Strava name, photo and gear.',
@@ -33,6 +43,10 @@ export const en = {
     fromStrava: 'Seen on Strava',
     none: 'Add your devices to profile/profile.json.',
   },
+  supplements: {
+    heading: 'Supplements',
+    meals: { breakfast: 'Breakfast', lunch: 'Lunch', preworkout: 'Pre-workout', postworkout: 'Post-workout', dinner: 'Dinner', snack: 'Snack' },
+  },
   strava: {
     heading: 'Strava',
     focus: 'Focus',
@@ -44,6 +58,16 @@ export const en = {
 
 export const es = {
   title: 'Perfil',
+  goal: {
+    heading: 'Objetivo',
+    options: { maintain: 'Mantener', cut: 'Bajar', bulk: 'Ganar' },
+    maintain: 'Mantener tu peso',
+    deficit: 'Déficit suave (~{kcal} kcal/día)',
+    deficitBikeKept: 'Déficit suave (~{kcal} kcal/día, sin tocar los días de bici)',
+    surplus: 'Superávit suave (~{kcal} kcal/día)',
+    surplusBikeKept: 'Superávit suave (~{kcal} kcal/día, sin tocar los días de bici)',
+    same: 'Mismos objetivos que mantener',
+  },
   open: 'Abrir perfil',
   age: '{n} años',
   onboarding: 'Todavía no hay nada. Copia profile/profile.example.json a profile/profile.json (fecha de nacimiento, altura, dispositivos) y ejecuta npm run sync para añadir tu nombre, foto y material de Strava.',
@@ -74,6 +98,10 @@ export const es = {
     usageNoDate: '{n} actividades en Strava',
     fromStrava: 'Visto en Strava',
     none: 'Añade tus dispositivos a profile/profile.json.',
+  },
+  supplements: {
+    heading: 'Suplementos',
+    meals: { breakfast: 'Desayuno', lunch: 'Comida', preworkout: 'Pre-entreno', postworkout: 'Post-entreno', dinner: 'Cena', snack: 'Tentempié' },
   },
   strava: {
     heading: 'Strava',

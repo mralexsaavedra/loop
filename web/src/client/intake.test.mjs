@@ -23,11 +23,10 @@ function fixedDate(iso) {
   };
 }
 
-function run({ latest, today, day = 'train', locale = 'en' }) {
+function run({ latest, today, locale = 'en', nutriTarget = null }) {
   const doc = new StubDocument();
   const host = doc.el('intake');
-  doc.el('b-train', { attrs: { 'aria-pressed': day === 'train' ? 'true' : 'false' } });
-  const window = {};
+  const window = nutriTarget ? { nutriTarget } : {};
   const ctx = {
     document: doc, window, INTAKE: { latest, target: TARGET, freshDays: 3 }, I18N_INTAKE: locale === 'es' ? esIntake : enIntake, LOCALE: locale,
     Math, String, Number, JSON, Date: fixedDate(today),
@@ -38,7 +37,7 @@ function run({ latest, today, day = 'train', locale = 'en' }) {
   return { host, window, doc };
 }
 
-test('fresh intake: four rings (kcal, protein, carbs, fat) vs the train-day target', () => {
+test('fresh intake without Nutrición today: four rings (kcal, protein, carbs, fat) vs the plan\'s training-day total', () => {
   const { host } = run({ latest: { date: '2030-01-09', k: 1200, p: 170, c: 130, g: 35 }, today: '2030-01-10' });
   const html = host.innerHTML;
   assert.equal((html.match(/class="ring /g) || []).length, 4);
@@ -49,13 +48,27 @@ test('fresh intake: four rings (kcal, protein, carbs, fat) vs the train-day targ
   assert.match(html, /Training-day target/);
 });
 
-test('the rest-day toggle switches the target; intakeRefresh re-renders', () => {
-  const { host, window, doc } = run({ latest: { date: '2030-01-10', k: 1000, p: 80, c: 90, g: 35 }, today: '2030-01-10', day: 'rest' });
-  assert.match(host.innerHTML, /of 2000 kcal/);
-  assert.match(host.innerHTML, /Rest-day target/);
-  doc.getElementById('b-train').setAttribute('aria-pressed', 'true');
+test('no train/rest toggle any more: intakeRefresh re-renders against today\'s target as it is now', () => {
+  let t = { k: 2500, p: 150, c: 340, g: 60, fuelK: 0, label: "Today's target · Rest · Maintain" };
+  const { host, window, doc } = run({ latest: { date: '2030-01-10', k: 1000, p: 80, c: 90, g: 35 }, today: '2030-01-10', nutriTarget: () => t });
+  assert.equal(doc.getElementById('b-train'), null);
+  assert.match(host.innerHTML, /of 2500 kcal/);
+  t = { k: 3050, p: 150, c: 477, g: 60, fuelK: 0, label: "Today's target · Gym or run · Maintain" };
   window.intakeRefresh();
-  assert.match(host.innerHTML, /of 2400 kcal/);
+  assert.match(host.innerHTML, /of 3050 kcal/);
+  assert.match(host.innerHTML, /Gym or run/);
+});
+
+test('bike days: the rings compare against the MEALS target and the ride fuel is its own line', () => {
+  const nutriTarget = () => ({ k: 3070, p: 150, c: 437, g: 60, fuelK: 480, label: "Today's meals · Ride ~2 h · Maintain" });
+  const html = run({ latest: { date: '2030-01-10', k: 1535, p: 75, c: 200, g: 30 }, today: '2030-01-10', nutriTarget }).host.innerHTML;
+  assert.match(html, /of 3070 kcal/);
+  assert.match(html, /50%/);
+  assert.match(html, /class="intake-fuel">\+ 480 kcal on the bike</);
+  const es = run({ latest: { date: '2030-01-10', k: 1535, p: 75, c: 200, g: 30 }, today: '2030-01-10', locale: 'es', nutriTarget }).host.innerHTML;
+  assert.match(es, /\+ 480 kcal en la bici/);
+  const rest = run({ latest: { date: '2030-01-10', k: 1535, p: 75, c: 200, g: 30 }, today: '2030-01-10', nutriTarget: () => ({ k: 2500, p: 150, c: 340, g: 60, fuelK: 0, label: 'x' }) }).host.innerHTML;
+  assert.doesNotMatch(rest, /intake-fuel/);
 });
 
 test('a macro missing on the logged day renders an empty ring with a dash, never a target-filled one', () => {
@@ -122,4 +135,14 @@ test('a logged day that is the viewer\'s today is labelled as in progress, not a
   assert.match(es, /class="intake-asof">Hoy, en curso</);
   const yesterday = run({ latest: { date: '2030-01-09', k: 900, p: 60, c: 90, g: 30 }, today: '2030-01-10' }).host.innerHTML;
   assert.doesNotMatch(yesterday, /so far/);
+});
+
+test('with Nutrición today (window.nutriTarget), the rings measure against that goal x day type target', () => {
+  const nutriTarget = () => ({ k: 3050, p: 150, c: 424, g: 60, label: "Today's target · Gym or run · Maintain" });
+  const html = run({ latest: { date: '2030-01-10', k: 1525, p: 75, c: 212, g: 30 }, today: '2030-01-10', nutriTarget }).host.innerHTML;
+  assert.match(html, /of 3050 kcal/);
+  assert.match(html, /50%/);
+  assert.match(html, /Today&#39;s target · Gym or run · Maintain|Today's target · Gym or run · Maintain/);
+  const broken = run({ latest: { date: '2030-01-10', k: 1200, p: 1, c: 1, g: 1 }, today: '2030-01-10', nutriTarget: () => { throw new Error('x'); } }).host.innerHTML;
+  assert.match(broken, /of 2400 kcal/, 'falls back to the plan\'s training-day total');
 });

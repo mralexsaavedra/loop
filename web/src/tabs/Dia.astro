@@ -1,31 +1,71 @@
 ---
-/* "Mi día" — first section of the Nutrición/Nutrition tab (a tab of its own before the tab
- * layout); ported from the legacy GEN:DAYPLAN region + its trailing
- * hand-written footnote (data/nutrition/plan-web.html), server-rendered
- * from lib/nutrition/macros.mjs's buildNutrition() output instead of a
- * generated HTML string. See spec: plan-web-single-file-build (tab parity).
+/* First section of the Nutrición tab (section key `dia`, kept for page.hideTabs back-compat; it was
+ * "Mi día"). Three blocks, top to bottom:
+ *   1. Resumen de hoy  — day type (rest / gym / bike / bikeLong) radios, today's target kcal + P / F / C
+ *                        with the goal as a small chip (the goal itself is set in the profile sheet,
+ *                        client/profile.js), then the intake rings (#intake);
+ *   2. Plan de hoy     — the day's meals with the carb-flex portions scaled to (goal × day type);
+ *   3. Avituallamiento — before / during / after the ride, on bike day types only.
+ * The day-type control is server-rendered (real labelled radios); the numbers
+ * are client-rendered by client/nutri-day.js from NUTRI (lib/nutrition/today.mjs: the 12 precomputed
+ * plans), baked here with I18N_NUTRI. Today's day type is picked on the viewer's clock, so builds
+ * stay byte-identical.
  */
-import DayPanel from '../components/DayPanel.astro';
 import Note from '../components/Note.astro';
-import { dayViewModel } from '../view/day-totals.mjs';
+import { jsonForScript } from '../../../lib/serialize.mjs';
+import { buildNutriToday } from '../../../lib/nutrition/today.mjs';
+import { es as esNutri, en as enNutri } from '../i18n/nutri-templates.mjs';
 
 interface Props {
   nut: any; // buildNutrition() result
-  dict: any;
+  plan: any;
+  locale: string;
   hidden: boolean; // page.hideTabs includes "dia"
   page?: { notes?: Record<string, string> };
   intakeHost?: boolean; // false = no intake ever logged and the Registro fold summary carries the one-line hint
+  supplements?: any[]; // profile.json supplements (lib/profile/profile.mjs)
+  weight?: { kg: number; date: string } | null; // the latest weigh-in, for the g/kg fuelling amounts
 }
-const { nut, dict, page, hidden, intakeHost = true } = Astro.props;
-
-const train = dayViewModel(nut, 'train');
-const rest = dayViewModel(nut, 'rest');
+const { nut, plan, locale, page, hidden, intakeHost = true, supplements = [], weight = null } = Astro.props;
+const T = locale === 'es' ? esNutri : enNutri;
+const es = locale === 'es';
+const nutri = buildNutriToday(nut, plan, { supplements, weight, units: { g: 'g', ml: 'ml', ud: es ? 'ud' : 'pc' }, dec: es ? ',' : '.' });
+const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForScript(T)};`;
 ---
 <section class="tab-section" data-section="dia" id="sec-dia" hidden={hidden}>
-  {/* intake rings: client-rendered by client/intake.js from INTAKE (baked in Registro's Bake) */}
-  {intakeHost && <div id="intake"></div>}
-  <DayPanel day={train.day} meals={train.meals} totals={train.totals} kcalNote={train.kcalNote} hidden={false} dict={dict} />
-  <DayPanel day={rest.day} meals={rest.meals} totals={rest.totals} kcalNote={rest.kcalNote} hidden={true} dict={dict} />
+  <div class="nutri-block" id="nutri-summary">
+    <h2>{T.headings.summary}</h2>
+    <div class="nutri-card">
+      <fieldset class="seg" id="nutri-daytype">
+        <legend class="seg-lbl">{T.dayLegend}<span class="seg-src" id="nutri-daytype-src"></span></legend>
+        <div class="seg-opts">
+          {nutri.dayTypes.map((d: string) => (
+            <label class="seg-opt"><input type="radio" name="nutri-day" value={d} /><span><span aria-hidden="true">{T.dayIcons[d]}</span>{T.dayTypes[d]}</span></label>
+          ))}
+        </div>
+        <button type="button" class="lnk nutri-auto" id="nutri-auto" hidden></button>
+        <p class="nutri-why" id="nutri-why"></p>
+        <p class="nutri-why nutri-note" id="nutri-note" role="status" hidden></p>
+      </fieldset>
+      <div id="nutri-target" aria-live="polite"></div>
+    </div>
+    {/* intake rings: client-rendered by client/intake.js from INTAKE (baked in Registro's Bake) */}
+    {intakeHost && <div id="intake"></div>}
+  </div>
+
+  <div class="nutri-block">
+    <h2>{T.headings.plan}</h2>
+    <div id="nutri-plan"></div>
+  </div>
+
+  <div class="nutri-block" id="nutri-fuel-block" hidden>
+    <h2>{T.headings.fuel}</h2>
+    <div class="nutri-card">
+      <div id="nutri-ride-wrap"></div>
+      <div id="nutri-fuel-body"></div>
+    </div>
+  </div>
+
   <Note
     id="dia.footnote"
     page={page}
@@ -33,3 +73,4 @@ const rest = dayViewModel(nut, 'rest');
     style="border-top:1px solid var(--line);padding-top:14px;margin-top:18px"
   />
 </section>
+<script is:inline set:html={bake}></script>

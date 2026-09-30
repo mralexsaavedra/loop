@@ -59,6 +59,7 @@ const plan = JSON.parse(fs.readFileSync(PLAN_PATH, 'utf8'));
 // file (no lib/) into a temp dir to assert the "ingredients.json not found" error; if
 // this require ran first, a missing-lib require would mask that error.
 const { buildNutrition, validateNutrition } = require(path.join(DIR, '..', '..', 'lib', 'nutrition', 'macros.mjs'));
+const { buildDayPlans, fmtFactor } = require(path.join(DIR, '..', '..', 'lib', 'nutrition', 'scale.mjs'));
 
 // Pure macro computation now lives in lib/nutrition/macros.mjs (astro-plan-web slice 2) —
 // `ingredients` comes only from ingredients.json (plan-data.json no longer carries it).
@@ -101,6 +102,26 @@ md.push('> the per-serving reference, COMPUTED from the per-100g ingredient laye
 md.push('> product labels live in `plan-data.json` (`ingredients`, verified:true).');
 md.push('> Not a doctor — see `CLAUDE.md`.');
 md.push('');
+
+/* Daily targets per goal x day type and how the scaled plan meets them (lib/nutrition/scale.mjs,
+   the same numbers the page bakes). Meals = the carb-flex-scaled base day; on bike days the ride
+   fuel counts inside the target; remainder = target - ride fuel - meals. */
+md.push('## Daily targets by goal and day type');
+md.push('');
+md.push('> From `targets.byGoal` (defaults when absent); carbs = remainder. Plan de hoy scales the parts marked');
+md.push('> `flex: "carb"` by one factor (clamped) so the day lands on the target; the remainder is what is left.');
+md.push('');
+{
+  const days = buildDayPlans(nut, plan);
+  const head = '| Goal | Day type | kcal | P | F | C | Meals kcal | Ride fuel | Carb factor | Remainder |\n|---|---|---|---|---|---|---|---|---|---|';
+  const rows = [];
+  for (const g of days.goals) for (const d of days.dayTypes) {
+    const x = days.plans[g][d];
+    rows.push(`| ${g} | ${d} | ${x.t.kcal} | ${x.t.p} | ${x.t.f} | ${x.t.c} | ${x.tot.k} | ${x.fuelK || '—'} | ×${fmtFactor(x.factor)}${x.clamp ? ' (' + x.clamp + ')' : ''} | ${x.rem} |`);
+  }
+  md.push([head, ...rows].join('\n'));
+  md.push('');
+}
 
 md.push('## Breakfasts (A/B/C — itemized components)');
 md.push('');
