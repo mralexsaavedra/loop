@@ -1,0 +1,19 @@
+---
+/* The detail sheet host (#detail) + its baked data: DETAIL (lib/detail/detail.mjs, the last 365 days
+ * per metric, only the data's own dates, so builds stay byte-identical) and I18N_DETAIL. Rendered by
+ * layouts/Plan.astro's `overlay` slot, OUTSIDE .wrap, so detail.js can make the page behind `inert`
+ * while the sheet is open. Client-rendered entirely by web/src/client/detail.js; ships hidden.
+ */
+import { jsonForScript } from '../../../lib/serialize.mjs';
+import { es as esDetail, en as enDetail } from '../i18n/detail-templates.mjs';
+
+interface Props {
+  detail: any; // lib/detail/detail.mjs buildDetail() result
+  locale: string;
+}
+const { detail, locale } = Astro.props;
+const T = locale === 'es' ? esDetail : enDetail;
+const bake = `var DETAIL = ${jsonForScript(detail)};\nvar I18N_DETAIL = ${jsonForScript(T)};`;
+---
+<div id="detail" class="dt-sheet" role="dialog" aria-modal="true" aria-labelledby="dt-title" aria-label={T.dialogLabel} hidden></div>
+<script is:inline set:html={bake}></script>

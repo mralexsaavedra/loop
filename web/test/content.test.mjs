@@ -235,6 +235,27 @@ test('example build: the shared client helpers (util.js) are inlined FIRST, righ
   assert.ok(dateIdx !== -1 && dateIdx <= utilIdx, 'the date names of HC.fmtDate are baked before util.js');
 });
 
+test('example build: the detail sheet ships hidden OUTSIDE .wrap (so the page can go inert), with DETAIL baked for every demo metric and detail.js before freshness.js', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const sheet = /<div id="detail" class="dt-sheet"[^>]*>/.exec(html);
+  assert.ok(sheet, 'sheet host present');
+  assert.match(sheet[0], /role="dialog"/);
+  assert.match(sheet[0], /aria-modal="true"/);
+  assert.match(sheet[0], /\shidden(?=[\s>])/);
+  const footerEnd = html.lastIndexOf('</footer>');
+  assert.ok(html.indexOf('id="detail"') > (footerEnd === -1 ? html.indexOf('class="tab-panel"') : footerEnd), 'after the page content');
+  const m = /var DETAIL = (\{.*?\});\nvar I18N_DETAIL = /s.exec(html);
+  assert.ok(m, 'DETAIL baked');
+  const detail = JSON.parse(m[1].replace(/\\u003c/g, '<'));
+  for (const key of ['sleep', 'recovery', 'hrv', 'rhr', 'respiratory', 'wristTemp', 'walkingHr', 'vo2max', 'steps', 'exercise', 'distance', 'flights', 'energy', 'weight', 'bodyfat', 'lean', 'waist', 'workouts', 'load-gym', 'load-run', 'load-bike']) {
+    assert.ok(detail.metrics[key] && detail.metrics[key].v.length > 0, `demo DETAIL has ${key}`);
+  }
+  assert.ok(detail.sessions.length > 0);
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1]);
+  const detailIdx = scripts.findIndex((s) => /window\.HCDetail = /.test(s));
+  assert.ok(detailIdx !== -1 && detailIdx === scripts.length - 2, 'detail.js runs after every card renderer, right before freshness.js');
+});
+
 test('example build: the freshness line + Sync button ship HIDDEN (shown only when /api/sync/status answers), copy baked, script last', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const block = /<div class="fresh" id="freshness"[^>]*>/.exec(html);
