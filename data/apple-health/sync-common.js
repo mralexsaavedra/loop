@@ -70,8 +70,10 @@ async function fetchPages({ baseUrl, token, buildUrl, sinceId = '0', limit = 500
 // Merge sync-written rows into an existing CSV text (null = no file). A row is dropped first
 // when its date is in `ownedDates` (the ownership ledger) OR `isOwn(source)` is true (its
 // source column tags it as written by this sync) — rebuilt every run — then rows are added only
-// for dates with no surviving (export) row. Stable sort keeps export rows' original order.
-function mergeCsv(existingText, header, rows, { sourceCol = 2, isOwn = () => false, ownedDates = [] } = {}) {
+// for dates with no surviving (export) row. `exportWins: false` skips that date filter and adds
+// EVERY row (sync-strava: its rows carry data the export never has, and the readers dedupe a
+// Watch + Strava copy of one session themselves). Stable sort keeps export rows' original order.
+function mergeCsv(existingText, header, rows, { sourceCol = 2, isOwn = () => false, ownedDates = [], exportWins = true } = {}) {
   const lines = existingText ? existingText.split('\n').filter(Boolean) : [];
   const body = lines.length && lines[0].startsWith('date,') ? lines.slice(1) : lines;
   const owned = new Set(ownedDates);
@@ -79,7 +81,7 @@ function mergeCsv(existingText, header, rows, { sourceCol = 2, isOwn = () => fal
     .filter((l) => !owned.has(l.slice(0, 10)) && (sourceCol == null || !isOwn(l.split(',')[sourceCol])))
     .map((line) => ({ date: line.slice(0, 10), line }));
   const covered = new Set(kept.map((r) => r.date));
-  const added = rows.filter((r) => !covered.has(r.date));
+  const added = exportWins ? rows.filter((r) => !covered.has(r.date)) : rows;
   const all = [...kept, ...added].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   return {
     text: [header, ...all.map((r) => r.line)].join('\n') + '\n',

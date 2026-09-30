@@ -323,9 +323,13 @@ ingest service (`services/health-ingest`) has stored from Strava via `GET /expor
 merges translated rows into `workouts.csv`, tagged `source=Strava API`, so a ride logged only on
 Strava (no Watch record) still shows up — normally grouped into the `bike` modality. Cycling-family
 sport types (incl. e-bike and virtual/indoor rides) all translate to the same `Cycling` type as
-Apple Health uses, so they land in the same `bike` bucket. Accepted limitations: date-level
-precedence means a Strava-only activity on a date that ALSO has an Apple Health export row is
-dropped (never double-counted, but a mixed day can lose a Strava-only session); a Strava activity
+Apple Health uses, so they land in the same `bike` bucket. Strava rows are ALWAYS kept, also on
+dates the export covers (Strava is the only source of Relative Effort, kJ and elevation), and are
+rebuilt each run and removed only by their `Strava API` tag. Dedupe happens at READ time: every
+workouts.csv reader goes through `lib/training/sessions.mjs` `mergeSameDay`, where the Strava rows of
+a date + physical modality (Inicio's gym / run / bike / other) supersede the Watch rows when they
+cover at least half of the Watch minutes (`SUPERSEDE_MIN_COVERAGE`); lower coverage = a different
+session, both counted. Accepted limitations: a Strava activity
 deleted upstream is never removed from the local CSV (ingest never deletes); an edit made more
 than 7 days ago is never picked up (the ingest service's Strava loop only re-reads a 7-day
 overlap window). `GET /export/strava` requires an ingest image rebuild/restart

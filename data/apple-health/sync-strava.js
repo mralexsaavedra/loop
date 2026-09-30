@@ -15,13 +15,16 @@
  * /export/strava, never as an incremental cursor. Strava ids are not insertion order and an
  * edited activity keeps its id, so an id cursor would miss edits.
  *
- * Merge rule (shared with sync-shortcut.js via sync-common.js): export-derived rows ALWAYS
- * win. Rows this sync wrote before are identified by the EXACT source tag "Strava API" (not
- * the historical "Strava" tag some rows already carry from the old /sync/strava ingest loop —
- * those are left untouched) and rebuilt from scratch every run; they are added only for DATES
- * the export does not cover. Every run rebuilds ALL of its own rows from the current activity
- * set, so a date dropping out of the ledger (e.g. after extract.js rewrote _meta.json) can
- * never leave a stale Strava-tagged row behind — see the orphan-safety test.
+ * Merge rule (sync-common.js mergeCsv with exportWins: false): every Strava activity is ALWAYS
+ * written, even on a date the export also covers — Strava is the only source of Relative Effort,
+ * kJ and elevation, so dropping it on every Watch day would blind the load score. A Watch copy of
+ * the same session is deduped at READ time by lib/training/sessions.mjs mergeSameDay (Strava
+ * supersedes the Watch rows of the same date + modality when it covers at least half their
+ * minutes); every workouts.csv reader goes through it. Rows this sync wrote before are
+ * identified by the EXACT source tag "Strava API" (not the historical "Strava" tag some rows
+ * already carry from the old /sync/strava ingest loop — those are left untouched) and rebuilt
+ * from scratch every run, so a date dropping out of the ledger (e.g. after extract.js rewrote
+ * _meta.json) can never leave a stale Strava-tagged row behind — see the orphan-safety test.
  */
 const fs = require('fs')
 const path = require('path')
@@ -106,9 +109,8 @@ function toRow (activity) {
 
 // many activities -> { rows: [{date,line,hasHr}], unmapped: {sport_type: n}, dropped: n }.
 // `dropped` counts activities toRow() could not translate at all (no date/duration) — these
-// never reach the merge. `hasHr` travels with each row so the caller can count noHr AFTER
-// merging, against rows actually written, not against every translated activity (a date the
-// export already covers is dropped by the merge and must not inflate noHr).
+// never reach the merge. `hasHr` travels with each row so the caller can count noHr against the
+// rows actually written.
 function buildRows (activities) {
   const rows = []
   const unmapped = {}
@@ -124,7 +126,7 @@ function buildRows (activities) {
 
 const range = (dates) => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a')
 
-const SYNC_NOTE = 'Strava rows (npm run sync:strava) fill only dates the export does not cover and are rebuilt on every sync from source="Strava API"; historical source=Strava rows (from the old ingest /sync/strava loop) are left untouched. Accepted limitations: date-level precedence can drop a Strava-only activity on a mixed day, deleted Strava activities are not removed, and edits older than the ingest service\'s 7-day overlap window are never picked up. See CLAUDE.md.'
+const SYNC_NOTE = 'Strava rows (npm run sync:strava) are always kept, also on dates the export covers, and are rebuilt on every sync from source="Strava API"; readers dedupe a Watch copy of the same session (lib/training/sessions.mjs mergeSameDay: Strava wins per date + modality when it covers at least half the Watch minutes). Historical source=Strava rows (from the old ingest /sync/strava loop) are left untouched. Accepted limitations: deleted Strava activities are not removed, and edits older than the ingest service\'s 7-day overlap window are never picked up. See CLAUDE.md.'
 
 // Pure: refresh the workouts rows/range + record the sync. Deterministic (no timestamps) so
 // re-running an unchanged sync rewrites identical bytes.
@@ -166,13 +168,12 @@ function planSync (activities, readFile) {
   // stays pure REPORTING metadata (which dates this sync added last run), never a merge input.
   const merged = common.mergeCsv(existing, WORKOUTS_HEADER, rows, {
     sourceCol: 7,
-    isOwn: (s) => s === STRAVA_SOURCE
+    isOwn: (s) => s === STRAVA_SOURCE,
+    exportWins: false
   })
 
-  // noHr counts rows actually WRITTEN (i.e. on a date the merge added), not every translated
-  // activity — a date the export already covers never reaches the CSV and must not inflate it.
-  const addedDateSet = new Set(merged.addedDates)
-  const noHr = rows.filter((r) => addedDateSet.has(r.date) && !r.hasHr).length
+  // every translated row is written (exportWins: false), so noHr counts them all
+  const noHr = rows.filter((r) => !r.hasHr).length
 
   const writes = {}
   const csvHasContent = !(existing == null && rows.length === 0) // never create an empty CSV
