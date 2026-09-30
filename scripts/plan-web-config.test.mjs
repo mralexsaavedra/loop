@@ -63,12 +63,27 @@ test('systemd path unit watches the trigger file and starts the refresh service'
   assert.match(pathUnit, /^WantedBy=multi-user\.target$/m);
 });
 
-test('systemd service is a root oneshot running refresh.sh from the repo, waiting for the lock', () => {
+test('systemd service: oneshot running refresh.sh from the repo as the repo OWNER (placeholder), waiting for the lock', () => {
   assert.match(serviceUnit, /^Type=oneshot$/m);
-  assert.match(serviceUnit, /^User=root$/m);
+  assert.match(serviceUnit, /^User=REPO_OWNER$/m, 'a placeholder the installer must replace, never a hardcoded root');
+  assert.doesNotMatch(serviceUnit, /^User=root$/m);
   assert.match(serviceUnit, /^WorkingDirectory=\/path\/to\/health-coach$/m);
   assert.match(serviceUnit, /^ExecStart=\/path\/to\/health-coach\/services\/plan-web\/refresh\.sh$/m);
   assert.match(serviceUnit, /^Environment=PLAN_WEB_WAIT_LOCK=1$/m);
+  const timeout = Number(/^TimeoutStartSec=(\d+)$/m.exec(serviceUnit)[1]);
+  assert.ok(timeout >= 900 + 3 * (300 + 900 + 300), 'covers the lock wait + 3 passes of sync/npm ci/generate');
+});
+
+test('systemd service is hardened: no new privileges, read-only system and home, writable repo only', () => {
+  const directives = serviceUnit.split('\n').map((l) => l.trim());
+  for (const line of ['NoNewPrivileges=yes', 'PrivateTmp=yes', 'ProtectSystem=strict', 'ProtectHome=read-only', 'ReadWritePaths=/path/to/health-coach',
+    'CacheDirectory=plan-web-refresh', 'Environment=npm_config_cache=/var/cache/plan-web-refresh']) {
+    assert.ok(directives.includes(line), line);
+  }
+});
+
+test('refresh.sh does not override the safe.directory setting (the unit runs as the repo owner)', () => {
+  assert.doesNotMatch(read(PLAN_WEB, 'refresh.sh'), /safe\.directory/);
 });
 
 test('no personal paths in the tracked plan-web files', () => {

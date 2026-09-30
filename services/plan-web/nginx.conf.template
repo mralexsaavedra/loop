@@ -22,9 +22,11 @@ server {
     }
 
     # On-demand refresh. EXACTLY two ingest routes are reachable from here,
-    # both unauthenticated by design (they trigger work / return timestamps,
-    # never health data). The bearer-protected ingest data endpoints are
-    # never proxied: everything else under /api/ is a 404.
+    # both unauthenticated by design (POST /sync coalesces repeated clicks and
+    # returns a sequence number; status returns timestamps, sequence numbers
+    # and coarse error codes, never health data or raw errors). The
+    # bearer-protected ingest data endpoints are never proxied: everything
+    # else under /api/ is a 404.
     location = /api/sync {
         limit_except POST { deny all; }
         proxy_pass_request_body off;
