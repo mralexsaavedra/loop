@@ -6,6 +6,7 @@
  *   Gear    — bikes and shoes from Strava with km (1 decimal), retired ones folded, a gentle hint on
  *             shoes past SHOE_REPLACE_KM, or a note when the token lacks the profile:read_all scope;
  *   Devices — manual devices + those seen on Strava activities (deduped at build time);
+ *   Supplements — profile.json supplements with dose + meal (also shown in Nutrición's Plan de hoy);
  *   Strava  — focus + the snapshot date.
  * Nothing known at all -> the onboarding hint.
  *
@@ -120,6 +121,19 @@
     return section(T.devices.heading, devs.length ? '<ul class="pf-list">' + devs.map(deviceHtml).join('') + '</ul>' : note(T.devices.none));
   }
 
+  // supplements (profile.json): name, dose and the meal they go with; no macros, no advice
+  function supplementsHtml() {
+    var S = T.supplements, items = list(P.supplements);
+    if (!items.length) return '';
+    return section(S.heading, '<ul class="pf-list">' + items.map(function (s) {
+      var bits = [];
+      if (s.dose) bits.push(s.dose);
+      if (S.meals[s.meal]) bits.push(S.meals[s.meal]);
+      return '<li class="pf-item"><div class="pf-item-main"><span class="pf-item-name">' + esc(s.name) + '</span>' +
+        (bits.length ? '<small class="pf-item-sub">' + esc(bits.join(' · ')) + '</small>' : '') + '</div></li>';
+    }).join('') + '</ul>');
+  }
+
   function stravaHtml() {
     var S = T.strava, out = [];
     if (P.focus && S.focusValues[P.focus]) out.push('<div class="pf-row"><span class="pf-lbl">' + esc(S.focus) + '</span><b class="pf-row-val">' + esc(S.focusValues[P.focus]) + '</b></div>');
@@ -129,7 +143,7 @@
 
   function render() {
     if (!P.hasData) return { head: headHtml(), body: note(T.onboarding, 'pf-onboard') };
-    return { head: headHtml(), body: bodyHtml() + gearHtml() + devicesHtml() + stravaHtml() + note(T.note, 'pf-foot') };
+    return { head: headHtml(), body: bodyHtml() + gearHtml() + devicesHtml() + supplementsHtml() + stravaHtml() + note(T.note, 'pf-foot') };
   }
 
   window.HCViews = window.HCViews || {};

@@ -33,6 +33,10 @@ export const en = {
     fromStrava: 'Seen on Strava',
     none: 'Add your devices to profile/profile.json.',
   },
+  supplements: {
+    heading: 'Supplements',
+    meals: { breakfast: 'Breakfast', lunch: 'Lunch', preworkout: 'Pre-workout', postworkout: 'Post-workout', dinner: 'Dinner', snack: 'Snack' },
+  },
   strava: {
     heading: 'Strava',
     focus: 'Focus',
@@ -74,6 +78,10 @@ export const es = {
     usageNoDate: '{n} actividades en Strava',
     fromStrava: 'Visto en Strava',
     none: 'Añade tus dispositivos a profile/profile.json.',
+  },
+  supplements: {
+    heading: 'Suplementos',
+    meals: { breakfast: 'Desayuno', lunch: 'Comida', preworkout: 'Pre-entreno', postworkout: 'Post-entreno', dinner: 'Cena', snack: 'Tentempié' },
   },
   strava: {
     heading: 'Strava',
