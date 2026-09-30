@@ -5,6 +5,8 @@
  *
  * Dates: every "today" is the VIEWER's local calendar day from Date.now() (never baked), so
  * consecutive builds stay byte-identical. Numbers: LOCALE is read at call time ("es" = decimal comma).
+ * Display dates: fmtDate / fmtMonth are the ONE date formatter ("lun 29 sept" / "Mon 29 Sep"), names
+ * from I18N_DATE (web/src/i18n/date-templates.mjs, baked next to HC_CONST), read at call time.
  */
 var HC = (function () {
   var MS_PER_DAY = 86400000;
@@ -24,9 +26,10 @@ var HC = (function () {
       return vars && vars[k] != null ? vars[k] : '';
     });
   }
-  // baked dates are interpolated into markup: accept only a real ISO date, anything else is absent
+  // baked dates are interpolated into markup: accept only a real ISO date (the shape AND a calendar
+  // round trip, so 2026-02-31 is rejected), anything else is absent
   function isoDate(s) {
-    return typeof s === 'string' && ISO_RE.test(s) ? s : null;
+    return typeof s === 'string' && ISO_RE.test(s) && isoOf(parseIso(s)) === s ? s : null;
   }
   function isoOf(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -60,6 +63,43 @@ var HC = (function () {
     else if (signed && Number(s) > 0) s = '+' + s;
     return isEs() ? s.replace('.', ',') : s;
   }
+  function dateNames() {
+    return typeof I18N_DATE !== 'undefined' && I18N_DATE ? I18N_DATE : null;
+  }
+  // Monday = 0 … Sunday = 6
+  function weekdayIndex(iso) {
+    return (parseIso(iso).getDay() + 6) % 7;
+  }
+  // "lun 29 sept" / "Mon 29 Sep" (opts.weekday === false drops the weekday); '' for a non-ISO value,
+  // the ISO date itself when the names are not baked
+  function fmtDate(iso, opts) {
+    iso = isoDate(iso);
+    if (!iso) return '';
+    var N = dateNames();
+    if (!N) return iso;
+    var d = parseIso(iso);
+    var tpl = opts && opts.weekday === false ? N.dayNoWeekdayTpl : N.dayTpl;
+    return format(tpl, { weekday: N.weekdays[weekdayIndex(iso)], day: d.getDate(), month: N.months[d.getMonth()] });
+  }
+  // "septiembre 2026" / "September 2026"; "YYYY-MM" when the names are not baked
+  function fmtMonth(iso) {
+    iso = isoDate(iso);
+    if (!iso) return '';
+    var N = dateNames();
+    if (!N) return iso.slice(0, 7);
+    var d = parseIso(iso);
+    return format(N.monthTpl, { month: N.monthsLong[d.getMonth()], year: d.getFullYear() });
+  }
+  // The ONE opener markup of the detail sheet (client/detail.js listens for [data-detail] clicks and
+  // Enter / Space): data-detail="<metric>" [data-date="<iso>"] plus a button role and a tab stop;
+  // opts.plain = only the data attributes (a real <button>, or a mouse-only target such as an SVG
+  // calendar cell or a table row whose keyboard path is another opener). '' when the sheet is not baked.
+  function detailAttrs(key, date, opts) {
+    if (typeof DETAIL === 'undefined') return '';
+    var d = isoDate(date);
+    var out = ' data-detail="' + esc(key) + '"' + (d ? ' data-date="' + d + '"' : '');
+    return opts && opts.plain ? out : out + ' role="button" tabindex="0" aria-haspopup="dialog"';
+  }
   // minutes -> "1 h 45 min" / "45 min" / "1 h"; units = {h, min} from the page's i18n dict
   function duration(min, units) {
     min = Math.round(min);
@@ -82,5 +122,9 @@ var HC = (function () {
     nf: nf,
     num: num,
     duration: duration,
+    weekdayIndex: weekdayIndex,
+    fmtDate: fmtDate,
+    fmtMonth: fmtMonth,
+    detailAttrs: detailAttrs,
   };
 })();

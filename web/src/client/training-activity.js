@@ -7,7 +7,8 @@
  * stay byte-identical) — or at the data's own date when that is more than STALE_DAYS old (greyed
  * with a note) or AFTER the viewer's today (clock / timezone skew: its sessions stay visible). Colour = one sequential hue (--strain, via .cal-l1…4 in training.css) for total
  * minutes; every cell and chart day carries an SVG <title> for hover. Geometry lives in attributes
- * (no inline styles). A throw renders the empty state, never a blank tab.
+ * (no inline styles). A throw renders the empty state, never a blank tab. Both blocks open the
+ * training-time detail sheet (HC.detailAttrs -> client/detail.js); a tap on a day cell opens that day.
  */
 (function () {
   var host = document.getElementById('train-activity');
@@ -44,7 +45,7 @@
       var min = d ? d.min : 0;
       var mods = d ? Object.keys(d.mods).map(function (m) { return (T.modalityLabels[m] || m) + ' ' + hm(d.mods[m]); }).join(', ') : '';
       var title = min > 0 ? format(T.cellTitle, { date: date, time: hm(min) }) + (Object.keys(d.mods).length > 1 ? ' (' + mods + ')' : '') : format(T.cellRest, { date: date });
-      out.push('<rect class="cal-cell cal-l' + level(min, A.levelMin) + '" x="' + ((k % 7) * STEP) + '" y="' + (HEAD + Math.floor(k / 7) * STEP) + '" width="' + CELL + '" height="' + CELL + '" rx="' + CAL_RX + '"><title>' + esc(title) + '</title></rect>');
+      out.push('<rect class="cal-cell cal-l' + level(min, A.levelMin) + '"' + HC.detailAttrs('workouts', date, { plain: true }) + ' x="' + ((k % 7) * STEP) + '" y="' + (HEAD + Math.floor(k / 7) * STEP) + '" width="' + CELL + '" height="' + CELL + '" rx="' + CAL_RX + '"><title>' + esc(title) + '</title></rect>');
     });
     out.push('</svg>');
     return out.join('');
@@ -95,9 +96,9 @@
     }).join('');
     return '<div class="act' + (stale ? ' act-stale' : '') + '">' +
       (stale ? '<p class="hint">' + esc(format(T.staleNote, { days: age, date: A.asOf })) + '</p>' : '') +
-      '<div class="dash-sec"><h3>' + esc(T.calHeading) + '</h3><p class="hint">' + esc(format(T.calHint, { days: active })) + '</p>' +
+      '<div class="dash-sec"' + HC.detailAttrs('workouts') + '><h3>' + esc(T.calHeading) + '</h3><p class="hint">' + esc(format(T.calHint, { days: active })) + '</p>' +
       calendar(dates, byDate) + '<div class="cal-legend">' + legend + '</div></div>' +
-      '<div class="dash-sec"><h3>' + esc(T.cumHeading) + '</h3><p class="hint">' + esc(T.cumHint) + '</p>' +
+      '<div class="dash-sec"' + HC.detailAttrs('workouts') + '><h3>' + esc(T.cumHeading) + '</h3><p class="hint">' + esc(T.cumHint) + '</p>' +
       '<div class="cum-legend"><span class="cum-key"><span class="cum-sw cum-cur"></span>' + esc(T.cur) + ' <b>' + esc(hm(cur[cur.length - 1])) + '</b></span>' +
       '<span class="cum-key"><span class="cum-sw cum-prev"></span>' + esc(T.prev) + ' <b>' + esc(hm(prev[prev.length - 1])) + '</b></span></div>' +
       cumulative(cur, prev) + '</div>' +

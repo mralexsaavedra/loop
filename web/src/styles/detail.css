@@ -1,0 +1,497 @@
+/* Detail sheet (web/src/client/detail.js): full-screen on phones, a large centred panel from 900px.
+ * Colour = meaning only: state tokens (--good / --mid / --low) against the personal band or target,
+ * --trend for neutral data (points, the 7-day line, the band), --strain for training volume, --sleep
+ * for the target line, --accent for actions (buttons, focus). */
+
+.dt-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.6);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.dt-sheet[hidden] {
+  display: none;
+}
+html.dt-lock,
+html.dt-lock body {
+  overflow: hidden;
+}
+.dt-panel {
+  min-height: 100%;
+  background: var(--ground);
+  background-image: linear-gradient(180deg, var(--ground-top) 0, var(--ground) 420px);
+  padding: calc(var(--sp-5) + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(var(--sp-10) + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+.dt-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-5);
+  margin-bottom: var(--sp-5);
+}
+.dt-titles {
+  flex: 1;
+  min-width: 0;
+}
+.dt-titles h2 {
+  font-size: var(--fs-sm);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.dt-latest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-3);
+  margin-top: var(--sp-1);
+}
+.dt-num {
+  font-family: var(--num);
+  font-size: var(--fs-5xl);
+  line-height: 1.1;
+  color: var(--ink);
+}
+.dt-latest small {
+  color: var(--muted);
+  font-size: var(--fs-md);
+}
+.dt-when {
+  color: var(--faint);
+  font-size: var(--fs-xs);
+}
+.dt-word {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+/* secondary header line (the recovery trend, the latest raw reading, today so far); a state colour
+   class (.dt-c-*, defined further down) overrides the muted grey */
+.dt-sub {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  margin-top: var(--sp-1);
+}
+.dt-band-txt {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  margin-top: var(--sp-1);
+}
+.dt-close {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: var(--fs-3xl);
+  line-height: 1;
+  cursor: pointer;
+}
+.dt-close:focus-visible,
+.dt-range button:focus-visible,
+.dt-mnav:focus-visible,
+.dt-day:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.dt-body > * + * {
+  margin-top: var(--sp-6);
+}
+.dt-stale,
+.dt-note,
+.dt-empty {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.dt-range {
+  display: inline-flex;
+  gap: var(--sp-2);
+  padding: var(--sp-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+}
+.dt-range button {
+  min-width: 64px;
+  min-height: 44px;
+  padding: 0 var(--sp-5);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.dt-range button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* chart */
+.dt-fig {
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--sp-4);
+}
+.dt-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.dt-band {
+  fill: var(--trend);
+  fill-opacity: 0.12;
+}
+.dt-med {
+  stroke: var(--trend);
+  stroke-opacity: 0.55;
+  stroke-width: 0.8;
+  stroke-dasharray: 3 3;
+}
+.dt-target {
+  stroke: var(--sleep);
+  stroke-width: 1;
+  stroke-dasharray: 5 3;
+}
+.dt-sel {
+  fill: var(--ink);
+  fill-opacity: 0.08;
+}
+.dt-line {
+  fill: none;
+  stroke: var(--trend);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.dt-pt,
+.dt-bar {
+  fill: var(--trend);
+}
+.dt-ax {
+  display: flex;
+  justify-content: space-between;
+  color: var(--faint);
+  font-size: var(--fs-2xs);
+  margin-top: var(--sp-1);
+}
+.dt-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-5);
+  margin-top: var(--sp-2);
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+}
+.dt-k::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--sp-2);
+  vertical-align: -1px;
+  border-radius: 3px;
+  background: var(--trend);
+}
+.dt-k-line::before {
+  height: 2px;
+  vertical-align: 3px;
+}
+.dt-k-band::before {
+  background: color-mix(in srgb, var(--trend) 25%, transparent);
+}
+.dt-k-target::before {
+  height: 0;
+  border-top: 2px dashed var(--sleep);
+  background: none;
+  vertical-align: 3px;
+}
+
+/* state colours: shared by chart marks (fill), calendar days and legend swatches (background) */
+.dt-s-good { fill: var(--good); background: color-mix(in srgb, var(--good) 38%, transparent); }
+.dt-s-mid,
+.dt-s-watch { fill: var(--mid); background: color-mix(in srgb, var(--mid) 38%, transparent); }
+.dt-s-bad { fill: var(--low); background: color-mix(in srgb, var(--low) 38%, transparent); }
+.dt-s-normal,
+.dt-s-measured { fill: var(--trend); background: color-mix(in srgb, var(--trend) 28%, transparent); }
+.dt-s-hi { fill: var(--trend); background: color-mix(in srgb, var(--trend) 55%, transparent); }
+.dt-s-lo { fill: var(--trend); fill-opacity: 0.55; background: color-mix(in srgb, var(--trend) 14%, transparent); }
+.dt-s-l1 { fill: var(--strain); fill-opacity: 0.35; background: rgba(var(--strain-rgb), 0.3); }
+.dt-s-l2 { fill: var(--strain); fill-opacity: 0.6; background: rgba(var(--strain-rgb), 0.55); }
+.dt-s-l3 { fill: var(--strain); fill-opacity: 0.85; background: rgba(var(--strain-rgb), 0.8); }
+.dt-s-l4 { fill: var(--strain); background: var(--strain); }
+.dt-s-rest,
+.dt-s-none { background: var(--surface); }
+/* today's daily total, still filling up: neutral, never a state */
+.dt-s-partial { fill: var(--trend); fill-opacity: 0.35; background: transparent; }
+.dt-c-good { color: var(--good); }
+.dt-c-bad { color: var(--low); }
+.dt-c-mid,
+.dt-c-watch { color: var(--mid); }
+.dt-c-partial { color: var(--muted); }
+
+/* month calendar */
+.dt-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.dt-month {
+  font-size: var(--fs-md);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.dt-mnav {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: var(--fs-2xl);
+  cursor: pointer;
+}
+.dt-mnav:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.dt-cal {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--sp-1);
+  margin-top: var(--sp-3);
+}
+.dt-wd {
+  text-align: center;
+  color: var(--faint);
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+}
+.dt-day {
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: var(--r-xs);
+  color: var(--ink);
+  font-family: var(--num);
+  font-size: var(--fs-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+button.dt-day {
+  cursor: pointer;
+}
+.dt-s-none.dt-day {
+  border-color: var(--line-soft);
+  color: var(--faint);
+}
+.dt-s-partial.dt-day {
+  border-color: var(--line);
+  border-style: dashed;
+}
+.dt-day[aria-pressed="true"] {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ink) inset;
+}
+.dt-out {
+  color: var(--line);
+}
+.dt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-5);
+  margin-top: var(--sp-3);
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+}
+.dt-leg {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.dt-sw {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+.dt-sw.dt-s-none {
+  border: 1px solid var(--line);
+}
+
+/* day detail */
+.dt-dayd {
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--sp-5);
+}
+.dt-day-h {
+  font-size: var(--fs-sm);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: var(--sp-3);
+}
+.dt-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 var(--sp-5);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--line-soft);
+}
+.dt-row:first-of-type {
+  border-top: 0;
+}
+.dt-row-lbl {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.dt-row-val {
+  font-family: var(--num);
+  font-size: var(--fs-lg);
+  text-align: right;
+}
+.dt-row-sub {
+  grid-column: 1 / -1;
+  color: var(--faint);
+  font-size: var(--fs-xs);
+}
+.dt-nodata {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  padding: var(--sp-2) 0;
+}
+.dt-sessions {
+  list-style: none;
+}
+.dt-sess {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--line-soft);
+}
+.dt-sess:first-child {
+  border-top: 0;
+}
+.dt-sess-name {
+  font-size: var(--fs-md);
+}
+.dt-sess-meta {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.dt-sess-src {
+  color: var(--faint);
+  font-size: var(--fs-xs);
+}
+
+/* openers (HC.detailAttrs): every card that opens a view gets the same chevron, a pointer, a focus
+ * ring and a >= 44px target; a table row is a mouse target whose date cell holds a real button */
+[data-detail][role="button"] {
+  position: relative;
+  cursor: pointer;
+  min-height: 44px;
+  padding-right: 28px;
+}
+[data-detail][role="button"]::after {
+  content: "›";
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  color: var(--faint);
+  font-size: var(--fs-2xl);
+  line-height: 1;
+  pointer-events: none;
+}
+[data-detail][role="button"]:hover::after {
+  color: var(--ink);
+}
+[data-detail][role="button"]:focus-visible,
+.dt-row-btn:focus-visible,
+.dt-open-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.dial[data-detail] {
+  padding-right: 0;
+}
+.dial[data-detail]::after {
+  top: 2px;
+  right: 2px;
+  transform: none;
+}
+tr[data-detail],
+.cal-cell[data-detail] {
+  cursor: pointer;
+}
+tr[data-detail] > td:last-child::after {
+  content: "›";
+  margin-left: var(--sp-2);
+  color: var(--faint);
+}
+.run-tbl td.dt-cell {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.dt-row-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline dotted var(--faint);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.dt-open-btn {
+  margin-left: auto;
+  min-height: 44px;
+  padding: 0 var(--sp-5);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.dt-open-btn::after {
+  content: " ›";
+}
+
+@media (min-width: 900px) {
+  .dt-sheet {
+    padding: 5vh 24px;
+  }
+  .dt-panel {
+    min-height: 0;
+    max-width: 760px;
+    margin: 0 auto;
+    border: 1px solid var(--line);
+    border-radius: var(--r-xl);
+    padding: var(--sp-10);
+    box-shadow: var(--card-shadow);
+  }
+}

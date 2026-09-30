@@ -44,7 +44,7 @@ const HEALTH = { recovery: { hasData: true, sleep: { target: 7.5 } } };
 
 // Returns #home + #score-recovery (Salud) + #score-load (Entreno), in that order; pass `hosts` to
 // inspect each one separately.
-function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, loadSectionHidden = false, dials, dialsHost, hosts = {} } = {}) {
+function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, loadSectionHidden = false, dials, dialsHost, hosts = {}, detail = false } = {}) {
   const host = { innerHTML: '' };
   const rec = (hosts.rec = hosts.rec || { innerHTML: '' });
   const load = (hosts.load = hosts.load || { innerHTML: '' });
@@ -62,6 +62,7 @@ function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entre
     document: { getElementById: (id) => byId[id] || null },
     SCORES: scores, DIALS: dials, I18N_SCORE: T || (locale === 'es' ? esT : enT), LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite,
   };
+  if (detail) ctx.DETAIL = { metrics: {} };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
@@ -288,26 +289,33 @@ test('glance vs detail (Whoop): Inicio keeps the dials + advice; the recovery ca
   assert.doesNotMatch(load, /sc-recovery|sc-advice/);
 });
 
-test('detail cards are not links any more (they ARE the detail); the dials open it instead', () => {
+test('Entreno load cards open their modality\'s detail view; the Salud recovery card carries a history button that opens the recovery view', () => {
   const s = fixtureScores();
   const hosts = {};
-  render(s, { now: addDays(ASOF, 1), healthNav: true, hosts });
+  render(s, { now: addDays(ASOF, 1), healthNav: true, hosts, detail: true });
+  for (const m of s.load.modalities) {
+    assert.match(hosts.load.innerHTML, new RegExp(`<div class="sc-load-card" data-mod="${m.key}" data-detail="load-${m.key}" role="button" tabindex="0" aria-haspopup="dialog">`), m.key);
+  }
+  // the recovery card holds a <details> fold, so the card itself is not a button: a real button opens the view
+  assert.match(hosts.rec.innerHTML, new RegExp(`<button type="button" class="dt-open-btn" data-detail="recovery" aria-haspopup="dialog">${enT.recovery.historyBtn}</button>`));
   assert.doesNotMatch(hosts.rec.innerHTML + hosts.load.innerHTML, /jumpOr\(/);
+  const plain = {};
+  render(s, { now: addDays(ASOF, 1), hosts: plain });
+  assert.doesNotMatch(plain.rec.innerHTML + plain.load.innerHTML, /data-detail/, 'no detail sheet baked: no opener');
 });
 
-test('dial taps: sleep -> Salud #hl-sleep, recovery -> Salud #hl-recovery, load -> Entreno #score-load; only when that tab is reachable', () => {
+test('dial taps open the detail sheet: sleep -> sleep, recovery -> recovery, each load-modality dial -> load-<modality>; whatever tabs are hidden', () => {
   const s = fixtureScores();
   const dials = buildDials(s, HEALTH);
-  const linked = render(s, { now: addDays(ASOF, 1), dials, healthNav: true, entrenoNav: true });
-  assert.match(dialOf(linked, 'dial-sleep'), /role="button" tabindex="0" onclick="jumpOr\('hl-sleep','health'\)"/);
-  assert.match(dialOf(linked, 'dial-rec'), /onclick="jumpOr\('hl-recovery','health'\)"/);
-  assert.equal(count(linked, `onclick="jumpOr('score-load','entreno')"`), s.load.modalities.length, 'every load-modality dial opens the Entreno load detail');
-  assert.match(linked, /onkeydown=/, 'keyboard users can activate a dial');
-  const noEntreno = render(s, { now: addDays(ASOF, 1), dials, healthNav: true, entrenoNav: false });
-  assert.doesNotMatch(noEntreno, /jumpOr\('score-load'/, 'no load link when Entreno is hidden');
-  assert.match(noEntreno, /jumpOr\('hl-recovery'/);
-  const unlinked = render(s, { now: addDays(ASOF, 1), dials, healthNav: false, entrenoNav: false });
-  assert.doesNotMatch(unlinked, /jumpOr\(/, 'no links when page.hideTabs hides Salud and Entreno');
+  for (const nav of [true, false]) {
+    const hosts = {};
+    const linked = render(s, { now: addDays(ASOF, 1), dials, healthNav: nav, entrenoNav: nav, detail: true, hosts });
+    assert.match(dialOf(linked, 'dial-sleep'), /data-detail="sleep" role="button" tabindex="0" aria-haspopup="dialog"/);
+    assert.match(dialOf(linked, 'dial-rec'), /data-detail="recovery" role="button"/);
+    // #home only (the dials lead it without a #home-dials host); Entreno's load cards open the same views
+    for (const m of s.load.modalities) assert.equal(count(hosts.home.innerHTML, `data-detail="load-${m.key}" role="button"`), 1, `${m.key} dial`);
+    assert.doesNotMatch(linked, /jumpOr\(|onkeydown=/, 'one delegated listener (client/detail.js), no inline handlers on the dials');
+  }
 });
 
 /* ---- Inicio dials (Sleep / Recovery / Load) ---- */
