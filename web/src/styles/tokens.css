@@ -53,6 +53,8 @@
   /* labels: caps, semibold, tracked */
   --label-track: 0.08em;
   --label-weight: 650;
+  /* layout: the widest the page content grows on a wide screen (the background stays full-bleed) */
+  --content-max: 1160px;
   /* dials */
   --dial-size: 112px;
   --fs-dial: 26px;

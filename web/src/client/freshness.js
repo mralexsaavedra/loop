@@ -5,8 +5,11 @@
  * builds stay byte-identical. On load it asks the page's own server for
  *   GET /api/sync/status  (health-ingest via plan-web nginx: timestamps only)
  *   GET /status.json      (written by services/plan-web/refresh.sh after each publish)
- * and shows "Atajo: hace 5 min · Strava: hace 2 h · Página: hace 1 min". A source older than
- * MID_HOURS turns --mid with a short hint, older than LOW_HOURS --low. When /api/sync/status is not
+ * The top bar stays ONE row: a status dot + the Shortcut age ("hace 5 min", #fresh-sum, the dot carries
+ * the worst source level), an icon-only Sync button (spinner class `is-busy` while syncing) and the
+ * avatar. The full per-source line "Atajo: hace 5 min · Strava: hace 2 h · Página: hace 1 min" is the
+ * summary's title / aria-label and sits in a popover (#fresh-pop) a tap on the summary toggles. A
+ * source older than MID_HOURS turns --mid with a short hint, older than LOW_HOURS --low. When /api/sync/status is not
  * reachable (example build, file://, a claude.ai artifact, a clone without the ingest service) the
  * line AND the button stay hidden — nothing to sync against.
  *
@@ -26,6 +29,9 @@
     var line = document.getElementById('fresh-line');
     var btn = document.getElementById('sync-btn');
     var msg = document.getElementById('sync-msg');
+    var sum = document.getElementById('fresh-sum');
+    var short = document.getElementById('fresh-short');
+    var pop = document.getElementById('fresh-pop');
     var esc = HC.esc, format = HC.format;
 
     var STATUS_URL = '/api/sync/status';
@@ -64,14 +70,31 @@
       var a = age(iso);
       var body = esc(T.labels[key] + ': ' + a.text);
       if (a.level) body += ' <em class="fresh-hint">(' + esc(T.hints[key]) + ')</em>';
-      return '<span class="fresh-item' + (a.level ? ' fresh-' + a.level : '') + '">' + body + '</span>';
+      return { a: a, plain: T.labels[key] + ': ' + a.text, html: '<span class="fresh-item' + (a.level ? ' fresh-' + a.level : '') + '">' + body + '</span>' };
     }
 
     function render(status, page) {
       var items = [item('shortcut', status.lastShortcutAt)];
       if (status.stravaConfigured) items.push(item('strava', status.lastStravaOkAt));
       if (page && page.publishedAt) items.push(item('page', page.publishedAt));
-      line.innerHTML = items.join(' · ');
+      line.innerHTML = items.map(function (x) { return x.html; }).join(' · ');
+      var worst = null;
+      items.forEach(function (x) { if (x.a.level === 'low' || (x.a.level === 'mid' && !worst)) worst = x.a.level; });
+      var detail = items.map(function (x) { return x.plain; }).join(' · ');
+      if (short) short.textContent = items[0].a.text;
+      if (sum) {
+        sum.classList.remove('fresh-sum-mid');
+        sum.classList.remove('fresh-sum-low');
+        if (worst) sum.classList.add('fresh-sum-' + worst);
+        sum.setAttribute('title', detail);
+        sum.setAttribute('aria-label', T.ariaLabel + ': ' + detail);
+      }
+    }
+
+    function setPop(open) {
+      if (!pop || !sum) return;
+      pop.hidden = !open;
+      sum.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
 
     function load() {
@@ -86,9 +109,15 @@
       }).catch(function () { host.hidden = true; });
     }
 
+    function setBusy(on) {
+      busy = on;
+      btn.disabled = on;
+      btn.classList.toggle('is-busy', on);
+      btn.setAttribute('aria-busy', on ? 'true' : 'false');
+    }
+
     function finish(text) {
-      busy = false;
-      btn.disabled = false;
+      setBusy(false);
       msg.textContent = text;
     }
 
@@ -130,8 +159,7 @@
 
     function sync() {
       if (busy) return;
-      busy = true;
-      btn.disabled = true;
+      setBusy(true);
       msg.textContent = T.syncing;
       fetch(SYNC_URL, { method: 'POST' })
         .then(function (r) { return r && r.ok ? r.json() : null; })
@@ -143,6 +171,17 @@
     }
 
     btn.addEventListener('click', sync);
+    if (sum && pop) {
+      sum.addEventListener('click', function () { setPop(pop.hidden); });
+      // Escape or a tap anywhere outside closes the popover (browser only; the stub has no document events)
+      if (typeof document.addEventListener === 'function') {
+        document.addEventListener('keydown', function (e) { if (e && e.key === 'Escape' && !pop.hidden) { setPop(false); sum.focus(); } });
+        document.addEventListener('click', function (e) {
+          var t = e && e.target;
+          if (!pop.hidden && t && t.closest && !t.closest('#freshness')) setPop(false);
+        });
+      }
+    }
     load();
   } catch (e) {
     // optional feature: a failure here must never break the page

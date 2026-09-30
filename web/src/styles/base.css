@@ -81,9 +81,16 @@ h1 {
   border-radius: var(--r-sm);
   transition: color 0.15s, background 0.15s;
 }
+/* line icon: same size / stroke as the day-type icons; the active tab paints it in the accent */
 .tabnav .tico {
-  font-size: var(--fs-3xl);
-  line-height: 1;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .tabnav .tlbl {
   font-size: var(--fs-2xs);
@@ -102,7 +109,7 @@ h1 {
   border-radius: 0 0 var(--r-sm) var(--r-sm);
 }
 .tabnav button[aria-pressed="true"] .tico {
-  filter: none;
+  color: var(--accent);
 }
 .tabnav button:focus-visible {
   outline: 2px solid var(--accent);
@@ -166,13 +173,14 @@ h2::after {
   color: var(--accent-ink);
 }
 
+/* footer (personal copy): compact and muted */
 footer {
-  margin: var(--sp-12) 0 var(--sp-4);
-  font-size: var(--fs-xs);
+  margin: var(--sp-11) 0 var(--sp-4);
+  font-size: var(--fs-2xs);
   color: var(--faint);
-  line-height: 1.6;
-  border-top: 1px solid var(--line);
-  padding-top: var(--sp-7);
+  line-height: 1.55;
+  border-top: 1px solid var(--line-soft);
+  padding-top: var(--sp-5);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -186,15 +194,25 @@ footer {
   body {
     padding-bottom: var(--sp-12);
   }
-  /* full-bleed app shell: content fills the width under a sticky top nav */
+  /* app shell: the background and the sticky nav stay full-bleed, the content is centred and
+     capped at --content-max so nothing stretches edge to edge on a wide screen */
   .wrap {
+    --gutter: clamp(24px, 3vw, 52px);
     max-width: none;
     margin: 0;
     display: block;
-    padding: 0 clamp(24px, 3vw, 52px);
+    padding: 0 var(--gutter);
+  }
+  .wrap > header,
+  .wrap > .topbar,
+  .wrap > .tab-panel,
+  .wrap > footer {
+    max-width: var(--content-max);
+    margin-left: auto;
+    margin-right: auto;
   }
 
-  /* main nav → sticky full-bleed top bar (four tabs fit on one row) */
+  /* main nav → sticky full-bleed top bar (four tabs fit on one row, contents centred) */
   .tabnav {
     position: sticky;
     left: auto;
@@ -205,8 +223,9 @@ footer {
     flex-direction: row;
     gap: var(--sp-2);
     align-items: center;
-    margin: 0 calc(-1 * clamp(24px, 3vw, 52px)) var(--sp-5);
-    padding: var(--sp-3) clamp(24px, 3vw, 52px);
+    margin: 0 calc(-1 * var(--gutter)) var(--sp-5);
+    /* full-bleed bar, buttons aligned with the centred content (100% = the .wrap content width) */
+    padding: var(--sp-3) max(var(--gutter), calc(var(--gutter) + (100% - var(--content-max)) / 2));
     background: rgba(14, 19, 23, 0.9);
     border-top: 0;
     border-bottom: 1px solid var(--line);
@@ -220,7 +239,8 @@ footer {
     border-radius: var(--r-pill);
   }
   .tabnav .tico {
-    font-size: var(--fs-2xl);
+    width: 20px;
+    height: 20px;
   }
   .tabnav .tlbl {
     font-size: var(--fs-xs);
@@ -236,9 +256,6 @@ footer {
     color: var(--ink);
     box-shadow: inset 0 -2px 0 var(--accent);
     border-radius: 0;
-  }
-  .tabnav button[aria-pressed="true"] .tico {
-    filter: none;
   }
   header {
     padding: var(--sp-11) 0 var(--sp-7);

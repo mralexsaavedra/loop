@@ -172,24 +172,33 @@
       clamp = lc[1];
     }
     var meals = model.fixed.map(function (f) { return f.slice(); });
-    var q = [];
+    var q = [], qa = [], dir = [];
     model.flex.forEach(function (x) {
       var m = meals[x.m], i;
       if (x.mb) {
         for (i = 0; i < 4; i++) m[i] += x.mb[i] * factor;
-        q.push(factor === 1 ? x.q : (x.q + ' ×' + fmtFactor(factor, dec)).trim());
+        var t = factor === 1 ? x.q : (x.q + ' ×' + fmtFactor(factor, dec)).trim();
+        q.push(t);
+        qa.push([t]);
+        dir.push(Math.sign(factor - 1));
         return;
       }
-      q.push(x.ln.map(function (l) {
+      var baseK = 0, nowK = 0;
+      var amts = x.ln.map(function (l) {
         var amt = amountAt(l, l[0] === 'ud' ? f0 : factor);
         var r = amt / l[1];
         for (var j = 0; j < 4; j++) m[j] += l[j + 2] * r;
+        baseK += l[2];
+        nowK += l[2] * r;
         return fmtAmt(amt, l[0], units);
-      }).join(' + '));
+      });
+      q.push(amts.join(' + '));
+      qa.push(amts);
+      dir.push(Math.abs(nowK - baseK) < 0.5 ? 0 : Math.sign(nowK - baseK));
     });
     var totals = { k: 0, p: 0, c: 0, g: 0 };
     meals.forEach(function (m) { totals.k += m[0]; totals.p += m[1]; totals.c += m[2]; totals.g += m[3]; });
-    return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, meals: meals, q: q, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
+    return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, meals: meals, q: q, qa: qa, dir: dir, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
   }
   function planFor(bake, goal, d, minutes) {
     var x = bake.plans[goal][d];
@@ -207,6 +216,8 @@
       mt: { k: x.t.kcal - fuelK, p: x.t.p, c: x.t.c - fuelC, f: x.t.f },
       meals: s.meals.map(function (m) { return m.map(Math.round); }),
       flex: s.q,
+      flexAmts: s.qa,
+      flexDir: s.dir,
       tot: tot,
       factor: s.factor,
       clamp: s.clamp,
@@ -261,6 +272,11 @@
   }
   function renderControls() {
     setChecked('nutri-day', dayType());
+    // the DETECTED type's segment carries a subtle mark (a dot), whichever type is picked
+    (document.querySelectorAll('[name="nutri-day"]') || []).forEach(function (inp) {
+      var lab = inp.parentElement;
+      if (lab && lab.classList) lab.classList.toggle('seg-auto', inp.getAttribute('value') === state.auto.type);
+    });
     var src = $('nutri-daytype-src');
     if (src) src.textContent = state.override ? T.chosen : T.auto;
     var btn = $('nutri-auto');
@@ -276,8 +292,40 @@
       note.textContent = state.raised ? format(T.autoRaised[state.raised], { type: T.dayTypes[state.raised] }) : '';
     }
   }
-  function macroCell(label, value, cls) {
-    return '<div class="nt-mac ' + cls + '"><b>' + esc(kf(value)) + ' g</b><span>' + esc(label) + '</span></div>';
+  var OVER_RATIO = 1.1; // past 110 % of the target a bar is flagged (--mid), like the intake rings
+  // intake logged TODAY (INTAKE, baked by components/Bake.astro; the date is checked on the viewer's
+  // clock): only then do the dial and the bars fill. Never from the target.
+  function intakeToday() {
+    var I = typeof INTAKE === 'undefined' || !INTAKE ? null : INTAKE;
+    var L = I && I.latest;
+    return L && L.date === todayIso() && L.k > 0 ? L : null;
+  }
+  function pctOf(v, t) { return Math.round(Math.min(1, Math.max(0, v / t)) * 100); }
+  // 270 degree kcal dial in the Inicio dials' language: the track is the baked arc (NUTRI_ARC,
+  // view/dial.mjs); the fill reuses it with pathLength 100, so any fraction needs no geometry here
+  function dialHtml(t, L) {
+    var arc = typeof NUTRI_ARC === 'string' ? NUTRI_ARC : '';
+    var k = kf(t.kcal);
+    var aria = L ? format(T.target.loggedAria, { v: kf(L.k), k: k }) : format(T.target.dialAria, { k: k });
+    var pct = L ? pctOf(L.k, t.kcal) : 0;
+    var over = L && L.k / t.kcal > OVER_RATIO;
+    var svg = arc
+      ? '<svg class="nt-dial-svg" viewBox="0 0 120 120" aria-hidden="true"><path class="nt-dial-track" d="' + esc(arc) + '"/>' +
+        (pct > 0 ? '<path class="nt-dial-fill" pathLength="100" stroke-dasharray="' + pct + ' 100" d="' + esc(arc) + '"/>' : '') + '</svg>'
+      : '';
+    return '<figure class="nt-dial' + (over ? ' nt-dial-over' : '') + '" role="img" aria-label="' + esc(aria) + '">' + svg +
+      '<div class="nt-dial-c" aria-hidden="true"><b class="nt-kcal">' + esc(k) + '</b><span class="nt-unit">' + esc(T.target.kcal) + '</span>' +
+      (L ? '<span class="nt-logged"><b>' + esc(kf(L.k)) + '</b> ' + esc(T.target.logged) + '</span>' : '') + '</div></figure>';
+  }
+  // one macro bar: grams in --num; with intake today "logged / target" and a fill, else the target only
+  function barHtml(label, target, L, logged) {
+    var has = L && logged != null && target > 0;
+    var over = has && logged / target > OVER_RATIO;
+    var val = L ? '<b>' + (logged != null ? esc(kf(logged)) : '—') + '</b> / ' + esc(kf(target)) + ' g' : '<b>' + esc(kf(target)) + '</b> g';
+    var pct = has ? pctOf(logged, target) : 0;
+    return '<div class="nt-bar' + (over ? ' nt-bar-over' : '') + '"><div class="nt-bar-top"><span class="nt-bar-lbl">' + esc(label) + '</span>' +
+      '<span class="nt-bar-val">' + val + '</span></div><div class="nt-bar-track">' +
+      (pct > 0 ? '<span class="nt-bar-fill" style="width:' + pct + '%"></span>' : '') + '</div></div>';
   }
   function remainderHtml(x) {
     var rem = x.rem, bike = x.fuelK > 0;
@@ -297,23 +345,44 @@
   // the goal as a low-emphasis chip next to today's kcal; it opens the profile sheet's goal setting
   function goalChipHtml() {
     var g = T.goals[state.goal];
-    return '<button type="button" class="nt-goal" id="nutri-goal-chip" aria-haspopup="dialog" aria-label="' + esc(format(T.goalChip, { goal: g })) + '">· ' + esc(g) + '</button>';
+    return '<button type="button" class="nt-goal" id="nutri-goal-chip" aria-haspopup="dialog" aria-label="' + esc(format(T.goalChip, { goal: g })) + '">' + esc(g) + '</button>';
   }
+  // the dial (.nt-top) and the bars + notes (.nt-side): stacked on phones, two columns >= 900 px (nutri.css)
   function renderTarget(host, x) {
-    var t = target(), d = dayType();
+    var t = target(), L = intakeToday();
     var line = !x ? '' : x.fuelK > 0
       ? format(T.planLineBike, { k: kf(x.tot.k), fuel: kf(x.fuelK), total: kf(x.tot.k + x.fuelK) })
       : format(T.planLine, { k: kf(x.tot.k), p: x.tot.p, c: x.tot.c, f: x.tot.g });
     host.innerHTML =
-      '<div class="nt-head"><span class="nt-lbl">' + esc(T.target.heading) + '</span>' +
-      '<span class="nt-day">' + esc(T.dayIcons[d] + ' ' + T.dayTypes[d]) + '</span></div>' +
-      '<div class="nt-kcal"><b>' + esc(kf(t.kcal)) + '</b><span>' + esc(T.target.kcal) + '</span>' + goalChipHtml() + '</div>' +
-      '<div class="nt-macros">' + macroCell(T.target.p, t.p, 'nt-p') + macroCell(T.target.f, t.f, 'nt-f') + macroCell(T.target.c, t.c, 'nt-c') + '</div>' +
+      '<div class="nt-top">' + dialHtml(t, L) + goalChipHtml() + '</div>' +
+      '<div class="nt-side"><div class="nt-bars">' + barHtml(T.target.p, t.p, L, L && L.p) + barHtml(T.target.c, t.c, L, L && L.c) + barHtml(T.target.f, t.f, L, L && L.g) + '</div>' +
+      (L ? '<p class="nt-cnote">' + esc(T.target.loggedNote) + '</p>' : '') +
       '<p class="nt-cnote">' + esc(T.target.cNote) + '</p>' +
-      (x ? '<p class="nt-plan">' + esc(line) + '</p>' + remainderHtml(x) + macroOffHtml(x) : '');
+      (x ? '<p class="nt-plan">' + esc(line) + '</p>' + remainderHtml(x) + macroOffHtml(x) : '') + '</div>';
   }
-  function suppLine(s) {
-    return '<div class="meal-supp">' + esc(T.plan.suppIcon + ' ' + s.name + (s.dose ? ' ' + s.dose : '')) + '</div>';
+  var PILL_SVG = '<svg class="supp-ico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-45 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><path d="M12 8.5v7"/></g></svg>';
+  function suppLine(text) {
+    return '<div class="meal-supp">' + PILL_SVG + '<span>' + esc(text) + '</span></div>';
+  }
+  // a scaled portion: a small muted arrow with an accessible label (no loud tag)
+  function dirHtml(dir) {
+    if (!dir) return '';
+    var up = dir > 0;
+    return '<span class="mp-dir" role="img" aria-label="' + esc(up ? T.plan.dirAria.up : T.plan.dirAria.down) + '">' + (up ? '↑' : '↓') + '</span>';
+  }
+  function row(cls, label, q) {
+    return '<li class="' + cls + '"><span class="mp-l">' + label + '</span>' + (q != null ? '<span class="mp-q">' + esc(q) + '</span>' : '') + '</li>';
+  }
+  function partHtml(p, x, fi) {
+    var q = p.x ? x.flex[fi] : p.q;
+    var dir = p.x && x.flexDir ? x.flexDir[fi] : 0;
+    var label = esc(p.l) + dirHtml(dir);
+    var flexCls = p.x ? ' mp-flex' : '';
+    if (!p.c) return row('mp' + flexCls, label, q);
+    // a composite: its name, then one readable sub-row per component (name, amount)
+    var amts = p.x ? (x.flexAmts ? x.flexAmts[fi] : []) : p.a || [];
+    return row('mp mp-comp' + flexCls, label, null) +
+      p.c.map(function (name, i) { return row('mp-sub', esc(name), amts[i] != null ? amts[i] : ''); }).join('');
   }
   function renderPlan(host, x) {
     var base = N.base[x.base];
@@ -321,30 +390,26 @@
     var supps = (N.supplements || []).slice();
     var used = {};
     var fi = 0;
+    var A = T.plan.macroAbbr;
     var html = base.meals.map(function (meal, i) {
       var m = x.meals[i];
-      var parts = meal.parts.map(function (p) {
-        var q = p.x ? x.flex[fi++] : p.q;
-        return '<li class="mp' + (p.x ? ' mp-flex' : '') + '"><span class="mp-l">' + esc(p.l) + '</span>' +
-          '<span class="mp-q">' + esc(q) + '</span>' +
-          (p.x ? '<span class="mp-tag" title="' + esc(T.plan.flexAria) + '">' + esc(T.plan.flexTag) + '</span>' : '') + '</li>';
-      }).join('');
+      var parts = meal.parts.map(function (p) { return partHtml(p, x, p.x ? fi++ : -1); }).join('');
       var mine = '';
       if (meal.s && !used[meal.s]) {
         used[meal.s] = true;
-        supps.forEach(function (s) { if (s.meal === meal.s) mine += suppLine(s); });
+        supps.forEach(function (s) { if (s.meal === meal.s) mine += suppLine(s.name + (s.dose ? ' ' + s.dose : '')); });
       }
       return '<div class="meal"><div class="meal-top"><div class="meal-name">' + esc(meal.n) + '</div>' +
-        '<div class="meal-kcal">~' + esc(kf(m[0])) + ' kcal</div></div>' +
+        '<div class="meal-kcal"><b>' + esc(kf(m[0])) + '</b> kcal</div></div>' +
         '<ul class="meal-parts">' + parts + '</ul>' +
-        (meal.pcf ? '<div class="meal-pcf"><span><b>' + m[1] + '</b> P</span><span><b>' + m[2] + '</b> C</span><span><b>' + m[3] + '</b> G</span></div>' : '') +
+        (meal.pcf ? '<div class="meal-pcf"><span><b>' + m[1] + '</b> ' + A.p + '</span><span><b>' + m[2] + '</b> ' + A.c + '</span><span><b>' + m[3] + '</b> ' + A.f + '</span></div>' : '') +
         mine + '</div>';
     }).join('');
     var others = supps.filter(function (s) { return !used[s.meal]; });
     if (others.length) {
       html += '<div class="meal meal-others"><div class="meal-name">' + esc(T.plan.otherSupps) + '</div>' +
         others.map(function (s) {
-          return '<div class="meal-supp">' + esc(T.plan.suppIcon + ' ' + s.name + (s.dose ? ' ' + s.dose : '') + ' (' + (T.plan.meals[s.meal] || s.meal) + ')') + '</div>';
+          return suppLine(s.name + (s.dose ? ' ' + s.dose : '') + ' (' + (T.plan.meals[s.meal] || s.meal) + ')');
         }).join('') + '</div>';
     }
     var ftpl = x.clamp === 'max' ? T.plan.factorMax : x.clamp === 'min' ? T.plan.factorMin : T.plan.factor;
@@ -378,18 +443,24 @@
       ? format(F.afterCarbs, { lo: a.carbsG[0], hi: a.carbsG[1], kgLo: HC.nf(a.gPerKg[0]), kgHi: HC.nf(a.gPerKg[1]), pLo: a.proteinG[0], pHi: a.proteinG[1] })
       : format(F.afterCarbsNoKg, { kgLo: HC.nf(a.gPerKg[0]), kgHi: HC.nf(a.gPerKg[1]), pLo: a.proteinG[0], pHi: a.proteinG[1] });
     var rates = N.fuel.rates.during;
+    var nf = HC.nf;
+    var keyBefore = b.carbsG ? b.carbsG[0] + '–' + b.carbsG[1] + ' g' : nf(b.gPerKg[0]) + '–' + nf(b.gPerKg[1]) + ' ' + F.perKg;
+    var keyAfter = a.carbsG ? a.carbsG[0] + '–' + a.carbsG[1] + ' g' : nf(a.gPerKg[0]) + '–' + nf(a.gPerKg[1]) + ' ' + F.perKg;
+    // Antes -> Durante -> Después as a 3-step timeline, one key number per step
+    function step(key, title, num, items) {
+      return '<li class="fuel-step fuel-step-' + key + '"><div class="fuel-step-head"><h3>' + esc(title) + '</h3><b class="fuel-key">' + esc(num) + '</b></div><ul>' + items + '</ul></li>';
+    }
     host.innerHTML =
-      '<div class="fuel-grid">' +
-      '<section class="fuel-win"><h3>' + esc(F.before) + '</h3><ul>' + li(before) + li(format(F.lastHour, { lo: b.lastHourG[0], hi: b.lastHourG[1] })) + '</ul></section>' +
-      '<section class="fuel-win fuel-during"><h3>' + esc(F.during) + '</h3><ul>' +
+      '<ol class="fuel-steps">' +
+      step('before', F.before, keyBefore, li(before) + li(format(F.lastHour, { lo: b.lastHourG[0], hi: b.lastHourG[1] }))) +
+      step('during', F.during, rate + ' ' + F.perHour,
       li(format(F.duringCarbs, { rate: rate, total: total })) +
       li(format(F.duringEquiv, { gels: du.equiv.gels, gelG: U.gelG, bananas: du.equiv.bananas, bananaG: U.bananaG, bars: du.equiv.bars, barG: U.barG, bLo: du.equiv.bottles[0], bHi: du.equiv.bottles[1], ml: U.bottleMl, pLo: U.bottlePct[0], pHi: U.bottlePct[1], gLo: U.bottleG[0], gHi: U.bottleG[1] })) +
       li(format(F.duringMix, { bottles: du.mix.bottles, gels: du.mix.gels })) +
       li(format(F.fluids, { lo: kf(du.fluidsMl[0]), hi: kf(du.fluidsMl[1]), rLo: rates.fluidMlPerH[0], rHi: rates.fluidMlPerH[1] })) +
-      li(format(F.sodium, { lo: kf(du.sodiumMg[0]), hi: kf(du.sodiumMg[1]), rLo: rates.sodiumMgPerH[0], rHi: rates.sodiumMgPerH[1] })) +
-      '</ul></section>' +
-      '<section class="fuel-win"><h3>' + esc(F.after) + '</h3><ul>' + li(after) + '</ul></section>' +
-      '</div>' +
+      li(format(F.sodium, { lo: kf(du.sodiumMg[0]), hi: kf(du.sodiumMg[1]), rLo: rates.sodiumMgPerH[0], rHi: rates.sodiumMgPerH[1] }))) +
+      step('after', F.after, keyAfter, li(after)) +
+      '</ol>' +
       (N.weight ? '<p class="fuel-note">' + esc(format(F.weightNote, { kg: HC.num(N.weight.kg, 1), date: HC.fmtDate(N.weight.date) })) + '</p>' : '') +
       '<p class="fuel-note">' + esc(F.inDay) + '</p>' +
       '<p class="fuel-note fuel-disclaimer">' + esc(F.disclaimer) + '</p>';
@@ -397,7 +468,7 @@
   function renderEat(host) {
     var t = target(), d = dayType(), E = T.eat;
     host.innerHTML =
-      '<div class="eat-day-type">' + esc(format(E.dayGoal, { day: T.dayIcons[d] + ' ' + T.dayTypes[d] + ' ' + (state.override ? T.chosen : T.auto), goal: T.goals[state.goal] })) + '</div>' +
+      '<div class="eat-day-type">' + esc(format(E.dayGoal, { day: T.dayTypes[d] + ' ' + (state.override ? T.chosen : T.auto), goal: T.goals[state.goal] })) + '</div>' +
       '<div class="eat-kcal">~' + esc(kf(t.kcal)) + '<span>kcal</span></div>' +
       '<div class="eat-macros">' +
       '<div class="eat-mac"><b>' + t.p + ' g</b><span>' + esc(T.target.p) + '</span></div>' +

@@ -253,8 +253,7 @@ test('intake-templates.mjs (Mi día intake rings) has identical key trees in es/
     }
     assert.match(dict.ofTpl, /\{target\}/);
     assert.match(dict.ofTpl, /\{unit\}/);
-    assert.match(dict.emptyHtml, /\{days\}/);
-    assert.match(dict.emptyHtml, /diet_kcal/, `${locale} empty state names the Shortcut keys`);
+    assert.equal(dict.emptyHtml, undefined, `${locale}: no stale-intake help text (the block renders nothing)`);
   }
 });
 
@@ -266,7 +265,9 @@ test('nutri-templates.mjs (Resumen de hoy / Plan de hoy / Avituallamiento) has i
     }
     assert.deepEqual(Object.keys(dict.goals), GOALS);
     assert.deepEqual(Object.keys(dict.dayTypes), DAY_TYPES);
-    assert.deepEqual(Object.keys(dict.dayIcons), DAY_TYPES);
+    assert.deepEqual(Object.keys(dict.dayShort), DAY_TYPES);
+    assert.equal(dict.dayIcons, undefined, 'no emoji: the segments draw inline SVG icons');
+    for (const v of Object.values(dict.dayShort)) assert.ok(v.length <= 10, `${locale} short day label "${v}" fits a quarter of 360 px`);
     assert.deepEqual(Object.keys(dict.plan.meals), MEAL_SLOTS);
     assert.match(dict.backToAuto, /\{type\}/);
     assert.match(dict.why.ride, /\{dur\}/);

@@ -10,10 +10,10 @@ export default {
       ariaLabel: 'Secciones',
       // four top-level tabs, in nav order; the former tabs are now sections (see `sections`)
       tabs: {
-        home: { icon: '🏠', label: 'Inicio' },
-        entreno: { icon: '🏃', label: 'Entreno' },
-        health: { icon: '💗', label: 'Salud' },
-        nutricion: { icon: '🍽️', label: 'Nutrición' },
+        home: { label: 'Inicio' },
+        entreno: { label: 'Entreno' },
+        health: { label: 'Salud' },
+        nutricion: { label: 'Nutrición' },
       },
       // headings of the sections that used to be tabs of their own (Mi día/Registro/Tablas keep theirs)
       sections: {

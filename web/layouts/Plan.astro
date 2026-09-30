@@ -5,8 +5,9 @@
  * FIRST so every later script can read it) → core (setTab/jump/bump) →
  * nutrition → nutri-day → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → profile → detail → freshness.
  * Tabs render inside <slot />; the detail sheet (components/DetailSheet.astro) renders in the `overlay`
- * slot, after .wrap, so detail.js can make the page behind it inert. The freshness line + Sync button (#freshness) render hidden; freshness.js
- * shows them only when the page's server answers /api/sync/status (see services/plan-web/README.md).
+ * slot, after .wrap, so detail.js can make the page behind it inert. The top bar is ONE row on phones: date · status dot + short
+ * freshness (#fresh-sum, per-source detail in the #fresh-pop popover) · icon-only Sync · avatar. #freshness renders hidden; freshness.js
+ * shows it only when the page's server answers /api/sync/status (see services/plan-web/README.md).
  */
 import '../src/styles/tokens.css';
 import '../src/styles/base.css';
@@ -57,12 +58,20 @@ interface Props {
     footerHtml?: string;
   };
   dict: any;
-  tabs: { key: string; icon: string; label: string }[];
+  tabs: { key: string; label: string }[];
   activeTab?: string;
   profile?: any; // lib/profile/profile.mjs loadProfile() result: the avatar button + the profile sheet
 }
 
 const { title, locale, page = {}, dict, tabs, activeTab = tabs[0]?.key, profile = null } = Astro.props;
+// tab icons: 24-unit line icons (stroke = currentColor, the same drawing as Nutrición's day-type
+// icons) keyed by the top-level tab key; no emoji, no vendor icons
+const TAB_ICONS: Record<string, string> = {
+  home: '<path d="M4 10.5 12 4l8 6.5V20h-5.5v-5.5h-5V20H4z"/>',
+  entreno: '<path d="M21 12h-4l-3 8-4-16-3 8H3"/>',
+  health: '<path d="M12 20 4.6 12.7a4.6 4.6 0 0 1 6.5-6.5l.9.9.9-.9a4.6 4.6 0 0 1 6.5 6.5z"/>',
+  nutricion: '<path d="M7 3v18M4.5 3v5.5a2.5 2.5 0 0 0 5 0V3M17 21V3c-2 1.5-3.2 4.2-3.2 7.5V14H17"/>',
+};
 // core.js reads the tab keys and the legacy-section map from this ONE baked copy of lib/nav/tabs.mjs
 // ...and util.js reads the page-level constants (lib/stale.mjs) from HC_CONST, never client literals,
 // and the names of its one date formatter (HC.fmtDate / HC.fmtMonth) from I18N_DATE
@@ -99,8 +108,9 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
       <div class="topbar">
         <time id="today-date" class="today-date"></time>
         <div class="fresh" id="freshness" role="group" aria-label={syncT.ariaLabel} hidden>
-          <p class="fresh-line" id="fresh-line"></p>
-          <button type="button" class="fresh-btn" id="sync-btn">{syncT.button}</button>
+          <button type="button" class="fresh-sum" id="fresh-sum" aria-expanded="false" aria-controls="fresh-pop"><span class="fresh-dot" aria-hidden="true"></span><span class="fresh-short" id="fresh-short"></span></button>
+          <button type="button" class="fresh-btn" id="sync-btn" aria-label={syncT.button} title={syncT.button}><svg class="fresh-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9" /><path d="M18.5 3v4.2h-4.2M5.5 21v-4.2h4.2" /></svg></button>
+          <div class="fresh-pop" id="fresh-pop" hidden><p class="fresh-line" id="fresh-line"></p></div>
           <p class="fresh-msg" id="sync-msg" role="status" aria-live="polite"></p>
         </div>
         {profile && <Avatar profile={profile} locale={locale} />}
@@ -114,7 +124,7 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
             aria-pressed={tab.key === activeTab}
             onclick={`setTab('${tab.key}')`}
           >
-            <span class="tico">{tab.icon}</span><span class="tlbl">{tab.label}</span>
+            <svg class="tico" viewBox="0 0 24 24" aria-hidden="true" set:html={TAB_ICONS[tab.key] || ''} /><span class="tlbl">{tab.label}</span>
           </button>
         ))}
       </nav>
