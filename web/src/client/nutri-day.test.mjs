@@ -428,12 +428,23 @@ test('the page food log (window.foodTotals) fills the dial + bars first, labelle
   assert.doesNotMatch(h, /what your food app wrote/);
   const miss = run({ hooks: { foodTotals: () => ({ ...food, missing: { protein: true, carbs: false, fat: true } }) } }).els['nutri-target'].innerHTML;
   assert.ok(miss.includes(enN.target.loggedFoodMissing));
-  // no entries today (null), a stale day or a throwing hook: the Apple Health intake as before
-  for (const foodTotals of [() => null, () => ({ ...food, date: '2030-01-09' }), () => { throw new Error('x'); }]) {
+  // no entries today (null) or a throwing hook: the Apple Health intake as before (foodTotals already
+  // returns null for any day but today, so nutri-day.js does not re-check the date)
+  for (const foodTotals of [() => null, () => { throw new Error('x'); }]) {
     const f = run({ intake, hooks: { foodTotals } }).els['nutri-target'].innerHTML;
     assert.match(f, /aria-label="Logged today: 1,800 of 2,500 kcal"/);
     assert.match(f, /what your food app wrote/);
   }
+});
+
+test('food log macros: none stated -> a dash, never "0 / 150 g"; some entries lack one -> the logged sum marked as a minimum', () => {
+  const base = { date: TODAY, k: 350, n: 2, src: 'log' };
+  const none = run({ hooks: { foodTotals: () => ({ ...base, p: null, c: null, g: null, missing: { protein: true, carbs: true, fat: true } }) } }).els['nutri-target'].innerHTML;
+  assert.match(none, /<span class="nt-bar-lbl">Protein<\/span><span class="nt-bar-val"><b>—<\/b> \/ 150 g<\/span><\/div><div class="nt-bar-track"><\/div>/);
+  assert.doesNotMatch(none, /<b>0<\/b> \/ 150/);
+  const some = run({ hooks: { foodTotals: () => ({ ...base, p: 40, c: 30, g: 10, missing: { protein: true, carbs: false, fat: false } }) } }).els['nutri-target'].innerHTML;
+  assert.match(some, /<span class="nt-bar-lbl">Protein<\/span><span class="nt-bar-val"><b>≥ 40<\/b> \/ 150 g<\/span>/);
+  assert.match(some, /<span class="nt-bar-lbl">Carbs<\/span><span class="nt-bar-val"><b>30<\/b>/, 'a complete macro has no marker');
 });
 
 test('HCNutri.refresh re-renders Resumen de hoy (the food log calls it after every add / delete)', () => {

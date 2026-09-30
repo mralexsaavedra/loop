@@ -168,3 +168,13 @@ test('today\'s page food log (window.foodTotals) wins over the Apple Health day:
   const broken = run({ latest: { date: '2030-01-09', k: 1200, p: 1, c: 1, g: 1 }, today: '2030-01-10', foodTotals: () => { throw new Error('x'); } }).host.innerHTML;
   assert.match(broken, /1200/, 'a throwing hook falls back to the Apple Health day');
 });
+
+test('rings from the food log: a macro no entry states is a dash (never 0 %); one some entries lack is marked as a minimum', () => {
+  const food = () => ({ date: '2030-01-10', k: 1200, p: 85, c: null, g: 40, n: 2, missing: { protein: true, carbs: true, fat: false }, src: 'log' });
+  const html = run({ latest: { date: '2030-01-09', k: 900, p: 1, c: 1, g: 1 }, today: '2030-01-10', foodTotals: food }).host.innerHTML;
+  assert.match(html, /class="ring ring-c ring-none"/, 'no carbs stated: empty ring');
+  assert.doesNotMatch(html, /ring-c[^>]*>[\s\S]*?0%/);
+  assert.match(html, /<b>≥ 85<\/b>/, 'protein is a minimum');
+  assert.match(html, /<b>40<\/b>/);
+  assert.ok(html.includes(enIntake.minNote), 'the minimum is explained');
+});

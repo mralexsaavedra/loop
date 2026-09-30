@@ -26,7 +26,13 @@
   window.foodTotals = function () { return null; };
   if (!T || !K || typeof fetch !== 'function' || typeof document === 'undefined') return;
   var esc = HC.esc, format = HC.format, nf = HC.nf;
+  // shared input limits, baked from lib/nutrition/foodlog.mjs FOOD_LIMITS (the ingest checks the same)
+  var LIM = K.limits || {};
+  var BARCODE_RE = new RegExp(LIM.barcodePattern || '^$');
   var API = '/api/food';
+  var TIMEOUT_MS = 15000; // a request that hangs is an ambiguous failure, like offline
+  // a fresh add sheet's meal by the viewer's hour: before 11 breakfast, before 16 lunch, before 20 snack, else dinner
+  var MEAL_HOUR_CUTS = [[11, 'breakfast'], [16, 'lunch'], [20, 'snack']];
   var S = { ok: false, products: [], recipes: [], log: null, sheet: null, pform: null, rform: null, confirm: null };
   var pendingMeal = null;
 
@@ -162,12 +168,38 @@
     return T.errors[code] || T.errors.generic;
   }
   function guessMeal() {
-    var h = new Date(Date.now()).getHours();
-    return h < 11 ? 'breakfast' : h < 16 ? 'lunch' : h < 20 ? 'snack' : 'dinner';
+    var h = new Date().getHours();
+    for (var i = 0; i < MEAL_HOUR_CUTS.length; i++) if (h < MEAL_HOUR_CUTS[i][0]) return MEAL_HOUR_CUTS[i][1];
+    return 'dinner';
+  }
+  // one id per pending add (the server stores it with a unique index, so a retry is idempotent).
+  // crypto.randomUUID needs a secure context, which plain http on the LAN is not: fall back to
+  // getRandomValues (available everywhere), then Math.random, formatted as a v4 UUID
+  function newRequestId() {
+    var c = typeof crypto !== 'undefined' ? crypto : window.crypto;
+    if (c && typeof c.randomUUID === 'function') {
+      try { return c.randomUUID(); } catch (e) { /* insecure context: fall through */ }
+    }
+    var b = [], i;
+    if (c && typeof c.getRandomValues === 'function' && typeof Uint8Array !== 'undefined') {
+      var a = c.getRandomValues(new Uint8Array(16));
+      for (i = 0; i < 16; i++) b.push(a[i]);
+    } else {
+      for (i = 0; i < 16; i++) b.push(Math.floor(Math.random() * 256));
+    }
+    b[6] = (b[6] & 15) | 64;
+    b[8] = (b[8] & 63) | 128;
+    var h = b.map(function (x) { return (x < 16 ? '0' : '') + x.toString(16); }).join('');
+    return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
+  }
+  // no answer, a timeout or a 5xx: the write may or may not have landed
+  function ambiguous(err) {
+    return !err || err.code === 'offline' || !(err.status > 0) || err.status >= 500;
   }
 
   /* ---------- API ---------- */
-  // resolves the JSON body of a 2xx; rejects {code, field?}: the server's coarse code, or 'offline'
+  // resolves the JSON body of a 2xx; rejects {code, field?, status}: the server's coarse code, or
+  // 'offline' (no answer / timed out, status 0)
   function api(method, path, body) {
     var headers = { 'X-HC-Food': '1' };
     var init = { method: method, headers: headers, cache: 'no-store', credentials: 'same-origin' };
@@ -175,22 +207,36 @@
       headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(body);
     }
+    var timer = null;
+    if (typeof AbortController === 'function') {
+      var ctl = new AbortController();
+      init.signal = ctl.signal;
+      timer = setTimeout(function () { ctl.abort(); }, TIMEOUT_MS);
+    }
+    var done = function () { if (timer) clearTimeout(timer); };
     return fetch(API + path, init).then(function (res) {
+      done();
       return res.json().catch(function () { return null; }).then(function (data) {
         if (res.ok) return data || {};
-        throw { code: (data && typeof data.error === 'string' && data.error) || 'generic', field: data && data.field };
+        throw { code: (data && typeof data.error === 'string' && data.error) || 'generic', field: data && data.field, status: res.status };
       });
     }, function () {
-      throw { code: 'offline' };
+      done();
+      throw { code: 'offline', status: 0 };
     });
   }
 
   /* ---------- today's totals for Resumen de hoy + the rings ---------- */
+  /** THE contract nutri-day.js and intake.js rely on (they do not re-check it): null unless the food API
+   * answered AND today (the viewer's local date) has >= 1 entry. Otherwise {date: today, k, p, c, g,
+   * n (entries), missing, src: 'log'}: a macro NO entry states is null (a dash, never 0); missing[m] is
+   * true when at least one entry lacks it, so a non-null value is then a minimum. */
   window.foodTotals = function () {
     var L = S.log;
     if (!S.ok || !L || L.date !== HC.todayIso() || !L.entries.length) return null;
     var t = L.totals;
-    return { date: L.date, k: t.kcal, p: t.protein, c: t.carbs, g: t.fat, n: t.count, missing: t.missing, src: 'log' };
+    var known = function (k) { return L.entries.some(function (e) { return fin(e[k]); }) ? t[k] : null; };
+    return { date: L.date, k: t.kcal, p: known('protein'), c: known('carbs'), g: known('fat'), n: t.count, missing: t.missing, src: 'log' };
   };
   function refreshDependents() {
     var n = window.HCNutri;
@@ -240,13 +286,18 @@
     var e = S.log && find(S.log.entries, id);
     if (!e) return;
     el.disabled = true;
-    api('DELETE', '/log/' + encodeURIComponent(id)).then(function () {
+    var drop = function () {
       S.log.entries = S.log.entries.filter(function (x) { return x !== e; });
       S.log.totals = dayTotals(S.log.entries);
       renderLog();
       refreshDependents();
+    };
+    api('DELETE', '/log/' + encodeURIComponent(id)).then(function () {
+      drop();
       setText('food-msg', format(T.deleted, { label: e.label }));
     }, function (err) {
+      // 404: it is already gone (a double tap, another device): just drop the row
+      if (err && err.status === 404) { drop(); return; }
       el.disabled = false;
       setText('food-msg', errText(err));
     });
@@ -254,7 +305,7 @@
 
   /* ---------- add sheet (window.HCViews['food-add'], rendered by detail.js) ---------- */
   function newSheet(meal) {
-    return { meal: K.meals.indexOf(meal) >= 0 ? meal : guessMeal(), tab: 'products', q: '', pick: null, busy: false };
+    return { meal: K.meals.indexOf(meal) >= 0 ? meal : guessMeal(), tab: 'products', q: '', pick: null, busy: false, reqId: null };
   }
   function norm(s) {
     return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -321,7 +372,7 @@
       '<button type="button" class="food-btn" id="fa-save" data-food-act="save">' + esc(T.sheet.save) + '</button></div>';
   }
   function quickHtml() {
-    return '<div class="fa-quick">' + field('fa-label', T.sheet.label, '<input class="food-in" id="fa-label" type="text" maxlength="120" autocomplete="off">') +
+    return '<div class="fa-quick">' + field('fa-label', T.sheet.label, '<input class="food-in" id="fa-label" type="text" maxlength="' + LIM.nameMax + '" autocomplete="off">') +
       '<div class="food-row">' + field('fa-kcal', T.sheet.kcal, numInput('fa-kcal', '')) + '</div>' +
       '<div class="food-row food-row-3">' + field('fa-p', T.sheet.protein, numInput('fa-p', '')) + field('fa-c', T.sheet.carbs, numInput('fa-c', '')) +
       field('fa-f', T.sheet.fat, numInput('fa-f', '')) + '</div>' +
@@ -357,6 +408,7 @@
     };
   }
   function redrawPanel(focusId) {
+    S.sheet.reqId = null; // another item or tab: a new add
     setHtml('fa-panel', panelHtml());
     var tabs = document.querySelectorAll ? document.querySelectorAll('.fa-tab') : [];
     for (var i = 0; i < tabs.length; i++) tabs[i].setAttribute('aria-pressed', String(tabs[i].getAttribute('data-tab') === S.sheet.tab));
@@ -367,14 +419,11 @@
     var pk = S.sheet && S.sheet.pick, item = pickedItem();
     if (!item) return null;
     var amount = numIn(val('fa-amt')), unit = val('fa-unit') || unitsOf(pk.kind, item)[0];
-    var m = pk.kind === 'recipe' ? recipeEntry(item, byId(S.products), amount, unit) : productEntry(item, amount, unit);
-    // a recipe row carries its computed basis; the products it needs may be archived (not listed):
-    // fall back to the server's basis so the preview matches what will be logged
-    if (!m && pk.kind === 'recipe' && fin(amount) && amount > 0) {
-      if (item.kind === 'serving' && unit === 'serving' && item.perServing) m = roundMacros(times(item.perServing, amount));
-      if (item.kind === 'batch' && unit === 'g' && item.per100) m = roundMacros(times(item.per100, amount / 100));
-    }
-    return { amount: amount, unit: unit, m: m };
+    if (pk.kind === 'product') return { amount: amount, unit: unit, m: productEntry(item, amount, unit) };
+    // the recipe's basis from the listed products; when one of them is archived (not listed), the
+    // server's computed basis on the recipe row (the server still has the product)
+    var b = recipeBasis(item, byId(S.products));
+    return { amount: amount, unit: unit, m: entryFromBasis(b.complete ? b : item, item.kind, amount, unit) };
   }
   function updatePreview() {
     var p = sheetPreview();
@@ -413,14 +462,18 @@
       body = { date: date, meal: meal, refType: sh.pick.kind, refId: Number(sh.pick.id), amount: p.amount, unit: p.unit };
     }
     if (force) body.force = true;
+    sh.reqId = sh.reqId || newRequestId();
+    body.requestId = sh.reqId;
     sh.busy = true;
     var btn = $('fa-save');
     if (btn) btn.disabled = true;
     api('POST', '/log', body).then(function (data) {
       sh.busy = false;
+      sh.reqId = null;
       var e = data.entry;
       if (S.log && S.log.date === date && e) {
-        S.log.entries.push(e);
+        // a replayed add (same request id) may already be in the list from a re-read: replace it
+        S.log.entries = S.log.entries.filter(function (x) { return String(x.id) !== String(e.id); }).concat([e]);
         S.log.totals = data.totals || dayTotals(S.log.entries);
       }
       if (window.HCDetail && typeof window.HCDetail.close === 'function') window.HCDetail.close();
@@ -433,6 +486,8 @@
       sh.busy = false;
       if (btn) btn.disabled = false;
       sheetMsg(errText(err), err && err.code === 'atwater');
+      // it may have been saved after all: show the server's list (the retry keeps the same id)
+      if (ambiguous(err)) loadLog();
     });
   }
 
@@ -484,8 +539,8 @@
     var F = T.products.form;
     return '<div class="fp-form">' +
       (S.pform.source === 'off' ? '<p class="food-note">' + esc(T.products.offIntro) + '</p>' : '') +
-      field('fpf-name', F.name, '<input class="food-in" id="fpf-name" type="text" maxlength="120" autocomplete="off" value="' + esc(f.name || '') + '">') +
-      field('fpf-brand', F.brand, '<input class="food-in" id="fpf-brand" type="text" maxlength="80" autocomplete="off" value="' + esc(f.brand || '') + '">') +
+      field('fpf-name', F.name, '<input class="food-in" id="fpf-name" type="text" maxlength="' + LIM.nameMax + '" autocomplete="off" value="' + esc(f.name || '') + '">') +
+      field('fpf-brand', F.brand, '<input class="food-in" id="fpf-brand" type="text" maxlength="' + LIM.brandMax + '" autocomplete="off" value="' + esc(f.brand || '') + '">') +
       '<div class="food-row">' + field('fpf-store', F.store, '<select class="food-in" id="fpf-store">' + opt(K.stores, f.store || 'mercadona', T.stores) + '</select>') +
       field('fpf-unit', F.unit, '<select class="food-in" id="fpf-unit">' + opt(K.units, f.unit || 'g', T.units) + '</select>') + '</div>' +
       field('fpf-code', F.barcode, '<input class="food-in" id="fpf-code" type="text" inputmode="numeric" maxlength="14" autocomplete="off" value="' + esc(f.barcode || '') + '">') +
@@ -499,7 +554,7 @@
     return '<div class="fp-search"><div class="food-row">' +
       field('fp-code', P.barcode, '<input class="food-in" id="fp-code" type="text" inputmode="numeric" maxlength="14" autocomplete="off">') +
       '<button type="button" class="food-btn food-btn-ghost food-btn-end" data-food-act="p-code">' + esc(P.barcodeBtn) + '</button></div>' +
-      '<div class="food-row">' + field('fp-q', P.query, '<input class="food-in" id="fp-q" type="search" maxlength="80" autocomplete="off">') +
+      '<div class="food-row">' + field('fp-q', P.query, '<input class="food-in" id="fp-q" type="search" maxlength="' + LIM.queryMax + '" autocomplete="off">') +
       '<button type="button" class="food-btn food-btn-ghost food-btn-end" data-food-act="p-search">' + esc(P.queryBtn) + '</button></div>' +
       '<ul class="off-results" id="fp-results" aria-live="polite"></ul>' +
       '<div class="food-btns"><button type="button" class="food-btn food-btn-ghost" data-food-act="p-label">' + esc(P.fromLabel) + '</button>' +
@@ -531,8 +586,8 @@
   }
   function offLookup(kind) {
     var q = kind === 'code' ? val('fp-code').replace(/\s+/g, '') : val('fp-q').replace(/\s+/g, ' ').trim();
-    if (kind === 'code' && !/^[0-9]{8,14}$/.test(q)) { prodMsg(format(T.errors.invalid, { field: T.fields.barcode })); return; }
-    if (kind === 'q' && (q.length < 2 || q.length > 80)) { prodMsg(format(T.errors.invalid, { field: T.fields.name })); return; }
+    if (kind === 'code' && !BARCODE_RE.test(q)) { prodMsg(format(T.errors.invalid, { field: T.fields.barcode })); return; }
+    if (kind === 'q' && (q.length < LIM.queryMin || q.length > LIM.queryMax)) { prodMsg(format(T.errors.invalid, { field: T.fields.name })); return; }
     prodMsg(T.products.searching);
     api('GET', '/off?' + (kind === 'code' ? 'barcode=' : 'q=') + encodeURIComponent(q)).then(function (data) {
       var list = kind === 'code' ? (data.product ? [data.product] : []) : data.results || [];
@@ -550,7 +605,7 @@
     var missing = { kcal: P.kcal == null, protein: P.protein == null, carbs: P.carbs == null, fat: P.fat == null };
     var store = /mercadona/i.test(r.stores || '') ? 'mercadona' : /\bdia\b/i.test(r.stores || '') ? 'dia' : /eroski/i.test(r.stores || '') ? 'eroski' : 'other';
     openProductForm('off', {
-      name: r.name || '', brand: r.brand || '', store: store, unit: r.unit === 'ml' ? 'ml' : 'g', barcode: /^[0-9]{8,14}$/.test(r.code || '') ? r.code : '',
+      name: r.name || '', brand: r.brand || '', store: store, unit: r.unit === 'ml' ? 'ml' : 'g', barcode: BARCODE_RE.test(r.code || '') ? r.code : '',
       kcal: P.kcal, protein: P.protein, carbs: P.carbs, fat: P.fat, servingSize: r.servingSize,
     }, missing, null, /^[0-9]{1,14}$/.test(r.code || '') ? r.code : null);
   }
@@ -562,7 +617,7 @@
     if (brand) body.brand = brand;
     var code = val('fpf-code').replace(/\s+/g, '');
     if (code) {
-      if (!/^[0-9]{8,14}$/.test(code)) return { err: 'barcode' };
+      if (!BARCODE_RE.test(code)) return { err: 'barcode' };
       body.barcode = code;
     }
     // body key order: name, brand, store, barcode, unit, per100, servingSize, source, offCode
@@ -660,7 +715,7 @@
         '<button type="button" class="food-icon-btn" data-food-act="r-del-ing" data-i="' + i + '" aria-label="' + esc(format(R.removeAria, { n: n })) + '">' + DEL_SVG + '</button></div>';
     }).join('');
     return '<div class="fp-form">' +
-      field('frf-name', R.name, '<input class="food-in" id="frf-name" type="text" maxlength="120" autocomplete="off" value="' + esc(f.name || '') + '">') +
+      field('frf-name', R.name, '<input class="food-in" id="frf-name" type="text" maxlength="' + LIM.nameMax + '" autocomplete="off" value="' + esc(f.name || '') + '">') +
       '<div class="food-row">' + field('frf-kind', R.kind, '<select class="food-in" id="frf-kind">' + kinds + '</select>') +
       (f.kind === 'serving'
         ? field('frf-serv', R.servings, numInput('frf-serv', f.servings))
@@ -882,6 +937,6 @@
     dayTotals: dayTotals,
     atwaterOk: atwaterOk,
     roundMacros: roundMacros,
-    state: function () { return S; },
+    state: function () { return S; }, // test-only: the tests read the in-memory state
   };
 })();

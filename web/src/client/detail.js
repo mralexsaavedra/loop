@@ -708,6 +708,15 @@
     render();
     focusEl(focusSel);
   }
+  // a Tab stop the browser can really focus: not disabled, not hidden, not inside a [hidden] block,
+  // a closed <details> body or a disabled fieldset
+  function focusable(el) {
+    if (!el || el.disabled || el.hidden) return false;
+    if (!el.closest) return true;
+    if (el.closest('[hidden]') || el.closest('fieldset[disabled]')) return false;
+    var d = el.closest('details');
+    return !d || d.open || (el.tagName === 'SUMMARY' && el.parentElement === d);
+  }
   // a control inside a card (a link, a button, a summary…) keeps its own job: only a tap on the card
   // itself or its plain content opens the sheet
   var CONTROL_TAGS = ['A', 'BUTTON', 'SUMMARY', 'INPUT', 'SELECT', 'TEXTAREA'];
@@ -737,7 +746,7 @@
     if (isOpen()) {
       if (e.key === 'Escape' || e.key === 'Esc') { e.preventDefault(); close(); return; }
       if (e.key === 'Tab' && host.querySelectorAll) {
-        var f = Array.prototype.slice.call(host.querySelectorAll(TRAP));
+        var f = Array.prototype.slice.call(host.querySelectorAll(TRAP)).filter(focusable);
         if (!f.length) return;
         var i = f.indexOf(document.activeElement);
         if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }

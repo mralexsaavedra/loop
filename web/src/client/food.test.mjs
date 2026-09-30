@@ -10,7 +10,8 @@ import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { es as esF, en as enF } from '../i18n/food-templates.mjs';
-import { FOODLOG_CASES, runCase, FOOD_MEALS, FOOD_STORES, FOOD_UNITS } from '../../../lib/nutrition/foodlog.mjs';
+import { FOODLOG_CASES, runCase, FOOD_MEALS, FOOD_STORES, FOOD_UNITS, FOOD_LIMITS } from '../../../lib/nutrition/foodlog.mjs';
+const FOOD_CONST = { meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS, limits: FOOD_LIMITS };
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'food.js'), 'utf8');
@@ -63,8 +64,8 @@ function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [] } = {}) {
     HCDetail: { open: (key, date, opts) => opened.push([key, opts]), close: () => opened.push(['close']) },
   };
   const ctx = {
-    document: doc, window, I18N_FOOD: locale === 'es' ? esF : enF, FOOD_CONST: { meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS },
-    LOCALE: locale, Date: fixedDate(TODAY), Math, JSON, Number, String, Object, Array, Promise, isFinite, fetch,
+    document: doc, window, I18N_FOOD: locale === 'es' ? esF : enF, FOOD_CONST,
+    LOCALE: locale, Date: fixedDate(TODAY), Math, JSON, Number, String, Object, Array, Promise, isFinite, fetch, Uint8Array, setTimeout, clearTimeout,
   };
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -99,7 +100,7 @@ test('no food API (artifact, file://, example build): everything stays hidden, n
 
 test('no fetch at all: the script still defines a null foodTotals and touches nothing', () => {
   const doc = new StubDocument();
-  const ctx = { document: doc, window: {}, I18N_FOOD: esF, FOOD_CONST: { meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS }, LOCALE: 'es', Date: fixedDate(TODAY) };
+  const ctx = { document: doc, window: {}, I18N_FOOD: esF, FOOD_CONST, LOCALE: 'es', Date: fixedDate(TODAY) };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
@@ -181,6 +182,8 @@ test('adding a product: live preview with the shared formula, POST with the loca
   t.hooks.length = 0;
   t.fire('click', t.button({ 'data-food-act': 'save' }));
   await flush();
+  assert.match(posted.requestId, /^[A-Za-z0-9-]{8,64}$/, 'every add carries its request id');
+  delete posted.requestId;
   assert.deepEqual(posted, { date: TODAY, meal: 'lunch', refType: 'product', refId: 2, amount: 250, unit: 'ml' });
   const post = t.calls.find((c) => c.key === 'POST /api/food/log');
   assert.equal(post.init.headers['Content-Type'], 'application/json');
@@ -210,7 +213,7 @@ test('a decimal comma is accepted; an amount the unit cannot take is not sent', 
 
 test('a recipe entry is logged in servings; a quick entry sends only what the owner typed', async () => {
   const bodies = [];
-  const routes = { ...BOOT, 'POST /api/food/log': (init) => { bodies.push(JSON.parse(init.body)); return json({ entry: { ...ENTRY, id: 60 + bodies.length }, totals: TOTALS1 }, 201); } };
+  const routes = { ...BOOT, 'POST /api/food/log': (init) => { const b = JSON.parse(init.body); delete b.requestId; bodies.push(b); return json({ entry: { ...ENTRY, id: 60 + bodies.length }, totals: TOTALS1 }, 201); } };
   const t = setup({ routes, extraIds: ['fa-panel', 'fa-prev', 'fa-msg'] });
   await flush();
   t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'dinner' }));
@@ -383,4 +386,99 @@ test('en locale: the English copy and a decimal point', async () => {
   await flush();
   assert.match(text(t.els['food-log'].innerHTML), /Logged today 75 kcal/);
   assert.match(text(t.els['food-log'].innerHTML), /P 12\.5 · C 5 · F 0\.3/);
+});
+
+const entry = (o) => ({ ...ENTRY, ...o });
+
+test('foodTotals: a macro NO entry states is null (a dash, never 0); a macro SOME entries lack keeps its sum, flagged as a minimum', async () => {
+  const quick = [entry({ id: 1, refType: 'quick', protein: null, carbs: null, fat: null, kcal: 250 }), entry({ id: 2, refType: 'quick', protein: null, carbs: null, fat: null, kcal: 100 })];
+  const all = setup({ routes: { ...BOOT, [`GET /api/food/log?date=${TODAY}`]: json({ date: TODAY, entries: quick, totals: { kcal: 350, protein: 0, carbs: 0, fat: 0, count: 2, missing: { protein: true, carbs: true, fat: true } } }) } });
+  await flush();
+  const a = all.window.foodTotals();
+  assert.equal(a.k, 350);
+  assert.equal(a.p, null);
+  assert.equal(a.c, null);
+  assert.equal(a.g, null);
+  const partial = setup({ routes: { ...BOOT, [`GET /api/food/log?date=${TODAY}`]: json({ date: TODAY, entries: [ENTRY, quick[0]], totals: { kcal: 325, protein: 12.5, carbs: 5, fat: 0.3, count: 2, missing: { protein: true, carbs: true, fat: true } } }) } });
+  await flush();
+  const b = partial.window.foodTotals();
+  assert.equal(b.p, 12.5);
+  assert.equal(b.missing.protein, true, 'a minimum: some entries lack protein');
+});
+
+test('idempotent add: one request id per pending add, reused on a retry after an ambiguous failure (offline / 5xx), the log re-read after it, and a replayed row never duplicated', async () => {
+  let n = 0;
+  const saved = entry({ id: 80, meal: 'snack', refType: 'quick', label: 'Barrita', kcal: 200, protein: null, carbs: null, fat: null });
+  const routes = {
+    ...BOOT,
+    'POST /api/food/log': () => {
+      n++;
+      if (n === 1) return new TypeError('Failed to fetch'); // the add may or may not have landed
+      if (n === 2) return json({ error: 'internal' }, 500);
+      return json({ entry: saved, totals: { ...TOTALS1, kcal: 275, count: 2 } }, 200); // the server replays the stored row
+    },
+  };
+  const t = setup({ routes, extraIds: ['fa-panel', 'fa-prev', 'fa-msg'] });
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'snack' }));
+  t.window.HCViews['food-add'].render();
+  t.fire('click', t.button({ 'data-food-act': 'tab', 'data-tab': 'quick' }));
+  t.input('fa-label', 'Barrita');
+  t.input('fa-kcal', '200');
+  const logReads = () => t.calls.filter((c) => c.key === `GET /api/food/log?date=${TODAY}`).length;
+  const before = logReads();
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(logReads(), before + 1, 'after an ambiguous failure the log is read again');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(logReads(), before + 2);
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  const ids = t.calls.filter((c) => c.key === 'POST /api/food/log').map((c) => c.body.requestId);
+  assert.equal(ids.length, 3);
+  assert.match(ids[0], /^[A-Za-z0-9-]{8,64}$/);
+  assert.ok(ids.every((id) => id === ids[0]), 'the same pending add keeps its id');
+  // the re-read may already have brought the row in: a replayed entry replaces, never duplicates
+  const rows = t.window.HCFood.state().log.entries.filter((e) => e.id === 80);
+  assert.equal(rows.length, 1);
+  // a NEW add gets a new id
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'snack' }));
+  t.window.HCViews['food-add'].render();
+  t.fire('click', t.button({ 'data-food-act': 'tab', 'data-tab': 'quick' }));
+  t.input('fa-label', 'Otra');
+  t.input('fa-kcal', '50');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.notEqual(t.calls.filter((c) => c.key === 'POST /api/food/log').at(-1).body.requestId, ids[0]);
+});
+
+test('the request id works without crypto.randomUUID (plain http on the LAN is not a secure context)', async () => {
+  const t = setup({ routes: { ...BOOT, 'POST /api/food/log': json({ entry: entry({ id: 90 }), totals: TOTALS1 }, 201) }, extraIds: ['fa-panel', 'fa-msg'] });
+  t.ctx.crypto = { getRandomValues: (a) => { for (let i = 0; i < a.length; i++) a[i] = i * 17; return a; } };
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'snack' }));
+  t.window.HCViews['food-add'].render();
+  t.fire('click', t.button({ 'data-food-act': 'tab', 'data-tab': 'quick' }));
+  t.input('fa-label', 'x');
+  t.input('fa-kcal', '1');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.match(t.calls.find((c) => c.key === 'POST /api/food/log').body.requestId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+});
+
+test('a delete answered 404 (already gone, e.g. a double tap) removes the row silently', async () => {
+  const t = setup({ routes: { ...BOOT, 'DELETE /api/food/log/50': json({ error: 'not_found' }, 404) } });
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'del', 'data-id': '50' }));
+  await flush();
+  assert.doesNotMatch(t.els['food-log'].innerHTML, /data-id="50"/);
+  assert.equal(t.els['food-msg'].textContent, '');
+  assert.equal(t.window.foodTotals(), null);
+});
+
+test('limits come baked from lib/nutrition/foodlog.mjs (FOOD_CONST.limits), never as client literals', () => {
+  assert.match(source, /K\.limits/);
+  assert.doesNotMatch(source, /\[0-9\]\{8,14\}/, 'the barcode pattern is baked');
+  assert.doesNotMatch(source, /maxlength="(120|80)"/);
 });
