@@ -153,7 +153,11 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   so they still render there. The **top bar** (`.topbar`, above the nav) always carries the viewer's
   date ("mié 30 sept" / "Wed 30 Sep", small caps like the other labels), written client-side by
   `web/src/client/today-date.js` with `HC.fmtDate` (nothing time-based baked, builds stay
-  byte-identical), next to the freshness line / Sync button.
+  byte-identical). The bar is ONE row on phones (no wrap at 360 px): date · status dot + short
+  freshness (`#fresh-sum`, the Shortcut age; the dot carries the worst source level; tap = the
+  per-source popover `#fresh-pop`) · icon-only Sync (`#sync-btn`, circular-arrows SVG, `aria-label`,
+  44 px, class `is-busy` spins it while syncing, no spin under reduced motion) · avatar (36 px circle
+  in a 44 px target).
 
 **Tabs and sections.** Four top-level tabs, one question each (Whoop-style: the glance on Inicio,
 the detail one tap away). Nav = fixed bottom bar on narrow screens (four equal buttons that fit a
@@ -494,18 +498,30 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   (Constructor de día: verdict target + which option lists) and the intake rings, and every goal /
   day type / ride change calls `window.bldRefresh()` and `window.intakeRefresh()` directly, each on
   its own (a failing one shows a one-line message, never leaves the other stale).
-- **Resumen de hoy** — day type radios, today's target kcal + P / F / C ("carbs are the rest") with the
-  goal as a small muted chip next to the kcal ("3.050 kcal · Mantener", a ≥ 44 px button via padding,
-  `#nutri-goal-chip`) that opens the profile sheet focused on its Objetivo setting (`HCDetail.open(
-  'profile', null, { focus: '#pf-goal input:checked' })`),
-  the plan line (meals total; on bike days "meals + ride fuel = total"), remainder / macro notes, then
-  the intake rings. Inicio's "today you eat" card (`#eat-body`) shows the same day type, goal and target.
-- **Plan de hoy** — the base day's meals with the scaled amounts (flex parts tagged "scaled"), meal
-  kcal + P / C / G, the carb factor ("×1.6 vs the base plan", "(the maximum applied)" when clamped).
+- **Resumen de hoy** — the day type as ONE row of 4 equal segments (real radios, inline SVG line
+  icons, short labels `dayShort`: Descanso · Gym · Bici · Bici larga; the full `dayTypes` names stay
+  for sentences and the segment title; the DETECTED type's segment gets `.seg-auto`, a small dot), then
+  a 270° kcal dial (`.nt-dial`, the Inicio dials' arc baked as `NUTRI_ARC` from `view/dial.mjs`
+  `arcPath(0, 1)`; target kcal centred in `--num`). The dial and the three macro bars (Protein /
+  Carbs / Fat, grams in `--num`) fill ONLY from intake logged on the viewer's today (`INTAKE.latest`
+  dated today: fill = logged / target via `pathLength` 100, `--trend`, > 110 % `--mid`, a missing macro
+  = an empty bar with a dash); otherwise the empty track + the target. The goal is a muted chip under
+  the dial (a ≥ 44 px button, `#nutri-goal-chip`) that opens the profile sheet focused on its Objetivo
+  setting (`HCDetail.open('profile', null, { focus: '#pf-goal input:checked' })`), then the plan line
+  (meals total; on bike days "meals + ride fuel = total"), remainder / macro notes, then the intake
+  rings — which step aside (host hidden) when the logged day is today, since the dial shows it. Inicio's
+  "today you eat" card (`#eat-body`) shows the same day type, goal and target.
+- **Plan de hoy** — restrained meal cards (no accent border): meal name as a caps label, kcal big in
+  `--num`; item rows = name left, amount right; a scaled portion carries a small muted ↑ / ↓ with an
+  aria-label (`solveScale` / `planFor` return `qa` / `flexAmts` per-line amounts and `dir` /
+  `flexDir`); a composite item (several recipe lines, no amount of its own; baked with `c` names and,
+  when fixed, `a` amounts) lists its components as sub-rows (name · amount), never "82 g + 20 g";
+  a muted P / C / F (es: G) mini line; the carb factor ("×1.6 vs the base plan", "(the maximum
+  applied)" when clamped).
 - **Supplements** — optional `supplements: [{ name, dose?, meal }]` in `profile/profile.json`
   (`meal` = breakfast | lunch | preworkout | postworkout | dinner | snack, `lib/nutrition/slots.mjs`
-  `MEAL_SLOTS`; validated by `validateManual`). A discreet "💊 name dose" line under the first meal of
-  that slot (no macros); ones whose slot is not in today's plan are listed under "Other supplements
+  `MEAL_SLOTS`; validated by `validateManual`). A discreet "name dose" line under the first meal of
+  that slot (no macros; a small pill SVG icon, no emoji); ones whose slot is not in today's plan are listed under "Other supplements
   today" with their slot. A meal's slot = its own `slot` field, else guessed from its es / en name
   (`mealSlot`: desayuno / breakfast, comida / lunch, pre / post-entreno / workout, cena / dinner,
   merienda / snack / anclaje). They are also listed in the profile sheet.
@@ -519,7 +535,9 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   gels). The on-bike carbs count inside the day total (plan point = the range midpoint × hours), so
   the duration also re-scales the meals. A recorded ride uses its real minutes (shown, not pickable);
   a picked duration is kept per date and day type (`hc.nutri.rideMin` = `{date, type, min}`, expires
-  the next day). It says it is orientative, not medical advice.
+  the next day). Rendered as a 3-step timeline (Antes → Durante → Después, `.fuel-steps`) with one key
+  number per step in `--num` (carbs before, g/h during, carbs after). It says it is orientative, not
+  medical advice.
 - **Migration** — `node scripts/migrate-plan-v2.mjs [--dry-run] [--reset-flex] [--include-fruit]
   [--file <path>]` upgrades an existing personal plan-data.json in place, idempotently: adds
   `targets.byGoal` (defaults) when absent, marks `flex: "carb"` on dayPlan parts that are carb STAPLES
@@ -925,8 +943,10 @@ Besides the claude.ai artifact, `services/plan-web` serves `web/dist/personal/in
   runs as the owner).
 - **Freshness line** (`web/src/client/freshness.js`, copy `web/src/i18n/sync-templates.mjs`, markup
   in `layouts/Plan.astro` above the nav): at view time it reads `GET /api/sync/status` and
-  `/status.json`, and renders "Atajo: hace 5 min · Strava: hace 2 h · Página: hace 1 min": > 24 h
-  `--mid` + a short hint, > 72 h `--low`. Sync POSTs, then polls both every 5 s: `processedSeq >= seq`
+  `/status.json`; the top bar shows a dot + the Shortcut age ("hace 5 min"), and the per-source line
+  "Atajo: hace 5 min · Strava: hace 2 h · Página: hace 1 min" (> 24 h `--mid` + a short hint, > 72 h
+  `--low`; the dot takes the worst level) is the summary's title / aria-label and fills the popover a
+  tap on it toggles (Esc / a tap outside closes it). Sync POSTs, then polls both every 5 s: `processedSeq >= seq`
   → reload; `errorSeq >= seq` (status.json) or `lastTriggerErrorSeq >= seq` (ingest) → fail fast with
   "No se pudo actualizar: <reason>" (`errors` map; unknown code → generic reason); 5 min → "No se pudo
   actualizar, reintenta". The block ships `hidden` and stays hidden when `/api/sync/status` is
