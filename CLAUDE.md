@@ -388,7 +388,8 @@ anchor for Inicio's health monitor.
 - **Energy** — `active-energy-daily.csv` + `basal-energy-daily.csv` give expenditure (TDEE,
   7-day rolling); `dietary-daily.csv` gives intake AND the macro split (protein/carbs/fat, g + %
   kcal). Data honesty: intake logging is sparse and abandoned, so the balance (deficit/surplus)
-  AND the macro split are shown ONLY when ≥7 logged days exist in the recent window; otherwise
+  AND the macro split are shown ONLY when intake was logged within the last 14 days of the newest
+  expenditure day and ≥7 logged days exist in the 90 days ending at that day; otherwise
   the page shows expenditure alone and says intake can't be scored. Implausible basal readings
   (double-counts / no-wear) are dropped via a sane band.
 - **Running** — `workouts.csv` Running rows (Watch export AND `sync:strava`, via `readRuns`), merged
