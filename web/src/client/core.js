@@ -46,7 +46,7 @@ function setTab(name, scrollTop) {
     var b = document.getElementById('t-' + key);
     if (b) b.setAttribute('aria-pressed', key === name);
   });
-  // the train/rest toggle belongs to Nutrición; data-off = neither Mi día nor Registro is visible
+  // the train/rest toggle belongs to Nutrición; data-off = it drives nothing visible (lib/nav/tabs.mjs showDayToggle)
   var dt = document.getElementById('day-toggle');
   if (dt) dt.style.display = name === 'nutricion' && dt.getAttribute('data-off') == null ? '' : 'none';
   if (scrollTop !== false) window.scrollTo({ top: 0, behavior: 'auto' });

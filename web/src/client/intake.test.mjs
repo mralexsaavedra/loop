@@ -23,11 +23,11 @@ function fixedDate(iso) {
   };
 }
 
-function run({ latest, today, day = 'train', locale = 'en' }) {
+function run({ latest, today, day = 'train', locale = 'en', nutriTarget = null }) {
   const doc = new StubDocument();
   const host = doc.el('intake');
   doc.el('b-train', { attrs: { 'aria-pressed': day === 'train' ? 'true' : 'false' } });
-  const window = {};
+  const window = nutriTarget ? { nutriTarget } : {};
   const ctx = {
     document: doc, window, INTAKE: { latest, target: TARGET, freshDays: 3 }, I18N_INTAKE: locale === 'es' ? esIntake : enIntake, LOCALE: locale,
     Math, String, Number, JSON, Date: fixedDate(today),
@@ -122,4 +122,14 @@ test('a logged day that is the viewer\'s today is labelled as in progress, not a
   assert.match(es, /class="intake-asof">Hoy, en curso</);
   const yesterday = run({ latest: { date: '2030-01-09', k: 900, p: 60, c: 90, g: 30 }, today: '2030-01-10' }).host.innerHTML;
   assert.doesNotMatch(yesterday, /so far/);
+});
+
+test('with Nutrición today (window.nutriTarget), the rings measure against that goal x day type target', () => {
+  const nutriTarget = () => ({ k: 3050, p: 150, c: 424, g: 60, label: "Today's target · Gym or run · Maintain" });
+  const html = run({ latest: { date: '2030-01-10', k: 1525, p: 75, c: 212, g: 30 }, today: '2030-01-10', nutriTarget }).host.innerHTML;
+  assert.match(html, /of 3050 kcal/);
+  assert.match(html, /50%/);
+  assert.match(html, /Today&#39;s target · Gym or run · Maintain|Today's target · Gym or run · Maintain/);
+  const broken = run({ latest: { date: '2030-01-10', k: 1200, p: 1, c: 1, g: 1 }, today: '2030-01-10', nutriTarget: () => { throw new Error('x'); } }).host.innerHTML;
+  assert.match(broken, /of 2400 kcal/, 'falls back to the train/rest plan total');
 });

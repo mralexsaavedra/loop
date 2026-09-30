@@ -1,41 +1,22 @@
 ---
-/* Inicio's compact "Hoy comes / Today you eat" card: the train/rest toggle plus that day's
- * kcal/protein/carbs/fat — the same totals the Mi día section shows (web/src/view/day-totals.mjs)
- * — and a link to the Nutrición tab. The full meal plan is NOT repeated here.
- *
- * Its toggle buttons carry `data-set-day` and its day blocks are `.eat-day[data-day]`, both kept
- * in sync by core.js setDay() with the global #day-toggle, so the chosen day type is one state.
+/* Inicio's compact "Hoy comes / Today you eat" card: today's day type (auto or chosen) and goal, and
+ * that day's target kcal / protein / carbs / fat — the same numbers Nutrición's Resumen de hoy shows,
+ * written into #eat-body by client/nutri-day.js from NUTRI (baked by tabs/Dia.astro) on the viewer's
+ * clock. The day type and goal are picked in Nutrición; the full meal plan is NOT repeated here.
  */
-import { dayViewModel } from '../view/day-totals.mjs';
+import { es as esNutri, en as enNutri } from '../i18n/nutri-templates.mjs';
 
 interface Props {
-  nut: any; // buildNutrition() result
-  dict: any;
+  locale: string;
   link?: boolean; // false when page.hideTabs hides Nutrición: no link to an unreachable tab
 }
-const { nut, dict, link = true } = Astro.props;
-const t = dict.strings.eat;
-const rk = (n: number) => Math.round(n);
-const dotThousands = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-const days = (['train', 'rest'] as const).map((day) => ({ day, totals: dayViewModel(nut, day).totals }));
+const { locale, link = true } = Astro.props;
+const t = (locale === 'es' ? esNutri : enNutri).eat;
 ---
 <div class="eat-card">
   <div class="eat-head">
     <h3>{t.heading}</h3>
-    <div class="toggle eat-toggle" role="group" aria-label={dict.strings.dayToggle.ariaLabel}>
-      <button type="button" data-set-day="train" aria-pressed="true" onclick="setDay('train')">{dict.strings.dayToggle.train}</button>
-      <button type="button" data-set-day="rest" aria-pressed="false" onclick="setDay('rest')">{dict.strings.dayToggle.rest}</button>
-    </div>
   </div>
-  {days.map(({ day, totals }) => (
-    <div class="eat-day" data-day={day} hidden={day !== 'train'}>
-      <div class="eat-kcal">~{dotThousands(rk(totals.k))}<span>kcal</span></div>
-      <div class="eat-macros">
-        <div class="eat-mac"><b>{rk(totals.p)} g</b><span>{t.protein}</span></div>
-        <div class="eat-mac"><b>{rk(totals.c)} g</b><span>{t.carbs}</span></div>
-        <div class="eat-mac"><b>{rk(totals.g)} g</b><span>{t.fat}</span></div>
-      </div>
-    </div>
-  ))}
+  <div id="eat-body" aria-live="polite"></div>
   {link && <button type="button" class="lnk eat-link" onclick="setTab('nutricion')">{t.fullPlan} →</button>}
 </div>
