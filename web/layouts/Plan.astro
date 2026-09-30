@@ -3,8 +3,9 @@
  * (personal copy), and the end-of-body script order per design: bake (each
  * tab's own Bake, e.g. Registro's) → NAV + HC_CONST → util (window.HC, the shared client helpers,
  * FIRST so every later script can read it) → core (setTab/setDay/jump/bump) →
- * nutrition → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → freshness.
- * Tabs render inside <slot />. The freshness line + Sync button (#freshness) render hidden; freshness.js
+ * nutrition → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → detail → freshness.
+ * Tabs render inside <slot />; the detail sheet (components/DetailSheet.astro) renders in the `overlay`
+ * slot, after .wrap, so detail.js can make the page behind it inert. The freshness line + Sync button (#freshness) render hidden; freshness.js
  * shows them only when the page's server answers /api/sync/status (see services/plan-web/README.md).
  */
 import '../src/styles/tokens.css';
@@ -16,6 +17,7 @@ import '../src/styles/training.css';
 import '../src/styles/health.css';
 import '../src/styles/score.css';
 import '../src/styles/layout.css';
+import '../src/styles/detail.css';
 import utilScript from '../src/client/util.js?raw';
 import coreScript from '../src/client/core.js?raw';
 import nutritionScript from '../src/client/nutrition.js?raw';
@@ -28,6 +30,7 @@ import monitorScript from '../src/client/monitor.js?raw';
 import timelineScript from '../src/client/timeline.js?raw';
 import intakeScript from '../src/client/intake.js?raw';
 import freshnessScript from '../src/client/freshness.js?raw';
+import detailScript from '../src/client/detail.js?raw';
 import { es as esSync, en as enSync } from '../src/i18n/sync-templates.mjs';
 import { es as esDate, en as enDate } from '../src/i18n/date-templates.mjs';
 // Numerals font: a ~1.5 KB subset of D-DIN Bold (SIL OFL 1.1, renamed "HC Num" as the OFL requires
@@ -112,6 +115,7 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
         <footer set:html={page.footerHtml} />
       )}
     </div>
+    <slot name="overlay" />
     <script is:inline set:html={navSource} />
     <script is:inline set:html={utilScript} />
     <script is:inline set:html={coreScript} />
@@ -124,6 +128,7 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
     <script is:inline set:html={scoreScript} />
     <script is:inline set:html={monitorScript} />
     <script is:inline set:html={timelineScript} />
+    <script is:inline set:html={detailScript} />
     <script is:inline set:html={freshnessScript} />
   </body>
 </html>

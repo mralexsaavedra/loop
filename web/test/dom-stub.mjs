@@ -109,6 +109,9 @@ export class StubElement {
     (this._listeners[evt] || []).forEach((fn) => fn.call(this));
   }
   /** Real-DOM alias of `parent`, so client code can walk ancestors the browser way. */
+  removeAttribute(name) {
+    delete this.attrs[name];
+  }
   get parentElement() {
     return this.parent;
   }
