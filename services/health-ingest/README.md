@@ -22,7 +22,7 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 | Method | Path                          | Auth   | Response |
 | ------ | ----------------------------- | ------ | -------- |
 | GET    | `/healthz`                    | none   | `200` when the database answers; `degraded: true, reason: "strava_stale"` when Strava is configured and its last PERSISTED success is older than 6 h (or it never succeeded) |
-| POST   | `/sync`                       | none   | `202` `{ok, seq, coalesced, strava?}`; never refuses (repeated clicks coalesce) |
+| POST   | `/sync`                       | none   | `202` `{ok, seq, coalesced, deferred?, strava?}`; never refuses (repeated clicks coalesce or defer) |
 | GET    | `/sync/status`                | none   | `200` `{lastShortcutAt, lastStravaOkAt, lastStravaError, lastTriggerAt, lastTriggerError, lastTriggerErrorSeq, triggerSeq, stravaConfigured}` (coarse codes only, cached 5 s) |
 | POST   | `/ingest/health-auto-export`  | bearer | `202` with the stored row id |
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
@@ -56,11 +56,29 @@ The host watches that file with a systemd path unit and runs
 `status.json`; the page reloads once `processedSeq >= seq` (details and install
 steps: `services/plan-web/README.md`).
 
-**Coalescing instead of rate limiting.** A click while the previous trigger is
-still pending (pull + write not done), or within 60 s of the last accepted one,
-gets `202 {seq: <current>, coalesced: true}` and causes no work. There is no
-`429`, so nobody can lock the owner out, and cost stays bounded: at most one
-trigger write (= one rebuild) per minute and one Strava pull per 5 min.
+**Coalescing instead of rate limiting, and nothing dropped.**
+
+- A click while the previous trigger is still pending (pull + write not done)
+  gets `202 {seq: <current>, coalesced: true}` and causes no work: the rebuild
+  has not started, so it will include whatever just arrived.
+- A click within 60 s of the last completed write may carry
+  newer data (the Shortcut POSTs its payload, then calls `/sync`, seconds after
+  a Sync click). It gets a NEW seq, `202 {seq, coalesced: true, deferred: true}`,
+  and ONE trigger write is scheduled for the end of the 60 s window. Later
+  clicks in the window reuse that seq. The deferred run pulls Strava only if
+  its own 5 min cooldown allows.
+
+There is no `429`, so nobody can lock the owner out, and cost stays bounded: at
+most one trigger write (= one rebuild) per minute and one Strava pull per 5 min.
+The 60 s window runs from the write's completion, not from the click, so a slow
+Strava pull cannot produce two writes seconds apart. Nothing new is persisted
+(the deferred seq is an ordinary `trigger_seq`). On `SIGTERM`/`SIGINT` a pending
+deferred write is flushed at once (no Strava pull) and an in-flight run is
+awaited for up to 2 s; past that the persisted seq is written directly, so the
+trigger file and the DB agree (all bounded to 3 s). If the process dies without
+that, the DB seq is ahead of the trigger file: at boot the service writes it
+once (after 5 s, and no earlier than 60 s after the last recorded write), so
+the host rebuild processes it and a waiting page completes.
 
 `GET /sync/status` feeds the page's freshness line and the Sync button:
 the newest payload's `received_at`, the last Strava success, the last Strava

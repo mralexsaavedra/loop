@@ -60,8 +60,9 @@ The service answers `202` with the stored row id. A `401` means the token does n
    This only **triggers a refresh**: the ingest service pulls Strava and the host rebuilds the
    plan page (see `services/plan-web/README.md`), so the page shows what you just sent within a
    minute or two instead of at the next hourly run. It sends and returns no health data (only a
-   sequence number), needs no token, and never refuses: a second call within a minute just joins
-   the refresh already queued (`"coalesced": true`), which is fine. Skip this step if you do not
+   sequence number), needs no token, and never refuses: a call within a minute of the last refresh
+   queues ONE follow-up refresh at the end of that minute (`"coalesced": true, "deferred": true`), so
+   the payload you just sent is never skipped. Skip this step if you do not
    run `services/plan-web`.
 
    Your public reverse proxy must forward `/sync` for this step (and `/ingest/*` for step 4),

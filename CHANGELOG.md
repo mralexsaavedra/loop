@@ -10,7 +10,9 @@ The LAN page no longer waits for the hourly cron: a Sync button (and a last Shor
 health-ingest `POST /sync` (unauthenticated), which assigns a persisted sequence number, pulls
 Strava (at most once per 5 min) and atomically writes the seq to a trigger file; a systemd path unit
 on the host runs `refresh.sh` (as the repo owner, hardened). Repeated clicks coalesce onto the
-pending seq (at most one rebuild per minute, never a `429`). `refresh.sh` publishes
+pending seq (at most one rebuild per minute, never a `429`); a call inside the 60 s window after
+a finished write gets a new, deferred seq written when the window closes, so a Shortcut payload sent
+right after a rebuild is never left unpublished. `refresh.sh` publishes
 `site/status.json` `{publishedAt, commit, branch, processedSeq}`, re-runs (max 3 passes) when the seq
 advanced mid-run, reports early exits as coarse codes (`branch`, `install`, `build`, `sanity`,
 `lock`) without touching the last good publish, publishes only `main` and time-boxes each step

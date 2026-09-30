@@ -250,3 +250,13 @@ test('sql/003_sync.sql defines every sync_status column status.js reads or write
   assert.ok(used.size >= 8)
   for (const col of used) assert.match(sql, new RegExp(`\\b${col}\\s+(TIMESTAMPTZ|TEXT|BIGINT|BOOLEAN)`), col)
 })
+
+test('lastTriggerAtMs: the persisted last trigger write as epoch ms, null when none', async () => {
+  const empty = createSyncStatus({ pool: fakePool(), stravaConfigured: false, now: () => T0 })
+  await empty.load()
+  assert.equal(empty.lastTriggerAtMs(), null)
+  const pool = fakePool({ state: { last_trigger_at: new Date(T0 - 60_000), trigger_seq: '3' } })
+  const status = createSyncStatus({ pool, stravaConfigured: false, now: () => T0 })
+  await status.load()
+  assert.equal(status.lastTriggerAtMs(), T0 - 60_000)
+})
