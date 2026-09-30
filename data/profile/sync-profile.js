@@ -7,12 +7,16 @@
  * Env    : INGEST_URL (default http://localhost:8088), INGEST_TOKEN (falls back to
  *          services/health-ingest/.env, like the other syncs).
  * Writes : data/profile/strava-profile.json (only when its content changed, temp file + rename)
- *          and data/profile/avatar.jpg (Strava's `profile_medium`, a small JPEG capped at
- *          MAX_AVATAR_BYTES; downloaded only when the photo URL changed or the file is missing).
- *          Both are gitignored (personal).
+ *          and data/profile/avatar.jpg (Strava's `profile_medium`: only from Strava's photo hosts,
+ *          https, no redirects, image/jpeg + JPEG magic bytes, streamed with a hard
+ *          MAX_AVATAR_BYTES cap). The snapshot's `avatarSourceUrl` = the URL the saved photo came
+ *          from, set only after a successful download (photo written first, then the JSON); a
+ *          download is planned whenever it differs from profileMedium or the file is missing, so a
+ *          failed one is retried next run. Both files are gitignored (personal).
  * Errors : no token / unreachable service / an ingest image without the endpoint (404) -> exit 1
  *          and NO file touched, so the previous snapshot keeps feeding the build. A failed avatar
- *          download is only a warning: the previous avatar stays, exit 0.
+ *          download is only a warning: the previous avatar stays, exit 0. Anything else -> one
+ *          `ERROR:` line, exit 1.
  */
 const fs = require('fs')
 const path = require('path')
@@ -51,13 +55,37 @@ function normalizeExport (body) {
 
 /**
  * 'download' | 'keep' | 'remove'. No snapshot on the service yet (fetchedAt null) -> keep
- * whatever is on disk; a snapshot without a photo -> remove the old one.
+ * whatever is on disk; a snapshot without a photo -> remove the old one. The decision compares
+ * the URL the saved photo was actually downloaded from (`avatarSourceUrl`, set only after a
+ * successful download), not the last profileMedium seen, so a failed download is retried.
  */
 function planAvatar ({ next, prev, avatarExists }) {
   if (!next.fetchedAt) return 'keep'
   if (!next.profileMedium) return avatarExists ? 'remove' : 'keep'
-  if (avatarExists && prev && prev.profileMedium === next.profileMedium) return 'keep'
+  if (avatarExists && prev && prev.avatarSourceUrl === next.profileMedium) return 'keep'
   return 'download'
+}
+
+/*
+ * Strava's API returns `profile_medium` as a URL on its photo CDN — historically and today the
+ * CloudFront distribution dgalywyr863hv.cloudfront.net (".../pictures/athletes/<id>/<n>/<n>/medium.jpg"),
+ * with strava.com hosts for its own assets. Only those are fetched: an exact CloudFront host (NOT
+ * any *.cloudfront.net, which anyone can create) and the strava.com domain. Extend this list only
+ * with a host seen in a real /athlete response.
+ */
+const AVATAR_HOSTS = ['dgalywyr863hv.cloudfront.net']
+const AVATAR_HOST_SUFFIXES = ['.strava.com']
+
+function isAllowedAvatarUrl (value) {
+  let u
+  try {
+    u = new URL(String(value))
+  } catch {
+    return false
+  }
+  if (u.protocol !== 'https:' || u.username || u.password || (u.port && u.port !== '443')) return false
+  const host = u.hostname.toLowerCase()
+  return AVATAR_HOSTS.includes(host) || AVATAR_HOST_SUFFIXES.some((s) => host.endsWith(s))
 }
 
 /** null when `buf` is an acceptable avatar, else the reason. */
@@ -68,16 +96,44 @@ function checkAvatar (buf) {
   return null
 }
 
+/** Reads the body chunk by chunk and gives up (cancelling the stream) as soon as it passes `cap`. */
+async function readCapped (res, cap) {
+  if (!res.body || typeof res.body.getReader !== 'function') throw new Error('avatar response has no body')
+  const reader = res.body.getReader()
+  const chunks = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > cap) {
+      await reader.cancel().catch(() => {})
+      throw new Error(`too large (over ${cap} bytes)`)
+    }
+    chunks.push(Buffer.from(value))
+  }
+  return Buffer.concat(chunks)
+}
+
 async function downloadAvatar (url, { fetchImpl = fetch, timeoutMs = 15000 } = {}) {
-  if (!/^https:\/\//.test(String(url))) throw new Error('avatar URL is not https')
+  if (!isAllowedAvatarUrl(url)) throw new Error('not an allowed Strava photo URL')
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), timeoutMs)
   try {
-    const res = await fetchImpl(url, { signal: ctrl.signal })
+    // a redirect could leave the allowlisted host, so it is an error, never followed
+    const res = await fetchImpl(url, { signal: ctrl.signal, redirect: 'error' })
     if (!res.ok) throw new Error(`avatar download answered HTTP ${res.status}`)
-    const announced = Number(res.headers && res.headers.get && res.headers.get('content-length'))
-    if (announced > MAX_AVATAR_BYTES) throw new Error(`too large (${announced} bytes, cap ${MAX_AVATAR_BYTES})`)
-    const buf = Buffer.from(await res.arrayBuffer())
+    const type = String(res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase()
+    if (type !== 'image/jpeg') {
+      await res.body?.cancel().catch(() => {})
+      throw new Error(`unexpected content-type ${type || '(none)'}, expected image/jpeg`)
+    }
+    const announced = Number(res.headers.get('content-length'))
+    if (announced > MAX_AVATAR_BYTES) {
+      await res.body?.cancel().catch(() => {})
+      throw new Error(`too large (${announced} bytes, cap ${MAX_AVATAR_BYTES})`)
+    }
+    const buf = await readCapped(res, MAX_AVATAR_BYTES)
     const bad = checkAvatar(buf)
     if (bad) throw new Error(bad)
     return buf
@@ -105,22 +161,29 @@ async function syncProfile (dir, body, { fetchImpl = fetch, writeAtomic = common
   const avatarPath = path.join(dir, AVATAR_FILE)
   const prevText = fs.existsSync(jsonPath) ? fs.readFileSync(jsonPath, 'utf8') : null
   const prev = prevText ? readJsonOrNull(jsonPath) : null
-  const text = JSON.stringify(next, null, 2) + '\n'
+  const avatarExists = fs.existsSync(avatarPath)
 
-  const action = planAvatar({ next, prev, avatarExists: fs.existsSync(avatarPath) })
+  // The photo is settled FIRST and the JSON written after it, recording where the photo on disk came
+  // from (avatarSourceUrl). A crash in between leaves at worst an old source URL next to a new photo,
+  // which only causes one extra download — never a JSON naming a photo that was not saved.
+  const action = planAvatar({ next, prev, avatarExists })
   let avatar = 'kept'
+  let avatarSourceUrl = avatarExists && prev && typeof prev.avatarSourceUrl === 'string' ? prev.avatarSourceUrl : null
   if (action === 'remove') {
     fs.rmSync(avatarPath, { force: true })
     avatar = 'removed'
+    avatarSourceUrl = null
   } else if (action === 'download') {
     try {
       writeAtomic(avatarPath, await downloadAvatar(next.profileMedium, { fetchImpl }))
       avatar = 'downloaded'
+      avatarSourceUrl = next.profileMedium
     } catch (err) {
       avatar = `failed: ${err.message}`
     }
   }
 
+  const text = JSON.stringify({ ...next, avatarSourceUrl }, null, 2) + '\n'
   const profileWritten = text !== prevText
   if (profileWritten) writeAtomic(jsonPath, text)
   return { profileWritten, avatar, bikes: next.bikes.length, shoes: next.shoes.length, devices: next.devices.length, gearScopeMissing: next.gearScopeMissing, snapshot: Boolean(next.fetchedAt) }
@@ -146,7 +209,13 @@ async function main () {
     console.error(errorMessage(err, baseUrl))
     process.exit(1)
   }
-  const r = await syncProfile(OUT, body)
+  let r
+  try {
+    r = await syncProfile(OUT, body)
+  } catch (err) {
+    console.error(`ERROR: profile sync failed (${(err && err.message) || err}). Files are only ever replaced atomically, so each one is either the previous or the new version.`)
+    process.exit(1)
+  }
   console.log(`Profile: ${r.snapshot ? 'Strava snapshot' : 'no Strava snapshot yet'}; ${r.bikes} bike(s), ${r.shoes} shoe(s), ${r.devices} device(s); ${r.profileWritten ? 'written' : 'unchanged'}; avatar ${r.avatar}`)
   if (r.avatar.startsWith('failed')) console.error(`WARNING: avatar not updated (${r.avatar.slice(8)}); the previous one is kept.`)
   if (r.gearScopeMissing) {
@@ -164,6 +233,9 @@ module.exports = {
   normalizeExport,
   planAvatar,
   checkAvatar,
+  isAllowedAvatarUrl,
+  AVATAR_HOSTS,
+  AVATAR_HOST_SUFFIXES,
   downloadAvatar,
   syncProfile,
   errorMessage,
