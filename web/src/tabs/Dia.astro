@@ -6,7 +6,8 @@
  *                        dot, .seg-auto); a 270° kcal dial (target centred, filled only from intake
  *                        logged today; the track is the Inicio dials' arc, baked as NUTRI_ARC), the goal
  *                        chip under it (the goal itself is set in the profile sheet, client/profile.js),
- *                        three macro bars (protein / carbs / fat), then the intake rings (#intake);
+ *                        three macro bars (protein / carbs / fat), then the intake rings (#intake,
+ *                        only with intake logged in the last 3 days; otherwise nothing);
  *   2. Plan de hoy     — the day's meals with the carb-flex portions scaled to (goal × day type);
  *   3. Avituallamiento — before -> during -> after the ride as a 3-step timeline, bike day types only.
  * The day-type control is server-rendered (real labelled radios); the numbers
@@ -26,7 +27,7 @@ interface Props {
   locale: string;
   hidden: boolean; // page.hideTabs includes "dia"
   page?: { notes?: Record<string, string> };
-  intakeHost?: boolean; // false = no intake ever logged and the Registro fold summary carries the one-line hint
+  intakeHost?: boolean; // false = no intake ever logged: no rings host (intake.js also renders nothing for stale intake)
   supplements?: any[]; // profile.json supplements (lib/profile/profile.mjs)
   weight?: { kg: number; date: string } | null; // the latest weigh-in, for the g/kg fuelling amounts
 }

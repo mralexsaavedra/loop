@@ -78,18 +78,16 @@ test('a macro missing on the logged day renders an empty ring with a dash, never
   assert.match(html, /ring-none/);
 });
 
-test('intake older than 3 days -> empty state explaining how to enable it', () => {
+test('intake older than 3 days -> the block renders nothing (no rings, no help text)', () => {
   const { host } = run({ latest: { date: '2030-01-06', k: 2000, p: 150, c: 200, g: 60 }, today: '2030-01-10' });
-  assert.doesNotMatch(host.innerHTML, /class="ring /);
-  assert.match(host.innerHTML, /No recent intake/);
-  assert.match(host.innerHTML, /diet_kcal/);
+  assert.equal(host.innerHTML, '');
+  assert.equal(host.hidden, true);
 });
 
-test('no intake ever logged -> ONE line hint, not a full empty card (the owner may not log food)', () => {
+test('no intake ever logged -> the block renders nothing (the owner may not log food)', () => {
   const { host } = run({ latest: null, today: '2030-01-10' });
-  assert.doesNotMatch(host.innerHTML, /class="ring |intake-card/);
-  assert.match(host.innerHTML, /^<p class="intake-hint">[^\n]*<\/p>$/);
-  assert.match(host.innerHTML, /No food logged/);
+  assert.equal(host.innerHTML, '');
+  assert.equal(host.hidden, true);
 });
 
 // the ring circumference the fill arc is measured against (r = 18 in a 44-unit viewBox)
@@ -126,6 +124,8 @@ test('the aria-label formats numbers for the locale (comma decimals in es)', () 
 test('freshness boundaries: 3 days ago still shows rings; a future-dated day does not', () => {
   assert.match(run({ latest: { date: '2030-01-07', k: 2000, p: 1, c: 1, g: 1 }, today: '2030-01-10' }).host.innerHTML, /class="ring /);
   assert.doesNotMatch(run({ latest: { date: '2030-01-11', k: 2000, p: 1, c: 1, g: 1 }, today: '2030-01-10' }).host.innerHTML, /class="ring /);
+  assert.equal(run({ latest: { date: '2030-01-06', k: 2000, p: 1, c: 1, g: 1 }, today: '2030-01-10' }).host.hidden, true, '4 days ago: hidden');
+  assert.equal(run({ latest: { date: '2030-01-07', k: 2000, p: 1, c: 1, g: 1 }, today: '2030-01-10' }).host.hidden, false, '3 days ago: shown');
 });
 
 test('a logged day that is the viewer\'s today is labelled as in progress, not as a finished day', () => {

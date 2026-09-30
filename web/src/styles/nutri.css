@@ -496,3 +496,81 @@
   font-size: var(--fs-sm);
   color: var(--muted);
 }
+
+/* >= 900 px: the summary card becomes two columns — left the kcal dial (larger) with the goal chip,
+ * right the day-type control at its natural width over the three macro bars and the notes. The DOM
+ * order stays the phone order (day type, dial, bars): #nutri-target spans the card as a subgrid so
+ * its dial and bars land in their own columns; it lets clicks through to the day type it overlaps.
+ * Plan de hoy flows into two columns of meal cards; the fuelling timeline stays readable-width. */
+@media (min-width: 900px) {
+  #nutri-summary .nutri-card {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    column-gap: var(--sp-12);
+    padding: var(--sp-10);
+  }
+  #nutri-summary .seg {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  #nutri-target {
+    grid-column: 1 / -1;
+    grid-row: 1 / 3;
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-template-rows: subgrid;
+    pointer-events: none;
+  }
+  #nutri-target > * {
+    pointer-events: auto;
+  }
+  #nutri-target > .nt-top {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    justify-content: center;
+    padding-top: 0;
+    border-top: 0;
+  }
+  #nutri-target > .nt-side {
+    grid-column: 2;
+    grid-row: 2;
+    padding-top: var(--sp-5);
+    border-top: 1px solid var(--line-soft);
+  }
+  .nt-dial {
+    width: 240px;
+    max-width: none;
+  }
+  .nt-kcal {
+    font-size: 54px;
+  }
+  .nt-unit {
+    font-size: var(--fs-xs);
+  }
+  .nt-goal {
+    margin-top: -46px;
+  }
+  .seg-opts {
+    display: inline-grid;
+    grid-template-columns: repeat(4, minmax(104px, auto));
+  }
+  .seg-in {
+    padding: var(--sp-2) var(--sp-5);
+  }
+  #nutri-plan {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-5);
+    align-items: start;
+  }
+  #nutri-plan > .meal {
+    margin-bottom: 0;
+  }
+  #nutri-plan > :not(.meal) {
+    grid-column: 1 / -1;
+  }
+  #nutri-fuel-block > .nutri-card {
+    max-width: 720px;
+  }
+}
