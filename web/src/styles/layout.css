@@ -1,4 +1,4 @@
-/* Three-tab layout — sections inside a tab panel (the former tabs) and the collapsible
+/* Four-tab layout — sections inside a tab panel (the former tabs) and the collapsible
  * section folds (Registro, Tablas). A fold is a <details class="tab-section sec-fold"> whose
  * <summary> carries the section's h2; it must NOT look like an equivalence accordion card
  * (tablas.css styles bare `details`/`summary`), so those card rules are reset here. */
@@ -6,7 +6,8 @@
 .tab-section[hidden] {
   display: none;
 }
-.tab-section {
+.tab-section,
+.jump-anchor {
   scroll-margin-top: 16px;
 }
 
@@ -128,7 +129,22 @@ details.sec-fold > summary:hover > h2 {
 @media (min-width: 900px) {
   /* jump() targets clear the sticky top nav */
   .tab-section,
+  .jump-anchor,
   .hsub {
     scroll-margin-top: 72px;
   }
+}
+
+/* no intake ever logged: the one-line hint in the Registro fold summary / at the top of Mi día */
+details.sec-fold > summary > .sec-hint {
+  flex: 0 1 auto;
+  margin-top: var(--sp-11);
+  margin-bottom: var(--sp-5);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.intake-hint {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin: 0 0 var(--sp-5);
 }

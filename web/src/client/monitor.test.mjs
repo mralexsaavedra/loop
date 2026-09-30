@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { monitorFromInputs } from '../../../lib/score/monitor.mjs';
 import { es as esT, en as enT } from '../i18n/score-templates.mjs';
+import { loadUtil } from '../../test/client-util.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'monitor.js'), 'utf8');
@@ -42,6 +43,7 @@ function render(mon, { locale = 'en', now = ASOF, healthNav = false } = {}) {
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
   vm.createContext(ctx);
+  loadUtil(ctx);
   vm.runInContext(source, ctx);
   return host.innerHTML;
 }
@@ -141,6 +143,7 @@ test('resilience: a throwing card falls back to its empty state; a missing monit
   const host = { innerHTML: '' };
   const ctx = { document: { getElementById: (id) => (id === 'monitor' ? host : null) }, SCORES: { monitor: monitor() }, I18N_SCORE: {}, LOCALE: 'en', Date, Math, String, Number, Array, Object, JSON };
   vm.createContext(ctx);
+  loadUtil(ctx);
   assert.doesNotThrow(() => vm.runInContext(source, ctx));
   assert.equal(host.innerHTML, '');
 });

@@ -11,6 +11,7 @@ import { buildScores } from '../../../lib/score/index.mjs';
 import { renderAdvice } from '../../../lib/score/advice-copy.mjs';
 import { es as esT, en as enT } from '../i18n/score-templates.mjs';
 import { buildDials } from '../view/dial.mjs';
+import { loadUtil } from '../../test/client-util.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'score.js'), 'utf8');
@@ -41,19 +42,30 @@ function fixtureScores({ days = 49, shift = 2 } = {}) {
 
 const HEALTH = { recovery: { hasData: true, sleep: { target: 7.5 } } };
 
-function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, dials, dialsHost } = {}) {
+// Returns #home + #score-recovery (Salud) + #score-load (Entreno), in that order; pass `hosts` to
+// inspect each one separately.
+function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, loadSectionHidden = false, dials, dialsHost, hosts = {} } = {}) {
   const host = { innerHTML: '' };
+  const rec = (hosts.rec = hosts.rec || { innerHTML: '' });
+  const load = (hosts.load = hosts.load || { innerHTML: '' });
+  hosts.home = host;
   const RealDate = Date;
   class FakeDate extends RealDate {
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
+  const byId = {
+    home: host, 'score-recovery': rec, 'score-load': load,
+    'home-dials': dialsHost || null, 't-health': healthNav ? {} : null, 't-entreno': entrenoNav ? {} : null,
+    'sec-load': { hidden: loadSectionHidden },
+  };
   const ctx = {
-    document: { getElementById: (id) => (id === 'home' ? host : id === 'home-dials' && dialsHost ? dialsHost : id === 't-health' && healthNav ? {} : null) },
+    document: { getElementById: (id) => byId[id] || null },
     SCORES: scores, DIALS: dials, I18N_SCORE: T || (locale === 'es' ? esT : enT), LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite,
   };
   vm.createContext(ctx);
+  loadUtil(ctx);
   vm.runInContext(source, ctx);
-  return host.innerHTML;
+  return host.innerHTML + rec.innerHTML + load.innerHTML;
 }
 const count = (html, needle) => html.split(needle).length - 1;
 
@@ -61,6 +73,28 @@ test('empty state: no data renders .train-empty and nothing else', () => {
   const html = render({ hasData: false, asOf: null, reEpoch: null, recovery: null, load: null, advice: null });
   assert.match(html, /train-empty/);
   assert.doesNotMatch(html, /sc-card/);
+});
+
+test('no data: #score-recovery (Salud) and #score-load (Entreno) get an empty state too, never stay blank', () => {
+  const hosts = {};
+  render({ hasData: false, asOf: null, reEpoch: null, recovery: null, load: null, advice: null }, { hosts });
+  assert.match(hosts.rec.innerHTML, /train-empty/);
+  assert.match(hosts.load.innerHTML, /train-empty/);
+});
+
+test('isolation: a throwing advice or host write never blanks the other blocks', () => {
+  const s = fixtureScores();
+  s.advice = { key: Object.keys(enT.advice)[0], get vars() { throw new Error('boom'); } };
+  const hosts = {};
+  assert.doesNotThrow(() => render(s, { hosts }));
+  assert.match(hosts.rec.innerHTML, /sc-recovery/, 'recovery card still written');
+  assert.match(hosts.load.innerHTML, /sc-load/, 'load card still written');
+  const s2 = fixtureScores();
+  const brokenRec = {};
+  Object.defineProperty(brokenRec, 'innerHTML', { set() { throw new Error('boom'); }, get() { return ''; } });
+  const h2 = { rec: brokenRec };
+  assert.doesNotThrow(() => render(s2, { hosts: h2 }));
+  assert.match(h2.load.innerHTML, /sc-load/, 'a failing #score-recovery write does not stop #score-load');
 });
 
 test('a missing host element or missing SCORES does not throw', () => {
@@ -73,23 +107,72 @@ test('full render: recovery trend with band, per-component rows and 14 raw daili
   assert.match(html, /sc-recovery/);
   assert.match(html, /MAD/);
   assert.match(html, /daytime SDNN/i);
-  assert.equal(count(html, 'class="sc-comp"'), 4);
+  assert.equal(count(html, 'class="rec-comp"'), 4);
   assert.equal(count(html, 'class="sc-raw-v"'), 4 * 14);
   assert.match(html, new RegExp(`sc-band-${s.recovery.band}`));
   assert.equal(count(html, 'class="spark"'), 1 + s.load.modalities.length, 'inline SVG sparklines (recovery + one per modality)');
   assert.doesNotMatch(html, /<script|src=|href=/i, 'no scripts or external refs in the rendered markup');
 });
 
-test('recovery card leads with last night (MAD + band), then the 7-day trend; says so when last night is missing', () => {
+const recCard = (s, opts = {}) => { const hosts = {}; render(s, { ...opts, hosts }); return hosts.rec.innerHTML; };
+const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+test('recovery card (Whoop-style): the HEADLINE is last night (big number + band word); the 7-day trend is a small secondary line', () => {
   const s = fixtureScores();
-  const html = render(s);
+  const html = recCard(s);
   const t = s.recovery.today;
-  const line = enT.recovery.todayLbl.replace('{value}', (t.value > 0 ? '+' : '') + t.value.toFixed(1));
-  assert.ok(html.includes(line), line);
-  assert.ok(html.indexOf('sc-today') < html.indexOf('class="sc-val"'), 'last night before the trend');
-  assert.match(html, new RegExp(`sc-today sc-band-${t.band}`));
+  const v = (t.value > 0 ? '+' : '') + t.value.toFixed(1);
+  const big = html.match(/<div class="rec-big sc-band-([a-z]+)">([\s\S]*?)<\/div>/);
+  assert.ok(big, 'a big-number headline');
+  assert.equal(big[1], t.band, 'coloured by last night\'s band');
+  assert.equal(text(big[2]), `${v} MAD ${enT.recovery.bands[t.band]}`, 'last night\'s value + band word');
+  assert.match(html, new RegExp(`<div class="rec-when">${enT.recovery.whenLastNight}</div>`));
+  const trend = html.match(/<div class="rec-trend">([\s\S]*?)<\/div>/);
+  assert.ok(trend, 'the 7-day trend is its own small line');
+  assert.ok(text(trend[1]).includes(enT.recovery.trendLbl.replace('{value}', (s.recovery.trend7 > 0 ? '+' : '') + s.recovery.trend7.toFixed(1))));
+  assert.ok(html.indexOf('rec-big') < html.indexOf('rec-trend'), 'headline first, trend under it');
+  assert.doesNotMatch(html, /class="sc-val"/, 'the trend is never the big heading any more');
   s.recovery.today = null;
-  assert.ok(render(s).includes(enT.recovery.noToday));
+  const none = recCard(s);
+  assert.ok(none.includes(enT.recovery.noToday));
+  assert.doesNotMatch(none, /rec-big/, 'no night composite -> no big number');
+  assert.match(none, /rec-trend/);
+});
+
+test('recovery card: contributors are compact rows (state dot, name, latest value + unit, baseline · MAD · n) and the raw 14-day lists are folded', () => {
+  const s = fixtureScores();
+  const html = recCard(s);
+  const rows = [...html.matchAll(/<div class="rec-comp" data-comp="([a-zA-Z]+)">([\s\S]*?)<\/div><!--\/comp-->/g)];
+  assert.deepEqual(rows.map((r) => r[1]), s.recovery.components.map((c) => c.key));
+  for (const [i, c] of s.recovery.components.entries()) {
+    const body = rows[i][2];
+    const dec = c.unit === 'h' ? 2 : c.unit === 'min' ? 0 : 1;
+    const last = c.daily[c.daily.length - 1].value;
+    assert.match(body, new RegExp(`<span class="rec-dot sc-dot-${c.band}"`), 'state colour dot');
+    assert.ok(body.includes(enT.recovery.components[c.key]));
+    assert.ok(text(body).includes(`${last.toFixed(dec)} ${c.unit}`), 'latest value + unit');
+    assert.ok(text(body).includes(enT.recovery.baselineLbl.replace('{value}', c.baseline.toFixed(dec)).replace('{unit}', c.unit)), 'baseline');
+    assert.ok(text(body).includes(`${(c.trend7 > 0 ? '+' : '') + c.trend7.toFixed(1)} MAD`), 'MAD vs baseline');
+    assert.ok(text(body).includes(`n=${c.n}`));
+    assert.doesNotMatch(body, /sc-raw-v/, 'no raw number list inline');
+  }
+  const fold = html.match(/<details class="rec-raw"><summary>([^<]*)<\/summary>([\s\S]*?)<\/details>/);
+  assert.ok(fold, 'the raw lists sit in a collapsed <details>');
+  assert.equal(fold[1], enT.recovery.rawSummary);
+  assert.equal(count(fold[2], 'class="sc-raw-v"'), 4 * 14, 'every raw value kept, just folded');
+  assert.equal(esT.recovery.rawSummary, 'Últimos 14 días');
+  assert.equal(enT.recovery.rawSummary, 'Last 14 days');
+  assert.match(recCard(s, { locale: 'es' }), /<summary>Últimos 14 días<\/summary>/);
+});
+
+test('recovery card: confidence + SDNN chips on ONE line; layout blocks headline | sparkline | contributors', () => {
+  const html = recCard(fixtureScores());
+  const chips = html.match(/<div class="sc-chips rec-chips">([\s\S]*?)<\/div>/);
+  assert.ok(chips);
+  assert.equal(count(chips[1], 'class="sc-chip"'), 2);
+  const at = ['class="rec-head"', 'class="sc-spark rec-spark"', 'class="rec-contrib"'].map((n) => html.indexOf(n));
+  assert.ok(at.every((v, i) => v !== -1 && (i === 0 || v > at[i - 1])), `order ${at}`);
+  assert.match(html, /<div class="rec-layout">/);
 });
 
 test('colour only on the direction arrow: no grade-fill classes on the recovery card', () => {
@@ -114,7 +197,7 @@ test('load: one card per modality (gym/run/bike), gated ones show the reason and
 test('coverage counters and the other line are shown; the other line says it is not scored', () => {
   const s = fixtureScores();
   const html = render(s);
-  for (const k of ['scored', 'unscored', 'invalid', 'droppedJunk', 'preEpoch']) {
+  for (const k of ['scored', 'unscored', 'invalid', 'droppedJunk', 'superseded', 'preEpoch']) {
     assert.match(html, new RegExp(`sc-cov-${k}">${s.load.coverage[k]}<`), k);
   }
   assert.ok(s.load.coverage.droppedJunk >= 1);
@@ -190,24 +273,41 @@ test('baked date strings are validated before rendering: a non-ISO asOf/reEpoch 
   assert.doesNotMatch(html, /<img|id=xss|javascript:|onerror/);
 });
 
-test('Home order: recovery card, then load cards, then the advice sentence, then caveats', () => {
+test('glance vs detail (Whoop): Inicio keeps the dials + advice; the recovery card goes to Salud, load cards + caveats to Entreno', () => {
   const s = fixtureScores();
-  const html = render(s, { now: addDays(ASOF, 1) });
-  const at = (needle) => html.indexOf(needle);
-  assert.ok(at('sc-recovery') !== -1 && at('sc-load') !== -1 && at('sc-advice') !== -1);
-  assert.ok(at('sc-recovery') < at('sc-load'), 'recovery before load');
-  assert.ok(at('sc-load') < at('sc-advice'), 'advice after the load cards');
-  assert.ok(at('sc-advice') < at('sc-caveat'), 'caveats last');
+  const hosts = {};
+  render(s, { now: addDays(ASOF, 1), dials: buildDials(s, HEALTH), hosts });
+  assert.match(hosts.home.innerHTML, /sc-dials/);
+  assert.match(hosts.home.innerHTML, /sc-advice/);
+  assert.doesNotMatch(hosts.home.innerHTML, /sc-recovery|sc-load|sc-caveat/, 'no detail cards on Inicio');
+  assert.ok(hosts.home.innerHTML.indexOf('sc-dials') < hosts.home.innerHTML.indexOf('sc-advice'), 'advice under the dials');
+  assert.match(hosts.rec.innerHTML, /sc-recovery/);
+  assert.doesNotMatch(hosts.rec.innerHTML, /sc-load|sc-advice/);
+  const load = hosts.load.innerHTML;
+  assert.ok(load.indexOf('sc-load') !== -1 && load.indexOf('sc-load') < load.indexOf('sc-caveat'), 'load cards, then caveats');
+  assert.doesNotMatch(load, /sc-recovery|sc-advice/);
 });
 
-test('score cards link to their Salud detail when the Salud tab is reachable, and only then', () => {
+test('detail cards are not links any more (they ARE the detail); the dials open it instead', () => {
   const s = fixtureScores();
-  const linked = render(s, { now: addDays(ASOF, 1), healthNav: true });
-  assert.match(linked, /<div class="sc-card sc-recovery[^"]*" role="button" tabindex="0" onclick="jumpOr\('hl-recovery','health'\)"/);
-  assert.equal(count(linked, `onclick="jumpOr('sec-dash','health')"`), s.load.modalities.length, 'every load card links to the Entrenamiento section');
-  assert.match(linked, /onkeydown=/, 'keyboard users can activate the card');
-  const unlinked = render(s, { now: addDays(ASOF, 1), healthNav: false });
-  assert.doesNotMatch(unlinked, /jumpOr\(/, 'no link when page.hideTabs hides the Salud tab');
+  const hosts = {};
+  render(s, { now: addDays(ASOF, 1), healthNav: true, hosts });
+  assert.doesNotMatch(hosts.rec.innerHTML + hosts.load.innerHTML, /jumpOr\(/);
+});
+
+test('dial taps: sleep -> Salud #hl-sleep, recovery -> Salud #hl-recovery, load -> Entreno #score-load; only when that tab is reachable', () => {
+  const s = fixtureScores();
+  const dials = buildDials(s, HEALTH);
+  const linked = render(s, { now: addDays(ASOF, 1), dials, healthNav: true, entrenoNav: true });
+  assert.match(dialOf(linked, 'dial-sleep'), /role="button" tabindex="0" onclick="jumpOr\('hl-sleep','health'\)"/);
+  assert.match(dialOf(linked, 'dial-rec'), /onclick="jumpOr\('hl-recovery','health'\)"/);
+  assert.equal(count(linked, `onclick="jumpOr('score-load','entreno')"`), s.load.modalities.length, 'every load-modality dial opens the Entreno load detail');
+  assert.match(linked, /onkeydown=/, 'keyboard users can activate a dial');
+  const noEntreno = render(s, { now: addDays(ASOF, 1), dials, healthNav: true, entrenoNav: false });
+  assert.doesNotMatch(noEntreno, /jumpOr\('score-load'/, 'no load link when Entreno is hidden');
+  assert.match(noEntreno, /jumpOr\('hl-recovery'/);
+  const unlinked = render(s, { now: addDays(ASOF, 1), dials, healthNav: false, entrenoNav: false });
+  assert.doesNotMatch(unlinked, /jumpOr\(/, 'no links when page.hideTabs hides Salud and Entreno');
 });
 
 /* ---- Inicio dials (Sleep / Recovery / Load) ---- */
@@ -273,16 +373,16 @@ test('recovery dial: a composite without a sleep-duration reading is labelled by
   assert.ok(!d.includes(enT.dials.recovery.lastNight + '<'));
   assert.ok(d.includes(ASOF));
   assert.ok(d.includes(enT.dials.recovery.noSleep));
-  const card = render(s);
-  assert.ok(!card.includes('Last night:'), 'the recovery card does not call it last night either');
-  assert.ok(card.includes(enT.recovery.todayNoSleepLbl.split('{')[0]) || card.includes(ASOF));
+  const card = recCard(s);
+  assert.ok(!card.includes(`<div class="rec-when">${enT.recovery.whenLastNight}</div>`), 'the recovery card does not call it last night either');
+  assert.ok(card.includes(`<div class="rec-when">${enT.recovery.whenNoSleep.replace('{date}', ASOF)}</div>`));
 });
 
 test('recovery card: an older night is labelled by its date, not "Last night"', () => {
   const s = fixtureScores();
-  const html = render(s, { now: addDays(ASOF, 1) });
-  assert.ok(!html.includes('Last night:'));
-  assert.ok(html.includes(enT.recovery.todayDateLbl.split(':')[0].replace('{date}', ASOF)));
+  const html = recCard(s, { now: addDays(ASOF, 1) });
+  assert.ok(!html.includes(`<div class="rec-when">${enT.recovery.whenLastNight}</div>`));
+  assert.ok(html.includes(`<div class="rec-when">${enT.recovery.whenDate.replace('{date}', ASOF)}</div>`));
 });
 
 test('resilience: a throwing dial or card never blanks Inicio (empty-state fallback)', () => {
@@ -404,6 +504,105 @@ test('load dial: no session today -> "No session yet today" with the last sessio
   assert.ok(capOf(withDials(none), 'run').startsWith('No session yet today · typical day'), 'no last session known');
 });
 
+/* the load dial opens on what happened TODAY (viewer's clock), not on the first ungated modality */
+function withToday(s, reByKey) {
+  for (const m of s.load.modalities) {
+    const re = reByKey[m.key];
+    m.recent = re == null ? [{ date: addDays(ASOF, -3), re: 30, unscored: 0 }] : [{ date: ASOF, re, unscored: re > 0 ? 0 : 1 }];
+    m.last = re > 0 ? { date: ASOF, re } : { date: addDays(ASOF, -3), re: 30 };
+  }
+  return s;
+}
+const pressedMod = (html) => (html.match(/class="dial-mod" data-dmod="([a-z]+)" aria-pressed="true"/) || [])[1];
+const visibleFig = (html) => (html.match(/<figure class="dial dial-load[^"]*" data-dmod="([a-z]+)"[^>]*?(?<!hidden)>/) || [])[1];
+const visibleCap = (html) => (html.match(/<div class="dial-cap" data-dmod="([a-z]+)">/) || [])[1];
+
+test('load dial default: the modality with a session on the viewer\'s today, not the first ungated one', () => {
+  const ok = buildDials(fixtureScores(), HEALTH).load.modalities.filter((m) => m.state === 'ok').map((m) => m.key);
+  assert.ok(ok.length >= 2, `fixture needs two ungated modalities, got ${ok}`);
+  const [first, second] = ok;
+  const s = withToday(fixtureScores(), { [second]: 94 });
+  const html = withDials(s);
+  assert.equal(pressedMod(html), second, 'switch starts on today\'s modality');
+  assert.equal(visibleFig(html), second, 'its dial is the visible one');
+  assert.equal(visibleCap(html), second, 'and its caption');
+  assert.ok(figOf(html, second).includes('<b class="dial-num">94</b>'));
+  assert.match(html, new RegExp(`<figure class="dial dial-load[^"]*" data-dmod="${first}" hidden`), 'the first ungated one is behind the switch');
+  assert.equal(count(html, 'aria-pressed="true"'), 1);
+});
+
+test('load dial default: several sessions today -> the one with the highest RE; none today -> the first ungated', () => {
+  const ok = buildDials(fixtureScores(), HEALTH).load.modalities.filter((m) => m.state === 'ok').map((m) => m.key);
+  const [first, second] = ok;
+  assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [first]: 20, [second]: 60 }))), second);
+  assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [first]: 70, [second]: 60 }))), first);
+  // a session without RE today still beats a modality with nothing today
+  assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [second]: 0 }))), second);
+  // the clock decides: the same data viewed the next day falls back to the first ungated modality
+  assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [second]: 94 }), { now: addDays(ASOF, 1) })), first);
+});
+
+test('load dial default: a session today opens its modality even when that modality is gated (greyed, gated copy, no number)', () => {
+  const D = buildDials(fixtureScores(), HEALTH).load;
+  const gated = D.modalities.find((m) => m.state === 'gated');
+  assert.ok(gated, 'fixture needs a gated modality');
+  const html = withDials(withToday(fixtureScores(), { [gated.key]: 50 }));
+  assert.equal(pressedMod(html), gated.key, 'today\'s session beats the first ungated modality');
+  assert.equal(visibleFig(html), gated.key);
+  assert.match(html, new RegExp(`<figure class="dial dial-load dial-off[^"]*" data-dmod="${gated.key}"`), 'shown in its gated state (greyed)');
+  assert.ok(figOf(html, gated.key).includes(enT.dials.load.gated), 'with the gated copy');
+  assert.doesNotMatch(figOf(html, gated.key), /dial-num/, 'no number on a gated dial');
+});
+
+test('load dial default: ranking = highest RE today, then modality order; a session without RE beats nothing; gating does not change the rank', () => {
+  const keys = buildDials(fixtureScores(), HEALTH).load.modalities.map((m) => m.key);
+  const gated = buildDials(fixtureScores(), HEALTH).load.modalities.find((m) => m.state === 'gated').key;
+  const ok = keys.filter((k) => k !== gated);
+  // tie on RE -> the earlier modality in the switch order
+  const [a, b] = ok;
+  assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [b]: 60, [a]: 60 }))), keys.indexOf(a) < keys.indexOf(b) ? a : b);
+  // a gated modality with the highest RE today wins over an ungated one
+  assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [gated]: 80, [a]: 60 }))), gated);
+  assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [gated]: 40, [a]: 60 }))), a);
+  // rows without RE (noEffort) on a gated modality still beat nothing today
+  assert.equal(pressedMod(withDials(withToday(fixtureScores(), { [gated]: 0 }))), gated);
+});
+
+test('caveats stay reachable: Entreno hidden (or its load section hidden) -> a compact load caveat line under the dials', () => {
+  const s = fixtureScores();
+  const line = (html) => (html.match(/<div class="dial-caveat dial-caveat-load">([^<]*)<\/div>/) || [])[1];
+  const hosts = {};
+  withDials(s, { healthNav: true, entrenoNav: false, hosts });
+  assert.equal(line(hosts.home.innerHTML), enT.dials.load.caveatLine, 'Entreno hidden: the line sits on Inicio');
+  assert.match(enT.dials.load.caveatLine, /HR-derived/);
+  assert.match(enT.dials.load.caveatLine, /not comparable/);
+  assert.match(enT.dials.load.caveatLine, /before/);
+  assert.match(enT.dials.load.caveatLine, /summed/);
+  withDials(s, { healthNav: true, entrenoNav: true, loadSectionHidden: true, hosts });
+  assert.equal(line(hosts.home.innerHTML), enT.dials.load.caveatLine, 'load section hidden: same');
+  withDials(s, { healthNav: true, entrenoNav: true, hosts });
+  assert.equal(line(hosts.home.innerHTML), undefined, 'Entreno reachable: the full caveats live there, no line on Inicio');
+  assert.match(hosts.load.innerHTML, /sc-caveats/, 'and Entreno keeps its caveats card');
+  const es = {};
+  withDials(s, { locale: 'es', healthNav: true, entrenoNav: false, hosts: es });
+  assert.equal(line(es.home.innerHTML), esT.dials.load.caveatLine);
+});
+
+test('caveats stay reachable: Salud hidden -> a compact recovery caveat line under the dials', () => {
+  const s = fixtureScores();
+  const line = (html) => (html.match(/<div class="dial-caveat dial-caveat-rec">([^<]*)<\/div>/) || [])[1];
+  const hosts = {};
+  withDials(s, { healthNav: false, entrenoNav: true, hosts });
+  assert.equal(line(hosts.home.innerHTML), enT.dials.recovery.caveatLine);
+  assert.match(enT.dials.recovery.caveatLine, /SDNN/);
+  assert.match(enT.dials.recovery.caveatLine, /not medical advice/i);
+  withDials(s, { healthNav: true, entrenoNav: true, hosts });
+  assert.equal(line(hosts.home.innerHTML), undefined);
+  const es = {};
+  withDials(s, { locale: 'es', healthNav: false, entrenoNav: true, hosts: es });
+  assert.equal(line(es.home.innerHTML), esT.dials.recovery.caveatLine);
+});
+
 test('dials: stale data greys the dial; fresh data does not', () => {
   const s = fixtureScores();
   assert.doesNotMatch(dialOf(withDials(s, { now: addDays(ASOF, 1) }), 'dial-sleep'), /sc-stale/);
@@ -433,6 +632,7 @@ test('scMod: the switch shows only the chosen modality and moves aria-pressed', 
   btns.forEach((b) => { b.closest = () => root; });
   const ctx = { document: { getElementById: () => null } };
   vm.createContext(ctx);
+  loadUtil(ctx);
   vm.runInContext(source, ctx);
   ctx.scMod('bike', btns[2]);
   assert.deepEqual(btns.map((b) => b.pressed), ['false', 'false', 'true']);

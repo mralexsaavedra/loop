@@ -27,10 +27,12 @@
  * optional `window.bldRecalc()` hook — the same optional-global-hook
  * pattern legacy already uses for `setDay` -> `window.bldRefresh`.
  */
-/* Three top-level tabs (Inicio / Nutrición / Salud). The former tab keys now name sections
- * (`#sec-<key>`) inside one of them — mirror of lib/nav/tabs.mjs's SECTION_TAB — so an old
- * `setTab('tablas')` still lands on the same content. */
-var SECTION_TAB = { hoy: 'home', dia: 'nutricion', registro: 'nutricion', tablas: 'nutricion', dash: 'health' };
+/* Four top-level tabs (Inicio / Entreno / Salud / Nutrición), nav buttons `#t-<key>`. The former
+ * tab keys now name sections (`#sec-<key>`) inside one of them, so an old `setTab('tablas')` still
+ * lands on the same content. Both lists come from NAV, baked by layouts/Plan.astro from
+ * lib/nav/tabs.mjs (TAB_KEYS / SECTION_TAB) — the one copy, never repeated here. */
+var NAV_TABS = (typeof NAV !== 'undefined' && NAV && NAV.tabs) || [];
+var SECTION_TAB = (typeof NAV !== 'undefined' && NAV && NAV.sectionTab) || {};
 
 function setTab(name, scrollTop) {
   if (SECTION_TAB[name]) {
@@ -40,16 +42,13 @@ function setTab(name, scrollTop) {
   document.querySelectorAll('.tab-panel').forEach(function (p) {
     p.hidden = p.getAttribute('data-tab') !== name;
   });
-  [
-    ['t-home', 'home'],
-    ['t-nutricion', 'nutricion'],
-    ['t-health', 'health'],
-  ].forEach(function (pair) {
-    var b = document.getElementById(pair[0]);
-    if (b) b.setAttribute('aria-pressed', pair[1] === name);
+  NAV_TABS.forEach(function (key) {
+    var b = document.getElementById('t-' + key);
+    if (b) b.setAttribute('aria-pressed', key === name);
   });
+  // the train/rest toggle belongs to Nutrición; data-off = neither Mi día nor Registro is visible
   var dt = document.getElementById('day-toggle');
-  if (dt) dt.style.display = name === 'nutricion' ? '' : 'none';
+  if (dt) dt.style.display = name === 'nutricion' && dt.getAttribute('data-off') == null ? '' : 'none';
   if (scrollTop !== false) window.scrollTo({ top: 0, behavior: 'auto' });
 }
 

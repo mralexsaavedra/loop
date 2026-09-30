@@ -11,8 +11,9 @@ import { dayViewModel } from '../view/day-totals.mjs';
 interface Props {
   nut: any; // buildNutrition() result
   dict: any;
+  link?: boolean; // false when page.hideTabs hides Nutrición: no link to an unreachable tab
 }
-const { nut, dict } = Astro.props;
+const { nut, dict, link = true } = Astro.props;
 const t = dict.strings.eat;
 const rk = (n: number) => Math.round(n);
 const dotThousands = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -36,5 +37,5 @@ const days = (['train', 'rest'] as const).map((day) => ({ day, totals: dayViewMo
       </div>
     </div>
   ))}
-  <button type="button" class="lnk eat-link" onclick="setTab('nutricion')">{t.fullPlan} →</button>
+  {link && <button type="button" class="lnk eat-link" onclick="setTab('nutricion')">{t.fullPlan} →</button>}
 </div>

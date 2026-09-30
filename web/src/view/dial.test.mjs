@@ -128,7 +128,8 @@ test('buildDials: load bakes the typical day + each recent session day with its 
   const gym = l.modalities[0];
   assert.equal(gym.state, 'gated', 'baselineBuilding gating is kept even with a typical day');
   assert.equal(gym.reason, 'baselineBuilding');
-  assert.equal(gym.days, undefined);
+  assert.ok(Array.isArray(gym.days), 'a gated modality still carries its session days (the switch can open on today\'s session)');
+  assert.ok(gym.days.every((d) => !('fill' in d) && !('marker' in d)), 'but no geometry: a gated dial shows no number');
   const run = l.modalities[1];
   assert.equal(run.state, 'ok');
   assert.equal(run.typical, 110);

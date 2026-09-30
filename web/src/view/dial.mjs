@@ -103,10 +103,14 @@ function loadDial(L) {
   if (!L || !Array.isArray(L.modalities) || !L.modalities.length) return { state: 'none' };
   const modalities = L.modalities.map((m) => {
     const t = m.trend || {};
-    if (!t.ok || !isNum(t.trendPct)) return { key: m.key, state: 'gated', reason: t.reason || 'baselineBuilding' };
+    const recent = Array.isArray(m.recent) ? m.recent : [];
+    // a gated modality keeps its session days WITHOUT geometry: the client may open the switch on
+    // today's session (showing the gated state), but a gated dial never shows a number
+    const plainDays = () => recent.map((d) => ({ date: d.date, re: isNum(d.re) ? d.re : 0, unscored: d.unscored || 0 }));
+    if (!t.ok || !isNum(t.trendPct)) return { key: m.key, state: 'gated', reason: t.reason || 'baselineBuilding', days: plainDays() };
     const typical = m.typical && isNum(m.typical.value) ? m.typical.value : null;
-    if (typical == null || !(typical > 0)) return { key: m.key, state: 'gated', reason: 'fewDays' };
-    const days = (Array.isArray(m.recent) ? m.recent : []).map((d) => {
+    if (typical == null || !(typical > 0)) return { key: m.key, state: 'gated', reason: 'fewDays', days: plainDays() };
+    const days = recent.map((d) => {
       const re = isNum(d.re) ? d.re : 0;
       const out = { date: d.date, re, unscored: d.unscored || 0 };
       if (re > 0) {
