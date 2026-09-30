@@ -46,13 +46,20 @@
   function rideType(min) {
     if (min >= N.detect.bikeLongMin) return 'bikeLong';
     if (min >= N.detect.bikeMin) return 'bike';
-    return 'gym';
+    if (min >= N.detect.rideMin) return 'gym';
+    return null;
+  }
+  function itemType(it) {
+    if (!it || typeof it.dur !== 'number' || !(it.dur > 0)) return null;
+    if (it.modality === 'bike') return rideType(it.dur);
+    if (it.modality === 'other') return it.dur >= N.detect.otherMin ? 'gym' : null;
+    return it.dur >= N.detect.gymMin ? 'gym' : null;
   }
   function ofWorkouts(items) {
     var best = null;
     (items || []).forEach(function (it) {
-      if (!it || !(it.dur > 0)) return;
-      var type = it.modality === 'bike' ? rideType(it.dur) : 'gym';
+      var type = itemType(it);
+      if (!type) return;
       var rideMin = isBike(type) ? Math.round(it.dur) : null;
       if (!best || RANK[type] > RANK[best.type]) best = { type: type, rideMin: rideMin };
     });
