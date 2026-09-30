@@ -411,7 +411,9 @@ button.dt-day {
 [data-detail][role="button"]::after {
   content: "›";
   position: absolute;
-  top: 50%;
+  /* a one-line opener: centred; a tall card: pinned to its header row (top-right), never floating
+     halfway down beside a chart */
+  top: min(50%, 22px);
   right: 10px;
   transform: translateY(-50%);
   color: var(--faint);

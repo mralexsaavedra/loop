@@ -59,7 +59,7 @@
         return (PAD + (W - 2 * PAD) * i / (v.length - 1)).toFixed(1) + ',' + (PAD + (H - 2 * PAD) * (1 - y / max)).toFixed(1);
       });
     }
-    var out = ['<svg class="cum-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(format(T.cumAria, { cur: hm(cur[cur.length - 1]), prev: hm(prev[prev.length - 1]) })) + '">'];
+    var out = ['<svg class="cum-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="' + esc(format(T.cumAria, { cur: hm(cur[cur.length - 1]), prev: hm(prev[prev.length - 1]) })) + '">'];
     out.push('<line class="cum-base" x1="' + PAD + '" y1="' + (H - PAD) + '" x2="' + (W - PAD) + '" y2="' + (H - PAD) + '"/>');
     out.push('<path class="cum-line cum-prev" d="M' + pts(prev).join(' L') + '"/>');
     out.push('<path class="cum-line cum-cur" d="M' + pts(cur).join(' L') + '"/>');
@@ -96,12 +96,12 @@
     }).join('');
     return '<div class="act' + (stale ? ' act-stale' : '') + '">' +
       (stale ? '<p class="hint">' + esc(format(T.staleNote, { days: age, date: A.asOf })) + '</p>' : '') +
-      '<div class="dash-sec"' + HC.detailAttrs('workouts') + '><h3>' + esc(T.calHeading) + '</h3><p class="hint">' + esc(format(T.calHint, { days: active })) + '</p>' +
+      '<div class="act-pair"><div class="dash-sec act-cal"' + HC.detailAttrs('workouts') + '><h3>' + esc(T.calHeading) + '</h3><p class="hint">' + esc(format(T.calHint, { days: active })) + '</p>' +
       calendar(dates, byDate) + '<div class="cal-legend">' + legend + '</div></div>' +
-      '<div class="dash-sec"' + HC.detailAttrs('workouts') + '><h3>' + esc(T.cumHeading) + '</h3><p class="hint">' + esc(T.cumHint) + '</p>' +
+      '<div class="dash-sec act-cum"' + HC.detailAttrs('workouts') + '><h3>' + esc(T.cumHeading) + '</h3><p class="hint">' + esc(T.cumHint) + '</p>' +
       '<div class="cum-legend"><span class="cum-key"><span class="cum-sw cum-cur"></span>' + esc(T.cur) + ' <b>' + esc(hm(cur[cur.length - 1])) + '</b></span>' +
       '<span class="cum-key"><span class="cum-sw cum-prev"></span>' + esc(T.prev) + ' <b>' + esc(hm(prev[prev.length - 1])) + '</b></span></div>' +
-      cumulative(cur, prev) + '</div>' +
+      cumulative(cur, prev) + '</div></div>' +
       '<div class="dash-note">' + esc(T.note) + '</div></div>';
   }
 
