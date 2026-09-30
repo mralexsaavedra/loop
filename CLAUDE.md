@@ -135,7 +135,10 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
 - **Shared client helpers.** `web/src/client/util.js` is inlined FIRST (right after `var NAV` and
   `var HC_CONST`, baked by `layouts/Plan.astro` from `lib/stale.mjs`) and exposes the global `HC`
   (window.HC): `esc`, `format`, `isoDate`, `todayIso`, `daysOld`, `shiftIso`, `nf`, `num`, `duration`
-  (units from the i18n dict), `MS_PER_DAY`, `STALE_DAYS`. The client scripts read these instead of
+  (units from the i18n dict), `MS_PER_DAY`, `STALE_DAYS`, the ONE display-date formatter `fmtDate`
+  ("lun 29 sept" / "Mon 29 Sep") + `fmtMonth` + `weekdayIndex` (Monday = 0; names baked as `I18N_DATE`
+  from `web/src/i18n/date-templates.mjs`, not Intl, whose ICU builds disagree), and `detailAttrs`
+  (the detail-sheet opener markup, see "Detail views"). The client scripts read these instead of
   redefining them (a test guards it), and constants come baked from `lib/` (`STALE_DAYS` via
   `HC_CONST`; the calendar's `windowDays` / `levelMin` via `activityBake` into `ACTIVITY`), never as
   client literals. Tests load it with `web/test/client-util.mjs` `loadUtil(ctx)`.
@@ -167,11 +170,8 @@ hiding every tab fails the build. `setTab('<legacy key>')` still works (it opens
 scrolls to the section — `setTab('dash')` opens Entreno). The train/rest toggle is marked `data-off`
 when only Tablas is left (`showDayToggle`), and the "today you eat" card drops its link when
 Nutrición is hidden.
-Taps (core.js `jumpOr`, falling back to the tab when the target has no data; nothing is a link when
-its tab is hidden): sleep dial → Salud `#hl-sleep`; recovery dial → Salud `#hl-recovery`; load dial
-→ Entreno `#score-load`; a health-monitor card → its Salud trend (`#hl-rhr` / `#hl-hrv` /
-`#hl-respiratory` / `#hl-wristTemp` / `#hl-sleep`); a timeline row → `#hl-sleep` (sleep) or
-`#score-load` (a workout). The detail cards themselves are not links.
+Taps open the **detail sheet** (see "Detail views" below), never a jump into another tab, so they
+work whatever `page.hideTabs` hides (core.js `jumpOr` stays as API but no card uses it any more).
 
 **Look & typography.** Dark, data-first design language: colour carries meaning, never decoration.
 All colours are tokens in `web/src/styles/tokens.css` (AA-checked ratios listed in its header):
@@ -186,6 +186,65 @@ subset is renamed; licence text in `web/src/fonts/OFL.txt`. Rebuild it with
 test pins that the committed woff2 is what gets inlined and stays under a 40 KB budget. Text stays
 the system sans stack (0 bytes). Never embed a commercial font or copy another product's name,
 logo, icons or exact brand hex values.
+
+## Detail views — tap any card, see every day
+
+WHOOP's drill-down, honest version: a tap on a card opens a full-screen sheet (a large centred panel
+from 900px) with that metric's history. No new score: the sheet only shows the card's own series.
+
+- **Data** — `lib/detail/detail.mjs` `buildDetail(extractDir)` bakes ONE global `DETAIL` (in
+  `components/DetailSheet.astro`, with `I18N_DETAIL` from `web/src/i18n/detail-templates.mjs`):
+  `{asOf, days: 365, metrics: {<key>: {kind, dir, dec, start, v, …}}, sessions}`. Each metric = an ISO
+  `start` + a `v` array, one slot per calendar day of the last 365 days ending at the newest data date
+  (never the build clock, so builds stay byte-identical), `null` = no data that day (never 0), rounded to
+  the card's precision. Keys (`DETAIL_KEYS`): sleep, recovery, hrv, rhr, respiratory, wristTemp,
+  walkingHr, vo2max, steps, exercise, distance, flights, energy, weight, bodyfat, lean, waist, workouts,
+  load-gym, load-run, load-bike; a key without data is simply absent (the view shows its empty state).
+  Same readers and rules as the cards: HRV / RHR / respiratory / wrist temp / sleep = the monitor's
+  clamped day median (`monitor.mjs` `monitorDaily`, partial newest HRV day dropped) with the monitor's
+  personal band (`signalBand`, median ± 2 scaled MADs over the 42 days before the newest day; walking
+  HR gets the same kind of band); daily totals keep the Salud floors (a < 200-step day is missing) and
+  get a "usual day" band = p25–p75 of the 90 days before the newest (`quartileBand`); energy = basal
+  (sane band) + active, with both parts; body fat / lean mass = the most recent scale only; sleep also
+  carries bed / wake times and the 7.5 h target; `recovery` = for each day, the composite the dial
+  showed THAT morning (`recoveryFromInputs` with the inputs cut at that day, its own baseline, not
+  today's) + that day's 7-day trend; `workouts` = minutes per day after the display rule (0 = rest);
+  `load-<m>` = RE per day after the load rule (`null` = sessions without RE), with the card's typical
+  day and calendar cuts at 0.5 / 1 / 1.5 typical days; `sessions` = one entry per date + modality after
+  `mergeSameDay` DISPLAY_RULE (minutes, km, elevation, avg HR, RE, parts, source; the source is the
+  precedence family, so "Apple Watch de <name>" is written "Apple Watch"). Size: ~26 KB on the demo,
+  ~62 KB on a real year; the whole feature adds ~71 KB to the demo page.
+- **Openers** — `HC.detailAttrs(key, date?, {plain?})` writes `data-detail` [+ `data-date`] + a
+  button role and tab stop (`plain`: data attributes only, for a real `<button>`, an SVG cell or a
+  table row). One delegated click / Enter / Space listener in `web/src/client/detail.js` handles every
+  opener. Map: sleep dial → sleep; recovery dial → recovery; each load dial → its `load-<m>`; monitor
+  cards → their signal; timeline rows → that day (sleep, or `load-<m>` / `workouts` for "other");
+  every Salud trend card → its metric (expenditure → energy); the Salud recovery card → a History
+  button (the card holds a `<details>` fold, so it is not itself a button); Entreno load cards →
+  `load-<m>`; the calendar and cumulative time → workouts (a day cell → that day); run / ride rows →
+  that day in `load-run` / `load-bike` (the row is a mouse target, its date cell a real button). Every
+  opener shows the same chevron, pointer, focus ring and ≥ 44px target (`web/src/styles/detail.css`).
+- **The sheet** (`detail.js`, one renderer, per-view try/catch with a message fallback, no NaN ever
+  printed): header = metric, latest value + date, the band / target / typical day in words; a
+  30 d / 90 d / 1 yr switch; an inline SVG chart (points for signals, bars for totals and load, the
+  7-day average line that breaks where fewer than 3 of 7 days have data, the band shaded, target /
+  typical dashed; a missing day is a gap); a Monday-first month calendar (es/en weekday letters) with
+  prev / next bounded by the baked range, each day coloured by state tokens (`dayState`): signals vs
+  their band by good direction (good / normal / bad; change signals `watch`), totals likewise (energy:
+  neutral hi / lo), sleep good ≥ target / mid / bad below the band, recovery by the day cut, training
+  volume in four `--strain` shades, sparse readings "measured", missing = empty; the picked day below
+  (default: the newest day with data): overnight views → the whole night (asleep h vs target, bed –
+  wake, recovery, HRV, RHR, respiratory, wrist temp; sleep says stages / awake time are not in the
+  extract), totals → value vs the median (energy + active / basal), sparse → vs the previous reading,
+  workouts / load → that day's sessions. The view ends at the VIEWER's today, or at `DETAIL.asOf` when
+  that is > 3 days old (with a note) or ahead of the clock.
+- **Modal + history** — `#detail` (role="dialog", aria-modal, labelled by the title) renders in
+  `layouts/Plan.astro`'s `overlay` slot OUTSIDE `.wrap`, which goes `inert` while open (page scroll
+  locked); focus moves to the close button, Tab stays inside, Esc / the close button / a tap on the
+  backdrop close it and focus returns to the opener. Opening pushes `#detail/<metric>[/<date>]`
+  (picking a day replaces it), so browser Back closes the sheet; a page opened with that hash opens
+  the view. A frame that refuses history writes (sandboxed artifact) still gets the sheet, and closing
+  then never calls `history.back()`.
 
 ## Nutrition plan — data pipeline & published artifact
 

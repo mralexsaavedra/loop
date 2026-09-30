@@ -50,7 +50,11 @@ instead of generic advice with no data behind it.
      sleep (duration AND consistency), body composition (weight, body fat, lean mass, waist),
      activity (steps/NEAT, exercise minutes, distance, flights) and energy expenditure + macro split. The extractor
      auto-discovers whatever your devices logged; absent metrics simply render an empty state, and
-     each one carries its own data-honesty caveat.
+     each one carries its own data-honesty caveat. **Tap any card** (a dial, a monitor card, a
+     timeline row, a trend card, a load card, the calendar, a run or ride) to open its detail view:
+     the last 30 days / 90 days / year as a chart with your personal range, a month calendar
+     coloured day by day, and the tapped day in full (a night's sleep and signals, a day's sessions,
+     a day vs your usual). Browser Back closes it, and `#detail/<metric>/<date>` links straight to it.
    - Apple Health, between exports (optional): an iOS Shortcut can push recent samples to the
      self-hosted `services/health-ingest` service, and `npm run sync` merges them in. Step-by-step
      build, every payload key and the known gotchas: [`docs/ios-shortcut.md`](docs/ios-shortcut.md).
