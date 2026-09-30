@@ -54,6 +54,10 @@ instead of generic advice with no data behind it.
    - Apple Health, between exports (optional): an iOS Shortcut can push recent samples to the
      self-hosted `services/health-ingest` service, and `npm run sync` merges them in. Step-by-step
      build, every payload key and the known gotchas: [`docs/ios-shortcut.md`](docs/ios-shortcut.md).
+   - Self-hosted page (optional): `services/plan-web` serves the page on your LAN, rebuilds it
+     hourly and on demand (a Sync button in the header, or the Shortcut), and shows how fresh the
+     Shortcut, Strava and page data are. Setup and the security reasoning:
+     [`services/plan-web/README.md`](services/plan-web/README.md).
    - Nutrition: copy `data/nutrition/food-log.example.md` → `food-log.md` and log meals there.
    - Weight: tracked automatically from Apple Health, or copy
      `data/weight/weight-log.example.md` → `weight-log.md` and log there.
