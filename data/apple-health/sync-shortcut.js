@@ -233,7 +233,7 @@ function buildRows(metric, samples) {
   if (def.kind === 'point') {
     const dateOf = def.dateOf || S.day;
     return [...samples].sort(byStart).map(s => {
-      const date = dateOf(s.start);
+      const date = dateOf(s.start, s.end);
       return { date, line: S.readingRow({ date, value: def.fmt(s.value), source: (def.withSource && s.source && s.source.replace(/,/g, ' ')) || SHORTCUT_SOURCE }) };
     });
   }

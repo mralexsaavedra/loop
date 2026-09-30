@@ -417,10 +417,17 @@ anchor for Inicio's health monitor.
   minutes; after-midnight bedtimes wrapped onto a night scale). Sleep bedtime/waketime come from the
   extended `sleep-daily.csv`: extract.js and sync-shortcut.js share `samples.js` `sleepNights`, which
   keeps only the MAIN sleep of each wake-up night (asleep segments chained with gaps < 60 min; the
-  longest block whose midpoint falls 20:00-12:00, plus in-window blocks within 3 h of it, so a split
-  night with a 3 am wake-up stays one night). Naps (incl. one that crosses 18:00) add neither minutes
-  nor bed/wake times; a nap-only day has no row. Sleeping wrist temperature is dated by the same
-  wake-up night (`wristTempDate`). Sleep renders
+  longest block whose midpoint falls 20:00-12:00, plus in-window blocks within 3 h of it when they lie
+  before it or start before 05:00 on the wake-up date, so a split night with a 3 am wake-up stays one
+  night, but within only 60 min when they start after the night's end from 05:00 on
+  (`AFTER_END_GAP_MIN`), so a 09:00 nap after a 06:30 wake-up is not absorbed). Naps (incl. one that
+  crosses 18:00) add neither minutes nor bed/wake times; a nap-only day has no row. Sleeping wrist
+  temperature is dated by the same midpoint + 18:00 roll-over rule as a sleep block (`wristTempDate(start,
+  end)`; a Shortcut sample with only a start falls back to its start). Known limitation: night-shift
+  sleep (a daytime main sleep) falls outside the 20:00-12:00 window and is treated as a nap. No
+  migration: rows of `sleep-daily.csv` / `wristTemp.csv` that came from an earlier export keep the old
+  convention until `node data/apple-health/extract.js` is re-run on a new export (Shortcut rows are
+  rebuilt by every sync). Sleep renders
   as its own Salud section; its heading is the `#hl-sleep` anchor.
 
 Trends render as inline SVG sparklines (CSP-safe). The build is idempotent — no today-relative

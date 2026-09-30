@@ -92,7 +92,7 @@ function handleRecord(line) {
       return cm != null && readings.waist.push({ date: d, value: +cm.toFixed(1), source: src });
     }
     // dated by the wake-up night (like sleep-daily.csv), not the sample's start date
-    case Q + 'AppleSleepingWristTemperature': return v != null && readings.wristTemp.push({ date: wristTempDate(attr(line, 'startDate')), value: +v.toFixed(2), source: src });
+    case Q + 'AppleSleepingWristTemperature': return v != null && readings.wristTemp.push({ date: wristTempDate(attr(line, 'startDate'), attr(line, 'endDate')), value: +v.toFixed(2), source: src });
     case Q + 'AppleExerciseTime':       return addMaxSrc(maxSrc.exercise, d, src, v);
     case Q + 'DistanceWalkingRunning':  return addMaxSrc(maxSrc.distance, d, src, v);
     case Q + 'FlightsClimbed':          return addMaxSrc(maxSrc.flights, d, src, v);
