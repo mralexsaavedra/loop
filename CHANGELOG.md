@@ -26,6 +26,15 @@ artifact and the example build are unchanged and builds stay byte-identical. One
 the ingest image, restart plan-web, regenerate. Out of scope: label OCR, supermarket scraping, CSV
 export of the log for the analysis pipeline (next slice), Apple Health write-back.
 
+Review fixes, same day: plan-web answers only an IP literal, `localhost` or a listed name
+(`PLAN_WEB_EXTRA_HOSTS`) on every path, and the food API repeats the Host check plus an Origin check
+on writes, closing DNS rebinding. Numbers are rounded before their bounds; a failed food migration
+only disables `/food/*` (503); adds carry a request id so a retry never duplicates; a double-tapped
+delete is quiet; a macro no entry states shows a dash and a partly-known one is marked "≥". The
+Open Food Facts client caches upstream failures briefly and shares concurrent lookups; the shared
+limits and the recipe-basis step live once in `lib/nutrition/foodlog.mjs`; the detail sheet's Tab trap
+skips controls that cannot take focus.
+
 ## 2026-09-30 — Nutrition v2, part 1: goals, day types, scaled plan, ride fuelling
 
 Nutrición opens on today. A goal (maintain / cut / bulk) and a day type (rest, gym or run, a ~2 h

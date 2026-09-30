@@ -170,7 +170,7 @@ live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
 | 🏠 Inicio (`home`) | TODAY: Sleep / Recovery / Load dials; health monitor; today's timeline (last night's sleep + the day's workouts); the advice sentence; "today you eat" card (today's day type + goal and target kcal/macros, link to Nutrición); programmed session (`hoy`) |
 | 🏃 Entreno (`entreno`) | per-modality load cards + caveats (`load`: `#score-load`, the detail behind the load dial); 30-day activity calendar + cumulative training time (`calendar`: `#train-activity`); running table, cycling table, load vs recovery (`sessions`: `#health-train`); Entrenamiento dashboard (`dash`) |
 | 💗 Salud (`health`) | recovery (`#hl-recovery`, with the recovery detail card `#score-recovery`, then the recovery trends); sleep (`#hl-sleep`); body composition; daily activity; energy expenditure |
-| 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Plan de hoy, Registrar (LAN page only), Avituallamiento on bike days — see "Nutrition v2" and "Nutrition v2 part 2" below); Constructor de día / Day builder (`registro`, collapsible); Mis productos + Mis recetas (collapsible, LAN page only, no section key: rendered with `dia`); Tablas (`tablas`, collapsible) — there is no train/rest toggle: Resumen de hoy's day type is the one selector |
+| 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Plan de hoy, Registrar (the FOOD LOG, LAN page only — not the `registro` key, which is the Day builder), Avituallamiento on bike days — see "Nutrition v2" and "Nutrition v2 part 2" below); Constructor de día / Day builder (`registro`, collapsible); Mis productos + Mis recetas (collapsible, LAN page only, no section key: rendered with `dia`); Tablas (`tablas`, collapsible) — there is no train/rest toggle: Resumen de hoy's day type is the one selector |
 
 `lib/nav/tabs.mjs` is the ONE source of the tab keys (`TAB_KEYS`) and of the legacy-section map
 (`SECTION_TAB`); the page derives each tab's section list from it (`sectionsOf`) and bakes both as
@@ -585,7 +585,10 @@ unknown.
 - **Formula** — `lib/nutrition/foodlog.mjs` is the ONE reference (constants `FOOD_STORES`
   mercadona / dia / eroski / other, `FOOD_UNITS` g / ml, `ENTRY_UNITS` + serving, `FOOD_MEALS` =
   `slots.mjs` `MEAL_SLOTS`, `RECIPE_KINDS`, `REF_TYPES`; `productEntry`, `recipeBasis`,
-  `recipeEntry`, `dayTotals`, `atwaterOk`). A product entry = per-100 × amount in the product's own
+  `recipeEntry`, `entryFromBasis`, `dayTotals`, `atwaterOk`; `FOOD_LIMITS` = the shared input limits —
+  name / brand / query caps, the barcode pattern, per-100 kcal 900 / macros 100, entry amount 5000… —
+  baked for the page as `FOOD_CONST.limits` and copied into the service's food-calc.js, a test pins them
+  equal). A product entry = per-100 × amount in the product's own
   unit, or servings × its `servingSize` (no serving size → no serving; never g ↔ ml). A recipe =
   the sum of its ingredients (amounts in each product's unit): kind `serving` ÷ servings, kind
   `batch` × 100 ÷ total COOKED weight (per 100 g cooked); a missing product = incomplete, not
@@ -594,7 +597,10 @@ unknown.
   Atwater: 4p + 4c + 9f within ±25 % of kcal or 10 kcal. Ports: `services/health-ingest/src/food-calc.js`
   (the service is built from its own directory) and `web/src/client/food.js` (`window.HCFood`);
   `lib/nutrition/foodlog.test.mjs` and `web/src/client/food.test.mjs` run all three over
-  `FOODLOG_CASES`, so a formula change is made in all three.
+  `FOODLOG_CASES`, so a formula change is made in all three (food-calc.js is a LITERAL copy: `var`,
+  semicolons). The add sheet's preview goes through the same functions: a recipe whose products are all
+  listed uses `recipeBasis`, one with an archived product the server's computed basis on the recipe row,
+  both through `entryFromBasis` — no fourth copy.
 - **Storage + API** — `services/health-ingest`: `sql/006_food.sql` (idempotent) = `food_product`
   (per-100 kcal / protein / carbs / fat, store, unit g / ml, serving size?, barcode? unique among
   ACTIVE products, source off / label / manual, off_code?, archived), `food_recipe` (kind, servings
@@ -614,20 +620,34 @@ unknown.
   `src/food-db.js` = the parameterized store (NUMERIC → numbers, the date via `to_char`).
 - **Open Food Facts** — `src/off.js`, SERVER side only (the page never calls OFF): v2 product API /
   `cgi/search.pl`, User-Agent `health-coach/1.0 (self-hosted personal food log)` (no personal data),
-  8 s timeout, `redirect: 'error'`, 1 MB response cap, in-memory LRU cache (24 h; not-found 1 h),
+  8 s timeout, `redirect: 'error'`, 1 MB response cap, in-memory LRU cache (24 h; not-found 1 h; an
+  upstream 429 / 5xx / timeout 60 s), one shared in-flight request per identical lookup,
   token buckets (≤ 10 searches / min, ≤ 100 product reads / min; over → `429 off_rate_limited`
   without calling OFF). Only normalized fields leave it: `{code, name (es first), brand, stores, unit,
   per100 {kcal (kcal, else kJ ÷ 4.184), protein, carbs, fat}, servingSize, complete}`; a missing or
   implausible nutriment is `null`, never 0, and `complete: false`. Nothing is stored until the owner
   saves the product (`source: "off"`). No `?store=` bias (not trivial with OFF's search).
 - **Security** — the routes are UNAUTHENTICATED (a static page cannot hold a secret) and LAN only.
-  Every `/food` request must carry `X-HC-Food: 1` (else `403`) and every write
-  `Content-Type: application/json` (else `415`): a cross-site page can send neither without a CORS
-  preflight, and the service never answers one with CORS headers, so a malicious website opened on a
-  LAN device cannot write the log. Bodies ≤ 16 KB (`413`), writes ≤ 60 / min per client address
-  (`429`; behind plan-web that is nginx's address, one shared budget). plan-web nginx proxies the
-  prefix `/api/food/` → ingest `/food/` (GET / POST / PUT / DELETE, body passed, `client_max_body_size
-  16k`, `X-HC-Food` forwarded). A public reverse proxy must NEVER forward `/food/*`.
+  Layers: (1) **DNS rebinding** — plan-web nginx answers EVERY path (page, `status.json`, `/api/*`)
+  only for a Host that is an IP literal (v4 / bracketed v6), `localhost` or a name listed in
+  `PLAN_WEB_EXTRA_HOSTS` (`map $host $hc_host_ok` + a server-level `return 421`; `hosts.sh`, mounted as
+  `/docker-entrypoint.d/15-hc-hosts.sh`, renders the names into exact map entries), and ingest
+  `/food/*` repeats it (IP literal, `localhost`, `host.docker.internal` = the proxy hop, which nginx
+  sends as `Host`, or `FOOD_ALLOWED_HOSTS`; else `421 misdirected`); (2) on writes an `Origin` header
+  must name an allowed host (`403 forbidden_origin`); (3) `X-HC-Food: 1` on every request (`403`) and
+  `Content-Type: application/json` on writes (`415`) — from another site both need a CORS preflight
+  the service never approves (no CORS headers). Together they keep a website opened in a LAN browser
+  from reading or writing the log; a device ON the LAN calling the service directly is trusted (the
+  LAN-only model). **To add a hostname** (e.g. `http://plan.lan:8090`): `PLAN_WEB_EXTRA_HOSTS=plan.lan`
+  in `services/plan-web/.env` + `FOOD_ALLOWED_HOSTS=plan.lan` in `services/health-ingest/.env`, then
+  `docker compose up -d` in both; only names you control on your own network. Bodies ≤ 16 KB
+  (`413`); writes ≤ 60 / min per client address (`429`) — behind plan-web every request comes from
+  nginx, so it is ONE shared budget (a per-client limiter is a later slice). plan-web nginx proxies
+  the prefix `/api/food/` → ingest `/food/` (GET / POST / PUT / DELETE, body passed,
+  `client_max_body_size 16k`, `X-HC-Food` forwarded, `Host host.docker.internal`). A public reverse
+  proxy must NEVER forward `/food/*`. `006_food.sql` is an OPTIONAL migration group
+  (`src/migrations.js`): if it fails the service logs `food_migration_failed` and keeps ingesting /
+  syncing / pulling Strava, and only `/food/*` answers `503 food_unavailable`.
 - **Page** — `web/src/client/food.js` (inlined after nutri-day.js, before intake.js; copy
   `web/src/i18n/food-templates.mjs` es / en baked as `I18N_FOOD` + `FOOD_CONST` in `Dia.astro`;
   styles `web/src/styles/food.css`, tokens only). Everything is decided at VIEW time like the
@@ -653,11 +673,21 @@ unknown.
   amount, add / remove) and a live preview. Errors = one line from the coarse codes ("offline" → the
   server is unreachable and nothing was saved).
 - **Wiring** — `window.foodTotals()` = `{date, k, p, c, g, n, missing, src: 'log'}` when the API
-  answered and TODAY (the viewer's local date) has ≥ 1 entry, else null. nutri-day.js' dial + bars and
-  intake.js prefer it over `INTAKE` (labelled "Registrado hoy en esta página" / the rings' "Registrado
-  hoy"; a `missing` macro adds "esas barras son un mínimo"); after every add / delete food.js calls
-  `HCNutri.refresh()` (new: re-renders Resumen de hoy, which refreshes the builder and the rings, each
-  in its own try/catch). A page left open past midnight reloads the log on `visibilitychange`.
+  answered and TODAY (the viewer's local date) has ≥ 1 entry, else null — the one contract; nutri-day.js
+  and intake.js do not re-check the date. A macro NO entry states is `null` (a dash, never "0 / 150 g"
+  or 0 %); `missing[m]` = at least one entry lacks it, so a non-null value is a minimum and the bar /
+  ring shows "≥ 40" (the rings add a one-line note). ONE logged entry today is enough: the dial, bars
+  and rings then show the page's food log for today instead of the Apple Health intake (labelled
+  "Registrado hoy en esta página" / the rings' "Registrado hoy"). After every add / delete food.js calls
+  `HCNutri.refresh()` (re-renders Resumen de hoy, which refreshes the builder and the rings, each in its
+  own try/catch). A page left open past midnight reloads the log on `visibilitychange`.
+- **Retries** — each add carries a `requestId` (`crypto.randomUUID`, else a v4 UUID from
+  `getRandomValues` — plain http on the LAN is not a secure context — else `Math.random`); `food_log`
+  has a unique index on it, so a retry of the same add returns the stored row (`200`) instead of a
+  duplicate. The sheet keeps the id across retries of the same pending add (a new item / tab = a new
+  id), re-reads the log after an ambiguous failure (offline, a 15 s timeout, a 5xx) and replaces rather
+  than appends a replayed entry. A delete answered `404` (already gone) just drops the row.
+  `HCFood.state()` is test-only.
 - **Rollout** — `cd services/health-ingest && docker compose up -d --build health-ingest` (runs
   `006_food.sql`), restart plan-web (`docker compose up -d` in `services/plan-web`, new nginx
   location), then `npm run generate` (or wait for the hourly refresh). Out of scope: label photos /
@@ -1060,7 +1090,10 @@ Besides the claude.ai artifact, `services/plan-web` serves `web/dist/personal/in
   never health data or raw error text (messages stay in logs; tests pin the key set and no leaks).
   plan-web nginx proxies EXACTLY `/api/sync` + `/api/sync/status` (exact-match, method-restricted)
   plus the food log prefix `/api/food/*` → ingest `/food/*` (GET / POST / PUT / DELETE, 16 KB, the
-  `X-HC-Food` header forwarded; see "Nutrition v2 part 2"); every other `/api/` path 404. A public
+  `X-HC-Food` header forwarded; see "Nutrition v2 part 2"); every other `/api/` path 404. Every path
+  (the page included) answers only a Host that is an IP literal, `localhost` or a name in
+  `PLAN_WEB_EXTRA_HOSTS`, else `421` (DNS rebinding; how to add a name: "Nutrition v2 part 2" →
+  Security). A public
   reverse proxy in front of ingest must forward ONLY `/ingest/*` and `/sync` (`/sync/status`
   optional), never `/export/*`, `/sync/strava` or `/food/*`.
 - **Health + tokens.** `/healthz` stays 200 but adds `degraded: true` when Strava is configured and its
