@@ -21,11 +21,18 @@ server {
         add_header Cache-Control "no-cache, no-store";
     }
 
-    # On-demand refresh. EXACTLY two ingest routes are reachable from here,
-    # both unauthenticated by design (POST /sync coalesces repeated clicks and
-    # returns a sequence number; status returns timestamps, sequence numbers
-    # and coarse error codes, never health data or raw errors). The
-    # bearer-protected ingest data endpoints are never proxied: everything
+    # Ingest routes reachable from here, all unauthenticated by design (the
+    # page is a static file and cannot hold a secret):
+    #   - on-demand refresh, EXACTLY two routes: POST /sync coalesces repeated
+    #     clicks and returns a sequence number; status returns timestamps,
+    #     sequence numbers and coarse error codes, never health data or raw
+    #     errors;
+    #   - the food log, /api/food/* -> ingest /food/* (products, recipes, the
+    #     daily log, the Open Food Facts lookup). The service demands the
+    #     X-HC-Food header on every request and a JSON body on writes, which
+    #     forces a CORS preflight it never approves, so another website cannot
+    #     write here from a LAN browser. LAN only: never publish this server.
+    # The bearer-protected ingest data endpoints are never proxied: everything
     # else under /api/ is a 404.
     location = /api/sync {
         limit_except POST { deny all; }
@@ -43,6 +50,15 @@ server {
         proxy_connect_timeout 5s;
         proxy_read_timeout 15s;
         proxy_pass http://host.docker.internal:${INGEST_PORT}/sync/status;
+    }
+
+    location /api/food/ {
+        limit_except GET POST PUT DELETE { deny all; }
+        client_max_body_size 16k;
+        proxy_set_header X-HC-Food $http_x_hc_food;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 15s;
+        proxy_pass http://host.docker.internal:${INGEST_PORT}/food/;
     }
 
     location /api/ {
