@@ -28,6 +28,7 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
 | GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]`; `400` on a bad query |
 | GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain}]`; `400` on a bad query |
+| GET    | `/export/athlete`             | bearer | `200` with the latest athlete snapshot: `{fetchedAt, firstname, lastname, city, state, country, profile, profileMedium, measurementPreference, athleteType, bikes, shoes, gearScopeMissing, devices}` (nulls / empty lists when nothing is stored) |
 
 Bearer token is compared in constant time; it is the entire security boundary
 for the endpoint, because Health Auto Export can only send a static header.
@@ -183,6 +184,45 @@ new field is added to the response (e.g. `total_elevation_gain`, which feeds the
 without the field, so the column stays blank until the rebuild and the next
 `npm run sync:strava` (which prints a stale-image warning when no activity carries
 elevation).
+
+### Reading the athlete profile back: `GET /export/athlete`
+
+The sync loop also refreshes a snapshot of the Strava **athlete** (name, city/state/country,
+profile photo URLs, measurement preference, athlete type) and their **gear** at most once per
+24 h (`src/athlete.js`, table `strava_athlete` from `sql/004_athlete.sql`). It rides on the
+normal activity pull: `GET /athlete`, then `GET /gear/{id}` for every bike / shoe on the athlete
+plus every `gear_id` seen on stored activities (brand, model, frame type, weight, distance in
+metres, retired flag). A failed profile refresh is logged (`strava_athlete_failed`), retried after
+1 h, and never fails the activity sync or its status.
+
+The response carries profile fields only: never the athlete id, username, sex, body weight or the
+raw payload (the repo takes body weight from the scale). `devices` is derived from the stored
+activities' `device_name` (`[{name, count, lastUsed}]`, `lastUsed` = the local start day of the
+newest activity); summary activities normally carry it, and an activity without it is simply not
+counted. Photo URLs are returned only when they are `https://` (Strava sends a relative
+placeholder path when the athlete has no photo). The repo's `npm run sync`
+(`data/profile/sync-profile.js`) reads it into the gitignored `data/profile/`.
+
+**Gear needs the `profile:read_all` scope.** Strava returns `bikes` / `shoes` (and
+`measurement_preference`) on `GET /athlete` only for a token granted `profile:read_all`. With a
+`read,activity:read_all` token they are absent: the service then sets `gearScopeMissing: true`
+(coarse flag, never an error) and still tries `GET /gear/{id}` for the gear ids seen on
+activities. To grant the scope:
+
+1. Run `node scripts/strava-auth.js` (it asks for
+   `scope=read,activity:read_all,profile:read_all`; the authorize URL is
+   `https://www.strava.com/oauth/authorize?client_id=<id>&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=read,activity:read_all,profile:read_all`)
+   and let it write the new refresh token into `.env`.
+2. Drop the stored rotated token, which still carries the OLD scopes and would otherwise keep
+   winning over `.env` (it is not rejected, just narrower):
+   `docker exec health-db psql -U health -d health -c "DELETE FROM strava_token"`.
+3. Force a fresh snapshot instead of waiting 24 h:
+   `docker exec health-db psql -U health -d health -c "DELETE FROM strava_athlete"`, then
+   `docker compose up -d health-ingest` (restart) or `POST /sync`.
+
+`GET /export/athlete` needs an image rebuild (`docker compose up -d --build health-ingest`,
+which also runs the idempotent `004_athlete.sql`); an older image answers `404` and the profile
+sync keeps its previous files.
 
 After adding new Shortcut keys (e.g. `waist`, `diet_*`), run `npm run sync -- --full` once so
 payloads already in the local cache are re-parsed; send `waist` in centimetres (see
