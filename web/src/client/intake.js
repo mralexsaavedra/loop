@@ -65,13 +65,20 @@
       host.innerHTML = '<div class="intake-card intake-empty"><h3>' + T.heading + '</h3><p>' + format(T.emptyHtml, { days: INTAKE.freshDays }) + last + '</p></div>';
       return;
     }
-    var d = dayType(), t = INTAKE.target[d];
+    var d = dayType(), t = INTAKE.target[d], lbl = T.targetLbl[d];
+    // Nutrición's goal x day type target (client/nutri-day.js) when present; else the plan total
+    if (typeof window.nutriTarget === 'function') {
+      try {
+        var nt = window.nutriTarget();
+        if (nt && nt.k > 0) { t = nt; lbl = esc(nt.label); }
+      } catch (e) { /* keep the train / rest plan total */ }
+    }
     // today's log is still filling up: say so, so partial rings are not read as a finished day
     var asOf = L.date === HC.todayIso() ? T.todayLbl : format(T.asOfTpl, { date: fmtD(L.date) });
     host.innerHTML =
       '<div class="intake-card">' +
       '<div class="intake-head"><h3>' + T.heading + '</h3><span class="intake-asof">' + esc(asOf) + '</span></div>' +
-      '<div class="intake-target">' + T.targetLbl[d] + '</div>' +
+      '<div class="intake-target">' + lbl + '</div>' +
       '<div class="intake-rings">' + ring('k', L.k, t.k) + ring('p', L.p, t.p) + ring('c', L.c, t.c) + ring('g', L.g, t.g) + '</div>' +
       '<p class="intake-note">' + T.noteHtml + '</p>' +
       '</div>';

@@ -3,7 +3,7 @@
  * (personal copy), and the end-of-body script order per design: bake (each
  * tab's own Bake, e.g. Registro's) → NAV + HC_CONST → util (window.HC, the shared client helpers,
  * FIRST so every later script can read it) → core (setTab/setDay/jump/bump) →
- * nutrition → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → profile → detail → freshness.
+ * nutrition → nutri-day → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → profile → detail → freshness.
  * Tabs render inside <slot />; the detail sheet (components/DetailSheet.astro) renders in the `overlay`
  * slot, after .wrap, so detail.js can make the page behind it inert. The freshness line + Sync button (#freshness) render hidden; freshness.js
  * shows them only when the page's server answers /api/sync/status (see services/plan-web/README.md).
@@ -11,6 +11,7 @@
 import '../src/styles/tokens.css';
 import '../src/styles/base.css';
 import '../src/styles/dia.css';
+import '../src/styles/nutri.css';
 import '../src/styles/registro.css';
 import '../src/styles/tablas.css';
 import '../src/styles/training.css';
@@ -22,6 +23,7 @@ import '../src/styles/profile.css';
 import utilScript from '../src/client/util.js?raw';
 import coreScript from '../src/client/core.js?raw';
 import nutritionScript from '../src/client/nutrition.js?raw';
+import nutriDayScript from '../src/client/nutri-day.js?raw';
 import trainingTodayScript from '../src/client/training-today.js?raw';
 import trainingDashScript from '../src/client/training-dash.js?raw';
 import trainingActivityScript from '../src/client/training-activity.js?raw';
@@ -57,7 +59,7 @@ interface Props {
   dict: any;
   tabs: { key: string; icon: string; label: string }[];
   activeTab?: string;
-  dayToggle?: boolean; // false = neither Mi día nor Registro is visible (lib/nav/tabs.mjs showDayToggle)
+  dayToggle?: boolean; // false = the toggle would drive nothing visible (lib/nav/tabs.mjs showDayToggle)
   profile?: any; // lib/profile/profile.mjs loadProfile() result: the avatar button + the profile sheet
 }
 
@@ -137,6 +139,7 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
     <script is:inline set:html={coreScript} />
     <script is:inline set:html={todayDateScript} />
     <script is:inline set:html={nutritionScript} />
+    <script is:inline set:html={nutriDayScript} />
     <script is:inline set:html={intakeScript} />
     <script is:inline set:html={trainingTodayScript} />
     <script is:inline set:html={trainingDashScript} />

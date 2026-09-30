@@ -5,7 +5,7 @@
  *   - Inicio/Home (`home`)          today: dials, monitor, advice + "today you eat" card + programmed session (hoy)
  *   - Entreno/Training (`entreno`)  load (load), calendar (calendar), run/ride tables (sessions), dashboard (dash)
  *   - Salud/Health (`health`)       recovery, sleep, body, activity, energy
- *   - Nutrición (`nutricion`)       Mi día (dia) + Registro (registro) + Tablas (tablas) sections
+ *   - Nutrición (`nutricion`)       today (dia: Resumen de hoy + Plan de hoy + Avituallamiento) + the day builder (registro) + Tablas (tablas)
  * The former tab keys now name sections; `page.hideTabs` hides a section by its legacy key and a
  * tab by its top-level key (lib/nav/tabs.mjs resolveNav). See spec: plan-web-single-file-build.
  */
@@ -70,7 +70,7 @@ const title = plan.page?.title || 'Plan';
 <Plan title={title} locale={locale} page={plan.page} dict={dict} tabs={TABS} activeTab={activeTab} dayToggle={showDayToggle(hideTabs)} profile={profile}>
   <div class="tab-panel" data-tab="home" hidden={activeTab !== 'home'}>
     <Home />
-    <EatCard nut={nut} dict={dict} link={isTabVisible('nutricion')} />
+    <EatCard locale={locale} link={isTabVisible('nutricion')} />
     <Hoy dict={dict} hidden={isHidden('hoy')} />
   </div>
   <div class="tab-panel" data-tab="entreno" hidden={activeTab !== 'entreno'}>
@@ -81,7 +81,7 @@ const title = plan.page?.title || 'Plan';
     <Salud />
   </div>
   <div class="tab-panel" data-tab="nutricion" hidden={activeTab !== 'nutricion'}>
-    <Dia nut={nut} dict={dict} page={plan.page} hidden={isHidden('dia')} intakeHost={!!intake.latest || isHidden('registro')} />
+    <Dia nut={nut} plan={plan} locale={locale} page={plan.page} hidden={isHidden('dia')} intakeHost={!!intake.latest || isHidden('registro')} supplements={profile.supplements} weight={profile.weight} />
     <Registro nut={nut} dict={dict} page={plan.page} plan={plan} locale={locale} training={training.days} trainingMeta={trainMeta} dash={dash} health={health} scores={scores} intake={intake} hidden={isHidden('registro')} />
     <Tablas nut={nut} dict={dict} page={plan.page} hidden={isHidden('tablas')} />
   </div>

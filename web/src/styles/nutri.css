@@ -1,0 +1,282 @@
+/* Nutrición day blocks — Resumen de hoy (goal + day type selectors, today's target), Plan de hoy
+ * (meal parts, scaled portions, supplements) and Avituallamiento (ride fuelling). Tokens only.
+ * Selectors are real radios (labelled, keyboard-native) styled as segmented pills; every target is
+ * >= 44px. Colour keeps its meaning: --accent = the chosen option / actions, --mid = a remainder the
+ * plan cannot absorb, --trend = neutral scaled-portion marker. */
+
+.nutri-block {
+  margin-top: var(--sp-8);
+}
+.nutri-card {
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--sp-7);
+  box-shadow: var(--card-shadow);
+}
+
+/* segmented radio groups */
+.seg {
+  border: 0;
+  margin: 0 0 var(--sp-6);
+  min-width: 0;
+}
+.seg-lbl {
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: var(--sp-3);
+}
+.seg-src {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--faint);
+  margin-left: var(--sp-2);
+}
+.seg-opts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: var(--sp-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--sp-2);
+}
+.seg-opt {
+  position: relative;
+  display: block;
+}
+.seg-opt input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+.seg-opt span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: var(--sp-3) var(--sp-3);
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--label-weight);
+  text-align: center;
+  line-height: 1.2;
+  transition: background 0.18s, color 0.18s;
+}
+.seg-opt input:checked + span {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.seg-opt input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.nutri-auto {
+  min-height: 44px;
+  margin-top: var(--sp-3);
+  font-size: var(--fs-md);
+}
+.nutri-why {
+  font-size: var(--fs-sm);
+  color: var(--faint);
+  margin-top: var(--sp-3);
+}
+
+/* today's target */
+.nt-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+.nt-lbl {
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.nt-day {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.nt-kcal {
+  margin-top: var(--sp-3);
+  line-height: 1;
+}
+.nt-kcal b {
+  font-family: var(--num);
+  font-size: var(--fs-hero);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.nt-kcal span {
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--muted);
+  margin-left: var(--sp-2);
+}
+.nt-macros {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-3);
+  margin-top: var(--sp-6);
+}
+.nt-mac {
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-sm);
+  padding: var(--sp-3) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nt-mac b {
+  font-family: var(--num);
+  font-size: var(--fs-2xl);
+}
+.nt-mac span {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: var(--label-track);
+  font-weight: 700;
+}
+.nt-cnote,
+.nt-plan,
+.nutri-factor,
+.fuel-note {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  margin-top: var(--sp-4);
+}
+.nt-rem,
+.nt-off {
+  font-size: var(--fs-sm);
+  margin-top: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border-radius: var(--r-sm);
+  border-left: 3px solid var(--mid);
+  background: var(--mod-bg);
+  color: var(--ink);
+}
+
+/* Plan de hoy: meal parts */
+.meal-parts {
+  list-style: none;
+  margin-top: var(--sp-3);
+}
+.mp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-4);
+  padding: var(--sp-2) 0;
+  border-top: 1px solid var(--line-soft);
+  font-size: var(--fs-md);
+}
+.mp:first-child {
+  border-top: 0;
+}
+.mp-l {
+  flex: 1 1 auto;
+  color: var(--ink);
+}
+.mp-q {
+  font-family: var(--num);
+  color: var(--ink);
+}
+.mp-tag {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--trend);
+}
+.meal-supp {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.meal-others .meal-name {
+  font-size: var(--fs-md);
+}
+.nutri-failed,
+.nutri-empty {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+/* Avituallamiento */
+.fuel-dur {
+  display: block;
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: var(--sp-3);
+}
+.fuel-select {
+  min-height: 44px;
+  min-width: 180px;
+  padding: var(--sp-3) var(--sp-5);
+  background: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: var(--fs-md);
+}
+.fuel-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.fuel-grid {
+  display: grid;
+  gap: var(--sp-4);
+  margin-top: var(--sp-6);
+}
+.fuel-win {
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--strain);
+  border-radius: var(--r-md);
+  padding: var(--sp-5) var(--sp-6);
+}
+.fuel-win h3 {
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  margin-bottom: var(--sp-3);
+}
+.fuel-win ul {
+  list-style: none;
+  display: grid;
+  gap: var(--sp-3);
+  font-size: var(--fs-md);
+}
+.fuel-disclaimer {
+  color: var(--faint);
+}
+.eat-day-type {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+@media (min-width: 900px) {
+  .fuel-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
