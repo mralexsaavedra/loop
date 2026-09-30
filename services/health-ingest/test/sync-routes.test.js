@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSyncRoutes } from '../src/sync-routes.js'
-import { createRateLimiter, createSyncTrigger } from '../src/trigger.js'
+import { createSyncTrigger } from '../src/trigger.js'
 import { createSyncStatus } from '../src/status.js'
 
 function fakeRes () {
@@ -16,67 +16,78 @@ function fakeRes () {
 }
 
 function fakePool () {
-  const calls = []
   return {
-    calls,
     async query (sql) {
-      calls.push(sql)
       if (/FROM raw_payload/.test(sql)) return { rows: [{ last: new Date('2030-01-02T09:55:00Z') }] }
+      if (/FROM sync_status/.test(sql)) return { rows: [{ trigger_seq: 41 }] }
       return { rows: [] }
     }
   }
 }
 
-function setup ({ now = () => Date.parse('2030-01-02T10:00:00Z') } = {}) {
-  const pool = fakePool()
-  const status = createSyncStatus({ pool, stravaConfigured: true, now, log: () => {} })
+async function setup ({ now = () => Date.parse('2030-01-02T10:00:00Z'), runStrava = async () => ({ count: 1 }), writeTrigger } = {}) {
+  const status = createSyncStatus({ pool: fakePool(), stravaConfigured: true, now, log: () => {} })
+  await status.load()
   const written = []
   const trigger = createSyncTrigger({
-    limiter: createRateLimiter({ intervalMs: 60_000, now }),
-    runStrava: async () => ({ count: 1 }),
-    writeTrigger: async (iso) => { written.push(iso) },
+    runStrava,
+    writeTrigger: writeTrigger ?? (async (seq) => { written.push(seq) }),
     status,
     now,
     log: () => {}
   })
-  return { pool, written, routes: createSyncRoutes({ trigger, status }) }
+  return { written, routes: createSyncRoutes({ trigger, status }) }
 }
 
-test('POST /sync answers 202 JSON without any auth header', async () => {
-  const { routes, written } = setup()
+test('POST /sync answers 202 {seq, coalesced} JSON without any auth header', async () => {
+  const { routes, written } = await setup()
   const res = fakeRes()
   const done = routes.handleSync({ headers: {} }, res)
   assert.equal(res.status, 202)
   assert.equal(res.headers['content-type'], 'application/json')
   assert.equal(res.headers['cache-control'], 'no-store')
-  assert.equal(res.body.ok, true)
+  assert.equal(res.body.seq, 42, 'continues the persisted sequence')
+  assert.equal(res.body.coalesced, false)
   await done
-  assert.equal(written.length, 1)
+  assert.deepEqual(written, [42])
 })
 
-test('a second POST /sync within 60 s answers 429 with a Retry-After header', async () => {
-  const { routes } = setup()
+test('a second POST /sync within 60 s is NOT refused: 202, coalesced onto the same seq, no Retry-After', async () => {
+  const { routes, written } = await setup()
   await routes.handleSync({ headers: {} }, fakeRes())
   const res = fakeRes()
   await routes.handleSync({ headers: {} }, res)
-  assert.equal(res.status, 429)
-  assert.equal(res.headers['retry-after'], '60')
+  assert.equal(res.status, 202)
+  assert.deepEqual(res.body, { ok: true, seq: 42, coalesced: true })
+  assert.equal(res.headers['retry-after'], undefined)
+  assert.deepEqual(written, [42])
 })
 
-test('GET /sync/status: exact key set, timestamps only, no-store', async () => {
-  const { routes } = setup()
+test('GET /sync/status: exact key set, no-store, the trigger seq', async () => {
+  const { routes } = await setup()
   await routes.handleSync({ headers: {} }, fakeRes())
   const res = fakeRes()
   await routes.handleStatus({ headers: {} }, res)
-
   assert.equal(res.status, 200)
   assert.equal(res.headers['cache-control'], 'no-store')
-  assert.deepEqual(Object.keys(res.body).sort(), ['lastShortcutAt', 'lastStravaError', 'lastStravaOkAt', 'lastTriggerAt', 'stravaConfigured'])
+  assert.deepEqual(Object.keys(res.body).sort(), [
+    'lastShortcutAt', 'lastStravaError', 'lastStravaOkAt', 'lastTriggerAt', 'lastTriggerError', 'lastTriggerErrorSeq', 'stravaConfigured', 'triggerSeq'
+  ])
   assert.equal(res.body.lastShortcutAt, '2030-01-02T09:55:00.000Z')
   assert.equal(res.body.lastTriggerAt, '2030-01-02T10:00:00.000Z')
-  for (const [key, value] of Object.entries(res.body)) {
-    if (key === 'stravaConfigured') assert.equal(typeof value, 'boolean')
-    else if (key === 'lastStravaError') assert.ok(value === null || typeof value === 'string')
-    else assert.ok(value === null || /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value), `${key} must be an ISO timestamp`)
-  }
+  assert.equal(res.body.triggerSeq, 42)
+})
+
+test('GET /sync/status never leaks raw error text from a failed pull or trigger write', async () => {
+  const { routes } = await setup({
+    runStrava: async () => { throw new Error('strava token refresh failed: 401 client_secret=hunter2') },
+    writeTrigger: async () => { throw Object.assign(new Error('EACCES: permission denied, open /trigger/.refresh.tmp'), { code: 'EACCES' }) }
+  })
+  await routes.handleSync({ headers: {} }, fakeRes())
+  const res = fakeRes()
+  await routes.handleStatus({ headers: {} }, res)
+  assert.equal(res.body.lastTriggerError, 'trigger_write')
+  assert.equal(res.body.lastTriggerErrorSeq, 42)
+  const raw = JSON.stringify(res.body)
+  assert.doesNotMatch(raw, /EACCES|permission|hunter2|refresh failed|\/trigger/)
 })
