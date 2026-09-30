@@ -49,6 +49,9 @@ function setup({ routes = {}, locale = 'es' } = {}) {
   const line = doc.el('fresh-line');
   const btn = doc.el('sync-btn', { tag: 'button' });
   const msg = doc.el('sync-msg');
+  const sum = doc.el('fresh-sum', { tag: 'button', attrs: { 'aria-expanded': 'false' } });
+  const short = doc.el('fresh-short');
+  const pop = doc.el('fresh-pop', { hidden: true });
   const reloads = [];
   const window = { location: { reload: () => reloads.push(clock.t) } };
   const ctx = {
@@ -75,7 +78,7 @@ function setup({ routes = {}, locale = 'es' } = {}) {
     clock.t = end;
     await flush();
   }
-  return { host, line, btn, msg, calls, reloads, clock, advance };
+  return { host, line, btn, msg, sum, short, pop, calls, reloads, clock, advance };
 }
 
 const freshStatus = {
@@ -304,4 +307,41 @@ test('Sync: English failure copy', async () => {
   s.btn.dispatch('click');
   await s.advance(5000);
   assert.equal(s.msg.textContent, 'Could not update: the page build failed');
+});
+
+test('compact top bar: the summary shows the Shortcut age only, with the worst level as a dot class, full detail in its title / label', async () => {
+  const s = setup({ routes: { 'GET /api/sync/status': json(freshStatus), 'GET /status.json': json({ publishedAt: iso(NOW - MIN) }) } });
+  await s.advance(0);
+  assert.equal(s.short.textContent, 'hace 5 min');
+  assert.equal(s.sum.classes.has('fresh-sum-mid') || s.sum.classes.has('fresh-sum-low'), false);
+  assert.equal(s.sum.getAttribute('title'), 'Atajo: hace 5 min · Strava: hace 2 h · Página: hace 1 min');
+  assert.equal(s.sum.getAttribute('aria-label'), 'Frescura de los datos: Atajo: hace 5 min · Strava: hace 2 h · Página: hace 1 min');
+  const stale = setup({ locale: 'en', routes: { 'GET /api/sync/status': json({ ...freshStatus, lastStravaOkAt: iso(NOW - 80 * H) }), 'GET /status.json': json({}, 404) } });
+  await stale.advance(0);
+  assert.equal(stale.short.textContent, '5 min ago', 'the short text is the Shortcut age');
+  assert.equal(stale.sum.classes.has('fresh-sum-low'), true, 'the dot carries the worst source level');
+});
+
+test('compact top bar: a tap on the summary toggles the per-source popover (aria-expanded follows)', async () => {
+  const s = setup({ routes: { 'GET /api/sync/status': json(freshStatus), 'GET /status.json': json({ publishedAt: iso(NOW) }) } });
+  await s.advance(0);
+  assert.equal(s.pop.hidden, true);
+  s.sum.dispatch('click');
+  assert.equal(s.pop.hidden, false);
+  assert.equal(s.sum.getAttribute('aria-expanded'), 'true');
+  s.sum.dispatch('click');
+  assert.equal(s.pop.hidden, true);
+  assert.equal(s.sum.getAttribute('aria-expanded'), 'false');
+});
+
+test('icon-only Sync: spinner state (is-busy + aria-busy) while syncing, cleared when it fails', async () => {
+  const s = setup({ routes: { 'GET /api/sync/status': json(freshStatus), 'GET /status.json': json({ processedSeq: 0 }), 'POST /api/sync': json({}, 500) } });
+  await s.advance(0);
+  s.btn.dispatch('click');
+  assert.equal(s.btn.classes.has('is-busy'), true);
+  assert.equal(s.btn.getAttribute('aria-busy'), 'true');
+  await s.advance(0);
+  assert.equal(s.btn.classes.has('is-busy'), false);
+  assert.equal(s.btn.getAttribute('aria-busy'), 'false');
+  assert.equal(s.msg.textContent, 'No se pudo actualizar, reintenta');
 });
