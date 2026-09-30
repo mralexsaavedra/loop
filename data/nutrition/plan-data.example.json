@@ -968,7 +968,7 @@
     "kicker": "Health & performance · Example",
     "h1": "Health & Performance Panel",
     "sub": "Nutrition, training and recovery, driven by real data — not guesswork.",
-    "footerHtml": "Personal data from Apple Health and your own plan and training program. This page is a snapshot — it may not reflect the last few days.<br><br>\n    Figures are for guidance only — not medical advice. For clinical questions, consult a professional.",
+    "footerHtml": "Data from Apple Health, Strava and your own plan and training program. Figures are for guidance only — not medical advice. For clinical questions, consult a professional.",
     "notes": {
       "dia.footnote": "Example cutting plan. Replace these foods, targets and notes with your own data in <code>plan-data.json</code>, then run <code>npm run generate</code>.",
       "registro.intro": "Tick what you ate today (it follows the day type from the selector above). It tells you on the spot if you are short on protein, if you go over, and what to cut. Anything the plan does not cover (eating out, weekend, restaurant) write it in <b>Off plan</b>. When you want, paste it: press <b>Copy for Claude</b> and paste it into the chat. Nothing is saved — live calculator.",

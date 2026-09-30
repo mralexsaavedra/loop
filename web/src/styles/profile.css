@@ -9,26 +9,42 @@
   margin-left: auto;
   width: 44px;
   height: 44px;
-  padding: 0;
+  padding: 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: var(--r-pill);
-  background: var(--surface-2);
+  background: none;
   color: var(--ink);
-  overflow: hidden;
   cursor: pointer;
 }
 .avatar-btn:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: 0;
+}
+/* the visible avatar: a 36 px circle inside the 44 px target */
+.avatar-img,
+.avatar-btn .avatar-ini,
+.avatar-btn .avatar-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-pill);
 }
 .avatar-img {
-  width: 100%;
-  height: 100%;
   object-fit: cover;
   display: block;
+}
+.avatar-btn .avatar-ini,
+.avatar-btn .avatar-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.avatar-btn .avatar-icon {
+  padding: 7px;
 }
 .avatar-ini,
 .pf-ini {

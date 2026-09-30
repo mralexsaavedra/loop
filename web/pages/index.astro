@@ -53,7 +53,7 @@ const profile = { ...loadProfile({ repoRoot, dataMode, extractDir }), goals: goa
 // intake rings target = the same day totals Mi día shows for a train / rest day
 const intake = buildIntake(extractDir, { train: dayViewModel(nut, 'train').totals, rest: dayViewModel(nut, 'rest').totals });
 
-const navTab = (key: string) => ({ key, icon: dict.strings.nav.tabs[key].icon, label: dict.strings.nav.tabs[key].label });
+const navTab = (key: string) => ({ key, label: dict.strings.nav.tabs[key].label });
 // `sections` = the section keys a tab is made of ENTIRELY (hiding all of them drops the tab):
 // Nutrición and Entreno; Inicio and Salud hold blocks beyond their sections.
 const SECTION_ONLY_TABS = ['entreno', 'nutricion'];
@@ -84,7 +84,7 @@ const title = plan.page?.title || 'Plan';
     <Salud />
   </div>
   <div class="tab-panel" data-tab="nutricion" hidden={activeTab !== 'nutricion'}>
-    <Dia nut={nut} plan={plan} locale={locale} page={plan.page} hidden={isHidden('dia')} intakeHost={!!intake.latest || isHidden('registro')} supplements={profile.supplements} weight={profile.weight} />
+    <Dia nut={nut} plan={plan} locale={locale} page={plan.page} hidden={isHidden('dia')} intakeHost={!!intake.latest} supplements={profile.supplements} weight={profile.weight} />
     <Registro nut={nut} dict={dict} page={plan.page} plan={plan} locale={locale} training={training.days} trainingMeta={trainMeta} dash={dash} health={health} scores={scores} intake={intake} hidden={isHidden('registro')} />
     <Tablas nut={nut} dict={dict} page={plan.page} hidden={isHidden('tablas')} />
   </div>
