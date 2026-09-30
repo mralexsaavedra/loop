@@ -5,6 +5,8 @@
  *
  * Dates: every "today" is the VIEWER's local calendar day from Date.now() (never baked), so
  * consecutive builds stay byte-identical. Numbers: LOCALE is read at call time ("es" = decimal comma).
+ * Display dates: fmtDate / fmtMonth are the ONE date formatter ("lun 29 sept" / "Mon 29 Sep"), names
+ * from I18N_DATE (web/src/i18n/date-templates.mjs, baked next to HC_CONST), read at call time.
  */
 var HC = (function () {
   var MS_PER_DAY = 86400000;
@@ -60,6 +62,33 @@ var HC = (function () {
     else if (signed && Number(s) > 0) s = '+' + s;
     return isEs() ? s.replace('.', ',') : s;
   }
+  function dateNames() {
+    return typeof I18N_DATE !== 'undefined' && I18N_DATE ? I18N_DATE : null;
+  }
+  // Monday = 0 … Sunday = 6
+  function weekdayIndex(iso) {
+    return (parseIso(iso).getDay() + 6) % 7;
+  }
+  // "lun 29 sept" / "Mon 29 Sep" (opts.weekday === false drops the weekday); '' for a non-ISO value,
+  // the ISO date itself when the names are not baked
+  function fmtDate(iso, opts) {
+    iso = isoDate(iso);
+    if (!iso) return '';
+    var N = dateNames();
+    if (!N) return iso;
+    var d = parseIso(iso);
+    var tpl = opts && opts.weekday === false ? N.dayNoWeekdayTpl : N.dayTpl;
+    return format(tpl, { weekday: N.weekdays[weekdayIndex(iso)], day: d.getDate(), month: N.months[d.getMonth()] });
+  }
+  // "septiembre 2026" / "September 2026"; "YYYY-MM" when the names are not baked
+  function fmtMonth(iso) {
+    iso = isoDate(iso);
+    if (!iso) return '';
+    var N = dateNames();
+    if (!N) return iso.slice(0, 7);
+    var d = parseIso(iso);
+    return format(N.monthTpl, { month: N.monthsLong[d.getMonth()], year: d.getFullYear() });
+  }
   // minutes -> "1 h 45 min" / "45 min" / "1 h"; units = {h, min} from the page's i18n dict
   function duration(min, units) {
     min = Math.round(min);
@@ -82,5 +111,8 @@ var HC = (function () {
     nf: nf,
     num: num,
     duration: duration,
+    weekdayIndex: weekdayIndex,
+    fmtDate: fmtDate,
+    fmtMonth: fmtMonth,
   };
 })();
