@@ -294,7 +294,7 @@
 /* ---------- add sheet ---------- */
 .fa-tabs {
   display: grid;
-  grid-auto-flow: column; /* 3 or 4 tabs (Del plan only when Plan de hoy is available) */
+  grid-auto-flow: column; /* one equal column per tab (food.js TAB_KEYS) */
   grid-auto-columns: minmax(0, 1fr);
   gap: var(--sp-1);
   background: var(--rail);

@@ -45,7 +45,7 @@ export const es = {
     empty: 'El plan no tiene comidas para este tipo de día.',
     meals: { breakfast: 'Desayuno', lunch: 'Comida', preworkout: 'Pre-entreno', postworkout: 'Post-entreno', dinner: 'Cena', snack: 'Tentempié' },
   },
-  // Plan de hoy as a portion guide (lib/nutrition/guide.mjs): the same four blocks every day
+  // Plan de hoy as a portion guide (lib/nutrition/guide.mjs): the same four meal groups every day
   guide: {
     roles: { p: 'Proteína', c: 'Carbohidrato', v: 'Verdura', f: 'Grasa' },
     free: 'libre',
@@ -145,7 +145,7 @@ export const en = {
     empty: 'The plan has no meals for this day type.',
     meals: { breakfast: 'Breakfast', lunch: 'Lunch', preworkout: 'Pre-workout', postworkout: 'Post-workout', dinner: 'Dinner', snack: 'Snack' },
   },
-  // Plan de hoy as a portion guide (lib/nutrition/guide.mjs): the same four blocks every day
+  // Plan de hoy as a portion guide (lib/nutrition/guide.mjs): the same four meal groups every day
   guide: {
     roles: { p: 'Protein', c: 'Carbs', v: 'Vegetables', f: 'Fat' },
     free: 'free',

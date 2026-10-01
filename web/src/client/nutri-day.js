@@ -642,8 +642,8 @@
     MACS.forEach(function (m) { a[m] += b && finite(b[m]) ? b[m] : 0; });
     return a;
   }
-  // Plan de hoy: the same four blocks every day (breakfast, lunch, dinner, Extras); the day type and the
-  // goal only change the amounts. With today's food log (LAN page) each block shows what is left.
+  // Plan de hoy: the same four meal groups every day (breakfast, lunch, dinner, Extras); the day type and
+  // the goal only change the amounts. With today's food log (LAN page) each group shows what is left.
   function renderGuide(host, x) {
     var base = N.base[x.base];
     if (!G || !base || !base.sl || !base.sl.length) { host.innerHTML = '<p class="nutri-empty">' + esc(T.plan.empty) + '</p>'; return; }

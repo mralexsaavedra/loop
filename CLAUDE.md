@@ -518,7 +518,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   sweet staple. The base day's macros come from the existing engine
   (ingredients.json, never hand-typed) and are baked as a compact SCALING MODEL per base day
   (`planModel`: per meal the fixed macros, the flex parts' lines `[unit, amt, k, p, c, g]` or a manual
-  block). `solveScale` = WATER-FILLING (`waterFill`, `lib/nutrition/fill.mjs`, the ONE solver shared with the snack, `{clamp: [SCALE_MIN, SCALE_MAX], start: 1}` here): one common factor for every carb-flex line so the
+  block). `solveScale` = WATER-FILLING (`waterFill`, `lib/nutrition/fill.mjs`, `{clamp: [SCALE_MIN, SCALE_MAX], start: 1}`): one common factor for every carb-flex line so the
   meals hit (target − ride fuel), clamped to `SCALE_MIN`–`SCALE_MAX` (0.6–2.0×); a line that would
   pass its cap is HELD at the cap and the factor is re-solved over the lines still free, until stable (a
   cap beats `SCALE_MIN`: a written amount above its cap shrinks to it); rounded to 2 decimals and
@@ -554,7 +554,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
 - **Plan de hoy = a PORTION GUIDE** (the owner: an orientative "how much can I eat", not a menu; the
   choosable blocks, the Añadidos card that changed by day type and the automatic snack were removed) —
   `lib/nutrition/guide.mjs` = the reference, ported line by line in nutri-day.js (parity tests). ALWAYS
-  the same four blocks, every day type: Desayuno, Comida, Cena + Extras; day type and goal only change
+  the same four meal groups, every day type: Desayuno, Comida, Cena + Extras; day type and goal only change
   the amounts. **Budgets**: today's plan solve (`planFor`: goal × day type × ride minutes, caps and
   water-fill, no picks) → each main meal's budget (kcal, P, C, F) = the solved macros of the plan meals
   of its slot (`mealSlot` via the baked `base[day].sl`; two meals of one slot add up, a slot with no meal
@@ -564,7 +564,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   not drain that meal early; **Extras** = the MEALS target (target − ride fuel) − the three main budgets,
   so it absorbs the add-ons (pre / post workout, a protein anchor, any other unslotted meal such as an
   after-lunch coffee) and whatever the capped plates leave over (`guideBudgets`; a macro the main meals already pass clamps at
-  0 and the card says so, never negative). The four blocks add up to the meals target, which is also the
+  0 and the card says so, never negative). The four meal groups add up to the meals target, which is also the
   fold summary's kcal. **A main meal = a plate by parts**: Proteína ~X g (= meal P), Carbohidrato ~Y g
   (carbs), Verdura "libre", Grasa ~Z g (fat); each macro row = ONE example food (a native `<select
   class="gd-pick">`, ≥ 44 px, aria-label "Ejemplo de Proteína para Comida") + the amount of that food
@@ -599,8 +599,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   id per pending add, kept across an ambiguous retry). The guide re-renders on every add / delete (food.js
   calls `HCNutri.refresh()`) and on goal / day type / ride changes; without the API: budgets only, no
   "+", no "Te queda". `NUTRI` = `{…, base: {<day>: {sl, fixed, flex}}, guide: {roles, defaults, oil,
-  fallback, extras, done, covered}}`: ~3.6 KB on the example (was ~19.7 KB with the block lists, the
-  food catalogue and the snack options; budget test 8 KB); FOOD_BASICS grew ~1.7 KB (`c`, `x`, cortado).
+  fallback, extras, done, covered}}`: a few KB on the example (budget: `lib/nutrition/today.test.mjs`,
+  8 KB); FOOD_BASICS carries `c`, `x` and the cortado (budget: `web/test/food-build.test.mjs`).
 - **Day-type detection** (`lib/nutrition/daytype.mjs` = the reference; nutri-day.js ports it over the
   baked `DETECT` and a test runs both over `DAYTYPE_CASES`): today's workouts from `SCORES.timeline`
   (same-day rows already merged per modality). Only real training counts (`DETECT`): gym / run ≥ 20 min
@@ -638,7 +638,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
 - **Plan de hoy — layout** — restrained cards (no accent border): meal name as a caps label, its kcal
   budget big in `--num`, the macro rows (caps label left, "~45 g" in `--num` right; the example select
   below with the amount and the "+"; a long amount wraps under the select at 360 px, right-aligned), the
-  muted P / C / F (es: G) mini line. On wide screens (>= 900 px) the four cards flow into two
+  muted P / C / F (es: G) mini line. On wide screens (>= 900 px) the four meal-group cards flow into two
   masonry-like CSS columns (`columns: 2`, cards `break-inside: avoid`). The block is a native
   `<details class="nutri-block sec-fold nutri-fold" id="nutri-plan-fold">`, COLLAPSED by default: the
   summary = the heading + the meals target (`#nutri-plan-kcal`, written on every refresh); the open
@@ -825,7 +825,7 @@ Plan de hoy) and the
   ported formula, `aria-live` results; save closes it, re-renders Registrar and announces "Añadido:
   …". The former "Del plan" tab (it logged Plan de hoy's menu) is gone: the portion guide's "+" logs
   an example amount instead (see "Plan de hoy = a PORTION GUIDE"). **Basics in the Mis productos tab**: the search box also looks in `FOOD_BASICS`
-  (baked by `Dia.astro`, ~11.2 KB for 105 foods with each food's category `c` and portion cap `x`, which the portion guide reads; the box shows even with no product yet). An EMPTY search
+  (baked by `Dia.astro`, each food with its category `c` and portion cap `x`, which the portion guide reads — size budget in `web/test/food-build.test.mjs`; the box shows even with no product yet). An EMPTY search
   lists the products only, plus a one-line hint ("Escribe para buscar también en los básicos…"); typing
   lists the matching products by store, then a "Básicos" / "Basics" group (accent- and case-insensitive,
   names that start with the text first, ≤ 25 rows), each row "88 kcal por 100 g · valor medio" ("por ud"
