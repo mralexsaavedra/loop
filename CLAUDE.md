@@ -1121,7 +1121,10 @@ anchor for Inicio's health monitor.
   night, but within only 60 min when they start after the night's end from 05:00 on AND end at or
   after 10:00 (`AFTER_END_GAP_MIN`), so a 09:00–10:30 nap after a 06:30 wake-up or an afternoon nap
   is not absorbed; a block after the end that ENDS before 10:00 (`FALL_BACK_END_HOUR`) is falling
-  back asleep after an early wake-up and joins within 3 h (23:59–03:19 + 05:08–07:32 = one night). Naps (incl. one that
+  back asleep after an early wake-up and joins within 3 h (23:59–03:19 + 05:08–07:32 = one night).
+  Accepted trade-off (pinned by a test): a real morning nap that ends before 10:00 within 3 h of the
+  wake-up (06:30 wake, 07:30–09:30 nap) now JOINS the night too — the data cannot tell it apart from
+  falling back asleep (no awake / stage context beyond the gap). Naps (incl. one that
   crosses 18:00) add neither minutes nor bed/wake times; a nap-only day has no row. Sleeping wrist
   temperature is dated by the same midpoint + 18:00 roll-over rule as a sleep block (`wristTempDate(start,
   end)`; a Shortcut sample with only a start falls back to its start). Known limitation: night-shift

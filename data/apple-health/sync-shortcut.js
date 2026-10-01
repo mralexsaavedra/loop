@@ -137,7 +137,19 @@ const SLEEP_STAGES = {
 const stageKey = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/gi, '').toLowerCase();
 const isAsleep = stage => SLEEP_STAGES[stageKey(stage)] === true;
 
-const parseNumber = v => S.num(String(v ?? '').trim().replace(',', '.'));
+// A decimal comma or dot. With BOTH separators the LAST one is the decimal and the other a thousands
+// separator ("1.234,5" / "1,234.5" -> 1234.5); one kind repeated ("1.234.567") is ambiguous -> null.
+function parseNumber(v) {
+  let s = String(v ?? '').trim();
+  const dots = (s.match(/\./g) || []).length, commas = (s.match(/,/g) || []).length;
+  if (dots && commas) {
+    const dec = s.lastIndexOf('.') > s.lastIndexOf(',') ? '.' : ',';
+    s = s.split(dec === '.' ? ',' : '.').join('');
+    if (dec === ',') s = s.replace(',', '.');
+  } else if (dots > 1 || commas > 1) return null;
+  else s = s.replace(',', '.');
+  return S.num(s);
+}
 // a distance in km: "6.2" / "6,2 km" -> 6.2, "5400 m" -> 5.4, "3 mi" -> 4.83; a bare number > 100 = metres
 const KM_PER = { km: 1, m: 0.001, mi: 1.609344 };
 const DISTANCE_METRES_ABOVE = 100;

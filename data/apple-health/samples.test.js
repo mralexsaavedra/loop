@@ -217,3 +217,11 @@ test('sleepNights(): a block ending before 10:00 but more than 3 h after the wak
   ]);
   assert.deepEqual(rows, ['2030-01-02,7.17,W,22,5.17']);
 });
+
+test('sleepNights(): TRADE-OFF — a 07:30-09:30 nap after a 06:30 wake JOINS the night (indistinguishable from falling back asleep)', () => {
+  const rows = nightRows([
+    seg('2030-01-01 23:00:00 +0100', '2030-01-02 06:30:00 +0100'),
+    seg('2030-01-02 07:30:00 +0100', '2030-01-02 09:30:00 +0100'), // ends before 10:00, 1 h gap
+  ]);
+  assert.deepEqual(rows, ['2030-01-02,9.50,W,23,9.5']);
+});

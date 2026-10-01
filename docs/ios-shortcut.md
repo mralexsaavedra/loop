@@ -140,7 +140,9 @@ What the sync does with each shape:
 - **Exercise / distance / flights** (`exercise_watch`, `distance_watch`, `flights_watch`): Watch
   day totals, same rules as the other day totals; a `0` day (*Fill Missing*, or the watch was not
   worn) is no data, as in the export. `distance_watch` is stored in **km**: send km (`6.2`), or a
-  value with its unit (`6200 m`, `3.9 mi`); a bare number above 100 is read as metres.
+  value with its unit (`6200 m`, `3.9 mi`); a bare number above 100 is read as metres (`100` = 100 km,
+  `101` = 101 m). Decimal commas work, and with both separators the last one is the decimal
+  (`1.234,5 m`); a repeated single separator (`1.234.567`) is rejected.
 - **The export's last day is partial**: `export.xml` is taken during a day, so its rows for that
   day are incomplete. For the day totals (steps, energy, exercise, distance, flights, dietary) the
   Shortcut row wins on that date, and the export row is dropped when no Shortcut row exists.
