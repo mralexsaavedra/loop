@@ -586,7 +586,16 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   (meals total; on bike days "meals + ride fuel = total"), remainder / macro notes, then the intake
   rings — which step aside (host hidden) when the logged day is today, since the dial shows it. Inicio's
   "today you eat" card (`#eat-body`) shows the same day type, goal and target.
-- **Plan de hoy** — restrained meal cards (no accent border): meal name as a caps label, kcal big in
+- **Plan de hoy** — only THREE main meals are cards: a meal whose slot (`mealSlot`: its own `slot`,
+  else from its name) is breakfast / lunch / dinner (`lib/nutrition/slots.mjs` `MAIN_SLOTS` /
+  `isMainMeal`, baked as `NUTRI.mainSlots`; the page's `isMainMeal` is pinned to lib by a test). Every
+  other meal (pre / post workout, snack, protein anchor, an after-lunch coffee, cooking oil, any meal
+  with no slot) is a compact ROW of ONE "Añadidos" / "Extras" card after the main cards (`.meal
+  .meal-addons`, rows `.addon`: name as a small caps label + kcal in `--num`, then its item rows with
+  the scaled arrows, its block select and its supplement lines; the card's kcal = the sum of its rows;
+  no add-ons → no card). Display grouping ONLY: the meals are walked in day order (flex index,
+  supplements' "first meal of the slot") and no number moves — a test pins `planFor`'s totals for all
+  12 plans and checks the cards add up to the day. Restrained cards (no accent border): meal name as a caps label, kcal big in
   `--num`; item rows = name left, amount right; a scaled portion carries a small muted ↑ / ↓ with an
   aria-label (`solveScale` / `planFor` return `qa` / `flexAmts` per-line amounts and `dir` /
   `flexDir`); a composite item (several recipe lines, no amount of its own; baked with `c` names and,
@@ -603,7 +612,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
 - **Supplements** — optional `supplements: [{ name, dose?, meal }]` in `profile/profile.json`
   (`meal` = breakfast | lunch | preworkout | postworkout | dinner | snack, `lib/nutrition/slots.mjs`
   `MEAL_SLOTS`; validated by `validateManual`). A discreet "name dose" line under the first meal of
-  that slot (no macros; a small pill SVG icon, no emoji); ones whose slot is not in today's plan are listed under "Other supplements
+  that slot (no macros; a small pill SVG icon, no emoji; a preworkout / postworkout / snack supplement
+  sits on that add-on's row in the Añadidos card); ones whose slot is not in today's plan are listed under "Other supplements
   today" with their slot. A meal's slot = its own `slot` field, else guessed from its es / en name
   (`mealSlot`: desayuno / breakfast, comida / lunch, pre / post-entreno / workout, cena / dinner,
   merienda / snack / anclaje). They are also listed in the profile sheet.
@@ -739,19 +749,28 @@ unknown.
   two folds (`web/src/tabs/Food.astro`: `#food-products`, `#food-recipes`, before Tablas, rendered only
   when `dia` is visible, no section key) ship `hidden` and appear only when `GET /api/food/products`
   answers — so the claude.ai artifact, file:// and the example build show nothing new and builds stay
-  byte-identical. Nothing of the log is kept in the browser. **Registrar**: the day total, then one
-  restrained card per meal slot (label, amount, kcal in `--num`, P / C / G line, a 44 px delete button
-  with an aria-label, "+ Añadir"). **Add sheet**: a registered detail-sheet view
+  byte-identical. Nothing of the log is kept in the browser. **Registrar**: the day total, then FOUR
+  restrained group cards — Desayuno / Comida / Cena / Añadidos (en: Extras) — (`slots.mjs` `MEAL_GROUPS`
+  + `mealGroup`, baked in `FOOD_CONST` as `groups` / `mainSlots` / `addonGroup` / `addonSlot`; label,
+  amount, kcal in `--num`, P / C / G line, a 44 px delete button with an aria-label, "+ Añadir" per
+  group). The stored slot enum is UNCHANGED (`food_log.meal` = the six `MEAL_SLOTS`, no schema change):
+  entries stored as preworkout / postworkout / snack show in Añadidos with a tiny muted slot tag
+  (`.fe-slot`). **Add sheet**: a registered detail-sheet view
   (`window.HCViews['food-add']`, deep link `#food-add`, registered only once the API answered; focus
   trap / Esc / Back from detail.js, whose Tab trap now includes form fields and whose
-  `HCDetail.open(key, date, {opener})` returns focus to the tapped button): meal select, tabs Mis
+  `HCDetail.open(key, date, {opener})` returns focus to the tapped button): meal select = the four
+  groups (Desayuno / Comida / Cena / Añadido; a main group is stored as its slot, Añadido as `snack`
+  unless the "Del plan" pick is a plan add-on with its own preworkout / postworkout slot, which it
+  keeps; a fresh sheet guesses the group by the viewer's hour: < 11 breakfast, < 16 lunch, < 20
+  Añadido, else dinner), tabs Mis
   productos (search, grouped by store) / Mis recetas / Del plan (es "Del plan", en "From plan") /
   Rápido (label + kcal + optional macros), amount in g / ml / servings (servings only with a serving
   size; a per-serving recipe in servings, a batch one in grams of cooked food), live preview from the
   ported formula, `aria-live` results; save closes it, re-renders Registrar and announces "Añadido:
   …". **Del plan** = today's Plan de hoy meals — WITH the viewer's block picks — from `HCNutri.todayPlan()` (read when the sheet
-  opens, so it follows today's goal, day type and ride minutes): the plan meals as toggle chips (the
-  one whose slot matches the sheet's meal select is preselected, and follows that select), then a
+  opens, so it follows today's goal, day type and ride minutes): the plan meals as toggle chips — the
+  main meals, then each add-on, like Plan de hoy (the first meal of the sheet's group is preselected —
+  Añadido → the first add-on — and follows that select; a pick already in the group stays), then a
   radio list — the whole meal (default) or one of its items (composites list their components) —
   with the kcal / macros preview; saving logs ONE `quick` entry: label "Plan · <meal name>" (an item:
   "Plan · <item> (<amount>)", capped to `nameMax`) with all four macros (no schema change: the

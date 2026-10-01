@@ -4,6 +4,19 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-01 — Three main meals + one "Añadidos" group (Plan de hoy, Registrar)
+
+The owner disliked separate full cards for small things ("Café (tras comer)" on rest days,
+"Pre-entreno" on training days). Plan de hoy and the food log now show only three main meals —
+Desayuno, Comida, Cena — plus ONE "Añadidos" / "Extras" group for everything else (pre / post
+workout, protein anchor, after-lunch coffee, cooking oil, snacks). `lib/nutrition/slots.mjs` holds the
+classification (`MAIN_SLOTS`, `isMainMeal`, `MEAL_GROUPS`, `mealGroup`, `ADDON_SLOT`), baked for the page.
+Plan de hoy renders add-ons as compact rows of one card (kcal = the sum of its rows; block selects,
+scaled arrows and supplement lines kept); Registrar shows four groups, add-on entries tagged with their
+stored slot; the add sheet's meal select offers the four groups (Añadido → `snack`, or a plan add-on's
+own pre / post workout slot) and "Del plan" lists the main meals then each add-on. Display only: the
+food-log slot enum and schema are unchanged, and a test pins `planFor`'s totals for all 12 plans.
+
 ## 2026-10-01 — Plan de hoy by blocks; Tablas = fixed reference values
 
 The owner never knows in advance what he will eat, but Plan de hoy showed one fixed day and the variety
