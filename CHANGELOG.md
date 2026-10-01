@@ -4,6 +4,24 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-01 — Realistic portions: caps, water-filling, Registrar first
+
+The owner's maintain gym day (3050 kcal) asked for 235 g of dry pasta at lunch: only the 2–3 parts
+marked `flex: "carb"` scaled, so every extra carb piled onto them. Now every carb / fruit food (and a
+sweet carb staple such as honey or jam) is carb-flex by its category (`lib/nutrition/flex.mjs`;
+`flex: null` opts out), and an optional per-food `maxAmt` in the tracked `ingredients.json` caps a
+portion (pasta / rice dry 150 g, oats 100 g, potato 400 g, gnocchi 300 g, bread ~3 pieces, fruit
+~1.5–2 pieces, honey / jam 30 g), validated by `npm run check`. The solver became water-filling: one
+common factor, a part past its cap held there and the factor re-solved over the rest until stable,
+same clamps, rounding and ud re-solve, ported line by line to the page (parity tests). When nothing
+can grow the remainder suggests a snack, not a bigger plate, and the factor line says when portions
+are at their maximum. The example plan's numbers changed on purpose (PINNED_TOTALS re-pinned): its
+carb parts now stop at realistic portions (largest potato 660–770 g → 400 g), so most of its 12 plans
+end 95–835 kcal short and say so. Nutrición now opens on Resumen de hoy, then Registrar, then Plan de
+hoy collapsed in a `<details>` (open state per viewer), then Avituallamiento. Cheese (tranchete,
+mozzarella) moved from `dairy` to its own `cheese` category so it is never offered for milk. Tablas'
+"Reference" header is left-aligned like its cells.
+
 ## 2026-10-01 — Every food in Plan de hoy is choosable (food categories)
 
 The owner objected to imposed fixed foods ("no tiene sentido que me marques que tengo que comer
