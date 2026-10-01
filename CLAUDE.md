@@ -170,7 +170,7 @@ live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
 | 🏠 Inicio (`home`) | TODAY: Sleep / Recovery / Load dials; health monitor; today's timeline (last night's sleep + the day's workouts); the advice sentence; "today you eat" card (today's day type + goal and target kcal/macros, link to Nutrición); programmed session (`hoy`) |
 | 🏃 Entreno (`entreno`) | per-modality load cards + caveats (`load`: `#score-load`, the detail behind the load dial); 30-day activity calendar + cumulative training time (`calendar`: `#train-activity`); running table, cycling table, load vs recovery (`sessions`: `#health-train`); Entrenamiento dashboard (`dash`) |
 | 💗 Salud (`health`) | recovery (`#hl-recovery`, with the recovery detail card `#score-recovery`, then the recovery trends); sleep (`#hl-sleep`); body composition; daily activity; energy expenditure |
-| 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Registrar (the FOOD LOG, LAN page only; its add sheet's "Del plan" tab logs Plan de hoy's meals), Plan de hoy (a `<details>` fold, collapsed by default), Avituallamiento on bike days — see "Nutrition v2" and "Nutrition v2 part 2" below); Mis productos + Mis recetas (collapsible, LAN page only, no section key: rendered with `dia`); Tablas (`tablas`, collapsible: FIXED reference values per natural unit, never portions — see "Choosable blocks and Tablas" below) — there is no train/rest toggle: Resumen de hoy's day type is the one selector. The former Constructor de día / Day builder (`registro`) was removed: the food log replaces it |
+| 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Registrar (the FOOD LOG, LAN page only), Plan de hoy (a PORTION GUIDE: Desayuno / Comida / Cena + Extras with today's budgets, in a `<details>` fold, collapsed by default), Avituallamiento on bike days — see "Nutrition v2" and "Nutrition v2 part 2" below); Mis productos + Mis recetas (collapsible, LAN page only, no section key: rendered with `dia`); Tablas (`tablas`, collapsible: FIXED reference values per natural unit, never portions — see "Tablas = fixed reference values" below) — there is no train/rest toggle: Resumen de hoy's day type is the one selector. The former Constructor de día / Day builder (`registro`) was removed: the food log replaces it |
 
 `lib/nav/tabs.mjs` is the ONE source of the tab keys (`TAB_KEYS`) and of the legacy-section map
 (`SECTION_TAB`); the page derives each tab's section list from it (`sectionsOf`) and bakes both as
@@ -395,11 +395,11 @@ controls instead of the close button.
 `lib/nutrition/macros.mjs`):**
 - `data/nutrition/ingredients.json` (TRACKED, **public** food DB) — the reusable
   `{ "ingredients": { … } }` of per-100 g/ml/ud base foods (`verified:true` = real product
-  label, `false` = DB estimate; each carries `name` + `note` + a food category `cat`, see "Choosable
-  blocks"). `name` is localized, `{es, en}`
+  label, `false` = DB estimate; each carries `name` + `note` + a food category `cat`, see
+  `lib/nutrition/categories.mjs`). `name` is localized, `{es, en}`
   (a plain string stays valid for backward compat), resolved by the BUILD locale wherever a food is
   named — Plan de hoy, Tablas, plan-tables.md (generate.js: `LOCALE` env → `plan.locale` → en), the
-  food log's "Del plan" — by `lib/nutrition/names.mjs` `ingName` / `lineName`; an ingredient without a
+  portion guide's example foods — by `lib/nutrition/names.mjs` `ingName` / `lineName`; an ingredient without a
   name is a `npm run check` WARNING (the page then shows its key), a malformed one an error, and a test
   asserts every tracked ingredient has es + en names. This is shareable and is the
   one piece of the plan that goes public. It may hold MORE foods than any single plan uses — e.g. the
@@ -481,7 +481,7 @@ Part 1 of the Nutrición redesign: compute + display (food logging, the write en
 product catalogue are part 2, next section). The `dia` section (key kept for `page.hideTabs`) holds, top
 to bottom: Resumen de hoy, Registrar (the food log, part 2), Plan de hoy and Avituallamiento — the
 nutrition blocks all client-rendered by `web/src/client/nutri-day.js` from ONE bake, `NUTRI`
-(`lib/nutrition/today.mjs` `buildNutriToday`, in `web/src/tabs/Dia.astro`, ~10.6 KB on the example with the block lists) +
+(`lib/nutrition/today.mjs` `buildNutriToday`, in `web/src/tabs/Dia.astro`, ~3.6 KB on the example) +
 `I18N_NUTRI` (`web/src/i18n/nutri-templates.mjs`, es/en). The day-type radios are server-rendered
 (labelled, ≥ 44 px) and are the only control in Resumen de hoy (the goal is set in the profile sheet); everything time-based is decided on the viewer's clock,
 so builds stay byte-identical. Each block renders in its own try/catch (a one-line message on failure).
@@ -535,140 +535,71 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   rounded amount never passes its cap (`capAmount` steps DOWN on the line's grid); with only `ud` parts flexible the
   remainder is reported honestly (plus a one-line note). Amounts round to 5 g / 5 ml (never below one
   step; a `manual` block scales as a whole and shows "×1.30") and the totals are recomputed from the
-  ROUNDED amounts. The rest is `rem` (target − ride fuel −
-  meals, kcal): beyond `REMAINDER_TOLERANCE_K` (75) the page says it ("~X kcal short: add ~Y g of
-  carbs" / on bike days "add them to the ride fuel" / "over: trim fat or extras"); a day still short
-  beyond the tolerance gets the AUTOMATIC SNACK (next bullet), so the shortfall line only says what the
-  snack's caps leave over ("~X kcal short even with the snack at its maximum…", `remSnackLeft`); the old
-  "add a snack" line (`remSnack`) remains only for a bake without snack options. With caps the example
-  plan's plates cannot reach most goal × day types (its base day carries too few carb parts for
-  2500–3400 kcal), so most of its days carry a snack: `lib/nutrition/today.test.mjs` allows a remainder
-  only when the snack is at its caps or the ride keeps it. Protein and fat are
-  NOT scaled: a plan more than `MACRO_TOLERANCE_G` (15 g) off the target says so. `planFor(bake, goal,
+  ROUNDED amounts. The rest is `rem` (target − ride fuel − meals, kcal): plan-tables.md lists it per
+  (goal, day type); Plan de hoy's portion guide hands it to Extras (with caps the example plan's plates
+  cannot reach most goal × day types, so its Extras budgets are large). Protein and fat are
+  NOT scaled (the guide's Extras takes what the main meals leave of them; `MACRO_TOLERANCE_G` (15 g) only
+  feeds the rings' `fatMax`). `planFor(bake, goal,
   dayType, minutes)` gives one plan for a ride of `minutes` (meals target `mt` = target − ride fuel,
   the fuel being all carbs); the page bakes only `{base, t}` per (goal, day type) + the two models and
   runs a line-by-line port of `solveScale` / `planFor` (parity test), so a new ride duration re-scales
-  Plan de hoy. `buildDayPlans` precomputes the 12 plans at the default ride minutes for the table in
-  `plan-tables.md` ("Daily targets by goal and day type"). Item parts show their `q`
-  only when it states an amount (a "—" placeholder is replaced by the recipe amounts); an `{ing}`
-  part shows its `label`, else the ingredient's `name`, else its key — give `{ing}` parts a `label`
-  (a composite's components: the recipe line's `label`, else the ingredient's `name`, else its key).
-  A countable food shows pieces with the grams reference (`fmtPieces`: "1½ medium bananas (~180 g)"
-  on the half-piece grid, "~2 bread rolls (80 g)" off it; "2 eggs (~100 g)"); `fmt.pieces` bakes only
-  the pieces a baked line can format (fixed parts are pre-formatted).
-- **Automatic snack** — `lib/nutrition/snack.mjs` (the owner's capped meals fall short: maintain gym
-  −209, bike −229, bikeLong −299 meal kcal, bulk −366…−599; approved: the plan ADDS a snack). After the
-  capped carb solve, `planFor` computes `need` = target − ride fuel − meals − `rideHeadroomK(fuel)`; when
-  it exceeds `REMAINDER_TOLERANCE_K` (and the day has meals) it adds a snack sized to `need`. Options =
-  `SNACK_OPTIONS`, TRACKED lib data (never the personal plan), small recipes over the public food DB incl.
-  the log-only basics, in default-preference order, each line with a snack-sized cap `max` (effective cap
-  = min(max, the food's `maxAmt`)): `fruit-yogurt` (apple 180 + plain yogurt 125; max 270 / 250),
-  `banana-quark` (banana 120 + quark 150; 240 / 300), `yogurt-cereal` (yogurt 125 + cereal 30; 250 / 60),
-  `tomato-toast` (baguette 60 + tomato 50 + olive oil 5; 150 / 150 / 15), `turkey-sandwich` (baguette 60
-  + turkey slices 40; 150 / 120), `nuts` (walnuts 15 + almonds 15; 30 / 30). The WHOLE option scales by
-  one factor (the shared `waterFill` WITHOUT the 0.6–2× clamp, a line past its cap held there),
-  countable lines rounded first (half pieces / whole units) and the g / ml lines re-solved, amounts on the
-  usual grid never past the cap, macros from the ROUNDED amounts (`solveSnack`); what the caps leave over
-  stays the remainder (`snack.capped`). Default (`defaultSnack`) = the first option whose capped kcal
-  covers `need`, else the one that gives most — deterministic, so fruit + yogurt on a usual shortfall,
-  the toast / sandwich on a big one. The pick persists like block picks (`hc.nutri.picks`, stable id
-  `SNACK_ID` = `snack/auto`; a known option key wins, the day's default drops it, "Back to the base
-  plan" clears it; a non-default pick is returned in `planFor().picks`, so the swap note shows). Where
-  it goes (`withSnack`): a new add-on meal "Tentempié" / "Snack" (slot `snack`) after the others — a row
-  of the Añadidos card with a `.mp-pick` select of the options and its components as sub-rows — or, when
-  the plan ALREADY has a snack-slot meal (`mealSlot`: merienda / snack / tentempié / anclaje, e.g. the
-  example rest day's protein anchor), ONE more part of the first such meal, never a second snack meal.
-  The snack part = `{l, id: 'snack/auto', sn: 1, c, a, m}`, a fixed part with its own macros, so the
-  meal totals, `tot`, `rem`, the macro notes, the plan kcal and `HCNutri.todayPlan()` all include it, and
-  "Del plan" logs it like any add-on (a quick entry, slot snack). `planFor().snack` = `{k, d (default),
-  n, nums, mac, capped}` | null. Bike day types: the shortfall goes to the ride fuel only up to the top
-  of the ride's g/h range (`rideHeadroomK` = (top g/h × hours − planned g) × 4: 0 for `bike`, fixed at
-  60 g/h, ~200 kcal for a 3.5 h `bikeLong` at 60–90 g/h) — telling a `bike` day to add 60+ g more to a
-  ride fixed at 60 g/h contradicted Avituallamiento's own rate, so only what is beyond that headroom
-  becomes a snack and the rest keeps the ride-fuel line. A plan already on target (the example's cut
-  rest day) shows no snack. Bake: `NUTRI.snack = {id, slot, n, opts: [{k, n, ln (capped model lines), c}]}`
-  (~1.2 KB; the example NUTRI went from ~18.5 KB to ~19.7 KB, budget 20 KB); `fmt.pieces` covers its
-  countable foods. nutri-day.js ports `waterFill` (one copy, parity over `FILL_CASES`) / `solveSnack` / `snackCapK` / `defaultSnack` /
-  `snackFor` / `rideHeadroomK` / `withSnack` and the planFor integration line by line (parity: every
-  option × needs 60–1400 kcal in both locales, every goal × day type × option pick). plan-tables.md's
-  "Daily targets" table has a Snack column. `PINNED_TOTALS` re-pinned (example, before → after,
-  remainder): maintain rest 99 → 13, gym 445 → 48, bike 465 → −21, bikeLong 535 → 200 (the ride's
-  headroom); cut rest 0 (no snack), gym 95 → 9, bike / bikeLong as maintain; bulk rest 399 → 1, gym 745
-  → 214, bike 765 → 234, bikeLong 835 → 304 (the toast at its maximum, 531 kcal).
-- **Choosable blocks** — `lib/nutrition/blocks.mjs`: a dayPlan part that points at an option list
-  (`{use, tier?, match}`: `data.proteina`, `data.carboComida.train`, `data.postre`, `data.desayuno`…)
-  is a BLOCK when that list holds ≥ 2 eatable options (none rows excluded); its default = the part's
-  `match`. Lists of one stay fixed (fixed `{ing}` parts are FOOD blocks, below). Stable ids: block id = `<meal key>/<use>`
-  (meal key = the meal's `slot`, else `mealSlot` from its name, else its name; the TIER is not in the
-  id, so a pick follows the day across train / rest; a repeat in the same meal key gets `#2`…; ids are
-  slot / list-based, not meal-based: two meals sharing a slot (or name) and a list get their ids BY ORDER
-  in the day, so reordering such meals moves a stored pick to the other one);
-  option key = the item's `n`, else `cap`, else `l` (ONE rule, `lib/nutrition/names.mjs` `itemName`, also
-  the baked option name and the Tablas row name; a repeated key gets " (2)"). Swap rules
-  (`swapOption`, pure: the picked option as the part that replaces the default + its flex entry or fixed
-  macros; `applyPicks` only keeps the books): PROTEIN-role lists (`BLOCK_ROLES`: proteina, anclaje, postentreno — explicit in lib,
-  never from emoji / labels) scale the picked option to the SAME protein grams as the default
-  (`swapFactor`, clamped `SWAP_SCALE_MIN`–`MAX` 0.5–2.0, amounts rounded like every scaled amount;
-  a manual block shows "×1.73"); every other list takes the option's own recipe amounts. A pick in a
-  carb-flex part stays flex only when the option is itself flex-able (`lib/nutrition/flex.mjs`
-  `isFlexItem`: every line a carb / fruit food or a carb STAPLE by share, ≥ 60 % of its kcal from carbs;
-  a `manual` block never is), else it becomes a fixed part; then `solveScale` re-solves the WHOLE day (same clamp, rounding, remainder
-  notes). `planFor(bake, goal, dayType, minutes, picks)` returns `view` (the meals to display) and
-  `picks` (the effective ones); no effective pick (none, the default key, an unknown id / key) = the
-  base model untouched, byte for byte. Bake: `lists[<use>[.<tier>]]` = options `{k, n, gr?, ln | mb,
-  q?, c?, pr, fx?}` (line macros to 2 decimals; `gr` = the item's `t` / `cat`; `fx: true` = a carb staple,
-  absent = not; the block's `fx` is a boolean too) + per base day
-  `blocks[id] = {L, r, d, fx}` and an `id` on each block part; NUTRI grew from ~5.6 KB to ~10.6 KB on
-  the example. The page (nutri-day.js) ports `swapOption` / `applyPicks` / `swapFactor` / `fmtPieces` line by line
-  (parity test over every single pick + combinations). Plan de hoy renders a block's name as a
-  compact `<select class="mp-pick">` (≥ 44 px, `<optgroup>`s by `gr`: lean / moderate / fatty, fruit /
-  yogurt…, aria-label "Change <item> (<meal>)"); a change keeps the pick for TODAY in localStorage
-  (`hc.nutri.picks` = `{date, picks: {<id>: <key>}}`, expires the next day, every access wrapped;
-  picking the default drops it), re-renders and refocuses that select; with picks a one-line note +
-  "Back to the base plan" (`#nutri-picks-reset`). `HCNutri.setPick(id, key)` / `resetPicks()` exist
-  for tests. Food-API recipes as extra breakfast options were NOT added (they exist only at view
-  time on the LAN, so they cannot be part of the baked lists and the parity design).
-- **Food blocks — every fixed `{ing}` part is choosable** (the owner: "no tiene sentido que me marques
-  que tengo que comer calabacín sí o sí"). Every ingredient of `ingredients.json` carries a food
-  category `cat` from a small CLOSED set (`lib/nutrition/categories.mjs` `FOOD_CATS`: protein, carb,
-  legume, fruit, veg, dairy, cheese, fat, sweet, drink, sauce, other — cheese (tranchete, mozzarella) is
-  its own category so it is never offered in place of the coffee's milk; `npm run check`: an unknown `cat` is an
-  error, a missing one a warning — that food then stays a fixed part; the key `none` is reserved; a test
-  pins that every tracked ingredient has one). A fixed `{ing}` part whose food has a category is a FOOD
-  block: its options are every ingredient of the SAME category (default = its own food, shown under the
-  part's `label`; the others by their localized `ingName`, sorted by name) plus, only where skipping is
-  sensible (`CAT_RULES[cat].skip`: fruit, veg, dairy, cheese, sweet, drink, sauce), a "none" option (key `none`,
-  "Sin verdura" / "No vegetables"…, `T.plan.none[cat]`). A category with one food and no "none" (e.g.
-  `other`: baking powder) stays fixed; a LOG-ONLY basic (`swap: false` on the ingredient: the generic
-  foods added for the food log's basics, see "Nutrition v2 part 2") is never an option and a part of one
-  stays fixed (a non-boolean `swap` is a `npm run check` error), so adding basics never changes Plan de
-  hoy; `manual` blocks never are blocks; the components INSIDE a
-  composite option (breakfast "C — Tostadas", "Yogur + avellanas + miel") stay as they are (the option
-  is chosen as a whole); list blocks keep their behaviour. Swap rule per category = ONE explicit table
-  (`CAT_RULES[cat].by`, tested): protein → the same protein grams; carb / legume / fruit / sweet → the
-  same carb grams; fat → the same fat grams; dairy / cheese / drink / sauce → the same kcal; veg / other → the
-  same grams (veg is ~free). `ingAmount`: from the default's WEIGHT (a `ud` food through its piece's
-  grams, `gf`), the factor that keeps that macro (or kcal) equal, clamped to the protein swaps' 0.5–2×
-  (`SWAP_SCALE_MIN`–`MAX`, so a dense whey swapped for chicken lands at 2× and protein may then fall
-  short — the macro note says so), rounded like every scaled amount (`stepAmount`: 5 g / 5 ml, half
-  pieces for a countable food, whole units) and never past the food's portion cap (`capAmount`; list swaps too, a test sweeps every block × option of the example). `swapIng` returns the picked food as the part (a carb-flex
-  part stays flex only when the new food is itself flex-able, `isFlexItem`, else it becomes fixed); "none" = a zeroed part `{l: '', z: 1, m: [0, 0, 0, 0]}` (no amount, no flex entry); then
-  `solveScale` re-solves the WHOLE day exactly as for list picks. Ids: `<meal key>/<default ingredient
-  key>` with the same `#n` rule — ONE counter shared with the list ids, so lunch and dinner's
-  courgette are `lunch/calabacin` and `dinner/calabacin`, a second courgette in one meal
-  `lunch/calabacin#2`, and the after-lunch coffee (no slot) `Café (tras comer)/leche`; option key = the
-  ingredient key (or `none`); a stale / foreign pick is ignored as before. Bake: blocks reference foods
-  by key only — per base day `blocks[id] = {I: category, d: default key, a: default amount, fx, n?:
-  the part's label}` + ONE catalogue `NUTRI.foods = {cats: {<cat>: [keys]}, ings: {<key>: {n, l: model
-  line at its per amount, fx?, gf?}}, rules: {<cat>: CAT_RULES[cat]}}` for the categories some block
-  uses; `fmt.pieces` covers every countable food in it. NUTRI on the example went from ~10.5 KB to
-  ~17.9 KB (foods ~5.3 KB; budget test 20 KB); the owner's plan ~18.9 → ~24.5 KB. The page ports
-  `ingAmount` / `swapIng` / `isOption` line by line (parity: every food block × option incl. none in
-  both locales, a synthetic sweep of every category rule, every single pick + combinations through
-  `planFor` / `applyPicks`); the no-pick path is byte-for-byte unchanged (`PINNED_TOTALS` for all 12
-  plans). UI: the same `.mp-pick` select (no optgroups), in main cards and on Añadidos rows; a "none"
-  row keeps its select (muted, `.mp-none`) and shows no amount; `HCNutri.todayPlan()` leaves a skipped
-  food out (and a meal whose every food is skipped), so the food log's "Del plan" logs what was picked.
+  the guide's budgets. `planFor` returns `{base, t, minutes, fuelK, fuelC, mt, meals (each plan meal's
+  [k, p, c, g], whole), tot, factor, clamp, udOnly, capped, allCapped, rem}`; the bake per base day is
+  `{sl (each meal's slot), fixed, flex}`. `buildDayPlans` precomputes the 12 plans at the default ride minutes for the table in
+  `plan-tables.md` ("Daily targets by goal and day type": kcal, P, F, C, meals kcal, ride fuel, carb
+  factor, remainder — the Snack column went with the automatic snack). `scaleDay` (lib only) still
+  names parts (`label`, else the ingredient's `name`, else its key) and formats amounts; a countable
+  food shows pieces with the grams reference (`fmtPieces`: "1½ medium bananas (~180 g)" on the
+  half-piece grid, "~2 bread rolls (80 g)" off it; "2 eggs (~100 g)"); `fmt.pieces` bakes only the
+  pieces a baked flex line can format.
+- **Plan de hoy = a PORTION GUIDE** (the owner: an orientative "how much can I eat", not a menu; the
+  choosable blocks, the Añadidos card that changed by day type and the automatic snack were removed) —
+  `lib/nutrition/guide.mjs` = the reference, ported line by line in nutri-day.js (parity tests). ALWAYS
+  the same four blocks, every day type: Desayuno, Comida, Cena + Extras; day type and goal only change
+  the amounts. **Budgets**: today's plan solve (`planFor`: goal × day type × ride minutes, caps and
+  water-fill, no picks) → each main meal's budget (kcal, P, C, F) = the solved macros of the plan meals
+  of its slot (`mealSlot` via the baked `base[day].sl`; two meals of one slot add up, a slot with no meal
+  is a zero budget); **Extras** = the MEALS target (target − ride fuel) − the three main budgets, so it
+  absorbs the add-ons (pre / post workout, a protein anchor, an unslotted "cooking oil" meal…) and
+  whatever the capped plates leave over (`guideBudgets`; a macro the main meals already pass clamps at
+  0 and the card says so, never negative). The four blocks add up to the meals target, which is also the
+  fold summary's kcal. **A main meal = a plate by parts**: Proteína ~X g (= meal P), Carbohidrato ~Y g
+  (carbs), Verdura "libre", Grasa ~Z g (fat); each macro row = ONE example food (a native `<select
+  class="gd-pick">`, ≥ 44 px, aria-label "Ejemplo de Proteína para Comida") + the amount of that food
+  that supplies the macro (`exampleAmount`: grams ÷ the food's macro per 100 of its amount scale, in its
+  natural unit — pieces with the grams reference for a countable food (`fmtPieces`), whole units, oil
+  per tablespoon, else g / ml on the 5 g grid —, never past its `maxAmt`: then "~150 g (máx.)" + "+
+  completa con otra fuente"). Options = every basic of the role's categories (`roleOptions`; protein:
+  protein; carbs: carb + legume + fruit; fat: fat — log-only `swap: false` basics included) from
+  FOOD_BASICS (the ONE food table, baked for the food log; each entry now carries `c` = category and `x`
+  = portion cap), plus the owner's products from the food API when it answered (view time only,
+  `<optgroup>` "Mis productos"), sorted by the folded name. Default example = the food the base plan uses
+  for that role in that meal (`mealDefaults`: the role-category recipe line that supplies most of that
+  macro, baked per base day as `NUTRI.guide.defaults`), else `GUIDE_FALLBACK` (pollo / arroz / aceite de
+  oliva). A pick persists per viewer, not daily (`hc.nutri.guide` = `{picks: {<slot>.<role>: 'b:<key>' |
+  'p:<id>'}}`, every access wrapped; an unlisted pick — a product without the API — shows the default and
+  stays stored). Each example covers ITS macro only (a muted note says so: the guide is orientative).
+  **Extras card**: "~N kcal para extras hoy", a muted hint with example costs computed from the food DB
+  (`EXTRAS_EXAMPLES` → `NUTRI.guide.extras`: un cortado ~19, un plátano ~106, un yogur ~79, un batido de
+  proteína (30 g) ~114 kcal — `cortado` is a tracked log-only basic: 30 ml espresso + 40 ml semi-skimmed
+  milk), "Repártelo antes y después de entrenar" on gym / bike day types, its P / C / G line; no item
+  list, no selects. **Live link with Registrar** (LAN page, `window.HCFood.groupTotals()` = today's
+  sums per group `{meals: {breakfast, lunch, dinner}, addon}`, null without the API): a main meal shows
+  "✓ N kcal registradas" at ≥ 90 % of its kcal budget (`DONE_SHARE`), "en curso: N kcal" when partial;
+  each macro row shows what is LEFT (budget − logged, floor 0, "de 45 g" once something is logged) and
+  recomputes the example amount for it; a row with ≤ 10 % left (`COVERED_SHARE`) is "✓ cubierto"; Extras
+  = budget − logged add-ons ("(de N)"); "Te queda hoy: kcal · P · C · G" (meals target − everything
+  logged) under the guide. Each open macro row gets a "+" (`.gd-add`, 44 px, aria-label "Registrar
+  195 g de Pechuga de pollo en Comida") that logs that example amount into that meal through
+  `HCFood.addGuide` (a basic = ONE quick entry with `basicEntry` / `basicLabel`, in pieces when the food
+  has them, sent with `force` since the macros are the DB's own; a product = a product entry; one request
+  id per pending add, kept across an ambiguous retry). The guide re-renders on every add / delete (food.js
+  calls `HCNutri.refresh()`) and on goal / day type / ride changes; without the API: budgets only, no
+  "+", no "Te queda". `NUTRI` = `{…, base: {<day>: {sl, fixed, flex}}, guide: {roles, defaults,
+  fallback, extras, done, covered}}`: ~3.6 KB on the example (was ~19.7 KB with the block lists, the
+  food catalogue and the snack options; budget test 8 KB); FOOD_BASICS grew ~1.7 KB (`c`, `x`, cortado).
+  Known effect: a plan whose cooking oil is its own unslotted meal puts that fat in Extras (give the
+  oil a meal's slot to count it there).
 - **Day-type detection** (`lib/nutrition/daytype.mjs` = the reference; nutri-day.js ports it over the
   baked `DETECT` and a test runs both over `DAYTYPE_CASES`): today's workouts from `SCORES.timeline`
   (same-day rows already merged per modality). Only real training counts (`DETECT`): gym / run ≥ 20 min
@@ -698,47 +629,30 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   = an empty bar with a dash; today's page food log, `window.foodTotals`, wins over `INTAKE` when it has
   entries, with its own note); otherwise the empty track + the target. The goal is a muted chip under
   the dial (a ≥ 44 px button, `#nutri-goal-chip`) that opens the profile sheet focused on its Objetivo
-  setting (`HCDetail.open('profile', null, { focus: '#pf-goal input:checked' })`), then the plan line
-  (meals total; on bike days "meals + ride fuel = total"), remainder / macro notes, then the intake
+  setting (`HCDetail.open('profile', null, { focus: '#pf-goal input:checked' })`), then on bike days the
+  plan line ("meals + ride fuel = total", meals = the guide's meals target; the remainder and macro-off
+  notes are gone: the guide's Extras absorbs them), then the intake
   rings — which step aside (host hidden) when the logged day is today, since the dial shows it. Inicio's
   "today you eat" card (`#eat-body`) shows the same day type, goal and target.
-- **Plan de hoy** — only THREE main meals are cards: a meal whose slot (`mealSlot`: its own `slot`,
-  else from its name) is breakfast / lunch / dinner (`lib/nutrition/slots.mjs` `MAIN_SLOTS` /
-  `isMainMeal`, baked as `NUTRI.mainSlots`; the page's `isMainMeal` is pinned to lib by a test). Every
-  other meal (pre / post workout, snack, protein anchor, an after-lunch coffee, cooking oil, any meal
-  with no slot) is a compact ROW of ONE "Añadidos" / "Extras" card after the main cards (`.meal
-  .meal-addons`, rows `.addon`: name as a small caps label + kcal in `--num`, then its item rows with
-  the scaled arrows, its block select and its supplement lines; the card's kcal = the sum of its rows;
-  no add-ons → no card). Display grouping ONLY: the meals are walked in day order (flex index,
-  supplements' "first meal of the slot") and no number moves — a test pins `planFor`'s totals for all
-  12 plans and checks the cards add up to the day. Restrained cards (no accent border): meal name as a caps label, kcal big in
-  `--num`; item rows = name left, amount right; a scaled portion carries a small muted ↑ / ↓ with an
-  aria-label (`solveScale` / `planFor` return `qa` / `flexAmts` per-line amounts and `dir` /
-  `flexDir`); a composite item (several recipe lines, no amount of its own; baked with `c` names and,
-  when fixed, `a` amounts) lists its components as sub-rows (name · amount), never "82 g + 20 g";
-  a muted P / C / F (es: G) mini line; the carb factor ("×1.6 vs the base plan", "(the maximum
-  applied)" when clamped; "×1.19 vs the base plan; some portions are at their maximum" when a line is
-  capped; "Every carb portion is at its maximum" with no factor when all are). The block is a native
+- **Plan de hoy — layout** — restrained cards (no accent border): meal name as a caps label, its kcal
+  budget big in `--num`, the macro rows (caps label left, "~45 g" in `--num` right; the example select
+  below with the amount and the "+"; a long amount wraps under the select at 360 px, right-aligned), the
+  muted P / C / F (es: G) mini line. On wide screens (>= 900 px) the four cards flow into two
+  masonry-like CSS columns (`columns: 2`, cards `break-inside: avoid`). The block is a native
   `<details class="nutri-block sec-fold nutri-fold" id="nutri-plan-fold">`, COLLAPSED by default: the
-  summary = the heading + the plan's total kcal (`#nutri-plan-kcal`, written on every refresh); the
-  open state is a per-viewer convenience (`hc.nutri.planOpen` '1' / '0', every access wrapped, saved on
-  `toggle`). The plan renders while collapsed, so the selects and "Del plan" never depend on it being
-  open. Avituallamiento stays after it, never collapsed. **`HCNutri.todayPlan()`** hands that same plan (block picks included:
-  it reads `x.view`), read-only, to the food log's "Del plan" tab: `[{name, slot, kcal, p, c, g, items: [{name, amount, kcal, p, c, g,
-  components?}]}]` from `current()` (goal × day type × ride minutes through `planFor`, never
-  re-computed in food.js); meal totals exactly as Plan de hoy prints them (whole numbers); an item at
-  its scaled amount with kcal whole and macros to 1 decimal — a fixed part's macros are baked on the
-  part (`m`, from `buildDayPlans`), a flex part's come from `solveScale`'s `qm` (`planFor`
-  `flexMac`, at the ROUNDED amount); a composite has `amount: null` and its `components` (name,
-  amount). A fresh copy each call; `null` when there are no meals (or on a throw).
+  summary = the heading + the meals target (`#nutri-plan-kcal`, written on every refresh); the open
+  state is a per-viewer convenience (`hc.nutri.planOpen` '1' / '0', every access wrapped, saved on
+  `toggle`); the guide renders while collapsed. Avituallamiento stays after it, never collapsed. Styles:
+  `.gd-*` in `web/src/styles/nutri.css` (tokens only: `--good` = covered / done, `--mid` = a portion at its
+  maximum, `--accent` = the "+").
 - **Supplements** — optional `supplements: [{ name, dose?, meal }]` in `profile/profile.json`
   (`meal` = breakfast | lunch | preworkout | postworkout | dinner | snack, `lib/nutrition/slots.mjs`
-  `MEAL_SLOTS`; validated by `validateManual`). A discreet "name dose" line under the first meal of
-  that slot (no macros; a small pill SVG icon, no emoji; a preworkout / postworkout / snack supplement
-  sits on that add-on's row in the Añadidos card); ones whose slot is not in today's plan are listed under "Other supplements
-  today" with their slot. A meal's slot = its own `slot` field, else guessed from its es / en name
-  (`mealSlot`: desayuno / breakfast, comida / lunch, pre / post-entreno / workout, cena / dinner,
-  merienda / snack / anclaje). They are also listed in the profile sheet.
+  `MEAL_SLOTS`; validated by `validateManual`). A discreet "name dose" line (no macros; a small pill SVG
+  icon, no emoji) under the guide's card of that slot: breakfast / lunch / dinner in their card, every
+  other slot in the Extras card with its slot name ("Electrolitos (Pre-entreno)"). A plan meal's slot =
+  its own `slot` field, else guessed from its es / en name (`mealSlot`: desayuno / breakfast, comida /
+  lunch, pre / post-entreno / workout, cena / dinner, merienda / snack / anclaje). They are also listed
+  in the profile sheet.
 - **Avituallamiento** (bike day types only; `lib/nutrition/fuel.mjs` = the reference, ported in
   nutri-day.js over the baked `FUEL`, pinned by a test): Antes (2–3 h before ~1–2 g/kg carbs; last hour
   30–60 g easy carbs), Durante (bike 60 g/h, bikeLong 60–90 g/h; fluids 500–750 ml/h; sodium ~300–600
@@ -902,25 +816,15 @@ Plan de hoy) and the
   (`window.HCViews['food-add']`, deep link `#food-add`, registered only once the API answered; focus
   trap / Esc / Back from detail.js, whose Tab trap now includes form fields and whose
   `HCDetail.open(key, date, {opener})` returns focus to the tapped button): meal select = the four
-  groups (Desayuno / Comida / Cena / Añadido; a main group is stored as its slot, Añadido as `snack`
-  unless the "Del plan" pick is a plan add-on with its own preworkout / postworkout slot, which it
-  keeps; a fresh sheet guesses the group by the viewer's hour: < 11 breakfast, < 16 lunch, < 20
+  groups (Desayuno / Comida / Cena / Añadido; a main group is stored as its slot, Añadido as `snack`;
+  a fresh sheet guesses the group by the viewer's hour: < 11 breakfast, < 16 lunch, < 20
   Añadido, else dinner), tabs Mis
-  productos (search, grouped by store) / Mis recetas / Del plan (es "Del plan", en "From plan") /
-  Rápido (label + kcal + optional macros), amount in g / ml / servings (servings only with a serving
+  productos (search, grouped by store) / Mis recetas / Rápido (label + kcal + optional macros), amount in g / ml / servings (servings only with a serving
   size; a per-serving recipe in servings, a batch one in grams of cooked food), live preview from the
   ported formula, `aria-live` results; save closes it, re-renders Registrar and announces "Añadido:
-  …". **Del plan** = today's Plan de hoy meals — WITH the viewer's block picks — from `HCNutri.todayPlan()` (read when the sheet
-  opens, so it follows today's goal, day type and ride minutes): the plan meals as toggle chips — the
-  main meals, then each add-on, like Plan de hoy (the first meal of the sheet's group is preselected —
-  Añadido → the first add-on — and follows that select; a pick already in the group stays), then a
-  radio list — the whole meal (default) or one of its items (composites list their components) —
-  with the kcal / macros preview; saving logs ONE `quick` entry: label "Plan · <meal name>" (an item:
-  "Plan · <item> (<amount>)", capped to `nameMax`) with all four macros (no schema change: the
-  `food_log` snapshot already stores quick macros), through the same request-id / ambiguous-retry /
-  "save anyway" (Atwater) flow. No hook, an empty plan or a throw → the tab is omitted (the tab bar
-  holds 3 or 4 tabs). **Basics in the Mis productos tab**: the search box also looks in `FOOD_BASICS`
-  (baked by `Dia.astro`, ~9.5 KB for 104 foods; the box shows even with no product yet). An EMPTY search
+  …". The former "Del plan" tab (it logged Plan de hoy's menu) is gone: the portion guide's "+" logs
+  an example amount instead (see "Plan de hoy = a PORTION GUIDE"). **Basics in the Mis productos tab**: the search box also looks in `FOOD_BASICS`
+  (baked by `Dia.astro`, ~11.2 KB for 105 foods with each food's category `c` and portion cap `x`, which the portion guide reads; the box shows even with no product yet). An EMPTY search
   lists the products only, plus a one-line hint ("Escribe para buscar también en los básicos…"); typing
   lists the matching products by store, then a "Básicos" / "Basics" group (accent- and case-insensitive,
   names that start with the text first, ≤ 25 rows), each row "88 kcal por 100 g · valor medio" ("por ud"
@@ -958,7 +862,11 @@ Plan de hoy) and the
   ring shows "≥ 40" (the rings add a one-line note). ONE logged entry today is enough: the dial, bars
   and rings then show the page's food log for today instead of the Apple Health intake (labelled
   "Registrado hoy en esta página" / the rings' "Registrado hoy"). After every add / delete food.js calls
-  `HCNutri.refresh()` (re-renders Resumen de hoy, which refreshes the rings, in its own try/catch). A page left open past midnight reloads the log on `visibilitychange`.
+  `HCNutri.refresh()` (re-renders Resumen de hoy, which refreshes the rings, and the portion guide, in its own try/catch). A page left open past midnight reloads the log on `visibilitychange`.
+  The portion guide's hooks: `HCFood.groupTotals()` (today's sums per Registrar group, `{meals: {breakfast,
+  lunch, dinner: {k, p, c, f}}, addon}`, a missing macro counted as 0; null unless the API answered and
+  today's log is loaded), `HCFood.products()` (a copy of the active products, null without the API) and
+  `HCFood.addGuide({group, food: 'b:<key>' | 'p:<id>', amt})` (a promise; a main group only).
 - **Retries** — each add carries a `requestId` (`crypto.randomUUID`, else a v4 UUID from
   `getRandomValues` — plain http on the LAN is not a secure context — else `Math.random`); `food_log`
   has a unique index on it, so a retry of the same add returns the stored row (`200`) instead of a
