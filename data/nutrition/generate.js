@@ -108,8 +108,10 @@ md.push('');
    fuel counts inside the target; remainder = target - ride fuel - meals. */
 md.push('## Daily targets by goal and day type');
 md.push('');
-md.push('> From `targets.byGoal` (defaults when absent); carbs = remainder. Plan de hoy scales the parts marked');
-md.push('> `flex: "carb"` by one factor (clamped) so the day lands on the target; the remainder is what is left.');
+md.push('> From `targets.byGoal` (defaults when absent); carbs = remainder. Plan de hoy scales the carb-flex parts');
+md.push('> (`flex: "carb"` marks plus every carb / fruit food; `flex: null` opts out) by one common factor (clamped),');
+md.push('> holding a portion at its cap (`maxAmt` in ingredients.json) and spreading the rest over the others; the');
+md.push('> remainder is what is left ("capped" = some portions at their cap, "all capped" = none can grow).');
 md.push('');
 {
   const days = buildDayPlans(nut, plan);
@@ -117,7 +119,7 @@ md.push('');
   const rows = [];
   for (const g of days.goals) for (const d of days.dayTypes) {
     const x = days.plans[g][d];
-    rows.push(`| ${g} | ${d} | ${x.t.kcal} | ${x.t.p} | ${x.t.f} | ${x.t.c} | ${x.tot.k} | ${x.fuelK || '—'} | ×${fmtFactor(x.factor)}${x.clamp ? ' (' + x.clamp + ')' : ''} | ${x.rem} |`);
+    rows.push(`| ${g} | ${d} | ${x.t.kcal} | ${x.t.p} | ${x.t.f} | ${x.t.c} | ${x.tot.k} | ${x.fuelK || '—'} | ×${fmtFactor(x.factor)}${x.clamp ? ' (' + x.clamp + ')' : ''}${x.allCapped ? ' (all capped)' : x.capped ? ' (capped)' : ''} | ${x.rem} |`);
   }
   md.push([head, ...rows].join('\n'));
   md.push('');

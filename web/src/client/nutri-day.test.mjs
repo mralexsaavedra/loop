@@ -17,6 +17,7 @@ import { DAYTYPE_CASES } from '../../../lib/nutrition/daytype.mjs';
 import { fuelPlan } from '../../../lib/nutrition/fuel.mjs';
 import { planFor, solveScale } from '../../../lib/nutrition/scale.mjs';
 import { applyPicks, swapOption, swapIng, NONE_KEY } from '../../../lib/nutrition/blocks.mjs';
+import { lineCap } from '../../../lib/nutrition/amounts.mjs';
 import { CAT_RULES, FOOD_CATS } from '../../../lib/nutrition/categories.mjs';
 import { LINE } from '../../../lib/nutrition/amounts.mjs';
 import { MAIN_SLOTS, isMainMeal } from '../../../lib/nutrition/slots.mjs';
@@ -111,17 +112,36 @@ const SYN_PLAN = {
   },
 };
 
-test('planFor / solveScale ports agree with lib/nutrition/scale.mjs (example plan + units, manual and ml parts)', () => {
+// the same plan with portion caps (a capped unit food, a capped ml line, a written amount above its cap)
+// and a category-flex part, so the parity covers water-filling, held lines and the ud re-solve with caps
+const CAP_ING = {
+  ...SYN_ING,
+  arroz: { ...SYN_ING.arroz, maxAmt: 150, cat: 'carb' },
+  bollo: { ...SYN_ING.bollo, maxAmt: 300 },
+  zumo: { ...SYN_ING.zumo, maxAmt: 300 },
+  patata: { per: 100, k: 86, p: 2, c: 19, g: 0.1, unit: 'g', cat: 'carb', maxAmt: 400 },
+};
+const CAP_PLAN = JSON.parse(JSON.stringify(SYN_PLAN));
+CAP_PLAN.dayPlan.rest.meals.push({ name: 'Dinner', parts: [{ ing: 'patata', amt: 450 }, { ing: 'arroz', amt: 60, flex: null }] });
+CAP_PLAN.dayPlan.train.meals.push({ name: 'Dinner', parts: [{ ing: 'patata', amt: 250 }] });
+
+test('planFor / solveScale ports agree with lib/nutrition/scale.mjs (example plan + units, manual and ml parts, portion caps)', () => {
   const syn = plain(buildNutriToday(buildNutrition(SYN_ING, SYN_PLAN), SYN_PLAN, { units: { g: 'g', ml: 'ml', ud: 'pc' }, dec: ',' }));
-  for (const nutri of [bake(), syn]) {
+  const cap = plain(buildNutriToday(buildNutrition(CAP_ING, CAP_PLAN), CAP_PLAN, { units: { g: 'g', ml: 'ml', ud: 'pc' }, dec: ',' }));
+  assert.ok(cap.base.rest.flex.some((x) => x.ln && x.ln.some((l) => lineCap(l))), 'the capped fixture bakes caps on its lines');
+  let held = 0;
+  for (const nutri of [bake(), syn, cap]) {
     const { api } = run({ nutri });
     for (const g of ['maintain', 'cut', 'bulk']) for (const d of ['rest', 'gym', 'bike', 'bikeLong']) for (const min of [null, 60, 120, 185, 240, 360]) {
       assert.deepEqual(plain(api.planFor(nutri, g, d, min)), plain(planFor(nutri, g, d, min)), `${g}/${d}/${min}`);
     }
     for (const day of ['train', 'rest']) for (let target = 300; target < 5000; target += 173) {
-      assert.deepEqual(plain(api.solveScale(nutri.base[day], target, nutri.fmt)), plain(solveScale(nutri.base[day], target, nutri.fmt)), `${day}/${target}`);
+      const lib = solveScale(nutri.base[day], target, nutri.fmt);
+      if (lib.capped) held++;
+      assert.deepEqual(plain(api.solveScale(nutri.base[day], target, nutri.fmt)), plain(lib), `${day}/${target}`);
     }
   }
+  assert.ok(held > 20, `the parity sweep exercises held (capped) lines (${held} cases)`);
 });
 
 test('no workout, nothing programmed: rest (auto), the default goal, rest target and plan; no fuelling block', () => {
@@ -167,15 +187,16 @@ test('a programmed bike session: bike (auto), picker defaults to 2 h; picking 3 
   const two = planFor(bake(), 'maintain', 'bike', 120);
   const three = planFor(bake(), 'maintain', 'bike', 180);
   assert.match(els['nutri-target'].innerHTML, new RegExp('Meals ' + two.tot.k.toLocaleString('en') + ' kcal'));
-  const planBefore = els['nutri-plan'].innerHTML;
+  const targetBefore = els['nutri-target'].innerHTML;
   calls.length = 0;
   fire('nutri-ride-wrap', 'change', { id: 'nutri-ride', value: '180' });
   assert.equal(api.state().rideMin, 180);
   assert.match(els['nutri-fuel-body'].innerHTML, /180 g in total/);
   assert.match(els['nutri-target'].innerHTML, /ride fuel 720 kcal/);
   assert.match(els['nutri-target'].innerHTML, new RegExp('Meals ' + three.tot.k.toLocaleString('en') + ' kcal'));
-  assert.ok(three.tot.k < two.tot.k, 'a longer ride leaves less for the meals');
-  assert.notEqual(els['nutri-plan'].innerHTML, planBefore, 'Plan de hoy re-rendered with the new amounts');
+  assert.ok(three.mt.k < two.mt.k, 'a longer ride leaves less for the meals');
+  assert.ok(three.tot.k <= two.tot.k, 'the meals never grow (here every carb portion is already at its cap)');
+  assert.notEqual(els['nutri-target'].innerHTML, targetBefore, 'the summary re-rendered for the new duration');
   assert.deepEqual(calls, [['intake', three.mt.k]]);
   assert.deepEqual(JSON.parse(storage.data['hc.nutri.rideMin']), { date: TODAY, type: 'bike', min: 180 });
 });
@@ -289,7 +310,9 @@ test('supplements sit under the meal of their slot; one with no such meal today 
 
 test('a remainder beyond the tolerance is stated with what to do; within it nothing is said', () => {
   const nutri = bake();
-  assert.doesNotMatch(run({ nutri }).els['nutri-target'].innerHTML, /short|over:/);
+  const cut = run({ nutri });
+  cut.api.setGoal('cut'); // the example's cut rest day lands on its target
+  assert.doesNotMatch(cut.els['nutri-target'].innerHTML, /short|over:/);
   nutri.base.rest.flex = []; // nothing to scale: the whole gap is the remainder
   nutri.plans.maintain.rest.t = { ...nutri.plans.maintain.rest.t, kcal: nutri.plans.maintain.rest.t.kcal + 400 };
   const x = planFor(nutri, 'maintain', 'rest', null);
@@ -348,9 +371,10 @@ test('the removed day builder\'s hook is never called (a stale window.bldRefresh
 });
 
 test('Spanish: labels, thousands with a dot, decimal comma in the carb factor', () => {
-  const { els } = run({ locale: 'es', nutri: bake({ units: { g: 'g', ml: 'ml', ud: 'ud' }, dec: ',' }) });
+  const { els, api } = run({ locale: 'es', nutri: bake({ units: { g: 'g', ml: 'ml', ud: 'ud' }, dec: ',' }) });
   assert.match(els['nutri-target'].innerHTML, /<b class="nt-kcal">2\.500<\/b>/);
   assert.match(els['nutri-target'].innerHTML, /Proteína/);
+  api.setGoal('cut'); // a day whose portions still have a common factor
   assert.match(els['nutri-plan'].innerHTML, /Raciones de carbohidratos ×\d,\d\d /);
   assert.equal(els['nutri-daytype-src'].textContent, '(auto)');
 });
@@ -693,13 +717,14 @@ test('setPick reads the block from today\'s base day without re-solving the plan
   assert.equal(solved, 0, 'an unknown block: no planFor run');
 });
 
-test('the example day stays on target whatever single food is picked (the carb-flex engine re-solves the day)', () => {
+test('the example day stays on target whatever single food is picked, unless no carb portion can grow any more', () => {
   const nutri = bake();
   for (const picks of pickCases(nutri)) {
-    for (const d of ['rest', 'gym']) {
-      const x = planFor(nutri, 'maintain', d, null, picks);
-      if (x.clamp) continue; // an extreme pick can push the carb factor to its limit: then the page says so
-      assert.ok(Math.abs(x.rem) <= nutri.tolerance, `${d} ${JSON.stringify(picks)}: rem ${x.rem}`);
+    for (const [g, d] of [['cut', 'rest'], ['maintain', 'rest'], ['maintain', 'gym']]) {
+      const x = planFor(nutri, g, d, null, picks);
+      // an extreme pick can push the carb factor to its limit, or every portion reaches its cap: the page says so
+      if (x.clamp || x.allCapped) continue;
+      assert.ok(Math.abs(x.rem) <= nutri.tolerance, `${g}/${d} ${JSON.stringify(picks)}: rem ${x.rem}`);
     }
   }
 });
@@ -785,18 +810,20 @@ test('Spanish: the select and the reset link are localized; countable foods in S
 });
 
 /* ---------- three main meals + ONE add-ons card (display grouping only: no number changes) ---------- */
-// planFor totals of the example plan, pinned BEFORE the add-ons grouping landed: grouping must not move a number
+// planFor totals of the example plan [kcal, P, C, F, factor, remainder], re-pinned DELIBERATELY when
+// portion caps + water-filling landed (lib/nutrition/scale.mjs): the example's carb parts now stop at
+// realistic portions (potato 400 g, rice 150 g, two fruit pieces…), so most plans end short and say so
 const PINNED_TOTALS = {
-  'maintain/rest': [2503, 142, 390, 45, 1.54, -3], 'maintain/gym': [3065, 161, 487, 53, 1.72, -15], 'maintain/bike': [3069, 161, 488, 53, 1.73, 1], 'maintain/bikeLong': [3149, 162, 507, 54, 1.75, -9],
-  'cut/rest': [2146, 136, 307, 44, 1.16, 4], 'cut/gym': [2699, 153, 409, 51, 1.42, 1], 'cut/bike': [3069, 161, 488, 53, 1.73, 1], 'cut/bikeLong': [3149, 162, 507, 54, 1.75, -9],
-  'bulk/rest': [2791, 147, 455, 45, 1.9, 9], 'bulk/gym': [3364, 167, 551, 55, 1.96, -14], 'bulk/bike': [3369, 167, 552, 55, 1.98, 1], 'bulk/bikeLong': [3395, 168, 558, 55, 2, 45],
+  'maintain/rest': [2401, 139, 369, 44, 1.67, 99], 'maintain/gym': [2605, 150, 388, 52, 1.67, 445], 'maintain/bike': [2605, 150, 388, 52, 1.67, 465], 'maintain/bikeLong': [2605, 150, 388, 52, 1.67, 535],
+  'cut/rest': [2150, 136, 308, 44, 1.19, 0], 'cut/gym': [2605, 150, 388, 52, 1.67, 95], 'cut/bike': [2605, 150, 388, 52, 1.67, 465], 'cut/bikeLong': [2605, 150, 388, 52, 1.67, 535],
+  'bulk/rest': [2401, 139, 369, 44, 1.67, 399], 'bulk/gym': [2605, 150, 388, 52, 1.67, 745], 'bulk/bike': [2605, 150, 388, 52, 1.67, 765], 'bulk/bikeLong': [2605, 150, 388, 52, 1.67, 835],
 };
 const cardsOf = (html) => [...html.matchAll(/<div class="meal( meal-addons)?"><div class="meal-top"><div class="meal-name">([^<]+)<\/div><div class="meal-kcal"><b>([\d,.]+)<\/b> kcal<\/div><\/div>/g)]
   .map((m) => ({ addons: !!m[1], name: m[2], kcal: Number(m[3].replace(/[,.]/g, '')) }));
 const addonRowsOf = (html) => [...html.matchAll(/<div class="addon"><div class="addon-top"><div class="addon-name">([^<]+)<\/div><div class="addon-kcal"><b>([\d,.]+)<\/b> kcal<\/div><\/div>/g)]
   .map((m) => ({ name: m[1], kcal: Number(m[2].replace(/[,.]/g, '')) }));
 
-test('add-ons grouping changes no number: planFor totals (lib and the page port) equal the pinned ones, and the cards add up to the day', () => {
+test('planFor totals (lib and the page port) equal the pinned ones, and the cards add up to the day', () => {
   const nutri = bake();
   const s = run({ nutri });
   for (const [key, want] of Object.entries(PINNED_TOTALS)) {
@@ -903,7 +930,7 @@ test('"none": the row keeps its select (to undo it) but no amount; the day is re
   const html = s.els['nutri-plan'].innerHTML;
   assert.match(html, /<li class="mp mp-block mp-none"><span class="mp-l"><select class="mp-pick" data-block="lunch\/calabacin" aria-label="Change No vegetables \(Lunch\)">[^]*?<option value="none" selected>No vegetables<\/option><\/select><\/span><\/li>/);
   const x = planFor(bake(), 'maintain', 'rest', null, { 'lunch/calabacin': NONE_KEY });
-  assert.ok(Math.abs(x.rem) <= bake().tolerance, `rem ${x.rem}`);
+  assert.ok(Math.abs(x.rem) <= bake().tolerance || x.allCapped, `rem ${x.rem}`);
   const plan = plain(s.api.todayPlan());
   assert.equal(plan[1].items.length, before[1].items.length - 1, 'nothing to log for a skipped food');
   assert.deepEqual(plan.map((m) => m.kcal), x.meals.map((m) => m[0]));
@@ -921,4 +948,89 @@ test('Spanish: a food select and its "none" option are localized', () => {
   for (const cat of FOOD_CATS.filter((c) => CAT_RULES[c].skip)) {
     for (const T of [esN, enN]) assert.equal(typeof T.plan.none[cat], 'string', `none label for ${cat}`);
   }
+});
+
+/* ---------- realistic portion caps + water-filling ---------- */
+// every flex line's numeric amount (planFor flexN) against its cap, over the model planFor solved
+function overCap(nutri, x, picks) {
+  const mdl = applyPicks(nutri.base[x.base], nutri.lists, picks, nutri.fmt, nutri.foods);
+  const out = [];
+  mdl.flex.forEach((f, i) => {
+    if (!f.ln) return;
+    f.ln.forEach((l, j) => {
+      const cap = lineCap(l);
+      if (cap && x.flexN[i][j] > cap) out.push(`${i}.${j}: ${x.flexN[i][j]} > ${cap}`);
+    });
+  });
+  return out;
+}
+
+test('on the example no flex portion ever exceeds its cap: all 12 plans, every ride duration, every single pick', () => {
+  const nutri = bake();
+  let n = 0;
+  for (const g of ['maintain', 'cut', 'bulk']) for (const d of ['rest', 'gym', 'bike', 'bikeLong']) {
+    for (const min of [null, 60, 360]) {
+      const x = planFor(nutri, g, d, min);
+      assert.deepEqual(overCap(nutri, x), [], `${g}/${d}/${min}`);
+      n++;
+    }
+    for (const picks of pickCases(nutri)) {
+      const x = planFor(nutri, g, d, null, picks);
+      assert.deepEqual(overCap(nutri, x, picks), [], `${g}/${d} ${JSON.stringify(picks)}`);
+      n++;
+    }
+  }
+  assert.ok(n > 400, `${n} plans checked`);
+  // the owner's case: a maintain gym day no longer asks for an unrealistic plate of pasta or rice
+  const gym = planFor(nutri, 'maintain', 'gym', null, { 'lunch/carboComida': 'Pasta' });
+  const i = gym.view.flatMap((m) => m.parts.filter((p) => p.x)).findIndex((p) => p.l === 'Pasta');
+  assert.ok(i >= 0 && gym.flexN[i][0] <= 150, `pasta ${gym.flexN[i] && gym.flexN[i][0]} g`);
+});
+
+test('planFor flexN = each flex part\'s numeric line amounts ([null] for a manual block), aligned with flexAmts', () => {
+  const nutri = bake();
+  const x = planFor(nutri, 'maintain', 'gym', null);
+  assert.equal(x.flexN.length, x.flexAmts.length);
+  x.flexN.forEach((a, i) => assert.equal(a.length, x.flexAmts[i].length));
+  const syn = plain(buildNutriToday(buildNutrition(SYN_ING, SYN_PLAN), SYN_PLAN));
+  const lentils = planFor(syn, 'maintain', 'gym', null);
+  assert.ok(lentils.flexN.some((a) => a.length === 1 && a[0] === null), 'the flex lentils bowl is a manual block');
+});
+
+test('every flex portion at its maximum and the day still short: an extra snack is suggested, never a bigger plate', () => {
+  const nutri = bake();
+  const x = planFor(nutri, 'maintain', 'gym', null);
+  assert.equal(x.allCapped || x.clamp === 'max', true, 'the example gym day cannot grow its plates any more');
+  assert.ok(x.rem > 75, `rem ${x.rem}`);
+  const s = run({ nutri });
+  s.fire('nutri-daytype', 'change', { value: 'gym' });
+  const html = s.els['nutri-target'].innerHTML;
+  assert.match(html, new RegExp('~' + x.rem.toLocaleString('en') + ' kcal short: add a snack \\(e\\.g\\. fruit or a sandwich\\)'));
+  assert.doesNotMatch(html, /g of carbs/, 'no "add N g of carbs" to a plate already at its maximum');
+  const es = run({ nutri: bakeEs(), locale: 'es' });
+  es.fire('nutri-daytype', 'change', { value: 'gym' });
+  assert.match(es.els['nutri-target'].innerHTML, /Faltan ~[\d.]+ kcal: añade un tentempié \(p\. ej\. fruta o un bocadillo\)/);
+  // bike days keep "add it to the ride fuel"
+  s.fire('nutri-daytype', 'change', { value: 'bike' });
+  const bx = planFor(nutri, 'maintain', 'bike', s.api.state().rideMin);
+  if (bx.rem > 75) {
+    assert.match(s.els['nutri-target'].innerHTML, /add them to the ride fuel/);
+    assert.doesNotMatch(s.els['nutri-target'].innerHTML, /add a snack/);
+  }
+});
+
+test('the factor line stays honest with capped portions: "some portions are at their maximum" / every portion at its maximum', () => {
+  const nutri = bake();
+  const s = run({ nutri });
+  s.api.setGoal('cut');
+  const some = planFor(nutri, 'cut', 'rest', null);
+  assert.equal(some.capped && !some.allCapped, true, 'cut/rest: some portions capped');
+  assert.match(s.els['nutri-plan'].innerHTML, new RegExp('Carb portions ×' + some.factor.toFixed(2) + ' vs the base plan; some portions are at their maximum\\.'));
+  s.api.setGoal('maintain');
+  s.fire('nutri-daytype', 'change', { value: 'gym' });
+  const all = planFor(nutri, 'maintain', 'gym', null);
+  if (all.allCapped) assert.match(s.els['nutri-plan'].innerHTML, /Every carb portion is at its maximum/);
+  const es = run({ nutri: bakeEs(), locale: 'es' });
+  es.api.setGoal('cut');
+  assert.match(es.els['nutri-plan'].innerHTML, /algunas raciones están en su máximo/);
 });
