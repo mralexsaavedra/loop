@@ -472,6 +472,7 @@
       out.push(row(T.day.active, valUnit(at(m.active, m, iso), 0, u), w != null ? format(T.day.activeWatch, { watch: fmt(w, 0) }) : ''));
       out.push(row(T.day.basal, valUnit(at(m.basal, m, iso), 0, u)));
       if (w != null) out.push('<p class="dt-note">' + esc(T.rideNote) + '</p>');
+      else if (at(m.uncov, m, iso) != null) out.push('<p class="dt-note">' + esc(T.rideUncovered) + '</p>');
     }
     return out.join('');
   }

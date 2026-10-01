@@ -325,6 +325,19 @@ test('energy: a power-meter-corrected day shows the Watch value + the correction
   assert.ok(!q.host.innerHTML.includes(enT.rideNote));
 });
 
+test('energy: a power-ride day that could not be corrected says so in the day panel', () => {
+  const e = DEMO.metrics.energy;
+  const last = addDays(e.start, e.v.length - 1);
+  const d = addDays(last, -3);
+  const uncov = new Array(e.v.length).fill(null);
+  uncov[dayIndex(e, d)] = 1;
+  const s = setup({ detail: { ...DEMO, metrics: { ...DEMO.metrics, energy: { ...e, uncov } } }, now: addDays(last, 1) });
+  s.api.open('energy', d);
+  assert.ok(s.host.innerHTML.includes(enT.rideUncovered));
+  s.api.open('energy', addDays(last, -6));
+  assert.ok(!s.host.innerHTML.includes(enT.rideUncovered));
+});
+
 test('calendar state colours follow the personal band / target (dayState)', () => {
   const s = setup();
   const S = s.api.dayState;

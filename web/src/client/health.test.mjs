@@ -116,6 +116,16 @@ test('energy: a power-meter-corrected headline day says so; corrected days in th
   assert.ok(!plain.includes('power meter'));
 });
 
+test('energy: a power-ride headline day the hourly data could not correct says why; window note too', () => {
+  const E = { hasData: true, tdeeLatest: 2600, tdeeLatestDate: '2026-06-29', tdeeAvg: 2600, tdeeDays: 30, spark: null, balance: null };
+  const html = renderWith({ body: none, activity: none, running: none, recovery: none, loadRecovery: none,
+    energy: { ...E, latestUncovered: true, uncoveredDays: 3 } });
+  assert.ok(html.includes(enHealth.energyRide.uncovered), 'headline note');
+  assert.ok(html.includes(enHealth.energyRide.uncoveredDays.replace('{n}', '3')), 'window note');
+  const plain = renderWith({ body: none, activity: none, running: none, recovery: none, loadRecovery: none, energy: E });
+  assert.ok(!plain.includes(enHealth.energyRide.uncovered));
+});
+
 test('body section shows waist with its measurement date and change since the first reading', () => {
   const html = renderWith({
     body: { hasData: true, waist: { latest: 85.2, latestDate: '2026-06-01', firstDate: '2026-03-01', points: 3, delta: -2.8, spark: { v: [88, 86.5, 85.2], from: '2026-03-01', to: '2026-06-01' } } },
