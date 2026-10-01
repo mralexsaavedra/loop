@@ -259,6 +259,7 @@
     if (key === 'weight' && m.latest && isoDate(m.latest.date)) subs.push({ text: format(T.latestReading, { value: fmt(m.latest.value, m.dec), unit: u, date: HC.fmtDate(m.latest.date) }) });
     else if (partial) subs.push({ cls: 'dt-c-partial', text: format(T.latestDaySoFar, { value: fmt(valueOf(m, d), m.dec), unit: u }) });
     else subs.push({ text: format(T.latestDay, { value: fmt(valueOf(m, d), m.dec), unit: u, date: HC.fmtDate(d) }) });
+    if (key === 'energy' && at(m.watch, m, d) != null) subs.push({ text: T.rideNote });
     if (!ref) return noneHtml(T.noData) + subsHtml(subs);
     return bigHtml(fmt(at(m.roll, m, ref), m.dec), 'normal', u, format(T.roll7Lbl, { date: HC.fmtDate(ref) }), '', subs);
   }
@@ -466,8 +467,12 @@
       : m.band && m.band.median > 0 ? format(T.day.vsMedian, { pct: pct(Math.round(100 * (v / m.band.median - 1))), median: fmt(m.band.median, m.dec), unit: u }) : '';
     var out = [row(key === 'energy' ? T.day.total : titleOf(key), valUnit(v, m.dec, u), sub)];
     if (key === 'energy') {
-      out.push(row(T.day.active, valUnit(at(m.active, m, iso), 0, u)));
+      // a power-meter ride day: the Watch value + the correction (lib/health/ride-energy.mjs)
+      var w = at(m.watch, m, iso);
+      out.push(row(T.day.active, valUnit(at(m.active, m, iso), 0, u), w != null ? format(T.day.activeWatch, { watch: fmt(w, 0) }) : ''));
       out.push(row(T.day.basal, valUnit(at(m.basal, m, iso), 0, u)));
+      if (w != null) out.push('<p class="dt-note">' + esc(T.rideNote) + '</p>');
+      else if (at(m.uncov, m, iso) != null) out.push('<p class="dt-note">' + esc(T.rideUncovered) + '</p>');
     }
     return out.join('');
   }

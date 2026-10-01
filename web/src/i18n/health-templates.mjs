@@ -83,6 +83,12 @@ export const es = {
     main: '<b>Solo gasto.</b> Energía activa + basal del Apple Watch: el número grande es el último día, la línea la media móvil de 7 días (últimos {tdeeDays} días) — baja los días que no llevaste el reloj. <b>La ingesta no se puede puntuar:</b> se registró en muy pocos días recientes{lastIntakeClause} para calcular un déficit o un split de macros real. Para objetivos probados, mira el histórico del nutricionista en <code>data/nutritionist</code>.',
     lastIntakeClause: ' (último el {date}, {ago})',
   },
+  energyRide: {
+    latest: 'incluye la salida medida con potenciómetro',
+    uncovered: 'salida con potenciómetro sin corregir: faltan datos por horas del reloj',
+    uncoveredDays: '<b>Sin corregir:</b> {n} de los últimos 30 días tienen una salida con potenciómetro que no se pudo corregir porque faltan los datos por horas del reloj (clave <code>active_energy_hourly</code> del Atajo); queda el valor del reloj, probablemente corto.',
+    days: '<b>Salidas con potenciómetro:</b> {n} de los últimos 30 días usan la energía de la salida medida por potencia (kJ de Strava ≈ kcal) en vez de la del reloj durante esas horas, porque el reloj no la registró y se queda corto. Solo si sube el día, nunca lo baja.',
+  },
   energyCards: {
     intakeAvgLbl: 'ingesta media',
     tdeeAvgLbl: 'gasto medio',
@@ -170,6 +176,12 @@ export const en = {
   energyExpenditureNote: {
     main: '<b>Expenditure only.</b> Active + resting energy from the Apple Watch: the big number is the latest day, the line the 7-day rolling average (last {tdeeDays} days) — it runs low on days the watch wasn’t worn. <b>Intake can’t be scored:</b> it was logged on too few recent days{lastIntakeClause} to compute a real deficit or macro split. For proven targets, see the nutritionist history in <code>data/nutritionist</code>.',
     lastIntakeClause: ' (last on {date}, {ago})',
+  },
+  energyRide: {
+    latest: 'includes the ride measured by the power meter',
+    uncovered: 'power-meter ride not corrected: the watch\'s hourly data is missing',
+    uncoveredDays: '<b>Not corrected:</b> {n} of the last 30 days have a power-meter ride that could not be corrected because the watch\'s hourly data is missing (the Shortcut\'s <code>active_energy_hourly</code> key); the watch value stays, probably short.',
+    days: '<b>Power-meter rides:</b> {n} of the last 30 days use the ride energy measured by power (Strava kJ ≈ kcal) instead of the watch during those hours, because the watch did not record the ride and under-counts it. Only when it raises the day, never lowers it.',
   },
   energyCards: {
     intakeAvgLbl: 'avg intake',

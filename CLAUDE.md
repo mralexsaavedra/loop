@@ -85,6 +85,12 @@ available) so the next session resumes with their context.
      lists every date sync wrote. Shortcut steps = MAX of per-device day totals (`steps_watch`,
      `steps_phone`; source `Shortcut Watch`/`Shortcut iPhone`), mirroring max-per-device — a
      merged iOS `steps` total sums the devices (double-counts), so that key is ignored.
+     `active_energy_hourly` (Watch-only Active Energy, Group by HOUR, 3 days) → `active-energy-hourly.csv`
+     (`date,hour_start,kcal,source`, one row per clock hour, `hour_start` = the hour start as ISO with
+     offset; keyed by local hour + offset so a DST fall-back night keeps both 02:00 hours; each
+     payload's oldest, window-truncated HOUR is dropped and the latest payload wins an hour; tagged
+     `Shortcut`, so every row is rebuilt each run — the export never writes this file). It only feeds
+     the power-meter ride correction (Health tab → Energy).
      Unreachable service → exits non-zero without touching files. Row helpers are shared in
      `samples.js`, so both paths format rows identically.
    - Nutrition: `data/nutrition/food-log.md` — the daily food log + rationale notes only.
@@ -957,7 +963,17 @@ deleted upstream is never removed from the local CSV (ingest never deletes); an 
 than 7 days ago is never picked up (the ingest service's Strava loop only re-reads a 7-day
 overlap window). `GET /export/strava` requires an ingest image rebuild/restart
 (`docker compose up -d --build health-ingest`) — an un-rebuilt image answers `404` and the sync
-exits non-zero with a message saying so, touching no files.
+exits non-zero with a message saying so, touching no files. The same pull also writes
+`rides.csv` (`date,start,elapsed_s,kilojoules,device_watts,source`, gitignored, rebuilt from scratch
+every run, one row per cycling-family activity): `start` = the local start as ISO WITH its UTC offset
+(Strava `start_date_local` − `start_date`), `elapsed_s` = elapsed time (moving time when absent),
+`device_watts` = `true` only for a real power meter. A separate file, not new workouts.csv columns:
+the window is Strava-only data with one reader (the energy correction), so extract.js, the
+positional workouts readers and the demo generator stay untouched. It needs `start_utc` +
+`device_watts` from `GET /export/strava` (added with this change → ingest image rebuild); an older
+image leaves `start` / `device_watts` blank, the sync prints a stale-image warning, and no ride
+corrects anything. `_meta.json` records it: `rows.rides` and `stravaSync.rides` = `{rows, power
+(device_watts true + kJ), withStart (start with offset)}`, plus a sentence in the Strava sync note.
 
 **Source of the program:** whatever the owner's coach/app provides — a coach PDF, a spreadsheet,
 or a login-gated training app. For a source that can't be fetched (a login-gated app), the owner
@@ -1015,6 +1031,36 @@ anchor for Inicio's health monitor.
   expenditure day and ≥7 logged days exist in the 90 days ending at that day; otherwise
   the page shows expenditure alone and says intake can't be scored. Implausible basal readings
   (double-counts / no-wear) are dropped via a sane band.
+  **Power-meter ride correction** (`lib/health/ride-energy.mjs`, `readActiveEnergy` = the ONE active-
+  energy reader of the Salud card AND the detail sheet's `energy`): a ride a bike computer recorded
+  with a power meter, and the Watch did not, is under-counted by the Watch's Active Energy (real
+  case: 2,311 kJ ride, Watch 1,821 kcal over the ride hours). Corrected active(day) = Watch day total
+  − Watch energy during the ride + ride kJ × `KJ_TO_KCAL` (1.0: 1 kcal = 4.184 kJ × ~24 % gross
+  efficiency ≈ 1 kJ mechanical). Watch-during-ride = the `active-energy-hourly.csv` buckets
+  overlapping the ride window [start, start + elapsed], each spanning its clock hour and prorated by
+  overlap minutes; everything compared as instants (DST- and host-timezone-safe); a ride crossing
+  midnight splits its energy by time across the two local days, each midnight placed with the
+  offset of that day's 00:00 bucket (the ride's offset only without one); overlapping power rides
+  (a duplicate upload, a nested ride) are clustered by interval union and count once, the largest
+  kJ wins. The Watch day in the formula = max(daily row, sum of that day's hourly buckets): the
+  buckets are parts of the same Watch's day, so a daily row below their sum is a stale payload and
+  would otherwise understate the result. Applied ONLY when: the ride (`rides.csv`) has
+  kJ > 0 AND `device_watts === true` (a blank flag = an old ingest image = no correction; Strava's
+  estimated watts never count), a start with offset and an elapsed time; the hourly buckets cover
+  the WHOLE window (one missing hour = no correction, and the day is flagged `uncovered`: the Salud
+  card says "salida con potenciómetro sin corregir: faltan datos por horas del reloj" on such a
+  headline day + a note counting them in the 30-day window (`latestUncovered` / `uncoveredDays`), the
+  detail day panel says so too (`metrics.energy.uncov`, 1 / null)); the day has a Watch total; and the corrected
+  value is HIGHER (never lowers a day, so a Watch-recorded ride stays as measured). Café stops inside
+  the elapsed window are replaced too (small, conservative). The raw value stays visible:
+  active-energy-daily.csv is untouched, a corrected row carries `watch` / `rideKcal` /
+  `watchDuring`; `aggEnergy` adds `latestCorrected` (the headline card says "incluye la salida
+  medida con potenciómetro") and `correctedDays` in the 30-day window (a note); the detail sheet bakes
+  `metrics.energy.watch` (only when some day was corrected; null elsewhere) and shows "Activa <corrected> kcal
+  — reloj 2207 + corrección por potencia" plus the note in the day panel, and the note under the
+  header when the newest day is corrected. Nutrition / Inicio read no TDEE. Rollout: rebuild the
+  ingest image (`docker compose up -d --build health-ingest`), add the Shortcut key
+  (`docs/ios-shortcut.md`), `npm run sync -- --full` once, then `npm run generate`.
 - **Running** — `workouts.csv` Running rows (Watch export AND `sync:strava`, via `readRuns`), merged
   per day exactly like the rides, as a RECENT-RUNS table (same row budget, newest first): date,
   distance, time, pace = time / distance (none without a distance), avg HR, relative effort,

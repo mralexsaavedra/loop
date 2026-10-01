@@ -41,12 +41,17 @@ const OUT = path.join(__dirname, 'extract');
 //                   max-per-device dedupe (summing iPhone + Watch double-counts)
 //   kind fieldsDaily : like daily, but one payload key PER CSV COLUMN (`fields`: key -> column);
 //                   the day's row joins every column (dietary intake: kcal + three macros)
+//   kind hourly   : "start;value"            -> one row per CLOCK HOUR (Group by Hour on the phone;
+//                   the stamp is the bucket's first sample, normalised to the hour start). Keyed by
+//                   local hour + offset, so a DST fall-back night keeps both 02:00 hours.
 //   kind interval : "start;end;stage"        -> one row per night    (sleep-daily schema)
 //   withSource    : keep the payload's per-sample source in the CSV (else "Shortcut")
 //   sourceCol     : index of the CSV source column, null when the schema has none
 //   metaKey / rangeKey : the _meta.json rows/ranges keys extract.js uses for that CSV.
 const DAILY_SOURCE_HEADER = 'date,steps,source';
 const KCAL_HEADER = 'date,kcal';
+// "2030-01-02 09:07:12 +0100" -> "2030-01-02T09:00:00+01:00" (the bucket's clock-hour start, ISO)
+const hourStartIso = st => `${st.slice(0, 10)}T${st.slice(11, 13)}:00:00${st.slice(20, 23)}:${st.slice(23, 25)}`;
 const METRICS = {
   hrv:      { kind: 'point', csv: 'hrv.csv', header: S.READING_HEADER, metaKey: 'hrv', fmt: v => +v.toFixed(1) },
   rhr:      { kind: 'point', csv: 'rhr.csv', header: S.READING_HEADER, metaKey: 'rhr', rangeKey: 'restingHR', fmt: v => +v.toFixed(2) },
@@ -63,6 +68,11 @@ const METRICS = {
     row: (date, v, source) => `${date},${Math.round(v)},${source}` },
   active_energy: { kind: 'daily', csv: 'active-energy-daily.csv', header: KCAL_HEADER, metaKey: 'active_energy', sourceCol: null,
     row: (date, v) => `${date},${Math.round(v)}` },
+  // Watch active energy per clock hour (Watch-only search, Group by Hour). Not an export series:
+  // it only feeds lib/health/ride-energy.mjs, which replaces the Watch's energy during a ride a
+  // power meter measured. Source column = "Shortcut", so every row is rebuilt each run.
+  active_energy_hourly: { kind: 'hourly', csv: 'active-energy-hourly.csv', header: 'date,hour_start,kcal,source', metaKey: 'active_energy_hourly', sourceCol: 3,
+    row: (st, v) => `${S.day(st)},${hourStartIso(st)},${v.toFixed(1)},${SHORTCUT_SOURCE}` },
   basal_energy:  { kind: 'daily', csv: 'basal-energy-daily.csv', header: KCAL_HEADER, metaKey: 'basal_energy', sourceCol: null,
     row: (date, v) => `${date},${Math.round(v)}` },
   // Sleeping wrist temperature: one sample per night, dated by the wake-up night exactly like
@@ -119,6 +129,7 @@ const PARSERS = {
     if (!start || value == null) return null;
     return def.withSource ? { start, value, source: parseSource(src) } : { start, value };
   },
+  hourly(line) { return PARSERS.daily(line); },
   daily(line) {
     const [ts, val] = line.split(';');
     const start = S.isoToExportStamp(ts);
@@ -134,6 +145,7 @@ const PARSERS = {
 const DEDUP_KEY = {
   point: s => `${s.start}|${s.value}`,
   daily: s => S.day(s.start),
+  hourly: s => `${s.start.slice(0, 13)}|${s.start.slice(20)}`,
   deviceDaily: s => `${S.day(s.start)}|${s.device}`,
   fieldsDaily: s => `${S.day(s.start)}|${s.field}`,
   interval: s => `${s.start}|${s.end}|${s.stage}`,
@@ -145,6 +157,7 @@ const DEDUP_KEY = {
 const PREFER = {
   point: (a, b) => (a.source == null && b.source != null ? b : a),
   daily: (a, b) => b,
+  hourly: (a, b) => b,
   deviceDaily: (a, b) => b,
   fieldsDaily: (a, b) => b,
   interval: a => a,
@@ -163,6 +176,16 @@ function dropTruncatedOldest(samples) {
     if (!oldest.has(k) || d < oldest.get(k)) oldest.set(k, d);
   }
   return samples.filter(s => S.day(s.start) !== oldest.get(seriesOf(s)));
+}
+
+// Same idea per HOUR: a "last 3 days" hourly query starts mid-hour, so only its oldest bucket is
+// truncated (the previous run delivered that hour complete). The newest bucket is still filling
+// up; a later payload replaces it (latest wins).
+function dropTruncatedOldestHour(samples) {
+  if (!samples.length) return samples;
+  const oldest = samples.reduce((a, b) => (S.absMs(b.start) < S.absMs(a.start) ? b : a));
+  const k = DEDUP_KEY.hourly(oldest);
+  return samples.filter(s => DEDUP_KEY.hourly(s) !== k);
 }
 
 // one payload object -> { metric: [sample] } for known metrics only
@@ -200,7 +223,7 @@ function foldPayloads(cache, items) {
     for (const [metric, parsed] of Object.entries(parsePayload(item.payload))) {
       const def = METRICS[metric], kind = def.kind;
       // zeros still mark the window start, so drop the truncated oldest day BEFORE the zeros
-      let samples = isDailyKind(kind) ? dropTruncatedOldest(parsed) : parsed;
+      let samples = isDailyKind(kind) ? dropTruncatedOldest(parsed) : kind === 'hourly' ? dropTruncatedOldestHour(parsed) : parsed;
       if (def.skipZero) samples = samples.filter(x => x.value > 0);
       const seen = out.samples[metric] || (out.samples[metric] = {});
       for (const s of samples) {
@@ -257,6 +280,9 @@ function buildRows(metric, samples) {
     return [...days.keys()].sort().filter(d => days.get(d).kcal > 0)
       .map(date => ({ date, line: def.row(date, days.get(date)) }));
   }
+  if (def.kind === 'hourly') {
+    return [...samples].sort(byStart).map(s => ({ date: S.day(s.start), line: def.row(s.start, s.value) }));
+  }
   if (def.kind === 'daily') {
     return [...samples].sort(byStart).map(s => { const date = S.day(s.start); return { date, line: def.row(date, s.value) }; });
   }
@@ -276,7 +302,7 @@ function mergeCsv(existingText, header, rows, opts = {}) {
 }
 
 const range = dates => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a');
-const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of the main-sleep asleep intervals per wake-up night (naps excluded, samples.js sleepNights); Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored). Shortcut dietary = diet_kcal/diet_protein/diet_carbs/diet_fat day totals joined into one row per day (no kcal = no row).';
+const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of the main-sleep asleep intervals per wake-up night (naps excluded, samples.js sleepNights); Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored). Shortcut active_energy_hourly = Watch active energy per clock hour (active-energy-hourly.csv, Shortcut-only; feeds the power-meter ride correction in lib/health/ride-energy.mjs). Shortcut dietary = diet_kcal/diet_protein/diet_carbs/diet_fat day totals joined into one row per day (no kcal = no row).';
 
 // Pure: refresh the rows/ranges extract.js wrote for the touched CSVs + record the sync.
 // Deterministic (no timestamps) so re-running an unchanged sync rewrites identical bytes.

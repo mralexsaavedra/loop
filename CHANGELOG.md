@@ -4,6 +4,36 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-01 — Power-meter ride days correct the Watch's active energy
+
+A ride recorded by a bike computer with a power meter (and not by the Watch) was under-counted by
+the Watch's Active Energy (real case: a 2,311 kJ ride, 1,821 Watch kcal over the ride hours, a 2,207
+kcal day). Now corrected active(day) = Watch day − Watch energy during the ride + ride kJ ×
+`KJ_TO_KCAL` (1.0), only for rides with kJ AND `device_watts: true`, only when the Watch's hourly
+buckets cover the whole ride window, and only when it RAISES the day (`lib/health/ride-energy.mjs`;
+buckets prorated by overlap, instants compared so DST and the host timezone do not matter, a ride over
+midnight split by time, duplicate overlapping rides counted once). Inputs: a new Shortcut key
+`active_energy_hourly` (Watch-only, Group by Hour, 3 days → `active-energy-hourly.csv`, oldest hour of
+each payload dropped, latest payload wins) and a new `rides.csv` from `sync:strava` (local start with
+offset, elapsed s, kJ, device_watts) — a separate file rather than new workouts.csv columns, since the
+window is Strava-only data with one reader. `GET /export/strava` now also returns `start_utc` and
+`device_watts` (ingest image rebuild needed; an old image leaves them blank, the sync warns and nothing
+is corrected). `readActiveEnergy` is the one reader of the Salud expenditure card and the detail
+sheet's `energy`: the raw CSV stays untouched, the card says "incluye la salida medida con
+potenciómetro" on a corrected headline day (+ a note with the corrected days of the window), and the
+detail day panel shows "reloj <n> + corrección por potencia" under Activa. Note: with proration the
+literal case lands near 2,744 kcal for an even-ish hourly split, not the full-hour 2,697 (the partial
+first / last ride hours keep part of the Watch's energy).
+
+Follow-up after review (same day): the Watch day in the formula is max(daily row, sum of that day's
+hourly buckets), so a stale daily total cannot skew a correction; each midnight of a ride over
+midnight is placed with the offset of that day's 00:00 bucket (DST); overlapping power rides are
+clustered by interval union (a nested ride no longer slips through); a power-ride day the hourly
+data does not cover is flagged and the Salud card / detail day panel say it was not corrected;
+`_meta.json` records rides.csv (`rows.rides`, `stravaSync.rides`). Also fixed a pre-existing bug:
+`npm run sync -- --full` passed `--full` to node itself (args before the script path) and aborted;
+`scripts/sync-all.mjs` now forwards arguments after the script.
+
 ## 2026-10-01 — Plan de hoy becomes a portion guide (trial, branch `feat/portion-guide`)
 
 Owner feedback: Plan de hoy is useful only as an orientative "how much can I eat"; the menu structure
