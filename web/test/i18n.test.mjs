@@ -225,9 +225,15 @@ test('nutri-templates.mjs (Resumen de hoy / Plan de hoy / Avituallamiento) has i
     assert.deepEqual(Object.keys(dict.plan.meals), MEAL_SLOTS);
     assert.match(dict.backToAuto, /\{type\}/);
     assert.match(dict.why.ride, /\{dur\}/);
-    for (const k of ['remShort', 'remShortBike']) assert.match(dict[k], /\{k\}[\s\S]*\{g\}/);
     for (const k of ['k', 'fuel', 'total']) assert.match(dict.planLineBike, new RegExp('\\{' + k + '\\}'));
-    assert.match(dict.macroOff, /\{macro\}[\s\S]*\{plan\}[\s\S]*\{target\}/);
+    const G = dict.guide;
+    assert.deepEqual(Object.keys(G.roles), ['p', 'c', 'v', 'f']);
+    assert.deepEqual(Object.keys(G.extrasItems), ['cortado', 'fruit', 'yogurt', 'shake']);
+    assert.match(G.addAria, /\{amount\}[\s\S]*\{food\}[\s\S]*\{meal\}/);
+    assert.match(G.pickAria, /\{role\}[\s\S]*\{meal\}/);
+    assert.match(G.extrasLeft, /\{k\}[\s\S]*\{total\}/);
+    for (const k of ['done', 'partial', 'extrasBudget']) assert.match(G[k], /\{k\}/);
+    for (const gone of ['remShort', 'macroOff', 'planLine']) assert.equal(dict[gone], undefined, `${gone}: the guide's Extras absorbs the remainder`);
     assert.match(dict.fuel.duringCarbs, /\{rate\}[\s\S]*\{total\}/);
     assert.match(dict.fuel.disclaimer, locale === 'es' ? /no es consejo médico/i : /not medical advice/i);
   }
@@ -325,4 +331,14 @@ test('food-templates.mjs (Registrar / add sheet / Mis productos / Mis recetas) h
     assert.match(dict.recipes.removeAria, /\{n\}/);
   }
   assert.equal(esFood.macroAbbr.f, 'G', 'es: grasa');
+});
+
+test('one label per meal slot across food / nutri / profile copy (es: snack = "Tentempié")', async () => {
+  const { es: esProfile, en: enProfile } = await import('../src/i18n/profile-templates.mjs');
+  for (const [lang, dicts] of [['es', [esFood, esNutri, esProfile]], ['en', [enFood, enNutri, enProfile]]]) {
+    const meals = dicts.map((d) => d.meals || (d.plan && d.plan.meals) || d.supplements.meals);
+    for (const slot of MEAL_SLOTS) assert.equal(new Set(meals.map((m) => m[slot])).size, 1, `${lang}/${slot}: ${meals.map((m) => m[slot]).join(' | ')}`);
+  }
+  assert.equal(esFood.meals.snack, 'Tentempié');
+  assert.equal(esFood.groupOption.addon, 'Añadido', 'the Registrar group keeps its own name');
 });

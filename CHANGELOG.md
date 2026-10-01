@@ -34,6 +34,30 @@ data does not cover is flagged and the Salud card / detail day panel say it was 
 `npm run sync -- --full` passed `--full` to node itself (args before the script path) and aborted;
 `scripts/sync-all.mjs` now forwards arguments after the script.
 
+## 2026-10-01 — Plan de hoy becomes a portion guide (trial, branch `feat/portion-guide`)
+
+Owner feedback: Plan de hoy is useful only as an orientative "how much can I eat"; the menu structure
+was not (add-ons that changed by day type — coffee on rest days, pre / post on gym days —, option lists
+that could never be complete, imposed items). Plan de hoy now shows ALWAYS the same four blocks —
+Desayuno, Comida, Cena + Extras — and the day type / goal only change the amounts
+(`lib/nutrition/guide.mjs`, ported line by line in nutri-day.js with parity tests). Each main meal's
+budget = the solved plan meals of its slot (`planFor`, caps and water-fill as before, no picks); Extras =
+the meals target − the three (it absorbs the add-ons and whatever capped plates leave over; never
+negative). A main meal is a plate by parts: protein / carbs / vegetables (free) / fat, each macro with
+ONE example food from a native select (the public basics of its categories + the owner's products when
+the food API answers) and the amount of it that supplies the macro, in its natural unit, capped at its
+`maxAmt` ("(máx.) + completa con otra fuente"). Defaults = the food the base plan uses there, else
+chicken / rice / olive oil; picks persist per viewer (`hc.nutri.guide`). Extras = a budget line + example
+costs (a new tracked `cortado` basic, BEDCA / USDA average) and "split it before and after training" on
+training days. With the food log (LAN page) every meal shows what is left, "✓ covered" rows, "Left
+today", and a "+" per macro row logs the example amount (`HCFood.addGuide`). Removed: the choosable
+blocks (`lib/nutrition/blocks.mjs`), the automatic snack (`lib/nutrition/snack.mjs`), the Añadidos card,
+`hc.nutri.picks`, `HCNutri.todayPlan()`, the add sheet's "Del plan" tab, the remainder / macro-off notes
+of Resumen de hoy (the bike-day "meals + ride fuel" line stays), the per-category swap rules
+(`CAT_RULES`), `isFlexItem`, and plan-tables.md's Snack column. NUTRI on the example: ~19.7 KB → ~3.6 KB;
+FOOD_BASICS +1.7 KB (each food's category and portion cap). Avituallamiento, Tablas and the food log's
+Registrar are unchanged.
+
 ## 2026-10-01 — Plan de hoy adds an automatic snack when the meals fall short
 
 With realistic portion caps the owner's five meals often end below today's target (maintain gym −209,

@@ -23,10 +23,10 @@
  * quick entry with its four macros (a port of lib/nutrition/foodlog.mjs basicEntry / basicLabel; average
  * table values, marked as such).
  *
- * "Del plan" (the add sheet's plan tab): today's Plan de hoy meals from window.HCNutri.todayPlan()
- * (nutri-day.js, read-only: the same goal × day type × ride minutes and scaled amounts the page shows;
- * nothing is re-computed here). The whole meal or one of its items is logged as ONE quick entry
- * ("Plan · <name>") with its four macros. No plan (no hook, an empty plan, a throw) = no tab.
+ * Plan de hoy's portion guide (nutri-day.js) reads today's log per group (HCFood.groupTotals), the
+ * owner's products (HCFood.products) and logs an example amount with its "+" (HCFood.addGuide: a basic
+ * as ONE quick entry through the same basics formula, a product as a product entry; same request-id /
+ * ambiguous-retry rules as the add sheet).
  *
  * Wiring: window.foodTotals() = today's logged totals ({date, k, p, c, g, n, missing, src: 'log'}) when
  * the server answered and today has >= 1 entry, else null. Resumen de hoy's dial + macro bars
@@ -49,8 +49,7 @@
   var TIMEOUT_MS = 15000; // a request that hangs is an ambiguous failure, like offline
   // Registrar shows FOUR groups (lib/nutrition/slots.mjs, baked in FOOD_CONST): the main slots
   // breakfast / lunch / dinner + ONE add-ons group for every other stored slot (pre / post workout,
-  // snack). The stored slot enum (K.meals) is unchanged: an add-on is stored as K.addonSlot unless it
-  // comes from a plan add-on with its own slot (pre / post workout).
+  // snack). The stored slot enum (K.meals) is unchanged: an add-on is stored as K.addonSlot.
   var GROUPS = K.groups || [];
   var MAIN = K.mainSlots || [];
   var ADDON = K.addonGroup;
@@ -307,12 +306,9 @@
     if (GROUPS.indexOf(v) >= 0) return v;
     return K.meals.indexOf(v) >= 0 ? groupOf(v) : null;
   }
-  // the slot stored for a group: a main group is its slot; an add-on keeps a plan add-on's own slot
-  // (pre / post workout), else K.addonSlot
-  function slotFor(group, planMeal) {
-    if (group !== ADDON) return group;
-    var s = planMeal && planMeal.slot;
-    return s && K.meals.indexOf(s) >= 0 && MAIN.indexOf(s) < 0 ? s : K.addonSlot;
+  // the slot stored for a group: a main group is its slot, the add-ons group K.addonSlot
+  function slotFor(group) {
+    return group !== ADDON ? group : K.addonSlot;
   }
   function guessMeal() {
     var h = new Date().getHours();
@@ -455,81 +451,11 @@
   /* ---------- add sheet (window.HCViews['food-add'], rendered by detail.js) ---------- */
   function newSheet(meal) {
     var m = asGroup(meal) || guessMeal();
-    var plan = todayPlan();
-    return { meal: m, tab: 'products', q: '', pick: null, busy: false, reqId: null, plan: plan, planMeal: plan ? planMealFor(plan, m, 0) : 0, planItem: -1 };
+    return { meal: m, tab: 'products', q: '', pick: null, busy: false, reqId: null };
   }
-  /* ---------- Del plan: today's Plan de hoy meals (window.HCNutri.todayPlan, nutri-day.js) ---------- */
-  // [{name, slot, kcal, p, c, g, items: [{name, amount, kcal, p, c, g, components?}]}], or null when Plan
-  // de hoy is not available (no hook, no meals, a throw): the tab is then omitted
-  function todayPlan() {
-    var n = window.HCNutri;
-    if (!n || typeof n.todayPlan !== 'function') return null;
-    try {
-      var p = n.todayPlan();
-      return Array.isArray(p) && p.length ? p : null;
-    } catch (e) { return null; }
-  }
+  var TAB_KEYS = ['products', 'recipes', 'quick'];
   function tabKeys() {
-    return S.sheet && S.sheet.plan ? ['products', 'recipes', 'plan', 'quick'] : ['products', 'recipes', 'quick'];
-  }
-  // the plan meal for a group (the sheet's meal select): `current` when it already belongs to that
-  // group, else the first plan meal of the group (Añadido: the first add-on), else `fallback`
-  function planMealFor(plan, group, fallback, current) {
-    var inGroup = function (m) { return !!m && groupOf(m.slot) === group; };
-    if (current >= 0 && inGroup(plan[current])) return current;
-    for (var i = 0; i < plan.length; i++) if (inGroup(plan[i])) return i;
-    return fallback;
-  }
-  // the chip order: the main meals, then the add-ons (each in day order), like Plan de hoy
-  function planOrder(plan) {
-    var idx = plan.map(function (m, i) { return i; });
-    var main = function (i) { return !!plan[i] && MAIN.indexOf(plan[i].slot) >= 0; };
-    return idx.filter(main).concat(idx.filter(function (i) { return !main(i); }));
-  }
-  /** What the plan tab would log: {label, kcal, protein, carbs, fat} (a macro the plan lacks stays
-   * unset), or null. The whole meal = its scaled totals as Plan de hoy shows them; an item = its own. */
-  function planEntry() {
-    var sh = S.sheet;
-    var meal = sh && sh.plan ? sh.plan[sh.planMeal] : null;
-    if (!meal) return null;
-    var item = sh.planItem >= 0 ? (meal.items || [])[sh.planItem] : null;
-    var src = item || meal;
-    if (!fin(src.kcal) || src.kcal < 0) return null;
-    var label = item
-      ? (item.amount ? format(T.sheet.planItemLabel, { name: item.name, amount: item.amount }) : format(T.sheet.planLabel, { name: item.name }))
-      : format(T.sheet.planLabel, { name: meal.name });
-    var e = { label: label.replace(/\s+/g, ' ').trim().slice(0, LIM.nameMax || 120), kcal: roundKcal(src.kcal) };
-    [['protein', 'p'], ['carbs', 'c'], ['fat', 'g']].forEach(function (x) { if (fin(src[x[1]])) e[x[0]] = round1(src[x[1]]); });
-    return e;
-  }
-  function planMacros(x) {
-    return { kcal: x.kcal, protein: fin(x.p) ? x.p : null, carbs: fin(x.c) ? x.c : null, fat: fin(x.g) ? x.g : null };
-  }
-  function planOpt(suffix, value, checked, nameHtml, src) {
-    var id = 'fa-plan-item-' + suffix;
-    return '<li class="fa-plan-opt"><input type="radio" name="fa-plan-item" id="' + id + '" value="' + value + '"' + (checked ? ' checked' : '') + '>' +
-      '<label class="fa-plan-lbl" for="' + id + '">' + nameHtml + '<span class="fa-item-sub">' + macroLine(planMacros(src)) + '</span></label></li>';
-  }
-  function planHtml() {
-    var sh = S.sheet, plan = sh.plan, meal = plan[sh.planMeal];
-    var meals = '<div class="fa-plan-meals" role="group" aria-label="' + esc(T.sheet.planMeals) + '">' + planOrder(plan).map(function (i) {
-      var m = plan[i];
-      return '<button type="button" class="fa-plan-meal" id="fa-plan-meal-' + i + '" data-food-act="plan-meal" data-i="' + i + '" aria-pressed="' + (i === sh.planMeal) + '">' +
-        '<span class="fa-item-name">' + esc(m.name) + '</span><span class="fa-item-sub">' + esc(kf(m.kcal)) + ' ' + esc(T.kcal) + '</span></button>';
-    }).join('') + '</div>';
-    var items = (meal.items || []).map(function (it, j) {
-      var sub = it.components && it.components.length
-        ? it.components.map(function (c) { return esc(c.name + (c.amount ? ' ' + c.amount : '')); }).join(' · ')
-        : it.amount ? esc(it.amount) : '';
-      return planOpt(j, j, sh.planItem === j, '<span class="fa-item-name">' + esc(it.name) + '</span>' + (sub ? ' <span class="fa-plan-amt">' + sub + '</span>' : ''), it);
-    }).join('');
-    return '<div class="fa-plan">' + meals +
-      '<fieldset class="fa-plan-items"><legend class="food-lbl">' + esc(T.sheet.planWhat) + '</legend><ul class="fa-items">' +
-      planOpt('all', -1, sh.planItem < 0, '<span class="fa-item-name">' + esc(T.sheet.planWhole) + '</span> <span class="fa-plan-amt">' + esc(meal.name) + '</span>', meal) + items +
-      '</ul></fieldset>' +
-      '<p class="fa-prev" id="fa-prev" aria-live="polite"></p>' +
-      '<p class="food-note">' + esc(T.sheet.planNote) + '</p>' +
-      '<button type="button" class="food-btn" id="fa-save" data-food-act="save">' + esc(T.sheet.save) + '</button></div>';
+    return TAB_KEYS;
   }
   function norm(s) {
     return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -690,7 +616,6 @@
   function panelHtml() {
     var sh = S.sheet;
     if (sh.tab === 'quick') return quickHtml();
-    if (sh.tab === 'plan') return planHtml();
     if (sh.pick) return pickHtml();
     var search = sh.tab === 'products' && (S.products.length || BASICS.length)
       ? field('fa-q', T.sheet.search, '<input class="food-in" id="fa-q" type="search" autocomplete="off" placeholder="' + esc(T.sheet.searchPh) + '" value="' + esc(sh.q) + '">')
@@ -741,11 +666,6 @@
     return { amount: amount, unit: unit, m: entryFromBasis(b.complete ? b : item, item.kind, amount, unit) };
   }
   function updatePreview() {
-    if (S.sheet && S.sheet.tab === 'plan') {
-      var e = planEntry();
-      setHtml('fa-prev', e ? macroLine(e) : '');
-      return;
-    }
     var p = sheetPreview();
     setHtml('fa-prev', p && p.m ? (p.label ? '<span class="fa-prev-lbl">' + esc(p.label) + '</span> ' : '') + macroLine(p.m) : '');
   }
@@ -766,7 +686,7 @@
     var sh = S.sheet;
     if (!sh || sh.busy) return;
     var group = asGroup(val('fa-meal')) || sh.meal;
-    var meal = slotFor(group, sh.tab === 'plan' && sh.plan ? sh.plan[sh.planMeal] : null);
+    var meal = slotFor(group);
     var date = HC.todayIso();
     var body;
     clearErrs(SHEET_IDS);
@@ -785,11 +705,6 @@
         else if (v != null) body[x[0]] = v;
       });
       if (errs.length) { sheetMsg(showErrs(errs)); return; }
-    } else if (sh.tab === 'plan') {
-      var pe = planEntry();
-      if (!pe) { sheetMsg(T.errors.generic); return; }
-      body = { date: date, meal: meal, refType: 'quick', label: pe.label, kcal: pe.kcal };
-      MACROS.forEach(function (k) { if (pe[k] != null) body[k] = pe[k]; });
     } else {
       var p = sheetPreview();
       if (!p || !p.m) {
@@ -826,7 +741,7 @@
       renderLog();
       refreshDependents();
       setText('food-msg', e ? format(T.added, { label: e.label, k: kf(e.kcal) }) : '');
-      focus('food-add-' + meal);
+      focus('food-add-' + group);
       if (!S.log || S.log.date !== date) loadLog();
     }, function (err) {
       sh.busy = false;
@@ -1208,16 +1123,7 @@
       if (!S.sheet || tabKeys().indexOf(k) < 0) return;
       S.sheet.tab = k;
       S.sheet.pick = null;
-      redrawPanel(k === 'quick' ? 'fa-label' : k === 'products' ? 'fa-q' : k === 'plan' ? 'fa-plan-meal-' + S.sheet.planMeal : null);
-      if (k === 'plan') updatePreview();
-    },
-    'plan-meal': function (el) {
-      var sh = S.sheet, i = Number(el.getAttribute('data-i'));
-      if (!sh || !sh.plan || !(i >= 0 && i < sh.plan.length)) return;
-      sh.planMeal = i;
-      sh.planItem = -1; // another meal: back to the whole meal
-      redrawPanel('fa-plan-meal-' + i);
-      updatePreview();
+      redrawPanel(k === 'quick' ? 'fa-label' : k === 'products' ? 'fa-q' : null);
     },
     pick: function (el) {
       if (!S.sheet) return;
@@ -1272,23 +1178,7 @@
       if (id === 'fa-unit' && S.sheet && S.sheet.pick && S.sheet.pick.kind === 'basic') switchBasicMode();
       updatePreview();
     }
-    else if (id === 'fa-meal' && S.sheet) {
-      S.sheet.meal = asGroup(val('fa-meal')) || S.sheet.meal;
-      // the plan tab follows the group when the plan has a meal in it
-      var sh = S.sheet, i = sh.tab === 'plan' && sh.plan ? planMealFor(sh.plan, sh.meal, -1, sh.planMeal) : -1;
-      if (i >= 0 && i !== sh.planMeal) {
-        sh.planMeal = i;
-        sh.planItem = -1;
-        redrawPanel(null);
-        updatePreview();
-      }
-    } else if (id.indexOf('fa-plan-item-') === 0 && S.sheet && S.sheet.plan) {
-      var v = Number(val(id));
-      var meal = S.sheet.plan[S.sheet.planMeal];
-      S.sheet.planItem = meal && v >= 0 && v < (meal.items || []).length ? v : -1;
-      S.sheet.reqId = null; // another item: a new add
-      updatePreview();
-    }
+    else if (id === 'fa-meal' && S.sheet) S.sheet.meal = asGroup(val('fa-meal')) || S.sheet.meal;
     else if (id === 'fpf-unit') setText('fpf-serv-unit', T.units[val('fpf-unit')] || ''); // the serving suffix follows "Se mide en"
     else if (id.indexOf('frf-') === 0 && S.rform) {
       if (id === 'frf-kind') { syncRecipeForm(); renderRecipes(); focus('frf-kind'); } else updateRecipePreview();
@@ -1350,6 +1240,95 @@
     }
   }, function () { /* no food API here: every host stays hidden */ });
 
+  /* ---------- Plan de hoy's portion guide (nutri-day.js) ---------- */
+  function zero4() { return { k: 0, p: 0, c: 0, f: 0 }; }
+  /** Today's logged sums per Registrar group, {meals: {breakfast, lunch, dinner: {k, p, c, f}}, addon} (a
+   * macro an entry lacks counts as 0; kcal whole, macros to 1 decimal), or null unless the food API
+   * answered and today's log is loaded. */
+  function groupTotals() {
+    var L = S.log;
+    if (!S.ok || !L || L.date !== HC.todayIso()) return null;
+    var out = { meals: {}, addon: zero4() };
+    MAIN.forEach(function (m) { out.meals[m] = zero4(); });
+    L.entries.forEach(function (e) {
+      var g = groupOf(e.meal), t = g === ADDON ? out.addon : out.meals[g];
+      if (!t) return;
+      t.k += fin(e.kcal) ? e.kcal : 0;
+      t.p += fin(e.protein) ? e.protein : 0;
+      t.c += fin(e.carbs) ? e.carbs : 0;
+      t.f += fin(e.fat) ? e.fat : 0;
+    });
+    var tidy = function (t) { return { k: Math.round(t.k), p: round1(t.p), c: round1(t.c), f: round1(t.f) }; };
+    MAIN.forEach(function (m) { out.meals[m] = tidy(out.meals[m]); });
+    out.addon = tidy(out.addon);
+    return out;
+  }
+  /** The owner's active products (a copy: id, name, brand, unit, per100), or null without the food API. */
+  function guideProducts() {
+    if (!S.ok) return null;
+    return S.products.map(function (p) {
+      var v = p.per100 || {};
+      return { id: p.id, name: p.name, brand: p.brand || null, unit: p.unit, per100: { kcal: v.kcal, protein: v.protein, carbs: v.carbs, fat: v.fat } };
+    });
+  }
+  var guidePending = {}; // one request id per pending guide add (same meal, food and amount), kept across ambiguous retries
+  /** Log a guide example: {group: a main meal, food: 'b:<basic key>' | 'p:<product id>', amt (the food's
+   * amount scale: g / ml, a 'ud' food 100 per unit)}. A basic is ONE quick entry (basicEntry / basicLabel,
+   * in pieces when the food has them); a product a product entry (the server applies the formula).
+   * Resolves the saved entry; rejects on a refusal (one line in Registrar's status). */
+  function addGuide(o) {
+    var fail = function (code) { setText('food-msg', T.errors[code] || T.errors.generic); return Promise.reject({ code: code }); };
+    if (!S.ok || !o) return fail('generic');
+    var group = asGroup(o.group);
+    var id = String(o.food || ''), amt = Number(o.amt);
+    if (!group || group === ADDON || !(amt > 0) || amt > (LIM.amountMax || 5000)) return fail('generic');
+    var body = { date: HC.todayIso(), meal: slotFor(group) };
+    if (id.indexOf('b:') === 0) {
+      var b = findBasic(id.slice(2));
+      if (!b) return fail('generic');
+      var mode = b.pc || b.u === 'ud' ? 'piece' : b.u;
+      var n = mode === 'piece' ? amt / (b.pc && fin(b.pc.a) && b.pc.a > 0 ? b.pc.a : 100) : amt;
+      var m = basicEntry(b, n, mode), label = basicLabel(b, n, mode, basicWords());
+      if (!m || !label) return fail('generic');
+      body.refType = 'quick';
+      body.label = label;
+      body.kcal = m.kcal;
+      body.protein = m.protein;
+      body.carbs = m.carbs;
+      body.fat = m.fat;
+      // the macros come from the food DB's own values, nothing typed: the Atwater typo guard does not apply
+      body.force = true;
+    } else if (id.indexOf('p:') === 0) {
+      var p = find(S.products, id.slice(2));
+      if (!p) return fail('generic');
+      body.refType = 'product';
+      body.refId = Number(p.id);
+      body.amount = amt;
+      body.unit = p.unit;
+    } else return fail('generic');
+    var key = body.meal + '|' + id + '|' + amt;
+    body.requestId = guidePending[key] || (guidePending[key] = newRequestId());
+    return api('POST', '/log', body).then(function (data) {
+      delete guidePending[key];
+      var e = data.entry;
+      if (S.log && S.log.date === body.date && e) {
+        S.log.entries = S.log.entries.filter(function (x) { return String(x.id) !== String(e.id); }).concat([e]);
+        S.log.totals = data.totals || dayTotals(S.log.entries);
+      }
+      renderLog();
+      refreshDependents();
+      setText('food-msg', e ? format(T.added, { label: e.label, k: kf(e.kcal) }) : '');
+      if (!S.log || S.log.date !== body.date) loadLog();
+      return e;
+    }, function (err) {
+      setText('food-msg', errText(err));
+      // it may have been saved after all: re-read, and keep the id so a retry is the same add
+      if (ambiguous(err)) loadLog();
+      else delete guidePending[key];
+      throw err;
+    });
+  }
+
   window.HCFood = {
     productEntry: productEntry,
     recipeBasis: recipeBasis,
@@ -1364,6 +1343,9 @@
     basicEntry: basicEntry,
     basicLabel: basicLabel,
     basicConvert: basicConvert,
+    groupTotals: groupTotals,
+    products: guideProducts,
+    addGuide: addGuide,
     state: function () { return S; }, // test-only: the tests read the in-memory state
   };
 })();
