@@ -3,6 +3,7 @@
     "gambas": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": true,
       "name": {
         "es": "Gamba pelada cruda (Hacendado, agua añadida)",
@@ -18,6 +19,7 @@
     "salpicon": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": true,
       "name": {
         "es": "Salpicón de marisco (Hacendado)",
@@ -32,6 +34,7 @@
     "lomoembuchado": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": true,
       "name": {
         "es": "Lomo embuchado lonchas",
@@ -46,6 +49,7 @@
     "jamonserrano": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": true,
       "name": {
         "es": "Jamón serrano (Mercadona)",
@@ -60,6 +64,7 @@
     "pavo": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": true,
       "name": {
         "es": "Pechuga de pavo 92% lonchas",
@@ -74,6 +79,7 @@
     "gnocchi": {
       "per": 100,
       "unit": "g",
+      "cat": "carb",
       "verified": true,
       "name": {
         "es": "Gnocchi (pasta fresca)",
@@ -88,6 +94,7 @@
     "batataprefrita": {
       "per": 100,
       "unit": "g",
+      "cat": "carb",
       "verified": true,
       "name": {
         "es": "Batata prefrita (congelada)",
@@ -102,6 +109,7 @@
     "patatashorno": {
       "per": 100,
       "unit": "g",
+      "cat": "carb",
       "verified": true,
       "name": {
         "es": "Patatas fritas horno/air-fryer (congeladas)",
@@ -116,6 +124,7 @@
     "tranchete": {
       "per": 100,
       "unit": "g",
+      "cat": "dairy",
       "verified": true,
       "name": {
         "es": "Queso lonchas fundido suave (tranchete, Hacendado)",
@@ -141,6 +150,7 @@
     "mozzarella": {
       "per": 100,
       "unit": "g",
+      "cat": "dairy",
       "verified": true,
       "name": {
         "es": "Queso rallado mozzarella (Hacendado)",
@@ -155,6 +165,7 @@
     "salsatomate": {
       "per": 100,
       "unit": "g",
+      "cat": "sauce",
       "verified": true,
       "name": {
         "es": "Salsa de tomate Zero sin azúcar (Hacendado)",
@@ -169,6 +180,7 @@
     "tomatefrito": {
       "per": 100,
       "unit": "g",
+      "cat": "sauce",
       "verified": true,
       "name": {
         "es": "Tomate frito",
@@ -183,6 +195,7 @@
     "soja": {
       "per": 100,
       "unit": "ml",
+      "cat": "sauce",
       "verified": true,
       "name": {
         "es": "Salsa de soja sin gluten (Hacendado)",
@@ -197,6 +210,7 @@
     "allioli": {
       "per": 100,
       "unit": "g",
+      "cat": "sauce",
       "verified": true,
       "name": {
         "es": "Allioli (Hacendado)",
@@ -223,6 +237,7 @@
     "mayonesa": {
       "per": 100,
       "unit": "g",
+      "cat": "sauce",
       "verified": true,
       "name": {
         "es": "Mayonesa (Hacendado)",
@@ -249,6 +264,7 @@
     "pisto": {
       "per": 100,
       "unit": "g",
+      "cat": "veg",
       "verified": true,
       "name": {
         "es": "Fritada pisto (Hacendado)",
@@ -263,6 +279,7 @@
     "guacamole": {
       "per": 100,
       "unit": "g",
+      "cat": "fat",
       "verified": true,
       "name": {
         "es": "Guacamole 95% aguacate",
@@ -277,6 +294,7 @@
     "panecillo": {
       "per": 100,
       "unit": "g",
+      "cat": "carb",
       "verified": true,
       "name": {
         "es": "Panecillo (pan de horno)",
@@ -302,6 +320,7 @@
     "pansemillas": {
       "per": 100,
       "unit": "g",
+      "cat": "carb",
       "verified": true,
       "name": {
         "es": "Pan de molde semillas y pipas de calabaza",
@@ -327,6 +346,7 @@
     "mantequillalight": {
       "per": 100,
       "unit": "g",
+      "cat": "fat",
       "verified": true,
       "name": {
         "es": "Mantequilla light (40% MG)",
@@ -341,6 +361,7 @@
     "confitura": {
       "per": 100,
       "unit": "g",
+      "cat": "sweet",
       "verified": true,
       "name": {
         "es": "Confitura de fresa 0% azúcares añadidos",
@@ -355,6 +376,7 @@
     "wheyup": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": true,
       "name": {
         "es": "Whey — Uperform The Whey (concentrado)",
@@ -369,6 +391,7 @@
     "wheylp": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": true,
       "name": {
         "es": "Whey — Life Pro Choco Monky (concentrado)",
@@ -383,6 +406,7 @@
     "yogurgriego": {
       "per": 100,
       "unit": "g",
+      "cat": "dairy",
       "verified": true,
       "name": {
         "es": "Yogur griego natural ligero",
@@ -408,6 +432,7 @@
     "cerveza": {
       "per": 100,
       "unit": "ml",
+      "cat": "drink",
       "verified": true,
       "name": {
         "es": "Cerveza especial Estrella Galicia (5,5%)",
@@ -433,6 +458,7 @@
     "chocolate": {
       "per": 100,
       "unit": "g",
+      "cat": "sweet",
       "verified": true,
       "name": {
         "es": "Chocolate negro 85% extrafino (Hacendado)",
@@ -458,6 +484,7 @@
     "helado": {
       "per": 100,
       "unit": "g",
+      "cat": "sweet",
       "verified": true,
       "name": {
         "es": "Helado sándwich de nata (Hacendado)",
@@ -483,6 +510,7 @@
     "napolitana": {
       "per": 100,
       "unit": "g",
+      "cat": "sweet",
       "verified": true,
       "name": {
         "es": "Napolitana rellena de cacao (Hacendado)",
@@ -508,6 +536,7 @@
     "palomitas": {
       "per": 100,
       "unit": "g",
+      "cat": "sweet",
       "verified": true,
       "name": {
         "es": "Palomitas de maíz con sal microondas (Hacendado)",
@@ -533,6 +562,7 @@
     "pollo": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": false,
       "name": {
         "es": "Pechuga de pollo",
@@ -547,6 +577,7 @@
     "atun": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": false,
       "name": {
         "es": "Atún",
@@ -560,6 +591,7 @@
     "merluza": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": false,
       "name": {
         "es": "Merluza",
@@ -574,6 +606,7 @@
     "panga": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": false,
       "name": {
         "es": "Panga",
@@ -588,6 +621,7 @@
     "claras": {
       "per": 100,
       "unit": "ml",
+      "cat": "protein",
       "verified": false,
       "name": {
         "es": "Claras de huevo",
@@ -601,6 +635,7 @@
     "muslopollo": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": false,
       "name": {
         "es": "Muslo de pollo",
@@ -615,6 +650,7 @@
     "picada5": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": false,
       "name": {
         "es": "Carne picada 5% grasa",
@@ -629,6 +665,7 @@
     "lomocerdo": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": false,
       "name": {
         "es": "Lomo de cerdo",
@@ -643,6 +680,7 @@
     "filete": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": false,
       "name": {
         "es": "Filete",
@@ -657,6 +695,7 @@
     "salmon": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": false,
       "name": {
         "es": "Salmón",
@@ -671,6 +710,7 @@
     "alitas": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": false,
       "name": {
         "es": "Alitas de pollo",
@@ -685,6 +725,7 @@
     "chuletacerdo": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": false,
       "name": {
         "es": "Chuleta de cerdo",
@@ -699,6 +740,7 @@
     "huevo": {
       "per": 100,
       "unit": "ud",
+      "cat": "protein",
       "verified": false,
       "name": {
         "es": "Huevo",
@@ -725,6 +767,7 @@
     "picada20": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": false,
       "name": {
         "es": "Carne picada 20% grasa",
@@ -739,6 +782,7 @@
     "hamburguesa": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": false,
       "name": {
         "es": "Hamburguesa",
@@ -753,6 +797,7 @@
     "longaniza": {
       "per": 100,
       "unit": "g",
+      "cat": "protein",
       "verified": false,
       "name": {
         "es": "Longaniza",
@@ -767,6 +812,7 @@
     "arroz": {
       "per": 100,
       "unit": "g",
+      "cat": "carb",
       "verified": false,
       "name": {
         "es": "Arroz",
@@ -781,6 +827,7 @@
     "pasta": {
       "per": 100,
       "unit": "g",
+      "cat": "carb",
       "verified": false,
       "name": {
         "es": "Pasta",
@@ -795,6 +842,7 @@
     "patata": {
       "per": 100,
       "unit": "g",
+      "cat": "carb",
       "verified": false,
       "name": {
         "es": "Patata",
@@ -809,6 +857,7 @@
     "boniato": {
       "per": 100,
       "unit": "g",
+      "cat": "carb",
       "verified": false,
       "name": {
         "es": "Boniato",
@@ -822,6 +871,7 @@
     "avena": {
       "per": 100,
       "unit": "g",
+      "cat": "carb",
       "verified": false,
       "name": {
         "es": "Copos de avena",
@@ -836,6 +886,7 @@
     "leche": {
       "per": 100,
       "unit": "ml",
+      "cat": "dairy",
       "verified": false,
       "name": {
         "es": "Leche",
@@ -849,6 +900,7 @@
     "levadura": {
       "per": 100,
       "unit": "g",
+      "cat": "other",
       "verified": false,
       "name": {
         "es": "Levadura química",
@@ -862,6 +914,7 @@
     "avellanas": {
       "per": 100,
       "unit": "g",
+      "cat": "fat",
       "verified": false,
       "name": {
         "es": "Avellanas",
@@ -875,6 +928,7 @@
     "miel": {
       "per": 100,
       "unit": "g",
+      "cat": "sweet",
       "verified": false,
       "name": {
         "es": "Miel",
@@ -888,6 +942,7 @@
     "platano": {
       "per": 100,
       "unit": "g",
+      "cat": "fruit",
       "verified": false,
       "name": {
         "es": "Plátano",
@@ -913,6 +968,7 @@
     "manzana": {
       "per": 100,
       "unit": "g",
+      "cat": "fruit",
       "verified": false,
       "name": {
         "es": "Manzana",
@@ -938,6 +994,7 @@
     "naranja": {
       "per": 100,
       "unit": "g",
+      "cat": "fruit",
       "verified": false,
       "name": {
         "es": "Naranja",
@@ -963,6 +1020,7 @@
     "zumonaranja": {
       "per": 100,
       "unit": "ml",
+      "cat": "drink",
       "verified": true,
       "name": {
         "es": "Zumo de naranja con pulpa (Dia Saborfera)",
@@ -977,6 +1035,7 @@
     "pera": {
       "per": 100,
       "unit": "g",
+      "cat": "fruit",
       "verified": false,
       "name": {
         "es": "Pera",
@@ -1002,6 +1061,7 @@
     "melocoton": {
       "per": 100,
       "unit": "g",
+      "cat": "fruit",
       "verified": false,
       "name": {
         "es": "Melocotón",
@@ -1027,6 +1087,7 @@
     "nectarina": {
       "per": 100,
       "unit": "g",
+      "cat": "fruit",
       "verified": false,
       "name": {
         "es": "Nectarina",
@@ -1052,6 +1113,7 @@
     "paraguayo": {
       "per": 100,
       "unit": "g",
+      "cat": "fruit",
       "verified": false,
       "name": {
         "es": "Paraguayo",
@@ -1077,6 +1139,7 @@
     "pina": {
       "per": 100,
       "unit": "g",
+      "cat": "fruit",
       "verified": false,
       "name": {
         "es": "Piña",
@@ -1090,6 +1153,7 @@
     "sandia": {
       "per": 100,
       "unit": "g",
+      "cat": "fruit",
       "verified": false,
       "name": {
         "es": "Sandía",
@@ -1103,6 +1167,7 @@
     "melon": {
       "per": 100,
       "unit": "g",
+      "cat": "fruit",
       "verified": false,
       "name": {
         "es": "Melón",
@@ -1116,6 +1181,7 @@
     "uvas": {
       "per": 100,
       "unit": "g",
+      "cat": "fruit",
       "verified": false,
       "name": {
         "es": "Uvas",
@@ -1129,6 +1195,7 @@
     "kiwi": {
       "per": 100,
       "unit": "g",
+      "cat": "fruit",
       "verified": false,
       "name": {
         "es": "Kiwi",
@@ -1154,6 +1221,7 @@
     "fresas": {
       "per": 100,
       "unit": "g",
+      "cat": "fruit",
       "verified": false,
       "name": {
         "es": "Fresas",
@@ -1167,6 +1235,7 @@
     "arandanos": {
       "per": 100,
       "unit": "g",
+      "cat": "fruit",
       "verified": false,
       "name": {
         "es": "Arándanos",
@@ -1180,6 +1249,7 @@
     "ciruela": {
       "per": 100,
       "unit": "g",
+      "cat": "fruit",
       "verified": false,
       "name": {
         "es": "Ciruela",
@@ -1205,6 +1275,7 @@
     "calabacin": {
       "per": 100,
       "unit": "g",
+      "cat": "veg",
       "verified": false,
       "name": {
         "es": "Calabacín",
@@ -1218,6 +1289,7 @@
     "pimiento": {
       "per": 100,
       "unit": "g",
+      "cat": "veg",
       "verified": false,
       "name": {
         "es": "Pimiento",
@@ -1231,6 +1303,7 @@
     "cebolla": {
       "per": 100,
       "unit": "g",
+      "cat": "veg",
       "verified": false,
       "name": {
         "es": "Cebolla",
@@ -1244,6 +1317,7 @@
     "zanahoria": {
       "per": 100,
       "unit": "g",
+      "cat": "veg",
       "verified": false,
       "name": {
         "es": "Zanahoria",
@@ -1257,6 +1331,7 @@
     "guisantes": {
       "per": 100,
       "unit": "g",
+      "cat": "veg",
       "verified": false,
       "name": {
         "es": "Guisantes",
@@ -1270,6 +1345,7 @@
     "lentejas": {
       "per": 100,
       "unit": "g",
+      "cat": "legume",
       "verified": false,
       "name": {
         "es": "Lentejas",
@@ -1284,6 +1360,7 @@
     "alubias": {
       "per": 100,
       "unit": "g",
+      "cat": "legume",
       "verified": false,
       "name": {
         "es": "Alubias",
@@ -1298,6 +1375,7 @@
     "garbanzos": {
       "per": 100,
       "unit": "g",
+      "cat": "legume",
       "verified": false,
       "name": {
         "es": "Garbanzos",
@@ -1312,6 +1390,7 @@
     "aceiteoliva": {
       "per": 100,
       "unit": "g",
+      "cat": "fat",
       "verified": false,
       "name": {
         "es": "Aceite de oliva",
