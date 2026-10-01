@@ -31,6 +31,12 @@ test('the food hosts ship hidden: Registrar in the dia section, Mis productos / 
   const tablas = html.indexOf('id="sec-tablas"');
   assert.ok(reg < products && products < tablas, 'the folds sit next to the day builder');
   assert.match(html, /role="status" aria-live="polite"/);
+  // the section's own status line (saved / archived) sits ABOVE its body, never below the list
+  // (form errors and "save anyway" go to the form's own line, next to its save button)
+  for (const [msg, body] of [['fp-msg', 'fp-body'], ['fr-msg', 'fr-body']]) {
+    const m = html.indexOf(`id="${msg}"`);
+    assert.ok(m > 0 && m < html.indexOf(`id="${body}"`), `${msg} before ${body}`);
+  }
 });
 
 test('copy + constants are baked; food.js is inlined after nutri-day.js and before intake.js', () => {
