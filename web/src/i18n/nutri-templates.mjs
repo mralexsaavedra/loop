@@ -43,6 +43,7 @@ export const es = {
   planLineBike: 'Comidas {k} kcal + avituallamiento {fuel} kcal = {total} kcal.',
   remShort: 'Faltan ~{k} kcal: añade ~{g} g de carbohidratos (pan, fruta, arroz…).',
   remSnack: 'Faltan ~{k} kcal: añade un tentempié (p. ej. fruta o un bocadillo).',
+  remSnackLeft: 'Faltan ~{k} kcal aun con el tentempié en su máximo: elige uno más grande o añade algo más.',
   remShortBike: 'Faltan ~{k} kcal: súmalos al avituallamiento (~{g} g más de carbohidratos en la bici o justo antes y después).',
   remOver: 'Sobran ~{k} kcal: recorta grasa o extras.',
   remOverBike: 'Comidas y avituallamiento pasan ~{k} kcal del objetivo: con esta duración puedes tomar algo menos en la bici.',
@@ -64,6 +65,8 @@ export const es = {
     pickAria: 'Cambiar {item} ({meal})',
     picksNote: 'Has cambiado alimentos: el resto del día se ha reajustado para seguir en el objetivo.',
     picksReset: 'Volver al plan base',
+    // the automatic snack (lib/nutrition/snack.mjs)
+    snackNote: 'Tentempié añadido para llegar al objetivo: las raciones del plan ya no crecen más.',
     groups: { lean: 'Magras', mod: 'Moderadas', fat: 'Grasas', fruit: 'Fruta', yogurt: 'Yogur' },
     // a fixed food's "none" option, per food category (lib/nutrition/categories.mjs, skippable ones)
     none: { fruit: 'Sin fruta', veg: 'Sin verdura', dairy: 'Sin lácteo', cheese: 'Sin queso', sweet: 'Sin dulce', drink: 'Sin bebida', sauce: 'Sin salsa' },
@@ -142,6 +145,7 @@ export const en = {
   planLineBike: 'Meals {k} kcal + ride fuel {fuel} kcal = {total} kcal.',
   remShort: '~{k} kcal short: add ~{g} g of carbs (bread, fruit, rice…).',
   remSnack: '~{k} kcal short: add a snack (e.g. fruit or a sandwich).',
+  remSnackLeft: '~{k} kcal short even with the snack at its maximum: pick a bigger one or add something else.',
   remShortBike: '~{k} kcal short: add them to the ride fuel (~{g} g more carbs on the bike or just before and after).',
   remOver: '~{k} kcal over: trim fat or extras.',
   remOverBike: 'Meals plus ride fuel are ~{k} kcal over the target: for this duration you can take a little less on the bike.',
@@ -162,6 +166,8 @@ export const en = {
     pickAria: 'Change {item} ({meal})',
     picksNote: 'You swapped foods: the rest of the day was re-solved to stay on target.',
     picksReset: 'Back to the base plan',
+    // the automatic snack (lib/nutrition/snack.mjs)
+    snackNote: 'Snack added to reach the target: the plan\'s portions cannot grow any more.',
     groups: { lean: 'Lean', mod: 'Moderate', fat: 'Fatty', fruit: 'Fruit', yogurt: 'Yogurt' },
     none: { fruit: 'No fruit', veg: 'No vegetables', dairy: 'No dairy', cheese: 'No cheese', sweet: 'No sweet', drink: 'No drink', sauce: 'No sauce' },
     noneAny: 'None',

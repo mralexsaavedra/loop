@@ -105,21 +105,25 @@ md.push('');
 
 /* Daily targets per goal x day type and how the scaled plan meets them (lib/nutrition/scale.mjs,
    the same numbers the page bakes). Meals = the carb-flex-scaled base day; on bike days the ride
-   fuel counts inside the target; remainder = target - ride fuel - meals. */
+   fuel counts inside the target; a day still short gets the automatic snack (lib/nutrition/snack.mjs),
+   counted in the meals; remainder = target - ride fuel - meals. */
 md.push('## Daily targets by goal and day type');
 md.push('');
 md.push('> From `targets.byGoal` (defaults when absent); carbs = remainder. Plan de hoy scales the carb-flex parts');
 md.push('> (`flex: "carb"` marks plus every carb / fruit food; `flex: null` opts out) by one common factor (clamped),');
 md.push('> holding a portion at its cap (`maxAmt` in ingredients.json) and spreading the rest over the others; the');
-md.push('> remainder is what is left ("capped" = some portions at their cap, "all capped" = none can grow).');
+md.push('> remainder is what is left ("capped" = some portions at their cap, "all capped" = none can grow). A day');
+md.push('> still short beyond the tolerance gets an automatic snack sized to the shortfall (on bike days only beyond');
+md.push('> what the ride can still take at the top of its g/h range); Meals kcal includes it.');
 md.push('');
 {
-  const days = buildDayPlans(nut, plan);
-  const head = '| Goal | Day type | kcal | P | F | C | Meals kcal | Ride fuel | Carb factor | Remainder |\n|---|---|---|---|---|---|---|---|---|---|';
+  const days = buildDayPlans(nut, plan, { lang: LOCALE });
+  const head = '| Goal | Day type | kcal | P | F | C | Meals kcal | Snack | Ride fuel | Carb factor | Remainder |\n|---|---|---|---|---|---|---|---|---|---|---|';
   const rows = [];
   for (const g of days.goals) for (const d of days.dayTypes) {
     const x = days.plans[g][d];
-    rows.push(`| ${g} | ${d} | ${x.t.kcal} | ${x.t.p} | ${x.t.f} | ${x.t.c} | ${x.tot.k} | ${x.fuelK || '—'} | ×${fmtFactor(x.factor)}${x.clamp ? ' (' + x.clamp + ')' : ''}${x.allCapped ? ' (all capped)' : x.capped ? ' (capped)' : ''} | ${x.rem} |`);
+    const snack = x.snack ? `${x.snack.n} ${Math.round(x.snack.mac[0])} kcal${x.snack.capped ? ' (capped)' : ''}` : '—';
+    rows.push(`| ${g} | ${d} | ${x.t.kcal} | ${x.t.p} | ${x.t.f} | ${x.t.c} | ${x.tot.k} | ${snack} | ${x.fuelK || '—'} | ×${fmtFactor(x.factor)}${x.clamp ? ' (' + x.clamp + ')' : ''}${x.allCapped ? ' (all capped)' : x.capped ? ' (capped)' : ''} | ${x.rem} |`);
   }
   md.push([head, ...rows].join('\n'));
   md.push('');
