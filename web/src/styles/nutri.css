@@ -1,5 +1,5 @@
 /* Nutrición day blocks — Resumen de hoy (day type segments, kcal dial, macro bars), Plan de hoy
- * (the portion guide: four meal cards, supplements) and Avituallamiento (3-step ride-fuelling timeline).
+ * (the portion guide: four meal groups as cards, supplements) and Avituallamiento (3-step ride-fuelling timeline).
  * Tokens only. Dark, data-first, colour = meaning: --accent = the picked segment's icon / actions,
  * --trend = neutral logged progress (dial + bars fill), --mid = past 110 % or a portion at its maximum,
  * --good = a meal / macro already covered, --strain = the ride timeline. Numbers in --num; labels caps + --label-track.

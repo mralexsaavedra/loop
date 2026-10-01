@@ -517,7 +517,7 @@ test('Plan de hoy is collapsed by default; its summary shows the plan total kcal
 /* ---------- Plan de hoy = the portion guide (lib/nutrition/guide.mjs, ported) ---------- */
 // planFor totals of the example plan [kcal, P, C, F, factor, remainder], re-pinned DELIBERATELY when the
 // portion guide replaced the menu: the automatic snack is gone, so a capped day's remainder is no longer
-// filled by a snack — the guide hands it to Extras (the guide's four blocks add up to the meals target)
+// filled by a snack — the guide hands it to Extras (the guide's four meal groups add up to the meals target)
 const PINNED_TOTALS = {
   'maintain/rest': [2401, 139, 369, 44, 1.67, 99], 'maintain/gym': [2605, 150, 388, 52, 1.67, 445], 'maintain/bike': [2605, 150, 388, 52, 1.67, 465], 'maintain/bikeLong': [2605, 150, 388, 52, 1.67, 535],
   'cut/rest': [2150, 136, 308, 44, 1.19, 0], 'cut/gym': [2605, 150, 388, 52, 1.67, 95], 'cut/bike': [2605, 150, 388, 52, 1.67, 465], 'cut/bikeLong': [2605, 150, 388, 52, 1.67, 535],
@@ -532,7 +532,7 @@ const selectedOf = (html, key) => {
 };
 const GRID = { ud: 100, grid: 0.5, step: 5 };
 
-test('planFor totals (lib and the page port) equal the pinned ones; the guide\'s four blocks add up to the meals target', () => {
+test('planFor totals (lib and the page port) equal the pinned ones; the guide\'s four meal groups add up to the meals target', () => {
   const nutri = bake();
   const s = run({ nutri });
   for (const [key, want] of Object.entries(PINNED_TOTALS)) {
@@ -542,7 +542,7 @@ test('planFor totals (lib and the page port) equal the pinned ones; the guide\'s
     s.fire('nutri-daytype', 'change', { value: d });
     const x = planFor(nutri, g, d, s.api.state().rideMin);
     const cards = cardsOf(s.els['nutri-plan'].innerHTML);
-    assert.deepEqual(cards.map((c) => c.name), ['Breakfast', 'Lunch', 'Dinner', 'Extras'], `${key}: always the same four blocks`);
+    assert.deepEqual(cards.map((c) => c.name), ['Breakfast', 'Lunch', 'Dinner', 'Extras'], `${key}: always the same four meal groups`);
     const b = guideBudgets(x, nutri.base[x.base].sl, MAIN_SLOTS, nutri.guide.oil[x.base]);
     if (!b.clamped || b.extras.k > 0) assert.equal(cards.reduce((a, c) => a + c.kcal, 0), x.mt.k, `${key}: the guide = the meals target`);
   }
@@ -639,7 +639,7 @@ test('rest day: Breakfast, Lunch, Dinner as plates by parts (protein / carbs / v
   assert.match(h, /Orientative: each example covers its macro only/);
 });
 
-test('gym day: the same four blocks, bigger amounts where the plan grows, and Extras says to split it around training', () => {
+test('gym day: the same four meal groups, bigger amounts where the plan grows, and Extras says to split it around training', () => {
   const s = run({ items: [{ modality: 'gym', dur: 60 }] });
   const h = s.els['nutri-plan'].innerHTML;
   assert.deepEqual(cardsOf(h).map((c) => c.name), ['Breakfast', 'Lunch', 'Dinner', 'Extras']);
