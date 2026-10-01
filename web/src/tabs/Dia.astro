@@ -8,12 +8,16 @@
  *                        chip under it (the goal itself is set in the profile sheet, client/profile.js),
  *                        three macro bars (protein / carbs / fat), then the intake rings (#intake,
  *                        only with intake logged in the last 3 days; otherwise nothing);
- *   2. Plan de hoy     — the day's meals with the carb-flex portions scaled to (goal × day type);
- *   3. Registrar       — today's food log by meal slot + the add sheet (client/food.js, Nutrición part
+ *   2. Registrar       — today's food log by meal slot + the add sheet (client/food.js, Nutrición part
  *                        2). Ships `hidden` and appears only on the LAN page, when the food API answers
  *                        (never in the claude.ai artifact or the example build); baked here: I18N_FOOD
  *                        + FOOD_CONST (meal slots / stores / units / input limits from lib/nutrition/foodlog.mjs);
- *   4. Avituallamiento — before -> during -> after the ride as a 3-step timeline, bike day types only.
+ *   3. Plan de hoy     — the day's meals with the carb-flex portions scaled to (goal × day type), in a
+ *                        native <details> COLLAPSED by default (summary: heading + the plan's kcal,
+ *                        written by client/nutri-day.js, which also remembers open / closed per viewer);
+ *                        the plan renders while collapsed, so the food log's "Del plan" never needs it open;
+ *   4. Avituallamiento — before -> during -> after the ride as a 3-step timeline, bike day types only
+ *                        (never collapsed).
  * The day-type control is server-rendered (real labelled radios); the numbers
  * are client-rendered by client/nutri-day.js from NUTRI (lib/nutrition/today.mjs: the 12 precomputed
  * plans), baked here with I18N_NUTRI. Today's day type is picked on the viewer's clock, so builds
@@ -74,17 +78,16 @@ const DAY_ICONS: Record<string, string> = {
     {intakeHost && <div id="intake"></div>}
   </div>
 
-  <div class="nutri-block">
-    <h2>{T.headings.plan}</h2>
-    <div id="nutri-plan"></div>
-  </div>
-
   {/* food log (client/food.js): hidden until the LAN food API answers */}
   <div class="nutri-block food-block" id="food-log-block" hidden>
     <h2>{F.headings.log}</h2>
     <div id="food-log"></div>
     <p class="food-msg" id="food-msg" role="status" aria-live="polite"></p>
   </div>
+
+  <details class="nutri-block sec-fold nutri-fold" id="nutri-plan-fold"><summary><h2>{T.headings.plan}</h2><span class="nutri-fold-kcal" id="nutri-plan-kcal"></span><span class="chev">›</span></summary>
+    <div id="nutri-plan"></div>
+  </details>
 
   <div class="nutri-block" id="nutri-fuel-block" hidden>
     <h2>{T.headings.fuel}</h2>

@@ -8,6 +8,17 @@
 .nutri-block {
   margin-top: var(--sp-8);
 }
+/* Plan de hoy: a collapsed-by-default fold (details.sec-fold, layout.css); the summary carries the
+ * plan's total kcal next to the heading */
+.nutri-fold-kcal {
+  font-family: var(--num);
+  font-size: var(--fs-md);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.nutri-fold > #nutri-plan {
+  margin-top: var(--sp-5);
+}
 .nutri-card {
   background: var(--card-bg);
   border: 1px solid var(--line);

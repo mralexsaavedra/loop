@@ -72,12 +72,12 @@ test('example build: the dia section carries Resumen de hoy (day type radios onl
   const html = fs.readFileSync(examplePath, 'utf8');
   const { plan, nut } = loadExampleNut();
   const dia = sliceSection(html, 'dia');
-  const at = ["Today's summary", 'id="nutri-daytype"', 'id="nutri-target"', 'id="intake"', "Today's plan", 'id="nutri-plan"', 'id="nutri-fuel-block"', 'Ride fuelling'].map((n) => {
+  const at = ["Today's summary", 'id="nutri-daytype"', 'id="nutri-target"', 'id="intake"', 'id="food-log-block"', "Today's plan", 'id="nutri-plan"', 'id="nutri-fuel-block"', 'Ride fuelling'].map((n) => {
     const i = dia.indexOf(n.replace("'", '&#39;')); // Astro escapes the apostrophe in text
     return i !== -1 ? i : dia.indexOf(n);
   });
   at.forEach((i, n) => assert.ok(i !== -1, `marker ${n} missing from the dia section`));
-  assert.deepEqual([...at].sort((x, y) => x - y), at, 'order: summary, plan, fuelling');
+  assert.deepEqual([...at].sort((x, y) => x - y), at, 'order: summary, food log (Registrar), plan, fuelling');
   // labelled radios: the 4 day types are the ONLY control; the goal lives in the profile sheet (a chip
   // next to today's kcal, client-rendered, opens it)
   assert.equal((dia.match(/<input type="radio" name="nutri-day"/g) || []).length, 4);
