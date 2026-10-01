@@ -104,6 +104,18 @@
   color: var(--faint);
   margin-left: var(--sp-2);
 }
+/* newest value > STALE_DAYS old: greyed like the monitor's .hm-stale */
+.mtrend-stale {
+  opacity: 0.55;
+}
+.mtrend-stale-note {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: var(--label-track);
+}
 .mtrend-ctx {
   margin-top: var(--sp-2);
   font-size: var(--fs-sm);
