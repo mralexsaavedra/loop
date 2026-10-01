@@ -148,7 +148,8 @@
    * solveScale / planFor and blocks.mjs applyPicks) ---------- */
   function round2(v) { return Math.round(v * 100) / 100; }
   function stepAmount(amt, unit, st) {
-    if (unit === 'ud') return Math.max(100, Math.round(amt / 100) * 100);
+    var ud = N.scale.ud; // lib/nutrition/units.mjs UD_AMT (one unit)
+    if (unit === 'ud') return Math.max(ud, Math.round(amt / ud) * ud);
     if (st > 0) return Math.max(st, Math.round(amt / st) * st);
     return Math.max(N.scale.step, Math.round(amt / N.scale.step) * N.scale.step);
   }
@@ -160,7 +161,8 @@
   }
   function fmtPieces(amt, unit, pc) {
     var n = amt / pc.a;
-    var h = Math.max(0.5, Math.round(n * 2) / 2);
+    var grid = N.scale.grid; // lib/nutrition/units.mjs PIECE_GRID (half pieces)
+    var h = Math.max(grid, Math.round(n / grid) * grid);
     var exact = Math.abs(n - h) < 1e-9;
     var name = h > 1 ? pc.m : pc.o;
     var ref;
@@ -170,7 +172,7 @@
   }
   function fmtAmt(amt, unit, units, pc) {
     if (pc) return fmtPieces(amt, unit, pc);
-    return unit === 'ud' ? round2(amt / 100) + ' ' + units.ud : round2(amt) + ' ' + (units[unit] || unit);
+    return unit === 'ud' ? round2(amt / N.scale.ud) + ' ' + units.ud : round2(amt) + ' ' + (units[unit] || unit);
   }
   function limit(f) {
     if (f < N.scale.min) return [N.scale.min, 'min'];
@@ -271,7 +273,7 @@
         if (p.x) fi++; // the default's flex entry is replaced
         var b = blocks[p.id], list = lists[b.L], opt = findOpt(list, key);
         var s = swapFactor(b, list, opt);
-        var isFlex = b.fx === 1 && opt.fx === 1;
+        var isFlex = b.fx === true && opt.fx === true;
         if (opt.mb) {
           var mb = opt.mb.map(function (v) { return v * s; });
           var q = s === 1 ? opt.q : (opt.q + ' ×' + s.toFixed(2).replace('.', fmt.dec || '.')).trim();

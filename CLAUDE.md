@@ -406,7 +406,8 @@ controls instead of the close button.
   `validateIngredientMeta` inside `npm run check`): `piece: { name: {es, en}, plural?: {es, en}, amt,
   g?, typical? }` — the food's natural piece, `amt` in the food's own unit (g / ml; a `ud` food's piece
   is its unit, amt 100, with `g` = its grams reference), `typical: true` = a typical weight (medium
-  fruit, a tablespoon of oil ~10 g, an egg ~50 g), NOT a weighed label; and `weighed: raw | dry |
+  fruit, a tablespoon, an egg ~50 g), NOT a weighed label — a tablespoon's weight is PER FOOD (its own
+  `piece.amt`: olive oil 10 g, allioli / mayonesa 15 g); and `weighed: raw | dry |
   cooked` (how the plan weighs it: meat raw, rice / pasta / oats dry, potato / legumes cooked).
 - `data/nutrition/plan-data.json` (GITIGNORED, **personal** plan) — the owner's actual diet:
   `data`/`dayPlan`/`extras`/`extrasDisplay`/`quesoKeys`/`vegKeys`/`legumeKeys`/`legumePlate`/
@@ -496,8 +497,9 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   block). `solveScale` = ONE factor for every carb-flex part so the meals hit (target − ride fuel),
   clamped to `SCALE_MIN`–`SCALE_MAX` (0.6–2.0×), rounded to 2 decimals and labelled with 2 decimals
   ("×1.45"). DISCRETE lines — whole units (`ud`, whole units) and countable g / ml foods (an
-  ingredient with a `piece`, rounded to HALF pieces; the model line carries `[…, step, ingredient
-  key]`, `lib/nutrition/amounts.mjs` `modelLine`) — round first at that factor, then the factor is
+  ingredient with a `piece`, rounded to HALF pieces — `PIECE_GRID` in `lib/nutrition/units.mjs`, one
+  unit = `UD_AMT` (100), both baked as `NUTRI.scale.grid` / `.ud`; the model line carries `[…, step,
+  ingredient key]`, `lib/nutrition/amounts.mjs` `modelLine` / `stepAmount`) — round first at that factor, then the factor is
   RE-SOLVED on the remaining g / ml parts so the day still lands within tolerance; with only `ud` parts flexible the
   remainder is reported honestly (plus a one-line note). Amounts round to 5 g / 5 ml (never below one
   step; a `manual` block scales as a whole and shows "×1.30") and the totals are recomputed from the
@@ -522,7 +524,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   `match`. Fixed `{ing}` parts and lists of one stay fixed. Stable ids: block id = `<meal key>/<use>`
   (meal key = the meal's `slot`, else `mealSlot` from its name, else its name; the TIER is not in the
   id, so a pick follows the day across train / rest; a repeat in the same meal key gets `#2`…);
-  option key = the item's `n`, else `cap`, else `l` (a repeated key gets " (2)"). Swap rules
+  option key = the item's `n`, else `cap`, else `l` (ONE rule, `lib/nutrition/names.mjs` `itemName`, also
+  the baked option name and the Tablas row name; a repeated key gets " (2)"). Swap rules
   (`applyPicks`): PROTEIN-role lists (`BLOCK_ROLES`: proteina, anclaje, postentreno — explicit in lib,
   never from emoji / labels) scale the picked option to the SAME protein grams as the default
   (`swapFactor`, clamped `PROTEIN_SCALE_MIN`–`MAX` 0.5–2.0, amounts rounded like every scaled amount;
@@ -533,7 +536,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   notes). `planFor(bake, goal, dayType, minutes, picks)` returns `view` (the meals to display) and
   `picks` (the effective ones); no effective pick (none, the default key, an unknown id / key) = the
   base model untouched, byte for byte. Bake: `lists[<use>[.<tier>]]` = options `{k, n, gr?, ln | mb,
-  q?, c?, pr, fx?}` (line macros to 2 decimals; `gr` = the item's `t` / `cat`) + per base day
+  q?, c?, pr, fx?}` (line macros to 2 decimals; `gr` = the item's `t` / `cat`; `fx: true` = a carb staple,
+  absent = not; the block's `fx` is a boolean too) + per base day
   `blocks[id] = {L, r, d, fx}` and an `id` on each block part; NUTRI grew from ~5.6 KB to ~10.6 KB on
   the example. The page (nutri-day.js) ports `applyPicks` / `swapFactor` / `fmtPieces` line by line
   (parity test over every single pick + combinations). Plan de hoy renders a block's name as a
