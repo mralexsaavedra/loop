@@ -525,7 +525,9 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   is a BLOCK when that list holds ≥ 2 eatable options (none rows excluded); its default = the part's
   `match`. Fixed `{ing}` parts and lists of one stay fixed. Stable ids: block id = `<meal key>/<use>`
   (meal key = the meal's `slot`, else `mealSlot` from its name, else its name; the TIER is not in the
-  id, so a pick follows the day across train / rest; a repeat in the same meal key gets `#2`…);
+  id, so a pick follows the day across train / rest; a repeat in the same meal key gets `#2`…; ids are
+  slot / list-based, not meal-based: two meals sharing a slot (or name) and a list get their ids BY ORDER
+  in the day, so reordering such meals moves a stored pick to the other one);
   option key = the item's `n`, else `cap`, else `l` (ONE rule, `lib/nutrition/names.mjs` `itemName`, also
   the baked option name and the Tablas row name; a repeated key gets " (2)"). Swap rules
   (`swapOption`, pure: the picked option as the part that replaces the default + its flex entry or fixed
@@ -626,7 +628,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   banana (~120 g)", a typical weight tagged "typical weight"), oil per tablespoon, else "100 g" /
   "100 ml" + how it is weighed ("100 g dry", "100 g raw"); a composite option = a group row + one row
   per component food; a `manual` option = "1 serving (<its q>)". A carb list's train / rest tiers
-  collapse to ONE table (no train / rest portion columns). A one-line note at the top says today's
+  collapse to ONE table (no train / rest portion columns); same-named options collapse only when their
+  reference rows are equal (the same food at another amount), otherwise both rows show (`listRows`). A one-line note at the top says today's
   amounts are in Plan de hoy; the generic notes (dict `tablas.*`) and the example plan's
   `page.notes['tablas.*']` no longer talk about portions. plan-tables.md (generate.js) keeps "Daily
   targets by goal and day type" and writes the same reference rows ("Food reference (fixed values per
