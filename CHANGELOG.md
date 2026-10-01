@@ -4,6 +4,25 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-01 — Plan de hoy by blocks; Tablas = fixed reference values
+
+The owner never knows in advance what he will eat, but Plan de hoy showed one fixed day and the variety
+of his option lists only lived in the removed day builder; Tablas meanwhile showed old train / rest
+portions that contradicted the scaled plan. Now a dayPlan part that points at an option list is a
+choosable BLOCK (`lib/nutrition/blocks.mjs`): a compact select in its meal card lists that list's
+options (grouped like the tables); protein lists (proteina, anclaje, postentreno) scale the pick to
+the default's protein grams, every other list takes the option's own amounts, and the carb-flex
+engine re-solves the whole day so it still lands on target − ride fuel. Picks persist per viewer for
+the day (`hc.nutri.picks`), the page ports the logic line by line (parity tests over every pick), and
+`HCNutri.todayPlan()` — hence the food log's "Del plan" — logs what was chosen. Countable foods got
+natural-unit metadata in the public `ingredients.json` (`piece`, `weighed`, validated by `npm run
+check`): Plan de hoy shows them in pieces with the grams reference and rounds their scaled amounts to
+half pieces. Tablas is now server-rendered reference values per natural unit (`lib/nutrition/
+reference.mjs`), with no portions and one table per carb list; plan-tables.md writes the same rows.
+The example plan's protein / anchor / rest breakfast parts became blocks (same numbers; rest rice
+130 g so the bulk day still fits without the breakfast's flex bread). Food-API recipes as extra
+breakfast options were left out (view-time only, outside the baked lists).
+
 ## 2026-10-01 — Day builder removed; the food log logs the plan ("Del plan")
 
 The Constructor de día (section `registro`) was redundant next to the food log, so it is gone with
