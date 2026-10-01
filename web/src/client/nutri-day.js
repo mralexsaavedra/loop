@@ -31,7 +31,7 @@
  *   and planFor re-solves the whole day with it (swapOption / swapIng / ingAmount / applyPicks port
  *   blocks.mjs: protein lists keep the default's protein grams, the rest take the option's own amounts,
  *   a food keeps its category's rule; parity test).
- * - Snack: a day still short after the solve (every plate at its cap) gets the automatic snack — fillTo /
+ * - Snack: a day still short after the solve (every plate at its cap) gets the automatic snack — waterFill /
  *   solveSnack / defaultSnack / snackFor / rideHeadroomK / withSnack port lib/nutrition/snack.mjs over
  *   NUTRI.snack (parity test): an add-on row "Snack" (or one more part of the plan's own snack-slot
  *   meal) with a select of the options, its pick kept like a block pick (id NUTRI.snack.id).
@@ -204,23 +204,26 @@
     if (pc) return fmtPieces(amt, unit, pc);
     return unit === 'ud' ? round2(amt / N.scale.ud) + ' ' + units.ud : round2(amt) + ' ' + (units[unit] || unit);
   }
-  function limit(f) {
-    if (f < N.scale.min) return [N.scale.min, 'min'];
-    if (f > N.scale.max) return [N.scale.max, 'max'];
+  // water-filling (port of lib/nutrition/fill.mjs waterFill, the carb solve's and the snack's): one common
+  // factor bounded by clamp ([min, max]; none = floored at 0), an item past its cap held there and the
+  // factor re-solved over the rest until stable; start = the factor when nothing is free to fill
+  function bound(f, clamp) {
+    if (!clamp) return [Math.max(0, f), null];
+    if (f < clamp[0]) return [clamp[0], 'min'];
+    if (f > clamp[1]) return [clamp[1], 'max'];
     return [f, null];
   }
-  // water-filling (port of lib/nutrition/scale.mjs waterFill): one common factor, an item past its cap
-  // held there and the factor re-solved over the rest until stable
-  function waterFill(items, need) {
+  function waterFill(items, need, opts) {
+    var clamp = opts && opts.clamp ? opts.clamp : null;
     var held = items.map(function () { return false; });
-    var heldK = 0, f = 1, clamp = null;
+    var heldK = 0, f = opts && opts.start != null ? opts.start : 0, hit = null;
     for (;;) {
       var freeK = 0;
       items.forEach(function (it, i) { if (!held[i]) freeK += it.k; });
       if (!(freeK > 0)) break;
-      var lc = limit((need - heldK) / freeK);
-      f = lc[0];
-      clamp = lc[1];
+      var b = bound((need - heldK) / freeK, clamp);
+      f = b[0];
+      hit = b[1];
       var more = false;
       items.forEach(function (it, i) {
         if (!held[i] && it.cap < f) { held[i] = true; heldK += it.k * it.cap; more = true; }
@@ -229,10 +232,12 @@
     }
     if (items.length && held.every(Boolean)) {
       f = Math.max.apply(null, items.map(function (it) { return it.cap; }));
-      clamp = null;
+      hit = null;
     }
-    return { f: round2(f), clamp: clamp, held: held };
+    return { f: round2(f), clamp: hit, held: held };
   }
+  // the carb solve's bounds (lib/nutrition/scale.mjs SCALE_FILL)
+  function scaleFill() { return { clamp: [N.scale.min, N.scale.max], start: 1 }; }
   function solveScale(model, target, fmt) {
     var units = fmt.units, dec = fmt.dec, pieces = fmt.pieces || null;
     var fixedK = 0, udK = 0, contK = 0;
@@ -246,7 +251,7 @@
         all.push({ k: l[LINE.K], cap: capFactor(l), ud: ud });
       });
     });
-    var w0 = waterFill(all, target - fixedK);
+    var w0 = waterFill(all, target - fixedK, scaleFill());
     var f0 = w0.f, clamp = w0.clamp, held = w0.held;
     var amountAt = function (l, s) { return s === 1 ? lineAmt(l) : capAmount(stepAmount(lineAmt(l) * s, lineUnit(l), lineStep(l)), l); };
     var factor = f0;
@@ -255,7 +260,7 @@
       model.flex.forEach(function (x) {
         if (x.ln) x.ln.forEach(function (l) { if (isDiscrete(l)) udNowK += l[LINE.K] * (amountAt(l, Math.min(f0, capFactor(l))) / lineAmt(l)); });
       });
-      var w1 = waterFill(all.filter(function (it) { return !it.ud; }), target - fixedK - udNowK);
+      var w1 = waterFill(all.filter(function (it) { return !it.ud; }), target - fixedK - udNowK, scaleFill());
       factor = w1.f;
       clamp = w1.clamp;
       var ci = 0;
@@ -419,23 +424,6 @@
   }
   // the automatic snack (port of lib/nutrition/snack.mjs): a day still short after the solve gets a
   // snack option scaled to the shortfall (water-filling without a clamp, line caps), as an add-on meal
-  function fillTo(items, need) {
-    var held = items.map(function () { return false; });
-    var heldK = 0, f = 0;
-    for (;;) {
-      var freeK = 0;
-      items.forEach(function (it, i) { if (!held[i]) freeK += it.k; });
-      if (!(freeK > 0)) break;
-      f = Math.max(0, (need - heldK) / freeK);
-      var more = false;
-      items.forEach(function (it, i) {
-        if (!held[i] && it.cap < f) { held[i] = true; heldK += it.k * it.cap; more = true; }
-      });
-      if (!more) break;
-    }
-    if (items.length && held.every(Boolean)) f = Math.max.apply(null, items.map(function (it) { return it.cap; }));
-    return { f: round2(f), held: held };
-  }
   function snackCapK(o) {
     var k = 0;
     o.ln.forEach(function (l) { k += l[LINE.K] * capFactor(l); });
@@ -453,12 +441,12 @@
   function solveSnack(o, need, fmt) {
     var all = o.ln.map(function (l) { return { k: l[LINE.K], cap: capFactor(l), ud: isDiscrete(l) }; });
     var amountAt = function (l, s) { return capAmount(stepAmount(lineAmt(l) * s, lineUnit(l), lineStep(l)), l); };
-    var f0 = fillTo(all, need).f;
+    var f0 = waterFill(all, need).f;
     var f = f0;
     if (all.some(function (it) { return it.ud; }) && all.some(function (it) { return !it.ud; })) {
       var udK = 0;
       o.ln.forEach(function (l) { if (isDiscrete(l)) udK += l[LINE.K] * (amountAt(l, Math.min(f0, capFactor(l))) / lineAmt(l)); });
-      f = fillTo(all.filter(function (it) { return !it.ud; }), need - udK).f;
+      f = waterFill(all.filter(function (it) { return !it.ud; }), need - udK).f;
     }
     var mac = [0, 0, 0, 0], nums = [], capped = true;
     var amts = o.ln.map(function (l) {
@@ -1087,6 +1075,7 @@
     refresh: function () { refresh(false); },
     detectDayType: detectDayType,
     fuelPlan: fuelPlan,
+    waterFill: waterFill,
     solveScale: solveScale,
     planFor: planFor,
     applyPicks: applyPicks,

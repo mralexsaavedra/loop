@@ -19,6 +19,7 @@ import { planFor, solveScale } from '../../../lib/nutrition/scale.mjs';
 import { snackFor } from '../../../lib/nutrition/snack.mjs';
 import { applyPicks, swapOption, swapIng, NONE_KEY } from '../../../lib/nutrition/blocks.mjs';
 import { lineCap } from '../../../lib/nutrition/amounts.mjs';
+import { waterFill, FILL_CASES } from '../../../lib/nutrition/fill.mjs';
 import { CAT_RULES, FOOD_CATS } from '../../../lib/nutrition/categories.mjs';
 import { LINE } from '../../../lib/nutrition/amounts.mjs';
 import { MAIN_SLOTS, isMainMeal } from '../../../lib/nutrition/slots.mjs';
@@ -667,6 +668,11 @@ test('planFor / applyPicks ports agree with lib with picks (every single pick + 
       }
     }
   }
+});
+
+test('waterFill port agrees with lib/nutrition/fill.mjs over FILL_CASES (with and without the clamp)', () => {
+  const { api } = run();
+  for (const c of FILL_CASES) assert.deepEqual(plain(api.waterFill(c.items, c.need, c.opts)), plain(waterFill(c.items, c.need, c.opts)), JSON.stringify(c));
 });
 
 test('swapOption port agrees with lib for every block and option (both locales)', () => {
