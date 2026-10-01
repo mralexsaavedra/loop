@@ -4,6 +4,34 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-01 — Data-integrity fixes from the real-data audit
+
+A read-only audit of the owner's extract found eight ways bad rows reached the page; each is fixed
+in code, with synthetic tests.
+
+- **Partial last export day** — export.xml taken early on 2026-08-20 left a 971-step / 1-min / 103 kcal
+  day that beat complete Shortcut totals ("export rows always win"). extract.js now records
+  `exportLastDate` (`<ExportDate>`, else the newest record date) in `_meta.json` and skips that date
+  in the daily TOTAL series; the Shortcut sync treats it as a sync-owned date for `total: true`
+  metrics (Shortcut row wins, export row dropped when there is none).
+- **New Shortcut keys** `exercise_watch` / `distance_watch` / `flights_watch` (Watch-filtered day
+  totals → exercise-minutes / distance / flights CSVs; distance in km, `m` / `mi` accepted).
+- **Stale Salud trend cards** are greyed with "sin datos recientes" past `STALE_DAYS`, client-side.
+- **Weight source + phantom weights** — `weight` takes an optional source field like `bodyfat`; an
+  exact-midnight (local or UTC) Shortcut weight with no body fat within ±10 min is dropped.
+- **Energy** — extract.js sums only Apple Watch sources (RENPHO's weigh-in BMR doubled basal); a day
+  without Watch energy is missing; a phone-only export keeps every source.
+- **Strava sports** — tennis and other racket / team / outdoor sports map to Apple types in `other`
+  (a Watch + Strava tennis day is one session); unknown sports fall back to `Unmapped`, no longer
+  `Other` (gym). `Other` stays gym: the Watch's generic label, also Strava's `Workout`.
+- **Sleep** — falling back asleep after an early wake-up (a block ending before 10:00, gap ≤ 3 h)
+  joins the night; later-ending naps keep the 60-min cap.
+- **RHR** — deduped by timestamp only (Apple rewrites the day's value at the same stamp).
+
+Owner actions: re-run `node data/apple-health/extract.js` on export.xml (energy + partial day), add
+the three Shortcut keys and the weight source field (`docs/ios-shortcut.md`), then
+`npm run sync -- --full` and `npm run generate`.
+
 ## 2026-10-01 — Power-meter ride days correct the Watch's active energy
 
 A ride recorded by a bike computer with a power meter (and not by the Watch) was under-counted by

@@ -291,3 +291,33 @@ test('body composition: body fat and lean mass say how many readings their windo
   });
   assert.equal(html.split('4 readings in the last 150 days').length - 1, 2);
 });
+
+/* ---- stale cards: a trend card whose newest value is > STALE_DAYS old is greyed with a note ---- */
+test('a Salud trend card whose newest value is more than 3 days old is greyed with "no recent data"; a fresh one is not', () => {
+  const tr = (latestDate) => ({ latest: 52, latestDate, avg30: 50, d30: 0, spark: sp });
+  const H = {
+    body: { hasData: true, weight: { ...tr('2026-06-25'), source: 's', sources: 1 },
+      waist: { latest: 85, latestDate: '2026-03-01', firstDate: '2026-01-01', points: 2, delta: -1, spark: sp } },
+    activity: { hasData: true, steps: tr('2026-07-01') },
+    energy: none, running: none, loadRecovery: none,
+    recovery: { hasData: true, rhr: tr('2026-06-28'), hrv: tr('2026-06-27') },
+  };
+  const out = {};
+  renderAt(H, '2026-07-01', { out });
+  const card = (anchor) => {
+    const at = out.health.indexOf(anchor);
+    const i = Math.max(out.health.lastIndexOf('<div class="mtrend"', at), out.health.lastIndexOf('<div class="mtrend mtrend-stale"', at));
+    return out.health.slice(i, out.health.indexOf('</svg>', i));
+  };
+  const rhr = card('id="hl-rhr"'); // 3 days old: still fresh (the rule is MORE than 3 days)
+  assert.match(rhr, /^<div class="mtrend"/);
+  assert.ok(!rhr.includes(enHealth.staleNote));
+  const hrv = card('id="hl-hrv"'); // 4 days old
+  assert.match(hrv, /^<div class="mtrend mtrend-stale"/);
+  assert.ok(hrv.includes('<div class="mtrend-stale-note">' + enHealth.staleNote + '</div>'));
+  assert.match(card('Weight'), /^<div class="mtrend mtrend-stale"/);
+  assert.match(card('Steps'), /^<div class="mtrend"/, 'today is fresh');
+  // waist is a sparse manual measurement dated in its title: never greyed by this rule
+  assert.ok(!card('Waist').includes('mtrend-stale'));
+  assert.equal(enHealth.staleNote, 'no recent data');
+});
