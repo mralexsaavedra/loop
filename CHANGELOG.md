@@ -4,6 +4,19 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-01 — Daily energy: one source per day by precedence
+
+The Watch-only energy rule below (fallback to every source only when the whole export had no Watch
+energy) dropped ~1,300 days of the owner's history: active-energy-daily went from 1,622 to 321 rows,
+because before the Apple Watch (late 2025) energy came from Zepp, Mi Fit and the iPhone. It is
+SUPERSEDED: per day and type extract.js now picks ONE source by precedence — Apple Watch > a
+dedicated wrist-wearable app (Zepp, Mi Fit, Amazfit, Garmin Connect, Polar Flow, Fitbit, Huawei
+Health) > iPhone — and writes only its sum, never a sum across sources. Scales (RENPHO's BMR) and
+training / nutrition apps (Hevy, Nike, Strava, YAZIO, Merge…) never count; a day with only those has
+no row. The whole-export fallback is gone (the iPhone rank covers phone-only users). `_meta.json`
+`energySources` now counts the days each source family won per type. Needs a re-run of
+`node data/apple-health/extract.js` on the export.
+
 ## 2026-10-01 — Data-integrity fixes from the real-data audit
 
 A read-only audit of the owner's extract found eight ways bad rows reached the page; each is fixed
