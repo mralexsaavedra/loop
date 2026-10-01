@@ -18,6 +18,7 @@ import { fuelPlan } from '../../../lib/nutrition/fuel.mjs';
 import { planFor, solveScale } from '../../../lib/nutrition/scale.mjs';
 import { applyPicks, swapOption } from '../../../lib/nutrition/blocks.mjs';
 import { LINE } from '../../../lib/nutrition/amounts.mjs';
+import { MAIN_SLOTS, isMainMeal } from '../../../lib/nutrition/slots.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, '..', '..', '..');
@@ -520,7 +521,11 @@ test('HCNutri.todayPlan: today\'s Plan de hoy meals exactly as rendered (same go
       assert.equal(m.name, base.meals[i].n);
       assert.equal(m.slot, base.meals[i].s);
       assert.deepEqual([m.kcal, m.p, m.c, m.g], x.meals[i], `${c.label}: meal ${i} totals = Plan de hoy's`);
-      assert.ok(html.includes(`<div class="meal-name">${escHtml(m.name)}</div><div class="meal-kcal"><b>${m.kcal.toLocaleString('en')}</b> kcal</div>`), `${c.label}: meal ${i} kcal on the page`);
+      // a main meal is a card, an add-on a row of the add-ons card; both print the same kcal
+      const shown = MAIN_SLOTS.includes(m.slot)
+        ? `<div class="meal-name">${escHtml(m.name)}</div><div class="meal-kcal"><b>${m.kcal.toLocaleString('en')}</b> kcal</div>`
+        : `<div class="addon-name">${escHtml(m.name)}</div><div class="addon-kcal"><b>${m.kcal.toLocaleString('en')}</b> kcal</div>`;
+      assert.ok(html.includes(shown), `${c.label}: meal ${i} kcal on the page`);
       assert.equal(m.items.length, base.meals[i].parts.length);
       m.items.forEach((it, j) => {
         const part = base.meals[i].parts[j];
@@ -736,4 +741,85 @@ test('Spanish: the select and the reset link are localized; countable foods in S
   assert.match(html, /<optgroup label="Fruta">/);
   assert.match(html, /plátanos? medianos?/);
   assert.match(html, /Volver al plan base/);
+});
+
+/* ---------- three main meals + ONE add-ons card (display grouping only: no number changes) ---------- */
+// planFor totals of the example plan, pinned BEFORE the add-ons grouping landed: grouping must not move a number
+const PINNED_TOTALS = {
+  'maintain/rest': [2503, 142, 390, 45, 1.54, -3], 'maintain/gym': [3065, 161, 487, 53, 1.72, -15], 'maintain/bike': [3069, 161, 488, 53, 1.73, 1], 'maintain/bikeLong': [3149, 162, 507, 54, 1.75, -9],
+  'cut/rest': [2146, 136, 307, 44, 1.16, 4], 'cut/gym': [2699, 153, 409, 51, 1.42, 1], 'cut/bike': [3069, 161, 488, 53, 1.73, 1], 'cut/bikeLong': [3149, 162, 507, 54, 1.75, -9],
+  'bulk/rest': [2791, 147, 455, 45, 1.9, 9], 'bulk/gym': [3364, 167, 551, 55, 1.96, -14], 'bulk/bike': [3369, 167, 552, 55, 1.98, 1], 'bulk/bikeLong': [3395, 168, 558, 55, 2, 45],
+};
+const cardsOf = (html) => [...html.matchAll(/<div class="meal( meal-addons)?"><div class="meal-top"><div class="meal-name">([^<]+)<\/div><div class="meal-kcal"><b>([\d,.]+)<\/b> kcal<\/div><\/div>/g)]
+  .map((m) => ({ addons: !!m[1], name: m[2], kcal: Number(m[3].replace(/[,.]/g, '')) }));
+const addonRowsOf = (html) => [...html.matchAll(/<div class="addon"><div class="addon-top"><div class="addon-name">([^<]+)<\/div><div class="addon-kcal"><b>([\d,.]+)<\/b> kcal<\/div><\/div>/g)]
+  .map((m) => ({ name: m[1], kcal: Number(m[2].replace(/[,.]/g, '')) }));
+
+test('add-ons grouping changes no number: planFor totals (lib and the page port) equal the pinned ones, and the cards add up to the day', () => {
+  const nutri = bake();
+  const s = run({ nutri });
+  for (const [key, want] of Object.entries(PINNED_TOTALS)) {
+    const [g, d] = key.split('/');
+    for (const x of [planFor(nutri, g, d, null), s.api.planFor(nutri, g, d, null)]) assert.deepEqual([x.tot.k, x.tot.p, x.tot.c, x.tot.g, x.factor, x.rem], want, key);
+    s.api.setGoal(g);
+    s.fire('nutri-daytype', 'change', { value: d });
+    const x = planFor(nutri, g, d, s.api.state().rideMin);
+    const cards = cardsOf(s.els['nutri-plan'].innerHTML);
+    assert.equal(cards.reduce((a, c) => a + c.kcal, 0), x.meals.reduce((a, m) => a + m[0], 0), `${key}: main cards + the add-ons card = every meal`);
+  }
+});
+
+test('the page classifies main meals vs add-ons like lib (baked MAIN_SLOTS + isMainMeal)', () => {
+  const nutri = bake();
+  assert.deepEqual(nutri.mainSlots, MAIN_SLOTS);
+  const { api } = run({ nutri });
+  for (const day of ['train', 'rest']) {
+    nutri.base[day].meals.forEach((m, i) => assert.equal(api.isMainMeal(m), isMainMeal(PLAN.dayPlan[day].meals[i]), `${day}: ${m.n}`));
+  }
+  assert.equal(api.isMainMeal({ n: 'x', s: null }), false);
+  assert.equal(api.isMainMeal(null), false);
+});
+
+test('Plan de hoy (rest): Breakfast, Lunch, Dinner cards, then ONE Extras card holding every other meal as a compact row', () => {
+  const nutri = bake();
+  const s = run({ nutri });
+  const html = s.els['nutri-plan'].innerHTML;
+  const cards = cardsOf(html);
+  assert.deepEqual(cards.map((c) => c.name), ['Breakfast', 'Lunch', 'Dinner', 'Extras'], 'the add-ons card comes after dinner');
+  assert.deepEqual(cards.map((c) => c.addons), [false, false, false, true]);
+  const rows = addonRowsOf(html);
+  assert.deepEqual(rows.map((r) => r.name), ['Protein anchor', 'Cooking oil'], 'add-ons keep their day order');
+  const x = planFor(nutri, 'maintain', 'rest', null);
+  const names = nutri.base.rest.meals.map((m) => m.n);
+  assert.deepEqual(rows.map((r) => r.kcal), rows.map((r) => x.meals[names.indexOf(r.name)][0]), 'each row = that meal\'s kcal');
+  assert.equal(cards[3].kcal, rows.reduce((a, r) => a + r.kcal, 0), 'the card kcal = the sum of its rows');
+  const addons = html.split('class="meal meal-addons"')[1];
+  assert.match(addons, /<select class="mp-pick" data-block="snack\/anclaje" aria-label="Change [^"]+ \(Protein anchor\)">/, 'a choosable block stays choosable on its add-on row');
+  assert.match(addons, /<span class="mp-dir" role="img"/, 'the scaled-portion arrow is kept');
+  assert.match(addons, /<li class="mp[^"]*"><span class="mp-l">Olive oil<\/span><span class="mp-q">~1 tablespoon \(11 g\)<\/span><\/li>/);
+  assert.doesNotMatch(html, /<div class="meal-name">(Protein anchor|Cooking oil)<\/div>/, 'no full card per add-on');
+});
+
+test('Plan de hoy (gym): Post-workout and Cooking oil are add-on rows; Spanish heading "Añadidos"', () => {
+  const s = run({ items: [{ modality: 'gym', dur: 60 }] });
+  assert.equal(s.api.state().dayType, 'gym');
+  const html = s.els['nutri-plan'].innerHTML;
+  assert.deepEqual(cardsOf(html).map((c) => c.name), ['Breakfast', 'Lunch', 'Dinner', 'Extras']);
+  assert.deepEqual(addonRowsOf(html).map((r) => r.name), ['Post-workout', 'Cooking oil']);
+  const es = run({ nutri: bakeEs(), locale: 'es' }).els['nutri-plan'].innerHTML;
+  assert.match(es, /<div class="meal meal-addons"><div class="meal-top"><div class="meal-name">Añadidos<\/div>/);
+});
+
+test('a supplement of an add-on slot sits on that add-on row; a day with no add-ons has no add-ons card', () => {
+  const nutri = bake({ supplements: [{ name: 'Demo Whey', dose: '30 g', meal: 'postworkout' }, { name: 'Demo Magnesium', dose: null, meal: 'snack' }] });
+  const gym = run({ nutri, items: [{ modality: 'gym', dur: 60 }] }).els['nutri-plan'].innerHTML;
+  const post = gym.split('<div class="addon-name">Post-workout</div>')[1].split('<div class="addon">')[0];
+  assert.match(post, /<div class="meal-supp"><svg class="supp-ico"[^>]*>.*?<\/svg><span>Demo Whey 30 g<\/span><\/div>/);
+  const rest = run({ nutri }).els['nutri-plan'].innerHTML;
+  const anchor = rest.split('<div class="addon-name">Protein anchor</div>')[1].split('<div class="addon">')[0];
+  assert.match(anchor, /<span>Demo Magnesium<\/span>/);
+  const syn = plain(buildNutriToday(buildNutrition(SYN_ING, SYN_PLAN), SYN_PLAN, {}));
+  const none = run({ nutri: syn }).els['nutri-plan'].innerHTML;
+  assert.doesNotMatch(none, /meal-addons|class="addon"/);
+  assert.deepEqual(cardsOf(none).map((c) => c.name), ['Lunch']);
 });

@@ -54,6 +54,7 @@ export const es = {
     factorMax: 'Raciones de carbohidratos ×{factor} respecto al plan base (el máximo que se aplica).',
     factorMin: 'Raciones de carbohidratos ×{factor} respecto al plan base (el mínimo que se aplica).',
     otherSupps: 'Otros suplementos de hoy',
+    addons: 'Añadidos',
     empty: 'El plan no tiene comidas para este tipo de día.',
     unitsOnly: 'Solo las raciones por piezas son ajustables y van en piezas enteras o medias: el plan no puede acercarse más al objetivo.',
     // choosable blocks: a select per block; protein swaps keep the protein grams, the day is re-solved
@@ -146,6 +147,7 @@ export const en = {
     factorMax: 'Carb portions ×{factor} vs the base plan (the maximum applied).',
     factorMin: 'Carb portions ×{factor} vs the base plan (the minimum applied).',
     otherSupps: 'Other supplements today',
+    addons: 'Extras',
     empty: 'The plan has no meals for this day type.',
     unitsOnly: 'Only portions counted in pieces are adjustable and they go in whole or half pieces: the plan cannot get closer to the target.',
     pickAria: 'Change {item} ({meal})',
