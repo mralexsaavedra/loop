@@ -42,6 +42,16 @@ export function productFromRow (r) {
   }
 }
 
+/** A recipe ingredient: a product ({productId, amount}) or a basic SNAPSHOT ({basic, name, unit, amount,
+ * per100}, see food-calc.js RECIPE_BASIC_UNITS), both kept in the JSONB `ingredients` column. */
+export function ingredientFromJson (i) {
+  if (i && i.basic != null) {
+    const m = i.per100 || {}
+    return { basic: i.basic, name: i.name, unit: i.unit, amount: num(i.amount), per100: { kcal: num(m.kcal), protein: num(m.protein), carbs: num(m.carbs), fat: num(m.fat) } }
+  }
+  return { productId: num(i?.productId), amount: num(i?.amount) }
+}
+
 export function recipeFromRow (r) {
   return {
     id: num(r.id),
@@ -49,7 +59,7 @@ export function recipeFromRow (r) {
     kind: r.kind,
     servings: num(r.servings),
     cookedWeightG: num(r.cooked_weight_g),
-    ingredients: Array.isArray(r.ingredients) ? r.ingredients.map((i) => ({ productId: num(i.productId), amount: num(i.amount) })) : [],
+    ingredients: Array.isArray(r.ingredients) ? r.ingredients.map(ingredientFromJson) : [],
     archived: r.archived === true,
     createdAt: iso(r.created_at),
     updatedAt: iso(r.updated_at)

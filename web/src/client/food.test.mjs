@@ -397,7 +397,7 @@ test('Mis recetas: per-serving macros listed; the editor previews with the share
   t.input('frf-name', 'Batido');
   t.input('frf-kind', 'serving');
   t.input('frf-serv', '1');
-  t.input('frf-ing-0', '2');
+  t.fire('click', t.button({ 'data-food-act': 'r-pick', 'data-i': '0', 'data-kind': 'product', 'data-id': '2' }));
   t.fire('input', t.input('frf-amt-0', '330'));
   assert.match(text(t.els['frf-prev'].innerHTML), /152 kcal/);
   t.fire('click', t.button({ 'data-food-act': 'r-save' }));
@@ -645,8 +645,8 @@ test('recipe form: units accepted, an invalid amount is an inline error, the sta
   t.input('frf-name', 'Lote');
   t.fire('change', t.input('frf-kind', 'batch'));
   t.input('frf-cooked', '500 g');
-  t.fire('change', t.input('frf-ing-0', '2'));
-  assert.equal(t.els['frf-amt-0-unit'].textContent, 'ml', 'the amount suffix is the product unit');
+  t.fire('click', t.button({ 'data-food-act': 'r-pick', 'data-i': '0', 'data-kind': 'product', 'data-id': '2' }));
+  assert.match(t.els['fr-body'].innerHTML, /id="frf-amt-0-unit">ml</, 'the amount suffix is the product unit');
   const amt = f.reg('frf-amt-0', 'un vaso');
   t.fire('click', t.button({ 'data-food-act': 'r-save' }));
   await flush();
@@ -937,4 +937,153 @@ test('en locale: basics in English, "pc" in the label, a decimal point', async (
   await flush();
   assert.equal(bodies[0].label, 'Banana · 1.5 pc (~180 g)');
   assert.equal(bodies[0].kcal, 158);
+});
+
+/* ---------- Mis recetas: the ingredient picker also offers the public basics ---------- */
+const rPick = (t, i, kind, id) => t.fire('click', t.button({ 'data-food-act': 'r-pick', 'data-i': String(i), 'data-kind': kind, 'data-id': String(id) }));
+const EGG_SNAP = { basic: 'huevo', name: 'Huevo', unit: 'ud', amount: 2, per100: { kcal: 72, protein: 6.3, carbs: 0.4, fat: 5 } };
+
+test('recipe picker: an empty search lists Mis productos (+ a hint); typing adds "Básicos · valor medio" after them, accent- and case-insensitive', async () => {
+  const t = setup({ routes: BOOT, extraIds: ['frf-list-0', 'frf-prev'] });
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'r-new' }));
+  const html = t.els['fr-body'].innerHTML;
+  assert.match(html, /<label[^>]*for="frf-ing-0"[^>]*>Ingrediente 1<\/label><input class="food-in" id="frf-ing-0" type="search"/);
+  assert.match(html, /id="frf-list-0"/);
+  assert.match(text(html), /Mis productos .*Yogur natural.*Leche.*Avena/);
+  assert.match(text(html), /Escribe para buscar también en los básicos/);
+  assert.doesNotMatch(html, /data-kind="basic"/, 'an empty search lists products only');
+  t.fire('input', t.input('frf-ing-0', 'PLATANO'));
+  const list = t.els['frf-list-0'].innerHTML;
+  assert.match(list, /<h4 class="fa-store">Básicos · valor medio<\/h4>/);
+  assert.match(list, /data-food-act="r-pick" data-i="0" data-kind="basic" data-id="platano"/);
+  assert.match(text(list), /Plátano 88 kcal por 100 g · valor medio/);
+  t.fire('input', t.input('frf-ing-0', 'lech'));
+  const both = t.els['frf-list-0'].innerHTML;
+  assert.ok(both.indexOf('Mis productos') < both.indexOf('data-id="2"') && both.indexOf('data-id="2"') < both.indexOf('Básicos'), 'the owner\'s products first');
+  assert.match(both, /data-kind="basic" data-id="leche"/);
+  t.fire('input', t.input('frf-ing-0', 'zzzz'));
+  assert.equal(text(t.els['frf-list-0'].innerHTML), 'Nada coincide.');
+});
+
+test('recipe with a product + a basic in pieces + a basic in grams: natural units, pieces <-> grams toggle, live preview, the snapshot is sent', async () => {
+  let posted;
+  const routes = { ...BOOT, 'POST /api/food/recipes': (init) => { posted = JSON.parse(init.body); return json({ recipe: { ...RECIPE, id: 11, name: posted.name, ingredients: posted.ingredients } }, 201); } };
+  const t = setup({ routes, extraIds: ['frf-prev'] });
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'r-new' }));
+  t.input('frf-name', 'Tortitas');
+  t.input('frf-serv', '2');
+  rPick(t, 0, 'product', 3);
+  t.input('frf-amt-0', '80');
+  t.fire('click', t.button({ 'data-food-act': 'r-add-ing' }));
+  rPick(t, 1, 'basic', 'huevo');
+  let html = t.els['fr-body'].innerHTML;
+  assert.match(text(html), /Huevo valor medio/, 'the pick shows its name + the average-value tag');
+  assert.match(html, /<select class="food-in" id="frf-mode-1"><option value="piece" selected>huevos \(~50 g\)<\/option><option value="g">g<\/option><\/select>/, 'pieces first, grams as the toggle');
+  assert.match(html, /id="frf-amt-1"[^>]*value="1"/, 'prefilled with one piece');
+  t.input('frf-amt-1', '2');
+  // pieces -> grams converts the typed amount, grams -> pieces back
+  t.fire('change', t.input('frf-mode-1', 'g'));
+  assert.equal(t.doc.getElementById('frf-amt-1').value, '100');
+  t.fire('change', t.input('frf-mode-1', 'piece'));
+  assert.equal(t.doc.getElementById('frf-amt-1').value, '2');
+  t.fire('click', t.button({ 'data-food-act': 'r-add-ing' }));
+  rPick(t, 2, 'basic', 'platano');
+  t.input('frf-amt-2', '1');
+  t.fire('change', t.input('frf-mode-2', 'g'));
+  assert.equal(t.doc.getElementById('frf-amt-2').value, '120', 'one medium banana ~120 g');
+  t.fire('input', t.input('frf-amt-2', '240'));
+  assert.match(text(t.els['frf-prev'].innerHTML), /Por ración: 326 kcal · P 12,7 · C 50,9 · G 8,2/, 'the shared formula: the same numbers as the server');
+  t.fire('click', t.button({ 'data-food-act': 'r-save' }));
+  await flush();
+  assert.deepEqual(posted, { name: 'Tortitas', kind: 'serving', servings: 2, ingredients: [
+    { productId: 3, amount: 80 },
+    EGG_SNAP,
+    { basic: 'platano', name: 'Plátano', unit: 'g', amount: 240, per100: { kcal: 88, protein: 0.8, carbs: 22.5, fat: 0.3 } },
+  ] });
+  assert.equal(t.els['fr-msg'].textContent, esF.recipes.saved);
+});
+
+test('a basic counted in grams is stored in units of that food (60 g of egg = 1.2), and "Cambiar" goes back to the search', async () => {
+  let posted;
+  const routes = { ...BOOT, 'POST /api/food/recipes': (init) => { posted = JSON.parse(init.body); return json({ recipe: { ...RECIPE, id: 12 } }, 201); } };
+  const t = setup({ routes, extraIds: ['frf-prev'] });
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'r-new' }));
+  t.input('frf-name', 'Revuelto');
+  t.input('frf-serv', '1');
+  rPick(t, 0, 'basic', 'leche');
+  assert.match(t.els['fr-body'].innerHTML, /id="frf-amt-0-unit">ml</, 'a liquid without pieces: ml only, no toggle');
+  assert.doesNotMatch(t.els['fr-body'].innerHTML, /id="frf-mode-0"/);
+  t.fire('click', t.button({ 'data-food-act': 'r-unpick', 'data-i': '0' }));
+  assert.match(t.els['fr-body'].innerHTML, /id="frf-ing-0" type="search"/);
+  rPick(t, 0, 'basic', 'huevo');
+  t.input('frf-mode-0', 'g');
+  t.input('frf-amt-0', '60 g');
+  t.fire('click', t.button({ 'data-food-act': 'r-save' }));
+  await flush();
+  assert.deepEqual(posted.ingredients, [{ ...EGG_SNAP, amount: 1.2 }]);
+});
+
+test('editing a recipe with basics: listed with name + "valor medio" and the amount in its unit; loaded back into the picker; the stored snapshot is resent unchanged', async () => {
+  // a snapshot taken when the table said 70 kcal: editing must not refresh it from FOOD_BASICS
+  const old = { ...EGG_SNAP, per100: { ...EGG_SNAP.per100, kcal: 70 } };
+  const MIXED = { id: 20, name: 'Tortilla', kind: 'serving', servings: 2, cookedWeightG: null, complete: true, perServing: { kcal: 284, protein: 14.4, carbs: 23.9, fat: 12.8 }, per100: null,
+    ingredients: [{ productId: 3, amount: 80, name: 'Avena', unit: 'g' }, old, { basic: 'leche', name: 'Leche', unit: 'ml', amount: 200, per100: { kcal: 46, protein: 3.4, carbs: 4.8, fat: 1.7 } }] };
+  let put;
+  const routes = { ...BOOT, 'GET /api/food/recipes': json({ recipes: [MIXED] }), 'PUT /api/food/recipes/20': (init) => { put = JSON.parse(init.body); return json({ recipe: MIXED }); } };
+  const t = setup({ routes, extraIds: ['frf-prev'] });
+  await flush();
+  const list = text(t.els['fr-body'].innerHTML);
+  assert.match(list, /Avena 80 g · Huevo 2 ud valor medio · Leche 200 ml valor medio/);
+  t.fire('click', t.button({ 'data-food-act': 'r-edit', 'data-id': '20' }));
+  const html = t.els['fr-body'].innerHTML;
+  assert.match(text(html), /Avena .*Huevo valor medio.*Leche valor medio/);
+  assert.match(html, /<option value="piece" selected>huevos \(~50 g\)<\/option>/, 'a ud basic opens in pieces');
+  assert.match(html, /id="frf-amt-1"[^>]*value="2"/);
+  assert.match(html, /id="frf-amt-2"[^>]*value="200"/);
+  t.fire('click', t.button({ 'data-food-act': 'r-save' }));
+  await flush();
+  assert.deepEqual(put.ingredients, [{ productId: 3, amount: 80 }, old, MIXED.ingredients[2]]);
+});
+
+test('recipe save: a basic snapshot that fails the Atwater check offers "save anyway" and resends with force', async () => {
+  const bodies = [];
+  const routes = { ...BOOT, 'POST /api/food/recipes': (init) => { const b = JSON.parse(init.body); bodies.push(b); return b.force ? json({ recipe: { ...RECIPE, id: 13 } }, 201) : json({ error: 'atwater' }, 400); } };
+  const t = setup({ routes, extraIds: ['frf-prev', 'fr-form-msg'] });
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'r-new' }));
+  t.input('frf-name', 'Bizcocho');
+  t.input('frf-serv', '8');
+  rPick(t, 0, 'basic', 'levadura');
+  t.input('frf-amt-0', '16');
+  t.fire('click', t.button({ 'data-food-act': 'r-save' }));
+  await flush();
+  assert.match(t.els['fr-form-msg'].innerHTML, /data-food-act="r-save-force"/);
+  t.fire('click', t.button({ 'data-food-act': 'r-save-force' }));
+  await flush();
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[0].force, undefined);
+  assert.equal(bodies[1].force, true);
+  assert.equal(t.els['fr-msg'].textContent, esF.recipes.saved);
+});
+
+test('no products yet: a recipe can still be made from basics alone', async () => {
+  const t = setup({ routes: { ...BOOT, 'GET /api/food/products': json({ products: [] }), 'GET /api/food/recipes': json({ recipes: [] }) } });
+  await flush();
+  assert.match(t.els['fr-body'].innerHTML, /data-food-act="r-new"/);
+  assert.doesNotMatch(text(t.els['fr-body'].innerHTML), new RegExp(esF.recipes.needProducts));
+  const none = setup({ routes: { ...BOOT, 'GET /api/food/products': json({ products: [] }), 'GET /api/food/recipes': json({ recipes: [] }) }, basics: [] });
+  await flush();
+  assert.match(text(none.els['fr-body'].innerHTML), new RegExp(esF.recipes.needProducts), 'nothing to pick from at all');
+});
+
+test('en locale: the recipe picker copy', async () => {
+  const t = setup({ routes: BOOT, locale: 'en', extraIds: ['frf-list-0'] });
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'r-new' }));
+  assert.match(text(t.els['fr-body'].innerHTML), /Ingredient 1 .*My products/);
+  t.fire('input', t.input('frf-ing-0', 'egg'));
+  assert.match(t.els['frf-list-0'].innerHTML, /Basics · average value/);
 });

@@ -766,7 +766,8 @@ unknown.
   baked for the page as `FOOD_CONST.limits` and copied into the service's food-calc.js, a test pins them
   equal). A product entry = per-100 × amount in the product's own
   unit, or servings × its `servingSize` (no serving size → no serving; never g ↔ ml). A recipe =
-  the sum of its ingredients (amounts in each product's unit): kind `serving` ÷ servings, kind
+  the sum of its ingredients (amounts in each product's unit; a basic snapshot per 100 g / ml or per unit,
+  see "Recipe basics" below): kind `serving` ÷ servings, kind
   `batch` × 100 ÷ total COOKED weight (per 100 g cooked); a missing product = incomplete, not
   loggable. Entries round once (kcal whole, macros 1 decimal) and day totals sum the rounded
   snapshots; a macro unknown on any entry is flagged in `missing` (the sum is then a minimum).
@@ -790,7 +791,8 @@ unknown.
 - **Storage + API** — `services/health-ingest`: `sql/006_food.sql` (idempotent) = `food_product`
   (per-100 kcal / protein / carbs / fat, store, unit g / ml, serving size?, barcode? unique among
   ACTIVE products, source off / label / manual, off_code?, archived), `food_recipe` (kind, servings
-  XOR cooked_weight_g, ingredients JSONB `[{productId, amount}]`, archived), `food_log` (the owner's
+  XOR cooked_weight_g, ingredients JSONB `[{productId, amount} | {basic, name, unit, amount, per100}]`,
+  archived), `food_log` (the owner's
   LOCAL date sent by the page, meal slot, ref_type product / recipe / quick, ref_id?, label, amount +
   unit, SNAPSHOT kcal / protein / carbs / fat taken at log time — a later product edit never rewrites
   history; macros NULL only on a quick entry that did not state them). `src/food.js` routes:
@@ -878,8 +880,27 @@ Plan de hoy) and the
   cards showing what OFF has (missing values marked) → "Usar este" fills the form with the missing
   fields flagged (`--mid`) → the owner confirms every value and the store → save; "desde la etiqueta"
   = the same form empty (`source: "label"`). **Mis recetas**: list with per serving / per 100 g
-  cooked macros; editor = name, kind, servings or cooked weight, ingredient rows (product select +
-  amount, add / remove) and a live preview. Errors = one line from the coarse codes ("offline" → the
+  cooked macros and the ingredients ("Avena 80 g · Huevo 2 ud VALOR MEDIO"); editor = name, kind,
+  servings or cooked weight, ingredient rows (add / remove) and a live preview. **Recipe basics**: an
+  ingredient row not picked yet is a SEARCH (`frf-ing-<i>` + `frf-list-<i>`) with the add sheet's rules:
+  an empty search lists "Mis productos" (+ the "type to also search the basics" hint), typing lists the
+  matching products under "Mis productos", then "Básicos · valor medio" (FOOD_BASICS, accent- and
+  case-insensitive, `basicMatches`); a pick (`r-pick`) shows the name (+ a "valor medio" tag for a basic)
+  and "Cambiar" (`r-unpick`), the amount in the NATURAL unit (pieces first, prefilled 1 piece / 100 g /
+  ml) and, when the food has pieces, a pieces ↔ g / ml select (`frf-mode-<i>`, converts the typed amount
+  with `basicConvert`). A basic is saved as a SNAPSHOT `{basic, name, unit, amount, per100}` built by
+  `basicIngredient` (reference + food.js, `BASIC_CASES`): unit = the basic's own unit (g / ml / ud),
+  amount in it (a `ud` food = a count of units; pieces of a g / ml food become grams / ml), 1 decimal as
+  stored; per100 = FOOD_BASICS `m` (per one unit for `ud`, `BASIC_UD_AMT` = units.mjs `UD_AMT`). The
+  formula (`ingredientBasis` / `recipeBasis`, all three copies, `FOODLOG_CASES`: product + basic in g +
+  basic in units, per serving and batch) adds products and snapshots alike; `rawWeight` = the g / ml
+  amounts only; a basic with an unknown macro is `missing` by its key. Editing loads a basic back with
+  its stored snapshot (never refreshed from FOOD_BASICS; the current table only supplies the piece for
+  the toggle), a `ud` food in pieces, other foods in their unit — a piece choice of a g / ml food is not
+  stored, so it reopens in grams / ml. A save answered `atwater` (a basic like beer, jam or baking
+  powder, whose kcal do not match its macros) offers "save anyway" (`r-save-force`, `force: true`). With
+  no product yet the editor still opens (basics only); "add products first" shows only when there are
+  no basics either. Errors = one line from the coarse codes ("offline" → the
   server is unreachable and nothing was saved). **Numbers**: every numeric field of the three forms goes
   through ONE parser (`parseNum(value, units)`, exposed on `HCFood`): trimmed, a decimal comma, a
   trailing unit THAT field takes dropped ("30 g", "250 ml", "130 kcal"; another unit is an error, never

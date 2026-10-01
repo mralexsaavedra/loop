@@ -89,3 +89,16 @@ test('insertLog is idempotent on the request id (ON CONFLICT DO NOTHING -> null)
   const sql = await readFile(fileURLToPath(new URL('../sql/006_food.sql', import.meta.url)), 'utf8')
   assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS food_log_request_uq ON food_log \(request_id\) WHERE request_id IS NOT NULL/)
 })
+
+test('recipe ingredients: a basic snapshot comes back with its key, name, unit, amount and per-100 macros; a product row is unchanged', async () => {
+  const egg = { basic: 'huevo', name: 'Huevo', unit: 'ud', amount: '2', per100: { kcal: 72, protein: '6.3', carbs: 0.4, fat: 5 } }
+  const pool = fakePool(() => ({ rows: [{ id: '3', name: 'Tortilla', kind: 'serving', servings: 2, cooked_weight_g: null, ingredients: [{ productId: '7', amount: 300 }, egg], archived: false, created_at: new Date(0), updated_at: new Date(0) }] }))
+  const store = createFoodStore(pool)
+  const [r] = await store.listRecipes()
+  assert.deepEqual(r.ingredients, [
+    { productId: 7, amount: 300 },
+    { basic: 'huevo', name: 'Huevo', unit: 'ud', amount: 2, per100: { kcal: 72, protein: 6.3, carbs: 0.4, fat: 5 } }
+  ])
+  await store.insertRecipe({ name: 'Tortilla', kind: 'serving', servings: 2, cookedWeightG: null, ingredients: r.ingredients })
+  assert.deepEqual(JSON.parse(pool.calls.at(-1).values[4]), r.ingredients, 'stored as given (JSONB, no migration)')
+})
