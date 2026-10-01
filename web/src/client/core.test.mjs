@@ -39,10 +39,10 @@ function makeTabPage(doc) {
   // tab panels — `.tab-panel[data-tab]` contract
   const panels = {};
   tabs.forEach((t) => { panels[t] = doc.el(null, { classes: ['tab-panel'], attrs: { 'data-tab': t }, hidden: t !== 'home' }); });
-  // former tabs, now sections inside a panel (id sec-<key>); registro/tablas are <details> folds
+  // former tabs, now sections inside a panel (id sec-<key>); tablas is a <details> fold
   const sections = {};
   Object.entries(SECTION_TAB).forEach(([key, tab]) => {
-    const fold = key === 'registro' || key === 'tablas';
+    const fold = key === 'tablas';
     sections[key] = doc.el(`sec-${key}`, { tag: fold ? 'details' : 'section', classes: ['tab-section'], attrs: { 'data-section': key }, parent: panels[tab] });
   });
   return { navIds, panels, sections };
@@ -121,31 +121,11 @@ test('jump() is a no-op when the target id does not exist', () => {
   assert.doesNotThrow(() => window.jump('nope'));
 });
 
-test('bump() increments/decrements the legacy `x-<key>` counter element, clamped at 0', () => {
+test('no bump() any more: the day builder\'s extras steppers are gone', () => {
   const doc = new StubDocument();
-  doc.el('x-cafe', { textContent: '0' });
   const { window } = makeContext(doc);
-
-  window.bump('cafe', 1);
-  assert.equal(doc.getElementById('x-cafe').textContent, '1');
-
-  window.bump('cafe', 1);
-  assert.equal(doc.getElementById('x-cafe').textContent, '2');
-
-  window.bump('cafe', -5);
-  assert.equal(doc.getElementById('x-cafe').textContent, '0', 'clamped at 0, never negative');
-});
-
-test('bump() calls window.bldRecalc() after updating the counter (nutrition.js registers this hook)', () => {
-  const doc = new StubDocument();
-  doc.el('x-aceite', { textContent: '0' });
-  const { window } = makeContext(doc);
-  let recalced = 0;
-  window.bldRecalc = () => { recalced += 1; };
-
-  window.bump('aceite', 1);
-
-  assert.equal(recalced, 1);
+  assert.equal(typeof window.bump, 'undefined');
+  assert.doesNotMatch(source, /bldRecalc/);
 });
 
 test('setTab knows the Home tab: t-home <-> home', () => {

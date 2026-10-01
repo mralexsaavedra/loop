@@ -19,10 +19,11 @@
  *   meals aim at target − ride fuel for the ride's minutes (a recorded ride's real minutes, else the
  *   picker, kept per date like the override, else the default), so changing the duration re-scales
  *   Plan de hoy. fuelPlan ports lib/nutrition/fuel.mjs over NUTRI.fuel.rates.
- * - Today's target is the ONE source for the rest of Nutrición: window.nutriTarget() hands the day
- *   builder (client/nutrition.js) and the intake rings (client/intake.js) the MEALS target (on bike days
- *   the day target minus the ride fuel, with the fuel as its own figure), and every goal / day type /
- *   duration change refreshes both directly.
+ * - Today's target is the ONE source for the rest of Nutrición: window.nutriTarget() hands the intake
+ *   rings (client/intake.js) the MEALS target (on bike days the day target minus the ride fuel, with
+ *   the fuel as its own figure), and every goal / day type / duration change refreshes them directly.
+ * - HCNutri.todayPlan() hands the food log's "Del plan" tab (client/food.js) today's Plan de hoy
+ *   meals, read-only, exactly as rendered (same goal × day type × ride minutes, same planFor).
  * - Logged intake: the dial + bars fill from today's page food log (window.foodTotals, client/food.js,
  *   LAN page only) when it has entries, else from the Apple Health day (INTAKE); HCNutri.refresh() is
  *   the food log's hook after every add / delete.
@@ -491,12 +492,8 @@
       '<div class="eat-mac"><b>' + t.f + ' g</b><span>' + esc(T.target.f) + '</span></div></div>';
   }
 
-  // the day builder and the intake rings read nutriTarget(); refresh each one directly and on its
-  // own, so a failure in one never leaves the other stale
+  // the intake rings read nutriTarget(); a failure there shows a one-line message, never a stale ring
   function refreshDependents() {
-    if (typeof window.bldRefresh === 'function') {
-      try { window.bldRefresh(); } catch (e) { var r = $('r-verdict'); if (r) r.innerHTML = '<p class="nutri-failed">' + esc(T.failed) + '</p>'; }
-    }
     if (typeof window.intakeRefresh === 'function') {
       try { window.intakeRefresh(); } catch (e) { var h = $('intake'); if (h) h.innerHTML = '<p class="nutri-failed">' + esc(T.failed) + '</p>'; }
     }
@@ -562,9 +559,9 @@
     refresh(false); // keep the select (and its focus) in place
   });
 
-  /** Today's MEALS target for the day builder and the intake rings: on bike days the day target minus
-   * the ride fuel (all carbs), with the fuel handed over separately; `day` = the base day (train /
-   * rest) whose option lists the day builder offers; fatMax = the fat target + the plan tolerance. */
+  /** Today's MEALS target for the intake rings: on bike days the day target minus the ride fuel (all
+   * carbs), with the fuel handed over separately; `day` = the base day (train / rest); fatMax = the
+   * fat target + the plan tolerance. */
   window.nutriTarget = function () {
     var x = current(), d = dayType();
     var head = x.fuelK > 0 ? T.target.mealsHeading : T.target.heading;
@@ -575,7 +572,7 @@
   };
   window.HCNutri = {
     setGoal: setGoal,
-    // the food log (client/food.js) calls this after every add / delete: the dial, bars, rings, builder
+    // the food log (client/food.js) calls this after every add / delete: the dial, bars, rings
     refresh: function () { refresh(false); },
     detectDayType: detectDayType,
     fuelPlan: fuelPlan,

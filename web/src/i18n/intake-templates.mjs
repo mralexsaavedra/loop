@@ -14,8 +14,6 @@ export const es = {
   units: { k: 'kcal', p: 'g', c: 'g', g: 'g' },
   missing: 'sin dato',
   noteHtml: 'Lo que tu app de comida escribió en Salud para ese día, frente al objetivo de hoy (objetivo y tipo de día elegidos arriba). Un día a medio registrar se ve incompleto: es el registro, no necesariamente lo que comiste.',
-  // no intake ever logged: one line in the Registro fold summary (tabs/Registro.astro)
-  noneHtml: 'Sin comida registrada: los anillos de ingesta aparecen si una app de comida escribe en Apple Health.',
 };
 
 export const en = {
@@ -31,6 +29,4 @@ export const en = {
   units: { k: 'kcal', p: 'g', c: 'g', g: 'g' },
   missing: 'no data',
   noteHtml: 'What your food app wrote to Health for that day, against the target for today (the goal and day type picked above). A half-logged day looks short: it is the log, not necessarily what you ate.',
-  // no intake ever logged: one line in the Registro fold summary (tabs/Registro.astro)
-  noneHtml: 'No food logged: the intake rings appear once a food app writes to Apple Health.',
 };

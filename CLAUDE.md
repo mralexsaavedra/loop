@@ -170,19 +170,24 @@ live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
 | 🏠 Inicio (`home`) | TODAY: Sleep / Recovery / Load dials; health monitor; today's timeline (last night's sleep + the day's workouts); the advice sentence; "today you eat" card (today's day type + goal and target kcal/macros, link to Nutrición); programmed session (`hoy`) |
 | 🏃 Entreno (`entreno`) | per-modality load cards + caveats (`load`: `#score-load`, the detail behind the load dial); 30-day activity calendar + cumulative training time (`calendar`: `#train-activity`); running table, cycling table, load vs recovery (`sessions`: `#health-train`); Entrenamiento dashboard (`dash`) |
 | 💗 Salud (`health`) | recovery (`#hl-recovery`, with the recovery detail card `#score-recovery`, then the recovery trends); sleep (`#hl-sleep`); body composition; daily activity; energy expenditure |
-| 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Plan de hoy, Registrar (the FOOD LOG, LAN page only — not the `registro` key, which is the Day builder), Avituallamiento on bike days — see "Nutrition v2" and "Nutrition v2 part 2" below); Constructor de día / Day builder (`registro`, collapsible); Mis productos + Mis recetas (collapsible, LAN page only, no section key: rendered with `dia`); Tablas (`tablas`, collapsible) — there is no train/rest toggle: Resumen de hoy's day type is the one selector |
+| 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Plan de hoy, Registrar (the FOOD LOG, LAN page only; its add sheet's "Del plan" tab logs Plan de hoy's meals), Avituallamiento on bike days — see "Nutrition v2" and "Nutrition v2 part 2" below); Mis productos + Mis recetas (collapsible, LAN page only, no section key: rendered with `dia`); Tablas (`tablas`, collapsible) — there is no train/rest toggle: Resumen de hoy's day type is the one selector. The former Constructor de día / Day builder (`registro`) was removed: the food log replaces it |
 
 `lib/nav/tabs.mjs` is the ONE source of the tab keys (`TAB_KEYS`) and of the legacy-section map
 (`SECTION_TAB`); the page derives each tab's section list from it (`sectionsOf`) and bakes both as
 `NAV` for core.js. `page.hideTabs` semantics (resolved by `resolveNav`): a top-level key
 (`home`/`entreno`/`health`/`nutricion`) removes that nav button; a section key (`hoy`/`load`/
-`calendar`/`sessions`/`dash`/`dia`/`registro`/`tablas`) renders that section `hidden`. Panels,
-sections, baked globals and scripts always stay in the build. Nutrición and Entreno are made ONLY of
+`calendar`/`sessions`/`dash`/`dia`/`tablas`) renders that section `hidden`. Panels,
+sections, baked globals and scripts always stay in the build (the shared `components/Bake.astro`
+renders once from `web/pages/index.astro`, outside every section; Tablas' equivalence tables are painted
+from it by `client/tablas.js`). `registro` (the removed day
+builder) is DEPRECATED: `DEPRECATED_SECTIONS` in `lib/nav/tabs.mjs`, still accepted in
+`page.hideTabs` (an existing personal plan may carry it) and a no-op — it never counts towards hiding
+Nutrición. Nutrición and Entreno are made ONLY of
 sections (they carry `sections` in `resolveNav`): each disappears when ALL its sections are hidden —
 hiding `dash` alone hides only the dashboard, Entreno stays; the visible tab on load is the first remaining one;
 hiding every tab fails the build. `setTab('<legacy key>')` still works (it opens the hosting tab and
 scrolls to the section — `setTab('dash')` opens Entreno). The old global train/rest toggle (and core.js
-`setDay`) is gone: the day builder and the intake rings read today's target from Resumen de hoy (see
+`setDay`) is gone: the intake rings read today's target from Resumen de hoy (see
 "Nutrition v2"), whatever `page.hideTabs` hides; the "today you eat" card drops its link when
 Nutrición is hidden.
 Taps open the **detail sheet** (see "Detail views" below), never a jump into another tab, so they
@@ -320,8 +325,8 @@ controls instead of the close button.
   equal maintain), baked as `PROFILE.goals` by `web/pages/index.astro`, never typed. The goal itself
   belongs to Nutrición (`client/nutri-day.js`, inlined before profile.js): the checked radio is
   `HCNutri.state().goal` and a change calls `HCNutri.setGoal`, which writes the SAME key as before
-  (`hc.nutri.goal`, fallback `page.goal`) and refreshes the summary, plan, fuelling, Inicio card, rings,
-  builder and the kcal chip at once. No `HCNutri` or no options → the section is omitted.
+  (`hc.nutri.goal`, fallback `page.goal`) and refreshes the summary, plan, fuelling, Inicio card, rings
+  and the kcal chip at once. No `HCNutri` or no options → the section is omitted.
 
 - **Sources** (all optional, merged by `lib/profile/profile.mjs` `loadProfile` → `buildProfile`;
   manual wins over Strava for the same field):
@@ -444,8 +449,11 @@ Shortcut `diet_kcal`/`diet_protein`/`diet_carbs`/`diet_fat` keys, which sync fol
 missing on the logged day renders an empty ring with a dash. When the logged day is the viewer's
 today it is labelled as in progress ("Hoy, en curso" / "Today, so far"), so partial rings are not
 read as a finished day. When NO intake was ever logged (`INTAKE.latest` null, decided at build
-time), the rings and Registro collapse to ONE line: Resumen de hoy renders no rings host and the
-Registro fold summary carries the hint (`noneHtml`); with Registro hidden, nothing is shown.
+time), Resumen de hoy renders no rings host and NO help line. The one-line hint that lived in the day
+builder's fold summary ("No food logged: the intake rings appear once a food app writes to Apple
+Health", `noneHtml`) was dropped on purpose with the builder: the dial and bars already show the
+target with empty tracks, and on the LAN page the food log (Registrar, with its own empty state) is
+the way to log; pointing at an Apple Health food app is no longer the recommended path.
 
 ## Nutrition v2 — goals, day types, portion scaling, ride fuelling, supplements
 
@@ -465,7 +473,9 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   numbers: maintain 2500 / 3050 / 3550 / 4200 kcal with 150 P / 60 F; cut 2150 / 2700 / 3550 / 4200
   with 160 / 55; bulk 2800 / 3350 / 3850 / 4500 with 150 / 70 — rest / gym / bike / bikeLong), so an
   old plan keeps working. Default goal = `page.goal` (else maintain). `targets.train` / `targets.rest`
-  are only the fallback of the day builder when Resumen de hoy's `nutriTarget()` is missing.
+  (`targetFor`) are no longer read by the page (they fed the removed day builder); generate.js keeps
+  exporting `targetFor`. Likewise `extrasDisplay`, `indulgeKeys`, `alcoholKeys`, `mealReplaceKeys` and
+  `page.notes['registro.*']` / `page.offPlanPlaceholder` stay valid in a plan but render nothing.
 - **Portion scaling** — `lib/nutrition/scale.mjs`: plans keep their two base days; `BASE_DAY` maps
   rest → `dayPlan.rest`, gym / bike / bikeLong → `dayPlan.train`. A dayPlan part marked
   `flex: "carb"` (rice, pasta, bread, potato, fruit, honey…; `null` opts a part out of the migration)
@@ -505,10 +515,9 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   then a long ride synced) is dropped on load with a one-line note ("Detectada salida larga: cambiado
   a Bici larga"); a more demanding one (planning a ride) or a deliberate downgrade stays. Today's
   target is the ONE source for Nutrición: `window.nutriTarget()` = the MEALS target (`k, p, c, g`,
-  `fatMax` = fat + 15 g, `fuelK`, `day` = base day train / rest, label) feeds the day builder
-  (Constructor de día: verdict target + which option lists) and the intake rings, and every goal /
-  day type / ride change calls `window.bldRefresh()` and `window.intakeRefresh()` directly, each on
-  its own (a failing one shows a one-line message, never leaves the other stale).
+  `fatMax` = fat + 15 g, `fuelK`, `day` = base day train / rest, label) feeds the intake rings, and
+  every goal / day type / ride change calls `window.intakeRefresh()` directly (a failure shows a
+  one-line message, never a stale ring).
 - **Resumen de hoy** — the day type as ONE row of 4 equal segments (real radios, inline SVG line
   icons, short labels `dayShort`: Descanso · Gym · Bici · Bici larga; the full `dayTypes` names stay
   for sentences and the segment title; the DETECTED type's segment gets `.seg-auto`, a small dot), then
@@ -689,8 +698,7 @@ unknown.
   ring shows "≥ 40" (the rings add a one-line note). ONE logged entry today is enough: the dial, bars
   and rings then show the page's food log for today instead of the Apple Health intake (labelled
   "Registrado hoy en esta página" / the rings' "Registrado hoy"). After every add / delete food.js calls
-  `HCNutri.refresh()` (re-renders Resumen de hoy, which refreshes the builder and the rings, each in its
-  own try/catch). A page left open past midnight reloads the log on `visibilitychange`.
+  `HCNutri.refresh()` (re-renders Resumen de hoy, which refreshes the rings, in its own try/catch). A page left open past midnight reloads the log on `visibilitychange`.
 - **Retries** — each add carries a `requestId` (`crypto.randomUUID`, else a v4 UUID from
   `getRandomValues` — plain http on the LAN is not a secure context — else `Math.random`); `food_log`
   has a unique index on it, so a retry of the same add returns the stored row (`200`) instead of a
