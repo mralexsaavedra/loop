@@ -395,7 +395,8 @@ controls instead of the close button.
 `lib/nutrition/macros.mjs`):**
 - `data/nutrition/ingredients.json` (TRACKED, **public** food DB) — the reusable
   `{ "ingredients": { … } }` of per-100 g/ml/ud base foods (`verified:true` = real product
-  label, `false` = DB estimate; each carries `name` + `note`). `name` is localized, `{es, en}`
+  label, `false` = DB estimate; each carries `name` + `note` + a food category `cat`, see "Choosable
+  blocks"). `name` is localized, `{es, en}`
   (a plain string stays valid for backward compat), resolved by the BUILD locale wherever a food is
   named — Plan de hoy, Tablas, plan-tables.md (generate.js: `LOCALE` env → `plan.locale` → en), the
   food log's "Del plan" — by `lib/nutrition/names.mjs` `ingName` / `lineName`; an ingredient without a
@@ -523,7 +524,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
 - **Choosable blocks** — `lib/nutrition/blocks.mjs`: a dayPlan part that points at an option list
   (`{use, tier?, match}`: `data.proteina`, `data.carboComida.train`, `data.postre`, `data.desayuno`…)
   is a BLOCK when that list holds ≥ 2 eatable options (none rows excluded); its default = the part's
-  `match`. Fixed `{ing}` parts and lists of one stay fixed. Stable ids: block id = `<meal key>/<use>`
+  `match`. Lists of one stay fixed (fixed `{ing}` parts are FOOD blocks, below). Stable ids: block id = `<meal key>/<use>`
   (meal key = the meal's `slot`, else `mealSlot` from its name, else its name; the TIER is not in the
   id, so a pick follows the day across train / rest; a repeat in the same meal key gets `#2`…; ids are
   slot / list-based, not meal-based: two meals sharing a slot (or name) and a list get their ids BY ORDER
@@ -553,6 +554,44 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   "Back to the base plan" (`#nutri-picks-reset`). `HCNutri.setPick(id, key)` / `resetPicks()` exist
   for tests. Food-API recipes as extra breakfast options were NOT added (they exist only at view
   time on the LAN, so they cannot be part of the baked lists and the parity design).
+- **Food blocks — every fixed `{ing}` part is choosable** (the owner: "no tiene sentido que me marques
+  que tengo que comer calabacín sí o sí"). Every ingredient of `ingredients.json` carries a food
+  category `cat` from a small CLOSED set (`lib/nutrition/categories.mjs` `FOOD_CATS`: protein, carb,
+  legume, fruit, veg, dairy, fat, sweet, drink, sauce, other; `npm run check`: an unknown `cat` is an
+  error, a missing one a warning — that food then stays a fixed part; the key `none` is reserved; a test
+  pins that every tracked ingredient has one). A fixed `{ing}` part whose food has a category is a FOOD
+  block: its options are every ingredient of the SAME category (default = its own food, shown under the
+  part's `label`; the others by their localized `ingName`, sorted by name) plus, only where skipping is
+  sensible (`CAT_RULES[cat].skip`: fruit, veg, dairy, sweet, drink, sauce), a "none" option (key `none`,
+  "Sin verdura" / "No vegetables"…, `T.plan.none[cat]`). A category with one food and no "none" (e.g.
+  `other`: baking powder) stays fixed; `manual` blocks never are blocks; the components INSIDE a
+  composite option (breakfast "C — Tostadas", "Yogur + avellanas + miel") stay as they are (the option
+  is chosen as a whole); list blocks keep their behaviour. Swap rule per category = ONE explicit table
+  (`CAT_RULES[cat].by`, tested): protein → the same protein grams; carb / legume / fruit / sweet → the
+  same carb grams; fat → the same fat grams; dairy / drink / sauce → the same kcal; veg / other → the
+  same grams (veg is ~free). `ingAmount`: from the default's WEIGHT (a `ud` food through its piece's
+  grams, `gf`), the factor that keeps that macro (or kcal) equal, clamped to the protein swaps' 0.5–2×
+  (`PROTEIN_SCALE_MIN`–`MAX`, so a dense whey swapped for chicken lands at 2× and protein may then fall
+  short — the macro note says so), rounded like every scaled amount (`stepAmount`: 5 g / 5 ml, half
+  pieces for a countable food, whole units). `swapIng` returns the picked food as the part (a carb-flex
+  part stays flex only when the new food is itself a carb staple, `isCarbStaple`, else it becomes
+  fixed); "none" = a zeroed part `{l: '', z: 1, m: [0, 0, 0, 0]}` (no amount, no flex entry); then
+  `solveScale` re-solves the WHOLE day exactly as for list picks. Ids: `<meal key>/<default ingredient
+  key>` with the same `#n` rule — ONE counter shared with the list ids, so lunch and dinner's
+  courgette are `lunch/calabacin` and `dinner/calabacin`, a second courgette in one meal
+  `lunch/calabacin#2`, and the after-lunch coffee (no slot) `Café (tras comer)/leche`; option key = the
+  ingredient key (or `none`); a stale / foreign pick is ignored as before. Bake: blocks reference foods
+  by key only — per base day `blocks[id] = {I: category, d: default key, a: default amount, fx, n?:
+  the part's label}` + ONE catalogue `NUTRI.foods = {cats: {<cat>: [keys]}, ings: {<key>: {n, l: model
+  line at its per amount, fx?, gf?}}, rules: {<cat>: CAT_RULES[cat]}}` for the categories some block
+  uses; `fmt.pieces` covers every countable food in it. NUTRI on the example went from ~10.5 KB to
+  ~17.9 KB (foods ~5.3 KB; budget test 20 KB); the owner's plan ~18.9 → ~24.5 KB. The page ports
+  `ingAmount` / `swapIng` / `isOption` line by line (parity: every food block × option incl. none in
+  both locales, a synthetic sweep of every category rule, every single pick + combinations through
+  `planFor` / `applyPicks`); the no-pick path is byte-for-byte unchanged (`PINNED_TOTALS` for all 12
+  plans). UI: the same `.mp-pick` select (no optgroups), in main cards and on Añadidos rows; a "none"
+  row keeps its select (muted, `.mp-none`) and shows no amount; `HCNutri.todayPlan()` leaves a skipped
+  food out (and a meal whose every food is skipped), so the food log's "Del plan" logs what was picked.
 - **Day-type detection** (`lib/nutrition/daytype.mjs` = the reference; nutri-day.js ports it over the
   baked `DETECT` and a test runs both over `DAYTYPE_CASES`): today's workouts from `SCORES.timeline`
   (same-day rows already merged per modality). Only real training counts (`DETECT`): gym / run ≥ 20 min

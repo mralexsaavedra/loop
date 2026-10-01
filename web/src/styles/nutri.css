@@ -366,6 +366,10 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+/* a skipped food ("none"): its select stays (to undo it), muted, with no amount */
+.mp-none .mp-pick {
+  color: var(--muted);
+}
 .nutri-picks .lnk {
   min-height: 44px;
 }
