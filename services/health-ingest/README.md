@@ -30,8 +30,8 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 | GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain, start_utc, device_watts}]`; `400` on a bad query |
 | GET    | `/food/products`              | header | `200` `{products}`: active products (per-100 macros, store, serving size) |
 | POST / PUT / DELETE | `/food/products[/:id]` | header | create `201` / edit `200` / archive `200`; `409 barcode_exists`, `400 atwater` unless `force` |
-| GET    | `/food/recipes`               | header | `200` `{recipes}` with macros COMPUTED from the products (`perServing` or `per100` cooked) |
-| POST / PUT / DELETE | `/food/recipes[/:id]`  | header | create / edit / archive, same rules |
+| GET    | `/food/recipes`               | header | `200` `{recipes}` with macros COMPUTED from the products + basic snapshots (`perServing` or `per100` cooked) |
+| POST / PUT / DELETE | `/food/recipes[/:id]`  | header | create / edit / archive, same rules; `400 atwater` (a basic snapshot) unless `force` |
 | GET    | `/food/log?date=YYYY-MM-DD`   | header | `200` `{date, entries, totals}` |
 | POST / DELETE | `/food/log[/:id]`      | header | add `201` `{entry, totals}` (macros snapshotted; a retry with the same `requestId` answers `200` with the stored row) / delete `200` |
 | GET    | `/food/off?barcode=` / `?q=`  | header | `200` `{product}` / `{results}` from Open Food Facts, normalized; nothing saved |
@@ -139,7 +139,20 @@ own recipes (Mis recetas), through plan-web's `/api/food/` proxy. Tables in
   Open Food Facts, confirmed by the owner (`source`: `off` / `label` / `manual`),
   plus an optional serving size (one yogurt) and barcode (unique among active
   products). Delete = archive, so recipes and old entries keep their reference.
-- **Recipes** list `[{productId, amount}]` (amount in the product's unit). Kind
+- **Recipes** list their ingredients in the `ingredients` JSONB column, each either a
+  product `{productId, amount}` (amount in the product's unit) or a BASIC of the public
+  food DB (`data/nutrition/ingredients.json`, the page's FOOD_BASICS) as a SNAPSHOT
+  `{basic, name, unit, amount, per100: {kcal, protein, carbs, fat}}`: `basic` = the
+  DB key (`^[a-z0-9][a-z0-9_-]{0,63}$`), `unit` = `g` / `ml` / `ud`, `per100` = per
+  100 g / ml, or per ONE unit for a `ud` food (whose `amount` is a count of units).
+  The page sends the snapshot; the service validates it strictly (unknown keys
+  refused, name ≤ 120, macros finite, ≥ 0, ≤ 900 kcal / 100 g, kept to 2 decimals,
+  amount ≤ 10000) and refuses one whose kcal disagree with its macros with
+  `400 atwater` unless the body says `force: true` (alcohol, polyols; `force` is not
+  stored). The snapshot never changes when ingredients.json does. No migration:
+  product-only rows are read and written exactly as before. A recipe may be made of
+  basics only; archiving a product keeps the recipes that use it computed (re-saving
+  one with that product is still `400 unknown_product`). Kind
   `serving` (tortitas, crepes, a shake: N servings) or `batch` (lentejas: total
   cooked weight, macros per 100 g cooked). Macros are always COMPUTED
   (`src/food-calc.js`, a port of `lib/nutrition/foodlog.mjs`, pinned by a parity
