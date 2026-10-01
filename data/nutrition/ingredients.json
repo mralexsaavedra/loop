@@ -1439,6 +1439,606 @@
         "amt": 10,
         "typical": true
       }
+    },
+    "yogurnatural": {
+      "per": 100,
+      "unit": "g",
+      "cat": "dairy",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Yogur natural",
+        "en": "Plain yogurt"
+      },
+      "note": "BEDCA 1927 'Yogur tipo bio, natural' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 63,
+      "p": 3.6,
+      "c": 4.4,
+      "g": 3.4,
+      "piece": {
+        "name": {
+          "es": "yogur",
+          "en": "yogurt"
+        },
+        "plural": {
+          "es": "yogures",
+          "en": "yogurts"
+        },
+        "amt": 125,
+        "typical": true
+      }
+    },
+    "quesobatido": {
+      "per": 100,
+      "unit": "g",
+      "cat": "dairy",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Queso fresco batido 0%",
+        "en": "Fat-free quark (queso batido 0%)"
+      },
+      "note": "Not in BEDCA / USDA: typical Spanish label values of queso fresco batido 0% (average, approx.)",
+      "k": 46,
+      "p": 8,
+      "c": 3.5,
+      "g": 0.2
+    },
+    "quesofresco": {
+      "per": 100,
+      "unit": "g",
+      "cat": "cheese",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Queso fresco (tipo Burgos)",
+        "en": "Fresh cheese (Burgos style)"
+      },
+      "note": "BEDCA 2507 'Queso fresco de burgos' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 198,
+      "p": 12.4,
+      "c": 2.5,
+      "g": 15.4
+    },
+    "panbarra": {
+      "per": 100,
+      "unit": "g",
+      "cat": "carb",
+      "swap": false,
+      "maxAmt": 150,
+      "verified": false,
+      "name": {
+        "es": "Pan blanco (barra)",
+        "en": "White bread (baguette)"
+      },
+      "note": "BEDCA 2160 'Pan blanco, de barra' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 243,
+      "p": 8.3,
+      "c": 47,
+      "g": 1.6,
+      "piece": {
+        "name": {
+          "es": "trozo (¼ de barra)",
+          "en": "piece (¼ baguette)"
+        },
+        "plural": {
+          "es": "trozos (¼ de barra)",
+          "en": "pieces (¼ baguette)"
+        },
+        "amt": 60,
+        "typical": true
+      }
+    },
+    "panmolde": {
+      "per": 100,
+      "unit": "g",
+      "cat": "carb",
+      "swap": false,
+      "maxAmt": 125,
+      "verified": false,
+      "name": {
+        "es": "Pan de molde blanco",
+        "en": "White sandwich bread"
+      },
+      "note": "USDA FoodData Central SR Legacy 174924 'Bread, white, commercially prepared' (average values); carbs = by difference minus fibre",
+      "k": 266,
+      "p": 8.9,
+      "c": 46.7,
+      "g": 3.3,
+      "piece": {
+        "name": {
+          "es": "rebanada",
+          "en": "slice"
+        },
+        "plural": {
+          "es": "rebanadas",
+          "en": "slices"
+        },
+        "amt": 25,
+        "typical": true
+      }
+    },
+    "jamoncocido": {
+      "per": 100,
+      "unit": "g",
+      "cat": "protein",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Jamón cocido",
+        "en": "Cooked ham"
+      },
+      "note": "BEDCA 180 'Jamón cocido, categoría s/e' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 113,
+      "p": 21,
+      "c": 0.4,
+      "g": 3,
+      "piece": {
+        "name": {
+          "es": "loncha",
+          "en": "slice"
+        },
+        "plural": {
+          "es": "lonchas",
+          "en": "slices"
+        },
+        "amt": 15,
+        "typical": true
+      }
+    },
+    "tomate": {
+      "per": 100,
+      "unit": "g",
+      "cat": "veg",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Tomate",
+        "en": "Tomato"
+      },
+      "note": "BEDCA 2421 'Tomate' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 21,
+      "p": 0.9,
+      "c": 3.5,
+      "g": 0.1,
+      "piece": {
+        "name": {
+          "es": "tomate mediano",
+          "en": "medium tomato"
+        },
+        "plural": {
+          "es": "tomates medianos",
+          "en": "medium tomatoes"
+        },
+        "amt": 150,
+        "typical": true
+      }
+    },
+    "lechuga": {
+      "per": 100,
+      "unit": "g",
+      "cat": "veg",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Lechuga",
+        "en": "Lettuce"
+      },
+      "note": "BEDCA 2399 'Lechuga' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 18,
+      "p": 1.1,
+      "c": 1.4,
+      "g": 0.6
+    },
+    "pepino": {
+      "per": 100,
+      "unit": "g",
+      "cat": "veg",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Pepino",
+        "en": "Cucumber"
+      },
+      "note": "BEDCA 2407 'Pepino' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 13,
+      "p": 0.7,
+      "c": 2,
+      "g": 0.1
+    },
+    "aguacate": {
+      "per": 100,
+      "unit": "g",
+      "cat": "fat",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Aguacate",
+        "en": "Avocado"
+      },
+      "note": "BEDCA 2216 'Aguacate' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 128,
+      "p": 1.5,
+      "c": 0.4,
+      "g": 12,
+      "piece": {
+        "name": {
+          "es": "aguacate mediano (pulpa)",
+          "en": "medium avocado (flesh)"
+        },
+        "plural": {
+          "es": "aguacates medianos (pulpa)",
+          "en": "medium avocados (flesh)"
+        },
+        "amt": 140,
+        "typical": true
+      }
+    },
+    "nueces": {
+      "per": 100,
+      "unit": "g",
+      "cat": "fat",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Nueces",
+        "en": "Walnuts"
+      },
+      "note": "BEDCA 2201 'Nuez' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 649,
+      "p": 14,
+      "c": 3.3,
+      "g": 63.3,
+      "piece": {
+        "name": {
+          "es": "nuez (pelada)",
+          "en": "walnut (shelled)"
+        },
+        "plural": {
+          "es": "nueces (peladas)",
+          "en": "walnuts (shelled)"
+        },
+        "amt": 5,
+        "typical": true
+      }
+    },
+    "almendras": {
+      "per": 100,
+      "unit": "g",
+      "cat": "fat",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Almendras",
+        "en": "Almonds"
+      },
+      "note": "BEDCA 534 'Almendra, cruda' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 621,
+      "p": 19.1,
+      "c": 6.2,
+      "g": 54.6,
+      "piece": {
+        "name": {
+          "es": "almendra",
+          "en": "almond"
+        },
+        "plural": {
+          "es": "almendras",
+          "en": "almonds"
+        },
+        "amt": 1.2,
+        "typical": true
+      }
+    },
+    "cacahuetes": {
+      "per": 100,
+      "unit": "g",
+      "cat": "fat",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Cacahuetes tostados",
+        "en": "Roasted peanuts"
+      },
+      "note": "BEDCA 2186 'Cacahuete, tostado, salado' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 617,
+      "p": 24.5,
+      "c": 7.1,
+      "g": 53
+    },
+    "aceitunas": {
+      "per": 100,
+      "unit": "g",
+      "cat": "fat",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Aceitunas",
+        "en": "Olives"
+      },
+      "note": "BEDCA 2214 'Aceituna' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 131,
+      "p": 1.3,
+      "c": 1,
+      "g": 12.5,
+      "piece": {
+        "name": {
+          "es": "aceituna",
+          "en": "olive"
+        },
+        "plural": {
+          "es": "aceitunas",
+          "en": "olives"
+        },
+        "amt": 4,
+        "typical": true
+      }
+    },
+    "mantequilla": {
+      "per": 100,
+      "unit": "g",
+      "cat": "fat",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Mantequilla",
+        "en": "Butter"
+      },
+      "note": "BEDCA 202 'Mantequilla salada' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 743,
+      "p": 0.7,
+      "c": 0.5,
+      "g": 82
+    },
+    "azucar": {
+      "per": 100,
+      "unit": "g",
+      "cat": "sweet",
+      "swap": false,
+      "maxAmt": 30,
+      "verified": false,
+      "name": {
+        "es": "Azúcar",
+        "en": "Sugar"
+      },
+      "note": "BEDCA 2642 'Azúcar blanca' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 400,
+      "p": 0,
+      "c": 100,
+      "g": 0,
+      "piece": {
+        "name": {
+          "es": "cucharadita",
+          "en": "teaspoon"
+        },
+        "plural": {
+          "es": "cucharaditas",
+          "en": "teaspoons"
+        },
+        "amt": 5,
+        "typical": true
+      }
+    },
+    "cafe": {
+      "per": 100,
+      "unit": "ml",
+      "cat": "drink",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Café solo",
+        "en": "Black coffee"
+      },
+      "note": "BEDCA 2433 'Café, infusión' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 2,
+      "p": 0.1,
+      "c": 0,
+      "g": 0.2,
+      "piece": {
+        "name": {
+          "es": "taza",
+          "en": "cup"
+        },
+        "plural": {
+          "es": "tazas",
+          "en": "cups"
+        },
+        "amt": 50,
+        "typical": true
+      }
+    },
+    "bebidaavena": {
+      "per": 100,
+      "unit": "ml",
+      "cat": "dairy",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Bebida de avena",
+        "en": "Oat drink"
+      },
+      "note": "USDA FoodData Central FNDDS 2705412 'Oat milk' (average values); carbs = by difference minus fibre",
+      "k": 45,
+      "p": 0.7,
+      "c": 4.9,
+      "g": 2.3
+    },
+    "atunaceite": {
+      "per": 100,
+      "unit": "g",
+      "cat": "protein",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Atún en aceite",
+        "en": "Tuna in oil"
+      },
+      "note": "BEDCA 2131 'Atun en aceite vegetal' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 204,
+      "p": 23.8,
+      "c": 0,
+      "g": 12.1,
+      "piece": {
+        "name": {
+          "es": "lata pequeña (escurrida)",
+          "en": "small can (drained)"
+        },
+        "plural": {
+          "es": "latas pequeñas (escurridas)",
+          "en": "small cans (drained)"
+        },
+        "amt": 56,
+        "typical": true
+      }
+    },
+    "sardinas": {
+      "per": 100,
+      "unit": "g",
+      "cat": "protein",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Sardinas en aceite (escurridas)",
+        "en": "Sardines in oil (drained)"
+      },
+      "note": "BEDCA 2632 'Sardina, enlatada, en aceite, escurrida' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 238,
+      "p": 23.9,
+      "c": 0,
+      "g": 15.8,
+      "piece": {
+        "name": {
+          "es": "sardina",
+          "en": "sardine"
+        },
+        "plural": {
+          "es": "sardinas",
+          "en": "sardines"
+        },
+        "amt": 25,
+        "typical": true
+      }
+    },
+    "pavopechuga": {
+      "per": 100,
+      "unit": "g",
+      "cat": "protein",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Pechuga de pavo (fresca)",
+        "en": "Turkey breast (fresh)"
+      },
+      "note": "USDA FoodData Central SR Legacy 171098 'Turkey, whole, breast, meat only, raw' (average values); carbs = by difference minus fibre",
+      "k": 114,
+      "p": 23.7,
+      "c": 0.1,
+      "g": 1.5,
+      "weighed": "raw"
+    },
+    "tortillatrigo": {
+      "per": 100,
+      "unit": "g",
+      "cat": "carb",
+      "swap": false,
+      "maxAmt": 120,
+      "verified": false,
+      "name": {
+        "es": "Tortilla de trigo (wrap)",
+        "en": "Wheat tortilla (wrap)"
+      },
+      "note": "USDA FoodData Central SR Legacy 167535 'Tortillas, ready-to-bake or -fry, flour, shelf stable' (average values); carbs = by difference minus fibre",
+      "k": 297,
+      "p": 8,
+      "c": 46.9,
+      "g": 7.6,
+      "piece": {
+        "name": {
+          "es": "tortilla",
+          "en": "tortilla"
+        },
+        "plural": {
+          "es": "tortillas",
+          "en": "tortillas"
+        },
+        "amt": 40,
+        "typical": true
+      }
+    },
+    "cereales": {
+      "per": 100,
+      "unit": "g",
+      "cat": "carb",
+      "swap": false,
+      "maxAmt": 80,
+      "verified": false,
+      "name": {
+        "es": "Cereales de desayuno (maíz y trigo)",
+        "en": "Breakfast cereal (corn and wheat)"
+      },
+      "note": "BEDCA 1032 'Cereales desayuno base de maíz y trigo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 381,
+      "p": 6,
+      "c": 80.8,
+      "g": 3
+    },
+    "galletasmaria": {
+      "per": 100,
+      "unit": "g",
+      "cat": "sweet",
+      "swap": false,
+      "maxAmt": 60,
+      "verified": false,
+      "name": {
+        "es": "Galletas María",
+        "en": "Maria biscuits"
+      },
+      "note": "BEDCA 2675 'Galletas tipo maria' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+      "k": 482,
+      "p": 7.1,
+      "c": 69,
+      "g": 19,
+      "piece": {
+        "name": {
+          "es": "galleta",
+          "en": "biscuit"
+        },
+        "plural": {
+          "es": "galletas",
+          "en": "biscuits"
+        },
+        "amt": 6,
+        "typical": true
+      }
+    },
+    "chocolate70": {
+      "per": 100,
+      "unit": "g",
+      "cat": "sweet",
+      "swap": false,
+      "maxAmt": 40,
+      "verified": false,
+      "name": {
+        "es": "Chocolate negro 70%",
+        "en": "Dark chocolate 70%"
+      },
+      "note": "USDA FoodData Central SR Legacy 170273 'Chocolate, dark, 70-85% cacao solids' (average values); carbs = by difference minus fibre",
+      "k": 598,
+      "p": 7.8,
+      "c": 35,
+      "g": 42.6,
+      "piece": {
+        "name": {
+          "es": "onza",
+          "en": "square"
+        },
+        "plural": {
+          "es": "onzas",
+          "en": "squares"
+        },
+        "amt": 8,
+        "typical": true
+      }
     }
   }
 }
