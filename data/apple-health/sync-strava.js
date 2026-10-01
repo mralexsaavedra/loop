@@ -39,9 +39,15 @@ const STRAVA_SOURCE = 'Strava API'
 const OUT = process.env.SYNC_STRAVA_OUT_DIR || path.join(__dirname, 'extract')
 const WORKOUTS_CSV = 'workouts.csv'
 
-// sport_type -> workouts.csv `type` (matches extract.js's HKWorkoutActivityType-derived strings).
-// Anything not in this table lands on Other (routed to the dashboard's 'hiit' bucket) and is
-// counted in the sync's `unmapped` report instead of aborting the sync.
+// sport_type -> workouts.csv `type` (matches extract.js's HKWorkoutActivityType-derived strings, so
+// a Watch copy and a Strava copy of one session land in the SAME physical modality and
+// lib/training/sessions.mjs mergeSameDay counts them once). Racket, team and outdoor sports map to
+// the Apple type the Watch writes (Tennis, Soccer…; Padel has no Apple type and keeps its name): all
+// land in the `other` modality (lib/score/modality.mjs), never gym. Strava's generic "Workout" (where
+// a Watch "Other" workout lands when it syncs) maps to "Other", the Watch's generic label that
+// modality.mjs counts as gym. Anything not in this table lands on FALLBACK_TYPE "Unmapped" (a
+// non-gym type -> `other`; it used to be "Other", which filed every unknown sport, e.g. tennis, as
+// gym load) and is counted in the sync's `unmapped` report instead of aborting the sync.
 const SPORT_TYPE_MAP = {
   Run: 'Running', TrailRun: 'Running', VirtualRun: 'Running',
   Ride: 'Cycling', VirtualRide: 'Cycling', EBikeRide: 'Cycling', EMountainBikeRide: 'Cycling',
@@ -49,11 +55,22 @@ const SPORT_TYPE_MAP = {
   WeightTraining: 'TraditionalStrengthTraining',
   HighIntensityIntervalTraining: 'HighIntensityIntervalTraining',
   Crossfit: 'CrossTraining',
+  Workout: 'Other',
   Walk: 'Walking', Hike: 'Hiking', Swim: 'Swimming',
   Rowing: 'Rowing', VirtualRow: 'Rowing',
-  Elliptical: 'Elliptical', Pilates: 'Pilates', Yoga: 'Yoga'
+  Elliptical: 'Elliptical', Pilates: 'Pilates', Yoga: 'Yoga', StairStepper: 'StairClimbing',
+  // racket + team sports
+  Tennis: 'Tennis', TableTennis: 'TableTennis', Squash: 'Squash', Badminton: 'Badminton',
+  Racquetball: 'Racquetball', Pickleball: 'Pickleball', Padel: 'Padel',
+  Soccer: 'Soccer', Basketball: 'Basketball', Volleyball: 'Volleyball', Golf: 'Golf',
+  // outdoor / board sports
+  RockClimbing: 'Climbing', AlpineSki: 'DownhillSkiing', BackcountrySki: 'CrossCountrySkiing',
+  NordicSki: 'CrossCountrySkiing', Snowboard: 'Snowboarding', Snowshoe: 'SnowSports',
+  IceSkate: 'SkatingSports', InlineSkate: 'SkatingSports', Skateboard: 'SkatingSports',
+  Kayaking: 'PaddleSports', Canoeing: 'PaddleSports', StandUpPaddling: 'PaddleSports',
+  Surfing: 'SurfingSports', Kitesurf: 'SailingSports', Windsurf: 'SailingSports', Sail: 'Sailing'
 }
-const FALLBACK_TYPE = 'Other'
+const FALLBACK_TYPE = 'Unmapped'
 
 function translateType (sportType) {
   return SPORT_TYPE_MAP[sportType] || FALLBACK_TYPE
