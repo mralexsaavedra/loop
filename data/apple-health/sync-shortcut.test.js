@@ -7,8 +7,9 @@ const sync = require('./sync-shortcut.js');
 const {
   METRICS, SHORTCUT_SOURCE, parseNumber, parsePayload, collectSamples, buildRows,
   unionMinutes, mergeCsv, updateMeta, resolveToken, fetchAllPayloads, planSync,
-  foldPayloads, emptyCache, CACHE_FILE, writeAtomic, syncDir,
+  foldPayloads, emptyCache, CACHE_FILE, writeAtomic, syncDir, dropPhantomWeights,
 } = sync;
+const S_HDR = 'date,value,source';
 
 test('parseNumber() accepts dot and comma decimals', () => {
   assert.equal(parseNumber('12.5'), 12.5);
@@ -740,4 +741,65 @@ test('extract.js and the Shortcut sync write identical sleep rows (nap excluded)
   assert.match(exportSleep, /^2030-01-02,6\.00,/m, 'the nap adds no minutes');
   assert.equal(fs.readFileSync(path.join(out, 'wristTemp.csv'), 'utf8'), csvOf(METRICS.wrist_temp.header, buildRows('wrist_temp', sync.wrist_temp)));
   fs.rmSync(dir, { recursive: true });
+});
+
+
+// ---- RHR: Apple rewrites the day's value at the SAME timestamp -> dedupe by timestamp only ----
+
+test('rhr: samples dedupe by timestamp only; the latest payload wins a rewritten value', () => {
+  const s = collectSamples([
+    { rhr: '2030-01-02T00:05:00+01:00;55\n2030-01-03T00:05:00+01:00;52' },
+    { rhr: '2030-01-02T00:05:00+01:00;53' }, // Apple recomputed the 2nd's RHR at the same stamp
+  ]);
+  assert.equal(s.rhr.length, 2);
+  assert.deepEqual(buildRows('rhr', s.rhr).map(r => r.line), [
+    '2030-01-02,53,' + SHORTCUT_SOURCE,
+    '2030-01-03,52,' + SHORTCUT_SOURCE,
+  ]);
+  // other point metrics still keep two values at one stamp (timestamp + value key)
+  assert.equal(collectSamples([{ hrv: '2030-01-02T08:00:00+01:00;40' }, { hrv: '2030-01-02T08:00:00+01:00;41' }]).hrv.length, 2);
+});
+
+// ---- weight: optional 3rd field (source) + phantom profile-weight guard -------------------
+
+test('weight: an optional 3rd field is kept as the source; rows without it stay Shortcut', () => {
+  const s = collectSamples([{ weight: '2030-01-02T07:10:00+01:00;80.4;My Scale\n2030-01-03T07:00:00+01:00;80.1\n2030-01-04T07:00:00+01:00;80;80 kg' }]);
+  assert.deepEqual(buildRows('weight', s.weight).map(r => r.line), [
+    '2030-01-02,80.4,My Scale',
+    '2030-01-03,80.1,' + SHORTCUT_SOURCE,
+    '2030-01-04,80,' + SHORTCUT_SOURCE, // a formatted value in the source field is ignored
+  ]);
+});
+
+test('weight: a midnight date-only sample with no body-fat reading within 10 min is a phantom and dropped', () => {
+  const plan = planSync([{ id: '1', payload: {
+    weight: [
+      '2030-01-02T00:00:00+01:00;90', // local midnight, no body fat -> phantom
+      '2030-01-03T01:00:00+01:00;91', // 00:00 UTC (date-only entry seen from +01:00) -> phantom
+      '2030-01-04T00:00:00+01:00;80.2;My Scale', // midnight but the scale wrote body fat 3 min later -> real
+      '2030-01-05T07:00:00+01:00;80.0', // a normal weigh-in
+    ].join('\n'),
+    bodyfat: '2030-01-04T00:03:00+01:00;18.1;My Scale',
+  } }], () => null);
+  assert.equal(plan.writes['weight.csv'], [S_HDR, '2030-01-04,80.2,My Scale', '2030-01-05,80,' + SHORTCUT_SOURCE, ''].join('\n'));
+});
+
+test('dropPhantomWeights(): only exact midnight stamps (local or UTC) are candidates; body fat beyond 10 min does not rescue', () => {
+  const w = (start, value = 80) => ({ start, value });
+  const out = dropPhantomWeights([
+    w('2030-01-02 00:00:30 +0100'), // not exact -> kept
+    w('2030-01-03 00:00:00 +0100'), // body fat 11 min later -> still phantom
+    w('2030-01-04 02:00:00 +0200'), // = 00:00 UTC -> phantom
+  ], [{ start: '2030-01-03 00:11:00 +0100', value: 18 }]);
+  assert.deepEqual(out.map(x => x.start), ['2030-01-02 00:00:30 +0100']);
+  assert.deepEqual(dropPhantomWeights([w('2030-01-04 02:00:00 +0200')], undefined), []);
+});
+
+test('rhr: a cache written under the old timestamp+value key is re-keyed (no --full needed)', () => {
+  const old = { ...emptyCache(), lastPayloadId: '1', payloads: 1, samples: { rhr: {
+    '2030-01-02 00:05:00 +0100|55': { start: '2030-01-02 00:05:00 +0100', value: 55 },
+    '2030-01-02 00:05:00 +0100|53': { start: '2030-01-02 00:05:00 +0100', value: 53 },
+  } } };
+  const c = foldPayloads(old, []);
+  assert.deepEqual(Object.values(c.samples.rhr), [{ start: '2030-01-02 00:05:00 +0100', value: 53 }]);
 });
