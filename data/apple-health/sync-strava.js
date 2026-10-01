@@ -158,6 +158,12 @@ function rideRow (activity) {
     kjCell(activity.kilojoules), dw, STRAVA_SOURCE].join(',')
 }
 
+/** activities -> { rows, power (device_watts true + kJ), withStart (start with an offset) } for _meta.json */
+function ridesStats (activities) {
+  const lines = activities.map(rideRow).filter(Boolean).map((l) => l.split(','))
+  return { rows: lines.length, power: lines.filter((c) => c[4] === 'true' && c[3] !== '').length, withStart: lines.filter((c) => c[1] !== '').length }
+}
+
 /** activities -> the whole rides.csv text, sorted by local start. */
 function buildRides (activities) {
   const rows = activities.map((a) => ({ a, line: rideRow(a) })).filter((r) => r.line)
@@ -167,11 +173,13 @@ function buildRides (activities) {
 
 const range = (dates) => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a')
 
-const SYNC_NOTE = 'Strava rows (npm run sync:strava) are always kept, also on dates the export covers, and are rebuilt on every sync from source="Strava API"; readers dedupe a Watch copy of the same session (lib/training/sessions.mjs mergeSameDay: Strava wins per date + modality when it covers at least half the Watch minutes). Historical source=Strava rows (from the old ingest /sync/strava loop) are left untouched. Accepted limitations: deleted Strava activities are not removed, and edits older than the ingest service\'s 7-day overlap window are never picked up. See CLAUDE.md.'
+const SYNC_NOTE = 'Strava rows (npm run sync:strava) are always kept, also on dates the export covers, and are rebuilt on every sync from source="Strava API"; readers dedupe a Watch copy of the same session (lib/training/sessions.mjs mergeSameDay: Strava wins per date + modality when it covers at least half the Watch minutes). Historical source=Strava rows (from the old ingest /sync/strava loop) are left untouched. rides.csv (ride start with offset, elapsed time, kJ, device_watts: the windows of the power-meter active-energy correction) is rebuilt from scratch on every sync. Accepted limitations: deleted Strava activities are not removed, and edits older than the ingest service\'s 7-day overlap window are never picked up. See CLAUDE.md.'
 
 // Pure: refresh the workouts rows/range + record the sync. Deterministic (no timestamps) so
 // re-running an unchanged sync rewrites identical bytes.
 function updateMeta (meta, merged, info) {
+  // rides.csv (ride windows for the active-energy correction) is rebuilt every run: its row count
+  // and how many rides can feed the correction (real power + kJ; a start with offset)
   const out = JSON.parse(JSON.stringify(meta))
   out.rows = out.rows || {}
   out.ranges = out.ranges || {}
@@ -185,6 +193,10 @@ function updateMeta (meta, merged, info) {
     range: range(merged.addedDates),
     unmapped: info.unmapped,
     owned: { [WORKOUTS_CSV]: merged.addedDates }
+  }
+  if (info.rides) {
+    out.rows.rides = info.rides.rows
+    out.stravaSync.rides = info.rides
   }
   out.notes = Array.isArray(out.notes) ? out.notes : []
   for (const n of out.notes.filter((n) => /^Strava rows \(npm run sync:strava\)/.test(n) && n !== SYNC_NOTE)) {
@@ -224,7 +236,7 @@ function planSync (activities, readFile) {
   if (csvHasContent && merged.text !== existing) writes[WORKOUTS_CSV] = merged.text
 
   if (csvHasContent || prevMeta) {
-    const meta = updateMeta(prevMeta || {}, merged, { activities: activities.length, unmapped, noHr, dropped })
+    const meta = updateMeta(prevMeta || {}, merged, { activities: activities.length, unmapped, noHr, dropped, rides: ridesStats(activities) })
     const text = JSON.stringify(meta, null, 2) + '\n'
     if (text !== metaText) writes['_meta.json'] = text
   }

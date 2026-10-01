@@ -66,6 +66,15 @@ test('planSync writes rides.csv (full rebuild); never creates an empty one', () 
   assert.equal(planSync([RIDE], (n) => (n === RIDES_CSV ? buildRides([RIDE]) : null)).writes[RIDES_CSV], undefined);
 });
 
+test('planSync records rides.csv in _meta.json (rows.rides + stravaSync.rides: total / power / with start)', () => {
+  const { start_utc: _u, ...noStart } = { ...RIDE, id: '9', start_local: '2026-09-28T08:00:00Z' };
+  const plan = planSync([RIDE, { ...RIDE, id: '8', start_local: '2026-09-27T08:00:00Z', start_utc: '2026-09-27T06:00:00Z', device_watts: false }, noStart], () => null);
+  const meta = JSON.parse(plan.writes['_meta.json']);
+  assert.equal(meta.rows.rides, 3);
+  assert.deepEqual(meta.stravaSync.rides, { rows: 3, power: 2, withStart: 2 });
+  assert.ok(meta.notes.some((n) => /rides\.csv/.test(n)));
+});
+
 test('stalePowerWarning: rides with kJ but none carrying device_watts / start_utc -> rebuild hint', () => {
   const { start_utc: _u, device_watts: _d, ...old } = RIDE;
   assert.equal(stalePowerWarning([]), null);
