@@ -433,6 +433,44 @@
 .fr-ing .food-icon-btn {
   margin-bottom: var(--sp-4);
 }
+/* an ingredient not picked yet = its search + the results; a picked one = its name, amount (+ unit) */
+.fr-ing-find,
+.fr-ing-picked {
+  grid-template-columns: minmax(0, 1fr) 44px;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line-soft);
+}
+.fr-ing-find .fr-list,
+.fr-pick {
+  grid-column: 1 / -1;
+}
+.fr-ing-find .fr-list {
+  margin-bottom: var(--sp-4);
+}
+.fr-pick {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-2);
+}
+.fr-pick .fa-item-name {
+  overflow-wrap: anywhere;
+}
+/* a basic's "valor medio" tag (an average table value, not a label) */
+.food-tag {
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.fe-ings {
+  font-size: var(--fs-xs);
+  color: var(--faint);
+  overflow-wrap: anywhere;
+}
 .off-card {
   border-top: 1px solid var(--line-soft);
   padding: var(--sp-4) 0;

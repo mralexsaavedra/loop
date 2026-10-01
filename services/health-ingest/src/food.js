@@ -32,7 +32,7 @@
  * `atwater` unless the request says `force: true` (fibre / polyols make real labels deviate).
  */
 import {
-  FOOD_STORES, FOOD_UNITS, ENTRY_UNITS, FOOD_SOURCES, RECIPE_KINDS, REF_TYPES, FOOD_MEALS, FOOD_LIMITS as L,
+  FOOD_STORES, FOOD_UNITS, ENTRY_UNITS, FOOD_SOURCES, RECIPE_KINDS, REF_TYPES, FOOD_MEALS, FOOD_LIMITS as L, RECIPE_BASIC_UNITS,
   round1, roundMacros, productEntry, recipeBasis, recipeEntry, dayTotals, atwaterOk
 } from './food-calc.js'
 import { createWindowLimiter } from './limits.js'
@@ -43,6 +43,7 @@ export const FOOD_WRITE_LIMIT = 60 // per client address per minute
 const ID_RE = /^[1-9][0-9]{0,15}$/
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/
 const BARCODE_RE = new RegExp(L.barcodePattern)
+const BASIC_KEY_RE = new RegExp(L.basicKeyPattern)
 const REQUEST_ID_RE = /^[A-Za-z0-9-]{8,64}$/ // the page's per-add id (a UUID), makes a retry idempotent
 const IPV4_RE = /^\d{1,3}(\.\d{1,3}){3}$/
 const IPV6_RE = /^\[[0-9a-f:.]+\]$/
@@ -177,8 +178,41 @@ export function validateProduct (body) {
   return p
 }
 
+// a basic snapshot's per-100 (per unit for a 'ud' food) value: finite, >= 0, within the per-100 limits,
+// kept to 2 decimals (the precision of the baked basics table, so the page's preview is what is stored)
+function snapshotValue (v, field, max) {
+  if (typeof v !== 'number' || !Number.isFinite(v)) bad(field)
+  const n = Math.round(v * 100 + 1e-9) / 100
+  if (n < 0 || n > max) bad(field)
+  return n
+}
+/** A recipe ingredient: a product {productId, amount}, or a basic of the public food DB as a SNAPSHOT
+ * {basic, name, unit, amount, per100} (food-calc.js RECIPE_BASIC_UNITS). */
+function validateIngredient (ing) {
+  if (!isObj(ing) || !('basic' in ing)) {
+    strictKeys(ing, ['productId', 'amount'], 'ingredients.')
+    return { productId: id(ing.productId, 'ingredients.productId'), amount: number(ing.amount, 'ingredients.amount', { max: L.ingredientAmountMax, above: true }) }
+  }
+  strictKeys(ing, ['basic', 'name', 'unit', 'amount', 'per100'], 'ingredients.')
+  const out = {
+    basic: pattern(ing.basic, 'ingredients.basic', BASIC_KEY_RE, false),
+    name: str(ing.name, 'ingredients.name', L.nameMax),
+    unit: oneOf(ing.unit, 'ingredients.unit', RECIPE_BASIC_UNITS),
+    amount: number(ing.amount, 'ingredients.amount', { max: L.ingredientAmountMax, above: true }),
+    per100: null
+  }
+  strictKeys(ing.per100, ['kcal', 'protein', 'carbs', 'fat'], 'ingredients.per100.')
+  out.per100 = {
+    kcal: snapshotValue(ing.per100.kcal, 'ingredients.per100.kcal', L.kcal100Max),
+    protein: snapshotValue(ing.per100.protein, 'ingredients.per100.protein', L.macro100Max),
+    carbs: snapshotValue(ing.per100.carbs, 'ingredients.per100.carbs', L.macro100Max),
+    fat: snapshotValue(ing.per100.fat, 'ingredients.per100.fat', L.macro100Max)
+  }
+  return out
+}
+
 export function validateRecipe (body) {
-  strictKeys(body, ['name', 'kind', 'servings', 'cookedWeightG', 'ingredients'])
+  strictKeys(body, ['name', 'kind', 'servings', 'cookedWeightG', 'ingredients', 'force'])
   const kind = oneOf(body.kind, 'kind', RECIPE_KINDS)
   const r = { name: str(body.name, 'name', L.nameMax), kind, servings: null, cookedWeightG: null, ingredients: [] }
   if (kind === 'serving') {
@@ -189,10 +223,10 @@ export function validateRecipe (body) {
     r.cookedWeightG = number(body.cookedWeightG, 'cookedWeightG', { max: L.cookedMax, above: true })
   }
   if (!Array.isArray(body.ingredients) || body.ingredients.length < 1 || body.ingredients.length > L.ingredientsMax) bad('ingredients')
-  r.ingredients = body.ingredients.map((ing) => {
-    strictKeys(ing, ['productId', 'amount'], 'ingredients.')
-    return { productId: id(ing.productId, 'ingredients.productId'), amount: number(ing.amount, 'ingredients.amount', { max: L.ingredientAmountMax, above: true }) }
-  })
+  r.ingredients = body.ingredients.map(validateIngredient)
+  // a basic's snapshot is checked like a product label (alcohol, polyols: "save anyway"); force is not stored
+  const force = flag(body.force, 'force')
+  if (!force && r.ingredients.some((i) => i.basic != null && !atwaterOk(i.per100))) throw httpError(400, 'atwater')
   return r
 }
 
@@ -271,6 +305,11 @@ function readJson (req) {
   })
 }
 
+/** The product ids of a recipe's ingredients (basics have none). */
+function productIds (recipe) {
+  return recipe.ingredients.filter((i) => i.basic == null).map((i) => i.productId)
+}
+
 function byIdOf (products) {
   const out = {}
   for (const p of products) out[p.id] = p
@@ -285,9 +324,9 @@ export function recipeView (recipe, byId) {
     kind: recipe.kind,
     servings: recipe.servings,
     cookedWeightG: recipe.cookedWeightG,
-    ingredients: recipe.ingredients.map((i) => ({
-      productId: i.productId, amount: i.amount, name: byId[i.productId]?.name ?? null, unit: byId[i.productId]?.unit ?? null
-    })),
+    ingredients: recipe.ingredients.map((i) => i.basic != null
+      ? { basic: i.basic, name: i.name, unit: i.unit, amount: i.amount, per100: i.per100 }
+      : { productId: i.productId, amount: i.amount, name: byId[i.productId]?.name ?? null, unit: byId[i.productId]?.unit ?? null }),
     rawWeight: round1(b.rawWeight),
     complete: b.complete,
     missing: b.missing,
@@ -303,14 +342,14 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
   const writes = createWindowLimiter({ limit: writeLimit, windowMs: 60_000, now })
 
   async function recipeViews (recipes) {
-    const ids = [...new Set(recipes.flatMap((r) => r.ingredients.map((i) => i.productId)))]
+    const ids = [...new Set(recipes.flatMap(productIds))]
     const byId = byIdOf(await store.getProducts(ids))
     return recipes.map((r) => recipeView(r, byId))
   }
 
-  /** Recipe ingredients must be ACTIVE products. */
+  /** Recipe product ingredients must be ACTIVE products (a basic carries its own snapshot). */
   async function checkIngredients (r) {
-    const ids = [...new Set(r.ingredients.map((i) => i.productId))]
+    const ids = [...new Set(productIds(r))]
     const found = await store.getProducts(ids)
     if (found.filter((p) => !p.archived).length !== ids.length) throw httpError(400, 'unknown_product')
   }
@@ -343,7 +382,7 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
     } else {
       const r = await store.getRecipe(e.refId)
       if (!r || r.archived) throw httpError(400, 'unknown_recipe')
-      const byId = byIdOf(await store.getProducts(r.ingredients.map((i) => i.productId)))
+      const byId = byIdOf(await store.getProducts(productIds(r)))
       if (!recipeBasis(r, byId).complete) throw httpError(400, 'recipe_incomplete')
       macros = recipeEntry(r, byId, e.amount, e.unit)
       if (!macros) throw httpError(400, 'unit')

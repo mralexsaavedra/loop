@@ -40,7 +40,14 @@ export const FOOD_LIMITS = Object.freeze({
   servingsMax: 100,
   quickKcalMax: 5000,
   quickMacroMax: 500,
+  basicKeyPattern: '^[a-z0-9][a-z0-9_-]{0,63}$', // a recipe basic's key in the public food DB (ingredients.json)
 });
+// A recipe ingredient is a product ({productId, amount}) or a BASIC of the public food DB, stored as a
+// SNAPSHOT so the recipe never changes when ingredients.json does: {basic: key, name, unit, amount,
+// per100: {kcal, protein, carbs, fat}}, per100 = per 100 g / ml, or per ONE unit for a 'ud' food (the
+// basics table's model, lib/nutrition/basics.mjs), its amount a count of units on the UD_AMT scale.
+export const RECIPE_BASIC_UNITS = Object.freeze(['g', 'ml', 'ud']);
+export const BASIC_UD_AMT = 100; // one unit of a 'ud' basic on the per-100 scale (lib/nutrition/units.mjs UD_AMT)
 const MACROS = ['protein', 'carbs', 'fat'];
 
 function fin(v) {
@@ -82,20 +89,39 @@ export function productEntry(product, amount, unit) {
   var a = productAmount(product, amount, unit);
   return a == null ? null : roundMacros(scaleMacros(product.per100, a));
 }
+function knownMacros(m) {
+  return !!m && fin(m.kcal) && fin(m.protein) && fin(m.carbs) && fin(m.fat);
+}
+/** One recipe ingredient as {per100, amount on that per-100 scale, weight (g / ml, 0 for a 'ud' basic)}:
+ * a product's label from byId, or a basic's own snapshot; null when it is unknown. */
+export function ingredientBasis(ing, byId) {
+  if (!ing || !fin(ing.amount) || ing.amount <= 0) return null;
+  if (ing.basic != null) {
+    if (!knownMacros(ing.per100)) return null;
+    var ud = ing.unit === 'ud';
+    return { per100: ing.per100, amount: ud ? ing.amount * BASIC_UD_AMT : ing.amount, weight: ud ? 0 : ing.amount };
+  }
+  var p = byId ? byId[ing.productId] : null;
+  if (!p || !p.per100) return null;
+  return { per100: p.per100, amount: ing.amount, weight: ing.amount };
+}
 /** A recipe's ingredient sum and its basis: per serving (kind serving) or per 100 g cooked (kind
- * batch), all unrounded; complete = every product found (missing = the ids that were not). */
+ * batch), all unrounded; complete = every ingredient known (missing = the product ids / basic keys
+ * that were not); rawWeight = the g / ml amounts. */
 export function recipeBasis(recipe, byId) {
   var totals = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   var missing = [];
   var raw = 0;
+  var n = 0;
   (recipe && recipe.ingredients ? recipe.ingredients : []).forEach(function (ing) {
-    var p = byId ? byId[ing.productId] : null;
-    if (!p || !p.per100 || !fin(ing.amount) || ing.amount <= 0) { missing.push(ing.productId); return; }
-    var m = scaleMacros(p.per100, ing.amount);
+    var x = ingredientBasis(ing, byId);
+    if (!x) { missing.push(ing && ing.basic != null ? ing.basic : ing && ing.productId); return; }
+    var m = scaleMacros(x.per100, x.amount);
     totals = { kcal: totals.kcal + m.kcal, protein: totals.protein + m.protein, carbs: totals.carbs + m.carbs, fat: totals.fat + m.fat };
-    raw += ing.amount;
+    raw += x.weight;
+    n++;
   });
-  var complete = missing.length === 0 && raw > 0;
+  var complete = missing.length === 0 && n > 0;
   var perServing = null, per100 = null;
   if (complete && recipe.kind === 'serving' && fin(recipe.servings) && recipe.servings >= 1) perServing = times(totals, 1 / recipe.servings);
   if (complete && recipe.kind === 'batch' && fin(recipe.cookedWeightG) && recipe.cookedWeightG > 0) per100 = times(totals, 100 / recipe.cookedWeightG);
