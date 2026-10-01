@@ -580,7 +580,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   macro, baked per base day as `NUTRI.guide.defaults`), else `GUIDE_FALLBACK` (pollo / arroz / aceite de
   oliva). A pick persists per viewer, not daily (`hc.nutri.guide` = `{picks: {<slot>.<role>: 'b:<key>' |
   'p:<id>'}}`, every access wrapped; an unlisted pick — a product without the API — shows the default and
-  stays stored). Each example covers ITS macro only (a muted note says so: the guide is orientative).
+  stays stored; the orphaned `hc.nutri.picks` of the removed choosable blocks is cleared on load). Each example covers ITS macro only (a muted note says so: the guide is orientative).
   **Extras card**: "~N kcal para extras hoy", a muted "Incluye café, tentempiés y pre/post-entreno"
   line, a muted hint with example costs computed from the food DB
   (`EXTRAS_EXAMPLES` → `NUTRI.guide.extras`: un cortado ~19, un plátano ~106, un yogur ~79, un batido de
