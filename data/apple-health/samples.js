@@ -13,6 +13,11 @@ const SLEEP_HEADER = 'date,asleep_hours,source,bedtime,waketime';
 // empty. Readers are POSITIONAL and must tolerate shorter (older, 9- or 11-column) rows.
 const WORKOUTS_HEADER = 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source,distance_km,relative_effort,kilojoules,elevation_m';
 
+// The Apple Watch source family: the SAME anchored regex as lib/training/sessions.mjs
+// SOURCE_PRECEDENCE ("Apple Watch de <name>"; `\s` also matches the no-break space Health writes).
+// A test pins the two equal (extract.test.js), since this CommonJS file cannot import the ESM one.
+const APPLE_WATCH_RE = /^Apple\s+Watch\b/i;
+
 // "2026-06-12 09:10:00 +0200" -> "2026-06-12"
 const day = dt => (dt || '').slice(0, 10);
 const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
@@ -195,6 +200,7 @@ const workoutRow = w => {
 };
 
 module.exports = {
+  APPLE_WATCH_RE,
   READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow,
   day, num, localMs, absMs, minutesBetween, addDay, clockHour, sleepNight, wristTempDate, isoToExportStamp,
   readingRow, sleepRow, unionMinutes, sleepNights,
