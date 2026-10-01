@@ -527,7 +527,8 @@ test('contract: a re-extract drops Shortcut rows + ledger, the next sync restore
   fs.writeFileSync(path.join(dir, 'export.xml'), [
     '<ExportDate value="2030-01-03 08:00:00 +0100"/>', // 01-01 is a complete day, not the partial last one
     `<Record type="${Q}HeartRateVariabilitySDNN" sourceName="W" startDate="2030-01-01 08:00:00 +0100" endDate="2030-01-01 08:00:00 +0100" value="40"/>`,
-    `<Record type="${Q}ActiveEnergyBurned" sourceName="W" startDate="2030-01-01 10:00:00 +0100" endDate="2030-01-01 10:05:00 +0100" value="300"/>`,
+    // a real Watch name: energy counts only Watch / wearable / iPhone sources (samples.js energySource)
+    `<Record type="${Q}ActiveEnergyBurned" sourceName="Apple Watch de Demo" startDate="2030-01-01 10:00:00 +0100" endDate="2030-01-01 10:05:00 +0100" value="300"/>`,
   ].join('\n') + '\n');
   const extract = () => execFileSync(process.execPath, [path.join(dir, 'extract.js')], { stdio: 'ignore' });
   const out = path.join(dir, 'extract');
