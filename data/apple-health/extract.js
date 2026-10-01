@@ -13,7 +13,7 @@
  * Sparse body metrics (weight, body fat, RHR, VO2, HRV) keep a SOURCE column on purpose:
  * weight often mixes multiple scales/apps, and body fat must be compared within
  * one source only (see profile/baseline.md). High-volume series (steps, energy) are summed
- * per day; energy from Apple Watch sources only. Daily TOTAL series skip the export's last date
+ * per day; energy uses ONE source per day by precedence (Watch > wrist wearable app > iPhone). Daily TOTAL series skip the export's last date
  * (a partial day, recorded as _meta.json exportLastDate). Sleep is best-effort (see _meta.json).
  */
 const fs = require('fs');
@@ -29,19 +29,18 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const attr = (s, name) => { const m = s.match(new RegExp(' ' + name + '="([^"]*)"')); return m ? m[1] : null; };
 // shared with sync-shortcut.js so export- and Shortcut-derived rows are formatted identically
-const { APPLE_WATCH_RE, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights } = require('./samples.js');
+const { pickEnergySource, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights } = require('./samples.js');
 
 // sparse readings: [{date, value, source}]
 const readings = { weight: [], bodyfat: [], rhr: [], vo2max: [], hrv: [], leanmass: [], wristTemp: [], hrRecovery: [], waist: [] };
 // output file per readings key (default `${key}.csv`)
 const READING_FILE = { hrRecovery: 'hr-recovery.csv' };
-// daily energy sums: Map<date, number>, Apple Watch sources only (`daily`) and every source
-// (`dailyAll`). Other apps write their OWN estimates into the same types (RENPHO writes an
-// estimated BMR as Basal Energy on every weigh-in day, which doubled basal), so the Watch is the one
-// source summed. A day with no Watch energy is MISSING (no row), never filled with a scale / phone
-// estimate. Only an export with no Watch energy at all (a phone-only user) falls back to every source.
-const daily = { active: new Map(), basal: new Map() };
-const dailyAll = { active: new Map(), basal: new Map() };
+// daily energy per source: Map<date, Map<source, kcal sum>>. Every device / app writes its OWN
+// estimate of the same burn (RENPHO writes an estimated BMR as Basal Energy on weigh-in days, which
+// doubled basal), so per day and type ONE source wins by precedence (samples.js pickEnergySource:
+// Apple Watch > a wrist-wearable app > iPhone; scales and training / nutrition apps never count) and
+// only its sum is written. A day with excluded sources only is MISSING (no row).
+const energyBySrc = { active: new Map(), basal: new Map() };
 // The export's last date is a PARTIAL day (export.xml is taken mid-day): <ExportDate value>, else the
 // newest record date. Daily TOTAL series drop it (the Shortcut sync fills it, see sync-shortcut.js).
 let exportDate = null;
@@ -65,10 +64,7 @@ const workouts = []; // {date, type, durationMin, energyKcal, hrAvg, hrMin, hrMa
 
 const Q = 'HKQuantityTypeIdentifier';
 const addSum = (map, d, v) => { if (d && v != null) map.set(d, (map.get(d) || 0) + v); };
-const addEnergy = (key, d, src, v) => {
-  addSum(dailyAll[key], d, v);
-  if (APPLE_WATCH_RE.test(src || '')) addSum(daily[key], d, v);
-};
+const addEnergy = (key, d, src, v) => addMaxSrc(energyBySrc[key], d, src || '', v);
 const addDiet = (d, key, v) => { if (!d || v == null) return; const o = diet.get(d) || { kcal: 0, p: 0, c: 0, g: 0 }; o[key] += v; diet.set(d, o); };
 const addMean = (map, d, v) => { if (!d || v == null) return; const o = map.get(d) || { s: 0, n: 0 }; o.s += v; o.n++; map.set(d, o); };
 // per-source daily accumulator (later collapsed to max-across-sources per day)
@@ -184,8 +180,6 @@ rl.on('close', () => {
   const exportLastDate = exportDate || maxRecordDate;
   // daily TOTAL series skip the partial last day (means, points, sleep and workouts keep it)
   const complete = ([d]) => d !== exportLastDate;
-  const watchEnergy = daily.active.size > 0 || daily.basal.size > 0;
-  const energy = watchEnergy ? daily : dailyAll;
   // sparse readings
   for (const [k, arr] of Object.entries(readings)) {
     sortByDate(arr);
@@ -203,8 +197,20 @@ rl.on('close', () => {
       for (const [s, v] of bySrc) if (!best || v > best.v) best = { s, v };
       return `${d},${Math.round(best.v)},${best.s || ''}`;
     }));
-  counts.active_energy = dumpDaily(energy.active, 'active-energy-daily.csv', 'kcal');
-  counts.basal_energy = dumpDaily(energy.basal, 'basal-energy-daily.csv', 'kcal');
+  // energy: ONE source per day by precedence; energySources counts the days each family won
+  const energySources = { active: {}, basal: {} };
+  const dumpEnergy = (key, file) => {
+    const won = new Map();
+    for (const [d, bySrc] of energyBySrc[key]) {
+      const pick = pickEnergySource(bySrc);
+      if (!pick) continue;
+      won.set(d, pick.kcal);
+      if (complete([d])) energySources[key][pick.family] = (energySources[key][pick.family] || 0) + 1;
+    }
+    return dumpDaily(won, file, 'kcal');
+  };
+  counts.active_energy = dumpEnergy('active', 'active-energy-daily.csv');
+  counts.basal_energy = dumpEnergy('basal', 'basal-energy-daily.csv');
   // dietary
   counts.dietary = csv('dietary-daily.csv', 'date,kcal,protein_g,carbs_g,fat_g',
     [...diet.entries()].filter(complete).sort((a, b) => a[0] < b[0] ? -1 : 1)
@@ -243,7 +249,7 @@ rl.on('close', () => {
     extractedFrom: 'export.xml',
     linesScanned: lineCount,
     exportLastDate,
-    energySources: watchEnergy ? 'Apple Watch' : 'all',
+    energySources,
     rows: counts,
     ranges: {
       weight: range(readings.weight.map(r => r.date)),
@@ -257,7 +263,7 @@ rl.on('close', () => {
     notes: [
       'Body metrics keep a source column — weight mixes scales/apps; compare body fat within one scale only.',
       'steps = max across devices per day (phone + watch + other trackers overlap → summing would double-count).',
-      'active/basal energy = per-day sums of APPLE WATCH sources only (energySources; other apps write their own estimates, e.g. a scale\'s BMR as basal on weigh-in days); a day with no Watch energy has no row (missing). An export with no Watch energy at all keeps every source (energySources "all"). dietary = per-day sums (intake exists only on days a food app logged it).',
+      'active/basal energy = per day and type, the sum of ONE source chosen by precedence: Apple Watch > a wrist-wearable app (Zepp, Mi Fit, Amazfit, Garmin Connect, Polar Flow, Fitbit, Huawei Health) > iPhone; never a sum across sources. Scales (their BMR estimate on weigh-in days) and training / nutrition apps are never used; a day with only those has no row. energySources = days won per source family and type. dietary = per-day sums (intake exists only on days a food app logged it).',
       'exportLastDate = the export\'s <ExportDate> (else the newest record date): a PARTIAL day, dropped from the daily TOTAL series (steps, active/basal energy, exercise, distance, flights, dietary); npm run sync fills it from the Shortcut. Means, points, sleep and workouts keep it.',
       'sleep is best-effort: asleep intervals only, main sleep per wake-up night (naps excluded: blocks outside the 20:00-12:00 window or far from the main block), max across sources per night; verify against the Watch trend.',
       'sleep bedtime/waketime = earliest start / latest end of the night\'s main sleep, decimal local hour.',
