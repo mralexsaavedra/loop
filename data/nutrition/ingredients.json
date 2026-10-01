@@ -80,6 +80,7 @@
       "per": 100,
       "unit": "g",
       "cat": "carb",
+      "maxAmt": 300,
       "verified": true,
       "name": {
         "es": "Gnocchi (pasta fresca)",
@@ -95,6 +96,7 @@
       "per": 100,
       "unit": "g",
       "cat": "carb",
+      "maxAmt": 300,
       "verified": true,
       "name": {
         "es": "Batata prefrita (congelada)",
@@ -110,6 +112,7 @@
       "per": 100,
       "unit": "g",
       "cat": "carb",
+      "maxAmt": 300,
       "verified": true,
       "name": {
         "es": "Patatas fritas horno/air-fryer (congeladas)",
@@ -295,6 +298,7 @@
       "per": 100,
       "unit": "g",
       "cat": "carb",
+      "maxAmt": 135,
       "verified": true,
       "name": {
         "es": "Panecillo (pan de horno)",
@@ -321,6 +325,7 @@
       "per": 100,
       "unit": "g",
       "cat": "carb",
+      "maxAmt": 125,
       "verified": true,
       "name": {
         "es": "Pan de molde semillas y pipas de calabaza",
@@ -362,6 +367,7 @@
       "per": 100,
       "unit": "g",
       "cat": "sweet",
+      "maxAmt": 30,
       "verified": true,
       "name": {
         "es": "Confitura de fresa 0% azúcares añadidos",
@@ -813,6 +819,7 @@
       "per": 100,
       "unit": "g",
       "cat": "carb",
+      "maxAmt": 150,
       "verified": false,
       "name": {
         "es": "Arroz",
@@ -828,6 +835,7 @@
       "per": 100,
       "unit": "g",
       "cat": "carb",
+      "maxAmt": 150,
       "verified": false,
       "name": {
         "es": "Pasta",
@@ -843,6 +851,7 @@
       "per": 100,
       "unit": "g",
       "cat": "carb",
+      "maxAmt": 400,
       "verified": false,
       "name": {
         "es": "Patata",
@@ -858,6 +867,7 @@
       "per": 100,
       "unit": "g",
       "cat": "carb",
+      "maxAmt": 400,
       "verified": false,
       "name": {
         "es": "Boniato",
@@ -872,6 +882,7 @@
       "per": 100,
       "unit": "g",
       "cat": "carb",
+      "maxAmt": 100,
       "verified": false,
       "name": {
         "es": "Copos de avena",
@@ -929,6 +940,7 @@
       "per": 100,
       "unit": "g",
       "cat": "sweet",
+      "maxAmt": 30,
       "verified": false,
       "name": {
         "es": "Miel",
@@ -943,6 +955,7 @@
       "per": 100,
       "unit": "g",
       "cat": "fruit",
+      "maxAmt": 240,
       "verified": false,
       "name": {
         "es": "Plátano",
@@ -969,6 +982,7 @@
       "per": 100,
       "unit": "g",
       "cat": "fruit",
+      "maxAmt": 270,
       "verified": false,
       "name": {
         "es": "Manzana",
@@ -995,6 +1009,7 @@
       "per": 100,
       "unit": "g",
       "cat": "fruit",
+      "maxAmt": 260,
       "verified": false,
       "name": {
         "es": "Naranja",
@@ -1036,6 +1051,7 @@
       "per": 100,
       "unit": "g",
       "cat": "fruit",
+      "maxAmt": 255,
       "verified": false,
       "name": {
         "es": "Pera",
@@ -1062,6 +1078,7 @@
       "per": 100,
       "unit": "g",
       "cat": "fruit",
+      "maxAmt": 300,
       "verified": false,
       "name": {
         "es": "Melocotón",
@@ -1088,6 +1105,7 @@
       "per": 100,
       "unit": "g",
       "cat": "fruit",
+      "maxAmt": 280,
       "verified": false,
       "name": {
         "es": "Nectarina",
@@ -1114,6 +1132,7 @@
       "per": 100,
       "unit": "g",
       "cat": "fruit",
+      "maxAmt": 200,
       "verified": false,
       "name": {
         "es": "Paraguayo",
@@ -1140,6 +1159,7 @@
       "per": 100,
       "unit": "g",
       "cat": "fruit",
+      "maxAmt": 250,
       "verified": false,
       "name": {
         "es": "Piña",
@@ -1154,6 +1174,7 @@
       "per": 100,
       "unit": "g",
       "cat": "fruit",
+      "maxAmt": 400,
       "verified": false,
       "name": {
         "es": "Sandía",
@@ -1168,6 +1189,7 @@
       "per": 100,
       "unit": "g",
       "cat": "fruit",
+      "maxAmt": 350,
       "verified": false,
       "name": {
         "es": "Melón",
@@ -1182,6 +1204,7 @@
       "per": 100,
       "unit": "g",
       "cat": "fruit",
+      "maxAmt": 200,
       "verified": false,
       "name": {
         "es": "Uvas",
@@ -1196,6 +1219,7 @@
       "per": 100,
       "unit": "g",
       "cat": "fruit",
+      "maxAmt": 150,
       "verified": false,
       "name": {
         "es": "Kiwi",
@@ -1222,6 +1246,7 @@
       "per": 100,
       "unit": "g",
       "cat": "fruit",
+      "maxAmt": 250,
       "verified": false,
       "name": {
         "es": "Fresas",
@@ -1236,6 +1261,7 @@
       "per": 100,
       "unit": "g",
       "cat": "fruit",
+      "maxAmt": 150,
       "verified": false,
       "name": {
         "es": "Arándanos",
@@ -1250,6 +1276,7 @@
       "per": 100,
       "unit": "g",
       "cat": "fruit",
+      "maxAmt": 130,
       "verified": false,
       "name": {
         "es": "Ciruela",

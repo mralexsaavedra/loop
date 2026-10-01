@@ -159,19 +159,27 @@
     if (st > 0) return Math.max(st, Math.round(amt / st) * st);
     return Math.max(N.scale.step, Math.round(amt / N.scale.step) * N.scale.step);
   }
-  // the model line [unit, amt, k, p, c, g, step?, key?]: mirrors lib/nutrition/amounts.mjs LINE and its
-  // accessors (a test pins LINE equal); never read by a bare index
-  var LINE = { UNIT: 0, AMT: 1, K: 2, P: 3, C: 4, G: 5, STEP: 6, KEY: 7 };
+  // the model line [unit, amt, k, p, c, g, step?, key?, cap?]: mirrors lib/nutrition/amounts.mjs LINE and
+  // its accessors (a test pins LINE equal); never read by a bare index
+  var LINE = { UNIT: 0, AMT: 1, K: 2, P: 3, C: 4, G: 5, STEP: 6, KEY: 7, CAP: 8 };
   function lineUnit(l) { return l[LINE.UNIT]; }
   function lineAmt(l) { return l[LINE.AMT]; }
   function lineStep(l) { return l[LINE.STEP]; }
   function lineKey(l) { return l[LINE.KEY]; }
+  function lineCap(l) { return l[LINE.CAP] > 0 ? l[LINE.CAP] : null; }
+  function capFactor(l) { return lineCap(l) ? lineCap(l) / lineAmt(l) : Infinity; }
+  function capAmount(amt, l) {
+    var cap = lineCap(l);
+    if (!cap || amt <= cap) return amt;
+    var st = lineUnit(l) === 'ud' ? N.scale.ud : lineStep(l) > 0 ? lineStep(l) : N.scale.step;
+    return Math.max(st, Math.floor(cap / st + 1e-9) * st);
+  }
   function pieceOf(pieces, l) { return lineKey(l) && pieces ? pieces[lineKey(l)] || null : null; }
   function scaleLine(l, amt) {
     var r = amt / lineAmt(l);
     return [lineUnit(l), amt, l[LINE.K] * r, l[LINE.P] * r, l[LINE.C] * r, l[LINE.G] * r].concat(l.slice(LINE.STEP));
   }
-  function isDiscrete(l) { return lineUnit(l) === 'ud' || l.length > LINE.STEP; }
+  function isDiscrete(l) { return lineUnit(l) === 'ud' || lineStep(l) > 0; }
   function fmtFactor(f, dec) { return f.toFixed(2).replace('.', dec); }
   function fmtHalf(h) {
     var whole = Math.floor(h), half = h - whole >= 0.5;
@@ -197,45 +205,85 @@
     if (f > N.scale.max) return [N.scale.max, 'max'];
     return [f, null];
   }
+  // water-filling (port of lib/nutrition/scale.mjs waterFill): one common factor, an item past its cap
+  // held there and the factor re-solved over the rest until stable
+  function waterFill(items, need) {
+    var held = items.map(function () { return false; });
+    var heldK = 0, f = 1, clamp = null;
+    for (;;) {
+      var freeK = 0;
+      items.forEach(function (it, i) { if (!held[i]) freeK += it.k; });
+      if (!(freeK > 0)) break;
+      var lc = limit((need - heldK) / freeK);
+      f = lc[0];
+      clamp = lc[1];
+      var more = false;
+      items.forEach(function (it, i) {
+        if (!held[i] && it.cap < f) { held[i] = true; heldK += it.k * it.cap; more = true; }
+      });
+      if (!more) break;
+    }
+    if (items.length && held.every(Boolean)) {
+      f = Math.max.apply(null, items.map(function (it) { return it.cap; }));
+      clamp = null;
+    }
+    return { f: round2(f), clamp: clamp, held: held };
+  }
   function solveScale(model, target, fmt) {
     var units = fmt.units, dec = fmt.dec, pieces = fmt.pieces || null;
     var fixedK = 0, udK = 0, contK = 0;
+    var all = [];
     model.fixed.forEach(function (f) { fixedK += f[0]; });
     model.flex.forEach(function (x) {
-      if (x.mb) contK += x.mb[0];
-      else x.ln.forEach(function (l) { if (isDiscrete(l)) udK += l[LINE.K]; else contK += l[LINE.K]; });
+      if (x.mb) { contK += x.mb[0]; all.push({ k: x.mb[0], cap: Infinity, ud: false }); return; }
+      x.ln.forEach(function (l) {
+        var ud = isDiscrete(l);
+        if (ud) udK += l[LINE.K]; else contK += l[LINE.K];
+        all.push({ k: l[LINE.K], cap: capFactor(l), ud: ud });
+      });
     });
-    var lc = udK + contK > 0 ? limit((target - fixedK) / (udK + contK)) : [1, null];
-    var f0 = round2(lc[0]), clamp = lc[1];
-    var amountAt = function (l, s) { return s === 1 ? lineAmt(l) : stepAmount(lineAmt(l) * s, lineUnit(l), lineStep(l)); };
+    var w0 = waterFill(all, target - fixedK);
+    var f0 = w0.f, clamp = w0.clamp, held = w0.held;
+    var amountAt = function (l, s) { return s === 1 ? lineAmt(l) : capAmount(stepAmount(lineAmt(l) * s, lineUnit(l), lineStep(l)), l); };
     var factor = f0;
     if (udK > 0 && contK > 0) {
       var udNowK = 0;
       model.flex.forEach(function (x) {
-        if (x.ln) x.ln.forEach(function (l) { if (isDiscrete(l)) udNowK += l[LINE.K] * (amountAt(l, f0) / lineAmt(l)); });
+        if (x.ln) x.ln.forEach(function (l) { if (isDiscrete(l)) udNowK += l[LINE.K] * (amountAt(l, Math.min(f0, capFactor(l))) / lineAmt(l)); });
       });
-      lc = limit((target - fixedK - udNowK) / contK);
-      factor = round2(lc[0]);
-      clamp = lc[1];
+      var w1 = waterFill(all.filter(function (it) { return !it.ud; }), target - fixedK - udNowK);
+      factor = w1.f;
+      clamp = w1.clamp;
+      var ci = 0;
+      held = all.map(function (it, i) { return it.ud ? w0.held[i] : w1.held[ci++]; });
     }
     var meals = model.fixed.map(function (f) { return f.slice(); });
-    var q = [], qa = [], dir = [], qm = [];
+    var q = [], qa = [], qn = [], dir = [], qm = [];
+    var capped = false, allCapped = all.length > 0, ii = 0;
     model.flex.forEach(function (x) {
       var m = meals[x.m], i;
       if (x.mb) {
+        ii++;
+        allCapped = false; // a manual block has no cap: it could still grow
         var bm = x.mb.map(function (v) { return v * factor; });
         for (i = 0; i < 4; i++) m[i] += bm[i];
         var t = factor === 1 ? x.q : (x.q + ' ×' + fmtFactor(factor, dec)).trim();
         q.push(t);
         qa.push([t]);
+        qn.push([null]);
         dir.push(Math.sign(factor - 1));
         qm.push(bm);
         return;
       }
       var baseK = 0, nowK = 0;
-      var pm = [0, 0, 0, 0];
+      var pm = [0, 0, 0, 0], nums = [];
       var amts = x.ln.map(function (l) {
-        var amt = amountAt(l, isDiscrete(l) ? f0 : factor);
+        var cf = capFactor(l);
+        var f = isDiscrete(l) ? f0 : factor;
+        if (held[ii++] || f >= cf) capped = true;
+        else allCapped = false;
+        var amt = amountAt(l, Math.min(f, cf));
+        nums.push(amt);
         var r = amt / lineAmt(l);
         for (var j = 0; j < 4; j++) { m[j] += l[LINE.K + j] * r; pm[j] += l[LINE.K + j] * r; }
         baseK += l[LINE.K];
@@ -244,12 +292,13 @@
       });
       q.push(amts.join(' + '));
       qa.push(amts);
+      qn.push(nums);
       dir.push(Math.abs(nowK - baseK) < 0.5 ? 0 : Math.sign(nowK - baseK));
       qm.push(pm);
     });
     var totals = { k: 0, p: 0, c: 0, g: 0 };
     meals.forEach(function (m) { totals.k += m[0]; totals.p += m[1]; totals.c += m[2]; totals.g += m[3]; });
-    return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, meals: meals, q: q, qa: qa, dir: dir, qm: qm, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
+    return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, capped: capped, allCapped: allCapped, meals: meals, q: q, qa: qa, qn: qn, dir: dir, qm: qm, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
   }
   function findOpt(list, key) {
     if (!list || !list.length) return null;
@@ -370,12 +419,15 @@
       meals: s.meals.map(function (m) { return m.map(Math.round); }),
       flex: s.q,
       flexAmts: s.qa,
+      flexN: s.qn,
       flexDir: s.dir,
       flexMac: s.qm,
       tot: tot,
       factor: s.factor,
       clamp: s.clamp,
       udOnly: s.udOnly,
+      capped: s.capped,
+      allCapped: s.allCapped,
       rem: x.t.kcal - fuelK - tot.k,
       view: mdl.meals,
       picks: mdl.picks,
@@ -508,7 +560,9 @@
     var rem = x.rem, bike = x.fuelK > 0;
     if (Math.abs(rem) <= N.tolerance) return '';
     var k = kf(Math.abs(rem)), g = Math.round(Math.abs(rem) / 4 / 5) * 5;
-    var tpl = rem > 0 ? (bike ? T.remShortBike : T.remShort) : (bike ? T.remOverBike : T.remOver);
+    // every carb portion at its cap (or the factor at its maximum): a snack, never a bigger plate
+    var full = x.allCapped || x.clamp === 'max';
+    var tpl = rem > 0 ? (bike ? T.remShortBike : full ? T.remSnack : T.remShort) : (bike ? T.remOverBike : T.remOver);
     return '<p class="nt-rem ' + (rem > 0 ? 'nt-short' : 'nt-over') + '">' + esc(format(tpl, { k: k, g: g })) + '</p>';
   }
   function macroOffHtml(x) {
@@ -651,8 +705,10 @@
           return suppLine(s.name + (s.dose ? ' ' + s.dose : '') + ' (' + (T.plan.meals[s.meal] || s.meal) + ')');
         }).join('') + '</div>';
     }
-    var ftpl = x.clamp === 'max' ? T.plan.factorMax : x.clamp === 'min' ? T.plan.factorMin : T.plan.factor;
-    if (x.factor !== 1 || x.clamp) html += '<p class="nutri-factor">' + esc(format(ftpl, { factor: fmtFactor(x.factor, N.fmt.dec) })) + '</p>';
+    // honest with mixed factors: the common factor of the portions still free, and whether some (or
+    // every) portion stopped at its maximum (lib/nutrition/scale.mjs portion caps)
+    var ftpl = x.allCapped ? T.plan.factorAllCapped : x.capped ? T.plan.factorCapped : x.clamp === 'max' ? T.plan.factorMax : x.clamp === 'min' ? T.plan.factorMin : T.plan.factor;
+    if (x.factor !== 1 || x.clamp || x.capped) html += '<p class="nutri-factor">' + esc(format(ftpl, { factor: fmtFactor(x.factor, N.fmt.dec) })) + '</p>';
     if (x.udOnly && Math.abs(x.rem) > N.tolerance) html += '<p class="nutri-factor">' + esc(T.plan.unitsOnly) + '</p>';
     if (x.picks && Object.keys(x.picks).length) {
       html += '<p class="nutri-factor nutri-picks">' + esc(T.plan.picksNote) + ' <button type="button" class="lnk nutri-picks-reset" id="nutri-picks-reset">' + esc(T.plan.picksReset) + '</button></p>';
