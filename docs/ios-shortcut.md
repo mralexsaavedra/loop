@@ -143,7 +143,7 @@ Duplicate your `active_energy` search and change only the grouping:
 3. Add a JSON field `active_energy_hourly` with that text to the POST body.
 
 3 days × 24 hours is at most ~72 lines, so it adds little to the payload. After adding it run
-`npm run sync -- --full` once (see Verify).
+`npm run sync:shortcut -- --full` once (see Verify).
 
 ## Gotchas
 
