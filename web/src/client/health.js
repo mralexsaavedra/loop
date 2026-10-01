@@ -232,7 +232,10 @@
       /* energy */
       if (E.hasData) {
         out.push(sub('energy'));
-        if (E.tdeeLatest != null) add(function () { return trend(T.trend.expenditure.title, nf(E.tdeeLatest) + '<small>' + T.trend.expenditure.unit + '</small>', ctx(T.avg30Tpl, E.tdeeAvg, T.trend.expenditure.avgUnit, ''), E.spark, { date: E.tdeeLatestDate, soFar: true, detail: 'energy' }); });
+        // a power-meter ride day (lib/health/ride-energy.mjs): the headline says its active energy was corrected
+        var rideCtx = E.latestCorrected && T.energyRide ? esc(T.energyRide.latest) : '';
+        if (E.tdeeLatest != null) add(function () { return trend(T.trend.expenditure.title, nf(E.tdeeLatest) + '<small>' + T.trend.expenditure.unit + '</small>', [ctx(T.avg30Tpl, E.tdeeAvg, T.trend.expenditure.avgUnit, ''), rideCtx].filter(Boolean).join(' · '), E.spark, { date: E.tdeeLatestDate, soFar: true, detail: 'energy' }); });
+        if (E.correctedDays > 0 && T.energyRide) out.push(note(format(T.energyRide.days, { n: E.correctedDays })));
         if (E.balance) {
           var b = E.balance;
           out.push(
