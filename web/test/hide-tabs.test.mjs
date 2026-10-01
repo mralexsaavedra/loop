@@ -1,7 +1,8 @@
 /* Integration check for plan-data.json's `page.hideTabs[]` (astro-plan-web
  * slice 5; four-tab layout) — see lib/nav/tabs.mjs for the unit-tested pure logic.
  * Top-level keys (home/entreno/health/nutricion) remove a nav button; the legacy keys
- * (hoy/dia/registro/tablas/dash) now hide the matching SECTION inside a tab. This test
+ * (hoy/dia/tablas/dash) now hide the matching SECTION inside a tab; `registro` (the removed day
+ * builder) is a deprecated no-op that must keep building. This test
  * is DATA-DRIVEN: it reads whichever `hideTabs` array the personal plan
  * actually declares (instead of hardcoding the owner's current `["hoy"]`),
  * so it keeps passing whenever the owner's plan changes which tab(s) it
@@ -144,8 +145,8 @@ function buildWithHideTabs(hideTabs) {
 
 test('build-level: legacy keys hide their sections; top-level keys hide their tab', () => {
   for (const hideTabs of [
-    ['hoy'], ['dash'], ['entreno'], ['entreno', 'dash'], ['dia', 'dash'], ['registro', 'tablas', 'home'],
-    ['dia', 'registro', 'tablas'], ['health'], ['dia', 'registro', 'entreno'], ['load', 'calendar', 'sessions', 'dash'],
+    ['hoy'], ['dash'], ['entreno'], ['entreno', 'dash'], ['dia', 'dash'], ['tablas', 'home'],
+    ['dia', 'tablas'], ['health'], ['dia', 'entreno'], ['load', 'calendar', 'sessions', 'dash'],
   ]) {
     const { r, html } = buildWithHideTabs(hideTabs);
     assert.equal(r.status, 0, `build with hideTabs=${JSON.stringify(hideTabs)} failed:\n${r.stderr}`);
@@ -154,21 +155,30 @@ test('build-level: legacy keys hide their sections; top-level keys hide their ta
 });
 
 test('build-level: hiding EVERY top-level tab fails the Astro build with a clear message (no orphan visible panel)', () => {
-  for (const hideTabs of [Object.keys(NAV_ID), ['home', 'entreno', 'health', 'dia', 'registro', 'tablas']]) {
+  for (const hideTabs of [Object.keys(NAV_ID), ['home', 'entreno', 'health', 'dia', 'tablas'], ['home', 'entreno', 'health', 'dia', 'registro', 'tablas']]) {
     const { r } = buildWithHideTabs(hideTabs);
     assert.notEqual(r.status, 0, `the build must fail for hideTabs=${JSON.stringify(hideTabs)}`);
     assert.match(r.stdout + r.stderr, /every tab is hidden/i);
   }
 });
 
-test('build-level: with NO logged intake at all (no extract), the intake rings and Registro collapse to one line in the Registro fold summary; with Registro hidden Mi día shows nothing', () => {
+test('build-level: with NO logged intake at all (no extract), Resumen de hoy renders no rings host and no help line (the old Registro fold hint is gone with the day builder)', () => {
   const { r, html } = buildWithHideTabs([]);
   assert.equal(r.status, 0, r.stderr);
-  const dia = html.slice(html.indexOf('data-section="dia"'), html.indexOf('data-section="registro"'));
-  assert.doesNotMatch(dia, /<div id="intake">/, 'no rings host in Mi día');
-  const summary = html.match(/data-section="registro"[^>]*>\s*<summary>([\s\S]*?)<\/summary>/)[1];
-  assert.match(summary, /<span class="sec-hint">No food logged/, 'one-line hint in the Registro fold summary');
-  const hidden = buildWithHideTabs(['registro']);
-  assert.equal(hidden.r.status, 0, hidden.r.stderr);
-  assert.doesNotMatch(hidden.html, /<div id="intake">/, 'Registro hidden: still no rings host, no help text');
+  assert.doesNotMatch(html, /<div id="intake">/, 'no rings host in Resumen de hoy');
+  assert.doesNotMatch(html, /class="sec-hint"|No food logged/, 'no "no intake" hint anywhere');
+});
+
+test('build-level: "registro" in hideTabs (the removed day builder) still builds and changes nothing; Nutrición goes only with dia + tablas', () => {
+  const { r, html } = buildWithHideTabs(['registro']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(html, /data-section="registro"|id="sec-registro"|id="bld-|bldRefresh/, 'no day builder left in the build');
+  assertHonours(html, []);
+  const both = buildWithHideTabs(['dia', 'registro']);
+  assert.equal(both.r.status, 0, both.r.stderr);
+  assertHonours(both.html, ['dia']);
+  assert.match(both.html, /id="t-nutricion"/, 'Tablas still visible: Nutrición stays');
+  const all = buildWithHideTabs(['dia', 'registro', 'tablas']);
+  assert.equal(all.r.status, 0, all.r.stderr);
+  assert.doesNotMatch(all.html, /id="t-nutricion"/, 'every remaining section hidden: Nutrición goes');
 });

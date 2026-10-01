@@ -1,6 +1,6 @@
 /* Nutrición food log (part 2) — Registrar (today's log by meal slot, inside the `dia` section), the
- * add sheet (a view of the detail sheet modal), Mis productos and Mis recetas (folds next to the day
- * builder). Classic script (is:inline), inlined after nutri-day.js and before intake.js. Reads
+ * add sheet (a view of the detail sheet modal), Mis productos and Mis recetas (folds before Tablas).
+ * Classic script (is:inline), inlined after nutri-day.js and before intake.js. Reads
  * I18N_FOOD + FOOD_CONST (meal slots / stores / units from lib/nutrition/foodlog.mjs), baked by
  * web/src/tabs/Dia.astro, and window.HC (util.js).
  *
@@ -18,7 +18,7 @@
  * Wiring: window.foodTotals() = today's logged totals ({date, k, p, c, g, n, missing, src: 'log'}) when
  * the server answered and today has >= 1 entry, else null. Resumen de hoy's dial + macro bars
  * (nutri-day.js) and the intake rings (intake.js) prefer it over the Apple Health intake; after every
- * add / delete this script calls HCNutri.refresh() (which also refreshes the rings and the builder),
+ * add / delete this script calls HCNutri.refresh() (which also refreshes the rings),
  * each hook in its own try/catch. Errors are one line from the server's coarse codes. */
 (function () {
   var T = typeof I18N_FOOD === 'undefined' || !I18N_FOOD ? null : I18N_FOOD;

@@ -44,7 +44,7 @@ function sliceTabPanel(html, key) {
   return html.slice(divStart, end);
 }
 
-/** Slices one section (a former tab: dia/registro/tablas/hoy/dash) out of its tab panel — from its
+/** Slices one section (a former tab: dia/tablas/hoy/dash) out of its tab panel — from its
  * `class="tab-section" data-section="..."` opening tag to the next section or tab panel. */
 function sliceSection(html, key) {
   const m = new RegExp(`<(section|details) class="tab-section[^"]*" data-section="${key}"`).exec(html);
@@ -105,19 +105,17 @@ test('example build renders a lib-computed breakfast component row in the Tablas
   assert.ok(tablasHtml.includes(`<td>${row.p}</td>`), `expected breakfast component protein "${row.p}" in the Tablas tab`);
 });
 
-test('example build renders lib-provided extras item names in the Registro tab', () => {
-  assert.ok(fs.existsSync(examplePath), `missing ${examplePath} — run \`npm run pretest\` first`);
+test('example build: the day builder (Constructor de día, section registro) is gone: no section, no form, no script, no builder-only bakes', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
-  const { plan } = loadExampleNut();
-  const registroHtml = sliceSection(html, 'registro');
-
-  assert.ok(plan.extrasDisplay?.length > 0, 'example plan must declare at least one extrasDisplay group to make this test meaningful');
-  for (const group of plan.extrasDisplay) {
-    for (const item of group.items) {
-      assert.ok(registroHtml.includes(item.name), `expected extras item name "${item.name}" (key "${item.key}") in the Registro tab`);
-      assert.ok(registroHtml.includes(`id="x-${item.key}"`), `expected the stepper counter #x-${item.key} in the Registro tab`);
-    }
+  assert.doesNotMatch(html, /data-section="registro"|id="sec-registro"/);
+  assert.doesNotMatch(html, /id="bld-|id="r-verdict"|id="x-|bldRefresh|bldRecalc|window\.bump/);
+  for (const g of ['TARGET', 'EXTRA_KEYS', 'EXTRA_NAMES', 'INDULGE', 'ALCOHOL_KEYS', 'MEAL_REPLACE_KEYS', 'I18N_VERDICT', 'I18N_LOG', 'PE_LABEL', 'COPY_MSG', 'COPY_FALLBACK_MSG']) {
+    assert.doesNotMatch(html, new RegExp(`var ${g} = `), `${g} was baked only for the day builder`);
   }
+  assert.doesNotMatch(html, /Day builder|Constructor de día/);
+  // the Tablas equivalence tables are still painted from the shared bakes
+  for (const g of ['DATA', 'EXTRAS', 'VEG_KEYS', 'QUESO_KEYS', 'FRUIT_SUMMARY', 'I18N_TABLAS']) assert.match(html, new RegExp(`var ${g} = `), g);
+  assert.match(html, /paint\('tb-prot-lean'/, 'client/tablas.js is inlined');
 });
 
 test('example build: t-home is the first nav button and pressed; the Home panel is visible, Nutrición hidden', () => {
@@ -145,11 +143,11 @@ test('example build (synthetic demo extract): SCORES, dials and every Salud sect
 test('example build: every former tab lives as a section in its new tab, in order', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   assertSectionInPanel(html, 'hoy', 'home');
-  for (const key of ['dia', 'registro', 'tablas']) assertSectionInPanel(html, key, 'nutricion');
+  for (const key of ['dia', 'tablas']) assertSectionInPanel(html, key, 'nutricion');
   assertSectionInPanel(html, 'dash', 'entreno');
   const nutricion = sliceTabPanel(html, 'nutricion');
-  const order = ['dia', 'registro', 'tablas'].map((k) => nutricion.indexOf(`data-section="${k}"`));
-  assert.deepEqual([...order].sort((a, b) => a - b), order, 'Nutrición order: Mi día, Registro, Tablas');
+  const order = ['dia', 'tablas'].map((k) => nutricion.indexOf(`data-section="${k}"`));
+  assert.deepEqual([...order].sort((a, b) => a - b), order, 'Nutrición order: Mi día, Tablas');
   assert.match(sliceSection(html, 'hoy'), /<div id="train-today"><\/div>/);
   assert.match(sliceSection(html, 'dash'), /<div id="train-dash"><\/div>/);
   assert.match(sliceTabPanel(html, 'health'), /<div id="health"><\/div>/);
@@ -177,15 +175,14 @@ test('example build: Inicio reads today top to bottom — dials, monitor, timeli
   assert.match(html, /getElementById\('timeline'\)/, 'timeline.js is inlined');
 });
 
-test('example build (demo intake logged): Mi día keeps the intake rings host and Registro carries no "no food logged" hint', () => {
+test('example build (demo intake logged): Mi día keeps the intake rings host', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   assert.match(sliceSection(html, 'dia'), /<div id="intake"><\/div>/);
-  assert.doesNotMatch(sliceSection(html, 'registro'), /class="sec-hint"/);
 });
 
-test('example build: Registro and Tablas are collapsible <details> folds with a summary', () => {
+test('example build: Tablas is a collapsible <details> fold with a summary', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
-  for (const key of ['registro', 'tablas']) {
+  for (const key of ['tablas']) {
     const sec = sliceSection(html, key);
     assert.match(sec, /^<details class="tab-section/, `${key} must be a <details> fold`);
     assert.match(sec, /<summary/);

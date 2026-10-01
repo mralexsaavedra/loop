@@ -26,10 +26,9 @@ test('the food hosts ship hidden: Registrar in the dia section, Mis productos / 
   const log = html.indexOf('id="food-log-block"');
   const fuel = html.indexOf('id="nutri-fuel-block"');
   assert.ok(dia < plan && plan < log && log < fuel, 'Registrar sits right after Plan de hoy');
-  const reg = html.indexOf('id="sec-registro"');
   const products = html.indexOf('id="food-products"');
   const tablas = html.indexOf('id="sec-tablas"');
-  assert.ok(reg < products && products < tablas, 'the folds sit next to the day builder');
+  assert.ok(fuel < products && products < tablas, 'the folds sit between the dia section and Tablas');
   assert.match(html, /role="status" aria-live="polite"/);
   // the section's own status line (saved / archived) sits ABOVE its body, never below the list
   // (form errors and "save anyway" go to the form's own line, next to its save button)

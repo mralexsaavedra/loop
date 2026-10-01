@@ -45,7 +45,7 @@ const ARC = 'M24.64 95.36A50 50 0 1 1 95.36 95.36';
 function run({ nutri = bake(), items = [], programmed = null, locale = 'en', storage = memStorage(), today = TODAY, hooks = true, extra = {}, intake } = {}) {
   const doc = new StubDocument();
   const els = {};
-  for (const id of ['nutri-daytype', 'nutri-daytype-src', 'nutri-why', 'nutri-target', 'nutri-plan', 'nutri-fuel-block', 'nutri-ride-wrap', 'nutri-fuel-body', 'eat-body', 'intake', 'r-verdict']) els[id] = doc.el(id);
+  for (const id of ['nutri-daytype', 'nutri-daytype-src', 'nutri-why', 'nutri-target', 'nutri-plan', 'nutri-fuel-block', 'nutri-ride-wrap', 'nutri-fuel-body', 'eat-body', 'intake']) els[id] = doc.el(id);
   els['nutri-auto'] = doc.el('nutri-auto', { tag: 'button', hidden: true });
   els['nutri-note'] = doc.el('nutri-note', { hidden: true });
   els['nutri-fuel-block'].hidden = true;
@@ -57,9 +57,8 @@ function run({ nutri = bake(), items = [], programmed = null, locale = 'en', sto
   }
   const calls = [];
   const window = { localStorage: storage };
-  // the day builder and the intake rings: both read window.nutriTarget() when refreshed
+  // the intake rings read window.nutriTarget() when refreshed
   if (hooks === true) {
-    window.bldRefresh = () => calls.push(['bld', window.nutriTarget().k]);
     window.intakeRefresh = () => calls.push(['intake', window.nutriTarget().k]);
   } else if (hooks) Object.assign(window, hooks);
   const ctx = {
@@ -134,7 +133,7 @@ test('no workout, nothing programmed: rest (auto), the default goal, rest target
   assert.match(els['nutri-plan'].innerHTML, /class="mp mp-flex"><span class="mp-l">Bread<span class="mp-dir" role="img" aria-label="portion scaled (up|down) to the target">[↑↓]<\/span><\/span><span class="mp-q">\d+ g<\/span><\/li>/);
   assert.doesNotMatch(els['nutri-plan'].innerHTML, /mp-tag|scaled<\/span>/, 'no loud "scaled" label');
   assert.equal(els['nutri-fuel-block'].hidden, true);
-  assert.deepEqual(calls, [['bld', 2500], ['intake', 2500]], 'the day builder and the rings are refreshed with today\'s target');
+  assert.deepEqual(calls, [['intake', 2500]], 'the rings are refreshed with today\'s target');
 });
 
 test('a long ride recorded today: bikeLong (auto) with its real minutes, the ride fuel block, the plan counts the fuel', () => {
@@ -151,7 +150,7 @@ test('a long ride recorded today: bikeLong (auto) with its real minutes, the rid
   assert.match(els['nutri-target'].innerHTML, /Meals [\d,]+ kcal \+ ride fuel [\d,]+ kcal = [\d,]+ kcal/);
   assert.equal(api.state().rideMin, 185);
   const x = planFor(bake(), 'maintain', 'bikeLong', 185);
-  assert.deepEqual(calls, [['bld', x.mt.k], ['intake', x.mt.k]], 'rings and builder get the meals target');
+  assert.deepEqual(calls, [['intake', x.mt.k]], 'the rings get the meals target');
 });
 
 test('a programmed bike session: bike (auto), picker defaults to 2 h; picking 3 h re-scales the meals, fuel, rings', () => {
@@ -171,7 +170,7 @@ test('a programmed bike session: bike (auto), picker defaults to 2 h; picking 3 
   assert.match(els['nutri-target'].innerHTML, new RegExp('Meals ' + three.tot.k.toLocaleString('en') + ' kcal'));
   assert.ok(three.tot.k < two.tot.k, 'a longer ride leaves less for the meals');
   assert.notEqual(els['nutri-plan'].innerHTML, planBefore, 'Plan de hoy re-rendered with the new amounts');
-  assert.deepEqual(calls, [['bld', three.mt.k], ['intake', three.mt.k]]);
+  assert.deepEqual(calls, [['intake', three.mt.k]]);
   assert.deepEqual(JSON.parse(storage.data['hc.nutri.rideMin']), { date: TODAY, type: 'bike', min: 180 });
 });
 
@@ -198,7 +197,7 @@ test('manual override: stored with its date, "(chosen)", back-to-auto button; pi
   assert.match(s.els['nutri-auto'].textContent, /Use the detected one: Rest/);
   assert.deepEqual(JSON.parse(s.storage.data['hc.nutri.dayType']), { date: TODAY, type: 'gym', auto: 'rest' });
   assert.match(s.els['nutri-target'].innerHTML, /<b class="nt-kcal">3,050<\/b>/);
-  assert.deepEqual(s.calls.map((c) => c[1]), [2500, 2500, 3050, 3050], 'builder + rings follow every day type change');
+  assert.deepEqual(s.calls.map((c) => c[1]), [2500, 3050], 'the rings follow every day type change');
   s.els['nutri-auto']._listeners.click[0]();
   assert.equal(s.api.state().dayType, 'rest');
   assert.equal(s.storage.data['hc.nutri.dayType'], undefined);
@@ -320,7 +319,7 @@ test('Inicio card: day type + goal and today\'s target kcal / macros', () => {
   assert.match(h, /<b>150 g<\/b><span>Protein/);
 });
 
-test('window.nutriTarget: today\'s target (goal x day type) for the day builder and the rings; on bike days the MEALS target', () => {
+test('window.nutriTarget: today\'s target (goal x day type) for the rings; on bike days the MEALS target', () => {
   const { window } = run();
   const t = window.nutriTarget();
   assert.deepEqual([t.k, t.p, t.c, t.g, t.fatMax, t.fuelK, t.day, t.dayType], [2500, 150, 340, 60, 75, 0, 'rest', 'rest']);
@@ -332,11 +331,12 @@ test('window.nutriTarget: today\'s target (goal x day type) for the day builder 
   assert.match(bike.label, /Today's meals · Ride ~2 h · Maintain/);
 });
 
-test('a failing day builder never leaves the rings stale; a failing ring refresh says so', () => {
+test('the removed day builder\'s hook is never called (a stale window.bldRefresh is ignored); a failing ring refresh says so', () => {
   const calls = [];
-  const s = run({ hooks: { bldRefresh: () => { throw new Error('x'); }, intakeRefresh: () => calls.push('intake') } });
+  const s = run({ hooks: { bldRefresh: () => calls.push('bld'), intakeRefresh: () => calls.push('intake') } });
   s.api.setGoal('cut');
   assert.deepEqual(calls, ['intake', 'intake']);
+  assert.doesNotMatch(source, /bldRefresh|r-verdict/);
   const t = run({ hooks: { intakeRefresh: () => { throw new Error('x'); } } });
   assert.match(t.els.intake.innerHTML, /could not be shown/);
 });
@@ -357,18 +357,18 @@ test('per-block isolation: a broken plan shows a one-line message there, the sum
   assert.match(els['nutri-target'].innerHTML, /2,500/);
 });
 
-test('no day builder / rings scripts and no NUTRI: nothing throws', () => {
+test('no rings script and no NUTRI: nothing throws', () => {
   assert.doesNotThrow(() => run({ hooks: false }));
   assert.doesNotThrow(() => run({ nutri: null }));
 });
 
-test('setGoal refreshes everything that reads the target at once: summary, chip, plan, Inicio card, builder and rings (nutriTarget)', () => {
+test('setGoal refreshes everything that reads the target at once: summary, chip, plan, Inicio card and rings (nutriTarget)', () => {
   const s = run();
   const plan0 = s.els['nutri-plan'].innerHTML;
   s.calls.length = 0;
   s.api.setGoal('cut');
   assert.equal(s.window.nutriTarget().k, 2150);
-  assert.deepEqual(s.calls, [['bld', 2150], ['intake', 2150]]);
+  assert.deepEqual(s.calls, [['intake', 2150]]);
   assert.match(s.els['nutri-target'].innerHTML, /<b class="nt-kcal">2,150<\/b>/);
   assert.match(s.els['nutri-target'].innerHTML, /id="nutri-goal-chip"[^>]*>Lose<\/button>/);
   assert.notEqual(s.els['nutri-plan'].innerHTML, plan0);
@@ -450,13 +450,13 @@ test('food log macros: none stated -> a dash, never "0 / 150 g"; some entries la
 test('HCNutri.refresh re-renders Resumen de hoy (the food log calls it after every add / delete)', () => {
   let food = null;
   const calls = [];
-  const s = run({ hooks: { foodTotals: () => food, bldRefresh: () => calls.push('bld'), intakeRefresh: () => calls.push('intake') } });
+  const s = run({ hooks: { foodTotals: () => food, intakeRefresh: () => calls.push('intake') } });
   assert.doesNotMatch(s.els['nutri-target'].innerHTML, /nt-dial-fill/);
   food = { date: TODAY, k: 500, p: 10, c: 10, g: 10, n: 1, missing: { protein: false, carbs: false, fat: false }, src: 'log' };
   calls.length = 0;
   s.api.refresh();
   assert.match(s.els['nutri-target'].innerHTML, /nt-dial-fill/);
-  assert.deepEqual(calls, ['bld', 'intake'], 'the builder and the rings follow');
+  assert.deepEqual(calls, ['intake'], 'the rings follow');
 });
 
 test('day type segments: the detected type carries the subtle "auto" mark', () => {

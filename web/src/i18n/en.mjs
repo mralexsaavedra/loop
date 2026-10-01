@@ -12,35 +12,11 @@ export default {
         health: { label: 'Health' },
         nutricion: { label: 'Nutrition' },
       },
-      // headings of the sections that used to be tabs of their own (Mi día/Registro/Tablas keep theirs)
+      // headings of the sections that used to be tabs of their own (Mi día/Tablas keep theirs)
       sections: {
         hoy: "Today's session",
         dash: 'Workouts',
       },
-    },
-    registro: {
-      heading: 'Day builder',
-      desayuno: 'Breakfast',
-      comida: 'Lunch',
-      proteina: 'Protein',
-      carbo: 'Carb',
-      postre: 'Dessert',
-      opcion: 'Option',
-      cena: 'Dinner',
-      postentreno: 'Post-workout',
-      anclaje: 'Protein anchor',
-      offPlanHeading: 'Off plan / notes',
-      // Generic fallback only — the owner's real wording (if any) lives in
-      // plan-data.json's page.notes['registro.offPlan'] / page.offPlanPlaceholder
-      // (see scripts/migrate-plan-data.mjs), rendered via <Note> in Registro.astro.
-      offPlanNoteHtml: 'Anything not in the lists: eating out, a one-off day, or how the meal sat with you. Free text.',
-      offPlanPlaceholder: 'E.g.: ate out — a combo plate + dessert. Something heavier than usual, rough amounts are fine.',
-      copyButton: '📋 Copy for Claude',
-      copyOutputLabel: 'Log text to copy',
-      lessAriaLabel: (name) => `less ${name}`,
-      moreAriaLabel: (name) => `more ${name}`,
-      copiedMsg: 'Copied ✓ — paste it into the chat with Claude.',
-      copiedFallbackMsg: 'Select the text above and copy it manually.',
     },
     tablas: {
       heading: 'Equivalences',
@@ -72,20 +48,5 @@ export default {
       howToHeading: 'How to use it',
       howToHtml: '<b>Inside each table, every option is worth the same.</b> Pick the food you fancy and look at its grams — the day total does not change. For protein, lean <b style="color:var(--lean)">green</b> every day; leave the <b style="color:var(--fat)">red</b> for treats. Count the fat added by oily carbs.',
     },
-  },
-  verdict: {
-    proteinOk: (p) => `Protein ✓ — ${p} g`,
-    proteinShort: (p, t) => `Protein a little short (${p} g, target ~${t}). Add an anchor (~25 g) or raise the serving.`,
-    proteinVeryShort: (p, t) => `Protein very short (${p} g, target ~${t}). Add lean protein.`,
-    overBudget: (diff, cuts) => `You are ~${diff} kcal over. To balance: ${cuts.join(' · ')}.`,
-    underBudget: (under) => `You are ~${under} kcal under. Fine for a cut if you are not hungry; if you are, raise the carb (do not drop protein).`,
-    onTarget: (diff) => `Calories on target (${diff >= 0 ? '+' : ''}${diff} kcal).`,
-    fatHigh: (g) => `Fat high (${g} g). Usually from fatty protein or oily carbs — switch to lean/potato.`,
-    cutExtras: (kcal) => `the extras weigh ~${kcal} kcal`,
-    cutDessert: () => 'lighten the dessert (fruit or plain yogurt)',
-    cutDinnerCarb: () => 'drop a portion of the dinner carb',
-    alcohol: (name, n, kcal) => `🍺 ${n} ${name} ≈ ${kcal} kcal of alcohol (empty, slows fat burning that evening). Trim ~${kcal} kcal of carbs, not protein.`,
-    sweetTreats: () => '🍫 Sweet treats: count them as the day\'s carbs. If you go over, cut the dinner carb or skip dessert.',
-    mealReplace: (name) => `🍢 ${name} REPLACES dinner, it does not add to it. If you have ${name}, do not also mark dinner protein+carb.`,
   },
 };

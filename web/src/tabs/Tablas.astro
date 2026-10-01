@@ -8,11 +8,10 @@
  *    <BreakfastTable>.
  *  - Every other equivalence table (protein tiers, lunch/dinner carbs,
  *    post-workout, anchor, fruit+dessert, vegetables, cheeses): CLIENT-
- *    painted at runtime by web/src/client/nutrition.js's paint() calls
- *    (already ported in slice 3, no-op until these `tb-*` ids exist) from
- *    the SAME DATA/EXTRAS globals baked by Registro's <Bake> — this tab
- *    renders no script of its own and no new <Bake>, matching Plan.astro's
- *    documented script order (bake → core → nutrition, emitted once).
+ *    painted at runtime by web/src/client/tablas.js (no-op while a `tb-*`
+ *    id is absent) from the DATA/EXTRAS globals baked by the shared <Bake>
+ *    (web/pages/index.astro) — this tab renders no script of its own and no
+ *    new <Bake>, matching Plan.astro's documented script order.
  *
  * Personal copy: accordion notes, the "Legumes"/"Soups" accordions (no
  * generic/structured data source yet — see design's Personal copy
