@@ -170,7 +170,7 @@ live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
 | 🏠 Inicio (`home`) | TODAY: Sleep / Recovery / Load dials; health monitor; today's timeline (last night's sleep + the day's workouts); the advice sentence; "today you eat" card (today's day type + goal and target kcal/macros, link to Nutrición); programmed session (`hoy`) |
 | 🏃 Entreno (`entreno`) | per-modality load cards + caveats (`load`: `#score-load`, the detail behind the load dial); 30-day activity calendar + cumulative training time (`calendar`: `#train-activity`); running table, cycling table, load vs recovery (`sessions`: `#health-train`); Entrenamiento dashboard (`dash`) |
 | 💗 Salud (`health`) | recovery (`#hl-recovery`, with the recovery detail card `#score-recovery`, then the recovery trends); sleep (`#hl-sleep`); body composition; daily activity; energy expenditure |
-| 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Plan de hoy, Registrar (the FOOD LOG, LAN page only; its add sheet's "Del plan" tab logs Plan de hoy's meals), Avituallamiento on bike days — see "Nutrition v2" and "Nutrition v2 part 2" below); Mis productos + Mis recetas (collapsible, LAN page only, no section key: rendered with `dia`); Tablas (`tablas`, collapsible: FIXED reference values per natural unit, never portions — see "Choosable blocks and Tablas" below) — there is no train/rest toggle: Resumen de hoy's day type is the one selector. The former Constructor de día / Day builder (`registro`) was removed: the food log replaces it |
+| 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Registrar (the FOOD LOG, LAN page only; its add sheet's "Del plan" tab logs Plan de hoy's meals), Plan de hoy (a `<details>` fold, collapsed by default), Avituallamiento on bike days — see "Nutrition v2" and "Nutrition v2 part 2" below); Mis productos + Mis recetas (collapsible, LAN page only, no section key: rendered with `dia`); Tablas (`tablas`, collapsible: FIXED reference values per natural unit, never portions — see "Choosable blocks and Tablas" below) — there is no train/rest toggle: Resumen de hoy's day type is the one selector. The former Constructor de día / Day builder (`registro`) was removed: the food log replaces it |
 
 `lib/nav/tabs.mjs` is the ONE source of the tab keys (`TAB_KEYS`) and of the legacy-section map
 (`SECTION_TAB`); the page derives each tab's section list from it (`sectionsOf`) and bakes both as
@@ -471,8 +471,9 @@ the way to log; pointing at an Apple Health food app is no longer the recommende
 ## Nutrition v2 — goals, day types, portion scaling, ride fuelling, supplements
 
 Part 1 of the Nutrición redesign: compute + display (food logging, the write endpoint and the
-product catalogue are part 2, next section). The `dia` section (key kept for `page.hideTabs`) holds three blocks,
-top to bottom, all client-rendered by `web/src/client/nutri-day.js` from ONE bake, `NUTRI`
+product catalogue are part 2, next section). The `dia` section (key kept for `page.hideTabs`) holds, top
+to bottom: Resumen de hoy, Registrar (the food log, part 2), Plan de hoy and Avituallamiento — the
+nutrition blocks all client-rendered by `web/src/client/nutri-day.js` from ONE bake, `NUTRI`
 (`lib/nutrition/today.mjs` `buildNutriToday`, in `web/src/tabs/Dia.astro`, ~10.6 KB on the example with the block lists) +
 `I18N_NUTRI` (`web/src/i18n/nutri-templates.mjs`, es/en). The day-type radios are server-rendered
 (labelled, ≥ 44 px) and are the only control in Resumen de hoy (the goal is set in the profile sheet); everything time-based is decided on the viewer's clock,
@@ -490,25 +491,51 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   exporting `targetFor`. Likewise `extrasDisplay`, `indulgeKeys`, `alcoholKeys`, `mealReplaceKeys` and
   `page.notes['registro.*']` / `page.offPlanPlaceholder` stay valid in a plan but render nothing.
 - **Portion scaling** — `lib/nutrition/scale.mjs`: plans keep their two base days; `BASE_DAY` maps
-  rest → `dayPlan.rest`, gym / bike / bikeLong → `dayPlan.train`. A dayPlan part marked
-  `flex: "carb"` (rice, pasta, bread, potato, fruit, honey…; `null` opts a part out of the migration)
-  is scalable, every other part stays fixed. The base day's macros come from the existing engine
+  rest → `dayPlan.rest`, gym / bike / bikeLong → `dayPlan.train`. CARB-FLEX parts (`lib/nutrition/flex.mjs`
+  `isFlexPart`) scale, every other part stays fixed: `flex: null` opts a part OUT; an explicit
+  `flex: "carb"` opts it IN (also a manual block, scaled whole); otherwise by FOOD CATEGORY — an `{ing}`
+  part whose food is carb / fruit, or a sweet carb staple (honey, jam: ≥ 60 % kcal from carbs; never
+  chocolate, ice cream, pastries) (`autoFlexIng`), and a `{use, match}` item whose recipe lines are ALL
+  such foods (a mixed composite, a manual block or a food without category stays fixed). Spreading the
+  carbs over every carb / fruit part — not just the 2–3 marked ones — is what stops one plate absorbing
+  the day (the owner's 235 g of dry pasta on a maintain gym day). **Portion caps**: an ingredient may
+  carry `maxAmt` (optional, `data/nutrition/ingredients.json`, in the same scale as a recipe `amt`: g /
+  ml, or `UD_AMT` per unit), baked on the model line (`LINE.CAP`, `lineCap` / `capFactor` /
+  `capAmount` in `lib/nutrition/amounts.mjs`) and validated by `npm run check` (`validateIngredientCaps`:
+  a finite positive number, at least one rounding step — a unit, half a piece, 5 g — and at most
+  `MAX_AMT_LIMIT` 2000). Tracked caps: rice / pasta (dry) 150 g, oats 100 g, potato / sweet potato 400 g,
+  gnocchi / oven chips / pre-fried sweet potato 300 g, bread roll 135 g (3 rolls), seeded bread 125 g
+  (3 slices), honey / jam 30 g, fruit ~1.5–2 pieces (banana 240, apple 270, orange 260, pear 255, peach
+  300, nectarine 280, flat peach 200, kiwi 150, plum 130; pineapple 250, watermelon 400, melon 350,
+  grapes 200, strawberries 250, blueberries 150 g); a test requires a cap on every carb / fruit food and
+  sweet staple. The base day's macros come from the existing engine
   (ingredients.json, never hand-typed) and are baked as a compact SCALING MODEL per base day
   (`planModel`: per meal the fixed macros, the flex parts' lines `[unit, amt, k, p, c, g]` or a manual
-  block). `solveScale` = ONE factor for every carb-flex part so the meals hit (target − ride fuel),
-  clamped to `SCALE_MIN`–`SCALE_MAX` (0.6–2.0×), rounded to 2 decimals and labelled with 2 decimals
-  ("×1.45"). DISCRETE lines — whole units (`ud`, whole units) and countable g / ml foods (an
+  block). `solveScale` = WATER-FILLING (`waterFill`): one common factor for every carb-flex line so the
+  meals hit (target − ride fuel), clamped to `SCALE_MIN`–`SCALE_MAX` (0.6–2.0×); a line that would
+  pass its cap is HELD at the cap and the factor is re-solved over the lines still free, until stable (a
+  cap beats `SCALE_MIN`: a written amount above its cap shrinks to it); rounded to 2 decimals and
+  labelled with 2 decimals ("×1.45"); with every line held the factor is the largest cap reached.
+  `capped` = some line is at its cap, `allCapped` = every flex line is (and no manual block, which has
+  no cap); `qn` / `planFor` `flexN` = each flex part's numeric line amounts (`[null]` for a manual
+  block). DISCRETE lines — whole units (`ud`, whole units) and countable g / ml foods (an
   ingredient with a `piece`, rounded to HALF pieces — `PIECE_GRID` in `lib/nutrition/units.mjs`, one
   unit = `UD_AMT` (100), both baked as `NUTRI.scale.grid` / `.ud`; the model line carries `[…, step,
   ingredient key]`, `lib/nutrition/amounts.mjs` `modelLine` / `stepAmount`; its layout is named ONCE as
   `LINE` with accessors `lineUnit` / `lineAmt` / `lineMac` / `lineStep` / `lineKey` / `pieceOf(pieces, l)` /
   `scaleLine`, mirrored in nutri-day.js — never read by a bare index) — round first at that factor, then the factor is
-  RE-SOLVED on the remaining g / ml parts so the day still lands within tolerance; with only `ud` parts flexible the
+  RE-SOLVED (water-filling again) on the remaining g / ml parts so the day still lands within tolerance; a
+  rounded amount never passes its cap (`capAmount` steps DOWN on the line's grid); with only `ud` parts flexible the
   remainder is reported honestly (plus a one-line note). Amounts round to 5 g / 5 ml (never below one
   step; a `manual` block scales as a whole and shows "×1.30") and the totals are recomputed from the
   ROUNDED amounts. The rest is `rem` (target − ride fuel −
   meals, kcal): beyond `REMAINDER_TOLERANCE_K` (75) the page says it ("~X kcal short: add ~Y g of
-  carbs" / on bike days "add them to the ride fuel" / "over: trim fat or extras"). Protein and fat are
+  carbs" / on bike days "add them to the ride fuel" / "over: trim fat or extras"); when nothing can grow
+  any more (`allCapped`, or the factor at `SCALE_MAX`) a shortfall suggests a snack instead of a bigger
+  plate ("Faltan ~X kcal: añade un tentempié (p. ej. fruta o un bocadillo)" / "~X kcal short: add a
+  snack (e.g. fruit or a sandwich)", `remSnack`; bike days keep the ride-fuel line). The example plan
+  is short on most goal × day types with caps (its base day carries too few carb parts for 2500–3400
+  kcal): `lib/nutrition/today.test.mjs` allows a remainder only when nothing can grow. Protein and fat are
   NOT scaled: a plan more than `MACRO_TOLERANCE_G` (15 g) off the target says so. `planFor(bake, goal,
   dayType, minutes)` gives one plan for a ride of `minutes` (meals target `mt` = target − ride fuel,
   the fuel being all carbs); the page bakes only `{base, t}` per (goal, day type) + the two models and
@@ -536,9 +563,9 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   never from emoji / labels) scale the picked option to the SAME protein grams as the default
   (`swapFactor`, clamped `PROTEIN_SCALE_MIN`–`MAX` 0.5–2.0, amounts rounded like every scaled amount;
   a manual block shows "×1.73"); every other list takes the option's own recipe amounts. A pick in a
-  carb-flex part stays flex only when the option is itself a carb STAPLE (`isCarbStaple`: a recipe
-  whose every ingredient gets ≥ 60 % of its kcal from carbs; a `manual` block never is), else it
-  becomes a fixed part; then `solveScale` re-solves the WHOLE day (same clamp, rounding, remainder
+  carb-flex part stays flex only when the option is itself flex-able (`lib/nutrition/flex.mjs`
+  `isFlexItem`: every line a carb / fruit food or a carb STAPLE by share, ≥ 60 % of its kcal from carbs;
+  a `manual` block never is), else it becomes a fixed part; then `solveScale` re-solves the WHOLE day (same clamp, rounding, remainder
   notes). `planFor(bake, goal, dayType, minutes, picks)` returns `view` (the meals to display) and
   `picks` (the effective ones); no effective pick (none, the default key, an unknown id / key) = the
   base model untouched, byte for byte. Bake: `lists[<use>[.<tier>]]` = options `{k, n, gr?, ln | mb,
@@ -557,25 +584,25 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
 - **Food blocks — every fixed `{ing}` part is choosable** (the owner: "no tiene sentido que me marques
   que tengo que comer calabacín sí o sí"). Every ingredient of `ingredients.json` carries a food
   category `cat` from a small CLOSED set (`lib/nutrition/categories.mjs` `FOOD_CATS`: protein, carb,
-  legume, fruit, veg, dairy, fat, sweet, drink, sauce, other; `npm run check`: an unknown `cat` is an
+  legume, fruit, veg, dairy, cheese, fat, sweet, drink, sauce, other — cheese (tranchete, mozzarella) is
+  its own category so it is never offered in place of the coffee's milk; `npm run check`: an unknown `cat` is an
   error, a missing one a warning — that food then stays a fixed part; the key `none` is reserved; a test
   pins that every tracked ingredient has one). A fixed `{ing}` part whose food has a category is a FOOD
   block: its options are every ingredient of the SAME category (default = its own food, shown under the
   part's `label`; the others by their localized `ingName`, sorted by name) plus, only where skipping is
-  sensible (`CAT_RULES[cat].skip`: fruit, veg, dairy, sweet, drink, sauce), a "none" option (key `none`,
+  sensible (`CAT_RULES[cat].skip`: fruit, veg, dairy, cheese, sweet, drink, sauce), a "none" option (key `none`,
   "Sin verdura" / "No vegetables"…, `T.plan.none[cat]`). A category with one food and no "none" (e.g.
   `other`: baking powder) stays fixed; `manual` blocks never are blocks; the components INSIDE a
   composite option (breakfast "C — Tostadas", "Yogur + avellanas + miel") stay as they are (the option
   is chosen as a whole); list blocks keep their behaviour. Swap rule per category = ONE explicit table
   (`CAT_RULES[cat].by`, tested): protein → the same protein grams; carb / legume / fruit / sweet → the
-  same carb grams; fat → the same fat grams; dairy / drink / sauce → the same kcal; veg / other → the
+  same carb grams; fat → the same fat grams; dairy / cheese / drink / sauce → the same kcal; veg / other → the
   same grams (veg is ~free). `ingAmount`: from the default's WEIGHT (a `ud` food through its piece's
   grams, `gf`), the factor that keeps that macro (or kcal) equal, clamped to the protein swaps' 0.5–2×
   (`PROTEIN_SCALE_MIN`–`MAX`, so a dense whey swapped for chicken lands at 2× and protein may then fall
   short — the macro note says so), rounded like every scaled amount (`stepAmount`: 5 g / 5 ml, half
   pieces for a countable food, whole units). `swapIng` returns the picked food as the part (a carb-flex
-  part stays flex only when the new food is itself a carb staple, `isCarbStaple`, else it becomes
-  fixed); "none" = a zeroed part `{l: '', z: 1, m: [0, 0, 0, 0]}` (no amount, no flex entry); then
+  part stays flex only when the new food is itself flex-able, `isFlexItem`, else it becomes fixed); "none" = a zeroed part `{l: '', z: 1, m: [0, 0, 0, 0]}` (no amount, no flex entry); then
   `solveScale` re-solves the WHOLE day exactly as for list picks. Ids: `<meal key>/<default ingredient
   key>` with the same `#n` rule — ONE counter shared with the list ids, so lunch and dinner's
   courgette are `lunch/calabacin` and `dinner/calabacin`, a second courgette in one meal
@@ -640,7 +667,13 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   `flexDir`); a composite item (several recipe lines, no amount of its own; baked with `c` names and,
   when fixed, `a` amounts) lists its components as sub-rows (name · amount), never "82 g + 20 g";
   a muted P / C / F (es: G) mini line; the carb factor ("×1.6 vs the base plan", "(the maximum
-  applied)" when clamped). **`HCNutri.todayPlan()`** hands that same plan (block picks included:
+  applied)" when clamped; "×1.19 vs the base plan; some portions are at their maximum" when a line is
+  capped; "Every carb portion is at its maximum" with no factor when all are). The block is a native
+  `<details class="nutri-block sec-fold nutri-fold" id="nutri-plan-fold">`, COLLAPSED by default: the
+  summary = the heading + the plan's total kcal (`#nutri-plan-kcal`, written on every refresh); the
+  open state is a per-viewer convenience (`hc.nutri.planOpen` '1' / '0', every access wrapped, saved on
+  `toggle`). The plan renders while collapsed, so the selects and "Del plan" never depend on it being
+  open. Avituallamiento stays after it, never collapsed. **`HCNutri.todayPlan()`** hands that same plan (block picks included:
   it reads `x.view`), read-only, to the food log's "Del plan" tab: `[{name, slot, kcal, p, c, g, items: [{name, amount, kcal, p, c, g,
   components?}]}]` from `current()` (goal × day type × ride minutes through `planFor`, never
   re-computed in food.js); meal totals exactly as Plan de hoy prints them (whole numbers); an item at
@@ -784,7 +817,8 @@ unknown.
 - **Page** — `web/src/client/food.js` (inlined after nutri-day.js, before intake.js; copy
   `web/src/i18n/food-templates.mjs` es / en baked as `I18N_FOOD` + `FOOD_CONST` in `Dia.astro`;
   styles `web/src/styles/food.css`, tokens only). Everything is decided at VIEW time like the
-  freshness line: the Registrar block (`#food-log-block`, in `dia` right after Plan de hoy) and the
+  freshness line: the Registrar block (`#food-log-block`, in `dia` right after Resumen de hoy, before
+Plan de hoy) and the
   two folds (`web/src/tabs/Food.astro`: `#food-products`, `#food-recipes`, before Tablas, rendered only
   when `dia` is visible, no section key) ship `hidden` and appear only when `GET /api/food/products`
   answers — so the claude.ai artifact, file:// and the example build show nothing new and builds stay
