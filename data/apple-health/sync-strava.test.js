@@ -6,7 +6,7 @@ const strava = require('./sync-strava.js');
 const samples = require('./samples.js');
 
 const {
-  STRAVA_SOURCE, SPORT_TYPE_MAP, translateType, toRow, buildRows, planSync, syncDir,
+  STRAVA_SOURCE, SPORT_TYPE_MAP, FALLBACK_TYPE, translateType, toRow, buildRows, planSync, syncDir,
   fetchActivities, updateMeta, WORKOUTS_HEADER, WORKOUTS_CSV, staleImageWarning,
   RIDES_CSV, RIDES_HEADER, rideRow, buildRides, stalePowerWarning,
 } = strava;
@@ -100,11 +100,55 @@ test('translateType maps known Strava sport types to the HealthKit-style type', 
   assert.equal(translateType('Swim'), 'Swimming');
 });
 
-test('translateType falls back to Other for an unmapped sport_type without throwing', () => {
-  assert.equal(translateType('SomeNewSport'), 'Other');
-  assert.equal(translateType(null), 'Other');
-  assert.equal(translateType(undefined), 'Other');
+test('translateType falls back to a NON-gym type for an unmapped sport_type without throwing', async () => {
+  const { scoreModality } = await import('../../lib/score/modality.mjs');
+  const { modalityGroup } = await import('../../lib/training/dashboard.mjs');
+  assert.equal(FALLBACK_TYPE, 'Unmapped');
+  for (const t of ['SomeNewSport', null, undefined]) assert.equal(translateType(t), FALLBACK_TYPE);
+  assert.equal(scoreModality(FALLBACK_TYPE), 'other', 'an unknown sport never counts as gym load');
+  assert.equal(modalityGroup(FALLBACK_TYPE), 'other');
   assert.ok(SPORT_TYPE_MAP.Run, 'sanity: the table itself is non-empty');
+});
+
+test('racket and team sports map to Apple-style types in the `other` modality', async () => {
+  const { scoreModality } = await import('../../lib/score/modality.mjs');
+  const { modalityGroup } = await import('../../lib/training/dashboard.mjs');
+  assert.equal(translateType('Tennis'), 'Tennis', 'the Watch exports tennis as "Tennis"');
+  for (const sport of ['Tennis', 'TableTennis', 'Squash', 'Badminton', 'Racquetball', 'Padel', 'Pickleball', 'Soccer', 'Basketball', 'Volleyball', 'Golf']) {
+    const t = translateType(sport);
+    assert.ok(Object.prototype.hasOwnProperty.call(SPORT_TYPE_MAP, sport), `${sport} is mapped`);
+    assert.equal(scoreModality(t), 'other', `${sport} -> ${t} is other on Inicio`);
+    assert.equal(modalityGroup(t), 'other', `${sport} -> ${t} is other on Entreno`);
+  }
+});
+
+test('Strava "Workout" (its generic type, where a Watch "Other" workout lands) keeps the Watch\'s gym label', async () => {
+  const { scoreModality } = await import('../../lib/score/modality.mjs');
+  assert.equal(translateType('Workout'), 'Other');
+  assert.equal(scoreModality('Other'), 'gym');
+});
+
+test('every mapped type lands where its name says: no racket/outdoor sport is ever gym, run or bike by accident', async () => {
+  const { scoreModality } = await import('../../lib/score/modality.mjs');
+  const GYMISH = new Set(['WeightTraining', 'HighIntensityIntervalTraining', 'Crossfit', 'Workout']);
+  for (const [sport, t] of Object.entries(SPORT_TYPE_MAP)) {
+    const m = scoreModality(t);
+    if (/Run$/.test(sport)) assert.equal(m, 'run', sport);
+    else if (/Ride$|Handcycle|Velomobile/.test(sport)) assert.equal(m, 'bike', sport);
+    else if (GYMISH.has(sport)) assert.equal(m, 'gym', sport);
+    else assert.equal(m, 'other', sport);
+  }
+});
+
+test('a Watch Tennis row and a Strava Tennis row on the same day merge into ONE session', async () => {
+  const { parseWorkouts, mergeKey } = await import('../../lib/training/dashboard.mjs');
+  const { mergeSameDay, DISPLAY_RULE } = await import('../../lib/training/sessions.mjs');
+  const strava = toRow({ id: '9', start_local: '2026-08-22T18:00:00', sport_type: 'Tennis', moving_time: 3600, average_heartrate: 140, suffer_score: 30 });
+  const watch = '2026-08-22,Tennis,62,,138,90,170,Apple\u00a0Watch de Demo,,,,';
+  const rows = parseWorkouts([WORKOUTS_HEADER, watch, strava.line].join('\n'));
+  const groups = mergeSameDay(rows, mergeKey, DISPLAY_RULE);
+  assert.equal(groups.length, 1, 'one session for the day');
+  assert.deepEqual(groups[0].rows.map(r => r.source), ['Strava API'], 'the Strava copy supersedes the Watch copy');
 });
 
 // ---- toRow: moving vs elapsed, blanks, 9-column shape, invalid input -> null -------------
@@ -446,18 +490,17 @@ test('contract: an extract.js rewrite drops the CSV/ledger; the next Strava sync
   fs.rmSync(dir, { recursive: true });
 });
 
-// ---- end-to-end: an unmapped Strava sport_type -> 'Other' -> the dashboard's 'hiit' bucket ----
+// ---- end-to-end: an unmapped Strava sport_type -> Unmapped -> the dashboard's 'other' bucket ----
 
-test('end-to-end: an unmapped sport_type translates to Other and lands in the dashboard hiit bucket', async () => {
-  const { modalityGroup, parseWorkouts, aggregateDashboard } = await import('../../lib/training/dashboard.mjs');
+test('end-to-end: an unmapped sport_type lands in the dashboard other bucket, never in gym', async () => {
+  const { parseWorkouts, aggregateDashboard } = await import('../../lib/training/dashboard.mjs');
   const row = toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Curling', moving_time: 1800 });
-  assert.match(row.line, /^2026-08-20,Other,/);
-  assert.equal(modalityGroup('Other'), 'hiit');
-  const parsed = parseWorkouts([WORKOUTS_HEADER, row.line].join('\n'));
-  const dash = aggregateDashboard(parsed);
-  const hiit = dash.modality.find((m) => m.key === 'hiit');
-  assert.ok(hiit, 'the unmapped-type row must show up in the hiit bucket');
-  assert.equal(hiit.min, 30);
+  assert.match(row.line, /^2026-08-20,Unmapped,/);
+  const dash = aggregateDashboard(parseWorkouts([WORKOUTS_HEADER, row.line].join('\n')));
+  const other = dash.modality.find((m) => m.key === 'other');
+  assert.ok(other, 'the unmapped-type row must show up in the other bucket');
+  assert.equal(other.min, 30);
+  assert.ok(!dash.modality.find((m) => m.key === 'hiit' && m.min > 0), 'nothing in gym');
 });
 
 // ---- main() error paths via a real child process: no token / unreachable service / 404 old
