@@ -608,7 +608,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   (`swapOption`, pure: the picked option as the part that replaces the default + its flex entry or fixed
   macros; `applyPicks` only keeps the books): PROTEIN-role lists (`BLOCK_ROLES`: proteina, anclaje, postentreno — explicit in lib,
   never from emoji / labels) scale the picked option to the SAME protein grams as the default
-  (`swapFactor`, clamped `PROTEIN_SCALE_MIN`–`MAX` 0.5–2.0, amounts rounded like every scaled amount;
+  (`swapFactor`, clamped `SWAP_SCALE_MIN`–`MAX` 0.5–2.0, amounts rounded like every scaled amount;
   a manual block shows "×1.73"); every other list takes the option's own recipe amounts. A pick in a
   carb-flex part stays flex only when the option is itself flex-able (`lib/nutrition/flex.mjs`
   `isFlexItem`: every line a carb / fruit food or a carb STAPLE by share, ≥ 60 % of its kcal from carbs;
@@ -649,7 +649,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   same carb grams; fat → the same fat grams; dairy / cheese / drink / sauce → the same kcal; veg / other → the
   same grams (veg is ~free). `ingAmount`: from the default's WEIGHT (a `ud` food through its piece's
   grams, `gf`), the factor that keeps that macro (or kcal) equal, clamped to the protein swaps' 0.5–2×
-  (`PROTEIN_SCALE_MIN`–`MAX`, so a dense whey swapped for chicken lands at 2× and protein may then fall
+  (`SWAP_SCALE_MIN`–`MAX`, so a dense whey swapped for chicken lands at 2× and protein may then fall
   short — the macro note says so), rounded like every scaled amount (`stepAmount`: 5 g / 5 ml, half
   pieces for a countable food, whole units). `swapIng` returns the picked food as the part (a carb-flex
   part stays flex only when the new food is itself flex-able, `isFlexItem`, else it becomes fixed); "none" = a zeroed part `{l: '', z: 1, m: [0, 0, 0, 0]}` (no amount, no flex entry); then
