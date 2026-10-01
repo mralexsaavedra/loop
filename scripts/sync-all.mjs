@@ -21,14 +21,15 @@ export const SCRIPTS = [
 ];
 
 /**
- * Pure-ish: runs every script in order via `spawn(execPath, [...args, script])`, regardless of
+ * Pure-ish: runs every script in order via `spawn(execPath, [script, ...args])` (args AFTER the
+ * script: before it, node would parse `--full` as its own flag and abort), regardless of
  * earlier failures, and returns 0 only if every one of them exited 0. `spawn` is injected for
  * testing (defaults to `spawnSync` with inherited stdio).
  */
 export function runAll (scripts, args, spawn) {
   let exitCode = 0;
   for (const script of scripts) {
-    const result = spawn(process.execPath, [...args, script]);
+    const result = spawn(process.execPath, [script, ...args]);
     if (!result || result.status !== 0) exitCode = 1;
   }
   return exitCode;

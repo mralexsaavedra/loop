@@ -3,6 +3,10 @@
  * (a shell `&&` chain would skip the second script on the first failure). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { runAll } from './sync-all.mjs';
 
 function fakeSpawn (statusByScript) {
@@ -11,7 +15,7 @@ function fakeSpawn (statusByScript) {
     calls,
     spawn: (cmd, args) => {
       calls.push({ cmd, args });
-      const script = args[args.length - 1];
+      const script = args[0];
       const status = Object.prototype.hasOwnProperty.call(statusByScript, script) ? statusByScript[script] : 0;
       return { status };
     },
@@ -21,13 +25,27 @@ function fakeSpawn (statusByScript) {
 test('runAll() runs every script even after an earlier one fails', () => {
   const { spawn, calls } = fakeSpawn({ 'a.js': 1, 'b.js': 0 });
   runAll(['a.js', 'b.js'], [], spawn);
-  assert.deepEqual(calls.map((c) => c.args[c.args.length - 1]), ['a.js', 'b.js']);
+  assert.deepEqual(calls.map((c) => c.args[0]), ['a.js', 'b.js']);
 });
 
-test('runAll() forwards argv to every script', () => {
+test('runAll() forwards argv to every script AFTER the script path (node would read them as its own flags)', () => {
   const { spawn, calls } = fakeSpawn({});
   runAll(['a.js', 'b.js'], ['--full'], spawn);
-  for (const call of calls) assert.deepEqual(call.args.slice(0, -1), ['--full']);
+  assert.deepEqual(calls.map((c) => c.args), [['a.js', '--full'], ['b.js', '--full']]);
+});
+
+test('runAll() with the real node: `--full` reaches the script\'s argv (npm run sync -- --full)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-all-'));
+  try {
+    const script = path.join(dir, 's.js');
+    const out = path.join(dir, 'argv.json');
+    fs.writeFileSync(script, `require('fs').writeFileSync(${JSON.stringify(out)}, JSON.stringify(process.argv.slice(2)))`);
+    const code = runAll([script], ['--full'], (cmd, a) => spawnSync(cmd, a, { encoding: 'utf8' }));
+    assert.equal(code, 0);
+    assert.deepEqual(JSON.parse(fs.readFileSync(out, 'utf8')), ['--full']);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('runAll() returns a non-zero exit code when any script failed', () => {

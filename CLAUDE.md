@@ -1143,7 +1143,7 @@ anchor for Inicio's health monitor.
   — reloj 2207 + corrección por potencia" plus the note in the day panel, and the note under the
   header when the newest day is corrected. Nutrition / Inicio read no TDEE. Rollout: rebuild the
   ingest image (`docker compose up -d --build health-ingest`), add the Shortcut key
-  (`docs/ios-shortcut.md`), `npm run sync:shortcut -- --full` once, then `npm run sync && npm run generate`.
+  (`docs/ios-shortcut.md`), `npm run sync -- --full` once, then `npm run generate`.
 - **Running** — `workouts.csv` Running rows (Watch export AND `sync:strava`, via `readRuns`), merged
   per day exactly like the rides, as a RECENT-RUNS table (same row budget, newest first): date,
   distance, time, pace = time / distance (none without a distance), avg HR, relative effort,
