@@ -16,13 +16,12 @@ import { buildNutriToday } from '../../../lib/nutrition/today.mjs';
 import { DAYTYPE_CASES } from '../../../lib/nutrition/daytype.mjs';
 import { fuelPlan } from '../../../lib/nutrition/fuel.mjs';
 import { planFor, solveScale } from '../../../lib/nutrition/scale.mjs';
-import { snackFor } from '../../../lib/nutrition/snack.mjs';
-import { applyPicks, swapOption, swapIng, NONE_KEY } from '../../../lib/nutrition/blocks.mjs';
 import { lineCap } from '../../../lib/nutrition/amounts.mjs';
 import { waterFill, FILL_CASES } from '../../../lib/nutrition/fill.mjs';
-import { CAT_RULES, FOOD_CATS } from '../../../lib/nutrition/categories.mjs';
-import { LINE } from '../../../lib/nutrition/amounts.mjs';
-import { MAIN_SLOTS, isMainMeal } from '../../../lib/nutrition/slots.mjs';
+import { LINE, floorToStep, GRID_EPS } from '../../../lib/nutrition/amounts.mjs';
+import { MAIN_SLOTS } from '../../../lib/nutrition/slots.mjs';
+import { buildBasics } from '../../../lib/nutrition/basics.mjs';
+import { guideBudgets, exampleAmount, remaining, mealState, isCovered, roleOptions, GUIDE_CASES, GUIDE_GRID } from '../../../lib/nutrition/guide.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, '..', '..', '..');
@@ -49,7 +48,8 @@ function memStorage(init = {}) {
 }
 
 const ARC = 'M24.64 95.36A50 50 0 1 1 95.36 95.36';
-function run({ nutri = bake(), items = [], programmed = null, locale = 'en', storage = memStorage(), today = TODAY, hooks = true, extra = {}, intake, query } = {}) {
+const BASICS = { en: buildBasics(ING, 'en'), es: buildBasics(ING, 'es') };
+function run({ nutri = bake(), items = [], programmed = null, locale = 'en', storage = memStorage(), today = TODAY, hooks = true, extra = {}, intake, query, basics } = {}) {
   const doc = new StubDocument();
   if (query) doc.querySelector = query;
   const els = {};
@@ -76,6 +76,7 @@ function run({ nutri = bake(), items = [], programmed = null, locale = 'en', sto
     SCORES: { timeline: { asOf: today, days: [{ date: today, sleep: 7.5, items }] } },
     TRAINING: programmed ? { [today]: programmed } : {},
     NUTRI_ARC: ARC,
+    FOOD_BASICS: basics !== undefined ? basics : BASICS[locale === 'es' ? 'es' : 'en'],
     ...(intake !== undefined ? { INTAKE: intake } : {}),
     Math, String, Number, JSON, Array, Object, isFinite, Date: fixedDate(today), ...extra,
   };
@@ -159,9 +160,8 @@ test('no workout, nothing programmed: rest (auto), the default goal, rest target
   assert.match(els['nutri-target'].innerHTML, /<span class="nt-bar-lbl">Protein<\/span><span class="nt-bar-val"><b>150<\/b> g<\/span>/);
   assert.match(els['nutri-target'].innerHTML, /<span class="nt-bar-lbl">Carbs<\/span><span class="nt-bar-val"><b>340<\/b> g<\/span>/);
   assert.match(els['nutri-plan'].innerHTML, /class="meal-name">Breakfast</);
-  assert.match(els['nutri-plan'].innerHTML, /class="mp mp-flex mp-block"><span class="mp-l"><select class="mp-pick" data-block="lunch\/carboComida" aria-label="Change Rice \(Lunch\)">.*?<\/select><span class="mp-dir" role="img" aria-label="portion scaled (up|down) to the target">[↑↓]<\/span><\/span><span class="mp-q">\d+ g<\/span><\/li>/);
-  assert.match(els['nutri-plan'].innerHTML, /<li class="mp-sub"><span class="mp-l">Bread<\/span><span class="mp-q">~2 bread rolls \(80 g\)<\/span><\/li>/, 'a countable food shows pieces with the grams reference');
-  assert.doesNotMatch(els['nutri-plan'].innerHTML, /mp-tag|scaled<\/span>/, 'no loud "scaled" label');
+  assert.match(els['nutri-plan'].innerHTML, /<select class="gd-pick" data-guide="lunch\.p" aria-label="Protein example for Lunch">/);
+  assert.doesNotMatch(els['nutri-plan'].innerHTML, /mp-pick|data-block|meal-addons/, 'no menu: no block selects, no add-ons card');
   assert.equal(els['nutri-fuel-block'].hidden, true);
   assert.deepEqual(calls, [['intake', 2500]], 'the rings are refreshed with today\'s target');
 });
@@ -190,14 +190,14 @@ test('a programmed bike session: bike (auto), picker defaults to 2 h; picking 3 
   assert.match(els['nutri-fuel-body'].innerHTML, /120 g in total/);
   const two = planFor(bake(), 'maintain', 'bike', 120);
   const three = planFor(bake(), 'maintain', 'bike', 180);
-  assert.match(els['nutri-target'].innerHTML, new RegExp('Meals ' + two.tot.k.toLocaleString('en') + ' kcal'));
+  assert.match(els['nutri-target'].innerHTML, new RegExp('Meals ' + two.mt.k.toLocaleString('en') + ' kcal'));
   const targetBefore = els['nutri-target'].innerHTML;
   calls.length = 0;
   fire('nutri-ride-wrap', 'change', { id: 'nutri-ride', value: '180' });
   assert.equal(api.state().rideMin, 180);
   assert.match(els['nutri-fuel-body'].innerHTML, /180 g in total/);
   assert.match(els['nutri-target'].innerHTML, /ride fuel 720 kcal/);
-  assert.match(els['nutri-target'].innerHTML, new RegExp('Meals ' + three.tot.k.toLocaleString('en') + ' kcal'));
+  assert.match(els['nutri-target'].innerHTML, new RegExp('Meals ' + three.mt.k.toLocaleString('en') + ' kcal'));
   assert.ok(three.mt.k < two.mt.k, 'a longer ride leaves less for the meals');
   assert.ok(three.tot.k <= two.tot.k, 'the meals never grow (here every carb portion is already at its cap)');
   assert.notEqual(els['nutri-target'].innerHTML, targetBefore, 'the summary re-rendered for the new duration');
@@ -291,6 +291,18 @@ test('goal choice (HCNutri.setGoal, from the profile sheet) persists; an unknown
   assert.equal(t.api.state().goal, 'bulk', 'works without storage');
 });
 
+test('the orphaned hc.nutri.picks key (the removed choosable blocks) is cleared once on load; other keys stay', () => {
+  const storage = memStorage({ 'hc.nutri.picks': '{"lunch":"x"}', 'hc.nutri.goal': 'cut', 'hc.nutri.guide': '{"picks":{}}' });
+  const s = run({ storage });
+  assert.equal('hc.nutri.picks' in storage.data, false);
+  assert.equal(storage.data['hc.nutri.goal'], 'cut');
+  assert.equal(storage.data['hc.nutri.guide'], '{"picks":{}}');
+  assert.equal(s.api.state().goal, 'cut');
+  // a storage whose removeItem throws: the page still renders
+  const denied = { ...memStorage(), removeItem() { throw new Error('denied'); } };
+  assert.match(run({ storage: denied }).els['nutri-plan'].innerHTML, /gd-meal/);
+});
+
 test('every goal x day type renders a target and a plan (all 12)', () => {
   const s = run();
   for (const g of ['maintain', 'cut', 'bulk']) for (const d of ['rest', 'gym', 'bike', 'bikeLong']) {
@@ -298,51 +310,9 @@ test('every goal x day type renders a target and a plan (all 12)', () => {
     s.fire('nutri-daytype', 'change', { value: d });
     const t = s.els['nutri-target'].innerHTML + s.els['nutri-plan'].innerHTML;
     assert.doesNotMatch(t, /NaN|undefined|null|could not be shown/, `${g}/${d}`);
-    assert.match(s.els['nutri-plan'].innerHTML, /class="meal"/);
+    assert.equal((s.els['nutri-plan'].innerHTML.match(/class="meal gd-meal"/g) || []).length, 3, `${g}/${d}: three main meals`);
+    assert.match(s.els['nutri-plan'].innerHTML, /class="meal gd-extras"/);
   }
-});
-
-test('supplements sit under the meal of their slot; one with no such meal today goes to "other supplements"', () => {
-  const { els } = run();
-  const html = els['nutri-plan'].innerHTML;
-  const lunch = html.split('class="meal-name">Lunch<')[1].split('class="meal"')[0];
-  assert.match(lunch, /<div class="meal-supp"><svg class="supp-ico"[^>]*aria-hidden="true">.*?<\/svg><span>Demo Creatine 3 g<\/span><\/div>/);
-  assert.match(html, /Other supplements today/);
-  assert.match(html, /<span>Demo Electrolytes \(Pre-workout\)<\/span>/);
-  assert.doesNotMatch(html, /💊/, 'no emoji');
-});
-
-test('a remainder beyond the tolerance is stated with what to do; within it nothing is said', () => {
-  const nutri = bake();
-  const cut = run({ nutri });
-  cut.api.setGoal('cut'); // the example's cut rest day lands on its target
-  assert.doesNotMatch(cut.els['nutri-target'].innerHTML, /short|over:/);
-  nutri.base.rest.flex = []; // nothing to scale: the whole gap is the remainder
-  nutri.snack = { ...nutri.snack, opts: [] }; // and no automatic snack (its own tests below), so the plate line shows
-  nutri.plans.maintain.rest.t = { ...nutri.plans.maintain.rest.t, kcal: nutri.plans.maintain.rest.t.kcal + 400 };
-  const x = planFor(nutri, 'maintain', 'rest', null);
-  assert.ok(x.rem > 75, `rem ${x.rem}`);
-  const grams = Math.round(x.rem / 4 / 5) * 5;
-  assert.match(run({ nutri }).els['nutri-target'].innerHTML, new RegExp('~' + x.rem.toLocaleString('en') + ' kcal short: add ~' + grams + ' g of carbs'));
-  nutri.plans.maintain.rest.t = { ...nutri.plans.maintain.rest.t, kcal: 700 };
-  assert.match(run({ nutri }).els['nutri-target'].innerHTML, /kcal over: trim fat or extras/);
-});
-
-test('protein or fat far from the target is flagged (they are not scaled)', () => {
-  const nutri = bake();
-  nutri.plans.maintain.rest.t = { ...nutri.plans.maintain.rest.t, p: 220 };
-  assert.match(run({ nutri }).els['nutri-target'].innerHTML, /plan's protein \(\d+ g\) is off the target \(220 g\)/);
-});
-
-test('only whole-unit portions flexible: the unrounded remainder is reported with a note', () => {
-  const syn = plain(buildNutriToday(buildNutrition(SYN_ING, SYN_PLAN), SYN_PLAN));
-  syn.plans.maintain.rest.t = { kcal: 950, p: 60, f: 8, c: 138 };
-  const x = planFor(syn, 'maintain', 'rest', null);
-  assert.equal(x.udOnly, true);
-  assert.ok(Math.abs(x.rem) > 75, `rem ${x.rem}`);
-  const html = run({ nutri: syn }).els['nutri-plan'].innerHTML;
-  assert.match(html, /Only portions counted in pieces are adjustable/);
-  assert.match(html, new RegExp('Carb portions ×' + x.factor.toFixed(2)));
 });
 
 test('Inicio card: day type + goal and today\'s target kcal / macros', () => {
@@ -375,12 +345,15 @@ test('the removed day builder\'s hook is never called (a stale window.bldRefresh
   assert.match(t.els.intake.innerHTML, /could not be shown/);
 });
 
-test('Spanish: labels, thousands with a dot, decimal comma in the carb factor', () => {
+test('Spanish: labels, thousands with a dot, the guide localized', () => {
   const { els, api } = run({ locale: 'es', nutri: bake({ units: { g: 'g', ml: 'ml', ud: 'ud' }, dec: ',' }) });
   assert.match(els['nutri-target'].innerHTML, /<b class="nt-kcal">2\.500<\/b>/);
   assert.match(els['nutri-target'].innerHTML, /Proteína/);
-  api.setGoal('cut'); // a day whose portions still have a common factor
-  assert.match(els['nutri-plan'].innerHTML, /Raciones de carbohidratos ×\d,\d\d /);
+  assert.match(els['nutri-plan'].innerHTML, /class="meal-name">Desayuno</);
+  assert.match(els['nutri-plan'].innerHTML, /<span class="gd-l">Verdura<\/span><span class="gd-free">libre<\/span>/);
+  assert.match(els['nutri-plan'].innerHTML, /aria-label="Ejemplo de Proteína para Comida"/);
+  assert.match(els['nutri-plan'].innerHTML, /para extras hoy/);
+  assert.match(els['nutri-plan'].innerHTML, /Incluye café, tentempiés y pre\/post-entreno\./);
   assert.equal(els['nutri-daytype-src'].textContent, '(auto)');
 });
 
@@ -510,15 +483,6 @@ test('Plan de hoy: meal header = caps name + big kcal, P / C / F mini line with 
   assert.match(es, /<span><b>\d+<\/b> G<\/span><\/div>/, 'G = grasa in Spanish');
 });
 
-test('Plan de hoy: a composite item lists its components as readable sub-rows (name · amount), fixed and scaled', () => {
-  const nutri = bake();
-  const meal = nutri.base.rest.meals[0];
-  meal.parts.push({ l: 'Toast with avocado', q: '82 g + 20 g', c: ['Toast', 'Avocado'], a: ['82 g', '20 g'] });
-  const h = run({ nutri }).els['nutri-plan'].innerHTML;
-  assert.match(h, /<li class="mp mp-comp"><span class="mp-l">Toast with avocado<\/span><\/li><li class="mp-sub"><span class="mp-l">Toast<\/span><span class="mp-q">82 g<\/span><\/li><li class="mp-sub"><span class="mp-l">Avocado<\/span><span class="mp-q">20 g<\/span><\/li>/);
-  assert.doesNotMatch(h, /82 g \+ 20 g/, 'never the cryptic "82 g + 20 g"');
-});
-
 test('Avituallamiento: a 3-step timeline (before, during, after) with one key number each', () => {
   const h = run({ programmed: { kind: 'bike' } }).els['nutri-fuel-body'].innerHTML;
   const steps = [...h.matchAll(/<li class="fuel-step[^"]*"><div class="fuel-step-head"><h3>([^<]+)<\/h3><b class="fuel-key">([^<]+)<\/b>/g)].map((m) => [m[1], m[2]]);
@@ -527,621 +491,9 @@ test('Avituallamiento: a 3-step timeline (before, during, after) with one key nu
   assert.match(h, /<ol class="fuel-steps">/);
 });
 
-/* ---------- HCNutri.todayPlan: the food log's "Del plan" tab reads Plan de hoy, never re-computes it ---------- */
-const escHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const TODAY_PLAN_CASES = [
-  { label: 'rest, default goal', opts: {}, goal: 'maintain', d: 'rest', min: null },
-  { label: 'gym done, bulk', opts: { items: [{ modality: 'gym', dur: 60 }], storage: memStorage({ 'hc.nutri.goal': 'bulk' }) }, goal: 'bulk', d: 'gym', min: null },
-  { label: 'programmed ride picked at 3 h, cut', opts: { programmed: { kind: 'bike' }, storage: memStorage({ 'hc.nutri.goal': 'cut', 'hc.nutri.rideMin': JSON.stringify({ date: TODAY, type: 'bike', min: 180 }) }) }, goal: 'cut', d: 'bike', min: 180 },
-  { label: 'long ride recorded (real minutes), maintain', opts: { items: [{ modality: 'bike', dur: 200 }] }, goal: 'maintain', d: 'bikeLong', min: 200 },
-];
-
-test('HCNutri.todayPlan: today\'s Plan de hoy meals exactly as rendered (same goal x day type x ride minutes, same planFor)', () => {
-  const nutri = bake();
-  for (const c of TODAY_PLAN_CASES) {
-    const s = run(c.opts);
-    assert.equal(s.api.state().dayType, c.d, c.label);
-    const x = planFor(nutri, c.goal, c.d, c.min);
-    const view = x.view; // the base day's meals + the automatic snack (lib/nutrition/snack.mjs)
-    const plan = plain(s.api.todayPlan());
-    const html = s.els['nutri-plan'].innerHTML;
-    assert.equal(plan.length, view.length, c.label);
-    let fi = 0;
-    plan.forEach((m, i) => {
-      assert.equal(m.name, view[i].n);
-      assert.equal(m.slot, view[i].s);
-      assert.deepEqual([m.kcal, m.p, m.c, m.g], x.meals[i], `${c.label}: meal ${i} totals = Plan de hoy's`);
-      // a main meal is a card, an add-on a row of the add-ons card; both print the same kcal
-      const shown = MAIN_SLOTS.includes(m.slot)
-        ? `<div class="meal-name">${escHtml(m.name)}</div><div class="meal-kcal"><b>${m.kcal.toLocaleString('en')}</b> kcal</div>`
-        : `<div class="addon-name">${escHtml(m.name)}</div><div class="addon-kcal"><b>${m.kcal.toLocaleString('en')}</b> kcal</div>`;
-      assert.ok(html.includes(shown), `${c.label}: meal ${i} kcal on the page`);
-      assert.equal(m.items.length, view[i].parts.length);
-      m.items.forEach((it, j) => {
-        const part = view[i].parts[j];
-        assert.equal(it.name, part.l);
-        const k = part.x ? fi++ : -1;
-        if (part.c) {
-          assert.equal(it.amount, null, 'a composite has no amount of its own');
-          const amts = part.x ? x.flexAmts[k] : part.a || [];
-          assert.deepEqual(it.components, part.c.map((name, n) => ({ name, amount: amts[n] != null ? amts[n] : null })));
-        } else {
-          assert.equal(it.amount, part.x ? x.flex[k] : part.q || null);
-          if (it.amount) assert.ok(html.includes(`<span class="mp-q">${escHtml(it.amount)}</span>`), `${c.label}: "${it.amount}" shown in Plan de hoy`);
-        }
-        assert.ok(Number.isInteger(it.kcal) && it.kcal >= 0);
-        for (const v of [it.p, it.c, it.g]) assert.equal(Math.round(v * 10) / 10, v, 'macros to 1 decimal');
-      });
-      // the items add up to the meal (each rounded once)
-      const sum = m.items.reduce((a, it) => a + it.kcal, 0);
-      assert.ok(Math.abs(sum - m.kcal) <= m.items.length, `${c.label}: meal ${i} items ${sum} vs ${m.kcal}`);
-    });
-    assert.equal(fi, x.flex.length, 'every flex part consumed in part order');
-    if (x.snack) {
-      const meal = plan.find((m) => m.items.some((it) => it.name === x.snack.n));
-      assert.ok(meal, `${c.label}: the snack is in "Del plan"`);
-      assert.equal(meal.slot, 'snack', 'logged as an add-on in the snack slot');
-      const it = meal.items.find((y) => y.name === x.snack.n);
-      assert.equal(it.kcal, Math.round(x.snack.mac[0]));
-      assert.ok(it.components.length >= 2 && it.components.every((y) => y.amount));
-    }
-  }
-  assert.ok(TODAY_PLAN_CASES.some((c) => planFor(nutri, c.goal, c.d, c.min).snack), 'some case carries a snack');
-});
-
-test('HCNutri.todayPlan follows a goal / day type change and is read-only (a copy each call)', () => {
-  const s = run();
-  const before = plain(s.api.todayPlan());
-  s.api.setGoal('cut');
-  const cut = planFor(bake(), 'cut', 'rest', null);
-  assert.deepEqual(plain(s.api.todayPlan()).map((m) => m.kcal), cut.meals.map((m) => m[0]));
-  const a = s.api.todayPlan();
-  a[0].kcal = -1;
-  a[0].items.length = 0;
-  assert.notEqual(s.api.todayPlan()[0].kcal, -1);
-  assert.ok(s.api.todayPlan()[0].items.length > 0);
-  assert.notDeepEqual(before.map((m) => m.kcal), cut.meals.map((m) => m[0]));
-});
-
-test('HCNutri.todayPlan is null when Plan de hoy has nothing to show (no base day / no meals)', () => {
-  const nutri = bake();
-  nutri.base.rest = null;
-  assert.equal(run({ nutri }).api.todayPlan(), null);
-  const empty = bake();
-  empty.base.rest.meals = [];
-  assert.equal(run({ nutri: empty }).api.todayPlan(), null);
-});
-
-test('lib solveScale / planFor expose each flex part\'s macros at its rounded amount (flexMac); fixed parts carry their own (m)', () => {
-  const nutri = bake();
-  for (const d of ['rest', 'gym', 'bike']) {
-    const x = planFor(nutri, 'maintain', d, d === 'bike' ? 120 : null);
-    assert.equal(x.flexMac.length, x.flex.length);
-    // meal totals = fixed parts + scaled flex parts
-    let fi = 0;
-    x.view.forEach((meal, i) => { // the snack part carries its own macros (m) like a fixed part
-      const t = [0, 0, 0, 0];
-      meal.parts.forEach((p) => { const m = p.x ? x.flexMac[fi++] : p.m; for (let n = 0; n < 4; n++) t[n] += m[n]; });
-      assert.deepEqual(t.map(Math.round), x.meals[i], `${d}: meal ${i}`);
-    });
-  }
-});
-
-/* ---------- choosable blocks: picks (lib/nutrition/blocks.mjs applyPicks, ported) ---------- */
-// every single pick of every block of the example, plus a few combinations, per base day
-// a block's option keys: a list block's options, or a food block's category foods (+ "none" when skippable)
-function optKeys(nutri, b) {
-  if (!b.I) return nutri.lists[b.L].map((o) => o.k);
-  return nutri.foods.cats[b.I].concat(nutri.foods.rules[b.I].skip ? [NONE_KEY] : []);
-}
-function pickCases(nutri) {
-  const out = [undefined, {}];
-  for (const day of ['train', 'rest']) {
-    const blocks = nutri.base[day].blocks;
-    const all = {};
-    for (const id of Object.keys(blocks)) {
-      const keys = optKeys(nutri, blocks[id]);
-      for (const k of keys) out.push({ [id]: k });
-      all[id] = keys[keys.length - 1];
-    }
-    out.push(all);
-  }
-  out.push({ 'lunch/carboComida': 'Pasta', 'dinner/proteina': 'Salmon', 'snack/anclaje': 'Tuna', 'breakfast/desayuno': 'A · Oat pancake' });
-  out.push({ 'lunch/calabacin': NONE_KEY, 'breakfast/leche': 'yogurgriego', 'Cooking oil/aceiteoliva': 'mantequillalight', 'breakfast/avena': 'arroz', 'snack/platano': NONE_KEY, 'postworkout/wheyup': 'pollo' });
-  out.push({ 'lunch/proteina': 'Nope', 'x/y': 'Rice', 'lunch/postre': 12 });
-  return out;
-}
-const bakeEs = () => plain(buildNutriToday(buildNutrition(ING, PLAN), PLAN, { units: { g: 'g', ml: 'ml', ud: 'ud' }, dec: ',', lang: 'es' }));
-
-test('planFor / applyPicks ports agree with lib with picks (every single pick + combinations, all goals x day types)', () => {
-  for (const nutri of [bake(), bakeEs()]) {
-    const { api } = run({ nutri });
-    const cases = pickCases(nutri);
-    assert.ok(cases.length > 30, `${cases.length} pick cases`);
-    for (const picks of cases) {
-      for (const g of ['maintain', 'cut', 'bulk']) for (const d of ['rest', 'gym', 'bike', 'bikeLong']) {
-        const min = d === 'bikeLong' ? 240 : null;
-        assert.deepEqual(plain(api.planFor(nutri, g, d, min, picks)), plain(planFor(nutri, g, d, min, picks)), `${g}/${d} ${JSON.stringify(picks)}`);
-      }
-      for (const day of ['train', 'rest']) {
-        assert.deepEqual(plain(api.applyPicks(nutri.base[day], nutri.lists, picks, nutri.fmt, nutri.foods)), plain(applyPicks(nutri.base[day], nutri.lists, picks, nutri.fmt, nutri.foods)), `${day} ${JSON.stringify(picks)}`);
-      }
-    }
-  }
-});
-
 test('waterFill port agrees with lib/nutrition/fill.mjs over FILL_CASES (with and without the clamp)', () => {
   const { api } = run();
   for (const c of FILL_CASES) assert.deepEqual(plain(api.waterFill(c.items, c.need, c.opts)), plain(waterFill(c.items, c.need, c.opts)), JSON.stringify(c));
-});
-
-test('swapOption port agrees with lib for every block and option (both locales)', () => {
-  for (const nutri of [bake(), bakeEs()]) {
-    const { api } = run({ nutri });
-    assert.deepEqual(plain(api.LINE), { ...LINE }, 'the page mirrors the line layout');
-    let n = 0;
-    for (const day of ['train', 'rest']) for (const [id, b] of Object.entries(nutri.base[day].blocks)) {
-      if (b.I) continue; // food blocks: the swapIng parity test below
-      for (const o of nutri.lists[b.L]) {
-        assert.deepEqual(plain(api.swapOption(b, nutri.lists[b.L], o.k, nutri.fmt)), plain(swapOption(b, nutri.lists[b.L], o.k, nutri.fmt)), `${day} ${id} ${o.k}`);
-        n++;
-      }
-    }
-    assert.ok(n > 20, `${n} swaps`);
-  }
-});
-
-test('swapIng port agrees with lib for every food block and option, "none" included (both locales)', () => {
-  for (const nutri of [bake(), bakeEs()]) {
-    const { api } = run({ nutri });
-    let n = 0;
-    const cats = new Set();
-    for (const day of ['train', 'rest']) for (const [id, b] of Object.entries(nutri.base[day].blocks)) {
-      if (!b.I) continue;
-      cats.add(b.I);
-      for (const k of optKeys(nutri, b)) {
-        assert.deepEqual(plain(api.swapIng(b, nutri.foods, k, nutri.fmt)), plain(swapIng(b, nutri.foods, k, nutri.fmt)), `${day} ${id} ${k}`);
-        n++;
-      }
-    }
-    assert.deepEqual([...cats].sort(), ['carb', 'dairy', 'fat', 'fruit', 'protein', 'veg'], 'every category rule of the example is exercised');
-    assert.ok(n > 120, `${n} food swaps`);
-  }
-});
-
-test('ingAmount port agrees with lib for every category rule (synthetic foods: unit food, countable, none of the macro)', () => {
-  const nutri = bake();
-  const { api } = run({ nutri });
-  const F = nutri.foods.ings;
-  const keys = Object.keys(F);
-  let n = 0;
-  for (const cat of FOOD_CATS) for (const d of ['pollo', 'huevo', 'platano', 'aceiteoliva', 'leche', 'calabacin']) for (const o of keys) for (const amt of [5, 37, 150, 300]) {
-    const b = { I: cat, d, a: amt, fx: false };
-    const foods = { ...nutri.foods, rules: { [cat]: CAT_RULES[cat] } };
-    assert.deepEqual(plain(api.swapIng(b, foods, o, nutri.fmt)), plain(swapIng(b, foods, o, nutri.fmt)), `${cat} ${d} ${amt} -> ${o}`);
-    n++;
-  }
-  assert.ok(n > 5000, `${n} cases`);
-});
-
-test('setPick reads the block from today\'s base day without re-solving the plan', () => {
-  const nutri = bake();
-  const t = run({ nutri });
-  const cell = nutri.plans[t.api.state().goal][t.api.state().dayType];
-  let solved = 0;
-  const target = cell.t;
-  Object.defineProperty(cell, 't', { get() { solved++; return target; }, configurable: true });
-  assert.equal(t.api.setPick('nope/x', 'Rice'), false);
-  assert.equal(solved, 0, 'an unknown block: no planFor run');
-});
-
-test('the example day stays on target whatever single food is picked, unless no carb portion can grow any more', () => {
-  const nutri = bake();
-  for (const picks of pickCases(nutri)) {
-    for (const [g, d] of [['cut', 'rest'], ['maintain', 'rest'], ['maintain', 'gym']]) {
-      const x = planFor(nutri, g, d, null, picks);
-      // an extreme pick can push the carb factor to its limit, or every portion reaches its cap: the page says so
-      if (x.clamp || x.allCapped) continue;
-      assert.ok(Math.abs(x.rem) <= nutri.tolerance, `${g}/${d} ${JSON.stringify(picks)}: rem ${x.rem}`);
-    }
-  }
-});
-
-test('a block renders as a labelled select of its list (grouped like the tables); the default view is today\'s plan', () => {
-  const { els, api } = run();
-  const html = els['nutri-plan'].innerHTML;
-  assert.match(html, /<select class="mp-pick" data-block="lunch\/proteina" aria-label="Change Chicken breast \(Lunch\)"><optgroup label="Lean"><option value="Chicken breast" selected>Chicken breast<\/option>/);
-  assert.match(html, /<optgroup label="Moderate"><option value="Turkey ham">Turkey ham<\/option><\/optgroup><optgroup label="Fatty">/);
-  assert.match(html, /data-block="lunch\/carboComida"[^>]*><option value="Rice" selected>Rice<\/option><option value="Pasta">Pasta<\/option>/, 'a list without groups: plain options');
-  assert.doesNotMatch(html, /nutri-picks-reset/, 'nothing picked: no reset link');
-  assert.deepEqual(plain(api.state().picks), {});
-});
-
-test('picking an option: kept for today, the plan re-solved, the rings refreshed, focus back on that select', () => {
-  const storage = memStorage();
-  const queried = [];
-  const s = run({ storage, query: (sel) => { queried.push(sel); return { focus() { queried.push('focused'); } }; } });
-  s.calls.length = 0;
-  s.fire('nutri-plan', 'change', { value: 'Salmon', getAttribute: (n) => (n === 'data-block' ? 'lunch/proteina' : null) });
-  assert.deepEqual(JSON.parse(storage.data['hc.nutri.picks']), { date: TODAY, picks: { 'lunch/proteina': 'Salmon' } });
-  const html = s.els['nutri-plan'].innerHTML;
-  assert.match(html, /<option value="Salmon" selected>Salmon<\/option>/);
-  // salmon 20 g P / 100 g against chicken 140 g (32 g P): 160 g
-  assert.match(html, /data-block="lunch\/proteina"[^]*?<\/select><\/span><span class="mp-q">160 g<\/span>/);
-  assert.match(html, /You swapped foods: the rest of the day was re-solved to stay on target\. <button type="button" class="lnk nutri-picks-reset" id="nutri-picks-reset">Back to the base plan<\/button>/);
-  assert.deepEqual(s.calls, [['intake', 2500]], 'the target is unchanged; the rings are refreshed');
-  assert.deepEqual(queried, ['select[data-block="lunch/proteina"]', 'focused']);
-  const x = planFor(bake(), 'maintain', 'rest', null, { 'lunch/proteina': 'Salmon' });
-  assert.deepEqual(plain(s.api.todayPlan()).map((m) => m.kcal), x.meals.map((m) => m[0]));
-  assert.equal(s.api.todayPlan()[1].items[0].name, 'Salmon');
-  assert.equal(s.api.todayPlan()[1].items[0].amount, '160 g');
-  // back to the default option: the pick is dropped (and the storage key with it)
-  s.fire('nutri-plan', 'change', { value: 'Chicken breast', getAttribute: () => 'lunch/proteina' });
-  assert.equal(storage.data['hc.nutri.picks'], undefined);
-  assert.doesNotMatch(s.els['nutri-plan'].innerHTML, /nutri-picks-reset/);
-});
-
-test('reset: every pick dropped; an unknown block id is ignored', () => {
-  const storage = memStorage({ 'hc.nutri.picks': JSON.stringify({ date: TODAY, picks: { 'lunch/carboComida': 'Pasta', 'dinner/postre': 'Banana' } }) });
-  const s = run({ storage });
-  assert.deepEqual(plain(s.api.state().picks), { 'lunch/carboComida': 'Pasta', 'dinner/postre': 'Banana' });
-  assert.match(s.els['nutri-plan'].innerHTML, /<option value="Pasta" selected>/);
-  s.fire('nutri-plan', 'change', { value: 'Rice', getAttribute: () => 'nope/x' });
-  assert.deepEqual(plain(s.api.state().picks), { 'lunch/carboComida': 'Pasta', 'dinner/postre': 'Banana' });
-  s.fire('nutri-plan', 'click', { closest: (sel) => (sel === '#nutri-picks-reset' ? {} : null) });
-  assert.deepEqual(plain(s.api.state().picks), {});
-  assert.equal(storage.data['hc.nutri.picks'], undefined);
-  assert.match(s.els['nutri-plan'].innerHTML, /<option value="Rice" selected>/);
-});
-
-test('picks expire the next day; a broken or foreign value is ignored; storage failures never break the page', () => {
-  const old = run({ storage: memStorage({ 'hc.nutri.picks': JSON.stringify({ date: '2030-01-09', picks: { 'lunch/carboComida': 'Pasta' } }) }) });
-  assert.deepEqual(plain(old.api.state().picks), {});
-  const junk = run({ storage: memStorage({ 'hc.nutri.picks': '{nope' }) });
-  assert.deepEqual(plain(junk.api.state().picks), {});
-  const odd = run({ storage: memStorage({ 'hc.nutri.picks': JSON.stringify({ date: TODAY, picks: { 'lunch/carboComida': 3, 'lunch/postre': 'Quinoa' } }) }) });
-  assert.deepEqual(plain(odd.api.state().picks), { 'lunch/postre': 'Quinoa' }, 'kept, but a key not in the list is ignored by applyPicks');
-  assert.match(odd.els['nutri-plan'].innerHTML, /<option value="Apple" selected>/);
-  const throwing = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } };
-  const t = run({ storage: throwing });
-  assert.equal(t.api.setPick('lunch/carboComida', 'Pasta'), true);
-  assert.match(t.els['nutri-plan'].innerHTML, /<option value="Pasta" selected>/);
-});
-
-test('a pick follows the day type: the same block id on the other base day (Pasta on rest and gym)', () => {
-  const s = run();
-  s.api.setPick('lunch/carboComida', 'Pasta');
-  assert.match(s.els['nutri-plan'].innerHTML, /<option value="Pasta" selected>/);
-  s.fire('nutri-daytype', 'change', { value: 'gym' });
-  assert.equal(s.api.state().dayType, 'gym');
-  assert.match(s.els['nutri-plan'].innerHTML, /data-block="lunch\/carboComida"[^>]*>[^]*?<option value="Pasta" selected>/);
-});
-
-test('Spanish: the select and the reset link are localized; countable foods in Spanish', () => {
-  const s = run({ nutri: bakeEs(), locale: 'es' });
-  s.api.setPick('lunch/postre', 'Banana');
-  const html = s.els['nutri-plan'].innerHTML;
-  assert.match(html, /aria-label="Cambiar Banana \(Lunch\)"/);
-  assert.match(html, /<optgroup label="Fruta">/);
-  assert.match(html, /plátanos? medianos?/);
-  assert.match(html, /Volver al plan base/);
-});
-
-/* ---------- three main meals + ONE add-ons card (display grouping only: no number changes) ---------- */
-// planFor totals of the example plan [kcal, P, C, F, factor, remainder], re-pinned DELIBERATELY when
-// portion caps + water-filling landed (lib/nutrition/scale.mjs: the carb parts stop at realistic
-// portions) and again when the AUTOMATIC SNACK landed (lib/nutrition/snack.mjs): every short day now
-// carries a snack sized to its shortfall, so the totals include it. What is left: cut/rest needed none;
-// bikeLong keeps ~200 kcal for the ride (the top of its 60–90 g/h range); bulk gym / bike / bikeLong
-// are short by what the snack's caps leave over (the largest option, toast, at its maximum)
-const PINNED_TOTALS = {
-  'maintain/rest': [2487, 142, 385, 47, 1.67, 13], 'maintain/gym': [3002, 161, 447, 64, 1.67, 48], 'maintain/bike': [3091, 164, 464, 65, 1.67, -21], 'maintain/bikeLong': [2940, 174, 452, 53, 1.67, 200],
-  'cut/rest': [2150, 136, 308, 44, 1.19, 0], 'cut/gym': [2691, 153, 404, 54, 1.67, 9], 'cut/bike': [3091, 164, 464, 65, 1.67, -21], 'cut/bikeLong': [2940, 174, 452, 53, 1.67, 200],
-  'bulk/rest': [2799, 150, 428, 56, 1.67, 1], 'bulk/gym': [3136, 164, 464, 70, 1.67, 214], 'bulk/bike': [3136, 164, 464, 70, 1.67, 234], 'bulk/bikeLong': [3136, 164, 464, 70, 1.67, 304],
-};
-const cardsOf = (html) => [...html.matchAll(/<div class="meal( meal-addons)?"><div class="meal-top"><div class="meal-name">([^<]+)<\/div><div class="meal-kcal"><b>([\d,.]+)<\/b> kcal<\/div><\/div>/g)]
-  .map((m) => ({ addons: !!m[1], name: m[2], kcal: Number(m[3].replace(/[,.]/g, '')) }));
-const addonRowsOf = (html) => [...html.matchAll(/<div class="addon"><div class="addon-top"><div class="addon-name">([^<]+)<\/div><div class="addon-kcal"><b>([\d,.]+)<\/b> kcal<\/div><\/div>/g)]
-  .map((m) => ({ name: m[1], kcal: Number(m[2].replace(/[,.]/g, '')) }));
-
-test('planFor totals (lib and the page port) equal the pinned ones, and the cards add up to the day', () => {
-  const nutri = bake();
-  const s = run({ nutri });
-  for (const [key, want] of Object.entries(PINNED_TOTALS)) {
-    const [g, d] = key.split('/');
-    for (const x of [planFor(nutri, g, d, null), s.api.planFor(nutri, g, d, null)]) assert.deepEqual([x.tot.k, x.tot.p, x.tot.c, x.tot.g, x.factor, x.rem], want, key);
-    s.api.setGoal(g);
-    s.fire('nutri-daytype', 'change', { value: d });
-    const x = planFor(nutri, g, d, s.api.state().rideMin);
-    const cards = cardsOf(s.els['nutri-plan'].innerHTML);
-    assert.equal(cards.reduce((a, c) => a + c.kcal, 0), x.meals.reduce((a, m) => a + m[0], 0), `${key}: main cards + the add-ons card = every meal`);
-  }
-});
-
-test('the page classifies main meals vs add-ons like lib (baked MAIN_SLOTS + isMainMeal)', () => {
-  const nutri = bake();
-  assert.deepEqual(nutri.mainSlots, MAIN_SLOTS);
-  const { api } = run({ nutri });
-  for (const day of ['train', 'rest']) {
-    nutri.base[day].meals.forEach((m, i) => assert.equal(api.isMainMeal(m), isMainMeal(PLAN.dayPlan[day].meals[i]), `${day}: ${m.n}`));
-  }
-  assert.equal(api.isMainMeal({ n: 'x', s: null }), false);
-  assert.equal(api.isMainMeal(null), false);
-});
-
-test('Plan de hoy (rest): Breakfast, Lunch, Dinner cards, then ONE Extras card holding every other meal as a compact row', () => {
-  const nutri = bake();
-  const s = run({ nutri });
-  const html = s.els['nutri-plan'].innerHTML;
-  const cards = cardsOf(html);
-  assert.deepEqual(cards.map((c) => c.name), ['Breakfast', 'Lunch', 'Dinner', 'Extras'], 'the add-ons card comes after dinner');
-  assert.deepEqual(cards.map((c) => c.addons), [false, false, false, true]);
-  const rows = addonRowsOf(html);
-  assert.deepEqual(rows.map((r) => r.name), ['Protein anchor', 'Cooking oil'], 'add-ons keep their day order');
-  const x = planFor(nutri, 'maintain', 'rest', null);
-  const names = nutri.base.rest.meals.map((m) => m.n);
-  assert.deepEqual(rows.map((r) => r.kcal), rows.map((r) => x.meals[names.indexOf(r.name)][0]), 'each row = that meal\'s kcal');
-  assert.equal(cards[3].kcal, rows.reduce((a, r) => a + r.kcal, 0), 'the card kcal = the sum of its rows');
-  const addons = html.split('class="meal meal-addons"')[1];
-  assert.match(addons, /<select class="mp-pick" data-block="snack\/anclaje" aria-label="Change [^"]+ \(Protein anchor\)">/, 'a choosable block stays choosable on its add-on row');
-  assert.match(addons, /<span class="mp-dir" role="img"/, 'the scaled-portion arrow is kept');
-  assert.match(addons, /<li class="mp mp-block"><span class="mp-l"><select class="mp-pick" data-block="Cooking oil\/aceiteoliva" aria-label="Change Olive oil \(Cooking oil\)">[^]*?<option value="aceiteoliva" selected>Olive oil<\/option>[^]*?<\/select><\/span><span class="mp-q">~1 tablespoon \(11 g\)<\/span><\/li>/, 'a fixed food is a select of its category, also on an add-on row');
-  assert.doesNotMatch(html, /<div class="meal-name">(Protein anchor|Cooking oil)<\/div>/, 'no full card per add-on');
-});
-
-test('Plan de hoy (gym): Post-workout and Cooking oil are add-on rows; Spanish heading "Añadidos"', () => {
-  const s = run({ items: [{ modality: 'gym', dur: 60 }] });
-  assert.equal(s.api.state().dayType, 'gym');
-  const html = s.els['nutri-plan'].innerHTML;
-  assert.deepEqual(cardsOf(html).map((c) => c.name), ['Breakfast', 'Lunch', 'Dinner', 'Extras']);
-  assert.deepEqual(addonRowsOf(html).map((r) => r.name), ['Post-workout', 'Cooking oil', 'Snack'], 'the short gym day ends with the automatic snack');
-  const es = run({ nutri: bakeEs(), locale: 'es' }).els['nutri-plan'].innerHTML;
-  assert.match(es, /<div class="meal meal-addons"><div class="meal-top"><div class="meal-name">Añadidos<\/div>/);
-});
-
-test('a supplement of an add-on slot sits on that add-on row; a day with no add-ons has no add-ons card', () => {
-  const nutri = bake({ supplements: [{ name: 'Demo Whey', dose: '30 g', meal: 'postworkout' }, { name: 'Demo Magnesium', dose: null, meal: 'snack' }] });
-  const gym = run({ nutri, items: [{ modality: 'gym', dur: 60 }] }).els['nutri-plan'].innerHTML;
-  const post = gym.split('<div class="addon-name">Post-workout</div>')[1].split('<div class="addon">')[0];
-  assert.match(post, /<div class="meal-supp"><svg class="supp-ico"[^>]*>.*?<\/svg><span>Demo Whey 30 g<\/span><\/div>/);
-  const rest = run({ nutri }).els['nutri-plan'].innerHTML;
-  const anchor = rest.split('<div class="addon-name">Protein anchor</div>')[1].split('<div class="addon">')[0];
-  assert.match(anchor, /<span>Demo Magnesium<\/span>/);
-  const syn = plain(buildNutriToday(buildNutrition(SYN_ING, SYN_PLAN), SYN_PLAN, {}));
-  const none = run({ nutri: syn }).els['nutri-plan'].innerHTML;
-  assert.doesNotMatch(none, /meal-addons|class="addon"/);
-  assert.deepEqual(cardsOf(none).map((c) => c.name), ['Lunch']);
-});
-
-/* ---------- every fixed {ing} part is choosable among the foods of its category ---------- */
-test('a fixed food renders as a select of its category (default = its label), with "none" only where skipping is sensible', () => {
-  const { els } = run();
-  const html = els['nutri-plan'].innerHTML;
-  const sel = (id) => (html.match(new RegExp('<select class="mp-pick" data-block="' + id.replace('/', '\\/') + '"[^]*?</select>')) || [''])[0];
-  const veg = sel('lunch/calabacin');
-  assert.match(veg, /aria-label="Change Zucchini \(Lunch\)"/);
-  assert.match(veg, /<option value="calabacin" selected>Zucchini<\/option>/, 'the default keeps the plan\'s own label');
-  assert.match(veg, /<option value="pimiento">Bell pepper<\/option>/, 'other foods by their localized name');
-  assert.match(veg, /<option value="none">No vegetables<\/option><\/select>$/, '"none" last');
-  assert.doesNotMatch(veg, /optgroup/);
-  assert.doesNotMatch(sel('Cooking oil/aceiteoliva'), /value="none"/, 'the cooking fat is never skipped');
-  assert.match(sel('snack/platano'), /<option value="none">No fruit<\/option>/);
-  assert.ok(sel('dinner/calabacin'), 'lunch and dinner each have their own block');
-});
-
-test('picking a food: kept for today, the amount follows the category rule, the day re-solved; "Del plan" logs the pick', () => {
-  const storage = memStorage();
-  const s = run({ storage });
-  s.fire('nutri-plan', 'change', { value: 'pimiento', getAttribute: (n) => (n === 'data-block' ? 'lunch/calabacin' : null) });
-  assert.deepEqual(JSON.parse(storage.data['hc.nutri.picks']), { date: TODAY, picks: { 'lunch/calabacin': 'pimiento' } });
-  const html = s.els['nutri-plan'].innerHTML;
-  assert.match(html, /data-block="lunch\/calabacin" aria-label="Change Bell pepper \(Lunch\)">[^]*?<option value="pimiento" selected>Bell pepper<\/option>[^]*?<\/select><\/span><span class="mp-q">150 g<\/span>/, 'veg keeps the same grams');
-  assert.match(html, /nutri-picks-reset/);
-  const x = planFor(bake(), 'maintain', 'rest', null, { 'lunch/calabacin': 'pimiento' });
-  const plan = plain(s.api.todayPlan());
-  assert.deepEqual(plan.map((m) => m.kcal), x.meals.map((m) => m[0]));
-  assert.ok(plan[1].items.some((it) => it.name === 'Bell pepper' && it.amount === '150 g'));
-  assert.ok(!plan[1].items.some((it) => it.name === 'Zucchini'));
-});
-
-test('"none": the row keeps its select (to undo it) but no amount; the day is re-solved; "Del plan" leaves it out', () => {
-  const s = run();
-  const before = plain(s.api.todayPlan());
-  assert.equal(s.api.setPick('lunch/calabacin', NONE_KEY), true);
-  const html = s.els['nutri-plan'].innerHTML;
-  assert.match(html, /<li class="mp mp-block mp-none"><span class="mp-l"><select class="mp-pick" data-block="lunch\/calabacin" aria-label="Change No vegetables \(Lunch\)">[^]*?<option value="none" selected>No vegetables<\/option><\/select><\/span><\/li>/);
-  const x = planFor(bake(), 'maintain', 'rest', null, { 'lunch/calabacin': NONE_KEY });
-  assert.ok(Math.abs(x.rem) <= bake().tolerance || x.allCapped, `rem ${x.rem}`);
-  const plan = plain(s.api.todayPlan());
-  assert.equal(plan[1].items.length, before[1].items.length - 1, 'nothing to log for a skipped food');
-  assert.deepEqual(plan.map((m) => m.kcal), x.meals.map((m) => m[0]));
-  // a meal whose every food is skipped has nothing to log
-  const t = run();
-  t.api.setPick('snack/platano', NONE_KEY);
-  t.api.setPick('snack/anclaje', 'Nope');
-  assert.ok(t.api.todayPlan().every((m) => m.items.length > 0));
-});
-
-test('Spanish: a food select and its "none" option are localized', () => {
-  const s = run({ nutri: bakeEs(), locale: 'es' });
-  const html = s.els['nutri-plan'].innerHTML;
-  assert.match(html, /data-block="lunch\/calabacin" aria-label="Cambiar Zucchini \(Lunch\)">[^]*?<option value="pimiento">Pimiento<\/option>[^]*?<option value="none">Sin verdura<\/option>/);
-  for (const cat of FOOD_CATS.filter((c) => CAT_RULES[c].skip)) {
-    for (const T of [esN, enN]) assert.equal(typeof T.plan.none[cat], 'string', `none label for ${cat}`);
-  }
-});
-
-/* ---------- realistic portion caps + water-filling ---------- */
-// every flex line's numeric amount (planFor flexN) against its cap, over the model planFor solved
-function overCap(nutri, x, picks) {
-  const mdl = applyPicks(nutri.base[x.base], nutri.lists, picks, nutri.fmt, nutri.foods);
-  const out = [];
-  mdl.flex.forEach((f, i) => {
-    if (!f.ln) return;
-    f.ln.forEach((l, j) => {
-      const cap = lineCap(l);
-      if (cap && x.flexN[i][j] > cap) out.push(`${i}.${j}: ${x.flexN[i][j]} > ${cap}`);
-    });
-  });
-  return out;
-}
-
-test('on the example no flex portion ever exceeds its cap: all 12 plans, every ride duration, every single pick', () => {
-  const nutri = bake();
-  let n = 0;
-  for (const g of ['maintain', 'cut', 'bulk']) for (const d of ['rest', 'gym', 'bike', 'bikeLong']) {
-    for (const min of [null, 60, 360]) {
-      const x = planFor(nutri, g, d, min);
-      assert.deepEqual(overCap(nutri, x), [], `${g}/${d}/${min}`);
-      n++;
-    }
-    for (const picks of pickCases(nutri)) {
-      const x = planFor(nutri, g, d, null, picks);
-      assert.deepEqual(overCap(nutri, x, picks), [], `${g}/${d} ${JSON.stringify(picks)}`);
-      n++;
-    }
-  }
-  assert.ok(n > 400, `${n} plans checked`);
-  // the owner's case: a maintain gym day no longer asks for an unrealistic plate of pasta or rice
-  const gym = planFor(nutri, 'maintain', 'gym', null, { 'lunch/carboComida': 'Pasta' });
-  const i = gym.view.flatMap((m) => m.parts.filter((p) => p.x)).findIndex((p) => p.l === 'Pasta');
-  assert.ok(i >= 0 && gym.flexN[i][0] <= 150, `pasta ${gym.flexN[i] && gym.flexN[i][0]} g`);
-});
-
-test('planFor flexN = each flex part\'s numeric line amounts ([null] for a manual block), aligned with flexAmts', () => {
-  const nutri = bake();
-  const x = planFor(nutri, 'maintain', 'gym', null);
-  assert.equal(x.flexN.length, x.flexAmts.length);
-  x.flexN.forEach((a, i) => assert.equal(a.length, x.flexAmts[i].length));
-  const syn = plain(buildNutriToday(buildNutrition(SYN_ING, SYN_PLAN), SYN_PLAN));
-  const lentils = planFor(syn, 'maintain', 'gym', null);
-  assert.ok(lentils.flexN.some((a) => a.length === 1 && a[0] === null), 'the flex lentils bowl is a manual block');
-});
-
-/* ---------- the automatic snack (lib/nutrition/snack.mjs, ported): a short day gets a snack add-on ---------- */
-const gymRun = (opts = {}) => run({ items: [{ modality: 'gym', dur: 60 }], ...opts });
-const snackRow = (html, name = 'Snack') => (html.split(`<div class="addon-name">${name}</div>`)[1] || '').split('<div class="addon">')[0];
-
-test('a short day whose plates cannot grow: Plan de hoy adds a Snack row (Extras card) sized to the shortfall; the target says nothing more', () => {
-  const nutri = bake();
-  const x = planFor(nutri, 'maintain', 'gym', null);
-  assert.equal(x.allCapped || x.clamp === 'max', true, 'the example gym day cannot grow its plates any more');
-  assert.ok(x.snack, 'a snack');
-  assert.ok(Math.abs(x.rem) <= 75, `rem ${x.rem}`);
-  const s = gymRun({ nutri });
-  const html = s.els['nutri-plan'].innerHTML;
-  assert.deepEqual(addonRowsOf(html).map((r) => r.name), ['Post-workout', 'Cooking oil', 'Snack']);
-  const row = snackRow(html);
-  assert.equal(addonRowsOf(html).find((r) => r.name === 'Snack').kcal, Math.round(x.snack.mac[0]));
-  assert.match(row, /<select class="mp-pick" data-block="snack\/auto" aria-label="Change [^"]+ \(Snack\)">/);
-  for (const o of nutri.snack.opts) assert.match(row, new RegExp(`<option value="${o.k}"${o.k === x.snack.k ? ' selected' : ''}>`), o.k);
-  assert.match(row, /<li class="mp-sub">/, 'the snack lists its components with their amounts');
-  assert.match(html, /Snack added to reach the target/);
-  assert.doesNotMatch(html, /You swapped foods/, 'the default snack is not a swap');
-  assert.doesNotMatch(s.els['nutri-target'].innerHTML, /short|add a snack/, 'no shortfall note once the snack fills it');
-  assert.match(s.els['nutri-plan-kcal'].textContent, new RegExp(x.tot.k.toLocaleString('en')), 'the plan total includes the snack');
-  const es = gymRun({ nutri: bakeEs(), locale: 'es' }).els['nutri-plan'].innerHTML;
-  assert.match(es, /<div class="addon-name">Tentempié<\/div>/);
-  assert.match(es, /Tentempié añadido para llegar al objetivo/);
-});
-
-test('the snack pick is kept for today in hc.nutri.picks (id snack/auto); picking the default drops it; reset clears it', () => {
-  const s = gymRun();
-  assert.equal(s.api.setPick('snack/auto', 'nuts'), true);
-  assert.deepEqual(JSON.parse(s.storage.data['hc.nutri.picks']), { date: TODAY, picks: { 'snack/auto': 'nuts' } });
-  const html = s.els['nutri-plan'].innerHTML;
-  assert.match(snackRow(html), /<option value="nuts" selected>/);
-  assert.match(html, /You swapped foods/);
-  const x = planFor(bake(), 'maintain', 'gym', null, { 'snack/auto': 'nuts' });
-  assert.deepEqual(plain(s.api.todayPlan()).find((m) => m.slot === 'snack').items.map((it) => it.name), ['Nuts (walnuts and almonds)']);
-  assert.equal(x.snack.k, 'nuts');
-  // a reload keeps it
-  assert.match(snackRow(gymRun({ storage: s.storage }).els['nutri-plan'].innerHTML), /<option value="nuts" selected>/);
-  s.fire('nutri-plan', 'change', { value: x.snack.d, getAttribute: (k) => (k === 'data-block' ? 'snack/auto' : null) });
-  assert.equal(s.storage.data['hc.nutri.picks'], undefined, 'the default drops the pick');
-  s.api.setPick('snack/auto', 'nuts');
-  s.api.resetPicks();
-  assert.match(snackRow(s.els['nutri-plan'].innerHTML), new RegExp(`<option value="${x.snack.d}" selected>`));
-  assert.equal(s.api.setPick('snack/auto', 'cake'), false, 'an unknown option is refused');
-});
-
-test('a plan already on target shows no snack; a snack-slot meal (the rest day\'s protein anchor) absorbs it instead of a second snack', () => {
-  const s = run();
-  s.api.setGoal('cut'); // the example's cut rest day lands on its target
-  assert.doesNotMatch(s.els['nutri-plan'].innerHTML, /snack\/auto|Snack added/);
-  const x = planFor(bake(), 'maintain', 'rest', null);
-  assert.ok(x.snack, 'the maintain rest day is short');
-  s.api.setGoal('maintain');
-  const html = s.els['nutri-plan'].innerHTML;
-  assert.deepEqual(addonRowsOf(html).map((r) => r.name), ['Protein anchor', 'Cooking oil'], 'no "Snack" row');
-  assert.match(snackRow(html, 'Protein anchor'), /data-block="snack\/auto" aria-label="Change [^"]+ \(Protein anchor\)"/);
-});
-
-test('a snack at its maximum leaves the rest as a note; bike days: the ride takes what fits its g/h range, then the snack', () => {
-  const nutri = bake();
-  const s = gymRun({ nutri });
-  s.api.setGoal('bulk');
-  const x = planFor(nutri, 'bulk', 'gym', null);
-  assert.equal(x.snack.capped, true);
-  assert.ok(x.rem > 75);
-  assert.match(s.els['nutri-target'].innerHTML, new RegExp('~' + x.rem.toLocaleString('en') + ' kcal short even with the snack at its maximum'));
-  const es = gymRun({ nutri: bakeEs(), locale: 'es', storage: memStorage({ 'hc.nutri.goal': 'bulk' }) });
-  assert.match(es.els['nutri-target'].innerHTML, /Faltan ~[\d.]+ kcal aun con el tentempié en su máximo/);
-  // bike (60 g/h, no headroom): the snack closes the day, no ride-fuel line
-  s.api.setGoal('maintain');
-  s.fire('nutri-daytype', 'change', { value: 'bike' });
-  const bx = planFor(nutri, 'maintain', 'bike', s.api.state().rideMin);
-  assert.ok(bx.snack);
-  assert.match(s.els['nutri-plan'].innerHTML, /data-block="snack\/auto"/);
-  if (Math.abs(bx.rem) <= 75) assert.doesNotMatch(s.els['nutri-target'].innerHTML, /class="nt-rem/, 'no remainder line');
-  // bikeLong (60–90 g/h): the ride keeps its headroom, the note says to add it to the ride fuel
-  s.fire('nutri-daytype', 'change', { value: 'bikeLong' });
-  const lx = planFor(nutri, 'maintain', 'bikeLong', s.api.state().rideMin);
-  assert.ok(lx.snack && lx.rem > 75);
-  assert.match(s.els['nutri-target'].innerHTML, /add them to the ride fuel/);
-  assert.doesNotMatch(s.els['nutri-target'].innerHTML, /add a snack|even with the snack/);
-});
-
-test('a bake without snack options keeps the old shortfall line ("add a snack")', () => {
-  const nutri = bake();
-  nutri.snack = { ...nutri.snack, opts: [] };
-  const x = planFor(nutri, 'maintain', 'gym', null);
-  assert.equal(x.snack, null);
-  const s = gymRun({ nutri });
-  const html = s.els['nutri-target'].innerHTML;
-  assert.match(html, new RegExp('~' + x.rem.toLocaleString('en') + ' kcal short: add a snack \\(e\\.g\\. fruit or a sandwich\\)'));
-  assert.doesNotMatch(html, /g of carbs/, 'no "add N g of carbs" to a plate already at its maximum');
-  assert.doesNotMatch(s.els['nutri-plan'].innerHTML, /snack\/auto/);
-});
-
-test('snack ports agree with lib/nutrition/snack.mjs (every option, needs from tiny to past the caps, both locales)', () => {
-  for (const nutri of [bake(), bakeEs()]) {
-    const { api } = run({ nutri });
-    for (const o of nutri.snack.opts) for (let need = 60; need < 1400; need += 37) {
-      assert.deepEqual(plain(api.snackFor(nutri.snack, need, o.k, nutri.fmt)), plain(snackFor(nutri.snack, need, o.k, nutri.fmt)), `${o.k}@${need}`);
-    }
-    for (const need of [80, 300, 450, 2000]) assert.deepEqual(plain(api.snackFor(nutri.snack, need, undefined, nutri.fmt)), plain(snackFor(nutri.snack, need, undefined, nutri.fmt)));
-    for (const g of ['maintain', 'cut', 'bulk']) for (const d of ['rest', 'gym', 'bike', 'bikeLong']) for (const o of nutri.snack.opts) {
-      const pk = { 'snack/auto': o.k };
-      assert.deepEqual(plain(api.planFor(nutri, g, d, null, pk)), plain(planFor(nutri, g, d, null, pk)), `${g}/${d}/${o.k}`);
-    }
-  }
-});
-
-test('the factor line stays honest with capped portions: "some portions are at their maximum" / every portion at its maximum', () => {
-  const nutri = bake();
-  const s = run({ nutri });
-  s.api.setGoal('cut');
-  const some = planFor(nutri, 'cut', 'rest', null);
-  assert.equal(some.capped && !some.allCapped, true, 'cut/rest: some portions capped');
-  assert.match(s.els['nutri-plan'].innerHTML, new RegExp('Carb portions ×' + some.factor.toFixed(2) + ' vs the base plan; some portions are at their maximum\\.'));
-  s.api.setGoal('maintain');
-  s.fire('nutri-daytype', 'change', { value: 'gym' });
-  const all = planFor(nutri, 'maintain', 'gym', null);
-  if (all.allCapped) assert.match(s.els['nutri-plan'].innerHTML, /Every carb portion is at its maximum/);
-  const es = run({ nutri: bakeEs(), locale: 'es' });
-  es.api.setGoal('cut');
-  assert.match(es.els['nutri-plan'].innerHTML, /algunas raciones están en su máximo/);
 });
 
 /* ---------- Plan de hoy collapsed by default (native <details>), open state per viewer ---------- */
@@ -1152,7 +504,7 @@ test('Plan de hoy is collapsed by default; its summary shows the plan total kcal
   const fold = s.els['nutri-plan-fold'];
   assert.equal(fold.open, false, 'collapsed by default');
   const x = planFor(nutri, 'maintain', 'rest', null);
-  assert.equal(s.els['nutri-plan-kcal'].textContent, x.tot.k.toLocaleString('en') + ' kcal');
+  assert.equal(s.els['nutri-plan-kcal'].textContent, x.mt.k.toLocaleString('en') + ' kcal', 'the guide adds up to the meals target');
   assert.match(s.els['nutri-plan'].innerHTML, /class="meal-name">Breakfast/, 'rendered even while collapsed');
   fold.open = true;
   fold._listeners.toggle.forEach((fn) => fn({ target: fold }));
@@ -1165,7 +517,7 @@ test('Plan de hoy is collapsed by default; its summary shows the plan total kcal
   assert.equal(run({ nutri, storage }).els['nutri-plan-fold'].open, false);
   // the summary follows the day type
   s.fire('nutri-daytype', 'change', { value: 'gym' });
-  assert.equal(s.els['nutri-plan-kcal'].textContent, planFor(nutri, 'maintain', 'gym', null).tot.k.toLocaleString('en') + ' kcal');
+  assert.equal(s.els['nutri-plan-kcal'].textContent, planFor(nutri, 'maintain', 'gym', null).mt.k.toLocaleString('en') + ' kcal');
   // storage that throws: still collapsed, toggling never throws
   const throwing = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } };
   const t = run({ nutri, storage: throwing });
@@ -1174,14 +526,276 @@ test('Plan de hoy is collapsed by default; its summary shows the plan total kcal
   assert.doesNotThrow(() => t.els['nutri-plan-fold']._listeners.toggle.forEach((fn) => fn({ target: t.els['nutri-plan-fold'] })));
 });
 
-test('"Del plan" (HCNutri.todayPlan) works while Plan de hoy is collapsed: it reads the plan, not the DOM', () => {
+/* ---------- Plan de hoy = the portion guide (lib/nutrition/guide.mjs, ported) ---------- */
+// planFor totals of the example plan [kcal, P, C, F, factor, remainder], re-pinned DELIBERATELY when the
+// portion guide replaced the menu: the automatic snack is gone, so a capped day's remainder is no longer
+// filled by a snack — the guide hands it to Extras (the guide's four meal groups add up to the meals target)
+const PINNED_TOTALS = {
+  'maintain/rest': [2401, 139, 369, 44, 1.67, 99], 'maintain/gym': [2605, 150, 388, 52, 1.67, 445], 'maintain/bike': [2605, 150, 388, 52, 1.67, 465], 'maintain/bikeLong': [2605, 150, 388, 52, 1.67, 535],
+  'cut/rest': [2150, 136, 308, 44, 1.19, 0], 'cut/gym': [2605, 150, 388, 52, 1.67, 95], 'cut/bike': [2605, 150, 388, 52, 1.67, 465], 'cut/bikeLong': [2605, 150, 388, 52, 1.67, 535],
+  'bulk/rest': [2401, 139, 369, 44, 1.67, 399], 'bulk/gym': [2605, 150, 388, 52, 1.67, 745], 'bulk/bike': [2605, 150, 388, 52, 1.67, 765], 'bulk/bikeLong': [2605, 150, 388, 52, 1.67, 835],
+};
+const cardsOf = (html) => [...html.matchAll(/<div class="meal (gd-meal|gd-extras)"[^>]*><div class="meal-top"><div class="meal-name">([^<]+)<\/div><div class="meal-kcal"><b>([\d,.]+)<\/b> kcal<\/div><\/div>/g)]
+  .map((m) => ({ kind: m[1], name: m[2], kcal: Number(m[3].replace(/[,.]/g, '')) }));
+const sectionOf = (html, name) => html.split('<div class="meal-name">' + name + '<')[1].split('<div class="meal ')[0];
+const selectedOf = (html, key) => {
+  const sel = html.split('data-guide="' + key + '"')[1].split('</select>')[0];
+  return (sel.match(/<option value="([^"]+)" selected>/) || [])[1];
+};
+const GRID = { ud: 100, grid: 0.5, step: 5 };
+
+test('planFor totals (lib and the page port) equal the pinned ones; the guide\'s four meal groups add up to the meals target', () => {
   const nutri = bake();
   const s = run({ nutri });
-  assert.equal(s.els['nutri-plan-fold'].open, false);
-  const meals = s.api.todayPlan();
-  assert.ok(Array.isArray(meals) && meals.length > 0);
+  for (const [key, want] of Object.entries(PINNED_TOTALS)) {
+    const [g, d] = key.split('/');
+    for (const x of [planFor(nutri, g, d, null), s.api.planFor(nutri, g, d, null)]) assert.deepEqual([x.tot.k, x.tot.p, x.tot.c, x.tot.g, x.factor, x.rem], want, key);
+    s.api.setGoal(g);
+    s.fire('nutri-daytype', 'change', { value: d });
+    const x = planFor(nutri, g, d, s.api.state().rideMin);
+    const cards = cardsOf(s.els['nutri-plan'].innerHTML);
+    assert.deepEqual(cards.map((c) => c.name), ['Breakfast', 'Lunch', 'Dinner', 'Extras'], `${key}: always the same four meal groups`);
+    const b = guideBudgets(x, nutri.base[x.base].sl, MAIN_SLOTS, nutri.guide.oil[x.base]);
+    if (!b.clamped || b.extras.k > 0) assert.equal(cards.reduce((a, c) => a + c.kcal, 0), x.mt.k, `${key}: the guide = the meals target`);
+  }
+});
+
+test('guide ports agree with lib: guideBudgets (every goal x day type x ride), remaining / mealState / isCovered', () => {
+  const nutri = bake();
+  const { api } = run({ nutri });
+  for (const g of ['maintain', 'cut', 'bulk']) for (const d of ['rest', 'gym', 'bike', 'bikeLong']) for (const min of [null, 60, 185, 360]) {
+    const x = planFor(nutri, g, d, min);
+    const sl = nutri.base[x.base].sl;
+    const oil = nutri.guide.oil[x.base];
+    assert.deepEqual(plain(api.guideBudgets(x, sl, MAIN_SLOTS, oil)), plain(guideBudgets(x, sl, MAIN_SLOTS, oil)), `${g}/${d}/${min}`);
+  }
+  // the cooking-oil split: both of lunch / dinner, only one, neither, no oil list
+  const mt = { k: 2500, p: 150, c: 280, f: 65 };
+  for (const [rows, slots, oil] of [
+    [[[500, 30, 60, 12], [800, 50, 90, 20], [700, 45, 80, 18], [91, 0, 0, 11], [20, 1, 2, 1]], ['breakfast', 'lunch', 'dinner', null, null], [3]],
+    [[[800, 50, 90, 20], [90, 0, 0, 10]], ['lunch', null], [1]],
+    [[[700, 50, 90, 20], [90, 0, 0, 10]], ['dinner', null], [1]],
+    [[[500, 30, 60, 12], [90, 0, 0, 10]], ['breakfast', null], [1]],
+    [[[500, 30, 60, 12], [90, 0, 0, 10]], ['lunch', null], undefined],
+  ]) assert.deepEqual(plain(api.guideBudgets({ meals: rows, mt }, slots, MAIN_SLOTS, oil)), plain(guideBudgets({ meals: rows, mt }, slots, MAIN_SLOTS, oil)), JSON.stringify(slots));
+  const b = { k: 800, p: 50, c: 90, f: 20 };
+  for (const k of [0, 50, 300, 719, 720, 900]) for (const p of [null, 0, 20, 46, 60]) {
+    const logged = { k, p, c: 40, f: null };
+    assert.deepEqual(plain(api.remaining(b, logged)), plain(remaining(b, logged)));
+    assert.equal(api.mealState(b, logged), mealState(b, logged));
+    assert.equal(api.isCovered(50 - (p || 0), 50), isCovered(50 - (p || 0), 50));
+  }
+  assert.equal(api.mealState(b, null), null);
+  assert.deepEqual(plain(api.remaining(b, null)), plain(remaining(b, null)));
+});
+
+test('floorToStep / GRID_EPS port agrees with lib/nutrition/amounts.mjs; no inline epsilon left in the page', () => {
+  const { api } = run();
+  assert.equal(api.GRID_EPS, GRID_EPS);
+  for (const [cap, st] of [[152, 5], [150, 5], [250, 60], [0.9, 0.3], [3, 5], [300, 100], [135, 22.5]]) assert.equal(api.floorToStep(cap, st), floorToStep(cap, st), `${cap}/${st}`);
+  assert.doesNotMatch(source, /Math\.floor\(cap \/ st \+ 1e-9\)/);
+});
+
+test('exampleAmount port agrees with lib over GUIDE_CASES and every basic x role x grams (both locales)', () => {
+  const { api } = run();
+  assert.deepEqual(GUIDE_GRID, GRID);
+  for (const c of GUIDE_CASES) assert.deepEqual(plain(api.exampleAmount(c.food, c.role, c.g, GRID)), plain(exampleAmount(c.food, c.role, c.g, GRID)), JSON.stringify(c));
+  let capped = 0;
+  for (const lang of ['en', 'es']) for (const food of buildBasics(ING, lang)) for (const role of ['p', 'c', 'f']) for (const g of [0, 1, 7.5, 12, 30, 45, 80, 161, 400]) {
+    const lib = exampleAmount(food, role, g, GRID);
+    if (lib && lib.capped) capped++;
+    assert.deepEqual(plain(api.exampleAmount(food, role, g, GRID)), plain(lib), `${food.k}/${role}/${g}`);
+  }
+  assert.ok(capped > 20, `the sweep reaches portion caps (${capped})`);
+});
+
+test('roleOptions port agrees with lib (basics + the owner\'s products, both locales)', () => {
+  const { api } = run();
+  const prods = [
+    { id: 3, name: 'Ñoquis frescos', unit: 'g', per100: { kcal: 160, protein: 4, carbs: 33, fat: 1 } },
+    { id: 12, name: 'Atún claro', unit: 'g', per100: { kcal: 110, protein: 25, carbs: 0, fat: 1 } },
+    { id: 4, name: 'Aceite', unit: 'ml', per100: { kcal: 820, protein: 0, carbs: 0, fat: 91 } },
+    { id: 5, name: 'Raro', unit: 'serving', per100: { kcal: 100, protein: 5, carbs: 5, fat: 5 } },
+    { id: 6, name: 'Sin kcal', unit: 'g', per100: { kcal: null, protein: 5, carbs: 5, fat: 5 } },
+  ];
+  for (const lang of ['en', 'es']) for (const role of ['p', 'c', 'f']) for (const p of [null, [], prods]) {
+    assert.deepEqual(plain(api.roleOptions(BASICS[lang], p, role)), plain(roleOptions(BASICS[lang], p, role)), `${lang}/${role}`);
+  }
+});
+
+test('rest day: Breakfast, Lunch, Dinner as plates by parts (protein / carbs / vegetables free / fat) with the plan\'s own example foods, then Extras', () => {
+  const nutri = bake();
+  const h = run({ nutri }).els['nutri-plan'].innerHTML;
   const x = planFor(nutri, 'maintain', 'rest', null);
-  assert.equal(meals.reduce((a, m) => a + m.kcal, 0), x.meals.filter((m, i) => meals.some((mm) => mm.name === nutri.base.rest.meals[i].n)).reduce((a, m) => a + m[0], 0));
-  s.els['nutri-plan'].innerHTML = ''; // even with nothing rendered
-  assert.deepEqual(plain(s.api.todayPlan()), plain(meals));
+  const b = guideBudgets(x, nutri.base.rest.sl, MAIN_SLOTS, nutri.guide.oil.rest);
+  const lunch = sectionOf(h, 'Lunch');
+  assert.deepEqual([...lunch.matchAll(/<span class="gd-l">([^<]+)<\/span>/g)].map((m) => m[1]), ['Protein', 'Carbs', 'Vegetables', 'Fat']);
+  assert.match(lunch, new RegExp('<span class="gd-l">Protein</span><span class="gd-g"><b>~' + b.meals.lunch.p + '</b> g</span>'));
+  assert.match(lunch, /<span class="gd-l">Vegetables<\/span><span class="gd-free">free<\/span>/);
+  assert.equal(selectedOf(h, 'lunch.p'), 'b:pollo', 'the plan\'s lunch protein');
+  assert.equal(selectedOf(h, 'lunch.c'), 'b:arroz');
+  assert.equal(selectedOf(h, 'lunch.f'), 'b:aceiteoliva', 'no fat food at lunch: the fallback');
+  assert.equal(selectedOf(h, 'dinner.f'), 'b:avellanas', 'the hazelnuts of the dinner dessert');
+  const pollo = BASICS.en.find((f) => f.k === 'pollo');
+  const a = exampleAmount(pollo, 'p', b.meals.lunch.p, GRID);
+  assert.match(lunch, new RegExp('<span class="gd-amt">~' + a.amt + ' g</span>'));
+  // the rice for the lunch carbs is past its 150 g maximum: said so, and where the rest comes from
+  assert.match(lunch, /<span class="gd-amt">~150 g <span class="gd-max">\(max\.\)<\/span><\/span>/);
+  assert.match(lunch, /<p class="gd-more">\+ top up with another source<\/p>/);
+  // a countable example shows pieces with the grams reference; oil per tablespoon
+  assert.match(sectionOf(h, 'Breakfast'), /<span class="gd-amt">\d½? bread rolls \(~[\d.]+ g\)<\/span>/);
+  const extras = sectionOf(h, 'Extras');
+  assert.match(extras, new RegExp('<p class="gd-budget">~' + b.extras.k + ' kcal for extras today</p>'));
+  assert.match(extras, /For example: a cortado ~19 kcal · a banana ~106 kcal · a yogurt ~79 kcal · a protein shake \(30 g\) ~114 kcal\./);
+  assert.match(extras, /<p class="gd-hint">Covers coffee, snacks and pre \/ post-workout\.<\/p>/, 'what Extras holds');
+  // the plan's cooking oil counts in lunch and dinner, not in Extras
+  const noOil = guideBudgets(x, nutri.base.rest.sl, MAIN_SLOTS);
+  assert.ok(b.meals.lunch.f > noOil.meals.lunch.f && b.meals.dinner.f > noOil.meals.dinner.f, 'half the oil in each');
+  assert.equal(b.meals.lunch.f + b.meals.dinner.f + b.extras.f, noOil.meals.lunch.f + noOil.meals.dinner.f + noOil.extras.f);
+  assert.doesNotMatch(extras, /Split it before and after training/, 'rest day: nothing to split around');
+  assert.doesNotMatch(h, /<select[^>]*class="gd-pick"[^>]*>[^]*?<\/select>[^]*?gd-add/, 'no "+" without the food log');
+  assert.doesNotMatch(h, /gd-left|Left today/);
+  assert.match(h, /Orientative: each example covers its macro only/);
+});
+
+test('gym day: the same four meal groups, bigger amounts where the plan grows, and Extras says to split it around training', () => {
+  const s = run({ items: [{ modality: 'gym', dur: 60 }] });
+  const h = s.els['nutri-plan'].innerHTML;
+  assert.deepEqual(cardsOf(h).map((c) => c.name), ['Breakfast', 'Lunch', 'Dinner', 'Extras']);
+  assert.match(sectionOf(h, 'Extras'), /Split it before and after training\./);
+  assert.equal(selectedOf(h, 'breakfast.f'), 'b:aceiteoliva', 'no fat food at the gym-day breakfast: the fallback');
+  assert.match(sectionOf(h, 'Breakfast'), /<span class="gd-amt">\d½? tablespoons? \(~\d+ g\)<\/span>/, 'oil per tablespoon');
+  assert.doesNotMatch(h, /Post-workout<\/div>|Cooking oil/, 'no add-on rows: their kcal are in the Extras budget');
+});
+
+test('supplements: under the main meal of their slot; any other slot under Extras with its slot name', () => {
+  const h = run().els['nutri-plan'].innerHTML;
+  assert.match(sectionOf(h, 'Lunch'), /<div class="meal-supp"><svg class="supp-ico"[^>]*aria-hidden="true">.*?<\/svg><span>Demo Creatine 3 g<\/span><\/div>/);
+  assert.match(sectionOf(h, 'Extras'), /<span>Demo Electrolytes \(Pre-workout\)<\/span>/);
+  assert.doesNotMatch(h, /💊/, 'no emoji');
+});
+
+test('a macro the main meals already pass leaves no Extras margin and says so (never a negative budget)', () => {
+  const s = run();
+  s.api.setGoal('cut');
+  const h = s.els['nutri-plan'].innerHTML;
+  assert.match(sectionOf(h, 'Extras'), /The main meals already cover some macro/);
+  assert.doesNotMatch(h, />-\d/);
+});
+
+test('picking an example: a native select per macro row; the pick persists per viewer (not daily) and recomputes the amount', () => {
+  const storage = memStorage();
+  let focused = null;
+  const s = run({ storage, query: (sel) => ({ focus: () => { focused = sel; } }) });
+  s.fire('nutri-plan', 'change', { getAttribute: (n) => (n === 'data-guide' ? 'lunch.p' : null), value: 'b:huevo' });
+  assert.deepEqual(JSON.parse(storage.data['hc.nutri.guide']), { picks: { 'lunch.p': 'b:huevo' } });
+  assert.equal(focused, 'select[data-guide="lunch.p"]', 'focus back on that select');
+  const h = s.els['nutri-plan'].innerHTML;
+  assert.equal(selectedOf(h, 'lunch.p'), 'b:huevo');
+  assert.match(sectionOf(h, 'Lunch'), /<span class="gd-amt">\d+ eggs \(~\d+ g\)<\/span>/, 'eggs in pieces with the grams reference');
+  // kept on another day (a preference), ignored when unknown; storage failures never break the page
+  assert.equal(selectedOf(run({ storage }).els['nutri-plan'].innerHTML, 'lunch.p'), 'b:huevo');
+  assert.equal(s.api.setGuidePick('lunch.x', 'b:pollo'), false);
+  assert.equal(s.api.setGuidePick('snack.p', 'b:pollo'), false);
+  assert.equal(s.api.setGuidePick('lunch.p', 'pollo'), false);
+  const stale = run({ storage: memStorage({ 'hc.nutri.guide': JSON.stringify({ picks: { 'lunch.p': 'b:gone', 'dinner.c': 7 } }) }) });
+  assert.equal(selectedOf(stale.els['nutri-plan'].innerHTML, 'lunch.p'), 'b:pollo', 'an unknown pick falls back to the default');
+  assert.equal(selectedOf(run({ storage: memStorage({ 'hc.nutri.guide': '{broken' }) }).els['nutri-plan'].innerHTML, 'lunch.p'), 'b:pollo');
+  const throwing = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } };
+  const t = run({ storage: throwing });
+  assert.equal(t.api.setGuidePick('lunch.p', 'b:atun'), true);
+  assert.equal(selectedOf(t.els['nutri-plan'].innerHTML, 'lunch.p'), 'b:atun');
+  // every option of the role: log-only basics too, sorted by name
+  const opts = [...h.split('data-guide="lunch.p"')[1].split('</select>')[0].matchAll(/value="b:([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(opts.includes('jamoncocido') && opts.includes('pollo') && !opts.includes('arroz'));
+});
+
+// the food log's hooks (client/food.js) as the guide reads them
+function foodHooks({ groups, products = [], adds = [] } = {}) {
+  return {
+    HCFood: {
+      groupTotals: () => groups,
+      products: () => products,
+      addGuide: (o) => { adds.push(o); return { then: (ok, fail) => (o.fail ? fail && fail(new Error('x')) : ok && ok()) }; },
+    },
+    intakeRefresh: () => {},
+  };
+}
+const Z = { k: 0, p: 0, c: 0, f: 0 };
+
+test('with the food log: each meal shows what is left (done / so far), covered rows, Extras left and "Left today"', () => {
+  const nutri = bake();
+  const x = planFor(nutri, 'maintain', 'rest', null);
+  const b = guideBudgets(x, nutri.base.rest.sl, MAIN_SLOTS, nutri.guide.oil.rest);
+  const groups = {
+    meals: { breakfast: { k: Math.ceil(b.meals.breakfast.k * 0.95), p: b.meals.breakfast.p, c: 10, f: 2 }, lunch: { k: 300, p: 20, c: 30, f: 1 }, dinner: Z },
+    addon: { k: 100, p: 5, c: 10, f: 3 },
+  };
+  const h = run({ nutri, hooks: foodHooks({ groups }) }).els['nutri-plan'].innerHTML;
+  const bf = sectionOf(h, 'Breakfast');
+  assert.match(bf, new RegExp('<p class="gd-state gd-state-done">✓ ' + groups.meals.breakfast.k + ' kcal logged</p>'));
+  assert.match(bf, /<li class="gd-row gd-done"><div class="gd-top"><span class="gd-l">Protein<\/span><span class="gd-ok">✓ covered<\/span>/);
+  const lunch = sectionOf(h, 'Lunch');
+  assert.match(lunch, /<p class="gd-state">so far: 300 kcal<\/p>/);
+  assert.match(lunch, new RegExp('<b>~' + (b.meals.lunch.p - 20) + '</b> g <span class="gd-of">of ' + b.meals.lunch.p + ' g</span>'));
+  const pollo = BASICS.en.find((f) => f.k === 'pollo');
+  const a = exampleAmount(pollo, 'p', b.meals.lunch.p - 20, GRID);
+  assert.match(lunch, new RegExp('<button type="button" class="gd-add" data-guide-add="lunch.p" data-food="b:pollo" data-amt="' + a.amt + '" data-meal="lunch" aria-label="Log ' + a.amt + ' g of Chicken breast in Lunch">\\+</button>'));
+  assert.doesNotMatch(sectionOf(h, 'Dinner'), /gd-state|gd-of/, 'nothing logged there: no state line, what is left is the budget');
+  assert.match(sectionOf(h, 'Dinner'), /class="gd-add"/, 'but its examples can be logged');
+  assert.match(sectionOf(h, 'Extras'), new RegExp('~' + (b.extras.k - 100) + ' kcal for extras today \\(of ' + b.extras.k + '\\)'));
+  const all = groups.meals.breakfast.k + 300 + 100;
+  assert.match(h, new RegExp('<p class="gd-left"><span class="gd-left-lbl">Left today</span> <b>' + (x.mt.k - all).toLocaleString('en') + '</b> kcal'));
+});
+
+test('"+" logs the example amount into that meal through the food log (HCFood.addGuide); a failure re-enables it', () => {
+  const adds = [];
+  const s = run({ hooks: foodHooks({ groups: { meals: { breakfast: Z, lunch: Z, dinner: Z }, addon: Z }, adds }) });
+  const attrs = { 'data-guide-add': 'lunch.p', 'data-food': 'b:pollo', 'data-amt': '195', 'data-meal': 'lunch' };
+  const btn = { disabled: false, getAttribute: (n) => attrs[n] };
+  s.fire('nutri-plan', 'click', { closest: (sel) => (sel === '[data-guide-add]' ? btn : null) });
+  assert.deepEqual(plain(adds), [{ group: 'lunch', food: 'b:pollo', amt: 195 }]);
+  assert.equal(btn.disabled, true, 'busy until the food log re-renders the guide');
+  attrs['data-food'] = 'b:arroz';
+  const btn2 = { disabled: false, getAttribute: (n) => (n === 'data-food' ? 'b:arroz' : attrs[n]) };
+  const failing = run({ hooks: { ...foodHooks({ groups: { meals: { breakfast: Z, lunch: Z, dinner: Z }, addon: Z } }), HCFood: { groupTotals: () => null, products: () => null, addGuide: () => ({ then: (ok, fail) => fail(new Error('offline')) }) } } });
+  failing.fire('nutri-plan', 'click', { closest: () => btn2 });
+  assert.equal(btn2.disabled, false);
+  // a tap elsewhere or with no food log: nothing
+  assert.doesNotThrow(() => run().fire('nutri-plan', 'click', { closest: () => btn2 }));
+});
+
+test('the owner\'s products (food API, view time) join the selects as "My products"; a product pick falls back when they are not there', () => {
+  const products = [{ id: 12, name: 'Atún claro Demo', unit: 'g', per100: { kcal: 110, protein: 25, carbs: 0, fat: 1 } }];
+  const groups = { meals: { breakfast: Z, lunch: Z, dinner: Z }, addon: Z };
+  const storage = memStorage({ 'hc.nutri.guide': JSON.stringify({ picks: { 'lunch.p': 'p:12' } }) });
+  const h = run({ storage, hooks: foodHooks({ groups, products }) }).els['nutri-plan'].innerHTML;
+  const sel = h.split('data-guide="lunch.p"')[1].split('</select>')[0];
+  assert.match(sel, /<optgroup label="Basics">[^]*<\/optgroup><optgroup label="My products"><option value="p:12" selected>Atún claro Demo<\/option><\/optgroup>/);
+  assert.match(sectionOf(h, 'Lunch'), /data-food="p:12"/);
+  const off = run({ storage }).els['nutri-plan'].innerHTML;
+  assert.equal(selectedOf(off, 'lunch.p'), 'b:pollo', 'no food API: the default example, the pick is kept for later');
+  assert.equal(JSON.parse(storage.data['hc.nutri.guide']).picks['lunch.p'], 'p:12');
+});
+
+test('the guide re-renders on HCNutri.refresh (the food log calls it after every add / delete)', () => {
+  let groups = null;
+  const s = run({ hooks: { HCFood: { groupTotals: () => groups, products: () => [], addGuide: () => null }, intakeRefresh: () => {} } });
+  assert.doesNotMatch(s.els['nutri-plan'].innerHTML, /gd-add/);
+  groups = { meals: { breakfast: Z, lunch: { k: 200, p: 10, c: 10, f: 1 }, dinner: Z }, addon: Z };
+  s.api.refresh();
+  assert.match(s.els['nutri-plan'].innerHTML, /so far: 200 kcal/);
+  assert.match(s.els['nutri-plan'].innerHTML, /gd-add/);
+});
+
+test('the page mirrors lib: the model line layout (LINE) and the main slots the guide budgets', () => {
+  const { api } = run();
+  assert.deepEqual(plain(api.LINE), { ...LINE }, 'the page mirrors the line layout');
+  assert.deepEqual(bake().mainSlots, MAIN_SLOTS);
+});
+
+test('no food table baked (FOOD_BASICS absent): the budgets still show, no example select', () => {
+  const h = run({ basics: null }).els['nutri-plan'].innerHTML;
+  assert.deepEqual(cardsOf(h).map((c) => c.name), ['Breakfast', 'Lunch', 'Dinner', 'Extras']);
+  assert.doesNotMatch(h, /could not be shown|gd-pick/);
 });

@@ -1,8 +1,8 @@
 /* Nutrición day blocks — Resumen de hoy (day type segments, kcal dial, macro bars), Plan de hoy
- * (meal cards, scaled portions, supplements) and Avituallamiento (3-step ride-fuelling timeline).
+ * (the portion guide: four meal groups as cards, supplements) and Avituallamiento (3-step ride-fuelling timeline).
  * Tokens only. Dark, data-first, colour = meaning: --accent = the picked segment's icon / actions,
- * --trend = neutral logged progress (dial + bars fill), --mid = past 110 % or a remainder the plan
- * cannot absorb, --strain = the ride timeline. Numbers in --num; labels caps + --label-track.
+ * --trend = neutral logged progress (dial + bars fill), --mid = past 110 % or a portion at its maximum,
+ * --good = a meal / macro already covered, --strain = the ride timeline. Numbers in --num; labels caps + --label-track.
  * The segments are real radios (labelled, keyboard-native), every target >= 44px. */
 
 .nutri-block {
@@ -308,61 +308,71 @@
 .nt-cnote {
   color: var(--faint);
 }
-.nt-rem,
-.nt-off {
-  font-size: var(--fs-sm);
-  margin-top: var(--sp-3);
-  padding: var(--sp-3) var(--sp-5);
-  border-radius: var(--r-sm);
-  background: var(--mod-bg);
-  color: var(--ink);
-}
-
-/* Plan de hoy: item rows (name left, amount right in --num) */
-.meal-parts {
+/* Plan de hoy = a portion guide: per main meal a plate by parts (protein / carbs / vegetables / fat),
+   each macro row = name + grams left (--num), then ONE example food (a native select) with its amount
+   and a "+" to log it; Extras = a budget line + a muted hint. No accent borders, colour = state only. */
+.gd-rows {
   list-style: none;
   margin-top: var(--sp-4);
 }
-.mp,
-.mp-sub {
+.gd-row {
+  padding: var(--sp-4) 0;
+  border-top: 1px solid var(--line-soft);
+}
+.gd-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.gd-top {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--sp-5);
 }
-.mp {
-  padding: var(--sp-3) 0;
-  border-top: 1px solid var(--line-soft);
-  font-size: var(--fs-md);
+.gd-l {
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
 }
-.mp:first-child {
-  border-top: 0;
-  padding-top: 0;
+.gd-g {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  white-space: nowrap;
 }
-.mp-l {
-  min-width: 0;
-  color: var(--ink);
-}
-.mp-q {
-  flex: 0 1 auto;
-  max-width: 55%;
+.gd-g b {
   font-family: var(--num);
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--ink);
-  text-align: right;
 }
-/* a choosable block: the item name is a compact select of its list (>= 44 px target) */
-.mp-block {
-  align-items: center;
+.gd-of {
+  color: var(--faint);
 }
-.mp-block .mp-l {
+.gd-free {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.gd-ok {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--good);
+}
+.gd-done .gd-l {
+  color: var(--faint);
+}
+/* phones: the select keeps a readable width; a long amount (pieces + grams) wraps under it, right-aligned */
+.gd-ex {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  flex: 1 1 0;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
 }
-.mp-pick {
+.gd-pick {
+  flex: 1 1 150px;
   min-width: 0;
-  max-width: 100%;
   min-height: 44px;
   padding: var(--sp-2) var(--sp-4);
   background: var(--surface-2);
@@ -373,40 +383,84 @@
   font-size: var(--fs-md);
   text-overflow: ellipsis;
 }
-.mp-pick:focus-visible {
+.gd-pick:focus-visible,
+.gd-add:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-/* a skipped food ("none"): its select stays (to undo it), muted, with no amount */
-.mp-none .mp-pick {
-  color: var(--muted);
-}
-.nutri-picks .lnk {
-  min-height: 44px;
-}
-/* a scaled portion: a small muted arrow next to the name (label in aria-label) */
-.mp-dir {
-  margin-left: var(--sp-2);
-  font-size: var(--fs-xs);
+.gd-amt {
+  flex: 0 1 auto;
+  margin-left: auto;
+  font-family: var(--num);
   font-weight: 700;
-  color: var(--muted);
+  color: var(--ink);
+  text-align: right;
 }
-.mp-comp {
-  padding-bottom: var(--sp-1);
-}
-.mp-sub {
-  padding: 2px 0 2px var(--sp-5);
-  font-size: var(--fs-sm);
-}
-.mp-sub .mp-l,
-.mp-sub .mp-q {
-  color: var(--muted);
-}
-.mp-sub .mp-q {
+.gd-max {
+  font-family: inherit;
   font-weight: 400;
+  font-size: var(--fs-xs);
+  color: var(--mid);
 }
-.mp-sub:last-child {
-  padding-bottom: 0;
+.gd-add {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.gd-add:disabled {
+  color: var(--faint);
+  cursor: default;
+}
+.gd-more {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  text-align: right;
+}
+.gd-state {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.gd-state-done {
+  color: var(--good);
+  font-weight: 700;
+}
+.gd-budget {
+  margin-top: var(--sp-4);
+  font-size: var(--fs-md);
+  color: var(--ink);
+}
+.gd-hint {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  line-height: 1.45;
+}
+.gd-left {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.gd-left b {
+  font-family: var(--num);
+  font-size: var(--fs-md);
+  color: var(--ink);
+}
+.gd-left-lbl {
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
 }
 .meal-supp {
   display: flex;
@@ -424,44 +478,6 @@
   stroke: currentColor;
   stroke-width: 1.6;
   stroke-linecap: round;
-}
-.meal-others .meal-name {
-  margin-bottom: var(--sp-1);
-}
-/* the add-ons card: every meal that is not breakfast / lunch / dinner as one compact row
-   (small caps name + kcal in --num, its items below), rows split by a hairline */
-.addon {
-  margin-top: var(--sp-5);
-  padding-top: var(--sp-5);
-  border-top: 1px solid var(--line-soft);
-}
-.addon-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--sp-5);
-}
-.addon-name {
-  min-width: 0;
-  font-size: var(--fs-2xs);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--ink);
-}
-.addon-kcal {
-  font-size: var(--fs-2xs);
-  color: var(--muted);
-  white-space: nowrap;
-}
-.addon-kcal b {
-  font-family: var(--num);
-  font-size: var(--fs-xl);
-  font-weight: 700;
-  color: var(--ink);
-}
-.addon .meal-parts {
-  margin-top: var(--sp-3);
 }
 .nutri-failed,
 .nutri-empty {

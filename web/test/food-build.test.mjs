@@ -57,9 +57,11 @@ test('the public basics are baked once as FOOD_BASICS, localized, compact (lib/n
   assert.ok(m, 'FOOD_BASICS baked');
   const list = JSON.parse(m[1]);
   assert.ok(list.length >= 100, `${list.length} basics`);
-  assert.deepEqual(list.find((b) => b.k === 'huevo'), { k: 'huevo', n: 'Egg', u: 'ud', m: [72, 6.3, 0.4, 5], pc: { a: 100, r: 50, o: 'egg', m: 'eggs' } });
+  assert.deepEqual(list.find((b) => b.k === 'huevo'), { k: 'huevo', n: 'Egg', u: 'ud', m: [72, 6.3, 0.4, 5], c: 'protein', pc: { a: 100, r: 50, o: 'egg', m: 'eggs' } });
+  assert.equal(list.find((b) => b.k === 'arroz').x, 150, 'the portion cap rides along for the portion guide');
   assert.ok(m[1].length < 16 * 1024, `FOOD_BASICS is ${m[1].length} bytes`);
   assert.ok(html.indexOf('var FOOD_BASICS') < html.indexOf(food.slice(0, 200)), 'baked before food.js runs');
+  assert.ok(html.indexOf('var FOOD_BASICS') < html.indexOf(nutriDay.slice(0, 200)), 'baked before nutri-day.js renders the portion guide');
 });
 
 test('food.js talks only to its own origin, with the X-HC-Food header, and never stores the log in the browser', () => {
