@@ -18,6 +18,48 @@ const WORKOUTS_HEADER = 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max
 // A test pins the two equal (extract.test.js), since this CommonJS file cannot import the ESM one.
 const APPLE_WATCH_RE = /^Apple\s+Watch\b/i;
 
+// Daily ENERGY (ActiveEnergyBurned / BasalEnergyBurned): per day and type ONE source wins and only
+// its sum is used — never a sum across sources (each device / app writes its OWN estimate of the
+// same burn). Precedence: 0 = Apple Watch; 1 = a dedicated wrist-wearable app (explicit list below,
+// apps that sync a band / watch's own energy); 2 = the iPhone. Everything else is EXCLUDED: scales
+// (RENPHO, OKOK, Withings / Health Mate — they write an estimated BMR as basal on weigh-in days;
+// Withings is left out because one app serves both its scales and its watches) and training /
+// nutrition apps (Hevy, Nike *, Strava, YAZIO, Merge, Training, ROXFIT… — they mirror workout or
+// diet estimates). A day with excluded sources only has no row.
+const ENERGY_WEARABLES = [
+  ['Zepp', /^Zepp\b/i],               // Zepp / Zepp Life (Amazfit, Xiaomi bands)
+  ['Mi Fit', /^Mi\s+Fit(ness)?\b/i],  // Mi Fit / Mi Fitness (Xiaomi bands)
+  ['Amazfit', /^Amazfit\b/i],
+  ['Garmin Connect', /^Garmin\s+Connect\b/i],
+  ['Polar Flow', /^Polar\s+Flow\b/i],
+  ['Fitbit', /^Fitbit\b/i],
+  ['Huawei Health', /^Huawei\s+Health\b/i],
+];
+const IPHONE_RE = /^iPhone\b/i;
+// source name -> { rank, family } | null (excluded)
+const energySource = src => {
+  const s = (src || '').trim();
+  if (APPLE_WATCH_RE.test(s)) return { rank: 0, family: 'Apple Watch' };
+  const w = ENERGY_WEARABLES.find(([, re]) => re.test(s));
+  if (w) return { rank: 1, family: w[0] };
+  if (IPHONE_RE.test(s)) return { rank: 2, family: 'iPhone' };
+  return null;
+};
+// one day's Map<source, kcal sum> -> { family, source, kcal } of the winning source, or null when
+// only excluded sources logged. Within one rank (two Watches, Zepp + Mi Fit) the larger total wins,
+// then the source name ascending — deterministic, never file order.
+const pickEnergySource = bySrc => {
+  let best = null;
+  for (const [source, kcal] of bySrc) {
+    const e = energySource(source);
+    if (!e) continue;
+    const better = !best || e.rank < best.rank
+      || (e.rank === best.rank && (kcal > best.kcal || (kcal === best.kcal && source < best.source)));
+    if (better) best = { rank: e.rank, family: e.family, source, kcal };
+  }
+  return best && { family: best.family, source: best.source, kcal: best.kcal };
+};
+
 // "2026-06-12 09:10:00 +0200" -> "2026-06-12"
 const day = dt => (dt || '').slice(0, 10);
 const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
@@ -200,7 +242,7 @@ const workoutRow = w => {
 };
 
 module.exports = {
-  APPLE_WATCH_RE,
+  APPLE_WATCH_RE, energySource, pickEnergySource,
   READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow,
   day, num, localMs, absMs, minutesBetween, addDay, clockHour, sleepNight, wristTempDate, isoToExportStamp,
   readingRow, sleepRow, unionMinutes, sleepNights,
