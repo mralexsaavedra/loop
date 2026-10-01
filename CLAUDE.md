@@ -1063,7 +1063,8 @@ the window is Strava-only data with one reader (the energy correction), so extra
 positional workouts readers and the demo generator stay untouched. It needs `start_utc` +
 `device_watts` from `GET /export/strava` (added with this change → ingest image rebuild); an older
 image leaves `start` / `device_watts` blank, the sync prints a stale-image warning, and no ride
-corrects anything.
+corrects anything. `_meta.json` records it: `rows.rides` and `stravaSync.rides` = `{rows, power
+(device_watts true + kJ), withStart (start with offset)}`, plus a sentence in the Strava sync note.
 
 **Source of the program:** whatever the owner's coach/app provides — a coach PDF, a spreadsheet,
 or a login-gated training app. For a source that can't be fetched (a login-gated app), the owner
@@ -1129,11 +1130,18 @@ anchor for Inicio's health monitor.
   efficiency ≈ 1 kJ mechanical). Watch-during-ride = the `active-energy-hourly.csv` buckets
   overlapping the ride window [start, start + elapsed], each spanning its clock hour and prorated by
   overlap minutes; everything compared as instants (DST- and host-timezone-safe); a ride crossing
-  midnight splits its energy by time across the two local days; overlapping power rides (a
-  duplicate upload) count once, the larger kJ wins. Applied ONLY when: the ride (`rides.csv`) has
+  midnight splits its energy by time across the two local days, each midnight placed with the
+  offset of that day's 00:00 bucket (the ride's offset only without one); overlapping power rides
+  (a duplicate upload, a nested ride) are clustered by interval union and count once, the largest
+  kJ wins. The Watch day in the formula = max(daily row, sum of that day's hourly buckets): the
+  buckets are parts of the same Watch's day, so a daily row below their sum is a stale payload and
+  would otherwise understate the result. Applied ONLY when: the ride (`rides.csv`) has
   kJ > 0 AND `device_watts === true` (a blank flag = an old ingest image = no correction; Strava's
   estimated watts never count), a start with offset and an elapsed time; the hourly buckets cover
-  the WHOLE window (one missing hour = no correction); the day has a Watch total; and the corrected
+  the WHOLE window (one missing hour = no correction, and the day is flagged `uncovered`: the Salud
+  card says "salida con potenciómetro sin corregir: faltan datos por horas del reloj" on such a
+  headline day + a note counting them in the 30-day window (`latestUncovered` / `uncoveredDays`), the
+  detail day panel says so too (`metrics.energy.uncov`, 1 / null)); the day has a Watch total; and the corrected
   value is HIGHER (never lowers a day, so a Watch-recorded ride stays as measured). Café stops inside
   the elapsed window are replaced too (small, conservative). The raw value stays visible:
   active-energy-daily.csv is untouched, a corrected row carries `watch` / `rideKcal` /

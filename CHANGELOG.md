@@ -25,6 +25,15 @@ detail day panel shows "reloj <n> + corrección por potencia" under Activa. Note
 literal case lands near 2,744 kcal for an even-ish hourly split, not the full-hour 2,697 (the partial
 first / last ride hours keep part of the Watch's energy).
 
+Follow-up after review (same day): the Watch day in the formula is max(daily row, sum of that day's
+hourly buckets), so a stale daily total cannot skew a correction; each midnight of a ride over
+midnight is placed with the offset of that day's 00:00 bucket (DST); overlapping power rides are
+clustered by interval union (a nested ride no longer slips through); a power-ride day the hourly
+data does not cover is flagged and the Salud card / detail day panel say it was not corrected;
+`_meta.json` records rides.csv (`rows.rides`, `stravaSync.rides`). Also fixed a pre-existing bug:
+`npm run sync -- --full` passed `--full` to node itself (args before the script path) and aborted;
+`scripts/sync-all.mjs` now forwards arguments after the script.
+
 ## 2026-10-01 — Plan de hoy adds an automatic snack when the meals fall short
 
 With realistic portion caps the owner's five meals often end below today's target (maintain gym −209,
