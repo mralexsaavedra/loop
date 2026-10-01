@@ -10,12 +10,15 @@ import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { es as esF, en as enF } from '../i18n/food-templates.mjs';
-import { FOODLOG_CASES, runCase, FOOD_MEALS, FOOD_STORES, FOOD_UNITS, FOOD_LIMITS } from '../../../lib/nutrition/foodlog.mjs';
+import { FOODLOG_CASES, runCase, FOOD_MEALS, FOOD_STORES, FOOD_UNITS, FOOD_LIMITS, BASIC_CASES, runBasicCase } from '../../../lib/nutrition/foodlog.mjs';
+import { buildBasics } from '../../../lib/nutrition/basics.mjs';
 import { MEAL_GROUPS, MAIN_SLOTS, ADDON_GROUP, ADDON_SLOT } from '../../../lib/nutrition/slots.mjs';
 const FOOD_CONST = { meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS, limits: FOOD_LIMITS, groups: MEAL_GROUPS, mainSlots: MAIN_SLOTS, addonGroup: ADDON_GROUP, addonSlot: ADDON_SLOT };
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'food.js'), 'utf8');
+const ING = JSON.parse(fs.readFileSync(path.join(here, '../../../data/nutrition/ingredients.json'), 'utf8')).ingredients;
+const BASICS = { es: buildBasics(ING, 'es'), en: buildBasics(ING, 'en') };
 const TODAY = '2030-01-10';
 const flush = async () => { for (let i = 0; i < 10; i++) await new Promise((r) => setImmediate(r)); };
 const text = (html) => String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -37,7 +40,7 @@ function fixedDate(iso, time = '12:00:00') {
 }
 
 /** routes: { 'GET /api/food/products': response | fn(init, n) | Error }; unknown -> network error */
-function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], todayPlan, time } = {}) {
+function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], todayPlan, time, basics } = {}) {
   const calls = [];
   const counts = {};
   const fetch = fetchImpl || (async (url, init = {}) => {
@@ -65,7 +68,7 @@ function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], todayPlan
     HCDetail: { open: (key, date, opts) => opened.push([key, opts]), close: () => opened.push(['close']) },
   };
   const ctx = {
-    document: doc, window, I18N_FOOD: locale === 'es' ? esF : enF, FOOD_CONST,
+    document: doc, window, I18N_FOOD: locale === 'es' ? esF : enF, FOOD_CONST, FOOD_BASICS: basics === undefined ? BASICS[locale] : basics,
     LOCALE: locale, Date: fixedDate(TODAY, time), Math, JSON, Number, String, Object, Array, Promise, isFinite, fetch, Uint8Array, setTimeout, clearTimeout,
   };
   vm.createContext(ctx);
@@ -920,4 +923,156 @@ test('Del plan: the meal select follows the groups (Cena -> the dinner chip, bac
   t.fire('click', t.button({ 'data-food-act': 'plan-meal', 'data-i': '5' }));
   t.fire('change', t.input('fa-meal', 'addon'));
   assert.deepEqual(chipsOf(t.els['fa-panel'].innerHTML).filter((c) => c[1]), [[5, true]], 'the picked add-on stays');
+});
+
+/* ---------- basics: generic foods of the public food DB, searched next to the owner's products ---------- */
+const BASIC_IDS = ['fa-panel', 'fa-prev', 'fa-msg', 'fa-list', 'fa-amt-err', 'food-add-breakfast', 'food-add-addon'];
+function openProducts(t, meal = 'breakfast') {
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': meal }));
+  return t.window.HCViews['food-add'].render().body;
+}
+const pickBasic = (t, key) => t.fire('click', t.button({ 'data-food-act': 'pick', 'data-kind': 'basic', 'data-id': key }));
+
+test('parity: the page computes exactly what lib/nutrition/foodlog.mjs computes for a basic', () => {
+  const { F } = setup({ fetchImpl: async () => { throw new TypeError('x'); } });
+  for (const c of BASIC_CASES) assert.deepEqual(JSON.parse(JSON.stringify(runBasicCase(c, F))), c.expect, c.name);
+});
+
+test('basics search: an empty search lists only the products (plus a hint); typing adds a Básicos group after them, accent- and case-insensitive, marked as average values', async () => {
+  const t = setup({ routes: BOOT, extraIds: BASIC_IDS });
+  await flush();
+  const body = openProducts(t);
+  assert.doesNotMatch(body, /data-kind="basic"/, 'no basics before typing: the list stays short');
+  assert.ok(text(body).includes(esF.sheet.typeToSearch), 'a hint that typing also searches the basics');
+  t.fire('input', t.input('fa-q', 'PLATANO'));
+  const html = t.els['fa-list'].innerHTML;
+  assert.match(html, /<h4 class="fa-store">Básicos<\/h4>/);
+  assert.match(html, /data-food-act="pick" data-kind="basic" data-id="platano"/);
+  assert.match(text(html), /Plátano 88 kcal por 100 g · valor medio/);
+  assert.doesNotMatch(text(html), new RegExp(esF.sheet.noMatch));
+  t.fire('input', t.input('fa-q', 'lech'));
+  const both = t.els['fa-list'].innerHTML;
+  assert.ok(both.indexOf('data-kind="product" data-id="2"') < both.indexOf('Básicos'), 'the owner\'s products first');
+  assert.match(both, /data-kind="basic" data-id="leche"/);
+  assert.match(both, /data-kind="basic" data-id="lechuga"/);
+  assert.match(text(both), /Huevo|Leche/);
+  t.fire('input', t.input('fa-q', 'huevo'));
+  assert.match(text(t.els['fa-list'].innerHTML), /Huevo 72 kcal por ud · valor medio/, 'a unit food is per unit');
+  t.fire('input', t.input('fa-q', 'zzzz'));
+  assert.equal(text(t.els['fa-list'].innerHTML), esF.sheet.noMatch);
+});
+
+test('basics search: a verified product label of the food DB says so instead of "average values"', async () => {
+  const t = setup({ routes: BOOT, extraIds: BASIC_IDS });
+  await flush();
+  openProducts(t);
+  t.fire('input', t.input('fa-q', 'allioli'));
+  assert.match(text(t.els['fa-list'].innerHTML), new RegExp('Allioli \\(Hacendado\\) 712 kcal por 100 g · ' + esF.sheet.basicLabelSrc));
+});
+
+test('basics without any product yet: the search box is there and finds basics', async () => {
+  const t = setup({ routes: { ...BOOT, 'GET /api/food/products': json({ products: [] }) }, extraIds: BASIC_IDS });
+  await flush();
+  const body = openProducts(t);
+  assert.match(body, /<label[^>]*for="fa-q"/);
+  assert.match(text(body), new RegExp(esF.sheet.noProducts));
+  t.fire('input', t.input('fa-q', 'huevo'));
+  assert.match(t.els['fa-list'].innerHTML, /data-kind="basic" data-id="huevo"/);
+});
+
+test('a basic opens the amount panel in its natural unit: 1 piece for an egg (toggle to grams), live preview with the label', async () => {
+  const t = setup({ routes: BOOT, extraIds: BASIC_IDS });
+  await flush();
+  openProducts(t);
+  pickBasic(t, 'huevo');
+  const panel = t.els['fa-panel'].innerHTML;
+  assert.match(panel, /<option value="piece" selected>huevos \(~50 g\)<\/option><option value="g">g<\/option>/);
+  assert.match(panel, /id="fa-amt" type="text" inputmode="decimal" autocomplete="off" value="1"/, 'prefilled with ONE piece, not a usual serving');
+  assert.match(text(panel), new RegExp(esF.sheet.basicNote.slice(0, 30)));
+  t.input('fa-unit', 'piece');
+  t.fire('input', t.input('fa-amt', '2'));
+  assert.match(text(t.els['fa-prev'].innerHTML), /Huevo · 2 ud \(~100 g\) 144 kcal · P 12,6 · C 0,8 · G 10/);
+  t.fire('change', t.input('fa-unit', 'g'));
+  assert.equal(t.doc.getElementById('fa-amt').value, '100', 'switching to grams keeps the same amount of food');
+  assert.match(text(t.els['fa-prev'].innerHTML), /Huevo · 100 g 144 kcal/);
+  t.fire('change', t.input('fa-unit', 'piece'));
+  assert.equal(t.doc.getElementById('fa-amt').value, '2');
+});
+
+test('a basic without a piece is weighed in its own unit, prefilled with 100 (ml for a liquid, never grams)', async () => {
+  const t = setup({ routes: BOOT, extraIds: BASIC_IDS });
+  await flush();
+  openProducts(t);
+  pickBasic(t, 'leche');
+  const panel = t.els['fa-panel'].innerHTML;
+  assert.match(panel, /<select class="food-in" id="fa-unit"><option value="ml" selected>ml<\/option><\/select>/);
+  assert.match(panel, /id="fa-amt"[^>]*value="100"/);
+  pickBasic(t, 'platano');
+  assert.match(t.els['fa-panel'].innerHTML, /<option value="piece" selected>plátanos medianos \(~120 g\)<\/option><option value="g">g<\/option>/);
+});
+
+test('saving a basic: ONE quick entry with all four macros and the amount in its label, through the request-id flow', async () => {
+  const bodies = [];
+  const routes = {
+    ...BOOT,
+    'POST /api/food/log': (init) => {
+      bodies.push(JSON.parse(init.body));
+      if (bodies.length === 1) return new TypeError('Failed to fetch');
+      return json({ entry: entry({ id: 90, refType: 'quick', label: 'Huevo · 2 ud (~100 g)', kcal: 144, protein: 12.6, carbs: 0.8, fat: 10 }), totals: { ...TOTALS1, kcal: 219, count: 2 } }, 201);
+    },
+  };
+  const t = setup({ routes, extraIds: BASIC_IDS });
+  await flush();
+  openProducts(t);
+  t.input('fa-meal', 'breakfast');
+  pickBasic(t, 'huevo');
+  t.input('fa-unit', 'piece');
+  t.input('fa-amt', '2');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(t.els['fa-msg'].textContent, esF.errors.offline);
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[0].requestId, bodies[1].requestId, 'the retry of the same add keeps its request id');
+  const b = { ...bodies[1] };
+  delete b.requestId;
+  assert.deepEqual(b, { date: TODAY, meal: 'breakfast', refType: 'quick', label: 'Huevo · 2 ud (~100 g)', kcal: 144, protein: 12.6, carbs: 0.8, fat: 10 });
+  assert.deepEqual(t.opened.at(-1), ['close']);
+  assert.equal(t.els['food-msg'].textContent, 'Añadido: Huevo · 2 ud (~100 g) (144 kcal).');
+});
+
+test('a basic with an invalid or absurd amount is not sent; the error lands under the amount field', async () => {
+  const t = setup({ routes: { ...BOOT, 'POST /api/food/log': json({}, 500) }, extraIds: BASIC_IDS });
+  await flush();
+  openProducts(t);
+  pickBasic(t, 'aceiteoliva');
+  t.input('fa-unit', 'g');
+  t.input('fa-amt', 'mucho');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(t.els['fa-amt-err'].textContent, esF.fieldErrors.number);
+  assert.equal(t.calls.filter((c) => c.key === 'POST /api/food/log').length, 0);
+  t.input('fa-amt', '4000');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(t.calls.filter((c) => c.key === 'POST /api/food/log').length, 0, '4 kg of olive oil (36,000 kcal) is over the quick-entry limit');
+  assert.equal(t.els['fa-amt-err'].textContent, esF.fieldErrors.tooBig);
+});
+
+test('en locale: basics in English, "pc" in the label, a decimal point', async () => {
+  const bodies = [];
+  const routes = { ...BOOT, 'POST /api/food/log': (init) => { bodies.push(JSON.parse(init.body)); return json({ entry: entry({ id: 91 }), totals: TOTALS1 }, 201); } };
+  const t = setup({ routes, locale: 'en', extraIds: BASIC_IDS });
+  await flush();
+  openProducts(t);
+  t.fire('input', t.input('fa-q', 'banana'));
+  assert.match(text(t.els['fa-list'].innerHTML), /Basics Banana 88 kcal per 100 g · average values/);
+  pickBasic(t, 'platano');
+  t.input('fa-unit', 'piece');
+  t.input('fa-amt', '1.5');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(bodies[0].label, 'Banana · 1.5 pc (~180 g)');
+  assert.equal(bodies[0].kcal, 158);
 });

@@ -386,6 +386,11 @@
   font-size: var(--fs-2xl);
   color: var(--ink);
 }
+/* a basic's preview names what will be logged ("Huevo · 2 ud (~100 g)") above its kcal */
+.fa-prev-lbl {
+  display: block;
+  color: var(--ink);
+}
 
 /* "Del plan": today's plan meals as toggle chips, then a radio list of what to log (the whole meal or one item) */
 .fa-plan-meals {

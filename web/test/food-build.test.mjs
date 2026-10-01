@@ -52,6 +52,16 @@ test('copy + constants are baked; food.js is inlined after nutri-day.js and befo
   assert.ok(at(nutriDay) < at(food) && at(food) < at(intake));
 });
 
+test('the public basics are baked once as FOOD_BASICS, localized, compact (lib/nutrition/basics.mjs)', () => {
+  const m = /var FOOD_BASICS = (\[.*?\]);/.exec(html);
+  assert.ok(m, 'FOOD_BASICS baked');
+  const list = JSON.parse(m[1]);
+  assert.ok(list.length >= 100, `${list.length} basics`);
+  assert.deepEqual(list.find((b) => b.k === 'huevo'), { k: 'huevo', n: 'Egg', u: 'ud', m: [72, 6.3, 0.4, 5], pc: { a: 100, r: 50, o: 'egg', m: 'eggs' } });
+  assert.ok(m[1].length < 16 * 1024, `FOOD_BASICS is ${m[1].length} bytes`);
+  assert.ok(html.indexOf('var FOOD_BASICS') < html.indexOf(food.slice(0, 200)), 'baked before food.js runs');
+});
+
 test('food.js talks only to its own origin, with the X-HC-Food header, and never stores the log in the browser', () => {
   assert.match(food, /var API = '\/api\/food';/);
   assert.match(food, /'X-HC-Food': '1'/);

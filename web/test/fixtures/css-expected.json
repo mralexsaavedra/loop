@@ -957,6 +957,8 @@
   "|||.fa-prev b|||color": "var(--ink)",
   "|||.fa-prev b|||font-family": "var(--num)",
   "|||.fa-prev b|||font-size": "var(--fs-2xl)",
+  "|||.fa-prev-lbl|||color": "var(--ink)",
+  "|||.fa-prev-lbl|||display": "block",
   "|||.fa-prev|||color": "var(--muted)",
   "|||.fa-prev|||font-size": "var(--fs-sm)",
   "|||.fa-prev|||margin": "0 0 var(--sp-4)",
