@@ -28,6 +28,8 @@
  *   in localStorage (hc.nutri.picks = {date, picks: {<block id>: <option key>}}, every access wrapped)
  *   and planFor re-solves the whole day with it (swapOption / applyPicks port blocks.mjs: protein lists keep the
  *   default's protein grams, the rest take the option's own amounts; parity test).
+ * - Plan de hoy shows breakfast / lunch / dinner as cards (NUTRI.mainSlots = lib/nutrition/slots.mjs
+ *   MAIN_SLOTS) and every other meal as a compact row of ONE add-ons card after them (display only).
  * - HCNutri.todayPlan() hands the food log's "Del plan" tab (client/food.js) today's Plan de hoy
  *   meals, read-only, exactly as rendered (same goal × day type × ride minutes × picks, same planFor).
  * - Logged intake: the dial + bars fill from today's page food log (window.foodTotals, client/food.js,
@@ -501,7 +503,12 @@
       '<p class="nt-cnote">' + esc(T.target.cNote) + '</p>' +
       (x ? '<p class="nt-plan">' + esc(line) + '</p>' + remainderHtml(x) + macroOffHtml(x) : '') + '</div>';
   }
-  var PILL_SVG = '<svg class="supp-ico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-45 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><path d="M12 8.5v7"/></g></svg>';
+  // a baked meal ({n, s}) is a main meal when its slot is one of NUTRI.mainSlots (lib/nutrition/slots.mjs
+  // MAIN_SLOTS: breakfast / lunch / dinner); everything else is an add-on (a test pins it to isMainMeal)
+  function isMainMeal(meal) {
+    return !!meal && !!meal.s && (N.mainSlots || []).indexOf(meal.s) >= 0;
+  }
+  var PILL_SVG ='<svg class="supp-ico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-45 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><path d="M12 8.5v7"/></g></svg>';
   function suppLine(text) {
     return '<div class="meal-supp">' + PILL_SVG + '<span>' + esc(text) + '</span></div>';
   }
@@ -557,7 +564,10 @@
     var used = {};
     var fi = 0;
     var A = T.plan.macroAbbr;
-    var html = view.map(function (meal, i) {
+    // walked in DAY order (the flex index and "first meal of a slot" for supplements follow it), then
+    // grouped: the main meals as cards, every other meal as a compact row of ONE add-ons card after them
+    var mains = '', rows = '', addonK = 0;
+    view.forEach(function (meal, i) {
       var m = x.meals[i];
       var parts = meal.parts.map(function (p) { return partHtml(p, x, p.x ? fi++ : -1, meal.n); }).join('');
       var mine = '';
@@ -565,12 +575,23 @@
         used[meal.s] = true;
         supps.forEach(function (s) { if (s.meal === meal.s) mine += suppLine(s.name + (s.dose ? ' ' + s.dose : '')); });
       }
-      return '<div class="meal"><div class="meal-top"><div class="meal-name">' + esc(meal.n) + '</div>' +
+      if (!isMainMeal(meal)) {
+        addonK += m[0];
+        rows += '<div class="addon"><div class="addon-top"><div class="addon-name">' + esc(meal.n) + '</div>' +
+          '<div class="addon-kcal"><b>' + esc(kf(m[0])) + '</b> kcal</div></div>' +
+          '<ul class="meal-parts">' + parts + '</ul>' + mine + '</div>';
+        return;
+      }
+      mains += '<div class="meal"><div class="meal-top"><div class="meal-name">' + esc(meal.n) + '</div>' +
         '<div class="meal-kcal"><b>' + esc(kf(m[0])) + '</b> kcal</div></div>' +
         '<ul class="meal-parts">' + parts + '</ul>' +
         (meal.pcf ? '<div class="meal-pcf"><span><b>' + m[1] + '</b> ' + A.p + '</span><span><b>' + m[2] + '</b> ' + A.c + '</span><span><b>' + m[3] + '</b> ' + A.f + '</span></div>' : '') +
         mine + '</div>';
-    }).join('');
+    });
+    var html = mains + (rows
+      ? '<div class="meal meal-addons"><div class="meal-top"><div class="meal-name">' + esc(T.plan.addons) + '</div>' +
+        '<div class="meal-kcal"><b>' + esc(kf(addonK)) + '</b> kcal</div></div>' + rows + '</div>'
+      : '');
     var others = supps.filter(function (s) { return !used[s.meal]; });
     if (others.length) {
       html += '<div class="meal meal-others"><div class="meal-name">' + esc(T.plan.otherSupps) + '</div>' +
@@ -798,6 +819,7 @@
     planFor: planFor,
     applyPicks: applyPicks,
     swapOption: swapOption,
+    isMainMeal: isMainMeal,
     LINE: LINE,
     setPick: function (id, key) { return typeof id === 'string' && typeof key === 'string' ? setPick(id, key) : false; },
     resetPicks: resetPicks,

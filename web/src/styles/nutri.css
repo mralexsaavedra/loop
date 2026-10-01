@@ -413,6 +413,41 @@
 .meal-others .meal-name {
   margin-bottom: var(--sp-1);
 }
+/* the add-ons card: every meal that is not breakfast / lunch / dinner as one compact row
+   (small caps name + kcal in --num, its items below), rows split by a hairline */
+.addon {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--line-soft);
+}
+.addon-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-5);
+}
+.addon-name {
+  min-width: 0;
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.addon-kcal {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.addon-kcal b {
+  font-family: var(--num);
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--ink);
+}
+.addon .meal-parts {
+  margin-top: var(--sp-3);
+}
 .nutri-failed,
 .nutri-empty {
   font-size: var(--fs-sm);
