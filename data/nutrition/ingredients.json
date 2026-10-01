@@ -124,7 +124,7 @@
     "tranchete": {
       "per": 100,
       "unit": "g",
-      "cat": "dairy",
+      "cat": "cheese",
       "verified": true,
       "name": {
         "es": "Queso lonchas fundido suave (tranchete, Hacendado)",
@@ -150,7 +150,7 @@
     "mozzarella": {
       "per": 100,
       "unit": "g",
-      "cat": "dairy",
+      "cat": "cheese",
       "verified": true,
       "name": {
         "es": "Queso rallado mozzarella (Hacendado)",
