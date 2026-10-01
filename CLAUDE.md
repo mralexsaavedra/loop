@@ -537,12 +537,13 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   step; a `manual` block scales as a whole and shows "×1.30") and the totals are recomputed from the
   ROUNDED amounts. The rest is `rem` (target − ride fuel −
   meals, kcal): beyond `REMAINDER_TOLERANCE_K` (75) the page says it ("~X kcal short: add ~Y g of
-  carbs" / on bike days "add them to the ride fuel" / "over: trim fat or extras"); when nothing can grow
-  any more (`allCapped`, or the factor at `SCALE_MAX`) a shortfall suggests a snack instead of a bigger
-  plate ("Faltan ~X kcal: añade un tentempié (p. ej. fruta o un bocadillo)" / "~X kcal short: add a
-  snack (e.g. fruit or a sandwich)", `remSnack`; bike days keep the ride-fuel line). The example plan
-  is short on most goal × day types with caps (its base day carries too few carb parts for 2500–3400
-  kcal): `lib/nutrition/today.test.mjs` allows a remainder only when nothing can grow. Protein and fat are
+  carbs" / on bike days "add them to the ride fuel" / "over: trim fat or extras"); a day still short
+  beyond the tolerance gets the AUTOMATIC SNACK (next bullet), so the shortfall line only says what the
+  snack's caps leave over ("~X kcal short even with the snack at its maximum…", `remSnackLeft`); the old
+  "add a snack" line (`remSnack`) remains only for a bake without snack options. With caps the example
+  plan's plates cannot reach most goal × day types (its base day carries too few carb parts for
+  2500–3400 kcal), so most of its days carry a snack: `lib/nutrition/today.test.mjs` allows a remainder
+  only when the snack is at its caps or the ride keeps it. Protein and fat are
   NOT scaled: a plan more than `MACRO_TOLERANCE_G` (15 g) off the target says so. `planFor(bake, goal,
   dayType, minutes)` gives one plan for a ride of `minutes` (meals target `mt` = target − ride fuel,
   the fuel being all carbs); the page bakes only `{base, t}` per (goal, day type) + the two models and
@@ -555,6 +556,45 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   A countable food shows pieces with the grams reference (`fmtPieces`: "1½ medium bananas (~180 g)"
   on the half-piece grid, "~2 bread rolls (80 g)" off it; "2 eggs (~100 g)"); `fmt.pieces` bakes only
   the pieces a baked line can format (fixed parts are pre-formatted).
+- **Automatic snack** — `lib/nutrition/snack.mjs` (the owner's capped meals fall short: maintain gym
+  −209, bike −229, bikeLong −299 meal kcal, bulk −366…−599; approved: the plan ADDS a snack). After the
+  capped carb solve, `planFor` computes `need` = target − ride fuel − meals − `rideHeadroomK(fuel)`; when
+  it exceeds `REMAINDER_TOLERANCE_K` (and the day has meals) it adds a snack sized to `need`. Options =
+  `SNACK_OPTIONS`, TRACKED lib data (never the personal plan), small recipes over the public food DB incl.
+  the log-only basics, in default-preference order, each line with a snack-sized cap `max` (effective cap
+  = min(max, the food's `maxAmt`)): `fruit-yogurt` (apple 180 + plain yogurt 125; max 270 / 250),
+  `banana-quark` (banana 120 + quark 150; 240 / 300), `yogurt-cereal` (yogurt 125 + cereal 30; 250 / 60),
+  `tomato-toast` (baguette 60 + tomato 50 + olive oil 5; 150 / 150 / 15), `turkey-sandwich` (baguette 60
+  + turkey slices 40; 150 / 120), `nuts` (walnuts 15 + almonds 15; 30 / 30). The WHOLE option scales by
+  one factor (`fillTo`: water-filling WITHOUT the 0.6–2× clamp, a line past its cap held there),
+  countable lines rounded first (half pieces / whole units) and the g / ml lines re-solved, amounts on the
+  usual grid never past the cap, macros from the ROUNDED amounts (`solveSnack`); what the caps leave over
+  stays the remainder (`snack.capped`). Default (`defaultSnack`) = the first option whose capped kcal
+  covers `need`, else the one that gives most — deterministic, so fruit + yogurt on a usual shortfall,
+  the toast / sandwich on a big one. The pick persists like block picks (`hc.nutri.picks`, stable id
+  `SNACK_ID` = `snack/auto`; a known option key wins, the day's default drops it, "Back to the base
+  plan" clears it; a non-default pick is returned in `planFor().picks`, so the swap note shows). Where
+  it goes (`withSnack`): a new add-on meal "Tentempié" / "Snack" (slot `snack`) after the others — a row
+  of the Añadidos card with a `.mp-pick` select of the options and its components as sub-rows — or, when
+  the plan ALREADY has a snack-slot meal (`mealSlot`: merienda / snack / tentempié / anclaje, e.g. the
+  example rest day's protein anchor), ONE more part of the first such meal, never a second snack meal.
+  The snack part = `{l, id: 'snack/auto', sn: 1, c, a, m}`, a fixed part with its own macros, so the
+  meal totals, `tot`, `rem`, the macro notes, the plan kcal and `HCNutri.todayPlan()` all include it, and
+  "Del plan" logs it like any add-on (a quick entry, slot snack). `planFor().snack` = `{k, d (default),
+  n, nums, mac, capped}` | null. Bike day types: the shortfall goes to the ride fuel only up to the top
+  of the ride's g/h range (`rideHeadroomK` = (top g/h × hours − planned g) × 4: 0 for `bike`, fixed at
+  60 g/h, ~200 kcal for a 3.5 h `bikeLong` at 60–90 g/h) — telling a `bike` day to add 60+ g more to a
+  ride fixed at 60 g/h contradicted Avituallamiento's own rate, so only what is beyond that headroom
+  becomes a snack and the rest keeps the ride-fuel line. A plan already on target (the example's cut
+  rest day) shows no snack. Bake: `NUTRI.snack = {id, slot, n, opts: [{k, n, ln (capped model lines), c}]}`
+  (~1.2 KB; the example NUTRI went from ~18.5 KB to ~19.7 KB, budget 20 KB); `fmt.pieces` covers its
+  countable foods. nutri-day.js ports `fillTo` / `solveSnack` / `snackCapK` / `defaultSnack` /
+  `snackFor` / `rideHeadroomK` / `withSnack` and the planFor integration line by line (parity: every
+  option × needs 60–1400 kcal in both locales, every goal × day type × option pick). plan-tables.md's
+  "Daily targets" table has a Snack column. `PINNED_TOTALS` re-pinned (example, before → after,
+  remainder): maintain rest 99 → 13, gym 445 → 48, bike 465 → −21, bikeLong 535 → 200 (the ride's
+  headroom); cut rest 0 (no snack), gym 95 → 9, bike / bikeLong as maintain; bulk rest 399 → 1, gym 745
+  → 214, bike 765 → 234, bikeLong 835 → 304 (the toast at its maximum, 531 kcal).
 - **Choosable blocks** — `lib/nutrition/blocks.mjs`: a dayPlan part that points at an option list
   (`{use, tier?, match}`: `data.proteina`, `data.carboComida.train`, `data.postre`, `data.desayuno`…)
   is a BLOCK when that list holds ≥ 2 eatable options (none rows excluded); its default = the part's
