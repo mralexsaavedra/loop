@@ -22,10 +22,11 @@
  * - Today's target is the ONE source for the rest of Nutrición: window.nutriTarget() hands the intake
  *   rings (client/intake.js) the MEALS target (on bike days the day target minus the ride fuel, with
  *   the fuel as its own figure), and every goal / day type / duration change refreshes them directly.
+ * - Model lines are read through LINE + the accessors (mirrors of lib/nutrition/amounts.mjs), never a bare index.
  * - Blocks: a dayPlan part that points at an option list is a choosable block (lib/nutrition/blocks.mjs):
  *   its name is a select of that list (NUTRI.lists, grouped like the tables); a pick is kept for TODAY
  *   in localStorage (hc.nutri.picks = {date, picks: {<block id>: <option key>}}, every access wrapped)
- *   and planFor re-solves the whole day with it (applyPicks ports blocks.mjs: protein lists keep the
+ *   and planFor re-solves the whole day with it (swapOption / applyPicks port blocks.mjs: protein lists keep the
  *   default's protein grams, the rest take the option's own amounts; parity test).
  * - HCNutri.todayPlan() hands the food log's "Del plan" tab (client/food.js) today's Plan de hoy
  *   meals, read-only, exactly as rendered (same goal × day type × ride minutes × picks, same planFor).
@@ -153,7 +154,19 @@
     if (st > 0) return Math.max(st, Math.round(amt / st) * st);
     return Math.max(N.scale.step, Math.round(amt / N.scale.step) * N.scale.step);
   }
-  function isDiscrete(l) { return l[0] === 'ud' || l.length > 6; }
+  // the model line [unit, amt, k, p, c, g, step?, key?]: mirrors lib/nutrition/amounts.mjs LINE and its
+  // accessors (a test pins LINE equal); never read by a bare index
+  var LINE = { UNIT: 0, AMT: 1, K: 2, P: 3, C: 4, G: 5, STEP: 6, KEY: 7 };
+  function lineUnit(l) { return l[LINE.UNIT]; }
+  function lineAmt(l) { return l[LINE.AMT]; }
+  function lineStep(l) { return l[LINE.STEP]; }
+  function lineKey(l) { return l[LINE.KEY]; }
+  function pieceOf(pieces, l) { return lineKey(l) && pieces ? pieces[lineKey(l)] || null : null; }
+  function scaleLine(l, amt) {
+    var r = amt / lineAmt(l);
+    return [lineUnit(l), amt, l[LINE.K] * r, l[LINE.P] * r, l[LINE.C] * r, l[LINE.G] * r].concat(l.slice(LINE.STEP));
+  }
+  function isDiscrete(l) { return lineUnit(l) === 'ud' || l.length > LINE.STEP; }
   function fmtFactor(f, dec) { return f.toFixed(2).replace('.', dec); }
   function fmtHalf(h) {
     var whole = Math.floor(h), half = h - whole >= 0.5;
@@ -185,16 +198,16 @@
     model.fixed.forEach(function (f) { fixedK += f[0]; });
     model.flex.forEach(function (x) {
       if (x.mb) contK += x.mb[0];
-      else x.ln.forEach(function (l) { if (isDiscrete(l)) udK += l[2]; else contK += l[2]; });
+      else x.ln.forEach(function (l) { if (isDiscrete(l)) udK += l[LINE.K]; else contK += l[LINE.K]; });
     });
     var lc = udK + contK > 0 ? limit((target - fixedK) / (udK + contK)) : [1, null];
     var f0 = round2(lc[0]), clamp = lc[1];
-    var amountAt = function (l, s) { return s === 1 ? l[1] : stepAmount(l[1] * s, l[0], l[6]); };
+    var amountAt = function (l, s) { return s === 1 ? lineAmt(l) : stepAmount(lineAmt(l) * s, lineUnit(l), lineStep(l)); };
     var factor = f0;
     if (udK > 0 && contK > 0) {
       var udNowK = 0;
       model.flex.forEach(function (x) {
-        if (x.ln) x.ln.forEach(function (l) { if (isDiscrete(l)) udNowK += l[2] * (amountAt(l, f0) / l[1]); });
+        if (x.ln) x.ln.forEach(function (l) { if (isDiscrete(l)) udNowK += l[LINE.K] * (amountAt(l, f0) / lineAmt(l)); });
       });
       lc = limit((target - fixedK - udNowK) / contK);
       factor = round2(lc[0]);
@@ -218,11 +231,11 @@
       var pm = [0, 0, 0, 0];
       var amts = x.ln.map(function (l) {
         var amt = amountAt(l, isDiscrete(l) ? f0 : factor);
-        var r = amt / l[1];
-        for (var j = 0; j < 4; j++) { m[j] += l[j + 2] * r; pm[j] += l[j + 2] * r; }
-        baseK += l[2];
-        nowK += l[2] * r;
-        return fmtAmt(amt, l[0], units, l[7] && pieces ? pieces[l[7]] : null);
+        var r = amt / lineAmt(l);
+        for (var j = 0; j < 4; j++) { m[j] += l[LINE.K + j] * r; pm[j] += l[LINE.K + j] * r; }
+        baseK += l[LINE.K];
+        nowK += l[LINE.K] * r;
+        return fmtAmt(amt, lineUnit(l), units, pieceOf(pieces, l));
       });
       q.push(amts.join(' + '));
       qa.push(amts);
@@ -245,6 +258,24 @@
     if (!def || !(def.pr > 0) || !(opt.pr > 0)) return 1;
     return round2(limitP(def.pr / opt.pr));
   }
+  function swapOption(b, list, key, fmt) {
+    var opt = findOpt(list, key);
+    var s = swapFactor(b, list, opt);
+    var isFlex = b.fx === true && opt.fx === true;
+    if (opt.mb) {
+      var mb = opt.mb.map(function (v) { return v * s; });
+      var q = s === 1 ? opt.q : (opt.q + ' ×' + s.toFixed(2).replace('.', fmt.dec || '.')).trim();
+      if (isFlex) return { part: { l: opt.n, x: 1 }, flex: { mb: mb, q: q } };
+      return { part: { l: opt.n, q: q, m: mb }, mac: mb };
+    }
+    var ln = s === 1 ? opt.ln : opt.ln.map(function (l) { return scaleLine(l, stepAmount(lineAmt(l) * s, lineUnit(l), lineStep(l))); });
+    if (isFlex) return { part: opt.c && !opt.q ? { l: opt.n, x: 1, c: opt.c } : { l: opt.n, x: 1 }, flex: { ln: ln } };
+    var mac = [0, 0, 0, 0];
+    ln.forEach(function (l) { for (var j = 0; j < 4; j++) mac[j] += l[LINE.K + j]; });
+    var amts = ln.map(function (l) { return fmtAmt(lineAmt(l), lineUnit(l), fmt.units, pieceOf(fmt.pieces || null, l)); });
+    if (opt.c && (!opt.q || s !== 1)) return { part: { l: opt.n, q: amts.join(' + '), c: opt.c, a: amts, m: mac }, mac: mac };
+    return { part: { l: opt.n, q: s === 1 && opt.q ? opt.q : amts.join(' + '), m: mac }, mac: mac };
+  }
   function applyPicks(base, lists, picks, fmt) {
     var blocks = base.blocks || {};
     var eff = {}, any = false;
@@ -257,45 +288,27 @@
       });
     }
     if (!any) return { fixed: base.fixed, flex: base.flex, meals: base.meals, picks: {} };
-    var units = fmt.units, pieces = fmt.pieces || null;
-    var fmtLine = function (l) { return fmtAmt(l[1], l[0], units, l[7] && pieces ? pieces[l[7]] : null); };
     var fixed = [], flex = [], fi = 0;
     var meals = base.meals.map(function (meal, m) {
       var touched = meal.parts.some(function (p) { return p.id && eff[p.id] !== undefined; });
       var f = touched ? [0, 0, 0, 0] : base.fixed[m].slice();
       var parts = meal.parts.map(function (p) {
-        var key = p.id ? eff[p.id] : undefined, i;
+        var key = p.id ? eff[p.id] : undefined, i, k;
         if (key === undefined) {
           if (p.x) flex.push(base.flex[fi++]);
           else if (touched) for (i = 0; i < 4; i++) f[i] += p.m[i];
           return p;
         }
         if (p.x) fi++; // the default's flex entry is replaced
-        var b = blocks[p.id], list = lists[b.L], opt = findOpt(list, key);
-        var s = swapFactor(b, list, opt);
-        var isFlex = b.fx === true && opt.fx === true;
-        if (opt.mb) {
-          var mb = opt.mb.map(function (v) { return v * s; });
-          var q = s === 1 ? opt.q : (opt.q + ' ×' + s.toFixed(2).replace('.', fmt.dec || '.')).trim();
-          if (isFlex) { flex.push({ m: m, mb: mb, q: q }); return { l: opt.n, x: 1, id: p.id }; }
-          for (i = 0; i < 4; i++) f[i] += mb[i];
-          return { l: opt.n, q: q, m: mb, id: p.id };
-        }
-        var ln = s === 1 ? opt.ln : opt.ln.map(function (l) {
-          var amt = stepAmount(l[1] * s, l[0], l[6]);
-          var r = amt / l[1];
-          return [l[0], amt, l[2] * r, l[3] * r, l[4] * r, l[5] * r].concat(l.slice(6));
-        });
-        if (isFlex) {
-          flex.push({ m: m, ln: ln });
-          return opt.c && !opt.q ? { l: opt.n, x: 1, c: opt.c, id: p.id } : { l: opt.n, x: 1, id: p.id };
-        }
-        var mac = [0, 0, 0, 0];
-        ln.forEach(function (l) { for (var j = 0; j < 4; j++) mac[j] += l[j + 2]; });
-        for (i = 0; i < 4; i++) f[i] += mac[i];
-        var amts = ln.map(fmtLine);
-        if (opt.c && (!opt.q || s !== 1)) return { l: opt.n, q: amts.join(' + '), c: opt.c, a: amts, m: mac, id: p.id };
-        return { l: opt.n, q: s === 1 && opt.q ? opt.q : amts.join(' + '), m: mac, id: p.id };
+        var b = blocks[p.id];
+        var sw = swapOption(b, lists[b.L], key, fmt);
+        if (sw.flex) {
+          var entry = { m: m };
+          for (k in sw.flex) entry[k] = sw.flex[k];
+          flex.push(entry);
+        } else for (i = 0; i < 4; i++) f[i] += sw.mac[i];
+        sw.part.id = p.id;
+        return sw.part;
       });
       fixed.push(f);
       return { n: meal.n, s: meal.s, pcf: meal.pcf, parts: parts };
@@ -344,6 +357,7 @@
     return N.fuel.defaults[d];
   }
   function current() { return planFor(N, state.goal, dayType(), rideMinutes(), state.picks); }
+  function baseDay() { return N.plans[state.goal][dayType()].base; } // 'train' | 'rest', without solving
   function fuelNow() {
     var w = N.weight;
     return fuelPlan({ dayType: dayType(), minutes: rideMinutes(), weightKg: w ? w.kg : null });
@@ -691,7 +705,7 @@
   });
   // a block pick: kept for today (hc.nutri.picks), the whole day re-solved; focus stays on the select
   function setPick(id, key) {
-    var base = N.base[current().base];
+    var base = N.base[baseDay()];
     var b = base && base.blocks ? base.blocks[id] : null;
     if (!b) return false;
     if (key === b.d) delete state.picks[id];
@@ -783,6 +797,8 @@
     solveScale: solveScale,
     planFor: planFor,
     applyPicks: applyPicks,
+    swapOption: swapOption,
+    LINE: LINE,
     setPick: function (id, key) { return typeof id === 'string' && typeof key === 'string' ? setPick(id, key) : false; },
     resetPicks: resetPicks,
     state: function () { return { goal: state.goal, dayType: dayType(), override: state.override, auto: state.auto, rideMin: rideMinutes(), raised: state.raised, picks: JSON.parse(JSON.stringify(state.picks)) }; },

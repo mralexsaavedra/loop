@@ -16,7 +16,8 @@ import { buildNutriToday } from '../../../lib/nutrition/today.mjs';
 import { DAYTYPE_CASES } from '../../../lib/nutrition/daytype.mjs';
 import { fuelPlan } from '../../../lib/nutrition/fuel.mjs';
 import { planFor, solveScale } from '../../../lib/nutrition/scale.mjs';
-import { applyPicks } from '../../../lib/nutrition/blocks.mjs';
+import { applyPicks, swapOption } from '../../../lib/nutrition/blocks.mjs';
+import { LINE } from '../../../lib/nutrition/amounts.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, '..', '..', '..');
@@ -618,6 +619,32 @@ test('planFor / applyPicks ports agree with lib with picks (every single pick + 
       }
     }
   }
+});
+
+test('swapOption port agrees with lib for every block and option (both locales)', () => {
+  for (const nutri of [bake(), bakeEs()]) {
+    const { api } = run({ nutri });
+    assert.deepEqual(plain(api.LINE), { ...LINE }, 'the page mirrors the line layout');
+    let n = 0;
+    for (const day of ['train', 'rest']) for (const [id, b] of Object.entries(nutri.base[day].blocks)) {
+      for (const o of nutri.lists[b.L]) {
+        assert.deepEqual(plain(api.swapOption(b, nutri.lists[b.L], o.k, nutri.fmt)), plain(swapOption(b, nutri.lists[b.L], o.k, nutri.fmt)), `${day} ${id} ${o.k}`);
+        n++;
+      }
+    }
+    assert.ok(n > 20, `${n} swaps`);
+  }
+});
+
+test('setPick reads the block from today\'s base day without re-solving the plan', () => {
+  const nutri = bake();
+  const t = run({ nutri });
+  const cell = nutri.plans[t.api.state().goal][t.api.state().dayType];
+  let solved = 0;
+  const target = cell.t;
+  Object.defineProperty(cell, 't', { get() { solved++; return target; }, configurable: true });
+  assert.equal(t.api.setPick('nope/x', 'Rice'), false);
+  assert.equal(solved, 0, 'an unknown block: no planFor run');
 });
 
 test('the example day stays on target whatever single food is picked (the carb-flex engine re-solves the day)', () => {
