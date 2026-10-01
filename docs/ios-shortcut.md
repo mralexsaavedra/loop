@@ -100,8 +100,8 @@ Decimal commas (`42,1`) are accepted.
 | `hr_recovery` | Cardio Recovery | point | no | no | 7 days | `hr-recovery.csv` |
 | `steps_watch` | Steps, *Source is* your watch | day total | **yes** | **filter** by source | 8 days | `steps-daily.csv` |
 | `steps_phone` | Steps, *Source is* your iPhone | day total | **yes** | **filter** by source | 8 days | `steps-daily.csv` |
-| `active_energy` | Active Energy | day total | **yes** | no | 8 days | `active-energy-daily.csv` |
-| `basal_energy` | Resting Energy | day total | **yes** | no | 8 days | `basal-energy-daily.csv` |
+| `active_energy` | Active Energy (iOS 26: *Active Calories*), *Source is* your watch | day total | **yes** | **filter** by source | 8 days | `active-energy-daily.csv` |
+| `basal_energy` | Resting Energy (iOS 26: *Resting Calories*), *Source is* your watch | day total | **yes** | **filter** by source | 8 days | `basal-energy-daily.csv` |
 | `respiratory` | Respiratory Rate | day total (mean) | **yes** | no | 8 days | `respiratory-daily.csv` |
 | `walking_hr` | Walking Heart Rate Average | day total (mean) | **yes** | no | 8 days | `walking-hr-daily.csv` |
 | `diet_kcal` | Dietary Energy | day total | **yes** | no | 8 days | `dietary-daily.csv` (kcal) |
@@ -127,6 +127,7 @@ What the sync does with each shape:
 
 | Symptom | Cause and fix |
 |---------|---------------|
+| Resting / active energy far too high on one day (e.g. 3,600 kcal resting) | A day-grouped search sums every source, while the Health app shows one source per period. Filter the `basal_energy` and `active_energy` searches by your watch (*Source is*). The next payload rewrites the affected days. |
 | Steps look doubled | A day-grouped *Steps* search sums iPhone + Watch. Use two searches filtered by source, sent as `steps_watch` and `steps_phone`. The legacy merged `steps` key is ignored on purpose. |
 | A search with two *Source is* filters returns nothing | Multiple filters in one search are combined with **AND**, never OR. One search per device. |
 | The value column holds text like `18,4 %` or `70 kg` | You used the sample's *Name*, which is the formatted value. Use *Value* for the number; *Source* (*Origen*) is the device or app. |
