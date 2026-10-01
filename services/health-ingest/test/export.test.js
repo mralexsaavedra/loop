@@ -172,3 +172,10 @@ test('strava export passes total_elevation_gain through (metres), null when the 
   assert.equal(rows[0].total_elevation_gain, 412.4)
   assert.equal(rows[1].total_elevation_gain, null)
 })
+
+test('strava export exposes the UTC start and device_watts (ride window + real power for the energy correction)', async () => {
+  const pool = fakePool([])
+  await listStravaActivities(pool, { sinceId: '0', limit: 5 })
+  assert.match(pool.calls[0].sql, /payload->>'start_date' AS start_utc/)
+  assert.match(pool.calls[0].sql, /payload->'device_watts' AS device_watts/)
+})
