@@ -18,7 +18,7 @@ import { fuelPlan } from '../../../lib/nutrition/fuel.mjs';
 import { planFor, solveScale } from '../../../lib/nutrition/scale.mjs';
 import { lineCap } from '../../../lib/nutrition/amounts.mjs';
 import { waterFill, FILL_CASES } from '../../../lib/nutrition/fill.mjs';
-import { LINE } from '../../../lib/nutrition/amounts.mjs';
+import { LINE, floorToStep, GRID_EPS } from '../../../lib/nutrition/amounts.mjs';
 import { MAIN_SLOTS } from '../../../lib/nutrition/slots.mjs';
 import { buildBasics } from '../../../lib/nutrition/basics.mjs';
 import { guideBudgets, exampleAmount, remaining, mealState, isCovered, roleOptions, GUIDE_CASES, GUIDE_GRID } from '../../../lib/nutrition/guide.mjs';
@@ -575,6 +575,13 @@ test('guide ports agree with lib: guideBudgets (every goal x day type x ride), r
   }
   assert.equal(api.mealState(b, null), null);
   assert.deepEqual(plain(api.remaining(b, null)), plain(remaining(b, null)));
+});
+
+test('floorToStep / GRID_EPS port agrees with lib/nutrition/amounts.mjs; no inline epsilon left in the page', () => {
+  const { api } = run();
+  assert.equal(api.GRID_EPS, GRID_EPS);
+  for (const [cap, st] of [[152, 5], [150, 5], [250, 60], [0.9, 0.3], [3, 5], [300, 100], [135, 22.5]]) assert.equal(api.floorToStep(cap, st), floorToStep(cap, st), `${cap}/${st}`);
+  assert.doesNotMatch(source, /Math\.floor\(cap \/ st \+ 1e-9\)/);
 });
 
 test('exampleAmount port agrees with lib over GUIDE_CASES and every basic x role x grams (both locales)', () => {

@@ -168,11 +168,13 @@
   function lineKey(l) { return l[LINE.KEY]; }
   function lineCap(l) { return l[LINE.CAP] > 0 ? l[LINE.CAP] : null; }
   function capFactor(l) { return lineCap(l) ? lineCap(l) / lineAmt(l) : Infinity; }
+  var GRID_EPS = 1e-9; // lib/nutrition/amounts.mjs GRID_EPS (a test pins it equal)
+  function floorToStep(cap, st) { return Math.max(st, Math.floor(cap / st + GRID_EPS) * st); }
   function capAmount(amt, l) {
     var cap = lineCap(l);
     if (!cap || amt <= cap) return amt;
     var st = lineUnit(l) === 'ud' ? N.scale.ud : lineStep(l) > 0 ? lineStep(l) : N.scale.step;
-    return Math.max(st, Math.floor(cap / st + 1e-9) * st);
+    return floorToStep(cap, st);
   }
   function pieceOf(pieces, l) { return lineKey(l) && pieces ? pieces[lineKey(l)] || null : null; }
   function isDiscrete(l) { return lineUnit(l) === 'ud' || lineStep(l) > 0; }
@@ -363,7 +365,7 @@
     var st = food.u === 'ud' ? grid.ud : food.pc && food.pc.a > 0 ? food.pc.a * grid.grid : grid.step;
     var amt = Math.max(st, Math.round(raw / st) * st);
     var cap = finite(food.x) && food.x > 0 ? food.x : null;
-    if (cap && amt > cap) return { amt: Math.max(st, Math.floor(cap / st + 1e-9) * st), capped: true };
+    if (cap && amt > cap) return { amt: floorToStep(cap, st), capped: true };
     return { amt: amt, capped: false };
   }
   function remaining(budget, logged) {
@@ -858,6 +860,8 @@
     detectDayType: detectDayType,
     fuelPlan: fuelPlan,
     waterFill: waterFill,
+    floorToStep: floorToStep,
+    GRID_EPS: GRID_EPS,
     solveScale: solveScale,
     planFor: planFor,
     guideBudgets: guideBudgets,
