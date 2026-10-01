@@ -499,7 +499,9 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   ("×1.45"). DISCRETE lines — whole units (`ud`, whole units) and countable g / ml foods (an
   ingredient with a `piece`, rounded to HALF pieces — `PIECE_GRID` in `lib/nutrition/units.mjs`, one
   unit = `UD_AMT` (100), both baked as `NUTRI.scale.grid` / `.ud`; the model line carries `[…, step,
-  ingredient key]`, `lib/nutrition/amounts.mjs` `modelLine` / `stepAmount`) — round first at that factor, then the factor is
+  ingredient key]`, `lib/nutrition/amounts.mjs` `modelLine` / `stepAmount`; its layout is named ONCE as
+  `LINE` with accessors `lineUnit` / `lineAmt` / `lineMac` / `lineStep` / `lineKey` / `pieceOf(pieces, l)` /
+  `scaleLine`, mirrored in nutri-day.js — never read by a bare index) — round first at that factor, then the factor is
   RE-SOLVED on the remaining g / ml parts so the day still lands within tolerance; with only `ud` parts flexible the
   remainder is reported honestly (plus a one-line note). Amounts round to 5 g / 5 ml (never below one
   step; a `manual` block scales as a whole and shows "×1.30") and the totals are recomputed from the
@@ -526,7 +528,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   id, so a pick follows the day across train / rest; a repeat in the same meal key gets `#2`…);
   option key = the item's `n`, else `cap`, else `l` (ONE rule, `lib/nutrition/names.mjs` `itemName`, also
   the baked option name and the Tablas row name; a repeated key gets " (2)"). Swap rules
-  (`applyPicks`): PROTEIN-role lists (`BLOCK_ROLES`: proteina, anclaje, postentreno — explicit in lib,
+  (`swapOption`, pure: the picked option as the part that replaces the default + its flex entry or fixed
+  macros; `applyPicks` only keeps the books): PROTEIN-role lists (`BLOCK_ROLES`: proteina, anclaje, postentreno — explicit in lib,
   never from emoji / labels) scale the picked option to the SAME protein grams as the default
   (`swapFactor`, clamped `PROTEIN_SCALE_MIN`–`MAX` 0.5–2.0, amounts rounded like every scaled amount;
   a manual block shows "×1.73"); every other list takes the option's own recipe amounts. A pick in a
@@ -539,7 +542,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   q?, c?, pr, fx?}` (line macros to 2 decimals; `gr` = the item's `t` / `cat`; `fx: true` = a carb staple,
   absent = not; the block's `fx` is a boolean too) + per base day
   `blocks[id] = {L, r, d, fx}` and an `id` on each block part; NUTRI grew from ~5.6 KB to ~10.6 KB on
-  the example. The page (nutri-day.js) ports `applyPicks` / `swapFactor` / `fmtPieces` line by line
+  the example. The page (nutri-day.js) ports `swapOption` / `applyPicks` / `swapFactor` / `fmtPieces` line by line
   (parity test over every single pick + combinations). Plan de hoy renders a block's name as a
   compact `<select class="mp-pick">` (≥ 44 px, `<optgroup>`s by `gr`: lean / moderate / fatty, fruit /
   yogurt…, aria-label "Change <item> (<meal>)"); a change keeps the pick for TODAY in localStorage
