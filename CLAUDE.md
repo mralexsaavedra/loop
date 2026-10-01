@@ -71,12 +71,20 @@ available) so the next session resumes with their context.
      raw `export.xml` is ~700 MB — only stream/grep it directly for a series not in the
      cache. Caveats: body metrics carry a `source` column (weight mixes scales — compare
      body fat within one scale only); steps are deduped to max-per-device per day (summing
-     devices double-counts — summing inflates the NEAT figure). Active / basal energy sum ONLY
-     Apple Watch sources (`samples.js` `APPLE_WATCH_RE`, the same anchored `/^Apple\s+Watch\b/i` as
-     `sessions.mjs`, pinned by a test): RENPHO writes an estimated BMR as Basal Energy on weigh-in
-     days, which doubled basal. A day with no Watch energy has NO row (missing, never a scale /
-     phone estimate); only an export with no Watch energy at all (a phone-only user) keeps every
-     source (`_meta.json` `energySources`: `Apple Watch` | `all`). The export's LAST date is a
+     devices double-counts — summing inflates the NEAT figure). Active / basal energy: per DAY and
+     type ONE source wins and only its sum is written, never a sum across sources (each device / app
+     writes its own estimate of the same burn; RENPHO's weigh-in BMR as Basal Energy doubled basal).
+     Precedence (`samples.js` `energySource` / `pickEnergySource`): 1. Apple Watch (`APPLE_WATCH_RE`,
+     the same anchored `/^Apple\s+Watch\b/i` as `sessions.mjs`, pinned by a test); 2. a dedicated
+     wrist-wearable app (`ENERGY_WEARABLES`: Zepp / Zepp Life, Mi Fit / Mi Fitness, Amazfit, Garmin
+     Connect, Polar Flow, Fitbit, Huawei Health — the owner's pre-Watch history came from Zepp and Mi
+     Fit); 3. the iPhone (`/^iPhone\b/i`); everything else is EXCLUDED — scales (RENPHO, OKOK,
+     Withings / Health Mate, which serves both scales and watches) and training / nutrition apps
+     (Hevy, Nike *, Strava, YAZIO, Merge, Training, ROXFIT…). Two sources of one rank on a day → the
+     larger total (then name ascending). A day with excluded sources only has NO row. `_meta.json`
+     `energySources` = days won per family and type (`{active: {"Apple Watch": n, "Zepp": n,
+     "iPhone": n}, basal: {…}}`). This superseded a Watch-only rule (2026-10-01) that dropped every
+     pre-Watch day. The export's LAST date is a
      PARTIAL day (export.xml is taken mid-day): `_meta.json` `exportLastDate` = `<ExportDate>`, else
      the newest record date, and the daily TOTAL series (steps, active / basal energy, exercise,
      distance, flights, dietary) skip it (means, points, sleep and workouts keep it). These need a
