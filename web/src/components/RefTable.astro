@@ -25,7 +25,7 @@ const n1 = (v: number) => String(v).replace('.', dec);
 {rows.length > 0 && (
   <div class="table-scroll"><table class="ref-table">
     {caption && <caption>{caption}</caption>}
-    <thead><tr><th>{cols.food}</th><th>{cols.ref}</th><th>kcal</th><th>P</th><th>C</th><th>{cols.f}</th></tr></thead>
+    <thead><tr><th>{cols.food}</th><th class="ref-unit">{cols.ref}</th><th>kcal</th><th>P</th><th>C</th><th>{cols.f}</th></tr></thead>
     <tbody>
       {rows.map((r) => r.kind === 'group' ? (
         <tr class="ref-group"><td colspan="6">{r.name}</td></tr>
