@@ -4,6 +4,17 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-01 — Day builder removed; the food log logs the plan ("Del plan")
+
+The Constructor de día (section `registro`) was redundant next to the food log, so it is gone with
+its script, copy, styles and builder-only bakes. Its replacement is a "Del plan" tab in Registrar's
+add sheet: today's Plan de hoy meals, exactly as the page shows them (same goal, day type and ride
+minutes, read through `HCNutri.todayPlan()`), logged in one entry per meal or per item as a quick
+entry with its four macros (no database change). The Tablas tables are now painted by
+`client/tablas.js`, and the shared bake renders once from `pages/index.astro`. `page.hideTabs:
+["registro"]` keeps building as a deprecated no-op. The builder fold's "no food logged" hint is
+dropped on purpose (the dial shows the target; the food log is the way to log).
+
 ## 2026-09-30 — Nutrition v2, part 2: food log, my products, my recipes
 
 The owner logs what he eats from the LAN page. Nutrición gains Registrar (today's log by meal slot,
