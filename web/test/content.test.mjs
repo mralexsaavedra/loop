@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { loadInputs } from '../../lib/load/inputs.mjs';
 import { buildNutrition } from '../../lib/nutrition/macros.mjs';
 import * as nutriToday from '../../lib/nutrition/today.mjs';
+import { buildReference } from '../../lib/nutrition/reference.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
@@ -92,17 +93,21 @@ test('example build: the dia section carries Resumen de hoy (day type radios onl
   assert.equal(baked.supplements.length, 3, 'the synthetic example supplements ride along');
 });
 
-test('example build renders a lib-computed breakfast component row in the Tablas tab', () => {
+test('example build: Tablas shows fixed reference values per natural unit (lib/nutrition/reference.mjs), never portions', () => {
   assert.ok(fs.existsSync(examplePath), `missing ${examplePath} — run \`npm run pretest\` first`);
   const html = fs.readFileSync(examplePath, 'utf8');
   const { nut } = loadExampleNut();
   const tablasHtml = sliceSection(html, 'tablas');
-
-  assert.ok(nut.breakfast.length > 0, 'example plan must have at least one breakfast option to make this test meaningful');
-  const row = nut.breakfast[0].rows[0];
-  assert.ok(tablasHtml.includes(row.name), `expected breakfast component name "${row.name}" in the Tablas tab`);
-  assert.ok(tablasHtml.includes(`class="kc">${row.k}</td>`), `expected breakfast component kcal "${row.k}" in the Tablas tab`);
-  assert.ok(tablasHtml.includes(`<td>${row.p}</td>`), `expected breakfast component protein "${row.p}" in the Tablas tab`);
+  const ref = buildReference(nut, { lang: 'en', words: { raw: 'raw', dry: 'dry', cooked: 'cooked', serving: 'serving', unit: 'pc' } });
+  assert.match(tablasHtml, /<p class="acc-note tablas-ref-note">Reference values per natural unit/);
+  // a breakfast is a group row + its component foods
+  assert.ok(tablasHtml.includes(`<tr class="ref-group"><td colspan="6">${ref.desayunos[0].name}</td></tr>`));
+  // a countable food: per piece with the grams reference, flagged as a typical weight
+  assert.match(tablasHtml, /<td>Banana<\/td>\s*<td class="ref-unit">1 medium banana \(~120 g\)<small class="ref-typ">typical weight<\/small><\/td>\s*<td class="kc">106<\/td>/);
+  // rice / pasta per 100 g dry, ONE table (no train / rest portion columns)
+  assert.match(tablasHtml, /<td>Rice<\/td>\s*<td class="ref-unit">100 g dry<\/td>\s*<td class="kc">360<\/td>/);
+  assert.equal((tablasHtml.match(/<td>Rice<\/td>/g) || []).length, 1);
+  assert.doesNotMatch(tablasHtml, /Cant\.|<caption>🏋️|Training<\/caption>|tb-cc-|tb-prot-/);
 });
 
 test('example build: the day builder (Constructor de día, section registro) is gone: no section, no form, no script, no builder-only bakes', () => {
@@ -113,9 +118,9 @@ test('example build: the day builder (Constructor de día, section registro) is 
     assert.doesNotMatch(html, new RegExp(`var ${g} = `), `${g} was baked only for the day builder`);
   }
   assert.doesNotMatch(html, /Day builder|Constructor de día/);
-  // the Tablas equivalence tables are still painted from the shared bakes
-  for (const g of ['DATA', 'EXTRAS', 'VEG_KEYS', 'QUESO_KEYS', 'FRUIT_SUMMARY', 'I18N_TABLAS']) assert.match(html, new RegExp(`var ${g} = `), g);
-  assert.match(html, /paint\('tb-prot-lean'/, 'client/tablas.js is inlined');
+  // Tablas is server-rendered reference values now: no client painter, no bakes for it
+  for (const g of ['DATA', 'EXTRAS', 'VEG_KEYS', 'QUESO_KEYS', 'FRUIT_SUMMARY', 'I18N_TABLAS']) assert.doesNotMatch(html, new RegExp(`var ${g} = `), g);
+  assert.doesNotMatch(html, /paint\('tb-prot-lean'/, 'client/tablas.js is gone');
 });
 
 test('example build: t-home is the first nav button and pressed; the Home panel is visible, Nutrición hidden', () => {
