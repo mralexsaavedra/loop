@@ -1,4 +1,5 @@
-/* Nutrición food log (part 2) — Registrar (today's log by meal slot, inside the `dia` section), the
+/* Nutrición food log (part 2) — Registrar (today's log in four groups: Desayuno / Comida / Cena /
+ * Añadidos, inside the `dia` section), the
  * add sheet (a view of the detail sheet modal), Mis productos and Mis recetas (folds before Tablas).
  * Classic script (is:inline), inlined after nutri-day.js and before intake.js. Reads
  * I18N_FOOD + FOOD_CONST (meal slots / stores / units from lib/nutrition/foodlog.mjs), baked by
@@ -15,6 +16,13 @@
  * lib/nutrition/foodlog.mjs (window.HCFood; food.test.mjs runs it over the shared FOODLOG_CASES).
  * A quick entry without macros counts its kcal only; unknown macros are never filled in.
  *
+ * Basics (the add sheet's "Mis productos" search): the public food DB (data/nutrition/ingredients.json),
+ * baked as FOOD_BASICS by Dia.astro (lib/nutrition/basics.mjs). Typing also lists the matching basics, in a
+ * "Básicos" group after the owner's products (accent- and case-insensitive); a pick takes an amount in
+ * the food's natural unit (pieces / ml / g, pieces <-> grams for a countable food) and is logged as ONE
+ * quick entry with its four macros (a port of lib/nutrition/foodlog.mjs basicEntry / basicLabel; average
+ * table values, marked as such).
+ *
  * "Del plan" (the add sheet's plan tab): today's Plan de hoy meals from window.HCNutri.todayPlan()
  * (nutri-day.js, read-only: the same goal × day type × ride minutes and scaled amounts the page shows;
  * nothing is re-computed here). The whole meal or one of its items is logged as ONE quick entry
@@ -28,6 +36,9 @@
 (function () {
   var T = typeof I18N_FOOD === 'undefined' || !I18N_FOOD ? null : I18N_FOOD;
   var K = typeof FOOD_CONST === 'undefined' || !FOOD_CONST ? null : FOOD_CONST;
+  // the public basics (lib/nutrition/basics.mjs): [{k, n, u, m: [kcal, p, c, f] per 100 of u, pc?, v?}]
+  var BASICS = typeof FOOD_BASICS !== 'undefined' && Array.isArray(FOOD_BASICS) ? FOOD_BASICS : [];
+  var BASIC_RESULTS_MAX = 25; // a short list: typing narrows it
   window.foodTotals = function () { return null; };
   if (!T || !K || typeof fetch !== 'function' || typeof document === 'undefined') return;
   var esc = HC.esc, format = HC.format, nf = HC.nf;
@@ -36,8 +47,15 @@
   var BARCODE_RE = new RegExp(LIM.barcodePattern || '^$');
   var API = '/api/food';
   var TIMEOUT_MS = 15000; // a request that hangs is an ambiguous failure, like offline
-  // a fresh add sheet's meal by the viewer's hour: before 11 breakfast, before 16 lunch, before 20 snack, else dinner
-  var MEAL_HOUR_CUTS = [[11, 'breakfast'], [16, 'lunch'], [20, 'snack']];
+  // Registrar shows FOUR groups (lib/nutrition/slots.mjs, baked in FOOD_CONST): the main slots
+  // breakfast / lunch / dinner + ONE add-ons group for every other stored slot (pre / post workout,
+  // snack). The stored slot enum (K.meals) is unchanged: an add-on is stored as K.addonSlot unless it
+  // comes from a plan add-on with its own slot (pre / post workout).
+  var GROUPS = K.groups || [];
+  var MAIN = K.mainSlots || [];
+  var ADDON = K.addonGroup;
+  // a fresh add sheet's group by the viewer's hour: before 11 breakfast, before 16 lunch, before 20 an add-on, else dinner
+  var MEAL_HOUR_CUTS = [[11, 'breakfast'], [16, 'lunch'], [20, ADDON]];
   var S = { ok: false, products: [], recipes: [], log: null, sheet: null, pform: null, rform: null, confirm: null };
   var pendingMeal = null;
 
@@ -125,6 +143,56 @@
   function atwaterOk(m) {
     var est = 4 * m.protein + 4 * m.carbs + 9 * m.fat;
     return Math.abs(est - m.kcal) <= Math.max(ATWATER_TOL * m.kcal, ATWATER_ABS_KCAL);
+  }
+  // basics (lib/nutrition/foodlog.mjs basicModes … basicConvert; food.test.mjs runs BASIC_CASES)
+  function round2(v) {
+    return Math.round(v * 100 + 1e-9) / 100;
+  }
+  function pieceWeight(b, mode) {
+    var pc = b && b.pc;
+    if (!pc) return null;
+    if (b.u === 'ud') return mode === 'g' && fin(pc.r) && pc.r > 0 ? pc.r : null;
+    return mode === b.u && fin(pc.a) && pc.a > 0 ? pc.a : null;
+  }
+  function basicModes(b) {
+    if (!b) return [];
+    if (b.u === 'ud') return pieceWeight(b, 'g') ? ['piece', 'g'] : ['piece'];
+    return b.pc ? ['piece', b.u] : [b.u];
+  }
+  function basicAmount(b, amount, mode) {
+    if (!b || !b.m || !fin(amount) || amount <= 0) return null;
+    if (mode === 'piece') {
+      if (b.u === 'ud') return amount * (b.pc && fin(b.pc.a) ? b.pc.a : 100);
+      return b.pc && fin(b.pc.a) ? amount * b.pc.a : null;
+    }
+    if (mode === b.u) return amount;
+    var w = b.u === 'ud' ? pieceWeight(b, mode) : null;
+    return w ? (amount / w) * 100 : null;
+  }
+  function basicEntry(b, amount, mode) {
+    var a = basicAmount(b, amount, mode);
+    return a == null ? null : roundMacros(scaleMacros({ kcal: b.m[0], protein: b.m[1], carbs: b.m[2], fat: b.m[3] }, a));
+  }
+  function basicLabel(b, amount, mode, w) {
+    if (basicAmount(b, amount, mode) == null) return null;
+    var num = function (x) { return String(round2(x)).replace('.', w.dec); };
+    var s;
+    if (mode === 'piece') {
+      var unit = b.u === 'ud' ? 'g' : b.u;
+      var pw = pieceWeight(b, unit);
+      s = num(amount) + ' ' + w.ud + (pw ? ' (~' + Math.round(amount * pw + 1e-9) + ' ' + w[unit] + ')' : '');
+    } else {
+      s = num(amount) + ' ' + w[mode];
+    }
+    return (b.n + ' · ' + s).slice(0, LIM.nameMax || 120);
+  }
+  function basicConvert(b, amount, from, to) {
+    var a = basicAmount(b, amount, from);
+    if (a == null || basicModes(b).indexOf(to) < 0) return null;
+    if (from === to) return amount;
+    var per = basicAmount(b, 1, to);
+    var v = a / per;
+    return to === 'piece' ? round2(v) : Math.round(v + 1e-9);
   }
 
   /* ---------- small helpers ---------- */
@@ -230,6 +298,22 @@
     if (code === 'invalid') return format(T.errors.invalid, { field: (e.field && T.fields[e.field]) || e.field || '' });
     return T.errors[code] || T.errors.generic;
   }
+  // the group of a stored slot (or of a group key): a main slot is its own group, anything else add-ons
+  function groupOf(slot) {
+    return MAIN.indexOf(slot) >= 0 ? slot : ADDON;
+  }
+  // a group key, a stored slot (mapped to its group), else null
+  function asGroup(v) {
+    if (GROUPS.indexOf(v) >= 0) return v;
+    return K.meals.indexOf(v) >= 0 ? groupOf(v) : null;
+  }
+  // the slot stored for a group: a main group is its slot; an add-on keeps a plan add-on's own slot
+  // (pre / post workout), else K.addonSlot
+  function slotFor(group, planMeal) {
+    if (group !== ADDON) return group;
+    var s = planMeal && planMeal.slot;
+    return s && K.meals.indexOf(s) >= 0 && MAIN.indexOf(s) < 0 ? s : K.addonSlot;
+  }
   function guessMeal() {
     var h = new Date().getHours();
     for (var i = 0; i < MEAL_HOUR_CUTS.length; i++) if (h < MEAL_HOUR_CUTS[i][0]) return MEAL_HOUR_CUTS[i][1];
@@ -313,8 +397,10 @@
 
   /* ---------- Registrar ---------- */
   var DEL_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+  // an add-on entry carries its stored slot as a tiny muted tag (Pre-entreno, Snack…)
   function entryHtml(e) {
-    return '<li class="fe"><div class="fe-main"><span class="fe-label">' + esc(e.label) + '</span>' +
+    var tag = groupOf(e.meal) === ADDON && T.meals[e.meal] ? '<span class="fe-slot">' + esc(T.meals[e.meal]) + '</span>' : '';
+    return '<li class="fe"><div class="fe-main"><span class="fe-label">' + esc(e.label) + '</span>' + tag +
       '<span class="fe-amt">' + esc(amountText(e.amount, e.unit)) + '</span></div>' +
       '<div class="fe-side"><span class="fe-kcal"><b>' + esc(kf(e.kcal)) + '</b> ' + esc(T.kcal) + '</span>' +
       '<span class="fe-pcf">' + esc(pcf(e)) + '</span></div>' +
@@ -330,14 +416,14 @@
       var html = '<div class="food-sum"><span class="food-sum-lbl">' + esc(T.dayTotal) + '</span> ' + macroLine(t) + '</div>' +
         (miss ? '<p class="food-note">' + esc(T.missingNote) + '</p>' : '') +
         (L.entries.length ? '' : '<p class="food-note">' + esc(T.empty) + '</p>');
-      html += '<div class="food-meals">' + K.meals.map(function (m) {
-        var list = L.entries.filter(function (e) { return e.meal === m; });
+      html += '<div class="food-meals">' + GROUPS.map(function (m) {
+        var list = L.entries.filter(function (e) { return groupOf(e.meal) === m; });
         var k = list.reduce(function (s, e) { return s + (fin(e.kcal) ? e.kcal : 0); }, 0);
         return '<section class="food-meal" aria-labelledby="fm-h-' + m + '"><div class="food-meal-top">' +
-          '<h3 class="food-meal-name" id="fm-h-' + m + '">' + esc(T.meals[m]) + '</h3>' +
+          '<h3 class="food-meal-name" id="fm-h-' + m + '">' + esc(T.groups[m]) + '</h3>' +
           (list.length ? '<span class="food-meal-kcal"><b>' + esc(kf(k)) + '</b> ' + esc(T.kcal) + '</span>' : '') + '</div>' +
           (list.length ? '<ul class="food-entries">' + list.map(entryHtml).join('') + '</ul>' : '') +
-          '<button type="button" class="food-add" id="food-add-' + m + '" data-food-act="add" data-meal="' + m + '" aria-label="' + esc(format(T.addAria, { meal: T.meals[m] })) + '">+ ' + esc(T.add) + '</button></section>';
+          '<button type="button" class="food-add" id="food-add-' + m + '" data-food-act="add" data-meal="' + m + '" aria-label="' + esc(format(T.addAria, { meal: T.groups[m] })) + '">+ ' + esc(T.add) + '</button></section>';
       }).join('') + '</div>';
       host.innerHTML = html;
     } catch (e) {
@@ -368,7 +454,7 @@
 
   /* ---------- add sheet (window.HCViews['food-add'], rendered by detail.js) ---------- */
   function newSheet(meal) {
-    var m = K.meals.indexOf(meal) >= 0 ? meal : guessMeal();
+    var m = asGroup(meal) || guessMeal();
     var plan = todayPlan();
     return { meal: m, tab: 'products', q: '', pick: null, busy: false, reqId: null, plan: plan, planMeal: plan ? planMealFor(plan, m, 0) : 0, planItem: -1 };
   }
@@ -386,10 +472,19 @@
   function tabKeys() {
     return S.sheet && S.sheet.plan ? ['products', 'recipes', 'plan', 'quick'] : ['products', 'recipes', 'quick'];
   }
-  // the plan meal for a meal slot (the sheet's meal select), else `fallback`
-  function planMealFor(plan, slot, fallback) {
-    for (var i = 0; i < plan.length; i++) if (plan[i] && plan[i].slot === slot) return i;
+  // the plan meal for a group (the sheet's meal select): `current` when it already belongs to that
+  // group, else the first plan meal of the group (Añadido: the first add-on), else `fallback`
+  function planMealFor(plan, group, fallback, current) {
+    var inGroup = function (m) { return !!m && groupOf(m.slot) === group; };
+    if (current >= 0 && inGroup(plan[current])) return current;
+    for (var i = 0; i < plan.length; i++) if (inGroup(plan[i])) return i;
     return fallback;
+  }
+  // the chip order: the main meals, then the add-ons (each in day order), like Plan de hoy
+  function planOrder(plan) {
+    var idx = plan.map(function (m, i) { return i; });
+    var main = function (i) { return !!plan[i] && MAIN.indexOf(plan[i].slot) >= 0; };
+    return idx.filter(main).concat(idx.filter(function (i) { return !main(i); }));
   }
   /** What the plan tab would log: {label, kcal, protein, carbs, fat} (a macro the plan lacks stays
    * unset), or null. The whole meal = its scaled totals as Plan de hoy shows them; an item = its own. */
@@ -417,7 +512,8 @@
   }
   function planHtml() {
     var sh = S.sheet, plan = sh.plan, meal = plan[sh.planMeal];
-    var meals = '<div class="fa-plan-meals" role="group" aria-label="' + esc(T.sheet.planMeals) + '">' + plan.map(function (m, i) {
+    var meals = '<div class="fa-plan-meals" role="group" aria-label="' + esc(T.sheet.planMeals) + '">' + planOrder(plan).map(function (i) {
+      var m = plan[i];
       return '<button type="button" class="fa-plan-meal" id="fa-plan-meal-' + i + '" data-food-act="plan-meal" data-i="' + i + '" aria-pressed="' + (i === sh.planMeal) + '">' +
         '<span class="fa-item-name">' + esc(m.name) + '</span><span class="fa-item-sub">' + esc(kf(m.kcal)) + ' ' + esc(T.kcal) + '</span></button>';
     }).join('') + '</div>';
@@ -450,10 +546,35 @@
           (b && r.complete ? esc(kf(b.kcal)) + ' ' + esc(T.kcal) + ' ' + esc(basis) : esc(T.sheet.incomplete)) + '</span></button></li>';
       }).join('') + '</ul>';
     }
-    if (!S.products.length) return '<p class="food-note">' + esc(T.sheet.noProducts) + '</p>';
     var q = norm(sh.q).trim();
-    var shown = S.products.filter(function (p) { return !q || norm(p.name + ' ' + (p.brand || '')).indexOf(q) >= 0; });
-    if (!shown.length) return '<p class="food-note">' + esc(T.sheet.noMatch) + '</p>';
+    var hint = BASICS.length ? '<p class="food-note">' + esc(T.sheet.typeToSearch) + '</p>' : '';
+    // an empty search lists the owner's products only (the basics appear once he types, so the list stays short)
+    if (!q) return (S.products.length ? productGroupsHtml(S.products) : '<p class="food-note">' + esc(T.sheet.noProducts) + '</p>') + hint;
+    var shown = S.products.filter(function (p) { return norm(p.name + ' ' + (p.brand || '')).indexOf(q) >= 0; });
+    var basics = basicMatches(q);
+    if (!shown.length && !basics.length) return '<p class="food-note">' + esc(T.sheet.noMatch) + '</p>';
+    return productGroupsHtml(shown) + basicsHtml(basics);
+  }
+  // the basics whose name contains the search (accent- and case-insensitive), names that START with it first
+  function basicMatches(q) {
+    var hits = BASICS.filter(function (b) { return norm(b.n).indexOf(q) >= 0; });
+    var first = hits.filter(function (b) { return norm(b.n).indexOf(q) === 0; });
+    return first.concat(hits.filter(function (b) { return norm(b.n).indexOf(q) !== 0; })).slice(0, BASIC_RESULTS_MAX);
+  }
+  // "88 kcal por 100 g · valor medio" (a unit food: "por ud"; a verified label of the DB: "etiqueta")
+  function basicSub(b) {
+    var per = b.u === 'ud' ? T.sheet.perUnit : format(T.sheet.per100, { unit: T.units[b.u] || b.u });
+    return per + ' · ' + (b.v ? T.sheet.basicLabelSrc : T.sheet.basicAvg);
+  }
+  function basicsHtml(list) {
+    if (!list.length) return '';
+    return '<h4 class="fa-store">' + esc(T.sheet.basics) + '</h4><ul class="fa-items">' + list.map(function (b) {
+      return '<li><button type="button" class="fa-item" data-food-act="pick" data-kind="basic" data-id="' + esc(b.k) + '">' +
+        '<span class="fa-item-name">' + esc(b.n) + '</span>' +
+        '<span class="fa-item-sub">' + esc(kf(b.m[0])) + ' ' + esc(T.kcal) + ' ' + esc(basicSub(b)) + '</span></button></li>';
+    }).join('') + '</ul>';
+  }
+  function productGroupsHtml(shown) {
     return K.stores.map(function (s) {
       var list = shown.filter(function (p) { return p.store === s; });
       if (!list.length) return '';
@@ -467,7 +588,54 @@
   function pickedItem() {
     var pk = S.sheet && S.sheet.pick;
     if (!pk) return null;
+    if (pk.kind === 'basic') return findBasic(pk.id);
     return pk.kind === 'recipe' ? find(S.recipes, pk.id) : find(S.products, pk.id);
+  }
+  function findBasic(key) {
+    for (var i = 0; i < BASICS.length; i++) if (BASICS[i].k === key) return BASICS[i];
+    return null;
+  }
+  // the label's words: the viewer's decimal mark and the unit words of the copy
+  function basicWords() {
+    return { dec: HC.isEs() ? ',' : '.', g: T.units.g, ml: T.units.ml, ud: T.units.ud };
+  }
+  // a mode's option text: "huevos (~50 g)", "plátanos medianos (~120 g)"; g / ml as their unit word
+  function basicModeText(b, mode) {
+    if (mode !== 'piece') return T.units[mode] || mode;
+    var pc = b.pc;
+    if (!pc) return T.units.ud;
+    var unit = b.u === 'ud' ? 'g' : b.u;
+    var w = pieceWeight(b, unit);
+    return w ? format(T.sheet.pieceOpt, { name: pc.m, w: nf(w) + ' ' + T.units[unit] }) : pc.m;
+  }
+  // a mode's amount parser units (a piece is a count) and its prefill: ONE piece, else 100 g / ml
+  function modeUnits(mode) { return mode === 'piece' ? null : [mode]; }
+  function modeDefault(mode) { return mode === 'piece' ? '1' : '100'; }
+  function basicPickHtml(b) {
+    var modes = basicModes(b);
+    var per = { kcal: b.m[0], protein: b.m[1], carbs: b.m[2], fat: b.m[3] };
+    S.sheet.basicMode = modes[0];
+    return '<div class="fa-pick"><div class="fa-pick-top"><div><div class="fa-item-name">' + esc(b.n) + '</div>' +
+      '<div class="fa-item-sub">' + macroLine(per) + ' ' + esc(basicSub(b)) + '</div></div>' +
+      '<button type="button" class="food-btn food-btn-ghost" data-food-act="unpick">' + esc(T.sheet.change) + '</button></div>' +
+      '<div class="food-row">' + numField('fa-amt', T.sheet.amount, modeDefault(modes[0])) +
+      field('fa-unit', T.sheet.unit, '<select class="food-in" id="fa-unit">' + modes.map(function (u, i) {
+        return '<option value="' + u + '"' + (i === 0 ? ' selected' : '') + '>' + esc(basicModeText(b, u)) + '</option>';
+      }).join('') + '</select>') + '</div>' +
+      '<p class="fa-prev" id="fa-prev" aria-live="polite"></p>' +
+      '<p class="food-note">' + esc(b.v ? T.sheet.basicLabelNote : T.sheet.basicNote) + '</p>' +
+      '<button type="button" class="food-btn" id="fa-save" data-food-act="save">' + esc(T.sheet.save) + '</button></div>';
+  }
+  // pieces <-> grams keeps the same food: the typed amount converted, else the new mode's prefill
+  function switchBasicMode() {
+    var sh = S.sheet, b = pickedItem();
+    var to = val('fa-unit');
+    if (!b || basicModes(b).indexOf(to) < 0) return;
+    var from = sh.basicMode || to;
+    var v = basicConvert(b, parseNum(val('fa-amt'), modeUnits(from)), from, to);
+    var el = $('fa-amt');
+    if (el && from !== to) el.value = v != null ? nf(v) : modeDefault(to);
+    sh.basicMode = to;
   }
   // the units a picked item can be logged in: a product in its own unit (+ servings when it states a
   // serving size), a per-serving recipe in servings, a batch recipe in grams of cooked food
@@ -495,6 +663,7 @@
   function pickHtml() {
     var pk = S.sheet.pick, item = pickedItem();
     if (!item) return '';
+    if (pk.kind === 'basic') return basicPickHtml(item);
     var units = unitsOf(pk.kind, item);
     var sub = pk.kind === 'recipe'
       ? (item.kind === 'serving' ? T.sheet.perServing : T.sheet.per100Cooked)
@@ -523,7 +692,7 @@
     if (sh.tab === 'quick') return quickHtml();
     if (sh.tab === 'plan') return planHtml();
     if (sh.pick) return pickHtml();
-    var search = sh.tab === 'products' && S.products.length
+    var search = sh.tab === 'products' && (S.products.length || BASICS.length)
       ? field('fa-q', T.sheet.search, '<input class="food-in" id="fa-q" type="search" autocomplete="off" placeholder="' + esc(T.sheet.searchPh) + '" value="' + esc(sh.q) + '">')
       : '';
     return search + '<div id="fa-list" class="fa-list">' + listHtml() + '</div>';
@@ -537,8 +706,8 @@
     S.sheet = newSheet(pendingMeal);
     pendingMeal = null;
     var sh = S.sheet;
-    var meals = '<select class="food-in" id="fa-meal">' + K.meals.map(function (m) {
-      return '<option value="' + m + '"' + (m === sh.meal ? ' selected' : '') + '>' + esc(T.meals[m]) + '</option>';
+    var meals = '<select class="food-in" id="fa-meal">' + GROUPS.map(function (m) {
+      return '<option value="' + m + '"' + (m === sh.meal ? ' selected' : '') + '>' + esc(T.groupOption[m]) + '</option>';
     }).join('') + '</select>';
     return {
       head: '',
@@ -558,6 +727,11 @@
   function sheetPreview() {
     var pk = S.sheet && S.sheet.pick, item = pickedItem();
     if (!item) return null;
+    if (pk.kind === 'basic') {
+      var mode = val('fa-unit') || S.sheet.basicMode || basicModes(item)[0];
+      var n = parseNum(val('fa-amt'), modeUnits(mode));
+      return { amount: n, unit: mode, m: basicEntry(item, n, mode), label: basicLabel(item, n, mode, basicWords()) };
+    }
     var unit = val('fa-unit') || unitsOf(pk.kind, item)[0];
     var amount = parseNum(val('fa-amt'), unit === 'serving' ? null : [unit]);
     if (pk.kind === 'product') return { amount: amount, unit: unit, m: productEntry(item, amount, unit) };
@@ -573,7 +747,12 @@
       return;
     }
     var p = sheetPreview();
-    setHtml('fa-prev', p && p.m ? macroLine(p.m) : '');
+    setHtml('fa-prev', p && p.m ? (p.label ? '<span class="fa-prev-lbl">' + esc(p.label) + '</span> ' : '') + macroLine(p.m) : '');
+  }
+  // a basic entry over what one quick entry may hold (the server's quick limits, or the amount cap)
+  function tooBig(p) {
+    if (p.amount > (LIM.amountMax || 5000) || p.m.kcal > (LIM.quickKcalMax || 5000)) return true;
+    return MACROS.some(function (k) { return p.m[k] > (LIM.quickMacroMax || 500); });
   }
   function sheetMsg(s, force) {
     var el = $('fa-msg');
@@ -586,8 +765,8 @@
   function saveSheet(force) {
     var sh = S.sheet;
     if (!sh || sh.busy) return;
-    var meal = val('fa-meal') || sh.meal;
-    if (K.meals.indexOf(meal) < 0) meal = sh.meal;
+    var group = asGroup(val('fa-meal')) || sh.meal;
+    var meal = slotFor(group, sh.tab === 'plan' && sh.plan ? sh.plan[sh.planMeal] : null);
     var date = HC.todayIso();
     var body;
     clearErrs(SHEET_IDS);
@@ -620,7 +799,13 @@
         sheetMsg(T.sheet.previewNone);
         return;
       }
-      body = { date: date, meal: meal, refType: sh.pick.kind, refId: Number(sh.pick.id), amount: p.amount, unit: p.unit };
+      if (sh.pick.kind === 'basic') {
+        // a basic is ONE quick entry: its four macros computed here, the amount named in the label
+        if (tooBig(p)) { sheetMsg(showErrs([{ id: 'fa-amt', key: 'amount', kind: 'tooBig' }])); return; }
+        body = { date: date, meal: meal, refType: 'quick', label: p.label, kcal: p.m.kcal, protein: p.m.protein, carbs: p.m.carbs, fat: p.m.fat };
+      } else {
+        body = { date: date, meal: meal, refType: sh.pick.kind, refId: Number(sh.pick.id), amount: p.amount, unit: p.unit };
+      }
     }
     if (force) body.force = true;
     sh.reqId = sh.reqId || newRequestId();
@@ -1036,7 +1221,8 @@
     },
     pick: function (el) {
       if (!S.sheet) return;
-      S.sheet.pick = { kind: el.getAttribute('data-kind') === 'recipe' ? 'recipe' : 'product', id: el.getAttribute('data-id') };
+      var kind = el.getAttribute('data-kind');
+      S.sheet.pick = { kind: kind === 'recipe' || kind === 'basic' ? kind : 'product', id: el.getAttribute('data-id') };
       redrawPanel('fa-amt');
       updatePreview();
     },
@@ -1082,11 +1268,14 @@
     if (id === 'fa-q' && S.sheet) {
       S.sheet.q = val('fa-q');
       setHtml('fa-list', listHtml());
-    } else if (id === 'fa-amt' || id === 'fa-unit') updatePreview();
+    } else if (id === 'fa-amt' || id === 'fa-unit') {
+      if (id === 'fa-unit' && S.sheet && S.sheet.pick && S.sheet.pick.kind === 'basic') switchBasicMode();
+      updatePreview();
+    }
     else if (id === 'fa-meal' && S.sheet) {
-      S.sheet.meal = val('fa-meal') || S.sheet.meal;
-      // the plan tab follows the meal slot when the plan has a meal for it
-      var sh = S.sheet, i = sh.tab === 'plan' && sh.plan ? planMealFor(sh.plan, sh.meal, -1) : -1;
+      S.sheet.meal = asGroup(val('fa-meal')) || S.sheet.meal;
+      // the plan tab follows the group when the plan has a meal in it
+      var sh = S.sheet, i = sh.tab === 'plan' && sh.plan ? planMealFor(sh.plan, sh.meal, -1, sh.planMeal) : -1;
       if (i >= 0 && i !== sh.planMeal) {
         sh.planMeal = i;
         sh.planItem = -1;
@@ -1170,6 +1359,11 @@
     atwaterOk: atwaterOk,
     roundMacros: roundMacros,
     parseNum: parseNum,
+    basicModes: basicModes,
+    basicAmount: basicAmount,
+    basicEntry: basicEntry,
+    basicLabel: basicLabel,
+    basicConvert: basicConvert,
     state: function () { return S; }, // test-only: the tests read the in-memory state
   };
 })();

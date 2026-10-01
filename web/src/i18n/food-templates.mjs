@@ -6,8 +6,11 @@
 export const es = {
   headings: { log: 'Registrar', products: 'Mis productos', recipes: 'Mis recetas' },
   meals: { breakfast: 'Desayuno', lunch: 'Comida', preworkout: 'Pre-entreno', postworkout: 'Post-entreno', dinner: 'Cena', snack: 'Snack' },
+  // Registrar's four groups (lib/nutrition/slots.mjs MEAL_GROUPS) and the add sheet's meal select
+  groups: { breakfast: 'Desayuno', lunch: 'Comida', dinner: 'Cena', addon: 'Añadidos' },
+  groupOption: { breakfast: 'Desayuno', lunch: 'Comida', dinner: 'Cena', addon: 'Añadido' },
   stores: { mercadona: 'Mercadona', dia: 'Dia', eroski: 'Eroski', other: 'Otros' },
-  units: { g: 'g', ml: 'ml', serving: 'ración', servings: 'raciones' },
+  units: { g: 'g', ml: 'ml', serving: 'ración', servings: 'raciones', ud: 'ud' },
   macroAbbr: { p: 'P', c: 'C', f: 'G' },
   kcal: 'kcal',
   dayTotal: 'Registrado hoy',
@@ -51,6 +54,15 @@ export const es = {
     per100Cooked: 'por 100 g cocinado',
     serving: 'ración de {n} {unit}',
     incomplete: 'Receta incompleta: falta algún producto.',
+    // basics: generic foods of the public food DB (data/nutrition/ingredients.json), searched next to the products
+    basics: 'Básicos',
+    basicAvg: 'valor medio',
+    basicLabelSrc: 'etiqueta',
+    perUnit: 'por ud',
+    pieceOpt: '{name} (~{w})',
+    typeToSearch: 'Escribe para buscar también en los básicos (huevo, leche, pan…).',
+    basicNote: 'Valores medios de tablas de composición (BEDCA / USDA), no una etiqueta concreta. Se guarda como entrada rápida con sus kcal y macros.',
+    basicLabelNote: 'Valores de la etiqueta de ese producto. Se guarda como entrada rápida con sus kcal y macros.',
   },
   products: {
     add: 'Añadir producto',
@@ -137,6 +149,7 @@ export const es = {
     positive: 'Tiene que ser mayor que 0.',
     whole: 'Tiene que ser un número entero.',
     invalid: 'Revisa este dato.',
+    tooBig: 'Demasiado para una entrada: revisa la cantidad.',
   },
   errors: {
     invalid: 'Revisa este dato: {field}.',
@@ -160,8 +173,10 @@ export const es = {
 export const en = {
   headings: { log: 'Log food', products: 'My products', recipes: 'My recipes' },
   meals: { breakfast: 'Breakfast', lunch: 'Lunch', preworkout: 'Pre-workout', postworkout: 'Post-workout', dinner: 'Dinner', snack: 'Snack' },
+  groups: { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', addon: 'Extras' },
+  groupOption: { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', addon: 'Extra' },
   stores: { mercadona: 'Mercadona', dia: 'Dia', eroski: 'Eroski', other: 'Other' },
-  units: { g: 'g', ml: 'ml', serving: 'serving', servings: 'servings' },
+  units: { g: 'g', ml: 'ml', serving: 'serving', servings: 'servings', ud: 'pc' },
   macroAbbr: { p: 'P', c: 'C', f: 'F' },
   kcal: 'kcal',
   dayTotal: 'Logged today',
@@ -205,6 +220,14 @@ export const en = {
     per100Cooked: 'per 100 g cooked',
     serving: '{n} {unit} serving',
     incomplete: 'Incomplete recipe: a product is missing.',
+    basics: 'Basics',
+    basicAvg: 'average values',
+    basicLabelSrc: 'label values',
+    perUnit: 'per pc',
+    pieceOpt: '{name} (~{w})',
+    typeToSearch: 'Type to also search the basics (egg, milk, bread…).',
+    basicNote: 'Average values from food composition tables (BEDCA / USDA), not a specific label. Saved as a quick entry with its kcal and macros.',
+    basicLabelNote: "That product's label values. Saved as a quick entry with its kcal and macros.",
   },
   products: {
     add: 'Add product',
@@ -290,6 +313,7 @@ export const en = {
     positive: 'It must be more than 0.',
     whole: 'It must be a whole number.',
     invalid: 'Check this value.',
+    tooBig: 'Too much for one entry: check the amount.',
   },
   errors: {
     invalid: 'Check this value: {field}.',

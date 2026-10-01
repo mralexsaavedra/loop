@@ -90,8 +90,8 @@ const title = plan.page?.title || 'Plan';
   <div class="tab-panel" data-tab="nutricion" hidden={activeTab !== 'nutricion'}>
     <Dia nut={nut} plan={plan} locale={locale} page={plan.page} hidden={isHidden('dia')} intakeHost={!!intake.latest} supplements={profile.supplements} weight={profile.weight} />
     {!isHidden('dia') && <Food locale={locale} />}
-    <Tablas nut={nut} dict={dict} page={plan.page} hidden={isHidden('tablas')} />
+    <Tablas nut={nut} dict={dict} locale={locale} page={plan.page} hidden={isHidden('tablas')} />
   </div>
-  <Bake nut={nut} dict={dict} locale={locale} training={training.days} trainingMeta={trainMeta} dash={dash} health={health} scores={scores} intake={intake} />
+  <Bake locale={locale} training={training.days} trainingMeta={trainMeta} dash={dash} health={health} scores={scores} intake={intake} />
   <DetailSheet slot="overlay" detail={detail} locale={locale} />
 </Plan>

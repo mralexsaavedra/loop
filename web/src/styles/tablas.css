@@ -101,6 +101,34 @@ td.kc {
   font-weight: 700;
   color: var(--ink);
 }
+/* reference tables: the natural unit wraps (sans), a composite's components are indented; the
+ * Reference header aligns left with its cells (the numeric columns keep the right-aligned th / td) */
+th.ref-unit,
+td.ref-unit {
+  white-space: normal;
+  text-align: left;
+  font-family: var(--sans);
+  color: var(--muted);
+}
+.ref-typ {
+  display: block;
+  font-size: var(--fs-2xs);
+  color: var(--faint);
+}
+tr.ref-group td {
+  text-align: left;
+  font-family: var(--sans);
+  font-weight: 650;
+  color: var(--ink);
+  padding-top: var(--sp-6);
+}
+tr.ref-sub td:first-child {
+  padding-left: var(--sp-7);
+  color: var(--muted);
+}
+.tablas-ref-note {
+  margin: 0 0 var(--sp-5);
+}
 
 /* tier tag */
 .tier {

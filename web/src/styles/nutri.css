@@ -8,6 +8,17 @@
 .nutri-block {
   margin-top: var(--sp-8);
 }
+/* Plan de hoy: a collapsed-by-default fold (details.sec-fold, layout.css); the summary carries the
+ * plan's total kcal next to the heading */
+.nutri-fold-kcal {
+  font-family: var(--num);
+  font-size: var(--fs-md);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.nutri-fold > #nutri-plan {
+  margin-top: var(--sp-5);
+}
 .nutri-card {
   background: var(--card-bg);
   border: 1px solid var(--line);
@@ -333,11 +344,45 @@
   color: var(--ink);
 }
 .mp-q {
-  flex: none;
+  flex: 0 1 auto;
+  max-width: 55%;
   font-family: var(--num);
   font-weight: 700;
   color: var(--ink);
-  white-space: nowrap;
+  text-align: right;
+}
+/* a choosable block: the item name is a compact select of its list (>= 44 px target) */
+.mp-block {
+  align-items: center;
+}
+.mp-block .mp-l {
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+}
+.mp-pick {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: var(--fs-md);
+  text-overflow: ellipsis;
+}
+.mp-pick:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* a skipped food ("none"): its select stays (to undo it), muted, with no amount */
+.mp-none .mp-pick {
+  color: var(--muted);
+}
+.nutri-picks .lnk {
+  min-height: 44px;
 }
 /* a scaled portion: a small muted arrow next to the name (label in aria-label) */
 .mp-dir {
@@ -382,6 +427,41 @@
 }
 .meal-others .meal-name {
   margin-bottom: var(--sp-1);
+}
+/* the add-ons card: every meal that is not breakfast / lunch / dinner as one compact row
+   (small caps name + kcal in --num, its items below), rows split by a hairline */
+.addon {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--line-soft);
+}
+.addon-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-5);
+}
+.addon-name {
+  min-width: 0;
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.addon-kcal {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.addon-kcal b {
+  font-family: var(--num);
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--ink);
+}
+.addon .meal-parts {
+  margin-top: var(--sp-3);
 }
 .nutri-failed,
 .nutri-empty {

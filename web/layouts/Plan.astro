@@ -23,7 +23,6 @@ import '../src/styles/profile.css';
 import '../src/styles/food.css';
 import utilScript from '../src/client/util.js?raw';
 import coreScript from '../src/client/core.js?raw';
-import tablasScript from '../src/client/tablas.js?raw';
 import nutriDayScript from '../src/client/nutri-day.js?raw';
 import foodScript from '../src/client/food.js?raw';
 import trainingTodayScript from '../src/client/training-today.js?raw';
@@ -141,8 +140,7 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
     <script is:inline set:html={utilScript} />
     <script is:inline set:html={coreScript} />
     <script is:inline set:html={todayDateScript} />
-    <script is:inline set:html={tablasScript} />
-    <script is:inline set:html={nutriDayScript} />
+        <script is:inline set:html={nutriDayScript} />
     <script is:inline set:html={foodScript} />
     <script is:inline set:html={intakeScript} />
     <script is:inline set:html={trainingTodayScript} />

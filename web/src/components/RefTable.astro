@@ -1,0 +1,44 @@
+---
+/* One Tablas reference table: food | natural unit | kcal | P | C | G, from lib/nutrition/reference.mjs
+ * rows (a food per its natural unit, a composite option as a group row + its component foods, a manual
+ * option per serving). Fixed values only — today's amounts live in Plan de hoy. */
+interface Row {
+  kind: 'food' | 'group' | 'serving';
+  name: string;
+  unit?: string;
+  typical?: boolean;
+  sub?: boolean;
+  k?: number;
+  p?: number;
+  c?: number;
+  g?: number;
+}
+interface Props {
+  rows: Row[];
+  cols: { food: string; ref: string; f: string; typical: string };
+  dec: string;
+  caption?: string;
+}
+const { rows, cols, dec, caption } = Astro.props;
+const n1 = (v: number) => String(v).replace('.', dec);
+---
+{rows.length > 0 && (
+  <div class="table-scroll"><table class="ref-table">
+    {caption && <caption>{caption}</caption>}
+    <thead><tr><th>{cols.food}</th><th class="ref-unit">{cols.ref}</th><th>kcal</th><th>P</th><th>C</th><th>{cols.f}</th></tr></thead>
+    <tbody>
+      {rows.map((r) => r.kind === 'group' ? (
+        <tr class="ref-group"><td colspan="6">{r.name}</td></tr>
+      ) : (
+        <tr class={r.sub ? 'ref-sub' : undefined}>
+          <td>{r.name}</td>
+          <td class="ref-unit">{r.unit}{r.typical && <small class="ref-typ">{cols.typical}</small>}</td>
+          <td class="kc">{r.k}</td>
+          <td>{n1(r.p as number)}</td>
+          <td>{n1(r.c as number)}</td>
+          <td>{n1(r.g as number)}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table></div>
+)}

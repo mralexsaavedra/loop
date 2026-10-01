@@ -130,11 +130,35 @@ test('every ingredient referenced by the plan exists in the DB (no broken refs)'
   assert.deepEqual(broken, [], 'broken refs: ' + broken.join(', '));
 });
 
-test('legume detail table is single-sourced (computed, not hand-typed)', () => {
+test('legume reference table is single-sourced (computed, not hand-typed) and per 100 g cooked, not a portion', () => {
   const tables = buildTables();
-  // Lentils row must equal ingredient × plate, proving it renders from the source.
-  const k = Math.round(ING.lentejas.k * LEGUME_PLATE / ING.lentejas.per);
-  assert.match(tables, new RegExp(`Lentils \\| ~${LEGUME_PLATE} g \\| ${k} `));
+  // Lentils row must equal the ingredient per its natural unit, proving it renders from the source
+  // (named in the plan's locale: "Lentejas" in an es plan, "Lentils" in an en one).
+  const { ingName } = require('../../lib/nutrition/names.mjs');
+  assert.match(tables, new RegExp(`\\| ${ingName(ING, 'lentejas', gen.LOCALE)} \\| 100 g cooked \\| ${Math.round(ING.lentejas.k)} \\|`));
+  assert.doesNotMatch(tables, new RegExp(`~${LEGUME_PLATE} g \\|`), 'no plate portion in the food tables');
+});
+
+test('plan-tables.md food tables are fixed reference values per natural unit (no train / rest portions)', () => {
+  const tables = buildTables();
+  assert.match(tables, /## Food reference \(fixed values per natural unit\)/);
+  // Row names come from the plan's own option names (`n`, else `cap`, else `l`), which are in the plan's
+  // language (an `es` plan says "Arroz" / "Plátano"), so look them up instead of hard-coding English.
+  const single = (key) => {
+    const lists = ['desayuno', 'carboComida', 'carboCena', 'proteina', 'anclaje', 'postentreno', 'postre'];
+    const all = lists.flatMap((u) => { const v = gen.RAW[u] || []; return Array.isArray(v) ? v : Object.values(v).flat(); });
+    const item = all.find((o) => o && Array.isArray(o.recipe) && o.recipe.length === 1 && o.recipe[0].ing === key);
+    assert.ok(item, `the plan has a single-food ${key} option`);
+    return String(item.n || item.cap || item.l);
+  };
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const rice = single('arroz');
+  assert.match(tables, new RegExp(`\\| ${esc(rice)} \\| 100 g dry \\| ${Math.round(ING.arroz.k)} \\|`));
+  const banana = single('platano');
+  const pc = ING.platano.piece;
+  const bananaK = Math.round(ING.platano.k * pc.amt / ING.platano.per);
+  assert.match(tables, new RegExp(`\\| ${esc(banana)} \\| 1 [^|]+ \\(~${pc.amt} g\\) _\\(typical weight\\)_ \\| ${bananaK} \\|`));
+  assert.doesNotMatch(tables, /Training day|Rest day|\| Cant\. \|/);
 });
 
 test('live-calculator TARGET is single-sourced: k equals the generated day total', () => {
