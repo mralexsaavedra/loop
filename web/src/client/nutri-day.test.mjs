@@ -291,6 +291,18 @@ test('goal choice (HCNutri.setGoal, from the profile sheet) persists; an unknown
   assert.equal(t.api.state().goal, 'bulk', 'works without storage');
 });
 
+test('the orphaned hc.nutri.picks key (the removed choosable blocks) is cleared once on load; other keys stay', () => {
+  const storage = memStorage({ 'hc.nutri.picks': '{"lunch":"x"}', 'hc.nutri.goal': 'cut', 'hc.nutri.guide': '{"picks":{}}' });
+  const s = run({ storage });
+  assert.equal('hc.nutri.picks' in storage.data, false);
+  assert.equal(storage.data['hc.nutri.goal'], 'cut');
+  assert.equal(storage.data['hc.nutri.guide'], '{"picks":{}}');
+  assert.equal(s.api.state().goal, 'cut');
+  // a storage whose removeItem throws: the page still renders
+  const denied = { ...memStorage(), removeItem() { throw new Error('denied'); } };
+  assert.match(run({ storage: denied }).els['nutri-plan'].innerHTML, /gd-meal/);
+});
+
 test('every goal x day type renders a target and a plan (all 12)', () => {
   const s = run();
   for (const g of ['maintain', 'cut', 'bulk']) for (const d of ['rest', 'gym', 'bike', 'bikeLong']) {

@@ -43,6 +43,8 @@
   if (!N || !T) return;
   var esc = HC.esc, format = HC.format, todayIso = HC.todayIso;
   var KEY_GOAL = 'hc.nutri.goal', KEY_DAY = 'hc.nutri.dayType', KEY_RIDE = 'hc.nutri.rideMin', KEY_GUIDE = 'hc.nutri.guide', KEY_PLAN_OPEN = 'hc.nutri.planOpen';
+  // the removed choosable blocks kept their picks here; nothing reads it any more (cleared on load)
+  var KEY_OLD_PICKS = 'hc.nutri.picks';
   var RANK = { rest: 0, gym: 1, bike: 2, bikeLong: 3 };
   // icons (inline SVG line icons, no emoji): the supplement pill of Plan de hoy
   var PILL_SVG = '<svg class="supp-ico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-45 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><path d="M12 8.5v7"/></g></svg>';
@@ -422,6 +424,7 @@
     return fuelPlan({ dayType: dayType(), minutes: rideMinutes(), weightKg: w ? w.kg : null });
   }
   function init() {
+    save(KEY_OLD_PICKS, null); // a no-op once gone; save() wraps every storage access
     var today = todayIso();
     state.auto = detectDayType(todayInput(today));
     var g = load(KEY_GOAL);
