@@ -44,7 +44,7 @@
   var T = typeof I18N_NUTRI === 'undefined' || !I18N_NUTRI ? null : I18N_NUTRI;
   if (!N || !T) return;
   var esc = HC.esc, format = HC.format, todayIso = HC.todayIso;
-  var KEY_GOAL = 'hc.nutri.goal', KEY_DAY = 'hc.nutri.dayType', KEY_RIDE = 'hc.nutri.rideMin', KEY_PICKS = 'hc.nutri.picks';
+  var KEY_GOAL = 'hc.nutri.goal', KEY_DAY = 'hc.nutri.dayType', KEY_RIDE = 'hc.nutri.rideMin', KEY_PICKS = 'hc.nutri.picks', KEY_PLAN_OPEN = 'hc.nutri.planOpen';
   var RANK = { rest: 0, gym: 1, bike: 2, bikeLong: 3 };
   var state = { goal: N.goal, override: null, auto: null, ride: null, raised: null, picks: {} };
 
@@ -794,6 +794,8 @@
     var withPlan = function (fn) { return function (host) { if (!x) throw new Error('no plan'); fn(host, x); }; };
     guard($('nutri-target'), function (host) { renderTarget(host, x); }); // the target shows even without a plan
     guard($('nutri-plan'), withPlan(renderPlan));
+    var pk = $('nutri-plan-kcal');
+    if (pk) pk.textContent = x ? kf(x.tot.k) + ' ' + T.target.kcal : '';
     renderFuel(picker !== false);
     guard($('eat-body'), renderEat);
     refreshDependents();
@@ -867,6 +869,15 @@
     resetPicks();
     refocus('#nutri-plan select');
   });
+  // Plan de hoy is a native <details>, collapsed by default; its open state is a per-viewer convenience
+  // (hc.nutri.planOpen = '1' / '0'). The plan is rendered either way, so "Del plan" (todayPlan) and the
+  // selects never depend on it being open.
+  function initPlanFold() {
+    var fold = $('nutri-plan-fold');
+    if (!fold) return;
+    fold.open = load(KEY_PLAN_OPEN) === '1';
+    if (fold.addEventListener) fold.addEventListener('toggle', function () { save(KEY_PLAN_OPEN, fold.open ? '1' : '0'); });
+  }
   on('nutri-ride-wrap', 'change', function (e) {
     var v = e && e.target ? Number(e.target.value) : NaN;
     var d = dayType();
@@ -938,5 +949,6 @@
   };
 
   try { init(); } catch (e) { state.auto = { type: 'rest', why: 'none', rideMin: null }; }
+  try { initPlanFold(); } catch (e) { /* the fold keeps its server-rendered (collapsed) state */ }
   refresh();
 })();

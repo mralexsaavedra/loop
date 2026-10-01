@@ -53,6 +53,8 @@ function run({ nutri = bake(), items = [], programmed = null, locale = 'en', sto
   const els = {};
   for (const id of ['nutri-daytype', 'nutri-daytype-src', 'nutri-why', 'nutri-target', 'nutri-plan', 'nutri-fuel-block', 'nutri-ride-wrap', 'nutri-fuel-body', 'eat-body', 'intake']) els[id] = doc.el(id);
   els['nutri-auto'] = doc.el('nutri-auto', { tag: 'button', hidden: true });
+  els['nutri-plan-fold'] = doc.el('nutri-plan-fold', { tag: 'details' });
+  els['nutri-plan-kcal'] = doc.el('nutri-plan-kcal');
   els['nutri-note'] = doc.el('nutri-note', { hidden: true });
   els['nutri-fuel-block'].hidden = true;
   const radios = {};
@@ -1033,4 +1035,46 @@ test('the factor line stays honest with capped portions: "some portions are at t
   const es = run({ nutri: bakeEs(), locale: 'es' });
   es.api.setGoal('cut');
   assert.match(es.els['nutri-plan'].innerHTML, /algunas raciones están en su máximo/);
+});
+
+/* ---------- Plan de hoy collapsed by default (native <details>), open state per viewer ---------- */
+test('Plan de hoy is collapsed by default; its summary shows the plan total kcal; the open state is remembered', () => {
+  const nutri = bake();
+  const storage = memStorage();
+  const s = run({ nutri, storage });
+  const fold = s.els['nutri-plan-fold'];
+  assert.equal(fold.open, false, 'collapsed by default');
+  const x = planFor(nutri, 'maintain', 'rest', null);
+  assert.equal(s.els['nutri-plan-kcal'].textContent, x.tot.k.toLocaleString('en') + ' kcal');
+  assert.match(s.els['nutri-plan'].innerHTML, /class="meal-name">Breakfast/, 'rendered even while collapsed');
+  fold.open = true;
+  fold._listeners.toggle.forEach((fn) => fn({ target: fold }));
+  assert.equal(storage.data['hc.nutri.planOpen'], '1');
+  const again = run({ nutri, storage });
+  assert.equal(again.els['nutri-plan-fold'].open, true, 'reopened for this viewer');
+  fold.open = false;
+  fold._listeners.toggle.forEach((fn) => fn({ target: fold }));
+  assert.equal(storage.data['hc.nutri.planOpen'], '0');
+  assert.equal(run({ nutri, storage }).els['nutri-plan-fold'].open, false);
+  // the summary follows the day type
+  s.fire('nutri-daytype', 'change', { value: 'gym' });
+  assert.equal(s.els['nutri-plan-kcal'].textContent, planFor(nutri, 'maintain', 'gym', null).tot.k.toLocaleString('en') + ' kcal');
+  // storage that throws: still collapsed, toggling never throws
+  const throwing = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } };
+  const t = run({ nutri, storage: throwing });
+  assert.equal(t.els['nutri-plan-fold'].open, false);
+  t.els['nutri-plan-fold'].open = true;
+  assert.doesNotThrow(() => t.els['nutri-plan-fold']._listeners.toggle.forEach((fn) => fn({ target: t.els['nutri-plan-fold'] })));
+});
+
+test('"Del plan" (HCNutri.todayPlan) works while Plan de hoy is collapsed: it reads the plan, not the DOM', () => {
+  const nutri = bake();
+  const s = run({ nutri });
+  assert.equal(s.els['nutri-plan-fold'].open, false);
+  const meals = s.api.todayPlan();
+  assert.ok(Array.isArray(meals) && meals.length > 0);
+  const x = planFor(nutri, 'maintain', 'rest', null);
+  assert.equal(meals.reduce((a, m) => a + m.kcal, 0), x.meals.filter((m, i) => meals.some((mm) => mm.name === nutri.base.rest.meals[i].n)).reduce((a, m) => a + m[0], 0));
+  s.els['nutri-plan'].innerHTML = ''; // even with nothing rendered
+  assert.deepEqual(plain(s.api.todayPlan()), plain(meals));
 });

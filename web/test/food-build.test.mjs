@@ -25,7 +25,12 @@ test('the food hosts ship hidden: Registrar in the dia section, Mis productos / 
   const plan = html.indexOf('id="nutri-plan"');
   const log = html.indexOf('id="food-log-block"');
   const fuel = html.indexOf('id="nutri-fuel-block"');
-  assert.ok(dia < plan && plan < log && log < fuel, 'Registrar sits right after Plan de hoy');
+  const summary = html.indexOf('id="nutri-summary"');
+  assert.ok(dia < summary && summary < log && log < plan && plan < fuel, 'Registrar sits right after Resumen de hoy, then Plan de hoy, then Avituallamiento');
+  // Plan de hoy is a native <details>, collapsed by default (no `open`), its summary = heading + the plan's kcal
+  assert.match(html, /<details class="nutri-block sec-fold nutri-fold" id="nutri-plan-fold"><summary><h2>Today(&#39;|')s plan<\/h2><span class="nutri-fold-kcal" id="nutri-plan-kcal"><\/span><span class="chev">›<\/span><\/summary>\s*<div id="nutri-plan"><\/div>\s*<\/details>/);
+  assert.doesNotMatch(html, /<details class="nutri-block sec-fold nutri-fold" id="nutri-plan-fold"[^>]* open/, 'collapsed by default');
+  assert.doesNotMatch(html, /<details[^>]*id="nutri-fuel-block"/, 'Avituallamiento is never collapsed');
   const products = html.indexOf('id="food-products"');
   const tablas = html.indexOf('id="sec-tablas"');
   assert.ok(fuel < products && products < tablas, 'the folds sit between the dia section and Tablas');
