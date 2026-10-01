@@ -4,6 +4,22 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-01 — Plan de hoy adds an automatic snack when the meals fall short
+
+With realistic portion caps the owner's five meals often end below today's target (maintain gym −209,
+bike −229, bikeLong −299 meal kcal; bulk −366…−599) and the page only said "add a snack". Now
+`planFor` adds one: after the capped carb solve, a shortfall beyond the 75 kcal tolerance gets a
+"Tentempié" / "Snack" add-on sized to it (`lib/nutrition/snack.mjs`). Six tracked options built from
+the public food DB incl. the log-only basics (fruit + yogurt, banana + quark, yogurt + cereal, toast
+with oil and tomato, turkey sandwich, nuts), each a small recipe scaled as a whole by one factor with
+snack-sized line caps (water-filling, half pieces, 5 g); default = the first that covers the
+shortfall, a pick persists in `hc.nutri.picks` (`snack/auto`). A plan with its own snack-slot meal
+(merienda, protein anchor) gets the snack inside it, never a second one. Totals, macro notes and "Del
+plan" include it. Bike days: the ride fuel keeps only what fits the top of its g/h range (nothing for
+`bike`, fixed at 60 g/h, so "add 60 g more to the ride" no longer contradicts Avituallamiento); the
+rest becomes the snack. The example plan's shortfalls drop from 95–835 kcal to ≤ 48 kcal on most days
+(bulk gym / bike / bikeLong keep 214–304 kcal: the largest snack at its caps, plus the ride's headroom).
+
 ## 2026-10-01 — Food log basics: log an egg without creating a product
 
 The owner wanted to log generic foods (egg, milk…) without first creating a product in Mis productos.
