@@ -4,6 +4,28 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-01 — Recipes can use the public basics
+
+The owner asked to build recipes with generic foods (huevo, plátano, leche…) without first adding them
+to Mis productos.
+
+- **Model** — a recipe ingredient is a product `{productId, amount}` or a basic SNAPSHOT `{basic, name,
+  unit, amount, per100}` taken from FOOD_BASICS when the recipe is saved (per 100 g / ml, per unit for a
+  `ud` food), so a later ingredients.json change never alters a saved recipe. `food_recipe.ingredients`
+  is JSONB: no migration, old rows read and write unchanged.
+- **Formula** — `ingredientBasis` + `recipeBasis` (lib reference, ingest copy, page copy) add products
+  and snapshots with one formula; new `FOODLOG_CASES` (mixed recipe per serving and batch, basics only,
+  a broken snapshot) and `basicIngredient` `BASIC_CASES` pin all copies. New shared constants
+  `RECIPE_BASIC_UNITS`, `BASIC_UD_AMT`, `FOOD_LIMITS.basicKeyPattern`.
+- **Service** — strict validation of a basic (key pattern, name, unit, amount, per-100 bounds, 2
+  decimals), `400 atwater` on a snapshot unless `force: true` (not stored); routes, security layers and
+  the 16 KB cap unchanged (a 20-ingredient recipe with long names is ~2.6 KB; the 40-ingredient worst case, every string at its cap, ~12 KB).
+- **Page** — each ingredient row is a search ("Mis productos", then "Básicos · valor medio"), natural
+  units with the pieces ↔ g / ml toggle, "valor medio" tags in the list and the editor, "save anyway"
+  on `atwater`, a recipe of basics only allowed.
+- Rollout: rebuild the ingest image (`docker compose up -d --build health-ingest`), then
+  `npm run generate`.
+
 ## 2026-10-01 — Data-integrity fixes from the real-data audit
 
 A read-only audit of the owner's extract found eight ways bad rows reached the page; each is fixed
