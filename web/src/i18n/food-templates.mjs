@@ -5,7 +5,7 @@
  * `errors` maps the coarse codes of the ingest /food/* routes to one line. Neutral Spanish. */
 export const es = {
   headings: { log: 'Registrar', products: 'Mis productos', recipes: 'Mis recetas' },
-  meals: { breakfast: 'Desayuno', lunch: 'Comida', preworkout: 'Pre-entreno', postworkout: 'Post-entreno', dinner: 'Cena', snack: 'Snack' },
+  meals: { breakfast: 'Desayuno', lunch: 'Comida', preworkout: 'Pre-entreno', postworkout: 'Post-entreno', dinner: 'Cena', snack: 'Tentempié' },
   // Registrar's four groups (lib/nutrition/slots.mjs MEAL_GROUPS) and the add sheet's meal select
   groups: { breakfast: 'Desayuno', lunch: 'Comida', dinner: 'Cena', addon: 'Añadidos' },
   groupOption: { breakfast: 'Desayuno', lunch: 'Comida', dinner: 'Cena', addon: 'Añadido' },

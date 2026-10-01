@@ -148,7 +148,7 @@ test('Registrar: pre / post workout and snack entries show in Añadidos with a t
   const groups = Object.fromEntries(html.split('<section class="food-meal" ').slice(1).map((s) => [s.match(/aria-labelledby="fm-h-(\w+)"/)[1], s]));
   assert.deepEqual(Object.keys(groups), ['breakfast', 'lunch', 'dinner', 'addon']);
   assert.match(groups.addon, /Plátano<\/span><span class="fe-slot">Pre-entreno<\/span>/);
-  assert.match(groups.addon, /Café<\/span><span class="fe-slot">Snack<\/span>/);
+  assert.match(groups.addon, /Café<\/span><span class="fe-slot">Tentempié<\/span>/);
   assert.match(groups.addon, /<span class="food-meal-kcal"><b>135<\/b> kcal<\/span>/, 'the group kcal = its entries');
   assert.match(groups.dinner, /Merluza/);
   assert.doesNotMatch(groups.dinner + groups.breakfast, /fe-slot/);

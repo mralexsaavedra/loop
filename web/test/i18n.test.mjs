@@ -332,3 +332,13 @@ test('food-templates.mjs (Registrar / add sheet / Mis productos / Mis recetas) h
   }
   assert.equal(esFood.macroAbbr.f, 'G', 'es: grasa');
 });
+
+test('one label per meal slot across food / nutri / profile copy (es: snack = "Tentempié")', async () => {
+  const { es: esProfile, en: enProfile } = await import('../src/i18n/profile-templates.mjs');
+  for (const [lang, dicts] of [['es', [esFood, esNutri, esProfile]], ['en', [enFood, enNutri, enProfile]]]) {
+    const meals = dicts.map((d) => d.meals || (d.plan && d.plan.meals) || d.supplements.meals);
+    for (const slot of MEAL_SLOTS) assert.equal(new Set(meals.map((m) => m[slot])).size, 1, `${lang}/${slot}: ${meals.map((m) => m[slot]).join(' | ')}`);
+  }
+  assert.equal(esFood.meals.snack, 'Tentempié');
+  assert.equal(esFood.groupOption.addon, 'Añadido', 'the Registrar group keeps its own name');
+});
