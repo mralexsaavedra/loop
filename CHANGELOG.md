@@ -4,6 +4,21 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-01 — Every food in Plan de hoy is choosable (food categories)
+
+The owner objected to imposed fixed foods ("no tiene sentido que me marques que tengo que comer
+calabacín sí o sí"): only `{use, match}` parts were selects, while `{ing}` parts — courgette at lunch /
+dinner, the milk in the after-lunch coffee, the pear of the protein anchor, the pre-workout's milk +
+bread roll + honey, the cooking oil — were fixed. Every ingredient of the tracked `ingredients.json` now
+has a food category (`cat`, closed set in the new `lib/nutrition/categories.mjs`, validated by
+`npm run check`), and a fixed `{ing}` part is a FOOD block: a select of the foods of its category,
+plus "none" for veg / fruit / sweet / dairy / drink / sauce. One explicit rule table says what a swap
+keeps equal (protein grams, carb grams, fat grams, kcal or the same weight), clamped 0.5–2× like the
+protein swaps; the whole day is then re-solved by the carb-flex engine. Generic: no personal-plan
+migration. The page ports it line by line (parity tests); the no-pick plan is unchanged byte for byte
+(pinned totals of the 12 plans; on the owner's plan all 36 plan × ride cases checked identical);
+"Del plan" logs what was picked and leaves skipped foods out. NUTRI on the example: ~10.5 → ~17.9 KB.
+
 ## 2026-10-01 — Three main meals + one "Añadidos" group (Plan de hoy, Registrar)
 
 The owner disliked separate full cards for small things ("Café (tras comer)" on rest days,

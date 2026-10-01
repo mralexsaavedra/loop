@@ -24,10 +24,13 @@
  *   the fuel as its own figure), and every goal / day type / duration change refreshes them directly.
  * - Model lines are read through LINE + the accessors (mirrors of lib/nutrition/amounts.mjs), never a bare index.
  * - Blocks: a dayPlan part that points at an option list is a choosable block (lib/nutrition/blocks.mjs):
- *   its name is a select of that list (NUTRI.lists, grouped like the tables); a pick is kept for TODAY
+ *   its name is a select of that list (NUTRI.lists, grouped like the tables); a fixed food (`{ing}`
+ *   part) is a select of the foods of its category (NUTRI.foods, lib/nutrition/categories.mjs) plus
+ *   "none" where skipping is sensible; a pick is kept for TODAY
  *   in localStorage (hc.nutri.picks = {date, picks: {<block id>: <option key>}}, every access wrapped)
- *   and planFor re-solves the whole day with it (swapOption / applyPicks port blocks.mjs: protein lists keep the
- *   default's protein grams, the rest take the option's own amounts; parity test).
+ *   and planFor re-solves the whole day with it (swapOption / swapIng / ingAmount / applyPicks port
+ *   blocks.mjs: protein lists keep the default's protein grams, the rest take the option's own amounts,
+ *   a food keeps its category's rule; parity test).
  * - Plan de hoy shows breakfast / lunch / dinner as cards (NUTRI.mainSlots = lib/nutrition/slots.mjs
  *   MAIN_SLOTS) and every other meal as a compact row of ONE add-ons card after them (display only).
  * - HCNutri.todayPlan() hands the food log's "Del plan" tab (client/food.js) today's Plan de hoy
@@ -278,13 +281,45 @@
     if (opt.c && (!opt.q || s !== 1)) return { part: { l: opt.n, q: amts.join(' + '), c: opt.c, a: amts, m: mac }, mac: mac };
     return { part: { l: opt.n, q: s === 1 && opt.q ? opt.q : amts.join(' + '), m: mac }, mac: mac };
   }
-  function applyPicks(base, lists, picks, fmt) {
+  // a FOOD block (port of lib/nutrition/blocks.mjs ingAmount / swapIng / isOption): the foods of the
+  // block's category from NUTRI.foods, "none" (NONE_KEY) where the category rule allows skipping
+  var NONE_KEY = 'none';
+  var METRIC = { protein: LINE.P, carbs: LINE.C, fat: LINE.G, kcal: LINE.K }; // categories.mjs SWAP_BY -> line slot
+  function gramsPer(e) { return e.gf || 1; }
+  function ingAmount(rule, def, defAmt, opt) {
+    var base = (defAmt * gramsPer(def)) / gramsPer(opt);
+    var s = 1;
+    var at = METRIC.hasOwnProperty(rule.by) ? METRIC[rule.by] : undefined;
+    if (at !== undefined) {
+      var dv = (def.l[at] * defAmt) / lineAmt(def.l);
+      var ov = (opt.l[at] * base) / lineAmt(opt.l);
+      if (dv > 0 && ov > 0) s = round2(limitP(dv / ov));
+    }
+    return stepAmount(base * s, lineUnit(opt.l), lineStep(opt.l));
+  }
+  function swapIng(b, foods, key, fmt) {
+    if (key === NONE_KEY) return { part: { l: '', z: 1, m: [0, 0, 0, 0] }, mac: [0, 0, 0, 0] };
+    var opt = foods.ings[key];
+    var amt = ingAmount(foods.rules[b.I], foods.ings[b.d], b.a, opt);
+    var ln = scaleLine(opt.l, amt);
+    if (b.fx === true && opt.fx === true) return { part: { l: opt.n, x: 1 }, flex: { ln: [ln] } };
+    var mac = ln.slice(LINE.K, LINE.G + 1);
+    return { part: { l: opt.n, q: fmtAmt(amt, lineUnit(ln), fmt.units, pieceOf(fmt.pieces || null, ln)), m: mac }, mac: mac };
+  }
+  function isOption(b, key, lists, foods) {
+    if (!b.I) return !!findOpt(lists && lists[b.L], key);
+    if (!foods || !foods.rules || !Object.prototype.hasOwnProperty.call(foods.rules, b.I)) return false;
+    if (key === NONE_KEY) return foods.rules[b.I].skip === true;
+    var ks = foods.cats[b.I];
+    return !!ks && ks.indexOf(key) >= 0 && !!foods.ings[key];
+  }
+  function applyPicks(base, lists, picks, fmt, foods) {
     var blocks = base.blocks || {};
     var eff = {}, any = false;
     if (picks && typeof picks === 'object') {
       Object.keys(blocks).forEach(function (id) {
         var key = picks[id];
-        if (typeof key !== 'string' || key === blocks[id].d || !findOpt(lists && lists[blocks[id].L], key)) return;
+        if (typeof key !== 'string' || key === blocks[id].d || !isOption(blocks[id], key, lists, foods)) return;
         eff[id] = key;
         any = true;
       });
@@ -303,7 +338,7 @@
         }
         if (p.x) fi++; // the default's flex entry is replaced
         var b = blocks[p.id];
-        var sw = swapOption(b, lists[b.L], key, fmt);
+        var sw = b.I ? swapIng(b, foods, key, fmt) : swapOption(b, lists[b.L], key, fmt);
         if (sw.flex) {
           var entry = { m: m };
           for (k in sw.flex) entry[k] = sw.flex[k];
@@ -322,7 +357,7 @@
     var fuel = isBike(d) ? fuelPlan({ dayType: d, minutes: minutes }) : null;
     var fuelK = fuel ? fuel.kcal : 0;
     var fuelC = fuel ? fuel.during.planG : 0;
-    var mdl = applyPicks(bake.base[x.base], bake.lists || {}, picks, bake.fmt);
+    var mdl = applyPicks(bake.base[x.base], bake.lists || {}, picks, bake.fmt, bake.foods);
     var s = solveScale(mdl, x.t.kcal - fuelK, bake.fmt);
     var tot = { k: Math.round(s.totals.k), p: Math.round(s.totals.p), c: Math.round(s.totals.c), g: Math.round(s.totals.g) };
     return {
@@ -524,9 +559,25 @@
   // a choosable block (lib/nutrition/blocks.mjs): its name is a select of the list's options, grouped
   // like the tables (protein lean / moderate / fatty, fruit / yogurt…), the current pick selected
   function groupLabel(gr) { return (T.plan.groups && T.plan.groups[gr]) || gr; }
+  function noneLabel(cat) { return (T.plan.none && T.plan.none[cat]) || T.plan.noneAny; }
+  // a fixed food's block: the foods of its category (the default under the plan's own label), then
+  // "none" when the category allows skipping it
+  function foodPickHtml(p, b, cur, mealName) {
+    var F = N.foods;
+    var keys = F && F.cats ? F.cats[b.I] : null;
+    if (!keys || !F.rules[b.I]) return null;
+    var body = keys.map(function (k) {
+      var name = k === b.d && b.n ? b.n : F.ings[k].n;
+      return '<option value="' + esc(k) + '"' + (k === cur ? ' selected' : '') + '>' + esc(name) + '</option>';
+    }).join('');
+    if (F.rules[b.I].skip) body += '<option value="' + NONE_KEY + '"' + (cur === NONE_KEY ? ' selected' : '') + '>' + esc(noneLabel(b.I)) + '</option>';
+    var item = p.z ? noneLabel(b.I) : p.l;
+    return '<select class="mp-pick" data-block="' + esc(p.id) + '" aria-label="' + esc(format(T.plan.pickAria, { item: item, meal: mealName })) + '">' + body + '</select>';
+  }
   function pickHtml(p, x, mealName) {
     var base = N.base[x.base];
     var b = p.id && base.blocks ? base.blocks[p.id] : null;
+    if (b && b.I) return foodPickHtml(p, b, (x.picks && x.picks[p.id]) || b.d, mealName);
     var list = b && N.lists ? N.lists[b.L] : null;
     if (!b || !list || list.length < 2) return null;
     var cur = (x.picks && x.picks[p.id]) || b.d;
@@ -550,6 +601,7 @@
     var label = (pick || esc(p.l)) + dirHtml(dir);
     var flexCls = p.x ? ' mp-flex' : '';
     if (pick) flexCls += ' mp-block';
+    if (p.z) flexCls += ' mp-none'; // a skipped food: its select (to undo it), no amount
     if (!p.c) return row('mp' + flexCls, label, q);
     // a composite: its name, then one readable sub-row per component (name, amount)
     var amts = p.x ? (x.flexAmts ? x.flexAmts[fi] : []) : p.a || [];
@@ -793,18 +845,20 @@
     var fi = 0;
     return view.map(function (meal, i) {
       var m = x.meals[i];
-      var items = meal.parts.map(function (p) {
+      var items = [];
+      meal.parts.forEach(function (p) {
         var k = p.x ? fi++ : -1;
+        if (p.z) return; // a skipped food ("none"): nothing to log
         var mac = p.x ? x.flexMac[k] : p.m;
         var it = { name: p.l, amount: null, kcal: Math.round(mac[0]), p: r1(mac[1]), c: r1(mac[2]), g: r1(mac[3]) };
         if (p.c) {
           var amts = p.x ? x.flexAmts[k] : p.a || [];
           it.components = p.c.map(function (name, n) { return { name: name, amount: amts[n] != null ? amts[n] : null }; });
         } else it.amount = (p.x ? x.flex[k] : p.q) || null;
-        return it;
+        items.push(it);
       });
       return { name: meal.n, slot: meal.s || null, kcal: m[0], p: m[1], c: m[2], g: m[3], items: items };
-    });
+    }).filter(function (meal) { return meal.items.length > 0; }); // every food of the meal skipped: nothing to log
   }
   window.HCNutri = {
     setGoal: setGoal,
@@ -819,6 +873,7 @@
     planFor: planFor,
     applyPicks: applyPicks,
     swapOption: swapOption,
+    swapIng: swapIng,
     isMainMeal: isMainMeal,
     LINE: LINE,
     setPick: function (id, key) { return typeof id === 'string' && typeof key === 'string' ? setPick(id, key) : false; },
