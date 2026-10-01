@@ -20,7 +20,7 @@ test('parseNumber() accepts dot and comma decimals', () => {
 
 test('METRICS is a per-metric table covering the implemented metrics', () => {
   assert.deepEqual(Object.keys(METRICS).sort(),
-    ['active_energy', 'basal_energy', 'bodyfat', 'dietary', 'hr_recovery', 'hrv', 'leanmass', 'respiratory', 'rhr', 'sleep',
+    ['active_energy', 'active_energy_hourly', 'basal_energy', 'bodyfat', 'dietary', 'hr_recovery', 'hrv', 'leanmass', 'respiratory', 'rhr', 'sleep',
       'steps', 'vo2max', 'waist', 'walking_hr', 'weight', 'wrist_temp']);
   for (const m of Object.values(METRICS)) {
     assert.ok(m.csv && m.header && m.kind);
@@ -298,6 +298,53 @@ test('collectSamples() daily totals: latest payload wins; each payload\'s oldest
     { active_energy: '2030-01-02T09:00:00+01:00;400\n2030-01-03T00:01:00+01:00;700' },
   ]);
   assert.deepEqual(buildRows('active_energy', s.active_energy).map(r => r.line), ['2030-01-03,700']);
+});
+
+// ---- hourly active energy (Watch only, grouped by HOUR on the phone) ---------------------
+// feeds lib/health/ride-energy.mjs: the Watch energy during a ride a bike computer recorded
+
+test('active_energy_hourly: one row per clock hour, hour start normalised, tagged Shortcut', () => {
+  const s = collectSamples([{
+    active_energy_hourly: '2030-01-02T08:41:00+01:00;12\n2030-01-02T09:07:12+01:00;275,3\n2030-01-02T10:00:05+01:00;301.26',
+  }]);
+  // the oldest bucket (08 h: the 3-day window starts mid-hour) is dropped
+  assert.deepEqual(buildRows('active_energy_hourly', s.active_energy_hourly).map(r => r.line), [
+    '2030-01-02,2030-01-02T09:00:00+01:00,275.3,Shortcut',
+    '2030-01-02,2030-01-02T10:00:00+01:00,301.3,Shortcut',
+  ]);
+  assert.equal(METRICS.active_energy_hourly.header, 'date,hour_start,kcal,source');
+  assert.equal(METRICS.active_energy_hourly.csv, 'active-energy-hourly.csv');
+});
+
+test('active_energy_hourly: the latest payload wins an hour; each payload\'s oldest hour is ignored', () => {
+  const s = collectSamples([
+    { active_energy_hourly: '2030-01-02T07:30:00+01:00;5\n2030-01-02T09:07:00+01:00;100\n2030-01-02T10:02:00+01:00;40' },
+    // later run: 09 h is its truncated oldest bucket (ignored), 10 h is now complete
+    { active_energy_hourly: '2030-01-02T09:50:00+01:00;20\n2030-01-02T10:01:00+01:00;300\n2030-01-02T11:00:00+01:00;0' },
+  ]);
+  assert.deepEqual(buildRows('active_energy_hourly', s.active_energy_hourly).map(r => r.line), [
+    '2030-01-02,2030-01-02T09:00:00+01:00,100.0,Shortcut',
+    '2030-01-02,2030-01-02T10:00:00+01:00,300.0,Shortcut',
+    '2030-01-02,2030-01-02T11:00:00+01:00,0.0,Shortcut',
+  ]);
+});
+
+test('active_energy_hourly: a DST fall-back night keeps both 02:00 hours (keyed by offset)', () => {
+  const s = collectSamples([{
+    active_energy_hourly: '2030-10-27T01:10:00+02:00;1\n2030-10-27T02:10:00+02:00;30\n2030-10-27T02:05:00+01:00;40',
+  }]);
+  assert.deepEqual(buildRows('active_energy_hourly', s.active_energy_hourly).map(r => r.line), [
+    '2030-10-27,2030-10-27T02:00:00+02:00,30.0,Shortcut',
+    '2030-10-27,2030-10-27T02:00:00+01:00,40.0,Shortcut',
+  ]);
+});
+
+test('planSync() writes active-energy-hourly.csv and rebuilds it every run (no export rows exist)', () => {
+  const files = { 'active-energy-hourly.csv': 'date,hour_start,kcal,source\n2030-01-01,2030-01-01T09:00:00+01:00,999.0,Shortcut\n' };
+  const plan = planSync([{ id: '1', payload: { active_energy_hourly: '2030-01-02T08:10:00+01:00;1\n2030-01-02T09:10:00+01:00;250' } }],
+    name => (name in files ? files[name] : null));
+  assert.equal(plan.writes['active-energy-hourly.csv'],
+    'date,hour_start,kcal,source\n2030-01-02,2030-01-02T09:00:00+01:00,250.0,Shortcut\n');
 });
 
 // ---- steps: per-device day totals, max-per-device like extract.js ----------------------
