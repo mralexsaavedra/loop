@@ -63,7 +63,7 @@ export const es = {
     picksReset: 'Volver al plan base',
     groups: { lean: 'Magras', mod: 'Moderadas', fat: 'Grasas', fruit: 'Fruta', yogurt: 'Yogur' },
     // a fixed food's "none" option, per food category (lib/nutrition/categories.mjs, skippable ones)
-    none: { fruit: 'Sin fruta', veg: 'Sin verdura', dairy: 'Sin lácteo', sweet: 'Sin dulce', drink: 'Sin bebida', sauce: 'Sin salsa' },
+    none: { fruit: 'Sin fruta', veg: 'Sin verdura', dairy: 'Sin lácteo', cheese: 'Sin queso', sweet: 'Sin dulce', drink: 'Sin bebida', sauce: 'Sin salsa' },
     noneAny: 'Nada',
     meals: { breakfast: 'Desayuno', lunch: 'Comida', preworkout: 'Pre-entreno', postworkout: 'Post-entreno', dinner: 'Cena', snack: 'Tentempié' },
   },
@@ -157,7 +157,7 @@ export const en = {
     picksNote: 'You swapped foods: the rest of the day was re-solved to stay on target.',
     picksReset: 'Back to the base plan',
     groups: { lean: 'Lean', mod: 'Moderate', fat: 'Fatty', fruit: 'Fruit', yogurt: 'Yogurt' },
-    none: { fruit: 'No fruit', veg: 'No vegetables', dairy: 'No dairy', sweet: 'No sweet', drink: 'No drink', sauce: 'No sauce' },
+    none: { fruit: 'No fruit', veg: 'No vegetables', dairy: 'No dairy', cheese: 'No cheese', sweet: 'No sweet', drink: 'No drink', sauce: 'No sauce' },
     noneAny: 'None',
     meals: { breakfast: 'Breakfast', lunch: 'Lunch', preworkout: 'Pre-workout', postworkout: 'Post-workout', dinner: 'Dinner', snack: 'Snack' },
   },
