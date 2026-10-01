@@ -61,6 +61,11 @@ const plan = JSON.parse(fs.readFileSync(PLAN_PATH, 'utf8'));
 const { buildNutrition, validateNutrition } = require(path.join(DIR, '..', '..', 'lib', 'nutrition', 'macros.mjs'));
 const { buildDayPlans, fmtFactor } = require(path.join(DIR, '..', '..', 'lib', 'nutrition', 'scale.mjs'));
 const { buildReference } = require(path.join(DIR, '..', '..', 'lib', 'nutrition', 'reference.mjs'));
+const { ingName } = require(path.join(DIR, '..', '..', 'lib', 'nutrition', 'names.mjs'));
+
+// Food names (the plan's own option names and the ingredients' {es, en} names) follow the build locale
+// like the page (LOCALE env -> plan.locale -> en); the document's headings and words stay English.
+const LOCALE = ['es', 'en'].includes(process.env.LOCALE) ? process.env.LOCALE : (plan.locale === 'es' ? 'es' : 'en');
 
 // Pure macro computation now lives in lib/nutrition/macros.mjs (astro-plan-web slice 2) —
 // `ingredients` comes only from ingredients.json (plan-data.json no longer carries it).
@@ -118,7 +123,7 @@ md.push('');
   md.push('');
 }
 
-const ref = buildReference(nut, { lang: 'en', words: REF_WORDS });
+const ref = buildReference(nut, { lang: LOCALE, words: REF_WORDS });
 const section = (title, rows, note) => {
   md.push(title);
   md.push('');
@@ -153,9 +158,9 @@ md.push('> From the user\'s actual product photos — these OVERRIDE generic/dat
 md.push('> SINGLE SOURCE: the `ingredients` (verified:true) in `plan-data.json`. Do not re-type these anywhere else.');
 md.push('');
 const labelHead = '| Product | Per | kcal | P | C | F | Note |\n|---|---|---|---|---|---|---|';
-const labelRows = Object.values(ING)
-  .filter(i => i.verified && i.name)
-  .map(i => `| ${i.name} | 100 ${i.unit} | ${i.k} | ${i.p} | ${i.c} | ${i.g} | ${i.note || ''} |`);
+const labelRows = Object.entries(ING)
+  .filter(([, i]) => i.verified)
+  .map(([key, i]) => `| ${ingName(ING, key, LOCALE)} | 100 ${i.unit} | ${i.k} | ${i.p} | ${i.c} | ${i.g} | ${i.note || ''} |`);
 md.push([labelHead, ...labelRows].join('\n'));
 md.push('');
 
@@ -188,4 +193,4 @@ if (require.main === module) {
   else main();
 }
 
-module.exports = { ING, D, EX, MACRO, resolve, macro, mealMacros, buildTables, validate, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE, dayTotalK, targetFor, PLAN_PATH, usedExampleFallback };
+module.exports = { ING, D, EX, MACRO, resolve, macro, mealMacros, buildTables, validate, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE, dayTotalK, targetFor, PLAN_PATH, usedExampleFallback, LOCALE };

@@ -395,7 +395,12 @@ controls instead of the close button.
 `lib/nutrition/macros.mjs`):**
 - `data/nutrition/ingredients.json` (TRACKED, **public** food DB) — the reusable
   `{ "ingredients": { … } }` of per-100 g/ml/ud base foods (`verified:true` = real product
-  label, `false` = DB estimate; each carries `name` + `note`). This is shareable and is the
+  label, `false` = DB estimate; each carries `name` + `note`). `name` is localized, `{es, en}`
+  (a plain string stays valid for backward compat), resolved by the BUILD locale wherever a food is
+  named — Plan de hoy, Tablas, plan-tables.md (generate.js: `LOCALE` env → `plan.locale` → en), the
+  food log's "Del plan" — by `lib/nutrition/names.mjs` `ingName` / `lineName`; an ingredient without a
+  name is a `npm run check` WARNING (the page then shows its key), a malformed one an error, and a test
+  asserts every tracked ingredient has es + en names. This is shareable and is the
   one piece of the plan that goes public. It may hold MORE foods than any single plan uses.
   Optional NATURAL-UNIT metadata per food (`lib/nutrition/units.mjs`, validated by
   `validateIngredientMeta` inside `npm run check`): `piece: { name: {es, en}, plural?: {es, en}, amt,
