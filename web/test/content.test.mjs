@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { loadInputs } from '../../lib/load/inputs.mjs';
 import { buildNutrition } from '../../lib/nutrition/macros.mjs';
 import * as nutriToday from '../../lib/nutrition/today.mjs';
+import { buildReference } from '../../lib/nutrition/reference.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
@@ -71,12 +72,12 @@ test('example build: the dia section carries Resumen de hoy (day type radios onl
   const html = fs.readFileSync(examplePath, 'utf8');
   const { plan, nut } = loadExampleNut();
   const dia = sliceSection(html, 'dia');
-  const at = ["Today's summary", 'id="nutri-daytype"', 'id="nutri-target"', 'id="intake"', "Today's plan", 'id="nutri-plan"', 'id="nutri-fuel-block"', 'Ride fuelling'].map((n) => {
+  const at = ["Today's summary", 'id="nutri-daytype"', 'id="nutri-target"', 'id="intake"', 'id="food-log-block"', "Today's plan", 'id="nutri-plan"', 'id="nutri-fuel-block"', 'Ride fuelling'].map((n) => {
     const i = dia.indexOf(n.replace("'", '&#39;')); // Astro escapes the apostrophe in text
     return i !== -1 ? i : dia.indexOf(n);
   });
   at.forEach((i, n) => assert.ok(i !== -1, `marker ${n} missing from the dia section`));
-  assert.deepEqual([...at].sort((x, y) => x - y), at, 'order: summary, plan, fuelling');
+  assert.deepEqual([...at].sort((x, y) => x - y), at, 'order: summary, food log (Registrar), plan, fuelling');
   // labelled radios: the 4 day types are the ONLY control; the goal lives in the profile sheet (a chip
   // next to today's kcal, client-rendered, opens it)
   assert.equal((dia.match(/<input type="radio" name="nutri-day"/g) || []).length, 4);
@@ -92,17 +93,33 @@ test('example build: the dia section carries Resumen de hoy (day type radios onl
   assert.equal(baked.supplements.length, 3, 'the synthetic example supplements ride along');
 });
 
-test('example build renders a lib-computed breakfast component row in the Tablas tab', () => {
+test('example build: Tablas shows fixed reference values per natural unit (lib/nutrition/reference.mjs), never portions', () => {
   assert.ok(fs.existsSync(examplePath), `missing ${examplePath} — run \`npm run pretest\` first`);
   const html = fs.readFileSync(examplePath, 'utf8');
   const { nut } = loadExampleNut();
   const tablasHtml = sliceSection(html, 'tablas');
+  const ref = buildReference(nut, { lang: 'en', words: { raw: 'raw', dry: 'dry', cooked: 'cooked', serving: 'serving', unit: 'pc' } });
+  assert.match(tablasHtml, /<p class="acc-note tablas-ref-note">Reference values per natural unit/);
+  // a breakfast is a group row + its component foods
+  assert.ok(tablasHtml.includes(`<tr class="ref-group"><td colspan="6">${ref.desayunos[0].name}</td></tr>`));
+  // a countable food: per piece with the grams reference, flagged as a typical weight
+  assert.match(tablasHtml, /<td>Banana<\/td>\s*<td class="ref-unit">1 medium banana \(~120 g\)<small class="ref-typ">typical weight<\/small><\/td>\s*<td class="kc">106<\/td>/);
+  // rice / pasta per 100 g dry, ONE table (no train / rest portion columns)
+  assert.match(tablasHtml, /<td>Rice<\/td>\s*<td class="ref-unit">100 g dry<\/td>\s*<td class="kc">360<\/td>/);
+  assert.equal((tablasHtml.match(/<td>Rice<\/td>/g) || []).length, 1);
+  assert.doesNotMatch(tablasHtml, /Cant\.|<caption>🏋️|Training<\/caption>|tb-cc-|tb-prot-/);
+});
 
-  assert.ok(nut.breakfast.length > 0, 'example plan must have at least one breakfast option to make this test meaningful');
-  const row = nut.breakfast[0].rows[0];
-  assert.ok(tablasHtml.includes(row.name), `expected breakfast component name "${row.name}" in the Tablas tab`);
-  assert.ok(tablasHtml.includes(`class="kc">${row.k}</td>`), `expected breakfast component kcal "${row.k}" in the Tablas tab`);
-  assert.ok(tablasHtml.includes(`<td>${row.p}</td>`), `expected breakfast component protein "${row.p}" in the Tablas tab`);
+test('example build: Tablas reference headers align with their cells (text columns left, numeric columns right)', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const tablasHtml = sliceSection(html, 'tablas');
+  // the Reference header carries the same class as its (left-aligned, sans) cells; kcal / P / C / F stay numeric
+  assert.match(tablasHtml, /<thead><tr><th>Food<\/th><th class="ref-unit">Reference<\/th><th>kcal<\/th><th>P<\/th><th>C<\/th><th>F<\/th><\/tr><\/thead>/);
+  const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  const rule = (sel) => { const m = css.match(new RegExp('(?:^|[}\\s,])' + sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[,{][^}]*}')); return m ? m[0] : ''; };
+  assert.match(rule('th.ref-unit'), /text-align:\s*left/, 'the Reference header is left-aligned like its cells');
+  assert.match(rule('th:first-child'), /text-align:\s*left/, 'the first column (food) header stays left-aligned');
+  assert.match(rule('th'), /text-align:\s*right/, 'numeric headers stay right-aligned with their cells');
 });
 
 test('example build: the day builder (Constructor de día, section registro) is gone: no section, no form, no script, no builder-only bakes', () => {
@@ -113,9 +130,9 @@ test('example build: the day builder (Constructor de día, section registro) is 
     assert.doesNotMatch(html, new RegExp(`var ${g} = `), `${g} was baked only for the day builder`);
   }
   assert.doesNotMatch(html, /Day builder|Constructor de día/);
-  // the Tablas equivalence tables are still painted from the shared bakes
-  for (const g of ['DATA', 'EXTRAS', 'VEG_KEYS', 'QUESO_KEYS', 'FRUIT_SUMMARY', 'I18N_TABLAS']) assert.match(html, new RegExp(`var ${g} = `), g);
-  assert.match(html, /paint\('tb-prot-lean'/, 'client/tablas.js is inlined');
+  // Tablas is server-rendered reference values now: no client painter, no bakes for it
+  for (const g of ['DATA', 'EXTRAS', 'VEG_KEYS', 'QUESO_KEYS', 'FRUIT_SUMMARY', 'I18N_TABLAS']) assert.doesNotMatch(html, new RegExp(`var ${g} = `), g);
+  assert.doesNotMatch(html, /paint\('tb-prot-lean'/, 'client/tablas.js is gone');
 });
 
 test('example build: t-home is the first nav button and pressed; the Home panel is visible, Nutrición hidden', () => {

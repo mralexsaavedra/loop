@@ -4,6 +4,103 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-01 — Plan de hoy adds an automatic snack when the meals fall short
+
+With realistic portion caps the owner's five meals often end below today's target (maintain gym −209,
+bike −229, bikeLong −299 meal kcal; bulk −366…−599) and the page only said "add a snack". Now
+`planFor` adds one: after the capped carb solve, a shortfall beyond the 75 kcal tolerance gets a
+"Tentempié" / "Snack" add-on sized to it (`lib/nutrition/snack.mjs`). Six tracked options built from
+the public food DB incl. the log-only basics (fruit + yogurt, banana + quark, yogurt + cereal, toast
+with oil and tomato, turkey sandwich, nuts), each a small recipe scaled as a whole by one factor with
+snack-sized line caps (water-filling, half pieces, 5 g); default = the first that covers the
+shortfall, a pick persists in `hc.nutri.picks` (`snack/auto`). A plan with its own snack-slot meal
+(merienda, protein anchor) gets the snack inside it, never a second one. Totals, macro notes and "Del
+plan" include it. Bike days: the ride fuel keeps only what fits the top of its g/h range (nothing for
+`bike`, fixed at 60 g/h, so "add 60 g more to the ride" no longer contradicts Avituallamiento); the
+rest becomes the snack. The example plan's shortfalls drop from 95–835 kcal to ≤ 48 kcal on most days
+(bulk gym / bike / bikeLong keep 214–304 kcal: the largest snack at its caps, plus the ride's headroom).
+
+## 2026-10-01 — Food log basics: log an egg without creating a product
+
+The owner wanted to log generic foods (egg, milk…) without first creating a product in Mis productos.
+The add sheet's product search now also looks in the public food DB (`ingredients.json`, baked as
+`FOOD_BASICS` by `lib/nutrition/basics.mjs`): an empty search lists only his products, typing adds a
+"Básicos" group after them (accent- and case-insensitive, "platano" finds "Plátano"), marked "valor
+medio". A pick takes an amount in the food's natural unit (1 piece / 100 g / 100 ml, pieces ↔ grams for
+countable foods) with a live preview, and is saved as ONE quick entry with its four macros and the
+amount in the label ("Huevo · 2 ud (~100 g)") — no DB change, the same idempotent request-id flow. The
+formula lives in `lib/nutrition/foodlog.mjs` (`basicEntry`, `basicLabel`, …) with a parity-tested port in
+food.js. 25 common basics were added to the food DB with average BEDCA values (USDA FoodData Central
+where BEDCA lacks the food; quark: typical Spanish label values, no table entry), `verified: false`,
+the source in each note; they carry `swap: false`, a new flag that keeps a log-only food out of Plan de
+hoy's food blocks, so the plan's options, NUTRI (still < 20 KB) and every plan number are unchanged.
+Cooked chickpeas and lentils already existed. Page bake +~9.5 KB (104 basics).
+
+## 2026-10-01 — Realistic portions: caps, water-filling, Registrar first
+
+The owner's maintain gym day (3050 kcal) asked for 235 g of dry pasta at lunch: only the 2–3 parts
+marked `flex: "carb"` scaled, so every extra carb piled onto them. Now every carb / fruit food (and a
+sweet carb staple such as honey or jam) is carb-flex by its category (`lib/nutrition/flex.mjs`;
+`flex: null` opts out), and an optional per-food `maxAmt` in the tracked `ingredients.json` caps a
+portion (pasta / rice dry 150 g, oats 100 g, potato 400 g, gnocchi 300 g, bread ~3 pieces, fruit
+~1.5–2 pieces, honey / jam 30 g), validated by `npm run check`. The solver became water-filling: one
+common factor, a part past its cap held there and the factor re-solved over the rest until stable,
+same clamps, rounding and ud re-solve, ported line by line to the page (parity tests). When nothing
+can grow the remainder suggests a snack, not a bigger plate, and the factor line says when portions
+are at their maximum. The example plan's numbers changed on purpose (PINNED_TOTALS re-pinned): its
+carb parts now stop at realistic portions (largest potato 660–770 g → 400 g), so most of its 12 plans
+end 95–835 kcal short and say so. Nutrición now opens on Resumen de hoy, then Registrar, then Plan de
+hoy collapsed in a `<details>` (open state per viewer), then Avituallamiento. Cheese (tranchete,
+mozzarella) moved from `dairy` to its own `cheese` category so it is never offered for milk. Tablas'
+"Reference" header is left-aligned like its cells.
+
+## 2026-10-01 — Every food in Plan de hoy is choosable (food categories)
+
+The owner objected to imposed fixed foods ("no tiene sentido que me marques que tengo que comer
+calabacín sí o sí"): only `{use, match}` parts were selects, while `{ing}` parts — courgette at lunch /
+dinner, the milk in the after-lunch coffee, the pear of the protein anchor, the pre-workout's milk +
+bread roll + honey, the cooking oil — were fixed. Every ingredient of the tracked `ingredients.json` now
+has a food category (`cat`, closed set in the new `lib/nutrition/categories.mjs`, validated by
+`npm run check`), and a fixed `{ing}` part is a FOOD block: a select of the foods of its category,
+plus "none" for veg / fruit / sweet / dairy / drink / sauce. One explicit rule table says what a swap
+keeps equal (protein grams, carb grams, fat grams, kcal or the same weight), clamped 0.5–2× like the
+protein swaps; the whole day is then re-solved by the carb-flex engine. Generic: no personal-plan
+migration. The page ports it line by line (parity tests); the no-pick plan is unchanged byte for byte
+(pinned totals of the 12 plans; on the owner's plan all 36 plan × ride cases checked identical);
+"Del plan" logs what was picked and leaves skipped foods out. NUTRI on the example: ~10.5 → ~17.9 KB.
+
+## 2026-10-01 — Three main meals + one "Añadidos" group (Plan de hoy, Registrar)
+
+The owner disliked separate full cards for small things ("Café (tras comer)" on rest days,
+"Pre-entreno" on training days). Plan de hoy and the food log now show only three main meals —
+Desayuno, Comida, Cena — plus ONE "Añadidos" / "Extras" group for everything else (pre / post
+workout, protein anchor, after-lunch coffee, cooking oil, snacks). `lib/nutrition/slots.mjs` holds the
+classification (`MAIN_SLOTS`, `isMainMeal`, `MEAL_GROUPS`, `mealGroup`, `ADDON_SLOT`), baked for the page.
+Plan de hoy renders add-ons as compact rows of one card (kcal = the sum of its rows; block selects,
+scaled arrows and supplement lines kept); Registrar shows four groups, add-on entries tagged with their
+stored slot; the add sheet's meal select offers the four groups (Añadido → `snack`, or a plan add-on's
+own pre / post workout slot) and "Del plan" lists the main meals then each add-on. Display only: the
+food-log slot enum and schema are unchanged, and a test pins `planFor`'s totals for all 12 plans.
+
+## 2026-10-01 — Plan de hoy by blocks; Tablas = fixed reference values
+
+The owner never knows in advance what he will eat, but Plan de hoy showed one fixed day and the variety
+of his option lists only lived in the removed day builder; Tablas meanwhile showed old train / rest
+portions that contradicted the scaled plan. Now a dayPlan part that points at an option list is a
+choosable BLOCK (`lib/nutrition/blocks.mjs`): a compact select in its meal card lists that list's
+options (grouped like the tables); protein lists (proteina, anclaje, postentreno) scale the pick to
+the default's protein grams, every other list takes the option's own amounts, and the carb-flex
+engine re-solves the whole day so it still lands on target − ride fuel. Picks persist per viewer for
+the day (`hc.nutri.picks`), the page ports the logic line by line (parity tests over every pick), and
+`HCNutri.todayPlan()` — hence the food log's "Del plan" — logs what was chosen. Countable foods got
+natural-unit metadata in the public `ingredients.json` (`piece`, `weighed`, validated by `npm run
+check`): Plan de hoy shows them in pieces with the grams reference and rounds their scaled amounts to
+half pieces. Tablas is now server-rendered reference values per natural unit (`lib/nutrition/
+reference.mjs`), with no portions and one table per carb list; plan-tables.md writes the same rows.
+The example plan's protein / anchor / rest breakfast parts became blocks (same numbers; rest rice
+130 g so the bulk day still fits without the breakfast's flex bread). Food-API recipes as extra
+breakfast options were left out (view-time only, outside the baked lists).
+
 ## 2026-10-01 — Day builder removed; the food log logs the plan ("Del plan")
 
 The Constructor de día (section `registro`) was redundant next to the food log, so it is gone with

@@ -1,49 +1,44 @@
 ---
-/* "Tablas" (equivalence reference) — collapsible third section of the Nutrición tab; ported from the legacy hand-
- * maintained `data/nutrition/plan-web.html` `data-tab="tablas"` panel.
+/* "Tablas" (the food reference) — collapsible last section of the Nutrición tab. FIXED reference values
+ * only, never portions: each food of the plan's lists per its NATURAL unit (a piece with its grams
+ * reference, oil per tablespoon, else per 100 g / ml with how the plan weighs it), from
+ * lib/nutrition/reference.mjs, server-rendered (no client script, no bake). Today's amounts are in
+ * Plan de hoy (the one-line note at the top says so). The train / rest portion columns are gone: a
+ * carb list is one table.
  *
- * Two kinds of content, per design:
- *  - Breakfasts: SERVER-rendered from buildNutrition().breakfast (the
- *    computed equivalent of generate.js's GEN:BREAKFAST region) via
- *    <BreakfastTable>.
- *  - Every other equivalence table (protein tiers, lunch/dinner carbs,
- *    post-workout, anchor, fruit+dessert, vegetables, cheeses): CLIENT-
- *    painted at runtime by web/src/client/tablas.js (no-op while a `tb-*`
- *    id is absent) from the DATA/EXTRAS globals baked by the shared <Bake>
- *    (web/pages/index.astro) — this tab renders no script of its own and no
- *    new <Bake>, matching Plan.astro's documented script order.
- *
- * Personal copy: accordion notes, the "Legumes"/"Soups" accordions (no
- * generic/structured data source yet — see design's Personal copy
- * pattern) and the Supplements list are all `<Note>` slots
- * (`plan.page.notes['tablas.*']`, extracted by
- * scripts/migrate-plan-data.mjs from the legacy page) with generic
- * dictionary fallbacks. "Legumes"/"Soups" have NO generic fallback (they
- * render nothing when absent — a fresh clone / example build legitimately
- * has no owner-specific extra reference tables), same degrade-gracefully
- * convention used for missing Apple Health data elsewhere.
+ * Personal copy: accordion notes, the "Legumes"/"Soups" accordions (no generic/structured data source
+ * yet) and the Supplements list are all `<Note>` slots (`plan.page.notes['tablas.*']`) with generic
+ * dictionary fallbacks. "Legumes"/"Soups" have NO generic fallback (they render nothing when absent).
  */
-import BreakfastTable from '../components/BreakfastTable.astro';
+import RefTable from '../components/RefTable.astro';
 import Note from '../components/Note.astro';
+import { buildReference } from '../../../lib/nutrition/reference.mjs';
 
 interface Props {
   nut: any; // buildNutrition() result
   dict: any;
+  locale: string;
   page?: { notes?: Record<string, string> };
   hidden: boolean; // page.hideTabs includes "tablas"
 }
-const { nut, dict, page, hidden } = Astro.props;
+const { nut, dict, locale, page, hidden } = Astro.props;
 const t = dict.strings.tablas;
+const es = locale === 'es';
+const ref = buildReference(nut, { lang: es ? 'es' : 'en', words: t.units });
+const cols = t.cols;
+const dec = es ? ',' : '.';
 ---
 <details class="tab-section sec-fold" data-section="tablas" id="sec-tablas" hidden={hidden}>
   <summary><h2>{t.heading}</h2><span class="chev">›</span></summary>
   <div class="sec-body">
 
+  <p class="acc-note tablas-ref-note">{t.refNote}</p>
+
   <details id="acc-desayunos">
     <summary>{t.desayunos.icon} {t.desayunos.label} <span class="chev">›</span></summary>
     <div class="acc-body">
       <Note id="tablas.desayunos" page={page} fallback={t.desayunos.noteHtml} class="acc-note" />
-      {nut.breakfast.map((b: any) => <BreakfastTable cap={b.cap} rows={b.rows} />)}
+      <RefTable rows={ref.desayunos} cols={cols} dec={dec} />
     </div>
   </details>
 
@@ -51,16 +46,7 @@ const t = dict.strings.tablas;
     <summary>{t.carboComida.icon} {t.carboComida.label} <span class="chev">›</span></summary>
     <div class="acc-body">
       <Note id="tablas.carboComida" page={page} fallback={t.carboComida.note} class="acc-note" />
-      <div class="table-scroll"><table>
-        <caption>{t.trainCaption}</caption>
-        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
-        <tbody id="tb-cc-train" />
-      </table></div>
-      <div class="table-scroll"><table>
-        <caption>{t.restCaption}</caption>
-        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
-        <tbody id="tb-cc-rest" />
-      </table></div>
+      <RefTable rows={ref.carboComida} cols={cols} dec={dec} />
     </div>
   </details>
 
@@ -68,16 +54,7 @@ const t = dict.strings.tablas;
     <summary>{t.carboCena.icon} {t.carboCena.label} <span class="chev">›</span></summary>
     <div class="acc-body">
       <Note id="tablas.carboCena" page={page} fallback={t.carboCena.note} class="acc-note" />
-      <div class="table-scroll"><table>
-        <caption>{t.trainCaption}</caption>
-        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
-        <tbody id="tb-cce-train" />
-      </table></div>
-      <div class="table-scroll"><table>
-        <caption>{t.restCaption}</caption>
-        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
-        <tbody id="tb-cce-rest" />
-      </table></div>
+      <RefTable rows={ref.carboCena} cols={cols} dec={dec} />
     </div>
   </details>
 
@@ -85,21 +62,12 @@ const t = dict.strings.tablas;
     <summary>{t.proteina.icon} {t.proteina.label} <span class="chev">›</span></summary>
     <div class="acc-body">
       <Note id="tablas.proteina" page={page} fallback={t.proteina.note} class="acc-note" />
-      <div class="tier lean"><span class="dot lean" />{t.proteina.lean}</div>
-      <div class="table-scroll"><table>
-        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
-        <tbody id="tb-prot-lean" />
-      </table></div>
-      <div class="tier mod"><span class="dot mod" />{t.proteina.mod}</div>
-      <div class="table-scroll"><table>
-        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
-        <tbody id="tb-prot-mod" />
-      </table></div>
-      <div class="tier fat"><span class="dot fat" />{t.proteina.fat}</div>
-      <div class="table-scroll"><table>
-        <thead><tr><th>Fuente</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
-        <tbody id="tb-prot-fat" />
-      </table></div>
+      {(['lean', 'mod', 'fat'] as const).map((tier) => ref.proteina[tier].length > 0 && (
+        <Fragment>
+          <div class={`tier ${tier}`}><span class={`dot ${tier}`} />{t.proteina[tier]}</div>
+          <RefTable rows={ref.proteina[tier]} cols={cols} dec={dec} />
+        </Fragment>
+      ))}
     </div>
   </details>
 
@@ -109,10 +77,7 @@ const t = dict.strings.tablas;
     <summary>{t.anclaje.icon} {t.anclaje.label} <span class="chev">›</span></summary>
     <div class="acc-body">
       <Note id="tablas.anclaje" page={page} fallback={t.anclaje.note} class="acc-note" />
-      <div class="table-scroll"><table>
-        <thead><tr><th>Opción</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
-        <tbody id="tb-anclaje" />
-      </table></div>
+      <RefTable rows={ref.anclaje} cols={cols} dec={dec} />
     </div>
   </details>
 
@@ -120,10 +85,7 @@ const t = dict.strings.tablas;
     <summary>{t.postentreno.icon} {t.postentreno.label} <span class="chev">›</span></summary>
     <div class="acc-body">
       <Note id="tablas.postentreno" page={page} fallback={t.postentreno.note} class="acc-note" />
-      <div class="table-scroll"><table>
-        <thead><tr><th>Opción</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
-        <tbody id="tb-pe" />
-      </table></div>
+      <RefTable rows={ref.postentreno} cols={cols} dec={dec} />
     </div>
   </details>
 
@@ -131,10 +93,7 @@ const t = dict.strings.tablas;
     <summary>{t.fruta.icon} {t.fruta.label} <span class="chev">›</span></summary>
     <div class="acc-body">
       <Note id="tablas.fruta" page={page} fallback={t.fruta.note} class="acc-note" />
-      <div class="table-scroll"><table>
-        <thead><tr><th>Fruta</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
-        <tbody id="tb-fruta" />
-      </table></div>
+      <RefTable rows={ref.fruta} cols={cols} dec={dec} />
     </div>
   </details>
 
@@ -142,10 +101,7 @@ const t = dict.strings.tablas;
     <summary>{t.postre.icon} {t.postre.label} <span class="chev">›</span></summary>
     <div class="acc-body">
       <Note id="tablas.postre" page={page} fallback={t.postre.note} class="acc-note" />
-      <div class="table-scroll"><table>
-        <thead><tr><th>Opción</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
-        <tbody id="tb-postre" />
-      </table></div>
+      <RefTable rows={ref.postre} cols={cols} dec={dec} />
       <Note id="tablas.postreExtra" page={page} style="margin-top:10px" class="acc-note" />
     </div>
   </details>
@@ -156,10 +112,7 @@ const t = dict.strings.tablas;
     <summary>{t.verduras.icon} {t.verduras.label} <span class="chev">›</span></summary>
     <div class="acc-body">
       <Note id="tablas.verduras" page={page} fallback={t.verduras.note} class="acc-note" />
-      <div class="table-scroll"><table>
-        <thead><tr><th>Verdura</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
-        <tbody id="tb-verduras" />
-      </table></div>
+      <RefTable rows={ref.verduras} cols={cols} dec={dec} />
     </div>
   </details>
 
@@ -167,10 +120,7 @@ const t = dict.strings.tablas;
     <summary>{t.quesos.icon} {t.quesos.label} <span class="chev">›</span></summary>
     <div class="acc-body">
       <Note id="tablas.quesos" page={page} fallback={t.quesos.note} class="acc-note" />
-      <div class="table-scroll"><table>
-        <thead><tr><th>Item</th><th>Cant.</th><th>kcal</th><th>P</th><th>C</th><th>G</th></tr></thead>
-        <tbody id="tb-quesos" />
-      </table></div>
+      <RefTable rows={ref.quesos} cols={cols} dec={dec} />
     </div>
   </details>
 

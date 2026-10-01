@@ -22,8 +22,23 @@
  * - Today's target is the ONE source for the rest of Nutrición: window.nutriTarget() hands the intake
  *   rings (client/intake.js) the MEALS target (on bike days the day target minus the ride fuel, with
  *   the fuel as its own figure), and every goal / day type / duration change refreshes them directly.
+ * - Model lines are read through LINE + the accessors (mirrors of lib/nutrition/amounts.mjs), never a bare index.
+ * - Blocks: a dayPlan part that points at an option list is a choosable block (lib/nutrition/blocks.mjs):
+ *   its name is a select of that list (NUTRI.lists, grouped like the tables); a fixed food (`{ing}`
+ *   part) is a select of the foods of its category (NUTRI.foods, lib/nutrition/categories.mjs) plus
+ *   "none" where skipping is sensible; a pick is kept for TODAY
+ *   in localStorage (hc.nutri.picks = {date, picks: {<block id>: <option key>}}, every access wrapped)
+ *   and planFor re-solves the whole day with it (swapOption / swapIng / ingAmount / applyPicks port
+ *   blocks.mjs: protein lists keep the default's protein grams, the rest take the option's own amounts,
+ *   a food keeps its category's rule; parity test).
+ * - Snack: a day still short after the solve (every plate at its cap) gets the automatic snack — waterFill /
+ *   solveSnack / defaultSnack / snackFor / rideHeadroomK / withSnack port lib/nutrition/snack.mjs over
+ *   NUTRI.snack (parity test): an add-on row "Snack" (or one more part of the plan's own snack-slot
+ *   meal) with a select of the options, its pick kept like a block pick (id NUTRI.snack.id).
+ * - Plan de hoy shows breakfast / lunch / dinner as cards (NUTRI.mainSlots = lib/nutrition/slots.mjs
+ *   MAIN_SLOTS) and every other meal as a compact row of ONE add-ons card after them (display only).
  * - HCNutri.todayPlan() hands the food log's "Del plan" tab (client/food.js) today's Plan de hoy
- *   meals, read-only, exactly as rendered (same goal × day type × ride minutes, same planFor).
+ *   meals, read-only, exactly as rendered (same goal × day type × ride minutes × picks, same planFor).
  * - Logged intake: the dial + bars fill from today's page food log (window.foodTotals, client/food.js,
  *   LAN page only) when it has entries, else from the Apple Health day (INTAKE); HCNutri.refresh() is
  *   the food log's hook after every add / delete.
@@ -33,9 +48,11 @@
   var T = typeof I18N_NUTRI === 'undefined' || !I18N_NUTRI ? null : I18N_NUTRI;
   if (!N || !T) return;
   var esc = HC.esc, format = HC.format, todayIso = HC.todayIso;
-  var KEY_GOAL = 'hc.nutri.goal', KEY_DAY = 'hc.nutri.dayType', KEY_RIDE = 'hc.nutri.rideMin';
+  var KEY_GOAL = 'hc.nutri.goal', KEY_DAY = 'hc.nutri.dayType', KEY_RIDE = 'hc.nutri.rideMin', KEY_PICKS = 'hc.nutri.picks', KEY_PLAN_OPEN = 'hc.nutri.planOpen';
   var RANK = { rest: 0, gym: 1, bike: 2, bikeLong: 3 };
-  var state = { goal: N.goal, override: null, auto: null, ride: null, raised: null };
+  // icons (inline SVG line icons, no emoji): the supplement pill of Plan de hoy
+  var PILL_SVG = '<svg class="supp-ico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-45 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><path d="M12 8.5v7"/></g></svg>';
+  var state = { goal: N.goal, override: null, auto: null, ride: null, raised: null, picks: {} };
 
   function $(id) { return document.getElementById(id); }
   function kf(n) { // thousands separator: 3.050 (es) / 3,050 (en)
@@ -139,82 +156,372 @@
     };
   }
 
-  /* ---------- portion scaling (port of lib/nutrition/scale.mjs solveScale / planFor) ---------- */
+  /* ---------- portion scaling (port of lib/nutrition/amounts.mjs, units.mjs fmtPieces, scale.mjs
+   * solveScale / planFor and blocks.mjs applyPicks) ---------- */
   function round2(v) { return Math.round(v * 100) / 100; }
-  function stepAmount(amt, unit) {
-    if (unit === 'ud') return Math.max(100, Math.round(amt / 100) * 100);
+  function stepAmount(amt, unit, st) {
+    var ud = N.scale.ud; // lib/nutrition/units.mjs UD_AMT (one unit)
+    if (unit === 'ud') return Math.max(ud, Math.round(amt / ud) * ud);
+    if (st > 0) return Math.max(st, Math.round(amt / st) * st);
     return Math.max(N.scale.step, Math.round(amt / N.scale.step) * N.scale.step);
   }
-  function fmtFactor(f, dec) { return f.toFixed(2).replace('.', dec); }
-  function fmtAmt(amt, unit, units) {
-    return unit === 'ud' ? round2(amt / 100) + ' ' + units.ud : round2(amt) + ' ' + (units[unit] || unit);
+  // the model line [unit, amt, k, p, c, g, step?, key?, cap?]: mirrors lib/nutrition/amounts.mjs LINE and
+  // its accessors (a test pins LINE equal); never read by a bare index
+  var LINE = { UNIT: 0, AMT: 1, K: 2, P: 3, C: 4, G: 5, STEP: 6, KEY: 7, CAP: 8 };
+  function lineUnit(l) { return l[LINE.UNIT]; }
+  function lineAmt(l) { return l[LINE.AMT]; }
+  function lineStep(l) { return l[LINE.STEP]; }
+  function lineKey(l) { return l[LINE.KEY]; }
+  function lineCap(l) { return l[LINE.CAP] > 0 ? l[LINE.CAP] : null; }
+  function capFactor(l) { return lineCap(l) ? lineCap(l) / lineAmt(l) : Infinity; }
+  function capAmount(amt, l) {
+    var cap = lineCap(l);
+    if (!cap || amt <= cap) return amt;
+    var st = lineUnit(l) === 'ud' ? N.scale.ud : lineStep(l) > 0 ? lineStep(l) : N.scale.step;
+    return Math.max(st, Math.floor(cap / st + 1e-9) * st);
   }
-  function limit(f) {
-    if (f < N.scale.min) return [N.scale.min, 'min'];
-    if (f > N.scale.max) return [N.scale.max, 'max'];
+  function pieceOf(pieces, l) { return lineKey(l) && pieces ? pieces[lineKey(l)] || null : null; }
+  function scaleLine(l, amt) {
+    var r = amt / lineAmt(l);
+    return [lineUnit(l), amt, l[LINE.K] * r, l[LINE.P] * r, l[LINE.C] * r, l[LINE.G] * r].concat(l.slice(LINE.STEP));
+  }
+  function isDiscrete(l) { return lineUnit(l) === 'ud' || lineStep(l) > 0; }
+  function fmtFactor(f, dec) { return f.toFixed(2).replace('.', dec); }
+  function fmtHalf(h) {
+    var whole = Math.floor(h), half = h - whole >= 0.5;
+    return (whole ? String(whole) : '') + (half ? '½' : '') || '0';
+  }
+  function fmtPieces(amt, unit, pc) {
+    var n = amt / pc.a;
+    var grid = N.scale.grid; // lib/nutrition/units.mjs PIECE_GRID (half pieces)
+    var h = Math.max(grid, Math.round(n / grid) * grid);
+    var exact = Math.abs(n - h) < 1e-9;
+    var name = h > 1 ? pc.m : pc.o;
+    var ref;
+    if (unit === 'ud') ref = pc.r ? '~' + Math.round(n * pc.r) + ' g' : null;
+    else ref = (exact ? '~' : '') + round2(amt) + ' ' + unit;
+    return (exact ? '' : '~') + fmtHalf(h) + ' ' + name + (ref ? ' (' + ref + ')' : '');
+  }
+  function fmtAmt(amt, unit, units, pc) {
+    if (pc) return fmtPieces(amt, unit, pc);
+    return unit === 'ud' ? round2(amt / N.scale.ud) + ' ' + units.ud : round2(amt) + ' ' + (units[unit] || unit);
+  }
+  // water-filling (port of lib/nutrition/fill.mjs waterFill, the carb solve's and the snack's): one common
+  // factor bounded by clamp ([min, max]; none = floored at 0), an item past its cap held there and the
+  // factor re-solved over the rest until stable; start = the factor when nothing is free to fill
+  function bound(f, clamp) {
+    if (!clamp) return [Math.max(0, f), null];
+    if (f < clamp[0]) return [clamp[0], 'min'];
+    if (f > clamp[1]) return [clamp[1], 'max'];
     return [f, null];
   }
+  function waterFill(items, need, opts) {
+    var clamp = opts && opts.clamp ? opts.clamp : null;
+    var held = items.map(function () { return false; });
+    var heldK = 0, f = opts && opts.start != null ? opts.start : 0, hit = null;
+    for (;;) {
+      var freeK = 0;
+      items.forEach(function (it, i) { if (!held[i]) freeK += it.k; });
+      if (!(freeK > 0)) break;
+      var b = bound((need - heldK) / freeK, clamp);
+      f = b[0];
+      hit = b[1];
+      var more = false;
+      items.forEach(function (it, i) {
+        if (!held[i] && it.cap < f) { held[i] = true; heldK += it.k * it.cap; more = true; }
+      });
+      if (!more) break;
+    }
+    if (items.length && held.every(Boolean)) {
+      f = Math.max.apply(null, items.map(function (it) { return it.cap; }));
+      hit = null;
+    }
+    return { f: round2(f), clamp: hit, held: held };
+  }
+  // the carb solve's bounds (lib/nutrition/scale.mjs SCALE_FILL)
+  function scaleFill() { return { clamp: [N.scale.min, N.scale.max], start: 1 }; }
   function solveScale(model, target, fmt) {
-    var units = fmt.units, dec = fmt.dec;
+    var units = fmt.units, dec = fmt.dec, pieces = fmt.pieces || null;
     var fixedK = 0, udK = 0, contK = 0;
+    var all = [];
     model.fixed.forEach(function (f) { fixedK += f[0]; });
     model.flex.forEach(function (x) {
-      if (x.mb) contK += x.mb[0];
-      else x.ln.forEach(function (l) { if (l[0] === 'ud') udK += l[2]; else contK += l[2]; });
+      if (x.mb) { contK += x.mb[0]; all.push({ k: x.mb[0], cap: Infinity, ud: false }); return; }
+      x.ln.forEach(function (l) {
+        var ud = isDiscrete(l);
+        if (ud) udK += l[LINE.K]; else contK += l[LINE.K];
+        all.push({ k: l[LINE.K], cap: capFactor(l), ud: ud });
+      });
     });
-    var lc = udK + contK > 0 ? limit((target - fixedK) / (udK + contK)) : [1, null];
-    var f0 = round2(lc[0]), clamp = lc[1];
-    var amountAt = function (l, s) { return s === 1 ? l[1] : stepAmount(l[1] * s, l[0]); };
+    var w0 = waterFill(all, target - fixedK, scaleFill());
+    var f0 = w0.f, clamp = w0.clamp, held = w0.held;
+    var amountAt = function (l, s) { return s === 1 ? lineAmt(l) : capAmount(stepAmount(lineAmt(l) * s, lineUnit(l), lineStep(l)), l); };
     var factor = f0;
     if (udK > 0 && contK > 0) {
       var udNowK = 0;
       model.flex.forEach(function (x) {
-        if (x.ln) x.ln.forEach(function (l) { if (l[0] === 'ud') udNowK += l[2] * (amountAt(l, f0) / l[1]); });
+        if (x.ln) x.ln.forEach(function (l) { if (isDiscrete(l)) udNowK += l[LINE.K] * (amountAt(l, Math.min(f0, capFactor(l))) / lineAmt(l)); });
       });
-      lc = limit((target - fixedK - udNowK) / contK);
-      factor = round2(lc[0]);
-      clamp = lc[1];
+      var w1 = waterFill(all.filter(function (it) { return !it.ud; }), target - fixedK - udNowK, scaleFill());
+      factor = w1.f;
+      clamp = w1.clamp;
+      var ci = 0;
+      held = all.map(function (it, i) { return it.ud ? w0.held[i] : w1.held[ci++]; });
     }
     var meals = model.fixed.map(function (f) { return f.slice(); });
-    var q = [], qa = [], dir = [], qm = [];
+    var q = [], qa = [], qn = [], dir = [], qm = [];
+    var capped = false, allCapped = all.length > 0, ii = 0;
     model.flex.forEach(function (x) {
       var m = meals[x.m], i;
       if (x.mb) {
+        ii++;
+        allCapped = false; // a manual block has no cap: it could still grow
         var bm = x.mb.map(function (v) { return v * factor; });
         for (i = 0; i < 4; i++) m[i] += bm[i];
         var t = factor === 1 ? x.q : (x.q + ' ×' + fmtFactor(factor, dec)).trim();
         q.push(t);
         qa.push([t]);
+        qn.push([null]);
         dir.push(Math.sign(factor - 1));
         qm.push(bm);
         return;
       }
       var baseK = 0, nowK = 0;
-      var pm = [0, 0, 0, 0];
+      var pm = [0, 0, 0, 0], nums = [];
       var amts = x.ln.map(function (l) {
-        var amt = amountAt(l, l[0] === 'ud' ? f0 : factor);
-        var r = amt / l[1];
-        for (var j = 0; j < 4; j++) { m[j] += l[j + 2] * r; pm[j] += l[j + 2] * r; }
-        baseK += l[2];
-        nowK += l[2] * r;
-        return fmtAmt(amt, l[0], units);
+        var cf = capFactor(l);
+        var f = isDiscrete(l) ? f0 : factor;
+        if (held[ii++] || f >= cf) capped = true;
+        else allCapped = false;
+        var amt = amountAt(l, Math.min(f, cf));
+        nums.push(amt);
+        var r = amt / lineAmt(l);
+        for (var j = 0; j < 4; j++) { m[j] += l[LINE.K + j] * r; pm[j] += l[LINE.K + j] * r; }
+        baseK += l[LINE.K];
+        nowK += l[LINE.K] * r;
+        return fmtAmt(amt, lineUnit(l), units, pieceOf(pieces, l));
       });
       q.push(amts.join(' + '));
       qa.push(amts);
+      qn.push(nums);
       dir.push(Math.abs(nowK - baseK) < 0.5 ? 0 : Math.sign(nowK - baseK));
       qm.push(pm);
     });
     var totals = { k: 0, p: 0, c: 0, g: 0 };
     meals.forEach(function (m) { totals.k += m[0]; totals.p += m[1]; totals.c += m[2]; totals.g += m[3]; });
-    return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, meals: meals, q: q, qa: qa, dir: dir, qm: qm, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
+    return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, capped: capped, allCapped: allCapped, meals: meals, q: q, qa: qa, qn: qn, dir: dir, qm: qm, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
   }
-  function planFor(bake, goal, d, minutes) {
+  function findOpt(list, key) {
+    if (!list || !list.length) return null;
+    for (var i = 0; i < list.length; i++) if (list[i].k === key) return list[i];
+    return null;
+  }
+  function limitP(f) { return f < N.blocks.pMin ? N.blocks.pMin : f > N.blocks.pMax ? N.blocks.pMax : f; }
+  function swapFactor(block, list, opt) {
+    if (block.r !== 'protein') return 1;
+    var def = findOpt(list, block.d);
+    if (!def || !(def.pr > 0) || !(opt.pr > 0)) return 1;
+    return round2(limitP(def.pr / opt.pr));
+  }
+  // the option's lines at swap factor s, every line clamped to its portion cap (port of blocks.mjs swapLines)
+  function swapLines(opt, s) {
+    var ln = s === 1 ? opt.ln : opt.ln.map(function (l) { return scaleLine(l, stepAmount(lineAmt(l) * s, lineUnit(l), lineStep(l))); });
+    var capped = false;
+    ln = ln.map(function (l) {
+      var c = capAmount(lineAmt(l), l);
+      if (c === lineAmt(l)) return l;
+      capped = true;
+      return scaleLine(l, c);
+    });
+    return { ln: ln, own: s === 1 && !capped };
+  }
+  function swapOption(b, list, key, fmt) {
+    var opt = findOpt(list, key);
+    var s = swapFactor(b, list, opt);
+    var isFlex = b.fx === true && opt.fx === true;
+    if (opt.mb) {
+      var mb = opt.mb.map(function (v) { return v * s; });
+      var q = s === 1 ? opt.q : (opt.q + ' ×' + s.toFixed(2).replace('.', fmt.dec || '.')).trim();
+      if (isFlex) return { part: { l: opt.n, x: 1 }, flex: { mb: mb, q: q } };
+      return { part: { l: opt.n, q: q, m: mb }, mac: mb };
+    }
+    var sl = swapLines(opt, s), ln = sl.ln, own = sl.own;
+    if (isFlex) return { part: opt.c && !opt.q ? { l: opt.n, x: 1, c: opt.c } : { l: opt.n, x: 1 }, flex: { ln: ln } };
+    var mac = [0, 0, 0, 0];
+    ln.forEach(function (l) { for (var j = 0; j < 4; j++) mac[j] += l[LINE.K + j]; });
+    var amts = ln.map(function (l) { return fmtAmt(lineAmt(l), lineUnit(l), fmt.units, pieceOf(fmt.pieces || null, l)); });
+    if (opt.c && (!opt.q || !own)) return { part: { l: opt.n, q: amts.join(' + '), c: opt.c, a: amts, m: mac }, mac: mac, ln: ln };
+    return { part: { l: opt.n, q: own && opt.q ? opt.q : amts.join(' + '), m: mac }, mac: mac, ln: ln };
+  }
+  // a FOOD block (port of lib/nutrition/blocks.mjs ingAmount / swapIng / isOption): the foods of the
+  // block's category from NUTRI.foods, "none" (NONE_KEY) where the category rule allows skipping
+  var NONE_KEY = 'none';
+  var METRIC = { protein: LINE.P, carbs: LINE.C, fat: LINE.G, kcal: LINE.K }; // categories.mjs SWAP_BY -> line slot
+  function gramsPer(e) { return e.gf || 1; }
+  function ingAmount(rule, def, defAmt, opt) {
+    var base = (defAmt * gramsPer(def)) / gramsPer(opt);
+    var s = 1;
+    var at = METRIC.hasOwnProperty(rule.by) ? METRIC[rule.by] : undefined;
+    if (at !== undefined) {
+      var dv = (def.l[at] * defAmt) / lineAmt(def.l);
+      var ov = (opt.l[at] * base) / lineAmt(opt.l);
+      if (dv > 0 && ov > 0) s = round2(limitP(dv / ov));
+    }
+    return capAmount(stepAmount(base * s, lineUnit(opt.l), lineStep(opt.l)), opt.l);
+  }
+  function swapIng(b, foods, key, fmt) {
+    if (key === NONE_KEY) return { part: { l: '', z: 1, m: [0, 0, 0, 0] }, mac: [0, 0, 0, 0] };
+    var opt = foods.ings[key];
+    var amt = ingAmount(foods.rules[b.I], foods.ings[b.d], b.a, opt);
+    var ln = scaleLine(opt.l, amt);
+    if (b.fx === true && opt.fx === true) return { part: { l: opt.n, x: 1 }, flex: { ln: [ln] } };
+    var mac = ln.slice(LINE.K, LINE.G + 1);
+    return { part: { l: opt.n, q: fmtAmt(amt, lineUnit(ln), fmt.units, pieceOf(fmt.pieces || null, ln)), m: mac }, mac: mac, ln: [ln] };
+  }
+  function isOption(b, key, lists, foods) {
+    if (!b.I) return !!findOpt(lists && lists[b.L], key);
+    if (!foods || !foods.rules || !Object.prototype.hasOwnProperty.call(foods.rules, b.I)) return false;
+    if (key === NONE_KEY) return foods.rules[b.I].skip === true;
+    var ks = foods.cats[b.I];
+    return !!ks && ks.indexOf(key) >= 0 && !!foods.ings[key];
+  }
+  function applyPicks(base, lists, picks, fmt, foods) {
+    var blocks = base.blocks || {};
+    var eff = {}, any = false;
+    if (picks && typeof picks === 'object') {
+      Object.keys(blocks).forEach(function (id) {
+        var key = picks[id];
+        if (typeof key !== 'string' || key === blocks[id].d || !isOption(blocks[id], key, lists, foods)) return;
+        eff[id] = key;
+        any = true;
+      });
+    }
+    if (!any) return { fixed: base.fixed, flex: base.flex, meals: base.meals, picks: {} };
+    var fixed = [], flex = [], fi = 0;
+    var meals = base.meals.map(function (meal, m) {
+      var touched = meal.parts.some(function (p) { return p.id && eff[p.id] !== undefined; });
+      var f = touched ? [0, 0, 0, 0] : base.fixed[m].slice();
+      var parts = meal.parts.map(function (p) {
+        var key = p.id ? eff[p.id] : undefined, i, k;
+        if (key === undefined) {
+          if (p.x) flex.push(base.flex[fi++]);
+          else if (touched) for (i = 0; i < 4; i++) f[i] += p.m[i];
+          return p;
+        }
+        if (p.x) fi++; // the default's flex entry is replaced
+        var b = blocks[p.id];
+        var sw = b.I ? swapIng(b, foods, key, fmt) : swapOption(b, lists[b.L], key, fmt);
+        if (sw.flex) {
+          var entry = { m: m };
+          for (k in sw.flex) entry[k] = sw.flex[k];
+          flex.push(entry);
+        } else for (i = 0; i < 4; i++) f[i] += sw.mac[i];
+        sw.part.id = p.id;
+        return sw.part;
+      });
+      fixed.push(f);
+      return { n: meal.n, s: meal.s, pcf: meal.pcf, parts: parts };
+    });
+    return { fixed: fixed, flex: flex, meals: meals, picks: eff };
+  }
+  // the automatic snack (port of lib/nutrition/snack.mjs): a day still short after the solve gets a
+  // snack option scaled to the shortfall (water-filling without a clamp, line caps), as an add-on meal
+  function snackCapK(o) {
+    var k = 0;
+    o.ln.forEach(function (l) { k += l[LINE.K] * capFactor(l); });
+    return k;
+  }
+  function defaultSnack(opts, need) {
+    var best = null, bestK = -1;
+    for (var i = 0; i < (opts || []).length; i++) {
+      var k = snackCapK(opts[i]);
+      if (k >= need) return opts[i].k;
+      if (k > bestK) { best = opts[i].k; bestK = k; }
+    }
+    return best;
+  }
+  function solveSnack(o, need, fmt) {
+    var all = o.ln.map(function (l) { return { k: l[LINE.K], cap: capFactor(l), ud: isDiscrete(l) }; });
+    var amountAt = function (l, s) { return capAmount(stepAmount(lineAmt(l) * s, lineUnit(l), lineStep(l)), l); };
+    var f0 = waterFill(all, need).f;
+    var f = f0;
+    if (all.some(function (it) { return it.ud; }) && all.some(function (it) { return !it.ud; })) {
+      var udK = 0;
+      o.ln.forEach(function (l) { if (isDiscrete(l)) udK += l[LINE.K] * (amountAt(l, Math.min(f0, capFactor(l))) / lineAmt(l)); });
+      f = waterFill(all.filter(function (it) { return !it.ud; }), need - udK).f;
+    }
+    var mac = [0, 0, 0, 0], nums = [], capped = true;
+    var amts = o.ln.map(function (l) {
+      var cf = capFactor(l);
+      var s = isDiscrete(l) ? f0 : f;
+      if (s < cf) capped = false;
+      var amt = amountAt(l, Math.min(s, cf));
+      nums.push(amt);
+      for (var i = 0; i < 4; i++) mac[i] += (l[LINE.K + i] * amt) / lineAmt(l);
+      return fmtAmt(amt, lineUnit(l), fmt.units, pieceOf(fmt.pieces || null, l));
+    });
+    return { k: o.k, n: o.n, c: o.c || null, nums: nums, amts: amts, mac: mac, capped: capped };
+  }
+  function snackFor(sb, need, pick, fmt) {
+    if (!sb || !sb.opts || !sb.opts.length) return null;
+    var d = defaultSnack(sb.opts, need), o = null;
+    sb.opts.forEach(function (x) { if (x.k === pick) o = x; });
+    if (!o) sb.opts.forEach(function (x) { if (x.k === d) o = x; });
+    var r = solveSnack(o, need, fmt);
+    r.d = d;
+    return r;
+  }
+  function rideHeadroomK(fuel) {
+    if (!fuel) return 0;
+    var top = fuel.during.gPerH[1] * (fuel.minutes / 60);
+    return Math.max(0, Math.round((top - fuel.during.planG) * N.fuel.rates.kcalPerG));
+  }
+  function withSnack(view, meals, sn, sb) {
+    var part = sn.c && sn.amts.length > 1
+      ? { l: sn.n, id: sb.id, sn: 1, c: sn.c, a: sn.amts, m: sn.mac }
+      : { l: sn.n, id: sb.id, sn: 1, q: sn.amts.join(' + '), m: sn.mac };
+    var v = view.slice();
+    var ms = meals.map(function (m) { return m.slice(); });
+    var at = -1, i;
+    for (i = 0; i < v.length && at < 0; i++) if (v[i] && v[i].s === sb.slot) at = i;
+    if (at < 0) {
+      v.push({ n: sb.n, s: sb.slot, pcf: true, parts: [part] });
+      ms.push(sn.mac.slice());
+    } else {
+      var copy = {};
+      for (var k in v[at]) copy[k] = v[at][k];
+      copy.parts = v[at].parts.concat([part]);
+      v[at] = copy;
+      for (i = 0; i < 4; i++) ms[at][i] += sn.mac[i];
+    }
+    return { view: v, meals: ms };
+  }
+  function planFor(bake, goal, d, minutes, picks) {
     var x = bake.plans[goal][d];
     var fuel = isBike(d) ? fuelPlan({ dayType: d, minutes: minutes }) : null;
     var fuelK = fuel ? fuel.kcal : 0;
     var fuelC = fuel ? fuel.during.planG : 0;
-    var s = solveScale(bake.base[x.base], x.t.kcal - fuelK, bake.fmt);
-    var tot = { k: Math.round(s.totals.k), p: Math.round(s.totals.p), c: Math.round(s.totals.c), g: Math.round(s.totals.g) };
+    var mdl = applyPicks(bake.base[x.base], bake.lists || {}, picks, bake.fmt, bake.foods);
+    var s = solveScale(mdl, x.t.kcal - fuelK, bake.fmt);
+    var need = x.t.kcal - fuelK - Math.round(s.totals.k) - rideHeadroomK(fuel);
+    var sb = bake.snack;
+    var pick = picks && typeof picks === 'object' && sb ? picks[sb.id] : undefined;
+    var sn = need > N.tolerance && mdl.meals.length ? snackFor(sb, need, pick, bake.fmt) : null;
+    var view = mdl.meals, meals = s.meals;
+    var totals = { k: s.totals.k, p: s.totals.p, c: s.totals.c, g: s.totals.g };
+    if (sn) {
+      var w = withSnack(view, meals, sn, sb);
+      view = w.view;
+      meals = w.meals;
+      totals.k += sn.mac[0]; totals.p += sn.mac[1]; totals.c += sn.mac[2]; totals.g += sn.mac[3];
+    }
+    var tot = { k: Math.round(totals.k), p: Math.round(totals.p), c: Math.round(totals.c), g: Math.round(totals.g) };
+    var outPicks = mdl.picks;
+    if (sn && sn.k !== sn.d) {
+      outPicks = {};
+      for (var id in mdl.picks) outPicks[id] = mdl.picks[id];
+      outPicks[sb.id] = sn.k;
+    }
     return {
       base: x.base,
       t: x.t,
@@ -222,16 +529,22 @@
       fuelK: fuelK,
       fuelC: fuelC,
       mt: { k: x.t.kcal - fuelK, p: x.t.p, c: x.t.c - fuelC, f: x.t.f },
-      meals: s.meals.map(function (m) { return m.map(Math.round); }),
+      meals: meals.map(function (m) { return m.map(Math.round); }),
       flex: s.q,
       flexAmts: s.qa,
+      flexN: s.qn,
       flexDir: s.dir,
       flexMac: s.qm,
       tot: tot,
       factor: s.factor,
       clamp: s.clamp,
       udOnly: s.udOnly,
+      capped: s.capped,
+      allCapped: s.allCapped,
       rem: x.t.kcal - fuelK - tot.k,
+      snack: sn ? { k: sn.k, d: sn.d, n: sn.n, nums: sn.nums, mac: sn.mac, capped: sn.capped } : null,
+      view: view,
+      picks: outPicks,
     };
   }
 
@@ -246,7 +559,8 @@
     if (state.ride && state.ride.type === d) return state.ride.min;
     return N.fuel.defaults[d];
   }
-  function current() { return planFor(N, state.goal, dayType(), rideMinutes()); }
+  function current() { return planFor(N, state.goal, dayType(), rideMinutes(), state.picks); }
+  function baseDay() { return N.plans[state.goal][dayType()].base; } // 'train' | 'rest', without solving
   function fuelNow() {
     var w = N.weight;
     return fuelPlan({ dayType: dayType(), minutes: rideMinutes(), weightKg: w ? w.kg : null });
@@ -267,6 +581,15 @@
     }
     var r = loadToday(KEY_RIDE, today);
     if (r && N.dayTypes.indexOf(r.type) >= 0 && typeof r.min === 'number' && r.min > 0) state.ride = { type: r.type, min: r.min };
+    // today's block picks ({id: option key}); a key not in today's list is ignored by applyPicks
+    var pk = loadToday(KEY_PICKS, today);
+    if (pk && pk.picks && typeof pk.picks === 'object') {
+      Object.keys(pk.picks).forEach(function (id) { if (typeof pk.picks[id] === 'string') state.picks[id] = pk.picks[id]; });
+    }
+  }
+  function savePicks() {
+    var any = Object.keys(state.picks).length > 0;
+    save(KEY_PICKS, any ? JSON.stringify({ date: todayIso(), picks: state.picks }) : null);
   }
 
   /* ---------- blocks ---------- */
@@ -351,7 +674,10 @@
     var rem = x.rem, bike = x.fuelK > 0;
     if (Math.abs(rem) <= N.tolerance) return '';
     var k = kf(Math.abs(rem)), g = Math.round(Math.abs(rem) / 4 / 5) * 5;
-    var tpl = rem > 0 ? (bike ? T.remShortBike : T.remShort) : (bike ? T.remOverBike : T.remOver);
+    // every carb portion at its cap (or the factor at its maximum): a snack, never a bigger plate
+    var full = x.allCapped || x.clamp === 'max';
+    // with the automatic snack in the plan, what is still short is what the snack's caps leave over
+    var tpl = rem > 0 ? (bike ? T.remShortBike : x.snack ? T.remSnackLeft : full ? T.remSnack : T.remShort) : (bike ? T.remOverBike : T.remOver);
     return '<p class="nt-rem ' + (rem > 0 ? 'nt-short' : 'nt-over') + '">' + esc(format(tpl, { k: k, g: g })) + '</p>';
   }
   function macroOffHtml(x) {
@@ -381,7 +707,11 @@
       '<p class="nt-cnote">' + esc(T.target.cNote) + '</p>' +
       (x ? '<p class="nt-plan">' + esc(line) + '</p>' + remainderHtml(x) + macroOffHtml(x) : '') + '</div>';
   }
-  var PILL_SVG = '<svg class="supp-ico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-45 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><path d="M12 8.5v7"/></g></svg>';
+  // a baked meal ({n, s}) is a main meal when its slot is one of NUTRI.mainSlots (lib/nutrition/slots.mjs
+  // MAIN_SLOTS: breakfast / lunch / dinner); everything else is an add-on (a test pins it to isMainMeal)
+  function isMainMeal(meal) {
+    return !!meal && !!meal.s && (N.mainSlots || []).indexOf(meal.s) >= 0;
+  }
   function suppLine(text) {
     return '<div class="meal-supp">' + PILL_SVG + '<span>' + esc(text) + '</span></div>';
   }
@@ -394,11 +724,62 @@
   function row(cls, label, q) {
     return '<li class="' + cls + '"><span class="mp-l">' + label + '</span>' + (q != null ? '<span class="mp-q">' + esc(q) + '</span>' : '') + '</li>';
   }
-  function partHtml(p, x, fi) {
+  // a choosable block (lib/nutrition/blocks.mjs): its name is a select of the list's options, grouped
+  // like the tables (protein lean / moderate / fatty, fruit / yogurt…), the current pick selected
+  function groupLabel(gr) { return (T.plan.groups && T.plan.groups[gr]) || gr; }
+  function noneLabel(cat) { return (T.plan.none && T.plan.none[cat]) || T.plan.noneAny; }
+  // a fixed food's block: the foods of its category (the default under the plan's own label), then
+  // "none" when the category allows skipping it
+  function foodPickHtml(p, b, cur, mealName) {
+    var F = N.foods;
+    var keys = F && F.cats ? F.cats[b.I] : null;
+    if (!keys || !F.rules[b.I]) return null;
+    var body = keys.map(function (k) {
+      var name = k === b.d && b.n ? b.n : F.ings[k].n;
+      return '<option value="' + esc(k) + '"' + (k === cur ? ' selected' : '') + '>' + esc(name) + '</option>';
+    }).join('');
+    if (F.rules[b.I].skip) body += '<option value="' + NONE_KEY + '"' + (cur === NONE_KEY ? ' selected' : '') + '>' + esc(noneLabel(b.I)) + '</option>';
+    var item = p.z ? noneLabel(b.I) : p.l;
+    return '<select class="mp-pick" data-block="' + esc(p.id) + '" aria-label="' + esc(format(T.plan.pickAria, { item: item, meal: mealName })) + '">' + body + '</select>';
+  }
+  // the automatic snack's select: every snack option (NUTRI.snack.opts), the current one selected
+  function snackPickHtml(p, x, mealName) {
+    var sb = N.snack;
+    if (!sb || !sb.opts || sb.opts.length < 2 || !x.snack) return null;
+    var body = sb.opts.map(function (o) {
+      return '<option value="' + esc(o.k) + '"' + (o.k === x.snack.k ? ' selected' : '') + '>' + esc(o.n) + '</option>';
+    }).join('');
+    return '<select class="mp-pick" data-block="' + esc(p.id) + '" aria-label="' + esc(format(T.plan.pickAria, { item: p.l, meal: mealName })) + '">' + body + '</select>';
+  }
+  function pickHtml(p, x, mealName) {
+    if (p.sn) return snackPickHtml(p, x, mealName);
+    var base = N.base[x.base];
+    var b = p.id && base.blocks ? base.blocks[p.id] : null;
+    if (b && b.I) return foodPickHtml(p, b, (x.picks && x.picks[p.id]) || b.d, mealName);
+    var list = b && N.lists ? N.lists[b.L] : null;
+    if (!b || !list || list.length < 2) return null;
+    var cur = (x.picks && x.picks[p.id]) || b.d;
+    var groups = [], byGr = {};
+    list.forEach(function (o) {
+      var g = o.gr || '';
+      if (!(g in byGr)) { byGr[g] = []; groups.push(g); }
+      byGr[g].push(o);
+    });
+    var opt = function (o) { return '<option value="' + esc(o.k) + '"' + (o.k === cur ? ' selected' : '') + '>' + esc(o.n) + '</option>'; };
+    var body = groups.map(function (g) {
+      var opts = byGr[g].map(opt).join('');
+      return g && groups.length > 1 ? '<optgroup label="' + esc(groupLabel(g)) + '">' + opts + '</optgroup>' : opts;
+    }).join('');
+    return '<select class="mp-pick" data-block="' + esc(p.id) + '" aria-label="' + esc(format(T.plan.pickAria, { item: p.l, meal: mealName })) + '">' + body + '</select>';
+  }
+  function partHtml(p, x, fi, mealName) {
     var q = p.x ? x.flex[fi] : p.q;
     var dir = p.x && x.flexDir ? x.flexDir[fi] : 0;
-    var label = esc(p.l) + dirHtml(dir);
+    var pick = p.id ? pickHtml(p, x, mealName) : null;
+    var label = (pick || esc(p.l)) + dirHtml(dir);
     var flexCls = p.x ? ' mp-flex' : '';
+    if (pick) flexCls += ' mp-block';
+    if (p.z) flexCls += ' mp-none'; // a skipped food: its select (to undo it), no amount
     if (!p.c) return row('mp' + flexCls, label, q);
     // a composite: its name, then one readable sub-row per component (name, amount)
     var amts = p.x ? (x.flexAmts ? x.flexAmts[fi] : []) : p.a || [];
@@ -407,25 +788,40 @@
   }
   function renderPlan(host, x) {
     var base = N.base[x.base];
-    if (!base || !base.meals.length) { host.innerHTML = '<p class="nutri-empty">' + esc(T.plan.empty) + '</p>'; return; }
+    var view = x.view || (base && base.meals);
+    if (!base || !view || !view.length) { host.innerHTML = '<p class="nutri-empty">' + esc(T.plan.empty) + '</p>'; return; }
     var supps = (N.supplements || []).slice();
     var used = {};
     var fi = 0;
     var A = T.plan.macroAbbr;
-    var html = base.meals.map(function (meal, i) {
+    // walked in DAY order (the flex index and "first meal of a slot" for supplements follow it), then
+    // grouped: the main meals as cards, every other meal as a compact row of ONE add-ons card after them
+    var mains = '', rows = '', addonK = 0;
+    view.forEach(function (meal, i) {
       var m = x.meals[i];
-      var parts = meal.parts.map(function (p) { return partHtml(p, x, p.x ? fi++ : -1); }).join('');
+      var parts = meal.parts.map(function (p) { return partHtml(p, x, p.x ? fi++ : -1, meal.n); }).join('');
       var mine = '';
       if (meal.s && !used[meal.s]) {
         used[meal.s] = true;
         supps.forEach(function (s) { if (s.meal === meal.s) mine += suppLine(s.name + (s.dose ? ' ' + s.dose : '')); });
       }
-      return '<div class="meal"><div class="meal-top"><div class="meal-name">' + esc(meal.n) + '</div>' +
+      if (!isMainMeal(meal)) {
+        addonK += m[0];
+        rows += '<div class="addon"><div class="addon-top"><div class="addon-name">' + esc(meal.n) + '</div>' +
+          '<div class="addon-kcal"><b>' + esc(kf(m[0])) + '</b> kcal</div></div>' +
+          '<ul class="meal-parts">' + parts + '</ul>' + mine + '</div>';
+        return;
+      }
+      mains += '<div class="meal"><div class="meal-top"><div class="meal-name">' + esc(meal.n) + '</div>' +
         '<div class="meal-kcal"><b>' + esc(kf(m[0])) + '</b> kcal</div></div>' +
         '<ul class="meal-parts">' + parts + '</ul>' +
         (meal.pcf ? '<div class="meal-pcf"><span><b>' + m[1] + '</b> ' + A.p + '</span><span><b>' + m[2] + '</b> ' + A.c + '</span><span><b>' + m[3] + '</b> ' + A.f + '</span></div>' : '') +
         mine + '</div>';
-    }).join('');
+    });
+    var html = mains + (rows
+      ? '<div class="meal meal-addons"><div class="meal-top"><div class="meal-name">' + esc(T.plan.addons) + '</div>' +
+        '<div class="meal-kcal"><b>' + esc(kf(addonK)) + '</b> kcal</div></div>' + rows + '</div>'
+      : '');
     var others = supps.filter(function (s) { return !used[s.meal]; });
     if (others.length) {
       html += '<div class="meal meal-others"><div class="meal-name">' + esc(T.plan.otherSupps) + '</div>' +
@@ -433,9 +829,15 @@
           return suppLine(s.name + (s.dose ? ' ' + s.dose : '') + ' (' + (T.plan.meals[s.meal] || s.meal) + ')');
         }).join('') + '</div>';
     }
-    var ftpl = x.clamp === 'max' ? T.plan.factorMax : x.clamp === 'min' ? T.plan.factorMin : T.plan.factor;
-    if (x.factor !== 1 || x.clamp) html += '<p class="nutri-factor">' + esc(format(ftpl, { factor: fmtFactor(x.factor, N.fmt.dec) })) + '</p>';
+    // honest with mixed factors: the common factor of the portions still free, and whether some (or
+    // every) portion stopped at its maximum (lib/nutrition/scale.mjs portion caps)
+    var ftpl = x.allCapped ? T.plan.factorAllCapped : x.capped ? T.plan.factorCapped : x.clamp === 'max' ? T.plan.factorMax : x.clamp === 'min' ? T.plan.factorMin : T.plan.factor;
+    if (x.factor !== 1 || x.clamp || x.capped) html += '<p class="nutri-factor">' + esc(format(ftpl, { factor: fmtFactor(x.factor, N.fmt.dec) })) + '</p>';
     if (x.udOnly && Math.abs(x.rem) > N.tolerance) html += '<p class="nutri-factor">' + esc(T.plan.unitsOnly) + '</p>';
+    if (x.snack) html += '<p class="nutri-factor nutri-snack">' + esc(T.plan.snackNote) + '</p>';
+    if (x.picks && Object.keys(x.picks).length) {
+      html += '<p class="nutri-factor nutri-picks">' + esc(T.plan.picksNote) + ' <button type="button" class="lnk nutri-picks-reset" id="nutri-picks-reset">' + esc(T.plan.picksReset) + '</button></p>';
+    }
     host.innerHTML = html;
   }
   function renderRidePicker(host) {
@@ -517,6 +919,8 @@
     var withPlan = function (fn) { return function (host) { if (!x) throw new Error('no plan'); fn(host, x); }; };
     guard($('nutri-target'), function (host) { renderTarget(host, x); }); // the target shows even without a plan
     guard($('nutri-plan'), withPlan(renderPlan));
+    var pk = $('nutri-plan-kcal');
+    if (pk) pk.textContent = x ? kf(x.tot.k) + ' ' + T.target.kcal : '';
     renderFuel(picker !== false);
     guard($('eat-body'), renderEat);
     refreshDependents();
@@ -555,6 +959,65 @@
     save(KEY_DAY, null);
     refresh();
   });
+  // a block pick: kept for today (hc.nutri.picks), the whole day re-solved; focus stays on the select
+  function setPick(id, key) {
+    var sb = N.snack;
+    if (sb && id === sb.id) return setSnackPick(key);
+    var base = N.base[baseDay()];
+    var b = base && base.blocks ? base.blocks[id] : null;
+    if (!b) return false;
+    if (key === b.d) delete state.picks[id];
+    else state.picks[id] = key;
+    savePicks();
+    refresh(false);
+    return true;
+  }
+  // the automatic snack's pick: a known option; today's default (it depends on the shortfall) drops it
+  function setSnackPick(key) {
+    var sb = N.snack, known = false;
+    (sb.opts || []).forEach(function (o) { if (o.k === key) known = true; });
+    if (!known) return false;
+    var x = null;
+    try { x = current(); } catch (e) { x = null; }
+    if (x && x.snack && key === x.snack.d) delete state.picks[sb.id];
+    else state.picks[sb.id] = key;
+    savePicks();
+    refresh(false);
+    return true;
+  }
+  function resetPicks() {
+    state.picks = {};
+    savePicks();
+    refresh(false);
+  }
+  function refocus(sel) {
+    try {
+      var el = document.querySelector ? document.querySelector(sel) : null;
+      if (el && el.focus) el.focus();
+    } catch (e) { /* focus is a convenience */ }
+  }
+  on('nutri-plan', 'change', function (e) {
+    var t = e && e.target;
+    var id = t && t.getAttribute ? t.getAttribute('data-block') : null;
+    if (!id || typeof t.value !== 'string') return;
+    if (setPick(id, t.value)) refocus('select[data-block="' + id.replace(/["\\]/g, '') + '"]');
+  });
+  on('nutri-plan', 'click', function (e) {
+    var t = e && e.target;
+    var btn = t && t.closest ? t.closest('#nutri-picks-reset') : null;
+    if (!btn) return;
+    resetPicks();
+    refocus('#nutri-plan select');
+  });
+  // Plan de hoy is a native <details>, collapsed by default; its open state is a per-viewer convenience
+  // (hc.nutri.planOpen = '1' / '0'). The plan is rendered either way, so "Del plan" (todayPlan) and the
+  // selects never depend on it being open.
+  function initPlanFold() {
+    var fold = $('nutri-plan-fold');
+    if (!fold) return;
+    fold.open = load(KEY_PLAN_OPEN) === '1';
+    if (fold.addEventListener) fold.addEventListener('toggle', function () { save(KEY_PLAN_OPEN, fold.open ? '1' : '0'); });
+  }
   on('nutri-ride-wrap', 'change', function (e) {
     var v = e && e.target ? Number(e.target.value) : NaN;
     var d = dayType();
@@ -584,23 +1047,25 @@
   function r1(v) { return Math.round(v * 10) / 10; }
   function todayPlan() {
     var x = current();
-    var base = x && N.base[x.base];
-    if (!base || !base.meals || !base.meals.length) return null;
+    var view = x && (x.view || (N.base[x.base] && N.base[x.base].meals));
+    if (!view || !view.length) return null;
     var fi = 0;
-    return base.meals.map(function (meal, i) {
+    return view.map(function (meal, i) {
       var m = x.meals[i];
-      var items = meal.parts.map(function (p) {
+      var items = [];
+      meal.parts.forEach(function (p) {
         var k = p.x ? fi++ : -1;
+        if (p.z) return; // a skipped food ("none"): nothing to log
         var mac = p.x ? x.flexMac[k] : p.m;
         var it = { name: p.l, amount: null, kcal: Math.round(mac[0]), p: r1(mac[1]), c: r1(mac[2]), g: r1(mac[3]) };
         if (p.c) {
           var amts = p.x ? x.flexAmts[k] : p.a || [];
           it.components = p.c.map(function (name, n) { return { name: name, amount: amts[n] != null ? amts[n] : null }; });
         } else it.amount = (p.x ? x.flex[k] : p.q) || null;
-        return it;
+        items.push(it);
       });
       return { name: meal.n, slot: meal.s || null, kcal: m[0], p: m[1], c: m[2], g: m[3], items: items };
-    });
+    }).filter(function (meal) { return meal.items.length > 0; }); // every food of the meal skipped: nothing to log
   }
   window.HCNutri = {
     setGoal: setGoal,
@@ -611,11 +1076,21 @@
     refresh: function () { refresh(false); },
     detectDayType: detectDayType,
     fuelPlan: fuelPlan,
+    waterFill: waterFill,
     solveScale: solveScale,
     planFor: planFor,
-    state: function () { return { goal: state.goal, dayType: dayType(), override: state.override, auto: state.auto, rideMin: rideMinutes(), raised: state.raised }; },
+    applyPicks: applyPicks,
+    snackFor: snackFor,
+    swapOption: swapOption,
+    swapIng: swapIng,
+    isMainMeal: isMainMeal,
+    LINE: LINE,
+    setPick: function (id, key) { return typeof id === 'string' && typeof key === 'string' ? setPick(id, key) : false; },
+    resetPicks: resetPicks,
+    state: function () { return { goal: state.goal, dayType: dayType(), override: state.override, auto: state.auto, rideMin: rideMinutes(), raised: state.raised, picks: JSON.parse(JSON.stringify(state.picks)) }; },
   };
 
   try { init(); } catch (e) { state.auto = { type: 'rest', why: 'none', rideMin: null }; }
+  try { initPlanFold(); } catch (e) { /* the fold keeps its server-rendered (collapsed) state */ }
   refresh();
 })();

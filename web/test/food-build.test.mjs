@@ -25,7 +25,12 @@ test('the food hosts ship hidden: Registrar in the dia section, Mis productos / 
   const plan = html.indexOf('id="nutri-plan"');
   const log = html.indexOf('id="food-log-block"');
   const fuel = html.indexOf('id="nutri-fuel-block"');
-  assert.ok(dia < plan && plan < log && log < fuel, 'Registrar sits right after Plan de hoy');
+  const summary = html.indexOf('id="nutri-summary"');
+  assert.ok(dia < summary && summary < log && log < plan && plan < fuel, 'Registrar sits right after Resumen de hoy, then Plan de hoy, then Avituallamiento');
+  // Plan de hoy is a native <details>, collapsed by default (no `open`), its summary = heading + the plan's kcal
+  assert.match(html, /<details class="nutri-block sec-fold nutri-fold" id="nutri-plan-fold"><summary><h2>Today(&#39;|')s plan<\/h2><span class="nutri-fold-kcal" id="nutri-plan-kcal"><\/span><span class="chev">›<\/span><\/summary>\s*<div id="nutri-plan"><\/div>\s*<\/details>/);
+  assert.doesNotMatch(html, /<details class="nutri-block sec-fold nutri-fold" id="nutri-plan-fold"[^>]* open/, 'collapsed by default');
+  assert.doesNotMatch(html, /<details[^>]*id="nutri-fuel-block"/, 'Avituallamiento is never collapsed');
   const products = html.indexOf('id="food-products"');
   const tablas = html.indexOf('id="sec-tablas"');
   assert.ok(fuel < products && products < tablas, 'the folds sit between the dia section and Tablas');
@@ -41,9 +46,20 @@ test('the food hosts ship hidden: Registrar in the dia section, Mis productos / 
 test('copy + constants are baked; food.js is inlined after nutri-day.js and before intake.js', () => {
   assert.match(html, /var I18N_FOOD = \{/);
   assert.match(html, /var FOOD_CONST = \{"meals":\["breakfast","lunch","preworkout","postworkout","dinner","snack"\],"stores":\["mercadona","dia","eroski","other"\],"units":\["g","ml"\],"limits":\{"nameMax":120,/, 'the shared limits are baked too');
+  assert.match(html, /"groups":\["breakfast","lunch","dinner","addon"\],"mainSlots":\["breakfast","lunch","dinner"\],"addonGroup":"addon","addonSlot":"snack"\}/, 'Registrar\'s four groups come baked from lib/nutrition/slots.mjs');
   const at = (src) => html.indexOf(src.slice(0, 200));
   assert.ok(at(nutriDay) > 0 && at(food) > 0 && at(intake) > 0, 'all three scripts inlined verbatim');
   assert.ok(at(nutriDay) < at(food) && at(food) < at(intake));
+});
+
+test('the public basics are baked once as FOOD_BASICS, localized, compact (lib/nutrition/basics.mjs)', () => {
+  const m = /var FOOD_BASICS = (\[.*?\]);/.exec(html);
+  assert.ok(m, 'FOOD_BASICS baked');
+  const list = JSON.parse(m[1]);
+  assert.ok(list.length >= 100, `${list.length} basics`);
+  assert.deepEqual(list.find((b) => b.k === 'huevo'), { k: 'huevo', n: 'Egg', u: 'ud', m: [72, 6.3, 0.4, 5], pc: { a: 100, r: 50, o: 'egg', m: 'eggs' } });
+  assert.ok(m[1].length < 16 * 1024, `FOOD_BASICS is ${m[1].length} bytes`);
+  assert.ok(html.indexOf('var FOOD_BASICS') < html.indexOf(food.slice(0, 200)), 'baked before food.js runs');
 });
 
 test('food.js talks only to its own origin, with the X-HC-Food header, and never stores the log in the browser', () => {
