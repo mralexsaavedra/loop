@@ -559,9 +559,12 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   the amounts. **Budgets**: today's plan solve (`planFor`: goal × day type × ride minutes, caps and
   water-fill, no picks) → each main meal's budget (kcal, P, C, F) = the solved macros of the plan meals
   of its slot (`mealSlot` via the baked `base[day].sl`; two meals of one slot add up, a slot with no meal
-  is a zero budget); **Extras** = the MEALS target (target − ride fuel) − the three main budgets, so it
-  absorbs the add-ons (pre / post workout, a protein anchor, an unslotted "cooking oil" meal…) and
-  whatever the capped plates leave over (`guideBudgets`; a macro the main meals already pass clamps at
+  is a zero budget); a COOKING-OIL meal (no slot, every part a `fat`-category food: `oilMeals`, baked
+  per base day as `NUTRI.guide.oil`) is split evenly between the lunch and dinner budgets (lunch takes
+  the rounded half; wholly into the one the plan has; Extras if neither), so oil logged with lunch does
+  not drain that meal early; **Extras** = the MEALS target (target − ride fuel) − the three main budgets,
+  so it absorbs the add-ons (pre / post workout, a protein anchor, any other unslotted meal such as an
+  after-lunch coffee) and whatever the capped plates leave over (`guideBudgets`; a macro the main meals already pass clamps at
   0 and the card says so, never negative). The four blocks add up to the meals target, which is also the
   fold summary's kcal. **A main meal = a plate by parts**: Proteína ~X g (= meal P), Carbohidrato ~Y g
   (carbs), Verdura "libre", Grasa ~Z g (fat); each macro row = ONE example food (a native `<select
@@ -579,7 +582,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   oliva). A pick persists per viewer, not daily (`hc.nutri.guide` = `{picks: {<slot>.<role>: 'b:<key>' |
   'p:<id>'}}`, every access wrapped; an unlisted pick — a product without the API — shows the default and
   stays stored). Each example covers ITS macro only (a muted note says so: the guide is orientative).
-  **Extras card**: "~N kcal para extras hoy", a muted hint with example costs computed from the food DB
+  **Extras card**: "~N kcal para extras hoy", a muted "Incluye café, tentempiés y pre/post-entreno"
+  line, a muted hint with example costs computed from the food DB
   (`EXTRAS_EXAMPLES` → `NUTRI.guide.extras`: un cortado ~19, un plátano ~106, un yogur ~79, un batido de
   proteína (30 g) ~114 kcal — `cortado` is a tracked log-only basic: 30 ml espresso + 40 ml semi-skimmed
   milk), "Repártelo antes y después de entrenar" on gym / bike day types, its P / C / G line; no item
@@ -595,11 +599,9 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   has them, sent with `force` since the macros are the DB's own; a product = a product entry; one request
   id per pending add, kept across an ambiguous retry). The guide re-renders on every add / delete (food.js
   calls `HCNutri.refresh()`) and on goal / day type / ride changes; without the API: budgets only, no
-  "+", no "Te queda". `NUTRI` = `{…, base: {<day>: {sl, fixed, flex}}, guide: {roles, defaults,
+  "+", no "Te queda". `NUTRI` = `{…, base: {<day>: {sl, fixed, flex}}, guide: {roles, defaults, oil,
   fallback, extras, done, covered}}`: ~3.6 KB on the example (was ~19.7 KB with the block lists, the
   food catalogue and the snack options; budget test 8 KB); FOOD_BASICS grew ~1.7 KB (`c`, `x`, cortado).
-  Known effect: a plan whose cooking oil is its own unslotted meal puts that fat in Extras (give the
-  oil a meal's slot to count it there).
 - **Day-type detection** (`lib/nutrition/daytype.mjs` = the reference; nutri-day.js ports it over the
   baked `DETECT` and a test runs both over `DAYTYPE_CASES`): today's workouts from `SCORES.timeline`
   (same-day rows already merged per modality). Only real training counts (`DETECT`): gym / run ≥ 20 min
