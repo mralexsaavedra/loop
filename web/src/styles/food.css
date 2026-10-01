@@ -286,7 +286,8 @@
 /* ---------- add sheet ---------- */
 .fa-tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-flow: column; /* 3 or 4 tabs (Del plan only when Plan de hoy is available) */
+  grid-auto-columns: minmax(0, 1fr);
   gap: var(--sp-1);
   background: var(--rail);
   border: 1px solid var(--line-soft);
@@ -376,6 +377,73 @@
   font-family: var(--num);
   font-size: var(--fs-2xl);
   color: var(--ink);
+}
+
+/* "Del plan": today's plan meals as toggle chips, then a radio list of what to log (the whole meal or one item) */
+.fa-plan-meals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-5);
+}
+.fa-plan-meal {
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--sp-2) var(--sp-4);
+  background: none;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fa-plan-meal[aria-pressed="true"] {
+  background: var(--surface-2);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+.fa-plan-meal:focus-visible,
+.fa-plan-opt input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.fa-plan-items {
+  border: 0;
+  margin: 0 0 var(--sp-4);
+  padding: 0;
+  min-width: 0;
+}
+.fa-plan-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  border-top: 1px solid var(--line-soft);
+}
+.fa-plan-opt input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: var(--sp-3) 0 0;
+  accent-color: var(--accent);
+}
+.fa-plan-lbl {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-3) 0;
+  cursor: pointer;
+}
+.fa-plan-amt {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 /* ---------- Mis productos / Mis recetas ---------- */

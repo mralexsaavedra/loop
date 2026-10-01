@@ -36,7 +36,7 @@ function fixedDate(iso) {
 }
 
 /** routes: { 'GET /api/food/products': response | fn(init, n) | Error }; unknown -> network error */
-function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [] } = {}) {
+function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], todayPlan } = {}) {
   const calls = [];
   const counts = {};
   const fetch = fetchImpl || (async (url, init = {}) => {
@@ -59,7 +59,7 @@ function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [] } = {}) {
   const hooks = [];
   const opened = [];
   const window = {
-    HCNutri: { refresh: () => hooks.push('nutri') },
+    HCNutri: { refresh: () => hooks.push('nutri'), ...(todayPlan !== undefined ? { todayPlan } : {}) },
     intakeRefresh: () => hooks.push('intake'),
     HCDetail: { open: (key, date, opts) => opened.push([key, opts]), close: () => opened.push(['close']) },
   };
@@ -673,4 +673,120 @@ test('add sheet: an amount with its unit is accepted; quick entry: a bare unit =
   t.fire('click', t.button({ 'data-food-act': 'save' }));
   await flush();
   assert.deepEqual(bodies[1], { date: TODAY, meal: 'snack', refType: 'quick', label: 'Pintxo', kcal: 250, protein: 10 });
+});
+
+/* ---------- "Del plan": log today's Plan de hoy meals (HCNutri.todayPlan, nutri-day.js) ---------- */
+const PLAN_TODAY = [
+  { name: 'Desayuno', slot: 'breakfast', kcal: 520, p: 35, c: 60, g: 14, items: [{ name: 'Avena', amount: '60 g', kcal: 220, p: 8, c: 36, g: 4 }, { name: 'Leche', amount: '250 ml', kcal: 120, p: 8.5, c: 12, g: 4 }] },
+  { name: 'Comida', slot: 'lunch', kcal: 800, p: 50, c: 90, g: 20, items: [{ name: 'Arroz', amount: '120 g', kcal: 430, p: 8.4, c: 95, g: 1.2 }, { name: 'Pollo & verduras', amount: null, kcal: 300, p: 41, c: 8, g: 11, components: [{ name: 'Pollo', amount: '200 g' }, { name: 'Verduras', amount: '150 g' }] }] },
+];
+const PLAN_IDS = ['fa-panel', 'fa-prev', 'fa-msg', 'food-add-lunch', 'food-add-breakfast'];
+function openPlan(t, meal = 'lunch') {
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': meal }));
+  t.window.HCViews['food-add'].render();
+  t.input('fa-meal', meal);
+  t.fire('click', t.button({ 'data-food-act': 'tab', 'data-tab': 'plan' }));
+}
+
+test('Del plan: a tab only when Plan de hoy is available (hook present, a non-empty plan, never throwing)', async () => {
+  for (const [todayPlan, shown] of [[() => PLAN_TODAY, true], [undefined, false], [() => null, false], [() => [], false], [() => { throw new Error('x'); }, false]]) {
+    const t = setup({ routes: BOOT, extraIds: PLAN_IDS, todayPlan });
+    await flush();
+    t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'lunch' }));
+    const { body } = t.window.HCViews['food-add'].render();
+    assert.equal(/data-tab="plan"/.test(body), shown, String(todayPlan));
+    if (shown) assert.match(body, /data-tab="plan" aria-pressed="false">Del plan<\/button>/);
+    else {
+      t.fire('click', t.button({ 'data-food-act': 'tab', 'data-tab': 'plan' }));
+      assert.equal(t.F.state().sheet.tab, 'products', 'no plan: the tab cannot be opened');
+    }
+  }
+  const en = setup({ routes: BOOT, locale: 'en', extraIds: PLAN_IDS, todayPlan: () => PLAN_TODAY });
+  await flush();
+  en.fire('click', en.button({ 'data-food-act': 'add', 'data-meal': 'lunch' }));
+  assert.match(en.window.HCViews['food-add'].render().body, />From plan<\/button>/);
+});
+
+test('Del plan: the sheet\'s meal slot preselects the matching plan meal, whole meal by default, with its kcal + macros preview; the meal select follows', async () => {
+  const t = setup({ routes: BOOT, extraIds: PLAN_IDS, todayPlan: () => PLAN_TODAY });
+  await flush();
+  openPlan(t);
+  const panel = t.els['fa-panel'].innerHTML;
+  assert.match(panel, /data-food-act="plan-meal" data-i="1" aria-pressed="true"/);
+  assert.match(panel, /data-food-act="plan-meal" data-i="0" aria-pressed="false"/);
+  assert.match(panel, /<input type="radio" name="fa-plan-item" id="fa-plan-item-all" value="-1" checked>/);
+  assert.match(panel, /<label[^>]* for="fa-plan-item-all"/);
+  assert.match(text(panel), /Arroz 120 g/);
+  assert.match(panel, /Pollo &amp; verduras/, 'names are escaped');
+  assert.match(text(panel), /Pollo 200 g · Verduras 150 g/, 'a composite lists its components like Plan de hoy');
+  assert.equal(text(t.els['fa-prev'].innerHTML), '800 kcal · P 50 · C 90 · G 20');
+  t.fire('change', t.input('fa-meal', 'breakfast'));
+  assert.match(t.els['fa-panel'].innerHTML, /data-food-act="plan-meal" data-i="0" aria-pressed="true"/);
+  assert.match(text(t.els['fa-prev'].innerHTML), /^520 kcal/);
+  t.fire('change', t.input('fa-meal', 'snack'));
+  assert.match(t.els['fa-panel'].innerHTML, /data-food-act="plan-meal" data-i="0" aria-pressed="true"/, 'no plan meal for that slot: the pick stays');
+});
+
+test('Del plan: logging the whole meal = ONE quick entry "Plan · <meal>" with that meal\'s scaled totals', async () => {
+  const bodies = [];
+  const routes = { ...BOOT, 'POST /api/food/log': (init) => { bodies.push(JSON.parse(init.body)); return json({ entry: { ...ENTRY, id: 70, meal: 'lunch', refType: 'quick', refId: null, label: 'Plan · Comida', amount: 1, unit: 'serving', kcal: 800, protein: 50, carbs: 90, fat: 20 }, totals: TOTALS1 }, 201); } };
+  const t = setup({ routes, extraIds: PLAN_IDS, todayPlan: () => PLAN_TODAY });
+  await flush();
+  openPlan(t);
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(bodies.length, 1);
+  assert.match(bodies[0].requestId, /^[A-Za-z0-9-]{8,64}$/);
+  delete bodies[0].requestId;
+  assert.deepEqual(bodies[0], { date: TODAY, meal: 'lunch', refType: 'quick', label: 'Plan · Comida', kcal: 800, protein: 50, carbs: 90, fat: 20 });
+  assert.deepEqual(t.opened.at(-1), ['close']);
+  assert.equal(t.els['food-msg'].textContent, 'Añadido: Plan · Comida (800 kcal).');
+});
+
+test('Del plan: a single item = one quick entry with that item\'s macros; an ambiguous failure retries with the same id; another pick is a new add', async () => {
+  const bodies = [];
+  let n = 0;
+  const routes = { ...BOOT, 'POST /api/food/log': (init) => { bodies.push(JSON.parse(init.body)); n += 1; return n === 1 ? json({ error: 'internal' }, 500) : json({ entry: { ...ENTRY, id: 70 + n }, totals: TOTALS1 }, 201); } };
+  const t = setup({ routes, extraIds: PLAN_IDS, todayPlan: () => PLAN_TODAY });
+  await flush();
+  openPlan(t);
+  t.fire('change', t.input('fa-plan-item-0', '0'));
+  assert.equal(text(t.els['fa-prev'].innerHTML), '430 kcal · P 8,4 · C 95 · G 1,2');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[0].requestId, bodies[1].requestId, 'the retry keeps the id: the server answers the stored row');
+  const { requestId, ...rest } = bodies[1];
+  assert.deepEqual(rest, { date: TODAY, meal: 'lunch', refType: 'quick', label: 'Plan · Arroz (120 g)', kcal: 430, protein: 8.4, carbs: 95, fat: 1.2 });
+  // another sheet: switching meal goes back to the whole meal and is a new add
+  openPlan(t);
+  t.fire('change', t.input('fa-plan-item-1', '1'));
+  t.fire('click', t.button({ 'data-food-act': 'plan-meal', 'data-i': '0' }));
+  assert.equal(t.F.state().sheet.planItem, -1, 'another meal: back to the whole meal');
+  assert.equal(t.F.state().sheet.reqId, null);
+  t.fire('click', t.button({ 'data-food-act': 'plan-meal', 'data-i': '1' }));
+  t.fire('change', t.input('fa-plan-item-1', '1'));
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(bodies[2].label, 'Plan · Pollo & verduras', 'a composite has no amount of its own: its name');
+  assert.notEqual(bodies[2].requestId, bodies[0].requestId);
+});
+
+test('Del plan: a long name is capped to the label limit; an Atwater refusal offers "save anyway" (force, same id)', async () => {
+  const bodies = [];
+  const long = [{ name: 'X'.repeat(200), slot: 'lunch', kcal: 100, p: 1, c: 1, g: 1, items: [] }];
+  const routes = { ...BOOT, 'POST /api/food/log': (init) => { const b = JSON.parse(init.body); bodies.push(b); return b.force ? json({ entry: { ...ENTRY, id: 72 }, totals: TOTALS1 }, 201) : json({ error: 'atwater' }, 400); } };
+  const t = setup({ routes, extraIds: PLAN_IDS, todayPlan: () => long });
+  await flush();
+  openPlan(t);
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(bodies[0].label.length, FOOD_LIMITS.nameMax);
+  assert.match(t.els['fa-msg'].innerHTML, /data-food-act="save-force"/);
+  t.fire('click', t.button({ 'data-food-act': 'save-force' }));
+  await flush();
+  assert.equal(bodies[1].force, true);
+  assert.equal(bodies[1].requestId, bodies[0].requestId);
 });

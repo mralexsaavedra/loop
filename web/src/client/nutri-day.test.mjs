@@ -491,3 +491,91 @@ test('Avituallamiento: a 3-step timeline (before, during, after) with one key nu
   assert.deepEqual(steps.map((x) => x[1]), ['70–140 g', '60 g/h', '70–85 g'], 'carbs before (70 kg), carbs per hour, carbs after');
   assert.match(h, /<ol class="fuel-steps">/);
 });
+
+/* ---------- HCNutri.todayPlan: the food log's "Del plan" tab reads Plan de hoy, never re-computes it ---------- */
+const escHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const TODAY_PLAN_CASES = [
+  { label: 'rest, default goal', opts: {}, goal: 'maintain', d: 'rest', min: null },
+  { label: 'gym done, bulk', opts: { items: [{ modality: 'gym', dur: 60 }], storage: memStorage({ 'hc.nutri.goal': 'bulk' }) }, goal: 'bulk', d: 'gym', min: null },
+  { label: 'programmed ride picked at 3 h, cut', opts: { programmed: { kind: 'bike' }, storage: memStorage({ 'hc.nutri.goal': 'cut', 'hc.nutri.rideMin': JSON.stringify({ date: TODAY, type: 'bike', min: 180 }) }) }, goal: 'cut', d: 'bike', min: 180 },
+  { label: 'long ride recorded (real minutes), maintain', opts: { items: [{ modality: 'bike', dur: 200 }] }, goal: 'maintain', d: 'bikeLong', min: 200 },
+];
+
+test('HCNutri.todayPlan: today\'s Plan de hoy meals exactly as rendered (same goal x day type x ride minutes, same planFor)', () => {
+  const nutri = bake();
+  for (const c of TODAY_PLAN_CASES) {
+    const s = run(c.opts);
+    assert.equal(s.api.state().dayType, c.d, c.label);
+    const x = planFor(nutri, c.goal, c.d, c.min);
+    const base = nutri.base[x.base];
+    const plan = plain(s.api.todayPlan());
+    const html = s.els['nutri-plan'].innerHTML;
+    assert.equal(plan.length, base.meals.length, c.label);
+    let fi = 0;
+    plan.forEach((m, i) => {
+      assert.equal(m.name, base.meals[i].n);
+      assert.equal(m.slot, base.meals[i].s);
+      assert.deepEqual([m.kcal, m.p, m.c, m.g], x.meals[i], `${c.label}: meal ${i} totals = Plan de hoy's`);
+      assert.ok(html.includes(`<div class="meal-name">${escHtml(m.name)}</div><div class="meal-kcal"><b>${m.kcal.toLocaleString('en')}</b> kcal</div>`), `${c.label}: meal ${i} kcal on the page`);
+      assert.equal(m.items.length, base.meals[i].parts.length);
+      m.items.forEach((it, j) => {
+        const part = base.meals[i].parts[j];
+        assert.equal(it.name, part.l);
+        const k = part.x ? fi++ : -1;
+        if (part.c) {
+          assert.equal(it.amount, null, 'a composite has no amount of its own');
+          const amts = part.x ? x.flexAmts[k] : part.a || [];
+          assert.deepEqual(it.components, part.c.map((name, n) => ({ name, amount: amts[n] != null ? amts[n] : null })));
+        } else {
+          assert.equal(it.amount, part.x ? x.flex[k] : part.q || null);
+          if (it.amount) assert.ok(html.includes(`<span class="mp-q">${escHtml(it.amount)}</span>`), `${c.label}: "${it.amount}" shown in Plan de hoy`);
+        }
+        assert.ok(Number.isInteger(it.kcal) && it.kcal >= 0);
+        for (const v of [it.p, it.c, it.g]) assert.equal(Math.round(v * 10) / 10, v, 'macros to 1 decimal');
+      });
+      // the items add up to the meal (each rounded once)
+      const sum = m.items.reduce((a, it) => a + it.kcal, 0);
+      assert.ok(Math.abs(sum - m.kcal) <= m.items.length, `${c.label}: meal ${i} items ${sum} vs ${m.kcal}`);
+    });
+    assert.equal(fi, x.flex.length, 'every flex part consumed in part order');
+  }
+});
+
+test('HCNutri.todayPlan follows a goal / day type change and is read-only (a copy each call)', () => {
+  const s = run();
+  const before = plain(s.api.todayPlan());
+  s.api.setGoal('cut');
+  const cut = planFor(bake(), 'cut', 'rest', null);
+  assert.deepEqual(plain(s.api.todayPlan()).map((m) => m.kcal), cut.meals.map((m) => m[0]));
+  const a = s.api.todayPlan();
+  a[0].kcal = -1;
+  a[0].items.length = 0;
+  assert.notEqual(s.api.todayPlan()[0].kcal, -1);
+  assert.ok(s.api.todayPlan()[0].items.length > 0);
+  assert.notDeepEqual(before.map((m) => m.kcal), cut.meals.map((m) => m[0]));
+});
+
+test('HCNutri.todayPlan is null when Plan de hoy has nothing to show (no base day / no meals)', () => {
+  const nutri = bake();
+  nutri.base.rest = null;
+  assert.equal(run({ nutri }).api.todayPlan(), null);
+  const empty = bake();
+  empty.base.rest.meals = [];
+  assert.equal(run({ nutri: empty }).api.todayPlan(), null);
+});
+
+test('lib solveScale / planFor expose each flex part\'s macros at its rounded amount (flexMac); fixed parts carry their own (m)', () => {
+  const nutri = bake();
+  for (const d of ['rest', 'gym', 'bike']) {
+    const x = planFor(nutri, 'maintain', d, d === 'bike' ? 120 : null);
+    const base = nutri.base[x.base];
+    assert.equal(x.flexMac.length, x.flex.length);
+    // meal totals = fixed parts + scaled flex parts
+    let fi = 0;
+    base.meals.forEach((meal, i) => {
+      const t = [0, 0, 0, 0];
+      meal.parts.forEach((p) => { const m = p.x ? x.flexMac[fi++] : p.m; for (let n = 0; n < 4; n++) t[n] += m[n]; });
+      assert.deepEqual(t.map(Math.round), x.meals[i], `${d}: meal ${i}`);
+    });
+  }
+});

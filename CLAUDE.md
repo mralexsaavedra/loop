@@ -538,7 +538,14 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   `flexDir`); a composite item (several recipe lines, no amount of its own; baked with `c` names and,
   when fixed, `a` amounts) lists its components as sub-rows (name · amount), never "82 g + 20 g";
   a muted P / C / F (es: G) mini line; the carb factor ("×1.6 vs the base plan", "(the maximum
-  applied)" when clamped).
+  applied)" when clamped). **`HCNutri.todayPlan()`** hands that same plan, read-only, to the food
+  log's "Del plan" tab: `[{name, slot, kcal, p, c, g, items: [{name, amount, kcal, p, c, g,
+  components?}]}]` from `current()` (goal × day type × ride minutes through `planFor`, never
+  re-computed in food.js); meal totals exactly as Plan de hoy prints them (whole numbers); an item at
+  its scaled amount with kcal whole and macros to 1 decimal — a fixed part's macros are baked on the
+  part (`m`, from `buildDayPlans`), a flex part's come from `solveScale`'s `qm` (`planFor`
+  `flexMac`, at the ROUNDED amount); a composite has `amount: null` and its `components` (name,
+  amount). A fresh copy each call; `null` when there are no meals (or on a throw).
 - **Supplements** — optional `supplements: [{ name, dose?, meal }]` in `profile/profile.json`
   (`meal` = breakfast | lunch | preworkout | postworkout | dinner | snack, `lib/nutrition/slots.mjs`
   `MEAL_SLOTS`; validated by `validateManual`). A discreet "name dose" line under the first meal of
@@ -670,10 +677,19 @@ unknown.
   (`window.HCViews['food-add']`, deep link `#food-add`, registered only once the API answered; focus
   trap / Esc / Back from detail.js, whose Tab trap now includes form fields and whose
   `HCDetail.open(key, date, {opener})` returns focus to the tapped button): meal select, tabs Mis
-  productos (search, grouped by store) / Mis recetas / Rápido (label + kcal + optional macros), amount
-  in g / ml / servings (servings only with a serving size; a per-serving recipe in servings, a batch
-  one in grams of cooked food), live preview from the ported formula, `aria-live` results; save
-  closes it, re-renders Registrar and announces "Añadido: …". **Mis productos**: list by store
+  productos (search, grouped by store) / Mis recetas / Del plan (es "Del plan", en "From plan") /
+  Rápido (label + kcal + optional macros), amount in g / ml / servings (servings only with a serving
+  size; a per-serving recipe in servings, a batch one in grams of cooked food), live preview from the
+  ported formula, `aria-live` results; save closes it, re-renders Registrar and announces "Añadido:
+  …". **Del plan** = today's Plan de hoy meals from `HCNutri.todayPlan()` (read when the sheet
+  opens, so it follows today's goal, day type and ride minutes): the plan meals as toggle chips (the
+  one whose slot matches the sheet's meal select is preselected, and follows that select), then a
+  radio list — the whole meal (default) or one of its items (composites list their components) —
+  with the kcal / macros preview; saving logs ONE `quick` entry: label "Plan · <meal name>" (an item:
+  "Plan · <item> (<amount>)", capped to `nameMax`) with all four macros (no schema change: the
+  `food_log` snapshot already stores quick macros), through the same request-id / ambiguous-retry /
+  "save anyway" (Atwater) flow. No hook, an empty plan or a throw → the tab is omitted (the tab bar
+  holds 3 or 4 tabs). **Mis productos**: list by store
   (per-100 line, serving, Editar, Archivar with a confirm step); add = barcode or text lookup → OFF
   cards showing what OFF has (missing values marked) → "Usar este" fills the form with the missing
   fields flagged (`--mid`) → the owner confirms every value and the store → save; "desde la etiqueta"

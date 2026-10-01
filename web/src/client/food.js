@@ -15,6 +15,11 @@
  * lib/nutrition/foodlog.mjs (window.HCFood; food.test.mjs runs it over the shared FOODLOG_CASES).
  * A quick entry without macros counts its kcal only; unknown macros are never filled in.
  *
+ * "Del plan" (the add sheet's plan tab): today's Plan de hoy meals from window.HCNutri.todayPlan()
+ * (nutri-day.js, read-only: the same goal × day type × ride minutes and scaled amounts the page shows;
+ * nothing is re-computed here). The whole meal or one of its items is logged as ONE quick entry
+ * ("Plan · <name>") with its four macros. No plan (no hook, an empty plan, a throw) = no tab.
+ *
  * Wiring: window.foodTotals() = today's logged totals ({date, k, p, c, g, n, missing, src: 'log'}) when
  * the server answered and today has >= 1 entry, else null. Resumen de hoy's dial + macro bars
  * (nutri-day.js) and the intake rings (intake.js) prefer it over the Apple Health intake; after every
@@ -363,7 +368,72 @@
 
   /* ---------- add sheet (window.HCViews['food-add'], rendered by detail.js) ---------- */
   function newSheet(meal) {
-    return { meal: K.meals.indexOf(meal) >= 0 ? meal : guessMeal(), tab: 'products', q: '', pick: null, busy: false, reqId: null };
+    var m = K.meals.indexOf(meal) >= 0 ? meal : guessMeal();
+    var plan = todayPlan();
+    return { meal: m, tab: 'products', q: '', pick: null, busy: false, reqId: null, plan: plan, planMeal: plan ? planMealFor(plan, m, 0) : 0, planItem: -1 };
+  }
+  /* ---------- Del plan: today's Plan de hoy meals (window.HCNutri.todayPlan, nutri-day.js) ---------- */
+  // [{name, slot, kcal, p, c, g, items: [{name, amount, kcal, p, c, g, components?}]}], or null when Plan
+  // de hoy is not available (no hook, no meals, a throw): the tab is then omitted
+  function todayPlan() {
+    var n = window.HCNutri;
+    if (!n || typeof n.todayPlan !== 'function') return null;
+    try {
+      var p = n.todayPlan();
+      return Array.isArray(p) && p.length ? p : null;
+    } catch (e) { return null; }
+  }
+  function tabKeys() {
+    return S.sheet && S.sheet.plan ? ['products', 'recipes', 'plan', 'quick'] : ['products', 'recipes', 'quick'];
+  }
+  // the plan meal for a meal slot (the sheet's meal select), else `fallback`
+  function planMealFor(plan, slot, fallback) {
+    for (var i = 0; i < plan.length; i++) if (plan[i] && plan[i].slot === slot) return i;
+    return fallback;
+  }
+  /** What the plan tab would log: {label, kcal, protein, carbs, fat} (a macro the plan lacks stays
+   * unset), or null. The whole meal = its scaled totals as Plan de hoy shows them; an item = its own. */
+  function planEntry() {
+    var sh = S.sheet;
+    var meal = sh && sh.plan ? sh.plan[sh.planMeal] : null;
+    if (!meal) return null;
+    var item = sh.planItem >= 0 ? (meal.items || [])[sh.planItem] : null;
+    var src = item || meal;
+    if (!fin(src.kcal) || src.kcal < 0) return null;
+    var label = item
+      ? (item.amount ? format(T.sheet.planItemLabel, { name: item.name, amount: item.amount }) : format(T.sheet.planLabel, { name: item.name }))
+      : format(T.sheet.planLabel, { name: meal.name });
+    var e = { label: label.replace(/\s+/g, ' ').trim().slice(0, LIM.nameMax || 120), kcal: roundKcal(src.kcal) };
+    [['protein', 'p'], ['carbs', 'c'], ['fat', 'g']].forEach(function (x) { if (fin(src[x[1]])) e[x[0]] = round1(src[x[1]]); });
+    return e;
+  }
+  function planMacros(x) {
+    return { kcal: x.kcal, protein: fin(x.p) ? x.p : null, carbs: fin(x.c) ? x.c : null, fat: fin(x.g) ? x.g : null };
+  }
+  function planOpt(suffix, value, checked, nameHtml, src) {
+    var id = 'fa-plan-item-' + suffix;
+    return '<li class="fa-plan-opt"><input type="radio" name="fa-plan-item" id="' + id + '" value="' + value + '"' + (checked ? ' checked' : '') + '>' +
+      '<label class="fa-plan-lbl" for="' + id + '">' + nameHtml + '<span class="fa-item-sub">' + macroLine(planMacros(src)) + '</span></label></li>';
+  }
+  function planHtml() {
+    var sh = S.sheet, plan = sh.plan, meal = plan[sh.planMeal];
+    var meals = '<div class="fa-plan-meals" role="group" aria-label="' + esc(T.sheet.planMeals) + '">' + plan.map(function (m, i) {
+      return '<button type="button" class="fa-plan-meal" id="fa-plan-meal-' + i + '" data-food-act="plan-meal" data-i="' + i + '" aria-pressed="' + (i === sh.planMeal) + '">' +
+        '<span class="fa-item-name">' + esc(m.name) + '</span><span class="fa-item-sub">' + esc(kf(m.kcal)) + ' ' + esc(T.kcal) + '</span></button>';
+    }).join('') + '</div>';
+    var items = (meal.items || []).map(function (it, j) {
+      var sub = it.components && it.components.length
+        ? it.components.map(function (c) { return esc(c.name + (c.amount ? ' ' + c.amount : '')); }).join(' · ')
+        : it.amount ? esc(it.amount) : '';
+      return planOpt(j, j, sh.planItem === j, '<span class="fa-item-name">' + esc(it.name) + '</span>' + (sub ? ' <span class="fa-plan-amt">' + sub + '</span>' : ''), it);
+    }).join('');
+    return '<div class="fa-plan">' + meals +
+      '<fieldset class="fa-plan-items"><legend class="food-lbl">' + esc(T.sheet.planWhat) + '</legend><ul class="fa-items">' +
+      planOpt('all', -1, sh.planItem < 0, '<span class="fa-item-name">' + esc(T.sheet.planWhole) + '</span> <span class="fa-plan-amt">' + esc(meal.name) + '</span>', meal) + items +
+      '</ul></fieldset>' +
+      '<p class="fa-prev" id="fa-prev" aria-live="polite"></p>' +
+      '<p class="food-note">' + esc(T.sheet.planNote) + '</p>' +
+      '<button type="button" class="food-btn" id="fa-save" data-food-act="save">' + esc(T.sheet.save) + '</button></div>';
   }
   function norm(s) {
     return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -451,6 +521,7 @@
   function panelHtml() {
     var sh = S.sheet;
     if (sh.tab === 'quick') return quickHtml();
+    if (sh.tab === 'plan') return planHtml();
     if (sh.pick) return pickHtml();
     var search = sh.tab === 'products' && S.products.length
       ? field('fa-q', T.sheet.search, '<input class="food-in" id="fa-q" type="search" autocomplete="off" placeholder="' + esc(T.sheet.searchPh) + '" value="' + esc(sh.q) + '">')
@@ -458,7 +529,7 @@
     return search + '<div id="fa-list" class="fa-list">' + listHtml() + '</div>';
   }
   function tabsHtml() {
-    return '<div class="fa-tabs" role="group" aria-label="' + esc(T.sheet.tabsLabel) + '">' + ['products', 'recipes', 'quick'].map(function (k) {
+    return '<div class="fa-tabs" role="group" aria-label="' + esc(T.sheet.tabsLabel) + '">' + tabKeys().map(function (k) {
       return '<button type="button" class="fa-tab" data-food-act="tab" data-tab="' + k + '" aria-pressed="' + (S.sheet.tab === k) + '">' + esc(T.sheet.tabs[k]) + '</button>';
     }).join('') + '</div>';
   }
@@ -496,6 +567,11 @@
     return { amount: amount, unit: unit, m: entryFromBasis(b.complete ? b : item, item.kind, amount, unit) };
   }
   function updatePreview() {
+    if (S.sheet && S.sheet.tab === 'plan') {
+      var e = planEntry();
+      setHtml('fa-prev', e ? macroLine(e) : '');
+      return;
+    }
     var p = sheetPreview();
     setHtml('fa-prev', p && p.m ? macroLine(p.m) : '');
   }
@@ -530,6 +606,11 @@
         else if (v != null) body[x[0]] = v;
       });
       if (errs.length) { sheetMsg(showErrs(errs)); return; }
+    } else if (sh.tab === 'plan') {
+      var pe = planEntry();
+      if (!pe) { sheetMsg(T.errors.generic); return; }
+      body = { date: date, meal: meal, refType: 'quick', label: pe.label, kcal: pe.kcal };
+      MACROS.forEach(function (k) { if (pe[k] != null) body[k] = pe[k]; });
     } else {
       var p = sheetPreview();
       if (!p || !p.m) {
@@ -939,10 +1020,19 @@
     del: delEntry,
     tab: function (el) {
       var k = el.getAttribute('data-tab');
-      if (!S.sheet || ['products', 'recipes', 'quick'].indexOf(k) < 0) return;
+      if (!S.sheet || tabKeys().indexOf(k) < 0) return;
       S.sheet.tab = k;
       S.sheet.pick = null;
-      redrawPanel(k === 'quick' ? 'fa-label' : k === 'products' ? 'fa-q' : null);
+      redrawPanel(k === 'quick' ? 'fa-label' : k === 'products' ? 'fa-q' : k === 'plan' ? 'fa-plan-meal-' + S.sheet.planMeal : null);
+      if (k === 'plan') updatePreview();
+    },
+    'plan-meal': function (el) {
+      var sh = S.sheet, i = Number(el.getAttribute('data-i'));
+      if (!sh || !sh.plan || !(i >= 0 && i < sh.plan.length)) return;
+      sh.planMeal = i;
+      sh.planItem = -1; // another meal: back to the whole meal
+      redrawPanel('fa-plan-meal-' + i);
+      updatePreview();
     },
     pick: function (el) {
       if (!S.sheet) return;
@@ -993,7 +1083,23 @@
       S.sheet.q = val('fa-q');
       setHtml('fa-list', listHtml());
     } else if (id === 'fa-amt' || id === 'fa-unit') updatePreview();
-    else if (id === 'fa-meal' && S.sheet) S.sheet.meal = val('fa-meal') || S.sheet.meal;
+    else if (id === 'fa-meal' && S.sheet) {
+      S.sheet.meal = val('fa-meal') || S.sheet.meal;
+      // the plan tab follows the meal slot when the plan has a meal for it
+      var sh = S.sheet, i = sh.tab === 'plan' && sh.plan ? planMealFor(sh.plan, sh.meal, -1) : -1;
+      if (i >= 0 && i !== sh.planMeal) {
+        sh.planMeal = i;
+        sh.planItem = -1;
+        redrawPanel(null);
+        updatePreview();
+      }
+    } else if (id.indexOf('fa-plan-item-') === 0 && S.sheet && S.sheet.plan) {
+      var v = Number(val(id));
+      var meal = S.sheet.plan[S.sheet.planMeal];
+      S.sheet.planItem = meal && v >= 0 && v < (meal.items || []).length ? v : -1;
+      S.sheet.reqId = null; // another item: a new add
+      updatePreview();
+    }
     else if (id === 'fpf-unit') setText('fpf-serv-unit', T.units[val('fpf-unit')] || ''); // the serving suffix follows "Se mide en"
     else if (id.indexOf('frf-') === 0 && S.rform) {
       if (id === 'frf-kind') { syncRecipeForm(); renderRecipes(); focus('frf-kind'); } else updateRecipePreview();

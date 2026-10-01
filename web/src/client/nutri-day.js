@@ -176,22 +176,25 @@
       clamp = lc[1];
     }
     var meals = model.fixed.map(function (f) { return f.slice(); });
-    var q = [], qa = [], dir = [];
+    var q = [], qa = [], dir = [], qm = [];
     model.flex.forEach(function (x) {
       var m = meals[x.m], i;
       if (x.mb) {
-        for (i = 0; i < 4; i++) m[i] += x.mb[i] * factor;
+        var bm = x.mb.map(function (v) { return v * factor; });
+        for (i = 0; i < 4; i++) m[i] += bm[i];
         var t = factor === 1 ? x.q : (x.q + ' ×' + fmtFactor(factor, dec)).trim();
         q.push(t);
         qa.push([t]);
         dir.push(Math.sign(factor - 1));
+        qm.push(bm);
         return;
       }
       var baseK = 0, nowK = 0;
+      var pm = [0, 0, 0, 0];
       var amts = x.ln.map(function (l) {
         var amt = amountAt(l, l[0] === 'ud' ? f0 : factor);
         var r = amt / l[1];
-        for (var j = 0; j < 4; j++) m[j] += l[j + 2] * r;
+        for (var j = 0; j < 4; j++) { m[j] += l[j + 2] * r; pm[j] += l[j + 2] * r; }
         baseK += l[2];
         nowK += l[2] * r;
         return fmtAmt(amt, l[0], units);
@@ -199,10 +202,11 @@
       q.push(amts.join(' + '));
       qa.push(amts);
       dir.push(Math.abs(nowK - baseK) < 0.5 ? 0 : Math.sign(nowK - baseK));
+      qm.push(pm);
     });
     var totals = { k: 0, p: 0, c: 0, g: 0 };
     meals.forEach(function (m) { totals.k += m[0]; totals.p += m[1]; totals.c += m[2]; totals.g += m[3]; });
-    return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, meals: meals, q: q, qa: qa, dir: dir, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
+    return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, meals: meals, q: q, qa: qa, dir: dir, qm: qm, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
   }
   function planFor(bake, goal, d, minutes) {
     var x = bake.plans[goal][d];
@@ -222,6 +226,7 @@
       flex: s.q,
       flexAmts: s.qa,
       flexDir: s.dir,
+      flexMac: s.qm,
       tot: tot,
       factor: s.factor,
       clamp: s.clamp,
@@ -570,8 +575,38 @@
       day: x.base, dayType: d, label: head + ' · ' + T.dayTypes[d] + ' · ' + T.goals[state.goal],
     };
   };
+  /** Today's Plan de hoy meals for the food log's "Del plan" tab (client/food.js), READ-ONLY: the same
+   * plan the page renders (current(): goal × day type × ride minutes through planFor), never
+   * re-computed elsewhere. [{name, slot, kcal, p, c, g, items}] with the meal totals exactly as Plan de
+   * hoy shows them (whole numbers) and per item {name, amount, kcal (whole), p, c, g (1 decimal),
+   * components?} — a scaled item at its scaled amount; a composite lists its components (name,
+   * amount) and has no amount of its own. A fresh copy each call; null when there is nothing to show. */
+  function r1(v) { return Math.round(v * 10) / 10; }
+  function todayPlan() {
+    var x = current();
+    var base = x && N.base[x.base];
+    if (!base || !base.meals || !base.meals.length) return null;
+    var fi = 0;
+    return base.meals.map(function (meal, i) {
+      var m = x.meals[i];
+      var items = meal.parts.map(function (p) {
+        var k = p.x ? fi++ : -1;
+        var mac = p.x ? x.flexMac[k] : p.m;
+        var it = { name: p.l, amount: null, kcal: Math.round(mac[0]), p: r1(mac[1]), c: r1(mac[2]), g: r1(mac[3]) };
+        if (p.c) {
+          var amts = p.x ? x.flexAmts[k] : p.a || [];
+          it.components = p.c.map(function (name, n) { return { name: name, amount: amts[n] != null ? amts[n] : null }; });
+        } else it.amount = (p.x ? x.flex[k] : p.q) || null;
+        return it;
+      });
+      return { name: meal.n, slot: meal.s || null, kcal: m[0], p: m[1], c: m[2], g: m[3], items: items };
+    });
+  }
   window.HCNutri = {
     setGoal: setGoal,
+    todayPlan: function () {
+      try { return todayPlan(); } catch (e) { return null; }
+    },
     // the food log (client/food.js) calls this after every add / delete: the dial, bars, rings
     refresh: function () { refresh(false); },
     detectDayType: detectDayType,
