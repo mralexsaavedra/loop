@@ -4,6 +4,22 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-01 — Food log basics: log an egg without creating a product
+
+The owner wanted to log generic foods (egg, milk…) without first creating a product in Mis productos.
+The add sheet's product search now also looks in the public food DB (`ingredients.json`, baked as
+`FOOD_BASICS` by `lib/nutrition/basics.mjs`): an empty search lists only his products, typing adds a
+"Básicos" group after them (accent- and case-insensitive, "platano" finds "Plátano"), marked "valor
+medio". A pick takes an amount in the food's natural unit (1 piece / 100 g / 100 ml, pieces ↔ grams for
+countable foods) with a live preview, and is saved as ONE quick entry with its four macros and the
+amount in the label ("Huevo · 2 ud (~100 g)") — no DB change, the same idempotent request-id flow. The
+formula lives in `lib/nutrition/foodlog.mjs` (`basicEntry`, `basicLabel`, …) with a parity-tested port in
+food.js. 25 common basics were added to the food DB with average BEDCA values (USDA FoodData Central
+where BEDCA lacks the food; quark: typical Spanish label values, no table entry), `verified: false`,
+the source in each note; they carry `swap: false`, a new flag that keeps a log-only food out of Plan de
+hoy's food blocks, so the plan's options, NUTRI (still < 20 KB) and every plan number are unchanged.
+Cooked chickpeas and lentils already existed. Page bake +~9.5 KB (104 basics).
+
 ## 2026-10-01 — Realistic portions: caps, water-filling, Registrar first
 
 The owner's maintain gym day (3050 kcal) asked for 235 g of dry pasta at lunch: only the 2–3 parts

@@ -402,7 +402,14 @@ controls instead of the close button.
   food log's "Del plan" — by `lib/nutrition/names.mjs` `ingName` / `lineName`; an ingredient without a
   name is a `npm run check` WARNING (the page then shows its key), a malformed one an error, and a test
   asserts every tracked ingredient has es + en names. This is shareable and is the
-  one piece of the plan that goes public. It may hold MORE foods than any single plan uses.
+  one piece of the plan that goes public. It may hold MORE foods than any single plan uses — e.g. the
+  25 generic LOG-ONLY basics (`swap: false`: yogur natural, queso fresco / batido, pan de barra / de
+  molde, jamón cocido, tomate, lechuga, pepino, aguacate, nueces, almendras, cacahuetes, aceitunas,
+  mantequilla, azúcar, café solo, bebida de avena, atún en aceite, sardinas, pechuga de pavo, tortilla
+  de trigo, cereales, galletas María, chocolate 70%) with average BEDCA values (kcal from the macros
+  with EU factors, BEDCA's query API returns no energy row) or USDA FoodData Central ones (carbs = by
+  difference − fibre) when BEDCA lacks the food, `verified: false` and the source id in `note`; the
+  food log searches EVERY food of the file (see "Nutrition v2 part 2").
   Optional NATURAL-UNIT metadata per food (`lib/nutrition/units.mjs`, validated by
   `validateIngredientMeta` inside `npm run check`): `piece: { name: {es, en}, plural?: {es, en}, amt,
   g?, typical? }` — the food's natural piece, `amt` in the food's own unit (g / ml; a `ud` food's piece
@@ -592,7 +599,10 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   part's `label`; the others by their localized `ingName`, sorted by name) plus, only where skipping is
   sensible (`CAT_RULES[cat].skip`: fruit, veg, dairy, cheese, sweet, drink, sauce), a "none" option (key `none`,
   "Sin verdura" / "No vegetables"…, `T.plan.none[cat]`). A category with one food and no "none" (e.g.
-  `other`: baking powder) stays fixed; `manual` blocks never are blocks; the components INSIDE a
+  `other`: baking powder) stays fixed; a LOG-ONLY basic (`swap: false` on the ingredient: the generic
+  foods added for the food log's basics, see "Nutrition v2 part 2") is never an option and a part of one
+  stays fixed (a non-boolean `swap` is a `npm run check` error), so adding basics never changes Plan de
+  hoy; `manual` blocks never are blocks; the components INSIDE a
   composite option (breakfast "C — Tostadas", "Yogur + avellanas + miel") stay as they are (the option
   is chosen as a whole); list blocks keep their behaviour. Swap rule per category = ONE explicit table
   (`CAT_RULES[cat].by`, tested): protein → the same protein grams; carb / legume / fruit / sweet → the
@@ -766,7 +776,17 @@ unknown.
   `FOODLOG_CASES`, so a formula change is made in all three (food-calc.js is a LITERAL copy: `var`,
   semicolons). The add sheet's preview goes through the same functions: a recipe whose products are all
   listed uses `recipeBasis`, one with an archived product the server's computed basis on the recipe row,
-  both through `entryFromBasis` — no fourth copy.
+  both through `entryFromBasis` — no fourth copy. **Basics** (generic foods, no product needed):
+  `basicModes` / `basicAmount` / `basicEntry` / `basicLabel` / `basicConvert` in the same file, over
+  ONE baked basic `{k, n, u: g | ml | ud, m: [kcal, p, c, f] per 100 of u (a `ud` food: per unit),
+  pc?: {a, r, o, m}, v?: 1 = a verified label}` (`lib/nutrition/basics.mjs` `buildBasics(ING, lang)`:
+  every food of ingredients.json with all four macros, localized, sorted by the accent-insensitive name
+  in code-unit order; `normName` = the search's normalization). Modes: `piece` (a countable food, or a
+  `ud` food) or the food's own unit; a `ud` food also in `g` when its piece states grams; never g ↔ ml.
+  Label = "<name> · <amount> ud (~<g> g)" for pieces, "<name> · <amount> <g|ml>" otherwise (es "ud",
+  en "pc", decimal comma in es), capped at `nameMax`. Only TWO copies: the reference + food.js
+  (`BASIC_CASES` / `runBasicCase`, pinned by both test files) — the server never computes a quick
+  entry, so food-calc.js has none.
 - **Storage + API** — `services/health-ingest`: `sql/006_food.sql` (idempotent) = `food_product`
   (per-100 kcal / protein / carbs / fat, store, unit g / ml, serving size?, barcode? unique among
   ACTIVE products, source off / label / manual, off_code?, archived), `food_recipe` (kind, servings
@@ -849,7 +869,21 @@ Plan de hoy) and the
   "Plan · <item> (<amount>)", capped to `nameMax`) with all four macros (no schema change: the
   `food_log` snapshot already stores quick macros), through the same request-id / ambiguous-retry /
   "save anyway" (Atwater) flow. No hook, an empty plan or a throw → the tab is omitted (the tab bar
-  holds 3 or 4 tabs). **Mis productos**: list by store
+  holds 3 or 4 tabs). **Basics in the Mis productos tab**: the search box also looks in `FOOD_BASICS`
+  (baked by `Dia.astro`, ~9.5 KB for 104 foods; the box shows even with no product yet). An EMPTY search
+  lists the products only, plus a one-line hint ("Escribe para buscar también en los básicos…"); typing
+  lists the matching products by store, then a "Básicos" / "Basics" group (accent- and case-insensitive,
+  names that start with the text first, ≤ 25 rows), each row "88 kcal por 100 g · valor medio" ("por ud"
+  for a unit food; "etiqueta" / "label values" for a `verified` label of the DB); nothing matching →
+  "Ningún producto coincide.". A pick opens the same amount panel as a product: amount in the NATURAL unit
+  (pieces when the food has a `piece` — the option names it, "huevos (~50 g)" —, ml for a liquid, g
+  otherwise), prefilled with 1 piece or 100 g / ml (never a "usual" serving), a pieces ↔ g / ml select
+  that converts the typed amount (`basicConvert`), the live preview = the label that will be saved + kcal
+  / P / C / G, and a note that these are average table values. Save = ONE `quick` entry (no schema
+  change) with the label and all four macros computed client-side, same request-id / ambiguous-retry /
+  "save anyway" flow; an unparsable amount is "number" under the field, one over `amountMax` or the
+  quick-entry limits (`quickKcalMax` 5000, `quickMacroMax` 500) is `fieldErrors.tooBig`, nothing sent.
+  **Mis productos**: list by store
   (per-100 line, serving, Editar, Archivar with a confirm step); add = barcode or text lookup → OFF
   cards showing what OFF has (missing values marked) → "Usar este" fills the form with the missing
   fields flagged (`--mid`) → the owner confirms every value and the store → save; "desde la etiqueta"
