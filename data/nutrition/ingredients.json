@@ -4,7 +4,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Gamba pelada cruda (Hacendado, agua añadida)",
+      "name": {
+        "es": "Gamba pelada cruda (Hacendado, agua añadida)",
+        "en": "Raw peeled prawns (Hacendado, added water)"
+      },
       "note": "360 g/paq escurrido; 250 g ≈ 40 g protein; salt 1.0",
       "k": 72,
       "p": 16,
@@ -16,7 +19,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Salpicón de marisco (Hacendado)",
+      "name": {
+        "es": "Salpicón de marisco (Hacendado)",
+        "en": "Seafood salad (salpicón, Hacendado)"
+      },
       "note": "400 g/bandeja; 200 g ≈ 154 kcal/25 P; vinagreta aparte",
       "k": 77,
       "p": 12.3,
@@ -27,7 +33,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Lomo embuchado lonchas",
+      "name": {
+        "es": "Lomo embuchado lonchas",
+        "en": "Cured pork loin slices"
+      },
       "note": "37.5 g/pack; salty (3 g)",
       "k": 199,
       "p": 38,
@@ -38,7 +47,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Jamón serrano (Mercadona)",
+      "name": {
+        "es": "Jamón serrano (Mercadona)",
+        "en": "Serrano ham (Mercadona)"
+      },
       "note": "very salty (4.9 g)",
       "k": 258,
       "p": 32.9,
@@ -49,7 +61,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Pechuga pavo 92% lonchas",
+      "name": {
+        "es": "Pechuga de pavo 92% lonchas",
+        "en": "Turkey breast 92% slices"
+      },
       "note": "lean; 1.9 g salt",
       "k": 89,
       "p": 19.5,
@@ -60,7 +75,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Gnocchi (pasta fresca)",
+      "name": {
+        "es": "Gnocchi (pasta fresca)",
+        "en": "Gnocchi (fresh pasta)"
+      },
       "note": "ready weight",
       "k": 174,
       "p": 4.5,
@@ -71,7 +89,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Batata prefrita (frozen)",
+      "name": {
+        "es": "Batata prefrita (congelada)",
+        "en": "Pre-fried sweet potato (frozen)"
+      },
       "note": "from earlier photo",
       "k": 163,
       "p": 1.8,
@@ -82,7 +103,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Patatas fritas horno/air-fryer (frozen)",
+      "name": {
+        "es": "Patatas fritas horno/air-fryer (congeladas)",
+        "en": "Oven / air-fryer fries (frozen)"
+      },
       "note": "from earlier photo",
       "k": 151,
       "p": 2.3,
@@ -93,7 +117,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Queso lonchas fundido suave (tranchete, Hacendado)",
+      "name": {
+        "es": "Queso lonchas fundido suave (tranchete, Hacendado)",
+        "en": "Mild processed cheese slices (Hacendado)"
+      },
       "note": "18.5 g/loncha ≈ 43 kcal; salt 2.9",
       "k": 231,
       "p": 10.5,
@@ -115,7 +142,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Queso rallado mozzarella (Hacendado)",
+      "name": {
+        "es": "Queso rallado mozzarella (Hacendado)",
+        "en": "Grated mozzarella (Hacendado)"
+      },
       "note": "30 g ≈ 85 kcal; salt 1.0",
       "k": 283,
       "p": 21,
@@ -126,7 +156,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Salsa de tomate Zero s/azúcar (Hacendado)",
+      "name": {
+        "es": "Salsa de tomate Zero sin azúcar (Hacendado)",
+        "en": "Tomato sauce Zero, no added sugar (Hacendado)"
+      },
       "note": "0 fat; 5.6 g sugars; salt 1.7",
       "k": 83,
       "p": 1.7,
@@ -137,7 +170,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Tomate frito",
+      "name": {
+        "es": "Tomate frito",
+        "en": "Fried tomato sauce"
+      },
       "note": "~40 g serving ≈ 32 kcal",
       "k": 81,
       "p": 1.4,
@@ -148,7 +184,10 @@
       "per": 100,
       "unit": "ml",
       "verified": true,
-      "name": "Salsa de soja sin gluten (Hacendado)",
+      "name": {
+        "es": "Salsa de soja sin gluten (Hacendado)",
+        "en": "Gluten-free soy sauce (Hacendado)"
+      },
       "note": "CONDIMENT only; VERY salty 16.4 g salt/100 ml",
       "k": 57,
       "p": 10,
@@ -159,7 +198,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Allioli (Hacendado)",
+      "name": {
+        "es": "Allioli (Hacendado)",
+        "en": "Aioli (Hacendado)"
+      },
       "note": "15 g cda ≈ 107 kcal; sunflower oil — almost pure fat",
       "k": 712,
       "p": 1.1,
@@ -182,7 +224,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Mayonesa (Hacendado)",
+      "name": {
+        "es": "Mayonesa (Hacendado)",
+        "en": "Mayonnaise (Hacendado)"
+      },
       "note": "15 g cda ≈ 90 kcal; almost pure fat",
       "k": 599,
       "p": 0.6,
@@ -205,7 +250,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Fritada pisto (Hacendado)",
+      "name": {
+        "es": "Fritada pisto (Hacendado)",
+        "en": "Pisto, Spanish ratatouille (Hacendado)"
+      },
       "note": "brik 380 g; veg + a bit of oil",
       "k": 92,
       "p": 1.3,
@@ -216,7 +264,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Guacamole 95% aguacate",
+      "name": {
+        "es": "Guacamole 95% aguacate",
+        "en": "Guacamole 95% avocado"
+      },
       "note": "confirms estimate",
       "k": 149,
       "p": 1.9,
@@ -227,7 +278,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Panecillo (pan de horno)",
+      "name": {
+        "es": "Panecillo (pan de horno)",
+        "en": "Bread roll (bakery)"
+      },
       "note": "45 g/unit ≈ 117 kcal",
       "k": 259,
       "p": 8.2,
@@ -249,7 +303,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Pan molde semillas y pipas de calabaza",
+      "name": {
+        "es": "Pan de molde semillas y pipas de calabaza",
+        "en": "Seeded sandwich bread with pumpkin seeds"
+      },
       "note": "41 g/slice = 119 kcal; 5.7 g fibre",
       "k": 291,
       "p": 11,
@@ -271,7 +328,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Mantequilla light (40% MG)",
+      "name": {
+        "es": "Mantequilla light (40% MG)",
+        "en": "Light butter (40% fat)"
+      },
       "note": "",
       "k": 384,
       "p": 1.8,
@@ -282,7 +342,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Confitura fresa 0% azúcares añadidos",
+      "name": {
+        "es": "Confitura de fresa 0% azúcares añadidos",
+        "en": "Strawberry jam, no added sugar"
+      },
       "note": "very light",
       "k": 28,
       "p": 0.3,
@@ -293,7 +356,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Whey — Uperform The Whey (concentrate)",
+      "name": {
+        "es": "Whey — Uperform The Whey (concentrado)",
+        "en": "Whey — Uperform The Whey (concentrate)"
+      },
       "note": "strawberry-banana flavour",
       "k": 379,
       "p": 71.5,
@@ -304,7 +370,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Whey — Life Pro Choco Monky (concentrate)",
+      "name": {
+        "es": "Whey — Life Pro Choco Monky (concentrado)",
+        "en": "Whey — Life Pro Choco Monky (concentrate)"
+      },
       "note": "mild flavour, blends as a sauce",
       "k": 387,
       "p": 72,
@@ -315,7 +384,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Yogur griego natural ligero",
+      "name": {
+        "es": "Yogur griego natural ligero",
+        "en": "Light plain Greek yogurt"
+      },
       "note": "125 g/ud; LOW protein (dessert yogurt)",
       "k": 60,
       "p": 5.8,
@@ -337,7 +409,10 @@
       "per": 100,
       "unit": "ml",
       "verified": true,
-      "name": "Cerveza especial Estrella Galicia (5.5%)",
+      "name": {
+        "es": "Cerveza especial Estrella Galicia (5,5%)",
+        "en": "Estrella Galicia special beer (5.5%)"
+      },
       "note": "botellín 250 ml ≈ 118 kcal",
       "k": 47,
       "p": 0,
@@ -359,7 +434,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Chocolate negro 85% extrafino (Hacendado)",
+      "name": {
+        "es": "Chocolate negro 85% extrafino (Hacendado)",
+        "en": "Dark chocolate 85% (Hacendado)"
+      },
       "note": "1 onza 8 g ≈ 48 kcal; 200 g/paq",
       "k": 597,
       "p": 12,
@@ -381,7 +459,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Helado sándwich nata (Hacendado)",
+      "name": {
+        "es": "Helado sándwich de nata (Hacendado)",
+        "en": "Cream ice-cream sandwich (Hacendado)"
+      },
       "note": "1 ud 103 g ≈ 332 kcal; caja 6 ud",
       "k": 322,
       "p": 5,
@@ -403,7 +484,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Napolitana relleno cacao (Hacendado)",
+      "name": {
+        "es": "Napolitana rellena de cacao (Hacendado)",
+        "en": "Chocolate-filled pastry (Hacendado)"
+      },
       "note": "1 ud 46 g ≈ 204 kcal; 8/paq",
       "k": 441,
       "p": 5.6,
@@ -425,7 +509,10 @@
       "per": 100,
       "unit": "g",
       "verified": true,
-      "name": "Palomitas maíz con sal microondas (Hacendado)",
+      "name": {
+        "es": "Palomitas de maíz con sal microondas (Hacendado)",
+        "en": "Salted microwave popcorn (Hacendado)"
+      },
       "note": "90 g bag ≈ 410 kcal",
       "k": 456,
       "p": 9.8,
@@ -447,6 +534,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Pechuga de pollo",
+        "en": "Chicken breast"
+      },
       "k": 109,
       "p": 22.9,
       "c": 0,
@@ -457,6 +548,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Atún",
+        "en": "Tuna"
+      },
       "k": 109,
       "p": 25,
       "c": 0,
@@ -466,6 +561,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Merluza",
+        "en": "Hake"
+      },
       "k": 89,
       "p": 17.4,
       "c": 0,
@@ -476,6 +575,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Panga",
+        "en": "Pangasius"
+      },
       "k": 91,
       "p": 15.1,
       "c": 0,
@@ -486,6 +589,10 @@
       "per": 100,
       "unit": "ml",
       "verified": false,
+      "name": {
+        "es": "Claras de huevo",
+        "en": "Egg whites"
+      },
       "k": 52,
       "p": 10.8,
       "c": 0.7,
@@ -495,6 +602,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Muslo de pollo",
+        "en": "Chicken thigh"
+      },
       "k": 125,
       "p": 20,
       "c": 0,
@@ -505,6 +616,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Carne picada 5% grasa",
+        "en": "Minced meat 5% fat"
+      },
       "k": 134,
       "p": 21,
       "c": 0,
@@ -515,6 +630,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Lomo de cerdo",
+        "en": "Pork loin"
+      },
       "k": 145,
       "p": 21,
       "c": 0,
@@ -525,6 +644,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Filete",
+        "en": "Steak"
+      },
       "k": 150,
       "p": 21,
       "c": 0,
@@ -535,6 +658,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Salmón",
+        "en": "Salmon"
+      },
       "k": 200,
       "p": 20,
       "c": 0,
@@ -545,6 +672,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Alitas de pollo",
+        "en": "Chicken wings"
+      },
       "k": 200,
       "p": 18.2,
       "c": 0,
@@ -555,6 +686,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Chuleta de cerdo",
+        "en": "Pork chop"
+      },
       "k": 210,
       "p": 19,
       "c": 0,
@@ -565,6 +700,10 @@
       "per": 100,
       "unit": "ud",
       "verified": false,
+      "name": {
+        "es": "Huevo",
+        "en": "Egg"
+      },
       "k": 72,
       "p": 6.3,
       "c": 0.4,
@@ -587,6 +726,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Carne picada 20% grasa",
+        "en": "Minced meat 20% fat"
+      },
       "k": 251,
       "p": 17,
       "c": 0,
@@ -597,6 +740,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Hamburguesa",
+        "en": "Burger patty"
+      },
       "k": 250,
       "p": 18.2,
       "c": 2.3,
@@ -607,6 +754,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Longaniza",
+        "en": "Longaniza sausage"
+      },
       "k": 321,
       "p": 15.1,
       "c": 1.1,
@@ -617,6 +768,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Arroz",
+        "en": "Rice"
+      },
       "k": 360,
       "p": 7,
       "c": 79,
@@ -627,6 +782,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Pasta",
+        "en": "Pasta"
+      },
       "k": 357,
       "p": 12,
       "c": 74,
@@ -637,6 +796,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Patata",
+        "en": "Potato"
+      },
       "k": 86,
       "p": 1.9,
       "c": 19.2,
@@ -647,6 +810,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Boniato",
+        "en": "Sweet potato"
+      },
       "k": 122,
       "p": 2.1,
       "c": 26,
@@ -656,6 +823,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Copos de avena",
+        "en": "Rolled oats"
+      },
       "k": 380,
       "p": 13.3,
       "c": 60,
@@ -666,6 +837,10 @@
       "per": 100,
       "unit": "ml",
       "verified": false,
+      "name": {
+        "es": "Leche",
+        "en": "Milk"
+      },
       "k": 46,
       "p": 3.4,
       "c": 4.8,
@@ -675,6 +850,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Levadura química",
+        "en": "Baking powder"
+      },
       "k": 85,
       "p": 0,
       "c": 14,
@@ -684,6 +863,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Avellanas",
+        "en": "Hazelnuts"
+      },
       "k": 646,
       "p": 15,
       "c": 7,
@@ -693,6 +876,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Miel",
+        "en": "Honey"
+      },
       "k": 304,
       "p": 0.3,
       "c": 82,
@@ -702,6 +889,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Plátano",
+        "en": "Banana"
+      },
       "k": 88,
       "p": 0.8,
       "c": 22.5,
@@ -723,6 +914,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Manzana",
+        "en": "Apple"
+      },
       "k": 52,
       "p": 0.3,
       "c": 14,
@@ -744,6 +939,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Naranja",
+        "en": "Orange"
+      },
       "k": 47,
       "p": 0.9,
       "c": 12,
@@ -765,7 +964,10 @@
       "per": 100,
       "unit": "ml",
       "verified": true,
-      "name": "Zumo naranja con pulpa (Dia Saborfera)",
+      "name": {
+        "es": "Zumo de naranja con pulpa (Dia Saborfera)",
+        "en": "Orange juice with pulp (Dia Saborfera)"
+      },
       "note": "200 ml ≈ 75 kcal / 17 g sugar",
       "k": 37,
       "p": 0.6,
@@ -776,6 +978,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Pera",
+        "en": "Pear"
+      },
       "k": 57,
       "p": 0.4,
       "c": 15,
@@ -797,6 +1003,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Melocotón",
+        "en": "Peach"
+      },
       "k": 39,
       "p": 0.9,
       "c": 10,
@@ -818,6 +1028,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Nectarina",
+        "en": "Nectarine"
+      },
       "k": 44,
       "p": 1,
       "c": 10,
@@ -839,6 +1053,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Paraguayo",
+        "en": "Flat peach"
+      },
       "k": 39,
       "p": 0.9,
       "c": 10,
@@ -860,6 +1078,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Piña",
+        "en": "Pineapple"
+      },
       "k": 50,
       "p": 0.5,
       "c": 13,
@@ -869,6 +1091,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Sandía",
+        "en": "Watermelon"
+      },
       "k": 30,
       "p": 0.6,
       "c": 7.6,
@@ -878,6 +1104,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Melón",
+        "en": "Melon"
+      },
       "k": 34,
       "p": 0.8,
       "c": 8,
@@ -887,6 +1117,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Uvas",
+        "en": "Grapes"
+      },
       "k": 69,
       "p": 0.7,
       "c": 18,
@@ -896,6 +1130,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Kiwi",
+        "en": "Kiwi"
+      },
       "k": 60,
       "p": 1.1,
       "c": 14.7,
@@ -917,6 +1155,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Fresas",
+        "en": "Strawberries"
+      },
       "k": 32,
       "p": 0.7,
       "c": 7.7,
@@ -926,6 +1168,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Arándanos",
+        "en": "Blueberries"
+      },
       "k": 57,
       "p": 0.7,
       "c": 14,
@@ -935,6 +1181,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Ciruela",
+        "en": "Plum"
+      },
       "k": 46,
       "p": 0.7,
       "c": 11,
@@ -956,6 +1206,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Calabacín",
+        "en": "Courgette"
+      },
       "k": 17,
       "p": 1.2,
       "c": 3,
@@ -965,6 +1219,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Pimiento",
+        "en": "Bell pepper"
+      },
       "k": 26,
       "p": 1,
       "c": 6,
@@ -974,6 +1232,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Cebolla",
+        "en": "Onion"
+      },
       "k": 40,
       "p": 1.1,
       "c": 9,
@@ -983,6 +1245,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Zanahoria",
+        "en": "Carrot"
+      },
       "k": 41,
       "p": 0.9,
       "c": 10,
@@ -992,6 +1258,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Guisantes",
+        "en": "Peas"
+      },
       "k": 80,
       "p": 5,
       "c": 14,
@@ -1001,7 +1271,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
-      "name": "Lentils",
+      "name": {
+        "es": "Lentejas",
+        "en": "Lentils"
+      },
       "k": 115,
       "p": 9,
       "c": 20,
@@ -1012,7 +1285,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
-      "name": "Beans (alubias)",
+      "name": {
+        "es": "Alubias",
+        "en": "Beans"
+      },
       "k": 120,
       "p": 8,
       "c": 21,
@@ -1023,7 +1299,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
-      "name": "Chickpeas",
+      "name": {
+        "es": "Garbanzos",
+        "en": "Chickpeas"
+      },
       "k": 140,
       "p": 9,
       "c": 22,
@@ -1034,6 +1313,10 @@
       "per": 100,
       "unit": "g",
       "verified": false,
+      "name": {
+        "es": "Aceite de oliva",
+        "en": "Olive oil"
+      },
       "k": 900,
       "p": 0,
       "c": 0,

@@ -132,8 +132,10 @@ test('every ingredient referenced by the plan exists in the DB (no broken refs)'
 
 test('legume reference table is single-sourced (computed, not hand-typed) and per 100 g cooked, not a portion', () => {
   const tables = buildTables();
-  // Lentils row must equal the ingredient per its natural unit, proving it renders from the source.
-  assert.match(tables, new RegExp(`\\| Lentils \\| 100 g cooked \\| ${Math.round(ING.lentejas.k)} \\|`));
+  // Lentils row must equal the ingredient per its natural unit, proving it renders from the source
+  // (named in the plan's locale: "Lentejas" in an es plan, "Lentils" in an en one).
+  const { ingName } = require('../../lib/nutrition/names.mjs');
+  assert.match(tables, new RegExp(`\\| ${ingName(ING, 'lentejas', gen.LOCALE)} \\| 100 g cooked \\| ${Math.round(ING.lentejas.k)} \\|`));
   assert.doesNotMatch(tables, new RegExp(`~${LEGUME_PLATE} g \\|`), 'no plate portion in the food tables');
 });
 
