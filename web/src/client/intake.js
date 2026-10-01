@@ -8,7 +8,9 @@
  * Data honesty: a ring fills ONLY from logged intake. No fresh intake (never logged, or nothing in
  * the last INTAKE.freshDays days) -> the block renders NOTHING (host hidden, no help text); a macro missing on the logged day -> an empty ring with a dash, never a ring drawn
  * from the target. Intake logged TODAY is shown by Resumen de hoy's kcal dial + macro bars
- * (client/nutri-day.js), so with Nutrición on the page the rings then step aside (host hidden). nutri-day.js calls window.intakeRefresh() after every goal / day type / ride change. */
+ * (client/nutri-day.js), so with Nutrición on the page the rings then step aside (host hidden). nutri-day.js calls window.intakeRefresh() after every goal / day type / ride change.
+ * On the LAN page, today's own food log (window.foodTotals, client/food.js) takes the place of the
+ * Apple Health day whenever it has entries (labelled "Logged today"). */
 (function () {
   var T = I18N_INTAKE;
   var DATE_LOCALE = LOCALE === 'es' ? 'es-ES' : 'en-GB';
@@ -26,8 +28,10 @@
     var age = HC.daysOld(date);
     return age != null && age >= 0 && age <= INTAKE.freshDays;
   }
-  function ring(key, actual, target) {
+  // min = some of today's food-log entries lack this macro: the logged sum is a minimum ("≥")
+  function ring(key, actual, target, min) {
     var has = actual != null && target > 0;
+    var shown = has ? (min ? '≥ ' : '') + nf(actual) : null;
     var frac = has ? actual / target : null;
     var pct = has ? Math.round(frac * 100) : null;
     var len = has ? Math.min(1, Math.max(0, frac)) * C : 0;
@@ -35,14 +39,14 @@
     var fill = has && len > 0
       ? '<circle class="ring-fill" cx="22" cy="22" r="' + RING_R + '" stroke-dasharray="' + len.toFixed(2) + ' ' + C.toFixed(2) + '" transform="rotate(-90 22 22)"/>'
       : '';
-    var aria = T.rings[key] + ': ' + (has ? nf(actual) + ' ' + format(T.ofTpl, { target: target, unit: T.units[key] }) : T.missing);
+    var aria = T.rings[key] + ': ' + (has ? shown + ' ' + format(T.ofTpl, { target: target, unit: T.units[key] }) : T.missing);
     return (
       '<figure class="' + cls + '" role="img" aria-label="' + esc(aria) + '">' +
       '<div class="ring-art"><svg viewBox="0 0 44 44" aria-hidden="true">' +
       '<circle class="ring-track" cx="22" cy="22" r="' + RING_R + '"/>' + fill + '</svg>' +
       '<span class="ring-pct">' + (has ? pct + '%' : '—') + '</span></div>' +
       '<figcaption><span class="ring-lbl">' + T.rings[key] + '</span>' +
-      '<span class="ring-val"><b>' + (has ? nf(actual) : '—') + '</b> ' + format(T.ofTpl, { target: target, unit: T.units[key] }) + '</span></figcaption>' +
+      '<span class="ring-val"><b>' + (has ? shown : '—') + '</b> ' + format(T.ofTpl, { target: target, unit: T.units[key] }) + '</span></figcaption>' +
       '</figure>'
     );
   }
@@ -51,6 +55,13 @@
     var host = document.getElementById('intake');
     if (!host) return;
     var L = INTAKE.latest;
+    // today's page food log (client/food.js, LAN page only) wins over the Apple Health day
+    if (typeof window.foodTotals === 'function') {
+      try {
+        var F = window.foodTotals(); // null unless today has entries (the contract in food.js)
+        if (F) L = F;
+      } catch (e) { /* keep the Apple Health day */ }
+    }
     host.hidden = false;
     // logged TODAY and Resumen de hoy is on the page: its kcal dial + macro bars already show it
     if (L && L.date === HC.todayIso() && typeof window.nutriTarget === 'function') {
@@ -72,14 +83,17 @@
         if (nt && nt.k > 0) { t = nt; lbl = esc(nt.label); fuelK = nt.fuelK > 0 ? nt.fuelK : 0; }
       } catch (e) { /* keep the plan total */ }
     }
+    var M = L.missing || {};
+    var minP = !!M.protein && L.p != null, minC = !!M.carbs && L.c != null, minG = !!M.fat && L.g != null;
     // today's log is still filling up: say so, so partial rings are not read as a finished day
-    var asOf = L.date === HC.todayIso() ? T.todayLbl : format(T.asOfTpl, { date: fmtD(L.date) });
+    var asOf = L.src === 'log' ? T.foodLbl : L.date === HC.todayIso() ? T.todayLbl : format(T.asOfTpl, { date: fmtD(L.date) });
     host.innerHTML =
       '<div class="intake-card">' +
       '<div class="intake-head"><h3>' + T.heading + '</h3><span class="intake-asof">' + esc(asOf) + '</span></div>' +
       '<div class="intake-target">' + lbl +
       (fuelK ? '<span class="intake-fuel">' + esc(format(T.rideFuel, { k: nf(fuelK) })) + '</span>' : '') + '</div>' +
-      '<div class="intake-rings">' + ring('k', L.k, t.k) + ring('p', L.p, t.p) + ring('c', L.c, t.c) + ring('g', L.g, t.g) + '</div>' +
+      '<div class="intake-rings">' + ring('k', L.k, t.k) + ring('p', L.p, t.p, minP) + ring('c', L.c, t.c, minC) + ring('g', L.g, t.g, minG) + '</div>' +
+      (minP || minC || minG ? '<p class="intake-note">' + esc(T.minNote) + '</p>' : '') +
       '<p class="intake-note">' + T.noteHtml + '</p>' +
       '</div>';
   }

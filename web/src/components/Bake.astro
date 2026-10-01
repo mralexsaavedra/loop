@@ -1,65 +1,55 @@
 ---
 /* Bakes JSON-safe globals for the client scripts (classic, is:inline — no
  * ES modules, see design's Scripts row) using lib/serialize.mjs's
- * `jsonForScript` for safe embedding inside a <script> tag. Started scoped
- * to what Mi día + Registro need (slice 3), extended by Tablas' shared
- * FRUIT_SUMMARY/I18N_TABLAS (slice 4) and now TRAINING/TRAINING_META/DASH/
- * I18N_HOY/I18N_DASH (astro-plan-web slice 5) — the Hoy/Entrenos tabs
- * render no <Bake> of their own, same "one shared Bake" pattern already
- * used for Tablas, see web/src/tabs/Registro.astro (the sole call site)
- * and web/src/tabs/Hoy.astro/Entrenos.astro's file headers. HEALTH/
- * I18N_HEALTH (astro-plan-web slice 6, Salud tab) follow the same
- * pattern — see web/src/tabs/Salud.astro's file header.
+ * `jsonForScript` for safe embedding inside a <script> tag. ONE shared
+ * Bake, rendered once by web/pages/index.astro (outside any section, so
+ * page.hideTabs never drops it): the Tablas equivalence tables
+ * (DATA / EXTRAS / QUESO_KEYS / VEG_KEYS / FRUIT_SUMMARY / I18N_TABLAS,
+ * painted by client/tablas.js), the training sections (TRAINING /
+ * TRAINING_META / DASH / I18N_HOY / I18N_DASH), Salud (HEALTH /
+ * I18N_HEALTH), Inicio (SCORES / DIALS / I18N_SCORE) and the intake rings
+ * (INTAKE / I18N_INTAKE). It used to sit in the day builder's section
+ * (Registro.astro), removed with the builder together with its own
+ * globals (TARGET, EXTRA_KEYS, EXTRA_NAMES, INDULGE, ALCOHOL_KEYS,
+ * MEAL_REPLACE_KEYS, I18N_VERDICT, I18N_LOG, PE_LABEL, COPY_MSG,
+ * COPY_FALLBACK_MSG).
  */
 import { jsonForScript } from '../../../lib/serialize.mjs';
 import { buildDials } from '../view/dial.mjs';
 
+import { es as esHoy, en as enHoy } from '../i18n/hoy-templates.mjs';
+import { es as esDash, en as enDash } from '../i18n/dash-templates.mjs';
+import { es as esHealth, en as enHealth } from '../i18n/health-templates.mjs';
+import { es as esScore, en as enScore } from '../i18n/score-templates.mjs';
+import { es as esIntake, en as enIntake } from '../i18n/intake-templates.mjs';
+
 interface Props {
   nut: any; // buildNutrition() result
-  targetTrain: { k: number; p: number; fatMax: number };
-  targetRest: { k: number; p: number; fatMax: number };
-  verdictTemplates: Record<string, string>;
-  logTemplates: Record<string, string>;
-  peLabel: { train: string; rest: string };
-  copyMsg: string;
-  copyFallbackMsg: string;
+  dict: any; // getDict(locale): the Tablas fruit-portion labels
   locale: string;
-  tablasLabels: { fruitPortionLabel: string; fruitPortionQty: string };
   training: Record<string, any>; // training.days, verbatim (astro-plan-web slice 5)
   trainingMeta: { program: string; coach: string; source: string; first: string; last: string; count: number };
   dash: any; // lib/training/dashboard.mjs's loadDashboard() result
-  hoyTemplates: Record<string, string>;
-  dashTemplates: Record<string, any>;
   health: any; // lib/health/aggregate.mjs's buildHealth() result
-  healthTemplates: Record<string, any>;
   scores: any; // lib/score/index.mjs's buildScores() result (Home tab; only asOf dates, no build-time now)
-  scoreTemplates: Record<string, any>;
   intake: any; // lib/nutrition/intake.mjs's buildIntake() result (no build-time now)
-  intakeTemplates: Record<string, any>;
 }
-const {
-  nut, targetTrain, targetRest, verdictTemplates, logTemplates, peLabel, copyMsg, copyFallbackMsg, locale, tablasLabels,
-  training, trainingMeta, dash, hoyTemplates, dashTemplates, health, healthTemplates, scores, scoreTemplates, intake, intakeTemplates,
-} = Astro.props;
+const { nut, dict, locale, training, trainingMeta, dash, health, scores, intake } = Astro.props;
+const es = locale === 'es';
+const tablasLabels = { fruitPortionLabel: dict.strings.tablas.fruta.portionLabel, fruitPortionQty: dict.strings.tablas.fruta.portionQty };
+const hoyTemplates = es ? esHoy : enHoy;
+const dashTemplates = es ? esDash : enDash;
+const healthTemplates = es ? esHealth : enHealth;
+const scoreTemplates = es ? esScore : enScore;
+const intakeTemplates = es ? esIntake : enIntake;
 
 const globals = {
   DATA: nut.D,
   EXTRAS: nut.EX,
   QUESO_KEYS: nut.QUESO,
   VEG_KEYS: nut.VEG,
-  TARGET: { train: targetTrain, rest: targetRest },
-  EXTRA_KEYS: nut.extraKeys,
-  EXTRA_NAMES: nut.extraNames,
-  INDULGE: nut.indulge,
-  ALCOHOL_KEYS: nut.alcoholKeys,
-  MEAL_REPLACE_KEYS: nut.mealReplaceKeys,
   FRUIT_SUMMARY: nut.fruitSummary,
-  I18N_VERDICT: verdictTemplates,
-  I18N_LOG: logTemplates,
   I18N_TABLAS: tablasLabels,
-  PE_LABEL: peLabel,
-  COPY_MSG: copyMsg,
-  COPY_FALLBACK_MSG: copyFallbackMsg,
   LOCALE: locale,
   TRAINING: training,
   TRAINING_META: trainingMeta,

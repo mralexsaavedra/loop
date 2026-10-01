@@ -12,20 +12,12 @@
  * `<script>` block of the pre-Astro generated page (deleted at the
  * astro-plan-web cutover) — ids (t-dia/...),
  * `.tab-panel[data-tab]` classes, and
- * `onclick="setTab(...)"` / `onclick="jump(...)"` / `onclick="bump(key,
- * delta)"` markup — NOT slice 1's invented `data-tab-btn`/`data-tab-panel`
- * attribute scheme. Parity with the legacy behavior (id sets + onclick
- * sets) was verified throughout the migration by a since-retired parity
- * test suite; web/src/client/core.test.mjs now covers this contract.
- *
- * `bump` deviates from legacy in ONE way: legacy's `bump` is defined
- * inline inside the day-builder IIFE, closing directly over its own `X`
- * state object and calling its own `recalc()`. Here the day-builder logic
- * lives in a separate script (client/nutrition.js, slice 3) with its own
- * module boundary, so `bump` reads/writes the counter straight from the DOM
- * (the single source of truth for the displayed count) and calls an
- * optional `window.bldRecalc()` hook — the same optional-global-hook
- * pattern nutri-day.js uses for `window.bldRefresh` / `window.intakeRefresh`.
+ * `onclick="setTab(...)"` / `onclick="jump(...)"` markup — NOT slice 1's
+ * invented `data-tab-btn`/`data-tab-panel` attribute scheme. Parity with the
+ * legacy behavior (id sets + onclick sets) was verified throughout the
+ * migration by a since-retired parity test suite; web/src/client/core.test.mjs
+ * now covers this contract. (The legacy `bump` stepper helper went away with
+ * the day builder.)
  */
 /* Four top-level tabs (Inicio / Entreno / Salud / Nutrición), nav buttons `#t-<key>`. The former
  * tab keys now name sections (`#sec-<key>`) inside one of them, so an old `setTab('tablas')` still
@@ -80,15 +72,6 @@ function jumpOr(id, tab) {
   else setTab(tab);
 }
 
-function bump(key, delta) {
-  var el = document.getElementById('x-' + key);
-  if (!el) return;
-  var next = Math.max(0, Number(el.textContent || 0) + delta);
-  el.textContent = String(next);
-  if (typeof window.bldRecalc === 'function') window.bldRecalc();
-}
-
 window.setTab = setTab;
 window.jump = jump;
 window.jumpOr = jumpOr;
-window.bump = bump;

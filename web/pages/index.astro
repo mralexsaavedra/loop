@@ -5,16 +5,20 @@
  *   - Inicio/Home (`home`)          today: dials, monitor, advice + "today you eat" card + programmed session (hoy)
  *   - Entreno/Training (`entreno`)  load (load), calendar (calendar), run/ride tables (sessions), dashboard (dash)
  *   - Salud/Health (`health`)       recovery, sleep, body, activity, energy
- *   - Nutrición (`nutricion`)       today (dia: Resumen de hoy + Plan de hoy + Avituallamiento) + the day builder (registro) + Tablas (tablas)
+ *   - Nutrición (`nutricion`)       today (dia: Resumen de hoy + Plan de hoy + Registrar + Avituallamiento)
+ *                                   + Mis productos / Mis recetas (LAN only, with dia) + Tablas (tablas)
  * The former tab keys now name sections; `page.hideTabs` hides a section by its legacy key and a
- * tab by its top-level key (lib/nav/tabs.mjs resolveNav). See spec: plan-web-single-file-build.
+ * tab by its top-level key (lib/nav/tabs.mjs resolveNav); `registro` (the removed day builder) is a
+ * deprecated no-op. The shared <Bake> renders once, after the panels, whatever is hidden.
+ * See spec: plan-web-single-file-build.
  */
 import Plan from '../layouts/Plan.astro';
 import Home from '../src/tabs/Home.astro';
 import EatCard from '../src/components/EatCard.astro';
 import Dia from '../src/tabs/Dia.astro';
-import Registro from '../src/tabs/Registro.astro';
+import Bake from '../src/components/Bake.astro';
 import Tablas from '../src/tabs/Tablas.astro';
+import Food from '../src/tabs/Food.astro';
 import Hoy from '../src/tabs/Hoy.astro';
 import Entrenos from '../src/tabs/Entrenos.astro';
 import TrainingDetail from '../src/tabs/TrainingDetail.astro';
@@ -85,8 +89,9 @@ const title = plan.page?.title || 'Plan';
   </div>
   <div class="tab-panel" data-tab="nutricion" hidden={activeTab !== 'nutricion'}>
     <Dia nut={nut} plan={plan} locale={locale} page={plan.page} hidden={isHidden('dia')} intakeHost={!!intake.latest} supplements={profile.supplements} weight={profile.weight} />
-    <Registro nut={nut} dict={dict} page={plan.page} plan={plan} locale={locale} training={training.days} trainingMeta={trainMeta} dash={dash} health={health} scores={scores} intake={intake} hidden={isHidden('registro')} />
+    {!isHidden('dia') && <Food locale={locale} />}
     <Tablas nut={nut} dict={dict} page={plan.page} hidden={isHidden('tablas')} />
   </div>
+  <Bake nut={nut} dict={dict} locale={locale} training={training.days} trainingMeta={trainMeta} dash={dash} health={health} scores={scores} intake={intake} />
   <DetailSheet slot="overlay" detail={detail} locale={locale} />
 </Plan>

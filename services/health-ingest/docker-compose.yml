@@ -28,6 +28,9 @@ services:
       STRAVA_REFRESH_TOKEN: ${STRAVA_REFRESH_TOKEN:-}
       STRAVA_SYNC_MINUTES: ${STRAVA_SYNC_MINUTES:-30}
       TRIGGER_DIR: /trigger
+      # extra host names for the /food/* Host + Origin checks (IP literals, localhost and
+      # host.docker.internal always pass); mirror plan-web's PLAN_WEB_EXTRA_HOSTS
+      FOOD_ALLOWED_HOSTS: ${FOOD_ALLOWED_HOSTS:-}
     # POST /sync writes /trigger/refresh; the host watches ./trigger/refresh with
     # services/plan-web/systemd/plan-web-refresh.path. The container runs as the
     # image's `node` user (uid 1000): chown the host dir to 1000 (see README).

@@ -90,12 +90,41 @@ is a static file and cannot hold a secret. That is acceptable because:
   `trigger_write`), cached for 5 s. Never health data, never raw error text
   (that stays in the container logs).
 
+The food log (`/api/food/*` -> ingest `/food/*`: Nutrición's Registrar, Mis
+productos, Mis recetas) is unauthenticated for the same reason, and LAN only.
+Every request must carry `X-HC-Food: 1` and every write a JSON body; from
+another site both force a CORS preflight that the ingest service never
+approves. nginx forwards the header, allows only GET / POST / PUT / DELETE and
+caps bodies at 16 KB (like the service). Never put this server, or `/food/*` on
+the ingest side, behind a public proxy.
+
+**DNS rebinding and the Host allowlist.** A hostile page can make its own name
+resolve to this server's LAN address and so become same-origin with the plan
+page (all health data, and the food log read + write). nginx therefore answers
+EVERY path (the page, `status.json`, `/api/*`) only when the request names it
+by an IP literal (`http://192.168.1.10:8090`, `http://[fd00::12]:8090`) or
+`localhost`; any other name gets `421`. The ingest service repeats the check on
+`/food/*` (plus the `Origin` of writes) as defence in depth.
+
+To reach the page by a name too (e.g. `http://plan.lan:8090`):
+
+1. add `PLAN_WEB_EXTRA_HOSTS=plan.lan` (comma / space separated for several) to
+   `services/plan-web/.env`, then `docker compose up -d` here; `hosts.sh`
+   (mounted as `/docker-entrypoint.d/15-hc-hosts.sh`) turns each valid name into
+   one exact map entry and skips anything else with a warning in the logs;
+2. add the same names as `FOOD_ALLOWED_HOSTS=plan.lan` to
+   `services/health-ingest/.env` and `docker compose up -d health-ingest`
+   there, or the food log refuses writes whose `Origin` is that name.
+
+Only list names you control on your own network (a local DNS / hosts entry);
+never a public domain someone else can point anywhere.
+
 What each proxy may forward:
 
 | Proxy | Forwards | Never |
 | ----- | -------- | ----- |
-| **LAN nginx** (this service) | `POST /api/sync` -> `/sync`, `GET /api/sync/status` -> `/sync/status` (exact match, method restricted) | anything else under `/api/` (404), `/ingest`, `/export` |
-| **Public reverse proxy** (if any, in front of health-ingest) | `/ingest/*` (bearer token) and `POST /sync` (for the Shortcut's last step); `/sync/status` optional | `/export/*`, `/sync/strava`, `/healthz` |
+| **LAN nginx** (this service) | `POST /api/sync` -> `/sync`, `GET /api/sync/status` -> `/sync/status` (exact match, method restricted); `/api/food/*` -> `/food/*` (GET / POST / PUT / DELETE, 16 KB) | anything else under `/api/` (404), `/ingest`, `/export` |
+| **Public reverse proxy** (if any, in front of health-ingest) | `/ingest/*` (bearer token) and `POST /sync` (for the Shortcut's last step); `/sync/status` optional | `/export/*`, `/sync/strava`, `/food/*`, `/healthz` |
 
 ## Install (host)
 
@@ -160,6 +189,9 @@ Replace `/path/to/health-coach` with your clone's absolute path and
    ```sh
    curl -s -X POST localhost:8090/api/sync         # 202 {"ok":true,"seq":N,"coalesced":false,...}
    curl -s localhost:8090/api/sync/status          # triggerSeq N, codes only
+   curl -s -H 'X-HC-Food: 1' localhost:8090/api/food/products   # {"products":[...]}
+   curl -s -o /dev/null -w '%{http_code}\n' localhost:8090/api/food/products   # 403 without the header
+   curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: evil.example' localhost:8090/   # 421: not an allowed Host
    journalctl -u plan-web-refresh.service -f       # refresh.sh output
    cat /path/to/health-coach/services/plan-web/site/status.json   # processedSeq >= N
    ```

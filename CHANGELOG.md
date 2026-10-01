@@ -4,6 +4,48 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-01 — Day builder removed; the food log logs the plan ("Del plan")
+
+The Constructor de día (section `registro`) was redundant next to the food log, so it is gone with
+its script, copy, styles and builder-only bakes. Its replacement is a "Del plan" tab in Registrar's
+add sheet: today's Plan de hoy meals, exactly as the page shows them (same goal, day type and ride
+minutes, read through `HCNutri.todayPlan()`), logged in one entry per meal or per item as a quick
+entry with its four macros (no database change). The Tablas tables are now painted by
+`client/tablas.js`, and the shared bake renders once from `pages/index.astro`. `page.hideTabs:
+["registro"]` keeps building as a deprecated no-op. The builder fold's "no food logged" hint is
+dropped on purpose (the dial shows the target; the food log is the way to log).
+
+## 2026-09-30 — Nutrition v2, part 2: food log, my products, my recipes
+
+The owner logs what he eats from the LAN page. Nutrición gains Registrar (today's log by meal slot,
+right after Plan de hoy) with an add sheet (his products grouped Mercadona / Dia / Eroski / other, his
+recipes, or a quick label + kcal), and two folds next to the day builder: Mis productos (barcode or
+text lookup on Open Food Facts, done by the ingest service; every value confirmed or typed from the
+label before saving, missing ones flagged, never guessed) and Mis recetas (per-serving recipes such
+as tortitas or a shake, batch recipes such as lentejas weighed cooked; macros always computed from
+the products). Today's log fills the kcal dial, the macro bars and the rings; without entries the
+Apple Health intake shows as before.
+
+Storage and API live in `services/health-ingest` (`sql/006_food.sql`, `/food/*`; log entries keep a
+macro snapshot so later product edits never rewrite history), reached through plan-web's new
+`/api/food/` proxy. The routes are unauthenticated and LAN-only like `/sync`: a required
+`X-HC-Food` header plus JSON bodies force a CORS preflight the service never approves, bodies are
+capped at 16 KB, writes rate limited, errors coarse codes; a public proxy must never forward
+`/food/*`. The UI ships hidden and appears only when the API answers at view time, so the claude.ai
+artifact and the example build are unchanged and builds stay byte-identical. One macro formula
+(`lib/nutrition/foodlog.mjs`) with parity-tested ports in the service and the page. Rollout: rebuild
+the ingest image, restart plan-web, regenerate. Out of scope: label OCR, supermarket scraping, CSV
+export of the log for the analysis pipeline (next slice), Apple Health write-back.
+
+Review fixes, same day: plan-web answers only an IP literal, `localhost` or a listed name
+(`PLAN_WEB_EXTRA_HOSTS`) on every path, and the food API repeats the Host check plus an Origin check
+on writes, closing DNS rebinding. Numbers are rounded before their bounds; a failed food migration
+only disables `/food/*` (503); adds carry a request id so a retry never duplicates; a double-tapped
+delete is quiet; a macro no entry states shows a dash and a partly-known one is marked "≥". The
+Open Food Facts client caches upstream failures briefly and shares concurrent lookups; the shared
+limits and the recipe-basis step live once in `lib/nutrition/foodlog.mjs`; the detail sheet's Tab trap
+skips controls that cannot take focus.
+
 ## 2026-09-30 — Nutrition v2, part 1: goals, day types, scaled plan, ride fuelling
 
 Nutrición opens on today. A goal (maintain / cut / bulk) and a day type (rest, gym or run, a ~2 h

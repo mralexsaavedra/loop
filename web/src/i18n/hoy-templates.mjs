@@ -1,6 +1,6 @@
 /* Client-side (browser, classic-script) format strings for the "Hoy /
  * Today" tab (astro-plan-web slice 5) — same rationale/constraint as
- * verdict-templates.mjs / log-templates.mjs: web/src/client/training-today.js
+ * the other *-templates.mjs files: web/src/client/training-today.js
  * is a classic script and cannot import an ES module, so it can only
  * receive plain JSON-safe data baked by Bake.astro (I18N_HOY).
  *

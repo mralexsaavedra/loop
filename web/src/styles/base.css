@@ -4,7 +4,7 @@
  * plan-web.template.html <style> block. Mobile-first; the trailing
  * @media block holds this file's desktop (>=900px) overrides, matching
  * the legacy source's single combined desktop query. Per-tab rules live
- * in dia.css / registro.css / tablas.css / training.css / health.css. */
+ * in dia.css / tablas.css / training.css / health.css. */
 
 .wrap {
   max-width: 680px;
