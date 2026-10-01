@@ -70,14 +70,20 @@
   // Today first: the headline is the newest value; `opt.date` tags it with its date (a daily total
   // dated today reads "today, so far", since it is partial until midnight); `ctxHtml` (30-day mean
   // and/or Δ) is the context line under it; `opt.id` = an hl-<key> anchor for Inicio's monitor;
-  // `opt.detail` = the detail-sheet metric a tap on the card opens (client/detail.js).
+  // `opt.detail` = the detail-sheet metric a tap on the card opens (client/detail.js). A card dated
+  // more than STALE_DAYS ago is greyed (`mtrend-stale`) with a "no recent data" note.
   function trend(title, valHtml, ctxHtml, sp, opt) {
     opt = opt || {};
     var ax = sp ? '<div class="spark-ax"><span>' + esc(fmtD(sp.from)) + '</span><span>' + esc(fmtD(sp.to)) + '</span></div>' : '';
     var when = opt.date ? (opt.soFar && daysOld(opt.date) === 0 ? T.soFar : fmtD(opt.date)) : '';
+    // newest value more than STALE_DAYS before the viewer's today -> greyed + "no recent data", like
+    // the monitor cards and the dials (decided at view time, nothing baked)
+    var age = opt.date ? daysOld(opt.date) : null;
+    var stale = age != null && age > HC.STALE_DAYS;
     return (
-      '<div class="mtrend"' + (opt.id ? ' id="hl-' + opt.id + '"' : '') + (opt.detail ? HC.detailAttrs(opt.detail) : '') + '><div class="mtrend-top"><h4>' + esc(title) + '</h4>' +
+      '<div class="mtrend' + (stale ? ' mtrend-stale' : '') + '"' + (opt.id ? ' id="hl-' + opt.id + '"' : '') + (opt.detail ? HC.detailAttrs(opt.detail) : '') + '><div class="mtrend-top"><h4>' + esc(title) + '</h4>' +
       '<div class="mtrend-val">' + valHtml + (when ? '<span class="mtrend-date">' + esc(when) + '</span>' : '') + '</div></div>' +
+      (stale ? '<div class="mtrend-stale-note">' + esc(T.staleNote) + '</div>' : '') +
       (ctxHtml ? '<div class="mtrend-ctx">' + ctxHtml + '</div>' : '') + sparkSvg(sp) + ax + '</div>'
     );
   }

@@ -62,6 +62,7 @@ export const es = {
   avg30Tpl: 'media 30 días {value}',
   avgNightsTpl: 'media 30 noches {value}',
   soFar: 'hoy, en curso',
+  staleNote: 'sin datos recientes',
   bodyNote: {
     main: '<b>Cómo leer esto.</b> El peso mezcla básculas/apps{sourcesClause}, así que la tendencia es una <b>media móvil de 7 días</b>; el número grande es tu última lectura{sourceClause}. Δ es respecto a hace ~30 días. La grasa corporal y la masa magra son bioimpedancia (<b>±3-5%</b>) y solo comparables <b>dentro de una misma báscula</b>{bfSourceClause}; su Δ es desde la primera lectura en esa báscula.',
     sourcesClause: ' ({n} fuentes)',
@@ -156,6 +157,7 @@ export const en = {
   avg30Tpl: '30-day avg {value}',
   avgNightsTpl: '30-night avg {value}',
   soFar: 'today, so far',
+  staleNote: 'no recent data',
   bodyNote: {
     main: '<b>How to read this.</b> Weight mixes scales/apps{sourcesClause}, so the trend is a <b>7-day rolling average</b>; the headline is your latest reading{sourceClause}. Δ is vs ~30 days ago. Body fat and lean mass are bioimpedance (<b>±3-5%</b>) and only comparable <b>within one scale</b>{bfSourceClause}; their Δ is since the first reading on that scale.',
     sourcesClause: ' ({n} sources)',

@@ -7,8 +7,9 @@ const sync = require('./sync-shortcut.js');
 const {
   METRICS, SHORTCUT_SOURCE, parseNumber, parsePayload, collectSamples, buildRows,
   unionMinutes, mergeCsv, updateMeta, resolveToken, fetchAllPayloads, planSync,
-  foldPayloads, emptyCache, CACHE_FILE, writeAtomic, syncDir,
+  foldPayloads, emptyCache, CACHE_FILE, writeAtomic, syncDir, dropPhantomWeights,
 } = sync;
+const S_HDR = 'date,value,source';
 
 test('parseNumber() accepts dot and comma decimals', () => {
   assert.equal(parseNumber('12.5'), 12.5);
@@ -20,8 +21,8 @@ test('parseNumber() accepts dot and comma decimals', () => {
 
 test('METRICS is a per-metric table covering the implemented metrics', () => {
   assert.deepEqual(Object.keys(METRICS).sort(),
-    ['active_energy', 'active_energy_hourly', 'basal_energy', 'bodyfat', 'dietary', 'hr_recovery', 'hrv', 'leanmass', 'respiratory', 'rhr', 'sleep',
-      'steps', 'vo2max', 'waist', 'walking_hr', 'weight', 'wrist_temp']);
+    ['active_energy', 'active_energy_hourly', 'basal_energy', 'bodyfat', 'dietary', 'distance_watch', 'exercise_watch', 'flights_watch', 'hr_recovery', 'hrv',
+      'leanmass', 'respiratory', 'rhr', 'sleep', 'steps', 'vo2max', 'waist', 'walking_hr', 'weight', 'wrist_temp']);
   for (const m of Object.values(METRICS)) {
     assert.ok(m.csv && m.header && m.kind);
   }
@@ -524,6 +525,7 @@ test('contract: a re-extract drops Shortcut rows + ledger, the next sync restore
   for (const f of ['extract.js', 'samples.js']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
   const Q = 'HKQuantityTypeIdentifier';
   fs.writeFileSync(path.join(dir, 'export.xml'), [
+    '<ExportDate value="2030-01-03 08:00:00 +0100"/>', // 01-01 is a complete day, not the partial last one
     `<Record type="${Q}HeartRateVariabilitySDNN" sourceName="W" startDate="2030-01-01 08:00:00 +0100" endDate="2030-01-01 08:00:00 +0100" value="40"/>`,
     `<Record type="${Q}ActiveEnergyBurned" sourceName="W" startDate="2030-01-01 10:00:00 +0100" endDate="2030-01-01 10:05:00 +0100" value="300"/>`,
   ].join('\n') + '\n');
@@ -740,4 +742,172 @@ test('extract.js and the Shortcut sync write identical sleep rows (nap excluded)
   assert.match(exportSleep, /^2030-01-02,6\.00,/m, 'the nap adds no minutes');
   assert.equal(fs.readFileSync(path.join(out, 'wristTemp.csv'), 'utf8'), csvOf(METRICS.wrist_temp.header, buildRows('wrist_temp', sync.wrist_temp)));
   fs.rmSync(dir, { recursive: true });
+});
+
+
+// ---- RHR: Apple rewrites the day's value at the SAME timestamp -> dedupe by timestamp only ----
+
+test('rhr: samples dedupe by timestamp only; the latest payload wins a rewritten value', () => {
+  const s = collectSamples([
+    { rhr: '2030-01-02T00:05:00+01:00;55\n2030-01-03T00:05:00+01:00;52' },
+    { rhr: '2030-01-02T00:05:00+01:00;53' }, // Apple recomputed the 2nd's RHR at the same stamp
+  ]);
+  assert.equal(s.rhr.length, 2);
+  assert.deepEqual(buildRows('rhr', s.rhr).map(r => r.line), [
+    '2030-01-02,53,' + SHORTCUT_SOURCE,
+    '2030-01-03,52,' + SHORTCUT_SOURCE,
+  ]);
+  // other point metrics still keep two values at one stamp (timestamp + value key)
+  assert.equal(collectSamples([{ hrv: '2030-01-02T08:00:00+01:00;40' }, { hrv: '2030-01-02T08:00:00+01:00;41' }]).hrv.length, 2);
+});
+
+// ---- weight: optional 3rd field (source) + phantom profile-weight guard -------------------
+
+test('weight: an optional 3rd field is kept as the source; rows without it stay Shortcut', () => {
+  const s = collectSamples([{ weight: '2030-01-02T07:10:00+01:00;80.4;My Scale\n2030-01-03T07:00:00+01:00;80.1\n2030-01-04T07:00:00+01:00;80;80 kg' }]);
+  assert.deepEqual(buildRows('weight', s.weight).map(r => r.line), [
+    '2030-01-02,80.4,My Scale',
+    '2030-01-03,80.1,' + SHORTCUT_SOURCE,
+    '2030-01-04,80,' + SHORTCUT_SOURCE, // a formatted value in the source field is ignored
+  ]);
+});
+
+test('weight: a midnight date-only sample with no body-fat reading within 10 min is a phantom and dropped', () => {
+  const plan = planSync([{ id: '1', payload: {
+    weight: [
+      '2030-01-02T00:00:00+01:00;90', // local midnight, no body fat -> phantom
+      '2030-01-03T01:00:00+01:00;91', // 00:00 UTC (date-only entry seen from +01:00) -> phantom
+      '2030-01-04T00:00:00+01:00;80.2;My Scale', // midnight but the scale wrote body fat 3 min later -> real
+      '2030-01-05T07:00:00+01:00;80.0', // a normal weigh-in
+    ].join('\n'),
+    bodyfat: '2030-01-04T00:03:00+01:00;18.1;My Scale',
+  } }], () => null);
+  assert.equal(plan.writes['weight.csv'], [S_HDR, '2030-01-04,80.2,My Scale', '2030-01-05,80,' + SHORTCUT_SOURCE, ''].join('\n'));
+});
+
+test('dropPhantomWeights(): only exact midnight stamps (local or UTC) are candidates; body fat beyond 10 min does not rescue', () => {
+  const w = (start, value = 80) => ({ start, value });
+  const out = dropPhantomWeights([
+    w('2030-01-02 00:00:30 +0100'), // not exact -> kept
+    w('2030-01-03 00:00:00 +0100'), // body fat 11 min later -> still phantom
+    w('2030-01-04 02:00:00 +0200'), // = 00:00 UTC -> phantom
+  ], [{ start: '2030-01-03 00:11:00 +0100', value: 18 }]);
+  assert.deepEqual(out.map(x => x.start), ['2030-01-02 00:00:30 +0100']);
+  assert.deepEqual(dropPhantomWeights([w('2030-01-04 02:00:00 +0200')], undefined), []);
+});
+
+test('rhr: a cache written under the old timestamp+value key is re-keyed (no --full needed)', () => {
+  const old = { ...emptyCache(), lastPayloadId: '1', payloads: 1, samples: { rhr: {
+    '2030-01-02 00:05:00 +0100|55': { start: '2030-01-02 00:05:00 +0100', value: 55 },
+    '2030-01-02 00:05:00 +0100|53': { start: '2030-01-02 00:05:00 +0100', value: 53 },
+  } } };
+  const c = foldPayloads(old, []);
+  assert.deepEqual(Object.values(c.samples.rhr), [{ start: '2030-01-02 00:05:00 +0100', value: 53 }]);
+});
+
+// ---- exercise / distance / flights: Watch-filtered day totals --------------------------
+
+test('exercise_watch / distance_watch / flights_watch write the extract.js daily schemas', () => {
+  const s = collectSamples([{
+    exercise_watch: '2030-01-01T00:00:00+01:00;3\n2030-01-02T00:00:00+01:00;42.4\n2030-01-03T00:00:00+01:00;0',
+    distance_watch: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:00:00+01:00;7,456\n2030-01-03T00:00:00+01:00;0',
+    flights_watch: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:00:00+01:00;11\n2030-01-03T00:00:00+01:00;0',
+  }]);
+  // oldest (window-truncated) day dropped; a 0 day (Fill Missing / not worn) is no data, like the export
+  assert.deepEqual(buildRows('exercise_watch', s.exercise_watch).map(r => r.line), ['2030-01-02,42']);
+  assert.deepEqual(buildRows('distance_watch', s.distance_watch).map(r => r.line), ['2030-01-02,7.46']);
+  assert.deepEqual(buildRows('flights_watch', s.flights_watch).map(r => r.line), ['2030-01-02,11']);
+  assert.equal(METRICS.exercise_watch.csv, 'exercise-minutes-daily.csv');
+  assert.equal(METRICS.exercise_watch.header, 'date,minutes');
+  assert.equal(METRICS.distance_watch.csv, 'distance-daily.csv');
+  assert.equal(METRICS.distance_watch.header, 'date,km');
+  assert.equal(METRICS.flights_watch.csv, 'flights-daily.csv');
+  assert.equal(METRICS.flights_watch.header, 'date,flights');
+});
+
+test('distance_watch: km by default; metres (value > 100, or an "m" unit) and miles are converted', () => {
+  const s = collectSamples([{ distance_watch: [
+    '2030-01-01T00:00:00+01:00;1',
+    '2030-01-02T00:00:00+01:00;6.2',
+    '2030-01-03T00:00:00+01:00;6200',
+    '2030-01-04T00:00:00+01:00;5400 m',
+    '2030-01-05T00:00:00+01:00;5,1 km',
+    '2030-01-06T00:00:00+01:00;2 mi',
+  ].join('\n') }]);
+  assert.deepEqual(buildRows('distance_watch', s.distance_watch).map(r => r.line), [
+    '2030-01-02,6.20', '2030-01-03,6.20', '2030-01-04,5.40', '2030-01-05,5.10', '2030-01-06,3.22',
+  ]);
+});
+
+test('exercise_watch: latest payload wins a day; export rows win, Shortcut fills only missing dates', () => {
+  const files = { 'exercise-minutes-daily.csv': 'date,minutes\n2030-01-02,50\n', '_meta.json': '{"rows":{},"ranges":{},"notes":[]}' };
+  const plan = planSync([
+    { id: '1', payload: { exercise_watch: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:00:00+01:00;20\n2030-01-03T00:00:00+01:00;10' } },
+    { id: '2', payload: { exercise_watch: '2030-01-02T00:00:00+01:00;1\n2030-01-03T00:00:00+01:00;35' } },
+  ], name => files[name] ?? null);
+  assert.equal(plan.writes['exercise-minutes-daily.csv'], 'date,minutes\n2030-01-02,50\n2030-01-03,35\n');
+  const meta = JSON.parse(plan.writes['_meta.json']);
+  assert.deepEqual(meta.shortcutSync.owned['exercise-minutes-daily.csv'], ['2030-01-03']);
+  assert.equal(meta.rows.exercise, 2);
+});
+
+// ---- the export's LAST date is a partial day for daily totals --------------------------
+
+test('planSync(): on the export\'s last date (exportLastDate) a Shortcut day total beats the partial export row', () => {
+  const meta = JSON.stringify({ exportLastDate: '2030-01-03', rows: {}, ranges: {}, notes: [] });
+  const files = {
+    '_meta.json': meta,
+    'steps-daily.csv': 'date,steps,source\n2030-01-02,9000,Watch\n2030-01-03,971,Watch\n',
+    'exercise-minutes-daily.csv': 'date,minutes\n2030-01-02,40\n2030-01-03,1\n',
+    'active-energy-daily.csv': 'date,kcal\n2030-01-02,600\n2030-01-03,103\n',
+    'basal-energy-daily.csv': 'date,kcal\n2030-01-02,1800\n2030-01-03,918\n',
+    'rhr.csv': 'date,value,source\n2030-01-03,50,Watch\n',
+  };
+  const plan = planSync([{ id: '1', payload: {
+    steps_watch: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:00:00+01:00;9100\n2030-01-03T00:00:00+01:00;12000',
+    exercise_watch: '2030-01-01T00:00:00+01:00;1\n2030-01-03T00:00:00+01:00;55',
+    active_energy: '2030-01-01T00:00:00+01:00;1\n2030-01-03T00:00:00+01:00;750',
+    rhr: '2030-01-03T00:05:00+01:00;49',
+  } }], name => files[name] ?? null);
+  assert.equal(plan.writes['steps-daily.csv'], `date,steps,source\n2030-01-02,9000,Watch\n2030-01-03,12000,${WATCH}\n`, 'export still wins a complete day');
+  assert.equal(plan.writes['exercise-minutes-daily.csv'], 'date,minutes\n2030-01-02,40\n2030-01-03,55\n');
+  assert.equal(plan.writes['active-energy-daily.csv'], 'date,kcal\n2030-01-02,600\n2030-01-03,750\n');
+  // no Shortcut row for basal on that date -> the partial export row is dropped, never kept
+  assert.equal(plan.writes['basal-energy-daily.csv'], 'date,kcal\n2030-01-02,1800\n');
+  assert.equal(plan.writes['rhr.csv'], undefined, 'point series keep the export row (not a day total)');
+  const owned = JSON.parse(plan.writes['_meta.json']).shortcutSync.owned;
+  assert.deepEqual(owned['active-energy-daily.csv'], ['2030-01-03']);
+});
+
+test('planSync(): without exportLastDate in _meta.json, export rows win every date as before', () => {
+  const files = { '_meta.json': '{"rows":{},"ranges":{},"notes":[]}', 'basal-energy-daily.csv': 'date,kcal\n2030-01-03,918\n' };
+  const plan = planSync([{ id: '1', payload: { basal_energy: '2030-01-02T00:00:00+01:00;1\n2030-01-03T00:00:00+01:00;1800' } }], name => files[name] ?? null);
+  assert.equal(plan.writes['basal-energy-daily.csv'], undefined);
+});
+
+test('every daily-total metric is flagged total (the partial-export-day rule); means and points are not', () => {
+  const totals = Object.entries(METRICS).filter(([, d]) => d.total).map(([m]) => m).sort();
+  assert.deepEqual(totals, ['active_energy', 'basal_energy', 'dietary', 'distance_watch', 'exercise_watch', 'flights_watch', 'steps']);
+});
+
+test('distance_watch heuristic boundary: bare 100 is km, bare 101 is metres; "3,5" is 3.5 km', () => {
+  const s = collectSamples([{ distance_watch: [
+    '2030-01-01T00:00:00+01:00;1',
+    '2030-01-02T00:00:00+01:00;100',
+    '2030-01-03T00:00:00+01:00;101',
+    '2030-01-04T00:00:00+01:00;3,5',
+    '2030-01-05T00:00:00+01:00;1.234,5 m',
+  ].join('\n') }]);
+  assert.deepEqual(buildRows('distance_watch', s.distance_watch).map(r => r.line), [
+    '2030-01-02,100.00', '2030-01-03,0.10', '2030-01-04,3.50', '2030-01-05,1.23',
+  ]);
+});
+
+test('parseNumber() reads thousands separators by the LAST separator; ambiguous repeats are rejected', () => {
+  assert.equal(parseNumber('1.234,5'), 1234.5);
+  assert.equal(parseNumber('1,234.5'), 1234.5);
+  assert.equal(parseNumber('3,5'), 3.5);
+  assert.equal(parseNumber('3.5'), 3.5);
+  assert.equal(parseNumber('1.234.567'), null);
+  assert.equal(parseNumber('1,234,567'), null);
 });

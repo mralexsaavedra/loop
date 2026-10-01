@@ -182,3 +182,46 @@ test('wristTempDate(start, end): dated by the midpoint with the 18:00 roll-over,
   // without an end (a Shortcut point sample) the start alone decides, as before
   assert.equal(s.wristTempDate('2030-01-01 17:30:00 +0100'), '2030-01-01');
 });
+
+// ---- falling back asleep after an early wake-up (ends before 10:00 -> up to a 3 h gap) ------
+
+test('sleepNights(): 23:59-03:19 then back asleep 05:08-07:32 is ONE night (morning block ends before 10:00)', () => {
+  const segs = [
+    seg('2030-01-01 23:59:00 +0100', '2030-01-02 03:19:00 +0100'),
+    seg('2030-01-02 05:08:00 +0100', '2030-01-02 07:32:00 +0100'), // 1 h 49 awake, starts after 05:00
+  ];
+  assert.equal(s.sleepNights(segs).length, 1);
+  assert.deepEqual(nightRows(segs), ['2030-01-02,5.73,W,23.98,7.53']); // 3 h 20 + 2 h 24
+});
+
+test('sleepNights(): 01:19-06:21 then back asleep 07:57-09:48 is ONE night (~6.9 h)', () => {
+  const rows = nightRows([
+    seg('2030-01-02 01:19:00 +0100', '2030-01-02 06:21:00 +0100'),
+    seg('2030-01-02 07:57:00 +0100', '2030-01-02 09:48:00 +0100'),
+  ]);
+  assert.deepEqual(rows, ['2030-01-02,6.88,W,1.32,9.8']);
+});
+
+test('sleepNights(): a morning block ending AFTER 10:00 keeps the 60-min after-end cap (09:00-10:30 after a 06:30 wake is a nap)', () => {
+  const rows = nightRows([
+    seg('2030-01-01 23:00:00 +0100', '2030-01-02 06:30:00 +0100'),
+    seg('2030-01-02 09:00:00 +0100', '2030-01-02 10:30:00 +0100'),
+  ]);
+  assert.deepEqual(rows, ['2030-01-02,7.50,W,23,6.5']);
+});
+
+test('sleepNights(): a block ending before 10:00 but more than 3 h after the wake-up is still a nap', () => {
+  const rows = nightRows([
+    seg('2030-01-01 22:00:00 +0100', '2030-01-02 05:10:00 +0100'),
+    seg('2030-01-02 08:20:00 +0100', '2030-01-02 09:30:00 +0100'), // 3 h 10 awake
+  ]);
+  assert.deepEqual(rows, ['2030-01-02,7.17,W,22,5.17']);
+});
+
+test('sleepNights(): TRADE-OFF — a 07:30-09:30 nap after a 06:30 wake JOINS the night (indistinguishable from falling back asleep)', () => {
+  const rows = nightRows([
+    seg('2030-01-01 23:00:00 +0100', '2030-01-02 06:30:00 +0100'),
+    seg('2030-01-02 07:30:00 +0100', '2030-01-02 09:30:00 +0100'), // ends before 10:00, 1 h gap
+  ]);
+  assert.deepEqual(rows, ['2030-01-02,9.50,W,23,9.5']);
+});

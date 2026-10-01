@@ -13,6 +13,11 @@ const SLEEP_HEADER = 'date,asleep_hours,source,bedtime,waketime';
 // empty. Readers are POSITIONAL and must tolerate shorter (older, 9- or 11-column) rows.
 const WORKOUTS_HEADER = 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source,distance_km,relative_effort,kilojoules,elevation_m';
 
+// The Apple Watch source family: the SAME anchored regex as lib/training/sessions.mjs
+// SOURCE_PRECEDENCE ("Apple Watch de <name>"; `\s` also matches the no-break space Health writes).
+// A test pins the two equal (extract.test.js), since this CommonJS file cannot import the ESM one.
+const APPLE_WATCH_RE = /^Apple\s+Watch\b/i;
+
 // "2026-06-12 09:10:00 +0200" -> "2026-06-12"
 const day = dt => (dt || '').slice(0, 10);
 const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
@@ -69,8 +74,11 @@ function unionMinutes(intervals) {
  * blocks join the night when the awake gap to it is short enough: up to SPLIT_GAP_MIN for a block
  * BEFORE the anchor or one that starts before MID_NIGHT_BEFORE_HOUR on the wake-up date (a split
  * night with a long 3 am wake-up stays one night), but only up to AFTER_END_GAP_MIN for a block that
- * starts AFTER the night's end at or after that hour (so a morning nap at 09:00 after waking at 06:30
- * is not absorbed into the night, while dozing off again within the hour still is). Everything else
+ * starts AFTER the night's end at or after that hour AND ends at or after FALL_BACK_END_HOUR (10:00)
+ * on the wake-up date (so a 09:00-10:30 nap after waking at 06:30, or an afternoon nap, is not
+ * absorbed into the night, while dozing off again within the hour still is). A block after the end
+ * that ENDS before 10:00 is falling back asleep after an early wake-up (23:59-03:19 + 05:08-07:32,
+ * 01:19-06:21 + 07:57-09:48) and joins within SPLIT_GAP_MIN like a mid-night block. Everything else
  * is a NAP and adds neither minutes nor bed/wake times; a day with only naps has no night row.
  * Across sources the one with the most main-sleep minutes wins (the max-across-sources rule that
  * avoids a cross-device double count).
@@ -80,6 +88,9 @@ const BLOCK_GAP_MIN = 60; // longer awake gaps start a new block
 const SPLIT_GAP_MIN = 180; // an awake stretch this long mid-night still belongs to the night
 const AFTER_END_GAP_MIN = 60; // a block starting after the night ended joins only within this gap
 const MID_NIGHT_BEFORE_HOUR = 5; // a block starting before 05:00 on the wake-up date is mid-night
+// falling back asleep after an early wake-up: a block that starts after the night's end (from 05:00 on)
+// but ENDS before 10:00 on the wake-up date joins within SPLIT_GAP_MIN, not AFTER_END_GAP_MIN
+const FALL_BACK_END_HOUR = 10;
 const MAIN_FROM_HOUR = 20; // evening before the wake-up date
 const MAIN_TO_HOUR = 12; // wake-up date
 const MIN_MS = 60000;
@@ -116,8 +127,9 @@ function mainSleep(blocks) {
   if (!cand.length) return null;
   const anchor = cand.reduce((x, y) => (y.minutes > x.minutes ? y : x));
   const midNightEnd = Date.parse(anchor.night + `T${String(MID_NIGHT_BEFORE_HOUR).padStart(2, '0')}:00:00Z`);
+  const fallBackEnd = Date.parse(anchor.night + `T${String(FALL_BACK_END_HOUR).padStart(2, '0')}:00:00Z`);
   // awake gap a block may have to the current night span [a, b] and still join it (see above)
-  const maxGap = (bl, b) => (bl.a > b && localMs(bl.start) >= midNightEnd ? AFTER_END_GAP_MIN : SPLIT_GAP_MIN);
+  const maxGap = (bl, b) => (bl.a > b && localMs(bl.start) >= midNightEnd && localMs(bl.end) >= fallBackEnd ? AFTER_END_GAP_MIN : SPLIT_GAP_MIN);
   const kept = [anchor];
   let a = anchor.a, b = anchor.b, grew = true;
   while (grew) {
@@ -188,6 +200,7 @@ const workoutRow = w => {
 };
 
 module.exports = {
+  APPLE_WATCH_RE,
   READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow,
   day, num, localMs, absMs, minutesBetween, addDay, clockHour, sleepNight, wristTempDate, isoToExportStamp,
   readingRow, sleepRow, unionMinutes, sleepNights,

@@ -93,7 +93,7 @@ Decimal commas (`42,1`) are accepted.
 | `hrv` | Heart Rate Variability | point | no | no | 7 days | `hrv.csv` |
 | `rhr` | Resting Heart Rate | point | no | no | 7 days | `rhr.csv` |
 | `vo2max` | Cardio Fitness (VO₂ max) | point | no | no | 30 days | `vo2max.csv` |
-| `weight` | Weight | point | no | no | 30 days | `weight.csv` |
+| `weight` | Weight | point | no | optional 3rd field (the scale) | 30 days | `weight.csv` |
 | `bodyfat` | Body Fat Percentage | point | no | **yes**, 3rd field (the scale) | 30 days | `bodyfat.csv` |
 | `leanmass` | Lean Body Mass | point | no | **yes**, 3rd field (the scale) | 30 days | `leanmass.csv` |
 | `waist` | Waist Circumference (cm) | point | no | no | 90 days | `waist.csv` |
@@ -104,6 +104,9 @@ Decimal commas (`42,1`) are accepted.
 | `active_energy` | Active Energy (iOS 26: *Active Calories*), *Source is* your watch | day total | **yes** | **filter** by source | 8 days | `active-energy-daily.csv` |
 | `active_energy_hourly` | Active Energy, *Source is* your watch | hour total | no: **Group by Hour** | **filter** by source | 3 days | `active-energy-hourly.csv` |
 | `basal_energy` | Resting Energy (iOS 26: *Resting Calories*), *Source is* your watch | day total | **yes** | **filter** by source | 8 days | `basal-energy-daily.csv` |
+| `exercise_watch` | Exercise Minutes (Apple Exercise Time), *Source is* your watch | day total (minutes) | **yes** | **filter** by source | 8 days | `exercise-minutes-daily.csv` |
+| `distance_watch` | Walking + Running Distance, *Source is* your watch | day total (km) | **yes** | **filter** by source | 8 days | `distance-daily.csv` |
+| `flights_watch` | Flights Climbed, *Source is* your watch | day total | **yes** | **filter** by source | 8 days | `flights-daily.csv` |
 | `respiratory` | Respiratory Rate | day total (mean) | **yes** | no | 8 days | `respiratory-daily.csv` |
 | `walking_hr` | Walking Heart Rate Average | day total (mean) | **yes** | no | 8 days | `walking-hr-daily.csv` |
 | `diet_kcal` | Dietary Energy | day total | **yes** | no | 8 days | `dietary-daily.csv` (kcal) |
@@ -114,7 +117,13 @@ Decimal commas (`42,1`) are accepted.
 
 What the sync does with each shape:
 
-- **Point keys** keep one row per sample. `bodyfat` accepts a fraction (`0.184`) or a percent
+- **Point keys** keep one row per sample. `rhr` is deduped by timestamp only (Apple rewrites the
+  day's resting HR at the same timestamp; the latest payload wins). `weight` takes an optional 3rd
+  field, the scale or app (*Source* / *Origen*), stored as the row's source like `bodyfat`; without
+  it the row says `Shortcut`. A weight stamped exactly at midnight (local `00:00:00`, or `00:00:00`
+  UTC such as `02:00:00+02:00`) with no body-fat sample within 10 minutes is dropped as a phantom
+  date-only entry (the Health profile weight, or a manual entry without a time): a smart scale
+  writes body fat with every weigh-in, so a real weigh-in is kept. `bodyfat` accepts a fraction (`0.184`) or a percent
   (`18.4`); `waist` accepts cm, or metres (`0.84`), which it converts. Send it in **centimetres**:
   the metres check (value below 3) cannot tell inches from cm, so `33` in would be stored as 33 cm.
 - **Day totals**: the oldest day of each key is dropped (a "last N days" query starts mid-day, so
@@ -128,6 +137,15 @@ What the sync does with each shape:
   energy (Strava kJ), never lowering a day (CLAUDE.md, Health tab, energy).
 - **Dietary**: the four `diet_*` keys become one row per day. A day without `diet_kcal`, or with
   0 kcal, is skipped; a missing macro stays blank. These feed the intake rings in Nutrición.
+- **Exercise / distance / flights** (`exercise_watch`, `distance_watch`, `flights_watch`): Watch
+  day totals, same rules as the other day totals; a `0` day (*Fill Missing*, or the watch was not
+  worn) is no data, as in the export. `distance_watch` is stored in **km**: send km (`6.2`), or a
+  value with its unit (`6200 m`, `3.9 mi`); a bare number above 100 is read as metres (`100` = 100 km,
+  `101` = 101 m). Decimal commas work, and with both separators the last one is the decimal
+  (`1.234,5 m`); a repeated single separator (`1.234.567`) is rejected.
+- **The export's last day is partial**: `export.xml` is taken during a day, so its rows for that
+  day are incomplete. For the day totals (steps, energy, exercise, distance, flights, dietary) the
+  Shortcut row wins on that date, and the export row is dropped when no Shortcut row exists.
 - **Sleep**: only asleep stages count (English or Spanish names); a segment starting after 18:00
   belongs to the next morning's night.
 
@@ -144,6 +162,21 @@ Duplicate your `active_energy` search and change only the grouping:
 
 3 days × 24 hours is at most ~72 lines, so it adds little to the payload. After adding it run
 `npm run sync -- --full` once (or only the Shortcut part, `npm run sync:shortcut -- --full`; see Verify).
+
+### Building `exercise_watch`, `distance_watch` and `flights_watch`
+
+Three searches, each a copy of your `steps_watch` search with another type:
+
+1. **Find Health Samples**: *Type* **Exercise Minutes** (Spanish: *Minutos de ejercicio*),
+   **Walking + Running Distance** (*Distancia andando + corriendo*) or **Flights Climbed**
+   (*Pisos subidos*); *Source is* your watch; *Start Date is in the last* **8 days**; *Group By*
+   **Day**.
+2. **Repeat with Each** → **Text** `<Start Date ISO 8601>;<Value>`, then **Combine Text** with new
+   lines.
+3. Add the JSON fields `exercise_watch`, `distance_watch`, `flights_watch` to the POST body. Leave
+   the distance unit at kilometres in the Health app (or send the value with `m` / `mi`).
+
+Then run `npm run sync -- --full` once.
 
 ## Gotchas
 
