@@ -16,7 +16,9 @@
  * by day on the phone): "ISO;value". Sleep: "ISO-start;ISO-end;stage".
  * Runs overlap (rolling window), so samples are deduped across ALL payloads.
  *
- * Merge rule: export-derived rows ALWAYS win. Rows the sync wrote before are rebuilt from
+ * Merge rule: export-derived rows ALWAYS win, except on the export's LAST date for daily totals
+ * (_meta.json exportLastDate: export.xml is taken mid-day, so that day is partial — the Shortcut
+ * total wins it, or the export row is dropped when there is none). Rows the sync wrote before are rebuilt from
  * scratch every run and added only for DATES the export does not cover. "Rows the sync wrote"
  * = rows tagged source=Shortcut OR on a date in the ownership ledger (_meta.json
  * shortcutSync.owned) — the ledger covers CSVs with no source column (energy) and body-comp rows
@@ -48,6 +50,11 @@ const OUT = path.join(__dirname, 'extract');
 //   withSource    : keep the payload's per-sample source in the CSV (else "Shortcut")
 //   sourceCol     : index of the CSV source column, null when the schema has none
 //   metaKey / rangeKey : the _meta.json rows/ranges keys extract.js uses for that CSV.
+//   total         : a DAILY TOTAL series (not a mean, not a point): on the export's last date
+//                   (_meta.json exportLastDate, a partial day: export.xml is taken mid-day) the
+//                   export row never counts as covering the date: a Shortcut row wins it, and the
+//                   export row is dropped when there is none (see planSync)
+//   dedupKey / prefer : per-metric overrides of DEDUP_KEY / PREFER for the metric's kind
 const DAILY_SOURCE_HEADER = 'date,steps,source';
 const KCAL_HEADER = 'date,kcal';
 // "2030-01-02 09:07:12 +0100" -> "2030-01-02T09:00:00+01:00" (the bucket's clock-hour start, ISO)
@@ -68,17 +75,17 @@ const METRICS = {
   bodyfat:  { kind: 'point', csv: 'bodyfat.csv', header: S.READING_HEADER, metaKey: 'bodyfat', withSource: true, fmt: v => +(v < 1 ? v * 100 : v).toFixed(2) },
   leanmass: { kind: 'point', csv: 'leanmass.csv', header: S.READING_HEADER, metaKey: 'leanmass', withSource: true, fmt: v => +v.toFixed(2) },
   // The legacy merged `steps` key is NOT read: iOS's day grouping summed iPhone + Watch.
-  steps:         { kind: 'deviceDaily', csv: 'steps-daily.csv', header: DAILY_SOURCE_HEADER, metaKey: 'steps', rangeKey: 'steps',
+  steps:         { kind: 'deviceDaily', csv: 'steps-daily.csv', header: DAILY_SOURCE_HEADER, metaKey: 'steps', rangeKey: 'steps', total: true,
     devices: { steps_watch: `${SHORTCUT_SOURCE} Watch`, steps_phone: `${SHORTCUT_SOURCE} iPhone` },
     row: (date, v, source) => `${date},${Math.round(v)},${source}` },
-  active_energy: { kind: 'daily', csv: 'active-energy-daily.csv', header: KCAL_HEADER, metaKey: 'active_energy', sourceCol: null,
+  active_energy: { kind: 'daily', csv: 'active-energy-daily.csv', header: KCAL_HEADER, metaKey: 'active_energy', sourceCol: null, total: true,
     row: (date, v) => `${date},${Math.round(v)}` },
   // Watch active energy per clock hour (Watch-only search, Group by Hour). Not an export series:
   // it only feeds lib/health/ride-energy.mjs, which replaces the Watch's energy during a ride a
   // power meter measured. Source column = "Shortcut", so every row is rebuilt each run.
   active_energy_hourly: { kind: 'hourly', csv: 'active-energy-hourly.csv', header: 'date,hour_start,kcal,source', metaKey: 'active_energy_hourly', sourceCol: 3,
     row: (st, v) => `${S.day(st)},${hourStartIso(st)},${v.toFixed(1)},${SHORTCUT_SOURCE}` },
-  basal_energy:  { kind: 'daily', csv: 'basal-energy-daily.csv', header: KCAL_HEADER, metaKey: 'basal_energy', sourceCol: null,
+  basal_energy:  { kind: 'daily', csv: 'basal-energy-daily.csv', header: KCAL_HEADER, metaKey: 'basal_energy', sourceCol: null, total: true,
     row: (date, v) => `${date},${Math.round(v)}` },
   // Sleeping wrist temperature: one sample per night, dated by the wake-up night exactly like
   // extract.js and sleep-daily.csv (samples.js wristTempDate: a 23:xx and a 00:xx start agree).
@@ -98,10 +105,22 @@ const METRICS = {
   // (`fields`: key -> CSV column) folded into ONE dietary-daily.csv row per day, the exact schema
   // extract.js writes. A day without kcal (or 0 kcal = "fill missing") is no data; a macro missing
   // on a logged day stays blank, never 0.
-  dietary:  { kind: 'fieldsDaily', csv: 'dietary-daily.csv', header: 'date,kcal,protein_g,carbs_g,fat_g', metaKey: 'dietary', rangeKey: 'dietary', sourceCol: null,
+  dietary:  { kind: 'fieldsDaily', csv: 'dietary-daily.csv', header: 'date,kcal,protein_g,carbs_g,fat_g', metaKey: 'dietary', rangeKey: 'dietary', sourceCol: null, total: true,
     fields: { diet_kcal: 'kcal', diet_protein: 'protein', diet_carbs: 'carbs', diet_fat: 'fat' },
     row: (date, f) => [date, Math.round(f.kcal), ...['protein', 'carbs', 'fat'].map(k => (f[k] != null ? f[k].toFixed(1) : ''))].join(',') },
   sleep:    { kind: 'interval', csv: 'sleep-daily.csv', header: S.SLEEP_HEADER, metaKey: 'sleep' },
+  // Watch-filtered day totals (one search per key, *Source is* the watch, Group by Day), the same
+  // CSVs extract.js writes (max-per-device there; the Watch is the device that logs these fully).
+  // No source column -> ownership via the ledger, like energy. A 0 day (Fill Missing, watch not worn)
+  // is no data: extract.js only writes days with samples, so it has no zero rows either.
+  exercise_watch: { kind: 'daily', csv: 'exercise-minutes-daily.csv', header: 'date,minutes', metaKey: 'exercise', sourceCol: null, skipZero: true, total: true,
+    row: (date, v) => `${date},${Math.round(v)}` },
+  // km. Accepts a unit ("5,1 km", "5400 m", "3 mi"); a bare number above 100 is metres (no one walks
+  // + runs 100 km in a day, and a real total under 100 m is a not-worn day the Salud floor drops anyway)
+  distance_watch: { kind: 'daily', csv: 'distance-daily.csv', header: 'date,km', metaKey: 'distance', rangeKey: 'distance', sourceCol: null, skipZero: true, total: true,
+    parseValue: v => parseKm(v), row: (date, v) => `${date},${v.toFixed(2)}` },
+  flights_watch: { kind: 'daily', csv: 'flights-daily.csv', header: 'date,flights', metaKey: 'flights', sourceCol: null, skipZero: true, total: true,
+    row: (date, v) => `${date},${Math.round(v)}` },
 };
 // "Shortcut" or a device-tagged "Shortcut <device>" (steps) -> a row this sync wrote
 const isShortcutSource = src => src === SHORTCUT_SOURCE || (src || '').startsWith(SHORTCUT_SOURCE + ' ');
@@ -119,6 +138,16 @@ const stageKey = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/
 const isAsleep = stage => SLEEP_STAGES[stageKey(stage)] === true;
 
 const parseNumber = v => S.num(String(v ?? '').trim().replace(',', '.'));
+// a distance in km: "6.2" / "6,2 km" -> 6.2, "5400 m" -> 5.4, "3 mi" -> 4.83; a bare number > 100 = metres
+const KM_PER = { km: 1, m: 0.001, mi: 1.609344 };
+const DISTANCE_METRES_ABOVE = 100;
+function parseKm(v) {
+  const m = /^([\d.,]+)\s*(km|m|mi)?$/i.exec(String(v ?? '').trim());
+  const n = m ? parseNumber(m[1]) : null;
+  if (n == null) return null;
+  if (m[2]) return n * KM_PER[m[2].toLowerCase()];
+  return n > DISTANCE_METRES_ABOVE ? n / 1000 : n;
+}
 // a real source name, or null when the field is empty or a formatted value ("14,6 %", "60 kg")
 const parseSource = v => {
   const s = String(v ?? '').trim();
@@ -135,10 +164,10 @@ const PARSERS = {
     return def.withSource ? { start, value, source: parseSource(src) } : { start, value };
   },
   hourly(line) { return PARSERS.daily(line); },
-  daily(line) {
+  daily(line, def) {
     const [ts, val] = line.split(';');
     const start = S.isoToExportStamp(ts);
-    const value = parseNumber(val);
+    const value = (def && def.parseValue ? def.parseValue : parseNumber)(val);
     return start && value != null ? { start, value } : null;
   },
   interval(line) {
@@ -337,7 +366,7 @@ function mergeCsv(existingText, header, rows, opts = {}) {
 }
 
 const range = dates => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a');
-const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of the main-sleep asleep intervals per wake-up night (naps excluded, samples.js sleepNights); Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored). Shortcut active_energy_hourly = Watch active energy per clock hour (active-energy-hourly.csv, Shortcut-only; feeds the power-meter ride correction in lib/health/ride-energy.mjs). Shortcut dietary = diet_kcal/diet_protein/diet_carbs/diet_fat day totals joined into one row per day (no kcal = no row).';
+const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of the main-sleep asleep intervals per wake-up night (naps excluded, samples.js sleepNights); Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored). Shortcut active_energy_hourly = Watch active energy per clock hour (active-energy-hourly.csv, Shortcut-only; feeds the power-meter ride correction in lib/health/ride-energy.mjs). Shortcut dietary = diet_kcal/diet_protein/diet_carbs/diet_fat day totals joined into one row per day (no kcal = no row). Shortcut exercise/distance/flights = Watch-filtered day totals (exercise_watch/distance_watch/flights_watch; 0 = no data; distance in km). Day totals: the export\'s last date (exportLastDate, a partial day) is never treated as covered: the Shortcut row wins it, and the export row is dropped when there is none.';
 
 // Pure: refresh the rows/ranges extract.js wrote for the touched CSVs + record the sync.
 // Deterministic (no timestamps) so re-running an unchanged sync rewrites identical bytes.
@@ -382,11 +411,14 @@ function planSync(items, readFile, { full = false } = {}) {
   const metaText = readFile('_meta.json');
   const prevMeta = metaText != null ? JSON.parse(metaText) : null;
   const ledger = (prevMeta && prevMeta.shortcutSync && prevMeta.shortcutSync.owned) || {};
+  // the export's last date is a PARTIAL day: for daily totals it is treated like a sync-owned date
+  // (its export row is dropped, the Shortcut row, if any, fills it)
+  const partialDay = prevMeta && typeof prevMeta.exportLastDate === 'string' ? [prevMeta.exportLastDate] : [];
   const writes = {}, stats = {};
   for (const [metric, def] of Object.entries(METRICS)) {
     const existing = readFile(def.csv);
     const rows = buildRows(metric, PRUNE[metric] ? PRUNE[metric](samples) : samples[metric] || []);
-    const merged = mergeCsv(existing, def.header, rows, { sourceCol: sourceColOf(def), ownedDates: ledger[def.csv] || [] });
+    const merged = mergeCsv(existing, def.header, rows, { sourceCol: sourceColOf(def), ownedDates: [...(ledger[def.csv] || []), ...(def.total ? partialDay : [])] });
     stats[metric] = merged;
     if (existing == null && !rows.length) { merged.written = false; continue; } // never create an empty CSV
     if (merged.text !== existing) writes[def.csv] = merged.text;
