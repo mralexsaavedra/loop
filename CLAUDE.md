@@ -71,14 +71,35 @@ available) so the next session resumes with their context.
      raw `export.xml` is ~700 MB — only stream/grep it directly for a series not in the
      cache. Caveats: body metrics carry a `source` column (weight mixes scales — compare
      body fat within one scale only); steps are deduped to max-per-device per day (summing
-     devices double-counts — summing inflates the NEAT figure).
+     devices double-counts — summing inflates the NEAT figure). Active / basal energy sum ONLY
+     Apple Watch sources (`samples.js` `APPLE_WATCH_RE`, the same anchored `/^Apple\s+Watch\b/i` as
+     `sessions.mjs`, pinned by a test): RENPHO writes an estimated BMR as Basal Energy on weigh-in
+     days, which doubled basal. A day with no Watch energy has NO row (missing, never a scale /
+     phone estimate); only an export with no Watch energy at all (a phone-only user) keeps every
+     source (`_meta.json` `energySources`: `Apple Watch` | `all`). The export's LAST date is a
+     PARTIAL day (export.xml is taken mid-day): `_meta.json` `exportLastDate` = `<ExportDate>`, else
+     the newest record date, and the daily TOTAL series (steps, active / basal energy, exercise,
+     distance, flights, dietary) skip it (means, points, sleep and workouts keep it). These need a
+     re-run of `node data/apple-health/extract.js` on the export to take effect.
      Between exports, `npm run sync` (`data/apple-health/sync-shortcut.js`; how to build the Shortcut and
      every payload key: `docs/ios-shortcut.md` — keep its key table in sync with the `METRICS` table) pulls iOS Shortcut
      payloads from the optional `services/health-ingest` service (`GET /export/raw`) and merges
      hrv/rhr/vo2max/weight/bodyfat/leanmass/waist/steps/energy/dietary/sleep/respiratory/
-     walking-HR/wrist-temp/hr-recovery into those CSVs: export rows always win,
+     walking-HR/wrist-temp/hr-recovery/exercise/distance/flights into those CSVs: export rows win,
      Shortcut rows are rebuilt each run and fill only dates the export lacks — so re-run sync after
-     `extract.js`. Sync is incremental (local gitignored `extract/.shortcut-cache.json` of deduped
+     `extract.js`. EXCEPT the export's partial last day: for a daily-total metric (`total: true` in
+     `METRICS`) `exportLastDate` is treated like a sync-owned date — the Shortcut total wins it, and
+     the export row is dropped when there is none (a 971-step / 1-min export morning never beats a
+     complete Shortcut day). `exercise_watch` / `distance_watch` / `flights_watch` = Watch-filtered
+     day totals → `exercise-minutes-daily.csv` / `distance-daily.csv` / `flights-daily.csv` (same
+     daily-total rules; a 0 day = no data, like the export; distance stored in km, accepting a
+     `km` / `m` / `mi` unit, a bare number > 100 read as metres). `rhr` is deduped by TIMESTAMP only
+     (Apple rewrites the day's RHR at the same stamp; the latest payload wins; an older cache is
+     re-keyed in place). `weight` takes an optional 3rd field (the scale / app), kept as the row's
+     source like `bodyfat` (no field → `Shortcut`); a weight stamped EXACTLY 00:00:00 local or
+     00:00:00 UTC with no body-fat sample (any source) within ±10 min is dropped as a phantom
+     date-only entry (`dropPhantomWeights`: the Health profile weight / a manual entry without a
+     time; a smart scale writes body fat with every weigh-in). Sync is incremental (local gitignored `extract/.shortcut-cache.json` of deduped
      samples + last payload id; `npm run sync -- --full` rebuilds it). Daily totals: the latest
      payload wins, and each payload's oldest (window-truncated) day is ignored. They are tagged `source=Shortcut` except body comp (keeps the real scale source
      for the latest-source logic) and energy (no source column); `_meta.json` `shortcutSync.owned`
@@ -952,7 +973,13 @@ ingest service (`services/health-ingest`) has stored from Strava via `GET /expor
 merges translated rows into `workouts.csv`, tagged `source=Strava API`, so a ride logged only on
 Strava (no Watch record) still shows up — normally grouped into the `bike` modality. Cycling-family
 sport types (incl. e-bike and virtual/indoor rides) all translate to the same `Cycling` type as
-Apple Health uses, so they land in the same `bike` bucket. Strava rows are ALWAYS kept, also on
+Apple Health uses, so they land in the same `bike` bucket. Racket, team and outdoor sports map to the
+Apple type the Watch writes (Tennis, Squash, Badminton, Pickleball, Soccer, Basketball, Volleyball,
+Golf…; Padel keeps its name), all in the `other` modality, so a Watch Tennis row and a Strava Tennis
+row merge into ONE session (pinned by a test). Strava's generic `Workout` maps to `Other`, the
+Watch's generic label that stays in `GYM_TYPES` (the owner's gym / metcon label). An unknown sport
+falls back to `Unmapped` (→ `other`, never gym; it used to be `Other`, which filed tennis as gym
+load) and is listed in `_meta.json` `stravaSync.unmapped`. Strava rows are ALWAYS kept, also on
 dates the export covers (Strava is the only source of Relative Effort, kJ and elevation), and are
 rebuilt each run and removed only by their `Strava API` tag. Dedupe happens at READ time: every
 workouts.csv reader goes through `lib/training/sessions.mjs` `mergeSameDay`, which keeps ONE source
@@ -1003,7 +1030,10 @@ the viewer's today reads "today, so far" / "hoy, en curso", decided client-side)
 (`avg30`, `avg30Of`: mean of the daily values over the last 30 days — for the daily TOTALS of
 `dailyTrend` the 30 days ending the day BEFORE the latest, since the build cannot know whether that
 day is complete) and the Δ (`d30Of`) form the context line under it; a non-finite value is never
-printed and a card that throws is skipped, never blanking the tab;
+printed and a card that throws is skipped, never blanking the tab; a card whose newest value is
+more than `STALE_DAYS` (3) before the viewer's today is greyed (`mtrend-stale`) with a "sin datos
+recientes" / "no recent data" note, decided client-side like the monitor and the dials (waist, dated
+in its title, is exempt: a sparse manual measurement);
 sparklines are unchanged (7-day rolling). HRV's headline is the newest DAY's mean (it used to be the
 7-day rolling value); sleep's is last night (`sleep.latest`), with the 30-night mean as context;
 expenditure's is the newest day's TDEE (`tdeeLatest`; a day counts only with BOTH active and basal energy, never basal alone). Each recovery trend carries an `hl-<key>`
@@ -1088,8 +1118,10 @@ anchor for Inicio's health monitor.
   keeps only the MAIN sleep of each wake-up night (asleep segments chained with gaps < 60 min; the
   longest block whose midpoint falls 20:00-12:00, plus in-window blocks within 3 h of it when they lie
   before it or start before 05:00 on the wake-up date, so a split night with a 3 am wake-up stays one
-  night, but within only 60 min when they start after the night's end from 05:00 on
-  (`AFTER_END_GAP_MIN`), so a 09:00 nap after a 06:30 wake-up is not absorbed). Naps (incl. one that
+  night, but within only 60 min when they start after the night's end from 05:00 on AND end at or
+  after 10:00 (`AFTER_END_GAP_MIN`), so a 09:00–10:30 nap after a 06:30 wake-up or an afternoon nap
+  is not absorbed; a block after the end that ENDS before 10:00 (`FALL_BACK_END_HOUR`) is falling
+  back asleep after an early wake-up and joins within 3 h (23:59–03:19 + 05:08–07:32 = one night). Naps (incl. one that
   crosses 18:00) add neither minutes nor bed/wake times; a nap-only day has no row. Sleeping wrist
   temperature is dated by the same midpoint + 18:00 roll-over rule as a sleep block (`wristTempDate(start,
   end)`; a Shortcut sample with only a start falls back to its start). Known limitation: night-shift
