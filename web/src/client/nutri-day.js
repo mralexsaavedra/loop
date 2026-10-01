@@ -50,6 +50,8 @@
   var esc = HC.esc, format = HC.format, todayIso = HC.todayIso;
   var KEY_GOAL = 'hc.nutri.goal', KEY_DAY = 'hc.nutri.dayType', KEY_RIDE = 'hc.nutri.rideMin', KEY_PICKS = 'hc.nutri.picks', KEY_PLAN_OPEN = 'hc.nutri.planOpen';
   var RANK = { rest: 0, gym: 1, bike: 2, bikeLong: 3 };
+  // icons (inline SVG line icons, no emoji): the supplement pill of Plan de hoy
+  var PILL_SVG = '<svg class="supp-ico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-45 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><path d="M12 8.5v7"/></g></svg>';
   var state = { goal: N.goal, override: null, auto: null, ride: null, raised: null, picks: {} };
 
   function $(id) { return document.getElementById(id); }
@@ -710,7 +712,6 @@
   function isMainMeal(meal) {
     return !!meal && !!meal.s && (N.mainSlots || []).indexOf(meal.s) >= 0;
   }
-  var PILL_SVG ='<svg class="supp-ico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-45 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><path d="M12 8.5v7"/></g></svg>';
   function suppLine(text) {
     return '<div class="meal-supp">' + PILL_SVG + '<span>' + esc(text) + '</span></div>';
   }
