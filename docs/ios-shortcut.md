@@ -84,7 +84,8 @@ Example body (two lines per key shown):
 ## Payload keys
 
 Every key is optional: send only what you track. Formats: **point** = `ISO;value[;source]`,
-**day total** = `ISO;value` (one line per day), **sleep** = `ISO-start;ISO-end;stage`.
+**day total** = `ISO;value` (one line per day), **hour total** = `ISO;value` (one line per clock
+hour), **sleep** = `ISO-start;ISO-end;stage`.
 Decimal commas (`42,1`) are accepted.
 
 | Key | Health type (English UI) | Format | Group by Day | Source / Origen | Window | Writes |
@@ -101,6 +102,7 @@ Decimal commas (`42,1`) are accepted.
 | `steps_watch` | Steps, *Source is* your watch | day total | **yes** | **filter** by source | 8 days | `steps-daily.csv` |
 | `steps_phone` | Steps, *Source is* your iPhone | day total | **yes** | **filter** by source | 8 days | `steps-daily.csv` |
 | `active_energy` | Active Energy (iOS 26: *Active Calories*), *Source is* your watch | day total | **yes** | **filter** by source | 8 days | `active-energy-daily.csv` |
+| `active_energy_hourly` | Active Energy, *Source is* your watch | hour total | no: **Group by Hour** | **filter** by source | 3 days | `active-energy-hourly.csv` |
 | `basal_energy` | Resting Energy (iOS 26: *Resting Calories*), *Source is* your watch | day total | **yes** | **filter** by source | 8 days | `basal-energy-daily.csv` |
 | `respiratory` | Respiratory Rate | day total (mean) | **yes** | no | 8 days | `respiratory-daily.csv` |
 | `walking_hr` | Walking Heart Rate Average | day total (mean) | **yes** | no | 8 days | `walking-hr-daily.csv` |
@@ -118,10 +120,30 @@ What the sync does with each shape:
 - **Day totals**: the oldest day of each key is dropped (a "last N days" query starts mid-day, so
   that day is partial; the four `diet_*` keys share one oldest day, since they fold into one row), and the latest payload wins for a day. A `0` on `respiratory`/`walking_hr`
   (from *Fill Missing*) means no data. Steps keep the **max** of watch and phone per day.
+- **Hour totals** (`active_energy_hourly`): one row per clock hour; the stamp is the hour's first
+  sample (e.g. `2030-01-02T09:07:12+01:00;275.3`) and is stored as the hour start. The oldest hour
+  of each payload is dropped (the window starts mid-hour) and the latest payload wins an hour.
+  It is used only to correct ride days: when a bike computer with a power meter records a ride the
+  Watch did not, the Watch's energy during the ride hours is replaced by the ride's power-based
+  energy (Strava kJ), never lowering a day (CLAUDE.md, Health tab, energy).
 - **Dietary**: the four `diet_*` keys become one row per day. A day without `diet_kcal`, or with
   0 kcal, is skipped; a missing macro stays blank. These feed the intake rings in Nutrición.
 - **Sleep**: only asleep stages count (English or Spanish names); a segment starting after 18:00
   belongs to the next morning's night.
+
+### Building `active_energy_hourly`
+
+Duplicate your `active_energy` search and change only the grouping:
+
+1. **Find Health Samples**: *Type* Active Energy (iOS 26: *Active Calories*), *Source is* your
+   watch (the same filter as `active_energy`), *Start Date is in the last* **3 days**, *Group By*
+   **Hour** (not Day).
+2. **Repeat with Each** → **Text** `<Start Date ISO 8601>;<Value>`, then **Combine Text** with new
+   lines, like every other key.
+3. Add a JSON field `active_energy_hourly` with that text to the POST body.
+
+3 days × 24 hours is at most ~72 lines, so it adds little to the payload. After adding it run
+`npm run sync -- --full` once (see Verify).
 
 ## Gotchas
 
