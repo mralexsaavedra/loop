@@ -11,7 +11,8 @@ import { StubDocument } from '../../test/dom-stub.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { es as esF, en as enF } from '../i18n/food-templates.mjs';
 import { FOODLOG_CASES, runCase, FOOD_MEALS, FOOD_STORES, FOOD_UNITS, FOOD_LIMITS } from '../../../lib/nutrition/foodlog.mjs';
-const FOOD_CONST = { meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS, limits: FOOD_LIMITS };
+import { MEAL_GROUPS, MAIN_SLOTS, ADDON_GROUP, ADDON_SLOT } from '../../../lib/nutrition/slots.mjs';
+const FOOD_CONST = { meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS, limits: FOOD_LIMITS, groups: MEAL_GROUPS, mainSlots: MAIN_SLOTS, addonGroup: ADDON_GROUP, addonSlot: ADDON_SLOT };
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'food.js'), 'utf8');
@@ -27,16 +28,16 @@ const RECIPE = { id: 9, name: 'Porridge', kind: 'serving', servings: 2, cookedWe
 const ENTRY = { id: 50, date: TODAY, meal: 'breakfast', refType: 'product', refId: 1, label: 'Yogur natural', amount: 1, unit: 'serving', kcal: 75, protein: 12.5, carbs: 5, fat: 0.3 };
 const TOTALS1 = { kcal: 75, protein: 12.5, carbs: 5, fat: 0.3, count: 1, missing: { protein: false, carbs: false, fat: false } };
 
-function fixedDate(iso) {
+function fixedDate(iso, time = '12:00:00') {
   const RealDate = Date;
   return class extends RealDate {
-    constructor(...a) { if (a.length) super(...a); else super(iso + 'T12:00:00'); }
-    static now() { return new RealDate(iso + 'T12:00:00').getTime(); }
+    constructor(...a) { if (a.length) super(...a); else super(iso + 'T' + time); }
+    static now() { return new RealDate(iso + 'T' + time).getTime(); }
   };
 }
 
 /** routes: { 'GET /api/food/products': response | fn(init, n) | Error }; unknown -> network error */
-function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], todayPlan } = {}) {
+function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], todayPlan, time } = {}) {
   const calls = [];
   const counts = {};
   const fetch = fetchImpl || (async (url, init = {}) => {
@@ -65,7 +66,7 @@ function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], todayPlan
   };
   const ctx = {
     document: doc, window, I18N_FOOD: locale === 'es' ? esF : enF, FOOD_CONST,
-    LOCALE: locale, Date: fixedDate(TODAY), Math, JSON, Number, String, Object, Array, Promise, isFinite, fetch, Uint8Array, setTimeout, clearTimeout,
+    LOCALE: locale, Date: fixedDate(TODAY, time), Math, JSON, Number, String, Object, Array, Promise, isFinite, fetch, Uint8Array, setTimeout, clearTimeout,
   };
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -119,18 +120,37 @@ test('server answers: hosts appear, every request carries X-HC-Food, today is th
   assert.deepEqual(t.hooks, ['nutri'], 'Resumen de hoy re-reads the totals (it refreshes the rings itself)');
 });
 
-test('Registrar: grouped by meal slot, entry kcal + P/C/G, a labelled delete button, one add button per slot, the day total', async () => {
+test('Registrar: four groups (Desayuno, Comida, Cena, Añadidos), entry kcal + P/C/G, a labelled delete button, one add button per group, the day total', async () => {
   const t = setup({ routes: BOOT });
   await flush();
   const html = t.els['food-log'].innerHTML;
-  for (const m of FOOD_MEALS) assert.match(html, new RegExp(`id="food-add-${m}"[^>]*data-food-act="add"[^>]*data-meal="${m}"`));
+  for (const g of MEAL_GROUPS) assert.match(html, new RegExp(`id="food-add-${g}"[^>]*data-food-act="add"[^>]*data-meal="${g}"`));
+  for (const s of ['preworkout', 'postworkout', 'snack']) assert.doesNotMatch(html, new RegExp(`id="food-add-${s}"`), 'no card per add-on slot');
+  assert.deepEqual([...html.matchAll(/<h3 class="food-meal-name"[^>]*>([^<]+)<\/h3>/g)].map((m) => m[1]), ['Desayuno', 'Comida', 'Cena', 'Añadidos']);
   assert.match(html, /aria-label="Añadir a Desayuno"/);
+  assert.match(html, /aria-label="Añadir a Añadidos"/);
   assert.match(html, /data-food-act="del" data-id="50" aria-label="Borrar Yogur natural"/);
   assert.match(text(html), /Registrado hoy 75 kcal/);
   assert.match(text(html), /Yogur natural 1 ración 75 kcal P 12,5 · C 5 · G 0,3/);
-  assert.ok(html.indexOf('Desayuno') < html.indexOf('Comida'), 'slots in day order');
 });
 
+test('Registrar: pre / post workout and snack entries show in Añadidos with a tiny muted slot tag; main meals carry no tag', async () => {
+  const pre = { ...ENTRY, id: 61, meal: 'preworkout', refType: 'quick', refId: null, label: 'Plátano', amount: 1, unit: 'serving', kcal: 105, protein: 1.3, carbs: 27, fat: 0.4 };
+  const snack = { ...ENTRY, id: 62, meal: 'snack', refType: 'quick', refId: null, label: 'Café', amount: 1, unit: 'serving', kcal: 30, protein: 2, carbs: 3, fat: 1 };
+  const dinner = { ...ENTRY, id: 63, meal: 'dinner', label: 'Merluza' };
+  const totals = { kcal: 285, protein: 18.3, carbs: 38, fat: 1.7, count: 4, missing: { protein: false, carbs: false, fat: false } };
+  const t = setup({ routes: { ...BOOT, [`GET /api/food/log?date=${TODAY}`]: json({ date: TODAY, entries: [ENTRY, pre, snack, dinner], totals }) } });
+  await flush();
+  const html = t.els['food-log'].innerHTML;
+  const groups = Object.fromEntries(html.split('<section class="food-meal" ').slice(1).map((s) => [s.match(/aria-labelledby="fm-h-(\w+)"/)[1], s]));
+  assert.deepEqual(Object.keys(groups), ['breakfast', 'lunch', 'dinner', 'addon']);
+  assert.match(groups.addon, /Plátano<\/span><span class="fe-slot">Pre-entreno<\/span>/);
+  assert.match(groups.addon, /Café<\/span><span class="fe-slot">Snack<\/span>/);
+  assert.match(groups.addon, /<span class="food-meal-kcal"><b>135<\/b> kcal<\/span>/, 'the group kcal = its entries');
+  assert.match(groups.dinner, /Merluza/);
+  assert.doesNotMatch(groups.dinner + groups.breakfast, /fe-slot/);
+  assert.doesNotMatch(groups.lunch, /class="fe"/, 'an empty group lists nothing');
+});
 test('foodTotals: today with >= 1 entry only (never from the target), with the missing-macro flags', async () => {
   const t = setup({ routes: BOOT });
   await flush();
@@ -812,4 +832,92 @@ test('Del plan: a long name is capped to the label limit; an Atwater refusal off
   await flush();
   assert.equal(bodies[1].force, true);
   assert.equal(bodies[1].requestId, bodies[0].requestId);
+});
+
+/* ---------- four groups in the add sheet: Desayuno / Comida / Cena / Añadido (the stored slot enum is unchanged) ---------- */
+const ADDON_PLAN = [
+  { name: 'Desayuno', slot: 'breakfast', kcal: 500, p: 30, c: 60, g: 12, items: [] },
+  { name: 'Comida', slot: 'lunch', kcal: 800, p: 50, c: 90, g: 20, items: [] },
+  { name: 'Pre-entreno', slot: 'preworkout', kcal: 150, p: 2, c: 35, g: 0.5, items: [] },
+  { name: 'Post-entreno', slot: 'postworkout', kcal: 300, p: 30, c: 35, g: 4, items: [] },
+  { name: 'Cena', slot: 'dinner', kcal: 700, p: 45, c: 70, g: 22, items: [] },
+  { name: 'Aceite de cocinar', slot: null, kcal: 130, p: 0, c: 0, g: 14.5, items: [] },
+];
+const ADDON_IDS = ['fa-panel', 'fa-prev', 'fa-msg', 'food-add-addon'];
+const chipsOf = (html) => [...html.matchAll(/data-food-act="plan-meal" data-i="(\d+)" aria-pressed="(true|false)"/g)].map((m) => [Number(m[1]), m[2] === 'true']);
+
+test('add sheet: the meal select offers Desayuno / Comida / Cena / Añadido; the Añadidos "+ Añadir" opens on Añadido and a quick entry is stored as snack', async () => {
+  const bodies = [];
+  const routes = { ...BOOT, 'POST /api/food/log': (init) => { bodies.push(JSON.parse(init.body)); return json({ entry: { ...ENTRY, id: 90, meal: 'snack', refType: 'quick', refId: null, label: 'Café', amount: 1, unit: 'serving', kcal: 30, protein: null, carbs: null, fat: null }, totals: TOTALS1 }, 201); } };
+  const t = setup({ routes, extraIds: ['fa-panel', 'fa-msg'] });
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'addon' }));
+  const { body } = t.window.HCViews['food-add'].render();
+  assert.deepEqual([...body.matchAll(/<option value="(\w+)"( selected)?>([^<]+)<\/option>/g)].filter((m) => MEAL_GROUPS.includes(m[1])).map((m) => [m[1], m[3], !!m[2]]),
+    [['breakfast', 'Desayuno', false], ['lunch', 'Comida', false], ['dinner', 'Cena', false], ['addon', 'Añadido', true]]);
+  assert.doesNotMatch(body, /<option value="(preworkout|postworkout|snack)"/);
+  t.fire('click', t.button({ 'data-food-act': 'tab', 'data-tab': 'quick' }));
+  t.input('fa-meal', 'addon');
+  t.input('fa-label', 'Café');
+  t.input('fa-kcal', '30');
+  t.input('fa-p', ''); t.input('fa-c', ''); t.input('fa-f', '');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  const { requestId, ...rest } = bodies[0];
+  assert.deepEqual(rest, { date: TODAY, meal: 'snack', refType: 'quick', label: 'Café', kcal: 30 });
+});
+
+test('add sheet: the time-based meal guess maps to the four groups (before 11 breakfast, before 16 lunch, before 20 add-on, else dinner)', async () => {
+  for (const [time, want] of [['08:30:00', 'breakfast'], ['13:00:00', 'lunch'], ['17:45:00', 'addon'], ['21:15:00', 'dinner']]) {
+    const t = setup({ routes: BOOT, time });
+    await flush();
+    t.fire('click', t.button({ 'data-food-act': 'add' }));
+    const { body } = t.window.HCViews['food-add'].render();
+    assert.match(body, new RegExp(`<option value="${want}" selected>`), time);
+  }
+});
+
+test('Del plan: chips = the main meals then each add-on; Añadido preselects the first add-on and logs its own slot (pre / post workout), else snack', async () => {
+  const bodies = [];
+  const routes = { ...BOOT, 'POST /api/food/log': (init) => { const b = JSON.parse(init.body); bodies.push(b); return json({ entry: { ...ENTRY, id: 100 + bodies.length, meal: b.meal, refType: 'quick', refId: null, label: b.label, amount: 1, unit: 'serving', kcal: b.kcal }, totals: TOTALS1 }, 201); } };
+  const t = setup({ routes, extraIds: ADDON_IDS, todayPlan: () => ADDON_PLAN });
+  await flush();
+  openPlan(t, 'addon');
+  assert.deepEqual(chipsOf(t.els['fa-panel'].innerHTML), [[0, false], [1, false], [4, false], [2, true], [3, false], [5, false]], 'main meals first (day order), then the add-ons');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(bodies[0].meal, 'preworkout', 'a plan add-on keeps its pre-workout slot');
+  assert.equal(bodies[0].label, 'Plan · Pre-entreno');
+
+  openPlan(t, 'addon');
+  t.fire('click', t.button({ 'data-food-act': 'plan-meal', 'data-i': '3' }));
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(bodies[1].meal, 'postworkout');
+
+  openPlan(t, 'addon');
+  t.fire('click', t.button({ 'data-food-act': 'plan-meal', 'data-i': '5' }));
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(bodies[2].meal, 'snack', 'an add-on with no slot is stored as snack');
+
+  openPlan(t, 'addon');
+  t.fire('click', t.button({ 'data-food-act': 'plan-meal', 'data-i': '1' }));
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(bodies[3].meal, 'snack', 'the meal select wins: a main meal logged under Añadido is an add-on');
+});
+
+test('Del plan: the meal select follows the groups (Cena -> the dinner chip, back to Añadido -> the first add-on; an add-on already picked stays)', async () => {
+  const t = setup({ routes: BOOT, extraIds: ADDON_IDS, todayPlan: () => ADDON_PLAN });
+  await flush();
+  openPlan(t, 'lunch');
+  assert.deepEqual(chipsOf(t.els['fa-panel'].innerHTML).filter((c) => c[1]), [[1, true]]);
+  t.fire('change', t.input('fa-meal', 'dinner'));
+  assert.deepEqual(chipsOf(t.els['fa-panel'].innerHTML).filter((c) => c[1]), [[4, true]]);
+  t.fire('change', t.input('fa-meal', 'addon'));
+  assert.deepEqual(chipsOf(t.els['fa-panel'].innerHTML).filter((c) => c[1]), [[2, true]]);
+  t.fire('click', t.button({ 'data-food-act': 'plan-meal', 'data-i': '5' }));
+  t.fire('change', t.input('fa-meal', 'addon'));
+  assert.deepEqual(chipsOf(t.els['fa-panel'].innerHTML).filter((c) => c[1]), [[5, true]], 'the picked add-on stays');
 });

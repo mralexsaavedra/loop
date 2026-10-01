@@ -41,6 +41,7 @@ test('the food hosts ship hidden: Registrar in the dia section, Mis productos / 
 test('copy + constants are baked; food.js is inlined after nutri-day.js and before intake.js', () => {
   assert.match(html, /var I18N_FOOD = \{/);
   assert.match(html, /var FOOD_CONST = \{"meals":\["breakfast","lunch","preworkout","postworkout","dinner","snack"\],"stores":\["mercadona","dia","eroski","other"\],"units":\["g","ml"\],"limits":\{"nameMax":120,/, 'the shared limits are baked too');
+  assert.match(html, /"groups":\["breakfast","lunch","dinner","addon"\],"mainSlots":\["breakfast","lunch","dinner"\],"addonGroup":"addon","addonSlot":"snack"\}/, 'Registrar\'s four groups come baked from lib/nutrition/slots.mjs');
   const at = (src) => html.indexOf(src.slice(0, 200));
   assert.ok(at(nutriDay) > 0 && at(food) > 0 && at(intake) > 0, 'all three scripts inlined verbatim');
   assert.ok(at(nutriDay) < at(food) && at(food) < at(intake));
