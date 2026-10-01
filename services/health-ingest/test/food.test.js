@@ -516,3 +516,164 @@ test('hostAllowed / parseAllowedHosts: literals, local names and the allowlist o
   assert.deepEqual(parseAllowedHosts(''), [])
   assert.deepEqual(parseAllowedHosts(undefined), [])
 })
+
+/* ---------- recipes with basics of the public food DB (a SNAPSHOT per ingredient) ---------- */
+const B_BANANA = { basic: 'platano', name: 'Plátano', unit: 'g', amount: 240, per100: { kcal: 88, protein: 0.8, carbs: 22.5, fat: 0.3 } }
+const B_EGGS = { basic: 'huevo', name: 'Huevo', unit: 'ud', amount: 2, per100: { kcal: 72, protein: 6.3, carbs: 0.4, fat: 5 } }
+const B_BEER = { basic: 'cerveza', name: 'Cerveza', unit: 'ml', amount: 330, per100: { kcal: 47, protein: 0, carbs: 3.6, fat: 0 } }
+
+test('recipes mix products and basics: macros from the label + the snapshots (g per 100, ud per unit), per serving and per batch', async () => {
+  const t = await setup()
+  try {
+    const oats = (await t.call('POST', '/food/products', { body: OATS })).body.product
+    const body = { name: 'Tortitas', kind: 'serving', servings: 2, ingredients: [{ productId: oats.id, amount: 80 }, B_BANANA, B_EGGS] }
+    const r = await t.call('POST', '/food/recipes', { body })
+    assert.equal(r.status, 201)
+    assert.equal(r.body.recipe.complete, true)
+    assert.deepEqual(r.body.recipe.perServing, { kcal: 326, protein: 12.7, carbs: 50.9, fat: 8.2 })
+    assert.deepEqual(r.body.recipe.totals, { kcal: 653, protein: 25.3, carbs: 101.8, fat: 16.3 })
+    assert.equal(r.body.recipe.rawWeight, 320)
+    assert.deepEqual(r.body.recipe.ingredients, [
+      { productId: oats.id, amount: 80, name: 'Copos de avena', unit: 'g' },
+      B_BANANA,
+      B_EGGS
+    ], 'a basic is listed with its name, unit, amount and snapshot')
+    assert.deepEqual(t.store.db.recipe[0].ingredients, [{ productId: oats.id, amount: 80 }, B_BANANA, B_EGGS], 'stored exactly as validated')
+
+    const batch = await t.call('POST', '/food/recipes', { body: { name: 'Masa', kind: 'batch', cookedWeightG: 500, ingredients: body.ingredients } })
+    assert.deepEqual(batch.body.recipe.per100, { kcal: 131, protein: 5.1, carbs: 20.4, fat: 3.3 })
+
+    const log = await t.call('POST', '/food/log', { body: { date: '2030-01-10', meal: 'breakfast', refType: 'recipe', refId: batch.body.recipe.id, amount: 250, unit: 'g' } })
+    assert.equal(log.status, 201)
+    assert.deepEqual([log.body.entry.kcal, log.body.entry.protein, log.body.entry.carbs, log.body.entry.fat], [326, 12.7, 50.9, 8.2])
+
+    const list = (await t.call('GET', '/food/recipes')).body.recipes
+    assert.equal(list.length, 2)
+    assert.ok(list.every((x) => x.complete))
+  } finally { await t.close() }
+})
+
+test('a recipe of basics only needs no product', async () => {
+  const t = await setup()
+  try {
+    const r = await t.call('POST', '/food/recipes', { body: { name: 'Huevos', kind: 'serving', servings: 1, ingredients: [{ ...B_EGGS, amount: 3 }] } })
+    assert.equal(r.status, 201)
+    assert.deepEqual(r.body.recipe.perServing, { kcal: 216, protein: 18.9, carbs: 1.2, fat: 15 })
+    const e = await t.call('POST', '/food/log', { body: { date: '2030-01-10', meal: 'dinner', refType: 'recipe', refId: r.body.recipe.id, amount: 1, unit: 'serving' } })
+    assert.equal(e.body.entry.kcal, 216)
+  } finally { await t.close() }
+})
+
+test('existing product-only recipes keep working unchanged (stored and listed in the old shape)', async () => {
+  const t = await setup()
+  try {
+    const oats = (await t.call('POST', '/food/products', { body: OATS })).body.product
+    // a row written before basics existed
+    t.store.db.recipe.push({ id: 500, name: 'Vieja', kind: 'serving', servings: 1, cookedWeightG: null, ingredients: [{ productId: oats.id, amount: 50 }], archived: false, createdAt: null, updatedAt: null })
+    const [r] = (await t.call('GET', '/food/recipes')).body.recipes
+    assert.deepEqual(r.ingredients, [{ productId: oats.id, amount: 50, name: 'Copos de avena', unit: 'g' }])
+    assert.equal(r.perServing.kcal, 186)
+    const e = await t.call('POST', '/food/log', { body: { date: '2030-01-10', meal: 'breakfast', refType: 'recipe', refId: 500, amount: 1, unit: 'serving' } })
+    assert.equal(e.body.entry.kcal, 186)
+  } finally { await t.close() }
+})
+
+test('a basic ingredient is validated strictly: key pattern, name, unit, amount, per-100 macros; unknown keys refused', async () => {
+  const t = await setup()
+  try {
+    const recipe = (ing) => ({ name: 'R', kind: 'serving', servings: 1, ingredients: [ing] })
+    const cases = [
+      [{ ...B_EGGS, extra: 1 }, 'ingredients.extra'],
+      [{ ...B_EGGS, productId: 1 }, 'ingredients.productId'],
+      [{ ...B_EGGS, basic: 'Huevo' }, 'ingredients.basic'],
+      [{ ...B_EGGS, basic: '../etc' }, 'ingredients.basic'],
+      [{ ...B_EGGS, basic: 'x'.repeat(65) }, 'ingredients.basic'],
+      [{ ...B_EGGS, basic: 7 }, 'ingredients.basic'],
+      [{ ...B_EGGS, basic: '' }, 'ingredients.basic'],
+      [{ ...B_EGGS, name: '  ' }, 'ingredients.name'],
+      [{ ...B_EGGS, name: 'x'.repeat(121) }, 'ingredients.name'],
+      [{ ...B_EGGS, unit: 'serving' }, 'ingredients.unit'],
+      [{ ...B_EGGS, unit: 'oz' }, 'ingredients.unit'],
+      [{ ...B_EGGS, amount: 0 }, 'ingredients.amount'],
+      [{ ...B_EGGS, amount: 10001 }, 'ingredients.amount'],
+      [{ ...B_EGGS, amount: '2' }, 'ingredients.amount'],
+      [{ ...B_EGGS, per100: null }, 'ingredients.per100'],
+      [{ ...B_EGGS, per100: [72, 6.3, 0.4, 5] }, 'ingredients.per100'],
+      [{ ...B_EGGS, per100: { ...B_EGGS.per100, fibre: 1 } }, 'ingredients.per100.fibre'],
+      [{ ...B_EGGS, per100: { ...B_EGGS.per100, kcal: 901 } }, 'ingredients.per100.kcal'],
+      [{ ...B_EGGS, per100: { ...B_EGGS.per100, protein: 101 } }, 'ingredients.per100.protein'],
+      [{ ...B_EGGS, per100: { ...B_EGGS.per100, fat: -1 } }, 'ingredients.per100.fat'],
+      [{ ...B_EGGS, per100: { ...B_EGGS.per100, carbs: null } }, 'ingredients.per100.carbs'],
+      [{ ...B_EGGS, per100: { ...B_EGGS.per100, carbs: '0.4' } }, 'ingredients.per100.carbs'],
+      [{ ...B_EGGS, per100: { ...B_EGGS.per100, kcal: Infinity } }, 'ingredients.per100.kcal']
+    ]
+    for (const [ing, field] of cases) {
+      const r = await t.call('POST', '/food/recipes', { body: recipe(ing) })
+      assert.equal(r.status, 400, field)
+      assert.deepEqual(r.body, { error: 'invalid', field }, field)
+    }
+    assert.equal(t.store.db.recipe.length, 0)
+    // a recipe never accepts typed macros, also next to basics
+    const typed = await t.call('POST', '/food/recipes', { body: { ...recipe(B_EGGS), perServing: { kcal: 1 } } })
+    assert.deepEqual(typed.body, { error: 'invalid', field: 'perServing' })
+  } finally { await t.close() }
+})
+
+test('a basic snapshot whose kcal disagree with its macros needs force (like a product label); force is never stored', async () => {
+  const t = await setup()
+  try {
+    const body = { name: 'Guiso a la cerveza', kind: 'serving', servings: 4, ingredients: [B_EGGS, B_BEER] }
+    const r = await t.call('POST', '/food/recipes', { body })
+    assert.deepEqual([r.status, r.body], [400, { error: 'atwater' }])
+    assert.deepEqual((await t.call('POST', '/food/recipes', { body: { ...body, force: 'yes' } })).body, { error: 'invalid', field: 'force' })
+    const ok = await t.call('POST', '/food/recipes', { body: { ...body, force: true } })
+    assert.equal(ok.status, 201)
+    assert.equal('force' in t.store.db.recipe[0], false)
+    const upd = await t.call('PUT', `/food/recipes/${ok.body.recipe.id}`, { body })
+    assert.deepEqual(upd.body, { error: 'atwater' }, 'every save checks again')
+  } finally { await t.close() }
+})
+
+test('archiving a product of a recipe that mixes basics: the recipe keeps its macros and stays loggable; re-saving it with that product is refused (rules unchanged)', async () => {
+  const t = await setup()
+  try {
+    const oats = (await t.call('POST', '/food/products', { body: OATS })).body.product
+    const body = { name: 'Tortitas', kind: 'serving', servings: 2, ingredients: [{ productId: oats.id, amount: 80 }, B_BANANA, B_EGGS] }
+    const rec = (await t.call('POST', '/food/recipes', { body })).body.recipe
+    assert.equal((await t.call('DELETE', `/food/products/${oats.id}`)).status, 200)
+    const [r] = (await t.call('GET', '/food/recipes')).body.recipes
+    assert.equal(r.complete, true)
+    assert.equal(r.perServing.kcal, 326)
+    const e = await t.call('POST', '/food/log', { body: { date: '2030-01-10', meal: 'lunch', refType: 'recipe', refId: rec.id, amount: 1, unit: 'serving' } })
+    assert.equal(e.body.entry.kcal, 326)
+    assert.deepEqual((await t.call('PUT', `/food/recipes/${rec.id}`, { body })).body, { error: 'unknown_product' })
+    const basicsOnly = await t.call('PUT', `/food/recipes/${rec.id}`, { body: { ...body, ingredients: [B_BANANA, B_EGGS] } })
+    assert.equal(basicsOnly.status, 200)
+  } finally { await t.close() }
+})
+
+test('a reasonable recipe of 20 ingredients (products + basics with long names) fits the 16 KB body cap; the cap still applies', async () => {
+  const t = await setup()
+  try {
+    const ids = []
+    for (let i = 0; i < 10; i++) ids.push((await t.call('POST', '/food/products', { body: { ...OATS, name: `Producto ${i}` } })).body.product.id)
+    const ingredients = []
+    for (let i = 0; i < 20; i++) {
+      ingredients.push(i % 2
+        ? { productId: ids[i >> 1], amount: 1234.5 }
+        : { basic: `basico_largo_${i}`, name: 'Pechuga de pollo a la plancha sin piel ' + 'x'.repeat(40), unit: 'g', amount: 1234.5, per100: { kcal: 113.25, protein: 23.45, carbs: 0.05, fat: 1.25 } })
+    }
+    const body = { name: 'R'.repeat(120), kind: 'batch', cookedWeightG: 19999.5, ingredients, force: true }
+    const size = Buffer.byteLength(JSON.stringify(body))
+    assert.ok(size < FOOD_BODY_LIMIT / 2, `20 ingredients = ${size} bytes`)
+    assert.equal((await t.call('POST', '/food/recipes', { body })).status, 201)
+    // even the largest recipe the limits allow (40 basics, every string at its cap) fits
+    const worst = { ...body, ingredients: Array.from({ length: 40 }, (_, i) => ({ basic: 'k'.repeat(62) + String(i).padStart(2, '0'), name: 'n'.repeat(120), unit: 'ml', amount: 9999.9, per100: { kcal: 899.99, protein: 99.99, carbs: 99.99, fat: 99.99 } })) }
+    assert.ok(Buffer.byteLength(JSON.stringify(worst)) < FOOD_BODY_LIMIT, 'worst case under the cap')
+    // over the cap: 413, nothing stored
+    const before = t.store.db.recipe.length
+    const big = await t.call('POST', '/food/recipes', { body: { ...body, ingredients: [{ ...ingredients[0], name: 'x'.repeat(FOOD_BODY_LIMIT) }] } })
+    assert.equal(big.status, 413)
+    assert.equal(t.store.db.recipe.length, before)
+  } finally { await t.close() }
+})
