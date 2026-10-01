@@ -1,4 +1,5 @@
-/* Nutrición food log (part 2) — Registrar (today's log by meal slot, inside the `dia` section), the
+/* Nutrición food log (part 2) — Registrar (today's log in four groups: Desayuno / Comida / Cena /
+ * Añadidos, inside the `dia` section), the
  * add sheet (a view of the detail sheet modal), Mis productos and Mis recetas (folds before Tablas).
  * Classic script (is:inline), inlined after nutri-day.js and before intake.js. Reads
  * I18N_FOOD + FOOD_CONST (meal slots / stores / units from lib/nutrition/foodlog.mjs), baked by
@@ -36,8 +37,15 @@
   var BARCODE_RE = new RegExp(LIM.barcodePattern || '^$');
   var API = '/api/food';
   var TIMEOUT_MS = 15000; // a request that hangs is an ambiguous failure, like offline
-  // a fresh add sheet's meal by the viewer's hour: before 11 breakfast, before 16 lunch, before 20 snack, else dinner
-  var MEAL_HOUR_CUTS = [[11, 'breakfast'], [16, 'lunch'], [20, 'snack']];
+  // Registrar shows FOUR groups (lib/nutrition/slots.mjs, baked in FOOD_CONST): the main slots
+  // breakfast / lunch / dinner + ONE add-ons group for every other stored slot (pre / post workout,
+  // snack). The stored slot enum (K.meals) is unchanged: an add-on is stored as K.addonSlot unless it
+  // comes from a plan add-on with its own slot (pre / post workout).
+  var GROUPS = K.groups || [];
+  var MAIN = K.mainSlots || [];
+  var ADDON = K.addonGroup;
+  // a fresh add sheet's group by the viewer's hour: before 11 breakfast, before 16 lunch, before 20 an add-on, else dinner
+  var MEAL_HOUR_CUTS = [[11, 'breakfast'], [16, 'lunch'], [20, ADDON]];
   var S = { ok: false, products: [], recipes: [], log: null, sheet: null, pform: null, rform: null, confirm: null };
   var pendingMeal = null;
 
@@ -230,6 +238,22 @@
     if (code === 'invalid') return format(T.errors.invalid, { field: (e.field && T.fields[e.field]) || e.field || '' });
     return T.errors[code] || T.errors.generic;
   }
+  // the group of a stored slot (or of a group key): a main slot is its own group, anything else add-ons
+  function groupOf(slot) {
+    return MAIN.indexOf(slot) >= 0 ? slot : ADDON;
+  }
+  // a group key, a stored slot (mapped to its group), else null
+  function asGroup(v) {
+    if (GROUPS.indexOf(v) >= 0) return v;
+    return K.meals.indexOf(v) >= 0 ? groupOf(v) : null;
+  }
+  // the slot stored for a group: a main group is its slot; an add-on keeps a plan add-on's own slot
+  // (pre / post workout), else K.addonSlot
+  function slotFor(group, planMeal) {
+    if (group !== ADDON) return group;
+    var s = planMeal && planMeal.slot;
+    return s && K.meals.indexOf(s) >= 0 && MAIN.indexOf(s) < 0 ? s : K.addonSlot;
+  }
   function guessMeal() {
     var h = new Date().getHours();
     for (var i = 0; i < MEAL_HOUR_CUTS.length; i++) if (h < MEAL_HOUR_CUTS[i][0]) return MEAL_HOUR_CUTS[i][1];
@@ -313,8 +337,10 @@
 
   /* ---------- Registrar ---------- */
   var DEL_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+  // an add-on entry carries its stored slot as a tiny muted tag (Pre-entreno, Snack…)
   function entryHtml(e) {
-    return '<li class="fe"><div class="fe-main"><span class="fe-label">' + esc(e.label) + '</span>' +
+    var tag = groupOf(e.meal) === ADDON && T.meals[e.meal] ? '<span class="fe-slot">' + esc(T.meals[e.meal]) + '</span>' : '';
+    return '<li class="fe"><div class="fe-main"><span class="fe-label">' + esc(e.label) + '</span>' + tag +
       '<span class="fe-amt">' + esc(amountText(e.amount, e.unit)) + '</span></div>' +
       '<div class="fe-side"><span class="fe-kcal"><b>' + esc(kf(e.kcal)) + '</b> ' + esc(T.kcal) + '</span>' +
       '<span class="fe-pcf">' + esc(pcf(e)) + '</span></div>' +
@@ -330,14 +356,14 @@
       var html = '<div class="food-sum"><span class="food-sum-lbl">' + esc(T.dayTotal) + '</span> ' + macroLine(t) + '</div>' +
         (miss ? '<p class="food-note">' + esc(T.missingNote) + '</p>' : '') +
         (L.entries.length ? '' : '<p class="food-note">' + esc(T.empty) + '</p>');
-      html += '<div class="food-meals">' + K.meals.map(function (m) {
-        var list = L.entries.filter(function (e) { return e.meal === m; });
+      html += '<div class="food-meals">' + GROUPS.map(function (m) {
+        var list = L.entries.filter(function (e) { return groupOf(e.meal) === m; });
         var k = list.reduce(function (s, e) { return s + (fin(e.kcal) ? e.kcal : 0); }, 0);
         return '<section class="food-meal" aria-labelledby="fm-h-' + m + '"><div class="food-meal-top">' +
-          '<h3 class="food-meal-name" id="fm-h-' + m + '">' + esc(T.meals[m]) + '</h3>' +
+          '<h3 class="food-meal-name" id="fm-h-' + m + '">' + esc(T.groups[m]) + '</h3>' +
           (list.length ? '<span class="food-meal-kcal"><b>' + esc(kf(k)) + '</b> ' + esc(T.kcal) + '</span>' : '') + '</div>' +
           (list.length ? '<ul class="food-entries">' + list.map(entryHtml).join('') + '</ul>' : '') +
-          '<button type="button" class="food-add" id="food-add-' + m + '" data-food-act="add" data-meal="' + m + '" aria-label="' + esc(format(T.addAria, { meal: T.meals[m] })) + '">+ ' + esc(T.add) + '</button></section>';
+          '<button type="button" class="food-add" id="food-add-' + m + '" data-food-act="add" data-meal="' + m + '" aria-label="' + esc(format(T.addAria, { meal: T.groups[m] })) + '">+ ' + esc(T.add) + '</button></section>';
       }).join('') + '</div>';
       host.innerHTML = html;
     } catch (e) {
@@ -368,7 +394,7 @@
 
   /* ---------- add sheet (window.HCViews['food-add'], rendered by detail.js) ---------- */
   function newSheet(meal) {
-    var m = K.meals.indexOf(meal) >= 0 ? meal : guessMeal();
+    var m = asGroup(meal) || guessMeal();
     var plan = todayPlan();
     return { meal: m, tab: 'products', q: '', pick: null, busy: false, reqId: null, plan: plan, planMeal: plan ? planMealFor(plan, m, 0) : 0, planItem: -1 };
   }
@@ -386,10 +412,19 @@
   function tabKeys() {
     return S.sheet && S.sheet.plan ? ['products', 'recipes', 'plan', 'quick'] : ['products', 'recipes', 'quick'];
   }
-  // the plan meal for a meal slot (the sheet's meal select), else `fallback`
-  function planMealFor(plan, slot, fallback) {
-    for (var i = 0; i < plan.length; i++) if (plan[i] && plan[i].slot === slot) return i;
+  // the plan meal for a group (the sheet's meal select): `current` when it already belongs to that
+  // group, else the first plan meal of the group (Añadido: the first add-on), else `fallback`
+  function planMealFor(plan, group, fallback, current) {
+    var inGroup = function (m) { return !!m && groupOf(m.slot) === group; };
+    if (current >= 0 && inGroup(plan[current])) return current;
+    for (var i = 0; i < plan.length; i++) if (inGroup(plan[i])) return i;
     return fallback;
+  }
+  // the chip order: the main meals, then the add-ons (each in day order), like Plan de hoy
+  function planOrder(plan) {
+    var idx = plan.map(function (m, i) { return i; });
+    var main = function (i) { return !!plan[i] && MAIN.indexOf(plan[i].slot) >= 0; };
+    return idx.filter(main).concat(idx.filter(function (i) { return !main(i); }));
   }
   /** What the plan tab would log: {label, kcal, protein, carbs, fat} (a macro the plan lacks stays
    * unset), or null. The whole meal = its scaled totals as Plan de hoy shows them; an item = its own. */
@@ -417,7 +452,8 @@
   }
   function planHtml() {
     var sh = S.sheet, plan = sh.plan, meal = plan[sh.planMeal];
-    var meals = '<div class="fa-plan-meals" role="group" aria-label="' + esc(T.sheet.planMeals) + '">' + plan.map(function (m, i) {
+    var meals = '<div class="fa-plan-meals" role="group" aria-label="' + esc(T.sheet.planMeals) + '">' + planOrder(plan).map(function (i) {
+      var m = plan[i];
       return '<button type="button" class="fa-plan-meal" id="fa-plan-meal-' + i + '" data-food-act="plan-meal" data-i="' + i + '" aria-pressed="' + (i === sh.planMeal) + '">' +
         '<span class="fa-item-name">' + esc(m.name) + '</span><span class="fa-item-sub">' + esc(kf(m.kcal)) + ' ' + esc(T.kcal) + '</span></button>';
     }).join('') + '</div>';
@@ -537,8 +573,8 @@
     S.sheet = newSheet(pendingMeal);
     pendingMeal = null;
     var sh = S.sheet;
-    var meals = '<select class="food-in" id="fa-meal">' + K.meals.map(function (m) {
-      return '<option value="' + m + '"' + (m === sh.meal ? ' selected' : '') + '>' + esc(T.meals[m]) + '</option>';
+    var meals = '<select class="food-in" id="fa-meal">' + GROUPS.map(function (m) {
+      return '<option value="' + m + '"' + (m === sh.meal ? ' selected' : '') + '>' + esc(T.groupOption[m]) + '</option>';
     }).join('') + '</select>';
     return {
       head: '',
@@ -586,8 +622,8 @@
   function saveSheet(force) {
     var sh = S.sheet;
     if (!sh || sh.busy) return;
-    var meal = val('fa-meal') || sh.meal;
-    if (K.meals.indexOf(meal) < 0) meal = sh.meal;
+    var group = asGroup(val('fa-meal')) || sh.meal;
+    var meal = slotFor(group, sh.tab === 'plan' && sh.plan ? sh.plan[sh.planMeal] : null);
     var date = HC.todayIso();
     var body;
     clearErrs(SHEET_IDS);
@@ -1084,9 +1120,9 @@
       setHtml('fa-list', listHtml());
     } else if (id === 'fa-amt' || id === 'fa-unit') updatePreview();
     else if (id === 'fa-meal' && S.sheet) {
-      S.sheet.meal = val('fa-meal') || S.sheet.meal;
-      // the plan tab follows the meal slot when the plan has a meal for it
-      var sh = S.sheet, i = sh.tab === 'plan' && sh.plan ? planMealFor(sh.plan, sh.meal, -1) : -1;
+      S.sheet.meal = asGroup(val('fa-meal')) || S.sheet.meal;
+      // the plan tab follows the group when the plan has a meal in it
+      var sh = S.sheet, i = sh.tab === 'plan' && sh.plan ? planMealFor(sh.plan, sh.meal, -1, sh.planMeal) : -1;
       if (i >= 0 && i !== sh.planMeal) {
         sh.planMeal = i;
         sh.planItem = -1;

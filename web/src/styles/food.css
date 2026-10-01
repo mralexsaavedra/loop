@@ -112,6 +112,14 @@
   font-size: var(--fs-xs);
   color: var(--faint);
 }
+/* an add-on entry's stored slot (Pre-entreno, Snack…): a tiny muted caps tag */
+.fe-slot {
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+}
 .fe-kcal {
   font-size: var(--fs-2xs);
   color: var(--muted);

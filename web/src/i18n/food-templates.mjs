@@ -6,6 +6,9 @@
 export const es = {
   headings: { log: 'Registrar', products: 'Mis productos', recipes: 'Mis recetas' },
   meals: { breakfast: 'Desayuno', lunch: 'Comida', preworkout: 'Pre-entreno', postworkout: 'Post-entreno', dinner: 'Cena', snack: 'Snack' },
+  // Registrar's four groups (lib/nutrition/slots.mjs MEAL_GROUPS) and the add sheet's meal select
+  groups: { breakfast: 'Desayuno', lunch: 'Comida', dinner: 'Cena', addon: 'Añadidos' },
+  groupOption: { breakfast: 'Desayuno', lunch: 'Comida', dinner: 'Cena', addon: 'Añadido' },
   stores: { mercadona: 'Mercadona', dia: 'Dia', eroski: 'Eroski', other: 'Otros' },
   units: { g: 'g', ml: 'ml', serving: 'ración', servings: 'raciones' },
   macroAbbr: { p: 'P', c: 'C', f: 'G' },
@@ -160,6 +163,8 @@ export const es = {
 export const en = {
   headings: { log: 'Log food', products: 'My products', recipes: 'My recipes' },
   meals: { breakfast: 'Breakfast', lunch: 'Lunch', preworkout: 'Pre-workout', postworkout: 'Post-workout', dinner: 'Dinner', snack: 'Snack' },
+  groups: { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', addon: 'Extras' },
+  groupOption: { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', addon: 'Extra' },
   stores: { mercadona: 'Mercadona', dia: 'Dia', eroski: 'Eroski', other: 'Other' },
   units: { g: 'g', ml: 'ml', serving: 'serving', servings: 'servings' },
   macroAbbr: { p: 'P', c: 'C', f: 'F' },
