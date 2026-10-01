@@ -110,6 +110,18 @@ test('example build: Tablas shows fixed reference values per natural unit (lib/n
   assert.doesNotMatch(tablasHtml, /Cant\.|<caption>🏋️|Training<\/caption>|tb-cc-|tb-prot-/);
 });
 
+test('example build: Tablas reference headers align with their cells (text columns left, numeric columns right)', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const tablasHtml = sliceSection(html, 'tablas');
+  // the Reference header carries the same class as its (left-aligned, sans) cells; kcal / P / C / F stay numeric
+  assert.match(tablasHtml, /<thead><tr><th>Food<\/th><th class="ref-unit">Reference<\/th><th>kcal<\/th><th>P<\/th><th>C<\/th><th>F<\/th><\/tr><\/thead>/);
+  const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  const rule = (sel) => { const m = css.match(new RegExp('(?:^|[}\\s,])' + sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[,{][^}]*}')); return m ? m[0] : ''; };
+  assert.match(rule('th.ref-unit'), /text-align:\s*left/, 'the Reference header is left-aligned like its cells');
+  assert.match(rule('th:first-child'), /text-align:\s*left/, 'the first column (food) header stays left-aligned');
+  assert.match(rule('th'), /text-align:\s*right/, 'numeric headers stay right-aligned with their cells');
+});
+
 test('example build: the day builder (Constructor de día, section registro) is gone: no section, no form, no script, no builder-only bakes', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   assert.doesNotMatch(html, /data-section="registro"|id="sec-registro"/);

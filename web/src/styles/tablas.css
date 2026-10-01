@@ -101,7 +101,9 @@ td.kc {
   font-weight: 700;
   color: var(--ink);
 }
-/* reference tables: the natural unit wraps (sans), a composite's components are indented */
+/* reference tables: the natural unit wraps (sans), a composite's components are indented; the
+ * Reference header aligns left with its cells (the numeric columns keep the right-aligned th / td) */
+th.ref-unit,
 td.ref-unit {
   white-space: normal;
   text-align: left;
