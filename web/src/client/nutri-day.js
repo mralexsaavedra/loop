@@ -1,10 +1,11 @@
-/* Nutrición day blocks — Resumen de hoy (day type + today's target), Plan de hoy (the day's
- * meals scaled to that target) and Avituallamiento (bike day types only) — plus Inicio's "today you
- * eat" card. Classic script (is:inline). Reads NUTRI (lib/nutrition/today.mjs: the 12 goal × day type
- * targets, one scaling model per base day, fuelling rates, detection thresholds, latest weigh-in) +
- * I18N_NUTRI, baked by web/src/tabs/Dia.astro, and SCORES.timeline / TRAINING (Bake.astro) for today's
- * workouts and programmed session. Everything time-based is decided HERE on the viewer's clock, so
- * builds stay byte-identical.
+/* Nutrición day blocks — Resumen de hoy (day type + today's target), Plan de hoy (a PORTION GUIDE for
+ * today's target) and Avituallamiento (bike day types only) — plus Inicio's "today you eat" card.
+ * Classic script (is:inline). Reads NUTRI (lib/nutrition/today.mjs: the 12 goal × day type targets, one
+ * scaling model per base day, the guide's defaults, fuelling rates, detection thresholds, latest
+ * weigh-in) + I18N_NUTRI, baked by web/src/tabs/Dia.astro, FOOD_BASICS (the public food DB, the guide's
+ * example foods; baked once for the food log too) and SCORES.timeline / TRAINING (Bake.astro) for
+ * today's workouts and programmed session. Everything time-based is decided HERE on the viewer's clock,
+ * so builds stay byte-identical.
  *
  * - Day type: detectDayType ports lib/nutrition/daytype.mjs over the baked NUTRI.detect (a test runs
  *   both over the same cases). A manual override is kept in localStorage WITH its date (so it expires
@@ -17,42 +18,34 @@
  *   chip next to today's kcal; a tap opens the profile sheet (#profile) focused on that setting.
  * - Plan: planFor / solveScale port lib/nutrition/scale.mjs over the baked models (parity test): the
  *   meals aim at target − ride fuel for the ride's minutes (a recorded ride's real minutes, else the
- *   picker, kept per date like the override, else the default), so changing the duration re-scales
- *   Plan de hoy. fuelPlan ports lib/nutrition/fuel.mjs over NUTRI.fuel.rates.
+ *   picker, kept per date like the override, else the default). fuelPlan ports lib/nutrition/fuel.mjs.
+ * - Plan de hoy = the portion guide (guideBudgets / exampleAmount / remaining / mealState / isCovered /
+ *   roleOptions port lib/nutrition/guide.mjs, parity tests): ALWAYS breakfast, lunch, dinner + Extras.
+ *   Each main meal's budget = the solved plan meals of its slot; Extras = the meals target − the three.
+ *   A main meal is a plate by parts (protein / carbs / vegetables free / fat), each macro with ONE
+ *   example food (a select of the basics of its categories + the owner's products, view time only) and
+ *   the amount of it that supplies the macro; the picked examples persist per viewer (hc.nutri.guide =
+ *   {picks: {<slot>.<role>: 'b:<key>' | 'p:<id>'}}, a preference, not daily). With the food log (LAN
+ *   page: window.HCFood.groupTotals) each meal shows what is LEFT, a "+" logs the example amount
+ *   (window.HCFood.addGuide) and "Left today" closes the guide; without it, budgets only.
  * - Today's target is the ONE source for the rest of Nutrición: window.nutriTarget() hands the intake
  *   rings (client/intake.js) the MEALS target (on bike days the day target minus the ride fuel, with
  *   the fuel as its own figure), and every goal / day type / duration change refreshes them directly.
  * - Model lines are read through LINE + the accessors (mirrors of lib/nutrition/amounts.mjs), never a bare index.
- * - Blocks: a dayPlan part that points at an option list is a choosable block (lib/nutrition/blocks.mjs):
- *   its name is a select of that list (NUTRI.lists, grouped like the tables); a fixed food (`{ing}`
- *   part) is a select of the foods of its category (NUTRI.foods, lib/nutrition/categories.mjs) plus
- *   "none" where skipping is sensible; a pick is kept for TODAY
- *   in localStorage (hc.nutri.picks = {date, picks: {<block id>: <option key>}}, every access wrapped)
- *   and planFor re-solves the whole day with it (swapOption / swapIng / ingAmount / applyPicks port
- *   blocks.mjs: protein lists keep the default's protein grams, the rest take the option's own amounts,
- *   a food keeps its category's rule; parity test).
- * - Snack: a day still short after the solve (every plate at its cap) gets the automatic snack — waterFill /
- *   solveSnack / defaultSnack / snackFor / rideHeadroomK / withSnack port lib/nutrition/snack.mjs over
- *   NUTRI.snack (parity test): an add-on row "Snack" (or one more part of the plan's own snack-slot
- *   meal) with a select of the options, its pick kept like a block pick (id NUTRI.snack.id).
- * - Plan de hoy shows breakfast / lunch / dinner as cards (NUTRI.mainSlots = lib/nutrition/slots.mjs
- *   MAIN_SLOTS) and every other meal as a compact row of ONE add-ons card after them (display only).
- * - HCNutri.todayPlan() hands the food log's "Del plan" tab (client/food.js) today's Plan de hoy
- *   meals, read-only, exactly as rendered (same goal × day type × ride minutes × picks, same planFor).
  * - Logged intake: the dial + bars fill from today's page food log (window.foodTotals, client/food.js,
  *   LAN page only) when it has entries, else from the Apple Health day (INTAKE); HCNutri.refresh() is
- *   the food log's hook after every add / delete.
+ *   the food log's hook after every add / delete, and re-renders the guide too.
  * Each block renders in its own try/catch: a failure shows a one-line message there, never a blank tab. */
 (function () {
   var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;
   var T = typeof I18N_NUTRI === 'undefined' || !I18N_NUTRI ? null : I18N_NUTRI;
   if (!N || !T) return;
   var esc = HC.esc, format = HC.format, todayIso = HC.todayIso;
-  var KEY_GOAL = 'hc.nutri.goal', KEY_DAY = 'hc.nutri.dayType', KEY_RIDE = 'hc.nutri.rideMin', KEY_PICKS = 'hc.nutri.picks', KEY_PLAN_OPEN = 'hc.nutri.planOpen';
+  var KEY_GOAL = 'hc.nutri.goal', KEY_DAY = 'hc.nutri.dayType', KEY_RIDE = 'hc.nutri.rideMin', KEY_GUIDE = 'hc.nutri.guide', KEY_PLAN_OPEN = 'hc.nutri.planOpen';
   var RANK = { rest: 0, gym: 1, bike: 2, bikeLong: 3 };
   // icons (inline SVG line icons, no emoji): the supplement pill of Plan de hoy
   var PILL_SVG = '<svg class="supp-ico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-45 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><path d="M12 8.5v7"/></g></svg>';
-  var state = { goal: N.goal, override: null, auto: null, ride: null, raised: null, picks: {} };
+  var state = { goal: N.goal, override: null, auto: null, ride: null, raised: null, guide: {} };
 
   function $(id) { return document.getElementById(id); }
   function kf(n) { // thousands separator: 3.050 (es) / 3,050 (en)
@@ -157,7 +150,7 @@
   }
 
   /* ---------- portion scaling (port of lib/nutrition/amounts.mjs, units.mjs fmtPieces, scale.mjs
-   * solveScale / planFor and blocks.mjs applyPicks) ---------- */
+   * solveScale / planFor) ---------- */
   function round2(v) { return Math.round(v * 100) / 100; }
   function stepAmount(amt, unit, st) {
     var ud = N.scale.ud; // lib/nutrition/units.mjs UD_AMT (one unit)
@@ -181,10 +174,6 @@
     return Math.max(st, Math.floor(cap / st + 1e-9) * st);
   }
   function pieceOf(pieces, l) { return lineKey(l) && pieces ? pieces[lineKey(l)] || null : null; }
-  function scaleLine(l, amt) {
-    var r = amt / lineAmt(l);
-    return [lineUnit(l), amt, l[LINE.K] * r, l[LINE.P] * r, l[LINE.C] * r, l[LINE.G] * r].concat(l.slice(LINE.STEP));
-  }
   function isDiscrete(l) { return lineUnit(l) === 'ud' || lineStep(l) > 0; }
   function fmtFactor(f, dec) { return f.toFixed(2).replace('.', dec); }
   function fmtHalf(h) {
@@ -206,7 +195,7 @@
     if (pc) return fmtPieces(amt, unit, pc);
     return unit === 'ud' ? round2(amt / N.scale.ud) + ' ' + units.ud : round2(amt) + ' ' + (units[unit] || unit);
   }
-  // water-filling (port of lib/nutrition/fill.mjs waterFill, the carb solve's and the snack's): one common
+  // water-filling (port of lib/nutrition/fill.mjs waterFill, the carb solve): one common
   // factor bounded by clamp ([min, max]; none = floored at 0), an item past its cap held there and the
   // factor re-solved over the rest until stable; start = the factor when nothing is free to fill
   function bound(f, clamp) {
@@ -311,217 +300,13 @@
     meals.forEach(function (m) { totals.k += m[0]; totals.p += m[1]; totals.c += m[2]; totals.g += m[3]; });
     return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, capped: capped, allCapped: allCapped, meals: meals, q: q, qa: qa, qn: qn, dir: dir, qm: qm, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
   }
-  function findOpt(list, key) {
-    if (!list || !list.length) return null;
-    for (var i = 0; i < list.length; i++) if (list[i].k === key) return list[i];
-    return null;
-  }
-  function limitP(f) { return f < N.blocks.pMin ? N.blocks.pMin : f > N.blocks.pMax ? N.blocks.pMax : f; }
-  function swapFactor(block, list, opt) {
-    if (block.r !== 'protein') return 1;
-    var def = findOpt(list, block.d);
-    if (!def || !(def.pr > 0) || !(opt.pr > 0)) return 1;
-    return round2(limitP(def.pr / opt.pr));
-  }
-  // the option's lines at swap factor s, every line clamped to its portion cap (port of blocks.mjs swapLines)
-  function swapLines(opt, s) {
-    var ln = s === 1 ? opt.ln : opt.ln.map(function (l) { return scaleLine(l, stepAmount(lineAmt(l) * s, lineUnit(l), lineStep(l))); });
-    var capped = false;
-    ln = ln.map(function (l) {
-      var c = capAmount(lineAmt(l), l);
-      if (c === lineAmt(l)) return l;
-      capped = true;
-      return scaleLine(l, c);
-    });
-    return { ln: ln, own: s === 1 && !capped };
-  }
-  function swapOption(b, list, key, fmt) {
-    var opt = findOpt(list, key);
-    var s = swapFactor(b, list, opt);
-    var isFlex = b.fx === true && opt.fx === true;
-    if (opt.mb) {
-      var mb = opt.mb.map(function (v) { return v * s; });
-      var q = s === 1 ? opt.q : (opt.q + ' ×' + s.toFixed(2).replace('.', fmt.dec || '.')).trim();
-      if (isFlex) return { part: { l: opt.n, x: 1 }, flex: { mb: mb, q: q } };
-      return { part: { l: opt.n, q: q, m: mb }, mac: mb };
-    }
-    var sl = swapLines(opt, s), ln = sl.ln, own = sl.own;
-    if (isFlex) return { part: opt.c && !opt.q ? { l: opt.n, x: 1, c: opt.c } : { l: opt.n, x: 1 }, flex: { ln: ln } };
-    var mac = [0, 0, 0, 0];
-    ln.forEach(function (l) { for (var j = 0; j < 4; j++) mac[j] += l[LINE.K + j]; });
-    var amts = ln.map(function (l) { return fmtAmt(lineAmt(l), lineUnit(l), fmt.units, pieceOf(fmt.pieces || null, l)); });
-    if (opt.c && (!opt.q || !own)) return { part: { l: opt.n, q: amts.join(' + '), c: opt.c, a: amts, m: mac }, mac: mac, ln: ln };
-    return { part: { l: opt.n, q: own && opt.q ? opt.q : amts.join(' + '), m: mac }, mac: mac, ln: ln };
-  }
-  // a FOOD block (port of lib/nutrition/blocks.mjs ingAmount / swapIng / isOption): the foods of the
-  // block's category from NUTRI.foods, "none" (NONE_KEY) where the category rule allows skipping
-  var NONE_KEY = 'none';
-  var METRIC = { protein: LINE.P, carbs: LINE.C, fat: LINE.G, kcal: LINE.K }; // categories.mjs SWAP_BY -> line slot
-  function gramsPer(e) { return e.gf || 1; }
-  function ingAmount(rule, def, defAmt, opt) {
-    var base = (defAmt * gramsPer(def)) / gramsPer(opt);
-    var s = 1;
-    var at = METRIC.hasOwnProperty(rule.by) ? METRIC[rule.by] : undefined;
-    if (at !== undefined) {
-      var dv = (def.l[at] * defAmt) / lineAmt(def.l);
-      var ov = (opt.l[at] * base) / lineAmt(opt.l);
-      if (dv > 0 && ov > 0) s = round2(limitP(dv / ov));
-    }
-    return capAmount(stepAmount(base * s, lineUnit(opt.l), lineStep(opt.l)), opt.l);
-  }
-  function swapIng(b, foods, key, fmt) {
-    if (key === NONE_KEY) return { part: { l: '', z: 1, m: [0, 0, 0, 0] }, mac: [0, 0, 0, 0] };
-    var opt = foods.ings[key];
-    var amt = ingAmount(foods.rules[b.I], foods.ings[b.d], b.a, opt);
-    var ln = scaleLine(opt.l, amt);
-    if (b.fx === true && opt.fx === true) return { part: { l: opt.n, x: 1 }, flex: { ln: [ln] } };
-    var mac = ln.slice(LINE.K, LINE.G + 1);
-    return { part: { l: opt.n, q: fmtAmt(amt, lineUnit(ln), fmt.units, pieceOf(fmt.pieces || null, ln)), m: mac }, mac: mac, ln: [ln] };
-  }
-  function isOption(b, key, lists, foods) {
-    if (!b.I) return !!findOpt(lists && lists[b.L], key);
-    if (!foods || !foods.rules || !Object.prototype.hasOwnProperty.call(foods.rules, b.I)) return false;
-    if (key === NONE_KEY) return foods.rules[b.I].skip === true;
-    var ks = foods.cats[b.I];
-    return !!ks && ks.indexOf(key) >= 0 && !!foods.ings[key];
-  }
-  function applyPicks(base, lists, picks, fmt, foods) {
-    var blocks = base.blocks || {};
-    var eff = {}, any = false;
-    if (picks && typeof picks === 'object') {
-      Object.keys(blocks).forEach(function (id) {
-        var key = picks[id];
-        if (typeof key !== 'string' || key === blocks[id].d || !isOption(blocks[id], key, lists, foods)) return;
-        eff[id] = key;
-        any = true;
-      });
-    }
-    if (!any) return { fixed: base.fixed, flex: base.flex, meals: base.meals, picks: {} };
-    var fixed = [], flex = [], fi = 0;
-    var meals = base.meals.map(function (meal, m) {
-      var touched = meal.parts.some(function (p) { return p.id && eff[p.id] !== undefined; });
-      var f = touched ? [0, 0, 0, 0] : base.fixed[m].slice();
-      var parts = meal.parts.map(function (p) {
-        var key = p.id ? eff[p.id] : undefined, i, k;
-        if (key === undefined) {
-          if (p.x) flex.push(base.flex[fi++]);
-          else if (touched) for (i = 0; i < 4; i++) f[i] += p.m[i];
-          return p;
-        }
-        if (p.x) fi++; // the default's flex entry is replaced
-        var b = blocks[p.id];
-        var sw = b.I ? swapIng(b, foods, key, fmt) : swapOption(b, lists[b.L], key, fmt);
-        if (sw.flex) {
-          var entry = { m: m };
-          for (k in sw.flex) entry[k] = sw.flex[k];
-          flex.push(entry);
-        } else for (i = 0; i < 4; i++) f[i] += sw.mac[i];
-        sw.part.id = p.id;
-        return sw.part;
-      });
-      fixed.push(f);
-      return { n: meal.n, s: meal.s, pcf: meal.pcf, parts: parts };
-    });
-    return { fixed: fixed, flex: flex, meals: meals, picks: eff };
-  }
-  // the automatic snack (port of lib/nutrition/snack.mjs): a day still short after the solve gets a
-  // snack option scaled to the shortfall (water-filling without a clamp, line caps), as an add-on meal
-  function snackCapK(o) {
-    var k = 0;
-    o.ln.forEach(function (l) { k += l[LINE.K] * capFactor(l); });
-    return k;
-  }
-  function defaultSnack(opts, need) {
-    var best = null, bestK = -1;
-    for (var i = 0; i < (opts || []).length; i++) {
-      var k = snackCapK(opts[i]);
-      if (k >= need) return opts[i].k;
-      if (k > bestK) { best = opts[i].k; bestK = k; }
-    }
-    return best;
-  }
-  function solveSnack(o, need, fmt) {
-    var all = o.ln.map(function (l) { return { k: l[LINE.K], cap: capFactor(l), ud: isDiscrete(l) }; });
-    var amountAt = function (l, s) { return capAmount(stepAmount(lineAmt(l) * s, lineUnit(l), lineStep(l)), l); };
-    var f0 = waterFill(all, need).f;
-    var f = f0;
-    if (all.some(function (it) { return it.ud; }) && all.some(function (it) { return !it.ud; })) {
-      var udK = 0;
-      o.ln.forEach(function (l) { if (isDiscrete(l)) udK += l[LINE.K] * (amountAt(l, Math.min(f0, capFactor(l))) / lineAmt(l)); });
-      f = waterFill(all.filter(function (it) { return !it.ud; }), need - udK).f;
-    }
-    var mac = [0, 0, 0, 0], nums = [], capped = true;
-    var amts = o.ln.map(function (l) {
-      var cf = capFactor(l);
-      var s = isDiscrete(l) ? f0 : f;
-      if (s < cf) capped = false;
-      var amt = amountAt(l, Math.min(s, cf));
-      nums.push(amt);
-      for (var i = 0; i < 4; i++) mac[i] += (l[LINE.K + i] * amt) / lineAmt(l);
-      return fmtAmt(amt, lineUnit(l), fmt.units, pieceOf(fmt.pieces || null, l));
-    });
-    return { k: o.k, n: o.n, c: o.c || null, nums: nums, amts: amts, mac: mac, capped: capped };
-  }
-  function snackFor(sb, need, pick, fmt) {
-    if (!sb || !sb.opts || !sb.opts.length) return null;
-    var d = defaultSnack(sb.opts, need), o = null;
-    sb.opts.forEach(function (x) { if (x.k === pick) o = x; });
-    if (!o) sb.opts.forEach(function (x) { if (x.k === d) o = x; });
-    var r = solveSnack(o, need, fmt);
-    r.d = d;
-    return r;
-  }
-  function rideHeadroomK(fuel) {
-    if (!fuel) return 0;
-    var top = fuel.during.gPerH[1] * (fuel.minutes / 60);
-    return Math.max(0, Math.round((top - fuel.during.planG) * N.fuel.rates.kcalPerG));
-  }
-  function withSnack(view, meals, sn, sb) {
-    var part = sn.c && sn.amts.length > 1
-      ? { l: sn.n, id: sb.id, sn: 1, c: sn.c, a: sn.amts, m: sn.mac }
-      : { l: sn.n, id: sb.id, sn: 1, q: sn.amts.join(' + '), m: sn.mac };
-    var v = view.slice();
-    var ms = meals.map(function (m) { return m.slice(); });
-    var at = -1, i;
-    for (i = 0; i < v.length && at < 0; i++) if (v[i] && v[i].s === sb.slot) at = i;
-    if (at < 0) {
-      v.push({ n: sb.n, s: sb.slot, pcf: true, parts: [part] });
-      ms.push(sn.mac.slice());
-    } else {
-      var copy = {};
-      for (var k in v[at]) copy[k] = v[at][k];
-      copy.parts = v[at].parts.concat([part]);
-      v[at] = copy;
-      for (i = 0; i < 4; i++) ms[at][i] += sn.mac[i];
-    }
-    return { view: v, meals: ms };
-  }
-  function planFor(bake, goal, d, minutes, picks) {
+  function planFor(bake, goal, d, minutes) {
     var x = bake.plans[goal][d];
     var fuel = isBike(d) ? fuelPlan({ dayType: d, minutes: minutes }) : null;
     var fuelK = fuel ? fuel.kcal : 0;
     var fuelC = fuel ? fuel.during.planG : 0;
-    var mdl = applyPicks(bake.base[x.base], bake.lists || {}, picks, bake.fmt, bake.foods);
-    var s = solveScale(mdl, x.t.kcal - fuelK, bake.fmt);
-    var need = x.t.kcal - fuelK - Math.round(s.totals.k) - rideHeadroomK(fuel);
-    var sb = bake.snack;
-    var pick = picks && typeof picks === 'object' && sb ? picks[sb.id] : undefined;
-    var sn = need > N.tolerance && mdl.meals.length ? snackFor(sb, need, pick, bake.fmt) : null;
-    var view = mdl.meals, meals = s.meals;
-    var totals = { k: s.totals.k, p: s.totals.p, c: s.totals.c, g: s.totals.g };
-    if (sn) {
-      var w = withSnack(view, meals, sn, sb);
-      view = w.view;
-      meals = w.meals;
-      totals.k += sn.mac[0]; totals.p += sn.mac[1]; totals.c += sn.mac[2]; totals.g += sn.mac[3];
-    }
-    var tot = { k: Math.round(totals.k), p: Math.round(totals.p), c: Math.round(totals.c), g: Math.round(totals.g) };
-    var outPicks = mdl.picks;
-    if (sn && sn.k !== sn.d) {
-      outPicks = {};
-      for (var id in mdl.picks) outPicks[id] = mdl.picks[id];
-      outPicks[sb.id] = sn.k;
-    }
+    var s = solveScale(bake.base[x.base], x.t.kcal - fuelK, bake.fmt);
+    var tot = { k: Math.round(s.totals.k), p: Math.round(s.totals.p), c: Math.round(s.totals.c), g: Math.round(s.totals.g) };
     return {
       base: x.base,
       t: x.t,
@@ -529,12 +314,7 @@
       fuelK: fuelK,
       fuelC: fuelC,
       mt: { k: x.t.kcal - fuelK, p: x.t.p, c: x.t.c - fuelC, f: x.t.f },
-      meals: meals.map(function (m) { return m.map(Math.round); }),
-      flex: s.q,
-      flexAmts: s.qa,
-      flexN: s.qn,
-      flexDir: s.dir,
-      flexMac: s.qm,
+      meals: s.meals.map(function (m) { return m.map(Math.round); }),
       tot: tot,
       factor: s.factor,
       clamp: s.clamp,
@@ -542,10 +322,80 @@
       capped: s.capped,
       allCapped: s.allCapped,
       rem: x.t.kcal - fuelK - tot.k,
-      snack: sn ? { k: sn.k, d: sn.d, n: sn.n, nums: sn.nums, mac: sn.mac, capped: sn.capped } : null,
-      view: view,
-      picks: outPicks,
     };
+  }
+
+  /* ---------- the portion guide (port of lib/nutrition/guide.mjs) ---------- */
+  var G = N.guide || null;
+  var MACS = ['k', 'p', 'c', 'f'];
+  var ROLE_KEYS = ['p', 'c', 'f'];
+  function zero4() { return { k: 0, p: 0, c: 0, f: 0 }; }
+  function finite(v) { return typeof v === 'number' && isFinite(v); }
+  function guideBudgets(x, slots, mains) {
+    var meals = {};
+    mains.forEach(function (s) { meals[s] = zero4(); });
+    x.meals.forEach(function (row, i) {
+      var b = meals[slots[i]];
+      if (!b) return;
+      MACS.forEach(function (m, j) { b[m] += row[j]; });
+    });
+    var total = { k: Math.round(x.mt.k), p: Math.round(x.mt.p), c: Math.round(x.mt.c), f: Math.round(x.mt.f) };
+    var extras = zero4(), clamped = false;
+    MACS.forEach(function (m) {
+      var left = total[m];
+      mains.forEach(function (s) { left -= meals[s][m]; });
+      if (left < 0) clamped = true;
+      extras[m] = Math.max(0, left);
+    });
+    return { meals: meals, extras: extras, total: total, clamped: clamped };
+  }
+  function exampleAmount(food, role, grams, grid) {
+    var r = G && G.roles[role];
+    if (!food || !r || !food.m || !finite(grams) || !(grams > 0)) return null;
+    var per = food.m[r.at];
+    if (!finite(per) || !(per > 0)) return null;
+    var raw = (grams * 100) / per;
+    var st = food.u === 'ud' ? grid.ud : food.pc && food.pc.a > 0 ? food.pc.a * grid.grid : grid.step;
+    var amt = Math.max(st, Math.round(raw / st) * st);
+    var cap = finite(food.x) && food.x > 0 ? food.x : null;
+    if (cap && amt > cap) return { amt: Math.max(st, Math.floor(cap / st + 1e-9) * st), capped: true };
+    return { amt: amt, capped: false };
+  }
+  function remaining(budget, logged) {
+    var out = {};
+    MACS.forEach(function (m) {
+      var l = logged && finite(logged[m]) ? logged[m] : 0;
+      out[m] = Math.max(0, Math.round(budget[m] - l));
+    });
+    return out;
+  }
+  function mealState(budget, logged) {
+    var k = logged && finite(logged.k) ? logged.k : 0;
+    if (!(k > 0)) return null;
+    return k >= G.done * budget.k ? 'done' : 'partial';
+  }
+  function isCovered(left, budget) {
+    return !(budget > 0) || left <= G.covered * budget;
+  }
+  function fold(s) { // lib/nutrition/names.mjs foldName
+    return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+  function cmp(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
+  function roleOptions(basics, products, role) {
+    var r = G.roles[role];
+    var b = (basics || []).filter(function (x) {
+      return x && r.cats.indexOf(x.c) >= 0 && Array.isArray(x.m) && finite(x.m[r.at]) && x.m[r.at] > 0;
+    }).map(function (x) { return { id: 'b:' + x.k, n: x.n, food: x }; });
+    var p = [];
+    (products || []).forEach(function (x) {
+      var v = x && x.per100;
+      if (!v || (x.unit !== 'g' && x.unit !== 'ml') || !finite(v.kcal)) return;
+      var m = [v.kcal, v.protein, v.carbs, v.fat].map(function (n) { return finite(n) ? n : null; });
+      if (!(m[r.at] > 0)) return;
+      p.push({ id: 'p:' + x.id, n: String(x.name || ''), food: { u: x.unit, m: m } });
+    });
+    var sort = function (list) { return list.sort(function (x, y) { return cmp(fold(x.n), fold(y.n)) || cmp(x.id, y.id); }); };
+    return { basics: sort(b), products: sort(p) };
   }
 
   /* ---------- state ---------- */
@@ -559,8 +409,7 @@
     if (state.ride && state.ride.type === d) return state.ride.min;
     return N.fuel.defaults[d];
   }
-  function current() { return planFor(N, state.goal, dayType(), rideMinutes(), state.picks); }
-  function baseDay() { return N.plans[state.goal][dayType()].base; } // 'train' | 'rest', without solving
+  function current() { return planFor(N, state.goal, dayType(), rideMinutes()); }
   function fuelNow() {
     var w = N.weight;
     return fuelPlan({ dayType: dayType(), minutes: rideMinutes(), weightKg: w ? w.kg : null });
@@ -581,15 +430,16 @@
     }
     var r = loadToday(KEY_RIDE, today);
     if (r && N.dayTypes.indexOf(r.type) >= 0 && typeof r.min === 'number' && r.min > 0) state.ride = { type: r.type, min: r.min };
-    // today's block picks ({id: option key}); a key not in today's list is ignored by applyPicks
-    var pk = loadToday(KEY_PICKS, today);
-    if (pk && pk.picks && typeof pk.picks === 'object') {
-      Object.keys(pk.picks).forEach(function (id) { if (typeof pk.picks[id] === 'string') state.picks[id] = pk.picks[id]; });
-    }
+    // the guide's example picks ({<slot>.<role>: 'b:<key>' | 'p:<id>'}): a preference, not daily; one
+    // no longer listed is ignored when rendering (the default example shows)
+    try {
+      var gp = JSON.parse(load(KEY_GUIDE) || 'null');
+      var picks = gp && typeof gp === 'object' && gp.picks && typeof gp.picks === 'object' ? gp.picks : {};
+      Object.keys(picks).forEach(function (k) { if (typeof picks[k] === 'string') state.guide[k] = picks[k]; });
+    } catch (e) { /* a broken value is ignored */ }
   }
-  function savePicks() {
-    var any = Object.keys(state.picks).length > 0;
-    save(KEY_PICKS, any ? JSON.stringify({ date: todayIso(), picks: state.picks }) : null);
+  function saveGuide() {
+    save(KEY_GUIDE, Object.keys(state.guide).length ? JSON.stringify({ picks: state.guide }) : null);
   }
 
   /* ---------- blocks ---------- */
@@ -670,23 +520,6 @@
   function minOf(L, macro) {
     return !!(L && L.missing && L.missing[macro]);
   }
-  function remainderHtml(x) {
-    var rem = x.rem, bike = x.fuelK > 0;
-    if (Math.abs(rem) <= N.tolerance) return '';
-    var k = kf(Math.abs(rem)), g = Math.round(Math.abs(rem) / 4 / 5) * 5;
-    // every carb portion at its cap (or the factor at its maximum): a snack, never a bigger plate
-    var full = x.allCapped || x.clamp === 'max';
-    // with the automatic snack in the plan, what is still short is what the snack's caps leave over
-    var tpl = rem > 0 ? (bike ? T.remShortBike : x.snack ? T.remSnackLeft : full ? T.remSnack : T.remShort) : (bike ? T.remOverBike : T.remOver);
-    return '<p class="nt-rem ' + (rem > 0 ? 'nt-short' : 'nt-over') + '">' + esc(format(tpl, { k: k, g: g })) + '</p>';
-  }
-  function macroOffHtml(x) {
-    var out = '';
-    [['p', x.tot.p, x.t.p], ['f', x.tot.g, x.t.f]].forEach(function (m) {
-      if (Math.abs(m[1] - m[2]) > N.macroTol) out += '<p class="nt-off">' + esc(format(T.macroOff, { macro: T.macroNames[m[0]], plan: m[1], target: m[2] })) + '</p>';
-    });
-    return out;
-  }
   function target() { return N.plans[state.goal][dayType()].t; }
   // the goal as a low-emphasis chip next to today's kcal; it opens the profile sheet's goal setting
   function goalChipHtml() {
@@ -696,148 +529,136 @@
   // the dial (.nt-top) and the bars + notes (.nt-side): stacked on phones, two columns >= 900 px (nutri.css)
   function renderTarget(host, x) {
     var t = target(), L = intakeToday();
-    var line = !x ? '' : x.fuelK > 0
-      ? format(T.planLineBike, { k: kf(x.tot.k), fuel: kf(x.fuelK), total: kf(x.tot.k + x.fuelK) })
-      : format(T.planLine, { k: kf(x.tot.k), p: x.tot.p, c: x.tot.c, f: x.tot.g });
+    // bike days: the guide's meals target + the ride fuel = the day target (Avituallamiento below)
+    var line = x && x.fuelK > 0 ? format(T.planLineBike, { k: kf(x.mt.k), fuel: kf(x.fuelK), total: kf(x.mt.k + x.fuelK) }) : '';
     host.innerHTML =
       '<div class="nt-top">' + dialHtml(t, L) + goalChipHtml() + '</div>' +
       '<div class="nt-side"><div class="nt-bars">' + barHtml(T.target.p, t.p, L, L && L.p, minOf(L, 'protein')) + barHtml(T.target.c, t.c, L, L && L.c, minOf(L, 'carbs')) + barHtml(T.target.f, t.f, L, L && L.g, minOf(L, 'fat')) + '</div>' +
       (L ? '<p class="nt-cnote">' + esc(L.src === 'log' ? T.target.loggedFoodNote : T.target.loggedNote) + '</p>' : '') +
       (L && L.missing && (L.missing.protein || L.missing.carbs || L.missing.fat) ? '<p class="nt-cnote">' + esc(T.target.loggedFoodMissing) + '</p>' : '') +
       '<p class="nt-cnote">' + esc(T.target.cNote) + '</p>' +
-      (x ? '<p class="nt-plan">' + esc(line) + '</p>' + remainderHtml(x) + macroOffHtml(x) : '') + '</div>';
-  }
-  // a baked meal ({n, s}) is a main meal when its slot is one of NUTRI.mainSlots (lib/nutrition/slots.mjs
-  // MAIN_SLOTS: breakfast / lunch / dinner); everything else is an add-on (a test pins it to isMainMeal)
-  function isMainMeal(meal) {
-    return !!meal && !!meal.s && (N.mainSlots || []).indexOf(meal.s) >= 0;
+      (line ? '<p class="nt-plan">' + esc(line) + '</p>' : '') + '</div>';
   }
   function suppLine(text) {
     return '<div class="meal-supp">' + PILL_SVG + '<span>' + esc(text) + '</span></div>';
   }
-  // a scaled portion: a small muted arrow with an accessible label (no loud tag)
-  function dirHtml(dir) {
-    if (!dir) return '';
-    var up = dir > 0;
-    return '<span class="mp-dir" role="img" aria-label="' + esc(up ? T.plan.dirAria.up : T.plan.dirAria.down) + '">' + (up ? '↑' : '↓') + '</span>';
+  // the food log's hooks (client/food.js, LAN page only): null when the API is not reachable here
+  function foodHook(name) {
+    var F = window.HCFood;
+    if (!F || typeof F[name] !== 'function') return null;
+    try { return F[name](); } catch (e) { return null; }
   }
-  function row(cls, label, q) {
-    return '<li class="' + cls + '"><span class="mp-l">' + label + '</span>' + (q != null ? '<span class="mp-q">' + esc(q) + '</span>' : '') + '</li>';
+  function basicsList() { return typeof FOOD_BASICS !== 'undefined' && Array.isArray(FOOD_BASICS) ? FOOD_BASICS : []; }
+  function findOpt(o, id) {
+    var all = o.basics.concat(o.products);
+    for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
+    return null;
   }
-  // a choosable block (lib/nutrition/blocks.mjs): its name is a select of the list's options, grouped
-  // like the tables (protein lean / moderate / fatty, fruit / yogurt…), the current pick selected
-  function groupLabel(gr) { return (T.plan.groups && T.plan.groups[gr]) || gr; }
-  function noneLabel(cat) { return (T.plan.none && T.plan.none[cat]) || T.plan.noneAny; }
-  // a fixed food's block: the foods of its category (the default under the plan's own label), then
-  // "none" when the category allows skipping it
-  function foodPickHtml(p, b, cur, mealName) {
-    var F = N.foods;
-    var keys = F && F.cats ? F.cats[b.I] : null;
-    if (!keys || !F.rules[b.I]) return null;
-    var body = keys.map(function (k) {
-      var name = k === b.d && b.n ? b.n : F.ings[k].n;
-      return '<option value="' + esc(k) + '"' + (k === cur ? ' selected' : '') + '>' + esc(name) + '</option>';
-    }).join('');
-    if (F.rules[b.I].skip) body += '<option value="' + NONE_KEY + '"' + (cur === NONE_KEY ? ' selected' : '') + '>' + esc(noneLabel(b.I)) + '</option>';
-    var item = p.z ? noneLabel(b.I) : p.l;
-    return '<select class="mp-pick" data-block="' + esc(p.id) + '" aria-label="' + esc(format(T.plan.pickAria, { item: item, meal: mealName })) + '">' + body + '</select>';
+  // the example of a role in a main meal: the viewer's pick while it is listed (a product only when the
+  // food API answered), else the food the base plan uses there (NUTRI.guide.defaults), else the fallback
+  function exampleFor(slot, role, o, day) {
+    var picked = state.guide[slot + '.' + role];
+    var hit = typeof picked === 'string' ? findOpt(o, picked) : null;
+    if (hit) return hit;
+    var d = G.defaults[day] && G.defaults[day][slot] ? G.defaults[day][slot][role] : null;
+    return (d && findOpt(o, 'b:' + d)) || findOpt(o, 'b:' + G.fallback[role]) || o.basics[0] || null;
   }
-  // the automatic snack's select: every snack option (NUTRI.snack.opts), the current one selected
-  function snackPickHtml(p, x, mealName) {
-    var sb = N.snack;
-    if (!sb || !sb.opts || sb.opts.length < 2 || !x.snack) return null;
-    var body = sb.opts.map(function (o) {
-      return '<option value="' + esc(o.k) + '"' + (o.k === x.snack.k ? ' selected' : '') + '>' + esc(o.n) + '</option>';
-    }).join('');
-    return '<select class="mp-pick" data-block="' + esc(p.id) + '" aria-label="' + esc(format(T.plan.pickAria, { item: p.l, meal: mealName })) + '">' + body + '</select>';
+  // an example amount as a person reads it: pieces with the grams reference, else "~120 g"
+  function amountText(food, amt) {
+    if (food.pc) return fmtPieces(amt, food.u, food.pc);
+    return '~' + fmtAmt(amt, food.u, N.fmt.units, null);
   }
-  function pickHtml(p, x, mealName) {
-    if (p.sn) return snackPickHtml(p, x, mealName);
-    var base = N.base[x.base];
-    var b = p.id && base.blocks ? base.blocks[p.id] : null;
-    if (b && b.I) return foodPickHtml(p, b, (x.picks && x.picks[p.id]) || b.d, mealName);
-    var list = b && N.lists ? N.lists[b.L] : null;
-    if (!b || !list || list.length < 2) return null;
-    var cur = (x.picks && x.picks[p.id]) || b.d;
-    var groups = [], byGr = {};
-    list.forEach(function (o) {
-      var g = o.gr || '';
-      if (!(g in byGr)) { byGr[g] = []; groups.push(g); }
-      byGr[g].push(o);
-    });
-    var opt = function (o) { return '<option value="' + esc(o.k) + '"' + (o.k === cur ? ' selected' : '') + '>' + esc(o.n) + '</option>'; };
-    var body = groups.map(function (g) {
-      var opts = byGr[g].map(opt).join('');
-      return g && groups.length > 1 ? '<optgroup label="' + esc(groupLabel(g)) + '">' + opts + '</optgroup>' : opts;
-    }).join('');
-    return '<select class="mp-pick" data-block="' + esc(p.id) + '" aria-label="' + esc(format(T.plan.pickAria, { item: p.l, meal: mealName })) + '">' + body + '</select>';
+  function optionsHtml(o, cur) {
+    var opt = function (x) { return '<option value="' + esc(x.id) + '"' + (x.id === cur ? ' selected' : '') + '>' + esc(x.n) + '</option>'; };
+    if (!o.products.length) return o.basics.map(opt).join('');
+    return '<optgroup label="' + esc(T.guide.basics) + '">' + o.basics.map(opt).join('') + '</optgroup>' +
+      '<optgroup label="' + esc(T.guide.products) + '">' + o.products.map(opt).join('') + '</optgroup>';
   }
-  function partHtml(p, x, fi, mealName) {
-    var q = p.x ? x.flex[fi] : p.q;
-    var dir = p.x && x.flexDir ? x.flexDir[fi] : 0;
-    var pick = p.id ? pickHtml(p, x, mealName) : null;
-    var label = (pick || esc(p.l)) + dirHtml(dir);
-    var flexCls = p.x ? ' mp-flex' : '';
-    if (pick) flexCls += ' mp-block';
-    if (p.z) flexCls += ' mp-none'; // a skipped food: its select (to undo it), no amount
-    if (!p.c) return row('mp' + flexCls, label, q);
-    // a composite: its name, then one readable sub-row per component (name, amount)
-    var amts = p.x ? (x.flexAmts ? x.flexAmts[fi] : []) : p.a || [];
-    return row('mp mp-comp' + flexCls, label, null) +
-      p.c.map(function (name, i) { return row('mp-sub', esc(name), amts[i] != null ? amts[i] : ''); }).join('');
+  // one macro row of a plate: what is left of the meal's grams (all of it without a log), one example
+  // food (a select) and the amount of it that supplies that; covered when <= 10 % is left
+  function roleRowHtml(slot, role, budgetG, leftG, logged, o, day, canAdd) {
+    var G2 = T.guide, mealName = T.plan.meals[slot];
+    var head = '<div class="gd-top"><span class="gd-l">' + esc(G2.roles[role]) + '</span>';
+    if (!(budgetG > 0)) return '<li class="gd-row">' + head + '<span class="gd-g">—</span></div></li>';
+    if (logged && isCovered(leftG, budgetG)) return '<li class="gd-row gd-done">' + head + '<span class="gd-ok">' + esc(G2.covered) + '</span></div></li>';
+    // "of 45 g" only once something is logged in this meal (before that, what is left IS the budget)
+    head += '<span class="gd-g"><b>~' + esc(kf(leftG)) + '</b> g' + (logged && logged.k > 0 ? ' <span class="gd-of">' + esc(format(G2.of, { g: kf(budgetG) })) + '</span>' : '') + '</span></div>';
+    var ex = exampleFor(slot, role, o, day);
+    if (!ex) return '<li class="gd-row">' + head + '</li>';
+    var a = exampleAmount(ex.food, role, leftG, N.scale);
+    var key = slot + '.' + role;
+    var sel = '<select class="gd-pick" data-guide="' + esc(key) + '" aria-label="' + esc(format(G2.pickAria, { role: G2.roles[role], meal: mealName })) + '">' + optionsHtml(o, ex.id) + '</select>';
+    var amt = a ? amountText(ex.food, a.amt) : '';
+    var add = canAdd && a
+      ? '<button type="button" class="gd-add" data-guide-add="' + esc(key) + '" data-food="' + esc(ex.id) + '" data-amt="' + a.amt + '" data-meal="' + esc(slot) + '" aria-label="' + esc(format(G2.addAria, { amount: amt.replace(/^~/, ''), food: ex.n, meal: mealName })) + '">+</button>'
+      : '';
+    return '<li class="gd-row">' + head + '<div class="gd-ex">' + sel +
+      (a ? '<span class="gd-amt">' + esc(amt) + (a.capped ? ' <span class="gd-max">' + esc(G2.max) + '</span>' : '') + '</span>' : '') + add + '</div>' +
+      (a && a.capped ? '<p class="gd-more">' + esc(G2.more) + '</p>' : '') + '</li>';
   }
-  function renderPlan(host, x) {
-    var base = N.base[x.base];
-    var view = x.view || (base && base.meals);
-    if (!base || !view || !view.length) { host.innerHTML = '<p class="nutri-empty">' + esc(T.plan.empty) + '</p>'; return; }
-    var supps = (N.supplements || []).slice();
-    var used = {};
-    var fi = 0;
+  function pcfHtml(m) {
     var A = T.plan.macroAbbr;
-    // walked in DAY order (the flex index and "first meal of a slot" for supplements follow it), then
-    // grouped: the main meals as cards, every other meal as a compact row of ONE add-ons card after them
-    var mains = '', rows = '', addonK = 0;
-    view.forEach(function (meal, i) {
-      var m = x.meals[i];
-      var parts = meal.parts.map(function (p) { return partHtml(p, x, p.x ? fi++ : -1, meal.n); }).join('');
-      var mine = '';
-      if (meal.s && !used[meal.s]) {
-        used[meal.s] = true;
-        supps.forEach(function (s) { if (s.meal === meal.s) mine += suppLine(s.name + (s.dose ? ' ' + s.dose : '')); });
-      }
-      if (!isMainMeal(meal)) {
-        addonK += m[0];
-        rows += '<div class="addon"><div class="addon-top"><div class="addon-name">' + esc(meal.n) + '</div>' +
-          '<div class="addon-kcal"><b>' + esc(kf(m[0])) + '</b> kcal</div></div>' +
-          '<ul class="meal-parts">' + parts + '</ul>' + mine + '</div>';
-        return;
-      }
-      mains += '<div class="meal"><div class="meal-top"><div class="meal-name">' + esc(meal.n) + '</div>' +
-        '<div class="meal-kcal"><b>' + esc(kf(m[0])) + '</b> kcal</div></div>' +
-        '<ul class="meal-parts">' + parts + '</ul>' +
-        (meal.pcf ? '<div class="meal-pcf"><span><b>' + m[1] + '</b> ' + A.p + '</span><span><b>' + m[2] + '</b> ' + A.c + '</span><span><b>' + m[3] + '</b> ' + A.f + '</span></div>' : '') +
-        mine + '</div>';
-    });
-    var html = mains + (rows
-      ? '<div class="meal meal-addons"><div class="meal-top"><div class="meal-name">' + esc(T.plan.addons) + '</div>' +
-        '<div class="meal-kcal"><b>' + esc(kf(addonK)) + '</b> kcal</div></div>' + rows + '</div>'
-      : '');
-    var others = supps.filter(function (s) { return !used[s.meal]; });
-    if (others.length) {
-      html += '<div class="meal meal-others"><div class="meal-name">' + esc(T.plan.otherSupps) + '</div>' +
-        others.map(function (s) {
-          return suppLine(s.name + (s.dose ? ' ' + s.dose : '') + ' (' + (T.plan.meals[s.meal] || s.meal) + ')');
-        }).join('') + '</div>';
+    return '<div class="meal-pcf"><span><b>' + m.p + '</b> ' + A.p + '</span><span><b>' + m.c + '</b> ' + A.c + '</span><span><b>' + m.f + '</b> ' + A.f + '</span></div>';
+  }
+  function suppText(s, withSlot) {
+    return s.name + (s.dose ? ' ' + s.dose : '') + (withSlot ? ' (' + (T.plan.meals[s.meal] || s.meal) + ')' : '');
+  }
+  function mealGuideHtml(slot, b, logged, opts, day, canAdd) {
+    var G2 = T.guide, st = mealState(b, logged), left = remaining(b, logged);
+    var status = st === 'done' ? '<p class="gd-state gd-state-done">' + esc(format(G2.done, { k: kf(logged.k) })) + '</p>'
+      : st === 'partial' ? '<p class="gd-state">' + esc(format(G2.partial, { k: kf(logged.k) })) + '</p>' : '';
+    var rows = roleRowHtml(slot, 'p', b.p, left.p, logged, opts.p, day, canAdd) +
+      roleRowHtml(slot, 'c', b.c, left.c, logged, opts.c, day, canAdd) +
+      '<li class="gd-row gd-veg"><div class="gd-top"><span class="gd-l">' + esc(G2.roles.v) + '</span><span class="gd-free">' + esc(G2.free) + '</span></div></li>' +
+      roleRowHtml(slot, 'f', b.f, left.f, logged, opts.f, day, canAdd);
+    var supps = (N.supplements || []).filter(function (s) { return s.meal === slot; }).map(function (s) { return suppLine(suppText(s, false)); }).join('');
+    return '<div class="meal gd-meal" data-slot="' + esc(slot) + '"><div class="meal-top"><div class="meal-name">' + esc(T.plan.meals[slot]) + '</div>' +
+      '<div class="meal-kcal"><b>' + esc(kf(b.k)) + '</b> kcal</div></div>' + status +
+      '<ul class="gd-rows">' + rows + '</ul>' + pcfHtml(b) + supps + '</div>';
+  }
+  function extrasHtml(B, logged, d) {
+    var G2 = T.guide, e = B.extras;
+    var budget = logged
+      ? format(G2.extrasLeft, { k: kf(remaining(e, logged).k), total: kf(e.k) })
+      : format(G2.extrasBudget, { k: kf(e.k) });
+    var items = (G.extras || []).map(function (x) { return format(G2.extrasItem, { name: G2.extrasItems[x.id] || x.id, k: kf(x.k) }); });
+    var mains = N.mainSlots || [];
+    var supps = (N.supplements || []).filter(function (s) { return mains.indexOf(s.meal) < 0; }).map(function (s) { return suppLine(suppText(s, true)); }).join('');
+    return '<div class="meal gd-extras"><div class="meal-top"><div class="meal-name">' + esc(G2.extras) + '</div>' +
+      '<div class="meal-kcal"><b>' + esc(kf(e.k)) + '</b> kcal</div></div>' +
+      '<p class="gd-budget">' + esc(budget) + '</p>' +
+      (items.length ? '<p class="gd-hint">' + esc(format(G2.extrasHint, { list: items.join(' · ') })) + '</p>' : '') +
+      (d !== 'rest' ? '<p class="gd-hint">' + esc(G2.extrasSplit) + '</p>' : '') +
+      (B.clamped ? '<p class="gd-hint">' + esc(G2.clamped) + '</p>' : '') +
+      pcfHtml(e) + supps + '</div>';
+  }
+  function addMac(a, b) {
+    MACS.forEach(function (m) { a[m] += b && finite(b[m]) ? b[m] : 0; });
+    return a;
+  }
+  // Plan de hoy: the same four blocks every day (breakfast, lunch, dinner, Extras); the day type and the
+  // goal only change the amounts. With today's food log (LAN page) each block shows what is left.
+  function renderGuide(host, x) {
+    var base = N.base[x.base];
+    if (!G || !base || !base.sl || !base.sl.length) { host.innerHTML = '<p class="nutri-empty">' + esc(T.plan.empty) + '</p>'; return; }
+    var mains = N.mainSlots || [];
+    var B = guideBudgets(x, base.sl, mains);
+    var L = foodHook('groupTotals'); // {meals: {<slot>: {k, p, c, f}}, addon} | null (no food log here)
+    var canAdd = !!L && !!window.HCFood && typeof window.HCFood.addGuide === 'function';
+    var prods = L ? foodHook('products') : null;
+    var opts = {};
+    ROLE_KEYS.forEach(function (r) { opts[r] = roleOptions(basicsList(), prods, r); });
+    var html = mains.map(function (slot) { return mealGuideHtml(slot, B.meals[slot], L ? L.meals[slot] || zero4() : null, opts, x.base, canAdd); }).join('');
+    html += extrasHtml(B, L ? L.addon || zero4() : null, dayType());
+    if (L) {
+      var all = zero4();
+      mains.forEach(function (s) { addMac(all, L.meals[s]); });
+      addMac(all, L.addon);
+      var left = remaining(B.total, all), A = T.plan.macroAbbr;
+      html += '<p class="gd-left"><span class="gd-left-lbl">' + esc(T.guide.left) + '</span> <b>' + esc(kf(left.k)) + '</b> kcal · ' +
+        A.p + ' <b>' + left.p + '</b> · ' + A.c + ' <b>' + left.c + '</b> · ' + A.f + ' <b>' + left.f + '</b></p>';
     }
-    // honest with mixed factors: the common factor of the portions still free, and whether some (or
-    // every) portion stopped at its maximum (lib/nutrition/scale.mjs portion caps)
-    var ftpl = x.allCapped ? T.plan.factorAllCapped : x.capped ? T.plan.factorCapped : x.clamp === 'max' ? T.plan.factorMax : x.clamp === 'min' ? T.plan.factorMin : T.plan.factor;
-    if (x.factor !== 1 || x.clamp || x.capped) html += '<p class="nutri-factor">' + esc(format(ftpl, { factor: fmtFactor(x.factor, N.fmt.dec) })) + '</p>';
-    if (x.udOnly && Math.abs(x.rem) > N.tolerance) html += '<p class="nutri-factor">' + esc(T.plan.unitsOnly) + '</p>';
-    if (x.snack) html += '<p class="nutri-factor nutri-snack">' + esc(T.plan.snackNote) + '</p>';
-    if (x.picks && Object.keys(x.picks).length) {
-      html += '<p class="nutri-factor nutri-picks">' + esc(T.plan.picksNote) + ' <button type="button" class="lnk nutri-picks-reset" id="nutri-picks-reset">' + esc(T.plan.picksReset) + '</button></p>';
-    }
+    html += '<p class="nutri-factor">' + esc(T.guide.note) + '</p>';
     host.innerHTML = html;
   }
   function renderRidePicker(host) {
@@ -918,9 +739,9 @@
     try { x = current(); } catch (e) { x = null; }
     var withPlan = function (fn) { return function (host) { if (!x) throw new Error('no plan'); fn(host, x); }; };
     guard($('nutri-target'), function (host) { renderTarget(host, x); }); // the target shows even without a plan
-    guard($('nutri-plan'), withPlan(renderPlan));
+    guard($('nutri-plan'), withPlan(renderGuide));
     var pk = $('nutri-plan-kcal');
-    if (pk) pk.textContent = x ? kf(x.tot.k) + ' ' + T.target.kcal : '';
+    if (pk) pk.textContent = x ? kf(x.mt.k) + ' ' + T.target.kcal : '';
     renderFuel(picker !== false);
     guard($('eat-body'), renderEat);
     refreshDependents();
@@ -959,36 +780,15 @@
     save(KEY_DAY, null);
     refresh();
   });
-  // a block pick: kept for today (hc.nutri.picks), the whole day re-solved; focus stays on the select
-  function setPick(id, key) {
-    var sb = N.snack;
-    if (sb && id === sb.id) return setSnackPick(key);
-    var base = N.base[baseDay()];
-    var b = base && base.blocks ? base.blocks[id] : null;
-    if (!b) return false;
-    if (key === b.d) delete state.picks[id];
-    else state.picks[id] = key;
-    savePicks();
+  // an example pick (the food a macro row shows): a per-viewer preference, not daily; focus stays on it
+  function setGuidePick(key, id) {
+    var parts = String(key).split('.');
+    if (parts.length !== 2 || (N.mainSlots || []).indexOf(parts[0]) < 0 || ROLE_KEYS.indexOf(parts[1]) < 0) return false;
+    if (!/^[bp]:/.test(id)) return false;
+    state.guide[key] = id;
+    saveGuide();
     refresh(false);
     return true;
-  }
-  // the automatic snack's pick: a known option; today's default (it depends on the shortfall) drops it
-  function setSnackPick(key) {
-    var sb = N.snack, known = false;
-    (sb.opts || []).forEach(function (o) { if (o.k === key) known = true; });
-    if (!known) return false;
-    var x = null;
-    try { x = current(); } catch (e) { x = null; }
-    if (x && x.snack && key === x.snack.d) delete state.picks[sb.id];
-    else state.picks[sb.id] = key;
-    savePicks();
-    refresh(false);
-    return true;
-  }
-  function resetPicks() {
-    state.picks = {};
-    savePicks();
-    refresh(false);
   }
   function refocus(sel) {
     try {
@@ -998,20 +798,27 @@
   }
   on('nutri-plan', 'change', function (e) {
     var t = e && e.target;
-    var id = t && t.getAttribute ? t.getAttribute('data-block') : null;
-    if (!id || typeof t.value !== 'string') return;
-    if (setPick(id, t.value)) refocus('select[data-block="' + id.replace(/["\\]/g, '') + '"]');
+    var key = t && t.getAttribute ? t.getAttribute('data-guide') : null;
+    if (!key || typeof t.value !== 'string') return;
+    if (setGuidePick(key, t.value)) refocus('select[data-guide="' + key.replace(/["\\]/g, '') + '"]');
   });
+  // "+": log the example amount (for what is left) into that meal through the food log's add flow
   on('nutri-plan', 'click', function (e) {
     var t = e && e.target;
-    var btn = t && t.closest ? t.closest('#nutri-picks-reset') : null;
-    if (!btn) return;
-    resetPicks();
-    refocus('#nutri-plan select');
+    var btn = t && t.closest ? t.closest('[data-guide-add]') : null;
+    var F = window.HCFood;
+    if (!btn || btn.disabled || !F || typeof F.addGuide !== 'function') return;
+    var amt = Number(btn.getAttribute('data-amt'));
+    if (!(amt > 0)) return;
+    btn.disabled = true;
+    var p;
+    try { p = F.addGuide({ group: btn.getAttribute('data-meal'), food: btn.getAttribute('data-food'), amt: amt }); } catch (err) { p = null; }
+    var undo = function () { btn.disabled = false; };
+    if (p && typeof p.then === 'function') p.then(null, undo);
+    else undo();
   });
   // Plan de hoy is a native <details>, collapsed by default; its open state is a per-viewer convenience
-  // (hc.nutri.planOpen = '1' / '0'). The plan is rendered either way, so "Del plan" (todayPlan) and the
-  // selects never depend on it being open.
+  // (hc.nutri.planOpen = '1' / '0'). The guide is rendered either way.
   function initPlanFold() {
     var fold = $('nutri-plan-fold');
     if (!fold) return;
@@ -1038,56 +845,24 @@
       day: x.base, dayType: d, label: head + ' · ' + T.dayTypes[d] + ' · ' + T.goals[state.goal],
     };
   };
-  /** Today's Plan de hoy meals for the food log's "Del plan" tab (client/food.js), READ-ONLY: the same
-   * plan the page renders (current(): goal × day type × ride minutes through planFor), never
-   * re-computed elsewhere. [{name, slot, kcal, p, c, g, items}] with the meal totals exactly as Plan de
-   * hoy shows them (whole numbers) and per item {name, amount, kcal (whole), p, c, g (1 decimal),
-   * components?} — a scaled item at its scaled amount; a composite lists its components (name,
-   * amount) and has no amount of its own. A fresh copy each call; null when there is nothing to show. */
-  function r1(v) { return Math.round(v * 10) / 10; }
-  function todayPlan() {
-    var x = current();
-    var view = x && (x.view || (N.base[x.base] && N.base[x.base].meals));
-    if (!view || !view.length) return null;
-    var fi = 0;
-    return view.map(function (meal, i) {
-      var m = x.meals[i];
-      var items = [];
-      meal.parts.forEach(function (p) {
-        var k = p.x ? fi++ : -1;
-        if (p.z) return; // a skipped food ("none"): nothing to log
-        var mac = p.x ? x.flexMac[k] : p.m;
-        var it = { name: p.l, amount: null, kcal: Math.round(mac[0]), p: r1(mac[1]), c: r1(mac[2]), g: r1(mac[3]) };
-        if (p.c) {
-          var amts = p.x ? x.flexAmts[k] : p.a || [];
-          it.components = p.c.map(function (name, n) { return { name: name, amount: amts[n] != null ? amts[n] : null }; });
-        } else it.amount = (p.x ? x.flex[k] : p.q) || null;
-        items.push(it);
-      });
-      return { name: meal.n, slot: meal.s || null, kcal: m[0], p: m[1], c: m[2], g: m[3], items: items };
-    }).filter(function (meal) { return meal.items.length > 0; }); // every food of the meal skipped: nothing to log
-  }
   window.HCNutri = {
     setGoal: setGoal,
-    todayPlan: function () {
-      try { return todayPlan(); } catch (e) { return null; }
-    },
-    // the food log (client/food.js) calls this after every add / delete: the dial, bars, rings
+    // the food log (client/food.js) calls this after every add / delete: the dial, bars, rings and guide
     refresh: function () { refresh(false); },
     detectDayType: detectDayType,
     fuelPlan: fuelPlan,
     waterFill: waterFill,
     solveScale: solveScale,
     planFor: planFor,
-    applyPicks: applyPicks,
-    snackFor: snackFor,
-    swapOption: swapOption,
-    swapIng: swapIng,
-    isMainMeal: isMainMeal,
+    guideBudgets: guideBudgets,
+    exampleAmount: exampleAmount,
+    remaining: remaining,
+    mealState: mealState,
+    isCovered: isCovered,
+    roleOptions: roleOptions,
     LINE: LINE,
-    setPick: function (id, key) { return typeof id === 'string' && typeof key === 'string' ? setPick(id, key) : false; },
-    resetPicks: resetPicks,
-    state: function () { return { goal: state.goal, dayType: dayType(), override: state.override, auto: state.auto, rideMin: rideMinutes(), raised: state.raised, picks: JSON.parse(JSON.stringify(state.picks)) }; },
+    setGuidePick: function (key, id) { return typeof key === 'string' && typeof id === 'string' ? setGuidePick(key, id) : false; },
+    state: function () { return { goal: state.goal, dayType: dayType(), override: state.override, auto: state.auto, rideMin: rideMinutes(), raised: state.raised, guide: JSON.parse(JSON.stringify(state.guide)) }; },
   };
 
   try { init(); } catch (e) { state.auto = { type: 'rest', why: 'none', rideMin: null }; }

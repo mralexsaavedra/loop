@@ -13,11 +13,12 @@
  *                        (never in the claude.ai artifact or the example build); baked here: I18N_FOOD
  *                        + FOOD_CONST (meal slots / stores / units / input limits from lib/nutrition/foodlog.mjs)
  *                        + FOOD_BASICS (the public food DB as the add sheet's searchable basics,
- *                        lib/nutrition/basics.mjs, localized);
- *   3. Plan de hoy     — the day's meals with the carb-flex portions scaled to (goal × day type), in a
- *                        native <details> COLLAPSED by default (summary: heading + the plan's kcal,
- *                        written by client/nutri-day.js, which also remembers open / closed per viewer);
- *                        the plan renders while collapsed, so the food log's "Del plan" never needs it open;
+ *                        lib/nutrition/basics.mjs, localized; also the portion guide's example foods);
+ *   3. Plan de hoy     — a PORTION GUIDE (lib/nutrition/guide.mjs): always Desayuno, Comida, Cena +
+ *                        Extras, each with today's budget (goal × day type × ride minutes) and, per
+ *                        macro, one example food and its amount; in a native <details> COLLAPSED by
+ *                        default (summary: heading + the meals target kcal, written by
+ *                        client/nutri-day.js, which also remembers open / closed per viewer);
  *   4. Avituallamiento — before -> during -> after the ride as a 3-step timeline, bike day types only
  *                        (never collapsed).
  * The day-type control is server-rendered (real labelled radios); the numbers

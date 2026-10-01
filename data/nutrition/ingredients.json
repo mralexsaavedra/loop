@@ -1847,6 +1847,35 @@
         "typical": true
       }
     },
+    "cortado": {
+      "per": 100,
+      "unit": "ud",
+      "cat": "drink",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Cortado",
+        "en": "Cortado (espresso with a dash of milk)"
+      },
+      "note": "Computed average for one cortado (~70 ml): 30 ml espresso (BEDCA 2433 'Café, infusión', the DB's cafe) + 40 ml semi-skimmed milk (the DB's leche: 46 kcal, 3.4 P, 4.8 C, 1.7 F per 100 ml, in line with BEDCA / USDA semi-skimmed milk)",
+      "k": 19,
+      "p": 1.4,
+      "c": 1.9,
+      "g": 0.7,
+      "piece": {
+        "name": {
+          "es": "cortado",
+          "en": "cortado"
+        },
+        "plural": {
+          "es": "cortados",
+          "en": "cortados"
+        },
+        "amt": 100,
+        "g": 70,
+        "typical": true
+      }
+    },
     "bebidaavena": {
       "per": 100,
       "unit": "ml",

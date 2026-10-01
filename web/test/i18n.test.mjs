@@ -225,9 +225,15 @@ test('nutri-templates.mjs (Resumen de hoy / Plan de hoy / Avituallamiento) has i
     assert.deepEqual(Object.keys(dict.plan.meals), MEAL_SLOTS);
     assert.match(dict.backToAuto, /\{type\}/);
     assert.match(dict.why.ride, /\{dur\}/);
-    for (const k of ['remShort', 'remShortBike']) assert.match(dict[k], /\{k\}[\s\S]*\{g\}/);
     for (const k of ['k', 'fuel', 'total']) assert.match(dict.planLineBike, new RegExp('\\{' + k + '\\}'));
-    assert.match(dict.macroOff, /\{macro\}[\s\S]*\{plan\}[\s\S]*\{target\}/);
+    const G = dict.guide;
+    assert.deepEqual(Object.keys(G.roles), ['p', 'c', 'v', 'f']);
+    assert.deepEqual(Object.keys(G.extrasItems), ['cortado', 'fruit', 'yogurt', 'shake']);
+    assert.match(G.addAria, /\{amount\}[\s\S]*\{food\}[\s\S]*\{meal\}/);
+    assert.match(G.pickAria, /\{role\}[\s\S]*\{meal\}/);
+    assert.match(G.extrasLeft, /\{k\}[\s\S]*\{total\}/);
+    for (const k of ['done', 'partial', 'extrasBudget']) assert.match(G[k], /\{k\}/);
+    for (const gone of ['remShort', 'macroOff', 'planLine']) assert.equal(dict[gone], undefined, `${gone}: the guide's Extras absorbs the remainder`);
     assert.match(dict.fuel.duringCarbs, /\{rate\}[\s\S]*\{total\}/);
     assert.match(dict.fuel.disclaimer, locale === 'es' ? /no es consejo médico/i : /not medical advice/i);
   }
