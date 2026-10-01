@@ -21,7 +21,8 @@
  *   picker, kept per date like the override, else the default). fuelPlan ports lib/nutrition/fuel.mjs.
  * - Plan de hoy = the portion guide (guideBudgets / exampleAmount / remaining / mealState / isCovered /
  *   roleOptions port lib/nutrition/guide.mjs, parity tests): ALWAYS breakfast, lunch, dinner + Extras.
- *   Each main meal's budget = the solved plan meals of its slot; Extras = the meals target − the three.
+ *   Each main meal's budget = the solved plan meals of its slot (a cooking-oil meal split between lunch
+ *   and dinner, NUTRI.guide.oil); Extras = the meals target − the three.
  *   A main meal is a plate by parts (protein / carbs / vegetables free / fat), each macro with ONE
  *   example food (a select of the basics of its categories + the owner's products, view time only) and
  *   the amount of it that supplies the macro; the picked examples persist per viewer (hc.nutri.guide =
@@ -331,10 +332,20 @@
   var ROLE_KEYS = ['p', 'c', 'f'];
   function zero4() { return { k: 0, p: 0, c: 0, f: 0 }; }
   function finite(v) { return typeof v === 'number' && isFinite(v); }
-  function guideBudgets(x, slots, mains) {
+  var OIL_SLOTS = ['lunch', 'dinner']; // lib/nutrition/guide.mjs OIL_SLOTS
+  function guideBudgets(x, slots, mains, oil) {
     var meals = {};
     mains.forEach(function (s) { meals[s] = zero4(); });
+    var oilTo = OIL_SLOTS.filter(function (s) { return meals[s] && slots.indexOf(s) >= 0; });
     x.meals.forEach(function (row, i) {
+      if (oil && oil.indexOf(i) >= 0 && oilTo.length) { // a cooking-oil meal: half to lunch, the rest to dinner
+        MACS.forEach(function (m, j) {
+          var first = oilTo.length > 1 ? Math.round(row[j] / 2) : row[j];
+          meals[oilTo[0]][m] += first;
+          if (oilTo.length > 1) meals[oilTo[1]][m] += row[j] - first;
+        });
+        return;
+      }
       var b = meals[slots[i]];
       if (!b) return;
       MACS.forEach(function (m, j) { b[m] += row[j]; });
@@ -627,6 +638,7 @@
     return '<div class="meal gd-extras"><div class="meal-top"><div class="meal-name">' + esc(G2.extras) + '</div>' +
       '<div class="meal-kcal"><b>' + esc(kf(e.k)) + '</b> kcal</div></div>' +
       '<p class="gd-budget">' + esc(budget) + '</p>' +
+      '<p class="gd-hint">' + esc(G2.extrasCovers) + '</p>' +
       (items.length ? '<p class="gd-hint">' + esc(format(G2.extrasHint, { list: items.join(' · ') })) + '</p>' : '') +
       (d !== 'rest' ? '<p class="gd-hint">' + esc(G2.extrasSplit) + '</p>' : '') +
       (B.clamped ? '<p class="gd-hint">' + esc(G2.clamped) + '</p>' : '') +
@@ -642,7 +654,7 @@
     var base = N.base[x.base];
     if (!G || !base || !base.sl || !base.sl.length) { host.innerHTML = '<p class="nutri-empty">' + esc(T.plan.empty) + '</p>'; return; }
     var mains = N.mainSlots || [];
-    var B = guideBudgets(x, base.sl, mains);
+    var B = guideBudgets(x, base.sl, mains, G.oil ? G.oil[x.base] : null);
     var L = foodHook('groupTotals'); // {meals: {<slot>: {k, p, c, f}}, addon} | null (no food log here)
     var canAdd = !!L && !!window.HCFood && typeof window.HCFood.addGuide === 'function';
     var prods = L ? foodHook('products') : null;

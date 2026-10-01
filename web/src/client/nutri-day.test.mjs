@@ -341,6 +341,7 @@ test('Spanish: labels, thousands with a dot, the guide localized', () => {
   assert.match(els['nutri-plan'].innerHTML, /<span class="gd-l">Verdura<\/span><span class="gd-free">libre<\/span>/);
   assert.match(els['nutri-plan'].innerHTML, /aria-label="Ejemplo de Proteína para Comida"/);
   assert.match(els['nutri-plan'].innerHTML, /para extras hoy/);
+  assert.match(els['nutri-plan'].innerHTML, /Incluye café, tentempiés y pre\/post-entreno\./);
   assert.equal(els['nutri-daytype-src'].textContent, '(auto)');
 });
 
@@ -542,7 +543,7 @@ test('planFor totals (lib and the page port) equal the pinned ones; the guide\'s
     const x = planFor(nutri, g, d, s.api.state().rideMin);
     const cards = cardsOf(s.els['nutri-plan'].innerHTML);
     assert.deepEqual(cards.map((c) => c.name), ['Breakfast', 'Lunch', 'Dinner', 'Extras'], `${key}: always the same four blocks`);
-    const b = guideBudgets(x, nutri.base[x.base].sl, MAIN_SLOTS);
+    const b = guideBudgets(x, nutri.base[x.base].sl, MAIN_SLOTS, nutri.guide.oil[x.base]);
     if (!b.clamped || b.extras.k > 0) assert.equal(cards.reduce((a, c) => a + c.kcal, 0), x.mt.k, `${key}: the guide = the meals target`);
   }
 });
@@ -553,8 +554,18 @@ test('guide ports agree with lib: guideBudgets (every goal x day type x ride), r
   for (const g of ['maintain', 'cut', 'bulk']) for (const d of ['rest', 'gym', 'bike', 'bikeLong']) for (const min of [null, 60, 185, 360]) {
     const x = planFor(nutri, g, d, min);
     const sl = nutri.base[x.base].sl;
-    assert.deepEqual(plain(api.guideBudgets(x, sl, MAIN_SLOTS)), plain(guideBudgets(x, sl, MAIN_SLOTS)), `${g}/${d}/${min}`);
+    const oil = nutri.guide.oil[x.base];
+    assert.deepEqual(plain(api.guideBudgets(x, sl, MAIN_SLOTS, oil)), plain(guideBudgets(x, sl, MAIN_SLOTS, oil)), `${g}/${d}/${min}`);
   }
+  // the cooking-oil split: both of lunch / dinner, only one, neither, no oil list
+  const mt = { k: 2500, p: 150, c: 280, f: 65 };
+  for (const [rows, slots, oil] of [
+    [[[500, 30, 60, 12], [800, 50, 90, 20], [700, 45, 80, 18], [91, 0, 0, 11], [20, 1, 2, 1]], ['breakfast', 'lunch', 'dinner', null, null], [3]],
+    [[[800, 50, 90, 20], [90, 0, 0, 10]], ['lunch', null], [1]],
+    [[[700, 50, 90, 20], [90, 0, 0, 10]], ['dinner', null], [1]],
+    [[[500, 30, 60, 12], [90, 0, 0, 10]], ['breakfast', null], [1]],
+    [[[500, 30, 60, 12], [90, 0, 0, 10]], ['lunch', null], undefined],
+  ]) assert.deepEqual(plain(api.guideBudgets({ meals: rows, mt }, slots, MAIN_SLOTS, oil)), plain(guideBudgets({ meals: rows, mt }, slots, MAIN_SLOTS, oil)), JSON.stringify(slots));
   const b = { k: 800, p: 50, c: 90, f: 20 };
   for (const k of [0, 50, 300, 719, 720, 900]) for (const p of [null, 0, 20, 46, 60]) {
     const logged = { k, p, c: 40, f: null };
@@ -597,7 +608,7 @@ test('rest day: Breakfast, Lunch, Dinner as plates by parts (protein / carbs / v
   const nutri = bake();
   const h = run({ nutri }).els['nutri-plan'].innerHTML;
   const x = planFor(nutri, 'maintain', 'rest', null);
-  const b = guideBudgets(x, nutri.base.rest.sl, MAIN_SLOTS);
+  const b = guideBudgets(x, nutri.base.rest.sl, MAIN_SLOTS, nutri.guide.oil.rest);
   const lunch = sectionOf(h, 'Lunch');
   assert.deepEqual([...lunch.matchAll(/<span class="gd-l">([^<]+)<\/span>/g)].map((m) => m[1]), ['Protein', 'Carbs', 'Vegetables', 'Fat']);
   assert.match(lunch, new RegExp('<span class="gd-l">Protein</span><span class="gd-g"><b>~' + b.meals.lunch.p + '</b> g</span>'));
@@ -617,6 +628,11 @@ test('rest day: Breakfast, Lunch, Dinner as plates by parts (protein / carbs / v
   const extras = sectionOf(h, 'Extras');
   assert.match(extras, new RegExp('<p class="gd-budget">~' + b.extras.k + ' kcal for extras today</p>'));
   assert.match(extras, /For example: a cortado ~19 kcal · a banana ~106 kcal · a yogurt ~79 kcal · a protein shake \(30 g\) ~114 kcal\./);
+  assert.match(extras, /<p class="gd-hint">Covers coffee, snacks and pre \/ post-workout\.<\/p>/, 'what Extras holds');
+  // the plan's cooking oil counts in lunch and dinner, not in Extras
+  const noOil = guideBudgets(x, nutri.base.rest.sl, MAIN_SLOTS);
+  assert.ok(b.meals.lunch.f > noOil.meals.lunch.f && b.meals.dinner.f > noOil.meals.dinner.f, 'half the oil in each');
+  assert.equal(b.meals.lunch.f + b.meals.dinner.f + b.extras.f, noOil.meals.lunch.f + noOil.meals.dinner.f + noOil.extras.f);
   assert.doesNotMatch(extras, /Split it before and after training/, 'rest day: nothing to split around');
   assert.doesNotMatch(h, /<select[^>]*class="gd-pick"[^>]*>[^]*?<\/select>[^]*?gd-add/, 'no "+" without the food log');
   assert.doesNotMatch(h, /gd-left|Left today/);
@@ -691,7 +707,7 @@ const Z = { k: 0, p: 0, c: 0, f: 0 };
 test('with the food log: each meal shows what is left (done / so far), covered rows, Extras left and "Left today"', () => {
   const nutri = bake();
   const x = planFor(nutri, 'maintain', 'rest', null);
-  const b = guideBudgets(x, nutri.base.rest.sl, MAIN_SLOTS);
+  const b = guideBudgets(x, nutri.base.rest.sl, MAIN_SLOTS, nutri.guide.oil.rest);
   const groups = {
     meals: { breakfast: { k: Math.ceil(b.meals.breakfast.k * 0.95), p: b.meals.breakfast.p, c: 10, f: 2 }, lunch: { k: 300, p: 20, c: 30, f: 1 }, dinner: Z },
     addon: { k: 100, p: 5, c: 10, f: 3 },
