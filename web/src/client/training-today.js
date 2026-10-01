@@ -6,7 +6,7 @@
  * hand-typed JS literal, and
  * I18N_HOY (web/src/i18n/hoy-templates.mjs) instead of hardcoded English
  * strings — same "deliberate documented duplicate" pattern already used by
- * client/nutrition.js (classic script, is:inline, no ES modules — see
+ * client/nutri-day.js (classic script, is:inline, no ES modules — see
  * spec: Single self-contained output).
  *
  * `esc()` is the browser idiom `document.createElement('div');

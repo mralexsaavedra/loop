@@ -1,11 +1,14 @@
 /* Static guards for the on-demand refresh wiring (services/plan-web nginx + compose + systemd units,
- * services/health-ingest compose). They pin the SECURITY boundary: the public plan-web server may
- * proxy exactly two ingest routes (POST /sync, GET /sync/status), never a data endpoint. */
+ * services/health-ingest compose). They pin the SECURITY boundary: the plan-web server may proxy
+ * exactly two exact ingest routes (POST /sync, GET /sync/status) plus the food log prefix
+ * (/api/food/ -> /food/), never a bearer-protected data endpoint. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import os from 'node:os';
+import { spawnSync } from 'node:child_process';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const read = (...p) => fs.readFileSync(path.join(ROOT, ...p), 'utf8');
@@ -21,15 +24,29 @@ function locations(conf) {
   return [...conf.matchAll(/location\s+([^{]+?)\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g)].map((m) => ({ spec: m[1].trim(), body: m[2] }));
 }
 
-test('nginx proxies ONLY /api/sync and /api/sync/status, as exact locations, to the host ingest port', () => {
+test('nginx proxies ONLY /api/sync and /api/sync/status (exact) and the /api/food/ prefix, to the host ingest port', () => {
   const proxied = locations(nginx).filter((l) => /proxy_pass\s/.test(l.body));
-  assert.deepEqual(proxied.map((l) => l.spec).sort(), ['= /api/sync', '= /api/sync/status']);
+  assert.deepEqual(proxied.map((l) => l.spec).sort(), ['/api/food/', '= /api/sync', '= /api/sync/status']);
   const target = (spec) => /proxy_pass\s+([^;]+);/.exec(proxied.find((l) => l.spec === spec).body)[1];
   assert.equal(target('= /api/sync'), 'http://host.docker.internal:${INGEST_PORT}/sync');
   assert.equal(target('= /api/sync/status'), 'http://host.docker.internal:${INGEST_PORT}/sync/status');
   assert.match(proxied.find((l) => l.spec === '= /api/sync').body, /limit_except POST/);
   assert.match(proxied.find((l) => l.spec === '= /api/sync/status').body, /limit_except GET/);
-  assert.equal((nginx.match(/proxy_pass\s/g) || []).length, 2, 'no other proxy_pass anywhere');
+  assert.equal((nginx.match(/proxy_pass\s/g) || []).length, 3, 'no other proxy_pass anywhere');
+});
+
+test('nginx /api/food/: ingest /food/ only, GET/POST/PUT/DELETE, the body passed, 16 KB cap, the X-HC-Food header forwarded', () => {
+  const food = locations(nginx).find((l) => l.spec === '/api/food/');
+  assert.ok(food, 'a prefix location for the food log');
+  assert.match(food.body, /proxy_pass\s+http:\/\/host\.docker\.internal:\$\{INGEST_PORT\}\/food\/;/);
+  assert.match(food.body, /limit_except GET POST PUT DELETE \{ deny all; \}/);
+  assert.doesNotMatch(food.body, /proxy_pass_request_body off/, 'writes carry a JSON body');
+  assert.match(food.body, /client_max_body_size 16k;/, 'same cap as the service');
+  assert.match(food.body, /proxy_set_header X-HC-Food \$http_x_hc_food;/);
+  assert.match(food.body, /proxy_set_header Host host\.docker\.internal;/, 'the proxy hop names a host ingest allows');
+  assert.match(food.body, /proxy_connect_timeout 5s;/);
+  assert.match(food.body, /proxy_read_timeout 15s;/);
+  assert.doesNotMatch(food.body, /add_header\s+Access-Control/i, 'never approves a cross-site request');
 });
 
 test('nginx: everything else under /api is a 404; data endpoints are never named', () => {
@@ -99,4 +116,63 @@ test('no personal paths in the tracked plan-web files', () => {
   for (const text of [nginx, planCompose, pathUnit, serviceUnit, read(PLAN_WEB, 'refresh.sh'), read(PLAN_WEB, 'README.md')]) {
     assert.doesNotMatch(text, /\/root\/|\/home\/|\/Users\//);
   }
+});
+
+// ---- DNS rebinding: a Host allowlist for EVERY path ----------------------------------------------
+const hostsScript = path.join(ROOT, PLAN_WEB, 'hosts.sh');
+
+/** The map block that decides $hc_host_ok, and its regex keys as JS RegExps (PCRE subset). */
+function hostMap() {
+  const m = /map \$host \$hc_host_ok \{\n([\s\S]*?)\n\}/.exec(nginx);
+  assert.ok(m, 'a map $host $hc_host_ok block');
+  const regexes = [...m[1].matchAll(/"~([^"]+)"\s+1;/g)].map((x) => new RegExp(x[1]));
+  return { body: m[1], regexes };
+}
+const allowedByMap = (host) => {
+  const { body, regexes } = hostMap();
+  const literal = [...body.matchAll(/^\s*([a-z0-9.-]+)\s+1;/gm)].map((x) => x[1]);
+  return literal.includes(host) || regexes.some((r) => r.test(host));
+};
+
+test('nginx: every request is checked against the Host map at SERVER level (421 otherwise), before any location', () => {
+  const { body } = hostMap();
+  assert.match(body, /default\s+0;/, 'unknown names are refused by default');
+  assert.match(body, /^\s*localhost\s+1;/m);
+  assert.match(body, /include \/etc\/nginx\/hc-extra-hosts\.map;/, 'the optional extra names');
+  const server = nginx.slice(nginx.indexOf('server {'));
+  const guard = server.indexOf('if ($hc_host_ok = 0) { return 421; }');
+  assert.ok(guard > 0, 'server-level guard');
+  assert.ok(guard < server.indexOf('location '), 'before the first location, so it covers the page, status.json and /api/*');
+});
+
+test('nginx Host map: IP literals (v4, bracketed v6) and localhost pass; any other name (a rebinding domain) does not', () => {
+  for (const h of ['192.168.1.10', '10.0.0.5', '127.0.0.1', '[::1]', '[fd00::12]', '[fe80::1:2]', 'localhost']) assert.equal(allowedByMap(h), true, h);
+  for (const h of ['evil.example', '192.168.1.10.nip.io', 'a.192.168.1.10', '1.2.3.4.evil.example', '[::1].evil.example', 'localhost.evil.example', '', 'plan.lan']) {
+    assert.equal(allowedByMap(h), false, h);
+  }
+});
+
+test('plan-web compose: PLAN_WEB_EXTRA_HOSTS (empty by default) and the entrypoint script that renders it', () => {
+  assert.match(planCompose, /PLAN_WEB_EXTRA_HOSTS:\s*\$\{PLAN_WEB_EXTRA_HOSTS:-\}/);
+  assert.match(planCompose, /\.\/hosts\.sh:\/docker-entrypoint\.d\/15-hc-hosts\.sh:ro/);
+  assert.ok(fs.statSync(hostsScript).mode & 0o111, 'executable (the nginx entrypoint skips non-executable scripts)');
+});
+
+function renderHosts(value) {
+  const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hc-hosts-')), 'hosts.map');
+  const r = spawnSync('sh', [hostsScript], { env: { PATH: process.env.PATH, HC_HOSTS_MAP: out, ...(value === undefined ? {} : { PLAN_WEB_EXTRA_HOSTS: value }) }, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  return { map: fs.readFileSync(out, 'utf8'), stderr: r.stderr };
+}
+
+test('hosts.sh: comma / space separated names, lowercased, one exact map entry each; invalid ones are skipped with a warning', () => {
+  assert.equal(renderHosts(undefined).map, '', 'nothing by default');
+  assert.equal(renderHosts('').map, '');
+  const r = renderHosts(' Plan.Lan, nas.home.arpa  bad_host;x .dot trailing. ~^.*$ ');
+  assert.equal(r.map, 'plan.lan 1;\nnas.home.arpa 1;\n');
+  for (const bad of ['bad_host;x', '.dot', 'trailing.', '~^.*$']) assert.match(r.stderr, new RegExp(bad.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});
+
+test('health-ingest compose passes FOOD_ALLOWED_HOSTS (empty by default) for the same extra names', () => {
+  assert.match(ingestCompose, /FOOD_ALLOWED_HOSTS:\s*\$\{FOOD_ALLOWED_HOSTS:-\}/);
 });

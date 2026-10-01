@@ -5,6 +5,8 @@ export const es = {
   heading: 'Ingesta registrada',
   asOfTpl: '{date}',
   todayLbl: 'Hoy, en curso',
+  foodLbl: 'Registrado hoy',
+  minNote: '≥: alguna entrada no tiene ese macro, así que es un mínimo.',
   targetLbl: { train: 'Objetivo día de entreno', rest: 'Objetivo día de descanso' },
   rideFuel: '+ {k} kcal en la bici',
   ofTpl: 'de {target} {unit}',
@@ -12,14 +14,14 @@ export const es = {
   units: { k: 'kcal', p: 'g', c: 'g', g: 'g' },
   missing: 'sin dato',
   noteHtml: 'Lo que tu app de comida escribió en Salud para ese día, frente al objetivo de hoy (objetivo y tipo de día elegidos arriba). Un día a medio registrar se ve incompleto: es el registro, no necesariamente lo que comiste.',
-  // no intake ever logged: one line in the Registro fold summary (tabs/Registro.astro)
-  noneHtml: 'Sin comida registrada: los anillos de ingesta aparecen si una app de comida escribe en Apple Health.',
 };
 
 export const en = {
   heading: 'Logged intake',
   asOfTpl: '{date}',
   todayLbl: 'Today, so far',
+  foodLbl: 'Logged today',
+  minNote: '≥: some entries lack that macro, so it is a minimum.',
   targetLbl: { train: 'Training-day target', rest: 'Rest-day target' },
   rideFuel: '+ {k} kcal on the bike',
   ofTpl: 'of {target} {unit}',
@@ -27,6 +29,4 @@ export const en = {
   units: { k: 'kcal', p: 'g', c: 'g', g: 'g' },
   missing: 'no data',
   noteHtml: 'What your food app wrote to Health for that day, against the target for today (the goal and day type picked above). A half-logged day looks short: it is the log, not necessarily what you ate.',
-  // no intake ever logged: one line in the Registro fold summary (tabs/Registro.astro)
-  noneHtml: 'No food logged: the intake rings appear once a food app writes to Apple Health.',
 };

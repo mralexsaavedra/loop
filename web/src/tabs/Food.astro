@@ -1,0 +1,29 @@
+---
+/* Mis productos / Mis recetas (Nutrición part 2): two collapsible folds between the dia section and Tablas,
+ * filled by client/food.js. Both ship `hidden` and appear only on the LAN page, when the food API
+ * answers (GET /api/food/products); the claude.ai artifact and the example build never show them.
+ * No data-section key: they are not page.hideTabs targets; web/pages/index.astro renders them only
+ * when the `dia` section (which holds the Registrar they feed) is visible. Copy: I18N_FOOD
+ * (web/src/i18n/food-templates.mjs), baked with the Registrar in web/src/tabs/Dia.astro. */
+import { es as esFood, en as enFood } from '../i18n/food-templates.mjs';
+
+interface Props {
+  locale: string;
+}
+const { locale } = Astro.props;
+const F = locale === 'es' ? esFood : enFood;
+---
+<details class="tab-section sec-fold food-fold" id="food-products" hidden>
+  <summary><h2>{F.headings.products}</h2><span class="chev">›</span></summary>
+  <div class="sec-body">
+    <p class="food-msg" id="fp-msg" role="status" aria-live="polite"></p>
+    <div id="fp-body"></div>
+  </div>
+</details>
+<details class="tab-section sec-fold food-fold" id="food-recipes" hidden>
+  <summary><h2>{F.headings.recipes}</h2><span class="chev">›</span></summary>
+  <div class="sec-body">
+    <p class="food-msg" id="fr-msg" role="status" aria-live="polite"></p>
+    <div id="fr-body"></div>
+  </div>
+</details>

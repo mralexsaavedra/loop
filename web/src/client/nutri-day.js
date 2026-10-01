@@ -19,10 +19,14 @@
  *   meals aim at target − ride fuel for the ride's minutes (a recorded ride's real minutes, else the
  *   picker, kept per date like the override, else the default), so changing the duration re-scales
  *   Plan de hoy. fuelPlan ports lib/nutrition/fuel.mjs over NUTRI.fuel.rates.
- * - Today's target is the ONE source for the rest of Nutrición: window.nutriTarget() hands the day
- *   builder (client/nutrition.js) and the intake rings (client/intake.js) the MEALS target (on bike days
- *   the day target minus the ride fuel, with the fuel as its own figure), and every goal / day type /
- *   duration change refreshes both directly.
+ * - Today's target is the ONE source for the rest of Nutrición: window.nutriTarget() hands the intake
+ *   rings (client/intake.js) the MEALS target (on bike days the day target minus the ride fuel, with
+ *   the fuel as its own figure), and every goal / day type / duration change refreshes them directly.
+ * - HCNutri.todayPlan() hands the food log's "Del plan" tab (client/food.js) today's Plan de hoy
+ *   meals, read-only, exactly as rendered (same goal × day type × ride minutes, same planFor).
+ * - Logged intake: the dial + bars fill from today's page food log (window.foodTotals, client/food.js,
+ *   LAN page only) when it has entries, else from the Apple Health day (INTAKE); HCNutri.refresh() is
+ *   the food log's hook after every add / delete.
  * Each block renders in its own try/catch: a failure shows a one-line message there, never a blank tab. */
 (function () {
   var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;
@@ -172,22 +176,25 @@
       clamp = lc[1];
     }
     var meals = model.fixed.map(function (f) { return f.slice(); });
-    var q = [], qa = [], dir = [];
+    var q = [], qa = [], dir = [], qm = [];
     model.flex.forEach(function (x) {
       var m = meals[x.m], i;
       if (x.mb) {
-        for (i = 0; i < 4; i++) m[i] += x.mb[i] * factor;
+        var bm = x.mb.map(function (v) { return v * factor; });
+        for (i = 0; i < 4; i++) m[i] += bm[i];
         var t = factor === 1 ? x.q : (x.q + ' ×' + fmtFactor(factor, dec)).trim();
         q.push(t);
         qa.push([t]);
         dir.push(Math.sign(factor - 1));
+        qm.push(bm);
         return;
       }
       var baseK = 0, nowK = 0;
+      var pm = [0, 0, 0, 0];
       var amts = x.ln.map(function (l) {
         var amt = amountAt(l, l[0] === 'ud' ? f0 : factor);
         var r = amt / l[1];
-        for (var j = 0; j < 4; j++) m[j] += l[j + 2] * r;
+        for (var j = 0; j < 4; j++) { m[j] += l[j + 2] * r; pm[j] += l[j + 2] * r; }
         baseK += l[2];
         nowK += l[2] * r;
         return fmtAmt(amt, l[0], units);
@@ -195,10 +202,11 @@
       q.push(amts.join(' + '));
       qa.push(amts);
       dir.push(Math.abs(nowK - baseK) < 0.5 ? 0 : Math.sign(nowK - baseK));
+      qm.push(pm);
     });
     var totals = { k: 0, p: 0, c: 0, g: 0 };
     meals.forEach(function (m) { totals.k += m[0]; totals.p += m[1]; totals.c += m[2]; totals.g += m[3]; });
-    return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, meals: meals, q: q, qa: qa, dir: dir, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
+    return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, meals: meals, q: q, qa: qa, dir: dir, qm: qm, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
   }
   function planFor(bake, goal, d, minutes) {
     var x = bake.plans[goal][d];
@@ -218,6 +226,7 @@
       flex: s.q,
       flexAmts: s.qa,
       flexDir: s.dir,
+      flexMac: s.qm,
       tot: tot,
       factor: s.factor,
       clamp: s.clamp,
@@ -293,9 +302,16 @@
     }
   }
   var OVER_RATIO = 1.1; // past 110 % of the target a bar is flagged (--mid), like the intake rings
-  // intake logged TODAY (INTAKE, baked by components/Bake.astro; the date is checked on the viewer's
-  // clock): only then do the dial and the bars fill. Never from the target.
+  // intake logged TODAY: first the page's own food log (window.foodTotals, client/food.js: today's
+  // entries on the LAN page, src 'log'), else the Apple Health day (INTAKE, baked by
+  // components/Bake.astro); the date is checked on the viewer's clock. Only then do the dial and the
+  // bars fill. Never from the target.
   function intakeToday() {
+    var F = null;
+    if (typeof window.foodTotals === 'function') {
+      try { F = window.foodTotals(); } catch (e) { F = null; }
+    }
+    if (F) return F; // foodTotals already means "today, >= 1 entry" (see its contract in food.js)
     var I = typeof INTAKE === 'undefined' || !INTAKE ? null : INTAKE;
     var L = I && I.latest;
     return L && L.date === todayIso() && L.k > 0 ? L : null;
@@ -318,14 +334,18 @@
       (L ? '<span class="nt-logged"><b>' + esc(kf(L.k)) + '</b> ' + esc(T.target.logged) + '</span>' : '') + '</div></figure>';
   }
   // one macro bar: grams in --num; with intake today "logged / target" and a fill, else the target only
-  function barHtml(label, target, L, logged) {
+  // min = some of today's food-log entries lack this macro: the logged sum is a minimum ("≥")
+  function barHtml(label, target, L, logged, min) {
     var has = L && logged != null && target > 0;
     var over = has && logged / target > OVER_RATIO;
-    var val = L ? '<b>' + (logged != null ? esc(kf(logged)) : '—') + '</b> / ' + esc(kf(target)) + ' g' : '<b>' + esc(kf(target)) + '</b> g';
+    var val = L ? '<b>' + (logged != null ? (min ? '≥ ' : '') + esc(kf(logged)) : '—') + '</b> / ' + esc(kf(target)) + ' g' : '<b>' + esc(kf(target)) + '</b> g';
     var pct = has ? pctOf(logged, target) : 0;
     return '<div class="nt-bar' + (over ? ' nt-bar-over' : '') + '"><div class="nt-bar-top"><span class="nt-bar-lbl">' + esc(label) + '</span>' +
       '<span class="nt-bar-val">' + val + '</span></div><div class="nt-bar-track">' +
       (pct > 0 ? '<span class="nt-bar-fill" style="width:' + pct + '%"></span>' : '') + '</div></div>';
+  }
+  function minOf(L, macro) {
+    return !!(L && L.missing && L.missing[macro]);
   }
   function remainderHtml(x) {
     var rem = x.rem, bike = x.fuelK > 0;
@@ -355,8 +375,9 @@
       : format(T.planLine, { k: kf(x.tot.k), p: x.tot.p, c: x.tot.c, f: x.tot.g });
     host.innerHTML =
       '<div class="nt-top">' + dialHtml(t, L) + goalChipHtml() + '</div>' +
-      '<div class="nt-side"><div class="nt-bars">' + barHtml(T.target.p, t.p, L, L && L.p) + barHtml(T.target.c, t.c, L, L && L.c) + barHtml(T.target.f, t.f, L, L && L.g) + '</div>' +
-      (L ? '<p class="nt-cnote">' + esc(T.target.loggedNote) + '</p>' : '') +
+      '<div class="nt-side"><div class="nt-bars">' + barHtml(T.target.p, t.p, L, L && L.p, minOf(L, 'protein')) + barHtml(T.target.c, t.c, L, L && L.c, minOf(L, 'carbs')) + barHtml(T.target.f, t.f, L, L && L.g, minOf(L, 'fat')) + '</div>' +
+      (L ? '<p class="nt-cnote">' + esc(L.src === 'log' ? T.target.loggedFoodNote : T.target.loggedNote) + '</p>' : '') +
+      (L && L.missing && (L.missing.protein || L.missing.carbs || L.missing.fat) ? '<p class="nt-cnote">' + esc(T.target.loggedFoodMissing) + '</p>' : '') +
       '<p class="nt-cnote">' + esc(T.target.cNote) + '</p>' +
       (x ? '<p class="nt-plan">' + esc(line) + '</p>' + remainderHtml(x) + macroOffHtml(x) : '') + '</div>';
   }
@@ -476,12 +497,8 @@
       '<div class="eat-mac"><b>' + t.f + ' g</b><span>' + esc(T.target.f) + '</span></div></div>';
   }
 
-  // the day builder and the intake rings read nutriTarget(); refresh each one directly and on its
-  // own, so a failure in one never leaves the other stale
+  // the intake rings read nutriTarget(); a failure there shows a one-line message, never a stale ring
   function refreshDependents() {
-    if (typeof window.bldRefresh === 'function') {
-      try { window.bldRefresh(); } catch (e) { var r = $('r-verdict'); if (r) r.innerHTML = '<p class="nutri-failed">' + esc(T.failed) + '</p>'; }
-    }
     if (typeof window.intakeRefresh === 'function') {
       try { window.intakeRefresh(); } catch (e) { var h = $('intake'); if (h) h.innerHTML = '<p class="nutri-failed">' + esc(T.failed) + '</p>'; }
     }
@@ -547,9 +564,9 @@
     refresh(false); // keep the select (and its focus) in place
   });
 
-  /** Today's MEALS target for the day builder and the intake rings: on bike days the day target minus
-   * the ride fuel (all carbs), with the fuel handed over separately; `day` = the base day (train /
-   * rest) whose option lists the day builder offers; fatMax = the fat target + the plan tolerance. */
+  /** Today's MEALS target for the intake rings: on bike days the day target minus the ride fuel (all
+   * carbs), with the fuel handed over separately; `day` = the base day (train / rest); fatMax = the
+   * fat target + the plan tolerance. */
   window.nutriTarget = function () {
     var x = current(), d = dayType();
     var head = x.fuelK > 0 ? T.target.mealsHeading : T.target.heading;
@@ -558,8 +575,40 @@
       day: x.base, dayType: d, label: head + ' · ' + T.dayTypes[d] + ' · ' + T.goals[state.goal],
     };
   };
+  /** Today's Plan de hoy meals for the food log's "Del plan" tab (client/food.js), READ-ONLY: the same
+   * plan the page renders (current(): goal × day type × ride minutes through planFor), never
+   * re-computed elsewhere. [{name, slot, kcal, p, c, g, items}] with the meal totals exactly as Plan de
+   * hoy shows them (whole numbers) and per item {name, amount, kcal (whole), p, c, g (1 decimal),
+   * components?} — a scaled item at its scaled amount; a composite lists its components (name,
+   * amount) and has no amount of its own. A fresh copy each call; null when there is nothing to show. */
+  function r1(v) { return Math.round(v * 10) / 10; }
+  function todayPlan() {
+    var x = current();
+    var base = x && N.base[x.base];
+    if (!base || !base.meals || !base.meals.length) return null;
+    var fi = 0;
+    return base.meals.map(function (meal, i) {
+      var m = x.meals[i];
+      var items = meal.parts.map(function (p) {
+        var k = p.x ? fi++ : -1;
+        var mac = p.x ? x.flexMac[k] : p.m;
+        var it = { name: p.l, amount: null, kcal: Math.round(mac[0]), p: r1(mac[1]), c: r1(mac[2]), g: r1(mac[3]) };
+        if (p.c) {
+          var amts = p.x ? x.flexAmts[k] : p.a || [];
+          it.components = p.c.map(function (name, n) { return { name: name, amount: amts[n] != null ? amts[n] : null }; });
+        } else it.amount = (p.x ? x.flex[k] : p.q) || null;
+        return it;
+      });
+      return { name: meal.n, slot: meal.s || null, kcal: m[0], p: m[1], c: m[2], g: m[3], items: items };
+    });
+  }
   window.HCNutri = {
     setGoal: setGoal,
+    todayPlan: function () {
+      try { return todayPlan(); } catch (e) { return null; }
+    },
+    // the food log (client/food.js) calls this after every add / delete: the dial, bars, rings
+    refresh: function () { refresh(false); },
     detectDayType: detectDayType,
     fuelPlan: fuelPlan,
     solveScale: solveScale,
