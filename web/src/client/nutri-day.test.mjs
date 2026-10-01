@@ -16,6 +16,7 @@ import { buildNutriToday } from '../../../lib/nutrition/today.mjs';
 import { DAYTYPE_CASES } from '../../../lib/nutrition/daytype.mjs';
 import { fuelPlan } from '../../../lib/nutrition/fuel.mjs';
 import { planFor, solveScale } from '../../../lib/nutrition/scale.mjs';
+import { applyPicks } from '../../../lib/nutrition/blocks.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, '..', '..', '..');
@@ -42,8 +43,9 @@ function memStorage(init = {}) {
 }
 
 const ARC = 'M24.64 95.36A50 50 0 1 1 95.36 95.36';
-function run({ nutri = bake(), items = [], programmed = null, locale = 'en', storage = memStorage(), today = TODAY, hooks = true, extra = {}, intake } = {}) {
+function run({ nutri = bake(), items = [], programmed = null, locale = 'en', storage = memStorage(), today = TODAY, hooks = true, extra = {}, intake, query } = {}) {
   const doc = new StubDocument();
+  if (query) doc.querySelector = query;
   const els = {};
   for (const id of ['nutri-daytype', 'nutri-daytype-src', 'nutri-why', 'nutri-target', 'nutri-plan', 'nutri-fuel-block', 'nutri-ride-wrap', 'nutri-fuel-body', 'eat-body', 'intake']) els[id] = doc.el(id);
   els['nutri-auto'] = doc.el('nutri-auto', { tag: 'button', hidden: true });
@@ -130,7 +132,8 @@ test('no workout, nothing programmed: rest (auto), the default goal, rest target
   assert.match(els['nutri-target'].innerHTML, /<span class="nt-bar-lbl">Protein<\/span><span class="nt-bar-val"><b>150<\/b> g<\/span>/);
   assert.match(els['nutri-target'].innerHTML, /<span class="nt-bar-lbl">Carbs<\/span><span class="nt-bar-val"><b>340<\/b> g<\/span>/);
   assert.match(els['nutri-plan'].innerHTML, /class="meal-name">Breakfast</);
-  assert.match(els['nutri-plan'].innerHTML, /class="mp mp-flex"><span class="mp-l">Bread<span class="mp-dir" role="img" aria-label="portion scaled (up|down) to the target">[↑↓]<\/span><\/span><span class="mp-q">\d+ g<\/span><\/li>/);
+  assert.match(els['nutri-plan'].innerHTML, /class="mp mp-flex mp-block"><span class="mp-l"><select class="mp-pick" data-block="lunch\/carboComida" aria-label="Change Rice \(Lunch\)">.*?<\/select><span class="mp-dir" role="img" aria-label="portion scaled (up|down) to the target">[↑↓]<\/span><\/span><span class="mp-q">\d+ g<\/span><\/li>/);
+  assert.match(els['nutri-plan'].innerHTML, /<li class="mp-sub"><span class="mp-l">Bread<\/span><span class="mp-q">~2 bread rolls \(80 g\)<\/span><\/li>/, 'a countable food shows pieces with the grams reference');
   assert.doesNotMatch(els['nutri-plan'].innerHTML, /mp-tag|scaled<\/span>/, 'no loud "scaled" label');
   assert.equal(els['nutri-fuel-block'].hidden, true);
   assert.deepEqual(calls, [['intake', 2500]], 'the rings are refreshed with today\'s target');
@@ -307,7 +310,7 @@ test('only whole-unit portions flexible: the unrounded remainder is reported wit
   assert.equal(x.udOnly, true);
   assert.ok(Math.abs(x.rem) > 75, `rem ${x.rem}`);
   const html = run({ nutri: syn }).els['nutri-plan'].innerHTML;
-  assert.match(html, /Only whole-unit portions are adjustable/);
+  assert.match(html, /Only portions counted in pieces are adjustable/);
   assert.match(html, new RegExp('Carb portions ×' + x.factor.toFixed(2)));
 });
 
@@ -578,4 +581,132 @@ test('lib solveScale / planFor expose each flex part\'s macros at its rounded am
       assert.deepEqual(t.map(Math.round), x.meals[i], `${d}: meal ${i}`);
     });
   }
+});
+
+/* ---------- choosable blocks: picks (lib/nutrition/blocks.mjs applyPicks, ported) ---------- */
+// every single pick of every block of the example, plus a few combinations, per base day
+function pickCases(nutri) {
+  const out = [undefined, {}];
+  for (const day of ['train', 'rest']) {
+    const blocks = nutri.base[day].blocks;
+    const all = {};
+    for (const id of Object.keys(blocks)) {
+      const list = nutri.lists[blocks[id].L];
+      for (const o of list) out.push({ [id]: o.k });
+      all[id] = list[list.length - 1].k;
+    }
+    out.push(all);
+  }
+  out.push({ 'lunch/carboComida': 'Pasta', 'dinner/proteina': 'Salmon', 'snack/anclaje': 'Tuna', 'breakfast/desayuno': 'A · Oat pancake' });
+  out.push({ 'lunch/proteina': 'Nope', 'x/y': 'Rice', 'lunch/postre': 12 });
+  return out;
+}
+const bakeEs = () => plain(buildNutriToday(buildNutrition(ING, PLAN), PLAN, { units: { g: 'g', ml: 'ml', ud: 'ud' }, dec: ',', lang: 'es' }));
+
+test('planFor / applyPicks ports agree with lib with picks (every single pick + combinations, all goals x day types)', () => {
+  for (const nutri of [bake(), bakeEs()]) {
+    const { api } = run({ nutri });
+    const cases = pickCases(nutri);
+    assert.ok(cases.length > 30, `${cases.length} pick cases`);
+    for (const picks of cases) {
+      for (const g of ['maintain', 'cut', 'bulk']) for (const d of ['rest', 'gym', 'bike', 'bikeLong']) {
+        const min = d === 'bikeLong' ? 240 : null;
+        assert.deepEqual(plain(api.planFor(nutri, g, d, min, picks)), plain(planFor(nutri, g, d, min, picks)), `${g}/${d} ${JSON.stringify(picks)}`);
+      }
+      for (const day of ['train', 'rest']) {
+        assert.deepEqual(plain(api.applyPicks(nutri.base[day], nutri.lists, picks, nutri.fmt)), plain(applyPicks(nutri.base[day], nutri.lists, picks, nutri.fmt)), `${day} ${JSON.stringify(picks)}`);
+      }
+    }
+  }
+});
+
+test('the example day stays on target whatever single food is picked (the carb-flex engine re-solves the day)', () => {
+  const nutri = bake();
+  for (const picks of pickCases(nutri)) {
+    for (const d of ['rest', 'gym']) {
+      const x = planFor(nutri, 'maintain', d, null, picks);
+      if (x.clamp) continue; // an extreme pick can push the carb factor to its limit: then the page says so
+      assert.ok(Math.abs(x.rem) <= nutri.tolerance, `${d} ${JSON.stringify(picks)}: rem ${x.rem}`);
+    }
+  }
+});
+
+test('a block renders as a labelled select of its list (grouped like the tables); the default view is today\'s plan', () => {
+  const { els, api } = run();
+  const html = els['nutri-plan'].innerHTML;
+  assert.match(html, /<select class="mp-pick" data-block="lunch\/proteina" aria-label="Change Chicken breast \(Lunch\)"><optgroup label="Lean"><option value="Chicken breast" selected>Chicken breast<\/option>/);
+  assert.match(html, /<optgroup label="Moderate"><option value="Turkey ham">Turkey ham<\/option><\/optgroup><optgroup label="Fatty">/);
+  assert.match(html, /data-block="lunch\/carboComida"[^>]*><option value="Rice" selected>Rice<\/option><option value="Pasta">Pasta<\/option>/, 'a list without groups: plain options');
+  assert.doesNotMatch(html, /nutri-picks-reset/, 'nothing picked: no reset link');
+  assert.deepEqual(plain(api.state().picks), {});
+});
+
+test('picking an option: kept for today, the plan re-solved, the rings refreshed, focus back on that select', () => {
+  const storage = memStorage();
+  const queried = [];
+  const s = run({ storage, query: (sel) => { queried.push(sel); return { focus() { queried.push('focused'); } }; } });
+  s.calls.length = 0;
+  s.fire('nutri-plan', 'change', { value: 'Salmon', getAttribute: (n) => (n === 'data-block' ? 'lunch/proteina' : null) });
+  assert.deepEqual(JSON.parse(storage.data['hc.nutri.picks']), { date: TODAY, picks: { 'lunch/proteina': 'Salmon' } });
+  const html = s.els['nutri-plan'].innerHTML;
+  assert.match(html, /<option value="Salmon" selected>Salmon<\/option>/);
+  // salmon 20 g P / 100 g against chicken 140 g (32 g P): 160 g
+  assert.match(html, /data-block="lunch\/proteina"[^]*?<\/select><\/span><span class="mp-q">160 g<\/span>/);
+  assert.match(html, /You swapped foods: the rest of the day was re-solved to stay on target\. <button type="button" class="lnk nutri-picks-reset" id="nutri-picks-reset">Back to the base plan<\/button>/);
+  assert.deepEqual(s.calls, [['intake', 2500]], 'the target is unchanged; the rings are refreshed');
+  assert.deepEqual(queried, ['select[data-block="lunch/proteina"]', 'focused']);
+  const x = planFor(bake(), 'maintain', 'rest', null, { 'lunch/proteina': 'Salmon' });
+  assert.deepEqual(plain(s.api.todayPlan()).map((m) => m.kcal), x.meals.map((m) => m[0]));
+  assert.equal(s.api.todayPlan()[1].items[0].name, 'Salmon');
+  assert.equal(s.api.todayPlan()[1].items[0].amount, '160 g');
+  // back to the default option: the pick is dropped (and the storage key with it)
+  s.fire('nutri-plan', 'change', { value: 'Chicken breast', getAttribute: () => 'lunch/proteina' });
+  assert.equal(storage.data['hc.nutri.picks'], undefined);
+  assert.doesNotMatch(s.els['nutri-plan'].innerHTML, /nutri-picks-reset/);
+});
+
+test('reset: every pick dropped; an unknown block id is ignored', () => {
+  const storage = memStorage({ 'hc.nutri.picks': JSON.stringify({ date: TODAY, picks: { 'lunch/carboComida': 'Pasta', 'dinner/postre': 'Banana' } }) });
+  const s = run({ storage });
+  assert.deepEqual(plain(s.api.state().picks), { 'lunch/carboComida': 'Pasta', 'dinner/postre': 'Banana' });
+  assert.match(s.els['nutri-plan'].innerHTML, /<option value="Pasta" selected>/);
+  s.fire('nutri-plan', 'change', { value: 'Rice', getAttribute: () => 'nope/x' });
+  assert.deepEqual(plain(s.api.state().picks), { 'lunch/carboComida': 'Pasta', 'dinner/postre': 'Banana' });
+  s.fire('nutri-plan', 'click', { closest: (sel) => (sel === '#nutri-picks-reset' ? {} : null) });
+  assert.deepEqual(plain(s.api.state().picks), {});
+  assert.equal(storage.data['hc.nutri.picks'], undefined);
+  assert.match(s.els['nutri-plan'].innerHTML, /<option value="Rice" selected>/);
+});
+
+test('picks expire the next day; a broken or foreign value is ignored; storage failures never break the page', () => {
+  const old = run({ storage: memStorage({ 'hc.nutri.picks': JSON.stringify({ date: '2030-01-09', picks: { 'lunch/carboComida': 'Pasta' } }) }) });
+  assert.deepEqual(plain(old.api.state().picks), {});
+  const junk = run({ storage: memStorage({ 'hc.nutri.picks': '{nope' }) });
+  assert.deepEqual(plain(junk.api.state().picks), {});
+  const odd = run({ storage: memStorage({ 'hc.nutri.picks': JSON.stringify({ date: TODAY, picks: { 'lunch/carboComida': 3, 'lunch/postre': 'Quinoa' } }) }) });
+  assert.deepEqual(plain(odd.api.state().picks), { 'lunch/postre': 'Quinoa' }, 'kept, but a key not in the list is ignored by applyPicks');
+  assert.match(odd.els['nutri-plan'].innerHTML, /<option value="Apple" selected>/);
+  const throwing = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } };
+  const t = run({ storage: throwing });
+  assert.equal(t.api.setPick('lunch/carboComida', 'Pasta'), true);
+  assert.match(t.els['nutri-plan'].innerHTML, /<option value="Pasta" selected>/);
+});
+
+test('a pick follows the day type: the same block id on the other base day (Pasta on rest and gym)', () => {
+  const s = run();
+  s.api.setPick('lunch/carboComida', 'Pasta');
+  assert.match(s.els['nutri-plan'].innerHTML, /<option value="Pasta" selected>/);
+  s.fire('nutri-daytype', 'change', { value: 'gym' });
+  assert.equal(s.api.state().dayType, 'gym');
+  assert.match(s.els['nutri-plan'].innerHTML, /data-block="lunch\/carboComida"[^>]*>[^]*?<option value="Pasta" selected>/);
+});
+
+test('Spanish: the select and the reset link are localized; countable foods in Spanish', () => {
+  const s = run({ nutri: bakeEs(), locale: 'es' });
+  s.api.setPick('lunch/postre', 'Banana');
+  const html = s.els['nutri-plan'].innerHTML;
+  assert.match(html, /aria-label="Cambiar Banana \(Lunch\)"/);
+  assert.match(html, /<optgroup label="Fruta">/);
+  assert.match(html, /plátanos? medianos?/);
+  assert.match(html, /Volver al plan base/);
 });

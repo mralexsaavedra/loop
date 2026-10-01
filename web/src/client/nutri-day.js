@@ -22,8 +22,13 @@
  * - Today's target is the ONE source for the rest of Nutrición: window.nutriTarget() hands the intake
  *   rings (client/intake.js) the MEALS target (on bike days the day target minus the ride fuel, with
  *   the fuel as its own figure), and every goal / day type / duration change refreshes them directly.
+ * - Blocks: a dayPlan part that points at an option list is a choosable block (lib/nutrition/blocks.mjs):
+ *   its name is a select of that list (NUTRI.lists, grouped like the tables); a pick is kept for TODAY
+ *   in localStorage (hc.nutri.picks = {date, picks: {<block id>: <option key>}}, every access wrapped)
+ *   and planFor re-solves the whole day with it (applyPicks ports blocks.mjs: protein lists keep the
+ *   default's protein grams, the rest take the option's own amounts; parity test).
  * - HCNutri.todayPlan() hands the food log's "Del plan" tab (client/food.js) today's Plan de hoy
- *   meals, read-only, exactly as rendered (same goal × day type × ride minutes, same planFor).
+ *   meals, read-only, exactly as rendered (same goal × day type × ride minutes × picks, same planFor).
  * - Logged intake: the dial + bars fill from today's page food log (window.foodTotals, client/food.js,
  *   LAN page only) when it has entries, else from the Apple Health day (INTAKE); HCNutri.refresh() is
  *   the food log's hook after every add / delete.
@@ -33,9 +38,9 @@
   var T = typeof I18N_NUTRI === 'undefined' || !I18N_NUTRI ? null : I18N_NUTRI;
   if (!N || !T) return;
   var esc = HC.esc, format = HC.format, todayIso = HC.todayIso;
-  var KEY_GOAL = 'hc.nutri.goal', KEY_DAY = 'hc.nutri.dayType', KEY_RIDE = 'hc.nutri.rideMin';
+  var KEY_GOAL = 'hc.nutri.goal', KEY_DAY = 'hc.nutri.dayType', KEY_RIDE = 'hc.nutri.rideMin', KEY_PICKS = 'hc.nutri.picks';
   var RANK = { rest: 0, gym: 1, bike: 2, bikeLong: 3 };
-  var state = { goal: N.goal, override: null, auto: null, ride: null, raised: null };
+  var state = { goal: N.goal, override: null, auto: null, ride: null, raised: null, picks: {} };
 
   function $(id) { return document.getElementById(id); }
   function kf(n) { // thousands separator: 3.050 (es) / 3,050 (en)
@@ -139,14 +144,32 @@
     };
   }
 
-  /* ---------- portion scaling (port of lib/nutrition/scale.mjs solveScale / planFor) ---------- */
+  /* ---------- portion scaling (port of lib/nutrition/amounts.mjs, units.mjs fmtPieces, scale.mjs
+   * solveScale / planFor and blocks.mjs applyPicks) ---------- */
   function round2(v) { return Math.round(v * 100) / 100; }
-  function stepAmount(amt, unit) {
+  function stepAmount(amt, unit, st) {
     if (unit === 'ud') return Math.max(100, Math.round(amt / 100) * 100);
+    if (st > 0) return Math.max(st, Math.round(amt / st) * st);
     return Math.max(N.scale.step, Math.round(amt / N.scale.step) * N.scale.step);
   }
+  function isDiscrete(l) { return l[0] === 'ud' || l.length > 6; }
   function fmtFactor(f, dec) { return f.toFixed(2).replace('.', dec); }
-  function fmtAmt(amt, unit, units) {
+  function fmtHalf(h) {
+    var whole = Math.floor(h), half = h - whole >= 0.5;
+    return (whole ? String(whole) : '') + (half ? '½' : '') || '0';
+  }
+  function fmtPieces(amt, unit, pc) {
+    var n = amt / pc.a;
+    var h = Math.max(0.5, Math.round(n * 2) / 2);
+    var exact = Math.abs(n - h) < 1e-9;
+    var name = h > 1 ? pc.m : pc.o;
+    var ref;
+    if (unit === 'ud') ref = pc.r ? '~' + Math.round(n * pc.r) + ' g' : null;
+    else ref = (exact ? '~' : '') + round2(amt) + ' ' + unit;
+    return (exact ? '' : '~') + fmtHalf(h) + ' ' + name + (ref ? ' (' + ref + ')' : '');
+  }
+  function fmtAmt(amt, unit, units, pc) {
+    if (pc) return fmtPieces(amt, unit, pc);
     return unit === 'ud' ? round2(amt / 100) + ' ' + units.ud : round2(amt) + ' ' + (units[unit] || unit);
   }
   function limit(f) {
@@ -155,21 +178,21 @@
     return [f, null];
   }
   function solveScale(model, target, fmt) {
-    var units = fmt.units, dec = fmt.dec;
+    var units = fmt.units, dec = fmt.dec, pieces = fmt.pieces || null;
     var fixedK = 0, udK = 0, contK = 0;
     model.fixed.forEach(function (f) { fixedK += f[0]; });
     model.flex.forEach(function (x) {
       if (x.mb) contK += x.mb[0];
-      else x.ln.forEach(function (l) { if (l[0] === 'ud') udK += l[2]; else contK += l[2]; });
+      else x.ln.forEach(function (l) { if (isDiscrete(l)) udK += l[2]; else contK += l[2]; });
     });
     var lc = udK + contK > 0 ? limit((target - fixedK) / (udK + contK)) : [1, null];
     var f0 = round2(lc[0]), clamp = lc[1];
-    var amountAt = function (l, s) { return s === 1 ? l[1] : stepAmount(l[1] * s, l[0]); };
+    var amountAt = function (l, s) { return s === 1 ? l[1] : stepAmount(l[1] * s, l[0], l[6]); };
     var factor = f0;
     if (udK > 0 && contK > 0) {
       var udNowK = 0;
       model.flex.forEach(function (x) {
-        if (x.ln) x.ln.forEach(function (l) { if (l[0] === 'ud') udNowK += l[2] * (amountAt(l, f0) / l[1]); });
+        if (x.ln) x.ln.forEach(function (l) { if (isDiscrete(l)) udNowK += l[2] * (amountAt(l, f0) / l[1]); });
       });
       lc = limit((target - fixedK - udNowK) / contK);
       factor = round2(lc[0]);
@@ -192,12 +215,12 @@
       var baseK = 0, nowK = 0;
       var pm = [0, 0, 0, 0];
       var amts = x.ln.map(function (l) {
-        var amt = amountAt(l, l[0] === 'ud' ? f0 : factor);
+        var amt = amountAt(l, isDiscrete(l) ? f0 : factor);
         var r = amt / l[1];
         for (var j = 0; j < 4; j++) { m[j] += l[j + 2] * r; pm[j] += l[j + 2] * r; }
         baseK += l[2];
         nowK += l[2] * r;
-        return fmtAmt(amt, l[0], units);
+        return fmtAmt(amt, l[0], units, l[7] && pieces ? pieces[l[7]] : null);
       });
       q.push(amts.join(' + '));
       qa.push(amts);
@@ -208,12 +231,82 @@
     meals.forEach(function (m) { totals.k += m[0]; totals.p += m[1]; totals.c += m[2]; totals.g += m[3]; });
     return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, meals: meals, q: q, qa: qa, dir: dir, qm: qm, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
   }
-  function planFor(bake, goal, d, minutes) {
+  function findOpt(list, key) {
+    if (!list || !list.length) return null;
+    for (var i = 0; i < list.length; i++) if (list[i].k === key) return list[i];
+    return null;
+  }
+  function limitP(f) { return f < N.blocks.pMin ? N.blocks.pMin : f > N.blocks.pMax ? N.blocks.pMax : f; }
+  function swapFactor(block, list, opt) {
+    if (block.r !== 'protein') return 1;
+    var def = findOpt(list, block.d);
+    if (!def || !(def.pr > 0) || !(opt.pr > 0)) return 1;
+    return round2(limitP(def.pr / opt.pr));
+  }
+  function applyPicks(base, lists, picks, fmt) {
+    var blocks = base.blocks || {};
+    var eff = {}, any = false;
+    if (picks && typeof picks === 'object') {
+      Object.keys(blocks).forEach(function (id) {
+        var key = picks[id];
+        if (typeof key !== 'string' || key === blocks[id].d || !findOpt(lists && lists[blocks[id].L], key)) return;
+        eff[id] = key;
+        any = true;
+      });
+    }
+    if (!any) return { fixed: base.fixed, flex: base.flex, meals: base.meals, picks: {} };
+    var units = fmt.units, pieces = fmt.pieces || null;
+    var fmtLine = function (l) { return fmtAmt(l[1], l[0], units, l[7] && pieces ? pieces[l[7]] : null); };
+    var fixed = [], flex = [], fi = 0;
+    var meals = base.meals.map(function (meal, m) {
+      var touched = meal.parts.some(function (p) { return p.id && eff[p.id] !== undefined; });
+      var f = touched ? [0, 0, 0, 0] : base.fixed[m].slice();
+      var parts = meal.parts.map(function (p) {
+        var key = p.id ? eff[p.id] : undefined, i;
+        if (key === undefined) {
+          if (p.x) flex.push(base.flex[fi++]);
+          else if (touched) for (i = 0; i < 4; i++) f[i] += p.m[i];
+          return p;
+        }
+        if (p.x) fi++; // the default's flex entry is replaced
+        var b = blocks[p.id], list = lists[b.L], opt = findOpt(list, key);
+        var s = swapFactor(b, list, opt);
+        var isFlex = b.fx === 1 && opt.fx === 1;
+        if (opt.mb) {
+          var mb = opt.mb.map(function (v) { return v * s; });
+          var q = s === 1 ? opt.q : (opt.q + ' ×' + s.toFixed(2).replace('.', fmt.dec || '.')).trim();
+          if (isFlex) { flex.push({ m: m, mb: mb, q: q }); return { l: opt.n, x: 1, id: p.id }; }
+          for (i = 0; i < 4; i++) f[i] += mb[i];
+          return { l: opt.n, q: q, m: mb, id: p.id };
+        }
+        var ln = s === 1 ? opt.ln : opt.ln.map(function (l) {
+          var amt = stepAmount(l[1] * s, l[0], l[6]);
+          var r = amt / l[1];
+          return [l[0], amt, l[2] * r, l[3] * r, l[4] * r, l[5] * r].concat(l.slice(6));
+        });
+        if (isFlex) {
+          flex.push({ m: m, ln: ln });
+          return opt.c && !opt.q ? { l: opt.n, x: 1, c: opt.c, id: p.id } : { l: opt.n, x: 1, id: p.id };
+        }
+        var mac = [0, 0, 0, 0];
+        ln.forEach(function (l) { for (var j = 0; j < 4; j++) mac[j] += l[j + 2]; });
+        for (i = 0; i < 4; i++) f[i] += mac[i];
+        var amts = ln.map(fmtLine);
+        if (opt.c && (!opt.q || s !== 1)) return { l: opt.n, q: amts.join(' + '), c: opt.c, a: amts, m: mac, id: p.id };
+        return { l: opt.n, q: s === 1 && opt.q ? opt.q : amts.join(' + '), m: mac, id: p.id };
+      });
+      fixed.push(f);
+      return { n: meal.n, s: meal.s, pcf: meal.pcf, parts: parts };
+    });
+    return { fixed: fixed, flex: flex, meals: meals, picks: eff };
+  }
+  function planFor(bake, goal, d, minutes, picks) {
     var x = bake.plans[goal][d];
     var fuel = isBike(d) ? fuelPlan({ dayType: d, minutes: minutes }) : null;
     var fuelK = fuel ? fuel.kcal : 0;
     var fuelC = fuel ? fuel.during.planG : 0;
-    var s = solveScale(bake.base[x.base], x.t.kcal - fuelK, bake.fmt);
+    var mdl = applyPicks(bake.base[x.base], bake.lists || {}, picks, bake.fmt);
+    var s = solveScale(mdl, x.t.kcal - fuelK, bake.fmt);
     var tot = { k: Math.round(s.totals.k), p: Math.round(s.totals.p), c: Math.round(s.totals.c), g: Math.round(s.totals.g) };
     return {
       base: x.base,
@@ -232,6 +325,8 @@
       clamp: s.clamp,
       udOnly: s.udOnly,
       rem: x.t.kcal - fuelK - tot.k,
+      view: mdl.meals,
+      picks: mdl.picks,
     };
   }
 
@@ -246,7 +341,7 @@
     if (state.ride && state.ride.type === d) return state.ride.min;
     return N.fuel.defaults[d];
   }
-  function current() { return planFor(N, state.goal, dayType(), rideMinutes()); }
+  function current() { return planFor(N, state.goal, dayType(), rideMinutes(), state.picks); }
   function fuelNow() {
     var w = N.weight;
     return fuelPlan({ dayType: dayType(), minutes: rideMinutes(), weightKg: w ? w.kg : null });
@@ -267,6 +362,15 @@
     }
     var r = loadToday(KEY_RIDE, today);
     if (r && N.dayTypes.indexOf(r.type) >= 0 && typeof r.min === 'number' && r.min > 0) state.ride = { type: r.type, min: r.min };
+    // today's block picks ({id: option key}); a key not in today's list is ignored by applyPicks
+    var pk = loadToday(KEY_PICKS, today);
+    if (pk && pk.picks && typeof pk.picks === 'object') {
+      Object.keys(pk.picks).forEach(function (id) { if (typeof pk.picks[id] === 'string') state.picks[id] = pk.picks[id]; });
+    }
+  }
+  function savePicks() {
+    var any = Object.keys(state.picks).length > 0;
+    save(KEY_PICKS, any ? JSON.stringify({ date: todayIso(), picks: state.picks }) : null);
   }
 
   /* ---------- blocks ---------- */
@@ -394,11 +498,35 @@
   function row(cls, label, q) {
     return '<li class="' + cls + '"><span class="mp-l">' + label + '</span>' + (q != null ? '<span class="mp-q">' + esc(q) + '</span>' : '') + '</li>';
   }
-  function partHtml(p, x, fi) {
+  // a choosable block (lib/nutrition/blocks.mjs): its name is a select of the list's options, grouped
+  // like the tables (protein lean / moderate / fatty, fruit / yogurt…), the current pick selected
+  function groupLabel(gr) { return (T.plan.groups && T.plan.groups[gr]) || gr; }
+  function pickHtml(p, x, mealName) {
+    var base = N.base[x.base];
+    var b = p.id && base.blocks ? base.blocks[p.id] : null;
+    var list = b && N.lists ? N.lists[b.L] : null;
+    if (!b || !list || list.length < 2) return null;
+    var cur = (x.picks && x.picks[p.id]) || b.d;
+    var groups = [], byGr = {};
+    list.forEach(function (o) {
+      var g = o.gr || '';
+      if (!(g in byGr)) { byGr[g] = []; groups.push(g); }
+      byGr[g].push(o);
+    });
+    var opt = function (o) { return '<option value="' + esc(o.k) + '"' + (o.k === cur ? ' selected' : '') + '>' + esc(o.n) + '</option>'; };
+    var body = groups.map(function (g) {
+      var opts = byGr[g].map(opt).join('');
+      return g && groups.length > 1 ? '<optgroup label="' + esc(groupLabel(g)) + '">' + opts + '</optgroup>' : opts;
+    }).join('');
+    return '<select class="mp-pick" data-block="' + esc(p.id) + '" aria-label="' + esc(format(T.plan.pickAria, { item: p.l, meal: mealName })) + '">' + body + '</select>';
+  }
+  function partHtml(p, x, fi, mealName) {
     var q = p.x ? x.flex[fi] : p.q;
     var dir = p.x && x.flexDir ? x.flexDir[fi] : 0;
-    var label = esc(p.l) + dirHtml(dir);
+    var pick = p.id ? pickHtml(p, x, mealName) : null;
+    var label = (pick || esc(p.l)) + dirHtml(dir);
     var flexCls = p.x ? ' mp-flex' : '';
+    if (pick) flexCls += ' mp-block';
     if (!p.c) return row('mp' + flexCls, label, q);
     // a composite: its name, then one readable sub-row per component (name, amount)
     var amts = p.x ? (x.flexAmts ? x.flexAmts[fi] : []) : p.a || [];
@@ -407,14 +535,15 @@
   }
   function renderPlan(host, x) {
     var base = N.base[x.base];
-    if (!base || !base.meals.length) { host.innerHTML = '<p class="nutri-empty">' + esc(T.plan.empty) + '</p>'; return; }
+    var view = x.view || (base && base.meals);
+    if (!base || !view || !view.length) { host.innerHTML = '<p class="nutri-empty">' + esc(T.plan.empty) + '</p>'; return; }
     var supps = (N.supplements || []).slice();
     var used = {};
     var fi = 0;
     var A = T.plan.macroAbbr;
-    var html = base.meals.map(function (meal, i) {
+    var html = view.map(function (meal, i) {
       var m = x.meals[i];
-      var parts = meal.parts.map(function (p) { return partHtml(p, x, p.x ? fi++ : -1); }).join('');
+      var parts = meal.parts.map(function (p) { return partHtml(p, x, p.x ? fi++ : -1, meal.n); }).join('');
       var mine = '';
       if (meal.s && !used[meal.s]) {
         used[meal.s] = true;
@@ -436,6 +565,9 @@
     var ftpl = x.clamp === 'max' ? T.plan.factorMax : x.clamp === 'min' ? T.plan.factorMin : T.plan.factor;
     if (x.factor !== 1 || x.clamp) html += '<p class="nutri-factor">' + esc(format(ftpl, { factor: fmtFactor(x.factor, N.fmt.dec) })) + '</p>';
     if (x.udOnly && Math.abs(x.rem) > N.tolerance) html += '<p class="nutri-factor">' + esc(T.plan.unitsOnly) + '</p>';
+    if (x.picks && Object.keys(x.picks).length) {
+      html += '<p class="nutri-factor nutri-picks">' + esc(T.plan.picksNote) + ' <button type="button" class="lnk nutri-picks-reset" id="nutri-picks-reset">' + esc(T.plan.picksReset) + '</button></p>';
+    }
     host.innerHTML = html;
   }
   function renderRidePicker(host) {
@@ -555,6 +687,41 @@
     save(KEY_DAY, null);
     refresh();
   });
+  // a block pick: kept for today (hc.nutri.picks), the whole day re-solved; focus stays on the select
+  function setPick(id, key) {
+    var base = N.base[current().base];
+    var b = base && base.blocks ? base.blocks[id] : null;
+    if (!b) return false;
+    if (key === b.d) delete state.picks[id];
+    else state.picks[id] = key;
+    savePicks();
+    refresh(false);
+    return true;
+  }
+  function resetPicks() {
+    state.picks = {};
+    savePicks();
+    refresh(false);
+  }
+  function refocus(sel) {
+    try {
+      var el = document.querySelector ? document.querySelector(sel) : null;
+      if (el && el.focus) el.focus();
+    } catch (e) { /* focus is a convenience */ }
+  }
+  on('nutri-plan', 'change', function (e) {
+    var t = e && e.target;
+    var id = t && t.getAttribute ? t.getAttribute('data-block') : null;
+    if (!id || typeof t.value !== 'string') return;
+    if (setPick(id, t.value)) refocus('select[data-block="' + id.replace(/["\\]/g, '') + '"]');
+  });
+  on('nutri-plan', 'click', function (e) {
+    var t = e && e.target;
+    var btn = t && t.closest ? t.closest('#nutri-picks-reset') : null;
+    if (!btn) return;
+    resetPicks();
+    refocus('#nutri-plan select');
+  });
   on('nutri-ride-wrap', 'change', function (e) {
     var v = e && e.target ? Number(e.target.value) : NaN;
     var d = dayType();
@@ -584,10 +751,10 @@
   function r1(v) { return Math.round(v * 10) / 10; }
   function todayPlan() {
     var x = current();
-    var base = x && N.base[x.base];
-    if (!base || !base.meals || !base.meals.length) return null;
+    var view = x && (x.view || (N.base[x.base] && N.base[x.base].meals));
+    if (!view || !view.length) return null;
     var fi = 0;
-    return base.meals.map(function (meal, i) {
+    return view.map(function (meal, i) {
       var m = x.meals[i];
       var items = meal.parts.map(function (p) {
         var k = p.x ? fi++ : -1;
@@ -613,7 +780,10 @@
     fuelPlan: fuelPlan,
     solveScale: solveScale,
     planFor: planFor,
-    state: function () { return { goal: state.goal, dayType: dayType(), override: state.override, auto: state.auto, rideMin: rideMinutes(), raised: state.raised }; },
+    applyPicks: applyPicks,
+    setPick: function (id, key) { return typeof id === 'string' && typeof key === 'string' ? setPick(id, key) : false; },
+    resetPicks: resetPicks,
+    state: function () { return { goal: state.goal, dayType: dayType(), override: state.override, auto: state.auto, rideMin: rideMinutes(), raised: state.raised, picks: JSON.parse(JSON.stringify(state.picks)) }; },
   };
 
   try { init(); } catch (e) { state.auto = { type: 'rest', why: 'none', rideMin: null }; }

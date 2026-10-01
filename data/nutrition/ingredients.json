@@ -9,7 +9,8 @@
       "k": 72,
       "p": 16,
       "c": 0.4,
-      "g": 0.5
+      "g": 0.5,
+      "weighed": "raw"
     },
     "salpicon": {
       "per": 100,
@@ -97,7 +98,18 @@
       "k": 231,
       "p": 10.5,
       "c": 13.5,
-      "g": 15
+      "g": 15,
+      "piece": {
+        "name": {
+          "es": "loncha",
+          "en": "slice"
+        },
+        "plural": {
+          "es": "lonchas",
+          "en": "slices"
+        },
+        "amt": 18.5
+      }
     },
     "mozzarella": {
       "per": 100,
@@ -152,7 +164,19 @@
       "k": 712,
       "p": 1.1,
       "c": 9.5,
-      "g": 78
+      "g": 78,
+      "piece": {
+        "name": {
+          "es": "cucharada",
+          "en": "tablespoon"
+        },
+        "plural": {
+          "es": "cucharadas",
+          "en": "tablespoons"
+        },
+        "amt": 15,
+        "typical": true
+      }
     },
     "mayonesa": {
       "per": 100,
@@ -163,7 +187,19 @@
       "k": 599,
       "p": 0.6,
       "c": 2.4,
-      "g": 65
+      "g": 65,
+      "piece": {
+        "name": {
+          "es": "cucharada",
+          "en": "tablespoon"
+        },
+        "plural": {
+          "es": "cucharadas",
+          "en": "tablespoons"
+        },
+        "amt": 15,
+        "typical": true
+      }
     },
     "pisto": {
       "per": 100,
@@ -196,7 +232,18 @@
       "k": 259,
       "p": 8.2,
       "c": 51,
-      "g": 1.1
+      "g": 1.1,
+      "piece": {
+        "name": {
+          "es": "panecillo",
+          "en": "bread roll"
+        },
+        "plural": {
+          "es": "panecillos",
+          "en": "bread rolls"
+        },
+        "amt": 45
+      }
     },
     "pansemillas": {
       "per": 100,
@@ -207,7 +254,18 @@
       "k": 291,
       "p": 11,
       "c": 38,
-      "g": 9.3
+      "g": 9.3,
+      "piece": {
+        "name": {
+          "es": "rebanada",
+          "en": "slice"
+        },
+        "plural": {
+          "es": "rebanadas",
+          "en": "slices"
+        },
+        "amt": 41
+      }
     },
     "mantequillalight": {
       "per": 100,
@@ -262,7 +320,18 @@
       "k": 60,
       "p": 5.8,
       "c": 4.7,
-      "g": 2
+      "g": 2,
+      "piece": {
+        "name": {
+          "es": "yogur",
+          "en": "yogurt"
+        },
+        "plural": {
+          "es": "yogures",
+          "en": "yogurts"
+        },
+        "amt": 125
+      }
     },
     "cerveza": {
       "per": 100,
@@ -273,7 +342,18 @@
       "k": 47,
       "p": 0,
       "c": 3.6,
-      "g": 0
+      "g": 0,
+      "piece": {
+        "name": {
+          "es": "botellín",
+          "en": "small bottle"
+        },
+        "plural": {
+          "es": "botellines",
+          "en": "small bottles"
+        },
+        "amt": 250
+      }
     },
     "chocolate": {
       "per": 100,
@@ -284,7 +364,18 @@
       "k": 597,
       "p": 12,
       "c": 20,
-      "g": 49
+      "g": 49,
+      "piece": {
+        "name": {
+          "es": "onza",
+          "en": "square"
+        },
+        "plural": {
+          "es": "onzas",
+          "en": "squares"
+        },
+        "amt": 8
+      }
     },
     "helado": {
       "per": 100,
@@ -295,7 +386,18 @@
       "k": 322,
       "p": 5,
       "c": 36.4,
-      "g": 12.9
+      "g": 12.9,
+      "piece": {
+        "name": {
+          "es": "helado sándwich",
+          "en": "ice-cream sandwich"
+        },
+        "plural": {
+          "es": "helados sándwich",
+          "en": "ice-cream sandwiches"
+        },
+        "amt": 103
+      }
     },
     "napolitana": {
       "per": 100,
@@ -306,7 +408,18 @@
       "k": 441,
       "p": 5.6,
       "c": 43,
-      "g": 27
+      "g": 27,
+      "piece": {
+        "name": {
+          "es": "napolitana",
+          "en": "pastry"
+        },
+        "plural": {
+          "es": "napolitanas",
+          "en": "pastries"
+        },
+        "amt": 46
+      }
     },
     "palomitas": {
       "per": 100,
@@ -317,7 +430,18 @@
       "k": 456,
       "p": 9.8,
       "c": 55,
-      "g": 20
+      "g": 20,
+      "piece": {
+        "name": {
+          "es": "bolsa",
+          "en": "bag"
+        },
+        "plural": {
+          "es": "bolsas",
+          "en": "bags"
+        },
+        "amt": 90
+      }
     },
     "pollo": {
       "per": 100,
@@ -326,7 +450,8 @@
       "k": 109,
       "p": 22.9,
       "c": 0,
-      "g": 2.3
+      "g": 2.3,
+      "weighed": "raw"
     },
     "atun": {
       "per": 100,
@@ -344,7 +469,8 @@
       "k": 89,
       "p": 17.4,
       "c": 0,
-      "g": 1.7
+      "g": 1.7,
+      "weighed": "raw"
     },
     "panga": {
       "per": 100,
@@ -353,7 +479,8 @@
       "k": 91,
       "p": 15.1,
       "c": 0,
-      "g": 3
+      "g": 3,
+      "weighed": "raw"
     },
     "claras": {
       "per": 100,
@@ -371,7 +498,8 @@
       "k": 125,
       "p": 20,
       "c": 0,
-      "g": 4.5
+      "g": 4.5,
+      "weighed": "raw"
     },
     "picada5": {
       "per": 100,
@@ -380,7 +508,8 @@
       "k": 134,
       "p": 21,
       "c": 0,
-      "g": 4.7
+      "g": 4.7,
+      "weighed": "raw"
     },
     "lomocerdo": {
       "per": 100,
@@ -389,7 +518,8 @@
       "k": 145,
       "p": 21,
       "c": 0,
-      "g": 5.8
+      "g": 5.8,
+      "weighed": "raw"
     },
     "filete": {
       "per": 100,
@@ -398,7 +528,8 @@
       "k": 150,
       "p": 21,
       "c": 0,
-      "g": 6.8
+      "g": 6.8,
+      "weighed": "raw"
     },
     "salmon": {
       "per": 100,
@@ -407,7 +538,8 @@
       "k": 200,
       "p": 20,
       "c": 0,
-      "g": 13
+      "g": 13,
+      "weighed": "raw"
     },
     "alitas": {
       "per": 100,
@@ -416,7 +548,8 @@
       "k": 200,
       "p": 18.2,
       "c": 0,
-      "g": 14.1
+      "g": 14.1,
+      "weighed": "raw"
     },
     "chuletacerdo": {
       "per": 100,
@@ -425,7 +558,8 @@
       "k": 210,
       "p": 19,
       "c": 0,
-      "g": 15.2
+      "g": 15.2,
+      "weighed": "raw"
     },
     "huevo": {
       "per": 100,
@@ -434,7 +568,20 @@
       "k": 72,
       "p": 6.3,
       "c": 0.4,
-      "g": 5
+      "g": 5,
+      "piece": {
+        "name": {
+          "es": "huevo",
+          "en": "egg"
+        },
+        "plural": {
+          "es": "huevos",
+          "en": "eggs"
+        },
+        "amt": 100,
+        "g": 50,
+        "typical": true
+      }
     },
     "picada20": {
       "per": 100,
@@ -443,7 +590,8 @@
       "k": 251,
       "p": 17,
       "c": 0,
-      "g": 20
+      "g": 20,
+      "weighed": "raw"
     },
     "hamburguesa": {
       "per": 100,
@@ -452,7 +600,8 @@
       "k": 250,
       "p": 18.2,
       "c": 2.3,
-      "g": 20
+      "g": 20,
+      "weighed": "raw"
     },
     "longaniza": {
       "per": 100,
@@ -461,7 +610,8 @@
       "k": 321,
       "p": 15.1,
       "c": 1.1,
-      "g": 27.9
+      "g": 27.9,
+      "weighed": "raw"
     },
     "arroz": {
       "per": 100,
@@ -470,7 +620,8 @@
       "k": 360,
       "p": 7,
       "c": 79,
-      "g": 1
+      "g": 1,
+      "weighed": "dry"
     },
     "pasta": {
       "per": 100,
@@ -479,7 +630,8 @@
       "k": 357,
       "p": 12,
       "c": 74,
-      "g": 1.5
+      "g": 1.5,
+      "weighed": "dry"
     },
     "patata": {
       "per": 100,
@@ -488,7 +640,8 @@
       "k": 86,
       "p": 1.9,
       "c": 19.2,
-      "g": 0.1
+      "g": 0.1,
+      "weighed": "cooked"
     },
     "boniato": {
       "per": 100,
@@ -506,7 +659,8 @@
       "k": 380,
       "p": 13.3,
       "c": 60,
-      "g": 8.3
+      "g": 8.3,
+      "weighed": "dry"
     },
     "leche": {
       "per": 100,
@@ -551,7 +705,19 @@
       "k": 88,
       "p": 0.8,
       "c": 22.5,
-      "g": 0.3
+      "g": 0.3,
+      "piece": {
+        "name": {
+          "es": "plátano mediano",
+          "en": "medium banana"
+        },
+        "plural": {
+          "es": "plátanos medianos",
+          "en": "medium bananas"
+        },
+        "amt": 120,
+        "typical": true
+      }
     },
     "manzana": {
       "per": 100,
@@ -560,7 +726,19 @@
       "k": 52,
       "p": 0.3,
       "c": 14,
-      "g": 0.2
+      "g": 0.2,
+      "piece": {
+        "name": {
+          "es": "manzana mediana",
+          "en": "medium apple"
+        },
+        "plural": {
+          "es": "manzanas medianas",
+          "en": "medium apples"
+        },
+        "amt": 180,
+        "typical": true
+      }
     },
     "naranja": {
       "per": 100,
@@ -569,7 +747,19 @@
       "k": 47,
       "p": 0.9,
       "c": 12,
-      "g": 0.1
+      "g": 0.1,
+      "piece": {
+        "name": {
+          "es": "naranja mediana",
+          "en": "medium orange"
+        },
+        "plural": {
+          "es": "naranjas medianas",
+          "en": "medium oranges"
+        },
+        "amt": 130,
+        "typical": true
+      }
     },
     "zumonaranja": {
       "per": 100,
@@ -589,7 +779,19 @@
       "k": 57,
       "p": 0.4,
       "c": 15,
-      "g": 0.1
+      "g": 0.1,
+      "piece": {
+        "name": {
+          "es": "pera mediana",
+          "en": "medium pear"
+        },
+        "plural": {
+          "es": "peras medianas",
+          "en": "medium pears"
+        },
+        "amt": 170,
+        "typical": true
+      }
     },
     "melocoton": {
       "per": 100,
@@ -598,7 +800,19 @@
       "k": 39,
       "p": 0.9,
       "c": 10,
-      "g": 0.2
+      "g": 0.2,
+      "piece": {
+        "name": {
+          "es": "melocotón mediano",
+          "en": "medium peach"
+        },
+        "plural": {
+          "es": "melocotones medianos",
+          "en": "medium peaches"
+        },
+        "amt": 150,
+        "typical": true
+      }
     },
     "nectarina": {
       "per": 100,
@@ -607,7 +821,19 @@
       "k": 44,
       "p": 1,
       "c": 10,
-      "g": 0.3
+      "g": 0.3,
+      "piece": {
+        "name": {
+          "es": "nectarina mediana",
+          "en": "medium nectarine"
+        },
+        "plural": {
+          "es": "nectarinas medianas",
+          "en": "medium nectarines"
+        },
+        "amt": 140,
+        "typical": true
+      }
     },
     "paraguayo": {
       "per": 100,
@@ -616,7 +842,19 @@
       "k": 39,
       "p": 0.9,
       "c": 10,
-      "g": 0.2
+      "g": 0.2,
+      "piece": {
+        "name": {
+          "es": "paraguayo mediano",
+          "en": "medium flat peach"
+        },
+        "plural": {
+          "es": "paraguayos medianos",
+          "en": "medium flat peaches"
+        },
+        "amt": 100,
+        "typical": true
+      }
     },
     "pina": {
       "per": 100,
@@ -661,7 +899,19 @@
       "k": 60,
       "p": 1.1,
       "c": 14.7,
-      "g": 0.5
+      "g": 0.5,
+      "piece": {
+        "name": {
+          "es": "kiwi mediano",
+          "en": "medium kiwi"
+        },
+        "plural": {
+          "es": "kiwis medianos",
+          "en": "medium kiwis"
+        },
+        "amt": 75,
+        "typical": true
+      }
     },
     "fresas": {
       "per": 100,
@@ -688,7 +938,19 @@
       "k": 46,
       "p": 0.7,
       "c": 11,
-      "g": 0.2
+      "g": 0.2,
+      "piece": {
+        "name": {
+          "es": "ciruela mediana",
+          "en": "medium plum"
+        },
+        "plural": {
+          "es": "ciruelas medianas",
+          "en": "medium plums"
+        },
+        "amt": 65,
+        "typical": true
+      }
     },
     "calabacin": {
       "per": 100,
@@ -743,7 +1005,8 @@
       "k": 115,
       "p": 9,
       "c": 20,
-      "g": 0.4
+      "g": 0.4,
+      "weighed": "cooked"
     },
     "alubias": {
       "per": 100,
@@ -753,7 +1016,8 @@
       "k": 120,
       "p": 8,
       "c": 21,
-      "g": 0.5
+      "g": 0.5,
+      "weighed": "cooked"
     },
     "garbanzos": {
       "per": 100,
@@ -763,7 +1027,8 @@
       "k": 140,
       "p": 9,
       "c": 22,
-      "g": 2.5
+      "g": 2.5,
+      "weighed": "cooked"
     },
     "aceiteoliva": {
       "per": 100,
@@ -772,7 +1037,19 @@
       "k": 900,
       "p": 0,
       "c": 0,
-      "g": 100
+      "g": 100,
+      "piece": {
+        "name": {
+          "es": "cucharada",
+          "en": "tablespoon"
+        },
+        "plural": {
+          "es": "cucharadas",
+          "en": "tablespoons"
+        },
+        "amt": 10,
+        "typical": true
+      }
     }
   }
 }

@@ -774,6 +774,29 @@ test('Del plan: a single item = one quick entry with that item\'s macros; an amb
   assert.notEqual(bodies[2].requestId, bodies[0].requestId);
 });
 
+test('Del plan follows a Plan de hoy block pick made after load: todayPlan is read each time the sheet opens, and logs what was chosen', async () => {
+  // nutri-day.js applies the viewer's picks (hc.nutri.picks) inside todayPlan(); here the plan changes between two sheets
+  const picked = JSON.parse(JSON.stringify(PLAN_TODAY));
+  picked[1].items[0] = { name: 'Pasta', amount: '115 g', kcal: 410, p: 13.8, c: 85.1, g: 1.7 };
+  picked[1].kcal = 780;
+  let plan = PLAN_TODAY;
+  const bodies = [];
+  const routes = { ...BOOT, 'POST /api/food/log': (init) => { bodies.push(JSON.parse(init.body)); return json({ entry: { ...ENTRY, id: 90 }, totals: TOTALS1 }, 201); } };
+  const t = setup({ routes, extraIds: PLAN_IDS, todayPlan: () => plan });
+  await flush();
+  openPlan(t);
+  assert.match(text(t.els['fa-panel'].innerHTML), /Arroz 120 g/);
+  plan = picked; // the owner picks Pasta in Plan de hoy
+  openPlan(t);
+  assert.match(text(t.els['fa-panel'].innerHTML), /Pasta 115 g/);
+  assert.doesNotMatch(text(t.els['fa-panel'].innerHTML), /Arroz/);
+  t.fire('change', t.input('fa-plan-item-0', '0'));
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  const { requestId, ...rest } = bodies[0];
+  assert.deepEqual(rest, { date: TODAY, meal: 'lunch', refType: 'quick', label: 'Plan · Pasta (115 g)', kcal: 410, protein: 13.8, carbs: 85.1, fat: 1.7 });
+});
+
 test('Del plan: a long name is capped to the label limit; an Atwater refusal offers "save anyway" (force, same id)', async () => {
   const bodies = [];
   const long = [{ name: 'X'.repeat(200), slot: 'lunch', kcal: 100, p: 1, c: 1, g: 1, items: [] }];

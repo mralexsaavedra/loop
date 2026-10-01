@@ -55,7 +55,12 @@ export const es = {
     factorMin: 'Raciones de carbohidratos ×{factor} respecto al plan base (el mínimo que se aplica).',
     otherSupps: 'Otros suplementos de hoy',
     empty: 'El plan no tiene comidas para este tipo de día.',
-    unitsOnly: 'Solo las raciones por unidades son ajustables y no se pueden partir: el plan no puede acercarse más al objetivo.',
+    unitsOnly: 'Solo las raciones por piezas son ajustables y van en piezas enteras o medias: el plan no puede acercarse más al objetivo.',
+    // choosable blocks: a select per block; protein swaps keep the protein grams, the day is re-solved
+    pickAria: 'Cambiar {item} ({meal})',
+    picksNote: 'Has cambiado alimentos: el resto del día se ha reajustado para seguir en el objetivo.',
+    picksReset: 'Volver al plan base',
+    groups: { lean: 'Magras', mod: 'Moderadas', fat: 'Grasas', fruit: 'Fruta', yogurt: 'Yogur' },
     meals: { breakfast: 'Desayuno', lunch: 'Comida', preworkout: 'Pre-entreno', postworkout: 'Post-entreno', dinner: 'Cena', snack: 'Tentempié' },
   },
   fuel: {
@@ -142,7 +147,11 @@ export const en = {
     factorMin: 'Carb portions ×{factor} vs the base plan (the minimum applied).',
     otherSupps: 'Other supplements today',
     empty: 'The plan has no meals for this day type.',
-    unitsOnly: 'Only whole-unit portions are adjustable and they cannot be split: the plan cannot get closer to the target.',
+    unitsOnly: 'Only portions counted in pieces are adjustable and they go in whole or half pieces: the plan cannot get closer to the target.',
+    pickAria: 'Change {item} ({meal})',
+    picksNote: 'You swapped foods: the rest of the day was re-solved to stay on target.',
+    picksReset: 'Back to the base plan',
+    groups: { lean: 'Lean', mod: 'Moderate', fat: 'Fatty', fruit: 'Fruit', yogurt: 'Yogurt' },
     meals: { breakfast: 'Breakfast', lunch: 'Lunch', preworkout: 'Pre-workout', postworkout: 'Post-workout', dinner: 'Dinner', snack: 'Snack' },
   },
   fuel: {

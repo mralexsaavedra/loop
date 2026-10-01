@@ -40,7 +40,7 @@ interface Props {
 const { nut, plan, locale, page, hidden, intakeHost = true, supplements = [], weight = null } = Astro.props;
 const T = locale === 'es' ? esNutri : enNutri;
 const es = locale === 'es';
-const nutri = buildNutriToday(nut, plan, { supplements, weight, units: { g: 'g', ml: 'ml', ud: es ? 'ud' : 'pc' }, dec: es ? ',' : '.' });
+const nutri = buildNutriToday(nut, plan, { supplements, weight, units: { g: 'g', ml: 'ml', ud: es ? 'ud' : 'pc' }, dec: es ? ',' : '.', lang: es ? 'es' : 'en' });
 const F = locale === 'es' ? esFood : enFood;
 const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForScript(T)};\nvar NUTRI_ARC = ${jsonForScript(arcPath(0, 1))};\nvar I18N_FOOD = ${jsonForScript(F)};\nvar FOOD_CONST = ${jsonForScript({ meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS, limits: FOOD_LIMITS })};`;
 // simple 24-unit line icons for the day-type segments (stroke = currentColor; no emoji, no vendor icons)
