@@ -889,3 +889,25 @@ test('every daily-total metric is flagged total (the partial-export-day rule); m
   const totals = Object.entries(METRICS).filter(([, d]) => d.total).map(([m]) => m).sort();
   assert.deepEqual(totals, ['active_energy', 'basal_energy', 'dietary', 'distance_watch', 'exercise_watch', 'flights_watch', 'steps']);
 });
+
+test('distance_watch heuristic boundary: bare 100 is km, bare 101 is metres; "3,5" is 3.5 km', () => {
+  const s = collectSamples([{ distance_watch: [
+    '2030-01-01T00:00:00+01:00;1',
+    '2030-01-02T00:00:00+01:00;100',
+    '2030-01-03T00:00:00+01:00;101',
+    '2030-01-04T00:00:00+01:00;3,5',
+    '2030-01-05T00:00:00+01:00;1.234,5 m',
+  ].join('\n') }]);
+  assert.deepEqual(buildRows('distance_watch', s.distance_watch).map(r => r.line), [
+    '2030-01-02,100.00', '2030-01-03,0.10', '2030-01-04,3.50', '2030-01-05,1.23',
+  ]);
+});
+
+test('parseNumber() reads thousands separators by the LAST separator; ambiguous repeats are rejected', () => {
+  assert.equal(parseNumber('1.234,5'), 1234.5);
+  assert.equal(parseNumber('1,234.5'), 1234.5);
+  assert.equal(parseNumber('3,5'), 3.5);
+  assert.equal(parseNumber('3.5'), 3.5);
+  assert.equal(parseNumber('1.234.567'), null);
+  assert.equal(parseNumber('1,234,567'), null);
+});
