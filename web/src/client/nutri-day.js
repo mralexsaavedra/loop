@@ -316,6 +316,18 @@
     if (!def || !(def.pr > 0) || !(opt.pr > 0)) return 1;
     return round2(limitP(def.pr / opt.pr));
   }
+  // the option's lines at swap factor s, every line clamped to its portion cap (port of blocks.mjs swapLines)
+  function swapLines(opt, s) {
+    var ln = s === 1 ? opt.ln : opt.ln.map(function (l) { return scaleLine(l, stepAmount(lineAmt(l) * s, lineUnit(l), lineStep(l))); });
+    var capped = false;
+    ln = ln.map(function (l) {
+      var c = capAmount(lineAmt(l), l);
+      if (c === lineAmt(l)) return l;
+      capped = true;
+      return scaleLine(l, c);
+    });
+    return { ln: ln, own: s === 1 && !capped };
+  }
   function swapOption(b, list, key, fmt) {
     var opt = findOpt(list, key);
     var s = swapFactor(b, list, opt);
@@ -326,13 +338,13 @@
       if (isFlex) return { part: { l: opt.n, x: 1 }, flex: { mb: mb, q: q } };
       return { part: { l: opt.n, q: q, m: mb }, mac: mb };
     }
-    var ln = s === 1 ? opt.ln : opt.ln.map(function (l) { return scaleLine(l, stepAmount(lineAmt(l) * s, lineUnit(l), lineStep(l))); });
+    var sl = swapLines(opt, s), ln = sl.ln, own = sl.own;
     if (isFlex) return { part: opt.c && !opt.q ? { l: opt.n, x: 1, c: opt.c } : { l: opt.n, x: 1 }, flex: { ln: ln } };
     var mac = [0, 0, 0, 0];
     ln.forEach(function (l) { for (var j = 0; j < 4; j++) mac[j] += l[LINE.K + j]; });
     var amts = ln.map(function (l) { return fmtAmt(lineAmt(l), lineUnit(l), fmt.units, pieceOf(fmt.pieces || null, l)); });
-    if (opt.c && (!opt.q || s !== 1)) return { part: { l: opt.n, q: amts.join(' + '), c: opt.c, a: amts, m: mac }, mac: mac };
-    return { part: { l: opt.n, q: s === 1 && opt.q ? opt.q : amts.join(' + '), m: mac }, mac: mac };
+    if (opt.c && (!opt.q || !own)) return { part: { l: opt.n, q: amts.join(' + '), c: opt.c, a: amts, m: mac }, mac: mac, ln: ln };
+    return { part: { l: opt.n, q: own && opt.q ? opt.q : amts.join(' + '), m: mac }, mac: mac, ln: ln };
   }
   // a FOOD block (port of lib/nutrition/blocks.mjs ingAmount / swapIng / isOption): the foods of the
   // block's category from NUTRI.foods, "none" (NONE_KEY) where the category rule allows skipping
@@ -348,7 +360,7 @@
       var ov = (opt.l[at] * base) / lineAmt(opt.l);
       if (dv > 0 && ov > 0) s = round2(limitP(dv / ov));
     }
-    return stepAmount(base * s, lineUnit(opt.l), lineStep(opt.l));
+    return capAmount(stepAmount(base * s, lineUnit(opt.l), lineStep(opt.l)), opt.l);
   }
   function swapIng(b, foods, key, fmt) {
     if (key === NONE_KEY) return { part: { l: '', z: 1, m: [0, 0, 0, 0] }, mac: [0, 0, 0, 0] };
@@ -357,7 +369,7 @@
     var ln = scaleLine(opt.l, amt);
     if (b.fx === true && opt.fx === true) return { part: { l: opt.n, x: 1 }, flex: { ln: [ln] } };
     var mac = ln.slice(LINE.K, LINE.G + 1);
-    return { part: { l: opt.n, q: fmtAmt(amt, lineUnit(ln), fmt.units, pieceOf(fmt.pieces || null, ln)), m: mac }, mac: mac };
+    return { part: { l: opt.n, q: fmtAmt(amt, lineUnit(ln), fmt.units, pieceOf(fmt.pieces || null, ln)), m: mac }, mac: mac, ln: [ln] };
   }
   function isOption(b, key, lists, foods) {
     if (!b.I) return !!findOpt(lists && lists[b.L], key);
