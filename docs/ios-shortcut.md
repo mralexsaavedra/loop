@@ -93,7 +93,7 @@ Decimal commas (`42,1`) are accepted.
 | `hrv` | Heart Rate Variability | point | no | no | 7 days | `hrv.csv` |
 | `rhr` | Resting Heart Rate | point | no | no | 7 days | `rhr.csv` |
 | `vo2max` | Cardio Fitness (VO₂ max) | point | no | no | 30 days | `vo2max.csv` |
-| `weight` | Weight | point | no | no | 30 days | `weight.csv` |
+| `weight` | Weight | point | no | optional 3rd field (the scale) | 30 days | `weight.csv` |
 | `bodyfat` | Body Fat Percentage | point | no | **yes**, 3rd field (the scale) | 30 days | `bodyfat.csv` |
 | `leanmass` | Lean Body Mass | point | no | **yes**, 3rd field (the scale) | 30 days | `leanmass.csv` |
 | `waist` | Waist Circumference (cm) | point | no | no | 90 days | `waist.csv` |
@@ -114,7 +114,13 @@ Decimal commas (`42,1`) are accepted.
 
 What the sync does with each shape:
 
-- **Point keys** keep one row per sample. `bodyfat` accepts a fraction (`0.184`) or a percent
+- **Point keys** keep one row per sample. `rhr` is deduped by timestamp only (Apple rewrites the
+  day's resting HR at the same timestamp; the latest payload wins). `weight` takes an optional 3rd
+  field, the scale or app (*Source* / *Origen*), stored as the row's source like `bodyfat`; without
+  it the row says `Shortcut`. A weight stamped exactly at midnight (local `00:00:00`, or `00:00:00`
+  UTC such as `02:00:00+02:00`) with no body-fat sample within 10 minutes is dropped as a phantom
+  date-only entry (the Health profile weight, or a manual entry without a time): a smart scale
+  writes body fat with every weigh-in, so a real weigh-in is kept. `bodyfat` accepts a fraction (`0.184`) or a percent
   (`18.4`); `waist` accepts cm, or metres (`0.84`), which it converts. Send it in **centimetres**:
   the metres check (value below 3) cannot tell inches from cm, so `33` in would be stored as 33 cm.
 - **Day totals**: the oldest day of each key is dropped (a "last N days" query starts mid-day, so

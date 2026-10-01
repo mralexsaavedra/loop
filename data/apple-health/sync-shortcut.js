@@ -54,9 +54,14 @@ const KCAL_HEADER = 'date,kcal';
 const hourStartIso = st => `${st.slice(0, 10)}T${st.slice(11, 13)}:00:00${st.slice(20, 23)}:${st.slice(23, 25)}`;
 const METRICS = {
   hrv:      { kind: 'point', csv: 'hrv.csv', header: S.READING_HEADER, metaKey: 'hrv', fmt: v => +v.toFixed(1) },
-  rhr:      { kind: 'point', csv: 'rhr.csv', header: S.READING_HEADER, metaKey: 'rhr', rangeKey: 'restingHR', fmt: v => +v.toFixed(2) },
+  // Apple REWRITES the day's resting HR at the same timestamp as the day goes on, so two payloads
+  // can carry different values at one stamp: dedupe by timestamp only and keep the latest payload's.
+  rhr:      { kind: 'point', csv: 'rhr.csv', header: S.READING_HEADER, metaKey: 'rhr', rangeKey: 'restingHR', fmt: v => +v.toFixed(2),
+    dedupKey: s => s.start, prefer: (a, b) => b },
   vo2max:   { kind: 'point', csv: 'vo2max.csv', header: S.READING_HEADER, metaKey: 'vo2max', fmt: v => +v.toFixed(2) },
-  weight:   { kind: 'point', csv: 'weight.csv', header: S.READING_HEADER, metaKey: 'weight', rangeKey: 'weight', fmt: v => +v.toFixed(2) },
+  // optional 3rd field = the scale / app (like bodyfat); a row without it stays "Shortcut". Phantom
+  // profile weights (a date-only midnight sample with no body-fat reading) are dropped: dropPhantomWeights
+  weight:   { kind: 'point', csv: 'weight.csv', header: S.READING_HEADER, metaKey: 'weight', rangeKey: 'weight', withSource: true, fmt: v => +v.toFixed(2) },
   // body fat is stored as a PERCENT (extract.js converts HealthKit's fraction) -> accept both scales.
   // Real scale source kept: generate-health's body-comp uses the LATEST SOURCE only, so a
   // "Shortcut" tag would cut the series off from the same scale's export history.
@@ -217,6 +222,15 @@ const idAfter = (id, last) => last == null || BigInt(id) > BigInt(last);
 // lastPayloadId are skipped, so re-folding the same rows is a no-op.
 function foldPayloads(cache, items) {
   const out = JSON.parse(JSON.stringify(cache));
+  // a metric whose dedupe key changed (rhr: timestamp+value -> timestamp) is re-keyed in place, in
+  // cache order (= fold order), so an older cache needs no --full rebuild
+  for (const [metric, def] of Object.entries(METRICS)) {
+    const old = out.samples[metric];
+    if (!def.dedupKey || !old) continue;
+    const re = {};
+    for (const s of Object.values(old)) { const k = def.dedupKey(s); re[k] = k in re ? def.prefer(re[k], s) : s; }
+    out.samples[metric] = re;
+  }
   const fresh = items.filter(i => idAfter(i.id, out.lastPayloadId))
     .sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
   for (const item of fresh) {
@@ -226,9 +240,10 @@ function foldPayloads(cache, items) {
       let samples = isDailyKind(kind) ? dropTruncatedOldest(parsed) : kind === 'hourly' ? dropTruncatedOldestHour(parsed) : parsed;
       if (def.skipZero) samples = samples.filter(x => x.value > 0);
       const seen = out.samples[metric] || (out.samples[metric] = {});
+      const keyOf = def.dedupKey || DEDUP_KEY[kind], prefer = def.prefer || PREFER[kind];
       for (const s of samples) {
-        const k = DEDUP_KEY[kind](s);
-        seen[k] = k in seen ? PREFER[kind](seen[k], s) : s;
+        const k = keyOf(s);
+        seen[k] = k in seen ? prefer(seen[k], s) : s;
       }
     }
     out.lastPayloadId = String(item.id);
@@ -236,6 +251,26 @@ function foldPayloads(cache, items) {
   }
   return out;
 }
+// ---- phantom profile weights --------------------------------------------------------------
+// A weight entered by DATE only (the Health profile, or a manual entry without a time) is stored at
+// local midnight, and seen from another offset at 00:00 UTC (e.g. 02:00:00 +0200). A smart scale
+// writes body fat within seconds of its weight. So a Shortcut weight whose stamp is EXACTLY 00:00:00
+// local or 00:00:00 UTC AND that has no body-fat sample (any source) within +/-10 min is treated as a
+// phantom and dropped. Narrow on purpose: a real weigh-in at exactly midnight on a scale without body
+// fat would be lost too (accepted: rare; the next weigh-in fills the trend). Shortcut-side only, since
+// the export's per-sample time is not kept in weight.csv / bodyfat.csv.
+const PHANTOM_BODYFAT_WINDOW_MS = 10 * 60000;
+const isMidnightLike = st => st.slice(11, 19) === '00:00:00' || S.absMs(st) % 86400000 === 0;
+function dropPhantomWeights(weights, bodyfat) {
+  const bf = (bodyfat || []).map(s => S.absMs(s.start));
+  return (weights || []).filter(w => {
+    if (!isMidnightLike(w.start)) return true;
+    const t = S.absMs(w.start);
+    return bf.some(b => Math.abs(b - t) <= PHANTOM_BODYFAT_WINDOW_MS);
+  });
+}
+const PRUNE = { weight: all => dropPhantomWeights(all.weight, all.bodyfat) };
+
 const samplesOf = cache => Object.fromEntries(Object.entries(cache.samples).map(([m, byKey]) => [m, Object.values(byKey)]));
 
 // many payload objects -> { metric: [unique sample] } (convenience over foldPayloads)
@@ -350,7 +385,7 @@ function planSync(items, readFile, { full = false } = {}) {
   const writes = {}, stats = {};
   for (const [metric, def] of Object.entries(METRICS)) {
     const existing = readFile(def.csv);
-    const rows = buildRows(metric, samples[metric] || []);
+    const rows = buildRows(metric, PRUNE[metric] ? PRUNE[metric](samples) : samples[metric] || []);
     const merged = mergeCsv(existing, def.header, rows, { sourceCol: sourceColOf(def), ownedDates: ledger[def.csv] || [] });
     stats[metric] = merged;
     if (existing == null && !rows.length) { merged.written = false; continue; } // never create an empty CSV
@@ -432,5 +467,5 @@ module.exports = {
   METRICS, SHORTCUT_SOURCE, SLEEP_STAGES, isAsleep,
   parseNumber, parseSource, parsePayload, collectSamples, unionMinutes, buildRows, mergeCsv, updateMeta,
   planSync, resolveToken, fetchAllPayloads,
-  CACHE_FILE, emptyCache, foldPayloads, writeAtomic, syncDir,
+  CACHE_FILE, emptyCache, foldPayloads, writeAtomic, syncDir, dropPhantomWeights,
 };
