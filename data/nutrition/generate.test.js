@@ -130,11 +130,19 @@ test('every ingredient referenced by the plan exists in the DB (no broken refs)'
   assert.deepEqual(broken, [], 'broken refs: ' + broken.join(', '));
 });
 
-test('legume detail table is single-sourced (computed, not hand-typed)', () => {
+test('legume reference table is single-sourced (computed, not hand-typed) and per 100 g cooked, not a portion', () => {
   const tables = buildTables();
-  // Lentils row must equal ingredient × plate, proving it renders from the source.
-  const k = Math.round(ING.lentejas.k * LEGUME_PLATE / ING.lentejas.per);
-  assert.match(tables, new RegExp(`Lentils \\| ~${LEGUME_PLATE} g \\| ${k} `));
+  // Lentils row must equal the ingredient per its natural unit, proving it renders from the source.
+  assert.match(tables, new RegExp(`\\| Lentils \\| 100 g cooked \\| ${Math.round(ING.lentejas.k)} \\|`));
+  assert.doesNotMatch(tables, new RegExp(`~${LEGUME_PLATE} g \\|`), 'no plate portion in the food tables');
+});
+
+test('plan-tables.md food tables are fixed reference values per natural unit (no train / rest portions)', () => {
+  const tables = buildTables();
+  assert.match(tables, /## Food reference \(fixed values per natural unit\)/);
+  assert.match(tables, /\| Rice \| 100 g dry \| 360 \|/);
+  assert.match(tables, /\| Banana \| 1 medium banana \(~120 g\) _\(typical weight\)_ \| 106 \|/);
+  assert.doesNotMatch(tables, /Training day|Rest day|\| Cant\. \|/);
 });
 
 test('live-calculator TARGET is single-sourced: k equals the generated day total', () => {
