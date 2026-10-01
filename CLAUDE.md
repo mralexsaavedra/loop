@@ -518,7 +518,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   sweet staple. The base day's macros come from the existing engine
   (ingredients.json, never hand-typed) and are baked as a compact SCALING MODEL per base day
   (`planModel`: per meal the fixed macros, the flex parts' lines `[unit, amt, k, p, c, g]` or a manual
-  block). `solveScale` = WATER-FILLING (`waterFill`): one common factor for every carb-flex line so the
+  block). `solveScale` = WATER-FILLING (`waterFill`, `lib/nutrition/fill.mjs`, the ONE solver shared with the snack, `{clamp: [SCALE_MIN, SCALE_MAX], start: 1}` here): one common factor for every carb-flex line so the
   meals hit (target − ride fuel), clamped to `SCALE_MIN`–`SCALE_MAX` (0.6–2.0×); a line that would
   pass its cap is HELD at the cap and the factor is re-solved over the lines still free, until stable (a
   cap beats `SCALE_MIN`: a written amount above its cap shrinks to it); rounded to 2 decimals and
@@ -566,7 +566,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   `banana-quark` (banana 120 + quark 150; 240 / 300), `yogurt-cereal` (yogurt 125 + cereal 30; 250 / 60),
   `tomato-toast` (baguette 60 + tomato 50 + olive oil 5; 150 / 150 / 15), `turkey-sandwich` (baguette 60
   + turkey slices 40; 150 / 120), `nuts` (walnuts 15 + almonds 15; 30 / 30). The WHOLE option scales by
-  one factor (`fillTo`: water-filling WITHOUT the 0.6–2× clamp, a line past its cap held there),
+  one factor (the shared `waterFill` WITHOUT the 0.6–2× clamp, a line past its cap held there),
   countable lines rounded first (half pieces / whole units) and the g / ml lines re-solved, amounts on the
   usual grid never past the cap, macros from the ROUNDED amounts (`solveSnack`); what the caps leave over
   stays the remainder (`snack.capped`). Default (`defaultSnack`) = the first option whose capped kcal
@@ -588,7 +588,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   becomes a snack and the rest keeps the ride-fuel line. A plan already on target (the example's cut
   rest day) shows no snack. Bake: `NUTRI.snack = {id, slot, n, opts: [{k, n, ln (capped model lines), c}]}`
   (~1.2 KB; the example NUTRI went from ~18.5 KB to ~19.7 KB, budget 20 KB); `fmt.pieces` covers its
-  countable foods. nutri-day.js ports `fillTo` / `solveSnack` / `snackCapK` / `defaultSnack` /
+  countable foods. nutri-day.js ports `waterFill` (one copy, parity over `FILL_CASES`) / `solveSnack` / `snackCapK` / `defaultSnack` /
   `snackFor` / `rideHeadroomK` / `withSnack` and the planFor integration line by line (parity: every
   option × needs 60–1400 kcal in both locales, every goal × day type × option pick). plan-tables.md's
   "Daily targets" table has a Snack column. `PINNED_TOTALS` re-pinned (example, before → after,
@@ -651,7 +651,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   grams, `gf`), the factor that keeps that macro (or kcal) equal, clamped to the protein swaps' 0.5–2×
   (`SWAP_SCALE_MIN`–`MAX`, so a dense whey swapped for chicken lands at 2× and protein may then fall
   short — the macro note says so), rounded like every scaled amount (`stepAmount`: 5 g / 5 ml, half
-  pieces for a countable food, whole units). `swapIng` returns the picked food as the part (a carb-flex
+  pieces for a countable food, whole units) and never past the food's portion cap (`capAmount`; list swaps too, a test sweeps every block × option of the example). `swapIng` returns the picked food as the part (a carb-flex
   part stays flex only when the new food is itself flex-able, `isFlexItem`, else it becomes fixed); "none" = a zeroed part `{l: '', z: 1, m: [0, 0, 0, 0]}` (no amount, no flex entry); then
   `solveScale` re-solves the WHOLE day exactly as for list picks. Ids: `<meal key>/<default ingredient
   key>` with the same `#n` rule — ONE counter shared with the list ids, so lunch and dinner's
@@ -774,7 +774,17 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   mixed items and `manual` blocks stay fixed; a part that already has a `flex` key is left alone), sets
   `page.goal: "maintain"` when absent. `--reset-flex` re-derives the markers of an already-migrated
   plan (removes a `flex: "carb"` the current set no longer covers, marks unmarked staples, never touches
-  `flex: null`). A non-object `targets` / `page` is an error. Every run prints the carb factor +
+  `flex: null`). **The flex marking is now mostly LEGACY**: which parts scale is decided by FOOD
+  CATEGORY (`lib/nutrition/flex.mjs` `isFlexPart` / `autoFlexIng`: carb, fruit and carb-staple sweets
+  such as honey / jam auto-flex), and every tracked `STAPLE_KEYS` food and every `FRUIT_KEYS` food but
+  orange juice (`zumonaranja`, category drink) is already auto-flex, so a marker it writes changes
+  nothing on the page. What the flags still do: both work ONLY on the script's key lists, never on
+  categories. `--include-fruit` adds `FRUIT_KEYS` to the set it marks — its one real effect today is
+  marking a juice part, which the category rule leaves fixed. `--reset-flex` removes a `flex: "carb"`
+  the set (`STAPLE_KEYS`, + `FRUIT_KEYS` with `--include-fruit`) does not cover — but a part whose food
+  is carb / fruit stays flex by category anyway; to FIX a part, set `flex: null` by hand (the only
+  opt-out). The `targets.byGoal` and `page.goal` steps are still useful on an old plan. A non-object
+  `targets` / `page` is an error. Every run prints the carb factor +
   remainder per (goal, day type). Backs up to `plan-data.json.pre-v2-<local date>.bak` first (never
   overwriting a backup), writes atomically (temp + rename, 2-space JSON), writes nothing when nothing
   changes. Then `npm run check && npm run generate` and re-publish.
