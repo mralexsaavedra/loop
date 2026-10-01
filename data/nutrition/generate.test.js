@@ -140,8 +140,22 @@ test('legume reference table is single-sourced (computed, not hand-typed) and pe
 test('plan-tables.md food tables are fixed reference values per natural unit (no train / rest portions)', () => {
   const tables = buildTables();
   assert.match(tables, /## Food reference \(fixed values per natural unit\)/);
-  assert.match(tables, /\| Rice \| 100 g dry \| 360 \|/);
-  assert.match(tables, /\| Banana \| 1 medium banana \(~120 g\) _\(typical weight\)_ \| 106 \|/);
+  // Row names come from the plan's own option names (`n`, else `cap`, else `l`), which are in the plan's
+  // language (an `es` plan says "Arroz" / "Plátano"), so look them up instead of hard-coding English.
+  const single = (key) => {
+    const lists = ['desayuno', 'carboComida', 'carboCena', 'proteina', 'anclaje', 'postentreno', 'postre'];
+    const all = lists.flatMap((u) => { const v = gen.RAW[u] || []; return Array.isArray(v) ? v : Object.values(v).flat(); });
+    const item = all.find((o) => o && Array.isArray(o.recipe) && o.recipe.length === 1 && o.recipe[0].ing === key);
+    assert.ok(item, `the plan has a single-food ${key} option`);
+    return String(item.n || item.cap || item.l);
+  };
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const rice = single('arroz');
+  assert.match(tables, new RegExp(`\\| ${esc(rice)} \\| 100 g dry \\| ${Math.round(ING.arroz.k)} \\|`));
+  const banana = single('platano');
+  const pc = ING.platano.piece;
+  const bananaK = Math.round(ING.platano.k * pc.amt / ING.platano.per);
+  assert.match(tables, new RegExp(`\\| ${esc(banana)} \\| 1 [^|]+ \\(~${pc.amt} g\\) _\\(typical weight\\)_ \\| ${bananaK} \\|`));
   assert.doesNotMatch(tables, /Training day|Rest day|\| Cant\. \|/);
 });
 
