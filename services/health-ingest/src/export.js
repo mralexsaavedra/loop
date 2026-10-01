@@ -53,7 +53,10 @@ export async function listRawPayloads (pool, { automation, sinceId, limit }) {
  * go stale. The numeric fields go through `payload->'field'` (jsonb), which
  * never raises a cast error even if a field is absent (`suffer_score` = Strava
  * Relative Effort; both it and `kilojoules` are null when the activity has none;
- * `total_elevation_gain` is metres climbed, null on activities without it). `name` and the raw
+ * `total_elevation_gain` is metres climbed, null on activities without it; `start_utc` is
+ * Strava's UTC `start_date`, which with `start_local` gives the UTC offset of the ride window;
+ * `device_watts` is true only when the watts came from a real power meter, not Strava's
+ * estimate — the local power-meter energy correction needs both). `name` and the raw
  * payload are never selected — privacy boundary for this endpoint.
  */
 export async function listStravaActivities (pool, { sinceId, limit }) {
@@ -68,7 +71,9 @@ export async function listStravaActivities (pool, { sinceId, limit }) {
             payload->'max_heartrate' AS max_heartrate,
             payload->'suffer_score' AS suffer_score,
             payload->'kilojoules' AS kilojoules,
-            payload->'total_elevation_gain' AS total_elevation_gain
+            payload->'total_elevation_gain' AS total_elevation_gain,
+            payload->>'start_date' AS start_utc,
+            payload->'device_watts' AS device_watts
        FROM strava_activity
       WHERE id > $1
       ORDER BY id ASC
