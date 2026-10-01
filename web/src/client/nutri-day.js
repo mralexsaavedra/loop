@@ -31,6 +31,10 @@
  *   and planFor re-solves the whole day with it (swapOption / swapIng / ingAmount / applyPicks port
  *   blocks.mjs: protein lists keep the default's protein grams, the rest take the option's own amounts,
  *   a food keeps its category's rule; parity test).
+ * - Snack: a day still short after the solve (every plate at its cap) gets the automatic snack — fillTo /
+ *   solveSnack / defaultSnack / snackFor / rideHeadroomK / withSnack port lib/nutrition/snack.mjs over
+ *   NUTRI.snack (parity test): an add-on row "Snack" (or one more part of the plan's own snack-slot
+ *   meal) with a select of the options, its pick kept like a block pick (id NUTRI.snack.id).
  * - Plan de hoy shows breakfast / lunch / dinner as cards (NUTRI.mainSlots = lib/nutrition/slots.mjs
  *   MAIN_SLOTS) and every other meal as a compact row of ONE add-ons card after them (display only).
  * - HCNutri.todayPlan() hands the food log's "Del plan" tab (client/food.js) today's Plan de hoy
@@ -401,6 +405,95 @@
     });
     return { fixed: fixed, flex: flex, meals: meals, picks: eff };
   }
+  // the automatic snack (port of lib/nutrition/snack.mjs): a day still short after the solve gets a
+  // snack option scaled to the shortfall (water-filling without a clamp, line caps), as an add-on meal
+  function fillTo(items, need) {
+    var held = items.map(function () { return false; });
+    var heldK = 0, f = 0;
+    for (;;) {
+      var freeK = 0;
+      items.forEach(function (it, i) { if (!held[i]) freeK += it.k; });
+      if (!(freeK > 0)) break;
+      f = Math.max(0, (need - heldK) / freeK);
+      var more = false;
+      items.forEach(function (it, i) {
+        if (!held[i] && it.cap < f) { held[i] = true; heldK += it.k * it.cap; more = true; }
+      });
+      if (!more) break;
+    }
+    if (items.length && held.every(Boolean)) f = Math.max.apply(null, items.map(function (it) { return it.cap; }));
+    return { f: round2(f), held: held };
+  }
+  function snackCapK(o) {
+    var k = 0;
+    o.ln.forEach(function (l) { k += l[LINE.K] * capFactor(l); });
+    return k;
+  }
+  function defaultSnack(opts, need) {
+    var best = null, bestK = -1;
+    for (var i = 0; i < (opts || []).length; i++) {
+      var k = snackCapK(opts[i]);
+      if (k >= need) return opts[i].k;
+      if (k > bestK) { best = opts[i].k; bestK = k; }
+    }
+    return best;
+  }
+  function solveSnack(o, need, fmt) {
+    var all = o.ln.map(function (l) { return { k: l[LINE.K], cap: capFactor(l), ud: isDiscrete(l) }; });
+    var amountAt = function (l, s) { return capAmount(stepAmount(lineAmt(l) * s, lineUnit(l), lineStep(l)), l); };
+    var f0 = fillTo(all, need).f;
+    var f = f0;
+    if (all.some(function (it) { return it.ud; }) && all.some(function (it) { return !it.ud; })) {
+      var udK = 0;
+      o.ln.forEach(function (l) { if (isDiscrete(l)) udK += l[LINE.K] * (amountAt(l, Math.min(f0, capFactor(l))) / lineAmt(l)); });
+      f = fillTo(all.filter(function (it) { return !it.ud; }), need - udK).f;
+    }
+    var mac = [0, 0, 0, 0], nums = [], capped = true;
+    var amts = o.ln.map(function (l) {
+      var cf = capFactor(l);
+      var s = isDiscrete(l) ? f0 : f;
+      if (s < cf) capped = false;
+      var amt = amountAt(l, Math.min(s, cf));
+      nums.push(amt);
+      for (var i = 0; i < 4; i++) mac[i] += (l[LINE.K + i] * amt) / lineAmt(l);
+      return fmtAmt(amt, lineUnit(l), fmt.units, pieceOf(fmt.pieces || null, l));
+    });
+    return { k: o.k, n: o.n, c: o.c || null, nums: nums, amts: amts, mac: mac, capped: capped };
+  }
+  function snackFor(sb, need, pick, fmt) {
+    if (!sb || !sb.opts || !sb.opts.length) return null;
+    var d = defaultSnack(sb.opts, need), o = null;
+    sb.opts.forEach(function (x) { if (x.k === pick) o = x; });
+    if (!o) sb.opts.forEach(function (x) { if (x.k === d) o = x; });
+    var r = solveSnack(o, need, fmt);
+    r.d = d;
+    return r;
+  }
+  function rideHeadroomK(fuel) {
+    if (!fuel) return 0;
+    var top = fuel.during.gPerH[1] * (fuel.minutes / 60);
+    return Math.max(0, Math.round((top - fuel.during.planG) * N.fuel.rates.kcalPerG));
+  }
+  function withSnack(view, meals, sn, sb) {
+    var part = sn.c && sn.amts.length > 1
+      ? { l: sn.n, id: sb.id, sn: 1, c: sn.c, a: sn.amts, m: sn.mac }
+      : { l: sn.n, id: sb.id, sn: 1, q: sn.amts.join(' + '), m: sn.mac };
+    var v = view.slice();
+    var ms = meals.map(function (m) { return m.slice(); });
+    var at = -1, i;
+    for (i = 0; i < v.length && at < 0; i++) if (v[i] && v[i].s === sb.slot) at = i;
+    if (at < 0) {
+      v.push({ n: sb.n, s: sb.slot, pcf: true, parts: [part] });
+      ms.push(sn.mac.slice());
+    } else {
+      var copy = {};
+      for (var k in v[at]) copy[k] = v[at][k];
+      copy.parts = v[at].parts.concat([part]);
+      v[at] = copy;
+      for (i = 0; i < 4; i++) ms[at][i] += sn.mac[i];
+    }
+    return { view: v, meals: ms };
+  }
   function planFor(bake, goal, d, minutes, picks) {
     var x = bake.plans[goal][d];
     var fuel = isBike(d) ? fuelPlan({ dayType: d, minutes: minutes }) : null;
@@ -408,7 +501,25 @@
     var fuelC = fuel ? fuel.during.planG : 0;
     var mdl = applyPicks(bake.base[x.base], bake.lists || {}, picks, bake.fmt, bake.foods);
     var s = solveScale(mdl, x.t.kcal - fuelK, bake.fmt);
-    var tot = { k: Math.round(s.totals.k), p: Math.round(s.totals.p), c: Math.round(s.totals.c), g: Math.round(s.totals.g) };
+    var need = x.t.kcal - fuelK - Math.round(s.totals.k) - rideHeadroomK(fuel);
+    var sb = bake.snack;
+    var pick = picks && typeof picks === 'object' && sb ? picks[sb.id] : undefined;
+    var sn = need > N.tolerance && mdl.meals.length ? snackFor(sb, need, pick, bake.fmt) : null;
+    var view = mdl.meals, meals = s.meals;
+    var totals = { k: s.totals.k, p: s.totals.p, c: s.totals.c, g: s.totals.g };
+    if (sn) {
+      var w = withSnack(view, meals, sn, sb);
+      view = w.view;
+      meals = w.meals;
+      totals.k += sn.mac[0]; totals.p += sn.mac[1]; totals.c += sn.mac[2]; totals.g += sn.mac[3];
+    }
+    var tot = { k: Math.round(totals.k), p: Math.round(totals.p), c: Math.round(totals.c), g: Math.round(totals.g) };
+    var outPicks = mdl.picks;
+    if (sn && sn.k !== sn.d) {
+      outPicks = {};
+      for (var id in mdl.picks) outPicks[id] = mdl.picks[id];
+      outPicks[sb.id] = sn.k;
+    }
     return {
       base: x.base,
       t: x.t,
@@ -416,7 +527,7 @@
       fuelK: fuelK,
       fuelC: fuelC,
       mt: { k: x.t.kcal - fuelK, p: x.t.p, c: x.t.c - fuelC, f: x.t.f },
-      meals: s.meals.map(function (m) { return m.map(Math.round); }),
+      meals: meals.map(function (m) { return m.map(Math.round); }),
       flex: s.q,
       flexAmts: s.qa,
       flexN: s.qn,
@@ -429,8 +540,9 @@
       capped: s.capped,
       allCapped: s.allCapped,
       rem: x.t.kcal - fuelK - tot.k,
-      view: mdl.meals,
-      picks: mdl.picks,
+      snack: sn ? { k: sn.k, d: sn.d, n: sn.n, nums: sn.nums, mac: sn.mac, capped: sn.capped } : null,
+      view: view,
+      picks: outPicks,
     };
   }
 
@@ -562,7 +674,8 @@
     var k = kf(Math.abs(rem)), g = Math.round(Math.abs(rem) / 4 / 5) * 5;
     // every carb portion at its cap (or the factor at its maximum): a snack, never a bigger plate
     var full = x.allCapped || x.clamp === 'max';
-    var tpl = rem > 0 ? (bike ? T.remShortBike : full ? T.remSnack : T.remShort) : (bike ? T.remOverBike : T.remOver);
+    // with the automatic snack in the plan, what is still short is what the snack's caps leave over
+    var tpl = rem > 0 ? (bike ? T.remShortBike : x.snack ? T.remSnackLeft : full ? T.remSnack : T.remShort) : (bike ? T.remOverBike : T.remOver);
     return '<p class="nt-rem ' + (rem > 0 ? 'nt-short' : 'nt-over') + '">' + esc(format(tpl, { k: k, g: g })) + '</p>';
   }
   function macroOffHtml(x) {
@@ -628,7 +741,17 @@
     var item = p.z ? noneLabel(b.I) : p.l;
     return '<select class="mp-pick" data-block="' + esc(p.id) + '" aria-label="' + esc(format(T.plan.pickAria, { item: item, meal: mealName })) + '">' + body + '</select>';
   }
+  // the automatic snack's select: every snack option (NUTRI.snack.opts), the current one selected
+  function snackPickHtml(p, x, mealName) {
+    var sb = N.snack;
+    if (!sb || !sb.opts || sb.opts.length < 2 || !x.snack) return null;
+    var body = sb.opts.map(function (o) {
+      return '<option value="' + esc(o.k) + '"' + (o.k === x.snack.k ? ' selected' : '') + '>' + esc(o.n) + '</option>';
+    }).join('');
+    return '<select class="mp-pick" data-block="' + esc(p.id) + '" aria-label="' + esc(format(T.plan.pickAria, { item: p.l, meal: mealName })) + '">' + body + '</select>';
+  }
   function pickHtml(p, x, mealName) {
+    if (p.sn) return snackPickHtml(p, x, mealName);
     var base = N.base[x.base];
     var b = p.id && base.blocks ? base.blocks[p.id] : null;
     if (b && b.I) return foodPickHtml(p, b, (x.picks && x.picks[p.id]) || b.d, mealName);
@@ -710,6 +833,7 @@
     var ftpl = x.allCapped ? T.plan.factorAllCapped : x.capped ? T.plan.factorCapped : x.clamp === 'max' ? T.plan.factorMax : x.clamp === 'min' ? T.plan.factorMin : T.plan.factor;
     if (x.factor !== 1 || x.clamp || x.capped) html += '<p class="nutri-factor">' + esc(format(ftpl, { factor: fmtFactor(x.factor, N.fmt.dec) })) + '</p>';
     if (x.udOnly && Math.abs(x.rem) > N.tolerance) html += '<p class="nutri-factor">' + esc(T.plan.unitsOnly) + '</p>';
+    if (x.snack) html += '<p class="nutri-factor nutri-snack">' + esc(T.plan.snackNote) + '</p>';
     if (x.picks && Object.keys(x.picks).length) {
       html += '<p class="nutri-factor nutri-picks">' + esc(T.plan.picksNote) + ' <button type="button" class="lnk nutri-picks-reset" id="nutri-picks-reset">' + esc(T.plan.picksReset) + '</button></p>';
     }
@@ -836,11 +960,26 @@
   });
   // a block pick: kept for today (hc.nutri.picks), the whole day re-solved; focus stays on the select
   function setPick(id, key) {
+    var sb = N.snack;
+    if (sb && id === sb.id) return setSnackPick(key);
     var base = N.base[baseDay()];
     var b = base && base.blocks ? base.blocks[id] : null;
     if (!b) return false;
     if (key === b.d) delete state.picks[id];
     else state.picks[id] = key;
+    savePicks();
+    refresh(false);
+    return true;
+  }
+  // the automatic snack's pick: a known option; today's default (it depends on the shortfall) drops it
+  function setSnackPick(key) {
+    var sb = N.snack, known = false;
+    (sb.opts || []).forEach(function (o) { if (o.k === key) known = true; });
+    if (!known) return false;
+    var x = null;
+    try { x = current(); } catch (e) { x = null; }
+    if (x && x.snack && key === x.snack.d) delete state.picks[sb.id];
+    else state.picks[sb.id] = key;
     savePicks();
     refresh(false);
     return true;
@@ -939,6 +1078,7 @@
     solveScale: solveScale,
     planFor: planFor,
     applyPicks: applyPicks,
+    snackFor: snackFor,
     swapOption: swapOption,
     swapIng: swapIng,
     isMainMeal: isMainMeal,
