@@ -259,7 +259,7 @@
       held = all.map(function (it, i) { return it.ud ? w0.held[i] : w1.held[ci++]; });
     }
     var meals = model.fixed.map(function (f) { return f.slice(); });
-    var q = [], qa = [], qn = [], dir = [], qm = [];
+    var q = [], qa = [], dir = [];
     var capped = false, allCapped = all.length > 0, ii = 0;
     model.flex.forEach(function (x) {
       var m = meals[x.m], i;
@@ -271,35 +271,29 @@
         var t = factor === 1 ? x.q : (x.q + ' ×' + fmtFactor(factor, dec)).trim();
         q.push(t);
         qa.push([t]);
-        qn.push([null]);
         dir.push(Math.sign(factor - 1));
-        qm.push(bm);
         return;
       }
       var baseK = 0, nowK = 0;
-      var pm = [0, 0, 0, 0], nums = [];
       var amts = x.ln.map(function (l) {
         var cf = capFactor(l);
         var f = isDiscrete(l) ? f0 : factor;
         if (held[ii++] || f >= cf) capped = true;
         else allCapped = false;
         var amt = amountAt(l, Math.min(f, cf));
-        nums.push(amt);
         var r = amt / lineAmt(l);
-        for (var j = 0; j < 4; j++) { m[j] += l[LINE.K + j] * r; pm[j] += l[LINE.K + j] * r; }
+        for (var j = 0; j < 4; j++) m[j] += l[LINE.K + j] * r;
         baseK += l[LINE.K];
         nowK += l[LINE.K] * r;
         return fmtAmt(amt, lineUnit(l), units, pieceOf(pieces, l));
       });
       q.push(amts.join(' + '));
       qa.push(amts);
-      qn.push(nums);
       dir.push(Math.abs(nowK - baseK) < 0.5 ? 0 : Math.sign(nowK - baseK));
-      qm.push(pm);
     });
     var totals = { k: 0, p: 0, c: 0, g: 0 };
     meals.forEach(function (m) { totals.k += m[0]; totals.p += m[1]; totals.c += m[2]; totals.g += m[3]; });
-    return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, capped: capped, allCapped: allCapped, meals: meals, q: q, qa: qa, qn: qn, dir: dir, qm: qm, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
+    return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, capped: capped, allCapped: allCapped, meals: meals, q: q, qa: qa, dir: dir, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
   }
   function planFor(bake, goal, d, minutes) {
     var x = bake.plans[goal][d];
