@@ -671,7 +671,17 @@ unknown.
   = the same form empty (`source: "label"`). **Mis recetas**: list with per serving / per 100 g
   cooked macros; editor = name, kind, servings or cooked weight, ingredient rows (product select +
   amount, add / remove) and a live preview. Errors = one line from the coarse codes ("offline" → the
-  server is unreachable and nothing was saved).
+  server is unreachable and nothing was saved). **Numbers**: every numeric field of the three forms goes
+  through ONE parser (`parseNum(value, units)`, exposed on `HCFood`): trimmed, a decimal comma, a
+  trailing unit THAT field takes dropped ("30 g", "250 ml", "130 kcal"; another unit is an error, never
+  g ↔ ml); empty or a bare unit ("g") = not set (an optional field stays unset, a required one is
+  "required"); the client still sends numbers or null and the server validation is unchanged.
+  Unit-bearing inputs show their unit as a suffix inside the field (the serving's follows "Se mide
+  en"; an ingredient amount's follows its product). Validation errors render INLINE under each
+  offending field (`<id>-err`, `aria-invalid`, described by it, focus on the first; a server
+  `invalid` with a `field` lands there too); the form's status line (`fp-form-msg` / `fr-form-msg`,
+  `role="status"`, with "save anyway") sits inside the form under its buttons, and the section's
+  own line (`fp-msg` / `fr-msg`: saved, archived) sits above the section body.
 - **Wiring** — `window.foodTotals()` = `{date, k, p, c, g, n, missing, src: 'log'}` when the API
   answered and TODAY (the viewer's local date) has ≥ 1 entry, else null — the one contract; nutri-day.js
   and intake.js do not re-check the date. A macro NO entry states is `null` (a dash, never "0 / 150 g"

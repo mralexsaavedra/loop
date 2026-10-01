@@ -42,6 +42,10 @@
   margin: 0;
   min-height: 0;
 }
+/* the section's own line sits above its body (saved / archived) */
+.sec-body > .food-msg:first-child:not(:empty) {
+  margin: 0 0 var(--sp-3);
+}
 .food-meals {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -212,6 +216,37 @@
 .food-miss {
   font-size: var(--fs-xs);
   color: var(--mid);
+}
+/* a numeric input with its unit inside, on the right ("30 g") */
+.food-in-wrap {
+  position: relative;
+  min-width: 0;
+}
+.food-in-wrap .food-in {
+  padding-right: 3.4em;
+}
+.food-suffix {
+  position: absolute;
+  top: 50%;
+  right: var(--sp-4);
+  transform: translateY(-50%);
+  font-size: var(--fs-sm);
+  color: var(--faint);
+  pointer-events: none;
+}
+.food-suffix:empty {
+  display: none;
+}
+/* an inline error under its field */
+.food-in[aria-invalid="true"] {
+  border-color: var(--low);
+}
+.food-err {
+  font-size: var(--fs-xs);
+  color: var(--low);
+}
+.food-err:empty {
+  display: none;
 }
 .food-btns {
   display: flex;

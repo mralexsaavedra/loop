@@ -321,7 +321,7 @@ test('Open Food Facts: a barcode result shows what OFF has, marks what is missin
       return b.force ? json({ product: { ...b, id: 4, per100: b.per100 } }, 201) : json({ error: 'atwater' }, 400);
     },
   };
-  const t = setup({ routes, extraIds: ['fp-results'] });
+  const t = setup({ routes, extraIds: ['fp-results', 'fp-form-msg'] });
   await flush();
   t.fire('click', t.button({ 'data-food-act': 'p-new' }));
   t.input('fp-code', ' 8480000123456 ');
@@ -341,7 +341,8 @@ test('Open Food Facts: a barcode result shows what OFF has, marks what is missin
   t.fire('click', t.button({ 'data-food-act': 'p-save' }));
   await flush();
   assert.deepEqual(posted[0], { name: 'Yogur griego', brand: 'Demo', store: 'mercadona', barcode: '8480000123456', unit: 'g', per100: { kcal: 130, protein: 6, carbs: 4, fat: 10 }, servingSize: 125, source: 'off', offCode: '8480000123456' });
-  assert.match(t.els['fp-msg'].innerHTML, /data-food-act="p-save-force"/);
+  assert.match(t.els['fp-form-msg'].innerHTML, /data-food-act="p-save-force"/, '"save anyway" sits in the form, next to its save button');
+  assert.equal(t.els['fp-msg'].textContent, '');
   t.fire('click', t.button({ 'data-food-act': 'p-save-force' }));
   await flush();
   assert.equal(posted[1].force, true);
@@ -350,7 +351,7 @@ test('Open Food Facts: a barcode result shows what OFF has, marks what is missin
 });
 
 test('a product form with a missing required value is not sent', async () => {
-  const t = setup({ routes: BOOT });
+  const t = setup({ routes: BOOT, extraIds: ['fp-form-msg', 'fpf-p-err'] });
   await flush();
   t.fire('click', t.button({ 'data-food-act': 'p-new' }));
   t.fire('click', t.button({ 'data-food-act': 'p-label' }));
@@ -358,7 +359,8 @@ test('a product form with a missing required value is not sent', async () => {
   t.fire('click', t.button({ 'data-food-act': 'p-save' }));
   await flush();
   assert.equal(t.calls.filter((c) => c.key === 'POST /api/food/products').length, 0);
-  assert.match(t.els['fp-msg'].textContent, /proteína/);
+  assert.match(t.els['fp-form-msg'].textContent, /proteína/);
+  assert.equal(t.els['fpf-p-err'].textContent, esF.fieldErrors.required);
 });
 
 test('Mis recetas: per-serving macros listed; the editor previews with the shared formula and saves ingredients', async () => {
@@ -481,4 +483,194 @@ test('limits come baked from lib/nutrition/foodlog.mjs (FOOD_CONST.limits), neve
   assert.match(source, /K\.limits/);
   assert.doesNotMatch(source, /\[0-9\]\{8,14\}/, 'the barcode pattern is baked');
   assert.doesNotMatch(source, /maxlength="(120|80)"/);
+});
+
+/* ---------- number parsing, unit suffixes, inline field errors ---------- */
+// focus spy: real inputs are built by innerHTML (the stub does not parse it), so tests register them
+const focusSpy = (t) => {
+  const log = [];
+  const reg = (id, value) => { const el = t.input(id, value); el.focus = () => log.push(id); return el; };
+  return { log, reg };
+};
+
+test('parseNum: trims, takes a decimal comma, strips a trailing unit of that field; a bare unit or empty = not set; anything else is NaN', () => {
+  const t = setup({ routes: {} });
+  const P = t.F.parseNum;
+  assert.equal(P('30 g', ['g']), 30);
+  assert.equal(P('30g', ['g']), 30);
+  assert.equal(P(' 30 G ', ['g']), 30);
+  assert.equal(P('30 gr', ['g']), 30);
+  assert.equal(P('250 ml', ['ml']), 250);
+  assert.equal(P('1,5', ['g']), 1.5);
+  assert.equal(P('1,5', null), 1.5);
+  assert.equal(P('130 kcal', ['kcal']), 130);
+  assert.equal(P('g', ['g']), null, 'only a unit: not set');
+  assert.equal(P('ml', ['g']), null, 'only a unit: not set');
+  assert.equal(P('  ', ['g']), null);
+  assert.equal(P('', null), null);
+  for (const bad of ['abc', '1e3', '-5', 'Infinity', '30 kg', '0x10', '1,5,2', '3 4']) assert.ok(Number.isNaN(P(bad, ['g'])), bad);
+  assert.ok(Number.isNaN(P('250 ml', ['g'])), 'never g <-> ml');
+  assert.ok(Number.isNaN(P('2 g', null)), 'a count takes no unit');
+});
+
+test('product form: the serving field says what it asks, shows the product unit as a suffix that follows "Se mide en", and has a placeholder', async () => {
+  const t = setup({ routes: BOOT, extraIds: ['fpf-serv-unit'] });
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'p-new' }));
+  t.fire('click', t.button({ 'data-food-act': 'p-label' }));
+  const html = t.els['fp-body'].innerHTML;
+  assert.match(html, /<label class="food-lbl" for="fpf-serv">Peso de una ración \(opcional\)<\/label>/);
+  assert.match(html, /id="fpf-serv"[^>]*placeholder="p\. ej\. 30"/);
+  assert.match(html, /<span class="food-suffix" id="fpf-serv-unit">g<\/span>/);
+  assert.match(html, /<span class="food-suffix" id="fpf-p-unit">g<\/span>/, 'per-100 macros carry "g"');
+  assert.match(html, /<span class="food-suffix" id="fpf-kcal-unit">kcal<\/span>/);
+  assert.match(html, /id="fpf-serv"[^>]*aria-describedby="[^"]*fpf-serv-err/);
+  assert.match(html, /<small class="food-err" id="fpf-serv-err"><\/small>/);
+  // the status line sits inside the form, right after the save button and before the product list
+  const save = html.indexOf('id="fp-save"');
+  const msg = html.indexOf('id="fp-form-msg"');
+  const list = html.indexOf('class="fp-all"');
+  assert.ok(save > 0 && save < msg && msg < list, 'form status next to the save button');
+  assert.match(html, /id="fp-form-msg" role="status" aria-live="polite"/);
+  const unit = t.input('fpf-unit', 'ml');
+  t.fire('change', unit);
+  assert.equal(t.els['fpf-serv-unit'].textContent, 'ml');
+  const en = setup({ routes: BOOT, locale: 'en' });
+  await flush();
+  en.fire('click', en.button({ 'data-food-act': 'p-new' }));
+  en.fire('click', en.button({ 'data-food-act': 'p-label' }));
+  assert.match(en.els['fp-body'].innerHTML, /for="fpf-serv">One serving weighs \(optional\)</);
+  assert.match(en.els['fp-body'].innerHTML, /placeholder="e\.g\. 30"/);
+});
+
+test('product form: "g" in the optional serving = not set; units typed after numbers are accepted', async () => {
+  const posted = [];
+  const routes = { ...BOOT, 'POST /api/food/products': (init) => { const b = JSON.parse(init.body); posted.push(b); return json({ product: { ...b, id: 4 + posted.length } }, 201); } };
+  const t = setup({ routes, extraIds: ['fp-form-msg'] });
+  await flush();
+  const fill = (serv) => {
+    t.fire('click', t.button({ 'data-food-act': 'p-new' }));
+    t.fire('click', t.button({ 'data-food-act': 'p-label' }));
+    for (const [id, v] of [['fpf-name', 'Pan'], ['fpf-store', 'dia'], ['fpf-unit', 'g'], ['fpf-kcal', '250 kcal'], ['fpf-p', '9,5 g'], ['fpf-c', '48g'], ['fpf-f', ' 2 '], ['fpf-serv', serv]]) t.input(id, v);
+    t.fire('click', t.button({ 'data-food-act': 'p-save' }));
+  };
+  fill('g');
+  await flush();
+  assert.deepEqual(posted[0], { name: 'Pan', store: 'dia', unit: 'g', per100: { kcal: 250, protein: 9.5, carbs: 48, fat: 2 }, source: 'label' });
+  fill('30 g');
+  await flush();
+  assert.equal(posted[1].servingSize, 30);
+  assert.equal(t.els['fp-msg'].textContent, esF.products.saved, 'a save result outside the closed form');
+});
+
+test('product form: a non-numeric value is an inline error under its field (aria-invalid, described, focused), the form status sits in the form', async () => {
+  const t = setup({ routes: BOOT, extraIds: ['fp-form-msg', 'fpf-serv-err', 'fpf-c-err'] });
+  await flush();
+  const f = focusSpy(t);
+  t.fire('click', t.button({ 'data-food-act': 'p-new' }));
+  t.fire('click', t.button({ 'data-food-act': 'p-label' }));
+  for (const [id, v] of [['fpf-name', 'Pan'], ['fpf-store', 'dia'], ['fpf-unit', 'g'], ['fpf-kcal', '250'], ['fpf-p', '9'], ['fpf-f', '2']]) t.input(id, v);
+  const carbs = f.reg('fpf-c', 'mucho');
+  const serv = f.reg('fpf-serv', 'una');
+  t.fire('click', t.button({ 'data-food-act': 'p-save' }));
+  await flush();
+  assert.equal(t.calls.filter((c) => c.key === 'POST /api/food/products').length, 0);
+  for (const el of [carbs, serv]) {
+    assert.equal(el.getAttribute('aria-invalid'), 'true');
+    assert.match(el.getAttribute('aria-describedby'), new RegExp(el.getAttribute('id') + '-err'));
+  }
+  assert.equal(t.els['fpf-c-err'].textContent, esF.fieldErrors.number);
+  assert.equal(t.els['fpf-serv-err'].textContent, esF.fieldErrors.number);
+  assert.deepEqual(f.log, ['fpf-c'], 'focus on the first invalid field');
+  assert.equal(t.els['fp-form-msg'].textContent, 'Revisa este dato: carbohidratos.');
+  assert.equal(t.els['fp-msg'].textContent, '', 'nothing below the product list');
+  // fixed and saved again: the errors clear
+  carbs.value = '48';
+  serv.value = '';
+  t.fire('click', t.button({ 'data-food-act': 'p-save' }));
+  assert.equal(carbs.getAttribute('aria-invalid'), null);
+  assert.equal(t.els['fpf-c-err'].textContent, '');
+});
+
+test('product form: a server "invalid" with a field lands inline on that field', async () => {
+  const t = setup({ routes: { ...BOOT, 'POST /api/food/products': json({ error: 'invalid', field: 'per100.fat' }, 400) }, extraIds: ['fp-form-msg', 'fpf-f-err'] });
+  await flush();
+  const f = focusSpy(t);
+  t.fire('click', t.button({ 'data-food-act': 'p-new' }));
+  t.fire('click', t.button({ 'data-food-act': 'p-label' }));
+  for (const [id, v] of [['fpf-name', 'Pan'], ['fpf-store', 'dia'], ['fpf-unit', 'g'], ['fpf-kcal', '250'], ['fpf-p', '9'], ['fpf-c', '48']]) t.input(id, v);
+  const fat = f.reg('fpf-f', '2');
+  t.fire('click', t.button({ 'data-food-act': 'p-save' }));
+  await flush();
+  assert.equal(fat.getAttribute('aria-invalid'), 'true');
+  assert.notEqual(t.els['fpf-f-err'].textContent, '');
+  assert.deepEqual(f.log, ['fpf-f']);
+  assert.equal(t.els['fp-form-msg'].textContent, 'Revisa este dato: grasa.');
+});
+
+test('recipe form: units accepted, an invalid amount is an inline error, the status sits inside the form; the ingredient suffix follows the product', async () => {
+  let posted;
+  const routes = { ...BOOT, 'POST /api/food/recipes': (init) => { posted = JSON.parse(init.body); return json({ recipe: { ...RECIPE, id: 10, name: posted.name } }, 201); } };
+  const t = setup({ routes, extraIds: ['frf-prev', 'fr-form-msg', 'frf-amt-0-err', 'frf-amt-0-unit'] });
+  await flush();
+  const f = focusSpy(t);
+  t.fire('click', t.button({ 'data-food-act': 'r-new' }));
+  const html = t.els['fr-body'].innerHTML;
+  const save = html.indexOf('data-food-act="r-save"');
+  const msg = html.indexOf('id="fr-form-msg"');
+  assert.ok(save > 0 && save < msg && msg < html.indexOf('class="fp-all"'));
+  t.input('frf-name', 'Lote');
+  t.fire('change', t.input('frf-kind', 'batch'));
+  t.input('frf-cooked', '500 g');
+  t.fire('change', t.input('frf-ing-0', '2'));
+  assert.equal(t.els['frf-amt-0-unit'].textContent, 'ml', 'the amount suffix is the product unit');
+  const amt = f.reg('frf-amt-0', 'un vaso');
+  t.fire('click', t.button({ 'data-food-act': 'r-save' }));
+  await flush();
+  assert.equal(posted, undefined);
+  assert.equal(amt.getAttribute('aria-invalid'), 'true');
+  assert.equal(t.els['frf-amt-0-err'].textContent, esF.fieldErrors.number);
+  assert.deepEqual(f.log, ['frf-amt-0']);
+  assert.match(t.els['fr-form-msg'].textContent, /cantidad/);
+  t.input('frf-amt-0', '330 ml');
+  t.fire('click', t.button({ 'data-food-act': 'r-save' }));
+  await flush();
+  assert.deepEqual(posted, { name: 'Lote', kind: 'batch', cookedWeightG: 500, ingredients: [{ productId: 2, amount: 330 }] });
+  assert.equal(t.els['fr-msg'].textContent, esF.recipes.saved);
+});
+
+test('add sheet: an amount with its unit is accepted; quick entry: a bare unit = not set, a non-number is an inline error', async () => {
+  const bodies = [];
+  const routes = { ...BOOT, 'POST /api/food/log': (init) => { const b = JSON.parse(init.body); delete b.requestId; bodies.push(b); return json({ entry: { ...ENTRY, id: 60 + bodies.length }, totals: TOTALS1 }, 201); } };
+  const t = setup({ routes, extraIds: ['fa-panel', 'fa-prev', 'fa-msg', 'fa-p-err'] });
+  await flush();
+  const f = focusSpy(t);
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'lunch' }));
+  t.window.HCViews['food-add'].render();
+  t.fire('click', t.button({ 'data-food-act': 'pick', 'data-kind': 'product', 'data-id': '2' }));
+  t.input('fa-unit', 'ml');
+  t.input('fa-amt', '250 ml');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(bodies[0].amount, 250);
+
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'snack' }));
+  t.window.HCViews['food-add'].render();
+  t.fire('click', t.button({ 'data-food-act': 'tab', 'data-tab': 'quick' }));
+  assert.match(t.els['fa-panel'].innerHTML, /<span class="food-suffix" id="fa-kcal-unit">kcal<\/span>/);
+  t.input('fa-label', 'Pintxo');
+  t.input('fa-kcal', '250 kcal');
+  const p = f.reg('fa-p', 'algo');
+  t.input('fa-c', 'g');
+  t.input('fa-f', '');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(bodies.length, 1, 'not sent');
+  assert.equal(p.getAttribute('aria-invalid'), 'true');
+  assert.equal(t.els['fa-p-err'].textContent, esF.fieldErrors.number);
+  assert.deepEqual(f.log, ['fa-p']);
+  t.input('fa-p', '10 g');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.deepEqual(bodies[1], { date: TODAY, meal: 'snack', refType: 'quick', label: 'Pintxo', kcal: 250, protein: 10 });
 });
