@@ -10,6 +10,8 @@
  *      (legume bowls) and everything else stay fixed. A part that already has a `flex` key (even
  *      `null`, the way to opt out) is left alone;
  *   3. page.goal — "maintain" when absent.
+ * Step 2 is mostly legacy now: the page decides flex by food category (lib/nutrition/flex.mjs: carb,
+ * fruit and carb-staple sweets auto-flex), which already covers these key lists except orange juice.
  * `--reset-flex` re-derives the markers of an already-migrated plan: a part whose flex is exactly
  * "carb" but that is not in the current set (staples, + fruit with --include-fruit) loses its marker;
  * unmarked staples get one; `flex: null` opt-outs are never touched.
