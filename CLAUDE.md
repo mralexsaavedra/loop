@@ -524,8 +524,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   cap beats `SCALE_MIN`: a written amount above its cap shrinks to it); rounded to 2 decimals and
   labelled with 2 decimals ("×1.45"); with every line held the factor is the largest cap reached.
   `capped` = some line is at its cap, `allCapped` = every flex line is (and no manual block, which has
-  no cap); `qn` / `planFor` `flexN` = each flex part's numeric line amounts (`[null]` for a manual
-  block). DISCRETE lines — whole units (`ud`, whole units) and countable g / ml foods (an
+  no cap). DISCRETE lines — whole units (`ud`, whole units) and countable g / ml foods (an
   ingredient with a `piece`, rounded to HALF pieces — `PIECE_GRID` in `lib/nutrition/units.mjs`, one
   unit = `UD_AMT` (100), both baked as `NUTRI.scale.grid` / `.ud`; the model line carries `[…, step,
   ingredient key]`, `lib/nutrition/amounts.mjs` `modelLine` / `stepAmount`; its layout is named ONCE as
@@ -547,9 +546,9 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   [k, p, c, g], whole), tot, factor, clamp, udOnly, capped, allCapped, rem}`; the bake per base day is
   `{sl (each meal's slot), fixed, flex}`. `buildDayPlans` precomputes the 12 plans at the default ride minutes for the table in
   `plan-tables.md` ("Daily targets by goal and day type": kcal, P, F, C, meals kcal, ride fuel, carb
-  factor, remainder — the Snack column went with the automatic snack). `scaleDay` (lib only) still
-  names parts (`label`, else the ingredient's `name`, else its key) and formats amounts; a countable
-  food shows pieces with the grams reference (`fmtPieces`: "1½ medium bananas (~180 g)" on the
+  factor, remainder — the Snack column went with the automatic snack). `planModel` names parts (`label`,
+  else the ingredient's `name`, else its key) and `solveScale` formats the scaled amounts (`q`); a
+  countable food shows pieces with the grams reference (`fmtPieces`: "1½ medium bananas (~180 g)" on the
   half-piece grid, "~2 bread rolls (80 g)" off it; "2 eggs (~100 g)"); `fmt.pieces` bakes only the
   pieces a baked flex line can format.
 - **Plan de hoy = a PORTION GUIDE** (the owner: an orientative "how much can I eat", not a menu; the
