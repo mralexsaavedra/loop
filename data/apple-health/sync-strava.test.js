@@ -8,7 +8,81 @@ const samples = require('./samples.js');
 const {
   STRAVA_SOURCE, SPORT_TYPE_MAP, translateType, toRow, buildRows, planSync, syncDir,
   fetchActivities, updateMeta, WORKOUTS_HEADER, WORKOUTS_CSV, staleImageWarning,
+  RIDES_CSV, RIDES_HEADER, rideRow, buildRides, stalePowerWarning,
 } = strava;
+
+// ---- rides.csv: ride windows + real power for the active-energy correction ----------------
+
+const RIDE = {
+  id: '7', start_local: '2026-09-26T09:02:00Z', start_utc: '2026-09-26T07:02:00Z', sport_type: 'Ride',
+  moving_time: 19000, elapsed_time: 20811, kilojoules: 2310.7, device_watts: true,
+};
+
+test('rides.csv header and file name match lib/health/ride-energy.mjs (the reader)', async () => {
+  const lib = await import('../../lib/health/ride-energy.mjs');
+  assert.equal(RIDES_HEADER, lib.RIDES_HEADER);
+  assert.equal(RIDES_CSV, lib.RIDES_CSV);
+});
+
+test('rideRow: local date, ISO start WITH the offset (start_local - start_utc), elapsed s, kJ, device_watts', () => {
+  assert.equal(rideRow(RIDE), '2026-09-26,2026-09-26T09:02:00+02:00,20811,2310.7,true,Strava API');
+  // winter offset, west of UTC, and a half-hour zone
+  assert.equal(rideRow({ ...RIDE, start_local: '2026-12-05T10:00:00Z', start_utc: '2026-12-05T09:00:00Z' }).split(',')[1], '2026-12-05T10:00:00+01:00');
+  assert.equal(rideRow({ ...RIDE, start_local: '2026-09-26T06:00:00Z', start_utc: '2026-09-26T10:00:00Z' }).split(',')[1], '2026-09-26T06:00:00-04:00');
+  assert.equal(rideRow({ ...RIDE, start_local: '2026-09-26T12:30:00Z', start_utc: '2026-09-26T07:00:00Z' }).split(',')[1], '2026-09-26T12:30:00+05:30');
+});
+
+test('rideRow: an old ingest image (no start_utc / device_watts) keeps the row with blanks -> no correction', () => {
+  const { start_utc: _u, device_watts: _d, ...old } = RIDE;
+  assert.equal(rideRow(old), '2026-09-26,,20811,2310.7,,Strava API');
+  assert.equal(rideRow({ ...RIDE, device_watts: false, kilojoules: null }), '2026-09-26,2026-09-26T09:02:00+02:00,20811,,false,Strava API');
+  assert.equal(rideRow({ ...RIDE, start_utc: 'garbage' }).split(',')[1], '');
+});
+
+test('rideRow: only cycling-family activities with a start and an elapsed time', () => {
+  assert.equal(rideRow({ ...RIDE, sport_type: 'Run' }), null);
+  assert.ok(rideRow({ ...RIDE, sport_type: 'VirtualRide' }));
+  assert.equal(rideRow({ ...RIDE, elapsed_time: 0, moving_time: 0 }), null);
+  assert.equal(rideRow({ ...RIDE, start_local: null }), null);
+  // no elapsed time -> the moving time is the best window we have
+  assert.equal(rideRow({ ...RIDE, elapsed_time: null }).split(',')[2], '19000');
+});
+
+test('buildRides: sorted by start, header first', () => {
+  const later = { ...RIDE, id: '8', start_local: '2026-09-27T08:00:00Z', start_utc: '2026-09-27T06:00:00Z' };
+  assert.equal(buildRides([later, { ...RIDE, sport_type: 'Run' }, RIDE]),
+    `${RIDES_HEADER}\n${rideRow(RIDE)}\n${rideRow(later)}\n`);
+  assert.equal(buildRides([]), `${RIDES_HEADER}\n`);
+});
+
+test('planSync writes rides.csv (full rebuild); never creates an empty one', () => {
+  const files = {};
+  const plan = planSync([RIDE], (n) => (n in files ? files[n] : null));
+  assert.equal(plan.writes[RIDES_CSV], buildRides([RIDE]));
+  const none = planSync([{ ...RIDE, sport_type: 'Run' }], () => null);
+  assert.equal(none.writes[RIDES_CSV], undefined);
+  // an existing file is rewritten (header only) when no ride remains; unchanged -> not written
+  assert.equal(planSync([], (n) => (n === RIDES_CSV ? buildRides([RIDE]) : null)).writes[RIDES_CSV], `${RIDES_HEADER}\n`);
+  assert.equal(planSync([RIDE], (n) => (n === RIDES_CSV ? buildRides([RIDE]) : null)).writes[RIDES_CSV], undefined);
+});
+
+test('planSync records rides.csv in _meta.json (rows.rides + stravaSync.rides: total / power / with start)', () => {
+  const { start_utc: _u, ...noStart } = { ...RIDE, id: '9', start_local: '2026-09-28T08:00:00Z' };
+  const plan = planSync([RIDE, { ...RIDE, id: '8', start_local: '2026-09-27T08:00:00Z', start_utc: '2026-09-27T06:00:00Z', device_watts: false }, noStart], () => null);
+  const meta = JSON.parse(plan.writes['_meta.json']);
+  assert.equal(meta.rows.rides, 3);
+  assert.deepEqual(meta.stravaSync.rides, { rows: 3, power: 2, withStart: 2 });
+  assert.ok(meta.notes.some((n) => /rides\.csv/.test(n)));
+});
+
+test('stalePowerWarning: rides with kJ but none carrying device_watts / start_utc -> rebuild hint', () => {
+  const { start_utc: _u, device_watts: _d, ...old } = RIDE;
+  assert.equal(stalePowerWarning([]), null);
+  assert.equal(stalePowerWarning([RIDE]), null);
+  assert.equal(stalePowerWarning([{ ...RIDE, device_watts: false }]), null, 'false is a real value');
+  assert.equal(stalePowerWarning([{ ...old, sport_type: 'Run' }]), null, 'only rides with kJ count');
+  assert.match(stalePowerWarning([old]), /docker compose up -d --build health-ingest/);
+});
 
 // ---- sport_type -> type mapping table ----------------------------------------------------
 

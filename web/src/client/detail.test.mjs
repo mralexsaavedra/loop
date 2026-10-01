@@ -299,6 +299,45 @@ test('daily totals: the day value vs the personal median; energy splits active a
   assert.ok(s.host.innerHTML.includes(enT.day.active) && s.host.innerHTML.includes(enT.day.basal));
 });
 
+test('energy: a power-meter-corrected day shows the Watch value + the correction, and says so in the header', () => {
+  const e = DEMO.metrics.energy;
+  const last = addDays(e.start, e.v.length - 1);
+  const d = addDays(last, -2);
+  const i = dayIndex(e, d);
+  const watch = new Array(e.v.length).fill(null);
+  watch[i] = e.active[i] - 500;
+  watch[e.v.length - 1] = e.active[e.v.length - 1] - 400;
+  const detail = { ...DEMO, metrics: { ...DEMO.metrics, energy: { ...e, watch } } };
+  const s = setup({ detail, now: addDays(last, 1) });
+  s.api.open('energy', d);
+  const html = s.host.innerHTML;
+  assert.ok(html.includes(format(enT.day.activeWatch, { watch: String(watch[i]) })), 'watch value + correction under Active');
+  assert.ok(html.includes(enT.rideNote), 'the ride note');
+  // a plain day: the day panel carries no ride copy; the header (newest day corrected) still does
+  const plainDay = addDays(last, -5);
+  const p = setup({ detail, now: addDays(last, 1) });
+  p.api.open('energy', plainDay);
+  assert.ok(!p.host.innerHTML.includes(format(enT.day.activeWatch, { watch: String(watch[e.v.length - 1]) })));
+  assert.equal((p.host.innerHTML.match(new RegExp(enT.rideNote, 'g')) || []).length, 1, 'only the header (newest day corrected) carries it');
+  // uncorrected bake: never mentioned
+  const q = setup({ now: addDays(last, 1) });
+  q.api.open('energy', d);
+  assert.ok(!q.host.innerHTML.includes(enT.rideNote));
+});
+
+test('energy: a power-ride day that could not be corrected says so in the day panel', () => {
+  const e = DEMO.metrics.energy;
+  const last = addDays(e.start, e.v.length - 1);
+  const d = addDays(last, -3);
+  const uncov = new Array(e.v.length).fill(null);
+  uncov[dayIndex(e, d)] = 1;
+  const s = setup({ detail: { ...DEMO, metrics: { ...DEMO.metrics, energy: { ...e, uncov } } }, now: addDays(last, 1) });
+  s.api.open('energy', d);
+  assert.ok(s.host.innerHTML.includes(enT.rideUncovered));
+  s.api.open('energy', addDays(last, -6));
+  assert.ok(!s.host.innerHTML.includes(enT.rideUncovered));
+});
+
 test('calendar state colours follow the personal band / target (dayState)', () => {
   const s = setup();
   const S = s.api.dayState;

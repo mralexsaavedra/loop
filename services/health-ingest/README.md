@@ -27,7 +27,7 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 | POST   | `/ingest/health-auto-export`  | bearer | `202` with the stored row id |
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
 | GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]`; `400` on a bad query |
-| GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain}]`; `400` on a bad query |
+| GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain, start_utc, device_watts}]`; `400` on a bad query |
 | GET    | `/food/products`              | header | `200` `{products}`: active products (per-100 macros, store, serving size) |
 | POST / PUT / DELETE | `/food/products[/:id]` | header | create `201` / edit `200` / archive `200`; `409 barcode_exists`, `400 atwater` unless `force` |
 | GET    | `/food/recipes`               | header | `200` `{recipes}` with macros COMPUTED from the products (`perServing` or `per100` cooked) |
@@ -264,7 +264,9 @@ new field is added to the response (e.g. `total_elevation_gain`, which feeds the
 `elevation_m` column of `workouts.csv`): an un-rebuilt image still answers, but
 without the field, so the column stays blank until the rebuild and the next
 `npm run sync:strava` (which prints a stale-image warning when no activity carries
-elevation).
+elevation). Likewise `start_utc` (Strava's UTC `start_date`) and `device_watts` (true only for a
+real power meter) feed `rides.csv` and the power-meter correction of the Watch's active energy on
+ride days; without them the sync warns and the correction stays off.
 
 ### Reading the athlete profile back: `GET /export/athlete`
 

@@ -7,7 +7,8 @@
  *
  * Env    : INGEST_URL (default http://localhost:8088), INGEST_TOKEN (falls back to
  *          services/health-ingest/.env, same file sync-shortcut.js reads).
- * Writes : data/apple-health/extract/workouts.csv + _meta.json (each via temp file + rename;
+ * Writes : data/apple-health/extract/workouts.csv + rides.csv (ride windows + power flag for the
+ *          active-energy correction, see rideRow) + _meta.json (each via temp file + rename;
  *          _meta.json first, belt and braces — see the orphan-safety note below). Nothing is
  *          written if the service can't be reached, answers a non-array, or there is no token.
  *
@@ -124,13 +125,61 @@ function buildRows (activities) {
   return { rows, unmapped, dropped }
 }
 
+// ---- rides.csv: the ride windows lib/health/ride-energy.mjs needs --------------------------
+// workouts.csv has no start time, and adding columns there would touch extract.js, every
+// positional reader and the demo generator for data only Strava has and one reader uses. So the
+// window lives in its own small file, rebuilt from scratch on every (full) pull: one row per
+// cycling-family activity. `start` = ISO local start WITH its UTC offset (start_date_local -
+// start_date); blank when the ingest image does not export start_date, and device_watts blank
+// when it does not export the flag — the correction then skips the ride (degrades to the Watch).
+const RIDES_CSV = 'rides.csv'
+const RIDES_HEADER = 'date,start,elapsed_s,kilojoules,device_watts,source'
+
+// "2026-09-26T09:02:00Z" (local wall clock, Strava's fake Z) + "2026-09-26T07:02:00Z" (UTC)
+// -> "2026-09-26T09:02:00+02:00"; null when either is unusable or the offset is implausible
+function localIsoWithOffset (startLocal, startUtc) {
+  const wall = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/.exec(startLocal || '')
+  if (!wall || typeof startUtc !== 'string') return null
+  const off = (Date.parse(wall[1] + 'Z') - Date.parse(startUtc)) / 60000
+  if (!Number.isFinite(off) || Math.abs(off) > 14 * 60 || off % 15 !== 0) return null
+  const a = Math.abs(off)
+  return `${wall[1]}${off < 0 ? '-' : '+'}${String(Math.floor(a / 60)).padStart(2, '0')}:${String(a % 60).padStart(2, '0')}`
+}
+
+/** One Strava activity -> one rides.csv line, or null (not a ride, no start, no duration). */
+function rideRow (activity) {
+  if (!activity || translateType(activity.sport_type) !== 'Cycling') return null
+  const startLocal = activity.start_local
+  if (!startLocal || typeof startLocal !== 'string') return null
+  const elapsed = numOrNull(activity.elapsed_time) > 0 ? numOrNull(activity.elapsed_time) : numOrNull(activity.moving_time)
+  if (!(elapsed > 0)) return null
+  const dw = activity.device_watts === true ? 'true' : activity.device_watts === false ? 'false' : ''
+  return [startLocal.slice(0, 10), localIsoWithOffset(startLocal, activity.start_utc) || '', Math.round(elapsed),
+    kjCell(activity.kilojoules), dw, STRAVA_SOURCE].join(',')
+}
+
+/** activities -> { rows, power (device_watts true + kJ), withStart (start with an offset) } for _meta.json */
+function ridesStats (activities) {
+  const lines = activities.map(rideRow).filter(Boolean).map((l) => l.split(','))
+  return { rows: lines.length, power: lines.filter((c) => c[4] === 'true' && c[3] !== '').length, withStart: lines.filter((c) => c[1] !== '').length }
+}
+
+/** activities -> the whole rides.csv text, sorted by local start. */
+function buildRides (activities) {
+  const rows = activities.map((a) => ({ a, line: rideRow(a) })).filter((r) => r.line)
+    .sort((x, y) => (x.a.start_local < y.a.start_local ? -1 : x.a.start_local > y.a.start_local ? 1 : x.line < y.line ? -1 : x.line > y.line ? 1 : 0))
+  return [RIDES_HEADER, ...rows.map((r) => r.line)].join('\n') + '\n'
+}
+
 const range = (dates) => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a')
 
-const SYNC_NOTE = 'Strava rows (npm run sync:strava) are always kept, also on dates the export covers, and are rebuilt on every sync from source="Strava API"; readers dedupe a Watch copy of the same session (lib/training/sessions.mjs mergeSameDay: Strava wins per date + modality when it covers at least half the Watch minutes). Historical source=Strava rows (from the old ingest /sync/strava loop) are left untouched. Accepted limitations: deleted Strava activities are not removed, and edits older than the ingest service\'s 7-day overlap window are never picked up. See CLAUDE.md.'
+const SYNC_NOTE = 'Strava rows (npm run sync:strava) are always kept, also on dates the export covers, and are rebuilt on every sync from source="Strava API"; readers dedupe a Watch copy of the same session (lib/training/sessions.mjs mergeSameDay: Strava wins per date + modality when it covers at least half the Watch minutes). Historical source=Strava rows (from the old ingest /sync/strava loop) are left untouched. rides.csv (ride start with offset, elapsed time, kJ, device_watts: the windows of the power-meter active-energy correction) is rebuilt from scratch on every sync. Accepted limitations: deleted Strava activities are not removed, and edits older than the ingest service\'s 7-day overlap window are never picked up. See CLAUDE.md.'
 
 // Pure: refresh the workouts rows/range + record the sync. Deterministic (no timestamps) so
 // re-running an unchanged sync rewrites identical bytes.
 function updateMeta (meta, merged, info) {
+  // rides.csv (ride windows for the active-energy correction) is rebuilt every run: its row count
+  // and how many rides can feed the correction (real power + kJ; a start with offset)
   const out = JSON.parse(JSON.stringify(meta))
   out.rows = out.rows || {}
   out.ranges = out.ranges || {}
@@ -144,6 +193,10 @@ function updateMeta (meta, merged, info) {
     range: range(merged.addedDates),
     unmapped: info.unmapped,
     owned: { [WORKOUTS_CSV]: merged.addedDates }
+  }
+  if (info.rides) {
+    out.rows.rides = info.rides.rows
+    out.stravaSync.rides = info.rides
   }
   out.notes = Array.isArray(out.notes) ? out.notes : []
   for (const n of out.notes.filter((n) => /^Strava rows \(npm run sync:strava\)/.test(n) && n !== SYNC_NOTE)) {
@@ -176,11 +229,14 @@ function planSync (activities, readFile) {
   const noHr = rows.filter((r) => !r.hasHr).length
 
   const writes = {}
+  const ridesText = buildRides(activities)
+  const ridesExisting = readFile(RIDES_CSV)
+  if (ridesText !== ridesExisting && (ridesExisting != null || ridesText !== `${RIDES_HEADER}\n`)) writes[RIDES_CSV] = ridesText
   const csvHasContent = !(existing == null && rows.length === 0) // never create an empty CSV
   if (csvHasContent && merged.text !== existing) writes[WORKOUTS_CSV] = merged.text
 
   if (csvHasContent || prevMeta) {
-    const meta = updateMeta(prevMeta || {}, merged, { activities: activities.length, unmapped, noHr, dropped })
+    const meta = updateMeta(prevMeta || {}, merged, { activities: activities.length, unmapped, noHr, dropped, rides: ridesStats(activities) })
     const text = JSON.stringify(meta, null, 2) + '\n'
     if (text !== metaText) writes['_meta.json'] = text
   }
@@ -204,6 +260,7 @@ function syncDir (dir, activities, { writeAtomic = common.writeAtomic } = {}) {
     const plan = planSync(activities, readFile)
     if (plan.writes['_meta.json'] != null) writeAtomic(path.join(dir, '_meta.json'), plan.writes['_meta.json'])
     if (plan.writes[WORKOUTS_CSV] != null) writeAtomic(path.join(dir, WORKOUTS_CSV), plan.writes[WORKOUTS_CSV])
+    if (plan.writes[RIDES_CSV] != null) writeAtomic(path.join(dir, RIDES_CSV), plan.writes[RIDES_CSV])
     return plan
   })
 }
@@ -231,6 +288,17 @@ function staleImageWarning (activities) {
     'Rebuild it (docker compose up -d --build health-ingest) and re-run to fill elevation_m.'
 }
 
+// An ingest image built before the energy correction exports neither start_date nor
+// device_watts, so no ride can correct the Watch's active energy. Rides with kJ but none carrying
+// either field point at a stale image (false is a real value: Strava's estimated power).
+function stalePowerWarning (activities) {
+  const rides = (activities || []).filter((a) => a && translateType(a.sport_type) === 'Cycling' && numOrNull(a.kilojoules) > 0)
+  if (!rides.length) return null
+  if (rides.some((a) => typeof a.device_watts === 'boolean' && a.start_utc)) return null
+  return 'WARNING: no ride carries device_watts / start_date — the ingest image is probably stale, so the power-meter ' +
+    'active-energy correction is off. Rebuild it (docker compose up -d --build health-ingest) and re-run.'
+}
+
 async function main () {
   const t0 = Date.now()
   const baseUrl = process.env.INGEST_URL || common.DEFAULT_URL
@@ -255,6 +323,8 @@ async function main () {
 
   const stale = staleImageWarning(activities)
   if (stale) console.error(stale)
+  const stalePower = stalePowerWarning(activities)
+  if (stalePower) console.error(stalePower)
   const plan = syncDir(OUT, activities)
   const durationMs = Date.now() - t0
   console.log(`Synced ${activities.length} Strava activities in ${durationMs}ms; ${plan.merged.added} row(s) added for ${range(plan.merged.addedDates)}; ${plan.merged.rows} rows total`)
@@ -280,5 +350,10 @@ module.exports = {
   syncDir,
   fetchActivities,
   staleImageWarning,
+  RIDES_CSV,
+  RIDES_HEADER,
+  rideRow,
+  buildRides,
+  stalePowerWarning,
   main
 }
