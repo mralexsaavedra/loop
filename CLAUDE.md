@@ -851,9 +851,12 @@ Plan de hoy) and the
   day is NOT persisted (the page always opens on today; `S.view` null = follow today). A past day is read
   with `GET /api/food/log?date=` on each visit into its own slot (`S.dayLog`, never today's `S.log`) and
   renders the same cards, day total ("Total del día"), delete and "+ Añadir"; a slower answer for a day
-  already left is dropped (`viewSeq`). The add sheet logs to the day on screen when it opened (its title
-  adds the date when not today), same request-id / ambiguous-retry / re-read of THAT day; an add or
-  delete on a past day never touches today or calls `HCNutri.refresh()`. The server already accepts any
+  already left is dropped (`viewSeq`); a failed read shows the error + "Reintentar" (`day-retry`). A
+  sheet opened on a past day logs to that day (its title adds the date); one opened on "today" resolves
+  today at EACH save / retry (23:58 → 00:02 logs to the new day), same request-id / ambiguous-retry /
+  re-read of THAT day; a delete removes its row by id from whatever log of that date is current when it
+  commits (a re-read mid-delete cannot bring it back); an add or delete on a past day never touches
+  today or calls `HCNutri.refresh()`. The server already accepts any
   valid date (2000–2100). **Registrar**: the day total, then FOUR
   restrained group cards — Desayuno / Comida / Cena / Añadidos (en: Extras) — (`slots.mjs` `MEAL_GROUPS`
   + `mealGroup`, baked in `FOOD_CONST` as `groups` / `mainSlots` / `addonGroup` / `addonSlot`; label,
