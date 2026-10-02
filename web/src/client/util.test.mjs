@@ -119,3 +119,20 @@ test('the client scripts share HC instead of redefining the helpers or hard-codi
   const act = fs.readFileSync(path.join(dir, 'training-activity.js'), 'utf8');
   assert.doesNotMatch(act, /WINDOW = \d|LEVEL_MIN = \[/, 'calendar window and level cuts come baked from lib/training/activity.mjs');
 });
+
+test('rolloverAction: reload once the viewer\'s day differs from the day the page loaded on, deferred while the detail sheet is open', () => {
+  const HC = load();
+  // same day: nothing to do, sheet open or not
+  assert.equal(HC.rolloverAction('2026-10-01', '2026-10-01', false, false), 'none');
+  assert.equal(HC.rolloverAction('2026-10-01', '2026-10-01', true, false), 'none');
+  // a new day with the sheet closed: reload; with it open (an unsaved food form): defer
+  assert.equal(HC.rolloverAction('2026-10-01', '2026-10-02', false, false), 'reload');
+  assert.equal(HC.rolloverAction('2026-10-01', '2026-10-02', true, false), 'defer');
+  // a hidden page waits for the next visibility change
+  assert.equal(HC.rolloverAction('2026-10-01', '2026-10-02', false, true), 'none');
+  // a clock moved back is a different day too
+  assert.equal(HC.rolloverAction('2026-10-02', '2026-10-01', false, false), 'reload');
+  // no usable dates: never reload
+  assert.equal(HC.rolloverAction(null, '2026-10-02', false, false), 'none');
+  assert.equal(HC.rolloverAction('2026-10-01', 'bad', false, false), 'none');
+});
