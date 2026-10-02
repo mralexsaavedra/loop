@@ -4,6 +4,22 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-02 — knowledge: YouTube transcript ingest + a cycling-coach subagent
+
+- **Knowledge base** — new `knowledge/` folder, gitignored except its README: transcripts of
+  third-party expert content stay local (personal use), one folder per source with a
+  `manifest.json` and `raw/<date>-<id>.md` transcripts.
+- **`scripts/ingest-youtube.mjs`** — repeatable, incremental channel ingest over an external
+  `yt-dlp`: lists the videos / streams tabs (no shorts), downloads only the subtitles (manual over
+  the original-language automatic captions; a machine-translated track is never used), converts VTT
+  to `[mm:ss]` paragraphs with the rolling auto-caption repeats removed, records every video (also
+  `subs: none`) atomically, paces requests and retries. Pure helpers in
+  `scripts/youtube-transcript.mjs` with synthetic-VTT unit tests.
+- **`cycling-coach` subagent** (`.claude/agents/`) — read-only coach that applies the first
+  source's criteria (cycling coach Eduardo Talavera), cites title + timestamped URL for every claim,
+  keeps "what the expert says" apart from `analysis/methodology.md`, and grounds advice in the
+  owner's ride data.
+
 ## 2026-10-02 — nutrition: server-side goal + target weight, weight progress, food log adherence
 
 - **Settings on the server** — `sql/007_settings.sql` (`app_settings`, one row, its own optional
