@@ -191,10 +191,10 @@ test('example build: glance on Inicio, detail behind it — Entreno holds load d
   assert.match(sliceTabPanel(html, 'health'), /<div id="health-body"><\/div>/);
 });
 
-test('example build: Inicio reads today top to bottom — dials, monitor, timeline, advice, eat card, programmed session; the timeline is baked from demo data', () => {
+test('example build: Inicio reads today top to bottom — dials, advice, eat card, monitor, timeline, programmed session; the timeline is baked from demo data', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const home = sliceTabPanel(html, 'home');
-  const at = ['id="home-dials"', 'id="monitor"', 'id="timeline"', 'id="home-advice"', 'class="eat-card"', 'data-section="hoy"'].map((n) => home.indexOf(n));
+  const at = ['id="home-dials"', 'id="home-advice"', 'class="eat-card"', 'id="monitor"', 'id="timeline"', 'data-section="hoy"'].map((n) => home.indexOf(n));
   assert.ok(at.every((v, i) => v !== -1 && (i === 0 || v > at[i - 1])), `Inicio order ${at}`);
   assert.match(html, /"timeline":\{"asOf":"\d{4}-\d{2}-\d{2}","days":\[\{"date"/, 'demo data fills the timeline');
   assert.match(html, /getElementById\(["']timeline["']\)/, 'timeline.js is inlined');
@@ -219,8 +219,8 @@ test('example build: Inicio carries a compact "today you eat" card (filled clien
   const home = sliceTabPanel(html, 'home');
   const cardAt = home.indexOf('class="eat-card"');
   assert.ok(cardAt !== -1, 'eat card missing from the Inicio panel');
-  assert.ok(home.indexOf('<div id="home-advice">') < cardAt && cardAt < home.indexOf('data-section="hoy"'), 'order: scores, eat card, programmed session');
-  const card = home.slice(cardAt, home.indexOf('data-section="hoy"'));
+  assert.ok(home.indexOf('<div id="home-advice">') < cardAt && cardAt < home.indexOf('id="monitor"'), 'order: dials + advice, eat card, then the monitor');
+  const card = home.slice(cardAt, home.indexOf('id="monitor"'));
   assert.match(card, /<div id="eat-body" aria-live="polite"><\/div>/);
   assert.match(card, /onclick="setTab\('nutricion'\)"[^>]*>See the full plan/);
   assert.doesNotMatch(card, /class="meal"/, 'the full meal plan is NOT duplicated on Inicio');
