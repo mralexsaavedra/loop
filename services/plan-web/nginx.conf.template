@@ -49,8 +49,12 @@ server {
     #     JSON body (a CORS preflight it never approves), a website opened in a
     #     LAN browser can neither read nor write it. Anything on the LAN that
     #     talks to it directly can: LAN only, never publish this server.
-    # The bearer-protected ingest data endpoints are never proxied: everything
-    # else under /api/ is a 404.
+    # Plus ONE bearer-protected route, for the iOS Shortcut when this server is
+    # the public entry (an SSO tunnel that bypasses exactly /ingest/* and
+    # /api/sync): POST /ingest/health-auto-export, exact match. ingest checks
+    # the INGEST_TOKEN itself. The data export endpoints (/export/*), the
+    # Strava pull (/sync/strava) and every other /ingest/* path are never
+    # proxied: they, and everything else under /api/, are a 404.
     location = /api/sync {
         limit_except POST { deny all; }
         proxy_pass_request_body off;
@@ -78,6 +82,22 @@ server {
         proxy_connect_timeout 5s;
         proxy_read_timeout 15s;
         proxy_pass http://host.docker.internal:${INGEST_PORT}/food/;
+    }
+
+    location = /ingest/health-auto-export {
+        limit_except POST { deny all; }
+        # = health-ingest MAX_BODY_BYTES default (32 MB); a lower value set there still answers 413
+        client_max_body_size 32m;
+        # a Shortcut payload is a few hundred KB: keep it in memory, not a temp file
+        client_body_buffer_size 1m;
+        proxy_set_header Authorization $http_authorization;
+        proxy_set_header Automation-Name $http_automation_name;
+        proxy_set_header Content-Type $content_type;
+        proxy_set_header Host host.docker.internal;
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_pass http://host.docker.internal:${INGEST_PORT}/ingest/health-auto-export;
     }
 
     location /api/ {
