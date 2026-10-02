@@ -6,8 +6,9 @@
  *
  * rollPoints / weeklyRate / weightProgress / etaMonths port lib/nutrition/progress.mjs line by line (a
  * test runs both over PROGRESS_CASES): the rate is the least-squares slope of the 7-day average over the
- * last 28 days (kg/week), the status is vs the safe band (0.25–0.5 kg/week, never > 1 % of bodyweight a
- * week), the ETA (only on pace) is a month range from the viewer's today. Everything time-based is
+ * last windowDays (kg/week), the status is vs the goal's band (NUTRI.progress.bands, never more than
+ * maxPctWeek of bodyweight a week), the ETA (only on pace) = remaining ÷ the observed rate ±etaSpread,
+ * as a month range from the viewer's today. Everything time-based is
  * decided here, so builds stay byte-identical. The card opens the weight detail sheet (HC.detailAttrs),
  * which draws the target as a dashed line. The block renders in its own try/catch (a one-line fallback). */
 (function () {
@@ -17,6 +18,7 @@
   var P = N.progress, T = TN.progress;
   var esc = HC.esc, format = HC.format;
   var DIR = { cut: -1, bulk: 1, maintain: 0 };
+  var DAYS_PER_WEEK = P.daysPerWeek; // lib/nutrition/progress.mjs DAYS_PER_WEEK (baked with NUTRI.progress)
   var MS_PER_DAY = 86400000;
   var ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
   var TONE = { onPace: 'good', steady: 'good', reached: 'good', slow: 'mid', drift: 'mid', fast: 'low', wrong: 'low', fewData: 'muted' };
@@ -58,7 +60,7 @@
       sxy += dx * (p.kg - my);
       sxx += dx * dx;
     });
-    out.rate = sxx > 0 ? (sxy / sxx) * 7 : null;
+    out.rate = sxx > 0 ? (sxy / sxx) * DAYS_PER_WEEK : null;
     return out;
   }
   function weightProgress(m, opts) {
@@ -77,27 +79,27 @@
     var status;
     if (dir !== 0 && remaining != null && Math.abs(remaining) <= P.reachedKg) status = 'reached';
     else if (rate == null) status = 'fewData';
+    else if (dir === 0) status = Math.abs(rate) <= P.stableKg ? 'steady' : 'drift';
     else {
-      var safeMax = Math.min(P.paceMax, (current.kg * P.maxPctWeek) / 100);
-      if (dir === 0) status = Math.abs(rate) > safeMax ? 'fast' : Math.abs(rate) < P.paceMin ? 'steady' : 'drift';
-      else {
-        var s = rate * dir;
-        if (s < -P.flatKg) status = 'wrong';
-        else if (s > safeMax) status = 'fast';
-        else if (s >= P.paceMin) status = 'onPace';
-        else status = 'slow';
-      }
+      var band = P.bands[o.goal];
+      var safeMax = Math.min(band.max, (current.kg * P.maxPctWeek) / 100);
+      var s = rate * dir;
+      if (s < -P.flatKg) status = 'wrong';
+      else if (s > safeMax) status = 'fast';
+      else if (s >= band.min) status = 'onPace';
+      else status = 'slow';
     }
     var eta = null;
     if (status === 'onPace' && toGo != null && toGo > 0 && !mismatch) {
-      eta = [round(toGo / P.paceMax, 1), round(toGo / P.paceMin, 1)];
+      var weeks = toGo / Math.abs(rate);
+      eta = [round(weeks * (1 - P.etaSpread), 1), round(weeks * (1 + P.etaSpread), 1)];
     }
     return { current: current, rate: rate, n: r.n, span: r.span, from: r.from, remaining: remaining, status: status, mismatch: mismatch, etaWeeks: eta };
   }
   function etaMonths(today, weeks) {
     if (!Array.isArray(weeks) || typeof today !== 'string' || !ISO_RE.test(today)) return null;
     var t = dayNum(today);
-    return weeks.map(function (w) { return isoOf(t + Math.ceil(w * 7)).slice(0, 8) + '01'; });
+    return weeks.map(function (w) { return isoOf(t + Math.ceil(w * DAYS_PER_WEEK)).slice(0, 8) + '01'; });
   }
 
   /* ---------- inputs on the viewer's page ---------- */
@@ -122,11 +124,16 @@
   }
   function kg(v) { return HC.num(v, 1); }
   function rateText(p) { return format(T.rate, { rate: HC.num(p.rate, 2, true) }); }
+  // the status word: a maintain drift says which way
+  function statusKey(p) {
+    return p.status === 'drift' ? (p.rate > 0 ? 'driftUp' : 'driftDown') : p.status;
+  }
+  // every number in the copy comes from the baked thresholds (the goal's own band)
   function detailText(p, g) {
-    var D = T.detail, st = p.status, vars = { min: HC.num(P.paceMin, 2), max: HC.num(P.paceMax, 2), kg: HC.num(P.reachedKg, 1) };
-    if (st === 'fast') return format(D['fast' + g] || D.fastmaintain, vars);
-    if (st === 'wrong') return format(D['wrong' + g] || '', vars);
-    if (st === 'drift') return format(p.rate > 0 ? D.driftUp : D.driftDown, vars);
+    var D = T.detail, st = statusKey(p), band = P.bands[g] || {};
+    var vars = { min: fin(band.min) ? HC.num(band.min, 2) : '', max: fin(band.max) ? HC.num(band.max, 2) : '', pct: HC.num(P.maxPctWeek, 0),
+      kg: HC.num(P.reachedKg, 1), stable: HC.num(P.stableKg, 2) };
+    if (st === 'fast' || st === 'wrong') return D[st + g] ? format(D[st + g], vars) : '';
     if (st === 'fewData') return format(T.fewData, { need: P.minReadings, span: P.minSpanDays, have: p.n });
     return D[st] ? format(D[st], vars) : '';
   }
@@ -138,10 +145,10 @@
     var g = goal(), old = stale(p), tone = old ? 'muted' : TONE[p.status] || 'muted';
     var out = ['<div class="pg-head"><span class="pg-lbl">' + esc(T.avg) + '</span><span class="pg-date">' + esc(format(T.asOf, { date: HC.fmtDate(p.current.date) })) + '</span></div>',
       '<div class="pg-main"><span class="pg-num"><b class="pg-kg">' + esc(kg(p.current.kg)) + '</b><small>kg</small></span>' +
-      (p.rate != null ? '<span class="pg-rate"><b>' + esc(rateText(p)) + '</b><small>' + esc(T.rateWin) + '</small></span>' : '') + '</div>'];
+      (p.rate != null ? '<span class="pg-rate"><b>' + esc(rateText(p)) + '</b><small>' + esc(format(T.rateWin, { win: P.windowDays })) + '</small></span>' : '') + '</div>'];
     if (old) out.push('<p class="pg-status pg-s-muted">' + esc(format(T.stale, { date: HC.fmtDate(p.current.date) })) + '</p>');
     else {
-      out.push('<p class="pg-status pg-s-' + tone + '"><span class="pg-dot" aria-hidden="true"></span><b>' + esc(T.status[p.status] || '') + '</b>' +
+      out.push('<p class="pg-status pg-s-' + tone + '"><span class="pg-dot" aria-hidden="true"></span><b>' + esc(T.status[statusKey(p)] || '') + '</b>' +
         (detailText(p, g) ? '<span class="pg-why">' + esc(detailText(p, g)) + '</span>' : '') + '</p>');
     }
     var S = window.HCSettings, ready = S && typeof S.ready === 'function' && S.ready();
@@ -153,11 +160,11 @@
     if (!old && p.etaWeeks) {
       var mo = etaMonths(HC.todayIso(), p.etaWeeks);
       if (mo) {
-        var a = HC.fmtMonth(mo[0]), b = HC.fmtMonth(mo[1]);
-        out.push('<p class="pg-eta">' + esc(a === b ? format(T.etaOne, { from: a }) : format(T.eta, { from: a, to: b })) + '</p>');
+        var a = HC.fmtMonth(mo[0]), b = HC.fmtMonth(mo[1]), spread = HC.num(P.etaSpread * 100, 0);
+        out.push('<p class="pg-eta">' + esc(a === b ? format(T.etaOne, { from: a, spread: spread }) : format(T.eta, { from: a, to: b, spread: spread })) + '</p>');
       }
     }
-    out.push('<p class="pg-note">' + esc(T.method) + '</p>');
+    out.push('<p class="pg-note">' + esc(format(T.method, { win: P.windowDays })) + '</p>');
     var open = m ? HC.detailAttrs('weight') : '';
     return '<div class="nutri-card pg-card"' + open + (open ? ' aria-label="' + esc(T.open) + '"' : '') + '>' + out.join('') + '</div>';
   }
@@ -171,7 +178,7 @@
     try {
       var p = compute();
       if (!p) return '';
-      var st = stale(p) ? T.staleShort : T.status[p.status] || '';
+      var st = stale(p) ? T.staleShort : T.status[statusKey(p)] || '';
       return p.rate != null && !stale(p) ? format(T.line, { avg: kg(p.current.kg), rate: rateText(p), status: st }) : format(T.lineFew, { avg: kg(p.current.kg), status: st });
     } catch (e) {
       return '';

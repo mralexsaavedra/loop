@@ -68,7 +68,7 @@ test('cut on pace with a target (LAN page): average, rate, status in words, kg t
   assert.match(h, /class="pg-status pg-s-good"/);
   assert.match(t, /On pace Between 0\.25 and 0\.50 kg a week towards your goal/);
   assert.match(t, /Target weight: 75\.0 kg · 3\.0 kg to lose/);
-  assert.match(t, /Estimated arrival at this pace: between March 2030 and May 2030\./);
+  assert.match(t, /Estimated arrival at your current rate \(±20 %\): between March 2030 and April 2030\./, '3 kg ÷ 0.35 kg/week = 8.6 weeks ±20 %');
   assert.match(t, /mixes scales: a trend, not an exact number/);
   assert.doesNotMatch(h, /NaN|undefined|null/);
 });
@@ -86,8 +86,9 @@ test('statuses: the wrong way and faster than safe say so plainly; maintain drif
   assert.match(text(run({ goal: 'bulk' }).host.innerHTML), /Moving the wrong way Your average is going down and your goal is to gain\./);
   const fast = PROGRESS_CASES[0].metric.roll.map((v, i) => (v == null ? null : Math.round((90 - i * 0.12) * 10) / 10));
   const f = text(run({ weight: { ...CUT, v: fast, roll: fast } }).host.innerHTML);
-  assert.match(f, /Faster than safe More than 0\.50 kg a week or more than 1 % of your weight a week: that risks muscle\./);
-  assert.match(text(run({ goal: 'maintain' }).host.innerHTML), /Drifting Down more than 0\.25 kg a week/);
+  assert.match(f, /Too fast More than 0\.50 kg a week or more than 1 % of your weight a week: that risks muscle\./);
+  assert.match(text(run({ goal: 'maintain' }).host.innerHTML), /Going down Down more than 0\.10 kg a week while the goal is to maintain/);
+  assert.match(text(run({ goal: 'bulk', weight: { ...CUT, v: CUT.roll.map((v) => (v == null ? null : 160 - v)), roll: CUT.roll.map((v) => (v == null ? null : 160 - v)) } }).host.innerHTML), /Too fast More than 0\.25 kg a week: at that pace it is mostly fat\./, 'muscle gain band 0.1–0.25');
   const mis = run({ settings: settingsStub(83) }).host.innerHTML;
   assert.match(text(mis), /Your target weight is above your average and your goal is to lose/);
   assert.doesNotMatch(text(mis), /Estimated arrival/);
@@ -119,7 +120,7 @@ test('es: decimal comma and Spanish copy; the profile line', () => {
   assert.match(t, /-0,35 kg\/sem/);
   assert.match(t, /A buen ritmo/);
   assert.match(t, /Peso objetivo: 75,0 kg · faltan 3,0 kg por bajar/);
-  assert.match(t, /entre marzo 2030 y mayo 2030/);
+  assert.match(t, /Llegada estimada a tu ritmo actual \(±20 %\): entre marzo 2030 y abril 2030/);
   assert.equal(P.line(), '78,0 kg de media · -0,35 kg/sem · A buen ritmo');
   assert.equal(run({ weight: null }).P.line(), '');
   assert.equal(run({ today: '2030-03-10' }).P.line(), '78.0 kg average · no recent weigh-ins', 'a stale series claims no rate');
