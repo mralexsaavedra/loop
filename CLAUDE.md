@@ -232,6 +232,21 @@ scrolls to the section — `setTab('dash')` opens Entreno). The old global train
 `setDay`) is gone: the intake rings read today's target from Resumen de hoy (see
 "Nutrition v2"), whatever `page.hideTabs` hides; the "today you eat" card drops its link when
 Nutrición is hidden.
+**The open tab lives in the URL hash** (`#home` / `#entreno` / `#health` / `#nutricion`), so a reload,
+a bookmark and the midnight rollover's reload reopen it. core.js `setTab` writes it with
+`history.replaceState` (never `pushState`: Back does not walk through tabs, it keeps closing the
+detail sheet); a legacy section key writes its HOSTING tab's hash; a tab hidden by `page.hideTabs`
+(no nav button) is never written, and nothing is written while the sheet is open (its `#detail/…`
+owns the URL). On load: a visible tab hash opens that tab; no hash, a hidden or an unknown one opens
+the default tab (the one the server rendered) and the URL is replaced to match; a sheet deep link is
+left to detail.js and its HOST tab is shown underneath (`DETAIL_TAB` / `VIEW_TAB` in
+`lib/nav/tabs.mjs`, baked in `NAV`: Salud metrics → `health`, `workouts` / `load-*` → `entreno`,
+`food-add` → `nutricion`, `profile` → none = the default tab; a test pins every `DETAIL_KEYS` key).
+`hashchange` to a visible tab hash switches tab; a sheet, hidden or unknown hash switches nothing, so
+it never fights detail.js's popstate. Every history / location access is in a try/catch (a sandboxed
+frame still switches tabs). `window.HCNav.hash()` = the current tab's hash, read by detail.js. Tab
+hashes `#home` / `#health` are also element ids (the hosts at the top of those panels), so a load
+with them may scroll by a few pixels — harmless.
 Taps open the **detail sheet** (see "Detail views" below), never a jump into another tab, so they
 work whatever `page.hideTabs` hides (core.js `jumpOr` stays as API but no card uses it any more).
 
@@ -342,7 +357,10 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   → the visible tab's heading, given `tabindex="-1"`); `.wrap` also gets `aria-hidden` while open
   (fallback where `inert` is unsupported). A control whose re-render removed or disabled it hands
   focus to the close button. Opening pushes `#detail/<metric>[/<date>]` (picking a day replaces it),
-  so browser Back closes the sheet; a page opened with that hash opens the view — only for an OWN key
+  so browser Back closes the sheet and lands on the tab hash entry underneath (`#nutricion`, see "Tabs
+  and sections"); closing a deep-linked sheet (no entry of ours) replaces the URL with the current tab
+  hash (`window.HCNav.hash()` from core.js; '' without it), and core.js has already shown the deep
+  link's host tab underneath (`#detail/sleep` → Salud), so it closes onto `#health`; a page opened with that hash opens the view — only for an OWN key
   of both `DETAIL.metrics` and the copy (no `constructor`), and a date must round-trip
   (`HC.isoDate` rejects 2026-02-31); a bad or out-of-range date falls back to the default day and the
   URL is replaced to match. A re-open while the close's `history.back()` is in flight (`pendingBack`)

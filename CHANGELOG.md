@@ -4,6 +4,24 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-02 — web: the open tab lives in the URL hash
+
+A reload on Nutrición opened Inicio: `setTab` persisted nothing. The open top-level tab now lives in
+the hash (`#home` / `#entreno` / `#health` / `#nutricion`), so a reload, a bookmark and the midnight
+rollover's reload reopen it.
+
+- `core.js` `setTab` writes the tab hash with `history.replaceState` (never `pushState`: Back does
+  not walk through tabs, it keeps closing the detail sheet); a legacy section key writes its hosting
+  tab; a tab hidden by `page.hideTabs` is never written, and nothing is written while the sheet is
+  open (its `#detail/…` owns the URL). On load a tab hash opens that tab; no hash, a hidden or an
+  unknown one opens the default tab and the URL is replaced to match. `hashchange` to a visible tab
+  hash switches tab; sheet hashes are left to detail.js, so the two listeners never fight.
+- A deep link (`#detail/<metric>[/<date>]`, `#food-add`) opens its host tab underneath
+  (`lib/nav/tabs.mjs` `DETAIL_TAB` / `VIEW_TAB`, baked in `NAV`, a test pins every `DETAIL_KEYS` key;
+  `#profile` keeps the default tab). Closing a deep-linked sheet rewrites the URL to that tab hash
+  (`window.HCNav.hash()`) instead of clearing it.
+- Every history / location access is wrapped: a sandboxed frame still switches tabs.
+
 ## 2026-10-02 — web: mobile quick wins
 
 An audit of the page on a phone found five small problems; each is fixed with a guard test.
