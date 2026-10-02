@@ -1,5 +1,6 @@
-/* Nutrición food log (part 2) — Registrar (today's log in four groups: Desayuno / Comida / Cena /
- * Añadidos, inside the `dia` section), the
+/* Nutrición food log (part 2) — Registrar (one day's log in four groups: Desayuno / Comida / Cena /
+ * Añadidos, inside the `dia` section; a ‹ date › navigator on top opens on today and walks to past days,
+ * never persisted), the
  * add sheet (a view of the detail sheet modal), Mis productos and Mis recetas (folds before Tablas).
  * Classic script (is:inline), inlined after nutri-day.js and before intake.js. Reads
  * I18N_FOOD + FOOD_CONST (meal slots / stores / units from lib/nutrition/foodlog.mjs), baked by
@@ -31,7 +32,8 @@
  * ambiguous-retry rules as the add sheet).
  *
  * Wiring: window.foodTotals() = today's logged totals ({date, k, p, c, g, n, missing, src: 'log'}) when
- * the server answered and today has >= 1 entry, else null. Resumen de hoy's dial + macro bars
+ * the server answered and today has >= 1 entry, else null — TODAY only, whatever day Registrar shows
+ * (today's log is kept apart from a viewed past day; adds / deletes on a past day never touch it). Resumen de hoy's dial + macro bars
  * (nutri-day.js) and the intake rings (intake.js) prefer it over the Apple Health intake; after every
  * add / delete this script calls HCNutri.refresh() (which also refreshes the rings),
  * each hook in its own try/catch. Errors are one line from the server's coarse codes. */
@@ -57,8 +59,11 @@
   var ADDON = K.addonGroup;
   // a fresh add sheet's group by the viewer's hour: before 11 breakfast, before 16 lunch, before 20 an add-on, else dinner
   var MEAL_HOUR_CUTS = [[11, 'breakfast'], [16, 'lunch'], [20, ADDON]];
-  var S = { ok: false, products: [], recipes: [], log: null, sheet: null, pform: null, rform: null, confirm: null };
+  // log = TODAY's log (the one foodTotals / groupTotals read); view = the day Registrar shows (null =
+  // follow today, so a midnight roll moves with it), dayLog / dayFail = that past day's log / load error
+  var S = { ok: false, products: [], recipes: [], log: null, view: null, dayLog: null, dayFail: null, sheet: null, pform: null, rform: null, confirm: null };
   var pendingMeal = null;
+  var viewSeq = 0; // one per past-day read: a slower answer for a day already left is dropped
 
   /* ---------- the formula: a line-by-line port of lib/nutrition/foodlog.mjs ---------- */
   var ATWATER_TOL = 0.25;
@@ -430,16 +435,57 @@
       '<span class="fe-pcf">' + esc(pcf(e)) + '</span></div>' +
       '<button type="button" class="food-icon-btn" data-food-act="del" data-id="' + esc(e.id) + '" aria-label="' + esc(format(T.delAria, { label: e.label })) + '">' + DEL_SVG + '</button></li>';
   }
+  /* ---------- the viewed day (the day navigator; never persisted: the page always opens on today) ---------- */
+  function onToday() { return S.view == null || S.view >= HC.todayIso(); }
+  function viewDate() { return onToday() ? HC.todayIso() : S.view; }
+  // the log Registrar shows: today's (shared with foodTotals) or the viewed past day's; null while loading
+  function viewLog() {
+    if (onToday()) return S.log && S.log.date === HC.todayIso() ? S.log : null;
+    return S.dayLog && S.dayLog.date === S.view ? S.dayLog : null;
+  }
+  // the in-memory log of a date, if it is loaded (today's or the viewed day's)
+  function logFor(date) {
+    if (S.log && S.log.date === date) return S.log;
+    if (S.dayLog && S.dayLog.date === date) return S.dayLog;
+    return null;
+  }
+  function renderNav() {
+    var on = onToday();
+    setText('food-day-label', on ? T.day.today : HC.fmtDate(S.view));
+    var next = $('food-day-next');
+    if (next) next.disabled = on; // no future days
+    var back = $('food-day-today');
+    if (back) back.hidden = on;
+  }
+  // show a day (null / today or later = today): today's log is already there, a past day is read each time
+  function goDay(date) {
+    S.view = date && date < HC.todayIso() ? date : null;
+    S.dayFail = null;
+    if (S.view == null) S.dayLog = null;
+    else if (!S.dayLog || S.dayLog.date !== S.view) S.dayLog = null;
+    setText('food-msg', '');
+    renderLog();
+    if (S.view != null) loadDay(S.view);
+    else if (!S.log || S.log.date !== HC.todayIso()) loadLog();
+  }
+
   function renderLog() {
+    renderNav();
     var host = $('food-log');
     if (!host) return;
     try {
-      var L = S.log || { entries: [], totals: dayTotals([]) };
+      var on = onToday();
+      var L = viewLog();
+      if (!L) {
+        var fail = !on && S.dayFail && S.dayFail.date === S.view ? S.dayFail.msg : null;
+        host.innerHTML = '<p class="food-note">' + esc(fail || T.day.loading) + '</p>';
+        return;
+      }
       var t = L.totals;
       var miss = t.missing && (t.missing.protein || t.missing.carbs || t.missing.fat);
-      var html = '<div class="food-sum"><span class="food-sum-lbl">' + esc(T.dayTotal) + '</span> ' + macroLine(t) + '</div>' +
+      var html = '<div class="food-sum"><span class="food-sum-lbl">' + esc(on ? T.dayTotal : T.dayTotalPast) + '</span> ' + macroLine(t) + '</div>' +
         (miss ? '<p class="food-note">' + esc(T.missingNote) + '</p>' : '') +
-        (L.entries.length ? '' : '<p class="food-note">' + esc(T.empty) + '</p>');
+        (L.entries.length ? '' : '<p class="food-note">' + esc(on ? T.empty : T.emptyPast) + '</p>');
       html += '<div class="food-meals">' + GROUPS.map(function (m) {
         var list = L.entries.filter(function (e) { return groupOf(e.meal) === m; });
         var k = list.reduce(function (s, e) { return s + (fin(e.kcal) ? e.kcal : 0); }, 0);
@@ -456,14 +502,15 @@
   }
   function delEntry(el) {
     var id = el.getAttribute('data-id');
-    var e = S.log && find(S.log.entries, id);
+    var L = viewLog(); // the day on screen (today's log, or a past day's)
+    var e = L && find(L.entries, id);
     if (!e) return;
     el.disabled = true;
     var drop = function () {
-      S.log.entries = S.log.entries.filter(function (x) { return x !== e; });
-      S.log.totals = dayTotals(S.log.entries);
+      L.entries = L.entries.filter(function (x) { return x !== e; });
+      L.totals = dayTotals(L.entries);
       renderLog();
-      refreshDependents();
+      if (L === S.log) refreshDependents(); // only today's log feeds Resumen de hoy / the guide
     };
     api('DELETE', '/log/' + encodeURIComponent(id)).then(function () {
       drop();
@@ -479,7 +526,8 @@
   /* ---------- add sheet (window.HCViews['food-add'], rendered by detail.js) ---------- */
   function newSheet(meal) {
     var m = asGroup(meal) || guessMeal();
-    return { meal: m, tab: 'products', q: '', pick: null, busy: false, reqId: null };
+    // the sheet logs to the day on screen when it opened (a past day keeps its date)
+    return { meal: m, date: viewDate(), tab: 'products', q: '', pick: null, busy: false, reqId: null };
   }
   var TAB_KEYS = ['products', 'recipes', 'quick'];
   function tabKeys() {
@@ -715,7 +763,7 @@
     if (!sh || sh.busy) return;
     var group = asGroup(val('fa-meal')) || sh.meal;
     var meal = slotFor(group);
-    var date = HC.todayIso();
+    var date = sh.date || HC.todayIso();
     var body;
     clearErrs(SHEET_IDS);
     if (sh.tab === 'quick') {
@@ -760,24 +808,25 @@
       sh.busy = false;
       sh.reqId = null;
       var e = data.entry;
-      if (S.log && S.log.date === date && e) {
+      var L = logFor(date);
+      if (L && e) {
         // a replayed add (same request id) may already be in the list from a re-read: replace it
-        S.log.entries = S.log.entries.filter(function (x) { return String(x.id) !== String(e.id); }).concat([e]);
-        S.log.totals = data.totals || dayTotals(S.log.entries);
+        L.entries = L.entries.filter(function (x) { return String(x.id) !== String(e.id); }).concat([e]);
+        L.totals = data.totals || dayTotals(L.entries);
       }
       if (window.HCDetail && typeof window.HCDetail.close === 'function') window.HCDetail.close();
       renderLog();
-      refreshDependents();
+      if (date === HC.todayIso()) refreshDependents(); // a past day never feeds Resumen de hoy
       setText('food-msg', e ? format(T.added, { label: e.label, k: kf(e.kcal) }) : '');
       focus('food-add-' + group);
-      if (!S.log || S.log.date !== date) loadLog();
+      if (!L) loadDay(date);
     }, function (err) {
       sh.busy = false;
       if (btn) btn.disabled = false;
       sheetMsg(errText(err), err && err.code === 'atwater');
       serverFieldErr(err, SHEET_FIELDS);
-      // it may have been saved after all: show the server's list (the retry keeps the same id)
-      if (ambiguous(err)) loadLog();
+      // it may have been saved after all: show the server's list of THAT day (the retry keeps the same id)
+      if (ambiguous(err)) loadDay(date);
     });
   }
 
@@ -1254,6 +1303,17 @@
       if (window.HCDetail && typeof window.HCDetail.open === 'function') window.HCDetail.open('food-add', null, { opener: el, focus: '#fa-meal' });
     },
     del: delEntry,
+    'day-prev': function () { goDay(HC.shiftIso(viewDate(), -1)); },
+    'day-next': function () {
+      if (onToday()) return;
+      goDay(HC.shiftIso(S.view, 1));
+      if (onToday()) focus('food-day-prev'); // next just went disabled: keep focus in the navigator
+    },
+    'day-today': function () {
+      if (onToday()) return;
+      goDay(null);
+      focus('food-day-prev'); // the button just hid itself
+    },
     tab: function (el) {
       var k = el.getAttribute('data-tab');
       if (!S.sheet || tabKeys().indexOf(k) < 0) return;
@@ -1375,22 +1435,45 @@
   });
 
   /* ---------- boot ---------- */
-  function loadLog() {
-    var date = HC.todayIso();
+  /** Read one day's log. Today's goes to S.log (foodTotals / groupTotals / the portion guide) and
+   * refreshes Resumen de hoy; a past day's goes to S.dayLog only while that day is still on screen and
+   * this is its newest read (a slower answer for a day already left never overwrites the view). */
+  function loadDay(date) {
+    var today = date === HC.todayIso();
+    var seq = today ? 0 : ++viewSeq;
+    var current = function () { return seq === viewSeq && !onToday() && S.view === date; };
     return api('GET', '/log?date=' + date).then(function (data) {
-      S.log = { date: date, entries: Array.isArray(data.entries) ? data.entries : [], totals: data.totals || dayTotals(data.entries) };
-      renderLog();
-      refreshDependents();
+      var L = { date: date, entries: Array.isArray(data.entries) ? data.entries : [], totals: data.totals || dayTotals(data.entries) };
+      if (today) {
+        S.log = L;
+        renderLog();
+        refreshDependents();
+      } else if (current()) {
+        S.dayLog = L;
+        S.dayFail = null;
+        renderLog();
+      }
     }, function (err) {
+      if (!today && !current()) return;
+      if (!today) {
+        S.dayFail = { date: date, msg: errText(err) };
+        renderLog();
+      }
       setText('food-msg', errText(err));
     });
+  }
+  function loadLog() { return loadDay(HC.todayIso()); }
+  function sheetTitle() {
+    var d = S.sheet && S.sheet.date;
+    return d && d !== HC.todayIso() ? format(T.sheet.titleDate, { date: HC.fmtDate(d) }) : T.sheet.title;
   }
   function show(id) { var el = $(id); if (el) el.hidden = false; }
   api('GET', '/products').then(function (data) {
     S.ok = true;
     S.products = Array.isArray(data.products) ? data.products : [];
     window.HCViews = window.HCViews || {};
-    window.HCViews['food-add'] = { title: function () { return T.sheet.title; }, render: renderSheet };
+    // detail.js asks for the title after render(), so it names the sheet's own day when it is not today
+    window.HCViews['food-add'] = { title: sheetTitle, render: renderSheet };
     ['food-log-block', 'food-products', 'food-recipes'].forEach(show);
     renderLog();
     renderProducts();
@@ -1400,7 +1483,8 @@
       renderRecipes();
     }, function (err) { recMsg(errText(err)); });
     loadLog();
-    // a page left open past midnight starts the new day's log when it comes back
+    // a page left open past midnight starts the new day's log when it comes back: a viewer on "today"
+    // moves to the new today (S.view is null), one looking at a past day stays there
     if (document.addEventListener) {
       document.addEventListener('visibilitychange', function () {
         if (!document.hidden && S.log && S.log.date !== HC.todayIso()) loadLog();

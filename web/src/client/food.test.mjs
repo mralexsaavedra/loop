@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { es as esF, en as enF } from '../i18n/food-templates.mjs';
+import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 import { FOODLOG_CASES, runCase, FOOD_MEALS, FOOD_STORES, FOOD_UNITS, FOOD_LIMITS, BASIC_CASES, runBasicCase } from '../../../lib/nutrition/foodlog.mjs';
 import { buildBasics } from '../../../lib/nutrition/basics.mjs';
 import { MEAL_GROUPS, MAIN_SLOTS, ADDON_GROUP, ADDON_SLOT } from '../../../lib/nutrition/slots.mjs';
@@ -60,6 +61,9 @@ function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], time, bas
   const els = {};
   for (const id of ['food-log', 'food-msg', 'fp-body', 'fp-msg', 'fr-body', 'fr-msg', ...extraIds]) els[id] = doc.el(id);
   for (const id of ['food-log-block', 'food-products', 'food-recipes']) els[id] = doc.el(id, { hidden: true });
+  // the day navigator (static markup in Dia.astro): prev / next / back to today + the live date label
+  for (const [id, act] of [['food-day-prev', 'day-prev'], ['food-day-next', 'day-next'], ['food-day-today', 'day-today']]) els[id] = doc.el(id, { tag: 'button', attrs: { 'data-food-act': act } });
+  els['food-day-label'] = doc.el('food-day-label');
   const hooks = [];
   const opened = [];
   const window = {
@@ -69,7 +73,7 @@ function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], time, bas
   };
   const ctx = {
     document: doc, window, I18N_FOOD: locale === 'es' ? esF : enF, FOOD_CONST, FOOD_BASICS: basics === undefined ? BASICS[locale] : basics,
-    LOCALE: locale, Date: fixedDate(TODAY, time), Math, JSON, Number, String, Object, Array, Promise, isFinite, fetch, Uint8Array, setTimeout, clearTimeout,
+    LOCALE: locale, I18N_DATE: locale === 'es' ? esDate : enDate, Date: fixedDate(TODAY, time), Math, JSON, Number, String, Object, Array, Promise, isFinite, fetch, Uint8Array, setTimeout, clearTimeout,
   };
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -1086,4 +1090,248 @@ test('en locale: the recipe picker copy', async () => {
   assert.match(text(t.els['fr-body'].innerHTML), /Ingredient 1 .*My products/);
   t.fire('input', t.input('frf-ing-0', 'egg'));
   assert.match(t.els['frf-list-0'].innerHTML, /Basics · average value/);
+});
+
+/* ---------- the day navigator: view (and add to / delete from) another day ---------- */
+const YDAY = '2030-01-09';
+const YDAY2 = '2030-01-08';
+const YENTRY = { ...ENTRY, id: 70, date: YDAY, meal: 'dinner', refType: 'quick', label: 'Pizza', amount: null, unit: null, kcal: 800, protein: 30, carbs: 90, fat: 30 };
+const YTOTALS = { kcal: 800, protein: 30, carbs: 90, fat: 30, count: 1, missing: { protein: false, carbs: false, fat: false } };
+const NAV = { ...BOOT, [`GET /api/food/log?date=${YDAY}`]: json({ date: YDAY, entries: [YENTRY], totals: YTOTALS }) };
+
+test('day navigator: opens on today ("Hoy"), next disabled, no "back to today"; prev loads yesterday with the same cards, total, delete and add buttons', async () => {
+  const t = setup({ routes: NAV });
+  await flush();
+  assert.equal(t.els['food-day-label'].textContent, 'Hoy');
+  assert.equal(t.els['food-day-next'].disabled, true, 'no future days');
+  assert.equal(t.els['food-day-today'].hidden, true);
+  assert.notEqual(t.els['food-day-prev'].disabled, true, 'past days are always reachable');
+  t.hooks.length = 0;
+  t.fire('click', t.els['food-day-prev']);
+  await flush();
+  assert.ok(t.calls.some((c) => c.key === `GET /api/food/log?date=${YDAY}`), 'yesterday\'s log is read');
+  assert.equal(t.els['food-day-label'].textContent, 'mié 9 ene');
+  assert.equal(t.els['food-day-next'].disabled, false);
+  assert.equal(t.els['food-day-today'].hidden, false);
+  const html = t.els['food-log'].innerHTML;
+  assert.match(html, /Pizza/);
+  assert.doesNotMatch(html, /Yogur natural/, 'today\'s entries are not shown on another day');
+  assert.match(html, /data-food-act="del" data-id="70"/);
+  for (const g of MEAL_GROUPS) assert.match(html, new RegExp(`id="food-add-${g}"`));
+  assert.match(text(html), /Total del día 800 kcal/);
+  assert.doesNotMatch(text(html), /Registrado hoy/);
+  // the contracts stay today-only
+  assert.equal(t.window.foodTotals().k, 75);
+  assert.equal(t.F.groupTotals().meals.breakfast.k, 75);
+  assert.equal(t.F.groupTotals().meals.dinner.k, 0);
+  assert.equal(t.F.state().log.date, TODAY, 'today\'s log is kept apart from the viewed day');
+  assert.deepEqual(t.hooks, [], 'viewing another day refreshes nothing of today');
+});
+
+test('day navigator: next walks forward, back to today jumps home and is hidden there; an empty past day says so', async () => {
+  const t = setup({ routes: { ...NAV, [`GET /api/food/log?date=${YDAY2}`]: json({ date: YDAY2, entries: [], totals: { ...YTOTALS, kcal: 0, protein: 0, carbs: 0, fat: 0, count: 0 } }) } });
+  await flush();
+  t.fire('click', t.els['food-day-prev']);
+  await flush();
+  t.fire('click', t.els['food-day-prev']);
+  await flush();
+  assert.equal(t.els['food-day-label'].textContent, 'mar 8 ene');
+  assert.match(text(t.els['food-log'].innerHTML), /Nada registrado ese día\./);
+  t.fire('click', t.els['food-day-next']);
+  await flush();
+  assert.equal(t.els['food-day-label'].textContent, 'mié 9 ene');
+  assert.match(t.els['food-log'].innerHTML, /Pizza/);
+  t.fire('click', t.els['food-day-today']);
+  await flush();
+  assert.equal(t.els['food-day-label'].textContent, 'Hoy');
+  assert.equal(t.els['food-day-next'].disabled, true);
+  assert.equal(t.els['food-day-today'].hidden, true);
+  assert.match(t.els['food-log'].innerHTML, /Yogur natural/);
+  assert.match(text(t.els['food-log'].innerHTML), /Registrado hoy 75 kcal/);
+  // next on today goes nowhere (the button is disabled; a stray action is a no-op too)
+  const reads = t.calls.length;
+  t.fire('click', t.button({ 'data-food-act': 'day-next' }));
+  await flush();
+  assert.equal(t.els['food-day-label'].textContent, 'Hoy');
+  assert.equal(t.calls.length, reads);
+});
+
+test('adding on a past day: the sheet names the date, the POST sends that date, today\'s totals and Resumen stay untouched', async () => {
+  let posted;
+  const saved = { ...YENTRY, id: 71, meal: 'lunch', label: 'Ensalada', kcal: 150, protein: null, carbs: null, fat: null };
+  const routes = { ...NAV, 'POST /api/food/log': (init) => { posted = JSON.parse(init.body); return json({ entry: saved, totals: { ...YTOTALS, kcal: 950, count: 2 } }, 201); } };
+  const t = setup({ routes, extraIds: ['fa-panel', 'fa-prev', 'fa-msg', 'food-add-lunch'] });
+  await flush();
+  t.fire('click', t.els['food-day-prev']);
+  await flush();
+  t.hooks.length = 0;
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'lunch' }));
+  const view = t.window.HCViews['food-add'];
+  view.render();
+  assert.equal(view.title(), 'Añadir comida · mié 9 ene');
+  t.fire('click', t.button({ 'data-food-act': 'tab', 'data-tab': 'quick' }));
+  t.input('fa-meal', 'lunch');
+  t.input('fa-label', 'Ensalada');
+  t.input('fa-kcal', '150');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(posted.date, YDAY, 'logged to the viewed day');
+  assert.match(t.els['food-log'].innerHTML, /Ensalada/);
+  assert.match(t.els['food-log'].innerHTML, /Pizza/);
+  assert.match(text(t.els['food-log'].innerHTML), /Total del día 950 kcal/);
+  assert.equal(t.window.foodTotals().k, 75, 'today untouched');
+  assert.equal(t.F.state().log.entries.length, 1);
+  assert.deepEqual(t.hooks, [], 'today did not change: nothing of Resumen de hoy re-renders');
+  assert.equal(t.els['food-msg'].textContent, 'Añadido: Ensalada (150 kcal).');
+  // back on today the sheet title is the plain one
+  t.fire('click', t.els['food-day-today']);
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'lunch' }));
+  view.render();
+  assert.equal(view.title(), 'Añadir comida');
+});
+
+test('adding on a past day: an ambiguous failure re-reads THAT day (same request id), never today\'s', async () => {
+  let n = 0;
+  const saved = { ...YENTRY, id: 72, meal: 'snack', label: 'Barrita', kcal: 200 };
+  const routes = { ...NAV, 'POST /api/food/log': () => (++n === 1 ? new TypeError('Failed to fetch') : json({ entry: saved, totals: { ...YTOTALS, kcal: 1000, count: 2 } }, 200)) };
+  const t = setup({ routes, extraIds: ['fa-panel', 'fa-prev', 'fa-msg'] });
+  await flush();
+  t.fire('click', t.els['food-day-prev']);
+  await flush();
+  const reads = (d) => t.calls.filter((c) => c.key === `GET /api/food/log?date=${d}`).length;
+  const today0 = reads(TODAY), yday0 = reads(YDAY);
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'addon' }));
+  t.window.HCViews['food-add'].render();
+  t.fire('click', t.button({ 'data-food-act': 'tab', 'data-tab': 'quick' }));
+  t.input('fa-label', 'Barrita');
+  t.input('fa-kcal', '200');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(reads(YDAY), yday0 + 1, 'the viewed day is read again');
+  assert.equal(reads(TODAY), today0);
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  const posts = t.calls.filter((c) => c.key === 'POST /api/food/log').map((c) => c.body);
+  assert.equal(posts.length, 2);
+  assert.ok(posts.every((b) => b.date === YDAY && b.requestId === posts[0].requestId));
+  assert.equal(t.F.state().log.entries.length, 1, 'today untouched');
+  assert.equal(t.F.state().log.entries.filter((e) => e.id === 72).length, 0);
+});
+
+test('deleting on a past day: that day\'s row leaves, today\'s log and totals stay', async () => {
+  const t = setup({ routes: { ...NAV, 'DELETE /api/food/log/70': json({ ok: true }) } });
+  await flush();
+  t.fire('click', t.els['food-day-prev']);
+  await flush();
+  t.hooks.length = 0;
+  t.fire('click', t.button({ 'data-food-act': 'del', 'data-id': '70' }));
+  await flush();
+  assert.ok(t.calls.some((c) => c.key === 'DELETE /api/food/log/70'));
+  assert.doesNotMatch(t.els['food-log'].innerHTML, /data-id="70"/);
+  assert.equal(t.els['food-msg'].textContent, 'Borrado: Pizza.');
+  assert.equal(t.window.foodTotals().k, 75);
+  assert.deepEqual(t.hooks, []);
+  // a today entry id is not deletable from another day's view
+  t.fire('click', t.button({ 'data-food-act': 'del', 'data-id': '50' }));
+  await flush();
+  assert.ok(!t.calls.some((c) => c.key === 'DELETE /api/food/log/50'));
+});
+
+test('HCFood.addGuide always logs to today, also while another day is viewed', async () => {
+  let posted;
+  const saved = { ...ENTRY, id: 73, meal: 'lunch', label: 'Arroz', kcal: 350 };
+  const t = setup({ routes: { ...NAV, 'POST /api/food/log': (init) => { posted = JSON.parse(init.body); return json({ entry: saved, totals: { ...TOTALS1, kcal: 425, count: 2 } }, 201); } } });
+  await flush();
+  t.fire('click', t.els['food-day-prev']);
+  await flush();
+  await t.F.addGuide({ group: 'lunch', food: 'p:3', amt: 80 });
+  assert.equal(posted.date, TODAY);
+  assert.equal(t.window.foodTotals().k, 425);
+  assert.doesNotMatch(t.els['food-log'].innerHTML, /Arroz/, 'the viewed day is still yesterday');
+  assert.equal(t.els['food-day-label'].textContent, 'mié 9 ene');
+});
+
+test('a slow response for a day already left never overwrites the current view', async () => {
+  let releaseY;
+  const slowY = new Promise((r) => { releaseY = r; });
+  const routes = {
+    ...NAV,
+    [`GET /api/food/log?date=${YDAY}`]: () => slowY,
+    [`GET /api/food/log?date=${YDAY2}`]: json({ date: YDAY2, entries: [{ ...YENTRY, id: 74, date: YDAY2, label: 'Lentejas' }], totals: YTOTALS }),
+  };
+  const t = setup({ routes });
+  await flush();
+  t.fire('click', t.els['food-day-prev']); // yesterday: slow
+  await flush();
+  t.fire('click', t.els['food-day-prev']); // the day before: fast
+  await flush();
+  assert.match(t.els['food-log'].innerHTML, /Lentejas/);
+  releaseY(json({ date: YDAY, entries: [YENTRY], totals: YTOTALS }));
+  await flush();
+  assert.equal(t.els['food-day-label'].textContent, 'mar 8 ene');
+  assert.match(t.els['food-log'].innerHTML, /Lentejas/);
+  assert.doesNotMatch(t.els['food-log'].innerHTML, /Pizza/);
+  // and a slow past day that lands after going back to today is ignored too
+  let releaseY2;
+  const t2 = setup({ routes: { ...NAV, [`GET /api/food/log?date=${YDAY}`]: () => new Promise((r) => { releaseY2 = r; }) } });
+  await flush();
+  t2.fire('click', t2.els['food-day-prev']);
+  await flush();
+  t2.fire('click', t2.els['food-day-today']);
+  await flush();
+  releaseY2(json({ date: YDAY, entries: [YENTRY], totals: YTOTALS }));
+  await flush();
+  assert.equal(t2.els['food-day-label'].textContent, 'Hoy');
+  assert.match(t2.els['food-log'].innerHTML, /Yogur natural/);
+  assert.doesNotMatch(t2.els['food-log'].innerHTML, /Pizza/);
+});
+
+test('midnight: on "today" the view moves to the new today; on a past day it stays there and only today\'s totals reload', async () => {
+  const NEXT = '2030-01-11';
+  const NENTRY = { ...ENTRY, id: 90, date: NEXT, label: 'Tostada', kcal: 120 };
+  const routes = { ...NAV, [`GET /api/food/log?date=${NEXT}`]: json({ date: NEXT, entries: [NENTRY], totals: { ...TOTALS1, kcal: 120 } }) };
+  const t = setup({ routes });
+  await flush();
+  t.ctx.Date = fixedDate(NEXT, '08:00:00');
+  t.doc.hidden = false;
+  t.hooks.length = 0;
+  t.fire('visibilitychange', t.doc);
+  await flush();
+  assert.equal(t.els['food-day-label'].textContent, 'Hoy');
+  assert.match(t.els['food-log'].innerHTML, /Tostada/);
+  assert.equal(t.window.foodTotals().date, NEXT);
+  assert.deepEqual(t.hooks, ['nutri']);
+  assert.equal(t.els['food-day-next'].disabled, true);
+
+  const p = setup({ routes });
+  await flush();
+  p.fire('click', p.els['food-day-prev']);
+  await flush();
+  p.ctx.Date = fixedDate(NEXT, '08:00:00');
+  p.doc.hidden = false;
+  p.hooks.length = 0;
+  p.fire('visibilitychange', p.doc);
+  await flush();
+  assert.equal(p.els['food-day-label'].textContent, 'mié 9 ene', 'still on the day being looked at');
+  assert.match(p.els['food-log'].innerHTML, /Pizza/);
+  assert.equal(p.window.foodTotals().date, NEXT, 'today\'s totals moved to the new day');
+  assert.equal(p.window.foodTotals().k, 120);
+  assert.deepEqual(p.hooks, ['nutri']);
+  assert.equal(p.els['food-day-next'].disabled, false);
+  assert.equal(p.els['food-day-today'].hidden, false);
+});
+
+test('en locale: "Today", English dates and the day total of another day', async () => {
+  const t = setup({ routes: NAV, locale: 'en' });
+  await flush();
+  assert.equal(t.els['food-day-label'].textContent, 'Today');
+  t.fire('click', t.els['food-day-prev']);
+  await flush();
+  assert.equal(t.els['food-day-label'].textContent, 'Wed 9 Jan');
+  assert.match(text(t.els['food-log'].innerHTML), /Day total 800 kcal/);
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'lunch' }));
+  const view = t.window.HCViews['food-add'];
+  view.render();
+  assert.equal(view.title(), 'Add food · Wed 9 Jan');
 });
