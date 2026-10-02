@@ -4,6 +4,34 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-02 — web: mobile quick wins
+
+An audit of the page on a phone found five small problems; each is fixed with a guard test.
+
+- **No iOS focus zoom** — iOS Safari zooms into a focused field whose text is under 16px (the food
+  forms were 14.5px, the portion guide's and the ride-duration selects 13.5px). Under 900px one rule
+  in `base.css` sets every text input / select / textarea (radios excluded) to the new `--fs-input`
+  token (16px); its `:is()` selector out-ranks every form-control class rule.
+  `web/test/mobile.test.mjs` checks the rule and that no form-control rule is as specific.
+- **gzip on plan-web** — the one-file page compresses well; `gzip on` at server level (CSS, JS, JSON;
+  text/html is implied), `gzip_min_length 1024`, `gzip_comp_level 5`, `gzip_vary on`. The four
+  proxied ingest routes say `gzip off`: their responses reflect request input next to stored data (a
+  BREACH-style length oracle) and are small. Rollout: `docker compose up -d` in `services/plan-web`.
+- **Midnight rollover** — a page left open past midnight kept yesterday's dials, top-bar date,
+  timeline, day type and rings (only the food log followed). core.js now reloads the page once when
+  it becomes visible on another day than it loaded on (`HC.rolloverAction`, pure, unit-tested), and
+  waits while the detail sheet is open (it may hold an unsaved food form): the reload happens when the
+  sheet closes (polled each second) or on the next visibility change.
+- **Load-dial switch** — the gym / run / bike pills were 30px tall. They keep the compact look; a
+  centred `::before` band makes the hit area 44px tall (and the pill at least 44px wide), and a
+  wrapped row sits 14px lower so two bands never overlap.
+- **Dark controls** — `<meta name="color-scheme" content="dark">`, `:root { color-scheme: dark }`
+  (dark native select popups, scrollbars, autofill) and a `theme-color` read at build time from the
+  `--ground-top` token (the top of the page background). Skipped on purpose:
+  `apple-mobile-web-app-capable` + `black-translucent` — a home-screen app would draw the wide-screen
+  sticky nav (`top: 0`) and the optional header under the status bar, which carry no top safe-area
+  inset.
+
 ## 2026-10-02 — plan-web: the Shortcut upload route
 
 The owner exposes plan-web publicly through an SSO tunnel and keeps the ingest service unexposed, so

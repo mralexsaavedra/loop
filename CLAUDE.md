@@ -173,7 +173,11 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   (units from the i18n dict), `MS_PER_DAY`, `STALE_DAYS`, the ONE display-date formatter `fmtDate`
   ("lun 29 sept" / "Mon 29 Sep") + `fmtMonth` + `weekdayIndex` (Monday = 0; names baked as `I18N_DATE`
   from `web/src/i18n/date-templates.mjs`, not Intl, whose ICU builds disagree), and `detailAttrs`
-  (the detail-sheet opener markup, see "Detail views"). The client scripts read these instead of
+  (the detail-sheet opener markup, see "Detail views") and `rolloverAction` (the midnight rollover:
+  core.js captures the viewer's day at load and, when the page becomes visible on another day,
+  reloads once, so the dials, top-bar date, timeline, day type and rings move to the new day; while
+  the detail sheet `#detail` is open (an unsaved food form) it waits until the sheet closes, polled
+  each second, or the next visibility change). The client scripts read these instead of
   redefining them (a test guards it), and constants come baked from `lib/` (`STALE_DAYS` via
   `HC_CONST`; the calendar's `windowDays` / `levelMin` via `activityBake` into `ACTIVITY`), never as
   client literals. Tests load it with `web/test/client-util.mjs` `loadUtil(ctx)`.
@@ -237,7 +241,13 @@ buttons, tab panels and footer are centred and capped at `--content-max` (1160 p
 card turns into two columns (kcal dial | day type + macro bars) and Plan de hoy into a masonry-like
 2-column flow (CSS `columns: 2`, cards `break-inside: avoid`, read down column 1 then column 2, so a
 short card never leaves a row-height gap); Entreno puts the 30-day calendar (natural width) and the
-cumulative chart (rest of the row, height-capped at 240 px) in ONE row (`.act-pair`). Nav tab icons are inline SVG line icons keyed by tab (`TAB_ICONS` in `web/layouts/Plan.astro`,
+cumulative chart (rest of the row, height-capped at 240 px) in ONE row (`.act-pair`). Dark native controls: `color-scheme: dark` (`:root` + a `<meta name="color-scheme">`) and a
+`theme-color` meta read at build time from `--ground-top` (the top of the page background; a test pins
+them equal); no `apple-mobile-web-app-*` metas (a home-screen app would draw the wide-screen sticky nav
+and the optional header under the status bar). Phones (< 900 px): every text input / select / textarea
+is `--fs-input` (16px), so iOS never zooms into a focused field — one `:is()` rule in `base.css`
+that out-ranks the form-control classes (`web/test/mobile.test.mjs`). Small pills keep their look
+with a centred 44px `::before` hit band (the load dial's modality switch, `.dial-mod`). Nav tab icons are inline SVG line icons keyed by tab (`TAB_ICONS` in `web/layouts/Plan.astro`,
 same drawing as the day-type icons; the active tab paints its icon in `--accent`) — no emoji. Headings and
 labels are caps, semibold, `--label-track` (+0.08em). Numbers use `--num` = "HC Num", a
 numerals-only subset (~1.5 KB: digits, + - , . % × h space) of **D-DIN Bold, SIL OFL 1.1**, inlined as
@@ -1346,7 +1356,10 @@ is the newest day, and the trend is the line under it.
 ## LAN page + on-demand refresh — `services/plan-web` + `services/health-ingest`
 
 Besides the claude.ai artifact, `services/plan-web` serves `web/dist/personal/index.html` on the LAN
-(nginx, `./site` only). `refresh.sh` rebuilds and publishes it hourly (cron) AND on demand, under a
+(nginx, `./site` only), gzipped (server level: the page, CSS / JS / JSON, ≥ 1 KB, level 5, `Vary`;
+the four proxied ingest routes are `gzip off` — their responses reflect request input next to stored
+data, a BREACH-style oracle; pinned by `scripts/plan-web-config.test.mjs`; rollout `docker compose
+up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (cron) AND on demand, under a
 **sequence protocol** (no clock comparison anywhere):
 
 - **Trigger.** The page's Sync button (`POST /api/sync`, proxied by plan-web nginx) or the last
