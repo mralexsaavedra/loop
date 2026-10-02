@@ -28,6 +28,12 @@ server {
 
     if ($hc_host_ok = 0) { return 421; }
 
+    # Path normalization: an SSO proxy in front may match its bypass rules (/ingest/*, /api/sync)
+    # on the RAW path while nginx serves the normalized one (/ingest/%2e%2e/index.html would be the
+    # page). No legitimate path here has a dot-segment, an encoded dot / slash / backslash or an
+    # empty segment, so refuse them in the raw path (the query string is not checked).
+    if ($request_uri ~* "^[^?]*(\.\.|%2e|%2f|%5c|//)") { return 400; }
+
     # Always revalidate: the page is regenerated hourly and on demand.
     add_header Cache-Control "no-cache";
 
@@ -86,8 +92,10 @@ server {
 
     location = /ingest/health-auto-export {
         limit_except POST { deny all; }
-        # = health-ingest MAX_BODY_BYTES default (32 MB); a lower value set there still answers 413
-        client_max_body_size 32m;
+        # no Bearer token: refuse before reading (or buffering) any body; ingest checks the token itself
+        if ($http_authorization !~* "^Bearer\s+\S+") { return 401; }
+        # a Shortcut payload is a few hundred KB; stays below health-ingest's MAX_BODY_BYTES default (32 MB)
+        client_max_body_size 8m;
         # a Shortcut payload is a few hundred KB: keep it in memory, not a temp file
         client_body_buffer_size 1m;
         proxy_set_header Authorization $http_authorization;

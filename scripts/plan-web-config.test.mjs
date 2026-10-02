@@ -69,9 +69,13 @@ test('nginx = /ingest/health-auto-export: exact, POST only, the body passed with
   assert.match(ingest.body, /proxy_pass\s+http:\/\/host\.docker\.internal:\$\{INGEST_PORT\}\/ingest\/health-auto-export;/);
   assert.match(ingest.body, /limit_except POST \{ deny all; \}/);
   assert.doesNotMatch(ingest.body, /proxy_pass_request_body off/, 'the JSON payload is the whole point');
-  assert.match(ingest.body, /client_max_body_size 32m;/, 'the ingest default MAX_BODY_BYTES (32 MB), never more');
+  assert.match(ingest.body, /client_max_body_size 8m;/, 'a Shortcut payload is a few hundred KB');
   const server = read('services', 'health-ingest', 'src', 'server.js');
-  assert.match(server, /MAX_BODY_BYTES = Number\(process\.env\.MAX_BODY_BYTES \?\? 32 \* 1024 \* 1024\)/, 'the cap above mirrors this default');
+  const def = /MAX_BODY_BYTES = Number\(process\.env\.MAX_BODY_BYTES \?\? ([\d\s*]+)\)/.exec(server);
+  assert.ok(def, 'the ingest default MAX_BODY_BYTES is readable');
+  const ingestMax = def[1].split('*').reduce((a, n) => a * Number(n.trim()), 1);
+  const capMb = Number(/client_max_body_size (\d+)m;/.exec(ingest.body)[1]);
+  assert.ok(capMb * 1024 * 1024 <= ingestMax, 'the nginx cap never exceeds the ingest default');
   assert.match(ingest.body, /proxy_set_header Authorization \$http_authorization;/);
   assert.match(ingest.body, /proxy_set_header Automation-Name \$http_automation_name;/);
   assert.match(ingest.body, /proxy_set_header Content-Type \$content_type;/);
@@ -80,6 +84,32 @@ test('nginx = /ingest/health-auto-export: exact, POST only, the body passed with
   assert.match(ingest.body, /proxy_read_timeout 60s;/);
   assert.match(ingest.body, /client_body_buffer_size 1m;/, 'a few-hundred-KB payload stays in memory');
   assert.doesNotMatch(ingest.body, /add_header\s+Access-Control/i);
+});
+
+test('nginx = /ingest/health-auto-export: a request without a Bearer token is refused (401) before the body is read', () => {
+  const ingest = locations(nginx).find((l) => l.spec === '= /ingest/health-auto-export');
+  assert.match(ingest.body, /if \(\$http_authorization !~\* "\^Bearer\\s\+\\S\+"\) \{ return 401; \}/);
+  const re = new RegExp(/!~\* "([^"]+)"/.exec(ingest.body)[1], 'i');
+  for (const ok of ['Bearer abc123', 'bearer  x']) assert.ok(re.test(ok), ok);
+  for (const bad of ['', 'Bearer', 'Bearer ', 'Basic abc', 'abc']) assert.ok(!re.test(bad), bad);
+});
+
+// Path normalization: an SSO proxy may match its bypass rules (/ingest/*, /api/sync) on the RAW path
+// while nginx serves the normalized one (/ingest/%2e%2e/index.html -> the page). Refuse such paths.
+test('nginx: a server-level guard refuses dot-segments, encoded dots / slashes / backslashes and // in the raw path (400)', () => {
+  const server = nginx.slice(nginx.indexOf('server {'));
+  const m = /if \(\$request_uri ~\* "([^"]+)"\) \{ return 400; \}/.exec(server);
+  assert.ok(m, 'a $request_uri guard returning 400');
+  assert.ok(server.indexOf(m[0]) < server.indexOf('location '), 'before the first location');
+  const re = new RegExp(m[1], 'i');
+  for (const bad of ['/ingest/%2e%2e/index.html', '/ingest/%2E%2E/status.json', '/ingest/../status.json', '/api/sync/..%2ffood/log',
+    '/api/sync/%2F..', '/ingest/x%5c..%5cstatus.json', '//status.json', '/api//food/log', '/api/food/%2e/log', '/ingest/health-auto-export/..']) {
+    assert.ok(re.test(bad), bad);
+  }
+  for (const ok of ['/', '/index.html', '/status.json', '/api/sync', '/api/sync/status', '/api/food/log?date=2026-10-01', '/api/food/products',
+    '/api/food/log/42', '/api/food/off?q=a..b%2F%2e//x', '/ingest/health-auto-export']) {
+    assert.ok(!re.test(ok), ok);
+  }
 });
 
 test('nginx serves status.json uncached', () => {
