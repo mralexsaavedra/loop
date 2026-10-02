@@ -244,9 +244,13 @@ left to detail.js and its HOST tab is shown underneath (`DETAIL_TAB` / `VIEW_TAB
 `food-add` → `nutricion`, `profile` → none = the default tab; a test pins every `DETAIL_KEYS` key).
 `hashchange` to a visible tab hash switches tab; a sheet, hidden or unknown hash switches nothing, so
 it never fights detail.js's popstate. Every history / location access is in a try/catch (a sandboxed
-frame still switches tabs). `window.HCNav.hash()` = the current tab's hash, read by detail.js. Tab
-hashes `#home` / `#health` are also element ids (the hosts at the top of those panels), so a load
-with them may scroll by a few pixels — harmless.
+frame still switches tabs). `window.HCNav.hash()` = the current tab's hash, read by detail.js. NO
+element id may equal a tab key (the browser would scroll a `#<tab>` load to it): the Inicio advice
+host is `#home-advice` and the Salud host `#health-body` (a content test checks the built page). A
+deep link that opens NO sheet (`#detail/<unknown or no-data metric>`, a bad view key) is replaced by
+the tab hash once detail.js has run (detail.js, when its initial open did not happen). `#food-add` is
+left alone: its view registers only after the food API answers (async), and detail.js does not
+reopen it then either, so it simply stays in the URL until the next tab tap or sheet close.
 Taps open the **detail sheet** (see "Detail views" below), never a jump into another tab, so they
 work whatever `page.hideTabs` hides (core.js `jumpOr` stays as API but no card uses it any more).
 
@@ -1099,7 +1103,7 @@ plus the build-output/i18n/hide-tabs integration tests.
 from the Apple Health extract CSVs (all OPTIONAL — absent CSVs render an empty state, never fail the
 build); `web/src/client/health.js` renders them into TWO hosts, each with its own empty state and
 its own try/catch (a throw in one half renders that half's empty state, never blanks the other):
-`#health` (Salud: recovery with `#score-recovery` right under its heading, sleep, body composition,
+`#health-body` (Salud: recovery with `#score-recovery` right under its heading, sleep, body composition,
 activity, energy — in that order) and `#health-train` (Entreno: running, cycling, load vs recovery).
 
 **Today first.** Every trend card's headline is the NEWEST value with its date (a daily total dated
@@ -1311,7 +1315,7 @@ is the newest day, and the trend is the line under it.
   <date>: RE <n>" as context. Every caption keeps acute/chronic as context ("7-day vs 42-day load: -6% ·
   steady"). A gated modality (`baselineBuilding`, or `fewDays` when there is no typical day) is greyed
   with its copy and no number. Each dial block / card renders through a try/catch with an empty-state
-  fallback, and every host write (`#home`, `#home-dials`, `#score-recovery`, `#score-load`, the advice)
+  fallback, and every host write (`#home-advice`, `#home-dials`, `#score-recovery`, `#score-load`, the advice)
   is isolated, so one throw never blanks Inicio or the other hosts; with no score data every host gets
   the empty state. Stale data (> 3 days) greys a dial; the fill
   animation is off under `prefers-reduced-motion`.

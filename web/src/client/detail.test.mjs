@@ -810,3 +810,38 @@ test('history writes that throw: tabs still switch and sheets still open and clo
   assert.equal(s.calls.filter((c) => c[0] === 'back').length, 0);
   assert.deepEqual(s.shownTab(), ['health']);
 });
+
+test('a deep link that opens no sheet does not leave a stale hash: it becomes the tab hash', () => {
+  let s = setup({ withCore: true, hash: '#detail/bogus' });
+  assert.equal(s.host.hidden, true);
+  assert.equal(s.loc.hash, '#home');
+  const noSleep = copy();
+  delete noSleep.metrics.sleep;
+  s = setup({ withCore: true, hash: '#detail/sleep', detail: noSleep });
+  assert.equal(s.host.hidden, true, 'a metric without data opens nothing');
+  assert.deepEqual(s.shownTab(), ['health']);
+  assert.equal(s.loc.hash, '#health', 'the host tab underneath');
+  s = setup({ withCore: true, hash: '#detail/sleep/2026-13-99x' });
+  assert.equal(s.loc.hash, '#health');
+  s = setup({ withCore: true, hash: '#profile' }); // no profile view on this page
+  assert.equal(s.loc.hash, '#home');
+  s = setup({ hash: '#detail/nope' }); // without core.js: cleared
+  assert.equal(s.loc.hash, '');
+});
+
+test('#food-add is left alone: its view registers only after the food API answers', () => {
+  const s = setup({ withCore: true, hash: '#food-add' });
+  assert.equal(s.host.hidden, true);
+  assert.deepEqual(s.shownTab(), ['nutricion']);
+  assert.equal(s.loc.hash, '#food-add');
+  assert.equal(s.calls.length, 0);
+});
+
+test('an opened deep link and a plain tab hash are never rewritten at load', () => {
+  let s = setup({ withCore: true, hash: '#detail/rhr' });
+  assert.equal(s.host.hidden, false);
+  assert.equal(s.loc.hash, '#detail/rhr');
+  s = setup({ withCore: true, hash: '#entreno' });
+  assert.equal(s.calls.length, 0);
+  assert.equal(s.loc.hash, '#entreno');
+});
