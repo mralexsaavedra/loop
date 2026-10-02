@@ -1542,6 +1542,30 @@ up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (c
   stored token falls back to the env one once. Rolling this out needs an ingest rebuild
   (`docker compose up -d --build`, runs the idempotent `sql/003_sync.sql`).
 
+## Knowledge base + expert subagents
+
+`knowledge/` holds transcripts of expert content (third-party, personal use): EVERYTHING in it but
+`knowledge/README.md` is gitignored — never commit, publish or `git add -f` it. Layout per source:
+`knowledge/<domain>/<source>/manifest.json` (one entry per video: title, date, duration, `subs` =
+manual | auto | none, file, words, fetchedAt) + `raw/<YYYY-MM-DD>-<id>.md` (header, then `[mm:ss]`
+paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index.md`, `temas/*.md`,
+`videos/*.md` syntheses on top.
+
+- **Ingest** — `node scripts/ingest-youtube.mjs --channel <url> --out knowledge/<domain>/<source>
+  [--tabs videos,streams] [--limit N] [--lang es]`: incremental (skips manifest ids), subtitles only
+  (never media), manual subtitles over automatic captions (the ORIGINAL-language track, never a
+  machine translation), polite pacing + 2 retries, manifest written atomically after each video.
+  External `yt-dlp` (`$YT_DLP` → PATH → `~/.local/bin/yt-dlp`). Pure parts (VTT → paragraphs,
+  track choice, naming, manifest merge, flags) in `scripts/youtube-transcript.mjs`, unit-tested.
+  Re-run it to pick up new uploads.
+- **`cycling-coach` subagent** (`.claude/agents/cycling-coach.md`, read-only) — DELEGATE to it any
+  cycling training / power / FTP / zones / periodization / bike fuelling / bike fit / gear / Garmin
+  Edge question. It applies the expert's criteria from `knowledge/cycling/talavera/` (Eduardo
+  Talavera), cites every claim with the video title + `&t=<seconds>s` URL, marks automatic-caption
+  numbers "verify in the video", separates "what the expert says" from `analysis/methodology.md` /
+  evidence (contradictions flagged), and grounds advice in the owner's data. A new expert = a new
+  ingest folder + a subagent whose only source-specific part is its "Knowledge source" section.
+
 ## Output principles
 
 - **Ground every claim in their data.** If the data does not support a statement,
