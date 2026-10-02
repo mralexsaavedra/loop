@@ -14,7 +14,6 @@
  */
 import Plan from '../layouts/Plan.astro';
 import Home from '../src/tabs/Home.astro';
-import EatCard from '../src/components/EatCard.astro';
 import Dia from '../src/tabs/Dia.astro';
 import Bake from '../src/components/Bake.astro';
 import Tablas from '../src/tabs/Tablas.astro';
@@ -76,8 +75,7 @@ const title = plan.page?.title || 'Plan';
 
 <Plan title={title} locale={locale} page={plan.page} dict={dict} tabs={TABS} activeTab={activeTab} profile={profile}>
   <div class="tab-panel" data-tab="home" hidden={activeTab !== 'home'}>
-    <Home />
-    <EatCard locale={locale} link={isTabVisible('nutricion')} />
+    <Home locale={locale} eatLink={isTabVisible('nutricion')} />
     <Hoy dict={dict} hidden={isHidden('hoy')} />
   </div>
   <div class="tab-panel" data-tab="entreno" hidden={activeTab !== 'entreno'}>
