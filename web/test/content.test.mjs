@@ -277,3 +277,23 @@ test('example build: the freshness line + Sync button ship HIDDEN (shown only wh
   assert.match(scripts.at(-1), /\/api\/sync\/status/, 'freshness.js is the last script');
   assert.doesNotMatch(html, /\/export\/|\/ingest\//, 'the page never names a data endpoint');
 });
+
+// Tablas renders a list section only when it has rows: a plan whose list holds only the "none" option
+// (or nothing) gets no empty accordion. Checked on both builds: the example has rows everywhere; the
+// personal build (only when present, gitignored inputs) may have emptied lists.
+const TABLAS_SECTIONS = [['desayunos', 'acc-desayunos'], ['carboComida', 'acc-carbo-comida'], ['carboCena', 'acc-carbo-cena'], ['anclaje', 'acc-anclaje'], ['postentreno', 'acc-postentreno'], ['fruta', 'acc-fruta'], ['postre', 'acc-postre'], ['verduras', 'acc-verduras'], ['quesos', 'acc-quesos']];
+for (const [mode, dir, lang] of [['example', 'en-example', 'en'], ['personal', 'es-personal', 'es']]) {
+  const file = path.join(WEB_ROOT, '.test-dist', dir, 'index.html');
+  test(`${mode} build: Tablas renders a list section only when it has rows`, { skip: mode === 'personal' && !fs.existsSync(file) && 'no personal build' }, () => {
+    assert.ok(fs.existsSync(file), `missing ${file} — run \`npm run pretest\` first`);
+    const tablasHtml = sliceSection(fs.readFileSync(file, 'utf8'), 'tablas');
+    const { ingredients, plan } = loadInputs({ repoRoot: REPO_ROOT, dataMode: mode });
+    const ref = buildReference(buildNutrition(ingredients, plan), { lang, words: { raw: 'raw', dry: 'dry', cooked: 'cooked', serving: 'serving', unit: 'pc' } });
+    for (const [key, id] of TABLAS_SECTIONS) {
+      assert.equal(tablasHtml.includes(`<details id="${id}">`), ref[key].length > 0, `${id}: rendered iff it has rows (${ref[key].length})`);
+      if (mode === 'example') assert.ok(ref[key].length > 0, `the example plan keeps ${key} populated`);
+    }
+    const protRows = ['lean', 'mod', 'fat'].some((t) => ref.proteina[t].length > 0);
+    assert.equal(tablasHtml.includes('<details id="acc-proteina">'), protRows);
+  });
+}
