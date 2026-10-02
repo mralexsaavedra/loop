@@ -10,6 +10,38 @@
 }
 
 /* ---------- Registrar ---------- */
+/* day navigator: ‹ date › [back to today], one row on a 360 px phone */
+.food-day {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+.food-day-label {
+  min-width: 7.5em;
+  text-align: center;
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.food-day-btn[disabled] {
+  opacity: 0.35;
+  cursor: default;
+}
+.food-day-btn[disabled]:hover {
+  border-color: transparent;
+  color: inherit;
+}
+.food-day-today {
+  margin-left: auto;
+  padding: 0 var(--sp-4);
+}
+.food-day-today[hidden] {
+  display: none;
+}
 .food-sum {
   font-size: var(--fs-sm);
   color: var(--muted);

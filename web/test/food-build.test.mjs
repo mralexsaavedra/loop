@@ -43,6 +43,14 @@ test('the food hosts ship hidden: Registrar in the dia section, Mis productos / 
   }
 });
 
+test('Registrar\'s day navigator ships as static markup: real buttons with labels, next disabled, back to today hidden, a live date label left empty (nothing time-based baked)', () => {
+  const block = html.slice(html.indexOf('id="food-log-block"'), html.indexOf('id="food-log"'));
+  assert.match(block, /<button type="button" class="food-icon-btn food-day-btn" id="food-day-prev" data-food-act="day-prev" aria-label="Previous day">/);
+  assert.match(block, /<button type="button" class="food-icon-btn food-day-btn" id="food-day-next" data-food-act="day-next" aria-label="Next day" disabled>/);
+  assert.match(block, /<span class="food-day-label" id="food-day-label" aria-live="polite"><\/span>/);
+  assert.match(block, /<button type="button" class="food-btn food-btn-ghost food-day-today" id="food-day-today" data-food-act="day-today" hidden>Back to today<\/button>/);
+});
+
 test('copy + constants are baked; food.js is inlined after nutri-day.js and before intake.js', () => {
   assert.match(html, /var I18N_FOOD = \{/);
   assert.match(html, /var FOOD_CONST = \{"meals":\["breakfast","lunch","preworkout","postworkout","dinner","snack"\],"stores":\["mercadona","dia","eroski","other"\],"units":\["g","ml"\],"limits":\{"nameMax":120,/, 'the shared limits are baked too');
