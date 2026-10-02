@@ -155,6 +155,14 @@ build:example` = example/en (tracked seeds + the synthetic demo extract, no pers
 (macros, training program/dashboard, health aggregation) lives in root `lib/*.mjs`, shared by
 the Astro build, `data/nutrition/generate.js`, and the test suite — one source, not three.
 
+- **Inlined client scripts are slimmed.** `web/layouts/Plan.astro` inlines every `web/src/client/*.js`
+  through `web/src/slim-script.mjs` `slimScript` (esbuild `transformSync`; esbuild is declared in package.json at the exact version astro / vite lock:
+  `minifyWhitespace`, `legalComments: 'none'`, `charset: 'utf8'`; NO identifier renaming, NO syntax
+  rewriting, still a classic script). Source files keep their comments; the built page does not
+  (string quotes / number literals may be re-printed, e.g. `'x'` → `"x"`). A test that locates or
+  matches a script in the built HTML compares against `slimScript(source)` or a whitespace / quote
+  tolerant regex, never the raw file. Baked JSON globals are not touched.
+
 - `LOCALE`: env var → `plan.locale` → `en` (the owner's `plan-data.json` sets `locale:"es"`).
 - `DATA_MODE=personal|example`: personal reads the gitignored real files; example reads the
   tracked `.example` seeds plus the tracked, clearly SYNTHETIC demo extract in `data/demo/extract/`
@@ -211,7 +219,7 @@ live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
 
 | Tab (key) | Content, top to bottom |
 | --- | --- |
-| 🏠 Inicio (`home`) | TODAY: Sleep / Recovery / Load dials; health monitor; today's timeline (last night's sleep + the day's workouts); the advice sentence; "today you eat" card (today's day type + goal and target kcal/macros, link to Nutrición); programmed session (`hoy`) |
+| 🏠 Inicio (`home`) | TODAY: Sleep / Recovery / Load dials; the advice sentence; "today you eat" card (today's day type + goal and target kcal/macros, link to Nutrición); health monitor; today's timeline (last night's sleep + the day's workouts); programmed session (`hoy`) |
 | 🏃 Entreno (`entreno`) | per-modality load cards + caveats (`load`: `#score-load`, the detail behind the load dial); 30-day activity calendar + cumulative training time (`calendar`: `#train-activity`); running table, cycling table, load vs recovery (`sessions`: `#health-train`); Entrenamiento dashboard (`dash`) |
 | 💗 Salud (`health`) | recovery (`#hl-recovery`, with the recovery detail card `#score-recovery`, then the recovery trends); sleep (`#hl-sleep`); body composition; daily activity; energy expenditure |
 | 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Registrar (the FOOD LOG, LAN page only), Plan de hoy (a PORTION GUIDE: Desayuno / Comida / Cena + Extras with today's budgets, in a `<details>` fold, collapsed by default), Avituallamiento on bike days — see "Nutrition v2" and "Nutrition v2 part 2" below); Mis productos + Mis recetas (collapsible, LAN page only, no section key: rendered with `dia`); Tablas (`tablas`, collapsible: FIXED reference values per natural unit, never portions — see "Tablas = fixed reference values" below) — there is no train/rest toggle: Resumen de hoy's day type is the one selector. The former Constructor de día / Day builder (`registro`) was removed: the food log replaces it |
@@ -1234,7 +1242,13 @@ pure functions (`aggBody`/`aggActivity`/`aggEnergy`/`aggRunning`/`aggRecovery` +
 personal (`LOCALE=es`) build is localized to Spanish (es-ES dates, comma decimals); the example
 (`LOCALE=en`, `web/src/i18n/en.mjs` + `*-templates.mjs` en dicts) build is English.
 
-## Home tab — "Inicio / Home" dials, health monitor, timeline; recovery + load detail
+## Home tab — "Inicio / Home" dials, advice, eat card, health monitor, timeline; recovery + load detail
+
+Top to bottom (`web/src/tabs/Home.astro`, which also renders `components/EatCard.astro`): dials
+(`#home-dials`) → the advice sentence (`#home-advice`) → the "today you eat" card → the health monitor
+(`#monitor`) → today's timeline (`#timeline`) → the programmed session (`hoy`). The conclusion and
+today's eating sit right under the dials; the per-signal detail follows (`web/test/content.test.mjs`
+pins the order).
 
 `lib/score/*` (same single-source pattern) feeds the first tab; `web/src/client/score.js` renders it
 (dials + advice on Inicio; the recovery card into Salud's `#score-recovery` and the per-modality load
@@ -1298,7 +1312,7 @@ is the newest day, and the trend is the line under it.
   without RE), and `last` = the newest day with RE > 0. The VIEWER's today is picked client-side from
   `recent`, so nothing today-relative is baked.
 - **Health monitor** (`lib/score/monitor.mjs`, baked as `SCORES.monitor` even when `hasData` is false;
-  `components/HealthMonitor.astro` + `client/monitor.js`, under the dials): cards for respiratory
+  `components/HealthMonitor.astro` + `client/monitor.js`, under the dials, advice and eat card): cards for respiratory
   rate, resting HR, HRV, sleeping wrist temperature and sleep duration. Each = the newest daily value
   (per-day median of plausibility-clamped samples) + unit, its date when it is not from the viewer's
   today, and Normal / High / Low (es: Normal / Alto / Bajo) vs a personal band = median ± 1.5 × scaled

@@ -21,6 +21,7 @@
     "sync:profile": "node data/profile/sync-profile.js"
   },
   "dependencies": {
-    "astro": "7.3.5"
+    "astro": "7.3.5",
+    "esbuild": "0.28.2"
   }
 }
