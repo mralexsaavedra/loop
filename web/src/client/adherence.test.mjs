@@ -29,6 +29,14 @@ function fixedDate(iso) {
 }
 function setup({ days = [], fail = false, locale = 'en', targetFor, food = true } = {}) {
   const doc = new StubDocument();
+  const docListeners = {};
+  doc.addEventListener = (t, fn) => { (docListeners[t] = docListeners[t] || []).push(fn); };
+  doc.hidden = false;
+  // a controllable clock for the debounced reload: tick() runs what is due
+  const timers = [];
+  const setTimeout = (fn, ms) => { timers.push({ fn, ms }); return timers.length; };
+  const clearTimeout = (id) => { if (timers[id - 1]) timers[id - 1].fn = null; };
+  const tick = () => { const due = timers.splice(0); due.forEach((x) => x.fn && x.fn()); return due.filter((x) => x.fn).map((x) => x.ms); };
   const els = { block: doc.el('food-adherence-block', { hidden: true }), host: doc.el('food-adherence'), win: doc.el('adh-window') };
   const radios = ADHERENCE.windows.map((w) => doc.el(null, { tag: 'input', attrs: { name: 'adh-win', value: String(w) } }));
   const calls = [];
@@ -44,13 +52,14 @@ function setup({ days = [], fail = false, locale = 'en', targetFor, food = true 
   }
   const ctx = {
     document: doc, window, LOCALE: locale, NUTRI: { goal: 'maintain', adherence: ADHERENCE }, I18N_NUTRI: locale === 'es' ? esN : enN,
-    Date: fixedDate(TODAY), Math, JSON, Number, String, Object, Array, Promise, isFinite,
+    Date: fixedDate(TODAY), Math, JSON, Number, String, Object, Array, Promise, isFinite, setTimeout, clearTimeout,
   };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
   const fire = (el, evt, target) => (el._listeners[evt] || []).forEach((fn) => fn({ target }));
-  return { els, radios, calls, shown, window, fire, A: window.HCAdherence };
+  const visible = () => (docListeners.visibilitychange || []).forEach((fn) => fn({}));
+  return { els, radios, calls, shown, window, fire, tick, visible, A: window.HCAdherence, ctx };
 }
 const cellTarget = (date) => ({ closest: (sel) => (sel === '[data-adh-day]' ? { getAttribute: () => date } : null) });
 
@@ -88,7 +97,7 @@ test('reads the last 28 days ending at the viewer\'s today and shows logged / co
   const h = text(t.els.host.innerHTML);
   assert.match(h, /Days logged 5 of 7/);
   assert.match(h, /Complete days 4 of 7/);
-  assert.match(h, /Mean kcal 2,488 target 2,500 kcal · 100 %/);
+  assert.match(h, /Mean kcal 2488 target 2500 kcal · 100 %/);
   assert.match(h, /Days with protein ≥ 90 % 2 of 4 compared/);
   assert.match(h, /its total counts as a minimum/);
   assert.match(h, /Days without any protein data \(not counted as met\): 1\./);
@@ -105,7 +114,7 @@ test('the 7 / 14 / 28-day switch changes the window; a complete day without a da
   const h = text(t.els.host.innerHTML);
   assert.match(h, /Complete days 2 of 14/);
   assert.match(h, /Complete days without a known day type, left out of the comparison: 1\./);
-  assert.match(h, /Mean kcal 3,500/);
+  assert.match(h, /Mean kcal 3500/);
   assert.equal(t.radios[1].checked, true);
   t.fire(t.els.win, 'change', { value: '99' });
   assert.match(text(t.els.host.innerHTML), /of 14/, 'an unknown window is ignored');
@@ -130,10 +139,16 @@ test('reload after an add / delete re-reads the summary; a failed re-read shows 
   await flush();
   assert.match(text(t.els.host.innerHTML), /Days logged 0 of 7/);
   t.A.reload();
+  t.A.reload();
+  t.A.reload();
+  assert.equal(t.calls.length, 1, 'debounced: nothing read yet');
+  assert.deepEqual(t.tick(), [300], 'one read after 300 ms (NUTRI.adherence.reloadMs), not three');
   await flush();
+  assert.equal(t.calls.length, 2);
   assert.match(text(t.els.host.innerHTML), /Days logged 1 of 7/);
   t.window.HCFood.api = () => Promise.reject({ code: 'offline' });
   t.A.reload();
+  t.tick();
   await flush();
   assert.match(text(t.els.host.innerHTML), /The log summary could not be read\. Retry/);
 });
@@ -149,6 +164,33 @@ test('es: Spanish copy and thousands with a dot', async () => {
   await flush();
   const h = text(t.els.host.innerHTML);
   assert.match(h, /Días completos 2 de 7/);
-  assert.match(h, /Media de kcal 2\.500 objetivo 2\.500 kcal · 100 %/);
+  assert.match(h, /Media de kcal 2500 objetivo 2500 kcal · 100 %/);
   assert.match(h, /Completo = al menos una entrada en Desayuno, Comida y Cena/);
+});
+
+test('an ASSUMED rest day (sleep only, no session) is labelled in the strip and left out of the means, counted apart', async () => {
+  const t = setup({
+    days: [day('2030-01-27', 1500, 80), day('2030-01-28', 2500, 150)],
+    targetFor: (d) => (d === '2030-01-27' ? { k: 2500, p: 150, inferred: true } : { k: 2500, p: 150 }),
+  });
+  await flush();
+  const h = text(t.els.host.innerHTML);
+  assert.match(h, /Complete days 2 of 7/);
+  assert.match(h, /Mean kcal 2500 target 2500 kcal · 100 %/, 'only the day with a detected type');
+  assert.match(h, /Days with protein ≥ 90 % 1 of 1 compared/);
+  assert.match(h, /Assumed rest days \(sleep only, no session\), left out of the comparison: 1\./);
+  assert.match(t.els.host.innerHTML, /class="adh-cell adh-assumed" data-adh-day="2030-01-27" aria-label="Sun 27 Jan: complete, assumed rest day\. Open in the log"/);
+  assert.match(h, /Assumed rest/, 'in the legend');
+});
+
+test('back on the page on another day (core.js waits while busy): the window is re-read so the strip ends at today', async () => {
+  const t = setup({ days: [] });
+  await flush();
+  t.visible();
+  assert.equal(t.calls.length, 1, 'same day: nothing to do');
+  t.ctx.Date = fixedDate('2030-01-29');
+  t.visible();
+  await flush();
+  assert.deepEqual(t.calls.at(-1), 'GET /log/summary?from=2030-01-02&to=2030-01-29');
+  assert.match(t.els.host.innerHTML, /data-adh-day="2030-01-29"/);
 });

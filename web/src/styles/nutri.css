@@ -881,6 +881,12 @@
   background: var(--surface-2);
   color: var(--trend);
 }
+/* a rest day assumed from sleep alone: shown, never compared */
+.adh-assumed {
+  border-style: dotted;
+  border-color: var(--trend);
+  color: var(--muted);
+}
 .adh-on {
   border-color: var(--good);
   color: var(--good);
