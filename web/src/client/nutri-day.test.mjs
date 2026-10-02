@@ -13,7 +13,7 @@ import { es as esN, en as enN } from '../i18n/nutri-templates.mjs';
 import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 import { buildNutrition } from '../../../lib/nutrition/macros.mjs';
 import { buildNutriToday } from '../../../lib/nutrition/today.mjs';
-import { DAYTYPE_CASES } from '../../../lib/nutrition/daytype.mjs';
+import { DAYTYPE_CASES, DAYINPUT_CASES } from '../../../lib/nutrition/daytype.mjs';
 import { fuelPlan } from '../../../lib/nutrition/fuel.mjs';
 import { planFor, solveScale } from '../../../lib/nutrition/scale.mjs';
 import { lineCap } from '../../../lib/nutrition/amounts.mjs';
@@ -359,6 +359,65 @@ test('HCNutri.targetFor: a day with only sleep is rest, a programmed-only day us
   assert.equal(s.api.targetFor(YDAY).k, 2500);
   assert.equal(s.api.targetFor('2030-01-08').dayType, 'gym', 'no timeline row, but a programmed session');
   assert.deepEqual(plain(s.api.targetFor(TODAY)), plain(s.window.nutriTarget()));
+});
+
+test('dayInputFor port agrees with lib/nutrition/daytype.mjs on every shared case', () => {
+  const { api } = run();
+  for (const c of DAYINPUT_CASES) assert.deepEqual(plain(api.dayInputFor(c.date, c.data)), c.expect, c.date);
+});
+
+test('HCNutri.targetFor beyond the 3 timeline days: DETAIL.sessions give the day type, a sleep reading makes it a known rest day', () => {
+  const DETAIL = {
+    asOf: TODAY,
+    metrics: { sleep: { kind: 'sleep', start: '2030-01-01', v: [7, 7, 7, null, 7, 7, 7, 7, 7, 7] } },
+    sessions: [{ d: '2030-01-02', m: 'bike', min: 170, km: 62 }, { d: '2030-01-03', m: 'gym', min: 55 }, { d: '2030-01-04', m: 'other', min: 25 }],
+  };
+  const s = run({ extra: { ...pastCtx([{ date: TODAY, sleep: 7.5, items: [] }]), DETAIL } });
+  const ride = s.api.targetFor('2030-01-02');
+  assert.equal(ride.dayType, 'bikeLong');
+  assert.equal(ride.k, planFor(bake(), 'maintain', 'bikeLong', 170).mt.k, 'its recorded minutes');
+  assert.equal(s.api.targetFor('2030-01-03').dayType, 'gym');
+  assert.equal(s.api.targetFor('2030-01-04').dayType, 'rest', 'no sleep reading, but a short walk was recorded: the Watch was worn, a rest day');
+  assert.equal(run({ extra: { ...pastCtx([]), DETAIL: { ...DETAIL, sessions: [] } } }).api.targetFor('2030-01-04'), null, 'nothing recorded that day: unknown');
+  assert.equal(s.api.targetFor('2030-01-05').dayType, 'rest', 'slept with the Watch, no session');
+  assert.equal(s.api.targetFor('2029-12-20'), null, 'before every series');
+});
+
+test('applyGoal (the server goal) is applied and cached without calling the settings API; setGoal also saves it there when the API answered', () => {
+  const saved = [];
+  const settings = { ready: () => true, saveGoal: (g) => { saved.push(g); return Promise.resolve(); } };
+  const s = run({ hooks: { HCSettings: settings, intakeRefresh: () => {} } });
+  assert.equal(s.api.applyGoal('cut'), true);
+  assert.equal(s.api.state().goal, 'cut');
+  assert.equal(s.storage.data['hc.nutri.goal'], 'cut', 'the local copy is the offline cache');
+  assert.deepEqual(saved, [], 'a server goal is never sent back');
+  assert.equal(s.api.applyGoal('shred'), false);
+  s.api.setGoal('bulk');
+  assert.deepEqual(saved, ['bulk']);
+  // the API not ready (artifact, example build): local only, exactly as before
+  const off = run({ hooks: { HCSettings: { ready: () => false, saveGoal: () => saved.push('x') }, intakeRefresh: () => {} } });
+  off.api.setGoal('cut');
+  assert.deepEqual(saved, ['bulk']);
+  assert.equal(off.storage.data['hc.nutri.goal'], 'cut');
+  // a throwing settings client never breaks the local goal
+  const bad = run({ hooks: { HCSettings: { ready: () => true, saveGoal: () => { throw new Error('x'); } }, intakeRefresh: () => {} } });
+  assert.equal(bad.api.setGoal('cut'), true);
+  assert.equal(bad.api.state().goal, 'cut');
+});
+
+test('storedGoal: the goal this viewer stored, else null (the plan default is not "stored")', () => {
+  assert.equal(run().api.storedGoal(), null);
+  assert.equal(run({ storage: memStorage({ 'hc.nutri.goal': 'bulk' }) }).api.storedGoal(), 'bulk');
+  assert.equal(run({ storage: memStorage({ 'hc.nutri.goal': 'shred' }) }).api.storedGoal(), null);
+});
+
+test('a refresh (goal / day type change) re-renders Progreso and Constancia when they are loaded', () => {
+  const renders = [];
+  const s = run({ hooks: { intakeRefresh: () => {}, HCProgress: { render: () => renders.push('p') }, HCAdherence: { render: () => { renders.push('a'); throw new Error('boom'); } } } });
+  renders.length = 0;
+  s.api.setGoal('cut');
+  assert.deepEqual(renders, ['p', 'a']);
+  assert.equal(s.api.state().goal, 'cut', 'a throwing block never stops the refresh');
 });
 
 test('HCNutri.targetFor: unknown day type -> null (no timeline row, no programme), never a guess; a future or bad date -> null', () => {

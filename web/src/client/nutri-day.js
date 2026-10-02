@@ -14,7 +14,8 @@
  *   more demanding one (planning a ride) stays. Storage is a per-viewer convenience: every access is
  *   wrapped and the page works without it.
  * - Goal: set in the profile sheet (client/profile.js, "Objetivo") through window.HCNutri.setGoal, kept
- *   in localStorage (hc.nutri.goal, falling back to page.goal). Resumen de hoy shows it only as a small
+ *   in localStorage (hc.nutri.goal, falling back to page.goal); on the LAN page also on the server
+ *   (client/settings.js: the server copy wins on load via HCNutri.applyGoal, the local one is the cache). Resumen de hoy shows it only as a small
  *   chip next to today's kcal; a tap opens the profile sheet (#profile) focused on that setting.
  * - Plan: planFor / solveScale port lib/nutrition/scale.mjs over the baked models (parity test): the
  *   meals aim at target − ride fuel for the ride's minutes (a recorded ride's real minutes, else the
@@ -32,8 +33,9 @@
  * - Today's target is the ONE source for the rest of Nutrición: window.nutriTarget() hands the intake
  *   rings (client/intake.js) the MEALS target (on bike days the day target minus the ride fuel, with
  *   the fuel as its own figure), and every goal / day type / duration change refreshes them directly.
- *   HCNutri.targetFor(date) = the same for an earlier logged day: THAT day's detected type (timeline +
- *   programme, its recorded ride minutes) x the current goal, null when the type cannot be determined.
+ *   HCNutri.targetFor(date) = the same for an earlier logged day: THAT day's detected type (timeline,
+ *   else DETAIL.sessions, + programme; its recorded ride minutes) x the current goal, null when the
+ *   type cannot be determined (no session, no sleep reading, nothing programmed).
  * - Model lines are read through LINE + the accessors (mirrors of lib/nutrition/amounts.mjs), never a bare index.
  * - Logged intake: the dial + bars fill from today's page food log (window.foodTotals, client/food.js,
  *   LAN page only) when it has entries, else from the Apple Health day (INTAKE); HCNutri.refresh() is
@@ -110,17 +112,36 @@
     if (plan) return { type: plan, why: 'programmed', rideMin: null };
     return { type: 'rest', why: 'none', rideMin: null };
   }
-  // a date's workouts (SCORES.timeline, the last 3 data days) + its programmed session; `known` =
-  // the date has a timeline row (sleep or workouts were recorded) or a programmed session, so its
-  // day type rests on data — a date with neither cannot be told from a day without the Watch
+  // a date's detection input (port of lib/nutrition/daytype.mjs dayInputFor): the timeline (SCORES,
+  // the last 3 data days) wins its dates; any other date takes its workouts from DETAIL.sessions (one
+  // per date + modality, minutes) + its programmed session (TRAINING); `known` = a timeline row, a
+  // session, a sleep reading (the Watch was worn) or a programmed session, so its day type rests on
+  // data — a date with none of them cannot be told from a day without the Watch
+  function hasValue(m, date) {
+    if (!m || !HC.isoDate(m.start) || !Array.isArray(m.v)) return false;
+    var i = Math.round((HC.parseIso(date) - HC.parseIso(m.start)) / HC.MS_PER_DAY);
+    var v = i >= 0 && i < m.v.length ? m.v[i] : null;
+    return typeof v === 'number' && isFinite(v);
+  }
+  function dayInputFor(date, data) {
+    var o = data || {};
+    var programmed = (o.training && o.training[date]) || null;
+    var row = null;
+    (Array.isArray(o.timeline) ? o.timeline : []).forEach(function (d) { if (!row && d && d.date === date) row = d; });
+    if (row) return { items: Array.isArray(row.items) ? row.items : [], programmed: programmed, known: true };
+    var items = (Array.isArray(o.sessions) ? o.sessions : []).filter(function (x) { return x && x.d === date; })
+      .map(function (x) { return { modality: x.m, dur: x.min }; });
+    return { items: items, programmed: programmed, known: items.length > 0 || hasValue(o.sleep, date) || !!programmed };
+  }
   function dayInput(date) {
     var S = typeof SCORES === 'undefined' ? null : SCORES;
-    var days = S && S.timeline && S.timeline.days ? S.timeline.days : [];
-    var items = [], row = false;
-    days.forEach(function (d) { if (d && d.date === date) { items = d.items || []; row = true; } });
-    var TR = typeof TRAINING === 'undefined' || !TRAINING ? {} : TRAINING;
-    var programmed = TR[date] || null;
-    return { items: items, programmed: programmed, known: row || !!programmed };
+    var D = typeof DETAIL === 'undefined' || !DETAIL ? null : DETAIL;
+    return dayInputFor(date, {
+      timeline: S && S.timeline && S.timeline.days ? S.timeline.days : [],
+      sessions: D && Array.isArray(D.sessions) ? D.sessions : [],
+      sleep: D && D.metrics ? D.metrics.sleep : null,
+      training: typeof TRAINING === 'undefined' || !TRAINING ? {} : TRAINING,
+    });
   }
 
   /* ---------- fuelling (port of lib/nutrition/fuel.mjs) ---------- */
@@ -762,6 +783,11 @@
     renderFuel(picker !== false);
     guard($('eat-body'), renderEat);
     refreshDependents();
+    // Progreso and Constancia read the goal (client/progress.js, client/adherence.js; absent before load)
+    ['HCProgress', 'HCAdherence'].forEach(function (k) {
+      var v = window[k];
+      if (v && typeof v.render === 'function') { try { v.render(); } catch (e) { /* each block guards its own host */ } }
+    });
   }
 
   /* ---------- events ---------- */
@@ -769,13 +795,28 @@
     var el = $(id);
     if (el && el.addEventListener) el.addEventListener(evt, fn);
   }
-  // the goal is changed from the profile sheet (client/profile.js); false = not a known goal
-  function setGoal(v) {
+  // the goal is changed from the profile sheet (client/profile.js); false = not a known goal. With the
+  // settings API (client/settings.js, LAN page) the server copy is the source of truth: the goal is
+  // saved there too, and hc.nutri.goal stays the offline cache / fallback
+  function applyGoal(v) {
     if (N.goals.indexOf(v) < 0) return false;
     state.goal = v;
     save(KEY_GOAL, v);
     refresh();
     return true;
+  }
+  function setGoal(v) {
+    if (!applyGoal(v)) return false;
+    var S = window.HCSettings;
+    if (S && typeof S.ready === 'function' && S.ready() && typeof S.saveGoal === 'function') {
+      try { S.saveGoal(v); } catch (e) { /* the local goal already applies; settings.js reports failures */ }
+    }
+    return true;
+  }
+  // the goal this viewer stored (hc.nutri.goal), or null: settings.js pushes it once to a server that has none
+  function storedGoal() {
+    var g = load(KEY_GOAL);
+    return N.goals.indexOf(g) >= 0 ? g : null;
   }
   on('nutri-target', 'click', function (e) {
     var t = e && e.target;
@@ -877,6 +918,10 @@
   }
   window.HCNutri = {
     setGoal: setGoal,
+    // the server's goal (client/settings.js): applied and cached locally, never sent back
+    applyGoal: applyGoal,
+    storedGoal: storedGoal,
+    dayInputFor: dayInputFor,
     // the food log (client/food.js) calls this after every add / delete: the dial, bars, rings and guide
     refresh: function () { refresh(false); },
     detectDayType: detectDayType,
