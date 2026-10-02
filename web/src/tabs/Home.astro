@@ -1,7 +1,7 @@
 ---
 /* "Inicio / Home" = today, at a glance (Whoop-style): Sleep/Recovery/Load dials (#home-dials), the
  * health monitor right under them, today's timeline (#timeline: last night's sleep + the day's
- * workouts, client/timeline.js), then the advice sentence (#home). The detail behind each dial
+ * workouts, client/timeline.js), then the advice sentence (#home-advice). The detail behind each dial
  * lives in another tab (recovery card -> Salud, load cards -> Entreno) and a tap on the dial opens
  * it. Client-rendered by web/src/client/score.js (dials + advice) and web/src/client/monitor.js
  * (monitor) from SCORES baked by <Bake> (the shared Bake in web/pages/index.astro).
@@ -13,4 +13,4 @@ import HealthMonitor from '../components/HealthMonitor.astro';
 <div id="home-dials"></div>
 <HealthMonitor />
 <div id="timeline"></div>
-<div id="home"></div>
+<div id="home-advice"></div>
