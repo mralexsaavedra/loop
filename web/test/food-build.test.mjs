@@ -43,12 +43,13 @@ test('the food hosts ship hidden: Registrar in the dia section, Mis productos / 
   }
 });
 
-test('Registrar\'s day navigator ships as static markup: real buttons with labels, next disabled, back to today hidden, a live date label left empty (nothing time-based baked)', () => {
+test('Registrar\'s day navigator ships as static markup on the heading line: real buttons with labels, next disabled, back to today hidden, a live date label left empty (nothing time-based baked)', () => {
   const block = html.slice(html.indexOf('id="food-log-block"'), html.indexOf('id="food-log"'));
   assert.match(block, /<button type="button" class="food-icon-btn food-day-btn" id="food-day-prev" data-food-act="day-prev" aria-label="Previous day">/);
   assert.match(block, /<button type="button" class="food-icon-btn food-day-btn" id="food-day-next" data-food-act="day-next" aria-label="Next day" disabled>/);
   assert.match(block, /<span class="food-day-label" id="food-day-label" aria-live="polite"><\/span>/);
-  assert.match(block, /<button type="button" class="food-btn food-btn-ghost food-day-today" id="food-day-today" data-food-act="day-today" hidden>Back to today<\/button>/);
+  assert.match(block, /<button type="button" class="food-btn food-btn-ghost food-day-today" id="food-day-today" data-food-act="day-today" aria-label="Back to today" hidden>Today<\/button>/, 'a short visible label, the full action as its name');
+  assert.match(block, /<div class="food-head"> <h2>Log food<\/h2> <div class="food-day" role="group" aria-label="Log day">/, 'the title and the navigator share one row');
 });
 
 test('copy + constants are baked; food.js is inlined after nutri-day.js and before intake.js', () => {
