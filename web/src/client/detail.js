@@ -120,6 +120,15 @@
     if (age > HC.STALE_DAYS) return { end: asOf, stale: true };
     return { end: age < 0 ? asOf : today, stale: false };
   }
+  // the dashed target line: a baked target (sleep), else the owner's target weight on the weight view
+  // (client/settings.js, LAN page only; nothing without it)
+  function targetOf(key, m) {
+    if (m.target != null) return m.target;
+    if (key !== 'weight') return null;
+    var S = typeof window !== 'undefined' ? window.HCSettings : null;
+    var v = S && typeof S.ready === 'function' && S.ready() && typeof S.targetWeight === 'function' ? S.targetWeight() : null;
+    return typeof v === 'number' && isFinite(v) ? v : null;
+  }
   function roll7(m, iso) {
     var s = 0, n = 0;
     for (var k = 0; k < ROLL_DAYS; k++) {
@@ -195,7 +204,8 @@
     var B = T.bands, u = unitOf(key), d = Math.min(m.dec + 1, 2);
     var fill = function (b, dec) { return { lo: fmt(b.lo, dec), hi: fmt(b.hi, dec), median: fmt(b.median, dec), unit: u }; };
     var out = [];
-    if (m.kind === 'sleep' && m.target != null) out.push(format(B.target, { value: fmt(m.target, 1), unit: u }));
+    var tg = targetOf(key, m);
+    if ((m.kind === 'sleep' || key === 'weight') && tg != null) out.push(format(B.target, { value: fmt(tg, 1), unit: u }));
     if ((m.kind === 'signal' || m.kind === 'sleep') && m.band) out.push(format(B.monitor, fill(m.band, d)));
     if (m.kind === 'total' && m.band) out.push(format(B.iqr, fill(m.band, m.dec)));
     if (m.kind === 'load') out.push(m.typical != null ? format(B.typical, { value: fmt(m.typical, 0) }) : B.noTypical);
@@ -331,8 +341,9 @@
     // the recovery zone is the 7-day TREND band (the line); the daily points carry the day band
     var zc = m.kind === 'recovery' ? (m.cutTrend != null ? m.cutTrend : m.cut) : null;
     var ext = vals.concat(line.filter(function (x) { return x != null; }));
+    var tg = targetOf(key, m);
     if (m.band) ext.push(m.band.lo, m.band.hi);
-    if (m.target != null) ext.push(m.target);
+    if (tg != null) ext.push(tg);
     if (m.typical != null) ext.push(m.typical);
     if (zc != null) ext.push(zc, -zc);
     var lo = bars ? 0 : Math.min.apply(null, ext.length ? ext : [0]);
@@ -348,7 +359,7 @@
     var zone = function (a, b) { out.push('<rect class="dt-band" x="0" width="' + CW + '" y="' + f(y(b)) + '" height="' + f(Math.max(0, y(a) - y(b))) + '"/>'); };
     if (zc != null) { zone(-zc, zc); hline('dt-med', 0); }
     else if (m.band) { zone(m.band.lo, m.band.hi); hline('dt-med', m.band.median); }
-    if (m.target != null) hline('dt-target', m.target);
+    if (tg != null) hline('dt-target', tg);
     if (m.typical != null) hline('dt-target', m.typical);
     // the selected day's slot: always drawn (hidden outside the range) so a day tap only moves it
     state.geo = { from: from, n: n, slot: slot };
@@ -379,7 +390,7 @@
     if (line.some(function (v) { return v != null; })) key2.push('<span class="dt-k dt-k-line">' + esc(T.chartKey.roll7) + '</span>');
     if (m.kind === 'recovery') key2.push('<span class="dt-k dt-k-band">' + esc(T.chartKey.baseline) + '</span>');
     else if (m.band) key2.push('<span class="dt-k dt-k-band">' + esc(T.chartKey.band) + '</span>');
-    if (m.target != null) key2.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.target) + '</span>');
+    if (tg != null) key2.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.target) + '</span>');
     if (m.typical != null) key2.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.typical) + '</span>');
     return '<figure class="dt-fig">' + out.join('') +
       '<div class="dt-ax"><span>' + esc(HC.fmtDate(from)) + '</span><span>' + esc(HC.fmtDate(to)) + '</span></div>' +
