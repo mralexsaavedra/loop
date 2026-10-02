@@ -412,7 +412,7 @@
   }
 }
 
-/* Health monitor (Inicio, under the dials): latest overnight signals vs the personal band.
+/* Health monitor (Inicio, under the dials, advice and eat card): latest overnight signals vs the personal band.
  * --hm-c is the tone colour: good / bad (--low) / watch (--mid, change signals) / normal (--trend). */
 #home-dials,
 #monitor {

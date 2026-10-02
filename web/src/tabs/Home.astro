@@ -1,16 +1,25 @@
 ---
-/* "Inicio / Home" = today, at a glance (Whoop-style): Sleep/Recovery/Load dials (#home-dials), the
- * health monitor right under them, today's timeline (#timeline: last night's sleep + the day's
- * workouts, client/timeline.js), then the advice sentence (#home-advice). The detail behind each dial
- * lives in another tab (recovery card -> Salud, load cards -> Entreno) and a tap on the dial opens
- * it. Client-rendered by web/src/client/score.js (dials + advice) and web/src/client/monitor.js
- * (monitor) from SCORES baked by <Bake> (the shared Bake in web/pages/index.astro).
- * Rendered inside the `home` tab panel (web/pages/index.astro), above the nutrition card and the
- * programmed-session section.
+/* "Inicio / Home" = today, at a glance (Whoop-style), top to bottom: Sleep/Recovery/Load dials
+ * (#home-dials), the advice sentence that concludes them (#home-advice), the "today you eat" card
+ * (components/EatCard.astro), then the health monitor and today's timeline (#timeline: last night's
+ * sleep + the day's workouts, client/timeline.js). The detail behind each dial lives in another tab
+ * (recovery card -> Salud, load cards -> Entreno) and a tap on the dial opens it. Client-rendered by
+ * web/src/client/score.js (dials + advice), client/nutri-day.js (eat card) and client/monitor.js
+ * (monitor) from the globals baked by <Bake> (the shared Bake in web/pages/index.astro) and Dia's NUTRI.
+ * Rendered inside the `home` tab panel (web/pages/index.astro), above the programmed-session section.
  */
 import HealthMonitor from '../components/HealthMonitor.astro';
+import EatCard from '../components/EatCard.astro';
+
+interface Props {
+  locale: string;
+  eatLink: boolean; // the eat card links to Nutrición only when that tab is visible
+}
+
+const { locale, eatLink } = Astro.props;
 ---
 <div id="home-dials"></div>
+<div id="home-advice"></div>
+<EatCard locale={locale} link={eatLink} />
 <HealthMonitor />
 <div id="timeline"></div>
-<div id="home-advice"></div>

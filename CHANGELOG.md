@@ -4,6 +4,20 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-02 — web: slimmer inlined scripts; advice and today's eating first on Inicio
+
+- **Inlined client scripts lose their comments** — `web/layouts/Plan.astro` now inlines every
+  `web/src/client/*.js` through `web/src/slim-script.mjs` `slimScript` (esbuild `transformSync`, the
+  copy astro / vite already install, so no new dependency): whitespace and every comment out,
+  identifiers and syntax untouched, still classic scripts. Example page: 539,126 → 425,229 bytes raw
+  (−21 %), 149,988 → 116,931 gzip (−22 %); inline script 416 → 302 KB. Sources keep their comments.
+  Build-output tests that located a script by slicing its raw source now compare against
+  `slimScript(source)` (the WHOLE script, a stronger check than its first 200 characters); regexes over
+  built code tolerate the re-printed quotes / whitespace. Builds stay byte-identical.
+- **Inicio order** — dials → advice sentence → "today you eat" card → health monitor → timeline →
+  programmed session (was dials → monitor → timeline → advice → eat card). `Home.astro` now renders
+  the eat card itself; ids, openers and the monitor's sleep card are unchanged.
+
 ## 2026-10-02 — web: past-day intake target, one date format, one recovery unit
 
 Three consistency fixes from an audit of the page, each pinned by tests.
