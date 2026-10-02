@@ -16,6 +16,10 @@ export const es = {
   dayTotal: 'Registrado hoy',
   missingNote: 'Alguna entrada no tiene todos los macros: esos totales son un mínimo.',
   empty: 'Nada registrado todavía hoy.',
+  dayTotalPast: 'Total del día',
+  emptyPast: 'Nada registrado ese día.',
+  // the day navigator at the top of Registrar (the page always opens on today)
+  day: { today: 'Hoy', prev: 'Día anterior', next: 'Día siguiente', back: 'Volver a hoy', loading: 'Cargando…', navLabel: 'Día del registro' },
   add: 'Añadir',
   addAria: 'Añadir a {meal}',
   delAria: 'Borrar {label}',
@@ -23,6 +27,7 @@ export const es = {
   deleted: 'Borrado: {label}.',
   sheet: {
     title: 'Añadir comida',
+    titleDate: 'Añadir comida · {date}',
     meal: 'Comida del día',
     tabsLabel: 'Origen',
     tabs: { products: 'Mis productos', recipes: 'Mis recetas', quick: 'Rápido' },
@@ -188,6 +193,10 @@ export const en = {
   dayTotal: 'Logged today',
   missingNote: 'Some entries lack macros: those totals are a minimum.',
   empty: 'Nothing logged yet today.',
+  dayTotalPast: 'Day total',
+  emptyPast: 'Nothing logged that day.',
+  // the day navigator at the top of Registrar (the page always opens on today)
+  day: { today: 'Today', prev: 'Previous day', next: 'Next day', back: 'Back to today', loading: 'Loading…', navLabel: 'Log day' },
   add: 'Add',
   addAria: 'Add to {meal}',
   delAria: 'Delete {label}',
@@ -195,6 +204,7 @@ export const en = {
   deleted: 'Deleted: {label}.',
   sheet: {
     title: 'Add food',
+    titleDate: 'Add food · {date}',
     meal: 'Meal',
     tabsLabel: 'Source',
     tabs: { products: 'My products', recipes: 'My recipes', quick: 'Quick' },
