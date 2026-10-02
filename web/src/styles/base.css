@@ -183,6 +183,16 @@ footer {
   padding-top: var(--sp-5);
 }
 
+/* phones / tablets: iOS Safari zooms into any focused field whose text is under 16px, and stays
+   zoomed. Every text input, select and textarea gets --fs-input there; :is() gives the whole list the
+   specificity of its first argument (0,2,1), above every form-control class rule (.food-in,
+   .gd-pick, .fuel-select, .food-in-wrap .food-in), as web/test/mobile.test.mjs checks. */
+@media (max-width: 899px) {
+  :is(input:not([type="radio"]):not([type="checkbox"]), select, textarea) {
+    font-size: var(--fs-input);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
