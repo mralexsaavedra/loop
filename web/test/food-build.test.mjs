@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { slimScript } from '../src/slim-script.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
@@ -15,6 +16,8 @@ const html = fs.existsSync(htmlPath) ? fs.readFileSync(htmlPath, 'utf8') : '';
 const food = fs.readFileSync(path.join(WEB_ROOT, 'src', 'client', 'food.js'), 'utf8');
 const nutriDay = fs.readFileSync(path.join(WEB_ROOT, 'src', 'client', 'nutri-day.js'), 'utf8');
 const intake = fs.readFileSync(path.join(WEB_ROOT, 'src', 'client', 'intake.js'), 'utf8');
+// where a client script sits in the built page: the WHOLE script as the build inlines it (slimScript)
+const inlinedAt = (src) => html.indexOf(slimScript(src));
 
 test('the food hosts ship hidden: Registrar in the dia section, Mis productos / Mis recetas as folds before Tablas', () => {
   assert.ok(html, `missing ${htmlPath}: run npm run pretest`);
@@ -56,8 +59,8 @@ test('copy + constants are baked; food.js is inlined after nutri-day.js and befo
   assert.match(html, /var I18N_FOOD = \{/);
   assert.match(html, /var FOOD_CONST = \{"meals":\["breakfast","lunch","preworkout","postworkout","dinner","snack"\],"stores":\["mercadona","dia","eroski","other"\],"units":\["g","ml"\],"limits":\{"nameMax":120,/, 'the shared limits are baked too');
   assert.match(html, /"groups":\["breakfast","lunch","dinner","addon"\],"mainSlots":\["breakfast","lunch","dinner"\],"addonGroup":"addon","addonSlot":"snack"\}/, 'Registrar\'s four groups come baked from lib/nutrition/slots.mjs');
-  const at = (src) => html.indexOf(src.slice(0, 200));
-  assert.ok(at(nutriDay) > 0 && at(food) > 0 && at(intake) > 0, 'all three scripts inlined verbatim');
+  const at = inlinedAt;
+  assert.ok(at(nutriDay) > 0 && at(food) > 0 && at(intake) > 0, 'all three scripts inlined whole (as slimScript emits them)');
   assert.ok(at(nutriDay) < at(food) && at(food) < at(intake));
 });
 
@@ -71,8 +74,8 @@ test('the public basics are baked once as FOOD_BASICS, localized, compact (lib/n
   // 24 KB: ~188 basics (the 2026-10-02 Spanish basics took it to ~20 KB, ~105 B per food); still a small
   // share of the single-file page, and the budget keeps an eye on per-food growth (new baked fields).
   assert.ok(m[1].length < 24 * 1024, `FOOD_BASICS is ${m[1].length} bytes`);
-  assert.ok(html.indexOf('var FOOD_BASICS') < html.indexOf(food.slice(0, 200)), 'baked before food.js runs');
-  assert.ok(html.indexOf('var FOOD_BASICS') < html.indexOf(nutriDay.slice(0, 200)), 'baked before nutri-day.js renders the portion guide');
+  assert.ok(html.indexOf('var FOOD_BASICS') < inlinedAt(food), 'baked before food.js runs');
+  assert.ok(html.indexOf('var FOOD_BASICS') < inlinedAt(nutriDay), 'baked before nutri-day.js renders the portion guide');
 });
 
 test('food.js talks only to its own origin, with the X-HC-Food header, and never stores the log in the browser', () => {

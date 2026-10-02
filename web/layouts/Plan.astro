@@ -48,6 +48,8 @@ import numFontUrl from '../src/fonts/hc-num-bold.woff2?inline';
 import { jsonForScript } from '../../lib/serialize.mjs';
 import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB } from '../../lib/nav/tabs.mjs';
 import { hcConst } from '../../lib/stale.mjs';
+// every client script is inlined through slimScript (comments + whitespace out, names and syntax kept)
+import { slimScript } from '../src/slim-script.mjs';
 
 interface Props {
   title: string;
@@ -144,21 +146,21 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
     </div>
     <slot name="overlay" />
     <script is:inline set:html={navSource} />
-    <script is:inline set:html={utilScript} />
-    <script is:inline set:html={coreScript} />
-    <script is:inline set:html={todayDateScript} />
-        <script is:inline set:html={nutriDayScript} />
-    <script is:inline set:html={foodScript} />
-    <script is:inline set:html={intakeScript} />
-    <script is:inline set:html={trainingTodayScript} />
-    <script is:inline set:html={trainingDashScript} />
-    <script is:inline set:html={trainingActivityScript} />
-    <script is:inline set:html={healthScript} />
-    <script is:inline set:html={scoreScript} />
-    <script is:inline set:html={monitorScript} />
-    <script is:inline set:html={timelineScript} />
-    <script is:inline set:html={profileScript} />
-    <script is:inline set:html={detailScript} />
-    <script is:inline set:html={freshnessScript} />
+    <script is:inline set:html={slimScript(utilScript)} />
+    <script is:inline set:html={slimScript(coreScript)} />
+    <script is:inline set:html={slimScript(todayDateScript)} />
+    <script is:inline set:html={slimScript(nutriDayScript)} />
+    <script is:inline set:html={slimScript(foodScript)} />
+    <script is:inline set:html={slimScript(intakeScript)} />
+    <script is:inline set:html={slimScript(trainingTodayScript)} />
+    <script is:inline set:html={slimScript(trainingDashScript)} />
+    <script is:inline set:html={slimScript(trainingActivityScript)} />
+    <script is:inline set:html={slimScript(healthScript)} />
+    <script is:inline set:html={slimScript(scoreScript)} />
+    <script is:inline set:html={slimScript(monitorScript)} />
+    <script is:inline set:html={slimScript(timelineScript)} />
+    <script is:inline set:html={slimScript(profileScript)} />
+    <script is:inline set:html={slimScript(detailScript)} />
+    <script is:inline set:html={slimScript(freshnessScript)} />
   </body>
 </html>

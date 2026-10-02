@@ -128,12 +128,12 @@ test('example build: the day builder (Constructor de día, section registro) is 
   assert.doesNotMatch(html, /data-section="registro"|id="sec-registro"/);
   assert.doesNotMatch(html, /id="bld-|id="r-verdict"|id="x-|bldRefresh|bldRecalc|window\.bump/);
   for (const g of ['TARGET', 'EXTRA_KEYS', 'EXTRA_NAMES', 'INDULGE', 'ALCOHOL_KEYS', 'MEAL_REPLACE_KEYS', 'I18N_VERDICT', 'I18N_LOG', 'PE_LABEL', 'COPY_MSG', 'COPY_FALLBACK_MSG']) {
-    assert.doesNotMatch(html, new RegExp(`var ${g} = `), `${g} was baked only for the day builder`);
+    assert.doesNotMatch(html, new RegExp(`var ${g}\\s*=`), `${g} was baked only for the day builder`);
   }
   assert.doesNotMatch(html, /Day builder|Constructor de día/);
   // Tablas is server-rendered reference values now: no client painter, no bakes for it
-  for (const g of ['DATA', 'EXTRAS', 'VEG_KEYS', 'QUESO_KEYS', 'FRUIT_SUMMARY', 'I18N_TABLAS']) assert.doesNotMatch(html, new RegExp(`var ${g} = `), g);
-  assert.doesNotMatch(html, /paint\('tb-prot-lean'/, 'client/tablas.js is gone');
+  for (const g of ['DATA', 'EXTRAS', 'VEG_KEYS', 'QUESO_KEYS', 'FRUIT_SUMMARY', 'I18N_TABLAS']) assert.doesNotMatch(html, new RegExp(`var ${g}\\s*=`), g);
+  assert.doesNotMatch(html, /paint\(\s*["']tb-prot-lean["']/, 'client/tablas.js is gone');
 });
 
 test('example build: t-home is the first nav button and pressed; the Home panel is visible, Nutrición hidden', () => {
@@ -162,7 +162,7 @@ test('example build (synthetic demo extract): SCORES, dials and every Salud sect
   for (const k of ['body', 'activity', 'energy', 'running', 'cycling', 'recovery', 'loadRecovery']) assert.equal(health[k].hasData, true, `HEALTH.${k}`);
   assert.match(html, /Demo Scale/, 'the page names the synthetic source');
   assert.match(html, /var INTAKE = \{"latest":\{"date":"\d{4}-\d{2}-\d{2}"/);
-  assert.match(html, /getElementById\('home-advice'\)/);
+  assert.match(html, /getElementById\(["']home-advice["']\)/);
 });
 
 test('example build: every former tab lives as a section in its new tab, in order', () => {
@@ -187,7 +187,7 @@ test('example build: glance on Inicio, detail behind it — Entreno holds load d
   assert.ok(at('score-load') !== -1 && at('score-load') < at('train-activity') && at('train-activity') < at('health-train') && at('health-train') < at('sec-dash'), 'Entreno order: load detail, calendar + cumulative, run/bike/load vs recovery, dashboard');
   assert.match(html, /var ACTIVITY = \{"hasData":true,"asOf":"\d{4}-\d{2}-\d{2}","days":\[/, 'demo data fills the calendar');
   assert.match(html, /var I18N_ACTIVITY = /);
-  assert.match(html, /getElementById\('train-activity'\)/, 'training-activity.js is inlined');
+  assert.match(html, /getElementById\(["']train-activity["']\)/, 'training-activity.js is inlined');
   assert.match(sliceTabPanel(html, 'health'), /<div id="health-body"><\/div>/);
 });
 
@@ -197,7 +197,7 @@ test('example build: Inicio reads today top to bottom — dials, monitor, timeli
   const at = ['id="home-dials"', 'id="monitor"', 'id="timeline"', 'id="home-advice"', 'class="eat-card"', 'data-section="hoy"'].map((n) => home.indexOf(n));
   assert.ok(at.every((v, i) => v !== -1 && (i === 0 || v > at[i - 1])), `Inicio order ${at}`);
   assert.match(html, /"timeline":\{"asOf":"\d{4}-\d{2}-\d{2}","days":\[\{"date"/, 'demo data fills the timeline');
-  assert.match(html, /getElementById\('timeline'\)/, 'timeline.js is inlined');
+  assert.match(html, /getElementById\(["']timeline["']\)/, 'timeline.js is inlined');
 });
 
 test('example build (demo intake logged): Mi día keeps the intake rings host', () => {
@@ -240,7 +240,7 @@ test('example build: the Salud recovery detail card spans the full grid row, hea
 test('example build: the shared client helpers (util.js) are inlined FIRST, right after the baked HC_CONST, before every other script', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
-  const utilIdx = scripts.findIndex((s) => /\bvar HC = \(function/.test(s));
+  const utilIdx = scripts.findIndex((s) => /\bvar HC\s*=\s*\(function/.test(s));
   const constIdx = scripts.findIndex((s) => /\bvar HC_CONST = \{"staleDays":\d+\}/.test(s));
   const coreIdx = scripts.findIndex((s) => /function setTab\(/.test(s));
   assert.ok(constIdx !== -1 && utilIdx !== -1 && coreIdx !== -1, `HC_CONST ${constIdx}, util ${utilIdx}, core ${coreIdx}`);
@@ -267,7 +267,7 @@ test('example build: the detail sheet ships hidden OUTSIDE .wrap (so the page ca
   }
   assert.ok(detail.sessions.length > 0);
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1]);
-  const detailIdx = scripts.findIndex((s) => /window\.HCDetail = /.test(s));
+  const detailIdx = scripts.findIndex((s) => /window\.HCDetail\s*=/.test(s));
   assert.ok(detailIdx !== -1 && detailIdx === scripts.length - 2, 'detail.js runs after every card renderer, right before freshness.js');
 });
 
