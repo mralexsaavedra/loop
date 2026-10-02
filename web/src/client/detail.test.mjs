@@ -13,6 +13,7 @@ import { es as esT, en as enT } from '../i18n/detail-templates.mjs';
 import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { StubElement } from '../../test/dom-stub.mjs';
+import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB } from '../../../lib/nav/tabs.mjs';
 import { buildScores } from '../../../lib/score/index.mjs';
 import { buildHealth } from '../../../lib/health/aggregate.mjs';
 import { buildDials } from '../view/dial.mjs';
@@ -21,6 +22,7 @@ const format = (tpl, vars) => tpl.replace(/\{(\w+)\}/g, (_, k) => (vars[k] != nu
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'detail.js'), 'utf8');
+const coreSource = fs.readFileSync(path.join(here, 'core.js'), 'utf8');
 const DEMO = buildDetail(path.join(here, '..', '..', '..', 'data', 'demo', 'extract'));
 const NOW = DEMO.asOf; // the viewer opens the page on the demo's newest data day
 
@@ -30,7 +32,7 @@ const valueOn = (m, iso) => { const i = dayIndex(m, iso); return i >= 0 && i < m
 
 // parts: true = the sheet's sub-parts (calendar, day panel, chart selection) resolve to stub elements,
 // so a day tap can update them in place; query = extra host.querySelector answers (sel -> element)
-function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync = false, parts = false, query = {}, views = null } = {}) {
+function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync = false, parts = false, query = {}, views = null, withCore = false } = {}) {
   const listeners = { doc: {}, win: {} };
   const host = new StubElement('div', { attrs: { id: 'detail' }, hidden: true });
   const closeBtn = { focused: 0, focus() { this.focused++; } };
@@ -54,26 +56,44 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
   const loc = { hash, pathname: '/', search: '' };
   const calls = [];
   const fire = (bucket, type, evt) => (listeners[bucket][type] || []).forEach((fn) => fn(evt));
+  const hashOfUrl = (url) => { const i = String(url).indexOf('#'); return i === -1 ? '' : String(url).slice(i); };
+  // the entries below the current one ({state, hash}): Back returns to the previous entry's hash
+  const below = [];
   const history = {
     state: null,
-    pushState(state, _t, url) { calls.push(['push', url]); this.state = state; loc.hash = url; },
-    replaceState(state, _t, url) { calls.push(['replace', url]); this.state = state; loc.hash = url.startsWith('#') ? url : ''; },
+    pushState(state, _t, url) { calls.push(['push', url]); below.push({ state: this.state, hash: loc.hash }); this.state = state; loc.hash = hashOfUrl(url); },
+    replaceState(state, _t, url) { calls.push(['replace', url]); this.state = state; loc.hash = hashOfUrl(url); },
     back() {
       calls.push(['back']);
-      const pop = () => { this.state = null; loc.hash = ''; fire('win', 'popstate', {}); };
+      const pop = () => {
+        const prev = below.pop() || { state: null, hash: '' };
+        const changed = prev.hash !== loc.hash;
+        this.state = prev.state;
+        loc.hash = prev.hash;
+        fire('win', 'popstate', {});
+        if (changed) fire('win', 'hashchange', {});
+      };
       if (backAsync) pendingPops.push(pop); else pop();
     },
   };
   const pendingPops = [];
+  // withCore: the real core.js runs first over four tab panels + nav buttons (home shown, as served)
+  const ids = { detail: host };
+  const tabPanels = withCore ? TAB_KEYS.map((t) => {
+    ids['t-' + t] = new StubElement('button', { attrs: { 'aria-pressed': String(t === 'home') } });
+    const el = new StubElement('div', { classes: ['tab-panel'], attrs: { 'data-tab': t }, hidden: t !== 'home' });
+    el.querySelector = () => null;
+    return el;
+  }) : null;
   const doc = {
-    getElementById: (id) => (id === 'detail' ? host : null),
+    getElementById: (id) => ids[id] || null,
     querySelector: (sel) => (sel === '.wrap' ? wrap : null),
-    querySelectorAll: (sel) => (sel === '.tab-panel' ? [{ hidden: true, querySelector: () => null }, panel] : []),
+    querySelectorAll: (sel) => (sel === '.tab-panel' ? tabPanels || [{ hidden: true, querySelector: () => null }, panel] : []),
     addEventListener: (t, fn) => { (listeners.doc[t] = listeners.doc[t] || []).push(fn); },
     documentElement: root,
     activeElement: null,
   };
-  const win = { addEventListener: (t, fn) => { (listeners.win[t] = listeners.win[t] || []).push(fn); } };
+  const win = { scrollTo() {}, addEventListener: (t, fn) => { (listeners.win[t] = listeners.win[t] || []).push(fn); } };
   const RealDate = Date;
   class FakeDate extends RealDate {
     constructor(...a) { super(...(a.length ? a : [now + 'T12:00:00'])); }
@@ -89,10 +109,15 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
   win.location = loc;
   vm.createContext(ctx);
   loadUtil(ctx);
+  if (withCore) {
+    ctx.NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB }, detailTab: { ...DETAIL_TAB }, viewTab: { ...VIEW_TAB } };
+    vm.runInContext(coreSource, ctx);
+  }
   vm.runInContext(source, ctx);
   const api = win.HCDetail;
+  const shownTab = () => (tabPanels || []).filter((el) => !el.hidden).map((el) => el.getAttribute('data-tab'));
   return {
-    ctx, host, wrap, root, loc, calls, api, closeBtn, part, heading,
+    ctx, host, wrap, root, loc, calls, api, closeBtn, part, heading, shownTab,
     hostWrites: () => hostWrites,
     flushBack: () => { while (pendingPops.length) pendingPops.shift()(); },
     click: (target) => fire('doc', 'click', { target, preventDefault() {} }),
@@ -724,4 +749,64 @@ test('HCDetail.open(key, date, {focus}) moves focus to that control of the view 
   const before = t.closeBtn.focused;
   t.api.open('profile', null, { focus: '#pf-goal input:checked' });
   assert.equal(t.closeBtn.focused, before + 1, 'no such control: the close button');
+});
+
+/* ---------- with core.js: the open tab lives in the URL hash underneath the sheet ---------- */
+
+test('Back after opening a sheet from a tab closes it and leaves #<tab>; so does the close button', () => {
+  const s = setup({ withCore: true, hash: '#nutricion' });
+  assert.deepEqual(s.shownTab(), ['nutricion']);
+  s.click(new StubElement('div', { attrs: { 'data-detail': 'sleep' } }));
+  assert.equal(s.loc.hash, '#detail/sleep');
+  s.ctx.history.back(); // the browser Back button
+  assert.equal(s.host.hidden, true);
+  assert.equal(s.loc.hash, '#nutricion');
+  assert.deepEqual(s.shownTab(), ['nutricion'], 'Back never switches the tab underneath');
+  s.click(new StubElement('div', { attrs: { 'data-detail': 'steps' } }));
+  s.click(act('close'));
+  assert.deepEqual(s.calls.at(-1), ['back']);
+  assert.equal(s.loc.hash, '#nutricion');
+  assert.equal(s.calls.filter((c) => c[0] === 'replace').length, 0, 'the tab entry is never rewritten');
+});
+
+test('a page first opened with #detail/<metric> shows its host tab underneath; closing shows #<host tab>', () => {
+  const s = setup({ withCore: true, hash: '#detail/sleep' });
+  assert.equal(s.host.hidden, false);
+  assert.deepEqual(s.shownTab(), ['health']);
+  s.key('Escape');
+  assert.equal(s.host.hidden, true);
+  assert.deepEqual(s.calls.at(-1), ['replace', '/#health']);
+  assert.equal(s.loc.hash, '#health');
+  const t = setup({ withCore: true, hash: '#detail/load-run' });
+  assert.deepEqual(t.shownTab(), ['entreno']);
+  t.click(act('close'));
+  assert.equal(t.loc.hash, '#entreno');
+});
+
+test('a #profile deep link keeps the default tab; closing it names that tab', () => {
+  const s = setup({ withCore: true, hash: '#profile', views: profileView() });
+  assert.equal(s.host.hidden, false);
+  assert.deepEqual(s.shownTab(), ['home']);
+  s.key('Escape');
+  assert.equal(s.loc.hash, '#home');
+});
+
+test('without core.js (no HCNav) a closed deep link clears the hash as before', () => {
+  const s = setup({ hash: '#detail/sleep' });
+  s.key('Escape');
+  assert.equal(s.loc.hash, '');
+});
+
+test('history writes that throw: tabs still switch and sheets still open and close (sandboxed frame)', () => {
+  const s = setup({ withCore: true, hash: '#home' });
+  s.ctx.history.pushState = () => { throw new Error('SecurityError'); };
+  s.ctx.history.replaceState = () => { throw new Error('SecurityError'); };
+  s.ctx.window.setTab('health');
+  assert.deepEqual(s.shownTab(), ['health']);
+  s.api.open('hrv');
+  assert.equal(s.host.hidden, false);
+  s.click(act('close'));
+  assert.equal(s.host.hidden, true);
+  assert.equal(s.calls.filter((c) => c[0] === 'back').length, 0);
+  assert.deepEqual(s.shownTab(), ['health']);
 });

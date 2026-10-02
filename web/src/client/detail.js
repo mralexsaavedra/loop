@@ -22,7 +22,9 @@
  * and focus returns to the opener (no opener, e.g. a deep link: the visible tab's heading). History:
  * opening pushes #detail/<metric>[/<date>] so browser Back closes it; a page opened with that hash opens
  * the view (deep link; the metric must be an own key of DETAIL and the copy, a bad date falls back and
- * the URL follows). A re-open while the close's history.back() is in flight waits for its popstate
+ * the URL follows). The entry underneath is the open tab's hash (#nutricion, core.js), so Back lands
+ * there; closing a deep-linked sheet (no entry of ours) rewrites the URL to that tab hash
+ * (window.HCNav.hash(), core.js shows the deep link's host tab underneath). A re-open while the close's history.back() is in flight waits for its popstate
  * before writing history. Every view renders inside a try/catch with a message fallback; no NaN is ever
  * printed (non-finite values render as a dash). A day tap re-renders only the calendar + day panel.
  *
@@ -680,7 +682,16 @@
       try { history.back(); } catch (e) { pendingBack = false; }
       return;
     }
-    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* see setHash */ }
+    // a deep-linked sheet (no entry of ours): the URL goes back to the tab underneath (core.js)
+    try { history.replaceState(null, '', location.pathname + location.search + tabHash()); } catch (e) { /* see setHash */ }
+  }
+  function tabHash() {
+    var nav = typeof window !== 'undefined' ? window.HCNav : null;
+    try {
+      return nav && typeof nav.hash === 'function' ? String(nav.hash() || '') : '';
+    } catch (e) {
+      return '';
+    }
   }
   function fromHash() {
     var hash = (typeof location !== 'undefined' && location.hash) || '';
