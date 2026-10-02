@@ -46,7 +46,7 @@
     if (ahead) day = newest;
     if (!day) return card('<div class="sc-head"><h3>' + esc(T.heading) + '</h3></div><div class="sc-note">' + esc(T.empty) + '</div>', false);
     var isToday = day.date === today;
-    var out = ['<div class="sc-head"><h3>' + esc(isToday ? T.heading : format(T.dateHeading, { date: day.date })) + '</h3></div>'];
+    var out = ['<div class="sc-head"><h3>' + esc(isToday ? T.heading : format(T.dateHeading, { date: HC.fmtDate(day.date) })) + '</h3></div>'];
     if (!isToday && !ahead) out.push('<div class="sc-note">' + esc(T.noToday) + '</div>');
     var list = [];
     var sleepLink = HC.detailAttrs('sleep', day.date);

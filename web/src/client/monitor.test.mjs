@@ -104,7 +104,8 @@ test('building baseline: value shown, status "building", no bar; missing series:
 test('a value from last night carries no date; an older one shows its date', () => {
   const html = render(monitor());
   assert.doesNotMatch(cardOf(html, 'rhr'), /hm-date/);
-  assert.ok(cardOf(html, 'sleep').includes(addDays(ASOF, -3)));
+  assert.match(cardOf(html, 'sleep'), /<div class="hm-date">Sat 26 Sep<\/div>/, 'the shared display date, never ISO');
+  assert.match(cardOf(render(monitor(), { locale: 'es' }), 'sleep'), /<div class="hm-date">sáb 26 sept<\/div>/);
   assert.match(cardOf(render(monitor(), { now: addDays(ASOF, 1) }), 'rhr'), /hm-date/, 'yesterday-dated reading is not last night');
 });
 

@@ -23,10 +23,13 @@ function fixedDate(iso) {
   };
 }
 
-function run({ latest, today, locale = 'en', nutriTarget = null, foodTotals = null }) {
+// nutriTarget = today's target (client/nutri-day.js); with it the page also has HCNutri.targetFor
+// (that date's target), here by default the same target unless the test passes its own.
+function run({ latest, today, locale = 'en', nutriTarget = null, targetFor, foodTotals = null }) {
   const doc = new StubDocument();
   const host = doc.el('intake');
   const window = nutriTarget ? { nutriTarget } : {};
+  if (targetFor !== false && (nutriTarget || targetFor)) window.HCNutri = { targetFor: targetFor || (() => nutriTarget()) };
   if (foodTotals) window.foodTotals = foodTotals;
   const ctx = {
     document: doc, window, INTAKE: { latest, target: TARGET, freshDays: 3 }, I18N_INTAKE: locale === 'es' ? esIntake : enIntake, LOCALE: locale,
@@ -146,6 +149,33 @@ test('with Nutrición today (window.nutriTarget), the rings measure against that
   assert.match(html, /Today&#39;s target · Gym or run · Maintain|Today's target · Gym or run · Maintain/);
   const broken = run({ latest: { date: '2030-01-09', k: 1200, p: 1, c: 1, g: 1 }, today: '2030-01-10', nutriTarget: () => { throw new Error('x'); } }).host.innerHTML;
   assert.match(broken, /of 2400 kcal/, 'falls back to the plan\'s training-day total');
+});
+
+test('a PAST logged day is measured against THAT day\'s target (HCNutri.targetFor(date)), never today\'s', () => {
+  const asked = [];
+  let todayCalls = 0;
+  const nutriTarget = () => { todayCalls += 1; return { k: 2500, p: 150, c: 340, g: 60, fuelK: 0, label: "Today's target · Rest · Maintain" }; };
+  const targetFor = (d) => { asked.push(d); return { k: 3070, p: 150, c: 437, g: 60, fuelK: 480, dayType: 'bike', label: "That day's meals · Ride ~2 h · Maintain" }; };
+  const html = run({ latest: { date: '2030-01-09', k: 1535, p: 75, c: 200, g: 30 }, today: '2030-01-10', nutriTarget, targetFor }).host.innerHTML;
+  assert.deepEqual(asked, ['2030-01-09']);
+  assert.equal(todayCalls, 0, 'today\'s target is not read for a past day');
+  assert.match(html, /of 3070 kcal/);
+  assert.match(html, /50%/);
+  assert.match(html, /That day&#39;s meals · Ride ~2 h|That day's meals · Ride ~2 h/);
+  assert.match(html, /class="intake-asof">Wed 9 Jan</, 'labelled with that day\'s date (the shared format)');
+  assert.match(html, /\+ 480 kcal on the bike/);
+});
+
+test('a past day whose day type is unknown (targetFor -> null): no rings at all, never a guessed target', () => {
+  const { host } = run({ latest: { date: '2030-01-08', k: 1535, p: 75, c: 200, g: 30 }, today: '2030-01-10', nutriTarget: () => ({ k: 2500, p: 150, c: 340, g: 60, label: 'x' }), targetFor: () => null });
+  assert.equal(host.hidden, true);
+  assert.equal(host.innerHTML, '');
+});
+
+test('Nutrición without HCNutri.targetFor (never in a real build): a past day falls back to the plan total, never today\'s target', () => {
+  const html = run({ latest: { date: '2030-01-09', k: 1200, p: 1, c: 1, g: 1 }, today: '2030-01-10', nutriTarget: () => ({ k: 3050, p: 150, c: 424, g: 60, label: 'today' }), targetFor: false }).host.innerHTML;
+  assert.match(html, /of 2400 kcal/);
+  assert.doesNotMatch(html, /3050/);
 });
 
 test('intake logged TODAY with Nutrición present: no rings (the kcal dial and macro bars of Resumen de hoy show it)', () => {

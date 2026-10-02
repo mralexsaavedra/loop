@@ -55,7 +55,7 @@ test('viewer today: "Today" heading, last night\'s sleep first, then each workou
 
 test('today not in the data: the newest earlier day, labelled by its date, and "nothing logged yet today"', () => {
   const html = render(TL, { now: '2026-09-30' });
-  assert.ok(html.includes(enT.timeline.dateHeading.replace('{date}', '2026-09-29')));
+  assert.ok(html.includes(enT.timeline.dateHeading.replace('{date}', 'Tue 29 Sep')));
   assert.ok(html.includes(enT.timeline.noToday));
   assert.equal(rows(html).length, 3);
   const earlier = render(TL, { now: '2026-09-28' });
@@ -66,7 +66,7 @@ test('today not in the data: the newest earlier day, labelled by its date, and "
 test('clock edge: 23:59 is still that day, 00:01 is the next one (local calendar)', () => {
   assert.ok(render(TL, { at: '2026-09-29T23:59:00' }).includes(`<h3>${enT.timeline.heading}</h3>`));
   const after = render(TL, { at: '2026-09-30T00:01:00' });
-  assert.ok(after.includes(enT.timeline.dateHeading.replace('{date}', '2026-09-29')));
+  assert.ok(after.includes(enT.timeline.dateHeading.replace('{date}', 'Tue 29 Sep')));
   assert.ok(after.includes(enT.timeline.noToday));
   const behind = render(TL, { at: '2026-09-28T00:01:00' });
   assert.deepEqual(rows(behind).map((r) => r.cls), ['tl-sleep', 'tl-gym'], 'just after midnight on the 28th: the 28th');
@@ -74,13 +74,13 @@ test('clock edge: 23:59 is still that day, 00:01 is the next one (local calendar
 
 test('clock skew: the viewer\'s today EARLIER than every baked day -> the newest baked day under its date, never the empty state', () => {
   const html = render(TL, { now: '2026-09-20' });
-  assert.ok(html.includes(enT.timeline.dateHeading.replace('{date}', '2026-09-29')), 'labelled by its date');
+  assert.ok(html.includes(enT.timeline.dateHeading.replace('{date}', 'Tue 29 Sep')), 'labelled by its date');
   assert.ok(!html.includes(enT.timeline.empty), 'not the empty state');
   assert.ok(!html.includes(enT.timeline.noToday), 'no "nothing logged yet today": the day is ahead of the viewer\'s clock');
   assert.equal(rows(html).length, 3);
   assert.doesNotMatch(html, /sc-stale/, 'a day ahead of the clock is not stale');
   const midnight = render(TL, { at: '2026-09-27T23:59:00' });
-  assert.ok(midnight.includes(enT.timeline.dateHeading.replace('{date}', '2026-09-29')), '23:59 the day before the window: same fallback');
+  assert.ok(midnight.includes(enT.timeline.dateHeading.replace('{date}', 'Tue 29 Sep')), '23:59 the day before the window: same fallback');
 });
 
 test('a day without a sleep reading says so, never 0 h', () => {

@@ -63,10 +63,10 @@ test('calendar: 30 day cells ending at the viewer\'s today, level by total minut
   const html = render(ACT);
   const c = cells(html);
   assert.equal(c.length, 30);
-  assert.equal(c[29].title, `${ASOF}: 1 h 45 min (Run 1 h, Bike 45 min)`, 'today: run + ride summed into one day, split in the title');
+  assert.equal(c[29].title, `Tue 29 Sep: 1 h 45 min (Run 1 h, Bike 45 min)`, 'today: run + ride summed into one day, split in the title');
   assert.equal(c[29].level, 4, '105 min -> 90+');
   assert.equal(c[28].level, 0);
-  assert.equal(c[28].title, `${addDays(ASOF, -1)}: no training`);
+  assert.equal(c[28].title, 'Mon 28 Sep: no training');
   assert.equal(c[27].level, 3, '60 min -> 60–89');
   assert.ok(html.includes(enT.calHint.replace('{days}', '15')), '15 distinct active days');
   assert.equal((html.match(/class="cal-legend-sw cal-l\d"/g) || []).length, 5, 'a legend for the five levels');
@@ -88,29 +88,29 @@ test('the viewer a day ahead of the data: windows end today (today empty), not s
   const html = render(ACT, { now: addDays(ASOF, 1) });
   const c = cells(html);
   assert.equal(c[29].level, 0);
-  assert.equal(c[28].title, `${ASOF}: 1 h 45 min (Run 1 h, Bike 45 min)`);
+  assert.equal(c[28].title, `Tue 29 Sep: 1 h 45 min (Run 1 h, Bike 45 min)`);
   assert.doesNotMatch(html, /sc-stale|act-stale/);
 });
 
 test('clock skew: the viewer\'s today EARLIER than the data -> windows end at the data date (its sessions stay visible), not stale', () => {
   for (const opts of [{ now: addDays(ASOF, -1) }, { now: addDays(ASOF, -40) }, { at: addDays(ASOF, -1) + 'T23:59:00' }]) {
     const html = render(ACT, opts);
-    assert.equal(cells(html)[29].title, `${ASOF}: 1 h 45 min (Run 1 h, Bike 45 min)`, JSON.stringify(opts));
+    assert.equal(cells(html)[29].title, `Tue 29 Sep: 1 h 45 min (Run 1 h, Bike 45 min)`, JSON.stringify(opts));
     assert.doesNotMatch(html, /act-stale/);
   }
 });
 
 test('clock edge: 23:59 ends the windows that day, 00:01 the next', () => {
-  assert.equal(cells(render(ACT, { at: ASOF + 'T23:59:00' }))[29].title, `${ASOF}: 1 h 45 min (Run 1 h, Bike 45 min)`);
+  assert.equal(cells(render(ACT, { at: ASOF + 'T23:59:00' }))[29].title, `Tue 29 Sep: 1 h 45 min (Run 1 h, Bike 45 min)`);
   const next = cells(render(ACT, { at: addDays(ASOF, 1) + 'T00:01:00' }));
-  assert.equal(next[29].title, `${addDays(ASOF, 1)}: no training`);
+  assert.equal(next[29].title, 'Wed 30 Sep: no training');
 });
 
 test('stale data (> 3 days old): windows end at the data date, the block is greyed with a note', () => {
   const html = render(ACT, { now: addDays(ASOF, 10) });
   assert.match(html, /act-stale/);
-  assert.ok(html.includes(enT.staleNote.replace('{days}', '10').replace('{date}', ASOF)));
-  assert.equal(cells(html)[29].title, `${ASOF}: 1 h 45 min (Run 1 h, Bike 45 min)`);
+  assert.ok(html.includes(enT.staleNote.replace('{days}', '10').replace('{date}', 'Tue 29 Sep')));
+  assert.equal(cells(html)[29].title, `Tue 29 Sep: 1 h 45 min (Run 1 h, Bike 45 min)`);
 });
 
 test('empty state and resilience', () => {

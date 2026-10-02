@@ -23,7 +23,6 @@
  * behavior, not a hardcoded literal.
  */
 (function () {
-  var DATE_LOCALE = LOCALE === 'es' ? 'es-ES' : 'en-GB';
   var LBL = I18N_DASH.modalityLabels;
 
   function esc(s) {
@@ -36,9 +35,9 @@
       return vars && vars[k] != null ? vars[k] : '';
     });
   }
+  // the ONE display-date formatter (util.js), without the weekday: "22 Jun" / "22 jun"
   function fmtD(isoStr) {
-    var p = isoStr.split('-');
-    return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(DATE_LOCALE, { day: 'numeric', month: 'short' });
+    return HC.fmtDate(isoStr, { weekday: false });
   }
   function hm(min) {
     var h = Math.floor(min / 60);

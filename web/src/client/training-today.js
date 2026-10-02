@@ -17,7 +17,6 @@
  * exact behavior.
  */
 (function () {
-  var DATE_LOCALE = LOCALE === 'es' ? 'es-ES' : 'en-GB';
   var goalLineRe = new RegExp(I18N_HOY.goalLineRe, 'i');
 
   function iso(d) {
@@ -28,9 +27,9 @@
     d.textContent = s;
     return d.innerHTML;
   }
+  // the ONE display-date formatter (util.js): "Tue 29 Sep" / "mar 29 sept"
   function fmtLong(isoStr) {
-    var p = isoStr.split('-');
-    return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(DATE_LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
+    return HC.fmtDate(isoStr);
   }
   function blockHtml(b) {
     var lines = b.lines
