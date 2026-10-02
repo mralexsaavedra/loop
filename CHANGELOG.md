@@ -4,6 +4,14 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-02 — Tablas: no empty sections
+
+- **Tablas** — a list section (desayunos, carbo, proteína, anclaje, post-entreno, fruta, postre,
+  verduras, quesos) renders only when it has rows; a plan whose list holds only the "none" option no
+  longer shows an empty accordion. The owner removed his composite options (breakfasts, post-workout
+  combos) from his personal plan, which left two such sections. Pinned on both builds
+  (`web/test/content.test.mjs`; the personal check skips without a personal build).
+
 ## 2026-10-02 — Registrar: a day navigator
 
 The owner logged meals the day before and could not see them: Registrar only read the viewer's today.

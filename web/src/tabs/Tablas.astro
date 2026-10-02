@@ -9,6 +9,7 @@
  * Personal copy: accordion notes, the "Legumes"/"Soups" accordions (no generic/structured data source
  * yet) and the Supplements list are all `<Note>` slots (`plan.page.notes['tablas.*']`) with generic
  * dictionary fallbacks. "Legumes"/"Soups" have NO generic fallback (they render nothing when absent).
+ * A list section with no rows (e.g. a plan whose list holds only the "none" option) is not rendered.
  */
 import RefTable from '../components/RefTable.astro';
 import Note from '../components/Note.astro';
@@ -34,95 +35,115 @@ const dec = es ? ',' : '.';
 
   <p class="acc-note tablas-ref-note">{t.refNote}</p>
 
-  <details id="acc-desayunos">
-    <summary>{t.desayunos.icon} {t.desayunos.label} <span class="chev">›</span></summary>
-    <div class="acc-body">
-      <Note id="tablas.desayunos" page={page} fallback={t.desayunos.noteHtml} class="acc-note" />
-      <RefTable rows={ref.desayunos} cols={cols} dec={dec} />
-    </div>
-  </details>
+  {ref.desayunos.length > 0 && (
+    <details id="acc-desayunos">
+      <summary>{t.desayunos.icon} {t.desayunos.label} <span class="chev">›</span></summary>
+      <div class="acc-body">
+        <Note id="tablas.desayunos" page={page} fallback={t.desayunos.noteHtml} class="acc-note" />
+        <RefTable rows={ref.desayunos} cols={cols} dec={dec} />
+      </div>
+    </details>
+  )}
 
-  <details id="acc-carbo-comida">
-    <summary>{t.carboComida.icon} {t.carboComida.label} <span class="chev">›</span></summary>
-    <div class="acc-body">
-      <Note id="tablas.carboComida" page={page} fallback={t.carboComida.note} class="acc-note" />
-      <RefTable rows={ref.carboComida} cols={cols} dec={dec} />
-    </div>
-  </details>
+  {ref.carboComida.length > 0 && (
+    <details id="acc-carbo-comida">
+      <summary>{t.carboComida.icon} {t.carboComida.label} <span class="chev">›</span></summary>
+      <div class="acc-body">
+        <Note id="tablas.carboComida" page={page} fallback={t.carboComida.note} class="acc-note" />
+        <RefTable rows={ref.carboComida} cols={cols} dec={dec} />
+      </div>
+    </details>
+  )}
 
-  <details id="acc-carbo-cena">
-    <summary>{t.carboCena.icon} {t.carboCena.label} <span class="chev">›</span></summary>
-    <div class="acc-body">
-      <Note id="tablas.carboCena" page={page} fallback={t.carboCena.note} class="acc-note" />
-      <RefTable rows={ref.carboCena} cols={cols} dec={dec} />
-    </div>
-  </details>
+  {ref.carboCena.length > 0 && (
+    <details id="acc-carbo-cena">
+      <summary>{t.carboCena.icon} {t.carboCena.label} <span class="chev">›</span></summary>
+      <div class="acc-body">
+        <Note id="tablas.carboCena" page={page} fallback={t.carboCena.note} class="acc-note" />
+        <RefTable rows={ref.carboCena} cols={cols} dec={dec} />
+      </div>
+    </details>
+  )}
 
-  <details id="acc-proteina">
-    <summary>{t.proteina.icon} {t.proteina.label} <span class="chev">›</span></summary>
-    <div class="acc-body">
-      <Note id="tablas.proteina" page={page} fallback={t.proteina.note} class="acc-note" />
-      {(['lean', 'mod', 'fat'] as const).map((tier) => ref.proteina[tier].length > 0 && (
-        <Fragment>
-          <div class={`tier ${tier}`}><span class={`dot ${tier}`} />{t.proteina[tier]}</div>
-          <RefTable rows={ref.proteina[tier]} cols={cols} dec={dec} />
-        </Fragment>
-      ))}
-    </div>
-  </details>
+  {(['lean', 'mod', 'fat'] as const).some((tier) => ref.proteina[tier].length > 0) && (
+    <details id="acc-proteina">
+      <summary>{t.proteina.icon} {t.proteina.label} <span class="chev">›</span></summary>
+      <div class="acc-body">
+        <Note id="tablas.proteina" page={page} fallback={t.proteina.note} class="acc-note" />
+        {(['lean', 'mod', 'fat'] as const).map((tier) => ref.proteina[tier].length > 0 && (
+          <Fragment>
+            <div class={`tier ${tier}`}><span class={`dot ${tier}`} />{t.proteina[tier]}</div>
+            <RefTable rows={ref.proteina[tier]} cols={cols} dec={dec} />
+          </Fragment>
+        ))}
+      </div>
+    </details>
+  )}
 
   <Fragment set:html={page?.notes?.['tablas.legumbresDetailsHtml'] ?? ''} />
 
-  <details id="acc-anclaje">
-    <summary>{t.anclaje.icon} {t.anclaje.label} <span class="chev">›</span></summary>
-    <div class="acc-body">
-      <Note id="tablas.anclaje" page={page} fallback={t.anclaje.note} class="acc-note" />
-      <RefTable rows={ref.anclaje} cols={cols} dec={dec} />
-    </div>
-  </details>
+  {ref.anclaje.length > 0 && (
+    <details id="acc-anclaje">
+      <summary>{t.anclaje.icon} {t.anclaje.label} <span class="chev">›</span></summary>
+      <div class="acc-body">
+        <Note id="tablas.anclaje" page={page} fallback={t.anclaje.note} class="acc-note" />
+        <RefTable rows={ref.anclaje} cols={cols} dec={dec} />
+      </div>
+    </details>
+  )}
 
-  <details id="acc-postentreno">
-    <summary>{t.postentreno.icon} {t.postentreno.label} <span class="chev">›</span></summary>
-    <div class="acc-body">
-      <Note id="tablas.postentreno" page={page} fallback={t.postentreno.note} class="acc-note" />
-      <RefTable rows={ref.postentreno} cols={cols} dec={dec} />
-    </div>
-  </details>
+  {ref.postentreno.length > 0 && (
+    <details id="acc-postentreno">
+      <summary>{t.postentreno.icon} {t.postentreno.label} <span class="chev">›</span></summary>
+      <div class="acc-body">
+        <Note id="tablas.postentreno" page={page} fallback={t.postentreno.note} class="acc-note" />
+        <RefTable rows={ref.postentreno} cols={cols} dec={dec} />
+      </div>
+    </details>
+  )}
 
-  <details id="acc-fruta">
-    <summary>{t.fruta.icon} {t.fruta.label} <span class="chev">›</span></summary>
-    <div class="acc-body">
-      <Note id="tablas.fruta" page={page} fallback={t.fruta.note} class="acc-note" />
-      <RefTable rows={ref.fruta} cols={cols} dec={dec} />
-    </div>
-  </details>
+  {ref.fruta.length > 0 && (
+    <details id="acc-fruta">
+      <summary>{t.fruta.icon} {t.fruta.label} <span class="chev">›</span></summary>
+      <div class="acc-body">
+        <Note id="tablas.fruta" page={page} fallback={t.fruta.note} class="acc-note" />
+        <RefTable rows={ref.fruta} cols={cols} dec={dec} />
+      </div>
+    </details>
+  )}
 
-  <details id="acc-postre">
-    <summary>{t.postre.icon} {t.postre.label} <span class="chev">›</span></summary>
-    <div class="acc-body">
-      <Note id="tablas.postre" page={page} fallback={t.postre.note} class="acc-note" />
-      <RefTable rows={ref.postre} cols={cols} dec={dec} />
-      <Note id="tablas.postreExtra" page={page} style="margin-top:10px" class="acc-note" />
-    </div>
-  </details>
+  {ref.postre.length > 0 && (
+    <details id="acc-postre">
+      <summary>{t.postre.icon} {t.postre.label} <span class="chev">›</span></summary>
+      <div class="acc-body">
+        <Note id="tablas.postre" page={page} fallback={t.postre.note} class="acc-note" />
+        <RefTable rows={ref.postre} cols={cols} dec={dec} />
+        <Note id="tablas.postreExtra" page={page} style="margin-top:10px" class="acc-note" />
+      </div>
+    </details>
+  )}
 
   <Fragment set:html={page?.notes?.['tablas.sopasDetailsHtml'] ?? ''} />
 
-  <details id="acc-verduras">
-    <summary>{t.verduras.icon} {t.verduras.label} <span class="chev">›</span></summary>
-    <div class="acc-body">
-      <Note id="tablas.verduras" page={page} fallback={t.verduras.note} class="acc-note" />
-      <RefTable rows={ref.verduras} cols={cols} dec={dec} />
-    </div>
-  </details>
+  {ref.verduras.length > 0 && (
+    <details id="acc-verduras">
+      <summary>{t.verduras.icon} {t.verduras.label} <span class="chev">›</span></summary>
+      <div class="acc-body">
+        <Note id="tablas.verduras" page={page} fallback={t.verduras.note} class="acc-note" />
+        <RefTable rows={ref.verduras} cols={cols} dec={dec} />
+      </div>
+    </details>
+  )}
 
-  <details id="acc-quesos">
-    <summary>{t.quesos.icon} {t.quesos.label} <span class="chev">›</span></summary>
-    <div class="acc-body">
-      <Note id="tablas.quesos" page={page} fallback={t.quesos.note} class="acc-note" />
-      <RefTable rows={ref.quesos} cols={cols} dec={dec} />
-    </div>
-  </details>
+  {ref.quesos.length > 0 && (
+    <details id="acc-quesos">
+      <summary>{t.quesos.icon} {t.quesos.label} <span class="chev">›</span></summary>
+      <div class="acc-body">
+        <Note id="tablas.quesos" page={page} fallback={t.quesos.note} class="acc-note" />
+        <RefTable rows={ref.quesos} cols={cols} dec={dec} />
+      </div>
+    </details>
+  )}
 
   <h2>{t.supplementsHeading}</h2>
   <Note id="tablas.supplements" page={page} fallback={t.supplementsFallbackHtml} wrap={false} />
