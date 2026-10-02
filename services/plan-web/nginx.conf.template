@@ -41,6 +41,7 @@ server {
     # compresses well. text/html is always compressed once gzip is on, so it is not listed. The
     # proxied ingest routes below turn it off: their responses reflect request input next to stored
     # data (a BREACH-style length oracle) and are small anyway.
+    # RULE: every block that proxies to ingest MUST set `gzip off;` (scripts/plan-web-config.test.mjs fails otherwise).
     gzip on;
     gzip_types text/css application/javascript application/json;
     gzip_min_length 1024;
