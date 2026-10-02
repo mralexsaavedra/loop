@@ -473,12 +473,17 @@ controls instead of the close button.
   name is a `npm run check` WARNING (the page then shows its key), a malformed one an error, and a test
   asserts every tracked ingredient has es + en names. This is shareable and is the
   one piece of the plan that goes public. It may hold MORE foods than any single plan uses — e.g. the
-  25 generic LOG-ONLY basics (`swap: false`: yogur natural, queso fresco / batido, pan de barra / de
-  molde, jamón cocido, tomate, lechuga, pepino, aguacate, nueces, almendras, cacahuetes, aceitunas,
-  mantequilla, azúcar, café solo, bebida de avena, atún en aceite, sardinas, pechuga de pavo, tortilla
-  de trigo, cereales, galletas María, chocolate 70%) with average BEDCA values (kcal from the macros
-  with EU factors, BEDCA's query API returns no energy row) or USDA FoodData Central ones (carbs = by
-  difference − fibre) when BEDCA lacks the food, `verified: false` and the source id in `note`; the
+  109 generic LOG-ONLY basics (`swap: false`: the first 25 — yogur natural, queso fresco / batido, pan de
+  barra / de molde, jamón cocido, tomate, lechuga, pepino, aguacate, nueces, almendras, cacahuetes,
+  aceitunas, mantequilla, azúcar, café solo, bebida de avena, atún en aceite, sardinas, pechuga de pavo,
+  tortilla de trigo, cereales, galletas María, chocolate 70% —, cortado, lubina, and 82 everyday Spanish
+  foods added 2026-10-02: fish / seafood, meat / charcuterie, dairy, wholegrain carbs, veg, canned
+  legumes, nuts, drinks, dishes / pastries) with average BEDCA values (kcal from the macros with EU
+  factors 4/4/9, fibre 2, alcohol 7 — never BEDCA's own energy row; when two BEDCA entries of one food
+  disagree, the one whose macros match its energy) or USDA FoodData Central ones (FDC energy, carbs = by
+  difference − fibre) when BEDCA lacks the food, or, for branded drinks only (Coca-Cola, Aquarius, Cola
+  Cao…), the label values of the product sold in Spain (Open Food Facts barcode in `note`);
+  `verified: false` and the source id in `note`; prepared dishes say their values vary by recipe; the
   food log searches EVERY food of the file (see "Nutrition v2 part 2").
   Optional NATURAL-UNIT metadata per food (`lib/nutrition/units.mjs`, validated by
   `validateIngredientMeta` inside `npm run check`): `piece: { name: {es, en}, plural?: {es, en}, amt,
