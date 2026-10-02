@@ -84,13 +84,16 @@ const DAY_ICONS: Record<string, string> = {
 
   {/* food log (client/food.js): hidden until the LAN food API answers */}
   <div class="nutri-block food-block" id="food-log-block" hidden>
-    <h2>{F.headings.log}</h2>
-    {/* day navigator: the viewed day is decided at view time by client/food.js (always opens on today) */}
-    <div class="food-day" role="group" aria-label={F.day.navLabel}>
-      <button type="button" class="food-icon-btn food-day-btn" id="food-day-prev" data-food-act="day-prev" aria-label={F.day.prev}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
-      <span class="food-day-label" id="food-day-label" aria-live="polite"></span>
-      <button type="button" class="food-icon-btn food-day-btn" id="food-day-next" data-food-act="day-next" aria-label={F.day.next} disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-      <button type="button" class="food-btn food-btn-ghost food-day-today" id="food-day-today" data-food-act="day-today" hidden>{F.day.back}</button>
+    {/* heading row: the title + the day navigator on the same line (the viewed day is decided at view
+        time by client/food.js, which always opens on today) */}
+    <div class="food-head">
+      <h2>{F.headings.log}</h2>
+      <div class="food-day" role="group" aria-label={F.day.navLabel}>
+        <button type="button" class="food-btn food-btn-ghost food-day-today" id="food-day-today" data-food-act="day-today" aria-label={F.day.back} hidden>{F.day.today}</button>
+        <button type="button" class="food-icon-btn food-day-btn" id="food-day-prev" data-food-act="day-prev" aria-label={F.day.prev}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <span class="food-day-label" id="food-day-label" aria-live="polite"></span>
+        <button type="button" class="food-icon-btn food-day-btn" id="food-day-next" data-food-act="day-next" aria-label={F.day.next} disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
     </div>
     <div id="food-log"></div>
     <p class="food-msg" id="food-msg" role="status" aria-live="polite"></p>
