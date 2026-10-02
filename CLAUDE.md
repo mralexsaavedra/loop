@@ -156,7 +156,7 @@ build:example` = example/en (tracked seeds + the synthetic demo extract, no pers
 the Astro build, `data/nutrition/generate.js`, and the test suite — one source, not three.
 
 - **Inlined client scripts are slimmed.** `web/layouts/Plan.astro` inlines every `web/src/client/*.js`
-  through `web/src/slim-script.mjs` `slimScript` (esbuild `transformSync`, shipped with astro:
+  through `web/src/slim-script.mjs` `slimScript` (esbuild `transformSync`; esbuild is declared in package.json at the exact version astro / vite lock:
   `minifyWhitespace`, `legalComments: 'none'`, `charset: 'utf8'`; NO identifier renaming, NO syntax
   rewriting, still a classic script). Source files keep their comments; the built page does not
   (string quotes / number literals may be re-printed, e.g. `'x'` → `"x"`). A test that locates or
