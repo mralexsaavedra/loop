@@ -1239,6 +1239,7 @@
   "|||.fuel-select|||color": "var(--ink)",
   "|||.fuel-select|||font": "inherit",
   "|||.fuel-select|||font-size": "var(--fs-md)",
+  "|||.fuel-select|||max-width": "100%",
   "|||.fuel-select|||min-height": "44px",
   "|||.fuel-select|||min-width": "180px",
   "|||.fuel-select|||padding": "var(--sp-3) var(--sp-5)",

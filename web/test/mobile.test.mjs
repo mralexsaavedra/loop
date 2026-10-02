@@ -113,6 +113,14 @@ test('narrow screens: every text input, select and textarea is 16px, and no form
   assert.deepEqual(offenders, [], 'a form-control font-size rule at least as specific as the guard would win over 16px');
 });
 
+test('ride-duration select at 16px: min-width only (never a fixed width that clips "5 h 30 min"), capped at its card', () => {
+  const rules = parseCssRules(css());
+  const d = Object.fromEntries(rules.filter((r) => r.selector === '.fuel-select' && r.media === null).flatMap((r) => r.decls));
+  assert.equal(d['min-width'], '180px', 'a floor: the select still grows to its longest option');
+  assert.equal(d.width, undefined, 'no fixed width');
+  assert.equal(d['max-width'], '100%', 'never wider than the card on a 360px phone');
+});
+
 test('specificity helper: the counts the guard test relies on', () => {
   assert.deepEqual(specificity('.food-in'), [0, 1, 0]);
   assert.deepEqual(specificity('.food-in-wrap .food-in'), [0, 2, 0]);
