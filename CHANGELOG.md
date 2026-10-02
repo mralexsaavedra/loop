@@ -4,6 +4,24 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-02 — Registrar: a day navigator
+
+The owner logged meals the day before and could not see them: Registrar only read the viewer's today.
+
+- **Page** — `‹ <date> ›` at the top of Registrar (static markup in `Dia.astro`: real 44 px buttons
+  "Día anterior" / "Día siguiente", an `aria-live` label "Hoy" or `HC.fmtDate`, next disabled on
+  today, "Volver a hoy" only on another day). A past day loads `GET /api/food/log?date=` and renders
+  the same four group cards, day total ("Total del día"), delete and "+ Añadir"; the add sheet logs to
+  that day (its title names the date) with the same request-id / ambiguous-retry / re-read flow. The
+  viewed day is not persisted: the page always opens on today.
+- **Contracts unchanged** — today's log stays in its own slot, so `window.foodTotals()`,
+  `HCFood.groupTotals()` and `HCFood.addGuide` remain TODAY-only; an add / delete on a past day leaves
+  today and Resumen de hoy untouched. A slower answer for a day already left is dropped (one read
+  sequence per past day). The midnight reload moves a viewer on "today" to the new today and keeps a
+  viewer on a past day there, refreshing today's totals.
+- **Server** — none: `POST /food/log` already accepts any valid date (2000–2100). No rebuild needed;
+  `npm run generate` (or the hourly refresh) publishes it.
+
 ## 2026-10-01 — Recipes can use the public basics
 
 The owner asked to build recipes with generic foods (huevo, plátano, leche…) without first adding them

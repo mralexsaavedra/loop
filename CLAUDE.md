@@ -844,7 +844,17 @@ Plan de hoy) and the
   two folds (`web/src/tabs/Food.astro`: `#food-products`, `#food-recipes`, before Tablas, rendered only
   when `dia` is visible, no section key) ship `hidden` and appear only when `GET /api/food/products`
   answers — so the claude.ai artifact, file:// and the example build show nothing new and builds stay
-  byte-identical. Nothing of the log is kept in the browser. **Registrar**: the day total, then FOUR
+  byte-identical. Nothing of the log is kept in the browser. **Day navigator** (top of Registrar,
+  static markup in `Dia.astro`, driven by food.js): `‹ <date> ›` = real 44 px buttons (aria-label
+  "Día anterior" / "Día siguiente"), the date in an `aria-live` label ("Hoy" on the viewer's today, else
+  `HC.fmtDate`), next disabled on today (no future days), "Volver a hoy" only on another day; the viewed
+  day is NOT persisted (the page always opens on today; `S.view` null = follow today). A past day is read
+  with `GET /api/food/log?date=` on each visit into its own slot (`S.dayLog`, never today's `S.log`) and
+  renders the same cards, day total ("Total del día"), delete and "+ Añadir"; a slower answer for a day
+  already left is dropped (`viewSeq`). The add sheet logs to the day on screen when it opened (its title
+  adds the date when not today), same request-id / ambiguous-retry / re-read of THAT day; an add or
+  delete on a past day never touches today or calls `HCNutri.refresh()`. The server already accepts any
+  valid date (2000–2100). **Registrar**: the day total, then FOUR
   restrained group cards — Desayuno / Comida / Cena / Añadidos (en: Extras) — (`slots.mjs` `MEAL_GROUPS`
   + `mealGroup`, baked in `FOOD_CONST` as `groups` / `mainSlots` / `addonGroup` / `addonSlot`; label,
   amount, kcal in `--num`, P / C / G line, a 44 px delete button with an aria-label, "+ Añadir" per
@@ -914,12 +924,14 @@ Plan de hoy) and the
   own line (`fp-msg` / `fr-msg`: saved, archived) sits above the section body.
 - **Wiring** — `window.foodTotals()` = `{date, k, p, c, g, n, missing, src: 'log'}` when the API
   answered and TODAY (the viewer's local date) has ≥ 1 entry, else null — the one contract; nutri-day.js
-  and intake.js do not re-check the date. A macro NO entry states is `null` (a dash, never "0 / 150 g"
+  and intake.js do not re-check the date. It stays TODAY-only whatever day the navigator shows (as do
+  `HCFood.groupTotals()` and `HCFood.addGuide`, which always logs to today). A macro NO entry states is `null` (a dash, never "0 / 150 g"
   or 0 %); `missing[m]` = at least one entry lacks it, so a non-null value is a minimum and the bar /
   ring shows "≥ 40" (the rings add a one-line note). ONE logged entry today is enough: the dial, bars
   and rings then show the page's food log for today instead of the Apple Health intake (labelled
   "Registrado hoy en esta página" / the rings' "Registrado hoy"). After every add / delete food.js calls
-  `HCNutri.refresh()` (re-renders Resumen de hoy, which refreshes the rings, and the portion guide, in its own try/catch). A page left open past midnight reloads the log on `visibilitychange`.
+  `HCNutri.refresh()` (re-renders Resumen de hoy, which refreshes the rings, and the portion guide, in its own try/catch). A page left open past midnight reloads today's log on `visibilitychange`: a viewer on "today" moves to
+  the new today, one on a past day stays there (only today's totals refresh).
   The portion guide's hooks: `HCFood.groupTotals()` (today's sums per Registrar group, `{meals: {breakfast,
   lunch, dinner: {k, p, c, f}}, addon}`, a missing macro counted as 0; null unless the API answered and
   today's log is loaded), `HCFood.products()` (a copy of the active products, null without the API) and
