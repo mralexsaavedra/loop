@@ -44,7 +44,8 @@
       var k = offset + i, d = byDate[date];
       var min = d ? d.min : 0;
       var mods = d ? Object.keys(d.mods).map(function (m) { return (T.modalityLabels[m] || m) + ' ' + hm(d.mods[m]); }).join(', ') : '';
-      var title = min > 0 ? format(T.cellTitle, { date: date, time: hm(min) }) + (Object.keys(d.mods).length > 1 ? ' (' + mods + ')' : '') : format(T.cellRest, { date: date });
+      var shown = HC.fmtDate(date); // display date; the ISO stays in data-date
+      var title = min > 0 ? format(T.cellTitle, { date: shown, time: hm(min) }) + (Object.keys(d.mods).length > 1 ? ' (' + mods + ')' : '') : format(T.cellRest, { date: shown });
       out.push('<rect class="cal-cell cal-l' + level(min, A.levelMin) + '"' + HC.detailAttrs('workouts', date, { plain: true }) + ' x="' + ((k % 7) * STEP) + '" y="' + (HEAD + Math.floor(k / 7) * STEP) + '" width="' + CELL + '" height="' + CELL + '" rx="' + CAL_RX + '"><title>' + esc(title) + '</title></rect>');
     });
     out.push('</svg>');
@@ -95,7 +96,7 @@
       return '<span class="cal-legend-item"><span class="cal-legend-sw cal-l' + l + '"></span>' + esc(lbl) + '</span>';
     }).join('');
     return '<div class="act' + (stale ? ' act-stale' : '') + '">' +
-      (stale ? '<p class="hint">' + esc(format(T.staleNote, { days: age, date: A.asOf })) + '</p>' : '') +
+      (stale ? '<p class="hint">' + esc(format(T.staleNote, { days: age, date: HC.fmtDate(A.asOf) })) + '</p>' : '') +
       '<div class="act-pair"><div class="dash-sec act-cal"' + HC.detailAttrs('workouts') + '><h3>' + esc(T.calHeading) + '</h3><p class="hint">' + esc(format(T.calHint, { days: active })) + '</p>' +
       calendar(dates, byDate) + '<div class="cal-legend">' + legend + '</div></div>' +
       '<div class="dash-sec act-cum"' + HC.detailAttrs('workouts') + '><h3>' + esc(T.cumHeading) + '</h3><p class="hint">' + esc(T.cumHint) + '</p>' +

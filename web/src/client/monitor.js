@@ -64,7 +64,7 @@
     // never reads as sitting on it (e.g. 15.1 vs "14.2–15.1" for a High)
     var rd = Math.min(c.dec + 1, 2);
     if (c.band && !old) out.push('<div class="hm-range">' + esc(T.rangeLbl.replace('{lo}', num(c.band.lo, rd)).replace('{hi}', num(c.band.hi, rd))) + '</div>');
-    if (daysOld(c.date) !== 0 && isoDate(c.date)) out.push('<div class="hm-date">' + esc(c.date) + '</div>');
+    if (daysOld(c.date) !== 0 && isoDate(c.date)) out.push('<div class="hm-date">' + esc(HC.fmtDate(c.date)) + '</div>');
     out.push('</div>' + CLOSE);
     return out.join('');
   }

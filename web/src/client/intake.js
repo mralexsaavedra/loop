@@ -1,7 +1,10 @@
 /* Nutrición intake rings — the most recent logged day's intake (INTAKE.latest, from
- * dietary-daily.csv) against TODAY's target from Resumen de hoy (window.nutriTarget, client/nutri-day.js:
- * goal x day type; on bike days the MEALS target, with the ride fuel shown as its own line). Without
- * it (never in a normal build) the plan's training-day total (INTAKE.target.train) is used. Classic script (is:inline): reads INTAKE / I18N_INTAKE / LOCALE baked
+ * dietary-daily.csv) against THAT day's target (window.HCNutri.targetFor(date), client/nutri-day.js:
+ * the day's own detected day type x the current goal, its recorded ride minutes; today = Resumen de
+ * hoy's nutriTarget; on bike days the MEALS target, with the ride fuel shown as its own line). A past
+ * day whose type cannot be determined (targetFor -> null) renders NO rings: there is no honest target
+ * to fill against. Without Nutrición (never in a normal build) the plan's training-day total
+ * (INTAKE.target.train) is used. Classic script (is:inline): reads INTAKE / I18N_INTAKE / LOCALE baked
  * by components/Bake.astro. Freshness is decided HERE against the viewer's clock (the build bakes
  * no "now"), so the rings only show when intake exists for a date within INTAKE.freshDays days.
  *
@@ -13,17 +16,12 @@
  * Apple Health day whenever it has entries (labelled "Logged today"). */
 (function () {
   var T = I18N_INTAKE;
-  var DATE_LOCALE = LOCALE === 'es' ? 'es-ES' : 'en-GB';
   var RING_R = 18; // ring radius in the 44-unit viewBox (centre 22, 4 units of stroke room)
   var C = 2 * Math.PI * RING_R;
   var OVER_TARGET_RATIO = 1.1; // beyond 110% of the target the ring is styled as over
 
   // shared helpers (web/src/client/util.js)
   var format = HC.format, esc = HC.esc, nf = HC.nf;
-  function fmtD(s) {
-    var p = s.split('-');
-    return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(DATE_LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
-  }
   function isFresh(date) {
     var age = HC.daysOld(date);
     return age != null && age >= 0 && age <= INTAKE.freshDays;
@@ -76,17 +74,24 @@
       return;
     }
     var t = INTAKE.target.train, lbl = T.targetLbl.train, fuelK = 0;
-    // Nutrición's goal x day type target (client/nutri-day.js) when present; else the plan total
-    if (typeof window.nutriTarget === 'function') {
-      try {
-        var nt = window.nutriTarget();
-        if (nt && nt.k > 0) { t = nt; lbl = esc(nt.label); fuelK = nt.fuelK > 0 ? nt.fuelK : 0; }
-      } catch (e) { /* keep the plan total */ }
+    // Nutrición's target for THAT day (client/nutri-day.js HCNutri.targetFor: the logged day's own
+    // detected day type x the current goal); else the plan total
+    var N = window.HCNutri;
+    if (N && typeof N.targetFor === 'function') {
+      var nt;
+      try { nt = N.targetFor(L.date); } catch (e) { nt = undefined; /* keep the plan total */ }
+      // that day's type cannot be determined: there is no honest target to fill against
+      if (nt === null) {
+        host.innerHTML = '';
+        host.hidden = true;
+        return;
+      }
+      if (nt && nt.k > 0) { t = nt; lbl = esc(nt.label); fuelK = nt.fuelK > 0 ? nt.fuelK : 0; }
     }
     var M = L.missing || {};
     var minP = !!M.protein && L.p != null, minC = !!M.carbs && L.c != null, minG = !!M.fat && L.g != null;
     // today's log is still filling up: say so, so partial rings are not read as a finished day
-    var asOf = L.src === 'log' ? T.foodLbl : L.date === HC.todayIso() ? T.todayLbl : format(T.asOfTpl, { date: fmtD(L.date) });
+    var asOf = L.src === 'log' ? T.foodLbl : L.date === HC.todayIso() ? T.todayLbl : format(T.asOfTpl, { date: HC.fmtDate(L.date) });
     host.innerHTML =
       '<div class="intake-card">' +
       '<div class="intake-head"><h3>' + T.heading + '</h3><span class="intake-asof">' + esc(asOf) + '</span></div>' +

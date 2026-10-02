@@ -106,7 +106,8 @@ test('full render: recovery trend with band, per-component rows and 14 raw daili
   const s = fixtureScores();
   const html = render(s);
   assert.match(html, /sc-recovery/);
-  assert.match(html, /MAD/);
+  assert.ok(html.includes('<small class="rec-unit">SD</small>'), 'the one recovery unit');
+  assert.doesNotMatch(html, /MAD/, 'no statistician jargon on the page');
   assert.match(html, /daytime SDNN/i);
   assert.equal(count(html, 'class="rec-comp"'), 4);
   assert.equal(count(html, 'class="sc-raw-v"'), 4 * 14);
@@ -126,7 +127,7 @@ test('recovery card (Whoop-style): the HEADLINE is last night (big number + band
   const big = html.match(/<div class="rec-big sc-band-([a-z]+)">([\s\S]*?)<\/div>/);
   assert.ok(big, 'a big-number headline');
   assert.equal(big[1], t.band, 'coloured by last night\'s band');
-  assert.equal(text(big[2]), `${v} MAD ${enT.recovery.bands[t.band]}`, 'last night\'s value + band word');
+  assert.equal(text(big[2]), `${v} SD ${enT.recovery.bands[t.band]}`, 'last night\'s value + band word');
   assert.match(html, new RegExp(`<div class="rec-when">${enT.recovery.whenLastNight}</div>`));
   const trend = html.match(/<div class="rec-trend">([\s\S]*?)<\/div>/);
   assert.ok(trend, 'the 7-day trend is its own small line');
@@ -140,7 +141,7 @@ test('recovery card (Whoop-style): the HEADLINE is last night (big number + band
   assert.match(none, /rec-trend/);
 });
 
-test('recovery card: contributors are compact rows (state dot, name, latest value + unit, baseline · MAD · n) and the raw 14-day lists are folded', () => {
+test('recovery card: contributors are compact rows (state dot, name, latest value + unit, baseline · SD · n) and the raw 14-day lists are folded', () => {
   const s = fixtureScores();
   const html = recCard(s);
   const rows = [...html.matchAll(/<div class="rec-comp" data-comp="([a-zA-Z]+)">([\s\S]*?)<\/div><!--\/comp-->/g)];
@@ -153,7 +154,7 @@ test('recovery card: contributors are compact rows (state dot, name, latest valu
     assert.ok(body.includes(enT.recovery.components[c.key]));
     assert.ok(text(body).includes(`${last.toFixed(dec)} ${c.unit}`), 'latest value + unit');
     assert.ok(text(body).includes(enT.recovery.baselineLbl.replace('{value}', c.baseline.toFixed(dec)).replace('{unit}', c.unit)), 'baseline');
-    assert.ok(text(body).includes(`${(c.trend7 > 0 ? '+' : '') + c.trend7.toFixed(1)} MAD`), 'MAD vs baseline');
+    assert.ok(text(body).includes(`${(c.trend7 > 0 ? '+' : '') + c.trend7.toFixed(1)} SD`), 'SD vs baseline, the same unit as the composite');
     assert.ok(text(body).includes(`n=${c.n}`));
     assert.doesNotMatch(body, /sc-raw-v/, 'no raw number list inline');
   }
@@ -231,7 +232,7 @@ test('stale: > 3 days old is greyed, shows "as of <date>" and the note, and supp
   const s = fixtureScores();
   const html = render(s, { now: addDays(ASOF, 5) });
   assert.match(html, /sc-stale/);
-  assert.ok(html.includes(`as of ${ASOF}`));
+  assert.ok(html.includes('as of Tue 29 Sep'), 'the shared display date, never ISO');
   assert.match(html, /sc-stale-note/);
   assert.doesNotMatch(html, /sc-advice/);
 });
@@ -258,7 +259,7 @@ test('null asOf never produces NaN/undefined text', () => {
   assert.doesNotMatch(html, /NaN|undefined|null/);
 });
 
-test('es locale uses decimal commas for MAD values', () => {
+test('es locale uses decimal commas for recovery values', () => {
   const s = fixtureScores();
   const html = render(s, { locale: 'es' });
   const v = Math.abs(s.recovery.trend7).toFixed(1).replace('.', ',');
@@ -350,7 +351,7 @@ test('dials: absent DIALS global renders the cards exactly as before (no dial ca
   assert.doesNotMatch(html, /sc-dials/);
 });
 
-test('recovery dial: headline = LAST NIGHT (band word + signed sd, coloured by that band), 7-day trend + direction underneath, never a percentage', () => {
+test('recovery dial: headline = LAST NIGHT (band word + signed SD, coloured by that band), 7-day trend + direction underneath, never a percentage', () => {
   const s = fixtureScores();
   assert.ok(s.recovery.today, 'fixture has a composite for the asOf night');
   const d = dialOf(withDials(s), 'dial-rec');
@@ -358,7 +359,7 @@ test('recovery dial: headline = LAST NIGHT (band word + signed sd, coloured by t
   assert.match(d, new RegExp(`dial-band-${t.band}`));
   assert.ok(d.includes(enT.dials.recovery.bands[t.band]));
   const sd = (v) => (v > 0 ? '+' : '') + v.toFixed(1);
-  assert.ok(d.includes(`${sd(t.value)} sd`), `expected ${sd(t.value)} sd`);
+  assert.ok(d.includes(`${sd(t.value)} SD`), `expected ${sd(t.value)} SD (the one recovery unit)`);
   assert.ok(d.includes(enT.dials.recovery.lastNight), 'says it is last night when the data is from today');
   const trendLine = enT.dials.recovery.trendLine.replace('{dir}', enT.dials.recovery.dirs[s.recovery.trendDir]).replace('{value}', sd(s.recovery.trend7));
   assert.ok(d.includes(trendLine), `expected "${trendLine}"`);
@@ -371,7 +372,7 @@ test('recovery dial: an older night is labelled with its date, not "last night"'
   const s = fixtureScores();
   const d = dialOf(withDials(s, { now: addDays(ASOF, 2) }), 'dial-rec');
   assert.ok(!d.includes(enT.dials.recovery.lastNight));
-  assert.ok(d.includes(ASOF));
+  assert.ok(d.includes('as of Tue 29 Sep'), 'the shared display date, never ISO');
 });
 
 test('recovery dial: a composite without a sleep-duration reading is labelled by date + "no sleep data", never "last night"', () => {
@@ -379,18 +380,18 @@ test('recovery dial: a composite without a sleep-duration reading is labelled by
   s.recovery.today = { ...s.recovery.today, sleep: false };
   const d = dialOf(withDials(s), 'dial-rec');
   assert.ok(!d.includes(enT.dials.recovery.lastNight + '<'));
-  assert.ok(d.includes(ASOF));
+  assert.ok(d.includes('Tue 29 Sep'));
   assert.ok(d.includes(enT.dials.recovery.noSleep));
   const card = recCard(s);
   assert.ok(!card.includes(`<div class="rec-when">${enT.recovery.whenLastNight}</div>`), 'the recovery card does not call it last night either');
-  assert.ok(card.includes(`<div class="rec-when">${enT.recovery.whenNoSleep.replace('{date}', ASOF)}</div>`));
+  assert.ok(card.includes(`<div class="rec-when">${enT.recovery.whenNoSleep.replace('{date}', 'Tue 29 Sep')}</div>`));
 });
 
 test('recovery card: an older night is labelled by its date, not "Last night"', () => {
   const s = fixtureScores();
   const html = recCard(s, { now: addDays(ASOF, 1) });
   assert.ok(!html.includes(`<div class="rec-when">${enT.recovery.whenLastNight}</div>`));
-  assert.ok(html.includes(`<div class="rec-when">${enT.recovery.whenDate.replace('{date}', ASOF)}</div>`));
+  assert.ok(html.includes(`<div class="rec-when">${enT.recovery.whenDate.replace('{date}', 'Tue 29 Sep')}</div>`));
 });
 
 test('resilience: a throwing dial or card never blanks Inicio (empty-state fallback)', () => {
@@ -507,7 +508,7 @@ test('load dial: no session today -> "No session yet today" with the last sessio
   assert.ok(fig.includes(enT.dials.load.rest));
   assert.doesNotMatch(fig, /dial-num|dial-dot/);
   const cap = capOf(html, 'run');
-  assert.ok(cap.startsWith('No session yet today · last session ' + ASOF + ': RE 57'), cap);
+  assert.ok(cap.startsWith('No session yet today · last session Tue 29 Sep: RE 57'), cap);
   const none = withRecent(fixtureScores(), [], null);
   assert.ok(capOf(withDials(none), 'run').startsWith('No session yet today · typical day'), 'no last session known');
 });
@@ -657,4 +658,46 @@ test('load: sessions without effort data in the acute window are noted on the ca
   assert.equal(count(html, 'without effort data in the last 7 days'), 1, 'only the run card');
   const dhtml = withDials(s);
   assert.ok(capOf(dhtml, 'run').includes(note), 'dial caption');
+});
+
+test('one date format: every date the dials and cards print goes through HC.fmtDate, never ISO (ISO stays in attributes)', () => {
+  const textOf = (html) => html.replace(/<[^>]*>/g, ' ');
+  for (const locale of ['en', 'es']) {
+    for (const now of [ASOF, addDays(ASOF, 1), addDays(ASOF, 2), addDays(ASOF, 10)]) {
+      const s = fixtureScores();
+      const nosleep = fixtureScores();
+      nosleep.recovery.today = { ...nosleep.recovery.today, sleep: false };
+      const text = textOf(withDials(s, { now, locale }) + withDials(nosleep, { now, locale }));
+      assert.doesNotMatch(text, /\d{4}-\d{2}-\d{2}/, `no raw ISO date in the text (${locale}, ${now})`);
+    }
+  }
+  assert.ok(textOf(withDials(fixtureScores(), { now: addDays(ASOF, 10), locale: 'es' })).includes('mar 29 sept'), 'es display date');
+});
+
+test('one recovery unit: the dial, the Salud card and the detail sheet all say SD (es: desv.), from ONE i18n key; no unit literal in score.js', async () => {
+  const { en: enD, es: esD } = await import('../i18n/detail-templates.mjs');
+  assert.equal(enT.recovery.unit, 'SD');
+  assert.equal(esT.recovery.unit, 'desv.');
+  for (const [T, D, unit] of [[enT, enD, 'SD'], [esT, esD, 'desv.']]) {
+    const strings = [
+      T.recovery.trendLbl, T.recovery.deltaLbl, T.dials.recovery.delta, T.dials.recovery.trendLine, T.dials.recovery.trendLineNoDir,
+      T.dials.recovery.aria, T.dials.recovery.ariaTrend, D.metrics.recovery.unit, D.day.recValue, D.bands.recovery,
+    ];
+    for (const str of strings) {
+      assert.ok(str.includes(unit), `"${str}" uses the one unit ${unit}`);
+      assert.doesNotMatch(str, /\bMAD\b|\bsd\b/, `"${str}" keeps no other unit`);
+    }
+  }
+  assert.match(enT.recovery.unitNote, /typical spread/);
+  assert.match(esT.recovery.unitNote, /variación típica/);
+  assert.doesNotMatch(source, /'[^'\n]*\b(MAD|sd)\b[^'\n]*'/, 'score.js hard-codes no recovery unit string');
+  const card = recCard(fixtureScores());
+  assert.ok(card.includes(enT.recovery.unitNote), 'the card explains the unit in one line');
+  const es = (() => { const hosts = {}; render(fixtureScores(), { locale: 'es', hosts }); return hosts.rec.innerHTML; })();
+  assert.ok(es.includes('<small class="rec-unit">desv.</small>'));
+  assert.ok(es.includes(esT.recovery.unitNote));
+  assert.doesNotMatch(es, /MAD/);
+  const dial = dialOf(withDials(fixtureScores()), 'dial-rec');
+  assert.match(dial, / SD/, 'the dial: same unit');
+  assert.doesNotMatch(dial, / sd\b/);
 });

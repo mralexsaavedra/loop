@@ -4,6 +4,32 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-02 — web: past-day intake target, one date format, one recovery unit
+
+Three consistency fixes from an audit of the page, each pinned by tests.
+
+- **Intake rings judge a past day against THAT day** — when the newest logged day (within the last 3)
+  was not the viewer's today, the rings still measured it against today's goal × day type. New
+  `HCNutri.targetFor(date)` (client/nutri-day.js): today = `nutriTarget()`; a past day = its own
+  detected day type (the same `detectDayType` port over `SCORES.timeline` + `TRAINING`, its recorded
+  ride minutes for the fuel) × the current goal, labelled "Objetivo / Comidas de ese día"; today's
+  manual override and picked ride minutes never leak into it. When the day type cannot be determined
+  (no timeline row and no programmed session) it returns `null` and the rings are HIDDEN: a ring is a
+  fraction of a target, and a guessed target would colour the day over / under for no reason.
+- **One date format** — every user-visible date in the client scripts goes through `HC.fmtDate`
+  ("Tue 29 Sep" / "mar 29 sept"): the monitor card date, the timeline heading, the dials' and cards'
+  "as of", the recovery night label, the load caption's "last session", the pre-epoch note, the
+  calendar cell titles and stale note (raw ISO before), and the Salud sparkline axes / run and ride
+  tables, the workouts dashboard, the programmed session and the intake rings (`toLocaleDateString`
+  before, whose ICU output varies by browser). ISO stays in data attributes. A guard test fails on any
+  `toLocale*String` / `Intl.DateTimeFormat` / `DATE_LOCALE` under `web/src/client`; the test harness
+  bakes `I18N_DATE` like the page.
+- **One recovery unit** — the dial and the sheet said "sd", the Salud card and the advice "MAD".
+  `RECOVERY_UNIT` (en "SD", es "desv.", `lib/score/advice-copy.mjs`) now builds every recovery string
+  (advice, dial, card, monitor note, detail sheet); score.js reads `recovery.unit`, and the card adds
+  one line: "SD = typical spread: values are in units of your own typical day-to-day variation over
+  the last 42 days, not a grade." (es "variación típica"). The advice snapshot was updated on purpose.
+
 ## 2026-10-02 — web: mobile quick wins
 
 An audit of the page on a phone found five small problems; each is fixed with a guard test.

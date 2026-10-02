@@ -3,7 +3,14 @@
  * single source that the lib-level snapshot test pins. Keys are placeholder templates ({name})
  * filled client-side; the caveats below state the real limits of Relative Effort (it is HR-derived,
  * so it credits metcon work more than heavy low-rep sets) instead of a blanket claim about strength. */
-import { ADVICE_COPY } from '../../../lib/score/advice-copy.mjs';
+import { ADVICE_COPY, RECOVERY_UNIT } from '../../../lib/score/advice-copy.mjs';
+
+// The ONE unit of the recovery composite (and of each contributor's distance from its baseline),
+// defined next to the advice copy (lib/score/advice-copy.mjs): every recovery string here and in
+// detail-templates.mjs is built from it, and score.js reads it as `recovery.unit`, so the advice,
+// the dial, the Salud card and the sheet never disagree.
+export { RECOVERY_UNIT };
+const UE = RECOVERY_UNIT.en, US = RECOVERY_UNIT.es;
 
 export const en = {
   emptyMsg: 'No scores yet. Recovery needs the Apple Health extract; load needs workouts with Relative Effort (Strava).',
@@ -14,8 +21,10 @@ export const en = {
     insufficient: 'Not enough baseline yet: resting HR or HRV, plus enough other signals to carry 60% of the weight, each need at least 14 days in the last 6 weeks, and at least 7 of the last 14 days need data. No trend or advice is shown.',
     cardError: 'This card could not be shown.',
     noToday: 'No recent complete night (needs sleep and resting HR, plus HRV when you have it, in the last 3 days): the 7-day trend below is the latest reading.',
-    trendLbl: '7-day trend: {value} MAD vs your 42-day baseline',
-    deltaLbl: '{value} MAD vs a week earlier',
+    unit: UE,
+    unitNote: `${UE} = typical spread: values are in units of your own typical day-to-day variation over the last 42 days, not a grade.`,
+    trendLbl: `7-day trend: {value} ${UE} vs your 42-day baseline`,
+    deltaLbl: `{value} ${UE} vs a week earlier`,
     bands: { above: 'above baseline', at: 'at baseline', below: 'below baseline' },
     sparkLbl: '7-day smoothed trend, last 14 days',
     confLbl: 'Confidence: {level}',
@@ -61,17 +70,17 @@ export const en = {
     recovery: {
       label: 'Recovery',
       sub: '7-day trend',
-      delta: '{value} sd',
+      delta: `{value} ${UE}`,
       gated: 'No baseline',
       bands: { above: 'Above', at: 'At base', below: 'Below' },
       lastNight: 'Last night',
-      trendLine: '7-day trend: {dir} · {value} sd',
-      trendLineNoDir: '7-day trend: {value} sd',
+      trendLine: `7-day trend: {dir} · {value} ${UE}`,
+      trendLineNoDir: `7-day trend: {value} ${UE}`,
       dirs: { up: 'rising', steady: 'steady', down: 'falling' },
       noLastNight: 'No recent complete night: showing the 7-day trend',
       noSleep: 'No sleep data for this night',
-      aria: 'Recovery {when}: {value} sd vs baseline, {band}',
-      ariaTrend: 'No recent complete night. Recovery 7-day trend {value} sd vs baseline: {band}',
+      aria: `Recovery {when}: {value} ${UE} vs baseline, {band}`,
+      ariaTrend: `No recent complete night. Recovery 7-day trend {value} ${UE} vs baseline: {band}`,
       // shown under the dials only when Salud (the recovery detail + caveats) is hidden
       caveatLine: 'Recovery = HRV (daytime SDNN, not a nocturnal reading), resting HR and sleep vs your own 42-day baseline. Descriptive, not medical advice.',
     },
@@ -101,7 +110,7 @@ export const en = {
     units: { respiratory: 'brpm', rhr: 'bpm', hrv: 'ms', wristTemp: '°C', sleep: 'h' },
     status: { normal: 'Normal', high: 'High', low: 'Low', building: 'Building baseline', none: 'No data', stale: 'No recent data' },
     rangeLbl: 'Normal {lo}–{hi}',
-    note: 'Normal = your median ± 2 sd over the 42 days before each reading (14+ days needed). High HRV is good and high resting HR is not; respiratory rate and wrist temperature matter when they shift either way. Descriptive, not medical advice.',
+    note: `Normal = your median ± 2 ${UE} (your typical spread) over the 42 days before each reading (14+ days needed). High HRV is good and high resting HR is not; respiratory rate and wrist temperature matter when they shift either way. Descriptive, not medical advice.`,
   },
   // Inicio "today" timeline (client/timeline.js): last night's sleep + the day's workouts
   timeline: {
@@ -141,8 +150,10 @@ export const es = {
     insufficient: 'Aún no hay base suficiente: la FC en reposo o la VFC, junto con otras señales hasta sumar el 60 % del peso, necesitan al menos 14 días cada una en las últimas 6 semanas, y al menos 7 de los últimos 14 días deben tener datos. No se muestra tendencia ni consejo.',
     cardError: 'No se ha podido mostrar esta tarjeta.',
     noToday: 'Sin una noche completa reciente (hacen falta sueño y FC en reposo, más VFC si la registras, en los últimos 3 días): la tendencia de 7 días de abajo es la lectura más reciente.',
-    trendLbl: 'Tendencia 7 d: {value} MAD frente a tu línea base de 42 días',
-    deltaLbl: '{value} MAD frente a la semana anterior',
+    unit: US,
+    unitNote: `${US} = variación típica: los valores están en unidades de tu propia variación típica de un día a otro en los últimos 42 días, no son una nota.`,
+    trendLbl: `Tendencia 7 d: {value} ${US} frente a tu línea base de 42 días`,
+    deltaLbl: `{value} ${US} frente a la semana anterior`,
     bands: { above: 'por encima de la línea base', at: 'en la línea base', below: 'por debajo de la línea base' },
     sparkLbl: 'Tendencia suavizada a 7 días, últimos 14 días',
     confLbl: 'Confianza: {level}',
@@ -188,17 +199,17 @@ export const es = {
     recovery: {
       label: 'Recuperación',
       sub: 'Tendencia 7 días',
-      delta: '{value} sd',
+      delta: `{value} ${US}`,
       gated: 'Sin base',
       bands: { above: 'Encima', at: 'En base', below: 'Debajo' },
       lastNight: 'Anoche',
-      trendLine: 'Tendencia 7 d: {dir} · {value} sd',
-      trendLineNoDir: 'Tendencia 7 d: {value} sd',
+      trendLine: `Tendencia 7 d: {dir} · {value} ${US}`,
+      trendLineNoDir: `Tendencia 7 d: {value} ${US}`,
       dirs: { up: 'al alza', steady: 'estable', down: 'a la baja' },
       noLastNight: 'Sin una noche completa reciente: se muestra la tendencia de 7 días',
       noSleep: 'Sin datos de sueño esa noche',
-      aria: 'Recuperación {when}: {value} sd frente a la base, {band}',
-      ariaTrend: 'Sin una noche completa reciente. Tendencia de recuperación de 7 días {value} sd frente a la base: {band}',
+      aria: `Recuperación {when}: {value} ${US} frente a la base, {band}`,
+      ariaTrend: `Sin una noche completa reciente. Tendencia de recuperación de 7 días {value} ${US} frente a la base: {band}`,
       // solo bajo los diales cuando Salud (el detalle de recuperación y sus advertencias) está oculta
       caveatLine: 'Recuperación = VFC (SDNN diurna, no una lectura nocturna), FC en reposo y sueño frente a tu propia base de 42 días. Descriptivo, no es consejo médico.',
     },
@@ -228,7 +239,7 @@ export const es = {
     units: { respiratory: 'rpm', rhr: 'ppm', hrv: 'ms', wristTemp: '°C', sleep: 'h' },
     status: { normal: 'Normal', high: 'Alto', low: 'Bajo', building: 'Creando base', none: 'Sin datos', stale: 'Sin datos recientes' },
     rangeLbl: 'Normal {lo}–{hi}',
-    note: 'Normal = tu mediana ± 2 sd en los 42 días anteriores a cada lectura (hacen falta 14+ días). Una VFC alta es buena y una FC en reposo alta no; la frecuencia respiratoria y la temperatura de muñeca importan cuando cambian en cualquier sentido. Descriptivo, no es consejo médico.',
+    note: `Normal = tu mediana ± 2 ${US} (tu variación típica) en los 42 días anteriores a cada lectura (hacen falta 14+ días). Una VFC alta es buena y una FC en reposo alta no; la frecuencia respiratoria y la temperatura de muñeca importan cuando cambian en cualquier sentido. Descriptivo, no es consejo médico.`,
   },
   // "Hoy" en Inicio (client/timeline.js): el sueño de anoche + los entrenos del día
   timeline: {

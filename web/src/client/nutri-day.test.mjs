@@ -335,6 +335,52 @@ test('window.nutriTarget: today\'s target (goal x day type) for the rings; on bi
   assert.match(bike.label, /Today's meals · Ride ~2 h · Maintain/);
 });
 
+// a past day for HCNutri.targetFor: the timeline bakes the last 3 data days
+const YDAY = '2030-01-09';
+const pastCtx = (days, training = {}) => ({ SCORES: { timeline: { asOf: TODAY, days } }, TRAINING: training });
+
+test('HCNutri.targetFor(past day): THAT day\'s detected day type (its recorded ride minutes) with the current goal, not today\'s', () => {
+  const s = run({ extra: pastCtx([{ date: YDAY, sleep: 7, items: [{ modality: 'bike', dur: 160 }] }, { date: TODAY, sleep: 7.5, items: [] }]) });
+  assert.equal(s.window.nutriTarget().dayType, 'rest', 'today is a rest day');
+  const t = s.api.targetFor(YDAY);
+  const x = planFor(bake(), 'maintain', 'bikeLong', 160);
+  assert.deepEqual([t.k, t.p, t.c, t.g, t.fatMax, t.fuelK, t.day, t.dayType], [x.t.kcal - x.fuelK, x.t.p, x.t.c - x.fuelC, x.t.f, x.t.f + 15, x.fuelK, 'train', 'bikeLong']);
+  assert.match(t.label, /That day's meals · Long ride · Maintain/);
+  s.api.setGoal('cut');
+  assert.equal(s.api.targetFor(YDAY).k, planFor(bake(), 'cut', 'bikeLong', 160).mt.k, 'the goal is the current one');
+  const es = run({ locale: 'es', extra: pastCtx([{ date: YDAY, sleep: 7, items: [{ modality: 'gym', dur: 50 }] }]) }).api.targetFor(YDAY);
+  assert.equal(es.dayType, 'gym');
+  assert.match(es.label, /^Objetivo de ese día · /);
+});
+
+test('HCNutri.targetFor: a day with only sleep is rest, a programmed-only day uses the program, today = nutriTarget()', () => {
+  const s = run({ extra: pastCtx([{ date: YDAY, sleep: 7, items: [] }], { '2030-01-08': { kind: 'gym' } }) });
+  assert.equal(s.api.targetFor(YDAY).dayType, 'rest');
+  assert.equal(s.api.targetFor(YDAY).k, 2500);
+  assert.equal(s.api.targetFor('2030-01-08').dayType, 'gym', 'no timeline row, but a programmed session');
+  assert.deepEqual(plain(s.api.targetFor(TODAY)), plain(s.window.nutriTarget()));
+});
+
+test('HCNutri.targetFor: unknown day type -> null (no timeline row, no programme), never a guess; a future or bad date -> null', () => {
+  const s = run({ extra: pastCtx([{ date: TODAY, sleep: 7.5, items: [] }]) });
+  assert.equal(s.api.targetFor(YDAY), null);
+  assert.equal(s.api.targetFor('2030-01-11'), null, 'future');
+  assert.equal(s.api.targetFor('2030-02-31'), null);
+  assert.equal(s.api.targetFor(null), null);
+});
+
+test('HCNutri.targetFor: today\'s manual override and picked ride minutes never leak into a past day', () => {
+  const storage = memStorage({
+    'hc.nutri.dayType': JSON.stringify({ date: TODAY, type: 'bike', auto: 'rest' }),
+    'hc.nutri.rideMin': JSON.stringify({ date: TODAY, type: 'bike', min: 300 }),
+  });
+  const s = run({ storage, extra: pastCtx([{ date: YDAY, sleep: 7, items: [] }, { date: TODAY, sleep: 7.5, items: [] }]) });
+  assert.equal(s.window.nutriTarget().dayType, 'bike');
+  assert.equal(s.api.targetFor(YDAY).dayType, 'rest');
+  const r = run({ storage, extra: pastCtx([{ date: YDAY, sleep: 7, items: [{ modality: 'bike', dur: 90 }] }, { date: TODAY, sleep: 7.5, items: [] }]) });
+  assert.equal(r.api.targetFor(YDAY).fuelK, planFor(bake(), 'maintain', 'bike', 90).fuelK, 'the recorded 90 min, not today\'s picked 300');
+});
+
 test('the removed day builder\'s hook is never called (a stale window.bldRefresh is ignored); a failing ring refresh says so', () => {
   const calls = [];
   const s = run({ hooks: { bldRefresh: () => calls.push('bld'), intakeRefresh: () => calls.push('intake') } });

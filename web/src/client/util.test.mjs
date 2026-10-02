@@ -136,3 +136,15 @@ test('rolloverAction: reload once the viewer\'s day differs from the day the pag
   assert.equal(HC.rolloverAction(null, '2026-10-02', false, false), 'none');
   assert.equal(HC.rolloverAction('2026-10-01', 'bad', false, false), 'none');
 });
+
+test('one date format: no client script formats a date with toLocale*String / Intl (HC.fmtDate / fmtMonth only)', () => {
+  const dir = path.dirname(fileURLToPath(import.meta.url));
+  const scripts = fs.readdirSync(dir).filter((f) => f.endsWith('.js'));
+  assert.ok(scripts.length > 10, 'the client scripts are found');
+  for (const f of scripts) {
+    const src = fs.readFileSync(path.join(dir, f), 'utf8');
+    assert.doesNotMatch(src, /\.toLocale(Date|Time)?String\(/, `${f} formats a date with toLocale*String: use HC.fmtDate`);
+    assert.doesNotMatch(src, /Intl\.DateTimeFormat/, `${f} formats a date with Intl: use HC.fmtDate`);
+    assert.doesNotMatch(src, /DATE_LOCALE/, `${f} keeps its own date locale`);
+  }
+});
