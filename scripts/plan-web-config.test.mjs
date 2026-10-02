@@ -1,7 +1,8 @@
 /* Static guards for the on-demand refresh wiring (services/plan-web nginx + compose + systemd units,
  * services/health-ingest compose). They pin the SECURITY boundary: the plan-web server may proxy
- * exactly two exact ingest routes (POST /sync, GET /sync/status) plus the food log prefix
- * (/api/food/ -> /food/), never a bearer-protected data endpoint. */
+ * exactly three exact ingest routes (POST /sync, GET /sync/status, and the Shortcut's bearer-checked
+ * POST /ingest/health-auto-export) plus the food log prefix (/api/food/ -> /food/), never a data
+ * export endpoint. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -24,15 +25,15 @@ function locations(conf) {
   return [...conf.matchAll(/location\s+([^{]+?)\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g)].map((m) => ({ spec: m[1].trim(), body: m[2] }));
 }
 
-test('nginx proxies ONLY /api/sync and /api/sync/status (exact) and the /api/food/ prefix, to the host ingest port', () => {
+test('nginx proxies ONLY /api/sync, /api/sync/status, /ingest/health-auto-export (exact) and the /api/food/ prefix, to the host ingest port', () => {
   const proxied = locations(nginx).filter((l) => /proxy_pass\s/.test(l.body));
-  assert.deepEqual(proxied.map((l) => l.spec).sort(), ['/api/food/', '= /api/sync', '= /api/sync/status']);
+  assert.deepEqual(proxied.map((l) => l.spec).sort(), ['/api/food/', '= /api/sync', '= /api/sync/status', '= /ingest/health-auto-export']);
   const target = (spec) => /proxy_pass\s+([^;]+);/.exec(proxied.find((l) => l.spec === spec).body)[1];
   assert.equal(target('= /api/sync'), 'http://host.docker.internal:${INGEST_PORT}/sync');
   assert.equal(target('= /api/sync/status'), 'http://host.docker.internal:${INGEST_PORT}/sync/status');
   assert.match(proxied.find((l) => l.spec === '= /api/sync').body, /limit_except POST/);
   assert.match(proxied.find((l) => l.spec === '= /api/sync/status').body, /limit_except GET/);
-  assert.equal((nginx.match(/proxy_pass\s/g) || []).length, 3, 'no other proxy_pass anywhere');
+  assert.equal((nginx.match(/proxy_pass\s/g) || []).length, 4, 'no other proxy_pass anywhere');
 });
 
 test('nginx /api/food/: ingest /food/ only, GET/POST/PUT/DELETE, the body passed, 16 KB cap, the X-HC-Food header forwarded', () => {
@@ -53,7 +54,32 @@ test('nginx: everything else under /api is a 404; data endpoints are never named
   const api = locations(nginx).find((l) => l.spec === '/api/');
   assert.ok(api, 'a catch-all /api/ location exists');
   assert.match(api.body, /return 404;/);
-  assert.doesNotMatch(nginx, /\/export|\/ingest/);
+  const directives = nginx.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
+  assert.doesNotMatch(directives, /\/export|\/sync\/strava|\/healthz/, 'no data export, Strava pull or health endpoint is ever named');
+  const specs = locations(nginx).map((l) => l.spec);
+  assert.ok(!specs.some((s) => /^(\^~\s+|~\*?\s+)?\/ingest\/?$/.test(s) || /^(\^~\s+)?\/ingest\//.test(s)), 'no /ingest/ prefix or regex location: other /ingest/* paths stay 404');
+  assert.deepEqual(specs.filter((s) => /ingest/.test(s)), ['= /ingest/health-auto-export'], 'the only ingest location is the exact Shortcut route');
+});
+
+// The iOS Shortcut posts its payload through plan-web when plan-web is the public entry (behind an
+// SSO tunnel that bypasses /ingest/* and /api/sync); ingest checks the bearer itself.
+test('nginx = /ingest/health-auto-export: exact, POST only, the body passed with the ingest cap, auth headers forwarded', () => {
+  const ingest = locations(nginx).find((l) => l.spec === '= /ingest/health-auto-export');
+  assert.ok(ingest, 'an EXACT-match location for the Shortcut upload');
+  assert.match(ingest.body, /proxy_pass\s+http:\/\/host\.docker\.internal:\$\{INGEST_PORT\}\/ingest\/health-auto-export;/);
+  assert.match(ingest.body, /limit_except POST \{ deny all; \}/);
+  assert.doesNotMatch(ingest.body, /proxy_pass_request_body off/, 'the JSON payload is the whole point');
+  assert.match(ingest.body, /client_max_body_size 32m;/, 'the ingest default MAX_BODY_BYTES (32 MB), never more');
+  const server = read('services', 'health-ingest', 'src', 'server.js');
+  assert.match(server, /MAX_BODY_BYTES = Number\(process\.env\.MAX_BODY_BYTES \?\? 32 \* 1024 \* 1024\)/, 'the cap above mirrors this default');
+  assert.match(ingest.body, /proxy_set_header Authorization \$http_authorization;/);
+  assert.match(ingest.body, /proxy_set_header Automation-Name \$http_automation_name;/);
+  assert.match(ingest.body, /proxy_set_header Content-Type \$content_type;/);
+  assert.match(ingest.body, /proxy_set_header Host host\.docker\.internal;/);
+  assert.match(ingest.body, /proxy_connect_timeout 5s;/);
+  assert.match(ingest.body, /proxy_read_timeout 60s;/);
+  assert.match(ingest.body, /client_body_buffer_size 1m;/, 'a few-hundred-KB payload stays in memory');
+  assert.doesNotMatch(ingest.body, /add_header\s+Access-Control/i);
 });
 
 test('nginx serves status.json uncached', () => {
