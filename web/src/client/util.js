@@ -102,11 +102,12 @@ var HC = (function () {
   }
   // midnight rollover: a page left open (a phone tab woken the next morning) shows the day it loaded on
   // (dials, top-bar date, timeline, day type, rings are computed once). 'reload' when the viewer's day
-  // differs from the load day and the page is visible; 'defer' while the detail sheet is open (it may
-  // hold an unsaved food form); 'none' otherwise (same day, hidden page, no usable dates).
-  function rolloverAction(loadDay, today, sheetOpen, hidden) {
+  // differs from the load day and the page is visible; 'defer' while the page is busy (the caller
+  // decides: an open detail sheet, an open product / recipe editor, a focused field — anything a reload
+  // would lose); 'none' otherwise (same day, hidden page, no usable dates).
+  function rolloverAction(loadDay, today, busy, hidden) {
     if (hidden || !isoDate(loadDay) || !isoDate(today) || loadDay === today) return 'none';
-    return sheetOpen ? 'defer' : 'reload';
+    return busy ? 'defer' : 'reload';
   }
   // minutes -> "1 h 45 min" / "45 min" / "1 h"; units = {h, min} from the page's i18n dict
   function duration(min, units) {
