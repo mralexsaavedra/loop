@@ -17,6 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { TAB_KEYS, SECTION_TAB } from '../../../lib/nav/tabs.mjs';
+import { loadUtil } from '../../test/client-util.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'core.js'), 'utf8');
@@ -213,4 +214,80 @@ test('the train/rest toggle is gone: core.js exposes no setDay (Resumen de hoy p
   const { window } = makeContext(doc);
   assert.equal(window.setDay, undefined);
   assert.doesNotMatch(source, /day-toggle|b-train|b-rest/);
+});
+
+/* ---------- midnight rollover: one reload when the viewer's day changes ---------- */
+function rolloverPage({ at, sheetOpen = false }) {
+  const doc = new StubDocument();
+  const listeners = {};
+  doc.addEventListener = (evt, fn) => { (listeners[evt] = listeners[evt] || []).push(fn); };
+  doc.hidden = false;
+  const sheet = doc.el('detail', { hidden: !sheetOpen });
+  const clock = { now: new Date(at).getTime() };
+  const RealDate = Date;
+  class FakeDate extends RealDate {
+    constructor(...a) { super(...(a.length ? a : [clock.now])); }
+    static now() { return clock.now; }
+  }
+  const timers = [];
+  const reloads = [];
+  const window = { scrollTo() {}, location: { reload: () => reloads.push(clock.now) }, addEventListener() {} };
+  const NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB } };
+  const ctx = {
+    document: doc, window, console, Math, Number, String, Array, Object, JSON, NAV, LOCALE: 'en', Date: FakeDate,
+    setTimeout, setInterval: (fn, ms) => { timers.push({ fn, ms, on: true }); return timers.length; },
+    clearInterval: (id) => { if (timers[id - 1]) timers[id - 1].on = false; },
+  };
+  vm.createContext(ctx);
+  loadUtil(ctx);
+  vm.runInContext(source, ctx);
+  const visible = () => (listeners.visibilitychange || []).forEach((fn) => fn());
+  const tick = () => timers.filter((t) => t.on).forEach((t) => t.fn());
+  return { doc, sheet, clock, reloads, timers, visible, tick };
+}
+
+test('rollover: becoming visible on the same day does nothing; on a new day it reloads once', () => {
+  const p = rolloverPage({ at: '2026-10-01T23:50:00' });
+  p.visible();
+  assert.equal(p.reloads.length, 0, 'same day');
+  p.clock.now = new Date('2026-10-02T07:10:00').getTime();
+  p.doc.hidden = true;
+  p.visible();
+  assert.equal(p.reloads.length, 0, 'still hidden: wait for the page to be visible');
+  p.doc.hidden = false;
+  p.visible();
+  assert.equal(p.reloads.length, 1, 'a new day: reload');
+  p.visible();
+  assert.equal(p.reloads.length, 1, 'never twice');
+});
+
+test('rollover: an open detail sheet defers the reload until it closes', () => {
+  const p = rolloverPage({ at: '2026-10-01T23:50:00', sheetOpen: true });
+  p.clock.now = new Date('2026-10-02T00:05:00').getTime();
+  p.visible();
+  assert.equal(p.reloads.length, 0, 'the sheet may hold an unsaved food form');
+  assert.equal(p.timers.filter((t) => t.on).length, 1, 'one watcher while deferred');
+  p.visible();
+  assert.equal(p.timers.filter((t) => t.on).length, 1, 'never a second watcher');
+  p.tick();
+  assert.equal(p.reloads.length, 0, 'still open');
+  p.sheet.hidden = true;
+  p.tick();
+  assert.equal(p.reloads.length, 1, 'reloads once the sheet closed');
+  assert.equal(p.timers.filter((t) => t.on).length, 0, 'the watcher stops');
+});
+
+test('rollover: a deferred reload also happens on the next visibility change with the sheet closed', () => {
+  const p = rolloverPage({ at: '2026-10-01T23:50:00', sheetOpen: true });
+  p.clock.now = new Date('2026-10-02T00:05:00').getTime();
+  p.visible();
+  p.sheet.hidden = true;
+  p.visible();
+  assert.equal(p.reloads.length, 1);
+});
+
+test('rollover: without the shared helpers (HC) core.js wires nothing and never throws', () => {
+  const doc = new StubDocument();
+  const { window } = makeContext(doc);
+  assert.equal(typeof window.setTab, 'function');
 });

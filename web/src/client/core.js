@@ -72,6 +72,38 @@ function jumpOr(id, tab) {
   else setTab(tab);
 }
 
+/* Midnight rollover (HC.rolloverAction): the page captures the viewer's day at load; when it becomes
+ * visible on another day it reloads once, so every view computed at load (dials, top-bar date,
+ * timeline, day type, rings) moves to the new day. While the detail sheet (#detail) is open the reload
+ * waits for it to close (polled each second) or for the next visibility change with it closed.
+ * food.js's own visibilitychange listener still re-reads today's log: when the page reloads that read
+ * is simply dropped, and while a reload is deferred it keeps Registrar on the new day. */
+(function () {
+  if (typeof HC === 'undefined' || !HC.rolloverAction || typeof document.addEventListener !== 'function') return;
+  var loadDay = HC.todayIso();
+  var watch = null;
+  var done = false;
+  function sheetOpen() {
+    var d = document.getElementById('detail');
+    return !!(d && !d.hidden);
+  }
+  function check() {
+    if (done) return;
+    var action = HC.rolloverAction(loadDay, HC.todayIso(), sheetOpen(), !!document.hidden);
+    if (action === 'reload') {
+      done = true;
+      if (watch != null) clearInterval(watch);
+      watch = null;
+      window.location.reload();
+    } else if (action === 'defer' && watch == null) {
+      watch = setInterval(check, 1000);
+    }
+  }
+  document.addEventListener('visibilitychange', check);
+  // a page restored from the back-forward cache
+  if (typeof window.addEventListener === 'function') window.addEventListener('pageshow', check);
+})();
+
 window.setTab = setTab;
 window.jump = jump;
 window.jumpOr = jumpOr;
