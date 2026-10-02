@@ -176,8 +176,11 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   (the detail-sheet opener markup, see "Detail views") and `rolloverAction` (the midnight rollover:
   core.js captures the viewer's day at load and, when the page becomes visible on another day,
   reloads once, so the dials, top-bar date, timeline, day type and rings move to the new day; while
-  the detail sheet `#detail` is open (an unsaved food form) it waits until the sheet closes, polled
-  each second, or the next visibility change). The client scripts read these instead of
+  the page is BUSY — the detail sheet `#detail` open, a Mis productos / Mis recetas editor open (a form
+  field inside `#fp-body` / `#fr-body`) or a text field focused — it waits: a 1 s watcher runs only
+  while there is something to wait for, stops on `none` (hidden page, clock back) and is re-armed by
+  `visibilitychange` / `pageshow`; a `location.reload()` that throws (sandboxed frame) is retried only
+  by a later event, never in a loop). The client scripts read these instead of
   redefining them (a test guards it), and constants come baked from `lib/` (`STALE_DAYS` via
   `HC_CONST`; the calendar's `windowDays` / `levelMin` via `activityBake` into `ACTIVITY`), never as
   client literals. Tests load it with `web/test/client-util.mjs` `loadUtil(ctx)`.

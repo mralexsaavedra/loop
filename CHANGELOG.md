@@ -19,9 +19,16 @@ An audit of the page on a phone found five small problems; each is fixed with a 
   BREACH-style length oracle) and are small. Rollout: `docker compose up -d` in `services/plan-web`.
 - **Midnight rollover** — a page left open past midnight kept yesterday's dials, top-bar date,
   timeline, day type and rings (only the food log followed). core.js now reloads the page once when
-  it becomes visible on another day than it loaded on (`HC.rolloverAction`, pure, unit-tested), and
-  waits while the detail sheet is open (it may hold an unsaved food form): the reload happens when the
-  sheet closes (polled each second) or on the next visibility change.
+  it becomes visible (or is restored from the back-forward cache) on another day than it loaded on
+  (`HC.rolloverAction(loadDay, today, busy, hidden)`, pure, unit-tested), and waits while the page is
+  busy: the detail sheet open, a Mis productos / Mis recetas editor open, or a text field focused —
+  a half-filled form is never lost. A 1 s watcher runs only while waiting (stopped when the page is
+  hidden or the clock is back on the load day, re-armed by visibilitychange / pageshow); a reload
+  that throws (sandboxed frame) is retried only by a later event.
+- **Ride-duration select** — `max-width: 100%` next to its 180px floor, so 16px text never pushes it
+  past its card on a 360px phone (the longest option, "5 h 30 min", fits). nginx states the rule
+  "every proxying block sets `gzip off`" next to `gzip on`, and the config test enforces it for every
+  `proxy_pass`, not a fixed list.
 - **Load-dial switch** — the gym / run / bike pills were 30px tall. They keep the compact look; a
   centred `::before` band makes the hit area 44px tall (and the pill at least 44px wide), and a
   wrapped row sits 14px lower so two bands never overlap.
