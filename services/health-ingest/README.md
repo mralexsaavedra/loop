@@ -35,6 +35,8 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 | GET    | `/food/log?date=YYYY-MM-DD`   | header | `200` `{date, entries, totals}` |
 | POST / DELETE | `/food/log[/:id]`      | header | add `201` `{entry, totals}` (macros snapshotted; a retry with the same `requestId` answers `200` with the stored row) / delete `200` |
 | GET    | `/food/off?barcode=` / `?q=`  | header | `200` `{product}` / `{results}` from Open Food Facts, normalized; nothing saved |
+| GET    | `/food/log/summary?from=&to=` | header | `200` `{from, to, days: [{date, k, p, c, f, n, missing, groups}]}`: per-day sums of the stored snapshots (≤ 120 days; a macro no entry states is `null`) |
+| GET / PUT | `/food/settings`           | header | `200` `{settings: {goal, targetWeightKg, updatedAt}}`; PUT = partial update `{goal?, targetWeightKg?}` (`null` clears the target); `503 settings_unavailable` when its migration failed |
 | GET    | `/export/athlete`             | bearer | `200` with the latest athlete snapshot: `{fetchedAt, firstname, lastname, city, state, country, profile, profileMedium, measurementPreference, athleteType, bikes, shoes, gearScopeMissing, devices}` (nulls / empty lists when nothing is stored) |
 
 Bearer token is compared in constant time; it is the entire security boundary
@@ -134,6 +136,17 @@ supermarket products (Mis productos: Mercadona / Dia / Eroski / other) and his
 own recipes (Mis recetas), through plan-web's `/api/food/` proxy. Tables in
 `sql/006_food.sql` (idempotent, runs on every start): `food_product`,
 `food_recipe`, `food_log`.
+
+- **Settings** (`sql/007_settings.sql`, table `app_settings`, ONE row): the
+  owner's goal (`maintain` / `cut` / `bulk`) and target weight (35–250 kg,
+  1 decimal), so every device that opens the page agrees. Its own optional
+  migration group: a failure only answers `503 settings_unavailable` on
+  `/food/settings` (the food log keeps working, and the other way round). Same
+  layers as every `/food/*` route (Host, Origin, `X-HC-Food`, JSON, body cap,
+  write rate limit); unknown keys and out-of-range values are `400 invalid`.
+- **Summary** (`GET /food/log/summary`): per-day sums (`daySummaries`, the
+  shared formula) and entries per Registrar group (breakfast / lunch / dinner /
+  addon) for the page's adherence view; read-only, at most 120 days.
 
 - **Products** hold per-100 g / ml kcal, protein, carbs and fat from the label or
   Open Food Facts, confirmed by the owner (`source`: `off` / `label` / `manual`),
