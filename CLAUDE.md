@@ -1406,10 +1406,16 @@ Besides the claude.ai artifact, `services/plan-web` serves `web/dist/personal/in
   plus the food log prefix `/api/food/*` → ingest `/food/*` (GET / POST / PUT / DELETE, 16 KB, the
   `X-HC-Food` header forwarded; see "Nutrition v2 part 2") and EXACTLY `POST /ingest/health-auto-export`
   → the same ingest route (the iOS Shortcut upload when plan-web is the public entry and ingest is not
-  exposed: `Authorization` / `Automation-Name` / `Content-Type` forwarded, ingest checks the bearer,
-  `client_max_body_size 32m` = ingest's `MAX_BODY_BYTES` default); every other `/api/` or `/ingest/`
-  path 404, never `/export/*` or `/sync/strava` (pinned by `scripts/plan-web-config.test.mjs`). Behind
-  an SSO tunnel (one resource → plan-web:8090), bypass SSO for exactly `/ingest/*` and `/api/sync` and
+  exposed: `Authorization` / `Automation-Name` / `Content-Type` forwarded, no `Bearer` token → `401`
+  before the body is read, ingest checks the bearer, `client_max_body_size 8m` ≤ ingest's
+  `MAX_BODY_BYTES` default); every other `/api/` or `/ingest/`
+  path 404, never `/export/*` or `/sync/strava` (pinned by `scripts/plan-web-config.test.mjs`). A
+  server-level guard (next to the Host check) answers `400` when the RAW path (before `?`) holds `..`,
+  `%2e`, `%2f`, `%5c` (any case) or `//`, so an SSO proxy matching bypass rules on the raw path cannot
+  be walked to the page (`/ingest/%2e%2e/index.html`). Behind an SSO tunnel (one resource →
+  plan-web:8090), bypass SSO for exactly `/ingest/*` and `/api/sync` (EXACT, never a prefix), verify
+  from outside that `/ingest/%2e%2e/status.json` does not return the file, keep `INGEST_TOKEN` (it also
+  guards `/export/*`) ≥ 32 random bytes, and
   add the public host to `PLAN_WEB_EXTRA_HOSTS` + `FOOD_ALLOWED_HOSTS` (`services/plan-web/README.md`,
   "Exposing behind an SSO tunnel"). Every path
   (the page included) answers only a Host that is an IP literal, `localhost` or a name in

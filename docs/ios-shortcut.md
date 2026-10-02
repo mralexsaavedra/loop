@@ -79,7 +79,12 @@ service, point both steps at the plan-web host:
 - step 5: `https://<your-host>/api/sync` (not `/sync`)
 
 Behind an SSO proxy, bypass authentication for exactly those two paths (`/ingest/*` and
-`/api/sync`); everything else (the page, the food log) stays behind the login. plan-web proxies
+`/api/sync`); everything else (the page, the food log) stays behind the login. The `/api/sync`
+rule must be an EXACT path match, not a prefix. After setup, check from outside the LAN that
+`https://<your-host>/ingest/%2e%2e/status.json` and `https://<your-host>/ingest/../status.json`
+(`curl --path-as-is`) do NOT return the file (`400` or the SSO redirect): plan-web refuses
+dot-segments and encoded slashes in the raw path. `INGEST_TOKEN` also guards `/export/*`, so
+keep it at least 32 random bytes and out of screenshots. plan-web proxies
 only `POST /ingest/health-auto-export` of the ingest routes (any other `/ingest/*` path is a 404)
 and never `/export/*`. Never expose the ingest port itself. Setup:
 `services/plan-web/README.md`, "Exposing behind an SSO tunnel".
