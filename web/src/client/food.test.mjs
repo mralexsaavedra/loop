@@ -1335,3 +1335,138 @@ test('en locale: "Today", English dates and the day total of another day', async
   view.render();
   assert.equal(view.title(), 'Add food · Wed 9 Jan');
 });
+
+test('a sheet opened on "today" logs to the today of the SAVE (23:58 -> 00:02), and its ambiguous re-read reads that day', async () => {
+  const NEXT = '2030-01-11';
+  let n = 0;
+  const saved = { ...ENTRY, id: 91, date: NEXT, meal: 'snack', refType: 'quick', label: 'Barrita', kcal: 200 };
+  const routes = {
+    ...BOOT,
+    [`GET /api/food/log?date=${NEXT}`]: json({ date: NEXT, entries: [], totals: { ...TOTALS1, kcal: 0, count: 0 } }),
+    'POST /api/food/log': () => (++n === 1 ? new TypeError('Failed to fetch') : json({ entry: saved, totals: { ...TOTALS1, kcal: 200, count: 1 } }, 200)),
+  };
+  const t = setup({ routes, extraIds: ['fa-panel', 'fa-prev', 'fa-msg'], time: '23:58:00' });
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'addon' }));
+  const view = t.window.HCViews['food-add'];
+  view.render();
+  assert.equal(view.title(), 'Añadir comida');
+  t.fire('click', t.button({ 'data-food-act': 'tab', 'data-tab': 'quick' }));
+  t.input('fa-label', 'Barrita');
+  t.input('fa-kcal', '200');
+  t.ctx.Date = fixedDate(NEXT, '00:02:00');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(t.calls.filter((c) => c.key === 'POST /api/food/log')[0].body.date, NEXT, 'logged to the day it was saved on');
+  assert.ok(t.calls.some((c) => c.key === `GET /api/food/log?date=${NEXT}`), 'the re-read is today\'s, never dropped as a stale past day');
+  assert.equal(t.F.state().log.date, NEXT);
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  const posts = t.calls.filter((c) => c.key === 'POST /api/food/log').map((c) => c.body);
+  assert.ok(posts.every((b) => b.date === NEXT && b.requestId === posts[0].requestId));
+  assert.equal(t.window.foodTotals().k, 200);
+  assert.equal(t.els['food-day-label'].textContent, 'Hoy');
+});
+
+test('a sheet opened on a past day keeps that day even when the save happens after midnight', async () => {
+  let posted;
+  const saved = { ...YENTRY, id: 92, label: 'Fruta', kcal: 60 };
+  const routes = { ...NAV, 'POST /api/food/log': (init) => { posted = JSON.parse(init.body); return json({ entry: saved, totals: { ...YTOTALS, kcal: 860, count: 2 } }, 201); } };
+  const t = setup({ routes, extraIds: ['fa-panel', 'fa-prev', 'fa-msg'], time: '23:58:00' });
+  await flush();
+  t.fire('click', t.els['food-day-prev']);
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'dinner' }));
+  t.window.HCViews['food-add'].render();
+  t.fire('click', t.button({ 'data-food-act': 'tab', 'data-tab': 'quick' }));
+  t.input('fa-label', 'Fruta');
+  t.input('fa-kcal', '60');
+  t.ctx.Date = fixedDate('2030-01-11', '00:02:00');
+  t.fire('click', t.button({ 'data-food-act': 'save' }));
+  await flush();
+  assert.equal(posted.date, YDAY);
+  assert.match(t.els['food-log'].innerHTML, /Fruta/);
+});
+
+test('a delete in flight survives a re-fetch of its day: the row leaves the CURRENT log (past day, and today with Resumen refreshed)', async () => {
+  let releaseDel;
+  const t = setup({ routes: { ...NAV, 'DELETE /api/food/log/70': () => new Promise((r) => { releaseDel = r; }), [`GET /api/food/log?date=${YDAY2}`]: json({ date: YDAY2, entries: [], totals: YTOTALS }) } });
+  await flush();
+  t.fire('click', t.els['food-day-prev']);
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'del', 'data-id': '70' }));
+  await flush();
+  t.fire('click', t.els['food-day-prev']);
+  await flush();
+  t.fire('click', t.els['food-day-next']); // yesterday is read again, the row still there
+  await flush();
+  assert.match(t.els['food-log'].innerHTML, /data-id="70"/);
+  releaseDel(json({ ok: true }));
+  await flush();
+  assert.doesNotMatch(t.els['food-log'].innerHTML, /data-id="70"/);
+  assert.equal(t.F.state().dayLog.entries.length, 0);
+  assert.match(text(t.els['food-log'].innerHTML), /Total del día 0 kcal/);
+
+  // today: the log is re-read (an ambiguous guide add) while the delete is pending
+  let releaseToday;
+  const d = setup({
+    routes: {
+      ...BOOT,
+      'DELETE /api/food/log/50': () => new Promise((r) => { releaseToday = r; }),
+      'POST /api/food/log': () => new TypeError('Failed to fetch'),
+    },
+  });
+  await flush();
+  d.fire('click', d.button({ 'data-food-act': 'del', 'data-id': '50' }));
+  await flush();
+  const before = d.F.state().log;
+  await d.F.addGuide({ group: 'lunch', food: 'p:3', amt: 80 }).catch(() => {});
+  await flush();
+  assert.notEqual(d.F.state().log, before, 'today\'s log object was replaced by the re-read');
+  d.hooks.length = 0;
+  releaseToday(json({ ok: true }));
+  await flush();
+  assert.equal(d.F.state().log.entries.length, 0);
+  assert.equal(d.window.foodTotals(), null);
+  assert.deepEqual(d.hooks, ['nutri']);
+});
+
+test('a failed past-day load offers Reintentar (re-reads that day); a stale failure after leaving the day is ignored', async () => {
+  let n = 0;
+  const t = setup({ routes: { ...NAV, [`GET /api/food/log?date=${YDAY}`]: () => (++n === 1 ? json({ error: 'internal' }, 500) : json({ date: YDAY, entries: [YENTRY], totals: YTOTALS })) } });
+  await flush();
+  t.fire('click', t.els['food-day-prev']);
+  await flush();
+  const html = t.els['food-log'].innerHTML;
+  assert.match(html, /<button type="button" class="food-btn food-btn-ghost" id="food-day-retry" data-food-act="day-retry">Reintentar<\/button>/);
+  t.fire('click', t.button({ 'data-food-act': 'day-retry' }));
+  await flush();
+  assert.equal(n, 2);
+  assert.match(t.els['food-log'].innerHTML, /Pizza/);
+  assert.doesNotMatch(t.els['food-log'].innerHTML, /day-retry/);
+  // on today a stray retry does nothing
+  t.fire('click', t.els['food-day-today']);
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'day-retry' }));
+  await flush();
+  assert.equal(n, 2);
+
+  let failLate;
+  const s = setup({ routes: { ...NAV, [`GET /api/food/log?date=${YDAY}`]: () => new Promise((r) => { failLate = r; }), [`GET /api/food/log?date=${YDAY2}`]: json({ date: YDAY2, entries: [], totals: YTOTALS }) } });
+  await flush();
+  s.fire('click', s.els['food-day-prev']);
+  await flush();
+  s.fire('click', s.els['food-day-prev']);
+  await flush();
+  failLate(json({ error: 'internal' }, 500));
+  await flush();
+  assert.doesNotMatch(s.els['food-log'].innerHTML, /day-retry/);
+  assert.equal(s.els['food-msg'].textContent, '');
+  assert.equal(s.els['food-day-label'].textContent, 'mar 8 ene');
+
+  const e = setup({ routes: { ...NAV, [`GET /api/food/log?date=${YDAY}`]: json({ error: 'internal' }, 500) }, locale: 'en' });
+  await flush();
+  e.fire('click', e.els['food-day-prev']);
+  await flush();
+  assert.match(e.els['food-log'].innerHTML, />Retry<\/button>/);
+});

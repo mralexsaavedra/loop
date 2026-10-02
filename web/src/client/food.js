@@ -478,7 +478,8 @@
       var L = viewLog();
       if (!L) {
         var fail = !on && S.dayFail && S.dayFail.date === S.view ? S.dayFail.msg : null;
-        host.innerHTML = '<p class="food-note">' + esc(fail || T.day.loading) + '</p>';
+        host.innerHTML = '<p class="food-note">' + esc(fail || T.day.loading) + '</p>' +
+          (fail ? '<button type="button" class="food-btn food-btn-ghost" id="food-day-retry" data-food-act="day-retry">' + esc(T.day.retry) + '</button>' : '');
         return;
       }
       var t = L.totals;
@@ -506,11 +507,15 @@
     var e = L && find(L.entries, id);
     if (!e) return;
     el.disabled = true;
+    var date = L.date;
     var drop = function () {
-      L.entries = L.entries.filter(function (x) { return x !== e; });
-      L.totals = dayTotals(L.entries);
+      // the day may have been re-read while the delete was in flight: drop the row from the CURRENT log
+      var C = logFor(date);
+      if (!C) { renderLog(); return; }
+      C.entries = C.entries.filter(function (x) { return String(x.id) !== String(id); });
+      C.totals = dayTotals(C.entries);
       renderLog();
-      if (L === S.log) refreshDependents(); // only today's log feeds Resumen de hoy / the guide
+      if (C === S.log) refreshDependents(); // only today's log feeds Resumen de hoy / the guide
     };
     api('DELETE', '/log/' + encodeURIComponent(id)).then(function () {
       drop();
@@ -526,8 +531,9 @@
   /* ---------- add sheet (window.HCViews['food-add'], rendered by detail.js) ---------- */
   function newSheet(meal) {
     var m = asGroup(meal) || guessMeal();
-    // the sheet logs to the day on screen when it opened (a past day keeps its date)
-    return { meal: m, date: viewDate(), tab: 'products', q: '', pick: null, busy: false, reqId: null };
+    // a sheet opened on a past day keeps that date; one opened on "today" stays null and logs to the
+    // today of the save (a sheet opened at 23:58 and saved at 00:02 logs to the new day)
+    return { meal: m, date: onToday() ? null : S.view, tab: 'products', q: '', pick: null, busy: false, reqId: null };
   }
   var TAB_KEYS = ['products', 'recipes', 'quick'];
   function tabKeys() {
@@ -763,7 +769,7 @@
     if (!sh || sh.busy) return;
     var group = asGroup(val('fa-meal')) || sh.meal;
     var meal = slotFor(group);
-    var date = sh.date || HC.todayIso();
+    var date = sh.date || HC.todayIso(); // resolved at EVERY save / retry: a "today" sheet follows the clock
     var body;
     clearErrs(SHEET_IDS);
     if (sh.tab === 'quick') {
@@ -808,6 +814,8 @@
       sh.busy = false;
       sh.reqId = null;
       var e = data.entry;
+      // the stored row names its own day (a replay of an add first sent before midnight keeps that day)
+      if (e && HC.isoDate(e.date)) date = e.date;
       var L = logFor(date);
       if (L && e) {
         // a replayed add (same request id) may already be in the list from a re-read: replace it
@@ -1308,6 +1316,13 @@
       if (onToday()) return;
       goDay(HC.shiftIso(S.view, 1));
       if (onToday()) focus('food-day-prev'); // next just went disabled: keep focus in the navigator
+    },
+    'day-retry': function () {
+      if (onToday()) return;
+      S.dayFail = null;
+      setText('food-msg', '');
+      renderLog();
+      loadDay(S.view);
     },
     'day-today': function () {
       if (onToday()) return;

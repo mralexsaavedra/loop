@@ -19,7 +19,7 @@ export const es = {
   dayTotalPast: 'Total del día',
   emptyPast: 'Nada registrado ese día.',
   // the day navigator at the top of Registrar (the page always opens on today)
-  day: { today: 'Hoy', prev: 'Día anterior', next: 'Día siguiente', back: 'Volver a hoy', loading: 'Cargando…', navLabel: 'Día del registro' },
+  day: { today: 'Hoy', prev: 'Día anterior', next: 'Día siguiente', back: 'Volver a hoy', loading: 'Cargando…', retry: 'Reintentar', navLabel: 'Día del registro' },
   add: 'Añadir',
   addAria: 'Añadir a {meal}',
   delAria: 'Borrar {label}',
@@ -196,7 +196,7 @@ export const en = {
   dayTotalPast: 'Day total',
   emptyPast: 'Nothing logged that day.',
   // the day navigator at the top of Registrar (the page always opens on today)
-  day: { today: 'Today', prev: 'Previous day', next: 'Next day', back: 'Back to today', loading: 'Loading…', navLabel: 'Log day' },
+  day: { today: 'Today', prev: 'Previous day', next: 'Next day', back: 'Back to today', loading: 'Loading…', retry: 'Retry', navLabel: 'Log day' },
   add: 'Add',
   addAria: 'Add to {meal}',
   delAria: 'Delete {label}',
