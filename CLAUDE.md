@@ -1565,6 +1565,19 @@ paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index
   numbers "verify in the video", separates "what the expert says" from `analysis/methodology.md` /
   evidence (contradictions flagged), and grounds advice in the owner's data. A new expert = a new
   ingest folder + a subagent whose only source-specific part is its "Knowledge source" section.
+- **`hybrid-coach` subagent** (`.claude/agents/hybrid-coach.md`, read-only) — DELEGATE to it any
+  HYROX / hybrid question (running + strength + conditioning, Hyrox stations, race strategy,
+  programming, comparing a program with what he did, nutrition for hybrid races); cycling stays with
+  `cycling-coach`. Same rules as `cycling-coach` (podcast claims cited with `&t=<seconds>s`, programs
+  by file / month / week; auto-caption numbers and sponsor bias flagged; sources vs methodology kept
+  apart; Spanish replies; never writes files), grounded read-only in `workouts.csv` (runs, gym,
+  other), `running-daily.csv`, HRV / RHR / sleep and `profile/about-me.md` (goals, race dates, which
+  program he followed when). Its knowledge, `knowledge/hybrid/`: optional `index.md` + `temas/*.md`
+  (cross-source syntheses); `hyprodcast/` (a Hyrox podcast: the YouTube ingest layout above +
+  `videos/*.md` summaries); `ferry/` (coach Ferry, the owner's program Dec 2025 – Jun 2026:
+  `index.md`, `metodo-ferry.md`, `months/<YYYY-MM>-ferry.md` transcribed from the PDFs);
+  `training-culture/hybrid-6-semanas.md` (a 6-week block); `hyprogram/` (the current Hyprogram
+  "HP Hybrid" program, from 2026-07-01, synced later).
 
 ## Output principles
 
