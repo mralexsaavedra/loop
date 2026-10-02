@@ -41,7 +41,16 @@ export const FOOD_LIMITS = Object.freeze({
   quickKcalMax: 5000,
   quickMacroMax: 500,
   basicKeyPattern: '^[a-z0-9][a-z0-9_-]{0,63}$', // a recipe basic's key in the public food DB (ingredients.json)
+  targetWeightMin: 35, // kg, the settings' target weight (GET / PUT /food/settings)
+  targetWeightMax: 250,
+  summaryDaysMax: 120, // days one GET /food/log/summary may span
 });
+// the plan goals (lib/nutrition/targets.mjs GOALS, a test pins them equal): the settings' goal
+export const SETTINGS_GOALS = Object.freeze(['maintain', 'cut', 'bulk']);
+// the Registrar group of every stored slot (lib/nutrition/slots.mjs mealGroup, pinned by a test): the
+// main meals are their own group, every other slot is an add-on
+export const FOOD_GROUP_OF = Object.freeze({ breakfast: 'breakfast', lunch: 'lunch', preworkout: 'addon', postworkout: 'addon', dinner: 'dinner', snack: 'addon' });
+export const SUMMARY_GROUPS = Object.freeze(['breakfast', 'lunch', 'dinner', 'addon']);
 // A recipe ingredient is a product ({productId, amount}) or a BASIC of the public food DB, stored as a
 // SNAPSHOT so the recipe never changes when ingredients.json does: {basic: key, name, unit, amount,
 // per100: {kcal, protein, carbs, fat}}, per100 = per 100 g / ml, or per ONE unit for a 'ud' food (the
@@ -157,6 +166,28 @@ export function dayTotals(entries) {
   t.kcal = roundKcal(t.kcal);
   MACROS.forEach(function (k) { t[k] = round1(t[k]); });
   return t;
+}
+/** Per-day summaries of log entries (any order, any dates), sorted by date: {date, k, p, c, f, n,
+ * missing: {p, c, f}, groups: {breakfast, lunch, dinner, addon} = entries per Registrar group}, the sums
+ * from dayTotals. A macro NO entry of the day states is null (never 0); one that some entry lacks is
+ * flagged in missing, so its value is a minimum. Feeds the food log's adherence view. */
+export function daySummaries(entries) {
+  var byDate = {};
+  (entries || []).forEach(function (e) {
+    if (!e || typeof e.date !== 'string') return;
+    (byDate[e.date] = byDate[e.date] || []).push(e);
+  });
+  return Object.keys(byDate).sort().map(function (date) {
+    var list = byDate[date], t = dayTotals(list);
+    var groups = {};
+    SUMMARY_GROUPS.forEach(function (g) { groups[g] = 0; });
+    list.forEach(function (e) { var g = FOOD_GROUP_OF[e.meal]; if (g) groups[g]++; });
+    var known = function (k) { return list.some(function (e) { return fin(e[k]); }) ? t[k] : null; };
+    return {
+      date: date, k: t.kcal, p: known('protein'), c: known('carbs'), f: known('fat'), n: t.count,
+      missing: { p: t.missing.protein, c: t.missing.carbs, f: t.missing.fat }, groups: groups,
+    };
+  });
 }
 /** true when the label's kcal agree with its macros (see ATWATER_TOL / ATWATER_ABS_KCAL). */
 export function atwaterOk(m) {
