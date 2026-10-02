@@ -4,6 +4,32 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-02 — plan-web: the Shortcut upload route
+
+The owner exposes plan-web publicly through an SSO tunnel and keeps the ingest service unexposed, so
+the iOS Shortcut must reach ingest through plan-web.
+
+- **nginx** — `location = /ingest/health-auto-export` (exact, POST only) → ingest's same route:
+  `Authorization`, `Automation-Name` and `Content-Type` forwarded (ingest checks the bearer),
+  a request without a `Bearer` token refused with `401` before the body is read,
+  `client_max_body_size 8m` (≤ ingest's `MAX_BODY_BYTES` default; the Shortcut sends a few hundred KB),
+  a 1 MB in-memory body buffer, 60 s send / read timeouts; under the same server-level Host allowlist
+  (421). Any other
+  `/ingest/*` path stays 404; `/export/*` and `/sync/strava` are still never proxied
+  (`scripts/plan-web-config.test.mjs`).
+- **Hardening (security review)** — a server-level guard next to the Host check answers `400` when the
+  raw path (before `?`) holds `..`, `%2e`, `%2f`, `%5c` (any case) or `//`: an SSO proxy may match its
+  bypass rules on the raw path while nginx serves the normalized one (`/ingest/%2e%2e/index.html` →
+  the page). No path the page, food log or Shortcut uses contains them (food ids are numeric, search
+  text and dates are in the query string).
+- **Docs** — `docs/ios-shortcut.md` ("Through plan-web": `https://<your-host>/ingest/health-auto-export`
+  + `https://<your-host>/api/sync`, bypass SSO for exactly those two paths) and
+  `services/plan-web/README.md` ("Exposing behind an SSO tunnel": one resource → plan-web:8090, bypass
+  `/ingest/*` and `/api/sync` (exact, never a prefix), the public host in `PLAN_WEB_EXTRA_HOSTS` +
+  `FOOD_ALLOWED_HOSTS`, an outside check that `/ingest/%2e%2e/status.json` is refused, `INGEST_TOKEN`
+  ≥ 32 random bytes since it also guards `/export/*`).
+  Rollout: `docker compose up -d` in `services/plan-web`.
+
 ## 2026-10-02 — Tablas: no empty sections
 
 - **Tablas** — a list section (desayunos, carbo, proteína, anclaje, post-entreno, fruta, postre,
