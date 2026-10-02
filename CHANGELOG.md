@@ -32,6 +32,43 @@ dairy 9, carbs 9, veg 11, legumes 5, nuts / seeds 4, drinks 11, dishes / pastrie
   in BEDCA; canned chickpeas, lentils and white beans were added, 15–30 % below the cooked ones).
 - **Budget** — FOOD_BASICS grew to ~20 KB (188 basics), so its test budget went from 16 KB to 24 KB.
   No plan number changes (log-only foods never enter Plan de hoy).
+- **lubina fix** — the existing `lubina` basic cited a wrong FDC id (175137 is cooked coho salmon);
+  it now comes from BEDCA 2344 'Lubina': 84 kcal, 18 P, 0 C, 1.3 F (was 97 / 18.4 / 0 / 2).
+
+## 2026-10-02 — web: mobile quick wins
+
+An audit of the page on a phone found five small problems; each is fixed with a guard test.
+
+- **No iOS focus zoom** — iOS Safari zooms into a focused field whose text is under 16px (the food
+  forms were 14.5px, the portion guide's and the ride-duration selects 13.5px). Under 900px one rule
+  in `base.css` sets every text input / select / textarea (radios excluded) to the new `--fs-input`
+  token (16px); its `:is()` selector out-ranks every form-control class rule.
+  `web/test/mobile.test.mjs` checks the rule and that no form-control rule is as specific.
+- **gzip on plan-web** — the one-file page compresses well; `gzip on` at server level (CSS, JS, JSON;
+  text/html is implied), `gzip_min_length 1024`, `gzip_comp_level 5`, `gzip_vary on`. The four
+  proxied ingest routes say `gzip off`: their responses reflect request input next to stored data (a
+  BREACH-style length oracle) and are small. Rollout: `docker compose up -d` in `services/plan-web`.
+- **Midnight rollover** — a page left open past midnight kept yesterday's dials, top-bar date,
+  timeline, day type and rings (only the food log followed). core.js now reloads the page once when
+  it becomes visible (or is restored from the back-forward cache) on another day than it loaded on
+  (`HC.rolloverAction(loadDay, today, busy, hidden)`, pure, unit-tested), and waits while the page is
+  busy: the detail sheet open, a Mis productos / Mis recetas editor open, or a text field focused —
+  a half-filled form is never lost. A 1 s watcher runs only while waiting (stopped when the page is
+  hidden or the clock is back on the load day, re-armed by visibilitychange / pageshow); a reload
+  that throws (sandboxed frame) is retried only by a later event.
+- **Ride-duration select** — `max-width: 100%` next to its 180px floor, so 16px text never pushes it
+  past its card on a 360px phone (the longest option, "5 h 30 min", fits). nginx states the rule
+  "every proxying block sets `gzip off`" next to `gzip on`, and the config test enforces it for every
+  `proxy_pass`, not a fixed list.
+- **Load-dial switch** — the gym / run / bike pills were 30px tall. They keep the compact look; a
+  centred `::before` band makes the hit area 44px tall (and the pill at least 44px wide), and a
+  wrapped row sits 14px lower so two bands never overlap.
+- **Dark controls** — `<meta name="color-scheme" content="dark">`, `:root { color-scheme: dark }`
+  (dark native select popups, scrollbars, autofill) and a `theme-color` read at build time from the
+  `--ground-top` token (the top of the page background). Skipped on purpose:
+  `apple-mobile-web-app-capable` + `black-translucent` — a home-screen app would draw the wide-screen
+  sticky nav (`top: 0`) and the optional header under the status bar, which carry no top safe-area
+  inset.
 
 ## 2026-10-02 — plan-web: the Shortcut upload route
 

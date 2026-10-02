@@ -37,6 +37,17 @@ server {
     # Always revalidate: the page is regenerated hourly and on demand.
     add_header Cache-Control "no-cache";
 
+    # The page is one self-contained HTML file (inlined CSS / JS / data, a few hundred KB) that
+    # compresses well. text/html is always compressed once gzip is on, so it is not listed. The
+    # proxied ingest routes below turn it off: their responses reflect request input next to stored
+    # data (a BREACH-style length oracle) and are small anyway.
+    # RULE: every block that proxies to ingest MUST set `gzip off;` (scripts/plan-web-config.test.mjs fails otherwise).
+    gzip on;
+    gzip_types text/css application/javascript application/json;
+    gzip_min_length 1024;
+    gzip_comp_level 5;
+    gzip_vary on;
+
     # Written by refresh.sh after every publish; the page polls it after a Sync.
     location = /status.json {
         default_type application/json;
@@ -62,6 +73,7 @@ server {
     # Strava pull (/sync/strava) and every other /ingest/* path are never
     # proxied: they, and everything else under /api/, are a 404.
     location = /api/sync {
+        gzip off;
         limit_except POST { deny all; }
         proxy_pass_request_body off;
         proxy_set_header Content-Length "";
@@ -71,6 +83,7 @@ server {
     }
 
     location = /api/sync/status {
+        gzip off;
         limit_except GET { deny all; }
         proxy_pass_request_body off;
         proxy_set_header Content-Length "";
@@ -80,6 +93,7 @@ server {
     }
 
     location /api/food/ {
+        gzip off;
         limit_except GET POST PUT DELETE { deny all; }
         client_max_body_size 16k;
         proxy_set_header X-HC-Food $http_x_hc_food;
@@ -91,6 +105,7 @@ server {
     }
 
     location = /ingest/health-auto-export {
+        gzip off;
         limit_except POST { deny all; }
         # no Bearer token: refuse before reading (or buffering) any body; ingest checks the token itself
         if ($http_authorization !~* "^Bearer\s+\S+") { return 401; }
