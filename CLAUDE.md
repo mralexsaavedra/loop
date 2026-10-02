@@ -709,7 +709,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   portions: each food per its NATURAL unit (`refUnit`): a piece with its grams reference ("1 medium
   banana (~120 g)", a typical weight tagged "typical weight"), oil per tablespoon, else "100 g" /
   "100 ml" + how it is weighed ("100 g dry", "100 g raw"); a composite option = a group row + one row
-  per component food; a `manual` option = "1 serving (<its q>)". A carb list's train / rest tiers
+  per component food; a `manual` option = "1 serving (<its q>)". A list section with no rows (a plan whose list holds only the "none" option) is not
+  rendered at all (no empty accordion). A carb list's train / rest tiers
   collapse to ONE table (no train / rest portion columns); same-named options collapse only when their
   reference rows are equal (the same food at another amount), otherwise both rows show (`listRows`). A one-line note at the top says today's
   amounts are in Plan de hoy; the generic notes (dict `tablas.*`) and the example plan's
