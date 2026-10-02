@@ -114,3 +114,9 @@ node_modules/
 web/dist/
 web/.astro/
 web/.test-dist/
+
+# Knowledge base (knowledge/): transcripts and summaries of third-party content
+# (e.g. YouTube videos) for personal use only — never committed. Only the README
+# describing the layout is tracked.
+knowledge/*
+!knowledge/README.md
