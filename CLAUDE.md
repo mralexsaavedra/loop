@@ -155,6 +155,14 @@ build:example` = example/en (tracked seeds + the synthetic demo extract, no pers
 (macros, training program/dashboard, health aggregation) lives in root `lib/*.mjs`, shared by
 the Astro build, `data/nutrition/generate.js`, and the test suite — one source, not three.
 
+- **Inlined client scripts are slimmed.** `web/layouts/Plan.astro` inlines every `web/src/client/*.js`
+  through `web/src/slim-script.mjs` `slimScript` (esbuild `transformSync`, shipped with astro:
+  `minifyWhitespace`, `legalComments: 'none'`, `charset: 'utf8'`; NO identifier renaming, NO syntax
+  rewriting, still a classic script). Source files keep their comments; the built page does not
+  (string quotes / number literals may be re-printed, e.g. `'x'` → `"x"`). A test that locates or
+  matches a script in the built HTML compares against `slimScript(source)` or a whitespace / quote
+  tolerant regex, never the raw file. Baked JSON globals are not touched.
+
 - `LOCALE`: env var → `plan.locale` → `en` (the owner's `plan-data.json` sets `locale:"es"`).
 - `DATA_MODE=personal|example`: personal reads the gitignored real files; example reads the
   tracked `.example` seeds plus the tracked, clearly SYNTHETIC demo extract in `data/demo/extract/`
