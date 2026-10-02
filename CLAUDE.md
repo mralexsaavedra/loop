@@ -1014,71 +1014,43 @@ Plan de hoy) and the
 
 ## Nutrition v2 part 3 — server-side goal + target weight, Progreso, Constancia
 
-Owner-approved 2026-10-02. Three render-isolated pieces (each its own try/catch and one-line fallback).
+Three render-isolated pieces (own try/catch, one-line fallback). Thresholds live in `lib/` (baked as
+`NUTRI.progress` / `NUTRI.adherence` / `FOOD_CONST.limits`); every number in the copy is a placeholder
+filled from them, never typed.
 
-- **Settings (server, LAN page)** — `services/health-ingest/sql/007_settings.sql` = `app_settings`, ONE
-  row (`id = 1`): `goal` (maintain / cut / bulk) + `target_weight_kg` (35–250, 1 decimal), its OWN
-  optional migration group `settings` (`db.js`; a failure → only `/food/settings` answers `503
-  settings_unavailable`, the food log keeps working and vice versa: `createFoodRoutes({ available,
-  settingsAvailable })` checks the matched route's group). Routes under the food prefix, so plan-web's
-  existing `/api/food/` proxy (GET / POST / PUT / DELETE, query passed) and EVERY food layer apply — no
-  nginx change: `GET /food/settings` → `{settings: {goal, targetWeightKg, updatedAt}}` (nulls before
-  the first write), `PUT /food/settings` = partial update `{goal?, targetWeightKg?}` (`null` clears the
-  target; unknown keys / empty body / bad goal / out of range → `400 invalid` + field; counts toward
-  the write rate limit). Limits + goals are shared constants (`foodlog.mjs` `FOOD_LIMITS.targetWeight*`,
-  `SETTINGS_GOALS` = `targets.mjs` `GOALS`, copied into food-calc.js, pinned by a test; baked in
-  `FOOD_CONST`). Page: `web/src/client/settings.js` (`window.HCSettings`, inlined after food.js,
-  reusing `HCFood.api`): view-time `GET`; without an answer `ready()` stays false and the page is
-  exactly as before (goal in `hc.nutri.goal` only, no target field). With it the SERVER goal wins
-  (`HCNutri.applyGoal`: applied + cached locally, never sent back); a goal changed while the request
-  was in flight wins and is pushed; a server without a goal gets `HCNutri.storedGoal()` once (the
-  one-time migration; the plan default is never pushed). `HCNutri.setGoal` now also calls
-  `HCSettings.saveGoal` when ready. Profile sheet Objetivo: + "Peso objetivo" (`#pf-target`, text +
-  `inputmode="decimal"`, kg suffix, `HCSettings.parseTarget` = `HCFood.parseNum(v, ['kg'])` (kg is a
-  parseNum unit now) + the range, inline `#pf-target-err` / `aria-invalid`, saved on `change` = blur,
-  empty clears it), one status line `#pf-goal-msg` (saving / saved / "No se guardó: <coarse reason>")
-  for goal and target saves, and the Progreso line.
-- **Progreso** (baked data only, every build) — `lib/nutrition/progress.mjs` = the reference, ported
-  line by line in `web/src/client/progress.js` (`PROGRESS_CASES` parity), thresholds baked as
-  `NUTRI.progress`. Input = `DETAIL.metrics.weight.roll` (the card's 7-day average, reading days only).
-  Rate = least-squares slope of those averages over the last 28 days ending at the newest, kg/week;
-  needs ≥ 8 averages spanning ≥ 21 days, else "pocos datos" (no rate claimed). Status: cut / bulk →
-  `onPace` 0.25–0.5 kg/week the goal's way, `slow` (less, flat included), `fast` (> 0.5 kg/week OR > 1 %
-  of the current average a week, said plainly: risks muscle / mostly fat), `wrong` (> 0.1 kg/week the
-  other way), `reached` (target within 0.5 kg); maintain → `steady` (±0.25) / `drift` / `fast`;
-  `mismatch` = target on the other side of the goal (no ETA). ETA only on pace: remaining ÷ 0.5 …
-  ÷ 0.25 weeks from the viewer's today, as months (`HC.fmtMonth`). Newest weigh-in > 14 days old →
-  "sin pesajes desde …", no status / ETA. Target + "faltan X kg" + ETA only with `HCSettings` (LAN).
-  On screen: the method and "mezcla básculas: tendencia". Block `#nutri-progress-block` (always
-  rendered, empty state without weigh-ins) after Avituallamiento: today's actions first, the
-  multi-week look back after. The card opens the weight sheet (`HC.detailAttrs('weight')`), which draws
-  the target as the dashed `dt-target` line + "Objetivo: X kg" when set (`detail.js` `targetOf`).
-  Profile line = `HCProgress.line()`.
-- **Constancia** (LAN page only) — `GET /food/log/summary?from&to` (≤ `summaryDaysMax` 120 days, both
-  dates real, from ≤ to; `food-db.js` `listLogRange`) → `{from, to, days: daySummaries(entries)}`:
-  per date `{date, k, p, c, f, n, missing: {p, c, f}, groups: {breakfast, lunch, dinner, addon}}`
-  (`foodlog.mjs` `daySummaries` over `dayTotals`, a macro no entry states = `null`; literal copy in
-  food-calc.js, `SUMMARY_CASES` parity; `FOOD_GROUP_OF` = `slots.mjs` `mealGroup`, pinned). Page:
-  `lib/nutrition/adherence.mjs` = the reference, ported in `web/src/client/adherence.js`
-  (`ADHERENCE_CASES`), thresholds `NUTRI.adherence`. One read of the last 28 days at load and after
-  every add / delete on any day (food.js `logChanged` → `HCAdherence.reload`); re-render on goal /
-  day-type changes (`HCNutri.refresh` → `HCAdherence.render` / `HCProgress.render`). COMPLETE = ≥ 1
-  entry in each of breakfast, lunch, dinner (rule on screen); logged / complete days, mean kcal vs
-  mean target (±10 % = on target) and protein-hit days (≥ 90 % of the target; a minimum that reaches
-  it counts, flagged; no protein data = not a hit, counted) over COMPLETE days with a target only.
-  Each day's target = `HCNutri.targetFor(date)` = the CURRENT goal (said on screen) × that day's
-  detected day type: beyond the 3 timeline days `daytype.mjs` `dayInputFor` takes `DETAIL.sessions`
-  (minutes per date + modality, same `DETECT` thresholds) + `TRAINING`; `known` = a session, a sleep
-  reading (`DETAIL.metrics.sleep`: the Watch was worn → a rest day) or a programmed session, else
-  `null` → that complete day is counted apart, never compared. A 7 / 14 / 28 switch (`#adh-window`,
-  real radios, in memory) and a 28-cell strip below the card (7 per row, each a ≥ 44 px button whose
-  `aria-label` / `title` carry the date + state in words, a mark ✓ ↓ ↑ · ?, a legend; partial =
-  dashed, on = `--good`, under / over = `--mid`, unknown = `--trend`) — a tap = `HCFood.showDay(date)`
-  (Registrar's navigator on that day, scrolled into view). `#food-adherence-block` ships hidden and
-  appears only when the summary answers.
-- **Rollout** — the owner runs `cd services/health-ingest && docker compose up -d --build
-  health-ingest` (runs `007_settings.sql`; plan-web needs no change), then `npm run generate`. The
-  first page load on the LAN pushes the locally stored goal to the server once.
+- **Settings (LAN page)** — `services/health-ingest/sql/007_settings.sql` (`app_settings`, one row:
+  goal + target weight within `FOOD_LIMITS.targetWeight*`), its own optional migration group
+  `settings` (a failure → only `/food/settings` answers `503 settings_unavailable`). `GET /food/settings`
+  and `PUT /food/settings` (partial `{goal?, targetWeightKg?}`, `null` clears the target) sit under
+  the food prefix, so plan-web's `/api/food/` proxy and every food layer apply (no nginx change); an
+  unknown `/food/*` path is always `404`. Page: `client/settings.js` (`HCSettings`, reuses
+  `HCFood.api`). Without an answer the page is exactly as before (goal in `hc.nutri.goal`, no target
+  field). With it the server goal wins (`HCNutri.applyGoal`, cached locally, never sent back) EXCEPT a
+  PENDING goal (`HCNutri.setGoal` writes `hc.nutri.goalPending` until a PUT succeeds; retried on the
+  next load and on `visibilitychange`; the profile says "pendiente de guardar"); an empty server gets
+  the stored local goal once. The GET retries with backoff on offline / timeout / 5xx (3 tries), never
+  on 404 / 503. Profile Objetivo: + "Peso objetivo" (`HCSettings.parseTarget` = `HCFood.parseNum(v,
+  ['kg'])` + the range, inline error, saved on `change`), one status line, the Progreso line.
+- **Progreso** (baked data, every build) — `lib/nutrition/progress.mjs` = the reference (rules and
+  bands in its header), ported in `client/progress.js` (`PROGRESS_CASES` parity + hand-computed tests).
+  Rate = least-squares slope of `DETAIL.metrics.weight.roll` over `windowDays`; too few averages →
+  "pocos datos". Status per goal band (`PROGRESS.bands`, from `analysis/methodology.md`: cut
+  0.25–0.5, bulk 0.1–0.25 kg/week, never > `maxPctWeek` of bodyweight; maintain stable within
+  ±`stableKg`, else going up / down). ETA only on pace = remaining ÷ the OBSERVED rate ±`etaSpread`,
+  as months. Target / ETA only with `HCSettings`. Says the series mixes scales. The card opens the
+  weight sheet, which draws the target dashed (`detail.js` `targetOf`).
+- **Constancia** (LAN page only) — `GET /food/log/summary?from&to` (≤ `summaryDaysMax` days, ≤ 20,000
+  rows, 30 reads / min per client) → per-day `daySummaries` (shared formula, food-calc.js copy pinned
+  by `SUMMARY_CASES`). `lib/nutrition/adherence.mjs` = the reference (`ADHERENCE_CASES`), ported in
+  `client/adherence.js`. Complete = ≥ 1 entry in breakfast, lunch and dinner; means and protein days
+  only over complete days with a DETECTED day type (`HCNutri.targetFor` = current goal × that day's
+  type; past days via `daytype.mjs` `dayInputFor` over `DETAIL.sessions` + `TRAINING`). Counted apart,
+  never compared: unknown type, and an ASSUMED rest day (sleep only, no session: `inferred`). 7 / 14 /
+  28 switch, a 28-cell strip of ≥ 44 px buttons (state in words; a tap = `HCFood.showDay`). Re-read
+  debounced (`reloadMs`) after every add / delete, and on `visibilitychange` when the day changed (the
+  midnight reload of core.js waits while the page is busy).
+- **Rollout** — ingest rebuild (`docker compose up -d --build health-ingest`, runs 007), then
+  `npm run generate`.
 
 ## Training tabs — "Hoy / Today" + "Entrenos / Workouts" pipeline
 

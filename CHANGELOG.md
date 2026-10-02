@@ -12,9 +12,13 @@ Dated history of structural work on this repo. **Current state lives in Engram**
   is the offline cache, a stored local goal is pushed once to an empty server); the profile sheet
   gains "Peso objetivo" (kg, inline errors, saved on blur). Without the API nothing changes.
 - **Progreso** — weight vs the goal from the baked 7-day average: rate = least-squares slope over 28
-  days (≥ 8 averages over ≥ 21 days, else "pocos datos"), status vs the safe band (0.25–0.5 kg/week,
-  never > 1 % of bodyweight a week, `analysis/methodology.md`), kg to go + an ETA month range on pace
-  (LAN, with a target), "mixes scales: trend only". Tap → the weight sheet, target dashed.
+  days (≥ 8 averages over ≥ 21 days, else "pocos datos"), status vs the goal's band from
+  `analysis/methodology.md` (cut 0.25–0.5, bulk 0.1–0.25 kg/week, never > 1 % of bodyweight a week;
+  maintain stable within ±0.1), kg to go + an ETA from the observed rate ±20 % (LAN, with a target),
+  "mixes scales: trend only". Tap → the weight sheet, target dashed. (The first draft used 0.25–0.5
+  for bulk too — a brief error, fixed in review.)
+- A goal picked while the server is unreachable stays pending (`hc.nutri.goalPending`) and is retried;
+  assumed rest days (sleep, no session) are labelled and kept out of the adherence means.
 - **Constancia** — `GET /food/log/summary` (per-day sums + entries per group, ≤ 120 days; shared
   `daySummaries`, service copy pinned) → logged / complete days (breakfast + lunch + dinner), mean
   kcal vs target and protein days over complete days only, 7 / 14 / 28-day switch and a 28-day strip

@@ -131,7 +131,7 @@ const DAY_ICONS: Record<string, string> = {
       <legend class="seg-lbl">{T.adherence.windowLegend}</legend>
       <div class="seg-opts adh-opts">
         {nutri.adherence.windows.map((w: number, i: number) => (
-          <label class="seg-opt"><input type="radio" name="adh-win" value={String(w)} checked={i === 0} /><span class="seg-in"><span class="seg-txt">{T.adherence.windows[w]}</span></span></label>
+          <label class="seg-opt"><input type="radio" name="adh-win" value={String(w)} checked={i === 0} /><span class="seg-in"><span class="seg-txt">{T.adherence.windowLabel.replace('{n}', String(w))}</span></span></label>
         ))}
       </div>
     </fieldset>
