@@ -4,6 +4,23 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-02 — plan-web: the Shortcut upload route
+
+The owner exposes plan-web publicly through an SSO tunnel and keeps the ingest service unexposed, so
+the iOS Shortcut must reach ingest through plan-web.
+
+- **nginx** — `location = /ingest/health-auto-export` (exact, POST only) → ingest's same route:
+  `Authorization`, `Automation-Name` and `Content-Type` forwarded (ingest checks the bearer),
+  `client_max_body_size 32m` (= ingest's `MAX_BODY_BYTES` default, never more), a 1 MB in-memory body
+  buffer, 60 s send / read timeouts; under the same server-level Host allowlist (421). Any other
+  `/ingest/*` path stays 404; `/export/*` and `/sync/strava` are still never proxied
+  (`scripts/plan-web-config.test.mjs`).
+- **Docs** — `docs/ios-shortcut.md` ("Through plan-web": `https://<your-host>/ingest/health-auto-export`
+  + `https://<your-host>/api/sync`, bypass SSO for exactly those two paths) and
+  `services/plan-web/README.md` ("Exposing behind an SSO tunnel": one resource → plan-web:8090, bypass
+  `/ingest/*` and `/api/sync`, the public host in `PLAN_WEB_EXTRA_HOSTS` + `FOOD_ALLOWED_HOSTS`).
+  Rollout: `docker compose up -d` in `services/plan-web`.
+
 ## 2026-10-02 — Tablas: no empty sections
 
 - **Tablas** — a list section (desayunos, carbo, proteína, anclaje, post-entreno, fruta, postre,
