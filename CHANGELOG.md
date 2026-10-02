@@ -4,6 +4,16 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-02 — knowledge: a hybrid-coach subagent
+
+- **`hybrid-coach` subagent** (`.claude/agents/`) — read-only HYROX / hybrid coach over
+  `knowledge/hybrid/` (the HYP(R)ODCAST transcripts, coach Ferry's Dec 2025 – Jun 2026 program, the
+  Training Culture 6-week block, the current Hyprogram "HP Hybrid" program once synced). Same rules as
+  `cycling-coach`: every claim cited (podcast `&t=<seconds>s`, programs by file / month / week),
+  auto-caption numbers and sponsor bias flagged, sources kept apart from `analysis/methodology.md`,
+  advice grounded in the owner's workouts, running dynamics and recovery, and a program-vs-reality
+  comparison when asked. Cycling questions stay with `cycling-coach`.
+
 ## 2026-10-02 — knowledge: YouTube transcript ingest + a cycling-coach subagent
 
 - **Knowledge base** — new `knowledge/` folder, gitignored except its README: transcripts of
