@@ -7,8 +7,8 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 ## 2026-10-02 — web: slimmer inlined scripts; advice and today's eating first on Inicio
 
 - **Inlined client scripts lose their comments** — `web/layouts/Plan.astro` now inlines every
-  `web/src/client/*.js` through `web/src/slim-script.mjs` `slimScript` (esbuild `transformSync`, the
-  copy astro / vite already install, so no new dependency): whitespace and every comment out,
+  `web/src/client/*.js` through `web/src/slim-script.mjs` `slimScript` (esbuild `transformSync`; esbuild is
+  declared at the exact version astro / vite already lock): whitespace and every comment out,
   identifiers and syntax untouched, still classic scripts. Example page: 539,126 → 425,229 bytes raw
   (−21 %), 149,988 → 116,931 gzip (−22 %); inline script 416 → 302 KB. Sources keep their comments.
   Build-output tests that located a script by slicing its raw source now compare against
