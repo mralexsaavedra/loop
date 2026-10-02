@@ -7,7 +7,7 @@ or the iOS Shortcut).
 | File | Role |
 | ---- | ---- |
 | `refresh.sh` | Sync data, rebuild, publish into `./site`, write `site/status.json` |
-| `docker-compose.yml` | nginx serving `./site` (read-only) and proxying two ingest routes |
+| `docker-compose.yml` | nginx serving `./site` (read-only) and proxying a few exact ingest routes |
 | `nginx.conf.template` | nginx config, rendered with `INGEST_PORT` at container start |
 | `systemd/plan-web-refresh.path` | Watches the ingest trigger file |
 | `systemd/plan-web-refresh.service` | Runs `refresh.sh` (as the repo owner, hardened) when it changes |
@@ -123,8 +123,35 @@ What each proxy may forward:
 
 | Proxy | Forwards | Never |
 | ----- | -------- | ----- |
-| **LAN nginx** (this service) | `POST /api/sync` -> `/sync`, `GET /api/sync/status` -> `/sync/status` (exact match, method restricted); `/api/food/*` -> `/food/*` (GET / POST / PUT / DELETE, 16 KB) | anything else under `/api/` (404), `/ingest`, `/export` |
+| **plan-web nginx** (this service) | `POST /api/sync` -> `/sync`, `GET /api/sync/status` -> `/sync/status`, `POST /ingest/health-auto-export` -> the same path (bearer checked by ingest, 32 MB = ingest's `MAX_BODY_BYTES` default) (exact match, method restricted); `/api/food/*` -> `/food/*` (GET / POST / PUT / DELETE, 16 KB) | anything else under `/api/` or `/ingest/` (404), `/export` |
 | **Public reverse proxy** (if any, in front of health-ingest) | `/ingest/*` (bearer token) and `POST /sync` (for the Shortcut's last step); `/sync/status` optional | `/export/*`, `/sync/strava`, `/food/*`, `/healthz` |
+
+`POST /ingest/health-auto-export` is here so the iOS Shortcut can reach ingest
+through plan-web when plan-web is the public entry and ingest is not exposed at
+all. nginx forwards `Authorization`, `Automation-Name` and `Content-Type`;
+ingest checks the token (`401` otherwise) and its own body limit (`413`).
+
+### Exposing behind an SSO tunnel (e.g. Pangolin)
+
+To reach the page from outside the LAN without opening the ingest service:
+
+1. **One HTTP resource** in the tunnel: `https://<your-host>` -> plan-web
+   (port 8090). Nothing points at the ingest port.
+2. **SSO on** for the resource, with authentication bypass rules for exactly
+   two paths: `/ingest/*` (the Shortcut upload; ingest checks its bearer token,
+   and every other `/ingest/*` path is a 404 here) and `/api/sync` (the
+   Shortcut's refresh trigger, no data). The page, `status.json`,
+   `/api/sync/status` and the food log stay behind the login.
+3. **Allow the public host**: add it to `PLAN_WEB_EXTRA_HOSTS` in
+   `services/plan-web/.env` and to `FOOD_ALLOWED_HOSTS` in
+   `services/health-ingest/.env`, then `docker compose up -d` in both (see the
+   Host allowlist above; without it every request gets `421`).
+4. **Point the Shortcut** at `https://<your-host>/ingest/health-auto-export` and
+   `https://<your-host>/api/sync` (`docs/ios-shortcut.md`, "Through plan-web").
+
+Never bypass SSO for anything else, and never expose `/export/*` or the ingest
+port. The food log then sits behind SSO + the Host / Origin / `X-HC-Food`
+checks instead of "LAN only".
 
 ## Install (host)
 

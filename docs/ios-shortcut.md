@@ -20,7 +20,7 @@ Export rows always win: Shortcut rows only fill dates your last `export.xml` doe
 | You need | Where it comes from |
 |----------|---------------------|
 | The ingest service running | `services/health-ingest` (`docker compose up -d`), see its README |
-| A public HTTPS URL for it | Your reverse proxy or tunnel. The phone POSTs to `https://<your-host>/ingest/health-auto-export` |
+| A public HTTPS URL for it | Your reverse proxy or tunnel. The phone POSTs to `https://<your-host>/ingest/health-auto-export`. When `services/plan-web` is your public entry, `<your-host>` is the plan-web host: it proxies exactly that route (and `/api/sync`) to ingest, which stays unexposed (see "Through plan-web" below) |
 | The bearer token | `INGEST_TOKEN` in `services/health-ingest/.env` (generate with `openssl rand -hex 32`) |
 | An automation name | Any label. The sync reads payloads for `SHORTCUT_AUTOMATION` (default `atajo-salud`), so use that value or set the env var to yours |
 
@@ -68,6 +68,21 @@ The service answers `202` with the stored row id. A `401` means the token does n
    Your public reverse proxy must forward `/sync` for this step (and `/ingest/*` for step 4),
    and nothing else from the ingest service: never `/export/*` (see
    `services/health-ingest/README.md`, exposure model).
+
+### Through plan-web (ingest not exposed)
+
+When the public entry is `services/plan-web` (e.g. behind an SSO tunnel) instead of the ingest
+service, point both steps at the plan-web host:
+
+- step 4: `https://<your-host>/ingest/health-auto-export` (same headers; plan-web forwards
+  `Authorization` and `Automation-Name`, and ingest still checks the token)
+- step 5: `https://<your-host>/api/sync` (not `/sync`)
+
+Behind an SSO proxy, bypass authentication for exactly those two paths (`/ingest/*` and
+`/api/sync`); everything else (the page, the food log) stays behind the login. plan-web proxies
+only `POST /ingest/health-auto-export` of the ingest routes (any other `/ingest/*` path is a 404)
+and never `/export/*`. Never expose the ingest port itself. Setup:
+`services/plan-web/README.md`, "Exposing behind an SSO tunnel".
 
 Example body (two lines per key shown):
 
