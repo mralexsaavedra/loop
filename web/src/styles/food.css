@@ -11,16 +11,29 @@
 
 /* ---------- Registrar ---------- */
 /* day navigator: ‹ date › [back to today], one row on a 360 px phone */
+/* Registrar's heading row: the title (its rule fills the gap) + the day navigator on one line */
+.food-head {
+  display: flex;
+  flex-wrap: wrap; /* a too-narrow row drops the navigator under the title */
+  align-items: center;
+  gap: var(--sp-2);
+  margin: var(--sp-11) 0 var(--sp-5);
+}
+.food-head > h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
 .food-day {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  margin-bottom: var(--sp-3);
+  gap: var(--sp-1);
+  flex-shrink: 0;
 }
 .food-day-label {
-  min-width: 7.5em;
+  min-width: 4.5em;
   text-align: center;
+  white-space: nowrap;
   font-size: var(--fs-xs);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
@@ -36,8 +49,7 @@
   color: inherit;
 }
 .food-day-today {
-  margin-left: auto;
-  padding: 0 var(--sp-4);
+  padding: 0 var(--sp-3);
 }
 .food-day-today[hidden] {
   display: none;
