@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
-import { TAB_KEYS, SECTION_TAB } from '../../../lib/nav/tabs.mjs';
+import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB } from '../../../lib/nav/tabs.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -387,4 +387,160 @@ test('rollover: without the shared helpers (HC) core.js wires nothing and never 
   const doc = new StubDocument();
   const { window } = makeContext(doc);
   assert.equal(typeof window.setTab, 'function');
+});
+
+/* ---------- the open tab lives in the URL hash (#home / #entreno / #health / #nutricion) ---------- */
+// hide = top-level tabs removed by page.hideTabs (no nav button; the server shows the first visible
+// tab); hideSections = sections rendered hidden; throws = a frame that refuses history writes
+function routedPage({ hash = '', hide = [], hideSections = [], throws = false, sheetOpen = false } = {}) {
+  const doc = new StubDocument();
+  const first = TAB_KEYS.find((t) => !hide.includes(t));
+  const panels = {};
+  for (const t of TAB_KEYS) {
+    if (!hide.includes(t)) doc.el('t-' + t, { attrs: { 'aria-pressed': String(t === first) } });
+    panels[t] = doc.el(null, { classes: ['tab-panel'], attrs: { 'data-tab': t }, hidden: t !== first });
+  }
+  for (const [key, tab] of Object.entries(SECTION_TAB)) {
+    doc.el(`sec-${key}`, { tag: 'section', classes: ['tab-section'], attrs: { 'data-section': key }, parent: panels[tab], hidden: hideSections.includes(key) });
+  }
+  const sheet = doc.el('detail', { hidden: !sheetOpen });
+  const loc = { hash, pathname: '/plan/', search: '?x=1' };
+  const calls = [];
+  const history = {
+    state: null,
+    replaceState(state, _t, url) {
+      if (throws) throw new Error('SecurityError');
+      calls.push(['replace', url]);
+      const i = String(url).indexOf('#');
+      loc.hash = i === -1 ? '' : String(url).slice(i);
+    },
+    pushState() { throw new Error('core.js never pushes: Back must not walk through tabs'); },
+  };
+  const winL = {};
+  const window = { scrollTo() {}, addEventListener: (t, fn) => { (winL[t] = winL[t] || []).push(fn); } };
+  const NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB }, detailTab: { ...DETAIL_TAB }, viewTab: { ...VIEW_TAB } };
+  const ctx = { document: doc, window, history, location: loc, setTimeout, console, Math, Number, String, Object, NAV };
+  vm.createContext(ctx);
+  vm.runInContext(source, ctx);
+  const shown = () => TAB_KEYS.filter((t) => !panels[t].hidden);
+  const navTo = (h) => { loc.hash = h; ['popstate', 'hashchange'].forEach((t) => (winL[t] || []).forEach((fn) => fn({}))); };
+  return { doc, window, loc, calls, panels, sheet, shown, navTo };
+}
+
+test('setTab writes the tab hash with replaceState (never pushState: Back does not walk through tabs)', () => {
+  const p = routedPage({ hash: '#home' });
+  p.window.setTab('nutricion');
+  assert.deepEqual(p.calls, [['replace', '/plan/?x=1#nutricion']], 'path + query kept');
+  assert.equal(p.loc.hash, '#nutricion');
+  p.window.setTab('nutricion');
+  assert.equal(p.calls.length, 1, 'the same tab again writes nothing');
+  p.window.setTab('health');
+  assert.equal(p.loc.hash, '#health');
+});
+
+test('a legacy section key writes its HOSTING tab hash; a hidden tab or hidden section writes nothing', () => {
+  const p = routedPage({ hide: ['health'], hideSections: ['tablas'] });
+  p.window.setTab('dash');
+  assert.equal(p.loc.hash, '#entreno');
+  p.window.setTab('hoy');
+  assert.equal(p.loc.hash, '#home');
+  const n = p.calls.length;
+  p.window.setTab('tablas'); // hidden section: unreachable, no hash
+  p.window.setTab('health'); // hidden tab: never written
+  assert.equal(p.calls.length, n);
+  assert.equal(p.loc.hash, '#home');
+});
+
+test('while the detail sheet is open the URL belongs to it: setTab switches but writes no hash', () => {
+  const p = routedPage({ hash: '#detail/sleep', sheetOpen: true });
+  p.window.setTab('entreno');
+  assert.deepEqual(p.shown(), ['entreno']);
+  assert.equal(p.calls.length, 0);
+  assert.equal(p.loc.hash, '#detail/sleep');
+});
+
+test('load with #<tab> opens that tab (a reload keeps the tab); an empty hash names the default tab', () => {
+  for (const t of TAB_KEYS) {
+    const p = routedPage({ hash: '#' + t });
+    assert.deepEqual(p.shown(), [t], t);
+    assert.equal(p.doc.getElementById('t-' + t).getAttribute('aria-pressed'), 'true');
+    assert.equal(p.calls.length, 0, `${t}: the URL already matches`);
+  }
+  // so Back from a sheet opened before any tab tap still lands on a tab hash
+  let p = routedPage();
+  assert.deepEqual(p.shown(), ['home']);
+  assert.deepEqual(p.calls, [['replace', '/plan/?x=1#home']]);
+  p = routedPage({ hide: ['home'] });
+  assert.equal(p.loc.hash, '#entreno');
+});
+
+test('load with a hidden or unknown tab hash falls back to the default visible tab and replaces the URL', () => {
+  let p = routedPage({ hash: '#health', hide: ['health'] });
+  assert.deepEqual(p.shown(), ['home']);
+  assert.deepEqual(p.calls, [['replace', '/plan/?x=1#home']]);
+  p = routedPage({ hash: '#bogus' });
+  assert.deepEqual(p.shown(), ['home']);
+  assert.equal(p.loc.hash, '#home');
+  p = routedPage({ hash: '#bogus', hide: ['home'] });
+  assert.deepEqual(p.shown(), ['entreno'], 'the first visible tab');
+  assert.equal(p.loc.hash, '#entreno');
+  p = routedPage({ hash: '#constructor' });
+  assert.equal(p.loc.hash, '#home', 'own keys only');
+});
+
+test('a detail deep link opens its host tab underneath and leaves the URL to detail.js', () => {
+  const cases = [
+    ['#detail/sleep', 'health'], ['#detail/weight/2026-09-01', 'health'], ['#detail/load-run', 'entreno'],
+    ['#detail/workouts/2026-09-30', 'entreno'], ['#food-add', 'nutricion'], ['#profile', 'home'],
+    ['#detail/nope', 'home'], ['#detail/constructor', 'home'],
+  ];
+  for (const [hash, tab] of cases) {
+    const p = routedPage({ hash });
+    assert.deepEqual(p.shown(), [tab], hash);
+    assert.equal(p.calls.length, 0, `${hash}: no history write`);
+    assert.equal(p.loc.hash, hash);
+  }
+  const p = routedPage({ hash: '#detail/sleep', hide: ['health'] });
+  assert.deepEqual(p.shown(), ['home'], 'a hidden host tab: the default tab');
+  assert.equal(p.calls.length, 0);
+});
+
+test('HCNav.hash() is the current tab hash (detail.js restores it when the sheet closes)', () => {
+  const p = routedPage({ hash: '#detail/sleep' });
+  assert.equal(p.window.HCNav.hash(), '#health');
+  p.window.setTab('nutricion');
+  assert.equal(p.window.HCNav.hash(), '#nutricion');
+  assert.equal(routedPage({ hash: '#profile', hide: ['home'] }).window.HCNav.hash(), '#entreno');
+});
+
+test('hashchange / popstate to a tab hash switches tab; detail, hidden and unknown hashes switch nothing', () => {
+  const p = routedPage({ hash: '#home', hide: ['health'] });
+  p.navTo('#nutricion');
+  assert.deepEqual(p.shown(), ['nutricion']);
+  p.navTo('#detail/load-gym'); // a Forward into a sheet: detail.js opens it over the current tab
+  p.navTo('#health');
+  p.navTo('#bogus');
+  p.navTo('');
+  assert.deepEqual(p.shown(), ['nutricion']);
+  assert.equal(p.calls.length, 0, 'navigation events never write history');
+});
+
+test('a frame that refuses history writes still switches tabs and still falls back on load', () => {
+  let p = routedPage({ throws: true });
+  assert.doesNotThrow(() => p.window.setTab('entreno'));
+  assert.deepEqual(p.shown(), ['entreno']);
+  p.window.setTab('dash');
+  assert.deepEqual(p.shown(), ['entreno']);
+  p = routedPage({ hash: '#bogus', throws: true });
+  assert.deepEqual(p.shown(), ['home']);
+  p = routedPage({ hash: '#nutricion', throws: true });
+  assert.deepEqual(p.shown(), ['nutricion']);
+});
+
+test('without history / location (old harnesses, odd frames) setTab keeps working', () => {
+  const doc = new StubDocument();
+  const { panels } = makeTabPage(doc);
+  const { window } = makeContext(doc);
+  window.setTab('health');
+  assert.equal(panels.health.hidden, false);
 });

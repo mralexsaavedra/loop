@@ -88,10 +88,10 @@ test('each host has its own empty state', () => {
   assert.match(onlyBody.train, /train-empty/);
 });
 
-// Salud (#health) + Entreno (#health-train) hosts; returns both, Salud first, or each via `out`.
+// Salud (#health-body) + Entreno (#health-train) hosts; returns both, Salud first, or each via `out`.
 function renderWith(HEALTH, { DateCls = Date, SCORES, out = {}, detail = false } = {}) {
   const doc = new StubDocument();
-  const host = doc.el('health');
+  const host = doc.el('health-body');
   const train = doc.el('health-train');
   const ctx = { document: doc, window: {}, HEALTH, SCORES, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date: DateCls, JSON };
   if (detail) ctx.DETAIL = { metrics: {} };

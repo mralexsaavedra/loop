@@ -22,7 +22,9 @@
  * and focus returns to the opener (no opener, e.g. a deep link: the visible tab's heading). History:
  * opening pushes #detail/<metric>[/<date>] so browser Back closes it; a page opened with that hash opens
  * the view (deep link; the metric must be an own key of DETAIL and the copy, a bad date falls back and
- * the URL follows). A re-open while the close's history.back() is in flight waits for its popstate
+ * the URL follows). The entry underneath is the open tab's hash (#nutricion, core.js), so Back lands
+ * there; closing a deep-linked sheet (no entry of ours) rewrites the URL to that tab hash
+ * (window.HCNav.hash(), core.js shows the deep link's host tab underneath). A re-open while the close's history.back() is in flight waits for its popstate
  * before writing history. Every view renders inside a try/catch with a message fallback; no NaN is ever
  * printed (non-finite values render as a dash). A day tap re-renders only the calendar + day panel.
  *
@@ -47,6 +49,8 @@
   var HASH_RE = /^#detail\/([A-Za-z-]+)(?:\/(\d{4}-\d{2}-\d{2}))?$/;
   // a registered view (window.HCViews, e.g. the profile sheet of client/profile.js) deep-links as #<key>
   var VIEW_HASH_RE = /^#([a-z][a-z-]*)$/;
+  // registered after page load (client/food.js, once GET /api/food/products answers)
+  var ASYNC_VIEWS = ['food-add'];
   // daily totals whose newest day fills up during the day (the extract's "so far" value)
   var PARTIAL_KINDS = ['total'];
   // kinds whose missing recent days mean stale data (a sparse reading or a rest day is not staleness)
@@ -680,7 +684,16 @@
       try { history.back(); } catch (e) { pendingBack = false; }
       return;
     }
-    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* see setHash */ }
+    // a deep-linked sheet (no entry of ours): the URL goes back to the tab underneath (core.js)
+    try { history.replaceState(null, '', location.pathname + location.search + tabHash()); } catch (e) { /* see setHash */ }
+  }
+  function tabHash() {
+    var nav = typeof window !== 'undefined' ? window.HCNav : null;
+    try {
+      return nav && typeof nav.hash === 'function' ? String(nav.hash() || '') : '';
+    } catch (e) {
+      return '';
+    }
   }
   function fromHash() {
     var hash = (typeof location !== 'undefined' && location.hash) || '';
@@ -790,4 +803,20 @@
 
   var initial = fromHash();
   if (initial) open(initial.key, initial.date, { push: false, syncUrl: true });
+  if (!isOpen()) {
+    // a deep link that opened nothing (unknown metric, no data, bad date, a view this page lacks):
+    // the URL becomes the tab underneath, never a hash that names a sheet nobody sees
+    try {
+      if (staleDeepHash()) history.replaceState(null, '', location.pathname + location.search + tabHash());
+    } catch (e) { /* see setHash */ }
+  }
+  // views that register AFTER this script runs (the food add sheet waits for the food API): their
+  // hash is left alone at load, a later answer may still make it meaningful
+  function staleDeepHash() {
+    var hash = (typeof location !== 'undefined' && location.hash) || '';
+    if (/^#detail(\/|$)/.test(hash)) return true;
+    var vm = VIEW_HASH_RE.exec(hash);
+    var viewTab = typeof NAV !== 'undefined' && NAV && NAV.viewTab;
+    return !!vm && own(viewTab, vm[1]) && ASYNC_VIEWS.indexOf(vm[1]) === -1;
+  }
 })();

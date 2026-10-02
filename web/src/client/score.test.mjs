@@ -42,7 +42,7 @@ function fixtureScores({ days = 49, shift = 2 } = {}) {
 
 const HEALTH = { recovery: { hasData: true, sleep: { target: 7.5 } } };
 
-// Returns #home + #score-recovery (Salud) + #score-load (Entreno), in that order; pass `hosts` to
+// Returns #home-advice + #score-recovery (Salud) + #score-load (Entreno), in that order; pass `hosts` to
 // inspect each one separately.
 function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, loadSectionHidden = false, dials, dialsHost, hosts = {}, detail = false } = {}) {
   const host = { innerHTML: '' };
@@ -54,7 +54,7 @@ function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entre
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
   const byId = {
-    home: host, 'score-recovery': rec, 'score-load': load,
+    'home-advice': host, 'score-recovery': rec, 'score-load': load,
     'home-dials': dialsHost || null, 't-health': healthNav ? {} : null, 't-entreno': entrenoNav ? {} : null,
     'sec-load': { hidden: loadSectionHidden },
   };
@@ -313,7 +313,7 @@ test('dial taps open the detail sheet: sleep -> sleep, recovery -> recovery, eac
     const linked = render(s, { now: addDays(ASOF, 1), dials, healthNav: nav, entrenoNav: nav, detail: true, hosts });
     assert.match(dialOf(linked, 'dial-sleep'), /data-detail="sleep" role="button" tabindex="0" aria-haspopup="dialog"/);
     assert.match(dialOf(linked, 'dial-rec'), /data-detail="recovery" role="button"/);
-    // #home only (the dials lead it without a #home-dials host); Entreno's load cards open the same views
+    // #home-advice only (the dials lead it without a #home-dials host); Entreno's load cards open the same views
     for (const m of s.load.modalities) assert.equal(count(hosts.home.innerHTML, `data-detail="load-${m.key}" role="button"`), 1, `${m.key} dial`);
     assert.doesNotMatch(linked, /jumpOr\(|onkeydown=/, 'one delegated listener (client/detail.js), no inline handlers on the dials');
   }

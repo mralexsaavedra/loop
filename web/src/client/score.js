@@ -22,7 +22,7 @@ function scMod(key, btn) {
   });
 }
 (function () {
-  var host = document.getElementById('home');
+  var host = document.getElementById('home-advice');
   if (!host) return;
   var T = I18N_SCORE;
   var S = typeof SCORES === 'undefined' ? null : SCORES;
@@ -415,7 +415,7 @@ function scMod(key, btn) {
       write('score-load', emptyHtml);
       return;
     }
-    // Home.astro gives the dials their own host above the health monitor; without it they lead #home
+    // Home.astro gives the dials their own host above the health monitor; without it they lead #home-advice
     var dialsHost = document.getElementById('home-dials');
     if (dialsHost) write(dialsHost, function () { return safe(dialsHtml); });
     // the advice sentence reads as the conclusion of the dials above it

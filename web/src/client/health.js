@@ -138,14 +138,14 @@
   }
 
   // One renderer, two hosts (four-tab layout, one question per tab):
-  //   #health (Salud: "how is my body")  recovery (+ #score-recovery, filled by score.js), sleep,
+  //   #health-body (Salud: "how is my body")  recovery (+ #score-recovery, filled by score.js), sleep,
   //                                      body composition, activity, energy
   //   #health-train (Entreno)            running, cycling, load vs recovery
   // A missing host skips its half; each half has its own empty state.
   // Each half renders inside its own try/catch: a throw in one never blanks the other, and the
   // broken half falls back to its own empty state.
   function render() {
-    var host = document.getElementById('health');
+    var host = document.getElementById('health-body');
     if (host) {
       try {
         renderSalud(host);
