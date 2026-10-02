@@ -222,7 +222,7 @@ live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
 | 🏠 Inicio (`home`) | TODAY: Sleep / Recovery / Load dials; the advice sentence; "today you eat" card (today's day type + goal and target kcal/macros, link to Nutrición); health monitor; today's timeline (last night's sleep + the day's workouts); programmed session (`hoy`) |
 | 🏃 Entreno (`entreno`) | per-modality load cards + caveats (`load`: `#score-load`, the detail behind the load dial); 30-day activity calendar + cumulative training time (`calendar`: `#train-activity`); running table, cycling table, load vs recovery (`sessions`: `#health-train`); Entrenamiento dashboard (`dash`) |
 | 💗 Salud (`health`) | recovery (`#hl-recovery`, with the recovery detail card `#score-recovery`, then the recovery trends); sleep (`#hl-sleep`); body composition; daily activity; energy expenditure |
-| 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Registrar (the FOOD LOG, LAN page only), Plan de hoy (a PORTION GUIDE: Desayuno / Comida / Cena + Extras with today's budgets, in a `<details>` fold, collapsed by default), Avituallamiento on bike days — see "Nutrition v2" and "Nutrition v2 part 2" below); Mis productos + Mis recetas (collapsible, LAN page only, no section key: rendered with `dia`); Tablas (`tablas`, collapsible: FIXED reference values per natural unit, never portions — see "Tablas = fixed reference values" below) — there is no train/rest toggle: Resumen de hoy's day type is the one selector. The former Constructor de día / Day builder (`registro`) was removed: the food log replaces it |
+| 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Registrar (the FOOD LOG, LAN page only), Plan de hoy (a PORTION GUIDE: Desayuno / Comida / Cena + Extras with today's budgets, in a `<details>` fold, collapsed by default), Avituallamiento on bike days, Progreso (weight vs the goal), Constancia (food log adherence, LAN page only) — see "Nutrition v2", "Nutrition v2 part 2" and "Nutrition v2 part 3" below); Mis productos + Mis recetas (collapsible, LAN page only, no section key: rendered with `dia`); Tablas (`tablas`, collapsible: FIXED reference values per natural unit, never portions — see "Tablas = fixed reference values" below) — there is no train/rest toggle: Resumen de hoy's day type is the one selector. The former Constructor de día / Day builder (`registro`) was removed: the food log replaces it |
 
 `lib/nav/tabs.mjs` is the ONE source of the tab keys (`TAB_KEYS`) and of the legacy-section map
 (`SECTION_TAB`); the page derives each tab's section list from it (`sectionsOf`) and bakes both as
@@ -406,7 +406,9 @@ controls instead of the close button.
   belongs to Nutrición (`client/nutri-day.js`, inlined before profile.js): the checked radio is
   `HCNutri.state().goal` and a change calls `HCNutri.setGoal`, which writes the SAME key as before
   (`hc.nutri.goal`, fallback `page.goal`) and refreshes the summary, plan, fuelling, Inicio card, rings
-  and the kcal chip at once. No `HCNutri` or no options → the section is omitted.
+  and the kcal chip at once. No `HCNutri` or no options → the section is omitted. On the LAN page the
+  goal is also stored on the SERVER and the section adds "Peso objetivo" + a status line + the
+  Progreso line (see "Nutrition v2 part 3").
 
 - **Sources** (all optional, merged by `lib/profile/profile.mjs` `loadProfile` → `buildProfile`;
   manual wins over Strava for the same field):
@@ -707,7 +709,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   target is the ONE source for Nutrición: `window.nutriTarget()` = the MEALS target (`k, p, c, g`,
   `fatMax` = fat + 15 g, `fuelK`, `day` = base day train / rest, label) feeds the intake rings
   (`HCNutri.targetFor(date)` = the same shape for an earlier logged day, labelled "Objetivo / Comidas de
-  ese día", or `null` when its day type is unknown), and
+  ese día", or `null` when its day type is unknown; a day beyond the 3 baked timeline days detects its
+  type from `DETAIL.sessions` — `daytype.mjs` `dayInputFor`, see "Nutrition v2 part 3"), and
   every goal / day type / ride change calls `window.intakeRefresh()` directly (a failure shows a
   one-line message, never a stale ring).
 - **Resumen de hoy** — the day type as ONE row of 4 equal segments (real radios, inline SVG line
@@ -1008,6 +1011,74 @@ Plan de hoy) and the
   location), then `npm run generate` (or wait for the hourly refresh). Out of scope: label photos /
   OCR (send them to Claude in chat), scraping any supermarket site, exporting the log to CSV for the
   analysis pipeline (next slice), Apple Health write-back.
+
+## Nutrition v2 part 3 — server-side goal + target weight, Progreso, Constancia
+
+Owner-approved 2026-10-02. Three render-isolated pieces (each its own try/catch and one-line fallback).
+
+- **Settings (server, LAN page)** — `services/health-ingest/sql/007_settings.sql` = `app_settings`, ONE
+  row (`id = 1`): `goal` (maintain / cut / bulk) + `target_weight_kg` (35–250, 1 decimal), its OWN
+  optional migration group `settings` (`db.js`; a failure → only `/food/settings` answers `503
+  settings_unavailable`, the food log keeps working and vice versa: `createFoodRoutes({ available,
+  settingsAvailable })` checks the matched route's group). Routes under the food prefix, so plan-web's
+  existing `/api/food/` proxy (GET / POST / PUT / DELETE, query passed) and EVERY food layer apply — no
+  nginx change: `GET /food/settings` → `{settings: {goal, targetWeightKg, updatedAt}}` (nulls before
+  the first write), `PUT /food/settings` = partial update `{goal?, targetWeightKg?}` (`null` clears the
+  target; unknown keys / empty body / bad goal / out of range → `400 invalid` + field; counts toward
+  the write rate limit). Limits + goals are shared constants (`foodlog.mjs` `FOOD_LIMITS.targetWeight*`,
+  `SETTINGS_GOALS` = `targets.mjs` `GOALS`, copied into food-calc.js, pinned by a test; baked in
+  `FOOD_CONST`). Page: `web/src/client/settings.js` (`window.HCSettings`, inlined after food.js,
+  reusing `HCFood.api`): view-time `GET`; without an answer `ready()` stays false and the page is
+  exactly as before (goal in `hc.nutri.goal` only, no target field). With it the SERVER goal wins
+  (`HCNutri.applyGoal`: applied + cached locally, never sent back); a goal changed while the request
+  was in flight wins and is pushed; a server without a goal gets `HCNutri.storedGoal()` once (the
+  one-time migration; the plan default is never pushed). `HCNutri.setGoal` now also calls
+  `HCSettings.saveGoal` when ready. Profile sheet Objetivo: + "Peso objetivo" (`#pf-target`, text +
+  `inputmode="decimal"`, kg suffix, `HCSettings.parseTarget` = `HCFood.parseNum(v, ['kg'])` (kg is a
+  parseNum unit now) + the range, inline `#pf-target-err` / `aria-invalid`, saved on `change` = blur,
+  empty clears it), one status line `#pf-goal-msg` (saving / saved / "No se guardó: <coarse reason>")
+  for goal and target saves, and the Progreso line.
+- **Progreso** (baked data only, every build) — `lib/nutrition/progress.mjs` = the reference, ported
+  line by line in `web/src/client/progress.js` (`PROGRESS_CASES` parity), thresholds baked as
+  `NUTRI.progress`. Input = `DETAIL.metrics.weight.roll` (the card's 7-day average, reading days only).
+  Rate = least-squares slope of those averages over the last 28 days ending at the newest, kg/week;
+  needs ≥ 8 averages spanning ≥ 21 days, else "pocos datos" (no rate claimed). Status: cut / bulk →
+  `onPace` 0.25–0.5 kg/week the goal's way, `slow` (less, flat included), `fast` (> 0.5 kg/week OR > 1 %
+  of the current average a week, said plainly: risks muscle / mostly fat), `wrong` (> 0.1 kg/week the
+  other way), `reached` (target within 0.5 kg); maintain → `steady` (±0.25) / `drift` / `fast`;
+  `mismatch` = target on the other side of the goal (no ETA). ETA only on pace: remaining ÷ 0.5 …
+  ÷ 0.25 weeks from the viewer's today, as months (`HC.fmtMonth`). Newest weigh-in > 14 days old →
+  "sin pesajes desde …", no status / ETA. Target + "faltan X kg" + ETA only with `HCSettings` (LAN).
+  On screen: the method and "mezcla básculas: tendencia". Block `#nutri-progress-block` (always
+  rendered, empty state without weigh-ins) after Avituallamiento: today's actions first, the
+  multi-week look back after. The card opens the weight sheet (`HC.detailAttrs('weight')`), which draws
+  the target as the dashed `dt-target` line + "Objetivo: X kg" when set (`detail.js` `targetOf`).
+  Profile line = `HCProgress.line()`.
+- **Constancia** (LAN page only) — `GET /food/log/summary?from&to` (≤ `summaryDaysMax` 120 days, both
+  dates real, from ≤ to; `food-db.js` `listLogRange`) → `{from, to, days: daySummaries(entries)}`:
+  per date `{date, k, p, c, f, n, missing: {p, c, f}, groups: {breakfast, lunch, dinner, addon}}`
+  (`foodlog.mjs` `daySummaries` over `dayTotals`, a macro no entry states = `null`; literal copy in
+  food-calc.js, `SUMMARY_CASES` parity; `FOOD_GROUP_OF` = `slots.mjs` `mealGroup`, pinned). Page:
+  `lib/nutrition/adherence.mjs` = the reference, ported in `web/src/client/adherence.js`
+  (`ADHERENCE_CASES`), thresholds `NUTRI.adherence`. One read of the last 28 days at load and after
+  every add / delete on any day (food.js `logChanged` → `HCAdherence.reload`); re-render on goal /
+  day-type changes (`HCNutri.refresh` → `HCAdherence.render` / `HCProgress.render`). COMPLETE = ≥ 1
+  entry in each of breakfast, lunch, dinner (rule on screen); logged / complete days, mean kcal vs
+  mean target (±10 % = on target) and protein-hit days (≥ 90 % of the target; a minimum that reaches
+  it counts, flagged; no protein data = not a hit, counted) over COMPLETE days with a target only.
+  Each day's target = `HCNutri.targetFor(date)` = the CURRENT goal (said on screen) × that day's
+  detected day type: beyond the 3 timeline days `daytype.mjs` `dayInputFor` takes `DETAIL.sessions`
+  (minutes per date + modality, same `DETECT` thresholds) + `TRAINING`; `known` = a session, a sleep
+  reading (`DETAIL.metrics.sleep`: the Watch was worn → a rest day) or a programmed session, else
+  `null` → that complete day is counted apart, never compared. A 7 / 14 / 28 switch (`#adh-window`,
+  real radios, in memory) and a 28-cell strip below the card (7 per row, each a ≥ 44 px button whose
+  `aria-label` / `title` carry the date + state in words, a mark ✓ ↓ ↑ · ?, a legend; partial =
+  dashed, on = `--good`, under / over = `--mid`, unknown = `--trend`) — a tap = `HCFood.showDay(date)`
+  (Registrar's navigator on that day, scrolled into view). `#food-adherence-block` ships hidden and
+  appears only when the summary answers.
+- **Rollout** — the owner runs `cd services/health-ingest && docker compose up -d --build
+  health-ingest` (runs `007_settings.sql`; plan-web needs no change), then `npm run generate`. The
+  first page load on the LAN pushes the locally stored goal to the server once.
 
 ## Training tabs — "Hoy / Today" + "Entrenos / Workouts" pipeline
 
