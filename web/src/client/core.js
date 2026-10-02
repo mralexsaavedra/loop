@@ -72,6 +72,61 @@ function jumpOr(id, tab) {
   else setTab(tab);
 }
 
+/* Midnight rollover (HC.rolloverAction): the page captures the viewer's day at load; when it becomes
+ * visible on another day it reloads once, so every view computed at load (dials, top-bar date,
+ * timeline, day type, rings) moves to the new day. While the page is BUSY — the detail sheet (#detail)
+ * is open, a Mis productos / Mis recetas editor is open (any form field inside #fp-body / #fr-body:
+ * closed, those hosts hold only buttons and the list) or a text field anywhere has focus — the reload
+ * waits: a watcher polls each second while there is something to wait for, and stops when there is
+ * nothing to do (page hidden, clock back on the load day); visibilitychange / pageshow re-arm it.
+ * A reload that throws (a sandboxed frame) is not retried by the watcher, only by a later event.
+ * food.js's own visibilitychange listener still re-reads today's log: when the page reloads that read
+ * is simply dropped, and while a reload is deferred it keeps Registrar on the new day. */
+(function () {
+  if (typeof HC === 'undefined' || !HC.rolloverAction || typeof document.addEventListener !== 'function') return;
+  var loadDay = HC.todayIso();
+  var watch = null;
+  var reloading = false;
+  var EDITOR_HOSTS = ['fp-body', 'fr-body'];
+  var FIELDS = 'input, select, textarea';
+  function stopWatch() {
+    if (watch != null) clearInterval(watch);
+    watch = null;
+  }
+  function isTextField(el) {
+    var tag = el && el.tagName ? String(el.tagName).toUpperCase() : '';
+    if (tag === 'SELECT' || tag === 'TEXTAREA') return true;
+    return tag === 'INPUT' && !/^(radio|checkbox|button|submit|reset)$/i.test(el.type || '');
+  }
+  function busy() {
+    var d = document.getElementById('detail');
+    if (d && !d.hidden) return true;
+    for (var i = 0; i < EDITOR_HOSTS.length; i++) {
+      var host = document.getElementById(EDITOR_HOSTS[i]);
+      if (host && typeof host.querySelector === 'function' && host.querySelector(FIELDS)) return true;
+    }
+    return isTextField(document.activeElement);
+  }
+  function check() {
+    var action = HC.rolloverAction(loadDay, HC.todayIso(), busy(), !!document.hidden);
+    if (action === 'defer') {
+      if (watch == null) watch = setInterval(check, 1000);
+      return;
+    }
+    stopWatch();
+    if (action !== 'reload' || reloading) return;
+    reloading = true; // the page is going away: never a second reload
+    try {
+      window.location.reload();
+    } catch (e) {
+      reloading = false; // a sandboxed frame may refuse: a later visibilitychange / pageshow tries again
+    }
+  }
+  document.addEventListener('visibilitychange', check);
+  // a page restored from the back-forward cache
+  if (typeof window.addEventListener === 'function') window.addEventListener('pageshow', check);
+})();
+
 window.setTab = setTab;
 window.jump = jump;
 window.jumpOr = jumpOr;

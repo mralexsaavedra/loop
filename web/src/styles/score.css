@@ -312,6 +312,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-2);
+  /* a wrapped row sits past both 7px hit-area extensions (see .dial-mod::before) */
+  row-gap: var(--sp-6);
 }
 .dial-switch-lbl {
   margin-right: auto;
@@ -321,8 +323,12 @@
   text-transform: uppercase;
   color: var(--muted);
 }
+/* the pill stays a compact 30px; its hit area is a centred 44px band (::before) that only reaches
+   7px above and below it, never sideways into the next pill */
 .dial-mod {
+  position: relative;
   min-height: 30px;
+  min-width: 44px;
   padding: var(--sp-1) var(--sp-4);
   border: 1px solid var(--line);
   border-radius: var(--r-pill);
@@ -334,6 +340,14 @@
   letter-spacing: var(--label-track);
   text-transform: uppercase;
   cursor: pointer;
+}
+.dial-mod::before {
+  content: "";
+  position: absolute;
+  top: calc(50% - 22px);
+  bottom: calc(50% - 22px);
+  left: 0;
+  right: 0;
 }
 .dial-mod[aria-pressed="true"] {
   background: var(--accent);

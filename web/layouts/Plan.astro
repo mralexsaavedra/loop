@@ -38,6 +38,7 @@ import detailScript from '../src/client/detail.js?raw';
 import profileScript from '../src/client/profile.js?raw';
 import Avatar from '../src/components/Avatar.astro';
 import todayDateScript from '../src/client/today-date.js?raw';
+import tokensCss from '../src/styles/tokens.css?raw';
 import { es as esSync, en as enSync } from '../src/i18n/sync-templates.mjs';
 import { es as esDate, en as enDate } from '../src/i18n/date-templates.mjs';
 // Numerals font: a ~1.5 KB subset of D-DIN Bold (SIL OFL 1.1, renamed "HC Num" as the OFL requires
@@ -77,6 +78,10 @@ const TAB_ICONS: Record<string, string> = {
 // and the names of its one date formatter (HC.fmtDate / HC.fmtMonth) from I18N_DATE
 const syncT = locale === 'es' ? esSync : enSync;
 const dateT = locale === 'es' ? esDate : enDate;
+// browser chrome (address / status bar) tinted like the TOP of the page background: read from the
+// --ground-top token, the one copy (web/test/mobile.test.mjs pins the built meta to it)
+const themeColor = /--ground-top:\s*(#[0-9a-fA-F]{6})\s*;/.exec(tokensCss)?.[1];
+if (!themeColor) throw new Error('tokens.css: --ground-top must be a #rrggbb colour (theme-color meta)');
 const navSource = `var NAV = ${jsonForScript({ tabs: TAB_KEYS, sectionTab: SECTION_TAB })};\nvar HC_CONST = ${jsonForScript(hcConst())};\nvar I18N_SYNC = ${jsonForScript(syncT)};\nvar I18N_DATE = ${jsonForScript(dateT)};`;
 // unicode-range = exactly the subset's glyphs, so letters in a --num element fall back to --sans
 const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) format("woff2");font-weight:100 900;font-style:normal;font-display:swap;unicode-range:U+20,U+25,U+2B-2E,U+30-39,U+68,U+D7}`;
@@ -87,6 +92,8 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content={themeColor} />
     <title>{title}</title>
     <style is:inline set:html={numFontFace}></style>
   </head>
