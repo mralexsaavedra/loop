@@ -1470,3 +1470,53 @@ test('a failed past-day load offers Reintentar (re-reads that day); a stale fail
   await flush();
   assert.match(e.els['food-log'].innerHTML, />Retry<\/button>/);
 });
+
+/* ---------- hooks for settings.js / adherence.js (the one API client, a day to show, log changes) ---------- */
+test('HCFood.api is the one food API client (header, JSON, coarse codes) for settings.js and adherence.js; ready() follows the probe', async () => {
+  const off = setup();
+  await flush();
+  assert.equal(off.F.ready(), false);
+  const t = setup({ routes: { ...BOOT, 'PUT /api/food/settings': json({ error: 'invalid', field: 'goal' }, 400) } });
+  await flush();
+  assert.equal(t.F.ready(), true);
+  await assert.rejects(t.F.api('PUT', '/settings', { goal: 'x' }), (e) => e.code === 'invalid' && e.field === 'goal' && e.status === 400);
+  const put = t.calls.find((c) => c.key === 'PUT /api/food/settings');
+  assert.equal(put.init.headers['X-HC-Food'], '1');
+  assert.equal(put.init.headers['Content-Type'], 'application/json');
+  assert.deepEqual(put.body, { goal: 'x' });
+});
+
+test('HCFood.showDay (a Constancia cell): Registrar moves to that day and reads it; today = back to today; nothing without the API', async () => {
+  const PAST = '2030-01-08';
+  const t = setup({ routes: { ...BOOT, [`GET /api/food/log?date=${PAST}`]: json({ date: PAST, entries: [{ ...ENTRY, id: 77, date: PAST }], totals: TOTALS1 }) } });
+  await flush();
+  assert.equal(t.F.showDay(PAST), true);
+  await flush();
+  assert.equal(t.els['food-day-label'].textContent, 'mar 8 ene');
+  assert.match(t.els['food-log'].innerHTML, /data-id="77"/);
+  assert.equal(t.F.showDay(TODAY), true);
+  assert.equal(t.els['food-day-label'].textContent, 'Hoy');
+  assert.equal(t.F.showDay('2030-02-31'), false);
+  const off = setup();
+  await flush();
+  assert.equal(off.F.showDay(PAST), false);
+});
+
+test('every add / delete (any day) asks Constancia to re-read its summary (HCAdherence.reload), a throwing one is ignored', async () => {
+  const t = setup({ routes: { ...BOOT, 'DELETE /api/food/log/50': json({ ok: true }) } });
+  let reloads = 0;
+  t.window.HCAdherence = { reload: () => { reloads++; throw new Error('boom'); } };
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'del', 'data-id': '50' }));
+  await flush();
+  assert.equal(reloads, 1);
+  assert.doesNotMatch(t.els['food-log'].innerHTML, /data-id="50"/, 'the delete still lands');
+});
+
+test('parseNum takes a trailing kg on a kg field (the target weight), never on a g one', () => {
+  const { F } = setup({ fetchImpl: async () => { throw new TypeError('x'); } });
+  assert.equal(F.parseNum('72,5 kg', ['kg']), 72.5);
+  assert.equal(F.parseNum('80kg', ['kg']), 80);
+  assert.ok(Number.isNaN(F.parseNum('80 kg', ['g'])));
+  assert.equal(F.parseNum('kg', ['kg']), null);
+});

@@ -222,7 +222,7 @@ live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
 | 🏠 Inicio (`home`) | TODAY: Sleep / Recovery / Load dials; the advice sentence; "today you eat" card (today's day type + goal and target kcal/macros, link to Nutrición); health monitor; today's timeline (last night's sleep + the day's workouts); programmed session (`hoy`) |
 | 🏃 Entreno (`entreno`) | per-modality load cards + caveats (`load`: `#score-load`, the detail behind the load dial); 30-day activity calendar + cumulative training time (`calendar`: `#train-activity`); running table, cycling table, load vs recovery (`sessions`: `#health-train`); Entrenamiento dashboard (`dash`) |
 | 💗 Salud (`health`) | recovery (`#hl-recovery`, with the recovery detail card `#score-recovery`, then the recovery trends); sleep (`#hl-sleep`); body composition; daily activity; energy expenditure |
-| 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Registrar (the FOOD LOG, LAN page only), Plan de hoy (a PORTION GUIDE: Desayuno / Comida / Cena + Extras with today's budgets, in a `<details>` fold, collapsed by default), Avituallamiento on bike days — see "Nutrition v2" and "Nutrition v2 part 2" below); Mis productos + Mis recetas (collapsible, LAN page only, no section key: rendered with `dia`); Tablas (`tablas`, collapsible: FIXED reference values per natural unit, never portions — see "Tablas = fixed reference values" below) — there is no train/rest toggle: Resumen de hoy's day type is the one selector. The former Constructor de día / Day builder (`registro`) was removed: the food log replaces it |
+| 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Registrar (the FOOD LOG, LAN page only), Plan de hoy (a PORTION GUIDE: Desayuno / Comida / Cena + Extras with today's budgets, in a `<details>` fold, collapsed by default), Avituallamiento on bike days, Progreso (weight vs the goal), Constancia (food log adherence, LAN page only) — see "Nutrition v2", "Nutrition v2 part 2" and "Nutrition v2 part 3" below); Mis productos + Mis recetas (collapsible, LAN page only, no section key: rendered with `dia`); Tablas (`tablas`, collapsible: FIXED reference values per natural unit, never portions — see "Tablas = fixed reference values" below) — there is no train/rest toggle: Resumen de hoy's day type is the one selector. The former Constructor de día / Day builder (`registro`) was removed: the food log replaces it |
 
 `lib/nav/tabs.mjs` is the ONE source of the tab keys (`TAB_KEYS`) and of the legacy-section map
 (`SECTION_TAB`); the page derives each tab's section list from it (`sectionsOf`) and bakes both as
@@ -406,7 +406,9 @@ controls instead of the close button.
   belongs to Nutrición (`client/nutri-day.js`, inlined before profile.js): the checked radio is
   `HCNutri.state().goal` and a change calls `HCNutri.setGoal`, which writes the SAME key as before
   (`hc.nutri.goal`, fallback `page.goal`) and refreshes the summary, plan, fuelling, Inicio card, rings
-  and the kcal chip at once. No `HCNutri` or no options → the section is omitted.
+  and the kcal chip at once. No `HCNutri` or no options → the section is omitted. On the LAN page the
+  goal is also stored on the SERVER and the section adds "Peso objetivo" + a status line + the
+  Progreso line (see "Nutrition v2 part 3").
 
 - **Sources** (all optional, merged by `lib/profile/profile.mjs` `loadProfile` → `buildProfile`;
   manual wins over Strava for the same field):
@@ -707,7 +709,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   target is the ONE source for Nutrición: `window.nutriTarget()` = the MEALS target (`k, p, c, g`,
   `fatMax` = fat + 15 g, `fuelK`, `day` = base day train / rest, label) feeds the intake rings
   (`HCNutri.targetFor(date)` = the same shape for an earlier logged day, labelled "Objetivo / Comidas de
-  ese día", or `null` when its day type is unknown), and
+  ese día", or `null` when its day type is unknown; a day beyond the 3 baked timeline days detects its
+  type from `DETAIL.sessions` — `daytype.mjs` `dayInputFor`, see "Nutrition v2 part 3"), and
   every goal / day type / ride change calls `window.intakeRefresh()` directly (a failure shows a
   one-line message, never a stale ring).
 - **Resumen de hoy** — the day type as ONE row of 4 equal segments (real radios, inline SVG line
@@ -1008,6 +1011,46 @@ Plan de hoy) and the
   location), then `npm run generate` (or wait for the hourly refresh). Out of scope: label photos /
   OCR (send them to Claude in chat), scraping any supermarket site, exporting the log to CSV for the
   analysis pipeline (next slice), Apple Health write-back.
+
+## Nutrition v2 part 3 — server-side goal + target weight, Progreso, Constancia
+
+Three render-isolated pieces (own try/catch, one-line fallback). Thresholds live in `lib/` (baked as
+`NUTRI.progress` / `NUTRI.adherence` / `FOOD_CONST.limits`); every number in the copy is a placeholder
+filled from them, never typed.
+
+- **Settings (LAN page)** — `services/health-ingest/sql/007_settings.sql` (`app_settings`, one row:
+  goal + target weight within `FOOD_LIMITS.targetWeight*`), its own optional migration group
+  `settings` (a failure → only `/food/settings` answers `503 settings_unavailable`). `GET /food/settings`
+  and `PUT /food/settings` (partial `{goal?, targetWeightKg?}`, `null` clears the target) sit under
+  the food prefix, so plan-web's `/api/food/` proxy and every food layer apply (no nginx change); an
+  unknown `/food/*` path is always `404`. Page: `client/settings.js` (`HCSettings`, reuses
+  `HCFood.api`). Without an answer the page is exactly as before (goal in `hc.nutri.goal`, no target
+  field). With it the server goal wins (`HCNutri.applyGoal`, cached locally, never sent back) EXCEPT a
+  PENDING goal (`HCNutri.setGoal` writes `hc.nutri.goalPending` until a PUT succeeds; retried on the
+  next load and on `visibilitychange`; the profile says "pendiente de guardar"); an empty server gets
+  the stored local goal once. The GET retries with backoff on offline / timeout / 5xx (3 tries), never
+  on 404 / 503. Profile Objetivo: + "Peso objetivo" (`HCSettings.parseTarget` = `HCFood.parseNum(v,
+  ['kg'])` + the range, inline error, saved on `change`), one status line, the Progreso line.
+- **Progreso** (baked data, every build) — `lib/nutrition/progress.mjs` = the reference (rules and
+  bands in its header), ported in `client/progress.js` (`PROGRESS_CASES` parity + hand-computed tests).
+  Rate = least-squares slope of `DETAIL.metrics.weight.roll` over `windowDays`; too few averages →
+  "pocos datos". Status per goal band (`PROGRESS.bands`, from `analysis/methodology.md`: cut
+  0.25–0.5, bulk 0.1–0.25 kg/week, never > `maxPctWeek` of bodyweight; maintain stable within
+  ±`stableKg`, else going up / down). ETA only on pace = remaining ÷ the OBSERVED rate ±`etaSpread`,
+  as months. Target / ETA only with `HCSettings`. Says the series mixes scales. The card opens the
+  weight sheet, which draws the target dashed (`detail.js` `targetOf`).
+- **Constancia** (LAN page only) — `GET /food/log/summary?from&to` (≤ `summaryDaysMax` days, ≤ 20,000
+  rows, 30 reads / min per client) → per-day `daySummaries` (shared formula, food-calc.js copy pinned
+  by `SUMMARY_CASES`). `lib/nutrition/adherence.mjs` = the reference (`ADHERENCE_CASES`), ported in
+  `client/adherence.js`. Complete = ≥ 1 entry in breakfast, lunch and dinner; means and protein days
+  only over complete days with a DETECTED day type (`HCNutri.targetFor` = current goal × that day's
+  type; past days via `daytype.mjs` `dayInputFor` over `DETAIL.sessions` + `TRAINING`). Counted apart,
+  never compared: unknown type, and an ASSUMED rest day (sleep only, no session: `inferred`). 7 / 14 /
+  28 switch, a 28-cell strip of ≥ 44 px buttons (state in words; a tap = `HCFood.showDay`). Re-read
+  debounced (`reloadMs`) after every add / delete, and on `visibilitychange` when the day changed (the
+  midnight reload of core.js waits while the page is busy).
+- **Rollout** — ingest rebuild (`docker compose up -d --build health-ingest`, runs 007), then
+  `npm run generate`.
 
 ## Training tabs — "Hoy / Today" + "Entrenos / Workouts" pipeline
 

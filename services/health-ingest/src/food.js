@@ -9,6 +9,13 @@
  *   GET    /food/log?date=YYYY-MM-DD entries of that (local) day + day totals
  *   POST   /food/log                 add one entry (macros SNAPSHOT computed here)   DELETE /food/log/:id
  *   GET    /food/off?barcode=|q=     Open Food Facts lookup, server side (src/off.js); saves nothing
+ *   GET    /food/log/summary?from=&to=  per-day sums of the log (<= FOOD_LIMITS.summaryDaysMax days): the
+ *                                   page's adherence view (food-calc.js daySummaries)
+ *   GET    /food/settings            the owner's goal + target weight (one row, sql/007_settings.sql)
+ *   PUT    /food/settings            partial update {goal?, targetWeightKg?} (targetWeightKg null clears it)
+ *
+ * The settings live in their OWN optional migration group (`settings`): when 007 fails only
+ * /food/settings answers 503 settings_unavailable, and when the food tables fail it keeps working.
  *
  * Security. A static page cannot hold a secret, so these routes are UNAUTHENTICATED like /sync and
  * meant for the LAN only (a public reverse proxy must NEVER forward /food/*, see README). Layers:
@@ -33,12 +40,13 @@
  */
 import {
   FOOD_STORES, FOOD_UNITS, ENTRY_UNITS, FOOD_SOURCES, RECIPE_KINDS, REF_TYPES, FOOD_MEALS, FOOD_LIMITS as L, RECIPE_BASIC_UNITS,
-  round1, roundMacros, productEntry, recipeBasis, recipeEntry, dayTotals, atwaterOk
+  SETTINGS_GOALS, round1, roundMacros, productEntry, recipeBasis, recipeEntry, dayTotals, daySummaries, atwaterOk
 } from './food-calc.js'
 import { createWindowLimiter } from './limits.js'
 
 export const FOOD_BODY_LIMIT = 16 * 1024
 export const FOOD_WRITE_LIMIT = 60 // per client address per minute
+export const FOOD_SUMMARY_LIMIT = 30 // GET /food/log/summary per client address per minute (a read of up to 120 days)
 // limits: FOOD_LIMITS (food-calc.js, a copy of lib/nutrition/foodlog.mjs, which is authoritative)
 const ID_RE = /^[1-9][0-9]{0,15}$/
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -51,8 +59,10 @@ const LOCAL_HOSTS = ['localhost', 'host.docker.internal']
 const OFF_CODE_RE = /^[0-9]{1,14}$/
 const WRITE_METHODS = new Set(['POST', 'PUT', 'DELETE'])
 
-// path pattern -> allowed methods
+// path pattern -> allowed methods (+ the optional migration group it needs, default food)
 const ROUTES = [
+  { re: /^\/food\/settings$/, methods: ['GET', 'PUT'], group: 'settings' },
+  { re: /^\/food\/log\/summary$/, methods: ['GET'] },
   { re: /^\/food\/products$/, methods: ['GET', 'POST'] },
   { re: /^\/food\/products\/([^/]+)$/, methods: ['PUT', 'DELETE'] },
   { re: /^\/food\/recipes$/, methods: ['GET', 'POST'] },
@@ -258,6 +268,30 @@ export function validateLog (body) {
   return e
 }
 
+/** {goal?, targetWeightKg?}: at least one key; the goal is one of the plan goals, the target weight a
+ * number of kg (1 decimal) within FOOD_LIMITS, or null to clear it. Only the keys sent are changed. */
+export function validateSettings (body) {
+  strictKeys(body, ['goal', 'targetWeightKg'])
+  const out = {}
+  if ('goal' in body) out.goal = oneOf(body.goal, 'goal', SETTINGS_GOALS)
+  if ('targetWeightKg' in body) {
+    out.targetWeightKg = body.targetWeightKg === null
+      ? null
+      : number(body.targetWeightKg, 'targetWeightKg', { min: L.targetWeightMin, max: L.targetWeightMax })
+  }
+  if (!Object.keys(out).length) bad('body')
+  return out
+}
+
+/** ?from=&to= (YYYY-MM-DD, from <= to, at most FOOD_LIMITS.summaryDaysMax days inclusive). */
+export function validateRange (params) {
+  const from = validDate(params.get('from')) ?? bad('from')
+  const to = validDate(params.get('to')) ?? bad('to')
+  const days = Math.round((Date.parse(to + 'T00:00:00Z') - Date.parse(from + 'T00:00:00Z')) / 86_400_000) + 1
+  if (days < 1 || days > L.summaryDaysMax) bad('to')
+  return { from, to }
+}
+
 /* ---------- HTTP ---------- */
 function send (res, status, body, extra = {}) {
   const payload = JSON.stringify(body)
@@ -338,8 +372,9 @@ export function recipeView (recipe, byId) {
   }
 }
 
-export function createFoodRoutes ({ store, off, now = Date.now, log = console.log, writeLimit = FOOD_WRITE_LIMIT, available = () => true, allowedHosts = [] }) {
+export function createFoodRoutes ({ store, off, now = Date.now, log = console.log, writeLimit = FOOD_WRITE_LIMIT, summaryLimit = FOOD_SUMMARY_LIMIT, available = () => true, settingsAvailable = () => true, allowedHosts = [] }) {
   const writes = createWindowLimiter({ limit: writeLimit, windowMs: 60_000, now })
+  const summaries = createWindowLimiter({ limit: summaryLimit, windowMs: 60_000, now })
 
   async function recipeViews (recipes) {
     const ids = [...new Set(recipes.flatMap(productIds))]
@@ -403,6 +438,15 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
   async function dispatch (req, res, url, idParam) {
     const m = req.method
     const path = url.pathname
+    if (path === '/food/settings') {
+      if (m === 'GET') return send(res, 200, { settings: await store.getSettings() })
+      return send(res, 200, { settings: await store.updateSettings(validateSettings(await readJson(req))) })
+    }
+    if (path === '/food/log/summary') {
+      if (!summaries.take(req.socket?.remoteAddress ?? 'unknown')) throw httpError(429, 'rate_limited')
+      const { from, to } = validateRange(url.searchParams)
+      return send(res, 200, { from, to, days: daySummaries(await store.listLogRange(from, to)) })
+    }
     if (path === '/food/products') {
       if (m === 'GET') return send(res, 200, { products: await store.listProducts() })
       return send(res, 201, { product: await store.insertProduct(validateProduct(await readJson(req))) })
@@ -470,14 +514,16 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
       try {
         if (!hostAllowed(hostOfHeader(req.headers.host), allowedHosts)) throw httpError(421, 'misdirected')
         if (req.headers['x-hc-food'] !== '1') throw httpError(403, 'forbidden')
-        if (!available()) throw httpError(503, 'food_unavailable')
         let route = null
         let match = null
         for (const r of ROUTES) {
           match = r.re.exec(path)
           if (match) { route = r; break }
         }
+        // an unknown path is a 404 whatever is available; a known one needs its migration group
         if (!route) throw httpError(404, 'not_found')
+        const group = route.group ?? 'food'
+        if (!(group === 'settings' ? settingsAvailable() : available())) throw httpError(503, `${group}_unavailable`)
         if (!route.methods.includes(req.method)) {
           req.resume()
           send(res, 405, { error: 'method_not_allowed' }, { allow: route.methods.join(', ') })

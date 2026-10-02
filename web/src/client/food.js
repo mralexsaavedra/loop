@@ -237,7 +237,7 @@
     return el && el.value != null ? String(el.value) : '';
   }
   // the words the owner may type after a number ("30 g", "30g", "250 ml", "130 kcal"), by unit
-  var UNIT_WORDS = { g: ['g', 'gr', 'grs', 'gramo', 'gramos', 'gram', 'grams'], ml: ['ml'], kcal: ['kcal'] };
+  var UNIT_WORDS = { g: ['g', 'gr', 'grs', 'gramo', 'gramos', 'gram', 'grams'], ml: ['ml'], kcal: ['kcal'], kg: ['kg', 'kilo', 'kilos'] };
   function unitOfWord(w) {
     for (var u in UNIT_WORDS) if (Object.prototype.hasOwnProperty.call(UNIT_WORDS, u) && UNIT_WORDS[u].indexOf(w) >= 0) return u;
     return null;
@@ -414,6 +414,13 @@
     var known = function (k) { return L.entries.some(function (e) { return fin(e[k]); }) ? t[k] : null; };
     return { date: L.date, k: t.kcal, p: known('protein'), c: known('carbs'), g: known('fat'), n: t.count, missing: t.missing, src: 'log' };
   };
+  // any add / delete, on any day: Constancia (client/adherence.js) re-reads its summary
+  function logChanged() {
+    var a = window.HCAdherence;
+    if (a && typeof a.reload === 'function') {
+      try { a.reload(); } catch (e) { /* the adherence block guards its own host */ }
+    }
+  }
   function refreshDependents() {
     var n = window.HCNutri;
     if (n && typeof n.refresh === 'function') {
@@ -516,6 +523,7 @@
       C.totals = dayTotals(C.entries);
       renderLog();
       if (C === S.log) refreshDependents(); // only today's log feeds Resumen de hoy / the guide
+      logChanged();
     };
     api('DELETE', '/log/' + encodeURIComponent(id)).then(function () {
       drop();
@@ -825,6 +833,7 @@
       if (window.HCDetail && typeof window.HCDetail.close === 'function') window.HCDetail.close();
       renderLog();
       if (date === HC.todayIso()) refreshDependents(); // a past day never feeds Resumen de hoy
+      logChanged();
       setText('food-msg', e ? format(T.added, { label: e.label, k: kf(e.kcal) }) : '');
       focus('food-add-' + group);
       if (!L) loadDay(date);
@@ -1584,6 +1593,7 @@
       }
       renderLog();
       refreshDependents();
+      logChanged();
       setText('food-msg', e ? format(T.added, { label: e.label, k: kf(e.kcal) }) : '');
       if (!S.log || S.log.date !== body.date) loadLog();
       return e;
@@ -1596,7 +1606,28 @@
     });
   }
 
+  /** Constancia's day cells (client/adherence.js): Registrar shows `date` (a past day, or today) and
+   * scrolls into view; false without the food API. */
+  function showDay(date) {
+    var d = HC.isoDate(date);
+    if (!S.ok || !d) return false;
+    goDay(d);
+    var block = $('food-log-block');
+    if (block && typeof block.scrollIntoView === 'function') block.scrollIntoView({ block: 'start' });
+    var label = $('food-day-label');
+    if (label && typeof label.focus === 'function') {
+      if (label.setAttribute && !(label.hasAttribute && label.hasAttribute('tabindex'))) label.setAttribute('tabindex', '-1');
+      label.focus();
+    }
+    return true;
+  }
+
   window.HCFood = {
+    // the one food API client (X-HC-Food, JSON, timeout, coarse codes): client/settings.js and
+    // client/adherence.js reuse it, so every /api/food request carries the same layers
+    api: api,
+    ready: function () { return !!S.ok; },
+    showDay: showDay,
     productEntry: productEntry,
     recipeBasis: recipeBasis,
     recipeEntry: recipeEntry,

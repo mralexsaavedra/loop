@@ -6,7 +6,11 @@
  *             lib/profile/goal.mjs). The goal itself belongs to Nutrición (client/nutri-day.js, inlined
  *             earlier): the checked radio is window.HCNutri.state().goal and a change calls
  *             HCNutri.setGoal, which stores it (hc.nutri.goal) and refreshes the summary, plan, fuelling,
- *             rings, builder and the kcal chip. No HCNutri or no options -> the section is omitted;
+ *             rings, builder and the kcal chip. No HCNutri or no options -> the section is omitted.
+ *             On the LAN page (window.HCSettings ready, client/settings.js) the goal is also stored on
+ *             the server and the section adds a "Target weight" field (kg, HCSettings.parseTarget = the
+ *             food forms' parser; an inline error; saved on change, which fires on blur), one status
+ *             line for both saves, and the Progreso line (window.HCProgress.line, client/progress.js);
  *   Body    — height (manual) + the latest weigh-in with its date (never Strava's weight);
  *   Gear    — bikes and shoes from Strava with km (1 decimal), retired ones folded, a gentle hint on
  *             shoes past SHOE_REPLACE_KM, or a note when the token lacks the profile:read_all scope;
@@ -159,23 +163,86 @@
     var key = (o.kcal < 0 ? 'deficit' : 'surplus') + (o.bikeKept ? 'BikeKept' : '');
     return format(G[key], { kcal: kcal });
   }
+  // the server-side settings (client/settings.js), only once the LAN API answered
+  function settings() {
+    var st = window.HCSettings;
+    return st && typeof st.ready === 'function' && st.ready() ? st : null;
+  }
+  function targetHtml(st) {
+    var G = T.goal, L = st.limits(), v = st.targetWeight();
+    return '<div class="food-field pf-target"><label class="food-lbl" for="pf-target">' + esc(G.target) + '</label>' +
+      '<div class="food-in-wrap"><input class="food-in" id="pf-target" type="text" inputmode="decimal" autocomplete="off" value="' +
+      (fin(v) ? esc(HC.num(v, 1)) : '') + '" aria-describedby="pf-target-hint pf-target-err"><span class="food-suffix" aria-hidden="true">kg</span></div>' +
+      '<small class="pf-goal-desc" id="pf-target-hint">' + esc(format(G.targetHint, { min: L.min, max: L.max })) + '</small>' +
+      '<small class="food-err" id="pf-target-err"></small></div>';
+  }
+  function progressText() {
+    var p = window.HCProgress;
+    try { return p && typeof p.line === 'function' ? p.line() : ''; } catch (e) { return ''; }
+  }
   function goalHtml() {
     var n = nutri(), G = T.goal;
     var opts = list(P.goals).filter(function (o) { return o && G.options[o.goal]; });
     if (!n || !opts.length) return '';
-    var cur = n.state().goal;
+    var cur = n.state().goal, st = settings(), prog = progressText();
     return '<section class="pf-sec pf-goal-sec"><fieldset class="pf-goal" id="pf-goal"><legend class="pf-h">' + esc(G.heading) + '</legend>' +
       opts.map(function (o) {
         return '<label class="pf-goal-opt"><input type="radio" name="pf-goal" value="' + esc(o.goal) + '"' + (o.goal === cur ? ' checked' : '') + '>' +
           '<span class="pf-goal-txt"><b class="pf-goal-name">' + esc(G.options[o.goal]) + '</b><small class="pf-goal-desc">' + esc(goalDesc(o)) + '</small></span></label>';
-      }).join('') + '</fieldset></section>';
+      }).join('') + '</fieldset>' +
+      (st ? targetHtml(st) + '<p class="pf-note pf-status" id="pf-goal-msg" role="status" aria-live="polite"></p>' : '') +
+      (prog ? '<p class="pf-note pf-progress" id="pf-progress"><span class="pf-lbl">' + esc(G.progress) + '</span> <span id="pf-progress-txt">' + esc(prog) + '</span></p>' : '') +
+      '</section>';
+  }
+  function el(id) {
+    return document.getElementById ? document.getElementById(id) : null;
+  }
+  function setText(id, text) {
+    var x = el(id);
+    if (x) x.textContent = text;
+  }
+  // the one status line of the goal section: the last goal / target save
+  function statusText(s) {
+    var G = T.goal, last = s && s.last, pend = s && s.pending ? ' ' + G.pending : '';
+    if (!last) return s && s.pending ? G.pending : '';
+    if (last.status === 'saving') return G.saving;
+    if (last.status === 'saved') return (last.what === 'goal' ? G.savedGoal : G.saved) + pend;
+    return format(G.failed, { reason: G.reasons[last.code] || G.reasons.generic }) + pend;
+  }
+  function targetError(kind) {
+    var input = el('pf-target'), G = T.goal, st = settings();
+    var L = st ? st.limits() : { min: '', max: '' };
+    setText('pf-target-err', kind ? format(G.targetErr[kind] || G.targetErr.number, { min: L.min, max: L.max }) : '');
+    if (input && input.setAttribute) {
+      if (kind) input.setAttribute('aria-invalid', 'true');
+      else if (input.removeAttribute) input.removeAttribute('aria-invalid');
+    }
   }
   if (document.addEventListener) {
     document.addEventListener('change', function (e) {
       var t = e && e.target;
-      if (!t || t.name !== 'pf-goal') return;
+      if (!t) return;
+      if (t.id === 'pf-target') {
+        var st = settings();
+        if (!st) return;
+        var r = st.parseTarget(t.value);
+        if (r.error) { targetError(r.error); return; }
+        targetError(null);
+        if (r.value === st.targetWeight()) return;
+        st.saveTarget(r.value).catch(function () { /* the status line says why */ });
+        return;
+      }
+      if (t.name !== 'pf-goal') return;
       var n = nutri(), ok = list(P.goals).some(function (o) { return o && o.goal === t.value; });
       if (n && ok) n.setGoal(t.value);
+    });
+  }
+  var ST = window.HCSettings;
+  if (ST && typeof ST.onChange === 'function') {
+    ST.onChange(function (s) {
+      setText('pf-goal-msg', statusText(s));
+      var prog = progressText();
+      if (prog) setText('pf-progress-txt', prog);
     });
   }
 
