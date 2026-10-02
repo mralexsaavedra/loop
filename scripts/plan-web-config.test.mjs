@@ -232,3 +232,22 @@ test('hosts.sh: comma / space separated names, lowercased, one exact map entry e
 test('health-ingest compose passes FOOD_ALLOWED_HOSTS (empty by default) for the same extra names', () => {
   assert.match(ingestCompose, /FOOD_ALLOWED_HOSTS:\s*\$\{FOOD_ALLOWED_HOSTS:-\}/);
 });
+
+test('nginx: gzip at SERVER level for the page, status.json, CSS / JS and JSON; never on the proxied ingest routes', () => {
+  const server = nginx.slice(nginx.indexOf('server {'));
+  const head = server.slice(0, server.indexOf('location '));
+  assert.match(head, /^\s*gzip on;/m, 'server-level gzip');
+  assert.match(head, /^\s*gzip_vary on;/m, 'Vary: Accept-Encoding for caches');
+  assert.match(head, /^\s*gzip_min_length 1024;/m);
+  assert.match(head, /^\s*gzip_comp_level 5;/m);
+  const types = /^\s*gzip_types ([^;]+);/m.exec(head);
+  assert.ok(types, 'gzip_types listed');
+  assert.deepEqual(types[1].trim().split(/\s+/).sort(), ['application/javascript', 'application/json', 'text/css'],
+    'text/html is always compressed once gzip is on (listing it is a duplicate-MIME warning)');
+  assert.doesNotMatch(nginx.slice(0, nginx.indexOf('server {')), /^\s*gzip/m, 'nothing outside the server block');
+  // Proxied responses reflect request input (food search, labels) next to stored data: never compress
+  // them (a BREACH-style length oracle), and their bodies are small anyway.
+  const proxied = locations(nginx).filter((x) => /proxy_pass\s/.test(x.body));
+  assert.equal(proxied.length, 4);
+  for (const l of proxied) assert.match(l.body, /^\s*gzip off;/m, `${l.spec}: gzip off`);
+});
