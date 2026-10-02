@@ -676,3 +676,258 @@
     max-width: 720px;
   }
 }
+
+/* ---------- Progreso (client/progress.js): weight vs the goal; the card opens the weight sheet ---------- */
+.pg-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sp-1) var(--sp-4);
+}
+.pg-lbl {
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.pg-date {
+  font-size: var(--fs-sm);
+  color: var(--faint);
+}
+.pg-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-7);
+  margin: var(--sp-3) 0 var(--sp-4);
+}
+.pg-num {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+}
+.pg-kg {
+  font-family: var(--num);
+  font-size: 34px;
+  line-height: 1;
+  color: var(--ink);
+}
+.pg-num small,
+.pg-rate small {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.pg-rate {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pg-rate b {
+  font-family: var(--num);
+  font-size: var(--fs-2xl);
+  color: var(--trend);
+}
+.pg-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-3);
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-md);
+}
+.pg-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: currentColor;
+  align-self: center;
+}
+.pg-s-good b,
+.pg-s-good .pg-dot {
+  color: var(--good);
+}
+.pg-s-mid b,
+.pg-s-mid .pg-dot {
+  color: var(--mid);
+}
+.pg-s-low b,
+.pg-s-low .pg-dot {
+  color: var(--low);
+}
+.pg-s-muted {
+  color: var(--muted);
+}
+.pg-why {
+  color: var(--muted);
+}
+.pg-target,
+.pg-eta {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-md);
+}
+.pg-warn {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--mid);
+}
+.pg-faint,
+.pg-empty {
+  color: var(--muted);
+}
+.pg-note {
+  margin: var(--sp-4) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--faint);
+}
+
+/* ---------- Constancia (client/adherence.js): the food log's adherence + a 28-day strip ---------- */
+.adh-opts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.adh-opts .seg-in {
+  min-height: 44px;
+}
+.adh-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-6) var(--sp-5);
+}
+.adh-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.adh-lbl {
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.adh-val {
+  font-family: var(--num);
+  font-size: var(--fs-3xl);
+  color: var(--ink);
+}
+.adh-sub {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.adh-note,
+.adh-rule {
+  margin: var(--sp-4) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--faint);
+}
+.adh-note {
+  color: var(--muted);
+}
+.adh-h {
+  margin: var(--sp-7) 0 var(--sp-3);
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+/* 7 cells a row (oldest first, today last): at 360px the block's full width gives each >= 44px */
+.adh-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  max-width: 420px;
+}
+.adh-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+.adh-cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.adh-d {
+  font-family: var(--num);
+  font-size: var(--fs-xs);
+  line-height: 1;
+}
+.adh-m {
+  font-size: var(--fs-sm);
+  line-height: 1;
+  min-height: 1em;
+}
+.adh-today {
+  box-shadow: 0 0 0 1px var(--ink) inset;
+}
+.adh-partial {
+  border-style: dashed;
+  border-color: var(--faint);
+  color: var(--ink);
+}
+.adh-unknown {
+  background: var(--surface-2);
+  color: var(--trend);
+}
+/* a rest day assumed from sleep alone: shown, never compared */
+.adh-assumed {
+  border-style: dotted;
+  border-color: var(--trend);
+  color: var(--muted);
+}
+.adh-on {
+  border-color: var(--good);
+  color: var(--good);
+}
+.adh-under,
+.adh-over {
+  border-color: var(--mid);
+  color: var(--mid);
+}
+.adh-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-5);
+  margin-top: var(--sp-4);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.adh-key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.adh-sw {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  font-size: var(--fs-2xs);
+}
+@media (min-width: 900px) {
+  .adh-opts {
+    grid-template-columns: repeat(3, minmax(88px, auto));
+  }
+  .adh-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  #nutri-progress > .nutri-card,
+  #food-adherence > .nutri-card {
+    max-width: 720px;
+  }
+}

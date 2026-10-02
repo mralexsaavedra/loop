@@ -32,7 +32,7 @@ const valueOn = (m, iso) => { const i = dayIndex(m, iso); return i >= 0 && i < m
 
 // parts: true = the sheet's sub-parts (calendar, day panel, chart selection) resolve to stub elements,
 // so a day tap can update them in place; query = extra host.querySelector answers (sel -> element)
-function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync = false, parts = false, query = {}, views = null, withCore = false } = {}) {
+function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync = false, parts = false, query = {}, views = null, withCore = false, settings = null } = {}) {
   const listeners = { doc: {}, win: {} };
   const host = new StubElement('div', { attrs: { id: 'detail' }, hidden: true });
   const closeBtn = { focused: 0, focus() { this.focused++; } };
@@ -106,6 +106,7 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
   };
   win.history = history;
   if (views) win.HCViews = views;
+  if (settings) win.HCSettings = settings;
   win.location = loc;
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -466,6 +467,24 @@ test('weight header = the Salud card\'s 7-day rolling average (the chart line), 
   assert.ok(h.includes(format(enT.roll7Lbl, { date: 'Mon 28 Sep' })));
   assert.ok(h.includes(format(enT.latestReading, { value: w.latest.value.toFixed(1), unit: 'kg', date: 'Mon 28 Sep' })));
   assert.match(s.host.innerHTML, /<path class="dt-line"/, 'the baked rolling line is drawn');
+});
+
+test('weight: the owner\'s target weight (LAN settings) is a dashed line + a "Target" note; none without the settings API', () => {
+  const settings = (ready, kg) => ({ ready: () => ready, targetWeight: () => kg });
+  const s = setup({ settings: settings(true, 66.5) });
+  s.api.open('weight');
+  assert.match(s.host.innerHTML, /<line class="dt-target"/);
+  assert.ok(s.host.innerHTML.includes('<span class="dt-k dt-k-target">Target</span>'));
+  assert.ok(headOf(s.host.innerHTML).includes(format(enT.bands.target, { value: '66.5', unit: 'kg' })));
+  for (const off of [null, settings(false, 66.5), settings(true, null)]) {
+    const o = setup({ settings: off });
+    o.api.open('weight');
+    assert.doesNotMatch(o.host.innerHTML, /dt-target/);
+  }
+  // only the weight view takes it
+  const e = setup({ settings: settings(true, 66.5) });
+  e.api.open('energy');
+  assert.doesNotMatch(e.host.innerHTML, /dt-target/);
 });
 
 test('energy header = the 7-day rolling expenditure of the newest COMPLETE day; today (in progress) is only the secondary line', () => {

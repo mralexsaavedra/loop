@@ -5,7 +5,7 @@ import { createFoodRoutes, FOOD_BODY_LIMIT, hostAllowed, parseAllowedHosts } fro
 
 /** In-memory stand-in for src/food-db.js createFoodStore (same method contract). */
 function memoryStore () {
-  const db = { product: [], recipe: [], log: [] }
+  const db = { product: [], recipe: [], log: [], settings: null }
   let seq = 0
   const clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)))
   const stamp = () => new Date(Date.UTC(2030, 0, 10, 12, 0, seq)).toISOString()
@@ -64,6 +64,12 @@ function memoryStore () {
       db.log.push(row)
       return clone(row)
     },
+    async listLogRange (from, to) { return clone(db.log.filter((e) => e.date >= from && e.date <= to).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id))) },
+    async getSettings () { return clone(db.settings ?? { goal: null, targetWeightKg: null, updatedAt: null }) },
+    async updateSettings (patch) {
+      db.settings = { ...(db.settings ?? { goal: null, targetWeightKg: null }), ...clone(patch), updatedAt: stamp() }
+      return clone(db.settings)
+    },
     async deleteLog (id) {
       const i = db.log.findIndex((e) => e.id === id)
       if (i < 0) return false
@@ -90,8 +96,8 @@ function stubOff () {
   }
 }
 
-async function setup ({ store = memoryStore(), off = stubOff(), writeLimit, log = () => {}, available, allowedHosts } = {}) {
-  const routes = createFoodRoutes({ store, off, writeLimit, log, available, allowedHosts })
+async function setup ({ store = memoryStore(), off = stubOff(), writeLimit, summaryLimit, log = () => {}, available, settingsAvailable, allowedHosts } = {}) {
+  const routes = createFoodRoutes({ store, off, writeLimit, summaryLimit, log, available, settingsAvailable, allowedHosts })
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost')
     if (!(await routes.handle(req, res, url))) { res.writeHead(404); res.end() }
@@ -675,5 +681,125 @@ test('a reasonable recipe of 20 ingredients (products + basics with long names) 
     const big = await t.call('POST', '/food/recipes', { body: { ...body, ingredients: [{ ...ingredients[0], name: 'x'.repeat(FOOD_BODY_LIMIT) }] } })
     assert.equal(big.status, 413)
     assert.equal(t.store.db.recipe.length, before)
+  } finally { await t.close() }
+})
+
+/* ---------- settings (goal + target weight) and the log summary ---------- */
+test('settings: GET before any write = nulls; PUT is a partial update; null clears the target', async () => {
+  const t = await setup()
+  try {
+    assert.deepEqual((await t.call('GET', '/food/settings')).body, { settings: { goal: null, targetWeightKg: null, updatedAt: null } })
+    let r = await t.call('PUT', '/food/settings', { body: { goal: 'cut' } })
+    assert.equal(r.status, 200)
+    assert.equal(r.body.settings.goal, 'cut')
+    assert.equal(r.body.settings.targetWeightKg, null)
+    r = await t.call('PUT', '/food/settings', { body: { targetWeightKg: 72.46 } })
+    assert.deepEqual([r.body.settings.goal, r.body.settings.targetWeightKg], ['cut', 72.5], 'goal kept, weight rounded to 1 decimal')
+    r = await t.call('PUT', '/food/settings', { body: { targetWeightKg: null } })
+    assert.deepEqual([r.body.settings.goal, r.body.settings.targetWeightKg], ['cut', null])
+    assert.equal((await t.call('GET', '/food/settings')).body.settings.goal, 'cut')
+  } finally { await t.close() }
+})
+
+test('settings: strict validation with coarse codes (unknown keys, bad goal, out-of-range weight, empty body)', async () => {
+  const t = await setup()
+  try {
+    const put = async (body) => (await t.call('PUT', '/food/settings', { body })).body
+    assert.deepEqual(await put({ goal: 'shred' }), { error: 'invalid', field: 'goal' })
+    assert.deepEqual(await put({ goal: null }), { error: 'invalid', field: 'goal' })
+    assert.deepEqual(await put({ targetWeightKg: 34.9 }), { error: 'invalid', field: 'targetWeightKg' })
+    assert.deepEqual(await put({ targetWeightKg: 250.1 }), { error: 'invalid', field: 'targetWeightKg' })
+    assert.deepEqual(await put({ targetWeightKg: '72' }), { error: 'invalid', field: 'targetWeightKg' })
+    assert.deepEqual(await put({ weight: 72 }), { error: 'invalid', field: 'weight' })
+    assert.deepEqual(await put({}), { error: 'invalid', field: 'body' })
+    assert.deepEqual(await put([]), { error: 'invalid', field: 'body' })
+    assert.equal(t.store.db.settings, null, 'nothing stored')
+    assert.equal((await t.call('POST', '/food/settings', { body: { goal: 'cut' } })).status, 405)
+  } finally { await t.close() }
+})
+
+test('settings: the food layers apply (X-HC-Food, JSON content type, Origin, Host)', async () => {
+  const t = await setup()
+  try {
+    assert.equal((await t.call('GET', '/food/settings', { headers: { 'x-hc-food': '0' } })).status, 403)
+    assert.equal((await t.call('PUT', '/food/settings', { raw: '{"goal":"cut"}', headers: { 'content-type': 'text/plain' } })).status, 415)
+    assert.equal((await t.rawCall('PUT', '/food/settings', { body: { goal: 'cut' }, headers: { origin: 'https://evil.example' } })).status, 403)
+    assert.equal((await t.rawCall('GET', '/food/settings', { host: 'evil.example' })).status, 421)
+    assert.equal(t.store.db.settings, null)
+  } finally { await t.close() }
+})
+
+test('settings is its own migration group: 503 settings_unavailable alone, and it survives a failed food group', async () => {
+  const off = await setup({ settingsAvailable: () => false })
+  try {
+    assert.deepEqual((await off.call('GET', '/food/settings')).body, { error: 'settings_unavailable' })
+    assert.equal((await off.call('PUT', '/food/settings', { body: { goal: 'cut' } })).status, 503)
+    assert.equal((await off.call('GET', '/food/products')).status, 200, 'the food log is untouched')
+  } finally { await off.close() }
+  const noFood = await setup({ available: () => false })
+  try {
+    assert.equal((await noFood.call('GET', '/food/settings')).status, 200)
+    assert.deepEqual((await noFood.call('GET', '/food/log/summary?from=2030-01-01&to=2030-01-10')).body, { error: 'food_unavailable' })
+  } finally { await noFood.close() }
+})
+
+test('log summary: per-day sums + entries per group from the stored snapshots, inside [from, to]', async () => {
+  const t = await setup()
+  try {
+    const add = (date, meal, kcal, protein = 10) => t.call('POST', '/food/log', { body: { date, meal, refType: 'quick', label: 'x', kcal, protein, carbs: 10, fat: 5, force: true } })
+    await add('2030-01-08', 'breakfast', 300)
+    await add('2030-01-09', 'breakfast', 400)
+    await add('2030-01-09', 'lunch', 700)
+    await add('2030-01-09', 'dinner', 600)
+    await add('2030-01-09', 'snack', 150, null)
+    await add('2030-01-12', 'lunch', 999)
+    const r = await t.call('GET', '/food/log/summary?from=2030-01-08&to=2030-01-10')
+    assert.equal(r.status, 200)
+    assert.deepEqual(r.body, {
+      from: '2030-01-08',
+      to: '2030-01-10',
+      days: [
+        { date: '2030-01-08', k: 300, p: 10, c: 10, f: 5, n: 1, missing: { p: false, c: false, f: false }, groups: { breakfast: 1, lunch: 0, dinner: 0, addon: 0 } },
+        { date: '2030-01-09', k: 1850, p: 30, c: 40, f: 20, n: 4, missing: { p: true, c: false, f: false }, groups: { breakfast: 1, lunch: 1, dinner: 1, addon: 1 } }
+      ]
+    })
+  } finally { await t.close() }
+})
+
+test('log summary: both dates required and real, from <= to, at most 120 days', async () => {
+  const t = await setup()
+  try {
+    const get = async (q) => (await t.call('GET', '/food/log/summary' + q)).body
+    assert.deepEqual(await get(''), { error: 'invalid', field: 'from' })
+    assert.deepEqual(await get('?from=2030-01-01'), { error: 'invalid', field: 'to' })
+    assert.deepEqual(await get('?from=2030-02-31&to=2030-03-01'), { error: 'invalid', field: 'from' })
+    assert.deepEqual(await get('?from=2030-01-10&to=2030-01-09'), { error: 'invalid', field: 'to' })
+    assert.deepEqual(await get('?from=2030-01-01&to=2030-05-01'), { error: 'invalid', field: 'to' }, '121 days')
+    assert.equal((await t.call('GET', '/food/log/summary?from=2030-01-01&to=2030-04-30')).status, 200, '120 days')
+    assert.equal((await t.call('DELETE', '/food/log/summary')).status, 405, 'never read as a log id')
+  } finally { await t.close() }
+})
+
+test('an unknown /food/* path is a 404 even when the food tables are down; a known one is the 503', async () => {
+  const t = await setup({ available: () => false, settingsAvailable: () => false })
+  try {
+    assert.deepEqual((await t.call('GET', '/food/nope')).body, { error: 'not_found' })
+    assert.equal((await t.call('GET', '/food/log/summary?from=2030-01-01&to=2030-01-02')).status, 503)
+    assert.equal((await t.call('GET', '/food/settings')).status, 503)
+  } finally { await t.close() }
+})
+
+test('log summary reads are rate limited per client address (429 rate_limited, nothing read)', async () => {
+  let reads = 0
+  const store = memoryStore()
+  const inner = store.listLogRange
+  store.listLogRange = (...a) => { reads++; return inner(...a) }
+  const t = await setup({ store, summaryLimit: 2 })
+  try {
+    const q = '/food/log/summary?from=2030-01-01&to=2030-01-02'
+    assert.equal((await t.call('GET', q)).status, 200)
+    assert.equal((await t.call('GET', q)).status, 200)
+    assert.deepEqual((await t.call('GET', q)).body, { error: 'rate_limited' })
+    assert.equal(reads, 2)
   } finally { await t.close() }
 })

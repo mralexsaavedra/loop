@@ -4,6 +4,28 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-02 — nutrition: server-side goal + target weight, weight progress, food log adherence
+
+- **Settings on the server** — `sql/007_settings.sql` (`app_settings`, one row, its own optional
+  migration group) + `GET / PUT /food/settings` behind every food-route layer (no nginx change). The
+  LAN page's goal now lives on the server (phone and Mac agree; the server copy wins, `hc.nutri.goal`
+  is the offline cache, a stored local goal is pushed once to an empty server); the profile sheet
+  gains "Peso objetivo" (kg, inline errors, saved on blur). Without the API nothing changes.
+- **Progreso** — weight vs the goal from the baked 7-day average: rate = least-squares slope over 28
+  days (≥ 8 averages over ≥ 21 days, else "pocos datos"), status vs the goal's band from
+  `analysis/methodology.md` (cut 0.25–0.5, bulk 0.1–0.25 kg/week, never > 1 % of bodyweight a week;
+  maintain stable within ±0.1), kg to go + an ETA from the observed rate ±20 % (LAN, with a target),
+  "mixes scales: trend only". Tap → the weight sheet, target dashed. (The first draft used 0.25–0.5
+  for bulk too — a brief error, fixed in review.)
+- A goal picked while the server is unreachable stays pending (`hc.nutri.goalPending`) and is retried;
+  assumed rest days (sleep, no session) are labelled and kept out of the adherence means.
+- **Constancia** — `GET /food/log/summary` (per-day sums + entries per group, ≤ 120 days; shared
+  `daySummaries`, service copy pinned) → logged / complete days (breakfast + lunch + dinner), mean
+  kcal vs target and protein days over complete days only, 7 / 14 / 28-day switch and a 28-day strip
+  that opens Registrar on a day. Past days get their day type from `DETAIL.sessions` (`dayInputFor`);
+  an unknown type is counted apart, never compared.
+- Rollout: ingest rebuild (`docker compose up -d --build health-ingest`), then `npm run generate`.
+
 ## 2026-10-02 — web: slimmer inlined scripts; advice and today's eating first on Inicio
 
 - **Inlined client scripts lose their comments** — `web/layouts/Plan.astro` now inlines every
