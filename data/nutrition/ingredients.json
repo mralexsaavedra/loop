@@ -609,6 +609,23 @@
       "g": 1.7,
       "weighed": "raw"
     },
+    "lubina": {
+      "per": 100,
+      "unit": "g",
+      "cat": "protein",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Lubina",
+        "en": "Sea bass"
+      },
+      "note": "USDA FoodData Central SR Legacy 175137 'Fish, sea bass, mixed species, raw' (average values); carbs = by difference minus fibre",
+      "k": 97,
+      "p": 18.4,
+      "c": 0,
+      "g": 2,
+      "weighed": "raw"
+    },
     "panga": {
       "per": 100,
       "unit": "g",
