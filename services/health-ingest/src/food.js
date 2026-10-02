@@ -46,6 +46,7 @@ import { createWindowLimiter } from './limits.js'
 
 export const FOOD_BODY_LIMIT = 16 * 1024
 export const FOOD_WRITE_LIMIT = 60 // per client address per minute
+export const FOOD_SUMMARY_LIMIT = 30 // GET /food/log/summary per client address per minute (a read of up to 120 days)
 // limits: FOOD_LIMITS (food-calc.js, a copy of lib/nutrition/foodlog.mjs, which is authoritative)
 const ID_RE = /^[1-9][0-9]{0,15}$/
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -371,8 +372,9 @@ export function recipeView (recipe, byId) {
   }
 }
 
-export function createFoodRoutes ({ store, off, now = Date.now, log = console.log, writeLimit = FOOD_WRITE_LIMIT, available = () => true, settingsAvailable = () => true, allowedHosts = [] }) {
+export function createFoodRoutes ({ store, off, now = Date.now, log = console.log, writeLimit = FOOD_WRITE_LIMIT, summaryLimit = FOOD_SUMMARY_LIMIT, available = () => true, settingsAvailable = () => true, allowedHosts = [] }) {
   const writes = createWindowLimiter({ limit: writeLimit, windowMs: 60_000, now })
+  const summaries = createWindowLimiter({ limit: summaryLimit, windowMs: 60_000, now })
 
   async function recipeViews (recipes) {
     const ids = [...new Set(recipes.flatMap(productIds))]
@@ -441,6 +443,7 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
       return send(res, 200, { settings: await store.updateSettings(validateSettings(await readJson(req))) })
     }
     if (path === '/food/log/summary') {
+      if (!summaries.take(req.socket?.remoteAddress ?? 'unknown')) throw httpError(429, 'rate_limited')
       const { from, to } = validateRange(url.searchParams)
       return send(res, 200, { from, to, days: daySummaries(await store.listLogRange(from, to)) })
     }
@@ -517,10 +520,10 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
           match = r.re.exec(path)
           if (match) { route = r; break }
         }
-        // an unknown path needs the food group too (it was the one group before the settings)
-        const group = route?.group ?? 'food'
-        if (!(group === 'settings' ? settingsAvailable() : available())) throw httpError(503, `${group}_unavailable`)
+        // an unknown path is a 404 whatever is available; a known one needs its migration group
         if (!route) throw httpError(404, 'not_found')
+        const group = route.group ?? 'food'
+        if (!(group === 'settings' ? settingsAvailable() : available())) throw httpError(503, `${group}_unavailable`)
         if (!route.methods.includes(req.method)) {
           req.resume()
           send(res, 405, { error: 'method_not_allowed' }, { allow: route.methods.join(', ') })

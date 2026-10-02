@@ -96,8 +96,8 @@ function stubOff () {
   }
 }
 
-async function setup ({ store = memoryStore(), off = stubOff(), writeLimit, log = () => {}, available, settingsAvailable, allowedHosts } = {}) {
-  const routes = createFoodRoutes({ store, off, writeLimit, log, available, settingsAvailable, allowedHosts })
+async function setup ({ store = memoryStore(), off = stubOff(), writeLimit, summaryLimit, log = () => {}, available, settingsAvailable, allowedHosts } = {}) {
+  const routes = createFoodRoutes({ store, off, writeLimit, summaryLimit, log, available, settingsAvailable, allowedHosts })
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost')
     if (!(await routes.handle(req, res, url))) { res.writeHead(404); res.end() }
@@ -777,5 +777,29 @@ test('log summary: both dates required and real, from <= to, at most 120 days', 
     assert.deepEqual(await get('?from=2030-01-01&to=2030-05-01'), { error: 'invalid', field: 'to' }, '121 days')
     assert.equal((await t.call('GET', '/food/log/summary?from=2030-01-01&to=2030-04-30')).status, 200, '120 days')
     assert.equal((await t.call('DELETE', '/food/log/summary')).status, 405, 'never read as a log id')
+  } finally { await t.close() }
+})
+
+test('an unknown /food/* path is a 404 even when the food tables are down; a known one is the 503', async () => {
+  const t = await setup({ available: () => false, settingsAvailable: () => false })
+  try {
+    assert.deepEqual((await t.call('GET', '/food/nope')).body, { error: 'not_found' })
+    assert.equal((await t.call('GET', '/food/log/summary?from=2030-01-01&to=2030-01-02')).status, 503)
+    assert.equal((await t.call('GET', '/food/settings')).status, 503)
+  } finally { await t.close() }
+})
+
+test('log summary reads are rate limited per client address (429 rate_limited, nothing read)', async () => {
+  let reads = 0
+  const store = memoryStore()
+  const inner = store.listLogRange
+  store.listLogRange = (...a) => { reads++; return inner(...a) }
+  const t = await setup({ store, summaryLimit: 2 })
+  try {
+    const q = '/food/log/summary?from=2030-01-01&to=2030-01-02'
+    assert.equal((await t.call('GET', q)).status, 200)
+    assert.equal((await t.call('GET', q)).status, 200)
+    assert.deepEqual((await t.call('GET', q)).body, { error: 'rate_limited' })
+    assert.equal(reads, 2)
   } finally { await t.close() }
 })

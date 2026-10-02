@@ -136,8 +136,8 @@ test('updateSettings: a parameterized partial upsert, only the keys sent change'
 test('listLogRange: entries between two dates, oldest first, dates as text', async () => {
   const pool = fakePool(() => ({ rows: [{ id: '3', date: '2030-01-09', meal: 'lunch', ref_type: 'quick', ref_id: null, label: 'x', amount: '1.0', unit: 'serving', kcal: '500.0', protein: null, carbs: '50.0', fat: '10.0', request_id: null, created_at: new Date('2030-01-09T12:00:00Z') }] }))
   const rows = await createFoodStore(pool).listLogRange('2030-01-01', '2030-01-10')
-  assert.match(pool.calls[0].sql, /WHERE date BETWEEN \$1::date AND \$2::date ORDER BY date, created_at, id/)
-  assert.deepEqual(pool.calls[0].values, ['2030-01-01', '2030-01-10'])
+  assert.match(pool.calls[0].sql, /WHERE date BETWEEN \$1::date AND \$2::date ORDER BY date, created_at, id LIMIT \$3/)
+  assert.deepEqual(pool.calls[0].values, ['2030-01-01', '2030-01-10', 20000], 'a capped read')
   assert.equal(rows[0].date, '2030-01-09')
   assert.equal(rows[0].kcal, 500)
   assert.equal(rows[0].protein, null)

@@ -101,6 +101,8 @@ async function guardUnique (fn) {
 }
 
 const SETTINGS_COLS = 'goal, target_weight_kg, updated_at'
+// a summary window's row cap (120 days x a generous ~165 entries a day): a read never grows unbounded
+export const LOG_RANGE_MAX_ROWS = 20000
 
 /** The settings row (sql/007_settings.sql); no row yet = every field null. */
 export function settingsFromRow (r) {
@@ -133,8 +135,8 @@ export function createFoodStore (pool) {
     /** Every entry dated from..to (inclusive), oldest first: the adherence summary's input. */
     async listLogRange (from, to) {
       const { rows } = await pool.query(
-        `SELECT ${LOG_COLS} FROM food_log WHERE date BETWEEN $1::date AND $2::date ORDER BY date, created_at, id`,
-        [from, to]
+        `SELECT ${LOG_COLS} FROM food_log WHERE date BETWEEN $1::date AND $2::date ORDER BY date, created_at, id LIMIT $3`,
+        [from, to, LOG_RANGE_MAX_ROWS]
       )
       return rows.map(logFromRow)
     },

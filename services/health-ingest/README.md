@@ -144,9 +144,13 @@ own recipes (Mis recetas), through plan-web's `/api/food/` proxy. Tables in
   `/food/settings` (the food log keeps working, and the other way round). Same
   layers as every `/food/*` route (Host, Origin, `X-HC-Food`, JSON, body cap,
   write rate limit); unknown keys and out-of-range values are `400 invalid`.
+  Same LAN trust model as the food log: any device on the LAN that talks to the
+  service directly can read and change them (no secret on a static page), so
+  never forward `/food/*` from a public proxy.
 - **Summary** (`GET /food/log/summary`): per-day sums (`daySummaries`, the
   shared formula) and entries per Registrar group (breakfast / lunch / dinner /
-  addon) for the page's adherence view; read-only, at most 120 days.
+  addon) for the page's adherence view; read-only, at most 120 days, at most
+  20,000 rows read, and 30 reads / min per client address (`429 rate_limited`).
 
 - **Products** hold per-100 g / ml kcal, protein, carbs and fat from the label or
   Open Food Facts, confirmed by the owner (`source`: `off` / `label` / `manual`),
