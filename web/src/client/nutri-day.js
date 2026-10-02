@@ -49,6 +49,8 @@
   var KEY_GOAL = 'hc.nutri.goal', KEY_DAY = 'hc.nutri.dayType', KEY_RIDE = 'hc.nutri.rideMin', KEY_GUIDE = 'hc.nutri.guide', KEY_PLAN_OPEN = 'hc.nutri.planOpen';
   // the removed choosable blocks kept their picks here; nothing reads it any more (cleared on load)
   var KEY_OLD_PICKS = 'hc.nutri.picks';
+  // a goal picked here and not yet confirmed by the settings server (client/settings.js retries it)
+  var KEY_GOAL_PENDING = 'hc.nutri.goalPending';
   var RANK = { rest: 0, gym: 1, bike: 2, bikeLong: 3 };
   // icons (inline SVG line icons, no emoji): the supplement pill of Plan de hoy
   var PILL_SVG = '<svg class="supp-ico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-45 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><path d="M12 8.5v7"/></g></svg>';
@@ -128,10 +130,14 @@
     var programmed = (o.training && o.training[date]) || null;
     var row = null;
     (Array.isArray(o.timeline) ? o.timeline : []).forEach(function (d) { if (!row && d && d.date === date) row = d; });
-    if (row) return { items: Array.isArray(row.items) ? row.items : [], programmed: programmed, known: true };
+    if (row) {
+      var rowItems = Array.isArray(row.items) ? row.items : [];
+      return { items: rowItems, programmed: programmed, known: true, inferred: rowItems.length === 0 && !programmed };
+    }
     var items = (Array.isArray(o.sessions) ? o.sessions : []).filter(function (x) { return x && x.d === date; })
       .map(function (x) { return { modality: x.m, dur: x.min }; });
-    return { items: items, programmed: programmed, known: items.length > 0 || hasValue(o.sleep, date) || !!programmed };
+    var known = items.length > 0 || hasValue(o.sleep, date) || !!programmed;
+    return { items: items, programmed: programmed, known: known, inferred: known && items.length === 0 && !programmed };
   }
   function dayInput(date) {
     var S = typeof SCORES === 'undefined' ? null : SCORES;
@@ -807,11 +813,25 @@
   }
   function setGoal(v) {
     if (!applyGoal(v)) return false;
+    // pending until the server confirms it: settings.js retries it on its next load / visibility and
+    // prefers it over the server's goal meanwhile
+    save(KEY_GOAL_PENDING, v);
     var S = window.HCSettings;
     if (S && typeof S.ready === 'function' && S.ready() && typeof S.saveGoal === 'function') {
-      try { S.saveGoal(v); } catch (e) { /* the local goal already applies; settings.js reports failures */ }
+      try {
+        var p = S.saveGoal(v);
+        if (p && typeof p.then === 'function') p.then(null, function () { /* stays pending; the profile says so */ });
+      } catch (e) { /* the local goal already applies; settings.js reports failures */ }
     }
     return true;
+  }
+  function pendingGoal() {
+    var g = load(KEY_GOAL_PENDING);
+    return N.goals.indexOf(g) >= 0 ? g : null;
+  }
+  // the server stored `g`: a pending goal equal to it is done (a newer pick stays pending)
+  function clearPending(g) {
+    if (pendingGoal() === g) save(KEY_GOAL_PENDING, null);
   }
   // the goal this viewer stored (hc.nutri.goal), or null: settings.js pushes it once to a server that has none
   function storedGoal() {
@@ -914,13 +934,18 @@
     var input = dayInput(iso);
     if (!input.known) return null;
     var det = detectDayType(input);
-    return ringTarget(planFor(N, state.goal, det.type, det.rideMin), det.type, true);
+    var t = ringTarget(planFor(N, state.goal, det.type, det.rideMin), det.type, true);
+    // a rest day assumed from sleep alone (no session, nothing programmed): Constancia counts it apart
+    t.inferred = !!input.inferred;
+    return t;
   }
   window.HCNutri = {
     setGoal: setGoal,
     // the server's goal (client/settings.js): applied and cached locally, never sent back
     applyGoal: applyGoal,
     storedGoal: storedGoal,
+    pendingGoal: pendingGoal,
+    clearPending: clearPending,
     dayInputFor: dayInputFor,
     // the food log (client/food.js) calls this after every add / delete: the dial, bars, rings and guide
     refresh: function () { refresh(false); },

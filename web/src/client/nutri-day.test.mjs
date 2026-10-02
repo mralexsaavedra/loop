@@ -380,6 +380,8 @@ test('HCNutri.targetFor beyond the 3 timeline days: DETAIL.sessions give the day
   assert.equal(s.api.targetFor('2030-01-04').dayType, 'rest', 'no sleep reading, but a short walk was recorded: the Watch was worn, a rest day');
   assert.equal(run({ extra: { ...pastCtx([]), DETAIL: { ...DETAIL, sessions: [] } } }).api.targetFor('2030-01-04'), null, 'nothing recorded that day: unknown');
   assert.equal(s.api.targetFor('2030-01-05').dayType, 'rest', 'slept with the Watch, no session');
+  assert.equal(s.api.targetFor('2030-01-05').inferred, true, 'an ASSUMED rest day');
+  assert.equal(s.api.targetFor('2030-01-02').inferred, false);
   assert.equal(s.api.targetFor('2029-12-20'), null, 'before every series');
 });
 
@@ -403,6 +405,25 @@ test('applyGoal (the server goal) is applied and cached without calling the sett
   const bad = run({ hooks: { HCSettings: { ready: () => true, saveGoal: () => { throw new Error('x'); } }, intakeRefresh: () => {} } });
   assert.equal(bad.api.setGoal('cut'), true);
   assert.equal(bad.api.state().goal, 'cut');
+});
+
+test('setGoal marks the goal pending until the server confirms it; a rejected save is caught (no unhandled rejection)', async () => {
+  let unhandled = 0;
+  const onUnhandled = () => { unhandled++; };
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    const s = run({ hooks: { HCSettings: { ready: () => true, saveGoal: () => Promise.reject({ code: 'offline' }) }, intakeRefresh: () => {} } });
+    s.api.setGoal('cut');
+    await new Promise((r) => setImmediate(r));
+    assert.equal(unhandled, 0);
+    assert.equal(s.storage.data['hc.nutri.goalPending'], 'cut');
+    assert.equal(s.api.pendingGoal(), 'cut');
+    s.api.clearPending('bulk');
+    assert.equal(s.api.pendingGoal(), 'cut', 'only the confirmed goal clears it');
+    s.api.clearPending('cut');
+    assert.equal(s.api.pendingGoal(), null);
+    assert.equal('hc.nutri.goalPending' in s.storage.data, false);
+  } finally { process.off('unhandledRejection', onUnhandled); }
 });
 
 test('storedGoal: the goal this viewer stored, else null (the plan default is not "stored")', () => {

@@ -8,9 +8,12 @@
  * ingest without the settings table) HCSettings.ready() stays false and the page behaves exactly as
  * before — the goal lives in localStorage only and there is no target-weight field.
  * With an answer the SERVER copy is the source of truth: its goal is applied through HCNutri.applyGoal
- * (which also refreshes hc.nutri.goal, the offline cache); a goal changed while the request was in
- * flight wins and is pushed instead; a server without a goal gets this viewer's stored one once (the
- * one-time migration from localStorage). Saves are partial PUTs; listeners (onChange) get the state
+ * (which also refreshes hc.nutri.goal, the offline cache) — unless this viewer has a PENDING goal
+ * (HCNutri.pendingGoal: picked here, not yet confirmed by a PUT), which wins and is pushed until a PUT
+ * succeeds (retried on the next load and whenever the page becomes visible again); a server without a
+ * goal gets this viewer's stored one once (the one-time migration from localStorage). The GET is
+ * retried with backoff on offline / timeout / 5xx (RETRY_DELAYS_MS), never on 404 / 503 (no settings
+ * on this server). Saves are partial PUTs; listeners (onChange) get the state
  * after every load / save, with the last save's status for the profile sheet's status lines.
  * Limits (target weight 35–250 kg) come baked from lib/nutrition/foodlog.mjs FOOD_LIMITS (FOOD_CONST). */
 (function () {
@@ -19,6 +22,8 @@
   var S = { ok: false, goal: null, target: null, last: null };
   var listeners = [];
   var seq = 0;
+  var RETRY_DELAYS_MS = [1000, 3000]; // GET /settings: 3 tries in all
+  var loading = false;
 
   function fin(v) { return typeof v === 'number' && isFinite(v); }
   function nutri() {
@@ -37,8 +42,12 @@
       try { fn(state()); } catch (e) { /* one listener never stops the others */ }
     });
   }
+  function pending() {
+    var n = nutri();
+    try { return n && typeof n.pendingGoal === 'function' ? n.pendingGoal() : null; } catch (e) { return null; }
+  }
   function state() {
-    return { ok: S.ok, goal: S.goal, target: S.target, last: S.last ? { what: S.last.what, status: S.last.status, code: S.last.code } : null };
+    return { ok: S.ok, goal: S.goal, target: S.target, pending: pending(), last: S.last ? { what: S.last.what, status: S.last.status, code: S.last.code } : null };
   }
   function take(settings) {
     var x = settings || {};
@@ -56,6 +65,8 @@
     return api('PUT', '/settings', body).then(function (d) {
       if (mine === seq) {
         take(d && d.settings);
+        var n = nutri();
+        if (what === 'goal' && n && typeof n.clearPending === 'function' && S.goal) n.clearPending(S.goal);
         S.last = { what: what, status: 'saved', code: null };
         notify();
       }
@@ -89,18 +100,27 @@
     return { value: Math.round(v * 10) / 10 };
   }
 
-  function load() {
-    var api = client(), n = nutri();
-    if (!api) return;
-    var initial = n ? n.state().goal : null;
+  // offline / timed out (status 0) or a server error is worth another try; 404 / 503 (no settings here)
+  // and any other refusal are final
+  function retryable(err) {
+    var st = err && typeof err.status === 'number' ? err.status : 0;
+    return st === 0 || (st >= 500 && st !== 503);
+  }
+  function load(attempt) {
+    var api = client();
+    var n = attempt || 0;
+    if (!api || (loading && !n)) return;
+    loading = true;
     api('GET', '/settings').then(function (d) {
+      loading = false;
       S.ok = true;
       take(d && d.settings);
       var m = nutri();
       var now = m ? m.state().goal : null;
-      if (m && now !== initial && goals().indexOf(now) >= 0) {
-        // the viewer changed the goal while this was loading: theirs wins
-        saveGoal(now).catch(function () {});
+      var mine = pending();
+      if (mine) {
+        // picked here and never confirmed: it wins over the server until a PUT succeeds
+        saveGoal(mine).catch(function () {});
       } else if (S.goal) {
         if (m && now !== S.goal && typeof m.applyGoal === 'function') m.applyGoal(S.goal);
       } else {
@@ -109,7 +129,22 @@
         if (stored) saveGoal(stored).catch(function () {});
       }
       notify();
-    }, function () { /* no settings API here: the page keeps its local goal and shows no target field */ });
+    }, function (err) {
+      if (retryable(err) && n < RETRY_DELAYS_MS.length) {
+        setTimeout(function () { load(n + 1); }, RETRY_DELAYS_MS[n]);
+        return;
+      }
+      loading = false; // no settings API here: the page keeps its local goal and shows no target field
+    });
+  }
+  // back on the page: a server never reached is tried again, a pending goal is pushed again
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) return;
+      if (!S.ok) { load(); return; }
+      var mine = pending();
+      if (mine && !(S.last && S.last.status === 'saving')) saveGoal(mine).catch(function () {});
+    });
   }
 
   window.HCSettings = {

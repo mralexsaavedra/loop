@@ -313,6 +313,11 @@ test('the status line follows the settings saves (saving, saved, a coarse reason
   assert.equal(els['pf-goal-msg'].textContent, 'Not saved: too many changes, try again in a minute');
   emit({ what: 'goal', status: 'error', code: 'weird' });
   assert.equal(els['pf-goal-msg'].textContent, 'Not saved: unknown error');
+  // a goal not yet confirmed by the server says so (es: "pendiente de guardar")
+  st.fns.forEach((fn) => fn({ last: { what: 'goal', status: 'error', code: 'offline' }, pending: 'cut' }));
+  assert.equal(els['pf-goal-msg'].textContent, 'Not saved: the server did not answer Goal pending save: it will be retried.');
+  st.fns.forEach((fn) => fn({ last: null, pending: 'cut' }));
+  assert.equal(els['pf-goal-msg'].textContent, 'Goal pending save: it will be retried.');
 });
 
 test('the Progreso line (client/progress.js) sits in the goal section when there is one; nothing without weight data', () => {

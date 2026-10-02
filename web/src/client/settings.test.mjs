@@ -21,8 +21,10 @@ const flush = async () => { for (let i = 0; i < 10; i++) await new Promise((r) =
 const json = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => JSON.parse(JSON.stringify(body)) });
 const SET = (goal, targetWeightKg = null) => json({ settings: { goal, targetWeightKg, updatedAt: '2030-01-10T10:00:00.000Z' } });
 
-function nutriStub(goal = 'maintain', stored = null) {
-  const n = { goal, applied: [], stored };
+function nutriStub(goal = 'maintain', stored = null, pending = null) {
+  const n = { goal, applied: [], stored, pending };
+  n.pendingGoal = () => n.pending;
+  n.clearPending = (g) => { if (n.pending === g) n.pending = null; };
   n.state = () => ({ goal: n.goal });
   n.applyGoal = (g) => { n.applied.push(g); n.goal = g; return true; };
   n.storedGoal = () => n.stored;
@@ -41,7 +43,12 @@ function setup({ routes = {}, nutri = nutriStub() } = {}) {
     return typeof r === 'function' ? r(init, counts[key]) : r;
   };
   const doc = new StubDocument();
-  doc.addEventListener = () => {};
+  const docListeners = {};
+  doc.addEventListener = (t, fn) => { (docListeners[t] = docListeners[t] || []).push(fn); };
+  doc.hidden = false;
+  const timers = [];
+  const setTimeout = (fn, ms) => { timers.push({ fn, ms }); return timers.length; };
+  const clearTimeout = () => {};
   const window = { HCNutri: nutri };
   const ctx = {
     document: doc, window, I18N_FOOD: esF, FOOD_CONST, FOOD_BASICS: [], LOCALE: 'es',
@@ -51,7 +58,9 @@ function setup({ routes = {}, nutri = nutriStub() } = {}) {
   loadUtil(ctx);
   vm.runInContext(foodSource, ctx);
   vm.runInContext(source, ctx);
-  return { calls, window, nutri, S: window.HCSettings };
+  const tick = () => { const due = timers.splice(0); due.forEach((x) => x.fn()); return due.map((x) => x.ms); };
+  const visible = () => (docListeners.visibilitychange || []).forEach((fn) => fn({}));
+  return { calls, window, nutri, tick, visible, S: window.HCSettings };
 }
 
 test('no settings API (artifact, file://, example build): not ready, no goal applied, nothing written', async () => {
@@ -92,16 +101,52 @@ test('one-time migration: a server without a goal gets the one this viewer store
   assert.equal(none.calls.filter((c) => c.key === 'PUT /api/food/settings').length, 0, 'the plan default is never pushed');
 });
 
-test('a goal changed while the settings were loading wins: it is pushed, the server goal is not applied', async () => {
-  let release;
-  const gate = new Promise((r) => { release = r; });
-  const nutri = nutriStub('maintain', 'maintain');
-  const t = setup({ nutri, routes: { 'GET /api/food/settings': () => gate.then(() => SET('cut')), 'PUT /api/food/settings': SET('bulk') } });
-  nutri.goal = 'bulk'; // the viewer picked Ganar before the answer
-  release();
+test('a PENDING goal (picked here, never confirmed) wins over the server and is pushed; a success clears it', async () => {
+  const nutri = nutriStub('bulk', 'bulk', 'bulk');
+  const t = setup({ nutri, routes: { 'GET /api/food/settings': SET('cut'), 'PUT /api/food/settings': SET('bulk') } });
   await flush();
-  assert.deepEqual(nutri.applied, []);
+  assert.deepEqual(nutri.applied, [], 'the server goal never overwrites the pending one');
   assert.deepEqual(t.calls.filter((c) => c.key === 'PUT /api/food/settings').map((c) => c.body), [{ goal: 'bulk' }]);
+  assert.equal(nutri.pending, null, 'confirmed');
+  assert.equal(t.S.state().pending, null);
+});
+
+test('a failed goal PUT stays pending and is retried when the page becomes visible again', async () => {
+  const nutri = nutriStub('bulk', 'bulk', 'bulk');
+  const t = setup({ nutri, routes: { 'GET /api/food/settings': SET('cut'), 'PUT /api/food/settings': (init, n) => (n === 1 ? json({ error: 'rate_limited' }, 429) : SET('bulk')) } });
+  await flush();
+  assert.equal(nutri.pending, 'bulk');
+  assert.equal(t.S.state().pending, 'bulk', 'the profile can say "pendiente de guardar"');
+  assert.equal(t.S.state().last.status, 'error');
+  t.visible();
+  await flush();
+  assert.equal(t.calls.filter((c) => c.key === 'PUT /api/food/settings').length, 2);
+  assert.equal(nutri.pending, null);
+});
+
+test('GET /settings is retried with backoff on offline / 5xx (3 tries in all), never on 404 / 503', async () => {
+  const t = setup({ routes: { 'GET /api/food/settings': (init, n) => (n < 3 ? json({ error: 'internal' }, 500) : SET('cut')) } });
+  await flush();
+  assert.deepEqual(t.tick(), [1000]);
+  await flush();
+  assert.deepEqual(t.tick(), [3000]);
+  await flush();
+  assert.equal(t.S.ready(), true);
+  assert.equal(t.calls.filter((c) => c.key === 'GET /api/food/settings').length, 3);
+  const off = setup(); // offline every time: 3 tries, then it stops
+  await flush(); off.tick(); await flush(); off.tick(); await flush();
+  assert.deepEqual(off.tick(), [], 'no fourth try');
+  assert.equal(off.calls.filter((c) => c.key === 'GET /api/food/settings').length, 3);
+  for (const status of [404, 503]) {
+    const no = setup({ routes: { 'GET /api/food/settings': json({ error: 'x' }, status) } });
+    await flush();
+    assert.deepEqual(no.tick(), [], `${status}: final`);
+    assert.equal(no.S.ready(), false);
+  }
+  // a server never reached is tried again when the page becomes visible
+  off.visible();
+  await flush();
+  assert.equal(off.calls.filter((c) => c.key === 'GET /api/food/settings').length, 4);
 });
 
 test('saveTarget: a partial PUT of the target (1 decimal), null clears it; out-of-range is refused before any request', async () => {

@@ -203,11 +203,11 @@
   }
   // the one status line of the goal section: the last goal / target save
   function statusText(s) {
-    var G = T.goal, last = s && s.last;
-    if (!last) return '';
+    var G = T.goal, last = s && s.last, pend = s && s.pending ? ' ' + G.pending : '';
+    if (!last) return s && s.pending ? G.pending : '';
     if (last.status === 'saving') return G.saving;
-    if (last.status === 'saved') return last.what === 'goal' ? G.savedGoal : G.saved;
-    return format(G.failed, { reason: G.reasons[last.code] || G.reasons.generic });
+    if (last.status === 'saved') return (last.what === 'goal' ? G.savedGoal : G.saved) + pend;
+    return format(G.failed, { reason: G.reasons[last.code] || G.reasons.generic }) + pend;
   }
   function targetError(kind) {
     var input = el('pf-target'), G = T.goal, st = settings();
