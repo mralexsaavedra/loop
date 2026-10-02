@@ -296,3 +296,14 @@
   font-size: var(--fs-xs);
   color: var(--faint);
 }
+/* the target weight (LAN page only) + the goal section's status and Progreso lines */
+.pf-target {
+  margin: var(--sp-5) 0 0;
+  max-width: 260px;
+}
+.pf-status:empty {
+  display: none;
+}
+.pf-progress .pf-lbl {
+  margin-right: var(--sp-2);
+}

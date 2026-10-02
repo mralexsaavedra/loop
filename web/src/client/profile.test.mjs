@@ -34,9 +34,11 @@ const MANUAL = { birthdate: '1990-05-17', heightCm: 178, devices: [{ name: 'Demo
 const FULL = buildProfile({ manual: MANUAL, strava: STRAVA, weight: { kg: 71.4, date: '2030-01-04' } });
 
 // nutri = a stand-in for client/nutri-day.js's window.HCNutri (the goal's owner), or null
-function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null, nutri = null } = {}) {
+function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null, nutri = null, settings = null, progress = null, els = {} } = {}) {
   const img = photo ? { getAttribute: (k) => (k === 'src' ? photo : null) } : null;
   const win = nutri ? { HCNutri: nutri } : {};
+  if (settings) win.HCSettings = settings;
+  if (progress) win.HCProgress = progress;
   const listeners = {};
   const RealDate = Date;
   class FakeDate extends RealDate {
@@ -47,7 +49,7 @@ function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null
   const ctx = {
     window: win,
     document: {
-      getElementById: (id) => (id === 'avatar-img' ? img : null),
+      getElementById: (id) => (id === 'avatar-img' ? img : els[id] || null),
       addEventListener: (t, fn) => { (listeners[t] = listeners[t] || []).push(fn); },
     },
     PROFILE: { ...baked, photo: Boolean(profile.photo) },
@@ -229,4 +231,93 @@ test('goal setting is omitted without Nutrición (no HCNutri) or without options
   const b = setup({ profile: { ...empty, goals: GOALS }, nutri: nutriStub() }).view.render().body;
   assert.match(b, /id="pf-goal"/);
   assert.match(b, /pf-onboard/);
+});
+
+// a stand-in for client/settings.js (the LAN settings API answered)
+function settingsStub({ ready = true, target = null } = {}) {
+  const st = { saved: [], fns: [], target };
+  st.ready = () => ready;
+  st.targetWeight = () => st.target;
+  st.limits = () => ({ min: 35, max: 250 });
+  st.parseTarget = (v) => {
+    const t = String(v).trim().replace(',', '.').replace(/\s*kg$/, '');
+    if (t === '') return { value: null };
+    const n = Number(t);
+    if (!Number.isFinite(n)) return { error: 'number' };
+    return n < 35 || n > 250 ? { error: 'range' } : { value: n };
+  };
+  st.saveTarget = (kg) => { st.saved.push(kg); return Promise.resolve(); };
+  st.onChange = (fn) => st.fns.push(fn);
+  return st;
+}
+const fakeEl = () => {
+  const el = { textContent: '', attrs: {} };
+  el.setAttribute = (k, v) => { el.attrs[k] = v; };
+  el.removeAttribute = (k) => { delete el.attrs[k]; };
+  return el;
+};
+
+test('target weight (LAN page): a labelled kg field with its range hint, the current value, a status line; none without the settings API', () => {
+  const b = setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub('cut'), settings: settingsStub({ target: 72.5 }) }).view.render().body;
+  assert.match(b, /<label class="food-lbl" for="pf-target">Target weight<\/label>/);
+  assert.match(b, /<input class="food-in" id="pf-target" type="text" inputmode="decimal" autocomplete="off" value="72.5" aria-describedby="pf-target-hint pf-target-err">/);
+  assert.match(b, /<span class="food-suffix" aria-hidden="true">kg<\/span>/);
+  assert.ok(b.includes('Between 35 and 250 kg. Empty = no target.'));
+  assert.match(b, /id="pf-goal-msg" role="status"/);
+  assert.ok(b.indexOf('id="pf-target"') > b.indexOf('</fieldset>'), 'after the three radios');
+  clean(b);
+  for (const st of [null, settingsStub({ ready: false })]) {
+    const off = setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), settings: st }).view.render().body;
+    assert.doesNotMatch(off, /pf-target|pf-goal-msg/, 'artifact / example build: exactly as before');
+  }
+  const es = setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), settings: settingsStub({ target: 72.5 }), locale: 'es' }).view.render().body;
+  assert.match(es, /Peso objetivo/);
+  assert.match(es, /value="72,5"/);
+});
+
+test('target weight: a valid change saves it (empty clears it); a bad one shows an inline error and saves nothing', () => {
+  const st = settingsStub({ target: 70 });
+  const els = { 'pf-target': fakeEl(), 'pf-target-err': fakeEl(), 'pf-goal-msg': fakeEl() };
+  const s = setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), settings: st, els });
+  s.fire('change', { id: 'pf-target', value: 'abc' });
+  assert.equal(els['pf-target-err'].textContent, 'Type a number, e.g. 72.5');
+  assert.equal(els['pf-target'].attrs['aria-invalid'], 'true');
+  s.fire('change', { id: 'pf-target', value: '20' });
+  assert.equal(els['pf-target-err'].textContent, 'Between 35 and 250 kg');
+  assert.deepEqual(st.saved, []);
+  s.fire('change', { id: 'pf-target', value: '68,5 kg' });
+  assert.deepEqual(st.saved, [68.5]);
+  assert.equal(els['pf-target-err'].textContent, '');
+  assert.equal('aria-invalid' in els['pf-target'].attrs, false);
+  s.fire('change', { id: 'pf-target', value: '70' });
+  assert.deepEqual(st.saved, [68.5], 'the unchanged value is not re-saved');
+  s.fire('change', { id: 'pf-target', value: '' });
+  assert.deepEqual(st.saved, [68.5, null]);
+});
+
+test('the status line follows the settings saves (saving, saved, a coarse reason); the Progreso line refreshes', () => {
+  const st = settingsStub();
+  const els = { 'pf-goal-msg': fakeEl(), 'pf-progress-txt': fakeEl() };
+  let line = '78.0 kg average · -0.35 kg/wk · On pace';
+  setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), settings: st, progress: { line: () => line }, els });
+  const emit = (last) => st.fns.forEach((fn) => fn({ last }));
+  emit({ what: 'target', status: 'saving' });
+  assert.equal(els['pf-goal-msg'].textContent, 'Saving…');
+  line = '78.0 kg average · -0.35 kg/wk · Target reached';
+  emit({ what: 'target', status: 'saved' });
+  assert.equal(els['pf-goal-msg'].textContent, 'Saved');
+  assert.equal(els['pf-progress-txt'].textContent, line);
+  emit({ what: 'goal', status: 'saved' });
+  assert.equal(els['pf-goal-msg'].textContent, 'Goal saved on this server');
+  emit({ what: 'goal', status: 'error', code: 'rate_limited' });
+  assert.equal(els['pf-goal-msg'].textContent, 'Not saved: too many changes, try again in a minute');
+  emit({ what: 'goal', status: 'error', code: 'weird' });
+  assert.equal(els['pf-goal-msg'].textContent, 'Not saved: unknown error');
+});
+
+test('the Progreso line (client/progress.js) sits in the goal section when there is one; nothing without weight data', () => {
+  const b = setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), progress: { line: () => '78.0 kg average · Too few data' } }).view.render().body;
+  assert.match(b, /<p class="pf-note pf-progress" id="pf-progress"><span class="pf-lbl">Progress<\/span> <span id="pf-progress-txt">78.0 kg average · Too few data<\/span><\/p><\/section>/);
+  assert.doesNotMatch(setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), progress: { line: () => '' } }).view.render().body, /pf-progress/);
+  assert.doesNotMatch(setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), progress: { line: () => { throw new Error('x'); } } }).view.render().body, /pf-progress/);
 });
