@@ -505,7 +505,10 @@
 }
 .fuel-select {
   min-height: 44px;
+  /* a floor, not a width: at 16px on phones the longest option ("5 h 30 min") is ~140px with the
+     arrow, so it grows to fit and never clips; capped at its card on a 360px screen */
   min-width: 180px;
+  max-width: 100%;
   padding: var(--sp-3) var(--sp-5);
   background: var(--surface-2);
   color: var(--ink);

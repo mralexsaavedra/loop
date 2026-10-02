@@ -7,6 +7,9 @@
  * --good / --mid / --low; --trend is the neutral (unjudged) data colour for lines. */
 
 :root {
+  /* dark native controls (select popups, scrollbars, autofill); layouts/Plan.astro also declares
+     <meta name="color-scheme" content="dark"> and a theme-color = --ground-top (the top of the page) */
+  color-scheme: dark;
   --ground: #0e1317;
   --ground-top: #1a2328;
   --surface: #151b20;
@@ -70,6 +73,8 @@
   --fs-4xl: 28px;
   --fs-5xl: 34px;
   --fs-hero: 56px;
+  /* form fields on phones: iOS Safari zooms into a focused field under 16px (base.css) */
+  --fs-input: 16px;
   /* radius scale */
   --r-xs: 7px;
   --r-sm: 11px;

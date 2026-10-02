@@ -100,6 +100,15 @@ var HC = (function () {
     var out = ' data-detail="' + esc(key) + '"' + (d ? ' data-date="' + d + '"' : '');
     return opts && opts.plain ? out : out + ' role="button" tabindex="0" aria-haspopup="dialog"';
   }
+  // midnight rollover: a page left open (a phone tab woken the next morning) shows the day it loaded on
+  // (dials, top-bar date, timeline, day type, rings are computed once). 'reload' when the viewer's day
+  // differs from the load day and the page is visible; 'defer' while the page is busy (the caller
+  // decides: an open detail sheet, an open product / recipe editor, a focused field — anything a reload
+  // would lose); 'none' otherwise (same day, hidden page, no usable dates).
+  function rolloverAction(loadDay, today, busy, hidden) {
+    if (hidden || !isoDate(loadDay) || !isoDate(today) || loadDay === today) return 'none';
+    return busy ? 'defer' : 'reload';
+  }
   // minutes -> "1 h 45 min" / "45 min" / "1 h"; units = {h, min} from the page's i18n dict
   function duration(min, units) {
     min = Math.round(min);
@@ -126,5 +135,6 @@ var HC = (function () {
     fmtDate: fmtDate,
     fmtMonth: fmtMonth,
     detailAttrs: detailAttrs,
+    rolloverAction: rolloverAction,
   };
 })();
