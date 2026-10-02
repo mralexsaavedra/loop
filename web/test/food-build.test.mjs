@@ -68,7 +68,9 @@ test('the public basics are baked once as FOOD_BASICS, localized, compact (lib/n
   assert.ok(list.length >= 100, `${list.length} basics`);
   assert.deepEqual(list.find((b) => b.k === 'huevo'), { k: 'huevo', n: 'Egg', u: 'ud', m: [72, 6.3, 0.4, 5], c: 'protein', pc: { a: 100, r: 50, o: 'egg', m: 'eggs' } });
   assert.equal(list.find((b) => b.k === 'arroz').x, 150, 'the portion cap rides along for the portion guide');
-  assert.ok(m[1].length < 16 * 1024, `FOOD_BASICS is ${m[1].length} bytes`);
+  // 24 KB: ~188 basics (the 2026-10-02 Spanish basics took it to ~20 KB, ~105 B per food); still a small
+  // share of the single-file page, and the budget keeps an eye on per-food growth (new baked fields).
+  assert.ok(m[1].length < 24 * 1024, `FOOD_BASICS is ${m[1].length} bytes`);
   assert.ok(html.indexOf('var FOOD_BASICS') < html.indexOf(food.slice(0, 200)), 'baked before food.js runs');
   assert.ok(html.indexOf('var FOOD_BASICS') < html.indexOf(nutriDay.slice(0, 200)), 'baked before nutri-day.js renders the portion guide');
 });
