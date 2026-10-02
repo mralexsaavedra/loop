@@ -32,13 +32,12 @@
  * deterministic for parity tests (see web/test/parity.test.mjs).
  */
 (function () {
-  var DATE_LOCALE = LOCALE === 'es' ? 'es-ES' : 'en-GB';
   var T = I18N_HEALTH;
   // shared helpers (web/src/client/util.js)
   var esc = HC.esc, nf = HC.nf, format = HC.format, daysOld = HC.daysOld;
+  // the ONE display-date formatter (util.js), without the weekday: "22 Jun" / "22 jun"
   function fmtD(iso) {
-    var p = iso.split('-');
-    return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(DATE_LOCALE, { day: 'numeric', month: 'short' });
+    return HC.fmtDate(iso, { weekday: false });
   }
   function ago(iso) {
     if (!iso) return '';

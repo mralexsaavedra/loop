@@ -1,7 +1,8 @@
 /* Detail sheet copy (web/src/client/detail.js), es/en, baked as I18N_DETAIL by
  * components/DetailSheet.astro. {name} placeholders are filled client-side. Neutral Spanish.
  * Every metric key of lib/detail/detail.mjs DETAIL_KEYS has a title + unit here (a test pins it). */
-import { en as enS, es as esS } from './score-templates.mjs';
+import { en as enS, es as esS, RECOVERY_UNIT } from './score-templates.mjs';
+const UE = RECOVERY_UNIT.en, US = RECOVERY_UNIT.es;
 export const en = {
   dialogLabel: 'Detail',
   close: 'Close',
@@ -32,7 +33,7 @@ export const en = {
     target: 'Target: {value} {unit}',
     typical: 'Typical training day: RE {value}',
     noTypical: 'Not enough sessions yet for a typical day.',
-    recovery: 'At baseline = within ±{cut} sd of your own 42-day baseline for a single night, ±{cutTrend} sd for the 7-day trend',
+    recovery: `At baseline = within ±{cut} ${UE} of your own 42-day baseline for a single night, ±{cutTrend} ${UE} for the 7-day trend`,
     sparse: '{n} readings in the last year',
     window: 'Latest scale only, last {days} days (older readings can straddle a scale switch)',
     staticNote: 'Colours compare every day with your current range.',
@@ -74,7 +75,7 @@ export const en = {
   },
   metrics: {
     sleep: { title: 'Sleep', unit: 'h' },
-    recovery: { title: 'Recovery', unit: 'sd' },
+    recovery: { title: 'Recovery', unit: UE },
     hrv: { title: 'HRV', unit: 'ms' },
     rhr: { title: 'Resting HR', unit: 'bpm' },
     respiratory: { title: 'Respiratory rate', unit: 'brpm' },
@@ -120,7 +121,7 @@ export const en = {
     re: 'RE {n}',
     parts: '{n} parts',
     source: 'Source: {src}',
-    recValue: '{value} sd · {band}',
+    recValue: `{value} ${UE} · {band}`,
     bands: { above: 'above baseline', at: 'at baseline', below: 'below baseline' },
   },
   modalities: { gym: 'Gym', run: 'Run', bike: 'Bike', other: 'Other' },
@@ -161,7 +162,7 @@ export const es = {
     target: 'Objetivo: {value} {unit}',
     typical: 'Día de entreno típico: RE {value}',
     noTypical: 'Aún no hay sesiones suficientes para un día típico.',
-    recovery: 'En tu línea base = dentro de ±{cut} sd de tu línea base de 42 días para una noche, ±{cutTrend} sd para la tendencia de 7 días',
+    recovery: `En tu línea base = dentro de ±{cut} ${US} de tu línea base de 42 días para una noche, ±{cutTrend} ${US} para la tendencia de 7 días`,
     sparse: '{n} mediciones en el último año',
     window: 'Solo la báscula más reciente, últimos {days} días (las mediciones antiguas pueden mezclar un cambio de báscula)',
     staticNote: 'Colores respecto a tu rango actual.',
@@ -203,7 +204,7 @@ export const es = {
   },
   metrics: {
     sleep: { title: 'Sueño', unit: 'h' },
-    recovery: { title: 'Recuperación', unit: 'sd' },
+    recovery: { title: 'Recuperación', unit: US },
     hrv: { title: 'VFC', unit: 'ms' },
     rhr: { title: 'FC en reposo', unit: 'ppm' },
     respiratory: { title: 'Frecuencia respiratoria', unit: 'rpm' },
@@ -249,7 +250,7 @@ export const es = {
     re: 'RE {n}',
     parts: '{n} partes',
     source: 'Fuente: {src}',
-    recValue: '{value} sd · {band}',
+    recValue: `{value} ${US} · {band}`,
     bands: { above: 'por encima de tu línea base', at: 'en tu línea base', below: 'por debajo de tu línea base' },
   },
   modalities: { gym: 'Gimnasio', run: 'Carrera', bike: 'Bici', other: 'Otro' },
