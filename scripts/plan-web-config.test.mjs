@@ -247,7 +247,9 @@ test('nginx: gzip at SERVER level for the page, status.json, CSS / JS and JSON; 
   assert.doesNotMatch(nginx.slice(0, nginx.indexOf('server {')), /^\s*gzip/m, 'nothing outside the server block');
   // Proxied responses reflect request input (food search, labels) next to stored data: never compress
   // them (a BREACH-style length oracle), and their bodies are small anyway.
+  assert.match(head, /#[^\n]*every block that proxies to ingest MUST set `gzip off;`[^\n]*\n\s*gzip on;/, 'the rule is written next to gzip on');
+  // every location that proxies (any proxy_pass, however many there are), not a fixed list
   const proxied = locations(nginx).filter((x) => /proxy_pass\s/.test(x.body));
-  assert.equal(proxied.length, 4);
+  assert.equal(proxied.length, (nginx.match(/^\s*proxy_pass\s/gm) || []).length, 'every proxy_pass sits in a parsed location');
   for (const l of proxied) assert.match(l.body, /^\s*gzip off;/m, `${l.spec}: gzip off`);
 });
