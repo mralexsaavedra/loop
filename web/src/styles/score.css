@@ -1,7 +1,7 @@
 /* Home tab (Inicio / Home): dials + recovery trend + per-modality load, on the shared tokens.
  * Colour carries meaning only: the direction arrows and each dial's meaning colour (band / sleep /
  * strain). Cards stay neutral, never a grade fill. */
-#home {
+#home-advice {
   display: block;
 }
 .sc-card {

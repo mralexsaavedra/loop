@@ -234,6 +234,25 @@ scrolls to the section — `setTab('dash')` opens Entreno). The old global train
 `setDay`) is gone: the intake rings read today's target from Resumen de hoy (see
 "Nutrition v2"), whatever `page.hideTabs` hides; the "today you eat" card drops its link when
 Nutrición is hidden.
+**The open tab lives in the URL hash** (`#home` / `#entreno` / `#health` / `#nutricion`), so a reload,
+a bookmark and the midnight rollover's reload reopen it. core.js `setTab` writes it with
+`history.replaceState` (never `pushState`: Back does not walk through tabs, it keeps closing the
+detail sheet); a legacy section key writes its HOSTING tab's hash; a tab hidden by `page.hideTabs`
+(no nav button) is never written, and nothing is written while the sheet is open (its `#detail/…`
+owns the URL). On load: a visible tab hash opens that tab; no hash, a hidden or an unknown one opens
+the default tab (the one the server rendered) and the URL is replaced to match; a sheet deep link is
+left to detail.js and its HOST tab is shown underneath (`DETAIL_TAB` / `VIEW_TAB` in
+`lib/nav/tabs.mjs`, baked in `NAV`: Salud metrics → `health`, `workouts` / `load-*` → `entreno`,
+`food-add` → `nutricion`, `profile` → none = the default tab; a test pins every `DETAIL_KEYS` key).
+`hashchange` to a visible tab hash switches tab; a sheet, hidden or unknown hash switches nothing, so
+it never fights detail.js's popstate. Every history / location access is in a try/catch (a sandboxed
+frame still switches tabs). `window.HCNav.hash()` = the current tab's hash, read by detail.js. NO
+element id may equal a tab key (the browser would scroll a `#<tab>` load to it): the Inicio advice
+host is `#home-advice` and the Salud host `#health-body` (a content test checks the built page). A
+deep link that opens NO sheet (`#detail/<unknown or no-data metric>`, a bad view key) is replaced by
+the tab hash once detail.js has run (detail.js, when its initial open did not happen). `#food-add` is
+left alone: its view registers only after the food API answers (async), and detail.js does not
+reopen it then either, so it simply stays in the URL until the next tab tap or sheet close.
 Taps open the **detail sheet** (see "Detail views" below), never a jump into another tab, so they
 work whatever `page.hideTabs` hides (core.js `jumpOr` stays as API but no card uses it any more).
 
@@ -344,7 +363,10 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   → the visible tab's heading, given `tabindex="-1"`); `.wrap` also gets `aria-hidden` while open
   (fallback where `inert` is unsupported). A control whose re-render removed or disabled it hands
   focus to the close button. Opening pushes `#detail/<metric>[/<date>]` (picking a day replaces it),
-  so browser Back closes the sheet; a page opened with that hash opens the view — only for an OWN key
+  so browser Back closes the sheet and lands on the tab hash entry underneath (`#nutricion`, see "Tabs
+  and sections"); closing a deep-linked sheet (no entry of ours) replaces the URL with the current tab
+  hash (`window.HCNav.hash()` from core.js; '' without it), and core.js has already shown the deep
+  link's host tab underneath (`#detail/sleep` → Salud), so it closes onto `#health`; a page opened with that hash opens the view — only for an OWN key
   of both `DETAIL.metrics` and the copy (no `constructor`), and a date must round-trip
   (`HC.isoDate` rejects 2026-02-31); a bad or out-of-range date falls back to the default day and the
   URL is replaced to match. A re-open while the close's `history.back()` is in flight (`pendingBack`)
@@ -453,12 +475,17 @@ controls instead of the close button.
   name is a `npm run check` WARNING (the page then shows its key), a malformed one an error, and a test
   asserts every tracked ingredient has es + en names. This is shareable and is the
   one piece of the plan that goes public. It may hold MORE foods than any single plan uses — e.g. the
-  25 generic LOG-ONLY basics (`swap: false`: yogur natural, queso fresco / batido, pan de barra / de
-  molde, jamón cocido, tomate, lechuga, pepino, aguacate, nueces, almendras, cacahuetes, aceitunas,
-  mantequilla, azúcar, café solo, bebida de avena, atún en aceite, sardinas, pechuga de pavo, tortilla
-  de trigo, cereales, galletas María, chocolate 70%) with average BEDCA values (kcal from the macros
-  with EU factors, BEDCA's query API returns no energy row) or USDA FoodData Central ones (carbs = by
-  difference − fibre) when BEDCA lacks the food, `verified: false` and the source id in `note`; the
+  109 generic LOG-ONLY basics (`swap: false`: the first 25 — yogur natural, queso fresco / batido, pan de
+  barra / de molde, jamón cocido, tomate, lechuga, pepino, aguacate, nueces, almendras, cacahuetes,
+  aceitunas, mantequilla, azúcar, café solo, bebida de avena, atún en aceite, sardinas, pechuga de pavo,
+  tortilla de trigo, cereales, galletas María, chocolate 70% —, cortado, lubina, and 82 everyday Spanish
+  foods added 2026-10-02: fish / seafood, meat / charcuterie, dairy, wholegrain carbs, veg, canned
+  legumes, nuts, drinks, dishes / pastries) with average BEDCA values (kcal from the macros with EU
+  factors 4/4/9, fibre 2, alcohol 7 — never BEDCA's own energy row; when two BEDCA entries of one food
+  disagree, the one whose macros match its energy) or USDA FoodData Central ones (FDC energy, carbs = by
+  difference − fibre) when BEDCA lacks the food, or, for branded drinks only (Coca-Cola, Aquarius, Cola
+  Cao…), the label values of the product sold in Spain (Open Food Facts barcode in `note`);
+  `verified: false` and the source id in `note`; prepared dishes say their values vary by recipe; the
   food log searches EVERY food of the file (see "Nutrition v2 part 2").
   Optional NATURAL-UNIT metadata per food (`lib/nutrition/units.mjs`, validated by
   `validateIngredientMeta` inside `npm run check`): `piece: { name: {es, en}, plural?: {es, en}, amt,
@@ -1088,7 +1115,7 @@ plus the build-output/i18n/hide-tabs integration tests.
 from the Apple Health extract CSVs (all OPTIONAL — absent CSVs render an empty state, never fail the
 build); `web/src/client/health.js` renders them into TWO hosts, each with its own empty state and
 its own try/catch (a throw in one half renders that half's empty state, never blanks the other):
-`#health` (Salud: recovery with `#score-recovery` right under its heading, sleep, body composition,
+`#health-body` (Salud: recovery with `#score-recovery` right under its heading, sleep, body composition,
 activity, energy — in that order) and `#health-train` (Entreno: running, cycling, load vs recovery).
 
 **Today first.** Every trend card's headline is the NEWEST value with its date (a daily total dated
@@ -1304,7 +1331,7 @@ is the newest day, and the trend is the line under it.
   <date>: RE <n>" as context. Every caption keeps acute/chronic as context ("7-day vs 42-day load: -6% ·
   steady"). A gated modality (`baselineBuilding`, or `fewDays` when there is no typical day) is greyed
   with its copy and no number. Each dial block / card renders through a try/catch with an empty-state
-  fallback, and every host write (`#home`, `#home-dials`, `#score-recovery`, `#score-load`, the advice)
+  fallback, and every host write (`#home-advice`, `#home-dials`, `#score-recovery`, `#score-load`, the advice)
   is isolated, so one throw never blanks Inicio or the other hosts; with no score data every host gets
   the empty state. Stale data (> 3 days) greys a dial; the fill
   animation is off under `prefers-reduced-motion`.

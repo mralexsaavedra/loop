@@ -30,6 +30,60 @@ Three consistency fixes from an audit of the page, each pinned by tests.
   one line: "SD = typical spread: values are in units of your own typical day-to-day variation over
   the last 42 days, not a grade." (es "variación típica"). The advice snapshot was updated on purpose.
 
+## 2026-10-02 — web: the open tab lives in the URL hash
+
+A reload on Nutrición opened Inicio: `setTab` persisted nothing. The open top-level tab now lives in
+the hash (`#home` / `#entreno` / `#health` / `#nutricion`), so a reload, a bookmark and the midnight
+rollover's reload reopen it.
+
+- `core.js` `setTab` writes the tab hash with `history.replaceState` (never `pushState`: Back does
+  not walk through tabs, it keeps closing the detail sheet); a legacy section key writes its hosting
+  tab; a tab hidden by `page.hideTabs` is never written, and nothing is written while the sheet is
+  open (its `#detail/…` owns the URL). On load a tab hash opens that tab; no hash, a hidden or an
+  unknown one opens the default tab and the URL is replaced to match. `hashchange` to a visible tab
+  hash switches tab; sheet hashes are left to detail.js, so the two listeners never fight.
+- A deep link (`#detail/<metric>[/<date>]`, `#food-add`) opens its host tab underneath
+  (`lib/nav/tabs.mjs` `DETAIL_TAB` / `VIEW_TAB`, baked in `NAV`, a test pins every `DETAIL_KEYS` key;
+  `#profile` keeps the default tab). Closing a deep-linked sheet rewrites the URL to that tab hash
+  (`window.HCNav.hash()`) instead of clearing it.
+- Every history / location access is wrapped: a sandboxed frame still switches tabs.
+- No element id may equal a tab key, or `/#home` would scroll past the dials to the advice host: the
+  Inicio advice host is now `#home-advice` and the Salud host `#health-body` (a content test checks
+  the built page). A deep link that opens no sheet (unknown metric, no data, bad date, a view the page
+  lacks) is replaced by the tab hash at load; `#food-add` is left alone because its view registers
+  only after the food API answers.
+
+## 2026-10-02 — 82 everyday Spanish foods as log-only basics
+
+The owner lives in Spain and logs from the food log's Basics search; many everyday foods (fish of the
+day, charcuterie, a caña, a croqueta) were missing. 82 log-only basics (`swap: false`, `verified:
+false`) were added to `data/nutrition/ingredients.json`: fish / seafood 14, meat / charcuterie 11,
+dairy 9, carbs 9, veg 11, legumes 5, nuts / seeds 4, drinks 11, dishes / pastries 8.
+
+- **Sources** — BEDCA (fetched from its query API) for 68 of them, kcal from the macros with EU factors
+  (4/4/9, fibre 2, alcohol 7 for the wines, beer and vermouth); where two BEDCA entries of one food
+  disagree (dorada, bonito), the one whose macros match its own energy. USDA FoodData Central for 7
+  foods BEDCA lacks or leaves incomplete (picos, cuscús, harina — no fat value in BEDCA —, rice / corn
+  cakes, textured soy, hummus): FDC energy, carbs by difference − fibre. Label values of the product
+  sold in Spain (Open Food Facts barcode in the note) for 6 branded drinks: clara (Hacendado shandy),
+  tinto de verano (La Casera), Coca-Cola, Coca-Cola Zero, Aquarius (the current recipe: BEDCA's entry is
+  the older, sweeter one) and Cola Cao powder. Café con leche is computed from the DB's café + leche,
+  like the cortado. Prepared dishes note that values vary by recipe.
+- **Metadata** — typical `piece` weights (`typical: true`) for countable foods (caña 200 ml, copa de
+  vino 125 ml, can 330 ml, croqueta 30 g, magdalena 30 g, cruasán 60 g, churro 20 g, ¼ pizza 100 g,
+  flan 100 g, natillas / cuajada / kéfir 125 g, garlic clove 5 g, drained cans, a handful of nuts…);
+  `weighed` raw / dry / cooked where it matters; `maxAmt` on every new carb food and sweet carb staple
+  (natillas, flan, Cola Cao), as the cap test requires. Natillas and flan are `sweet` (they are carb
+  staples by the 60 % rule, so they carry caps); sweetcorn is `veg` like peas.
+- **Skipped** — secreto ibérico (neither BEDCA nor USDA has it), pan de pueblo (no BEDCA entry of its
+  own: the same as the existing white bread), tortilla de patatas (no BEDCA entry; USDA's potato omelet
+  has 3 g carbs, not a Spanish tortilla), salmorejo (no source); dry pinto beans (only the dry legume
+  in BEDCA; canned chickpeas, lentils and white beans were added, 15–30 % below the cooked ones).
+- **Budget** — FOOD_BASICS grew to ~20 KB (188 basics), so its test budget went from 16 KB to 24 KB.
+  No plan number changes (log-only foods never enter Plan de hoy).
+- **lubina fix** — the existing `lubina` basic cited a wrong FDC id (175137 is cooked coho salmon);
+  it now comes from BEDCA 2344 'Lubina': 84 kcal, 18 P, 0 C, 1.3 F (was 97 / 18.4 / 0 / 2).
+
 ## 2026-10-02 — web: mobile quick wins
 
 An audit of the page on a phone found five small problems; each is fixed with a guard test.
