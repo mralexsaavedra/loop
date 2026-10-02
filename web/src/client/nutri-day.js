@@ -32,6 +32,8 @@
  * - Today's target is the ONE source for the rest of Nutrición: window.nutriTarget() hands the intake
  *   rings (client/intake.js) the MEALS target (on bike days the day target minus the ride fuel, with
  *   the fuel as its own figure), and every goal / day type / duration change refreshes them directly.
+ *   HCNutri.targetFor(date) = the same for an earlier logged day: THAT day's detected type (timeline +
+ *   programme, its recorded ride minutes) x the current goal, null when the type cannot be determined.
  * - Model lines are read through LINE + the accessors (mirrors of lib/nutrition/amounts.mjs), never a bare index.
  * - Logged intake: the dial + bars fill from today's page food log (window.foodTotals, client/food.js,
  *   LAN page only) when it has entries, else from the Apple Health day (INTAKE); HCNutri.refresh() is
@@ -108,13 +110,17 @@
     if (plan) return { type: plan, why: 'programmed', rideMin: null };
     return { type: 'rest', why: 'none', rideMin: null };
   }
-  function todayInput(today) {
+  // a date's workouts (SCORES.timeline, the last 3 data days) + its programmed session; `known` =
+  // the date has a timeline row (sleep or workouts were recorded) or a programmed session, so its
+  // day type rests on data — a date with neither cannot be told from a day without the Watch
+  function dayInput(date) {
     var S = typeof SCORES === 'undefined' ? null : SCORES;
     var days = S && S.timeline && S.timeline.days ? S.timeline.days : [];
-    var items = [];
-    days.forEach(function (d) { if (d && d.date === today) items = d.items || []; });
+    var items = [], row = false;
+    days.forEach(function (d) { if (d && d.date === date) { items = d.items || []; row = true; } });
     var TR = typeof TRAINING === 'undefined' || !TRAINING ? {} : TRAINING;
-    return { items: items, programmed: TR[today] || null };
+    var programmed = TR[date] || null;
+    return { items: items, programmed: programmed, known: row || !!programmed };
   }
 
   /* ---------- fuelling (port of lib/nutrition/fuel.mjs) ---------- */
@@ -426,7 +432,7 @@
   function init() {
     save(KEY_OLD_PICKS, null); // a no-op once gone; save() wraps every storage access
     var today = todayIso();
-    state.auto = detectDayType(todayInput(today));
+    state.auto = detectDayType(dayInput(today));
     var g = load(KEY_GOAL);
     if (N.goals.indexOf(g) >= 0) state.goal = g;
     var o = loadToday(KEY_DAY, today);
@@ -848,19 +854,33 @@
   /** Today's MEALS target for the intake rings: on bike days the day target minus the ride fuel (all
    * carbs), with the fuel handed over separately; `day` = the base day (train / rest); fatMax = the
    * fat target + the plan tolerance. */
-  window.nutriTarget = function () {
-    var x = current(), d = dayType();
-    var head = x.fuelK > 0 ? T.target.mealsHeading : T.target.heading;
+  function ringTarget(x, d, past) {
+    var head = x.fuelK > 0 ? (past ? T.target.pastMealsHeading : T.target.mealsHeading) : past ? T.target.pastHeading : T.target.heading;
     return {
       k: x.mt.k, p: x.mt.p, c: x.mt.c, g: x.mt.f, fatMax: x.mt.f + N.macroTol, fuelK: x.fuelK,
       day: x.base, dayType: d, label: head + ' · ' + T.dayTypes[d] + ' · ' + T.goals[state.goal],
     };
-  };
+  }
+  window.nutriTarget = function () { return ringTarget(current(), dayType(), false); };
+  /** The MEALS target of `date` for the intake rings (same shape as nutriTarget): today = nutriTarget();
+   * a past day = THAT day's detected day type (its recorded ride minutes, else the default) with the
+   * current goal — today's override and picked ride minutes never apply to it. null when the day type
+   * cannot be determined (no timeline row and no programmed session), for a future or a non-ISO date. */
+  function targetFor(date) {
+    var iso = HC.isoDate(date), today = todayIso();
+    if (!iso || iso > today) return null;
+    if (iso === today) return window.nutriTarget();
+    var input = dayInput(iso);
+    if (!input.known) return null;
+    var det = detectDayType(input);
+    return ringTarget(planFor(N, state.goal, det.type, det.rideMin), det.type, true);
+  }
   window.HCNutri = {
     setGoal: setGoal,
     // the food log (client/food.js) calls this after every add / delete: the dial, bars, rings and guide
     refresh: function () { refresh(false); },
     detectDayType: detectDayType,
+    targetFor: targetFor,
     fuelPlan: fuelPlan,
     waterFill: waterFill,
     floorToStep: floorToStep,

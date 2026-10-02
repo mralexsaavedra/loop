@@ -172,7 +172,9 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   (window.HC): `esc`, `format`, `isoDate`, `todayIso`, `daysOld`, `shiftIso`, `nf`, `num`, `duration`
   (units from the i18n dict), `MS_PER_DAY`, `STALE_DAYS`, the ONE display-date formatter `fmtDate`
   ("lun 29 sept" / "Mon 29 Sep") + `fmtMonth` + `weekdayIndex` (Monday = 0; names baked as `I18N_DATE`
-  from `web/src/i18n/date-templates.mjs`, not Intl, whose ICU builds disagree), and `detailAttrs`
+  from `web/src/i18n/date-templates.mjs`, not Intl, whose ICU builds disagree) — EVERY user-visible
+  date goes through it (ISO only in data attributes / ids; a test fails on any `toLocale*String` /
+  `Intl.DateTimeFormat` in `web/src/client`; `loadUtil` bakes `I18N_DATE` by `LOCALE`), and `detailAttrs`
   (the detail-sheet opener markup, see "Detail views") and `rolloverAction` (the midnight rollover:
   core.js captures the viewer's day at load and, when the page becomes visible on another day,
   reloads once, so the dials, top-bar date, timeline, day type and rings move to the new day; while
@@ -530,10 +532,13 @@ the two JSONs.
 
 **Intake rings (in Resumen de hoy).** `lib/nutrition/intake.mjs` bakes the most recent LOGGED day of
 `dietary-daily.csv` (kcal > 0) plus the plan's train/rest base day totals (a fallback);
-`web/src/client/intake.js` draws four rings (kcal, protein, carbs, fat) against TODAY's target
-(`window.nutriTarget()` from client/nutri-day.js: the goal × day type picked above; on bike days the
-MEALS target = day target − ride fuel, with the fuel on its own line "+ X kcal en la bici"), falling
-back to the plan's training-day total when that hook is absent or throws. The rings show ONLY when that day is within the
+`web/src/client/intake.js` draws four rings (kcal, protein, carbs, fat) against THAT day's target
+(`window.HCNutri.targetFor(date)` from client/nutri-day.js: today = `nutriTarget()`, the goal × day
+type picked above; a past day = its own detected day type (timeline + programme, its recorded ride
+minutes) × the current goal, never today's override; on bike days the MEALS target = day target −
+ride fuel, with the fuel on its own line "+ X kcal en la bici"). A past day whose type cannot be
+determined (no timeline row, no programmed session → `null`) renders NO rings — no honest target to
+fill against. It falls back to the plan's training-day total when the hook is absent or throws. The rings show ONLY when that day is within the
 last 3 days of the viewer's clock (decided client-side, so builds stay byte-identical); otherwise
 the block renders NOTHING (host hidden, no help text). On the LAN page, today's own food log
 (`window.foodTotals`, see "Nutrition v2 part 2") takes the place of the Apple Health day whenever it
@@ -692,7 +697,9 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   then a long ride synced) is dropped on load with a one-line note ("Detectada salida larga: cambiado
   a Bici larga"); a more demanding one (planning a ride) or a deliberate downgrade stays. Today's
   target is the ONE source for Nutrición: `window.nutriTarget()` = the MEALS target (`k, p, c, g`,
-  `fatMax` = fat + 15 g, `fuelK`, `day` = base day train / rest, label) feeds the intake rings, and
+  `fatMax` = fat + 15 g, `fuelK`, `day` = base day train / rest, label) feeds the intake rings
+  (`HCNutri.targetFor(date)` = the same shape for an earlier logged day, labelled "Objetivo / Comidas de
+  ese día", or `null` when its day type is unknown), and
   every goal / day type / ride change calls `window.intakeRefresh()` directly (a failure shows a
   one-line message, never a stale ring).
 - **Resumen de hoy** — the day type as ONE row of 4 equal segments (real radios, inline SVG line
@@ -1240,7 +1247,11 @@ tab and hiding every tab is a build error.
 **Today first, trend as context** (Bevel/Whoop-style, but no invented 0-100 scale): every headline
 is the newest day, and the trend is the line under it.
 
-- **Recovery** is in MAD units, never a 0-100 grade: HRV (daytime SDNN), resting HR, sleep duration and
+- **Recovery** is in units of the owner's typical spread (scaled MAD), never a 0-100 grade; ONE unit
+  key, `RECOVERY_UNIT` (`lib/score/advice-copy.mjs`, re-exported by score-templates: en "SD", es
+  "desv."; dict `recovery.unit`), builds every recovery string — advice, dial, Salud card, monitor note,
+  detail sheet — and the Salud card explains it in one line (`recovery.unitNote`: "typical spread" /
+  "variación típica"); no unit literal in score.js: HRV (daytime SDNN), resting HR, sleep duration and
   sleep regularity vs a median/MAD baseline (42 days ending asOf-1), z clamped ±3, weights
   .40/.25/.25/.10. Band: ≥ +0.5 above / within ±0.5 at / ≤ -0.5 below baseline (`BAND_CUTOFF` in
   `recovery.mjs`). Headline = `today`, the composite of the asOf day alone (last night), same

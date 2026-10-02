@@ -27,6 +27,9 @@ export const es = {
   target: {
     heading: 'Objetivo de hoy',
     mealsHeading: 'Comidas de hoy',
+    // the intake rings of a past day (HCNutri.targetFor): that day's own target
+    pastHeading: 'Objetivo de ese día',
+    pastMealsHeading: 'Comidas de ese día',
     kcal: 'kcal',
     p: 'Proteína',
     f: 'Grasa',
@@ -127,6 +130,9 @@ export const en = {
   target: {
     heading: "Today's target",
     mealsHeading: "Today's meals",
+    // the intake rings of a past day (HCNutri.targetFor): that day's own target
+    pastHeading: "That day's target",
+    pastMealsHeading: "That day's meals",
     kcal: 'kcal',
     p: 'Protein',
     f: 'Fat',

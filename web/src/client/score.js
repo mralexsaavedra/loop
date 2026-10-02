@@ -1,4 +1,4 @@
-/* Home tab: recovery TREND (MAD units, never a 0-100 grade) + per-modality load,
+/* Home tab: recovery TREND (in units of the owner's typical spread, I18N_SCORE recovery.unit; never a 0-100 grade) + per-modality load,
  * rendered client-side from SCORES / I18N_SCORE / LOCALE baked by components/Bake.astro.
  *
  * Classic script (is:inline, no module scope). Only `asOf` is baked: staleness is computed here
@@ -58,7 +58,7 @@ function scMod(key, btn) {
   }
   function asOfHtml(iso) {
     iso = isoDate(iso);
-    return iso ? '<span class="sc-asof">' + esc(format(T.asOfLbl, { date: iso })) + '</span>' : '';
+    return iso ? '<span class="sc-asof">' + esc(format(T.asOfLbl, { date: HC.fmtDate(iso) })) + '</span>' : '';
   }
   function staleHtml(iso) {
     return '<div class="sc-stale-note">' + esc(format(T.staleNote, { days: daysOld(iso) })) + '</div>';
@@ -90,13 +90,13 @@ function scMod(key, btn) {
     if (R.today) {
       // "Last night" only when that day has a sleep-duration reading AND is dated the viewer's today;
       // otherwise the night's date (+ "no sleep data")
-      var d = isoDate(R.today.date) || '';
+      var d = HC.fmtDate(R.today.date);
       var when = R.today.sleep === false ? format(rt.whenNoSleep, { date: d })
         : daysOld(R.today.date) === 0 ? rt.whenLastNight
         : format(rt.whenDate, { date: d });
       out.push('<div class="rec-when">' + esc(when) + '</div>');
       out.push('<div class="rec-big sc-band-' + esc(R.today.band) + '"><b class="rec-num">' + esc(num(R.today.value, 1, true)) + '</b>' +
-        '<small class="rec-unit">MAD</small><span class="rec-band">' + esc(rt.bands[R.today.band]) + '</span></div>');
+        '<small class="rec-unit">' + esc(rt.unit) + '</small><span class="rec-band">' + esc(rt.bands[R.today.band]) + '</span></div>');
       out.push('<div class="rec-vs">' + esc(rt.vsBaseLbl) + '</div>');
     } else {
       out.push('<div class="sc-note">' + esc(rt.noToday) + '</div>');
@@ -116,7 +116,7 @@ function scMod(key, btn) {
       '<span class="rec-comp-name">' + esc(rt.components[c.key]) + '</span>' +
       '<span class="rec-comp-val"><b>' + (last ? esc(num(last.value, dec, false)) : '—') + '</b> ' + esc(c.unit) + '</span>' +
       '<span class="rec-comp-base">' + esc(format(rt.baselineLbl, { value: num(c.baseline, dec, false), unit: c.unit })) +
-      ' · ' + esc(num(c.trend7, 1, true)) + ' MAD · ' + esc(format(rt.nLbl, { n: c.n })) + '</span></div><!--/comp-->';
+      ' · ' + esc(num(c.trend7, 1, true) + ' ' + rt.unit) + ' · ' + esc(format(rt.nLbl, { n: c.n })) + '</span></div><!--/comp-->';
   }
   function recRaw(comps, rt) {
     return '<details class="rec-raw"><summary>' + esc(rt.rawSummary) + '</summary>' + comps.map(function (c) {
@@ -142,6 +142,8 @@ function scMod(key, btn) {
     out.push('<div class="rec-layout">' + recHeadline(R, rt) +
       '<div class="sc-spark rec-spark">' + sparkSvg(R.spark && R.spark.v) + '<div class="sc-spark-lbl">' + esc(rt.sparkLbl) + '</div></div>' +
       '<div class="rec-contrib">' + comps.map(function (c) { return recContributor(c, rt); }).join('') + '</div></div>');
+    // the composite's unit in plain words (rt.unit = the ONE recovery unit, also the dial's and the sheet's)
+    out.push('<div class="sc-note rec-unit-note">' + esc(rt.unitNote) + '</div>');
     if (comps.length) out.push(recRaw(comps, rt));
     if (R.missing && R.missing.length) {
       out.push('<div class="sc-note">' + esc(format(rt.missingLbl, { list: R.missing.map(function (k) { return rt.components[k]; }).join(', ') })) + '</div>');
@@ -183,7 +185,7 @@ function scMod(key, btn) {
       ['scored', 'unscored', 'invalid', 'droppedJunk', 'superseded', 'preEpoch'].map(function (k) {
         return '<span><b class="sc-cov-' + k + '">' + (c[k] || 0) + '</b> ' + esc(lt.coverage[k]) + '</span>';
       }).join(' · ') + '</div>');
-    out.push('<div class="sc-note">' + esc(isoDate(L.reEpoch) ? format(lt.preEpochNote, { date: L.reEpoch }) : lt.noEpochNote) + '</div>');
+    out.push('<div class="sc-note">' + esc(isoDate(L.reEpoch) ? format(lt.preEpochNote, { date: HC.fmtDate(L.reEpoch) }) : lt.noEpochNote) + '</div>');
     out.push('</div>');
     return out.join('');
   }
@@ -236,7 +238,7 @@ function scMod(key, btn) {
   }
   // "Last night" only when the night's data is dated today AND has a sleep reading; else its date
   function nightLbl(iso, hasSleep, rt) {
-    return daysOld(iso) === 0 && hasSleep ? rt.lastNight : format(T.asOfLbl, { date: isoDate(iso) || '' });
+    return daysOld(iso) === 0 && hasSleep ? rt.lastNight : format(T.asOfLbl, { date: HC.fmtDate(iso) });
   }
   // one modality's state for the viewer's today: 'trained' (RE > 0), 'noEffort' (rows, no RE), 'rest'
   function loadToday(m) {
@@ -332,7 +334,7 @@ function scMod(key, btn) {
         var td = loadToday(m);
         var head = td.kind === 'trained' ? format(lt.dayLine, { day: num(td.day.re, 0, false), typical: typ })
           : td.kind === 'noEffort' ? format(lt.noEffortLine, { typical: typ })
-          : m.last && isoDate(m.last.date) ? format(lt.restLastLine, { date: m.last.date, re: num(m.last.re, 0, false), typical: typ })
+          : m.last && isoDate(m.last.date) ? format(lt.restLastLine, { date: HC.fmtDate(m.last.date), re: num(m.last.re, 0, false), typical: typ })
           : format(lt.restLine, { typical: typ });
         txt = head + ' · ' + format(T.load.trendLbl, { pct: pct(m.trendPct) }) + ' · ' + T.load.bands[m.band];
         if (m.unscored > 0) txt += ' · ' + format(T.load.unscoredNote, { n: m.unscored });
