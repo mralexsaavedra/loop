@@ -32,13 +32,19 @@ test('legal comments are dropped too', () => {
   assert.doesNotMatch(slimScript('/*! keep? */\nvar x = 1;\n'), /keep/);
 });
 
-test('is deterministic and every client script gets smaller and still parses', () => {
+test('is deterministic: two runs over each client script give the same bytes', () => {
+  for (const f of fs.readdirSync(CLIENT).filter((n) => n.endsWith('.js') && !n.endsWith('.test.js'))) {
+    const src = fs.readFileSync(path.join(CLIENT, f), 'utf8');
+    assert.equal(slimScript(src), slimScript(src), `${f}: slimScript is not deterministic`);
+  }
+});
+
+test('every client script gets smaller and still parses', () => {
   const files = fs.readdirSync(CLIENT).filter((n) => n.endsWith('.js') && !n.endsWith('.test.js'));
   assert.ok(files.length > 10);
   for (const f of files) {
     const src = fs.readFileSync(path.join(CLIENT, f), 'utf8');
     const a = slimScript(src);
-    assert.equal(a, slimScript(src), `${f}: not deterministic`);
     assert.ok(a.length < src.length, `${f}: not smaller`);
     assert.doesNotThrow(() => new vm.Script(a), `${f}: output does not parse`);
   }

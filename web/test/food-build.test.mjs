@@ -16,8 +16,14 @@ const html = fs.existsSync(htmlPath) ? fs.readFileSync(htmlPath, 'utf8') : '';
 const food = fs.readFileSync(path.join(WEB_ROOT, 'src', 'client', 'food.js'), 'utf8');
 const nutriDay = fs.readFileSync(path.join(WEB_ROOT, 'src', 'client', 'nutri-day.js'), 'utf8');
 const intake = fs.readFileSync(path.join(WEB_ROOT, 'src', 'client', 'intake.js'), 'utf8');
-// where a client script sits in the built page: the WHOLE script as the build inlines it (slimScript)
-const inlinedAt = (src) => html.indexOf(slimScript(src));
+// where a client script sits in the built page: the WHOLE script as the build inlines it (slimScript);
+// a script that is not there fails naming it, never as a bare -1 in a comparison
+const SCRIPT_NAME = new Map([[food, 'food.js'], [nutriDay, 'nutri-day.js'], [intake, 'intake.js']]);
+const inlinedAt = (src) => {
+  const at = html.indexOf(slimScript(src));
+  assert.ok(at > 0, `${SCRIPT_NAME.get(src) || 'client script'} is not inlined whole (as slimScript emits it) in ${htmlPath}`);
+  return at;
+};
 
 test('the food hosts ship hidden: Registrar in the dia section, Mis productos / Mis recetas as folds before Tablas', () => {
   assert.ok(html, `missing ${htmlPath}: run npm run pretest`);
