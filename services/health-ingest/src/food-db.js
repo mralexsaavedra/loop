@@ -1,5 +1,6 @@
 /**
- * Postgres access for the food log (sql/006_food.sql). Every query is parameterized; rows come
+ * Postgres access for the food log (sql/006_food.sql) and the owner's settings (sql/007_settings.sql).
+ * Every query is parameterized; rows come
  * back as plain objects with numbers (pg returns NUMERIC / BIGINT as strings), ISO timestamps and
  * the log date as a YYYY-MM-DD string (to_char, so no timezone ever shifts it). Validation and the
  * macro math live in food.js / food-calc.js; this module only stores what it is given.
@@ -99,8 +100,45 @@ async function guardUnique (fn) {
   }
 }
 
+const SETTINGS_COLS = 'goal, target_weight_kg, updated_at'
+
+/** The settings row (sql/007_settings.sql); no row yet = every field null. */
+export function settingsFromRow (r) {
+  return { goal: r?.goal ?? null, targetWeightKg: num(r?.target_weight_kg), updatedAt: iso(r?.updated_at) }
+}
+
 export function createFoodStore (pool) {
   return {
+    async getSettings () {
+      const { rows } = await pool.query(`SELECT ${SETTINGS_COLS} FROM app_settings WHERE id = 1`)
+      return settingsFromRow(rows[0])
+    },
+
+    /** Partial upsert of the one row: only the keys present in `patch` change (targetWeightKg null clears it). */
+    async updateSettings (patch) {
+      const hasGoal = Object.prototype.hasOwnProperty.call(patch, 'goal')
+      const hasTarget = Object.prototype.hasOwnProperty.call(patch, 'targetWeightKg')
+      const { rows } = await pool.query(
+        `INSERT INTO app_settings (id, goal, target_weight_kg) VALUES (1, $1, $2)
+         ON CONFLICT (id) DO UPDATE
+            SET goal = CASE WHEN $3 THEN EXCLUDED.goal ELSE app_settings.goal END,
+                target_weight_kg = CASE WHEN $4 THEN EXCLUDED.target_weight_kg ELSE app_settings.target_weight_kg END,
+                updated_at = now()
+         RETURNING ${SETTINGS_COLS}`,
+        [hasGoal ? patch.goal : null, hasTarget ? patch.targetWeightKg : null, hasGoal, hasTarget]
+      )
+      return settingsFromRow(rows[0])
+    },
+
+    /** Every entry dated from..to (inclusive), oldest first: the adherence summary's input. */
+    async listLogRange (from, to) {
+      const { rows } = await pool.query(
+        `SELECT ${LOG_COLS} FROM food_log WHERE date BETWEEN $1::date AND $2::date ORDER BY date, created_at, id`,
+        [from, to]
+      )
+      return rows.map(logFromRow)
+    },
+
     async listProducts () {
       const { rows } = await pool.query(`SELECT ${PRODUCT_COLS} FROM food_product WHERE NOT archived ORDER BY store, lower(name), id`)
       return rows.map(productFromRow)

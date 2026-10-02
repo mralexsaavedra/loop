@@ -20,7 +20,7 @@ test('migration 006_food.sql is registered (as the optional food group) and is i
   // db.js loads pg, which the test run does not install: read its migration list as text
   const db = await readFile(fileURLToPath(new URL('../src/db.js', import.meta.url)), 'utf8')
   assert.match(db, /'005_athlete_refresh\.sql'\]/)
-  assert.match(db, /OPTIONAL_MIGRATIONS = \{ food: \['006_food\.sql'\] \}/, 'the food tables are an isolated, optional group')
+  assert.match(db, /OPTIONAL_MIGRATIONS = \{ food: \['006_food\.sql'\], settings: \['007_settings\.sql'\] \}/, 'the food tables and the settings are isolated, optional groups')
   const sql = await readFile(fileURLToPath(new URL('../sql/006_food.sql', import.meta.url)), 'utf8')
   for (const table of ['food_product', 'food_recipe', 'food_log']) {
     assert.match(sql, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}\\b`))
@@ -101,4 +101,44 @@ test('recipe ingredients: a basic snapshot comes back with its key, name, unit, 
   ])
   await store.insertRecipe({ name: 'Tortilla', kind: 'serving', servings: 2, cookedWeightG: null, ingredients: r.ingredients })
   assert.deepEqual(JSON.parse(pool.calls.at(-1).values[4]), r.ingredients, 'stored as given (JSONB, no migration)')
+})
+
+test('migration 007_settings.sql: one idempotent settings row, goal + target weight constrained like the API', async () => {
+  const sql = await readFile(fileURLToPath(new URL('../sql/007_settings.sql', import.meta.url)), 'utf8')
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS app_settings\b/)
+  assert.doesNotMatch(sql, /CREATE TABLE (?!IF NOT EXISTS)/)
+  assert.match(sql, /CHECK \(id = 1\)/, 'one row')
+  assert.match(sql, /goal IN \('maintain', 'cut', 'bulk'\)/)
+  assert.match(sql, /target_weight_kg BETWEEN 35 AND 250/)
+})
+
+test('settings: no row yet = every field null; a row maps NUMERIC to a number', async () => {
+  const empty = fakePool(() => ({ rows: [] }))
+  assert.deepEqual(await createFoodStore(empty).getSettings(), { goal: null, targetWeightKg: null, updatedAt: null })
+  assert.match(empty.calls[0].sql, /FROM app_settings WHERE id = 1/)
+  const pool = fakePool(() => ({ rows: [{ goal: 'cut', target_weight_kg: '72.5', updated_at: new Date('2030-01-10T10:00:00Z') }] }))
+  assert.deepEqual(await createFoodStore(pool).getSettings(), { goal: 'cut', targetWeightKg: 72.5, updatedAt: '2030-01-10T10:00:00.000Z' })
+})
+
+test('updateSettings: a parameterized partial upsert, only the keys sent change', async () => {
+  const pool = fakePool(() => ({ rows: [{ goal: 'cut', target_weight_kg: null, updated_at: new Date('2030-01-10T10:00:00Z') }] }))
+  const store = createFoodStore(pool)
+  await store.updateSettings({ goal: 'cut' })
+  assert.match(pool.calls[0].sql, /INSERT INTO app_settings \(id, goal, target_weight_kg\) VALUES \(1, \$1, \$2\)/)
+  assert.match(pool.calls[0].sql, /ON CONFLICT \(id\) DO UPDATE/)
+  assert.deepEqual(pool.calls[0].values, ['cut', null, true, false])
+  await store.updateSettings({ targetWeightKg: null })
+  assert.deepEqual(pool.calls[1].values, [null, null, false, true], 'clearing the target sends it')
+  await store.updateSettings({ goal: 'bulk', targetWeightKg: 80 })
+  assert.deepEqual(pool.calls[2].values, ['bulk', 80, true, true])
+})
+
+test('listLogRange: entries between two dates, oldest first, dates as text', async () => {
+  const pool = fakePool(() => ({ rows: [{ id: '3', date: '2030-01-09', meal: 'lunch', ref_type: 'quick', ref_id: null, label: 'x', amount: '1.0', unit: 'serving', kcal: '500.0', protein: null, carbs: '50.0', fat: '10.0', request_id: null, created_at: new Date('2030-01-09T12:00:00Z') }] }))
+  const rows = await createFoodStore(pool).listLogRange('2030-01-01', '2030-01-10')
+  assert.match(pool.calls[0].sql, /WHERE date BETWEEN \$1::date AND \$2::date ORDER BY date, created_at, id/)
+  assert.deepEqual(pool.calls[0].values, ['2030-01-01', '2030-01-10'])
+  assert.equal(rows[0].date, '2030-01-09')
+  assert.equal(rows[0].kcal, 500)
+  assert.equal(rows[0].protein, null)
 })

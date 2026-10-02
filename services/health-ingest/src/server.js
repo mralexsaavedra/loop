@@ -66,10 +66,12 @@ const syncRoutes = createSyncRoutes({ status: syncStatus, trigger: syncTrigger }
 // FOOD_ALLOWED_HOSTS: extra host names (besides IP literals, localhost, host.docker.internal) the
 // page may be reached by; mirrors plan-web's PLAN_WEB_EXTRA_HOSTS. Empty by default.
 let foodReady = false // set once 006_food.sql ran; until then (or if it failed) /food/* answers 503
+let settingsReady = false // 007_settings.sql, its own group: only /food/settings depends on it
 const foodRoutes = createFoodRoutes({
   store: createFoodStore(pool),
   off: createOffClient(),
   available: () => foodReady,
+  settingsAvailable: () => settingsReady,
   allowedHosts: parseAllowedHosts(process.env.FOOD_ALLOWED_HOSTS)
 })
 
@@ -217,8 +219,11 @@ const server = http.createServer(async (req, res) => {
 })
 
 async function start () {
-  // a failing food migration is logged (food_migration_failed) and only disables /food/*
-  foodReady = (await migrate(pool)).food === true
+  // a failing optional migration is logged (<group>_migration_failed) and only disables its routes:
+  // the food tables -> /food/* (but /food/settings), the settings table -> /food/settings
+  const optional = await migrate(pool)
+  foodReady = optional.food === true
+  settingsReady = optional.settings === true
   await syncStatus.load() // never throws: a failed load is retried on the next status read
   // A seq handed out but never written (crash before the write) leaves the DB
   // ahead of the trigger file: write it once, shortly after boot, so the host

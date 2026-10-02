@@ -5,13 +5,13 @@ import { runMigrations } from './migrations.js'
 
 const MIGRATIONS = ['001_init.sql', '002_strava.sql', '003_sync.sql', '004_athlete.sql', '005_athlete_refresh.sql']
 // optional groups: a failure disables only that feature (its routes answer 503), see migrations.js
-const OPTIONAL_MIGRATIONS = { food: ['006_food.sql'] }
+const OPTIONAL_MIGRATIONS = { food: ['006_food.sql'], settings: ['007_settings.sql'] }
 
 export function createPool (connectionString) {
   return new pg.Pool({ connectionString, max: 4, idleTimeoutMillis: 30_000 })
 }
 
-/** Runs every migration; resolves { food: boolean } (false = the food tables failed, see migrations.js). */
+/** Runs every migration; resolves { food, settings: boolean } (false = that group failed, see migrations.js). */
 export function migrate (pool, log = console.log) {
   const readSql = (file) => readFile(fileURLToPath(new URL(`../sql/${file}`, import.meta.url)), 'utf8')
   return runMigrations(pool, { core: MIGRATIONS, optional: OPTIONAL_MIGRATIONS, readSql, log })
