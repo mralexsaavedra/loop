@@ -172,23 +172,23 @@
 
 @media (min-width: 900px) {
   /* Salud — metric tiles as a responsive multi-column dashboard grid */
-  #health {
+  #health-body {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(258px, 1fr));
     gap: var(--sp-5);
     align-items: start;
   }
-  #health > .dash-as,
-  #health > .hsub,
-  #health > .dash-note,
-  #health > .dash-sec,
-  #health > .dash-cards,
-  #health > .run-tbl-wrap,
-  #health > .train-empty,
-  #health > #score-recovery {
+  #health-body > .dash-as,
+  #health-body > .hsub,
+  #health-body > .dash-note,
+  #health-body > .dash-sec,
+  #health-body > .dash-cards,
+  #health-body > .run-tbl-wrap,
+  #health-body > .train-empty,
+  #health-body > #score-recovery {
     grid-column: 1 / -1;
   }
-  #health .mtrend {
+  #health-body .mtrend {
     margin: 0;
   }
 }

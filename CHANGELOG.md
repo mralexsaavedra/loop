@@ -21,6 +21,11 @@ rollover's reload reopen it.
   `#profile` keeps the default tab). Closing a deep-linked sheet rewrites the URL to that tab hash
   (`window.HCNav.hash()`) instead of clearing it.
 - Every history / location access is wrapped: a sandboxed frame still switches tabs.
+- No element id may equal a tab key, or `/#home` would scroll past the dials to the advice host: the
+  Inicio advice host is now `#home-advice` and the Salud host `#health-body` (a content test checks
+  the built page). A deep link that opens no sheet (unknown metric, no data, bad date, a view the page
+  lacks) is replaced by the tab hash at load; `#food-add` is left alone because its view registers
+  only after the food API answers.
 
 ## 2026-10-02 — web: mobile quick wins
 

@@ -49,6 +49,8 @@
   var HASH_RE = /^#detail\/([A-Za-z-]+)(?:\/(\d{4}-\d{2}-\d{2}))?$/;
   // a registered view (window.HCViews, e.g. the profile sheet of client/profile.js) deep-links as #<key>
   var VIEW_HASH_RE = /^#([a-z][a-z-]*)$/;
+  // registered after page load (client/food.js, once GET /api/food/products answers)
+  var ASYNC_VIEWS = ['food-add'];
   // daily totals whose newest day fills up during the day (the extract's "so far" value)
   var PARTIAL_KINDS = ['total'];
   // kinds whose missing recent days mean stale data (a sparse reading or a rest day is not staleness)
@@ -801,4 +803,20 @@
 
   var initial = fromHash();
   if (initial) open(initial.key, initial.date, { push: false, syncUrl: true });
+  if (!isOpen()) {
+    // a deep link that opened nothing (unknown metric, no data, bad date, a view this page lacks):
+    // the URL becomes the tab underneath, never a hash that names a sheet nobody sees
+    try {
+      if (staleDeepHash()) history.replaceState(null, '', location.pathname + location.search + tabHash());
+    } catch (e) { /* see setHash */ }
+  }
+  // views that register AFTER this script runs (the food add sheet waits for the food API): their
+  // hash is left alone at load, a later answer may still make it meaningful
+  function staleDeepHash() {
+    var hash = (typeof location !== 'undefined' && location.hash) || '';
+    if (/^#detail(\/|$)/.test(hash)) return true;
+    var vm = VIEW_HASH_RE.exec(hash);
+    var viewTab = typeof NAV !== 'undefined' && NAV && NAV.viewTab;
+    return !!vm && own(viewTab, vm[1]) && ASYNC_VIEWS.indexOf(vm[1]) === -1;
+  }
 })();

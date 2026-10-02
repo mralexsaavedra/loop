@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadInputs } from '../../lib/load/inputs.mjs';
+import { TAB_KEYS } from '../../lib/nav/tabs.mjs';
 import { buildNutrition } from '../../lib/nutrition/macros.mjs';
 import * as nutriToday from '../../lib/nutrition/today.mjs';
 import { buildReference } from '../../lib/nutrition/reference.mjs';
@@ -142,7 +143,14 @@ test('example build: t-home is the first nav button and pressed; the Home panel 
   assert.match(firstBtn[0], /aria-pressed="true"/);
   assert.match(html, /<div class="tab-panel" data-tab="home">/);
   assert.match(html, /<div class="tab-panel" data-tab="nutricion" hidden>/);
-  assert.match(html, /<div id="home"><\/div>/);
+  assert.match(html, /<div id="home-advice"><\/div>/);
+});
+
+test('example build: no tab key is an element id, so a #<tab> URL never scrolls the page to an element', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  for (const key of TAB_KEYS) {
+    assert.doesNotMatch(html, new RegExp(`\\sid="${key}"`), `id="${key}" collides with the #${key} tab hash`);
+  }
 });
 
 test('example build (synthetic demo extract): SCORES, dials and every Salud section are populated; Home scripts are inline classic scripts', () => {
@@ -154,7 +162,7 @@ test('example build (synthetic demo extract): SCORES, dials and every Salud sect
   for (const k of ['body', 'activity', 'energy', 'running', 'cycling', 'recovery', 'loadRecovery']) assert.equal(health[k].hasData, true, `HEALTH.${k}`);
   assert.match(html, /Demo Scale/, 'the page names the synthetic source');
   assert.match(html, /var INTAKE = \{"latest":\{"date":"\d{4}-\d{2}-\d{2}"/);
-  assert.match(html, /getElementById\('home'\)/);
+  assert.match(html, /getElementById\('home-advice'\)/);
 });
 
 test('example build: every former tab lives as a section in its new tab, in order', () => {
@@ -167,26 +175,26 @@ test('example build: every former tab lives as a section in its new tab, in orde
   assert.deepEqual([...order].sort((a, b) => a - b), order, 'Nutrición order: Mi día, Tablas');
   assert.match(sliceSection(html, 'hoy'), /<div id="train-today"><\/div>/);
   assert.match(sliceSection(html, 'dash'), /<div id="train-dash"><\/div>/);
-  assert.match(sliceTabPanel(html, 'health'), /<div id="health"><\/div>/);
+  assert.match(sliceTabPanel(html, 'health'), /<div id="health-body"><\/div>/);
 });
 
 test('example build: glance on Inicio, detail behind it — Entreno holds load detail, run/bike/load-vs-recovery, then the dashboard; Salud holds the rest', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const home = sliceTabPanel(html, 'home');
-  assert.doesNotMatch(home, /id="score-load"|id="health-train"|id="health"/, 'no detail hosts on Inicio');
+  assert.doesNotMatch(home, /id="score-load"|id="health-train"|id="health-body"/, 'no detail hosts on Inicio');
   const entreno = sliceTabPanel(html, 'entreno');
   const at = (id) => entreno.indexOf(`id="${id}"`);
   assert.ok(at('score-load') !== -1 && at('score-load') < at('train-activity') && at('train-activity') < at('health-train') && at('health-train') < at('sec-dash'), 'Entreno order: load detail, calendar + cumulative, run/bike/load vs recovery, dashboard');
   assert.match(html, /var ACTIVITY = \{"hasData":true,"asOf":"\d{4}-\d{2}-\d{2}","days":\[/, 'demo data fills the calendar');
   assert.match(html, /var I18N_ACTIVITY = /);
   assert.match(html, /getElementById\('train-activity'\)/, 'training-activity.js is inlined');
-  assert.match(sliceTabPanel(html, 'health'), /<div id="health"><\/div>/);
+  assert.match(sliceTabPanel(html, 'health'), /<div id="health-body"><\/div>/);
 });
 
 test('example build: Inicio reads today top to bottom — dials, monitor, timeline, advice, eat card, programmed session; the timeline is baked from demo data', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const home = sliceTabPanel(html, 'home');
-  const at = ['id="home-dials"', 'id="monitor"', 'id="timeline"', 'id="home"', 'class="eat-card"', 'data-section="hoy"'].map((n) => home.indexOf(n));
+  const at = ['id="home-dials"', 'id="monitor"', 'id="timeline"', 'id="home-advice"', 'class="eat-card"', 'data-section="hoy"'].map((n) => home.indexOf(n));
   assert.ok(at.every((v, i) => v !== -1 && (i === 0 || v > at[i - 1])), `Inicio order ${at}`);
   assert.match(html, /"timeline":\{"asOf":"\d{4}-\d{2}-\d{2}","days":\[\{"date"/, 'demo data fills the timeline');
   assert.match(html, /getElementById\('timeline'\)/, 'timeline.js is inlined');
@@ -211,7 +219,7 @@ test('example build: Inicio carries a compact "today you eat" card (filled clien
   const home = sliceTabPanel(html, 'home');
   const cardAt = home.indexOf('class="eat-card"');
   assert.ok(cardAt !== -1, 'eat card missing from the Inicio panel');
-  assert.ok(home.indexOf('<div id="home">') < cardAt && cardAt < home.indexOf('data-section="hoy"'), 'order: scores, eat card, programmed session');
+  assert.ok(home.indexOf('<div id="home-advice">') < cardAt && cardAt < home.indexOf('data-section="hoy"'), 'order: scores, eat card, programmed session');
   const card = home.slice(cardAt, home.indexOf('data-section="hoy"'));
   assert.match(card, /<div id="eat-body" aria-live="polite"><\/div>/);
   assert.match(card, /onclick="setTab\('nutricion'\)"[^>]*>See the full plan/);
@@ -224,7 +232,7 @@ test('example build: the Salud recovery detail card spans the full grid row, hea
   const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
   const map = ruleDeclarationMap(parseCssRules(css));
   const wide = [...map.entries()].filter(([k]) => k.startsWith('(min-width:900px)|||'));
-  assert.ok(wide.some(([k, v]) => k.endsWith('|||grid-column') && k.split('|||')[1].split(',').map((x) => x.trim()).includes('#health > #score-recovery') && v === '1 / -1'), '#score-recovery spans 1 / -1');
+  assert.ok(wide.some(([k, v]) => k.endsWith('|||grid-column') && k.split('|||')[1].split(',').map((x) => x.trim()).includes('#health-body > #score-recovery') && v === '1 / -1'), '#score-recovery spans 1 / -1');
   assert.ok(wide.some(([k, v]) => k === '(min-width:900px)|||.rec-layout|||grid-template-columns' && (v.match(/minmax\(/g) || []).length === 3), 'three columns on wide screens');
   assert.ok(![...map.keys()].some((k) => k.startsWith('|||.rec-layout|||grid-template-columns')), 'stacked (one column) on phones');
 });
