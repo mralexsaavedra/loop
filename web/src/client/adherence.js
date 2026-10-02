@@ -19,8 +19,8 @@
   if (!N || !TN || !N.adherence || !TN.adherence) return;
   var A = N.adherence, T = TN.adherence;
   var esc = HC.esc, format = HC.format;
-  var MARK = { none: '', partial: '·', unknown: '?', under: '↓', on: '✓', over: '↑' };
-  var S = { win: A.windows[0], days: null, from: null, to: null, failed: false, seq: 0 };
+  var MARK = { none: '', partial: '·', unknown: '?', assumed: '–', under: '↓', on: '✓', over: '↑' };
+  var S = { win: A.windows[0], days: null, from: null, to: null, failed: false, seq: 0, timer: null };
 
   /* ---------- port of lib/nutrition/adherence.mjs ---------- */
   function fin(v) {
@@ -35,6 +35,8 @@
     if (!day || !(day.n > 0)) return 'none';
     if (!isComplete(day)) return 'partial';
     if (!target || !fin(target.k) || !(target.k > 0) || !fin(day.k)) return 'unknown';
+    // a rest day assumed from sleep alone (no session, nothing programmed): never compared
+    if (target.inferred) return 'assumed';
     var r = day.k / target.k;
     if (r < 1 - A.onBand) return 'under';
     if (r > 1 + A.onBand) return 'over';
@@ -44,7 +46,7 @@
     var byDate = {};
     (days || []).forEach(function (d) { if (d && typeof d.date === 'string') byDate[d.date] = d; });
     var TT = targets || {};
-    var out = { days: 0, logged: 0, complete: 0, compared: 0, unknown: 0, meanK: null, meanTarget: null, proteinHit: 0, proteinMin: 0, proteinUnknown: 0, states: [] };
+    var out = { days: 0, logged: 0, complete: 0, compared: 0, unknown: 0, assumed: 0, meanK: null, meanTarget: null, proteinHit: 0, proteinMin: 0, proteinUnknown: 0, states: [] };
     var sumK = 0, sumT = 0;
     (dates || []).forEach(function (date) {
       var d = byDate[date] || null, t = TT[date] || null;
@@ -56,6 +58,7 @@
       if (st === 'partial') return;
       out.complete++;
       if (st === 'unknown') { out.unknown++; return; }
+    if (st === 'assumed') { out.assumed++; return; }
       out.compared++;
       sumK += d.k;
       sumT += t.k;
@@ -88,7 +91,7 @@
     dates.forEach(function (d) {
       var t = null;
       try { t = n && typeof n.targetFor === 'function' ? n.targetFor(d) : null; } catch (e) { t = null; }
-      out[d] = t && fin(t.k) ? { k: t.k, p: fin(t.p) ? t.p : null } : null;
+      out[d] = t && fin(t.k) ? { k: t.k, p: fin(t.p) ? t.p : null, inferred: !!t.inferred } : null;
     });
     return out;
   }
@@ -97,7 +100,8 @@
     try { g = n && typeof n.state === 'function' ? n.state().goal : N.goal; } catch (e) { g = N.goal; }
     return TN.goals && TN.goals[g] ? TN.goals[g] : '';
   }
-  function reload() {
+  // the summary read; reload() = the same, debounced (a burst of adds / deletes reads once)
+  function load() {
     var call = api();
     if (!call) return null;
     var dates = lastDays(A.stripDays), mine = ++S.seq;
@@ -115,37 +119,44 @@
       render();
     });
   }
+  function reload() {
+    if (S.timer) clearTimeout(S.timer);
+    S.timer = setTimeout(function () { S.timer = null; load(); }, A.reloadMs);
+  }
 
   /* ---------- render ---------- */
-  function kf(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, HC.isEs() ? '.' : ','); }
+  function k0(n) { return HC.num(n, 0); }
+  function pctOf(share) { return HC.num(share * 100, 0); }
+  function stateText(st) { return format(T.states[st] || '', { band: pctOf(A.onBand) }); }
   function stat(label, value, sub) {
     return '<div class="adh-stat"><span class="adh-lbl">' + esc(label) + '</span><b class="adh-val">' + esc(value) + '</b>' + (sub ? '<small class="adh-sub">' + esc(sub) + '</small>' : '') + '</div>';
   }
   function statsHtml(r) {
     var out = [stat(T.logged, String(r.logged), format(T.ofDays, { n: r.days })), stat(T.complete, String(r.complete), format(T.ofDays, { n: r.days }))];
     if (r.compared) {
-      var pct = Math.round((r.meanK / r.meanTarget) * 100) + ' %';
-      out.push(stat(T.kcal, kf(r.meanK), format(T.kcalVs, { t: kf(r.meanTarget), pct: pct })));
-      out.push(stat(T.protein, String(r.proteinHit), format(T.proteinOf, { n: r.compared })));
+      out.push(stat(T.kcal, k0(r.meanK), format(T.kcalVs, { t: k0(r.meanTarget), pct: k0((r.meanK / r.meanTarget) * 100) })));
+      out.push(stat(format(T.protein, { pct: pctOf(A.proteinShare) }), String(r.proteinHit), format(T.proteinOf, { n: r.compared })));
     }
     var notes = [];
     if (!r.compared) notes.push(T.noCompared);
     if (r.proteinMin) notes.push(T.proteinMin);
     if (r.proteinUnknown) notes.push(format(T.proteinUnknown, { n: r.proteinUnknown }));
     if (r.unknown) notes.push(format(T.unknown, { n: r.unknown }));
+    if (r.assumed) notes.push(format(T.assumed, { n: r.assumed }));
     return '<div class="adh-stats">' + out.join('') + '</div>' + notes.map(function (s) { return '<p class="adh-note">' + esc(s) + '</p>'; }).join('');
   }
   function stripHtml(r) {
     var today = HC.todayIso();
     var cells = r.states.map(function (s) {
-      var label = format(T.cell, { date: HC.fmtDate(s.date), state: T.states[s.state] || '' });
+      var label = format(T.cell, { date: HC.fmtDate(s.date), state: stateText(s.state) });
       return '<button type="button" class="adh-cell adh-' + s.state + (s.date === today ? ' adh-today' : '') + '" data-adh-day="' + s.date + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' +
         '<span class="adh-d" aria-hidden="true">' + +s.date.slice(8, 10) + '</span><span class="adh-m" aria-hidden="true">' + esc(MARK[s.state] || '') + '</span></button>';
     }).join('');
-    var legend = ['partial', 'under', 'on', 'over', 'unknown'].map(function (k) {
+    var legend = ['partial', 'under', 'on', 'over', 'assumed', 'unknown'].map(function (k) {
       return '<span class="adh-key"><span class="adh-sw adh-' + k + '" aria-hidden="true">' + esc(MARK[k]) + '</span>' + esc(T.legend[k]) + '</span>';
     }).join('');
-    return '<h3 class="adh-h">' + esc(T.strip) + '</h3><div class="adh-strip" role="group" aria-label="' + esc(T.strip) + '">' + cells + '</div><div class="adh-legend">' + legend + '</div>';
+    var title = format(T.strip, { n: A.stripDays });
+    return '<h3 class="adh-h">' + esc(title) + '</h3><div class="adh-strip" role="group" aria-label="' + esc(title) + '">' + cells + '</div><div class="adh-legend">' + legend + '</div>';
   }
   function html() {
     if (S.failed) return '<p class="nutri-failed">' + esc(T.failed) + ' <button type="button" class="lnk" data-adh-retry="1">' + esc(T.retry) + '</button></p>';
@@ -184,13 +195,21 @@
   });
   on('food-adherence', 'click', function (e) {
     var t = e && e.target;
-    if (t && t.closest && t.closest('[data-adh-retry]')) { reload(); return; }
+    if (t && t.closest && t.closest('[data-adh-retry]')) { load(); return; }
     var cell = t && t.closest ? t.closest('[data-adh-day]') : null;
     var F = window.HCFood;
     if (!cell || !F || typeof F.showDay !== 'function') return;
     F.showDay(cell.getAttribute('data-adh-day'));
   });
 
+  // a page left open past midnight: core.js reloads it when it becomes visible on another day, but waits
+  // while the page is busy (a sheet open); this re-reads the window meanwhile so the strip ends at today
+  if (document.addEventListener) {
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && S.to && S.to !== HC.todayIso()) load();
+    });
+  }
+
   window.HCAdherence = { isComplete: isComplete, dayState: dayState, adherence: adherence, render: render, reload: reload, state: function () { return S; } };
-  try { reload(); } catch (e) { /* the block stays hidden */ }
+  try { load(); } catch (e) { /* the block stays hidden */ }
 })();
