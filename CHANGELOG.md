@@ -22,6 +22,8 @@ The owner logged meals the day before and could not see them: Registrar only rea
 - **Review fixes** — a sheet opened on "today" resolves the date at each save (one opened at 23:58 and
   saved at 00:02 logs to the new day); a delete drops its row by id from the CURRENT log of that date,
   so a re-read while it was in flight cannot resurrect it; a failed past-day read offers "Reintentar".
+- **Layout** — the navigator sits on Registrar's heading line (title left, navigator right) instead of
+  a row of its own; the back-to-today button is a short "Hoy" (aria-label "Volver a hoy") before `‹`.
 - **Server** — none: `POST /food/log` already accepts any valid date (2000–2100). No rebuild needed;
   `npm run generate` (or the hourly refresh) publishes it.
 

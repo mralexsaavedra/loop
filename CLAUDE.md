@@ -844,10 +844,11 @@ Plan de hoy) and the
   two folds (`web/src/tabs/Food.astro`: `#food-products`, `#food-recipes`, before Tablas, rendered only
   when `dia` is visible, no section key) ship `hidden` and appear only when `GET /api/food/products`
   answers — so the claude.ai artifact, file:// and the example build show nothing new and builds stay
-  byte-identical. Nothing of the log is kept in the browser. **Day navigator** (top of Registrar,
-  static markup in `Dia.astro`, driven by food.js): `‹ <date> ›` = real 44 px buttons (aria-label
+  byte-identical. Nothing of the log is kept in the browser. **Day navigator** (on Registrar's heading
+  line, `.food-head`: the title on the left, its rule filling the gap, the navigator on the right; a row too
+  narrow wraps the navigator under the title; static markup in `Dia.astro`, driven by food.js): `‹ <date> ›` = real 44 px buttons (aria-label
   "Día anterior" / "Día siguiente"), the date in an `aria-live` label ("Hoy" on the viewer's today, else
-  `HC.fmtDate`), next disabled on today (no future days), "Volver a hoy" only on another day; the viewed
+  `HC.fmtDate`), next disabled on today (no future days), a short "Hoy" button (aria-label "Volver a hoy") before `‹` only on another day; the viewed
   day is NOT persisted (the page always opens on today; `S.view` null = follow today). A past day is read
   with `GET /api/food/log?date=` on each visit into its own slot (`S.dayLog`, never today's `S.log`) and
   renders the same cards, day total ("Total del día"), delete and "+ Añadir"; a slower answer for a day
