@@ -223,6 +223,15 @@ function rolloverPage({ at, sheetOpen = false }) {
   doc.addEventListener = (evt, fn) => { (listeners[evt] = listeners[evt] || []).push(fn); };
   doc.hidden = false;
   const sheet = doc.el('detail', { hidden: !sheetOpen });
+  // the inline Mis productos / Mis recetas editors: a field inside the host = an open editor
+  const editors = {};
+  for (const id of ['fp-body', 'fr-body']) {
+    const host = doc.el(id);
+    host.fields = 0;
+    host.querySelector = (sel) => (/input/.test(sel) && /select/.test(sel) && /textarea/.test(sel) && host.fields ? { tagName: 'INPUT' } : null);
+    editors[id] = host;
+  }
+  doc.activeElement = null;
   const clock = { now: new Date(at).getTime() };
   const RealDate = Date;
   class FakeDate extends RealDate {
@@ -231,7 +240,13 @@ function rolloverPage({ at, sheetOpen = false }) {
   }
   const timers = [];
   const reloads = [];
-  const window = { scrollTo() {}, location: { reload: () => reloads.push(clock.now) }, addEventListener() {} };
+  const winListeners = {};
+  const reloadState = { throws: false };
+  const window = {
+    scrollTo() {},
+    location: { reload: () => { reloads.push(clock.now); if (reloadState.throws) throw new Error('sandboxed'); } },
+    addEventListener: (evt, fn) => { (winListeners[evt] = winListeners[evt] || []).push(fn); },
+  };
   const NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB } };
   const ctx = {
     document: doc, window, console, Math, Number, String, Array, Object, JSON, NAV, LOCALE: 'en', Date: FakeDate,
@@ -243,8 +258,90 @@ function rolloverPage({ at, sheetOpen = false }) {
   vm.runInContext(source, ctx);
   const visible = () => (listeners.visibilitychange || []).forEach((fn) => fn());
   const tick = () => timers.filter((t) => t.on).forEach((t) => t.fn());
-  return { doc, sheet, clock, reloads, timers, visible, tick };
+  const pageshow = (persisted) => (winListeners.pageshow || []).forEach((fn) => fn({ persisted }));
+  const watching = () => timers.filter((t) => t.on).length;
+  return { doc, sheet, editors, clock, reloads, timers, visible, tick, pageshow, watching, reloadState };
 }
+
+test('rollover: an open product / recipe editor defers the reload (a half-filled form is never lost)', () => {
+  for (const id of ['fp-body', 'fr-body']) {
+    const p = rolloverPage({ at: '2026-10-01T23:50:00' });
+    p.editors[id].fields = 3;
+    p.clock.now = new Date('2026-10-02T00:05:00').getTime();
+    p.visible();
+    assert.equal(p.reloads.length, 0, `${id}: editor open`);
+    assert.equal(p.watching(), 1);
+    p.tick();
+    assert.equal(p.reloads.length, 0, `${id}: still open`);
+    p.editors[id].fields = 0; // saved or cancelled
+    p.tick();
+    assert.equal(p.reloads.length, 1, `${id}: reloads once the editor closed`);
+    assert.equal(p.watching(), 0);
+  }
+});
+
+test('rollover: a focused text field anywhere defers the reload; a focused radio does not', () => {
+  const p = rolloverPage({ at: '2026-10-01T23:50:00' });
+  p.clock.now = new Date('2026-10-02T00:05:00').getTime();
+  p.doc.activeElement = { tagName: 'INPUT', type: 'text' };
+  p.visible();
+  assert.equal(p.reloads.length, 0);
+  p.doc.activeElement = { tagName: 'INPUT', type: 'radio' };
+  p.tick();
+  assert.equal(p.reloads.length, 1);
+});
+
+test('rollover: a page restored from the back-forward cache (pageshow, persisted) reloads on a new day', () => {
+  const p = rolloverPage({ at: '2026-10-01T23:50:00' });
+  p.pageshow(true);
+  assert.equal(p.reloads.length, 0, 'same day');
+  p.clock.now = new Date('2026-10-02T06:00:00').getTime();
+  p.pageshow(true);
+  assert.equal(p.reloads.length, 1);
+});
+
+test('rollover: pageshow with the sheet open defers too, and arms one watcher', () => {
+  const p = rolloverPage({ at: '2026-10-01T23:50:00', sheetOpen: true });
+  p.clock.now = new Date('2026-10-02T06:00:00').getTime();
+  p.pageshow(true);
+  p.visible();
+  assert.equal(p.reloads.length, 0);
+  assert.equal(p.watching(), 1);
+});
+
+test('rollover: the watcher stops when there is nothing to do (page hidden, clock back) and re-arms on the next event', () => {
+  const p = rolloverPage({ at: '2026-10-01T23:50:00', sheetOpen: true });
+  p.clock.now = new Date('2026-10-02T00:05:00').getTime();
+  p.visible();
+  assert.equal(p.watching(), 1);
+  p.doc.hidden = true;
+  p.tick();
+  assert.equal(p.watching(), 0, 'hidden page: no polling in the background');
+  p.doc.hidden = false;
+  p.visible();
+  assert.equal(p.watching(), 1, 're-armed by visibilitychange');
+  p.clock.now = new Date('2026-10-01T23:59:00').getTime(); // clock moved back to the load day
+  p.tick();
+  assert.equal(p.watching(), 0);
+  assert.equal(p.reloads.length, 0);
+  p.clock.now = new Date('2026-10-02T00:10:00').getTime();
+  p.pageshow(false);
+  assert.equal(p.watching(), 1, 're-armed by pageshow');
+});
+
+test('rollover: a reload that throws (sandboxed frame) is retried on a later visibility change, never in a loop', () => {
+  const p = rolloverPage({ at: '2026-10-01T23:50:00' });
+  p.reloadState.throws = true;
+  p.clock.now = new Date('2026-10-02T00:05:00').getTime();
+  assert.doesNotThrow(() => p.visible());
+  assert.equal(p.reloads.length, 1);
+  assert.equal(p.watching(), 0, 'no watcher retrying every second');
+  p.tick();
+  assert.equal(p.reloads.length, 1);
+  p.reloadState.throws = false;
+  p.visible();
+  assert.equal(p.reloads.length, 2, 'the next visibility change retries');
+});
 
 test('rollover: becoming visible on the same day does nothing; on a new day it reloads once', () => {
   const p = rolloverPage({ at: '2026-10-01T23:50:00' });
