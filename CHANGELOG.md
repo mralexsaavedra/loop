@@ -4,6 +4,19 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-04 — knowledge: a nutrition-coach subagent
+
+- **`nutrition-coach` subagent** (`.claude/agents/`) — read-only sports nutrition and supplementation
+  coach over `knowledge/nutrition/` (`evidencia/`: AIS framework, IOC 2018, ISSN position stands,
+  AESAN, WADA — the evidence base, which outranks influencers; `ferrandis/`: Second Ferrandis YouTube
+  cards + transcripts, the practitioner source; optional `index.md` + `temas/`) plus the nutrition
+  topics of the cycling and hybrid knowledge bases. Every claim cited, "Second dice" kept apart from
+  the evidence, contradictions / sponsor bias / auto-caption numbers flagged, Spain context (AESAN
+  limits, BEDCA, products sold in Spain), anti-doping warnings, not-a-doctor referrals and the
+  methodology's safe deficit ranges. Grounded read-only in the plan (`plan-data.json` +
+  `ingredients.json`), profile supplements and the Apple Health extract; it says the Postgres food log
+  is out of its reach. Training questions stay with `cycling-coach` / `hybrid-coach`.
+
 ## 2026-10-02 — knowledge: a hybrid-coach subagent
 
 - **`hybrid-coach` subagent** (`.claude/agents/`) — read-only HYROX / hybrid coach over

@@ -1578,6 +1578,25 @@ paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index
   `index.md`, `metodo-ferry.md`, `months/<YYYY-MM>-ferry.md` transcribed from the PDFs);
   `training-culture/hybrid-6-semanas.md` (a 6-week block); `hyprogram/` (the current Hyprogram
   "HP Hybrid" program, from 2026-07-01, synced later).
+- **`nutrition-coach` subagent** (`.claude/agents/nutrition-coach.md`, read-only) — DELEGATE to it any
+  sports nutrition / supplementation question (daily diet for training and fat loss, protein, carbs
+  around training, on-bike / race fuelling, hydration and electrolytes, supplements, gut training);
+  cycling training stays with `cycling-coach`, HYROX training with `hybrid-coach`. EVIDENCE first: a
+  practitioner never outranks the evidence base. Every claim cited (evidence = document + URL +
+  section; videos = `&t=<seconds>s`), "what Second says" kept apart from the evidence, contradictions,
+  sponsor / brand bias and auto-caption numbers flagged. Spain context (AESAN supplement limits,
+  products sold in Spain, BEDCA foods), anti-doping / contamination warnings (WADA, third-party-tested
+  batches), not a doctor (refers to a physician / dietitian-nutritionist for medical conditions,
+  medication interactions and eating-disorder signals), no crash diets (`analysis/methodology.md`
+  safe ranges). Grounded read-only in `plan-data.json` + `ingredients.json`, `profile/profile.json`
+  supplements, `profile/about-me.md`, the extract (weight, `dietary-daily.csv`, energy) and the
+  Nutrición rules above; the food log is in Postgres behind the LAN page, which it cannot read (it
+  says so). Spanish replies; never writes files. Its knowledge, `knowledge/nutrition/`: optional
+  `index.md` + `temas/*.md` (cross-source syntheses); `evidencia/` (AIS Sports Supplement Framework,
+  IOC 2018 supplement consensus, ISSN position stands, AESAN, WADA — the evidence base); `ferrandis/`
+  (Second Ferrandis, dietitian-nutritionist, YouTube: the ingest layout above + `videos/*.md` cards —
+  the practitioner source); it also reads `knowledge/cycling/talavera/temas/nutricion-en-bici.md` +
+  `hidratacion-y-sales.md` and `knowledge/hybrid/temas/nutricion-y-suplementacion.md`.
 
 ## Output principles
 
