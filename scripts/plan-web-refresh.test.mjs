@@ -29,7 +29,10 @@ case "$*" in
       [ "$n" -le "$STUB_BUMP" ] && printf '%s\\n' $((100 + n)) > "$STUB_TRIGGER"
     fi
     exit "\${STUB_SYNC_EXIT:-0}" ;;
-  "run -s publish:manuals"*) exit "\${STUB_MANUALS_EXIT:-0}" ;;
+  "run -s publish:manuals"*)
+    [ -f services/plan-web/site/status.json ] && grep -q processedSeq services/plan-web/site/status.json && echo "status-before-manuals" >> "$STUB_LOG"
+    [ -n "\${STUB_MANUALS_SLEEP:-}" ] && sleep "$STUB_MANUALS_SLEEP"
+    exit "\${STUB_MANUALS_EXIT:-0}" ;;
   ci*) [ -n "\${STUB_CI_SLEEP:-}" ] && sleep "$STUB_CI_SLEEP"; exit "\${STUB_CI_EXIT:-0}" ;;
   "run -s generate")
     [ "\${STUB_GEN_EXIT:-0}" = 0 ] || exit "$STUB_GEN_EXIT"
@@ -104,6 +107,17 @@ test('after the page is published, the device manuals are published into site/ma
   const manuals = calls.filter((l) => l.startsWith('run -s publish:manuals'));
   assert.deepEqual(manuals, [`run -s publish:manuals -- --out ${path.join(ctx.planWeb, 'site', 'manuales')}`]);
   assert.ok(calls.indexOf(manuals[0]) > calls.indexOf('run -s generate'), 'only after a good build');
+  assert.ok(calls.includes('status-before-manuals'), 'status.json (processedSeq) is written before the manuals step');
+}));
+
+test('a hung manuals publish is cut by its own timeout and never fails the run', { skip }, () => withRepo('main', (ctx) => {
+  setSeq(ctx, 6);
+  const t0 = Date.now();
+  const { code, stderr } = run(ctx, { STUB_MANUALS_SLEEP: '30', PLAN_WEB_MANUALS_TIMEOUT: '1' });
+  assert.equal(code, 0, stderr);
+  assert.ok(Date.now() - t0 < 20000, 'cut well before the stub would finish');
+  assert.equal(status(ctx).processedSeq, 6);
+  assert.match(stderr, /manuals failed/);
 }));
 
 test('a failing manuals publish never blocks the page: published, no error in status.json', { skip }, () => withRepo('main', (ctx) => {

@@ -33,8 +33,9 @@
 #   - a failed `npm ci`, failed generate, or invalid build output all keep
 #     serving the last good page untouched — nothing is copied to ./site
 #     unless the new build is verified sane first;
-#   - device manuals are published after the page, best effort (a failure
-#     there is logged, never an error code);
+#   - device manuals are published after status.json, under a 30 s timeout
+#     (PLAN_WEB_MANUALS_TIMEOUT), best effort (a failure there is logged,
+#     never an error code, never delays a waiting Sync);
 #   - only `main` is published: another checked-out branch (a review or a
 #     half-done change) is skipped unless PLAN_WEB_ALLOW_BRANCH=1.
 set -u
@@ -46,6 +47,7 @@ log() { echo "refresh: $*" >&2; }
 
 STEP_TIMEOUT=${PLAN_WEB_STEP_TIMEOUT:-300}
 CI_TIMEOUT=${PLAN_WEB_CI_TIMEOUT:-900}
+MANUALS_TIMEOUT=${PLAN_WEB_MANUALS_TIMEOUT:-30}
 MAX_PASSES=3
 TRIGGER_FILE=${PLAN_WEB_TRIGGER_FILE:-$REPO/services/health-ingest/trigger/refresh}
 SITE="$HERE/site"
@@ -149,12 +151,6 @@ refresh_once() {
     return 1
   fi
 
-  # Device manuals (profile.json devices[].manual, PDFs from data/gear/) into
-  # site/manuales/, served by nginx as /manuales/<file>.pdf. Best effort: a
-  # failure here is logged and never blocks (or un-publishes) the page.
-  step "$STEP_TIMEOUT" npm run -s publish:manuals -- --out "$SITE/manuales" ||
-    log "publishing device manuals failed, page published anyway"
-
   prev=$(processed_seq)
   processed=$start
   if [ "$prev" -gt "$processed" ]; then processed=$prev; fi
@@ -165,6 +161,13 @@ refresh_once() {
     mv "$STATE.tmp" "$STATE" &&
     write_status '' || { log "could not write status.json"; return 1; }
   log "published $PUBLISHED_AT (processedSeq $processed)"
+
+  # Device manuals (profile.json devices[].manual, PDFs from data/gear/) into
+  # site/manuales/, served by nginx as /manuales/<file>.pdf. Runs AFTER
+  # status.json (a waiting Sync has already completed) under its own short
+  # timeout; best effort: a failure is logged, never an error code.
+  step "$MANUALS_TIMEOUT" npm run -s publish:manuals -- --out "$SITE/manuales" ||
+    log "publishing device manuals failed, page published anyway"
 }
 
 passes=0
