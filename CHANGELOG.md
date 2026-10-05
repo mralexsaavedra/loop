@@ -4,6 +4,37 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-05 — profile: one source of truth per owner fact (events, settings snapshot, coaches)
+
+- **Events in `profile/profile.json`** — optional `events: [{name, date: YYYY-MM-DD, type?: hyrox |
+  race | sportive | other, location?}]`, validated by `validateManual` (`EVENT_TYPES` in
+  `lib/profile/profile.mjs`), baked sorted by date. The profile sheet lists them as "Próximas pruebas /
+  Upcoming events" right after the goal: upcoming soonest first with "Hoy" / "Mañana" / "Dentro de N
+  días" computed on the viewer's clock (nothing time-based baked, builds stay byte-identical), past
+  ones folded in a `<details>`, the section omitted when there are none. The synthetic example
+  profile carries two events.
+- **Settings snapshot** — `data/profile/sync-settings.js` (`npm run sync:settings`, last step of
+  `npm run sync`) reads the ingest service's `GET /food/settings` (`X-HC-Food: 1`, no token) and
+  writes `data/profile/settings.json` = `{goal, targetWeightKg, updatedAt, fetchedAt}` atomically,
+  only when the content changed or `fetchedAt` is from an earlier UTC day. Unreachable / 404 / 421 /
+  503 / a malformed body → a `WARNING:` line, the old file kept, exit 0 (never fails the sync).
+  Why: the goal and target weight live in Postgres behind the LAN page, which the read-only coach
+  subagents cannot reach — now they read a file.
+- **Coach subagents** (`cycling-coach`, `hybrid-coach`, `nutrition-coach`) — the same "Shared rules"
+  block in all three (user's language, not-a-doctor, never read `.env*`, sponsor / affiliate bias,
+  auto-caption numbers "verificar") and the same "Owner facts" table: weight from the newest
+  `weight.csv` rows (+ 7-day context), height / birthdate / devices / supplements / events from
+  `profile.json`, goal + target from `settings.json` (missing / stale by `fetchedAt` said so), stable
+  context from `about-me.md`; never numbers from profile prose; data freshness checked against TODAY
+  (> 3 days flagged); days to each event from TODAY. `Bash` removed (`tools: Read, Grep, Glob`).
+  Routing made explicit: fuelling, hydration, supplements and body-composition nutrition belong to
+  `nutrition-coach`; the training coaches hand off ("para la nutrición, pregunta al nutrition-coach")
+  and vice versa. `cycling-coach`: Edu's commercial ties listed, never estimates an unknown FTP
+  (power curve / kJ / HR + a suggested test), adds the VitalControl SEM 42 EMS manual.
+  `hybrid-coach`: Hyprogram synced by cron (Sun 21:15 / Mon 06:15), nothing before 2026-09-21
+  (rolling window), read `semanas/` directly; the HYROX station weights table is "verificar" — point
+  to the current official rulebook.
+
 ## 2026-10-05 — knowledge: Hyprogram "HP Hybrid" sync
 
 - **`scripts/sync-hyprogram.mjs`** — pulls the owner's current training program ("HP Hybrid", at
