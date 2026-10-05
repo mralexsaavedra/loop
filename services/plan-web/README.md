@@ -147,12 +147,14 @@ one (`devices[].manual`, a bare PDF file name, e.g.
 `"garmin-edge-540-manual-es.pdf"`). The PDFs live in `data/gear/`
 (gitignored). After every publish `refresh.sh` runs `npm run -s
 publish:manuals` (`scripts/publish-manuals.mjs`), which copies ONLY the
-referenced files into `./site/manuales/` and deletes anything else there:
+referenced files into `./site/manuales/` (after `status.json`, under a 30 s
+timeout, `PLAN_WEB_MANUALS_TIMEOUT`) and deletes anything else there:
 a regular file directly in `data/gear/` (a symlink is refused), starting
 with `%PDF-`, at most 50 MB. A missing or refused file is a warning; a failure
 never blocks the page. nginx serves exactly `/manuales/<name>.pdf` (the same
 name pattern) as `application/pdf`, `Content-Disposition: inline`,
-`X-Content-Type-Options: nosniff`, GET / HEAD only, no listing; everything
+`X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none';
+object-src 'self'` (`sandbox` would block the built-in PDF viewer), GET / HEAD only, no listing; everything
 else under `/manuales/` is a 404, and the Host allowlist and raw-path guard
 apply as for every path. The page shows the link only after a `HEAD` of the
 file answers 200, so the claude.ai artifact and `file://` show nothing.
