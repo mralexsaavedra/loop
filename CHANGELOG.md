@@ -18,10 +18,12 @@ Dated history of structural work on this repo. **Current state lives in Engram**
   `lib/profile/manuals.mjs`) copies ONLY the referenced PDFs into `services/plan-web/site/manuales/`
   and removes anything else there; a source must be a regular file directly in `data/gear/` (opened
   with `O_NOFOLLOW`: a symlink is refused), start with `%PDF-` and stay ≤ 50 MB; a missing / refused
-  file is a warning; a broken profile.json leaves the folder as it is. `refresh.sh` runs it after the
-  page is published, best effort (never an error code, never blocks the page).
+  file is a warning; a broken profile.json leaves the folder as it is. `refresh.sh` runs it after
+  `status.json` is written, under a 30 s timeout (`PLAN_WEB_MANUALS_TIMEOUT`), best effort (never an
+  error code, never delays a waiting Sync).
 - **plan-web nginx** — `location ~ "^/manuales/<same pattern>"`: GET / HEAD only, `application/pdf`
-  (no extension types), `Content-Disposition: inline`, `X-Content-Type-Options: nosniff`, no listing;
+  (no extension types), `Content-Disposition: inline`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy:
+  default-src 'none'; object-src 'self'` (CSP `sandbox` would block the built-in PDF viewer), no listing;
   everything else under `/manuales/` is a 404. The Host allow-list and raw-path guard apply; behind
   the SSO tunnel it stays behind SSO (never a bypass rule). Validated with `nginx -t` and curl in a
   throwaway `nginx:alpine` container.

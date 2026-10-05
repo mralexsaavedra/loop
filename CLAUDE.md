@@ -499,7 +499,8 @@ controls instead of the close button.
   `data/gear/` (opened `O_NOFOLLOW`, a symlink refused), starting with `%PDF-`, ≤ `MAX_MANUAL_BYTES`
   (50 MB); copies atomic and skipped when identical; a missing / refused file = a warning (exit 0); a
   broken / invalid profile.json leaves the folder untouched; a symlinked output folder = exit 1.
-  `refresh.sh` runs it after publishing the page, best effort (logged, never an error code). The sheet
+  `refresh.sh` runs it after writing `status.json` (a waiting Sync is already done), under its own
+  30 s timeout (`PLAN_WEB_MANUALS_TIMEOUT`), best effort (logged, never an error code). The sheet
   writes a "Manual" link (`.pf-manual`, ≥ 44 px, `target="_blank" rel="noopener"`, labelled "Manual de
   <device> (PDF, …)") `hidden`, and profile.js reveals it only when `HEAD /manuales/<file>` answers 200
   with an `application/pdf` type (one probe per file per load), so the claude.ai artifact, `file://`
@@ -1558,7 +1559,8 @@ up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (c
   path 404, never `/export/*` or `/sync/strava` (pinned by `scripts/plan-web-config.test.mjs`).
   Static device manuals: EXACTLY `/manuales/<MANUAL_FILE_RE>` (a quoted regex location; GET / HEAD,
   `types { }` + `default_type application/pdf`, `Content-Disposition: inline`, `X-Content-Type-Options:
-  nosniff`, `Cache-Control: no-cache` re-added since a location `add_header` drops the server one,
+  nosniff`, `Content-Security-Policy: default-src 'none'; object-src 'self'` (not `sandbox`, which
+  blocks the browsers' built-in PDF viewer), `Cache-Control: no-cache` re-added since a location `add_header` drops the server one,
   `autoindex off`, `try_files $uri =404`); every other `/manuales/` path 404; NOT in any SSO bypass
   (behind the tunnel it stays behind SSO). A
   server-level guard (next to the Host check) answers `400` when the RAW path (before `?`) holds `..`,
