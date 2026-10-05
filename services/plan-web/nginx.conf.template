@@ -138,6 +138,10 @@ server {
         types { }
         default_type application/pdf;
         add_header X-Content-Type-Options nosniff always;
+        # Not `sandbox`: a CSP-sandboxed document may not load plugins, and browsers' built-in PDF
+        # viewers run as one (Chromium shows a blocked page). This keeps a crafted PDF from running
+        # anything but the same-origin PDF viewer embed.
+        add_header Content-Security-Policy "default-src 'none'; object-src 'self'" always;
         add_header Content-Disposition inline always;
         add_header Cache-Control "no-cache" always;
         try_files $uri =404;

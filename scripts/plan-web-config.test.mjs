@@ -274,6 +274,8 @@ test('nginx /manuales/: only a bare .pdf file name is served, as an inline PDF w
   assert.match(pdf.body, /default_type application\/pdf;/);
   assert.match(pdf.body, /add_header X-Content-Type-Options nosniff always;/);
   assert.match(pdf.body, /add_header Content-Disposition inline always;/);
+  assert.match(pdf.body, /add_header Content-Security-Policy "default-src 'none'; object-src 'self'" always;/,
+    'a restrictive CSP that still lets the built-in PDF viewer render inline (CSP `sandbox` blocks it)');
   assert.match(pdf.body, /add_header Cache-Control "no-cache" always;/, 'a location add_header drops the server one: re-added');
   assert.match(pdf.body, /limit_except GET \{ deny all; \}/, 'GET (and HEAD) only');
   assert.match(pdf.body, /try_files \$uri =404;/);
