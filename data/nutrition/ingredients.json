@@ -1850,19 +1850,7 @@
       "k": 2,
       "p": 0.1,
       "c": 0,
-      "g": 0.2,
-      "piece": {
-        "name": {
-          "es": "taza",
-          "en": "cup"
-        },
-        "plural": {
-          "es": "tazas",
-          "en": "cups"
-        },
-        "amt": 50,
-        "typical": true
-      }
+      "g": 0.2
     },
     "cortado": {
       "per": 100,
