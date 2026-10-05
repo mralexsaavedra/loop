@@ -33,6 +33,8 @@
 #   - a failed `npm ci`, failed generate, or invalid build output all keep
 #     serving the last good page untouched — nothing is copied to ./site
 #     unless the new build is verified sane first;
+#   - device manuals are published after the page, best effort (a failure
+#     there is logged, never an error code);
 #   - only `main` is published: another checked-out branch (a review or a
 #     half-done change) is skipped unless PLAN_WEB_ALLOW_BRANCH=1.
 set -u
@@ -146,6 +148,12 @@ refresh_once() {
     fail sanity "$start" "copy to site failed, keeping previous page"
     return 1
   fi
+
+  # Device manuals (profile.json devices[].manual, PDFs from data/gear/) into
+  # site/manuales/, served by nginx as /manuales/<file>.pdf. Best effort: a
+  # failure here is logged and never blocks (or un-publishes) the page.
+  step "$STEP_TIMEOUT" npm run -s publish:manuals -- --out "$SITE/manuales" ||
+    log "publishing device manuals failed, page published anyway"
 
   prev=$(processed_seq)
   processed=$start
