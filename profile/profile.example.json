@@ -1,5 +1,5 @@
 {
-  "_comment": "TEMPLATE with SYNTHETIC values. Copy to profile/profile.json (gitignored) and edit. Every field is optional. name / city override what Strava reports; birthdate gives the age (computed by the page, never stored); devices: type = watch | bike-computer | ems | other, since = YYYY-MM; supplements: meal = breakfast | lunch | preworkout | postworkout | dinner | snack (shown under that meal in Nutrición, no macros), dose is free text.",
+  "_comment": "TEMPLATE with SYNTHETIC values. Copy to profile/profile.json (gitignored) and edit. Every field is optional. name / city override what Strava reports; birthdate gives the age (computed by the page, never stored); devices: type = watch | bike-computer | ems | other, since = YYYY-MM; supplements: meal = breakfast | lunch | preworkout | postworkout | dinner | snack (shown under that meal in Nutrición, no macros), dose is free text; events: upcoming races, date = YYYY-MM-DD, type = hyrox | race | sportive | other (optional), location optional (the page shows the days to go).",
   "name": "Sam Sample",
   "city": "Exampleville",
   "birthdate": "1990-06-15",
@@ -13,5 +13,9 @@
     { "name": "Sample Creatine", "dose": "3 g", "meal": "lunch" },
     { "name": "Sample Magnesium", "dose": "1 capsule", "meal": "dinner" },
     { "name": "Sample Electrolytes", "dose": "1 tablet in 500 ml", "meal": "preworkout" }
+  ],
+  "events": [
+    { "name": "Sample City HYROX", "date": "2031-03-15", "type": "hyrox", "location": "Exampleville" },
+    { "name": "Sample Gran Fondo", "date": "2031-06-07", "type": "sportive" }
   ]
 }

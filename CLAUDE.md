@@ -414,13 +414,14 @@ controls instead of the close button.
   manual wins over Strava for the same field):
   1. `profile/profile.json` (gitignored; tracked template `profile/profile.example.json`, synthetic):
      `birthdate` (YYYY-MM-DD), `heightCm`, `devices: [{name, type: watch|bike-computer|ems|other,
-     since?: YYYY-MM}]`, `supplements: [{name, dose?, meal}]` (see "Nutrition v2"), optional
-     `name` / `city` overrides. Validated by `validateManual`: at build
+     since?: YYYY-MM}]`, `supplements: [{name, dose?, meal}]` (see "Nutrition v2"), `events:
+     [{name, date: YYYY-MM-DD, type?: hyrox|race|sportive|other, location?}]` (upcoming races; baked
+     sorted by date, `EVENT_TYPES`), optional `name` / `city` overrides. Validated by `validateManual`: at build
      time a malformed file is IGNORED with a `WARNING:` naming the reason (the page still builds from
      the Strava + derived data); `npm run check` (`build-web.mjs --check`, `checkManualProfile`)
      FAILS on it with the same reason.
   2. `data/profile/strava-profile.json` + `data/profile/avatar.jpg` (gitignored), written by
-     `data/profile/sync-profile.js` (`npm run sync:profile`, last step of `npm run sync`) from the
+     `data/profile/sync-profile.js` (`npm run sync:profile`, part of `npm run sync`, before the settings sync) from the
      ingest service's `GET /export/athlete`: name, city / country, photo URL, athlete type (focus),
      bikes / shoes (name, brand / model, frame type, weight, distance in m, retired, primary),
      `gearScopeMissing`, and devices seen on stored activities (`device_name` → count + last day;
@@ -440,6 +441,19 @@ controls instead of the close button.
      never fatal.
   3. Derived: weight = the newest row of `weight.csv` with its date (never Strava's weight). The AGE is
      computed client-side from `birthdate` on the viewer's clock, so builds stay byte-identical.
+- **One source of truth per owner fact** (read as FILES by the read-only coach subagents, see
+  "Knowledge base + expert subagents"): weight = `weight.csv` (live), height / birthdate / devices /
+  supplements / events = `profile/profile.json`, goal + target weight = `data/profile/settings.json`,
+  stable context (injuries, history, preferences) = `profile/about-me.md` — never numbers in prose.
+  `settings.json` (gitignored, `data/profile/*`) = `{goal, targetWeightKg, updatedAt, fetchedAt}`,
+  written by `data/profile/sync-settings.js` (`npm run sync:settings`, last step of `npm run sync`)
+  from the ingest service's `GET /food/settings` (the server-side goal of "Nutrition v2 part 3";
+  `INGEST_URL`, `X-HC-Food: 1`, no token; the URL's host must be an IP literal, `localhost` or in
+  `FOOD_ALLOWED_HOSTS`): atomic, rewritten only when goal / target / updatedAt changed or the stored
+  `fetchedAt` is from an earlier UTC day; unreachable / 404 / 421 / 503 / a malformed body → a
+  `WARNING:` line, the old file kept, exit 0. The goal list and target range are copies of
+  `foodlog.mjs` `SETTINGS_GOALS` / `FOOD_LIMITS.targetWeight*` (a test pins them). The page does not
+  read it (it asks the service directly).
 - **Ingest side** (`services/health-ingest/src/athlete.js`, table `strava_athlete`,
   `sql/004_athlete.sql` + `005_athlete_refresh.sql`): after a successful Strava pull has been
   recorded, the sync kicks off (in the background, not awaited by `POST /sync`; one refresh in
@@ -467,7 +481,11 @@ controls instead of the close button.
   (700): "consider replacing, ~700–800 km typical life"; the scope note instead when gear is missing);
   Dispositivos / Devices (manual first, Strava-derived ones deduped by name, case-insensitive, usage
   merged into a manual entry of the same name); Suplementos / Supplements (name, dose, meal; omitted
-  when there are none); Strava (focus + snapshot date). Nothing known at all
+  when there are none); Strava (focus + snapshot date). Próximas pruebas / Upcoming events sits right
+  after the goal: upcoming soonest first with "Hoy" / "Mañana" / "Dentro de N días" from
+  `HC.daysOld` on the viewer's clock (nothing time-based baked), type · date · location, past ones
+  folded in a `<details>` ("Pasadas (n)", newest first); "No hay pruebas próximas." when all are past;
+  omitted without events. Nothing known at all
   → only the onboarding hint (copy `profile.example.json`, run `npm run sync`). Styles:
   `web/src/styles/profile.css` (tokens only).
 
@@ -1573,21 +1591,43 @@ paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index
   (ProseMirror → Markdown, PII strip, week/date math, fetch plan, manifest) in
   `scripts/hyprogram-lib.mjs`, unit-tested. `hybrid-coach` reads the output. Re-run to extend the
   history as new weeks unlock.
+- **Shared by the three coach subagents** — `tools: Read, Grep, Glob` (no Bash: anything that needed
+  a shell is done with Read / Grep). The SAME "Shared rules" block in each (reply in the user's
+  language, Spanish by default; not-a-doctor note on health topics; never read `.env*` / credentials;
+  sponsor / affiliate bias flagged; auto-caption numbers "verificar") — edit it in all three at once.
+  The SAME "Owner facts" table: weight = the newest `weight.csv` rows (+ the last 7 days as context;
+  mixes scales), height / birthdate / devices / supplements / events = `profile/profile.json`, goal +
+  target weight = `data/profile/settings.json` (missing → unknown; `fetchedAt` > 3 days old → may be
+  stale), stable context = `profile/about-me.md`; never numbers from profile prose (live files win);
+  freshness checked against TODAY from the conversation context (`_meta.json` `exportLastDate`, each
+  CSV's newest date; > 3 days flagged); days to each event computed from TODAY. **Routing**:
+  fuelling, hydration, electrolytes, supplements and body-composition nutrition belong to
+  `nutrition-coach`, also when the question comes from cycling or HYROX; the training coaches answer
+  only the training part and hand off ("para la nutrición, pregunta al nutrition-coach") and vice
+  versa; the frontmatter descriptions say the same.
 - **`cycling-coach` subagent** (`.claude/agents/cycling-coach.md`, read-only) — DELEGATE to it any
-  cycling training / power / FTP / zones / periodization / bike fuelling / bike fit / gear / Garmin
-  Edge question. It applies the expert's criteria from `knowledge/cycling/talavera/` (Eduardo
+  cycling TRAINING / power / FTP / zones / periodization / bike fit / gear / Garmin Edge / EMS suit
+  question (on-bike fuelling → `nutrition-coach`). FTP is stored nowhere: unknown → it says so and
+  never estimates one, working from the power curve / kJ / HR as Edu does and suggesting a test.
+  Gear manuals: `data/gear/garmin-edge-540-manual-es.txt`, `data/gear/vitalcontrol-sem-42-manual.md`.
+  It lists Edu's commercial ties (226ERS, Umbral, Canyon / Mondraker, Gobik, Whoop affiliate,
+  Hammerhead, Garmin…, from `knowledge/cycling/talavera/index.md`). It applies the expert's criteria from `knowledge/cycling/talavera/` (Eduardo
   Talavera), cites every claim with the video title + `&t=<seconds>s` URL, marks automatic-caption
   numbers "verify in the video", separates "what the expert says" from `analysis/methodology.md` /
   evidence (contradictions flagged), and grounds advice in the owner's data. A new expert = a new
   ingest folder + a subagent whose only source-specific part is its "Knowledge source" section.
 - **`hybrid-coach` subagent** (`.claude/agents/hybrid-coach.md`, read-only) — DELEGATE to it any
-  HYROX / hybrid question (running + strength + conditioning, Hyrox stations, race strategy,
-  programming, comparing a program with what he did, nutrition for hybrid races); cycling stays with
-  `cycling-coach`. Same rules as `cycling-coach` (podcast claims cited with `&t=<seconds>s`, programs
+  HYROX / hybrid TRAINING question (running + strength + conditioning, Hyrox stations, race strategy,
+  programming, comparing a program with what he did); race nutrition → `nutrition-coach`, cycling →
+  `cycling-coach`. Hyprogram: synced by cron (Sun 21:15 / Mon 06:15) into
+  `knowledge/hybrid/hyprogram/semanas/`; nothing before 2026-09-21 is available (rolling window); the
+  `temas/` syntheses have no Hyprogram section yet, so it reads `semanas/` directly. The HYROX station
+  weights table (`temas/estaciones-y-tecnica.md`, marked verificar) is never stated as fact: it
+  points to the current official rulebook. Same rules as `cycling-coach` (podcast claims cited with `&t=<seconds>s`, programs
   by file / month / week; auto-caption numbers and sponsor bias flagged; sources vs methodology kept
-  apart; Spanish replies; never writes files), grounded read-only in `workouts.csv` (runs, gym,
-  other), `running-daily.csv`, HRV / RHR / sleep and `profile/about-me.md` (goals, race dates, which
-  program he followed when). Its knowledge, `knowledge/hybrid/`: optional `index.md` + `temas/*.md`
+  apart; never writes files), grounded read-only in `workouts.csv` (runs, gym,
+  other), `running-daily.csv`, HRV / RHR / sleep, race dates from `profile.json` `events` and
+  `profile/about-me.md` (which program he followed when). Its knowledge, `knowledge/hybrid/`: optional `index.md` + `temas/*.md`
   (cross-source syntheses); `hyprodcast/` (a Hyrox podcast: the YouTube ingest layout above +
   `videos/*.md` summaries); `ferry/` (coach Ferry, the owner's program Dec 2025 – Jun 2026:
   `index.md`, `metodo-ferry.md`, `months/<YYYY-MM>-ferry.md` transcribed from the PDFs);
@@ -1595,8 +1635,9 @@ paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index
   "HP Hybrid" program, from 2026-07-01, kept in sync by `scripts/sync-hyprogram.mjs` above —
   `semanas/<YYYY-Www>.md` + `raw/*.json`).
 - **`nutrition-coach` subagent** (`.claude/agents/nutrition-coach.md`, read-only) — DELEGATE to it any
-  sports nutrition / supplementation question (daily diet for training and fat loss, protein, carbs
-  around training, on-bike / race fuelling, hydration and electrolytes, supplements, gut training);
+  sports nutrition / supplementation question, including the nutrition side of a cycling or HYROX
+  question (daily diet for training, fat loss and body composition, protein, carbs around training,
+  on-bike / race fuelling, hydration and electrolytes, supplements, gut training);
   cycling training stays with `cycling-coach`, HYROX training with `hybrid-coach`. EVIDENCE first: a
   practitioner never outranks the evidence base. Every claim cited (evidence = document + URL +
   section; videos = `&t=<seconds>s`), "what Second says" kept apart from the evidence, contradictions,
@@ -1604,8 +1645,8 @@ paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index
   products sold in Spain, BEDCA foods), anti-doping / contamination warnings (WADA, third-party-tested
   batches), not a doctor (refers to a physician / dietitian-nutritionist for medical conditions,
   medication interactions and eating-disorder signals), no crash diets (`analysis/methodology.md`
-  safe ranges). Grounded read-only in `plan-data.json` + `ingredients.json`, `profile/profile.json`
-  supplements, `profile/about-me.md`, the extract (weight, `dietary-daily.csv`, energy) and the
+  safe ranges). Grounded read-only in `plan-data.json` + `ingredients.json`, the owner facts above
+  (incl. `profile/profile.json` supplements and `data/profile/settings.json`), `profile/about-me.md`, the extract (weight, `dietary-daily.csv`, energy) and the
   Nutrición rules above; the food log is in Postgres behind the LAN page, which it cannot read (it
   says so). Spanish replies; never writes files. Its knowledge, `knowledge/nutrition/`: optional
   `index.md` + `temas/*.md` (cross-source syntheses); `evidencia/` (AIS Sports Supplement Framework,
