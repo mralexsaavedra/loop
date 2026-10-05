@@ -94,27 +94,115 @@ export function selectDates(importantDays, savedDates = [], { limit = Infinity }
   return out;
 }
 
-// --- PII --------------------------------------------------------------------
-
-// Remove per-user data before persisting the workout JSON. The program content
-// itself (sections, wod, coachNotes, title) is the thing we want; anything that
-// identifies the owner (assigned users, personal video URLs) is dropped.
-export function sanitizeDay(day) {
-  const clone = JSON.parse(JSON.stringify(day));
-  delete clone.users;
-  delete clone.userId;
-  delete clone.user;
-  delete clone.assignedTo;
-  if (Array.isArray(clone.videos)) {
-    clone.videos = clone.videos.filter((v) => v && typeof v === 'object' && !hasPersonalId(v));
-  }
-  return clone;
+// Stop walking back after a run of out-of-window (403) days, but only once the
+// window is known to exist: a day fetched on this run, or one saved before (an
+// incremental run with nothing new must not walk the whole history).
+export function shouldStop({ forbiddenRun, ok, alreadySaved }) {
+  return forbiddenRun >= STOP_AFTER_FORBIDDEN && (ok > 0 || alreadySaved > 0);
 }
 
-function hasPersonalId(obj) {
-  // Drop video entries whose URL embeds a user id folder (…/users-…/<uuid>/…).
-  const s = JSON.stringify(obj);
-  return /users?-[a-z-]*\/[0-9a-f]{8}-[0-9a-f]{4}/i.test(s);
+// --- PII ---------------------------------------------------------------------
+
+// ALLOWLIST: only the fields the renderer uses survive. Anything else (assigned
+// users, authors, emails, briefing / video links, unknown future keys) is
+// dropped, at every level. ProseMirror docs keep only type / attrs / text /
+// marks / content, recursively.
+const LOCALE_RE = /^[a-z]{2}-[A-Z]{2}$/;
+const ID_RE = /^[A-Za-z0-9_-]+$/;
+const PM_ATTR_KEYS = ['level', 'start', 'href', 'textAlign'];
+
+const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+function cleanAttrs(attrs) {
+  if (!isObj(attrs)) return undefined;
+  const out = {};
+  for (const k of PM_ATTR_KEYS) {
+    const v = attrs[k];
+    if (typeof v === 'string' || typeof v === 'number') out[k] = v;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+function cleanPm(node) {
+  if (!isObj(node) || typeof node.type !== 'string') return undefined;
+  const out = { type: node.type };
+  const attrs = cleanAttrs(node.attrs);
+  if (attrs) out.attrs = attrs;
+  if (typeof node.text === 'string') out.text = node.text;
+  if (Array.isArray(node.marks)) {
+    const marks = node.marks.map(cleanPm).filter(Boolean);
+    if (marks.length) out.marks = marks;
+  }
+  if (Array.isArray(node.content)) out.content = node.content.map(cleanPm).filter(Boolean);
+  return out;
+}
+
+function byLocale(obj, fn) {
+  const out = {};
+  if (!isObj(obj)) return out;
+  for (const [k, v] of Object.entries(obj)) {
+    if (!LOCALE_RE.test(k)) continue;
+    const c = fn(v);
+    if (c !== undefined) out[k] = c;
+  }
+  return out;
+}
+
+function cleanSection(s) {
+  if (!isObj(s)) return undefined;
+  const out = {};
+  if (typeof s.title === 'string') out.title = s.title;
+  if (typeof s.shortTitle === 'string') out.shortTitle = s.shortTitle;
+  if (Number.isFinite(s.index)) out.index = s.index;
+  if (typeof s.important === 'boolean') out.important = s.important;
+  const wod = cleanPm(s.wod);
+  if (wod) out.wod = wod;
+  const notes = cleanPm(s.coachNotes);
+  if (notes) out.coachNotes = notes;
+  return out;
+}
+
+export function sanitizeDay(day) {
+  if (!isObj(day)) return {};
+  const out = {};
+  if (typeof day.id === 'string' && ID_RE.test(day.id)) out.id = day.id;
+  if (isValidIsoDate(day.workoutDate)) out.workoutDate = day.workoutDate;
+  if (typeof day.programId === 'string' && ID_RE.test(day.programId)) out.programId = day.programId;
+  out.title = byLocale(day.title, (v) => (typeof v === 'string' ? v : undefined));
+  out.sections = byLocale(day.sections, (v) => (Array.isArray(v) ? v.map(cleanSection).filter(Boolean) : undefined));
+  out.coachNotes = byLocale(day.coachNotes, cleanPm);
+  return out;
+}
+
+// --- filenames / paths / origin ------------------------------------------------
+
+// The raw file name never comes from the server unchecked: a safe id, else the
+// validated ISO date.
+export function rawFileName(date, id) {
+  if (!isValidIsoDate(date)) throw new Error(`invalid date: ${date}`);
+  return `${typeof id === 'string' && ID_RE.test(id) ? id : date}.json`;
+}
+
+export const ENV_BASENAME = '.env.hyprogram';
+
+export function isAllowedEnvPath(p) {
+  const base = String(p).split(/[\\/]/).pop();
+  return base === ENV_BASENAME;
+}
+
+export function isSameOrigin(path, base) {
+  try {
+    return new URL(path, base).origin === new URL(base).origin;
+  } catch {
+    return false;
+  }
+}
+
+// stat-mode check only (never reads content). null = fine.
+export function envModeWarning(mode) {
+  return (mode & 0o077) !== 0
+    ? 'warning: the credentials file is readable by group/others; run chmod 600 on it'
+    : null;
 }
 
 // --- ProseMirror -> Markdown ------------------------------------------------

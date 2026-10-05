@@ -1560,13 +1560,16 @@ paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index
   Re-run it to pick up new uploads.
 - **Hyprogram sync** — `node scripts/sync-hyprogram.mjs [--dry-run] [--limit N]`: pulls the owner's
   current "HP Hybrid" program (a login-gated Next.js app, NextAuth credentials) into
-  `knowledge/hybrid/hyprogram/` — `raw/<id>.json` (the workout JSON, per-user data stripped),
+  `knowledge/hybrid/hyprogram/` — `raw/<id>.json` (an ALLOWLIST of the rendered fields only —
+  id, date, titles, sections' wod / coach notes; file named from a safe id, else the ISO date),
   `semanas/<YYYY-Www>.md` (faithful Spanish render of each day: sections, WOD, coach notes) and
   `manifest.json` (incremental, per-date `fetchedAt`). Read-only GETs on the owner's own account;
   polite (~1.5 s apart) and it early-stops at the edge of the rolling access window (only a recent
   block of days is viewable). Credentials live in `data/training/.env.hyprogram` (gitignored, 0600:
-  `HYPROGRAM_EMAIL`, `HYPROGRAM_PASSWORD`; override the path with `HYPROGRAM_ENV`) and are NEVER
-  logged; errors stay coarse (`auth_failed`, `http_403`), never echoing tokens. Pure parts
+  `HYPROGRAM_EMAIL`, `HYPROGRAM_PASSWORD`; `HYPROGRAM_ENV` overrides the path, only to a file named `.env.hyprogram`; a group / world-readable
+  mode is a warning) and are NEVER logged; the cookie is only sent to the pinned hyprogram.com origin,
+  the session counts only when `/api/auth/session` returns a user, and errors stay coarse
+  (`auth_failed`, `http_403`), never echoing tokens. Pure parts
   (ProseMirror → Markdown, PII strip, week/date math, fetch plan, manifest) in
   `scripts/hyprogram-lib.mjs`, unit-tested. `hybrid-coach` reads the output. Re-run to extend the
   history as new weeks unlock.
