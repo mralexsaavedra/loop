@@ -12,8 +12,9 @@ or the iOS Shortcut).
 | `systemd/plan-web-refresh.path` | Watches the ingest trigger file |
 | `systemd/plan-web-refresh.service` | Runs `refresh.sh` (as the repo owner, hardened) when it changes |
 
-`./site`, `.refresh.lock`, `.refresh-state` and the ingest `trigger/` directory
-are gitignored.
+`./site` (including `./site/manuales/`, the published device manuals),
+`.refresh.lock`, `.refresh-state` and the ingest `trigger/` directory are
+gitignored.
 
 ## How a refresh works (sequence protocol)
 
@@ -139,6 +140,25 @@ bypass rules on the raw path while nginx serves the normalized one
 (`/ingest/%2e%2e/index.html` would otherwise be the page); no path the page,
 the food log or the Shortcut uses contains those.
 
+### Device manuals (`/manuales/`)
+
+The profile sheet links a device's manual when `profile/profile.json` names
+one (`devices[].manual`, a bare PDF file name, e.g.
+`"garmin-edge-540-manual-es.pdf"`). The PDFs live in `data/gear/`
+(gitignored). After every publish `refresh.sh` runs `npm run -s
+publish:manuals` (`scripts/publish-manuals.mjs`), which copies ONLY the
+referenced files into `./site/manuales/` and deletes anything else there:
+a regular file directly in `data/gear/` (a symlink is refused), starting
+with `%PDF-`, at most 50 MB. A missing or refused file is a warning; a failure
+never blocks the page. nginx serves exactly `/manuales/<name>.pdf` (the same
+name pattern) as `application/pdf`, `Content-Disposition: inline`,
+`X-Content-Type-Options: nosniff`, GET / HEAD only, no listing; everything
+else under `/manuales/` is a 404, and the Host allowlist and raw-path guard
+apply as for every path. The page shows the link only after a `HEAD` of the
+file answers 200, so the claude.ai artifact and `file://` show nothing.
+Rollout: `docker compose up -d` here (new nginx location), then the next
+refresh (or `npm run publish:manuals` by hand) publishes the files.
+
 ### Exposing behind an SSO tunnel (e.g. Pangolin)
 
 To reach the page from outside the LAN without opening the ingest service:
@@ -151,7 +171,9 @@ To reach the page from outside the LAN without opening the ingest service:
    Shortcut's refresh trigger, no data). The `/api/sync` rule must be an EXACT
    path match, never a prefix (`/api/sync*` would also bypass
    `/api/sync/status` and anything a proxy normalizes under it). The page,
-   `status.json`, `/api/sync/status` and the food log stay behind the login.
+   `status.json`, `/api/sync/status` and the food log stay behind the login,
+   and so does `/manuales/` (device manuals): it stays behind SSO, never add
+   it to a bypass rule.
 3. **Allow the public host**: add it to `PLAN_WEB_EXTRA_HOSTS` in
    `services/plan-web/.env` and to `FOOD_ALLOWED_HOSTS` in
    `services/health-ingest/.env`, then `docker compose up -d` in both (see the

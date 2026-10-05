@@ -29,6 +29,7 @@ case "$*" in
       [ "$n" -le "$STUB_BUMP" ] && printf '%s\\n' $((100 + n)) > "$STUB_TRIGGER"
     fi
     exit "\${STUB_SYNC_EXIT:-0}" ;;
+  "run -s publish:manuals"*) exit "\${STUB_MANUALS_EXIT:-0}" ;;
   ci*) [ -n "\${STUB_CI_SLEEP:-}" ] && sleep "$STUB_CI_SLEEP"; exit "\${STUB_CI_EXIT:-0}" ;;
   "run -s generate")
     [ "\${STUB_GEN_EXIT:-0}" = 0 ] || exit "$STUB_GEN_EXIT"
@@ -95,6 +96,29 @@ test('on main: publishes index.html; status.json = {publishedAt, commit, branch,
   assert.ok(Date.parse(s.publishedAt) >= before - 1000);
   assert.deepEqual(fs.readdirSync(path.join(ctx.planWeb, 'site')).sort(), ['index.html', 'status.json'], 'no temp/state files in the served dir');
   assert.equal(npmCalls(ctx, 'run -s sync'), 1, 'one run when nothing advanced');
+}));
+
+test('after the page is published, the device manuals are published into site/manuales', { skip }, () => withRepo('main', (ctx) => {
+  assert.equal(run(ctx).code, 0);
+  const calls = fs.readFileSync(ctx.log, 'utf8').split('\n');
+  const manuals = calls.filter((l) => l.startsWith('run -s publish:manuals'));
+  assert.deepEqual(manuals, [`run -s publish:manuals -- --out ${path.join(ctx.planWeb, 'site', 'manuales')}`]);
+  assert.ok(calls.indexOf(manuals[0]) > calls.indexOf('run -s generate'), 'only after a good build');
+}));
+
+test('a failing manuals publish never blocks the page: published, no error in status.json', { skip }, () => withRepo('main', (ctx) => {
+  setSeq(ctx, 4);
+  const { code, stderr } = run(ctx, { STUB_MANUALS_EXIT: '1' });
+  assert.equal(code, 0, stderr);
+  assert.match(fs.readFileSync(site(ctx, 'index.html'), 'utf8'), /fresh/);
+  assert.equal(status(ctx).processedSeq, 4);
+  assert.equal(status(ctx).error, undefined);
+  assert.match(stderr, /manuals/);
+}));
+
+test('a failed build publishes no manuals either', { skip }, () => withRepo('main', (ctx) => {
+  run(ctx, { STUB_GEN_EXIT: '1' });
+  assert.equal(npmCalls(ctx, `run -s publish:manuals -- --out ${path.join(ctx.planWeb, 'site', 'manuales')}`), 0);
 }));
 
 test('no trigger file (a cron run on a fresh host) publishes processedSeq 0; a garbled/old-format file reads as 0', { skip }, () => withRepo('main', (ctx) => {
