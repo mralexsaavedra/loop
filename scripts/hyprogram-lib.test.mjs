@@ -4,6 +4,7 @@ import {
   parseArgs, parseEnvFile, isValidIsoDate, isoWeek, weekFileName, selectDates,
   sanitizeDay, pmToMarkdown, renderDayMarkdown, renderWeekFile, mergeManifest,
   savedDates, groupByWeek, STOP_AFTER_FORBIDDEN, PROGRAM_ID,
+  rawFileName, isAllowedEnvPath, isSameOrigin, envModeWarning, shouldStop,
 } from './hyprogram-lib.mjs';
 
 test('parseArgs defaults and flags', () => {
@@ -45,24 +46,69 @@ test('selectDates: newest first, skips saved, respects limit', () => {
   assert.deepEqual(selectDates(imp, [], { limit: 2 }), ['2026-10-08', '2026-10-06']);
 });
 
-test('sanitizeDay strips user data and personal videos', () => {
+test('sanitizeDay is an allowlist: unknown and PII-like keys never survive', () => {
+  const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x', marks: [{ type: 'bold' }] }] }] };
   const day = {
-    id: 'HYROX_PROGRAM_2026-10-06', title: { 'es-ES': 'x' },
-    users: [{ id: 'abc' }], userId: 'u1', user: { email: 'a@b.c' },
-    videos: [
-      { url: 'https://cdn/general/intro.mp4' },
-      { url: 'https://hyrox-program-s3.s3.us-east-1.amazonaws.com/users-profile-images/74382468-3021-70a9-6427-bcb3d36b0031/x.mp4' },
-    ],
-    sections: { 'es-ES': [] },
+    id: 'HYROX_PROGRAM_2026-10-06', workoutDate: '2026-10-06', programId: 'hp-hybrid',
+    title: { 'es-ES': 'T', 'en-US': 'T2' },
+    users: [{ id: 'abc' }], userId: 'u1', email: 'a@b.c', createdBy: 'coach@x.y', briefingId: 'b',
+    videos: [{ url: 'https://cdn/x.mp4' }],
+    coachNotes: { 'es-ES': doc, createdBy: 'z' },
+    sections: { 'es-ES': [{
+      title: 'A', shortTitle: 'S', index: 0, important: true, key: 'k',
+      wod: { ...doc, userId: 'nested' }, coachNotes: doc,
+      author: { email: 'p@q.r' }, userId: 'nested-u',
+    }] },
   };
   const clean = sanitizeDay(day);
-  assert.ok(!('users' in clean));
-  assert.ok(!('userId' in clean));
-  assert.ok(!('user' in clean));
-  assert.equal(clean.videos.length, 1);
-  assert.equal(clean.videos[0].url, 'https://cdn/general/intro.mp4');
+  assert.deepEqual(Object.keys(clean).sort(), ['coachNotes', 'id', 'programId', 'sections', 'title', 'workoutDate']);
+  const s = JSON.stringify(clean);
+  for (const bad of ['users', 'userId', 'email', 'createdBy', 'author', 'briefingId', 'videos', '@']) {
+    assert.ok(!s.includes(bad), `leaked ${bad}`);
+  }
+  assert.deepEqual(Object.keys(clean.sections['es-ES'][0]).sort(), ['coachNotes', 'important', 'index', 'shortTitle', 'title', 'wod']);
+  assert.equal(clean.title['en-US'], 'T2');
+  // rendering still works on the sanitized copy
+  assert.ok(renderDayMarkdown(clean).includes('**x**'));
   // original untouched
   assert.equal(day.users.length, 1);
+});
+
+test('sanitizeDay rejects non-object input and drops bad locales', () => {
+  assert.deepEqual(sanitizeDay(null), {});
+  const clean = sanitizeDay({ title: { 'es-ES': 'ok', '__proto__x': 'no', 'evil key': 'no' }, sections: { 'es-ES': 'notarray' } });
+  assert.deepEqual(Object.keys(clean.title), ['es-ES']);
+  assert.deepEqual(clean.sections, {});
+});
+
+test('rawFileName uses the validated date, never a traversal id', () => {
+  assert.equal(rawFileName('2026-10-06', 'HYROX_PROGRAM_2026-10-06'), 'HYROX_PROGRAM_2026-10-06.json');
+  assert.equal(rawFileName('2026-10-06', '../../etc/passwd'), '2026-10-06.json');
+  assert.equal(rawFileName('2026-10-06', 'a/b'), '2026-10-06.json');
+  assert.equal(rawFileName('2026-10-06', undefined), '2026-10-06.json');
+  assert.throws(() => rawFileName('../x', 'ok'), /invalid date/);
+});
+
+test('isAllowedEnvPath only accepts a .env.hyprogram basename', () => {
+  assert.ok(isAllowedEnvPath('/a/b/.env.hyprogram'));
+  assert.ok(!isAllowedEnvPath('/etc/passwd'));
+  assert.ok(!isAllowedEnvPath('/a/.env'));
+  assert.ok(!isAllowedEnvPath('/a/.env.hyprogram.bak'));
+});
+
+test('isSameOrigin pins requests to the base origin', () => {
+  const B = 'https://hyprogram.com';
+  assert.ok(isSameOrigin('/api/auth/csrf', B));
+  assert.ok(!isSameOrigin('https://evil.example/x', B));
+  assert.ok(!isSameOrigin('//evil.example/x', B));
+  assert.ok(!isSameOrigin('http://hyprogram.com/x', B));
+});
+
+test('envModeWarning flags group/world-readable modes', () => {
+  assert.equal(envModeWarning(0o100600), null);
+  assert.equal(envModeWarning(0o100400), null);
+  assert.match(envModeWarning(0o100640), /chmod 600/);
+  assert.match(envModeWarning(0o100604), /chmod 600/);
 });
 
 test('pmToMarkdown: paragraphs, marks, empty lines', () => {
@@ -197,4 +243,12 @@ test('savedDates ignores non-ok', () => {
 
 test('STOP_AFTER_FORBIDDEN is a small positive integer', () => {
   assert.ok(Number.isInteger(STOP_AFTER_FORBIDDEN) && STOP_AFTER_FORBIDDEN > 0);
+});
+
+test('shouldStop: early stop once the window is known, on this run or a previous one', () => {
+  const N = STOP_AFTER_FORBIDDEN;
+  assert.equal(shouldStop({ forbiddenRun: N, ok: 1, alreadySaved: 0 }), true);
+  assert.equal(shouldStop({ forbiddenRun: N, ok: 0, alreadySaved: 15 }), true); // incremental run, nothing new
+  assert.equal(shouldStop({ forbiddenRun: N - 1, ok: 0, alreadySaved: 15 }), false);
+  assert.equal(shouldStop({ forbiddenRun: N, ok: 0, alreadySaved: 0 }), false); // first run: keep looking for the window
 });
