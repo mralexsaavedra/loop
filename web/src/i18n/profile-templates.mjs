@@ -53,6 +53,8 @@ export const en = {
     usageNoDate: '{n} activities on Strava',
     fromStrava: 'Seen on Strava',
     none: 'Add your devices to profile/profile.json.',
+    manual: 'Manual',
+    manualLabel: 'Manual for {name} (PDF, opens in a new tab)',
   },
   events: {
     heading: 'Upcoming events',
@@ -129,6 +131,8 @@ export const es = {
     usageNoDate: '{n} actividades en Strava',
     fromStrava: 'Visto en Strava',
     none: 'Añade tus dispositivos a profile/profile.json.',
+    manual: 'Manual',
+    manualLabel: 'Manual de {name} (PDF, se abre en una pestaña nueva)',
   },
   events: {
     heading: 'Próximas pruebas',

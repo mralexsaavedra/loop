@@ -34,7 +34,8 @@ const MANUAL = { birthdate: '1990-05-17', heightCm: 178, devices: [{ name: 'Demo
 const FULL = buildProfile({ manual: MANUAL, strava: STRAVA, weight: { kg: 71.4, date: '2030-01-04' } });
 
 // nutri = a stand-in for client/nutri-day.js's window.HCNutri (the goal's owner), or null
-function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null, nutri = null, settings = null, progress = null, els = {} } = {}) {
+// fetch = a stand-in for window.fetch (the manual HEAD probe); links = the elements querySelectorAll returns
+function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null, nutri = null, settings = null, progress = null, els = {}, fetch = undefined, links = [] } = {}) {
   const img = photo ? { getAttribute: (k) => (k === 'src' ? photo : null) } : null;
   const win = nutri ? { HCNutri: nutri } : {};
   if (settings) win.HCSettings = settings;
@@ -51,7 +52,10 @@ function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null
     document: {
       getElementById: (id) => (id === 'avatar-img' ? img : els[id] || null),
       addEventListener: (t, fn) => { (listeners[t] = listeners[t] || []).push(fn); },
+      querySelectorAll: (sel) => (sel === 'a.pf-manual' ? links : []),
     },
+    ...(fetch ? { fetch } : {}),
+    encodeURIComponent,
     PROFILE: { ...baked, photo: Boolean(profile.photo) },
     I18N_PROFILE: locale === 'es' ? esP : enP,
     I18N_DATE: locale === 'es' ? esDate : enDate,
@@ -141,6 +145,73 @@ test('devices: manual first with type + since, Strava-only ones marked, usage li
   assert.match(h, /Demo Watch 2[\s\S]*?Watch · Since March 2028[\s\S]*?40 activities on Strava · last Sat 5 Jan/);
   assert.match(h, /Demo EMS suit[\s\S]*?EMS/);
   assert.match(h, /Demo Phone App[\s\S]*?Other · Seen on Strava/);
+});
+
+// ---- device manuals: a link revealed only when the LAN page serves the PDF ----------------------
+const WITH_MANUAL = buildProfile({
+  manual: { devices: [{ name: 'Demo Edge 2', type: 'bike-computer', manual: 'demo-edge-manual.pdf' }, { name: 'Demo Scale', type: 'other' }] },
+  strava: STRAVA,
+});
+const flush = () => new Promise((r) => setTimeout(r, 0));
+const pdfFetch = (status = 200, type = 'application/pdf') => {
+  const calls = [];
+  const fn = (url, init) => { calls.push({ url, init }); return Promise.resolve({ status, headers: { get: (k) => (k.toLowerCase() === 'content-type' ? type : null) } }); };
+  fn.calls = calls;
+  return fn;
+};
+const fakeLink = (file) => {
+  const attrs = { 'data-manual': file, hidden: '' };
+  return { attrs, getAttribute: (k) => (k in attrs ? attrs[k] : null), removeAttribute: (k) => { delete attrs[k]; } };
+};
+
+test('device manual: a hidden "Manual" link to /manuales/<file> in a new tab (noopener), labelled; none without a manual', () => {
+  const h = html(setup({ profile: WITH_MANUAL }));
+  const a = /<a class="pf-manual"[^>]*>[^<]*<\/a>/.exec(h);
+  assert.ok(a, 'a link');
+  assert.match(a[0], /href="\/manuales\/demo-edge-manual\.pdf"/);
+  assert.match(a[0], /target="_blank"/);
+  assert.match(a[0], /rel="noopener"/);
+  assert.match(a[0], /data-manual="demo-edge-manual\.pdf"/);
+  assert.match(a[0], / hidden[ >]/, 'hidden until the file answers');
+  assert.match(a[0], /aria-label="Manual for Demo Edge 2 \(PDF, opens in a new tab\)"/);
+  assert.match(a[0], />Manual<\/a>$/);
+  assert.equal((h.match(/class="pf-manual"/g) || []).length, 1, 'only the device with a manual');
+  assert.match(html(setup({ profile: WITH_MANUAL, locale: 'es' })), /aria-label="Manual de Demo Edge 2 \(PDF, se abre en una pestaña nueva\)"/);
+});
+
+test('device manual: revealed when HEAD /manuales/<file> answers 200 with a PDF; a later render is not hidden', async () => {
+  const fetch = pdfFetch();
+  const link = fakeLink('demo-edge-manual.pdf');
+  const other = fakeLink('other.pdf');
+  const s = setup({ profile: WITH_MANUAL, fetch, links: [link, other] });
+  html(s);
+  await flush();
+  assert.deepEqual(fetch.calls.map((c) => [c.url, c.init.method]), [['/manuales/demo-edge-manual.pdf', 'HEAD']]);
+  assert.equal(fetch.calls[0].init.cache, 'no-store');
+  assert.equal(link.getAttribute('hidden'), null, 'revealed');
+  assert.equal(other.getAttribute('hidden'), '', 'another file untouched');
+  assert.doesNotMatch(/<a class="pf-manual"[^>]*>/.exec(html(s))[0], / hidden/);
+  assert.equal(fetch.calls.length, 1, 'probed once');
+});
+
+test('device manual: stays hidden on a 404, a non-PDF 200 (an SPA fallback page), a failed request or without fetch', async () => {
+  for (const fetch of [pdfFetch(404), pdfFetch(200, 'text/html; charset=utf-8'), Object.assign(() => Promise.reject(new Error('blocked')), { calls: [] }), undefined]) {
+    const link = fakeLink('demo-edge-manual.pdf');
+    const s = setup({ profile: WITH_MANUAL, fetch, links: [link] });
+    html(s);
+    await flush();
+    assert.equal(link.getAttribute('hidden'), '');
+    assert.match(/<a class="pf-manual"[^>]*>/.exec(html(s))[0], / hidden/);
+  }
+});
+
+test('device manual: a name that is not a bare PDF file name (tampered bake) renders no link and no request', async () => {
+  const fetch = pdfFetch();
+  const p = { ...WITH_MANUAL, devices: [{ ...WITH_MANUAL.devices[0], manual: '../status.json' }, { ...WITH_MANUAL.devices[1], manual: 'a/b.pdf' }] };
+  const h = html(setup({ profile: p, fetch }));
+  await flush();
+  assert.doesNotMatch(h, /pf-manual/);
+  assert.equal(fetch.calls.length, 0);
 });
 
 test('Strava focus + snapshot date', () => {
