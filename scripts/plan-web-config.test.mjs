@@ -20,9 +20,10 @@ const pathUnit = read(PLAN_WEB, 'systemd', 'plan-web-refresh.path');
 const serviceUnit = read(PLAN_WEB, 'systemd', 'plan-web-refresh.service');
 const ingestCompose = read('services', 'health-ingest', 'docker-compose.yml');
 
-/** `location <spec> { body }` blocks (bodies may hold one nested level, e.g. limit_except). */
+/** `location <spec> { body }` blocks (bodies may hold one nested level, e.g. limit_except; a quoted
+ * regex spec may hold braces). */
 function locations(conf) {
-  return [...conf.matchAll(/location\s+([^{]+?)\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g)].map((m) => ({ spec: m[1].trim(), body: m[2] }));
+  return [...conf.matchAll(/location\s+((?:"[^"]*"|[^{"])+?)\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g)].map((m) => ({ spec: m[1].trim(), body: m[2] }));
 }
 
 test('nginx proxies ONLY /api/sync, /api/sync/status, /ingest/health-auto-export (exact) and the /api/food/ prefix, to the host ingest port', () => {
@@ -252,4 +253,49 @@ test('nginx: gzip at SERVER level for the page, status.json, CSS / JS and JSON; 
   const proxied = locations(nginx).filter((x) => /proxy_pass\s/.test(x.body));
   assert.equal(proxied.length, (nginx.match(/^\s*proxy_pass\s/gm) || []).length, 'every proxy_pass sits in a parsed location');
   for (const l of proxied) assert.match(l.body, /^\s*gzip off;/m, `${l.spec}: gzip off`);
+});
+
+// ---- device manuals: /manuales/<file>.pdf (static, published by refresh.sh) ----------------------
+test('nginx /manuales/: only a bare .pdf file name is served, as an inline PDF with nosniff; everything else there is a 404', async () => {
+  const locs = locations(nginx);
+  const pdf = locs.find((l) => /^~\s/.test(l.spec) && l.spec.includes('/manuales/'));
+  assert.ok(pdf, 'a regex location for the manual files');
+  const pattern = /^~\s+"([^"]+)"$/.exec(pdf.spec);
+  assert.ok(pattern, 'a quoted regex');
+  const re = new RegExp(pattern[1]);
+  for (const ok of ['/manuales/garmin-edge-540-manual-es.pdf', '/manuales/vitalcontrol-sem-42-manual.pdf', '/manuales/A.pdf']) assert.ok(re.test(ok), ok);
+  for (const bad of ['/manuales/', '/manuales/x.txt', '/manuales/.x.pdf', '/manuales/a/b.pdf', '/manuales/x.PDF', '/manuales/x.pdf/', '/x/manuales/x.pdf', '/manuales/x.pdfx']) {
+    assert.ok(!re.test(bad), bad);
+  }
+  // nginx and the publisher accept the same file names
+  const { MANUAL_FILE_RE } = await import('../lib/profile/profile.mjs');
+  assert.equal(pattern[1], `^/manuales/${MANUAL_FILE_RE.source.slice(1)}`);
+  assert.match(pdf.body, /types \{ \}/, 'no extension-based type');
+  assert.match(pdf.body, /default_type application\/pdf;/);
+  assert.match(pdf.body, /add_header X-Content-Type-Options nosniff always;/);
+  assert.match(pdf.body, /add_header Content-Disposition inline always;/);
+  assert.match(pdf.body, /add_header Content-Security-Policy "default-src 'none'; object-src 'self'" always;/,
+    'a restrictive CSP that still lets the built-in PDF viewer render inline (CSP `sandbox` blocks it)');
+  assert.match(pdf.body, /add_header Cache-Control "no-cache" always;/, 'a location add_header drops the server one: re-added');
+  assert.match(pdf.body, /limit_except GET \{ deny all; \}/, 'GET (and HEAD) only');
+  assert.match(pdf.body, /try_files \$uri =404;/);
+  assert.match(pdf.body, /autoindex off;/);
+  assert.doesNotMatch(pdf.body, /proxy_pass/);
+  const rest = locs.find((l) => l.spec === '/manuales/');
+  assert.ok(rest, 'a prefix location (not ^~, so the regex above still wins) for everything else');
+  assert.match(rest.body, /return 404;/);
+});
+
+test('nginx /manuales/ sits behind the server-level Host and raw-path guards (both precede every location)', () => {
+  const server = nginx.slice(nginx.indexOf('server {'));
+  const first = server.indexOf('location ');
+  assert.ok(server.indexOf('if ($hc_host_ok = 0) { return 421; }') < first);
+  assert.ok(server.indexOf('if ($request_uri ~*') < first);
+  const re = new RegExp(/if \(\$request_uri ~\* "([^"]+)"\)/.exec(server)[1], 'i');
+  for (const bad of ['/manuales/../status.json', '/manuales/%2e%2e/index.html', '/manuales//x.pdf', '/manuales/a%2fb.pdf']) assert.ok(re.test(bad), bad);
+});
+
+test('the SSO docs keep /manuales/ behind SSO (never in a bypass rule)', () => {
+  const readme = read(PLAN_WEB, 'README.md');
+  assert.match(readme, /`\/manuales\/`[^\n]*stays behind SSO/);
 });
