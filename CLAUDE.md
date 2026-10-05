@@ -414,7 +414,10 @@ controls instead of the close button.
   manual wins over Strava for the same field):
   1. `profile/profile.json` (gitignored; tracked template `profile/profile.example.json`, synthetic):
      `birthdate` (YYYY-MM-DD), `heightCm`, `devices: [{name, type: watch|bike-computer|ems|other,
-     since?: YYYY-MM}]`, `supplements: [{name, dose?, meal}]` (see "Nutrition v2"), `events:
+     since?: YYYY-MM, manual?: "<file>.pdf"}]` (`manual` = a bare file name in `data/gear/`,
+     `MANUAL_FILE_RE`: no folders, no `..`; see "Device manuals" below), `hiddenDevices: [name]`
+     (left out of Dispositivos, case-insensitive, manual and Strava-derived alike; applied at build
+     time, never baked — for a device Strava saw once), `supplements: [{name, dose?, meal}]` (see "Nutrition v2"), `events:
      [{name, date: YYYY-MM-DD, type?: hyrox|race|sportive|other, location?}]` (upcoming races; baked
      sorted by date, `EVENT_TYPES`), optional `name` / `city` overrides. Validated by `validateManual`: at build
      time a malformed file is IGNORED with a `WARNING:` naming the reason (the page still builds from
@@ -480,7 +483,8 @@ controls instead of the close button.
   badge, retired ones folded in a `<details>`, a `--mid` hint on active shoes ≥ `SHOE_REPLACE_KM`
   (700): "consider replacing, ~700–800 km typical life"; the scope note instead when gear is missing);
   Dispositivos / Devices (manual first, Strava-derived ones deduped by name, case-insensitive, usage
-  merged into a manual entry of the same name); Suplementos / Supplements (name, dose, meal; omitted
+  merged into a manual entry of the same name, which keeps its `manual`; `hiddenDevices` dropped; a
+  "Manual" link per device with a manual, see below); Suplementos / Supplements (name, dose, meal; omitted
   when there are none); Strava (focus + snapshot date). Próximas pruebas / Upcoming events sits right
   after the goal: upcoming soonest first with "Hoy" / "Mañana" / "Dentro de N días" from
   `HC.daysOld` on the viewer's clock (nothing time-based baked), type · date · location, past ones
@@ -488,6 +492,19 @@ controls instead of the close button.
   omitted without events. Nothing known at all
   → only the onboarding hint (copy `profile.example.json`, run `npm run sync`). Styles:
   `web/src/styles/profile.css` (tokens only).
+- **Device manuals (LAN page only)** — the owner's PDFs live in `data/gear/` (gitignored); only the
+  file names are baked. `scripts/publish-manuals.mjs` (`npm run publish:manuals`, rules in
+  `lib/profile/manuals.mjs`) copies ONLY the PDFs named by the visible devices' `manual` into
+  `services/plan-web/site/manuales/` and removes everything else there: a regular file directly in
+  `data/gear/` (opened `O_NOFOLLOW`, a symlink refused), starting with `%PDF-`, ≤ `MAX_MANUAL_BYTES`
+  (50 MB); copies atomic and skipped when identical; a missing / refused file = a warning (exit 0); a
+  broken / invalid profile.json leaves the folder untouched; a symlinked output folder = exit 1.
+  `refresh.sh` runs it after publishing the page, best effort (logged, never an error code). The sheet
+  writes a "Manual" link (`.pf-manual`, ≥ 44 px, `target="_blank" rel="noopener"`, labelled "Manual de
+  <device> (PDF, …)") `hidden`, and profile.js reveals it only when `HEAD /manuales/<file>` answers 200
+  with an `application/pdf` type (one probe per file per load), so the claude.ai artifact, `file://`
+  and the example build (whose synthetic device names a manual) never show it. nginx side: see "LAN
+  page" → Security.
 
 ## Nutrition plan — data pipeline & published artifact
 
@@ -1538,7 +1555,12 @@ up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (c
   exposed: `Authorization` / `Automation-Name` / `Content-Type` forwarded, no `Bearer` token → `401`
   before the body is read, ingest checks the bearer, `client_max_body_size 8m` ≤ ingest's
   `MAX_BODY_BYTES` default); every other `/api/` or `/ingest/`
-  path 404, never `/export/*` or `/sync/strava` (pinned by `scripts/plan-web-config.test.mjs`). A
+  path 404, never `/export/*` or `/sync/strava` (pinned by `scripts/plan-web-config.test.mjs`).
+  Static device manuals: EXACTLY `/manuales/<MANUAL_FILE_RE>` (a quoted regex location; GET / HEAD,
+  `types { }` + `default_type application/pdf`, `Content-Disposition: inline`, `X-Content-Type-Options:
+  nosniff`, `Cache-Control: no-cache` re-added since a location `add_header` drops the server one,
+  `autoindex off`, `try_files $uri =404`); every other `/manuales/` path 404; NOT in any SSO bypass
+  (behind the tunnel it stays behind SSO). A
   server-level guard (next to the Host check) answers `400` when the RAW path (before `?`) holds `..`,
   `%2e`, `%2f`, `%5c` (any case) or `//`, so an SSO proxy matching bypass rules on the raw path cannot
   be walked to the page (`/ingest/%2e%2e/index.html`). Behind an SSO tunnel (one resource →
