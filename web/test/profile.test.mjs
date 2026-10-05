@@ -69,7 +69,9 @@ test('example build: ONE avatar button in the top bar (initials, no photo) openi
   assert.equal(p.hasData, true);
   assert.ok(p.bikes.length && p.shoes.length && p.devices.length);
   assert.equal('age' in p, false, 'the age is computed client-side');
-  assert.ok(html.indexOf('window.HCViews.profile') < html.indexOf('var VIEW_HASH_RE'), 'profile.js registers its view before detail.js runs');
+  assert.equal('hiddenDevices' in p, false, 'hidden names are applied at build time, never baked');
+  assert.ok(!p.devices.some((d) => d.name === 'Demo Phone App'));
+  assert.equal(p.devices.find((d) => d.manual).manual, 'sample-bike-computer-manual.pdf', 'only the manual file name is baked');  assert.ok(html.indexOf('window.HCViews.profile') < html.indexOf('var VIEW_HASH_RE'), 'profile.js registers its view before detail.js runs');
   const { plan } = loadInputs({ repoRoot: REPO_ROOT, dataMode: 'example' });
   assert.deepEqual(p.goals, goalOptions(resolveTargets(plan)), 'the goal setting\'s options are the lib\'s own');
   assert.equal(p.goals.length, 3);
