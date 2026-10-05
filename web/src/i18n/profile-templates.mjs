@@ -54,6 +54,15 @@ export const en = {
     fromStrava: 'Seen on Strava',
     none: 'Add your devices to profile/profile.json.',
   },
+  events: {
+    heading: 'Upcoming events',
+    types: { hyrox: 'HYROX', race: 'Race', sportive: 'Sportive', other: 'Event' },
+    today: 'Today',
+    tomorrow: 'Tomorrow',
+    inDays: 'In {n} days',
+    none: 'No upcoming events.',
+    past: 'Past ({n})',
+  },
   supplements: {
     heading: 'Supplements',
     meals: { breakfast: 'Breakfast', lunch: 'Lunch', preworkout: 'Pre-workout', postworkout: 'Post-workout', dinner: 'Dinner', snack: 'Snack' },
@@ -120,6 +129,15 @@ export const es = {
     usageNoDate: '{n} actividades en Strava',
     fromStrava: 'Visto en Strava',
     none: 'Añade tus dispositivos a profile/profile.json.',
+  },
+  events: {
+    heading: 'Próximas pruebas',
+    types: { hyrox: 'HYROX', race: 'Carrera', sportive: 'Marcha cicloturista', other: 'Prueba' },
+    today: 'Hoy',
+    tomorrow: 'Mañana',
+    inDays: 'Dentro de {n} días',
+    none: 'No hay pruebas próximas.',
+    past: 'Pasadas ({n})',
   },
   supplements: {
     heading: 'Suplementos',

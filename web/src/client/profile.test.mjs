@@ -187,6 +187,35 @@ test('supplements: listed with dose and meal (es/en), section omitted when there
   assert.doesNotMatch(html(setup()), /Supplements/);
 });
 
+test('events: upcoming listed soonest first with days to go on the viewer clock, past ones folded, es/en', () => {
+  const withEvents = buildProfile({ manual: { ...MANUAL, events: [
+    { name: 'Demo Sportive', date: '2030-02-16', type: 'sportive', location: 'Hilltown' },
+    { name: 'Demo Hyrox', date: '2030-01-08', type: 'hyrox' },
+    { name: 'Demo Today Run', date: '2030-01-07', type: 'race' },
+    { name: 'Demo Old Race', date: '2029-12-01', type: 'race' },
+  ] }, strava: STRAVA });
+  const h = html(setup({ profile: withEvents })); // viewer today = 2030-01-07
+  assert.match(h, /<h3 class="pf-h">Upcoming events<\/h3>/);
+  const order = ['Demo Today Run', 'Demo Hyrox', 'Demo Sportive'].map((n) => h.indexOf(n));
+  assert.ok(order.every((i, k) => i > 0 && (k === 0 || i > order[k - 1])), 'soonest first');
+  assert.ok(h.includes('>Today<'));
+  assert.ok(h.includes('>Tomorrow<'));
+  assert.ok(h.includes('>In 40 days<'));
+  assert.ok(h.includes('Sportive · Sat 16 Feb · Hilltown'));
+  assert.match(h, /<details class="pf-retired pf-ev-past"><summary>Past \(1\)<\/summary>.*Demo Old Race/s);
+  clean(h);
+  const es = html(setup({ profile: withEvents, locale: 'es' }));
+  assert.match(es, /<h3 class="pf-h">Próximas pruebas<\/h3>/);
+  assert.ok(es.includes('>Dentro de 40 días<'));
+  assert.ok(es.includes('>Mañana<'));
+  assert.ok(es.includes('Pasadas (1)'));
+  // a later clock moves everything to the past fold: nothing upcoming is said in words
+  const later = html(setup({ profile: withEvents, now: '2030-03-01' }));
+  assert.ok(later.includes('No upcoming events.'));
+  assert.ok(later.includes('Past (4)'));
+  assert.doesNotMatch(html(setup()), /Upcoming events/);
+});
+
 /* ---------- Goal setting: the plan's goal, owned by client/nutri-day.js (hc.nutri.goal) ---------- */
 const GOALS = [{ goal: 'maintain', kcal: 0, bikeKept: false }, { goal: 'cut', kcal: -320, bikeKept: true }, { goal: 'bulk', kcal: 300, bikeKept: false }];
 function nutriStub(goal = 'maintain') {
