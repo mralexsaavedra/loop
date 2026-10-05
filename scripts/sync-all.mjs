@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Runner behind `npm run sync`: runs the Shortcut sync, the Strava sync and the profile sync sequentially, even
+/* Runner behind `npm run sync`: runs the Shortcut sync, the Strava sync, the profile sync and the settings sync sequentially, even
  * when one fails — a shell `&&` chain would skip the second script the moment the first exits
  * non-zero, and `;` both loses the exit code and is shell-specific. Both scripts write
  * _meta.json, so running them one after another (not in parallel) avoids a write race.
@@ -18,6 +18,9 @@ export const SCRIPTS = [
   path.join(ROOT, 'data', 'apple-health', 'sync-shortcut.js'),
   path.join(ROOT, 'data', 'apple-health', 'sync-strava.js'),
   path.join(ROOT, 'data', 'profile', 'sync-profile.js'),
+  // the settings snapshot (data/profile/settings.json) never fails the run: a missing / old ingest
+  // service is only a warning (exit 0)
+  path.join(ROOT, 'data', 'profile', 'sync-settings.js'),
 ];
 
 /**
