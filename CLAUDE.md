@@ -1558,6 +1558,18 @@ paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index
   External `yt-dlp` (`$YT_DLP` → PATH → `~/.local/bin/yt-dlp`). Pure parts (VTT → paragraphs,
   track choice, naming, manifest merge, flags) in `scripts/youtube-transcript.mjs`, unit-tested.
   Re-run it to pick up new uploads.
+- **Hyprogram sync** — `node scripts/sync-hyprogram.mjs [--dry-run] [--limit N]`: pulls the owner's
+  current "HP Hybrid" program (a login-gated Next.js app, NextAuth credentials) into
+  `knowledge/hybrid/hyprogram/` — `raw/<id>.json` (the workout JSON, per-user data stripped),
+  `semanas/<YYYY-Www>.md` (faithful Spanish render of each day: sections, WOD, coach notes) and
+  `manifest.json` (incremental, per-date `fetchedAt`). Read-only GETs on the owner's own account;
+  polite (~1.5 s apart) and it early-stops at the edge of the rolling access window (only a recent
+  block of days is viewable). Credentials live in `data/training/.env.hyprogram` (gitignored, 0600:
+  `HYPROGRAM_EMAIL`, `HYPROGRAM_PASSWORD`; override the path with `HYPROGRAM_ENV`) and are NEVER
+  logged; errors stay coarse (`auth_failed`, `http_403`), never echoing tokens. Pure parts
+  (ProseMirror → Markdown, PII strip, week/date math, fetch plan, manifest) in
+  `scripts/hyprogram-lib.mjs`, unit-tested. `hybrid-coach` reads the output. Re-run to extend the
+  history as new weeks unlock.
 - **`cycling-coach` subagent** (`.claude/agents/cycling-coach.md`, read-only) — DELEGATE to it any
   cycling training / power / FTP / zones / periodization / bike fuelling / bike fit / gear / Garmin
   Edge question. It applies the expert's criteria from `knowledge/cycling/talavera/` (Eduardo
@@ -1577,7 +1589,8 @@ paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index
   `videos/*.md` summaries); `ferry/` (coach Ferry, the owner's program Dec 2025 – Jun 2026:
   `index.md`, `metodo-ferry.md`, `months/<YYYY-MM>-ferry.md` transcribed from the PDFs);
   `training-culture/hybrid-6-semanas.md` (a 6-week block); `hyprogram/` (the current Hyprogram
-  "HP Hybrid" program, from 2026-07-01, synced later).
+  "HP Hybrid" program, from 2026-07-01, kept in sync by `scripts/sync-hyprogram.mjs` above —
+  `semanas/<YYYY-Www>.md` + `raw/*.json`).
 - **`nutrition-coach` subagent** (`.claude/agents/nutrition-coach.md`, read-only) — DELEGATE to it any
   sports nutrition / supplementation question (daily diet for training and fat loss, protein, carbs
   around training, on-bike / race fuelling, hydration and electrolytes, supplements, gut training);

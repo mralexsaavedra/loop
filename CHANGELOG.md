@@ -4,6 +4,26 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-05 — knowledge: Hyprogram "HP Hybrid" sync
+
+- **`scripts/sync-hyprogram.mjs`** — pulls the owner's current training program ("HP Hybrid", at
+  hyprogram.com) into `knowledge/hybrid/hyprogram/` for `hybrid-coach`. The site is a Next.js app
+  behind NextAuth credential login (AWS Cognito server-side; no public client secret, no SRP needed);
+  the script logs in with the owner's own account, then reads the program through the same-origin app
+  API the web client uses (`/api/workouts/important_days` for the programmed dates,
+  `/api/workouts/get_by_date` per day — athletes can view only a rolling recent window, so it
+  early-stops at the window edge). Output: `raw/<id>.json` (the workout JSON, per-user data stripped),
+  `semanas/<YYYY-Www>.md` (faithful Spanish render — sections, WOD, coach notes, loads, RPE, running
+  distances) and `manifest.json` (incremental, per-date `fetchedAt`). Flags `--dry-run` / `--limit N`.
+- **Security / etiquette** — credentials in `data/training/.env.hyprogram` (gitignored, 0600;
+  `HYPROGRAM_ENV` overrides the path), read in-process and never logged; no password, token or cookie
+  ever printed or written to disk; coarse errors only (`auth_failed`, `http_403`). Read-only GETs,
+  sequential ~1.5 s apart, nothing on the account modified. `knowledge/*` stays gitignored.
+- **Pure core** — `scripts/hyprogram-lib.mjs` (ProseMirror → Markdown, PII strip, ISO-week math,
+  fetch-plan selection, manifest merge) with `scripts/hyprogram-lib.test.mjs` (`node --test`, zero
+  deps). First real sync fetched 15 days (2026-09-21 → 2026-10-10, block "PREPARATORIO ESPECÍFICO"),
+  3 week files.
+
 ## 2026-10-04 — knowledge: a nutrition-coach subagent
 
 - **`nutrition-coach` subagent** (`.claude/agents/`) — read-only sports nutrition and supplementation
