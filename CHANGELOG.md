@@ -4,6 +4,12 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-05 — food log: black coffee in ml
+
+- `cafe` (Café solo) in `data/nutrition/ingredients.json` loses its typical "cup" piece (50 ml), so
+  the add sheet logs it in ml by default. A cup size varies too much, and the piece mode as the
+  default led to a "130 cups (~6500 ml)" entry when 130 ml was meant. A test pins it.
+
 ## 2026-10-05 — profile: hidden devices + device manuals on the LAN page
 
 - **`hiddenDevices`** in `profile/profile.json` — a list of names left out of the profile sheet's
