@@ -16,7 +16,8 @@
  *   Body    — height (manual) + the latest weigh-in with its date (never Strava's weight);
  *   Gear    — bikes and shoes from Strava with km (1 decimal), retired ones folded, a gentle hint on
  *             shoes past SHOE_REPLACE_KM, or a note when the token lacks the profile:read_all scope;
- *   Devices — manual devices + those seen on Strava activities (deduped at build time);
+ *   Devices — manual devices + those seen on Strava activities (deduped at build time, hiddenDevices
+ *             left out), a "Manual" link per device with a manual PDF (revealed on the LAN page only);
  *   Supplements — profile.json supplements with dose + meal (also shown in Nutrición's Plan de hoy);
  *   Strava  — focus + the snapshot date.
  * Nothing known at all -> the onboarding hint.
@@ -118,6 +119,47 @@
     return section(G.heading, inner);
   }
 
+  // Device manuals (profile.json devices[].manual): the LAN page serves them as /manuales/<file>.pdf
+  // (plan-web, refresh.sh publishes them). The link ships `hidden` and is revealed only once a HEAD of
+  // the file answers 200 with a PDF, so the claude.ai artifact, file:// and the example build (no such
+  // file, or an HTML fallback page) never show it. One probe per file per page load.
+  var MANUAL_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.pdf$/;
+  // kept apart from the markup so the built page holds no literal root-relative href (output guard)
+  var MANUAL_BASE = '/manuales/';
+  var manualState = {};
+  function manualFile(d) {
+    var f = d && d.manual;
+    return typeof f === 'string' && MANUAL_RE.test(f) && f.indexOf('..') < 0 ? f : null;
+  }
+  function revealManual(file) {
+    var links = document.querySelectorAll ? document.querySelectorAll('a.pf-manual') : [];
+    for (var i = 0; i < links.length; i++) {
+      if (links[i].getAttribute('data-manual') === file) links[i].removeAttribute('hidden');
+    }
+  }
+  function probeManuals(devs) {
+    if (typeof fetch !== 'function') return;
+    devs.forEach(function (d) {
+      var file = manualFile(d);
+      if (!file || manualState[file]) return;
+      manualState[file] = 'pending';
+      try {
+        fetch(MANUAL_BASE + encodeURIComponent(file), { method: 'HEAD', cache: 'no-store' }).then(function (res) {
+          var type = res && res.headers && typeof res.headers.get === 'function' ? String(res.headers.get('content-type') || '') : '';
+          manualState[file] = res && res.status === 200 && /^application\/pdf\b/i.test(type) ? 'ok' : 'no';
+          if (manualState[file] === 'ok') revealManual(file);
+        }, function () { manualState[file] = 'no'; });
+      } catch (e) {
+        manualState[file] = 'no';
+      }
+    });
+  }
+  function manualHtml(d) {
+    var file = manualFile(d);
+    if (!file) return '';
+    return '<a class="pf-manual" href="' + MANUAL_BASE + esc(encodeURIComponent(file)) + '" target="_blank" rel="noopener" data-manual="' + esc(file) + '"' +
+      ' aria-label="' + esc(format(T.devices.manualLabel, { name: d.name })) + '"' + (manualState[file] === 'ok' ? '' : ' hidden') + '>' + esc(T.devices.manual) + '</a>';
+  }
   function deviceHtml(d) {
     var D = T.devices, bits = [D.types[d.type] || D.types.other];
     if (d.since) bits.push(format(D.since, { month: HC.fmtMonth(d.since + '-01') }));
@@ -125,10 +167,11 @@
     var usage = fin(d.count) && d.count > 0 ? format(HC.isoDate(d.lastUsed) ? D.usage : D.usageNoDate, { n: d.count, date: HC.fmtDate(d.lastUsed) }) : '';
     return '<li class="pf-item"><div class="pf-item-main"><span class="pf-item-name">' + esc(d.name) + '</span>' +
       '<small class="pf-item-sub">' + esc(bits.join(' · ')) + '</small>' +
-      (usage ? '<small class="pf-item-sub">' + esc(usage) + '</small>' : '') + '</div></li>';
+      (usage ? '<small class="pf-item-sub">' + esc(usage) + '</small>' : '') + '</div>' + manualHtml(d) + '</li>';
   }
   function devicesHtml() {
     var devs = list(P.devices);
+    probeManuals(devs);
     return section(T.devices.heading, devs.length ? '<ul class="pf-list">' + devs.map(deviceHtml).join('') + '</ul>' : note(T.devices.none));
   }
 

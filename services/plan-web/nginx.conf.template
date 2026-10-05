@@ -126,4 +126,28 @@ server {
     location /api/ {
         return 404;
     }
+
+    # Device manuals (profile.json devices[].manual), copied from data/gear/ by refresh.sh
+    # (scripts/publish-manuals.mjs) into ./site/manuales/. Only a bare file name with the publisher's
+    # own pattern (lib/profile/profile.mjs MANUAL_FILE_RE) is served, always as an inline PDF that the
+    # browser must not sniff into anything else; no listing, nothing else under /manuales/. Static
+    # files: the Host and raw-path guards above apply; behind an SSO tunnel this stays behind SSO.
+    location ~ "^/manuales/[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.pdf$" {
+        limit_except GET { deny all; }
+        autoindex off;
+        types { }
+        default_type application/pdf;
+        add_header X-Content-Type-Options nosniff always;
+        # Not `sandbox`: a CSP-sandboxed document may not load plugins, and browsers' built-in PDF
+        # viewers run as one (Chromium shows a blocked page). This keeps a crafted PDF from running
+        # anything but the same-origin PDF viewer embed.
+        add_header Content-Security-Policy "default-src 'none'; object-src 'self'" always;
+        add_header Content-Disposition inline always;
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
+    location /manuales/ {
+        return 404;
+    }
 }

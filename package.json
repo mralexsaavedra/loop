@@ -19,6 +19,7 @@
     "sync:shortcut": "node data/apple-health/sync-shortcut.js",
     "sync:strava": "node data/apple-health/sync-strava.js",
     "sync:profile": "node data/profile/sync-profile.js",
+    "publish:manuals": "node scripts/publish-manuals.mjs",
     "sync:settings": "node data/profile/sync-settings.js"
   },
   "dependencies": {
