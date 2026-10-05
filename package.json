@@ -18,7 +18,8 @@
     "sync": "node scripts/sync-all.mjs",
     "sync:shortcut": "node data/apple-health/sync-shortcut.js",
     "sync:strava": "node data/apple-health/sync-strava.js",
-    "sync:profile": "node data/profile/sync-profile.js"
+    "sync:profile": "node data/profile/sync-profile.js",
+    "sync:settings": "node data/profile/sync-settings.js"
   },
   "dependencies": {
     "astro": "7.3.5",

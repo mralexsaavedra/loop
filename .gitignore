@@ -70,11 +70,14 @@ profile/baseline.md
 profile/profile.json
 
 # Strava profile snapshot + avatar pulled by data/profile/sync-profile.js (name, city, gear,
-# photo) — personal. The sync script, its test and .gitkeep are plain tooling → tracked.
+# photo) and the goal / target-weight snapshot (settings.json, data/profile/sync-settings.js)
+# — personal. The sync scripts, their tests and .gitkeep are plain tooling → tracked.
 data/profile/*
 !data/profile/.gitkeep
 !data/profile/sync-profile.js
 !data/profile/sync-profile.test.js
+!data/profile/sync-settings.js
+!data/profile/sync-settings.test.js
 
 # OS / tooling noise
 .DS_Store
