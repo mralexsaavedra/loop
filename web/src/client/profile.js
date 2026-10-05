@@ -11,6 +11,8 @@
  *             the server and the section adds a "Target weight" field (kg, HCSettings.parseTarget = the
  *             food forms' parser; an inline error; saved on change, which fires on blur), one status
  *             line for both saves, and the Progreso line (window.HCProgress.line, client/progress.js);
+ *   Events  — profile.json events: upcoming soonest first with the days left (viewer's clock), past
+ *             ones folded; omitted when there are none;
  *   Body    — height (manual) + the latest weigh-in with its date (never Strava's weight);
  *   Gear    — bikes and shoes from Strava with km (1 decimal), retired ones folded, a gentle hint on
  *             shoes past SHOE_REPLACE_KM, or a note when the token lacks the profile:read_all scope;
@@ -143,6 +145,35 @@
     }).join('') + '</ul>');
   }
 
+  // events (profile.json): upcoming soonest first with the days left on the viewer's clock (nothing
+  // time-based is baked); past ones folded, newest first
+  function eventItem(e, when) {
+    var E = T.events, bits = [E.types[e.type] || E.types.other, HC.fmtDate(e.date)];
+    if (e.location) bits.push(e.location);
+    return '<li class="pf-item"><div class="pf-item-main"><span class="pf-item-name">' + esc(e.name) + '</span>' +
+      '<small class="pf-item-sub">' + esc(bits.join(' · ')) + '</small></div>' +
+      (when ? '<span class="pf-ev-left">' + esc(when) + '</span>' : '') + '</li>';
+  }
+  function eventsHtml() {
+    var E = T.events, items = list(P.events), up = [], past = [];
+    if (!items.length) return '';
+    items.forEach(function (e) {
+      var ago = HC.daysOld(e.date);
+      if (ago == null) return;
+      if (ago <= 0) up.push({ e: e, left: -ago });
+      else past.push(e);
+    });
+    var when = function (n) { return n === 0 ? E.today : n === 1 ? E.tomorrow : format(E.inDays, { n: n }); };
+    var inner = up.length
+      ? '<ul class="pf-list">' + up.map(function (x) { return eventItem(x.e, when(x.left)); }).join('') + '</ul>'
+      : note(E.none);
+    if (past.length) {
+      inner += '<details class="pf-retired pf-ev-past"><summary>' + esc(format(E.past, { n: past.length })) + '</summary><ul class="pf-list">' +
+        past.reverse().map(function (e) { return eventItem(e, ''); }).join('') + '</ul></details>';
+    }
+    return section(E.heading, inner);
+  }
+
   function stravaHtml() {
     var S = T.strava, out = [];
     if (P.focus && S.focusValues[P.focus]) out.push('<div class="pf-row"><span class="pf-lbl">' + esc(S.focus) + '</span><b class="pf-row-val">' + esc(S.focusValues[P.focus]) + '</b></div>');
@@ -248,7 +279,7 @@
 
   function render() {
     if (!P.hasData) return { head: headHtml(), body: goalHtml() + note(T.onboarding, 'pf-onboard') };
-    return { head: headHtml(), body: goalHtml() + bodyHtml() + gearHtml() + devicesHtml() + supplementsHtml() + stravaHtml() + note(T.note, 'pf-foot') };
+    return { head: headHtml(), body: goalHtml() + eventsHtml() + bodyHtml() + gearHtml() + devicesHtml() + supplementsHtml() + stravaHtml() + note(T.note, 'pf-foot') };
   }
 
   window.HCViews = window.HCViews || {};
