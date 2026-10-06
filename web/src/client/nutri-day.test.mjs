@@ -21,7 +21,7 @@ import { waterFill, FILL_CASES } from '../../../lib/nutrition/fill.mjs';
 import { LINE, floorToStep, GRID_EPS } from '../../../lib/nutrition/amounts.mjs';
 import { MAIN_SLOTS } from '../../../lib/nutrition/slots.mjs';
 import { buildBasics } from '../../../lib/nutrition/basics.mjs';
-import { guideBudgets, exampleAmount, remaining, mealState, isCovered, roleOptions, GUIDE_CASES, GUIDE_GRID } from '../../../lib/nutrition/guide.mjs';
+import { guideBudgets, exampleAmount, remaining, mealState, isCovered, dayRemaining, capByDay, DAYCAP_CASES, roleOptions, GUIDE_CASES, GUIDE_GRID } from '../../../lib/nutrition/guide.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, '..', '..', '..');
@@ -872,6 +872,83 @@ test('with the food log: each meal shows what is left (done / so far), covered r
   assert.match(sectionOf(h, 'Extras'), new RegExp('~' + (b.extras.k - 100) + ' kcal for extras today \\(of ' + b.extras.k + '\\)'));
   const all = groups.meals.breakfast.k + 300 + 100;
   assert.match(h, new RegExp('<p class="gd-left"><span class="gd-left-lbl">Left today</span> <b>' + (x.mt.k - all).toLocaleString('en') + '</b> kcal'));
+});
+
+test('guide ports agree with lib: dayRemaining / capByDay', () => {
+  const { api } = run();
+  const total = { k: 2500, p: 150, c: 280, f: 65 };
+  for (const groups of [null, { meals: {}, addon: null }, { meals: { breakfast: { k: 600, p: 30, c: null, f: 20.6 }, lunch: { k: 2000, p: 140, c: 100, f: 52 } }, addon: { k: 150, p: 5, c: 20, f: 12 } }]) {
+    assert.deepEqual(plain(api.dayRemaining(total, groups, MAIN_SLOTS)), plain(dayRemaining(total, groups, MAIN_SLOTS)));
+  }
+  for (const c of DAYCAP_CASES) assert.deepEqual(plain(api.capByDay(c.meal, c.day, c.total)), c.expect, JSON.stringify(c));
+});
+
+function rowOf(h, slot, role) { // the <li> of one macro row: the li that holds data-guide="<slot>.<role>", or the covered li by position
+  const card = sectionOf(h, { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner' }[slot]);
+  const rows = card.split('<li class="gd-row').slice(1);
+  const label = { p: 'Protein', c: 'Carbs', f: 'Fat' }[role];
+  return rows.find((r) => r.includes('<span class="gd-l">' + label + '</span>')) || '';
+}
+
+test('day cap (2026-10-06): fat over the day target -> the dinner fat row is "covered (day)", no "+"', () => {
+  const nutri = bake();
+  const x = planFor(nutri, 'maintain', 'rest', null);
+  const b = guideBudgets(x, nutri.base.rest.sl, MAIN_SLOTS, nutri.guide.oil.rest);
+  const over = b.total.f + 7.6; // 72.6 g vs 65 g
+  const groups = { meals: { breakfast: { k: 600, p: 30, c: 60, f: over - 20 }, lunch: { k: 500, p: 30, c: 40, f: 20 }, dinner: Z }, addon: Z };
+  const h = run({ nutri, hooks: foodHooks({ groups }) }).els['nutri-plan'].innerHTML;
+  const fat = rowOf(h, 'dinner', 'f');
+  assert.match(fat, /<span class="gd-ok">✓ covered \(day\)<\/span>/);
+  assert.doesNotMatch(fat, /gd-add|gd-pick/);
+  assert.doesNotMatch(sectionOf(h, 'Dinner'), /data-guide-add="dinner\.f"/);
+  assert.match(rowOf(h, 'dinner', 'p'), /gd-add/, 'the other macros of that meal stay open');
+  const es = run({ nutri, locale: 'es', hooks: foodHooks({ groups }) }).els['nutri-plan'].innerHTML;
+  assert.match(es, /✓ cubierto \(día\)/);
+});
+
+test('day cap: the day has fewer carbs left than the lunch row -> the row is capped to the day (30 g on 2026-10-06), example and "+" from it', () => {
+  const nutri = bake();
+  const x = planFor(nutri, 'maintain', 'rest', null);
+  const b = guideBudgets(x, nutri.base.rest.sl, MAIN_SLOTS, nutri.guide.oil.rest);
+  const D = Math.max(30, Math.ceil(0.1 * b.total.c) + 5); // still open for the day (> 10 % of its carbs)
+  assert.ok(b.meals.lunch.c > D, 'fixture: lunch has more carbs left than the day');
+  const groups = { meals: { breakfast: { k: 900, p: 20, c: b.total.c - D, f: 5 }, lunch: Z, dinner: Z }, addon: Z };
+  const h = run({ nutri, hooks: foodHooks({ groups }) }).els['nutri-plan'].innerHTML;
+  const row = rowOf(h, 'lunch', 'c');
+  assert.match(row, new RegExp('<b>~' + D + '</b> g'));
+  const id = selectedOf(h, 'lunch.c');
+  const food = BASICS.en.find((f) => 'b:' + f.k === id);
+  const a = exampleAmount(food, 'c', D, GRID);
+  assert.match(row, new RegExp('data-guide-add="lunch\\.c" data-food="' + id + '" data-amt="' + a.amt + '"'));
+  assert.match(h, new RegExp('<span class="gd-left-lbl">Left today</span>[^]*?C <b>' + D + '</b>'), 'the same number as "Left today"');
+});
+
+test('day cap: the day allows more than the meal -> the meal\'s own left is unchanged; no food API -> budgets only', () => {
+  const nutri = bake();
+  const x = planFor(nutri, 'maintain', 'rest', null);
+  const b = guideBudgets(x, nutri.base.rest.sl, MAIN_SLOTS, nutri.guide.oil.rest);
+  const groups = { meals: { breakfast: Z, lunch: { k: 300, p: 20, c: 30, f: 1 }, dinner: Z }, addon: Z };
+  const h = run({ nutri, hooks: foodHooks({ groups }) }).els['nutri-plan'].innerHTML;
+  assert.match(rowOf(h, 'lunch', 'p'), new RegExp('<b>~' + (b.meals.lunch.p - 20) + '</b> g'));
+  assert.doesNotMatch(h, /covered \(day\)/);
+  const off = run({ nutri }).els['nutri-plan'].innerHTML;
+  assert.match(rowOf(off, 'lunch', 'c'), new RegExp('<b>~' + b.meals.lunch.c + '</b> g'));
+  assert.doesNotMatch(off, /covered \(day\)|gd-add|gd-left/);
+});
+
+test('day cap: Extras kcal capped at the day remainder; covered by the day when <= 10 % of the day kcal is left', () => {
+  const nutri = bake();
+  const x = planFor(nutri, 'maintain', 'rest', null);
+  const b = guideBudgets(x, nutri.base.rest.sl, MAIN_SLOTS, nutri.guide.oil.rest);
+  const dayLeftK = Math.min(b.extras.k - 1, Math.round(0.1 * b.total.k) + 50);
+  assert.ok(dayLeftK > 0.1 * b.total.k && dayLeftK < b.extras.k, 'fixture');
+  const partial = { meals: { breakfast: { k: b.total.k - dayLeftK, p: 0, c: 0, f: 0 }, lunch: Z, dinner: Z }, addon: Z };
+  const h = run({ nutri, hooks: foodHooks({ groups: partial }) }).els['nutri-plan'].innerHTML;
+  assert.match(sectionOf(h, 'Extras'), new RegExp('~' + dayLeftK.toLocaleString('en') + ' kcal for extras today \\(of ' + b.extras.k.toLocaleString('en') + '\\)'));
+  const full = { meals: { breakfast: { k: b.total.k + 100, p: 0, c: 0, f: 0 }, lunch: Z, dinner: Z }, addon: Z };
+  const e = sectionOf(run({ nutri, hooks: foodHooks({ groups: full }) }).els['nutri-plan'].innerHTML, 'Extras');
+  assert.match(e, /<p class="gd-budget">✓ covered \(day\)<\/p>/);
+  assert.doesNotMatch(e, />-\d/);
 });
 
 test('"+" logs the example amount into that meal through the food log (HCFood.addGuide); a failure re-enables it', () => {

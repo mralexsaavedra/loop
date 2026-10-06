@@ -718,7 +718,12 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   each macro row shows what is LEFT (budget − logged, floor 0, "de 45 g" once something is logged) and
   recomputes the example amount for it; a row with ≤ 10 % left (`COVERED_SHARE`) is "✓ cubierto"; Extras
   = budget − logged add-ons ("(de N)"); "Te queda hoy: kcal · P · C · G" (meals target − everything
-  logged) under the guide. Each open macro row gets a "+" (`.gd-add`, 44 px, aria-label "Registrar
+  logged, `dayRemaining`) under the guide. **Day cap**: a row's left = min(the meal's own left, what
+  the day still allows = "Te queda hoy", `capByDay`), and the example amount and the "+" use that capped
+  left, so overspending one meal is taken from the others; when the DAY has ≤ 10 % of that macro's
+  meals target left the row is "✓ cubierto (día)" (no example amount, no "+"; a row covered by its own
+  meal keeps "✓ cubierto"). Extras' remaining kcal and P / C / G line are capped the same way, and it
+  reads "✓ cubierto (día)" when the day's kcal are covered. Each open macro row gets a "+" (`.gd-add`, 44 px, aria-label "Registrar
   195 g de Pechuga de pollo en Comida") that logs that example amount into that meal through
   `HCFood.addGuide` (a basic = ONE quick entry with `basicEntry` / `basicLabel`, in pieces when the food
   has them, sent with `force` since the macros are the DB's own; a product = a product entry; one request
