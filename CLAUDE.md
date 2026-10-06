@@ -986,7 +986,8 @@ Plan de hoy) and the
   a fresh sheet guesses the group by the viewer's hour: < 11 breakfast, < 16 lunch, < 20
   Añadido, else dinner), tabs Mis
   productos (search, grouped by store) / Mis recetas / Rápido (label + kcal + optional macros), amount in g / ml / servings (servings only with a serving
-  size; a per-serving recipe in servings, a batch one in grams of cooked food), live preview from the
+  size; a per-serving recipe in servings, a batch one in grams of cooked food; switching a product to
+  servings sets the amount to 1, and back to its unit sets one serving in that unit, never reusing the typed number), live preview from the
   ported formula, `aria-live` results; save closes it, re-renders Registrar and announces "Añadido:
   …". The former "Del plan" tab (it logged Plan de hoy's menu) is gone: the portion guide's "+" logs
   an example amount instead (see "Plan de hoy = a PORTION GUIDE"). **Basics in the Mis productos tab**: the search box also looks in `FOOD_BASICS`

@@ -4,6 +4,13 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-06 — food log: switching to servings sets the amount to 1
+
+- Add sheet, product picked: changing the unit select to `serving` sets the amount to 1; changing it
+  back to the product's g / ml sets one serving in that unit (`servingSize`, decimal comma in es). A
+  number typed for one unit was kept for the other (25 g became 25 servings). Basics and recipes
+  unchanged (`food.js` `switchProductUnit`, test in `food.test.mjs`).
+
 ## 2026-10-06 — Avituallamiento in the owner's own fuel items
 
 - New optional plan field `fuel.items` (`{name, carbs per piece, fat?, kind?: fast | slow}`), validated
