@@ -1852,35 +1852,6 @@
       "c": 0,
       "g": 0.2
     },
-    "cortado": {
-      "per": 100,
-      "unit": "ud",
-      "cat": "drink",
-      "swap": false,
-      "verified": false,
-      "name": {
-        "es": "Cortado",
-        "en": "Cortado (espresso with a dash of milk)"
-      },
-      "note": "Computed average for one cortado (~70 ml): 30 ml espresso (BEDCA 2433 'Café, infusión', the DB's cafe) + 40 ml semi-skimmed milk (the DB's leche: 46 kcal, 3.4 P, 4.8 C, 1.7 F per 100 ml, in line with BEDCA / USDA semi-skimmed milk)",
-      "k": 19,
-      "p": 1.4,
-      "c": 1.9,
-      "g": 0.7,
-      "piece": {
-        "name": {
-          "es": "cortado",
-          "en": "cortado"
-        },
-        "plural": {
-          "es": "cortados",
-          "en": "cortados"
-        },
-        "amt": 100,
-        "g": 70,
-        "typical": true
-      }
-    },
     "bebidaavena": {
       "per": 100,
       "unit": "ml",
@@ -3623,35 +3594,6 @@
           "en": "heaped tablespoons"
         },
         "amt": 15,
-        "typical": true
-      }
-    },
-    "cafeconleche": {
-      "per": 100,
-      "unit": "ud",
-      "cat": "drink",
-      "swap": false,
-      "verified": false,
-      "name": {
-        "es": "Café con leche",
-        "en": "Café con leche (coffee with milk)"
-      },
-      "note": "Computed average for one café con leche (~180 ml): 30 ml espresso (BEDCA 2433 'Café, infusión', the DB's cafe) + 150 ml semi-skimmed milk (the DB's leche: 46 kcal, 3.4 P, 4.8 C, 1.7 F per 100 ml)",
-      "k": 70,
-      "p": 5.1,
-      "c": 7.2,
-      "g": 2.6,
-      "piece": {
-        "name": {
-          "es": "café con leche",
-          "en": "café con leche"
-        },
-        "plural": {
-          "es": "cafés con leche",
-          "en": "cafés con leche"
-        },
-        "amt": 100,
-        "g": 180,
         "typical": true
       }
     },
