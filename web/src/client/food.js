@@ -653,6 +653,17 @@
     if (el && from !== to) el.value = v != null ? nf(v) : modeDefault(to);
     sh.basicMode = to;
   }
+  // a product switched to servings starts at 1 serving; back to its own unit, at one serving in that
+  // unit (servingSize), so a number typed for one unit is never read in the other (25 g != 25 servings)
+  function switchProductUnit() {
+    var pk = S.sheet.pick, item = pickedItem();
+    var to = val('fa-unit');
+    if (!item || unitsOf('product', item).indexOf(to) < 0) return;
+    var from = pk.unit || unitsOf('product', item)[0];
+    var el = $('fa-amt');
+    if (el && from !== to) el.value = to === 'serving' ? '1' : nf(item.servingSize);
+    pk.unit = to;
+  }
   // the units a picked item can be logged in: a product in its own unit (+ servings when it states a
   // serving size), a per-serving recipe in servings, a batch recipe in grams of cooked food
   function unitsOf(kind, item) {
@@ -1420,6 +1431,7 @@
       setHtml('fa-list', listHtml());
     } else if (id === 'fa-amt' || id === 'fa-unit') {
       if (id === 'fa-unit' && S.sheet && S.sheet.pick && S.sheet.pick.kind === 'basic') switchBasicMode();
+      else if (id === 'fa-unit' && S.sheet && S.sheet.pick && S.sheet.pick.kind === 'product') switchProductUnit();
       updatePreview();
     }
     else if (id === 'fa-meal' && S.sheet) S.sheet.meal = asGroup(val('fa-meal')) || S.sheet.meal;
