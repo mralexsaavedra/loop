@@ -14,7 +14,7 @@ import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 import { buildNutrition } from '../../../lib/nutrition/macros.mjs';
 import { buildNutriToday } from '../../../lib/nutrition/today.mjs';
 import { DAYTYPE_CASES, DAYINPUT_CASES } from '../../../lib/nutrition/daytype.mjs';
-import { fuelPlan } from '../../../lib/nutrition/fuel.mjs';
+import { fuelPlan, FUEL_CASES } from '../../../lib/nutrition/fuel.mjs';
 import { planFor, solveScale } from '../../../lib/nutrition/scale.mjs';
 import { lineCap } from '../../../lib/nutrition/amounts.mjs';
 import { waterFill, FILL_CASES } from '../../../lib/nutrition/fill.mjs';
@@ -99,6 +99,30 @@ test('fuelPlan port agrees with lib/nutrition/fuel.mjs', () => {
   for (const dayType of ['bike', 'bikeLong', 'gym']) for (const minutes of [45, 60, 120, 135, 210, 330]) for (const weightKg of [null, 58.4, 70, 91.2]) {
     assert.deepEqual(JSON.parse(JSON.stringify(api.fuelPlan({ dayType, minutes, weightKg }))), JSON.parse(JSON.stringify(fuelPlan({ dayType, minutes, weightKg }))), `${dayType} ${minutes} ${weightKg}`);
   }
+});
+
+test('fuelPlan port agrees with lib/nutrition/fuel.mjs on the own-items mix (FUEL_CASES)', () => {
+  const { api } = run();
+  for (const c of FUEL_CASES) assert.deepEqual(plain(api.fuelPlan(c)), plain(fuelPlan(c)), JSON.stringify(c));
+});
+
+test('Avituallamiento with own fuel items: the piece mix, the gap, a fast item in the last hour, the bottle as alternative', () => {
+  const nutri = bake();
+  nutri.fuel.items = [{ n: 'Demo paste', c: 21, f: 0.3, k: 'fast' }, { n: 'Demo bar', c: 20, f: 2.7, k: 'slow' }];
+  const storage = memStorage({ 'hc.nutri.rideMin': JSON.stringify({ date: TODAY, type: 'bike', min: 90 }) });
+  const h = run({ nutri, storage, programmed: { kind: 'bike' } }).els['nutri-fuel-body'].innerHTML;
+  assert.match(h, /1 × Demo bar at min 30, then 2 × Demo paste from min 50, every ~20 min → 62 g/);
+  assert.match(h, /~30 g more/);
+  assert.match(h, /Last hour: 30–60 g of easy carbs, e\.g\. 2 × Demo paste \(42 g\)/);
+  assert.match(h, /Alternative: 3 bottles of 500 ml at 6–8 %/);
+  assert.doesNotMatch(h, /gels \(~25 g\)/, 'the generic gel / bar equivalents give way to the own items');
+  assert.match(h, /Not medical advice/);
+});
+
+test('Avituallamiento without own items keeps the generic gels / bars lines', () => {
+  const h = run({ programmed: { kind: 'bike' } }).els['nutri-fuel-body'].innerHTML;
+  assert.match(h, /gels \(~25 g\)/);
+  assert.doesNotMatch(h, /Alternative:/);
 });
 
 // a synthetic plan with whole-unit (ud) and manual flex parts, so the parity covers every branch

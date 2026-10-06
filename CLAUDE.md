@@ -801,6 +801,20 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   the next day). Rendered as a 3-step timeline (Antes → Durante → Después, `.fuel-steps`) with one key
   number per step in `--num` (carbs before, g/h during, carbs after). It says it is orientative, not
   medical advice.
+  **Own fuel items** (optional plan field `fuel.items: [{ name: {es, en} | string, carbs: <g per
+  piece, 0–100>, fat?: <g ≥ 0>, kind?: "fast" | "slow" }]`, validated by `npm run check`
+  (`validateFuelItems`, called from `validateNutrition`: a malformed item is an error naming the field),
+  baked localized as `NUTRI.fuel.items = [{n, c, f, k}]` only when present — absent = the generic
+  output): Durante then shows the PIECE MIX (`fuel.mjs` `ownDuring`, ported in nutri-day.js, pinned by
+  `FUEL_CASES`): eating starts at min 30 (`OWN_START_MIN`; the first half hour runs on the carbs eaten
+  before), pieces target = the during-rate midpoint × (minutes − 30) / 60; n whole pieces spread evenly
+  from min 30, a piece before half the ride = the first `slow` item, from half way the first `fast` one
+  (fallback: an item without kind, then the first); n (at most one piece per 10 min) = the total closest
+  to that target, never above the during range top; the line names the total, a "~X g more from a drink
+  or a banana" gap to the plan point (the day accounting is unchanged) and the 6–8 % bottle as the
+  alternative (the generic gel / bar equivalents and the bottles + gels mix are not shown then). Antes'
+  last hour names k fast pieces inside 30–60 g, closest to 45 g. Personal items live only in the
+  gitignored plan-data.json; the example plan has none (tests use synthetic items).
 - **Tablas = fixed reference values** — `lib/nutrition/reference.mjs` `buildReference(nut, {lang,
   words})`, server-rendered by `web/src/tabs/Tablas.astro` through `components/RefTable.astro` (no
   bake, no client script: `client/tablas.js`, `BreakfastTable.astro` and the DATA / EXTRAS /
