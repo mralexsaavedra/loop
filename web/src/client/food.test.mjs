@@ -238,6 +238,25 @@ test('a decimal comma is accepted; an amount the unit cannot take is not sent', 
   assert.equal(t.els['fa-msg'].textContent, esF.sheet.previewNone);
 });
 
+test('switching a product to servings sets the amount to 1; back to its unit sets the serving size', async () => {
+  const t = setup({ routes: BOOT, extraIds: ['fa-panel', 'fa-prev', 'fa-msg'] });
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'breakfast' }));
+  t.window.HCViews['food-add'].render();
+  t.fire('click', t.button({ 'data-food-act': 'pick', 'data-kind': 'product', 'data-id': '3' }));
+  assert.match(t.els['fa-panel'].innerHTML, /<option value="g" selected>g<\/option><option value="serving">/);
+  t.input('fa-amt', '25');
+  t.fire('change', t.input('fa-unit', 'serving'));
+  assert.equal(t.doc.getElementById('fa-amt').value, '1', '25 typed as grams never becomes 25 servings');
+  assert.match(text(t.els['fa-prev'].innerHTML), /149 kcal/);
+  t.input('fa-amt', '2');
+  t.fire('change', t.input('fa-unit', 'g'));
+  assert.equal(t.doc.getElementById('fa-amt').value, '40', 'back to grams = one serving in grams');
+  assert.match(text(t.els['fa-prev'].innerHTML), /149 kcal/);
+  t.fire('change', t.input('fa-unit', 'g'));
+  assert.equal(t.doc.getElementById('fa-amt').value, '40', 'the same unit again changes nothing');
+});
+
 test('a recipe entry is logged in servings; a quick entry sends only what the owner typed', async () => {
   const bodies = [];
   const routes = { ...BOOT, 'POST /api/food/log': (init) => { const b = JSON.parse(init.body); delete b.requestId; bodies.push(b); return json({ entry: { ...ENTRY, id: 60 + bodies.length }, totals: TOTALS1 }, 201); } };
