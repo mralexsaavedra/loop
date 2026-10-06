@@ -521,10 +521,10 @@ controls instead of the close button.
   name is a `npm run check` WARNING (the page then shows its key), a malformed one an error, and a test
   asserts every tracked ingredient has es + en names. This is shareable and is the
   one piece of the plan that goes public. It may hold MORE foods than any single plan uses — e.g. the
-  109 generic LOG-ONLY basics (`swap: false`: the first 25 — yogur natural, queso fresco / batido, pan de
+  107 generic LOG-ONLY basics (`swap: false`: the first 25 — yogur natural, queso fresco / batido, pan de
   barra / de molde, jamón cocido, tomate, lechuga, pepino, aguacate, nueces, almendras, cacahuetes,
   aceitunas, mantequilla, azúcar, café solo, bebida de avena, atún en aceite, sardinas, pechuga de pavo,
-  tortilla de trigo, cereales, galletas María, chocolate 70% —, cortado, lubina, and 82 everyday Spanish
+  tortilla de trigo, cereales, galletas María, chocolate 70% —, lubina, and 81 everyday Spanish
   foods added 2026-10-02: fish / seafood, meat / charcuterie, dairy, wholegrain carbs, veg, canned
   legumes, nuts, drinks, dishes / pastries) with average BEDCA values (kcal from the macros with EU
   factors 4/4/9, fibre 2, alcohol 7 — never BEDCA's own energy row; when two BEDCA entries of one food
@@ -709,9 +709,9 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   stays stored; the orphaned `hc.nutri.picks` of the removed choosable blocks is cleared on load). Each example covers ITS macro only (a muted note says so: the guide is orientative).
   **Extras card**: "~N kcal para extras hoy", a muted "Incluye café, tentempiés y pre/post-entreno"
   line, a muted hint with example costs computed from the food DB
-  (`EXTRAS_EXAMPLES` → `NUTRI.guide.extras`: un cortado ~19, un plátano ~106, un yogur ~79, un batido de
-  proteína (30 g) ~114 kcal — `cortado` is a tracked log-only basic: 30 ml espresso + 40 ml semi-skimmed
-  milk), "Repártelo antes y después de entrenar" on gym / bike day types, its P / C / G line; no item
+  (`EXTRAS_EXAMPLES` → `NUTRI.guide.extras`: un plátano ~106, un yogur ~79, un batido de proteína (30 g)
+  ~114 kcal; the generic coffee basics (cortado, café con leche) were dropped 2026-10-06: the owner logs
+  his coffees as his own recipes), "Repártelo antes y después de entrenar" on gym / bike day types, its P / C / G line; no item
   list, no selects. **Live link with Registrar** (LAN page, `window.HCFood.groupTotals()` = today's
   sums per group `{meals: {breakfast, lunch, dinner}, addon}`, null without the API): a main meal shows
   "✓ N kcal registradas" at ≥ 90 % of its kcal budget (`DONE_SHARE`), "en curso: N kcal" when partial;
@@ -726,7 +726,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   calls `HCNutri.refresh()`) and on goal / day type / ride changes; without the API: budgets only, no
   "+", no "Te queda". `NUTRI` = `{…, base: {<day>: {sl, fixed, flex}}, guide: {roles, defaults, oil,
   fallback, extras, done, covered}}`: a few KB on the example (budget: `lib/nutrition/today.test.mjs`,
-  8 KB); FOOD_BASICS carries `c`, `x` and the cortado (budget: `web/test/food-build.test.mjs`).
+  8 KB); FOOD_BASICS carries `c` and `x` (budget: `web/test/food-build.test.mjs`).
 - **Day-type detection** (`lib/nutrition/daytype.mjs` = the reference; nutri-day.js ports it over the
   baked `DETECT` and a test runs both over `DAYTYPE_CASES`): today's workouts from `SCORES.timeline`
   (same-day rows already merged per modality). Only real training counts (`DETECT`): gym / run ≥ 20 min

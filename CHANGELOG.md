@@ -4,6 +4,12 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-06 — food DB: drop the generic coffee basics
+
+- `cortado` and `cafeconleche` removed from `data/nutrition/ingredients.json` (107 log-only basics
+  left): the owner logs his coffees as his own server-side recipes. `cafe` and `leche` stay.
+- The cortado is also gone from the portion guide's Extras examples (plátano, yogur, batido remain).
+
 ## 2026-10-05 — food log: black coffee in ml
 
 - `cafe` (Café solo) in `data/nutrition/ingredients.json` loses its typical "cup" piece (50 ml), so
