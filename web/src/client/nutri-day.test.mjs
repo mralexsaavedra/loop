@@ -655,11 +655,12 @@ test('Plan de hoy is collapsed by default; its summary shows the plan total kcal
 /* ---------- Plan de hoy = the portion guide (lib/nutrition/guide.mjs, ported) ---------- */
 // planFor totals of the example plan [kcal, P, C, F, factor, remainder], re-pinned DELIBERATELY when the
 // portion guide replaced the menu: the automatic snack is gone, so a capped day's remainder is no longer
-// filled by a snack — the guide hands it to Extras (the guide's four meal groups add up to the meals target)
+// filled by a snack — the guide hands it to Extras (the guide's four meal groups add up to the meals target);
+// re-pinned when olive oil moved to ml (train day: 16 ml ≈ 132 kcal vs 15 g = 135 kcal)
 const PINNED_TOTALS = {
-  'maintain/rest': [2401, 139, 369, 44, 1.67, 99], 'maintain/gym': [2605, 150, 388, 52, 1.67, 445], 'maintain/bike': [2605, 150, 388, 52, 1.67, 465], 'maintain/bikeLong': [2605, 150, 388, 52, 1.67, 535],
-  'cut/rest': [2150, 136, 308, 44, 1.19, 0], 'cut/gym': [2605, 150, 388, 52, 1.67, 95], 'cut/bike': [2605, 150, 388, 52, 1.67, 465], 'cut/bikeLong': [2605, 150, 388, 52, 1.67, 535],
-  'bulk/rest': [2401, 139, 369, 44, 1.67, 399], 'bulk/gym': [2605, 150, 388, 52, 1.67, 745], 'bulk/bike': [2605, 150, 388, 52, 1.67, 765], 'bulk/bikeLong': [2605, 150, 388, 52, 1.67, 835],
+  'maintain/rest': [2401, 139, 369, 44, 1.67, 99], 'maintain/gym': [2602, 150, 388, 52, 1.67, 448], 'maintain/bike': [2602, 150, 388, 52, 1.67, 468], 'maintain/bikeLong': [2602, 150, 388, 52, 1.67, 538],
+  'cut/rest': [2150, 136, 308, 44, 1.19, 0], 'cut/gym': [2602, 150, 388, 52, 1.67, 98], 'cut/bike': [2602, 150, 388, 52, 1.67, 468], 'cut/bikeLong': [2602, 150, 388, 52, 1.67, 538],
+  'bulk/rest': [2401, 139, 369, 44, 1.67, 399], 'bulk/gym': [2602, 150, 388, 52, 1.67, 748], 'bulk/bike': [2602, 150, 388, 52, 1.67, 768], 'bulk/bikeLong': [2602, 150, 388, 52, 1.67, 838],
 };
 const cardsOf = (html) => [...html.matchAll(/<div class="meal (gd-meal|gd-extras)"[^>]*><div class="meal-top"><div class="meal-name">([^<]+)<\/div><div class="meal-kcal"><b>([\d,.]+)<\/b> kcal<\/div><\/div>/g)]
   .map((m) => ({ kind: m[1], name: m[2], kcal: Number(m[3].replace(/[,.]/g, '')) }));
@@ -790,7 +791,7 @@ test('gym day: the same four meal groups, bigger amounts where the plan grows, a
   assert.deepEqual(cardsOf(h).map((c) => c.name), ['Breakfast', 'Lunch', 'Dinner', 'Extras']);
   assert.match(sectionOf(h, 'Extras'), /Split it before and after training\./);
   assert.equal(selectedOf(h, 'breakfast.f'), 'b:aceiteoliva', 'no fat food at the gym-day breakfast: the fallback');
-  assert.match(sectionOf(h, 'Breakfast'), /<span class="gd-amt">\d½? tablespoons? \(~\d+ g\)<\/span>/, 'oil per tablespoon');
+  assert.match(sectionOf(h, 'Breakfast'), /<span class="gd-amt">~\d+ ml<\/span>/, 'olive oil in ml, no tablespoons');
   assert.doesNotMatch(h, /Post-workout<\/div>|Cooking oil/, 'no add-on rows: their kcal are in the Extras budget');
 });
 

@@ -1433,29 +1433,18 @@
     },
     "aceiteoliva": {
       "per": 100,
-      "unit": "g",
+      "unit": "ml",
       "cat": "fat",
       "verified": false,
       "name": {
         "es": "Aceite de oliva",
         "en": "Olive oil"
       },
-      "k": 900,
+      "note": "per 100 ml, from the previous per-100 g values (900 kcal, 100 g fat; no source id recorded) x density 0.916 g/ml",
+      "k": 824,
       "p": 0,
       "c": 0,
-      "g": 100,
-      "piece": {
-        "name": {
-          "es": "cucharada",
-          "en": "tablespoon"
-        },
-        "plural": {
-          "es": "cucharadas",
-          "en": "tablespoons"
-        },
-        "amt": 10,
-        "typical": true
-      }
+      "g": 91.6
     },
     "yogurnatural": {
       "per": 100,
