@@ -152,6 +152,50 @@
   }
 
   /* ---------- fuelling (port of lib/nutrition/fuel.mjs) ---------- */
+  var OWN_START_MIN = 30, OWN_MIN_EVERY = 10;
+  function fuelStep(v, s) { return Math.round(v / s) * s; }
+  function pickFuelItem(items, kind) {
+    var i = -1, j;
+    for (j = 0; j < items.length && i < 0; j++) if (items[j].k === kind) i = j;
+    for (j = 0; j < items.length && i < 0; j++) if (items[j].k == null) i = j;
+    return i < 0 ? 0 : i;
+  }
+  function ownDuring(items, min, gPerH, topG, planG, roundG) {
+    var eat = min - OWN_START_MIN;
+    if (eat <= 0) return null;
+    var targetG = fuelStep(((gPerH[0] + gPerH[1]) / 2) * eat / 60, roundG);
+    var slow = pickFuelItem(items, 'slow'), fast = pickFuelItem(items, 'fast');
+    var maxN = Math.max(1, Math.floor(eat / OWN_MIN_EVERY));
+    var best = null;
+    for (var n = 1; n <= maxN; n++) {
+      var seq = [], total = 0;
+      for (var j = 0; j < n; j++) {
+        var i = 2 * j * eat < (min - 2 * OWN_START_MIN) * n ? slow : fast;
+        seq.push(i);
+        total += items[i].c;
+      }
+      total = Math.round(total * 10) / 10;
+      if (total > topG) continue;
+      if (!best || Math.abs(total - targetG) < Math.abs(best.total - targetG)) best = { n: n, seq: seq, total: total };
+    }
+    if (!best) return null;
+    var every = eat / best.n, slots = [];
+    best.seq.forEach(function (i, j) {
+      var last = slots[slots.length - 1];
+      if (last && last.i === i) last.count++;
+      else slots.push({ i: i, count: 1, fromMin: Math.round(OWN_START_MIN + j * every), everyMin: Math.round(every) });
+    });
+    return { startMin: OWN_START_MIN, targetG: targetG, slots: slots, totalG: best.total, gapG: Math.max(0, fuelStep(planG - best.total, roundG)) };
+  }
+  function ownBefore(items, r) {
+    var i = pickFuelItem(items, 'fast'), c = items[i].c, mid = (r[0] + r[1]) / 2, best = null;
+    for (var k = 1; k * c <= r[1]; k++) {
+      var g = Math.round(k * c * 10) / 10;
+      if (g < r[0]) continue;
+      if (!best || Math.abs(g - mid) < Math.abs(best.g - mid)) best = { i: i, count: k, g: g };
+    }
+    return best;
+  }
   function fuelPlan(o) {
     if (!isBike(o.dayType)) return null;
     var F = N.fuel.rates, U = F.units;
@@ -164,7 +208,7 @@
     var planG = step(((gPerH[0] + gPerH[1]) / 2) * h, F.roundG);
     var bottleMid = (U.bottleG[0] + U.bottleG[1]) / 2;
     var bottles = Math.max(0, Math.min(Math.ceil(h), Math.floor(planG / bottleMid)));
-    return {
+    var out = {
       minutes: min,
       before: { hoursBefore: F.before.hoursBefore, gPerKg: F.before.gPerKg, carbsG: kg ? range(F.before.gPerKg, kg, F.roundG) : null, lastHourG: F.before.lastHourG },
       during: {
@@ -184,6 +228,12 @@
       after: { withinH: F.after.withinH, gPerKg: F.after.gPerKg, carbsG: kg ? range(F.after.gPerKg, kg, F.roundG) : null, proteinG: F.after.proteinG },
       kcal: planG * F.kcalPerG,
     };
+    var items = o.items;
+    if (items && items.length) {
+      out.during.own = ownDuring(items, min, gPerH, out.during.carbsG[1], planG, F.roundG);
+      out.before.own = ownBefore(items, F.before.lastHourG);
+    }
+    return out;
   }
 
   /* ---------- portion scaling (port of lib/nutrition/amounts.mjs, units.mjs fmtPieces, scale.mjs
@@ -466,7 +516,7 @@
   function current() { return planFor(N, state.goal, dayType(), rideMinutes()); }
   function fuelNow() {
     var w = N.weight;
-    return fuelPlan({ dayType: dayType(), minutes: rideMinutes(), weightKg: w ? w.kg : null });
+    return fuelPlan({ dayType: dayType(), minutes: rideMinutes(), weightKg: w ? w.kg : null, items: N.fuel.items || null });
   }
   function init() {
     save(KEY_OLD_PICKS, null); // a no-op once gone; save() wraps every storage access
@@ -756,17 +806,34 @@
     var nf = HC.nf;
     var keyBefore = b.carbsG ? b.carbsG[0] + '–' + b.carbsG[1] + ' g' : nf(b.gPerKg[0]) + '–' + nf(b.gPerKg[1]) + ' ' + F.perKg;
     var keyAfter = a.carbsG ? a.carbsG[0] + '–' + a.carbsG[1] + ' g' : nf(a.gPerKg[0]) + '–' + nf(a.gPerKg[1]) + ' ' + F.perKg;
+    // the owner's own fuel items (NUTRI.fuel.items) replace the generic gel / bar equivalents
+    var items = N.fuel.items || [], own = du.own, bo = b.own;
+    var lastHour = bo
+      ? format(F.lastHourOwn, { lo: b.lastHourG[0], hi: b.lastHourG[1], count: bo.count, name: items[bo.i].n, g: nf(bo.g) })
+      : format(F.lastHour, { lo: b.lastHourG[0], hi: b.lastHourG[1] });
+    var bLo = du.equiv.bottles[0], bHi = du.equiv.bottles[1];
+    var duringUnits;
+    if (own) {
+      var segs = own.slots.map(function (sl) {
+        return format(sl.count > 1 ? F.ownSegMany : F.ownSegOne, { count: sl.count, name: items[sl.i].n, from: sl.fromMin, every: sl.everyMin });
+      }).join(F.ownThen);
+      duringUnits = li(format(F.ownMix, { mix: segs, total: nf(own.totalG) })) +
+        li(format(F.ownStart, { start: own.startMin })) +
+        (own.gapG > 0 ? li(format(F.ownGap, { gap: own.gapG, plan: du.planG, bananaG: U.bananaG })) : '') +
+        li(format(F.ownAlt, { bottles: bLo === bHi ? String(bLo) : bLo + '–' + bHi, ml: U.bottleMl, pLo: U.bottlePct[0], pHi: U.bottlePct[1], gLo: U.bottleG[0], gHi: U.bottleG[1] }));
+    } else {
+      duringUnits = li(format(F.duringEquiv, { gels: du.equiv.gels, gelG: U.gelG, bananas: du.equiv.bananas, bananaG: U.bananaG, bars: du.equiv.bars, barG: U.barG, bLo: bLo, bHi: bHi, ml: U.bottleMl, pLo: U.bottlePct[0], pHi: U.bottlePct[1], gLo: U.bottleG[0], gHi: U.bottleG[1] })) +
+        li(format(F.duringMix, { bottles: du.mix.bottles, gels: du.mix.gels }));
+    }
     // Antes -> Durante -> Después as a 3-step timeline, one key number per step
     function step(key, title, num, items) {
       return '<li class="fuel-step fuel-step-' + key + '"><div class="fuel-step-head"><h3>' + esc(title) + '</h3><b class="fuel-key">' + esc(num) + '</b></div><ul>' + items + '</ul></li>';
     }
     host.innerHTML =
       '<ol class="fuel-steps">' +
-      step('before', F.before, keyBefore, li(before) + li(format(F.lastHour, { lo: b.lastHourG[0], hi: b.lastHourG[1] }))) +
+      step('before', F.before, keyBefore, li(before) + li(lastHour)) +
       step('during', F.during, rate + ' ' + F.perHour,
-      li(format(F.duringCarbs, { rate: rate, total: total })) +
-      li(format(F.duringEquiv, { gels: du.equiv.gels, gelG: U.gelG, bananas: du.equiv.bananas, bananaG: U.bananaG, bars: du.equiv.bars, barG: U.barG, bLo: du.equiv.bottles[0], bHi: du.equiv.bottles[1], ml: U.bottleMl, pLo: U.bottlePct[0], pHi: U.bottlePct[1], gLo: U.bottleG[0], gHi: U.bottleG[1] })) +
-      li(format(F.duringMix, { bottles: du.mix.bottles, gels: du.mix.gels })) +
+      li(format(F.duringCarbs, { rate: rate, total: total })) + duringUnits +
       li(format(F.fluids, { lo: kf(du.fluidsMl[0]), hi: kf(du.fluidsMl[1]), rLo: rates.fluidMlPerH[0], rHi: rates.fluidMlPerH[1] })) +
       li(format(F.sodium, { lo: kf(du.sodiumMg[0]), hi: kf(du.sodiumMg[1]), rLo: rates.sodiumMgPerH[0], rHi: rates.sodiumMgPerH[1] }))) +
       step('after', F.after, keyAfter, li(after)) +
