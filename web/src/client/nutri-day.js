@@ -20,7 +20,7 @@
  * - Plan: planFor / solveScale port lib/nutrition/scale.mjs over the baked models (parity test): the
  *   meals aim at target − ride fuel for the ride's minutes (a recorded ride's real minutes, else the
  *   picker, kept per date like the override, else the default). fuelPlan ports lib/nutrition/fuel.mjs.
- * - Plan de hoy = the portion guide (guideBudgets / exampleAmount / remaining / mealState / isCovered /
+ * - Plan de hoy = the portion guide (guideBudgets / exampleAmount / remaining / dayRemaining / capByDay / mealState / isCovered /
  *   roleOptions port lib/nutrition/guide.mjs, parity tests): ALWAYS breakfast, lunch, dinner + Extras.
  *   Each main meal's budget = the solved plan meals of its slot (a cooking-oil meal split between lunch
  *   and dinner, NUTRI.guide.oil); Extras = the meals target − the three.
@@ -28,7 +28,8 @@
  *   example food (a select of the basics of its categories + the owner's products, view time only) and
  *   the amount of it that supplies the macro; the picked examples persist per viewer (hc.nutri.guide =
  *   {picks: {<slot>.<role>: 'b:<key>' | 'p:<id>'}}, a preference, not daily). With the food log (LAN
- *   page: window.HCFood.groupTotals) each meal shows what is LEFT, a "+" logs the example amount
+ *   page: window.HCFood.groupTotals) each meal shows what is LEFT, capped by what the DAY still allows
+ *   ("Left today"; covered by the day at <= 10 % left), a "+" logs the example amount
  *   (window.HCFood.addGuide) and "Left today" closes the guide; without it, budgets only.
  * - Today's target is the ONE source for the rest of Nutrición: window.nutriTarget() hands the intake
  *   rings (client/intake.js) the MEALS target (on bike days the day target minus the ride fuel, with
@@ -419,6 +420,17 @@
   function isCovered(left, budget) {
     return !(budget > 0) || left <= G.covered * budget;
   }
+  function dayRemaining(total, groups, mains) { // lib/nutrition/guide.mjs dayRemaining ("Left today")
+    if (!groups) return null;
+    var all = zero4();
+    mains.forEach(function (sl) { addMac(all, groups.meals && groups.meals[sl]); });
+    addMac(all, groups.addon);
+    return remaining(total, all);
+  }
+  function capByDay(mealLeft, dayLeft, dayTotal) { // lib/nutrition/guide.mjs capByDay
+    if (!finite(dayLeft)) return { left: mealLeft, byDay: false };
+    return { left: Math.min(mealLeft, dayLeft), byDay: isCovered(dayLeft, dayTotal) };
+  }
   function fold(s) { // lib/nutrition/names.mjs foldName
     return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   }
@@ -619,11 +631,16 @@
   }
   // one macro row of a plate: what is left of the meal's grams (all of it without a log), one example
   // food (a select) and the amount of it that supplies that; covered when <= 10 % is left
-  function roleRowHtml(slot, role, budgetG, leftG, logged, o, day, canAdd) {
+  // With the food log the row is also capped by the DAY (capByDay over dayRemaining): never more than
+  // the day still allows, and covered by the day (no example, no "+") when the day has <= 10 % left.
+  function roleRowHtml(slot, role, budgetG, mealLeftG, logged, o, day, canAdd, dayCap) {
     var G2 = T.guide, mealName = T.plan.meals[slot];
     var head = '<div class="gd-top"><span class="gd-l">' + esc(G2.roles[role]) + '</span>';
     if (!(budgetG > 0)) return '<li class="gd-row">' + head + '<span class="gd-g">—</span></div></li>';
-    if (logged && isCovered(leftG, budgetG)) return '<li class="gd-row gd-done">' + head + '<span class="gd-ok">' + esc(G2.covered) + '</span></div></li>';
+    if (logged && isCovered(mealLeftG, budgetG)) return '<li class="gd-row gd-done">' + head + '<span class="gd-ok">' + esc(G2.covered) + '</span></div></li>';
+    var cap = dayCap ? capByDay(mealLeftG, dayCap.left[role], dayCap.total[role]) : { left: mealLeftG, byDay: false };
+    if (cap.byDay) return '<li class="gd-row gd-done gd-day">' + head + '<span class="gd-ok">' + esc(G2.coveredDay) + '</span></div></li>';
+    var leftG = cap.left;
     // "of 45 g" only once something is logged in this meal (before that, what is left IS the budget)
     head += '<span class="gd-g"><b>~' + esc(kf(leftG)) + '</b> g' + (logged && logged.k > 0 ? ' <span class="gd-of">' + esc(format(G2.of, { g: kf(budgetG) })) + '</span>' : '') + '</span></div>';
     var ex = exampleFor(slot, role, o, day);
@@ -646,24 +663,30 @@
   function suppText(s, withSlot) {
     return s.name + (s.dose ? ' ' + s.dose : '') + (withSlot ? ' (' + (T.plan.meals[s.meal] || s.meal) + ')' : '');
   }
-  function mealGuideHtml(slot, b, logged, opts, day, canAdd) {
+  function mealGuideHtml(slot, b, logged, opts, day, canAdd, dayCap) {
     var G2 = T.guide, st = mealState(b, logged), left = remaining(b, logged);
     var status = st === 'done' ? '<p class="gd-state gd-state-done">' + esc(format(G2.done, { k: kf(logged.k) })) + '</p>'
       : st === 'partial' ? '<p class="gd-state">' + esc(format(G2.partial, { k: kf(logged.k) })) + '</p>' : '';
-    var rows = roleRowHtml(slot, 'p', b.p, left.p, logged, opts.p, day, canAdd) +
-      roleRowHtml(slot, 'c', b.c, left.c, logged, opts.c, day, canAdd) +
+    var rows = roleRowHtml(slot, 'p', b.p, left.p, logged, opts.p, day, canAdd, dayCap) +
+      roleRowHtml(slot, 'c', b.c, left.c, logged, opts.c, day, canAdd, dayCap) +
       '<li class="gd-row gd-veg"><div class="gd-top"><span class="gd-l">' + esc(G2.roles.v) + '</span><span class="gd-free">' + esc(G2.free) + '</span></div></li>' +
-      roleRowHtml(slot, 'f', b.f, left.f, logged, opts.f, day, canAdd);
+      roleRowHtml(slot, 'f', b.f, left.f, logged, opts.f, day, canAdd, dayCap);
     var supps = (N.supplements || []).filter(function (s) { return s.meal === slot; }).map(function (s) { return suppLine(suppText(s, false)); }).join('');
     return '<div class="meal gd-meal" data-slot="' + esc(slot) + '"><div class="meal-top"><div class="meal-name">' + esc(T.plan.meals[slot]) + '</div>' +
       '<div class="meal-kcal"><b>' + esc(kf(b.k)) + '</b> kcal</div></div>' + status +
       '<ul class="gd-rows">' + rows + '</ul>' + pcfHtml(b) + supps + '</div>';
   }
-  function extrasHtml(B, logged, d) {
-    var G2 = T.guide, e = B.extras;
-    var budget = logged
-      ? format(G2.extrasLeft, { k: kf(remaining(e, logged).k), total: kf(e.k) })
-      : format(G2.extrasBudget, { k: kf(e.k) });
+  // Extras: with the food log, what is left of it capped by the day (covered by the day at <= 10 % of the
+  // day's kcal left); its P / C / G line then shows that capped remainder too.
+  function extrasHtml(B, logged, d, dayCap) {
+    var G2 = T.guide, e = B.extras, pcf = e, budget;
+    if (logged) {
+      var r = remaining(e, logged);
+      if (dayCap) MACS.forEach(function (m) { r[m] = capByDay(r[m], dayCap.left[m], dayCap.total[m]).left; });
+      pcf = r;
+      budget = dayCap && capByDay(r.k, dayCap.left.k, dayCap.total.k).byDay ? G2.coveredDay
+        : format(G2.extrasLeft, { k: kf(r.k), total: kf(e.k) });
+    } else budget = format(G2.extrasBudget, { k: kf(e.k) });
     var items = (G.extras || []).map(function (x) { return format(G2.extrasItem, { name: G2.extrasItems[x.id] || x.id, k: kf(x.k) }); });
     var mains = N.mainSlots || [];
     var supps = (N.supplements || []).filter(function (s) { return mains.indexOf(s.meal) < 0; }).map(function (s) { return suppLine(suppText(s, true)); }).join('');
@@ -674,7 +697,7 @@
       (items.length ? '<p class="gd-hint">' + esc(format(G2.extrasHint, { list: items.join(' · ') })) + '</p>' : '') +
       (d !== 'rest' ? '<p class="gd-hint">' + esc(G2.extrasSplit) + '</p>' : '') +
       (B.clamped ? '<p class="gd-hint">' + esc(G2.clamped) + '</p>' : '') +
-      pcfHtml(e) + supps + '</div>';
+      pcfHtml(pcf) + supps + '</div>';
   }
   function addMac(a, b) {
     MACS.forEach(function (m) { a[m] += b && finite(b[m]) ? b[m] : 0; });
@@ -692,13 +715,12 @@
     var prods = L ? foodHook('products') : null;
     var opts = {};
     ROLE_KEYS.forEach(function (r) { opts[r] = roleOptions(basicsList(), prods, r); });
-    var html = mains.map(function (slot) { return mealGuideHtml(slot, B.meals[slot], L ? L.meals[slot] || zero4() : null, opts, x.base, canAdd); }).join('');
-    html += extrasHtml(B, L ? L.addon || zero4() : null, dayType());
+    var dayLeft = dayRemaining(B.total, L, mains); // the "Left today" line; null without the food log
+    var dayCap = dayLeft ? { left: dayLeft, total: B.total } : null;
+    var html = mains.map(function (slot) { return mealGuideHtml(slot, B.meals[slot], L ? L.meals[slot] || zero4() : null, opts, x.base, canAdd, dayCap); }).join('');
+    html += extrasHtml(B, L ? L.addon || zero4() : null, dayType(), dayCap);
     if (L) {
-      var all = zero4();
-      mains.forEach(function (s) { addMac(all, L.meals[s]); });
-      addMac(all, L.addon);
-      var left = remaining(B.total, all), A = T.plan.macroAbbr;
+      var left = dayLeft, A = T.plan.macroAbbr;
       html += '<p class="gd-left"><span class="gd-left-lbl">' + esc(T.guide.left) + '</span> <b>' + esc(kf(left.k)) + '</b> kcal · ' +
         A.p + ' <b>' + left.p + '</b> · ' + A.c + ' <b>' + left.c + '</b> · ' + A.f + ' <b>' + left.f + '</b></p>';
     }
@@ -962,6 +984,8 @@
     remaining: remaining,
     mealState: mealState,
     isCovered: isCovered,
+    dayRemaining: dayRemaining,
+    capByDay: capByDay,
     roleOptions: roleOptions,
     LINE: LINE,
     setGuidePick: function (key, id) { return typeof key === 'string' && typeof id === 'string' ? setGuidePick(key, id) : false; },
