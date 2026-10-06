@@ -228,7 +228,7 @@ test('nutri-templates.mjs (Resumen de hoy / Plan de hoy / Avituallamiento) has i
     for (const k of ['k', 'fuel', 'total']) assert.match(dict.planLineBike, new RegExp('\\{' + k + '\\}'));
     const G = dict.guide;
     assert.deepEqual(Object.keys(G.roles), ['p', 'c', 'v', 'f']);
-    assert.deepEqual(Object.keys(G.extrasItems), ['cortado', 'fruit', 'yogurt', 'shake']);
+    assert.deepEqual(Object.keys(G.extrasItems), ['fruit', 'yogurt', 'shake']);
     assert.match(G.addAria, /\{amount\}[\s\S]*\{food\}[\s\S]*\{meal\}/);
     assert.match(G.pickAria, /\{role\}[\s\S]*\{meal\}/);
     assert.match(G.extrasLeft, /\{k\}[\s\S]*\{total\}/);
