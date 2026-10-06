@@ -4,6 +4,12 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-06 — food DB: olive oil in ml
+
+- Owner preference (like black coffee, 2026-10-05): olive oil is measured and logged in ml, not tablespoons.
+- `aceiteoliva` is now per 100 ml (824 kcal, 91.6 g fat = the per-100 g values × density 0.916 g/ml) with no
+  `piece`, so the food log, the portion guide and Tablas use ml; the example plan's oil amounts were converted (g ÷ 0.916).
+
 ## 2026-10-06 — Plan de hoy: rows capped by what the day still allows
 
 - Real case: 72.6 g fat logged vs a 65 g day target, yet Cena offered "Grasa ~11 g de 23" and a "+"

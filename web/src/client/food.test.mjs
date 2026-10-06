@@ -913,7 +913,7 @@ test('a basic with an invalid or absurd amount is not sent; the error lands unde
   await flush();
   openProducts(t);
   pickBasic(t, 'aceiteoliva');
-  t.input('fa-unit', 'g');
+  t.input('fa-unit', 'ml');
   t.input('fa-amt', 'mucho');
   t.fire('click', t.button({ 'data-food-act': 'save' }));
   await flush();
@@ -922,7 +922,7 @@ test('a basic with an invalid or absurd amount is not sent; the error lands unde
   t.input('fa-amt', '4000');
   t.fire('click', t.button({ 'data-food-act': 'save' }));
   await flush();
-  assert.equal(t.calls.filter((c) => c.key === 'POST /api/food/log').length, 0, '4 kg of olive oil (36,000 kcal) is over the quick-entry limit');
+  assert.equal(t.calls.filter((c) => c.key === 'POST /api/food/log').length, 0, '4 l of olive oil (~33,000 kcal) is over the quick-entry limit');
   assert.equal(t.els['fa-amt-err'].textContent, esF.fieldErrors.tooBig);
 });
 
