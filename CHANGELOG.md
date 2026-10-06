@@ -4,6 +4,16 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-06 — Plan de hoy: rows capped by what the day still allows
+
+- Real case: 72.6 g fat logged vs a 65 g day target, yet Cena offered "Grasa ~11 g de 23" and a "+"
+  tablespoon of olive oil; each meal only looked at its own budget.
+- `lib/nutrition/guide.mjs` `dayRemaining` (the "Te queda hoy" sum, now shared) + `capByDay`
+  (`DAYCAP_CASES`), ported in `web/src/client/nutri-day.js`: a macro row shows min(meal left, day
+  left); at ≤ 10 % of the day's meals target left it is "✓ cubierto (día)" / "✓ covered (day)" with no
+  example amount and no "+". Extras' kcal and P / C / G are capped likewise. Without the food API
+  nothing changes.
+
 ## 2026-10-06 — food DB: drop the generic coffee basics
 
 - `cortado` and `cafeconleche` removed from `data/nutrition/ingredients.json` (107 log-only basics
