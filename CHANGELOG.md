@@ -4,6 +4,18 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-06 — Avituallamiento in the owner's own fuel items
+
+- New optional plan field `fuel.items` (`{name, carbs per piece, fat?, kind?: fast | slow}`), validated
+  by `npm run check` and baked localized into `NUTRI.fuel.items` only when present.
+- On bike days Durante turns the during-ride carbs into whole pieces of those items: from min 30, slow
+  items in the first half and fast ones after, the count closest to rate × (minutes − 30), never above
+  the range top; it shows the total, the gap to the day's plan point and the 6–8 % bottle as an
+  alternative. Antes' last hour names fast pieces within 30–60 g. Reference `lib/nutrition/fuel.mjs`,
+  client port in `nutri-day.js`, parity over `FUEL_CASES`.
+- Without items the page is unchanged (generic gels / bars / bottles). Personal items stay in the
+  gitignored plan-data.json.
+
 ## 2026-10-06 — food DB: olive oil in ml
 
 - Owner preference (like black coffee, 2026-10-05): olive oil is measured and logged in ml, not tablespoons.
