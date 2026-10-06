@@ -471,7 +471,7 @@
       "recipe": [
         {
           "ing": "aceiteoliva",
-          "amt": 10
+          "amt": 11
         }
       ]
     },
@@ -727,7 +727,7 @@
           "parts": [
             {
               "ing": "aceiteoliva",
-              "amt": 15,
+              "amt": 16,
               "label": "Olive oil"
             }
           ]
@@ -830,7 +830,7 @@
           "parts": [
             {
               "ing": "aceiteoliva",
-              "amt": 11,
+              "amt": 12,
               "label": "Olive oil"
             }
           ]
@@ -841,7 +841,7 @@
   "extrasDisplay": [
     {
       "header": "Coffee & oil",
-      "headerNote": "Breakfast already includes its coffee; count the rest here. Oil ≈ 1 tablespoon.",
+      "headerNote": "Breakfast already includes its coffee; count the rest here. Oil ≈ 11 ml (1 tablespoon).",
       "items": [
         {
           "key": "cafe",

@@ -538,7 +538,7 @@ controls instead of the close button.
   g?, typical? }` — the food's natural piece, `amt` in the food's own unit (g / ml; a `ud` food's piece
   is its unit, amt 100, with `g` = its grams reference), `typical: true` = a typical weight (medium
   fruit, a tablespoon, an egg ~50 g), NOT a weighed label — a tablespoon's weight is PER FOOD (its own
-  `piece.amt`: olive oil 10 g, allioli / mayonesa 15 g); and `weighed: raw | dry |
+  `piece.amt`: allioli / mayonesa 15 g; olive oil has NO piece, it is per 100 ml and logged in ml); and `weighed: raw | dry |
   cooked` (how the plan weighs it: meat raw, rice / pasta / oats dry, potato / legumes cooked).
 - `data/nutrition/plan-data.json` (GITIGNORED, **personal** plan) — the owner's actual diet:
   `data`/`dayPlan`/`extras`/`extrasDisplay`/`quesoKeys`/`vegKeys`/`legumeKeys`/`legumePlate`/
@@ -695,8 +695,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   (carbs), Verdura "libre", Grasa ~Z g (fat); each macro row = ONE example food (a native `<select
   class="gd-pick">`, ≥ 44 px, aria-label "Ejemplo de Proteína para Comida") + the amount of that food
   that supplies the macro (`exampleAmount`: grams ÷ the food's macro per 100 of its amount scale, in its
-  natural unit — pieces with the grams reference for a countable food (`fmtPieces`), whole units, oil
-  per tablespoon, else g / ml on the 5 g grid —, never past its `maxAmt`: then "~150 g (máx.)" + "+
+  natural unit — pieces with the grams reference for a countable food (`fmtPieces`), whole units, a
+  tablespoon for a sauce with that piece, else g / ml (olive oil in ml) on the 5 g grid —, never past its `maxAmt`: then "~150 g (máx.)" + "+
   completa con otra fuente"). Options = every basic of the role's categories (`roleOptions`; protein:
   protein; carbs: carb + legume + fruit; fat: fat — log-only `swap: false` basics included) from
   FOOD_BASICS (the ONE food table, baked for the food log; each entry now carries `c` = category and `x`
@@ -806,8 +806,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   bake, no client script: `client/tablas.js`, `BreakfastTable.astro` and the DATA / EXTRAS /
   QUESO_KEYS / VEG_KEYS / FRUIT_SUMMARY / I18N_TABLAS globals are gone). Same sections / lists, NO
   portions: each food per its NATURAL unit (`refUnit`): a piece with its grams reference ("1 medium
-  banana (~120 g)", a typical weight tagged "typical weight"), oil per tablespoon, else "100 g" /
-  "100 ml" + how it is weighed ("100 g dry", "100 g raw"); a composite option = a group row + one row
+  banana (~120 g)", a typical weight tagged "typical weight"), a tablespoon sauce per tablespoon, else "100 g" /
+  "100 ml" (olive oil: "100 ml") + how it is weighed ("100 g dry", "100 g raw"); a composite option = a group row + one row
   per component food; a `manual` option = "1 serving (<its q>)". A list section with no rows (a plan whose list holds only the "none" option) is not
   rendered at all (no empty accordion). A carb list's train / rest tiers
   collapse to ONE table (no train / rest portion columns); same-named options collapse only when their
