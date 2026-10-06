@@ -772,7 +772,7 @@ test('rest day: Breakfast, Lunch, Dinner as plates by parts (protein / carbs / v
   assert.match(sectionOf(h, 'Breakfast'), /<span class="gd-amt">\d½? bread rolls \(~[\d.]+ g\)<\/span>/);
   const extras = sectionOf(h, 'Extras');
   assert.match(extras, new RegExp('<p class="gd-budget">~' + b.extras.k + ' kcal for extras today</p>'));
-  assert.match(extras, /For example: a cortado ~19 kcal · a banana ~106 kcal · a yogurt ~79 kcal · a protein shake \(30 g\) ~114 kcal\./);
+  assert.match(extras, /For example: a banana ~106 kcal · a yogurt ~79 kcal · a protein shake \(30 g\) ~114 kcal\./);
   assert.match(extras, /<p class="gd-hint">Covers coffee, snacks and pre \/ post-workout\.<\/p>/, 'what Extras holds');
   // the plan's cooking oil counts in lunch and dinner, not in Extras
   const noOil = guideBudgets(x, nutri.base.rest.sl, MAIN_SLOTS);
