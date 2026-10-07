@@ -11,7 +11,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(path.dirname(here), '.test-dist');
 
 // Measured 2026-10-07: example ≈ 76 KB of inline CSS after slimming (≈ 108 KB before). Margin for growth.
+// The budget counts the stylesheet only: the inlined @font-face fonts (base64) have their own budgets in
+// output-guard.test.mjs, so adding the text font (~35 KB of base64) does not eat the CSS margin.
 const CSS_BUDGET = 90_000;
+const FONT_FACE = /@font-face\{[^}]*\}/g;
 
 function inlineCss(html) {
   return [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]);
@@ -26,8 +29,10 @@ for (const fixture of ['en-example', 'es-personal']) {
     const css = blocks.join('');
     assert.ok(!css.includes('/*'), 'inline CSS still carries /* comments */');
     assert.ok(!/\n/.test(css), 'inline CSS still carries newlines');
-    assert.ok(css.length < CSS_BUDGET, `inline CSS is ${css.length} chars, budget ${CSS_BUDGET}`);
-    // The base64 numerals font survives intact.
+    const sheet = css.replace(FONT_FACE, '');
+    assert.ok(sheet.length < CSS_BUDGET, `inline CSS (fonts excluded) is ${sheet.length} chars, budget ${CSS_BUDGET}`);
+    // The base64 fonts (numerals + text) survive intact.
     assert.match(css, /@font-face\{font-family:"HC Num";src:url\(data:font\/woff2;base64,[A-Za-z0-9+/=]+\)/);
+    assert.match(css, /@font-face\{font-family:"HC Text";src:url\(data:font\/woff2;base64,[A-Za-z0-9+/=]+\)/);
   });
 }

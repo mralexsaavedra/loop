@@ -133,9 +133,19 @@ Taps open the **detail sheet** (see "Detail views" below), never a jump into ano
 work whatever `page.hideTabs` hides (core.js `jumpOr` stays as API but no card uses it any more).
 
 **Look & typography.** Dark, data-first design language: colour carries meaning, never decoration.
-All colours are tokens in `web/src/styles/tokens.css` (AA-checked ratios listed in its header):
-`--good`/`--mid`/`--low` = state, `--trend` = neutral data lines/sparklines, `--strain` = load,
-`--sleep` = sleep, `--accent` = ACTIONS only (buttons, links, active nav, focus). Layout: on wide
+All colours are tokens in `web/src/styles/tokens.css`; the palette (2026-10-07) is sampled from a
+reference fitness app: a blue-grey page gradient (`--ground-top` → `--ground-mid` → `--ground`), flat
+cards (`--card-bg` = `--surface`, no gradient, no shadow), nested tiles `--surface-2`, inset troughs
+`--rail`, dial / bar tracks `--track`, three text tiers (`--ink` white, `--muted`, `--faint`).
+`--good`/`--mid`/`--low` = state, `--up`/`--down` = better / worse deltas, `--trend` = neutral data
+lines/sparklines, `--strain` = load, `--sleep` = sleep, `--accent` = ACTIONS only (white: filled
+buttons with black `--on-accent` ink, active nav, focus), `--link` = inline text links (`.lnk`).
+The tokens.css header lists every text token's WCAG ratio on `--surface`, and
+`web/test/tokens-contrast.test.mjs` recomputes them (AA 4.5:1 on `--surface` and `--ground`). Two
+documented exceptions keep the reference value instead of shifting it: `--low` (3.89:1 on a card) is
+for large numbers, dials, bars and dots only, small red text uses `--low-ink`; on a nested tile
+(`--surface-2`) `--faint` and `--strain` are AA-large only, so small text there prefers `--muted`.
+Layout: on wide
 screens (>= 900 px) the background and the sticky nav bar stay full-bleed while the top bar, nav
 buttons, tab panels and footer are centred and capped at `--content-max` (1160 px); Nutrición's summary
 card turns into two columns (kcal dial | day type + macro bars) and Plan de hoy into a masonry-like
@@ -149,12 +159,23 @@ is `--fs-input` (16px), so iOS never zooms into a focused field — one `:is()` 
 that out-ranks the form-control classes (`web/test/mobile.test.mjs`). Small pills keep their look
 with a centred 44px `::before` hit band (the load dial's modality switch, `.dial-mod`). Nav tab icons are inline SVG line icons keyed by tab (`TAB_ICONS` in `web/layouts/Plan.astro`,
 same drawing as the day-type icons; the active tab paints its icon in `--accent`) — no emoji. Headings and
-labels are caps, semibold, `--label-track` (+0.08em). Numbers use `--num` = "HC Num", a
+labels (`h2`, the header kicker, dial labels, nav) are caps, bold (`--label-weight` 700), `--label-track`
+(+0.08em). Text uses `--sans` = "HC Text", a ~26 KB subset of **Inter 4.1 (variable, SIL OFL 1.1, no
+Reserved Font Name)**: Basic Latin + Latin-1 (every Spanish letter and sign) + the typographic signs the
+page prints, one code-point list in `web/src/fonts/text-font-ranges.mjs` that feeds both the subset and
+the `@font-face` `unicode-range` (emoji and ✓ fall back to the system sans); weight axis cut to 400–800
+(every weight the CSS uses), optical size pinned to 14, and NO `tnum` feature — body sets
+`tabular-nums` for the numerals, and Inter's tabular set also widens the hyphen, colon and space,
+which gaps running text, so text figures stay proportional and aligned numbers use `--num`. Rebuild it
+with `node scripts/subset-text-font.mjs path/to/InterVariable.ttf` (from the official
+`Inter-4.1.zip` release of rsms/inter; harfbuzz through the `subset-font` devDependency; the output is
+deterministic); licence in `web/src/fonts/OFL-Inter.txt`. The page calls it "HC Text" (like "HC
+Num") so a locally installed full Inter never mixes with the subset. Numbers use `--num` = "HC Num", a
 numerals-only subset (~1.5 KB: digits, + - , . % × h space) of **D-DIN Bold, SIL OFL 1.1**, inlined as
 a base64 `@font-face` by `web/layouts/Plan.astro` (`?inline` import) so the page stays one file with
 zero font requests. The OFL forbids the Reserved Font Name "D-DIN" on a modified version, so the
 subset is renamed; licence text in `web/src/fonts/OFL.txt`. Rebuild it with
-`python3 scripts/subset-num-font.py D-DIN-Bold.ttf` (needs `fonttools` + `brotli`); the output guard
-test pins that the committed woff2 is what gets inlined and stays under a 40 KB budget. Text stays
-the system sans stack (0 bytes). Never embed a commercial font or copy another product's name,
-logo, icons or exact brand hex values.
+`python3 scripts/subset-num-font.py D-DIN-Bold.ttf` (needs `fonttools` + `brotli`). The output guard
+test pins both `@font-face` rules (family, weight range, `unicode-range`), that each committed woff2 is
+what gets inlined, and the base64 budgets (numerals 40 KB, text 48 KB); the text font adds ~35 KB to
+the page. Never embed a commercial font or copy another product's name, logo or icons.
