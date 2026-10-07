@@ -51,6 +51,11 @@ import { es as esDate, en as enDate } from '../src/i18n/date-templates.mjs';
 // for a modified version; licence in src/fonts/OFL.txt, rebuild with scripts/subset-num-font.py).
 // `?inline` makes Vite hand back a base64 data: URL, so the page stays one self-contained file.
 import numFontUrl from '../src/fonts/hc-num-bold.woff2?inline';
+// Text font: "HC Text" = a ~26 KB subset of Inter (variable, weights 400-800, SIL OFL 1.1, no Reserved
+// Font Name; licence in src/fonts/OFL-Inter.txt, rebuild with scripts/subset-text-font.mjs), inlined the
+// same way. Its unicode-range comes from the one code-point list the subset script also reads.
+import textFontUrl from '../src/fonts/hc-text.woff2?inline';
+import { unicodeRange as textUnicodeRange } from '../src/fonts/text-font-ranges.mjs';
 import { jsonForScript } from '../../lib/serialize.mjs';
 import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB } from '../../lib/nav/tabs.mjs';
 import { hcConst } from '../../lib/stale.mjs';
@@ -93,6 +98,7 @@ if (!themeColor) throw new Error('tokens.css: --ground-top must be a #rrggbb col
 const navSource = `var NAV = ${jsonForScript({ tabs: TAB_KEYS, sectionTab: SECTION_TAB, detailTab: DETAIL_TAB, viewTab: VIEW_TAB })};\nvar HC_CONST = ${jsonForScript(hcConst())};\nvar I18N_SYNC = ${jsonForScript(syncT)};\nvar I18N_DATE = ${jsonForScript(dateT)};`;
 // unicode-range = exactly the subset's glyphs, so letters in a --num element fall back to --sans
 const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) format("woff2");font-weight:100 900;font-style:normal;font-display:swap;unicode-range:U+20,U+25,U+2B-2E,U+30-39,U+68,U+D7}`;
+const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) format("woff2");font-weight:400 800;font-style:normal;font-display:swap;unicode-range:${textUnicodeRange()}}`;
 ---
 
 <!DOCTYPE html>
@@ -103,7 +109,7 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content={themeColor} />
     <title>{title}</title>
-    <style is:inline set:html={numFontFace}></style>
+    <style is:inline set:html={numFontFace + textFontFace}></style>
   </head>
   <body>
     <div class="wrap">

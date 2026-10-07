@@ -164,7 +164,7 @@
   color: var(--lean);
 }
 .dlt.bad {
-  color: var(--fat);
+  color: var(--low-ink);
 }
 .dlt.flat {
   color: var(--muted);

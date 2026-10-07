@@ -45,7 +45,7 @@
 }
 .sc-arrow-below,
 .sc-arrow-detraining {
-  color: var(--fat);
+  color: var(--low-ink);
 }
 .sc-arrow-at,
 .sc-arrow-steady {
@@ -202,7 +202,7 @@
 }
 .dial-track {
   fill: none;
-  stroke: var(--line);
+  stroke: var(--track);
   stroke-width: 10;
   stroke-linecap: round;
 }
@@ -458,7 +458,7 @@
   height: 72px;
 }
 .hm-track {
-  fill: var(--line);
+  fill: var(--track);
 }
 .hm-band {
   fill: var(--trend);

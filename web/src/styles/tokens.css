@@ -1,61 +1,86 @@
 /* Design tokens — dark, data-first system (colour carries meaning, never decoration).
- * Score colours are OUR shifted hues (not any vendor's published values), each checked for
- * WCAG AA (>= 4.5:1) as text on --surface and --ground:
- *   ink 15.97 · muted 7.13 · faint 5.38 · good 9.91 · mid 10.92 · low 5.35 · trend 7.68 ·
- *   strain 5.98 · sleep 6.86 · accent 10.84 (on --surface; ratios on --ground are higher).
- * --accent is reserved for ACTIONS (buttons, links, active nav, focus); state uses
- * --good / --mid / --low; --trend is the neutral (unjudged) data colour for lines. */
+ * Palette (2026-10-07): sampled from a reference fitness app's lossless store screenshots — blue-grey
+ * page gradient, flat card / tile / inset levels, three text tiers, score hues. WCAG contrast as text
+ * on --surface (the card; on --ground every ratio is higher), recomputed by
+ * web/test/tokens-contrast.test.mjs:
+ *   ink 15.48 · muted 7.62 · faint 4.51 · good 9.61 · mid 11.57 · low-ink 5.10 · trend 6.47 ·
+ *   strain 4.66 · sleep 5.64 · up 10.38 · down 7.96 · link 7.04 · accent 15.48 · low 3.89 (large only).
+ * AA exceptions, kept on purpose and documented rather than shifted:
+ *   - --low (#ff0026) is 3.89 on --surface: large numbers, dials, bars and dots only (AA large /
+ *     non-text >= 3:1); small red text uses --low-ink.
+ *   - on the nested tile (--surface-2) --faint is 4.11 and --strain 4.24: captions / labels on a tile
+ *     are AA large only; prefer --muted for small text there.
+ * --accent is reserved for ACTIONS (buttons, active nav, focus): white, like the reference's primary
+ * buttons (white fill, black ink); --link = inline text links. State uses --good / --mid / --low;
+ * --trend is the neutral (unjudged) data colour for lines; --up / --down = better / worse deltas. */
 
 :root {
   /* dark native controls (select popups, scrollbars, autofill); layouts/Plan.astro also declares
      <meta name="color-scheme" content="dark"> and a theme-color = --ground-top (the top of the page) */
   color-scheme: dark;
-  --ground: #0e1317;
-  --ground-top: #1a2328;
-  --surface: #151b20;
-  --surface-2: #1b232a;
-  --ink: #f2f6f8;
-  --muted: #9aa8b3;
-  --faint: #84919c;
-  --line: #25303a;
-  --line-soft: #1c252d;
+  /* page: vertical blue-grey gradient --ground-top → --ground-mid → --ground (body, below) */
+  --ground: #111619;
+  --ground-mid: #151a1e;
+  --ground-top: #283037;
+  /* levels: card (L1) → nested tile (L2); --rail = inset troughs (segmented controls), darker than the page */
+  --surface: #202528;
+  --surface-2: #282c2f;
+  --rail: #090c0d;
+  /* text tiers */
+  --ink: #ffffff;
+  --muted: #b5b6b6;
+  --faint: #888b8d;
+  --line: #2a2f33;
+  --line-soft: #21252b;
+  /* unfilled dial / bar track */
+  --track: #353c40;
+  /* bottom / top nav bar (rgba(var(--nav-rgb), a), base.css) */
+  --nav-rgb: 26, 30, 34;
   /* state */
-  --good: #2fe06a;
-  --mid: #f5c83a;
-  --low: #ff4d5e;
+  --good: #19ec06;
+  --mid: #ffde00;
+  --low: #ff0026;
+  --low-ink: #ff5972;
+  /* deltas: better / worse than the baseline */
+  --up: #00f19f;
+  --down: #ffa722;
   /* data */
-  --trend: #6fb3e8;
-  --sleep: #86a7bf;
+  --trend: #67aee6;
+  --sleep: #7ba1bb;
   /* action */
-  --accent: #1ee8a0;
-  --accent-rgb: 30, 232, 160;
-  --accent-dim: #17b37c;
-  --accent-soft: #0c2a21;
-  --accent-ink: #7af2c6;
-  --on-accent: #03140d;
-  --on-strain: #04121f;
-  --rail: #10161a;
-  --strain: #2a9df4;
-  --strain-rgb: 42, 157, 244;
-  --strain-soft: #0d2233;
-  --strain-ink: #8dc8f7;
-  --tip-ink: #a6ecd2;
+  --accent: #ffffff;
+  --accent-rgb: 255, 255, 255;
+  --accent-dim: #b5b6b6;
+  --accent-soft: var(--surface-2);
+  --accent-ink: #ffffff;
+  --on-accent: #000000;
+  --link: #60b5ff;
+  --on-strain: #000000;
+  --strain: #0093e7;
+  --strain-rgb: 0, 147, 231;
+  --strain-soft: #1a394a;
+  --strain-ink: #80c9f3;
+  --tip-ink: #b5b6b6;
+  /* tinted backgrounds = the state hue at ~15% over --surface */
   --lean: var(--good);
-  --lean-bg: #0f2a1a;
+  --lean-bg: #1f4123;
   --mod: var(--mid);
-  --mod-bg: #2a2410;
+  --mod-bg: #3f3f22;
   --fat: var(--low);
-  --fat-bg: #2c1519;
+  --fat-bg: #441f28;
   --glow: 0 0 0 1px rgba(var(--accent-rgb), 0.14), 0 8px 30px -12px rgba(var(--accent-rgb), 0.45);
-  --card-bg: linear-gradient(180deg, var(--surface-2), var(--surface) 70%);
-  --card-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 14px 30px -24px rgba(0, 0, 0, 0.95);
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* cards are flat: one fill, no gradient, no shadow (the shadow token stays for the rules that list it) */
+  --card-bg: var(--surface);
+  --card-shadow: 0 0 #0000;
+  /* text: "HC Text" = a Latin + Spanish subset of Inter (variable 400-800, SIL OFL 1.1), inlined by
+   * layouts/Plan.astro; anything outside the subset (emoji, ✓) falls back to the system sans. */
+  --sans: "HC Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   /* numbers: "HC Num" = numerals-only subset of D-DIN Bold (SIL OFL 1.1, renamed as the OFL
    * requires for a modified version; inlined by layouts/Plan.astro). Letters fall back to --sans. */
-  --num: "HC Num", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  /* labels: caps, semibold, tracked */
+  --num: "HC Num", "HC Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* labels: caps, bold, tracked (section heads, dial labels, nav) */
   --label-track: 0.08em;
-  --label-weight: 650;
+  --label-weight: 700;
   /* layout: the widest the page content grows on a wide screen (the background stays full-bleed) */
   --content-max: 1160px;
   /* dials */
@@ -114,6 +139,6 @@ body {
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
   padding-bottom: calc(80px + env(safe-area-inset-bottom));
-  background-image: linear-gradient(180deg, var(--ground-top) 0, var(--ground) 560px);
+  background-image: linear-gradient(180deg, var(--ground-top) 0, var(--ground-mid) 640px, var(--ground) 1100px);
   background-repeat: no-repeat;
 }

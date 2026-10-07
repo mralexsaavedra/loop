@@ -151,7 +151,7 @@ tr.ref-sub td:first-child {
 }
 .tier.fat {
   background: var(--fat-bg);
-  color: var(--fat);
+  color: var(--low-ink);
 }
 .dot {
   width: 9px;
