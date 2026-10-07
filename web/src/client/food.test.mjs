@@ -103,7 +103,7 @@ test('no food API (artifact, file://, example build): everything stays hidden, n
   assert.equal(t.els['food-log'].innerHTML, '');
   assert.equal(t.window.foodTotals(), null);
   assert.equal(t.window.HCViews, undefined, 'the add sheet is registered only when the server answers');
-  assert.deepEqual(t.hooks, ['intake'], 'only the intake rings re-render (the Apple Health day, now that the API is known absent)');
+  assert.deepEqual(t.hooks, ['nutri'], 'Resumen de hoy re-renders (it refreshes the rings itself): the dial + rings fall back to the Apple Health day, now that the API is known absent');
 });
 
 test('HCFood.pending(): true while the boot request is in flight, false once it answers or fails; each re-renders the rings', async () => {
