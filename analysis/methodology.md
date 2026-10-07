@@ -67,10 +67,17 @@ Never absolute — always relative to **goal + trend**:
 
 ## 6. Report structure
 
-Each report (`analysis/reports/YYYY-MM-DD.md`) contains:
-1. **Snapshot** — current metrics vs baseline vs last report.
-2. **Trends** — weight, training, recovery (with the rolling-average numbers).
-3. **Nutrition assessment** — only if food data exists; otherwise state the gap.
+Each report (`analysis/reports/YYYY-MM-DD.md`) is written in **Spanish** (the owner's language),
+opens with a short "why now / what changed since the last report" paragraph, and contains:
+
+0. **Data freshness & limits** — a table with the newest date of every source used
+   (`_meta.json`, each CSV, `foodlog-daily.meta.json`, `settings.json` `fetchedAt`) and what is
+   missing or partial. Read first: it bounds every conclusion below.
+1. **Snapshot** — current metrics vs baseline vs last report, and vs the live goal / target weight.
+2. **Trends** — weight / body comp, nutrition (only if food data exists; otherwise state the gap),
+   recovery, training load by modality, upcoming events (with the rolling-average numbers).
+3. **Follow-up of previous actions** — each action of the previous report with its status
+   (done / partial / not followed / owner's decision), backed by data.
 4. **2–4 actions** — concrete, prioritized, sustainable.
 5. **Disclaimer.**
 
