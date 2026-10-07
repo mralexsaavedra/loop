@@ -290,7 +290,10 @@ test('detail-templates.mjs (detail sheet) has identical key trees in es/en, no e
     for (const [k, ph] of [['latestLbl', 'date'], ['staleNote', 'date'], ['chartAria', 'from'], ['calAria', 'month']]) assert.match(dict[k], new RegExp(`\\{${ph}\\}`), `${locale}.${k}`);
     for (const k of ['monitor', 'iqr']) for (const ph of ['lo', 'hi', 'median', 'unit']) assert.match(dict.bands[k], new RegExp(`\\{${ph}\\}`), `${locale}.bands.${k}`);
   }
-  assert.equal(esDetail.ranges.d365, '1 año');
+  assert.deepEqual(Object.keys(enDetail.ranges), ['w', 'm', 'm6', 'y'], 'the W / M / 6M / 1Y trend toggle');
+  assert.equal(esDetail.ranges.w, 'S');
+  assert.equal(esDetail.rangesLong.y, '1 año');
+  for (const d of [esDetail, enDetail]) assert.match(d.trend.since, /\{date\}/);
 });
 
 test('date-templates.mjs (HC.fmtDate names) has identical key trees in es/en, 7 Monday-first weekdays and 12 months', () => {

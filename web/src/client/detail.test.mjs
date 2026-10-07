@@ -223,21 +223,73 @@ test('Enter or Space on a card opener opens its view', () => {
   assert.equal(s.api.state().key, 'weight');
 });
 
-test('range switch: 30 d / 90 d / 1 yr, the pressed button follows, the chart spans that many days ending at the viewer\'s today', () => {
+test('range switch: W / M / 6M / 1Y, opens on M; the pressed button follows, the chart spans that many days ending at the viewer\'s today', () => {
   const s = setup();
   s.api.open('steps');
-  assert.match(s.host.innerHTML, /data-range="30" aria-pressed="true"/, 'opens on 30 days');
-  s.click(act('range', { 'data-range': '90' }));
+  assert.match(s.host.innerHTML, /data-range="30" aria-pressed="true" aria-label="Month \(30 days\)">M</, 'opens on the month');
+  for (const [r, lbl] of [['7', 'W'], ['182', '6M'], ['365', '1Y']]) assert.match(s.host.innerHTML, new RegExp(`data-range="${r}" aria-pressed="false"[^>]*>${lbl}<`));
+  s.click(act('range', { 'data-range': '7' }));
   const html = s.host.innerHTML;
-  assert.match(html, /data-range="90" aria-pressed="true"/);
+  assert.match(html, /data-range="7" aria-pressed="true"/);
   assert.match(html, /data-range="30" aria-pressed="false"/);
   assert.match(html, /<div class="dt-ax"><span>[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}<\/span>/, 'date axis written with HC.fmtDate');
   const m = DEMO.metrics.steps;
-  const from = addDays(NOW, -89);
+  const from = addDays(NOW, -6);
   const bars = (html.match(/class="dt-bar/g) || []).length;
   let expected = 0;
-  for (let i = 0; i < 90; i++) { const v = valueOn(m, addDays(from, i)); if (v != null && v > 0) expected++; }
+  for (let i = 0; i < 7; i++) { const v = valueOn(m, addDays(from, i)); if (v != null && v > 0) expected++; }
   assert.equal(bars, expected, 'one bar per day with data, none for a missing day');
+  s.click(act('range', { 'data-range': '13' }));
+  assert.match(s.host.innerHTML, /data-range="30" aria-pressed="true"/, 'an unknown range falls back to the month');
+});
+
+test('W / M / 6M windowing: the period average, the delta vs the previous period, clamping to the data\'s first day', () => {
+  // a synthetic signal: 20 days of 50 then 10 days of 60, lower is better (like RHR)
+  const start = addDays(NOW, -29);
+  const v = Array.from({ length: 30 }, (_, i) => (i < 20 ? 50 : 60));
+  v[25] = null; // a missing day is skipped, never 0
+  const detail = { asOf: NOW, days: 365, metrics: { rhr: { kind: 'signal', dir: -1, dec: 0, start, v } }, sessions: [] };
+  const s = setup({ detail });
+  const P = (days) => JSON.parse(JSON.stringify(s.api.periodStats('rhr', NOW, days)));
+  const w = P(7);
+  assert.deepEqual([w.from, w.to, w.clamped, w.avg, w.n], [addDays(NOW, -6), NOW, false, 60, 6]);
+  assert.equal(w.prev, (4 * 50 + 3 * 60) / 7, 'the 7 days before the week');
+  assert.ok(Math.abs(w.pct - 100 * (60 - w.prev) / w.prev) < 1e-9);
+  assert.equal(w.tone, 'bad', 'higher RHR is worse');
+  const m = P(30);
+  assert.deepEqual([m.from, m.clamped, m.prev, m.delta], [start, false, null, null], 'the previous month is outside the data: no delta');
+  const m6 = P(182);
+  assert.deepEqual([m6.from, m6.clamped, m6.n], [start, true, 29], 'six months clamp to the first day');
+  s.api.open('rhr');
+  s.click(act('range', { 'data-range': '182' }));
+  const html = s.host.innerHTML;
+  assert.match(html, /data-range="182" aria-pressed="true"/, 'the toggle stays, clamped');
+  assert.match(html, new RegExp(`<span class="dt-pill dt-pill-none">Data since ${format(enDate.dayTpl, { weekday: '[A-Z][a-z]{2}', day: '\\d+', month: '[A-Z][a-z]{2}' })}</span>`));
+  assert.equal((html.match(/class="dt-pt/g) || []).length, 29, 'the chart starts at the first day');
+  s.click(act('range', { 'data-range': '7' }));
+  assert.match(s.host.innerHTML, /<span class="dt-trend-lbl">Average<\/span><div class="dt-trend-row"><b class="dt-trend-num">60<\/b><small>bpm<\/small><span class="dt-pill dt-pill-bad">▲ \d+% vs prior week<\/span>/);
+});
+
+test('trend view: a daily total skips today (still filling up); recovery deltas are in sd; a tiny change is neutral (•)', () => {
+  const start = addDays(NOW, -13);
+  const detail = {
+    asOf: NOW, days: 365, sessions: [],
+    metrics: {
+      steps: { kind: 'total', dir: 1, dec: 0, start, v: Array.from({ length: 14 }, (_, i) => (i === 13 ? 100 : 8000)) },
+      recovery: { kind: 'recovery', dir: 1, dec: 2, cut: 1.2, cutTrend: 0.5, start, v: Array.from({ length: 14 }, (_, i) => (i < 7 ? 0 : 0.5)), t7: Array(14).fill(null) },
+    },
+  };
+  const s = setup({ detail });
+  const st = JSON.parse(JSON.stringify(s.api.periodStats('steps', NOW, 7)));
+  assert.deepEqual([st.avg, st.n, st.prev, st.flat, st.tone], [8000, 6, 8000, true, 'normal'], 'today\'s 100 so far is left out');
+  s.api.open('steps');
+  s.click(act('range', { 'data-range': '7' }));
+  assert.match(s.host.innerHTML, /<span class="dt-pill dt-pill-normal">• 0% vs prior week<\/span>/);
+  const rec = JSON.parse(JSON.stringify(s.api.periodStats('recovery', NOW, 7)));
+  assert.deepEqual([rec.avg, rec.prev, rec.delta, rec.pct, rec.tone], [0.5, 0, 0.5, null, 'good']);
+  s.api.open('recovery');
+  s.click(act('range', { 'data-range': '7' }));
+  assert.match(s.host.innerHTML, /<b class="dt-trend-num">\+0\.5<\/b><small>SD<\/small><span class="dt-pill dt-pill-good">▲ \+0\.5 SD vs prior week<\/span>/);
 });
 
 test('missing days are gaps, never zero: no point, no bar, an empty calendar cell and "no data" in the day detail', () => {

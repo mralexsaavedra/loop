@@ -136,6 +136,57 @@ html.dt-lock body {
   color: var(--on-accent);
 }
 
+/* the trend view above the chart: AVERAGE + the period's mean + a delta pill (left), W · M · 6M · 1Y
+   (right; wraps under it on a narrow sheet) */
+.dt-period {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+.dt-period .dt-range button {
+  min-width: 44px;
+  padding: 0 var(--sp-3);
+}
+.dt-trend-lbl {
+  display: block;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.dt-trend-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-3);
+}
+.dt-trend-num {
+  font-family: var(--num);
+  font-size: var(--fs-4xl);
+  line-height: 1.1;
+}
+.dt-trend-row small {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.dt-pill {
+  padding: 2px var(--sp-3);
+  border-radius: var(--r-xs);
+  background: var(--rail);
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+}
+.dt-pill-good {
+  color: var(--up);
+}
+.dt-pill-bad {
+  color: var(--down);
+}
+
 /* chart */
 .dt-fig {
   background: var(--card-bg);
