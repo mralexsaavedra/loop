@@ -5,10 +5,14 @@
  * PreToolUse guard — enforces the CLAUDE.md HARD RULE: "Never commit raw health data."
  *
  * The rule used to live only in the assistant's memory. This hook makes it
- * mechanical: it inspects every Bash command before it runs and BLOCKS the two
- * ways personal health data could slip past .gitignore —
- *   1) `git add -f/--force` (or `git stage -f`) of a gitignored path, and
- *   2) un-ignoring a personal-data path by editing .gitignore from the shell.
+ * mechanical: it inspects every Bash command and every Edit / Write / MultiEdit
+ * before it runs and BLOCKS the ways personal health data could slip past
+ * .gitignore —
+ *   1) `git add -f/--force` (or `git stage -f`) of a gitignored path,
+ *   2) un-ignoring a personal-data path by editing .gitignore from the shell, and
+ *   3) an Edit / Write / MultiEdit of any .gitignore that removes an ignore
+ *      pattern or adds a `!` negation that would un-ignore a currently ignored
+ *      path (replayed against git in a scratch repo; adding patterns is fine).
  *
  * In this repo gitignored = personal by definition, so (1) asks git itself:
  * every pathspec of a force-add is resolved against the effective cwd (the
@@ -407,6 +411,168 @@ function checkShellGitignore(command) {
   }
 }
 
+// --- Edit / Write / MultiEdit on a .gitignore ------------------------------------
+
+/** The file content after the tool call, or null when the edit would not apply. */
+function contentAfter(toolName, input, before) {
+  const applyEdit = (text, e) => {
+    if (!e || typeof e.old_string !== 'string' || typeof e.new_string !== 'string') return null;
+    if (e.old_string === '' || !text.includes(e.old_string)) return null; // the tool itself fails
+    return e.replace_all ? text.split(e.old_string).join(e.new_string) : text.replace(e.old_string, () => e.new_string);
+  };
+  if (toolName === 'Write') return typeof input.content === 'string' ? input.content : null;
+  if (toolName === 'Edit') return applyEdit(before, input);
+  if (toolName === 'MultiEdit') {
+    if (!Array.isArray(input.edits)) return null;
+    let text = before;
+    for (const e of input.edits) {
+      text = applyEdit(text, e);
+      if (text === null) return null;
+    }
+    return text;
+  }
+  return null;
+}
+
+/** Pattern lines of a .gitignore (no blanks, no comments). */
+function patternLines(text) {
+  return text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith('#'));
+}
+
+/** Lines in `a` missing from `b`, counted as a multiset. */
+function missingLines(a, b) {
+  const counts = new Map();
+  for (const l of b) counts.set(l, (counts.get(l) || 0) + 1);
+  const out = [];
+  for (const l of a) {
+    const n = counts.get(l) || 0;
+    if (n > 0) counts.set(l, n - 1);
+    else out.push(l);
+  }
+  return out;
+}
+
+const nulSplit = (s) => s.split('\0').filter(Boolean);
+
+/**
+ * Paths that are ignored today (by a .gitignore) and would stop being ignored
+ * with `newContent` written to `file`. null = git could not answer.
+ */
+function wouldUnignore(file, newContent) {
+  const dir = path.dirname(file);
+  if (!fs.existsSync(dir)) return []; // a brand-new directory holds nothing ignored yet
+  const top = git(dir, ['rev-parse', '--show-toplevel']);
+  if (top.error || top.status !== 0) return null;
+  const root = top.stdout.trim();
+  const relDir = normalize(path.relative(root, dir)) || '.';
+  if (relDir.startsWith('..')) return [];
+
+  // Untracked ignored paths under the edited file's directory (ignored
+  // directories collapsed to `dir/`), kept only when a .gitignore ignores them
+  // (info/exclude and the global excludes file are not affected by the edit).
+  const ls = git(root, ['ls-files', '-z', '-o', '-i', '--exclude-standard', '--directory', '--', relDir]);
+  if (ls.error || ls.status !== 0) return null;
+  const listed = nulSplit(ls.stdout);
+  if (!listed.length) return [];
+  const verbose = spawnSync('git', ['-C', root, 'check-ignore', '-v', '-z', '--stdin'], {
+    input: listed.join('\0') + '\0',
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (verbose.error || (verbose.status !== 0 && verbose.status !== 1)) return null;
+  const fields = verbose.stdout.split('\0');
+  const atRisk = [];
+  for (let i = 0; i + 3 < fields.length; i += 4) {
+    const [source, , pattern, pathname] = fields.slice(i, i + 4);
+    if (path.basename(source) === '.gitignore' && !pattern.startsWith('!')) atRisk.push(pathname);
+  }
+  if (!atRisk.length) return [];
+
+  // Replay the ignore rules in a scratch repo: every .gitignore of the repo,
+  // the edited one replaced by its new content, and empty stand-ins for the
+  // at-risk paths. Anything git no longer reports as ignored is un-ignored.
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'guard-gitignore-'));
+  try {
+    const init = spawnSync('git', ['init', '-q', scratch], { encoding: 'utf8' });
+    if (init.error || init.status !== 0) return null;
+    const ignores = git(root, ['ls-files', '-z', '-c', '-o', '--exclude-standard', '--', ':(glob)**/.gitignore']);
+    if (ignores.error || ignores.status !== 0) return null;
+    for (const rel of nulSplit(ignores.stdout)) {
+      const dest = path.join(scratch, rel);
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.copyFileSync(path.join(root, rel), dest);
+    }
+    const editedDest = path.join(scratch, path.relative(root, file));
+    fs.mkdirSync(path.dirname(editedDest), { recursive: true });
+    fs.writeFileSync(editedDest, newContent);
+    for (const rel of atRisk) {
+      const dest = path.join(scratch, rel);
+      if (rel.endsWith('/')) fs.mkdirSync(dest, { recursive: true });
+      else {
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.writeFileSync(dest, '');
+      }
+    }
+    const check = spawnSync('git', ['-C', scratch, 'check-ignore', '-z', '--stdin'], {
+      input: atRisk.join('\0') + '\0',
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    if (check.error || (check.status !== 0 && check.status !== 1)) return null;
+    const stillIgnored = new Set(nulSplit(check.stdout).map((p) => p.replace(/\/+$/, '')));
+    return atRisk.filter((p) => !stillIgnored.has(p.replace(/\/+$/, '')));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+function checkGitignoreEdit(toolName, input, baseCwd) {
+  if (typeof input.file_path !== 'string' || !input.file_path) return;
+  const file = path.resolve(baseCwd, input.file_path);
+  if (path.basename(file) !== '.gitignore') return;
+  let before = '';
+  try {
+    before = fs.readFileSync(file, 'utf8');
+  } catch {
+    before = '';
+  }
+  const after = contentAfter(toolName, input, before);
+  if (after === null) return;
+  const oldLines = patternLines(before);
+  const newLines = patternLines(after);
+
+  const removed = missingLines(oldLines, newLines).filter((l) => !l.startsWith('!'));
+  if (removed.length) {
+    block(
+      'Detected a .gitignore edit that removes ignore pattern(s):\n' +
+        removed.map((l) => `  - ${l}`).join('\n') +
+        '\nAdding patterns is fine; removing one could expose personal data.'
+    );
+  }
+
+  const unignored = wouldUnignore(file, after);
+  if (unignored === null) {
+    // git unavailable: static check of the added negations.
+    const added = missingLines(newLines, oldLines).filter((l) => l.startsWith('!'));
+    const risky = added.filter((l) => {
+      const p = normalize(l.slice(1).replace(/^\//, ''));
+      return !ALLOWED.some((a) => p.endsWith(a)) && PERSONAL.some((f) => p.includes(f) || f.startsWith(p.replace(/\/?\*?$/, '') + '/'));
+    });
+    if (risky.length) {
+      block('Detected a .gitignore negation that could un-ignore personal data:\n' + risky.map((l) => `  - ${l}`).join('\n'));
+    }
+  } else if (unignored.length) {
+    block(
+      'Detected a .gitignore edit that would un-ignore currently ignored (personal) path(s):\n' +
+        unignored.slice(0, 20).map((p) => `  - ${p}`).join('\n') +
+        (unignored.length > 20 ? `\n  … and ${unignored.length - 20} more` : '')
+    );
+  }
+}
+
 // --- main ----------------------------------------------------------------------
 
 function readPayload() {
@@ -435,6 +601,8 @@ function main() {
     if (typeof command !== 'string' || !command) process.exit(0);
     checkForceAdds(command, baseCwd);
     checkShellGitignore(command);
+  } else if (['Edit', 'Write', 'MultiEdit'].includes(payload.tool_name)) {
+    checkGitignoreEdit(payload.tool_name, input, baseCwd);
   }
   process.exit(0);
 }

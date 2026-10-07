@@ -241,6 +241,114 @@ test('an exception name never cancels a personal path in a .gitignore rewrite', 
   assertBlocked(runHook("sed -i '/data\\/profile\\//d;/sync-profile.js/d' .gitignore"), 'sed + exception');
 });
 
+// --- Edit / Write / MultiEdit on .gitignore -------------------------------------
+
+function runTool(tool_name, tool_input, { env } = {}) {
+  const payload = JSON.stringify({ tool_name, tool_input, cwd: repo });
+  return spawnSync(process.execPath, [HOOK], { input: payload, encoding: 'utf8', env: env || process.env });
+}
+const gitignorePath = () => path.join(repo, '.gitignore');
+const currentGitignore = () => fs.readFileSync(gitignorePath(), 'utf8');
+
+test('blocks an Edit that removes an ignore pattern', () => {
+  const res = runTool('Edit', {
+    file_path: gitignorePath(),
+    old_string: 'data/nutrition/foodlog-daily.csv\n',
+    new_string: '',
+  });
+  assertBlocked(res, 'remove pattern');
+});
+
+test('blocks an Edit that adds a negation un-ignoring an ignored file', () => {
+  const res = runTool('Edit', {
+    file_path: gitignorePath(),
+    old_string: '!data/gear/.gitkeep\n',
+    new_string: '!data/gear/.gitkeep\n!data/gear/*.pdf\n',
+  });
+  assertBlocked(res, 'negation');
+});
+
+test('blocks an Edit with a relative file_path (resolved against cwd)', () => {
+  const res = runTool('Edit', { file_path: '.gitignore', old_string: 'knowledge/*\n', new_string: '' });
+  assertBlocked(res, 'relative path');
+});
+
+test('allows an Edit that adds a new ignore pattern', () => {
+  const res = runTool('Edit', {
+    file_path: gitignorePath(),
+    old_string: 'data/gear/*\n',
+    new_string: 'data/gear/*\ndata/new-personal/\n',
+  });
+  assertAllowed(res, 'add pattern');
+});
+
+test('allows an Edit that adds a negation matching no ignored file', () => {
+  const res = runTool('Edit', {
+    file_path: gitignorePath(),
+    old_string: '!data/profile/sync-settings.test.js\n',
+    new_string: '!data/profile/sync-settings.test.js\n!data/profile/sync-goals.js\n',
+  });
+  assertAllowed(res, 'harmless negation');
+});
+
+test('allows an Edit that removes a negation or changes a comment', () => {
+  assertAllowed(
+    runTool('Edit', { file_path: gitignorePath(), old_string: '!data/gear/.gitkeep\n', new_string: '' }),
+    'remove negation'
+  );
+  assertAllowed(
+    runTool('Edit', {
+      file_path: gitignorePath(),
+      old_string: '# OS / tooling noise\n',
+      new_string: '# OS and tooling noise\n',
+    }),
+    'comment'
+  );
+});
+
+test('blocks a Write of .gitignore that drops a pattern, allows one that only adds', () => {
+  const old = currentGitignore();
+  assertBlocked(
+    runTool('Write', { file_path: gitignorePath(), content: old.replace('data/gear/*\n', '') }),
+    'write drop'
+  );
+  assertAllowed(runTool('Write', { file_path: gitignorePath(), content: old + '\nscratch/\n' }), 'write add');
+});
+
+test('blocks a MultiEdit where one edit removes a pattern', () => {
+  const res = runTool('MultiEdit', {
+    file_path: gitignorePath(),
+    edits: [
+      { old_string: '# OS / tooling noise\n', new_string: '# OS and tooling noise\n' },
+      { old_string: 'profile/profile.json\n', new_string: '' },
+    ],
+  });
+  assertBlocked(res, 'multiedit');
+});
+
+test('blocks a Write of a nested .gitignore that re-includes an ignored file', () => {
+  const res = runTool('Write', { file_path: path.join(repo, 'data/weight/.gitignore'), content: '!weight-log.md\n' });
+  assertBlocked(res, 'nested');
+});
+
+test('allows Edit / Write on files other than .gitignore', () => {
+  assertAllowed(runTool('Write', { file_path: path.join(repo, 'notes.md'), content: '!data/gear/*.pdf\n' }), 'notes');
+  assertAllowed(
+    runTool('Edit', { file_path: path.join(repo, 'README.md'), old_string: 'synthetic', new_string: 'x' }),
+    'readme'
+  );
+});
+
+test('falls back to a static negation check when git is unavailable', () => {
+  const env = { ...process.env, PATH: '' };
+  const res = runTool(
+    'Edit',
+    { file_path: gitignorePath(), old_string: '!data/gear/.gitkeep\n', new_string: '!data/gear/.gitkeep\n!data/gear/*.pdf\n' },
+    { env }
+  );
+  assertBlocked(res, 'fallback negation');
+});
+
 test('malformed hook payload fails open (never blocks)', () => {
   const res = spawnSync(process.execPath, [HOOK], { input: 'not json', encoding: 'utf8' });
   assert.equal(res.status, 0);
