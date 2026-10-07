@@ -129,10 +129,12 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   ~1 h), `bike` (a ride ~2 h), `bikeLong` (> 2.5 h); `maintain`, `cut`, `bulk`. Plan schema (all
   optional, validated by `validateTargets` inside `validateNutrition`): `targets.byGoal[goal][dayType]
   = { kcal, p, f }`; carbs are the REMAINDER ((kcal − 4p − 9f) / 4, never typed; a cell whose protein
-  + fat exceed kcal is an error). A missing cell falls back to `DEFAULT_BY_GOAL` (the owner-approved
-  numbers: maintain 2500 / 3050 / 3550 / 4200 kcal with 150 P / 60 F; cut 2150 / 2700 / 3550 / 4200
-  with 160 / 55; bulk 2800 / 3350 / 3850 / 4500 with 150 / 70 — rest / gym / bike / bikeLong), so an
-  old plan keeps working. Default goal = `page.goal` (else maintain). `targets.train` / `targets.rest`
+  + fat exceed kcal is an error). A missing cell falls back to `DEFAULT_BY_GOAL`, a generic EXAMPLE seed
+  for new users (a 70 kg reference adult per `analysis/methodology.md` §2: maintain 2300 / 2700 / 3100 /
+  3600 kcal with 125 P / 65 F; cut 1950 / 2350 / 3100 / 3600 with 140 / 55, ≈ −15 % on rest and gym,
+  ride days kept fuelled; bulk 2600 / 3000 / 3400 / 3900 with 125 / 70, +300 kcal — rest / gym / bike /
+  bikeLong; the example plan copies it), so an old plan keeps working. Your own `plan-data.json`
+  `targets.byGoal` overrides it cell by cell; set all twelve cells once you know your TDEE. Default goal = `page.goal` (else maintain). `targets.train` / `targets.rest`
   are read by nothing. Likewise
   `extrasDisplay`, `indulgeKeys`, `alcoholKeys`, `mealReplaceKeys` and `page.notes['registro.*']` /
   `page.offPlanPlaceholder` are IGNORED legacy keys: accepted, never an error, and `npm run check`
