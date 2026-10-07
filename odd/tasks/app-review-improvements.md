@@ -33,7 +33,7 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 - [x] T3 Remove day-builder leftovers + single `targetFor` (route: delegated writer — 2+ non-trivial files)
 - [x] T5 Archive migration scripts (route: delegated writer; parent fixed 2 stale comments inline)
 - [x] T9 Late-night entry default (route: delegated writer)
-- [ ] T10 Minify inline CSS
+- [x] T10 Minify inline CSS (route: delegated writer)
 - [ ] T8 Missing tests
 - [ ] T7 Split food.js
 - [ ] T6 CLAUDE.md restructure
@@ -50,6 +50,8 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 
 - T9: `LATE_NIGHT_HOUR = 4` in slots.mjs baked as `FOOD_CONST.lateNightHour`; before 04:00 Registrar opens on yesterday (auto view, expires at 04:00 on visibility), guessMeal → dinner; today-only hooks untouched. RED 3 fails → GREEN 75/75; `npm test` 1550/1550 (writer); parent re-ran food.test 75/75.
 
+- T10: `slimStyle` (esbuild css, whitespace only) applied by an `astro:build:done` integration; CSS 105.7k → 75.9k chars; personal page 528/149 KB → 497/140 KB (raw/gzip); deterministic (cmp identical). RED 3 fails → GREEN 30/30; `npm test` 1553/1553 (writer); parent re-ran css-slim test.
+
 ## Slices (stacked to main)
 
 - Slice 1 `feat/app-review-improvements`: d5c781a (T1), c8fbafb (T3).
@@ -59,4 +61,4 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 
 ## Next step
 
-T10 (minify inline CSS).
+Slice 2 complete → T2 on a new stacked branch.

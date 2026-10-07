@@ -9,13 +9,24 @@ function stripComments(css) {
   return css.replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
-function normalizeSelector(sel) {
+// The built page's CSS is whitespace-minified (slimStyle), which also writes `.a>.b` for `.a > .b` and
+// `[type=radio]` for `[type="radio"]`: both pairs are the same selector, so both collapse to one form.
+// Idempotent, so it also canonicalizes keys of the checked-in fixture (written before slimming).
+export function canonicalSelector(sel) {
   return sel
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase()
-    .replace(/::/g, ':') // CSS2 (`:before`) and CSS3 (`::before`) pseudo-element syntax are equivalent
-    .replace(/\s*,\s*/g, ', '); // `a,b` and `a,\n  b` are the same selector list
+    .replace(/\s*([>+~])\s*/g, '$1') // `.a > .b` and `.a>.b` are the same combinator
+    .replace(/\[([^\]=\s]+)([~|^$*]?=)"([-\w]+)"\]/g, '[$1$2$3]'); // `[a="x"]` = `[a=x]` for an identifier value
+}
+
+function normalizeSelector(sel) {
+  return canonicalSelector(
+    sel
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase()
+      .replace(/::/g, ':') // CSS2 (`:before`) and CSS3 (`::before`) pseudo-element syntax are equivalent
+      .replace(/\s*,\s*/g, ', '), // `a,b` and `a,\n  b` are the same selector list
+  );
 }
 
 function normalizeMedia(media) {
