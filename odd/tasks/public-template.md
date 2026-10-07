@@ -23,7 +23,7 @@ owner-specific coach agents, `odd/` internal notes, owner-only CLAUDE.md section
 ## Checklist
 
 - [x] T1 Hyprogram sync out of git (gitignored local dir, still runnable by the owner) + generic `DEFAULT_BY_GOAL` (route: delegated writer)
-- [ ] T2 Coach agents as templates: owner sources / gear / program from a gitignored config (route: delegated writer)
+- [x] T2 Coach agents as templates: owner sources / gear / program from a gitignored config (route: delegated writer)
 - [ ] T3 Cleanup: `odd/` gitignored, owner-only CLAUDE.md sections to a local file, README tiers + Engram link + notes (route: delegated writer)
 - [ ] T4 `/setup` skill: guided install by tier (route: delegated writer)
 - [ ] T5 Final check: gitleaks over full history + fresh-clone `npm ci && build:example && test` (route: delegated verifier)
@@ -41,7 +41,17 @@ owner-specific coach agents, `odd/` internal notes, owner-only CLAUDE.md section
   Pending for the owner after merge: crontab still calls `scripts/sync-hyprogram.mjs` (point it at
   `local/hyprogram/sync-hyprogram.mjs`); `profile/about-me.md` names the old path; the shared coach
   rules (all three agents) still name the `.env.hyprogram` file — T2.
+- T2 (route: delegated writer; trigger: 2+ non-trivial files). `29bb153` refactor(agents): the three coaches
+  read the gitignored `profile/coaches.md` first (tracked template `profile/coaches.example.md`: `## Common`
+  language / jurisdiction / labels + one section per coach: sources, commercial ties, FTP stance, gear
+  manuals, program pointers, evidence base, practitioners, jurisdiction rules); missing → say so, evidence +
+  user data only. Every removed owner fact moved verbatim into the owner's untracked
+  `profile/coaches.md` in the main clone (ignored after merge). Shared span renamed "User facts", still
+  byte-identical. RED observed (4/5 new assertions failing), then GREEN: hook tests 67/67, `npm run check`
+  0, `npm test` 1617 pass / 0 fail / 5 skip (no personal data in the worktree).
+  Out of scope, left as is: `lib/profile/profile.test.mjs` and `scripts/plan-web-config.test.mjs` use the
+  owner's device names as test fixtures (Garmin Edge 540, SEM 42 manual paths).
 
 ## Next step
 
-T2.
+T3.
