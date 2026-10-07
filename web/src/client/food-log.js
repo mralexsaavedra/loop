@@ -310,7 +310,12 @@
         else if (stale) loadLog();
       });
     }
-  }, function () { bootDone(); /* no food API here: every host stays hidden, the rings use Apple Health */ });
+  }, function () {
+    // no food API here: every host stays hidden; the dial, bars and rings fall back to the Apple Health
+    // day (HCNutri.refresh re-renders Resumen de hoy, which refreshes the rings itself)
+    S.boot = false;
+    refreshDependents();
+  });
 
   /* ---------- Plan de hoy's portion guide (nutri-day.js) ---------- */
   function zero4() { return { k: 0, p: 0, c: 0, f: 0 }; }

@@ -26,11 +26,12 @@ function fixedDate(iso) {
 
 // nutriTarget = today's target (client/nutri-day.js); with it the page also has HCNutri.targetFor
 // (that date's target), here by default the same target unless the test passes its own.
-function run({ latest, today, locale = 'en', nutriTarget = null, targetFor, foodTotals = null, hcFood = null }) {
+function run({ latest, today, locale = 'en', nutriTarget = null, targetFor, foodTotals = null, hcFood = null, nutriRefresh = null }) {
   const doc = new StubDocument();
   const host = doc.el('intake');
   const window = nutriTarget ? { nutriTarget } : {};
   if (targetFor !== false && (nutriTarget || targetFor)) window.HCNutri = { targetFor: targetFor || (() => nutriTarget()) };
+  if (nutriRefresh) window.HCNutri = { ...(window.HCNutri || {}), refresh: () => nutriRefresh(window) };
   if (foodTotals) window.foodTotals = foodTotals;
   if (hcFood) window.HCFood = hcFood;
   // fake timers: the boot grace period is scheduled, never waited for
@@ -336,6 +337,24 @@ test('LAN page, products answered but today\'s log read failed (or not back yet)
   assert.equal(host.hidden, true);
   assert.equal(host.innerHTML, '');
   assert.deepEqual(asked, [], 'no past day either until today\'s log is in');
+});
+
+test('one shared boot wait: window.intakeWaiting() follows the rings; at load and when the grace ends Resumen de hoy re-renders too', () => {
+  const st = { boot: 'pending' };
+  const refreshed = [];
+  // HCNutri.refresh re-renders Resumen de hoy, which re-renders the rings itself (refreshDependents)
+  const nutriRefresh = (w) => { refreshed.push(w.intakeWaiting()); w.intakeRefresh(); };
+  const { host, window, timers } = run({ latest: AH, today: '2030-01-10', foodTotals: () => null, hcFood: bootFood(st), nutriTarget: () => TARGET.train, nutriRefresh });
+  assert.deepEqual(refreshed, [true], 'at load, so the dial drops the Apple Health day before the first paint');
+  assert.equal(host.hidden, true);
+  timers[0].fn();
+  assert.deepEqual(refreshed, [true, false], 'the grace end re-renders the dial too (one timer for both)');
+  assert.equal(window.intakeWaiting(), false);
+  assert.equal(host.hidden, false);
+  const ok = { boot: 'ok', log: true };
+  const lan = run({ latest: AH, today: '2030-01-10', foodTotals: () => null, hcFood: bootFood(ok) });
+  assert.equal(lan.window.intakeWaiting(), false, 'answered: no wait');
+  assert.equal(lan.timers.length, 0);
 });
 
 test('static page (no HCFood at all): the Apple Health day immediately, no grace timer', () => {
