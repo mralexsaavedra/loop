@@ -139,7 +139,7 @@ owns the URL). On load: a visible tab hash opens that tab; no hash, a hidden or 
 the default tab (the one the server rendered) and the URL is replaced to match; a sheet deep link is
 left to detail.js and its HOST tab is shown underneath (`DETAIL_TAB` / `VIEW_TAB` in
 `lib/nav/tabs.mjs`, baked in `NAV`: Salud metrics → `health`, `workouts` / `load-*` → `entreno`,
-`food-add` → `nutricion`, `profile` → none = the default tab; a test pins every `DETAIL_KEYS` key).
+`food-add` → `nutricion`, `hoy-session` / `tonight` / `dash-edit` → `home`, `profile` → none = the default tab; a test pins every `DETAIL_KEYS` key).
 `hashchange` to a visible tab hash switches tab; a sheet, hidden or unknown hash switches nothing, so
 it never fights detail.js's popstate. Every history / location access is in a try/catch (a sandboxed
 frame still switches tabs). `window.HCNav.hash()` = the current tab's hash, read by detail.js. NO

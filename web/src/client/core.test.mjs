@@ -491,7 +491,7 @@ test('load with a hidden or unknown tab hash falls back to the default visible t
 test('a detail deep link opens its host tab underneath and leaves the URL to detail.js', () => {
   const cases = [
     ['#detail/sleep', 'health'], ['#detail/weight/2026-09-01', 'health'], ['#detail/load-run', 'entreno'],
-    ['#detail/workouts/2026-09-30', 'entreno'], ['#food-add', 'nutricion'], ['#profile', 'home'],
+    ['#detail/workouts/2026-09-30', 'entreno'], ['#food-add', 'nutricion'], ['#profile', 'home'], ['#tonight', 'home'], ['#dash-edit', 'home'],
     ['#detail/nope', 'home'], ['#detail/constructor', 'home'],
   ];
   for (const [hash, tab] of cases) {
