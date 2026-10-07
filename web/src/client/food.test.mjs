@@ -13,8 +13,8 @@ import { es as esF, en as enF } from '../i18n/food-templates.mjs';
 import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 import { FOODLOG_CASES, runCase, FOOD_MEALS, FOOD_STORES, FOOD_UNITS, FOOD_LIMITS, BASIC_CASES, runBasicCase } from '../../../lib/nutrition/foodlog.mjs';
 import { buildBasics } from '../../../lib/nutrition/basics.mjs';
-import { MEAL_GROUPS, MAIN_SLOTS, ADDON_GROUP, ADDON_SLOT } from '../../../lib/nutrition/slots.mjs';
-const FOOD_CONST = { meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS, limits: FOOD_LIMITS, groups: MEAL_GROUPS, mainSlots: MAIN_SLOTS, addonGroup: ADDON_GROUP, addonSlot: ADDON_SLOT };
+import { MEAL_GROUPS, MAIN_SLOTS, ADDON_GROUP, ADDON_SLOT, LATE_NIGHT_HOUR } from '../../../lib/nutrition/slots.mjs';
+const FOOD_CONST = { meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS, limits: FOOD_LIMITS, groups: MEAL_GROUPS, mainSlots: MAIN_SLOTS, addonGroup: ADDON_GROUP, addonSlot: ADDON_SLOT, lateNightHour: LATE_NIGHT_HOUR };
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'food.js'), 'utf8');
@@ -1538,4 +1538,85 @@ test('parseNum takes a trailing kg on a kg field (the target weight), never on a
   assert.equal(F.parseNum('80kg', ['kg']), 80);
   assert.ok(Number.isNaN(F.parseNum('80 kg', ['g'])));
   assert.equal(F.parseNum('kg', ['kg']), null);
+});
+
+/* ---------- late night: before LATE_NIGHT_HOUR the evening still belongs to the day before ---------- */
+const sheetMeal = (t) => {
+  t.fire('click', t.button({ 'data-food-act': 'add' }));
+  return /<option value="(\w+)" selected>/.exec(t.window.HCViews['food-add'].render().body)[1];
+};
+
+test('late night: the lib cutoff is 04:00', () => {
+  assert.equal(LATE_NIGHT_HOUR, 4);
+});
+
+for (const time of ['00:30:00', '03:59:00']) {
+  test(`late night (${time}): the navigator opens on yesterday, "Hoy" shows, the sheet guesses dinner and logs to yesterday`, async () => {
+    let posted;
+    const saved = { ...YENTRY, id: 93, label: 'Cena', kcal: 500 };
+    const routes = { ...NAV, 'POST /api/food/log': (init) => { posted = JSON.parse(init.body); return json({ entry: saved, totals: { ...YTOTALS, kcal: 1300, count: 2 } }, 201); } };
+    const t = setup({ routes, time, extraIds: ['fa-panel', 'fa-prev', 'fa-msg'] });
+    await flush();
+    assert.equal(t.els['food-day-label'].textContent, 'mié 9 ene');
+    assert.equal(t.els['food-day-today'].hidden, false, 'the "back to today" button is offered');
+    assert.equal(t.els['food-day-next'].disabled, false);
+    assert.match(t.els['food-log'].innerHTML, /Pizza/);
+    assert.equal(t.F.state().log.date, TODAY, 'today\'s log is still loaded for the today-only contracts');
+    assert.equal(t.window.foodTotals().date, TODAY);
+    assert.equal(sheetMeal(t), 'dinner');
+    t.fire('click', t.button({ 'data-food-act': 'tab', 'data-tab': 'quick' }));
+    t.input('fa-label', 'Cena');
+    t.input('fa-kcal', '500');
+    t.fire('click', t.button({ 'data-food-act': 'save' }));
+    await flush();
+    assert.equal(posted.date, YDAY, 'a sheet opened on yesterday logs to yesterday');
+    assert.equal(posted.meal, 'dinner');
+    t.fire('click', t.els['food-day-today']);
+    await flush();
+    assert.equal(t.els['food-day-label'].textContent, 'Hoy');
+    assert.equal(t.els['food-day-today'].hidden, true);
+    assert.match(t.els['food-log'].innerHTML, /Yogur natural/);
+  });
+}
+
+test('late night: from 04:00 the navigator opens on today and the sheet guesses breakfast; 23:00 is today + dinner', async () => {
+  const t = setup({ routes: NAV, time: '04:00:00' });
+  await flush();
+  assert.equal(t.els['food-day-label'].textContent, 'Hoy');
+  assert.equal(t.els['food-day-today'].hidden, true);
+  assert.equal(sheetMeal(t), 'breakfast');
+  const n = setup({ routes: NAV, time: '23:00:00' });
+  await flush();
+  assert.equal(n.els['food-day-label'].textContent, 'Hoy');
+  assert.equal(sheetMeal(n), 'dinner');
+});
+
+test('late night: a viewer on "today" who comes back after midnight lands on the day before; back after 04:00 returns to today', async () => {
+  const NEXT = '2030-01-11';
+  const routes = { ...NAV, [`GET /api/food/log?date=${NEXT}`]: json({ date: NEXT, entries: [], totals: { ...TOTALS1, kcal: 0, count: 0 } }) };
+  const t = setup({ routes, time: '23:00:00' });
+  await flush();
+  t.ctx.Date = fixedDate(NEXT, '00:30:00');
+  t.doc.hidden = false;
+  t.fire('visibilitychange', t.doc);
+  await flush();
+  assert.equal(t.els['food-day-label'].textContent, 'jue 10 ene', 'still on the evening being logged');
+  assert.match(t.els['food-log'].innerHTML, /Yogur natural/);
+  assert.equal(t.window.foodTotals(), null, 'today (the new day) has nothing logged yet');
+  assert.equal(t.F.state().log.date, NEXT);
+  t.ctx.Date = fixedDate(NEXT, '08:00:00');
+  t.fire('visibilitychange', t.doc);
+  await flush();
+  assert.equal(t.els['food-day-label'].textContent, 'Hoy', 'the automatic late-night view expires at 04:00');
+
+  // a day the owner picked by hand is never moved
+  const p = setup({ routes: NAV, time: '00:30:00' });
+  await flush();
+  p.fire('click', p.els['food-day-prev']);
+  await flush();
+  p.ctx.Date = fixedDate(TODAY, '08:00:00');
+  p.doc.hidden = false;
+  p.fire('visibilitychange', p.doc);
+  await flush();
+  assert.equal(p.els['food-day-label'].textContent, 'mar 8 ene');
 });

@@ -49,3 +49,17 @@ test('every client script gets smaller and still parses', () => {
     assert.doesNotThrow(() => new vm.Script(a), `${f}: output does not parse`);
   }
 });
+
+test('slimStyle strips comments and whitespace, keeps every declaration as written', async () => {
+  const { slimStyle } = await import('./slim-script.mjs');
+  const src = '/* tokens */\n:root {\n  --ground-top: #1a2328; /* page top */\n}\na::before,\nb { background: transparent; color: rgba(0, 0, 0, 0.5); }\n@media (min-width: 900px) {\n  .x { content: "é → ✓"; }\n}\n';
+  const out = slimStyle(src);
+  assert.ok(!out.includes('/*'));
+  assert.ok(!out.includes('\n'));
+  assert.match(out, /--ground-top: #1a2328/);
+  assert.match(out, /a::before,b\{/); // no ::before → :before rewrite (syntax untouched)
+  assert.match(out, /background:transparent/); // not rewritten to `0 0`
+  assert.match(out, /rgba\(0,0,0,0\.5\)|rgba\(0, 0, 0, 0\.5\)/); // not turned into hex
+  assert.match(out, /content:"é → ✓"/); // non-ASCII stays literal
+  assert.equal(slimStyle(src), out); // deterministic
+});

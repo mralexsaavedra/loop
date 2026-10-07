@@ -167,6 +167,9 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   (string quotes / number literals may be re-printed, e.g. `'x'` → `"x"`). A test that locates or
   matches a script in the built HTML compares against `slimScript(source)` or a whitespace / quote
   tolerant regex, never the raw file. Baked JSON globals are not touched.
+  The inline CSS gets the same treatment: the `slim-inline-css` integration (`web/astro.config.mjs`) runs
+  every built `<style>` through `slimStyle` (same module, esbuild `loader: 'css'`, whitespace + comments
+  only; Vite's `cssMinify` stays off), so CSS tests parse it through `web/test/css-scan.mjs` (`a>b`, `[t=x]`).
 
 - `LOCALE`: env var → `plan.locale` → `en` (the owner's `plan-data.json` sets `locale:"es"`).
 - `DATA_MODE=personal|example`: personal reads the gitignored real files; example reads the
@@ -836,28 +839,10 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   `page.notes['tablas.*']` no longer talk about portions. plan-tables.md (generate.js) keeps "Daily
   targets by goal and day type" and writes the same reference rows ("Food reference (fixed values per
   natural unit)"; legumes per 100 g cooked instead of a ~300 g plate).
-- **Migration** — `node scripts/migrate-plan-v2.mjs [--dry-run] [--reset-flex] [--include-fruit]
-  [--file <path>]` upgrades an existing personal plan-data.json in place, idempotently: adds
-  `targets.byGoal` (defaults) when absent, marks `flex: "carb"` on dayPlan parts that are carb STAPLES
-  (an `{ing}` in `STAPLE_KEYS` — rice, pasta, bread, potato, oats, couscous / quinoa, wheat wraps — or a
-  `{use, match}` item whose recipe uses only those; fruit, honey, jam, juice only with `--include-fruit`;
-  mixed items and `manual` blocks stay fixed; a part that already has a `flex` key is left alone), sets
-  `page.goal: "maintain"` when absent. `--reset-flex` re-derives the markers of an already-migrated
-  plan (removes a `flex: "carb"` the current set no longer covers, marks unmarked staples, never touches
-  `flex: null`). **The flex marking is now mostly LEGACY**: which parts scale is decided by FOOD
-  CATEGORY (`lib/nutrition/flex.mjs` `isFlexPart` / `autoFlexIng`: carb, fruit and carb-staple sweets
-  such as honey / jam auto-flex), and every tracked `STAPLE_KEYS` food and every `FRUIT_KEYS` food but
-  orange juice (`zumonaranja`, category drink) is already auto-flex, so a marker it writes changes
-  nothing on the page. What the flags still do: both work ONLY on the script's key lists, never on
-  categories. `--include-fruit` adds `FRUIT_KEYS` to the set it marks — its one real effect today is
-  marking a juice part, which the category rule leaves fixed. `--reset-flex` removes a `flex: "carb"`
-  the set (`STAPLE_KEYS`, + `FRUIT_KEYS` with `--include-fruit`) does not cover — but a part whose food
-  is carb / fruit stays flex by category anyway; to FIX a part, set `flex: null` by hand (the only
-  opt-out). The `targets.byGoal` and `page.goal` steps are still useful on an old plan. A non-object
-  `targets` / `page` is an error. Every run prints the carb factor +
-  remainder per (goal, day type). Backs up to `plan-data.json.pre-v2-<local date>.bak` first (never
-  overwriting a backup), writes atomically (temp + rename, 2-space JSON), writes nothing when nothing
-  changes. Then `npm run check && npm run generate` and re-publish.
+- **Old plans** — a plan without `targets.byGoal` / `page.goal` falls back to the code defaults
+  (`DEFAULT_BY_GOAL`, goal `maintain`; `lib/nutrition/targets.mjs`), and which parts scale is decided by
+  food category, so no migration is needed. The retired one-shot migration scripts
+  (`scripts/migrate-plan-data.mjs`, last in 76b9c3b; `scripts/migrate-plan-v2.mjs`, last in 22cfabd) live in git history.
 
 **The plan the owner actually views is a claude.ai artifact (frozen snapshot).** The owner's
 personal artifact URL lives in **`data/nutrition/artifact.local.md`** (gitignored, never
@@ -969,7 +954,10 @@ Plan de hoy) and the
   narrow wraps the navigator under the title; static markup in `Dia.astro`, driven by food.js): `‹ <date> ›` = real 44 px buttons (aria-label
   "Día anterior" / "Día siguiente"), the date in an `aria-live` label ("Hoy" on the viewer's today, else
   `HC.fmtDate`), next disabled on today (no future days), a short "Hoy" button (aria-label "Volver a hoy") before `‹` only on another day; the viewed
-  day is NOT persisted (the page always opens on today; `S.view` null = follow today). A past day is read
+  day is NOT persisted (the page always opens on today; `S.view` null = follow today), EXCEPT late night: before
+  `LATE_NIGHT_HOUR` (04:00, `slots.mjs`, baked as `FOOD_CONST.lateNightHour`) it opens on the day before (as if ‹ was
+  tapped once; also a viewer on "today" whose day rolls over), and that automatic view returns to today from 04:00 on
+  `visibilitychange` (a day picked by hand never moves); `foodTotals` / `groupTotals` / `addGuide` stay today-only. A past day is read
   with `GET /api/food/log?date=` on each visit into its own slot (`S.dayLog`, never today's `S.log`) and
   renders the same cards, day total ("Total del día"), delete and "+ Añadir"; a slower answer for a day
   already left is dropped (`viewSeq`); a failed read shows the error + "Reintentar" (`day-retry`). A
@@ -989,7 +977,7 @@ Plan de hoy) and the
   trap / Esc / Back from detail.js, whose Tab trap now includes form fields and whose
   `HCDetail.open(key, date, {opener})` returns focus to the tapped button): meal select = the four
   groups (Desayuno / Comida / Cena / Añadido; a main group is stored as its slot, Añadido as `snack`;
-  a fresh sheet guesses the group by the viewer's hour: < 11 breakfast, < 16 lunch, < 20
+  a fresh sheet guesses the group by the viewer's hour: < 4 (late night) dinner, < 11 breakfast, < 16 lunch, < 20
   Añadido, else dinner), tabs Mis
   productos (search, grouped by store) / Mis recetas / Rápido (label + kcal + optional macros), amount in g / ml / servings (servings only with a serving
   size; a per-serving recipe in servings, a batch one in grams of cooked food; switching a product to

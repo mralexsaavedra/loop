@@ -86,9 +86,8 @@ instead of generic advice with no data behind it.
      (`targets.byGoal` in `plan-data.json`), today's meals with the carb portions (parts marked
      `"flex": "carb"`) scaled to hit it, supplements from `profile.json` under their meal, and on
      ride days before / during / after fuelling ranges (orientative, not medical advice).
-     **Already have a `plan-data.json` from before this?** Run
-     `node scripts/migrate-plan-v2.mjs --dry-run` to see what it would add, then without
-     `--dry-run` (it backs the file up first and is safe to re-run), then `npm run check && npm run generate`.
+     An older `plan-data.json` without `targets.byGoal` / `page.goal` keeps working: it falls back
+     to the built-in defaults (goal maintain).
    - Profile (optional): copy `profile/profile.example.json` → `profile/profile.json` (birthdate,
      height, devices, supplements; gitignored) and run `npm run generate`. The round **avatar** at the top right
      opens your profile: photo or initials, name, age (worked out on your device), city, height,

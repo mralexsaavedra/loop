@@ -31,9 +31,9 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 - [x] T1 Food log export (route: delegated writer — preparation + 2+ non-trivial files)
 - [ ] T2 Past-day rings from food log
 - [x] T3 Remove day-builder leftovers + single `targetFor` (route: delegated writer — 2+ non-trivial files)
-- [ ] T5 Archive migration scripts
-- [ ] T9 Late-night entry default
-- [ ] T10 Minify inline CSS
+- [x] T5 Archive migration scripts (route: delegated writer; parent fixed 2 stale comments inline)
+- [x] T9 Late-night entry default (route: delegated writer)
+- [x] T10 Minify inline CSS (route: delegated writer)
 - [ ] T8 Missing tests
 - [ ] T7 Split food.js
 - [ ] T6 CLAUDE.md restructure
@@ -46,6 +46,12 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 - T3: legacy `targetFor`, `extraKeys`/`extraNames`/`indulge`/`alcoholKeys`/`mealReplaceKeys` removed from macros.mjs + generate.js; legacy plan keys now a `npm run check` WARNING (`LEGACY_PLAN_KEYS`), never an error; example plan stripped (example build byte-identical). RED: legacy-fields test failed with subset errors; GREEN after fix. `npm test` 1578/1578 (writer); parent re-ran `npm run check` OK with 5 warnings on the personal plan. Note: migrate-plan-data.mjs still writes those keys → T5. Commit c8fbafb. Review: tier high (process boundary in generate.js), consent granted, 4 lenses approved, acknowledged (lineage review-c2fb2e8778a25d24). Reviewed boundary → c8fbafb.
 - Delivery: running count after T3 ≈ 750 authored lines (> 400) → chain strategy asked to owner → `stacked-to-main` (2026-10-07).
 
+- T5: deleted migrate-plan-data / migrate-plan-v2 (+ tests; nothing imported them; targets.mjs falls back to DEFAULT_BY_GOAL / maintain, verified by writer). CLAUDE.md + README shortened. No RED (deletion). Parent ran `npm test`: 1545/1545. Commit c41ccad. Review: tier medium (slice budget), consent granted, 1 lens (reliability) approved, acknowledged. Reviewed boundary → c41ccad.
+
+- T9: `LATE_NIGHT_HOUR = 4` in slots.mjs baked as `FOOD_CONST.lateNightHour`; before 04:00 Registrar opens on yesterday (auto view, expires at 04:00 on visibility), guessMeal → dinner; today-only hooks untouched. RED 3 fails → GREEN 75/75; `npm test` 1550/1550 (writer); parent re-ran food.test 75/75.
+
+- T10: `slimStyle` (esbuild css, whitespace only) applied by an `astro:build:done` integration; CSS 105.7k → 75.9k chars; personal page 528/149 KB → 497/140 KB (raw/gzip); deterministic (cmp identical). RED 3 fails → GREEN 30/30; `npm test` 1553/1553 (writer); parent re-ran css-slim test. Commits cd7cfe7 (T9), 03b6d9f (T10): each under_budget; reviewed together as slice 2 tail (c41ccad..03b6d9f): medium, consent granted, reliability lens approved, acknowledged. Reviewed boundary → 03b6d9f.
+
 ## Slices (stacked to main)
 
 - Slice 1 `feat/app-review-improvements`: d5c781a (T1), c8fbafb (T3).
@@ -55,4 +61,4 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 
 ## Next step
 
-T5 (archive migration scripts).
+Slice 2 complete → T2 on a new stacked branch.
