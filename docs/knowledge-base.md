@@ -40,7 +40,11 @@ paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index
 - **Shared by the three coach subagents** — `tools: Read, Grep, Glob` (no Bash: anything that needed
   a shell is done with Read / Grep). The SAME "Shared rules" block in each (reply in the user's
   language, Spanish by default; not-a-doctor note on health topics; never read `.env*` / credentials;
-  sponsor / affiliate bias flagged; auto-caption numbers "verificar") — edit it in all three at once.
+  sponsor / affiliate bias flagged; auto-caption numbers "verificar") — edit it in all three at once:
+  `.claude/hooks/coach-agents.test.js` (run by `npm test`) fails when the span from "## Shared rules"
+  up to "## Knowledge source" (shared rules + Owner facts) differs byte-for-byte between the three.
+  `model: inherit` in each frontmatter is deliberate: the coaches run on the session model, so
+  citation fidelity (quotes, timestamps, doses) is never traded for a cheaper model; the test pins it.
   The SAME "Owner facts" table: weight = the newest `weight.csv` rows (+ the last 7 days as context;
   mixes scales), height / birthdate / devices / supplements / events = `profile/profile.json`, goal +
   target weight = `data/profile/settings.json` (missing → unknown; `fetchedAt` > 3 days old → may be
