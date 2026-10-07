@@ -12,7 +12,7 @@
  * the last INTAKE.freshDays days) -> the block renders NOTHING (host hidden, no help text); a macro missing on the logged day -> an empty ring with a dash, never a ring drawn
  * from the target. Intake logged TODAY is shown by Resumen de hoy's kcal dial + macro bars
  * (client/nutri-day.js), so with Nutrición on the page the rings then step aside (host hidden). nutri-day.js calls window.intakeRefresh() after every goal / day type / ride change.
- * On the LAN page (the food API answered: HCFood.ready(), client/food.js) the page's food log is the ONE
+ * On the LAN page (the food API answered: HCFood.ready(), client/food-*.js) the page's food log is the ONE
  * source: today's log (window.foodTotals, labelled "Logged today") when it has entries, else the most
  * recent food-log day in the same window (HCFood.recentDay(INTAKE.freshDays), labelled by its date),
  * else nothing — never the Apple Health day there. */
@@ -66,7 +66,7 @@
     } else if (typeof window.foodTotals === 'function') {
       // today's page food log wins over the Apple Health day
       try {
-        var F = window.foodTotals(); // null unless today has entries (the contract in food.js)
+        var F = window.foodTotals(); // null unless today has entries (the contract in food-*.js)
         if (F) L = F;
       } catch (e) { /* keep the Apple Health day */ }
     }

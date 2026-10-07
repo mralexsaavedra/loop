@@ -20,3 +20,11 @@ export function loadUtil(ctx) {
   vm.runInContext(UTIL_SOURCE, ctx);
   return ctx;
 }
+
+/** The food log's four classic scripts in their page order (layouts/Plan.astro): food-core.js (the
+ * formula port, the API client, shared state → window.HCFoodInternal), then the add sheet, Mis productos
+ * / Mis recetas, and food-log.js (Registrar, events, boot, window.HCFood). FOOD_SOURCE = the four
+ * joined: each is its own IIFE, so running the joined text equals running them one after another. */
+export const FOOD_SCRIPTS = ['food-core.js', 'food-sheet.js', 'food-catalog.js', 'food-log.js'];
+export const FOOD_SOURCES = FOOD_SCRIPTS.map((f) => fs.readFileSync(path.join(here, '..', 'src', 'client', f), 'utf8'));
+export const FOOD_SOURCE = FOOD_SOURCES.join('\n');

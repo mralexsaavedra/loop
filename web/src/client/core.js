@@ -163,7 +163,7 @@ function hashRoute(hash) {
  * waits: a watcher polls each second while there is something to wait for, and stops when there is
  * nothing to do (page hidden, clock back on the load day); visibilitychange / pageshow re-arm it.
  * A reload that throws (a sandboxed frame) is not retried by the watcher, only by a later event.
- * food.js's own visibilitychange listener still re-reads today's log: when the page reloads that read
+ * food-*.js's own visibilitychange listener still re-reads today's log: when the page reloads that read
  * is simply dropped, and while a reload is deferred it keeps Registrar on the new day. */
 (function () {
   if (typeof HC === 'undefined' || !HC.rolloverAction || typeof document.addEventListener !== 'function') return;

@@ -38,7 +38,7 @@
  *   else DETAIL.sessions, + programme; its recorded ride minutes) x the current goal, null when the
  *   type cannot be determined (no session, no sleep reading, nothing programmed).
  * - Model lines are read through LINE + the accessors (mirrors of lib/nutrition/amounts.mjs), never a bare index.
- * - Logged intake: the dial + bars fill from today's page food log (window.foodTotals, client/food.js,
+ * - Logged intake: the dial + bars fill from today's page food log (window.foodTotals, client/food-*.js,
  *   LAN page only) when it has entries, else from the Apple Health day (INTAKE); HCNutri.refresh() is
  *   the food log's hook after every add / delete, and re-renders the guide too.
  * Each block renders in its own try/catch: a failure shows a one-line message there, never a blank tab. */
@@ -580,7 +580,7 @@
     }
   }
   var OVER_RATIO = 1.1; // past 110 % of the target a bar is flagged (--mid), like the intake rings
-  // intake logged TODAY: first the page's own food log (window.foodTotals, client/food.js: today's
+  // intake logged TODAY: first the page's own food log (window.foodTotals, client/food-*.js: today's
   // entries on the LAN page, src 'log'), else the Apple Health day (INTAKE, baked by
   // components/Bake.astro); the date is checked on the viewer's clock. Only then do the dial and the
   // bars fill. Never from the target.
@@ -589,7 +589,7 @@
     if (typeof window.foodTotals === 'function') {
       try { F = window.foodTotals(); } catch (e) { F = null; }
     }
-    if (F) return F; // foodTotals already means "today, >= 1 entry" (see its contract in food.js)
+    if (F) return F; // foodTotals already means "today, >= 1 entry" (see its contract in food-*.js)
     var I = typeof INTAKE === 'undefined' || !INTAKE ? null : INTAKE;
     var L = I && I.latest;
     return L && L.date === todayIso() && L.k > 0 ? L : null;
@@ -647,7 +647,7 @@
   function suppLine(text) {
     return '<div class="meal-supp">' + PILL_SVG + '<span>' + esc(text) + '</span></div>';
   }
-  // the food log's hooks (client/food.js, LAN page only): null when the API is not reachable here
+  // the food log's hooks (client/food-*.js, LAN page only): null when the API is not reachable here
   function foodHook(name) {
     var F = window.HCFood;
     if (!F || typeof F[name] !== 'function') return null;
@@ -1036,7 +1036,7 @@
     pendingGoal: pendingGoal,
     clearPending: clearPending,
     dayInputFor: dayInputFor,
-    // the food log (client/food.js) calls this after every add / delete: the dial, bars, rings and guide
+    // the food log (client/food-*.js) calls this after every add / delete: the dial, bars, rings and guide
     refresh: function () { refresh(false); },
     detectDayType: detectDayType,
     targetFor: targetFor,

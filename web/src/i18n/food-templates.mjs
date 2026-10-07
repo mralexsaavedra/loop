@@ -1,6 +1,6 @@
 /* Copy for the food log (Nutrición part 2): Registrar (today's log, in the `dia` section), the add
  * sheet, Mis productos and Mis recetas. Server-rendered headings (web/src/tabs/Dia.astro,
- * web/src/tabs/Food.astro) + baked as I18N_FOOD for web/src/client/food.js. JSON-safe only:
+ * web/src/tabs/Food.astro) + baked as I18N_FOOD for web/src/client/food-*.js. JSON-safe only:
  * `{placeholder}` strings, substituted client-side; plain text (escaped when rendered), no markup.
  * `errors` maps the coarse codes of the ingest /food/* routes to one line. Neutral Spanish. */
 export const es = {
