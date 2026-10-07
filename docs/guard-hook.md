@@ -48,16 +48,34 @@ In this repo **gitignored = personal by definition**, so the hook asks git inste
      targets every untracked ignored file under it;
    - `-A` / `--all` with no pathspec counts as `:/` (the whole tree).
    Any ignored target blocks the whole command. An allowed argument never cancels another one.
-4. Targets the hook cannot know before the command runs are blocked: a `$VAR` / `$(…)` / backtick
+4. **Git aliases** cannot hide the force-add. A subcommand that is not a git builtin (`git --list-cmds=builtins`;
+   git never lets an alias shadow a builtin, so `-c alias.status=…` is ignored) is looked up as an alias:
+   inline `-c alias.<name>=…` first (last one wins, names case-insensitive), then
+   `git config --get alias.<name>` in the effective cwd (repo, global, system; `--git-dir` / `--work-tree`
+   passed along). The expansion is judged like the original command:
+   - a plain alias (`add -f`, another alias name, `-C dir add -f`) is split and re-parsed as git arguments
+     with the remaining words appended, so `git hcplain -f <path>` with `hcplain = add` is a force-add too;
+   - a `!` shell alias is parsed as a shell command run from the work-tree top, with the remaining words
+     appended as `"$@"` would be, and it inherits the inline aliases (git passes `-c` config on);
+   - nested aliases are followed up to 10 levels; a loop stops there and blocks only when a step of the
+     chain looks like a force-add (git itself refuses the loop).
+   Fail-closed cases: an alias value from `--config-env` or a `$…` value, git config injected with
+   `GIT_CONFIG_*` assignments, a plain alias containing shell operators that looks like a force-add, a
+   shell alias whose text looks like a force-add but yields no parseable target, and an alias lookup
+   git cannot answer. A non-builtin subcommand that is not an alias (an external `git-foo`, a typo) passes.
+   Not covered: `help.autocorrect` running a mistyped `add`, and `export GIT_CONFIG_*` in an earlier
+   command.
+5. Targets the hook cannot know before the command runs are blocked: a `$VAR` / `$(…)` / backtick
    argument, `xargs git add -f`, `--pathspec-from-file`, or a `cd` to an unresolvable directory.
-5. Fallback when git cannot answer (not installed, cwd missing or not a repo): a small hand-maintained
+6. Fallback when git cannot answer (not installed, cwd missing or not a repo): a small hand-maintained
    list of personal fragments (`PERSONAL`, a subset of `.gitignore`, not a mirror: add new personal
    directories there too) and exceptions (`ALLOWED`, regexes anchored to their directory, e.g.
    `data/apple-health/*.test.js`, never a generic `.test.js` suffix), still evaluated per argument; a
    parent directory of a personal fragment (`data`, `.`) counts as personal.
 
-Allowed: plain `git add .` / `-A` without force, and force-adds of tracked or non-ignored files
-(generators, `.example` seeds, `.gitkeep`, `sync-*.js`, `knowledge/README.md`).
+Allowed: plain `git add .` / `-A` without force, force-adds of tracked or non-ignored files
+(generators, `.example` seeds, `.gitkeep`, `sync-*.js`, `knowledge/README.md`), and aliases that do not
+expand to a force-add of an ignored path (`log --oneline`, `!echo …`).
 
 ## Bash: `.gitignore` rewrites from the shell
 
