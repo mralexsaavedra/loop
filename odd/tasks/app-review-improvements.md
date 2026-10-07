@@ -29,7 +29,7 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 ## Checklist
 
 - [x] T1 Food log export (route: delegated writer — preparation + 2+ non-trivial files)
-- [ ] T2 Past-day rings from food log
+- [x] T2 Past-day rings from food log (route: delegated writer)
 - [x] T3 Remove day-builder leftovers + single `targetFor` (route: delegated writer — 2+ non-trivial files)
 - [x] T5 Archive migration scripts (route: delegated writer; parent fixed 2 stale comments inline)
 - [x] T9 Late-night entry default (route: delegated writer)
@@ -52,13 +52,16 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 
 - T10: `slimStyle` (esbuild css, whitespace only) applied by an `astro:build:done` integration; CSS 105.7k → 75.9k chars; personal page 528/149 KB → 497/140 KB (raw/gzip); deterministic (cmp identical). RED 3 fails → GREEN 30/30; `npm test` 1553/1553 (writer); parent re-ran css-slim test. Commits cd7cfe7 (T9), 03b6d9f (T10): each under_budget; reviewed together as slice 2 tail (c41ccad..03b6d9f): medium, consent granted, reliability lens approved, acknowledged. Reviewed boundary → 03b6d9f.
 
+- T2: `HCFood.recentDay(days)` from `/food/log/summary` (lazy, refreshed on add/delete); LAN rings = food log only (today, else newest logged day in 3 days, else none); static page unchanged; `INTAKE.target.rest` dropped. RED 8 → GREEN 105/105; `npm test` 1561/1561; example build deterministic. Follow-up (not done): brief Apple Health flash on LAN boot before the food API answers (pre-existing for today too); `I18N_INTAKE.targetLbl.rest` possibly unused.
+
 ## Slices (stacked to main)
 
 - Slice 1 `feat/app-review-improvements`: d5c781a (T1), c8fbafb (T3).
 - Slice 2 `feat/app-review-cleanup` (based on slice 1): T5, T9, T10.
-- Later slices: T2; T8; T7; T6 — one PR each.
+- Slice 3 `feat/app-review-intake-source`: T2.
+- Later slices: T8; T7; T6 — one PR each.
 
 
 ## Next step
 
-Slice 2 complete → T2 on a new stacked branch.
+T8 (missing tests).
