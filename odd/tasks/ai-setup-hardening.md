@@ -31,7 +31,7 @@ subagents, guard hook, settings, skills).
 - [x] T3 CLAUDE.md analysis workflow: live facts + freshness, real weight source; methodology §6 report structure + language (route: delegated writer — 2 files, needs reading the agents and reports)
 - [x] T4 `/analysis` project skill; trim CLAUDE.md (onboarding → docs, dedupe rules, drop repeated commands) (route: delegated writer)
 - [x] T5 Coach agents: drift test for the shared block; explicit `model:` (route: delegated writer)
-- [ ] T7 Hook review follow-ups (advisory findings of the approved review): fail closed on unexpected errors, wrapper option args, subshell `cd` scope, vacuous allow tests, doc/comment fixes (route: delegated writer — hook logic + tests)
+- [x] T7 Hook review follow-ups (advisory findings of the approved review): fail closed on unexpected errors, wrapper option args, subshell `cd` scope, vacuous allow tests, doc/comment fixes (route: delegated writer — hook logic + tests)
 - [ ] T6 Local only (no commit): drop `gh pr merge:*` from settings.local.json; refresh skill registry (route: inline)
 
 ## Acceptance
@@ -72,9 +72,19 @@ subagents, guard hook, settings, skills).
   was out of scope) asserts the "## Shared rules" … "## Knowledge source" span is byte-identical in the
   three coaches and pins `model: inherit` + read-only tools. RED: 1/2 fail before `model: inherit`; a
   simulated one-character drift in `hybrid-coach.md` fails the identity test (reverted). GREEN: 2/2.
-  `docs/knowledge-base.md` documents the test and the `model: inherit` choice. Commit: the
-  `test(agents): ...` commit after `0e0f4df`.
+  `docs/knowledge-base.md` documents the test and the `model: inherit` choice. Commit: `3a98299`.
+- T7 (route: delegated writer). Hook: evaluation wrapped in try/catch → an unexpected exception /
+  fs / child-process error blocks (exit 2, "internal error"); an unreadable existing `.gitignore` is
+  an error, not empty (malformed stdin still fails open). Per-wrapper option tables (`sudo -u`,
+  `env -u/-C/-S`, `nice -n`, `timeout`, `time -f`, `doas`, `rtk proxy`) plus a jump to the next `git`
+  after any wrapper. `cd` scoped to `( … )` subshells and ignored in pipelines / background jobs.
+  R1-002 (shell handling): `eval '…'` parsed; a shell fed on stdin (`… | bash`) blocks when the
+  command carries force-add text. Fallback `ALLOWED` = anchored regexes (no generic `.test.js` /
+  `extract.js`); `PERSONAL` comment says subset, not mirror. Allow tests assert their preconditions
+  (target exists and is not ignored; Edit `old_string` present). `docs/guard-hook.md` synced (incl. the
+  multiset wording). RED: 56 tests, 8 fail. GREEN: 56/56. `npm run check`: exit 0. `npm test`:
+  1634 tests, 1629 pass, 0 fail. Commit: the `fix(hooks): ...` commit after `3a98299`.
 
 ## Next step
 
-T7. Pending from T1/T2: add a `docs/guard-hook.md` row to the CLAUDE.md architecture map.
+T6 (local only, inline). Pending from T1/T2: add a `docs/guard-hook.md` row to the CLAUDE.md architecture map.
