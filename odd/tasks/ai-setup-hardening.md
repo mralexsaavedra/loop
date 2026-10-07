@@ -83,7 +83,7 @@ subagents, guard hook, settings, skills).
   `extract.js`); `PERSONAL` comment says subset, not mirror. Allow tests assert their preconditions
   (target exists and is not ignored; Edit `old_string` present). `docs/guard-hook.md` synced (incl. the
   multiset wording). RED: 56 tests, 8 fail. GREEN: 56/56. `npm run check`: exit 0. `npm test`:
-  1634 tests, 1629 pass, 0 fail. Commit: the `fix(hooks): ...` commit after `3a98299`.
+  1634 tests, 1629 pass, 0 fail. Commit: `7d81b8a`.
 
 ## Next step
 
