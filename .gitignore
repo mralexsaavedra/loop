@@ -73,6 +73,9 @@ profile/about-me.md
 profile/baseline.md
 # Manual profile card data (birthdate, height, devices). The .example seed is tracked.
 profile/profile.json
+# Coach config: the user's knowledge sources, gear, program and locale (read first by the coach
+# subagents). The .example template is tracked.
+profile/coaches.md
 
 # Strava profile snapshot + avatar pulled by data/profile/sync-profile.js (name, city, gear,
 # photo) and the goal / target-weight snapshot (settings.json, data/profile/sync-settings.js)
