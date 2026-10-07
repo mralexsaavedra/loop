@@ -122,7 +122,12 @@ available) so the next session resumes with their context.
      the power-meter ride correction (Health tab → Energy).
      Unreachable service → exits non-zero without touching files. Row helpers are shared in
      `samples.js`, so both paths format rows identically.
-   - Nutrition: `data/nutrition/food-log.md` — the daily food log + rationale notes only.
+   - Food log: the real log is the LAN page's food log (Postgres behind `services/health-ingest`),
+     exported by `npm run sync:foodlog` (`data/nutrition/sync-foodlog.js`, part of `npm run sync`) to
+     `data/nutrition/foodlog-daily.csv` (gitignored; one row per logged day, last 120 days refreshed,
+     older rows kept; `missing_macros` = sums that are minimums) + `foodlog-daily.meta.json`
+     (`fetchedAt`). Unreachable / old service → a `WARNING:`, files kept, exit 0.
+   - Nutrition: `data/nutrition/food-log.md` — legacy notes + rationale only (not the live log).
      Per-serving tables, verified product labels, legume detail, and breakfast components are
      GENERATED into `plan-tables.md` from `ingredients.json` (public food DB) merged with
      `plan-data.json` (personal plan); food-log just points to them.
@@ -449,7 +454,7 @@ controls instead of the close button.
   supplements / events = `profile/profile.json`, goal + target weight = `data/profile/settings.json`,
   stable context (injuries, history, preferences) = `profile/about-me.md` — never numbers in prose.
   `settings.json` (gitignored, `data/profile/*`) = `{goal, targetWeightKg, updatedAt, fetchedAt}`,
-  written by `data/profile/sync-settings.js` (`npm run sync:settings`, last step of `npm run sync`)
+  written by `data/profile/sync-settings.js` (`npm run sync:settings`, step of `npm run sync` before `sync:foodlog`)
   from the ingest service's `GET /food/settings` (the server-side goal of "Nutrition v2 part 3";
   `INGEST_URL`, `X-HC-Food: 1`, no token; the URL's host must be an IP literal, `localhost` or in
   `FOOD_ALLOWED_HOSTS`): atomic, rewritten only when goal / target / updatedAt changed or the stored
@@ -1691,8 +1696,8 @@ paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index
   medication interactions and eating-disorder signals), no crash diets (`analysis/methodology.md`
   safe ranges). Grounded read-only in `plan-data.json` + `ingredients.json`, the owner facts above
   (incl. `profile/profile.json` supplements and `data/profile/settings.json`), `profile/about-me.md`, the extract (weight, `dietary-daily.csv`, energy) and the
-  Nutrición rules above; the food log is in Postgres behind the LAN page, which it cannot read (it
-  says so). Spanish replies; never writes files. Its knowledge, `knowledge/nutrition/`: optional
+  Nutrición rules above; the food log as daily sums from `data/nutrition/foodlog-daily.csv` (the
+  `sync:foodlog` export; missing → it says the sync has not run). Spanish replies; never writes files. Its knowledge, `knowledge/nutrition/`: optional
   `index.md` + `temas/*.md` (cross-source syntheses); `evidencia/` (AIS Sports Supplement Framework,
   IOC 2018 supplement consensus, ISSN position stands, AESAN, WADA — the evidence base); `ferrandis/`
   (Second Ferrandis, dietitian-nutritionist, YouTube: the ingest layout above + `videos/*.md` cards —
