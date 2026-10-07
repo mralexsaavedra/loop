@@ -128,3 +128,7 @@ web/.test-dist/
 # describing the layout is tracked.
 knowledge/*
 !knowledge/README.md
+
+# Owner-only tools, never published (e.g. a private training-program sync against a
+# login-gated service). Run them in place: `node local/<tool>/<script>.mjs`.
+/local/
