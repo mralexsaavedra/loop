@@ -194,9 +194,11 @@ test('Entrenamiento dashboard labels the watch "hiit" bucket as gym (matches Ini
   assert.equal(enDash.modalityLabels.hiit, 'Gym');
   assert.equal(esDash.modalityLabels.strength, 'Fuerza');
   assert.equal(enDash.modalityLabels.strength, 'Strength');
-  // the on-screen caveat must name the bar by its visible label
-  assert.match(esDash.note1Html, /«Gimnasio»/);
-  assert.match(enDash.note1Html, /“Gym”/);
+  // the caveat (now behind the Activity card's ⓘ) must name the bar by its visible label
+  assert.equal(esAct.modalityLabels.hiit, 'Gimnasio');
+  assert.equal(enAct.modalityLabels.hiit, 'Gym');
+  assert.match(esAct.labelsNote, /«Gimnasio»/);
+  assert.match(enAct.labelsNote, /“Gym”/);
 });
 
 test('intake-templates.mjs (Mi día intake rings) has identical key trees in es/en, no empty leaves, and the placeholders intake.js relies on', () => {
@@ -239,7 +241,7 @@ test('nutri-templates.mjs (Resumen de hoy / Plan de hoy / Avituallamiento) has i
   }
 });
 
-test('activity-templates.mjs (Entreno calendar + cumulative time) has identical key trees in es/en, no empty strings, 5 levels and 7 weekdays', () => {
+test('activity-templates.mjs (Entreno header + Activity card) has identical key trees in es/en, no empty strings, 5 levels and 7 weekdays, a label per W / M / 6M window', () => {
   assert.deepEqual(keyTree(esAct), keyTree(enAct));
   for (const [locale, dict] of [['es', esAct], ['en', enAct]]) {
     for (const [path, value] of leaves(dict)) {
@@ -249,6 +251,7 @@ test('activity-templates.mjs (Entreno calendar + cumulative time) has identical 
     assert.equal(dict.weekdays.length, 7, `${locale} weekdays`);
     assert.match(dict.calHint, /\{days\}/);
     assert.match(dict.staleNote, /\{days\}/);
+    for (const k of ['w', 'm', 'm6']) for (const g of ['ranges', 'rangesLong', 'vs', 'prevNone']) assert.ok(dict[g][k], `${locale} ${g}.${k}`);
   }
 });
 

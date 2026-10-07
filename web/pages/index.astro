@@ -80,7 +80,7 @@ const title = plan.page?.title || 'Plan';
   </div>
   <div class="tab-panel" data-tab="entreno" hidden={activeTab !== 'entreno'}>
     <TrainingDetail activity={activity} locale={locale} hidden={{ load: isHidden('load'), calendar: isHidden('calendar'), sessions: isHidden('sessions') }} />
-    <Entrenos dict={dict} hidden={isHidden('dash')} />
+    <Entrenos hidden={isHidden('dash')} />
   </div>
   <div class="tab-panel" data-tab="health" hidden={activeTab !== 'health'}>
     <Salud locale={locale} />

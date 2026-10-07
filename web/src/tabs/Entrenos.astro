@@ -1,16 +1,16 @@
 ---
-/* "Entrenamiento / Workouts" (executed-workouts dashboard) — the last SECTION of the Entreno tab (it
- * was the "Entrenos" tab before the tab layout, then a section of Salud). Client-rendered entirely by
- * web/src/client/training-dash.js from DASH baked by <Bake> (the shared Bake in web/pages/index.astro).
- * `page.hideTabs: ["dash"]` renders it `hidden` (see Hoy.astro's header).
+/* "Intensity (HR)" — the last SECTION of the Entreno tab (key `dash`: it was the "Entrenos" tab
+ * before the tab layout, then the executed-workouts dashboard; its weekly volume, modality split and
+ * summary cards merged into the Activity card, TrainingDetail.astro's `calendar` section). What is
+ * left is the mean HR per modality, client-rendered by web/src/client/training-dash.js from DASH baked
+ * by <Bake> (the shared Bake in web/pages/index.astro), header + ⓘ included.
+ * `page.hideTabs: ["dash"]` renders it `hidden`.
  */
 interface Props {
-  dict: any;
   hidden: boolean;
 }
-const { dict, hidden } = Astro.props;
+const { hidden } = Astro.props;
 ---
 <section class="tab-section" data-section="dash" id="sec-dash" hidden={hidden}>
-  <h2>{dict.strings.nav.sections.dash}</h2>
   <div id="train-dash"></div>
 </section>
