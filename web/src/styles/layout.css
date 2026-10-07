@@ -115,39 +115,56 @@ details.sec-fold > summary:hover > h2 {
   font-size: var(--fs-md);
 }
 
-@media (min-width: 900px) {
-  /* jump() targets clear the sticky top nav */
-  .tab-section,
-  .jump-anchor,
-  .hsub {
-    scroll-margin-top: 72px;
-  }
+/* jump() targets clear the collapsed dial row (score.css .dial-mini, fixed at the top of Inicio) */
+.tab-section,
+.jump-anchor,
+.hsub {
+  scroll-margin-top: 64px;
 }
 
-/* top bar: ONE row on phones (no wrap down to 360 px): the viewer's date (client/today-date.js) ·
- * status dot + short freshness · icon-only Sync · avatar. With no visible header (page.h1 / page.sub
- * absent) it is the first thing on the page, so it carries the top safe-area inset itself. */
+/* top bar: ONE row at every width (no wrap down to 360 px), three columns so the date pill stays
+ * centred whatever the sides hold: avatar (profile.css) · "Today" pill · status dot + short freshness
+ * and icon-only Sync. It is the first thing on the page, so it carries the top safe-area inset. */
 .topbar {
   position: relative;
-  display: flex;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: var(--sp-3);
   min-height: 52px;
   padding-top: max(var(--sp-3), env(safe-area-inset-top));
   margin: 0 0 var(--sp-5);
 }
-/* the date: a small caps label like every other label on the page */
-.today-date {
-  flex: none;
+/* the date pill: "TODAY" in letter-spaced caps (no day stepping yet); the viewer's full date is the
+ * <time> inside, written by client/today-date.js and read by assistive tech only */
+.date-pill {
+  grid-column: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 var(--sp-8);
+  border-radius: var(--r-pill);
+  background: rgba(var(--nav-rgb), 0.9);
+  border: 1px solid var(--line);
+}
+.date-pill-lbl {
   font-size: var(--fs-2xs);
   font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--ink);
   white-space: nowrap;
 }
-/* one h1 per document even without a visible header: read by assistive tech, never drawn */
+.date-pill .today-date {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+/* the one h1 (no visible header): read by assistive tech, never drawn */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -164,8 +181,8 @@ details.sec-fold > summary:hover > h2 {
  * /api/sync/status. The summary is a dot + the Shortcut age; the dot carries the worst source level
  * (tokens: fresh = --good, > 24 h --mid, > 72 h --low); the per-source line lives in #fresh-pop. */
 .fresh {
+  grid-column: 3;
   display: flex;
-  flex: 1 1 auto;
   flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
@@ -183,7 +200,7 @@ details.sec-fold > summary:hover > h2 {
   gap: var(--sp-2);
   min-width: 0;
   min-height: 44px;
-  padding: 0 var(--sp-3);
+  padding: 0 var(--sp-1);
   border: 0;
   border-radius: var(--r-pill);
   background: none;
@@ -216,8 +233,8 @@ details.sec-fold > summary:hover > h2 {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-/* the popover and the sync line overlay everything but the detail sheet (z 60): above the tab nav
- * (z 30, sticky on wide screens), right-aligned under the top bar next to their trigger, never wider
+/* the popover and the sync line overlay everything but the detail sheet (z 60): above the bottom
+ * dock (z 30) and the collapsed dial row (z 25), right-aligned under the top bar next to their trigger, never wider
  * than the bar (so it stays inside a 360 px viewport). .topbar sets no z-index, so these z-indices
  * compete in the root stacking context with the nav's. */
 .fresh-pop {
@@ -258,6 +275,7 @@ details.sec-fold > summary:hover > h2 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  margin-right: -6px;
   width: 44px;
   height: 44px;
   padding: 0;
@@ -311,4 +329,115 @@ details.sec-fold > summary:hover > h2 {
 }
 .fresh-msg:empty {
   display: none;
+}
+
+/* the dock's "+" action (client/nav-actions.js; markup in layouts/Plan.astro): a 56 px white circle
+ * right of the tab bar, hidden until an action exists. Open: a dark frosted card above it (12 px
+ * radius, icon + uppercase label rows), the "+" turns 45 deg into an "x", and a blurred scrim under the
+ * dock (z 29) dims the page; a tap anywhere outside the card closes it. */
+.act {
+  position: relative;
+  flex: none;
+}
+.act[hidden],
+.act-pop[hidden],
+.act-item[hidden],
+.act-scrim[hidden] {
+  display: none;
+}
+.act-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+.act-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.act-ico {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  transition: transform 0.2s ease;
+}
+.act-btn[aria-expanded="true"] .act-ico {
+  transform: rotate(45deg);
+}
+.act-pop {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + var(--sp-5));
+  min-width: 232px;
+  max-width: calc(100vw - 24px);
+  padding: var(--sp-2) 0;
+  background: rgba(44, 48, 60, 0.86);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  transform-origin: 100% 100%;
+  animation: act-in 0.16s ease-out both;
+}
+@keyframes act-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+}
+.act-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  width: 100%;
+  min-height: 48px;
+  padding: 0 var(--sp-8);
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.act-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.act-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.act-item-ico {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.act-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 29;
+  background: rgba(9, 12, 13, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }

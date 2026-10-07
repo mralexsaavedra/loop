@@ -66,24 +66,44 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
 - All personal COPY (page title/kicker/h1/sub/footer, per-slot notes, which tabs/sections to hide)
   lives in `plan-data.json`'s `page` block (`page.notes.<slotId>`, `page.hideTabs: ["hoy"]`,
   etc.) — never hardcoded in tracked Astro/JS source, which stays fully generic.
-- **Header is optional.** Only `page.title` is required; `page.h1` / `page.sub` / `page.kicker` are
-  optional (the validator only checks them when present: h1 a non-empty string, sub a string). With
-  none of them there is no visible header — the page opens straight onto the dials, Whoop-style — and
-  `layouts/Plan.astro` renders a visually hidden `<h1 class="sr-only">` with the page title so the
-  document keeps one h1; an absent / empty sub renders nothing. The example plan keeps its h1 / sub,
-  so they still render there. The **top bar** (`.topbar`, above the nav) always carries the viewer's
-  date ("mié 30 sept" / "Wed 30 Sep", small caps like the other labels), written client-side by
-  `web/src/client/today-date.js` with `HC.fmtDate` (nothing time-based baked, builds stay
-  byte-identical). The bar is ONE row on phones (no wrap at 360 px): date · status dot + short
+- **No hero header** (navigation shell, 2026-10). Only `page.title` is required; `page.h1` /
+  `page.sub` / `page.kicker` stay optional and validated when present (h1 a non-empty string, sub a
+  string), but the page no longer DRAWS a header block: `layouts/Plan.astro` renders ONE visually
+  hidden `<h1 class="sr-only">` with `page.h1` (else the page title), and the kicker / subtitle are not
+  shown. The page opens on the top bar and the dials.
+- **Top bar** (`.topbar`, above the dock, one row at every width, a 3-column grid so the pill stays
+  centred): avatar left (`components/Avatar.astro`, 36 px circle in a 44 px target, opens the profile
+  sheet) · a centred date pill "HOY" / "TODAY" (`.date-pill`, uppercase, letter-spaced; the viewer's
+  full date ("mié 30 sept" / "Wed 30 Sep") is the `<time id="today-date">` inside it, written
+  client-side by `web/src/client/today-date.js` with `HC.fmtDate` and read by assistive tech only,
+  nothing time-based baked, builds stay byte-identical) · freshness on the right: status dot + short
   freshness (`#fresh-sum`, the Shortcut age; the dot carries the worst source level; tap = the
   per-source popover `#fresh-pop`, right-aligned under the bar, capped at the bar width, z 40 like the
-  sync line `#sync-msg` so both overlay the sticky nav (z 30) but not the detail sheet (z 60)) · icon-only Sync (`#sync-btn`, circular-arrows SVG, `aria-label`,
-  44 px, class `is-busy` spins it while syncing, no spin under reduced motion) · avatar (36 px circle
-  in a 44 px target).
+  sync line `#sync-msg` so both overlay the dock (z 30) and the collapsed dial row (z 25) but not the
+  detail sheet (z 60)) + icon-only Sync (`#sync-btn`, circular-arrows SVG, `aria-label`, 44 px, class
+  `is-busy` spins it while syncing, no spin under reduced motion). **No day stepping**: the pill has no
+  ‹ › arrows because the page has no global "view another day" (only Registrar's own day navigator and
+  the detail sheet's dates); stepping days is a follow-up for when the dials / day views can show a past
+  day.
+- **Bottom dock** (`.dock`, every width): a floating rounded tab bar (`rgba(var(--nav-rgb), 0.94)`,
+  blurred, 24 px radius, max 440 px, centred) with the four tabs as icon + small sentence-case label
+  (active white, inactive `--faint` grey), and to its RIGHT, outside the tablist, a separate 56 px
+  white circular **"+" action button** (`#act`, `client/nav-actions.js`). The "+" opens a dark frosted
+  popover card (12 px radius, icon + uppercase label rows, a blurred scrim under the dock dims the page;
+  the "+" turns 45° into an "×" and its label becomes "Cerrar acciones"); Escape, the button again or a
+  tap outside the card closes it, Tab stays inside (button + listed actions) and focus returns to the
+  button. It lists only REAL actions available on this page, decided at view time: **Añadir comida**
+  (the food log's add sheet, `HCViews['food-add']` via the detail sheet: only once `/api/food/products`
+  answered, the same LAN-only gating as Registrar) and **Sincronizar** (clicks the top bar's Sync: only
+  while the freshness group is shown, i.e. `/api/sync/status` answered). Both appear asynchronously, so
+  `food-log.js` and `freshness.js` call `HCActions.refresh()`. The root and every row ship `hidden`: in
+  the example build, `file://` or any static copy no action exists and the "+" never shows (no dead
+  control). Wide screens (>= 900 px) keep the SAME floating bottom dock, centred (no sticky top nav any
+  more), so jump targets only clear the collapsed dial row (`scroll-margin-top: 64px`).
 
 **Tabs and sections.** Four top-level tabs, one question each (Whoop-style: the glance on Inicio,
-the detail one tap away). Nav = fixed bottom bar on narrow screens (four equal buttons that fit a
-360px phone, safe-area insets on bottom/left/right), sticky top bar on wide ones. The former tabs
+the detail one tap away). Nav = the floating bottom dock above (four equal buttons that fit a 360px
+phone next to the "+", safe-area insets on bottom/left/right) at every width. The former tabs
 live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
 
 | Tab (key) | Content, top to bottom |
@@ -146,20 +166,21 @@ documented exceptions keep the reference value instead of shifting it: `--low` (
 for large numbers, dials, bars and dots only, small red text uses `--low-ink`; on a nested tile
 (`--surface-2`) `--faint` and `--strain` are AA-large only, so small text there prefers `--muted`.
 Layout: on wide
-screens (>= 900 px) the background and the sticky nav bar stay full-bleed while the top bar, nav
-buttons, tab panels and footer are centred and capped at `--content-max` (1160 px); Nutrición's summary
+screens (>= 900 px) the background stays full-bleed while the top bar, tab panels and footer are
+centred and capped at `--content-max` (1160 px); Nutrición's summary
 card turns into two columns (kcal dial | day type + macro bars) and Plan de hoy into a masonry-like
 2-column flow (CSS `columns: 2`, cards `break-inside: avoid`, read down column 1 then column 2, so a
 short card never leaves a row-height gap); Entreno puts the 30-day calendar (natural width) and the
 cumulative chart (rest of the row, height-capped at 240 px) in ONE row (`.act-pair`). Dark native controls: `color-scheme: dark` (`:root` + a `<meta name="color-scheme">`) and a
 `theme-color` meta read at build time from `--ground-top` (the top of the page background; a test pins
-them equal); no `apple-mobile-web-app-*` metas (a home-screen app would draw the wide-screen sticky nav
-and the optional header under the status bar). Phones (< 900 px): every text input / select / textarea
+them equal); no `apple-mobile-web-app-*` metas (a home-screen app would draw the top bar under the
+status bar). Phones (< 900 px): every text input / select / textarea
 is `--fs-input` (16px), so iOS never zooms into a focused field — one `:is()` rule in `base.css`
 that out-ranks the form-control classes (`web/test/mobile.test.mjs`). Small pills keep their look
 with a centred 44px `::before` hit band (the load dial's modality switch, `.dial-mod`). Nav tab icons are inline SVG line icons keyed by tab (`TAB_ICONS` in `web/layouts/Plan.astro`,
-same drawing as the day-type icons; the active tab paints its icon in `--accent`) — no emoji. Headings and
-labels (`h2`, the header kicker, dial labels, nav) are caps, bold (`--label-weight` 700), `--label-track`
+same drawing as the day-type icons; the active tab paints icon + label white) — no emoji. Headings and
+labels (`h2`, dial labels, the date pill, the "+" rows) are caps; the dock's tab labels are small
+sentence case. Caps labels are bold (`--label-weight` 700), `--label-track`
 (+0.08em). Text uses `--sans` = "HC Text", a ~26 KB subset of **Inter 4.1 (variable, SIL OFL 1.1, no
 Reserved Font Name)**: Basic Latin + Latin-1 (every Spanish letter and sign) + the typographic signs the
 page prints, one code-point list in `web/src/fonts/text-font-ranges.mjs` that feeds both the subset and

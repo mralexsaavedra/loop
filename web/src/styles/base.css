@@ -1,4 +1,4 @@
-/* Shared app shell — header copy, day-type toggle, tab navigation, section
+/* Shared app shell — day-type toggle, the bottom dock (tab navigation), section
  * heads, footer, and generic inline components (link, tip). Ported
  * verbatim (selectors + declarations) from the legacy
  * plan-web.template.html <style> block. Mobile-first; the trailing
@@ -12,62 +12,44 @@
   padding: 0 var(--sp-7);
 }
 
-/* header */
-header {
-  padding: var(--sp-11) 0 var(--sp-6);
-}
-.kicker {
-  font-size: var(--fs-2xs);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-3);
-}
-.kicker::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--good);
-}
-h1 {
-  font-size: var(--fs-4xl);
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-  margin-top: var(--sp-4);
-  text-wrap: balance;
-  font-weight: 700;
-}
-.sub {
-  color: var(--muted);
-  font-size: var(--fs-lg);
-  margin-top: var(--sp-4);
-  max-width: 46ch;
-}
-
-/* main nav — fixed bottom tab bar (mobile, thumb reach) → sticky top bar (desktop >=900px) */
-.tabnav {
+/* bottom dock — the same at every width: a floating rounded tab bar (icon + small label, active
+   white / inactive grey) and, to its right, the circular "+" action button (layout.css, .act). The
+   dock row itself lets taps through (pointer-events: none); only the bar and the button take them. */
+.dock {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: calc(10px + env(safe-area-inset-bottom));
   z-index: 30;
   display: flex;
-  gap: var(--sp-1);
-  background: rgba(var(--nav-rgb), 0.94);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-top: 1px solid var(--line);
-  /* four buttons share the width (flex: 1, min-width: 0) and fit a 360px phone; the insets keep
-     them clear of the home indicator and of rounded corners in landscape */
-  padding: 6px calc(6px + env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) calc(6px + env(safe-area-inset-left));
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
+  padding: 0 calc(12px + env(safe-area-inset-right)) 0 calc(12px + env(safe-area-inset-left));
+  pointer-events: none;
 }
+.dock > * {
+  pointer-events: auto;
+}
+.tabnav {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 440px;
+  display: flex;
+  gap: var(--sp-1);
+  padding: 5px;
+  background: rgba(var(--nav-rgb), 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+/* four buttons share the bar (flex: 1, min-width: 0) and fit a 360px phone next to the "+" */
 .tabnav button {
   flex: 1;
   min-width: 0;
+  min-height: 52px;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -76,12 +58,13 @@ h1 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--sp-1);
-  padding: var(--sp-3) var(--sp-1);
-  border-radius: var(--r-sm);
+  justify-content: center;
+  gap: 3px;
+  padding: var(--sp-2) var(--sp-1);
+  border-radius: 19px;
   transition: color 0.15s, background 0.15s;
 }
-/* line icon: same size / stroke as the day-type icons; the active tab paints it in the accent */
+/* line icon: same drawing as the day-type icons, painted in the button's colour */
 .tabnav .tico {
   flex: none;
   width: 22px;
@@ -94,22 +77,21 @@ h1 {
 }
 .tabnav .tlbl {
   font-size: var(--fs-2xs);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
 }
-/* active tab: ink label + a 2px accent bar on the edge facing the content */
+/* active tab: white icon + label (inactive ones stay --faint grey) */
 .tabnav button[aria-pressed="true"] {
   color: var(--ink);
-  box-shadow: inset 0 2px 0 var(--accent);
-  border-radius: 0 0 var(--r-sm) var(--r-sm);
 }
-.tabnav button[aria-pressed="true"] .tico {
-  color: var(--accent);
+.tabnav button:hover {
+  color: var(--muted);
+}
+.tabnav button[aria-pressed="true"]:hover {
+  color: var(--ink);
 }
 .tabnav button:focus-visible {
   outline: 2px solid var(--accent);
@@ -201,10 +183,7 @@ footer {
 }
 
 @media (min-width: 900px) {
-  body {
-    padding-bottom: var(--sp-12);
-  }
-  /* app shell: the background and the sticky nav stay full-bleed, the content is centred and
+  /* app shell: the background stays full-bleed, the content is centred and
      capped at --content-max so nothing stretches edge to edge on a wide screen */
   .wrap {
     --gutter: clamp(24px, 3vw, 52px);
@@ -213,7 +192,6 @@ footer {
     display: block;
     padding: 0 var(--gutter);
   }
-  .wrap > header,
   .wrap > .topbar,
   .wrap > .tab-panel,
   .wrap > footer {
@@ -222,55 +200,6 @@ footer {
     margin-right: auto;
   }
 
-  /* main nav → sticky full-bleed top bar (four tabs fit on one row, contents centred) */
-  .tabnav {
-    position: sticky;
-    left: auto;
-    right: auto;
-    top: 0;
-    bottom: auto;
-    z-index: 30;
-    flex-direction: row;
-    gap: var(--sp-2);
-    align-items: center;
-    margin: 0 calc(-1 * var(--gutter)) var(--sp-5);
-    /* full-bleed bar, buttons aligned with the centred content (100% = the .wrap content width) */
-    padding: var(--sp-3) max(var(--gutter), calc(var(--gutter) + (100% - var(--content-max)) / 2));
-    background: rgba(var(--nav-rgb), 0.9);
-    border-top: 0;
-    border-bottom: 1px solid var(--line);
-  }
-  .tabnav button {
-    flex: 0 0 auto;
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: var(--sp-3);
-    padding: var(--sp-3) var(--sp-7);
-    border-radius: var(--r-pill);
-  }
-  .tabnav .tico {
-    width: 20px;
-    height: 20px;
-  }
-  .tabnav .tlbl {
-    font-size: var(--fs-xs);
-    font-weight: var(--label-weight);
-    letter-spacing: var(--label-track);
-  }
-  .tabnav button:hover {
-    background: var(--surface);
-    color: var(--muted);
-  }
-  .tabnav button[aria-pressed="true"] {
-    background: transparent;
-    color: var(--ink);
-    box-shadow: inset 0 -2px 0 var(--accent);
-    border-radius: 0;
-  }
-  header {
-    padding: var(--sp-11) 0 var(--sp-7);
-  }
-  h1 {
-    font-size: var(--fs-5xl);
-  }
+  /* the dock stays a floating bottom bar on wide screens too (no sticky top nav): centred, capped
+     at 440px + the "+", so a mouse reaches it the same way a thumb does */
 }

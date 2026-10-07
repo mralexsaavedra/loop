@@ -14,6 +14,15 @@ Top to bottom (`web/src/tabs/Home.astro`, which also renders `components/EatCard
 today's eating sit right under the dials; the per-signal detail follows (`web/test/content.test.mjs`
 pins the order).
 
+**Collapsed dial row** (`#home-mini`, first in `Home.astro`): once the dials scroll above the viewport
+(an IntersectionObserver on `#home-dials`, `score.js`), a frosted strip fixed at the top shows the
+three dials again as mini rings + labels (Sleep · Recovery · Load). Every `dialFig` call also queues
+its mini item from the SAME svg string, colour class, label and detail opener (`HC.detailAttrs`), so
+nothing is recomputed and a tap opens the same detail as the dial; the load items carry `data-dmod`,
+so the modality switch (`scMod`) moves them too. Off it is `visibility: hidden` (out of the tab order
+and the accessibility tree); the slide / fade is dropped under `prefers-reduced-motion`; with no data
+or without IntersectionObserver it stays off.
+
 `lib/score/*` (same single-source pattern) feeds the first tab; `web/src/client/score.js` renders it
 (dials + advice on Inicio; the recovery card into Salud's `#score-recovery` and the per-modality load
 cards + caveats into Entreno's `#score-load` — glance vs detail),

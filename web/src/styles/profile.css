@@ -3,10 +3,12 @@
  * --mid for the gentle shoe-replacement hint and the missing-scope note, everything else neutral. */
 
 /* the avatar sits at the right end of the top bar, a >= 44px target */
+/* the top bar's first column (layout.css .topbar), left-aligned */
 .avatar-btn {
+  grid-column: 1;
+  justify-self: start;
   flex: none;
-  order: 3;
-  margin-left: auto;
+  margin-left: -4px;
   width: 44px;
   height: 44px;
   padding: 4px;

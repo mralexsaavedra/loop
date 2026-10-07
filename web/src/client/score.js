@@ -13,12 +13,16 @@
  * "yesterday" words are decided here from Date.now(), never baked.
  */
 // Load dial modality switch: shows the chosen modality's dial + caption, hides the others.
+// The collapsed dial row (#home-mini) carries the same data-dmod items, so it follows the switch.
 function scMod(key, btn) {
   var root = btn && btn.closest ? btn.closest('.sc-dials') : null;
   if (!root) return;
-  root.querySelectorAll('[data-dmod]').forEach(function (el) {
-    if (el.classList.contains('dial-mod')) el.setAttribute('aria-pressed', el === btn ? 'true' : 'false');
-    else el.hidden = el.getAttribute('data-dmod') !== key;
+  [root, document.getElementById('home-mini')].forEach(function (host) {
+    if (!host) return;
+    host.querySelectorAll('[data-dmod]').forEach(function (el) {
+      if (el.classList.contains('dial-mod')) el.setAttribute('aria-pressed', el === btn ? 'true' : 'false');
+      else el.hidden = el.getAttribute('data-dmod') !== key;
+    });
   });
 }
 (function () {
@@ -216,8 +220,20 @@ function scMod(key, btn) {
   // Whoop-style drill-down: the dial is the glance, a tap opens its detail sheet (client/detail.js);
   // a load dial opens its own modality (detailKey), the no-load placeholder opens training time
   var DIAL_DETAIL = { 'dial-sleep': 'sleep', 'dial-rec': 'recovery', 'dial-load': 'workouts' };
+  // Collapsed dial row (Inicio, shown once the dials scroll away): every dialFig call also queues a
+  // mini ring = the SAME svg string (baked geometry, colour class), its label and its detail opener —
+  // nothing recomputed. dialsHtml() resets the queue, render() writes it to #home-mini.
+  var MINI = [];
+  function miniItem(cls, stale, extra, aria, svg, label, to) {
+    MINI.push('<div class="dm ' + cls + (stale ? ' sc-stale' : '') + '"' + (extra || '') + (to ? HC.detailAttrs(to) : '') +
+      ' aria-label="' + attr(aria || label) + '"><span class="dm-ring">' + svg + '</span><span class="dm-lbl">' + esc(label) + '</span></div>');
+  }
+  function miniHtml() {
+    return MINI.length && T.dials ? '<div class="dm-row" role="group" aria-label="' + attr(T.dials.ariaLabel) + '">' + MINI.join('') + '</div>' : '';
+  }
   function dialFig(cls, stale, extra, aria, svg, centre, label, sub, detailKey) {
     var to = detailKey || DIAL_DETAIL[cls.split(' ')[0]];
+    miniItem(cls, stale, extra, aria, svg, label, to);
     return '<figure class="dial ' + cls + (stale ? ' sc-stale' : '') + '"' + (extra || '') + (to ? HC.detailAttrs(to) : '') + '>' +
       '<div class="dial-ring"' + (aria ? ' role="img" aria-label="' + attr(aria) + '"' : '') + '>' + svg +
       '<div class="dial-centre" aria-hidden="true">' + centre + '</div></div>' +
@@ -368,11 +384,26 @@ function scMod(key, btn) {
   function dialsHtml() {
     if (!D || !T.dials) return '';
     var dt = T.dials;
+    MINI = [];
     var hasLoad = D.load && D.load.state === 'ok';
     return '<div class="sc-card sc-dials" role="group" aria-label="' + attr(dt.ariaLabel) + '"><div class="dials">' +
       sleepDial(D.sleep || {}, dt) + recDial(D.recovery || {}, dt) +
       (hasLoad ? loadDials(D.load, dt) : dialFig('dial-load dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.load.label, '')) +
       '</div>' + (hasLoad ? loadSwitch(D.load, dt) : '') + caveatLines(dt, hasLoad) + '</div>';
+  }
+
+  // #home-mini (fixed under the top edge) turns on while the dials are scrolled ABOVE the viewport;
+  // CSS fades / slides it (no motion under prefers-reduced-motion) and `visibility` keeps it out of
+  // the tab order and the accessibility tree while off. No IntersectionObserver: the row stays off.
+  function watchMini(dialsHost) {
+    var mini = document.getElementById('home-mini');
+    if (!mini || !dialsHost || typeof IntersectionObserver !== 'function') return;
+    try {
+      new IntersectionObserver(function (entries) {
+        var e = entries[entries.length - 1];
+        mini.classList.toggle('is-on', !e.isIntersecting && e.boundingClientRect.top < 0 && mini.innerHTML !== '');
+      }).observe(dialsHost);
+    } catch (e) { /* the row simply stays off */ }
   }
 
   // one broken block must never blank Inicio: render it as an empty state instead (or `fallback`,
@@ -413,11 +444,15 @@ function scMod(key, btn) {
       write(host, emptyHtml);
       write('score-recovery', emptyHtml);
       write('score-load', emptyHtml);
+      write('home-mini', function () { return ''; });
       return;
     }
     // Home.astro gives the dials their own host above the health monitor; without it they lead #home-advice
     var dialsHost = document.getElementById('home-dials');
     if (dialsHost) write(dialsHost, function () { return safe(dialsHtml); });
+    // the collapsed row mirrors the dials just written (empty when they threw or there are none)
+    if (dialsHost) write('home-mini', function () { return dialsHost.innerHTML.indexOf('sc-dials') !== -1 ? miniHtml() : ''; });
+    watchMini(dialsHost);
     // the advice sentence reads as the conclusion of the dials above it
     write(host, function () { return (dialsHost ? '' : safe(dialsHtml)) + safe(adviceHtml, null, ''); });
     if (S.recovery) write('score-recovery', function () { return safe(recoveryHtml, S.recovery); });

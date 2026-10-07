@@ -438,6 +438,13 @@ button.dt-day {
   right: 2px;
   transform: none;
 }
+/* the collapsed dial row (score.css .dm): ring + label only, no chevron */
+.dm[data-detail][role="button"] {
+  padding-right: var(--sp-3);
+}
+.dm[data-detail][role="button"]::after {
+  content: none;
+}
 tr[data-detail],
 .cal-cell[data-detail] {
   cursor: pointer;
