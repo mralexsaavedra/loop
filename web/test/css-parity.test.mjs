@@ -32,7 +32,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseCssRules, ruleDeclarationMap } from './css-scan.mjs';
+import { parseCssRules, ruleDeclarationMap, canonicalSelector } from './css-scan.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
@@ -60,7 +60,13 @@ test('every checked-in expected CSS declaration is present in the Astro build ou
     `missing build output at ${outputHtmlPath} — run \`npm run pretest\` (or \`npm run build:example\`) first`,
   );
 
-  const expectedMap = new Map(Object.entries(JSON.parse(fs.readFileSync(expectedFixturePath, 'utf8'))));
+  // Fixture keys predate the whitespace-minified CSS: canonicalize their selector part the same way.
+  const expectedMap = new Map(
+    Object.entries(JSON.parse(fs.readFileSync(expectedFixturePath, 'utf8'))).map(([key, value]) => {
+      const [media, selector, prop] = key.split('|||');
+      return [`${media}|||${canonicalSelector(selector)}|||${prop}`, value];
+    }),
+  );
   const outputHtml = fs.readFileSync(outputHtmlPath, 'utf8');
   const outputCss = extractStyleCss(outputHtml);
   const outputMap = ruleDeclarationMap(parseCssRules(outputCss));

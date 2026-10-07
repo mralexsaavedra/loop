@@ -230,9 +230,9 @@ test('example build: the Salud recovery detail card spans the full grid row, hea
   const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
   const html = fs.readFileSync(examplePath, 'utf8');
   const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
-  const map = ruleDeclarationMap(parseCssRules(css));
+  const map = ruleDeclarationMap(parseCssRules(css)); // selectors in css-scan's canonical form (`a>b`)
   const wide = [...map.entries()].filter(([k]) => k.startsWith('(min-width:900px)|||'));
-  assert.ok(wide.some(([k, v]) => k.endsWith('|||grid-column') && k.split('|||')[1].split(',').map((x) => x.trim()).includes('#health-body > #score-recovery') && v === '1 / -1'), '#score-recovery spans 1 / -1');
+  assert.ok(wide.some(([k, v]) => k.endsWith('|||grid-column') && k.split('|||')[1].split(',').map((x) => x.trim()).includes('#health-body>#score-recovery') && v === '1 / -1'), '#score-recovery spans 1 / -1');
   assert.ok(wide.some(([k, v]) => k === '(min-width:900px)|||.rec-layout|||grid-template-columns' && (v.match(/minmax\(/g) || []).length === 3), 'three columns on wide screens');
   assert.ok(![...map.keys()].some((k) => k.startsWith('|||.rec-layout|||grid-template-columns')), 'stacked (one column) on phones');
 });

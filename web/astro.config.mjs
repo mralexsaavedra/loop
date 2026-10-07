@@ -1,5 +1,26 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import { slimHtmlStyles } from './src/slim-script.mjs';
+
+// Slims the inlined CSS of every built page (comments + whitespace only, see slimStyle). Runs after
+// Astro wrote the HTML, so it sees the final <style> blocks whatever Vite / Astro did to them.
+const slimInlineCss = {
+  name: 'slim-inline-css',
+  hooks: {
+    'astro:build:done': ({ dir }) => {
+      const root = fileURLToPath(dir);
+      for (const entry of fs.readdirSync(root, { recursive: true })) {
+        if (!String(entry).endsWith('.html')) continue;
+        const file = path.join(root, String(entry));
+        fs.writeFileSync(file, slimHtmlStyles(fs.readFileSync(file, 'utf8')));
+      }
+    },
+  },
+};
+
 
 // This is a data repo, not a "web app" repo — `web/` IS the Astro project
 // root, and `src/` has no special meaning here (srcDir points at the
@@ -21,6 +42,7 @@ export default defineConfig({
   // the collapse HTML-safe instead.
   compressHTML: true,
   devToolbar: { enabled: false },
+  integrations: [slimInlineCss],
   vite: {
     server: {
       fs: {
@@ -36,8 +58,8 @@ export default defineConfig({
       // `::before` → `:before`). Harmless for rendering, but it defeats the
       // CSS parity guard's byte-level "every legacy declaration is present"
       // check (web/test/css-parity.test.mjs) and makes web/src/styles/*.css
-      // harder to diff against the legacy source. The page is small — the
-      // minification bytes saved aren't worth that.
+      // harder to diff against the legacy source. The `slim-inline-css`
+      // integration above removes comments + whitespace only instead.
       cssMinify: false,
     },
   },
