@@ -25,12 +25,13 @@ function fixedDate(iso) {
 
 // nutriTarget = today's target (client/nutri-day.js); with it the page also has HCNutri.targetFor
 // (that date's target), here by default the same target unless the test passes its own.
-function run({ latest, today, locale = 'en', nutriTarget = null, targetFor, foodTotals = null }) {
+function run({ latest, today, locale = 'en', nutriTarget = null, targetFor, foodTotals = null, hcFood = null }) {
   const doc = new StubDocument();
   const host = doc.el('intake');
   const window = nutriTarget ? { nutriTarget } : {};
   if (targetFor !== false && (nutriTarget || targetFor)) window.HCNutri = { targetFor: targetFor || (() => nutriTarget()) };
   if (foodTotals) window.foodTotals = foodTotals;
+  if (hcFood) window.HCFood = hcFood;
   const ctx = {
     document: doc, window, INTAKE: { latest, target: TARGET, freshDays: 3 }, I18N_INTAKE: locale === 'es' ? esIntake : enIntake, LOCALE: locale,
     Math, String, Number, JSON, Date: fixedDate(today),
@@ -207,4 +208,63 @@ test('rings from the food log: a macro no entry states is a dash (never 0 %); on
   assert.match(html, /<b>≥ 85<\/b>/, 'protein is a minimum');
   assert.match(html, /<b>40<\/b>/);
   assert.ok(html.includes(enIntake.minNote), 'the minimum is explained');
+});
+
+/* LAN page (the food API answered: HCFood.ready()): the food log is the ONE intake source — a past day
+ * comes from HCFood.recentDay(freshDays), never from the Apple Health CSV. */
+const lanFood = (day, calls = []) => ({ ready: () => true, recentDay: (n) => { calls.push(n); return typeof day === 'function' ? day() : day; } });
+
+test('LAN page, today empty, yesterday logged: rings for yesterday from the food log, labelled by its date, against its own target', () => {
+  const calls = [];
+  const seen = [];
+  const day = { date: '2030-01-09', k: 1200, p: 85, c: 130, g: 40, n: 3, missing: { protein: false, carbs: false, fat: false }, src: 'log' };
+  const nutriTarget = () => ({ k: 3050, p: 150, c: 424, g: 60, label: 'today' });
+  const targetFor = (d) => { seen.push(d); return { k: 2400, p: 170, c: 260, g: 70, fuelK: 0, label: 'Meals that day' }; };
+  const { host } = run({ latest: { date: '2030-01-10', k: 999, p: 1, c: 1, g: 1 }, today: '2030-01-10', nutriTarget, targetFor, foodTotals: () => null, hcFood: lanFood(day, calls) });
+  assert.equal(host.hidden, false);
+  const html = host.innerHTML;
+  assert.match(html, /<b>1200<\/b>/);
+  assert.doesNotMatch(html, /999/, 'never the Apple Health day');
+  assert.match(html, /of 2400 kcal/);
+  assert.match(html, /Meals that day/);
+  assert.doesNotMatch(html, /Logged today|Today, so far/);
+  assert.match(html, /class="intake-asof">Wed 9 Jan</);
+  assert.deepEqual(seen, ['2030-01-09']);
+  assert.deepEqual(calls, [3], 'the window is INTAKE.freshDays');
+});
+
+test('LAN page, nothing logged in the window: no rings, even with a fresh Apple Health day', () => {
+  const { host } = run({ latest: { date: '2030-01-09', k: 1500, p: 100, c: 100, g: 50 }, today: '2030-01-10', foodTotals: () => null, hcFood: lanFood(null) });
+  assert.equal(host.hidden, true);
+  assert.equal(host.innerHTML, '');
+  const thrown = run({ latest: { date: '2030-01-09', k: 1500, p: 100, c: 100, g: 50 }, today: '2030-01-10', foodTotals: () => null, hcFood: lanFood(() => { throw new Error('x'); }) }).host;
+  assert.equal(thrown.hidden, true, 'a throwing hook is no data, not a fallback to Apple Health');
+  const old = run({ latest: null, today: '2030-01-10', foodTotals: () => null, hcFood: lanFood({ date: '2030-01-02', k: 1500, p: 1, c: 1, g: 1, n: 1, missing: {}, src: 'log' }) }).host;
+  assert.equal(old.hidden, true, 'a day outside the window is never shown');
+});
+
+test('LAN page, today logged: today\'s food log wins (unchanged), recentDay is not asked', () => {
+  const calls = [];
+  const food = () => ({ date: '2030-01-10', k: 1200, p: 85, c: 130, g: 40, n: 2, missing: { protein: false, carbs: false, fat: false }, src: 'log' });
+  const nutriTarget = () => ({ k: 2400, p: 170, c: 260, g: 70, label: 'x' });
+  const aside = run({ latest: { date: '2030-01-09', k: 900, p: 1, c: 1, g: 1 }, today: '2030-01-10', nutriTarget, foodTotals: food, hcFood: lanFood(null, calls) }).host;
+  assert.equal(aside.hidden, true);
+  const alone = run({ latest: { date: '2030-01-09', k: 900, p: 1, c: 1, g: 1 }, today: '2030-01-10', foodTotals: food, hcFood: lanFood(null, calls) }).host.innerHTML;
+  assert.match(alone, /class="intake-asof">Logged today</);
+  assert.deepEqual(calls, []);
+});
+
+test('LAN page, a past food-log day with a macro some entries lack: shown as a minimum; a day with no target draws nothing', () => {
+  const day = { date: '2030-01-08', k: 1500, p: 90, c: null, g: 50, n: 2, missing: { protein: true, carbs: true, fat: false }, src: 'log' };
+  const html = run({ latest: null, today: '2030-01-10', foodTotals: () => null, hcFood: lanFood(day) }).host.innerHTML;
+  assert.match(html, /<b>≥ 90<\/b>/);
+  assert.match(html, /class="ring ring-c ring-none"/);
+  assert.ok(html.includes(enIntake.minNote));
+  const none = run({ latest: null, today: '2030-01-10', nutriTarget: () => ({ k: 1, p: 1, c: 1, g: 1, label: 'x' }), targetFor: () => null, foodTotals: () => null, hcFood: lanFood(day) }).host;
+  assert.equal(none.hidden, true);
+});
+
+test('no food API (HCFood absent or not ready): the Apple Health day as before', () => {
+  const html = run({ latest: { date: '2030-01-09', k: 1200, p: 170, c: 130, g: 35 }, today: '2030-01-10', hcFood: { ready: () => false, recentDay: () => { throw new Error('never asked'); } } }).host.innerHTML;
+  assert.match(html, /1200<\/b>/);
 });
