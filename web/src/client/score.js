@@ -204,7 +204,7 @@ function scMod(key, btn) {
   /* ---- dials ---- */
   var D = typeof DIALS === 'undefined' ? null : DIALS;
   function attr(v) { return esc(String(v)); }
-  // parts: zones [{cls, d}], fill d, dot {x,y}, mid {x,y}; paths are baked, never computed here
+  // parts: zones [{cls, d}], fill d, mid {x,y} (the baseline / typical-day tick); paths are baked, never computed here
   function dialSvg(parts) {
     var out = ['<svg class="dial-svg" viewBox="0 0 120 120" aria-hidden="true">'];
     out.push('<path class="dial-track" d="' + attr(D.track) + '"/>');
@@ -213,7 +213,6 @@ function scMod(key, btn) {
     });
     if (parts.fill) out.push('<path class="dial-fill" pathLength="100" d="' + attr(parts.fill) + '"/>');
     if (parts.mid) out.push('<circle class="dial-mid" cx="' + attr(parts.mid.x) + '" cy="' + attr(parts.mid.y) + '" r="2"/>');
-    if (parts.dot) out.push('<circle class="dial-dot" cx="' + attr(parts.dot.x) + '" cy="' + attr(parts.dot.y) + '" r="6.5"/>');
     out.push('</svg>');
     return out.join('');
   }
@@ -231,26 +230,30 @@ function scMod(key, btn) {
   function miniHtml() {
     return MINI.length && T.dials ? '<div class="dm-row" role="group" aria-label="' + attr(T.dials.ariaLabel) + '">' + MINI.join('') + '</div>' : '';
   }
-  function dialFig(cls, stale, extra, aria, svg, centre, label, sub, detailKey) {
+  // One dial = the ring with its value INSIDE (big number, small unit) and its label BELOW ("SLEEP ›",
+  // uppercase in CSS). No caption under it: "last night" / the night's date, the 7-day trend, the sleep
+  // target, the load scale and acute/chronic context live in the dial's detail sheet (client/detail.js)
+  // and in the accessible name.
+  function dialFig(cls, stale, extra, aria, svg, centre, label, detailKey) {
     var to = detailKey || DIAL_DETAIL[cls.split(' ')[0]];
     miniItem(cls, stale, extra, aria, svg, label, to);
     return '<figure class="dial ' + cls + (stale ? ' sc-stale' : '') + '"' + (extra || '') + (to ? HC.detailAttrs(to) : '') + '>' +
       '<div class="dial-ring"' + (aria ? ' role="img" aria-label="' + attr(aria) + '"' : '') + '>' + svg +
       '<div class="dial-centre" aria-hidden="true">' + centre + '</div></div>' +
-      '<figcaption class="dial-lbl">' + esc(label) + '</figcaption>' +
-      (sub ? '<div class="dial-sub">' + sub + '</div>' : '') + '</figure>';
+      '<figcaption class="dial-lbl">' + esc(label) + '<span class="dial-chev" aria-hidden="true">›</span></figcaption></figure>';
+  }
+  function numCentre(value, unit) {
+    return '<b class="dial-num">' + esc(value) + '<small>' + esc(unit) + '</small></b>';
   }
   function offCentre(word) {
     return '<span class="dial-word">' + esc(word) + '</span>';
   }
   function sleepDial(d, dt) {
     var target = d.target != null ? num(d.target, 1, false) : '';
-    if (d.state !== 'ok') return dialFig('dial-sleep dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.sleep.label, '');
+    if (d.state !== 'ok') return dialFig('dial-sleep dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.sleep.label);
     var h = num(d.hours, 1, false);
     return dialFig('dial-sleep', isStale(d.date), '', format(dt.sleep.aria, { value: h, target: target }),
-      dialSvg({ fill: d.fill, dot: d.marker }),
-      '<b class="dial-num">' + esc(h) + '<small> h</small></b>',
-      dt.sleep.label, esc(format(dt.sleep.target, { value: target })));
+      dialSvg({ fill: d.fill }), numCentre(h, 'h'), dt.sleep.label);
   }
   // "Last night" only when the night's data is dated today AND has a sleep reading; else its date
   function nightLbl(iso, hasSleep, rt) {
@@ -269,27 +272,17 @@ function scMod(key, btn) {
     var rt = dt.recovery;
     if (d.state !== 'ok') {
       var word = d.state === 'gated' ? rt.gated : dt.none;
-      return dialFig('dial-rec dial-off', isStale(d.asOf), '', '', dialSvg({}), offCentre(word), rt.label, esc(rt.sub));
+      return dialFig('dial-rec dial-off', isStale(d.asOf), '', '', dialSvg({}), offCentre(word), rt.label);
     }
     var v = num(d.value, 1, true);
     var zones = d.zones.map(function (z) { return { cls: 'dial-zone-' + z.band, d: z.d }; });
-    var tr = d.trend || {};
-    var trendTxt = tr.dir && rt.dirs[tr.dir]
-      ? format(rt.trendLine, { dir: rt.dirs[tr.dir], value: num(tr.value, 1, true) })
-      : format(rt.trendLineNoDir, { value: num(tr.value, 1, true) });
     var today = d.mode === 'today';
     var when = today ? nightLbl(d.date, d.sleep !== false, rt) : '';
-    var sub = today
-      ? '<span class="dial-when">' + esc(when) + '</span>' + (d.sleep === false ? '<span class="dial-when dial-nodata">' + esc(rt.noSleep) + '</span>' : '') +
-        '<span class="dial-trend">' + esc(trendTxt) + '</span>'
-      : '<span class="dial-when dial-nodata">' + esc(rt.noLastNight) + '</span>';
     var aria = today
       ? format(rt.aria, { when: when, value: v, band: rt.bands[d.band] })
       : format(rt.ariaTrend, { value: v, band: rt.bands[d.band] });
     return dialFig('dial-rec dial-band-' + esc(d.band), isStale(d.asOf), '', aria,
-      dialSvg({ zones: zones, fill: d.fill, dot: d.marker }),
-      '<span class="dial-word">' + esc(rt.bands[d.band]) + '</span><b class="dial-num dial-num-sm">' + esc(format(rt.delta, { value: v })) + '</b>',
-      rt.label, sub);
+      dialSvg({ zones: zones, fill: d.fill, mid: d.mid }), numCentre(v, T.recovery.unit), rt.label);
   }
   // The modality the switch opens on, for the VIEWER's today (never baked): the modality with a
   // session today, gated or not (a gated one opens in its gated state) — highest RE first, ties by
@@ -314,54 +307,43 @@ function scMod(key, btn) {
       var mod = T.load.modalities[m.key] || m.key;
       var dk = 'load-' + m.key;
       if (m.state !== 'ok') {
-        return dialFig('dial-load dial-off', stale, extra, '', dialSvg({ mid: d.mid }), offCentre(lt.gated), lt.label, esc(mod), dk);
+        return dialFig('dial-load dial-off', stale, extra, format(lt.ariaGated, { modality: mod }), dialSvg({ mid: d.mid }), offCentre(lt.gated), lt.label, dk);
       }
       var typ = num(m.typical, 0, false);
       var td = loadToday(m);
       if (td.kind === 'noEffort') {
         return dialFig('dial-load dial-noeffort', stale, extra, format(lt.ariaNoEffort, { modality: mod, typical: typ }),
-          dialSvg({ mid: d.mid }), offCentre(lt.noEffort), lt.label, esc(mod), dk);
+          dialSvg({ mid: d.mid }), offCentre(lt.noEffort), lt.label, dk);
       }
       if (td.kind === 'rest') {
         return dialFig('dial-load dial-rest', stale, extra, format(lt.ariaRest, { modality: mod, typical: typ }),
-          dialSvg({ mid: d.mid }), offCentre(lt.rest), lt.label, esc(mod), dk);
+          dialSvg({ mid: d.mid }), offCentre(lt.rest), lt.label, dk);
       }
       var day = num(td.day.re, 0, false);
       return dialFig('dial-load', stale, extra, format(lt.aria, { modality: mod, day: day, typical: typ }),
-        dialSvg({ fill: td.day.fill, dot: td.day.marker, mid: d.mid }),
-        '<b class="dial-num">' + esc(day) + '</b><span class="dial-word">' + esc(lt.unit) + '</span>',
-        lt.label, esc(mod), dk);
+        dialSvg({ fill: td.day.fill, mid: d.mid }), numCentre(day, lt.unit), lt.label, dk);
     });
     return figs.join('');
   }
+  // Compact gym / run / bike pills under the dials (right-aligned under the load dial). They stay on
+  // Inicio rather than in the load sheet: the sheet is one modality's history, and the choice changes
+  // which ring Inicio shows, so it belongs next to that ring. The day vs typical caption, the scale
+  // and acute/chronic context moved to the load detail sheet (client/detail.js loadContext).
   function loadSwitch(d, dt) {
     var open = openKey(d);
     var btns = d.modalities.map(function (m) {
       return '<button type="button" class="dial-mod" data-dmod="' + attr(m.key) + '" aria-pressed="' + (m.key === open ? 'true' : 'false') +
         '" onclick="scMod(\'' + attr(m.key) + '\',this)">' + esc(T.load.modalities[m.key] || m.key) + '</button>';
     }).join('');
-    // caption per modality: the day vs its typical day, then the acute/chronic trend as context;
-    // a gated modality keeps its existing copy
-    var lt = dt.load;
-    var caps = d.modalities.map(function (m) {
-      var txt;
-      if (m.state === 'ok') {
-        var typ = num(m.typical, 0, false);
-        var td = loadToday(m);
-        var head = td.kind === 'trained' ? format(lt.dayLine, { day: num(td.day.re, 0, false), typical: typ })
-          : td.kind === 'noEffort' ? format(lt.noEffortLine, { typical: typ })
-          : m.last && isoDate(m.last.date) ? format(lt.restLastLine, { date: HC.fmtDate(m.last.date), re: num(m.last.re, 0, false), typical: typ })
-          : format(lt.restLine, { typical: typ });
-        txt = head + ' · ' + format(T.load.trendLbl, { pct: pct(m.trendPct) }) + ' · ' + T.load.bands[m.band];
-        if (m.unscored > 0) txt += ' · ' + format(T.load.unscoredNote, { n: m.unscored });
-      } else {
-        txt = T.load.gated[m.reason] || T.load.gated.baselineBuilding;
-      }
-      return '<div class="dial-cap" data-dmod="' + attr(m.key) + '"' + (m.key === open ? '' : ' hidden') + '>' + esc(txt) + '</div>';
-    }).join('');
-    return '<div class="dial-foot"><div class="dial-switch" role="group" aria-label="' + attr(dt.load.switchLabel) + '">' +
-      '<span class="dial-switch-lbl">' + esc(dt.load.label) + '</span>' + btns + '</div>' +
-      '<div class="dial-scale">' + esc(dt.load.scale) + '</div>' + caps + '</div>';
+    return '<div class="dial-foot"><div class="dial-switch" role="group" aria-label="' + attr(dt.load.switchLabel) + '">' + btns + '</div></div>';
+  }
+  // the ONE line that stays under the dials besides the switch: the newest data is too old
+  function staleLine() {
+    var ages = [D.sleep && D.sleep.state === 'ok' ? D.sleep.date : null, D.recovery ? D.recovery.asOf : null, D.load ? D.load.asOf : null]
+      .map(function (iso) { return isStale(iso) ? daysOld(iso) : null; })
+      .filter(function (n) { return n != null; });
+    if (!ages.length) return '';
+    return '<div class="dial-stale">' + esc(format(T.staleNote, { days: Math.min.apply(null, ages) })) + '</div>';
   }
   // Data honesty: the full caveats live with each dial's detail (load: Entreno #score-load,
   // recovery: Salud). When page.hideTabs makes that detail unreachable (tab hidden, or Entreno's
@@ -388,8 +370,8 @@ function scMod(key, btn) {
     var hasLoad = D.load && D.load.state === 'ok';
     return '<div class="sc-card sc-dials" role="group" aria-label="' + attr(dt.ariaLabel) + '"><div class="dials">' +
       sleepDial(D.sleep || {}, dt) + recDial(D.recovery || {}, dt) +
-      (hasLoad ? loadDials(D.load, dt) : dialFig('dial-load dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.load.label, '')) +
-      '</div>' + (hasLoad ? loadSwitch(D.load, dt) : '') + caveatLines(dt, hasLoad) + '</div>';
+      (hasLoad ? loadDials(D.load, dt) : dialFig('dial-load dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.load.label)) +
+      '</div>' + (hasLoad ? loadSwitch(D.load, dt) : '') + staleLine() + caveatLines(dt, hasLoad) + '</div>';
   }
 
   // #home-mini (fixed under the top edge) turns on while the dials are scrolled ABOVE the viewport;
@@ -429,10 +411,15 @@ function scMod(key, btn) {
   function emptyHtml() {
     return '<div class="train-empty">' + esc(T.emptyMsg) + '</div>';
   }
+  var OUTLOOK_ICO = '<svg class="outlook-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/>' +
+    '<path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>';
   function adviceHtml() {
     var anyStale = (S.recovery && isStale(S.recovery.asOf)) || (S.load && isStale(S.load.asOf));
     if (!S.advice || anyStale || !T.advice[S.advice.key]) return '';
-    return '<div class="sc-card sc-advice">' + esc(adviceText(S.advice)) + '</div>';
+    // "My day" outlook bar: icon, the sentence (CSS clamps it to two lines), a chevron; every rule
+    // reads the recovery trend, so a tap opens the recovery sheet that explains it
+    return '<div class="sc-advice outlook"' + HC.detailAttrs('recovery') + '>' + OUTLOOK_ICO +
+      '<span class="outlook-txt">' + esc(adviceText(S.advice)) + '</span><span class="outlook-chev" aria-hidden="true">›</span></div>';
   }
 
   // Glance vs detail (Whoop): Inicio keeps the dials + the advice sentence; the recovery card is the

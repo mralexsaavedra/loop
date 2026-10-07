@@ -4,7 +4,7 @@
  *   1. Resumen de hoy  — day type (rest / gym / bike / bikeLong): a one-row segmented control of real
  *                        radios with inline SVG line icons and short labels (the detected type gets a
  *                        dot, .seg-auto); a 270° kcal dial (target centred, filled only from intake
- *                        logged today; the track is the Inicio dials' arc, baked as NUTRI_ARC), the goal
+ *                        logged today; the track is the former 270° dial arc (view/dial.mjs OPEN_ARC), baked as NUTRI_ARC), the goal
  *                        chip under it (the goal itself is set in the profile sheet, client/profile.js),
  *                        three macro bars (protein / carbs / fat), then the intake rings (#intake,
  *                        only with intake logged in the last 3 days; otherwise nothing);
@@ -39,7 +39,7 @@ import { es as esFood, en as enFood } from '../i18n/food-templates.mjs';
 import { FOOD_MEALS, FOOD_STORES, FOOD_UNITS, FOOD_LIMITS, SETTINGS_GOALS } from '../../../lib/nutrition/foodlog.mjs';
 import { MEAL_GROUPS, MAIN_SLOTS, ADDON_GROUP, ADDON_SLOT, LATE_NIGHT_HOUR } from '../../../lib/nutrition/slots.mjs';
 import { buildBasics } from '../../../lib/nutrition/basics.mjs';
-import { arcPath } from '../view/dial.mjs';
+import { arcPath, OPEN_ARC } from '../view/dial.mjs';
 
 interface Props {
   nut: any; // buildNutrition() result
@@ -56,7 +56,7 @@ const T = locale === 'es' ? esNutri : enNutri;
 const es = locale === 'es';
 const nutri = buildNutriToday(nut, plan, { supplements, weight, units: { g: 'g', ml: 'ml', ud: es ? 'ud' : 'pc' }, dec: es ? ',' : '.', lang: es ? 'es' : 'en' });
 const F = locale === 'es' ? esFood : enFood;
-const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForScript(T)};\nvar NUTRI_ARC = ${jsonForScript(arcPath(0, 1))};\nvar I18N_FOOD = ${jsonForScript(F)};\nvar FOOD_CONST = ${jsonForScript({ meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS, limits: FOOD_LIMITS, goals: SETTINGS_GOALS, groups: MEAL_GROUPS, mainSlots: MAIN_SLOTS, addonGroup: ADDON_GROUP, addonSlot: ADDON_SLOT, lateNightHour: LATE_NIGHT_HOUR })};\nvar FOOD_BASICS = ${jsonForScript(buildBasics(nut.ING, es ? 'es' : 'en'))};`;
+const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForScript(T)};\nvar NUTRI_ARC = ${jsonForScript(arcPath(0, 1, OPEN_ARC))};\nvar I18N_FOOD = ${jsonForScript(F)};\nvar FOOD_CONST = ${jsonForScript({ meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS, limits: FOOD_LIMITS, goals: SETTINGS_GOALS, groups: MEAL_GROUPS, mainSlots: MAIN_SLOTS, addonGroup: ADDON_GROUP, addonSlot: ADDON_SLOT, lateNightHour: LATE_NIGHT_HOUR })};\nvar FOOD_BASICS = ${jsonForScript(buildBasics(nut.ING, es ? 'es' : 'en'))};`;
 // simple 24-unit line icons for the day-type segments (stroke = currentColor; no emoji, no vendor icons)
 const BIKE = '<circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M5.5 16.5 9 9.5h6l3.5 7M9 9.5l3.5 7h-7M13 6.5h3l-1 3"/>';
 const DAY_ICONS: Record<string, string> = {

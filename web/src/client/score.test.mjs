@@ -228,6 +228,17 @@ test('advice is rendered with the shared copy when fresh (identical to renderAdv
   assert.ok(es.includes(renderAdvice(s.advice, 'es')));
 });
 
+test('advice = the "outlook" bar under "My day": icon, the sentence (clamped in CSS), a chevron; it opens the recovery sheet that explains it', () => {
+  const s = fixtureScores();
+  const text = renderAdvice(s.advice, 'en');
+  const linked = render(s, { now: addDays(ASOF, 1), detail: true });
+  assert.ok(linked.includes(`<div class="sc-advice outlook" data-detail="recovery" role="button" tabindex="0" aria-haspopup="dialog"><svg class="outlook-ico"`));
+  assert.match(linked, new RegExp(`<span class="outlook-txt">${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</span><span class="outlook-chev" aria-hidden="true">›</span></div>`));
+  const plain = render(s, { now: addDays(ASOF, 1) });
+  assert.match(plain, /<div class="sc-advice outlook"><svg class="outlook-ico"/, 'no detail sheet baked: a plain bar');
+  assert.doesNotMatch(plain, /class="sc-card sc-advice/, 'no longer a bordered card');
+});
+
 test('stale: > 3 days old is greyed, shows "as of <date>" and the note, and suppresses advice', () => {
   const s = fixtureScores();
   const html = render(s, { now: addDays(ASOF, 5) });
@@ -381,21 +392,41 @@ test('dials: absent DIALS global renders the cards exactly as before (no dial ca
   assert.doesNotMatch(html, /sc-dials/);
 });
 
-test('recovery dial: headline = LAST NIGHT (band word + signed SD, coloured by that band), 7-day trend + direction underneath, never a percentage', () => {
+test('recovery dial: value INSIDE the ring = LAST NIGHT (signed number + small SD unit, coloured by its band); the 7-day trend lives in the detail sheet, never a percentage', () => {
   const s = fixtureScores();
   assert.ok(s.recovery.today, 'fixture has a composite for the asOf night');
   const d = dialOf(withDials(s), 'dial-rec');
   const t = s.recovery.today;
   assert.match(d, new RegExp(`dial-band-${t.band}`));
-  assert.ok(d.includes(enT.dials.recovery.bands[t.band]));
   const sd = (v) => (v > 0 ? '+' : '') + v.toFixed(1);
-  assert.ok(d.includes(`${sd(t.value)} SD`), `expected ${sd(t.value)} SD (the one recovery unit)`);
-  assert.ok(d.includes(enT.dials.recovery.lastNight), 'says it is last night when the data is from today');
+  assert.ok(d.includes(`<b class="dial-num">${sd(t.value)}<small>SD</small></b>`), `expected ${sd(t.value)} with a small SD inside the ring`);
+  // band word + "last night" stay in the accessible name; on screen only the number
+  assert.ok(d.includes(`aria-label="${enT.dials.recovery.aria.replace('{when}', enT.dials.recovery.lastNight).replace('{value}', sd(t.value)).replace('{band}', enT.dials.recovery.bands[t.band])}"`));
   const trendLine = enT.dials.recovery.trendLine.replace('{dir}', enT.dials.recovery.dirs[s.recovery.trendDir]).replace('{value}', sd(s.recovery.trend7));
-  assert.ok(d.includes(trendLine), `expected "${trendLine}"`);
+  assert.ok(!d.includes(trendLine), 'the trend caption moved to the detail sheet');
+  assert.doesNotMatch(d, /dial-sub|dial-when|dial-trend/);
   assert.doesNotMatch(d, /%/);
   assert.equal(count(d, 'class="dial-zone'), 3, 'below / at / above zones');
-  assert.match(d, /class="dial-dot"/);
+  assert.match(d, /class="dial-mid"/, 'baseline tick');
+  assert.doesNotMatch(d, /class="dial-dot"/, 'no marker dot: the fill ends at the value');
+});
+
+test('dials: label BELOW the ring, uppercase via CSS, with a chevron; no captions under the dials (they live in each dial\'s detail sheet)', () => {
+  const html = withDials(fixtureScores());
+  for (const lbl of [enT.dials.sleep.label, enT.dials.recovery.label, enT.dials.load.label]) {
+    assert.ok(html.includes(`<figcaption class="dial-lbl">${lbl}<span class="dial-chev" aria-hidden="true">›</span></figcaption>`), lbl);
+  }
+  assert.doesNotMatch(html, /class="dial-sub"|class="dial-cap"|class="dial-scale"|class="dial-switch-lbl"/);
+  assert.ok(!html.includes(enT.dials.load.scale), 'the load scale explanation is in the load detail sheet');
+  assert.ok(!html.includes('Target 7.5 h'), 'the sleep target is in the sleep detail sheet');
+});
+
+test('dials: stale data keeps ONE short warning line under the dials; fresh data has none', () => {
+  const s = fixtureScores();
+  assert.doesNotMatch(withDials(s, { now: addDays(ASOF, 1) }), /dial-stale/);
+  const stale = withDials(s, { now: addDays(ASOF, 5) });
+  assert.equal(count(stale, 'class="dial-stale"'), 1);
+  assert.ok(stale.includes(`<div class="dial-stale">${enT.staleNote.replace('{days}', '5')}</div>`));
 });
 
 test('recovery dial: an older night is labelled with its date, not "last night"', () => {
@@ -409,9 +440,8 @@ test('recovery dial: a composite without a sleep-duration reading is labelled by
   const s = fixtureScores();
   s.recovery.today = { ...s.recovery.today, sleep: false };
   const d = dialOf(withDials(s), 'dial-rec');
-  assert.ok(!d.includes(enT.dials.recovery.lastNight + '<'));
-  assert.ok(d.includes('Tue 29 Sep'));
-  assert.ok(d.includes(enT.dials.recovery.noSleep));
+  assert.ok(!d.includes(enT.dials.recovery.lastNight), 'not "last night", not even in the accessible name');
+  assert.ok(d.includes('as of Tue 29 Sep'), 'the accessible name dates the night (the "no sleep data" line is in the detail sheet)');
   const card = recCard(s);
   assert.ok(!card.includes(`<div class="rec-when">${enT.recovery.whenLastNight}</div>`), 'the recovery card does not call it last night either');
   assert.ok(card.includes(`<div class="rec-when">${enT.recovery.whenNoSleep.replace('{date}', 'Tue 29 Sep')}</div>`));
@@ -442,8 +472,9 @@ test('recovery dial: no composite for last night -> shows the trend and says the
   const s = fixtureScores();
   s.recovery.today = null;
   const d = dialOf(withDials(s), 'dial-rec');
-  assert.ok(d.includes(enT.dials.recovery.noLastNight));
-  assert.ok(!d.includes(enT.dials.recovery.lastNight + '<'));
+  const v = (s.recovery.trend7 > 0 ? '+' : '') + s.recovery.trend7.toFixed(1);
+  assert.ok(d.includes(`aria-label="${enT.dials.recovery.ariaTrend.replace('{value}', v).replace('{band}', enT.dials.recovery.bands[s.recovery.band])}"`), 'says so in its accessible name (and in the detail sheet)');
+  assert.ok(!d.includes(enT.dials.recovery.lastNight));
   assert.match(d, new RegExp(`dial-band-${s.recovery.band}`));
 });
 
@@ -459,7 +490,8 @@ test('sleep dial: last night hours, target labelled on screen, fill capped (es d
   const last = s.recovery.components.find((c) => c.key === 'sleepDur').daily.at(-1).value;
   const d = dialOf(withDials(s, { locale: 'es', T: esT }), 'dial-sleep');
   assert.ok(d.includes(last.toFixed(1).replace('.', ',')), 'hours with a comma');
-  assert.ok(d.includes('7,5'), 'target on screen');
+  assert.ok(d.includes('7,5'), 'target in the accessible name (on screen it is in the sleep detail sheet)');
+  assert.match(d, /<b class="dial-num">\d,\d<small>h<\/small><\/b>/, 'hours inside the ring, small unit');
   assert.ok(d.includes(esT.dials.sleep.label));
   assert.doesNotMatch(d, /%/);
 });
@@ -479,19 +511,14 @@ test('load dial: one visible modality (default = first ungated), switch for all 
     const i = html.indexOf(`data-dmod="${g.key}"`, html.indexOf('<figure class="dial dial-load'));
     const fig = html.slice(i, html.indexOf('</figure>', i));
     assert.doesNotMatch(fig, /dial-num/, 'gated: no number');
-    assert.match(html, new RegExp(`dial-cap[^>]*data-dmod="${g.key}"[^>]*>${enT.load.gated[g.reason].slice(0, 20)}`));
+    assert.ok(fig.includes(enT.dials.load.gated), 'gated word inside the ring (the reason is in the load detail sheet)');
   }
-  assert.ok(html.includes(enT.dials.load.scale), 'typical-day scale label');
   assert.doesNotMatch(html, /×/, 'no acute/chronic ratio as the headline any more');
 });
 
 const figOf = (html, key) => {
   const i = html.indexOf(`data-dmod="${key}"`, html.indexOf('<figure class="dial dial-load'));
   return html.slice(i, html.indexOf('</figure>', i));
-};
-const capOf = (html, key) => {
-  const m = html.match(new RegExp(`<div class="dial-cap" data-dmod="${key}"[^>]*>([\\s\\S]*?)</div>`));
-  return m ? m[1] : '';
 };
 
 // run sessions around ASOF: a scored day 2 days before, an unscored day 1 day before, a scored ASOF
@@ -513,12 +540,9 @@ test('load dial: the VIEWER\'s today with a workout -> today\'s RE vs the typica
   const d = buildDials(s, HEALTH).load.modalities.find((m) => m.key === 'run');
   assert.equal(d.state, 'ok');
   const fig = figOf(html, 'run');
-  assert.ok(fig.includes('<b class="dial-num">57</b>'));
+  assert.ok(fig.includes(`<b class="dial-num">57<small>${enT.dials.load.unit}</small></b>`));
   assert.ok(fig.includes(`d="${d.days[2].fill}"`), 'the baked geometry of that day');
-  const cap = capOf(html, 'run');
-  assert.ok(cap.includes('Today: RE 57'), cap);
-  assert.ok(cap.includes('typical day ~' + Math.round(d.typical)), cap);
-  assert.ok(cap.includes('7-day vs 42-day load: ' + (d.trendPct > 0 ? '+' : '') + d.trendPct + '%'), 'trend context kept');
+  assert.ok(fig.includes(`aria-label="${enT.dials.load.aria.replace('{modality}', 'Run').replace('{day}', '57').replace('{typical}', String(Math.round(d.typical)))}"`), 'typical day in the accessible name; the caption and acute/chronic context are in the load detail sheet');
 });
 
 test('load dial: rows today but no Relative Effort -> "no effort data", never rest', () => {
@@ -528,7 +552,6 @@ test('load dial: rows today but no Relative Effort -> "no effort data", never re
   assert.ok(fig.includes(enT.dials.load.noEffort));
   assert.doesNotMatch(fig, new RegExp(enT.dials.load.rest));
   assert.doesNotMatch(fig, /dial-num|dial-dot/);
-  assert.ok(capOf(html, 'run').startsWith(enT.dials.load.noEffortLine.split('·')[0].trim()));
 });
 
 test('load dial: no session today -> "No session yet today" with the last session (date + RE) as context', () => {
@@ -537,10 +560,7 @@ test('load dial: no session today -> "No session yet today" with the last sessio
   const fig = figOf(html, 'run');
   assert.ok(fig.includes(enT.dials.load.rest));
   assert.doesNotMatch(fig, /dial-num|dial-dot/);
-  const cap = capOf(html, 'run');
-  assert.ok(cap.startsWith('No session yet today · last session Tue 29 Sep: RE 57'), cap);
-  const none = withRecent(fixtureScores(), [], null);
-  assert.ok(capOf(withDials(none), 'run').startsWith('No session yet today · typical day'), 'no last session known');
+  assert.ok(!html.includes('last session Tue 29 Sep'), 'the last session line is in the load detail sheet');
 });
 
 /* the load dial opens on what happened TODAY (viewer's clock), not on the first ungated modality */
@@ -554,7 +574,6 @@ function withToday(s, reByKey) {
 }
 const pressedMod = (html) => (html.match(/class="dial-mod" data-dmod="([a-z]+)" aria-pressed="true"/) || [])[1];
 const visibleFig = (html) => (html.match(/<figure class="dial dial-load[^"]*" data-dmod="([a-z]+)"[^>]*?(?<!hidden)>/) || [])[1];
-const visibleCap = (html) => (html.match(/<div class="dial-cap" data-dmod="([a-z]+)">/) || [])[1];
 
 test('load dial default: the modality with a session on the viewer\'s today, not the first ungated one', () => {
   const ok = buildDials(fixtureScores(), HEALTH).load.modalities.filter((m) => m.state === 'ok').map((m) => m.key);
@@ -564,8 +583,7 @@ test('load dial default: the modality with a session on the viewer\'s today, not
   const html = withDials(s);
   assert.equal(pressedMod(html), second, 'switch starts on today\'s modality');
   assert.equal(visibleFig(html), second, 'its dial is the visible one');
-  assert.equal(visibleCap(html), second, 'and its caption');
-  assert.ok(figOf(html, second).includes('<b class="dial-num">94</b>'));
+  assert.ok(figOf(html, second).includes('<b class="dial-num">94<small>RE</small></b>'));
   assert.match(html, new RegExp(`<figure class="dial dial-load[^"]*" data-dmod="${first}" hidden`), 'the first ungated one is behind the switch');
   assert.equal(count(html, 'aria-pressed="true"'), 1);
 });
@@ -681,16 +699,14 @@ test('scMod: the switch shows only the chosen modality and moves aria-pressed', 
   assert.deepEqual(minis.map((p) => p.hidden), [true, true, false], 'the collapsed row follows the switch');
 });
 
-test('load: sessions without effort data in the acute window are noted on the card and the dial caption', () => {
+test('load: sessions without effort data in the acute window are noted on the card', () => {
   const s = fixtureScores();
   const run = s.load.modalities.find((m) => m.key === 'run');
   run.unscoredAcute = 2;
   const html = render(s);
   const note = enT.load.unscoredNote.replace('{n}', '2');
   assert.ok(html.includes(note), 'card note');
-  assert.equal(count(html, 'without effort data in the last 7 days'), 1, 'only the run card');
-  const dhtml = withDials(s);
-  assert.ok(capOf(dhtml, 'run').includes(note), 'dial caption');
+  assert.equal(count(html, 'without effort data in the last 7 days'), 1, 'only the run card (the dial\'s note is in its detail sheet)');
 });
 
 test('one date format: every date the dials and cards print goes through HC.fmtDate, never ISO (ISO stays in attributes)', () => {

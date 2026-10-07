@@ -110,9 +110,55 @@
   font-size: var(--fs-xs);
   margin: 6px 0;
 }
-.sc-advice {
-  font-size: var(--fs-md, 15px);
-  border-color: var(--accent-dim);
+/* "My day" outlook bar (the advice sentence): full width, ~46px, warm grey -> dark horizontal
+   gradient, sun icon, the sentence clamped to two lines, a chevron; opens the recovery sheet */
+.outlook {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: 46px;
+  margin: 0 0 var(--sp-5);
+  padding: var(--sp-3) var(--sp-5);
+  border-radius: var(--r-sm);
+  background: linear-gradient(90deg, #4a4642 0%, #34363a 45%, var(--surface) 100%);
+  color: var(--ink);
+}
+.outlook[data-detail][role="button"] {
+  cursor: pointer;
+  padding-right: var(--sp-5);
+}
+.outlook[data-detail][role="button"]::after {
+  content: none;
+}
+.outlook[role="button"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.outlook-ico {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.outlook-txt {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-md);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+.outlook-chev {
+  flex: none;
+  color: var(--muted);
+  font-size: var(--fs-2xl);
+  line-height: 1;
 }
 .sc-caveats {
   margin: 0;
@@ -145,13 +191,22 @@
   outline-offset: 2px;
 }
 
-/* Inicio dials — Sleep / Recovery / Load. 270 degree open arcs; geometry is baked (view/dial.mjs).
- * --dial-c is the dial's meaning colour: sleep, recovery band (good / trend / low), load = strain.
- * No percentage anywhere: recovery marks last night on a zoned scale (7-day trend underneath),
- * sleep fills to a stated target, load marks the day's RE with the typical training day at the top
- * of the arc (a rest day has no fill). */
+/* Inicio dials — Sleep / Recovery / Load: three equal full rings in a row (start at 12 o'clock, fill
+ * clockwise, round caps, thin stroke on --track), the value INSIDE (D-DIN number, small unit) and an
+ * uppercase "LABEL ›" below. Geometry is baked (view/dial.mjs). --dial-c is the dial's meaning colour:
+ * sleep, recovery band (good / trend / low), load = strain. No percentage anywhere: recovery fills to
+ * last night on a -3..+3 scale (baseline = the tick at 6 o'clock), sleep fills to a stated target,
+ * load fills to the day's RE with the typical training day at 6 o'clock (a rest day has no fill).
+ * The dials sit on the page ground, not in a card; the captions live in each dial's detail sheet. */
+.sc-card.sc-dials {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: var(--sp-5) 0 var(--sp-3);
+  margin-bottom: var(--sp-7);
+}
 .sc-dials {
-  padding: var(--sp-7) var(--sp-5) var(--sp-6);
+  --dial-size: 92px;
 }
 .dials {
   display: grid;
@@ -167,10 +222,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-1) 0;
   text-align: center;
 }
-.dial[hidden],
-.dial-cap[hidden] {
+.dial[hidden] {
   display: none;
 }
 .dial-sleep {
@@ -203,13 +259,12 @@
 .dial-track {
   fill: none;
   stroke: var(--track);
-  stroke-width: 10;
-  stroke-linecap: round;
+  stroke-width: 7;
 }
 .dial-zone {
   fill: none;
-  stroke-width: 10;
-  opacity: 0.26;
+  stroke-width: 7;
+  opacity: 0.22;
 }
 .dial-zone-below {
   stroke: var(--low);
@@ -223,16 +278,10 @@
 .dial-fill {
   fill: none;
   stroke: var(--dial-c);
-  stroke-width: 10;
+  stroke-width: 7;
   stroke-linecap: round;
   stroke-dasharray: 100 100;
   animation: dial-in 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-.dial-dot {
-  fill: var(--ground);
-  stroke: var(--dial-c);
-  stroke-width: 3;
-  animation: dial-dot 0.9s both;
 }
 .dial-mid {
   fill: var(--muted);
@@ -244,8 +293,6 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  padding-top: 4px;
 }
 .dial-num {
   font-family: var(--num);
@@ -258,70 +305,48 @@
 }
 .dial-num small {
   font-size: 0.55em;
-  margin-left: 1px;
-  color: var(--muted);
-}
-.dial-num-sm {
-  font-size: clamp(14px, 4.4vw, 18px);
+  margin-left: 2px;
+  color: var(--ink);
 }
 .dial-word {
-  max-width: 76%;
+  max-width: 70%;
   font-size: 9.5px;
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: var(--label-track);
   text-transform: uppercase;
-  color: var(--dial-c);
+  color: var(--muted);
 }
 .dial-lbl {
-  margin-top: -4px;
   font-size: var(--fs-2xs);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
   color: var(--ink);
+  white-space: nowrap;
 }
-.dial-sub {
-  font-size: var(--fs-2xs);
+.dial-chev {
+  margin-left: 3px;
   color: var(--muted);
-}
-.dial-when,
-.dial-trend {
-  display: block;
-}
-.dial-when {
-  color: var(--ink);
-}
-.dial-nodata {
-  color: var(--mid);
 }
 .dial-off .dial-svg {
   opacity: 0.45;
 }
-.dial-off .dial-word,
 .dial-off .dial-lbl {
   color: var(--muted);
 }
+/* compact gym / run / bike pills, right-aligned under the load dial */
 .dial-foot {
-  margin-top: var(--sp-5);
-  padding-top: var(--sp-4);
-  border-top: 1px solid var(--line-soft);
+  margin-top: var(--sp-3);
 }
 .dial-switch {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: var(--sp-2);
   /* a wrapped row sits past both 7px hit-area extensions (see .dial-mod::before) */
   row-gap: var(--sp-6);
-}
-.dial-switch-lbl {
-  margin-right: auto;
-  font-size: var(--fs-2xs);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--muted);
 }
 /* the pill stays a compact 30px; its hit area is a centred 44px band (::before) that only reaches
    7px above and below it, never sideways into the next pill */
@@ -350,23 +375,20 @@
   right: 0;
 }
 .dial-mod[aria-pressed="true"] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
+  background: rgba(var(--accent-rgb), 0.12);
+  border-color: var(--strain);
+  color: var(--ink);
 }
 .dial-mod:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.dial-scale {
-  margin-top: var(--sp-2);
-  font-size: var(--fs-2xs);
-  color: var(--faint);
-}
-.dial-cap {
-  margin-top: var(--sp-1);
+/* the one line that stays under the dials: the data is too old */
+.dial-stale {
+  margin-top: var(--sp-3);
   font-size: var(--fs-xs);
-  color: var(--muted);
+  color: var(--mod);
+  text-align: center;
 }
 /* compact caveat line, only when the dial's detail (with the full caveats) is hidden */
 .dial-caveat {
@@ -382,30 +404,17 @@
     stroke-dashoffset: 0;
   }
 }
-@keyframes dial-dot {
-  0%,
-  70% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
-  .dial-fill,
-  .dial-dot {
+  .dial-fill {
     animation: none;
   }
 }
 @media (min-width: 900px) {
   .sc-dials {
-    --dial-size: 150px;
+    --dial-size: 140px;
   }
   .dial-num {
     font-size: 34px;
-  }
-  .dial-num-sm {
-    font-size: 22px;
   }
   .dial-word {
     font-size: 11px;
@@ -520,59 +529,274 @@
   font-size: var(--fs-sm);
 }
 
-/* Inicio "today" timeline: sleep row (--sleep) then workout rows (--strain = load); a dot carries the
-   meaning, the text stays ink */
+/* Inicio "Today's activities": per row a coloured score chip (sleep --sleep, a workout --strain; icon
+   + value), the uppercase name, and the details stacked on the right behind a thin coloured bar.
+   The programmed session's chip is an outline (not done, just planned). */
 .tl-list {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
-  margin-top: var(--sp-4);
+  gap: var(--sp-3);
+  margin-top: var(--sp-5);
 }
 .tl-row {
+  --tl-c: var(--strain);
   display: flex;
   align-items: center;
-  gap: var(--sp-4);
-  padding: var(--sp-3) var(--sp-4);
+  gap: var(--sp-5);
+  min-height: 56px;
+  padding: var(--sp-3);
   background: var(--surface-2);
-  border: 1px solid var(--line-soft);
   border-radius: var(--r-sm);
-  --tl-c: var(--strain);
 }
 .tl-sleep {
   --tl-c: var(--sleep);
 }
 .tl-none {
-  --tl-c: var(--faint);
+  --tl-c: var(--track);
+}
+.tl-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-width: 92px;
+  height: 40px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-xs);
+  background: var(--tl-c);
+  color: var(--on-strain);
+}
+.tl-chip b {
+  font-family: var(--num);
+  font-size: var(--fs-xl);
+  white-space: nowrap;
+}
+.tl-ico {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tl-none .tl-chip {
   color: var(--muted);
 }
-.tl-dot {
-  flex: 0 0 8px;
-  height: 8px;
-  border-radius: var(--r-pill);
-  background: var(--tl-c);
+.tl-prog .tl-chip {
+  background: transparent;
+  border: 1.5px dashed var(--strain);
+  color: var(--strain-ink);
 }
-.tl-lbl {
+.tl-name {
   flex: 1;
-  font-size: var(--fs-xs);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
 }
-.tl-val {
-  font-family: var(--num);
-  font-size: var(--fs-md);
+.tl-none .tl-name {
+  color: var(--muted);
+}
+.tl-side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding-right: var(--sp-3);
+  border-right: 2px solid var(--tl-c);
+  font-size: var(--fs-2xs);
+  color: var(--muted);
   white-space: nowrap;
 }
-.tl-row[role="button"] {
+.tl-times {
+  font-family: var(--num);
+  font-size: var(--fs-xs);
+  color: var(--ink);
+}
+.tl-prog .tl-side {
+  text-transform: uppercase;
+  letter-spacing: var(--label-track);
+  font-weight: var(--label-weight);
+  color: var(--strain-ink);
+}
+.tl-row[data-detail][role="button"] {
   cursor: pointer;
+  padding-right: var(--sp-3);
+}
+.tl-row[data-detail][role="button"]::after {
+  content: none;
 }
 .tl-row[role="button"]:hover {
-  border-color: rgba(var(--accent-rgb), 0.35);
+  background: rgba(var(--accent-rgb), 0.08);
 }
 .tl-row[role="button"]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Inicio "My day" heading: Title Case, the only non-uppercase heading on the tab */
+.home-h {
+  display: block;
+  margin: var(--sp-10) 0 var(--sp-5);
+  font-size: var(--fs-3xl);
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+}
+
+.home-h::after {
+  content: none;
+}
+
+/* Inicio monitor tiles: two ~90px tiles (summary + HRV), or one full-width tile without HRV */
+.hm-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+.hm-tiles-one {
+  grid-template-columns: 1fr;
+}
+.hmt {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-height: 90px;
+  padding: var(--sp-5);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--card-bg);
+  color: var(--ink);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.hmt[data-detail][role="button"] {
+  padding-right: var(--sp-5);
+}
+.hmt[data-detail][role="button"]::after {
+  content: none;
+}
+.hmt:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.hmt-lbl {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.hmt-chev {
+  color: var(--muted);
+  font-size: var(--fs-lg);
+  line-height: 0.8;
+}
+.hmt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hmt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.hmt-in {
+  color: var(--up);
+}
+.hmt-out {
+  color: var(--down);
+}
+.hmt-none {
+  color: var(--faint);
+}
+.hmt-ico {
+  width: 16px;
+  height: 16px;
+  padding: 1px;
+  border-radius: 3px;
+  background: rgba(0, 241, 159, 0.16);
+  fill: none;
+  stroke: var(--up);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hmt-sub {
+  font-size: var(--fs-2xs);
+  color: var(--faint);
+}
+.hmt-val b {
+  font-family: var(--num);
+  font-size: var(--fs-2xl);
+}
+.hmt-val small {
+  margin-left: 2px;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+.hmt-status {
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--hm-c, var(--trend));
+}
+
+/* the full monitor grid, folded at the bottom of Inicio until P5 moves it to Salud */
+.hm-fold,
+.hm-fold[open] {
+  margin: var(--sp-7) 0 var(--sp-5);
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+.hm-fold-sum {
+  display: flex;
+  padding: 0 var(--sp-7);
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+.hm-fold-sum::-webkit-details-marker {
+  display: none;
+}
+.hm-fold[open] > .hm-fold-sum {
+  margin-bottom: var(--sp-5);
+}
+
+/* the programmed session's section is a hidden source (client/training-today.js) */
+.hoy-src {
+  display: none;
 }
 
 /* Recovery detail card (Salud #score-recovery, Whoop-style): headline (last night, big number +
@@ -777,13 +1001,12 @@ details.rec-raw > summary {
 }
 .dm .dial-track,
 .dm .dial-fill {
-  stroke-width: 16;
+  stroke-width: 14;
 }
 .dm .dial-fill {
   animation: none;
 }
 .dm .dial-zone,
-.dm .dial-dot,
 .dm .dial-mid {
   display: none;
 }

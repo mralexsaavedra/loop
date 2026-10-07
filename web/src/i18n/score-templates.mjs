@@ -13,6 +13,8 @@ export { RECOVERY_UNIT };
 const UE = RECOVERY_UNIT.en, US = RECOVERY_UNIT.es;
 
 export const en = {
+  // Inicio static headings (tabs/Home.astro)
+  home: { myDay: 'My day', moreMetrics: 'See metrics' },
   emptyMsg: 'No scores yet. Recovery needs the Apple Health extract; load needs workouts with Relative Effort (Strava).',
   asOfLbl: 'as of {date}',
   staleNote: 'The newest data is {days} days old: shown greyed, and no advice is given.',
@@ -66,10 +68,9 @@ export const en = {
   dials: {
     ariaLabel: 'Sleep, recovery and load at a glance',
     none: 'No data',
-    sleep: { label: 'Sleep', target: 'Target {value} h', aria: 'Last night: {value} h of a {target} h target' },
+    sleep: { label: 'Sleep', aria: 'Last night: {value} h of a {target} h target' },
     recovery: {
       label: 'Recovery',
-      sub: '7-day trend',
       delta: `{value} ${UE}`,
       gated: 'No baseline',
       bands: { above: 'Above', at: 'At base', below: 'Below' },
@@ -87,7 +88,7 @@ export const en = {
     load: {
       label: 'Load',
       switchLabel: 'Load modality',
-      scale: 'Top of the arc = your typical training day (median of the last 6 weeks)',
+      scale: 'Half the ring = your typical training day (median of the last 6 weeks); a full ring = twice it',
       gated: 'Building',
       rest: 'No session yet',
       noEffort: 'No effort data',
@@ -99,6 +100,7 @@ export const en = {
       aria: '{modality} today: Relative Effort {day}, typical training day {typical}',
       ariaNoEffort: '{modality} today: session without Relative Effort data, typical training day {typical}',
       ariaRest: '{modality}: no session yet today, typical training day {typical}',
+      ariaGated: '{modality} load: not enough history yet',
       // shown under the dials only when Entreno's load detail (with the full caveats) is hidden
       caveatLine: 'Load = Relative Effort, which is HR-derived (it credits the metcon more than heavy sets); modalities are not comparable; there is no comparable load before Relative Effort tracking started; same-day rows are summed.',
     },
@@ -106,6 +108,8 @@ export const en = {
   monitor: {
     heading: 'Health monitor',
     ariaLabel: 'Overnight signals against your own normal range',
+    // Inicio summary tile (#home-tiles): counts from the same cards; "metrics" = in range / all cards
+    tile: { inRange: 'Within range', out: '{n} out of range', none: 'No data', metrics: '{n}/{total} metrics', ariaLabel: 'Monitor summary' },
     labels: { respiratory: 'Respiratory rate', rhr: 'Resting HR', hrv: 'HRV', wristTemp: 'Wrist temp (sleep)', sleep: 'Sleep' },
     units: { respiratory: 'brpm', rhr: 'bpm', hrv: 'ms', wristTemp: '°C', sleep: 'h' },
     status: { normal: 'Normal', high: 'High', low: 'Low', building: 'Building baseline', none: 'No data', stale: 'No recent data' },
@@ -114,8 +118,8 @@ export const en = {
   },
   // Inicio "today" timeline (client/timeline.js): last night's sleep + the day's workouts
   timeline: {
-    heading: 'Today',
-    ariaLabel: 'Last night and today\'s workouts',
+    heading: 'Today\'s activities',
+    ariaLabel: 'Last night, today\'s workouts and today\'s programmed session',
     dateHeading: 'Latest day · {date}',
     noToday: 'Nothing logged yet today.',
     empty: 'Nothing logged in the last few days. Sleep and workouts appear here from the Watch and Strava.',
@@ -126,6 +130,9 @@ export const en = {
     minutes: '{n} min',
     re: 'RE {n}',
     parts: '{n} parts',
+    // the programmed session row (client/training-today.js -> window.HCProgram)
+    programmed: 'Programmed',
+    programmedChip: 'Plan',
     note: 'Same-day parts of one modality are merged (the Watch splits a session). RE only comes from Strava.',
   },
   advice: ADVICE_COPY.en,
@@ -142,6 +149,8 @@ export const en = {
 };
 
 export const es = {
+  // títulos fijos de Inicio (tabs/Home.astro)
+  home: { myDay: 'Mi día', moreMetrics: 'Ver métricas' },
   emptyMsg: 'Aún no hay puntuaciones. La recuperación necesita la exportación de Apple Health; la carga necesita entrenos con Esfuerzo Relativo (Strava).',
   asOfLbl: 'a fecha {date}',
   staleNote: 'El dato más reciente tiene {days} días: se muestra en gris y no se da consejo.',
@@ -195,10 +204,9 @@ export const es = {
   dials: {
     ariaLabel: 'Sueño, recuperación y carga de un vistazo',
     none: 'Sin datos',
-    sleep: { label: 'Sueño', target: 'Objetivo {value} h', aria: 'Anoche: {value} h de un objetivo de {target} h' },
+    sleep: { label: 'Sueño', aria: 'Anoche: {value} h de un objetivo de {target} h' },
     recovery: {
       label: 'Recuperación',
-      sub: 'Tendencia 7 días',
       delta: `{value} ${US}`,
       gated: 'Sin base',
       bands: { above: 'Encima', at: 'En base', below: 'Debajo' },
@@ -216,7 +224,7 @@ export const es = {
     load: {
       label: 'Carga',
       switchLabel: 'Modalidad de carga',
-      scale: 'Arriba del arco = tu día típico de entreno (mediana de las últimas 6 semanas)',
+      scale: 'Medio anillo = tu día típico de entreno (mediana de las últimas 6 semanas); anillo completo = el doble',
       gated: 'En formación',
       rest: 'Sin sesión aún',
       noEffort: 'Sin dato de esfuerzo',
@@ -228,12 +236,15 @@ export const es = {
       aria: '{modality} hoy: Esfuerzo Relativo {day}, día típico de entreno {typical}',
       ariaNoEffort: '{modality} hoy: sesión sin dato de Esfuerzo Relativo, día típico de entreno {typical}',
       ariaRest: '{modality}: sin sesión hoy (aún), día típico de entreno {typical}',
+      ariaGated: 'Carga de {modality}: aún sin historial suficiente',
       // solo bajo los diales cuando el detalle de carga de Entreno (con todas las advertencias) está oculto
       caveatLine: 'Carga = Esfuerzo Relativo, que se deriva de la FC (reconoce más el metcon que las series pesadas); las modalidades no son comparables; no hay carga comparable antes de que empezara el seguimiento del Esfuerzo Relativo; las filas del mismo día se suman.',
     },
   },
   monitor: {
     heading: 'Monitor de salud',
+    // tile resumen de Inicio (#home-tiles): cuenta las mismas tarjetas; "métricas" = en rango / todas
+    tile: { inRange: 'En rango', out: '{n} fuera de rango', none: 'Sin datos', metrics: '{n}/{total} métricas', ariaLabel: 'Resumen del monitor' },
     ariaLabel: 'Señales nocturnas frente a tu propio rango normal',
     labels: { respiratory: 'Frecuencia respiratoria', rhr: 'FC en reposo', hrv: 'VFC', wristTemp: 'Temp. de muñeca (sueño)', sleep: 'Sueño' },
     units: { respiratory: 'rpm', rhr: 'ppm', hrv: 'ms', wristTemp: '°C', sleep: 'h' },
@@ -243,8 +254,8 @@ export const es = {
   },
   // "Hoy" en Inicio (client/timeline.js): el sueño de anoche + los entrenos del día
   timeline: {
-    heading: 'Hoy',
-    ariaLabel: 'La noche pasada y los entrenos de hoy',
+    heading: 'Actividades de hoy',
+    ariaLabel: 'La noche pasada, los entrenos de hoy y la sesión programada de hoy',
     dateHeading: 'Último día · {date}',
     noToday: 'Hoy aún no hay nada registrado.',
     empty: 'No hay nada registrado en los últimos días. El sueño y los entrenos aparecen aquí desde el Watch y Strava.',
@@ -255,6 +266,9 @@ export const es = {
     minutes: '{n} min',
     re: 'Esf. {n}',
     parts: '{n} partes',
+    // la fila de la sesión programada (client/training-today.js -> window.HCProgram)
+    programmed: 'Programado',
+    programmedChip: 'Plan',
     note: 'Las partes del mismo día y modalidad se juntan (el Watch divide una sesión). El Esfuerzo Relativo solo llega de Strava.',
   },
   advice: ADVICE_COPY.es,

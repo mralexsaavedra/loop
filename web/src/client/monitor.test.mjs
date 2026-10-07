@@ -31,14 +31,14 @@ function monitor() {
   });
 }
 
-function render(mon, { locale = 'en', now = ASOF, healthNav = false, detail = false } = {}) {
+function render(mon, { locale = 'en', now = ASOF, healthNav = false, detail = false, tiles = null } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
   class FakeDate extends RealDate {
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
   const ctx = {
-    document: { getElementById: (id) => (id === 'monitor' ? host : id === 't-health' && healthNav ? {} : null) },
+    document: { getElementById: (id) => (id === 'monitor' ? host : id === 'home-tiles' ? tiles : id === 't-health' && healthNav ? {} : null) },
     SCORES: mon === undefined ? undefined : { monitor: mon }, I18N_SCORE: locale === 'es' ? esT : enT, LOCALE: locale,
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
@@ -159,4 +159,61 @@ test('stale monitor (> 3 days) is greyed; absent SCORES or host never throws', (
   assert.equal(render(undefined), '');
   const empty = render(monitorFromInputs({}));
   assert.equal((empty.match(/hm-none/g) || []).length, 5, 'all five say No data');
+});
+
+/* ---- Inicio monitor tiles (#home-tiles): a summary tile + the HRV tile, from the SAME baked cards ---- */
+const tilesOf = (mon, opts = {}) => { const tiles = { innerHTML: '' }; render(mon, { ...opts, tiles }); return tiles.innerHTML; };
+const tileText = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+test('tile 1 = the monitor summary: out-of-range count chip, "n/5 metrics" in range, a button that jumps to the full monitor', () => {
+  const html = tilesOf(monitor());
+  // respiratory High + sleep Low are out of range; resting HR in range; HRV building; wrist temp no data
+  assert.match(html, /<button type="button" class="hmt hmt-sum" onclick="jump\('monitor'\)">/);
+  const sum = html.match(/<button type="button" class="hmt hmt-sum"[\s\S]*?<\/button>/)[0];
+  assert.ok(sum.includes(`<span class="hmt-lbl">${enT.monitor.heading}<span class="hmt-chev" aria-hidden="true">›</span></span>`));
+  assert.match(sum, /<span class="hmt-chip hmt-out">/);
+  assert.ok(sum.includes(enT.monitor.tile.out.replace('{n}', '2')));
+  assert.ok(sum.includes(enT.monitor.tile.metrics.replace('{n}', '1').replace('{total}', '5')));
+  assert.doesNotMatch(html, /NaN|undefined|<script|src=|href=/);
+});
+
+test('tile 1: every fresh signal in range -> the teal "within range" chip with a check; nothing fresh -> "no data"', () => {
+  const ok = monitorFromInputs({ rhr: series({ base: 50, amp: 1, last: 50 }), hrv: series({ base: 60, amp: 2, last: 60 }) });
+  const html = tilesOf(ok);
+  assert.match(html, /<span class="hmt-chip hmt-in"><svg class="hmt-ico"[^>]*aria-hidden="true">/);
+  assert.ok(html.includes(enT.monitor.tile.inRange));
+  assert.ok(html.includes(enT.monitor.tile.metrics.replace('{n}', '2').replace('{total}', '5')));
+  const none = tilesOf(monitorFromInputs({}));
+  assert.match(none, /hmt-chip hmt-none/);
+  assert.ok(none.includes(enT.monitor.tile.none));
+  // a stale reading never counts as in or out of range
+  const later = tilesOf(monitor(), { now: addDays(ASOF, 1) }); // sleep is 4 days old now
+  assert.ok(later.includes(enT.monitor.tile.out.replace('{n}', '1')));
+});
+
+test('tile 2 = HRV (a real baked value, no invented stress score): value + unit chip, status word, opens the HRV sheet', () => {
+  const mon = monitorFromInputs({ hrv: series({ base: 60, amp: 2, last: 61 }) });
+  const html = tilesOf(mon, { detail: true });
+  const t = html.match(/<div class="hmt hmt-hrv[^"]*"[\s\S]*?<!--\/hmt-->/)[0];
+  assert.match(t, /data-detail="hrv" role="button"/);
+  assert.ok(t.includes(`<span class="hmt-lbl">${enT.monitor.labels.hrv}<span class="hmt-chev" aria-hidden="true">›</span></span>`));
+  assert.ok(t.includes(`<span class="hmt-val"><b>61</b><small>${enT.monitor.units.hrv}</small></span>`));
+  assert.ok(t.includes(`>${enT.monitor.status.normal}<`));
+  assert.match(html, /class="hm-tiles"/, 'two columns');
+  assert.doesNotMatch(html, /hm-tiles-one/);
+});
+
+test('tile 2 is left out when HRV has no fresh value: tile 1 goes full width', () => {
+  for (const mon of [monitorFromInputs({ rhr: series({ base: 50, amp: 1 }) }), monitorFromInputs({ hrv: series({ base: 60, amp: 2, asOf: addDays(ASOF, -6) }) })]) {
+    const html = tilesOf(mon);
+    assert.doesNotMatch(html, /hmt-hrv/);
+    assert.match(html, /class="hm-tiles hm-tiles-one"/);
+  }
+});
+
+test('es tiles: Spanish copy, decimal comma', () => {
+  const html = tilesOf(monitor(), { locale: 'es' });
+  assert.ok(html.includes(esT.monitor.tile.out.replace('{n}', '2')));
+  assert.ok(html.includes(esT.monitor.tile.metrics.replace('{n}', '1').replace('{total}', '5')));
+  assert.equal(esT.monitor.tile.inRange, 'En rango');
 });

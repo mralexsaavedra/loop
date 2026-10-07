@@ -248,17 +248,33 @@
     var subs = h.sleep === false ? [{ cls: 'dt-nodata', text: R.noSleep }, trendSub] : [trendSub];
     return bigHtml(signed(h.value, 1), st, unitOf('recovery'), when, T.day.bands[h.band], subs);
   }
-  // load: exactly the dial's today logic (score.js loadToday + the caption lines)
+  // load: exactly the dial's today logic (score.js loadToday), then the dial's former captions — the
+  // ring scale and, from the baked DIALS (components/Bake.astro), the 7-day vs 42-day context + band
+  // and the sessions-without-effort note
+  function loadContext(key) {
+    var L = T.load, mod = modOf(key);
+    var DL = typeof DIALS !== 'undefined' && DIALS && DIALS.load && Array.isArray(DIALS.load.modalities) ? DIALS.load.modalities : [];
+    var dm = null;
+    DL.forEach(function (x) { if (x && x.key === mod) dm = x; });
+    var subs = [];
+    if (L.scale) subs.push({ cls: 'dt-scale', text: L.scale });
+    if (dm && dm.state === 'ok' && typeof dm.trendPct === 'number' && isFinite(dm.trendPct)) {
+      subs.push({ text: format(L.trendLbl, { pct: pct(dm.trendPct) }) + (L.bands[dm.band] ? ' · ' + L.bands[dm.band] : '') });
+      if (dm.unscored > 0) subs.push({ text: format(L.unscoredNote, { n: dm.unscored }) });
+    }
+    return subsHtml(subs);
+  }
   function loadLatest(key, m) {
     var L = T.load;
     if (m.gate) return noneHtml(L.gated[m.gate] || L.gated.baselineBuilding);
     var t = HC.todayIso(), i = dayDiff(m.start, t);
     var v = at(m.v, m, t);
     var typ = fmt(m.typical, 0);
-    if (v != null && v > 0) return bigHtml(fmt(v, 0), 'normal', unitOf(key), '', '', [{ text: format(L.dayLine, { day: fmt(v, 0), typical: typ }) }]);
-    if (i >= 0 && i < m.v.length && m.v[i] === null) return noneHtml(format(L.noEffortLine, { typical: typ }));
+    var ctx = loadContext(key);
+    if (v != null && v > 0) return bigHtml(fmt(v, 0), 'normal', unitOf(key), '', '', [{ text: format(L.dayLine, { day: fmt(v, 0), typical: typ }) }]) + ctx;
+    if (i >= 0 && i < m.v.length && m.v[i] === null) return noneHtml(format(L.noEffortLine, { typical: typ })) + ctx;
     var last = m.last && isoDate(m.last.date) ? m.last : null;
-    return noneHtml(last ? format(L.restLastLine, { date: HC.fmtDate(last.date), re: fmt(last.re, 0), typical: typ }) : format(L.restLine, { typical: typ }));
+    return noneHtml(last ? format(L.restLastLine, { date: HC.fmtDate(last.date), re: fmt(last.re, 0), typical: typ }) : format(L.restLine, { typical: typ })) + ctx;
   }
   // weight / energy: the card's 7-day rolling average (a partial today never sets it)
   function rollLatest(key, m, end) {

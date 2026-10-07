@@ -20,7 +20,7 @@ const TL = timelineFromInputs(
   [{ date: '2026-09-28', value: 7.1 }, { date: '2026-09-29', value: 6.86 }],
 );
 
-function render(timeline, { locale = 'en', now = ASOF, at, healthNav = false, entrenoNav = false, T, noLocale = false, detail = false } = {}) {
+function render(timeline, { locale = 'en', now = ASOF, at, healthNav = false, entrenoNav = false, T, noLocale = false, detail = false, program = null } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
   const stamp = at || now + 'T12:00:00';
@@ -35,6 +35,7 @@ function render(timeline, { locale = 'en', now = ASOF, at, healthNav = false, en
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
   if (detail) ctx.DETAIL = { metrics: {} };
+  ctx.window = program ? { HCProgram: program } : {};
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
@@ -42,14 +43,18 @@ function render(timeline, { locale = 'en', now = ASOF, at, healthNav = false, en
 }
 const rows = (html) => [...html.matchAll(/<li class="tl-row ([^"]+)"[^>]*>([\s\S]*?)<\/li>/g)].map((m) => ({ cls: m[1], text: m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() }));
 
-test('viewer today: "Today" heading, last night\'s sleep first, then each workout with modality, minutes and RE if any', () => {
+test('viewer today: "Today\'s activities" heading, last night\'s sleep first, then each workout: a coloured chip (icon + value), the name, the details stacked on the right', () => {
   const html = render(TL);
+  assert.equal(enT.timeline.heading, 'Today\'s activities');
   assert.ok(html.includes(`<h3>${enT.timeline.heading}</h3>`));
   assert.deepEqual(rows(html), [
-    { cls: 'tl-sleep', text: 'Sleep 6.9 h' },
-    { cls: 'tl-run', text: 'Run 45 min · RE 94' },
-    { cls: 'tl-bike', text: 'Bike 30 min' },
+    { cls: 'tl-sleep', text: '6.9 h Sleep' },
+    { cls: 'tl-run', text: '45 min Run RE 94' },
+    { cls: 'tl-bike', text: '30 min Bike' },
   ]);
+  const sleep = html.match(/<li class="tl-row tl-sleep"[\s\S]*?<\/li>/)[0];
+  assert.match(sleep, /<span class="tl-chip"><svg class="tl-ico"[^>]*aria-hidden="true">[\s\S]*?<\/svg><b>6\.9 h<\/b><\/span><span class="tl-name">Sleep<\/span>/);
+  assert.match(html, /<li class="tl-row tl-run"[^>]*><span class="tl-chip">[\s\S]*?<\/span><span class="tl-name">Run<\/span><span class="tl-side"><span>RE 94<\/span><\/span>/);
   assert.doesNotMatch(html, /NaN|undefined|<script|src=|href=/);
 });
 
@@ -86,7 +91,7 @@ test('clock skew: the viewer\'s today EARLIER than every baked day -> the newest
 test('a day without a sleep reading says so, never 0 h', () => {
   const tl = timelineFromInputs([w(ASOF, 'Running', 40, 50)], null);
   const r = rows(render(tl));
-  assert.deepEqual(r[0], { cls: 'tl-sleep tl-none', text: enT.timeline.noSleep });
+  assert.deepEqual(r[0], { cls: 'tl-sleep tl-none', text: '— ' + enT.timeline.noSleep });
 });
 
 test('stale data (> 3 days old) is greyed; exactly 3 days is not', () => {
@@ -103,8 +108,8 @@ test('es: decimal comma, Spanish labels, merged parts counted', () => {
   const tl = timelineFromInputs([w(ASOF, 'HighIntensityIntervalTraining', 30), w(ASOF, 'TraditionalStrengthTraining', 25, 20)], [{ date: ASOF, value: 7.25 }]);
   const r = rows(render(tl, { locale: 'es' }));
   assert.deepEqual(r, [
-    { cls: 'tl-sleep', text: 'Sueño 7,3 h' },
-    { cls: 'tl-gym', text: 'Gimnasio 55 min · Esf. 20 · 2 partes' },
+    { cls: 'tl-sleep', text: '7,3 h Sueño' },
+    { cls: 'tl-gym', text: '55 min Gimnasio Esf. 20 2 partes' },
   ]);
 });
 
@@ -128,4 +133,29 @@ test('resilience: a missing LOCALE global renders the card fallback inside the t
 test('resilience: a broken baked day renders the card fallback, never throws', () => {
   const html = render({ asOf: ASOF, days: [{ date: ASOF, sleep: 7, items: 'broken' }] });
   assert.match(html, /sc-card-error|tl/);
+});
+
+test('sleep row: bedtime and wake time stacked on the right (24 h clock), from the baked night', () => {
+  const tl = timelineFromInputs([], [{ date: ASOF, value: 7.5, bedtime: 23.1166, waketime: 6.75 }]);
+  const html = render(tl);
+  assert.match(html, /<span class="tl-side tl-times"><span>23:07<\/span><span>06:45<\/span><\/span>/);
+  const early = render(timelineFromInputs([], [{ date: ASOF, value: 7, bedtime: 24.5, waketime: 7.999 }]));
+  assert.match(early, /<span>00:30<\/span><span>08:00<\/span>/, 'past-midnight bedtimes wrap; minutes round');
+});
+
+test('programmed session (window.HCProgram, client/training-today.js): a "programmed" row after the done rows, opening the session view; only on the viewer\'s today', () => {
+  const prog = { date: ASOF, kind: 'run', focus: 'Tempo <6x1k>' };
+  const html = render(TL, { program: prog, detail: true });
+  const r = rows(html);
+  assert.equal(r.length, 4);
+  assert.deepEqual(r[3], { cls: 'tl-prog tl-prog-run', text: `${enT.timeline.programmedChip} Tempo &lt;6x1k&gt; ${enT.timeline.programmed}` });
+  assert.match(html, /<li class="tl-row tl-prog tl-prog-run" data-detail="hoy-session" role="button"/);
+  assert.doesNotMatch(html, /<6x1k>/, 'untrusted focus text is escaped');
+  // another day's program, or the viewer looking at an older day: no row
+  assert.equal(rows(render(TL, { program: { ...prog, date: '2026-09-28' } })).length, 3);
+  assert.equal(rows(render(TL, { program: prog, now: '2026-09-30' })).filter((x) => x.cls.startsWith('tl-prog')).length, 0);
+  // nothing baked yet but a session programmed today: the card lists it instead of the empty state
+  const only = render({ asOf: null, days: [] }, { program: prog });
+  assert.equal(rows(only).length, 1);
+  assert.ok(!only.includes(enT.timeline.empty));
 });

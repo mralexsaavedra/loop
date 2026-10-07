@@ -32,7 +32,7 @@ const valueOn = (m, iso) => { const i = dayIndex(m, iso); return i >= 0 && i < m
 
 // parts: true = the sheet's sub-parts (calendar, day panel, chart selection) resolve to stub elements,
 // so a day tap can update them in place; query = extra host.querySelector answers (sel -> element)
-function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync = false, parts = false, query = {}, views = null, withCore = false, settings = null } = {}) {
+function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync = false, parts = false, query = {}, views = null, withCore = false, settings = null, dials = null } = {}) {
   const listeners = { doc: {}, win: {} };
   const host = new StubElement('div', { attrs: { id: 'detail' }, hidden: true });
   const closeBtn = { focused: 0, focus() { this.focused++; } };
@@ -107,6 +107,7 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
   win.history = history;
   if (views) win.HCViews = views;
   if (settings) win.HCSettings = settings;
+  if (dials) ctx.DIALS = dials;
   win.location = loc;
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -530,6 +531,40 @@ test('load header = the dial: today\'s RE vs the typical day, else "no session y
   const g = setup({ detail: gated });
   g.api.open('load-bike');
   assert.ok(headOf(g.host.innerHTML).includes(enT.load.gated.fewDays));
+});
+
+test('load header carries the dial\'s former captions: the ring scale, the 7-day vs 42-day trend + band and the unscored note (from the baked DIALS)', () => {
+  const run = DIALS.load.modalities.find((m) => m.key === 'run' && m.state === 'ok') || DIALS.load.modalities.find((m) => m.state === 'ok');
+  const s = setup({ dials: DIALS });
+  s.api.open('load-' + run.key);
+  const h = headOf(s.host.innerHTML);
+  assert.ok(h.includes(enT.load.scale), 'the scale explanation that sat under the dial');
+  const trend = format(enT.load.trendLbl, { pct: (run.trendPct > 0 ? '+' : '') + run.trendPct + '%' }) + ' · ' + enT.load.bands[run.band];
+  assert.ok(h.includes(trend), `acute/chronic context "${trend}"`);
+  const d2 = JSON.parse(JSON.stringify(DIALS));
+  d2.load.modalities.find((m) => m.key === run.key).unscored = 2;
+  const u = setup({ dials: d2 });
+  u.api.open('load-' + run.key);
+  assert.ok(headOf(u.host.innerHTML).includes(format(enT.load.unscoredNote, { n: 2 })));
+  // es: same lines from the es copy
+  const es = setup({ dials: DIALS, locale: 'es' });
+  es.api.open('load-' + run.key);
+  assert.ok(headOf(es.host.innerHTML).includes(esT.load.scale));
+  // no DIALS global (or a gated modality): no trend line, nothing breaks
+  const none = setup();
+  none.api.open('load-' + run.key);
+  assert.ok(!headOf(none.host.innerHTML).includes(enT.load.bands[run.band] + '<'));
+  assert.doesNotMatch(none.host.innerHTML, /NaN|undefined/);
+});
+
+test('sleep and recovery headers keep the dial\'s former captions: the sleep target, "last night" / the night\'s date and the 7-day trend', () => {
+  const s = setup();
+  s.api.open('sleep');
+  assert.ok(headOf(s.host.innerHTML).includes(format(enT.bands.target, { value: '7.5', unit: 'h' })), 'Target 7.5 h');
+  s.api.open('recovery');
+  const h = headOf(s.host.innerHTML);
+  assert.ok(h.includes(enT.rec.lastNight));
+  assert.ok(h.includes('7-day trend'));
 });
 
 test('training time: rest days are 0 up to the data\'s asOf, days after it are missing; the header\'s latest is the newest day ("rest" on a rest day)', () => {
