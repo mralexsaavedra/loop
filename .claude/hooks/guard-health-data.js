@@ -28,7 +28,9 @@
  * non-ignored files (generators, `.example` seeds, `.gitkeep`) pass.
  *
  * Exit codes: 0 = allow; 2 = block (stderr is surfaced back to the assistant).
- * A malformed payload fails open (exit 0).
+ * A malformed payload fails open (exit 0); an unexpected error while judging a
+ * well-formed call fails CLOSED (exit 2), so a crash can never let a force-add
+ * or a .gitignore edit through.
  */
 
 const fs = require('fs');
@@ -36,8 +38,11 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-// Fallback personal-data path fragments (mirrors .gitignore), used ONLY when
-// git cannot answer (not installed, cwd not a repo). The primary check is git.
+// Fallback personal-data path fragments, used ONLY when git cannot answer (not
+// installed, cwd missing or not a repo); the primary check asks git, so this
+// list is never consulted in normal operation. It is a hand-maintained SUBSET
+// of .gitignore, not a full mirror: a personal path missing here is allowed in
+// fallback mode, so add new personal directories here too.
 const PERSONAL = [
   'data/apple-health/',
   'data/weight/',
@@ -69,22 +74,19 @@ const PERSONAL = [
   'web/.test-dist/',
 ];
 
-// Fallback exceptions (the "!" rules in .gitignore): an argument whose path
-// ends with one of these is not personal. Judged per argument, never per command.
+// Fallback exceptions (the "!" rules in .gitignore), anchored to their
+// directory so a generic name (`*.test.js`, `extract.js`) under a personal
+// directory never passes. Judged per argument, never per command.
 const ALLOWED = [
-  '.gitkeep',
-  '.example.json',
-  '.env.example',
-  'knowledge/README.md',
-  'extract.js',
-  'samples.js',
-  'sync-common.js',
-  'sync-shortcut.js',
-  'sync-strava.js',
-  'sync-profile.js',
-  'sync-settings.js',
-  '.test.js',
+  /(^|\/)\.gitkeep$/,
+  /\.example\.json$/,
+  /(^|\/)\.env\.example$/,
+  /(^|\/)knowledge\/README\.md$/,
+  /(^|\/)data\/apple-health\/(extract|samples|sync-common|sync-shortcut|sync-strava)\.js$/,
+  /(^|\/)data\/apple-health\/[^/]+\.test\.js$/,
+  /(^|\/)data\/profile\/sync-(profile|settings)(\.test)?\.js$/,
 ];
+const isAllowed = (p) => ALLOWED.some((re) => re.test(p));
 
 function block(reason) {
   process.stderr.write(
@@ -206,23 +208,31 @@ function tokenize(cmd) {
   return tokens;
 }
 
-/** Split tokens into simple commands (arrays of word tokens). */
-function segments(tokens) {
-  const out = [];
-  let cur = [];
-  for (const t of tokens) {
-    if (t.op) {
-      if (cur.length) out.push(cur);
-      cur = [];
-    } else {
-      cur.push(t);
-    }
-  }
-  if (cur.length) out.push(cur);
-  return out;
-}
-
-const WRAPPERS = new Set(['command', 'builtin', 'exec', 'nohup', 'time', 'nice', 'sudo', 'env', 'rtk', 'then', 'do', 'else', '!', '{']);
+// Wrapper commands that run another command, with the options that take an
+// argument (so `sudo -u x git …` unwraps to `git`), the ones that change the
+// directory the command runs in, and `env -S` (a whole command in one string).
+const WRAPPERS = {
+  command: {},
+  builtin: {},
+  exec: { arg: ['-a'] },
+  nohup: {},
+  time: { arg: ['-f', '--format', '-o', '--output'] },
+  nice: { arg: ['-n', '--adjustment'] },
+  timeout: { arg: ['-s', '--signal', '-k', '--kill-after'], positional: 1 },
+  sudo: {
+    arg: ['-u', '--user', '-g', '--group', '-h', '--host', '-p', '--prompt', '-C', '--close-from', '-r', '--role',
+      '-t', '--type', '-U', '--other-user', '-T', '--command-timeout', '-D', '--chdir'],
+    chdir: ['-D', '--chdir'],
+  },
+  doas: { arg: ['-u', '-C'] },
+  env: { arg: ['-u', '--unset', '-C', '--chdir', '-S', '--split-string'], chdir: ['-C', '--chdir'], split: ['-S', '--split-string'] },
+  rtk: { sub: ['proxy'] },
+  then: {},
+  do: {},
+  else: {},
+  '!': {},
+  '{': {},
+};
 const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh']);
 
 function expandTilde(p) {
@@ -232,98 +242,216 @@ function expandTilde(p) {
 }
 
 /**
+ * Strip one wrapper's options from the front of `words` (mutated). Returns the
+ * directory option (`env -C`, `sudo -D`) and the split string (`env -S`) when given.
+ */
+function stripWrapperOptions(name, words) {
+  const spec = WRAPPERS[name];
+  const takesArg = spec.arg || [];
+  const found = {};
+  const record = (opt, value) => {
+    if ((spec.chdir || []).includes(opt)) found.chdir = value || { word: '', dynamic: true };
+    if ((spec.split || []).includes(opt)) found.split = value || { word: '', dynamic: true };
+  };
+  while (words.length) {
+    const t = words[0];
+    const w = t.word;
+    if (w === '--') {
+      words.shift();
+      break;
+    }
+    if (w === '-' && name === 'env') {
+      words.shift();
+      continue;
+    }
+    if (!w.startsWith('-') || w === '-') break;
+    words.shift();
+    if (w.startsWith('--')) {
+      const eq = w.indexOf('=');
+      const opt = eq === -1 ? w : w.slice(0, eq);
+      if (takesArg.includes(opt)) record(opt, eq === -1 ? words.shift() : { word: w.slice(eq + 1), dynamic: t.dynamic });
+      continue;
+    }
+    for (let k = 1; k < w.length; k++) {
+      const opt = '-' + w[k];
+      if (takesArg.includes(opt)) {
+        const rest = w.slice(k + 1);
+        record(opt, rest ? { word: rest, dynamic: t.dynamic } : words.shift());
+        break;
+      }
+    }
+  }
+  for (let n = 0; n < (spec.positional || 0) && words.length; n++) words.shift();
+  if (spec.sub && words.length && spec.sub.includes(words[0].word)) words.shift();
+  return found;
+}
+
+const PIPE_OR_BACKGROUND = new Set(['|', '|&', '&']);
+// Text of a force-add, for commands the hook cannot parse (a shell fed on stdin).
+const FORCE_ADD_TEXT = /\bgit\b[\s\S]*\b(add|stage)\b[\s\S]*(^|[\s'"])(-[A-Za-z]*f[A-Za-z]*|--f[a-z]*)([\s'"]|$)/;
+
+/**
  * Walk a command string and collect every force-add target as
  * `{ cwd, spec, unknown }`. `cwd` is null when a preceding `cd` could not be
  * resolved. `unknown` marks targets the hook cannot know (variables, xargs).
+ * A `cd` only lasts for the rest of its own shell: it is undone at the end of
+ * a `( … )` subshell and has no effect when it runs in a pipeline or in the
+ * background (`cd x | …`, `cd x & …`).
  */
 function collectForceAdds(cmd, startCwd, out = []) {
+  const segs = [];
+  let cur = [];
+  let before = null;
+  for (const t of tokenize(cmd)) {
+    if (t.op) {
+      segs.push({ words: cur, before, after: t.op });
+      cur = [];
+      before = t.op;
+    } else {
+      cur.push(t);
+    }
+  }
+  segs.push({ words: cur, before, after: null });
+
   let cwd = startCwd;
-  for (const seg of segments(tokenize(cmd))) {
-    const words = seg.slice();
-    let viaXargs = false;
-    // Strip assignments and wrapper commands (`FOO=1 env sudo git ...`, `xargs git ...`).
-    while (words.length) {
-      const w = words[0].word;
-      if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(w) || WRAPPERS.has(w)) {
-        words.shift();
-        while (words.length && words[0].word.startsWith('-')) words.shift();
-      } else if (w === 'xargs') {
-        viaXargs = true;
-        words.shift();
-        while (words.length && words[0].word.startsWith('-')) {
-          const opt = words.shift().word;
-          if (/^-[IdEsLnP]$/.test(opt)) words.shift();
-        }
-      } else {
-        break;
-      }
+  const stack = [];
+  for (const seg of segs) {
+    if (seg.words.length) {
+      const persistent = !PIPE_OR_BACKGROUND.has(seg.before) && !PIPE_OR_BACKGROUND.has(seg.after);
+      const moved = inspectCommand(seg.words.slice(), cwd, cmd, out);
+      if (moved !== undefined && persistent) cwd = moved;
     }
-    if (!words.length) continue;
-    const name = path.basename(words[0].word);
-    const args = words.slice(1);
-
-    if (name === 'cd' || name === 'pushd') {
-      const target = args.find((a) => !a.word.startsWith('-') || a.word === '-');
-      if (!target) cwd = os.homedir();
-      else if (target.dynamic || target.word === '-' || cwd === null) cwd = null;
-      else cwd = path.resolve(cwd, expandTilde(target.word));
-      continue;
-    }
-
-    if (SHELLS.has(name)) {
-      const ci = args.findIndex((a) => /^-[a-z]*c[a-z]*$/.test(a.word));
-      if (ci !== -1 && args[ci + 1]) {
-        if (args[ci + 1].dynamic) out.push({ cwd, spec: args[ci + 1].word, unknown: true });
-        else collectForceAdds(args[ci + 1].word, cwd, out);
-      }
-      continue;
-    }
-
-    if (name !== 'git') continue;
-    let gitCwd = cwd;
-    let i = 0;
-    for (; i < args.length; i++) {
-      const a = args[i].word;
-      if (a === '-C') {
-        const dir = args[++i];
-        if (!dir || dir.dynamic || gitCwd === null) gitCwd = null;
-        else gitCwd = path.resolve(gitCwd, expandTilde(dir.word));
-      } else if (['-c', '--git-dir', '--work-tree', '--namespace', '--exec-path', '--super-prefix', '--config-env'].includes(a)) {
-        i++;
-      } else if (!a.startsWith('-')) {
-        break;
-      } // else: another global option (--no-pager, --git-dir=..., -p, ...)
-    }
-    const sub = args[i] && args[i].word;
-    if (sub !== 'add' && sub !== 'stage') continue;
-
-    let force = false;
-    let all = false;
-    let unknownSource = viaXargs;
-    const specs = [];
-    let endOfOptions = false;
-    for (const a of args.slice(i + 1)) {
-      const w = a.word;
-      if (!endOfOptions && w === '--') {
-        endOfOptions = true;
-      } else if (!endOfOptions && w.startsWith('--')) {
-        const optName = w.slice(2).split('=')[0];
-        if (optName.length && 'force'.startsWith(optName)) force = true;
-        else if (optName === 'all') all = true;
-        else if (optName.startsWith('pathspec-from-file')) unknownSource = true;
-      } else if (!endOfOptions && /^-[A-Za-z]+$/.test(w)) {
-        if (w.includes('f')) force = true;
-        if (w.includes('A')) all = true;
-      } else {
-        specs.push(a);
-      }
-    }
-    if (!force) continue;
-    if (unknownSource) out.push({ cwd: gitCwd, spec: '(pathspecs read from stdin/file)', unknown: true });
-    if (!specs.length && all) out.push({ cwd: gitCwd, spec: ':/', unknown: false });
-    for (const s of specs) out.push({ cwd: gitCwd, spec: s.word, unknown: s.dynamic || gitCwd === null });
+    if (seg.after === '(') stack.push(cwd);
+    else if (seg.after === ')' && stack.length) cwd = stack.pop();
   }
   return out;
+}
+
+const resolveDir = (cwd, dir) => (!dir || dir.dynamic || cwd === null ? null : path.resolve(cwd, expandTilde(dir.word)));
+
+/**
+ * Inspect one simple command. Pushes force-add targets to `out`; returns the
+ * new cwd for a `cd` / `pushd` (undefined for any other command).
+ */
+function inspectCommand(words, cwd, fullText, out) {
+  let viaXargs = false;
+  let wrapped = false;
+  // Strip assignments and wrapper commands (`FOO=1 env sudo -u x git ...`, `xargs git ...`).
+  while (words.length) {
+    const w = words[0].word;
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(w)) {
+      words.shift();
+    } else if (Object.prototype.hasOwnProperty.call(WRAPPERS, w)) {
+      words.shift();
+      wrapped = true;
+      const found = stripWrapperOptions(w, words);
+      if (found.chdir) cwd = resolveDir(cwd, found.chdir);
+      if (found.split) {
+        if (found.split.dynamic) out.push({ cwd, spec: found.split.word, unknown: true });
+        else collectForceAdds([found.split.word, ...words.map((t) => t.word)].join(' '), cwd, out);
+        return undefined;
+      }
+    } else if (w === 'xargs') {
+      viaXargs = true;
+      wrapped = true;
+      words.shift();
+      while (words.length && words[0].word.startsWith('-')) {
+        const opt = words.shift().word;
+        if (/^-[IdEsLnP]$/.test(opt)) words.shift();
+      }
+    } else {
+      break;
+    }
+  }
+  if (!words.length) return undefined;
+  let name = path.basename(words[0].word);
+  // An option the tables above do not know may have hidden the real command
+  // (`sudo --new-flag value git …`): after a wrapper, jump to a later `git`.
+  if (wrapped && !['git', 'cd', 'pushd', 'eval', ...SHELLS].includes(name)) {
+    const gi = words.findIndex((t, k) => k > 0 && path.basename(t.word) === 'git');
+    if (gi !== -1) {
+      words = words.slice(gi);
+      name = 'git';
+    }
+  }
+  const args = words.slice(1);
+
+  if (name === 'cd' || name === 'pushd') {
+    const target = args.find((a) => !a.word.startsWith('-') || a.word === '-');
+    if (!target) return os.homedir();
+    if (target.word === '-') return null;
+    return resolveDir(cwd, target);
+  }
+
+  if (name === 'eval') {
+    const text = args.map((a) => a.word).join(' ');
+    if (args.some((a) => a.dynamic)) {
+      if (/\bgit\b/.test(text)) out.push({ cwd, spec: text, unknown: true });
+    } else {
+      collectForceAdds(text, cwd, out);
+    }
+    return undefined;
+  }
+
+  if (SHELLS.has(name)) {
+    const ci = args.findIndex((a) => /^-[A-Za-z]*c[A-Za-z]*$/.test(a.word));
+    if (ci !== -1) {
+      if (args[ci + 1] && args[ci + 1].dynamic) out.push({ cwd, spec: args[ci + 1].word, unknown: true });
+      else if (args[ci + 1]) collectForceAdds(args[ci + 1].word, cwd, out);
+      return undefined;
+    }
+    // No -c: the shell reads a script file or its stdin (`echo '…' | bash`, a
+    // here-string). The commands are invisible here, so any force-add text in
+    // the surrounding command blocks.
+    const readsStdin = !args.some((a) => !a.word.startsWith('-')) || args.some((a) => /^-[A-Za-z]*s[A-Za-z]*$/.test(a.word));
+    if (readsStdin && FORCE_ADD_TEXT.test(fullText)) {
+      out.push({ cwd, spec: `(commands fed to ${name} on stdin)`, unknown: true });
+    }
+    return undefined;
+  }
+
+  if (name !== 'git') return undefined;
+  let gitCwd = cwd;
+  let i = 0;
+  for (; i < args.length; i++) {
+    const a = args[i].word;
+    if (a === '-C') {
+      gitCwd = resolveDir(gitCwd, args[++i]);
+    } else if (['-c', '--git-dir', '--work-tree', '--namespace', '--exec-path', '--super-prefix', '--config-env'].includes(a)) {
+      i++;
+    } else if (!a.startsWith('-')) {
+      break;
+    } // else: another global option (--no-pager, --git-dir=..., -p, ...)
+  }
+  const sub = args[i] && args[i].word;
+  if (sub !== 'add' && sub !== 'stage') return undefined;
+
+  let force = false;
+  let all = false;
+  let unknownSource = viaXargs;
+  const specs = [];
+  let endOfOptions = false;
+  for (const a of args.slice(i + 1)) {
+    const w = a.word;
+    if (!endOfOptions && w === '--') {
+      endOfOptions = true;
+    } else if (!endOfOptions && w.startsWith('--')) {
+      const optName = w.slice(2).split('=')[0];
+      if (optName.length && 'force'.startsWith(optName)) force = true;
+      else if (optName === 'all') all = true;
+      else if (optName.startsWith('pathspec-from-file')) unknownSource = true;
+    } else if (!endOfOptions && /^-[A-Za-z]+$/.test(w)) {
+      if (w.includes('f')) force = true;
+      if (w.includes('A')) all = true;
+    } else {
+      specs.push(a);
+    }
+  }
+  if (!force) return undefined;
+  if (unknownSource) out.push({ cwd: gitCwd, spec: '(pathspecs read from stdin/file)', unknown: true });
+  if (!specs.length && all) out.push({ cwd: gitCwd, spec: ':/', unknown: false });
+  for (const s of specs) out.push({ cwd: gitCwd, spec: s.word, unknown: s.dynamic || gitCwd === null });
+  return undefined;
 }
 
 // --- ignore checks -------------------------------------------------------------
@@ -366,7 +494,7 @@ function fallbackPersonal(baseCwd, cwd, spec) {
     if (c === '' || c === '.' || c === ':/') return true; // the whole tree
     const dir = c.replace(/\/+$/, '');
     if (PERSONAL.some((p) => p.startsWith(dir + '/'))) return true; // a parent dir of personal data
-    if (ALLOWED.some((a) => c.endsWith(a))) return false;
+    if (isAllowed(c)) return false;
     return PERSONAL.some((p) => c.includes(p));
   });
 }
@@ -536,8 +664,10 @@ function checkGitignoreEdit(toolName, input, baseCwd) {
   let before = '';
   try {
     before = fs.readFileSync(file, 'utf8');
-  } catch {
-    before = '';
+  } catch (err) {
+    // A missing file is a new .gitignore; any other read error (EISDIR,
+    // EACCES, …) must not be mistaken for an empty file: rethrow, fail closed.
+    if (!err || (err.code !== 'ENOENT' && err.code !== 'ENOTDIR')) throw err;
   }
   const after = contentAfter(toolName, input, before);
   if (after === null) return;
@@ -559,7 +689,7 @@ function checkGitignoreEdit(toolName, input, baseCwd) {
     const added = missingLines(newLines, oldLines).filter((l) => l.startsWith('!'));
     const risky = added.filter((l) => {
       const p = normalize(l.slice(1).replace(/^\//, ''));
-      return !ALLOWED.some((a) => p.endsWith(a)) && PERSONAL.some((f) => p.includes(f) || f.startsWith(p.replace(/\/?\*?$/, '') + '/'));
+      return !isAllowed(p) && PERSONAL.some((f) => p.includes(f) || f.startsWith(p.replace(/\/?\*?$/, '') + '/'));
     });
     if (risky.length) {
       block('Detected a .gitignore negation that could un-ignore personal data:\n' + risky.map((l) => `  - ${l}`).join('\n'));
@@ -590,19 +720,30 @@ function readPayload() {
   }
 }
 
-function main() {
-  const payload = readPayload();
-  if (!payload) process.exit(0);
+function evaluate(payload) {
   const baseCwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
   const input = payload.tool_input || {};
 
   if (payload.tool_name === 'Bash') {
     const command = input.command;
-    if (typeof command !== 'string' || !command) process.exit(0);
+    if (typeof command !== 'string' || !command) return;
     checkForceAdds(command, baseCwd);
     checkShellGitignore(command);
   } else if (['Edit', 'Write', 'MultiEdit'].includes(payload.tool_name)) {
     checkGitignoreEdit(payload.tool_name, input, baseCwd);
+  }
+}
+
+function main() {
+  const payload = readPayload();
+  if (!payload) process.exit(0); // malformed payload: fail open
+  try {
+    evaluate(payload);
+  } catch (err) {
+    // A crash must never let the call through (Claude Code treats any exit
+    // code other than 2 as non-blocking): fail closed with a clear message.
+    const detail = String((err && (err.code || err.message)) || err).replace(/[\u0000-\u001f]/g, '?').slice(0, 200);
+    block(`The guard hit an internal error while checking this call (${detail}), so it fails closed.`);
   }
   process.exit(0);
 }
