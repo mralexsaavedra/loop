@@ -64,7 +64,7 @@ test('Registrar\'s day navigator ships as static markup on the heading line: rea
 test('copy + constants are baked; food.js is inlined after nutri-day.js and before intake.js', () => {
   assert.match(html, /var I18N_FOOD = \{/);
   assert.match(html, /var FOOD_CONST = \{"meals":\["breakfast","lunch","preworkout","postworkout","dinner","snack"\],"stores":\["mercadona","dia","eroski","other"\],"units":\["g","ml"\],"limits":\{"nameMax":120,/, 'the shared limits are baked too');
-  assert.match(html, /"groups":\["breakfast","lunch","dinner","addon"\],"mainSlots":\["breakfast","lunch","dinner"\],"addonGroup":"addon","addonSlot":"snack"\}/, 'Registrar\'s four groups come baked from lib/nutrition/slots.mjs');
+  assert.match(html, /"groups":\["breakfast","lunch","dinner","addon"\],"mainSlots":\["breakfast","lunch","dinner"\],"addonGroup":"addon","addonSlot":"snack","lateNightHour":4\}/, 'Registrar\'s four groups and the late-night cutoff come baked from lib/nutrition/slots.mjs');
   const at = inlinedAt;
   assert.ok(at(nutriDay) > 0 && at(food) > 0 && at(intake) > 0, 'all three scripts inlined whole (as slimScript emits them)');
   assert.ok(at(nutriDay) < at(food) && at(food) < at(intake));

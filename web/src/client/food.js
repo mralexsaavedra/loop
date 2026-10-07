@@ -59,9 +59,12 @@
   var ADDON = K.addonGroup;
   // a fresh add sheet's group by the viewer's hour: before 11 breakfast, before 16 lunch, before 20 an add-on, else dinner
   var MEAL_HOUR_CUTS = [[11, 'breakfast'], [16, 'lunch'], [20, ADDON]];
+  // before this hour (lib/nutrition/slots.mjs LATE_NIGHT_HOUR) the evening still belongs to the day
+  // before: the navigator opens on it and a fresh sheet guesses dinner (absent = never late night)
+  var LATE_NIGHT_HOUR = K.lateNightHour;
   // log = TODAY's log (the one foodTotals / groupTotals read); view = the day Registrar shows (null =
   // follow today, so a midnight roll moves with it), dayLog / dayFail = that past day's log / load error
-  var S = { ok: false, products: [], recipes: [], log: null, view: null, dayLog: null, dayFail: null, sheet: null, pform: null, rform: null, confirm: null };
+  var S = { ok: false, products: [], recipes: [], log: null, view: null, autoView: false, dayLog: null, dayFail: null, sheet: null, pform: null, rform: null, confirm: null };
   var pendingMeal = null;
   var viewSeq = 0; // one per past-day read: a slower answer for a day already left is dropped
 
@@ -343,8 +346,12 @@
   function slotFor(group) {
     return group !== ADDON ? group : K.addonSlot;
   }
+  function lateNight() {
+    return typeof LATE_NIGHT_HOUR === 'number' && new Date().getHours() < LATE_NIGHT_HOUR;
+  }
   function guessMeal() {
     var h = new Date().getHours();
+    if (lateNight()) return 'dinner';
     for (var i = 0; i < MEAL_HOUR_CUTS.length; i++) if (h < MEAL_HOUR_CUTS[i][0]) return MEAL_HOUR_CUTS[i][1];
     return 'dinner';
   }
@@ -465,8 +472,9 @@
     if (back) back.hidden = on;
   }
   // show a day (null / today or later = today): today's log is already there, a past day is read each time
-  function goDay(date) {
+  function goDay(date, auto) {
     S.view = date && date < HC.todayIso() ? date : null;
+    S.autoView = !!auto && S.view != null; // set by the late-night rule, cleared by any other move
     S.dayFail = null;
     if (S.view == null) S.dayLog = null;
     else if (!S.dayLog || S.dayLog.date !== S.view) S.dayLog = null;
@@ -1511,19 +1519,29 @@
     // detail.js asks for the title after render(), so it names the sheet's own day when it is not today
     window.HCViews['food-add'] = { title: sheetTitle, render: renderSheet };
     ['food-log-block', 'food-products', 'food-recipes'].forEach(show);
-    renderLog();
+    loadLog(); // today's log feeds foodTotals / groupTotals whatever day is on screen
+    if (lateNight()) goDay(HC.shiftIso(HC.todayIso(), -1), true); // 00:00–03:59: open on the evening before
+    else renderLog();
     renderProducts();
     renderRecipes();
     api('GET', '/recipes').then(function (d) {
       S.recipes = Array.isArray(d.recipes) ? d.recipes : [];
       renderRecipes();
     }, function (err) { recMsg(errText(err)); });
-    loadLog();
     // a page left open past midnight starts the new day's log when it comes back: a viewer on "today"
-    // moves to the new today (S.view is null), one looking at a past day stays there
+    // moves to the new today (S.view is null; before LATE_NIGHT_HOUR to the evening before), one looking at a past day stays there
     if (document.addEventListener) {
       document.addEventListener('visibilitychange', function () {
-        if (!document.hidden && S.log && S.log.date !== HC.todayIso()) loadLog();
+        if (document.hidden) return;
+        var stale = !!S.log && S.log.date !== HC.todayIso();
+        // the late-night rule moves a viewer who was on "today" when the day rolled, and its own automatic
+        // view (it follows the clock and expires at LATE_NIGHT_HOUR); a day picked by hand never moves
+        var follow = S.autoView || (S.view == null && stale);
+        if (follow && lateNight()) {
+          if (stale) loadLog();
+          goDay(HC.shiftIso(HC.todayIso(), -1), true); // 00:00–03:59: stay on the evening being logged
+        } else if (follow && S.autoView) goDay(null); // reads today's log itself when it is stale
+        else if (stale) loadLog();
       });
     }
   }, function () { /* no food API here: every host stays hidden */ });
