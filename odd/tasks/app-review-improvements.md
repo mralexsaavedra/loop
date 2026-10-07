@@ -34,7 +34,7 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 - [x] T5 Archive migration scripts (route: delegated writer; parent fixed 2 stale comments inline)
 - [x] T9 Late-night entry default (route: delegated writer)
 - [x] T10 Minify inline CSS (route: delegated writer)
-- [ ] T8 Missing tests
+- [x] T8 Missing tests (route: delegated writer)
 - [ ] T7 Split food.js
 - [ ] T6 CLAUDE.md restructure
 - [ ] T11 Backup clutter (ask owner)
@@ -54,14 +54,17 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 
 - T2: `HCFood.recentDay(days)` from `/food/log/summary` (lazy, refreshed on add/delete); LAN rings = food log only (today, else newest logged day in 3 days, else none); static page unchanged; `INTAKE.target.rest` dropped. RED 8 → GREEN 105/105; `npm test` 1561/1561; example build deterministic. Follow-up (not done): brief Apple Health flash on LAN boot before the food API answers (pre-existing for today too); `I18N_INTAKE.targetLbl.rest` possibly unused. Commit deae1c9; reviewed as slice 3 (medium, consent granted, reliability approved, acknowledged). Boundary → deae1c9.
 
+- T8: training-dash (6) + training-today (10) client tests; ingest `server.js` refactored to export `createHandler(deps)` + `main()` only as entry point (Docker CMD unchanged), `test/server.test.js` (8) + `test/limits.test.js` (3). No RED (existing code), no bugs found. Root `npm test` 1577/1577; parent re-ran ingest `node --test` 205/205. db.js untested (needs pg). Commit bf4aa50; slice 4 review: medium (slice budget), consent granted, reliability approved, acknowledged. Boundary → bf4aa50. Rollout note: server.js changed → picked up on the next ingest image rebuild.
+
 ## Slices (stacked to main)
 
 - Slice 1 `feat/app-review-improvements`: d5c781a (T1), c8fbafb (T3).
 - Slice 2 `feat/app-review-cleanup` (based on slice 1): T5, T9, T10.
 - Slice 3 `feat/app-review-intake-source`: T2.
-- Later slices: T8; T7; T6 — one PR each.
+- Slice 4 `feat/app-review-tests`: T8.
+- Later slices: T7; T6 — one PR each.
 
 
 ## Next step
 
-T8 (missing tests).
+T7 (split food.js).
