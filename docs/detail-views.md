@@ -79,7 +79,22 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
      (`DIALS.load.tick`). Off states show the dial's word in an empty ring (recovery "No baseline",
      load "Building" / "No session yet" / "No effort data"); stale data (> 3 days) greys it like the
      dial. No `DIALS` global: the number still shows (from `DETAIL`), the ring has no fill.
-  4. **Insight card** (`--ground` fill inside a 1.5 px teal → indigo stroke, `--insight-a/b`): the
+  4. **Contributors card** (a caret notch points up to the ring; ≤ 4 rows: icon + UPPERCASE name +
+     value + marker): the dial's own inputs, each "today vs the prior 30 days" (`HCDeep.compare`):
+     today's value vs the middle half (p25–p75) of the values on the 30 days before it — the Salud
+     totals' "usual day" idea; fewer than 7 prior values → the value without a marker. Above / below
+     → ▲ / ▼, teal (`--up`) when better and orange (`--down`) when worse by the metric's good
+     direction, grey for a metric without one (bedtime, wake time, load); inside → a grey dot; the
+     words ("better than usual"…) are screen-reader text. A legend pill "▲▼ Today vs prior 30 days"
+     closes the card when a marker shows. A row without a value that day is hidden (never 0 or a
+     dash). Rows: recovery = the composite's inputs on the night it scores (`head.date`) — HRV,
+     resting HR, hours of sleep (sleep consistency, its fourth input at 10 %, has no daily series in
+     `DETAIL`: not shown); sleep = last night's hours, the delta vs the target (no marker), bedtime
+     (an after-midnight bedtime counts as late evening, 00:30 = 24.5) and wake time (no efficiency or
+     stages in the extract: not shown); load = today's RE (only on a day with RE, compared with the
+     prior 30 days' training days only), the 7-day vs 42-day trend (`DIALS`), the sessions of the
+     last 7 days, the typical training day.
+  5. **Insight card** (`--ground` fill inside a 1.5 px teal → indigo stroke, `--insight-a/b`): the
      dial's former captions in 2–4 plain lines — recovery "Last night · <band>" (or the night's date,
      "no sleep data", "no recent complete night") + the 7-day trend coloured by the TREND band; sleep
      the target + last night vs it; load the day line ("Today: RE 28 · typical day ~42" or "No
@@ -90,7 +105,15 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
      violet) clipped to the glyphs, solid `--link` where `background-clip: text` is unsupported: on
      `--ground` both ends pass AA for small text (8.29 / 4.61), on a card the violet end would not
      (3.91), so the gradient only ever sits on the insight card (`tokens-contrast.test.mjs`).
-  5. The rest of the sheet below, unchanged (period + chart, calendar, day).
+  6. **Weekly trends** ("Weekly trends" title, one card per input): 7 bars for the 7 days ending at
+     the view's last day (the viewer's today, `HCDeep.weekOf`), the value on top, the weekday letter
+     under each bar, today's column lighter (`.dd-now`); a day without data = "—" and no bar.
+     Recovery: the composite per day on the dial's −3…+3 scale, each bar in its own day band's state
+     colour (good / mid / low), then HRV and resting HR (`--trend`) and sleep (`--sleep`); sleep:
+     hours (`--sleep`); load: RE per day and the modality's minutes per day from the sessions
+     (`--strain`; a day after the data's `asOf` is unknown, not rest). Bars are proportional to the
+     week's largest value.
+  7. The rest of the sheet below, unchanged (period + chart, calendar, day).
   The copy is the dial's own (`score-templates.mjs` via `I18N_DETAIL.rec` / `load` / `deep`).
 - **The sheet** (`detail.js`, one renderer, per-view try/catch with a message fallback, no NaN ever
   printed): header = metric, latest value + date, the band / target / typical day in words (the dial

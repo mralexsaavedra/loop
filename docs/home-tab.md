@@ -121,7 +121,7 @@ is the newest day, and the trend is the line under it.
   equal full rings in a row (≈ 92 px at a 390 px viewport), each starting at 12 o'clock and filling
   clockwise, round caps, a thin stroke (7 of 120 units ≈ 6 % of the diameter) on `--track`; the value
   INSIDE (D-DIN number, small unit) and an uppercase "LABEL ›" BELOW; the dials sit on the page
-  ground, not in a card. No caption under them: each dial's words live in its detail sheet header
+  ground, not in a card. No caption under them: each dial's words live in its deep-dive page (insight card)
   (see `docs/detail-views.md`) and in its accessible name. Only a stale-data warning stays under the
   dials (`.dial-stale`, one short line: `staleNote`), plus the compact caveat lines below.
   Recovery: ring = −3…+3 MAD, filled from 12 o'clock to last night's composite (`today`; falls back
