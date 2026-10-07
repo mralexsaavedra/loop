@@ -1,4 +1,4 @@
-/* web/src/client/food.js — Nutrición food log (Registrar, the add sheet, Mis productos, Mis recetas).
+/* web/src/client/food-*.js (core, sheet, catalog, log) — Nutrición food log (Registrar, the add sheet, Mis productos, Mis recetas).
  * Runs the real classic script in node:vm against web/test/dom-stub.mjs with a stubbed fetch and a
  * fixed clock; nothing real is requested. The formula port is pinned against lib/nutrition/foodlog.mjs. */
 import { test } from 'node:test';
@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
-import { loadUtil } from '../../test/client-util.mjs';
+import { loadUtil, FOOD_SOURCE } from '../../test/client-util.mjs';
 import { es as esF, en as enF } from '../i18n/food-templates.mjs';
 import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 import { FOODLOG_CASES, runCase, FOOD_MEALS, FOOD_STORES, FOOD_UNITS, FOOD_LIMITS, BASIC_CASES, runBasicCase } from '../../../lib/nutrition/foodlog.mjs';
@@ -17,7 +17,7 @@ import { MEAL_GROUPS, MAIN_SLOTS, ADDON_GROUP, ADDON_SLOT, LATE_NIGHT_HOUR } fro
 const FOOD_CONST = { meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS, limits: FOOD_LIMITS, groups: MEAL_GROUPS, mainSlots: MAIN_SLOTS, addonGroup: ADDON_GROUP, addonSlot: ADDON_SLOT, lateNightHour: LATE_NIGHT_HOUR };
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'food.js'), 'utf8');
+const source = FOOD_SOURCE; // the four food scripts, in page order
 const ING = JSON.parse(fs.readFileSync(path.join(here, '../../../data/nutrition/ingredients.json'), 'utf8')).ingredients;
 const BASICS = { es: buildBasics(ING, 'es'), en: buildBasics(ING, 'en') };
 const TODAY = '2030-01-10';

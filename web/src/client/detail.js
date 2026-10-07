@@ -49,7 +49,7 @@
   var HASH_RE = /^#detail\/([A-Za-z-]+)(?:\/(\d{4}-\d{2}-\d{2}))?$/;
   // a registered view (window.HCViews, e.g. the profile sheet of client/profile.js) deep-links as #<key>
   var VIEW_HASH_RE = /^#([a-z][a-z-]*)$/;
-  // registered after page load (client/food.js, once GET /api/food/products answers)
+  // registered after page load (client/food-*.js, once GET /api/food/products answers)
   var ASYNC_VIEWS = ['food-add'];
   // daily totals whose newest day fills up during the day (the extract's "so far" value)
   var PARTIAL_KINDS = ['total'];
