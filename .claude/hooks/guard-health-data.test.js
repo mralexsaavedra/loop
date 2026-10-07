@@ -477,3 +477,90 @@ test('the fallback exception list is anchored, not a generic suffix', () => {
   assertAllowed(runHook(forceAdd('data/apple-health/samples.test.js'), { env }), 'fallback apple-health test');
   assertAllowed(runHook(forceAdd('data/profile/sync-profile.test.js'), { env }), 'fallback sync-profile test');
 });
+
+// --- git aliases: an alias can hide the force-add -------------------------------
+
+// Aliases defined in the fixture repo's own config (.git/config), named so they
+// never collide with the tester's global aliases.
+const FIXTURE_ALIASES = {
+  hcforce: ['add', '-f'].join(' '),
+  hcshell: '!' + ['git', 'add', '--force'].join(' '),
+  hcnested: 'hcforce',
+  hcplain: 'add',
+  hclog: 'log --oneline',
+  hcloopa: 'hcloopb',
+  hcloopb: 'hcloopa',
+  hcloopx: ['hcloopy', 'add', '-f'].join(' '),
+  hcloopy: 'hcloopx',
+};
+
+function setFixtureAliases() {
+  for (const [name, value] of Object.entries(FIXTURE_ALIASES)) {
+    const res = spawnSync('git', ['-C', repo, 'config', `alias.${name}`, value], { encoding: 'utf8' });
+    assert.equal(res.status, 0, res.stderr);
+  }
+}
+
+test('blocks a force-add hidden in an inline -c alias', () => {
+  setFixtureAliases();
+  for (const cmd of [
+    W('git', '-c', `"alias.x=${['add', '-f'].join(' ')}"`, 'x', PERSONAL_FILE),
+    W('git', '-c', `'alias.x=${['add', '--force'].join(' ')}'`, 'x', PERSONAL_FILE),
+    W('git', '-c', `"alias.x=${['add', '-f'].join(' ')}"`, '-C', 'data/weight', 'x', 'weight-log.md'),
+    W('git', '-c', `"alias.X=${['stage', '-f'].join(' ')}"`, 'X', PERSONAL_FILE),
+  ]) {
+    assertBlocked(runHook(cmd), cmd);
+  }
+});
+
+test('blocks a force-add hidden in an inline ! shell alias', () => {
+  for (const cmd of [
+    W('git', '-c', `'alias.x=!${['git', 'add', '-f'].join(' ')}'`, 'x', PERSONAL_FILE),
+    W('git', '-c', `'alias.x=!cd data/weight && ${['git', 'add', '-f'].join(' ')} weight-log.md'`, 'x'),
+    W('git', '-c', `'alias.x=!f() { ${['git', 'add', '-f'].join(' ')} "$@"; }; f'`, 'x', PERSONAL_FILE),
+  ]) {
+    assertBlocked(runHook(cmd), cmd);
+  }
+});
+
+test('blocks an alias whose value comes from --config-env (cannot be resolved)', () => {
+  assertBlocked(runHook(W('git', '--config-env', 'alias.x=SOMEVAR', 'x', PERSONAL_FILE)), '--config-env');
+  assertBlocked(runHook(W('git', '--config-env=alias.x=SOMEVAR', 'x', PERSONAL_FILE)), '--config-env=');
+});
+
+test('blocks a force-add hidden in an alias from the repo git config', () => {
+  setFixtureAliases();
+  for (const cmd of [
+    W('git', 'hcforce', PERSONAL_FILE),
+    W('git', 'hcshell', PERSONAL_FILE),
+    W('git', 'hcnested', PERSONAL_FILE),
+    W('git', 'hcplain', '-f', PERSONAL_FILE),
+    W('git', '-C', 'data/weight', 'hcforce', 'weight-log.md'),
+    W('ls', '|', 'xargs', 'git', 'hcforce'),
+  ]) {
+    assertBlocked(runHook(cmd), cmd);
+  }
+});
+
+test('an alias loop terminates; it blocks only when the chain hides a force-add', () => {
+  setFixtureAliases();
+  assertAllowed(runHook(W('git', 'hcloopa', PERSONAL_FILE)), 'benign loop');
+  assertBlocked(runHook(W('git', 'hcloopx', PERSONAL_FILE)), 'force-add loop');
+});
+
+test('allows benign aliases and aliases that force-add non-ignored files', () => {
+  setFixtureAliases();
+  assertRealNonIgnored('README.md');
+  for (const cmd of [
+    W('git', 'hclog'),
+    W('git', 'hcplain', PERSONAL_FILE),
+    W('git', 'hcforce', 'README.md'),
+    W('git', '-c', "'alias.x=log --oneline'", 'x', PERSONAL_FILE),
+    W('git', '-c', "'alias.x=!echo hi'", 'x'),
+    // git ignores an alias that shadows a builtin, so this is a plain `git status`
+    W('git', '-c', `"alias.status=${['add', '-f'].join(' ')}"`, 'status', PERSONAL_FILE),
+    W('git', 'no-such-alias-or-command', PERSONAL_FILE),
+  ]) {
+    assertAllowed(runHook(cmd), cmd);
+  }
+});
