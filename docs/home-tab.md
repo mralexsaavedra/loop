@@ -17,9 +17,10 @@ grid folded under "See metrics"
 (`details#monitor-fold` > `#monitor`) → the programmed session's hidden source section (`hoy`). Little
 text on the tab: each block's explanation lives in the detail sheet it opens
 (`web/test/content.test.mjs` pins the order). "Tonight" and "My plan" are rendered by
-`client/home-week.js` and "My dashboard" by `client/home-dash.js`, both inlined by `Home.astro` itself
-(not the layout), so a page that hides Inicio carries none of them; they run at `DOMContentLoaded`, after the end-of-body scripts have defined `HC`, the
-baked globals and the detail sheet. P5 moves the full monitor grid to Salud; the summary
+`client/home-week.js` and "My dashboard" by `client/home-dash.js`, both in `layouts/Plan.astro`'s
+end-of-body script list (after `HC`, the baked globals and `adherence.js`, right before
+`deepdive.js` / `detail.js`); they render at once, and their sheets (`tonight`, `dash-edit`) are
+registered before `detail.js` runs (a deep link to them also needs a `NAV.viewTab` entry, not added yet). Without their hosts they render nothing. P5 moves the full monitor grid to Salud; the summary
 tile reaches it wherever it lives (`jump('monitor')` opens its fold or switches to its tab).
 
 **Collapsed dial row** (`#home-mini`, first in `Home.astro`): once the dials scroll above the viewport
@@ -121,15 +122,16 @@ is the newest day, and the trend is the line under it.
   equal full rings in a row (≈ 92 px at a 390 px viewport), each starting at 12 o'clock and filling
   clockwise, round caps, a thin stroke (7 of 120 units ≈ 6 % of the diameter) on `--track`; the value
   INSIDE (D-DIN number, small unit) and an uppercase "LABEL ›" BELOW; the dials sit on the page
-  ground, not in a card. No caption under them: each dial's words live in its detail sheet header
+  ground, not in a card. No caption under them: each dial's words live in its deep-dive page (insight card)
   (see `docs/detail-views.md`) and in its accessible name. Only a stale-data warning stays under the
   dials (`.dial-stale`, one short line: `staleNote`), plus the compact caveat lines below.
-  Recovery: ring = −3…+3 MAD, three faint zones on the track cut at ±`BAND_CUTOFF`, filled from
-  12 o'clock to last night's composite (`today`, zones cut at ±`DAY_BAND_CUTOFF`; falls back to
-  `trend7`, zones at ±`BAND_CUTOFF`), a tick at 6 o'clock marks the baseline (0); the centre = the
-  signed value + the unit (sd), the ring coloured by that band; the band word, "Last night" (or the
-  night's date) / "no recent complete night" are in the accessible name, and the sheet header adds
-  "no sleep data" and the 7-day trend. Sleep: fill = the sleep-duration component's newest night /
+  Recovery: ring = −3…+3 MAD, filled from 12 o'clock to last night's composite (`today`; falls back
+  to `trend7`), a tick at 6 o'clock marks the baseline (0); the centre = the signed value + the unit
+  (sd). The fill takes ONE state colour end to end, its band's: above = `--good`, at = `--mid`,
+  below = `--low` (single night cut at ±`DAY_BAND_CUTOFF`, the trend fallback at ±`BAND_CUTOFF`). No
+  zone arcs on the track (they tinted part of the ring a second colour). The band word, "Last night"
+  (or the night's date) / "no recent complete night" are in the accessible name, and the recovery
+  deep-dive page adds "no sleep data" and the 7-day trend. Sleep: fill = the sleep-duration component's newest night /
   the stated target (`health.recovery.sleep.target`, 7.5 h), capped at a full ring; the target is in
   the accessible name and the sleep sheet ("Target 7.5 h"). Load: ONE dial with a gym/run/bike
   switch — compact pills right-aligned under the load dial (kept on Inicio rather than in the load
@@ -140,8 +142,9 @@ is the newest day, and the trend is the line under it.
   beats none — else on the baked `defaultKey` (first ungated modality), for the VIEWER's today, picked client-side from the baked `recent` days (each
   with its pre-computed fill): a session with RE → centre = today's RE, fill = RE / typical day (ring
   midpoint = the typical training day, a full ring = 2×, no zones; the typical-day tick at 6 o'clock);
-  rows today but no RE → "No effort data" (never rest); no rows today → "No session yet". The load
-  sheet header carries the day line ("Today: RE 28 · typical day ~42" or "No session yet today · last
+  rows today but no RE → "No effort data" (never rest); no rows today → "No session yet". `DIALS.load.tick`
+  = the typical-day mark as a radial line across the stroke (`radialTick(0.5)`), drawn by the load
+  deep-dive's hero ring. The load deep-dive's insight card carries the day line ("Today: RE 28 · typical day ~42" or "No session yet today · last
   session <date>: RE <n>"), the ring scale and the acute/chronic context ("7-day vs 42-day load: -6% ·
   steady", + "includes N sessions without effort data"). A gated modality (`baselineBuilding`, or
   `fewDays` when there is no typical day) is greyed with no number (its reason is in the sheet). Each

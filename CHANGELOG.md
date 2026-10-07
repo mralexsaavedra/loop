@@ -4,6 +4,22 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-07 — Plan page restyle P4: dial deep-dive pages
+
+- The sleep, recovery and load detail sheets are deep-dive pages (`web/src/client/deepdive.js`, called
+  by `detail.js`): "‹ TODAY ⓘ" header (back = close; the band / cut notes collapsed under ⓘ), a hero
+  ring drawn from the dial's own baked arcs (`DIALS`; load adds a white typical-day tick,
+  `DIALS.load.tick`), a contributors card (the dial's inputs, each today vs the p25–p75 of the prior
+  30 days, direction-aware ▲▼; rows without a value hidden), an insight card with the dial's former
+  captions + a "View trend →" link to the history chart, and "Weekly trends" (7 bars per input).
+  Same data: no new metric. Docs: `docs/detail-views.md`.
+- The recovery dial (Inicio and hero) fills with ONE state colour by its band (at baseline =
+  `--mid`, was the blue `--trend` with green / red zone arcs on the track); the zone arcs are gone.
+- CTA link gradient (`--link` → `--link-end`) only on the insight card's `--ground` fill, where both
+  ends pass AA for small text (8.29 / 4.61); inline CSS budget raised to 100 KB (≈ 92 KB used).
+- `home-week.js` / `home-dash.js` moved from `Home.astro` into the layout's end-of-body script list
+  (before `deepdive.js` / `detail.js`) and render at once instead of at `DOMContentLoaded`.
+
 ## 2026-10-07 — Plan page restyle P3b: the rest of Inicio
 
 - "Tonight" card after the eat card: recommended bedtime ↔ usual wake time. Bedtime = the median wake

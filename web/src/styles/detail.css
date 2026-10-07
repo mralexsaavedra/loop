@@ -540,6 +540,375 @@ tr[data-detail] > td:last-child::after {
   content: " ›";
 }
 
+/* Dial deep-dive pages (client/deepdive.js): "‹ TODAY ⓘ", the hero ring (≈ 67 % of the width, stroke
+ * 6.4 / 108 ≈ 5.9 % of the diameter, the dial's own baked arcs), the insight card and the ⓘ notes. */
+.dd-head {
+  align-items: center;
+  margin-bottom: var(--sp-3);
+}
+.dd-back,
+.dd-info-btn {
+  flex: none;
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+.dd-back {
+  font-size: 34px;
+  font-weight: 300;
+  line-height: 1;
+  text-align: left;
+  padding-left: 4px;
+}
+.dd-info-btn {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--muted);
+}
+.dd-info-btn::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1.5px solid var(--faint);
+  border-radius: 50%;
+}
+.dd-info-btn[aria-expanded="true"] {
+  color: var(--ink);
+}
+.dd-info-btn[aria-expanded="true"]::before {
+  border-color: var(--ink);
+}
+.dd-back:focus-visible,
+.dd-info-btn:focus-visible,
+.dd-cta:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.dd-today {
+  flex: 1;
+  text-align: center;
+  font-size: var(--fs-md);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.dd-info {
+  background: var(--surface);
+  border-radius: var(--r-md);
+  padding: var(--sp-6);
+}
+.dd-info[hidden] {
+  display: none;
+}
+.dd-hero {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-7) 0 var(--sp-5);
+}
+.dd-ring {
+  --dd-c: var(--track);
+  position: relative;
+  width: 67%;
+  max-width: 320px;
+  aspect-ratio: 1;
+}
+.dd-good .dd-ring {
+  --dd-c: var(--good);
+}
+.dd-mid .dd-ring {
+  --dd-c: var(--mid);
+}
+.dd-low .dd-ring {
+  --dd-c: var(--low);
+}
+.dd-sleep .dd-ring {
+  --dd-c: var(--sleep);
+}
+.dd-strain .dd-ring {
+  --dd-c: var(--strain);
+}
+.dd-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.dd-track {
+  fill: none;
+  stroke: var(--track);
+  stroke-width: 6.4;
+}
+.dd-fill {
+  fill: none;
+  stroke: var(--dd-c);
+  stroke-width: 6.4;
+  stroke-linecap: round;
+  stroke-dasharray: 100 100;
+  animation: dial-in 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.dd-tick {
+  stroke: var(--ink);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.dd-stale .dd-svg,
+.dd-stale .dd-num {
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+.dd-centre {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+}
+.dd-num {
+  font-family: var(--num);
+  font-weight: 700;
+  font-size: clamp(52px, 17vw, 72px);
+  line-height: 1;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.dd-num small {
+  font-size: 0.5em;
+  margin-left: 4px;
+}
+.dd-word {
+  max-width: 70%;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--muted);
+}
+.dd-lbl {
+  font-size: var(--fs-md);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--ink);
+}
+/* insight card: --ground fill (the CTA gradient's AA ground) inside a 1.5 px teal → indigo stroke */
+.dd-insight {
+  border: 1.5px solid transparent;
+  border-radius: var(--r-md);
+  padding: var(--sp-7);
+  background: linear-gradient(var(--ground), var(--ground)) padding-box, linear-gradient(90deg, var(--insight-b), var(--insight-a)) border-box;
+}
+.dd-ln {
+  font-size: var(--fs-xl);
+  line-height: 1.4;
+  color: var(--ink);
+}
+.dd-ln + .dd-ln {
+  margin-top: var(--sp-2);
+}
+.dd-ln.dt-scale {
+  font-size: var(--fs-md);
+  color: var(--muted);
+}
+.dd-cta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: var(--sp-3);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--fs-md);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--link);
+  cursor: pointer;
+}
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .dd-cta {
+    background: linear-gradient(90deg, var(--link), var(--link-end));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+/* contributors card: the dial's inputs, each today vs the prior 30 days; a caret notch points up to
+ * the hero ring. ▲▼ teal = better, orange = worse (by the metric's good direction), grey = no good
+ * direction; a grey dot = typical. */
+.dd-contrib {
+  position: relative;
+  background: var(--surface);
+  border-radius: var(--r-md);
+  padding: var(--sp-2) var(--sp-7) var(--sp-7);
+  margin-top: var(--sp-8);
+}
+.dd-contrib::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  background: var(--surface);
+  border-radius: 2px;
+  transform: translateX(-50%) rotate(45deg);
+}
+.dd-rows {
+  list-style: none;
+}
+.dd-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  min-height: 56px;
+  border-bottom: 1px solid var(--line);
+}
+.dd-row:last-child {
+  border-bottom: 0;
+}
+.dd-ico {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.dd-row-lbl {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.dd-row-val {
+  font-family: var(--num);
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.dd-mk {
+  flex: none;
+  width: 14px;
+  font-size: 11px;
+  text-align: center;
+}
+.dd-better {
+  color: var(--up);
+}
+.dd-worse {
+  color: var(--down);
+}
+.dd-neutral,
+.dd-typical {
+  color: var(--faint);
+}
+.dd-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-top: var(--sp-5);
+  padding: var(--sp-4) var(--sp-6);
+  border-radius: var(--r-sm);
+  background: var(--rail);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.dd-legend b {
+  margin-left: var(--sp-3);
+  font-weight: 600;
+  color: var(--ink);
+}
+/* weekly trends: one card per input, 7 bars (values on top, today's column lighter) */
+.dd-sec {
+  margin-top: var(--sp-11);
+  font-size: var(--fs-3xl);
+  font-weight: 600;
+}
+.dd-weekly > * + * {
+  margin-top: var(--sp-5);
+}
+.dd-wk {
+  background: var(--surface);
+  border-radius: var(--r-md);
+  padding: var(--sp-6) var(--sp-7);
+}
+.dd-wk-t {
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.dd-cols {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+}
+.dd-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0;
+  border-radius: var(--r-xs);
+}
+.dd-now {
+  background: var(--surface-2);
+}
+.dd-val {
+  font-family: var(--num);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.dd-track-col {
+  display: flex;
+  align-items: flex-end;
+  width: 62%;
+  height: 96px;
+}
+.dd-bar {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  border-radius: 3px 3px 0 0;
+}
+.dd-c-good {
+  background: var(--good);
+}
+.dd-c-mid {
+  background: var(--mid);
+}
+.dd-c-low {
+  background: var(--low);
+}
+.dd-c-sleep {
+  background: var(--sleep);
+}
+.dd-c-strain {
+  background: var(--strain);
+}
+.dd-c-trend {
+  background: var(--trend);
+}
+.dd-wd {
+  font-size: var(--fs-2xs);
+  color: var(--faint);
+}
 @media (min-width: 900px) {
   .dt-sheet {
     padding: 5vh 24px;

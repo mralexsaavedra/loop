@@ -70,6 +70,32 @@ export const en = {
     bands: enS.load.bands,
     unscoredNote: enS.load.unscoredNote,
   },
+  // dial deep-dive pages (sleep / recovery / load-<m>, client/deepdive.js): the header, the hero ring's
+  // label + its off-state words (the dial's own copy), the insight CTA, the contributors card and the
+  // weekly bars
+  deep: {
+    today: 'Today',
+    back: 'Back',
+    info: 'How to read this page',
+    label: { sleep: enS.dials.sleep.label, recovery: enS.dials.recovery.label, load: enS.dials.load.label },
+    words: { none: enS.dials.none, gated: enS.dials.recovery.gated, loadGated: enS.dials.load.gated, rest: enS.dials.load.rest, noEffort: enS.dials.load.noEffort },
+    heroAria: '{label}: {value}',
+    nightLine: '{when} · {band}',
+    sleepLine: '{when}: {value} h · {delta} h vs the {target} h target',
+    cta: 'View trend',
+    contrib: {
+      aria: 'What makes up today\'s value',
+      legendToday: 'Today',
+      legendRest: 'vs prior 30 days',
+      cmp: { better: 'better than usual', worse: 'worse than usual', above: 'above usual', below: 'below usual', typical: 'typical' },
+      rows: {
+        hrv: 'Heart rate variability', rhr: 'Resting heart rate', sleep: 'Hours of sleep', vsTarget: 'vs sleep target',
+        bed: 'Bedtime', wake: 'Wake time', re: 'Today\'s effort', acute: '7 days vs 42 days', sessions: 'Sessions, last 7 days',
+        typical: 'Typical training day',
+      },
+    },
+    weekly: { title: 'Weekly trends', aria: '{title}, last 7 days', minutes: 'Minutes' },
+  },
   legend: {
     good: 'Better than your range',
     normal: 'In your range',
@@ -212,6 +238,29 @@ export const es = {
     trendLbl: esS.load.trendLbl,
     bands: esS.load.bands,
     unscoredNote: esS.load.unscoredNote,
+  },
+  deep: {
+    today: 'Hoy',
+    back: 'Volver',
+    info: 'Cómo leer esta página',
+    label: { sleep: esS.dials.sleep.label, recovery: esS.dials.recovery.label, load: esS.dials.load.label },
+    words: { none: esS.dials.none, gated: esS.dials.recovery.gated, loadGated: esS.dials.load.gated, rest: esS.dials.load.rest, noEffort: esS.dials.load.noEffort },
+    heroAria: '{label}: {value}',
+    nightLine: '{when} · {band}',
+    sleepLine: '{when}: {value} h · {delta} h frente al objetivo de {target} h',
+    cta: 'Ver tendencia',
+    contrib: {
+      aria: 'Qué compone el valor de hoy',
+      legendToday: 'Hoy',
+      legendRest: 'frente a los 30 días previos',
+      cmp: { better: 'mejor de lo habitual', worse: 'peor de lo habitual', above: 'por encima de lo habitual', below: 'por debajo de lo habitual', typical: 'habitual' },
+      rows: {
+        hrv: 'Variabilidad de la frecuencia cardiaca', rhr: 'Frecuencia cardiaca en reposo', sleep: 'Horas de sueño', vsTarget: 'Frente al objetivo de sueño',
+        bed: 'Hora de acostarte', wake: 'Hora de despertar', re: 'Esfuerzo de hoy', acute: '7 días frente a 42 días', sessions: 'Sesiones, últimos 7 días',
+        typical: 'Día de entreno típico',
+      },
+    },
+    weekly: { title: 'Tendencias semanales', aria: '{title}, últimos 7 días', minutes: 'Minutos' },
   },
   legend: {
     good: 'Mejor que tu rango',

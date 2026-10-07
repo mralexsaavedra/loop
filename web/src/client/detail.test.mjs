@@ -22,6 +22,8 @@ const format = (tpl, vars) => tpl.replace(/\{(\w+)\}/g, (_, k) => (vars[k] != nu
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'detail.js'), 'utf8');
+// the dial deep-dive pages (sleep, recovery, load-<m>): inlined right before detail.js on the page
+const deepSource = fs.readFileSync(path.join(here, 'deepdive.js'), 'utf8');
 const coreSource = fs.readFileSync(path.join(here, 'core.js'), 'utf8');
 const DEMO = buildDetail(path.join(here, '..', '..', '..', 'data', 'demo', 'extract'));
 const NOW = DEMO.asOf; // the viewer opens the page on the demo's newest data day
@@ -115,6 +117,7 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
     ctx.NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB }, detailTab: { ...DETAIL_TAB }, viewTab: { ...VIEW_TAB } };
     vm.runInContext(coreSource, ctx);
   }
+  vm.runInContext(deepSource, ctx);
   vm.runInContext(source, ctx);
   const api = win.HCDetail;
   const shownTab = () => (tabPanels || []).filter((el) => !el.hidden).map((el) => el.getAttribute('data-tab'));
@@ -487,27 +490,107 @@ const headOf = (html) => html.split('<div class="dt-body">')[0];
 const sgn = (v, dec) => (v > 0 ? '+' : '') + v.toFixed(dec);
 const copy = () => JSON.parse(JSON.stringify(DEMO));
 
-test('recovery header = the dial: last night\'s value, day band and "last night" label; the 7-day trend is the secondary line with its own band', () => {
+// the dial deep-dive pages (client/deepdive.js): the top of the body, its insight card, its ⓘ block
+const topOf = (html) => html.split('<div class="dt-period">')[0];
+const insightOf = (html) => (html.split('<div class="dd-insight">')[1] || '').split('</div>')[0];
+const infoOf = (html) => (html.split('<div class="dd-info" id="dd-info" hidden>')[1] || '').split('</div><section')[0];
+const heroOf = (html) => (html.split('<section class="dd-hero')[1] || '').split('</section>')[0];
+
+test('dial deep-dive header: "‹ TODAY ⓘ" — back = the close button (focus lands there), the metric title stays the dialog\'s label, ⓘ starts collapsed', () => {
+  for (const key of ['sleep', 'recovery', 'load-gym']) {
+    const s = setup({ dials: DIALS });
+    const opener = new StubElement('div', { attrs: { 'data-detail': key } });
+    opener.focused = 0;
+    opener.focus = () => { opener.focused++; };
+    s.click(opener);
+    const h = headOf(s.host.innerHTML);
+    assert.match(h, /<button type="button" class="dd-back" data-dt-act="close" aria-label="Back">‹<\/button>/, key);
+    assert.ok(h.includes('<span class="dd-today" aria-hidden="true">Today</span>'));
+    assert.ok(h.includes(`<h2 class="sr-only" id="dt-title">${enT.metrics[key].title}</h2>`), 'the dialog is still labelled by the metric');
+    assert.match(h, /class="dd-info-btn" data-dt-act="info" aria-expanded="false" aria-controls="dd-info"/);
+    assert.doesNotMatch(h, /class="dt-close"/, 'one way out: the back arrow');
+    assert.equal(s.closeBtn.focused, 1, 'focus moves to the back button');
+    assert.ok(s.host.innerHTML.includes('<div class="dd-info" id="dd-info" hidden>'), 'the long notes are collapsed');
+    s.click(act('close'));
+    assert.equal(s.host.hidden, true, 'back closes the sheet');
+    assert.equal(opener.focused, 1, 'focus returns to the dial');
+  }
+  // a non-dial view keeps the plain header
   const s = setup();
+  s.api.open('hrv');
+  assert.doesNotMatch(s.host.innerHTML, /dd-head|dd-hero|dd-insight/);
+});
+
+test('ⓘ toggles the long-notes block in place (no re-render); the CTA jumps to the history chart and focuses its pressed range', () => {
+  const info = new StubElement('div', { hidden: true });
+  const period = new StubElement('div');
+  period.scrolled = 0;
+  period.scrollIntoView = () => { period.scrolled++; };
+  const pressed = { focused: 0, focus() { this.focused++; } };
+  const s = setup({ query: { '#dd-info': info, '.dt-period': period, '.dt-range [aria-pressed="true"]': pressed } });
   s.api.open('recovery');
-  const h = headOf(s.host.innerHTML);
+  const writes = s.hostWrites();
+  const btn = act('info', { 'aria-expanded': 'false' });
+  s.click(btn);
+  assert.equal(info.hidden, false);
+  assert.equal(btn.getAttribute('aria-expanded'), 'true');
+  s.click(btn);
+  assert.equal(info.hidden, true);
+  assert.equal(btn.getAttribute('aria-expanded'), 'false');
+  s.click(act('trend'));
+  assert.equal(period.scrolled, 1);
+  assert.equal(pressed.focused, 1);
+  assert.equal(s.hostWrites(), writes, 'neither action re-renders the sheet');
+  assert.ok(s.host.innerHTML.includes(`<button type="button" class="dd-cta" data-dt-act="trend">${enT.deep.cta}<span aria-hidden="true"> →</span></button>`));
+});
+
+test('recovery deep-dive = the dial: the hero ring is last night\'s value with ONE band colour; the insight says "last night" + band and the 7-day trend in its own band colour', () => {
+  const s = setup({ dials: DIALS });
+  s.api.open('recovery');
+  const html = s.host.innerHTML;
   const d = DIALS.recovery;
   assert.equal(d.mode, 'today');
+  const hero = heroOf(html);
+  const cls = { above: 'good', at: 'mid', below: 'low' }[d.band];
+  assert.ok(hero.startsWith(` dd-${cls}"`), `one state colour for the whole ring (${cls})`);
+  assert.ok(hero.includes(`<b class="dd-num">${sgn(d.value, 1)}<small>SD</small></b>`), 'same value as the dial');
+  assert.equal((hero.match(/class="dd-fill"/g) || []).length, 1, 'one fill path, no zone arcs');
+  assert.ok(hero.includes(`d="${d.fill}"`), 'the dial\'s own baked arc');
+  assert.ok(hero.includes(`<span class="dd-lbl">${enT.deep.label.recovery}</span>`));
+  const ins = insightOf(html);
+  assert.ok(ins.includes(format(enT.deep.nightLine, { when: enT.rec.lastNight, band: enT.day.bands[d.band] })));
   const bandState = { above: 'good', at: 'normal', below: 'bad' };
-  assert.ok(h.includes(`dt-c-${bandState[d.band]}">${sgn(d.value, 1)}<`), 'same value and band as the dial');
-  assert.ok(h.includes(enT.day.bands[d.band]), 'band word');
-  assert.ok(h.includes(enT.rec.lastNight), 'dated the viewer\'s today: "last night"');
   const trend = format(enT.rec.trendLine, { dir: enT.rec.dirs[d.trend.dir], value: sgn(d.trend.value, 1) });
-  assert.ok(h.includes(`dt-sub dt-c-${bandState[d.trend.band]}">${trend}`), 'trend line coloured by the TREND band');
-  const later = setup({ now: addDays(NOW, 1) });
+  assert.ok(ins.includes(`dd-ln dt-c-${bandState[d.trend.band]}">${trend}`), 'trend line coloured by the TREND band');
+  const later = setup({ now: addDays(NOW, 1), dials: DIALS });
   later.api.open('recovery');
-  assert.ok(!headOf(later.host.innerHTML).includes(enT.rec.lastNight), 'a day later the night is dated, like the dial');
-  assert.ok(headOf(later.host.innerHTML).includes('Mon 28 Sep'));
-  // the chart's zone is the 7-day trend band; both cuts are stated
-  const html = s.host.innerHTML;
-  assert.ok(html.includes(enT.chartKey.baseline));
-  assert.ok(html.includes('±1.2') && html.includes('±0.5'), 'day cut and trend cut both stated');
-  assert.ok(html.includes(enT.bands.perDayNote), 'recovery colours are per day');
+  assert.ok(!insightOf(later.host.innerHTML).includes(enT.rec.lastNight), 'a day later the night is dated, like the dial');
+  assert.ok(insightOf(later.host.innerHTML).includes('Mon 28 Sep'));
+  // the cut rules are long notes: under ⓘ, not in the insight
+  const info = infoOf(html);
+  assert.ok(info.includes('±1.2') && info.includes('±0.5'), 'day cut and trend cut both stated');
+  assert.ok(info.includes(enT.bands.perDayNote));
+  assert.ok(html.includes(enT.chartKey.baseline), 'the history chart stays below');
+  // no DIALS: the number still shows, from the same baked headline, with an empty ring
+  const bare = setup();
+  bare.api.open('recovery');
+  assert.ok(heroOf(bare.host.innerHTML).includes(`<b class="dd-num">${sgn(d.value, 1)}<small>SD</small></b>`));
+  assert.doesNotMatch(heroOf(bare.host.innerHTML), /dd-fill/);
+  clean(html);
+});
+
+test('recovery deep-dive: a gated recovery shows the dial\'s word in an empty ring; a stale one is greyed', () => {
+  const g = copy();
+  g.metrics.recovery.head = null;
+  const s = setup({ detail: g, dials: DIALS });
+  s.api.open('recovery');
+  const hero = heroOf(s.host.innerHTML);
+  assert.ok(hero.startsWith(' dd-off dd-off"') || hero.startsWith(' dd-off'), hero.slice(0, 40));
+  assert.ok(hero.includes(`<span class="dd-word">${enT.deep.words.gated}</span>`));
+  assert.ok(insightOf(s.host.innerHTML).includes(enT.rec.gated));
+  const old = setup({ now: addDays(NOW, 9), dials: DIALS });
+  old.api.open('recovery');
+  assert.match(heroOf(old.host.innerHTML), /^ dd-\w+ dd-stale"/, 'stale data greys the hero like the dial');
 });
 
 test('weight header = the Salud card\'s 7-day rolling average (the chart line), with the latest raw reading underneath', () => {
@@ -569,54 +652,76 @@ test('a daily total\'s newest day, when it is the viewer\'s today, reads "today,
   assert.doesNotMatch(later.host.innerHTML, /dt-s-partial/, 'a finished day gets its state again');
 });
 
-test('load header = the dial: today\'s RE vs the typical day, else "no session yet today" + the last session; the typical line is the dial\'s typical day', () => {
+test('load deep-dive = the dial: today\'s RE in a strain ring with the typical-day tick, else the dial\'s word; the insight carries today\'s line', () => {
   for (const m of DIALS.load.modalities) assert.equal(DEMO.metrics['load-' + m.key].typical, m.typical, `${m.key}: same typical day as the dial`);
-  const s = setup();
+  const s = setup({ dials: DIALS });
   s.api.open('load-gym');
   const gym = DEMO.metrics['load-gym'];
-  assert.ok(headOf(s.host.innerHTML).includes(format(enT.load.dayLine, { day: '28', typical: gym.typical.toFixed(0) })));
+  let hero = heroOf(s.host.innerHTML);
+  const t = DIALS.load.tick;
+  assert.ok(hero.includes(`<line class="dd-tick" x1="${t.x1}" y1="${t.y1}" x2="${t.x2}" y2="${t.y2}"/>`), 'typical day = the white tick at 6 o\'clock');
+  const gd = DIALS.load.modalities.find((m) => m.key === 'gym');
+  if (gd.state === 'ok') {
+    assert.ok(hero.startsWith(' dd-strain"'));
+    assert.ok(hero.includes('<b class="dd-num">28<small>RE</small></b>'));
+  } else {
+    assert.ok(hero.includes(enT.deep.words.loadGated));
+  }
+  const gl = DEMO.metrics['load-gym'].gate ? '' : format(enT.load.dayLine, { day: '28', typical: gym.typical.toFixed(0) });
+  if (gl) assert.ok(insightOf(s.host.innerHTML).includes(gl));
   s.api.open('load-run');
   const run = DEMO.metrics['load-run'];
-  assert.ok(headOf(s.host.innerHTML).includes(format(enT.load.restLastLine, { date: 'Sat 26 Sep', re: String(run.last.re), typical: run.typical.toFixed(0) })));
+  hero = heroOf(s.host.innerHTML);
+  assert.ok(hero.includes(`<span class="dd-word">${enT.deep.words.rest}</span>`), 'no session today: the dial\'s word');
+  assert.doesNotMatch(hero, /dd-fill/);
+  assert.ok(insightOf(s.host.innerHTML).includes(format(enT.load.restLastLine, { date: 'Sat 26 Sep', re: String(run.last.re), typical: run.typical.toFixed(0) })));
   const gated = copy();
   gated.metrics['load-bike'].gate = 'fewDays';
   const g = setup({ detail: gated });
   g.api.open('load-bike');
-  assert.ok(headOf(g.host.innerHTML).includes(enT.load.gated.fewDays));
+  assert.ok(insightOf(g.host.innerHTML).includes(enT.load.gated.fewDays));
+  assert.ok(heroOf(g.host.innerHTML).includes(enT.deep.words.loadGated));
 });
 
-test('load header carries the dial\'s former captions: the ring scale, the 7-day vs 42-day trend + band and the unscored note (from the baked DIALS)', () => {
+test('load deep-dive keeps the dial\'s former captions: the ring scale + the 7-day vs 42-day trend in the insight, the unscored note under ⓘ', () => {
   const run = DIALS.load.modalities.find((m) => m.key === 'run' && m.state === 'ok') || DIALS.load.modalities.find((m) => m.state === 'ok');
   const s = setup({ dials: DIALS });
   s.api.open('load-' + run.key);
-  const h = headOf(s.host.innerHTML);
-  assert.ok(h.includes(enT.load.scale), 'the scale explanation that sat under the dial');
+  const ins = insightOf(s.host.innerHTML);
+  assert.ok(ins.includes(enT.load.scale), 'the scale explanation that sat under the dial');
   const trend = format(enT.load.trendLbl, { pct: (run.trendPct > 0 ? '+' : '') + run.trendPct + '%' }) + ' · ' + enT.load.bands[run.band];
-  assert.ok(h.includes(trend), `acute/chronic context "${trend}"`);
+  assert.ok(ins.includes(trend), `acute/chronic context "${trend}"`);
+  const lines = (ins.match(/<p class="dd-ln/g) || []).length;
+  assert.ok(lines >= 2 && lines <= 4, `2–4 insight lines, got ${lines}`);
   const d2 = JSON.parse(JSON.stringify(DIALS));
   d2.load.modalities.find((m) => m.key === run.key).unscored = 2;
   const u = setup({ dials: d2 });
   u.api.open('load-' + run.key);
-  assert.ok(headOf(u.host.innerHTML).includes(format(enT.load.unscoredNote, { n: 2 })));
-  // es: same lines from the es copy
+  assert.ok(infoOf(u.host.innerHTML).includes(format(enT.load.unscoredNote, { n: 2 })));
   const es = setup({ dials: DIALS, locale: 'es' });
   es.api.open('load-' + run.key);
-  assert.ok(headOf(es.host.innerHTML).includes(esT.load.scale));
-  // no DIALS global (or a gated modality): no trend line, nothing breaks
+  assert.ok(insightOf(es.host.innerHTML).includes(esT.load.scale));
+  assert.ok(es.host.innerHTML.includes(`>${esT.deep.cta}<`) && es.host.innerHTML.includes(`>${esT.deep.today}<`));
   const none = setup();
   none.api.open('load-' + run.key);
-  assert.ok(!headOf(none.host.innerHTML).includes(enT.load.bands[run.band] + '<'));
+  assert.ok(!insightOf(none.host.innerHTML).includes(enT.load.bands[run.band]));
   assert.doesNotMatch(none.host.innerHTML, /NaN|undefined/);
 });
 
-test('sleep and recovery headers keep the dial\'s former captions: the sleep target, "last night" / the night\'s date and the 7-day trend', () => {
-  const s = setup();
+test('sleep deep-dive: the hero is last night\'s hours in the sleep colour; the insight states the target and last night vs it', () => {
+  const s = setup({ dials: DIALS });
   s.api.open('sleep');
-  assert.ok(headOf(s.host.innerHTML).includes(format(enT.bands.target, { value: '7.5', unit: 'h' })), 'Target 7.5 h');
-  s.api.open('recovery');
-  const h = headOf(s.host.innerHTML);
-  assert.ok(h.includes(enT.rec.lastNight));
-  assert.ok(h.includes('7-day trend'));
+  const html = s.host.innerHTML;
+  const hero = heroOf(html);
+  assert.ok(hero.startsWith(' dd-sleep"'));
+  assert.ok(hero.includes(`<b class="dd-num">${DIALS.sleep.hours.toFixed(1)}<small>h</small></b>`));
+  assert.ok(hero.includes(`d="${DIALS.sleep.fill}"`));
+  const ins = insightOf(html);
+  assert.ok(ins.includes(format(enT.bands.target, { value: '7.5', unit: 'h' })), 'Target 7.5 h');
+  const v = valueOn(DEMO.metrics.sleep, NOW);
+  assert.ok(ins.includes(format(enT.deep.sleepLine, { when: enT.rec.lastNight, value: v.toFixed(1), delta: Number((v - 7.5).toFixed(1)) === 0 ? '0.0' : sgn(v - 7.5, 1), target: '7.5' })));
+  assert.ok(infoOf(html).includes(enT.day.stagesNote));
+  clean(html);
 });
 
 test('training time: rest days are 0 up to the data\'s asOf, days after it are missing; the header\'s latest is the newest day ("rest" on a rest day)', () => {
@@ -950,4 +1055,115 @@ test('an opened deep link and a plain tab hash are never rewritten at load', () 
   s = setup({ withCore: true, hash: '#entreno' });
   assert.equal(s.calls.length, 0);
   assert.equal(s.loc.hash, '#entreno');
+});
+
+/* ---------- dial deep-dive: contributors (today vs the prior 30 days) + weekly trends ---------- */
+const contribOf = (html) => (html.split('<section class="dd-contrib"')[1] || '').split('</section>')[0];
+const rowsOf = (html) => [...contribOf(html).matchAll(/data-row="([a-zA-Z]+)"/g)].map((x) => x[1]);
+const weeklyOf = (html) => (html.split('<section class="dd-weekly">')[1] || '');
+
+test('contributors compare today with the middle half of the prior 30 days, direction-aware: teal better, orange worse, grey dot typical, neutral grey arrow without a good direction', () => {
+  const s = setup();
+  const H = s.ctx.window.HCDeep;
+  const day = '2026-09-28';
+  const series = (today, prior) => (iso) => (iso === day ? today : iso < day && iso >= addDays(day, -30) ? prior[(Date.parse(iso) / 864e5) % prior.length] : null);
+  const prior = [50, 52, 54, 56, 58, 60];
+  assert.deepEqual(pick(H.compare(series(70, prior), day, 1)), { side: 1, tone: 'better' }, 'HRV up = better');
+  assert.deepEqual(pick(H.compare(series(70, prior), day, -1)), { side: 1, tone: 'worse' }, 'resting HR up = worse');
+  assert.deepEqual(pick(H.compare(series(40, prior), day, -1)), { side: -1, tone: 'better' }, 'resting HR down = better');
+  assert.deepEqual(pick(H.compare(series(55, prior), day, 1)), { side: 0, tone: 'typical' }, 'inside p25–p75 = typical');
+  assert.deepEqual(pick(H.compare(series(70, prior), day, 0)), { side: 1, tone: 'neutral' }, 'no good direction = neutral');
+  assert.equal(H.compare(series(null, prior), day, 1), null, 'no value today: the row is hidden');
+  const sparse = (iso) => (iso === day ? 70 : iso === addDays(day, -1) ? 50 : null);
+  assert.deepEqual(pick(H.compare(sparse, day, 1)), { side: null, tone: null }, 'too few prior days: a value without a marker');
+  assert.deepEqual(pick(H.compare(series(30, prior), day, 0, (x) => x > 54)), { side: -1, tone: 'neutral' }, 'keep filters the prior days');
+});
+function pick(c) { return c && { side: c.side, tone: c.tone }; }
+
+test('recovery contributors = the composite\'s inputs on the scored night (HRV, resting HR, sleep), ▲▼ vs prior 30 days with a legend; a missing value hides its row', () => {
+  const s = setup({ dials: DIALS });
+  s.api.open('recovery');
+  const html = s.host.innerHTML;
+  assert.deepEqual(rowsOf(html), ['hrv', 'rhr', 'sleep'], 'sleep consistency has no daily series: not shown');
+  const night = DEMO.metrics.recovery.head.date;
+  const c = contribOf(html);
+  assert.ok(c.includes(`<span class="dd-row-lbl">${enT.deep.contrib.rows.hrv}</span><b class="dd-row-val">${valueOn(DEMO.metrics.hrv, night)} ms</b>`));
+  assert.ok(c.includes(`<b class="dd-row-val">${valueOn(DEMO.metrics.rhr, night)} bpm</b>`));
+  assert.ok(c.includes(`<b class="dd-row-val">${valueOn(DEMO.metrics.sleep, night).toFixed(1)} h</b>`));
+  assert.match(c, /class="dd-mk dd-(better|worse|typical)" aria-hidden="true">[▲▼•]<\/span><span class="sr-only">/);
+  assert.ok(c.includes(`<b>${enT.deep.contrib.legendToday}</b> ${enT.deep.contrib.legendRest}`), 'legend pill');
+  assert.ok(html.indexOf('dd-contrib') > html.indexOf('dd-hero') && html.indexOf('dd-contrib') < html.indexOf('dd-insight'), 'under the hero, above the insight');
+  const gap = copy();
+  gap.metrics.hrv.v[dayIndex(gap.metrics.hrv, night)] = null;
+  const g = setup({ detail: gap, dials: DIALS });
+  g.api.open('recovery');
+  assert.deepEqual(rowsOf(g.host.innerHTML), ['rhr', 'sleep'], 'no HRV that night: the row is hidden, never 0 or a dash');
+  clean(html);
+});
+
+test('sleep contributors: hours (▲▼), vs target, bedtime and wake time (neutral arrows, bedtime wraps midnight); load: today\'s RE, 7 vs 42 days, sessions, typical day', () => {
+  const s = setup({ dials: DIALS });
+  s.api.open('sleep');
+  let html = s.host.innerHTML;
+  assert.deepEqual(rowsOf(html), ['sleep', 'vsTarget', 'bed', 'wake']);
+  const sl = DEMO.metrics.sleep;
+  const clockOf = (h) => { h = ((h % 24) + 24) % 24; const H = Math.floor(h), M = Math.round((h - H) * 60); return String(M === 60 ? (H + 1) % 24 : H).padStart(2, '0') + ':' + String(M === 60 ? 0 : M).padStart(2, '0'); };
+  assert.ok(contribOf(html).includes(`<b class="dd-row-val">${clockOf(valueOn({ ...sl, v: sl.bed }, NOW))}</b>`), 'bedtime clock');
+  const bedRow = (h) => contribOf(h).split('data-row="bed"')[1].split('</li>')[0];
+  assert.doesNotMatch(bedRow(html), /dd-better|dd-worse/, 'bedtime has no good direction');
+  // a bedtime just after midnight compares as a LATE evening (▲), not as the earliest of the month
+  const late = copy();
+  late.metrics.sleep.bed[dayIndex(late.metrics.sleep, NOW)] = 0.5;
+  const l = setup({ detail: late, dials: DIALS });
+  l.api.open('sleep');
+  assert.ok(bedRow(l.host.innerHTML).includes('<b class="dd-row-val">00:30</b><span class="dd-mk dd-neutral" aria-hidden="true">▲</span>'));
+  s.api.open('load-gym');
+  html = s.host.innerHTML;
+  const gym = DEMO.metrics['load-gym'];
+  const rows = rowsOf(html);
+  if (valueOn(gym, NOW) > 0) assert.equal(rows[0], 're', 'trained today: today\'s RE first');
+  assert.ok(rows.includes('sessions') && rows.includes('typical'));
+  const n = DEMO.sessions.filter((x) => x.m === 'gym' && x.d >= addDays(NOW, -6) && x.d <= NOW).length;
+  assert.ok(contribOf(html).includes(`data-row="sessions">`) && contribOf(html).split('data-row="sessions"')[1].includes(`<b class="dd-row-val">${n}</b>`));
+  s.api.open('load-run');
+  assert.ok(!rowsOf(s.host.innerHTML).includes('re'), 'no session today: no effort row');
+  assert.ok(rowsOf(s.host.innerHTML).length <= 4);
+});
+
+test('weekly trends: one card per input, 7 bars ending at the view\'s last day (today highlighted), values on top; recovery bars by day state, sleep bars sleep, load bars strain; a missing day has no bar', () => {
+  const s = setup({ dials: DIALS });
+  s.api.open('recovery');
+  let wk = weeklyOf(s.host.innerHTML);
+  assert.ok(wk.startsWith(`<h3 class="dd-sec">${enT.deep.weekly.title}</h3>`));
+  const cards = wk.split('<section class="dd-wk"').slice(1);
+  assert.deepEqual(cards.map((c) => /<h4 class="dd-wk-t">([^<]+)</.exec(c)[1]), ['Recovery', 'HRV', 'Resting HR', 'Sleep']);
+  const rec = cards[0];
+  assert.equal((rec.match(/<li class="dd-col/g) || []).length, 7);
+  assert.equal((rec.match(/dd-col dd-now/g) || []).length, 1, 'today\'s column highlighted');
+  const days = s.ctx.window.HCDeep.weekOf(NOW);
+  assert.deepEqual([days[0], days[6]], [addDays(NOW, -6), NOW]);
+  const m = DEMO.metrics.recovery;
+  days.forEach((d) => {
+    const v = valueOn(m, d);
+    if (v == null) return;
+    const st = v >= m.cut ? 'good' : v <= -m.cut ? 'low' : 'mid';
+    assert.ok(rec.includes(`<span class="dd-val">${sgn(v, 1)}</span><span class="dd-track-col"><i class="dd-bar dd-c-${st}"`), `${d} ${st}`);
+  });
+  const missing = days.filter((d) => valueOn(m, d) == null);
+  assert.ok(missing.length > 0, 'the demo has a recovery gap this week');
+  assert.equal((rec.match(/<span class="dd-val">—<\/span><span class="dd-track-col"><\/span>/g) || []).length, missing.length, 'a missing day: a dash, no bar');
+  s.api.open('sleep');
+  wk = weeklyOf(s.host.innerHTML);
+  assert.match(wk, /dd-bar dd-c-sleep/);
+  s.api.open('load-gym');
+  wk = weeklyOf(s.host.innerHTML);
+  assert.deepEqual([...wk.matchAll(/<h4 class="dd-wk-t">([^<]+)</g)].map((x) => x[1]), ['Gym load', enT.deep.weekly.minutes]);
+  assert.match(wk, /dd-bar dd-c-strain/);
+  assert.doesNotMatch(wk, /dd-c-(good|mid|low|sleep)/);
+  // a later viewer: the window ends at the viewer's today, its days after the data are empty
+  const later = setup({ now: addDays(NOW, 2), dials: DIALS });
+  later.api.open('sleep');
+  const lw = weeklyOf(later.host.innerHTML);
+  assert.ok(lw.includes('<li class="dd-col dd-now"><span class="dd-val">—</span>'), 'today, no data yet');
+  clean(s.host.innerHTML);
 });
