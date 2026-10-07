@@ -27,7 +27,7 @@ subagents, guard hook, settings, skills).
 ## Checklist
 
 - [x] T1 Hook: resolve force-add targets with `git check-ignore`, per-argument allow-list, honour `cd`; tests (route: delegated writer — non-trivial hook logic + tests)
-- [ ] T2 Hook: guard Edit/Write on `.gitignore`; deny reads of `.env*` via permissions (route: delegated writer)
+- [x] T2 Hook: guard Edit/Write on `.gitignore`; deny reads of `.env*` via permissions (route: delegated writer)
 - [ ] T3 CLAUDE.md analysis workflow: live facts + freshness, real weight source; methodology §6 report structure + language (route: delegated writer — 2 files, needs reading the agents and reports)
 - [ ] T4 `/analysis` project skill; trim CLAUDE.md (onboarding → docs, dedupe rules, drop repeated commands) (route: delegated writer)
 - [ ] T5 Coach agents: drift test for the shared block; explicit `model:` (route: delegated writer)
@@ -44,8 +44,14 @@ subagents, guard hook, settings, skills).
   `.gitignore` + synthetic files). RED: `node --test .claude/hooks/guard-health-data.test.js` →
   36 tests, 18 fail against the old hook. GREEN: 36/36 pass. `npm test`: 1612 tests, 1607 pass,
   0 fail. New doc `docs/guard-hook.md` (no hook doc existed; CLAUDE.md architecture map row pending,
-  outside this writer's edit surface). Commit: see `git log` (`fix(hooks): ...`).
+  outside this writer's edit surface). Commit: `440b017`.
+- T2 (route: delegated writer). Hook now also handles Edit/Write/MultiEdit on any `.gitignore`
+  (removed patterns blocked; added negations replayed in a scratch git repo); settings matcher
+  `Bash|Edit|Write|MultiEdit`; `permissions.deny` `Read(**/.env*)` + explicit
+  `Read(./data/training/.env.hyprogram)`. RED: 47 tests, 7 fail before the Edit/Write guard.
+  GREEN: 47/47. `npm test`: 1623 tests, 1618 pass, 0 fail. Commit: the `feat(hooks): ...` commit
+  following `440b017`.
 
 ## Next step
 
-T2.
+T3. Pending from T1/T2: add a `docs/guard-hook.md` row to the CLAUDE.md architecture map.
