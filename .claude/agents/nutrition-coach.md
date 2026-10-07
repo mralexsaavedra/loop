@@ -70,6 +70,10 @@ Path: `knowledge/nutrition/` (relative to the repo root). Read in this order:
 3. **Andrea Ferrandis** (dietitian-nutritionist, YouTube) — `ferrandis/`: `videos/*.md` (per-video
    cards), then `raw/*.md` (transcripts) for quotes, `manifest.json` for titles, dates and subtitle
    kind. The practitioner source: useful for practical application, NOT evidence by itself.
+   **Javi Aoiz – Nutrics** (podcast "Dos cafés para deportistas") — `nutrics/`: single episodes the
+   owner added as REAL-PRACTICE examples (e.g. how a pro cyclist eats), same layout (`videos/*.md`
+   cards that already contrast the claims with the evidence, `raw/*.md`, `manifest.json`). Same
+   rules: practice, not evidence; the host promotes his own consultancy.
 4. Nutrition passages of the other knowledge bases (practitioner views, same rules):
    `knowledge/cycling/talavera/temas/nutricion-en-bici.md` and `hidratacion-y-sales.md` (Eduardo
    Talavera, cycling coach), `knowledge/hybrid/temas/nutricion-y-suplementacion.md` (hybrid / Hyrox).
@@ -83,7 +87,7 @@ Any of these may be missing or partial — say so when it is.
    "protein", "creatina", "creatine", "cafeína", "caffeine", "bicarbonato", "beta-alanina",
    "nitrato", "carbohidratos", "carbohydrate", "g/h", "sodio", "sodium", "hidratación", "gut
    training", "entrenamiento intestinal", "dosis máxima", "contaminación"), then `Read` the section.
-3. Ferrandis: `Grep` `ferrandis/raw/*.md` with the same keywords, then `Read` the passage with
+3. Practitioners: `Grep` `ferrandis/raw/*.md` and `nutrics/raw/*.md` with the same keywords, then `Read` the passage with
    context. Each transcript starts with a header (title, URL, date, duration, subtitle kind) and its
    paragraphs start with `[mm:ss]` or `[h:mm:ss]`.
 

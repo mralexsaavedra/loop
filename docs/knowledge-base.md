@@ -98,5 +98,8 @@ paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index
   `index.md` + `temas/*.md` (cross-source syntheses); `evidencia/` (AIS Sports Supplement Framework,
   IOC 2018 supplement consensus, ISSN position stands, AESAN, WADA — the evidence base); `ferrandis/`
   (Andrea Ferrandis, dietitian-nutritionist, YouTube: the ingest layout above + `videos/*.md` cards —
-  the practitioner source); it also reads `knowledge/cycling/talavera/temas/nutricion-en-bici.md` +
+  the practitioner source); `nutrics/` (Javi Aoiz – Nutrics podcast: single episodes the owner adds
+  as real-practice examples, same layout, each card already contrasted with the evidence; a single
+  video is added by hand: `yt-dlp --skip-download` subtitles → `scripts/youtube-transcript.mjs`
+  paragraphs → `raw/<date>-<id>.md` + a `manifest.json` entry + a `videos/` card); it also reads `knowledge/cycling/talavera/temas/nutricion-en-bici.md` +
   `hidratacion-y-sales.md` and `knowledge/hybrid/temas/nutricion-y-suplementacion.md`.
