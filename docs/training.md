@@ -13,8 +13,18 @@ Entrenamiento at the bottom of Entreno — they were tabs before the tab layout)
 (programmed sessions) and `lib/training/dashboard.mjs` (executed-workout aggregation) and
 rendered by `web/src/tabs/{Hoy,Entrenos}.astro`. Same single-source pattern as nutrition.
 
-**🏃 Entreno tab, above the dashboard** (`web/src/tabs/TrainingDetail.astro`, hosts only): the
-per-modality load cards + caveats (`#score-load`, client/score.js), then the **30-day activity
+**🏃 Entreno tab, above the dashboard** (`web/src/tabs/TrainingDetail.astro`, hosts only): a
+centred uppercase title with an ⓘ (`#tr-intro`, hidden: the tab intro, how to read a card and the
+data caveats every block shares; built server-side from `activity-templates.mjs` `head`, never baked
+for the client), then the **load summary** (`#score-load`, client/score.js `loadHtml`): a "LOAD"
+header with its own ⓘ (`#ld-info`: the as-of date, how to read a card, one line per modality with the
+relative score / the trend band or why it is gated / sessions without effort, other activities,
+coverage, the RE epoch and the caveats list — moved, not dropped) over three compact cards (gym / run /
+bike): the LAST scored session's Relative Effort big in `--strain`, a small ring = the dial's own baked
+arc for that session (`DIALS.load.modalities[].days[].fill`, the typical-day tick), "LOAD · <date>"
+(`today` when it is the viewer's today) and a 7-day vs 42-day pill — grey • steady, teal ▲▼ above /
+below usual, orange ▲▼ ramping / well below (`lib/score/load.mjs` bands); a gated modality shows "—"
+and the dial's "Building" word. A card opens that modality's deep-dive (`load-<m>`). Then the **30-day activity
 calendar** and **cumulative training time** (`#train-activity`, `lib/training/activity.mjs` →
 `ACTIVITY`, baked in TrainingDetail with `I18N_ACTIVITY`; client/training-activity.js), then running,
 cycling and load vs recovery (`#health-train`, client/health.js). The calendar/cumulative follow the

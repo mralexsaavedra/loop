@@ -183,6 +183,11 @@ test('example build: glance on Inicio, detail behind it — Entreno holds load d
   const home = sliceTabPanel(html, 'home');
   assert.doesNotMatch(home, /id="score-load"|id="health-train"|id="health-body"/, 'no detail hosts on Inicio');
   const entreno = sliceTabPanel(html, 'entreno');
+  // header like Salud's: centred uppercase title + an ⓘ whose hidden block holds the intro + shared caveats
+  assert.match(entreno, /<div class="hs-top tr-top">\s*<h2 class="hs-title">Training<\/h2>\s*<button type="button" class="hs-i" data-hs-info="tr-intro" aria-expanded="false" aria-controls="tr-intro" aria-label="About Training">/);
+  assert.match(entreno, /<div class="hs-info" id="tr-intro" hidden><p>[^<]+<\/p><p>[^<]+<\/p><p>[^<]*not medical advice\.<\/p><\/div>/);
+  assert.ok(entreno.indexOf('id="tr-intro"') < entreno.indexOf('id="score-load"'), 'the header leads the tab');
+  assert.doesNotMatch(html.match(/var I18N_ACTIVITY = (\{.*?\});\n/)[1], /"head"/, 'the header copy is built, not baked for the client');
   const at = (id) => entreno.indexOf(`id="${id}"`);
   assert.ok(at('score-load') !== -1 && at('score-load') < at('train-activity') && at('train-activity') < at('health-train') && at('health-train') < at('sec-dash'), 'Entreno order: load detail, calendar + cumulative, run/bike/load vs recovery, dashboard');
   assert.match(html, /var ACTIVITY = \{"hasData":true,"asOf":"\d{4}-\d{2}-\d{2}","days":\[/, 'demo data fills the calendar');
