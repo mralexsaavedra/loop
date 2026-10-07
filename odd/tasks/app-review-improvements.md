@@ -72,6 +72,14 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 - Slice 6 `feat/app-review-claude-md`: T6.
 
 
+## Follow-ups (2026-10-07, owner: "haz lo que queda pendiente")
+
+- `npm run sync`: OK; foodlog-daily.csv written (5 logged days 2026-06-10..2026-10-07).
+- Ingest image rebuild: deferred to merge (server.js has no behaviour change; sync-foodlog uses the already-deployed /food/log/summary).
+- Legacy keys in personal plan-data.json: removal DENIED by the permission classifier → left to the owner.
+- Engram mirror: saved via `engram save --project health-coach` (#5797); MCP save fails with ambiguous active sessions.
+- Ring boot flash: fixed on `fix/intake-boot-flash` (delegated writer): `HCFood.pending()` + `INTAKE.bootGraceMs` (2500, from lib); rings hidden while the food API boot is in flight, Apple Health after the grace or on failure, food log on answer; LAN with today's log not loaded → no rings. RED 3+3 → GREEN; `npm test` 1585/1585; example build deterministic. Known residue (not fixed): Resumen de hoy's kcal dial / bars (nutri-day.js renders before the food scripts load) can still briefly show an Apple Health TODAY intake — only reachable when Apple Health has food logged today (last such day 2026-09-28).
+
 ## Next step
 
 All tasks done. Owner decides push / PRs (6 stacked slices).
