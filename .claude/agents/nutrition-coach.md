@@ -138,8 +138,8 @@ such.
 - The plan: `data/nutrition/plan-data.json` (his personal plan, gitignored) + `data/nutrition/ingredients.json`
   (the food DB, BEDCA / label values); `data/nutrition/plan-tables.md` for the generated tables.
   Targets by goal × day type (rest / gym / bike / bikeLong; maintain / cut / bulk), portion scaling
-  and on-bike fuelling ("Avituallamiento") are described in the repo's `CLAUDE.md` (sections
-  "Nutrition v2" and "Nutrition v2 part 2") and computed by `lib/nutrition/targets.mjs`,
+  and on-bike fuelling ("Avituallamiento") are described in `docs/nutrition.md` and
+  `docs/nutrition-food-log.md` and computed by `lib/nutrition/targets.mjs`,
   `scale.mjs`, `fuel.mjs`.
 - The **food log** (what the owner logs on the LAN page, stored behind `services/health-ingest`) is
   exported by `npm run sync` to `data/nutrition/foodlog-daily.csv`: one row per LOGGED day

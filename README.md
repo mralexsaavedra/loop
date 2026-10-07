@@ -17,7 +17,8 @@ instead of generic advice with no data behind it.
 ## Requirements
 
 - **[Claude Code](https://claude.com/claude-code)** — the repo is designed to be read and
-  operated by it. `CLAUDE.md` is the operating manual the agent reads on each session.
+  operated by it. `CLAUDE.md` is the operating manual the agent reads on each session;
+  per-area design docs live in [`docs/`](docs/) (index: `CLAUDE.md` → Architecture map).
 - **Node.js** (`>=22.12`) — for the plan tooling (`npm run generate`, `npm run check`,
   `npm test`), which builds the nutrition plan, the training tabs, and the health dashboard
   into a single self-contained page via [Astro](https://astro.build) (`npm ci` first to
@@ -41,7 +42,7 @@ instead of generic advice with no data behind it.
      After `npm run generate`, the plan page has four tabs. 🏠 **Home** is today at a glance (sleep,
      recovery-trend and load dials, a health monitor, today's timeline of sleep + workouts; recovery
      is in MAD units and load uses Strava Relative Effort, and both show an empty state without the
-     Apple Health extract / Strava sync; `workouts.csv` has 12 columns, see CLAUDE.md for the
+     Apple Health extract / Strava sync; `workouts.csv` has 12 columns, see `docs/home-tab.md` for the
      rollout). 🏃 **Training** holds the per-modality load detail, a 30-day activity calendar,
      cumulative training time, recent runs and rides, load vs recovery and the workouts dashboard
      (a workout logged by both the Watch and Strava on one day counts once, as the Strava copy, and

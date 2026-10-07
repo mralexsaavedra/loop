@@ -36,8 +36,8 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 - [x] T10 Minify inline CSS (route: delegated writer)
 - [x] T8 Missing tests (route: delegated writer)
 - [x] T7 Split food.js (route: delegated writer; parent swept stale comments inline)
-- [ ] T6 CLAUDE.md restructure
-- [ ] T11 Backup clutter (ask owner)
+- [x] T6 CLAUDE.md restructure (route: delegated writer; parent repointed 4 stale refs)
+- [x] T11 Backup clutter (owner: move to backups/ and keep the newest; route: inline)
 
 ## Progress / evidence
 
@@ -58,6 +58,10 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 
 - T7: food.js (1727) → food-core (536) / food-sheet (328) / food-catalog (544) / food-log (439), shared via `window.HCFoodInternal`; public `HCFood` surface unchanged; tests load `FOOD_SOURCE` (client-util.mjs). Pure move: `npm test` 1577 before = 1577 after (parent re-ran after comment sweep). Example page +4.8 KB raw / +1 KB gzip (namespace export, slimScript does not rename). Deterministic. Commit 832e4ef. Review: medium (slice budget), consent granted, START stopped `lens_context_budget_exceeded` (3715 lines; a pure move cannot be split meaningfully) → UNREVIEWED, proof = identical green suite. Boundary stays bf4aa50 for review purposes.
 
+- T6: CLAUDE.md 1723 → 210 lines (rules, commands, publish, architecture map, subagent routing); area design verbatim in docs/{data-pipeline,plan-page,detail-views,profile,nutrition,nutrition-food-log,training,health-tab,home-tab,lan-services,knowledge-base}.md; 15 history sentences → CHANGELOG 2026-10-07. Lost-lines check: 25/1648 not verbatim, all deliberate (1 real omission caught and restored). No RED (doc move). `npm test` 1577/1577 (parent re-ran). Commit 31db448. Review: high (process boundary: SYNC_NOTE string), consent granted, START stopped `lens_context_budget_exceeded` (3386 lines, a verbatim move) → UNREVIEWED.
+
+- T11: `/backups/` gitignored (verified with check-ignore); newest backup per file moved to backups/<same path> (6 kept), 18 older ones deleted; services/health-ingest/.env.bak kept in place; CLAUDE.md repo rule added.
+
 ## Slices (stacked to main)
 
 - Slice 1 `feat/app-review-improvements`: d5c781a (T1), c8fbafb (T3).
@@ -65,9 +69,9 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 - Slice 3 `feat/app-review-intake-source`: T2.
 - Slice 4 `feat/app-review-tests`: T8.
 - Slice 5 `feat/app-review-food-split`: T7.
-- Later slice: T6.
+- Slice 6 `feat/app-review-claude-md`: T6.
 
 
 ## Next step
 
-T6 (CLAUDE.md restructure).
+All tasks done. Owner decides push / PRs (6 stacked slices).
