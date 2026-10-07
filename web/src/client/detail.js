@@ -10,9 +10,9 @@
  * click / keydown listener, so the card renderers never wire handlers. The view ends at the VIEWER's
  * today (Date.now(), never baked), or at the data's own asOf when that is stale or ahead of the clock.
  *
- * The header never contradicts the card it opens from: recovery = the dial's own headline (baked
- * `head`: last night's composite + band, the 7-day trend as the secondary line), load = the dial's
- * today logic (today's RE vs the typical day, else "no session yet today" + the last session), weight /
+ * The header never contradicts the card it opens from. The three dial views (sleep, recovery,
+ * load-<m>) are laid out by client/deepdive.js (inlined right before this script): "‹ TODAY ⓘ", the
+ * hero ring = the dial's own baked arcs, an insight card with the dial's captions; weight /
  * energy = the cards' 7-day rolling average (baked `roll`), and a daily total's newest day, when it is
  * the viewer's today, is "today, in progress" (neutral colour, never compared). Band colours are static
  * (the current range) except recovery, which is scored per day; the sheet says which.
@@ -59,7 +59,6 @@
   var PARTIAL_KINDS = ['total'];
   // kinds whose missing recent days mean stale data (a sparse reading or a rest day is not staleness)
   var STALE_KINDS = ['signal', 'sleep', 'recovery', 'total'];
-  var BAND_STATE = { above: 'good', at: 'normal', below: 'bad' };
   // the Tab trap's stops, in document order: buttons, folds, a radio group's checked radio and form
   // fields (a registered view may hold a small form, e.g. the food log's add sheet)
   var TRAP = 'button:not([disabled]), summary, input[type="radio"]:checked, input:not([type="radio"]):not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])';
@@ -237,49 +236,6 @@
       (word ? '<span class="dt-word dt-c-' + esc(st) + '">' + esc(word) + '</span>' : '') +
       (when ? '<span class="dt-when">' + esc(when) + '</span>' : '') + '</div>' + subsHtml(subs);
   }
-  // recovery: exactly the dial (web/src/view/dial.mjs recoveryDial + score.js recDial)
-  function recoveryLatest(m) {
-    var h = m.head, R = T.rec;
-    if (!h || typeof h.value !== 'number' || !isFinite(h.value)) return noneHtml(R.gated);
-    var tr = h.trend || {};
-    var trendTxt = tr.dir && R.dirs[tr.dir] ? format(R.trendLine, { dir: R.dirs[tr.dir], value: signed(tr.value, 1) }) : format(R.trendLineNoDir, { value: signed(tr.value, 1) });
-    var trendSub = { cls: 'dt-c-' + (BAND_STATE[tr.band] || 'normal'), text: trendTxt + (T.day.bands[tr.band] ? ' · ' + T.day.bands[tr.band] : '') };
-    var st = BAND_STATE[h.band] || 'normal';
-    if (h.mode !== 'today') return bigHtml(signed(h.value, 1), st, unitOf('recovery'), R.noLastNight, T.day.bands[h.band], []);
-    var d = isoDate(h.date);
-    // "Last night" only when the night is dated the viewer's today AND has a sleep reading (as the dial)
-    var when = HC.daysOld(d) === 0 && h.sleep !== false ? R.lastNight : HC.fmtDate(d);
-    var subs = h.sleep === false ? [{ cls: 'dt-nodata', text: R.noSleep }, trendSub] : [trendSub];
-    return bigHtml(signed(h.value, 1), st, unitOf('recovery'), when, T.day.bands[h.band], subs);
-  }
-  // load: exactly the dial's today logic (score.js loadToday), then the dial's former captions — the
-  // ring scale and, from the baked DIALS (components/Bake.astro), the 7-day vs 42-day context + band
-  // and the sessions-without-effort note
-  function loadContext(key) {
-    var L = T.load, mod = modOf(key);
-    var DL = typeof DIALS !== 'undefined' && DIALS && DIALS.load && Array.isArray(DIALS.load.modalities) ? DIALS.load.modalities : [];
-    var dm = null;
-    DL.forEach(function (x) { if (x && x.key === mod) dm = x; });
-    var subs = [];
-    if (L.scale) subs.push({ cls: 'dt-scale', text: L.scale });
-    if (dm && dm.state === 'ok' && typeof dm.trendPct === 'number' && isFinite(dm.trendPct)) {
-      subs.push({ text: format(L.trendLbl, { pct: pct(dm.trendPct) }) + (L.bands[dm.band] ? ' · ' + L.bands[dm.band] : '') });
-      if (dm.unscored > 0) subs.push({ text: format(L.unscoredNote, { n: dm.unscored }) });
-    }
-    return subsHtml(subs);
-  }
-  function loadLatest(key, m) {
-    var L = T.load;
-    if (m.gate) return noneHtml(L.gated[m.gate] || L.gated.baselineBuilding);
-    var t = HC.todayIso(), i = dayDiff(m.start, t);
-    var v = at(m.v, m, t);
-    var typ = fmt(m.typical, 0);
-    var ctx = loadContext(key);
-    if (v != null && v > 0) return bigHtml(fmt(v, 0), 'normal', unitOf(key), '', '', [{ text: format(L.dayLine, { day: fmt(v, 0), typical: typ }) }]) + ctx;
-    if (i >= 0 && i < m.v.length && m.v[i] === null) return noneHtml(format(L.noEffortLine, { typical: typ })) + ctx;
-    var last = m.last && isoDate(m.last.date) ? m.last : null;
-    return noneHtml(last ? format(L.restLastLine, { date: HC.fmtDate(last.date), re: fmt(last.re, 0), typical: typ }) : format(L.restLine, { typical: typ })) + ctx;
-  }
   // weight / energy: the card's 7-day rolling average (a partial today never sets it)
   function rollLatest(key, m, end) {
     var d = lastDataDate(m, end);
@@ -297,9 +253,8 @@
     if (!ref) return noneHtml(T.noData) + subsHtml(subs);
     return bigHtml(fmt(at(m.roll, m, ref), m.dec), 'normal', u, format(T.roll7Lbl, { date: HC.fmtDate(ref) }), '', subs);
   }
+  // the dial views (sleep, recovery, load-<m>) lay their top out in client/deepdive.js
   function latestHtml(key, m, end) {
-    if (m.kind === 'recovery') return recoveryLatest(m);
-    if (m.kind === 'load') return loadLatest(key, m);
     if (Array.isArray(m.roll) && (key === 'weight' || key === 'energy')) return rollLatest(key, m, end);
     var d = lastDataDate(m, end);
     if (!d) return noneHtml(T.noData);
@@ -610,6 +565,34 @@
     return '<section class="dt-dayd" aria-live="polite"><h3 class="dt-day-h">' + esc(format(T.day.heading, { date: HC.fmtDate(iso) })) + '</h3>' + body + '</section>';
   }
 
+  /* ---------- dial deep-dive pages (client/deepdive.js) ---------- */
+  // the sheet's own helpers, handed to deepdive.js so the dial pages read the same rules and copy
+  var X = {
+    T: T, D: D, at: at, valueOf: valueOf, lastDataDate: lastDataDate, dayDiff: dayDiff, modOf: modOf,
+    fmt: fmt, signed: signed, pct: pct, clock: clock, unitOf: unitOf, titleOf: titleOf, bandText: bandText,
+    metric: metric, dayState: dayState,
+  };
+  function deep(key) {
+    var H = typeof window !== 'undefined' ? window.HCDeep : null;
+    return !!H && typeof H.isDial === 'function' && H.isDial(key) && !!T.deep;
+  }
+  // ⓘ: the deep-dive's long notes, collapsed by default; only the block and the button change
+  function toggleInfo(btn) {
+    var box = q('#dd-info');
+    if (!box) return;
+    var open = btn.getAttribute('aria-expanded') !== 'true';
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    box.hidden = !open;
+  }
+  // "View trend →": down to the history chart (the W / M / 6M / 1Y switch); focus follows to the
+  // pressed range button so keyboard users land there too
+  function toTrend() {
+    var el = q('.dt-period');
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'start' });
+    var b = q('.dt-range [aria-pressed="true"]');
+    if (b && typeof b.focus === 'function') b.focus();
+  }
+
   /* ---------- view ---------- */
   function viewHtml() {
     var key = state.key, vw = viewOf(key);
@@ -628,8 +611,9 @@
     var from = windowFrom(m, end, state.range);
     state.sel = sel;
     state.view = { key: key, m: m, end: end };
-    return head(key, latestHtml(key, m, end) + bandText(key, m)) +
-      '<div class="dt-body">' +
+    var dd = deep(key) ? window.HCDeep.render(key, m, end, X) : null;
+    return (dd ? dd.head : head(key, latestHtml(key, m, end) + bandText(key, m))) +
+      '<div class="dt-body">' + (dd ? dd.top : '') +
       (ve.stale ? '<p class="dt-stale">' + esc(format(T.staleNote, { date: HC.fmtDate(end) })) + '</p>' : '') +
       metricStaleHtml(m, end) +
       periodHtml(key, m, end, state.range) + chartHtml(key, m, from, end, sel) +
@@ -802,6 +786,8 @@
       focusEl('[data-date="' + state.date + '"]');
       return;
     }
+    if (a === 'info') { toggleInfo(el); return; }
+    if (a === 'trend') { toTrend(); return; }
     var focusSel = null;
     if (a === 'range') {
       var r = +el.getAttribute('data-range');

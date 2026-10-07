@@ -204,13 +204,11 @@ function scMod(key, btn) {
   /* ---- dials ---- */
   var D = typeof DIALS === 'undefined' ? null : DIALS;
   function attr(v) { return esc(String(v)); }
-  // parts: zones [{cls, d}], fill d, mid {x,y} (the baseline / typical-day tick); paths are baked, never computed here
+  // parts: fill d, mid {x,y} (the baseline / typical-day tick); paths are baked, never computed here.
+  // The fill takes ONE colour end to end (the figure's --dial-c: recovery = its band's state colour)
   function dialSvg(parts) {
     var out = ['<svg class="dial-svg" viewBox="0 0 120 120" aria-hidden="true">'];
     out.push('<path class="dial-track" d="' + attr(D.track) + '"/>');
-    (parts.zones || []).forEach(function (z) {
-      if (z.d) out.push('<path class="dial-zone ' + attr(z.cls) + '" d="' + attr(z.d) + '"/>');
-    });
     if (parts.fill) out.push('<path class="dial-fill" pathLength="100" d="' + attr(parts.fill) + '"/>');
     if (parts.mid) out.push('<circle class="dial-mid" cx="' + attr(parts.mid.x) + '" cy="' + attr(parts.mid.y) + '" r="2"/>');
     out.push('</svg>');
@@ -275,14 +273,13 @@ function scMod(key, btn) {
       return dialFig('dial-rec dial-off', isStale(d.asOf), '', '', dialSvg({}), offCentre(word), rt.label);
     }
     var v = num(d.value, 1, true);
-    var zones = d.zones.map(function (z) { return { cls: 'dial-zone-' + z.band, d: z.d }; });
     var today = d.mode === 'today';
     var when = today ? nightLbl(d.date, d.sleep !== false, rt) : '';
     var aria = today
       ? format(rt.aria, { when: when, value: v, band: rt.bands[d.band] })
       : format(rt.ariaTrend, { value: v, band: rt.bands[d.band] });
     return dialFig('dial-rec dial-band-' + esc(d.band), isStale(d.asOf), '', aria,
-      dialSvg({ zones: zones, fill: d.fill, mid: d.mid }), numCentre(v, T.recovery.unit), rt.label);
+      dialSvg({ fill: d.fill, mid: d.mid }), numCentre(v, T.recovery.unit), rt.label);
   }
   // The modality the switch opens on, for the VIEWER's today (never baked): the modality with a
   // session today, gated or not (a gated one opens in its gated state) — highest RE first, ties by

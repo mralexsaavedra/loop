@@ -5,7 +5,6 @@ import assert from 'node:assert/strict';
 import {
   DIAL, OPEN_ARC, fracToAngle, polar, arcPath, recoveryFrac, sleepFrac, loadFrac, loadDayFrac, buildDials,
 } from './dial.mjs';
-import { BAND_CUTOFF, DAY_BAND_CUTOFF } from '../../../lib/score/recovery.mjs';
 
 const near = (a, b, eps = 0.01) => assert.ok(Math.abs(a - b) <= eps, `${a} !~ ${b}`);
 
@@ -94,7 +93,7 @@ const LOAD = { asOf: '2026-09-29', modalities: [
 ] };
 const HEALTH = { recovery: { hasData: true, sleep: { target: 7.5 } } };
 
-test('buildDials: recovery headline = LAST NIGHT (today composite), zones split at +-BAND_CUTOFF, 7-day trend as context', () => {
+test('buildDials: recovery headline = LAST NIGHT (today composite), ONE band colour (no zone arcs), 7-day trend as context', () => {
   const d = buildDials({ hasData: true, recovery: REC, load: LOAD }, HEALTH);
   const r = d.recovery;
   assert.equal(r.state, 'ok');
@@ -103,8 +102,7 @@ test('buildDials: recovery headline = LAST NIGHT (today composite), zones split 
   assert.equal(r.band, 'below', 'coloured by last night, not by the trend');
   assert.equal(r.value, -1.4);
   assert.equal(r.sleep, true);
-  assert.deepEqual(r.zones.map((z) => z.band), ['below', 'at', 'above']);
-  assert.equal(r.zones[1].d, arcPath(recoveryFrac(-DAY_BAND_CUTOFF), recoveryFrac(DAY_BAND_CUTOFF)), 'single-day zones are cut at DAY_BAND_CUTOFF');
+  assert.equal('zones' in r, false, 'no zone arcs: the whole fill takes the band\'s one state colour');
   assert.equal(r.fill, arcPath(0, recoveryFrac(-1.4)), 'filled clockwise from 12 o\'clock to the value on the -3..+3 scale');
   assert.equal('marker' in r, false, 'no marker dot: the fill ends at the value');
   assert.deepEqual(r.mid, polar(fracToAngle(0.5), DIAL.r - DIAL.stroke), 'baseline tick at the ring\'s midpoint (6 o\'clock)');
@@ -120,7 +118,7 @@ test('buildDials: no composite for last night -> the dial shows the 7-day trend,
   assert.equal(r.band, 'above');
   assert.equal(r.date, null);
   assert.equal(r.fill, arcPath(0, recoveryFrac(0.8)));
-  assert.equal(r.zones[1].d, arcPath(recoveryFrac(-BAND_CUTOFF), recoveryFrac(BAND_CUTOFF)), 'trend zones stay at BAND_CUTOFF');
+  assert.equal('zones' in r, false);
 });
 
 test('buildDials: gated / missing recovery carries no number', () => {
@@ -165,6 +163,11 @@ test('buildDials: load bakes the typical day + each recent session day with its 
   assert.deepEqual(l.modalities[2].days, [], 'no sessions in the last two weeks');
   assert.equal('zones' in l, false, 'the old trend-band zones do not apply to a day-vs-typical scale');
   assert.deepEqual(l.mid, polar(fracToAngle(0.5), DIAL.r - DIAL.stroke));
+  // the deep-dive hero's typical-day tick: a radial line across the stroke at the ring midpoint
+  const a = polar(fracToAngle(0.5), DIAL.r - DIAL.stroke / 2 - 1);
+  const b = polar(fracToAngle(0.5), DIAL.r + DIAL.stroke / 2 + 1);
+  assert.deepEqual(l.tick, { x1: a.x, y1: a.y, x2: b.x, y2: b.y });
+  assert.deepEqual(l.tick, { x1: 60, y1: 109.5, x2: 60, y2: 118.5 }, '6 o\'clock, crossing the 7-unit stroke');
 });
 
 test('buildDials: an ok trend without enough recent training days has no "normal" -> gated fewDays', () => {

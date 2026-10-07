@@ -55,6 +55,14 @@
   --accent-ink: #ffffff;
   --on-accent: #000000;
   --link: #60b5ff;
+  /* CTA links on an insight card ("View trend →"): blue → violet gradient text from --link to
+     --link-end. Only ever drawn on --ground (the insight card's fill), where both ends pass AA for
+     small text (#60b5ff 8.29, #8a63ff 4.61); on --surface the violet end is 3.91, so the gradient is
+     never used on a card (tokens-contrast.test.mjs pins this). */
+  --link-end: #8a63ff;
+  /* insight card stroke: teal → indigo */
+  --insight-a: #31748c;
+  --insight-b: #4d3e8c;
   --on-strain: #000000;
   --strain: #0093e7;
   --strain-rgb: 0, 147, 231;
