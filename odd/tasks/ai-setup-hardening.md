@@ -32,7 +32,7 @@ subagents, guard hook, settings, skills).
 - [x] T4 `/analysis` project skill; trim CLAUDE.md (onboarding → docs, dedupe rules, drop repeated commands) (route: delegated writer)
 - [x] T5 Coach agents: drift test for the shared block; explicit `model:` (route: delegated writer)
 - [x] T7 Hook review follow-ups (advisory findings of the approved review): fail closed on unexpected errors, wrapper option args, subshell `cd` scope, vacuous allow tests, doc/comment fixes (route: delegated writer — hook logic + tests)
-- [ ] T6 Local only (no commit): drop `gh pr merge:*` from settings.local.json; refresh skill registry (route: inline)
+- [x] T6 Local only (no commit): skill registry refreshed (11 skills); `gh pr merge:*` KEPT — owner wants Claude to merge PRs (route: inline)
 
 ## Acceptance
 
@@ -85,6 +85,14 @@ subagents, guard hook, settings, skills).
   multiset wording). RED: 56 tests, 8 fail. GREEN: 56/56. `npm run check`: exit 0. `npm test`:
   1634 tests, 1629 pass, 0 fail. Commit: `7d81b8a`.
 
+## Reviews
+
+- Slice 1 (T1–T2, `440b017..fd08dfc`): high risk, consent granted, 4 lenses approved, acknowledged.
+- Slice 2 (T3–T5, T7, `a56d9ac..0ab54a7`): high risk, consent granted, 4 lenses approved, acknowledged.
+- Advisory follow-ups (non-blocking): `FORCE_ADD_TEXT` fallback regex may over-match stdin-fed shells
+  (guard-health-data.js:290-291); `eval` with dynamic args (:384-392); git alias hiding a force-add
+  (`git -c alias.x='add -f' x`).
+
 ## Next step
 
-T6 (local only, inline). Pending from T1/T2: add a `docs/guard-hook.md` row to the CLAUDE.md architecture map.
+All tasks done; PR to main. Follow-ups above are optional.
