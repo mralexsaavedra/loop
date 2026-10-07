@@ -138,7 +138,8 @@ body {
   font-family: var(--sans);
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
-  padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  /* room for the floating bottom dock (base.css .dock), at every width */
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
   background-image: linear-gradient(180deg, var(--ground-top) 0, var(--ground-mid) 640px, var(--ground) 1100px);
   background-repeat: no-repeat;
 }

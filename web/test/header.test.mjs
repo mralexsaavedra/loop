@@ -2,7 +2,8 @@
  * straight onto the dials: no visible header, a visually hidden <h1> from page.title keeps one h1 in
  * the document. The top bar always carries the date line host (filled client-side by
  * client/today-date.js, so nothing time-based is baked) next to the freshness line / Sync button.
- * The example build keeps its h1 / sub, so they still render there. */
+ * Since the navigation shell (2026-10), no build draws a hero header: page.h1 (else page.title) is the
+ * visually hidden h1, and page.kicker / page.sub are accepted but not drawn. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -18,7 +19,7 @@ const exampleHtmlPath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.h
 const examplePlanPath = path.join(REPO_ROOT, 'data', 'nutrition', 'plan-data.example.json');
 
 const h1s = (html) => [...html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/g)];
-const topbar = (html) => (html.match(/<div class="topbar"[^>]*>([\s\S]*?)<nav class="tabnav"/) || [])[1] || '';
+const topbar = (html) => (html.match(/<div class="topbar"[^>]*>([\s\S]*?)<div class="dock"/) || [])[1] || '';
 
 /** Build the tracked example inputs under os.tmpdir() with the page block edited by `edit`. */
 function buildWithPage(edit) {
@@ -43,14 +44,14 @@ function buildWithPage(edit) {
   }
 }
 
-test('example build: its h1 / sub still render visibly, and the top bar carries the (empty, client-filled) date line next to the freshness group', () => {
+test('example build: page.h1 is the one visually hidden h1, no hero (kicker / sub) is drawn, and the top bar carries the (empty, client-filled) date line next to the freshness group', () => {
   const html = fs.readFileSync(exampleHtmlPath, 'utf8');
   const plan = JSON.parse(fs.readFileSync(examplePlanPath, 'utf8'));
   const all = h1s(html);
   assert.equal(all.length, 1, 'exactly one h1');
-  assert.doesNotMatch(all[0][0], /sr-only/);
+  assert.match(all[0][0], /<h1 class="sr-only"/);
   assert.ok(all[0][1].includes(plan.page.h1.replace(/&/g, '&amp;')));
-  assert.match(html, /<p class="sub">/);
+  assert.doesNotMatch(html, /<header>|<p class="sub">|class="kicker"/);
   const bar = topbar(html);
   assert.match(bar, /<time id="today-date" class="today-date"><\/time>/, 'no date baked: builds stay byte-identical');
   assert.match(bar, /id="freshness"/);

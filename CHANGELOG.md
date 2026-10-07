@@ -4,6 +4,19 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-07 — Plan page restyle P2: navigation shell
+
+- Bottom dock at every width: a floating rounded tab bar (icon + small label, active white / inactive
+  grey) and, to its right, a white circular "+" whose popover lists only actions this page can really
+  run (add food = the food log's add sheet, Sync = the top bar's Sync; both LAN only). With none (example
+  build, static copy) the "+" is not shown. The wide-screen sticky top nav is gone.
+- Top bar: avatar left, a centred "TODAY" date pill (full date kept for assistive tech), freshness +
+  Sync right. No day stepping yet: the page has no global "view another day".
+- Inicio: a collapsed row of three mini rings (Sleep · Recovery · Load) appears at the top once the
+  dials scroll away, reusing the dials' own svg and detail openers.
+- The hero header (kicker / h1 / subtitle) is no longer drawn; `page.h1` stays the one, visually hidden
+  h1.
+
 ## 2026-10-07 — Plan page restyle P1: palette and text font (no layout change)
 
 - Colour tokens re-sampled from a reference fitness app: blue-grey page gradient, flat cards (no

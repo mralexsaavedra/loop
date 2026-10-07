@@ -3,11 +3,12 @@
  * (personal copy), and the end-of-body script order per design: bake (the
  * shared Bake rendered by pages/index.astro, plus the per-tab bakes such as Dia's NUTRI) → NAV +
  * HC_CONST → util (window.HC, the shared client helpers, FIRST so every later script can read it) →
- * core (setTab/jump) → today-date → tablas (the Tablas equivalence tables) → nutri-day → food (core → sheet → catalog → log) → settings → progress → adherence → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → profile → detail → freshness.
+ * core (setTab/jump) → today-date → tablas (the Tablas equivalence tables) → nutri-day → food (core → sheet → catalog → log) → settings → progress → adherence → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → profile → nav-actions (the dock's "+") → detail → freshness.
  * Tabs render inside <slot />; the detail sheet (components/DetailSheet.astro) renders in the `overlay`
- * slot, after .wrap, so detail.js can make the page behind it inert. The top bar is ONE row on phones: date · status dot + short
- * freshness (#fresh-sum, per-source detail in the #fresh-pop popover) · icon-only Sync · avatar. #freshness renders hidden; freshness.js
- * shows it only when the page's server answers /api/sync/status (see services/plan-web/README.md).
+ * slot, after .wrap, so detail.js can make the page behind it inert (the dock and the "+" popover sit inside .wrap). The top bar
+ * is ONE row: avatar · centred "Today" date pill · status dot + short freshness (#fresh-sum, per-source detail in the #fresh-pop
+ * popover) + icon-only Sync. #freshness renders hidden; freshness.js shows it only when the page's server answers /api/sync/status
+ * (see services/plan-web/README.md).
  */
 import '../src/styles/tokens.css';
 import '../src/styles/base.css';
@@ -36,6 +37,7 @@ import trainingDashScript from '../src/client/training-dash.js?raw';
 import trainingActivityScript from '../src/client/training-activity.js?raw';
 import healthScript from '../src/client/health.js?raw';
 import scoreScript from '../src/client/score.js?raw';
+import navActionsScript from '../src/client/nav-actions.js?raw';
 import monitorScript from '../src/client/monitor.js?raw';
 import timelineScript from '../src/client/timeline.js?raw';
 import intakeScript from '../src/client/intake.js?raw';
@@ -78,6 +80,7 @@ interface Props {
 }
 
 const { title, locale, page = {}, dict, tabs, activeTab = tabs[0]?.key, profile = null } = Astro.props;
+const nav = dict.strings.nav;
 // tab icons: 24-unit line icons (stroke = currentColor, the same drawing as Nutrición's day-type
 // icons) keyed by the top-level tab key; no emoji, no vendor icons
 const TAB_ICONS: Record<string, string> = {
@@ -86,6 +89,8 @@ const TAB_ICONS: Record<string, string> = {
   health: '<path d="M12 20 4.6 12.7a4.6 4.6 0 0 1 6.5-6.5l.9.9.9-.9a4.6 4.6 0 0 1 6.5 6.5z"/>',
   nutricion: '<path d="M7 3v18M4.5 3v5.5a2.5 2.5 0 0 0 5 0V3M17 21V3c-2 1.5-3.2 4.2-3.2 7.5V14H17"/>',
 };
+// the circular-arrows Sync icon: the top bar's Sync button and the "+" popover's Sync row
+const SYNC_ICON = '<path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9"/><path d="M18.5 3v4.2h-4.2M5.5 21v-4.2h4.2"/>';
 // core.js reads the tab keys and the legacy-section map (+ the deep-link host tabs) from this ONE baked copy of lib/nav/tabs.mjs
 // ...and util.js reads the page-level constants (lib/stale.mjs) from HC_CONST, never client literals,
 // and the names of its one date formatter (HC.fmtDate / HC.fmtMonth) from I18N_DATE
@@ -113,42 +118,51 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
   </head>
   <body>
     <div class="wrap">
-      {/* page.h1 / page.sub are optional: without them the page opens straight onto the dials and a
-          visually hidden h1 (the page title) keeps one h1 in the document */}
-      {(page.kicker || page.h1 || page.sub) && (
-        <header>
-          {page.kicker && <div class="kicker">{page.kicker}</div>}
-          {page.h1 && <h1>{page.h1}</h1>}
-          {page.sub && <p class="sub">{page.sub}</p>}
-        </header>
-      )}
-      {!page.h1 && <h1 class="sr-only">{title}</h1>}
+      {/* no hero header (navigation shell, 2026-10): the page opens on the top bar and the dials.
+          page.h1 (else the page title) is the ONE h1, visually hidden; page.kicker / page.sub are
+          accepted by the validator but no longer drawn */}
+      <h1 class="sr-only">{page.h1 || title}</h1>
 
-      {/* top bar: the viewer's date (client/today-date.js, nothing baked) + the freshness line / Sync +
-          the avatar button that opens the profile sheet (components/Avatar.astro, client/profile.js) */}
+      {/* top bar: the avatar button that opens the profile sheet (components/Avatar.astro,
+          client/profile.js) · a centred "Today" date pill (the viewer's full date is the <time> inside,
+          filled by client/today-date.js, nothing baked; no day stepping: there is no global "view
+          another day" yet) · the freshness line / Sync on the right */}
       <div class="topbar">
-        <time id="today-date" class="today-date"></time>
+        {profile && <Avatar profile={profile} locale={locale} />}
+        <div class="date-pill"><span class="date-pill-lbl" aria-hidden="true">{nav.today}</span><time id="today-date" class="today-date"></time></div>
         <div class="fresh" id="freshness" role="group" aria-label={syncT.ariaLabel} hidden>
           <button type="button" class="fresh-sum" id="fresh-sum" aria-expanded="false" aria-controls="fresh-pop"><span class="fresh-dot" aria-hidden="true"></span><span class="fresh-short" id="fresh-short"></span></button>
-          <button type="button" class="fresh-btn" id="sync-btn" aria-label={syncT.button} title={syncT.button}><svg class="fresh-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9" /><path d="M18.5 3v4.2h-4.2M5.5 21v-4.2h4.2" /></svg></button>
+          <button type="button" class="fresh-btn" id="sync-btn" aria-label={syncT.button} title={syncT.button}><svg class="fresh-ico" viewBox="0 0 24 24" aria-hidden="true" set:html={SYNC_ICON} /></button>
           <div class="fresh-pop" id="fresh-pop" hidden><p class="fresh-line" id="fresh-line"></p></div>
           <p class="fresh-msg" id="sync-msg" role="status" aria-live="polite"></p>
         </div>
-        {profile && <Avatar profile={profile} locale={locale} />}
       </div>
 
-      <nav class="tabnav" role="tablist" aria-label={dict.strings.nav.ariaLabel}>
-        {tabs.map((tab) => (
-          <button
-            id={`t-${tab.key}`}
-            role="tab"
-            aria-pressed={tab.key === activeTab}
-            onclick={`setTab('${tab.key}')`}
-          >
-            <svg class="tico" viewBox="0 0 24 24" aria-hidden="true" set:html={TAB_ICONS[tab.key] || ''} /><span class="tlbl">{tab.label}</span>
-          </button>
-        ))}
-      </nav>
+      {/* bottom dock (floating, every width): the tab bar + to its right the "+" action button. The
+          "+" is outside the tablist; it and every action ship hidden and client/nav-actions.js shows
+          only what this page can really do (add food / Sync, both LAN only) */}
+      <div class="dock">
+        <nav class="tabnav" role="tablist" aria-label={nav.ariaLabel}>
+          {tabs.map((tab) => (
+            <button
+              id={`t-${tab.key}`}
+              role="tab"
+              aria-pressed={tab.key === activeTab}
+              onclick={`setTab('${tab.key}')`}
+            >
+              <svg class="tico" viewBox="0 0 24 24" aria-hidden="true" set:html={TAB_ICONS[tab.key] || ''} /><span class="tlbl">{tab.label}</span>
+            </button>
+          ))}
+        </nav>
+        <div class="act" id="act" hidden>
+          <button type="button" class="act-btn" id="act-btn" aria-expanded="false" aria-controls="act-pop" aria-label={nav.actions.open} data-label-close={nav.actions.close}><svg class="act-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></button>
+          <div class="act-pop" id="act-pop" role="dialog" aria-label={nav.actions.label} hidden>
+            <button type="button" class="act-item" data-act="food" hidden><svg class="act-item-ico" viewBox="0 0 24 24" aria-hidden="true" set:html={TAB_ICONS.nutricion} /><span>{nav.actions.addFood}</span></button>
+            <button type="button" class="act-item" data-act="sync" hidden><svg class="act-item-ico" viewBox="0 0 24 24" aria-hidden="true" set:html={SYNC_ICON} /><span>{nav.actions.sync}</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="act-scrim" id="act-scrim" hidden></div>
 
       <slot />
 
@@ -178,6 +192,7 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
     <script is:inline set:html={slimScript(monitorScript)} />
     <script is:inline set:html={slimScript(timelineScript)} />
     <script is:inline set:html={slimScript(profileScript)} />
+    <script is:inline set:html={slimScript(navActionsScript)} />
     <script is:inline set:html={slimScript(detailScript)} />
     <script is:inline set:html={slimScript(freshnessScript)} />
   </body>
