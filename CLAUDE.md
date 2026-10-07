@@ -155,6 +155,8 @@ files does NOT update the published artifact. After a plan change: (1) edit the 
   never commit, publish or `git add -f` it.
 - **Before changing an area, read its doc in `docs/`; keep the doc in sync with the code in the same
   commit.** Dated history goes to `CHANGELOG.md`, not to the docs or this file.
+- **Backups of personal files** go to `backups/<same path>.<label>.bak` (gitignored), never next to the
+  original; keep only the newest one per file.
 
 ## Architecture map
 

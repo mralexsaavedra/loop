@@ -37,7 +37,7 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 - [x] T8 Missing tests (route: delegated writer)
 - [x] T7 Split food.js (route: delegated writer; parent swept stale comments inline)
 - [x] T6 CLAUDE.md restructure (route: delegated writer; parent repointed 4 stale refs)
-- [ ] T11 Backup clutter (ask owner)
+- [x] T11 Backup clutter (owner: move to backups/ and keep the newest; route: inline)
 
 ## Progress / evidence
 
@@ -60,6 +60,8 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 
 - T6: CLAUDE.md 1723 → 210 lines (rules, commands, publish, architecture map, subagent routing); area design verbatim in docs/{data-pipeline,plan-page,detail-views,profile,nutrition,nutrition-food-log,training,health-tab,home-tab,lan-services,knowledge-base}.md; 15 history sentences → CHANGELOG 2026-10-07. Lost-lines check: 25/1648 not verbatim, all deliberate (1 real omission caught and restored). No RED (doc move). `npm test` 1577/1577 (parent re-ran). Commit 31db448. Review: high (process boundary: SYNC_NOTE string), consent granted, START stopped `lens_context_budget_exceeded` (3386 lines, a verbatim move) → UNREVIEWED.
 
+- T11: `/backups/` gitignored (verified with check-ignore); newest backup per file moved to backups/<same path> (6 kept), 18 older ones deleted; services/health-ingest/.env.bak kept in place; CLAUDE.md repo rule added.
+
 ## Slices (stacked to main)
 
 - Slice 1 `feat/app-review-improvements`: d5c781a (T1), c8fbafb (T3).
@@ -72,4 +74,4 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 
 ## Next step
 
-T11 (ask owner about .bak clutter); then close.
+All tasks done. Owner decides push / PRs (6 stacked slices).
