@@ -66,10 +66,9 @@ export const en = {
   dials: {
     ariaLabel: 'Sleep, recovery and load at a glance',
     none: 'No data',
-    sleep: { label: 'Sleep', target: 'Target {value} h', aria: 'Last night: {value} h of a {target} h target' },
+    sleep: { label: 'Sleep', aria: 'Last night: {value} h of a {target} h target' },
     recovery: {
       label: 'Recovery',
-      sub: '7-day trend',
       delta: `{value} ${UE}`,
       gated: 'No baseline',
       bands: { above: 'Above', at: 'At base', below: 'Below' },
@@ -87,7 +86,7 @@ export const en = {
     load: {
       label: 'Load',
       switchLabel: 'Load modality',
-      scale: 'Top of the arc = your typical training day (median of the last 6 weeks)',
+      scale: 'Half the ring = your typical training day (median of the last 6 weeks); a full ring = twice it',
       gated: 'Building',
       rest: 'No session yet',
       noEffort: 'No effort data',
@@ -99,6 +98,7 @@ export const en = {
       aria: '{modality} today: Relative Effort {day}, typical training day {typical}',
       ariaNoEffort: '{modality} today: session without Relative Effort data, typical training day {typical}',
       ariaRest: '{modality}: no session yet today, typical training day {typical}',
+      ariaGated: '{modality} load: not enough history yet',
       // shown under the dials only when Entreno's load detail (with the full caveats) is hidden
       caveatLine: 'Load = Relative Effort, which is HR-derived (it credits the metcon more than heavy sets); modalities are not comparable; there is no comparable load before Relative Effort tracking started; same-day rows are summed.',
     },
@@ -195,10 +195,9 @@ export const es = {
   dials: {
     ariaLabel: 'Sueño, recuperación y carga de un vistazo',
     none: 'Sin datos',
-    sleep: { label: 'Sueño', target: 'Objetivo {value} h', aria: 'Anoche: {value} h de un objetivo de {target} h' },
+    sleep: { label: 'Sueño', aria: 'Anoche: {value} h de un objetivo de {target} h' },
     recovery: {
       label: 'Recuperación',
-      sub: 'Tendencia 7 días',
       delta: `{value} ${US}`,
       gated: 'Sin base',
       bands: { above: 'Encima', at: 'En base', below: 'Debajo' },
@@ -216,7 +215,7 @@ export const es = {
     load: {
       label: 'Carga',
       switchLabel: 'Modalidad de carga',
-      scale: 'Arriba del arco = tu día típico de entreno (mediana de las últimas 6 semanas)',
+      scale: 'Medio anillo = tu día típico de entreno (mediana de las últimas 6 semanas); anillo completo = el doble',
       gated: 'En formación',
       rest: 'Sin sesión aún',
       noEffort: 'Sin dato de esfuerzo',
@@ -228,6 +227,7 @@ export const es = {
       aria: '{modality} hoy: Esfuerzo Relativo {day}, día típico de entreno {typical}',
       ariaNoEffort: '{modality} hoy: sesión sin dato de Esfuerzo Relativo, día típico de entreno {typical}',
       ariaRest: '{modality}: sin sesión hoy (aún), día típico de entreno {typical}',
+      ariaGated: 'Carga de {modality}: aún sin historial suficiente',
       // solo bajo los diales cuando el detalle de carga de Entreno (con todas las advertencias) está oculto
       caveatLine: 'Carga = Esfuerzo Relativo, que se deriva de la FC (reconoce más el metcon que las series pesadas); las modalidades no son comparables; no hay carga comparable antes de que empezara el seguimiento del Esfuerzo Relativo; las filas del mismo día se suman.',
     },

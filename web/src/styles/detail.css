@@ -430,13 +430,12 @@ button.dt-day {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+/* a dial carries its chevron in its label ("SLEEP ›", score.css .dial-chev), not in a corner */
 .dial[data-detail] {
   padding-right: 0;
 }
 .dial[data-detail]::after {
-  top: 2px;
-  right: 2px;
-  transform: none;
+  content: none;
 }
 /* the collapsed dial row (score.css .dm): ring + label only, no chevron */
 .dm[data-detail][role="button"] {

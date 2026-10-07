@@ -3,33 +3,54 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  DIAL, fracToAngle, polar, arcPath, recoveryFrac, sleepFrac, loadFrac, loadDayFrac, buildDials,
+  DIAL, OPEN_ARC, fracToAngle, polar, arcPath, recoveryFrac, sleepFrac, loadFrac, loadDayFrac, buildDials,
 } from './dial.mjs';
 import { BAND_CUTOFF, DAY_BAND_CUTOFF } from '../../../lib/score/recovery.mjs';
 
 const near = (a, b, eps = 0.01) => assert.ok(Math.abs(a - b) <= eps, `${a} !~ ${b}`);
 
-test('fracToAngle: a 270 degree open arc from bottom-left (135) clockwise to bottom-right (405)', () => {
-  assert.equal(DIAL.sweep, 270);
-  assert.equal(fracToAngle(0), 135);
-  assert.equal(fracToAngle(0.5), 270); // top centre
-  assert.equal(fracToAngle(1), 405);
-  assert.equal(fracToAngle(-1), 135, 'clamped below');
-  assert.equal(fracToAngle(2), 405, 'clamped above');
+test('fracToAngle: a full ring from 12 o\'clock (-90) clockwise back to 12 o\'clock (270)', () => {
+  assert.equal(DIAL.sweep, 360);
+  assert.equal(fracToAngle(0), -90);
+  assert.equal(fracToAngle(0.5), 90); // 6 o'clock
+  assert.equal(fracToAngle(1), 270);
+  assert.equal(fracToAngle(-1), -90, 'clamped below');
+  assert.equal(fracToAngle(2), 270, 'clamped above');
 });
 
-test('polar: the arc midpoint sits straight above the centre', () => {
-  const p = polar(270);
-  near(p.x, DIAL.c);
-  near(p.y, DIAL.c - DIAL.r);
+test('polar: the ring starts straight above the centre; its midpoint is straight below', () => {
+  const top = polar(-90);
+  near(top.x, DIAL.c);
+  near(top.y, DIAL.c - DIAL.r);
+  const bottom = polar(90);
+  near(bottom.x, DIAL.c);
+  near(bottom.y, DIAL.c + DIAL.r);
+});
+
+test('ring geometry: thin stroke (~6 % of the ring\'s diameter) that fits the 120-unit viewBox', () => {
+  const ratio = DIAL.stroke / (2 * DIAL.r);
+  assert.ok(ratio >= 0.05 && ratio <= 0.075, `stroke ratio ${ratio}`);
+  assert.ok(DIAL.c + DIAL.r + DIAL.stroke / 2 <= 120, 'the stroke stays inside the viewBox');
 });
 
 test('arcPath: sweep flag follows direction, large-arc flag only past 180 degrees, empty when zero-length', () => {
   assert.equal(arcPath(0.3, 0.3), '');
-  const fwd = arcPath(0, 0.5); // 135 degrees
-  assert.match(fwd, /^M[\d.]+ [\d.]+A50 50 0 0 1 [\d.]+ [\d.]+$/);
-  assert.match(arcPath(0, 1), / 0 1 1 /, '270 degrees -> large arc');
+  const fwd = arcPath(0, 0.25); // 90 degrees
+  assert.match(fwd, new RegExp(`^M[\\d.]+ [\\d.]+A${DIAL.r} ${DIAL.r} 0 0 1 [\\d.]+ [\\d.]+$`));
+  assert.match(arcPath(0, 0.75), / 0 1 1 /, '270 degrees -> large arc');
   assert.match(arcPath(0.5, 0.2), / 0 0 0 /, 'backwards -> counter-clockwise');
+});
+
+test('arcPath: a full ring is drawn as two half arcs (one SVG arc cannot start and end on the same point)', () => {
+  const full = arcPath(0, 1);
+  assert.equal((full.match(/A/g) || []).length, 2);
+  assert.ok(full.startsWith(`M${DIAL.c} ${DIAL.c - DIAL.r}`), 'starts at 12 o\'clock');
+  assert.ok(full.includes(`${DIAL.c} ${DIAL.c + DIAL.r}`), 'passes through 6 o\'clock');
+  assert.ok(full.endsWith(`${DIAL.c} ${DIAL.c - DIAL.r}`), 'and closes at 12 o\'clock');
+});
+
+test('OPEN_ARC (Nutrición\'s kcal dial only): the former 270 degree arc, unchanged', () => {
+  assert.equal(arcPath(0, 1, OPEN_ARC), 'M24.64 95.36A50 50 0 1 1 95.36 95.36');
 });
 
 test('recoveryFrac: 0 MAD is the midpoint, +-3 are the ends, beyond is clamped', () => {
@@ -84,8 +105,9 @@ test('buildDials: recovery headline = LAST NIGHT (today composite), zones split 
   assert.equal(r.sleep, true);
   assert.deepEqual(r.zones.map((z) => z.band), ['below', 'at', 'above']);
   assert.equal(r.zones[1].d, arcPath(recoveryFrac(-DAY_BAND_CUTOFF), recoveryFrac(DAY_BAND_CUTOFF)), 'single-day zones are cut at DAY_BAND_CUTOFF');
-  assert.equal(r.fill, arcPath(0.5, recoveryFrac(-1.4)), 'filled from baseline (centre) to the marker');
-  assert.deepEqual(r.marker, polar(fracToAngle(recoveryFrac(-1.4))));
+  assert.equal(r.fill, arcPath(0, recoveryFrac(-1.4)), 'filled clockwise from 12 o\'clock to the value on the -3..+3 scale');
+  assert.equal('marker' in r, false, 'no marker dot: the fill ends at the value');
+  assert.deepEqual(r.mid, polar(fracToAngle(0.5), DIAL.r - DIAL.stroke), 'baseline tick at the ring\'s midpoint (6 o\'clock)');
   assert.deepEqual(r.trend, { value: 0.8, band: 'above', dir: 'steady' });
   assert.equal(d.track, arcPath(0, 1));
 });
@@ -97,7 +119,7 @@ test('buildDials: no composite for last night -> the dial shows the 7-day trend,
   assert.equal(r.value, 0.8);
   assert.equal(r.band, 'above');
   assert.equal(r.date, null);
-  assert.equal(r.fill, arcPath(0.5, recoveryFrac(0.8)));
+  assert.equal(r.fill, arcPath(0, recoveryFrac(0.8)));
   assert.equal(r.zones[1].d, arcPath(recoveryFrac(-BAND_CUTOFF), recoveryFrac(BAND_CUTOFF)), 'trend zones stay at BAND_CUTOFF');
 });
 
@@ -129,7 +151,7 @@ test('buildDials: load bakes the typical day + each recent session day with its 
   assert.equal(gym.state, 'gated', 'baselineBuilding gating is kept even with a typical day');
   assert.equal(gym.reason, 'baselineBuilding');
   assert.ok(Array.isArray(gym.days), 'a gated modality still carries its session days (the switch can open on today\'s session)');
-  assert.ok(gym.days.every((d) => !('fill' in d) && !('marker' in d)), 'but no geometry: a gated dial shows no number');
+  assert.ok(gym.days.every((d) => !('fill' in d)), 'but no geometry: a gated dial shows no number');
   const run = l.modalities[1];
   assert.equal(run.state, 'ok');
   assert.equal(run.typical, 110);
@@ -139,7 +161,7 @@ test('buildDials: load bakes the typical day + each recent session day with its 
   const [unscored, trained] = run.days;
   assert.deepEqual(unscored, { date: '2026-09-27', re: 0, unscored: 1 }, 'rows without RE: no geometry, flagged unscored');
   assert.equal(trained.fill, arcPath(0, loadDayFrac(132, 110)));
-  assert.deepEqual(trained.marker, polar(fracToAngle(loadDayFrac(132, 110))));
+  assert.equal('marker' in trained, false, 'no marker dot');
   assert.deepEqual(l.modalities[2].days, [], 'no sessions in the last two weeks');
   assert.equal('zones' in l, false, 'the old trend-band zones do not apply to a day-vs-typical scale');
   assert.deepEqual(l.mid, polar(fracToAngle(0.5), DIAL.r - DIAL.stroke));

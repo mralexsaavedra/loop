@@ -4,6 +4,15 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-07 — Plan page restyle P3a: Inicio layout
+
+- Dials: three equal full rings (start at 12 o'clock, fill clockwise, thin stroke, round caps), the
+  value inside (number + small unit) and "LABEL ›" below; same values, bands and colours. The
+  captions under them ("last night", the 7-day trend, the sleep target, the load scale and the
+  acute/chronic line) moved to each dial's detail sheet header; only a stale-data line stays. The
+  gym / run / bike switch is now compact pills under the load dial. Nutrición's kcal dial keeps the
+  old 270° arc for now.
+
 ## 2026-10-07 — Plan page restyle P2: navigation shell
 
 - Bottom dock at every width: a floating rounded tab bar (icon + small label, active white / inactive
