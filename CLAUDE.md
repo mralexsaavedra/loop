@@ -951,7 +951,10 @@ Plan de hoy) and the
   narrow wraps the navigator under the title; static markup in `Dia.astro`, driven by food.js): `‹ <date> ›` = real 44 px buttons (aria-label
   "Día anterior" / "Día siguiente"), the date in an `aria-live` label ("Hoy" on the viewer's today, else
   `HC.fmtDate`), next disabled on today (no future days), a short "Hoy" button (aria-label "Volver a hoy") before `‹` only on another day; the viewed
-  day is NOT persisted (the page always opens on today; `S.view` null = follow today). A past day is read
+  day is NOT persisted (the page always opens on today; `S.view` null = follow today), EXCEPT late night: before
+  `LATE_NIGHT_HOUR` (04:00, `slots.mjs`, baked as `FOOD_CONST.lateNightHour`) it opens on the day before (as if ‹ was
+  tapped once; also a viewer on "today" whose day rolls over), and that automatic view returns to today from 04:00 on
+  `visibilitychange` (a day picked by hand never moves); `foodTotals` / `groupTotals` / `addGuide` stay today-only. A past day is read
   with `GET /api/food/log?date=` on each visit into its own slot (`S.dayLog`, never today's `S.log`) and
   renders the same cards, day total ("Total del día"), delete and "+ Añadir"; a slower answer for a day
   already left is dropped (`viewSeq`); a failed read shows the error + "Reintentar" (`day-retry`). A
@@ -971,7 +974,7 @@ Plan de hoy) and the
   trap / Esc / Back from detail.js, whose Tab trap now includes form fields and whose
   `HCDetail.open(key, date, {opener})` returns focus to the tapped button): meal select = the four
   groups (Desayuno / Comida / Cena / Añadido; a main group is stored as its slot, Añadido as `snack`;
-  a fresh sheet guesses the group by the viewer's hour: < 11 breakfast, < 16 lunch, < 20
+  a fresh sheet guesses the group by the viewer's hour: < 4 (late night) dinner, < 11 breakfast, < 16 lunch, < 20
   Añadido, else dinner), tabs Mis
   productos (search, grouped by store) / Mis recetas / Rápido (label + kcal + optional macros), amount in g / ml / servings (servings only with a serving
   size; a per-serving recipe in servings, a batch one in grams of cooked food; switching a product to

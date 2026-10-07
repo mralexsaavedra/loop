@@ -32,7 +32,7 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 - [ ] T2 Past-day rings from food log
 - [x] T3 Remove day-builder leftovers + single `targetFor` (route: delegated writer — 2+ non-trivial files)
 - [x] T5 Archive migration scripts (route: delegated writer; parent fixed 2 stale comments inline)
-- [ ] T9 Late-night entry default
+- [x] T9 Late-night entry default (route: delegated writer)
 - [ ] T10 Minify inline CSS
 - [ ] T8 Missing tests
 - [ ] T7 Split food.js
@@ -46,7 +46,9 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 - T3: legacy `targetFor`, `extraKeys`/`extraNames`/`indulge`/`alcoholKeys`/`mealReplaceKeys` removed from macros.mjs + generate.js; legacy plan keys now a `npm run check` WARNING (`LEGACY_PLAN_KEYS`), never an error; example plan stripped (example build byte-identical). RED: legacy-fields test failed with subset errors; GREEN after fix. `npm test` 1578/1578 (writer); parent re-ran `npm run check` OK with 5 warnings on the personal plan. Note: migrate-plan-data.mjs still writes those keys → T5. Commit c8fbafb. Review: tier high (process boundary in generate.js), consent granted, 4 lenses approved, acknowledged (lineage review-c2fb2e8778a25d24). Reviewed boundary → c8fbafb.
 - Delivery: running count after T3 ≈ 750 authored lines (> 400) → chain strategy asked to owner → `stacked-to-main` (2026-10-07).
 
-- T5: deleted migrate-plan-data / migrate-plan-v2 (+ tests; nothing imported them; targets.mjs falls back to DEFAULT_BY_GOAL / maintain, verified by writer). CLAUDE.md + README shortened. No RED (deletion). Parent ran `npm test`: 1545/1545.
+- T5: deleted migrate-plan-data / migrate-plan-v2 (+ tests; nothing imported them; targets.mjs falls back to DEFAULT_BY_GOAL / maintain, verified by writer). CLAUDE.md + README shortened. No RED (deletion). Parent ran `npm test`: 1545/1545. Commit c41ccad. Review: tier medium (slice budget), consent granted, 1 lens (reliability) approved, acknowledged. Reviewed boundary → c41ccad.
+
+- T9: `LATE_NIGHT_HOUR = 4` in slots.mjs baked as `FOOD_CONST.lateNightHour`; before 04:00 Registrar opens on yesterday (auto view, expires at 04:00 on visibility), guessMeal → dinner; today-only hooks untouched. RED 3 fails → GREEN 75/75; `npm test` 1550/1550 (writer); parent re-ran food.test 75/75.
 
 ## Slices (stacked to main)
 
@@ -57,4 +59,4 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 
 ## Next step
 
-T9 (late-night food entry).
+T10 (minify inline CSS).
