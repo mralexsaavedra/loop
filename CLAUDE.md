@@ -5,109 +5,44 @@ Your job: turn real personal data into grounded, honest recommendations.
 
 ## Start of every session (read first)
 
-**If a persistent-memory tool (e.g. Engram `mem_context`) is available**, run it before
-doing anything else — it holds the current state, decisions, and next actions, synced
-across machines. At the end of a working session, persist a session summary so the next
-session resumes without re-explaining. **Engram is optional**: without it the system still
-works fully — durable state lives in the files below and in `CHANGELOG.md`. Skip the memory
-calls and read the files directly.
+**If a persistent-memory tool (e.g. Engram `mem_context`) is available**, run it first — it holds
+the current state, decisions and next actions, synced across machines — and persist a session summary
+at the end. **Engram is optional**: without it, this file (durable operating facts) + `CHANGELOG.md`
+(dated history) are the full state; memory only adds volatile session state (status, next actions,
+open questions).
 
-Source-of-truth split: **persistent memory (optional)** = volatile session state (status,
-next actions, open questions); **this file** = durable operating facts; **`CHANGELOG.md`** =
-dated history. If you have no memory tool, this file + `CHANGELOG.md` are the full state.
+**First-run check:** if `profile/about-me.md` does NOT exist (only the `.example` template), the
+owner has not been onboarded: do NOT analyse empty data — run [`docs/onboarding.md`](docs/onboarding.md).
 
-**First-run check (do this before any analysis):** if `profile/about-me.md` does NOT exist
-(only the `.example` template is present), this is a fresh clone — the owner has not been
-onboarded yet. Do NOT attempt an analysis against empty data. Instead, run the onboarding
-flow below.
+## Analysis reports
 
-## Onboarding a new user (first run)
+Asked for an analysis / report / progress review → use the **`/analysis` skill**
+(`.claude/skills/analysis/SKILL.md`): sync, freshness, live facts, follow-up of the previous report,
+coach sub-questions, `analysis/reports/YYYY-MM-DD.md` per `analysis/methodology.md` (the framework
+you MUST follow for any number you produce).
 
-When `profile/about-me.md` is missing, your job is to BUILD the user's profile with them,
-conversationally — do not make them fill a form alone. Replicate a real coach intake:
+## Data sources (read before quoting any number)
 
-1. **Explain briefly** what you're about to do: "Before I can coach you with real data, I
-   need to learn who you are and capture a baseline. I'll ask a few questions, then write
-   your profile for you. Your answers stay local — these files are gitignored."
-2. **Interview, don't dump.** Walk the sections of `profile/about-me.example.md` (Basics,
-   Lifestyle, Goal, Training, Health context, Nutrition habits, Gear). Ask **one topic at a
-   time** in small batches, follow up where an answer is vague, and skip what's irrelevant
-   to their goal. Never paste the whole template and ask them to complete it.
-3. **Write the profile.** As sections complete, write the real answers into
-   `profile/about-me.md` (create it — it's gitignored), removing the template prompts. Do
-   NOT invent values; if something is unknown, write "unknown" or leave it for later rather
-   than guessing.
-4. **Capture the baseline.** Walk `profile/baseline.example.md` into `profile/baseline.md`.
-   If an Apple Health `export.xml` is already present, offer to run
-   `node data/apple-health/extract.js` and pull weight / RHR / VO2max / body-fat from the
-   cached CSVs instead of asking. Mark every self-reported or estimated number as such, and
-   record device/app provenance (bioimpedance body-fat is trend-only, ±3–5%).
-5. **Point them at their data.** Explain the data-drop steps from the README (Apple Health
-   export → `data/apple-health/`, then `extract.js`; nutrition → copy `food-log.example.md`
-   → `food-log.md`; **training → copy `data/training/training-data.example.json` →
-   `training-data.json`** and transcribe their program by date from whatever their coach/app
-   provides (PDF grids → render to PNG and read visually; a login-gated training app → have them
-   paste/screenshot the sessions), see `docs/training.md` — then
-   `npm run generate`). The 🏠 Inicio tab then shows today's programmed session and the
-   🏃 Entreno tab fills itself from the Apple Health workouts already extracted in step 4. Don't block onboarding on this — profile + baseline are enough to start.
-6. **Confirm and offer the first analysis.** Summarize what you captured, ask them to
-   correct anything, then offer to run an initial analysis per the workflow below.
-
-Honor the same output principles during onboarding: ground everything in what they tell you,
-flag gaps, never fabricate. After onboarding, persist a session summary (if a memory tool is
-available) so the next session resumes with their context.
-
-## Workflow when asked for an analysis
-
-1. **Read context first, always:**
-   - `profile/about-me.md` — who they are, goals, constraints, injuries.
-   - `profile/baseline.md` — starting metrics.
-   - `analysis/methodology.md` — the framework you MUST follow for any number you produce.
-   - **Live facts** (same sources the coach subagents use): `profile/profile.json` (height,
-     birthdate → age from today, devices, supplements, upcoming `events`) and
-     `data/profile/settings.json` (`goal`, `targetWeightKg`, `fetchedAt`; missing → goal unknown,
-     `fetchedAt` > 3 days old → may be stale). **Numbers come from these files and the extract,
-     never from the prose of `about-me.md`, `baseline.md` or an old report** — when they disagree,
-     the live file wins; say so.
-   - **Freshness**: `data/apple-health/extract/_meta.json` (`exportLastDate`, `shortcutSync`),
-     the newest date of every CSV you rely on, and `data/nutrition/foodlog-daily.meta.json`
-     (`fetchedAt`). Flag any series more than 3 days old.
-2. **Load the data:**
-   - Apple Health: **read the cached extract first** — `data/apple-health/extract/*.csv`
-     (weight, bodyfat, rhr, vo2max, hrv, steps-daily, active/basal-energy-daily,
-     dietary-daily, sleep-daily, workouts) + `_meta.json` (ranges, row counts, caveats).
-     Regenerate after a new export is dropped: `node data/apple-health/extract.js`. The
-     raw `export.xml` is ~700 MB — only stream/grep it directly for a series not in the
-     cache. Caveats: body metrics carry a `source` column (weight mixes scales — compare
-     body fat within one scale only); steps are deduped to max-per-device per day (summing
-     devices double-counts — summing inflates the NEAT figure). Active / basal energy: per DAY and
-     type ONE source wins and only its sum is written, never a sum across sources. The export's LAST
-     date is a PARTIAL day (`_meta.json` `exportLastDate`); daily totals skip it. Between exports,
-     `npm run sync` merges iOS Shortcut payloads (export rows win; re-run sync after `extract.js`).
-     Full source precedence, partial-day and Shortcut merge rules: `docs/data-pipeline.md`; the
-     Shortcut itself and every payload key: `docs/ios-shortcut.md`.
-   - Food log: the real log is the LAN page's food log (Postgres behind `services/health-ingest`),
-     exported by `npm run sync:foodlog` (`data/nutrition/sync-foodlog.js`, part of `npm run sync`) to
-     `data/nutrition/foodlog-daily.csv` (gitignored; one row per logged day, last 120 days refreshed,
-     older rows kept; `missing_macros` = sums that are minimums) + `foodlog-daily.meta.json`
-     (`fetchedAt`). Unreachable / old service → a `WARNING:`, files kept, exit 0.
-   - Nutrition: `data/nutrition/food-log.md` — legacy notes + rationale only (not the live log).
-     Per-serving tables, verified product labels, legume detail, and breakfast components are
-     GENERATED into `plan-tables.md` from `ingredients.json` (public food DB) merged with
-     `plan-data.json` (personal plan); food-log just points to them.
-   - Plan reference (all per-serving tables): `data/nutrition/plan-tables.md` — generated.
-     Read it for any plan number; to CHANGE one, see "Commands" below and `docs/nutrition.md`.
-   - Weight: `data/apple-health/extract/weight.csv` (`date,value,source`; compare within one `source`).
-   - Training programs: the owner's programmed sessions — the current source is noted in
-     `profile/about-me.md` (a coach PDF in `data/training/*.pdf`, or an external training app).
-     Strength / metcon / endurance blocks — use for modality balance & periodization.
-   - Nutritionist history: `data/nutritionist/` — past anthropometric assessments +
-     nutrition plans, and `RESUMEN-y-comparativa.md`. Reference for proven-effective
-     targets (e.g. a rest-day calorie floor that already worked).
-3. **Analyze per methodology.** Use trends (rolling averages), not single-day noise.
-   Compare against previous reports in `analysis/reports/` to track progress.
-4. **Write a report** to `analysis/reports/YYYY-MM-DD.md` and summarize the key
-   findings + actions in chat.
+- **Live facts** (same sources the coach subagents use): `profile/profile.json` (height, birthdate →
+  age from today, devices, supplements, upcoming `events`), `data/profile/settings.json` (`goal`,
+  `targetWeightKg`, `fetchedAt`; missing → goal unknown, `fetchedAt` > 3 days old → may be stale).
+  **Numbers come from these files and the extract, never from the prose of `profile/about-me.md`,
+  `profile/baseline.md` or an old report** — when they disagree, the live file wins; say so.
+  `about-me.md` = stable context (injuries, history, preferences, which program when).
+- **Freshness**: `data/apple-health/extract/_meta.json` (`exportLastDate` — a PARTIAL day,
+  `shortcutSync`), the newest date of every CSV you rely on, `data/nutrition/foodlog-daily.meta.json`
+  (`fetchedAt`). Flag any series more than 3 days old.
+- **Apple Health**: the cached extract `data/apple-health/extract/*.csv` + `_meta.json`, never the
+  ~700 MB `export.xml` unless a series is missing. Weight = `extract/weight.csv` (`date,value,source`;
+  compare within one `source`). Steps, energy, partial-day and Shortcut merge caveats:
+  [`docs/data-pipeline.md`](docs/data-pipeline.md).
+- **Food log** (the real one, LAN page): `data/nutrition/foodlog-daily.csv` from `npm run sync`;
+  `missing_macros` = sums are minimums — see [`docs/nutrition-food-log.md`](docs/nutrition-food-log.md)
+  → Food log export. `data/nutrition/food-log.md` = legacy notes only.
+- **Plan numbers**: `data/nutrition/plan-tables.md` (generated from `ingredients.json` +
+  `plan-data.json`). Training program (modality balance, periodization): source noted in
+  `profile/about-me.md` (`data/training/*.pdf` or an external app). Nutritionist history: `data/nutritionist/`
+  (`RESUMEN-y-comparativa.md`; proven-effective targets, e.g. a rest-day calorie floor).
 
 ## Commands — build, check, test, sync
 
@@ -121,23 +56,9 @@ available) so the next session resumes with their context.
 | `node data/apple-health/extract.js` | Rebuild the extract CSVs from a new `export.xml` (then re-run `npm run sync`) |
 | `node scripts/build-web.mjs [--mode personal\|example] [--locale es\|en]` | Build one page variant into `web/dist/<mode>/index.html` |
 
-**Fresh-clone bootstrap:** `ingredients.json` ships in the clone (tracked). Copy
-`data/nutrition/plan-data.example.json` → `plan-data.json` and
-`data/training/training-data.example.json` → `training-data.json` (edit both in your real
-plan/program), then `npm ci && npm run generate`. The real `plan-data.json` /
-`training-data.json` / `plan-tables.md` / `web/dist/personal/` stay gitignored (personal);
-`ingredients.json` and the `.example` seeds are tracked. `npm run build:example` builds from
-the tracked seeds plus the tracked synthetic demo extract in `data/demo/extract/` — no copying,
-no personal files, useful to sanity-check the pipeline on a bare clone.
-
-**To change a plan number, edit `plan-data.json` (servings/day plan) or `ingredients.json`
-(a food's macros/label) — never the generated files.**
-
-Run `npm run generate` (or `node data/nutrition/generate.js && node scripts/build-web.mjs`) to
-regenerate (idempotent): validates the plan, writes `plan-tables.md` (incl. the Legumes and
-Verified product labels tables), then builds `web/dist/personal/index.html`. **Never**
-hand-edit `plan-tables.md`, `web/dist/`, or re-type macros in `food-log.md` — the source is
-the two JSONs.
+Fresh-clone bootstrap (copy the `.example` seeds, `npm ci && npm run generate`): README → How to use it.
+**To change a plan number, edit `plan-data.json` (servings/day plan) or `ingredients.json` (a food's
+macros/label) — never the generated files** ([`docs/nutrition.md`](docs/nutrition.md)).
 
 ## Publishing the page
 
@@ -152,11 +73,14 @@ works without the LAN services.
 
 ## Repo rules
 
-- **Never commit personal data.** Personal files (`profile/about-me.md`, `baseline.md`, `profile.json`, `plan-data.json`,
-  `training-data.json`, the extract, `data/profile/*`, `web/dist/personal/`) are
-  gitignored; never un-ignore them or `git add -f` them. `data/demo/` is tracked and must stay synthetic.
+- **Never commit personal / raw health data.** Personal files (`profile/about-me.md`, `baseline.md`,
+  `profile.json`, `plan-data.json`, `training-data.json`, the extract, `data/profile/*`, the food log
+  CSVs, `analysis/reports/*`, `web/dist/personal/`) are gitignored; never un-ignore them or `git add -f`
+  them (the guard hook blocks it, [`docs/guard-hook.md`](docs/guard-hook.md)). `data/demo/` is tracked
+  and must stay synthetic.
 - **Never hand-edit generated files** (`plan-tables.md`, `web/dist/`, `data/demo/extract/` — re-run
-  `npm run demo:data`); change the source (the JSONs, the generator) and regenerate.
+  `npm run demo:data`) and never re-type macros in `food-log.md`; change the source (the JSONs, the
+  generator) and regenerate.
 - **`knowledge/` is gitignored** except `knowledge/README.md` (third-party transcripts, personal use):
   never commit, publish or `git add -f` it.
 - **Before changing an area, read its doc in `docs/`; keep the doc in sync with the code in the same
@@ -182,7 +106,9 @@ One line per area; the design detail lives in the linked doc (read it on demand)
 | Home tab (Inicio): dials, advice, eat card, monitor, timeline; recovery + load scoring; same-day merge rule | [`docs/home-tab.md`](docs/home-tab.md) |
 | LAN page + on-demand refresh: `services/plan-web`, `services/health-ingest`, sync protocol, security | [`docs/lan-services.md`](docs/lan-services.md) |
 | Knowledge base ingest, Hyprogram sync, coach subagents | [`docs/knowledge-base.md`](docs/knowledge-base.md) |
-| Analysis framework (every number you produce) | [`analysis/methodology.md`](analysis/methodology.md) |
+| Onboarding a new user (first run: profile + baseline interview) | [`docs/onboarding.md`](docs/onboarding.md) |
+| Guard hook: blocks committing personal data (force-add, `.gitignore` edits) | [`docs/guard-hook.md`](docs/guard-hook.md) |
+| Analysis framework (every number you produce) + the `/analysis` skill | [`analysis/methodology.md`](analysis/methodology.md) |
 
 ## Coach subagents — who answers what
 
@@ -210,8 +136,6 @@ question comes from cycling or HYROX; the training coaches answer only the train
 
 ## Hard rules
 
-- **Never commit raw health data.** It is gitignored. Do not un-ignore it or
-  `git add -f` personal metrics.
 - **Not a doctor.** Add the disclaimer to any report. Defer to professionals for
   clinical concerns.
 - **No crash diets / extreme deficits.** Recommend sustainable changes within

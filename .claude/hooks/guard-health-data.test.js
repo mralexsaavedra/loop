@@ -1,6 +1,6 @@
 /* Unit tests for guard-health-data.js — the PreToolUse hook that blocks
  * `git add -f` / .gitignore un-ignoring of personal-data paths (CLAUDE.md
- * HARD RULE: never commit raw health data). Drives the hook as a real
+ * repo rule: never commit personal / raw health data). Drives the hook as a real
  * subprocess (it reads stdin synchronously and calls process.exit itself,
  * so it can't be `require()`d in-process without killing the test runner).
  *

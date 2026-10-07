@@ -2,7 +2,7 @@
 'use strict';
 
 /**
- * PreToolUse guard — enforces the CLAUDE.md HARD RULE: "Never commit raw health data."
+ * PreToolUse guard — enforces the CLAUDE.md repo rule: "Never commit personal / raw health data."
  *
  * The rule used to live only in the assistant's memory. This hook makes it
  * mechanical: it inspects every Bash command and every Edit / Write / MultiEdit
@@ -90,7 +90,7 @@ function block(reason) {
   process.stderr.write(
     `\u{1F6E1}️  BLOCKED by guard-health-data hook\n\n` +
       `${reason}\n\n` +
-      `This repo's HARD RULE (CLAUDE.md): never commit raw health data.\n` +
+      `This repo's rule (CLAUDE.md → Repo rules): never commit personal / raw health data.\n` +
       `If this is genuinely intended, do it yourself in a terminal outside the assistant.\n`
   );
   process.exit(2); // 2 = block the tool call

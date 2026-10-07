@@ -33,7 +33,8 @@ instead of generic advice with no data behind it.
    detects that no profile exists yet and **interviews you conversationally** — who you are,
    your goal, training, health context, nutrition habits — then writes `profile/about-me.md`
    and `profile/baseline.md` for you (both gitignored, local-only). You don't fill the
-   templates by hand; the `.example` files are just the structure Claude follows. (Prefer to
+   templates by hand; the `.example` files are just the structure Claude follows
+   ([`docs/onboarding.md`](docs/onboarding.md) is the flow it runs). (Prefer to
    fill them yourself? Copy `*.example.md` → `*.md` and edit — Claude will use whatever exists.)
 2. **Drop your data.**
    - Apple Health: iPhone → Health app → your photo → *Export All Health Data*.
@@ -105,7 +106,8 @@ instead of generic advice with no data behind it.
      leaves calories blank). Your real program stays gitignored; only the example seed is tracked.
      Skipping this step entirely is fine too — the build still succeeds with no
      `training-data.json`; today's session just stays in its rest/unprogrammed state.
-3. **Ask Claude to run an analysis.** It reads `CLAUDE.md`, follows
+3. **Ask Claude to run an analysis** (or type `/analysis`). The project skill
+   `.claude/skills/analysis/SKILL.md` syncs, checks freshness, follows
    `analysis/methodology.md`, and writes a report to `analysis/reports/`.
 
 ## Privacy
