@@ -11,13 +11,14 @@ Dials, advice, eat card, health monitor, timeline; recovery and load scoring; th
 Top to bottom (`web/src/tabs/Home.astro`, which also renders `components/EatCard.astro`): dials
 (`#home-dials`) → the monitor tiles (`#home-tiles`) → "My day" (`#my-day`: a Title Case heading, the
 advice sentence as the outlook bar in `#home-advice`, then "Today's activities" in `#timeline`) → the
-"today you eat" card → "Tonight" (`#home-tonight`) → "My plan" (`#my-plan`) → the full health monitor
+"today you eat" card → "Tonight" (`#home-tonight`) → "My plan" (`#my-plan`) → "My dashboard" (`#my-dash`)
+→ the full health monitor
 grid folded under "See metrics"
 (`details#monitor-fold` > `#monitor`) → the programmed session's hidden source section (`hoy`). Little
 text on the tab: each block's explanation lives in the detail sheet it opens
 (`web/test/content.test.mjs` pins the order). "Tonight" and "My plan" are rendered by
-`client/home-week.js`, inlined by `Home.astro` itself (not the layout), so a page that hides Inicio
-carries none of it; it runs at `DOMContentLoaded`, after the end-of-body scripts have defined `HC`, the
+`client/home-week.js` and "My dashboard" by `client/home-dash.js`, both inlined by `Home.astro` itself
+(not the layout), so a page that hides Inicio carries none of them; they run at `DOMContentLoaded`, after the end-of-body scripts have defined `HC`, the
 baked globals and the detail sheet. P5 moves the full monitor grid to Salud; the summary
 tile reaches it wherever it lives (`jump('monitor')` opens its fold or switches to its tab).
 
@@ -197,6 +198,23 @@ is the newest day, and the trend is the line under it.
   calls `HCWeekPlan.refresh()` after every read (the card keeps its open / closed state). No row → the
   card and its "My plan" heading stay hidden. The sleep row opens the sleep sheet, the training row the
   training-time sheet.
+- **My dashboard** (`#my-dash`, `client/home-dash.js`): a Title Case heading with "CUSTOMIZE ✎" on the
+  right, then single-row metric cards — line icon · UPPERCASE metric · the latest value (D-DIN) + unit
+  and an arrow, the 30-day baseline small under it. Catalogue (`CATALOG`): rhr, hrv, sleep, weight,
+  steps (shown by default, `DEFAULT_ON`), vo2max, walkingHr, exercise (hidden by default); only keys
+  present in the baked `DETAIL.metrics` are listed. Same series, titles and units as the detail sheet
+  (`I18N_DETAIL`). Value = the newest day with data up to the viewer's today (a daily total skips
+  today, still filling up); sleep shows h:mm. Baseline = the mean of the 30 days before that day, with
+  ≥ 7 days of data (≥ 2 readings for a sparse series like weight); no baseline → no arrow. Arrow ▲▼ =
+  the value vs the baseline: `--up` when better by the metric's good direction (`dir`), `--down` when
+  worse, grey for a neutral metric (weight), a grey dot within ±2 % (`FLAT_SHARE`). A row older than 3
+  days is dimmed; a tap opens that metric's detail sheet. "Customize" opens the registered `dash-edit`
+  sheet (detail.js modal): per metric a Shown / Hidden toggle (`aria-pressed`) and ↑ / ↓ buttons (no
+  drag). Preferences = `localStorage['hc-dash-v1']` `{order, hidden}`; every read / write is in a
+  try/catch, unknown, duplicate or unavailable keys are ignored, a catalogue key missing from the stored
+  order is appended with its default visibility, and without storage the choice holds in memory for the
+  visit. Every metric hidden → a one-line note (the section stays so Customize can bring one back); no
+  catalogue metric in `DETAIL` → the section stays hidden.
 - **Advice** is one descriptive sentence per rule (`lib/score/advice.mjs`, copy in `advice-copy.mjs`),
   never an instruction; hidden when data is insufficient or stale (> 3 days). It renders as the "My
   day" outlook bar (`.outlook`: full width, ~46 px, warm grey → dark gradient, sun icon, the sentence

@@ -48,7 +48,12 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   opener. Map: sleep dial → sleep; recovery dial → recovery; each load dial → its `load-<m>`; monitor
   cards → their signal; the HRV monitor tile → hrv; the "My day" outlook bar (advice) → recovery;
   activity rows → that day (sleep, or `load-<m>` / `workouts` for "other"), the programmed-session row
-  → the registered `hoy-session` view (client/training-today.js);
+  → the registered `hoy-session` view (client/training-today.js); the "Tonight" card → the registered
+  `tonight` view (the bedtime rule + a button to the sleep sheet, client/home-week.js); the "My plan"
+  rows → sleep / workouts; each "My dashboard" row → its metric, and "Customize" → the registered
+  `dash-edit` view (client/home-dash.js; its buttons re-open the view through `HCDetail.open` with
+  `focus` on the control just used). These two scripts register their views at DOMContentLoaded, so
+  `#tonight` / `#dash-edit` do not deep-link at page load (they are not in `NAV.viewTab`);
   every Salud trend card → its metric (expenditure → energy); the Salud recovery card → a History
   button (the card holds a `<details>` fold, so it is not itself a button); Entreno load cards →
   `load-<m>`; the calendar and cumulative time → workouts (a day cell → that day); run / ride rows →

@@ -13,6 +13,10 @@ Dated history of structural work on this repo. **Current state lives in Engram**
   nights ≥ the sleep target (5), training days vs the programmed days or the usual week, days with food
   logged (7) and days on the kcal target (5; both LAN only) — each hidden when its data is missing or
   stale. Rendered by `client/home-week.js`, inlined with the Inicio panel.
+- "My dashboard": single-row metric cards (RHR, HRV, sleep, weight, steps by default; VO2max, walking
+  HR, exercise minutes available) with the latest value, the 30-day baseline and a ▲▼ vs it; a row opens
+  its detail sheet. "Customize" shows / hides and reorders them (stored in localStorage, works without
+  it). `client/home-dash.js`.
 
 ## 2026-10-07 — Plan page restyle P3a: Inicio layout
 
