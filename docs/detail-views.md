@@ -60,7 +60,7 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   button (the card holds a `<details>` fold, so it is not itself a button); Entreno load cards →
   `load-<m>`; the Activity card's total and calendar → workouts (a day cell → that day; its W / M / 6M
 switch is outside every opener); run / ride rows →
-  that day in `load-run` / `load-bike` (the row is a mouse target, its date cell a real button). Every
+  that day in `load-run` / `load-bike` (the whole list row is the button). Every
   opener shows the same chevron, pointer, focus ring and ≥ 44px target (`web/src/styles/detail.css`);
   the chevron is centred on a one-line opener and pinned to the header row (top-right) of a tall card.
 - **Dial deep-dive pages** (`web/src/client/deepdive.js`, inlined right before `detail.js`, which calls

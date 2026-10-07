@@ -119,7 +119,7 @@ details.sec-fold > summary:hover > h2 {
 /* jump() targets clear the collapsed dial row (score.css .dial-mini, fixed at the top of Inicio) */
 .tab-section,
 .jump-anchor,
-.hsub {
+.hs-sec {
   scroll-margin-top: 64px;
 }
 
