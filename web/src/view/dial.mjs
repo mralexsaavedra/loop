@@ -2,7 +2,8 @@
  * mapping for the Sleep, Recovery and Load dials. Pure presentation glue over values
  * buildScores()/buildHealth() already produce. TODAY FIRST, the trend as context:
  *   - Recovery: the fill ends at last night's composite (recovery.today) on the -3..+3 MAD scale
- *     (baseline = the tick at 6 o'clock), zones cut at the single-day DAY_BAND_CUTOFF; the 7-day
+ *     (baseline = the tick at 6 o'clock) and takes ONE state colour, its band (cut at the single-day
+ *     DAY_BAND_CUTOFF, or BAND_CUTOFF for the trend): no zone arcs on the ring; the 7-day
  *     trend + its direction ride along as `trend` for the dial's detail sheet. With no composite for last night the dial falls back to trend7 (zones at
  *     BAND_CUTOFF) and says so (mode 'trend').
  *   - Load: the ring midpoint is the typical training day of the modality and the end twice it. The
@@ -13,7 +14,7 @@
  *   - Sleep: the sleep-duration component's newest night over the stated target.
  * No new metric and no percentage score. Baked by components/Bake.astro as DIALS;
  * client/score.js turns it into inline SVG. */
-import { BAND_CUTOFF, DAY_BAND_CUTOFF, Z_CLAMP } from '../../../lib/score/recovery.mjs';
+import { Z_CLAMP } from '../../../lib/score/recovery.mjs';
 
 // 120-unit viewBox, 54-unit radius, 7-unit stroke (~6 % of the ring's diameter): a full ring that
 // starts at 12 o'clock (-90 degrees) and fills clockwise; the midpoint (0.5) sits at 6 o'clock.
@@ -75,9 +76,13 @@ export function loadDayFrac(day, typical) {
   return isNum(day) && isNum(typical) && typical > 0 ? loadFrac(day / typical) : null;
 }
 
-function zones(edges, bands, toFrac) {
-  const cuts = [0, ...edges.map(toFrac), 1];
-  return bands.map((band, i) => ({ band, d: arcPath(cuts[i], cuts[i + 1]) }));
+/** A radial tick across the ring's stroke at fraction `f` (1 unit past each edge): the load dial's
+ * typical-day mark on the detail sheet's hero ring. */
+export function radialTick(f, g = DIAL) {
+  const a = fracToAngle(f, g);
+  const p0 = polar(a, g.r - g.stroke / 2 - 1, g);
+  const p1 = polar(a, g.r + g.stroke / 2 + 1, g);
+  return { x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y };
 }
 
 function recoveryDial(R) {
@@ -86,7 +91,6 @@ function recoveryDial(R) {
   const today = R.today && isNum(R.today.value) ? R.today : null;
   const value = today ? today.value : R.trend7;
   const f = recoveryFrac(value);
-  const cut = today ? DAY_BAND_CUTOFF : BAND_CUTOFF;
   return {
     state: 'ok',
     mode: today ? 'today' : 'trend',
@@ -96,7 +100,6 @@ function recoveryDial(R) {
     band: today ? today.band : R.band,
     value,
     trend: { value: R.trend7, band: R.band, dir: R.trendDir || null },
-    zones: zones([-cut, cut], ['below', 'at', 'above'], recoveryFrac),
     // filled clockwise from 12 o'clock to the value on the -3..+3 scale; the baseline (0) is the tick
     // at the ring's midpoint (6 o'clock)
     fill: arcPath(0, f),
@@ -142,6 +145,7 @@ function loadDial(L) {
     defaultKey: first.key,
     modalities,
     mid: polar(fracToAngle(0.5), DIAL.r - DIAL.stroke),
+    tick: radialTick(0.5),
   };
 }
 

@@ -60,19 +60,42 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   that day in `load-run` / `load-bike` (the row is a mouse target, its date cell a real button). Every
   opener shows the same chevron, pointer, focus ring and ≥ 44px target (`web/src/styles/detail.css`);
   the chevron is centred on a one-line opener and pinned to the header row (top-right) of a tall card.
+- **Dial deep-dive pages** (`web/src/client/deepdive.js`, inlined right before `detail.js`, which calls
+  `window.HCDeep.render(key, m, end, X)` with its own helpers `X`, so both files read one set of rules
+  and copy): the sheets of the three Inicio dials — `sleep`, `recovery`, `load-<m>` — are laid out as
+  one page, top to bottom:
+  1. **Header** "‹ TODAY ⓘ": the back arrow IS the sheet's close button (`data-dt-act="close"`, focus
+     lands on it, Esc / Back still work); the metric title stays the dialog's label as a visually
+     hidden `h2#dt-title`; ⓘ (`data-dt-act="info"`, `aria-expanded` / `aria-controls="dd-info"`)
+     toggles the long-notes block in place, collapsed by default.
+  2. **ⓘ block** (`#dd-info`, hidden): the band / cut rules (`bandText`: the recovery day and trend
+     cuts, the per-day note, the sleep band, the typical day), the load sessions-without-effort note,
+     the sleep "stages are not in the extract" note.
+  3. **Hero ring**: ≈ 67 % of the width (max 320 px), the dial's OWN baked arcs (`DIALS`, so it can
+     never disagree with Inicio) drawn with a 6.4-unit stroke (≈ 5.9 % of the 108-unit diameter),
+     from 12 o'clock clockwise, round caps, on `--track`; inside: the value (D-DIN, 52–72 px) + small
+     unit + the uppercase label. Colour: recovery = ONE state colour, its band (`--good` / `--mid` /
+     `--low`), sleep = `--sleep`, load = `--strain` with a white tick at the typical day
+     (`DIALS.load.tick`). Off states show the dial's word in an empty ring (recovery "No baseline",
+     load "Building" / "No session yet" / "No effort data"); stale data (> 3 days) greys it like the
+     dial. No `DIALS` global: the number still shows (from `DETAIL`), the ring has no fill.
+  4. **Insight card** (`--ground` fill inside a 1.5 px teal → indigo stroke, `--insight-a/b`): the
+     dial's former captions in 2–4 plain lines — recovery "Last night · <band>" (or the night's date,
+     "no sleep data", "no recent complete night") + the 7-day trend coloured by the TREND band; sleep
+     the target + last night vs it; load the day line ("Today: RE 28 · typical day ~42" or "No
+     session yet today · last session …"), the ring scale and the 7-day vs 42-day trend + band (from
+     the baked `DIALS`; no `DIALS` or gated → no trend line); a gated modality shows its gate copy.
+     Then "VIEW TREND →" (`data-dt-act="trend"`, a button: scrolls to the period block and focuses
+     the pressed W / M / 6M / 1Y button). Its text is the `--link` → `--link-end` gradient (blue →
+     violet) clipped to the glyphs, solid `--link` where `background-clip: text` is unsupported: on
+     `--ground` both ends pass AA for small text (8.29 / 4.61), on a card the violet end would not
+     (3.91), so the gradient only ever sits on the insight card (`tokens-contrast.test.mjs`).
+  5. The rest of the sheet below, unchanged (period + chart, calendar, day).
+  The copy is the dial's own (`score-templates.mjs` via `I18N_DETAIL.rec` / `load` / `deep`).
 - **The sheet** (`detail.js`, one renderer, per-view try/catch with a message fallback, no NaN ever
-  printed): header = metric, latest value + date, the band / target / typical day in words. The
-  header NEVER contradicts the card it opens from: recovery = the dial's headline (`head`: last
-  night's value + day band + "Last night" / the night's date, the 7-day trend as the secondary line
-  coloured by the TREND band; the chart's zone is the trend band at ±`cutTrend`, the daily points use
-  the day band); load = the dial's today logic (today's RE vs the typical day; a session without RE;
-  else "no session yet today" + the last session; a gated modality shows its gate copy — the copy is
-  imported from `score-templates.mjs`, so the words are the dial's). The dials carry no caption on
-  Inicio, so their former captions live in these headers: the sleep target ("Target 7.5 h"), "Last
-  night" / the night's date / "no sleep data" / "no recent complete night" and the 7-day trend
-  (recovery), and for load the ring scale ("half the ring = your typical training day"), the 7-day vs
-  42-day trend + band and the sessions-without-effort note (`loadContext`, read from the baked `DIALS`
-  global; no `DIALS`, or a gated modality → no trend line); weight / energy = the cards'
+  printed): header = metric, latest value + date, the band / target / typical day in words (the dial
+  pages above replace this header). The header NEVER contradicts the card it opens from; the
+  recovery chart's zone is the trend band at ±`cutTrend`, the daily points use the day band; weight / energy = the cards'
   7-day rolling average (`roll`, also the chart line) with the latest reading / day underneath; a
   daily total's newest day, when it is the viewer's today, is "Today, in progress" (neutral
   `partial` colour in the header, chart and calendar, never compared with the median); training time
