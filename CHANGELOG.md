@@ -4,6 +4,16 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-07 — Plan page restyle P3b: the rest of Inicio
+
+- "Tonight" card after the eat card: recommended bedtime ↔ usual wake time. Bedtime = the median wake
+  clock of the last 14 nights − the 7.5 h sleep target (`lib/score/tonight.mjs`, baked as
+  `SCORES.tonight`; hidden under 7 nights). The rule lives in the sheet the card opens, not on it.
+- "My plan": a collapsible weekly card (Monday–Sunday of the viewer's week) with up to four goals —
+  nights ≥ the sleep target (5), training days vs the programmed days or the usual week, days with food
+  logged (7) and days on the kcal target (5; both LAN only) — each hidden when its data is missing or
+  stale. Rendered by `client/home-week.js`, inlined with the Inicio panel.
+
 ## 2026-10-07 — Plan page restyle P3a: Inicio layout
 
 - Dials: three equal full rings (start at 12 o'clock, fill clockwise, thin stroke, round caps), the

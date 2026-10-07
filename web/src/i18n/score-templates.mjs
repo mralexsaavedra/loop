@@ -14,7 +14,35 @@ const UE = RECOVERY_UNIT.en, US = RECOVERY_UNIT.es;
 
 export const en = {
   // Inicio static headings (tabs/Home.astro)
-  home: { myDay: 'My day', moreMetrics: 'See metrics' },
+  home: {
+    myDay: 'My day',
+    moreMetrics: 'See metrics',
+    // "Tonight" card (client/home-week.js, SCORES.tonight from lib/score/tonight.mjs)
+    tonight: {
+      heading: 'Tonight\'s sleep',
+      bed: 'Recommended bedtime',
+      wake: 'Usual wake time',
+      aria: 'Tonight\'s sleep: recommended bedtime {bed}, usual wake time {wake}',
+      rule: 'Bedtime {bed} = your usual wake time ({wake}, the median of your last {n} nights) minus your sleep target of {target} h.',
+      note: 'A suggestion from your own data only: the page cannot set an alarm.',
+      history: 'See sleep history',
+      none: 'Not enough nights with a wake time yet (7 needed in the last 14 days).',
+    },
+    // "My plan" weekly card (client/home-week.js)
+    plan: {
+      heading: 'My plan',
+      card: 'Weekly plan',
+      daysLeft: '{n} days left',
+      oneLeft: '1 day left',
+      lastDay: 'Last day',
+      done: 'accomplished',
+      goal: 'Goal: {n} this week',
+      rows: { sleep: 'Nights ≥ {hours} h', training: 'Training days', food: 'Days with food logged', kcal: 'Days on kcal target' },
+      basis: { programmed: 'Vs the days programmed this week', typical: 'Vs your usual week (last 6 weeks)' },
+      onTrack: 'on track',
+      behind: 'behind pace',
+    },
+  },
   emptyMsg: 'No scores yet. Recovery needs the Apple Health extract; load needs workouts with Relative Effort (Strava).',
   asOfLbl: 'as of {date}',
   staleNote: 'The newest data is {days} days old: shown greyed, and no advice is given.',
@@ -150,7 +178,35 @@ export const en = {
 
 export const es = {
   // títulos fijos de Inicio (tabs/Home.astro)
-  home: { myDay: 'Mi día', moreMetrics: 'Ver métricas' },
+  home: {
+    myDay: 'Mi día',
+    moreMetrics: 'Ver métricas',
+    // tarjeta "Esta noche" (client/home-week.js, SCORES.tonight de lib/score/tonight.mjs)
+    tonight: {
+      heading: 'Esta noche',
+      bed: 'Hora de acostarte',
+      wake: 'Despertar habitual',
+      aria: 'Esta noche: hora recomendada para acostarte {bed}, despertar habitual {wake}',
+      rule: 'Acostarte a las {bed} = tu hora habitual de despertar ({wake}, la mediana de tus últimas {n} noches) menos tu objetivo de sueño de {target} h.',
+      note: 'Solo una sugerencia a partir de tus datos: la página no puede poner una alarma.',
+      history: 'Ver historial de sueño',
+      none: 'Aún no hay suficientes noches con hora de despertar (hacen falta 7 en los últimos 14 días).',
+    },
+    // tarjeta semanal "Mi plan" (client/home-week.js)
+    plan: {
+      heading: 'Mi plan',
+      card: 'Plan semanal',
+      daysLeft: 'Quedan {n} días',
+      oneLeft: 'Queda 1 día',
+      lastDay: 'Último día',
+      done: 'conseguido',
+      goal: 'Objetivo: {n} esta semana',
+      rows: { sleep: 'Noches ≥ {hours} h', training: 'Días de entreno', food: 'Días con comida registrada', kcal: 'Días en objetivo de kcal' },
+      basis: { programmed: 'Frente a los días programados esta semana', typical: 'Frente a tu semana habitual (últimas 6 semanas)' },
+      onTrack: 'a buen ritmo',
+      behind: 'por detrás del ritmo',
+    },
+  },
   emptyMsg: 'Aún no hay puntuaciones. La recuperación necesita la exportación de Apple Health; la carga necesita entrenos con Esfuerzo Relativo (Strava).',
   asOfLbl: 'a fecha {date}',
   staleNote: 'El dato más reciente tiene {days} días: se muestra en gris y no se da consejo.',
