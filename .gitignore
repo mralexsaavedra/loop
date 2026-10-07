@@ -2,9 +2,10 @@
 # Convention: any *.local.md is a per-machine note (e.g. the personal artifact URL).
 *.local.md
 
-# One-shot migration backups (e.g. plan-data.json.bak written by
-# scripts/migrate-plan-data.mjs before rewriting a personal data file).
+# Backups of personal data files taken before a hand edit (*.bak), and the
+# folder that keeps the latest one per file. Personal data: never commit.
 *.bak
+/backups/
 
 # --- Sensitive health data: NEVER commit ---
 # Raw Apple Health export and any parsed personal metrics stay local only.

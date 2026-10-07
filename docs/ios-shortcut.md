@@ -154,7 +154,7 @@ What the sync does with each shape:
   of each payload is dropped (the window starts mid-hour) and the latest payload wins an hour.
   It is used only to correct ride days: when a bike computer with a power meter records a ride the
   Watch did not, the Watch's energy during the ride hours is replaced by the ride's power-based
-  energy (Strava kJ), never lowering a day (CLAUDE.md, Health tab, energy).
+  energy (Strava kJ), never lowering a day (`docs/health-tab.md`, Energy).
 - **Dietary**: the four `diet_*` keys become one row per day. A day without `diet_kcal`, or with
   0 kcal, is skipped; a missing macro stays blank. These feed the intake rings in Nutrición.
 - **Exercise / distance / flights** (`exercise_watch`, `distance_watch`, `flights_watch`): Watch
@@ -230,4 +230,4 @@ no activity carries elevation.
 ## Next step
 
 Once data flows, open the Salud tab: waist, the intake rings and the recovery signals fill in
-as soon as their keys arrive. Metric definitions live in `CLAUDE.md` (Health tab section).
+as soon as their keys arrive. Metric definitions live in `docs/health-tab.md`.
