@@ -546,67 +546,67 @@
       "_doc": "Daily targets per goal (maintain / cut / bulk) and day type (rest; gym = a gym or run session ~1 h; bike = a ride ~2 h; bikeLong = a ride over 2.5 h). kcal, p = protein (g), f = fat (g); carbs are the remainder. Plan de hoy scales the parts marked flex:\"carb\" so the day lands on kcal.",
       "maintain": {
         "rest": {
-          "kcal": 2500,
-          "p": 150,
-          "f": 60
+          "kcal": 2300,
+          "p": 125,
+          "f": 65
         },
         "gym": {
-          "kcal": 3050,
-          "p": 150,
-          "f": 60
+          "kcal": 2700,
+          "p": 125,
+          "f": 65
         },
         "bike": {
-          "kcal": 3550,
-          "p": 150,
-          "f": 60
+          "kcal": 3100,
+          "p": 125,
+          "f": 65
         },
         "bikeLong": {
-          "kcal": 4200,
-          "p": 150,
-          "f": 60
+          "kcal": 3600,
+          "p": 125,
+          "f": 65
         }
       },
       "cut": {
         "rest": {
-          "kcal": 2150,
-          "p": 160,
+          "kcal": 1950,
+          "p": 140,
           "f": 55
         },
         "gym": {
-          "kcal": 2700,
-          "p": 160,
+          "kcal": 2350,
+          "p": 140,
           "f": 55
         },
         "bike": {
-          "kcal": 3550,
-          "p": 160,
+          "kcal": 3100,
+          "p": 140,
           "f": 55
         },
         "bikeLong": {
-          "kcal": 4200,
-          "p": 160,
+          "kcal": 3600,
+          "p": 140,
           "f": 55
         }
       },
       "bulk": {
         "rest": {
-          "kcal": 2800,
-          "p": 150,
+          "kcal": 2600,
+          "p": 125,
           "f": 70
         },
         "gym": {
-          "kcal": 3350,
-          "p": 150,
+          "kcal": 3000,
+          "p": 125,
           "f": 70
         },
         "bike": {
-          "kcal": 3850,
-          "p": 150,
+          "kcal": 3400,
+          "p": 125,
           "f": 70
         },
         "bikeLong": {
-          "kcal": 4500,
-          "p": 150,
+          "kcal": 3900,
+          "p": 125,
           "f": 70
         }
       }

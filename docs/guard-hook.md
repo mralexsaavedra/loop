@@ -19,8 +19,8 @@ mechanical.
   files, so it never depends on personal files existing. Commands in it are built from word arrays, so
   the file holds no literal force-add string (the live hook also guards the assistant's own shell).
 - `.claude/settings.json` — wires the hook as a `PreToolUse` command hook on `Bash|Edit|Write|MultiEdit`,
-  and denies `Read(**/.env*)` (plus `Read(./data/training/.env.hyprogram)` spelled out, redundant with
-  the glob but explicit for the Hyprogram credentials). The deny covers the Read tool only, not `cat` in
+  and denies `Read(**/.env*)` (every credentials file, including private program-sync ones under
+  `data/training/`). The deny covers the Read tool only, not `cat` in
   Bash.
 
 ## Bash: force-add of ignored paths
