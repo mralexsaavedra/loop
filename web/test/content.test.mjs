@@ -194,7 +194,7 @@ test('example build: glance on Inicio, detail behind it — Entreno holds load d
 test('example build: Inicio reads today top to bottom — dials, monitor tiles, "My day" (outlook bar + today\'s activities), eat card, the full monitor folded under "See metrics", the programmed-session source; the timeline is baked from demo data', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const home = sliceTabPanel(html, 'home');
-  const at = ['id="home-dials"', 'id="home-tiles"', 'id="my-day"', 'id="home-advice"', 'id="timeline"', 'class="eat-card"', 'id="home-tonight"', 'id="my-plan"', 'id="monitor-fold"', 'id="monitor"', 'data-section="hoy"'].map((n) => home.indexOf(n));
+  const at = ['id="home-dials"', 'id="home-tiles"', 'id="my-day"', 'id="home-advice"', 'id="timeline"', 'class="eat-card"', 'id="home-tonight"', 'id="my-plan"', 'id="my-dash"', 'id="monitor-fold"', 'id="monitor"', 'data-section="hoy"'].map((n) => home.indexOf(n));
   assert.ok(at.every((v, i) => v !== -1 && (i === 0 || v > at[i - 1])), `Inicio order ${at}`);
   assert.match(home, /<h2 class="home-h" id="my-day-h">My day<\/h2>/);
   // the full monitor grid keeps per-metric access, folded until P5 moves it to Salud
@@ -206,6 +206,8 @@ test('example build: Inicio reads today top to bottom — dials, monitor tiles, 
   assert.match(home, /<div id="home-tonight" hidden><\/div>/);
   assert.match(home, /<section class="home-sec" id="my-plan" aria-labelledby="my-plan-h" hidden>\s*<h2 class="home-h" id="my-plan-h">My plan<\/h2>/);
   assert.match(home, /HCWeekPlan/, 'home-week.js is inlined inside the Inicio panel');
+  assert.match(home, /<section class="home-sec" id="my-dash" aria-labelledby="my-dash-h" hidden>[\s\S]*?My dashboard<\/h2>\s*<button type="button" class="db-cust" id="dash-edit" data-detail="dash-edit"/);
+  assert.match(home, /HCDash/, 'home-dash.js is inlined inside the Inicio panel');
   assert.match(html, /"tonight":\{"asOf":"\d{4}-\d{2}-\d{2}","wake":/, 'demo data bakes a bedtime');
 });
 

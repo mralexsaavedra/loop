@@ -10,8 +10,9 @@
  * the globals baked by <Bake> (web/pages/index.astro) and Dia's NUTRI. The programmed session's own
  * section (tabs/Hoy.astro) follows as a hidden source inside the same `home` panel.
  * After the eat card: "Tonight" (#home-tonight: recommended bedtime ↔ usual wake time) and "My plan"
- * (#my-plan: the weekly goals card), both client/home-week.js. That script is rendered HERE, with the
- * panel, so a page whose Inicio is hidden carries none of it; it runs at DOMContentLoaded, after the
+ * (#my-plan: the weekly goals card), both client/home-week.js, then "My dashboard" (#my-dash: metric
+ * rows + "Customize", client/home-dash.js). Those scripts are rendered HERE, with the
+ * panel, so a page whose Inicio is hidden carries none of them; they run at DOMContentLoaded, after the
  * end-of-body scripts (layouts/Plan.astro) have defined HC, the baked globals and the detail sheet.
  * #home-mini = the collapsed dial row (fixed at the top, shown by score.js once the dials scroll away:
  * the same three rings small, with their labels; a tap opens the same detail as the dial).
@@ -21,6 +22,7 @@ import EatCard from '../components/EatCard.astro';
 import { es as esS, en as enS } from '../i18n/score-templates.mjs';
 import { slimScript } from '../slim-script.mjs';
 import homeWeekScript from '../client/home-week.js?raw';
+import homeDashScript from '../client/home-dash.js?raw';
 
 interface Props {
   locale: string;
@@ -44,5 +46,13 @@ const t = (locale === 'es' ? esS : enS).home;
   <h2 class="home-h" id="my-plan-h">{t.plan.heading}</h2>
   <div id="home-plan"></div>
 </section>
+<section class="home-sec" id="my-dash" aria-labelledby="my-dash-h" hidden>
+  <div class="home-hrow">
+    <h2 class="home-h" id="my-dash-h">{t.dash.heading}</h2>
+    <button type="button" class="db-cust" id="dash-edit" data-detail="dash-edit" aria-haspopup="dialog">{t.dash.customize}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></svg></button>
+  </div>
+  <div id="home-dash"></div>
+</section>
 <details class="hm-fold" id="monitor-fold"><summary class="hm-fold-sum">{t.moreMetrics}</summary><HealthMonitor /></details>
 <script is:inline set:html={slimScript(homeWeekScript)} />
+<script is:inline set:html={slimScript(homeDashScript)} />

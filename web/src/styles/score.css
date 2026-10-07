@@ -1246,3 +1246,171 @@ details.rec-raw > summary {
 .wp-bar i.wp-down {
   background: var(--down);
 }
+
+/* Inicio "My dashboard" (client/home-dash.js): Title Case heading + "CUSTOMIZE ✎" on one line, then
+   single-row metric cards — icon · UPPERCASE name · value (D-DIN) + arrow, the 30-day baseline under it */
+.home-hrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+.db-cust {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.db-cust svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linejoin: round;
+}
+.db-cust:hover {
+  color: var(--ink);
+}
+.db-cust:focus-visible,
+.db-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.db-list,
+.db-edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.db-row,
+.db-erow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: 60px;
+  padding: var(--sp-3) var(--sp-5);
+  border-radius: var(--r-sm);
+  background: var(--card-bg);
+}
+.db-row[data-detail][role="button"] {
+  padding-right: var(--sp-5);
+}
+.db-row[data-detail][role="button"]::after {
+  content: none;
+}
+.db-stale {
+  opacity: 0.55;
+}
+.db-ico {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.db-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.db-vals {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: none;
+}
+.db-val {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+}
+.db-val b {
+  font-family: var(--num);
+  font-size: var(--fs-2xl);
+  line-height: 1.1;
+}
+.db-val small {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+}
+.db-arr {
+  width: 10px;
+  font-size: 9px;
+  text-align: center;
+}
+.db-good {
+  color: var(--up);
+}
+.db-bad {
+  color: var(--down);
+}
+.db-flat {
+  color: var(--faint);
+}
+.db-base {
+  margin-right: 13px;
+  color: var(--faint);
+  font-family: var(--num);
+  font-size: var(--fs-2xs);
+}
+.db-empty {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+/* the customize sheet: show / hide + up / down per row */
+.db-erow {
+  background: var(--surface-2);
+}
+.db-off .db-name,
+.db-off .db-ico {
+  opacity: 0.5;
+}
+.db-btn {
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+}
+.db-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.db-tog {
+  min-width: 76px;
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.db-tog[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
