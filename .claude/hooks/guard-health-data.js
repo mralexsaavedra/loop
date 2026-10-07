@@ -20,7 +20,9 @@
  * checked with `git check-ignore --no-index` and `git ls-files -oi`, so a
  * directory argument (`data`, `.`) counts as every ignored file under it.
  * Each argument is judged on its own: an allowed argument never cancels a
- * personal one. Targets the hook cannot resolve (`$VAR`, `$(...)`, xargs,
+ * personal one. A non-builtin git subcommand is expanded as an alias (inline
+ * `-c alias.x=…`, then the git config; `!` shell aliases parsed as commands,
+ * loops bounded) so an alias cannot hide the force-add. Targets the hook cannot resolve (`$VAR`, `$(...)`, xargs,
  * --pathspec-from-file) are blocked. A small built-in list is the fallback
  * only when git is unavailable.
  *
@@ -298,7 +300,7 @@ const FORCE_ADD_TEXT = /\bgit\b[\s\S]*\b(add|stage)\b[\s\S]*(^|[\s'"])(-[A-Za-z]
  * a `( … )` subshell and has no effect when it runs in a pipeline or in the
  * background (`cd x | …`, `cd x & …`).
  */
-function collectForceAdds(cmd, startCwd, out = []) {
+function collectForceAdds(cmd, startCwd, out = [], ctx = ROOT_CTX) {
   const segs = [];
   let cur = [];
   let before = null;
@@ -318,7 +320,7 @@ function collectForceAdds(cmd, startCwd, out = []) {
   for (const seg of segs) {
     if (seg.words.length) {
       const persistent = !PIPE_OR_BACKGROUND.has(seg.before) && !PIPE_OR_BACKGROUND.has(seg.after);
-      const moved = inspectCommand(seg.words.slice(), cwd, cmd, out);
+      const moved = inspectCommand(seg.words.slice(), cwd, cmd, out, ctx);
       if (moved !== undefined && persistent) cwd = moved;
     }
     if (seg.after === '(') stack.push(cwd);
@@ -333,13 +335,15 @@ const resolveDir = (cwd, dir) => (!dir || dir.dynamic || cwd === null ? null : p
  * Inspect one simple command. Pushes force-add targets to `out`; returns the
  * new cwd for a `cd` / `pushd` (undefined for any other command).
  */
-function inspectCommand(words, cwd, fullText, out) {
+function inspectCommand(words, cwd, fullText, out, ctx = ROOT_CTX) {
   let viaXargs = false;
   let wrapped = false;
+  let envConfig = false;
   // Strip assignments and wrapper commands (`FOO=1 env sudo -u x git ...`, `xargs git ...`).
   while (words.length) {
     const w = words[0].word;
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(w)) {
+      if (/^GIT_CONFIG/.test(w)) envConfig = true; // git config injected via the environment
       words.shift();
     } else if (Object.prototype.hasOwnProperty.call(WRAPPERS, w)) {
       words.shift();
@@ -348,7 +352,7 @@ function inspectCommand(words, cwd, fullText, out) {
       if (found.chdir) cwd = resolveDir(cwd, found.chdir);
       if (found.split) {
         if (found.split.dynamic) out.push({ cwd, spec: found.split.word, unknown: true });
-        else collectForceAdds([found.split.word, ...words.map((t) => t.word)].join(' '), cwd, out);
+        else collectForceAdds([found.split.word, ...words.map((t) => t.word)].join(' '), cwd, out, ctx);
         return undefined;
       }
     } else if (w === 'xargs') {
@@ -388,7 +392,7 @@ function inspectCommand(words, cwd, fullText, out) {
     if (args.some((a) => a.dynamic)) {
       if (/\bgit\b/.test(text)) out.push({ cwd, spec: text, unknown: true });
     } else {
-      collectForceAdds(text, cwd, out);
+      collectForceAdds(text, cwd, out, ctx);
     }
     return undefined;
   }
@@ -397,7 +401,7 @@ function inspectCommand(words, cwd, fullText, out) {
     const ci = args.findIndex((a) => /^-[A-Za-z]*c[A-Za-z]*$/.test(a.word));
     if (ci !== -1) {
       if (args[ci + 1] && args[ci + 1].dynamic) out.push({ cwd, spec: args[ci + 1].word, unknown: true });
-      else if (args[ci + 1]) collectForceAdds(args[ci + 1].word, cwd, out);
+      else if (args[ci + 1]) collectForceAdds(args[ci + 1].word, cwd, out, ctx);
       return undefined;
     }
     // No -c: the shell reads a script file or its stdin (`echo '…' | bash`, a
@@ -411,27 +415,158 @@ function inspectCommand(words, cwd, fullText, out) {
   }
 
   if (name !== 'git') return undefined;
+  inspectGit(args, cwd, out, {
+    ...ctx,
+    viaXargs: ctx.viaXargs || viaXargs,
+    envConfig: ctx.envConfig || envConfig,
+  });
+  return undefined;
+}
+
+// --- git: global options, aliases, add / stage -----------------------------------
+
+// The root of every walk: no alias seen yet, no git config from the environment.
+const ROOT_CTX = { aliases: new Map(), chain: [], chainText: [], viaXargs: false, envConfig: false };
+// Alias expansions followed before giving up (git itself stops at a loop).
+const ALIAS_MAX_DEPTH = 10;
+// Text of a force-add inside an alias value (no `git` word: `add -f`).
+const ALIAS_FORCE_TEXT = /\b(add|stage)\b[\s\S]*(^|[\s'"])(-[A-Za-z]*f[A-Za-z]*|--f[a-z]*)([\s'"]|$)/;
+
+let builtinsCache;
+/** git's builtin commands (an alias never shadows one); null = git cannot answer. */
+function gitBuiltins() {
+  if (builtinsCache === undefined) {
+    const res = spawnSync('git', ['--list-cmds=builtins'], { encoding: 'utf8' });
+    builtinsCache =
+      res.error || res.status !== 0 ? null : new Set(res.stdout.split('\n').map((l) => l.trim()).filter(Boolean));
+  }
+  return builtinsCache;
+}
+
+/**
+ * The value of `alias.<name>` in the git config seen from `cwd` (repo, global,
+ * system): `{ value }`, `{ missing: true }`, `{ nogit: true }` (git not
+ * installed) or `{ unknown: true }` (git failed to answer).
+ */
+function lookupAlias(cwd, name, configOpts) {
+  const res = spawnSync('git', [...configOpts, 'config', '--get', `alias.${name}`], {
+    cwd,
+    encoding: 'utf8',
+  });
+  if (res.error) return res.error.code === 'ENOENT' ? { nogit: true } : { unknown: true };
+  if (res.status === 0) return { value: res.stdout.replace(/\n$/, '') };
+  if (res.status === 1) return { missing: true };
+  return { unknown: true };
+}
+
+/** Re-quote a parsed word for a shell command line (unknown words stay unknown). */
+const shellWord = (t) => (t.dynamic ? ' "$UNRESOLVED_ARGUMENT"' : ` '${t.word.replace(/'/g, "'\\''")}'`);
+
+/**
+ * Inspect the arguments of one `git` invocation (after the `git` word): global
+ * options (`-C`, `-c`, `--config-env`, …), then the subcommand. `add` / `stage`
+ * are judged directly; any other non-builtin subcommand is expanded as an alias
+ * (inline `-c alias.x=…` first, then the git config) and the expansion judged
+ * the same way, so `git -c alias.x='add -f' x …` cannot hide a force-add.
+ */
+function inspectGit(args, cwd, out, ctx) {
   let gitCwd = cwd;
+  const aliases = new Map(ctx.aliases);
+  const configOpts = []; // options that change which config git reads
+  const setConfig = (kv, fromEnv) => {
+    if (!kv) return;
+    const eq = kv.word.indexOf('=');
+    const m = /^alias\.(.+)$/i.exec(eq === -1 ? kv.word : kv.word.slice(0, eq));
+    if (!m) return;
+    // --config-env takes the value from a variable the hook cannot see.
+    if (fromEnv || kv.dynamic || eq === -1) aliases.set(m[1].toLowerCase(), { unknown: true });
+    else aliases.set(m[1].toLowerCase(), { value: kv.word.slice(eq + 1) });
+  };
   let i = 0;
   for (; i < args.length; i++) {
     const a = args[i].word;
     if (a === '-C') {
       gitCwd = resolveDir(gitCwd, args[++i]);
-    } else if (['-c', '--git-dir', '--work-tree', '--namespace', '--exec-path', '--super-prefix', '--config-env'].includes(a)) {
+    } else if (a === '-c') {
+      setConfig(args[++i], false);
+    } else if (a === '--config-env') {
+      setConfig(args[++i], true);
+    } else if (a.startsWith('--config-env=')) {
+      setConfig({ word: a.slice('--config-env='.length), dynamic: args[i].dynamic }, true);
+    } else if (a === '--git-dir' || a === '--work-tree') {
+      const v = args[++i];
+      if (v) configOpts.push(`${a}=${v.word}`);
+    } else if (a.startsWith('--git-dir=') || a.startsWith('--work-tree=')) {
+      configOpts.push(a);
+    } else if (['--namespace', '--exec-path', '--super-prefix'].includes(a)) {
       i++;
     } else if (!a.startsWith('-')) {
       break;
-    } // else: another global option (--no-pager, --git-dir=..., -p, ...)
+    } // else: another global option (--no-pager, --bare, -p, ...)
   }
   const sub = args[i] && args[i].word;
-  if (sub !== 'add' && sub !== 'stage') return undefined;
+  if (!sub) return;
+  const rest = args.slice(i + 1);
+  if (sub === 'add' || sub === 'stage') inspectAdd(rest, gitCwd, out, ctx.viaXargs);
+  else expandAlias(sub, rest, gitCwd, out, { ...ctx, aliases }, configOpts);
+}
 
+/** Expand `git <sub> <rest…>` when `sub` is an alias, and judge the expansion. */
+function expandAlias(sub, rest, gitCwd, out, ctx, configOpts) {
+  const builtins = gitBuiltins();
+  if (builtins && builtins.has(sub)) return; // git never lets an alias shadow a builtin
+  const name = sub.toLowerCase(); // config variable names are case-insensitive
+  const unresolved = (why) => out.push({ cwd: gitCwd, spec: `git alias "${sub}" (${why})`, unknown: true });
+
+  if (ctx.chain.includes(name) || ctx.chain.length >= ALIAS_MAX_DEPTH) {
+    // git refuses an alias loop, but fail closed when any step hides a force-add
+    if (ctx.chainText.some((t) => ALIAS_FORCE_TEXT.test(t))) unresolved('alias loop expanding to a force-add');
+    return;
+  }
+  let entry = ctx.aliases.get(name);
+  if (!entry) {
+    if (ctx.envConfig) return unresolved('git config set through GIT_CONFIG_* variables');
+    // With an unknown cwd only the global / system config can be read, and a
+    // repo-local alias of that name may still exist: fail closed if none is found.
+    entry = lookupAlias(gitCwd === null ? path.parse(process.cwd()).root : gitCwd, name, configOpts);
+    if (gitCwd === null && entry.missing) return unresolved('directory cannot be resolved');
+  }
+  if (entry.missing || entry.nogit) return;
+  if (entry.unknown) return unresolved('value cannot be resolved before running');
+
+  const text = entry.value;
+  const next = { ...ctx, chain: [...ctx.chain, name], chainText: [...ctx.chainText, text] };
+  if (text.startsWith('!')) {
+    // A shell alias: git runs `sh -c '<text> "$@"'` from the top of the work
+    // tree, and passes its -c config on to any git it starts.
+    let top = gitCwd;
+    if (gitCwd !== null) {
+      const res = git(gitCwd, ['rev-parse', '--show-toplevel']);
+      if (!res.error && res.status === 0 && res.stdout.trim()) top = res.stdout.trim();
+    }
+    const shellText = text.slice(1) + rest.map(shellWord).join('');
+    const before = out.length;
+    collectForceAdds(shellText, top, out, next);
+    if (out.length === before && FORCE_ADD_TEXT.test(shellText)) unresolved('shell alias text looks like a force-add');
+    return;
+  }
+  // git splits a plain alias like a shell would, but `;`, `|`, `&&` are just words to it.
+  const tokens = tokenize(text);
+  if (tokens.some((t) => t.op)) {
+    if (ALIAS_FORCE_TEXT.test(text)) unresolved('alias text looks like a force-add');
+    return;
+  }
+  inspectGit([...tokens, ...rest], gitCwd, out, next);
+}
+
+/** Judge the arguments of `git add` / `git stage` and push its force-add targets. */
+function inspectAdd(addArgs, gitCwd, out, viaXargs) {
   let force = false;
   let all = false;
   let unknownSource = viaXargs;
   const specs = [];
   let endOfOptions = false;
-  for (const a of args.slice(i + 1)) {
+  for (const a of addArgs) {
     const w = a.word;
     if (!endOfOptions && w === '--') {
       endOfOptions = true;
@@ -447,11 +582,10 @@ function inspectCommand(words, cwd, fullText, out) {
       specs.push(a);
     }
   }
-  if (!force) return undefined;
+  if (!force) return;
   if (unknownSource) out.push({ cwd: gitCwd, spec: '(pathspecs read from stdin/file)', unknown: true });
   if (!specs.length && all) out.push({ cwd: gitCwd, spec: ':/', unknown: false });
   for (const s of specs) out.push({ cwd: gitCwd, spec: s.word, unknown: s.dynamic || gitCwd === null });
-  return undefined;
 }
 
 // --- ignore checks -------------------------------------------------------------
