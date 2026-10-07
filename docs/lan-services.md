@@ -8,7 +8,7 @@
 
 ## LAN page + on-demand refresh — `services/plan-web` + `services/health-ingest`
 
-Besides the claude.ai artifact, `services/plan-web` serves `web/dist/personal/index.html` on the LAN
+Besides opening the built file locally, `services/plan-web` serves `web/dist/personal/index.html` on the LAN
 (nginx, `./site` only), gzipped (server level: the page, CSS / JS / JSON, ≥ 1 KB, level 5, `Vary`;
 the four proxied ingest routes are `gzip off` — their responses reflect request input next to stored
 data, a BREACH-style oracle; pinned by `scripts/plan-web-config.test.mjs`; rollout `docker compose

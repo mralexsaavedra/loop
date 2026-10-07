@@ -56,20 +56,17 @@ you MUST follow for any number you produce).
 | `node data/apple-health/extract.js` | Rebuild the extract CSVs from a new `export.xml` (then re-run `npm run sync`) |
 | `node scripts/build-web.mjs [--mode personal\|example] [--locale es\|en]` | Build one page variant into `web/dist/<mode>/index.html` |
 
-Fresh-clone bootstrap (copy the `.example` seeds, `npm ci && npm run generate`): README → How to use it.
+Fresh-clone bootstrap (copy the `.example` seeds, `npm ci && npm run generate`): README → Setup.
 **To change a plan number, edit `plan-data.json` (servings/day plan) or `ingredients.json` (a food's
 macros/label) — never the generated files** ([`docs/nutrition.md`](docs/nutrition.md)).
 
-## Publishing the page
+## Viewing the page
 
-**The owner views the plan on the LAN page** (`services/plan-web`, see
-[docs/lan-services.md](docs/lan-services.md)); the former claude.ai artifact was retired on
-2026-10-07. The page is rebuilt from `main` hourly and on demand (the page's Sync button, or
-`POST http://127.0.0.1:8088/sync`), and only publishes from `main` — keep this clone on `main` and
-do feature work in a separate git worktree. After a change merges, check
-`services/plan-web/site/status.json` shows the new `commit` with no `error`. The build output stays
-self-contained and CSP-safe (no external refs, every script `is:inline`), so a static copy still
-works without the LAN services.
+`npm run generate` builds `web/dist/personal/index.html`: one self-contained, CSP-safe file (no external
+refs, every script `is:inline`) that opens locally with no server. If you run the LAN services
+(`services/plan-web` + `services/health-ingest`), they serve and rebuild it on your network — see
+[docs/lan-services.md](docs/lan-services.md). Setup-specific notes (your own publishing routine, branch
+policy) go in a gitignored `CLAUDE.local.md`, which Claude Code loads next to this file.
 
 ## Repo rules
 

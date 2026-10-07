@@ -1,6 +1,12 @@
 # --- Local-only notes (private: personal URLs, secrets, scratch). NEVER commit ---
 # Convention: any *.local.md is a per-machine note (e.g. the personal artifact URL).
 *.local.md
+# Claude Code auto-loads CLAUDE.local.md next to CLAUDE.md: the owner's own operating notes
+# (setup-specific workflow). Already covered by *.local.md; listed explicitly so it is never lost.
+CLAUDE.local.md
+
+# Owner's working notes (feature task docs, progress, queued work) — kept locally, never published.
+odd/
 
 # Backups of personal data files taken before a hand edit (*.bak), and the
 # folder that keeps the latest one per file. Personal data: never commit.

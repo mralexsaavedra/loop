@@ -32,9 +32,9 @@ conversationally — do not make them fill a form alone. Replicate a real coach 
    will ingest now (`knowledge/README.md`); never suggest or invent creators for them. Nothing to
    add yet → write only `## Common`: the coaches then answer from the evidence base and the user's
    data and say no source is configured.
-6. **Point them at their data.** Explain the data-drop steps from the README (Apple Health
-   export → `data/apple-health/`, then `extract.js`; nutrition → copy `food-log.example.md`
-   → `food-log.md`; **training → copy `data/training/training-data.example.json` →
+6. **Point them at their data.** Explain the data-drop steps (README → Setup, by level: Apple Health
+   export → `data/apple-health/`, then `extract.js`; nutrition → the Level 2 food log, or legacy
+   notes in a copy of `food-log.example.md` → `food-log.md`; **training → copy `data/training/training-data.example.json` →
    `training-data.json`** and transcribe their program by date from whatever their coach/app
    provides (PDF grids → render to PNG and read visually; a login-gated training app → have them
    paste/screenshot the sessions), see `docs/training.md` — then
