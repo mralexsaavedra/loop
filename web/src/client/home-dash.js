@@ -14,8 +14,8 @@
  * write is wrapped in try/catch, unknown or unavailable keys are ignored and missing ones fall back to
  * the catalogue order + default visibility, so the page works the same without storage (in memory).
  *
- * Classic script rendered with the Inicio panel (tabs/Home.astro), run at DOMContentLoaded like
- * client/home-week.js; its own try/catch hides the section on a throw. */
+ * Classic script in layouts/Plan.astro's end-of-body list, right after client/home-week.js and before
+ * detail.js (its `dash-edit` sheet is registered before detail.js runs); its own try/catch hides the section on a throw. */
 (function () {
   function boot() {
     var TS = typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home.dash : null;
@@ -209,6 +209,5 @@
     window.HCDash = { prefsFrom: prefsFrom, serialize: serialize, edit: edit, rowValue: rowValue, render: renderDash, CATALOG: CATALOG, DEFAULT_ON: DEFAULT_ON, PREFS_KEY: PREFS_KEY };
     renderDash();
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
-  else boot();
+  boot();
 })();

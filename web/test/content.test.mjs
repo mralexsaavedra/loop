@@ -202,12 +202,19 @@ test('example build: Inicio reads today top to bottom — dials, monitor tiles, 
   assert.match(html, /"timeline":\{"asOf":"\d{4}-\d{2}-\d{2}","days":\[\{"date"/, 'demo data fills the timeline');
   assert.match(html, /getElementById\(["']timeline["']\)/, 'timeline.js is inlined');
   assert.match(html, /getElementById\(["']home-tiles["']\)/, 'monitor.js writes the tiles');
-  // Tonight + My plan ship hidden; client/home-week.js (inlined with the panel) reveals them
+  // Tonight + My plan ship hidden; client/home-week.js (an end-of-body script) reveals them
   assert.match(home, /<div id="home-tonight" hidden><\/div>/);
   assert.match(home, /<section class="home-sec" id="my-plan" aria-labelledby="my-plan-h" hidden>\s*<h2 class="home-h" id="my-plan-h">My plan<\/h2>/);
-  assert.match(home, /HCWeekPlan/, 'home-week.js is inlined inside the Inicio panel');
+  assert.doesNotMatch(home, /<script/, 'no script inside the Inicio panel');
+  // home-week.js + home-dash.js run in the end-of-body list, after their globals and before
+  // deepdive.js / detail.js, so their views (tonight, dash-edit) exist when detail.js runs
+  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1]);
+  const idx = (re) => scripts.findIndex((x) => re.test(x));
+  const week = idx(/window\.HCWeekPlan\s*=/), dash = idx(/window\.HCDash\s*=/), deep = idx(/window\.HCDeep\s*=/), detail = idx(/window\.HCDetail\s*=/);
+  const adherence = idx(/window\.HCAdherence\s*=/), util = idx(/var HC\s*=\s*\(function/);
+  assert.ok(util !== -1 && adherence !== -1 && week > adherence && week > util, 'after util.js and adherence.js');
+  assert.ok(dash > week && deep > dash && detail === deep + 1, 'home-week → home-dash → deepdive → detail');
   assert.match(home, /<section class="home-sec" id="my-dash" aria-labelledby="my-dash-h" hidden>[\s\S]*?My dashboard<\/h2>\s*<button type="button" class="db-cust" id="dash-edit" data-detail="dash-edit"/);
-  assert.match(home, /HCDash/, 'home-dash.js is inlined inside the Inicio panel');
   assert.match(html, /"tonight":\{"asOf":"\d{4}-\d{2}-\d{2}","wake":/, 'demo data bakes a bedtime');
 });
 

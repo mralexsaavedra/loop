@@ -11,18 +11,15 @@
  * section (tabs/Hoy.astro) follows as a hidden source inside the same `home` panel.
  * After the eat card: "Tonight" (#home-tonight: recommended bedtime ↔ usual wake time) and "My plan"
  * (#my-plan: the weekly goals card), both client/home-week.js, then "My dashboard" (#my-dash: metric
- * rows + "Customize", client/home-dash.js). Those scripts are rendered HERE, with the
- * panel, so a page whose Inicio is hidden carries none of them; they run at DOMContentLoaded, after the
- * end-of-body scripts (layouts/Plan.astro) have defined HC, the baked globals and the detail sheet.
+ * rows + "Customize", client/home-dash.js). Those scripts run in layouts/Plan.astro's end-of-body
+ * list (after HC, the baked globals and adherence.js, before deepdive.js / detail.js), so their sheets
+ * (tonight, dash-edit) are registered before detail.js runs.
  * #home-mini = the collapsed dial row (fixed at the top, shown by score.js once the dials scroll away:
  * the same three rings small, with their labels; a tap opens the same detail as the dial).
  */
 import HealthMonitor from '../components/HealthMonitor.astro';
 import EatCard from '../components/EatCard.astro';
 import { es as esS, en as enS } from '../i18n/score-templates.mjs';
-import { slimScript } from '../slim-script.mjs';
-import homeWeekScript from '../client/home-week.js?raw';
-import homeDashScript from '../client/home-dash.js?raw';
 
 interface Props {
   locale: string;
@@ -54,5 +51,3 @@ const t = (locale === 'es' ? esS : enS).home;
   <div id="home-dash"></div>
 </section>
 <details class="hm-fold" id="monitor-fold"><summary class="hm-fold-sum">{t.moreMetrics}</summary><HealthMonitor /></details>
-<script is:inline set:html={slimScript(homeWeekScript)} />
-<script is:inline set:html={slimScript(homeDashScript)} />
