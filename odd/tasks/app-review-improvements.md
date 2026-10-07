@@ -30,7 +30,7 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 
 - [x] T1 Food log export (route: delegated writer — preparation + 2+ non-trivial files)
 - [ ] T2 Past-day rings from food log
-- [ ] T3 Remove day-builder leftovers + single `targetFor`
+- [x] T3 Remove day-builder leftovers + single `targetFor` (route: delegated writer — 2+ non-trivial files)
 - [ ] T5 Archive migration scripts
 - [ ] T9 Late-night entry default
 - [ ] T10 Minify inline CSS
@@ -41,8 +41,10 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 
 ## Progress / evidence
 
-- T1: `data/nutrition/sync-foodlog.js` → gitignored `foodlog-daily.csv` (+ `.meta.json`), 120-day window, wired into sync-all + `sync:foodlog`; nutrition-coach reads it. RED: module missing + SCRIPTS pin; GREEN: 13/13 new, `npm test` 1582/1582 (writer), parent re-ran new test 13/13. Per-entry detail skipped (1 request per date). Engram mirror: pending (ambiguous active sessions).
+- T1: `data/nutrition/sync-foodlog.js` → gitignored `foodlog-daily.csv` (+ `.meta.json`), 120-day window, wired into sync-all + `sync:foodlog`; nutrition-coach reads it. RED: module missing + SCRIPTS pin; GREEN: 13/13 new, `npm test` 1582/1582 (writer), parent re-ran new test 13/13. Per-entry detail skipped (1 request per date). Engram mirror: pending (ambiguous active sessions). Commit d5c781a. Review: tier high (process boundary), consent granted, 4 lenses approved, acknowledged (lineage review-1a6eee42b5502cc2). Reviewed boundary → d5c781a.
+
+- T3: legacy `targetFor`, `extraKeys`/`extraNames`/`indulge`/`alcoholKeys`/`mealReplaceKeys` removed from macros.mjs + generate.js; legacy plan keys now a `npm run check` WARNING (`LEGACY_PLAN_KEYS`), never an error; example plan stripped (example build byte-identical). RED: legacy-fields test failed with subset errors; GREEN after fix. `npm test` 1578/1578 (writer); parent re-ran `npm run check` OK with 5 warnings on the personal plan. Note: migrate-plan-data.mjs still writes those keys → T5.
 
 ## Next step
 
-T3 (dead day-builder code).
+T5 (archive migration scripts).

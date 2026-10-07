@@ -838,96 +838,6 @@
       ]
     }
   },
-  "extrasDisplay": [
-    {
-      "header": "Coffee & oil",
-      "headerNote": "Breakfast already includes its coffee; count the rest here. Oil ≈ 11 ml (1 tablespoon).",
-      "items": [
-        {
-          "key": "cafe",
-          "emoji": "☕",
-          "name": "Coffee with milk",
-          "qty": "145 ml milk",
-          "note": null,
-          "copyName": "coffee with milk"
-        },
-        {
-          "key": "aceite",
-          "emoji": "🫒",
-          "name": "Oil",
-          "qty": "1 tablespoon",
-          "note": "10 g fat",
-          "copyName": "oil"
-        }
-      ]
-    },
-    {
-      "header": "Cheese & sauces",
-      "headerNote": null,
-      "items": [
-        {
-          "key": "cheeseslice",
-          "emoji": "🧀",
-          "name": "Cheese slice",
-          "qty": "1 slice 20 g",
-          "note": null,
-          "copyName": "cheese slice"
-        },
-        {
-          "key": "tomatosauce",
-          "emoji": "🍅",
-          "name": "Tomato sauce",
-          "qty": "50 g",
-          "note": null,
-          "copyName": "tomato sauce"
-        }
-      ]
-    },
-    {
-      "header": "Vegetables · per 100 g",
-      "headerNote": null,
-      "items": [
-        {
-          "key": "zucchini",
-          "emoji": "🥒",
-          "name": "Zucchini",
-          "qty": "100 g",
-          "note": null,
-          "copyName": "zucchini"
-        },
-        {
-          "key": "pepper",
-          "emoji": "🫑",
-          "name": "Bell pepper",
-          "qty": "100 g",
-          "note": null,
-          "copyName": "bell pepper"
-        }
-      ]
-    },
-    {
-      "header": "Treats",
-      "headerNote": "Beer and chocolate with your real labels.",
-      "items": [
-        {
-          "key": "beer",
-          "emoji": "🍺",
-          "name": "Beer",
-          "qty": "1 bottle 250 ml",
-          "note": null,
-          "copyName": "beer"
-        },
-        {
-          "key": "chocolate",
-          "emoji": "🍫",
-          "name": "Chocolate",
-          "qty": "1 square 8 g",
-          "note": null,
-          "copyName": "chocolate"
-        }
-      ]
-    }
-  ],
   "quesoKeys": [
     "cheeseslice",
     "tomatosauce"
@@ -964,14 +874,6 @@
     },
     "goal": "maintain"
   },
-  "indulgeKeys": [
-    "beer",
-    "chocolate"
-  ],
-  "alcoholKeys": [
-    "beer"
-  ],
-  "mealReplaceKeys": [],
   "validation": {
     "kcalBand": {
       "train": [

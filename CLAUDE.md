@@ -546,7 +546,7 @@ controls instead of the close button.
   `piece.amt`: allioli / mayonesa 15 g; olive oil has NO piece, it is per 100 ml and logged in ml); and `weighed: raw | dry |
   cooked` (how the plan weighs it: meat raw, rice / pasta / oats dry, potato / legumes cooked).
 - `data/nutrition/plan-data.json` (GITIGNORED, **personal** plan) — the owner's actual diet:
-  `data`/`dayPlan`/`extras`/`extrasDisplay`/`quesoKeys`/`vegKeys`/`legumeKeys`/`legumePlate`/
+  `data`/`dayPlan`/`extras`/`quesoKeys`/`vegKeys`/`legumeKeys`/`legumePlate`/
   `page`. Each item's `recipe` (`[{ing, amt}]`) references ingredient keys from
   `ingredients.json`; macros are COMPUTED, never hand-typed. Items with no single label use a
   `manual` macro block (legumes, soup, pintxo) — kept verbatim.
@@ -625,9 +625,10 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   numbers: maintain 2500 / 3050 / 3550 / 4200 kcal with 150 P / 60 F; cut 2150 / 2700 / 3550 / 4200
   with 160 / 55; bulk 2800 / 3350 / 3850 / 4500 with 150 / 70 — rest / gym / bike / bikeLong), so an
   old plan keeps working. Default goal = `page.goal` (else maintain). `targets.train` / `targets.rest`
-  (`targetFor`) are no longer read by the page (they fed the removed day builder); generate.js keeps
-  exporting `targetFor`. Likewise `extrasDisplay`, `indulgeKeys`, `alcoholKeys`, `mealReplaceKeys` and
-  `page.notes['registro.*']` / `page.offPlanPlaceholder` stay valid in a plan but render nothing.
+  are read by nothing (they fed the removed day builder; its `targetFor` is gone). Likewise
+  `extrasDisplay`, `indulgeKeys`, `alcoholKeys`, `mealReplaceKeys` and `page.notes['registro.*']` /
+  `page.offPlanPlaceholder` are IGNORED legacy keys: accepted, never an error, and `npm run check`
+  warns about each (`LEGACY_PLAN_KEYS` in `macros.mjs`; safe to delete from a plan).
 - **Portion scaling** — `lib/nutrition/scale.mjs`: plans keep their two base days; `BASE_DAY` maps
   rest → `dayPlan.rest`, gym / bike / bikeLong → `dayPlan.train`. CARB-FLEX parts (`lib/nutrition/flex.mjs`
   `isFlexPart`) scale, every other part stays fixed: `flex: null` opts a part OUT; an explicit
