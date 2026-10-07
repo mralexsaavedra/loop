@@ -1,6 +1,6 @@
 # Knowledge base + expert subagents
 
-Transcript ingest, Hyprogram sync, and the three read-only coach subagents.
+Transcript ingest, private program syncs, and the three read-only coach subagents.
 
 > Area design doc (moved out of `CLAUDE.md` on 2026-10-07). Read it before changing this area and keep
 > it in sync with the code in the same commit. Section names quoted in the text ("Nutrition v2 part 2",
@@ -22,21 +22,12 @@ paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index
   External `yt-dlp` (`$YT_DLP` → PATH → `~/.local/bin/yt-dlp`). Pure parts (VTT → paragraphs,
   track choice, naming, manifest merge, flags) in `scripts/youtube-transcript.mjs`, unit-tested.
   Re-run it to pick up new uploads.
-- **Hyprogram sync** — `node scripts/sync-hyprogram.mjs [--dry-run] [--limit N]`: pulls the owner's
-  current "HP Hybrid" program (a login-gated Next.js app, NextAuth credentials) into
-  `knowledge/hybrid/hyprogram/` — `raw/<id>.json` (an ALLOWLIST of the rendered fields only —
-  id, date, titles, sections' wod / coach notes; file named from a safe id, else the ISO date),
-  `semanas/<YYYY-Www>.md` (faithful Spanish render of each day: sections, WOD, coach notes) and
-  `manifest.json` (incremental, per-date `fetchedAt`). Read-only GETs on the owner's own account;
-  polite (~1.5 s apart) and it early-stops at the edge of the rolling access window (only a recent
-  block of days is viewable). Credentials live in `data/training/.env.hyprogram` (gitignored, 0600:
-  `HYPROGRAM_EMAIL`, `HYPROGRAM_PASSWORD`; `HYPROGRAM_ENV` overrides the path, only to a file named `.env.hyprogram`; a group / world-readable
-  mode is a warning) and are NEVER logged; the cookie is only sent to the pinned hyprogram.com origin,
-  the session counts only when `/api/auth/session` returns a user, and errors stay coarse
-  (`auth_failed`, `http_403`), never echoing tokens. Pure parts
-  (ProseMirror → Markdown, PII strip, week/date math, fetch plan, manifest) in
-  `scripts/hyprogram-lib.mjs`, unit-tested. `hybrid-coach` reads the output. Re-run to extend the
-  history as new weeks unlock.
+- **Private program syncs** — a script that pulls the owner's own training program from a
+  login-gated service (personal account, third-party terms) is owner-only tooling: it lives in the
+  gitignored `local/` folder (never published), writes into gitignored `knowledge/hybrid/<program>/`,
+  and keeps its credentials in a gitignored `.env.*` file the Read tool is denied. Its unit tests run
+  by hand (`node --test local/<tool>/*.test.mjs`), not from `npm test`. `profile/about-me.md` says
+  where the current program lives, so `hybrid-coach` can read it.
 - **Shared by the three coach subagents** — `tools: Read, Grep, Glob` (no Bash: anything that needed
   a shell is done with Read / Grep). The SAME "Shared rules" block in each (reply in the user's
   language, Spanish by default; not-a-doctor note on health topics; never read `.env*` / credentials;
@@ -69,9 +60,8 @@ paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index
 - **`hybrid-coach` subagent** (`.claude/agents/hybrid-coach.md`, read-only) — DELEGATE to it any
   HYROX / hybrid TRAINING question (running + strength + conditioning, Hyrox stations, race strategy,
   programming, comparing a program with what he did); race nutrition → `nutrition-coach`, cycling →
-  `cycling-coach`. Hyprogram: synced by cron (Sun 21:15 / Mon 06:15) into
-  `knowledge/hybrid/hyprogram/semanas/`; nothing before 2026-09-21 is available (rolling window); the
-  `temas/` syntheses have no Hyprogram section yet, so it reads `semanas/` directly. The HYROX station
+  `cycling-coach`. The current program is read from where `profile/about-me.md` says it lives
+  (see "Private program syncs" above), newest week checked against today. The HYROX station
   weights table (`temas/estaciones-y-tecnica.md`, marked verificar) is never stated as fact: it
   points to the current official rulebook. Same rules as `cycling-coach` (podcast claims cited with `&t=<seconds>s`, programs
   by file / month / week; auto-caption numbers and sponsor bias flagged; sources vs methodology kept
@@ -81,9 +71,8 @@ paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index
   (cross-source syntheses); `hyprodcast/` (a Hyrox podcast: the YouTube ingest layout above +
   `videos/*.md` summaries); `ferry/` (coach Ferry, the owner's program Dec 2025 – Jun 2026:
   `index.md`, `metodo-ferry.md`, `months/<YYYY-MM>-ferry.md` transcribed from the PDFs);
-  `training-culture/hybrid-6-semanas.md` (a 6-week block); `hyprogram/` (the current Hyprogram
-  "HP Hybrid" program, from 2026-07-01, kept in sync by `scripts/sync-hyprogram.mjs` above —
-  `semanas/<YYYY-Www>.md` + `raw/*.json`).
+  `training-culture/hybrid-6-semanas.md` (a 6-week block); `<program>/` (the current program, kept
+  in sync by a private script under `local/` — see above).
 - **`nutrition-coach` subagent** (`.claude/agents/nutrition-coach.md`, read-only) — DELEGATE to it any
   sports nutrition / supplementation question, including the nutrition side of a cycling or HYROX
   question (daily diet for training, fat loss and body composition, protein, carbs around training,

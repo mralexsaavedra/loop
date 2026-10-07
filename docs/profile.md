@@ -19,7 +19,7 @@ controls instead of the close button.
 
 - **Goal setting ("Objetivo")** — the FIRST section under the header (also on the onboarding sheet):
   three labelled radios Mantener / Bajar / Ganar, each with a one-line description ("Mantener tu
-  peso", "Déficit suave (~−320 kcal/día, sin tocar los días de bici)", "Superávit suave (~+300
+  peso", "Déficit suave (~−350 kcal/día, sin tocar los días de bici)", "Superávit suave (~+300
   kcal/día)"). The kcal come from `lib/profile/goal.mjs` `goalOptions(resolveTargets(plan))` (mean
   goal − maintain over rest + gym, rounded to 10; "bike days untouched" only when bike / bikeLong
   equal maintain), baked as `PROFILE.goals` by `web/pages/index.astro`, never typed. The goal itself

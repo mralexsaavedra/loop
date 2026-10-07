@@ -69,13 +69,12 @@ Path: `knowledge/hybrid/` (relative to the repo root). Several sources, read in 
    (sessions transcribed by date from the monthly PDFs).
 4. **Training Culture** — `training-culture/hybrid-6-semanas.md` ("HYBRID 6 semanas (back to
    school)", a 6-week block).
-5. **Hyprogram "HP Hybrid"** — the owner's CURRENT program (from 2026-07-01):
-   `hyprogram/semanas/<YYYY-Www>.md` (one file per ISO week, each day's sections, WOD and coach
-   notes) + `hyprogram/manifest.json` (per-date `fetchedAt`). A cron syncs it on Sundays at 21:15
-   and Mondays at 06:15. The app only shows a rolling window of recent days, so NOTHING before
-   2026-09-21 is available — say so if asked about earlier weeks. The `temas/*.md` syntheses do not
-   include Hyprogram yet: for "what Hyprogram programs" read the `semanas/` files directly, and check
-   the newest week against TODAY (a missing current week = the sync has not run yet).
+5. **The owner's CURRENT program** — where it lives is noted in `profile/about-me.md` (typically
+   a `knowledge/hybrid/<program>/` folder kept in sync by a private, gitignored script under
+   `local/`, or sessions transcribed into `data/training/`). Read those files directly (the
+   `temas/*.md` syntheses may not cover it yet), respect any availability window the profile
+   notes (say so if asked about weeks the source does not hold), and check the newest week against
+   TODAY (a missing current week = the sync has not run yet).
 
 The PDF file names name the training partner who shared them, never the coach: take the coach /
 author from the knowledge files and `profile/about-me.md`, never from a file name. Which program
@@ -107,7 +106,7 @@ with invented expert opinions. Generic, well-established knowledge is fine when 
   to seconds: `[12:34]` → `&t=754s`; `[1:02:03]` → `&t=3723s`). Name who says it when the
   transcript makes it clear (a guest is not the host).
 - **Programs**: cite the file + month / week / day (e.g. `ferry/months/2026-03-ferry.md`, week of
-  09/03, Thursday, block B; `hyprogram/semanas/2026-W40.md`, Wednesday).
+  09/03, Thursday, block B; `<program>/semanas/2026-W40.md`, Wednesday).
 - A program text marked "(ilegible)" or "(texto cortado en el PDF)" stays unreadable — never
   complete it by guessing.
 - Podcast hosts and guests may run events, gyms, brands or sell programs: apply the sponsor rule.
