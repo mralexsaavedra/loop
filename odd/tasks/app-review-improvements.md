@@ -52,7 +52,7 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 
 - T10: `slimStyle` (esbuild css, whitespace only) applied by an `astro:build:done` integration; CSS 105.7k → 75.9k chars; personal page 528/149 KB → 497/140 KB (raw/gzip); deterministic (cmp identical). RED 3 fails → GREEN 30/30; `npm test` 1553/1553 (writer); parent re-ran css-slim test. Commits cd7cfe7 (T9), 03b6d9f (T10): each under_budget; reviewed together as slice 2 tail (c41ccad..03b6d9f): medium, consent granted, reliability lens approved, acknowledged. Reviewed boundary → 03b6d9f.
 
-- T2: `HCFood.recentDay(days)` from `/food/log/summary` (lazy, refreshed on add/delete); LAN rings = food log only (today, else newest logged day in 3 days, else none); static page unchanged; `INTAKE.target.rest` dropped. RED 8 → GREEN 105/105; `npm test` 1561/1561; example build deterministic. Follow-up (not done): brief Apple Health flash on LAN boot before the food API answers (pre-existing for today too); `I18N_INTAKE.targetLbl.rest` possibly unused.
+- T2: `HCFood.recentDay(days)` from `/food/log/summary` (lazy, refreshed on add/delete); LAN rings = food log only (today, else newest logged day in 3 days, else none); static page unchanged; `INTAKE.target.rest` dropped. RED 8 → GREEN 105/105; `npm test` 1561/1561; example build deterministic. Follow-up (not done): brief Apple Health flash on LAN boot before the food API answers (pre-existing for today too); `I18N_INTAKE.targetLbl.rest` possibly unused. Commit deae1c9; reviewed as slice 3 (medium, consent granted, reliability approved, acknowledged). Boundary → deae1c9.
 
 ## Slices (stacked to main)
 
