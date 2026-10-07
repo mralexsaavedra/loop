@@ -4,6 +4,19 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-07 — Plan page restyle P5: Salud
+
+- Salud reads like a health tab: a centred uppercase title with an ⓘ (the intro) over a soft green
+  glow, then the health monitor list (moved out of Inicio's "See metrics" fold: status chip, one row
+  per signal with ▲ / ▼ / • vs the personal range; Inicio's tile now jumps to Salud, `#monitor`
+  deep-links there), then Recovery, Fitness (new: VO₂max + walking HR, out of Recovery), Sleep, Body
+  composition, Activity and Energy as metric rows (the "My dashboard" row, shared as `HC.metricRow`):
+  the newest value, the 30-day baseline or Δ, a direction-aware marker. Same data, no new metric.
+- Text diet: every section intro and caveat moved behind its section's ⓘ; sparklines left the cards
+  (the detail sheet holds the history). The intake balance + macro cards stay under Energy until P6.
+- `#tonight` and `#dash-edit` now deep-link (VIEW_TAB). Docs: `docs/health-tab.md`,
+  `docs/home-tab.md`, `docs/detail-views.md`, `docs/plan-page.md`.
+
 ## 2026-10-07 — Plan page restyle P4: dial deep-dive pages
 
 - The sleep, recovery and load detail sheets are deep-dive pages (`web/src/client/deepdive.js`, called

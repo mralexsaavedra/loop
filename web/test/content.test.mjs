@@ -221,6 +221,10 @@ test('example build: Inicio reads today top to bottom — dials, monitor tiles, 
 test('example build: the health monitor list leads Salud (before the sections host) and Inicio\'s summary tile jumps to it', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const salud = sliceTabPanel(html, 'health');
+  // header first: the centred title + an ⓘ toggle holding the tab intro, the green glow behind it
+  const at = ['class="hs-glow"', '<h2 class="hs-title">Health</h2>', 'data-hs-info="hs-intro"', '<div class="hs-info" id="hs-intro" hidden>', 'id="monitor"', 'id="health-body"'].map((n) => salud.indexOf(n));
+  assert.ok(at.every((v, i) => v !== -1 && (i === 0 || v > at[i - 1])), `Salud order ${at}`);
+  assert.match(salud, /<div class="hs-info" id="hs-intro" hidden><p>Body, activity &amp; recovery from your latest Apple Health export\.<\/p><p>Each row:/);
   assert.ok(salud.indexOf('<div id="monitor"></div>') !== -1, 'the monitor host is in Salud');
   assert.ok(salud.indexOf('<div id="monitor"></div>') < salud.indexOf('<div id="health-body"></div>'), 'monitor first');
   assert.equal(html.split('id="monitor"').length - 1, 1, 'one monitor host on the page');
@@ -261,13 +265,13 @@ test('example build: Inicio carries a compact "today you eat" card (filled clien
   assert.doesNotMatch(card, /class="meal"/, 'the full meal plan is NOT duplicated on Inicio');
 });
 
-test('example build: the Salud recovery detail card spans the full grid row, headline | sparkline | contributors side by side on wide screens', async () => {
+test('example build: the Salud recovery section (with its detail card) spans the full grid row, headline | sparkline | contributors side by side on wide screens', async () => {
   const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
   const html = fs.readFileSync(examplePath, 'utf8');
   const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
   const map = ruleDeclarationMap(parseCssRules(css)); // selectors in css-scan's canonical form (`a>b`)
   const wide = [...map.entries()].filter(([k]) => k.startsWith('(min-width:900px)|||'));
-  assert.ok(wide.some(([k, v]) => k.endsWith('|||grid-column') && k.split('|||')[1].split(',').map((x) => x.trim()).includes('#health-body>#score-recovery') && v === '1 / -1'), '#score-recovery spans 1 / -1');
+  assert.ok(wide.some(([k, v]) => k.endsWith('|||grid-column') && k.split('|||')[1].split(',').map((x) => x.trim()).includes('#health-body>#hl-recovery') && v === '1 / -1'), 'the recovery section spans 1 / -1');
   assert.ok(wide.some(([k, v]) => k === '(min-width:900px)|||.rec-layout|||grid-template-columns' && (v.match(/minmax\(/g) || []).length === 3), 'three columns on wide screens');
   assert.ok(![...map.keys()].some((k) => k.startsWith('|||.rec-layout|||grid-template-columns')), 'stacked (one column) on phones');
 });
