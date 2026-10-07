@@ -1292,6 +1292,15 @@ details.rec-raw > summary {
   letter-spacing: var(--label-track);
   text-transform: uppercase;
 }
+.db-note {
+  display: block;
+  margin-top: 2px;
+  color: var(--faint);
+  font-size: var(--fs-2xs);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
 .db-vals {
   display: flex;
   flex-direction: column;
