@@ -34,7 +34,7 @@ or without IntersectionObserver it stays off.
 
 `lib/score/*` (same single-source pattern) feeds the first tab; `web/src/client/score.js` renders it
 (dials + advice on Inicio; the recovery card into Salud's `#score-recovery` and the per-modality load
-cards + caveats into Entreno's `#score-load` — glance vs detail),
+summary cards, with the caveats behind its ⓘ, into Entreno's `#score-load` — glance vs detail),
 `buildScores(extractDir)` bakes `SCORES` (only `asOf` dates — staleness is computed client-side, so
 consecutive builds are byte-identical). The tab is first and active by default; the visible panel is
 derived from the FILTERED nav list (`activeTabKey`), so `page.hideTabs: ["home"]` hands over to the next

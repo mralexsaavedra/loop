@@ -72,8 +72,7 @@
   font-size: var(--fs-2xs);
   color: var(--muted);
 }
-.sc-comp,
-.sc-load-card {
+.sc-comp {
   border-top: 1px solid var(--line-soft);
   padding: 10px 0;
 }
@@ -159,6 +158,95 @@
   color: var(--muted);
   font-size: var(--fs-2xl);
   line-height: 1;
+}
+/* Entreno load summary (score.js loadCard): three compact cards, one per modality — the last scored
+   session's RE big in strain blue + a small ring (the dial's own arc), "LOAD · date", a trend pill */
+.ld-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+.ld-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  min-width: 0;
+  padding: var(--sp-4);
+  border-radius: var(--r-sm);
+  background: var(--card-bg);
+}
+.ld-card[data-detail][role="button"] {
+  padding-right: var(--sp-4);
+}
+.ld-card[data-detail][role="button"]::after {
+  top: 18px;
+  right: 8px;
+}
+.ld-mod,
+.ld-lbl {
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.ld-mod {
+  color: var(--muted);
+}
+.ld-mid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  width: 100%;
+}
+.ld-num {
+  font-family: var(--num);
+  font-size: var(--fs-4xl);
+  line-height: 1;
+  color: var(--strain);
+}
+.ld-off .ld-num {
+  color: var(--faint);
+}
+.ld-ring {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  fill: none;
+  stroke-width: 12;
+}
+.ld-track {
+  stroke: var(--track);
+}
+.ld-fill {
+  stroke: var(--strain);
+  stroke-linecap: round;
+}
+.ld-tick {
+  stroke: var(--ink);
+  stroke-width: 5;
+}
+.ld-pill {
+  display: inline-block;
+  padding: 2px var(--sp-3);
+  border-radius: var(--r-xs);
+  background: var(--rail);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+}
+.ld-good {
+  color: var(--up);
+}
+.ld-bad {
+  color: var(--down);
+}
+.ld-flat {
+  color: var(--faint);
+}
+.sc-mod-line b,
+.sc-caveats-h b {
+  color: var(--ink);
 }
 .sc-caveats {
   margin: 0;

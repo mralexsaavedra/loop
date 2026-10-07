@@ -3,6 +3,15 @@
  * JSON-safe only: `{placeholder}` strings, substituted client-side. Modality labels follow the
  * dashboard's (the Watch's `hiit` bucket is shown as Gym). */
 export const es = {
+  // the Entreno header (tabs/TrainingDetail.astro, built server-side): centred title + an ⓘ with the
+  // tab intro and the data caveats that apply to every block
+  head: {
+    title: 'Entreno',
+    info: 'Sobre Entreno',
+    intro: 'Tu carga por modalidad, tu actividad, tus sesiones de carrera y bici y cómo responde tu recuperación, desde el reloj y Strava.',
+    help: 'Cada tarjeta: el número, una etiqueta y ▲▼ frente a lo habitual; toca para ver su historial. Las notas de cada bloque están tras su ⓘ.',
+    caveat: 'Duración, no kcal; días distintos, no registros (el reloj divide una sesión). Las modalidades son las etiquetas automáticas del reloj. Descriptivo, no es consejo médico.',
+  },
   calHeading: 'Últimos 30 días',
   calHint: '{days} días con entreno de 30 · el color es el tiempo total del día',
   calAria: 'Calendario de actividad de los últimos 30 días',
@@ -24,6 +33,13 @@ export const es = {
 };
 
 export const en = {
+  head: {
+    title: 'Training',
+    info: 'About Training',
+    intro: 'Your load per modality, your activity, your runs and rides, and how your recovery responds, from the watch and Strava.',
+    help: 'Each card: the number, a label and ▲▼ against your usual; tap it for its history. Each block\'s notes sit behind its ⓘ.',
+    caveat: 'Duration, not kcal; distinct days, not records (the watch splits a session). Modalities are the watch\'s auto-labels. Descriptive, not medical advice.',
+  },
   calHeading: 'Last 30 days',
   calHint: '{days} training days out of 30 · colour = total time that day',
   calAria: 'Activity calendar for the last 30 days',

@@ -112,7 +112,7 @@ test('full render: recovery trend with band, per-component rows and 14 raw daili
   assert.equal(count(html, 'class="rec-comp"'), 4);
   assert.equal(count(html, 'class="sc-raw-v"'), 4 * 14);
   assert.match(html, new RegExp(`sc-band-${s.recovery.band}`));
-  assert.equal(count(html, 'class="spark"'), 1 + s.load.modalities.length, 'inline SVG sparklines (recovery + one per modality)');
+  assert.equal(count(html, 'class="spark"'), 1, 'one inline SVG sparkline (recovery); the load cards carry a ring, not a sparkline');
   assert.doesNotMatch(html, /<script|src=|href=/i, 'no scripts or external refs in the rendered markup');
 });
 
@@ -183,17 +183,40 @@ test('colour only on the direction arrow: no grade-fill classes on the recovery 
   assert.doesNotMatch(html, /sc-(red|amber|green|grade)/);
 });
 
-test('load: one card per modality (gym/run/bike), gated ones show the reason and no direction', () => {
+test('load: one compact card per modality (gym/run/bike): last session RE, "LOAD · date", a trend pill; gated ones show the reason behind ⓘ and no number', () => {
   const s = fixtureScores();
-  const html = render(s);
-  assert.equal(count(html, 'class="sc-load-card"'), 3);
+  const hosts = {};
+  render(s, { hosts, dials: buildDials(s, HEALTH) });
+  const html = hosts.load.innerHTML;
+  assert.equal((html.match(/class="ld-card[ "]/g) || []).length, 3);
   for (const m of s.load.modalities) assert.match(html, new RegExp(`data-mod="${m.key}"`));
-  const gated = s.load.modalities.filter((m) => !m.trend.ok);
-  assert.equal(count(html, 'sc-gated'), gated.length);
-  if (gated.length) assert.match(html, new RegExp(enT.load.gated.baselineBuilding.slice(0, 20)));
   const run = s.load.modalities.find((m) => m.key === 'run');
   assert.equal(run.trend.ok, true);
-  assert.match(html, /vs your own run days/);
+  const card = html.match(/<div class="ld-card" data-mod="run"[\s\S]*?<\/div>/)[0];
+  assert.match(card, new RegExp(`<b class="ld-num">${run.last.re}</b>`), 'big number = the last scored session RE');
+  assert.match(card, /<svg class="ld-ring"[^>]*>[\s\S]*<path class="ld-fill" d="M/, 'small ring with the dial arc of that session');
+  assert.match(card, /class="ld-tick"/, 'typical-day tick');
+  assert.match(card, new RegExp(`<span class="ld-lbl" aria-hidden="true">${enT.dials.load.label} · `), 'LOAD · date');
+  const band = run.trend.band;
+  const tone = { steady: 'flat', above: 'good', below: 'good', ramping: 'bad', wellBelow: 'bad' }[band];
+  assert.match(card, new RegExp(`<span class="ld-pill ld-${tone}">[▲▼•] ${run.trend.trendPct > 0 ? '\\+' : ''}${run.trend.trendPct}%</span>`), 'pill = 7-day vs 42-day, toned by band');
+  assert.match(card, /aria-label="Run load\. last session [^"]*Relative Effort \d+\. 7-day vs 42-day load/, 'the card reads out in full');
+  const gated = s.load.modalities.filter((m) => !m.trend.ok);
+  assert.equal(count(html, 'class="ld-card ld-off"'), gated.length);
+  if (gated.length) assert.match(html, new RegExp(enT.load.gated.baselineBuilding.slice(0, 20)));
+  assert.match(html, /vs your own run days/, 'the relative score moved behind ⓘ, not dropped');
+});
+
+test('load section: the relative score, coverage, other activities and caveats sit in a hidden ⓘ block the header button controls', () => {
+  const s = fixtureScores();
+  const hosts = {};
+  render(s, { hosts });
+  const html = hosts.load.innerHTML;
+  assert.match(html, /<section class="hs-sec sc-load[^"]*" aria-labelledby="ld-h"><div class="hs-head"><h3 class="hs-lbl" id="ld-h">Load<\/h3><button type="button" class="hs-i" data-hs-info="ld-info" aria-expanded="false" aria-controls="ld-info"/);
+  const info = html.match(/<div class="hs-info" id="ld-info" hidden>([\s\S]*?)<\/div><div class="ld-cards">/);
+  assert.ok(info, 'the ⓘ block precedes the cards and ships hidden');
+  for (const needle of ['sc-cov-scored', 'sc-other', 'class="sc-caveat"', 'sc-mod-line', enT.load.pillHelp.slice(0, 30)]) assert.ok(info[1].includes(needle), needle);
+  assert.doesNotMatch(html.slice(html.indexOf('<div class="ld-cards">')), /sc-caveat|sc-cov|sc-other/, 'no notes among the cards');
 });
 
 test('coverage counters and the other line are shown; the other line says it is not scored', () => {
@@ -306,7 +329,7 @@ test('Entreno load cards open their modality\'s detail view; the Salud recovery 
   const hosts = {};
   render(s, { now: addDays(ASOF, 1), healthNav: true, hosts, detail: true });
   for (const m of s.load.modalities) {
-    assert.match(hosts.load.innerHTML, new RegExp(`<div class="sc-load-card" data-mod="${m.key}" data-detail="load-${m.key}" role="button" tabindex="0" aria-haspopup="dialog">`), m.key);
+    assert.match(hosts.load.innerHTML, new RegExp(`<div class="ld-card(?: ld-off)?" data-mod="${m.key}" data-detail="load-${m.key}" role="button" tabindex="0" aria-haspopup="dialog" aria-label="`), m.key);
   }
   // the recovery card holds a <details> fold, so the card itself is not a button: a real button opens the view
   assert.match(hosts.rec.innerHTML, new RegExp(`<button type="button" class="dt-open-btn" data-detail="recovery" aria-haspopup="dialog">${enT.recovery.historyBtn}</button>`));
@@ -561,7 +584,7 @@ test('load dial: no session today -> "No session yet today" with the last sessio
   const fig = figOf(html, 'run');
   assert.ok(fig.includes(enT.dials.load.rest));
   assert.doesNotMatch(fig, /dial-num|dial-dot/);
-  assert.ok(!html.includes('last session Tue 29 Sep'), 'the last session line is in the load detail sheet');
+  assert.ok(!html.split('<section class="hs-sec sc-load')[0].includes('last session Tue 29 Sep'), 'the last session line is in the load detail sheet (and on Entreno\'s card), not on Inicio');
 });
 
 /* the load dial opens on what happened TODAY (viewer's clock), not on the first ungated modality */
