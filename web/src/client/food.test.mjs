@@ -1620,3 +1620,51 @@ test('late night: a viewer on "today" who comes back after midnight lands on the
   await flush();
   assert.equal(p.els['food-day-label'].textContent, 'mar 8 ene');
 });
+
+/* ---------- the intake rings' past day (HCFood.recentDay): the most recent food-log day in the window ---------- */
+const SUMMARY_URL = 'GET /api/food/log/summary?from=2030-01-07&to=2030-01-10';
+const sumDay = (date, k, extra = {}) => ({ date, k, p: 80, c: 120, f: 40, n: 3, missing: { p: false, c: false, f: false }, groups: { breakfast: 1, lunch: 1, dinner: 1, addon: 0 }, ...extra });
+
+test('recentDay: null without the food API; nothing requested', async () => {
+  const t = setup();
+  await flush();
+  assert.equal(t.F.recentDay(3), null);
+  assert.equal(t.calls.filter((c) => /summary/.test(c.key)).length, 0);
+});
+
+test('recentDay: reads the summary of the window once (lazily), then returns the newest logged day in the foodTotals shape and refreshes the rings', async () => {
+  const t = setup({ routes: { ...BOOT, [SUMMARY_URL]: json({ days: [sumDay('2030-01-07', 2100), sumDay('2030-01-09', 1800, { p: 95.5, c: null, missing: { p: true, c: true, f: false } }), sumDay('2030-01-08', 0, { n: 0 })] }) } });
+  await flush();
+  assert.equal(t.calls.filter((c) => /summary/.test(c.key)).length, 0, 'not read until the rings ask');
+  t.hooks.length = 0;
+  assert.equal(t.F.recentDay(3), null, 'still loading');
+  await flush();
+  assert.deepEqual(t.hooks, ['intake'], 'the rings re-render once the summary answers');
+  assert.deepEqual(JSON.parse(JSON.stringify(t.F.recentDay(3))), { date: '2030-01-09', k: 1800, p: 95.5, c: null, g: 40, n: 3, missing: { protein: true, carbs: true, fat: false }, src: 'log' });
+  assert.equal(t.calls.filter((c) => c.key === SUMMARY_URL).length, 1, 'read once');
+  assert.equal(t.calls.find((c) => c.key === SUMMARY_URL).init.headers['X-HC-Food'], '1');
+});
+
+test('recentDay: an empty window or a failed read is null (no retry loop); an add / delete re-reads it', async () => {
+  let n = 0;
+  const t = setup({ routes: { ...BOOT, 'DELETE /api/food/log/50': json({ ok: true }), [SUMMARY_URL]: () => (++n === 1 ? json({ days: [] }) : json({ days: [sumDay('2030-01-08', 1500)] })) } });
+  await flush();
+  t.F.recentDay(3);
+  await flush();
+  assert.equal(t.F.recentDay(3), null);
+  await flush();
+  assert.equal(n, 1);
+  // the real rings ask again from intakeRefresh: mimic it
+  t.window.intakeRefresh = () => { t.hooks.push('intake'); t.F.recentDay(3); };
+  t.fire('click', t.button({ 'data-food-act': 'del', 'data-id': '50' }));
+  await flush();
+  assert.equal(n, 2, 'a change in the log re-reads the window');
+  assert.equal(t.F.recentDay(3).date, '2030-01-08');
+  const f = setup({ routes: { ...BOOT, [SUMMARY_URL]: json({ error: 'internal' }, 500) } });
+  await flush();
+  f.F.recentDay(3);
+  await flush();
+  assert.equal(f.F.recentDay(3), null);
+  await flush();
+  assert.equal(f.calls.filter((c) => c.key === SUMMARY_URL).length, 1);
+});

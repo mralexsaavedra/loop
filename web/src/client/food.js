@@ -36,6 +36,7 @@
  * (today's log is kept apart from a viewed past day; adds / deletes on a past day never touch it). Resumen de hoy's dial + macro bars
  * (nutri-day.js) and the intake rings (intake.js) prefer it over the Apple Health intake; after every
  * add / delete this script calls HCNutri.refresh() (which also refreshes the rings),
+ * and HCFood.recentDay(days) gives the rings a PAST food-log day when today has none (a lazy log summary read),
  * each hook in its own try/catch. Errors are one line from the server's coarse codes. */
 (function () {
   var T = typeof I18N_FOOD === 'undefined' || !I18N_FOOD ? null : I18N_FOOD;
@@ -421,8 +422,53 @@
     var known = function (k) { return L.entries.some(function (e) { return fin(e[k]); }) ? t[k] : null; };
     return { date: L.date, k: t.kcal, p: known('protein'), c: known('carbs'), g: known('fat'), n: t.count, missing: t.missing, src: 'log' };
   };
-  // any add / delete, on any day: Constancia (client/adherence.js) re-reads its summary
+  /* ---------- the intake rings' past day (intake.js) ---------- */
+  // the log summary of the rings' window (the last `days` days ending at the viewer's today), read lazily
+  // when the rings ask and today has no entry; key = the window it covers (a new day = a new read),
+  // days = the last answer (kept while a re-read is in flight, so the rings never flicker)
+  var R = { key: null, days: null, seq: 0 };
+  function loadRecent(from, to) {
+    var mine = ++R.seq;
+    R.key = from + '|' + to;
+    api('GET', '/log/summary?from=' + from + '&to=' + to).then(function (d) {
+      if (mine !== R.seq) return;
+      R.days = d && Array.isArray(d.days) ? d.days : [];
+      if (typeof window.intakeRefresh === 'function') {
+        try { window.intakeRefresh(); } catch (e) { /* the rings keep their last state */ }
+      }
+    }, function () {
+      if (mine !== R.seq) return;
+      R.days = []; // no data, no retry until the window or the log changes
+    });
+  }
+  /** The most recent day WITH food-log entries in the last `days` days ending at the viewer's today
+   * (today included), in foodTotals()'s shape ({date, k, p, c, g, n, missing, src: 'log'}), or null:
+   * no food API, nothing logged in the window, or the summary not read yet (it is then read once and
+   * the rings re-render when it answers). */
+  function recentDay(days) {
+    if (!S.ok) return null;
+    var n = days >= 0 ? Math.floor(days) : 3;
+    var to = HC.todayIso(), from = HC.shiftIso(to, -n);
+    if (R.key !== from + '|' + to) loadRecent(from, to);
+    var best = null;
+    (R.days || []).forEach(function (d) {
+      if (!d || typeof d.date !== 'string' || d.date < from || d.date > to || !(d.n > 0) || !fin(d.k)) return;
+      if (!best || d.date > best.date) best = d;
+    });
+    if (!best) return null;
+    var m = best.missing || {};
+    var num = function (v) { return fin(v) ? v : null; };
+    return { date: best.date, k: best.k, p: num(best.p), c: num(best.c), g: num(best.f), n: best.n, missing: { protein: !!m.p, carbs: !!m.c, fat: !!m.f }, src: 'log' };
+  }
+  // any add / delete, on any day: Constancia (client/adherence.js) re-reads its summary, and the rings'
+  // window is re-read when they had read it (a past-day change never refreshes Resumen de hoy)
   function logChanged() {
+    if (R.key) {
+      R.key = null;
+      if (typeof window.intakeRefresh === 'function') {
+        try { window.intakeRefresh(); } catch (e) { /* the rings keep their last state */ }
+      }
+    }
     var a = window.HCAdherence;
     if (a && typeof a.reload === 'function') {
       try { a.reload(); } catch (e) { /* the adherence block guards its own host */ }
@@ -1673,6 +1719,7 @@
     basicConvert: basicConvert,
     basicIngredient: basicIngredient,
     groupTotals: groupTotals,
+    recentDay: recentDay,
     products: guideProducts,
     addGuide: addGuide,
     state: function () { return S; }, // test-only: the tests read the in-memory state
