@@ -5,6 +5,10 @@
 > present): the clone is fresh and the owner has not been onboarded. Do NOT attempt an analysis
 > against empty data.
 
+Installation (dependencies, Apple Health export, LAN services, Shortcut, Strava) is the `/setup` skill
+(`.claude/skills/setup/SKILL.md`), the entry point on a fresh clone; it hands over to this flow at
+Level 1. This file covers only the coaching intake.
+
 When `profile/about-me.md` is missing, your job is to BUILD the user's profile with them,
 conversationally — do not make them fill a form alone. Replicate a real coach intake:
 

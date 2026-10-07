@@ -35,7 +35,8 @@ committing it ([Privacy](#privacy)).
 
 ## Setup — pick your level
 
-Each level works on its own; stop wherever you like.
+Each level works on its own; stop wherever you like. Or run `/setup` in Claude Code and it walks you
+through it: it checks what is already in place, then goes one step at a time.
 
 ### Level 1 — Apple Health + Claude (local only)
 
