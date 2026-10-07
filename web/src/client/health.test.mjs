@@ -21,7 +21,7 @@ test('each rendered section heading has a stable hl-<section> anchor id', () => 
     recovery: { hasData: true },
     loadRecovery: { hasData: false },
   });
-  assert.match(html, /<div class="hsub" id="hl-recovery">/);
+  assert.match(html, /<section class="hs-sec hs-sec-recovery" id="hl-recovery" aria-labelledby="hs-h-recovery">/);
   assert.match(html, /<div class="hsub" id="hl-running">/);
   assert.doesNotMatch(html, /id="hl-body"/, 'sections without data render no anchor');
 });
@@ -35,16 +35,17 @@ const full = () => ({
   recovery: {
     hasData: true,
     rhr: { latest: 52, latestDate: '2026-06-30', avg30: 50.4, d30: -1, spark: null },
+    walkingHr: { latest: 98, latestDate: '2026-06-30', avg30: 100, d30: -1, spark: null },
     sleep: { latest: 6.4, avg: 7.2, nights: 30, latestDate: '2026-06-30', spark: null, target: 7.5, pctTarget: 40, sd: 0.6 },
   },
   loadRecovery: { hasData: true, weeks: 2, series: [{ w: '2026-06-01', load: 10 }, { w: '2026-06-08', load: 0 }], split: null },
 });
 
-test('Salud answers "how is my body": recovery, sleep, body, activity, energy in that order; training blocks go to Entreno', () => {
+test('Salud answers "how is my body": recovery, fitness, sleep, body, activity, energy in that order; training blocks go to Entreno', () => {
   const out = {};
   renderWith(full(), { out });
   const at = (k) => out.health.indexOf(`id="hl-${k}"`);
-  const order = ['recovery', 'sleep', 'body', 'activity', 'energy'].map(at);
+  const order = ['recovery', 'fitness', 'sleep', 'body', 'activity', 'energy'].map(at);
   assert.ok(order.every((v, i) => v !== -1 && (i === 0 || v > order[i - 1])), `Salud order ${order}`);
   for (const k of ['running', 'cycling', 'load']) {
     assert.equal(at(k), -1, `${k} is not in Salud`);
@@ -52,17 +53,18 @@ test('Salud answers "how is my body": recovery, sleep, body, activity, energy in
   }
   const t = (k) => out.train.indexOf(`id="hl-${k}"`);
   assert.ok(t('running') < t('cycling') && t('cycling') < t('load'), 'Entreno order: running, cycling, load vs recovery');
-  assert.match(out.health, /<div class="hsub" id="hl-sleep">/, 'sleep is its own section (monitor + sleep dial land here)');
+  assert.match(out.health, /<section class="hs-sec hs-sec-sleep" id="hl-sleep"/, 'sleep is its own section (monitor + sleep dial land here)');
   assert.equal(out.health.split('id="hl-sleep"').length - 1, 1, 'one hl-sleep id');
 });
 
 test('the recovery detail card host (#score-recovery) sits right under the recovery heading', () => {
   const out = {};
   renderWith(full(), { out });
-  assert.match(out.health, /id="hl-recovery">[^<]*<\/div><div id="score-recovery"><\/div>/);
+  const head = /id="hl-recovery" aria-labelledby="hs-h-recovery"><div class="hs-head">[\s\S]*?<\/div>(?:<div class="hs-info" id="hs-info-recovery" hidden>[\s\S]*?<\/div>)?<div id="score-recovery"><\/div>/;
+  assert.match(out.health, head);
   // even with no recovery trends, a baked recovery score still gets its section + host
   renderWith({ ...full(), recovery: none }, { out, SCORES: { recovery: { asOf: '2026-06-30' } } });
-  assert.match(out.health, /id="hl-recovery">[^<]*<\/div><div id="score-recovery"><\/div>/);
+  assert.match(out.health, head);
 });
 
 test('isolation: a throw in the Salud half renders its empty state and the Entreno half still renders (and vice versa)', () => {
@@ -131,9 +133,9 @@ test('body section shows waist with its measurement date and change since the fi
     body: { hasData: true, waist: { latest: 85.2, latestDate: '2026-06-01', firstDate: '2026-03-01', points: 3, delta: -2.8, spark: { v: [88, 86.5, 85.2], from: '2026-03-01', to: '2026-06-01' } } },
     activity: none, energy: none, running: none, recovery: none, loadRecovery: none,
   });
-  assert.match(html, /Waist · 1 Jun/);
-  assert.match(html, /85.2<small>cm<\/small>/);
-  assert.match(html, /▼ -2.8 cm/);
+  assert.match(html, /<span class="db-name">Waist<\/span>/);
+  assert.match(html, /85.2<\/b><small>cm<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span>/);
+  assert.match(html, /<span class="db-base">1 Jun · Δ -2.8 cm<\/span>/, 'measurement date + change since the first reading');
   assert.doesNotMatch(html, /No waist measurements yet/);
 });
 
@@ -218,7 +220,7 @@ test('every Salud trend card opens its detail view; run / ride rows open that da
   };
   const html = renderAt(H, '2026-07-01', { detail: true });
   const keys = ['rhr', 'hrv', 'vo2max', 'walkingHr', 'respiratory', 'wristTemp', 'sleep', 'weight', 'bodyfat', 'lean', 'waist', 'steps', 'exercise', 'distance', 'flights', 'energy'];
-  for (const k of keys) assert.match(html, new RegExp(`<div class="mtrend"(?: id="hl-\\w+")? data-detail="${k}" role="button" tabindex="0" aria-haspopup="dialog">`), k);
+  for (const k of keys) assert.match(html, new RegExp(`<li class="db-row"(?: id="hl-\\w+")? data-detail="${k}" role="button" tabindex="0" aria-haspopup="dialog" aria-label="`), k);
   assert.match(html, /<tr data-detail="load-run" data-date="2026-06-22"><td class="dt-cell"><button type="button" class="dt-row-btn" data-detail="load-run" data-date="2026-06-22" aria-haspopup="dialog">22 Jun<\/button><\/td>/);
   assert.match(html, /<tr data-detail="load-bike" data-date="2026-06-10"><td class="dt-cell"><button type="button" class="dt-row-btn"/);
   assert.doesNotMatch(renderAt(H, '2026-07-01'), /data-detail/, 'no detail sheet baked: plain cards and rows');
@@ -230,13 +232,13 @@ test('activity: headline = the latest day with its date, "so far" when it is tod
     activity: { hasData: true, steps: { latest: 9039, latestDate: '2026-06-30', avg30: 8500, days30: 31, d30: 300, spark: sp } },
   };
   const past = renderAt(H, '2026-07-02');
-  assert.match(past, /9039<small>[^<]*<\/small><span class="mtrend-date">30 Jun<\/span>/);
-  assert.match(past, /<div class="mtrend-ctx">30-day avg 8500[^<]*<span class="dlt good">▲ \+300<\/span><\/div>/);
+  assert.match(past, /9039<\/b><small>steps<\/small><span class="db-arr db-good" aria-hidden="true">▲<\/span><\/span><span class="db-base">8500<\/span>/);
+  assert.match(past, /aria-label="Steps: 9039 steps, 30 Jun · 30-day avg 8500 steps · above"/);
   const today = renderAt(H, '2026-06-30');
-  assert.match(today, /<span class="mtrend-date">today, so far<\/span>/);
+  assert.match(today, /9039<\/b><small>steps<\/small><\/span><span class="db-base">8500 · today, so far<\/span>/, 'a partial day: no arrow');
 });
 
-test('recovery: resting HR / HRV / sleep lead with the newest value + date; trends carry hl-<key> anchors for the health monitor', () => {
+test('recovery: resting HR / HRV / sleep lead with the newest value, the 30-day baseline under it; rows carry hl-<key> anchors for the health monitor', () => {
   const H = {
     body: none, activity: none, energy: none, running: none, loadRecovery: none,
     recovery: {
@@ -249,13 +251,15 @@ test('recovery: resting HR / HRV / sleep lead with the newest value + date; tren
     },
   };
   const html = renderAt(H, '2026-07-01');
-  for (const k of ['rhr', 'hrv', 'respiratory', 'wristTemp']) assert.match(html, new RegExp(`<div class="mtrend" id="hl-${k}">`), k);
-  assert.match(html, /<div class="hsub" id="hl-sleep">/, 'sleep: the section heading is the anchor');
-  assert.match(html, /71<small>ms<\/small><span class="mtrend-date">30 Jun<\/span>/);
-  assert.match(html, /30-day avg 60 ms/);
-  assert.match(html, /6.4<small>h<\/small><span class="mtrend-date">30 Jun<\/span>/);
+  for (const k of ['rhr', 'hrv', 'respiratory', 'wristTemp']) assert.match(html, new RegExp(`<li class="db-row" id="hl-${k}" aria-label="`), k);
+  assert.match(html, /<section class="hs-sec hs-sec-sleep" id="hl-sleep"/, 'sleep: the section is the anchor');
+  assert.match(html, /71<\/b><small>ms<\/small><span class="db-arr db-good" aria-hidden="true">▲<\/span><\/span><span class="db-base">60<\/span>/);
+  assert.match(html, /aria-label="HRV: 71 ms, 30 Jun · 30-day avg 60 ms · above"/);
+  assert.match(html, /6.4<\/b><small>h<\/small><span class="db-arr db-bad" aria-hidden="true">▼<\/span><\/span><span class="db-base">7.2<\/span>/);
   assert.match(html, /30-night avg 7.2 h/);
-  assert.match(html, /<div class="hsub" id="hl-recovery">/, 'the section anchor is kept');
+  assert.match(html, /52<\/b><small>bpm<\/small><span class="db-arr db-bad" aria-hidden="true">▲<\/span>/, 'resting HR above its baseline is the bad way');
+  assert.match(html, /14.8<\/b><small>brpm<\/small><span class="db-arr db-flat"/, 'a change signal has no good direction: grey');
+  assert.match(html, /<section class="hs-sec hs-sec-recovery" id="hl-recovery"/, 'the section anchor is kept');
 });
 
 test('energy: expenditure headline = the newest day TDEE with its date; 30-day avg as context', () => {
@@ -263,8 +267,8 @@ test('energy: expenditure headline = the newest day TDEE with its date; 30-day a
     body: none, activity: none, running: none, recovery: none, loadRecovery: none,
     energy: { hasData: true, tdeeLatest: 2600, tdeeLatestDate: '2026-06-29', tdeeAvg: 2400, tdeeDays: 30, spark: sp, balance: null, intakeDays: 0 },
   }, '2026-07-01');
-  assert.match(html, /2600<small>kcal<\/small><span class="mtrend-date">29 Jun<\/span>/);
-  assert.match(html, /30-day avg 2400 kcal/);
+  assert.match(html, /2600<\/b><small>kcal<\/small><span class="db-arr db-flat" aria-hidden="true">▲<\/span><\/span><span class="db-base">2400<\/span>/, 'no good direction: grey');
+  assert.match(html, /aria-label="Daily expenditure: 2600 kcal, 29 Jun · 30-day avg 2400 kcal/);
 });
 
 test('resilience: a non-finite avg30 / d30 never prints NaN or Infinity; one broken trend never blanks the tab', () => {
@@ -278,8 +282,8 @@ test('resilience: a non-finite avg30 / d30 never prints NaN or Infinity; one bro
     },
   }, '2026-07-01');
   assert.doesNotMatch(html, /NaN|Infinity/);
-  assert.match(html, /9000<small>/, 'the steps card still shows its headline');
-  assert.match(html, /70<small>ms/, 'the HRV card renders after the broken resting-HR card');
+  assert.match(html, /9000<\/b>/, 'the steps row still shows its value');
+  assert.match(html, /70<\/b><small>ms/, 'the HRV row renders after the broken resting-HR row');
   assert.match(html, /30-day avg 61 ms/);
 });
 
@@ -293,7 +297,7 @@ test('body composition: body fat and lean mass say how many readings their windo
 });
 
 /* ---- stale cards: a trend card whose newest value is > STALE_DAYS old is greyed with a note ---- */
-test('a Salud trend card whose newest value is more than 3 days old is greyed with "no recent data"; a fresh one is not', () => {
+test('a Salud row whose newest value is more than 3 days old is greyed with "no recent data" and no arrow; a fresh one is not', () => {
   const tr = (latestDate) => ({ latest: 52, latestDate, avg30: 50, d30: 0, spark: sp });
   const H = {
     body: { hasData: true, weight: { ...tr('2026-06-25'), source: 's', sources: 1 },
@@ -304,20 +308,74 @@ test('a Salud trend card whose newest value is more than 3 days old is greyed wi
   };
   const out = {};
   renderAt(H, '2026-07-01', { out });
-  const card = (anchor) => {
-    const at = out.health.indexOf(anchor);
-    const i = Math.max(out.health.lastIndexOf('<div class="mtrend"', at), out.health.lastIndexOf('<div class="mtrend mtrend-stale"', at));
-    return out.health.slice(i, out.health.indexOf('</svg>', i));
+  const row = (name) => {
+    const at = out.health.indexOf(`<span class="db-name">${name}</span>`);
+    const i = out.health.lastIndexOf('<li class="db-row', at);
+    return out.health.slice(i, out.health.indexOf('</li>', i));
   };
-  const rhr = card('id="hl-rhr"'); // 3 days old: still fresh (the rule is MORE than 3 days)
-  assert.match(rhr, /^<div class="mtrend"/);
+  const rhr = row('Resting HR'); // 3 days old: still fresh (the rule is MORE than 3 days)
+  assert.match(rhr, /^<li class="db-row" id="hl-rhr"/);
   assert.ok(!rhr.includes(enHealth.staleNote));
-  const hrv = card('id="hl-hrv"'); // 4 days old
-  assert.match(hrv, /^<div class="mtrend mtrend-stale"/);
-  assert.ok(hrv.includes('<div class="mtrend-stale-note">' + enHealth.staleNote + '</div>'));
-  assert.match(card('Weight'), /^<div class="mtrend mtrend-stale"/);
-  assert.match(card('Steps'), /^<div class="mtrend"/, 'today is fresh');
-  // waist is a sparse manual measurement dated in its title: never greyed by this rule
-  assert.ok(!card('Waist').includes('mtrend-stale'));
+  const hrv = row('HRV'); // 4 days old
+  assert.match(hrv, /^<li class="db-row db-stale" id="hl-hrv"/);
+  assert.ok(hrv.includes('<span class="db-base">' + enHealth.staleNote + '</span>'));
+  assert.doesNotMatch(hrv, /db-arr/);
+  assert.match(row('Weight'), /^<li class="db-row db-stale"/);
+  assert.match(row('Steps'), /^<li class="db-row"[^>]*aria-label/, 'today is fresh');
+  assert.doesNotMatch(row('Steps'), /db-stale/);
+  // waist is a sparse manual measurement dated in its own line: never greyed by this rule
+  assert.ok(!row('Waist').includes('db-stale'));
   assert.equal(enHealth.staleNote, 'no recent data');
+});
+
+test('Fitness groups VO₂max (Δ since the first reading) and walking HR, moved out of Recovery', () => {
+  const H = {
+    body: none, activity: none, energy: none, running: none, loadRecovery: none,
+    recovery: { hasData: true, rhr: { latest: 52, latestDate: '2026-06-30', avg30: 50, d30: 0, spark: sp },
+      vo2max: { latest: 45.2, latestDate: '2026-06-30', first: 44, spark: sp }, walkingHr: { latest: 96, latestDate: '2026-06-30', avg30: 100, d30: -2, spark: sp } },
+  };
+  const out = {};
+  renderAt(H, '2026-07-01', { out, detail: true });
+  const sec = (k) => { const i = out.health.indexOf(`id="hl-${k}"`); return i === -1 ? '' : out.health.slice(i, out.health.indexOf('</section>', i)); };
+  assert.match(sec('fitness'), /<h3 class="hs-lbl" id="hs-h-fitness">Fitness<\/h3>/);
+  assert.match(sec('fitness'), /data-detail="vo2max"[\s\S]*45.2<\/b><small>ml\/kg\/min<\/small><span class="db-arr db-good" aria-hidden="true">▲<\/span><\/span><span class="db-base">Δ \+1.2<\/span>/);
+  assert.match(sec('fitness'), /data-detail="walkingHr"[\s\S]*96<\/b><small>bpm<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span>/, 'walking HR down is the good way');
+  assert.doesNotMatch(sec('recovery'), /vo2max|walkingHr/, 'no longer under Recovery');
+  assert.ok(out.health.indexOf('id="hl-recovery"') < out.health.indexOf('id="hl-fitness"'));
+});
+
+test('text diet: rows carry number + label + arrow + baseline only; every former intro / caveat is reachable behind an ⓘ toggle', () => {
+  const E = { hasData: true, tdeeLatest: 4400, tdeeLatestDate: '2026-06-29', tdeeAvg: 2600, tdeeDays: 30, spark: sp, balance: null, lastIntake: null, latestCorrected: true, correctedDays: 2 };
+  const out = {};
+  renderAt({ ...full(), energy: E }, '2026-07-01', { out });
+  const h = out.health;
+  assert.doesNotMatch(h, /mtrend|class="spark|dash-note|dash-as/, 'no trend cards, sparklines or loose notes left in Salud');
+  for (const key of ['recovery', 'fitness', 'sleep', 'body', 'activity', 'energy']) {
+    assert.match(h, new RegExp(`<button type="button" class="hs-i" data-hs-info="hs-info-${key}" aria-expanded="false" aria-controls="hs-info-${key}" aria-label="About [^"]+">`), key);
+    assert.match(h, new RegExp(`<div class="hs-info" id="hs-info-${key}" hidden>`), key);
+  }
+  const info = (k) => { const i = h.indexOf(`<div class="hs-info" id="hs-info-${k}" hidden>`); return h.slice(i, h.indexOf('</div>', i)); };
+  assert.ok(info('recovery').includes(enHealth.recoveryNoteHtml));
+  assert.ok(info('fitness').includes(enHealth.fitnessNoteHtml));
+  assert.ok(info('sleep').includes(enHealth.sleepNoteHtml));
+  assert.ok(info('activity').includes(enHealth.activityNoteHtml));
+  assert.ok(info('body').includes('<b>How to read this.</b>'), 'the bioimpedance caveat');
+  assert.ok(info('body').includes('No waist measurements yet'));
+  assert.ok(info('energy').includes(enHealth.energyRide.latest));
+  assert.ok(info('energy').includes(enHealth.energyRide.days.replace('{n}', '2')));
+  assert.ok(info('energy').includes('<b>Expenditure only.</b>') || info('energy').includes('Expenditure'), 'the expenditure-only caveat');
+  assert.ok(!h.includes(enHealth.introMsg), 'the tab intro lives in the Salud header ⓘ (tabs/Salud.astro)');
+});
+
+test('sleep consistency: % nights on target, ±spread, bedtime / wake as rows that open the sleep sheet', () => {
+  const H = {
+    body: none, activity: none, energy: none, running: none, loadRecovery: none,
+    recovery: { hasData: true, sleep: { latest: 7.1, avg: 7.2, nights: 30, latestDate: '2026-06-30', spark: sp, target: 7.5, pctTarget: 40, sd: 0.6, bedtime: '23:40', bedtimeSd: 25, wake: '07:05', wakeSd: 18 } },
+  };
+  const html = renderAt(H, '2026-07-01', { detail: true });
+  assert.match(html, /<span class="db-name">nights ≥ 7.5 h<\/span><span class="db-vals"><span class="db-val"><b>40<\/b><small>%<\/small>/);
+  assert.match(html, /<b>±0.6<\/b><small>h<\/small>/);
+  assert.match(html, /<b>23:40<\/b><\/span><span class="db-base">±25′<\/span>/);
+  assert.match(html, /<b>07:05<\/b><\/span><span class="db-base">±18′<\/span>/);
+  assert.equal((html.match(/data-detail="sleep"/g) || []).length, 5);
 });

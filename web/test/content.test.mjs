@@ -191,14 +191,14 @@ test('example build: glance on Inicio, detail behind it — Entreno holds load d
   assert.match(sliceTabPanel(html, 'health'), /<div id="health-body"><\/div>/);
 });
 
-test('example build: Inicio reads today top to bottom — dials, monitor tiles, "My day" (outlook bar + today\'s activities), eat card, the full monitor folded under "See metrics", the programmed-session source; the timeline is baked from demo data', () => {
+test('example build: Inicio reads today top to bottom — dials, monitor tiles, "My day" (outlook bar + today\'s activities), eat card, Tonight / My plan / My dashboard, the programmed-session source; the timeline is baked from demo data', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const home = sliceTabPanel(html, 'home');
-  const at = ['id="home-dials"', 'id="home-tiles"', 'id="my-day"', 'id="home-advice"', 'id="timeline"', 'class="eat-card"', 'id="home-tonight"', 'id="my-plan"', 'id="my-dash"', 'id="monitor-fold"', 'id="monitor"', 'data-section="hoy"'].map((n) => home.indexOf(n));
+  const at = ['id="home-dials"', 'id="home-tiles"', 'id="my-day"', 'id="home-advice"', 'id="timeline"', 'class="eat-card"', 'id="home-tonight"', 'id="my-plan"', 'id="my-dash"', 'data-section="hoy"'].map((n) => home.indexOf(n));
   assert.ok(at.every((v, i) => v !== -1 && (i === 0 || v > at[i - 1])), `Inicio order ${at}`);
   assert.match(home, /<h2 class="home-h" id="my-day-h">My day<\/h2>/);
-  // the full monitor grid keeps per-metric access, folded until P5 moves it to Salud
-  assert.match(home, /<details class="hm-fold" id="monitor-fold"><summary class="hm-fold-sum">See metrics<\/summary><div id="monitor"><\/div><\/details>/);
+  // the full monitor list moved to Salud: Inicio keeps only the summary tiles (no fold, no grid)
+  assert.doesNotMatch(home, /id="monitor"|monitor-fold|hm-fold/);
   assert.match(html, /"timeline":\{"asOf":"\d{4}-\d{2}-\d{2}","days":\[\{"date"/, 'demo data fills the timeline');
   assert.match(html, /getElementById\(["']timeline["']\)/, 'timeline.js is inlined');
   assert.match(html, /getElementById\(["']home-tiles["']\)/, 'monitor.js writes the tiles');
@@ -216,6 +216,20 @@ test('example build: Inicio reads today top to bottom — dials, monitor tiles, 
   assert.ok(dash > week && deep > dash && detail === deep + 1, 'home-week → home-dash → deepdive → detail');
   assert.match(home, /<section class="home-sec" id="my-dash" aria-labelledby="my-dash-h" hidden>[\s\S]*?My dashboard<\/h2>\s*<button type="button" class="db-cust" id="dash-edit" data-detail="dash-edit"/);
   assert.match(html, /"tonight":\{"asOf":"\d{4}-\d{2}-\d{2}","wake":/, 'demo data bakes a bedtime');
+});
+
+test('example build: the health monitor list leads Salud (before the sections host) and Inicio\'s summary tile jumps to it', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const salud = sliceTabPanel(html, 'health');
+  // header first: the centred title + an ⓘ toggle holding the tab intro, the green glow behind it
+  const at = ['class="hs-glow"', '<h2 class="hs-title">Health</h2>', 'data-hs-info="hs-intro"', '<div class="hs-info" id="hs-intro" hidden>', 'id="monitor"', 'id="health-body"'].map((n) => salud.indexOf(n));
+  assert.ok(at.every((v, i) => v !== -1 && (i === 0 || v > at[i - 1])), `Salud order ${at}`);
+  assert.match(salud, /<div class="hs-info" id="hs-intro" hidden><p>Body, activity &amp; recovery from your latest Apple Health export\.<\/p><p>Each row:/);
+  assert.ok(salud.indexOf('<div id="monitor"></div>') !== -1, 'the monitor host is in Salud');
+  assert.ok(salud.indexOf('<div id="monitor"></div>') < salud.indexOf('<div id="health-body"></div>'), 'monitor first');
+  assert.equal(html.split('id="monitor"').length - 1, 1, 'one monitor host on the page');
+  assert.match(html, /jump\(\\?'monitor\\?'\)/, 'the tile still jumps to #monitor');
+  assert.match(html, /"anchorTab":\{"monitor":"health"\}/, '#monitor deep-links to Salud');
 });
 
 test('example build: the programmed session is a row of "Today\'s activities", not a block — its section is a hidden source the session sheet reads', () => {
@@ -244,20 +258,20 @@ test('example build: Inicio carries a compact "today you eat" card (filled clien
   const home = sliceTabPanel(html, 'home');
   const cardAt = home.indexOf('class="eat-card"');
   assert.ok(cardAt !== -1, 'eat card missing from the Inicio panel');
-  assert.ok(home.indexOf('<div id="home-advice">') < cardAt && cardAt < home.indexOf('id="monitor"'), 'order: dials + advice, eat card, then the monitor');
-  const card = home.slice(cardAt, home.indexOf('id="monitor"'));
+  assert.ok(home.indexOf('<div id="home-advice">') < cardAt && cardAt < home.indexOf('id="home-tonight"'), 'order: dials + advice, eat card, then Tonight');
+  const card = home.slice(cardAt, home.indexOf('id="home-tonight"'));
   assert.match(card, /<div id="eat-body" aria-live="polite"><\/div>/);
   assert.match(card, /onclick="setTab\('nutricion'\)"[^>]*>See the full plan/);
   assert.doesNotMatch(card, /class="meal"/, 'the full meal plan is NOT duplicated on Inicio');
 });
 
-test('example build: the Salud recovery detail card spans the full grid row, headline | sparkline | contributors side by side on wide screens', async () => {
+test('example build: the Salud recovery section (with its detail card) spans the full grid row, headline | sparkline | contributors side by side on wide screens', async () => {
   const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
   const html = fs.readFileSync(examplePath, 'utf8');
   const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
   const map = ruleDeclarationMap(parseCssRules(css)); // selectors in css-scan's canonical form (`a>b`)
   const wide = [...map.entries()].filter(([k]) => k.startsWith('(min-width:900px)|||'));
-  assert.ok(wide.some(([k, v]) => k.endsWith('|||grid-column') && k.split('|||')[1].split(',').map((x) => x.trim()).includes('#health-body>#score-recovery') && v === '1 / -1'), '#score-recovery spans 1 / -1');
+  assert.ok(wide.some(([k, v]) => k.endsWith('|||grid-column') && k.split('|||')[1].split(',').map((x) => x.trim()).includes('#health-body>#hl-recovery') && v === '1 / -1'), 'the recovery section spans 1 / -1');
   assert.ok(wide.some(([k, v]) => k === '(min-width:900px)|||.rec-layout|||grid-template-columns' && (v.match(/minmax\(/g) || []).length === 3), 'three columns on wide screens');
   assert.ok(![...map.keys()].some((k) => k.startsWith('|||.rec-layout|||grid-template-columns')), 'stacked (one column) on phones');
 });

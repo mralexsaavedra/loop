@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
-import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB } from '../../../lib/nav/tabs.mjs';
+import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB, ANCHOR_TAB } from '../../../lib/nav/tabs.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -418,13 +418,14 @@ function routedPage({ hash = '', hide = [], hideSections = [], throws = false, s
   };
   const winL = {};
   const window = { scrollTo() {}, addEventListener: (t, fn) => { (winL[t] = winL[t] || []).push(fn); } };
-  const NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB }, detailTab: { ...DETAIL_TAB }, viewTab: { ...VIEW_TAB } };
+  const monitor = doc.el('monitor', { parent: panels.health });
+  const NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB }, detailTab: { ...DETAIL_TAB }, viewTab: { ...VIEW_TAB }, anchorTab: { ...ANCHOR_TAB } };
   const ctx = { document: doc, window, history, location: loc, setTimeout, console, Math, Number, String, Object, NAV };
   vm.createContext(ctx);
   vm.runInContext(source, ctx);
   const shown = () => TAB_KEYS.filter((t) => !panels[t].hidden);
   const navTo = (h) => { loc.hash = h; ['popstate', 'hashchange'].forEach((t) => (winL[t] || []).forEach((fn) => fn({}))); };
-  return { doc, window, loc, calls, panels, sheet, shown, navTo };
+  return { doc, window, loc, calls, panels, sheet, shown, navTo, monitor };
 }
 
 test('setTab writes the tab hash with replaceState (never pushState: Back does not walk through tabs)', () => {
@@ -491,7 +492,7 @@ test('load with a hidden or unknown tab hash falls back to the default visible t
 test('a detail deep link opens its host tab underneath and leaves the URL to detail.js', () => {
   const cases = [
     ['#detail/sleep', 'health'], ['#detail/weight/2026-09-01', 'health'], ['#detail/load-run', 'entreno'],
-    ['#detail/workouts/2026-09-30', 'entreno'], ['#food-add', 'nutricion'], ['#profile', 'home'],
+    ['#detail/workouts/2026-09-30', 'entreno'], ['#food-add', 'nutricion'], ['#profile', 'home'], ['#tonight', 'home'], ['#dash-edit', 'home'],
     ['#detail/nope', 'home'], ['#detail/constructor', 'home'],
   ];
   for (const [hash, tab] of cases) {
@@ -503,6 +504,31 @@ test('a detail deep link opens its host tab underneath and leaves the URL to det
   const p = routedPage({ hash: '#detail/sleep', hide: ['health'] });
   assert.deepEqual(p.shown(), ['home'], 'a hidden host tab: the default tab');
   assert.equal(p.calls.length, 0);
+});
+
+test('#monitor deep-links to the health monitor: Salud opens, the hash stays, the list scrolls into view (also on hashchange)', async () => {
+  let p = routedPage({ hash: '#monitor' });
+  assert.deepEqual(p.shown(), ['health']);
+  assert.equal(p.calls.length, 0, 'no history write: #monitor stays');
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(p.monitor._scrolledIntoView, true);
+  p = routedPage({ hash: '#home' });
+  p.navTo('#monitor');
+  assert.deepEqual(p.shown(), ['health']);
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(p.monitor._scrolledIntoView, true);
+  p = routedPage({ hash: '#monitor', hide: ['health'] });
+  assert.deepEqual(p.shown(), ['home'], 'a hidden Salud: the default tab');
+  assert.equal(p.loc.hash, '#home');
+});
+
+test('jump(\'monitor\') (the Inicio summary tile) switches to Salud and scrolls to the list', async () => {
+  const p = routedPage({ hash: '#home' });
+  p.window.jump('monitor');
+  assert.deepEqual(p.shown(), ['health']);
+  assert.equal(p.loc.hash, '#health');
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(p.monitor._scrolledIntoView, true);
 });
 
 test('HCNav.hash() is the current tab hash (detail.js restores it when the sheet closes)', () => {

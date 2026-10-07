@@ -407,26 +407,12 @@
   }
 }
 
-/* Health monitor (Inicio, under the dials, advice and eat card): latest overnight signals vs the personal band.
- * --hm-c is the tone colour: good / bad (--low) / watch (--mid, change signals) / normal (--trend). */
+/* Health monitor (the list leading Salud, client/monitor.js): shared metric rows (.db-*), the value
+ * coloured by nothing; the marker by tone. --hm-c is the tone colour of Inicio's HRV tile:
+ * good / bad (--low) / watch (--mid, change signals) / normal (--trend). */
 #home-dials,
 #monitor {
   display: block;
-}
-.hm-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-3);
-}
-.hm-card {
-  --hm-c: var(--trend);
-  display: flex;
-  align-items: stretch;
-  gap: var(--sp-3);
-  min-width: 0;
-  padding: var(--sp-4);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--r-md);
 }
 .hm-tone-good {
   --hm-c: var(--good);
@@ -437,78 +423,11 @@
 .hm-tone-watch {
   --hm-c: var(--mid);
 }
-.hm-card[role="button"] {
-  cursor: pointer;
-}
-.hm-card[role="button"]:hover {
-  border-color: rgba(var(--accent-rgb), 0.35);
-}
-.hm-card[role="button"]:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.hm-bar {
-  flex: 0 0 12px;
-  width: 12px;
-  height: 72px;
-}
-.hm-track {
-  fill: var(--track);
-}
-.hm-band {
-  fill: var(--trend);
-  opacity: 0.35;
-}
-.hm-mark {
-  fill: var(--hm-c);
-}
-.hm-body {
-  min-width: 0;
-}
-.hm-lbl {
-  font-size: var(--fs-2xs);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.hm-val {
-  font-size: var(--fs-md);
-  color: var(--faint);
-}
-.hm-num {
-  font-family: var(--num);
-  font-size: var(--fs-3xl);
-  font-weight: 700;
-  color: var(--ink);
-  margin-right: 3px;
-}
-.hm-status {
-  font-size: var(--fs-2xs);
-  font-weight: 700;
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--hm-c);
-}
-.hm-none .hm-status,
-.hm-none .hm-val {
+.hm-none .db-val b {
   color: var(--faint);
 }
 .hm-stale {
   opacity: 0.55;
-}
-.hm-stale .hm-status {
-  color: var(--faint);
-}
-.hm-range,
-.hm-date {
-  font-size: var(--fs-2xs);
-  color: var(--faint);
-}
-@media (min-width: 900px) {
-  .hm-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
 }
 .sc-card-error {
   color: var(--muted);
@@ -745,39 +664,6 @@
   letter-spacing: var(--label-track);
   text-transform: uppercase;
   color: var(--hm-c, var(--trend));
-}
-
-/* the full monitor grid, folded at the bottom of Inicio until P5 moves it to Salud */
-.hm-fold,
-.hm-fold[open] {
-  margin: var(--sp-7) 0 var(--sp-5);
-  background: none;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  overflow: visible;
-}
-.hm-fold-sum {
-  display: flex;
-  padding: 0 var(--sp-7);
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  font-size: var(--fs-2xs);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--muted);
-  cursor: pointer;
-  list-style: none;
-}
-.hm-fold-sum::-webkit-details-marker {
-  display: none;
-}
-.hm-fold[open] > .hm-fold-sum {
-  margin-bottom: var(--sp-5);
 }
 
 /* the programmed session's section is a hidden source (client/training-today.js) */
@@ -1351,6 +1237,9 @@ details.rec-raw > summary {
 }
 .db-flat {
   color: var(--faint);
+}
+.db-watch {
+  color: var(--mid);
 }
 .db-base {
   margin-right: 13px;

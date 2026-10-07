@@ -12,21 +12,48 @@ Body composition, activity, energy (incl. the power-meter ride correction), runn
 from the Apple Health extract CSVs (all OPTIONAL — absent CSVs render an empty state, never fail the
 build); `web/src/client/health.js` renders them into TWO hosts, each with its own empty state and
 its own try/catch (a throw in one half renders that half's empty state, never blanks the other):
-`#health-body` (Salud: recovery with `#score-recovery` right under its heading, sleep, body composition,
-activity, energy — in that order) and `#health-train` (Entreno: running, cycling, load vs recovery).
+`#health-body` (Salud) and `#health-train` (Entreno: running, cycling, load vs recovery).
 
-**Today first.** Every trend card's headline is the NEWEST value with its date (a daily total dated
-the viewer's today reads "today, so far" / "hoy, en curso", decided client-side); the 30-day mean
-(`avg30`, `avg30Of`: mean of the daily values over the last 30 days — for the daily TOTALS of
-`dailyTrend` the 30 days ending the day BEFORE the latest, since the build cannot know whether that
-day is complete) and the Δ (`d30Of`) form the context line under it; a non-finite value is never
-printed and a card that throws is skipped, never blanking the tab; a card whose newest value is
-more than `STALE_DAYS` (3) before the viewer's today is greyed (`mtrend-stale`) with a "sin datos
-recientes" / "no recent data" note, decided client-side like the monitor and the dials (waist, dated
-in its title, is exempt: a sparse manual measurement);
-sparklines are unchanged (7-day rolling). HRV's headline is the newest DAY's mean; sleep's is last night (`sleep.latest`), with the 30-night mean as context;
-expenditure's is the newest day's TDEE (`tdeeLatest`; a day counts only with BOTH active and basal energy, never basal alone). Each recovery trend carries an `hl-<key>`
-anchor for Inicio's health monitor.
+**Salud layout** (`web/src/tabs/Salud.astro` + `health.js`), top to bottom: a centred UPPERCASE title
+("SALUD" / "HEALTH") with an ⓘ toggle (`#hs-intro`: the tab intro + how to read a row), over a soft
+green glow at the top of the page (`.hs-glow`, `--up` at 16 % via `color-mix`, absolute behind the
+content, only while the panel shows); the health monitor list (`#monitor`, `client/monitor.js`, see
+`docs/home-tab.md` "Health monitor"); then the sections of `#health-body`, each a `<section
+class="hs-sec" id="hl-<key>">` with an UPPERCASE label, an ⓘ toggle and a list of metric rows:
+**Recovery** (`#score-recovery`, the recovery card filled by score.js, restyled borderless, then
+resting HR, HRV, respiratory rate, wrist temperature), **Fitness** (VO₂max, walking HR — moved out of
+Recovery), **Sleep** (last night, then % nights ≥ target, night-to-night ±, bedtime / wake time),
+**Body composition** (weight, body fat, lean mass, waist), **Activity** (steps, exercise, distance,
+flights), **Energy** (expenditure; the intake balance + macro split cards stay under it until
+Nutrición takes them). On ≥ 900 px the sections flow in two columns, Recovery spans the row.
+
+**Rows, not cards (text diet).** Each metric is the shared row (`HC.metricRow`, the same `.db-*` row as
+Inicio's "My dashboard"): icon · UPPERCASE name · the NEWEST value + unit · a marker · a small line
+under the value. The small line is the 30-day baseline (`avg30`, `avg30Of`: mean of the daily values
+over the last 30 days — for the daily TOTALS of `dailyTrend` the 30 days ending the day BEFORE the
+latest, since the build cannot know whether that day is complete; sleep: the 30-night mean) with ▲ / ▼
+vs it (a grey • within ±2 %), or, for a sparse measurement, its change "Δ +1.2" (`d30Of` for weight,
+the scale-window Δ for body fat / lean mass, latest − first for VO₂max and waist) with the marker by
+its sign. Colour by the metric's good direction: `--up` teal = better, `--down` orange = worse, grey
+for no good direction (respiratory rate, wrist temp, weight, expenditure). A daily total dated the
+viewer's today is partial: its line adds "today, so far" / "hoy, en curso" and it gets no marker
+(decided client-side). A row whose newest value is more than `STALE_DAYS` (3) before the viewer's
+today is greyed (`db-stale`) with "no recent data" / "sin datos recientes" and no marker (waist,
+dated in its own line, is exempt: a sparse manual measurement). The date, the baseline and the
+direction word are in the row's `aria-label`. A non-finite value is never printed and a row that
+throws is skipped, never blanking the tab. HRV's value is the newest DAY's mean; sleep's is last
+night (`sleep.latest`); expenditure's is the newest day's TDEE (`tdeeLatest`; a day counts only with
+BOTH active and basal energy, never basal alone). Each recovery signal row carries an `hl-<key>`
+anchor. Every row opens its detail sheet (`docs/detail-views.md`: chart, W / M / 6M / 1Y, calendar),
+which holds the history the former sparklines showed.
+
+**Where the words went.** Section intros and caveats moved behind each section's ⓘ (`hs-info-<key>`,
+hidden in the DOM, so nothing is lost): Recovery = the good-directions / consistency note; Fitness = a
+short VO₂max / walking HR note; Sleep = the consistency note; Body = the "How to read this" note (scale
+mix, bioimpedance ±3–5 %, single-scale Δ), the "n readings in the last 150 days" of body fat and lean
+mass, and the waist note (or how to start logging it); Activity = the NEAT note; Energy = the
+power-meter notes (headline day corrected / uncovered, days in the window) and the balance note or the
+expenditure-only caveat. The tab intro sits behind the title's ⓘ.
 
 - **Body composition** — `weight.csv` + `bodyfat.csv` + `leanmass.csv`. Weight trend is a 7-day
   rolling average (it mixes scales/apps, so the raw series is noisy). Body fat and lean mass use
@@ -97,8 +124,8 @@ anchor for Inicio's health monitor.
   bike has data, the other shows its empty-state line; with neither, both are omitted.
 - **Recovery** — `rhr.csv`, `hrv.csv` (both as the clamped per-day MEDIAN, `score/recovery.mjs`
   `dailySignal`, the same series Inicio's recovery and monitor use), `vo2max.csv`, `sleep-daily.csv`,
-  `respiratory-daily.csv`, `wristTemp.csv`, `walking-hr-daily.csv`. Good directions stated on
-  screen (↓ resting/walking HR, ↑ HRV, ↑ VO₂max; respiratory & sleeping wrist temp are change-
+  `respiratory-daily.csv`, `wristTemp.csv`, `walking-hr-daily.csv`. Good directions stated behind
+  the section's ⓘ (↓ resting/walking HR, ↑ HRV, ↑ VO₂max; respiratory & sleeping wrist temp are change-
   not-absolute signals). Sleep adds CONSISTENCY: % of nights ≥ `SLEEP_TARGET` (7.5 h), night-to-
   night spread (sd), and bedtime/wake-time regularity (median ± a ROBUST sd = 1.4826 × MAD, in
   minutes; after-midnight bedtimes wrapped onto a night scale). Sleep bedtime/waketime come from the
@@ -122,7 +149,7 @@ anchor for Inicio's health monitor.
   rebuilt by every sync). Sleep renders
   as its own Salud section; its heading is the `#hl-sleep` anchor.
 
-Trends render as inline SVG sparklines (CSP-safe). The build is idempotent — no today-relative
+The aggregates still bake a 7-day rolling `spark` series per trend; Salud no longer draws it (rows only — the detail sheet charts the history). The build is idempotent — no today-relative
 values are baked (staleness is computed client-side from the data dates). Aggregation lives in
 pure functions (`aggBody`/`aggActivity`/`aggEnergy`/`aggRunning`/`aggRecovery` + helpers
 `dailyTrend`/`signalTrend`) so the test suite injects synthetic series without touching disk. The
