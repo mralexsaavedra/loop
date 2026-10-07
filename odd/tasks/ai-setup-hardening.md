@@ -30,7 +30,7 @@ subagents, guard hook, settings, skills).
 - [x] T2 Hook: guard Edit/Write on `.gitignore`; deny reads of `.env*` via permissions (route: delegated writer)
 - [x] T3 CLAUDE.md analysis workflow: live facts + freshness, real weight source; methodology §6 report structure + language (route: delegated writer — 2 files, needs reading the agents and reports)
 - [x] T4 `/analysis` project skill; trim CLAUDE.md (onboarding → docs, dedupe rules, drop repeated commands) (route: delegated writer)
-- [ ] T5 Coach agents: drift test for the shared block; explicit `model:` (route: delegated writer)
+- [x] T5 Coach agents: drift test for the shared block; explicit `model:` (route: delegated writer)
 - [ ] T7 Hook review follow-ups (advisory findings of the approved review): fail closed on unexpected errors, wrapper option args, subshell `cd` scope, vacuous allow tests, doc/comment fixes (route: delegated writer — hook logic + tests)
 - [ ] T6 Local only (no commit): drop `gh pr merge:*` from settings.local.json; refresh skill registry (route: inline)
 
@@ -66,8 +66,15 @@ subagents, guard hook, settings, skills).
   into Repo rules; bootstrap paragraph → README pointer; food log export caveats moved to
   `docs/nutrition-food-log.md` → Food log export; map rows for onboarding + guard hook. README and the
   hook's rule references updated. `node --test .claude/hooks/guard-health-data.test.js`: 47/47;
-  `npm test`: 1623 tests, 1618 pass, 0 fail. Commit: the `feat(analysis): ...` commit after `a56d9ac`.
+  `npm test`: 1623 tests, 1618 pass, 0 fail. Commit: `0e0f4df`.
+- T5 (route: delegated writer). `.claude/hooks/coach-agents.test.js` (placed there because
+  `.claude/hooks/*.test.js` is the only `npm test` glob inside this task's edit surface; `package.json`
+  was out of scope) asserts the "## Shared rules" … "## Knowledge source" span is byte-identical in the
+  three coaches and pins `model: inherit` + read-only tools. RED: 1/2 fail before `model: inherit`; a
+  simulated one-character drift in `hybrid-coach.md` fails the identity test (reverted). GREEN: 2/2.
+  `docs/knowledge-base.md` documents the test and the `model: inherit` choice. Commit: the
+  `test(agents): ...` commit after `0e0f4df`.
 
 ## Next step
 
-T5. Pending from T1/T2: add a `docs/guard-hook.md` row to the CLAUDE.md architecture map.
+T7. Pending from T1/T2: add a `docs/guard-hook.md` row to the CLAUDE.md architecture map.
