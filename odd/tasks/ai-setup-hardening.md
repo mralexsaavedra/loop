@@ -29,7 +29,7 @@ subagents, guard hook, settings, skills).
 - [x] T1 Hook: resolve force-add targets with `git check-ignore`, per-argument allow-list, honour `cd`; tests (route: delegated writer — non-trivial hook logic + tests)
 - [x] T2 Hook: guard Edit/Write on `.gitignore`; deny reads of `.env*` via permissions (route: delegated writer)
 - [x] T3 CLAUDE.md analysis workflow: live facts + freshness, real weight source; methodology §6 report structure + language (route: delegated writer — 2 files, needs reading the agents and reports)
-- [ ] T4 `/analysis` project skill; trim CLAUDE.md (onboarding → docs, dedupe rules, drop repeated commands) (route: delegated writer)
+- [x] T4 `/analysis` project skill; trim CLAUDE.md (onboarding → docs, dedupe rules, drop repeated commands) (route: delegated writer)
 - [ ] T5 Coach agents: drift test for the shared block; explicit `model:` (route: delegated writer)
 - [ ] T7 Hook review follow-ups (advisory findings of the approved review): fail closed on unexpected errors, wrapper option args, subshell `cd` scope, vacuous allow tests, doc/comment fixes (route: delegated writer — hook logic + tests)
 - [ ] T6 Local only (no commit): drop `gh pr merge:*` from settings.local.json; refresh skill registry (route: inline)
@@ -58,9 +58,16 @@ subagents, guard hook, settings, skills).
   `foodlog-daily.meta.json`) with the "numbers from live files, never from prose" rule; weight source
   is `extract/weight.csv`. methodology §6 matches the 2026-09-28 / 2026-10-07 reports (0. freshness,
   follow-up of previous actions) and says reports are in Spanish. All referenced paths verified in the
-  main clone (personal files are gitignored). `npm run check`: exit 0. Commit: `docs(analysis): ...`
-  (SHA recorded below).
+  main clone (personal files are gitignored). `npm run check`: exit 0. Commit: `a56d9ac`.
+- T4 (route: delegated writer). New project skill `.claude/skills/analysis/SKILL.md` (sync + WARNINGs,
+  freshness, live facts, previous-report follow-up, coach delegation, report per methodology §6).
+  CLAUDE.md 218 → 142 lines: analysis body → skill pointer + a compact "Data sources" section (live
+  facts, freshness, caveat pointers); onboarding → `docs/onboarding.md`; personal-data rules merged
+  into Repo rules; bootstrap paragraph → README pointer; food log export caveats moved to
+  `docs/nutrition-food-log.md` → Food log export; map rows for onboarding + guard hook. README and the
+  hook's rule references updated. `node --test .claude/hooks/guard-health-data.test.js`: 47/47;
+  `npm test`: 1623 tests, 1618 pass, 0 fail. Commit: the `feat(analysis): ...` commit after `a56d9ac`.
 
 ## Next step
 
-T4. Pending from T1/T2: add a `docs/guard-hook.md` row to the CLAUDE.md architecture map.
+T5. Pending from T1/T2: add a `docs/guard-hook.md` row to the CLAUDE.md architecture map.

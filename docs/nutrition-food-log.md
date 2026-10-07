@@ -224,6 +224,18 @@ in the last `days` days (today included) in the same shape, for the intake rings
   OCR (send them to Claude in chat), scraping any supermarket site, exporting the log to CSV for the
   analysis pipeline (next slice), Apple Health write-back.
 
+## Food log export for analysis (`npm run sync:foodlog`)
+
+Read-only consumers (reports, the `nutrition-coach` subagent) never query Postgres: they read the
+snapshot `data/nutrition/sync-foodlog.js` writes (part of `npm run sync`).
+
+- `data/nutrition/foodlog-daily.csv` (gitignored): one row per LOGGED day (no entry → no row); the last
+  120 days are refreshed from the server, older rows are kept. An unknown macro is blank, never 0;
+  `missing_macros` lists the macros some entry lacked, so those sums are **minimums**.
+- `data/nutrition/foodlog-daily.meta.json`: `{from, to, days, fetchedAt}` — the freshness stamp.
+- Unreachable / old service → one `WARNING:` line, the old files kept, exit 0 (only a failed write
+  exits 1). `data/nutrition/food-log.md` holds legacy notes + rationale only, not the live log.
+
 ## Nutrition v2 part 3 — server-side goal + target weight, Progreso, Constancia
 
 Three render-isolated pieces (own try/catch, one-line fallback). Thresholds live in `lib/` (baked as
