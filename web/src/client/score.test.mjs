@@ -406,7 +406,8 @@ test('recovery dial: value INSIDE the ring = LAST NIGHT (signed number + small S
   assert.ok(!d.includes(trendLine), 'the trend caption moved to the detail sheet');
   assert.doesNotMatch(d, /dial-sub|dial-when|dial-trend/);
   assert.doesNotMatch(d, /%/);
-  assert.equal(count(d, 'class="dial-zone'), 3, 'below / at / above zones');
+  assert.equal(count(d, 'class="dial-zone'), 0, 'no zone arcs: the fill takes ONE state colour (its band) end to end');
+  assert.equal(count(d, 'class="dial-fill"'), 1);
   assert.match(d, /class="dial-mid"/, 'baseline tick');
   assert.doesNotMatch(d, /class="dial-dot"/, 'no marker dot: the fill ends at the value');
 });
@@ -749,4 +750,13 @@ test('one recovery unit: the dial, the Salud card and the detail sheet all say S
   const dial = dialOf(withDials(fixtureScores()), 'dial-rec');
   assert.match(dial, / SD/, 'the dial: same unit');
   assert.doesNotMatch(dial, / sd\b/);
+});
+
+test('recovery dial colour: ONE state colour per band (good / mid / low), the same tokens on Inicio and the detail hero', () => {
+  const css = fs.readFileSync(path.join(here, '..', 'styles', 'score.css'), 'utf8');
+  const rule = (sel) => { const m = new RegExp(sel.replace(/\./g, '\\.') + '\\s*\\{([^}]*)\\}').exec(css); return m ? m[1] : ''; };
+  assert.match(rule('.dial-band-above'), /--dial-c:\s*var\(--good\)/);
+  assert.match(rule('.dial-band-at'), /--dial-c:\s*var\(--mid\)/, 'at baseline = the mid (yellow) state, never the blue trend colour');
+  assert.match(rule('.dial-band-below'), /--dial-c:\s*var\(--low\)/);
+  assert.doesNotMatch(css, /\.dial-zone/, 'no zone arcs left to tint part of the ring');
 });

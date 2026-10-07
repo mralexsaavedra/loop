@@ -194,7 +194,7 @@
 /* Inicio dials — Sleep / Recovery / Load: three equal full rings in a row (start at 12 o'clock, fill
  * clockwise, round caps, thin stroke on --track), the value INSIDE (D-DIN number, small unit) and an
  * uppercase "LABEL ›" below. Geometry is baked (view/dial.mjs). --dial-c is the dial's meaning colour:
- * sleep, recovery band (good / trend / low), load = strain. No percentage anywhere: recovery fills to
+ * sleep, recovery = ONE state colour for its whole fill (band: good / mid / low), load = strain. No percentage anywhere: recovery fills to
  * last night on a -3..+3 scale (baseline = the tick at 6 o'clock), sleep fills to a stated target,
  * load fills to the day's RE with the typical training day at 6 o'clock (a rest day has no fill).
  * The dials sit on the page ground, not in a card; the captions live in each dial's detail sheet. */
@@ -236,7 +236,7 @@
   --dial-c: var(--good);
 }
 .dial-band-at {
-  --dial-c: var(--trend);
+  --dial-c: var(--mid);
 }
 .dial-band-below {
   --dial-c: var(--low);
@@ -260,20 +260,6 @@
   fill: none;
   stroke: var(--track);
   stroke-width: 7;
-}
-.dial-zone {
-  fill: none;
-  stroke-width: 7;
-  opacity: 0.22;
-}
-.dial-zone-below {
-  stroke: var(--low);
-}
-.dial-zone-at {
-  stroke: var(--trend);
-}
-.dial-zone-above {
-  stroke: var(--good);
 }
 .dial-fill {
   fill: none;
@@ -943,7 +929,7 @@ details.rec-raw > summary {
 
 /* Collapsed dial row (#home-mini, Home.astro; written by client/score.js): once the dials scroll
  * above the viewport a frosted strip fixed at the top shows the same three rings small (the dial's
- * own svg, its colour class, no zones / markers) + their labels; a tap opens the dial's detail.
+ * own svg, its colour class, no markers) + their labels; a tap opens the dial's detail.
  * Off = visibility: hidden (out of the tab order and the accessibility tree); it slides in, and
  * prefers-reduced-motion drops the motion (base.css). Inside the Inicio panel, so other tabs never
  * show it. */
@@ -1006,7 +992,6 @@ details.rec-raw > summary {
 .dm .dial-fill {
   animation: none;
 }
-.dm .dial-zone,
 .dm .dial-mid {
   display: none;
 }

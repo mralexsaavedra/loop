@@ -63,3 +63,14 @@ test('the tokens.css header lists the real ratio of every token on --surface', (
     assert.equal(m[1], ratio(token(fg), token('surface')).toFixed(2), `header ratio for --${fg}`);
   }
 });
+
+test('the CTA link gradient (--link → --link-end) passes AA for small text on --ground, the insight card fill; never on a card', () => {
+  for (const fg of ['link', 'link-end']) {
+    const r = ratio(token(fg), token('ground'));
+    assert.ok(r >= 4.5, `--${fg} on --ground is ${r.toFixed(2)}:1, AA needs 4.5:1`);
+  }
+  assert.ok(ratio(token('link-end'), token('surface')) < 4.5, 'on --surface the violet end fails: keep the gradient off cards');
+  const css = fs.readFileSync(path.join(here, '..', 'src', 'styles', 'detail.css'), 'utf8');
+  const m = /\.dd-insight\s*\{([^}]*)\}/.exec(css);
+  assert.ok(m && /var\(--ground\)/.test(m[1]), 'the insight card is filled with --ground');
+});

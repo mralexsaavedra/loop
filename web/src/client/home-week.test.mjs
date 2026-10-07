@@ -194,9 +194,8 @@ test('My plan reads the food log summary (window.HCAdherence) and refreshes when
   assert.match(els['home-plan'].innerHTML, /Days with food logged[\s\S]*<b>2<\/b>\/7[\s\S]*Days on kcal target[\s\S]*<b>1<\/b>\/5/);
 });
 
-test('runs at DOMContentLoaded when the page is still parsing (after the end-of-body scripts)', () => {
-  const { els, listeners } = load({ readyState: 'loading', globals: { SCORES: { tonight: TONIGHT } } });
-  assert.equal(els['home-tonight'].hidden, true, 'nothing rendered while parsing');
-  listeners.DOMContentLoaded();
-  assert.equal(els['home-tonight'].hidden, false);
+test('renders at once, even while the page is still parsing: it runs at the end of body (layouts/Plan.astro), after its globals and before detail.js', () => {
+  const { els, ctx } = load({ readyState: 'loading', globals: { SCORES: { tonight: TONIGHT } } });
+  assert.equal(els['home-tonight'].hidden, false, 'rendered without waiting for DOMContentLoaded');
+  assert.equal(typeof ctx.window.HCViews.tonight.render, 'function', 'the view is registered before detail.js reads the hash');
 });
