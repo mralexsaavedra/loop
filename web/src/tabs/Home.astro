@@ -4,8 +4,8 @@
  * HRV signal, client/monitor.js), "My day" (#my-day: the advice sentence as the outlook bar in
  * #home-advice, then "Today's activities" in #timeline: last night's sleep, the day's workouts and
  * today's programmed session, client/timeline.js), the "today you eat" card (components/EatCard.astro,
- * client/nutri-day.js), and the full health monitor grid folded under "See metrics" (#monitor-fold;
- * P5 moves it to Salud — the summary tile jumps to it, wherever it lives). The detail behind each
+ * client/nutri-day.js). The full health monitor list leads Salud (tabs/Salud.astro); the summary
+ * tile jumps there (jump('monitor') switches tab and scrolls). The detail behind each
  * dial, tile and row opens in the detail sheet (client/detail.js). Everything is client-rendered from
  * the globals baked by <Bake> (web/pages/index.astro) and Dia's NUTRI. The programmed session's own
  * section (tabs/Hoy.astro) follows as a hidden source inside the same `home` panel.
@@ -17,7 +17,6 @@
  * #home-mini = the collapsed dial row (fixed at the top, shown by score.js once the dials scroll away:
  * the same three rings small, with their labels; a tap opens the same detail as the dial).
  */
-import HealthMonitor from '../components/HealthMonitor.astro';
 import EatCard from '../components/EatCard.astro';
 import { es as esS, en as enS } from '../i18n/score-templates.mjs';
 
@@ -50,4 +49,3 @@ const t = (locale === 'es' ? esS : enS).home;
   </div>
   <div id="home-dash"></div>
 </section>
-<details class="hm-fold" id="monitor-fold"><summary class="hm-fold-sum">{t.moreMetrics}</summary><HealthMonitor /></details>

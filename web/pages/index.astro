@@ -4,7 +4,7 @@
  * layout with FOUR top-level tabs, one question each (Whoop-style):
  *   - Inicio/Home (`home`)          today: dials, monitor, advice + "today you eat" card + programmed session (hoy)
  *   - Entreno/Training (`entreno`)  load (load), calendar (calendar), run/ride tables (sessions), dashboard (dash)
- *   - Salud/Health (`health`)       recovery, sleep, body, activity, energy
+ *   - Salud/Health (`health`)       health monitor, recovery, fitness, sleep, body, activity, energy
  *   - Nutrición (`nutricion`)       today (dia: Resumen de hoy + Plan de hoy + Registrar + Avituallamiento)
  *                                   + Mis productos / Mis recetas (LAN only, with dia) + Tablas (tablas)
  * The former tab keys now name sections; `page.hideTabs` hides a section by its legacy key and a
@@ -83,7 +83,7 @@ const title = plan.page?.title || 'Plan';
     <Entrenos dict={dict} hidden={isHidden('dash')} />
   </div>
   <div class="tab-panel" data-tab="health" hidden={activeTab !== 'health'}>
-    <Salud />
+    <Salud locale={locale} />
   </div>
   <div class="tab-panel" data-tab="nutricion" hidden={activeTab !== 'nutricion'}>
     <Dia nut={nut} plan={plan} locale={locale} page={plan.page} hidden={isHidden('dia')} intakeHost={!!intake.latest} supplements={profile.supplements} weight={profile.weight} />

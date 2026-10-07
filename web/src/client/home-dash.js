@@ -114,18 +114,8 @@
     }
 
     /* ---------- render ---------- */
-    var ICON = {
-      rhr: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
-      hrv: '<path d="M3 12h4l2-5 4 10 2-5h6"/>',
-      sleep: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
-      weight: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 9.5a4 4 0 0 1 6 0L12.5 12"/>',
-      steps: '<path d="M8 3c2 0 3 2 3 5s-1 5-3 5-3-2-3-5 1-5 3-5zM6 15h4v2a2 2 0 0 1-4 0zM16 7c2 0 3 2 3 5s-1 5-3 5-3-2-3-5 1-5 3-5z"/>',
-      vo2max: '<path d="M4 16a8 8 0 0 1 16 0M12 16l4-5"/>',
-      walkingHr: '<circle cx="13" cy="4.5" r="1.8"/><path d="M10 21l2-6 3 3v3M8 11l2-3h3l2 4 3 1"/>',
-      exercise: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
-    };
     function icon(key) {
-      return '<svg class="db-ico" viewBox="0 0 24 24" aria-hidden="true">' + (ICON[key] || ICON.hrv) + '</svg>';
+      return HC.metricIcon(key); // the shared row icons (client/util.js)
     }
     function titleOf(key) {
       return own(TD.metrics, key) && TD.metrics[key].title ? TD.metrics[key].title : key;
@@ -142,15 +132,11 @@
     }
     function rowHtml(key, m, r) {
       var unit = key === 'sleep' ? '' : unitOf(key);
-      var arrow = r.arrow === 'up' ? '▲' : r.arrow === 'down' ? '▼' : r.arrow === 'flat' ? '•' : '';
       var stale = HC.daysOld(r.date) > HC.STALE_DAYS;
       var aria = format(TS.rowAria, { metric: titleOf(key), value: fmt(key, m, r.value) + (unit ? ' ' + unit : ''), date: HC.fmtDate(r.date) }) +
         (r.base != null ? ' · ' + format(TS.baseAria, { base: fmt(key, m, r.base) + (unit ? ' ' + unit : '') }) + ' · ' + TS.dirs[r.arrow] : '');
-      return '<li class="db-row' + (stale ? ' db-stale' : '') + '"' + HC.detailAttrs(key) + ' aria-label="' + esc(aria) + '">' + icon(key) +
-        '<span class="db-name">' + esc(titleOf(key)) + '</span>' +
-        '<span class="db-vals"><span class="db-val"><b>' + esc(fmt(key, m, r.value)) + '</b>' + (unit ? '<small>' + esc(unit) + '</small>' : '') +
-        (arrow ? '<span class="db-arr db-' + r.tone + '" aria-hidden="true">' + arrow + '</span>' : '') + '</span>' +
-        (r.base != null ? '<span class="db-base">' + esc(fmt(key, m, r.base)) + '</span>' : '') + '</span></li>';
+      return HC.metricRow({ key: key, cls: stale ? 'db-stale' : '', attrs: HC.detailAttrs(key), aria: aria, name: titleOf(key), value: fmt(key, m, r.value), unit: unit,
+        arrow: r.arrow, tone: r.tone, base: r.base != null ? fmt(key, m, r.base) : null });
     }
     function available() {
       return D ? CATALOG.filter(function (k) { return own(D.metrics, k) && D.metrics[k] && Array.isArray(D.metrics[k].v); }) : [];

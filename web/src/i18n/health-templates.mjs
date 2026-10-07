@@ -24,6 +24,14 @@
  */
 export const es = {
   emptyMsg: 'Aún no hay datos de salud. Suelta tu export de Apple Health en <code>data/apple-health/</code>, corre <code>extract.js</code> y regenera.',
+  title: 'Salud',
+  // ⓘ of the Salud header and of each section: aria-label of the toggle button
+  infoTpl: 'Sobre {section}',
+  rowsHelp: 'Cada fila: el último valor a la derecha; debajo, en pequeño, tu media de 30 días (o el cambio Δ en las medidas sueltas) y ▲▼ frente a ella — verde azulado si va en la buena dirección, naranja si no, gris sin dirección buena o dentro de ±2 %. Un total de hoy va en curso y no se compara. Toca una fila para ver su historial (S · M · 6M · 1A).',
+  fitnessNoteHtml: '<b>↑ VO₂máx y ↓ FC al caminar</b> son las direcciones buenas. VO₂máx: Δ desde la primera lectura. FC al caminar: frente a su media de 30 días.',
+  sleepNoteHtml: 'Anoche frente a tu media de 30 noches. Además de la media importa la <b>consistencia</b>: el % de noches que llegan al objetivo, la variación noche a noche (±h) y la regularidad de horarios (mediana ± minutos).',
+  deltaAriaTpl: 'cambio {value}',
+  dirs: { up: 'por encima', down: 'por debajo', flat: 'similar' },
   introMsg: 'Cuerpo, actividad y recuperación de tu último export de Apple Health.',
   agoDaysTpl: 'hace {d} días',
   agoMonthTpl: 'hace {m} mes',
@@ -36,6 +44,7 @@ export const es = {
     running: 'Carrera',
     cycling: 'Ciclismo',
     recovery: 'Recuperación',
+    fitness: 'Forma física',
     sleep: 'Sueño',
     load: 'Carga vs recuperación',
   },
@@ -69,13 +78,14 @@ export const es = {
     sourceClause: ' ({src})',
   },
   waist: {
+    title: 'Cintura',
     titleTpl: 'Cintura · {date}',
     unit: 'cm',
     deltaUnit: ' cm',
     noteTpl: '<b>Cintura</b>: {n} medidas con cinta desde el {first}; Δ = última vs primera. Mídela a la altura del ombligo, de pie, al final de una espiración normal, cada 2-4 semanas.',
     emptyHtml: '<b>Aún no hay medidas de cintura.</b> Regístrala en Salud (Medidas corporales → Perímetro de cintura) y añade la clave <code>waist</code> a tu Atajo — ver <code>docs/ios-shortcut.md</code>.',
   },
-  activityNoteHtml: '<b>Pasos = NEAT</b>, tu mayor palanca de gasto fuera del entreno. El número grande es el último día (el de hoy va en curso hasta medianoche); debajo, la media de 30 días y el Δ frente a los 30 días previos; la línea es la media móvil de 7 días. Se descartan días casi sin pasos/distancia (dispositivo no llevado) y se toma el <b>máximo por dispositivo</b> para no duplicar iPhone + reloj.',
+  activityNoteHtml: '<b>Pasos = NEAT</b>, tu mayor palanca de gasto fuera del entreno. El valor es el último día (el de hoy va en curso hasta medianoche); debajo, la media de 30 días; el historial muestra la media móvil de 7 días. Se descartan días casi sin pasos/distancia (dispositivo no llevado) y se toma el <b>máximo por dispositivo</b> para no duplicar iPhone + reloj.',
   energyBalanceNote: {
     main: 'Balance entre {from}–{to} ({days} días registrados). Negativo = déficit. Es <b>histórico</b> — basado en la última ventana con ingesta registrada.{macroClause}',
     macroClause: ' El split de macros es la media de esos días.',
@@ -119,6 +129,14 @@ export const es = {
 
 export const en = {
   emptyMsg: 'No health data yet. Drop your Apple Health export into <code>data/apple-health/</code>, run <code>extract.js</code>, then regenerate.',
+  title: 'Health',
+  // ⓘ of the Salud header and of each section: aria-label of the toggle button
+  infoTpl: 'About {section}',
+  rowsHelp: 'Each row: the latest value on the right; under it, small, your 30-day average (or the change Δ for sparse measurements) and ▲▼ against it — teal when it moves the good way, orange when not, grey without a good direction or within ±2%. Today’s running total is partial and not compared. Tap a row for its history (W · M · 6M · 1Y).',
+  fitnessNoteHtml: '<b>↑ VO₂max and ↓ walking HR</b> are the good directions. VO₂max: Δ since the first reading. Walking HR: vs its 30-day average.',
+  sleepNoteHtml: 'Last night vs your 30-night average. Beyond the average, <b>consistency</b> matters: the % of nights that reach the target, the night-to-night spread (±h) and how regular the schedule is (median ± minutes).',
+  deltaAriaTpl: 'change {value}',
+  dirs: { up: 'above', down: 'below', flat: 'about the same' },
   introMsg: 'Body, activity &amp; recovery from your latest Apple Health export.',
   agoDaysTpl: '{d} days ago',
   agoMonthTpl: '{m} month ago',
@@ -131,6 +149,7 @@ export const en = {
     running: 'Running',
     cycling: 'Cycling',
     recovery: 'Recovery',
+    fitness: 'Fitness',
     sleep: 'Sleep',
     load: 'Load vs recovery',
   },
@@ -164,13 +183,14 @@ export const en = {
     sourceClause: ' ({src})',
   },
   waist: {
+    title: 'Waist',
     titleTpl: 'Waist · {date}',
     unit: 'cm',
     deltaUnit: ' cm',
     noteTpl: '<b>Waist</b>: {n} tape measurements since {first}; Δ = latest vs first. Measure at navel height, standing, at the end of a normal breath out, every 2-4 weeks.',
     emptyHtml: '<b>No waist measurements yet.</b> Log it in Health (Body Measurements → Waist Circumference) and add the <code>waist</code> key to your Shortcut — see <code>docs/ios-shortcut.md</code>.',
   },
-  activityNoteHtml: '<b>Steps = NEAT</b>, your biggest energy lever outside training. The big number is the latest day (today’s is partial until midnight); underneath, the 30-day average and Δ vs the prior 30 days; the line is the 7-day rolling average. Near-zero step/distance days are dropped (device not carried) and the <b>max per device</b> is used so iPhone + watch aren’t double-counted.',
+  activityNoteHtml: '<b>Steps = NEAT</b>, your biggest energy lever outside training. The value is the latest day (today’s is partial until midnight); under it, the 30-day average; the history view charts the 7-day rolling average. Near-zero step/distance days are dropped (device not carried) and the <b>max per device</b> is used so iPhone + watch aren’t double-counted.',
   energyBalanceNote: {
     main: 'Balance over {from}–{to} ({days} logged days). Negative = deficit. This is <b>historical</b> — based on the last window where intake was logged.{macroClause}',
     macroClause: ' The macro split is the average of those days.',

@@ -108,9 +108,9 @@ live on as SECTIONS (`data-section="<key>"`, `id="sec-<key>"`):
 
 | Tab (key) | Content, top to bottom |
 | --- | --- |
-| 🏠 Inicio (`home`) | TODAY: Sleep / Recovery / Load dials; monitor tiles (summary + HRV); "My day": the advice as the outlook bar + "Today's activities" (last night's sleep, the day's workouts, the programmed session `hoy` as a row); "today you eat" card (today's day type + goal and target kcal/macros, link to Nutrición); the full health monitor folded under "See metrics" |
+| 🏠 Inicio (`home`) | TODAY: Sleep / Recovery / Load dials; monitor tiles (summary + HRV); "My day": the advice as the outlook bar + "Today's activities" (last night's sleep, the day's workouts, the programmed session `hoy` as a row); "today you eat" card (today's day type + goal and target kcal/macros, link to Nutrición); Tonight, My plan, My dashboard |
 | 🏃 Entreno (`entreno`) | per-modality load cards + caveats (`load`: `#score-load`, the detail behind the load dial); 30-day activity calendar + cumulative training time (`calendar`: `#train-activity`); running table, cycling table, load vs recovery (`sessions`: `#health-train`); Entrenamiento dashboard (`dash`) |
-| 💗 Salud (`health`) | recovery (`#hl-recovery`, with the recovery detail card `#score-recovery`, then the recovery trends); sleep (`#hl-sleep`); body composition; daily activity; energy expenditure |
+| 💗 Salud (`health`) | centred title + ⓘ over a green glow; the health monitor list (`#monitor`, Inicio's summary tile jumps here); Recovery (`#hl-recovery`: the recovery card `#score-recovery`, resting HR, HRV, respiratory rate, wrist temp); Fitness (VO₂max, walking HR); Sleep (`#hl-sleep`); Body composition; Activity; Energy (expenditure + the intake cards until Nutrición takes them) — metric rows, notes behind ⓘ |
 | 🍽️ Nutrición (`nutricion`) | today (`dia`: Resumen de hoy + intake rings, Registrar (the FOOD LOG, LAN page only), Plan de hoy (a PORTION GUIDE: Desayuno / Comida / Cena + Extras with today's budgets, in a `<details>` fold, collapsed by default), Avituallamiento on bike days, Progreso (weight vs the goal), Constancia (food log adherence, LAN page only) — see "Nutrition v2", "Nutrition v2 part 2" and "Nutrition v2 part 3" below); Mis productos + Mis recetas (collapsible, LAN page only, no section key: rendered with `dia`); Tablas (`tablas`, collapsible: FIXED reference values per natural unit, never portions — see "Tablas = fixed reference values" below) — there is no train/rest toggle: Resumen de hoy's day type is the one selector. |
 
 `lib/nav/tabs.mjs` is the ONE source of the tab keys (`TAB_KEYS`) and of the legacy-section map
@@ -139,7 +139,7 @@ owns the URL). On load: a visible tab hash opens that tab; no hash, a hidden or 
 the default tab (the one the server rendered) and the URL is replaced to match; a sheet deep link is
 left to detail.js and its HOST tab is shown underneath (`DETAIL_TAB` / `VIEW_TAB` in
 `lib/nav/tabs.mjs`, baked in `NAV`: Salud metrics → `health`, `workouts` / `load-*` → `entreno`,
-`food-add` → `nutricion`, `profile` → none = the default tab; a test pins every `DETAIL_KEYS` key).
+`food-add` → `nutricion`, `hoy-session` / `tonight` / `dash-edit` → `home`, `profile` → none = the default tab; an in-page anchor of `ANCHOR_TAB` (`#monitor` → `health`) shows its tab, keeps the hash and scrolls to the block, on load and on `hashchange`; a test pins every `DETAIL_KEYS` key).
 `hashchange` to a visible tab hash switches tab; a sheet, hidden or unknown hash switches nothing, so
 it never fights detail.js's popstate. Every history / location access is in a try/catch (a sandboxed
 frame still switches tabs). `window.HCNav.hash()` = the current tab's hash, read by detail.js. NO

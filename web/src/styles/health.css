@@ -66,68 +66,6 @@
 .hsub:first-child {
   margin-top: var(--sp-3);
 }
-.mtrend {
-  margin: var(--sp-5) 0 var(--sp-1);
-  background: var(--card-bg);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  padding: var(--sp-7) var(--sp-8) var(--sp-6);
-  box-shadow: var(--card-shadow);
-}
-.mtrend-top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--sp-3);
-}
-.mtrend-top h4 {
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  margin: 0;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-.mtrend-val {
-  font-family: var(--num);
-  font-size: var(--fs-4xl);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  color: var(--ink);
-  line-height: 1;
-}
-.mtrend-date {
-  font-family: var(--sans);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--faint);
-  margin-left: var(--sp-2);
-}
-/* newest value > STALE_DAYS old: greyed like the monitor's .hm-stale */
-.mtrend-stale {
-  opacity: 0.55;
-}
-.mtrend-stale-note {
-  margin-top: var(--sp-2);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--faint);
-  text-transform: uppercase;
-  letter-spacing: var(--label-track);
-}
-.mtrend-ctx {
-  margin-top: var(--sp-2);
-  font-size: var(--fs-sm);
-  color: var(--muted);
-}
-.mtrend-val small {
-  font-size: var(--fs-sm);
-  color: var(--muted);
-  font-weight: 600;
-  margin-left: var(--sp-1);
-  font-family: var(--sans);
-}
 .spark {
   display: block;
   width: 100%;
@@ -146,49 +84,122 @@
   stroke-linejoin: round;
   stroke-linecap: round;
 }
-.spark-ax {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--fs-2xs);
-  color: var(--faint);
-  margin-top: var(--sp-1);
-}
-.dlt {
-  font-family: var(--num);
-  font-size: var(--fs-sm);
-  font-weight: 700;
-  margin-left: var(--sp-3);
-  white-space: nowrap;
-}
-.dlt.good {
-  color: var(--lean);
-}
-.dlt.bad {
-  color: var(--low-ink);
-}
-.dlt.flat {
-  color: var(--muted);
-}
-
 @media (min-width: 900px) {
-  /* Salud — metric tiles as a responsive multi-column dashboard grid */
+  /* Salud — the sections as a two-column dashboard; the recovery section (with its wide card) spans
+     the row */
   #health-body {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(258px, 1fr));
-    gap: var(--sp-5);
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    column-gap: var(--sp-8);
     align-items: start;
   }
-  #health-body > .dash-as,
-  #health-body > .hsub,
-  #health-body > .dash-note,
-  #health-body > .dash-sec,
-  #health-body > .dash-cards,
-  #health-body > .run-tbl-wrap,
   #health-body > .train-empty,
-  #health-body > #score-recovery {
+  #health-body > #hl-recovery {
     grid-column: 1 / -1;
   }
-  #health-body .mtrend {
-    margin: 0;
-  }
+}
+
+/* Salud section header (the monitor list and every section): UPPERCASE label, an optional status
+ * chip, and an ⓘ button that shows the section's notes in place (client/health.js toggles). */
+.hs-sec {
+  margin: var(--sp-5) 0 var(--sp-3);
+}
+.hs-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: 44px;
+  margin-bottom: var(--sp-2);
+}
+.hs-lbl {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.hs-i {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin-right: calc(-1 * var(--sp-4));
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.hs-i svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+.hs-i[aria-expanded="true"] {
+  color: var(--ink);
+}
+.hs-i:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -4px;
+}
+.hs-info {
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+.hs-info p {
+  margin: 0 0 var(--sp-3);
+}
+.hs-info p:last-child {
+  margin-bottom: 0;
+}
+
+/* Salud header: centred UPPERCASE title, ⓘ on the right; a soft green glow at the top of the tab
+   (behind the content at the top of the page, only while the Salud panel is shown) */
+.hs-top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin: var(--sp-2) 0 var(--sp-4);
+}
+.hs-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.hs-top .hs-i {
+  position: absolute;
+  right: 0;
+  margin: 0;
+}
+.hs-glow {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1;
+  height: 420px;
+  background: radial-gradient(ellipse 70% 100% at 50% 0, color-mix(in srgb, var(--up) 16%, transparent), transparent 70%);
+  pointer-events: none;
+}
+.hs-sec .db-list + .dash-cards,
+.hs-sec #score-recovery + .db-list {
+  margin-top: var(--sp-4);
+}
+.hs-sec .sc-recovery {
+  border: 0;
+  border-radius: var(--r-sm);
+  box-shadow: none;
 }
