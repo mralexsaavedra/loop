@@ -43,7 +43,15 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 
 - T1: `data/nutrition/sync-foodlog.js` → gitignored `foodlog-daily.csv` (+ `.meta.json`), 120-day window, wired into sync-all + `sync:foodlog`; nutrition-coach reads it. RED: module missing + SCRIPTS pin; GREEN: 13/13 new, `npm test` 1582/1582 (writer), parent re-ran new test 13/13. Per-entry detail skipped (1 request per date). Engram mirror: pending (ambiguous active sessions). Commit d5c781a. Review: tier high (process boundary), consent granted, 4 lenses approved, acknowledged (lineage review-1a6eee42b5502cc2). Reviewed boundary → d5c781a.
 
-- T3: legacy `targetFor`, `extraKeys`/`extraNames`/`indulge`/`alcoholKeys`/`mealReplaceKeys` removed from macros.mjs + generate.js; legacy plan keys now a `npm run check` WARNING (`LEGACY_PLAN_KEYS`), never an error; example plan stripped (example build byte-identical). RED: legacy-fields test failed with subset errors; GREEN after fix. `npm test` 1578/1578 (writer); parent re-ran `npm run check` OK with 5 warnings on the personal plan. Note: migrate-plan-data.mjs still writes those keys → T5.
+- T3: legacy `targetFor`, `extraKeys`/`extraNames`/`indulge`/`alcoholKeys`/`mealReplaceKeys` removed from macros.mjs + generate.js; legacy plan keys now a `npm run check` WARNING (`LEGACY_PLAN_KEYS`), never an error; example plan stripped (example build byte-identical). RED: legacy-fields test failed with subset errors; GREEN after fix. `npm test` 1578/1578 (writer); parent re-ran `npm run check` OK with 5 warnings on the personal plan. Note: migrate-plan-data.mjs still writes those keys → T5. Commit c8fbafb. Review: tier high (process boundary in generate.js), consent granted, 4 lenses approved, acknowledged (lineage review-c2fb2e8778a25d24). Reviewed boundary → c8fbafb.
+- Delivery: running count after T3 ≈ 750 authored lines (> 400) → chain strategy asked to owner → `stacked-to-main` (2026-10-07).
+
+## Slices (stacked to main)
+
+- Slice 1 `feat/app-review-improvements`: d5c781a (T1), c8fbafb (T3).
+- Slice 2 `feat/app-review-cleanup` (based on slice 1): T5, T9, T10.
+- Later slices: T2; T8; T7; T6 — one PR each.
+
 
 ## Next step
 
