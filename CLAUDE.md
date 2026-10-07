@@ -74,7 +74,7 @@ works without the LAN services.
 ## Repo rules
 
 - **Never commit personal / raw health data.** Personal files (`profile/about-me.md`, `baseline.md`,
-  `profile.json`, `plan-data.json`, `training-data.json`, the extract, `data/profile/*`, the food log
+  `profile.json`, `coaches.md`, `plan-data.json`, `training-data.json`, the extract, `data/profile/*`, the food log
   CSVs, `analysis/reports/*`, `web/dist/personal/`) are gitignored; never un-ignore them or `git add -f`
   them (the guard hook blocks it, [`docs/guard-hook.md`](docs/guard-hook.md)). `data/demo/` is tracked
   and must stay synthetic.
@@ -106,17 +106,18 @@ One line per area; the design detail lives in the linked doc (read it on demand)
 | Home tab (Inicio): dials, advice, eat card, monitor, timeline; recovery + load scoring; same-day merge rule | [`docs/home-tab.md`](docs/home-tab.md) |
 | LAN page + on-demand refresh: `services/plan-web`, `services/health-ingest`, sync protocol, security | [`docs/lan-services.md`](docs/lan-services.md) |
 | Knowledge base ingest, private program syncs (`local/`), coach subagents | [`docs/knowledge-base.md`](docs/knowledge-base.md) |
-| Onboarding a new user (first run: profile + baseline interview) | [`docs/onboarding.md`](docs/onboarding.md) |
+| Onboarding a new user (first run: profile + baseline + coach config interview) | [`docs/onboarding.md`](docs/onboarding.md) |
 | Guard hook: blocks committing personal data (force-add, `.gitignore` edits) | [`docs/guard-hook.md`](docs/guard-hook.md) |
 | Analysis framework (every number you produce) + the `/analysis` skill | [`analysis/methodology.md`](analysis/methodology.md) |
 
 ## Coach subagents — who answers what
 
-Read-only (`Read, Grep, Glob`), Spanish by default, every claim cited; details in `docs/knowledge-base.md`.
+Read-only (`Read, Grep, Glob`), generic templates that read the gitignored `profile/coaches.md` first (sources, gear,
+language, jurisdiction; template `profile/coaches.example.md`), every claim cited; details in `docs/knowledge-base.md`.
 
 | Question | Subagent |
 | --- | --- |
-| Cycling TRAINING: power, FTP, zones, periodization, bike fit, gear, Garmin Edge, EMS suit | `cycling-coach` |
+| Cycling TRAINING: power, FTP, zones, periodization, bike fit, gear, bike computers, training devices | `cycling-coach` |
 | HYROX / hybrid TRAINING: running + strength + conditioning, stations, race strategy, programs | `hybrid-coach` |
 | ANY nutrition: daily diet, body composition, protein / carbs, on-bike / race fuelling, hydration, electrolytes, supplements | `nutrition-coach` |
 

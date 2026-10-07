@@ -35,6 +35,12 @@ fetches new uploads. Shorts are never listed. Requests are paced (1–2 s apart)
 with backoff; a failed video is reported and retried on the next run. To re-fetch one video, remove
 its entry from `manifest.json`.
 
+## Tell the coaches about a source
+
+The coach subagents only read the sources listed in your gitignored `profile/coaches.md` (template:
+`profile/coaches.example.md`): after ingesting a source, add a row for it under the coach that should
+use it (name, short name, folder, how to cite, commercial ties).
+
 ## Citing
 
 A transcript line `[12:34]` maps to `https://www.youtube.com/watch?v=<id>&t=754s`. Subagents cite

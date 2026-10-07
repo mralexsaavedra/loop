@@ -24,7 +24,15 @@ conversationally — do not make them fill a form alone. Replicate a real coach 
    `node data/apple-health/extract.js` and pull weight / RHR / VO2max / body-fat from the
    cached CSVs instead of asking. Mark every self-reported or estimated number as such, and
    record device/app provenance (bioimpedance body-fat is trend-only, ±3–5%).
-5. **Point them at their data.** Explain the data-drop steps from the README (Apple Health
+5. **Configure the coaches.** Walk `profile/coaches.example.md` into `profile/coaches.md`
+   (gitignored): reply language, country / jurisdiction (supplement limits, food database), then
+   per coach the knowledge sources they want (name, folder under `knowledge/`, how to cite,
+   commercial ties), their gear (with a local manual under `data/gear/` if they have one) and where
+   their current program lives. List only sources that already exist under `knowledge/` or that they
+   will ingest now (`knowledge/README.md`); never suggest or invent creators for them. Nothing to
+   add yet → write only `## Common`: the coaches then answer from the evidence base and the user's
+   data and say no source is configured.
+6. **Point them at their data.** Explain the data-drop steps from the README (Apple Health
    export → `data/apple-health/`, then `extract.js`; nutrition → copy `food-log.example.md`
    → `food-log.md`; **training → copy `data/training/training-data.example.json` →
    `training-data.json`** and transcribe their program by date from whatever their coach/app
@@ -32,7 +40,7 @@ conversationally — do not make them fill a form alone. Replicate a real coach 
    paste/screenshot the sessions), see `docs/training.md` — then
    `npm run generate`). The 🏠 Inicio tab then shows today's programmed session and the
    🏃 Entreno tab fills itself from the Apple Health workouts already extracted in step 4. Don't block onboarding on this — profile + baseline are enough to start.
-6. **Confirm and offer the first analysis.** Summarize what you captured, ask them to
+7. **Confirm and offer the first analysis.** Summarize what you captured, ask them to
    correct anything, then offer to run an initial analysis (the `/analysis` skill,
    `.claude/skills/analysis/SKILL.md`).
 
