@@ -18,3 +18,29 @@ export function slimScript(src) {
     charset: 'utf8',
   }).code;
 }
+
+/* The CSS twin of slimScript, applied to the built page's inline <style> blocks (web/astro.config.mjs,
+ * the `slim-inline-css` integration): comments and whitespace go, NOTHING else — no minifySyntax (it
+ * would rewrite `::before` → `:before`, `transparent` → `0 0`, rgba → hex) and no target lowering, so
+ * every declaration stays as written and web/test/css-parity.test.mjs still matches it. Vite's own
+ * cssMinify stays off for that reason. A test reading CSS from the built HTML must be whitespace
+ * tolerant or compare against slimStyle(source). */
+export function slimStyle(src) {
+  return transformSync(src, {
+    loader: 'css',
+    minifyWhitespace: true,
+    minifySyntax: false,
+    minifyIdentifiers: false,
+    legalComments: 'none',
+    charset: 'utf8',
+  }).code.trimEnd();
+}
+
+/* Rewrites every <style> block of a built HTML page through slimStyle. Only the document <head> is
+ * touched (the page keeps all its styles there; a client script may hold the text "<style"). */
+export function slimHtmlStyles(html) {
+  const end = html.indexOf('</head>');
+  if (end === -1) return html;
+  const head = html.slice(0, end).replace(/(<style[^>]*>)([\s\S]*?)(<\/style>)/g, (_, open, css, close) => open + slimStyle(css) + close);
+  return head + html.slice(end);
+}

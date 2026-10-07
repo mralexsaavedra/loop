@@ -167,6 +167,9 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   (string quotes / number literals may be re-printed, e.g. `'x'` → `"x"`). A test that locates or
   matches a script in the built HTML compares against `slimScript(source)` or a whitespace / quote
   tolerant regex, never the raw file. Baked JSON globals are not touched.
+  The inline CSS gets the same treatment: the `slim-inline-css` integration (`web/astro.config.mjs`) runs
+  every built `<style>` through `slimStyle` (same module, esbuild `loader: 'css'`, whitespace + comments
+  only; Vite's `cssMinify` stays off), so CSS tests parse it through `web/test/css-scan.mjs` (`a>b`, `[t=x]`).
 
 - `LOCALE`: env var → `plan.locale` → `en` (the owner's `plan-data.json` sets `locale:"es"`).
 - `DATA_MODE=personal|example`: personal reads the gitignored real files; example reads the
