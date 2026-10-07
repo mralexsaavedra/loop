@@ -63,6 +63,15 @@ available) so the next session resumes with their context.
    - `profile/about-me.md` — who they are, goals, constraints, injuries.
    - `profile/baseline.md` — starting metrics.
    - `analysis/methodology.md` — the framework you MUST follow for any number you produce.
+   - **Live facts** (same sources the coach subagents use): `profile/profile.json` (height,
+     birthdate → age from today, devices, supplements, upcoming `events`) and
+     `data/profile/settings.json` (`goal`, `targetWeightKg`, `fetchedAt`; missing → goal unknown,
+     `fetchedAt` > 3 days old → may be stale). **Numbers come from these files and the extract,
+     never from the prose of `about-me.md`, `baseline.md` or an old report** — when they disagree,
+     the live file wins; say so.
+   - **Freshness**: `data/apple-health/extract/_meta.json` (`exportLastDate`, `shortcutSync`),
+     the newest date of every CSV you rely on, and `data/nutrition/foodlog-daily.meta.json`
+     (`fetchedAt`). Flag any series more than 3 days old.
 2. **Load the data:**
    - Apple Health: **read the cached extract first** — `data/apple-health/extract/*.csv`
      (weight, bodyfat, rhr, vo2max, hrv, steps-daily, active/basal-energy-daily,
@@ -88,7 +97,7 @@ available) so the next session resumes with their context.
      `plan-data.json` (personal plan); food-log just points to them.
    - Plan reference (all per-serving tables): `data/nutrition/plan-tables.md` — generated.
      Read it for any plan number; to CHANGE one, see "Commands" below and `docs/nutrition.md`.
-   - Weight: `data/weight/weight-log.md` if present.
+   - Weight: `data/apple-health/extract/weight.csv` (`date,value,source`; compare within one `source`).
    - Training programs: the owner's programmed sessions — the current source is noted in
      `profile/about-me.md` (a coach PDF in `data/training/*.pdf`, or an external training app).
      Strength / metcon / endurance blocks — use for modality balance & periodization.
