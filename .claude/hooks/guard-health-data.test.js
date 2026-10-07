@@ -4,22 +4,87 @@
  * subprocess (it reads stdin synchronously and calls process.exit itself,
  * so it can't be `require()`d in-process without killing the test runner).
  *
- * Regression coverage for the astro-plan-web corrective batch: web/dist/,
- * web/test/.golden/, services/plan-web/site/ and web/.test-dist/ are all
- * gitignored and all derived from personal data (baked JSON globals,
- * rendered copy, test fixtures) — same leak surface as the source files.
+ * Every case runs against a TEMPORARY git repo fixture (mkdtemp + `git init`)
+ * that carries a copy of this repo's real .gitignore and a few synthetic
+ * files, so the tests never depend on the owner's personal files existing and
+ * the hook's "gitignored = personal" check is exercised against git itself.
  */
-const { test } = require('node:test');
+const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const HOOK = path.join(__dirname, 'guard-health-data.js');
+const REPO_GITIGNORE = path.join(__dirname, '..', '..', '.gitignore');
 
-function runHook(command) {
-  const payload = JSON.stringify({ tool_name: 'Bash', tool_input: { command } });
-  return spawnSync(process.execPath, [HOOK], { input: payload, encoding: 'utf8' });
+// Synthetic files in the fixture. Contents are placeholders, never real data.
+const FIXTURE_FILES = [
+  'README.md',
+  'data/weight/weight-log.md',
+  'data/weight/weight-log.example.md',
+  'analysis/reports/2026-10-01.md',
+  'analysis/reports/.gitkeep',
+  'analysis/methodology.md',
+  'knowledge/README.md',
+  'knowledge/cycling/transcript.md',
+  'data/nutrition/foodlog-daily.csv',
+  'data/nutrition/foodlog-daily.meta.json',
+  'data/nutrition/sync-foodlog.js',
+  'backups/profile/about-me.md.before.bak',
+  'data/gear/edge-manual.pdf',
+  'data/gear/.gitkeep',
+  'data/profile/settings.json',
+  'data/profile/strava-profile.json',
+  'data/profile/avatar.jpg',
+  'data/profile/sync-profile.js',
+  'data/profile/sync-profile.test.js',
+  'data/profile/sync-settings.js',
+  'data/profile/.gitkeep',
+  'profile/profile.json',
+  'profile/profile.example.json',
+  'web/dist/personal/index.html',
+  'web/test/.golden/personal/blocks.json',
+  'services/plan-web/site/index.html',
+  'web/.test-dist/es-personal/index.html',
+];
+
+let repo;
+
+before(() => {
+  repo = fs.mkdtempSync(path.join(os.tmpdir(), 'guard-health-data-'));
+  const init = spawnSync('git', ['init', '-q', repo], { encoding: 'utf8' });
+  assert.equal(init.status, 0, init.stderr);
+  fs.copyFileSync(REPO_GITIGNORE, path.join(repo, '.gitignore'));
+  for (const rel of FIXTURE_FILES) {
+    const abs = path.join(repo, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, 'synthetic fixture\n');
+  }
+});
+
+after(() => {
+  if (repo) fs.rmSync(repo, { recursive: true, force: true });
+});
+
+function runHook(command, { cwd = repo, env } = {}) {
+  const payload = JSON.stringify({ tool_name: 'Bash', tool_input: { command }, cwd });
+  return spawnSync(process.execPath, [HOOK], { input: payload, encoding: 'utf8', env: env || process.env });
 }
+
+// Commands are built from word arrays so this file never holds a literal
+// force-add command string (the live hook also guards the assistant's shell).
+const forceAdd = (...paths) => ['git', 'add', '-f', ...paths].join(' ');
+
+function assertBlocked(res, label) {
+  assert.equal(res.status, 2, `${label}: expected block (exit 2), got ${res.status}; stderr: ${res.stderr}`);
+}
+function assertAllowed(res, label) {
+  assert.equal(res.status, 0, `${label}: expected allow (exit 0), got ${res.status}; stderr: ${res.stderr}`);
+}
+
+// --- personal paths (gitignored) --------------------------------------------
 
 const PERSONAL_PATHS = [
   'web/dist/personal/index.html',
@@ -28,41 +93,260 @@ const PERSONAL_PATHS = [
   'web/.test-dist/es-personal/index.html',
   'data/profile/strava-profile.json',
   'data/profile/avatar.jpg',
+  'data/profile/settings.json',
   'profile/profile.json',
+  // Missed by the old hand-maintained list (2026-10-07 audit):
+  'knowledge/cycling/transcript.md',
+  'data/nutrition/foodlog-daily.csv',
+  'data/nutrition/foodlog-daily.meta.json',
+  'backups/profile/about-me.md.before.bak',
+  'data/gear/edge-manual.pdf',
 ];
 
 for (const p of PERSONAL_PATHS) {
   test(`blocks a force-add targeting ${p}`, () => {
-    const res = runHook(['git', 'add', '-f', p].join(' '));
-    assert.equal(res.status, 2, `expected block (exit 2), got ${res.status}; stderr: ${res.stderr}`);
+    assertBlocked(runHook(forceAdd(p)), p);
   });
 }
 
-test('allows a force-add of an unrelated tracked file', () => {
-  const res = runHook(['git', 'add', '-f', 'README.md'].join(' '));
-  assert.equal(res.status, 0);
+test('blocks a force-add of a parent directory holding ignored files (data)', () => {
+  assertBlocked(runHook(forceAdd('data')), 'data');
 });
 
-test('allows a force-add of the tracked profile tooling and example', () => {
-  for (const p of ['data/profile/sync-profile.js', 'data/profile/sync-profile.test.js', 'data/profile/.gitkeep', 'profile/profile.example.json']) {
-    const res = runHook(['git', 'add', '-f', p].join(' '));
-    assert.equal(res.status, 0, p);
+test('blocks a force-add of a parent directory holding ignored files (analysis)', () => {
+  assertBlocked(runHook(forceAdd('analysis')), 'analysis');
+});
+
+test('blocks a force-add of . (the whole tree holds ignored files)', () => {
+  assertBlocked(runHook(forceAdd('.')), '.');
+});
+
+test('blocks a force-add after cd into a personal directory', () => {
+  const cmd = ['cd', 'data/weight', '&&', 'git', 'add', '-f', 'weight-log.md'].join(' ');
+  assertBlocked(runHook(cmd), cmd);
+});
+
+test('blocks a force-add of a relative path from a subdirectory cwd', () => {
+  assertBlocked(runHook(forceAdd('weight-log.md'), { cwd: path.join(repo, 'data/weight') }), 'cwd');
+});
+
+test('blocks git -C <dir> add -f of a personal file', () => {
+  const cmd = ['git', '-C', 'data/weight', 'add', '-f', 'weight-log.md'].join(' ');
+  assertBlocked(runHook(cmd), cmd);
+});
+
+test('an allowed argument never cancels a personal one', () => {
+  assertBlocked(runHook(forceAdd('data/profile/sync-profile.js', 'data/profile/settings.json')), 'mixed');
+  assertBlocked(runHook(forceAdd('data/gear/.gitkeep', 'data/gear/edge-manual.pdf')), 'mixed .gitkeep');
+});
+
+test('blocks every flag spelling and position', () => {
+  const variants = [
+    ['git', 'add', '--force', 'data/weight/weight-log.md'],
+    ['git', 'add', 'data/weight/weight-log.md', '-f'],
+    ['git', 'add', '-fA', 'data/weight'],
+    ['git', 'add', '-vf', '--', 'data/weight/weight-log.md'],
+    ['git', 'stage', '-f', 'data/weight/weight-log.md'],
+    ['git', 'add', '--forc', 'data/weight/weight-log.md'],
+    ['git', 'add', '-f', '-A'],
+  ];
+  for (const words of variants) assertBlocked(runHook(words.join(' ')), words.join(' '));
+});
+
+test('blocks a force-add inside ; and | chains and subshells', () => {
+  const variants = [
+    ['echo', 'hi', ';', 'git', 'add', '-f', 'knowledge'],
+    ['true', '|', 'git', 'add', '-f', 'backups'],
+    ['(cd', 'data', '&&', 'git', 'add', '-f', 'gear)'],
+    ['bash', '-c', "'cd data/nutrition && git add -f foodlog-daily.csv'"],
+  ];
+  for (const words of variants) assertBlocked(runHook(words.join(' ')), words.join(' '));
+});
+
+test('blocks a quoted personal path', () => {
+  assertBlocked(runHook(forceAdd('"data/weight/weight-log.md"')), 'quoted');
+});
+
+test('blocks a force-add whose targets cannot be resolved (variables, xargs)', () => {
+  assertBlocked(runHook(forceAdd('$TARGET')), '$TARGET');
+  assertBlocked(runHook(['ls', '|', 'xargs', 'git', 'add', '-f'].join(' ')), 'xargs');
+});
+
+test('blocks a not-yet-existing ignored path (created earlier in the same command)', () => {
+  assertBlocked(runHook(forceAdd('data/profile/not-yet-created.json')), 'new file');
+});
+
+// --- allowed ------------------------------------------------------------------
+
+test('allows a force-add of an unrelated tracked file', () => {
+  assertAllowed(runHook(forceAdd('README.md')), 'README.md');
+});
+
+test('allows a force-add of the tracked tooling and examples', () => {
+  for (const p of [
+    'data/profile/sync-profile.js',
+    'data/profile/sync-profile.test.js',
+    'data/profile/sync-settings.js',
+    'data/profile/.gitkeep',
+    'profile/profile.example.json',
+    'analysis/reports/.gitkeep',
+    'knowledge/README.md',
+    'data/gear/.gitkeep',
+    'data/nutrition/sync-foodlog.js',
+  ]) {
+    assertAllowed(runHook(forceAdd(p)), p);
   }
 });
 
+test('allows a force-add of several non-ignored files at once', () => {
+  assertAllowed(runHook(forceAdd('data/profile/sync-settings.js', 'knowledge/README.md', 'README.md')), 'several');
+});
+
+test('allows a force-add after cd when the target is not ignored', () => {
+  const cmd = ['cd', 'data/profile', '&&', 'git', 'add', '-f', 'sync-settings.js'].join(' ');
+  assertAllowed(runHook(cmd), cmd);
+});
+
 test('allows a plain git add -A', () => {
-  const res = runHook(['git', 'add', '-A'].join(' '));
-  assert.equal(res.status, 0);
+  assertAllowed(runHook(['git', 'add', '-A'].join(' ')), '-A');
 });
 
 test('allows a plain git add . with no force flag, even mentioning a personal path', () => {
-  const res = runHook(['git', 'add', '.', '#', 'touches', 'web/dist/personal/index.html'].join(' '));
-  assert.equal(res.status, 0, 'no --force / -f flag present, must not block');
+  assertAllowed(runHook(['git', 'add', '.', '#', 'touches', 'web/dist/personal/index.html'].join(' ')), 'no force');
 });
 
+test('allows non-add git commands that mention -f and personal paths', () => {
+  assertAllowed(runHook(['git', 'rm', '-f', '--cached', 'data/weight/weight-log.md'].join(' ')), 'git rm');
+  assertAllowed(runHook(['git', 'commit', '-m', '"add -f data"'].join(' ')), 'commit message');
+});
+
+// --- fallback when git is unavailable -----------------------------------------
+
+test('falls back to the built-in personal list when git is unavailable', () => {
+  const env = { ...process.env, PATH: '' };
+  assertBlocked(runHook(forceAdd('data'), { env }), 'fallback data');
+  assertBlocked(runHook(forceAdd('knowledge/cycling/transcript.md'), { env }), 'fallback knowledge');
+  assertBlocked(runHook(forceAdd('data/profile/sync-profile.js', 'data/profile/settings.json'), { env }), 'fallback mixed');
+  assertAllowed(runHook(forceAdd('data/profile/sync-settings.js'), { env }), 'fallback sync-settings');
+  assertAllowed(runHook(forceAdd('README.md'), { env }), 'fallback README');
+});
+
+// --- .gitignore rewrites from the shell ---------------------------------------
+
 test('blocks un-ignoring a personal path via sed on .gitignore', () => {
-  const res = runHook("sed -i '/web\\/dist\\//d' .gitignore");
-  assert.equal(res.status, 2);
+  assertBlocked(runHook("sed -i '/web\\/dist\\//d' .gitignore"), 'sed');
+});
+
+test('an exception name never cancels a personal path in a .gitignore rewrite', () => {
+  assertBlocked(runHook("sed -i '/data\\/profile\\//d;/sync-profile.js/d' .gitignore"), 'sed + exception');
+});
+
+// --- Edit / Write / MultiEdit on .gitignore -------------------------------------
+
+function runTool(tool_name, tool_input, { env } = {}) {
+  const payload = JSON.stringify({ tool_name, tool_input, cwd: repo });
+  return spawnSync(process.execPath, [HOOK], { input: payload, encoding: 'utf8', env: env || process.env });
+}
+const gitignorePath = () => path.join(repo, '.gitignore');
+const currentGitignore = () => fs.readFileSync(gitignorePath(), 'utf8');
+
+test('blocks an Edit that removes an ignore pattern', () => {
+  const res = runTool('Edit', {
+    file_path: gitignorePath(),
+    old_string: 'data/nutrition/foodlog-daily.csv\n',
+    new_string: '',
+  });
+  assertBlocked(res, 'remove pattern');
+});
+
+test('blocks an Edit that adds a negation un-ignoring an ignored file', () => {
+  const res = runTool('Edit', {
+    file_path: gitignorePath(),
+    old_string: '!data/gear/.gitkeep\n',
+    new_string: '!data/gear/.gitkeep\n!data/gear/*.pdf\n',
+  });
+  assertBlocked(res, 'negation');
+});
+
+test('blocks an Edit with a relative file_path (resolved against cwd)', () => {
+  const res = runTool('Edit', { file_path: '.gitignore', old_string: 'knowledge/*\n', new_string: '' });
+  assertBlocked(res, 'relative path');
+});
+
+test('allows an Edit that adds a new ignore pattern', () => {
+  const res = runTool('Edit', {
+    file_path: gitignorePath(),
+    old_string: 'data/gear/*\n',
+    new_string: 'data/gear/*\ndata/new-personal/\n',
+  });
+  assertAllowed(res, 'add pattern');
+});
+
+test('allows an Edit that adds a negation matching no ignored file', () => {
+  const res = runTool('Edit', {
+    file_path: gitignorePath(),
+    old_string: '!data/profile/sync-settings.test.js\n',
+    new_string: '!data/profile/sync-settings.test.js\n!data/profile/sync-goals.js\n',
+  });
+  assertAllowed(res, 'harmless negation');
+});
+
+test('allows an Edit that removes a negation or changes a comment', () => {
+  assertAllowed(
+    runTool('Edit', { file_path: gitignorePath(), old_string: '!data/gear/.gitkeep\n', new_string: '' }),
+    'remove negation'
+  );
+  assertAllowed(
+    runTool('Edit', {
+      file_path: gitignorePath(),
+      old_string: '# OS / tooling noise\n',
+      new_string: '# OS and tooling noise\n',
+    }),
+    'comment'
+  );
+});
+
+test('blocks a Write of .gitignore that drops a pattern, allows one that only adds', () => {
+  const old = currentGitignore();
+  assertBlocked(
+    runTool('Write', { file_path: gitignorePath(), content: old.replace('data/gear/*\n', '') }),
+    'write drop'
+  );
+  assertAllowed(runTool('Write', { file_path: gitignorePath(), content: old + '\nscratch/\n' }), 'write add');
+});
+
+test('blocks a MultiEdit where one edit removes a pattern', () => {
+  const res = runTool('MultiEdit', {
+    file_path: gitignorePath(),
+    edits: [
+      { old_string: '# OS / tooling noise\n', new_string: '# OS and tooling noise\n' },
+      { old_string: 'profile/profile.json\n', new_string: '' },
+    ],
+  });
+  assertBlocked(res, 'multiedit');
+});
+
+test('blocks a Write of a nested .gitignore that re-includes an ignored file', () => {
+  const res = runTool('Write', { file_path: path.join(repo, 'data/weight/.gitignore'), content: '!weight-log.md\n' });
+  assertBlocked(res, 'nested');
+});
+
+test('allows Edit / Write on files other than .gitignore', () => {
+  assertAllowed(runTool('Write', { file_path: path.join(repo, 'notes.md'), content: '!data/gear/*.pdf\n' }), 'notes');
+  assertAllowed(
+    runTool('Edit', { file_path: path.join(repo, 'README.md'), old_string: 'synthetic', new_string: 'x' }),
+    'readme'
+  );
+});
+
+test('falls back to a static negation check when git is unavailable', () => {
+  const env = { ...process.env, PATH: '' };
+  const res = runTool(
+    'Edit',
+    { file_path: gitignorePath(), old_string: '!data/gear/.gitkeep\n', new_string: '!data/gear/.gitkeep\n!data/gear/*.pdf\n' },
+    { env }
+  );
+  assertBlocked(res, 'fallback negation');
 });
 
 test('malformed hook payload fails open (never blocks)', () => {
