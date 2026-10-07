@@ -270,8 +270,16 @@
   }
   function loadLog() { return loadDay(HC.todayIso()); }
   function show(id) { var el = $(id); if (el) el.hidden = false; }
+  // the rings (intake.js) wait for this boot answer (HCFood.pending()) instead of flashing the Apple Health day
+  function bootDone() {
+    S.boot = false;
+    if (typeof window.intakeRefresh === 'function') {
+      try { window.intakeRefresh(); } catch (e) { /* the rings keep their last state */ }
+    }
+  }
   api('GET', '/products').then(function (data) {
     S.ok = true;
+    bootDone();
     S.products = Array.isArray(data.products) ? data.products : [];
     window.HCViews = window.HCViews || {};
     // detail.js asks for the title after render(), so it names the sheet's own day when it is not today
@@ -302,7 +310,7 @@
         else if (stale) loadLog();
       });
     }
-  }, function () { /* no food API here: every host stays hidden */ });
+  }, function () { bootDone(); /* no food API here: every host stays hidden, the rings use Apple Health */ });
 
   /* ---------- Plan de hoy's portion guide (nutri-day.js) ---------- */
   function zero4() { return { k: 0, p: 0, c: 0, f: 0 }; }
@@ -415,6 +423,8 @@
     // client/adherence.js reuse it, so every /api/food request carries the same layers
     api: api,
     ready: function () { return !!S.ok; },
+    // the boot request (GET /products) has not answered yet: the intake rings render nothing meanwhile
+    pending: function () { return !!S.boot; },
     showDay: showDay,
     productEntry: productEntry,
     recipeBasis: recipeBasis,

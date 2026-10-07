@@ -15,7 +15,9 @@
  * On the LAN page (the food API answered: HCFood.ready(), client/food-*.js) the page's food log is the ONE
  * source: today's log (window.foodTotals, labelled "Logged today") when it has entries, else the most
  * recent food-log day in the same window (HCFood.recentDay(INTAKE.freshDays), labelled by its date),
- * else nothing — never the Apple Health day there. */
+ * else nothing — never the Apple Health day there (nor while today's log is not loaded: HCFood.groupTotals()
+ * null). While the food API boot request is in flight (HCFood.pending()) the rings render nothing; past
+ * INTAKE.bootGraceMs without an answer the Apple Health day renders, and a late answer still switches. */
 (function () {
   var T = I18N_INTAKE;
   var RING_R = 18; // ring radius in the 44-unit viewBox (centre 22, 4 units of stroke room)
@@ -57,10 +59,19 @@
     var L = INTAKE.latest;
     var F = window.HCFood, lan = false;
     try { lan = !!(F && typeof F.ready === 'function' && F.ready()); } catch (e) { lan = false; }
+    // the food API boot request is still in flight: no source yet, so no rings (never a flash of the
+    // Apple Health day) — until it answers / fails (food-log.js re-renders us) or the grace period ends
+    if (!lan && !graceOver && booting()) {
+      host.innerHTML = '';
+      host.hidden = true;
+      return;
+    }
     if (lan) {
-      // LAN page: the food log only — today's, else its most recent day in the window (no Apple Health)
+      // LAN page: the food log only — today's, else its most recent day in the window (no Apple Health);
+      // today's log not loaded (read failed / not back yet): nothing until its retry re-renders us
       try {
-        L = (typeof window.foodTotals === 'function' && window.foodTotals()) ||
+        L = typeof F.groupTotals === 'function' && F.groupTotals() == null ? null :
+          (typeof window.foodTotals === 'function' && window.foodTotals()) ||
           (typeof F.recentDay === 'function' ? F.recentDay(INTAKE.freshDays) : null) || null;
       } catch (e) { L = null; }
     } else if (typeof window.foodTotals === 'function') {
@@ -113,6 +124,17 @@
       '</div>';
   }
 
+  // HCFood.pending(): the food API boot request has not answered yet (client/food-log.js)
+  function booting() {
+    var F = window.HCFood;
+    try { return !!(F && typeof F.pending === 'function' && F.pending()); } catch (e) { return false; }
+  }
+  // past INTAKE.bootGraceMs without an answer (a fetch hanging in a sandboxed artifact) the Apple
+  // Health day renders anyway; a late answer still switches to the food log
+  var graceOver = false;
   window.intakeRefresh = render;
+  if (booting() && typeof setTimeout === 'function') {
+    setTimeout(function () { graceOver = true; render(); }, INTAKE.bootGraceMs);
+  }
   render();
 })();
