@@ -20,7 +20,8 @@
     "sync:strava": "node data/apple-health/sync-strava.js",
     "sync:profile": "node data/profile/sync-profile.js",
     "publish:manuals": "node scripts/publish-manuals.mjs",
-    "sync:settings": "node data/profile/sync-settings.js"
+    "sync:settings": "node data/profile/sync-settings.js",
+    "sync:foodlog": "node data/nutrition/sync-foodlog.js"
   },
   "dependencies": {
     "astro": "7.3.5",

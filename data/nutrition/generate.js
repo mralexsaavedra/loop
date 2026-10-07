@@ -74,7 +74,7 @@ const {
   ING, RAW, RAWEX, QUESO, VEG, DAYPLAN, LEGUMES, LEGUME_PLATE,
   D, EX, MACRO,
   resolve, macro, mealMacros,
-  dayTotalK, targetFor,
+  dayTotalK,
 } = nut;
 
 /* ---------- render plan-tables.md ---------- */
@@ -198,4 +198,4 @@ if (require.main === module) {
   else main();
 }
 
-module.exports = { ING, D, EX, MACRO, resolve, macro, mealMacros, buildTables, validate, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE, dayTotalK, targetFor, PLAN_PATH, usedExampleFallback, LOCALE };
+module.exports = { ING, D, EX, MACRO, resolve, macro, mealMacros, buildTables, validate, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE, dayTotalK, PLAN_PATH, usedExampleFallback, LOCALE };

@@ -122,7 +122,12 @@ available) so the next session resumes with their context.
      the power-meter ride correction (Health tab → Energy).
      Unreachable service → exits non-zero without touching files. Row helpers are shared in
      `samples.js`, so both paths format rows identically.
-   - Nutrition: `data/nutrition/food-log.md` — the daily food log + rationale notes only.
+   - Food log: the real log is the LAN page's food log (Postgres behind `services/health-ingest`),
+     exported by `npm run sync:foodlog` (`data/nutrition/sync-foodlog.js`, part of `npm run sync`) to
+     `data/nutrition/foodlog-daily.csv` (gitignored; one row per logged day, last 120 days refreshed,
+     older rows kept; `missing_macros` = sums that are minimums) + `foodlog-daily.meta.json`
+     (`fetchedAt`). Unreachable / old service → a `WARNING:`, files kept, exit 0.
+   - Nutrition: `data/nutrition/food-log.md` — legacy notes + rationale only (not the live log).
      Per-serving tables, verified product labels, legume detail, and breakfast components are
      GENERATED into `plan-tables.md` from `ingredients.json` (public food DB) merged with
      `plan-data.json` (personal plan); food-log just points to them.
@@ -449,7 +454,7 @@ controls instead of the close button.
   supplements / events = `profile/profile.json`, goal + target weight = `data/profile/settings.json`,
   stable context (injuries, history, preferences) = `profile/about-me.md` — never numbers in prose.
   `settings.json` (gitignored, `data/profile/*`) = `{goal, targetWeightKg, updatedAt, fetchedAt}`,
-  written by `data/profile/sync-settings.js` (`npm run sync:settings`, last step of `npm run sync`)
+  written by `data/profile/sync-settings.js` (`npm run sync:settings`, step of `npm run sync` before `sync:foodlog`)
   from the ingest service's `GET /food/settings` (the server-side goal of "Nutrition v2 part 3";
   `INGEST_URL`, `X-HC-Food: 1`, no token; the URL's host must be an IP literal, `localhost` or in
   `FOOD_ALLOWED_HOSTS`): atomic, rewritten only when goal / target / updatedAt changed or the stored
@@ -541,7 +546,7 @@ controls instead of the close button.
   `piece.amt`: allioli / mayonesa 15 g; olive oil has NO piece, it is per 100 ml and logged in ml); and `weighed: raw | dry |
   cooked` (how the plan weighs it: meat raw, rice / pasta / oats dry, potato / legumes cooked).
 - `data/nutrition/plan-data.json` (GITIGNORED, **personal** plan) — the owner's actual diet:
-  `data`/`dayPlan`/`extras`/`extrasDisplay`/`quesoKeys`/`vegKeys`/`legumeKeys`/`legumePlate`/
+  `data`/`dayPlan`/`extras`/`quesoKeys`/`vegKeys`/`legumeKeys`/`legumePlate`/
   `page`. Each item's `recipe` (`[{ing, amt}]`) references ingredient keys from
   `ingredients.json`; macros are COMPUTED, never hand-typed. Items with no single label use a
   `manual` macro block (legumes, soup, pintxo) — kept verbatim.
@@ -620,9 +625,10 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   numbers: maintain 2500 / 3050 / 3550 / 4200 kcal with 150 P / 60 F; cut 2150 / 2700 / 3550 / 4200
   with 160 / 55; bulk 2800 / 3350 / 3850 / 4500 with 150 / 70 — rest / gym / bike / bikeLong), so an
   old plan keeps working. Default goal = `page.goal` (else maintain). `targets.train` / `targets.rest`
-  (`targetFor`) are no longer read by the page (they fed the removed day builder); generate.js keeps
-  exporting `targetFor`. Likewise `extrasDisplay`, `indulgeKeys`, `alcoholKeys`, `mealReplaceKeys` and
-  `page.notes['registro.*']` / `page.offPlanPlaceholder` stay valid in a plan but render nothing.
+  are read by nothing (they fed the removed day builder; its `targetFor` is gone). Likewise
+  `extrasDisplay`, `indulgeKeys`, `alcoholKeys`, `mealReplaceKeys` and `page.notes['registro.*']` /
+  `page.offPlanPlaceholder` are IGNORED legacy keys: accepted, never an error, and `npm run check`
+  warns about each (`LEGACY_PLAN_KEYS` in `macros.mjs`; safe to delete from a plan).
 - **Portion scaling** — `lib/nutrition/scale.mjs`: plans keep their two base days; `BASE_DAY` maps
   rest → `dayPlan.rest`, gym / bike / bikeLong → `dayPlan.train`. CARB-FLEX parts (`lib/nutrition/flex.mjs`
   `isFlexPart`) scale, every other part stays fixed: `flex: null` opts a part OUT; an explicit
@@ -1691,8 +1697,8 @@ paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index
   medication interactions and eating-disorder signals), no crash diets (`analysis/methodology.md`
   safe ranges). Grounded read-only in `plan-data.json` + `ingredients.json`, the owner facts above
   (incl. `profile/profile.json` supplements and `data/profile/settings.json`), `profile/about-me.md`, the extract (weight, `dietary-daily.csv`, energy) and the
-  Nutrición rules above; the food log is in Postgres behind the LAN page, which it cannot read (it
-  says so). Spanish replies; never writes files. Its knowledge, `knowledge/nutrition/`: optional
+  Nutrición rules above; the food log as daily sums from `data/nutrition/foodlog-daily.csv` (the
+  `sync:foodlog` export; missing → it says the sync has not run). Spanish replies; never writes files. Its knowledge, `knowledge/nutrition/`: optional
   `index.md` + `temas/*.md` (cross-source syntheses); `evidencia/` (AIS Sports Supplement Framework,
   IOC 2018 supplement consensus, ISSN position stands, AESAN, WADA — the evidence base); `ferrandis/`
   (Andrea Ferrandis, dietitian-nutritionist, YouTube: the ingest layout above + `videos/*.md` cards —
