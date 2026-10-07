@@ -26,5 +26,8 @@
   "dependencies": {
     "astro": "7.3.5",
     "esbuild": "0.28.2"
+  },
+  "devDependencies": {
+    "subset-font": "^2.9.0"
   }
 }

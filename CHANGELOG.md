@@ -4,6 +4,18 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-07 — Plan page restyle P1: palette and text font (no layout change)
+
+- Colour tokens re-sampled from a reference fitness app: blue-grey page gradient, flat cards (no
+  gradient / shadow), tile and inset levels, white / grey text tiers, new score hues, `--up` / `--down`
+  deltas, `--track` for dial tracks. `--accent` (actions) is now white with black ink; inline links use
+  `--link`. The red state colour fails AA as small text on a card, so it is kept for large numbers and
+  graphics and small red text moved to a new `--low-ink`; a new test recomputes every ratio in the
+  tokens header.
+- Text font: an inlined ~26 KB subset of Inter 4.1 (variable 400–800, SIL OFL 1.1), "HC Text", built by
+  `scripts/subset-text-font.mjs` (`subset-font` devDependency); D-DIN stays for numbers. Example page
+  431 KB → 466 KB. Labels share `--label-track` / `--label-weight` (700).
+
 ## 2026-10-07 — Public template: personal pieces out of the tracked tree
 
 - The repo becomes usable as a public template; every personal piece stays on the owner's disk, gitignored.

@@ -246,7 +246,7 @@ details.sec-fold > summary:hover > h2 {
   color: var(--mid);
 }
 .fresh-low {
-  color: var(--low);
+  color: var(--low-ink);
 }
 .fresh-hint {
   font-style: normal;
