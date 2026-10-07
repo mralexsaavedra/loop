@@ -95,6 +95,12 @@ While the food API boot request is in flight (`HCFood.pending()`) the rings rend
 the Apple Health day); its answer → the food log, its failure → the Apple Health day, and past
 `INTAKE.bootGraceMs` (`INTAKE_BOOT_GRACE_MS`, 2500 ms, baked) without an answer the Apple Health day
 renders anyway (a fetch hanging in a sandboxed artifact) and a late answer still switches.
+Resumen de hoy's kcal dial + macro bars follow the SAME wait (`window.intakeWaiting()`, owned by
+intake.js, one grace timer): while waiting they show the empty track + target; answered → the food log
+only (never the Apple Health day); failure / grace over → the Apple Health day. nutri-day.js is inlined
+before the food scripts, so intake.js (inlined after them) re-renders Resumen de hoy (`HCNutri.refresh`)
+at load and when the grace ends; consecutive inline scripts run before the first paint, so the Apple
+Health day never flashes.
 The bake keeps only `target.train` (the fallback without `HCNutri`).
 Intake arrives from a food app that writes nutrition to Apple Health + the
 Shortcut `diet_kcal`/`diet_protein`/`diet_carbs`/`diet_fat` keys, which sync folds into one

@@ -207,6 +207,10 @@ in the last `days` days (today included) in the same shape, for the intake rings
   lunch, dinner: {k, p, c, f}}, addon}`, a missing macro counted as 0; null unless the API answered and
   today's log is loaded), `HCFood.products()` (a copy of the active products, null without the API) and
   `HCFood.addGuide({group, food: 'b:<key>' | 'p:<id>', amt})` (a promise; a main group only).
+  Boot: `HCFood.pending()` is true while `GET /products` is in flight; the dial, bars and rings wait on
+  it through ONE shared wait (`window.intakeWaiting()`, intake.js, grace `INTAKE.bootGraceMs`); an answer
+  re-renders the rings (today's log then refreshes Resumen de hoy), a failure calls `HCNutri.refresh()`
+  (dial, bars and rings fall back to the Apple Health day). See "Intake rings" in `docs/nutrition.md`.
 - **Retries** — each add carries a `requestId` (`crypto.randomUUID`, else a v4 UUID from
   `getRandomValues` — plain http on the LAN is not a secure context — else `Math.random`); `food_log`
   has a unique index on it, so a retry of the same add returns the stored row (`200`) instead of a

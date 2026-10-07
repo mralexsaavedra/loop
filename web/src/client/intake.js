@@ -17,7 +17,9 @@
  * recent food-log day in the same window (HCFood.recentDay(INTAKE.freshDays), labelled by its date),
  * else nothing — never the Apple Health day there (nor while today's log is not loaded: HCFood.groupTotals()
  * null). While the food API boot request is in flight (HCFood.pending()) the rings render nothing; past
- * INTAKE.bootGraceMs without an answer the Apple Health day renders, and a late answer still switches. */
+ * INTAKE.bootGraceMs without an answer the Apple Health day renders, and a late answer still switches.
+ * That wait is shared (window.intakeWaiting) with Resumen de hoy's dial + bars (nutri-day.js), which
+ * this script re-renders at load and at the grace's end (HCNutri.refresh) — one timer for both. */
 (function () {
   var T = I18N_INTAKE;
   var RING_R = 18; // ring radius in the 44-unit viewBox (centre 22, 4 units of stroke room)
@@ -57,11 +59,10 @@
     var host = document.getElementById('intake');
     if (!host) return;
     var L = INTAKE.latest;
-    var F = window.HCFood, lan = false;
-    try { lan = !!(F && typeof F.ready === 'function' && F.ready()); } catch (e) { lan = false; }
+    var F = window.HCFood, lan = lanReady();
     // the food API boot request is still in flight: no source yet, so no rings (never a flash of the
     // Apple Health day) — until it answers / fails (food-log.js re-renders us) or the grace period ends
-    if (!lan && !graceOver && booting()) {
+    if (waiting()) {
       host.innerHTML = '';
       host.hidden = true;
       return;
@@ -132,9 +133,28 @@
   // past INTAKE.bootGraceMs without an answer (a fetch hanging in a sandboxed artifact) the Apple
   // Health day renders anyway; a late answer still switches to the food log
   var graceOver = false;
-  window.intakeRefresh = render;
-  if (booting() && typeof setTimeout === 'function') {
-    setTimeout(function () { graceOver = true; render(); }, INTAKE.bootGraceMs);
+  function lanReady() {
+    var F = window.HCFood;
+    try { return !!(F && typeof F.ready === 'function' && F.ready()); } catch (e) { return false; }
   }
-  render();
+  // the ONE boot wait, shared with Resumen de hoy's dial + bars (client/nutri-day.js intakeToday): no
+  // source yet while the boot request is in flight and the grace has not elapsed
+  function waiting() { return !lanReady() && !graceOver && booting(); }
+  // HCNutri.refresh re-renders Resumen de hoy, which re-renders the rings itself (refreshDependents)
+  function renderAll() {
+    var n = window.HCNutri;
+    if (n && typeof n.refresh === 'function') {
+      try { n.refresh(); return; } catch (e) { /* the rings below still render */ }
+    }
+    render();
+  }
+  window.intakeRefresh = render;
+  window.intakeWaiting = waiting;
+  if (booting() && typeof setTimeout === 'function') {
+    setTimeout(function () { graceOver = true; renderAll(); }, INTAKE.bootGraceMs);
+    // nutri-day.js rendered before the food scripts existed (it may show the Apple Health day): it
+    // re-renders now, in the wait state. Consecutive inline scripts run before the first paint, so the
+    // Apple Health day never reaches the screen.
+    renderAll();
+  } else render();
 })();
