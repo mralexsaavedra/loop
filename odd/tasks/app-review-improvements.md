@@ -54,7 +54,7 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 
 - T2: `HCFood.recentDay(days)` from `/food/log/summary` (lazy, refreshed on add/delete); LAN rings = food log only (today, else newest logged day in 3 days, else none); static page unchanged; `INTAKE.target.rest` dropped. RED 8 → GREEN 105/105; `npm test` 1561/1561; example build deterministic. Follow-up (not done): brief Apple Health flash on LAN boot before the food API answers (pre-existing for today too); `I18N_INTAKE.targetLbl.rest` possibly unused. Commit deae1c9; reviewed as slice 3 (medium, consent granted, reliability approved, acknowledged). Boundary → deae1c9.
 
-- T8: training-dash (6) + training-today (10) client tests; ingest `server.js` refactored to export `createHandler(deps)` + `main()` only as entry point (Docker CMD unchanged), `test/server.test.js` (8) + `test/limits.test.js` (3). No RED (existing code), no bugs found. Root `npm test` 1577/1577; parent re-ran ingest `node --test` 205/205. db.js untested (needs pg).
+- T8: training-dash (6) + training-today (10) client tests; ingest `server.js` refactored to export `createHandler(deps)` + `main()` only as entry point (Docker CMD unchanged), `test/server.test.js` (8) + `test/limits.test.js` (3). No RED (existing code), no bugs found. Root `npm test` 1577/1577; parent re-ran ingest `node --test` 205/205. db.js untested (needs pg). Commit bf4aa50; slice 4 review: medium (slice budget), consent granted, reliability approved, acknowledged. Boundary → bf4aa50. Rollout note: server.js changed → picked up on the next ingest image rebuild.
 
 ## Slices (stacked to main)
 
