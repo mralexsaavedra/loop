@@ -7,7 +7,15 @@ export const en = {
   dialogLabel: 'Detail',
   close: 'Close',
   rangeLabel: 'Range',
-  ranges: { d30: '30 d', d90: '90 d', d365: '1 yr' },
+  ranges: { w: 'W', m: 'M', m6: '6M', y: '1Y' },
+  rangesLong: { w: 'Week (7 days)', m: 'Month (30 days)', m6: '6 months', y: '1 year' },
+  // the trend view above the chart: the period's average + a delta pill vs the previous period
+  trend: {
+    avg: 'Average',
+    vs: { w: 'vs prior week', m: 'vs prior month', m6: 'vs prior 6 months', y: 'vs prior year' },
+    noPrev: 'No earlier period to compare',
+    since: 'Data since {date}',
+  },
   prevMonth: 'Previous month',
   nextMonth: 'Next month',
   empty: 'No data for this metric yet.',
@@ -142,7 +150,15 @@ export const es = {
   dialogLabel: 'Detalle',
   close: 'Cerrar',
   rangeLabel: 'Periodo',
-  ranges: { d30: '30 d', d90: '90 d', d365: '1 año' },
+  ranges: { w: 'S', m: 'M', m6: '6M', y: '1A' },
+  rangesLong: { w: 'Semana (7 días)', m: 'Mes (30 días)', m6: '6 meses', y: '1 año' },
+  // la vista de tendencia sobre el gráfico: la media del periodo + una píldora frente al periodo anterior
+  trend: {
+    avg: 'Media',
+    vs: { w: 'vs semana anterior', m: 'vs mes anterior', m6: 'vs 6 meses anteriores', y: 'vs año anterior' },
+    noPrev: 'Sin periodo anterior para comparar',
+    since: 'Datos desde el {date}',
+  },
   prevMonth: 'Mes anterior',
   nextMonth: 'Mes siguiente',
   empty: 'Todavía no hay datos de esta métrica.',
