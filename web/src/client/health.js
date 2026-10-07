@@ -319,4 +319,21 @@
   }
 
   render();
+
+  // ⓘ toggles of Salud (the monitor list, client/monitor.js, and each section): a button
+  // [data-hs-info="<id>"] shows / hides the block #<id> in place and mirrors it in aria-expanded.
+  // One delegated listener for the page; the block stays in the DOM (hidden), so its text is never lost.
+  function toggleInfo(btn) {
+    var id = btn.getAttribute('data-hs-info'), box = id && document.getElementById(id);
+    if (!box) return;
+    box.hidden = !box.hidden;
+    btn.setAttribute('aria-expanded', box.hidden ? 'false' : 'true');
+  }
+  if (typeof document.addEventListener === 'function') {
+    document.addEventListener('click', function (e) {
+      var t = e && e.target;
+      var btn = t && typeof t.closest === 'function' ? t.closest('[data-hs-info]') : null;
+      if (btn) toggleInfo(btn);
+    });
+  }
 })();

@@ -16,7 +16,6 @@ export const en = {
   // Inicio static headings (tabs/Home.astro)
   home: {
     myDay: 'My day',
-    moreMetrics: 'See metrics',
     // "Tonight" card (client/home-week.js, SCORES.tonight from lib/score/tonight.mjs)
     tonight: {
       heading: 'Tonight\'s sleep',
@@ -152,6 +151,7 @@ export const en = {
   monitor: {
     heading: 'Health monitor',
     ariaLabel: 'Overnight signals against your own normal range',
+    info: 'About the health monitor',
     // Inicio summary tile (#home-tiles): counts from the same cards; "metrics" = in range / all cards
     tile: { inRange: 'Within range', out: '{n} out of range', none: 'No data', metrics: '{n}/{total} metrics', ariaLabel: 'Monitor summary' },
     labels: { respiratory: 'Respiratory rate', rhr: 'Resting HR', hrv: 'HRV', wristTemp: 'Wrist temp (sleep)', sleep: 'Sleep' },
@@ -196,7 +196,6 @@ export const es = {
   // títulos fijos de Inicio (tabs/Home.astro)
   home: {
     myDay: 'Mi día',
-    moreMetrics: 'Ver métricas',
     // tarjeta "Esta noche" (client/home-week.js, SCORES.tonight de lib/score/tonight.mjs)
     tonight: {
       heading: 'Esta noche',
@@ -334,6 +333,7 @@ export const es = {
     // tile resumen de Inicio (#home-tiles): cuenta las mismas tarjetas; "métricas" = en rango / todas
     tile: { inRange: 'En rango', out: '{n} fuera de rango', none: 'Sin datos', metrics: '{n}/{total} métricas', ariaLabel: 'Resumen del monitor' },
     ariaLabel: 'Señales nocturnas frente a tu propio rango normal',
+    info: 'Sobre el monitor de salud',
     labels: { respiratory: 'Frecuencia respiratoria', rhr: 'FC en reposo', hrv: 'VFC', wristTemp: 'Temp. de muñeca (sueño)', sleep: 'Sueño' },
     units: { respiratory: 'rpm', rhr: 'ppm', hrv: 'ms', wristTemp: '°C', sleep: 'h' },
     status: { normal: 'Normal', high: 'Alto', low: 'Bajo', building: 'Creando base', none: 'Sin datos', stale: 'Sin datos recientes' },

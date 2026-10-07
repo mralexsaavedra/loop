@@ -62,7 +62,7 @@ import numFontUrl from '../src/fonts/hc-num-bold.woff2?inline';
 import textFontUrl from '../src/fonts/hc-text.woff2?inline';
 import { unicodeRange as textUnicodeRange } from '../src/fonts/text-font-ranges.mjs';
 import { jsonForScript } from '../../lib/serialize.mjs';
-import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB } from '../../lib/nav/tabs.mjs';
+import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB, ANCHOR_TAB } from '../../lib/nav/tabs.mjs';
 import { hcConst } from '../../lib/stale.mjs';
 // every client script is inlined through slimScript (comments + whitespace out, names and syntax kept)
 import { slimScript } from '../src/slim-script.mjs';
@@ -103,7 +103,7 @@ const dateT = locale === 'es' ? esDate : enDate;
 // --ground-top token, the one copy (web/test/mobile.test.mjs pins the built meta to it)
 const themeColor = /--ground-top:\s*(#[0-9a-fA-F]{6})\s*;/.exec(tokensCss)?.[1];
 if (!themeColor) throw new Error('tokens.css: --ground-top must be a #rrggbb colour (theme-color meta)');
-const navSource = `var NAV = ${jsonForScript({ tabs: TAB_KEYS, sectionTab: SECTION_TAB, detailTab: DETAIL_TAB, viewTab: VIEW_TAB })};\nvar HC_CONST = ${jsonForScript(hcConst())};\nvar I18N_SYNC = ${jsonForScript(syncT)};\nvar I18N_DATE = ${jsonForScript(dateT)};`;
+const navSource = `var NAV = ${jsonForScript({ tabs: TAB_KEYS, sectionTab: SECTION_TAB, detailTab: DETAIL_TAB, viewTab: VIEW_TAB, anchorTab: ANCHOR_TAB })};\nvar HC_CONST = ${jsonForScript(hcConst())};\nvar I18N_SYNC = ${jsonForScript(syncT)};\nvar I18N_DATE = ${jsonForScript(dateT)};`;
 // unicode-range = exactly the subset's glyphs, so letters in a --num element fall back to --sans
 const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) format("woff2");font-weight:100 900;font-style:normal;font-display:swap;unicode-range:U+20,U+25,U+2B-2E,U+30-39,U+68,U+D7}`;
 const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) format("woff2");font-weight:400 800;font-style:normal;font-display:swap;unicode-range:${textUnicodeRange()}}`;

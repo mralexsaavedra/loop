@@ -192,3 +192,67 @@
     margin: 0;
   }
 }
+
+/* Salud section header (the monitor list and every section): UPPERCASE label, an optional status
+ * chip, and an ⓘ button that shows the section's notes in place (client/health.js toggles). */
+.hs-sec {
+  margin: var(--sp-5) 0 var(--sp-3);
+}
+.hs-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: 44px;
+  margin-bottom: var(--sp-2);
+}
+.hs-lbl {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.hs-i {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin-right: calc(-1 * var(--sp-4));
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.hs-i svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+.hs-i[aria-expanded="true"] {
+  color: var(--ink);
+}
+.hs-i:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -4px;
+}
+.hs-info {
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+.hs-info p {
+  margin: 0 0 var(--sp-3);
+}
+.hs-info p:last-child {
+  margin-bottom: 0;
+}

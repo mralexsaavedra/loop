@@ -51,13 +51,20 @@ function render(mon, { locale = 'en', now = ASOF, healthNav = false, detail = fa
 const cardOf = (html, key) => {
   const at = html.indexOf(`data-hm="${key}"`);
   assert.ok(at !== -1, `missing card ${key}`);
-  const i = html.lastIndexOf('<div class="hm-card', at);
-  return html.slice(i, html.indexOf('<!--/hm-->', i));
+  const i = html.lastIndexOf('<li class="db-row', at);
+  return html.slice(i, html.indexOf('</li>', i) + 5);
 };
 
-test('five cards in order under a Health monitor heading; no scripts or external refs', () => {
+test('five metric rows in order under an uppercase Health monitor label with a status chip; no scripts or external refs', () => {
   const html = render(monitor());
-  assert.ok(html.includes(enT.monitor.heading));
+  assert.ok(html.includes(`<h3 class="hs-lbl">${enT.monitor.heading}</h3>`));
+  // respiratory High + sleep Low are out of range: the header chip says so
+  assert.match(html, /<div class="hs-head"><h3 class="hs-lbl">[^<]*<\/h3><span class="hmt-chip hmt-out">/);
+  assert.ok(html.includes(enT.monitor.tile.out.replace('{n}', '2')));
+  // rows = the shared metric row (icon · NAME · value · marker), the same .db-* styles as My dashboard
+  assert.match(html, /<ul class="db-list hm-list">/);
+  assert.equal((html.match(/<li class="db-row hm-row/g) || []).length, 5);
+  assert.match(cardOf(html, 'rhr'), /<svg class="db-ico"[^>]*aria-hidden="true">/);
   const order = ['respiratory', 'rhr', 'hrv', 'wristTemp', 'sleep'].map((k) => html.indexOf(`data-hm="${k}"`));
   assert.ok(order.every((v, i) => v !== -1 && (i === 0 || v > order[i - 1])), 'fixed order');
   assert.doesNotMatch(html, /<script|src=|href=|NaN|undefined/);
@@ -67,33 +74,39 @@ test('status word + tone class: respiratory out of band is watch (not bad), rest
   const html = render(monitor());
   const resp = cardOf(html, 'respiratory');
   assert.match(resp, /hm-tone-watch/);
-  assert.ok(resp.includes(`>${enT.monitor.status.high}<`));
+  assert.match(resp, /aria-label="[^"]*High/, 'the status word is in the row label');
+  assert.match(resp, /<span class="db-arr db-watch" aria-hidden="true">▲<\/span>/, 'above the range: ▲, watch colour');
   const rhr = cardOf(html, 'rhr');
   assert.match(rhr, /hm-tone-normal/);
-  assert.ok(rhr.includes(`>${enT.monitor.status.normal}<`));
+  assert.match(rhr, /aria-label="[^"]*Normal/);
+  assert.match(rhr, /<span class="db-arr db-flat" aria-hidden="true">•<\/span>/, 'inside the range: a grey dot');
   assert.ok(rhr.includes('<b class="hm-num">50</b>'));
   assert.ok(rhr.includes(enT.monitor.units.rhr));
   const sleep = cardOf(html, 'sleep');
   assert.match(sleep, /hm-tone-bad/);
-  assert.ok(sleep.includes(`>${enT.monitor.status.low}<`));
+  assert.match(sleep, /aria-label="[^"]*Low/);
+  assert.match(sleep, /<span class="db-arr db-bad" aria-hidden="true">▼<\/span>/);
 });
 
-test('the range bar is an inline SVG with the band and the marker; the normal range is written out one decimal finer than the value', () => {
+test('the normal range is the small line under the value, written one decimal finer than the value', () => {
   const html = render(monitor());
   const rhr = cardOf(html, 'rhr');
-  assert.match(rhr, /<svg class="hm-bar"[^>]*aria-hidden="true"/);
-  assert.match(rhr, /class="hm-band"/);
-  assert.match(rhr, /class="hm-mark"/);
   const c = monitor().cards.find((x) => x.key === 'rhr');
-  assert.ok(rhr.includes(enT.monitor.rangeLbl.replace('{lo}', c.band.lo.toFixed(1)).replace('{hi}', c.band.hi.toFixed(1))));
-  assert.doesNotMatch(rhr, /style=/, 'geometry via SVG attributes, not inline styles');
+  assert.ok(rhr.includes('<span class="db-base">' + enT.monitor.rangeLbl.replace('{lo}', c.band.lo.toFixed(1)).replace('{hi}', c.band.hi.toFixed(1)) + '</span>'));
+  assert.doesNotMatch(rhr, /style=/);
+});
+
+test('the monitor note is behind an ⓘ toggle (collapsed), never lost', () => {
+  const html = render(monitor());
+  assert.match(html, /<button type="button" class="hs-i" data-hs-info="hm-info" aria-expanded="false" aria-controls="hm-info" aria-label="[^"]+">/);
+  assert.ok(html.includes(`<div class="hs-info" id="hm-info" hidden><p>${enT.monitor.note}</p></div>`));
 });
 
 test('building baseline: value shown, status "building", no bar; missing series: "No data"', () => {
   const html = render(monitor());
   const hrv = cardOf(html, 'hrv');
-  assert.ok(hrv.includes(enT.monitor.status.building));
-  assert.doesNotMatch(hrv, /hm-bar/);
+  assert.ok(hrv.includes(`<span class="db-base">${enT.monitor.status.building}</span>`));
+  assert.doesNotMatch(hrv, /db-arr/, 'no marker without a band');
   assert.match(hrv, /class="hm-num">\d+</);
   const temp = cardOf(html, 'wristTemp');
   assert.ok(temp.includes(enT.monitor.status.none));
@@ -103,17 +116,17 @@ test('building baseline: value shown, status "building", no bar; missing series:
 
 test('a value from last night carries no date; an older one shows its date', () => {
   const html = render(monitor());
-  assert.doesNotMatch(cardOf(html, 'rhr'), /hm-date/);
-  assert.match(cardOf(html, 'sleep'), /<div class="hm-date">Sat 26 Sep<\/div>/, 'the shared display date, never ISO');
-  assert.match(cardOf(render(monitor(), { locale: 'es' }), 'sleep'), /<div class="hm-date">sáb 26 sept<\/div>/);
-  assert.match(cardOf(render(monitor(), { now: addDays(ASOF, 1) }), 'rhr'), /hm-date/, 'yesterday-dated reading is not last night');
+  assert.doesNotMatch(cardOf(html, 'rhr'), /Sep</);
+  assert.match(cardOf(html, 'sleep'), /<span class="db-base">[^<]* · Sat 26 Sep<\/span>/, 'the shared display date, never ISO');
+  assert.match(cardOf(render(monitor(), { locale: 'es' }), 'sleep'), / · sáb 26 sept<\/span>/);
+  assert.match(cardOf(render(monitor(), { now: addDays(ASOF, 1) }), 'rhr'), / · Tue 29 Sep<\/span>/, 'yesterday-dated reading is not last night');
 });
 
 test('es: Alto / Bajo / Normal, decimal comma, Spanish units', () => {
   const html = render(monitor(), { locale: 'es' });
-  assert.ok(cardOf(html, 'respiratory').includes('>Alto<'));
-  assert.ok(cardOf(html, 'sleep').includes('>Bajo<'));
-  assert.ok(cardOf(html, 'rhr').includes('>Normal<'));
+  assert.match(cardOf(html, 'respiratory'), /aria-label="[^"]*Alto/);
+  assert.match(cardOf(html, 'sleep'), /aria-label="[^"]*Bajo/);
+  assert.match(cardOf(html, 'rhr'), /aria-label="[^"]*Normal/);
   assert.ok(cardOf(html, 'respiratory').includes('18,0'));
   assert.ok(cardOf(html, 'rhr').includes(esT.monitor.units.rhr));
 });
@@ -133,9 +146,9 @@ test('per-card staleness: a card whose own date is > 3 days old loses its tone a
   const html = render(monitor(), { now: addDays(ASOF, 1) }); // sleep is now 4 days old, the rest 1 day
   const sleep = cardOf(html, 'sleep');
   assert.match(sleep, /hm-stale/);
-  assert.doesNotMatch(sleep, /hm-tone-/);
-  assert.ok(sleep.includes(enT.monitor.status.stale));
-  assert.ok(!sleep.includes(`>${enT.monitor.status.low}<`), 'no Low for an old reading');
+  assert.doesNotMatch(sleep, /hm-tone-|db-arr/);
+  assert.ok(sleep.includes(`<span class="db-base">${enT.monitor.status.stale}</span>`));
+  assert.doesNotMatch(sleep, /Low/, 'no Low for an old reading');
   assert.match(cardOf(html, 'respiratory'), /hm-tone-watch/, 'fresh cards keep their tone');
 });
 
