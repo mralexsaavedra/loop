@@ -105,7 +105,7 @@ One line per area; the design detail lives in the linked doc (read it on demand)
 | Health tab (Salud): body comp, activity, energy + power-meter correction, running / cycling, recovery, sleep | [`docs/health-tab.md`](docs/health-tab.md) |
 | Home tab (Inicio): dials, advice, eat card, monitor, timeline; recovery + load scoring; same-day merge rule | [`docs/home-tab.md`](docs/home-tab.md) |
 | LAN page + on-demand refresh: `services/plan-web`, `services/health-ingest`, sync protocol, security | [`docs/lan-services.md`](docs/lan-services.md) |
-| Knowledge base ingest, Hyprogram sync, coach subagents | [`docs/knowledge-base.md`](docs/knowledge-base.md) |
+| Knowledge base ingest, private program syncs (`local/`), coach subagents | [`docs/knowledge-base.md`](docs/knowledge-base.md) |
 | Onboarding a new user (first run: profile + baseline interview) | [`docs/onboarding.md`](docs/onboarding.md) |
 | Guard hook: blocks committing personal data (force-add, `.gitignore` edits) | [`docs/guard-hook.md`](docs/guard-hook.md) |
 | Analysis framework (every number you produce) + the `/analysis` skill | [`analysis/methodology.md`](analysis/methodology.md) |
