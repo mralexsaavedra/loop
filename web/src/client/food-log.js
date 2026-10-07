@@ -284,6 +284,10 @@
     window.HCViews = window.HCViews || {};
     // detail.js asks for the title after render(), so it names the sheet's own day when it is not today
     window.HCViews['food-add'] = { title: sheetTitle, render: renderSheet };
+    // the dock's "+" can now offer "add food" (client/nav-actions.js)
+    if (window.HCActions) {
+      try { window.HCActions.refresh(); } catch (e) { /* the "+" keeps its last state */ }
+    }
     ['food-log-block', 'food-products', 'food-recipes'].forEach(show);
     loadLog(); // today's log feeds foodTotals / groupTotals whatever day is on screen
     if (lateNight()) goDay(HC.shiftIso(HC.todayIso(), -1), true); // 00:00–03:59: open on the evening before

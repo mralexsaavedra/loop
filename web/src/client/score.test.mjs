@@ -44,7 +44,7 @@ const HEALTH = { recovery: { hasData: true, sleep: { target: 7.5 } } };
 
 // Returns #home-advice + #score-recovery (Salud) + #score-load (Entreno), in that order; pass `hosts` to
 // inspect each one separately.
-function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, loadSectionHidden = false, dials, dialsHost, hosts = {}, detail = false } = {}) {
+function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, loadSectionHidden = false, dials, dialsHost, miniHost, hosts = {}, detail = false } = {}) {
   const host = { innerHTML: '' };
   const rec = (hosts.rec = hosts.rec || { innerHTML: '' });
   const load = (hosts.load = hosts.load || { innerHTML: '' });
@@ -55,7 +55,7 @@ function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entre
   }
   const byId = {
     'home-advice': host, 'score-recovery': rec, 'score-load': load,
-    'home-dials': dialsHost || null, 't-health': healthNav ? {} : null, 't-entreno': entrenoNav ? {} : null,
+    'home-dials': dialsHost || null, 'home-mini': miniHost || null, 't-health': healthNav ? {} : null, 't-entreno': entrenoNav ? {} : null,
     'sec-load': { hidden: loadSectionHidden },
   };
   const ctx = {
@@ -344,6 +344,36 @@ test('dials: with a #home-dials host (Home.astro) the dials render there, so the
   assert.match(dialsHost.innerHTML, /class="sc-card sc-dials"/);
   assert.doesNotMatch(html, /sc-dials/);
   assert.match(html, /sc-recovery/);
+});
+
+test('collapsed dial row (#home-mini): one mini ring per dial, the SAME baked svg + label + detail opener, no recomputation', () => {
+  const s = fixtureScores();
+  const dialsHost = { innerHTML: '' };
+  const miniHost = { innerHTML: '' };
+  render(s, { now: addDays(ASOF, 1), dials: buildDials(s, HEALTH), dialsHost, miniHost, detail: true });
+  const mini = miniHost.innerHTML;
+  assert.match(mini, /^<div class="dm-row" role="group" aria-label="[^"]+">/);
+  const items = [...mini.matchAll(/<div class="dm (dial-[a-z]+)[^"]*"([^>]*)>([\s\S]*?)<\/div>/g)];
+  assert.equal(items.length, 2 + s.load.modalities.length, 'sleep, recovery, one per load modality (the switch picks one)');
+  assert.equal(items.filter((m) => !/\shidden/.test(m[2])).length, 3, 'three visible: Sleep · Recovery · Load');
+  // every mini ring reuses the dial's exact svg and opens the same detail view
+  const svgs = (html) => [...html.matchAll(/<svg class="dial-svg"[\s\S]*?<\/svg>/g)].map((m) => m[0]);
+  assert.deepEqual(svgs(mini), svgs(dialsHost.innerHTML));
+  const openers = (html) => [...html.matchAll(/data-detail="([a-z-]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(openers(mini), openers(dialsHost.innerHTML));
+  for (const lbl of [enT.dials.sleep.label, enT.dials.recovery.label, enT.dials.load.label]) {
+    assert.ok(mini.includes(`<span class="dm-lbl">${lbl}</span>`), lbl);
+  }
+  // the load items carry data-dmod so the modality switch moves them with the dial
+  assert.equal(count(mini, 'data-dmod='), s.load.modalities.length);
+});
+
+test('collapsed dial row: no #home-mini host, nothing breaks; no data, the row stays empty', () => {
+  const s = fixtureScores();
+  assert.doesNotThrow(() => render(s, { dials: buildDials(s, HEALTH), dialsHost: { innerHTML: '' } }));
+  const miniHost = { innerHTML: 'x' };
+  render({ hasData: false, asOf: null, reEpoch: null, recovery: null, load: null, advice: null }, { miniHost, dialsHost: { innerHTML: '' } });
+  assert.equal(miniHost.innerHTML, '');
 });
 
 test('dials: absent DIALS global renders the cards exactly as before (no dial card)', () => {
@@ -639,13 +669,16 @@ test('scMod: the switch shows only the chosen modality and moves aria-pressed', 
   const panes = ['gym', 'run', 'bike'].flatMap((k) => [el(k, false), el(k, false)]);
   const root = { querySelectorAll: () => [...btns, ...panes] };
   btns.forEach((b) => { b.closest = () => root; });
-  const ctx = { document: { getElementById: () => null } };
+  const minis = ['gym', 'run', 'bike'].map((k) => el(k, false));
+  const mini = { querySelectorAll: () => minis };
+  const ctx = { document: { getElementById: (id) => (id === 'home-mini' ? mini : null) } };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
   ctx.scMod('bike', btns[2]);
   assert.deepEqual(btns.map((b) => b.pressed), ['false', 'false', 'true']);
   assert.deepEqual(panes.map((p) => p.hidden), [true, true, true, true, false, false]);
+  assert.deepEqual(minis.map((p) => p.hidden), [true, true, false], 'the collapsed row follows the switch');
 });
 
 test('load: sessions without effort data in the acute window are noted on the card and the dial caption', () => {

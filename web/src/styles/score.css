@@ -716,3 +716,85 @@ details.rec-raw > summary {
     align-items: start;
   }
 }
+
+/* Collapsed dial row (#home-mini, Home.astro; written by client/score.js): once the dials scroll
+ * above the viewport a frosted strip fixed at the top shows the same three rings small (the dial's
+ * own svg, its colour class, no zones / markers) + their labels; a tap opens the dial's detail.
+ * Off = visibility: hidden (out of the tab order and the accessibility tree); it slides in, and
+ * prefers-reduced-motion drops the motion (base.css). Inside the Inicio panel, so other tabs never
+ * show it. */
+.dial-mini {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 25;
+  padding: calc(env(safe-area-inset-top) + var(--sp-1)) calc(12px + env(safe-area-inset-right)) var(--sp-1) calc(12px + env(safe-area-inset-left));
+  background: rgba(var(--nav-rgb), 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-100%);
+  transition: opacity 0.2s ease, transform 0.25s ease, visibility 0s linear 0.25s;
+}
+.dial-mini.is-on {
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.2s ease, transform 0.25s ease;
+}
+.dial-mini:empty {
+  display: none;
+}
+.dm-row {
+  display: flex;
+  justify-content: space-around;
+  max-width: 680px;
+  margin: 0 auto;
+}
+.dm {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-pill);
+  cursor: pointer;
+}
+.dm[hidden] {
+  display: none;
+}
+.dm:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.dm-ring {
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+.dm .dial-track,
+.dm .dial-fill {
+  stroke-width: 16;
+}
+.dm .dial-fill {
+  animation: none;
+}
+.dm .dial-zone,
+.dm .dial-dot,
+.dm .dial-mid {
+  display: none;
+}
+.dm-lbl {
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.dm.dial-off .dm-lbl {
+  color: var(--muted);
+}
