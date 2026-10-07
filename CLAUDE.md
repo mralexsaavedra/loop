@@ -130,24 +130,21 @@ Verified product labels tables), then builds `web/dist/personal/index.html`. **N
 hand-edit `plan-tables.md`, `web/dist/`, or re-type macros in `food-log.md` — the source is
 the two JSONs.
 
-## Publishing the artifact
+## Publishing the page
 
-**The plan the owner actually views is a claude.ai artifact (frozen snapshot).** The owner's
-personal artifact URL lives in **`data/nutrition/artifact.local.md`** (gitignored, never
-committed) — **read that file before re-publishing** so you never have to ask for the URL
-again; it is also mirrored in persistent memory for other machines, but the local file is the
-deterministic source. The first time you publish (no `artifact.local.md` yet), create a new
-artifact from `web/dist/personal/index.html` and write its URL into that file. Editing local
-files does NOT update the published artifact. After a plan change: (1) edit the JSON → (2) run
-`npm run generate` → (3) re-publish via the Artifact tool with
-`file_path=web/dist/personal/index.html` and `url=<the URL from artifact.local.md>` (favicon
-🥗, keep stable), then hard-reload (Cmd/Ctrl+Shift+R). The build output is artifact-ready
-(CSP-safe, no external refs, no `<script type="module">` — every script is `is:inline`).
+**The owner views the plan on the LAN page** (`services/plan-web`, see
+[docs/lan-services.md](docs/lan-services.md)); the former claude.ai artifact was retired on
+2026-10-07. The page is rebuilt from `main` hourly and on demand (the page's Sync button, or
+`POST http://127.0.0.1:8088/sync`), and only publishes from `main` — keep this clone on `main` and
+do feature work in a separate git worktree. After a change merges, check
+`services/plan-web/site/status.json` shows the new `commit` with no `error`. The build output stays
+self-contained and CSP-safe (no external refs, every script `is:inline`), so a static copy still
+works without the LAN services.
 
 ## Repo rules
 
 - **Never commit personal data.** Personal files (`profile/about-me.md`, `baseline.md`, `profile.json`, `plan-data.json`,
-  `training-data.json`, the extract, `data/profile/*`, `web/dist/personal/`, `artifact.local.md`) are
+  `training-data.json`, the extract, `data/profile/*`, `web/dist/personal/`) are
   gitignored; never un-ignore them or `git add -f` them. `data/demo/` is tracked and must stay synthetic.
 - **Never hand-edit generated files** (`plan-tables.md`, `web/dist/`, `data/demo/extract/` — re-run
   `npm run demo:data`); change the source (the JSONs, the generator) and regenerate.
