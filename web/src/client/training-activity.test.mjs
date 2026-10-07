@@ -1,5 +1,6 @@
-/* Tests for Entreno's 30-day calendar + cumulative training time (web/src/client/training-activity.js):
- * the classic script in a vm with baked ACTIVITY / I18N_ACTIVITY / LOCALE and a controllable clock. */
+/* Tests for Entreno's Activity card (web/src/client/training-activity.js): totals + W / M / 6M switch,
+ * modality split, 30-day calendar. The classic script in a vm with baked ACTIVITY / I18N_ACTIVITY /
+ * LOCALE and a controllable clock. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -21,9 +22,13 @@ for (let i = 0; i < 30; i += 2) rows.push({ date: addDays(ASOF, -i), type: 'Runn
 for (let i = 30; i < 60; i += 3) rows.push({ date: addDays(ASOF, -i), type: 'HighIntensityIntervalTraining', dur: 30 });
 rows.push({ date: ASOF, type: 'Cycling', dur: 45 });
 const ACT = activityFromRows(rows);
+// the same plus one old session, so the windows before M and W lie after the first session
+const ACT2 = activityFromRows([...rows, { date: addDays(ASOF, -200), type: 'Running', dur: 30 }]);
 
-function render(activity, { locale = 'en', now = ASOF, at, detail = false } = {}) {
+function render(activity, { locale = 'en', now = ASOF, at, detail = false, stored, win } = {}) {
   const host = { innerHTML: '' };
+  const window = win || {};
+  if (stored !== undefined) window.localStorage = { getItem: () => stored, setItem: () => {} };
   const RealDate = Date;
   const stamp = at || now + 'T12:00:00';
   class FakeDate extends RealDate {
@@ -32,7 +37,7 @@ function render(activity, { locale = 'en', now = ASOF, at, detail = false } = {}
   }
   const ctx = {
     document: { getElementById: (id) => (id === 'train-activity' ? host : null) },
-    ACTIVITY: activity == null ? activity : activityBake(activity), I18N_ACTIVITY: locale === 'es' ? esT : enT, LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON,
+    ACTIVITY: activity == null ? activity : activityBake(activity), I18N_ACTIVITY: locale === 'es' ? esT : enT, LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON, window,
   };
   if (detail) ctx.DETAIL = { metrics: {} };
   vm.createContext(ctx);
@@ -42,21 +47,99 @@ function render(activity, { locale = 'en', now = ASOF, at, detail = false } = {}
 }
 const cells = (html) => [...html.matchAll(/<rect class="cal-cell cal-l(\d)"[^>]*><title>([^<]*)<\/title>/g)].map((m) => ({ level: +m[1], title: m[2] }));
 
-test('the calendar and the cumulative chart open the training-time detail; a tap on a day cell opens that day', () => {
+test('ONE Activity card: header + ⓘ, total time with the W / M / 6M switch, stats, split, then the compact calendar', () => {
+  const html = render(ACT);
+  const order = ['<section class="hs-sec act" aria-labelledby="act-h">', 'id="act-h">Activity</h3>', 'data-hs-info="act-info"', '<div class="hs-info" id="act-info" hidden>',
+    '<div class="act-card">', 'class="act-sum"', 'class="dt-range act-range"', 'class="act-stats"', 'class="act-split"', 'class="act-cal"', 'class="cal-svg"'].map((n) => html.indexOf(n));
+  assert.ok(order.every((v, i) => v !== -1 && (i === 0 || v > order[i - 1])), `card order ${order}`);
+  assert.equal((html.match(/data-act-range="(\d+)"/g) || []).join(','), 'data-act-range="7",data-act-range="30",data-act-range="182"');
+  assert.match(html, /data-act-range="30" aria-pressed="true" aria-label="Last month">M</, 'M is the default window');
+  assert.doesNotMatch(html, /cum-svg|cum-line|act-pair|class="dash-sec/, 'the cumulative chart and the old two-block layout are gone');
+  for (const k of ['help', 'note', 'labelsNote']) assert.ok(html.includes(enT[k].slice(0, 40)), `${k} behind ⓘ`);
+});
+
+test('openers: the total and the calendar open the training-time sheet; a day cell opens that day; the switch is not inside an opener', () => {
   const html = render(ACT, { detail: true });
-  const secs = [...html.matchAll(/<div class="dash-sec act-(?:cal|cum)"([^>]*)>/g)].map((m) => m[1]);
-  assert.deepEqual(secs, [' data-detail="workouts" role="button" tabindex="0" aria-haspopup="dialog"', ' data-detail="workouts" role="button" tabindex="0" aria-haspopup="dialog"']);
+  assert.match(html, /<div class="act-sum" data-detail="workouts" role="button" tabindex="0" aria-haspopup="dialog">/);
+  assert.match(html, /<div class="act-cal" data-detail="workouts" role="button" tabindex="0" aria-haspopup="dialog">/);
   const days = [...html.matchAll(/<rect class="cal-cell cal-l\d" data-detail="workouts" data-date="(\d{4}-\d{2}-\d{2})"/g)].map((m) => m[1]);
   assert.equal(days.length, 30);
   assert.equal(days[29], ASOF);
-  assert.doesNotMatch(html, /<rect[^>]*tabindex/, 'cells are mouse targets; the section is the keyboard opener');
-  assert.doesNotMatch(render(ACT), /data-detail/, 'no detail sheet baked: plain calendar');
+  assert.doesNotMatch(html, /<rect[^>]*tabindex/, 'cells are mouse targets; the calendar block is the keyboard opener');
+  const sum = html.slice(html.indexOf('class="act-sum"'), html.indexOf('class="dt-range act-range"'));
+  assert.equal((sum.match(/<div/g) || []).length, (sum.match(/<\/div>/g) || []).length, 'the totals block closes before the switch');
+  assert.doesNotMatch(render(ACT), /data-detail/, 'no detail sheet baked: plain card');
 });
 
-test('calendar and cumulative chart share one .act-pair wrapper (one row on wide screens); the chart stretches to a capped height', () => {
-  const html = render(ACT);
-  assert.match(html, /<div class="act-pair"><div class="dash-sec act-cal"[^>]*>[\s\S]*<div class="dash-sec act-cum"[^>]*>[\s\S]*<\/svg><\/div><\/div><div class="dash-note">/);
-  assert.match(html, /<svg class="cum-svg" viewBox="0 0 \d+ \d+" preserveAspectRatio="none"/);
+test('M window: total of the last 30 days vs the 30 before, sessions / days / per week, split with counts', () => {
+  assert.match(render(ACT), /<span class="dt-pill">no prior period<\/span>/, 'the month before starts before the first session: no comparison');
+  const html = render(ACT2);
+  // last 30: 15 runs × 60 + a 45-min ride = 945 min; previous 30: 10 gym × 30 = 300 min -> +215 %
+  assert.match(html, /<b class="dt-trend-num">15 h 45 min<\/b><span class="dt-pill">▲ 215% vs prior month<\/span>/);
+  const stats = [...html.matchAll(/<div class="act-stat"><b>([^<]*)<\/b><span>([^<]*)<\/span><\/div>/g)].map((m) => [m[1], m[2]]);
+  assert.deepEqual(stats, [['16', 'Sessions'], ['15', 'Days'], ['3 h 41 min', 'Per week']], '16 sessions (15 runs + 1 ride, the run+ride day counts twice) on 15 days');
+  const legend = [...html.matchAll(/<li><span class="act-sw act-m-(\w+)" aria-hidden="true"><\/span><b>(\d+)×<\/b> ([^<]+) <small>([^<]+)<\/small><\/li>/g)].map((m) => m.slice(1));
+  assert.deepEqual(legend, [['run', '15', 'Run', '95% · 15 h'], ['bike', '1', 'Bike', '5% · 45 min']], 'largest first, sessions ×, share of the minutes');
+  const segs = [...html.matchAll(/<rect class="act-m-(\w+)" x="([\d.]+)" y="0" width="([\d.]+)" height="8"\/>/g)].map((m) => [m[1], +m[2], +m[3]]);
+  assert.deepEqual(segs.map((x) => x[0]), ['run', 'bike']);
+  assert.equal(segs[1][1], segs[0][2], 'stacked: each segment starts where the last ended');
+  assert.ok(Math.abs(segs[0][2] + segs[1][2] - 100) < 0.02, 'the bar is the whole window');
+  assert.match(html, /<svg class="act-bar" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="By modality: Run 15 sessions, 95% \(15 h\), Bike 1 sessions, 5% \(45 min\)">/);
+});
+
+test('W and 6M windows (HCActivity.summary): totals, sessions and split follow the window; a window before the first session has no comparison', () => {
+  const win = {};
+  render(ACT, { win });
+  const byDate = Object.fromEntries(ACT.days.map((d) => [d.date, d]));
+  const w = win.HCActivity.summary(byDate, ASOF, 7);
+  // last 7 days: runs on days 0, 2, 4, 6 (4 × 60) + the ride = 285 min; the 7 before: runs on 8, 10, 12 = 180
+  assert.deepEqual([w.min, w.sessions, w.days, w.prev], [285, 5, 4, 180]);
+  assert.equal(Math.round(w.pct), 58);
+  assert.deepEqual(Object.keys(w.mods).sort(), ['bike', 'run']);
+  const m6 = win.HCActivity.summary(byDate, ASOF, 182);
+  assert.equal(m6.min, 945 + 300, 'every baked session of the last 182 days');
+  assert.equal(m6.sessions, 26);
+  assert.deepEqual({ ...m6.mods.hiit }, { min: 300, n: 10 });
+  assert.equal(m6.prev, null, 'the 6M before starts before the first session: no comparison');
+  assert.equal(m6.pct, null);
+  const byDate2 = Object.fromEntries(ACT2.days.map((d) => [d.date, d]));
+  const win2 = {};
+  render(ACT2, { win: win2 });
+  const w2 = win2.HCActivity.summary(byDate2, addDays(ASOF, -150), 7);
+  assert.equal(w2.prev, 0);
+  assert.equal(w2.pct, null, 'no training in the window before: no %');
+});
+
+test('the switch: 6M re-renders the card (total, pill, split) and keeps focus; the choice is remembered per viewer', () => {
+  const sets = [];
+  const win = { localStorage: { getItem: () => null, setItem: (k, v) => sets.push([k, v]) } };
+  const host = { innerHTML: '' };
+  let onClick = null;
+  host.addEventListener = (type, fn) => { if (type === 'click') onClick = fn; };
+  const focused = [];
+  host.querySelector = (sel) => ({ focus: () => focused.push(sel) });
+  const RealDate = Date;
+  class FakeDate extends RealDate {
+    constructor(...a) { super(...(a.length ? a : [ASOF + 'T12:00:00'])); }
+    static now() { return new RealDate(ASOF + 'T12:00:00').getTime(); }
+  }
+  const ctx = {
+    document: { getElementById: (id) => (id === 'train-activity' ? host : null) },
+    ACTIVITY: activityBake(ACT), I18N_ACTIVITY: enT, LOCALE: 'en', Math, String, Number, Array, Object, JSON, window: win, Date: FakeDate,
+  };
+  vm.createContext(ctx);
+  loadUtil(ctx);
+  vm.runInContext(source, ctx);
+  assert.ok(onClick, 'one delegated click listener on the host');
+  const btn = { getAttribute: () => '182' };
+  onClick({ target: { closest: (sel) => (sel === '[data-act-range]' ? btn : null) } });
+  assert.match(host.innerHTML, /data-act-range="182" aria-pressed="true"/);
+  assert.match(host.innerHTML, /<b class="dt-trend-num">20 h 45 min<\/b><span class="dt-pill">no prior period<\/span>/);
+  assert.match(host.innerHTML, /act-m-hiit/, 'the gym sessions of the previous month are inside 6M');
+  assert.deepEqual(sets, [['hc-act-range', '182']]);
+  assert.deepEqual(focused, ['[data-act-range="182"]']);
+  assert.match(render(ACT, { stored: '7' }), /data-act-range="7" aria-pressed="true"/, 'a remembered window opens the card');
+  assert.match(render(ACT, { stored: '99' }), /data-act-range="30" aria-pressed="true"/, 'an unknown stored value falls back to M');
 });
 
 test('calendar: 30 day cells ending at the viewer\'s today, level by total minutes, a title per cell (hover)', () => {
@@ -69,19 +152,9 @@ test('calendar: 30 day cells ending at the viewer\'s today, level by total minut
   assert.equal(c[28].title, 'Mon 28 Sep: no training');
   assert.equal(c[27].level, 3, '60 min -> 60–89');
   assert.ok(html.includes(enT.calHint.replace('{days}', '15')), '15 distinct active days');
+  assert.ok(html.includes('<span class="dt-trend-lbl">Last 30 days</span>'), 'compact calendar label');
   assert.equal((html.match(/class="cal-legend-sw cal-l\d"/g) || []).length, 5, 'a legend for the five levels');
   assert.doesNotMatch(html, /NaN|undefined|<script|href=|style=/);
-});
-
-test('cumulative: this 30 days vs the previous 30 as two SVG lines with end labels; the headline totals are written out', () => {
-  const html = render(ACT);
-  assert.equal((html.match(/<path class="cum-line cum-cur"/g) || []).length, 1);
-  assert.equal((html.match(/<path class="cum-line cum-prev"/g) || []).length, 1);
-  // last 30: 15 runs × 60 + 45 = 945 min = 15 h 45 min; previous 30: 10 × 30 = 300 min = 5 h
-  assert.ok(html.includes('15 h 45 min'), 'current total');
-  assert.ok(html.includes('5 h'), 'previous total');
-  assert.ok(html.includes(enT.cur) && html.includes(enT.prev), 'legend labels, identity never colour-alone');
-  assert.equal((html.match(/<rect class="cum-hit"[^>]*><title>/g) || []).length, 30, 'a hover target per day');
 });
 
 test('the viewer a day ahead of the data: windows end today (today empty), not stale', () => {
@@ -121,7 +194,8 @@ test('empty state and resilience', () => {
 });
 
 test('es: Spanish copy and decimal-free h/min durations', () => {
-  const html = render(ACT, { locale: 'es' });
+  const html = render(ACT2, { locale: 'es' });
   assert.ok(html.includes(esT.calHeading));
   assert.ok(html.includes('15 h 45 min'));
+  assert.match(html, /▲ 215 % vs mes anterior/, 'Spanish percent spacing');
 });

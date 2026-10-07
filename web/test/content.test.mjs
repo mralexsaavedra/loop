@@ -175,10 +175,12 @@ test('example build: every former tab lives as a section in its new tab, in orde
   assert.deepEqual([...order].sort((a, b) => a - b), order, 'Nutrición order: Mi día, Tablas');
   assert.match(sliceSection(html, 'hoy'), /<div id="train-today"><\/div>/);
   assert.match(sliceSection(html, 'dash'), /<div id="train-dash"><\/div>/);
+  assert.doesNotMatch(sliceSection(html, 'dash'), /<h2/, 'the former Workouts dashboard heading is gone: its volume / split merged into the Activity card');
+  assert.equal((sliceTabPanel(html, 'entreno').match(/<h2/g) || []).length, 1, 'Entreno has ONE page heading (the centred title)');
   assert.match(sliceTabPanel(html, 'health'), /<div id="health-body"><\/div>/);
 });
 
-test('example build: glance on Inicio, detail behind it — Entreno holds load detail, run/bike/load-vs-recovery, then the dashboard; Salud holds the rest', () => {
+test('example build: glance on Inicio, detail behind it — Entreno holds the load summary, the Activity card, run/bike/load-vs-recovery, then intensity; Salud holds the rest', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const home = sliceTabPanel(html, 'home');
   assert.doesNotMatch(home, /id="score-load"|id="health-train"|id="health-body"/, 'no detail hosts on Inicio');
@@ -189,8 +191,8 @@ test('example build: glance on Inicio, detail behind it — Entreno holds load d
   assert.ok(entreno.indexOf('id="tr-intro"') < entreno.indexOf('id="score-load"'), 'the header leads the tab');
   assert.doesNotMatch(html.match(/var I18N_ACTIVITY = (\{.*?\});\n/)[1], /"head"/, 'the header copy is built, not baked for the client');
   const at = (id) => entreno.indexOf(`id="${id}"`);
-  assert.ok(at('score-load') !== -1 && at('score-load') < at('train-activity') && at('train-activity') < at('health-train') && at('health-train') < at('sec-dash'), 'Entreno order: load detail, calendar + cumulative, run/bike/load vs recovery, dashboard');
-  assert.match(html, /var ACTIVITY = \{"hasData":true,"asOf":"\d{4}-\d{2}-\d{2}","days":\[/, 'demo data fills the calendar');
+  assert.ok(at('score-load') !== -1 && at('score-load') < at('train-activity') && at('train-activity') < at('health-train') && at('health-train') < at('sec-dash'), 'Entreno order: load summary, Activity card, run/bike/load vs recovery, intensity');
+  assert.match(html, /var ACTIVITY = \{"hasData":true,"asOf":"\d{4}-\d{2}-\d{2}","first":"\d{4}-\d{2}-\d{2}","days":\[/, 'demo data fills the Activity card');
   assert.match(html, /var I18N_ACTIVITY = /);
   assert.match(html, /getElementById\(["']train-activity["']\)/, 'training-activity.js is inlined');
   assert.match(sliceTabPanel(html, 'health'), /<div id="health-body"><\/div>/);
@@ -289,7 +291,7 @@ test('example build: the shared client helpers (util.js) are inlined FIRST, righ
   const coreIdx = scripts.findIndex((s) => /function setTab\(/.test(s));
   assert.ok(constIdx !== -1 && utilIdx !== -1 && coreIdx !== -1, `HC_CONST ${constIdx}, util ${utilIdx}, core ${coreIdx}`);
   assert.ok(constIdx <= utilIdx && utilIdx < coreIdx, 'HC_CONST, then util.js, then core.js and the rest');
-  assert.match(html, /var ACTIVITY = \{[^;]*"windowDays":30,"levelMin":\[1,30,60,90\]\}/, 'calendar constants baked from lib');
+  assert.match(html, /var ACTIVITY = \{[^;]*"windowDays":30,"periods":\[7,30,182\],"bakeDays":367,"levelMin":\[1,30,60,90\]\}/, 'calendar + window constants baked from lib');
   const dateIdx = scripts.findIndex((s) => /\bvar I18N_DATE = \{"weekdays":\["Mon"/.test(s));
   assert.ok(dateIdx !== -1 && dateIdx <= utilIdx, 'the date names of HC.fmtDate are baked before util.js');
 });

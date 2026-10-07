@@ -1,11 +1,11 @@
 ---
 /* Entreno tab, top to bottom: the centred uppercase title (an ⓘ holds the tab intro + the data
- * caveats every block shares, like Salud's header), then the sections. The detail behind
- * Inicio's load dial (Whoop keeps the glance on Home and the detail one tap away), the 30-day
- * activity calendar + cumulative training time, then the running and cycling tables and load vs
- * recovery. Client-rendered hosts:
- *   #score-load      per-modality load cards + caveats (client/score.js, SCORES from the shared <Bake>)
- *   #train-activity  calendar + cumulative time (client/training-activity.js, ACTIVITY baked HERE)
+ * caveats every block shares, like Salud's header), then the sections. The load summary (the
+ * detail behind Inicio's load dial: Whoop keeps the glance on Home and the detail one tap away), the
+ * Activity card (totals, W / M / 6M, modality split, 30-day calendar), then the running and cycling
+ * lists and load vs recovery. Client-rendered hosts:
+ *   #score-load      per-modality load summary cards, caveats behind ⓘ (client/score.js, SCORES from the shared <Bake>)
+ *   #train-activity  the Activity card (client/training-activity.js, ACTIVITY baked HERE)
  *   #health-train    running, cycling, load vs recovery (client/health.js, HEALTH from the shared <Bake>)
  * Each host is a SECTION (load / calendar / sessions, lib/nav/tabs.mjs SECTION_TAB), so
  * `page.hideTabs` can hide it; hiding all of them and `dash` drops the Entreno button. The load
