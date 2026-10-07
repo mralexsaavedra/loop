@@ -35,7 +35,7 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 - [x] T9 Late-night entry default (route: delegated writer)
 - [x] T10 Minify inline CSS (route: delegated writer)
 - [x] T8 Missing tests (route: delegated writer)
-- [ ] T7 Split food.js
+- [x] T7 Split food.js (route: delegated writer; parent swept stale comments inline)
 - [ ] T6 CLAUDE.md restructure
 - [ ] T11 Backup clutter (ask owner)
 
@@ -56,15 +56,18 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 
 - T8: training-dash (6) + training-today (10) client tests; ingest `server.js` refactored to export `createHandler(deps)` + `main()` only as entry point (Docker CMD unchanged), `test/server.test.js` (8) + `test/limits.test.js` (3). No RED (existing code), no bugs found. Root `npm test` 1577/1577; parent re-ran ingest `node --test` 205/205. db.js untested (needs pg). Commit bf4aa50; slice 4 review: medium (slice budget), consent granted, reliability approved, acknowledged. Boundary → bf4aa50. Rollout note: server.js changed → picked up on the next ingest image rebuild.
 
+- T7: food.js (1727) → food-core (536) / food-sheet (328) / food-catalog (544) / food-log (439), shared via `window.HCFoodInternal`; public `HCFood` surface unchanged; tests load `FOOD_SOURCE` (client-util.mjs). Pure move: `npm test` 1577 before = 1577 after (parent re-ran after comment sweep). Example page +4.8 KB raw / +1 KB gzip (namespace export, slimScript does not rename). Deterministic. Commit 832e4ef. Review: medium (slice budget), consent granted, START stopped `lens_context_budget_exceeded` (3715 lines; a pure move cannot be split meaningfully) → UNREVIEWED, proof = identical green suite. Boundary stays bf4aa50 for review purposes.
+
 ## Slices (stacked to main)
 
 - Slice 1 `feat/app-review-improvements`: d5c781a (T1), c8fbafb (T3).
 - Slice 2 `feat/app-review-cleanup` (based on slice 1): T5, T9, T10.
 - Slice 3 `feat/app-review-intake-source`: T2.
 - Slice 4 `feat/app-review-tests`: T8.
-- Later slices: T7; T6 — one PR each.
+- Slice 5 `feat/app-review-food-split`: T7.
+- Later slice: T6.
 
 
 ## Next step
 
-T7 (split food.js).
+T6 (CLAUDE.md restructure).
