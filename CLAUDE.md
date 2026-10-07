@@ -836,28 +836,10 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   `page.notes['tablas.*']` no longer talk about portions. plan-tables.md (generate.js) keeps "Daily
   targets by goal and day type" and writes the same reference rows ("Food reference (fixed values per
   natural unit)"; legumes per 100 g cooked instead of a ~300 g plate).
-- **Migration** — `node scripts/migrate-plan-v2.mjs [--dry-run] [--reset-flex] [--include-fruit]
-  [--file <path>]` upgrades an existing personal plan-data.json in place, idempotently: adds
-  `targets.byGoal` (defaults) when absent, marks `flex: "carb"` on dayPlan parts that are carb STAPLES
-  (an `{ing}` in `STAPLE_KEYS` — rice, pasta, bread, potato, oats, couscous / quinoa, wheat wraps — or a
-  `{use, match}` item whose recipe uses only those; fruit, honey, jam, juice only with `--include-fruit`;
-  mixed items and `manual` blocks stay fixed; a part that already has a `flex` key is left alone), sets
-  `page.goal: "maintain"` when absent. `--reset-flex` re-derives the markers of an already-migrated
-  plan (removes a `flex: "carb"` the current set no longer covers, marks unmarked staples, never touches
-  `flex: null`). **The flex marking is now mostly LEGACY**: which parts scale is decided by FOOD
-  CATEGORY (`lib/nutrition/flex.mjs` `isFlexPart` / `autoFlexIng`: carb, fruit and carb-staple sweets
-  such as honey / jam auto-flex), and every tracked `STAPLE_KEYS` food and every `FRUIT_KEYS` food but
-  orange juice (`zumonaranja`, category drink) is already auto-flex, so a marker it writes changes
-  nothing on the page. What the flags still do: both work ONLY on the script's key lists, never on
-  categories. `--include-fruit` adds `FRUIT_KEYS` to the set it marks — its one real effect today is
-  marking a juice part, which the category rule leaves fixed. `--reset-flex` removes a `flex: "carb"`
-  the set (`STAPLE_KEYS`, + `FRUIT_KEYS` with `--include-fruit`) does not cover — but a part whose food
-  is carb / fruit stays flex by category anyway; to FIX a part, set `flex: null` by hand (the only
-  opt-out). The `targets.byGoal` and `page.goal` steps are still useful on an old plan. A non-object
-  `targets` / `page` is an error. Every run prints the carb factor +
-  remainder per (goal, day type). Backs up to `plan-data.json.pre-v2-<local date>.bak` first (never
-  overwriting a backup), writes atomically (temp + rename, 2-space JSON), writes nothing when nothing
-  changes. Then `npm run check && npm run generate` and re-publish.
+- **Old plans** — a plan without `targets.byGoal` / `page.goal` falls back to the code defaults
+  (`DEFAULT_BY_GOAL`, goal `maintain`; `lib/nutrition/targets.mjs`), and which parts scale is decided by
+  food category, so no migration is needed. The retired one-shot migration scripts
+  (`scripts/migrate-plan-data.mjs`, last in 76b9c3b; `scripts/migrate-plan-v2.mjs`, last in 22cfabd) live in git history.
 
 **The plan the owner actually views is a claude.ai artifact (frozen snapshot).** The owner's
 personal artifact URL lives in **`data/nutrition/artifact.local.md`** (gitignored, never
