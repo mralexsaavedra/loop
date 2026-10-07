@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { en as enIntake, es as esIntake } from '../i18n/intake-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
+import { INTAKE_FRESH_DAYS, INTAKE_BOOT_GRACE_MS } from '../../../lib/nutrition/intake.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'intake.js'), 'utf8');
@@ -32,14 +33,17 @@ function run({ latest, today, locale = 'en', nutriTarget = null, targetFor, food
   if (targetFor !== false && (nutriTarget || targetFor)) window.HCNutri = { targetFor: targetFor || (() => nutriTarget()) };
   if (foodTotals) window.foodTotals = foodTotals;
   if (hcFood) window.HCFood = hcFood;
+  // fake timers: the boot grace period is scheduled, never waited for
+  const timers = [];
   const ctx = {
-    document: doc, window, INTAKE: { latest, target: TARGET, freshDays: 3 }, I18N_INTAKE: locale === 'es' ? esIntake : enIntake, LOCALE: locale,
+    document: doc, window, INTAKE: { latest, target: TARGET, freshDays: INTAKE_FRESH_DAYS, bootGraceMs: INTAKE_BOOT_GRACE_MS }, I18N_INTAKE: locale === 'es' ? esIntake : enIntake, LOCALE: locale,
     Math, String, Number, JSON, Date: fixedDate(today),
+    setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
   };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
-  return { host, window, doc };
+  return { host, window, doc, timers };
 }
 
 test('fresh intake without Nutrición today: four rings (kcal, protein, carbs, fat) vs the plan\'s training-day total', () => {
@@ -212,7 +216,7 @@ test('rings from the food log: a macro no entry states is a dash (never 0 %); on
 
 /* LAN page (the food API answered: HCFood.ready()): the food log is the ONE intake source — a past day
  * comes from HCFood.recentDay(freshDays), never from the Apple Health CSV. */
-const lanFood = (day, calls = []) => ({ ready: () => true, recentDay: (n) => { calls.push(n); return typeof day === 'function' ? day() : day; } });
+const lanFood = (day, calls = []) => ({ ready: () => true, pending: () => false, groupTotals: () => ({ meals: {}, addon: {} }), recentDay: (n) => { calls.push(n); return typeof day === 'function' ? day() : day; } });
 
 test('LAN page, today empty, yesterday logged: rings for yesterday from the food log, labelled by its date, against its own target', () => {
   const calls = [];
@@ -267,4 +271,75 @@ test('LAN page, a past food-log day with a macro some entries lack: shown as a m
 test('no food API (HCFood absent or not ready): the Apple Health day as before', () => {
   const html = run({ latest: { date: '2030-01-09', k: 1200, p: 170, c: 130, g: 35 }, today: '2030-01-10', hcFood: { ready: () => false, recentDay: () => { throw new Error('never asked'); } } }).host.innerHTML;
   assert.match(html, /1200<\/b>/);
+});
+
+/* The food API boot request (GET /api/food/products, client/food-log.js) decides which source the rings
+ * use: while it is in flight they render nothing (never a flash of the Apple Health day), an answer
+ * means the LAN path, a failure the Apple Health path; after INTAKE.bootGraceMs without an answer the
+ * Apple Health path renders anyway and a late answer still switches to the food log. */
+const AH = { date: '2030-01-09', k: 1200, p: 170, c: 130, g: 35 };
+const LOG_DAY = { date: '2030-01-09', k: 777, p: 50, c: 90, g: 20, n: 2, missing: { protein: false, carbs: false, fat: false }, src: 'log' };
+// a mutable food API stub: boot 'pending' | 'ok' | 'fail'; log = today's log loaded
+function bootFood(state) {
+  return {
+    pending: () => state.boot === 'pending',
+    ready: () => state.boot === 'ok',
+    groupTotals: () => (state.boot === 'ok' && state.log ? { meals: {}, addon: {} } : null),
+    recentDay: () => (state.boot === 'ok' ? LOG_DAY : null),
+  };
+}
+
+test('food API boot in flight: no rings at all (host hidden), one grace timer scheduled', () => {
+  const { host, timers } = run({ latest: AH, today: '2030-01-10', foodTotals: () => null, hcFood: bootFood({ boot: 'pending' }) });
+  assert.equal(host.hidden, true);
+  assert.equal(host.innerHTML, '');
+  assert.equal(timers.length, 1);
+  assert.equal(timers[0].ms, INTAKE_BOOT_GRACE_MS);
+});
+
+test('food API answers (today\'s log loaded): the rings come from the food log, never the Apple Health day', () => {
+  const st = { boot: 'pending' };
+  const { host, window } = run({ latest: AH, today: '2030-01-10', foodTotals: () => null, hcFood: bootFood(st) });
+  st.boot = 'ok'; st.log = true;
+  window.intakeRefresh();
+  assert.equal(host.hidden, false);
+  assert.match(host.innerHTML, /777<\/b>/);
+  assert.doesNotMatch(host.innerHTML, /1200<\/b>/);
+});
+
+test('food API fails (unreachable): the Apple Health day as before', () => {
+  const st = { boot: 'pending' };
+  const { host, window } = run({ latest: AH, today: '2030-01-10', foodTotals: () => null, hcFood: bootFood(st) });
+  st.boot = 'fail';
+  window.intakeRefresh();
+  assert.equal(host.hidden, false);
+  assert.match(host.innerHTML, /1200<\/b>/);
+});
+
+test('no answer within the grace period: the Apple Health day; a late answer still switches to the food log', () => {
+  const st = { boot: 'pending' };
+  const { host, window, timers } = run({ latest: AH, today: '2030-01-10', foodTotals: () => null, hcFood: bootFood(st) });
+  assert.equal(host.hidden, true);
+  timers[0].fn();
+  assert.equal(host.hidden, false);
+  assert.match(host.innerHTML, /1200<\/b>/);
+  st.boot = 'ok'; st.log = true;
+  window.intakeRefresh();
+  assert.match(host.innerHTML, /777<\/b>/);
+  assert.doesNotMatch(host.innerHTML, /1200<\/b>/);
+});
+
+test('LAN page, products answered but today\'s log read failed (or not back yet): no rings, never the Apple Health day', () => {
+  const asked = [];
+  const food = { ...bootFood({ boot: 'ok', log: false }), recentDay: () => { asked.push(1); return LOG_DAY; } };
+  const { host } = run({ latest: AH, today: '2030-01-10', foodTotals: () => null, hcFood: food });
+  assert.equal(host.hidden, true);
+  assert.equal(host.innerHTML, '');
+  assert.deepEqual(asked, [], 'no past day either until today\'s log is in');
+});
+
+test('static page (no HCFood at all): the Apple Health day immediately, no grace timer', () => {
+  const { host, timers } = run({ latest: AH, today: '2030-01-10' });
+  assert.match(host.innerHTML, /1200<\/b>/);
+  assert.equal(timers.length, 0);
 });
