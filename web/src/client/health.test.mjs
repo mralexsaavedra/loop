@@ -321,3 +321,25 @@ test('a Salud trend card whose newest value is more than 3 days old is greyed wi
   assert.ok(!card('Waist').includes('mtrend-stale'));
   assert.equal(enHealth.staleNote, 'no recent data');
 });
+
+test('an ⓘ button [data-hs-info] toggles its hidden block in place and mirrors aria-expanded (one delegated listener)', () => {
+  const doc = new StubDocument();
+  doc.el('health-body');
+  let onClick = null;
+  doc.addEventListener = (type, fn) => { if (type === 'click') onClick = fn; };
+  const box = doc.el('hm-info', { hidden: true });
+  const btn = doc.el(null, { tag: 'button', attrs: { 'data-hs-info': 'hm-info', 'aria-expanded': 'false' } });
+  const glyph = doc.el(null, { tag: 'span', parent: btn });
+  const ctx = { document: doc, window: {}, HEALTH: { body: none, activity: none, energy: none, recovery: none }, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date, JSON };
+  vm.createContext(ctx);
+  loadUtil(ctx);
+  vm.runInContext(source, ctx);
+  assert.equal(typeof onClick, 'function');
+  onClick({ target: glyph });
+  assert.equal(box.hidden, false);
+  assert.equal(btn.getAttribute('aria-expanded'), 'true');
+  onClick({ target: btn });
+  assert.equal(box.hidden, true);
+  assert.equal(btn.getAttribute('aria-expanded'), 'false');
+  assert.doesNotThrow(() => onClick({ target: doc.el(null) }), 'a click elsewhere does nothing');
+});

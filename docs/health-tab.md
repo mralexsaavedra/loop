@@ -12,7 +12,8 @@ Body composition, activity, energy (incl. the power-meter ride correction), runn
 from the Apple Health extract CSVs (all OPTIONAL — absent CSVs render an empty state, never fail the
 build); `web/src/client/health.js` renders them into TWO hosts, each with its own empty state and
 its own try/catch (a throw in one half renders that half's empty state, never blanks the other):
-`#health-body` (Salud: recovery with `#score-recovery` right under its heading, sleep, body composition,
+`#health-body` (Salud, under the health monitor list `#monitor` that leads the tab — `client/monitor.js`,
+see `docs/home-tab.md` "Health monitor": recovery with `#score-recovery` right under its heading, sleep, body composition,
 activity, energy — in that order) and `#health-train` (Entreno: running, cycling, load vs recovery).
 
 **Today first.** Every trend card's headline is the NEWEST value with its date (a daily total dated

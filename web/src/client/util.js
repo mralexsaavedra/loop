@@ -116,6 +116,50 @@ var HC = (function () {
     return h ? h + ' ' + units.h + (m ? ' ' + m + ' ' + units.min : '') : m + ' ' + units.min;
   }
 
+  // The ONE metric-row markup (Inicio "My dashboard", the Salud monitor and the Salud metric cards):
+  // icon · UPPERCASE name · value (+ small unit) and a ▲ / ▼ / • marker on the right, a small line
+  // (the baseline, a range or a status word) under the value. Styles: .db-* in styles/score.css.
+  // Line icons on a 24-unit grid, stroke only (currentColor via .db-ico); unknown key -> the HRV line.
+  var ICONS = {
+    rhr: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+    hrv: '<path d="M3 12h4l2-5 4 10 2-5h6"/>',
+    sleep: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+    weight: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 9.5a4 4 0 0 1 6 0L12.5 12"/>',
+    steps: '<path d="M8 3c2 0 3 2 3 5s-1 5-3 5-3-2-3-5 1-5 3-5zM6 15h4v2a2 2 0 0 1-4 0zM16 7c2 0 3 2 3 5s-1 5-3 5-3-2-3-5 1-5 3-5z"/>',
+    vo2max: '<path d="M4 16a8 8 0 0 1 16 0M12 16l4-5"/>',
+    walkingHr: '<circle cx="13" cy="4.5" r="1.8"/><path d="M10 21l2-6 3 3v3M8 11l2-3h3l2 4 3 1"/>',
+    exercise: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
+    respiratory: '<path d="M3 9h11a3 3 0 1 0-3-3M3 14h15a3 3 0 1 1-3 3"/>',
+    wristTemp: '<path d="M10 14V5a2 2 0 0 1 4 0v9a4 4 0 1 1-4 0z"/>',
+    bodyfat: '<circle cx="7.5" cy="7.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/><path d="M18 6L6 18"/>',
+    lean: '<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/>',
+    waist: '<path d="M4 8h16v8H4zM8 8v3M12 8v4M16 8v3"/>',
+    distance: '<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7"/>',
+    flights: '<path d="M4 20h5v-5h5v-5h5V5"/>',
+    energy: '<path d="M12 21a6 6 0 0 0 6-6c0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-3-2 2-3 4-3 7a6 6 0 0 0 6 6z"/>',
+  };
+  function metricIcon(key) {
+    return '<svg class="db-ico" viewBox="0 0 24 24" aria-hidden="true">' + (Object.prototype.hasOwnProperty.call(ICONS, key) ? ICONS[key] : ICONS.hrv) + '</svg>';
+  }
+  var ARROWS = { up: '▲', down: '▼', flat: '•' };
+  // o = {key, cls?, attrs?, aria?, name, value, unit?, numCls?, arrow? ('up' | 'down' | 'flat'),
+  //      tone? ('good' | 'bad' | 'watch' | 'flat'), base?} — every text is escaped here
+  function metricRow(o) {
+    var arrow = o.arrow && Object.prototype.hasOwnProperty.call(ARROWS, o.arrow) ? ARROWS[o.arrow] : '';
+    return '<li class="db-row' + (o.cls ? ' ' + o.cls : '') + '"' + (o.attrs || '') + (o.aria ? ' aria-label="' + esc(o.aria) + '"' : '') + '>' + metricIcon(o.key) +
+      '<span class="db-name">' + esc(o.name) + '</span>' +
+      '<span class="db-vals"><span class="db-val"><b' + (o.numCls ? ' class="' + o.numCls + '"' : '') + '>' + esc(o.value) + '</b>' + (o.unit ? '<small>' + esc(o.unit) + '</small>' : '') +
+      (arrow ? '<span class="db-arr db-' + esc(o.tone || 'flat') + '" aria-hidden="true">' + arrow + '</span>' : '') + '</span>' +
+      (o.base != null && o.base !== '' ? '<span class="db-base">' + esc(o.base) + '</span>' : '') + '</span></li>';
+  }
+
+  // ⓘ button of a Salud header: toggles the hidden block #<id> (client/health.js listens for
+  // [data-hs-info]); drawn as an SVG, the page fonts carry no ⓘ glyph
+  function infoBtn(id, label) {
+    return '<button type="button" class="hs-i" data-hs-info="' + esc(id) + '" aria-expanded="false" aria-controls="' + esc(id) + '" aria-label="' + esc(label) + '">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg></button>';
+  }
+
   return {
     MS_PER_DAY: MS_PER_DAY,
     STALE_DAYS: C.staleDays,
@@ -135,6 +179,9 @@ var HC = (function () {
     fmtDate: fmtDate,
     fmtMonth: fmtMonth,
     detailAttrs: detailAttrs,
+    metricIcon: metricIcon,
+    metricRow: metricRow,
+    infoBtn: infoBtn,
     rolloverAction: rolloverAction,
   };
 })();

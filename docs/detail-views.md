@@ -45,8 +45,8 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
 - **Openers** — `HC.detailAttrs(key, date?, {plain?})` writes `data-detail` [+ `data-date`] + a
   button role and tab stop (`plain`: data attributes only, for a real `<button>`, an SVG cell or a
   table row). One delegated click / Enter / Space listener in `web/src/client/detail.js` handles every
-  opener. Map: sleep dial → sleep; recovery dial → recovery; each load dial → its `load-<m>`; monitor
-  cards → their signal; the HRV monitor tile → hrv; the "My day" outlook bar (advice) → recovery;
+  opener. Map: sleep dial → sleep; recovery dial → recovery; each load dial → its `load-<m>`; Salud monitor
+  rows → their signal; the HRV monitor tile → hrv; the "My day" outlook bar (advice) → recovery;
   activity rows → that day (sleep, or `load-<m>` / `workouts` for "other"), the programmed-session row
   → the registered `hoy-session` view (client/training-today.js); the "Tonight" card → the registered
   `tonight` view (the bedtime rule + a button to the sleep sheet, client/home-week.js); the "My plan"

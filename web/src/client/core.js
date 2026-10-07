@@ -28,6 +28,8 @@ var SECTION_TAB = (typeof NAV !== 'undefined' && NAV && NAV.sectionTab) || {};
 // deep link -> the tab shown underneath the sheet (lib/nav/tabs.mjs DETAIL_TAB / VIEW_TAB)
 var DETAIL_TAB = (typeof NAV !== 'undefined' && NAV && NAV.detailTab) || {};
 var VIEW_TAB = (typeof NAV !== 'undefined' && NAV && NAV.viewTab) || {};
+// an in-page anchor deep link (#monitor) -> the tab that holds it (lib/nav/tabs.mjs ANCHOR_TAB)
+var ANCHOR_TAB = (typeof NAV !== 'undefined' && NAV && NAV.anchorTab) || {};
 
 /* The open tab lives in the URL hash (#home / #entreno / #health / #nutricion), so a reload (and
  * the midnight rollover's reload) reopens it. setTab REPLACES the entry (never pushes: Back does not
@@ -134,11 +136,20 @@ function hashRoute(hash) {
   if (m) return { deep: true, tab: hasOwn(DETAIL_TAB, m[1]) ? DETAIL_TAB[m[1]] : null };
   m = KEY_HASH_RE.exec(hash);
   if (m && hasOwn(VIEW_TAB, m[1])) return { deep: true, tab: VIEW_TAB[m[1]] };
+  if (m && hasOwn(ANCHOR_TAB, m[1])) return { deep: false, tab: ANCHOR_TAB[m[1]], anchor: m[1] };
   return { deep: false, tab: m && NAV_TABS.indexOf(m[1]) !== -1 ? m[1] : null };
+}
+// an anchor deep link: its tab without touching the hash (#monitor stays), then scroll to the block
+function showAnchor(r) {
+  showTab(r.tab);
+  var el = document.getElementById(r.anchor);
+  if (el) setTimeout(function () { el.scrollIntoView({ behavior: 'auto', block: 'start' }); }, 30);
 }
 (function () {
   var r = hashRoute(readHash());
-  if (r && r.tab && tabVisible(r.tab)) {
+  if (r && r.anchor && tabVisible(r.tab)) {
+    showAnchor(r);
+  } else if (r && r.tab && tabVisible(r.tab)) {
     showTab(r.tab); // a deep link's hash stays as it is; a tab hash already matches
   } else if (!r || !r.deep) {
     // no hash, or a hidden / unknown one: the default tab (the one the server rendered visible), and
@@ -150,7 +161,8 @@ function hashRoute(hash) {
   if (typeof window.addEventListener === 'function') {
     window.addEventListener('hashchange', function () {
       var n = hashRoute(readHash());
-      if (n && !n.deep && n.tab && tabVisible(n.tab) && currentTab() !== n.tab) setTab(n.tab);
+      if (n && n.anchor && tabVisible(n.tab)) showAnchor(n);
+      else if (n && !n.deep && n.tab && tabVisible(n.tab) && currentTab() !== n.tab) setTab(n.tab);
     });
   }
 })();

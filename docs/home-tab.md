@@ -1,6 +1,6 @@
 # Home tab — Inicio
 
-Dials, advice, eat card, health monitor, timeline; recovery and load scoring; the shared same-day merge rule; workouts.csv columns.
+Dials, advice, eat card, health monitor (tiles here, the full list on Salud), timeline; recovery and load scoring; the shared same-day merge rule; workouts.csv columns.
 
 > Area design doc (moved out of `CLAUDE.md` on 2026-10-07). Read it before changing this area and keep
 > it in sync with the code in the same commit. Section names quoted in the text ("Nutrition v2 part 2",
@@ -12,16 +12,16 @@ Top to bottom (`web/src/tabs/Home.astro`, which also renders `components/EatCard
 (`#home-dials`) → the monitor tiles (`#home-tiles`) → "My day" (`#my-day`: a Title Case heading, the
 advice sentence as the outlook bar in `#home-advice`, then "Today's activities" in `#timeline`) → the
 "today you eat" card → "Tonight" (`#home-tonight`) → "My plan" (`#my-plan`) → "My dashboard" (`#my-dash`)
-→ the full health monitor
-grid folded under "See metrics"
-(`details#monitor-fold` > `#monitor`) → the programmed session's hidden source section (`hoy`). Little
+→ the programmed session's hidden source section (`hoy`). The full health monitor list is NOT on
+Inicio: it leads Salud (see "Health monitor" below). Little
 text on the tab: each block's explanation lives in the detail sheet it opens
 (`web/test/content.test.mjs` pins the order). "Tonight" and "My plan" are rendered by
 `client/home-week.js` and "My dashboard" by `client/home-dash.js`, both in `layouts/Plan.astro`'s
 end-of-body script list (after `HC`, the baked globals and `adherence.js`, right before
 `deepdive.js` / `detail.js`); they render at once, and their sheets (`tonight`, `dash-edit`) are
-registered before `detail.js` runs (a deep link to them also needs a `NAV.viewTab` entry, not added yet). Without their hosts they render nothing. P5 moves the full monitor grid to Salud; the summary
-tile reaches it wherever it lives (`jump('monitor')` opens its fold or switches to its tab).
+registered before `detail.js` runs; `#tonight` / `#dash-edit` deep-link to them (`NAV.viewTab` →
+`home`). Without their hosts they render nothing. The monitor summary tile reaches the full list on
+Salud with `jump('monitor')` (switches to Salud and scrolls to it).
 
 **Collapsed dial row** (`#home-mini`, first in `Home.astro`): once the dials scroll above the viewport
 (an IntersectionObserver on `#home-dials`, `score.js`), a frosted strip fixed at the top shows the
@@ -98,22 +98,28 @@ is the newest day, and the trend is the line under it.
   range" (`--down`) when any fresh card is High / Low, else a check + "Within range" (`--up`) when at
   least one fresh card is Normal, else "No data" — and "n/5 metrics" (fresh cards in range / all
   cards); a card counts only when its own date is ≤ 3 days old. It is a button calling
-  `jump('monitor')` (opens the fold, scrolls to the grid). Tile 2 = HRV (the real baked value, its
+  `jump('monitor')` (switches to Salud, scrolls to the monitor list at its top; `#monitor` deep-links
+  there too, `ANCHOR_TAB` in lib/nav/tabs.mjs: core.js shows Salud and keeps the hash). Tile 2 = HRV (the real baked value, its
   unit, its status word in its tone colour, its date when not today), opening the HRV sheet; there is
   no stress score to show, so without a fresh HRV value tile 2 is left out and tile 1 spans the row
   (`.hm-tiles-one`).
 - **Health monitor** (`lib/score/monitor.mjs`, baked as `SCORES.monitor` even when `hasData` is false;
-  `components/HealthMonitor.astro` + `client/monitor.js`, folded under "See metrics" at the bottom of Inicio): cards for respiratory
+  `components/HealthMonitor.astro` + `client/monitor.js`, the FIRST block of Salud, `tabs/Salud.astro`):
+  an UPPERCASE "HEALTH MONITOR" label with the same status chip as tile 1 and an ⓘ button (the band
+  explanation, collapsed: `#hm-info`), then one shared metric row per signal (`HC.metricRow`, the
+  "My dashboard" row: icon · NAME · value + unit · ▲ above / ▼ below / • inside the band, the range
+  "Normal lo–hi" as the small line under the value, + the date when not last night) for respiratory
   rate, resting HR, HRV, sleeping wrist temperature and sleep duration. Each = the newest daily value
   (per-day median of plausibility-clamped samples) + unit, its date when it is not from the viewer's
   today, and Normal / High / Low (es: Normal / Alto / Bajo) vs a personal band = median ± 1.5 × scaled
   MAD (`robustBaseline`, floored per signal) over the 42 days BEFORE that value; < 14 baseline days →
-  value + "building baseline", no band; a missing series → "No data". A vertical range bar (inline
-  SVG, geometry baked as fractions) marks the band and the value. Band = median ± 2 × scaled MAD
+  value + "building baseline" as the small line, no band, no marker; a missing series → "—" + "No
+  data". The status word is in the row's `aria-label`. Band = median ± 2 × scaled MAD
   (`BAND_K`: ~5% false flags per card; HRV in log space like `recovery.mjs`, so asymmetric in ms).
   Tone: HRV high = good / low = bad, RHR high = bad / low = good, short sleep = bad; respiratory rate
-  and wrist temp are change signals, so out of band is `watch` (`--mid`), never `--low`. A card whose
-  OWN date is > 3 days before the viewer's today is greyed with "no recent data" and no tone; the
+  and wrist temp are change signals, so out of band is `watch` (`--mid` marker), never bad; the marker
+  is teal `--up` for good, orange `--down` for bad, grey for normal. A row whose
+  OWN date is > 3 days before the viewer's today is greyed with "no recent data", no tone, no marker; the
   whole block greys when its newest date is > 3 days old. Display units come from the i18n dict. A
   card that throws falls back to its empty state.
 - **Dials** (top of the tab: Sleep / Recovery / Load) only VISUALISE baked values — no new metric and
