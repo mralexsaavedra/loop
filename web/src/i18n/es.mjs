@@ -3,7 +3,7 @@
  * that exist so far (astro-plan-web slice 3: Mi día; the day builder's copy went with it). Anything
  * PERSONAL (page title/kicker/h1/sub/footer/notes) lives in the owner's
  * gitignored `plan-data.json` `page` block instead — see
- * scripts/migrate-plan-data.mjs and web/test/leak.test.mjs. */
+ * web/test/leak.test.mjs. */
 export default {
   strings: {
     nav: {

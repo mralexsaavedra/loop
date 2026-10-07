@@ -31,7 +31,7 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 - [x] T1 Food log export (route: delegated writer — preparation + 2+ non-trivial files)
 - [ ] T2 Past-day rings from food log
 - [x] T3 Remove day-builder leftovers + single `targetFor` (route: delegated writer — 2+ non-trivial files)
-- [ ] T5 Archive migration scripts
+- [x] T5 Archive migration scripts (route: delegated writer; parent fixed 2 stale comments inline)
 - [ ] T9 Late-night entry default
 - [ ] T10 Minify inline CSS
 - [ ] T8 Missing tests
@@ -46,6 +46,8 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 - T3: legacy `targetFor`, `extraKeys`/`extraNames`/`indulge`/`alcoholKeys`/`mealReplaceKeys` removed from macros.mjs + generate.js; legacy plan keys now a `npm run check` WARNING (`LEGACY_PLAN_KEYS`), never an error; example plan stripped (example build byte-identical). RED: legacy-fields test failed with subset errors; GREEN after fix. `npm test` 1578/1578 (writer); parent re-ran `npm run check` OK with 5 warnings on the personal plan. Note: migrate-plan-data.mjs still writes those keys → T5. Commit c8fbafb. Review: tier high (process boundary in generate.js), consent granted, 4 lenses approved, acknowledged (lineage review-c2fb2e8778a25d24). Reviewed boundary → c8fbafb.
 - Delivery: running count after T3 ≈ 750 authored lines (> 400) → chain strategy asked to owner → `stacked-to-main` (2026-10-07).
 
+- T5: deleted migrate-plan-data / migrate-plan-v2 (+ tests; nothing imported them; targets.mjs falls back to DEFAULT_BY_GOAL / maintain, verified by writer). CLAUDE.md + README shortened. No RED (deletion). Parent ran `npm test`: 1545/1545.
+
 ## Slices (stacked to main)
 
 - Slice 1 `feat/app-review-improvements`: d5c781a (T1), c8fbafb (T3).
@@ -55,4 +57,4 @@ Act on the 2026-10-07 read-only review of the app: close the food-log data gap f
 
 ## Next step
 
-T5 (archive migration scripts).
+T9 (late-night food entry).
