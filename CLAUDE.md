@@ -594,9 +594,12 @@ ride fuel, with the fuel on its own line "+ X kcal en la bici"). A past day whos
 determined (no timeline row, no programmed session → `null`) renders NO rings — no honest target to
 fill against. It falls back to the plan's training-day total when the hook is absent or throws. The rings show ONLY when that day is within the
 last 3 days of the viewer's clock (decided client-side, so builds stay byte-identical); otherwise
-the block renders NOTHING (host hidden, no help text). On the LAN page, today's own food log
-(`window.foodTotals`, see "Nutrition v2 part 2") takes the place of the Apple Health day whenever it
-has entries.
+the block renders NOTHING (host hidden, no help text). On the LAN page (`HCFood.ready()`) the food
+log is the ONE source: today's log (`window.foodTotals`, see "Nutrition v2 part 2") when it has
+entries, else the most recent food-log day in the same window (`HCFood.recentDay(INTAKE.freshDays)`:
+one lazy `GET /food/log/summary` over the window, re-read after any add / delete or on a new day),
+labelled by its date with that day's `targetFor`; nothing logged there → no rings, never the Apple
+Health day. The bake keeps only `target.train` (the fallback without `HCNutri`).
 Intake arrives from a food app that writes nutrition to Apple Health + the
 Shortcut `diet_kcal`/`diet_protein`/`diet_carbs`/`diet_fat` keys, which sync folds into one
 `dietary-daily.csv` row per day, export rows winning. A ring never fills from the target: a macro
@@ -1038,7 +1041,8 @@ Plan de hoy) and the
 - **Wiring** — `window.foodTotals()` = `{date, k, p, c, g, n, missing, src: 'log'}` when the API
   answered and TODAY (the viewer's local date) has ≥ 1 entry, else null — the one contract; nutri-day.js
   and intake.js do not re-check the date. It stays TODAY-only whatever day the navigator shows (as do
-  `HCFood.groupTotals()` and `HCFood.addGuide`, which always logs to today). A macro NO entry states is `null` (a dash, never "0 / 150 g"
+  `HCFood.groupTotals()` and `HCFood.addGuide`, which always logs to today). `HCFood.recentDay(days)` = the newest day with entries
+in the last `days` days (today included) in the same shape, for the intake rings. A macro NO entry states is `null` (a dash, never "0 / 150 g"
   or 0 %); `missing[m]` = at least one entry lacks it, so a non-null value is a minimum and the bar /
   ring shows "≥ 40" (the rings add a one-line note). ONE logged entry today is enough: the dial, bars
   and rings then show the page's food log for today instead of the Apple Health intake (labelled

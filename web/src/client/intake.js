@@ -12,8 +12,10 @@
  * the last INTAKE.freshDays days) -> the block renders NOTHING (host hidden, no help text); a macro missing on the logged day -> an empty ring with a dash, never a ring drawn
  * from the target. Intake logged TODAY is shown by Resumen de hoy's kcal dial + macro bars
  * (client/nutri-day.js), so with Nutrición on the page the rings then step aside (host hidden). nutri-day.js calls window.intakeRefresh() after every goal / day type / ride change.
- * On the LAN page, today's own food log (window.foodTotals, client/food.js) takes the place of the
- * Apple Health day whenever it has entries (labelled "Logged today"). */
+ * On the LAN page (the food API answered: HCFood.ready(), client/food.js) the page's food log is the ONE
+ * source: today's log (window.foodTotals, labelled "Logged today") when it has entries, else the most
+ * recent food-log day in the same window (HCFood.recentDay(INTAKE.freshDays), labelled by its date),
+ * else nothing — never the Apple Health day there. */
 (function () {
   var T = I18N_INTAKE;
   var RING_R = 18; // ring radius in the 44-unit viewBox (centre 22, 4 units of stroke room)
@@ -53,8 +55,16 @@
     var host = document.getElementById('intake');
     if (!host) return;
     var L = INTAKE.latest;
-    // today's page food log (client/food.js, LAN page only) wins over the Apple Health day
-    if (typeof window.foodTotals === 'function') {
+    var F = window.HCFood, lan = false;
+    try { lan = !!(F && typeof F.ready === 'function' && F.ready()); } catch (e) { lan = false; }
+    if (lan) {
+      // LAN page: the food log only — today's, else its most recent day in the window (no Apple Health)
+      try {
+        L = (typeof window.foodTotals === 'function' && window.foodTotals()) ||
+          (typeof F.recentDay === 'function' ? F.recentDay(INTAKE.freshDays) : null) || null;
+      } catch (e) { L = null; }
+    } else if (typeof window.foodTotals === 'function') {
+      // today's page food log wins over the Apple Health day
       try {
         var F = window.foodTotals(); // null unless today has entries (the contract in food.js)
         if (F) L = F;
@@ -91,7 +101,7 @@
     var M = L.missing || {};
     var minP = !!M.protein && L.p != null, minC = !!M.carbs && L.c != null, minG = !!M.fat && L.g != null;
     // today's log is still filling up: say so, so partial rings are not read as a finished day
-    var asOf = L.src === 'log' ? T.foodLbl : L.date === HC.todayIso() ? T.todayLbl : format(T.asOfTpl, { date: HC.fmtDate(L.date) });
+    var asOf = L.date === HC.todayIso() ? (L.src === 'log' ? T.foodLbl : T.todayLbl) : format(T.asOfTpl, { date: HC.fmtDate(L.date) });
     host.innerHTML =
       '<div class="intake-card">' +
       '<div class="intake-head"><h3>' + T.heading + '</h3><span class="intake-asof">' + esc(asOf) + '</span></div>' +
