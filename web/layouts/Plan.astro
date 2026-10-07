@@ -3,7 +3,7 @@
  * (personal copy), and the end-of-body script order per design: bake (the
  * shared Bake rendered by pages/index.astro, plus the per-tab bakes such as Dia's NUTRI) → NAV +
  * HC_CONST → util (window.HC, the shared client helpers, FIRST so every later script can read it) →
- * core (setTab/jump) → today-date → tablas (the Tablas equivalence tables) → nutri-day → food (core → sheet → catalog → log) → settings → progress → adherence → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → profile → nav-actions (the dock's "+") → deepdive (the dial deep-dive pages, read by detail) → detail → freshness.
+ * core (setTab/jump) → today-date → tablas (the Tablas equivalence tables) → nutri-day → food (core → sheet → catalog → log) → settings → progress → adherence → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → profile → nav-actions (the dock's "+") → home-week → home-dash (Inicio's Tonight / My plan / My dashboard; their sheets register before detail runs) → deepdive (the dial deep-dive pages, read by detail) → detail → freshness.
  * Tabs render inside <slot />; the detail sheet (components/DetailSheet.astro) renders in the `overlay`
  * slot, after .wrap, so detail.js can make the page behind it inert (the dock and the "+" popover sit inside .wrap). The top bar
  * is ONE row: avatar · centred "Today" date pill · status dot + short freshness (#fresh-sum, per-source detail in the #fresh-pop
@@ -42,6 +42,8 @@ import monitorScript from '../src/client/monitor.js?raw';
 import timelineScript from '../src/client/timeline.js?raw';
 import intakeScript from '../src/client/intake.js?raw';
 import freshnessScript from '../src/client/freshness.js?raw';
+import homeWeekScript from '../src/client/home-week.js?raw';
+import homeDashScript from '../src/client/home-dash.js?raw';
 import deepdiveScript from '../src/client/deepdive.js?raw';
 import detailScript from '../src/client/detail.js?raw';
 import profileScript from '../src/client/profile.js?raw';
@@ -194,6 +196,8 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
     <script is:inline set:html={slimScript(timelineScript)} />
     <script is:inline set:html={slimScript(profileScript)} />
     <script is:inline set:html={slimScript(navActionsScript)} />
+    <script is:inline set:html={slimScript(homeWeekScript)} />
+    <script is:inline set:html={slimScript(homeDashScript)} />
     <script is:inline set:html={slimScript(deepdiveScript)} />
     <script is:inline set:html={slimScript(detailScript)} />
     <script is:inline set:html={slimScript(freshnessScript)} />

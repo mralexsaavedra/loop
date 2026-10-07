@@ -25,9 +25,10 @@
  * ≥ target × (days elapsed / 7). The food rows appear once the food log summary answers
  * (client/adherence.js calls HCWeekPlan.refresh after each read).
  *
- * Classic script rendered with the Inicio panel (tabs/Home.astro), so a page without Inicio carries
- * none of it. It runs at DOMContentLoaded, after every end-of-body script has defined HC, the baked
- * globals and window.HCDetail. Each block renders in its own try/catch; a throw hides that block. */
+ * Classic script in layouts/Plan.astro's end-of-body list: it runs at once, after HC, the baked globals
+ * and adherence.js, and BEFORE detail.js, so the `tonight` sheet is registered before detail.js runs
+ * (window.HCDetail is only used on a click). Each block renders in its own try/catch; a
+ * throw hides that block. No host (#home-tonight / #my-plan) = nothing rendered. */
 (function () {
   function boot() {
     var T = typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home : null;
@@ -244,6 +245,5 @@
     renderTonight();
     renderPlan();
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
-  else boot();
+  boot();
 })();

@@ -17,9 +17,10 @@ grid folded under "See metrics"
 (`details#monitor-fold` > `#monitor`) → the programmed session's hidden source section (`hoy`). Little
 text on the tab: each block's explanation lives in the detail sheet it opens
 (`web/test/content.test.mjs` pins the order). "Tonight" and "My plan" are rendered by
-`client/home-week.js` and "My dashboard" by `client/home-dash.js`, both inlined by `Home.astro` itself
-(not the layout), so a page that hides Inicio carries none of them; they run at `DOMContentLoaded`, after the end-of-body scripts have defined `HC`, the
-baked globals and the detail sheet. P5 moves the full monitor grid to Salud; the summary
+`client/home-week.js` and "My dashboard" by `client/home-dash.js`, both in `layouts/Plan.astro`'s
+end-of-body script list (after `HC`, the baked globals and `adherence.js`, right before
+`deepdive.js` / `detail.js`); they render at once, and their sheets (`tonight`, `dash-edit`) are
+registered before `detail.js` runs (a deep link to them also needs a `NAV.viewTab` entry, not added yet). Without their hosts they render nothing. P5 moves the full monitor grid to Salud; the summary
 tile reaches it wherever it lives (`jump('monitor')` opens its fold or switches to its tab).
 
 **Collapsed dial row** (`#home-mini`, first in `Home.astro`): once the dials scroll above the viewport
