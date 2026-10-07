@@ -741,6 +741,174 @@ tr[data-detail] > td:last-child::after {
     color: transparent;
   }
 }
+/* contributors card: the dial's inputs, each today vs the prior 30 days; a caret notch points up to
+ * the hero ring. ▲▼ teal = better, orange = worse (by the metric's good direction), grey = no good
+ * direction; a grey dot = typical. */
+.dd-contrib {
+  position: relative;
+  background: var(--surface);
+  border-radius: var(--r-md);
+  padding: var(--sp-2) var(--sp-7) var(--sp-7);
+  margin-top: var(--sp-8);
+}
+.dd-contrib::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  background: var(--surface);
+  border-radius: 2px;
+  transform: translateX(-50%) rotate(45deg);
+}
+.dd-rows {
+  list-style: none;
+}
+.dd-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  min-height: 56px;
+  border-bottom: 1px solid var(--line);
+}
+.dd-row:last-child {
+  border-bottom: 0;
+}
+.dd-ico {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.dd-row-lbl {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.dd-row-val {
+  font-family: var(--num);
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.dd-mk {
+  flex: none;
+  width: 14px;
+  font-size: 11px;
+  text-align: center;
+}
+.dd-better {
+  color: var(--up);
+}
+.dd-worse {
+  color: var(--down);
+}
+.dd-neutral,
+.dd-typical {
+  color: var(--faint);
+}
+.dd-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-top: var(--sp-5);
+  padding: var(--sp-4) var(--sp-6);
+  border-radius: var(--r-sm);
+  background: var(--rail);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.dd-legend b {
+  margin-left: var(--sp-3);
+  font-weight: 600;
+  color: var(--ink);
+}
+/* weekly trends: one card per input, 7 bars (values on top, today's column lighter) */
+.dd-sec {
+  margin-top: var(--sp-11);
+  font-size: var(--fs-3xl);
+  font-weight: 600;
+}
+.dd-weekly > * + * {
+  margin-top: var(--sp-5);
+}
+.dd-wk {
+  background: var(--surface);
+  border-radius: var(--r-md);
+  padding: var(--sp-6) var(--sp-7);
+}
+.dd-wk-t {
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.dd-cols {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+}
+.dd-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0;
+  border-radius: var(--r-xs);
+}
+.dd-now {
+  background: var(--surface-2);
+}
+.dd-val {
+  font-family: var(--num);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.dd-track-col {
+  display: flex;
+  align-items: flex-end;
+  width: 62%;
+  height: 96px;
+}
+.dd-bar {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  border-radius: 3px 3px 0 0;
+}
+.dd-c-good {
+  background: var(--good);
+}
+.dd-c-mid {
+  background: var(--mid);
+}
+.dd-c-low {
+  background: var(--low);
+}
+.dd-c-sleep {
+  background: var(--sleep);
+}
+.dd-c-strain {
+  background: var(--strain);
+}
+.dd-c-trend {
+  background: var(--trend);
+}
+.dd-wd {
+  font-size: var(--fs-2xs);
+  color: var(--faint);
+}
 @media (min-width: 900px) {
   .dt-sheet {
     padding: 5vh 24px;

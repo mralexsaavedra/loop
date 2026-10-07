@@ -1056,3 +1056,114 @@ test('an opened deep link and a plain tab hash are never rewritten at load', () 
   assert.equal(s.calls.length, 0);
   assert.equal(s.loc.hash, '#entreno');
 });
+
+/* ---------- dial deep-dive: contributors (today vs the prior 30 days) + weekly trends ---------- */
+const contribOf = (html) => (html.split('<section class="dd-contrib"')[1] || '').split('</section>')[0];
+const rowsOf = (html) => [...contribOf(html).matchAll(/data-row="([a-zA-Z]+)"/g)].map((x) => x[1]);
+const weeklyOf = (html) => (html.split('<section class="dd-weekly">')[1] || '');
+
+test('contributors compare today with the middle half of the prior 30 days, direction-aware: teal better, orange worse, grey dot typical, neutral grey arrow without a good direction', () => {
+  const s = setup();
+  const H = s.ctx.window.HCDeep;
+  const day = '2026-09-28';
+  const series = (today, prior) => (iso) => (iso === day ? today : iso < day && iso >= addDays(day, -30) ? prior[(Date.parse(iso) / 864e5) % prior.length] : null);
+  const prior = [50, 52, 54, 56, 58, 60];
+  assert.deepEqual(pick(H.compare(series(70, prior), day, 1)), { side: 1, tone: 'better' }, 'HRV up = better');
+  assert.deepEqual(pick(H.compare(series(70, prior), day, -1)), { side: 1, tone: 'worse' }, 'resting HR up = worse');
+  assert.deepEqual(pick(H.compare(series(40, prior), day, -1)), { side: -1, tone: 'better' }, 'resting HR down = better');
+  assert.deepEqual(pick(H.compare(series(55, prior), day, 1)), { side: 0, tone: 'typical' }, 'inside p25–p75 = typical');
+  assert.deepEqual(pick(H.compare(series(70, prior), day, 0)), { side: 1, tone: 'neutral' }, 'no good direction = neutral');
+  assert.equal(H.compare(series(null, prior), day, 1), null, 'no value today: the row is hidden');
+  const sparse = (iso) => (iso === day ? 70 : iso === addDays(day, -1) ? 50 : null);
+  assert.deepEqual(pick(H.compare(sparse, day, 1)), { side: null, tone: null }, 'too few prior days: a value without a marker');
+  assert.deepEqual(pick(H.compare(series(30, prior), day, 0, (x) => x > 54)), { side: -1, tone: 'neutral' }, 'keep filters the prior days');
+});
+function pick(c) { return c && { side: c.side, tone: c.tone }; }
+
+test('recovery contributors = the composite\'s inputs on the scored night (HRV, resting HR, sleep), ▲▼ vs prior 30 days with a legend; a missing value hides its row', () => {
+  const s = setup({ dials: DIALS });
+  s.api.open('recovery');
+  const html = s.host.innerHTML;
+  assert.deepEqual(rowsOf(html), ['hrv', 'rhr', 'sleep'], 'sleep consistency has no daily series: not shown');
+  const night = DEMO.metrics.recovery.head.date;
+  const c = contribOf(html);
+  assert.ok(c.includes(`<span class="dd-row-lbl">${enT.deep.contrib.rows.hrv}</span><b class="dd-row-val">${valueOn(DEMO.metrics.hrv, night)} ms</b>`));
+  assert.ok(c.includes(`<b class="dd-row-val">${valueOn(DEMO.metrics.rhr, night)} bpm</b>`));
+  assert.ok(c.includes(`<b class="dd-row-val">${valueOn(DEMO.metrics.sleep, night).toFixed(1)} h</b>`));
+  assert.match(c, /class="dd-mk dd-(better|worse|typical)" aria-hidden="true">[▲▼•]<\/span><span class="sr-only">/);
+  assert.ok(c.includes(`<b>${enT.deep.contrib.legendToday}</b> ${enT.deep.contrib.legendRest}`), 'legend pill');
+  assert.ok(html.indexOf('dd-contrib') > html.indexOf('dd-hero') && html.indexOf('dd-contrib') < html.indexOf('dd-insight'), 'under the hero, above the insight');
+  const gap = copy();
+  gap.metrics.hrv.v[dayIndex(gap.metrics.hrv, night)] = null;
+  const g = setup({ detail: gap, dials: DIALS });
+  g.api.open('recovery');
+  assert.deepEqual(rowsOf(g.host.innerHTML), ['rhr', 'sleep'], 'no HRV that night: the row is hidden, never 0 or a dash');
+  clean(html);
+});
+
+test('sleep contributors: hours (▲▼), vs target, bedtime and wake time (neutral arrows, bedtime wraps midnight); load: today\'s RE, 7 vs 42 days, sessions, typical day', () => {
+  const s = setup({ dials: DIALS });
+  s.api.open('sleep');
+  let html = s.host.innerHTML;
+  assert.deepEqual(rowsOf(html), ['sleep', 'vsTarget', 'bed', 'wake']);
+  const sl = DEMO.metrics.sleep;
+  const clockOf = (h) => { h = ((h % 24) + 24) % 24; const H = Math.floor(h), M = Math.round((h - H) * 60); return String(M === 60 ? (H + 1) % 24 : H).padStart(2, '0') + ':' + String(M === 60 ? 0 : M).padStart(2, '0'); };
+  assert.ok(contribOf(html).includes(`<b class="dd-row-val">${clockOf(valueOn({ ...sl, v: sl.bed }, NOW))}</b>`), 'bedtime clock');
+  const bedRow = (h) => contribOf(h).split('data-row="bed"')[1].split('</li>')[0];
+  assert.doesNotMatch(bedRow(html), /dd-better|dd-worse/, 'bedtime has no good direction');
+  // a bedtime just after midnight compares as a LATE evening (▲), not as the earliest of the month
+  const late = copy();
+  late.metrics.sleep.bed[dayIndex(late.metrics.sleep, NOW)] = 0.5;
+  const l = setup({ detail: late, dials: DIALS });
+  l.api.open('sleep');
+  assert.ok(bedRow(l.host.innerHTML).includes('<b class="dd-row-val">00:30</b><span class="dd-mk dd-neutral" aria-hidden="true">▲</span>'));
+  s.api.open('load-gym');
+  html = s.host.innerHTML;
+  const gym = DEMO.metrics['load-gym'];
+  const rows = rowsOf(html);
+  if (valueOn(gym, NOW) > 0) assert.equal(rows[0], 're', 'trained today: today\'s RE first');
+  assert.ok(rows.includes('sessions') && rows.includes('typical'));
+  const n = DEMO.sessions.filter((x) => x.m === 'gym' && x.d >= addDays(NOW, -6) && x.d <= NOW).length;
+  assert.ok(contribOf(html).includes(`data-row="sessions">`) && contribOf(html).split('data-row="sessions"')[1].includes(`<b class="dd-row-val">${n}</b>`));
+  s.api.open('load-run');
+  assert.ok(!rowsOf(s.host.innerHTML).includes('re'), 'no session today: no effort row');
+  assert.ok(rowsOf(s.host.innerHTML).length <= 4);
+});
+
+test('weekly trends: one card per input, 7 bars ending at the view\'s last day (today highlighted), values on top; recovery bars by day state, sleep bars sleep, load bars strain; a missing day has no bar', () => {
+  const s = setup({ dials: DIALS });
+  s.api.open('recovery');
+  let wk = weeklyOf(s.host.innerHTML);
+  assert.ok(wk.startsWith(`<h3 class="dd-sec">${enT.deep.weekly.title}</h3>`));
+  const cards = wk.split('<section class="dd-wk"').slice(1);
+  assert.deepEqual(cards.map((c) => /<h4 class="dd-wk-t">([^<]+)</.exec(c)[1]), ['Recovery', 'HRV', 'Resting HR', 'Sleep']);
+  const rec = cards[0];
+  assert.equal((rec.match(/<li class="dd-col/g) || []).length, 7);
+  assert.equal((rec.match(/dd-col dd-now/g) || []).length, 1, 'today\'s column highlighted');
+  const days = s.ctx.window.HCDeep.weekOf(NOW);
+  assert.deepEqual([days[0], days[6]], [addDays(NOW, -6), NOW]);
+  const m = DEMO.metrics.recovery;
+  days.forEach((d) => {
+    const v = valueOn(m, d);
+    if (v == null) return;
+    const st = v >= m.cut ? 'good' : v <= -m.cut ? 'low' : 'mid';
+    assert.ok(rec.includes(`<span class="dd-val">${sgn(v, 1)}</span><span class="dd-track-col"><i class="dd-bar dd-c-${st}"`), `${d} ${st}`);
+  });
+  const missing = days.filter((d) => valueOn(m, d) == null);
+  assert.ok(missing.length > 0, 'the demo has a recovery gap this week');
+  assert.equal((rec.match(/<span class="dd-val">—<\/span><span class="dd-track-col"><\/span>/g) || []).length, missing.length, 'a missing day: a dash, no bar');
+  s.api.open('sleep');
+  wk = weeklyOf(s.host.innerHTML);
+  assert.match(wk, /dd-bar dd-c-sleep/);
+  s.api.open('load-gym');
+  wk = weeklyOf(s.host.innerHTML);
+  assert.deepEqual([...wk.matchAll(/<h4 class="dd-wk-t">([^<]+)</g)].map((x) => x[1]), ['Gym load', enT.deep.weekly.minutes]);
+  assert.match(wk, /dd-bar dd-c-strain/);
+  assert.doesNotMatch(wk, /dd-c-(good|mid|low|sleep)/);
+  // a later viewer: the window ends at the viewer's today, its days after the data are empty
+  const later = setup({ now: addDays(NOW, 2), dials: DIALS });
+  later.api.open('sleep');
+  const lw = weeklyOf(later.host.innerHTML);
+  assert.ok(lw.includes('<li class="dd-col dd-now"><span class="dd-val">—</span>'), 'today, no data yet');
+  clean(s.host.innerHTML);
+});

@@ -13,7 +13,9 @@ const DIST = path.join(path.dirname(here), '.test-dist');
 // Measured 2026-10-07: example ≈ 76 KB of inline CSS after slimming (≈ 108 KB before). Margin for growth.
 // The budget counts the stylesheet only: the inlined @font-face fonts (base64) have their own budgets in
 // output-guard.test.mjs, so adding the text font (~35 KB of base64) does not eat the CSS margin.
-const CSS_BUDGET = 90_000;
+// Re-measured 2026-10-07 after the dial deep-dive pages (hero ring, contributors, insight, weekly bars):
+// ≈ 92 KB; budget raised to keep the same ~8 KB margin.
+const CSS_BUDGET = 100_000;
 const FONT_FACE = /@font-face\{[^}]*\}/g;
 
 function inlineCss(html) {
