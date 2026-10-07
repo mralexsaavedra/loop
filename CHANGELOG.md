@@ -17,6 +17,9 @@ Dated history of structural work on this repo. **Current state lives in Engram**
   HR, exercise minutes available) with the latest value, the 30-day baseline and a ▲▼ vs it; a row opens
   its detail sheet. "Customize" shows / hides and reorders them (stored in localStorage, works without
   it). `client/home-dash.js`.
+- Detail sheet trend view: the 30 d / 90 d / 1 yr switch becomes W · M · 6M · 1Y with the period's
+  average and a delta pill vs the previous period; a window longer than the data is clamped to its
+  first day.
 
 ## 2026-10-07 — Plan page restyle P3a: Inicio layout
 

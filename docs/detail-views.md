@@ -78,8 +78,16 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   `partial` colour in the header, chart and calendar, never compared with the median); training time
   shows the newest day in range ("Rest" on a rest day). The band note says colours are the CURRENT
   range (static, as of the newest day), except recovery, scored per day; a signal / total / sleep /
-  recovery metric whose own last day is > 3 days before the view end says so. A
-  30 d / 90 d / 1 yr switch; an inline SVG chart (points for signals, bars for totals and load, the
+  recovery metric whose own last day is > 3 days before the view end says so. The trend view: a
+  W · M · 6M · 1Y switch (7 / 30 / 182 / 365 days, `RANGES`; opens on M; es S · M · 6M · 1A) beside
+  "AVERAGE" = the mean of the days with data in the window (a daily total's partial today left out; a
+  missing day skipped, never 0) and a delta pill vs the previous window of the same length (▲▼ + % —
+  absolute in sd for recovery — `--up` / `--down` by the metric's good direction, neutral • when
+  within 1 % / 0.05 sd or for a metric without a direction). A window longer than the data is clamped
+  to the metric's first day (the toggle stays; chart and average start there, the pill says "Data
+  since <date>"); no previous window wholly inside the data → "No earlier period to compare"
+  (`periodStats`, exposed as `HCDetail.periodStats(key, end, days)`); the chart's existing band is the
+  typical range. An inline SVG chart (points for signals, bars for totals and load, the
   7-day average line that breaks where fewer than 3 of 7 days have data, the band shaded, target /
   typical dashed; a missing day is a gap); a Monday-first month calendar (es/en weekday letters) with
   prev / next bounded by the baked range, each day coloured by state tokens (`dayState`): signals vs
