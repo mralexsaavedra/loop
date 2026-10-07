@@ -6,8 +6,8 @@
  * is DATA-DRIVEN: it reads whichever `hideTabs` array the personal plan
  * actually declares (instead of hardcoding the owner's current `["hoy"]`),
  * so it keeps passing whenever the owner's plan changes which tab(s) it
- * hides — or hides none at all. See CLAUDE.md's "Hoy tab is optional and
- * source-agnostic". The example build must never hide anything — CLAUDE.md:
+ * hides — or hides none at all. See docs/training.md, "The Hoy section is optional and
+ * source-agnostic". The example build must never hide anything — formerly CLAUDE.md:
  * "Keep the tab in the public plan-web.template.html seed as a working
  * example — never hide it there." (that file is gone post-cutover; the
  * example plan itself is the working example now).

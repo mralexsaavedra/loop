@@ -134,8 +134,8 @@ Structure the answer so the reader always knows who says what:
   relative effort, kJ, elevation; runs, gym — the Watch auto-label "gym" / HIIT over-tags — and
   `other`), `running-daily.csv` (running dynamics: power, ground contact, vertical oscillation,
   stride), `hrv.csv`, `rhr.csv`, `sleep-daily.csv`, `vo2max.csv`; `_meta.json` for ranges and
-  caveats. Same-day rows from several apps mirror ONE session (see the same-day merge rule in the
-  repo's `CLAUDE.md`): never sum sources.
+  caveats. Same-day rows from several apps mirror ONE session (see the same-day merge rule in
+  `docs/home-tab.md`): never sum sources.
 - Programmed sessions: `data/training/training-data.json` when present.
 
 **Program vs reality (when asked).** Line the program's sessions up by date against

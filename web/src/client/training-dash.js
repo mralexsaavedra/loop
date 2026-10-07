@@ -19,7 +19,7 @@
  * `hc()` (compact hour/minute label) is the one LOCALE-sensitive number
  * format here: the tracked English template never localizes the decimal
  * separator, but the owner's live Spanish page does (`1.5` -> `1,5`) — see
- * CLAUDE.md's "es-ES dates, comma decimals". Ported as a genuine per-locale
+ * docs/health-tab.md's "es-ES dates, comma decimals". Ported as a genuine per-locale
  * behavior, not a hardcoded literal.
  */
 (function () {
