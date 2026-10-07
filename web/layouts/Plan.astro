@@ -3,7 +3,7 @@
  * (personal copy), and the end-of-body script order per design: bake (the
  * shared Bake rendered by pages/index.astro, plus the per-tab bakes such as Dia's NUTRI) → NAV +
  * HC_CONST → util (window.HC, the shared client helpers, FIRST so every later script can read it) →
- * core (setTab/jump) → today-date → tablas (the Tablas equivalence tables) → nutri-day → food → settings → progress → adherence → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → profile → detail → freshness.
+ * core (setTab/jump) → today-date → tablas (the Tablas equivalence tables) → nutri-day → food (core → sheet → catalog → log) → settings → progress → adherence → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → profile → detail → freshness.
  * Tabs render inside <slot />; the detail sheet (components/DetailSheet.astro) renders in the `overlay`
  * slot, after .wrap, so detail.js can make the page behind it inert. The top bar is ONE row on phones: date · status dot + short
  * freshness (#fresh-sum, per-source detail in the #fresh-pop popover) · icon-only Sync · avatar. #freshness renders hidden; freshness.js
@@ -24,7 +24,10 @@ import '../src/styles/food.css';
 import utilScript from '../src/client/util.js?raw';
 import coreScript from '../src/client/core.js?raw';
 import nutriDayScript from '../src/client/nutri-day.js?raw';
-import foodScript from '../src/client/food.js?raw';
+import foodCoreScript from '../src/client/food-core.js?raw';
+import foodSheetScript from '../src/client/food-sheet.js?raw';
+import foodCatalogScript from '../src/client/food-catalog.js?raw';
+import foodLogScript from '../src/client/food-log.js?raw';
 import settingsScript from '../src/client/settings.js?raw';
 import progressScript from '../src/client/progress.js?raw';
 import adherenceScript from '../src/client/adherence.js?raw';
@@ -153,7 +156,10 @@ const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) form
     <script is:inline set:html={slimScript(coreScript)} />
     <script is:inline set:html={slimScript(todayDateScript)} />
     <script is:inline set:html={slimScript(nutriDayScript)} />
-    <script is:inline set:html={slimScript(foodScript)} />
+    <script is:inline set:html={slimScript(foodCoreScript)} />
+    <script is:inline set:html={slimScript(foodSheetScript)} />
+    <script is:inline set:html={slimScript(foodCatalogScript)} />
+    <script is:inline set:html={slimScript(foodLogScript)} />
     <script is:inline set:html={slimScript(settingsScript)} />
     <script is:inline set:html={slimScript(progressScript)} />
     <script is:inline set:html={slimScript(adherenceScript)} />

@@ -306,7 +306,7 @@ test('date-templates.mjs (HC.fmtDate names) has identical key trees in es/en, 7 
   assert.equal(enDate.weekdays[0], 'Mon');
 });
 
-test('food-templates.mjs (Registrar / add sheet / Mis productos / Mis recetas) has identical key trees in es/en, every meal slot, store and unit, a line per server error code, and the placeholders food.js relies on', () => {
+test('food-templates.mjs (Registrar / add sheet / Mis productos / Mis recetas) has identical key trees in es/en, every meal slot, store and unit, a line per server error code, and the placeholders food-*.js relies on', () => {
   assert.deepEqual(keyTree(esFood), keyTree(enFood));
   for (const [locale, dict] of [['es', esFood], ['en', enFood]]) {
     for (const [p, value] of leaves(dict)) {

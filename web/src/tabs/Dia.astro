@@ -9,7 +9,7 @@
  *                        three macro bars (protein / carbs / fat), then the intake rings (#intake,
  *                        only with intake logged in the last 3 days; otherwise nothing);
  *   2. Registrar       — a day's food log by meal slot (a ‹ date › navigator, opens on today) + the add
- *                        sheet (client/food.js, Nutrición part 2). Ships `hidden` and appears only on the LAN page, when the food API answers
+ *                        sheet (client/food-*.js, Nutrición part 2). Ships `hidden` and appears only on the LAN page, when the food API answers
  *                        (never in the claude.ai artifact or the example build); baked here: I18N_FOOD
  *                        + FOOD_CONST (meal slots / stores / units / input limits from lib/nutrition/foodlog.mjs)
  *                        + FOOD_BASICS (the public food DB as the add sheet's searchable basics,
@@ -87,10 +87,10 @@ const DAY_ICONS: Record<string, string> = {
     {intakeHost && <div id="intake"></div>}
   </div>
 
-  {/* food log (client/food.js): hidden until the LAN food API answers */}
+  {/* food log (client/food-*.js): hidden until the LAN food API answers */}
   <div class="nutri-block food-block" id="food-log-block" hidden>
     {/* heading row: the title + the day navigator on the same line (the viewed day is decided at view
-        time by client/food.js, which always opens on today) */}
+        time by client/food-*.js, which always opens on today) */}
     <div class="food-head">
       <h2>{F.headings.log}</h2>
       <div class="food-day" role="group" aria-label={F.day.navLabel}>

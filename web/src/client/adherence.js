@@ -11,7 +11,7 @@
  * radios, in memory) picks the window; a 28-cell strip (7 per row, each a >= 44px button with its state
  * in words as its label, never colour only) opens Registrar on that day (HCFood.showDay). Missing macros
  * are minimums, never 0. The block ships hidden and appears only when the summary answers; it re-reads
- * after every add / delete (client/food.js calls HCAdherence.reload) and re-renders on a goal change
+ * after every add / delete (client/food-*.js calls HCAdherence.reload) and re-renders on a goal change
  * (HCNutri.refresh calls HCAdherence.render). Its own try/catch: a one-line fallback, never a blank tab. */
 (function () {
   var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;

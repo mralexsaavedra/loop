@@ -861,7 +861,7 @@ test('picking an example: a native select per macro row; the pick persists per v
   assert.ok(opts.includes('jamoncocido') && opts.includes('pollo') && !opts.includes('arroz'));
 });
 
-// the food log's hooks (client/food.js) as the guide reads them
+// the food log's hooks (client/food-*.js) as the guide reads them
 function foodHooks({ groups, products = [], adds = [] } = {}) {
   return {
     HCFood: {

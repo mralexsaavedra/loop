@@ -1,6 +1,6 @@
 /* Build-output guard for the food log (Nutrición part 2): the example build carries the food UI fully
  * wired but HIDDEN (it only appears on the LAN page, when /api/food/products answers at view time), the
- * copy and constants are baked, and food.js runs after nutri-day.js and before intake.js (it defines
+ * copy and constants are baked, and the food scripts (food-core / -sheet / -catalog / -log.js) run after nutri-day.js and before intake.js (it defines
  * window.foodTotals, which both read). Reads the fixture built by `npm run pretest`. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,17 +8,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { slimScript } from '../src/slim-script.mjs';
+import { FOOD_SCRIPTS, FOOD_SOURCES, FOOD_SOURCE } from './client-util.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
 const htmlPath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html');
 const html = fs.existsSync(htmlPath) ? fs.readFileSync(htmlPath, 'utf8') : '';
-const food = fs.readFileSync(path.join(WEB_ROOT, 'src', 'client', 'food.js'), 'utf8');
+const food = FOOD_SOURCE; // the four food scripts (food-core / -sheet / -catalog / -log.js), joined
 const nutriDay = fs.readFileSync(path.join(WEB_ROOT, 'src', 'client', 'nutri-day.js'), 'utf8');
 const intake = fs.readFileSync(path.join(WEB_ROOT, 'src', 'client', 'intake.js'), 'utf8');
 // where a client script sits in the built page: the WHOLE script as the build inlines it (slimScript);
 // a script that is not there fails naming it, never as a bare -1 in a comparison
-const SCRIPT_NAME = new Map([[food, 'food.js'], [nutriDay, 'nutri-day.js'], [intake, 'intake.js']]);
+const SCRIPT_NAME = new Map([...FOOD_SOURCES.map((s, i) => [s, FOOD_SCRIPTS[i]]), [nutriDay, 'nutri-day.js'], [intake, 'intake.js']]);
 const inlinedAt = (src) => {
   const at = html.indexOf(slimScript(src));
   assert.ok(at > 0, `${SCRIPT_NAME.get(src) || 'client script'} is not inlined whole (as slimScript emits it) in ${htmlPath}`);
@@ -61,13 +62,15 @@ test('Registrar\'s day navigator ships as static markup on the heading line: rea
   assert.match(block, /<div class="food-head"> <h2>Log food<\/h2> <div class="food-day" role="group" aria-label="Log day">/, 'the title and the navigator share one row');
 });
 
-test('copy + constants are baked; food.js is inlined after nutri-day.js and before intake.js', () => {
+test('copy + constants are baked; the food scripts are inlined after nutri-day.js and before intake.js', () => {
   assert.match(html, /var I18N_FOOD = \{/);
   assert.match(html, /var FOOD_CONST = \{"meals":\["breakfast","lunch","preworkout","postworkout","dinner","snack"\],"stores":\["mercadona","dia","eroski","other"\],"units":\["g","ml"\],"limits":\{"nameMax":120,/, 'the shared limits are baked too');
   assert.match(html, /"groups":\["breakfast","lunch","dinner","addon"\],"mainSlots":\["breakfast","lunch","dinner"\],"addonGroup":"addon","addonSlot":"snack","lateNightHour":4\}/, 'Registrar\'s four groups and the late-night cutoff come baked from lib/nutrition/slots.mjs');
   const at = inlinedAt;
-  assert.ok(at(nutriDay) > 0 && at(food) > 0 && at(intake) > 0, 'all three scripts inlined whole (as slimScript emits them)');
-  assert.ok(at(nutriDay) < at(food) && at(food) < at(intake));
+  const foodAt = FOOD_SOURCES.map(at); // the four food scripts, each inlined whole, in page order
+  for (let i = 1; i < foodAt.length; i++) assert.ok(foodAt[i - 1] < foodAt[i], `${FOOD_SCRIPTS[i - 1]} before ${FOOD_SCRIPTS[i]}`);
+  assert.ok(at(nutriDay) > 0 && at(intake) > 0, 'nutri-day.js and intake.js inlined whole (as slimScript emits them)');
+  assert.ok(at(nutriDay) < foodAt[0] && foodAt[foodAt.length - 1] < at(intake));
 });
 
 test('the public basics are baked once as FOOD_BASICS, localized, compact (lib/nutrition/basics.mjs)', () => {
@@ -80,11 +83,11 @@ test('the public basics are baked once as FOOD_BASICS, localized, compact (lib/n
   // 24 KB: ~188 basics (the 2026-10-02 Spanish basics took it to ~20 KB, ~105 B per food); still a small
   // share of the single-file page, and the budget keeps an eye on per-food growth (new baked fields).
   assert.ok(m[1].length < 24 * 1024, `FOOD_BASICS is ${m[1].length} bytes`);
-  assert.ok(html.indexOf('var FOOD_BASICS') < inlinedAt(food), 'baked before food.js runs');
+  assert.ok(html.indexOf('var FOOD_BASICS') < inlinedAt(FOOD_SOURCES[0]), 'baked before the food scripts run');
   assert.ok(html.indexOf('var FOOD_BASICS') < inlinedAt(nutriDay), 'baked before nutri-day.js renders the portion guide');
 });
 
-test('food.js talks only to its own origin, with the X-HC-Food header, and never stores the log in the browser', () => {
+test('the food scripts talk only to its own origin, with the X-HC-Food header, and never stores the log in the browser', () => {
   assert.match(food, /var API = '\/api\/food';/);
   assert.match(food, /'X-HC-Food': '1'/);
   assert.doesNotMatch(food, /https?:\/\//, 'no absolute URL (Open Food Facts is called by the server)');

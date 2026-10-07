@@ -1,6 +1,6 @@
 /* Server-side nutrition settings (LAN page only): the goal (maintain / cut / bulk) and the target
  * weight, stored by the ingest service (GET / PUT /api/food/settings, sql/007_settings.sql) so the phone
- * and the Mac agree. Classic script (is:inline), inlined after food.js (it reuses window.HCFood.api: the
+ * and the Mac agree. Classic script (is:inline), inlined after food-*.js (it reuses window.HCFood.api: the
  * same X-HC-Food header, JSON body, timeout and coarse error codes as the food log) and before
  * progress.js / profile.js, which read it.
  *
