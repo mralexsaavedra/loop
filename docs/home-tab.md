@@ -11,10 +11,15 @@ Dials, advice, eat card, health monitor, timeline; recovery and load scoring; th
 Top to bottom (`web/src/tabs/Home.astro`, which also renders `components/EatCard.astro`): dials
 (`#home-dials`) → the monitor tiles (`#home-tiles`) → "My day" (`#my-day`: a Title Case heading, the
 advice sentence as the outlook bar in `#home-advice`, then "Today's activities" in `#timeline`) → the
-"today you eat" card → the full health monitor grid folded under "See metrics"
+"today you eat" card → "Tonight" (`#home-tonight`) → "My plan" (`#my-plan`) → "My dashboard" (`#my-dash`)
+→ the full health monitor
+grid folded under "See metrics"
 (`details#monitor-fold` > `#monitor`) → the programmed session's hidden source section (`hoy`). Little
 text on the tab: each block's explanation lives in the detail sheet it opens
-(`web/test/content.test.mjs` pins the order). P5 moves the full monitor grid to Salud; the summary
+(`web/test/content.test.mjs` pins the order). "Tonight" and "My plan" are rendered by
+`client/home-week.js` and "My dashboard" by `client/home-dash.js`, both inlined by `Home.astro` itself
+(not the layout), so a page that hides Inicio carries none of them; they run at `DOMContentLoaded`, after the end-of-body scripts have defined `HC`, the
+baked globals and the detail sheet. P5 moves the full monitor grid to Salud; the summary
 tile reaches it wherever it lives (`jump('monitor')` opens its fold or switches to its tab).
 
 **Collapsed dial row** (`#home-mini`, first in `Home.astro`): once the dials scroll above the viewport
@@ -164,6 +169,52 @@ is the newest day, and the trend is the line under it.
   every baked day (clock / timezone skew) → the newest baked day under its date (no "nothing logged"
   line, not greyed); no baked days → empty state. No sleep
   that night → "No sleep recorded", never 0 h.
+- **Tonight** (`#home-tonight`, `lib/score/tonight.mjs` baked as `SCORES.tonight`, `client/home-week.js`):
+  the recommended bedtime (moon icon) and the usual wake time (alarm icon) joined by a dashed line, D-DIN
+  clocks, uppercase captions. Rule (stated in the sheet the card opens — the registered `tonight` view —
+  never on the card): usual wake = the median wake clock (`sleep-daily.csv` `waketime`, the night dated
+  the wake-up day) of the nights in the last `TONIGHT_WINDOW` (14) days ending at the newest night with a
+  wake time; bedtime = usual wake − the sleep target (`SLEEP_TARGET`, 7.5 h, the sleep dial's). A wake
+  clock ≥ 18:00 is unwrapped to a negative hour before the median (23:50 and 00:10 sit together). Fewer
+  than `TONIGHT_MIN_NIGHTS` (7) such nights → `null` and the card stays hidden. Data > 3 days old greys
+  it. No alarm editing (the page cannot set one); the sheet links to the sleep history.
+- **My plan** (`#my-plan`, `client/home-week.js`, `window.HCWeekPlan.weekGoals`): one collapsible
+  `<details>` card "Weekly plan · N days left · X % accomplished" + a teal progress bar, for the VIEWER's
+  week (Monday–Sunday from `Date.now()`, never baked; days left = after today). Expanded: one row per
+  goal — uppercase label + its basis, `done/target`, ▲ `--up` on pace / ▼ `--down` behind (on pace =
+  done ≥ target × days elapsed / 7), a small bar. % accomplished = the mean of min(1, done / target)
+  over the shown rows. Goals, their source and default target (profile.json has no goals block, so
+  these are the documented defaults in `GOALS`):
+
+  | Row | Done (this week, up to today) | Target | Source | Hidden when |
+  | --- | --- | --- | --- | --- |
+  | Nights ≥ 7.5 h | nights (dated the wake-up day) asleep ≥ the sleep target | 5 | `DETAIL.metrics.sleep` | no sleep metric, or `DETAIL.asOf` > 3 days old |
+  | Training days | distinct dates with a session | the days programmed this week, else the usual week | `DETAIL.sessions` (display rule) + `TRAINING` (training-data.json) | stale as above; no programme AND < 3 complete weeks of data (of the last 6) or a usual week of 0 |
+  | Days with food logged | days with ≥ 1 food log entry | 7 | `HCAdherence.state().days` (the Constancia summary, LAN page only) | no summary (static / example page) |
+  | Days on kcal target | days whose Constancia state is `on` (complete, within ±10 % of the day's target) | 5 | `HCAdherence.dayState` + `HCNutri.targetFor` | no summary, or no `HCNutri.targetFor` |
+
+  The usual week = the median of the session days per week over the last 6 complete weeks before this
+  one (only weeks the data covers). The food rows appear when the summary answers: `client/adherence.js`
+  calls `HCWeekPlan.refresh()` after every read (the card keeps its open / closed state). No row → the
+  card and its "My plan" heading stay hidden. The sleep row opens the sleep sheet, the training row the
+  training-time sheet.
+- **My dashboard** (`#my-dash`, `client/home-dash.js`): a Title Case heading with "CUSTOMIZE ✎" on the
+  right, then single-row metric cards — line icon · UPPERCASE metric · the latest value (D-DIN) + unit
+  and an arrow, the 30-day baseline small under it. Catalogue (`CATALOG`): rhr, hrv, sleep, weight,
+  steps (shown by default, `DEFAULT_ON`), vo2max, walkingHr, exercise (hidden by default); only keys
+  present in the baked `DETAIL.metrics` are listed. Same series, titles and units as the detail sheet
+  (`I18N_DETAIL`). Value = the newest day with data up to the viewer's today (a daily total skips
+  today, still filling up); sleep shows h:mm. Baseline = the mean of the 30 days before that day, with
+  ≥ 7 days of data (≥ 2 readings for a sparse series like weight); no baseline → no arrow. Arrow ▲▼ =
+  the value vs the baseline: `--up` when better by the metric's good direction (`dir`), `--down` when
+  worse, grey for a neutral metric (weight), a grey dot within ±2 % (`FLAT_SHARE`). A row older than 3
+  days is dimmed; a tap opens that metric's detail sheet. "Customize" opens the registered `dash-edit`
+  sheet (detail.js modal): per metric a Shown / Hidden toggle (`aria-pressed`) and ↑ / ↓ buttons (no
+  drag). Preferences = `localStorage['hc-dash-v1']` `{order, hidden}`; every read / write is in a
+  try/catch, unknown, duplicate or unavailable keys are ignored, a catalogue key missing from the stored
+  order is appended with its default visibility, and without storage the choice holds in memory for the
+  visit. Every metric hidden → a one-line note (the section stays so Customize can bring one back); no
+  catalogue metric in `DETAIL` → the section stays hidden.
 - **Advice** is one descriptive sentence per rule (`lib/score/advice.mjs`, copy in `advice-copy.mjs`),
   never an instruction; hidden when data is insufficient or stale (> 3 days). It renders as the "My
   day" outlook bar (`.outlook`: full width, ~46 px, warm grey → dark gradient, sun icon, the sentence

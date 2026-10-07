@@ -1021,3 +1021,396 @@ details.rec-raw > summary {
 .dm.dial-off .dm-lbl {
   color: var(--muted);
 }
+
+/* Inicio "Tonight" (client/home-week.js): recommended bedtime ↔ usual wake time joined by a dashed
+   line; D-DIN clocks, uppercase captions; the generic opener chevron sits in the header row */
+.tn-h {
+  margin: 0 0 var(--sp-5);
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.tn-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+}
+.tn-end {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+  text-align: center;
+}
+.tn-time {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.tn-time b {
+  font-family: var(--num);
+  font-size: var(--fs-4xl);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.tn-ico {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: var(--sleep);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tn-lbl {
+  max-width: 11ch;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+.tn-dash {
+  flex: 1;
+  min-width: var(--sp-5);
+  margin-top: 14px;
+  border-top: 1px dashed var(--faint);
+}
+.tn-rule {
+  font-size: var(--fs-lg);
+  line-height: 1.45;
+}
+.tn-more {
+  min-height: 44px;
+  padding: 0 var(--sp-5);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.tn-more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Inicio "My plan" (client/home-week.js): one collapsible weekly card — title + chevron, days left,
+   "X % accomplished", a teal progress bar; expanded: the goal rows (label + basis, done/target, ▲▼,
+   a small bar) */
+.wp {
+  padding: 0;
+}
+.wp-sum {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-2);
+  padding: var(--sp-5);
+  list-style: none;
+  cursor: pointer;
+  border-radius: inherit;
+}
+.wp-sum::-webkit-details-marker {
+  display: none;
+}
+.wp-sum:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.wp-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.wp-title {
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.wp-chev {
+  width: 9px;
+  height: 9px;
+  margin-right: 4px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg) translateY(-3px);
+  transition: transform 0.2s ease;
+}
+.wp[open] .wp-chev {
+  transform: rotate(-135deg) translateY(-3px);
+}
+.wp-left {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.wp-pct {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.wp-pct b {
+  font-family: var(--num);
+  font-size: var(--fs-2xl);
+  letter-spacing: 0;
+}
+.wp-pct small {
+  margin-right: 2px;
+  font-size: var(--fs-xs);
+}
+.wp-prog,
+.wp-bar {
+  display: block;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--track);
+  overflow: hidden;
+}
+.wp-prog i,
+.wp-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--up);
+}
+.wp-rows {
+  margin: 0;
+  padding: 0 var(--sp-5) var(--sp-3);
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+.wp-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sp-2) var(--sp-4);
+  padding: var(--sp-5) 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.wp-row:last-child {
+  border-bottom: 0;
+}
+.wp-row {
+  padding-right: 28px;
+}
+.wp-lbl {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.wp-lbl small {
+  color: var(--faint);
+  font-size: var(--fs-2xs);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.wp-val {
+  align-self: center;
+  color: var(--muted);
+  font-family: var(--num);
+  font-size: var(--fs-md);
+  white-space: nowrap;
+}
+.wp-val b {
+  color: var(--ink);
+  font-size: var(--fs-2xl);
+}
+.wp-arr {
+  margin-left: 2px;
+  font-size: 0.7em;
+}
+.wp-up {
+  color: var(--up);
+}
+.wp-down {
+  color: var(--down);
+}
+.wp-bar {
+  grid-column: 1 / -1;
+  height: 3px;
+}
+.wp-bar i.wp-down {
+  background: var(--down);
+}
+
+/* Inicio "My dashboard" (client/home-dash.js): Title Case heading + "CUSTOMIZE ✎" on one line, then
+   single-row metric cards — icon · UPPERCASE name · value (D-DIN) + arrow, the 30-day baseline under it */
+.home-hrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+.db-cust {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.db-cust svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linejoin: round;
+}
+.db-cust:hover {
+  color: var(--ink);
+}
+.db-cust:focus-visible,
+.db-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.db-list,
+.db-edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.db-row,
+.db-erow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: 60px;
+  padding: var(--sp-3) var(--sp-5);
+  border-radius: var(--r-sm);
+  background: var(--card-bg);
+}
+.db-row[data-detail][role="button"] {
+  padding-right: var(--sp-5);
+}
+.db-row[data-detail][role="button"]::after {
+  content: none;
+}
+.db-stale {
+  opacity: 0.55;
+}
+.db-ico {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.db-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.db-vals {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: none;
+}
+.db-val {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+}
+.db-val b {
+  font-family: var(--num);
+  font-size: var(--fs-2xl);
+  line-height: 1.1;
+}
+.db-val small {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+}
+.db-arr {
+  width: 10px;
+  font-size: 9px;
+  text-align: center;
+}
+.db-good {
+  color: var(--up);
+}
+.db-bad {
+  color: var(--down);
+}
+.db-flat {
+  color: var(--faint);
+}
+.db-base {
+  margin-right: 13px;
+  color: var(--faint);
+  font-family: var(--num);
+  font-size: var(--fs-2xs);
+}
+.db-empty {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+/* the customize sheet: show / hide + up / down per row */
+.db-erow {
+  background: var(--surface-2);
+}
+.db-off .db-name,
+.db-off .db-ico {
+  opacity: 0.5;
+}
+.db-btn {
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+}
+.db-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.db-tog {
+  min-width: 76px;
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.db-tog[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}

@@ -1,6 +1,6 @@
 /* Detail sheet: a tap on any card opens its metric full-screen (phones) or as a large centred panel
- * (desktop), Whoop-style: header (metric, latest value + date, personal band / target), a 30 d / 90 d /
- * 1 yr range switch, a chart (daily points or bars, the 7-day average line, the personal band; a
+ * (desktop): header (metric, latest value + date, personal band / target), a W / M / 6M / 1Y
+ * range switch with the period's average + a delta pill vs the previous period of the same length, a chart (daily points or bars, the 7-day average line, the personal band; a
  * missing day is a gap, never 0), a Monday-first month calendar coloured by state tokens against that
  * band / target, and the picked day's detail underneath.
  *
@@ -39,7 +39,11 @@
   if (!host || !T) return;
   var D = typeof DETAIL === 'undefined' || !DETAIL ? { asOf: null, metrics: {}, sessions: [] } : DETAIL;
   var esc = HC.esc, format = HC.format, isoDate = HC.isoDate, parseIso = HC.parseIso, shiftIso = HC.shiftIso;
-  var RANGES = [30, 90, 365];
+  // W / M / 6M / 1Y (days); a range longer than the data is clamped to the metric's first day
+  var RANGES = [7, 30, 182, 365];
+  var RANGE_KEY = { 7: 'w', 30: 'm', 182: 'm6', 365: 'y' };
+  // a delta below this share (or below DELTA_FLAT_REC sd for recovery) is "about the same": neutral
+  var DELTA_FLAT = 0.01, DELTA_FLAT_REC = 0.05;
   // chart geometry (SVG user units): width, height, inner padding
   var CW = 320, CH = 140, CPAD = 8;
   // a 7-day average needs at least 3 days with data (same floor as the recovery trend)
@@ -312,12 +316,69 @@
     return '<p class="dt-stale dt-mstale">' + esc(format(T.metricStale, { date: HC.fmtDate(d) })) + '</p>';
   }
 
-  /* ---------- range switch ---------- */
+  /* ---------- range switch + the period's average ---------- */
   function rangeHtml(range) {
-    var lbl = { 30: T.ranges.d30, 90: T.ranges.d90, 365: T.ranges.d365 };
     return '<div class="dt-range" role="group" aria-label="' + esc(T.rangeLabel) + '">' + RANGES.map(function (r) {
-      return '<button type="button" data-dt-act="range" data-range="' + r + '" aria-pressed="' + (r === range ? 'true' : 'false') + '">' + esc(lbl[r]) + '</button>';
+      var k = RANGE_KEY[r];
+      return '<button type="button" data-dt-act="range" data-range="' + r + '" aria-pressed="' + (r === range ? 'true' : 'false') + '" aria-label="' + esc(T.rangesLong[k]) + '">' + esc(T.ranges[k]) + '</button>';
     }).join('') + '</div>';
+  }
+  // the first day of a `days`-long window ending at `end`, clamped to the metric's first day
+  function windowFrom(m, end, days) {
+    var from = shiftIso(end, -(days - 1));
+    return from < m.start ? m.start : from;
+  }
+  function meanOf(m, from, to) {
+    var s = 0, n = 0;
+    for (var d = from; d <= to; d = shiftIso(d, 1)) {
+      var v = at(m.v, m, d);
+      if (v == null || isPartial(m, d)) continue; // a total still filling up today never counts
+      s += v;
+      n++;
+    }
+    return { avg: n ? s / n : null, n: n };
+  }
+  // The trend view's numbers for one window (pure; exposed as HCDetail.periodStats): the mean of the
+  // days with data in [end − days + 1, end] (clamped to the data's first day) and, when the previous
+  // window of the same length lies wholly inside the data and holds data, the delta vs its mean —
+  // absolute for recovery (sd units around 0), else a percentage. tone: good / bad by the metric's
+  // good direction, normal when about the same or the metric has none.
+  function periodStats(m, end, days) {
+    var from = windowFrom(m, end, days), clamped = from !== shiftIso(end, -(days - 1));
+    var cur = meanOf(m, from, end);
+    var out = { from: from, to: end, clamped: clamped, avg: cur.avg, n: cur.n, prev: null, delta: null, pct: null, flat: true, tone: 'normal' };
+    var pFrom = shiftIso(from, -days), pTo = shiftIso(from, -1);
+    if (cur.avg == null || clamped || pFrom < m.start) return out;
+    var prev = meanOf(m, pFrom, pTo);
+    if (prev.avg == null) return out;
+    out.prev = prev.avg;
+    out.delta = cur.avg - prev.avg;
+    var flat;
+    if (m.kind === 'recovery') flat = Math.abs(out.delta) < DELTA_FLAT_REC;
+    else {
+      out.pct = prev.avg ? 100 * out.delta / Math.abs(prev.avg) : null;
+      flat = out.pct == null || Math.abs(out.pct) < 100 * DELTA_FLAT;
+    }
+    out.flat = flat;
+    if (!flat && m.dir) out.tone = (out.delta > 0) === (m.dir > 0) ? 'good' : 'bad';
+    return out;
+  }
+  function trendHtml(key, m, st, range) {
+    var R = T.trend, dec = m.kind === 'sleep' ? 1 : m.dec;
+    var avg = m.kind === 'recovery' ? signed(st.avg, 1) : fmt(st.avg, dec);
+    var pill = '';
+    if (st.delta != null) {
+      var arrow = st.flat ? '•' : st.delta > 0 ? '▲' : '▼';
+      var amount = m.kind === 'recovery' ? signed(st.delta, 1) + ' ' + unitOf(key) : (st.pct == null ? '—' : HC.num(Math.abs(st.pct), 0) + (HC.isEs() ? ' %' : '%'));
+      pill = '<span class="dt-pill dt-pill-' + esc(st.tone) + '">' + esc(arrow + ' ' + amount + ' ' + R.vs[RANGE_KEY[range]]) + '</span>';
+    } else if (st.avg != null) {
+      pill = '<span class="dt-pill dt-pill-none">' + esc(st.clamped ? format(R.since, { date: HC.fmtDate(st.from) }) : R.noPrev) + '</span>';
+    }
+    return '<div class="dt-trend"><span class="dt-trend-lbl">' + esc(R.avg) + '</span>' +
+      '<div class="dt-trend-row"><b class="dt-trend-num">' + esc(st.avg == null ? '—' : avg) + '</b>' + (st.avg != null && unitOf(key) ? '<small>' + esc(unitOf(key)) + '</small>' : '') + pill + '</div></div>';
+  }
+  function periodHtml(key, m, end, range) {
+    return '<div class="dt-period">' + trendHtml(key, m, periodStats(m, end, range), range) + rangeHtml(range) + '</div>';
   }
 
   /* ---------- chart ---------- */
@@ -564,14 +625,14 @@
     var lo = monthOf(m.start), hiM = monthOf(end);
     if (state.month < lo) state.month = lo;
     if (state.month > hiM) state.month = hiM;
-    var from = shiftIso(end, -(state.range - 1));
+    var from = windowFrom(m, end, state.range);
     state.sel = sel;
     state.view = { key: key, m: m, end: end };
     return head(key, latestHtml(key, m, end) + bandText(key, m)) +
       '<div class="dt-body">' +
       (ve.stale ? '<p class="dt-stale">' + esc(format(T.staleNote, { date: HC.fmtDate(end) })) + '</p>' : '') +
       metricStaleHtml(m, end) +
-      rangeHtml(state.range) + chartHtml(key, m, from, end, sel) +
+      periodHtml(key, m, end, state.range) + chartHtml(key, m, from, end, sel) +
       '<div data-dt-part="cal">' + calendarHtml(key, m, state.month, sel, end) + '</div>' +
       '<div data-dt-part="day">' + dayPart(key, m, sel) + '</div></div>';
   }
@@ -665,7 +726,7 @@
     var wasOpen = isOpen();
     if (!wasOpen) opener = opts.opener || null;
     var asked = date == null || date === '' ? null : String(date);
-    state = { key: key, date: isoDate(date), range: RANGES[0], month: null, pushed: wasOpen ? state.pushed : !!opts.pushed, sel: null, view: null, geo: null };
+    state = { key: key, date: isoDate(date), range: RANGES[1], month: null, pushed: wasOpen ? state.pushed : !!opts.pushed, sel: null, view: null, geo: null };
     // while a close's Back is in flight, history is left alone: its popstate gives this sheet an entry
     if (opts.push !== false && !pendingBack) {
       var written = setHash(!wasOpen);
@@ -743,7 +804,8 @@
     }
     var focusSel = null;
     if (a === 'range') {
-      state.range = +el.getAttribute('data-range') || RANGES[0];
+      var r = +el.getAttribute('data-range');
+      state.range = RANGES.indexOf(r) !== -1 ? r : RANGES[1];
       focusSel = '[data-range="' + state.range + '"]';
     } else if (a === 'month') {
       var dir = +el.getAttribute('data-dir') || 0;
@@ -826,6 +888,7 @@
     close: close,
     state: function () { return state; },
     dayState: dayState,
+    periodStats: function (key, end, days) { var m = metric(key); return m ? periodStats(m, end, days) : null; },
   };
 
   var initial = fromHash();
