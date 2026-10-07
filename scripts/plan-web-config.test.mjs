@@ -263,7 +263,7 @@ test('nginx /manuales/: only a bare .pdf file name is served, as an inline PDF w
   const pattern = /^~\s+"([^"]+)"$/.exec(pdf.spec);
   assert.ok(pattern, 'a quoted regex');
   const re = new RegExp(pattern[1]);
-  for (const ok of ['/manuales/garmin-edge-540-manual-es.pdf', '/manuales/vitalcontrol-sem-42-manual.pdf', '/manuales/A.pdf']) assert.ok(re.test(ok), ok);
+  for (const ok of ['/manuales/acme-bike-computer-100-manual-es.pdf', '/manuales/example-ems-suit-7-manual.pdf', '/manuales/A.pdf']) assert.ok(re.test(ok), ok);
   for (const bad of ['/manuales/', '/manuales/x.txt', '/manuales/.x.pdf', '/manuales/a/b.pdf', '/manuales/x.PDF', '/manuales/x.pdf/', '/x/manuales/x.pdf', '/manuales/x.pdfx']) {
     assert.ok(!re.test(bad), bad);
   }
