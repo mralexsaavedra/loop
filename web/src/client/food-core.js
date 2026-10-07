@@ -69,7 +69,7 @@
   var LATE_NIGHT_HOUR = K.lateNightHour;
   // log = TODAY's log (the one foodTotals / groupTotals read); view = the day Registrar shows (null =
   // follow today, so a midnight roll moves with it), dayLog / dayFail = that past day's log / load error
-  var S = { ok: false, products: [], recipes: [], log: null, view: null, autoView: false, dayLog: null, dayFail: null, sheet: null, pform: null, rform: null, confirm: null };
+  var S = { ok: false, boot: true, products: [], recipes: [], log: null, view: null, autoView: false, dayLog: null, dayFail: null, sheet: null, pform: null, rform: null, confirm: null };
 
   /* ---------- the formula: a line-by-line port of lib/nutrition/foodlog.mjs ---------- */
   var ATWATER_TOL = 0.25;

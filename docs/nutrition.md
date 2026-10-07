@@ -90,7 +90,12 @@ log is the ONE source: today's log (`window.foodTotals`, see "Nutrition v2 part 
 entries, else the most recent food-log day in the same window (`HCFood.recentDay(INTAKE.freshDays)`:
 one lazy `GET /food/log/summary` over the window, re-read after any add / delete or on a new day),
 labelled by its date with that day's `targetFor`; nothing logged there → no rings, never the Apple
-Health day. The bake keeps only `target.train` (the fallback without `HCNutri`).
+Health day; nor while today's log is not loaded (read failed / in flight: `HCFood.groupTotals()` null).
+While the food API boot request is in flight (`HCFood.pending()`) the rings render NOTHING (no flash of
+the Apple Health day); its answer → the food log, its failure → the Apple Health day, and past
+`INTAKE.bootGraceMs` (`INTAKE_BOOT_GRACE_MS`, 2500 ms, baked) without an answer the Apple Health day
+renders anyway (a fetch hanging in a sandboxed artifact) and a late answer still switches.
+The bake keeps only `target.train` (the fallback without `HCNutri`).
 Intake arrives from a food app that writes nutrition to Apple Health + the
 Shortcut `diet_kcal`/`diet_protein`/`diet_carbs`/`diet_fat` keys, which sync folds into one
 `dietary-daily.csv` row per day, export rows winning. A ring never fills from the target: a macro

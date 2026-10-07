@@ -194,7 +194,9 @@ Plan de hoy) and the
   answered and TODAY (the viewer's local date) has ≥ 1 entry, else null — the one contract; nutri-day.js
   and intake.js do not re-check the date. It stays TODAY-only whatever day the navigator shows (as do
   `HCFood.groupTotals()` and `HCFood.addGuide`, which always logs to today). `HCFood.recentDay(days)` = the newest day with entries
-in the last `days` days (today included) in the same shape, for the intake rings. A macro NO entry states is `null` (a dash, never "0 / 150 g"
+in the last `days` days (today included) in the same shape, for the intake rings. `HCFood.pending()` = the boot request
+  (`GET /products`) has not answered yet (true from load, set synchronously, so intake.js sees it on its
+  first render); its answer or failure calls `window.intakeRefresh()`, so the rings leave that wait. A macro NO entry states is `null` (a dash, never "0 / 150 g"
   or 0 %); `missing[m]` = at least one entry lacks it, so a non-null value is a minimum and the bar /
   ring shows "≥ 40" (the rings add a one-line note). ONE logged entry today is enough: the dial, bars
   and rings then show the page's food log for today instead of the Apple Health intake (labelled

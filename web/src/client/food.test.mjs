@@ -103,7 +103,25 @@ test('no food API (artifact, file://, example build): everything stays hidden, n
   assert.equal(t.els['food-log'].innerHTML, '');
   assert.equal(t.window.foodTotals(), null);
   assert.equal(t.window.HCViews, undefined, 'the add sheet is registered only when the server answers');
-  assert.deepEqual(t.hooks, [], 'nothing refreshed');
+  assert.deepEqual(t.hooks, ['intake'], 'only the intake rings re-render (the Apple Health day, now that the API is known absent)');
+});
+
+test('HCFood.pending(): true while the boot request is in flight, false once it answers or fails; each re-renders the rings', async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const t = setup({ routes: { ...BOOT, 'GET /api/food/products': () => gate.then(() => BOOT['GET /api/food/products']) } });
+  assert.equal(t.F.pending(), true, 'set synchronously at load, before intake.js renders');
+  assert.equal(t.F.ready(), false);
+  release();
+  await flush();
+  assert.equal(t.F.pending(), false);
+  assert.equal(t.F.ready(), true);
+  assert.equal(t.hooks[0], 'intake', 'the rings leave the pending state at once (today\'s log follows)');
+  const f = setup();
+  assert.equal(f.F.pending(), true);
+  await flush();
+  assert.equal(f.F.pending(), false);
+  assert.equal(f.F.ready(), false);
 });
 
 test('no fetch at all: the script still defines a null foodTotals and touches nothing', () => {
@@ -124,7 +142,7 @@ test('server answers: hosts appear, every request carries X-HC-Food, today is th
   assert.deepEqual(t.calls.map((c) => c.key).sort(), ['GET /api/food/log?date=2030-01-10', 'GET /api/food/products', 'GET /api/food/recipes']);
   for (const c of t.calls) assert.equal(c.init.headers['X-HC-Food'], '1');
   assert.ok(t.window.HCViews['food-add'], 'the add sheet view is registered');
-  assert.deepEqual(t.hooks, ['nutri'], 'Resumen de hoy re-reads the totals (it refreshes the rings itself)');
+  assert.deepEqual(t.hooks, ['intake', 'nutri'], 'the rings leave the boot wait, then Resumen de hoy re-reads the totals (it refreshes the rings itself)');
 });
 
 test('Registrar: four groups (Desayuno, Comida, Cena, Añadidos), entry kcal + P/C/G, a labelled delete button, one add button per group, the day total', async () => {
