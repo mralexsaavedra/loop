@@ -8,7 +8,7 @@ Programmed session (Hoy), activity calendar and the executed-workouts dashboard.
 
 ## Training tabs — "Hoy / Today" + "Entrenos / Workouts" pipeline
 
-The same single-file build carries two training sections (programmed session in Inicio,
+The same single-file build carries two training sections (programmed session in Inicio — a row of "Today's activities" —,
 Entrenamiento at the bottom of Entreno — they were tabs before the tab layout), computed by `lib/training/program.mjs`
 (programmed sessions) and `lib/training/dashboard.mjs` (executed-workout aggregation) and
 rendered by `web/src/tabs/{Hoy,Entrenos}.astro`. Same single-source pattern as nutrition.
@@ -28,7 +28,12 @@ newest sessions stay visible). Calendar = Monday-first weeks, ONE sequential hue
 cell; cumulative = the running sum of daily minutes, last 30 days (`--strain`) vs the previous 30
 (dashed `--faint`), totals written in the legend, a hover target per day.
 
-**🏋️ Hoy / Today — programmed session.** Source: `data/training/training-data.json`
+**🏋️ Hoy / Today — programmed session.** On Inicio it is a row of "Today's activities", not a
+block: `client/training-today.js` renders the session into `#train-today` inside the `hoy` section
+(`tabs/Hoy.astro`, a hidden source: `.hoy-src`), sets `window.HCProgram = {date, kind, focus}` for
+`client/timeline.js` (the row) and registers the `hoy-session` detail view (the same markup in the
+sheet; deep link `#hoy-session`, `VIEW_TAB` → home). `page.hideTabs: ["hoy"]` hides the section, and
+then neither the row nor the view exist. Source: `data/training/training-data.json`
 (GITIGNORED, personal, and OPTIONAL — see below) — the programmed sessions keyed by ISO
 date (`days["YYYY-MM-DD"]`); a date with no entry renders as a rest / unprogrammed day. The
 build bakes it into a page-level JSON global; the page picks "today" client-side with `new

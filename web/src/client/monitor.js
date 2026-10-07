@@ -1,4 +1,6 @@
-/* Inicio "Health monitor": the latest overnight signals (respiratory rate, resting HR, HRV, sleeping
+/* Inicio "Health monitor": two summary tiles near the top of Inicio (#home-tiles: the out-of-range
+ * count + the HRV signal) and the full grid (#monitor, folded under "See metrics" until P5 moves it to
+ * Salud). The latest overnight signals (respiratory rate, resting HR, HRV, sleeping
  * wrist temperature, sleep duration) against the owner's own normal range, rendered from
  * SCORES.monitor (lib/score/monitor.mjs, baked by components/Bake.astro) + I18N_SCORE.monitor.
  *
@@ -25,7 +27,7 @@
   var MARK_H = 3;
 
   // shared helpers (web/src/client/util.js)
-  var esc = HC.esc, isoDate = HC.isoDate, daysOld = HC.daysOld;
+  var esc = HC.esc, isoDate = HC.isoDate, daysOld = HC.daysOld, format = HC.format;
   function num(x, dec) {
     return HC.num(x, dec, false);
   }
@@ -73,6 +75,51 @@
       return card(c);
     } catch (e) {
       return emptyCard(c && c.key ? c.key : '');
+    }
+  }
+
+  /* ---- Inicio tiles (#home-tiles): the monitor's summary + the HRV signal, from the SAME cards ---- */
+  // a card counts only with a fresh value (its own date <= STALE_DAYS old) and a status vs its band
+  function fresh(c) {
+    var a = c && c.state === 'ok' ? daysOld(c.date) : null;
+    return a != null && a <= STALE_DAYS;
+  }
+  var CHECK = '<svg class="hmt-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
+  function lbl(text) {
+    return '<span class="hmt-lbl">' + esc(text) + '<span class="hmt-chev" aria-hidden="true">›</span></span>';
+  }
+  // tile 1: out-of-range count (teal check "within range" when none), "n/total metrics" in range; a
+  // tap jumps to the full monitor grid (core.js jump: opens its fold / switches to its tab)
+  function sumTile() {
+    var TT = T.tile, inR = 0, out = 0;
+    M.cards.forEach(function (c) {
+      if (!fresh(c)) return;
+      if (c.status === 'normal') inR++;
+      else if (c.status === 'high' || c.status === 'low') out++;
+    });
+    var chip = out > 0 ? '<span class="hmt-chip hmt-out">' + esc(format(TT.out, { n: out })) + '</span>'
+      : inR > 0 ? '<span class="hmt-chip hmt-in">' + CHECK + esc(TT.inRange) + '</span>'
+      : '<span class="hmt-chip hmt-none">' + esc(TT.none) + '</span>';
+    return '<button type="button" class="hmt hmt-sum" onclick="jump(\'monitor\')">' + lbl(T.heading) +
+      '<span class="hmt-body">' + chip + '<span class="hmt-sub">' + esc(format(TT.metrics, { n: inR, total: M.cards.length })) + '</span></span></button>';
+  }
+  // tile 2: HRV, a real baked value (no invented stress score); left out without a fresh reading
+  function hrvTile() {
+    var c = null;
+    M.cards.forEach(function (x) { if (x && x.key === 'hrv') c = x; });
+    if (!fresh(c)) return '';
+    return '<div class="hmt hmt-hrv hm-tone-' + esc(c.tone || 'normal') + '"' + linkAttrs('hrv') + '>' + lbl(T.labels.hrv || 'HRV') +
+      '<span class="hmt-body"><span class="hmt-val"><b>' + esc(num(c.value, c.dec)) + '</b><small>' + esc(T.units.hrv || '') + '</small></span>' +
+      '<span class="hmt-status">' + esc(T.status[c.status] || '') + '</span>' +
+      (daysOld(c.date) !== 0 && isoDate(c.date) ? '<span class="hmt-sub">' + esc(HC.fmtDate(c.date)) + '</span>' : '') + '</span></div><!--/hmt-->';
+  }
+  var tiles = document.getElementById('home-tiles');
+  if (tiles && T.tile) {
+    try {
+      var t2 = hrvTile();
+      tiles.innerHTML = '<div class="hm-tiles' + (t2 ? '' : ' hm-tiles-one') + '" role="group" aria-label="' + esc(T.tile.ariaLabel) + '">' + sumTile() + t2 + '</div>';
+    } catch (e) {
+      tiles.innerHTML = '';
     }
   }
 

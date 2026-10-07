@@ -1,17 +1,20 @@
 ---
-/* "Inicio / Home" = today, at a glance (Whoop-style), top to bottom: Sleep/Recovery/Load dials
- * (#home-dials), the advice sentence that concludes them (#home-advice), the "today you eat" card
- * (components/EatCard.astro), then the health monitor and today's timeline (#timeline: last night's
- * sleep + the day's workouts, client/timeline.js). The detail behind each dial lives in another tab
- * (recovery card -> Salud, load cards -> Entreno) and a tap on the dial opens it. Client-rendered by
- * web/src/client/score.js (dials + advice), client/nutri-day.js (eat card) and client/monitor.js
- * (monitor) from the globals baked by <Bake> (the shared Bake in web/pages/index.astro) and Dia's NUTRI.
- * Rendered inside the `home` tab panel (web/pages/index.astro), above the programmed-session section.
+/* "Inicio / Home" = today, at a glance, top to bottom: the Sleep / Recovery / Load dials
+ * (#home-dials, client/score.js), the monitor tiles (#home-tiles: the health monitor's summary + the
+ * HRV signal, client/monitor.js), "My day" (#my-day: the advice sentence as the outlook bar in
+ * #home-advice, then "Today's activities" in #timeline: last night's sleep, the day's workouts and
+ * today's programmed session, client/timeline.js), the "today you eat" card (components/EatCard.astro,
+ * client/nutri-day.js), and the full health monitor grid folded under "See metrics" (#monitor-fold;
+ * P5 moves it to Salud — the summary tile jumps to it, wherever it lives). The detail behind each
+ * dial, tile and row opens in the detail sheet (client/detail.js). Everything is client-rendered from
+ * the globals baked by <Bake> (web/pages/index.astro) and Dia's NUTRI. The programmed session's own
+ * section (tabs/Hoy.astro) follows as a hidden source inside the same `home` panel.
  * #home-mini = the collapsed dial row (fixed at the top, shown by score.js once the dials scroll away:
  * the same three rings small, with their labels; a tap opens the same detail as the dial).
  */
 import HealthMonitor from '../components/HealthMonitor.astro';
 import EatCard from '../components/EatCard.astro';
+import { es as esS, en as enS } from '../i18n/score-templates.mjs';
 
 interface Props {
   locale: string;
@@ -19,10 +22,15 @@ interface Props {
 }
 
 const { locale, eatLink } = Astro.props;
+const t = (locale === 'es' ? esS : enS).home;
 ---
 <div id="home-mini" class="dial-mini"></div>
 <div id="home-dials"></div>
-<div id="home-advice"></div>
+<div id="home-tiles"></div>
+<section class="my-day" id="my-day" aria-labelledby="my-day-h">
+  <h2 class="home-h" id="my-day-h">{t.myDay}</h2>
+  <div id="home-advice"></div>
+  <div id="timeline"></div>
+</section>
 <EatCard locale={locale} link={eatLink} />
-<HealthMonitor />
-<div id="timeline"></div>
+<details class="hm-fold" id="monitor-fold"><summary class="hm-fold-sum">{t.moreMetrics}</summary><HealthMonitor /></details>

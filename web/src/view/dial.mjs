@@ -1,13 +1,13 @@
-/* Inicio dial view-model: 270 degree open-arc geometry + value->arc mapping for the Sleep,
- * Recovery and Load dials. Pure presentation glue over values buildScores()/buildHealth() already
- * produce. TODAY FIRST, the trend as context:
- *   - Recovery: marker = last night's composite (recovery.today) in MAD units, zones cut at the
- *     single-day DAY_BAND_CUTOFF; the 7-day trend + its direction ride along as `trend` for the line
- *     under the dial. With no composite for last night the dial falls back to trend7 (zones at
+/* Inicio dial view-model: full-ring geometry (starts at 12 o'clock, fills clockwise) + value->ring
+ * mapping for the Sleep, Recovery and Load dials. Pure presentation glue over values
+ * buildScores()/buildHealth() already produce. TODAY FIRST, the trend as context:
+ *   - Recovery: the fill ends at last night's composite (recovery.today) on the -3..+3 MAD scale
+ *     (baseline = the tick at 6 o'clock), zones cut at the single-day DAY_BAND_CUTOFF; the 7-day
+ *     trend + its direction ride along as `trend` for the dial's detail sheet. With no composite for last night the dial falls back to trend7 (zones at
  *     BAND_CUTOFF) and says so (mode 'trend').
- *   - Load: the arc midpoint is the typical training day of the modality and the end twice it. The
+ *   - Load: the ring midpoint is the typical training day of the modality and the end twice it. The
  *     VIEWER's today is picked client-side from `days` (the recent session days, each with its
- *     pre-computed fill/marker when it has RE), so nothing today-relative is baked: a day with rows
+ *     pre-computed fill when it has RE), so nothing today-relative is baked: a day with rows
  *     but no RE reads "no effort data", a day with no rows reads rest (with `last` as context);
  *     acute/chronic (trendPct/band) stays as context.
  *   - Sleep: the sleep-duration component's newest night over the stated target.
@@ -15,34 +15,46 @@
  * client/score.js turns it into inline SVG. */
 import { BAND_CUTOFF, DAY_BAND_CUTOFF, Z_CLAMP } from '../../../lib/score/recovery.mjs';
 
-// 120-unit viewBox, 50-unit radius, 10-unit stroke; the arc opens at the bottom.
-export const DIAL = { c: 60, r: 50, stroke: 10, start: 135, sweep: 270 };
-// Load: the arc midpoint is the typical training day (1x), the end is 2x.
+// 120-unit viewBox, 54-unit radius, 7-unit stroke (~6 % of the ring's diameter): a full ring that
+// starts at 12 o'clock (-90 degrees) and fills clockwise; the midpoint (0.5) sits at 6 o'clock.
+export const DIAL = { c: 60, r: 54, stroke: 7, start: -90, sweep: 360 };
+// The former 270 degree open arc (opens at the bottom), kept ONLY for Nutrición's kcal dial
+// (tabs/Dia.astro NUTRI_ARC) until that tab moves to the ring language too.
+export const OPEN_ARC = { c: 60, r: 50, stroke: 10, start: 135, sweep: 270 };
+// Load: the ring midpoint is the typical training day (1x), the end is 2x.
 const LOAD_MAX_RATIO = 2;
 
 const r2 = (v) => Math.round(v * 100) / 100;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 
-export function fracToAngle(f) {
-  return DIAL.start + DIAL.sweep * clamp(f, 0, 1);
+export function fracToAngle(f, g = DIAL) {
+  return g.start + g.sweep * clamp(f, 0, 1);
 }
 
-export function polar(angle, r = DIAL.r) {
+export function polar(angle, r = DIAL.r, g = DIAL) {
   const a = (angle * Math.PI) / 180;
-  return { x: r2(DIAL.c + r * Math.cos(a)), y: r2(DIAL.c + r * Math.sin(a)) };
+  return { x: r2(g.c + r * Math.cos(a)), y: r2(g.c + r * Math.sin(a)) };
 }
 
-/** SVG path for the arc between two fractions of the sweep (direction preserved). */
-export function arcPath(f0, f1) {
-  const a0 = fracToAngle(f0);
-  const a1 = fracToAngle(f1);
+/** SVG path for the arc between two fractions of the sweep (direction preserved). A full ring is
+ * two half arcs: one SVG arc cannot start and end on the same point. `g` = the geometry (default the
+ * Inicio ring; Nutrición's kcal dial still passes OPEN_ARC). */
+export function arcPath(f0, f1, g = DIAL) {
+  const a0 = fracToAngle(f0, g);
+  const a1 = fracToAngle(f1, g);
   if (a0 === a1) return '';
-  const p0 = polar(a0);
-  const p1 = polar(a1);
+  if (Math.abs(a1 - a0) >= 360) {
+    const p0 = polar(a0, g.r, g);
+    const pm = polar((a0 + a1) / 2, g.r, g);
+    const sw = a1 > a0 ? 1 : 0;
+    return `M${p0.x} ${p0.y}A${g.r} ${g.r} 0 0 ${sw} ${pm.x} ${pm.y}A${g.r} ${g.r} 0 0 ${sw} ${p0.x} ${p0.y}`;
+  }
+  const p0 = polar(a0, g.r, g);
+  const p1 = polar(a1, g.r, g);
   const large = Math.abs(a1 - a0) > 180 ? 1 : 0;
   const sweep = a1 > a0 ? 1 : 0;
-  return `M${p0.x} ${p0.y}A${DIAL.r} ${DIAL.r} 0 ${large} ${sweep} ${p1.x} ${p1.y}`;
+  return `M${p0.x} ${p0.y}A${g.r} ${g.r} 0 ${large} ${sweep} ${p1.x} ${p1.y}`;
 }
 
 export function recoveryFrac(v) {
@@ -85,8 +97,10 @@ function recoveryDial(R) {
     value,
     trend: { value: R.trend7, band: R.band, dir: R.trendDir || null },
     zones: zones([-cut, cut], ['below', 'at', 'above'], recoveryFrac),
-    fill: arcPath(0.5, f),
-    marker: polar(fracToAngle(f)),
+    // filled clockwise from 12 o'clock to the value on the -3..+3 scale; the baseline (0) is the tick
+    // at the ring's midpoint (6 o'clock)
+    fill: arcPath(0, f),
+    mid: polar(fracToAngle(0.5), DIAL.r - DIAL.stroke),
   };
 }
 
@@ -96,7 +110,7 @@ function sleepDial(R, H) {
   const last = comp && comp.daily && comp.daily.length ? comp.daily[comp.daily.length - 1] : null;
   const f = last ? sleepFrac(last.value, target) : null;
   if (f == null) return { state: 'none' };
-  return { state: 'ok', date: last.date, hours: last.value, target, fill: arcPath(0, f), marker: polar(fracToAngle(f)) };
+  return { state: 'ok', date: last.date, hours: last.value, target, fill: arcPath(0, f) };
 }
 
 function loadDial(L) {
@@ -116,7 +130,6 @@ function loadDial(L) {
       if (re > 0) {
         const f = loadDayFrac(re, typical);
         out.fill = arcPath(0, f);
-        out.marker = polar(fracToAngle(f));
       }
       return out;
     });

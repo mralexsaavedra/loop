@@ -6,13 +6,16 @@ Dials, advice, eat card, health monitor, timeline; recovery and load scoring; th
 > it in sync with the code in the same commit. Section names quoted in the text ("Nutrition v2 part 2",
 > "Detail views"…) are listed in `CLAUDE.md` → Architecture map.
 
-## Home tab — "Inicio / Home" dials, advice, eat card, health monitor, timeline; recovery + load detail
+## Home tab — "Inicio / Home" dials, monitor tiles, My day, eat card; recovery + load detail
 
 Top to bottom (`web/src/tabs/Home.astro`, which also renders `components/EatCard.astro`): dials
-(`#home-dials`) → the advice sentence (`#home-advice`) → the "today you eat" card → the health monitor
-(`#monitor`) → today's timeline (`#timeline`) → the programmed session (`hoy`). The conclusion and
-today's eating sit right under the dials; the per-signal detail follows (`web/test/content.test.mjs`
-pins the order).
+(`#home-dials`) → the monitor tiles (`#home-tiles`) → "My day" (`#my-day`: a Title Case heading, the
+advice sentence as the outlook bar in `#home-advice`, then "Today's activities" in `#timeline`) → the
+"today you eat" card → the full health monitor grid folded under "See metrics"
+(`details#monitor-fold` > `#monitor`) → the programmed session's hidden source section (`hoy`). Little
+text on the tab: each block's explanation lives in the detail sheet it opens
+(`web/test/content.test.mjs` pins the order). P5 moves the full monitor grid to Salud; the summary
+tile reaches it wherever it lives (`jump('monitor')` opens its fold or switches to its tab).
 
 **Collapsed dial row** (`#home-mini`, first in `Home.astro`): once the dials scroll above the viewport
 (an IntersectionObserver on `#home-dials`, `score.js`), a frosted strip fixed at the top shows the
@@ -75,7 +78,7 @@ is the newest day, and the trend is the line under it.
   epoch, under 8 non-zero days, or chronic < 1. The 0-100 `relScore` exists only within a modality.
   A day whose rows in a modality are ALL unscored is MISSING, not rest: both EWMAs carry forward
   over it without decay, and a modality whose last 7 days hold such sessions says so on its card and
-  dial caption ("includes N sessions without effort data"). Trend bands: ramping ≥ +30%, above ≥
+  load dial's detail sheet header ("includes N sessions without effort data"). Trend bands: ramping ≥ +30%, above ≥
   +10%, steady, below ≤ −10%, well below < −30% (never "detraining": the data cannot tell a deload
   or missing effort data from fitness loss).
   Today first: `typical` = the median of the NON-ZERO days in the 42 days before asOf (asOf
@@ -84,8 +87,17 @@ is the newest day, and the trend is the line under it.
   `{date, re, unscored}` (only dates with valid non-junk rows in that modality; `unscored` = rows
   without RE), and `last` = the newest day with RE > 0. The VIEWER's today is picked client-side from
   `recent`, so nothing today-relative is baked.
+- **Monitor tiles** (`#home-tiles`, `client/monitor.js`, from the SAME `SCORES.monitor` cards — no
+  new metric): two ~90 px tiles under the dials. Tile 1 "HEALTH MONITOR ›" = a status chip — "N out of
+  range" (`--down`) when any fresh card is High / Low, else a check + "Within range" (`--up`) when at
+  least one fresh card is Normal, else "No data" — and "n/5 metrics" (fresh cards in range / all
+  cards); a card counts only when its own date is ≤ 3 days old. It is a button calling
+  `jump('monitor')` (opens the fold, scrolls to the grid). Tile 2 = HRV (the real baked value, its
+  unit, its status word in its tone colour, its date when not today), opening the HRV sheet; there is
+  no stress score to show, so without a fresh HRV value tile 2 is left out and tile 1 spans the row
+  (`.hm-tiles-one`).
 - **Health monitor** (`lib/score/monitor.mjs`, baked as `SCORES.monitor` even when `hasData` is false;
-  `components/HealthMonitor.astro` + `client/monitor.js`, under the dials, advice and eat card): cards for respiratory
+  `components/HealthMonitor.astro` + `client/monitor.js`, folded under "See metrics" at the bottom of Inicio): cards for respiratory
   rate, resting HR, HRV, sleeping wrist temperature and sleep duration. Each = the newest daily value
   (per-day median of plausibility-clamped samples) + unit, its date when it is not from the viewer's
   today, and Normal / High / Low (es: Normal / Alto / Bajo) vs a personal band = median ± 1.5 × scaled
@@ -100,32 +112,52 @@ is the newest day, and the trend is the line under it.
   card that throws falls back to its empty state.
 - **Dials** (top of the tab: Sleep / Recovery / Load) only VISUALISE baked values — no new metric and
   no percentage. `web/src/view/dial.mjs` (`buildDials(scores, health)`, unit-tested, baked as `DIALS`)
-  pre-computes the 270° arc geometry; `score.js` only formats numbers and joins SVG strings.
-  Recovery: arc = −3…+3 MAD, three tinted zones cut at ±`BAND_CUTOFF`, fill from baseline to a marker
-  at last night's composite (`today`, zones cut at ±`DAY_BAND_CUTOFF`; falls back to `trend7`, zones at
-  ±`BAND_CUTOFF`, with a "no recent complete night" note), centre = short band word + signed value in
-  sd, coloured by that band; under it "Last night" (or the night's date, + "no sleep data" when the
-  night has no sleep reading) and "7-day trend: steady · +0.5 sd". Sleep: fill = the
-  sleep-duration component's newest night / the stated target (`health.recovery.sleep.target`, 7.5 h),
-  capped at a full arc, target labelled on screen. Load: ONE dial with a gym/run/bike switch that opens
+  pre-computes the ring geometry; `score.js` only formats numbers and joins SVG strings. Layout: three
+  equal full rings in a row (≈ 92 px at a 390 px viewport), each starting at 12 o'clock and filling
+  clockwise, round caps, a thin stroke (7 of 120 units ≈ 6 % of the diameter) on `--track`; the value
+  INSIDE (D-DIN number, small unit) and an uppercase "LABEL ›" BELOW; the dials sit on the page
+  ground, not in a card. No caption under them: each dial's words live in its detail sheet header
+  (see `docs/detail-views.md`) and in its accessible name. Only a stale-data warning stays under the
+  dials (`.dial-stale`, one short line: `staleNote`), plus the compact caveat lines below.
+  Recovery: ring = −3…+3 MAD, three faint zones on the track cut at ±`BAND_CUTOFF`, filled from
+  12 o'clock to last night's composite (`today`, zones cut at ±`DAY_BAND_CUTOFF`; falls back to
+  `trend7`, zones at ±`BAND_CUTOFF`), a tick at 6 o'clock marks the baseline (0); the centre = the
+  signed value + the unit (sd), the ring coloured by that band; the band word, "Last night" (or the
+  night's date) / "no recent complete night" are in the accessible name, and the sheet header adds
+  "no sleep data" and the 7-day trend. Sleep: fill = the sleep-duration component's newest night /
+  the stated target (`health.recovery.sleep.target`, 7.5 h), capped at a full ring; the target is in
+  the accessible name and the sleep sheet ("Target 7.5 h"). Load: ONE dial with a gym/run/bike
+  switch — compact pills right-aligned under the load dial (kept on Inicio rather than in the load
+  sheet: the sheet is one modality's history, while the switch decides which ring Inicio shows) — that opens
   (client-side, from the viewer's today) on the modality with a session today, GATED OR NOT (a gated
   one opens in its greyed gated state, no number; gated modalities bake their `days` without
   geometry) — highest RE first, ties by modality order (gym, run, bike), a session without RE still
   beats none — else on the baked `defaultKey` (first ungated modality), for the VIEWER's today, picked client-side from the baked `recent` days (each
-  with its pre-computed arc): a session with RE → centre = today's RE, position = RE / typical day (arc
-  midpoint = the typical training day, end = 2×, no zones), caption "Today: RE 28 · typical day ~42";
-  rows today but no RE → "No effort data" (never rest); no rows today → "No session yet today" with "last session
-  <date>: RE <n>" as context. Every caption keeps acute/chronic as context ("7-day vs 42-day load: -6% ·
-  steady"). A gated modality (`baselineBuilding`, or `fewDays` when there is no typical day) is greyed
-  with its copy and no number. Each dial block / card renders through a try/catch with an empty-state
+  with its pre-computed fill): a session with RE → centre = today's RE, fill = RE / typical day (ring
+  midpoint = the typical training day, a full ring = 2×, no zones; the typical-day tick at 6 o'clock);
+  rows today but no RE → "No effort data" (never rest); no rows today → "No session yet". The load
+  sheet header carries the day line ("Today: RE 28 · typical day ~42" or "No session yet today · last
+  session <date>: RE <n>"), the ring scale and the acute/chronic context ("7-day vs 42-day load: -6% ·
+  steady", + "includes N sessions without effort data"). A gated modality (`baselineBuilding`, or
+  `fewDays` when there is no typical day) is greyed with no number (its reason is in the sheet). Each
+  dial block / card renders through a try/catch with an empty-state
   fallback, and every host write (`#home-advice`, `#home-dials`, `#score-recovery`, `#score-load`, the advice)
   is isolated, so one throw never blanks Inicio or the other hosts; with no score data every host gets
   the empty state. Stale data (> 3 days) greys a dial; the fill
-  animation is off under `prefers-reduced-motion`.
-- **Today's timeline** (`lib/score/timeline.mjs`, baked as `SCORES.timeline` even when `hasData` is
-  false; `#timeline` + `client/timeline.js`, under the monitor): per day, last night's sleep
-  (`sleep-daily.csv`, dated the wake-up day) and that day's workouts by Home modality (gym / run /
-  bike / other) with minutes and RE when the source recorded it. Rows follow the shared same-day
+  animation is off under `prefers-reduced-motion`. Nutrición's kcal dial keeps the former 270° open
+  arc (`OPEN_ARC` in `dial.mjs`, baked as `NUTRI_ARC`) until that tab moves to the ring language.
+- **Today's activities** (`lib/score/timeline.mjs`, baked as `SCORES.timeline` even when `hasData` is
+  false; `#timeline` + `client/timeline.js`, under the outlook bar in "My day"): per day, last night's
+  sleep (`sleep-daily.csv`, dated the wake-up day, with its bed / wake clock `bed` / `wake` when the
+  row has them) and that day's workouts by Home modality (gym / run / bike / other) with minutes and
+  RE when the source recorded it. Row = a coloured chip (sleep `--sleep`, workout `--strain`: line
+  icon + hours asleep / minutes, dark ink), the uppercase name, and the details stacked on the right
+  behind a thin bar of the row's colour: bed / wake time for sleep, RE and "N parts" for a workout
+  (workouts.csv has no start time, so no clock). On the viewer's today the programmed session
+  (`window.HCProgram` from `client/training-today.js`) is the last row: an outline chip "Plan", its
+  focus, "Programmed"; it opens the session as the `hoy-session` detail view. Nothing matches a
+  programmed session to a done workout yet, so it is only listed, never ticked; it is not shown
+  under an older day's heading, and with no baked day but a session today the card lists only it. Rows follow the shared same-day
   rule (`DISPLAY_RULE`: stubs dropped, one source, same-day rows of one modality merge; the row says "N parts"). Only the last 3 data days are
   baked; the client shows the viewer's today, else the newest earlier day under "Latest day · <date>"
   with "nothing logged yet today", greyed when > 3 days old; when the viewer's clock is EARLIER than
@@ -133,7 +165,9 @@ is the newest day, and the trend is the line under it.
   line, not greyed); no baked days → empty state. No sleep
   that night → "No sleep recorded", never 0 h.
 - **Advice** is one descriptive sentence per rule (`lib/score/advice.mjs`, copy in `advice-copy.mjs`),
-  never an instruction; hidden when data is insufficient or stale (> 3 days). The rules still read the
+  never an instruction; hidden when data is insufficient or stale (> 3 days). It renders as the "My
+  day" outlook bar (`.outlook`: full width, ~46 px, warm grey → dark gradient, sun icon, the sentence
+  clamped to two lines, a chevron) and opens the recovery sheet (every rule reads the recovery trend). The rules still read the
   7-day trend, and every sentence names that window ("Over the last 7 days recovery has…") so it reads
   as the context under last night's headline.
 - Caveats shown on the page: RE is HR-derived (credits the metcon more than heavy sets), modalities are

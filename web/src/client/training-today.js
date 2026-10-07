@@ -40,11 +40,27 @@
     var label = b.label ? '<span class="blabel">' + esc(b.label) + '</span>' : '';
     return '<div class="train-block"><div class="train-block-top">' + label + '<h3>' + esc(b.title) + '</h3></div><ul>' + lines + '</ul></div>';
   }
+  // Inicio shows the programmed session as a row of "Today's activities" (client/timeline.js reads
+  // window.HCProgram) and opens this markup as a registered detail view ('hoy-session', client/detail.js);
+  // #sec-hoy is a hidden source, and page.hideTabs ["hoy"] (the section `hidden`) turns both off.
+  function expose(today, s, host) {
+    if (typeof window === 'undefined') return;
+    var sec = document.getElementById('sec-hoy');
+    var on = !!(s && sec && !sec.hidden);
+    window.HCProgram = on ? { date: today, kind: s.kind || 'gym', focus: String(s.focus || '') } : null;
+    if (!on) return;
+    var views = window.HCViews = window.HCViews || {};
+    views['hoy-session'] = {
+      title: function () { return I18N_HOY.viewTitle; },
+      render: function () { return { head: '', body: host.innerHTML }; },
+    };
+  }
   function render() {
     var host = document.getElementById('train-today');
     if (!host) return;
     var today = iso(new Date());
     var s = TRAINING[today];
+    expose(today, s, host);
     var meta = TRAINING_META.program
       ? '<p class="train-meta">' + esc(TRAINING_META.program) + (TRAINING_META.coach ? ' · ' + esc(TRAINING_META.coach) : '') + '<br>' + I18N_HOY.sourceLabel + ' ' + esc(TRAINING_META.source) + '</p>'
       : '';

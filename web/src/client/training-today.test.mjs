@@ -16,8 +16,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'training-today.js'), 'utf8');
 const EXAMPLE = JSON.parse(fs.readFileSync(path.join(here, '..', '..', '..', 'data', 'training', 'training-data.example.json'), 'utf8'));
 
-function render(training, now, { locale = 'en', host = true } = {}) {
+function render(training, now, { locale = 'en', host = true, section = 'shown', win = null } = {}) {
   const doc = new StubDocument();
+  if (section) doc.el('sec-hoy', { hidden: section === 'hidden' });
   const el = host ? doc.el('train-today') : null;
   const RealDate = Date;
   const stamp = now + 'T12:00:00';
@@ -29,6 +30,7 @@ function render(training, now, { locale = 'en', host = true } = {}) {
     document: doc, TRAINING: training.days, TRAINING_META: trainingMeta(training), I18N_HOY: locale === 'es' ? esH : enH, LOCALE: locale,
     Date: FakeDate, Math, String, Number, Array, Object, JSON, RegExp,
   };
+  if (win) ctx.window = win;
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
@@ -100,4 +102,35 @@ test('es locale: Spanish date and goal regex ("Objetivo")', () => {
 
 test('no host element: renders nothing and does not throw', () => {
   assert.equal(render(EXAMPLE, '2026-01-05', { host: false }), null);
+});
+
+/* Inicio "Actividades de hoy": the programmed session is a row there (client/timeline.js reads
+ * window.HCProgram) and its blocks open as a registered view (window.HCViews['hoy-session']) */
+test('a programmed day exposes {date, kind, focus} for the activities card and registers the session view', () => {
+  const win = {};
+  const html = render(EXAMPLE, '2026-01-05', { win });
+  assert.deepEqual(JSON.parse(JSON.stringify(win.HCProgram)), { date: '2026-01-05', kind: 'gym', focus: 'Squat + metcon' });
+  const view = win.HCViews['hoy-session'];
+  assert.equal(view.title(), enH.viewTitle);
+  const r = view.render();
+  assert.equal(r.body, html, 'the sheet shows the same session markup');
+  assert.equal(r.head, '');
+});
+
+test('no session today, or the section hidden by page.hideTabs ["hoy"]: no programmed row and no view', () => {
+  const rest = {};
+  render(EXAMPLE, '2026-01-06', { win: rest });
+  assert.equal(rest.HCProgram, null);
+  const hidden = {};
+  render(EXAMPLE, '2026-01-05', { win: hidden, section: 'hidden' });
+  assert.equal(hidden.HCProgram, null);
+  assert.equal(hidden.HCViews && hidden.HCViews['hoy-session'], undefined);
+  assert.doesNotThrow(() => render(EXAMPLE, '2026-01-05', { section: null }));
+});
+
+test('es: the session view title is Spanish', () => {
+  const win = {};
+  render({ days: { '2026-09-29': { kind: 'run', focus: 'Rodaje', blocks: [{ title: 'A', lines: ['30 min'] }] } } }, '2026-09-29', { locale: 'es', win });
+  assert.equal(win.HCViews['hoy-session'].title(), esH.viewTitle);
+  assert.equal(win.HCProgram.kind, 'run');
 });
