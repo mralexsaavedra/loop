@@ -2,7 +2,31 @@
 
 Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
-`CLAUDE.md`. This file is the append-only narrative of what changed and why.
+`CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
+
+## 2026-10-07 — CLAUDE.md restructure: history moved from CLAUDE.md
+
+- `CLAUDE.md` (~1,720 lines, loaded every session) was cut to the per-session operating rules plus an
+  Architecture map; each area's design moved verbatim to `docs/<area>.md` (data-pipeline, plan-page,
+  detail-views, profile, nutrition, nutrition-food-log, training, health-tab, home-tab, lan-services,
+  knowledge-base). New rule: read an area's doc before changing it and keep it in sync in the same commit.
+- History sentences that only described what used to exist moved here (live constraints such as the
+  deprecated `registro` key stayed in the docs):
+  - Energy precedence: this superseded a Watch-only rule (2026-10-01) that dropped every pre-Watch day.
+  - Strava sync: an unknown sport used to fall back to `Other`, which filed tennis as gym load; it now falls back to `Unmapped`.
+  - Salud: HRV's headline used to be the 7-day rolling value; it is now the newest day's mean.
+  - Salud running table: it used to read only `running-daily.csv`, which froze the table at the last export; it now reads `workouts.csv`.
+  - Food log add sheet: the former "Del plan" tab (it logged Plan de hoy's menu) is gone: the portion guide's "+" logs an example amount instead.
+  - `data/nutrition/generate.js` no longer emits any HTML (the Astro build does).
+  - `targets.train` / `targets.rest` fed the removed day builder; its `targetFor` is gone.
+  - plan-tables.md "Daily targets by goal and day type": the Snack column went with the automatic snack.
+  - Plan de hoy: the choosable blocks, the Añadidos card that changed by day type and the automatic snack were removed when it became a portion guide.
+  - 2026-10-06: the generic coffee basics (cortado, café con leche) were dropped from the Extras examples: the owner logs his coffees as his own recipes.
+  - Resumen de hoy: the remainder and macro-off notes are gone: the guide's Extras absorbs them.
+  - Tablas: the generic notes and the example plan's `page.notes['tablas.*']` no longer talk about portions.
+  - The retired one-shot migration scripts (`scripts/migrate-plan-data.mjs`, last in 76b9c3b; `scripts/migrate-plan-v2.mjs`, last in 22cfabd) live in git history.
+  - The former Constructor de día / Day builder (`registro`) was removed: the food log replaces it.
+  - The old global train/rest toggle (and core.js `setDay`) is gone: the intake rings read today's target from Resumen de hoy.
 
 ## 2026-10-06 — food log: switching to servings sets the amount to 1
 
