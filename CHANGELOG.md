@@ -12,6 +12,11 @@ Dated history of structural work on this repo. **Current state lives in Engram**
   acute/chronic line) moved to each dial's detail sheet header; only a stale-data line stays. The
   gym / run / bike switch is now compact pills under the load dial. Nutrición's kcal dial keeps the
   old 270° arc for now.
+- Inicio order: dials → monitor tiles (out-of-range summary + HRV; HRV left out without a fresh value)
+  → "My day" (the advice as a one-tap outlook bar, then "Today's activities": sleep with bed / wake
+  time, workouts, and today's programmed session as a "Plan" row that opens the session sheet) →
+  "today you eat" → the full monitor grid folded under "See metrics" (moves to Salud in P5). The
+  standalone timeline, monitor and programmed-session blocks are gone from the page flow.
 
 ## 2026-10-07 — Plan page restyle P2: navigation shell
 

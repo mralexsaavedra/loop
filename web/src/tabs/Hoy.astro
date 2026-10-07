@@ -1,11 +1,13 @@
 ---
-/* "Hoy" (today's programmed training session) — a SECTION of the Inicio/Home tab (it was a tab of
- * its own before the four-tab layout). Client-rendered entirely by
- * web/src/client/training-today.js from TRAINING/TRAINING_META baked by <Bake> (see
- * web/pages/index.astro, which hosts the shared Bake call).
+/* "Hoy" (today's programmed training session) — a SECTION of the Inicio/Home tab, kept as a hidden
+ * SOURCE: web/src/client/training-today.js renders the session into #train-today from
+ * TRAINING/TRAINING_META baked by <Bake> (web/pages/index.astro), then shows it on Inicio as a row of
+ * "Today's activities" (window.HCProgram -> client/timeline.js) whose tap opens the same markup as the
+ * 'hoy-session' detail view. The section itself is never displayed (.hoy-src).
  *
- * `page.hideTabs: ["hoy"]` renders this section `hidden` (see lib/nav/tabs.mjs resolveNav) — the
- * markup, its baked globals and its client script always stay in the build.
+ * `page.hideTabs: ["hoy"]` renders this section `hidden` (see lib/nav/tabs.mjs resolveNav), which turns
+ * the activities row and the view off — the markup, its baked globals and its client script always
+ * stay in the build.
  */
 interface Props {
   dict: any;
@@ -13,7 +15,7 @@ interface Props {
 }
 const { dict, hidden } = Astro.props;
 ---
-<section class="tab-section" data-section="hoy" id="sec-hoy" hidden={hidden}>
+<section class="tab-section hoy-src" data-section="hoy" id="sec-hoy" aria-hidden="true" hidden={hidden}>
   <h2>{dict.strings.nav.sections.hoy}</h2>
   <div id="train-today"></div>
 </section>

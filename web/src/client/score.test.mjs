@@ -228,6 +228,17 @@ test('advice is rendered with the shared copy when fresh (identical to renderAdv
   assert.ok(es.includes(renderAdvice(s.advice, 'es')));
 });
 
+test('advice = the "outlook" bar under "My day": icon, the sentence (clamped in CSS), a chevron; it opens the recovery sheet that explains it', () => {
+  const s = fixtureScores();
+  const text = renderAdvice(s.advice, 'en');
+  const linked = render(s, { now: addDays(ASOF, 1), detail: true });
+  assert.ok(linked.includes(`<div class="sc-advice outlook" data-detail="recovery" role="button" tabindex="0" aria-haspopup="dialog"><svg class="outlook-ico"`));
+  assert.match(linked, new RegExp(`<span class="outlook-txt">${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</span><span class="outlook-chev" aria-hidden="true">›</span></div>`));
+  const plain = render(s, { now: addDays(ASOF, 1) });
+  assert.match(plain, /<div class="sc-advice outlook"><svg class="outlook-ico"/, 'no detail sheet baked: a plain bar');
+  assert.doesNotMatch(plain, /class="sc-card sc-advice/, 'no longer a bordered card');
+});
+
 test('stale: > 3 days old is greyed, shows "as of <date>" and the note, and suppresses advice', () => {
   const s = fixtureScores();
   const html = render(s, { now: addDays(ASOF, 5) });

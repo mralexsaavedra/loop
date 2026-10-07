@@ -411,10 +411,15 @@ function scMod(key, btn) {
   function emptyHtml() {
     return '<div class="train-empty">' + esc(T.emptyMsg) + '</div>';
   }
+  var OUTLOOK_ICO = '<svg class="outlook-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/>' +
+    '<path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>';
   function adviceHtml() {
     var anyStale = (S.recovery && isStale(S.recovery.asOf)) || (S.load && isStale(S.load.asOf));
     if (!S.advice || anyStale || !T.advice[S.advice.key]) return '';
-    return '<div class="sc-card sc-advice">' + esc(adviceText(S.advice)) + '</div>';
+    // "My day" outlook bar: icon, the sentence (CSS clamps it to two lines), a chevron; every rule
+    // reads the recovery trend, so a tap opens the recovery sheet that explains it
+    return '<div class="sc-advice outlook"' + HC.detailAttrs('recovery') + '>' + OUTLOOK_ICO +
+      '<span class="outlook-txt">' + esc(adviceText(S.advice)) + '</span><span class="outlook-chev" aria-hidden="true">›</span></div>';
   }
 
   // Glance vs detail (Whoop): Inicio keeps the dials + the advice sentence; the recovery card is the

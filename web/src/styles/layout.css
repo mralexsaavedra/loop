@@ -46,7 +46,8 @@ details.sec-fold > summary:hover > h2 {
   color: var(--ink);
 }
 
-/* Inicio — compact "today you eat" card (same card language as the score cards) */
+/* Inicio — compact "today you eat" card (same card language as the score cards: uppercase label,
+   big kcal in --num, flat macro tiles); it follows "My day" */
 .eat-card {
   background: var(--card-bg);
   border: 1px solid var(--line);
@@ -91,7 +92,7 @@ details.sec-fold > summary:hover > h2 {
 }
 .eat-mac {
   background: var(--surface-2);
-  border: 1px solid var(--line-soft);
+  border: 0;
   border-radius: var(--r-sm);
   padding: var(--sp-3) var(--sp-4);
   display: flex;

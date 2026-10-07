@@ -191,13 +191,24 @@ test('example build: glance on Inicio, detail behind it — Entreno holds load d
   assert.match(sliceTabPanel(html, 'health'), /<div id="health-body"><\/div>/);
 });
 
-test('example build: Inicio reads today top to bottom — dials, advice, eat card, monitor, timeline, programmed session; the timeline is baked from demo data', () => {
+test('example build: Inicio reads today top to bottom — dials, monitor tiles, "My day" (outlook bar + today\'s activities), eat card, the full monitor folded under "See metrics", the programmed-session source; the timeline is baked from demo data', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const home = sliceTabPanel(html, 'home');
-  const at = ['id="home-dials"', 'id="home-advice"', 'class="eat-card"', 'id="monitor"', 'id="timeline"', 'data-section="hoy"'].map((n) => home.indexOf(n));
+  const at = ['id="home-dials"', 'id="home-tiles"', 'id="my-day"', 'id="home-advice"', 'id="timeline"', 'class="eat-card"', 'id="monitor-fold"', 'id="monitor"', 'data-section="hoy"'].map((n) => home.indexOf(n));
   assert.ok(at.every((v, i) => v !== -1 && (i === 0 || v > at[i - 1])), `Inicio order ${at}`);
+  assert.match(home, /<h2 class="home-h" id="my-day-h">My day<\/h2>/);
+  // the full monitor grid keeps per-metric access, folded until P5 moves it to Salud
+  assert.match(home, /<details class="hm-fold" id="monitor-fold"><summary class="hm-fold-sum">See metrics<\/summary><div id="monitor"><\/div><\/details>/);
   assert.match(html, /"timeline":\{"asOf":"\d{4}-\d{2}-\d{2}","days":\[\{"date"/, 'demo data fills the timeline');
   assert.match(html, /getElementById\(["']timeline["']\)/, 'timeline.js is inlined');
+  assert.match(html, /getElementById\(["']home-tiles["']\)/, 'monitor.js writes the tiles');
+});
+
+test('example build: the programmed session is a row of "Today\'s activities", not a block — its section is a hidden source the session sheet reads', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  assert.match(sliceSection(html, 'hoy'), /^<section class="tab-section hoy-src" data-section="hoy" id="sec-hoy" aria-hidden="true">/);
+  assert.match(html, /\.hoy-src\{display:none\}|\.hoy-src \{\s*display: none;?\s*\}/);
+  assert.match(html, /HCViews\[["']hoy-session["']\]|["']hoy-session["']/, 'training-today.js registers the session view');
 });
 
 test('example build (demo intake logged): Mi día keeps the intake rings host', () => {
