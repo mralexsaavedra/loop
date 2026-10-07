@@ -347,14 +347,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   (`DEFAULT_BY_GOAL`, goal `maintain`; `lib/nutrition/targets.mjs`), and which parts scale is decided by
   food category, so no migration is needed.
 
-**The plan the owner actually views is a claude.ai artifact (frozen snapshot).** The owner's
-personal artifact URL lives in **`data/nutrition/artifact.local.md`** (gitignored, never
-committed) — **read that file before re-publishing** so you never have to ask for the URL
-again; it is also mirrored in persistent memory for other machines, but the local file is the
-deterministic source. The first time you publish (no `artifact.local.md` yet), create a new
-artifact from `web/dist/personal/index.html` and write its URL into that file. Editing local
-files does NOT update the published artifact. After a plan change: (1) edit the JSON → (2) run
-`npm run generate` → (3) re-publish via the Artifact tool with
-`file_path=web/dist/personal/index.html` and `url=<the URL from artifact.local.md>` (favicon
-🥗, keep stable), then hard-reload (Cmd/Ctrl+Shift+R). The build output is artifact-ready
-(CSP-safe, no external refs, no `<script type="module">` — every script is `is:inline`).
+**Viewing the plan.** After a plan change: (1) edit the JSON → (2) run `npm run generate` → (3) open
+`web/dist/personal/index.html`, or let the LAN page pick it up ([`lan-services.md`](lan-services.md)).
+The build output is a single CSP-safe file (no external refs, no `<script type="module">` — every
+script is `is:inline`), so a static copy works anywhere.
