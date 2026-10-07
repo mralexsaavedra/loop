@@ -51,6 +51,10 @@ services/health-ingest/trigger/
 # is generated from it. Both hold personal plan data → ignore.
 data/nutrition/plan-data.json
 data/nutrition/plan-tables.md
+# Food log export written by data/nutrition/sync-foodlog.js (per-day sums of the owner's LAN food
+# log) — personal. The script and its test are plain tooling → tracked by default.
+data/nutrition/foodlog-daily.csv
+data/nutrition/foodlog-daily.meta.json
 # NOTE: ingredients.json (the public, reusable food DB — per-100g macros + product labels)
 # and generate.js (plain tooling) carry NO personal plan data and are intentionally TRACKED.
 # generate.js MERGES the tracked ingredients.json with the personal plan-data.json.

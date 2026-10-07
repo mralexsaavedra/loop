@@ -161,15 +161,9 @@ test('plan-tables.md food tables are fixed reference values per natural unit (no
   assert.doesNotMatch(tables, /Training day|Rest day|\| Cant\. \|/);
 });
 
-test('live-calculator TARGET is single-sourced: k equals the generated day total', () => {
-  // Regression guard. TARGET used to be a hand-maintained static line that drifted from
-  // the plan (the Registro calculator graded "objetivo ~2570" while the plan prescribed
-  // ~2440). targetFor(day).k is DERIVED from the same day total the Astro build bakes
-  // (lib/nutrition/macros.mjs), so it cannot drift. p/fatMax stay owner-set (plan-data.json
-  // `targets`, with defaults).
-  for (const day of ['train', 'rest']) {
-    assert.equal(gen.targetFor(day).k, gen.dayTotalK(day), `${day} target k must equal the generated day total`);
-  }
+test('generate.js no longer exports the removed day builder\'s targetFor(train|rest)', () => {
+  assert.equal(gen.targetFor, undefined);
+  assert.equal(typeof gen.dayTotalK, 'function');
 });
 
 test('plan-tables.md lists the 12 goal x day type targets with the scaled plan totals (single-sourced from lib/nutrition/scale.mjs)', () => {

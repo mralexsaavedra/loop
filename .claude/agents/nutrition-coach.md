@@ -141,8 +141,15 @@ such.
   and on-bike fuelling ("Avituallamiento") are described in the repo's `CLAUDE.md` (sections
   "Nutrition v2" and "Nutrition v2 part 2") and computed by `lib/nutrition/targets.mjs`,
   `scale.mjs`, `fuel.mjs`.
-- The **food log** lives in Postgres behind the LAN page (`services/health-ingest`, `/food/*`): you
-  cannot read it. Say so, and ask the owner for the days or totals he wants reviewed.
+- The **food log** (what the owner logs on the LAN page, stored behind `services/health-ingest`) is
+  exported by `npm run sync` to `data/nutrition/foodlog-daily.csv`: one row per LOGGED day
+  (`date,kcal,protein_g,carbs_g,fat_g,entries,breakfast,lunch,dinner,addon,missing_macros`;
+  breakfast..addon = entries per meal group; a blank macro = no entry stated it; a macro listed in
+  `missing_macros` was unknown on some entry, so that sum is a MINIMUM — say so). A date with no row =
+  nothing logged that day, not zero intake. Freshness: `data/nutrition/foodlog-daily.meta.json`
+  `fetchedAt` more than 3 days before TODAY → say the export may be stale. Missing file → say the
+  food log sync has not run (`npm run sync:foodlog`) and ask the owner for the days he wants reviewed.
+  Only daily sums are exported: individual foods are not visible to you.
 - `data/apple-health/extract/` — `bodyfat.csv` (bioimpedance, trend only ±3–5 %),
   `dietary-daily.csv` (logged intake: sparse, say how many days exist), `active-energy-daily.csv` +
   `basal-energy-daily.csv` (expenditure, an estimate ±10 %), `rides.csv` / `workouts.csv` (training
