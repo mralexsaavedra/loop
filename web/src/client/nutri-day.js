@@ -584,12 +584,19 @@
   // entries on the LAN page, src 'log'), else the Apple Health day (INTAKE, baked by
   // components/Bake.astro); the date is checked on the viewer's clock. Only then do the dial and the
   // bars fill. Never from the target.
+  // On the LAN page the food API boot decides, exactly as for the rings (client/intake.js): while it
+  // is in flight and INTAKE.bootGraceMs has not elapsed (window.intakeWaiting) nothing; once it
+  // answered (HCFood.ready) the food log only, never the Apple Health day; a failure or the grace's end
+  // -> the Apple Health day (a late answer still switches: food-log.js refreshes us).
   function intakeToday() {
-    var F = null;
+    var W = window.intakeWaiting, H = window.HCFood, lan = false, F = null;
+    try { if (typeof W === 'function' && W()) return null; } catch (e) { /* no wait known: go on */ }
+    try { lan = !!(H && typeof H.ready === 'function' && H.ready()); } catch (e) { lan = false; }
     if (typeof window.foodTotals === 'function') {
       try { F = window.foodTotals(); } catch (e) { F = null; }
     }
     if (F) return F; // foodTotals already means "today, >= 1 entry" (see its contract in food-*.js)
+    if (lan) return null;
     var I = typeof INTAKE === 'undefined' || !INTAKE ? null : INTAKE;
     var L = I && I.latest;
     return L && L.date === todayIso() && L.k > 0 ? L : null;

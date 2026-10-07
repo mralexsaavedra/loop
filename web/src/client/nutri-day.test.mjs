@@ -605,6 +605,63 @@ test('food log macros: none stated -> a dash, never "0 / 150 g"; some entries la
   assert.match(some, /<span class="nt-bar-lbl">Carbs<\/span><span class="nt-bar-val"><b>30<\/b>/, 'a complete macro has no marker');
 });
 
+/* The food API boot (client/food-*.js) decides the dial's source like the rings' (client/intake.js):
+ * while window.intakeWaiting() is true (boot in flight, grace not over) no Apple Health day; once the
+ * API answered (HCFood.ready()) the food log only; failure / grace over -> the Apple Health day. */
+test('food API boot: the dial + bars wait for it, then use the food log only (LAN) or the Apple Health day (failure, grace over)', () => {
+  const intake = { latest: { date: TODAY, k: 1800, p: 100, c: 200, g: 50 }, freshDays: 3 };
+  const food = { date: TODAY, k: 1000, p: 60, c: 120, g: 30, n: 3, missing: { protein: false, carbs: false, fat: false }, src: 'log' };
+  const st = { boot: 'pending', grace: false, log: null };
+  const hooks = {
+    foodTotals: () => (st.boot === 'ok' ? st.log : null),
+    HCFood: { pending: () => st.boot === 'pending', ready: () => st.boot === 'ok' },
+    intakeWaiting: () => st.boot === 'pending' && !st.grace,
+    intakeRefresh: () => {},
+  };
+  const s = run({ intake, hooks });
+  const dial = () => s.els['nutri-target'].innerHTML;
+  // boot in flight + an Apple Health day dated today: empty track + target, no Apple Health fill
+  assert.doesNotMatch(dial(), /nt-dial-fill/);
+  assert.doesNotMatch(dial(), /1,800/);
+  // answered, no entry today: still empty (never the Apple Health day on the LAN page)
+  st.boot = 'ok';
+  s.api.refresh();
+  assert.doesNotMatch(dial(), /nt-dial-fill/);
+  assert.doesNotMatch(dial(), /1,800/);
+  // answered with today's log: the dial from the log
+  st.log = food;
+  s.api.refresh();
+  assert.match(dial(), /aria-label="Logged today: 1,000 of 2,500 kcal"/);
+  // failure: the Apple Health day
+  st.boot = 'fail'; st.log = null;
+  s.api.refresh();
+  assert.match(dial(), /aria-label="Logged today: 1,800 of 2,500 kcal"/);
+});
+
+test('food API boot: past the grace the Apple Health day, then a late answer switches the dial to the food log', () => {
+  const intake = { latest: { date: TODAY, k: 1800, p: 100, c: 200, g: 50 }, freshDays: 3 };
+  const food = { date: TODAY, k: 1000, p: 60, c: 120, g: 30, n: 3, missing: { protein: false, carbs: false, fat: false }, src: 'log' };
+  const st = { boot: 'pending', grace: false, log: null };
+  const s = run({ intake, hooks: {
+    foodTotals: () => (st.boot === 'ok' ? st.log : null),
+    HCFood: { pending: () => st.boot === 'pending', ready: () => st.boot === 'ok' },
+    intakeWaiting: () => st.boot === 'pending' && !st.grace,
+    intakeRefresh: () => {},
+  } });
+  assert.doesNotMatch(s.els['nutri-target'].innerHTML, /nt-dial-fill/);
+  st.grace = true;
+  s.api.refresh();
+  assert.match(s.els['nutri-target'].innerHTML, /aria-label="Logged today: 1,800 of 2,500 kcal"/);
+  st.boot = 'ok'; st.log = food;
+  s.api.refresh();
+  assert.match(s.els['nutri-target'].innerHTML, /aria-label="Logged today: 1,000 of 2,500 kcal"/);
+});
+
+test('static page (no food API, no wait hook): the Apple Health day at once', () => {
+  const intake = { latest: { date: TODAY, k: 1800, p: 100, c: 200, g: 50 }, freshDays: 3 };
+  assert.match(run({ intake, hooks: {} }).els['nutri-target'].innerHTML, /aria-label="Logged today: 1,800 of 2,500 kcal"/);
+});
+
 test('HCNutri.refresh re-renders Resumen de hoy (the food log calls it after every add / delete)', () => {
   let food = null;
   const calls = [];
