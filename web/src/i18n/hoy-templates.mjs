@@ -29,6 +29,8 @@ export const es = {
   beforeFirstMsg: 'Aún no hay sesión programada. Son datos de ejemplo — sustitúyelos por tu propio programa (training-data.json) y regenera.',
   restDayMsg: 'Hoy no hay sesión programada — día de descanso.',
   goalLineRe: '^objetivo',
+  // the detail sheet that opens from the programmed row of Inicio's "Actividades de hoy"
+  viewTitle: 'Entreno de hoy',
 };
 
 export const en = {
@@ -37,4 +39,6 @@ export const en = {
   beforeFirstMsg: 'No session scheduled yet. This is sample data — replace it with your own program (training-data.json), then regenerate.',
   restDayMsg: 'No session scheduled today — rest day.',
   goalLineRe: '^(target|goal)',
+  // the detail sheet that opens from the programmed row of Inicio's "Today's activities"
+  viewTitle: 'Today\'s session',
 };

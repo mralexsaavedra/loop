@@ -46,7 +46,9 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   button role and tab stop (`plain`: data attributes only, for a real `<button>`, an SVG cell or a
   table row). One delegated click / Enter / Space listener in `web/src/client/detail.js` handles every
   opener. Map: sleep dial → sleep; recovery dial → recovery; each load dial → its `load-<m>`; monitor
-  cards → their signal; timeline rows → that day (sleep, or `load-<m>` / `workouts` for "other");
+  cards → their signal; the HRV monitor tile → hrv; the "My day" outlook bar (advice) → recovery;
+  activity rows → that day (sleep, or `load-<m>` / `workouts` for "other"), the programmed-session row
+  → the registered `hoy-session` view (client/training-today.js);
   every Salud trend card → its metric (expenditure → energy); the Salud recovery card → a History
   button (the card holds a `<details>` fold, so it is not itself a button); Entreno load cards →
   `load-<m>`; the calendar and cumulative time → workouts (a day cell → that day); run / ride rows →
