@@ -4,6 +4,19 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-07 — Public template: personal pieces out of the tracked tree
+
+- The repo becomes usable as a public template; every personal piece stays on the owner's disk, gitignored.
+- A private training-program sync moved to the ignored `local/`; the built-in `DEFAULT_BY_GOAL` targets
+  became a generic 70 kg seed.
+- The coach subagents became generic templates that read the ignored `profile/coaches.md` (sources,
+  gear, language, jurisdiction); onboarding now builds it.
+- The owner's working notes (`odd/`) left the index and are ignored; owner-only operating notes
+  (publishing routine, branch policy, the retired artifact flow) moved from `CLAUDE.md` and
+  `docs/nutrition.md` to the ignored `CLAUDE.local.md`.
+- README restructured for newcomers: prerequisites and setup levels (1 Apple Health + Claude, 2 LAN
+  services, 3 Shortcut / Strava / own knowledge base); test fixtures use fictional devices.
+
 ## 2026-10-07 — CLAUDE.md restructure: history moved from CLAUDE.md
 
 - `CLAUDE.md` (~1,720 lines, loaded every session) was cut to the per-session operating rules plus an
