@@ -295,7 +295,7 @@
 }
 .food-err {
   font-size: var(--fs-xs);
-  color: var(--low);
+  color: var(--low-ink);
 }
 .food-err:empty {
   display: none;

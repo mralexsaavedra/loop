@@ -235,7 +235,7 @@ html.dt-lock body {
 /* today's daily total, still filling up: neutral, never a state */
 .dt-s-partial { fill: var(--trend); fill-opacity: 0.35; background: transparent; }
 .dt-c-good { color: var(--good); }
-.dt-c-bad { color: var(--low); }
+.dt-c-bad { color: var(--low-ink); }
 .dt-c-mid,
 .dt-c-watch { color: var(--mid); }
 .dt-c-partial { color: var(--muted); }
