@@ -36,7 +36,7 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   call: mode today/trend, date, value, band, sleep, trend {value, band, dir}); `workouts` = minutes
   per day after the display rule, zero-filled (rest) from the first session up to `asOf` (a day after
   asOf is missing); `load-<m>` = RE per day after the load rule (`null` = sessions without RE), with
-  the card's typical day (the same `typicalDay` value the load dial puts at its arc midpoint),
+  the card's typical day (the same `typicalDay` value the load dial puts at its ring midpoint),
   calendar cuts at 0.5 / 1 / 1.5 typical days, and the dial's `gate` (null / `baselineBuilding` /
   `fewDays`) + `last` scored session; `sessions` = one entry per date + modality after
   `mergeSameDay` DISPLAY_RULE (minutes, km, elevation, avg HR, RE, parts, source; the source is the
@@ -60,7 +60,12 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   coloured by the TREND band; the chart's zone is the trend band at ±`cutTrend`, the daily points use
   the day band); load = the dial's today logic (today's RE vs the typical day; a session without RE;
   else "no session yet today" + the last session; a gated modality shows its gate copy — the copy is
-  imported from `score-templates.mjs`, so the words are the dial's); weight / energy = the cards'
+  imported from `score-templates.mjs`, so the words are the dial's). The dials carry no caption on
+  Inicio, so their former captions live in these headers: the sleep target ("Target 7.5 h"), "Last
+  night" / the night's date / "no sleep data" / "no recent complete night" and the 7-day trend
+  (recovery), and for load the ring scale ("half the ring = your typical training day"), the 7-day vs
+  42-day trend + band and the sessions-without-effort note (`loadContext`, read from the baked `DIALS`
+  global; no `DIALS`, or a gated modality → no trend line); weight / energy = the cards'
   7-day rolling average (`roll`, also the chart line) with the latest reading / day underneath; a
   daily total's newest day, when it is the viewer's today, is "Today, in progress" (neutral
   `partial` colour in the header, chart and calendar, never compared with the median); training time

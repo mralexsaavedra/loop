@@ -145,13 +145,22 @@
   outline-offset: 2px;
 }
 
-/* Inicio dials — Sleep / Recovery / Load. 270 degree open arcs; geometry is baked (view/dial.mjs).
- * --dial-c is the dial's meaning colour: sleep, recovery band (good / trend / low), load = strain.
- * No percentage anywhere: recovery marks last night on a zoned scale (7-day trend underneath),
- * sleep fills to a stated target, load marks the day's RE with the typical training day at the top
- * of the arc (a rest day has no fill). */
+/* Inicio dials — Sleep / Recovery / Load: three equal full rings in a row (start at 12 o'clock, fill
+ * clockwise, round caps, thin stroke on --track), the value INSIDE (D-DIN number, small unit) and an
+ * uppercase "LABEL ›" below. Geometry is baked (view/dial.mjs). --dial-c is the dial's meaning colour:
+ * sleep, recovery band (good / trend / low), load = strain. No percentage anywhere: recovery fills to
+ * last night on a -3..+3 scale (baseline = the tick at 6 o'clock), sleep fills to a stated target,
+ * load fills to the day's RE with the typical training day at 6 o'clock (a rest day has no fill).
+ * The dials sit on the page ground, not in a card; the captions live in each dial's detail sheet. */
+.sc-card.sc-dials {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: var(--sp-5) 0 var(--sp-3);
+  margin-bottom: var(--sp-7);
+}
 .sc-dials {
-  padding: var(--sp-7) var(--sp-5) var(--sp-6);
+  --dial-size: 92px;
 }
 .dials {
   display: grid;
@@ -167,10 +176,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-1) 0;
   text-align: center;
 }
-.dial[hidden],
-.dial-cap[hidden] {
+.dial[hidden] {
   display: none;
 }
 .dial-sleep {
@@ -203,13 +213,12 @@
 .dial-track {
   fill: none;
   stroke: var(--track);
-  stroke-width: 10;
-  stroke-linecap: round;
+  stroke-width: 7;
 }
 .dial-zone {
   fill: none;
-  stroke-width: 10;
-  opacity: 0.26;
+  stroke-width: 7;
+  opacity: 0.22;
 }
 .dial-zone-below {
   stroke: var(--low);
@@ -223,16 +232,10 @@
 .dial-fill {
   fill: none;
   stroke: var(--dial-c);
-  stroke-width: 10;
+  stroke-width: 7;
   stroke-linecap: round;
   stroke-dasharray: 100 100;
   animation: dial-in 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-.dial-dot {
-  fill: var(--ground);
-  stroke: var(--dial-c);
-  stroke-width: 3;
-  animation: dial-dot 0.9s both;
 }
 .dial-mid {
   fill: var(--muted);
@@ -244,8 +247,6 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  padding-top: 4px;
 }
 .dial-num {
   font-family: var(--num);
@@ -258,70 +259,48 @@
 }
 .dial-num small {
   font-size: 0.55em;
-  margin-left: 1px;
-  color: var(--muted);
-}
-.dial-num-sm {
-  font-size: clamp(14px, 4.4vw, 18px);
+  margin-left: 2px;
+  color: var(--ink);
 }
 .dial-word {
-  max-width: 76%;
+  max-width: 70%;
   font-size: 9.5px;
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: var(--label-track);
   text-transform: uppercase;
-  color: var(--dial-c);
+  color: var(--muted);
 }
 .dial-lbl {
-  margin-top: -4px;
   font-size: var(--fs-2xs);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
   color: var(--ink);
+  white-space: nowrap;
 }
-.dial-sub {
-  font-size: var(--fs-2xs);
+.dial-chev {
+  margin-left: 3px;
   color: var(--muted);
-}
-.dial-when,
-.dial-trend {
-  display: block;
-}
-.dial-when {
-  color: var(--ink);
-}
-.dial-nodata {
-  color: var(--mid);
 }
 .dial-off .dial-svg {
   opacity: 0.45;
 }
-.dial-off .dial-word,
 .dial-off .dial-lbl {
   color: var(--muted);
 }
+/* compact gym / run / bike pills, right-aligned under the load dial */
 .dial-foot {
-  margin-top: var(--sp-5);
-  padding-top: var(--sp-4);
-  border-top: 1px solid var(--line-soft);
+  margin-top: var(--sp-3);
 }
 .dial-switch {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: var(--sp-2);
   /* a wrapped row sits past both 7px hit-area extensions (see .dial-mod::before) */
   row-gap: var(--sp-6);
-}
-.dial-switch-lbl {
-  margin-right: auto;
-  font-size: var(--fs-2xs);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--muted);
 }
 /* the pill stays a compact 30px; its hit area is a centred 44px band (::before) that only reaches
    7px above and below it, never sideways into the next pill */
@@ -350,23 +329,20 @@
   right: 0;
 }
 .dial-mod[aria-pressed="true"] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
+  background: rgba(var(--accent-rgb), 0.12);
+  border-color: var(--strain);
+  color: var(--ink);
 }
 .dial-mod:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.dial-scale {
-  margin-top: var(--sp-2);
-  font-size: var(--fs-2xs);
-  color: var(--faint);
-}
-.dial-cap {
-  margin-top: var(--sp-1);
+/* the one line that stays under the dials: the data is too old */
+.dial-stale {
+  margin-top: var(--sp-3);
   font-size: var(--fs-xs);
-  color: var(--muted);
+  color: var(--mod);
+  text-align: center;
 }
 /* compact caveat line, only when the dial's detail (with the full caveats) is hidden */
 .dial-caveat {
@@ -382,30 +358,17 @@
     stroke-dashoffset: 0;
   }
 }
-@keyframes dial-dot {
-  0%,
-  70% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
 @media (prefers-reduced-motion: reduce) {
-  .dial-fill,
-  .dial-dot {
+  .dial-fill {
     animation: none;
   }
 }
 @media (min-width: 900px) {
   .sc-dials {
-    --dial-size: 150px;
+    --dial-size: 140px;
   }
   .dial-num {
     font-size: 34px;
-  }
-  .dial-num-sm {
-    font-size: 22px;
   }
   .dial-word {
     font-size: 11px;
@@ -777,13 +740,12 @@ details.rec-raw > summary {
 }
 .dm .dial-track,
 .dm .dial-fill {
-  stroke-width: 16;
+  stroke-width: 14;
 }
 .dm .dial-fill {
   animation: none;
 }
 .dm .dial-zone,
-.dm .dial-dot,
 .dm .dial-mid {
   display: none;
 }

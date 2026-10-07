@@ -602,8 +602,7 @@
     return L && L.date === todayIso() && L.k > 0 ? L : null;
   }
   function pctOf(v, t) { return Math.round(Math.min(1, Math.max(0, v / t)) * 100); }
-  // 270 degree kcal dial in the Inicio dials' language: the track is the baked arc (NUTRI_ARC,
-  // view/dial.mjs); the fill reuses it with pathLength 100, so any fraction needs no geometry here
+  // 270 degree kcal dial: the track is the baked arc (NUTRI_ARC, view/dial.mjs OPEN_ARC); the fill reuses it with pathLength 100, so any fraction needs no geometry here
   function dialHtml(t, L) {
     var arc = typeof NUTRI_ARC === 'string' ? NUTRI_ARC : '';
     var k = kf(t.kcal);

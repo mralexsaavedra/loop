@@ -55,6 +55,12 @@ export const en = {
     restLine: enS.dials.load.restLine,
     restLastLine: enS.dials.load.restLastLine,
     gated: enS.load.gated,
+    // the dial's former captions (they left Inicio for this header): the ring scale, the acute/chronic
+    // context + band and the sessions-without-effort note
+    scale: enS.dials.load.scale,
+    trendLbl: enS.load.trendLbl,
+    bands: enS.load.bands,
+    unscoredNote: enS.load.unscoredNote,
   },
   legend: {
     good: 'Better than your range',
@@ -184,6 +190,12 @@ export const es = {
     restLine: esS.dials.load.restLine,
     restLastLine: esS.dials.load.restLastLine,
     gated: esS.load.gated,
+    // the dial's former captions (they left Inicio for this header): the ring scale, the acute/chronic
+    // context + band and the sessions-without-effort note
+    scale: esS.dials.load.scale,
+    trendLbl: esS.load.trendLbl,
+    bands: esS.load.bands,
+    unscoredNote: esS.load.unscoredNote,
   },
   legend: {
     good: 'Mejor que tu rango',
