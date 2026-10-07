@@ -7,6 +7,8 @@
  * web/src/client/score.js (dials + advice), client/nutri-day.js (eat card) and client/monitor.js
  * (monitor) from the globals baked by <Bake> (the shared Bake in web/pages/index.astro) and Dia's NUTRI.
  * Rendered inside the `home` tab panel (web/pages/index.astro), above the programmed-session section.
+ * #home-mini = the collapsed dial row (fixed at the top, shown by score.js once the dials scroll away:
+ * the same three rings small, with their labels; a tap opens the same detail as the dial).
  */
 import HealthMonitor from '../components/HealthMonitor.astro';
 import EatCard from '../components/EatCard.astro';
@@ -18,6 +20,7 @@ interface Props {
 
 const { locale, eatLink } = Astro.props;
 ---
+<div id="home-mini" class="dial-mini"></div>
 <div id="home-dials"></div>
 <div id="home-advice"></div>
 <EatCard locale={locale} link={eatLink} />

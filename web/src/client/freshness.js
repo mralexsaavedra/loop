@@ -97,16 +97,24 @@
       sum.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
 
+    // the dock's "+" lists Sync only while this group is shown (client/nav-actions.js)
+    function actionsChanged() {
+      try {
+        if (typeof window !== 'undefined' && window.HCActions) window.HCActions.refresh();
+      } catch (e) { /* the "+" keeps its last state */ }
+    }
     function load() {
       return Promise.all([getJson(STATUS_URL), getJson(PAGE_URL)]).then(function (res) {
         var status = res[0];
         if (!status || typeof status !== 'object' || !('lastShortcutAt' in status)) {
           host.hidden = true;
+          actionsChanged();
           return;
         }
         render(status, res[1]);
         host.hidden = false;
-      }).catch(function () { host.hidden = true; });
+        actionsChanged();
+      }).catch(function () { host.hidden = true; actionsChanged(); });
     }
 
     function setBusy(on) {
