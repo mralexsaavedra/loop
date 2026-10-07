@@ -53,8 +53,9 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   rows → sleep / workouts; each "My dashboard" row → its metric, and "Customize" → the registered
   `dash-edit` view (client/home-dash.js; its buttons re-open the view through `HCDetail.open` with
   `focus` on the control just used). These two scripts run in the end-of-body list BEFORE `detail.js`,
-  so the views exist when it reads the hash; `#tonight` / `#dash-edit` still do not deep-link,
-  because core.js rewrites a hash it does not know (they are not in `NAV.viewTab`, lib/nav/tabs.mjs);
+  so the views exist when it reads the hash; `#tonight` / `#dash-edit` deep-link like `#hoy-session`
+  (both are `VIEW_TAB` → `home` in lib/nav/tabs.mjs, baked as `NAV.viewTab`, so core.js shows Inicio
+  underneath instead of rewriting a hash it does not know);
   every Salud trend card → its metric (expenditure → energy); the Salud recovery card → a History
   button (the card holds a `<details>` fold, so it is not itself a button); Entreno load cards →
   `load-<m>`; the calendar and cumulative time → workouts (a day cell → that day); run / ride rows →
