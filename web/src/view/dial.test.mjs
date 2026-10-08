@@ -2,8 +2,9 @@
  * dials. No new metric: every input is a value buildScores()/buildHealth() already bakes. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import * as dialModule from './dial.mjs';
 import {
-  DIAL, OPEN_ARC, fracToAngle, polar, arcPath, recoveryFrac, sleepFrac, loadFrac, loadDayFrac, buildDials,
+  DIAL, fracToAngle, polar, arcPath, recoveryFrac, sleepFrac, loadFrac, loadDayFrac, buildDials,
 } from './dial.mjs';
 
 const near = (a, b, eps = 0.01) => assert.ok(Math.abs(a - b) <= eps, `${a} !~ ${b}`);
@@ -48,8 +49,9 @@ test('arcPath: a full ring is drawn as two half arcs (one SVG arc cannot start a
   assert.ok(full.endsWith(`${DIAL.c} ${DIAL.c - DIAL.r}`), 'and closes at 12 o\'clock');
 });
 
-test('OPEN_ARC (Nutrición\'s kcal dial only): the former 270 degree arc, unchanged', () => {
-  assert.equal(arcPath(0, 1, OPEN_ARC), 'M24.64 95.36A50 50 0 1 1 95.36 95.36');
+test('one ring language: the former 270 degree OPEN_ARC is gone; Nutrición bakes the same full ring as Inicio', () => {
+  assert.equal('OPEN_ARC' in dialModule, false);
+  assert.equal(arcPath(0, 1), 'M60 6A54 54 0 0 1 60 114A54 54 0 0 1 60 6', 'the ring Nutrición\'s kcal ring bakes as NUTRI_ARC');
 });
 
 test('recoveryFrac: 0 MAD is the midpoint, +-3 are the ends, beyond is clamped', () => {

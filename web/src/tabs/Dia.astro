@@ -1,13 +1,16 @@
 ---
-/* First section of the Nutrición tab (section key `dia`, kept for page.hideTabs back-compat; it was
- * "Mi día"). Four blocks, top to bottom:
- *   1. Resumen de hoy  — day type (rest / gym / bike / bikeLong): a one-row segmented control of real
- *                        radios with inline SVG line icons and short labels (the detected type gets a
- *                        dot, .seg-auto); a 270° kcal dial (target centred, filled only from intake
- *                        logged today; the track is the former 270° dial arc (view/dial.mjs OPEN_ARC), baked as NUTRI_ARC), the goal
- *                        chip under it (the goal itself is set in the profile sheet, client/profile.js),
- *                        three macro bars (protein / carbs / fat), then the intake rings (#intake,
- *                        only with intake logged in the last 3 days; otherwise nothing);
+/* Nutrición tab header + its first section (section key `dia`, kept for page.hideTabs back-compat; it
+ * was "Mi día"). The header (outside the section, so it stays when only Tablas shows) is Salud /
+ * Entreno's: the centred uppercase title + an ⓘ (#nu-intro) with the tab intro and shared caveats.
+ * Blocks, top to bottom, each headed by the shared .hs-head row (UPPERCASE label + optional ⓘ):
+ *   1. Resumen de hoy  — day type (rest / gym / bike / bikeLong): compact pills of real radios with
+ *                        short labels (icons from 600 px; the detected type gets a dot, .seg-auto); the
+ *                        kcal ring in the Inicio dial language (the full ring of view/dial.mjs, baked as
+ *                        NUTRI_ARC; eaten today inside over "/ target", one state colour), the goal chip
+ *                        under it (the goal itself is set in the profile sheet, client/profile.js), three
+ *                        macro rows (protein / carbs / fat), then the intake rings (#intake, only with
+ *                        intake logged in the last 3 days; otherwise nothing). The notes sit behind the
+ *                        section's ⓘ (#nutri-sum-info, written by client/nutri-day.js);
  *   2. Registrar       — a day's food log by meal slot (a ‹ date › navigator, opens on today) + the add
  *                        sheet (client/food-*.js, Nutrición part 2). Ships `hidden` and appears only on the LAN page, when the food API answers
  *                        (never in the claude.ai artifact or the example build); baked here: I18N_FOOD
@@ -39,7 +42,7 @@ import { es as esFood, en as enFood } from '../i18n/food-templates.mjs';
 import { FOOD_MEALS, FOOD_STORES, FOOD_UNITS, FOOD_LIMITS, SETTINGS_GOALS } from '../../../lib/nutrition/foodlog.mjs';
 import { MEAL_GROUPS, MAIN_SLOTS, ADDON_GROUP, ADDON_SLOT, LATE_NIGHT_HOUR } from '../../../lib/nutrition/slots.mjs';
 import { buildBasics } from '../../../lib/nutrition/basics.mjs';
-import { arcPath, OPEN_ARC } from '../view/dial.mjs';
+import { arcPath } from '../view/dial.mjs';
 
 interface Props {
   nut: any; // buildNutrition() result
@@ -56,7 +59,8 @@ const T = locale === 'es' ? esNutri : enNutri;
 const es = locale === 'es';
 const nutri = buildNutriToday(nut, plan, { supplements, weight, units: { g: 'g', ml: 'ml', ud: es ? 'ud' : 'pc' }, dec: es ? ',' : '.', lang: es ? 'es' : 'en' });
 const F = locale === 'es' ? esFood : enFood;
-const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForScript(T)};\nvar NUTRI_ARC = ${jsonForScript(arcPath(0, 1, OPEN_ARC))};\nvar I18N_FOOD = ${jsonForScript(F)};\nvar FOOD_CONST = ${jsonForScript({ meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS, limits: FOOD_LIMITS, goals: SETTINGS_GOALS, groups: MEAL_GROUPS, mainSlots: MAIN_SLOTS, addonGroup: ADDON_GROUP, addonSlot: ADDON_SLOT, lateNightHour: LATE_NIGHT_HOUR })};\nvar FOOD_BASICS = ${jsonForScript(buildBasics(nut.ING, es ? 'es' : 'en'))};`;
+const sumInfoLbl = T.infoTpl.replace('{section}', T.headings.summary);
+const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForScript(T)};\nvar NUTRI_ARC = ${jsonForScript(arcPath(0, 1))};\nvar I18N_FOOD = ${jsonForScript(F)};\nvar FOOD_CONST = ${jsonForScript({ meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS, limits: FOOD_LIMITS, goals: SETTINGS_GOALS, groups: MEAL_GROUPS, mainSlots: MAIN_SLOTS, addonGroup: ADDON_GROUP, addonSlot: ADDON_SLOT, lateNightHour: LATE_NIGHT_HOUR })};\nvar FOOD_BASICS = ${jsonForScript(buildBasics(nut.ING, es ? 'es' : 'en'))};`;
 // simple 24-unit line icons for the day-type segments (stroke = currentColor; no emoji, no vendor icons)
 const BIKE = '<circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M5.5 16.5 9 9.5h6l3.5 7M9 9.5l3.5 7h-7M13 6.5h3l-1 3"/>';
 const DAY_ICONS: Record<string, string> = {
@@ -66,9 +70,19 @@ const DAY_ICONS: Record<string, string> = {
   bikeLong: BIKE + '<path d="M5 2.5v5M2.5 5h5"/>',
 };
 ---
+<div class="hs-top nu-top">
+  <h2 class="hs-title">{T.head.title}</h2>
+  <button type="button" class="hs-i" data-hs-info="nu-intro" aria-expanded="false" aria-controls="nu-intro" aria-label={T.head.info}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg></button>
+</div>
+<div class="hs-info" id="nu-intro" hidden><p>{T.head.intro}</p><p>{T.head.caveat}</p></div>
 <section class="tab-section" data-section="dia" id="sec-dia" hidden={hidden}>
   <div class="nutri-block" id="nutri-summary">
-    <h2>{T.headings.summary}</h2>
+    <div class="hs-head">
+      <h2 class="hs-lbl">{T.headings.summary}</h2>
+      <button type="button" class="hs-i" data-hs-info="nutri-sum-info" aria-expanded="false" aria-controls="nutri-sum-info" aria-label={sumInfoLbl}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg></button>
+    </div>
+    {/* where today's intake comes from + "carbs are the rest": written by client/nutri-day.js */}
+    <div class="hs-info" id="nutri-sum-info" hidden></div>
     <div class="nutri-card">
       <fieldset class="seg" id="nutri-daytype">
         <legend class="seg-lbl">{T.dayLegend}<span class="seg-src" id="nutri-daytype-src"></span></legend>

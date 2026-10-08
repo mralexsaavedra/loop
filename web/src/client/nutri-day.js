@@ -38,7 +38,7 @@
  *   else DETAIL.sessions, + programme; its recorded ride minutes) x the current goal, null when the
  *   type cannot be determined (no session, no sleep reading, nothing programmed).
  * - Model lines are read through LINE + the accessors (mirrors of lib/nutrition/amounts.mjs), never a bare index.
- * - Logged intake: the dial + bars fill from today's page food log (window.foodTotals, client/food-*.js,
+ * - Logged intake: the kcal ring + macro rows fill from today's page food log (window.foodTotals, client/food-*.js,
  *   LAN page only) when it has entries, else from the Apple Health day (INTAKE); HCNutri.refresh() is
  *   the food log's hook after every add / delete, and re-renders the guide too.
  * Each block renders in its own try/catch: a failure shows a one-line message there, never a blank tab. */
@@ -579,11 +579,11 @@
       note.textContent = state.raised ? format(T.autoRaised[state.raised], { type: T.dayTypes[state.raised] }) : '';
     }
   }
-  var OVER_RATIO = 1.1; // past 110 % of the target a bar is flagged (--mid), like the intake rings
+  var OVER_RATIO = 1.1; // past 110 % of the target the ring and a macro row turn to the over state (--down)
   // intake logged TODAY: first the page's own food log (window.foodTotals, client/food-*.js: today's
   // entries on the LAN page, src 'log'), else the Apple Health day (INTAKE, baked by
-  // components/Bake.astro); the date is checked on the viewer's clock. Only then do the dial and the
-  // bars fill. Never from the target.
+  // components/Bake.astro); the date is checked on the viewer's clock. Only then do the ring and the
+  // macro rows fill. Never from the target.
   // On the LAN page the food API boot decides, exactly as for the rings (client/intake.js): while it
   // is in flight and INTAKE.bootGraceMs has not elapsed (window.intakeWaiting) nothing; once it
   // answered (HCFood.ready) the food log only, never the Apple Health day; a failure or the grace's end
@@ -602,31 +602,38 @@
     return L && L.date === todayIso() && L.k > 0 ? L : null;
   }
   function pctOf(v, t) { return Math.round(Math.min(1, Math.max(0, v / t)) * 100); }
-  // 270 degree kcal dial: the track is the baked arc (NUTRI_ARC, view/dial.mjs OPEN_ARC); the fill reuses it with pathLength 100, so any fraction needs no geometry here
-  function dialHtml(t, L) {
+  // The kcal ring = the Inicio dial language: the full ring baked as NUTRI_ARC (view/dial.mjs
+  // arcPath(0, 1), starts at 12 o'clock, clockwise, round caps; .dial-* in styles/score.css). Inside:
+  // the kcal EATEN today (a dash with no intake) over "/ target kcal". ONE state colour (nutri.css):
+  // none = the track only, ok = eaten <= 110 % of the target (--up), over = past it (--down, full ring).
+  // The fill reuses the track path with pathLength 100, so any fraction needs no geometry here.
+  function ringState(t, L) {
+    if (!L) return 'none';
+    return L.k / t.kcal > OVER_RATIO ? 'over' : 'ok';
+  }
+  function ringHtml(t, L) {
     var arc = typeof NUTRI_ARC === 'string' ? NUTRI_ARC : '';
     var k = kf(t.kcal);
     var aria = L ? format(T.target.loggedAria, { v: kf(L.k), k: k }) : format(T.target.dialAria, { k: k });
     var pct = L ? pctOf(L.k, t.kcal) : 0;
-    var over = L && L.k / t.kcal > OVER_RATIO;
     var svg = arc
-      ? '<svg class="nt-dial-svg" viewBox="0 0 120 120" aria-hidden="true"><path class="nt-dial-track" d="' + esc(arc) + '"/>' +
-        (pct > 0 ? '<path class="nt-dial-fill" pathLength="100" stroke-dasharray="' + pct + ' 100" d="' + esc(arc) + '"/>' : '') + '</svg>'
+      ? '<svg class="dial-svg" viewBox="0 0 120 120" aria-hidden="true"><path class="dial-track" d="' + esc(arc) + '"/>' +
+        (pct > 0 ? '<path class="dial-fill" pathLength="100" style="stroke-dasharray:' + pct + ' 100" d="' + esc(arc) + '"/>' : '') + '</svg>'
       : '';
-    return '<figure class="nt-dial' + (over ? ' nt-dial-over' : '') + '" role="img" aria-label="' + esc(aria) + '">' + svg +
-      '<div class="nt-dial-c" aria-hidden="true"><b class="nt-kcal">' + esc(k) + '</b><span class="nt-unit">' + esc(T.target.kcal) + '</span>' +
-      (L ? '<span class="nt-logged"><b>' + esc(kf(L.k)) + '</b> ' + esc(T.target.logged) + '</span>' : '') + '</div></figure>';
+    return '<figure class="nt-ring nt-ring-' + ringState(t, L) + '" role="img" aria-label="' + esc(aria) + '"><div class="dial-ring">' + svg +
+      '<div class="dial-centre" aria-hidden="true"><b class="dial-num nt-kcal">' + esc(L ? kf(L.k) : '—') + '</b>' +
+      '<span class="nt-of">' + esc(format(T.target.of, { k: k })) + '</span></div></div></figure>';
   }
-  // one macro bar: grams in --num; with intake today "logged / target" and a fill, else the target only
-  // min = some of today's food-log entries lack this macro: the logged sum is a minimum ("≥")
-  function barHtml(label, target, L, logged, min) {
+  // one macro row: UPPERCASE label, "eaten / target g" in --num on the right, a thin bar under it
+  // (filled only from intake logged today; > 110 % flagged). min = some of today's food-log entries
+  // lack this macro: the logged sum is a minimum ("≥"); a macro no entry states is a dash.
+  function macroRow(label, target, L, logged, min) {
     var has = L && logged != null && target > 0;
     var over = has && logged / target > OVER_RATIO;
-    var val = L ? '<b>' + (logged != null ? (min ? '≥ ' : '') + esc(kf(logged)) : '—') + '</b> / ' + esc(kf(target)) + ' g' : '<b>' + esc(kf(target)) + '</b> g';
     var pct = has ? pctOf(logged, target) : 0;
-    return '<div class="nt-bar' + (over ? ' nt-bar-over' : '') + '"><div class="nt-bar-top"><span class="nt-bar-lbl">' + esc(label) + '</span>' +
-      '<span class="nt-bar-val">' + val + '</span></div><div class="nt-bar-track">' +
-      (pct > 0 ? '<span class="nt-bar-fill" style="width:' + pct + '%"></span>' : '') + '</div></div>';
+    return '<li class="nt-mac' + (over ? ' nt-mac-over' : '') + '"><span class="nt-mac-lbl">' + esc(label) + '</span>' +
+      '<span class="nt-mac-val"><b>' + (has ? (min ? '≥ ' : '') + esc(kf(logged)) : '—') + '</b><small> / ' + esc(kf(target)) + ' g</small></span>' +
+      '<span class="nt-mac-track">' + (pct > 0 ? '<i style="width:' + pct + '%"></i>' : '') + '</span></li>';
   }
   function minOf(L, macro) {
     return !!(L && L.missing && L.missing[macro]);
@@ -637,18 +644,23 @@
     var g = T.goals[state.goal];
     return '<button type="button" class="nt-goal" id="nutri-goal-chip" aria-haspopup="dialog" aria-label="' + esc(format(T.goalChip, { goal: g })) + '">' + esc(g) + '</button>';
   }
-  // the dial (.nt-top) and the bars + notes (.nt-side): stacked on phones, two columns >= 900 px (nutri.css)
+  // the ring + goal chip (.nt-top) and the macro rows (.nt-side): stacked on phones, two columns >= 900 px
+  // (nutri.css). The notes (where the intake comes from, "carbs are the rest") go behind the section's
+  // ⓘ (#nutri-sum-info, Dia.astro); the bike-day split stays a short line of numbers.
   function renderTarget(host, x) {
     var t = target(), L = intakeToday();
     // bike days: the guide's meals target + the ride fuel = the day target (Avituallamiento below)
     var line = x && x.fuelK > 0 ? format(T.planLineBike, { k: kf(x.mt.k), fuel: kf(x.fuelK), total: kf(x.mt.k + x.fuelK) }) : '';
     host.innerHTML =
-      '<div class="nt-top">' + dialHtml(t, L) + goalChipHtml() + '</div>' +
-      '<div class="nt-side"><div class="nt-bars">' + barHtml(T.target.p, t.p, L, L && L.p, minOf(L, 'protein')) + barHtml(T.target.c, t.c, L, L && L.c, minOf(L, 'carbs')) + barHtml(T.target.f, t.f, L, L && L.g, minOf(L, 'fat')) + '</div>' +
-      (L ? '<p class="nt-cnote">' + esc(L.src === 'log' ? T.target.loggedFoodNote : T.target.loggedNote) + '</p>' : '') +
-      (L && L.missing && (L.missing.protein || L.missing.carbs || L.missing.fat) ? '<p class="nt-cnote">' + esc(T.target.loggedFoodMissing) + '</p>' : '') +
-      '<p class="nt-cnote">' + esc(T.target.cNote) + '</p>' +
+      '<div class="nt-top">' + ringHtml(t, L) + goalChipHtml() + '</div>' +
+      '<div class="nt-side"><ul class="nt-macros">' + macroRow(T.target.p, t.p, L, L && L.p, minOf(L, 'protein')) + macroRow(T.target.c, t.c, L, L && L.c, minOf(L, 'carbs')) + macroRow(T.target.f, t.f, L, L && L.g, minOf(L, 'fat')) + '</ul>' +
       (line ? '<p class="nt-plan">' + esc(line) + '</p>' : '') + '</div>';
+    var info = $('nutri-sum-info');
+    if (info) {
+      info.innerHTML = (L ? '<p>' + esc(L.src === 'log' ? T.target.loggedFoodNote : T.target.loggedNote) + '</p>' : '') +
+        (L && L.missing && (L.missing.protein || L.missing.carbs || L.missing.fat) ? '<p>' + esc(T.target.loggedFoodMissing) + '</p>' : '') +
+        '<p>' + esc(T.target.cNote) + '</p>';
+    }
   }
   function suppLine(text) {
     return '<div class="meal-supp">' + PILL_SVG + '<span>' + esc(text) + '</span></div>';
@@ -1042,7 +1054,7 @@
     pendingGoal: pendingGoal,
     clearPending: clearPending,
     dayInputFor: dayInputFor,
-    // the food log (client/food-*.js) calls this after every add / delete: the dial, bars, rings and guide
+    // the food log (client/food-*.js) calls this after every add / delete: the ring, macro rows, rings and guide
     refresh: function () { refresh(false); },
     detectDayType: detectDayType,
     targetFor: targetFor,

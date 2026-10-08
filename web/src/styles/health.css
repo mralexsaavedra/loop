@@ -62,6 +62,9 @@
   letter-spacing: var(--label-track);
   text-transform: uppercase;
 }
+.hs-lbl::after {
+  content: none;
+}
 .hs-i {
   flex: none;
   width: 44px;
