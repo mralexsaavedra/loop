@@ -912,8 +912,9 @@ details.sec-fold.nutri-fold {
   .adh-stats {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  #nutri-progress > .nutri-card,
-  #food-adherence > .nutri-card {
+  /* the whole block is capped (heading + ⓘ included), so the ⓘ sits over the card's right edge */
+  #nutri-progress-block,
+  #food-adherence-block {
     max-width: 720px;
   }
 }
