@@ -2,7 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import {
-  hrHistogram, fetchHrStreams, streamBudget, createHrBackfill, BATCH_PER_RUN, WINDOW_MAX, DAY_MAX, MAX_GAP_S
+  hrHistogram, fetchHrStreams, streamBudget, createHrBackfill, BATCH_PER_RUN, WINDOW_MAX, DAY_MAX, MAX_GAP_S,
+  STREAMS_TIMEOUT_MS, MAX_ATTEMPTS, BACKOFF_BASE_MIN, BACKOFF_CAP_MIN
 } from '../src/hr-zones.js'
 
 const streams = (time, heartrate) => ({ time: { data: time }, heartrate: { data: heartrate } })
@@ -58,7 +59,7 @@ function fakePool ({ used = { last_window: 0, last_day: 0 }, pending = [] } = {}
     async query (sql, values) {
       calls.push({ sql, values })
       if (/FROM strava_activity_hr\s*$/.test(sql.trim()) || /last_window/.test(sql)) return { rows: [used] }
-      if (/LEFT JOIN strava_activity_hr/.test(sql)) return { rows: pending.slice(0, values[0]).map((id) => ({ id })) }
+      if (/LEFT JOIN strava_activity_hr/.test(sql)) return { rows: pending.slice(0, values[0]).map((p) => (typeof p === 'string' ? { id: p, attempts: 0 } : p)) }
       if (/INSERT INTO strava_activity_hr/.test(sql)) { saved.push(values); return { rows: [] } }
       throw new Error('unexpected sql ' + sql)
     }
@@ -75,11 +76,60 @@ test('backfill: fetches at most the budget, newest first as the query orders the
   }
   const r = await createHrBackfill({ pool, getAccessToken: async () => 't', fetchImpl, log: () => {} }).backfill()
   assert.deepEqual(fetched, ['9', '8'])
-  assert.deepEqual(r, { fetched: 2, stored: 2, pending: 2, stop: null })
+  assert.deepEqual(r, { fetched: 2, stored: 2, retried: 0, pending: 2, stop: null })
   assert.deepEqual(pool.saved.map((v) => [v[0], v[1], v[2], v[3]]), [['9', 'ok', 10, '{"140":10}'], ['8', 'no_hr', 0, null]])
   const q = pool.calls.find((c) => /LEFT JOIN/.test(c.sql)).sql
   assert.match(q, /ORDER BY a\.payload->>'start_date_local' DESC/)
   assert.match(q, /h\.activity_id IS NULL/)
+})
+
+test('fetchHrStreams: a request slower than the timeout is aborted and thrown as transient', async () => {
+  assert.equal(STREAMS_TIMEOUT_MS, 15_000)
+  const hang = (url, { signal }) => new Promise((resolve, reject) => {
+    signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })))
+  })
+  await assert.rejects(fetchHrStreams(async () => 'tok', '42', hang, { timeoutMs: 5 }), (e) => e.transient === true && /timed out/.test(e.message))
+  // a 5xx and a network error are transient too; a 401 is not (it is the whole service, not this activity)
+  await assert.rejects(fetchHrStreams(async () => 'tok', '42', async () => json(502, {})), (e) => e.transient === true)
+  await assert.rejects(fetchHrStreams(async () => 'tok', '42', async () => { throw new TypeError('fetch failed') }), (e) => e.transient === true)
+  await assert.rejects(fetchHrStreams(async () => 'tok', '42', async () => json(401, {})), (e) => !e.transient && !e.rateLimited)
+})
+
+test('backfill: a 5xx / timeout on one activity is recorded for back-off and the batch goes on with the next one', async () => {
+  const pool = fakePool({ pending: ['3', { id: '2', attempts: 1 }, '1'] })
+  const fetchImpl = async (url) => (/\/2\//.test(String(url)) ? json(503, {}) : json(200, streams([0, 5], [150, 150])))
+  const r = await createHrBackfill({ pool, getAccessToken: async () => 't', fetchImpl, log: () => {} }).backfill()
+  assert.deepEqual(r, { fetched: 3, stored: 2, retried: 1, pending: 3, stop: null })
+  assert.deepEqual(pool.saved.map((v) => [v[0], v[1]]), [['3', 'ok'], ['2', 'retry'], ['1', 'ok']])
+  const failure = pool.calls.find((c) => /INSERT INTO strava_activity_hr/.test(c.sql) && c.values[1] === 'retry')
+  assert.equal(failure.values[4], 2, 'attempts counts this failure')
+  assert.match(failure.sql, /last_error_at/)
+})
+
+test('backfill: the pending query skips an activity still in its back-off window and every failed one', async () => {
+  const pool = fakePool({ pending: [] })
+  await createHrBackfill({ pool, getAccessToken: async () => 't', fetchImpl: async () => json(500, {}), log: () => {} }).backfill()
+  const c = pool.calls.find((x) => /LEFT JOIN strava_activity_hr/.test(x.sql))
+  assert.match(c.sql, /h\.status = 'retry'/)
+  assert.match(c.sql, /h\.last_error_at <= now\(\) - make_interval/)
+  assert.doesNotMatch(c.sql, /'failed'/, 'failed rows are never selected again')
+  assert.deepEqual(c.values.slice(1), [BACKOFF_BASE_MIN, BACKOFF_CAP_MIN])
+  assert.equal(BACKOFF_BASE_MIN, 30)
+  assert.equal(BACKOFF_CAP_MIN, 24 * 60)
+})
+
+test(`backfill: the ${MAX_ATTEMPTS}th transient failure marks the activity failed (no more retries)`, async () => {
+  const pool = fakePool({ pending: [{ id: '5', attempts: MAX_ATTEMPTS - 1 }] })
+  const r = await createHrBackfill({ pool, getAccessToken: async () => 't', fetchImpl: async () => json(500, {}), log: () => {} }).backfill()
+  assert.equal(r.retried, 1)
+  assert.deepEqual([pool.saved[0][0], pool.saved[0][1], pool.saved[0][4]], ['5', 'failed', MAX_ATTEMPTS])
+})
+
+test('backfill: a non-transient error (e.g. 401) still stops the whole batch', async () => {
+  const pool = fakePool({ pending: ['2', '1'] })
+  const r = await createHrBackfill({ pool, getAccessToken: async () => 't', fetchImpl: async () => json(401, {}), log: () => {} }).backfill()
+  assert.deepEqual(r, { fetched: 1, stored: 0, retried: 0, pending: null, stop: 'failed' })
+  assert.equal(pool.saved.length, 0)
 })
 
 test('backfill: an exhausted budget makes no Strava call; a 429 stops the batch without storing that activity', async () => {
@@ -92,7 +142,7 @@ test('backfill: an exhausted budget makes no Strava call; a 429 stops the batch 
   const logs = []
   const fetchImpl = async (url) => (/\/2\//.test(String(url)) ? json(429, {}) : json(200, streams([0, 5], [150, 150])))
   const r = await createHrBackfill({ pool, getAccessToken: async () => 't', fetchImpl, log: (l) => logs.push(JSON.parse(l)) }).backfill()
-  assert.deepEqual(r, { fetched: 2, stored: 1, pending: null, stop: 'rate_limited' })
+  assert.deepEqual(r, { fetched: 2, stored: 1, retried: 0, pending: null, stop: 'rate_limited' })
   assert.deepEqual(pool.saved.map((v) => v[0]), ['3'])
   assert.equal(logs.at(-1).event, 'strava_hr_backfill_failed')
   assert.equal(logs.at(-1).rateLimited, true)
@@ -112,4 +162,21 @@ test('db.js runs 008_strava_hr.sql as a core migration, after the strava tables 
   const src = await readFile(new URL('../src/db.js', import.meta.url), 'utf8')
   const core = /const MIGRATIONS = \[([^\]]*)\]/.exec(src)[1]
   assert.ok(core.indexOf("'008_strava_hr.sql'") > core.indexOf("'002_strava.sql'"))
+  assert.ok(core.indexOf("'009_strava_hr_retry.sql'") > core.indexOf("'008_strava_hr.sql'"), '009 runs after the table it alters')
+})
+
+test('009_strava_hr_retry.sql is idempotent: IF NOT EXISTS columns, the status check re-created in place, no data loss', async () => {
+  const sql = await readFile(new URL('../sql/009_strava_hr_retry.sql', import.meta.url), 'utf8')
+  const stmts = sql.replace(/--.*$/gm, '').split(';').map((s) => s.trim()).filter(Boolean)
+  const addCol = stmts.filter((s) => /ADD COLUMN/.test(s))
+  assert.equal(addCol.length, 2)
+  for (const s of addCol) assert.match(s, /^ALTER TABLE strava_activity_hr ADD COLUMN IF NOT EXISTS /)
+  assert.match(sql, /attempts\s+INTEGER\s+NOT NULL DEFAULT 0/)
+  assert.match(sql, /last_error_at\s+TIMESTAMPTZ/)
+  // a re-run drops the check only to re-add it, so the ADD can never collide with the previous run
+  const drop = stmts.findIndex((s) => /DROP CONSTRAINT IF EXISTS strava_activity_hr_status_check$/.test(s))
+  const add = stmts.findIndex((s) => /ADD CONSTRAINT strava_activity_hr_status_check\s+CHECK/.test(s))
+  assert.ok(drop >= 0 && add === drop + 1)
+  assert.match(stmts[add], /'ok', 'no_hr', 'not_found', 'retry', 'failed'/)
+  assert.doesNotMatch(sql, /DROP (TABLE|COLUMN)|\bTRUNCATE\b|\bDELETE FROM\b/i)
 })
