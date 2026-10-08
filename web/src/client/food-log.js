@@ -170,7 +170,7 @@
   addActs({
     add: function (el) {
       FI.pendingMeal = el.getAttribute('data-meal');
-      if (window.HCDetail && typeof window.HCDetail.open === 'function') window.HCDetail.open('food-add', null, { opener: el, focus: '#fa-meal' });
+      if (window.HCDetail && typeof window.HCDetail.open === 'function') window.HCDetail.open('food-add', null, { opener: el, focus: '#fa-q, #fa-label' });
     },
     del: delEntry,
     'day-prev': function () { goDay(HC.shiftIso(viewDate(), -1)); },

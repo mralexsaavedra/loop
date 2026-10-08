@@ -49,9 +49,9 @@ so the newest sessions stay visible). Calendar = Monday-first weeks, ONE sequent
 five levels by total minutes (none, < 30, 30–59, 60–89, 90+), an SVG `<title>` per cell. Phones get
 a fixed-size SVG (max 280 px wide); on wide screens (`matchMedia('(min-width: 900px)')`, re-rendered
 when the breakpoint is crossed) the same days, levels, titles and day openers render as an HTML
-`.cal-grid` spanning the card's full width: 7 equal columns (`repeat(7, 1fr)`), weekday letters
-centred over their column, `width: 100%` + `aspect-ratio: 1` tiles capped at `max-height: 64px` (a
-wide rounded tile at 1160 px), legend below, left-aligned. Everything else in the card stays stacked.
+`.cal-grid`: 7 equal columns (`repeat(7, 1fr)`), at most 640 px wide and centred in the card, weekday
+letters centred over their column, `width: 100%` + `aspect-ratio: 1` tiles capped at `max-height: 48px`
+(a ~85 × 48 px rounded tile, the month ~250 px tall), legend below, centred with the grid. Everything else in the card stays stacked.
 
 **🏋️ Hoy / Today — programmed session.** On Inicio it is a row of "Today's activities", not a
 block: `client/training-today.js` renders the session into `#train-today` inside the `hoy` section

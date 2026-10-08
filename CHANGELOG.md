@@ -5,6 +5,34 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Food add sheet focus, Nutrición footnote spacing
+
+- The add-food sheet opens with focus in the search field (or the quick label), not on the meal select;
+  its tab trough is `--surface-2` instead of near-black. The Nutrición footnote no longer touches the
+  Constancia legend (its top margin was overridden by `.acc-note`).
+
+## 2026-10-08 — Detail sheets: one header, a Y axis, softer calendars
+
+- Dial deep-dives and metric details share one header (`HC.sheetHead`): "‹" back, the metric name
+  centred, the SVG ⓘ (or a spacer). The metric chart gets three round Y ticks and 12 % headroom, so
+  out-of-range days no longer sit on the edge. Sheet calendar tiles are a soft state tint with a 40 %
+  ring instead of saturated green / olive blocks; an empty load ring's typical-day tick is a faint hairline.
+
+## 2026-10-08 — Salud: no repeated signals, tidier headers
+
+- Recovery no longer repeats resting HR / HRV / respiratory rate / wrist temp under its card when the
+  health monitor at the top already lists them (a signal the monitor lacks keeps its row). The raw
+  "Last 14 days" fold is a quiet disclosure line instead of an empty box; the page ⓘ sits beside the
+  title and the monitor's "n out of range" chip right after its title.
+
+## 2026-10-08 — Desktop: one centred 960 px column
+
+- Wide screens (>= 900 px) are the phone's single column, wider: `--content-max` 1160 → 960 px, and the
+  last multi-column grids are gone (Salud sections, Nutrición meals and Plan de hoy, the recovery card's
+  3 columns, the 720 px cap on Progreso / Constancia). Inicio's dials are one centred group with the
+  load pills under the load dial; monitor tiles at natural height; Tonight's line and Entreno's
+  calendar are capped and centred; `--fs-2xs` one step up. Phones unchanged.
+
 ## 2026-10-08 — Entreno calendar spans the card on desktop
 
 - The multi-column desktop layouts from #76 were reverted (too compressed); only the Entreno → Activity

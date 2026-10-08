@@ -221,8 +221,7 @@
     return out.map(function (s) { return '<div class="dt-band-txt">' + esc(s) + '</div>'; }).join('');
   }
   function head(key, inner) {
-    return '<div class="dt-head"><div class="dt-titles"><h2 id="dt-title">' + esc(titleOf(key)) + '</h2>' + (inner || '') + '</div>' +
-      '<button type="button" class="dt-close" data-dt-act="close" aria-label="' + esc(T.close) + '">×</button></div>';
+    return HC.sheetHead({ title: titleOf(key), back: (T.deep && T.deep.back) || T.close }) + (inner ? '<div class="dt-titles">' + inner + '</div>' : '');
   }
   function noneHtml(txt) {
     return '<div class="dt-latest"><span class="dt-none">' + esc(txt) + '</span></div>';
@@ -360,6 +359,14 @@
     var i = g && sel ? dayDiff(g.from, sel) : -1;
     return g && i >= 0 && i < g.n ? CPAD + g.slot * i : null;
   }
+  // three evenly spaced round values around [lo, hi] (bars: from 0), for the chart's Y axis
+  function yTicks(lo, hi, bars) {
+    var span = (bars ? hi : hi - lo) || 1, raw = span / 2;
+    var p = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10)), step = 10 * p;
+    [1, 2, 2.5, 5].some(function (k) { if (k * p >= raw) { step = k * p; return true; } return false; });
+    var mid = bars ? step : Math.round((lo + hi) / 2 / step) * step;
+    return [mid - step, mid, mid + step].map(function (t) { return Math.round(t * 1000) / 1000; });
+  }
   function chartHtml(key, m, from, to, sel) {
     var n = dayDiff(from, to) + 1;
     var bars = m.kind === 'total' || m.kind === 'workouts' || m.kind === 'load';
@@ -380,7 +387,12 @@
     if (zc != null) ext.push(zc, -zc);
     var lo = bars ? 0 : Math.min.apply(null, ext.length ? ext : [0]);
     var hi = Math.max.apply(null, ext.length ? ext : [1]);
-    if (!bars) { var pad = (hi - lo) * 0.08 || 1; lo -= pad; hi += pad; } else hi = hi * 1.08 || 1;
+    // 3 Y ticks on round numbers (step 1 / 2 / 2.5 / 5 × 10^k); the range widens to cover them, plus
+    // 12 % headroom, so the outermost (out-of-range) days never sit on the chart's edge
+    var tk = yTicks(lo, hi, bars);
+    lo = Math.min(lo, tk[0]);
+    hi = Math.max(hi, tk[2]);
+    if (!bars) { var pad = (hi - lo) * 0.12 || 1; lo -= pad; hi += pad; } else hi = hi * 1.08 || 1;
     var slot = (CW - 2 * CPAD) / n;
     var x = function (i) { return CPAD + slot * (i + 0.5); };
     var y = function (v) { return CPAD + (CH - 2 * CPAD) * (1 - (v - lo) / (hi - lo)); };
@@ -389,6 +401,7 @@
       esc(format(T.chartAria, { title: titleOf(key), from: HC.fmtDate(from), to: HC.fmtDate(to) })) + '">'];
     var hline = function (cls, v) { out.push('<line class="' + cls + '" x1="0" x2="' + CW + '" y1="' + f(y(v)) + '" y2="' + f(y(v)) + '"/>'); };
     var zone = function (a, b) { out.push('<rect class="dt-band" x="0" width="' + CW + '" y="' + f(y(b)) + '" height="' + f(Math.max(0, y(a) - y(b))) + '"/>'); };
+    tk.slice().reverse().forEach(function (t) { hline('dt-grid', t); });
     if (zc != null) { zone(-zc, zc); hline('dt-med', 0); }
     else if (m.band) { zone(m.band.lo, m.band.hi); hline('dt-med', m.band.median); }
     if (tg != null) hline('dt-target', tg);
@@ -424,7 +437,11 @@
     else if (m.band) key2.push('<span class="dt-k dt-k-band">' + esc(T.chartKey.band) + '</span>');
     if (tg != null) key2.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.target) + '</span>');
     if (m.typical != null) key2.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.typical) + '</span>');
-    return '<figure class="dt-fig">' + out.join('') +
+    var tdec = tk[1] - tk[0] < 0.1 ? 2 : tk[1] - tk[0] < 1 ? 1 : 0;
+    var yax = '<div class="dt-yax" aria-hidden="true">' + tk.slice().reverse().map(function (t) {
+      return '<span style="top:' + (y(t) / CH * 100).toFixed(1) + '%">' + esc(fmt(t, tdec)) + '</span>';
+    }).join('') + '</div>';
+    return '<figure class="dt-fig"><div class="dt-plot">' + out.join('') + yax + '</div>' +
       '<div class="dt-ax"><span>' + esc(HC.fmtDate(from)) + '</span><span>' + esc(HC.fmtDate(to)) + '</span></div>' +
       '<figcaption class="dt-keys">' + key2.join('') + '</figcaption></figure>';
   }
