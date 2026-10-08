@@ -46,6 +46,7 @@ export const en = {
     window: 'Latest scale only, last {days} days (older readings can straddle a scale switch)',
     staticNote: 'Colours compare every day with your current range.',
     perDayNote: 'Each day is coloured against its own baseline of that day.',
+    strain: 'Shades: light < 10, moderate 10–14, high 14–18, all out 18–21 (our 0–21 scale, where 18 = your 95th-percentile day).',
   },
   // the dial's own words (score-templates), so the sheet header reads exactly like the dial it opens from
   rec: {
@@ -80,7 +81,7 @@ export const en = {
   deep: {
     back: 'Back',
     info: 'How to read this page',
-    label: { sleep: enS.dials.sleep.label, sleepPerf: 'Sleep performance', recovery: enS.dials.recovery.label, load: enS.dials.load.label },
+    label: { sleep: enS.dials.sleep.label, sleepPerf: 'Sleep performance', recovery: enS.dials.recovery.label, load: enS.dials.load.label, strain: 'Day strain' },
     words: { none: enS.dials.none, gated: enS.dials.recovery.gated, loadGated: enS.dials.load.gated, rest: enS.dials.load.rest, noEffort: enS.dials.load.noEffort },
     heroAria: '{label}: {value}',
     nightLine: '{when} · {band}',
@@ -101,6 +102,30 @@ export const en = {
     },
     // the recovery page's ⓘ: respiratory rate is a contributor row for context only
     respNote: 'Respiratory rate is shown as context: it is not part of the recovery score. It has no better direction, so the arrow only says above or below your usual (the middle half of the prior 30 days); a grey dot = within it.',
+    // the day strain page (key 'strain', lib/score/strain.mjs): contributors, insight, notes, RE links
+    strain: {
+      contribAria: 'What made up the day\'s strain',
+      mods: { gym: 'Gym', run: 'Run', bike: 'Bike', other: 'Other activity' },
+      allDay: 'All day (outside workouts)',
+      loadLbl: 'load {load} (minutes × HR zone)',
+      shareNote: 'Each row = its share of the day\'s strain, in proportion to its load.',
+      bands: {
+        light: 'Strain under 10 is light: little cardiovascular load today.',
+        moderate: 'Strain between 10.0 and 13.9 is moderate: your cardiovascular system did steady work.',
+        high: 'Strain between 14.0 and 17.9 is high: your cardiovascular system has been working hard.',
+        allOut: 'Strain of 18 or more is all out: one of your hardest days.',
+      },
+      usual: 'Your usual day (median of the prior 30 days): {value}',
+      scale: 'Our scale, relative to you: 18 = your 95th-percentile day of the last {days} days.',
+      noDay: 'No all-day heart-rate data for {date}.',
+      reTitle: 'Relative Effort by modality',
+      notes: {
+        formula: 'Strain = 21 × (1 − e^(−load ÷ K)). Load = minutes × heart-rate zone weight (zone 1 = 1 … zone 5 = 5; under 50 % of max HR = 0), summed over the whole day.',
+        sources: 'Strava activities count from their heart-rate stream; the rest of the day from the watch\'s heart-rate samples (each sample until the next one, at most 10 min), with the activities left out so nothing counts twice.',
+        calib: 'Calibrated to you: your 95th-percentile day of the last {days} days (load {p95}, {n} full days) = 18, so K = {k}. Max HR {max} bpm, the same as the workout zones.',
+        estimate: 'Our own estimate, not the reference app\'s formula: compare it with your own days only. Descriptive, not medical advice.',
+      },
+    },
     weekly: { title: 'Weekly trends', aria: '{title}, last 7 days', minutes: 'Minutes', perf: 'Sleep performance (%)', restor: 'REM + deep (h)' },
     // the sleep page's stages bar (awake / REM / core / deep + the unspecified remainder)
     stages: { aria: 'Sleep stages', awake: 'Awake', rem: 'REM', core: 'Core', deep: 'Deep', unspec: 'Unspecified' },
@@ -151,6 +176,7 @@ export const en = {
     'load-gym': { title: 'Gym load', unit: 'RE' },
     'load-run': { title: 'Run load', unit: 'RE' },
     'load-bike': { title: 'Bike load', unit: 'RE' },
+    strain: { title: 'Day strain', unit: '/ 21' },
   },
   day: {
     heading: '{date}',
@@ -251,6 +277,7 @@ export const es = {
     window: 'Solo la báscula más reciente, últimos {days} días (las mediciones antiguas pueden mezclar un cambio de báscula)',
     staticNote: 'Colores respecto a tu rango actual.',
     perDayNote: 'Cada día se colorea respecto a su propia línea base de ese día.',
+    strain: 'Tonos: ligera < 10, moderada 10–14, alta 14–18, máxima 18–21 (nuestra escala 0–21, donde 18 = tu día del percentil 95).',
   },
   // the dial's own words (score-templates), so the sheet header reads exactly like the dial it opens from
   rec: {
@@ -282,7 +309,7 @@ export const es = {
   deep: {
     back: 'Volver',
     info: 'Cómo leer esta página',
-    label: { sleep: esS.dials.sleep.label, sleepPerf: 'Rendimiento del sueño', recovery: esS.dials.recovery.label, load: esS.dials.load.label },
+    label: { sleep: esS.dials.sleep.label, sleepPerf: 'Rendimiento del sueño', recovery: esS.dials.recovery.label, load: esS.dials.load.label, strain: 'Carga del día' },
     words: { none: esS.dials.none, gated: esS.dials.recovery.gated, loadGated: esS.dials.load.gated, rest: esS.dials.load.rest, noEffort: esS.dials.load.noEffort },
     heroAria: '{label}: {value}',
     nightLine: '{when} · {band}',
@@ -302,6 +329,30 @@ export const es = {
       },
     },
     respNote: 'La frecuencia respiratoria se muestra como contexto: no forma parte de la puntuación de recuperación. No tiene una dirección mejor, así que la flecha solo indica por encima o por debajo de lo habitual (la mitad central de los 30 días previos); un punto gris = dentro de ello.',
+    // la página de carga del día (clave 'strain', lib/score/strain.mjs)
+    strain: {
+      contribAria: 'Qué formó la carga del día',
+      mods: { gym: 'Gimnasio', run: 'Carrera', bike: 'Bici', other: 'Otra actividad' },
+      allDay: 'Resto del día (fuera de entrenos)',
+      loadLbl: 'carga {load} (minutos × zona de FC)',
+      shareNote: 'Cada fila = su parte de la carga del día, en proporción a su carga.',
+      bands: {
+        light: 'Una carga por debajo de 10 es ligera: poco esfuerzo cardiovascular hoy.',
+        moderate: 'Una carga entre 10,0 y 13,9 es moderada: tu sistema cardiovascular ha trabajado de forma constante.',
+        high: 'Una carga entre 14,0 y 17,9 es alta: tu sistema cardiovascular ha trabajado duro.',
+        allOut: 'Una carga de 18 o más es máxima: uno de tus días más duros.',
+      },
+      usual: 'Tu día habitual (mediana de los 30 días anteriores): {value}',
+      scale: 'Escala propia, relativa a ti: 18 = tu día del percentil 95 de los últimos {days} días.',
+      noDay: 'Sin datos de frecuencia cardiaca de todo el día del {date}.',
+      reTitle: 'Esfuerzo relativo por modalidad',
+      notes: {
+        formula: 'Carga = 21 × (1 − e^(−carga ÷ K)). Carga bruta = minutos × peso de la zona de FC (zona 1 = 1 … zona 5 = 5; por debajo del 50 % de la FC máx. = 0), sumada en todo el día.',
+        sources: 'Las actividades de Strava cuentan con su flujo de FC; el resto del día, con las muestras de FC del reloj (cada muestra hasta la siguiente, máx. 10 min), sin las actividades para no contar nada dos veces.',
+        calib: 'Calibrada para ti: tu día del percentil 95 de los últimos {days} días (carga {p95}, {n} días completos) = 18, así que K = {k}. FC máx. {max} lpm, la misma que en las zonas de los entrenos.',
+        estimate: 'Estimación propia, no la fórmula de la app de referencia: compárala solo con tus propios días. Descriptivo, no es consejo médico.',
+      },
+    },
     weekly: { title: 'Tendencias semanales', aria: '{title}, últimos 7 días', minutes: 'Minutos', perf: 'Rendimiento del sueño (%)', restor: 'REM + profundo (h)' },
     stages: { aria: 'Fases del sueño', awake: 'Despierto', rem: 'REM', core: 'Ligero', deep: 'Profundo', unspec: 'Sin especificar' },
     sleepNotes: {
@@ -350,6 +401,7 @@ export const es = {
     'load-gym': { title: 'Carga de gimnasio', unit: 'RE' },
     'load-run': { title: 'Carga de carrera', unit: 'RE' },
     'load-bike': { title: 'Carga de bici', unit: 'RE' },
+    strain: { title: 'Carga del día', unit: '/ 21' },
   },
   day: {
     heading: '{date}',
