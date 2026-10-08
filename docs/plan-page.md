@@ -78,7 +78,10 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   32 px rounded dark tile, vertical gradient `#283037` → `#111619`, the three-arc ring) and the
   `apple-touch-icon` = `loop-touch-icon.png` (180×180, full square: iOS rounds it). On Inicio the
   **wordmark** (`.wordmark`, rendered by `layouts/Plan.astro` right after `.topbar`; `layout.css` hides
-  it with `.wrap:has(> .tab-panel[data-tab="home"][hidden])` on the other tabs) sits centred under the top bar: "LOOP" with L and P as
+  it with `.wrap:has(> .tab-panel[data-tab="home"][hidden])` on the other tabs) sits centred under the top bar
+  on a phone; from 900 px it moves INTO the top bar row on the left (absolutely positioned at the 960 px
+  column's left edge, 30 px letters ≈ 20 px caps, centred on the date pill) and the avatar moves to the
+  right end beside the freshness / Sync controls, so the pill stays centred (`desktop.test.mjs` pins it): "LOOP" with L and P as
   Syncopate Bold outlines (never the font: Apache 2.0, `web/src/fonts/LICENSE-Syncopate.txt`), the
   first O a plain ring, the second the three-arc ring (sleep · recovery · strain clockwise from 12
   o'clock); 19 px letters (caps ~12.7 px), letters + plain ring `currentColor` (`--ink`), arcs coloured

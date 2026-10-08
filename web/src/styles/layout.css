@@ -175,6 +175,38 @@ details.sec-fold > summary:hover > h2 {
 .wordmark .lw-strain {
   stroke: var(--strain);
 }
+/* wide screens (the 960px column, base.css): the wordmark leaves its own row and sits on the LEFT of
+ * the top bar row, ~20px caps (30px letters), vertically centred on the date pill (the bar's 8px top
+ * padding + half its 44px row); the avatar moves to the right end, next to the freshness / Sync
+ * controls (`.fresh` keeps a 48px lane for it: the 44px target + the 4px it overhangs), so the pill
+ * stays centred. The left offset is the column's own edge: the gutter, or half the space beside the
+ * 960px column. Still Inicio-only (the rule above hides it on the other tabs). The phone keeps the
+ * wordmark centred under the pill and the avatar on the left. */
+@media (min-width: 900px) {
+  .wrap {
+    position: relative;
+  }
+  .wordmark {
+    position: absolute;
+    top: 30px;
+    left: max(var(--gutter), calc((100% - var(--content-max)) / 2));
+    transform: translateY(-50%);
+    margin: 0;
+    font-size: 30px;
+    pointer-events: none;
+  }
+  .topbar > .avatar-btn {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+    margin-left: 0;
+    margin-right: -4px;
+  }
+  .topbar > .fresh {
+    grid-row: 1;
+    margin-right: 48px;
+  }
+}
 /* the date pill: "TODAY" in letter-spaced caps (a past day: its date, same caps); the viewer's full
  * date is the <time> inside, written by client/today-date.js and read by assistive tech only. With a
  * past day in reach the script adds .has-steps and shows the ‹ › chevrons (44 px targets that overhang
