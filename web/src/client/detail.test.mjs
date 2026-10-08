@@ -1505,3 +1505,66 @@ test('trend sentence: a real change that rounds to the same number gets one more
   s.click(act('range', { 'data-range': '7' }));
   assert.match(s.host.innerHTML, /was 53\.6 bpm, lower than the week before \(54\.4 bpm\)\./);
 });
+
+/* ---------- stress monitor page (key 'stress', SCORES.stress: lib/score/stress.mjs) ---------- */
+const curveOf = (html) => (html.split('<section class="ds-curve"')[1] || '').split('</section>')[0];
+const bandsOf = (html) => (html.split('<section class="ds-bands"')[1] || '').split('</section>')[0];
+
+test('stress page: hero = the latest scored hour on a 0-3 gauge with its band word + hour; hourly curve over the three shaded bands; time in each band; formula + limits under ⓘ', () => {
+  const S = DEMO_SCORES.stress;
+  assert.equal(S.ok, true, 'the demo extract scores stress');
+  const day = S.days[S.days.length - 1];
+  const s = setup({ scores: DEMO_SCORES });
+  s.api.open('stress');
+  const html = s.host.innerHTML;
+  const hero = heroOf(html);
+  assert.ok(hero.startsWith(` dd-stress ds-${day.now.band}"`), hero.slice(0, 60));
+  assert.match(hero, /<svg class="ds-gauge"/);
+  assert.ok(hero.includes(`<b class="dd-num">${day.now.v.toFixed(1)}</b>`));
+  assert.ok(hero.includes(`<span class="ds-band">${enT.deep.stress.bands[day.now.band]}</span>`));
+  assert.ok(hero.includes(format(enT.deep.stress.updated, { time: day.now.t + ':00' })));
+  const curve = curveOf(html);
+  for (const b of ['low', 'medium', 'high']) assert.match(curve, new RegExp(`<rect class="ds-zone ds-${b}"`));
+  assert.equal((curve.match(/<circle class="ds-pt /g) || []).length, day.hours.length, 'one point per scored hour');
+  assert.match(curve, /<path class="ds-line" d="M/);
+  const bands = bandsOf(html);
+  for (const b of ['low', 'medium', 'high']) assert.ok(bands.includes(enT.deep.stress.bandRows[b]));
+  const dur = (min) => { const h = Math.floor(min / 60), m = min % 60; return h ? `${h} h${m ? ` ${m} min` : ''}` : `${m} min`; };
+  for (const b of ['low', 'medium', 'high']) assert.ok(bands.includes(`<b class="ds-bmin">${dur(day.mins[b])}</b>`), b + ': ' + bands);
+  assert.ok(insightOf(html).includes(format(enT.deep.stress.avg, { value: day.avg.toFixed(1), band: enT.deep.stress.bands[day.band].toLowerCase() })));
+  const info = infoOf(html);
+  for (const k of ['formula', 'hours', 'limits', 'estimate']) assert.ok(info.includes(enT.deep.stress.notes[k]), k);
+  assert.ok(info.includes(format(enT.deep.stress.notes.inputs, { rhr: day.rhr.toFixed(1), max: String(S.maxHr), min: String(S.minHours) })));
+  // the day-average trend lives below (the sheet's chart + calendar), coloured by band
+  assert.match(html, /class="dt-period"/);
+  assert.match(html, /dt-s-shigh|dt-s-smedium|dt-s-slow/);
+  clean(html);
+});
+
+test('stress page follows the day it was opened on; a day under the minimum hours says so; no SCORES.stress -> the empty sheet', () => {
+  const S = DEMO_SCORES.stress;
+  const prev = S.days[S.days.length - 2];
+  const s = setup({ scores: DEMO_SCORES });
+  s.api.open('stress', prev.date);
+  assert.ok(heroOf(s.host.innerHTML).includes(`<b class="dd-num">${prev.now.v.toFixed(1)}</b>`));
+  const thin = JSON.parse(JSON.stringify(DEMO_SCORES));
+  const last = thin.stress.days[thin.stress.days.length - 1];
+  Object.assign(last, { n: 3, avg: null, band: null, now: null, mins: null, hours: last.hours.slice(0, 3) });
+  const t = setup({ scores: thin });
+  t.api.open('stress', last.date);
+  assert.ok(insightOf(t.host.innerHTML).includes(format(enT.deep.stress.few, { n: '3', min: '6' })));
+  assert.ok(heroOf(t.host.innerHTML).includes(enT.deep.words.none));
+  assert.equal((curveOf(t.host.innerHTML).match(/<circle class="ds-pt /g) || []).length, 3, 'the hours still draw');
+  const none = setup({ scores: { ...DEMO_SCORES, stress: null } });
+  none.api.open('stress');
+  assert.match(none.host.innerHTML, /dt-empty/);
+});
+
+test('es stress page: Spanish copy, decimal comma', () => {
+  const s = setup({ locale: 'es', scores: DEMO_SCORES });
+  s.api.open('stress');
+  const day = DEMO_SCORES.stress.days[DEMO_SCORES.stress.days.length - 1];
+  assert.ok(heroOf(s.host.innerHTML).includes(`<b class="dd-num">${day.now.v.toFixed(1).replace('.', ',')}</b>`));
+  assert.ok(s.host.innerHTML.includes(esT.deep.stress.notes.formula));
+  assert.equal(esT.metrics.stress.title, 'Estimación de estrés');
+});

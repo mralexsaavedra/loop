@@ -52,7 +52,21 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   the usual day (median of the prior 30) and "18 = your 95th-percentile day"; ⓘ = the formula, the
   sources, this owner's K / p95 / full days / max HR and "our estimate"; the 7-day strain bars; then
   "Relative Effort by modality" links to the `load-<m>` pages. It follows the day it was opened on
-  (`X.sel`); `sessions` = one entry per date + modality after
+  (`X.sel`); `stress` is NOT a DETAIL key: its series is `SCORES.stress.metric` (kind `stress`, the
+  day averages 0–3 dense from the first scored day, `lib/score/stress.mjs`), which detail.js
+  `metric('stress')` reads when DETAIL has no such key (copy in `I18N_DETAIL.metrics.stress`, hash
+  `#detail/stress[/<date>]`, no host tab). Calendar / chart states `slow` / `smedium` / `shigh` (< 1 /
+  1–2 / ≥ 2, light blue / teal / orange), the day panel = "Day average" + band + the minutes per band
+  (when the day is in `SCORES.stress.days`). Its page (key `stress`, client/deepdive.js `stressPage`)
+  follows the day it was opened on: the hero = a 0–3 half gauge in the three band colours with a
+  marker at the latest scored hour, its value, band word and "Latest hour 14:00" (no value → an empty
+  gauge + "No data"); "Hour by hour" = an SVG curve over 00:00–24:00 with the three bands as faint
+  stripes, one dot per scored hour in its band colour (joined while consecutive; gaps = sleep, workouts
+  or too few readings); "Time in each band" = a stacked bar + one row per band; the insight = the day
+  average + band, the band with most time and "an estimate from heart rate only" (under the minimum
+  hours: "only n waking hours could be scored"); ⓘ = the formula, how hours are scored, that day's
+  resting HR / max HR / minimum hours, the limits (no HRV, no hourly steps, so movement raises it) and
+  "not a medical measure". `sessions` = one entry per date + modality after
   `mergeSameDay` DISPLAY_RULE (minutes, km, elevation, avg HR, RE, parts, source; the source is the
   precedence family, so "Apple Watch de <name>" is written "Apple Watch"), plus, when
   `workout-zones.csv` has that date + modality (`lib/training/zones.mjs` `readWorkoutZones`), `z` =
@@ -64,12 +78,12 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   button role and tab stop (`plain`: data attributes only, for a real `<button>`, an SVG cell or a
   table row). One delegated click / Enter / Space listener in `web/src/client/detail.js` handles every
   opener. On a PAST day of Inicio (the top bar's day stepping, `docs/home-tab.md`) every Inicio
-  opener — the dials, the collapsed row, the HRV tile, "My day" rows — carries THAT day as `data-date`,
+  opener — the dials, the collapsed row, the stress / HRV tile, "My day" rows — carries THAT day as `data-date`,
   so its sheet opens with that day selected (calendar, chart selection and the day panel, which a
   dial page scrolls to); the dial page's hero ring and insight card stay the latest night / today (the
   dial's own baked values; the strain page instead follows the day it was opened on). Map: sleep dial → sleep; recovery dial → recovery; the strain dial → strain;
   each load dial (the fallback) → its `load-<m>`; Salud monitor
-  rows → their signal; the HRV monitor tile → hrv; the "My day" outlook bar (advice) → recovery;
+  rows → their signal; the stress monitor tile → stress (its HRV fallback → hrv); the "My day" outlook bar (advice) → recovery;
   activity rows → that day (sleep, or `load-<m>` / `workouts` for "other"), the programmed-session row
   → the registered `hoy-session` view (client/training-today.js); the "Tonight" card → the registered
   `tonight` view (the bedtime rule + a button to the sleep sheet, client/home-week.js); the "My plan"
