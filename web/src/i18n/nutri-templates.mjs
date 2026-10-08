@@ -117,6 +117,8 @@ export const es = {
   },
   eat: {
     heading: 'Hoy comes',
+    // a PAST day on Inicio (the top bar's day stepping): that day's detected day type and targets
+    pastHeading: 'Objetivo del {date}',
     fullPlan: 'Ver plan completo',
     dayGoal: '{day} · {goal}',
   },
@@ -306,6 +308,8 @@ export const en = {
   },
   eat: {
     heading: 'Today you eat',
+    // a PAST day on Inicio (the top bar's day stepping): that day's detected day type and targets
+    pastHeading: 'Target for {date}',
     fullPlan: 'See the full plan',
     dayGoal: '{day} · {goal}',
   },

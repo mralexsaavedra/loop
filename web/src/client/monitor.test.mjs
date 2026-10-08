@@ -31,7 +31,7 @@ function monitor() {
   });
 }
 
-function render(mon, { locale = 'en', now = ASOF, healthNav = false, detail = false, tiles = null } = {}) {
+function render(mon, { locale = 'en', now = ASOF, healthNav = false, detail = false, tiles = null, day = null, days = null } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
   class FakeDate extends RealDate {
@@ -39,10 +39,11 @@ function render(mon, { locale = 'en', now = ASOF, healthNav = false, detail = fa
   }
   const ctx = {
     document: { getElementById: (id) => (id === 'monitor' ? host : id === 'home-tiles' ? tiles : id === 't-health' && healthNav ? {} : null) },
-    SCORES: mon === undefined ? undefined : { monitor: mon }, I18N_SCORE: locale === 'es' ? esT : enT, LOCALE: locale,
+    SCORES: mon === undefined ? undefined : { monitor: mon, days }, I18N_SCORE: locale === 'es' ? esT : enT, LOCALE: locale,
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
   if (detail) ctx.DETAIL = { metrics: {} };
+  if (day) ctx.HCDay = day;
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
@@ -235,4 +236,49 @@ test('es tiles: Spanish copy, decimal comma', () => {
   assert.ok(html.includes(esT.monitor.tile.out.replace('{n}', '2')));
   assert.ok(html.includes(esT.monitor.tile.metrics.replace('{n}', '1').replace('{total}', '5')));
   assert.equal(esT.monitor.tile.inRange, 'En rango');
+});
+
+/* ---- day stepping (the top bar's ‹ TODAY ›): the Inicio tiles follow the selected day ---- */
+const PAST = '2026-09-25';
+const DAYS = { from: '2026-09-16', to: ASOF, days: [
+  { date: PAST, monitor: { inR: 3, out: 1, total: 5, hrv: { value: 58, dec: 0, status: 'low', tone: 'bad', date: '2026-09-24' } } },
+  { date: '2026-09-26', monitor: { inR: 4, out: 0, total: 5, hrv: null } },
+] };
+function stepper(sel) {
+  const subs = [];
+  return { sel: () => sel, on: (fn) => subs.push(fn), go: (x) => { sel = x; subs.forEach((fn) => fn(x)); } };
+}
+
+test('day stepping: today selected renders the tiles byte-identically', () => {
+  const a = { innerHTML: '' }, b = { innerHTML: '' };
+  render(monitor(), { tiles: a, detail: true });
+  render(monitor(), { tiles: b, detail: true, day: stepper(null), days: DAYS });
+  assert.equal(b.innerHTML, a.innerHTML);
+});
+
+test('day stepping: a past day shows THAT day\'s summary and HRV card (dated when older), opening on that day; the Salud list stays the latest', () => {
+  const tiles = { innerHTML: '' };
+  const list = render(monitor(), { tiles, detail: true, day: stepper(PAST), days: DAYS });
+  const h = tiles.innerHTML;
+  assert.ok(h.includes(enT.monitor.tile.out.replace('{n}', '1')));
+  assert.ok(h.includes(enT.monitor.tile.metrics.replace('{n}', '3').replace('{total}', '5')));
+  assert.match(h, /hmt-hrv hm-tone-bad" data-detail="hrv" data-date="2026-09-25"/);
+  assert.match(h, /<b>58<\/b>/);
+  assert.ok(h.includes('Thu 24 Sep'), 'the card\'s own date, not the day shown');
+  assert.equal(list, render(monitor(), { detail: true }), 'the Salud list is untouched');
+});
+
+test('day stepping: a past day without HRV spans one tile; one without an entry reads "No data"; a change re-renders', () => {
+  const tiles = { innerHTML: '' };
+  const day = stepper('2026-09-26');
+  render(monitor(), { tiles, day, days: DAYS });
+  assert.match(tiles.innerHTML, /hm-tiles hm-tiles-one/);
+  assert.ok(tiles.innerHTML.includes(enT.monitor.tile.inRange));
+  day.go('2026-09-20');
+  assert.ok(tiles.innerHTML.includes(enT.monitor.tile.none));
+  assert.doesNotMatch(tiles.innerHTML, /hmt-hrv/);
+  const today = { innerHTML: '' };
+  render(monitor(), { tiles: today });
+  day.go(null);
+  assert.equal(tiles.innerHTML, today.innerHTML);
 });

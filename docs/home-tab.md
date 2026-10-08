@@ -159,6 +159,21 @@ trend is the line under it.
     arias name the date instead of "last night" / "today"; never greyed as stale (it is the day you
     asked for), no stale line; every dial and mini ring opens its deep-dive ON that day (`data-date`).
     The advice outlook bar is hidden (it reads the current 7-day trend).
+  - **Monitor tiles** (`monitor.js` `renderTiles`): that day's `SCORES.days` summary (in / out of
+    range among the cards fresh ON that day, out of `total`) and its HRV card (dated when its reading is
+    older than the day; it opens the HRV sheet on that day); no entry → "No data". The Salud list stays
+    the latest.
+  - **"My day"** (`timeline.js` `pastHtml`): "Activities · <date>" with that day's night
+    (`DETAIL.metrics.sleep`: hours, bed / wake clock) and workouts (`DETAIL.sessions`: one per date +
+    modality after the SAME display rule as `SCORES.timeline`, minutes, RE, parts; a test checks both
+    give the same rows); no programmed-session row, never greyed, every row opens its sheet on that day;
+    nothing that day → "Nothing logged that day".
+  - **Eat card** (`nutri-day.js` `renderEat`): "Target for <date>" with that day's DETECTED day type
+    (`dayInput` + `detectDayType`, the same detection as `HCNutri.targetFor`) and its plan targets for
+    the current goal; a day whose type cannot be told (no session, sleep or programmed session) hides
+    the card.
+  - **Tonight** is hidden (it is about the coming night). **My plan** stays the viewer's week and **My
+    dashboard** the latest values, whatever day is shown.
 - **Day history** (`lib/score/days.mjs`, baked as `SCORES.days` = `{from, to, days}`, null without
   overnight data; behind the top bar's day stepping): for each of the last `DAY_HISTORY_DAYS` (= the
   load dial's `RECENT_DAYS`, 14) days ending at the newest overnight date, the inputs are CUT at that

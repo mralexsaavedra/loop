@@ -177,11 +177,16 @@
         '<h3 class="tn-h">' + esc(TT.heading) + '</h3>' +
         '<div class="tn-row">' + end('moon', clock(tn.bed), TT.bed) + '<span class="tn-dash" aria-hidden="true"></span>' + end('alarm', clock(tn.wake), TT.wake) + '</div></div>';
     }
+    // Inicio's day stepping (window.HCDay): Tonight is about the coming night, so a PAST day hides it
+    function pastDay() {
+      var D = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
+      return !!(D && typeof D.sel === 'function' && D.sel());
+    }
     function renderTonight() {
       var host = document.getElementById('home-tonight');
       if (!host) return;
       try {
-        var tn = tonightData();
+        var tn = pastDay() ? null : tonightData();
         host.innerHTML = tn ? tonightHtml(tn) : '';
         host.hidden = !tn;
       } catch (e) {
@@ -244,6 +249,8 @@
     window.HCWeekPlan = { weekGoals: weekGoals, weekOf: weekOf, refresh: renderPlan, GOALS: GOALS };
     renderTonight();
     renderPlan();
+    // My plan stays the viewer's week whatever day Inicio shows; Tonight follows the day
+    if (typeof HCDay !== 'undefined' && HCDay && typeof HCDay.on === 'function') HCDay.on(renderTonight);
   }
   boot();
 })();

@@ -191,6 +191,9 @@ export const en = {
     ariaLabel: 'Last night, today\'s workouts and today\'s programmed session',
     dateHeading: 'Latest day · {date}',
     noToday: 'Nothing logged yet today.',
+    // a PAST day (the top bar's day stepping)
+    pastHeading: 'Activities · {date}',
+    noDay: 'Nothing logged that day.',
     empty: 'Nothing logged in the last few days. Sleep and workouts appear here from the Watch and Strava.',
     sleep: 'Sleep',
     sleepVal: '{hours} h',
@@ -396,6 +399,9 @@ export const es = {
     ariaLabel: 'La noche pasada, los entrenos de hoy y la sesión programada de hoy',
     dateHeading: 'Último día · {date}',
     noToday: 'Hoy aún no hay nada registrado.',
+    // un día PASADO (el selector de día de la barra superior)
+    pastHeading: 'Actividades · {date}',
+    noDay: 'Ese día no hay nada registrado.',
     empty: 'No hay nada registrado en los últimos días. El sueño y los entrenos aparecen aquí desde el Watch y Strava.',
     sleep: 'Sueño',
     sleepVal: '{hours} h',

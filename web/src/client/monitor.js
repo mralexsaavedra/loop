@@ -15,6 +15,11 @@
  * "watch". A row whose OWN date is more than STALE_DAYS old drops its tone, marker and status ("no
  * recent data"), whatever the other rows say. One row throwing never blanks the block: it falls back
  * to its empty state. A tap on any row opens its detail sheet (HC.detailAttrs -> client/detail.js).
+ *
+ * Day stepping (the top bar's "‹ TODAY ›", window.HCDay): on a PAST day the two Inicio tiles show that
+ * day's summary (SCORES.days, lib/score/days.mjs: the cards fresh ON that day, scored with the inputs
+ * cut at it) and that day's HRV card, which opens its sheet on that day. The Salud list stays the
+ * latest. Today renders exactly as before.
  */
 (function () {
   var host = document.getElementById('monitor');
@@ -108,29 +113,47 @@
   }
   // tile 1: the chip + "n/total metrics" in range; a tap jumps to the full monitor list at the top of
   // Salud (core.js jump: switches to the tab that holds #monitor and scrolls to it)
-  function sumTile() {
-    var n = counts();
+  function sumTile(n, total) {
     return '<button type="button" class="hmt hmt-sum" onclick="jump(\'monitor\')">' + lbl(T.heading) +
-      '<span class="hmt-body">' + chip(n) + '<span class="hmt-sub">' + esc(format(T.tile.metrics, { n: n.inR, total: M.cards.length })) + '</span></span></button>';
+      '<span class="hmt-body">' + chip(n) + '<span class="hmt-sub">' + esc(format(T.tile.metrics, { n: n.inR, total: total })) + '</span></span></button>';
   }
-  // tile 2: HRV, a real baked value (no invented stress score); left out without a fresh reading
-  function hrvTile() {
-    var c = null;
-    M.cards.forEach(function (x) { if (x && x.key === 'hrv') c = x; });
-    if (!fresh(c)) return '';
-    return '<div class="hmt hmt-hrv hm-tone-' + esc(c.tone || 'normal') + '"' + linkAttrs('hrv') + '>' + lbl(T.labels.hrv || 'HRV') +
+  // tile 2: HRV, a real baked value (no invented stress score); left out without a fresh reading.
+  // `day` = the past day shown (null = today): its date line and the sheet's opening day
+  function hrvTile(c, day) {
+    if (!c) return '';
+    var dated = day ? c.date !== day : daysOld(c.date) !== 0;
+    return '<div class="hmt hmt-hrv hm-tone-' + esc(c.tone || 'normal') + '"' + (day ? HC.detailAttrs('hrv', day) : linkAttrs('hrv')) + '>' + lbl(T.labels.hrv || 'HRV') +
       '<span class="hmt-body"><span class="hmt-val"><b>' + esc(num(c.value, c.dec)) + '</b><small>' + esc(T.units.hrv || '') + '</small></span>' +
       '<span class="hmt-status">' + esc(T.status[c.status] || '') + '</span>' +
-      (daysOld(c.date) !== 0 && isoDate(c.date) ? '<span class="hmt-sub">' + esc(HC.fmtDate(c.date)) + '</span>' : '') + '</span></div><!--/hmt-->';
+      (dated && isoDate(c.date) ? '<span class="hmt-sub">' + esc(HC.fmtDate(c.date)) + '</span>' : '') + '</span></div><!--/hmt-->';
   }
+  function todayHrv() {
+    var c = null;
+    M.cards.forEach(function (x) { if (x && x.key === 'hrv') c = x; });
+    return fresh(c) ? c : null;
+  }
+  // a past day's summary (SCORES.days): its in / out-of-range counts and HRV card; none = no data
+  function pastEntry(day) {
+    var H = S.days && S.days.days ? S.days.days : [], out = null;
+    H.forEach(function (x) { if (x && x.date === day) out = x.monitor; });
+    return out || { inR: 0, out: 0, total: M.cards.length, hrv: null };
+  }
+  var DAY = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
   var tiles = document.getElementById('home-tiles');
-  if (tiles && T.tile) {
+  function renderTiles() {
+    var day = DAY && typeof DAY.sel === 'function' ? DAY.sel() || null : null;
     try {
-      var t2 = hrvTile();
-      tiles.innerHTML = '<div class="hm-tiles' + (t2 ? '' : ' hm-tiles-one') + '" role="group" aria-label="' + esc(T.tile.ariaLabel) + '">' + sumTile() + t2 + '</div>';
+      var p = day ? pastEntry(day) : null;
+      var t2 = p ? hrvTile(p.hrv, day) : hrvTile(todayHrv(), null);
+      var t1 = p ? sumTile(p, p.total) : sumTile(counts(), M.cards.length);
+      tiles.innerHTML = '<div class="hm-tiles' + (t2 ? '' : ' hm-tiles-one') + '" role="group" aria-label="' + esc(T.tile.ariaLabel) + '">' + t1 + t2 + '</div>';
     } catch (e) {
       tiles.innerHTML = '';
     }
+  }
+  if (tiles && T.tile) {
+    renderTiles();
+    if (DAY && typeof DAY.on === 'function') DAY.on(renderTiles);
   }
 
   var age = daysOld(M.asOf);
