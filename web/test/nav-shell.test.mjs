@@ -54,13 +54,13 @@ test('dock: a role=tablist of four role=tab buttons with aria-pressed, and the "
   assert.match(dock, new RegExp(`<button type="button" class="act-btn" id="act-btn" aria-expanded="false" aria-controls="act-pop" aria-label="${N.actions.open}" data-label-close="${N.actions.close}">`));
 });
 
-test('the action root and every action ship hidden; only real actions exist (add food, Sync)', () => {
+test('the action root and every action ship hidden; only real actions exist (add food, journal, Sync)', () => {
   assert.match(html, /<div class="act" id="act" hidden>/, 'revealed by nav-actions.js when an action is available');
   assert.match(html, new RegExp(`<div class="act-pop" id="act-pop" role="dialog" aria-label="${N.actions.label}" hidden>`));
   const acts = [...html.matchAll(/<button type="button" class="act-item" data-act="([a-z]+)" hidden>/g)].map((m) => m[1]);
-  assert.deepEqual(acts, ['food', 'sync']);
+  assert.deepEqual(acts, ['food', 'journal', 'sync']);
   assert.match(html, /<div class="act-scrim" id="act-scrim" hidden><\/div>/);
-  for (const k of ['addFood', 'sync']) assert.ok(html.includes(`<span>${N.actions[k]}</span>`), k);
+  for (const k of ['addFood', 'journal', 'sync']) assert.ok(html.includes(`<span>${N.actions[k]}</span>`), k);
 });
 
 test('no visible hero header: one visually hidden h1, the collapsed dial row host sits in the Inicio panel', () => {
