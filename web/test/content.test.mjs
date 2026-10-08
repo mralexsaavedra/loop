@@ -347,6 +347,10 @@ test('example build: Salud headers — the page ⓘ sits beside the centred titl
   const map = ruleDeclarationMap(parseCssRules(css));
   assert.equal(String(map.get('|||.hs-top|||grid-template-columns')).replace(/\s+/g, ''), 'minmax(0,1fr)autominmax(0,1fr)');
   assert.equal(map.get('|||.hs-top>.hs-title|||grid-column'), '2');
+  assert.equal(map.get('|||.hs-title|||text-indent'), 'var(--label-track)', 'the trailing tracking is balanced: the glyphs sit centred');
+  // the other tabs open on their title alone: no avatar / date pill, the freshness controls kept
+  const bar = [...map.entries()].filter(([k]) => k.includes('[hidden])>.topbar>:not(.fresh)|||display'));
+  assert.deepEqual(bar.map(([, v]) => v), ['none'], 'avatar + date pill hidden off Inicio, .fresh kept');
   assert.ok(![...map.keys()].some((k) => k.startsWith('|||.hs-top .hs-i|||position')), 'no longer pinned absolutely at the far right');
   assert.equal(map.get('|||.hm .hs-lbl|||flex'), '0 1 auto', 'the monitor title does not grow: the chip follows it');
   assert.equal(map.get('|||.hm .hs-head>.hs-i|||margin-left'), 'auto', 'the ⓘ closes the row');

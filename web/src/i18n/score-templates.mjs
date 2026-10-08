@@ -16,11 +16,16 @@ export const en = {
   // Inicio static headings (tabs/Home.astro)
   home: {
     myDay: 'My day',
+    // the one-line outlook bar's title (client/score.js); the advice sentence is behind the tap
+    outlook: 'Your daily outlook',
     // "Tonight" card (client/home-week.js, SCORES.tonight from lib/score/tonight.mjs)
     tonight: {
       heading: 'Tonight\'s sleep',
       bed: 'Recommended bedtime',
       wake: 'Usual wake time',
+      // the card's wake side: a teal state line, then where the time comes from
+      wakeState: 'Usual wake',
+      nights: 'Last {n} nights',
       aria: 'Tonight\'s sleep: recommended bedtime {bed}, usual wake time {wake}',
       rule: 'Bedtime {bed} = your usual wake time ({wake}, the median of your last {n} nights) minus your sleep target of {target} h.',
       note: 'A suggestion from your own data only: the page cannot set an alarm.',
@@ -141,6 +146,8 @@ export const en = {
       baseAria: '30-day average {base}',
       dirs: { up: 'above the average', down: 'below the average', flat: 'about the average' },
       empty: 'Every metric is hidden. Use Customize to show some.',
+      // full metric names on the rows (client/home-dash.js); the rest use the detail sheet's title
+      names: { rhr: 'Resting heart rate', hrv: 'Heart rate variability', sleep: 'Hours of sleep', walkingHr: 'Walking heart rate' },
     },
   },
   emptyMsg: 'No scores yet. Recovery needs the Apple Health extract; load needs workouts with Relative Effort (Strava).',
@@ -229,7 +236,6 @@ export const en = {
     },
     load: {
       label: 'Load',
-      switchLabel: 'Load modality',
       scale: 'Half the ring = your typical training day (median of the last 6 weeks); a full ring = twice it',
       gated: 'Building',
       rest: 'No session yet',
@@ -283,11 +289,10 @@ export const en = {
     heading: 'Today\'s activities',
     ariaLabel: 'Last night, today\'s workouts and today\'s programmed session',
     dateHeading: 'Latest day · {date}',
-    noToday: 'Nothing logged yet today.',
     // a PAST day (the top bar's day stepping)
     pastHeading: 'Activities · {date}',
     noDay: 'Nothing logged that day.',
-    empty: 'Nothing logged in the last few days. Sleep and workouts appear here from the Watch and Strava.',
+    empty: 'Nothing logged in the last few days.',
     sleep: 'Sleep',
     sleepVal: '{hours} h',
     noSleep: 'No sleep recorded',
@@ -319,11 +324,16 @@ export const es = {
   // títulos fijos de Inicio (tabs/Home.astro)
   home: {
     myDay: 'Mi día',
+    // título de la barra de una línea (client/score.js); la frase del consejo va tras el toque
+    outlook: 'Tu panorama del día',
     // tarjeta "Esta noche" (client/home-week.js, SCORES.tonight de lib/score/tonight.mjs)
     tonight: {
       heading: 'Esta noche',
       bed: 'Hora de acostarte',
       wake: 'Despertar habitual',
+      // el lado del despertar en la tarjeta: una línea de estado en verde azulado y de dónde sale la hora
+      wakeState: 'Despertar habitual',
+      nights: 'Últimas {n} noches',
       aria: 'Esta noche: hora recomendada para acostarte {bed}, despertar habitual {wake}',
       rule: 'Acostarte a las {bed} = tu hora habitual de despertar ({wake}, la mediana de tus últimas {n} noches) menos tu objetivo de sueño de {target} h.',
       note: 'Solo una sugerencia a partir de tus datos: la página no puede poner una alarma.',
@@ -444,6 +454,8 @@ export const es = {
       baseAria: 'media de 30 días {base}',
       dirs: { up: 'por encima de la media', down: 'por debajo de la media', flat: 'en torno a la media' },
       empty: 'Todas las métricas están ocultas. Usa Personalizar para mostrar alguna.',
+      // nombres completos en las filas (client/home-dash.js); el resto usa el título de la hoja de detalle
+      names: { rhr: 'Frecuencia cardiaca en reposo', hrv: 'Variabilidad de la frecuencia cardiaca', sleep: 'Horas de sueño', walkingHr: 'Frecuencia cardiaca al caminar' },
     },
   },
   emptyMsg: 'Aún no hay puntuaciones. La recuperación necesita la exportación de Apple Health; la carga necesita entrenos con Esfuerzo Relativo (Strava).',
@@ -530,7 +542,6 @@ export const es = {
     },
     load: {
       label: 'Carga',
-      switchLabel: 'Modalidad de carga',
       scale: 'Medio anillo = tu día típico de entreno (mediana de las últimas 6 semanas); anillo completo = el doble',
       gated: 'En formación',
       rest: 'Sin sesión aún',
@@ -584,11 +595,10 @@ export const es = {
     heading: 'Actividades de hoy',
     ariaLabel: 'La noche pasada, los entrenos de hoy y la sesión programada de hoy',
     dateHeading: 'Último día · {date}',
-    noToday: 'Hoy aún no hay nada registrado.',
     // un día PASADO (el selector de día de la barra superior)
     pastHeading: 'Actividades · {date}',
     noDay: 'Ese día no hay nada registrado.',
-    empty: 'No hay nada registrado en los últimos días. El sueño y los entrenos aparecen aquí desde el Watch y Strava.',
+    empty: 'No hay nada registrado en los últimos días.',
     sleep: 'Sueño',
     sleepVal: '{hours} h',
     noSleep: 'Sin sueño registrado',

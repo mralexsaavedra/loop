@@ -174,12 +174,16 @@
     var trendTxt = tr.dir && R.dirs[tr.dir] ? format(R.trendLine, { dir: R.dirs[tr.dir], value: X.signed(tr.value, 1) }) : format(R.trendLineNoDir, { value: X.signed(tr.value, 1) });
     var trend = { cls: 'dt-c-' + (BAND_STATE[tr.band] || 'normal'), text: trendTxt + (X.T.day.bands[tr.band] ? ' · ' + X.T.day.bands[tr.band] : '') };
     var band = X.T.day.bands[h.band] || '';
-    if (h.mode !== 'today') return [{ text: R.noLastNight }, { text: band }, trend];
+    // Inicio's outlook bar shows one line; its full sentence (score.js window.HCAdvice, '' on a past
+    // day or stale data) leads this card, the page the bar opens
+    var adv = typeof window !== 'undefined' && typeof window.HCAdvice === 'function' ? window.HCAdvice() : '';
+    var lead = adv ? [{ text: adv }] : [];
+    if (h.mode !== 'today') return lead.concat([{ text: R.noLastNight }, { text: band }, trend]);
     var d = isoDate(h.date);
     // "Last night" only when the night is dated the viewer's today AND has a sleep reading (as the dial)
     var when = HC.daysOld(d) === 0 && h.sleep !== false ? R.lastNight : HC.fmtDate(d);
     var pct = pctOf(h);
-    var out = [{ text: format(X.T.deep.nightLine, { when: when, band: pct != null ? R.pctBands[dials().recovery.band] : band }) }];
+    var out = lead.concat([{ text: format(X.T.deep.nightLine, { when: when, band: pct != null ? R.pctBands[dials().recovery.band] : band }) }]);
     // with a % headline the night's SD value moves under ⓘ (infoHtml), so the insight carries ONE band
     if (h.sleep === false) out.push({ cls: 'dt-nodata', text: R.noSleep });
     out.push(trend);
@@ -520,6 +524,20 @@
     }).join('') + '</div></section>';
   }
 
+  // load pages: the gym / run / bike pills (no longer under Inicio's dials): each opens that
+  // modality's page and sets Inicio's load dial to it (score.js scMod, when loaded); the page's own
+  // modality is the pressed one. Fewer than two modalities with a load series: no pills.
+  function modSwitch(key, X) {
+    var cur = X.modOf(key);
+    var mods = ['gym', 'run', 'bike'].filter(function (k) { return !!X.metric('load-' + k); });
+    if (mods.length < 2) return '';
+    var set = typeof scMod === 'function';
+    return '<div class="dial-switch" role="group" aria-label="' + esc(X.T.deep.modSwitch) + '">' + mods.map(function (k) {
+      return '<button type="button" class="dial-mod" data-detail="load-' + k + '" aria-pressed="' + (k === cur) + '"' +
+        (set ? ' onclick="scMod(\'' + k + '\')"' : '') + '>' + esc(X.T.modalities[k] || k) + '</button>';
+    }).join('') + '</div>';
+  }
+
   function render(key, m, end, X) {
     if (key === 'stress') return stressPage(key, m, end, X);
     if (key === 'energy-bank') return energyPage(key, m, end, X);
@@ -535,7 +553,8 @@
     var rows = key === 'recovery' ? recoveryRows(m, end, X) : key === 'sleep' ? sleepRows(m, end, X) : loadRows(key, m, end, X);
     return {
       head: headHtml(key, end, X),
-      top: infoHtml(key, m, X) + heroHtml(hero, X) + (key === 'sleep' ? stagesHtml(m, end, X) : '') + contribHtml(rows, X) + insightHtml(lines, X) + weeklyHtml(key, m, end, X),
+      top: infoHtml(key, m, X) + heroHtml(hero, X) + (key === 'sleep' ? stagesHtml(m, end, X) : '') + contribHtml(rows, X) +
+        (key === 'sleep' || key === 'recovery' ? '' : modSwitch(key, X)) + insightHtml(lines, X) + weeklyHtml(key, m, end, X),
     };
   }
 

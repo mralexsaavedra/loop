@@ -596,6 +596,17 @@ test('ⓘ toggles the long-notes block in place (no re-render); the CTA jumps to
   assert.ok(s.host.innerHTML.includes(`<button type="button" class="dd-cta" data-dt-act="trend">${enT.deep.cta}<span aria-hidden="true"> →</span></button>`));
 });
 
+test('recovery deep-dive: the insight card leads with Inicio\'s outlook sentence (window.HCAdvice), the full text behind the one-line bar; nothing without one', () => {
+  const s = setup({ dials: DIALS });
+  s.ctx.window.HCAdvice = () => 'Over the last 7 days recovery has stayed at baseline.';
+  s.api.open('recovery');
+  assert.ok(insightOf(s.host.innerHTML).startsWith('<p class="dd-ln">Over the last 7 days recovery has stayed at baseline.</p>'));
+  const none = setup({ dials: DIALS });
+  none.ctx.window.HCAdvice = () => '';
+  none.api.open('recovery');
+  assert.ok(insightOf(none.host.innerHTML).startsWith('<p class="dd-ln">' + format(enT.deep.nightLine, { when: enT.rec.lastNight, band: enT.rec.pctBands[DIALS.recovery.band] })));
+});
+
 test('recovery deep-dive = the dial: the hero ring is last night\'s % with ONE % band colour; the insight says "last night" + the % band and the 7-day trend in its own band colour; the SD value is under ⓘ', () => {
   const s = setup({ dials: DIALS });
   s.api.open('recovery');
@@ -712,6 +723,29 @@ test('a daily total\'s newest day, when it is the viewer\'s today, reads "today,
   const later = setup({ now: addDays(NOW, 1) });
   later.api.open('steps', NOW);
   assert.doesNotMatch(later.host.innerHTML, /dt-s-partial/, 'a finished day gets its state again');
+});
+
+test('load deep-dive: the gym / run / bike pills (moved from under Inicio\'s dials) — the page\'s modality pressed, each opens its page and, with score.js loaded, sets Inicio\'s load dial (scMod)', () => {
+  const s = setup({ dials: DIALS });
+  s.api.open('load-run');
+  const html = s.host.innerHTML;
+  const mods = ['gym', 'run', 'bike'].filter((k) => DEMO.metrics['load-' + k]);
+  assert.ok(mods.length >= 2, 'the demo has several load series');
+  const sw = (html.match(/<div class="dial-switch" role="group" aria-label="Load modality">[\s\S]*?<\/div>/) || [''])[0];
+  assert.deepEqual([...sw.matchAll(/data-detail="load-([a-z]+)"/g)].map((m) => m[1]), mods);
+  assert.match(sw, /<button type="button" class="dial-mod" data-detail="load-run" aria-pressed="true">Run<\/button>/);
+  assert.equal((sw.match(/aria-pressed="true"/g) || []).length, 1);
+  assert.doesNotMatch(sw, /onclick/, 'no scMod on the page: plain links');
+  assert.ok(html.indexOf('dial-switch') > html.indexOf('dd-hero') && html.indexOf('dial-switch') < html.indexOf('dd-insight'), 'between the contributors and the insight card');
+  // with score.js's scMod present, a pill also switches Inicio's dial
+  const t = setup({ dials: DIALS });
+  t.ctx.scMod = () => {};
+  t.api.open('load-gym');
+  assert.match(t.host.innerHTML, /data-detail="load-bike" aria-pressed="false" onclick="scMod\('bike'\)">Bike<\/button>/);
+  // other dial pages: no pills
+  const r = setup({ dials: DIALS });
+  r.api.open('recovery');
+  assert.doesNotMatch(r.host.innerHTML, /dial-switch/);
 });
 
 test('load deep-dive = the dial: today\'s RE in a strain ring with the typical-day tick, else the dial\'s word; the insight carries today\'s line', () => {

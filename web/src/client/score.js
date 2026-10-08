@@ -24,16 +24,16 @@
  * (data-date), are never greyed as stale, and the advice (it reads the current 7-day trend) is hidden.
  * Today goes through exactly the code it always did (VIEW = null), so its markup is unchanged.
  */
-// Load dial modality switch: shows the chosen modality's dial + caption, hides the others.
-// The collapsed dial row (#home-mini) carries the same data-dmod items, so it follows the switch.
-function scMod(key, btn) {
-  var root = btn && btn.closest ? btn.closest('.sc-dials') : null;
-  if (!root) return;
-  [root, document.getElementById('home-mini')].forEach(function (host) {
-    if (!host) return;
+// Load dial modality switch: shows the chosen modality's dial on Inicio, hides the others. The gym /
+// run / bike pills live in the load deep-dive (client/deepdive.js modSwitch: each opens that
+// modality's page and calls scMod), not under the dials; the collapsed dial row (#home-mini) carries
+// the same data-dmod items, so it follows too. A missing host is skipped.
+function scMod(key) {
+  ['home-dials', 'home-advice', 'home-mini'].forEach(function (id) {
+    var host = document.getElementById(id);
+    if (!host || !host.querySelectorAll) return;
     host.querySelectorAll('[data-dmod]').forEach(function (el) {
-      if (el.classList.contains('dial-mod')) el.setAttribute('aria-pressed', el === btn ? 'true' : 'false');
-      else el.hidden = el.getAttribute('data-dmod') !== key;
+      el.hidden = el.getAttribute('data-dmod') !== key;
     });
   });
 }
@@ -117,8 +117,8 @@ function scMod(key, btn) {
       out.push('<div class="rec-when">' + esc(when) + '</div>');
       var pct = typeof R.today.pct === 'number';
       var band = pct ? R.today.pctBand : R.today.band;
-      out.push('<div class="rec-big sc-band-' + esc(band) + '"><b class="rec-num">' + esc(pct ? String(R.today.pct) : num(R.today.value, 1, true)) + '</b>' +
-        '<small class="rec-unit">' + esc(pct ? '%' : rt.unit) + '</small><span class="rec-band">' + esc(pct ? rt.pctBands[band] : rt.bands[band]) + '</span></div>');
+      out.push('<div class="rec-big sc-band-' + esc(band) + '"><b class="rec-num">' + esc(pct ? String(R.today.pct) : num(R.today.value, 1, true)) +
+        '<small class="rec-unit">' + esc(pct ? '%' : rt.unit) + '</small></b><span class="rec-band">' + esc(pct ? rt.pctBands[band] : rt.bands[band]) + '</span></div>');
     } else {
       out.push('<div class="sc-note">' + esc(rt.noToday) + '</div>');
     }
@@ -393,7 +393,7 @@ function scMod(key, btn) {
     return dialFig('dial-rec dial-band-' + esc(d.band), dialStale(d.asOf), '', aria,
       dialSvg({ fill: d.fill, mid: d.mid }), numCentre(v, T.recovery.unit), rt.label);
   }
-  // The modality the switch opens on, for the VIEWER's today (never baked): the modality with a
+  // The modality the load dial opens on, for the VIEWER's today (never baked): the modality with a
   // session today, gated or not (a gated one opens in its gated state) — highest RE first, ties by
   // modality order, a session without RE still beats nothing — else the baked default (the first
   // ungated one).
@@ -447,19 +447,7 @@ function scMod(key, btn) {
     });
     return figs.join('');
   }
-  // Compact gym / run / bike pills under the dials (right-aligned under the load dial). They stay on
-  // Inicio rather than in the load sheet: the sheet is one modality's history, and the choice changes
-  // which ring Inicio shows, so it belongs next to that ring. The day vs typical caption, the scale
-  // and acute/chronic context moved to the load detail sheet (client/detail.js loadContext).
-  function loadSwitch(d, dt) {
-    var open = openKey(d);
-    var btns = d.modalities.map(function (m) {
-      return '<button type="button" class="dial-mod" data-dmod="' + attr(m.key) + '" aria-pressed="' + (m.key === open ? 'true' : 'false') +
-        '" onclick="scMod(\'' + attr(m.key) + '\',this)">' + esc(T.load.modalities[m.key] || m.key) + '</button>';
-    }).join('');
-    return '<div class="dial-foot"><div class="dial-switch" role="group" aria-label="' + attr(dt.load.switchLabel) + '">' + btns + '</div></div>';
-  }
-  // the ONE line that stays under the dials besides the switch: the newest data is too old
+  // the ONE line that stays under the dials: the newest data is too old
   function staleLine() {
     if (VIEW) return '';
     var ages = [D.sleep && D.sleep.state === 'ok' ? D.sleep.date : null, D.recovery ? D.recovery.asOf : null, D.strain ? D.strain.asOf : D.load ? D.load.asOf : null]
@@ -498,7 +486,7 @@ function scMod(key, btn) {
     var third = hasStrain ? strainDialHtml(D.strain, dt)
       : hasLoad ? loadDials(D.load, dt) : dialFig('dial-load dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.load.label);
     return '<div class="sc-card sc-dials" role="group" aria-label="' + attr(dt.ariaLabel) + '"><div class="dials">' + first + third +
-      '</div>' + (hasLoad ? loadSwitch(D.load, dt) : '') + staleLine() + caveatLines(dt, hasLoad) + '</div>';
+      '</div>' + staleLine() + caveatLines(dt, hasLoad) + '</div>';
   }
 
   // #home-mini (fixed under the top edge) turns on while the dials are scrolled ABOVE the viewport;
@@ -540,14 +528,26 @@ function scMod(key, btn) {
   }
   var OUTLOOK_ICO = '<svg class="outlook-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/>' +
     '<path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>';
-  function adviceHtml() {
+  // the advice sentence for the viewer's today, '' when there is none (a past day, stale data, no rule).
+  // Also window.HCAdvice: the recovery deep-dive (client/deepdive.js) leads its insight card with it,
+  // the full text behind the one-line outlook bar.
+  function currentAdvice() {
     if (VIEW) return '';
     var anyStale = (S.recovery && isStale(S.recovery.asOf)) || (S.load && isStale(S.load.asOf));
     if (!S.advice || anyStale || !T.advice[S.advice.key]) return '';
-    // "My day" outlook bar: icon, the sentence (CSS clamps it to two lines), a chevron; every rule
-    // reads the recovery trend, so a tap opens the recovery sheet that explains it
-    return '<div class="sc-advice outlook"' + HC.detailAttrs('recovery') + '>' + OUTLOOK_ICO +
-      '<span class="outlook-txt">' + esc(adviceText(S.advice)) + '</span><span class="outlook-chev" aria-hidden="true">›</span></div>';
+    return adviceText(S.advice);
+  }
+  if (typeof window !== 'undefined') window.HCAdvice = function () { try { return S && S.hasData ? currentAdvice() : ''; } catch (e) { return ''; } };
+  function adviceHtml() {
+    var txt = currentAdvice();
+    if (!txt) return '';
+    // "My day" outlook bar: icon, ONE line, a chevron; every rule reads the recovery trend, so a tap
+    // opens the recovery sheet, whose insight card leads with the sentence. With a sheet the bar shows
+    // the short title (the sentence is its accessible name); without one, the sentence itself.
+    var link = HC.detailAttrs('recovery');
+    var title = link && T.home && T.home.outlook;
+    return '<div class="sc-advice outlook"' + link + (title ? ' aria-label="' + attr(title + ': ' + txt) + '"' : '') + '>' + OUTLOOK_ICO +
+      '<span class="outlook-txt">' + esc(title || txt) + '</span><span class="outlook-chev" aria-hidden="true">›</span></div>';
   }
 
   // the blocks that follow the selected day (HCDay): the dials, the collapsed row, the advice

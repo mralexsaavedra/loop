@@ -27,11 +27,14 @@ registered before `detail.js` runs; `#tonight` / `#dash-edit` deep-link to them 
 Salud with `jump('monitor')` (switches to Salud and scrolls to it).
 
 **Collapsed dial row** (`#home-mini`, first in `Home.astro`): once the dials scroll above the viewport
-(an IntersectionObserver on `#home-dials`, `score.js`), a frosted strip fixed at the top shows the
-three dials again as mini rings + labels (Sleep · Recovery · Load). Every `dialFig` call also queues
+(an IntersectionObserver on `#home-dials`, `score.js`), a strip fixed at the top shows the
+three dials again as mini rings + labels (Sleep · Recovery · Load). It has no fill or border of its own:
+`--ground-top` fades to transparent under it, so the page scrolls away beneath it; each mini ring draws
+its grey `--track` in full even with no value (the 45 % dimming of an empty ring applies to the big
+dial only). Every `dialFig` call also queues
 its mini item from the SAME svg string, colour class, label and detail opener (`HC.detailAttrs`), so
 nothing is recomputed and a tap opens the same detail as the dial; the load items carry `data-dmod`,
-so the modality switch (`scMod`) moves them too. Off it is `visibility: hidden` (out of the tab order
+so the modality pills of the load deep-dive (`scMod`) move them too. Off it is `visibility: hidden` (out of the tab order
 and the accessibility tree); the slide / fade is dropped under `prefers-reduced-motion`; with no data
 or without IntersectionObserver it stays off.
 
@@ -114,10 +117,10 @@ trend is the line under it.
   without RE), and `last` = the newest day with RE > 0. The VIEWER's today is picked client-side from
   `recent`, so nothing today-relative is baked.
 - **Monitor tiles** (`#home-tiles`, `client/monitor.js`, from the SAME `SCORES.monitor` cards — no
-  new metric): two ~90 px tiles under the dials. Tile 1 "HEALTH MONITOR ›" = a status chip — "N out of
-  range" (`--down`) when any fresh card is High / Low, else a check + "Within range" (`--up`) when at
-  least one fresh card is Normal, else "No data" — and "n/5 metrics" (fresh cards in range / all
-  cards); a card counts only when its own date is ≤ 3 days old. It is a button calling
+  new metric): two 96 px tiles under the dials. Tile 1 "HEALTH MONITOR ›" = a square status icon (26 px,
+  a 16 % tint of its colour: "!" `--down` when any fresh card is High / Low, a check `--up` when at least
+  one fresh card is Normal, none without fresh data) left of a status chip — "N out of range", else
+  "Within range", else "No data" — over "n/5 metrics" (fresh cards in range / all cards); a card counts only when its own date is ≤ 3 days old. It is a button calling
   `jump('monitor')` (switches to Salud, scrolls to the monitor list at its top; `#monitor` deep-links
   there too, `ANCHOR_TAB` in lib/nav/tabs.mjs: core.js shows Salud and keeps the hash). Tile 2 =
   **STRESS MONITOR ›** when a day has a stress value (`SCORES.stress`, `lib/score/stress.mjs`: a
@@ -165,7 +168,7 @@ trend is the line under it.
   stepping (unit-tested; 390 px screenshot diff in the PR).
   - **Dials + collapsed row** (`score.js` `renderDay`): sleep + recovery = that day's `DIALS.days`
     entry (a day without its own night reads "No data", never another day's value), load = the
-    modality's baked `recent` session day (the switch opens on the modality trained THAT day; "No
+    modality's baked `recent` session day (the dial opens on the modality trained THAT day; "No
     session" instead of "No session yet"; a gated modality stays gated, the gate is today's), the
     arias name the date instead of "last night" / "today"; never greyed as stale (it is the day you
     asked for), no stale line; every dial and mini ring opens its deep-dive ON that day (`data-date`).
@@ -235,9 +238,11 @@ trend is the line under it.
   there are NO modality pills — per-modality Relative Effort stays in Entreno's load cards and the
   `load-<m>` deep-dives (linked from the strain page). The collapsed row follows (three rings). Without
   a calibrated strain (no `hr-hourly.csv`, no max HR, under 14 full days of all-day heart rate) the
-  third dial is the load dial below, unchanged. Load (fallback): ONE dial with a gym/run/bike
-  switch — compact pills right-aligned under the load dial (kept on Inicio rather than in the load
-  sheet: the sheet is one modality's history, while the switch decides which ring Inicio shows) — that opens
+  third dial is the load dial below, unchanged. Load (fallback): ONE dial per modality, one shown, with
+  NO pills under the dials (as the reference): the gym / run / bike pills live in the `load-<m>`
+  deep-dive, between its contributors and the insight card (`deepdive.js` `modSwitch`, the page's modality pressed, only with two
+  or more load series); a pill opens that modality's page and calls `scMod(key)`, which shows that
+  modality's dial on Inicio and in the collapsed row. The dial opens
   (client-side, from the viewer's today) on the modality with a session today, GATED OR NOT (a gated
   one opens in its greyed gated state, no number; gated modalities bake their `days` without
   geometry) — highest RE first, ties by modality order (gym, run, bike), a session without RE still
@@ -284,24 +289,29 @@ trend is the line under it.
   sleep (`sleep-daily.csv`, dated the wake-up day, with its bed / wake clock `bed` / `wake` when the
   row has them) and that day's workouts by Home modality (gym / run / bike / other) with minutes and
   RE when the source recorded it. Row = a coloured chip (sleep `--sleep`, workout `--strain`: line
-  icon + hours asleep / minutes, dark ink), the uppercase name, and the details stacked on the right
-  behind a thin bar of the row's colour: bed / wake time for sleep, RE and "N parts" for a workout
-  (workouts.csv has no start time, so no clock). On the viewer's today the programmed session
+  icon + hours asleep; a workout's RE as a bare number, else its minutes; dark ink), the uppercase
+  name, and the details stacked on the right behind a thin bar of the row's colour: bed / wake time for
+  sleep; for a workout the minutes (when the chip holds RE) and "N parts". workouts.csv has no start
+  time, so a workout has no start / end clock pair (the reference's right column); the row's
+  `aria-label` spells it out ("Run · RE 94 · 45 min · 2 parts"). On the viewer's today the programmed session
   (`window.HCProgram` from `client/training-today.js`) is the last row: an outline chip "Plan", its
   focus (one line, ellipsised; the row's `aria-label` carries the whole focus and the session view
   shows it in full), "Programmed"; it opens the session as the `hoy-session` detail view. Nothing matches a
   programmed session to a done workout yet, so it is only listed, never ticked; it is not shown
   under an older day's heading, and with no baked day but a session today the card lists only it. Rows follow the shared same-day
   rule (`DISPLAY_RULE`: stubs dropped, one source, same-day rows of one modality merge; the row says "N parts"). Only the last 3 data days are
-  baked; the client shows the viewer's today, else the newest earlier day under "Latest day · <date>"
-  with "nothing logged yet today", greyed when > 3 days old; when the viewer's clock is EARLIER than
-  every baked day (clock / timezone skew) → the newest baked day under its date (no "nothing logged"
-  line, not greyed); no baked days → empty state. No sleep
+  baked; the client shows the viewer's today under "Today's activities", else the newest earlier day
+  under "Latest day · <date>" (no filler line), greyed when > 3 days old; when the viewer's clock is
+  EARLIER than every baked day (clock / timezone skew) → the newest baked day under its date (not
+  greyed); no baked days → a one-line empty state. The header row centres the title on its 44 px ⓘ,
+  which overhangs the card padding. No sleep
   that night → "No sleep recorded", never 0 h. The same-day merge note ("RE only comes from Strava")
   sits behind the card header's ⓘ (`#tl-info`, only when the day lists workouts), not under the list.
 - **Tonight** (`#home-tonight`, `lib/score/tonight.mjs` baked as `SCORES.tonight`, `client/home-week.js`):
   the recommended bedtime (moon icon) and the usual wake time (alarm icon) joined by a dashed line, D-DIN
-  clocks, uppercase captions. Rule (stated in the sheet the card opens — the registered `tonight` view —
+  clocks (24 px), uppercase captions; the wake side carries a teal state line "● Usual wake" (`--up`,
+  where the reference shows its alarm state: the page has no alarm data) and then "Last N nights"
+  (the nights the median used). Rule (stated in the sheet the card opens — the registered `tonight` view —
   never on the card): usual wake = the median wake clock (`sleep-daily.csv` `waketime`, the night dated
   the wake-up day) of the nights in the last `TONIGHT_WINDOW` (14) days ending at the newest night with a
   wake time; bedtime = usual wake − the sleep target (`SLEEP_TARGET`, 7.5 h, the sleep dial's). A wake
@@ -312,7 +322,7 @@ trend is the line under it.
   chevron, 7 day columns (the 7 days ending on the viewer's today: weekday + a check circle, `--up` when
   that day is journaled); a column or the chevron opens the journal sheet on that day. Ships hidden.
 - **My plan** (`#my-plan`, `client/home-week.js`, `window.HCWeekPlan.weekGoals`): one collapsible
-  `<details>` card "Weekly plan · N days left · X % accomplished" + a teal progress bar, for the VIEWER's
+  `<details>` card, flat (no border, no open-state ring), "Weekly plan · N days left · X % accomplished" + a teal progress bar, for the VIEWER's
   week (Monday–Sunday from `Date.now()`, never baked; days left = after today). Expanded: one row per
   goal — uppercase label + its basis, `done/target`, ▲ `--up` on pace / ▼ `--down` behind (on pace =
   done ≥ target × days elapsed / 7), a small bar. % accomplished = the mean of min(1, done / target)
@@ -332,12 +342,14 @@ trend is the line under it.
   card and its "My plan" heading stay hidden. The sleep row opens the sleep sheet, the training row the
   training-time sheet.
 - **My dashboard** (`#my-dash`, `client/home-dash.js`): a Title Case heading with "CUSTOMIZE ✎" on the
-  right, then single-row metric cards — line icon · UPPERCASE metric · the latest value (D-DIN) + unit
-  and an arrow, the 30-day baseline small under it. Catalogue (`CATALOG`): rhr, hrv, sleep, weight,
+  right, then single-row metric cards (60 px) — line icon · UPPERCASE full metric name ("Resting heart
+  rate", "Heart rate variability", "Hours of sleep", "Walking heart rate": `home.dash.names`, else the
+  detail sheet's title) · the latest value (D-DIN, 22 px) + its unit at about half that size and an
+  arrow, the 30-day baseline small under it. Catalogue (`CATALOG`): rhr, hrv, sleep, weight,
   steps (shown by default, `DEFAULT_ON`), vo2max, fitnessAge, walkingHr, exercise (hidden by default;
   fitnessAge in whole years, "≤ 25" / "≥ 75" at the reference curve's bounds, docs/health-tab.md
   "Fitness age"); only keys
-  present in the baked `DETAIL.metrics` are listed. Same series, titles and units as the detail sheet
+  present in the baked `DETAIL.metrics` are listed. Same series and units as the detail sheet
   (`I18N_DETAIL`). Value = the newest day with data up to the viewer's today (a daily total skips
   today, still filling up); sleep shows h:mm. Baseline = the mean of the 30 days before that day, with
   ≥ 7 days of data (≥ 2 readings for a sparse series like weight); no baseline → no arrow. Arrow ▲▼ =
@@ -352,8 +364,12 @@ trend is the line under it.
   catalogue metric in `DETAIL` → the section stays hidden.
 - **Advice** is one descriptive sentence per rule (`lib/score/advice.mjs`, copy in `advice-copy.mjs`),
   never an instruction; hidden when data is insufficient or stale (> 3 days). It renders as the "My
-  day" outlook bar (`.outlook`: full width, ~46 px, warm grey → dark gradient, sun icon, the sentence
-  clamped to two lines, a chevron) and opens the recovery sheet (every rule reads the recovery trend). The rules still read the
+  day" outlook bar (`.outlook`: full width, 46 px, warm grey → dark gradient, sun icon, ONE line — the
+  short title "Your daily outlook" / "Tu panorama del día" (`home.outlook`) — and a chevron) and opens
+  the recovery sheet (every rule reads the recovery trend). The sentence is the bar's accessible name
+  and leads the recovery deep-dive's insight card (`score.js` exposes it as `window.HCAdvice`, '' on a
+  past day or stale data; `deepdive.js` `recoveryLines` prepends it). Without a detail sheet (nothing to
+  tap) the bar shows the sentence itself, ellipsised. The rules still read the
   7-day trend, and every sentence names that window ("Over the last 7 days recovery has…") so it reads
   as the context under last night's headline.
 - Caveats shown on the page: RE is HR-derived (credits the metcon more than heavy sets), modalities are

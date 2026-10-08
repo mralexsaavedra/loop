@@ -108,17 +108,21 @@
     });
     return { inR: inR, out: out };
   }
-  function chip(n) {
+  // bare: no check inside (the Inicio tile draws its status as a square icon beside the chip)
+  function chip(n, bare) {
     var TT = T.tile;
     return n.out > 0 ? '<span class="hmt-chip hmt-out">' + esc(format(TT.out, { n: n.out })) + '</span>'
-      : n.inR > 0 ? '<span class="hmt-chip hmt-in">' + CHECK + esc(TT.inRange) + '</span>'
+      : n.inR > 0 ? '<span class="hmt-chip hmt-in">' + (bare ? '' : CHECK) + esc(TT.inRange) + '</span>'
       : '<span class="hmt-chip hmt-none">' + esc(TT.none) + '</span>';
   }
-  // tile 1: the chip + "n/total metrics" in range; a tap jumps to the full monitor list at the top of
-  // Salud (core.js jump: switches to the tab that holds #monitor and scrolls to it)
+  // tile 1: a square status icon (✓ teal: every fresh signal in range; ! orange: one or more out; none
+  // without fresh data) left of the chip + "n/total metrics" in range; a tap jumps to the full monitor
+  // list at the top of Salud (core.js jump: switches to the tab that holds #monitor and scrolls to it)
   function sumTile(n, total) {
+    var tone = n.out > 0 ? 'out' : n.inR > 0 ? 'in' : '';
+    var sq = tone ? '<span class="hmt-sq hmt-' + tone + '" aria-hidden="true">' + (tone === 'in' ? CHECK : '!') + '</span>' : '';
     return '<button type="button" class="hmt hmt-sum" onclick="jump(\'monitor\')">' + lbl(T.heading) +
-      '<span class="hmt-body">' + chip(n) + '<span class="hmt-sub">' + esc(format(T.tile.metrics, { n: n.inR, total: total })) + '</span></span></button>';
+      '<span class="hmt-srow">' + sq + '<span class="hmt-body">' + chip(n, true) + '<span class="hmt-sub">' + esc(format(T.tile.metrics, { n: n.inR, total: total })) + '</span></span></span></button>';
   }
   // tile 2: the stress monitor (lib/score/stress.mjs, SCORES.stress: a heart-rate-only ESTIMATE per
   // waking hour) when the day has a value: the latest scored hour's value chip, its band word in the

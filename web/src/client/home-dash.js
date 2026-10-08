@@ -1,5 +1,6 @@
-/* Inicio "My dashboard" (#my-dash, after "My plan"): a stack of single-row metric cards — icon ·
- * UPPERCASE metric · the latest value on the right, the 30-day baseline under it and an arrow vs that
+/* Inicio "My dashboard" (#my-dash, after "My plan"): a stack of single-row metric cards (60px) — icon ·
+ * UPPERCASE full metric name (I18N_SCORE.home.dash.names, else the sheet's title) · the latest value
+ * (22px, the unit at half that) on the right, the 30-day baseline under it and an arrow vs that
  * baseline (▲▼ --up better / --down worse by the metric's good direction, grey for a neutral metric,
  * a grey dot when within ±FLAT_SHARE). Only metrics present in the baked DETAIL (lib/detail/detail.mjs);
  * the same series, titles and units as the detail sheet (I18N_DETAIL), so nothing new is computed
@@ -117,7 +118,9 @@
     function icon(key) {
       return HC.metricIcon(key); // the shared row icons (client/util.js)
     }
+    // the row's full name (TS.names: "Resting heart rate"), else the detail sheet's title
     function titleOf(key) {
+      if (own(TS.names, key)) return TS.names[key];
       return own(TD.metrics, key) && TD.metrics[key].title ? TD.metrics[key].title : key;
     }
     function unitOf(key) {

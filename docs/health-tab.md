@@ -17,13 +17,16 @@ its own try/catch (a throw in one half renders that half's empty state, never bl
 **Salud layout** (`web/src/tabs/Salud.astro` + `health.js`), top to bottom: a centred UPPERCASE title
 ("SALUD" / "HEALTH") with its ⓘ toggle right beside it (a `1fr | title | 1fr` grid, never pinned at the far
 right over the monitor's own ⓘ; `#hs-intro`: the tab intro + how to read a row; the button is
-`HC.infoBtn`'s markup written by `health.js` into the `#hs-intro-i` slot), over a soft
-green glow at the top of the page (`.hs-glow`, `--up` at 16 % via `color-mix`, absolute behind the
-content, only while the panel shows); the health monitor list (`#monitor`, `client/monitor.js`, see
+`HC.infoBtn`'s markup written by `health.js` into the `#hs-intro-i` slot; the title's
+`text-indent` balances the tracking after its last letter, so the glyphs sit truly centred; the same
+header on Entreno and Nutrición), over a green glow at the top of the page (`.hs-glow`, a radial
+ellipse of `--up` at 24 % via `color-mix`, absolute behind the content, only while the panel shows).
+Like the reference, Salud, Entreno and Nutrición open on that title alone: the top bar's avatar and
+date pill show on Inicio only (`docs/plan-page.md`, top bar), the freshness / Sync controls stay; the health monitor list (`#monitor`, `client/monitor.js`, see
 `docs/home-tab.md` "Health monitor"; its header reads title → "n out of range" chip → ⓘ at the end); then the sections of `#health-body`, each a `<section
 class="hs-sec" id="hl-<key>">` with an UPPERCASE label, an ⓘ toggle and a list of metric rows:
 **Recovery** (`#score-recovery`, the recovery card filled by score.js, restyled borderless; its
-headline is last night's recovery % with the % band word, or the SD value under 21 prior nights — its long
+headline is last night's recovery % (the unit attached to the number at ~55 % of its size, "99%") with the % band word, or the SD value under 21 prior nights — its long
 lines join this section's ⓘ block, and its raw "Last 14 days" lists fold behind a quiet disclosure
 line, see `docs/home-tab.md` — then only the signals among resting HR, HRV, respiratory rate and wrist
 temperature that the monitor does NOT list: the monitor already shows them at the top, so they are
