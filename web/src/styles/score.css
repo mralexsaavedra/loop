@@ -474,6 +474,19 @@
   .sc-dials {
     --dial-size: 140px;
   }
+  /* Inicio: the day (My day, eat card, Tonight) | the week (My plan, My dashboard), the gutter of the
+     monitor tiles above so both columns line up under them; a week column with nothing shown drops
+     its track and the day takes the row */
+  .home-cols {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    column-gap: var(--sp-4);
+    align-items: start;
+  }
+  .home-side:not(:has(> :not([hidden]))) {
+    display: none;
+  }
   .dial-num {
     font-size: 34px;
   }

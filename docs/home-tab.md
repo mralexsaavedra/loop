@@ -15,7 +15,9 @@ advice sentence as the outlook bar in `#home-advice`, then "Today's activities" 
 → the programmed session's hidden source section (`hoy`). The full health monitor list is NOT on
 Inicio: it leads Salud (see "Health monitor" below). Little
 text on the tab: each block's explanation lives in the detail sheet it opens
-(`web/test/content.test.mjs` pins the order). "Tonight" and "My plan" are rendered by
+(`web/test/content.test.mjs` pins the order). On wide screens (>= 900 px) the blocks after the tiles
+split into two columns, the day (My day, eat card, Tonight) | the week (My plan, My dashboard), via
+the `.home-cols` wrappers (`docs/plan-page.md`). "Tonight" and "My plan" are rendered by
 `client/home-week.js` and "My dashboard" by `client/home-dash.js`, both in `layouts/Plan.astro`'s
 end-of-body script list (after `HC`, the baked globals and `adherence.js`, right before
 `deepdive.js` / `detail.js`); they render at once, and their sheets (`tonight`, `dash-edit`) are

@@ -72,3 +72,17 @@ test('Nutrición Progress and Consistency: the whole block is capped, so the hea
   }
   assert.deepEqual(wide(map, '#nutri-progress > .nutri-card'), {}, 'not the inner card alone (its ⓘ stayed at the far right)');
 });
+
+test('Inicio: the day | the week in two columns on desktop, plain stacked blocks on a phone', () => {
+  const map = builtMap();
+  const cols = wide(map, '.home-cols');
+  assert.equal(cols.display, 'grid');
+  assert.equal(cols['grid-auto-flow'], 'column');
+  assert.equal(cols['grid-auto-columns'], 'minmax(0, 1fr)');
+  assert.equal(cols['column-gap'], 'var(--sp-4)', 'the monitor tiles\' gutter, so the columns line up under them');
+  assert.equal(wide(map, '.home-side:not(:has(> :not([hidden])))').display, 'none', 'an empty week column drops its track');
+  // the wrappers keep the phone order: day (my-day, eat card, tonight) then week (my-plan, my-dash)
+  const html = fs.readFileSync(HTML, 'utf8');
+  const at = ['class="home-cols"', 'class="home-col"', 'id="my-day"', 'class="eat-card"', 'id="home-tonight"', 'class="home-col home-side"', 'id="my-plan"', 'id="my-dash"'].map((n) => html.indexOf(n));
+  assert.ok(at.every((i, k) => i > 0 && (k === 0 || i > at[k - 1])), `wrappers and sections in order: ${at}`);
+});
