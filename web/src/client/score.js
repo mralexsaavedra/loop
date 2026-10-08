@@ -540,14 +540,26 @@ function scMod(key, btn) {
   }
   var OUTLOOK_ICO = '<svg class="outlook-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/>' +
     '<path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>';
-  function adviceHtml() {
+  // the advice sentence for the viewer's today, '' when there is none (a past day, stale data, no rule).
+  // Also window.HCAdvice: the recovery deep-dive (client/deepdive.js) leads its insight card with it,
+  // the full text behind the one-line outlook bar.
+  function currentAdvice() {
     if (VIEW) return '';
     var anyStale = (S.recovery && isStale(S.recovery.asOf)) || (S.load && isStale(S.load.asOf));
     if (!S.advice || anyStale || !T.advice[S.advice.key]) return '';
-    // "My day" outlook bar: icon, the sentence (CSS clamps it to two lines), a chevron; every rule
-    // reads the recovery trend, so a tap opens the recovery sheet that explains it
-    return '<div class="sc-advice outlook"' + HC.detailAttrs('recovery') + '>' + OUTLOOK_ICO +
-      '<span class="outlook-txt">' + esc(adviceText(S.advice)) + '</span><span class="outlook-chev" aria-hidden="true">›</span></div>';
+    return adviceText(S.advice);
+  }
+  if (typeof window !== 'undefined') window.HCAdvice = function () { try { return S && S.hasData ? currentAdvice() : ''; } catch (e) { return ''; } };
+  function adviceHtml() {
+    var txt = currentAdvice();
+    if (!txt) return '';
+    // "My day" outlook bar: icon, ONE line, a chevron; every rule reads the recovery trend, so a tap
+    // opens the recovery sheet, whose insight card leads with the sentence. With a sheet the bar shows
+    // the short title (the sentence is its accessible name); without one, the sentence itself.
+    var link = HC.detailAttrs('recovery');
+    var title = link && T.home && T.home.outlook;
+    return '<div class="sc-advice outlook"' + link + (title ? ' aria-label="' + attr(title + ': ' + txt) + '"' : '') + '>' + OUTLOOK_ICO +
+      '<span class="outlook-txt">' + esc(title || txt) + '</span><span class="outlook-chev" aria-hidden="true">›</span></div>';
   }
 
   // the blocks that follow the selected day (HCDay): the dials, the collapsed row, the advice

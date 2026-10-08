@@ -596,6 +596,17 @@ test('ⓘ toggles the long-notes block in place (no re-render); the CTA jumps to
   assert.ok(s.host.innerHTML.includes(`<button type="button" class="dd-cta" data-dt-act="trend">${enT.deep.cta}<span aria-hidden="true"> →</span></button>`));
 });
 
+test('recovery deep-dive: the insight card leads with Inicio\'s outlook sentence (window.HCAdvice), the full text behind the one-line bar; nothing without one', () => {
+  const s = setup({ dials: DIALS });
+  s.ctx.window.HCAdvice = () => 'Over the last 7 days recovery has stayed at baseline.';
+  s.api.open('recovery');
+  assert.ok(insightOf(s.host.innerHTML).startsWith('<p class="dd-ln">Over the last 7 days recovery has stayed at baseline.</p>'));
+  const none = setup({ dials: DIALS });
+  none.ctx.window.HCAdvice = () => '';
+  none.api.open('recovery');
+  assert.ok(insightOf(none.host.innerHTML).startsWith('<p class="dd-ln">' + format(enT.deep.nightLine, { when: enT.rec.lastNight, band: enT.rec.pctBands[DIALS.recovery.band] })));
+});
+
 test('recovery deep-dive = the dial: the hero ring is last night\'s % with ONE % band colour; the insight says "last night" + the % band and the 7-day trend in its own band colour; the SD value is under ⓘ', () => {
   const s = setup({ dials: DIALS });
   s.api.open('recovery');

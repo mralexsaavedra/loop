@@ -44,7 +44,7 @@ const HEALTH = { recovery: { hasData: true, sleep: { target: 7.5 } } };
 
 // Returns #home-advice + #score-recovery (Salud) + #score-load (Entreno), in that order; pass `hosts` to
 // inspect each one separately.
-function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, loadSectionHidden = false, dials, dialsHost, miniHost, hosts = {}, detail = false, secInfo = null, day } = {}) {
+function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, loadSectionHidden = false, dials, dialsHost, miniHost, hosts = {}, detail = false, secInfo = null, day, ctxExtra } = {}) {
   const host = { innerHTML: '' };
   const rec = (hosts.rec = hosts.rec || { innerHTML: '' });
   const load = (hosts.load = hosts.load || { innerHTML: '' });
@@ -66,6 +66,7 @@ function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entre
   if (detail) ctx.DETAIL = { metrics: {} };
   // the top bar's day stepping (client/today-date.js window.HCDay), when the test selects a day
   if (day) ctx.HCDay = day;
+  if (ctxExtra) Object.assign(ctx, ctxExtra);
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
@@ -293,15 +294,33 @@ test('advice is rendered with the shared copy when fresh (identical to renderAdv
   assert.ok(es.includes(renderAdvice(s.advice, 'es')));
 });
 
-test('advice = the "outlook" bar under "My day": icon, the sentence (clamped in CSS), a chevron; it opens the recovery sheet that explains it', () => {
+test('advice = the one-line "outlook" bar under "My day": icon, the short title, a chevron; the sentence is its accessible name and opens the recovery sheet', () => {
   const s = fixtureScores();
   const text = renderAdvice(s.advice, 'en');
   const linked = render(s, { now: addDays(ASOF, 1), detail: true });
-  assert.ok(linked.includes(`<div class="sc-advice outlook" data-detail="recovery" role="button" tabindex="0" aria-haspopup="dialog"><svg class="outlook-ico"`));
-  assert.match(linked, new RegExp(`<span class="outlook-txt">${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</span><span class="outlook-chev" aria-hidden="true">›</span></div>`));
+  const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  assert.match(linked, new RegExp(`<div class="sc-advice outlook" data-detail="recovery" role="button" tabindex="0" aria-haspopup="dialog" aria-label="${esc(enT.home.outlook + ': ' + text)}"><svg class="outlook-ico"`));
+  assert.ok(linked.includes(`<span class="outlook-txt">${enT.home.outlook}</span><span class="outlook-chev" aria-hidden="true">›</span></div>`), 'one line: the short title');
+  assert.equal(enT.home.outlook, 'Your daily outlook');
+  const es = render(s, { now: addDays(ASOF, 1), detail: true, locale: 'es' });
+  assert.ok(es.includes(`<span class="outlook-txt">${esT.home.outlook}</span>`));
   const plain = render(s, { now: addDays(ASOF, 1) });
   assert.match(plain, /<div class="sc-advice outlook"><svg class="outlook-ico"/, 'no detail sheet baked: a plain bar');
+  assert.ok(plain.includes(`<span class="outlook-txt">${text}</span>`), 'nothing to tap: the sentence itself');
   assert.doesNotMatch(plain, /class="sc-card sc-advice/, 'no longer a bordered card');
+});
+
+test('window.HCAdvice: the sentence for the recovery page (today, fresh data); empty on a past day or stale data', () => {
+  const s = fixtureScores();
+  const run = (opts) => {
+    const out = {};
+    const ctx = { window: out };
+    render(s, { ...opts, ctxExtra: ctx });
+    return out.HCAdvice ? out.HCAdvice() : null;
+  };
+  assert.equal(run({ now: addDays(ASOF, 1) }), renderAdvice(s.advice, 'en'));
+  assert.equal(run({ now: addDays(ASOF, 1), day: fakeDay(addDays(ASOF, -2)) }), '', 'a past day: no advice');
+  assert.equal(run({ now: addDays(ASOF, 5) }), '', 'stale: no advice');
 });
 
 test('stale: > 3 days old is greyed, shows "as of <date>" and the note, and suppresses advice', () => {

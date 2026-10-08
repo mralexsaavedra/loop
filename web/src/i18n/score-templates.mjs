@@ -16,6 +16,8 @@ export const en = {
   // Inicio static headings (tabs/Home.astro)
   home: {
     myDay: 'My day',
+    // the one-line outlook bar's title (client/score.js); the advice sentence is behind the tap
+    outlook: 'Your daily outlook',
     // "Tonight" card (client/home-week.js, SCORES.tonight from lib/score/tonight.mjs)
     tonight: {
       heading: 'Tonight\'s sleep',
@@ -283,11 +285,10 @@ export const en = {
     heading: 'Today\'s activities',
     ariaLabel: 'Last night, today\'s workouts and today\'s programmed session',
     dateHeading: 'Latest day · {date}',
-    noToday: 'Nothing logged yet today.',
     // a PAST day (the top bar's day stepping)
     pastHeading: 'Activities · {date}',
     noDay: 'Nothing logged that day.',
-    empty: 'Nothing logged in the last few days. Sleep and workouts appear here from the Watch and Strava.',
+    empty: 'Nothing logged in the last few days.',
     sleep: 'Sleep',
     sleepVal: '{hours} h',
     noSleep: 'No sleep recorded',
@@ -319,6 +320,8 @@ export const es = {
   // títulos fijos de Inicio (tabs/Home.astro)
   home: {
     myDay: 'Mi día',
+    // título de la barra de una línea (client/score.js); la frase del consejo va tras el toque
+    outlook: 'Tu panorama del día',
     // tarjeta "Esta noche" (client/home-week.js, SCORES.tonight de lib/score/tonight.mjs)
     tonight: {
       heading: 'Esta noche',
@@ -584,11 +587,10 @@ export const es = {
     heading: 'Actividades de hoy',
     ariaLabel: 'La noche pasada, los entrenos de hoy y la sesión programada de hoy',
     dateHeading: 'Último día · {date}',
-    noToday: 'Hoy aún no hay nada registrado.',
     // un día PASADO (el selector de día de la barra superior)
     pastHeading: 'Actividades · {date}',
     noDay: 'Ese día no hay nada registrado.',
-    empty: 'No hay nada registrado en los últimos días. El sueño y los entrenos aparecen aquí desde el Watch y Strava.',
+    empty: 'No hay nada registrado en los últimos días.',
     sleep: 'Sueño',
     sleepVal: '{hours} h',
     noSleep: 'Sin sueño registrado',

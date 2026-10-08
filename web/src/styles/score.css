@@ -96,15 +96,15 @@
   font-size: var(--fs-xs);
   margin: 6px 0;
 }
-/* "My day" outlook bar (the advice sentence): full width, ~46px, warm grey -> dark horizontal
-   gradient, sun icon, the sentence clamped to two lines, a chevron; opens the recovery sheet */
+/* "My day" outlook bar: full width, 46px, warm grey -> dark horizontal gradient, sun icon, ONE line
+   (the short title; the advice sentence is behind the tap, in the recovery sheet), a chevron */
 .outlook {
   display: flex;
   align-items: center;
   gap: var(--sp-4);
   min-height: 46px;
   margin: 0 0 var(--sp-5);
-  padding: var(--sp-3) var(--sp-5);
+  padding: 0 var(--sp-5);
   border-radius: var(--r-sm);
   background: linear-gradient(90deg, #4a4642 0%, #34363a 45%, var(--surface) 100%);
   color: var(--ink);
@@ -132,13 +132,11 @@
 .outlook-txt {
   flex: 1;
   min-width: 0;
-  font-size: var(--fs-md);
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  font-size: var(--fs-xl);
+  font-weight: 500;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 .outlook-chev {
   flex: none;
@@ -400,7 +398,7 @@
   margin-left: 3px;
   color: var(--muted);
 }
-.dial-off .dial-svg {
+.dial.dial-off .dial-svg {
   opacity: 0.45;
 }
 /* the day strain dial: its label in strain blue, like the reference's "STRAIN ›" */
@@ -546,6 +544,16 @@
 /* Inicio "Today's activities": per row a coloured score chip (sleep --sleep, a workout --strain; icon
    + value), the uppercase name, and the details stacked on the right behind a thin coloured bar.
    The programmed session's chip is an outline (not done, just planned). */
+/* the header row: the title centred on its 44px ⓘ, which overhangs the card padding instead of
+   pushing the title down */
+.tl .sc-head {
+  align-items: center;
+  min-height: 44px;
+  margin: calc(-1 * var(--sp-3)) 0;
+}
+.tl .sc-head h3 {
+  margin: 0;
+}
 .tl-list {
   list-style: none;
   display: flex;
@@ -964,8 +972,10 @@ details.rec-raw[open] > summary::after {
 }
 
 /* Collapsed dial row (#home-mini, Home.astro; written by client/score.js): once the dials scroll
- * above the viewport a frosted strip fixed at the top shows the same three rings small (the dial's
- * own svg, its colour class, no markers) + their labels; a tap opens the dial's detail.
+ * above the viewport a strip fixed at the top shows the same three rings small (the dial's own svg,
+ * its colour class, no markers, the grey track drawn in full even with no value) + their labels; a
+ * tap opens the dial's detail. No fill or line of its own: the page's top colour fades out under it,
+ * so the content scrolls away beneath like on the page gradient.
  * Off = visibility: hidden (out of the tab order and the accessibility tree); it slides in, and
  * prefers-reduced-motion drops the motion (base.css). Inside the Inicio panel, so other tabs never
  * show it. */
@@ -976,10 +986,7 @@ details.rec-raw[open] > summary::after {
   right: 0;
   z-index: 25;
   padding: calc(env(safe-area-inset-top) + var(--sp-1)) calc(12px + env(safe-area-inset-right)) var(--sp-1) calc(12px + env(safe-area-inset-left));
-  background: rgba(var(--nav-rgb), 0.92);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--line);
+  background: linear-gradient(var(--ground-top) 55%, transparent);
   visibility: hidden;
   opacity: 0;
   transform: translateY(-100%);
