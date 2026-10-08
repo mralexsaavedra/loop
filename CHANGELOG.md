@@ -4,6 +4,14 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-08 — Plan page restyle: desktop pass
+
+- The redesign was checked only at 390 px; a desktop audit (1024 / 1280 / 1440 px) found wasted width.
+  Every fix sits inside `@media (min-width: 900px)`; the phone layout is pixel-identical and
+  `web/test/desktop.test.mjs` pins every phone declaration to the CSS snapshot.
+- Entreno: the Activity card is two columns (summary | calendar) instead of a tiny calendar in the
+  left quarter of a full-width card (the old `.act-pair` row went away in P6a).
+
 ## 2026-10-08 — Plan page restyle P7: text diet
 
 - Card text follows one rule: a number + an uppercase label per tile, prose only in the insight card,

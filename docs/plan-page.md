@@ -169,13 +169,20 @@ The tokens.css header lists every text token's WCAG ratio on `--surface`, and
 documented exceptions keep the reference value instead of shifting it: `--low` (3.89:1 on a card) is
 for large numbers, dials, bars and dots only, small red text uses `--low-ink`; on a nested tile
 (`--surface-2`) `--faint` and `--strain` are AA-large only, so small text there prefers `--muted`.
-Layout: on wide
-screens (>= 900 px) the background stays full-bleed while the top bar, tab panels and footer are
-centred and capped at `--content-max` (1160 px); Nutrición's summary
-card turns into two columns (kcal dial | day type + macro bars) and Plan de hoy into a masonry-like
-2-column flow (CSS `columns: 2`, cards `break-inside: avoid`, read down column 1 then column 2, so a
-short card never leaves a row-height gap); Entreno puts the 30-day calendar (natural width) and the
-cumulative chart (rest of the row, height-capped at 240 px) in ONE row (`.act-pair`). Dark native controls: `color-scheme: dark` (`:root` + a `<meta name="color-scheme">`) and a
+**Wide screens (>= 900 px).** Every desktop rule lives inside `@media (min-width: 900px)` (one block at
+the end of each stylesheet); the phone layout never changes for them (`web/test/desktop.test.mjs`
+checks every declaration outside that query against the CSS snapshot). The background stays
+full-bleed while the top bar, tab panels and footer are centred and capped at `--content-max`
+(1160 px):
+
+- **Nutrición** — the summary card turns into two columns (kcal dial | day type + macro bars) and Plan
+  de hoy into a masonry-like 2-column flow (CSS `columns: 2`, cards `break-inside: avoid`, read down
+  column 1 then column 2, so a short card never leaves a row-height gap).
+- **Entreno** — the Activity card is two columns: total + W / M / 6M switch, stats and modality split
+  on the left, the 30-day calendar on the right (`minmax(240px, 300px)`, the SVG scaled to fill it;
+  it spans every row and a trailing `1fr` row absorbs its extra height).
+
+Dark native controls: `color-scheme: dark` (`:root` + a `<meta name="color-scheme">`) and a
 `theme-color` meta read at build time from `--ground-top` (the top of the page background; a test pins
 them equal); no `apple-mobile-web-app-*` metas (a home-screen app would draw the top bar under the
 status bar). Phones (< 900 px): every text input / select / textarea
