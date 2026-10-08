@@ -211,7 +211,16 @@ trend is the line under it.
   performance (same fraction as a rounded %, `lib/score/sleep.mjs` `sleepPerformance`): the centre shows
   "92" + a small "%" in the sleep colour (the mini row reuses the same svg + accessible name, which
   carries the % and "6.9 h of your 7.5 h need"); without a `pct` the hours + "h"; the target is in
-  the accessible name and the sleep sheet ("Target 7.5 h"). Load: ONE dial with a gym/run/bike
+  the accessible name and the sleep sheet ("Target 7.5 h"). **Day strain** (when calibrated,
+  `SCORES.strain.ok`, `lib/score/strain.mjs`; formula in `analysis/methodology.md`): the third dial
+  is the day's strain 0–21 — the centre "12.4" (no unit), the label "LOAD ›" / "CARGA ›" in strain
+  blue (`.dial-strain`), ring = strain / 21 (`DIALS.strain.days`, the last 14 days, each with its baked
+  fill; the client picks the viewer's day, or the stepped-to past day). A day the data does not reach
+  yet reads "No data" (never a made-up 0.0). It opens the strain deep-dive (`docs/detail-views.md`);
+  there are NO modality pills — per-modality Relative Effort stays in Entreno's load cards and the
+  `load-<m>` deep-dives (linked from the strain page). The collapsed row follows (three rings). Without
+  a calibrated strain (no `hr-hourly.csv`, no max HR, under 14 full days of all-day heart rate) the
+  third dial is the load dial below, unchanged. Load (fallback): ONE dial with a gym/run/bike
   switch — compact pills right-aligned under the load dial (kept on Inicio rather than in the load
   sheet: the sheet is one modality's history, while the switch decides which ring Inicio shows) — that opens
   (client-side, from the viewer's today) on the modality with a session today, GATED OR NOT (a gated

@@ -17,6 +17,10 @@
  *   - Sleep: the sleep-duration component's newest night over the stated target; `pct` = sleep
  *     performance (lib/score/sleep.mjs: asleep / need × 100, capped at 100, need = the target), the
  *     number the dial shows. The ring fills to the same fraction.
+ *   - Strain (when calibrated, lib/score/strain.mjs): the day strain 0-21, the ring filled to
+ *     strain / 21; each of the recent `days` carries its pre-computed fill and the client picks the
+ *     viewer's day (or the stepped-to past day). It REPLACES the load dial on Inicio; without it
+ *     (`strain` null: too little all-day HR, no max HR) the load dial below stays, unchanged.
  *   - Past days (`days`, the top bar's day stepping): the sleep + recovery dials of each SCORES.days
  *     entry, scored on that day by the same lib functions, in the same shapes.
  * No new metric: the recovery % is a rank of the same composite (lib/score/recovery.mjs). Baked by components/Bake.astro as DIALS;
@@ -178,6 +182,16 @@ function loadDial(L) {
   };
 }
 
+const STRAIN_MAX = 21;
+
+/** SCORES.strain -> null (not calibrated: Inicio keeps the load dial) | {state, asOf, days: [{date, s,
+ * fill}]}: the recent days with their strain and its ring arc (strain / 21). */
+export function strainDial(St) {
+  if (!St || !St.ok || !Array.isArray(St.days)) return null;
+  const days = St.days.filter((d) => d && isNum(d.s)).map((d) => ({ date: d.date, s: d.s, fill: arcPath(0, clamp(d.s / STRAIN_MAX, 0, 1)) }));
+  return { state: 'ok', asOf: St.asOf || null, days };
+}
+
 /** scores = buildScores() result, health = buildHealth() result (for the stated sleep target). */
 export function buildDials(scores, health) {
   const S = scores && scores.hasData ? scores : {};
@@ -186,6 +200,7 @@ export function buildDials(scores, health) {
     sleep: sleepDial(S.recovery, health),
     recovery: recoveryDial(S.recovery),
     load: loadDial(S.load),
+    strain: strainDial(S.strain),
     // the past days the top bar's "‹" reaches (the load dial already carries them in `days`)
     days: S.days && Array.isArray(S.days.days) ? S.days.days.map((d) => pastDay(d, health)) : [],
   };

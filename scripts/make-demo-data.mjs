@@ -20,6 +20,9 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } = require('../data/apple-health/samples.js');
 const { ZONES_HEADER, ZONES_CSV } = require('../lib/training/hr-zones.cjs');
+const { HR_HOURLY_HEADER, HR_HOURLY_CSV } = require('../lib/health/hr-hourly.cjs');
+// hr-hourly.csv covers only the last four weeks (the Shortcut key is recent; enough to calibrate strain)
+const HR_DAYS = 28;
 
 export const DEMO_DEFAULTS = { end: '2026-09-28', days: 120, seed: 20260928 };
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -169,9 +172,40 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
     const w = SPLIT[c[1]].map((x) => x * (0.7 + zrnd() * 0.6));
     const sum = w.reduce((a, b) => a + b, 0);
     const total = parseFloat(c[2]) * 60 * 0.97;
-    return [c[0], 9000001 + i, c[1], zMax, 'observed', c[4], c[6], ...w.map((x) => Math.round((total * x) / sum)), SRC.strava].join(',');
+    // the activity window (start + elapsed_s): every demo session starts at 18:00 local, +02:00
+    return [c[0], 9000001 + i, c[1], zMax, 'observed', c[4], c[6], ...w.map((x) => Math.round((total * x) / sum)), SRC.strava,
+      `${c[0]}T18:00:00+02:00`, Math.round(parseFloat(c[2]) * 60)].join(',');
   });
   out[ZONES_CSV] = csv(ZONES_HEADER, zoneRows);
+
+  // ---- Watch heart rate per clock hour (hr-hourly.csv, as the Shortcut sync writes it) ---------
+  // the last HR_DAYS days, a sample every 5 min: nights ~55 bpm, days ~65-80 with the odd walk at
+  // 100-120 and the Watch-only gym session at 120-140, and the Strava session's window (18:00 + its elapsed time) left out of the histogram
+  // (act_min), exactly like lib/health/hr-hourly.cjs. Its own PRNG, so the other files never change.
+  const hrnd = prng(seed + 3);
+  const gymDays = new Set(workouts.map((l) => l.split(',')).filter((c) => c[7] === SRC.watch).map((c) => c[0]));
+  const actSec = new Map(zoneRows.map((l) => l.split(',')).map((c) => [c[0], Number(c[15])]));
+  const hourly = [];
+  for (const date of dates.slice(-HR_DAYS)) {
+    for (let h = 0; h < 24; h++) {
+      const act = Math.max(0, Math.min(60, (actSec.get(date) || 0) / 60 - (h - 18) * 60)) * (h >= 18 ? 1 : 0);
+      const night = h < 7 || h === 23;
+      const base = night ? 52 + hrnd() * 6 : 64 + hrnd() * 16;
+      const free = 60 - act;
+      // minutes of brisk walking, or the gym session (Watch only, no Strava window: all-day load)
+      const gym = h === 18 && gymDays.has(date) ? 45 : 0;
+      const walk = Math.min(free, gym || (!night && hrnd() < 0.12 ? 10 + Math.round(hrnd() * 25) : 0));
+      const up = Math.min(10, free - walk);
+      const buckets = [[Math.round(base), free - walk - up], [Math.round(base + 6), up], ...(walk ? [[Math.round((gym ? 120 : 98) + hrnd() * 20), walk]] : [])]
+        .filter(([, m]) => m > 0);
+      const hist = buckets.filter(([b]) => b >= 50).map(([b, m]) => `${b}:${Math.round(m * 60)}`).join(' ');
+      const all = act ? [...buckets, [150, act]] : buckets;
+      const avg = all.reduce((x, [b, m]) => x + b * m, 0) / 60;
+      hourly.push([date, `${date}T${String(h).padStart(2, '0')}:00:00+02:00`, fx(avg, 1), Math.max(...all.map(([b]) => b)), Math.min(...all.map(([b]) => b)),
+        12, '60.0', fx(act, 1), hist, SRC.watch].join(','));
+    }
+  }
+  out[HR_HOURLY_CSV] = csv(HR_HOURLY_HEADER, hourly);
 
   return Object.fromEntries(Object.entries(out).sort(([a], [b]) => a.localeCompare(b)));
 }

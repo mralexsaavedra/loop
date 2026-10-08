@@ -4,7 +4,9 @@
 `scripts/make-demo-data.mjs` from a seeded random generator. They are not anyone's health
 data. Every row carries a `Demo …` source tag (`Demo Watch`, `Demo Scale`, `Demo Strava`, …).
 `extract/workout-zones.csv` (per-workout HR zones) is derived from the `Demo Strava` rows of
-`workouts.csv` with its own seeded generator.
+`workouts.csv` with its own seeded generator (each session starts at 18:00 local, so it has a
+window), and `extract/hr-hourly.csv` (Watch heart rate per clock hour, the last four weeks) leaves
+those windows out of its histogram, like the Shortcut sync; together they calibrate the day strain dial.
 `strava-profile.json` is a hand-written, invented Strava athlete snapshot (name, gear, devices) that
 feeds the example page's profile sheet in place of the gitignored `data/profile/strava-profile.json`.
 

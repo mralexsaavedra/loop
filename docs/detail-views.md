@@ -42,7 +42,17 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   asOf is missing); `load-<m>` = RE per day after the load rule (`null` = sessions without RE), with
   the card's typical day (the same `typicalDay` value the load dial puts at its ring midpoint),
   calendar cuts at 0.5 / 1 / 1.5 typical days, and the dial's `gate` (null / `baselineBuilding` /
-  `fewDays`) + `last` scored session; `sessions` = one entry per date + modality after
+  `fewDays`) + `last` scored session; `strain` (kind `strain`, only when day strain is calibrated,
+  `lib/score/strain.mjs`) = the day strain 0–21 of every day with all-day heart rate (one K for every
+  day), calendar shades at 10 / 14 / 18 (the reference's light / moderate / high / all-out bands on our
+  scale), bars in the chart, and the day panel lists the day's sessions; its deep-dive page (key
+  `strain`, client/deepdive.js) is the hero ring = the day's strain with the Inicio dial's own arc,
+  contributors = the day's activities + "all day (outside workouts)", each with its share of the
+  strain (∝ its load; from `SCORES.strain.days`, the last 14 days), the insight = the band sentence,
+  the usual day (median of the prior 30) and "18 = your 95th-percentile day"; ⓘ = the formula, the
+  sources, this owner's K / p95 / full days / max HR and "our estimate"; the 7-day strain bars; then
+  "Relative Effort by modality" links to the `load-<m>` pages. It follows the day it was opened on
+  (`X.sel`); `sessions` = one entry per date + modality after
   `mergeSameDay` DISPLAY_RULE (minutes, km, elevation, avg HR, RE, parts, source; the source is the
   precedence family, so "Apple Watch de <name>" is written "Apple Watch"), plus, when
   `workout-zones.csv` has that date + modality (`lib/training/zones.mjs` `readWorkoutZones`), `z` =
@@ -57,7 +67,8 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   opener — the dials, the collapsed row, the HRV tile, "My day" rows — carries THAT day as `data-date`,
   so its sheet opens with that day selected (calendar, chart selection and the day panel, which a
   dial page scrolls to); the dial page's hero ring and insight card stay the latest night / today (the
-  dial's own baked values). Map: sleep dial → sleep; recovery dial → recovery; each load dial → its `load-<m>`; Salud monitor
+  dial's own baked values; the strain page instead follows the day it was opened on). Map: sleep dial → sleep; recovery dial → recovery; the strain dial → strain;
+  each load dial (the fallback) → its `load-<m>`; Salud monitor
   rows → their signal; the HRV monitor tile → hrv; the "My day" outlook bar (advice) → recovery;
   activity rows → that day (sleep, or `load-<m>` / `workouts` for "other"), the programmed-session row
   → the registered `hoy-session` view (client/training-today.js); the "Tonight" card → the registered

@@ -935,3 +935,39 @@ test('day stepping: a change re-renders the dials and the collapsed row; back to
   assert.equal(miniHost.innerHTML, todayMini);
   assert.equal(hosts.home.innerHTML, todayHome);
 });
+
+/* ---- day strain dial (DIALS.strain, lib/score/strain.mjs) ---- */
+const STRAIN = { ok: true, asOf: ASOF, days: [{ date: addDays(ASOF, -1), s: 8.3 }, { date: ASOF, s: 12.4 }] };
+
+test('strain dial: calibrated strain replaces the load dial — "12.4" inside, the Load label, opens the strain view, no modality pills', () => {
+  const s = { ...fixtureScores(), strain: STRAIN };
+  const dialsHost = { innerHTML: '' }, miniHost = { innerHTML: '' };
+  render(s, { dials: buildDials(s, HEALTH), dialsHost, miniHost, detail: true });
+  const h = dialsHost.innerHTML;
+  const d = dialOf(h, 'dial-load dial-strain');
+  assert.match(d, /<b class="dial-num">12\.4<small><\/small><\/b>/);
+  assert.match(d, /data-detail="strain"/);
+  assert.match(d, new RegExp(`<figcaption class="dial-lbl">${enT.dials.load.label}`));
+  assert.doesNotMatch(h, /dial-switch|dial-mod|data-dmod/, 'no gym / run / bike pills on Inicio');
+  assert.equal(count(h, 'class="dial-svg"'), 3);
+  assert.equal(count(miniHost.innerHTML, '<div class="dm '), 3, 'the collapsed row follows: three rings');
+  assert.match(miniHost.innerHTML, /dm dial-load dial-strain[^>]*data-detail="strain"/);
+});
+
+test('strain dial: day stepping shows that day\'s strain; a day the data does not reach reads "No data"', () => {
+  const s = { ...fixtureScores(), strain: STRAIN };
+  const D = buildDials(s, HEALTH);
+  const past = { innerHTML: '' };
+  render(s, { dials: D, dialsHost: past, day: fakeDay(addDays(ASOF, -1)) });
+  assert.match(dialOf(past.innerHTML, 'dial-load dial-strain'), /<b class="dial-num">8\.3</);
+  const none = { innerHTML: '' };
+  render(s, { dials: D, dialsHost: none, day: fakeDay(addDays(ASOF, -5)) });
+  assert.match(dialOf(none.innerHTML, 'dial-load dial-strain dial-off'), /<span class="dial-word">No data<\/span>/);
+});
+
+test('strain dial: not calibrated (strain ok false / absent) -> the load dial and its pills, unchanged', () => {
+  const s = { ...fixtureScores(), strain: { ok: false, reason: 'fewDays', asOf: ASOF, n: 3 } };
+  const h = render(s, { dials: buildDials(s, HEALTH) });
+  assert.doesNotMatch(h, /dial-strain/);
+  assert.match(h, /dial-switch/);
+});

@@ -24,7 +24,9 @@ bike): the LAST scored session's Relative Effort big in `--strain`, a small ring
 arc for that session (`DIALS.load.modalities[].days[].fill`, the typical-day tick), "LOAD · <date>"
 (`today` when it is the viewer's today) and a 7-day vs 42-day pill — grey • steady, teal ▲▼ above /
 below usual, orange ▲▼ ramping / well below (`lib/score/load.mjs` bands); a gated modality shows "—"
-and the dial's "Building" word. A card opens that modality's deep-dive (`load-<m>`). Then the
+and the dial's "Building" word. A card opens that modality's deep-dive (`load-<m>`). These cards are
+where per-modality Relative Effort lives once Inicio's third dial is the day strain (`docs/home-tab.md`):
+the strain dial has no modality pills, and its deep-dive links back to the three `load-<m>` pages. Then the
 **Activity card** (`#train-activity`, `lib/training/activity.mjs` → `ACTIVITY`, baked in TrainingDetail
 with `I18N_ACTIVITY`; client/training-activity.js) — ONE card for what used to be the 30-day calendar,
 the cumulative training time and the dashboard's weekly volume + modality split: an "ACTIVITY" header

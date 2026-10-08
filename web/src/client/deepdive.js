@@ -1,4 +1,5 @@
-/* Dial deep-dive pages: the detail sheet of the three Inicio dials (sleep, recovery, load-<modality>)
+/* Dial deep-dive pages: the detail sheet of the three Inicio dials (sleep, recovery, strain or
+ * load-<modality>)
  * laid out as one page — a "‹ TODAY ⓘ" header, the big hero ring (the SAME baked geometry as the dial,
  * view/dial.mjs via the DIALS global), an insight card (the dial's former captions in 2–4 plain lines +
  * a "View trend →" link down to the history chart) and, collapsed under ⓘ, the long notes (bands,
@@ -48,7 +49,18 @@
   var BAND_STATE = { above: 'good', at: 'normal', below: 'bad' };
 
   function isDial(key) {
-    return key === 'sleep' || key === 'recovery' || /^load-[a-z]+$/.test(String(key));
+    return key === 'sleep' || key === 'recovery' || key === 'strain' || /^load-[a-z]+$/.test(String(key));
+  }
+  // SCORES.strain (lib/score/strain.mjs): K, the 95th-percentile day, and the recent days with each
+  // contributor's share of the strain; DIALS.strain: the same days' ring arcs
+  function strainBake() {
+    var S = typeof SCORES !== 'undefined' && SCORES ? SCORES.strain : null;
+    return S && S.ok ? S : null;
+  }
+  function strainDayOf(list, iso) {
+    var out = null;
+    (list || []).forEach(function (x) { if (x && x.date === iso) out = x; });
+    return out;
   }
   function dials() {
     return typeof DIALS !== 'undefined' && DIALS ? DIALS : null;
@@ -412,6 +424,8 @@
       if (Array.isArray(m.rem) && Array.isArray(m.deep)) {
         cards.push({ title: X.T.deep.weekly.restor, get: function (iso) { return restorOf(X, m, iso); }, text: function (v) { return X.fmt(v, 1); }, cls: plain('sleep') });
       }
+    } else if (key === 'strain') {
+      cards.push({ title: X.titleOf('strain'), get: seriesGet(X, m), text: function (v) { return X.fmt(v, 1); }, cls: plain('strain'), frac: function (v) { return v / STRAIN_MAX; } });
     } else {
       var mod = X.modOf(key);
       cards.push({ title: X.titleOf(key), get: seriesGet(X, m), text: function (v) { return X.fmt(v, 0); }, cls: plain('strain') });
@@ -434,7 +448,76 @@
     return html ? '<section class="dd-weekly"><h3 class="dd-sec">' + esc(X.T.deep.weekly.title) + '</h3>' + html + '</section>' : '';
   }
 
+  /* ---------- day strain (key 'strain') ---------- */
+  var STRAIN_MAX = 21;
+  // the reference's bands on our 0-21 scale (DETAIL strain levels: 10 / 14 / 18)
+  function strainBand(v) {
+    return v >= 18 ? 'allOut' : v >= 14 ? 'high' : v >= 10 ? 'moderate' : 'light';
+  }
+  // the day the page describes: the day it was opened on (a stepped-to Inicio day, a day tap), else the view end
+  function strainIso(end, X) {
+    return X.sel && isoDate(X.sel) ? X.sel : end;
+  }
+  function strainHero(m, end, X) {
+    var P = X.T.deep, iso = strainIso(end, X), v = X.at(m.v, m, iso);
+    var D = dials(), dd = D && D.strain ? strainDayOf(D.strain.days, iso) : null;
+    if (!isNum(v)) return { cls: 'off', label: P.label.strain, word: P.words.none };
+    return { cls: 'strain', label: P.label.strain, num: X.fmt(v, 1), fill: dd ? dd.fill : null, stale: stale(D && D.strain && D.strain.asOf) && !X.sel };
+  }
+  function strainLines(m, end, X) {
+    var P = X.T.deep.strain, iso = strainIso(end, X), v = X.at(m.v, m, iso);
+    if (!isNum(v)) return [{ text: format(P.noDay, { date: HC.fmtDate(iso) }) }];
+    var b = strainBand(v), out = [{ text: P.bands[b] }];
+    // the usual day: the median of the 30 days before, when 7+ of them have a strain
+    var c = compare(function (x) { return X.at(m.v, m, x); }, iso, 0);
+    if (c && c.side != null) {
+      var prior = [];
+      for (var k = 1; k <= PRIOR_DAYS; k++) { var x = X.at(m.v, m, shiftIso(iso, -k)); if (isNum(x)) prior.push(x); }
+      prior.sort(function (a, z) { return a - z; });
+      out.push({ text: format(P.usual, { value: X.fmt(quart(prior, 0.5), 1) }) });
+    }
+    var S = strainBake();
+    if (S) out.push({ cls: 'dt-scale', text: format(P.scale, { days: S.windowDays }) });
+    return out;
+  }
+  // contributors: the day's activities (strain share, minutes x zone load) + the all-day remainder
+  function strainContribHtml(m, end, X) {
+    var P = X.T.deep.strain, S = strainBake(), d = S ? strainDayOf(S.days, strainIso(end, X)) : null;
+    if (!d) return '';
+    var rows = d.acts.map(function (a) {
+      return { icon: 're', lbl: P.mods[a.m] || a.t, val: X.fmt(a.s, 1), sub: format(P.loadLbl, { load: X.fmt(a.load, 0) }) };
+    });
+    rows.push({ icon: 'acute', lbl: P.allDay, val: X.fmt(d.alls, 1), sub: format(P.loadLbl, { load: X.fmt(d.all, 0) }) });
+    return '<section class="dd-contrib" aria-label="' + esc(P.contribAria) + '"><ul class="dd-rows">' + rows.map(function (r) {
+      return '<li class="dd-row">' + iconHtml(r.icon) + '<span class="dd-row-lbl">' + esc(r.lbl) + ' <small class="dd-row-sub">' + esc(r.sub) + '</small></span>' +
+        '<b class="dd-row-val">' + esc(r.val) + '</b></li>';
+    }).join('') + '</ul><p class="dd-legend">' + esc(P.shareNote) + '</p></section>';
+  }
+  // the long notes (ⓘ): the formula, this owner's K and 95th-percentile day, the max HR, the coverage
+  function strainNotes(X) {
+    var P = X.T.deep.strain, S = strainBake();
+    var txt = function (t) { return '<div class="dt-band-txt">' + esc(t) + '</div>'; };
+    var out = txt(P.notes.formula) + txt(P.notes.sources);
+    if (S) out += txt(format(P.notes.calib, { p95: X.fmt(S.p95, 0), k: X.fmt(S.K, 1), n: S.n, days: S.windowDays, max: X.fmt(S.maxHr, 0) }));
+    return out + txt(P.notes.estimate);
+  }
+  // Relative Effort per modality stays one tap away: the Entreno load deep-dives
+  function reLinksHtml(X) {
+    var P = X.T.deep.strain, mods = ['gym', 'run', 'bike'].filter(function (k) { return !!X.metric('load-' + k); });
+    if (!mods.length) return '';
+    return '<section class="dd-re"><h3 class="dd-sec">' + esc(P.reTitle) + '</h3><div class="dd-re-links">' + mods.map(function (k) {
+      return '<span class="dd-re-link"' + HC.detailAttrs('load-' + k) + '>' + esc(X.titleOf('load-' + k)) + '</span>';
+    }).join('') + '</div></section>';
+  }
+
   function render(key, m, end, X) {
+    if (key === 'strain') {
+      return {
+        head: headHtml(key, X),
+        top: '<div class="dd-info" id="dd-info" hidden>' + X.bandText(key, m) + strainNotes(X) + '</div>' + heroHtml(strainHero(m, end, X), X) +
+          strainContribHtml(m, end, X) + insightHtml(strainLines(m, end, X), X) + weeklyHtml(key, m, end, X) + reLinksHtml(X),
+      };
+    }
     var hero = key === 'recovery' ? recoveryHero(m, X) : key === 'sleep' ? sleepHero(m, end, X) : loadHero(key, m, X);
     var lines = key === 'recovery' ? recoveryLines(m, X) : key === 'sleep' ? sleepLines(m, end, X) : loadLines(key, m, X);
     var rows = key === 'recovery' ? recoveryRows(m, end, X) : key === 'sleep' ? sleepRows(m, end, X) : loadRows(key, m, end, X);

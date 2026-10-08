@@ -28,6 +28,8 @@
 const fs = require('fs');
 const path = require('path');
 const S = require('./samples.js');
+const HR = require('../../lib/health/hr-hourly.cjs');
+const { ZONES_CSV } = require('../../lib/training/hr-zones.cjs');
 const common = require('./sync-common.js');
 
 const SHORTCUT_SOURCE = 'Shortcut';
@@ -47,6 +49,8 @@ const OUT = path.join(__dirname, 'extract');
 //                   the stamp is the bucket's first sample, normalised to the hour start). Keyed by
 //                   local hour + offset, so a DST fall-back night keeps both 02:00 hours.
 //   kind interval : "start;end;stage"        -> one row per night    (sleep-daily schema)
+//   kind hrSamples : "start;bpm" (ungrouped Watch heart-rate samples) -> one row per CLOCK HOUR of
+//                   aggregates (lib/health/hr-hourly.cjs); samples deduped by their exact instant, later payload wins
 //   withSource    : keep the payload's per-sample source in the CSV (else "Shortcut")
 //   sourceCol     : index of the CSV source column, null when the schema has none
 //   metaKey / rangeKey : the _meta.json rows/ranges keys extract.js uses for that CSV.
@@ -58,7 +62,7 @@ const OUT = path.join(__dirname, 'extract');
 const DAILY_SOURCE_HEADER = 'date,steps,source';
 const KCAL_HEADER = 'date,kcal';
 // "2030-01-02 09:07:12 +0100" -> "2030-01-02T09:00:00+01:00" (the bucket's clock-hour start, ISO)
-const hourStartIso = st => `${st.slice(0, 10)}T${st.slice(11, 13)}:00:00${st.slice(20, 23)}:${st.slice(23, 25)}`;
+const hourStartIso = HR.hourStartIso;
 const METRICS = {
   hrv:      { kind: 'point', csv: 'hrv.csv', header: S.READING_HEADER, metaKey: 'hrv', fmt: v => +v.toFixed(1) },
   // Apple REWRITES the day's resting HR at the same timestamp as the day goes on, so two payloads
@@ -109,6 +113,10 @@ const METRICS = {
     fields: { diet_kcal: 'kcal', diet_protein: 'protein', diet_carbs: 'carbs', diet_fat: 'fat' },
     row: (date, f) => [date, Math.round(f.kcal), ...['protein', 'carbs', 'fat'].map(k => (f[k] != null ? f[k].toFixed(1) : ''))].join(',') },
   sleep:    { kind: 'interval', csv: 'sleep-daily.csv', header: S.SLEEP_HEADER, metaKey: 'sleep' },
+  // Watch heart-rate samples (Heart Rate, Source = the watch, NO grouping, last 1 day): only hourly
+  // aggregates reach the CSV (lib/health/hr-hourly.cjs), the raw samples live in the local cache. Feeds day
+  // strain (lib/score/strain.mjs). Tagged "Shortcut", so every row is rebuilt each run.
+  hr_samples: { kind: 'hrSamples', csv: HR.HR_HOURLY_CSV, header: HR.HR_HOURLY_HEADER, metaKey: 'hr_hourly', sourceCol: 9 },
   // Watch-filtered day totals (one search per key, *Source is* the watch, Group by Day), the same
   // CSVs extract.js writes (max-per-device there; the Watch is the device that logs these fully).
   // No source column -> ownership via the ledger, like energy. A 0 day (Fill Missing, watch not worn)
@@ -177,6 +185,7 @@ const PARSERS = {
     return def.withSource ? { start, value, source: parseSource(src) } : { start, value };
   },
   hourly(line) { return PARSERS.daily(line); },
+  hrSamples(line) { return HR.parseSample(line); },
   daily(line, def) {
     const [ts, val] = line.split(';');
     const start = S.isoToExportStamp(ts);
@@ -196,6 +205,7 @@ const DEDUP_KEY = {
   deviceDaily: s => `${S.day(s.start)}|${s.device}`,
   fieldsDaily: s => `${S.day(s.start)}|${s.field}`,
   interval: s => `${s.start}|${s.end}|${s.stage}`,
+  hrSamples: s => String(S.absMs(s.start)),
 };
 // which of two duplicates to keep (a = already cached, b = from a LATER payload):
 //   daily totals -> the latest payload (it corrects an earlier inflated/partial value; each
@@ -208,6 +218,7 @@ const PREFER = {
   deviceDaily: (a, b) => b,
   fieldsDaily: (a, b) => b,
   interval: a => a,
+  hrSamples: (a, b) => b,
 };
 const isDailyKind = kind => kind === 'daily' || kind === 'deviceDaily' || kind === 'fieldsDaily';
 
@@ -327,9 +338,11 @@ const unionMinutes = S.unionMinutes;
 
 const byStart = (a, b) => (S.absMs(a.start) - S.absMs(b.start)) || (a.start < b.start ? -1 : a.start > b.start ? 1 : 0);
 
-// samples of one metric -> [{date, line}] in the exact CSV format extract.js writes
-function buildRows(metric, samples) {
+// samples of one metric -> [{date, line}] in the exact CSV format extract.js writes. ctx.windows =
+// the Strava activity windows (lib/health/hr-hourly.cjs activityWindows) the heart-rate histogram leaves out.
+function buildRows(metric, samples, ctx = {}) {
   const def = METRICS[metric];
+  if (def.kind === 'hrSamples') return HR.hourlyRows(samples, ctx.windows || [], SHORTCUT_SOURCE);
   if (def.kind === 'point') {
     const dateOf = def.dateOf || S.day;
     return [...samples].sort(byStart).map(s => {
@@ -379,7 +392,7 @@ function mergeCsv(existingText, header, rows, opts = {}) {
 }
 
 const range = dates => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a');
-const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of the main-sleep asleep intervals per wake-up night (naps excluded, samples.js sleepNights), plus the stage columns (REM / deep / core / unspecified / awake / in bed, same rule as extract.js); Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored). Shortcut active_energy_hourly = Watch active energy per clock hour (active-energy-hourly.csv, Shortcut-only; feeds the power-meter ride correction in lib/health/ride-energy.mjs). Shortcut dietary = diet_kcal/diet_protein/diet_carbs/diet_fat day totals joined into one row per day (no kcal = no row). Shortcut exercise/distance/flights = Watch-filtered day totals (exercise_watch/distance_watch/flights_watch; 0 = no data; distance in km). Day totals: the export\'s last date (exportLastDate, a partial day) is never treated as covered: the Shortcut row wins it, and the export row is dropped when there is none.';
+const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of the main-sleep asleep intervals per wake-up night (naps excluded, samples.js sleepNights), plus the stage columns (REM / deep / core / unspecified / awake / in bed, same rule as extract.js); Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored). Shortcut active_energy_hourly = Watch active energy per clock hour (active-energy-hourly.csv, Shortcut-only; feeds the power-meter ride correction in lib/health/ride-energy.mjs). Shortcut hr_samples = ungrouped Watch heart-rate samples (deduped by exact timestamp, 25-240 bpm) aggregated per clock hour into hr-hourly.csv (avg/max/min/n, covered minutes = each sample until the next, max 10 min; act_min + the per-bpm histogram leave the Strava activity windows of workout-zones.csv out; feeds day strain, lib/score/strain.mjs). Shortcut dietary = diet_kcal/diet_protein/diet_carbs/diet_fat day totals joined into one row per day (no kcal = no row). Shortcut exercise/distance/flights = Watch-filtered day totals (exercise_watch/distance_watch/flights_watch; 0 = no data; distance in km). Day totals: the export\'s last date (exportLastDate, a partial day) is never treated as covered: the Shortcut row wins it, and the export row is dropped when there is none.';
 
 // Pure: refresh the rows/ranges extract.js wrote for the touched CSVs + record the sync.
 // Deterministic (no timestamps) so re-running an unchanged sync rewrites identical bytes.
@@ -428,9 +441,11 @@ function planSync(items, readFile, { full = false } = {}) {
   // (its export row is dropped, the Shortcut row, if any, fills it)
   const partialDay = prevMeta && typeof prevMeta.exportLastDate === 'string' ? [prevMeta.exportLastDate] : [];
   const writes = {}, stats = {};
+  // sync-all runs the Strava sync FIRST, so its workout-zones.csv windows are current here
+  const ctx = { windows: HR.activityWindows(readFile(ZONES_CSV)) };
   for (const [metric, def] of Object.entries(METRICS)) {
     const existing = readFile(def.csv);
-    const rows = buildRows(metric, PRUNE[metric] ? PRUNE[metric](samples) : samples[metric] || []);
+    const rows = buildRows(metric, PRUNE[metric] ? PRUNE[metric](samples) : samples[metric] || [], ctx);
     const merged = mergeCsv(existing, def.header, rows, { sourceCol: sourceColOf(def), ownedDates: [...(ledger[def.csv] || []), ...(def.total ? partialDay : [])] });
     stats[metric] = merged;
     if (existing == null && !rows.length) { merged.written = false; continue; } // never create an empty CSV

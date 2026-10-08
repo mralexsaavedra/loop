@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as dialModule from './dial.mjs';
 import {
-  DIAL, fracToAngle, polar, arcPath, recoveryFrac, sleepFrac, loadFrac, loadDayFrac, buildDials,
+  DIAL, fracToAngle, polar, arcPath, recoveryFrac, sleepFrac, loadFrac, loadDayFrac, buildDials, strainDial,
 } from './dial.mjs';
 
 const near = (a, b, eps = 0.01) => assert.ok(Math.abs(a - b) <= eps, `${a} !~ ${b}`);
@@ -256,4 +256,16 @@ test('past days: none without SCORES.days or without data', () => {
   assert.deepEqual(buildDials({ hasData: false, days: { days: [{ date: '2026-09-29', sleep: 7, rec: null }] } }, null).days, []);
   const D = buildDials({ hasData: true, days: { days: [{ date: '2026-09-29', sleep: null, rec: null }] } }, null);
   assert.deepEqual(D.days[0], { date: '2026-09-29', sleep: { state: 'none' }, recovery: { state: 'none' } });
+});
+
+test('strainDial: calibrated strain -> each recent day with its ring = strain / 21; not calibrated -> null (the load dial stays)', () => {
+  const d = strainDial({ ok: true, asOf: '2030-01-02', days: [{ date: '2030-01-01', s: 10.5 }, { date: '2030-01-02', s: 21 }, { date: '2030-01-03', s: null }] });
+  assert.equal(d.state, 'ok');
+  assert.deepEqual(d.days.map((x) => [x.date, x.s]), [['2030-01-01', 10.5], ['2030-01-02', 21]]);
+  assert.equal(d.days[0].fill, arcPath(0, 0.5));
+  assert.equal(d.days[1].fill, arcPath(0, 1));
+  assert.equal(strainDial({ ok: false, reason: 'fewDays' }), null);
+  assert.equal(strainDial(null), null);
+  assert.equal(buildDials({ hasData: true, strain: { ok: true, asOf: '2030-01-02', days: [{ date: '2030-01-02', s: 3 }] } }, null).strain.days.length, 1);
+  assert.equal(buildDials({ hasData: true }, null).strain, null);
 });
