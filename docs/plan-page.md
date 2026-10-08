@@ -99,7 +99,11 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   `food-log.js` and `freshness.js` call `HCActions.refresh()`. The root and every row ship `hidden`: in
   the example build, `file://` or any static copy no action exists and the "+" never shows (no dead
   control). Wide screens (>= 900 px) keep the SAME floating bottom dock, centred (no sticky top nav any
-  more), so jump targets only clear the collapsed dial row (`scroll-margin-top: 64px`).
+  more), so jump targets only clear the collapsed dial row (`scroll-margin-top: 64px`). One token,
+  `--dock-room` (`calc(96px + env(safe-area-inset-bottom))`: the 64 px bar, its 10 px lift, 22 px of
+  air, the home-indicator inset), keeps the bottom free: the body pads every tab's end with it and
+  `html { scroll-padding-bottom }` keeps a focused or jumped-to element above the bar
+  (`web/test/mobile.test.mjs`).
 
 **Tabs and sections.** Four top-level tabs, one question each (Whoop-style: the glance on Inicio,
 the detail one tap away). Nav = the floating bottom dock above (four equal buttons that fit a 360px

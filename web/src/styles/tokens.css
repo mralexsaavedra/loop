@@ -128,6 +128,11 @@
   --sp-10: 24px;
   --sp-11: 32px;
   --sp-12: 40px;
+  /* room kept free under the content for the floating bottom dock (base.css .dock): the 64px bar
+     (52px buttons + padding + border) lifted 10px off the edge, 22px of air, and the home-indicator
+     inset. The body pads the page with it and the html scroll-padding keeps a focused or jumped-to
+     element above the bar. */
+  --dock-room: calc(96px + env(safe-area-inset-bottom));
 }
 
 * {
@@ -138,6 +143,7 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  scroll-padding-bottom: var(--dock-room);
 }
 
 body {
@@ -147,7 +153,7 @@ body {
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
   /* room for the floating bottom dock (base.css .dock), at every width */
-  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  padding-bottom: var(--dock-room);
   background-image: linear-gradient(180deg, var(--ground-top) 0, var(--ground-mid) 640px, var(--ground) 1100px);
   background-repeat: no-repeat;
 }

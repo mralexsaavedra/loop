@@ -42,8 +42,9 @@
   function icon(key) {
     return '<svg class="tl-ico" viewBox="0 0 24 24" aria-hidden="true">' + (ICON[key] || ICON.other) + '</svg>';
   }
-  function row(cls, link, ico, chip, name, side, sideCls) {
-    return '<li class="tl-row ' + cls + '"' + link + '><span class="tl-chip">' + icon(ico) + '<b>' + esc(chip) + '</b></span>' +
+  // aria: an explicit label (the plan row: its focus can be longer than the ellipsised name)
+  function row(cls, link, ico, chip, name, side, sideCls, aria) {
+    return '<li class="tl-row ' + cls + '"' + link + (aria ? ' aria-label="' + esc(aria) + '"' : '') + '><span class="tl-chip">' + icon(ico) + '<b>' + esc(chip) + '</b></span>' +
       '<span class="tl-name">' + esc(name) + '</span>' +
       (side && side.length ? '<span class="tl-side' + (sideCls ? ' ' + sideCls : '') + '">' + side.map(function (x) { return '<span>' + esc(x) + '</span>'; }).join('') + '</span>' : '') +
       '</li>';
@@ -63,7 +64,9 @@
     var P = typeof window !== 'undefined' && window.HCProgram ? window.HCProgram : null;
     if (!P || P.date !== today) return '';
     var kind = String(P.kind || 'gym').replace(/[^a-z]/g, '');
-    return row('tl-prog tl-prog-' + kind, HC.detailAttrs('hoy-session'), kind, T.programmedChip, P.focus || '', [T.programmed]);
+    var focus = P.focus || '';
+    return row('tl-prog tl-prog-' + kind, HC.detailAttrs('hoy-session'), kind, T.programmedChip, focus, [T.programmed], '',
+      focus ? T.programmedChip + ': ' + focus + ' · ' + T.programmed : '');
   }
 
   function html() {
@@ -80,7 +83,12 @@
     var plan = programRow(today);
     if (!day && !plan) return card('<div class="sc-head"><h3>' + esc(T.heading) + '</h3></div><div class="sc-note">' + esc(T.empty) + '</div>', false);
     var isToday = !day || day.date === today;
-    var out = ['<div class="sc-head"><h3>' + esc(isToday ? T.heading : format(T.dateHeading, { date: HC.fmtDate(day.date) })) + '</h3></div>'];
+    // the same-day merge note: behind the header's ⓘ (client/health.js toggles [data-hs-info]), only
+    // when the day lists workouts
+    var title = isToday ? T.heading : format(T.dateHeading, { date: HC.fmtDate(day.date) });
+    var note = !!(day && day.items.length && T.note);
+    var out = ['<div class="sc-head"><h3>' + esc(title) + '</h3>' + (note ? HC.infoBtn('tl-info', format(T.infoLbl || '{section}', { section: title })) : '') + '</div>' +
+      (note ? '<div class="hs-info" id="tl-info" hidden><p>' + esc(T.note) + '</p></div>' : '')];
     if (!isToday && !ahead) out.push('<div class="sc-note">' + esc(T.noToday) + '</div>');
     var list = [];
     if (day) {
@@ -100,7 +108,6 @@
     // the plan row belongs to the viewer's today: shown under today's heading only
     if (plan && isToday) list.push(plan);
     out.push('<ul class="tl-list">' + list.join('') + '</ul>');
-    if (day && day.items.length) out.push('<div class="sc-note">' + esc(T.note) + '</div>');
     return card(out.join(''), !!day && daysOld(day.date) > HC.STALE_DAYS);
   }
 
