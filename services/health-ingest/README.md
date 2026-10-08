@@ -317,16 +317,29 @@ activity pull (1-2 calls per run) and the daily athlete refresh. The backfill fe
 counted from `strava_activity_hr.fetched_at` (a restart does not reset the budget). With the 30-min
 loop that is ~300 activities a day: a history of ~1000 activities with HR fills in about 3-4 days,
 then each new activity is picked up by the next run. Every definite answer is stored and never asked
-again (`ok`, `no_hr` = no HR stream, `not_found` = 404); a 429 or a transient failure stops the batch
-(`strava_hr_backfill_failed` in the log, never fails the activity sync or its status) and the
-activity is retried on a later run. The streams of a private activity need the `activity:read_all`
-scope the service already asks for.
+again (`ok`, `no_hr` = no HR stream, `not_found` = 404). The streams of a private activity need the
+`activity:read_all` scope the service already asks for.
+
+**Failures and back-off** (`sql/009_strava_hr_retry.sql`). Each streams request is aborted after
+**15 s** (`STREAMS_TIMEOUT_MS`). A **429** is app-wide: it stops the whole batch and records nothing
+(`strava_hr_backfill_failed`, `rateLimited: true`). A **transient** failure of one activity — a 5xx,
+a network error or the timeout — only skips that activity: it is stored as status `retry` with
+`attempts` + 1 and `last_error_at` (`strava_hr_activity_failed` in the log) and the batch goes on with
+the next activity. A `retry` row is due again **30 min × 2^(attempts − 1)** after its last failure
+(30 min, 1 h, 2 h, 4 h; capped at 24 h); the **5th** failure stores status **`failed`** and the
+activity is never asked again (it has no `hr_hist`, so its day panel shows no zones). A failed call
+still sets `fetched_at`, so it counts against the budget. Any other error (token refresh, 401, the
+database) stops the batch without recording anything. None of this ever fails the activity sync or
+its status. To list or re-arm given-up activities:
+`SELECT activity_id, attempts, last_error_at FROM strava_activity_hr WHERE status = 'failed'`;
+deleting a row makes the backfill fetch it again.
 
 Strava also exposes the athlete's own heart-rate zones (`GET /athlete/zones`, needs
 `profile:read_all`); they are NOT used: the page applies one documented % of max HR model
 (docs/training.md) so the zones stay comparable with the reference.
 
-**Rollout.** `docker compose up -d --build health-ingest` (runs the idempotent `008_strava_hr.sql`);
+**Rollout.** `docker compose up -d --build health-ingest` (runs the idempotent `008_strava_hr.sql`
+and `009_strava_hr_retry.sql`);
 the backfill starts on the next sync run. An older image keeps answering `/export/strava` without
 `hr_hist`, and the page simply shows no zones.
 

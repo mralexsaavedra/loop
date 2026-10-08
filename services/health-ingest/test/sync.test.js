@@ -137,7 +137,7 @@ test('createStravaSync runs one HR-stream backfill batch after the athlete refre
   await sync.runOnce()
   await new Promise((resolve) => setImmediate(resolve))
   const r = await sync.hrIdle()
-  assert.deepEqual(r, { fetched: 1, stored: 1, pending: 1, stop: null })
+  assert.deepEqual(r, { fetched: 1, stored: 1, retried: 0, pending: 1, stop: null })
   assert.ok(urls.findIndex((u) => u.endsWith('/api/v3/athlete')) < urls.findIndex((u) => u.includes('/streams')), 'athlete first, then streams')
   assert.equal(saved[0][0], '77')
 })
