@@ -286,13 +286,13 @@ test('sync-templates.mjs (freshness line + Sync button) has identical key trees 
   assert.equal(enSync.button, 'Sync');
 });
 
-test('detail-templates.mjs (detail sheet) has identical key trees in es/en, no empty leaves, a title + unit for every DETAIL key (+ stress)', () => {
+test('detail-templates.mjs (detail sheet) has identical key trees in es/en, no empty leaves, a title + unit for every DETAIL key (+ stress, energy-bank)', () => {
   assert.deepEqual(keyTree(esDetail), keyTree(enDetail));
   for (const [locale, dict] of [['es', esDetail], ['en', enDetail]]) {
     for (const [path, value] of leaves(dict)) assert.notEqual(String(value).trim(), '', `${locale} detail-templates.${path} must not be empty`);
-    // + 'stress': the stress page's series is baked in SCORES.stress (lib/score/stress.mjs), not DETAIL
-    assert.deepEqual(Object.keys(dict.metrics), [...DETAIL_KEYS, 'stress'], `${locale}: one entry per DETAIL key, in order, then stress`);
-    for (const k of [...DETAIL_KEYS, 'stress']) assert.ok(dict.metrics[k].title && dict.metrics[k].unit, `${locale}.metrics.${k}`);
+    // + 'stress' / 'energy': their series are baked in SCORES.stress / SCORES.energy (lib/score), not DETAIL
+    assert.deepEqual(Object.keys(dict.metrics), [...DETAIL_KEYS, 'stress', 'energy-bank'], `${locale}: one entry per DETAIL key, in order, then stress, energy-bank`);
+    for (const k of [...DETAIL_KEYS, 'stress', 'energy-bank']) assert.ok(dict.metrics[k].title && dict.metrics[k].unit, `${locale}.metrics.${k}`);
     assert.deepEqual(Object.keys(dict.modalities), ['gym', 'run', 'bike', 'other']);
     for (const [k, ph] of [['latestLbl', 'date'], ['staleNote', 'date'], ['chartAria', 'from'], ['calAria', 'month']]) assert.match(dict[k], new RegExp(`\\{${ph}\\}`), `${locale}.${k}`);
     for (const k of ['monitor', 'iqr']) for (const ph of ['lo', 'hi', 'median', 'unit']) assert.match(dict.bands[k], new RegExp(`\\{${ph}\\}`), `${locale}.bands.${k}`);
