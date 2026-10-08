@@ -22,14 +22,15 @@ const G3 = { breakfast: 1, lunch: 1, dinner: 1 };
 const day = (date, k, p, f, o = {}) => ({ date, k, p, f, n: 3, missing: { p: false, f: false }, groups: G3, ...o });
 const TG = { k: 2000, p: 150, g: 70 };
 
-function fixedDate(iso) {
+// clock.iso = the viewer's day (a test may move it past midnight)
+function fixedDate(clock) {
   const RealDate = Date;
   return class extends RealDate {
-    constructor(...a) { if (a.length) super(...a); else super(iso + 'T12:00:00'); }
-    static now() { return new RealDate(iso + 'T12:00:00').getTime(); }
+    constructor(...a) { if (a.length) super(...a); else super(clock.iso + 'T12:00:00'); }
+    static now() { return new RealDate(clock.iso + 'T12:00:00').getTime(); }
   };
 }
-function setup({ log = [], live = null, targetFor, locale = 'en', sel = null, home = true, nutri = true } = {}) {
+function setup({ log = [], live = null, targetFor, locale = 'en', sel = null, home = true, nutri = true, clock = { iso: TODAY } } = {}) {
   const doc = new StubDocument();
   const els = {};
   if (home) els.home = doc.el('home-nscore', { hidden: true });
@@ -45,7 +46,7 @@ function setup({ log = [], live = null, targetFor, locale = 'en', sel = null, ho
     document: doc, window, LOCALE: locale, NUTRI: { score: NSCORE }, I18N_NUTRI: locale === 'es' ? esN : enN,
     I18N_SCORE: locale === 'es' ? esS : enS, INTAKE: { log: { asOf: null, days: log } },
     HCDay: { sel: () => sel, on: (fn) => listeners.push(fn) },
-    DETAIL: { metrics: {} }, Date: fixedDate(TODAY), Math, JSON, Number, String, Object, Array, isFinite,
+    DETAIL: { metrics: {} }, Date: fixedDate(clock), Math, JSON, Number, String, Object, Array, isFinite,
   };
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -170,4 +171,23 @@ test('Inicio card: day stepping shows that day\'s final score (no average) or hi
   assert.equal(t.els.home.hidden, true);
   t.step(null);
   assert.match(text(t.els.home.innerHTML), /so far 66 %/);
+});
+
+test('Inicio card: a day exactly 3 days old still shows (with its date), 4 days old hides', () => {
+  const three = setup({ nutri: false, log: [day('2030-01-25', 2000, 150, 70)] });
+  assert.equal(three.els.home.hidden, false);
+  assert.match(text(three.els.home.innerHTML), /Fri 25 Jan/);
+  assert.equal(setup({ nutri: false, log: [day('2030-01-24', 2000, 150, 70)] }).els.home.hidden, true);
+});
+
+test('midnight rollover: the cached series is per viewer day, so yesterday stops being "so far"', () => {
+  const clock = { iso: TODAY };
+  const t = setup({ nutri: false, clock, log: [day(TODAY, 1500, 120, 60)] });
+  assert.equal(t.S.metric().days[TODAY].partial, true);
+  clock.iso = '2030-01-29';
+  const m = t.S.metric();
+  assert.equal(m.days[TODAY].partial, false, 'a final score once the day is over');
+  assert.equal(m.start, '2029-11-01');
+  t.step(null);
+  assert.doesNotMatch(text(t.els.home.innerHTML), /so far/);
 });

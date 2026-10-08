@@ -88,7 +88,7 @@
     });
     if (!(sw > 0)) return null;
     return {
-      score: Math.round(sum / sw), parts: parts, inc: !!(miss.p || miss.f),
+      score: Math.round(sum / sw), parts: parts, inc: !!(miss.p || miss.f || !fin(day.p) || !fin(day.f)),
       partial: !!(opts && opts.today && day.date === opts.today), meals: hasMeals(day), assumed: !!target.inferred,
     };
   }
@@ -141,13 +141,17 @@
     for (var i = C.days - 1; i >= 0; i--) out.push(HC.shiftIso(today, -i));
     return out;
   }
+  // computed once per viewer day: a page left open past midnight recomputes (yesterday stops being
+  // "so far"); refresh() drops it after new data
   var cache = null;
   function series() {
-    if (cache) return cache;
+    var today = HC.todayIso();
+    if (cache && cache.today === today) return cache;
     var dates = windowDates(), days = logDays();
-    var s = days.length ? scoreSeries(dates, days, targetsFor(dates), HC.todayIso()) : { days: {}, avg: null, n: 0 };
+    var s = days.length ? scoreSeries(dates, days, targetsFor(dates), today) : { days: {}, avg: null, n: 0 };
     s.dates = dates;
     s.any = days.length > 0;
+    s.today = today;
     cache = s;
     return s;
   }
