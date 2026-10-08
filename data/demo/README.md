@@ -13,6 +13,9 @@ feeds the example page's profile sheet in place of the gitignored `data/profile/
 `extract/journal-daily.csv` is an invented behaviour journal (its own seeded generator: drinks mostly
 at weekends, mobility on rest days…) for the example's My journal card and behaviour insights; any
 association with the demo recovery is chance.
+`extract/foodlog-daily.csv` is an invented food log in the sync's format (`data/nutrition/sync-foodlog.js`;
+its own seeded generator around the example plan's maintain targets, a few days with a dinner or a
+macro missing) for the example's nutrition score; the personal build reads `data/nutrition/` instead.
 
 ## Why it exists
 

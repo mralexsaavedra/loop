@@ -288,3 +288,44 @@ filled from them, never typed.
   midnight reload of core.js waits while the page is busy).
 - **Rollout** — ingest rebuild (`docker compose up -d --build health-ingest`, runs 007), then
   `npm run generate`.
+
+## Nutrition score (every page)
+
+A day's 0–100 adherence to the viewer's own targets, from the food log. `lib/nutrition/score.mjs` =
+the reference (`NSCORE`, baked as `NUTRI.score`). `client/nutri-score.js` ports it; the client test
+runs the port over `NSCORE_CASES` (band and zero edges, missing and blank macros, today partial, no
+target / no entries) and over a whole `scoreSeries`, and must equal the reference's output.
+
+- **Formula** — against THAT day's meals target (`HCNutri.targetFor`: the current goal × that day's
+  detected day type, the same target Constancia and the intake rings use; fat = its `g`):
+  kcal (0.4) = 100 within ±`kcal.full` (10 %), linear to 0 at ±`kcal.zero` (35 %); protein (0.4) =
+  100 at ≥ `protein.full` (90 %), linear to 0 at `protein.zero` (50 %), more never penalised; fat (0.2)
+  = 100 from `fat.lo` (60 %) to `fat.hi` (110 %), linear to 0 at `zeroHi` (160 %) / `zeroLo` (30 %);
+  score = the weighted sum, rounded (components to 0.1 first). **One definition with Constancia**:
+  `kcal.full` IS `ADHERENCE.onBand` and `protein.full` IS `ADHERENCE.proteinShare` (the brief's 95 %
+  protein line was folded into Constancia's 90 % so a "protein day" there is full credit here), and a
+  protein MINIMUM counts only once it reaches full credit, as there.
+- **Rules** — no log or no target (unknown day type) → no score, never 0. A macro in
+  `missing_macros`, or a blank macro cell the sync did not flag → its component is left out, the others re-weighted, the day flagged
+  "incomplete". The viewer's today = "so far" (`partial`), never a final score, never in an average.
+  Scored but flagged: a main meal missing (`meals` false — Constancia's complete-day rule) and a rest
+  day only assumed from sleep (`assumed`). Bands: ≥ 85 good, 60–84 mid, < 60 low.
+- **Data** — `buildFoodlogBake` bakes `INTAKE.log` = `{asOf, days}`: the last `NSCORE.days` (90) days
+  of `data/nutrition/foodlog-daily.csv` ending at its newest logged day (the example build: the demo
+  extract's synthetic `foodlog-daily.csv`, `scripts/make-demo-data.mjs`), in the summary shape
+  (`{date, k, p, f, n, missing: {p, f}, groups}`). LF or CRLF; a row with an impossible date, no kcal
+  or no entries is skipped and the build prints one warning with the count (never a failed build).
+  The page scores at VIEW time (the target depends
+  on the viewer's current goal, as Constancia's); on the LAN page each day of the live summary
+  (`HCAdherence.state().days`, the last 28 days) replaces the baked one, and every summary read
+  re-renders the score (`HCNutriScore.refresh`; the computed series is cached per viewer day, so a page
+  left open past midnight recomputes); a goal change re-renders it through `HCNutri.refresh`.
+- **Nutrición block** (`#nutri-score-block`, Dia.astro, between Balance and Progreso; hidden without
+  any food log day) — "SCORE": the day's card (the score big in its band colour — `de-hi` / `de-mid`
+  / `de-lo` = `--good` / `--mid` / `--low` — "so far" today or "incomplete", the three components as
+  Resumen de hoy's macro rows: "KCAL · 88", "2351 / 2700 kcal", a bar = the component's points in its
+  own band colour; a left-out one reads "not logged"), then "7-day average · 30-day" (final scores
+  only) and a 30-day line (`.en-sp`, gaps skipped). Shows today when logged, else the newest scored
+  day while ≤ `STALE_DAYS` old, else "No recent score". The formula and rules sit behind its ⓘ
+  (`#nutri-score-info`, filled from `NUTRI.score`). A tap opens the `nutrition` trend sheet (W = 7
+  days, M = 30; `docs/detail-views.md`).

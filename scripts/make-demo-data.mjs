@@ -18,6 +18,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { journalCsv } from '../lib/journal/journal.mjs';
 import { JOURNAL_FILE } from '../lib/journal/bake.mjs';
+import { FOODLOG_FILE, FOODLOG_HEADER } from '../lib/nutrition/score.mjs';
 
 const require = createRequire(import.meta.url);
 const { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } = require('../data/apple-health/samples.js');
@@ -28,6 +29,8 @@ const { HR_HOURLY_HEADER, HR_HOURLY_CSV } = require('../lib/health/hr-hourly.cjs
 const JOURNAL_DAYS = 70;
 // hr-hourly.csv covers only the last four weeks (the Shortcut key is recent; enough to calibrate strain)
 const HR_DAYS = 28;
+// foodlog-daily.csv: the last FOOD_DAYS days, most of them logged (the example's nutrition score)
+const FOOD_DAYS = 60;
 
 export const DEMO_DEFAULTS = { end: '2026-09-28', days: 120, seed: 20260928 };
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -230,6 +233,32 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
     } });
   }
   out[JOURNAL_FILE] = journalCsv(journal);
+
+  // ---- food log (foodlog-daily.csv, as data/nutrition/sync-foodlog.js writes it) ----------------
+  // an invented eater around the example plan's maintain targets for the weekday's session (meals
+  // kcal: rest 2300, gym / run 2700, ride days ~2800-2900 after the ride fuel; protein 125 g, fat 65 g):
+  // ~1 day in 8 not logged, a looser weekend, a dinner left unlogged now and then, and a few days with
+  // an entry lacking protein or fat (missing_macros: those sums are minimums). Its own PRNG.
+  const frnd = prng(seed + 5);
+  const fnoise = (sd) => (frnd() + frnd() + frnd() - 1.5) * sd * 1.41;
+  const MEALS_K = { gym: 2700, run: 2700, bike: 2800, long: 2900 };
+  const food = [];
+  for (const date of dates.slice(-FOOD_DAYS)) {
+    if (frnd() < 0.12) continue;
+    const wd = weekday(date), weekend = wd === 0 || wd === 6;
+    const kcalT = MEALS_K[PLAN[wd]] || 2300;
+    const noDinner = frnd() < 0.08;
+    const k = Math.round(kcalT * (1 + fnoise(weekend ? 0.16 : 0.1)) * (noDinner ? 0.7 : 1));
+    const p = Math.max(40, 125 * (0.95 + fnoise(0.15)) * (noDinner ? 0.7 : 1));
+    const f = Math.max(15, 65 * (1.05 + fnoise(weekend ? 0.25 : 0.15)));
+    const c = Math.max(50, (k - 4 * p - 9 * f) / 4);
+    const miss = frnd() < 0.08 ? (frnd() < 0.5 ? ['protein'] : ['fat']) : [];
+    const groups = [1 + Math.floor(frnd() * 3), 1 + Math.floor(frnd() * 3), noDinner ? 0 : 1 + Math.floor(frnd() * 3), Math.floor(frnd() * 3)];
+    const n = groups.reduce((a, b) => a + b, 0);
+    const pv = miss[0] === 'protein' ? p * 0.8 : p, fv = miss[0] === 'fat' ? f * 0.7 : f;
+    food.push([date, k, fx(pv, 1), fx(c, 1), fx(fv, 1), n, ...groups, miss.join(';')].join(','));
+  }
+  out[FOODLOG_FILE] = csv(FOODLOG_HEADER, food);
 
   return Object.fromEntries(Object.entries(out).sort(([a], [b]) => a.localeCompare(b)));
 }

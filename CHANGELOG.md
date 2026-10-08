@@ -5,6 +5,26 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Nutrition score (Inicio "My day" + Nutrición)
+
+- Model: `lib/nutrition/score.mjs` (`NSCORE`, baked as `NUTRI.score`; ported in
+  `client/nutri-score.js`, parity over `NSCORE_CASES`): a logged day's 0–100 adherence to THAT day's
+  meals target (current goal × detected day type, `HCNutri.targetFor`) — kcal 0.4 (100 within ±10 %,
+  0 at ±35 %), protein 0.4 (100 at ≥ 90 %, 0 at 50 %), fat 0.2 (100 from 60 % to 110 %, 0 at 160 % /
+  30 %); weighted sum, rounded. One definition with Constancia: its ±10 % kcal band and 90 % protein
+  share are the full-credit lines (the 95 % protein line first proposed was folded into 90 %). No log
+  or no target → no score; a missing macro → its component left out and re-weighted ("incomplete");
+  today = "so far", never in an average.
+- Data: the build bakes the last 90 days of `data/nutrition/foodlog-daily.csv` as `INTAKE.log`
+  (example: a synthetic demo food log from `scripts/make-demo-data.mjs`); scores are computed at view
+  time so they follow the viewer's goal; the LAN summary replaces baked days.
+- Page: a "Nutrition" card in My day (score, so far / incomplete, kcal / protein / fat rows "eaten /
+  target" with points bars, 7-day average; day stepping), a "Score" block in Nutrición (+ 30-day
+  average and line, formula under ⓘ), and the `nutrition` trend sheet (a page-scored `VIEW_METRICS`
+  key, host tab Nutrición; day panel with the components and notes). es / en.
+- Docs: `docs/nutrition-food-log.md`, `docs/home-tab.md`, `docs/detail-views.md`,
+  `analysis/methodology.md` 5b, `data/demo/README.md`.
+
 ## 2026-10-08 — Energy bank (Inicio "My day", our own intraday model)
 
 - Model: `lib/score/energy.mjs` → `SCORES.energy`, an intraday 0–100 level per day (last 14): starts
