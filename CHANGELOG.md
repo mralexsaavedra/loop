@@ -5,6 +5,14 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — HR-stream backfill: timeout and per-activity back-off
+
+- Each Strava streams request now times out after 15 s. A 5xx / network error / timeout of one
+  activity no longer stops the batch (or blocks it forever when that activity keeps failing): it is
+  stored as `retry` (`attempts`, `last_error_at`, new idempotent `sql/009_strava_hr_retry.sql`) and
+  skipped for 30 min × 2^(attempts − 1) (cap 24 h); the 5th failure marks it `failed`. A 429 still
+  stops the whole batch. `sync.js`: `kickAthlete` renamed `refreshAthleteThenBackfillHr`.
+
 ## 2026-10-08 — Per-workout HR zones like the reference
 
 - health-ingest backfills each Strava activity's HR stream (newest first, ≤ 10 per sync run, ≤ 30 per

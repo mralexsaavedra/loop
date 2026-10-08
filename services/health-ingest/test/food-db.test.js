@@ -19,7 +19,7 @@ const PRODUCT_ROW = {
 test('migration 006_food.sql is registered (as the optional food group) and is idempotent', async () => {
   // db.js loads pg, which the test run does not install: read its migration list as text
   const db = await readFile(fileURLToPath(new URL('../src/db.js', import.meta.url)), 'utf8')
-  assert.match(db, /'005_athlete_refresh\.sql', '008_strava_hr\.sql'\]/, 'core list: food stays out of it')
+  assert.match(db, /'005_athlete_refresh\.sql', '008_strava_hr\.sql', '009_strava_hr_retry\.sql'\]/, 'core list: food stays out of it')
   assert.match(db, /OPTIONAL_MIGRATIONS = \{ food: \['006_food\.sql'\], settings: \['007_settings\.sql'\] \}/, 'the food tables and the settings are isolated, optional groups')
   const sql = await readFile(fileURLToPath(new URL('../sql/006_food.sql', import.meta.url)), 'utf8')
   for (const table of ['food_product', 'food_recipe', 'food_log']) {

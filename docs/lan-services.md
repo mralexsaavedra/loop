@@ -106,6 +106,9 @@ up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (c
   streams (newest first, never more than 30 per 15 min / 300 per 24 h, counted in
   `strava_activity_hr`), stores only seconds per bpm (`hr_hist`, never the stream) and exports it on
   `GET /export/strava` for the per-workout HR zones; details and limits in
-  `services/health-ingest/README.md` ("Per-workout HR zones"). Rollout: `docker compose up -d --build
-  health-ingest` (runs the idempotent `sql/008_strava_hr.sql`), then `npm run sync` once the backfill
-  has run.
+  `services/health-ingest/README.md` ("Per-workout HR zones"). Each streams request times out after
+  15 s; a 429 stops the batch, but a 5xx / timeout of one activity only skips it with a per-activity
+  back-off (30 min × 2^(attempts − 1), cap 24 h) and the 5th failure marks it `failed`, so one bad
+  activity can not block the rest. Rollout: `docker compose up -d --build health-ingest` (runs the
+  idempotent `sql/008_strava_hr.sql` and `sql/009_strava_hr_retry.sql`), then `npm run sync` once the
+  backfill has run.

@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import pg from 'pg'
 import { runMigrations } from './migrations.js'
 
-const MIGRATIONS = ['001_init.sql', '002_strava.sql', '003_sync.sql', '004_athlete.sql', '005_athlete_refresh.sql', '008_strava_hr.sql']
+const MIGRATIONS = ['001_init.sql', '002_strava.sql', '003_sync.sql', '004_athlete.sql', '005_athlete_refresh.sql', '008_strava_hr.sql', '009_strava_hr_retry.sql']
 // optional groups: a failure disables only that feature (its routes answer 503), see migrations.js
 const OPTIONAL_MIGRATIONS = { food: ['006_food.sql'], settings: ['007_settings.sql'] }
 
