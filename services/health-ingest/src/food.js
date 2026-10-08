@@ -72,7 +72,8 @@ const ROUTES = [
   { re: /^\/food\/off$/, methods: ['GET'] }
 ]
 
-function httpError (status, code, field) {
+// httpError, hostOfHeader, hostOfOrigin, send, isJson and readJson are shared with journal.js (same layers)
+export function httpError (status, code, field) {
   return Object.assign(new Error(code), { status, code, field })
 }
 function bad (field) {
@@ -144,13 +145,13 @@ export function hostAllowed (hostname, extra = []) {
   return IPV4_RE.test(h) || IPV6_RE.test(h) || LOCAL_HOSTS.includes(h) || extra.includes(h)
 }
 /** The host part of a Host header ("192.168.1.10:8090" -> "192.168.1.10", "[::1]:8088" -> "[::1]"). */
-function hostOfHeader (v) {
+export function hostOfHeader (v) {
   const s = String(v || '').trim()
   const m = /^(\[[^\]]*\]|[^:]*)(?::\d+)?$/.exec(s)
   return m ? m[1] : ''
 }
 /** The host of an Origin header, or null when it is not a URL ("null", garbage). */
-function hostOfOrigin (v) {
+export function hostOfOrigin (v) {
   try {
     const u = new URL(v)
     return /^https?:$/.test(u.protocol) ? u.hostname : null
@@ -293,7 +294,7 @@ export function validateRange (params) {
 }
 
 /* ---------- HTTP ---------- */
-function send (res, status, body, extra = {}) {
+export function send (res, status, body, extra = {}) {
   const payload = JSON.stringify(body)
   res.writeHead(status, {
     'content-type': 'application/json',
@@ -305,12 +306,12 @@ function send (res, status, body, extra = {}) {
   res.end(payload)
 }
 
-function isJson (req) {
+export function isJson (req) {
   const ct = String(req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase()
   return ct === 'application/json'
 }
 
-function readJson (req) {
+export function readJson (req) {
   const declared = Number(req.headers['content-length'])
   if (Number.isFinite(declared) && declared > FOOD_BODY_LIMIT) return Promise.reject(httpError(413, 'payload_too_large'))
   return new Promise((resolve, reject) => {

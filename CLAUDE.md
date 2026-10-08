@@ -99,6 +99,7 @@ One line per area; the design detail lives in the linked doc (read it on demand)
 | Profile: avatar button, profile sheet, sources, goal setting, device manuals | [`docs/profile.md`](docs/profile.md) |
 | Nutrition plan pipeline (`ingredients.json` + `plan-data.json`), intake rings, Nutrición v2 part 1 (goals, day types, portion guide, fuelling, Tablas) | [`docs/nutrition.md`](docs/nutrition.md) |
 | Nutrition v2 parts 2–3: food log, products, recipes, Open Food Facts, settings, Progreso, Constancia (LAN page) | [`docs/nutrition-food-log.md`](docs/nutrition-food-log.md) |
+| Journal: daily behaviours (LAN API + page sheet), My Journal card, behaviour insights vs next-morning recovery | [`docs/journal.md`](docs/journal.md) |
 | Training: Hoy (programmed session), Entreno calendar, workouts dashboard | [`docs/training.md`](docs/training.md) |
 | Health tab (Salud): body comp, activity, energy + power-meter correction, running / cycling, recovery, sleep | [`docs/health-tab.md`](docs/health-tab.md) |
 | Home tab (Inicio): dials, advice, eat card, monitor, timeline; recovery + load scoring; same-day merge rule | [`docs/home-tab.md`](docs/home-tab.md) |

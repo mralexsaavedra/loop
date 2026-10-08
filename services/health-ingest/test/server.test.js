@@ -3,11 +3,12 @@ import assert from 'node:assert/strict'
 import http from 'node:http'
 import { createHandler } from '../src/server.js'
 import { createFoodRoutes } from '../src/food.js'
+import { createJournalRoutes } from '../src/journal.js'
 
 const TOKEN = 'x'.repeat(40)
 
 /** Every dependency stubbed: no Postgres, no Strava, no network beyond 127.0.0.1. */
-function setup ({ stravaSync = null, foodRoutes } = {}) {
+function setup ({ stravaSync = null, foodRoutes, journalRoutes } = {}) {
   const calls = []
   const mark = (name, status = 200) => async (req, res) => {
     calls.push(name)
@@ -30,6 +31,7 @@ function setup ({ stravaSync = null, foodRoutes } = {}) {
         return true
       }
     },
+    ...(journalRoutes ? { journalRoutes } : {}),
     syncRoutes: { handleSync: mark('sync', 202), handleStatus: mark('syncStatus') },
     handleExport: mark('exportRaw'),
     handleStravaExport: mark('exportStrava'),
@@ -113,6 +115,20 @@ test('an unknown /food/* subpath is 404 through the real food routes, never anot
   }
   // a known food path with the migration missing is 503, proving the dispatch reached food.js
   assert.equal((await s.call('GET', '/food/products', { headers: h })).status, 503)
+})
+
+test('/journal/* reaches the real journal routes (503 while its migration is missing, 404 unknown)', async (t) => {
+  const journalRoutes = createJournalRoutes({ store: {}, available: () => false, allowedHosts: [], log: () => {} })
+  const s = await setup({ journalRoutes })
+  t.after(s.close)
+  const h = { 'x-hc-journal': '1' }
+  assert.equal((await s.call('GET', '/journal/settings', { headers: h })).status, 503)
+  const r = await s.call('GET', '/journal/nope', { headers: h })
+  assert.deepEqual([r.status, r.body], [404, { error: 'not_found' }])
+  // without journal routes wired, the outer router still answers its own 404
+  const plain = await setup()
+  t.after(plain.close)
+  assert.deepEqual((await plain.call('GET', '/journal/settings', { headers: h })).body, { error: 'not found' })
 })
 
 test('POST /ingest/health-auto-export: bearer, empty / bad / oversized body, then stored', async (t) => {
