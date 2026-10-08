@@ -1780,3 +1780,37 @@ test('nutrition score: listed in the trend picker (and selected) once the page h
   none.api.open('hrv');
   assert.doesNotMatch(none.host.innerHTML, /value="nutrition"/);
 });
+
+test('deep-dive History fold: the month calendar + day panel sit behind one collapsed row, toggled in place and remembered; a dated open starts it open; the trend view has no fold', () => {
+  const box = new StubElement('div', { hidden: true });
+  const s = setup({ dials: DIALS, query: { '#dd-hist': box } });
+  s.api.open('recovery');
+  let html = s.host.innerHTML;
+  const btn = `<button type="button" class="dd-fold" data-dt-act="hist" aria-expanded="false" aria-controls="dd-hist"><span class="dd-fold-t">${enT.deep.hist.title}</span><span class="dd-fold-s">${enT.deep.hist.sub}</span>`;
+  assert.ok(html.includes(btn), 'one collapsed row');
+  const fold = html.split('<div class="dd-hist-b" id="dd-hist" hidden>')[1];
+  assert.ok(fold && fold.includes('class="dt-cal"') && fold.includes('data-dt-part="day"'), 'calendar + day panel inside, hidden');
+  assert.ok(html.indexOf('dd-fold') > html.indexOf('dt-chart'), 'below the trend chart');
+  const writes = s.hostWrites();
+  const b = act('hist', { 'aria-expanded': 'false' });
+  s.click(b);
+  assert.equal(box.hidden, false);
+  assert.equal(b.getAttribute('aria-expanded'), 'true');
+  assert.equal(s.hostWrites(), writes, 'toggled in place, no re-render');
+  s.api.open('sleep');
+  assert.ok(s.host.innerHTML.includes('aria-expanded="true" aria-controls="dd-hist"') && s.host.innerHTML.includes('<div class="dd-hist-b" id="dd-hist">'), 'remembered for the session');
+  s.click(b);
+  assert.equal(box.hidden, true);
+  // a dated open (a run row, a stepped Inicio day): the day it was opened for is visible
+  const d = setup({ dials: DIALS });
+  d.api.open('recovery', addDays(NOW, -2));
+  assert.ok(d.host.innerHTML.includes('<div class="dd-hist-b" id="dd-hist">'));
+  // the trend view keeps its calendar unfolded
+  d.api.open('rhr');
+  assert.doesNotMatch(d.host.innerHTML, /dd-fold|dd-hist/);
+  assert.match(d.host.innerHTML, /class="dt-cal"/);
+  const es = setup({ locale: 'es', dials: DIALS });
+  es.api.open('recovery');
+  assert.ok(es.host.innerHTML.includes(`<span class="dd-fold-t">${esT.deep.hist.title}</span>`));
+  clean(html);
+});
