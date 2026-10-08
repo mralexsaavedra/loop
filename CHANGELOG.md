@@ -5,6 +5,22 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Visual polish: dials, deep-dive header, trend view
+
+- Dials: the Inicio rings get a 9.5-unit stroke (of 120, ~8 %, from 7); the deep-dive hero ring is
+  260 px with a 7.5-unit stroke and a 70 px number (the load page's typical-day tick spans that stroke).
+- Wide screens: the LOOP wordmark sits on the left of the top bar row (~20 px caps) and the avatar on the
+  right beside Sync; the phone layout is unchanged.
+- Dial deep-dives: the header names the day ("Today" / "Mon 28 Sep"; strain follows Inicio's day
+  stepping), the metric stays in the ring label and the dialog's screen-reader title; contributor
+  arrows shrink to ~8 px.
+- Trend view (every metric sheet): titled "Trend view" with a metric picker pill; a small right-aligned
+  W · M · 6M · 1Y switch (1Y kept); a "‹ 23 Sep – 29 Sep, 26 ›" row steps the window; AVERAGE leads,
+  the delta pill below, one plain sentence; the latest value and band words move under ⓘ. The chart
+  drops its card, names the band "Typical range" top-right, labels the newest value, and in W draws
+  bars with each value on top and weekday + day labels. A 6M comparison now also works when the
+  previous window starts before the data but holds data on at least half its days.
+
 ## 2026-10-08 — LOOP logo: favicon, home-screen icon, wordmark
 
 - The page is named LOOP: `<title>` + `apple-mobile-web-app-title` (`strings.brand`). Favicon (32 px tile
