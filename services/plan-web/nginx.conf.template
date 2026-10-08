@@ -66,6 +66,8 @@ server {
     #     JSON body (a CORS preflight it never approves), a website opened in a
     #     LAN browser can neither read nor write it. Anything on the LAN that
     #     talks to it directly can: LAN only, never publish this server.
+    #   - the behaviour journal, /api/journal/* -> ingest /journal/* (day,
+    #     summary, settings), the same layers with its own X-HC-Journal header.
     # Plus ONE bearer-protected route, for the iOS Shortcut when this server is
     # the public entry (an SSO tunnel that bypasses exactly /ingest/* and
     # /api/sync): POST /ingest/health-auto-export, exact match. ingest checks
@@ -102,6 +104,18 @@ server {
         proxy_connect_timeout 5s;
         proxy_read_timeout 15s;
         proxy_pass http://host.docker.internal:${INGEST_PORT}/food/;
+    }
+
+    location /api/journal/ {
+        gzip off;
+        limit_except GET PUT { deny all; }
+        client_max_body_size 16k;
+        proxy_set_header X-HC-Journal $http_x_hc_journal;
+        # the hop's Host: a name the ingest Host check accepts (the browser's Origin is passed on)
+        proxy_set_header Host host.docker.internal;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 15s;
+        proxy_pass http://host.docker.internal:${INGEST_PORT}/journal/;
     }
 
     location = /ingest/health-auto-export {

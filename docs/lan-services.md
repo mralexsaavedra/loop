@@ -70,7 +70,8 @@ up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (c
   never health data or raw error text (messages stay in logs; tests pin the key set and no leaks).
   plan-web nginx proxies EXACTLY `/api/sync` + `/api/sync/status` (exact-match, method-restricted)
   plus the food log prefix `/api/food/*` → ingest `/food/*` (GET / POST / PUT / DELETE, 16 KB, the
-  `X-HC-Food` header forwarded; see "Nutrition v2 part 2") and EXACTLY `POST /ingest/health-auto-export`
+  `X-HC-Food` header forwarded; see "Nutrition v2 part 2"), the journal prefix `/api/journal/*` →
+  ingest `/journal/*` (GET / PUT, 16 KB, the `X-HC-Journal` header forwarded; `docs/journal.md`) and EXACTLY `POST /ingest/health-auto-export`
   → the same ingest route (the iOS Shortcut upload when plan-web is the public entry and ingest is not
   exposed: `Authorization` / `Automation-Name` / `Content-Type` forwarded, no `Bearer` token → `401`
   before the body is read, ingest checks the bearer, `client_max_body_size 8m` ≤ ingest's
@@ -94,7 +95,7 @@ up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (c
   `PLAN_WEB_EXTRA_HOSTS`, else `421` (DNS rebinding; how to add a name: "Nutrition v2 part 2" →
   Security). A public
   reverse proxy in front of ingest must forward ONLY `/ingest/*` and `/sync` (`/sync/status`
-  optional), never `/export/*`, `/sync/strava` or `/food/*`.
+  optional), never `/export/*`, `/sync/strava`, `/food/*` or `/journal/*`.
 - **Health + tokens.** `/healthz` stays 200 but adds `degraded: true` when Strava is configured and its
   PERSISTED last success is > 6 h old or missing (a restart does not reset it). A refresh token rotated
   by Strava is stored in `strava_token` (3 save attempts with backoff; on failure it is kept in memory,

@@ -11,6 +11,8 @@ import { createSyncRoutes } from './sync-routes.js'
 import { createFoodStore } from './food-db.js'
 import { createFoodRoutes, parseAllowedHosts } from './food.js'
 import { createOffClient } from './off.js'
+import { createJournalStore } from './journal-db.js'
+import { createJournalRoutes } from './journal.js'
 
 function send (res, status, body) {
   const payload = JSON.stringify(body)
@@ -58,6 +60,7 @@ export function createHandler ({
   stravaEnabled,
   stravaSync,
   foodRoutes,
+  journalRoutes = { handle: async () => false },
   syncRoutes,
   handleExport,
   handleStravaExport,
@@ -120,6 +123,7 @@ export function createHandler ({
       }
 
       if (await foodRoutes.handle(req, res, url)) return
+      if (await journalRoutes.handle(req, res, url)) return
 
       if (req.method === 'POST' && url.pathname === '/sync') {
         req.resume() // any body is ignored: drain it, never buffer it
@@ -241,6 +245,14 @@ async function main () {
     settingsAvailable: () => settingsReady,
     allowedHosts: parseAllowedHosts(process.env.FOOD_ALLOWED_HOSTS)
   })
+  // Behaviour journal (Q7) under /journal/*: same LAN-only layers as the food routes (its own
+  // X-HC-Journal header), its own optional migration group (010_journal.sql) -> 503 until it ran.
+  let journalReady = false
+  const journalRoutes = createJournalRoutes({
+    store: createJournalStore(pool),
+    available: () => journalReady,
+    allowedHosts: parseAllowedHosts(process.env.FOOD_ALLOWED_HOSTS)
+  })
 
   const server = http.createServer(createHandler({
     token: INGEST_TOKEN,
@@ -252,6 +264,7 @@ async function main () {
     stravaEnabled: STRAVA_ENABLED,
     stravaSync,
     foodRoutes,
+    journalRoutes,
     syncRoutes,
     handleExport,
     handleStravaExport,
@@ -264,6 +277,7 @@ async function main () {
     const optional = await migrate(pool)
     foodReady = optional.food === true
     settingsReady = optional.settings === true
+    journalReady = optional.journal === true
     await syncStatus.load() // never throws: a failed load is retried on the next status read
     // A seq handed out but never written (crash before the write) leaves the DB
     // ahead of the trigger file: write it once, shortly after boot, so the host
