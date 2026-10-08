@@ -175,6 +175,11 @@ checks every declaration outside that query against the CSS snapshot). The backg
 full-bleed while the top bar, tab panels and footer are centred and capped at `--content-max`
 (1160 px):
 
+- **Inicio** — dials and monitor tiles span the row; below them `.home-cols` puts the day (My day,
+  the eat card, Tonight) and the week (My plan, My dashboard) in two equal columns with the tiles'
+  gutter, so each column sits under one tile. On a phone the two wrappers are plain blocks (same
+  stacking, the sections' margins collapse through them); a week column with nothing shown drops its
+  track (`:has`) and the day takes the row.
 - **Nutrición** — the summary card turns into two columns (kcal dial | day type + macro bars) and Plan
   de hoy into a masonry-like 2-column flow (CSS `columns: 2`, cards `break-inside: avoid`, read down
   column 1 then column 2, so a short card never leaves a row-height gap). Progress and Consistency

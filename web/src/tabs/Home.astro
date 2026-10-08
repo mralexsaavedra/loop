@@ -16,6 +16,9 @@
  * (tonight, dash-edit) are registered before detail.js runs.
  * #home-mini = the collapsed dial row (fixed at the top, shown by score.js once the dials scroll away:
  * the same three rings small, with their labels; a tap opens the same detail as the dial).
+ * .home-cols wraps the day (My day, eat card, Tonight) and the week (My plan, My dashboard): two plain
+ * blocks on a phone (same stacking, margins collapse through them), two columns on wide screens
+ * (score.css).
  */
 import EatCard from '../components/EatCard.astro';
 import { es as esS, en as enS } from '../i18n/score-templates.mjs';
@@ -31,6 +34,8 @@ const t = (locale === 'es' ? esS : enS).home;
 <div id="home-mini" class="dial-mini"></div>
 <div id="home-dials"></div>
 <div id="home-tiles"></div>
+<div class="home-cols">
+<div class="home-col">
 <section class="my-day" id="my-day" aria-labelledby="my-day-h">
   <h2 class="home-h" id="my-day-h">{t.myDay}</h2>
   <div id="home-advice"></div>
@@ -38,6 +43,8 @@ const t = (locale === 'es' ? esS : enS).home;
 </section>
 <EatCard locale={locale} link={eatLink} />
 <div id="home-tonight" hidden></div>
+</div>
+<div class="home-col home-side">
 <section class="home-sec" id="my-plan" aria-labelledby="my-plan-h" hidden>
   <h2 class="home-h" id="my-plan-h">{t.plan.heading}</h2>
   <div id="home-plan"></div>
@@ -49,3 +56,5 @@ const t = (locale === 'es' ? esS : enS).home;
   </div>
   <div id="home-dash"></div>
 </section>
+</div>
+</div>
