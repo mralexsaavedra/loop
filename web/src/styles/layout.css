@@ -160,6 +160,14 @@ details.sec-fold > summary:hover > h2 {
 .wrap:has(> .tab-panel[data-tab="home"][hidden]) > .wordmark {
   display: none;
 }
+/* Salud / Entreno / Nutrición open on their own centred title (as the reference): the avatar and the
+   date pill (which steps Inicio's day) stay on Inicio; the freshness / Sync controls stay reachable */
+.wrap:has(> .tab-panel[data-tab="home"][hidden]) > .topbar > :not(.fresh) {
+  display: none;
+}
+.wrap:has(> .tab-panel[data-tab="home"][hidden]) > .topbar {
+  min-height: 0;
+}
 .wordmark svg {
   display: block;
   height: 0.71em;

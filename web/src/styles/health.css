@@ -108,9 +108,13 @@
   grid-column: 3;
   justify-self: start;
   display: flex;
+  align-items: center;
+  justify-content: center;
 }
+/* text-indent = the tracking after the last letter, so the glyphs (not just the box) sit centred */
 .hs-title {
   margin: 0;
+  text-indent: var(--label-track);
   color: var(--ink);
   font-size: var(--fs-sm);
   font-weight: var(--label-weight);
@@ -132,7 +136,7 @@
   inset: 0 0 auto;
   z-index: -1;
   height: 420px;
-  background: radial-gradient(ellipse 70% 100% at 50% 0, color-mix(in srgb, var(--up) 16%, transparent), transparent 70%);
+  background: radial-gradient(ellipse 90% 100% at 50% 0, color-mix(in srgb, var(--up) 24%, transparent), transparent 70%);
   pointer-events: none;
 }
 .hs-sec #score-recovery + .db-list {

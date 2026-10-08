@@ -117,6 +117,7 @@ test('full render: recovery trend with band, per-component rows and 14 raw daili
   const html = render(s);
   assert.match(html, /sc-recovery/);
   assert.ok(html.includes('<small class="rec-unit">SD</small>'), 'the one recovery unit');
+  assert.match(html, /<b class="rec-num">[^<]+<small class="rec-unit">SD<\/small><\/b><span class="rec-band">/, 'the unit attached to the number, inside it');
   assert.doesNotMatch(html, /MAD/, 'no statistician jargon on the page');
   assert.match(html, /daytime SDNN/i);
   assert.equal(count(html, 'class="rec-comp"'), 4);
