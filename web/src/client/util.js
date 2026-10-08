@@ -199,6 +199,7 @@ var HC = (function () {
     metricIcon: metricIcon,
     metricRow: metricRow,
     infoBtn: infoBtn,
+    infoSvg: INFO_SVG,
     sheetHead: sheetHead,
     rolloverAction: rolloverAction,
   };

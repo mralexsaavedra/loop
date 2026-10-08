@@ -41,6 +41,8 @@
   var esc = HC.esc, format = HC.format, isoDate = HC.isoDate, parseIso = HC.parseIso, shiftIso = HC.shiftIso;
   // W / M / 6M / 1Y (days); a range longer than the data is clamped to the metric's first day
   var RANGES = [7, 30, 182, 365];
+  // lower bounds of HR zones 1-5, % of max HR (lib/training/hr-zones.cjs ZONE_CUTS)
+  var ZONE_CUTS = [50, 60, 70, 80, 90];
   var RANGE_KEY = { 7: 'w', 30: 'm', 182: 'm6', 365: 'y' };
   // a delta below this share (or below DELTA_FLAT_REC sd for recovery) is "about the same": neutral
   var DELTA_FLAT = 0.01, DELTA_FLAT_REC = 0.05;
@@ -570,8 +572,47 @@
     if (s.n > 1) parts.push(format(D2.parts, { n: s.n }));
     var mod = T.modalities[s.m] || s.m, type = T.types[s.t] || String(s.t || '').replace(/([a-z])([A-Z])/g, '$1 $2');
     return '<li class="dt-sess"><b class="dt-sess-name">' + esc(mod + (type && type !== mod ? ' · ' + type : '')) + '</b>' +
-      '<span class="dt-sess-meta">' + esc(parts.join(' · ')) + '</span>' +
+      '<span class="dt-sess-meta">' + esc(parts.join(' · ')) + '</span>' + zonesHtml(s) +
       (s.src ? '<small class="dt-sess-src">' + esc(format(D2.source, { src: s.src })) + '</small>' : '') + '</li>';
+  }
+  // seconds -> "m:ss" / "h:mm:ss"
+  function mss(sec) {
+    var t = Math.max(0, Math.round(sec)), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), x = t % 60;
+    var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    return h ? h + ':' + pad(m) + ':' + pad(x) : m + ':' + pad(x);
+  }
+  // the bpm range of zone i for a max HR (lower bound inclusive: bpm >= cut % of max, exact)
+  function zoneBpm(i, max) {
+    var Z = T.day.zones, lo = function (k) { return Math.ceil((ZONE_CUTS[k] * max) / 100); };
+    if (i === 0) return format(Z.below, { n: lo(0) });
+    if (i === 5) return format(Z.above, { n: lo(4) });
+    return format(Z.range, { lo: lo(i - 1), hi: lo(i) - 1 });
+  }
+  // the session's time in HR zone 5…0 (DETAIL sessions `z`, seconds) as the reference's rows: name,
+  // bpm range, % of the zoned time, duration and a bar in the zone's colour; + avg / max HR and an ⓘ fold (the page fonts carry no ⓘ glyph: HC.infoSvg)
+  // with the model and the max HR used. No `z` -> nothing.
+  function zonesHtml(s) {
+    var Z = T.day.zones, z = s.z;
+    if (!Z || !z || z.length !== 6) return '';
+    var tot = 0;
+    for (var i = 0; i < 6; i++) tot += z[i] > 0 ? z[i] : 0;
+    if (!(tot > 0)) return '';
+    var zm = D.zoneMax && D.zoneMax.hr > 0 ? D.zoneMax : null;
+    var hr = s.hr != null && s.hx != null ? format(Z.hrSummary, { avg: fmt(s.hr, 0), max: fmt(s.hx, 0) })
+      : s.hr != null ? format(Z.hrAvg, { avg: fmt(s.hr, 0) }) : s.hx != null ? format(Z.hrMax, { max: fmt(s.hx, 0) }) : '';
+    var rows = [];
+    for (var k = 5; k >= 0; k--) {
+      var sec = z[k] > 0 ? z[k] : 0, p = Math.round((100 * sec) / tot);
+      rows.push('<li class="dt-zone dt-z' + k + '"><span class="dt-zname">' + esc(format(Z.zone, { n: k })) + '</span>' +
+        (zm ? '<span class="dt-zbpm">' + esc(zoneBpm(k, zm.hr)) + '</span>' : '') +
+        '<span class="dt-zpct">' + p + '%</span><span class="dt-zdur">' + mss(sec) + '</span>' +
+        '<span class="dt-zbar"><i style="width:' + p + '%"></i></span></li>');
+    }
+    var note = zm ? format(Z.note, { max: fmt(zm.hr, 0), src: Z.src[zm.src] || '' }).replace(' ()', '') : Z.noteNoMax;
+    return '<div class="dt-zones" role="group" aria-label="' + esc(Z.title) + '">' +
+      '<p class="dt-zhead"><b>' + esc(Z.title) + '</b>' + (hr ? '<span>' + esc(hr) + '</span>' : '') + '</p>' +
+      '<ol class="dt-zlist">' + rows.join('') + '</ol>' +
+      '<details class="dt-zinfo"><summary>' + (HC.infoSvg || '') + '<span>' + esc(Z.info) + '</span></summary><p>' + esc(note) + '</p></details></div>';
   }
   function workoutsHtml(key, m, iso) {
     var list = sessionsOn(iso, modOf(key));
