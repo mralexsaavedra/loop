@@ -118,9 +118,16 @@ trend is the line under it.
   least one fresh card is Normal, else "No data" — and "n/5 metrics" (fresh cards in range / all
   cards); a card counts only when its own date is ≤ 3 days old. It is a button calling
   `jump('monitor')` (switches to Salud, scrolls to the monitor list at its top; `#monitor` deep-links
-  there too, `ANCHOR_TAB` in lib/nav/tabs.mjs: core.js shows Salud and keeps the hash). Tile 2 = HRV (the real baked value, its
-  unit, its status word in its tone colour, its date when not today), opening the HRV sheet; there is
-  no stress score to show, so without a fresh HRV value tile 2 is left out and tile 1 spans the row
+  there too, `ANCHOR_TAB` in lib/nav/tabs.mjs: core.js shows Salud and keeps the hash). Tile 2 =
+  **STRESS MONITOR ›** when a day has a stress value (`SCORES.stress`, `lib/score/stress.mjs`: a
+  heart-rate-only ESTIMATE per waking hour outside workouts and sleep, 0–3, formula in
+  `analysis/methodology.md`): the latest scored hour's value in a small square chip and its band word
+  (low < 1 light blue `--strain-ink`, medium 1–2 teal `--up`, high ≥ 2 orange `--down`), the hour
+  ("14:00", prefixed by the date when the day is not today); today = the newest day with a value when
+  it is ≤ 3 days old (a day needs ≥ 6 scored hours, so early in the morning it is yesterday's, dated).
+  It opens the stress page (`docs/detail-views.md`). Without a stress value tile 2 falls back to HRV
+  (the real baked value, its unit, its status word in its tone colour, its date when not today),
+  opening the HRV sheet; without a fresh HRV value either, tile 2 is left out and tile 1 spans the row
   (`.hm-tiles-one`).
 - **Health monitor** (`lib/score/monitor.mjs`, baked as `SCORES.monitor` even when `hasData` is false;
   `components/HealthMonitor.astro` + `client/monitor.js`, the FIRST block of Salud, `tabs/Salud.astro`):
@@ -163,9 +170,10 @@ trend is the line under it.
     asked for), no stale line; every dial and mini ring opens its deep-dive ON that day (`data-date`).
     The advice outlook bar is hidden (it reads the current 7-day trend).
   - **Monitor tiles** (`monitor.js` `renderTiles`): that day's `SCORES.days` summary (in / out of
-    range among the cards fresh ON that day, out of `total`) and its HRV card (dated when its reading is
-    older than the day; it opens the HRV sheet on that day); no entry → "No data". The Salud list stays
-    the latest.
+    range among the cards fresh ON that day, out of `total`) and that day's stress value
+    (`SCORES.stress.days`, the last 14 days; it opens the stress page on that day), else its HRV card
+    (dated when its reading is older than the day; it opens the HRV sheet on that day); no entry → "No
+    data". The Salud list stays the latest.
   - **"My day"** (`timeline.js` `pastHtml`): "Activities · <date>" with that day's night
     (`DETAIL.metrics.sleep`: hours, bed / wake clock) and workouts (`DETAIL.sessions`: one per date +
     modality after the SAME display rule as `SCORES.timeline`, minutes, RE, parts; a test checks both

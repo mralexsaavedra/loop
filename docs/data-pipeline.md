@@ -73,7 +73,8 @@ all of it in the hour the sample falls in: `covered_min`. The part inside a Stra
 (`workout-zones.csv` `start` + `elapsed_s`) is `act_min` and is left out of `hist` = covered
 seconds per whole bpm (`bpm:s` pairs, space-separated; < 50 bpm omitted: always zone 0). That
 exclusion is why `npm run sync` runs the Strava sync BEFORE the Shortcut sync. Day strain
-(`lib/score/strain.mjs`, `analysis/methodology.md`) reads `hist`; the older `hr_hourly` key
+(`lib/score/strain.mjs`, `analysis/methodology.md`) reads `hist`; the stress estimate
+(`lib/score/stress.mjs`) reads `avg`, `covered_min`, `act_min` and `hist` per waking hour; the older `hr_hourly` key
 (hourly sums) is ignored.
 Unreachable service → exits non-zero without touching files. Row helpers are shared in
 `samples.js`, so both paths format rows identically.

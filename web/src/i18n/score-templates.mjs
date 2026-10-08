@@ -183,6 +183,8 @@ export const en = {
     info: 'About the health monitor',
     // Inicio summary tile (#home-tiles): counts from the same cards; "metrics" = in range / all cards
     tile: { inRange: 'Within range', out: '{n} out of range', none: 'No data', metrics: '{n}/{total} metrics', ariaLabel: 'Monitor summary' },
+    // Inicio tile 2 (lib/score/stress.mjs): the latest waking hour's heart-rate-only stress estimate
+    stress: { label: 'Stress monitor', bands: { low: 'Low', medium: 'Medium', high: 'High' }, aria: 'Stress estimate {value}, {band}, {time}' },
     labels: { respiratory: 'Respiratory rate', rhr: 'Resting HR', hrv: 'HRV', wristTemp: 'Wrist temp (sleep)', sleep: 'Sleep' },
     units: { respiratory: 'brpm', rhr: 'bpm', hrv: 'ms', wristTemp: '°C', sleep: 'h' },
     status: { normal: 'Normal', high: 'High', low: 'Low', building: 'Building baseline', none: 'No data', stale: 'No recent data' },
@@ -395,6 +397,8 @@ export const es = {
     heading: 'Monitor de salud',
     // tile resumen de Inicio (#home-tiles): cuenta las mismas tarjetas; "métricas" = en rango / todas
     tile: { inRange: 'En rango', out: '{n} fuera de rango', none: 'Sin datos', metrics: '{n}/{total} métricas', ariaLabel: 'Resumen del monitor' },
+    // tile 2 de Inicio (lib/score/stress.mjs): la estimación de estrés (solo pulso) de la última hora despierto
+    stress: { label: 'Monitor de estrés', bands: { low: 'Bajo', medium: 'Medio', high: 'Alto' }, aria: 'Estimación de estrés {value}, {band}, {time}' },
     ariaLabel: 'Señales nocturnas frente a tu propio rango normal',
     info: 'Sobre el monitor de salud',
     labels: { respiratory: 'Frecuencia respiratoria', rhr: 'FC en reposo', hrv: 'VFC', wristTemp: 'Temp. de muñeca (sueño)', sleep: 'Sueño' },

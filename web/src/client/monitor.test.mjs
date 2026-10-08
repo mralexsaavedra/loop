@@ -31,7 +31,7 @@ function monitor() {
   });
 }
 
-function render(mon, { locale = 'en', now = ASOF, healthNav = false, detail = false, tiles = null, day = null, days = null } = {}) {
+function render(mon, { locale = 'en', now = ASOF, healthNav = false, detail = false, tiles = null, day = null, days = null, stress = null } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
   class FakeDate extends RealDate {
@@ -39,7 +39,7 @@ function render(mon, { locale = 'en', now = ASOF, healthNav = false, detail = fa
   }
   const ctx = {
     document: { getElementById: (id) => (id === 'monitor' ? host : id === 'home-tiles' ? tiles : id === 't-health' && healthNav ? {} : null) },
-    SCORES: mon === undefined ? undefined : { monitor: mon, days }, I18N_SCORE: locale === 'es' ? esT : enT, LOCALE: locale,
+    SCORES: mon === undefined ? undefined : { monitor: mon, days, stress }, I18N_SCORE: locale === 'es' ? esT : enT, LOCALE: locale,
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
   if (detail) ctx.DETAIL = { metrics: {} };
@@ -281,4 +281,60 @@ test('day stepping: a past day without HRV spans one tile; one without an entry 
   render(monitor(), { tiles: today });
   day.go(null);
   assert.equal(tiles.innerHTML, today.innerHTML);
+});
+
+/* ---- tile 2 = the stress monitor (lib/score/stress.mjs, SCORES.stress) when a day has a value ---- */
+const sday = (date, v, band, t = '14', avg = 1.4) => ({ date, rhr: 50, n: 8, avg, band: 'medium', now: { t, v, band }, mins: { low: 120, medium: 300, high: 60 }, hours: [] });
+const STRESS = { ok: true, asOf: ASOF, maxHr: 190, minHours: 6, days: [
+  sday('2026-09-25', 2.4, 'high', '20'),
+  { date: '2026-09-26', rhr: 50, n: 3, avg: null, band: null, now: null, mins: null, hours: [] },
+  sday(ASOF, 1.8, 'medium'),
+] };
+const stressTile = (html) => (html.match(/<div class="hmt hmt-stress[\s\S]*?<!--\/hmt-->/) || [''])[0];
+
+test('tile 2 = Stress monitor: the latest hour\'s value chip, its band word in the band colour, the hour; opens the stress page', () => {
+  const html = tilesOf(monitor(), { detail: true, stress: STRESS });
+  const t = stressTile(html);
+  assert.ok(t, 'stress tile rendered');
+  assert.match(t, /class="hmt hmt-stress hmt-sb-medium" data-detail="stress" role="button"/);
+  assert.ok(t.includes(`<span class="hmt-lbl">${enT.monitor.stress.label}<span class="hmt-chev" aria-hidden="true">›</span></span>`));
+  assert.ok(t.includes('<span class="hmt-sv">1.8</span>'));
+  assert.ok(t.includes(`<span class="hmt-band">${enT.monitor.stress.bands.medium}</span>`));
+  assert.ok(t.includes('<span class="hmt-sub">14:00</span>'));
+  assert.doesNotMatch(html, /hmt-hrv/, 'stress replaces the HRV tile');
+  assert.match(html, /class="hm-tiles"/);
+  assert.doesNotMatch(html, /NaN|undefined/);
+});
+
+test('tile 2 falls back to HRV without a stress value: none baked, too few hours, or older than 3 days', () => {
+  const mon = monitorFromInputs({ hrv: series({ base: 60, amp: 2, last: 61 }) });
+  for (const stress of [null, { ok: false, reason: 'noMaxHr', asOf: ASOF }, { ...STRESS, days: STRESS.days.slice(0, 2) }]) {
+    const html = tilesOf(mon, { detail: true, stress });
+    assert.doesNotMatch(html, /hmt-stress/);
+    assert.match(html, /hmt-hrv/);
+  }
+  // the newest day is 4 days old: no stress tile
+  assert.doesNotMatch(tilesOf(mon, { stress: STRESS, now: addDays(ASOF, 4) }), /hmt-stress/);
+  // 1 day old: still shown, dated
+  const y = stressTile(tilesOf(mon, { stress: STRESS, now: addDays(ASOF, 1), detail: true }));
+  assert.ok(y.includes('Tue 29 Sep · 14:00'));
+});
+
+test('day stepping: a past day with a stress value shows it (opening that day); one without falls back to its HRV', () => {
+  const tiles = { innerHTML: '' };
+  const day = stepper('2026-09-25');
+  render(monitor(), { tiles, day, days: DAYS, stress: STRESS, detail: true });
+  const t = stressTile(tiles.innerHTML);
+  assert.match(t, /hmt-sb-high" data-detail="stress" data-date="2026-09-25"/);
+  assert.ok(t.includes('<span class="hmt-sv">2.4</span>'));
+  assert.ok(t.includes('<span class="hmt-sub">20:00</span>'));
+  day.go('2026-09-26');
+  assert.doesNotMatch(tiles.innerHTML, /hmt-stress/);
+});
+
+test('es stress tile: Spanish copy, decimal comma', () => {
+  const t = stressTile(tilesOf(monitor(), { locale: 'es', stress: STRESS, detail: true }));
+  assert.ok(t.includes('<span class="hmt-sv">1,8</span>'));
+  assert.ok(t.includes(`>${esT.monitor.stress.bands.medium}<`));
+  assert.equal(esT.monitor.stress.bands.medium, 'Medio');
 });
