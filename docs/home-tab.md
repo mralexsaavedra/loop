@@ -194,7 +194,7 @@ trend is the line under it.
   recovery % is a rank of the same composite). `web/src/view/dial.mjs` (`buildDials(scores, health)`, unit-tested, baked as `DIALS`)
   pre-computes the ring geometry; `score.js` only formats numbers and joins SVG strings. Layout: three
   equal full rings in a row (≈ 92 px at a 390 px viewport), each starting at 12 o'clock and filling
-  clockwise, round caps, a thin stroke (7 of 120 units ≈ 6 % of the diameter) on `--track`; the value
+  clockwise, round caps, a 9.5-unit stroke (of the 120-unit dial ≈ 8 %, the reference's weight) on `--track`; the value
   INSIDE (D-DIN number, small unit) and an uppercase "LABEL ›" BELOW; the dials sit on the page
   ground, not in a card. No caption under them: each dial's words live in its deep-dive page (insight card)
   (see `docs/detail-views.md`) and in its accessible name. Only a stale-data warning stays under the
@@ -232,7 +232,7 @@ trend is the line under it.
   with its pre-computed fill): a session with RE → centre = today's RE, fill = RE / typical day (ring
   midpoint = the typical training day, a full ring = 2×, no zones; the typical-day tick at 6 o'clock);
   rows today but no RE → "No effort data" (never rest); no rows today → "No session yet". `DIALS.load.tick`
-  = the typical-day mark as a radial line across the stroke (`radialTick(0.5)`), drawn by the load
+  = the typical-day mark as a radial line across the hero ring's 7.5-unit stroke (`radialTick(0.5, HERO)`), drawn by the load
   deep-dive's hero ring. The load deep-dive's insight card carries the day line ("Today: RE 28 · typical day ~42" or "No session yet today · last
   session <date>: RE <n>"), the ring scale and the acute/chronic context ("7-day vs 42-day load: -6% ·
   steady", + "includes N sessions without effort data"). A gated modality (`baselineBuilding`, or
