@@ -109,3 +109,12 @@ test('demo hr-hourly.csv: four weeks of hours in the sync schema, enough full da
   assert.equal(s.asOf, DEMO_DEFAULTS.end);
   assert.ok(s.days.some((d) => d.acts.length) && s.days.every((d) => d.s >= 0 && d.s <= 21));
 });
+
+test('the demo journal (journal-daily.csv) uses the journal CSV schema and is mostly journaled', async () => {
+  const { JOURNAL_CSV_HEADER, parseJournalCsv } = await import('../lib/journal/journal.mjs');
+  const text = makeDemoData()['journal-daily.csv'];
+  assert.equal(text.split('\n')[0], JOURNAL_CSV_HEADER.join(','));
+  const days = parseJournalCsv(text);
+  assert.ok(days.length > 40 && days.length <= 70, `${days.length} demo journal days`);
+  assert.equal(days[days.length - 1].date <= DEMO_DEFAULTS.end, true);
+});

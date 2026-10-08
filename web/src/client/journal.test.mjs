@@ -152,3 +152,43 @@ test('save: PUT /day with the draft, then the card shows the day journaled; an e
   assert.equal(closed, 1);
   assert.equal((els['my-journal'].innerHTML.match(/jr-dot jr-on/g) || []).length, 1);
 });
+
+const BAKED = {
+  ...journalBake(),
+  recent: ['2026-09-27', '2026-09-29'],
+  insights: { asOf: '2026-09-29', from: '2026-07-02', days: 40, rows: [
+    { key: 'alcohol', yesDays: 12, noDays: 20, status: 'ok', yesMean: 60, noMean: 75, diff: -15 },
+    { key: 'mobility', yesDays: 9, noDays: 23, status: 'ok', yesMean: 80, noMean: 70, diff: 10 },
+    { key: 'ill', yesDays: 1, noDays: 31, status: 'need_data', yesMean: null, noMean: null, diff: null },
+  ] },
+};
+
+test('static build with a baked journal: the card shows the baked checks read-only, and the insights button', async () => {
+  const { ctx, els } = load({ journal: BAKED });
+  await tick();
+  const h = els['my-journal'];
+  assert.equal(h.hidden, false);
+  assert.equal((h.innerHTML.match(/jr-dot jr-on/g) || []).length, 2);
+  assert.doesNotMatch(h.innerHTML, /data-detail="journal"/, 'no sheet to open without the API');
+  assert.match(h.innerHTML, /<span class="jr-day" role="img"/);
+  assert.match(h.innerHTML, /data-detail="journal-insights"[^>]*>Behavior insights</);
+  assert.equal(typeof ctx.HCViews['journal-insights'].render, 'function');
+});
+
+test('insights view: best impact first, signed %, teal / orange bars from the centre, need-more-data rows last, the formula behind ⓘ', () => {
+  const { ctx } = load({ journal: BAKED });
+  const r = ctx.HCViews['journal-insights'].render();
+  const names = [...r.body.matchAll(/<span class="ji-name"[^>]*>([^<]+)</g)].map((m) => m[1]);
+  assert.deepEqual(names, ['Mobility', 'Alcohol', 'Feeling ill']);
+  assert.match(r.body, /<b class="ji-pct ji-up" aria-hidden="true">\+10%<\/b>/);
+  assert.match(r.body, /<b class="ji-pct ji-down" aria-hidden="true">−15%<\/b>/);
+  assert.match(r.body, /class="ji-fill ji-up" style="left:50\.0%;width:25\.0%"/, 'scale = max(20, the largest |diff|) = half the bar');
+  assert.match(r.body, /class="ji-fill ji-down" style="left:12\.5%;width:37\.5%"/);
+  assert.match(r.body, /Need more data/);
+  assert.match(r.body, /1 yes · 31 no days \(5 each needed\)/);
+  assert.match(r.body, /id="dd-info" hidden><p>For each behavior: the mean of your recovery %/);
+  assert.match(r.body, /An association, not causation/);
+  assert.match(r.body, /aria-label="Alcohol: -15\.0 points of recovery the morning after \(60 % after yes, 75 % after no; 12 and 20 days\)"/);
+  assert.equal(ctx.HCJournal.barStyle(5, 20), 'left:50.0%;width:12.5%');
+  assert.equal(ctx.HCJournal.barStyle(-40, 20), 'left:0.0%;width:50.0%');
+});
