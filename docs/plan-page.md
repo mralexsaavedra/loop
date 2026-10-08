@@ -123,9 +123,10 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   tap outside the card closes it, Tab stays inside (button + listed actions) and focus returns to the
   button. It lists only REAL actions available on this page, decided at view time: **Añadir comida**
   (the food log's add sheet, `HCViews['food-add']` via the detail sheet: only once `/api/food/products`
-  answered, the same LAN-only gating as Registrar) and **Sincronizar** (clicks the top bar's Sync: only
-  while the freshness group is shown, i.e. `/api/sync/status` answered). Both appear asynchronously, so
-  `food-log.js` and `freshness.js` call `HCActions.refresh()`. The root and every row ship `hidden`: in
+  answered, the same LAN-only gating as Registrar), **Completar el diario** (the journal sheet,
+  `HCViews.journal`: only once `/api/journal/settings` answered, `docs/journal.md`) and **Sincronizar** (clicks the top bar's Sync: only
+  while the freshness group is shown, i.e. `/api/sync/status` answered). They appear asynchronously, so
+  `food-log.js`, `journal.js` and `freshness.js` call `HCActions.refresh()`. The root and every row ship `hidden`: in
   the example build, `file://` or any static copy no action exists and the "+" never shows (no dead
   control). Wide screens (>= 900 px) keep the SAME floating bottom dock, centred (no sticky top nav any
   more), so jump targets only clear the collapsed dial row (`scroll-margin-top: 64px`). One token,

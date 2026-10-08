@@ -26,6 +26,7 @@ function page({ freshness = false, food = false } = {}) {
   const scrim = doc.el('act-scrim', { hidden: true });
   const items = {
     food: focusable(doc.el(null, { tag: 'button', classes: ['act-item'], attrs: { 'data-act': 'food' }, hidden: true, parent: pop })),
+    journal: focusable(doc.el(null, { tag: 'button', classes: ['act-item'], attrs: { 'data-act': 'journal' }, hidden: true, parent: pop })),
     sync: focusable(doc.el(null, { tag: 'button', classes: ['act-item'], attrs: { 'data-act': 'sync' }, hidden: true, parent: pop })),
   };
   doc.el('freshness', { hidden: !freshness });
@@ -138,4 +139,21 @@ test('an action that went away while the popover was open is not run', () => {
   p.doc.getElementById('freshness').hidden = true;
   p.fire(p.items.sync, 'click');
   assert.equal(p.syncBtn.clicks, 0);
+});
+
+test('journal: listed once the journal sheet is registered (its API answered); it opens the sheet with the "+" as opener', () => {
+  const p = page();
+  assert.equal(p.items.journal.hidden, true, 'no journal API: no row');
+  const opened = [];
+  p.window.HCViews = { journal: {} };
+  p.window.HCDetail = { open: (key, date, opts) => opened.push({ key, date, opts }) };
+  p.window.HCActions.refresh();
+  assert.equal(p.root.hidden, false);
+  assert.equal(p.items.journal.hidden, false);
+  p.fire(p.btn, 'click');
+  p.fire(p.items.journal, 'click');
+  assert.equal(p.pop.hidden, true);
+  assert.equal(opened.length, 1);
+  assert.equal(opened[0].key, 'journal');
+  assert.equal(opened[0].opts.opener, p.btn);
 });

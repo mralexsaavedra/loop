@@ -9,6 +9,9 @@ window), and `extract/hr-hourly.csv` (Watch heart rate per clock hour, the last 
 those windows out of its histogram, like the Shortcut sync; together they calibrate the day strain dial.
 `strava-profile.json` is a hand-written, invented Strava athlete snapshot (name, gear, devices) that
 feeds the example page's profile sheet in place of the gitignored `data/profile/strava-profile.json`.
+`extract/journal-daily.csv` is an invented behaviour journal (its own seeded generator: drinks mostly
+at weekends, mobility on rest days…) for the example's My journal card and behaviour insights; any
+association with the demo recovery is chance.
 
 ## Why it exists
 

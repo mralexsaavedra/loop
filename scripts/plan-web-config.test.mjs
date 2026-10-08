@@ -1,7 +1,8 @@
 /* Static guards for the on-demand refresh wiring (services/plan-web nginx + compose + systemd units,
  * services/health-ingest compose). They pin the SECURITY boundary: the plan-web server may proxy
  * exactly three exact ingest routes (POST /sync, GET /sync/status, and the Shortcut's bearer-checked
- * POST /ingest/health-auto-export) plus the food log prefix (/api/food/ -> /food/), never a data
+ * POST /ingest/health-auto-export) plus the food log prefix (/api/food/ -> /food/) and the journal
+ * prefix (/api/journal/ -> /journal/), never a data
  * export endpoint. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -26,15 +27,15 @@ function locations(conf) {
   return [...conf.matchAll(/location\s+((?:"[^"]*"|[^{"])+?)\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g)].map((m) => ({ spec: m[1].trim(), body: m[2] }));
 }
 
-test('nginx proxies ONLY /api/sync, /api/sync/status, /ingest/health-auto-export (exact) and the /api/food/ prefix, to the host ingest port', () => {
+test('nginx proxies ONLY /api/sync, /api/sync/status, /ingest/health-auto-export (exact) and the /api/food/ + /api/journal/ prefixes, to the host ingest port', () => {
   const proxied = locations(nginx).filter((l) => /proxy_pass\s/.test(l.body));
-  assert.deepEqual(proxied.map((l) => l.spec).sort(), ['/api/food/', '= /api/sync', '= /api/sync/status', '= /ingest/health-auto-export']);
+  assert.deepEqual(proxied.map((l) => l.spec).sort(), ['/api/food/', '/api/journal/', '= /api/sync', '= /api/sync/status', '= /ingest/health-auto-export']);
   const target = (spec) => /proxy_pass\s+([^;]+);/.exec(proxied.find((l) => l.spec === spec).body)[1];
   assert.equal(target('= /api/sync'), 'http://host.docker.internal:${INGEST_PORT}/sync');
   assert.equal(target('= /api/sync/status'), 'http://host.docker.internal:${INGEST_PORT}/sync/status');
   assert.match(proxied.find((l) => l.spec === '= /api/sync').body, /limit_except POST/);
   assert.match(proxied.find((l) => l.spec === '= /api/sync/status').body, /limit_except GET/);
-  assert.equal((nginx.match(/proxy_pass\s/g) || []).length, 4, 'no other proxy_pass anywhere');
+  assert.equal((nginx.match(/proxy_pass\s/g) || []).length, 5, 'no other proxy_pass anywhere');
 });
 
 test('nginx /api/food/: ingest /food/ only, GET/POST/PUT/DELETE, the body passed, 16 KB cap, the X-HC-Food header forwarded', () => {
@@ -49,6 +50,17 @@ test('nginx /api/food/: ingest /food/ only, GET/POST/PUT/DELETE, the body passed
   assert.match(food.body, /proxy_connect_timeout 5s;/);
   assert.match(food.body, /proxy_read_timeout 15s;/);
   assert.doesNotMatch(food.body, /add_header\s+Access-Control/i, 'never approves a cross-site request');
+});
+
+test('nginx /api/journal/: ingest /journal/ only, GET/PUT, 16 KB cap, the X-HC-Journal header forwarded', () => {
+  const j = locations(nginx).find((l) => l.spec === '/api/journal/');
+  assert.ok(j, 'a prefix location for the journal');
+  assert.match(j.body, /proxy_pass\s+http:\/\/host\.docker\.internal:\$\{INGEST_PORT\}\/journal\/;/);
+  assert.match(j.body, /limit_except GET PUT \{ deny all; \}/);
+  assert.match(j.body, /client_max_body_size 16k;/, 'same cap as the service');
+  assert.match(j.body, /proxy_set_header X-HC-Journal \$http_x_hc_journal;/);
+  assert.match(j.body, /proxy_set_header Host host\.docker\.internal;/);
+  assert.doesNotMatch(j.body, /add_header\s+Access-Control/i, 'never approves a cross-site request');
 });
 
 test('nginx: everything else under /api is a 404; data endpoints are never named', () => {

@@ -3,7 +3,7 @@
  * (personal copy), and the end-of-body script order per design: bake (the
  * shared Bake rendered by pages/index.astro, plus the per-tab bakes such as Dia's NUTRI) → NAV +
  * HC_CONST → util (window.HC, the shared client helpers, FIRST so every later script can read it) →
- * core (setTab/jump) → today-date → tablas (the Tablas equivalence tables) → nutri-day → food (core → sheet → catalog → log) → settings → progress → adherence → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → profile → nav-actions (the dock's "+") → home-week → home-dash (Inicio's Tonight / My plan / My dashboard; their sheets register before detail runs) → deepdive (the dial deep-dive pages, read by detail) → detail → freshness.
+ * core (setTab/jump) → today-date → tablas (the Tablas equivalence tables) → nutri-day → food (core → sheet → catalog → log) → settings → progress → adherence → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → profile → nav-actions (the dock's "+") → home-week → home-dash (Inicio's Tonight / My plan / My dashboard; their sheets register before detail runs) → journal (My journal + its LAN sheet) → deepdive (the dial deep-dive pages, read by detail) → detail → freshness.
  * Tabs render inside <slot />; the detail sheet (components/DetailSheet.astro) renders in the `overlay`
  * slot, after .wrap, so detail.js can make the page behind it inert (the dock and the "+" popover sit inside .wrap). The top bar
  * is ONE row: avatar · centred "‹ Today ›" date pill (client/today-date.js steps Inicio through past days) · status dot + short freshness (#fresh-sum, per-source detail in the #fresh-pop
@@ -22,6 +22,7 @@ import '../src/styles/layout.css';
 import '../src/styles/detail.css';
 import '../src/styles/profile.css';
 import '../src/styles/food.css';
+import '../src/styles/journal.css';
 import utilScript from '../src/client/util.js?raw';
 import coreScript from '../src/client/core.js?raw';
 import nutriDayScript from '../src/client/nutri-day.js?raw';
@@ -44,6 +45,7 @@ import intakeScript from '../src/client/intake.js?raw';
 import freshnessScript from '../src/client/freshness.js?raw';
 import homeWeekScript from '../src/client/home-week.js?raw';
 import homeDashScript from '../src/client/home-dash.js?raw';
+import journalScript from '../src/client/journal.js?raw';
 import deepdiveScript from '../src/client/deepdive.js?raw';
 import detailScript from '../src/client/detail.js?raw';
 import profileScript from '../src/client/profile.js?raw';
@@ -105,6 +107,8 @@ const TAB_ICONS: Record<string, string> = {
 };
 // the circular-arrows Sync icon: the top bar's Sync button and the "+" popover's Sync row
 const SYNC_ICON = '<path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9"/><path d="M18.5 3v4.2h-4.2M5.5 21v-4.2h4.2"/>';
+// the journal row of the "+" popover: a notebook with a check
+const JOURNAL_ICON = '<path d="M6 3h12v18H6zM9 3v18"/><path d="m12 12 2 2 3-4"/>';
 // core.js reads the tab keys and the legacy-section map (+ the deep-link host tabs) from this ONE baked copy of lib/nav/tabs.mjs
 // ...and util.js reads the page-level constants (lib/stale.mjs) from HC_CONST, never client literals,
 // and the names of its one date formatter (HC.fmtDate / HC.fmtMonth) from I18N_DATE
@@ -187,6 +191,7 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
           <button type="button" class="act-btn" id="act-btn" aria-expanded="false" aria-controls="act-pop" aria-label={nav.actions.open} data-label-close={nav.actions.close}><svg class="act-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></button>
           <div class="act-pop" id="act-pop" role="dialog" aria-label={nav.actions.label} hidden>
             <button type="button" class="act-item" data-act="food" hidden><svg class="act-item-ico" viewBox="0 0 24 24" aria-hidden="true" set:html={TAB_ICONS.nutricion} /><span>{nav.actions.addFood}</span></button>
+            <button type="button" class="act-item" data-act="journal" hidden><svg class="act-item-ico" viewBox="0 0 24 24" aria-hidden="true" set:html={JOURNAL_ICON} /><span>{nav.actions.journal}</span></button>
             <button type="button" class="act-item" data-act="sync" hidden><svg class="act-item-ico" viewBox="0 0 24 24" aria-hidden="true" set:html={SYNC_ICON} /><span>{nav.actions.sync}</span></button>
           </div>
         </div>
@@ -224,6 +229,7 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
     <script is:inline set:html={slimScript(navActionsScript)} />
     <script is:inline set:html={slimScript(homeWeekScript)} />
     <script is:inline set:html={slimScript(homeDashScript)} />
+    <script is:inline set:html={slimScript(journalScript)} />
     <script is:inline set:html={slimScript(deepdiveScript)} />
     <script is:inline set:html={slimScript(detailScript)} />
     <script is:inline set:html={slimScript(freshnessScript)} />

@@ -85,13 +85,24 @@ Never absolute — always relative to **goal + trend**:
 - Always weigh adherence: a 90%-followed good-enough plan beats a perfect plan
   abandoned in two weeks.
 
+### 5a. Behaviour journal vs recovery (association only)
+
+The behaviour journal (`journal-daily.csv` in the extract, `docs/journal.md`) can be related to the
+NEXT morning's recovery: for a behaviour, mean recovery % (the recovery dial's percentile, the night
+scored as the dial showed it that morning) after the "yes" days minus after the "no" days, in points
+(`lib/journal/journal.mjs` `behaviorInsights`, the page's Journal insights over the last 90 days).
+Rules: quote a difference only when EACH side has ≥ 5 days with a next-morning score, else say "not
+enough data"; always call it an association, never a cause (training load, sleep timing and illness
+travel with the same days); prefer behaviours with many days on both sides; a single week never
+changes an action. Use it to pick what to test (e.g. two weeks without late caffeine), not as proof.
+
 ## 6. Report structure
 
 Each report (`analysis/reports/YYYY-MM-DD.md`) is written in **Spanish** (the owner's language),
 opens with a short "why now / what changed since the last report" paragraph, and contains:
 
 0. **Data freshness & limits** — a table with the newest date of every source used
-   (`_meta.json`, each CSV, `foodlog-daily.meta.json`, `settings.json` `fetchedAt`) and what is
+   (`_meta.json`, each CSV, `foodlog-daily.meta.json`, `journal-daily.meta.json`, `settings.json` `fetchedAt`) and what is
    missing or partial. Read first: it bounds every conclusion below.
 1. **Snapshot** — current metrics vs baseline vs last report, and vs the live goal / target weight.
 2. **Trends** — weight / body comp, nutrition (only if food data exists; otherwise state the gap),

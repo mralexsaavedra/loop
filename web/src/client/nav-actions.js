@@ -2,6 +2,8 @@
  * (is:inline). It lists only REAL actions that already exist on this page, decided at view time:
  *   - food: the food log's add sheet (window.HCViews['food-add'], registered by food-log.js once
  *     GET /api/food/products answered — LAN only) opened through the detail sheet (window.HCDetail);
+ *   - journal: the journal sheet (window.HCViews.journal, registered by client/journal.js once
+ *     GET /api/journal/settings answered — LAN only);
  *   - sync: the top bar's Sync button (#sync-btn, client/freshness.js), available while the freshness
  *     group is shown (/api/sync/status answered — LAN only).
  * Both answer asynchronously, so freshness.js and food-log.js call window.HCActions.refresh() when they
@@ -27,6 +29,14 @@
       },
       run: function () {
         window.HCDetail.open('food-add', null, { opener: btn, focus: '#fa-q, #fa-label' });
+      },
+    },
+    journal: {
+      ok: function () {
+        return !!(window.HCViews && window.HCViews.journal && window.HCDetail && typeof window.HCDetail.open === 'function');
+      },
+      run: function () {
+        window.HCDetail.open('journal', null, { opener: btn });
       },
     },
     sync: {
@@ -112,8 +122,9 @@
     if (item) {
       var a = ACTIONS[item.getAttribute('data-act')];
       var ok = available(item);
-      // the add sheet returns focus to the button itself when it closes
-      close(!ok || item.getAttribute('data-act') !== 'food');
+      // the add sheet / the journal sheet return focus to the button itself when they close
+      var sheet = item.getAttribute('data-act') === 'food' || item.getAttribute('data-act') === 'journal';
+      close(!ok || !sheet);
       if (ok) a.run();
       refresh();
     }
