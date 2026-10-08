@@ -1136,25 +1136,55 @@ test('contributors compare today with the middle half of the prior 30 days, dire
 });
 function pick(c) { return c && { side: c.side, tone: c.tone }; }
 
-test('recovery contributors = the composite\'s inputs on the scored night (HRV, resting HR, sleep), ▲▼ vs prior 30 days with a legend; a missing value hides its row', () => {
+test('recovery contributors on the scored night, as the reference: HRV, resting HR, respiratory rate, sleep performance %; ▲▼ vs prior 30 days with a legend; a missing value hides its row', () => {
   const s = setup({ dials: DIALS });
   s.api.open('recovery');
   const html = s.host.innerHTML;
-  assert.deepEqual(rowsOf(html), ['hrv', 'rhr', 'sleep'], 'sleep consistency has no daily series: not shown');
+  assert.deepEqual(rowsOf(html), ['hrv', 'rhr', 'resp', 'perf'], 'four rows, in the reference order');
   const night = DEMO.metrics.recovery.head.date;
   const c = contribOf(html);
   assert.ok(c.includes(`<span class="dd-row-lbl">${enT.deep.contrib.rows.hrv}</span><b class="dd-row-val">${valueOn(DEMO.metrics.hrv, night)} ms</b>`));
   assert.ok(c.includes(`<b class="dd-row-val">${valueOn(DEMO.metrics.rhr, night)} bpm</b>`));
-  assert.ok(c.includes(`<b class="dd-row-val">${valueOn(DEMO.metrics.sleep, night).toFixed(1)} h</b>`));
+  assert.ok(c.includes(`<span class="dd-row-lbl">${enT.deep.contrib.rows.resp}</span><b class="dd-row-val">${valueOn(DEMO.metrics.respiratory, night).toFixed(1)} brpm</b>`), 'respiratory rate that night');
+  const sl = DEMO.metrics.sleep;
+  assert.ok(c.includes(`<span class="dd-row-lbl">${enT.deep.contrib.rows.perf}</span><b class="dd-row-val">${valueOn({ ...sl, v: sl.perf }, night)} %</b>`), 'sleep performance % replaces hours of sleep');
   assert.match(c, /class="dd-mk dd-(better|worse|typical)" aria-hidden="true">[▲▼•]<\/span><span class="sr-only">/);
   assert.ok(c.includes(`<b>${enT.deep.contrib.legendToday}</b> ${enT.deep.contrib.legendRest}`), 'legend pill');
   assert.ok(html.indexOf('dd-contrib') > html.indexOf('dd-hero') && html.indexOf('dd-contrib') < html.indexOf('dd-insight'), 'under the hero, above the insight');
+  assert.ok(infoOf(html).includes(enT.deep.respNote), 'ⓘ: respiratory rate is context, not part of the composite');
   const gap = copy();
   gap.metrics.hrv.v[dayIndex(gap.metrics.hrv, night)] = null;
   const g = setup({ detail: gap, dials: DIALS });
   g.api.open('recovery');
-  assert.deepEqual(rowsOf(g.host.innerHTML), ['rhr', 'sleep'], 'no HRV that night: the row is hidden, never 0 or a dash');
+  assert.deepEqual(rowsOf(g.host.innerHTML), ['rhr', 'resp', 'perf'], 'no HRV that night: the row is hidden, never 0 or a dash');
+  const noResp = copy();
+  noResp.metrics.respiratory.v[dayIndex(noResp.metrics.respiratory, night)] = null;
+  const r = setup({ detail: noResp, dials: DIALS });
+  r.api.open('recovery');
+  assert.deepEqual(rowsOf(r.host.innerHTML), ['hrv', 'rhr', 'perf'], 'no respiratory rate that night: 3 rows');
+  const noPerf = copy();
+  delete noPerf.metrics.sleep.perf;
+  const p = setup({ detail: noPerf, dials: DIALS });
+  p.api.open('recovery');
+  assert.deepEqual(rowsOf(p.host.innerHTML), ['hrv', 'rhr', 'resp'], 'no baked performance: the row is hidden');
   clean(html);
+});
+
+test('recovery respiratory row: no good direction — a neutral ▲ / ▼ outside the prior 30 days\' middle half, a grey dot inside', () => {
+  const night = DEMO.metrics.recovery.head.date;
+  const rowOf = (h) => contribOf(h).split('data-row="resp"')[1].split('</li>')[0];
+  const at = (v) => {
+    const d = copy();
+    const m = d.metrics.respiratory;
+    for (let k = 1; k <= 30; k++) { const i = dayIndex(m, addDays(night, -k)); if (i >= 0) m.v[i] = 14 + (k % 5) * 0.2; }
+    m.v[dayIndex(m, night)] = v;
+    const s = setup({ detail: d, dials: DIALS });
+    s.api.open('recovery');
+    return rowOf(s.host.innerHTML);
+  };
+  assert.ok(at(17).includes('<span class="dd-mk dd-neutral" aria-hidden="true">▲</span>'), 'above usual: neutral up arrow');
+  assert.ok(at(12).includes('<span class="dd-mk dd-neutral" aria-hidden="true">▼</span>'), 'below usual: neutral down arrow');
+  assert.ok(at(14.4).includes('<span class="dd-mk dd-typical" aria-hidden="true">•</span>'), 'inside the usual range: grey dot');
 });
 
 test('sleep contributors: hours vs need, efficiency, consistency, REM + deep; bedtime and wake time fill in without them (neutral arrows, bedtime wraps midnight); load: today\'s RE, 7 vs 42 days, sessions, typical day', () => {

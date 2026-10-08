@@ -26,6 +26,8 @@
     rhr: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z',
     sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
     need: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+    perf: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+    resp: 'M12 3v8M12 11l-3 3M12 11l3 3M9 7c-3 0-6 4-6 10 0 2 1 3 3 3s3-1 3-3zM15 7c3 0 6 4 6 10 0 2-1 3-3 3s-3-1-3-3z',
     vsTarget: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8',
     bed: 'M3 18v-8M3 14h18v4M21 14a3 3 0 0 0-3-3h-7v3M7 12.5a1.5 1.5 0 1 0 0-.01',
     wake: 'M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6',
@@ -204,6 +206,7 @@
       var h = m.head, R = X.T.rec;
       extra = txt(R.pctNote) + txt(format(R.sdLbl, { value: X.signed(h.value, 1), band: R.sdBands[h.band] || '' }));
     }
+    if (key === 'recovery' && X.T.deep.respNote) extra += txt(X.T.deep.respNote);
     return '<div class="dd-info" id="dd-info" hidden>' + X.bandText(key, m) + extra + '</div>';
   }
   function insightHtml(lines, X) {
@@ -278,15 +281,19 @@
     var c = compare(get, iso, dir, keep);
     return { k: k, val: c ? X.fmt(c.v, dec) + (unit ? ' ' + unit : '') : null, cmp: c };
   }
-  // recovery: the composite's inputs that DETAIL carries — HRV, resting HR, sleep duration (sleep
-  // consistency, the fourth input at 10 %, has no daily series in DETAIL: not shown)
+  // recovery, the reference's four rows (display only — the composite is unchanged): HRV, resting HR,
+  // respiratory rate (context, NOT a composite input; dir 0 = no good direction, so a neutral ▲▼
+  // outside the usual range and a grey dot inside) and the night's sleep performance % (lib/score/
+  // sleep.mjs perf, baked on the sleep metric). Each on the scored night; a missing value hides its row.
   function recoveryRows(m, end, X) {
     var h = m.head, ref = h && h.mode === 'today' ? isoDate(h.date) : null;
-    var hrv = X.metric('hrv'), rhr = X.metric('rhr'), sl = X.metric('sleep');
+    var hrv = X.metric('hrv'), rhr = X.metric('rhr'), rsp = X.metric('respiratory'), sl = X.metric('sleep');
+    var perf = sl && Array.isArray(sl.perf) ? valRow('perf', X, sl, nightOf(X, sl, end, ref), 0, '%', 1, sl.perf) : { k: 'perf', val: null };
     return [
       valRow('hrv', X, hrv, nightOf(X, hrv, end, ref), hrv ? hrv.dec : 0, X.unitOf('hrv'), hrv ? hrv.dir : 0),
       valRow('rhr', X, rhr, nightOf(X, rhr, end, ref), rhr ? rhr.dec : 0, X.unitOf('rhr'), rhr ? rhr.dir : 0),
-      valRow('sleep', X, sl, nightOf(X, sl, end, ref), 1, 'h', sl ? sl.dir : 1),
+      valRow('resp', X, rsp, nightOf(X, rsp, end, ref), rsp ? rsp.dec : 1, X.unitOf('respiratory'), 0),
+      perf,
     ];
   }
   // REM + deep hours of a night (DETAIL stage arrays), null when the night has no stages

@@ -52,8 +52,9 @@ trend is the line under it.
   every surface keeps the SD presentation below (the documented fallback). It is a transparent
   mapping of the same composite, not a new metric; the ⓘ says so (`recovery.pctNote`: "% = how last
   night ranks against your previous 90 days"), and the night's SD value + day band stay in the Salud
-  card's ⓘ and the deep-dive insight (`recovery.sdLbl`). The 7-day trend, the contributors and the
-  advice stay in SD (the advice describes the trend, not the night).
+  card's ⓘ and the deep-dive insight (`recovery.sdLbl`). The deep-dive contributors show the night's
+  HRV, resting HR, respiratory rate (context only, not a composite input) and sleep performance %
+  (display only, `docs/detail-views.md`). The 7-day trend and the advice stay in SD (the advice describes the trend, not the night).
 - **Recovery** composite is in units of the owner's typical spread (scaled MAD); ONE unit
   key, `RECOVERY_UNIT` (`lib/score/advice-copy.mjs`, re-exported by score-templates: en "SD", es
   "desv."; dict `recovery.unit`), builds every recovery string — advice, dial, Salud card, monitor note,
