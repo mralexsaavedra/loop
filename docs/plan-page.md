@@ -177,7 +177,9 @@ full-bleed while the top bar, tab panels and footer are centred and capped at `-
 
 - **Nutrición** — the summary card turns into two columns (kcal dial | day type + macro bars) and Plan
   de hoy into a masonry-like 2-column flow (CSS `columns: 2`, cards `break-inside: avoid`, read down
-  column 1 then column 2, so a short card never leaves a row-height gap).
+  column 1 then column 2, so a short card never leaves a row-height gap). Progress and Consistency
+  stay a readable 720 px wide, heading and ⓘ included (capping only the card left the ⓘ at the far
+  right of the page).
 - **Entreno** — the Activity card is two columns: total + W / M / 6M switch, stats and modality split
   on the left, the 30-day calendar on the right (`minmax(240px, 300px)`, the SVG scaled to fill it;
   it spans every row and a trailing `1fr` row absorbs its extra height).

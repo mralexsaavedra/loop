@@ -59,7 +59,7 @@
   "(min-width:900px)|||#nutri-plan>.meal|||width": "100%",
   "(min-width:900px)|||#nutri-plan|||column-gap": "var(--sp-5)",
   "(min-width:900px)|||#nutri-plan|||columns": "2",
-  "(min-width:900px)|||#nutri-progress>.nutri-card, #food-adherence>.nutri-card|||max-width": "720px",
+  "(min-width:900px)|||#nutri-progress-block, #food-adherence-block|||max-width": "720px",
   "(min-width:900px)|||#nutri-summary .nutri-card|||column-gap": "var(--sp-12)",
   "(min-width:900px)|||#nutri-summary .nutri-card|||display": "grid",
   "(min-width:900px)|||#nutri-summary .nutri-card|||grid-template-columns": "260px minmax(0, 1fr)",
