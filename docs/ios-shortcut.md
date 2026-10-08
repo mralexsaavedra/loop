@@ -166,8 +166,11 @@ What the sync does with each shape:
 - **The export's last day is partial**: `export.xml` is taken during a day, so its rows for that
   day are incomplete. For the day totals (steps, energy, exercise, distance, flights, dietary) the
   Shortcut row wins on that date, and the export row is dropped when no Shortcut row exists.
-- **Sleep**: only asleep stages count (English or Spanish names); a segment starting after 18:00
-  belongs to the next morning's night.
+- **Sleep**: only asleep stages (Core / Deep / REM / Asleep, English or Spanish names) build the
+  night and its hours; a segment starting after 18:00 belongs to the next morning's night. Every
+  stage also fills its own `sleep-daily.csv` column (REM / deep / core / unspecified / awake / in bed,
+  see `docs/data-pipeline.md` → Sleep), so keep *all* stages in the sample search, Awake and In Bed
+  included (In Bed comes from the iPhone, not the watch).
 
 ### Building `active_energy_hourly`
 
