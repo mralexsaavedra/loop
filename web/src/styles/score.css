@@ -878,13 +878,37 @@
   font-size: var(--fs-2xs);
   color: var(--faint);
 }
+/* the raw last-14-days lists: a quiet disclosure line (label + a chevron that turns when open), NOT
+   the bare details/summary card of tablas.css, which drew it as an empty 50px box */
 details.rec-raw {
-  margin-top: var(--sp-3, 8px);
+  margin: var(--sp-3) 0 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
 }
 details.rec-raw > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: 0;
   cursor: pointer;
   font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
   color: var(--muted);
+}
+details.rec-raw > summary::after {
+  content: "›";
+  font-size: var(--fs-lg);
+  line-height: 1;
+  transition: transform 0.2s;
+}
+details.rec-raw[open] > summary::after {
+  transform: rotate(90deg);
 }
 
 /* Collapsed dial row (#home-mini, Home.astro; written by client/score.js): once the dials scroll

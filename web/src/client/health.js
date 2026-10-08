@@ -225,9 +225,20 @@
         return m ? mrow(k, TR[k].title, TR[k].unit, { value: m.latest, base: m.avg30, dir: dir, date: m.latestDate, id: id ? k : null, detail: k }) : '';
       };
     }
-    /* recovery: the recovery dial's detail card lands in #score-recovery, right under the label */
+    /* recovery: the recovery dial's detail card lands in #score-recovery, right under the label; a
+       signal the health monitor at the top of Salud already lists (client/monitor.js) is not repeated
+       here, one it lacks keeps its row */
+    var inMonitor = {};
+    (SC && SC.monitor && Array.isArray(SC.monitor.cards) ? SC.monitor.cards : []).forEach(function (c) {
+      if (c && c.key) inMonitor[c.key] = true;
+    });
+    var recSigs = [['rhr', -1], ['hrv', 1], ['respiratory', 0], ['wristTemp', 0]].filter(function (x) {
+      return !inMonitor[x[0]];
+    }).map(function (x) {
+      return sig(x[0], x[1], true);
+    });
     if (R.hasData || recScore) {
-      out.push(section('recovery', R.hasData ? rows([sig('rhr', -1, true), sig('hrv', 1, true), sig('respiratory', 0, true), sig('wristTemp', 0, true)]) : [],
+      out.push(section('recovery', R.hasData ? rows(recSigs) : [],
         R.hasData ? [T.recoveryNoteHtml] : [], '<div id="score-recovery"></div>'));
     }
     if (R.hasData) {

@@ -64,7 +64,8 @@ is the newest day, and the trend is the line under it.
   composite as the big number + band word; ONE short trend line "7-day +0.5 SD · at baseline") |
   14-day sparkline | compact contributors (state dot, name, latest value + unit, ±SD for HRV, RHR,
   sleep duration, sleep regularity, a 2 × 2 block), one under the other; the raw
-  last-14-days lists fold into a `<details>` ("Last 14 days" / "Últimos 14 días"). Text diet: what
+  last-14-days lists fold into a `<details class="rec-raw">` ("Last 14 days" / "Últimos 14 días"),
+  a quiet uppercase disclosure line with a turning chevron (it resets tablas.css's bare details card). Text diet: what
   the baseline is, the full trend sentence with the week-on-week change, each contributor's baseline
   and n, the unit in words, confidence + the SDNN caveat, missing / lowest signal are the card's notes:
   `score.js` writes them into the Salud Recovery section's ⓘ block (`#hs-info-recovery`, in their own
