@@ -344,3 +344,25 @@
 .act-stale {
   opacity: 0.55;
 }
+
+/* wide screens: the Activity card reads as two columns, the summary (total + switch, stats, modality
+ * split) on the left and the 30-day calendar on the right, scaled up to fill its column (a 300px cap
+ * keeps the weekday letters and cells sensible). The calendar spans every row; the trailing 1fr row
+ * takes its extra height, so the summary rows keep their phone spacing. */
+@media (min-width: 900px) {
+  .act-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+    grid-template-rows: auto auto auto 1fr;
+    column-gap: var(--sp-12);
+    align-items: start;
+  }
+  .act-card > .act-cal {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    margin-top: 0;
+  }
+  .act-cal .cal-svg {
+    max-width: none;
+  }
+}
