@@ -161,9 +161,20 @@ var HC = (function () {
 
   // ⓘ button of a Salud header: toggles the hidden block #<id> (client/health.js listens for
   // [data-hs-info]); drawn as an SVG, the page fonts carry no ⓘ glyph
+  var INFO_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>';
   function infoBtn(id, label) {
     return '<button type="button" class="hs-i" data-hs-info="' + esc(id) + '" aria-expanded="false" aria-controls="' + esc(id) + '" aria-label="' + esc(label) + '">' +
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg></button>';
+      INFO_SVG + '</button>';
+  }
+  // the ONE detail-sheet header (dial deep-dives and metric details, client/detail.js): "‹" back =
+  // the sheet's close button, the title centred (the dialog's label, #dt-title), and on the right
+  // either the ⓘ (the same SVG as infoBtn; toggles o.info.controls via data-dt-act="info") or an
+  // equal-width spacer so the title stays centred
+  function sheetHead(o) {
+    return '<div class="dt-head sh-head"><button type="button" class="sh-back" data-dt-act="close" aria-label="' + esc(o.back) + '">‹</button>' +
+      '<h2 class="sh-title" id="dt-title">' + esc(o.title) + '</h2>' +
+      (o.info ? '<button type="button" class="sh-info" data-dt-act="info" aria-expanded="false" aria-controls="' + esc(o.info.controls) + '" aria-label="' + esc(o.info.label) + '">' + INFO_SVG + '</button>'
+        : '<span class="sh-pad" aria-hidden="true"></span>') + '</div>';
   }
 
   return {
@@ -188,6 +199,7 @@ var HC = (function () {
     metricIcon: metricIcon,
     metricRow: metricRow,
     infoBtn: infoBtn,
+    sheetHead: sheetHead,
     rolloverAction: rolloverAction,
   };
 })();

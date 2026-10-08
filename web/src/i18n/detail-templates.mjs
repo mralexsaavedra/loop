@@ -74,7 +74,6 @@ export const en = {
   // label + its off-state words (the dial's own copy), the insight CTA, the contributors card and the
   // weekly bars
   deep: {
-    today: 'Today',
     back: 'Back',
     info: 'How to read this page',
     label: { sleep: enS.dials.sleep.label, recovery: enS.dials.recovery.label, load: enS.dials.load.label },
@@ -242,7 +241,6 @@ export const es = {
     unscoredNote: esS.load.unscoredNote,
   },
   deep: {
-    today: 'Hoy',
     back: 'Volver',
     info: 'Cómo leer esta página',
     label: { sleep: esS.dials.sleep.label, recovery: esS.dials.recovery.label, load: esS.dials.load.label },

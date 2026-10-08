@@ -5,6 +5,13 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Detail sheets: one header, a Y axis, softer calendars
+
+- Dial deep-dives and metric details share one header (`HC.sheetHead`): "‹" back, the metric name
+  centred, the SVG ⓘ (or a spacer). The metric chart gets three round Y ticks and 12 % headroom, so
+  out-of-range days no longer sit on the edge. Sheet calendar tiles are a soft state tint with a 40 %
+  ring instead of saturated green / olive blocks; an empty load ring's typical-day tick is a faint hairline.
+
 ## 2026-10-08 — Salud: no repeated signals, tidier headers
 
 - Recovery no longer repeats resting HR / HRV / respiratory rate / wrist temp under its card when the
