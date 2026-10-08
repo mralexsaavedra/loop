@@ -2,8 +2,8 @@
  * load-<modality>) and of the stress monitor tile (stress: a 0-3 gauge, the hourly curve, time per band)
  * and of the energy bank card (energy-bank: a 0-100 gauge, the intraday curve, what drained and recharged it)
  * laid out as one page — a "‹ TODAY ⓘ" header, the big hero ring (the SAME baked geometry as the dial,
- * view/dial.mjs via the DIALS global), an insight card (the dial's former captions in 2–4 plain lines +
- * a "View trend →" link down to the history chart) and, collapsed under ⓘ, the long notes (bands,
+ * view/dial.mjs via the DIALS global), an insight card (2–3 plain sentences from the numbers on the
+ * page + a "See my recovery trend →" link down to the history chart) and, collapsed under ⓘ, the long notes (bands,
  * scale, rules). Same data and rules as the dial and the rest of the sheet: nothing new is scored
  * here, only read from DETAIL / DIALS and laid out (the sleep page only adds REM + deep and stage
  * shares of the baked stage hours).
@@ -48,7 +48,6 @@
   // the hero ring's track when no DIALS geometry is baked: the dial's own circle (view/dial.mjs DIAL)
   var RING = { c: 60, r: 54 };
   var BAND_CLS = { above: 'good', at: 'mid', below: 'low' };
-  var BAND_STATE = { above: 'good', at: 'normal', below: 'bad' };
 
   function isDial(key) {
     return key === 'sleep' || key === 'recovery' || key === 'strain' || key === 'stress' || key === 'energy-bank' || /^load-[a-z]+$/.test(String(key));
@@ -165,65 +164,84 @@
     return hero({ cls: 'off', word: P.words.rest });
   }
 
-  /* ---------- insight card: the dial's former captions, condensed ---------- */
-  // lines: [{text, cls?}] — 2–4 short plain lines; the long notes go under ⓘ (infoLines)
+  /* ---------- insight card: 2–3 plain sentences from the numbers the page already shows ---------- */
+  // lines: [{text, cls?}] — each a <p>; the dial pages write ONE paragraph of 2–3 sentences, the
+  // long notes go under ⓘ (infoHtml)
+  function prose(parts) {
+    var t = parts.filter(function (x) { return !!x; }).join(' ');
+    return t ? [{ text: t }] : [];
+  }
+  // "Last night" when the night is the viewer's today, else "On Mon 28 Sep"
+  function whenOf(iso, X, last) {
+    var W = X.T.deep.prose;
+    return HC.daysOld(iso) === 0 && last !== false ? W.lastNight : format(W.on, { date: HC.fmtDate(iso) });
+  }
+  // the contributors that were worse than the prior 30 days' middle half, in one sentence (no worse
+  // one: "every contributor at or better than usual", only when some carry a marker)
+  function contribSentence(rows, X) {
+    var W = X.T.deep.prose, P = X.T.deep.contrib.rows;
+    var shown = rows.filter(function (r) { return r.val != null; }).slice(0, 4);
+    if (!shown.some(function (r) { return r.cmp && r.cmp.side != null; })) return '';
+    var worse = shown.filter(function (r) { return r.cmp && r.cmp.tone === 'worse'; }).map(function (r, i) {
+      var n = P[r.k];
+      // later names start lower-case unless they open with an acronym ("REM + deep sleep")
+      return i && !/^[A-Z]{2}/.test(n) ? n.charAt(0).toLowerCase() + n.slice(1) : n;
+    });
+    if (!worse.length) return W.allOk;
+    var names = worse.length === 1 ? worse[0] : worse.slice(0, -1).join(', ') + W.and + worse[worse.length - 1];
+    return format(worse.length === 1 ? W.worse1 : W.worseN, { names: names });
+  }
+  // recovery: Inicio's outlook sentence (score.js window.HCAdvice, '' on a past day or stale data:
+  // the bar's full text) leads, then the night in words; without it, the 7-day trend in words
   function recoveryLines(m, X) {
-    var R = X.T.rec, h = m.head;
+    var R = X.T.rec, W = X.T.deep.prose, h = m.head;
     if (!h || !isNum(h.value)) return [{ text: R.gated }];
     var tr = h.trend || {};
-    var trendTxt = tr.dir && R.dirs[tr.dir] ? format(R.trendLine, { dir: R.dirs[tr.dir], value: X.signed(tr.value, 1) }) : format(R.trendLineNoDir, { value: X.signed(tr.value, 1) });
-    var trend = { cls: 'dt-c-' + (BAND_STATE[tr.band] || 'normal'), text: trendTxt + (X.T.day.bands[tr.band] ? ' · ' + X.T.day.bands[tr.band] : '') };
-    var band = X.T.day.bands[h.band] || '';
-    // Inicio's outlook bar shows one line; its full sentence (score.js window.HCAdvice, '' on a past
-    // day or stale data) leads this card, the page the bar opens
+    var trendVars = { dir: W.dirs[tr.dir] || W.dirs.steady, value: X.signed(tr.value, 1) + ' ' + X.unitOf('recovery') };
     var adv = typeof window !== 'undefined' && typeof window.HCAdvice === 'function' ? window.HCAdvice() : '';
-    var lead = adv ? [{ text: adv }] : [];
-    if (h.mode !== 'today') return lead.concat([{ text: R.noLastNight }, { text: band }, trend]);
-    var d = isoDate(h.date);
-    // "Last night" only when the night is dated the viewer's today AND has a sleep reading (as the dial)
-    var when = HC.daysOld(d) === 0 && h.sleep !== false ? R.lastNight : HC.fmtDate(d);
+    if (h.mode !== 'today') return prose([adv, format(W.recNoNight, trendVars)]);
     var pct = pctOf(h);
-    var out = lead.concat([{ text: format(X.T.deep.nightLine, { when: when, band: pct != null ? R.pctBands[dials().recovery.band] : band }) }]);
-    // with a % headline the night's SD value moves under ⓘ (infoHtml), so the insight carries ONE band
-    if (h.sleep === false) out.push({ cls: 'dt-nodata', text: R.noSleep });
-    out.push(trend);
-    return out;
+    // with a % headline the night's SD value moves under ⓘ (infoHtml), so the card carries ONE band
+    var band = pct != null ? W.recBands[dials().recovery.band] : W.recSd[h.band];
+    var night = format(W.rec, { when: whenOf(isoDate(h.date), X, h.sleep), band: band || '' });
+    return prose([adv, night, h.sleep === false ? W.noSleep : '', adv ? '' : format(W.recTrend, trendVars)]);
   }
+  // sleep: last night vs the target, then the contributors that were worse than usual
   function sleepLines(m, end, X) {
-    var d = X.lastDataDate(m, end);
-    var out = [];
-    if (m.target != null) out.push({ text: format(X.T.bands.target, { value: X.fmt(m.target, 1), unit: 'h' }) });
-    if (!d) return out.concat([{ text: X.T.noData }]);
+    var W = X.T.deep.prose, d = X.lastDataDate(m, end);
+    if (!d) return [{ text: X.T.noData }];
     var v = X.valueOf(m, d);
-    var when = HC.daysOld(d) === 0 ? X.T.rec.lastNight : HC.fmtDate(d);
-    if (m.target != null) out.push({ text: format(X.T.deep.sleepLine, { when: when, value: X.fmt(v, 1), delta: X.signed(v - m.target, 1), target: X.fmt(m.target, 1) }) });
-    else out.push({ text: format(X.T.latestLbl, { date: HC.fmtDate(d) }) });
-    return out;
+    var night = m.target != null
+      ? format(W.sleep, { when: whenOf(d, X), value: X.fmt(v, 1), delta: X.signed(v - m.target, 1), target: X.fmt(m.target, 1) })
+      : format(X.T.latestLbl, { date: HC.fmtDate(d) });
+    return prose([night, contribSentence(sleepRows(m, end, X), X)]);
   }
-  // load: the dial's today line, the ring scale and the 7-day vs 42-day context (baked DIALS)
+  // load: the day (today's RE, or the last session) next to the typical day, then the 7-day vs 42-day
+  // context (baked DIALS); the ring scale lives under ⓘ
   function loadLines(key, m, X) {
-    var L = X.T.load;
+    var L = X.T.load, W = X.T.deep.prose;
     if (m.gate) return [{ text: L.gated[m.gate] || L.gated.baselineBuilding }];
     var t = HC.todayIso(), i = X.dayDiff(m.start, t), v = X.at(m.v, m, t), typ = X.fmt(m.typical, 0);
-    var out = [];
-    if (v != null && v > 0) out.push({ text: format(L.dayLine, { day: X.fmt(v, 0), typical: typ }) });
-    else if (i >= 0 && i < m.v.length && m.v[i] === null) out.push({ text: format(L.noEffortLine, { typical: typ }) });
+    var day;
+    if (v != null && v > 0) day = format(W.loadDay, { day: X.fmt(v, 0), typical: typ });
+    else if (i >= 0 && i < m.v.length && m.v[i] === null) day = format(W.loadNoEffort, { typical: typ });
     else {
       var last = m.last && isoDate(m.last.date) ? m.last : null;
-      out.push({ text: last ? format(L.restLastLine, { date: HC.fmtDate(last.date), re: X.fmt(last.re, 0), typical: typ }) : format(L.restLine, { typical: typ }) });
+      day = last ? format(W.loadRestLast, { date: HC.fmtDate(last.date), re: X.fmt(last.re, 0), typical: typ }) : format(W.loadRest, { typical: typ });
     }
-    if (L.scale) out.push({ cls: 'dt-scale', text: L.scale });
     var dm = loadDialOf(X.modOf(key));
-    if (dm && dm.state === 'ok' && isNum(dm.trendPct)) out.push({ text: format(L.trendLbl, { pct: X.pct(dm.trendPct) }) + (L.bands[dm.band] ? ' · ' + L.bands[dm.band] : '') });
-    return out;
+    var trend = dm && dm.state === 'ok' && isNum(dm.trendPct) && L.bands[dm.band] ? format(W.loadTrend, { band: L.bands[dm.band], pct: X.pct(dm.trendPct) }) : '';
+    return prose([day, trend]);
   }
   // the notes that are not essential: the band / cut rules (detail.js bandText) and, for load, the
   // sessions-without-effort count
   function infoHtml(key, m, X) {
     var extra = '';
     var dm = m.kind === 'load' ? loadDialOf(X.modOf(key)) : null;
-    if (dm && dm.state === 'ok' && dm.unscored > 0) extra = '<div class="dt-band-txt">' + esc(format(X.T.load.unscoredNote, { n: dm.unscored })) + '</div>';
     var txt = function (t) { return '<div class="dt-band-txt">' + esc(t) + '</div>'; };
+    // load: the ring scale (the dial's former caption) and the sessions-without-effort count
+    if (m.kind === 'load' && X.T.load.scale) extra = txt(X.T.load.scale);
+    if (dm && dm.state === 'ok' && dm.unscored > 0) extra += txt(format(X.T.load.unscoredNote, { n: dm.unscored }));
     if (key === 'sleep') {
       var N = X.T.deep.sleepNotes;
       extra = txt(format(N.perf, { target: X.fmt(m.target, 1) })) + txt(N.eff) + txt(N.cons) + txt(N.stages);
@@ -235,11 +253,13 @@
     if (key === 'recovery' && X.T.deep.respNote) extra += txt(X.T.deep.respNote);
     return '<div class="dd-info" id="dd-info" hidden>' + X.bandText(key, m) + extra + '</div>';
   }
-  function insightHtml(lines, X) {
+  // cta: the page's own CTA key (deep.ctas: "See my recovery trend"), else the generic "View trend"
+  function insightHtml(lines, X, cta) {
+    var C = X.T.deep.ctas;
     return '<div class="dd-insight">' + lines.map(function (l) {
       return '<p class="dd-ln' + (l.cls ? ' ' + esc(l.cls) : '') + '">' + esc(l.text) + '</p>';
     }).join('') +
-      '<button type="button" class="dd-cta" data-dt-act="trend">' + esc(X.T.deep.cta) + '<span aria-hidden="true"> →</span></button></div>';
+      '<button type="button" class="dd-cta" data-dt-act="trend">' + esc((C && C[cta]) || X.T.deep.cta) + '<span aria-hidden="true"> →</span></button></div>';
   }
 
   /* ---------- contributors: today vs the prior 30 days ---------- */
@@ -367,7 +387,7 @@
       var share = k !== 'awake' && isNum(asleep) && asleep > 0 ? ' · ' + Math.round((100 * h[k]) / asleep) + '%' : '';
       return '<li><i class="dd-sw dd-st-' + k + '" aria-hidden="true"></i>' + esc(P[k]) + ' <b>' + esc(X.fmt(h[k], 1) + ' h' + share) + '</b></li>';
     }).join('');
-    return '<section class="dd-stages" aria-label="' + esc(P.aria) + '"><div class="dd-stbar" aria-hidden="true">' + bar + '</div>' +
+    return '<section class="dd-stages"><h3 class="dd-sec">' + esc(P.aria) + '</h3><div class="dd-stbar" aria-hidden="true">' + bar + '</div>' +
       '<ul class="dd-stleg">' + legend + '</ul></section>';
   }
   function sessionsIn(X, mod, from, to) {
@@ -478,21 +498,20 @@
     if (!isNum(v)) return { cls: 'off', label: P.label.strain, word: P.words.none };
     return { cls: 'strain', label: P.label.strain, num: X.fmt(v, 1), fill: dd ? dd.fill : null, stale: stale(D && D.strain && D.strain.asOf) && !X.sel };
   }
+  // the band sentence, then the usual day (the median of the 30 days before, when 7+ of them have a
+  // strain); the 0-21 scale's calibration lives under ⓘ (strainNotes)
   function strainLines(m, end, X) {
     var P = X.T.deep.strain, iso = strainIso(end, X), v = X.at(m.v, m, iso);
     if (!isNum(v)) return [{ text: format(P.noDay, { date: HC.fmtDate(iso) }) }];
-    var b = strainBand(v), out = [{ text: P.bands[b] }];
-    // the usual day: the median of the 30 days before, when 7+ of them have a strain
+    var usual = '';
     var c = compare(function (x) { return X.at(m.v, m, x); }, iso, 0);
     if (c && c.side != null) {
       var prior = [];
       for (var k = 1; k <= PRIOR_DAYS; k++) { var x = X.at(m.v, m, shiftIso(iso, -k)); if (isNum(x)) prior.push(x); }
       prior.sort(function (a, z) { return a - z; });
-      out.push({ text: format(P.usual, { value: X.fmt(quart(prior, 0.5), 1) }) });
+      usual = format(X.T.deep.prose.strainUsual, { value: X.fmt(quart(prior, 0.5), 1) });
     }
-    var S = strainBake();
-    if (S) out.push({ cls: 'dt-scale', text: format(P.scale, { days: S.windowDays }) });
-    return out;
+    return prose([P.bands[strainBand(v)], usual]);
   }
   // contributors: the day's activities (strain share, minutes x zone load) + the all-day remainder
   function strainContribHtml(m, end, X) {
@@ -545,7 +564,7 @@
       return {
         head: headHtml(key, end, X),
         top: '<div class="dd-info" id="dd-info" hidden>' + X.bandText(key, m) + strainNotes(X) + '</div>' + heroHtml(strainHero(m, end, X), X) +
-          strainContribHtml(m, end, X) + insightHtml(strainLines(m, end, X), X) + weeklyHtml(key, m, end, X) + reLinksHtml(X),
+          strainContribHtml(m, end, X) + insightHtml(strainLines(m, end, X), X, 'strain') + weeklyHtml(key, m, end, X) + reLinksHtml(X),
       };
     }
     var hero = key === 'recovery' ? recoveryHero(m, X) : key === 'sleep' ? sleepHero(m, end, X) : loadHero(key, m, X);
@@ -553,8 +572,10 @@
     var rows = key === 'recovery' ? recoveryRows(m, end, X) : key === 'sleep' ? sleepRows(m, end, X) : loadRows(key, m, end, X);
     return {
       head: headHtml(key, end, X),
-      top: infoHtml(key, m, X) + heroHtml(hero, X) + (key === 'sleep' ? stagesHtml(m, end, X) : '') + contribHtml(rows, X) +
-        (key === 'sleep' || key === 'recovery' ? '' : modSwitch(key, X)) + insightHtml(lines, X) + weeklyHtml(key, m, end, X),
+      // dial -> contributors -> insight, like the reference; the sleep stages bar follows the insight
+      top: infoHtml(key, m, X) + heroHtml(hero, X) + contribHtml(rows, X) +
+        (key === 'sleep' || key === 'recovery' ? '' : modSwitch(key, X)) + insightHtml(lines, X, key === 'recovery' || key === 'sleep' ? key : 'load') +
+        (key === 'sleep' ? stagesHtml(m, end, X) : '') + weeklyHtml(key, m, end, X),
     };
   }
 

@@ -1038,11 +1038,9 @@ button.dt-day {
 /* sleep stages: one stacked bar of the night (awake / REM / core / deep by hours) + a legend with the
  * hours and the % of time asleep. Shades of the sleep colour towards the violet link end: deeper =
  * darker-violet; awake is the faint neutral. */
-.dd-stages {
-  margin-top: var(--sp-7);
-}
 .dd-stbar {
   display: flex;
+  margin-top: var(--sp-5);
   gap: 2px;
   height: 12px;
   border-radius: 6px;
