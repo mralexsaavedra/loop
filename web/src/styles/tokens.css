@@ -90,7 +90,7 @@
   --label-track: 0.08em;
   --label-weight: 700;
   /* layout: the widest the page content grows on a wide screen (the background stays full-bleed) */
-  --content-max: 1160px;
+  --content-max: 960px;
   /* dials */
   --dial-size: 112px;
   --fs-dial: 26px;

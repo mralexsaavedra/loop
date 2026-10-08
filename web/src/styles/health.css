@@ -21,21 +21,6 @@
   stroke-linejoin: round;
   stroke-linecap: round;
 }
-@media (min-width: 900px) {
-  /* Salud — the sections as a two-column dashboard; the recovery section (with its wide card) spans
-     the row */
-  #health-body {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-    column-gap: var(--sp-8);
-    align-items: start;
-  }
-  #health-body > .train-empty,
-  #health-body > #hl-recovery {
-    grid-column: 1 / -1;
-  }
-}
-
 /* Salud section header (the monitor list and every section): UPPERCASE label, an optional status
  * chip, and an ⓘ button that shows the section's notes in place (client/health.js toggles). */
 .hs-sec {
