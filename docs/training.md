@@ -39,8 +39,6 @@ split as ONE stacked horizontal SVG bar (widths in attributes, largest first) wi
 share · time" (gym `--strain`, strength `--strain-ink`, run `--up`, bike `--mid`, other `--faint`;
 always named, never colour alone), then the compact calendar (always the last 30 days). The total and
 the calendar open the `workouts` sheet, a day cell that day; the switch sits outside every opener.
-On wide screens (>= 900 px) the card is two columns, the summary left and the calendar right, scaled
-up to a 300 px column (`docs/plan-page.md`).
 Then running, cycling and load vs recovery (`#health-train`, client/health.js). The card follows the
 dashboard's rules: duration not kcal, DISTINCT days, dashboard modality buckets, and the shared
 same-day rule (`lib/training/sessions.mjs` `DISPLAY_RULE`: stubs under 3 min dropped, one source per
@@ -48,7 +46,12 @@ date + bucket, then summed). Only the last 367 data days are baked (6M twice + 3
 one entry per active day; the client ends every window at the VIEWER's today, or at the data date when
 that is more than 3 days old (greyed, with a note) or AFTER the viewer's today (clock / timezone skew,
 so the newest sessions stay visible). Calendar = Monday-first weeks, ONE sequential hue (`--strain`) in
-five levels by total minutes (none, < 30, 30–59, 60–89, 90+), an SVG `<title>` per cell.
+five levels by total minutes (none, < 30, 30–59, 60–89, 90+), an SVG `<title>` per cell. Phones get
+a fixed-size SVG (max 280 px wide); on wide screens (`matchMedia('(min-width: 900px)')`, re-rendered
+when the breakpoint is crossed) the same days, levels, titles and day openers render as an HTML
+`.cal-grid` spanning the card's full width: 7 equal columns (`repeat(7, 1fr)`), weekday letters
+centred over their column, `width: 100%` + `aspect-ratio: 1` tiles capped at `max-height: 64px` (a
+wide rounded tile at 1160 px), legend below, left-aligned. Everything else in the card stays stacked.
 
 **🏋️ Hoy / Today — programmed session.** On Inicio it is a row of "Today's activities", not a
 block: `client/training-today.js` renders the session into `#train-today` inside the `hoy` section

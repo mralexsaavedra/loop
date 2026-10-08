@@ -179,3 +179,16 @@ test('the floating dock never covers the end of a tab: one --dock-room (bar + it
   assert.equal(decl('body', 'padding-bottom'), 'var(--dock-room)', 'the last block of a tab scrolls clear of the bar');
   assert.equal(decl('html', 'scroll-padding-bottom'), 'var(--dock-room)', 'a focused / jumped-to element is never parked under the bar');
 });
+
+test('wide screens: the Entreno calendar grid spans the card (7 equal columns) with tiles capped at 64 px tall', () => {
+  const rules = parseCssRules(css()).filter((r) => r.media === '(min-width:900px)');
+  const decl = (sel, prop) => {
+    const d = rules.filter((x) => x.selector.split(',').map((s) => s.trim()).includes(sel)).flatMap((x) => x.decls).find(([p]) => p === prop);
+    return d ? String(d[1]).replace(/\s+/g, '') : null;
+  };
+  assert.equal(decl('.cal-grid', 'display'), 'grid');
+  assert.equal(decl('.cal-grid', 'grid-template-columns'), 'repeat(7,1fr)');
+  assert.equal(decl('.cal-day', 'width'), '100%', 'definite width, so max-height clamps the height instead of shrinking the tile');
+  assert.equal(decl('.cal-day', 'aspect-ratio'), '1');
+  assert.equal(decl('.cal-day', 'max-height'), '64px');
+});

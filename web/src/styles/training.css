@@ -218,6 +218,44 @@
   background: rgba(var(--strain-rgb), 0.8);
 }
 
+/* wide screens (>= 900 px): client/training-activity.js renders the calendar as an HTML grid across the
+ * card's full width — 7 equal columns, square cells capped at 64 px tall (a wide rounded tile at 1160 px)
+ * so the month doesn't tower; the phone keeps the fixed-size SVG above */
+@media (min-width: 900px) {
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: var(--sp-2);
+    margin-top: var(--sp-3);
+  }
+  .cal-grid .cal-wd {
+    color: var(--faint);
+    font-size: var(--fs-2xs);
+    text-align: center;
+  }
+  .cal-day {
+    width: 100%; /* definite width: max-height must clamp the height, not shrink the tile */
+    aspect-ratio: 1;
+    max-height: 64px;
+    border-radius: 8px;
+  }
+  .cal-day.cal-l0 {
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .cal-day.cal-l1 {
+    background: rgba(var(--strain-rgb), 0.3);
+  }
+  .cal-day.cal-l2 {
+    background: rgba(var(--strain-rgb), 0.55);
+  }
+  .cal-day.cal-l3 {
+    background: rgba(var(--strain-rgb), 0.8);
+  }
+  .cal-day.cal-l4 {
+    background: var(--strain);
+  }
+}
+
 /* Entreno "Load vs recovery": the weekly load bars sit in one card (client/health.js renderEntreno) */
 .lvr-card {
   margin-bottom: var(--sp-3);
@@ -343,26 +381,4 @@
 }
 .act-stale {
   opacity: 0.55;
-}
-
-/* wide screens: the Activity card reads as two columns, the summary (total + switch, stats, modality
- * split) on the left and the 30-day calendar on the right, scaled up to fill its column (a 300px cap
- * keeps the weekday letters and cells sensible). The calendar spans every row; the trailing 1fr row
- * takes its extra height, so the summary rows keep their phone spacing. */
-@media (min-width: 900px) {
-  .act-card {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
-    grid-template-rows: auto auto auto 1fr;
-    column-gap: var(--sp-12);
-    align-items: start;
-  }
-  .act-card > .act-cal {
-    grid-column: 2;
-    grid-row: 1 / -1;
-    margin-top: 0;
-  }
-  .act-cal .cal-svg {
-    max-width: none;
-  }
 }
