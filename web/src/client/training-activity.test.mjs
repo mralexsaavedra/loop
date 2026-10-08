@@ -199,3 +199,20 @@ test('es: Spanish copy and decimal-free h/min durations', () => {
   assert.ok(html.includes('15 h 45 min'));
   assert.match(html, /▲ 215 % vs mes anterior/, 'Spanish percent spacing');
 });
+
+test('wide screens (>= 900 px): the calendar is a full-width HTML grid with the same levels, titles and day openers', () => {
+  let query = null, listened = false;
+  const mm = (q) => { query = q; return { matches: true, addEventListener: (ev) => { listened = ev === 'change'; } }; };
+  const wide = render(ACT, { detail: true, win: { matchMedia: mm } });
+  const phone = render(ACT, { detail: true, win: { matchMedia: () => ({ matches: false }) } });
+  assert.equal(query, '(min-width: 900px)');
+  assert.ok(listened, 'crossing the breakpoint re-renders');
+  assert.doesNotMatch(wide, /cal-svg/);
+  assert.match(wide, /<div class="cal-grid" role="img" aria-label="[^"]+">(<span class="cal-wd">[^<]+<\/span>){7}/, 'weekday header row first');
+  const days = [...wide.matchAll(/<span class="cal-day cal-l(\d)"[^>]*data-date="(\d{4}-\d\d-\d\d)"[^>]*title="([^"]*)"><\/span>/g)].map((m) => ({ level: +m[1], title: m[3] }));
+  assert.deepEqual(days, cells(phone), 'same 30 days, levels and titles as the phone SVG');
+  const pads = (wide.match(/class="cal-pad"/g) || []).length;
+  const first = addDays(ASOF, -29);
+  assert.equal(pads, (new Date(first + 'T12:00:00Z').getUTCDay() + 6) % 7, 'Monday-first offset');
+  assert.match(phone, /class="cal-svg"/, 'phones keep the SVG');
+});
