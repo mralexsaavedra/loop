@@ -76,13 +76,14 @@
     return { date: best.date, k: best.k, p: num(best.p), c: num(best.c), g: num(best.f), n: best.n, missing: { protein: !!m.p, carbs: !!m.c, fat: !!m.f }, src: 'log' };
   }
   /* ---------- Registrar ---------- */
-  // an add-on entry carries its stored slot as a tiny muted tag (Pre-entreno, Snack…)
+  // a list row: the name with the amount as secondary text (an add-on entry also carries its stored
+  // slot as a tiny muted tag: Pre-entreno, Snack…) and the macros as the small line under them; the kcal
+  // alone on the right, then the delete button
   function entryHtml(e) {
     var tag = groupOf(e.meal) === ADDON && T.meals[e.meal] ? '<span class="fe-slot">' + esc(T.meals[e.meal]) + '</span>' : '';
     return '<li class="fe"><div class="fe-main"><span class="fe-label">' + esc(e.label) + '</span>' + tag +
-      '<span class="fe-amt">' + esc(amountText(e.amount, e.unit)) + '</span></div>' +
-      '<div class="fe-side"><span class="fe-kcal"><b>' + esc(kf(e.kcal)) + '</b> ' + esc(T.kcal) + '</span>' +
-      '<span class="fe-pcf">' + esc(pcf(e)) + '</span></div>' +
+      '<span class="fe-amt">' + esc(amountText(e.amount, e.unit)) + '</span><span class="fe-pcf">' + esc(pcf(e)) + '</span></div>' +
+      '<div class="fe-side"><span class="fe-kcal"><b>' + esc(kf(e.kcal)) + '</b> ' + esc(T.kcal) + '</span></div>' +
       '<button type="button" class="food-icon-btn" data-food-act="del" data-id="' + esc(e.id) + '" aria-label="' + esc(format(T.delAria, { label: e.label })) + '">' + DEL_SVG + '</button></li>';
   }
   function renderNav() {

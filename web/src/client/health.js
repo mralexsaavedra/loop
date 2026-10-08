@@ -102,9 +102,6 @@
     return HC.metricRow({ key: o.icon || key, cls: stale ? 'db-stale' : '', attrs: (o.id ? ' id="hl-' + o.id + '"' : '') + (o.detail ? HC.detailAttrs(o.detail) : ''),
       aria: aria.join(' · '), name: title, value: value, unit: unit, arrow: arrow, tone: tone, base: base });
   }
-  function card(num, lbl) {
-    return '<div class="dash-card"><div class="dash-num">' + esc(num) + '</div><div class="dash-lbl">' + esc(lbl) + '</div></div>';
-  }
   function note(html) {
     return '<div class="dash-note">' + html + '</div>';
   }
@@ -140,23 +137,24 @@
 
   // A Salud section: UPPERCASE label (the hl-<key> anchor is the section itself), an ⓘ toggle
   // holding its notes (collapsed, nothing lost), an optional block before the rows (the recovery
-  // card host) and after them (the energy balance cards, until Nutrición takes them), then the rows.
-  function section(key, rows, notes, before, after) {
+  // card host), then the rows.
+  function section(key, rows, notes, before) {
     var info = (notes || []).filter(Boolean), id = 'hs-info-' + key, name = T.sections[key];
-    if (!rows.length && !before && !after) return '';
+    if (!rows.length && !before) return '';
     return '<section class="hs-sec hs-sec-' + key + '" id="hl-' + key + '" aria-labelledby="hs-h-' + key + '"><div class="hs-head"><h3 class="hs-lbl" id="hs-h-' + key + '">' + name + '</h3>' +
       (info.length ? HC.infoBtn(id, format(T.infoTpl, { section: name })) : '') + '</div>' +
       (info.length ? '<div class="hs-info" id="' + id + '" hidden>' + info.map(function (n) { return '<p>' + n + '</p>'; }).join('') + '</div>' : '') +
-      (before || '') + (rows.length ? '<ul class="db-list">' + rows.join('') + '</ul>' : '') + (after || '') + '</section>';
+      (before || '') + (rows.length ? '<ul class="db-list">' + rows.join('') + '</ul>' : '') + '</section>';
   }
 
-  // One renderer, two hosts (four-tab layout, one question per tab):
+  // One renderer, three hosts (four-tab layout, one question per tab):
   //   #health-body (Salud: "how is my body")  recovery (+ #score-recovery, filled by score.js), sleep,
-  //                                      body composition, activity, energy
+  //                                      body composition, activity, energy (expenditure only)
   //   #health-train (Entreno)            running, cycling, load vs recovery
-  // A missing host skips its half; each half has its own empty state.
-  // Each half renders inside its own try/catch: a throw in one never blanks the other, and the
-  // broken half falls back to its own empty state.
+  //   #nutri-balance (Nutrición)         Balance: intake vs expenditure + the macro split
+  // A missing host skips its part; each part has its own empty state (Balance: none, host hidden).
+  // Each part renders inside its own try/catch: a throw in one never blanks another, and the
+  // broken part falls back to its own empty state.
   function render() {
     var host = document.getElementById('health-body');
     if (host) {
@@ -173,6 +171,15 @@
       } catch (e) {
         train.innerHTML = '<div class="train-empty">' + T.trainEmptyMsg + '</div>';
       }
+    }
+    var bal = document.getElementById('nutri-balance');
+    if (bal) {
+      try {
+        bal.innerHTML = renderBalance();
+      } catch (e) {
+        bal.innerHTML = '';
+      }
+      bal.hidden = !bal.innerHTML;
     }
   }
   // one broken trend card must never blank the tab: it is skipped, the rest still render
@@ -261,8 +268,8 @@
         return function () { var a = A[k], tt = T.trend[k]; return a ? mrow(k, tt.title, tt.unit, { value: a.latest, base: a.avg30, dir: 1, date: a.latestDate, soFar: true, detail: k }) : ''; };
       })), [T.activityNoteHtml]));
     }
-    /* energy: expenditure (TDEE) only on the row; the intake balance + macro split stay as cards until
-       Nutrición takes them; every caveat sits behind ⓘ */
+    /* energy: expenditure (TDEE) only; the intake balance + macro split are Nutrición's Balance
+       (renderBalance); every caveat sits behind ⓘ */
     if (E.hasData) {
       var en = [];
       // a power-meter ride day (lib/health/ride-energy.mjs): the headline day's active energy was corrected
@@ -270,26 +277,61 @@
       else if (T.energyRide && E.latestUncovered) en.push(esc(T.energyRide.uncovered));
       if (E.correctedDays > 0 && T.energyRide) en.push(format(T.energyRide.days, { n: E.correctedDays }));
       if (E.uncoveredDays > 0 && T.energyRide) en.push(format(T.energyRide.uncoveredDays, { n: E.uncoveredDays }));
-      var after = '';
-      if (E.balance) {
-        var b = E.balance;
-        after += '<div class="dash-cards">' + card(nf(b.intakeAvg) + ' kcal', T.energyCards.intakeAvgLbl) + card(nf(b.tdeeAvg) + ' kcal', T.energyCards.tdeeAvgLbl) +
-          card((b.net < 0 ? '' : '+') + nf(b.net), b.net < 0 ? T.energyCards.deficitLbl : T.energyCards.surplusLbl) + '</div>';
-        if (E.macros) {
-          var m = E.macros;
-          after += '<div class="dash-cards">' + card(m.p + ' g · ' + m.pPct + '%', T.energyCards.proteinLbl) + card(m.c + ' g · ' + m.cPct + '%', T.energyCards.carbsLbl) +
-            card(m.g + ' g · ' + m.gPct + '%', T.energyCards.fatLbl) + '</div>';
-        }
-        en.push(format(T.energyBalanceNote.main, { from: esc(fmtD(b.from)), to: esc(fmtD(b.to)), days: b.days, macroClause: E.macros ? T.energyBalanceNote.macroClause : '' }));
-      } else {
-        var lastIntakeClause = E.lastIntake ? format(T.energyExpenditureNote.lastIntakeClause, { date: esc(fmtD(E.lastIntake)), ago: ago(E.lastIntake) }) : '';
-        en.push(format(T.energyExpenditureNote.main, { tdeeDays: E.tdeeDays, lastIntakeClause: lastIntakeClause }));
-      }
+      en.push(format(T.energyTdeeNote, { tdeeDays: E.tdeeDays }));
       out.push(section('energy', rows([function () {
         return E.tdeeLatest != null ? mrow('energy', T.trend.expenditure.title, T.trend.expenditure.unit, { value: E.tdeeLatest, base: E.tdeeAvg, dir: 0, date: E.tdeeLatestDate, soFar: true, detail: 'energy' }) : '';
-      }]), en, '', after));
+      }]), en));
     }
     host.innerHTML = out.join('');
+  }
+
+  // Nutrición → Balance (HEALTH.energy, lib/health/aggregate.mjs aggEnergy): the intake average vs the
+  // expenditure average over ONE fixed window (the paired days of the last BALANCE_WINDOW, anchored to
+  // the newest expenditure day; the bake has no other period, so no W / M / 6M), labelled by its dates,
+  // as metric rows (avg intake, avg burn -> the expenditure sheet, deficit / surplus a day), then the
+  // average macro split as one stacked bar (Entreno's modality bar) with a counted legend. The window
+  // and "historical" caveat sit behind ⓘ. Too few logged days -> a short empty line, the why behind ⓘ.
+  // No expenditure at all -> '' (the host hides).
+  var MACROS = [['p', 'p', 'proteinLbl'], ['c', 'c', 'carbsLbl'], ['f', 'g', 'fatLbl']];
+  function renderBalance() {
+    var E = HEALTH.energy || {}, TB = T.balance;
+    if (!E.hasData || !TB) return '';
+    var b = E.balance, m = b ? E.macros : null, notes = [], body;
+    if (b) {
+      notes.push(format(T.energyBalanceNote.main, { from: esc(fmtD(b.from)), to: esc(fmtD(b.to)), days: b.days, macroClause: m ? T.energyBalanceNote.macroClause : '' }));
+      var u = T.trend.expenditure.unit;
+      var net = (b.net < 0 ? '' : '+') + nf(b.net), netLbl = b.net < 0 ? TB.deficitLbl : TB.surplusLbl;
+      body = '<p class="nb-win">' + esc(format(TB.winTpl, { from: fmtD(b.from), to: fmtD(b.to), days: b.days })) + '</p><ul class="db-list">' +
+        HC.metricRow({ key: 'food', name: TB.intakeLbl, value: nf(b.intakeAvg), unit: u, aria: TB.intakeLbl + ': ' + nf(b.intakeAvg) + ' ' + u }) +
+        HC.metricRow({ key: 'energy', attrs: HC.detailAttrs('energy'), name: TB.burnLbl, value: nf(b.tdeeAvg), unit: u, aria: TB.burnLbl + ': ' + nf(b.tdeeAvg) + ' ' + u }) +
+        HC.metricRow({ key: 'balance', name: netLbl, value: net, unit: u, aria: netLbl + ': ' + net + ' ' + u }) + '</ul>' +
+        (m ? splitHtml(m) : '');
+    } else {
+      var clause = E.lastIntake ? format(T.balanceNoIntakeNote.lastIntakeClause, { date: esc(fmtD(E.lastIntake)), ago: ago(E.lastIntake) }) : '';
+      notes.push(format(T.balanceNoIntakeNote.main, { lastIntakeClause: clause }));
+      body = '<p class="nb-empty">' + esc(TB.empty) + '</p>';
+    }
+    return '<section class="hs-sec nb" aria-labelledby="nb-h"><div class="hs-head"><h2 class="hs-lbl" id="nb-h">' + esc(TB.heading) + '</h2>' +
+      HC.infoBtn('nb-info', format(T.infoTpl, { section: TB.heading })) + '</div>' +
+      '<div class="hs-info" id="nb-info" hidden>' + notes.map(function (n) { return '<p>' + n + '</p>'; }).join('') + '</div>' + body + '</section>';
+  }
+  // the average macro split: segment widths = each macro's share of the three (normalised, so the
+  // rounded percentages never leave a gap); colour is never alone, the legend names each macro
+  function splitHtml(m) {
+    var TB = T.balance, pcts = { p: m.pPct, c: m.cPct, f: m.gPct };
+    var sum = pcts.p + pcts.c + pcts.f;
+    if (!(sum > 0)) return '';
+    var x = 0, segs = [], items = [], aria = [];
+    MACROS.forEach(function (k) {
+      var w = 100 * pcts[k[0]] / sum, name = TB[k[2]], g = m[k[1]];
+      segs.push('<rect class="nb-m-' + k[0] + '" x="' + x.toFixed(2) + '" y="0" width="' + w.toFixed(2) + '" height="8"/>');
+      x += w;
+      items.push('<li><span class="act-sw nb-m-' + k[0] + '" aria-hidden="true"></span><b>' + esc(nf(g)) + ' g</b> ' + esc(name) + ' <small>' + pcts[k[0]] + '%</small></li>');
+      aria.push(format(TB.splitItem, { name: name, g: nf(g), pct: pcts[k[0]] }));
+    });
+    return '<div class="nutri-card nb-split"><span class="dt-trend-lbl">' + esc(TB.splitLbl) + '</span>' +
+      '<svg class="act-bar" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="' + esc(TB.splitLbl + ': ' + aria.join(', ')) + '">' + segs.join('') + '</svg>' +
+      '<ul class="act-legend">' + items.join('') + '</ul></div>';
   }
 
   // Entreno: Running and Cycling as list rows, then Load vs recovery — each a section with its notes

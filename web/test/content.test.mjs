@@ -94,6 +94,27 @@ test('example build: the dia section carries Resumen de hoy (day type radios onl
   assert.equal(baked.supplements.length, 3, 'the synthetic example supplements ride along');
 });
 
+test('example build: Nutrición opens like Salud / Entreno (centred title + ⓘ), the summary notes sit behind its ⓘ, the kcal ring bakes the Inicio ring', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const nutricion = sliceTabPanel(html, 'nutricion');
+  assert.match(nutricion, /<div class="hs-top nu-top">\s*<h2 class="hs-title">Nutrition<\/h2>\s*<button type="button" class="hs-i" data-hs-info="nu-intro" aria-expanded="false" aria-controls="nu-intro" aria-label="About Nutrition">/);
+  assert.match(nutricion, /<div class="hs-info" id="nu-intro" hidden><p>[^<]+<\/p><p>[^<]*not medical advice\.[^<]*<\/p><\/div>/);
+  assert.ok(nutricion.indexOf('id="nu-intro"') < nutricion.indexOf('data-section="dia"'), 'the header leads the tab');
+  assert.match(nutricion, /<h2 class="hs-lbl">Today(&#39;|')s summary<\/h2>\s*<button type="button" class="hs-i" data-hs-info="nutri-sum-info"[^>]*aria-label="About Today(&#39;|')s summary"/);
+  assert.match(nutricion, /<div class="hs-info" id="nutri-sum-info" hidden><\/div>/, 'filled by nutri-day.js');
+  assert.match(html, /var NUTRI_ARC = "M60 6A54 54 0 0 1 60 114A54 54 0 0 1 60 6";/, 'the full ring of view/dial.mjs, no 270° arc');
+});
+
+test('example build: Balance (intake vs expenditure + macro split) lives in Nutrición, after the day\'s blocks and before Progreso; Salud has no host for it', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const dia = sliceSection(html, 'dia');
+  assert.match(dia, /<div class="nutri-block" id="nutri-balance" hidden><\/div>/, 'client-rendered by health.js, hidden until it has something');
+  const at = (id) => dia.indexOf(`id="${id}"`);
+  assert.ok(at('nutri-fuel-block') < at('nutri-balance') && at('nutri-balance') < at('nutri-progress-block'), 'order: fuelling, Balance, Progreso');
+  assert.equal(sliceTabPanel(html, 'health').indexOf('nutri-balance'), -1);
+  assert.match(html, /"balance":\{"from":"\d{4}-\d{2}-\d{2}"/, 'the demo extract carries a balance window');
+});
+
 test('example build: Tablas shows fixed reference values per natural unit (lib/nutrition/reference.mjs), never portions', () => {
   assert.ok(fs.existsSync(examplePath), `missing ${examplePath} — run \`npm run pretest\` first`);
   const html = fs.readFileSync(examplePath, 'utf8');

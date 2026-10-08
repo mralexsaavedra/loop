@@ -59,7 +59,7 @@ test('Registrar\'s day navigator ships as static markup on the heading line: rea
   assert.match(block, /<button type="button" class="food-icon-btn food-day-btn" id="food-day-next" data-food-act="day-next" aria-label="Next day" disabled>/);
   assert.match(block, /<span class="food-day-label" id="food-day-label" aria-live="polite"><\/span>/);
   assert.match(block, /<button type="button" class="food-btn food-btn-ghost food-day-today" id="food-day-today" data-food-act="day-today" aria-label="Back to today" hidden>Today<\/button>/, 'a short visible label, the full action as its name');
-  assert.match(block, /<div class="food-head"> <h2>Log food<\/h2> <div class="food-day" role="group" aria-label="Log day">/, 'the title and the navigator share one row');
+  assert.match(block, /<div class="food-head"> <h2 class="hs-lbl">Log food<\/h2> <div class="food-day" role="group" aria-label="Log day">/, 'the title (the shared section label) and the navigator share one row');
 });
 
 test('copy + constants are baked; the food scripts are inlined after nutri-day.js and before intake.js', () => {

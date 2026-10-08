@@ -90,8 +90,11 @@ export const es = {
     main: 'Balance entre {from}–{to} ({days} días registrados). Negativo = déficit. Es <b>histórico</b> — basado en la última ventana con ingesta registrada.{macroClause}',
     macroClause: ' El split de macros es la media de esos días.',
   },
-  energyExpenditureNote: {
-    main: '<b>Solo gasto.</b> Energía activa + basal del Apple Watch: el número grande es el último día, la línea la media móvil de 7 días (últimos {tdeeDays} días) — baja los días que no llevaste el reloj. <b>La ingesta no se puede puntuar:</b> se registró en muy pocos días recientes{lastIntakeClause} para calcular un déficit o un split de macros real. Para objetivos probados, mira el histórico del nutricionista en <code>data/nutritionist</code>.',
+  // Salud's Energía: expenditure only (the balance lives in Nutrición → Balance)
+  energyTdeeNote: '<b>Solo gasto.</b> Energía activa + basal del Apple Watch: el valor es el último día y debajo la media de 30 días (últimos {tdeeDays} días) — baja los días que no llevaste el reloj. La ingesta, el déficit y el split de macros están en Nutrición → Balance.',
+  // Nutrición → Balance when too few recent days carry intake
+  balanceNoIntakeNote: {
+    main: '<b>La ingesta no se puede puntuar:</b> se registró en muy pocos días recientes{lastIntakeClause} para calcular un déficit o un split de macros real. Para objetivos probados, mira el histórico del nutricionista en <code>data/nutritionist</code>.',
     lastIntakeClause: ' (último el {date}, {ago})',
   },
   energyRide: {
@@ -100,14 +103,20 @@ export const es = {
     uncoveredDays: '<b>Sin corregir:</b> {n} de los últimos 30 días tienen una salida con potenciómetro que no se pudo corregir porque faltan los datos por horas del reloj (clave <code>active_energy_hourly</code> del Atajo); queda el valor del reloj, probablemente corto.',
     days: '<b>Salidas con potenciómetro:</b> {n} de los últimos 30 días usan la energía de la salida medida por potencia (kJ de Strava ≈ kcal) en vez de la del reloj durante esas horas, porque el reloj no la registró y se queda corto. Solo si sube el día, nunca lo baja.',
   },
-  energyCards: {
-    intakeAvgLbl: 'ingesta media',
-    tdeeAvgLbl: 'gasto medio',
-    deficitLbl: 'déficit/día',
-    surplusLbl: 'superávit/día',
-    proteinLbl: 'proteína',
-    carbsLbl: 'carbohidratos',
-    fatLbl: 'grasa',
+  // Nutrición → Balance (client/health.js renderBalance, host #nutri-balance)
+  balance: {
+    heading: 'Balance',
+    winTpl: '{from} – {to} · {days} días registrados',
+    intakeLbl: 'Ingesta media',
+    burnLbl: 'Gasto medio',
+    deficitLbl: 'Déficit / día',
+    surplusLbl: 'Superávit / día',
+    splitLbl: 'Split de macros',
+    splitItem: '{name} {g} g, {pct}%',
+    proteinLbl: 'Proteína',
+    carbsLbl: 'Carbohidratos',
+    fatLbl: 'Grasa',
+    empty: 'Aún no hay ingesta registrada suficiente para un balance.',
   },
   runningTable: { dateH: 'Fecha', distH: 'Dist', timeH: 'Tiempo', paceH: 'Ritmo', hrH: 'FC media', reH: 'Esf.', elevH: 'Desn.', powerH: 'Pot.', gctH: 'TCS', oscH: 'Osc.', strideH: 'Zancada' },
   runningNote: 'Tus <b>{count}</b> carreras (más recientes arriba), del reloj y de Strava; los fragmentos del mismo día cuentan como una. Ritmo = tiempo ÷ distancia. Esfuerzo relativo (Esf.) y desnivel solo llegan de Strava; potencia, tiempo de contacto con el suelo (TCS), oscilación vertical y zancada solo de las métricas de carrera del reloj (export de Apple Health) — un guion es un dato que la fuente no registró, nunca un cero. <b>No es una tendencia</b>; mejorar el ritmo al mismo esfuerzo es la señal a vigilar.',
@@ -195,8 +204,11 @@ export const en = {
     main: 'Balance over {from}–{to} ({days} logged days). Negative = deficit. This is <b>historical</b> — based on the last window where intake was logged.{macroClause}',
     macroClause: ' The macro split is the average of those days.',
   },
-  energyExpenditureNote: {
-    main: '<b>Expenditure only.</b> Active + resting energy from the Apple Watch: the big number is the latest day, the line the 7-day rolling average (last {tdeeDays} days) — it runs low on days the watch wasn’t worn. <b>Intake can’t be scored:</b> it was logged on too few recent days{lastIntakeClause} to compute a real deficit or macro split. For proven targets, see the nutritionist history in <code>data/nutritionist</code>.',
+  // Salud's Energy: expenditure only (the balance lives in Nutrition → Balance)
+  energyTdeeNote: '<b>Expenditure only.</b> Active + resting energy from the Apple Watch: the value is the latest day, under it the 30-day average (last {tdeeDays} days) — it runs low on days the watch wasn’t worn. Intake, the deficit and the macro split are in Nutrition → Balance.',
+  // Nutrition → Balance when too few recent days carry intake
+  balanceNoIntakeNote: {
+    main: '<b>Intake can’t be scored:</b> it was logged on too few recent days{lastIntakeClause} to compute a real deficit or macro split. For proven targets, see the nutritionist history in <code>data/nutritionist</code>.',
     lastIntakeClause: ' (last on {date}, {ago})',
   },
   energyRide: {
@@ -205,14 +217,20 @@ export const en = {
     uncoveredDays: '<b>Not corrected:</b> {n} of the last 30 days have a power-meter ride that could not be corrected because the watch\'s hourly data is missing (the Shortcut\'s <code>active_energy_hourly</code> key); the watch value stays, probably short.',
     days: '<b>Power-meter rides:</b> {n} of the last 30 days use the ride energy measured by power (Strava kJ ≈ kcal) instead of the watch during those hours, because the watch did not record the ride and under-counts it. Only when it raises the day, never lowers it.',
   },
-  energyCards: {
-    intakeAvgLbl: 'avg intake',
-    tdeeAvgLbl: 'avg burn',
-    deficitLbl: 'deficit/day',
-    surplusLbl: 'surplus/day',
-    proteinLbl: 'protein',
-    carbsLbl: 'carbs',
-    fatLbl: 'fat',
+  // Nutrition → Balance (client/health.js renderBalance, host #nutri-balance)
+  balance: {
+    heading: 'Balance',
+    winTpl: '{from} – {to} · {days} days logged',
+    intakeLbl: 'Avg intake',
+    burnLbl: 'Avg burn',
+    deficitLbl: 'Deficit / day',
+    surplusLbl: 'Surplus / day',
+    splitLbl: 'Macro split',
+    splitItem: '{name} {g} g, {pct}%',
+    proteinLbl: 'Protein',
+    carbsLbl: 'Carbs',
+    fatLbl: 'Fat',
+    empty: 'Not enough intake logged yet for a balance.',
   },
   runningTable: { dateH: 'Date', distH: 'Dist', timeH: 'Time', paceH: 'Pace', hrH: 'Avg HR', reH: 'Effort', elevH: 'Elev.', powerH: 'Power', gctH: 'GCT', oscH: 'Osc.', strideH: 'Stride' },
   runningNote: 'Your <b>{count}</b> runs (most recent first), from the watch and from Strava; same-day fragments count as one. Pace = time ÷ distance. Relative effort and elevation come from Strava only; power, ground-contact time (GCT), vertical oscillation and stride only from the watch’s running metrics (Apple Health export) — a dash is a value the source did not record, never a zero. <b>Not a trend</b>; improving pace at the same effort is the signal to watch.',

@@ -4,6 +4,22 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-08 — Plan page restyle P6b: Nutrición
+
+- Nutrición opens like Salud / Entreno: a centred uppercase title with an ⓘ (the tab intro and the
+  shared caveats); every block is headed by the shared UPPERCASE label row, its notes behind an ⓘ.
+- Resumen de hoy: the 270° kcal dial became a full ring in the Inicio dial language — the kcal eaten
+  today inside over "/ target", one state colour (track only / on track / past 110 %) — and
+  `OPEN_ARC` left `view/dial.mjs` (nothing else used it). Macro bars became three compact rows
+  (eaten / target), the day type compact pills; where the intake comes from moved behind the ⓘ.
+- Balance (moved from Salud's Energía): intake average vs expenditure, deficit / surplus a day as
+  metric rows and the average macro split as a stacked bar over the one baked window (labelled; no
+  W / M / 6M, the bake has a single window). Salud's Energía keeps the expenditure row only.
+- Registrar entries became list rows in flat group cards (name + amount, macros as the small line,
+  kcal on the right); Progreso became a number card (average, rate pill, status word, target / ETA)
+  and Constancia number tiles with a thin bar, their explanations behind the section ⓘ. Plan de hoy,
+  Mis productos, Mis recetas and Tablas folds are flat rows. Same data and calculations.
+
 ## 2026-10-07 — Plan page restyle P6a: Entreno
 
 - Entreno opens like Salud: a centred uppercase title with an ⓘ (the tab intro, how to read a card,

@@ -156,7 +156,9 @@ test('Registrar: four groups (Desayuno, Comida, Cena, Añadidos), entry kcal + P
   assert.match(html, /aria-label="Añadir a Añadidos"/);
   assert.match(html, /data-food-act="del" data-id="50" aria-label="Borrar Yogur natural"/);
   assert.match(text(html), /Registrado hoy 75 kcal/);
-  assert.match(text(html), /Yogur natural 1 ración 75 kcal P 12,5 · C 5 · G 0,3/);
+  // a list row: name · amount (secondary) on the left with the macros as the small line, kcal alone on the right
+  assert.match(text(html), /Yogur natural 1 ración P 12,5 · C 5 · G 0,3 75 kcal/);
+  assert.match(html, /<li class="fe"><div class="fe-main"><span class="fe-label">Yogur natural<\/span><span class="fe-amt">1 ración<\/span><span class="fe-pcf">P 12,5 · C 5 · G 0,3<\/span><\/div><div class="fe-side"><span class="fe-kcal"><b>75<\/b> kcal<\/span><\/div><button type="button" class="food-icon-btn" data-food-act="del"/);
 });
 
 test('Registrar: pre / post workout and snack entries show in Añadidos with a tiny muted slot tag; main meals carry no tag', async () => {
