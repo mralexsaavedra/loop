@@ -883,9 +883,9 @@
   line-height: 1.1;
   color: var(--rec-c, var(--ink));
 }
+/* the unit attached to the number at ~55 % of its size, in the same colour ("99%") */
 .rec-unit {
-  font-size: var(--fs-sm);
-  color: var(--faint);
+  font-size: 0.55em;
 }
 .rec-band {
   font-size: var(--fs-sm);

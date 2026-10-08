@@ -92,7 +92,9 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   (source + sha256 in the script header); `scripts/loop-logo.test.mjs` fails if they are hand-edited,
   `web/test/brand.test.mjs` pins the built head and wordmark.
 - **Top bar** (`.topbar`, above the dock, one row at every width, a 3-column grid so the pill stays
-  centred): avatar left (`components/Avatar.astro`, 36 px circle in a 44 px target, opens the profile
+  centred; on Salud, Entreno and Nutrición only the freshness / Sync controls remain — the avatar and
+  the date pill, which steps Inicio's day, hide with the same `.wrap:has(> .tab-panel[data-tab="home"][hidden])`
+  rule as the wordmark, and those tabs open on their centred title): avatar left (`components/Avatar.astro`, 36 px circle in a 44 px target, opens the profile
   sheet) · a centred date pill "‹ HOY ›" / "‹ TODAY ›" (`.date-pill`, uppercase, letter-spaced; the
   viewer's full date ("mié 30 sept" / "Wed 30 Sep") is the `<time id="today-date">` inside it, written
   client-side by `web/src/client/today-date.js` with `HC.fmtDate` and read by assistive tech only,
