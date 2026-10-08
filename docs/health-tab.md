@@ -108,20 +108,30 @@ expenditure-only caveat. The tab intro sits behind the title's ⓘ.
   ingest image (`docker compose up -d --build health-ingest`), add the Shortcut key
   (`docs/ios-shortcut.md`), `npm run sync -- --full` once, then `npm run generate`.
 - **Running** — `workouts.csv` Running rows (Watch export AND `sync:strava`, via `readRuns`), merged
-  per day exactly like the rides, as a RECENT-RUNS table (same row budget, newest first): date,
-  distance, time, pace = time / distance (none without a distance), avg HR, relative effort,
-  elevation, then the watch running dynamics (power, GCT, vertical osc, stride) LEFT-joined by date
-  from `running-daily.csv` (export.xml only — a Strava-only run shows dashes there; a dynamics-only
-  day never adds a run; sub-5 km/h dynamics are walks / GPS garbage and are not joined). Count =
-  distinct run days.
+  per day exactly like the rides, as RECENT-RUNS list rows on Entreno (same row budget, newest first;
+  `HC.metricRow` with its `note` line): icon · the date (UPPERCASE) with avg HR, relative effort,
+  elevation and the watch running dynamics (power, GCT, vertical osc, stride) as the small line under
+  it · the distance big on the right with time and pace = time / distance (none without a distance)
+  under it. The dynamics are LEFT-joined by date from `running-daily.csv` (export.xml only — a
+  Strava-only run simply has none; a dynamics-only day never adds a run; sub-5 km/h dynamics are walks
+  / GPS garbage and are not joined). Count = distinct run days, in the section's ⓘ with the source
+  notes. A row opens that day in `load-run`.
 - **Cycling** — `workouts.csv` rows of any Cycling type (Watch rides and `sync:strava` rides), shown
-  right after Running as a RECENT-RIDES table with the same style and row budget (8, newest first) so
-  run and bike carry equal weight: date, distance, time (Strava moving time / Watch duration),
-  elevation gain, avg HR, relative effort, kJ, plus the ride count. Same-day rows merge into ONE ride
+  right after Running as RECENT-RIDES list rows with the same style and row budget (8, newest first) so
+  run and bike carry equal weight: the date with avg HR, relative effort and kJ under it; the distance
+  with time (Strava moving time / Watch duration) and elevation gain under it; the ride count and the
+  source notes in the section's ⓘ; a row opens that day in `load-bike`. Same-day rows merge into ONE ride
   under the shared same-day rule (`DISPLAY_RULE`: stubs dropped, the Strava copy wins over a Watch copy): sums
   for time/distance/kJ/elevation/RE, duration-weighted avg HR, and the count is distinct ride days. Elevation / RE / kJ come from
-  Strava only; a field the source did not record renders as a dash, never 0. When only one of run /
+  Strava only; a field the source did not record is left out of the row's small lines (a missing
+  distance is a dash), never 0. When only one of run /
   bike has data, the other shows its empty-state line; with neither, both are omitted.
+- **Load vs recovery** (Entreno, after Cycling; `HEALTH.loadRecovery`) — one card of weekly
+  cardiovascular-load bars (flat `--strain`, minutes × mean HR ÷ 100, the last complete weeks) and two
+  metric rows: HRV and resting HR in the higher-load weeks, with the easy weeks' value as the small
+  line and ▲▼• for higher-load vs easy, coloured by the signal's good direction (↑ HRV, ↓ resting HR:
+  lower HRV in heavy weeks is ▼ orange — expected, the ⓘ explains what to watch). The index hint and
+  the association-not-causation note sit behind the section's ⓘ.
 - **Recovery** — `rhr.csv`, `hrv.csv` (both as the clamped per-day MEDIAN, `score/recovery.mjs`
   `dailySignal`, the same series Inicio's recovery and monitor use), `vo2max.csv`, `sleep-daily.csv`,
   `respiratory-daily.csv`, `wristTemp.csv`, `walking-hr-daily.csv`. Good directions stated behind

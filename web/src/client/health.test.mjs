@@ -22,7 +22,7 @@ test('each rendered section heading has a stable hl-<section> anchor id', () => 
     loadRecovery: { hasData: false },
   });
   assert.match(html, /<section class="hs-sec hs-sec-recovery" id="hl-recovery" aria-labelledby="hs-h-recovery">/);
-  assert.match(html, /<div class="hsub" id="hl-running">/);
+  assert.match(html, /<section class="hs-sec hs-sec-running" id="hl-running" aria-labelledby="hs-h-running">/);
   assert.doesNotMatch(html, /id="hl-body"/, 'sections without data render no anchor');
 });
 
@@ -147,7 +147,7 @@ test('body section without waist data says how to add it (empty state)', () => {
   assert.match(html, /No waist measurements yet/);
 });
 
-test('cycling section: recent rides table (newest first) with count, same table style as running', () => {
+test('cycling section: one list row per ride (newest first): icon · date with HR / effort / work under it · distance with time and climb; the count and sources behind ⓘ', () => {
   const html = renderWith({
     body: none, activity: none, energy: none, recovery: none, loadRecovery: none,
     running: { hasData: true, count: 1, sessions: [{ date: '2026-06-02', dist: 8, pace: '5:30', speed: 10.9, power: null, gct: null, vosc: null, stride: null }] },
@@ -156,15 +156,17 @@ test('cycling section: recent rides table (newest first) with count, same table 
       { date: '2026-06-04', dist: null, time: '1:00', elev: null, hrAvg: null, re: null, kj: null },
     ] },
   });
-  assert.match(html, /<div class="hsub" id="hl-cycling">Cycling<\/div>/);
-  assert.match(html, /<table class="run-tbl">.*Elev\./s);
-  assert.match(html, /40.25 km<\/td><td>1:30<\/td><td>412 m<\/td><td>141 bpm<\/td><td>96<\/td><td>1310 kJ<\/td>/);
-  assert.match(html, /<td>4 Jun<\/td><td>—<\/td><td>1:00<\/td><td>—<\/td>/, 'missing fields are a dash, never 0');
-  assert.match(html, /<b>12<\/b> rides/);
+  assert.match(html, /<section class="hs-sec hs-sec-cycling" id="hl-cycling" aria-labelledby="hs-h-cycling"><div class="hs-head"><h3 class="hs-lbl" id="hs-h-cycling">Cycling<\/h3><button type="button" class="hs-i" data-hs-info="hs-info-cycling"/);
+  assert.doesNotMatch(html, /<table|run-tbl/, 'no tables left');
+  const rows = [...html.slice(html.indexOf('id="hl-cycling"')).matchAll(/<li class="db-row"[^>]*><svg class="db-ico"[^>]*>[\s\S]*?<\/svg><span class="db-name">([^<]+)(?:<small class="db-note">([^<]*)<\/small>)?<\/span><span class="db-vals"><span class="db-val"><b>([^<]+)<\/b>(?:<small>([^<]*)<\/small>)?<\/span>(?:<span class="db-base">([^<]*)<\/span>)?/g)].map((m) => m.slice(1));
+  assert.deepEqual(rows[0], ['Wed 10 Jun', '141 bpm · Effort 96 · 1310 kJ', '40.25', 'km', '1:30 · ↑412 m']);
+  assert.deepEqual(rows[1], ['Thu 4 Jun', undefined, '—', undefined, '1:00'], 'missing fields are left out, never 0; no distance = a dash, no unit');
+  const info = html.match(/<div class="hs-info" id="hs-info-cycling" hidden>([\s\S]*?)<\/div>/)[1];
+  assert.match(info, /<b>12<\/b> rides/);
   assert.ok(html.indexOf('hl-running') < html.indexOf('hl-cycling'), 'cycling follows running');
 });
 
-test('running table matches the cycling one: date, distance, time, pace, avg HR, RE, elevation, then the watch dynamics (dash when absent)', () => {
+test('running rows match the cycling ones: distance, time + pace, and HR, effort, climb and the watch dynamics in the small line under the date', () => {
   const html = renderWith({
     body: none, activity: none, energy: none, recovery: none, loadRecovery: none, cycling: none,
     running: { hasData: true, count: 5, sessions: [
@@ -172,10 +174,25 @@ test('running table matches the cycling one: date, distance, time, pace, avg HR,
       { date: '2026-06-20', dist: null, time: '0:30', pace: null, hrAvg: null, re: null, elev: null, power: 240, gct: 250, vosc: 10, stride: 1.1 },
     ] },
   });
-  assert.match(html, /<tr><th>Date<\/th><th>Dist<\/th><th>Time<\/th><th>Pace<\/th><th>Avg HR<\/th><th>Effort<\/th><th>Elev\.<\/th><th>Power<\/th><th>GCT<\/th><th>Osc\.<\/th><th>Stride<\/th><\/tr>/);
-  assert.match(html, /<td>22 Jun<\/td><td>7.7 km<\/td><td>0:41<\/td><td>5:18\/km<\/td><td>152 bpm<\/td><td>57<\/td><td>35 m<\/td><td>—<\/td><td>—<\/td><td>—<\/td><td>—<\/td>/, 'a Strava-only run: dynamics are dashes');
-  assert.match(html, /<td>20 Jun<\/td><td>—<\/td><td>0:30<\/td><td>—<\/td><td>—<\/td><td>—<\/td><td>—<\/td><td>240 W<\/td><td>250 ms<\/td><td>10 cm<\/td><td>1.1 m<\/td>/, 'no distance: no pace');
-  assert.match(html, /<b>5<\/b> runs/);
+  assert.match(html, /<span class="db-name">Mon 22 Jun<small class="db-note">152 bpm · Effort 57 · ↑35 m<\/small><\/span><span class="db-vals"><span class="db-val"><b>7.7<\/b><small>km<\/small><\/span><span class="db-base">0:41 · 5:18\/km<\/span>/, 'a Strava-only run: no dynamics');
+  assert.match(html, /<span class="db-name">Sat 20 Jun<small class="db-note">240 W · GCT 250 ms · Osc\. 10 cm · Stride 1.1 m<\/small><\/span><span class="db-vals"><span class="db-val"><b>—<\/b><\/span><span class="db-base">0:30<\/span>/, 'no distance: no pace');
+  assert.equal((html.match(/<path d="M6 21l3.5-5/g) || []).length, 2, 'the run icon on every run row');
+  assert.match(html.match(/<div class="hs-info" id="hs-info-running" hidden>([\s\S]*?)<\/div>/)[1], /<b>5<\/b> runs/);
+});
+
+test('load vs recovery: weekly bars (strain blue) in a card, HRV and resting HR of the higher-load weeks as two metric rows (▲▼ vs the easy weeks, coloured by the good direction), the explanation behind ⓘ', () => {
+  const html = renderWith({
+    body: none, activity: none, energy: none, recovery: none, running: none, cycling: none,
+    loadRecovery: { hasData: true, weeks: 2, series: [{ w: '2026-06-01', load: 10 }, { w: '2026-06-08', load: 0 }], split: { hrvHigh: 50.8, hrvLow: 55.5, rhrHigh: 54.4, rhrLow: 54.4 } },
+  });
+  assert.match(html, /<section class="hs-sec hs-sec-load" id="hl-load" aria-labelledby="hs-h-load"><div class="hs-head"><h3 class="hs-lbl" id="hs-h-load">Load vs recovery<\/h3><button type="button" class="hs-i" data-hs-info="hs-info-load"/);
+  const info = html.match(/<div class="hs-info" id="hs-info-load" hidden>([\s\S]*?)<\/div>/)[1];
+  assert.ok(info.includes(enHealth.loadSec.hint.replace('{weeks}', '2')) && info.includes(enHealth.loadNoteHtml), 'hint + explanation behind ⓘ');
+  assert.match(html, /<div class="lvr-card"><span class="dt-trend-lbl">Weekly cardiovascular load<\/span><div class="wbars">/);
+  assert.equal((html.match(/class="wbar[ "]/g) || []).length, 2);
+  assert.match(html, /<span class="db-name">HRV · higher-load weeks<\/span><span class="db-vals"><span class="db-val"><b>50.8<\/b><small>ms<\/small><span class="db-arr db-bad" aria-hidden="true">▼<\/span><\/span><span class="db-base">easy weeks 55.5 ms<\/span>/, 'lower HRV in heavier weeks: ▼ orange');
+  assert.match(html, /<span class="db-name">resting HR · higher-load<\/span><span class="db-vals"><span class="db-val"><b>54.4<\/b><small>bpm<\/small><span class="db-arr db-flat" aria-hidden="true">•<\/span>/, 'same resting HR: grey dot');
+  assert.doesNotMatch(html, /dash-card|class="hsub"/, 'no tiles, no sub-headings left');
 });
 
 test('run and bike sections render symmetric empty states when the other has data', () => {
@@ -205,7 +222,7 @@ function renderAt(HEALTH, now, opts = {}) {
 }
 const sp = { v: [1, 2], from: '2026-06-01', to: '2026-06-30' };
 
-test('every Salud trend card opens its detail view; run / ride rows open that day in the load view (a real button in the date cell for keyboards)', () => {
+test('every Salud trend card opens its detail view; run / ride rows open that day in the load view (the row is the keyboard opener)', () => {
   const tr = (latest) => ({ latest, latestDate: '2026-06-30', avg30: latest, d30: 0, spark: sp });
   const H = {
     body: { hasData: true, weight: { ...tr(80), source: 's', sources: 1 }, bodyfat: { ...tr(18), delta: 0, source: 's' }, lean: { ...tr(60), delta: 0, source: 's' },
@@ -221,8 +238,8 @@ test('every Salud trend card opens its detail view; run / ride rows open that da
   const html = renderAt(H, '2026-07-01', { detail: true });
   const keys = ['rhr', 'hrv', 'vo2max', 'walkingHr', 'respiratory', 'wristTemp', 'sleep', 'weight', 'bodyfat', 'lean', 'waist', 'steps', 'exercise', 'distance', 'flights', 'energy'];
   for (const k of keys) assert.match(html, new RegExp(`<li class="db-row"(?: id="hl-\\w+")? data-detail="${k}" role="button" tabindex="0" aria-haspopup="dialog" aria-label="`), k);
-  assert.match(html, /<tr data-detail="load-run" data-date="2026-06-22"><td class="dt-cell"><button type="button" class="dt-row-btn" data-detail="load-run" data-date="2026-06-22" aria-haspopup="dialog">22 Jun<\/button><\/td>/);
-  assert.match(html, /<tr data-detail="load-bike" data-date="2026-06-10"><td class="dt-cell"><button type="button" class="dt-row-btn"/);
+  assert.match(html, /<li class="db-row" data-detail="load-run" data-date="2026-06-22" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Mon 22 Jun · 7.7 km · /);
+  assert.match(html, /<li class="db-row" data-detail="load-bike" data-date="2026-06-10" role="button" tabindex="0" aria-haspopup="dialog" aria-label="/);
   assert.doesNotMatch(renderAt(H, '2026-07-01'), /data-detail/, 'no detail sheet baked: plain cards and rows');
 });
 

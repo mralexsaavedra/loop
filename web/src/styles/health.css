@@ -1,4 +1,5 @@
-/* Salud tab — body / activity / energy / running / recovery sections.
+/* Salud tab — body / activity / energy / recovery sections, and the section chrome (.hs-*) Entreno's
+ * blocks share.
  * Ported verbatim (selectors + declarations) from the legacy
  * plan-web.template.html <style> block. Markup lands in slice 6 — these
  * rules are ported ahead of the markup (corrective apply pass) so that
@@ -6,66 +7,6 @@
  * (shared with Entrenos) live in training.css; this file only adds the
  * 2-column variant used here. */
 
-.dash-cards.c2 {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.run-tbl-wrap {
-  overflow-x: auto;
-  margin: var(--sp-4) 0 var(--sp-1);
-  -webkit-overflow-scrolling: touch;
-}
-.run-tbl {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--fs-sm);
-  font-family: var(--num);
-}
-.run-tbl th {
-  font-size: var(--fs-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-  font-weight: 700;
-  text-align: right;
-  padding: var(--sp-3) var(--sp-4);
-  border-bottom: 1px solid var(--line);
-  font-family: var(--sans);
-}
-.run-tbl td {
-  padding: var(--sp-3) var(--sp-4);
-  border-bottom: 1px solid var(--line);
-  text-align: right;
-  white-space: nowrap;
-}
-.run-tbl th:first-child,
-.run-tbl td:first-child {
-  text-align: left;
-}
-.run-tbl tr:last-child td {
-  border-bottom: none;
-}
-.hsub {
-  font-size: var(--fs-xs);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink);
-  font-weight: 700;
-  margin: var(--sp-11) 0 var(--sp-2);
-  display: flex;
-  align-items: center;
-  gap: var(--sp-4);
-}
-.hsub::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--trend);
-  box-shadow: none;
-}
-.hsub:first-child {
-  margin-top: var(--sp-3);
-}
 .spark {
   display: block;
   width: 100%;

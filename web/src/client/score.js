@@ -157,47 +157,86 @@ function scMod(key, btn) {
     return out.join('');
   }
 
-  /* ---- load ---- */
+  /* ---- load (Entreno #score-load) ---- */
+  // One compact card per modality: the last scored session's Relative Effort (big, strain blue) in a
+  // small ring drawn from the dial's own baked arc for that day (DIALS, so it never disagrees with the
+  // Inicio dial or the deep-dive), "LOAD · <date>", and a pill for the 7-day vs 42-day trend. A tap
+  // opens that modality's deep-dive (load-<m>). The relative score, coverage, other activities and the
+  // caveats sit behind the section's ⓘ (nothing dropped, only moved).
+  var LOAD_TONE = { steady: 'flat', above: 'good', below: 'good', ramping: 'bad', wellBelow: 'bad' };
+  var LOAD_ARROW = { steady: '•', above: '▲', ramping: '▲', below: '▼', wellBelow: '▼' };
+  function loadDialOf(key) {
+    var out = null;
+    var list = D && D.load && Array.isArray(D.load.modalities) ? D.load.modalities : [];
+    list.forEach(function (x) { if (x && x.key === key) out = x; });
+    return out;
+  }
+  function miniRing(fill) {
+    if (!D || !D.track) return '';
+    var tick = D.load && D.load.tick;
+    return '<svg class="ld-ring" viewBox="0 0 120 120" aria-hidden="true"><path class="ld-track" d="' + attr(D.track) + '"/>' +
+      (fill ? '<path class="ld-fill" d="' + attr(fill) + '"/>' : '') +
+      (tick ? '<line class="ld-tick" x1="' + attr(tick.x1) + '" y1="' + attr(tick.y1) + '" x2="' + attr(tick.x2) + '" y2="' + attr(tick.y2) + '"/>' : '') + '</svg>';
+  }
   function loadCard(m) {
-    var lt = T.load;
-    var out = ['<div class="sc-load-card" data-mod="' + esc(m.key) + '"' + HC.detailAttrs('load-' + m.key) + '>'];
-    out.push('<div class="sc-comp-top"><b>' + esc(lt.modalities[m.key]) + '</b><span class="sc-comp-val">' + esc(format(lt.dayRe, { value: num(m.load, 0, false) })) + '</span></div>');
-    out.push('<div class="sc-sub">' + (m.relScore != null
-      ? esc(format(lt.relLbl, { score: m.relScore, modality: ADV_MOD[m.key] }))
-      : esc(lt.noRel)) + '</div>');
-    if (m.trend && m.trend.ok) {
-      out.push('<div class="sc-sub">' + arrow(m.trend.band) + esc(format(lt.trendLbl, { pct: pct(m.trend.trendPct) })) + ' · ' + esc(lt.bands[m.trend.band]) + '</div>');
-    } else {
-      out.push('<div class="sc-gated">' + esc(lt.gated[(m.trend && m.trend.reason) || 'baselineBuilding']) + '</div>');
-    }
-    if (m.unscoredAcute > 0) out.push('<div class="sc-note">' + esc(format(lt.unscoredNote, { n: m.unscoredAcute })) + '</div>');
-    out.push('<div class="sc-spark">' + sparkSvg(m.spark && m.spark.v) + '</div>');
-    out.push('</div>');
-    return out.join('');
+    var lt = T.load, dl = T.dials.load;
+    var name = lt.modalities[m.key] || m.key;
+    var dm = loadDialOf(m.key);
+    var gated = dm ? dm.state !== 'ok' : !(m.trend && m.trend.ok);
+    var last = m.last && isoDate(m.last.date) ? m.last : dm && dm.last && isoDate(dm.last.date) ? dm.last : null;
+    var fill = null;
+    if (last && dm) (dm.days || []).forEach(function (x) { if (x.date === last.date && x.fill) fill = x.fill; });
+    var when = last ? (last.date === todayIso() ? lt.today : HC.fmtDate(last.date, { weekday: false })) : '';
+    var val = last && !gated ? HC.num(last.re, 0, false) : "—";
+    var tr = m.trend && m.trend.ok ? m.trend : null;
+    var pill = tr ? '<span class="ld-pill ld-' + LOAD_TONE[tr.band] + '">' + esc(LOAD_ARROW[tr.band] + ' ' + pct(tr.trendPct)) + '</span>'
+      : '<span class="ld-pill ld-flat">' + esc(dl.gated) + '</span>';
+    var aria = [format(lt.cardAria, { modality: name })];
+    aria.push(last && !gated ? format(lt.lastAria, { date: HC.fmtDate(last.date), re: val }) : gated ? lt.gated[(m.trend && m.trend.reason) || 'baselineBuilding'] : lt.noSession);
+    if (tr) aria.push(format(lt.trendLbl, { pct: pct(tr.trendPct) }) + ', ' + lt.bands[tr.band]);
+    return '<div class="ld-card' + (gated ? ' ld-off' : '') + '" data-mod="' + esc(m.key) + '"' + HC.detailAttrs('load-' + m.key) + ' aria-label="' + attr(aria.join('. ')) + '">' +
+      '<span class="ld-mod" aria-hidden="true">' + esc(name) + '</span>' +
+      '<span class="ld-mid" aria-hidden="true"><b class="ld-num">' + esc(val) + '</b>' + miniRing(gated ? null : fill) + '</span>' +
+      '<span class="ld-lbl" aria-hidden="true">' + esc(dl.label) + (when && !gated ? ' · ' + esc(when) : '') + '</span>' +
+      '<span aria-hidden="true">' + pill + '</span></div>';
+  }
+  // the notes behind the section's ⓘ: as-of date, one line per modality (relative score, trend band
+  // or why it is gated, sessions without effort), other activities, coverage, the epoch, the caveats
+  function loadInfo(L) {
+    var lt = T.load, out = [];
+    var asOf = isoDate(L.asOf) ? format(T.asOfLbl, { date: HC.fmtDate(L.asOf) }) : '';
+    if (asOf) out.push('<p>' + esc(asOf.charAt(0).toUpperCase() + asOf.slice(1)) + '. ' + esc(lt.pillHelp) + '</p>');
+    L.modalities.forEach(function (m) {
+      var parts = [m.relScore != null ? format(lt.relLbl, { score: m.relScore, modality: ADV_MOD[m.key] }) : lt.noRel];
+      if (m.trend && m.trend.ok) parts.push(format(lt.trendLbl, { pct: pct(m.trend.trendPct) }) + ' · ' + lt.bands[m.trend.band]);
+      else parts.push(lt.gated[(m.trend && m.trend.reason) || 'baselineBuilding']);
+      if (m.unscoredAcute > 0) parts.push(format(lt.unscoredNote, { n: m.unscoredAcute }));
+      out.push('<p class="sc-mod-line"><b>' + esc(lt.modalities[m.key] || m.key) + ':</b> ' + esc(parts.join(' · ')) + '</p>');
+    });
+    var o = L.other || {};
+    out.push('<p class="sc-other">' + esc(format(lt.otherLine, { days: o.windowDays || 28, minutes: num(o.minutes || 0, 0, false), re: num(o.re || 0, 0, false), sessions: o.sessions || 0 })) + '</p>');
+    var c = L.coverage || {};
+    out.push('<p class="sc-cov"><b>' + esc(lt.coverageHeading) + ':</b> ' +
+      ['scored', 'unscored', 'invalid', 'droppedJunk', 'superseded', 'preEpoch'].map(function (k) {
+        return '<span><b class="sc-cov-' + k + '">' + (c[k] || 0) + '</b> ' + esc(lt.coverage[k]) + '</span>';
+      }).join(' · ') + '</p>');
+    out.push('<p>' + esc(isoDate(L.reEpoch) ? format(lt.preEpochNote, { date: HC.fmtDate(L.reEpoch) }) : lt.noEpochNote) + '</p>');
+    return out.join('') + caveatsHtml();
   }
   function loadHtml(L) {
     var lt = T.load;
     var stale = isStale(L.asOf);
-    var out = ['<div class="sc-card sc-load' + (stale ? ' sc-stale' : '') + '">'];
-    out.push('<div class="sc-head"><h3>' + esc(lt.heading) + '</h3>' + asOfHtml(L.asOf) + '</div>');
-    if (stale) out.push(staleHtml(L.asOf));
-    out.push(L.modalities.map(loadCard).join(''));
-    var o = L.other || {};
-    out.push('<div class="sc-other">' + esc(format(lt.otherLine, { days: o.windowDays || 28, minutes: num(o.minutes || 0, 0, false), re: num(o.re || 0, 0, false), sessions: o.sessions || 0 })) + '</div>');
-    var c = L.coverage || {};
-    out.push('<div class="sc-cov"><b>' + esc(lt.coverageHeading) + ':</b> ' +
-      ['scored', 'unscored', 'invalid', 'droppedJunk', 'superseded', 'preEpoch'].map(function (k) {
-        return '<span><b class="sc-cov-' + k + '">' + (c[k] || 0) + '</b> ' + esc(lt.coverage[k]) + '</span>';
-      }).join(' · ') + '</div>');
-    out.push('<div class="sc-note">' + esc(isoDate(L.reEpoch) ? format(lt.preEpochNote, { date: HC.fmtDate(L.reEpoch) }) : lt.noEpochNote) + '</div>');
-    out.push('</div>');
-    return out.join('');
+    return '<section class="hs-sec sc-load' + (stale ? ' sc-stale' : '') + '" aria-labelledby="ld-h"><div class="hs-head"><h3 class="hs-lbl" id="ld-h">' + esc(lt.heading) + '</h3>' +
+      HC.infoBtn('ld-info', format(lt.infoLbl, { section: lt.heading })) + '</div>' +
+      '<div class="hs-info" id="ld-info" hidden>' + loadInfo(L) + '</div>' +
+      (stale ? staleHtml(L.asOf) : '') +
+      '<div class="ld-cards">' + L.modalities.map(loadCard).join('') + '</div></section>';
   }
 
   function caveatsHtml() {
     var keys = ['re', 'notComparable', 'gymLabel', 'noEpoch', 'residual', 'sdnn', 'notMedical'];
-    return '<div class="sc-card"><div class="sc-head"><h3>' + esc(T.caveatsHeading) + '</h3></div><ul class="sc-caveats">' +
-      keys.map(function (k) { return '<li class="sc-caveat">' + esc(T.caveats[k]) + '</li>'; }).join('') + '</ul></div>';
+    return '<p class="sc-caveats-h"><b>' + esc(T.caveatsHeading) + '</b></p><ul class="sc-caveats">' +
+      keys.map(function (k) { return '<li class="sc-caveat">' + esc(T.caveats[k]) + '</li>'; }).join('') + '</ul>';
   }
 
 
@@ -440,7 +479,7 @@ function scMod(key, btn) {
     // the advice sentence reads as the conclusion of the dials above it
     write(host, function () { return (dialsHost ? '' : safe(dialsHtml)) + safe(adviceHtml, null, ''); });
     if (S.recovery) write('score-recovery', function () { return safe(recoveryHtml, S.recovery); });
-    write('score-load', function () { return (S.load ? safe(loadHtml, S.load) : '') + safe(caveatsHtml); });
+    write('score-load', function () { return S.load ? safe(loadHtml, S.load) : emptyHtml(); });
   }
   render();
 })();

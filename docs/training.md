@@ -9,24 +9,44 @@ Programmed session (Hoy), activity calendar and the executed-workouts dashboard.
 ## Training tabs — "Hoy / Today" + "Entrenos / Workouts" pipeline
 
 The same single-file build carries two training sections (programmed session in Inicio — a row of "Today's activities" —,
-Entrenamiento at the bottom of Entreno — they were tabs before the tab layout), computed by `lib/training/program.mjs`
+the `dash` section at the bottom of Entreno — they were tabs before the tab layout), computed by `lib/training/program.mjs`
 (programmed sessions) and `lib/training/dashboard.mjs` (executed-workout aggregation) and
 rendered by `web/src/tabs/{Hoy,Entrenos}.astro`. Same single-source pattern as nutrition.
 
-**🏃 Entreno tab, above the dashboard** (`web/src/tabs/TrainingDetail.astro`, hosts only): the
-per-modality load cards + caveats (`#score-load`, client/score.js), then the **30-day activity
-calendar** and **cumulative training time** (`#train-activity`, `lib/training/activity.mjs` →
-`ACTIVITY`, baked in TrainingDetail with `I18N_ACTIVITY`; client/training-activity.js), then running,
-cycling and load vs recovery (`#health-train`, client/health.js). The calendar/cumulative follow the
+**🏃 Entreno tab, above the intensity block** (`web/src/tabs/TrainingDetail.astro`, hosts only): a
+centred uppercase title with an ⓘ (`#tr-intro`, hidden: the tab intro, how to read a card and the
+data caveats every block shares; built server-side from `activity-templates.mjs` `head`, never baked
+for the client), then the **load summary** (`#score-load`, client/score.js `loadHtml`): a "LOAD"
+header with its own ⓘ (`#ld-info`: the as-of date, how to read a card, one line per modality with the
+relative score / the trend band or why it is gated / sessions without effort, other activities,
+coverage, the RE epoch and the caveats list — moved, not dropped) over three compact cards (gym / run /
+bike): the LAST scored session's Relative Effort big in `--strain`, a small ring = the dial's own baked
+arc for that session (`DIALS.load.modalities[].days[].fill`, the typical-day tick), "LOAD · <date>"
+(`today` when it is the viewer's today) and a 7-day vs 42-day pill — grey • steady, teal ▲▼ above /
+below usual, orange ▲▼ ramping / well below (`lib/score/load.mjs` bands); a gated modality shows "—"
+and the dial's "Building" word. A card opens that modality's deep-dive (`load-<m>`). Then the
+**Activity card** (`#train-activity`, `lib/training/activity.mjs` → `ACTIVITY`, baked in TrainingDetail
+with `I18N_ACTIVITY`; client/training-activity.js) — ONE card for what used to be the 30-day calendar,
+the cumulative training time and the dashboard's weekly volume + modality split: an "ACTIVITY" header
+with an ⓘ (`#act-info`: how each number is counted, the distinct-days / duration note, the Watch-label
+caveat), then TOTAL TIME of the chosen window with a neutral pill vs the window of the same length
+before it (▲▼• and %; "no prior period" when that window starts before the first session — `first` —
+or outside the baked days; "no training the … before" when it holds none), a W / M / 6M switch (7 /
+30 / 182 days, the detail sheet's ranges; M by default, the choice kept per viewer in
+`localStorage` `hc-act-range`, optional; the pressed button keeps focus), three tiles SESSIONS (one per
+day and modality) · DAYS (distinct training days) · PER WEEK (the total over n/7 weeks), the modality
+split as ONE stacked horizontal SVG bar (widths in attributes, largest first) with a legend "N× name
+share · time" (gym `--strain`, strength `--strain-ink`, run `--up`, bike `--mid`, other `--faint`;
+always named, never colour alone), then the compact calendar (always the last 30 days). The total and
+the calendar open the `workouts` sheet, a day cell that day; the switch sits outside every opener.
+Then running, cycling and load vs recovery (`#health-train`, client/health.js). The card follows the
 dashboard's rules: duration not kcal, DISTINCT days, dashboard modality buckets, and the shared
 same-day rule (`lib/training/sessions.mjs` `DISPLAY_RULE`: stubs under 3 min dropped, one source per
-date + bucket, then summed); the workouts dashboard uses the same rule, so its days/minutes agree. Only the last 63 data days are baked (two 30-day windows + 3 days of viewer slack), one entry
-per active day; the client ends both windows at the VIEWER's today, or at the data date when that is
-more than 3 days old (greyed, with a note) or AFTER the viewer's today (clock / timezone skew, so the
-newest sessions stay visible). Calendar = Monday-first weeks, ONE sequential hue
-(`--strain`) in five levels by total minutes (none, < 30, 30–59, 60–89, 90+), an SVG `<title>` per
-cell; cumulative = the running sum of daily minutes, last 30 days (`--strain`) vs the previous 30
-(dashed `--faint`), totals written in the legend, a hover target per day.
+date + bucket, then summed). Only the last 367 data days are baked (6M twice + 3 days of viewer slack),
+one entry per active day; the client ends every window at the VIEWER's today, or at the data date when
+that is more than 3 days old (greyed, with a note) or AFTER the viewer's today (clock / timezone skew,
+so the newest sessions stay visible). Calendar = Monday-first weeks, ONE sequential hue (`--strain`) in
+five levels by total minutes (none, < 30, 30–59, 60–89, 90+), an SVG `<title>` per cell.
 
 **🏋️ Hoy / Today — programmed session.** On Inicio it is a row of "Today's activities", not a
 block: `client/training-today.js` renders the session into `#train-today` inside the `hoy` section
@@ -60,16 +80,23 @@ reactivate). Keep the section visible in the example build (`plan-data.example.j
 `hideTabs`) as a working example. Which program/app the owner actually uses is personal → it
 lives in `profile/about-me.md` (gitignored), never in a tracked file.
 
-**📈 Entrenos / Workouts — executed-sessions dashboard.** Source (OPTIONAL):
-`data/apple-health/extract/workouts.csv`. `lib/training/dashboard.mjs` aggregates it
-(frequency, weekly volume, modality split). If the CSV is absent (fresh clone), the tab
-shows an empty state — it never fails the build. Data-honesty rules are baked in: use DURATION
-not kcal (blank on recent exports); count DISTINCT DAYS not raw rows (the Watch fragments one
-session into several records) after the shared same-day `DISPLAY_RULE` (stubs dropped, a Watch copy
-of a Strava session counted once — same totals as the calendar); the modality split (strength/hiit/run/bike/other) reflects the
-WATCH's auto-labels, which over-tag HIIT and under-count strength — the page says so on-screen. The
-`hiit` bucket is LABELLED "Gimnasio"/"Gym" (display only, same bucket) so it matches Inicio's gym
-load card; `strength` keeps its own label.
+**📈 Intensity (HR) — what is left of the executed-sessions dashboard** (`dash` section,
+`tabs/Entrenos.astro`, client/training-dash.js). Source (OPTIONAL):
+`data/apple-health/extract/workouts.csv`. `lib/training/dashboard.mjs` aggregates it (`DASH`: 12 weeks
+of frequency, weekly volume, modality split, per-modality HR). Since P6a the page draws only the HR part:
+an "INTENSITY (HR)" header with an ⓘ (`#int-info`: the minute-weighted mean, how many sessions carry HR,
+the window and data date, the strength caveat) over one `HC.metricRow` per modality with HR — the mean
+HR, the peak as the small line, highest first. The extract has no heart-rate zones, so no zone bars
+are drawn, and the HR is a fixed 12-week aggregate (not per W / M / 6M), so it stays a compact card of
+its own instead of joining the Activity card. No data or no HR: nothing is drawn (the Activity card
+holds the empty state). Volume, frequency and the modality split are the Activity card's now (same
+same-day rule, so the numbers agree). Data-honesty rules stay baked in: use DURATION not kcal (blank on
+recent exports); count DISTINCT DAYS not raw rows (the Watch fragments one session into several
+records) after the shared same-day `DISPLAY_RULE` (stubs dropped, a Watch copy of a Strava session
+counted once); the modality buckets (strength/hiit/run/bike/other) reflect the WATCH's auto-labels,
+which over-tag HIIT and under-count strength — the Activity card's ⓘ says so. The `hiit` bucket is
+LABELLED "Gimnasio"/"Gym" (display only, same bucket) so it matches Inicio's gym load card; `strength`
+keeps its own label.
 
 Strava sync (`npm run sync:strava`): see `docs/data-pipeline.md` → Strava sync.
 

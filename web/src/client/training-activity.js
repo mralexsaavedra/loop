@@ -1,14 +1,21 @@
-/* Entreno: 30-day activity calendar + cumulative training time (last 30 days vs the previous 30),
- * rendered from ACTIVITY (lib/training/activity.mjs) + I18N_ACTIVITY, both baked by
- * tabs/TrainingDetail.astro.
+/* Entreno "Activity" card: ONE card for what used to be the 30-day calendar, the cumulative training
+ * time and the workouts dashboard's weekly volume + modality split. Rendered from ACTIVITY
+ * (lib/training/activity.mjs) + I18N_ACTIVITY, both baked by tabs/TrainingDetail.astro.
+ *
+ * Top to bottom: the "ACTIVITY" header with an ⓘ (how the numbers are counted, the Watch-label
+ * caveat), then the card: TOTAL TIME of the chosen window + a pill vs the window before it, the
+ * W / M / 6M switch (7 / 30 / 182 days, the detail sheet's ranges), SESSIONS · DAYS · PER WEEK, the
+ * modality split as one stacked bar with a legend (sessions × + share of the minutes), and the
+ * compact 30-day calendar (always the last 30 days, Monday-first, one sequential hue: --strain).
  *
  * Classic script (is:inline, no module scope). ACTIVITY holds one entry per active day of the last
- * 63 data days; both windows end HERE at the viewer's today (from Date.now(), never baked, so builds
- * stay byte-identical) — or at the data's own date when that is more than STALE_DAYS old (greyed
- * with a note) or AFTER the viewer's today (clock / timezone skew: its sessions stay visible). Colour = one sequential hue (--strain, via .cal-l1…4 in training.css) for total
- * minutes; every cell and chart day carries an SVG <title> for hover. Geometry lives in attributes
- * (no inline styles). A throw renders the empty state, never a blank tab. Both blocks open the
- * training-time detail sheet (HC.detailAttrs -> client/detail.js); a tap on a day cell opens that day.
+ * 367 data days; every window ends HERE at the viewer's today (from Date.now(), never baked, so
+ * builds stay byte-identical) — or at the data's own date when that is more than STALE_DAYS old
+ * (greyed with a note) or AFTER the viewer's today (clock / timezone skew: its sessions stay
+ * visible). A window that starts before the first session gets no comparison. Geometry lives in SVG
+ * attributes (no inline styles). A throw renders the empty state, never a blank tab. The totals and
+ * the calendar open the training-time detail sheet (HC.detailAttrs -> client/detail.js); a tap on a
+ * day cell opens that day. The chosen window is a per-viewer convenience (localStorage, optional).
  */
 (function () {
   var host = document.getElementById('train-activity');
@@ -16,12 +23,24 @@
   var A = typeof ACTIVITY === 'undefined' ? null : ACTIVITY;
   var T = typeof I18N_ACTIVITY === 'undefined' ? null : I18N_ACTIVITY;
   if (!T) return;
+  var W = typeof window === 'undefined' ? null : window;
   // calendar geometry (SVG user units): square cells with a gap, a weekday header row on top
   var CAL_CELL = 16, CAL_GAP = 4, CAL_STEP = CAL_CELL + CAL_GAP, CAL_HEAD = 14, CAL_WD_Y = 10, CAL_RX = 4;
-  // cumulative chart geometry: viewBox width / height and the inner padding
-  var CUM_W = 300, CUM_H = 110, CUM_PAD = 6;
-  // shared helpers (web/src/client/util.js); window and level cuts are baked in ACTIVITY
+  // the bar's known buckets (the dashboard's; the Watch's `hiit` is shown as Gym); segments are drawn
+  // largest first
+  var MODS = ['hiit', 'strength', 'run', 'bike', 'other'];
+  // a change below this share is "about the same" (the detail sheet's DELTA_FLAT)
+  var DELTA_FLAT = 0.01;
+  var RANGE_KEY = { 7: 'w', 30: 'm', 182: 'm6' };
+  var STORE = 'hc-act-range';
+  // shared helpers (web/src/client/util.js); windows and level cuts are baked in ACTIVITY
   var esc = HC.esc, format = HC.format, shift = HC.shiftIso, parse = HC.parseIso;
+  var PERIODS = A && Array.isArray(A.periods) ? A.periods : [7, 30, 182];
+  var range = 30;
+  try {
+    var saved = Number(W.localStorage.getItem(STORE));
+    if (PERIODS.indexOf(saved) !== -1) range = saved;
+  } catch (e) { /* no storage: the default window */ }
 
   function hm(min) {
     return HC.duration(min, T.units);
@@ -30,6 +49,44 @@
     var l = 0;
     cuts.forEach(function (cut, i) { if (min >= cut) l = i + 1; });
     return l;
+  }
+  function pct(v) {
+    return HC.num(v, 0, false) + (HC.isEs() ? ' %' : '%');
+  }
+
+  // The numbers of one window [end − n + 1, end] (pure; exposed as HCActivity.summary): total minutes,
+  // sessions (one per day and modality — the shared same-day rule already merged the fragments),
+  // active days, minutes per week, the split by modality ({min, n}) and, when the window before it
+  // lies wholly after the first session and inside the baked days, its total (`prev`) and the change
+  // in % (`pct`, null when the window before had no training).
+  function summary(byDate, end, n) {
+    var out = { from: shift(end, -(n - 1)), to: end, min: 0, sessions: 0, days: 0, perWeek: 0, mods: {}, prev: null, pct: null };
+    function sum(from, to, mods) {
+      var t = 0;
+      for (var d = from; d <= to; d = shift(d, 1)) {
+        var x = byDate[d];
+        if (!x || !(x.min > 0)) continue;
+        t += x.min;
+        if (!mods) continue;
+        out.days++;
+        Object.keys(x.mods).forEach(function (k) {
+          var m = mods[k] || (mods[k] = { min: 0, n: 0 });
+          m.min += x.mods[k];
+          m.n++;
+          out.sessions++;
+        });
+      }
+      return t;
+    }
+    out.min = sum(out.from, end, out.mods);
+    out.perWeek = Math.round(out.min * 7 / n);
+    var pFrom = shift(out.from, -n), pTo = shift(out.from, -1);
+    var baked = A && A.asOf && A.bakeDays ? shift(A.asOf, -(A.bakeDays - 1)) : pFrom;
+    if (A && A.first && pFrom >= A.first && pFrom >= baked) {
+      out.prev = sum(pFrom, pTo, null);
+      out.pct = out.prev > 0 ? 100 * (out.min - out.prev) / out.prev : null;
+    }
+    return out;
   }
 
   function calendar(dates, byDate) {
@@ -52,63 +109,98 @@
     return out.join('');
   }
 
-  function cumulative(cur, prev) {
-    var W = CUM_W, H = CUM_H, PAD = CUM_PAD;
-    var max = Math.max(cur[cur.length - 1], prev[prev.length - 1]) || 1;
-    function pts(v) {
-      return v.map(function (y, i) {
-        return (PAD + (W - 2 * PAD) * i / (v.length - 1)).toFixed(1) + ',' + (PAD + (H - 2 * PAD) * (1 - y / max)).toFixed(1);
-      });
-    }
-    var out = ['<svg class="cum-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="' + esc(format(T.cumAria, { cur: hm(cur[cur.length - 1]), prev: hm(prev[prev.length - 1]) })) + '">'];
-    out.push('<line class="cum-base" x1="' + PAD + '" y1="' + (H - PAD) + '" x2="' + (W - PAD) + '" y2="' + (H - PAD) + '"/>');
-    out.push('<path class="cum-line cum-prev" d="M' + pts(prev).join(' L') + '"/>');
-    out.push('<path class="cum-line cum-cur" d="M' + pts(cur).join(' L') + '"/>');
-    var slot = (W - 2 * PAD) / cur.length;
-    cur.forEach(function (v, i) {
-      out.push('<rect class="cum-hit" x="' + (PAD + i * slot).toFixed(1) + '" y="0" width="' + slot.toFixed(1) + '" height="' + H + '"><title>' + esc(format(T.dayTitle, { n: i + 1, cur: hm(v), prev: hm(prev[i]) })) + '</title></rect>');
+  function rangeHtml() {
+    return '<div class="dt-range act-range" role="group" aria-label="' + esc(T.rangeLabel) + '">' + PERIODS.map(function (r) {
+      var k = RANGE_KEY[r];
+      return '<button type="button" data-act-range="' + r + '" aria-pressed="' + (r === range ? 'true' : 'false') + '" aria-label="' + esc(T.rangesLong[k]) + '">' + esc(T.ranges[k]) + '</button>';
+    }).join('') + '</div>';
+  }
+
+  // total time + the pill vs the window before (neutral grey: more training is neither good nor bad)
+  function totalHtml(s) {
+    var k = RANGE_KEY[range], pill;
+    if (s.pct != null) {
+      var flat = Math.abs(s.pct) < 100 * DELTA_FLAT;
+      pill = (flat ? '•' : s.pct > 0 ? '▲' : '▼') + ' ' + pct(Math.abs(s.pct)) + ' ' + T.vs[k];
+    } else pill = s.prev === 0 ? T.prevNone[k] : T.noPrev;
+    return '<div class="act-sum"' + HC.detailAttrs('workouts') + '><span class="dt-trend-lbl">' + esc(T.totalLbl) + '</span>' +
+      '<div class="dt-trend-row"><b class="dt-trend-num">' + esc(hm(s.min)) + '</b><span class="dt-pill">' + esc(pill) + '</span></div></div>';
+  }
+  function statsHtml(s) {
+    var tiles = [[String(s.sessions), T.sessionsLbl], [String(s.days), T.daysLbl], [hm(s.perWeek), T.perWeekLbl]];
+    return '<div class="act-stats">' + tiles.map(function (t) {
+      return '<div class="act-stat"><b>' + esc(t[0]) + '</b><span>' + esc(t[1]) + '</span></div>';
+    }).join('') + '</div>';
+  }
+  // the split: one stacked horizontal bar (SVG, widths in attributes) + a legend with counts
+  function splitHtml(s) {
+    var keys = Object.keys(s.mods).filter(function (k) { return s.mods[k].min > 0; });
+    if (!s.min || !keys.length) return '<p class="act-none">' + esc(T.noSessions) + '</p>';
+    keys.sort(function (a, b) { return s.mods[b].min - s.mods[a].min || MODS.indexOf(a) - MODS.indexOf(b); });
+    var x = 0, segs = [], items = [], aria = [];
+    keys.forEach(function (k) {
+      var w = 100 * s.mods[k].min / s.min, share = pct(Math.round(w));
+      var name = T.modalityLabels[k] || k, cls = MODS.indexOf(k) === -1 ? 'other' : k;
+      segs.push('<rect class="act-m-' + cls + '" x="' + x.toFixed(2) + '" y="0" width="' + w.toFixed(2) + '" height="8"/>');
+      x += w;
+      items.push('<li><span class="act-sw act-m-' + cls + '" aria-hidden="true"></span><b>' + s.mods[k].n + '×</b> ' + esc(name) + ' <small>' + esc(share + ' · ' + hm(s.mods[k].min)) + '</small></li>');
+      aria.push(format(T.splitItem, { name: name, n: s.mods[k].n, share: share, time: hm(s.mods[k].min) }));
     });
-    out.push('</svg>');
-    return out.join('');
+    return '<div class="act-split"><span class="dt-trend-lbl">' + esc(T.splitLbl) + '</span>' +
+      '<svg class="act-bar" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="' + esc(T.splitLbl + ': ' + aria.join(', ')) + '">' + segs.join('') + '</svg>' +
+      '<ul class="act-legend">' + items.join('') + '</ul></div>';
   }
 
   function html() {
-    if (!A || !A.hasData || !Array.isArray(A.days)) return '<div class="train-empty">' + T.empty + '</div>';
+    var head = '<div class="hs-head"><h3 class="hs-lbl" id="act-h">' + esc(T.heading) + '</h3>' + HC.infoBtn('act-info', format(T.infoLbl, { section: T.heading })) + '</div>' +
+      '<div class="hs-info" id="act-info" hidden><p>' + esc(T.help) + '</p><p>' + esc(T.note) + '</p><p>' + esc(T.labelsNote) + '</p></div>';
+    if (!A || !A.hasData || !Array.isArray(A.days)) return '<section class="hs-sec act" aria-labelledby="act-h">' + head + '<div class="train-empty">' + T.empty + '</div></section>';
     var today = HC.todayIso();
     var age = HC.daysOld(A.asOf);
     var stale = age > HC.STALE_DAYS;
-    var WINDOW = A.windowDays;
     var end = stale || age < 0 ? A.asOf : today;
     var byDate = {};
     A.days.forEach(function (d) { byDate[d.date] = d; });
-    var dates = [], prevDates = [];
-    for (var i = WINDOW - 1; i >= 0; i--) {
-      dates.push(shift(end, -i));
-      prevDates.push(shift(end, -i - WINDOW));
-    }
+    var dates = [];
+    for (var i = A.windowDays - 1; i >= 0; i--) dates.push(shift(end, -i));
     var active = dates.filter(function (d) { return byDate[d] && byDate[d].min > 0; }).length;
-    function cum(ds) {
-      var s = 0;
-      return ds.map(function (d) { s += byDate[d] ? byDate[d].min : 0; return s; });
-    }
-    var cur = cum(dates), prev = cum(prevDates);
+    var s = summary(byDate, end, range);
     var legend = T.levels.map(function (lbl, l) {
       return '<span class="cal-legend-item"><span class="cal-legend-sw cal-l' + l + '"></span>' + esc(lbl) + '</span>';
     }).join('');
-    return '<div class="act' + (stale ? ' act-stale' : '') + '">' +
+    return '<section class="hs-sec act' + (stale ? ' act-stale' : '') + '" aria-labelledby="act-h">' + head +
       (stale ? '<p class="hint">' + esc(format(T.staleNote, { days: age, date: HC.fmtDate(A.asOf) })) + '</p>' : '') +
-      '<div class="act-pair"><div class="dash-sec act-cal"' + HC.detailAttrs('workouts') + '><h3>' + esc(T.calHeading) + '</h3><p class="hint">' + esc(format(T.calHint, { days: active })) + '</p>' +
-      calendar(dates, byDate) + '<div class="cal-legend">' + legend + '</div></div>' +
-      '<div class="dash-sec act-cum"' + HC.detailAttrs('workouts') + '><h3>' + esc(T.cumHeading) + '</h3><p class="hint">' + esc(T.cumHint) + '</p>' +
-      '<div class="cum-legend"><span class="cum-key"><span class="cum-sw cum-cur"></span>' + esc(T.cur) + ' <b>' + esc(hm(cur[cur.length - 1])) + '</b></span>' +
-      '<span class="cum-key"><span class="cum-sw cum-prev"></span>' + esc(T.prev) + ' <b>' + esc(hm(prev[prev.length - 1])) + '</b></span></div>' +
-      cumulative(cur, prev) + '</div></div>' +
-      '<div class="dash-note">' + esc(T.note) + '</div></div>';
+      '<div class="act-card"><div class="act-top">' + totalHtml(s) + rangeHtml() + '</div>' + statsHtml(s) + splitHtml(s) +
+      '<div class="act-cal"' + HC.detailAttrs('workouts') + '><span class="dt-trend-lbl">' + esc(T.calHeading) + '</span>' +
+      '<p class="hint">' + esc(format(T.calHint, { days: active })) + '</p>' +
+      calendar(dates, byDate) + '<div class="cal-legend">' + legend + '</div></div></div></section>';
   }
 
-  try {
-    host.innerHTML = html();
-  } catch (e) {
-    host.innerHTML = '<div class="train-empty">' + T.empty + '</div>';
+  function render(focusRange) {
+    try {
+      host.innerHTML = html();
+    } catch (e) {
+      host.innerHTML = '<div class="train-empty">' + T.empty + '</div>';
+    }
+    if (focusRange && typeof host.querySelector === 'function') {
+      var b = host.querySelector('[data-act-range="' + focusRange + '"]');
+      if (b && typeof b.focus === 'function') b.focus();
+    }
   }
+  // W / M / 6M: re-render in place, focus stays on the button just pressed
+  function choose(r) {
+    if (PERIODS.indexOf(r) === -1 || r === range) return;
+    range = r;
+    try { W.localStorage.setItem(STORE, String(r)); } catch (e) { /* convenience only */ }
+    render(r);
+  }
+  if (typeof host.addEventListener === 'function') {
+    host.addEventListener('click', function (e) {
+      var t = e && e.target;
+      var b = t && typeof t.closest === 'function' ? t.closest('[data-act-range]') : null;
+      if (b) choose(Number(b.getAttribute('data-act-range')));
+    });
+  }
+  if (W) W.HCActivity = { summary: summary, choose: choose };
+  render();
 })();

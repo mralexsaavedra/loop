@@ -22,7 +22,7 @@ export default {
       // headings of the sections that used to be tabs of their own (Mi día/Tablas keep theirs)
       sections: {
         hoy: 'Entreno de hoy',
-        dash: 'Entrenamiento',
+        dash: 'Intensidad (FC)',
       },
     },
     tablas: {

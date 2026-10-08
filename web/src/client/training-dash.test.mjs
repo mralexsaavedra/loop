@@ -1,4 +1,4 @@
-/* Tests for Entreno's workouts dashboard renderer (web/src/client/training-dash.js): runs the classic
+/* Tests for Entreno's Intensity (HR) block (web/src/client/training-dash.js): runs the classic
  * script in a vm with DASH baked by the real aggregator (lib/training/dashboard.mjs), I18N_DASH and
  * LOCALE, the shared HC helpers (loadUtil) and the escaping DOM stub. */
 import { test } from 'node:test';
@@ -37,53 +37,36 @@ function render(dash, { locale = 'en', host = true } = {}) {
 }
 const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
-test('typical data: as-of line, the three summary cards, 12 weekly bars, modality and intensity sections', () => {
+test('intensity only: one metric row per modality with HR (mean HR, the peak as the small line), highest first; volume, split and summary cards are gone (Activity card)', () => {
   assert.equal(DASH.hasData, true);
   const html = render(DASH);
-  assert.ok(html.includes(enD.asOfLine.replace('{date}', '28 Sep')), 'as-of date through the shared formatter, no weekday');
-  const nums = [...html.matchAll(/<div class="dash-num">([^<]*)<\/div>/g)].map((m) => m[1]);
-  assert.deepEqual(nums, [String(DASH.recent.daysPerWeek), DASH.recent.minPerWeek < 60 ? DASH.recent.minPerWeek + ' min' : (Math.round(DASH.recent.minPerWeek / 6) / 10) + ' h', String(DASH.recent.sessions)]);
-  assert.equal((html.match(/class="wbar[ "]/g) || []).length, DASH.weeks);
-  assert.ok(html.includes(enD.volHint.replace('{weeks}', '12')));
-  for (const m of DASH.modality) assert.ok(html.includes(`<span class="mlbl">${enD.modalityLabels[m.key]}</span>`), m.key);
-  assert.ok(html.includes(enD.intensityHeading), 'HR present -> intensity section');
-  assert.ok(html.includes(enD.note1Html) && html.includes(enD.note2Html));
+  assert.match(html, /^<section class="hs-sec" aria-labelledby="int-h"><div class="hs-head"><h3 class="hs-lbl" id="int-h">Intensity \(HR\)<\/h3><button type="button" class="hs-i" data-hs-info="int-info"/);
+  const rows = [...html.matchAll(/<li class="db-row"[^>]*>[\s\S]*?<span class="db-name">([^<]+)<\/span><span class="db-vals"><span class="db-val"><b>(\d+)<\/b><small>bpm<\/small><\/span><span class="db-base">([^<]*)<\/span>/g)].map((m) => [m[1], +m[2], m[3]]);
+  const withHr = DASH.modality.filter((m) => m.avgHr).sort((a, b) => b.avgHr - a.avgHr);
+  assert.deepEqual(rows, withHr.map((m) => [enD.modalityLabels[m.key], m.avgHr, `peak ${m.peakHr}`]));
+  assert.doesNotMatch(html, /dash-cards|wbar|class="mrow"|Weekly volume|Modality split/, 'the merged parts are not drawn twice');
   assert.doesNotMatch(html, /NaN|undefined|null|Infinity/);
 });
 
-test('zero-activity weeks render as .zero bars with a 0% height, never NaN', () => {
+test('the window, HR coverage, data date and strength caveat sit behind ⓘ (hidden), not lost', () => {
   const html = render(DASH);
-  const bars = [...html.matchAll(/<div class="wbar( zero)?" title="([^"]*)"><i style="height:(\d+)%"><\/i><\/div>/g)];
-  assert.equal(bars.length, 12);
-  const zero = bars.filter((b) => b[1]);
-  assert.ok(zero.length > 0, 'the 12-week window starts before the first session');
-  for (const b of zero) { assert.equal(b[3], '0'); assert.match(b[2], /: 0 min · 0d$/); }
-  assert.ok(bars.some((b) => b[3] === '100'), 'the busiest week fills the bar');
+  const info = html.match(/<div class="hs-info" id="int-info" hidden>([\s\S]*?)<\/div><ul/)[1];
+  assert.ok(info.includes(enD.intensityHint.replace('{withHr}', String(DASH.intensity.withHr)).replace('{total}', String(DASH.intensity.total)).replace('{weeks}', '12')));
+  assert.ok(info.includes(enD.asOfLine.replace('{date}', '28 Sep')), 'as-of date through the shared formatter, no weekday');
+  assert.ok(info.includes(enD.note2Html));
 });
 
-test('no HR on any session: the intensity section and its note are omitted', () => {
-  const dash = aggregateDashboard(ROWS.map((r) => ({ ...r, hrAvg: null, hrMax: null })));
-  const html = render(dash);
-  assert.ok(!html.includes(enD.intensityHeading));
-  assert.ok(!html.includes(enD.note2Html));
-  assert.ok(html.includes(enD.note1Html));
-  assert.doesNotMatch(html, /NaN|undefined/);
+test('no HR on any session, or no data: nothing is drawn (the Activity card holds the empty state)', () => {
+  assert.equal(render(aggregateDashboard(ROWS.map((r) => ({ ...r, hrAvg: null, hrMax: null })))), '');
+  assert.equal(render({ hasData: false }), '');
+  assert.equal(render(aggregateDashboard([])), '');
 });
 
-test('empty state: no data (no workouts.csv) shows the empty message only', () => {
-  const html = render({ hasData: false });
-  assert.equal(html, `<div class="train-empty">${enD.emptyMsg}</div>`);
-  assert.equal(render(aggregateDashboard([])), `<div class="train-empty">${enD.emptyMsg}</div>`, 'aggregator on zero rows');
-});
-
-test('es locale: Spanish labels, comma decimals in hours and Spanish as-of date', () => {
+test('es locale: Spanish labels and Spanish as-of date', () => {
   const html = render(DASH, { locale: 'es' });
   assert.ok(html.includes(esD.asOfLine.replace('{date}', '28 sept')));
-  assert.ok(html.includes(esD.daysPerWeekLbl));
-  const hours = [...text(html).matchAll(/\d+[.,]\d+ h/g)].map((m) => m[0]);
-  assert.ok(hours.length > 0);
-  for (const h of hours) assert.ok(!h.includes('.'), `decimal comma in ${h}`);
-  assert.doesNotMatch(html, /NaN|undefined/);
+  assert.ok(html.includes('Intensidad (FC)'));
+  assert.ok(html.includes('<small>ppm</small>'));
 });
 
 test('no host element: renders nothing and does not throw', () => {

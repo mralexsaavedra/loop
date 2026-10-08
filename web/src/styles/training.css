@@ -94,11 +94,6 @@
 }
 
 /* training dashboard — "Workouts" tab */
-.dash-as {
-  color: var(--faint);
-  font-size: var(--fs-sm);
-  margin: var(--sp-6) 0 var(--sp-1);
-}
 .dash-cards {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -169,10 +164,9 @@
 }
 .wbar i {
   display: block;
-  background: linear-gradient(var(--strain), var(--strain-soft));
-  border-radius: var(--r-xs) var(--r-xs) 0 0;
+  background: var(--strain);
+  border-radius: 2px 2px 0 0;
   min-height: 2px;
-  box-shadow: 0 0 12px -2px rgba(var(--strain-rgb), 0.5);
 }
 .wbar.zero i {
   background: var(--line);
@@ -184,39 +178,6 @@
   font-size: var(--fs-2xs);
   color: var(--faint);
   margin-top: var(--sp-3);
-}
-.mrow {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-4);
-  margin: var(--sp-3) 0;
-  font-size: var(--fs-md);
-}
-.mrow .mlbl {
-  flex: none;
-  width: 108px;
-  color: var(--ink);
-}
-.mtrack {
-  flex: 1;
-  background: var(--surface-2);
-  border-radius: var(--r-xs);
-  height: 14px;
-  overflow: hidden;
-}
-.mtrack i {
-  display: block;
-  height: 100%;
-  background: var(--trend);
-  border-radius: var(--r-xs);
-}
-.mrow .mval {
-  flex: none;
-  width: 92px;
-  text-align: right;
-  color: var(--muted);
-  font-family: var(--num);
-  font-size: var(--fs-sm);
 }
 .dash-note {
   background: var(--surface);
@@ -231,13 +192,6 @@
 .dash-note b {
   color: var(--ink);
   font-weight: 700;
-}
-
-@media (min-width: 900px) {
-  /* Entrenos — more room for the volume bars */
-  #train-dash .wbars {
-    height: 150px;
-  }
 }
 
 /* Entreno — 30-day activity calendar: ONE sequential hue (--strain = load), level = total minutes */
@@ -303,85 +257,129 @@
   background: rgba(var(--strain-rgb), 0.8);
 }
 
-/* cumulative training time: current window = --strain line, previous = recessive dashed --faint */
-.cum-svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  margin-top: var(--sp-3);
+/* Entreno "Load vs recovery": the weekly load bars sit in one card (client/health.js renderEntreno) */
+.lvr-card {
+  margin-bottom: var(--sp-3);
+  padding: var(--sp-5);
+  border-radius: var(--r-sm);
+  background: var(--card-bg);
 }
-.cum-base {
-  stroke: var(--line);
-  stroke-width: 1;
+
+/* Entreno Activity card (client/training-activity.js): total + W / M / 6M switch, stats, the modality
+ * split bar, the compact calendar */
+.act-card {
+  padding: var(--sp-6) var(--sp-5);
+  border-radius: var(--r-sm);
+  background: var(--card-bg);
 }
-.cum-line {
-  fill: none;
-  stroke-width: 2;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
+.act-card > * + * {
+  margin-top: var(--sp-6);
 }
-.cum-cur {
-  stroke: var(--strain);
-}
-.cum-prev {
-  stroke: var(--faint);
-  stroke-dasharray: 4 3;
-}
-.cum-hit {
-  fill: transparent;
-}
-.cum-hit:hover {
-  fill: rgba(var(--strain-rgb), 0.08);
-}
-.cum-legend {
+.act-top {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-2) var(--sp-7);
-  margin-top: var(--sp-3);
-  font-size: var(--fs-sm);
-  color: var(--muted);
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
 }
-.cum-legend b {
-  color: var(--ink);
+.act-range button {
+  min-width: 44px;
+  padding: 0 var(--sp-3);
+}
+.act-sum[data-detail][role="button"]::after,
+.act-cal[data-detail][role="button"]::after {
+  content: none;
+}
+.act-sum[data-detail][role="button"],
+.act-cal[data-detail][role="button"] {
+  padding-right: 0;
+}
+.act-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+.act-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-4);
+  border-radius: var(--r-xs);
+  background: var(--surface-2);
+}
+.act-stat b {
   font-family: var(--num);
+  font-size: var(--fs-2xl);
+  line-height: 1.1;
 }
-.cum-key {
+.act-stat span {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.act-bar {
+  display: block;
+  width: 100%;
+  height: 10px;
+  margin: var(--sp-3) 0 var(--sp-4);
+  border-radius: 3px;
+}
+.act-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+}
+.act-legend li {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
 }
-.cum-sw {
-  width: 14px;
-  height: 0;
-  border-top: 2px solid var(--strain);
+.act-legend b {
+  font-family: var(--num);
 }
-.cum-sw.cum-prev {
-  border-top: 2px dashed var(--faint);
+.act-legend small {
+  color: var(--faint);
+  font-size: var(--fs-2xs);
+}
+.act-sw {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+/* modality identity (legend swatch + bar segment): gym = strain blue, strength its light tint, run
+   teal, bike yellow, anything else grey — the legend always names them, colour is never alone */
+.act-m-hiit {
+  fill: var(--strain);
+  background: var(--strain);
+}
+.act-m-strength {
+  fill: var(--strain-ink);
+  background: var(--strain-ink);
+}
+.act-m-run {
+  fill: var(--up);
+  background: var(--up);
+}
+.act-m-bike {
+  fill: var(--mid);
+  background: var(--mid);
+}
+.act-m-other {
+  fill: var(--faint);
+  background: var(--faint);
+}
+.act .hint,
+.act-none {
+  margin: var(--sp-1) 0 0;
+  color: var(--muted);
+  font-size: var(--fs-sm);
 }
 .act-stale {
   opacity: 0.55;
-}
-/* the section openers' chevron sits on the h3 line (the section has no padding of its own) */
-.dash-sec[data-detail][role="button"]::after {
-  top: 12px;
-}
-/* >= 900 px: calendar (natural width) and cumulative chart (the rest) share ONE row; the chart is
- * height-capped (its viewBox stretches, strokes stay non-scaling). Phones keep them stacked. */
-@media (min-width: 900px) {
-  .act-pair {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    column-gap: var(--sp-12);
-    align-items: start;
-  }
-  .act-cal {
-    max-width: 380px;
-  }
-  .act-cal .cal-svg {
-    width: 280px;
-  }
-  .act-cum .cum-svg {
-    height: 240px;
-  }
 }

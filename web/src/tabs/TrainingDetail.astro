@@ -1,10 +1,11 @@
 ---
-/* Entreno tab, above the Entrenamiento dashboard section (Entrenos.astro): the detail behind
- * Inicio's load dial (Whoop keeps the glance on Home and the detail one tap away), the 30-day
- * activity calendar + cumulative training time, then the running and cycling tables and load vs
- * recovery. Client-rendered hosts:
- *   #score-load      per-modality load cards + caveats (client/score.js, SCORES from the shared <Bake>)
- *   #train-activity  calendar + cumulative time (client/training-activity.js, ACTIVITY baked HERE)
+/* Entreno tab, top to bottom: the centred uppercase title (an ⓘ holds the tab intro + the data
+ * caveats every block shares, like Salud's header), then the sections. The load summary (the
+ * detail behind Inicio's load dial: Whoop keeps the glance on Home and the detail one tap away), the
+ * Activity card (totals, W / M / 6M, modality split, 30-day calendar), then the running and cycling
+ * lists and load vs recovery. Client-rendered hosts:
+ *   #score-load      per-modality load summary cards, caveats behind ⓘ (client/score.js, SCORES from the shared <Bake>)
+ *   #train-activity  the Activity card (client/training-activity.js, ACTIVITY baked HERE)
  *   #health-train    running, cycling, load vs recovery (client/health.js, HEALTH from the shared <Bake>)
  * Each host is a SECTION (load / calendar / sessions, lib/nav/tabs.mjs SECTION_TAB), so
  * `page.hideTabs` can hide it; hiding all of them and `dash` drops the Entreno button. The load
@@ -21,8 +22,15 @@ interface Props {
   hidden?: { load?: boolean; calendar?: boolean; sessions?: boolean };
 }
 const { activity, locale, hidden = {} } = Astro.props;
-const bake = `var ACTIVITY = ${jsonForScript(activityBake(activity))};\nvar I18N_ACTIVITY = ${jsonForScript(locale === 'es' ? esActivity : enActivity)};`;
+const t = locale === 'es' ? esActivity : enActivity;
+const { head: _head, ...clientCopy } = t; // the header is built here; the client never reads it
+const bake = `var ACTIVITY = ${jsonForScript(activityBake(activity))};\nvar I18N_ACTIVITY = ${jsonForScript(clientCopy)};`;
 ---
+<div class="hs-top tr-top">
+  <h2 class="hs-title">{t.head.title}</h2>
+  <button type="button" class="hs-i" data-hs-info="tr-intro" aria-expanded="false" aria-controls="tr-intro" aria-label={t.head.info}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg></button>
+</div>
+<div class="hs-info" id="tr-intro" hidden><p>{t.head.intro}</p><p>{t.head.help}</p><p>{t.head.caveat}</p></div>
 <section class="tab-section" data-section="load" id="sec-load" hidden={!!hidden.load}>
   <div id="score-load" class="jump-anchor"></div>
 </section>
