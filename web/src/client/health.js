@@ -1,6 +1,6 @@
 /* "Salud / Health" tab sections (recovery, fitness, sleep, body composition, activity/NEAT, energy:
  * metric rows via HC.metricRow, notes behind an ⓘ toggle per section) plus Entreno's
- * running / cycling / load-vs-recovery blocks (#health-train, see render()), ported from the legacy
+ * running / cycling list rows and load vs recovery (#health-train, see render()), ported from the legacy
  * `<script>` IIFE ("health") of the pre-Astro generated page (deleted at
  * the astro-plan-web cutover), adapted to read HEALTH/LOCALE from globals
  * baked by web/src/components/Bake.astro and I18N_HEALTH
@@ -109,44 +109,35 @@
     return '<div class="dash-note">' + html + '</div>';
   }
 
-  // A run / ride row opens that day in its load view (client/detail.js): the whole row is a mouse
-  // target and the date cell holds a real button for keyboards. Plain '<tr><td>date' when the detail
-  // sheet is not baked. Returns the row up to the opening of its second cell.
-  function rowOpen(key, date) {
-    var attrs = HC.detailAttrs(key, date, { plain: true });
-    if (!attrs) return '<tr><td>' + esc(fmtD(date)) + '</td><td>';
-    return '<tr' + attrs + '><td class="dt-cell"><button type="button" class="dt-row-btn"' + attrs + ' aria-haspopup="dialog">' + esc(fmtD(date)) + '</button></td><td>';
+  // Entreno run / ride rows (HC.metricRow): icon · the date (UPPERCASE) with the session's other
+  // numbers as a small line under it · the distance big on the right with time and pace / climb under
+  // it. A dash never stands in for a missing value: a field the source did not record is left out of
+  // the small lines (the ⓘ says which source records what). The row opens that day in its load view
+  // (client/detail.js); without the detail sheet it is a plain row (no fake link).
+  function parts(list) {
+    return list.filter(function (x) { return x != null && x !== ''; }).join(' · ');
+  }
+  function sessionRow(key, icon, r, base, note) {
+    var name = HC.fmtDate(r.date);
+    var value = r.dist != null ? nf(r.dist) : '—';
+    return HC.metricRow({ key: icon, attrs: HC.detailAttrs(key, r.date), name: name, note: note, value: value, unit: r.dist != null ? 'km' : '', base: base,
+      aria: parts([name, r.dist != null ? nf(r.dist) + ' km' : '', base, note]) });
+  }
+  function runRow(r) {
+    var RT = T.runningTable, u = T.trend.rhr.unit;
+    var base = parts([r.time, r.pace ? r.pace + '/km' : null]);
+    var note = parts([r.hrAvg != null ? r.hrAvg + ' ' + u : null, r.re != null ? RT.reH + ' ' + r.re : null, r.elev != null ? '↑' + nf(r.elev) + ' m' : null,
+      r.power != null ? nf(r.power) + ' W' : null, r.gct != null ? RT.gctH + ' ' + nf(r.gct) + ' ms' : null,
+      r.vosc != null ? RT.oscH + ' ' + nf(r.vosc) + ' cm' : null, r.stride != null ? RT.strideH + ' ' + nf(r.stride) + ' m' : null]);
+    return sessionRow('load-run', 'run', r, base, note);
+  }
+  function rideRow(r) {
+    var CT = T.cyclingTable, u = T.trend.rhr.unit;
+    var base = parts([r.time, r.elev != null ? '↑' + nf(r.elev) + ' m' : null]);
+    var note = parts([r.hrAvg != null ? r.hrAvg + ' ' + u : null, r.re != null ? CT.reH + ' ' + r.re : null, r.kj != null ? nf(r.kj) + ' kJ' : null]);
+    return sessionRow('load-bike', 'bike', r, base, note);
   }
 
-  function runsTable(s) {
-    var RT = T.runningTable;
-    // same leading columns as the rides table (workouts.csv), then the watch running dynamics
-    var head = '<tr><th>' + RT.dateH + '</th><th>' + RT.distH + '</th><th>' + RT.timeH + '</th><th>' + RT.paceH + '</th><th>' + RT.hrH + '</th><th>' + RT.reH + '</th><th>' + RT.elevH + '</th><th>' + RT.powerH + '</th><th>' + RT.gctH + '</th><th>' + RT.oscH + '</th><th>' + RT.strideH + '</th></tr>';
-    var rows = s
-      .map(function (r) {
-        var d = function (v, u) { return v != null ? nf(v) + u : '—'; };
-        return rowOpen('load-run', r.date) + d(r.dist, ' km') + '</td><td>' + esc(r.time) + '</td><td>' + (r.pace ? esc(r.pace) + '/km' : '—') + '</td><td>' + d(r.hrAvg, ' ' + T.trend.rhr.unit) + '</td><td>' + d(r.re, '') + '</td><td>' + d(r.elev, ' m') + '</td><td>' + d(r.power, ' W') + '</td><td>' + d(r.gct, ' ms') + '</td><td>' + d(r.vosc, ' cm') + '</td><td>' + d(r.stride, ' m') + '</td></tr>';
-      })
-      .join('');
-    return '<div class="run-tbl-wrap"><table class="run-tbl">' + head + rows + '</table></div>';
-  }
-
-  function ridesTable(s) {
-    var CT = T.cyclingTable;
-    var head = '<tr><th>' + CT.dateH + '</th><th>' + CT.distH + '</th><th>' + CT.timeH + '</th><th>' + CT.elevH + '</th><th>' + CT.hrH + '</th><th>' + CT.reH + '</th><th>' + CT.kjH + '</th></tr>';
-    var rows = s
-      .map(function (r) {
-        var d = function (v, u) { return v != null ? nf(v) + u : '—'; };
-        return rowOpen('load-bike', r.date) + d(r.dist, ' km') + '</td><td>' + esc(r.time) + '</td><td>' + d(r.elev, ' m') + '</td><td>' + d(r.hrAvg, ' ' + T.trend.rhr.unit) + '</td><td>' + d(r.re, '') + '</td><td>' + d(r.kj, ' kJ') + '</td></tr>';
-      })
-      .join('');
-    return '<div class="run-tbl-wrap"><table class="run-tbl">' + head + rows + '</table></div>';
-  }
-
-  // Entreno section sub-heading with a stable `hl-<key>` anchor
-  function sub(key) {
-    return '<div class="hsub" id="hl-' + key + '">' + T.sections[key] + '</div>';
-  }
   // A Salud section: UPPERCASE label (the hl-<key> anchor is the section itself), an ⓘ toggle
   // holding its notes (collapsed, nothing lost), an optional block before the rows (the recovery
   // card host) and after them (the energy balance cards, until Nutrición takes them), then the rows.
@@ -301,50 +292,52 @@
     host.innerHTML = out.join('');
   }
 
+  // Entreno: Running and Cycling as list rows, then Load vs recovery — each a section with its notes
+  // behind ⓘ (the shared section()); the weekly load bars (strain blue) and HRV / resting HR in the
+  // higher-load vs the easy weeks as two metric rows (▲▼ = the higher-load weeks vs the easy ones,
+  // coloured by the signal's good direction: ↑ HRV, ↓ resting HR).
   function renderEntreno(train) {
     var Run = HEALTH.running || {}, LR = HEALTH.loadRecovery || {}, Cyc = HEALTH.cycling || {};
-    var out = [];
     if (!Run.hasData && !Cyc.hasData && !LR.hasData) {
       train.innerHTML = '<div class="train-empty">' + T.trainEmptyMsg + '</div>';
-    } else {
-      /* running + cycling: rendered as a pair with the same table style and row budget, so run and
-         bike carry equal weight; when only one has data the other states its empty case */
-      if (Run.hasData || Cyc.hasData) {
-        out.push(sub('running'));
-        if (Run.hasData) {
-          out.push(runsTable(Run.sessions));
-          out.push(note(format(T.runningNote, { count: Run.count })));
-        } else out.push(note(T.runningEmptyHtml));
-        out.push(sub('cycling'));
-        if (Cyc.hasData) {
-          out.push(ridesTable(Cyc.sessions));
-          out.push(note(format(T.cyclingNote, { count: Cyc.count })));
-        } else out.push(note(T.cyclingEmptyHtml));
-      }
-      /* load vs recovery (cross-tab) */
-      if (LR.hasData) {
-        out.push(sub('load'));
-        var s = LR.series, lmax = Math.max.apply(null, s.map(function (x) { return x.load; })) || 1;
-        var lbars = s
-          .map(function (x) {
-            var h = Math.round((100 * x.load) / lmax);
-            return '<div class="wbar' + (x.load ? '' : ' zero') + '" title="' + esc(format(T.loadSec.barTitleTpl, { date: fmtD(x.w), load: x.load })) + '"><i style="height:' + h + '%"></i></div>';
-          })
-          .join('');
-        var lax = '<div class="waxis"><span>' + esc(fmtD(s[0].w)) + '</span><span>' + esc(fmtD(s[s.length - 1].w)) + '</span></div>';
-        out.push('<div class="dash-sec"><h3>' + T.loadSec.heading + '</h3><p class="hint">' + format(T.loadSec.hint, { weeks: LR.weeks }) + '</p><div class="wbars">' + lbars + '</div>' + lax + '</div>');
-        if (LR.split) {
-          var sp = LR.split, cc = [];
-          if (sp.hrvHigh != null) cc.push(card(sp.hrvHigh + ' ms', T.loadCards.hrvHighLbl));
-          if (sp.hrvLow != null) cc.push(card(sp.hrvLow + ' ms', T.loadCards.hrvLowLbl));
-          if (sp.rhrHigh != null) cc.push(card(nf(sp.rhrHigh) + ' ' + T.trend.rhr.unit, T.loadCards.rhrHighLbl));
-          if (sp.rhrLow != null) cc.push(card(nf(sp.rhrLow) + ' ' + T.trend.rhr.unit, T.loadCards.rhrLowLbl));
-          if (cc.length) out.push('<div class="dash-cards c2">' + cc.join('') + '</div>');
-        }
-        out.push(note(T.loadNoteHtml));
-      }
-      train.innerHTML = out.join('');
+      return;
     }
+    var out = [];
+    /* running + cycling: a pair with the same row style and budget, so run and bike carry equal
+       weight; when only one has data the other states its empty case */
+    if (Run.hasData || Cyc.hasData) {
+      out.push(Run.hasData && Run.sessions.length ? section('running', Run.sessions.map(runRow), [format(T.runningNote, { count: Run.count })])
+        : section('running', [], [], note(T.runningEmptyHtml)));
+      out.push(Cyc.hasData && Cyc.sessions.length ? section('cycling', Cyc.sessions.map(rideRow), [format(T.cyclingNote, { count: Cyc.count })])
+        : section('cycling', [], [], note(T.cyclingEmptyHtml)));
+    }
+    /* load vs recovery (cross-tab) */
+    if (LR.hasData) {
+      var s = LR.series, lmax = Math.max.apply(null, s.map(function (x) { return x.load; })) || 1;
+      var lbars = s
+        .map(function (x) {
+          var h = Math.round((100 * x.load) / lmax);
+          return '<div class="wbar' + (x.load ? '' : ' zero') + '" title="' + esc(format(T.loadSec.barTitleTpl, { date: fmtD(x.w), load: x.load })) + '"><i style="height:' + h + '%"></i></div>';
+        })
+        .join('');
+      var lax = '<div class="waxis"><span>' + esc(fmtD(s[0].w)) + '</span><span>' + esc(fmtD(s[s.length - 1].w)) + '</span></div>';
+      var bars = '<div class="lvr-card"><span class="dt-trend-lbl">' + esc(T.loadSec.heading) + '</span><div class="wbars">' + lbars + '</div>' + lax + '</div>';
+      var rows = [];
+      var sp = LR.split || {};
+      var C = T.loadCards;
+      if (sp.hrvHigh != null && sp.hrvLow != null) rows.push(splitRow('hrv', C.hrvHighLbl, C.hrvLowLbl, sp.hrvHigh, sp.hrvLow, 'ms', 1));
+      if (sp.rhrHigh != null && sp.rhrLow != null) rows.push(splitRow('rhr', C.rhrHighLbl, C.rhrLowLbl, sp.rhrHigh, sp.rhrLow, T.trend.rhr.unit, -1));
+      out.push(section('load', rows, [format(T.loadSec.hint, { weeks: LR.weeks }), T.loadNoteHtml], bars));
+    }
+    train.innerHTML = out.join('');
+  }
+  // one higher-load vs easy weeks row: the higher-load value, the easy one as the small line
+  function splitRow(icon, name, easyName, high, low, unit, dir) {
+    var arrow = high === low ? 'flat' : high > low ? 'up' : 'down';
+    var tone = arrow === 'flat' ? 'flat' : (arrow === 'up') === (dir > 0) ? 'good' : 'bad';
+    var easy = format(T.loadCards.easyTpl, { value: nf(low) + ' ' + unit });
+    return HC.metricRow({ key: icon, name: name, value: nf(high), unit: unit, arrow: arrow, tone: tone, base: easy,
+      aria: name + ': ' + nf(high) + ' ' + unit + ' · ' + easyName + ': ' + nf(low) + ' ' + unit + (T.dirs ? ' · ' + T.dirs[arrow] : '') });
   }
 
   render();

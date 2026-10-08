@@ -4,6 +4,23 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-07 — Plan page restyle P6a: Entreno
+
+- Entreno opens like Salud: a centred uppercase title with an ⓘ (the tab intro, how to read a card,
+  the caveats every block shares).
+- Load summary: one compact card per modality (gym / run / bike) — the last scored session's Relative
+  Effort big in strain blue, a small ring from the dial's own arc, "LOAD · date", a 7-day vs 42-day
+  pill (grey steady, teal above / below, orange ramping / well below); a tap opens that modality's
+  deep-dive. The relative score, coverage, other activities and the caveats moved behind its ⓘ.
+- The overlapping views merged into ONE Activity card: the 30-day calendar, the cumulative training
+  time and the workouts dashboard's weekly volume + modality split became total time for a W / M / 6M
+  window (vs the window before), sessions / days / per week, a stacked modality bar with counts and
+  the compact calendar. `ACTIVITY` bakes 367 days and the first session date. The dashboard section
+  keeps only Intensity (HR) as metric rows (no zones in the extract, so no zone bars).
+- Running and Cycling tables became list rows (date + secondary numbers, distance big with time and
+  pace / climb); "Load vs recovery" became a bar card plus HRV / resting HR rows with ▲▼. Every note
+  sits behind its section's ⓘ. Same data, no new metric.
+
 ## 2026-10-07 — Plan page restyle P5: Salud
 
 - Salud reads like a health tab: a centred uppercase title with an ⓘ (the intro) over a soft green
