@@ -55,7 +55,7 @@ function scMod(key, btn) {
       '<path class="line" d="M' + pts.join(' L') + '"/></svg>'
     );
   }
-  var GLYPH = { above: '▲', ramping: '▲', below: '▼', wellBelow: '▼', at: '■', steady: '■' };
+  var GLYPH = { above: '▲', ramping: '▲', below: '▼', wellBelow: '▼', at: '•', steady: '•' };
   function arrow(band) {
     var g = GLYPH[band] || GLYPH.at;
     return '<span class="sc-arrow sc-arrow-' + esc(band) + '" aria-hidden="true">' + g + '</span>';
