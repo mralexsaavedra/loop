@@ -226,6 +226,29 @@
   function head(key, inner) {
     return HC.sheetHead({ title: titleOf(key), back: (T.deep && T.deep.back) || T.close }) + (inner ? '<div class="dt-titles">' + inner + '</div>' : '');
   }
+  // a metric's sheet = the trend view: "‹ TREND VIEW" (the metric stays the dialog's label for screen
+  // readers), then the metric picker pill
+  // `info`: the latest value + the band / target words, collapsed under ⓘ (the same toggle as the dial
+  // pages' notes): the window's average leads the view, the chart labels the newest value
+  function trendHead(key, info) {
+    var R = T.trend, I = T.deep && T.deep.info;
+    return HC.sheetHead({ title: R.title, sr: titleOf(key), back: (T.deep && T.deep.back) || T.close, info: info && I ? { controls: 'dd-info', label: I } : null }) +
+      (info && I ? '<div class="dd-info dt-info" id="dd-info" hidden>' + info + '</div>' : '') + pickerHtml(key);
+  }
+  // the metrics a trend view can switch to: every baked metric with copy, except the dial pages
+  // (sleep, recovery, strain, load-<m>: their own deep-dive layout, reached from the dials)
+  function trendKeys() {
+    return Object.keys(D.metrics).filter(function (k) { return own(T.metrics, k) && !!metric(k) && !deep(k); });
+  }
+  // a native <select> dressed as a pill with a ⌄ (keyboard, screen readers and the phone's own picker
+  // for free); a change re-opens the sheet on that metric (the 'change' listener below)
+  function pickerHtml(key) {
+    var keys = trendKeys();
+    if (keys.length < 2) return '';
+    return '<label class="dt-metric"><span class="sr-only">' + esc(T.trend.metric) + '</span><select class="dt-metric-sel" data-dt-pick="metric">' +
+      keys.map(function (k) { return '<option value="' + esc(k) + '"' + (k === key ? ' selected' : '') + '>' + esc(titleOf(k)) + '</option>'; }).join('') +
+      '</select><svg class="dt-metric-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg></label>';
+  }
   function noneHtml(txt) {
     return '<div class="dt-latest"><span class="dt-none">' + esc(txt) + '</span></div>';
   }
@@ -305,9 +328,12 @@
     var cur = meanOf(m, from, end);
     var out = { from: from, to: end, clamped: clamped, avg: cur.avg, n: cur.n, prev: null, delta: null, pct: null, flat: true, tone: 'normal' };
     var pFrom = shiftIso(from, -days), pTo = shiftIso(from, -1);
-    if (cur.avg == null || clamped || pFrom < m.start) return out;
-    var prev = meanOf(m, pFrom, pTo);
-    if (prev.avg == null) return out;
+    if (cur.avg == null || clamped || pTo < m.start) return out;
+    // a previous window that starts before the data still compares when at least half its days hold
+    // data (a 6-month view on 7 months of data); wholly inside the data, any day with data is enough
+    var partial = pFrom < m.start;
+    var prev = meanOf(m, partial ? m.start : pFrom, pTo);
+    if (prev.avg == null || (partial && prev.n < Math.ceil(days / 2))) return out;
     out.prev = prev.avg;
     out.delta = cur.avg - prev.avg;
     var flat;
@@ -319,6 +345,19 @@
     out.flat = flat;
     if (!flat && m.dir) out.tone = (out.delta > 0) === (m.dir > 0) ? 'good' : 'bad';
     return out;
+  }
+  // one plain sentence under the pill: the window's average vs the previous window's (no judgement:
+  // the pill's colour carries good / bad)
+  function sentenceOf(key, m, st, range) {
+    var S = T.trend.sent, k = RANGE_KEY[range], dec = m.kind === 'sleep' ? 1 : m.dec, u = unitOf(key);
+    // a real change (not flat) that rounds to the same number gets one more decimal, so "lower than"
+    // never sits next to two equal numbers
+    if (st.delta != null && !st.flat && fmt(st.avg, dec) === fmt(st.prev, dec)) dec = Math.min(dec + 1, 3);
+    var show = function (v) { return m.kind === 'recovery' ? signed(v, 1) + ' ' + u : valUnit(v, dec, u); };
+    var vars = { metric: titleOf(key), span: T.trend.span[k], prevSpan: T.trend.prevSpan[k], avg: st.avg == null ? '' : show(st.avg), prev: st.prev == null ? '' : show(st.prev) };
+    if (st.avg == null) return format(S.none, vars);
+    if (st.delta == null) return format(S.only, vars);
+    return format(st.flat ? S.flat : st.delta > 0 ? S.up : S.down, vars);
   }
   function trendHtml(key, m, st, range) {
     var R = T.trend, dec = m.kind === 'sleep' ? 1 : m.dec;
@@ -332,10 +371,26 @@
       pill = '<span class="dt-pill dt-pill-none">' + esc(st.clamped ? format(R.since, { date: HC.fmtDate(st.from) }) : R.noPrev) + '</span>';
     }
     return '<div class="dt-trend"><span class="dt-trend-lbl">' + esc(R.avg) + '</span>' +
-      '<div class="dt-trend-row"><b class="dt-trend-num">' + esc(st.avg == null ? '—' : avg) + '</b>' + (st.avg != null && unitOf(key) ? '<small>' + esc(unitOf(key)) + '</small>' : '') + pill + '</div></div>';
+      '<div class="dt-trend-row"><b class="dt-trend-num">' + esc(st.avg == null ? '—' : avg) + '</b>' + (st.avg != null && unitOf(key) ? '<small>' + esc(unitOf(key)) + '</small>' : '') + '</div>' +
+      (pill ? '<div class="dt-trend-pill">' + pill + '</div>' : '') + '<p class="dt-trend-txt">' + esc(sentenceOf(key, m, st, range)) + '</p></div>';
   }
-  function periodHtml(key, m, end, range) {
-    return '<div class="dt-period">' + trendHtml(key, m, periodStats(m, end, range), range) + rangeHtml(range) + '</div>';
+  // the trend window: `shift` whole windows back from the view end (‹ › stepping; 0 = ends today)
+  function windowEnd(m, end, range, shift) {
+    return shiftIso(end, -(shift || 0) * range);
+  }
+  // ‹ 23 Sep – 29 Sep, 26 ›: back while the previous window still reaches the data, forward until today
+  function winHtml(m, from, to, range, shift) {
+    var R = T.trend, back = shiftIso(to, -range) >= m.start;
+    var lbl = format(R.win, { from: HC.fmtDate(from, { weekday: false }), to: HC.fmtDate(to, { weekday: false }), yy: to.slice(2, 4) });
+    return '<div class="dt-win" role="group" aria-label="' + esc(R.winAria) + '">' +
+      '<button type="button" class="dt-wnav" data-dt-act="win" data-wdir="-1" aria-label="' + esc(R.prevWin) + '"' + (back ? '' : ' disabled') + '>‹</button>' +
+      '<span class="dt-win-lbl">' + esc(lbl) + '</span>' +
+      '<button type="button" class="dt-wnav" data-dt-act="win" data-wdir="1" aria-label="' + esc(R.nextWin) + '"' + (shift > 0 ? '' : ' disabled') + '>›</button></div>';
+  }
+  function periodHtml(key, m, end, range, shift) {
+    var to = windowEnd(m, end, range, shift);
+    return '<div class="dt-period">' + rangeHtml(range) + winHtml(m, windowFrom(m, to, range), to, range, shift) +
+      trendHtml(key, m, periodStats(m, to, range), range) + '</div>';
   }
 
   /* ---------- chart ---------- */
@@ -370,16 +425,21 @@
     var mid = bars ? step : Math.round((lo + hi) / 2 / step) * step;
     return [mid - step, mid, mid + step].map(function (t) { return Math.round(t * 1000) / 1000; });
   }
+  // W (7 days): bars with their value on top and a weekday + day label under each, like the dial
+  // pages' weekly cards (recovery keeps its points: its scale is signed around the baseline)
+  var WEEK_BARS = 7;
   function chartHtml(key, m, from, to, sel) {
     var n = dayDiff(from, to) + 1;
-    var bars = m.kind === 'total' || m.kind === 'workouts' || m.kind === 'load' || m.kind === 'strain';
+    var week = n <= WEEK_BARS && m.kind !== 'recovery';
+    var bars = week || m.kind === 'total' || m.kind === 'workouts' || m.kind === 'load' || m.kind === 'strain';
     var days = [], vals = [];
     for (var i = 0; i < n; i++) {
       var iso = shiftIso(from, i), v = valueOf(m, iso);
       days.push({ iso: iso, v: v });
       if (v != null) vals.push(v);
     }
-    var line = lineFor(key, m, from, n);
+    // the week's bars stand alone: no 7-day line over seven days
+    var line = week ? [] : lineFor(key, m, from, n);
     // the recovery zone is the 7-day TREND band (the line); the daily points carry the day band
     var zc = m.kind === 'recovery' ? (m.cutTrend != null ? m.cutTrend : m.cut) : null;
     var ext = vals.concat(line.filter(function (x) { return x != null; }));
@@ -391,15 +451,18 @@
     var lo = bars ? 0 : Math.min.apply(null, ext.length ? ext : [0]);
     var hi = Math.max.apply(null, ext.length ? ext : [1]);
     // 3 Y ticks on round numbers (step 1 / 2 / 2.5 / 5 × 10^k); the range widens to cover them, plus
-    // 12 % headroom, so the outermost (out-of-range) days never sit on the chart's edge
+    // 12 % headroom, so the outermost (out-of-range) days never sit on the chart's edge (bars: 8 %, and
+    // a week's bars 18 % for the value labels on top)
     var tk = yTicks(lo, hi, bars);
     lo = Math.min(lo, tk[0]);
     hi = Math.max(hi, tk[2]);
-    if (!bars) { var pad = (hi - lo) * 0.12 || 1; lo -= pad; hi += pad; } else hi = hi * 1.08 || 1;
+    if (!bars) { var pad = (hi - lo) * 0.12 || 1; lo -= pad; hi += pad; } else hi = hi * (week ? 1.18 : 1.08) || 1;
     var slot = (CW - 2 * CPAD) / n;
     var x = function (i) { return CPAD + slot * (i + 0.5); };
     var y = function (v) { return CPAD + (CH - 2 * CPAD) * (1 - (v - lo) / (hi - lo)); };
     var f = function (v) { return v.toFixed(1); };
+    var pctX = function (i) { return (x(i) / CW * 100).toFixed(1) + '%'; };
+    var pctY = function (v) { return (y(v) / CH * 100).toFixed(1) + '%'; };
     var out = ['<svg class="dt-chart" viewBox="0 0 ' + CW + ' ' + CH + '" role="img" aria-label="' +
       esc(format(T.chartAria, { title: titleOf(key), from: HC.fmtDate(from), to: HC.fmtDate(to) })) + '">'];
     var hline = function (cls, v) { out.push('<line class="' + cls + '" x1="0" x2="' + CW + '" y1="' + f(y(v)) + '" y2="' + f(y(v)) + '"/>'); };
@@ -413,11 +476,13 @@
     state.geo = { from: from, n: n, slot: slot };
     var sx = selX(sel);
     out.push('<rect class="dt-sel" x="' + f(sx == null ? 0 : sx) + '" y="0" width="' + f(slot) + '" height="' + CH + '"' + (sx == null ? ' visibility="hidden"' : '') + '/>');
-    var bw = Math.max(0.6, slot * 0.7), r = n > 120 ? 1.3 : n > 45 ? 1.8 : 2.4;
+    var bw = Math.max(0.6, slot * (week ? 0.42 : 0.7)), r = n > 120 ? 1.3 : n > 45 ? 1.8 : 2.4;
+    var dec = m.kind === 'sleep' ? 1 : m.dec, labels = [];
     days.forEach(function (d, i) {
       if (d.v == null) return;
       var st = stateOn(m, d.iso, d.v);
       if (bars) {
+        if (week) labels.push('<span class="dt-bv" style="left:' + pctX(i) + ';top:' + pctY(Math.max(0, d.v)) + '">' + esc(fmt(d.v, dec)) + '</span>');
         if (d.v <= 0) return;
         out.push('<rect class="dt-bar dt-s-' + st + '" x="' + f(x(i) - bw / 2) + '" y="' + f(y(d.v)) + '" width="' + f(bw) + '" height="' + f(Math.max(0.5, y(0) - y(d.v))) + '"/>');
       } else {
@@ -433,20 +498,37 @@
       pen = true;
     });
     if (path) out.push('<path class="dt-line" d="' + path.trim() + '"/>');
+    // the window's newest value, labelled (a week's bars already carry every value): a ring on it
+    // and its number above
+    if (!week) {
+      for (var j = days.length - 1; j >= 0; j--) {
+        if (days[j].v == null) continue;
+        var ly = bars ? Math.max(0, days[j].v) : days[j].v;
+        out.push('<circle class="dt-last" cx="' + f(x(j)) + '" cy="' + f(y(ly)) + '" r="3.2"/>');
+        labels.push('<span class="dt-lastv" style="left:' + pctX(j) + ';top:' + pctY(ly) + '">' + esc(fmt(days[j].v, dec)) + '</span>');
+        break;
+      }
+    }
     out.push('</svg>');
     var key2 = ['<span class="dt-k dt-k-daily">' + esc(T.chartKey.daily) + '</span>'];
     if (line.some(function (v) { return v != null; })) key2.push('<span class="dt-k dt-k-line">' + esc(T.chartKey.roll7) + '</span>');
-    if (m.kind === 'recovery') key2.push('<span class="dt-k dt-k-band">' + esc(T.chartKey.baseline) + '</span>');
-    else if (m.band) key2.push('<span class="dt-k dt-k-band">' + esc(T.chartKey.band) + '</span>');
     if (tg != null) key2.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.target) + '</span>');
     if (m.typical != null) key2.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.typical) + '</span>');
+    // the shaded band is named once, top-right of the chart
+    var band = zc != null ? T.trend.baseline : m.band ? T.trend.typical : '';
     var tdec = tk[1] - tk[0] < 0.1 ? 2 : tk[1] - tk[0] < 1 ? 1 : 0;
     var yax = '<div class="dt-yax" aria-hidden="true">' + tk.slice().reverse().map(function (t) {
       return '<span style="top:' + (y(t) / CH * 100).toFixed(1) + '%">' + esc(fmt(t, tdec)) + '</span>';
     }).join('') + '</div>';
-    return '<figure class="dt-fig"><div class="dt-plot">' + out.join('') + yax + '</div>' +
-      '<div class="dt-ax"><span>' + esc(HC.fmtDate(from)) + '</span><span>' + esc(HC.fmtDate(to)) + '</span></div>' +
-      '<figcaption class="dt-keys">' + key2.join('') + '</figcaption></figure>';
+    var N = typeof I18N_DATE !== 'undefined' && I18N_DATE ? I18N_DATE.weekdays : null;
+    var axis = week && N
+      ? '<div class="dt-wdays" aria-hidden="true">' + days.map(function (d, i) {
+        return '<span style="left:' + pctX(i) + '">' + esc(N[HC.weekdayIndex(d.iso)]) + '<b>' + esc(String(parseIso(d.iso).getDate())) + '</b></span>';
+      }).join('') + '</div>'
+      : '<div class="dt-ax"><span>' + esc(HC.fmtDate(from)) + '</span><span>' + esc(HC.fmtDate(to)) + '</span></div>';
+    return '<figure class="dt-fig">' + (band ? '<div class="dt-fig-top"><span class="dt-typ">' + esc(band) + '</span></div>' : '') +
+      '<div class="dt-plot"><div class="dt-svg">' + out.join('') + (labels.length ? '<div class="dt-labels" aria-hidden="true">' + labels.join('') + '</div>' : '') + '</div>' + yax + '</div>' +
+      axis + '<figcaption class="dt-keys">' + key2.join('') + '</figcaption></figure>';
   }
 
   /* ---------- month calendar ---------- */
@@ -697,17 +779,18 @@
     var lo = monthOf(m.start), hiM = monthOf(end);
     if (state.month < lo) state.month = lo;
     if (state.month > hiM) state.month = hiM;
-    var from = windowFrom(m, end, state.range);
+    if (windowEnd(m, end, state.range, state.shift) < m.start) state.shift = 0;
+    var to = windowEnd(m, end, state.range, state.shift), from = windowFrom(m, to, state.range);
     state.sel = sel;
     state.view = { key: key, m: m, end: end };
     // the day the sheet was opened on (a dial on a stepped-to day, a day tap): the strain page follows it
     X.sel = state.date && state.date <= end ? state.date : null;
     var dd = deep(key) ? window.HCDeep.render(key, m, end, X) : null;
-    return (dd ? dd.head : head(key, latestHtml(key, m, end) + bandText(key, m))) +
+    return (dd ? dd.head : trendHead(key, '<div class="dt-titles">' + latestHtml(key, m, end) + bandText(key, m) + '</div>')) +
       '<div class="dt-body">' + (dd ? dd.top : '') +
       (ve.stale ? '<p class="dt-stale">' + esc(format(T.staleNote, { date: HC.fmtDate(end) })) + '</p>' : '') +
       metricStaleHtml(m, end) +
-      periodHtml(key, m, end, state.range) + chartHtml(key, m, from, end, sel) +
+      periodHtml(key, m, end, state.range, state.shift) + chartHtml(key, m, from, to, sel) +
       '<div data-dt-part="cal">' + calendarHtml(key, m, state.month, sel, end) + '</div>' +
       '<div data-dt-part="day">' + dayPart(key, m, sel) + '</div></div>';
   }
@@ -801,7 +884,7 @@
     var wasOpen = isOpen();
     if (!wasOpen) opener = opts.opener || null;
     var asked = date == null || date === '' ? null : String(date);
-    state = { key: key, date: isoDate(date), range: RANGES[1], month: null, pushed: wasOpen ? state.pushed : !!opts.pushed, sel: null, view: null, geo: null };
+    state = { key: key, date: isoDate(date), range: RANGES.indexOf(opts.range) !== -1 ? opts.range : RANGES[1], shift: 0, month: null, pushed: wasOpen ? state.pushed : !!opts.pushed, sel: null, view: null, geo: null };
     // while a close's Back is in flight, history is left alone: its popstate gives this sheet an entry
     if (opts.push !== false && !pendingBack) {
       var written = setHash(!wasOpen);
@@ -886,7 +969,12 @@
     if (a === 'range') {
       var r = +el.getAttribute('data-range');
       state.range = RANGES.indexOf(r) !== -1 ? r : RANGES[1];
+      state.shift = 0;
       focusSel = '[data-range="' + state.range + '"]';
+    } else if (a === 'win') {
+      var wd = +el.getAttribute('data-wdir') || 0;
+      state.shift = Math.max(0, (state.shift || 0) - wd);
+      focusSel = '[data-wdir="' + wd + '"]';
     } else if (a === 'month') {
       var dir = +el.getAttribute('data-dir') || 0;
       state.month = addMonths(state.month, dir);
@@ -928,6 +1016,14 @@
       if (e.preventDefault) e.preventDefault();
       open(o.getAttribute('data-detail'), o.getAttribute('data-date'), { opener: o });
     }
+  });
+  // the trend view's metric picker: the sheet re-opens on the picked metric (same range, URL replaced)
+  document.addEventListener('change', function (e) {
+    var t = e.target;
+    if (!t || !isOpen() || !t.getAttribute || t.getAttribute('data-dt-pick') !== 'metric') return;
+    var k = String(t.value || '');
+    if (trendKeys().indexOf(k) === -1 || k === state.key) return;
+    open(k, null, { range: state.range, focus: '[data-dt-pick="metric"]' });
   });
   document.addEventListener('keydown', function (e) {
     if (isOpen()) {

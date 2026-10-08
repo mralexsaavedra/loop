@@ -170,9 +170,11 @@ var HC = (function () {
   // the sheet's close button, the title centred (the dialog's label, #dt-title), and on the right
   // either the ⓘ (the same SVG as infoBtn; toggles o.info.controls via data-dt-act="info") or an
   // equal-width spacer so the title stays centred
+  // o.sr: words read before the visible title (screen readers only), e.g. the metric of a dial page
+  // whose visible title is its date, so the dialog's label still names what it shows
   function sheetHead(o) {
     return '<div class="dt-head sh-head"><button type="button" class="sh-back" data-dt-act="close" aria-label="' + esc(o.back) + '">‹</button>' +
-      '<h2 class="sh-title" id="dt-title">' + esc(o.title) + '</h2>' +
+      '<h2 class="sh-title" id="dt-title">' + (o.sr ? '<span class="sr-only">' + esc(o.sr) + ' · </span>' : '') + esc(o.title) + '</h2>' +
       (o.info ? '<button type="button" class="sh-info" data-dt-act="info" aria-expanded="false" aria-controls="' + esc(o.info.controls) + '" aria-label="' + esc(o.info.label) + '">' + INFO_SVG + '</button>'
         : '<span class="sh-pad" aria-hidden="true"></span>') + '</div>';
   }

@@ -344,12 +344,12 @@
 .dial-track {
   fill: none;
   stroke: var(--track);
-  stroke-width: 7;
+  stroke-width: 9.5;
 }
 .dial-fill {
   fill: none;
   stroke: var(--dial-c);
-  stroke-width: 7;
+  stroke-width: 9.5;
   stroke-linecap: round;
   stroke-dasharray: 100 100;
   animation: dial-in 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;

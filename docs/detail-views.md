@@ -90,10 +90,14 @@ switch is outside every opener); run / ride rows →
   `window.HCDeep.render(key, m, end, X)` with its own helpers `X`, so both files read one set of rules
   and copy): the sheets of the three Inicio dials — `sleep`, `recovery`, `load-<m>` — are laid out as
   one page, top to bottom:
-  1. **Header** "‹ METRIC ⓘ" — the ONE sheet header every detail shares (`HC.sheetHead`,
+  1. **Header** "‹ TODAY ⓘ" — the ONE sheet header every detail shares (`HC.sheetHead`,
      `client/util.js`; a `44px | 1fr | 44px` grid): the back arrow IS the sheet's close button
-     (`data-dt-act="close"`, focus lands on it, Esc / Back still work); the metric name centred,
-     uppercase, as the dialog's label (`h2.sh-title#dt-title`); ⓘ (`.sh-info`, the same SVG icon as the
+     (`data-dt-act="close"`, focus lands on it, Esc / Back still work); centred and uppercase, the DAY
+     the page shows (`h2.sh-title#dt-title`): "Today" (`deep.today`, es "Hoy") or its date ("Mon 28
+     Sep", `HC.fmtDate`) — strain = the day it was opened on (Inicio's day stepping), the others = the
+     view end (the viewer's today, or the stale data's last day: the day their hero describes). The
+     metric name moves into the ring (its uppercase label) and stays the dialog's label for screen
+     readers (`sheetHead({sr})`: a `.sr-only` "Recovery · " before the day); ⓘ (`.sh-info`, the same SVG icon as the
      Salud headers' `HC.infoBtn`, `data-dt-act="info"`, `aria-expanded` / `aria-controls="dd-info"`)
      toggles the long-notes block in place, collapsed by default. A sheet without notes puts an equal
      44px spacer (`.sh-pad`) there so the title stays centred.
@@ -103,9 +107,10 @@ switch is outside every opener); run / ride rows →
      when the hero shows a %, the load sessions-without-effort note, and the sleep formulas
      (`deep.sleepNotes`: performance = asleep ÷ need × 100 capped at 100 with need = the target,
      efficiency = asleep ÷ in bed, consistency minutes, what the stages are).
-  3. **Hero ring**: ≈ 67 % of the width (max 320 px), the dial's OWN baked arcs (`DIALS`, so it can
-     never disagree with Inicio) drawn with a 6.4-unit stroke (≈ 5.9 % of the 108-unit diameter),
-     from 12 o'clock clockwise, round caps, on `--track`; inside: the value (D-DIN, 52–72 px) + small
+  3. **Hero ring**: 260 px (≈ 67 % of a 390 px phone; never wider than the sheet), the dial's OWN
+     baked arcs (`DIALS`, so it can never disagree with Inicio) drawn with a 7.5-unit stroke (of the
+     120-unit viewBox), from 12 o'clock clockwise, round caps, on `--track`; inside: the value (D-DIN,
+     56–70 px, 70 px on a phone) + small
      unit + the uppercase label. Recovery shows the dial's % (`DIALS.recovery.pct`, when it scores the
      same night as `head`) with its % band colour, else the SD value. Sleep shows the dial's sleep
      performance % (`DIALS.sleep.pct`, label "SLEEP PERFORMANCE"), else last night's hours.
@@ -123,7 +128,7 @@ switch is outside every opener); run / ride rows →
      value + marker): the dial's own inputs, each "today vs the prior 30 days" (`HCDeep.compare`):
      today's value vs the middle half (p25–p75) of the values on the 30 days before it — the Salud
      totals' "usual day" idea; fewer than 7 prior values → the value without a marker. Above / below
-     → ▲ / ▼, teal (`--up`) when better and orange (`--down`) when worse by the metric's good
+     → ▲ / ▼ (small ≈ 8 px triangles), teal (`--up`) when better and orange (`--down`) when worse by the metric's good
      direction, grey for a metric without one (bedtime, wake time, load); inside → a grey dot; the
      words ("better than usual"…) are screen-reader text. A legend pill "▲▼ Today vs prior 30 days"
      closes the card when a marker shows. A row without a value that day is hidden (never 0 or a
@@ -171,8 +176,13 @@ switch is outside every opener); run / ride rows →
      model and the max HR; docs/training.md "Per-workout HR zones"); no `z` → no block.
   The copy is the dial's own (`score-templates.mjs` via `I18N_DETAIL.rec` / `load` / `deep`).
 - **The sheet** (`detail.js`, one renderer, per-view try/catch with a message fallback, no NaN ever
-  printed): header = the shared "‹ METRIC" header above (no ⓘ: a spacer), then the latest value + date, the band / target / typical day in words (the dial
-  pages above replace this header). The header NEVER contradicts the card it opens from; the
+  printed): header = the shared header above titled "‹ TREND VIEW" (`trend.title`, es "Tendencia"; the
+  metric is the dialog's screen-reader label, `sheetHead({sr})`; no ⓘ: a spacer), then the **metric
+  picker** — a native `<select>` dressed as a pill with a ⌄ (`.dt-metric`, `data-dt-pick="metric"`)
+  listing every baked metric with copy EXCEPT the dial pages (sleep, recovery, strain, `load-<m>`: their
+  own layout, reached from the dials); a change re-opens the sheet on that metric with the same range
+  and replaces the URL (no new history entry; an unknown value is ignored) — then the latest value +
+  date, the band / target / typical day in words (the dial pages above replace this header). The header NEVER contradicts the card it opens from; the
   recovery chart's zone is the trend band at ±`cutTrend`, the daily points use the day band; weight / energy = the cards'
   7-day rolling average (`roll`, also the chart line) with the latest reading / day underneath; a
   daily total's newest day, when it is the viewer's today, is "Today, in progress" (neutral
@@ -180,17 +190,34 @@ switch is outside every opener); run / ride rows →
   shows the newest day in range ("Rest" on a rest day). The band note says colours are the CURRENT
   range (static, as of the newest day), except recovery, scored per day; a signal / total / sleep /
   recovery metric whose own last day is > 3 days before the view end says so. The trend view: a
-  W · M · 6M · 1Y switch (7 / 30 / 182 / 365 days, `RANGES`; opens on M; es S · M · 6M · 1A) beside
+  small right-aligned W · M · 6M · 1Y switch (dark 28 px squares, the pressed one grey, each with a
+  44 px-tall hit area; 7 / 30 / 182 / 365 days, `RANGES`; opens on M; es S · M · 6M · 1A), under it the
+  window row "‹ 23 Sep – 29 Sep, 26 ›" (`trend.win`): ‹ › step the window back / forward by its own
+  length (`state.shift` whole windows back from the view end; › disabled at today, ‹ disabled once the
+  previous window would end before the metric's first day; a new range or metric starts at today;
+  the chart, the average and its delta follow the window, the calendar and the day panel do not), then
   "AVERAGE" = the mean of the days with data in the window (a daily total's partial today left out; a
   missing day skipped, never 0) and a delta pill vs the previous window of the same length (▲▼ + % —
   absolute in sd for recovery — `--up` / `--down` by the metric's good direction, neutral • when
-  within 1 % / 0.05 sd or for a metric without a direction). A window longer than the data is clamped
-  to the metric's first day (the toggle stays; chart and average start there, the pill says "Data
-  since <date>"); no previous window wholly inside the data → "No earlier period to compare"
-  (`periodStats`, exposed as `HCDetail.periodStats(key, end, days)`); the chart's existing band is the
-  typical range. An inline SVG chart (points for signals, bars for totals and load, the
+  within 1 % / 0.05 sd or for a metric without a direction) on its own line below, then ONE plain
+  sentence (`trend.sent`: "Your average Resting HR this week was 53 bpm, about the same as the week
+  before (53 bpm)."; higher / lower / about the same by the pill's rule, no judgement — the pill's
+  colour carries good / bad; a change that rounds to two equal numbers gets one more decimal). A
+  window longer than the data is clamped to the metric's first day (the toggle stays; chart and
+  average start there, the pill says "Data since <date>"); a previous window that lies wholly before
+  the data, or starts before it and holds data on fewer than half its days → "No earlier period to
+  compare"; one that starts before the data but holds data on at least half its days still compares
+  (a 6-month view on 7+ months of data) (`periodStats`, exposed as `HCDetail.periodStats(key, end,
+  days)`). The latest value and the band / target words no longer lead the view: they sit under the
+  header's ⓘ (`#dd-info.dt-info`, collapsed; the window's average leads and the chart labels the
+  newest value). The chart sits on the sheet's ground (no card), its shaded band named once top-right
+  ("TYPICAL RANGE", `trend.typical`; recovery "BASELINE RANGE", `trend.baseline`; no legend swatch for
+  it). An inline SVG chart (points for signals, bars for totals and load, the
   7-day average line that breaks where fewer than 3 of 7 days have data, the band shaded, target /
-  typical dashed; a missing day is a gap) with a Y axis: three round, evenly spaced values (step 1 / 2 /
+  typical dashed; a missing day is a gap; the window's newest value ringed and labelled, `.dt-last` /
+  `.dt-lastv`; in W every metric but recovery is 7 bars from 0 with each value on top (`.dt-bv`) and
+  "Thu / 9" under each bar (`.dt-wdays`) instead of the from / to dates, no 7-day line; labels are HTML
+  over the SVG's box `.dt-svg`) with a Y axis: three round, evenly spaced values (step 1 / 2 /
   2.5 / 5 × 10^k; bars from 0) as faint grid lines (`.dt-grid`) and labels in a 36px left gutter
   (`.dt-yax`, HTML so the text never scales with the SVG); the range covers the ticks plus 12 %
   headroom, so an out-of-range day never sits on the chart's edge; a Monday-first month calendar

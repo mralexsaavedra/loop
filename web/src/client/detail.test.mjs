@@ -131,6 +131,7 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
     key: (key, target = host) => { const e = { key, target, prevented: false, preventDefault() { this.prevented = true; } }; fire('doc', 'keydown', e); return e; },
     keyEvent: (e) => fire('doc', 'keydown', e),
     popstate: () => fire('win', 'popstate', {}),
+    change: (target) => fire('doc', 'change', { target }),
   };
 }
 const act = (a, extra = {}) => new StubElement('button', { attrs: { 'data-dt-act': a, ...extra } });
@@ -142,7 +143,9 @@ test('every DETAIL key of the demo build renders a view: title, latest value + d
     s.api.open(key);
     const html = s.host.innerHTML;
     assert.equal(s.host.hidden, false, key);
-    assert.ok(html.includes(`id="dt-title">${enT.metrics[key].title}<`), `${key} title`);
+    // a dial page's visible title is its day; the metric stays the dialog's label (screen readers)
+    const dial = ['sleep', 'recovery', 'strain'].includes(key) || key.startsWith('load-');
+    assert.ok(html.includes(`id="dt-title"><span class="sr-only">${enT.metrics[key].title} · </span>${dial ? '' : enT.trend.title + '<'}`), `${key} title`);
     assert.match(html, /class="dt-range"/, `${key} range switch`);
     assert.match(html, /<svg class="dt-chart"/, `${key} chart`);
     assert.match(html, /class="dt-cal"/, `${key} calendar`);
@@ -237,13 +240,21 @@ test('range switch: W / M / 6M / 1Y, opens on M; the pressed button follows, the
   const html = s.host.innerHTML;
   assert.match(html, /data-range="7" aria-pressed="true"/);
   assert.match(html, /data-range="30" aria-pressed="false"/);
-  assert.match(html, /<div class="dt-ax"><span>[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}<\/span>/, 'date axis written with HC.fmtDate');
+  assert.match(html, /<div class="dt-wdays" aria-hidden="true"><span style="left:[\d.]+%">[A-Z][a-z]{2}<b>\d{1,2}<\/b><\/span>/, 'W: a weekday + day label under each bar');
+  assert.equal((html.match(/<span style="left:[\d.]+%">[A-Z][a-z]{2}<b>/g) || []).length, 7, 'seven day labels');
   const m = DEMO.metrics.steps;
   const from = addDays(NOW, -6);
   const bars = (html.match(/class="dt-bar/g) || []).length;
   let expected = 0;
   for (let i = 0; i < 7; i++) { const v = valueOn(m, addDays(from, i)); if (v != null && v > 0) expected++; }
   assert.equal(bars, expected, 'one bar per day with data, none for a missing day');
+  let withData = 0;
+  for (let i = 0; i < 7; i++) if (valueOn(m, addDays(from, i)) != null) withData++;
+  assert.equal((html.match(/class="dt-bv"/g) || []).length, withData, 'W: each day with data carries its value on top');
+  s.click(act('range', { 'data-range': '30' }));
+  assert.match(s.host.innerHTML, /<div class="dt-ax"><span>[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}<\/span>/, 'M: the from / to date axis (HC.fmtDate)');
+  assert.equal((s.host.innerHTML.match(/class="dt-lastv"/g) || []).length, 1, 'M: the newest value is labelled once');
+  assert.match(s.host.innerHTML, /<circle class="dt-last" /);
   s.click(act('range', { 'data-range': '13' }));
   assert.match(s.host.innerHTML, /data-range="30" aria-pressed="true"/, 'an unknown range falls back to the month');
 });
@@ -272,7 +283,7 @@ test('W / M / 6M windowing: the period average, the delta vs the previous period
   assert.match(html, new RegExp(`<span class="dt-pill dt-pill-none">Data since ${format(enDate.dayTpl, { weekday: '[A-Z][a-z]{2}', day: '\\d+', month: '[A-Z][a-z]{2}' })}</span>`));
   assert.equal((html.match(/class="dt-pt/g) || []).length, 29, 'the chart starts at the first day');
   s.click(act('range', { 'data-range': '7' }));
-  assert.match(s.host.innerHTML, /<span class="dt-trend-lbl">Average<\/span><div class="dt-trend-row"><b class="dt-trend-num">60<\/b><small>bpm<\/small><span class="dt-pill dt-pill-bad">▲ \d+% vs prior week<\/span>/);
+  assert.match(s.host.innerHTML, /<span class="dt-trend-lbl">Average<\/span><div class="dt-trend-row"><b class="dt-trend-num">60<\/b><small>bpm<\/small><\/div><div class="dt-trend-pill"><span class="dt-pill dt-pill-bad">▲ \d+% vs prior week<\/span><\/div><p class="dt-trend-txt">Your average Resting HR this week was 60 bpm, higher than the week before \(54 bpm\)\.<\/p>/, 'AVERAGE, the pill below, one sentence');
 });
 
 test('trend view: a daily total skips today (still filling up); recovery deltas are in sd; a tiny change is neutral (•)', () => {
@@ -294,7 +305,7 @@ test('trend view: a daily total skips today (still filling up); recovery deltas 
   assert.deepEqual([rec.avg, rec.prev, rec.delta, rec.pct, rec.tone], [0.5, 0, 0.5, null, 'good']);
   s.api.open('recovery');
   s.click(act('range', { 'data-range': '7' }));
-  assert.match(s.host.innerHTML, /<b class="dt-trend-num">\+0\.5<\/b><small>SD<\/small><span class="dt-pill dt-pill-good">▲ \+0\.5 SD vs prior week<\/span>/);
+  assert.match(s.host.innerHTML, /<b class="dt-trend-num">\+0\.5<\/b><small>SD<\/small><\/div><div class="dt-trend-pill"><span class="dt-pill dt-pill-good">▲ \+0\.5 SD vs prior week<\/span>/);
 });
 
 test('missing days are gaps, never zero: no point, no bar, an empty calendar cell and "no data" in the day detail', () => {
@@ -514,7 +525,7 @@ test('metric chart: 3 round Y-axis ticks (grid lines + labels), and the Y range 
   const grid = [...html.matchAll(/<line class="dt-grid" x1="0" x2="320" y1="([\d.]+)" y2="\1"\/>/g)].map((m) => Number(m[1]));
   assert.equal(grid.length, 3, 'three horizontal grid lines');
   const ticks = [...html.matchAll(/<span style="top:([\d.]+)%">([^<]+)<\/span>/g)];
-  assert.match(html, /<div class="dt-plot"><svg class="dt-chart"[^]*<\/svg><div class="dt-yax" aria-hidden="true">/, 'labels overlay the plot');
+  assert.match(html, /<div class="dt-plot"><div class="dt-svg"><svg class="dt-chart"[^]*<\/svg>(<div class="dt-labels"[^]*?<\/div>)?<\/div><div class="dt-yax" aria-hidden="true">/, 'labels overlay the plot');
   assert.equal(ticks.length, 3, 'three labels');
   const vals = ticks.map((t) => Number(t[2]));
   assert.ok(vals.every((v) => Number.isFinite(v)), 'labels are numbers: ' + vals);
@@ -526,7 +537,7 @@ test('metric chart: 3 round Y-axis ticks (grid lines + labels), and the Y range 
   assert.ok(Math.min(...cys) >= 14 && Math.max(...cys) <= 140 - 14, `points keep >= 14 units from the edges (${Math.min(...cys)}–${Math.max(...cys)})`);
 });
 
-test('ONE sheet header for dial deep-dives and metric details: "‹" back (= close, focus lands there), the metric name centred as the dialog title, ⓘ = the shared SVG icon (dials) or an equal spacer', () => {
+test('ONE sheet header for dial deep-dives and metric details: "‹" back (= close, focus lands there), the day (dials) or the metric name centred as the dialog title, ⓘ = the shared SVG icon (dials) or an equal spacer', () => {
   const back = '<button type="button" class="sh-back" data-dt-act="close" aria-label="Back">‹</button>';
   for (const key of ['sleep', 'recovery', 'load-gym']) {
     const s = setup({ dials: DIALS });
@@ -535,7 +546,7 @@ test('ONE sheet header for dial deep-dives and metric details: "‹" back (= clo
     opener.focus = () => { opener.focused++; };
     s.click(opener);
     const h = headOf(s.host.innerHTML);
-    assert.ok(h.includes('<div class="dt-head sh-head">' + back + `<h2 class="sh-title" id="dt-title">${enT.metrics[key].title}</h2>`), key + ': ' + h.slice(0, 200));
+    assert.ok(h.includes('<div class="dt-head sh-head">' + back + `<h2 class="sh-title" id="dt-title"><span class="sr-only">${enT.metrics[key].title} · </span>${enT.deep.today}</h2>`), key + ': ' + h.slice(0, 200));
     assert.match(h, /<button type="button" class="sh-info" data-dt-act="info" aria-expanded="false" aria-controls="dd-info" aria-label="How to read this page"><svg viewBox="0 0 24 24" aria-hidden="true">/, 'the ⓘ is the SVG icon, not a serif "i"');
     assert.doesNotMatch(h, /dd-today|dd-back|dd-info-btn|class="dt-close"/, 'the old header is gone');
     assert.equal(s.closeBtn.focused, 1, 'focus moves to the back button');
@@ -544,11 +555,21 @@ test('ONE sheet header for dial deep-dives and metric details: "‹" back (= clo
     assert.equal(s.host.hidden, true, 'back closes the sheet');
     assert.equal(opener.focused, 1, 'focus returns to the dial');
   }
-  // a metric detail: the same header (no ⓘ: an equal spacer keeps the title centred), no dial parts
+  // stale data (the view ends at the data's last day): that day's date, not "Today"; Spanish "Hoy"
+  const late = setup({ now: addDays(NOW, 5), dials: DIALS });
+  late.api.open('recovery');
+  assert.doesNotMatch(headOf(late.host.innerHTML), new RegExp(`</span>${enT.deep.today}</h2>`));
+  assert.match(headOf(late.host.innerHTML), /<\/span>[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}<\/h2>/);
+  const es = setup({ locale: 'es', dials: DIALS });
+  es.api.open('sleep');
+  assert.ok(headOf(es.host.innerHTML).includes(`<span class="sr-only">${esT.metrics.sleep.title} · </span>${esT.deep.today}</h2>`));
+  // a metric detail = the trend view: the same header titled "Trend view", its ⓘ holding the latest value + band words (collapsed), no dial parts
   const s = setup();
   s.api.open('hrv');
   const h = headOf(s.host.innerHTML);
-  assert.ok(h.includes('<div class="dt-head sh-head">' + back + `<h2 class="sh-title" id="dt-title">${enT.metrics.hrv.title}</h2><span class="sh-pad" aria-hidden="true"></span></div>`), h.slice(0, 260));
+  assert.ok(h.includes('<div class="dt-head sh-head">' + back + `<h2 class="sh-title" id="dt-title"><span class="sr-only">${enT.metrics.hrv.title} · </span>${enT.trend.title}</h2><button type="button" class="sh-info" data-dt-act="info" aria-expanded="false" aria-controls="dd-info"`), h.slice(0, 260));
+  assert.match(h, /<div class="dd-info dt-info" id="dd-info" hidden><div class="dt-titles"><div class="dt-latest"><b class="dt-num /, 'the latest value moved under ⓘ');
+  assert.doesNotMatch(s.host.innerHTML.split('<div class="dt-body">')[1], /class="dt-num /, 'no big current number in the view itself');
   assert.doesNotMatch(s.host.innerHTML, /dd-head|dd-hero|dd-insight|class="dt-close"/);
 });
 
@@ -606,7 +627,7 @@ test('recovery deep-dive = the dial: the hero ring is last night\'s % with ONE %
   assert.ok(info.includes('±1.2') && info.includes('±0.5'), 'day cut and trend cut both stated');
   assert.ok(info.includes(enT.bands.perDayNote));
   assert.ok(info.includes(enT.rec.pctNote), 'ⓘ explains the % mapping');
-  assert.ok(html.includes(enT.chartKey.baseline), 'the history chart stays below');
+  assert.ok(html.includes(`<span class="dt-typ">${enT.trend.baseline}</span>`), 'the history chart stays below, its band named top-right');
   // fallback: a dial without a % (under 21 prior nights) keeps the SD hero
   const noPct = setup({ dials: { ...DIALS, recovery: { ...d, pct: null, band: 'above', mid: { x: 60, y: 107 } } } });
   noPct.api.open('recovery');
@@ -742,7 +763,7 @@ test('load deep-dive keeps the dial\'s former captions: the ring scale + the 7-d
   const es = setup({ dials: DIALS, locale: 'es' });
   es.api.open('load-' + run.key);
   assert.ok(insightOf(es.host.innerHTML).includes(esT.load.scale));
-  assert.ok(es.host.innerHTML.includes(`>${esT.deep.cta}<`) && es.host.innerHTML.includes(`id="dt-title">${esT.metrics['load-' + run.key].title}<`));
+  assert.ok(es.host.innerHTML.includes(`>${esT.deep.cta}<`) && es.host.innerHTML.includes(`<span class="sr-only">${esT.metrics['load-' + run.key].title} · </span>${esT.deep.today}<`));
   const none = setup();
   none.api.open('load-' + run.key);
   assert.ok(!insightOf(none.host.innerHTML).includes(enT.load.bands[run.band]));
@@ -1373,8 +1394,114 @@ test('strain deep-dive follows the day it was opened on; a day without all-day h
   const s = setup({ dials: DIALS, scores: DEMO_SCORES });
   s.api.open('strain', prev.date);
   assert.ok(heroOf(s.host.innerHTML).includes(`<b class="dd-num">${prev.s.toFixed(1)}</b>`));
+  const dayLbl = format(enDate.dayTpl, { weekday: enDate.weekdays[(new Date(prev.date + 'T12:00:00Z').getUTCDay() + 6) % 7], day: String(Number(prev.date.slice(8))), month: enDate.months[Number(prev.date.slice(5, 7)) - 1] });
+  assert.ok(headOf(s.host.innerHTML).includes(`<span class="sr-only">${enT.metrics.strain.title} · </span>${dayLbl}</h2>`), 'the header names the stepped-to day: ' + headOf(s.host.innerHTML).slice(-160));
   const old = addDays(DEMO.metrics.strain.start, -3);
   const o = setup({ dials: DIALS, scores: DEMO_SCORES });
   o.api.open('strain', old);
   assert.ok(heroOf(o.host.innerHTML).includes(enT.deep.words.none) || !o.host.innerHTML.includes('dd-hero'));
+});
+
+/* ---------- trend view controls (Q11a-3) ---------- */
+test('trend view: the window steps back and forward by its own length (forward disabled at today, back while the data reaches), the range resets it', () => {
+  const s = setup();
+  s.api.open('rhr');
+  s.click(act('range', { 'data-range': '7' }));
+  const winOf = (html) => /<div class="dt-win" role="group" aria-label="Period shown">([^]*?)<\/div>/.exec(html)[1];
+  const fmt2 = (iso) => format(enDate.dayNoWeekdayTpl, { day: String(Number(iso.slice(8))), month: enDate.months[Number(iso.slice(5, 7)) - 1] });
+  let w = winOf(s.host.innerHTML);
+  assert.ok(w.includes(`<span class="dt-win-lbl">${fmt2(addDays(NOW, -6))} – ${fmt2(NOW)}, ${NOW.slice(2, 4)}</span>`), w);
+  assert.match(w, /data-wdir="1" aria-label="Later period" disabled>/, 'no window after today');
+  assert.doesNotMatch(w, /data-wdir="-1"[^>]*disabled/);
+  s.click(act('win', { 'data-wdir': '-1' }));
+  w = winOf(s.host.innerHTML);
+  assert.ok(w.includes(`${fmt2(addDays(NOW, -13))} – ${fmt2(addDays(NOW, -7))}`), 'one week back');
+  assert.doesNotMatch(w, /data-wdir="1"[^>]*disabled/);
+  const st = JSON.parse(JSON.stringify(s.api.periodStats('rhr', addDays(NOW, -7), 7)));
+  assert.ok(s.host.innerHTML.includes(`<b class="dt-trend-num">${st.avg.toFixed(0)}</b>`) || s.host.innerHTML.includes(`<b class="dt-trend-num">${Math.round(st.avg)}</b>`), 'the average is the shown window\'s');
+  const end7 = addDays(NOW, -7);
+  const fmtW = format(enDate.dayTpl, { weekday: enDate.weekdays[(new Date(end7 + 'T12:00:00Z').getUTCDay() + 6) % 7], day: String(Number(end7.slice(8))), month: enDate.months[Number(end7.slice(5, 7)) - 1] });
+  assert.ok(s.host.innerHTML.includes(` to ${fmtW}">`), 'the chart ends at the window end');
+  s.click(act('win', { 'data-wdir': '1' }));
+  assert.match(winOf(s.host.innerHTML), /data-wdir="1"[^>]*disabled/, 'back at today');
+  s.click(act('win', { 'data-wdir': '1' }));
+  assert.match(winOf(s.host.innerHTML), new RegExp(fmt2(NOW)), 'never past today');
+  // back to the data's first window: the back arrow disables there
+  const m = DEMO.metrics.rhr;
+  s.click(act('range', { 'data-range': '182' }));
+  for (let i = 0; i < 6; i++) s.click(act('win', { 'data-wdir': '-1' }));
+  w = winOf(s.host.innerHTML);
+  assert.match(w, /data-wdir="-1"[^>]*disabled/, 'no window before the data');
+  assert.ok(s.api.state().shift * 182 <= Math.round((Date.parse(NOW) - Date.parse(m.start)) / 86400000), 'the window still holds data');
+  s.click(act('range', { 'data-range': '30' }));
+  assert.equal(s.api.state().shift, 0, 'a new range starts at today');
+});
+
+test('trend view: "TREND VIEW" header + a metric picker pill (non-dial metrics only); picking one re-opens the sheet there, same range, URL replaced', () => {
+  const s = setup();
+  s.api.open('rhr');
+  const html = s.host.innerHTML;
+  const opts = [...html.matchAll(/<option value="([^"]+)"( selected)?>/g)];
+  assert.ok(opts.length >= 2);
+  assert.deepEqual(opts.filter((o) => o[2]).map((o) => o[1]), ['rhr'], 'the open metric is selected');
+  for (const k of ['sleep', 'recovery', 'strain', 'load-gym']) assert.ok(!opts.some((o) => o[1] === k), `${k} keeps its dial page`);
+  assert.match(html, /<label class="dt-metric"><span class="sr-only">Metric<\/span><select class="dt-metric-sel" data-dt-pick="metric">/);
+  s.click(act('range', { 'data-range': '182' }));
+  const sel = new StubElement('select', { attrs: { 'data-dt-pick': 'metric' } });
+  sel.value = 'hrv';
+  const pushes = s.calls.filter((c) => c[0] === 'push').length;
+  s.change(sel);
+  assert.equal(s.api.state().key, 'hrv');
+  assert.equal(s.api.state().range, 182, 'the range is kept');
+  assert.equal(s.calls.filter((c) => c[0] === 'push').length, pushes, 'no new history entry');
+  assert.equal(s.loc.hash, '#detail/hrv');
+  sel.value = 'constructor';
+  s.change(sel);
+  assert.equal(s.api.state().key, 'hrv', 'an unknown value is ignored');
+  // a dial page has no picker
+  s.api.open('recovery');
+  assert.doesNotMatch(s.host.innerHTML, /dt-metric-sel/);
+});
+
+/* ---------- trend chart + header (Q11a-4) ---------- */
+test('6M on ~7 months of data: the previous window starts before the data but holds over half its days, so the pill is a delta (not "Data since"); under half → no delta', () => {
+  const mk = (len) => {
+    const start = addDays(NOW, -(len - 1));
+    const v = Array.from({ length: len }, (_, i) => (i < len - 182 ? 60 : 55));
+    return { asOf: NOW, days: 365, metrics: { rhr: { kind: 'signal', dir: -1, dec: 0, start, v } }, sessions: [] };
+  };
+  const s = setup({ detail: mk(182 + 120) });
+  const st = JSON.parse(JSON.stringify(s.api.periodStats('rhr', NOW, 182)));
+  assert.deepEqual([st.clamped, st.prev, st.avg, st.tone], [false, 60, 55, 'good'], '120 of 182 previous days hold data');
+  s.api.open('rhr');
+  s.click(act('range', { 'data-range': '182' }));
+  assert.match(s.host.innerHTML, /<span class="dt-pill dt-pill-good">▼ 8% vs prior 6 months<\/span>/);
+  assert.match(s.host.innerHTML, /<p class="dt-trend-txt">Your average Resting HR these 6 months was 55 bpm, lower than the 6 months before \(60 bpm\)\.<\/p>/);
+  const few = setup({ detail: mk(182 + 60) });
+  assert.equal(few.api.periodStats('rhr', NOW, 182).delta, null, '60 of 182 days: not enough to compare');
+});
+
+test('trend chart: no card, the band named "Typical range" top-right (no legend swatch for it), a sentence without a previous window', () => {
+  const s = setup();
+  s.api.open('rhr');
+  const html = s.host.innerHTML;
+  assert.ok(html.includes(`<figure class="dt-fig"><div class="dt-fig-top"><span class="dt-typ">${enT.trend.typical}</span></div>`));
+  assert.doesNotMatch(html, /dt-k-band/);
+  const start = addDays(NOW, -9);
+  const detail = { asOf: NOW, days: 365, metrics: { rhr: { kind: 'signal', dir: -1, dec: 0, start, v: Array(10).fill(50) } }, sessions: [] };
+  const t = setup({ detail });
+  t.api.open('rhr');
+  assert.match(t.host.innerHTML, /<p class="dt-trend-txt">Your average Resting HR these 30 days was 50 bpm\.<\/p>/);
+  const es = setup({ locale: 'es', detail });
+  es.api.open('rhr');
+  assert.ok(es.host.innerHTML.includes(`<p class="dt-trend-txt">Tu media de ${esT.metrics.rhr.title} estos 30 días fue 50 lpm.</p>`) || /<p class="dt-trend-txt">Tu media de [^<]+ estos 30 días fue 50/.test(es.host.innerHTML));
+});
+
+test('trend sentence: a real change that rounds to the same number gets one more decimal', () => {
+  const start = addDays(NOW, -13);
+  const v = Array.from({ length: 14 }, (_, i) => (i < 7 ? 54.4 : 53.6));
+  const s = setup({ detail: { asOf: NOW, days: 365, metrics: { rhr: { kind: 'signal', dir: -1, dec: 0, start, v } }, sessions: [] } });
+  s.api.open('rhr');
+  s.click(act('range', { 'data-range': '7' }));
+  assert.match(s.host.innerHTML, /was 53\.6 bpm, lower than the week before \(54\.4 bpm\)\./);
 });
