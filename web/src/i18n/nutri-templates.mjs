@@ -4,6 +4,15 @@
  * substituted client-side; `...Html` entries are trusted, tracked, generic markup. Neutral Spanish. */
 export const es = {
   headings: { summary: 'Resumen de hoy', plan: 'Plan de hoy', fuel: 'Avituallamiento', progress: 'Progreso', adherence: 'Constancia' },
+  // the tab header (Dia.astro): centred title + ⓘ with the tab intro and the caveats every block shares
+  head: {
+    title: 'Nutrición',
+    info: 'Más sobre Nutrición',
+    intro: 'Tu objetivo de hoy según tu meta y el tipo de día, lo que has registrado y cómo evolucionan tu ingesta y tu peso semana a semana. Toca una tarjeta para ver su historial.',
+    caveat: 'Los objetivos son estimaciones orientativas, no consejo médico. Un día a medio registrar se ve corto: importan las tendencias de varias semanas, no un día suelto.',
+  },
+  // the ⓘ button of a section header
+  infoTpl: 'Más sobre {section}',
   goalChip: 'Objetivo: {goal}. Cámbialo en tu perfil',
   goals: { maintain: 'Mantener', cut: 'Bajar', bulk: 'Ganar' },
   dayLegend: 'Tipo de día',
@@ -37,7 +46,8 @@ export const es = {
     cNote: 'los carbohidratos son el resto de las kcal',
     dialAria: 'Objetivo de hoy: {k} kcal',
     loggedAria: 'Registrado hoy: {v} de {k} kcal',
-    logged: 'registradas',
+    // under the kcal eaten inside the ring
+    of: '/ {k} kcal',
     loggedNote: 'Registrado hoy hasta ahora: lo que tu app de comida escribió en Salud. Un día a medio registrar se ve incompleto.',
     loggedFoodNote: 'Registrado hoy en esta página (Registrar). Un día a medio registrar se ve incompleto.',
     loggedFoodMissing: 'Alguna entrada no tiene todos los macros: esas barras son un mínimo.',
@@ -183,6 +193,15 @@ export const es = {
 
 export const en = {
   headings: { summary: "Today's summary", plan: "Today's plan", fuel: 'Ride fuelling', progress: 'Progress', adherence: 'Consistency' },
+  // the tab header (Dia.astro): centred title + ⓘ with the tab intro and the caveats every block shares
+  head: {
+    title: 'Nutrition',
+    info: 'About Nutrition',
+    intro: 'Today\'s target from your goal and the day type, what you logged, and how your intake and weight move week to week. Tap a card for its history.',
+    caveat: 'Targets are estimates for guidance, not medical advice. A half-logged day looks short: trends over several weeks matter, not a single day.',
+  },
+  // the ⓘ button of a section header
+  infoTpl: 'About {section}',
   goalChip: 'Goal: {goal}. Change it in your profile',
   goals: { maintain: 'Maintain', cut: 'Lose', bulk: 'Gain' },
   dayLegend: 'Day type',
@@ -216,7 +235,8 @@ export const en = {
     cNote: 'carbs are the rest of the kcal',
     dialAria: "Today's target: {k} kcal",
     loggedAria: 'Logged today: {v} of {k} kcal',
-    logged: 'logged',
+    // under the kcal eaten inside the ring
+    of: '/ {k} kcal',
     loggedNote: 'Logged today so far: what your food app wrote to Health. A half-logged day looks short.',
     loggedFoodNote: 'Logged today on this page (Log food). A half-logged day looks short.',
     loggedFoodMissing: 'Some entries lack macros: those bars are a minimum.',

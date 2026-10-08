@@ -47,13 +47,14 @@ function memStorage(init = {}) {
   return { data: m, getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: (k) => { delete m[k]; } };
 }
 
-const ARC = 'M24.64 95.36A50 50 0 1 1 95.36 95.36';
+// the Inicio full ring (view/dial.mjs arcPath(0, 1)), baked as NUTRI_ARC
+const ARC = 'M60 6A54 54 0 0 1 60 114A54 54 0 0 1 60 6';
 const BASICS = { en: buildBasics(ING, 'en'), es: buildBasics(ING, 'es') };
 function run({ nutri = bake(), items = [], programmed = null, locale = 'en', storage = memStorage(), today = TODAY, hooks = true, extra = {}, intake, query, basics } = {}) {
   const doc = new StubDocument();
   if (query) doc.querySelector = query;
   const els = {};
-  for (const id of ['nutri-daytype', 'nutri-daytype-src', 'nutri-why', 'nutri-target', 'nutri-plan', 'nutri-fuel-block', 'nutri-ride-wrap', 'nutri-fuel-body', 'eat-body', 'intake']) els[id] = doc.el(id);
+  for (const id of ['nutri-daytype', 'nutri-daytype-src', 'nutri-why', 'nutri-target', 'nutri-sum-info', 'nutri-plan', 'nutri-fuel-block', 'nutri-ride-wrap', 'nutri-fuel-body', 'eat-body', 'intake']) els[id] = doc.el(id);
   els['nutri-auto'] = doc.el('nutri-auto', { tag: 'button', hidden: true });
   els['nutri-plan-fold'] = doc.el('nutri-plan-fold', { tag: 'details' });
   els['nutri-plan-kcal'] = doc.el('nutri-plan-kcal');
@@ -180,9 +181,9 @@ test('no workout, nothing programmed: rest (auto), the default goal, rest target
   assert.equal(els['nutri-daytype-src'].textContent, '(auto)');
   assert.equal(els['nutri-auto'].hidden, true);
   assert.match(els['nutri-why'].textContent, /No workout recorded or programmed today/);
-  assert.match(els['nutri-target'].innerHTML, /<b class="nt-kcal">2,300<\/b><span class="nt-unit">kcal<\/span>/);
-  assert.match(els['nutri-target'].innerHTML, /<span class="nt-bar-lbl">Protein<\/span><span class="nt-bar-val"><b>125<\/b> g<\/span>/);
-  assert.match(els['nutri-target'].innerHTML, /<span class="nt-bar-lbl">Carbs<\/span><span class="nt-bar-val"><b>304<\/b> g<\/span>/);
+  assert.match(els['nutri-target'].innerHTML, /<span class="nt-of">\/ 2,300 kcal<\/span>/);
+  assert.match(els['nutri-target'].innerHTML, /<span class="nt-mac-lbl">Protein<\/span><span class="nt-mac-val"><b>—<\/b><small> \/ 125 g<\/small><\/span>/);
+  assert.match(els['nutri-target'].innerHTML, /<span class="nt-mac-lbl">Carbs<\/span><span class="nt-mac-val"><b>—<\/b><small> \/ 304 g<\/small><\/span>/);
   assert.match(els['nutri-plan'].innerHTML, /class="meal-name">Breakfast</);
   assert.match(els['nutri-plan'].innerHTML, /<select class="gd-pick" data-guide="lunch\.p" aria-label="Protein example for Lunch">/);
   assert.doesNotMatch(els['nutri-plan'].innerHTML, /mp-pick|data-block|meal-addons/, 'no menu: no block selects, no add-ons card');
@@ -251,7 +252,7 @@ test('manual override: stored with its date, "(chosen)", back-to-auto button; pi
   assert.equal(s.els['nutri-auto'].hidden, false);
   assert.match(s.els['nutri-auto'].textContent, /Use the detected one: Rest/);
   assert.deepEqual(JSON.parse(s.storage.data['hc.nutri.dayType']), { date: TODAY, type: 'gym', auto: 'rest' });
-  assert.match(s.els['nutri-target'].innerHTML, /<b class="nt-kcal">2,700<\/b>/);
+  assert.match(s.els['nutri-target'].innerHTML, /<span class="nt-of">\/ 2,700 kcal<\/span>/);
   assert.deepEqual(s.calls.map((c) => c[1]), [2300, 2700], 'the rings follow every day type change');
   s.els['nutri-auto']._listeners.click[0]();
   assert.equal(s.api.state().dayType, 'rest');
@@ -306,7 +307,7 @@ test('goal choice (HCNutri.setGoal, from the profile sheet) persists; an unknown
   assert.equal(s.api.setGoal('cut'), true);
   assert.equal(s.api.setGoal('shred'), false, 'an unknown goal is refused');
   assert.equal(s.storage.data['hc.nutri.goal'], 'cut');
-  assert.match(s.els['nutri-target'].innerHTML, /<b class="nt-kcal">1,950<\/b>/);
+  assert.match(s.els['nutri-target'].innerHTML, /<span class="nt-of">\/ 1,950 kcal<\/span>/);
   assert.equal(run({ storage: memStorage({ 'hc.nutri.goal': 'bulk' }) }).api.state().goal, 'bulk');
   assert.equal(run({ storage: memStorage({ 'hc.nutri.goal': 'shred', 'hc.nutri.dayType': '{broken' }) }).api.state().goal, 'maintain');
   const throwing = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } };
@@ -497,7 +498,7 @@ test('the removed day builder\'s hook is never called (a stale window.bldRefresh
 
 test('Spanish: labels, thousands with a dot, the guide localized', () => {
   const { els, api } = run({ locale: 'es', nutri: bake({ units: { g: 'g', ml: 'ml', ud: 'ud' }, dec: ',' }) });
-  assert.match(els['nutri-target'].innerHTML, /<b class="nt-kcal">2\.300<\/b>/);
+  assert.match(els['nutri-target'].innerHTML, /<span class="nt-of">\/ 2\.300 kcal<\/span>/);
   assert.match(els['nutri-target'].innerHTML, /Proteína/);
   assert.match(els['nutri-plan'].innerHTML, /class="meal-name">Desayuno</);
   assert.match(els['nutri-plan'].innerHTML, /<span class="gd-l">Verdura<\/span><span class="gd-free">libre<\/span>/);
@@ -527,7 +528,7 @@ test('setGoal refreshes everything that reads the target at once: summary, chip,
   s.api.setGoal('cut');
   assert.equal(s.window.nutriTarget().k, 1950);
   assert.deepEqual(s.calls, [['intake', 1950]]);
-  assert.match(s.els['nutri-target'].innerHTML, /<b class="nt-kcal">1,950<\/b>/);
+  assert.match(s.els['nutri-target'].innerHTML, /<span class="nt-of">\/ 1,950 kcal<\/span>/);
   assert.match(s.els['nutri-target'].innerHTML, /id="nutri-goal-chip"[^>]*>Lose<\/button>/);
   assert.notEqual(s.els['nutri-plan'].innerHTML, plan0);
   assert.match(s.els['eat-body'].innerHTML, /· Lose/);
@@ -538,7 +539,7 @@ test('goal chip: low-emphasis button next to today\'s kcal, labelled for screen 
   assert.match(h, /<\/figure><button type="button" class="nt-goal" id="nutri-goal-chip" aria-haspopup="dialog" aria-label="Goal: Maintain. Change it in your profile">Maintain<\/button>/, 'the chip sits right under the kcal dial');
   assert.doesNotMatch(h, /nt-day|😴/, 'the day type is the segmented control, not repeated with an emoji');
   const es = run({ locale: 'es', nutri: bake({ units: { g: 'g', ml: 'ml', ud: 'ud' }, dec: ',' }) }).els['nutri-target'].innerHTML;
-  assert.match(es, /<b class="nt-kcal">2\.300<\/b>[\s\S]*<button[^>]*aria-label="Objetivo: Mantener\. Cámbialo en tu perfil">Mantener<\/button>/);
+  assert.match(es, /<span class="nt-of">\/ 2\.300 kcal<\/span>[\s\S]*<button[^>]*aria-label="Objetivo: Mantener\. Cámbialo en tu perfil">Mantener<\/button>/);
 });
 
 test('goal chip: a tap opens the profile sheet focused on the goal setting; without the sheet it does nothing', () => {
@@ -552,59 +553,84 @@ test('goal chip: a tap opens the profile sheet focused on the goal setting; with
   assert.doesNotThrow(() => run().fire('nutri-target', 'click', chip));
 });
 
-/* ---- visual summary: kcal dial + macro bars, fill only from intake logged TODAY ---- */
-test('kcal dial: 270° track with the target centred; no intake today = empty track (no fill), bars show the target only', () => {
+/* ---- visual summary: kcal ring + macro rows, fill only from intake logged TODAY ---- */
+const ringOf = (h) => (h.match(/<figure class="nt-ring[\s\S]*?<\/figure>/) || [''])[0];
+const macrosOf = (h) => [...h.matchAll(/<li class="(nt-mac[^"]*)"><span class="nt-mac-lbl">([^<]+)<\/span><span class="nt-mac-val">([\s\S]*?)<\/span><span class="nt-mac-track">([\s\S]*?)<\/span><\/li>/g)]
+  .map((m) => ({ cls: m[1], lbl: m[2], val: m[3], fill: m[4] }));
+test('kcal ring, no intake today: the full ring track only (state none), "—" inside over "/ target kcal"', () => {
   const h = run().els['nutri-target'].innerHTML;
-  assert.match(h, /<figure class="nt-dial" role="img" aria-label="Today's target: 2,300 kcal">/);
-  assert.match(h, new RegExp('<path class="nt-dial-track" d="' + ARC + '"/>'));
-  assert.doesNotMatch(h, /nt-dial-fill|nt-bar-fill/, 'nothing fills from the target');
-  const bars = [...h.matchAll(/<span class="nt-bar-lbl">([^<]+)<\/span>/g)].map((m) => m[1]);
-  assert.deepEqual(bars, ['Protein', 'Carbs', 'Fat'], 'order: protein, carbs, fat');
-  // yesterday's log does not fill today's dial
+  const ring = ringOf(h);
+  assert.match(ring, /^<figure class="nt-ring nt-ring-none" role="img" aria-label="Today's target: 2,300 kcal">/);
+  assert.match(ring, new RegExp('<svg class="dial-svg" viewBox="0 0 120 120" aria-hidden="true"><path class="dial-track" d="' + ARC + '"/></svg>'), 'the Inicio ring geometry, no fill');
+  assert.match(ring, /<div class="dial-centre" aria-hidden="true"><b class="dial-num nt-kcal">—<\/b><span class="nt-of">\/ 2,300 kcal<\/span><\/div>/);
+  assert.doesNotMatch(h, /dial-fill|<i style/, 'nothing fills from the target');
+  // yesterday's log does not fill today's ring
   const y = run({ intake: { latest: { date: '2030-01-09', k: 1800, p: 100, c: 200, g: 50 }, freshDays: 3 } }).els['nutri-target'].innerHTML;
-  assert.doesNotMatch(y, /nt-dial-fill|nt-bar-fill/);
+  assert.match(ringOf(y), /nt-ring-none/);
+  assert.doesNotMatch(y, /dial-fill|<i style/);
 });
 
-test('kcal dial + bars fill from intake logged today (logged / target), a missing macro stays empty, > 110 % is flagged', () => {
+test('kcal ring states: on track (<= 110 %) fills to eaten / target; over (> 110 %) is a full ring in the over state', () => {
+  const ok = ringOf(run({ intake: { latest: { date: TODAY, k: 1150, p: 75, c: 200, g: 40 }, freshDays: 3 } }).els['nutri-target'].innerHTML);
+  assert.match(ok, /^<figure class="nt-ring nt-ring-ok" role="img" aria-label="Logged today: 1,150 of 2,300 kcal">/);
+  assert.match(ok, new RegExp('<path class="dial-fill" pathLength="100" style="stroke-dasharray:50 100" d="' + ARC + '"/>'));
+  assert.match(ok, /<b class="dial-num nt-kcal">1,150<\/b><span class="nt-of">\/ 2,300 kcal<\/span>/, 'the value inside is the kcal EATEN');
+  const edge = ringOf(run({ intake: { latest: { date: TODAY, k: 2530, p: 75, c: 200, g: 40 }, freshDays: 3 } }).els['nutri-target'].innerHTML);
+  assert.match(edge, /nt-ring-ok/, 'exactly 110 % is still on track');
+  const over = ringOf(run({ intake: { latest: { date: TODAY, k: 2600, p: 75, c: 200, g: 40 }, freshDays: 3 } }).els['nutri-target'].innerHTML);
+  assert.match(over, /^<figure class="nt-ring nt-ring-over"/);
+  assert.match(over, /style="stroke-dasharray:100 100"/, 'the fill is capped at the full ring');
+  assert.match(over, /<b class="dial-num nt-kcal">2,600<\/b>/);
+});
+
+test('macro rows: protein / carbs / fat, eaten / target in --num, a bar each; > 110 % flagged; a missing macro is a dash', () => {
+  const none = macrosOf(run().els['nutri-target'].innerHTML);
+  assert.deepEqual(none.map((m) => m.lbl), ['Protein', 'Carbs', 'Fat'], 'order: protein, carbs, fat');
+  assert.deepEqual(none.map((m) => m.val), ['<b>—</b><small> / 125 g</small>', '<b>—</b><small> / 304 g</small>', '<b>—</b><small> / 65 g</small>']);
+  assert.ok(none.every((m) => m.cls === 'nt-mac' && m.fill === ''), 'no intake: empty tracks');
   const h = run({ intake: { latest: { date: TODAY, k: 1150, p: 75, c: 400, g: null }, freshDays: 3 } }).els['nutri-target'].innerHTML;
-  assert.match(h, /aria-label="Logged today: 1,150 of 2,300 kcal"/);
-  assert.match(h, new RegExp('<path class="nt-dial-fill" pathLength="100" stroke-dasharray="50 100" d="' + ARC + '"/>'));
-  assert.match(h, /<span class="nt-logged"><b>1,150<\/b> logged<\/span>/);
-  assert.match(h, /<span class="nt-bar-lbl">Protein<\/span><span class="nt-bar-val"><b>75<\/b> \/ 125 g<\/span><\/div><div class="nt-bar-track"><span class="nt-bar-fill" style="width:60%"><\/span>/);
-  assert.match(h, /<div class="nt-bar nt-bar-over">[\s\S]*?Carbs[\s\S]*?style="width:100%"/, 'carbs 400 / 304 is over 110 %: capped bar, flagged');
-  assert.match(h, /<span class="nt-bar-lbl">Fat<\/span><span class="nt-bar-val"><b>—<\/b> \/ 65 g<\/span><\/div><div class="nt-bar-track"><\/div>/, 'no fat logged: an empty bar with a dash');
-  assert.match(h, /Logged today so far/);
+  const [p, c, f] = macrosOf(h);
+  assert.deepEqual(p, { cls: 'nt-mac', lbl: 'Protein', val: '<b>75</b><small> / 125 g</small>', fill: '<i style="width:60%"></i>' });
+  assert.deepEqual(c, { cls: 'nt-mac nt-mac-over', lbl: 'Carbs', val: '<b>400</b><small> / 304 g</small>', fill: '<i style="width:100%"></i>' }, 'carbs 400 / 304 is over 110 %: capped bar, flagged');
+  assert.deepEqual(f, { cls: 'nt-mac', lbl: 'Fat', val: '<b>—</b><small> / 65 g</small>', fill: '' }, 'no fat logged: an empty bar with a dash');
 });
 
-test('the page food log (window.foodTotals) fills the dial + bars first, labelled as logged here; an Apple Health day is the fallback', () => {
+test('Resumen de hoy notes live behind the section ⓘ (#nutri-sum-info), not on the card', () => {
+  const s = run({ intake: { latest: { date: TODAY, k: 1150, p: 75, c: 400, g: null }, freshDays: 3 } });
+  assert.match(s.els['nutri-sum-info'].innerHTML, /Logged today so far/);
+  assert.ok(s.els['nutri-sum-info'].innerHTML.includes(enN.target.cNote));
+  assert.doesNotMatch(s.els['nutri-target'].innerHTML, /nt-cnote|Logged today so far/);
+  assert.ok(run().els['nutri-sum-info'].innerHTML.includes(enN.target.cNote), 'the carbs note is always there');
+});
+
+test('the page food log (window.foodTotals) fills the ring + rows first, labelled as logged here; an Apple Health day is the fallback', () => {
   const food = { date: TODAY, k: 920, p: 60, c: 120, g: 30, n: 3, missing: { protein: false, carbs: false, fat: false }, src: 'log' };
   const intake = { latest: { date: TODAY, k: 1800, p: 100, c: 200, g: 50 }, freshDays: 3 };
-  const h = run({ intake, hooks: { foodTotals: () => food } }).els['nutri-target'].innerHTML;
+  const s = run({ intake, hooks: { foodTotals: () => food } });
+  const h = s.els['nutri-target'].innerHTML;
   assert.match(h, /aria-label="Logged today: 920 of 2,300 kcal"/);
-  assert.match(h, /stroke-dasharray="40 100"/);
-  assert.ok(h.includes(enN.target.loggedFoodNote));
-  assert.doesNotMatch(h, /what your food app wrote/);
-  const miss = run({ hooks: { foodTotals: () => ({ ...food, missing: { protein: true, carbs: false, fat: true } }) } }).els['nutri-target'].innerHTML;
+  assert.match(h, /stroke-dasharray:40 100/);
+  assert.ok(s.els['nutri-sum-info'].innerHTML.includes(enN.target.loggedFoodNote));
+  assert.doesNotMatch(s.els['nutri-sum-info'].innerHTML, /what your food app wrote/);
+  const miss = run({ hooks: { foodTotals: () => ({ ...food, missing: { protein: true, carbs: false, fat: true } }) } }).els['nutri-sum-info'].innerHTML;
   assert.ok(miss.includes(enN.target.loggedFoodMissing));
   // no entries today (null) or a throwing hook: the Apple Health intake as before (foodTotals already
   // returns null for any day but today, so nutri-day.js does not re-check the date)
   for (const foodTotals of [() => null, () => { throw new Error('x'); }]) {
-    const f = run({ intake, hooks: { foodTotals } }).els['nutri-target'].innerHTML;
-    assert.match(f, /aria-label="Logged today: 1,800 of 2,300 kcal"/);
-    assert.match(f, /what your food app wrote/);
+    const f = run({ intake, hooks: { foodTotals } });
+    assert.match(f.els['nutri-target'].innerHTML, /aria-label="Logged today: 1,800 of 2,300 kcal"/);
+    assert.match(f.els['nutri-sum-info'].innerHTML, /what your food app wrote/);
   }
 });
 
 test('food log macros: none stated -> a dash, never "0 / 125 g"; some entries lack one -> the logged sum marked as a minimum', () => {
   const base = { date: TODAY, k: 350, n: 2, src: 'log' };
-  const none = run({ hooks: { foodTotals: () => ({ ...base, p: null, c: null, g: null, missing: { protein: true, carbs: true, fat: true } }) } }).els['nutri-target'].innerHTML;
-  assert.match(none, /<span class="nt-bar-lbl">Protein<\/span><span class="nt-bar-val"><b>—<\/b> \/ 125 g<\/span><\/div><div class="nt-bar-track"><\/div>/);
-  assert.doesNotMatch(none, /<b>0<\/b> \/ 125/);
-  const some = run({ hooks: { foodTotals: () => ({ ...base, p: 40, c: 30, g: 10, missing: { protein: true, carbs: false, fat: false } }) } }).els['nutri-target'].innerHTML;
-  assert.match(some, /<span class="nt-bar-lbl">Protein<\/span><span class="nt-bar-val"><b>≥ 40<\/b> \/ 125 g<\/span>/);
-  assert.match(some, /<span class="nt-bar-lbl">Carbs<\/span><span class="nt-bar-val"><b>30<\/b>/, 'a complete macro has no marker');
+  const none = macrosOf(run({ hooks: { foodTotals: () => ({ ...base, p: null, c: null, g: null, missing: { protein: true, carbs: true, fat: true } }) } }).els['nutri-target'].innerHTML);
+  assert.deepEqual(none[0], { cls: 'nt-mac', lbl: 'Protein', val: '<b>—</b><small> / 125 g</small>', fill: '' });
+  const some = macrosOf(run({ hooks: { foodTotals: () => ({ ...base, p: 40, c: 30, g: 10, missing: { protein: true, carbs: false, fat: false } }) } }).els['nutri-target'].innerHTML);
+  assert.equal(some[0].val, '<b>≥ 40</b><small> / 125 g</small>');
+  assert.equal(some[1].val, '<b>30</b><small> / 304 g</small>', 'a complete macro has no marker');
 });
-
 /* The food API boot (client/food-*.js) decides the dial's source like the rings' (client/intake.js):
  * while window.intakeWaiting() is true (boot in flight, grace not over) no Apple Health day; once the
  * API answered (HCFood.ready()) the food log only; failure / grace over -> the Apple Health day. */
@@ -621,12 +647,12 @@ test('food API boot: the dial + bars wait for it, then use the food log only (LA
   const s = run({ intake, hooks });
   const dial = () => s.els['nutri-target'].innerHTML;
   // boot in flight + an Apple Health day dated today: empty track + target, no Apple Health fill
-  assert.doesNotMatch(dial(), /nt-dial-fill/);
+  assert.doesNotMatch(dial(), /dial-fill/);
   assert.doesNotMatch(dial(), /1,800/);
   // answered, no entry today: still empty (never the Apple Health day on the LAN page)
   st.boot = 'ok';
   s.api.refresh();
-  assert.doesNotMatch(dial(), /nt-dial-fill/);
+  assert.doesNotMatch(dial(), /dial-fill/);
   assert.doesNotMatch(dial(), /1,800/);
   // answered with today's log: the dial from the log
   st.log = food;
@@ -648,7 +674,7 @@ test('food API boot: past the grace the Apple Health day, then a late answer swi
     intakeWaiting: () => st.boot === 'pending' && !st.grace,
     intakeRefresh: () => {},
   } });
-  assert.doesNotMatch(s.els['nutri-target'].innerHTML, /nt-dial-fill/);
+  assert.doesNotMatch(s.els['nutri-target'].innerHTML, /dial-fill/);
   st.grace = true;
   s.api.refresh();
   assert.match(s.els['nutri-target'].innerHTML, /aria-label="Logged today: 1,800 of 2,300 kcal"/);
@@ -666,11 +692,11 @@ test('HCNutri.refresh re-renders Resumen de hoy (the food log calls it after eve
   let food = null;
   const calls = [];
   const s = run({ hooks: { foodTotals: () => food, intakeRefresh: () => calls.push('intake') } });
-  assert.doesNotMatch(s.els['nutri-target'].innerHTML, /nt-dial-fill/);
+  assert.doesNotMatch(s.els['nutri-target'].innerHTML, /dial-fill/);
   food = { date: TODAY, k: 500, p: 10, c: 10, g: 10, n: 1, missing: { protein: false, carbs: false, fat: false }, src: 'log' };
   calls.length = 0;
   s.api.refresh();
-  assert.match(s.els['nutri-target'].innerHTML, /nt-dial-fill/);
+  assert.match(s.els['nutri-target'].innerHTML, /dial-fill/);
   assert.deepEqual(calls, ['intake'], 'the rings follow');
 });
 
