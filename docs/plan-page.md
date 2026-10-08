@@ -84,8 +84,8 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   o'clock); 19 px letters (caps ~12.7 px), letters + plain ring `currentColor` (`--ink`), arcs coloured
   by `--sleep` / `--good` / `--strain` in `layout.css` (the svg's hex attributes are only the standalone
   fallback). All four files in `web/src/assets/` are GENERATED: geometry in `scripts/loop-logo.mjs`
-  (ring r = 50 − sw/2, arcs C/3 − sw − 3 with round caps, rings 0.71em on the baseline −0.02em, 0.12em
-  after L, 0.14em after each ring), written by `node scripts/make-logo.mjs path/to/Syncopate-Bold.ttf`
+  (ring r = 50 − sw/2, arcs C/3 − sw − 3 with round caps, rings 0.71em on the baseline −0.02em, the same
+  0.14em gap ink to ink between every pair of neighbours, so P's wide left side bearing adds nothing), written by `node scripts/make-logo.mjs path/to/Syncopate-Bold.ttf`
   (source + sha256 in the script header); `scripts/loop-logo.test.mjs` fails if they are hand-edited,
   `web/test/brand.test.mjs` pins the built head and wordmark.
 - **Top bar** (`.topbar`, above the dock, one row at every width, a 3-column grid so the pill stays

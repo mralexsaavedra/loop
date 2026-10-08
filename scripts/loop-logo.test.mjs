@@ -42,12 +42,17 @@ test('ring markup: the three arcs clockwise from 12 o\'clock are sleep, recovery
   assert.match(plain, /<circle cx="50" cy="50" r="41" fill="none" stroke="currentColor" stroke-width="18"\/>/);
 });
 
-test('wordmark layout: rings 0.71em, bottom 0.02em under the baseline, 0.12em after L and 0.14em after each ring', () => {
+test('wordmark layout: rings 0.71em, bottom 0.02em under the baseline, the same 0.14em INK gap between every pair', () => {
+  // side bearings differ (P's left one is wide): spacing is measured ink to ink, not advance to advance
   const glyph = (adv, minX, maxX) => ({ d: 'M0 0Z', advance: adv, minX, maxX });
-  const lay = wordmarkLayout({ unitsPerEm: 1000, L: glyph(800, 100, 760), P: glyph(900, 100, 850) });
-  near(lay.rings[0].x, 800 + 120);
-  near(lay.rings[1].x, 800 + 120 + 710 + 140);
-  near(lay.p.x, 800 + 120 + 2 * (710 + 140));
+  const lay = wordmarkLayout({ unitsPerEm: 1000, L: glyph(800, 100, 760), P: glyph(900, 105, 850) });
+  const inks = [
+    [100, 760],
+    [lay.rings[0].x, lay.rings[0].x + 710],
+    [lay.rings[1].x, lay.rings[1].x + 710],
+    [lay.p.x + 105, lay.p.x + 850],
+  ];
+  for (let i = 1; i < inks.length; i++) near(inks[i][0] - inks[i - 1][1], 140);
   for (const r of lay.rings) {
     near(r.size, 710);
     near(r.y + r.size, 20, 1e-9);
