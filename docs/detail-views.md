@@ -44,7 +44,11 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   calendar cuts at 0.5 / 1 / 1.5 typical days, and the dial's `gate` (null / `baselineBuilding` /
   `fewDays`) + `last` scored session; `sessions` = one entry per date + modality after
   `mergeSameDay` DISPLAY_RULE (minutes, km, elevation, avg HR, RE, parts, source; the source is the
-  precedence family, so "Apple Watch de <name>" is written "Apple Watch"). Size: ~26 KB on the demo,
+  precedence family, so "Apple Watch de <name>" is written "Apple Watch"), plus, when
+  `workout-zones.csv` has that date + modality (`lib/training/zones.mjs` `readWorkoutZones`), `z` =
+  seconds in HR zone 0–5 summed over its Strava activities (left out when none or all zero) and `hx` =
+  their highest max HR; `zoneMax` = `{hr, src}`, the max HR the zones were cut with and its source
+  (`profile` / `observed`), absent without the file. Size: ~26 KB on the demo,
   ~62 KB on a real year; the whole feature adds ~71 KB to the demo page.
 - **Openers** — `HC.detailAttrs(key, date?, {plain?})` writes `data-detail` [+ `data-date`] + a
   button role and tab stop (`plain`: data attributes only, for a real `<button>`, an SVG cell or a
@@ -150,7 +154,10 @@ switch is outside every opener); run / ride rows →
      (the dial) starts at the top. A run day's panel ends with the watch running dynamics of that day
      (`.dt-dyn`, "Running dynamics: 276 W · GCT 242 ms · Osc. 8.3 cm · Stride 1.14 m", read from
      `HEALTH.running`; a field not recorded is left out, none → no line): the Entreno run row no
-     longer prints them.
+     longer prints them. A session with HR zones (`z`) also gets the zones block under its meta line
+     (`zonesHtml`: "HEART-RATE ZONES" + avg / max HR, rows ZONE 5…0 with the bpm range from
+     `zoneMax`, % of the zoned time, m:ss and a bar in the zone colour, and an ⓘ `<details>` with the
+     model and the max HR; docs/training.md "Per-workout HR zones"); no `z` → no block.
   The copy is the dial's own (`score-templates.mjs` via `I18N_DETAIL.rec` / `load` / `deep`).
 - **The sheet** (`detail.js`, one renderer, per-view try/catch with a message fallback, no NaN ever
   printed): header = the shared "‹ METRIC" header above (no ⓘ: a spacer), then the latest value + date, the band / target / typical day in words (the dial

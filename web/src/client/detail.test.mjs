@@ -1307,3 +1307,33 @@ test('a dated dial sheet (a run / ride row) opens scrolled to that day\'s panel;
   s.api.open('hrv', day.d);
   assert.equal(scrolled.length, 0, 'a plain metric view already shows the day near its top');
 });
+
+test('a session with HR zones shows ZONE 5…0 rows (bar, %, duration, bpm range), avg / max HR and the max-HR note; hidden without zones', () => {
+  const day = DEMO.sessions.find((x) => x.m === 'run');
+  const sessions = DEMO.sessions.map((x) => (x === day ? { ...x, hr: 150, hx: 178, z: [60, 0, 600, 1200, 900, 240] } : (({ z, hx, ...rest }) => rest)(x)));
+  const detail = { ...DEMO, zoneMax: { hr: 190, src: 'observed' }, sessions };
+  const s = setup({ detail });
+  s.api.open('load-run', day.d);
+  const html = s.host.innerHTML;
+  const block = html.match(/<div class="dt-zones"[\s\S]*?<\/ol>/);
+  assert.ok(block, 'a zones block in the session');
+  const rows = [...block[0].matchAll(/<li class="dt-zone dt-z(\d)">([\s\S]*?)<\/li>/g)];
+  assert.deepEqual(rows.map((r) => r[1]), ['5', '4', '3', '2', '1', '0'], 'ZONE 5 first, down to 0');
+  const text = (r) => r[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  assert.equal(text(rows[0]), 'Zone 5 171+ bpm 8% 4:00'); // 240 of 3000 s
+  assert.equal(text(rows[2]), 'Zone 3 133–151 bpm 40% 20:00');
+  assert.equal(text(rows[4]), 'Zone 1 95–113 bpm 0% 0:00');
+  assert.equal(text(rows[5]), 'Zone 0 &lt; 95 bpm 2% 1:00'); // escaped
+  assert.match(rows[2][2], /<span class="dt-zbar"><i style="width:40%"><\/i><\/span>/);
+  assert.match(html, /avg HR 150 bpm · max 178 bpm/);
+  assert.match(html, /Zones = % of a max HR of 190 bpm \(the highest Strava recorded in the last 12 months\)/);
+  // another day / modality without zones: no block
+  s.api.open('load-gym', DEMO.sessions.find((x) => x.m === 'gym').d);
+  assert.doesNotMatch(s.host.innerHTML, /dt-zones/);
+  // no zoneMax (never happens with a zones file, but never NaN): rows without the bpm ranges
+  const bare = setup({ detail: { ...detail, zoneMax: undefined } });
+  bare.api.open('load-run', day.d);
+  assert.match(bare.host.innerHTML, /class="dt-zones"/);
+  assert.doesNotMatch(bare.host.innerHTML, /bpm<\/span><span class="dt-zpct">|NaN|undefined/);
+  assert.match(esT.day.zones.title, /zonas/i);
+});
