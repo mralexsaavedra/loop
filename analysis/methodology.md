@@ -74,6 +74,35 @@ Calorie target by goal:
   "now", plus the day average and minutes per band). Limits: no HRV (the reference app uses it),
   and there are no hourly steps, so walking or any movement that is not a recorded workout raises
   it. Not a medical or psychological measure. Code: `lib/score/stress.mjs`.
+- **Fitness age (mean-based, from the smartwatch VO2max):** the age whose healthy-population MEAN
+  VO2max equals the latest reading of `vo2max.csv` (one value per day, the later row wins; its date
+  and source are shown). Reference: Loe H, Rognmo Ø, Saltin B, Wisløff U, "Aerobic Capacity
+  Reference Data in 3816 Healthy Men and Women 20–90 Years", PLoS ONE 2013;8(5):e64319, Table 2
+  (doi:[10.1371/journal.pone.0064319](https://doi.org/10.1371/journal.pone.0064319)), treadmill
+  VO2max of the healthy HUNT3 Fitness Study, arithmetic mean in mL·kg⁻¹·min⁻¹:
+
+  | Age group (midpoint) | Men: mean (n) | Women: mean (n) |
+  | --- | --- | --- |
+  | 20–29 (25) | 54.4 (199) | 43.0 (215) |
+  | 30–39 (35) | 49.1 (324) | 40.0 (359) |
+  | 40–49 (45) | 47.2 (526) | 38.4 (493) |
+  | 50–59 (55) | 42.6 (466) | 34.4 (428) |
+  | 60–69 (65) | 39.2 (300) | 31.1 (240) |
+  | 70+ (75, our choice for the open group) | 35.3 (76) | 28.3 (53) |
+
+  Formula: between two neighbouring midpoints (a₁, v₁) and (a₂, v₂) with v₁ ≥ VO2 ≥ v₂,
+  fitness age = a₁ + (v₁ − VO2) / (v₁ − v₂) × (a₂ − a₁), 1 decimal (the page rounds to whole
+  years). Above the 20–29 mean → "< 25"; below the 70+ mean → "> 75" (clamped, never extrapolated).
+  The curve needs the profile's `sex`; missing sex, birthdate or VO2max → no value, with the
+  reason. Trend: the fitness age of the newest reading on or before latest − 30 / − 90 days.
+  Limits: it is mean-based (not a median or percentile; the group SDs are 5.1–8.4 mL·kg⁻¹·min⁻¹,
+  so ±1 SD spans decades of "fitness age"); the 70+ group is small; the reference is a measured
+  treadmill VO2max while ours is a smartwatch estimate; a Norwegian healthy cohort. Background only:
+  the fitness-age concept of Nes BM, Vatten LJ, Nauman J, Janszky I, Wisløff U, "A simple nonexercise
+  model of cardiorespiratory fitness predicts long-term mortality", Med Sci Sports Exerc
+  2014;46(6):1159–65 (doi:[10.1249/MSS.0000000000000219](https://doi.org/10.1249/MSS.0000000000000219));
+  we do not claim its exact reference definition. A motivational comparison, not a medical measure.
+  Code: `lib/score/fitness-age.mjs`.
 
 ## 5. What "good or bad" means
 

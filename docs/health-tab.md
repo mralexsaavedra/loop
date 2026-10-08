@@ -27,8 +27,8 @@ headline is last night's recovery % with the % band word, or the SD value under 
 lines join this section's ⓘ block, and its raw "Last 14 days" lists fold behind a quiet disclosure
 line, see `docs/home-tab.md` — then only the signals among resting HR, HRV, respiratory rate and wrist
 temperature that the monitor does NOT list: the monitor already shows them at the top, so they are
-not repeated; with today's monitor that leaves no rows), **Fitness** (VO₂max, walking HR — moved out of
-Recovery), **Sleep** (last night, then % nights ≥ target, night-to-night ±, bedtime / wake time, then — when
+not repeated; with today's monitor that leaves no rows), **Fitness** (the fitness-age ring + chronological
+age + its 90-day change, see "Fitness age" below; VO₂max, walking HR — moved out of Recovery), **Sleep** (last night, then % nights ≥ target, night-to-night ±, bedtime / wake time, then — when
 the extract has stages — REM / deep / core / awake hours of the newest staged night with their % of
 asleep, and sleep efficiency, each vs the mean of the staged nights among the last 30: `aggRecovery`
 `sleep.stages`, formulas from `lib/score/sleep.mjs`, explained in a second ⓘ note),
@@ -57,9 +57,28 @@ BOTH active and basal energy, never basal alone). Each recovery signal row carri
 anchor. Every row opens its detail sheet (`docs/detail-views.md`: chart, W / M / 6M / 1Y, calendar),
 which holds the history the former sparklines showed.
 
+**Fitness age.** `lib/score/fitness-age.mjs` bakes `SCORES.fitnessAge` (`buildScores(extractDir,
+{ sex: profile.sex })`): the age whose healthy-population MEAN VO₂max (Loe et al. 2013, PLoS ONE,
+doi:10.1371/journal.pone.0064319, Table 2: HUNT3 Fitness Study, per sex and 10-year group) equals the
+latest `vo2max.csv` reading, interpolated between group midpoints 25 … 65 and 75 for 70+, clamped
+(`bound` below / above → "< 25" / "> 75"); formula, table and limits in `analysis/methodology.md`
+§4. It also bakes the reading's value / date / source and the fitness age of the newest reading on or
+before latest − 30 / − 90 days. `client/health.js` `fitnessAgeBlock` leads the Fitness section: a large
+full ring (the dial figure classes, `.fa` in `styles/health.css`: `--up` when younger than the
+chronological age, `--down` when older, grey when equal) with the fitness age in whole years and
+"FITNESS AGE" inside, under it "N years younger / older" ("At least N" at a bound) and the VO₂max it
+comes from (value · date · source); then rows "Chronological age" (`HC.ageOn(PROFILE.birthdate)` on
+the viewer's clock, so builds stay byte-identical) and "Fitness age, 90 days" (else 30; Δ vs then,
+lower = better; none when either end is clamped). The ring and the trend row open the `fitnessAge`
+detail sheet (`docs/detail-views.md`); Inicio's My dashboard can show it as an optional row
+(`docs/home-tab.md`). No number, one line with the reason instead, when the profile has no `sex`
+(`docs/profile.md`), no `birthdate`, or there is no VO₂max reading. A motivational comparison with a
+smartwatch estimate, not a medical measure.
+
 **Where the words went.** Section intros and caveats moved behind each section's ⓘ (`hs-info-<key>`,
-hidden in the DOM, so nothing is lost): Recovery = the good-directions / consistency note; Fitness = a
-short VO₂max / walking HR note; Sleep = the consistency note; Body = the "How to read this" note (scale
+hidden in the DOM, so nothing is lost): Recovery = the good-directions / consistency note; Fitness = the
+fitness-age reference note (Loe 2013 citation, mean-based, smartwatch estimate, not medical) + a short
+VO₂max / walking HR note; Sleep = the consistency note; Body = the "How to read this" note (scale
 mix, bioimpedance ±3–5 %, single-scale Δ), the "n readings in the last 150 days" of body fat and lean
 mass, and the waist note (or how to start logging it); Activity = the NEAT note; Energy = the
 power-meter notes (headline day corrected / uncovered, days in the window) and the expenditure-only

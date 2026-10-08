@@ -306,7 +306,9 @@ trend is the line under it.
 - **My dashboard** (`#my-dash`, `client/home-dash.js`): a Title Case heading with "CUSTOMIZE ✎" on the
   right, then single-row metric cards — line icon · UPPERCASE metric · the latest value (D-DIN) + unit
   and an arrow, the 30-day baseline small under it. Catalogue (`CATALOG`): rhr, hrv, sleep, weight,
-  steps (shown by default, `DEFAULT_ON`), vo2max, walkingHr, exercise (hidden by default); only keys
+  steps (shown by default, `DEFAULT_ON`), vo2max, fitnessAge, walkingHr, exercise (hidden by default;
+  fitnessAge in whole years, "≤ 25" / "≥ 75" at the reference curve's bounds, docs/health-tab.md
+  "Fitness age"); only keys
   present in the baked `DETAIL.metrics` are listed. Same series, titles and units as the detail sheet
   (`I18N_DETAIL`). Value = the newest day with data up to the viewer's today (a daily total skips
   today, still filling up); sleep shows h:mm. Baseline = the mean of the 30 days before that day, with

@@ -1568,3 +1568,24 @@ test('es stress page: Spanish copy, decimal comma', () => {
   assert.ok(s.host.innerHTML.includes(esT.deep.stress.notes.formula));
   assert.equal(esT.metrics.stress.title, 'Estimación de estrés');
 });
+
+test('fitness age: the headline reads "≤ 25" / "≥ 75" at a clamp bound of the reference curve, else the value', () => {
+  const D = copy();
+  const start = addDays(NOW, -1);
+  D.metrics.fitnessAge = { kind: 'sparse', dir: -1, dec: 1, lo: 25, hi: 75, start, v: [31.4, 25] };
+  const s = setup({ detail: D });
+  s.api.open('fitnessAge');
+  let h = headOf(s.host.innerHTML);
+  assert.ok(h.includes('>≤ 25<'), h.slice(0, 300));
+  assert.ok(h.includes('<small>years</small>'));
+  D.metrics.fitnessAge.v = [31.4, 75];
+  const o = setup({ detail: D });
+  o.api.open('fitnessAge');
+  assert.ok(headOf(o.host.innerHTML).includes('>≥ 75<'));
+  D.metrics.fitnessAge.v = [25, 31.4];
+  const n = setup({ detail: D });
+  n.api.open('fitnessAge');
+  h = headOf(n.host.innerHTML);
+  assert.ok(h.includes('>31.4<'));
+  clean(n.host.innerHTML);
+});
