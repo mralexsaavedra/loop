@@ -29,7 +29,11 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   weight = day means + `roll` (the Salud card's calendar 7-day rolling average, only on reading days)
   + `latest` (the card's latest raw reading); body fat / lean mass = the most recent scale only AND
   only its last `BODYCOMP_WINDOW` days (`windowDays`), so a scale-switch artefact never shows; sleep
-  also carries bed / wake times and the 7.5 h target; `recovery` = for each day, the composite the
+  also carries bed / wake times and the 7.5 h target, and per night (`lib/score/sleep.mjs`) `perf`
+  (sleep performance %, asleep / target × 100 capped at 100), `eff` (efficiency %, asleep / in bed,
+  only where `inbed_h` exists), `cons` (consistency minutes, `recovery.mjs` `sleepConsistency`) and the
+  stage hours `rem` / `deep` / `core` / `awake` / `inbed` — an array no night has (an extract older
+  than the stage columns) is left out; `recovery` = for each day, the composite the
   dial showed THAT morning (`recoveryFromInputs` with the inputs cut at that day, its own baseline, not
   today's) + that day's 7-day trend (`t7`), `cut` = `DAY_BAND_CUTOFF`, `cutTrend` = `BAND_CUTOFF`, and
   `head` = the dial's own headline (`recoveryHead`, from the same full-input `recoveryFromInputs`
