@@ -147,6 +147,18 @@ trend is the line under it.
   previous 42 nights — the recovery input `sleepCons`; no documented minutes → % mapping exists, so no
   %); `stages` (REM / deep / core / unspecified / awake / in bed hours), `shares` (REM / deep / core %
   of asleep) and `restorative` (REM + deep hours) only on a staged night.
+- **Day stepping** (the top bar's "‹ HOY ›", `client/today-date.js` `window.HCDay`, see
+  `docs/plan-page.md` → Top bar): Inicio can show a PAST day (`#d=YYYY-MM-DD`). The blocks that follow
+  it re-render on every change (`HCDay.on`); everything else keeps its own scope. TODAY goes through
+  the unchanged code path (no selected day), so today's markup is byte-identical to a page without day
+  stepping (unit-tested; 390 px screenshot diff in the PR).
+  - **Dials + collapsed row** (`score.js` `renderDay`): sleep + recovery = that day's `DIALS.days`
+    entry (a day without its own night reads "No data", never another day's value), load = the
+    modality's baked `recent` session day (the switch opens on the modality trained THAT day; "No
+    session" instead of "No session yet"; a gated modality stays gated, the gate is today's), the
+    arias name the date instead of "last night" / "today"; never greyed as stale (it is the day you
+    asked for), no stale line; every dial and mini ring opens its deep-dive ON that day (`data-date`).
+    The advice outlook bar is hidden (it reads the current 7-day trend).
 - **Day history** (`lib/score/days.mjs`, baked as `SCORES.days` = `{from, to, days}`, null without
   overnight data; behind the top bar's day stepping): for each of the last `DAY_HISTORY_DAYS` (= the
   load dial's `RECENT_DAYS`, 14) days ending at the newest overnight date, the inputs are CUT at that

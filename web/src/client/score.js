@@ -12,6 +12,12 @@
  * Today first: recovery = last night's % (or composite) with the 7-day trend underneath, load = the day's
  * RE vs the typical training day with acute/chronic as the caption. The "last night" / "today" /
  * "yesterday" words are decided here from Date.now(), never baked.
+ *
+ * Day stepping (the top bar's "‹ TODAY ›", client/today-date.js window.HCDay): on a PAST day the dials
+ * and the collapsed row show that day — sleep + recovery from DIALS.days (lib/score/days.mjs, scored
+ * on that day), load from the modality's baked recent `days` — open their deep-dive on that day
+ * (data-date), are never greyed as stale, and the advice (it reads the current 7-day trend) is hidden.
+ * Today goes through exactly the code it always did (VIEW = null), so its markup is unchanged.
  */
 // Load dial modality switch: shows the chosen modality's dial + caption, hides the others.
 // The collapsed dial row (#home-mini) carries the same data-dmod items, so it follows the switch.
@@ -275,6 +281,22 @@ function scMod(key, btn) {
 
   /* ---- dials ---- */
   var D = typeof DIALS === 'undefined' ? null : DIALS;
+  // the past day Inicio shows (null = the viewer's today), set from HCDay before each dial render
+  var DAY = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
+  var VIEW = null;
+  function dayIso() {
+    return VIEW || todayIso();
+  }
+  // a past day is the day the viewer asked for: never greyed as stale
+  function dialStale(iso) {
+    return VIEW ? false : isStale(iso);
+  }
+  // that day's sleep + recovery dials (DIALS.days), "No data" when the day has no entry
+  function pastDials() {
+    var out = null;
+    (D.days || []).forEach(function (x) { if (x && x.date === VIEW) out = x; });
+    return out || { date: VIEW, sleep: { state: 'none' }, recovery: { state: 'none' } };
+  }
   function attr(v) { return esc(String(v)); }
   // parts: fill d, mid {x,y} (the baseline / typical-day tick); paths are baked, never computed here.
   // The fill takes ONE colour end to end (the figure's --dial-c: recovery = its band's state colour)
@@ -294,7 +316,7 @@ function scMod(key, btn) {
   // nothing recomputed. dialsHtml() resets the queue, render() writes it to #home-mini.
   var MINI = [];
   function miniItem(cls, stale, extra, aria, svg, label, to) {
-    MINI.push('<div class="dm ' + cls + (stale ? ' sc-stale' : '') + '"' + (extra || '') + (to ? HC.detailAttrs(to) : '') +
+    MINI.push('<div class="dm ' + cls + (stale ? ' sc-stale' : '') + '"' + (extra || '') + (to ? HC.detailAttrs(to, VIEW) : '') +
       ' aria-label="' + attr(aria || label) + '"><span class="dm-ring">' + svg + '</span><span class="dm-lbl">' + esc(label) + '</span></div>');
   }
   function miniHtml() {
@@ -307,7 +329,7 @@ function scMod(key, btn) {
   function dialFig(cls, stale, extra, aria, svg, centre, label, detailKey) {
     var to = detailKey || DIAL_DETAIL[cls.split(' ')[0]];
     miniItem(cls, stale, extra, aria, svg, label, to);
-    return '<figure class="dial ' + cls + (stale ? ' sc-stale' : '') + '"' + (extra || '') + (to ? HC.detailAttrs(to) : '') + '>' +
+    return '<figure class="dial ' + cls + (stale ? ' sc-stale' : '') + '"' + (extra || '') + (to ? HC.detailAttrs(to, VIEW) : '') + '>' +
       '<div class="dial-ring"' + (aria ? ' role="img" aria-label="' + attr(aria) + '"' : '') + '>' + svg +
       '<div class="dial-centre" aria-hidden="true">' + centre + '</div></div>' +
       '<figcaption class="dial-lbl">' + esc(label) + '<span class="dial-chev" aria-hidden="true">›</span></figcaption></figure>';
@@ -323,11 +345,14 @@ function scMod(key, btn) {
     if (d.state !== 'ok') return dialFig('dial-sleep dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.sleep.label);
     var h = num(d.hours, 1, false);
     // sleep performance % (DIALS pct: asleep / need = the target, capped at 100); hours without it
+    // a past day names its night by date instead of "last night"
+    var P = VIEW && dt.past ? dt.past : null;
+    var date = P ? HC.fmtDate(d.date) : '';
     if (typeof d.pct === 'number' && dt.sleep.ariaPct) {
-      return dialFig('dial-sleep', isStale(d.date), '', format(dt.sleep.ariaPct, { pct: d.pct, value: h, target: target }),
+      return dialFig('dial-sleep', dialStale(d.date), '', format(P ? P.sleepAriaPct : dt.sleep.ariaPct, { pct: d.pct, value: h, target: target, date: date }),
         dialSvg({ fill: d.fill }), numCentre(String(d.pct), '%'), dt.sleep.label);
     }
-    return dialFig('dial-sleep', isStale(d.date), '', format(dt.sleep.aria, { value: h, target: target }),
+    return dialFig('dial-sleep', dialStale(d.date), '', format(P ? P.sleepAria : dt.sleep.aria, { value: h, target: target, date: date }),
       dialSvg({ fill: d.fill }), numCentre(h, 'h'), dt.sleep.label);
   }
   // "Last night" only when the night's data is dated today AND has a sleep reading; else its date
@@ -336,7 +361,7 @@ function scMod(key, btn) {
   }
   // one modality's state for the viewer's today: 'trained' (RE > 0), 'noEffort' (rows, no RE), 'rest'
   function loadToday(m) {
-    var t = todayIso();
+    var t = dayIso();
     var day = null;
     (m.days || []).forEach(function (x) { if (x.date === t) day = x; });
     if (day && day.re > 0) return { kind: 'trained', day: day };
@@ -347,20 +372,20 @@ function scMod(key, btn) {
     var rt = dt.recovery;
     if (d.state !== 'ok') {
       var word = d.state === 'gated' ? rt.gated : dt.none;
-      return dialFig('dial-rec dial-off', isStale(d.asOf), '', '', dialSvg({}), offCentre(word), rt.label);
+      return dialFig('dial-rec dial-off', dialStale(d.asOf), '', '', dialSvg({}), offCentre(word), rt.label);
     }
     var today = d.mode === 'today';
     var when = today ? nightLbl(d.date, d.sleep !== false, rt) : '';
     // the % headline (its rank within the previous 90 days), else the SD composite (fallback)
     if (today && typeof d.pct === 'number') {
-      return dialFig('dial-rec dial-band-' + esc(d.band), isStale(d.asOf), '', format(rt.ariaPct, { when: when, value: d.pct, band: T.recovery.pctBands[d.band] }),
+      return dialFig('dial-rec dial-band-' + esc(d.band), dialStale(d.asOf), '', format(rt.ariaPct, { when: when, value: d.pct, band: T.recovery.pctBands[d.band] }),
         dialSvg({ fill: d.fill }), numCentre(String(d.pct), '%'), rt.label);
     }
     var v = num(d.value, 1, true);
     var aria = today
       ? format(rt.aria, { when: when, value: v, band: rt.bands[d.band] })
       : format(rt.ariaTrend, { value: v, band: rt.bands[d.band] });
-    return dialFig('dial-rec dial-band-' + esc(d.band), isStale(d.asOf), '', aria,
+    return dialFig('dial-rec dial-band-' + esc(d.band), dialStale(d.asOf), '', aria,
       dialSvg({ fill: d.fill, mid: d.mid }), numCentre(v, T.recovery.unit), rt.label);
   }
   // The modality the switch opens on, for the VIEWER's today (never baked): the modality with a
@@ -378,8 +403,11 @@ function scMod(key, btn) {
   }
   function loadDials(d, dt) {
     var lt = dt.load;
-    var stale = isStale(d.asOf);
+    var stale = dialStale(d.asOf);
     var open = openKey(d);
+    // a past day: "No session" (not "yet") and the arias name the day
+    var P = VIEW && dt.past ? dt.past : null;
+    var on = P ? HC.fmtDate(VIEW) : '';
     var figs = d.modalities.map(function (m) {
       var hid = m.key === open ? '' : ' hidden';
       var extra = ' data-dmod="' + attr(m.key) + '"' + hid;
@@ -391,15 +419,15 @@ function scMod(key, btn) {
       var typ = num(m.typical, 0, false);
       var td = loadToday(m);
       if (td.kind === 'noEffort') {
-        return dialFig('dial-load dial-noeffort', stale, extra, format(lt.ariaNoEffort, { modality: mod, typical: typ }),
+        return dialFig('dial-load dial-noeffort', stale, extra, format(P ? P.ariaNoEffort : lt.ariaNoEffort, { modality: mod, typical: typ, date: on }),
           dialSvg({ mid: d.mid }), offCentre(lt.noEffort), lt.label, dk);
       }
       if (td.kind === 'rest') {
-        return dialFig('dial-load dial-rest', stale, extra, format(lt.ariaRest, { modality: mod, typical: typ }),
-          dialSvg({ mid: d.mid }), offCentre(lt.rest), lt.label, dk);
+        return dialFig('dial-load dial-rest', stale, extra, format(P ? P.ariaRest : lt.ariaRest, { modality: mod, typical: typ, date: on }),
+          dialSvg({ mid: d.mid }), offCentre(P ? P.rest : lt.rest), lt.label, dk);
       }
       var day = num(td.day.re, 0, false);
-      return dialFig('dial-load', stale, extra, format(lt.aria, { modality: mod, day: day, typical: typ }),
+      return dialFig('dial-load', stale, extra, format(P ? P.aria : lt.aria, { modality: mod, day: day, typical: typ, date: on }),
         dialSvg({ fill: td.day.fill, mid: d.mid }), numCentre(day, lt.unit), lt.label, dk);
     });
     return figs.join('');
@@ -418,6 +446,7 @@ function scMod(key, btn) {
   }
   // the ONE line that stays under the dials besides the switch: the newest data is too old
   function staleLine() {
+    if (VIEW) return '';
     var ages = [D.sleep && D.sleep.state === 'ok' ? D.sleep.date : null, D.recovery ? D.recovery.asOf : null, D.load ? D.load.asOf : null]
       .map(function (iso) { return isStale(iso) ? daysOld(iso) : null; })
       .filter(function (n) { return n != null; });
@@ -447,8 +476,9 @@ function scMod(key, btn) {
     var dt = T.dials;
     MINI = [];
     var hasLoad = D.load && D.load.state === 'ok';
+    var day = VIEW ? pastDials() : { sleep: D.sleep, recovery: D.recovery };
     return '<div class="sc-card sc-dials" role="group" aria-label="' + attr(dt.ariaLabel) + '"><div class="dials">' +
-      sleepDial(D.sleep || {}, dt) + recDial(D.recovery || {}, dt) +
+      sleepDial(day.sleep || {}, dt) + recDial(day.recovery || {}, dt) +
       (hasLoad ? loadDials(D.load, dt) : dialFig('dial-load dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.load.label)) +
       '</div>' + (hasLoad ? loadSwitch(D.load, dt) : '') + staleLine() + caveatLines(dt, hasLoad) + '</div>';
   }
@@ -493,12 +523,23 @@ function scMod(key, btn) {
   var OUTLOOK_ICO = '<svg class="outlook-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/>' +
     '<path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>';
   function adviceHtml() {
+    if (VIEW) return '';
     var anyStale = (S.recovery && isStale(S.recovery.asOf)) || (S.load && isStale(S.load.asOf));
     if (!S.advice || anyStale || !T.advice[S.advice.key]) return '';
     // "My day" outlook bar: icon, the sentence (CSS clamps it to two lines), a chevron; every rule
     // reads the recovery trend, so a tap opens the recovery sheet that explains it
     return '<div class="sc-advice outlook"' + HC.detailAttrs('recovery') + '>' + OUTLOOK_ICO +
       '<span class="outlook-txt">' + esc(adviceText(S.advice)) + '</span><span class="outlook-chev" aria-hidden="true">›</span></div>';
+  }
+
+  // the blocks that follow the selected day (HCDay): the dials, the collapsed row, the advice
+  function renderDay(dialsHost) {
+    VIEW = DAY && typeof DAY.sel === 'function' ? DAY.sel() || null : null;
+    if (dialsHost) write(dialsHost, function () { return safe(dialsHtml); });
+    // the collapsed row mirrors the dials just written (empty when they threw or there are none)
+    if (dialsHost) write('home-mini', function () { return dialsHost.innerHTML.indexOf('sc-dials') !== -1 ? miniHtml() : ''; });
+    // the advice sentence reads as the conclusion of the dials above it
+    write(host, function () { return (dialsHost ? '' : safe(dialsHtml)) + safe(adviceHtml, null, ''); });
   }
 
   // Glance vs detail (Whoop): Inicio keeps the dials + the advice sentence; the recovery card is the
@@ -515,12 +556,10 @@ function scMod(key, btn) {
     }
     // Home.astro gives the dials their own host above the health monitor; without it they lead #home-advice
     var dialsHost = document.getElementById('home-dials');
-    if (dialsHost) write(dialsHost, function () { return safe(dialsHtml); });
-    // the collapsed row mirrors the dials just written (empty when they threw or there are none)
-    if (dialsHost) write('home-mini', function () { return dialsHost.innerHTML.indexOf('sc-dials') !== -1 ? miniHtml() : ''; });
+    renderDay(dialsHost);
     watchMini(dialsHost);
-    // the advice sentence reads as the conclusion of the dials above it
-    write(host, function () { return (dialsHost ? '' : safe(dialsHtml)) + safe(adviceHtml, null, ''); });
+    // a day change (the top bar's ‹ ›) re-renders only the day's blocks: dials, collapsed row, advice
+    if (DAY && typeof DAY.on === 'function') DAY.on(function () { renderDay(dialsHost); });
     if (S.recovery) write('score-recovery', function () { return safe(recoveryHtml, S.recovery); });
     write('score-load', function () { return S.load ? safe(loadHtml, S.load) : emptyHtml(); });
   }

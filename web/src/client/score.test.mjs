@@ -44,7 +44,7 @@ const HEALTH = { recovery: { hasData: true, sleep: { target: 7.5 } } };
 
 // Returns #home-advice + #score-recovery (Salud) + #score-load (Entreno), in that order; pass `hosts` to
 // inspect each one separately.
-function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, loadSectionHidden = false, dials, dialsHost, miniHost, hosts = {}, detail = false, secInfo = null } = {}) {
+function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, loadSectionHidden = false, dials, dialsHost, miniHost, hosts = {}, detail = false, secInfo = null, day } = {}) {
   const host = { innerHTML: '' };
   const rec = (hosts.rec = hosts.rec || { innerHTML: '' });
   const load = (hosts.load = hosts.load || { innerHTML: '' });
@@ -64,10 +64,18 @@ function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entre
     SCORES: scores, DIALS: dials, I18N_SCORE: T || (locale === 'es' ? esT : enT), LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite,
   };
   if (detail) ctx.DETAIL = { metrics: {} };
+  // the top bar's day stepping (client/today-date.js window.HCDay), when the test selects a day
+  if (day) ctx.HCDay = day;
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
   return host.innerHTML + rec.innerHTML + load.innerHTML;
+}
+// a stand-in for window.HCDay: sel = the past day (null = today); `go` changes it like a chevron tap
+function fakeDay(sel = null) {
+  const subs = [];
+  const d = { sel: () => sel, iso: () => sel || ASOF, on: (fn) => subs.push(fn), go: (x) => { sel = x; subs.forEach((fn) => fn(x)); } };
+  return d;
 }
 const count = (html, needle) => html.split(needle).length - 1;
 
@@ -855,4 +863,75 @@ test('recovery dial colour: ONE state colour per band (good / mid / low), the sa
   assert.match(rule('.dial-band-at'), /--dial-c:\s*var\(--mid\)/, 'at baseline = the mid (yellow) state, never the blue trend colour');
   assert.match(rule('.dial-band-below'), /--dial-c:\s*var\(--low\)/);
   assert.doesNotMatch(css, /\.dial-zone/, 'no zone arcs left to tint part of the ring');
+});
+
+/* ---- day stepping (the top bar's ‹ TODAY ›): the dials follow the selected day ---- */
+
+test('day stepping: today selected renders byte-identically to a page without day stepping', () => {
+  const s = fixtureScores();
+  const D = buildDials(s, HEALTH);
+  const a = { dialsHost: { innerHTML: '' }, miniHost: { innerHTML: '' } };
+  const b = { dialsHost: { innerHTML: '' }, miniHost: { innerHTML: '' } };
+  const plain = render(s, { dials: D, ...a, detail: true });
+  const stepped = render(s, { dials: D, ...b, detail: true, day: fakeDay(null) });
+  assert.equal(stepped, plain);
+  assert.equal(b.dialsHost.innerHTML, a.dialsHost.innerHTML);
+  assert.equal(b.miniHost.innerHTML, a.miniHost.innerHTML);
+});
+
+test('day stepping: a past day shows THAT day\'s sleep %, recovery % and load, opens the dials on that day, hides the advice', () => {
+  const s = fixtureScores();
+  const D = buildDials(s, HEALTH);
+  const t = addDays(ASOF, -4);
+  const past = D.days.find((x) => x.date === t);
+  assert.equal(past.recovery.state, 'ok');
+  const dialsHost = { innerHTML: '' }, miniHost = { innerHTML: '' };
+  const home = render(s, { dials: D, dialsHost, miniHost, detail: true, day: fakeDay(t) });
+  const h = dialsHost.innerHTML;
+  assert.match(h, new RegExp(`dial-rec dial-band-${past.recovery.band}`));
+  assert.ok(h.includes(`<b class="dial-num">${past.recovery.pct}<small>%</small></b>`), 'the day\'s recovery %');
+  assert.ok(h.includes(`<b class="dial-num">${past.sleep.pct}<small>%</small></b>`), 'the day\'s sleep %');
+  assert.ok(h.includes(past.recovery.fill) && h.includes(past.sleep.fill), 'the day\'s baked rings');
+  // load: the session of that day from the baked recent days (run on even indexes: day -4 has one)
+  const run = D.load.modalities.find((m) => m.key === 'run');
+  const day = run.days.find((x) => x.date === t);
+  assert.ok(day && day.re > 0);
+  assert.ok(h.includes(`<b class="dial-num">${day.re}<small>RE</small></b>`));
+  assert.match(h, /data-dmod="run"(?![^>]*hidden)/, 'the switch opens on the modality trained that day');
+  assert.equal(count(h, `data-date="${t}"`), count(h, 'data-detail='), 'every dial opens its deep-dive on that day');
+  assert.equal(count(miniHost.innerHTML, `data-date="${t}"`), count(miniHost.innerHTML, 'data-detail='), 'the collapsed row too');
+  assert.doesNotMatch(h, /Last night/);
+  assert.match(h, /aria-label="Recovery as of \w{3} \d+ \w{3}: /, 'the night is named by its date');
+  assert.doesNotMatch(home, /sc-advice/, 'the advice reads the current 7-day trend: hidden on a past day');
+  assert.doesNotMatch(h, /dial-stale|sc-stale/, 'a past day is never greyed as stale');
+});
+
+test('day stepping: a past day without its data reads "No data" / no session, never another day\'s value', () => {
+  const s = fixtureScores();
+  const D = buildDials(s, HEALTH);
+  const t = addDays(ASOF, -20); // reachable by the 30-day cap but older than the 14 baked days
+  const dialsHost = { innerHTML: '' };
+  render(s, { dials: D, dialsHost, day: fakeDay(t) });
+  const h = dialsHost.innerHTML;
+  assert.equal(count(h, '<span class="dial-word">No data</span>'), 2, 'sleep + recovery');
+  assert.match(h, /dial-load dial-rest[^>]*>[\s\S]*?<span class="dial-word">No session<\/span>/);
+  assert.doesNotMatch(h, /dial-num/);
+});
+
+test('day stepping: a change re-renders the dials and the collapsed row; back to today restores today\'s markup', () => {
+  const s = fixtureScores();
+  const D = buildDials(s, HEALTH);
+  const dialsHost = { innerHTML: '' }, miniHost = { innerHTML: '' }, hosts = {};
+  const day = fakeDay(null);
+  render(s, { dials: D, dialsHost, miniHost, hosts, day, detail: true });
+  const today = dialsHost.innerHTML, todayMini = miniHost.innerHTML, todayHome = hosts.home.innerHTML;
+  const t = addDays(ASOF, -1);
+  day.go(t);
+  assert.notEqual(dialsHost.innerHTML, today);
+  assert.match(miniHost.innerHTML, new RegExp(`data-date="${t}"`));
+  assert.equal(hosts.home.innerHTML, '', 'the advice host empties');
+  day.go(null);
+  assert.equal(dialsHost.innerHTML, today);
+  assert.equal(miniHost.innerHTML, todayMini);
+  assert.equal(hosts.home.innerHTML, todayHome);
 });
