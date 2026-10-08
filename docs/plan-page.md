@@ -174,8 +174,9 @@ screens (>= 900 px) the background stays full-bleed while the top bar, tab panel
 centred and capped at `--content-max` (1160 px); Nutrición's summary
 card turns into two columns (kcal dial | day type + macro bars) and Plan de hoy into a masonry-like
 2-column flow (CSS `columns: 2`, cards `break-inside: avoid`, read down column 1 then column 2, so a
-short card never leaves a row-height gap); Entreno puts the 30-day calendar (natural width) and the
-cumulative chart (rest of the row, height-capped at 240 px) in ONE row (`.act-pair`). Dark native controls: `color-scheme: dark` (`:root` + a `<meta name="color-scheme">`) and a
+short card never leaves a row-height gap); Entreno's Activity card stays stacked, but its 30-day
+calendar spans the card's full width (an HTML `.cal-grid`, 7 equal columns, tiles capped at 64 px
+tall — see `docs/training.md`). Dark native controls: `color-scheme: dark` (`:root` + a `<meta name="color-scheme">`) and a
 `theme-color` meta read at build time from `--ground-top` (the top of the page background; a test pins
 them equal); no `apple-mobile-web-app-*` metas (a home-screen app would draw the top bar under the
 status bar). Phones (< 900 px): every text input / select / textarea

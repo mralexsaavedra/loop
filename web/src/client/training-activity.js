@@ -26,6 +26,9 @@
   var W = typeof window === 'undefined' ? null : window;
   // calendar geometry (SVG user units): square cells with a gap, a weekday header row on top
   var CAL_CELL = 16, CAL_GAP = 4, CAL_STEP = CAL_CELL + CAL_GAP, CAL_HEAD = 14, CAL_WD_Y = 10, CAL_RX = 4;
+  // wide screens (styles/base.css breakpoint): the calendar is an HTML grid spanning the card's full
+  // width (.cal-grid, styles/training.css) instead of the phone's fixed-size SVG; re-rendered on change
+  var WIDE = '(min-width: 900px)';
   // the bar's known buckets (the dashboard's; the Watch's `hiit` is shown as Gym); segments are drawn
   // largest first
   var MODS = ['hiit', 'strength', 'run', 'bike', 'other'];
@@ -89,7 +92,33 @@
     return out;
   }
 
+  function wide() {
+    try { return !!(W && typeof W.matchMedia === 'function' && W.matchMedia(WIDE).matches); } catch (e) { return false; }
+  }
+
+  function cellTitle(date, d) {
+    var min = d ? d.min : 0;
+    var mods = d ? Object.keys(d.mods).map(function (m) { return (T.modalityLabels[m] || m) + ' ' + hm(d.mods[m]); }).join(', ') : '';
+    var shown = HC.fmtDate(date); // display date; the ISO stays in data-date
+    return min > 0 ? format(T.cellTitle, { date: shown, time: hm(min) }) + (Object.keys(d.mods).length > 1 ? ' (' + mods + ')' : '') : format(T.cellRest, { date: shown });
+  }
+
+  // wide screens: 7 equal columns across the card, the same Monday-first offset, levels and openers
+  function calendarGrid(dates, byDate) {
+    var offset = (parse(dates[0]).getDay() + 6) % 7; // Monday = 0
+    var out = ['<div class="cal-grid" role="img" aria-label="' + esc(T.calAria) + '">'];
+    T.weekdays.forEach(function (w) { out.push('<span class="cal-wd">' + esc(w) + '</span>'); });
+    for (var i = 0; i < offset; i++) out.push('<span class="cal-pad"></span>');
+    dates.forEach(function (date) {
+      var d = byDate[date];
+      out.push('<span class="cal-day cal-l' + level(d ? d.min : 0, A.levelMin) + '"' + HC.detailAttrs('workouts', date, { plain: true }) + ' title="' + esc(cellTitle(date, d)) + '"></span>');
+    });
+    out.push('</div>');
+    return out.join('');
+  }
+
   function calendar(dates, byDate) {
+    if (wide()) return calendarGrid(dates, byDate);
     var CELL = CAL_CELL, GAP = CAL_GAP, STEP = CAL_STEP, HEAD = CAL_HEAD;
     var offset = (parse(dates[0]).getDay() + 6) % 7; // Monday = 0
     var rows = Math.ceil((offset + dates.length) / 7);
@@ -100,9 +129,7 @@
     dates.forEach(function (date, i) {
       var k = offset + i, d = byDate[date];
       var min = d ? d.min : 0;
-      var mods = d ? Object.keys(d.mods).map(function (m) { return (T.modalityLabels[m] || m) + ' ' + hm(d.mods[m]); }).join(', ') : '';
-      var shown = HC.fmtDate(date); // display date; the ISO stays in data-date
-      var title = min > 0 ? format(T.cellTitle, { date: shown, time: hm(min) }) + (Object.keys(d.mods).length > 1 ? ' (' + mods + ')' : '') : format(T.cellRest, { date: shown });
+      var title = cellTitle(date, d);
       out.push('<rect class="cal-cell cal-l' + level(min, A.levelMin) + '"' + HC.detailAttrs('workouts', date, { plain: true }) + ' x="' + ((k % 7) * STEP) + '" y="' + (HEAD + Math.floor(k / 7) * STEP) + '" width="' + CELL + '" height="' + CELL + '" rx="' + CAL_RX + '"><title>' + esc(title) + '</title></rect>');
     });
     out.push('</svg>');
@@ -201,6 +228,11 @@
       if (b) choose(Number(b.getAttribute('data-act-range')));
     });
   }
+  // crossing the wide breakpoint swaps the calendar markup (SVG <-> grid)
+  try {
+    var mq = W && typeof W.matchMedia === 'function' ? W.matchMedia(WIDE) : null;
+    if (mq && typeof mq.addEventListener === 'function') mq.addEventListener('change', function () { render(); });
+  } catch (e) { /* no media queries: the phone SVG stays */ }
   if (W) W.HCActivity = { summary: summary, choose: choose };
   render();
 })();

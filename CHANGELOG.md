@@ -4,6 +4,14 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
+
+## 2026-10-08 — Entreno calendar spans the card on desktop
+
+- The multi-column desktop layouts from #76 were reverted (too compressed); only the Entreno → Activity
+  30-day calendar changes on wide screens (>= 900 px): an HTML grid across the card's full width,
+  7 equal columns, tiles capped at 64 px tall, instead of a 280 px SVG at the left of an empty card.
+  Phones keep the SVG (390 px screenshot pixel-identical before/after).
+
 ## 2026-10-08 — Plan page restyle P7: text diet
 
 - Card text follows one rule: a number + an uppercase label per tile, prose only in the insight card,
