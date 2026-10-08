@@ -5,6 +5,21 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Stress monitor (heart-rate-only estimate)
+
+- `lib/score/stress.mjs`: per waking clock hour of `hr-hourly.csv`, outside workouts and sleep,
+  stress = clamp(3 × (HR − RHR) / (0.3 × (HRmax − RHR)), 0, 3); bands low < 1, medium 1–2, high ≥ 2.
+  An hour needs ≥ 30 min of readings outside workouts and is dropped when ≥ 30 min of it is asleep; a
+  day needs ≥ 6 scored hours for a value (latest hour, day average, minutes per band). Baked as
+  `SCORES.stress` (last 14 days + the day-average series). No HRV and no hourly steps in the data, so
+  walking or other movement raises it; every surface calls it an estimate.
+- Inicio: tile 2 is "Stress monitor" (value chip, band word in its colour, the hour) when the day has
+  a value, else the HRV tile as before; it follows the day stepping.
+- Stress page (`#detail/stress`): 0–3 gauge, hour-by-hour curve over the shaded bands, time in each
+  band, insight, formula and limits under ⓘ, then the day-average trend and calendar. The series lives
+  in SCORES (not DETAIL), read by `detail.js` `metric('stress')`.
+
+
 ## 2026-10-08 — Visual polish: dials, deep-dive header, trend view
 
 - Dials: the Inicio rings get a 9.5-unit stroke (of 120, ~8 %, from 7); the deep-dive hero ring is
