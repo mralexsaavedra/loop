@@ -554,7 +554,25 @@
     }
     if (!list.length) out.push('<p class="dt-nodata">' + esc(T.day.rest) + '</p>');
     else out.push('<ul class="dt-sessions">' + list.map(sessionHtml).join('') + '</ul>');
+    if (list.some(function (x) { return x.m === 'run'; })) out.push(runDynHtml(iso));
     return out.join('');
+  }
+  // the watch running dynamics of that day (HEALTH.running, client/health.js's run rows, one merged
+  // row per date): power, ground contact time, vertical oscillation, stride. The Entreno run row does
+  // not print them (they wrapped to 2-3 lines at 390 px), so the day it opens is where they live.
+  function runDynHtml(iso) {
+    var H = typeof HEALTH === 'undefined' || !HEALTH ? null : HEALTH;
+    var rows = H && H.running && H.running.sessions ? H.running.sessions : [];
+    var r = null;
+    for (var i = 0; i < rows.length; i++) if (rows[i] && rows[i].date === iso) { r = rows[i]; break; }
+    var Y = T.day.dyn;
+    if (!r || !Y) return '';
+    var out = [];
+    if (r.power != null) out.push(format(Y.power, { n: fmt(r.power, 0) }));
+    if (r.gct != null) out.push(format(Y.gct, { n: fmt(r.gct, 0) }));
+    if (r.vosc != null) out.push(format(Y.osc, { n: fmt(r.vosc, 1) }));
+    if (r.stride != null) out.push(format(Y.stride, { n: fmt(r.stride, 2) }));
+    return out.length ? '<p class="dt-sub dt-dyn">' + esc(Y.label + ': ' + out.join(' · ')) + '</p>' : '';
   }
   function dayHtml(key, m, iso) {
     var body = m.kind === 'workouts' || m.kind === 'load' ? workoutsHtml(key, m, iso)
@@ -730,10 +748,13 @@
     }
     focusEl(opts.focus || '[data-dt-act="close"]');
     if (opts.focus) scrollTo(opts.focus);
+    // a dated dial page (a run / ride / timeline row): the day it was opened for sits below the hero,
+    // the insight and the chart, so the sheet starts at that day's panel
+    else if (state.date && deep(key)) scrollTo('[data-dt-part="day"]', 'start');
   }
-  function scrollTo(sel) {
+  function scrollTo(sel, block) {
     var el = q(sel);
-    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: block || 'nearest' });
   }
   function hide() {
     if (!state) return;

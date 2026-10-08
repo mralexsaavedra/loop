@@ -180,7 +180,7 @@ test('cycling section: one list row per ride (newest first): icon · date with H
   assert.ok(html.indexOf('hl-running') < html.indexOf('hl-cycling'), 'cycling follows running');
 });
 
-test('running rows match the cycling ones: distance, time + pace, and HR, effort, climb and the watch dynamics in the small line under the date', () => {
+test('running rows (text diet): date, distance, time + pace only; HR, effort, climb and the watch dynamics move to the opened day (aria keeps them)', () => {
   const html = renderWith({
     body: none, activity: none, energy: none, recovery: none, loadRecovery: none, cycling: none,
     running: { hasData: true, count: 5, sessions: [
@@ -188,8 +188,11 @@ test('running rows match the cycling ones: distance, time + pace, and HR, effort
       { date: '2026-06-20', dist: null, time: '0:30', pace: null, hrAvg: null, re: null, elev: null, power: 240, gct: 250, vosc: 10, stride: 1.1 },
     ] },
   });
-  assert.match(html, /<span class="db-name">Mon 22 Jun<small class="db-note">152 bpm · Effort 57 · ↑35 m<\/small><\/span><span class="db-vals"><span class="db-val"><b>7.7<\/b><small>km<\/small><\/span><span class="db-base">0:41 · 5:18\/km<\/span>/, 'a Strava-only run: no dynamics');
-  assert.match(html, /<span class="db-name">Sat 20 Jun<small class="db-note">240 W · GCT 250 ms · Osc\. 10 cm · Stride 1.1 m<\/small><\/span><span class="db-vals"><span class="db-val"><b>—<\/b><\/span><span class="db-base">0:30<\/span>/, 'no distance: no pace');
+  assert.match(html, /<span class="db-name">Mon 22 Jun<\/span><span class="db-vals"><span class="db-val"><b>7.7<\/b><small>km<\/small><\/span><span class="db-base">0:41 · 5:18\/km<\/span>/);
+  assert.match(html, /<span class="db-name">Sat 20 Jun<\/span><span class="db-vals"><span class="db-val"><b>—<\/b><\/span><span class="db-base">0:30<\/span>/, 'no distance: no pace');
+  assert.doesNotMatch(html.slice(html.indexOf('id="hl-running"')), /db-note/, 'no small line under the date');
+  assert.match(html, /aria-label="Mon 22 Jun · 7.7 km · 0:41 · 5:18\/km · 152 bpm · Effort 57 · ↑35 m"/);
+  assert.match(html, /aria-label="Sat 20 Jun · 0:30 · 240 W · GCT 250 ms · Osc\. 10 cm · Stride 1.1 m"/);
   assert.equal((html.match(/<path d="M6 21l3.5-5/g) || []).length, 2, 'the run icon on every run row');
   assert.match(html.match(/<div class="hs-info" id="hs-info-running" hidden>([\s\S]*?)<\/div>/)[1], /<b>5<\/b> runs/);
 });
