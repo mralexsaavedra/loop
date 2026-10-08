@@ -860,10 +860,34 @@
       '<p class="fuel-note">' + esc(F.inDay) + '</p>' +
       '<p class="fuel-note fuel-disclaimer">' + esc(F.disclaimer) + '</p>';
   }
+  // Inicio's day stepping (window.HCDay, client/today-date.js): on a PAST day the card shows THAT day's
+  // detected day type (dayInput + detectDayType, as HCNutri.targetFor) and its plan targets with the
+  // current goal, under "Target for <date>"; a day whose type cannot be told (no session, sleep or
+  // programmed session) hides the card. Today renders exactly as before.
+  function eatDay() {
+    var D = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
+    return D && typeof D.sel === 'function' ? D.sel() || null : null;
+  }
   function renderEat(host) {
-    var t = target(), d = dayType(), E = T.eat;
+    var card = host.closest ? host.closest('.eat-card') : null;
+    var h = card && card.querySelector ? card.querySelector('h3') : null;
+    var E = T.eat, past = eatDay(), d, t, how;
+    if (past) {
+      var input = dayInput(past);
+      if (card) card.hidden = !input.known;
+      if (!input.known) return;
+      d = detectDayType(input).type;
+      t = N.plans[state.goal][d].t;
+      how = T.auto;
+    } else {
+      if (card) card.hidden = false;
+      d = dayType();
+      t = target();
+      how = state.override ? T.chosen : T.auto;
+    }
+    if (h) h.textContent = past ? format(E.pastHeading, { date: HC.fmtDate(past) }) : E.heading;
     host.innerHTML =
-      '<div class="eat-day-type">' + esc(format(E.dayGoal, { day: T.dayTypes[d] + ' ' + (state.override ? T.chosen : T.auto), goal: T.goals[state.goal] })) + '</div>' +
+      '<div class="eat-day-type">' + esc(format(E.dayGoal, { day: T.dayTypes[d] + ' ' + how, goal: T.goals[state.goal] })) + '</div>' +
       '<div class="eat-kcal">~' + esc(kf(t.kcal)) + '<span>kcal</span></div>' +
       '<div class="eat-macros">' +
       '<div class="eat-mac"><b>' + t.p + ' g</b><span>' + esc(T.target.p) + '</span></div>' +
@@ -1045,6 +1069,9 @@
     // a rest day assumed from sleep alone (no session, nothing programmed): Constancia counts it apart
     t.inferred = !!input.inferred;
     return t;
+  }
+  if (typeof HCDay !== 'undefined' && HCDay && typeof HCDay.on === 'function') {
+    HCDay.on(function () { guard($('eat-body'), renderEat); });
   }
   window.HCNutri = {
     setGoal: setGoal,
