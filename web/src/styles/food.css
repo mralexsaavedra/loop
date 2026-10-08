@@ -1,6 +1,6 @@
 /* Food log (Nutrición part 2) — Registrar (today's log by meal slot), the add sheet (inside the detail
- * sheet modal), Mis productos and Mis recetas. Tokens only; the same restrained card language as Plan
- * de hoy (no accent border): meal names as caps labels, kcal in --num, P / C / F in a muted line.
+ * sheet modal), Mis productos and Mis recetas. Tokens only; the shared card language: flat --surface
+ * cards, meal groups as UPPERCASE labels, list rows, kcal in --num, P / C / F as the small line.
  * --accent = actions only (add, save, focus), --mid = a value Open Food Facts lacks or an armed
  * archive. Every control >= 44 px; fields shrink (minmax(0, 1fr)), so 360 px never scrolls sideways. */
 
@@ -11,13 +11,14 @@
 
 /* ---------- Registrar ---------- */
 /* day navigator: ‹ date › [back to today], one row on a 360 px phone */
-/* Registrar's heading row: the title (its rule fills the gap) + the day navigator on one line */
+/* Registrar's heading row: the shared section label (.hs-lbl) + the day navigator on one line */
 .food-head {
   display: flex;
   flex-wrap: wrap; /* a too-narrow row drops the navigator under the title */
   align-items: center;
   gap: var(--sp-2);
-  margin: var(--sp-11) 0 var(--sp-5);
+  min-height: 44px;
+  margin: 0 0 var(--sp-3);
 }
 .food-head > h2 {
   flex: 1;
@@ -95,12 +96,11 @@
   grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-4);
 }
+/* a meal group = one flat --surface card: UPPERCASE group label + its kcal, then the list rows */
 .food-meal {
   background: var(--card-bg);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  padding: var(--sp-5) var(--sp-7);
-  box-shadow: var(--card-shadow);
+  border-radius: var(--r-sm);
+  padding: var(--sp-5);
   min-width: 0;
 }
 .food-meal-top {
@@ -110,10 +110,12 @@
   gap: var(--sp-5);
 }
 .food-meal-name {
-  font-size: var(--fs-xs);
-  font-weight: 700;
+  margin: 0;
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
+  color: var(--muted);
 }
 .food-meal-kcal {
   font-size: var(--fs-2xs);
@@ -129,30 +131,41 @@
   list-style: none;
   margin-top: var(--sp-3);
 }
+/* a list row (~56 px, 1 px divider): the name with the amount as secondary text and the macros as
+   the small line under them, the kcal alone on the right, then the delete button */
 .fe {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto 44px;
   align-items: center;
   gap: var(--sp-3);
+  min-height: 56px;
   padding: var(--sp-2) 0;
   border-top: 1px solid var(--line-soft);
 }
-.fe-main,
-.fe-side {
+.fe-main {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--sp-2);
   min-width: 0;
 }
 .fe-side {
+  display: flex;
+  flex-direction: column;
   align-items: flex-end;
+  min-width: 0;
 }
 .fe-label {
   font-size: var(--fs-md);
   color: var(--ink);
   overflow-wrap: anywhere;
 }
-.fe-amt,
+.fe-amt {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
 .fe-pcf {
+  flex-basis: 100%;
   font-size: var(--fs-xs);
   color: var(--faint);
 }
@@ -171,7 +184,7 @@
 }
 .fe-kcal b {
   font-family: var(--num);
-  font-size: var(--fs-lg);
+  font-size: var(--fs-xl);
   color: var(--ink);
 }
 .food-icon-btn {
@@ -197,21 +210,25 @@
   color: var(--ink);
   border-color: var(--line);
 }
+/* "+ Add": a quiet UPPERCASE action at the foot of the group (>= 44 px tall) */
 .food-add {
-  margin-top: var(--sp-3);
+  margin-top: var(--sp-2);
   min-height: 44px;
-  padding: 0 var(--sp-5);
+  padding: 0 var(--sp-3);
+  margin-left: calc(-1 * var(--sp-3));
   background: none;
-  border: 1px dashed var(--line);
+  border: 0;
   border-radius: var(--r-sm);
-  color: var(--accent);
+  color: var(--ink);
   font: inherit;
-  font-weight: 650;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
   cursor: pointer;
 }
 .food-add:hover {
-  border-color: var(--accent-dim);
+  background: var(--surface-2);
 }
 .food-icon-btn:focus-visible,
 .food-add:focus-visible,
