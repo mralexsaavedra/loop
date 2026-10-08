@@ -725,6 +725,29 @@ test('a daily total\'s newest day, when it is the viewer\'s today, reads "today,
   assert.doesNotMatch(later.host.innerHTML, /dt-s-partial/, 'a finished day gets its state again');
 });
 
+test('load deep-dive: the gym / run / bike pills (moved from under Inicio\'s dials) — the page\'s modality pressed, each opens its page and, with score.js loaded, sets Inicio\'s load dial (scMod)', () => {
+  const s = setup({ dials: DIALS });
+  s.api.open('load-run');
+  const html = s.host.innerHTML;
+  const mods = ['gym', 'run', 'bike'].filter((k) => DEMO.metrics['load-' + k]);
+  assert.ok(mods.length >= 2, 'the demo has several load series');
+  const sw = (html.match(/<div class="dial-switch" role="group" aria-label="Load modality">[\s\S]*?<\/div>/) || [''])[0];
+  assert.deepEqual([...sw.matchAll(/data-detail="load-([a-z]+)"/g)].map((m) => m[1]), mods);
+  assert.match(sw, /<button type="button" class="dial-mod" data-detail="load-run" aria-pressed="true">Run<\/button>/);
+  assert.equal((sw.match(/aria-pressed="true"/g) || []).length, 1);
+  assert.doesNotMatch(sw, /onclick/, 'no scMod on the page: plain links');
+  assert.ok(html.indexOf('dial-switch') > html.indexOf('dd-hero') && html.indexOf('dial-switch') < html.indexOf('dd-insight'), 'between the contributors and the insight card');
+  // with score.js's scMod present, a pill also switches Inicio's dial
+  const t = setup({ dials: DIALS });
+  t.ctx.scMod = () => {};
+  t.api.open('load-gym');
+  assert.match(t.host.innerHTML, /data-detail="load-bike" aria-pressed="false" onclick="scMod\('bike'\)">Bike<\/button>/);
+  // other dial pages: no pills
+  const r = setup({ dials: DIALS });
+  r.api.open('recovery');
+  assert.doesNotMatch(r.host.innerHTML, /dial-switch/);
+});
+
 test('load deep-dive = the dial: today\'s RE in a strain ring with the typical-day tick, else the dial\'s word; the insight carries today\'s line', () => {
   for (const m of DIALS.load.modalities) assert.equal(DEMO.metrics['load-' + m.key].typical, m.typical, `${m.key}: same typical day as the dial`);
   const s = setup({ dials: DIALS });

@@ -524,6 +524,20 @@
     }).join('') + '</div></section>';
   }
 
+  // load pages: the gym / run / bike pills (no longer under Inicio's dials): each opens that
+  // modality's page and sets Inicio's load dial to it (score.js scMod, when loaded); the page's own
+  // modality is the pressed one. Fewer than two modalities with a load series: no pills.
+  function modSwitch(key, X) {
+    var cur = X.modOf(key);
+    var mods = ['gym', 'run', 'bike'].filter(function (k) { return !!X.metric('load-' + k); });
+    if (mods.length < 2) return '';
+    var set = typeof scMod === 'function';
+    return '<div class="dial-switch" role="group" aria-label="' + esc(X.T.deep.modSwitch) + '">' + mods.map(function (k) {
+      return '<button type="button" class="dial-mod" data-detail="load-' + k + '" aria-pressed="' + (k === cur) + '"' +
+        (set ? ' onclick="scMod(\'' + k + '\')"' : '') + '>' + esc(X.T.modalities[k] || k) + '</button>';
+    }).join('') + '</div>';
+  }
+
   function render(key, m, end, X) {
     if (key === 'stress') return stressPage(key, m, end, X);
     if (key === 'energy-bank') return energyPage(key, m, end, X);
@@ -539,7 +553,8 @@
     var rows = key === 'recovery' ? recoveryRows(m, end, X) : key === 'sleep' ? sleepRows(m, end, X) : loadRows(key, m, end, X);
     return {
       head: headHtml(key, end, X),
-      top: infoHtml(key, m, X) + heroHtml(hero, X) + (key === 'sleep' ? stagesHtml(m, end, X) : '') + contribHtml(rows, X) + insightHtml(lines, X) + weeklyHtml(key, m, end, X),
+      top: infoHtml(key, m, X) + heroHtml(hero, X) + (key === 'sleep' ? stagesHtml(m, end, X) : '') + contribHtml(rows, X) +
+        (key === 'sleep' || key === 'recovery' ? '' : modSwitch(key, X)) + insightHtml(lines, X) + weeklyHtml(key, m, end, X),
     };
   }
 
