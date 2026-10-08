@@ -593,18 +593,23 @@ test('ⓘ toggles the long-notes block in place (no re-render); the CTA jumps to
   assert.equal(period.scrolled, 1);
   assert.equal(pressed.focused, 1);
   assert.equal(s.hostWrites(), writes, 'neither action re-renders the sheet');
-  assert.ok(s.host.innerHTML.includes(`<button type="button" class="dd-cta" data-dt-act="trend">${enT.deep.cta}<span aria-hidden="true"> →</span></button>`));
+  assert.ok(s.host.innerHTML.includes(`<button type="button" class="dd-cta" data-dt-act="trend">${enT.deep.ctas.recovery}<span aria-hidden="true"> →</span></button>`));
 });
 
 test('recovery deep-dive: the insight card leads with Inicio\'s outlook sentence (window.HCAdvice), the full text behind the one-line bar; nothing without one', () => {
   const s = setup({ dials: DIALS });
   s.ctx.window.HCAdvice = () => 'Over the last 7 days recovery has stayed at baseline.';
   s.api.open('recovery');
-  assert.ok(insightOf(s.host.innerHTML).startsWith('<p class="dd-ln">Over the last 7 days recovery has stayed at baseline.</p>'));
+  const W = enT.deep.prose;
+  const ins = insightOf(s.host.innerHTML);
+  assert.ok(ins.startsWith('<p class="dd-ln">Over the last 7 days recovery has stayed at baseline. '), 'one paragraph, the advice first');
+  assert.ok(ins.includes(format(W.rec, { when: W.lastNight, band: W.recBands[DIALS.recovery.band] })), 'then last night in words');
+  assert.ok(!ins.includes(' it has been '), 'the advice already carries the 7-day trend');
+  assert.equal((ins.match(/<p class="dd-ln/g) || []).length, 1);
   const none = setup({ dials: DIALS });
   none.ctx.window.HCAdvice = () => '';
   none.api.open('recovery');
-  assert.ok(insightOf(none.host.innerHTML).startsWith('<p class="dd-ln">' + format(enT.deep.nightLine, { when: enT.rec.lastNight, band: enT.rec.pctBands[DIALS.recovery.band] })));
+  assert.ok(insightOf(none.host.innerHTML).startsWith('<p class="dd-ln">' + format(W.rec, { when: W.lastNight, band: W.recBands[DIALS.recovery.band] })));
 });
 
 test('recovery deep-dive = the dial: the hero ring is last night\'s % with ONE % band colour; the insight says "last night" + the % band and the 7-day trend in its own band colour; the SD value is under ⓘ', () => {
@@ -621,18 +626,19 @@ test('recovery deep-dive = the dial: the hero ring is last night\'s % with ONE %
   assert.ok(hero.includes(`d="${d.fill}"`), 'the dial\'s own baked arc');
   assert.ok(hero.includes(`<span class="dd-lbl">${enT.deep.label.recovery}</span>`));
   const ins = insightOf(html);
-  assert.ok(ins.includes(format(enT.deep.nightLine, { when: enT.rec.lastNight, band: enT.rec.pctBands[d.band] })));
+  const W = enT.deep.prose;
+  assert.ok(ins.includes(format(W.rec, { when: W.lastNight, band: W.recBands[d.band] })), 'last night in words, the % band');
   const sdLine = format(enT.rec.sdLbl, { value: sgn(d.value, 1), band: '' });
   const sdHead = sdLine.slice(0, sdLine.indexOf(' · '));
   assert.ok(!ins.includes(sdHead), 'the insight carries ONE band (the %): the SD line is not there');
   assert.ok(infoOf(html).includes(sdHead), 'the night\'s SD value moved under ⓘ (still reachable)');
-  const bandState = { above: 'good', at: 'normal', below: 'bad' };
-  const trend = format(enT.rec.trendLine, { dir: enT.rec.dirs[d.trend.dir], value: sgn(d.trend.value, 1) });
-  assert.ok(ins.includes(`dd-ln dt-c-${bandState[d.trend.band]}">${trend}`), 'trend line coloured by the TREND band');
+  const trend = format(W.recTrend, { dir: W.dirs[d.trend.dir], value: sgn(d.trend.value, 1) + ' ' + enT.metrics.recovery.unit });
+  assert.ok(ins.includes(trend), 'the 7-day trend in words (no advice sentence)');
+  assert.equal((ins.match(/<p class="dd-ln/g) || []).length, 1, 'one paragraph of prose');
   const later = setup({ now: addDays(NOW, 1), dials: DIALS });
   later.api.open('recovery');
-  assert.ok(!insightOf(later.host.innerHTML).includes(enT.rec.lastNight), 'a day later the night is dated, like the dial');
-  assert.ok(insightOf(later.host.innerHTML).includes('Mon 28 Sep'));
+  assert.ok(!insightOf(later.host.innerHTML).includes(enT.deep.prose.lastNight), 'a day later the night is dated, like the dial');
+  assert.ok(insightOf(later.host.innerHTML).includes(format(W.on, { date: 'Mon 28 Sep' })));
   // the cut rules are long notes: under ⓘ, not in the insight
   const info = infoOf(html);
   assert.ok(info.includes('±1.2') && info.includes('±0.5'), 'day cut and trend cut both stated');
@@ -763,14 +769,14 @@ test('load deep-dive = the dial: today\'s RE in a strain ring with the typical-d
   } else {
     assert.ok(hero.includes(enT.deep.words.loadGated));
   }
-  const gl = DEMO.metrics['load-gym'].gate ? '' : format(enT.load.dayLine, { day: '28', typical: gym.typical.toFixed(0) });
+  const gl = DEMO.metrics['load-gym'].gate ? '' : format(enT.deep.prose.loadDay, { day: '28', typical: gym.typical.toFixed(0) });
   if (gl) assert.ok(insightOf(s.host.innerHTML).includes(gl));
   s.api.open('load-run');
   const run = DEMO.metrics['load-run'];
   hero = heroOf(s.host.innerHTML);
   assert.ok(hero.includes(`<span class="dd-word">${enT.deep.words.rest}</span>`), 'no session today: the dial\'s word');
   assert.doesNotMatch(hero, /dd-fill/);
-  assert.ok(insightOf(s.host.innerHTML).includes(format(enT.load.restLastLine, { date: 'Sat 26 Sep', re: String(run.last.re), typical: run.typical.toFixed(0) })));
+  assert.ok(insightOf(s.host.innerHTML).includes(format(enT.deep.prose.loadRestLast, { date: 'Sat 26 Sep', re: String(run.last.re), typical: run.typical.toFixed(0) })));
   const gated = copy();
   gated.metrics['load-bike'].gate = 'fewDays';
   const g = setup({ detail: gated });
@@ -779,16 +785,18 @@ test('load deep-dive = the dial: today\'s RE in a strain ring with the typical-d
   assert.ok(heroOf(g.host.innerHTML).includes(enT.deep.words.loadGated));
 });
 
-test('load deep-dive keeps the dial\'s former captions: the ring scale + the 7-day vs 42-day trend in the insight, the unscored note under ⓘ', () => {
+test('load deep-dive: the day and the 7-day vs 42-day trend as prose in the insight; the ring scale and the unscored note under ⓘ', () => {
   const run = DIALS.load.modalities.find((m) => m.key === 'run' && m.state === 'ok') || DIALS.load.modalities.find((m) => m.state === 'ok');
   const s = setup({ dials: DIALS });
   s.api.open('load-' + run.key);
   const ins = insightOf(s.host.innerHTML);
-  assert.ok(ins.includes(enT.load.scale), 'the scale explanation that sat under the dial');
-  const trend = format(enT.load.trendLbl, { pct: (run.trendPct > 0 ? '+' : '') + run.trendPct + '%' }) + ' · ' + enT.load.bands[run.band];
+  assert.ok(!ins.includes(enT.load.scale) && infoOf(s.host.innerHTML).includes(enT.load.scale), 'the scale explanation moved under ⓘ');
+  const trend = format(enT.deep.prose.loadTrend, { band: enT.load.bands[run.band], pct: (run.trendPct > 0 ? '+' : '') + run.trendPct + '%' });
   assert.ok(ins.includes(trend), `acute/chronic context "${trend}"`);
-  const lines = (ins.match(/<p class="dd-ln/g) || []).length;
-  assert.ok(lines >= 2 && lines <= 4, `2–4 insight lines, got ${lines}`);
+  assert.equal((ins.match(/<p class="dd-ln/g) || []).length, 1, 'one paragraph');
+  const sentences = ins.replace(/<[^>]+>/g, '').split('VIEW')[0].split(/[.!?](\s|$)/).filter((x) => x && x.trim()).length;
+  assert.ok(sentences >= 2 && sentences <= 3, `2–3 sentences, got ${sentences}`);
+  assert.ok(s.host.innerHTML.includes(`>${enT.deep.ctas.load}<`), 'the page\'s own CTA');
   const d2 = JSON.parse(JSON.stringify(DIALS));
   d2.load.modalities.find((m) => m.key === run.key).unscored = 2;
   const u = setup({ dials: d2 });
@@ -796,8 +804,8 @@ test('load deep-dive keeps the dial\'s former captions: the ring scale + the 7-d
   assert.ok(infoOf(u.host.innerHTML).includes(format(enT.load.unscoredNote, { n: 2 })));
   const es = setup({ dials: DIALS, locale: 'es' });
   es.api.open('load-' + run.key);
-  assert.ok(insightOf(es.host.innerHTML).includes(esT.load.scale));
-  assert.ok(es.host.innerHTML.includes(`>${esT.deep.cta}<`) && es.host.innerHTML.includes(`<span class="sr-only">${esT.metrics['load-' + run.key].title} · </span>${esT.deep.today}<`));
+  assert.ok(infoOf(es.host.innerHTML).includes(esT.load.scale));
+  assert.ok(es.host.innerHTML.includes(`>${esT.deep.ctas.load}<`) && es.host.innerHTML.includes(`<span class="sr-only">${esT.metrics['load-' + run.key].title} · </span>${esT.deep.today}<`));
   const none = setup();
   none.api.open('load-' + run.key);
   assert.ok(!insightOf(none.host.innerHTML).includes(enT.load.bands[run.band]));
@@ -815,16 +823,18 @@ test('sleep deep-dive: the hero is last night\'s sleep performance % in the slee
   assert.ok(hero.includes(`<span class="dd-lbl">${enT.deep.label.sleepPerf}</span>`));
   assert.ok(hero.includes(`d="${DIALS.sleep.fill}"`));
   const ins = insightOf(html);
-  assert.ok(ins.includes(format(enT.bands.target, { value: '7.5', unit: 'h' })), 'Target 7.5 h');
   const v = valueOn(DEMO.metrics.sleep, NOW);
-  assert.ok(ins.includes(format(enT.deep.sleepLine, { when: enT.rec.lastNight, value: v.toFixed(1), delta: Number((v - 7.5).toFixed(1)) === 0 ? '0.0' : sgn(v - 7.5, 1), target: '7.5' })));
+  assert.ok(ins.includes(format(enT.deep.prose.sleep, { when: enT.deep.prose.lastNight, value: v.toFixed(1), delta: Number((v - 7.5).toFixed(1)) === 0 ? '0.0' : sgn(v - 7.5, 1), target: '7.5' })));
+  assert.ok(ins.includes(enT.deep.prose.allOk) || /(was|were) worse than your usual\./.test(ins), 'the contributors in one sentence');
+  assert.ok(ins.includes(`>${enT.deep.ctas.sleep}<`));
   const info = infoOf(html);
   assert.ok(info.includes(format(enT.deep.sleepNotes.perf, { target: '7.5' })), 'ⓘ: performance formula, need = target');
   for (const k of ['eff', 'cons', 'stages']) assert.ok(info.includes(enT.deep.sleepNotes[k]), `ⓘ: ${k}`);
   // stages bar: awake / REM / core / deep, widths by hours, legend with hours and % of asleep
   const sl = DEMO.metrics.sleep;
   const st = html.split('<section class="dd-stages"')[1].split('</section>')[0];
-  assert.ok(html.indexOf('dd-stages') > html.indexOf('dd-hero') && html.indexOf('dd-stages') < html.indexOf('dd-contrib'), 'under the hero');
+  assert.ok(html.indexOf('dd-contrib') > html.indexOf('dd-hero') && html.indexOf('dd-stages') > html.indexOf('dd-insight') && html.indexOf('dd-stages') < html.indexOf('dd-weekly'), 'dial -> contributors -> insight, then the stages bar');
+  assert.ok(st.startsWith(`><h3 class="dd-sec">${enT.deep.stages.aria}</h3>`), 'a titled section');
   assert.deepEqual([...st.matchAll(/<i class="dd-st dd-st-([a-z]+)"/g)].map((x) => x[1]), ['awake', 'rem', 'core', 'deep']);
   const rem = valueOn({ ...sl, v: sl.rem }, NOW);
   assert.ok(st.includes(`${enT.deep.stages.rem} <b>${rem.toFixed(1)} h · ${Math.round((100 * rem) / v)}%</b>`));
