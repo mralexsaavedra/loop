@@ -80,6 +80,7 @@ export const en = {
   // weekly bars
   deep: {
     back: 'Back',
+    today: 'Today',
     info: 'How to read this page',
     label: { sleep: enS.dials.sleep.label, sleepPerf: 'Sleep performance', recovery: enS.dials.recovery.label, load: enS.dials.load.label, strain: 'Day strain' },
     words: { none: enS.dials.none, gated: enS.dials.recovery.gated, loadGated: enS.dials.load.gated, rest: enS.dials.load.rest, noEffort: enS.dials.load.noEffort },
@@ -308,6 +309,7 @@ export const es = {
   },
   deep: {
     back: 'Volver',
+    today: 'Hoy',
     info: 'Cómo leer esta página',
     label: { sleep: esS.dials.sleep.label, sleepPerf: 'Rendimiento del sueño', recovery: esS.dials.recovery.label, load: esS.dials.load.label, strain: 'Carga del día' },
     words: { none: esS.dials.none, gated: esS.dials.recovery.gated, loadGated: esS.dials.load.gated, rest: esS.dials.load.rest, noEffort: esS.dials.load.noEffort },

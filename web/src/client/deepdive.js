@@ -80,9 +80,17 @@
   }
 
   /* ---------- header ---------- */
-  function headHtml(key, X) {
-    var P = X.T.deep;
-    return HC.sheetHead({ title: X.titleOf(key), back: P.back, info: { controls: 'dd-info', label: P.info } });
+  // the header names the DAY the page shows ("Today" / "Mon 28 Sep", upper-cased by CSS), the metric
+  // lives in the ring's label (and stays the dialog's label for screen readers): strain = the day it
+  // was opened on (Inicio's day stepping), the others = the view end (the viewer's today, or the
+  // stale data's last day), the day their hero and insight describe
+  function headDay(key, end, X) {
+    return key === 'strain' ? strainIso(end, X) : end;
+  }
+  function headHtml(key, end, X) {
+    var P = X.T.deep, iso = headDay(key, end, X);
+    var title = iso === HC.todayIso() ? P.today : HC.fmtDate(iso);
+    return HC.sheetHead({ title: title, sr: X.titleOf(key), back: P.back, info: { controls: 'dd-info', label: P.info } });
   }
 
   /* ---------- hero ring ---------- */
@@ -513,7 +521,7 @@
   function render(key, m, end, X) {
     if (key === 'strain') {
       return {
-        head: headHtml(key, X),
+        head: headHtml(key, end, X),
         top: '<div class="dd-info" id="dd-info" hidden>' + X.bandText(key, m) + strainNotes(X) + '</div>' + heroHtml(strainHero(m, end, X), X) +
           strainContribHtml(m, end, X) + insightHtml(strainLines(m, end, X), X) + weeklyHtml(key, m, end, X) + reLinksHtml(X),
       };
@@ -522,7 +530,7 @@
     var lines = key === 'recovery' ? recoveryLines(m, X) : key === 'sleep' ? sleepLines(m, end, X) : loadLines(key, m, X);
     var rows = key === 'recovery' ? recoveryRows(m, end, X) : key === 'sleep' ? sleepRows(m, end, X) : loadRows(key, m, end, X);
     return {
-      head: headHtml(key, X),
+      head: headHtml(key, end, X),
       top: infoHtml(key, m, X) + heroHtml(hero, X) + (key === 'sleep' ? stagesHtml(m, end, X) : '') + contribHtml(rows, X) + insightHtml(lines, X) + weeklyHtml(key, m, end, X),
     };
   }

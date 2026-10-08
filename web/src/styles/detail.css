@@ -980,7 +980,7 @@ button.dt-day {
 .dd-mk {
   flex: none;
   width: 14px;
-  font-size: 11px;
+  font-size: 6.5px; /* an ~8px triangle */
   text-align: center;
 }
 .dd-better {
