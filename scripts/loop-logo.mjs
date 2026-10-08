@@ -33,13 +33,14 @@ export const ICONS = {
   touch: { size: 180, ring: 112.5, sw: 11, radius: 0 },
 };
 
-/* Wordmark proportions, in em of the letters' font size. Syncopate's caps are 0.67em, its O 0.71em. */
+/* Wordmark proportions, in em of the letters' font size. Syncopate's caps are 0.67em, its O 0.71em.
+ * inkGapEm = the visible gap between any two neighbours (L|O, O|O, O|P), measured ink to ink: the
+ * glyphs' side bearings differ (P's left one is ~0.105em), so advance-based spacing looked uneven. */
 export const WORDMARK = {
   sw: 18,
   ringEm: 0.71,
   overshootEm: 0.02,
-  letterSpacingEm: 0.12,
-  ringSpacingEm: 0.14,
+  inkGapEm: 0.14,
 };
 
 const fmt = (n) => String(Number(n.toFixed(3)));
@@ -76,24 +77,28 @@ export function iconSvg({ size, ring, sw, radius }) {
 }
 
 /* Wordmark layout in 1000-unit em, y down, baseline at y = 0. Glyphs come in font units (y up):
- * { d, advance, minX, maxX } for L and P, plus the font's unitsPerEm. */
+ * { d, advance, minX, maxX } for L and P (minX / maxX = the ink's horizontal extent), plus the font's
+ * unitsPerEm. */
 export function wordmarkLayout({ unitsPerEm, L, P }) {
   const s = 1000 / unitsPerEm;
   const size = WORDMARK.ringEm * 1000;
   const y = WORDMARK.overshootEm * 1000 - size;
-  let x = L.advance * s + WORDMARK.letterSpacingEm * 1000;
+  const gap = WORDMARK.inkGapEm * 1000;
+  // x = where the next ink starts: after L's ink, after each ring
+  let x = L.maxX * s + gap;
   const rings = [];
   for (let i = 0; i < 2; i++) {
     rings.push({ x, y, size });
-    x += size + WORDMARK.ringSpacingEm * 1000;
+    x += size + gap;
   }
+  const p = { x: x - P.minX * s }; // P's origin, so its ink (not its side bearing) starts at x
   const left = L.minX * s;
   return {
     scale: s,
     l: { x: 0 },
     rings,
-    p: { x },
-    viewBox: { x: left, y, w: x + P.maxX * s - left, h: size },
+    p,
+    viewBox: { x: left, y, w: p.x + P.maxX * s - left, h: size },
   };
 }
 
