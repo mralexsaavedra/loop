@@ -131,6 +131,7 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
     key: (key, target = host) => { const e = { key, target, prevented: false, preventDefault() { this.prevented = true; } }; fire('doc', 'keydown', e); return e; },
     keyEvent: (e) => fire('doc', 'keydown', e),
     popstate: () => fire('win', 'popstate', {}),
+    change: (target) => fire('doc', 'change', { target }),
   };
 }
 const act = (a, extra = {}) => new StubElement('button', { attrs: { 'data-dt-act': a, ...extra } });
@@ -144,7 +145,7 @@ test('every DETAIL key of the demo build renders a view: title, latest value + d
     assert.equal(s.host.hidden, false, key);
     // a dial page's visible title is its day; the metric stays the dialog's label (screen readers)
     const dial = ['sleep', 'recovery', 'strain'].includes(key) || key.startsWith('load-');
-    assert.ok(html.includes(dial ? `id="dt-title"><span class="sr-only">${enT.metrics[key].title} · </span>` : `id="dt-title">${enT.metrics[key].title}<`), `${key} title`);
+    assert.ok(html.includes(`id="dt-title"><span class="sr-only">${enT.metrics[key].title} · </span>${dial ? '' : enT.trend.title + '<'}`), `${key} title`);
     assert.match(html, /class="dt-range"/, `${key} range switch`);
     assert.match(html, /<svg class="dt-chart"/, `${key} chart`);
     assert.match(html, /class="dt-cal"/, `${key} calendar`);
@@ -558,7 +559,7 @@ test('ONE sheet header for dial deep-dives and metric details: "‹" back (= clo
   const s = setup();
   s.api.open('hrv');
   const h = headOf(s.host.innerHTML);
-  assert.ok(h.includes('<div class="dt-head sh-head">' + back + `<h2 class="sh-title" id="dt-title">${enT.metrics.hrv.title}</h2><span class="sh-pad" aria-hidden="true"></span></div>`), h.slice(0, 260));
+  assert.ok(h.includes('<div class="dt-head sh-head">' + back + `<h2 class="sh-title" id="dt-title"><span class="sr-only">${enT.metrics.hrv.title} · </span>${enT.trend.title}</h2><span class="sh-pad" aria-hidden="true"></span></div>`), h.slice(0, 260));
   assert.doesNotMatch(s.host.innerHTML, /dd-head|dd-hero|dd-insight|class="dt-close"/);
 });
 
@@ -1389,4 +1390,65 @@ test('strain deep-dive follows the day it was opened on; a day without all-day h
   const o = setup({ dials: DIALS, scores: DEMO_SCORES });
   o.api.open('strain', old);
   assert.ok(heroOf(o.host.innerHTML).includes(enT.deep.words.none) || !o.host.innerHTML.includes('dd-hero'));
+});
+
+/* ---------- trend view controls (Q11a-3) ---------- */
+test('trend view: the window steps back and forward by its own length (forward disabled at today, back while the data reaches), the range resets it', () => {
+  const s = setup();
+  s.api.open('rhr');
+  s.click(act('range', { 'data-range': '7' }));
+  const winOf = (html) => /<div class="dt-win" role="group" aria-label="Period shown">([^]*?)<\/div>/.exec(html)[1];
+  const fmt2 = (iso) => format(enDate.dayNoWeekdayTpl, { day: String(Number(iso.slice(8))), month: enDate.months[Number(iso.slice(5, 7)) - 1] });
+  let w = winOf(s.host.innerHTML);
+  assert.ok(w.includes(`<span class="dt-win-lbl">${fmt2(addDays(NOW, -6))} – ${fmt2(NOW)}, ${NOW.slice(2, 4)}</span>`), w);
+  assert.match(w, /data-wdir="1" aria-label="Later period" disabled>/, 'no window after today');
+  assert.doesNotMatch(w, /data-wdir="-1"[^>]*disabled/);
+  s.click(act('win', { 'data-wdir': '-1' }));
+  w = winOf(s.host.innerHTML);
+  assert.ok(w.includes(`${fmt2(addDays(NOW, -13))} – ${fmt2(addDays(NOW, -7))}`), 'one week back');
+  assert.doesNotMatch(w, /data-wdir="1"[^>]*disabled/);
+  const st = JSON.parse(JSON.stringify(s.api.periodStats('rhr', addDays(NOW, -7), 7)));
+  assert.ok(s.host.innerHTML.includes(`<b class="dt-trend-num">${st.avg.toFixed(0)}</b>`) || s.host.innerHTML.includes(`<b class="dt-trend-num">${Math.round(st.avg)}</b>`), 'the average is the shown window\'s');
+  const end7 = addDays(NOW, -7);
+  const fmtW = format(enDate.dayTpl, { weekday: enDate.weekdays[(new Date(end7 + 'T12:00:00Z').getUTCDay() + 6) % 7], day: String(Number(end7.slice(8))), month: enDate.months[Number(end7.slice(5, 7)) - 1] });
+  assert.ok(s.host.innerHTML.includes(`<span>${fmtW}</span></div>`), 'the chart ends at the window end');
+  s.click(act('win', { 'data-wdir': '1' }));
+  assert.match(winOf(s.host.innerHTML), /data-wdir="1"[^>]*disabled/, 'back at today');
+  s.click(act('win', { 'data-wdir': '1' }));
+  assert.match(winOf(s.host.innerHTML), new RegExp(fmt2(NOW)), 'never past today');
+  // back to the data's first window: the back arrow disables there
+  const m = DEMO.metrics.rhr;
+  s.click(act('range', { 'data-range': '182' }));
+  for (let i = 0; i < 6; i++) s.click(act('win', { 'data-wdir': '-1' }));
+  w = winOf(s.host.innerHTML);
+  assert.match(w, /data-wdir="-1"[^>]*disabled/, 'no window before the data');
+  assert.ok(s.api.state().shift * 182 <= Math.round((Date.parse(NOW) - Date.parse(m.start)) / 86400000), 'the window still holds data');
+  s.click(act('range', { 'data-range': '30' }));
+  assert.equal(s.api.state().shift, 0, 'a new range starts at today');
+});
+
+test('trend view: "TREND VIEW" header + a metric picker pill (non-dial metrics only); picking one re-opens the sheet there, same range, URL replaced', () => {
+  const s = setup();
+  s.api.open('rhr');
+  const html = s.host.innerHTML;
+  const opts = [...html.matchAll(/<option value="([^"]+)"( selected)?>/g)];
+  assert.ok(opts.length >= 2);
+  assert.deepEqual(opts.filter((o) => o[2]).map((o) => o[1]), ['rhr'], 'the open metric is selected');
+  for (const k of ['sleep', 'recovery', 'strain', 'load-gym']) assert.ok(!opts.some((o) => o[1] === k), `${k} keeps its dial page`);
+  assert.match(html, /<label class="dt-metric"><span class="sr-only">Metric<\/span><select class="dt-metric-sel" data-dt-pick="metric">/);
+  s.click(act('range', { 'data-range': '182' }));
+  const sel = new StubElement('select', { attrs: { 'data-dt-pick': 'metric' } });
+  sel.value = 'hrv';
+  const pushes = s.calls.filter((c) => c[0] === 'push').length;
+  s.change(sel);
+  assert.equal(s.api.state().key, 'hrv');
+  assert.equal(s.api.state().range, 182, 'the range is kept');
+  assert.equal(s.calls.filter((c) => c[0] === 'push').length, pushes, 'no new history entry');
+  assert.equal(s.loc.hash, '#detail/hrv');
+  sel.value = 'constructor';
+  s.change(sel);
+  assert.equal(s.api.state().key, 'hrv', 'an unknown value is ignored');
+  // a dial page has no picker
+  s.api.open('recovery');
+  assert.doesNotMatch(s.host.innerHTML, /dt-metric-sel/);
 });

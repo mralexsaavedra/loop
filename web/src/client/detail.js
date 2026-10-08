@@ -226,6 +226,27 @@
   function head(key, inner) {
     return HC.sheetHead({ title: titleOf(key), back: (T.deep && T.deep.back) || T.close }) + (inner ? '<div class="dt-titles">' + inner + '</div>' : '');
   }
+  // a metric's sheet = the trend view: "‹ TREND VIEW" (the metric stays the dialog's label for screen
+  // readers), then the metric picker pill
+  function trendHead(key, inner) {
+    var R = T.trend;
+    return HC.sheetHead({ title: R.title, sr: titleOf(key), back: (T.deep && T.deep.back) || T.close }) + pickerHtml(key) +
+      (inner ? '<div class="dt-titles">' + inner + '</div>' : '');
+  }
+  // the metrics a trend view can switch to: every baked metric with copy, except the dial pages
+  // (sleep, recovery, strain, load-<m>: their own deep-dive layout, reached from the dials)
+  function trendKeys() {
+    return Object.keys(D.metrics).filter(function (k) { return own(T.metrics, k) && !!metric(k) && !deep(k); });
+  }
+  // a native <select> dressed as a pill with a ⌄ (keyboard, screen readers and the phone's own picker
+  // for free); a change re-opens the sheet on that metric (the 'change' listener below)
+  function pickerHtml(key) {
+    var keys = trendKeys();
+    if (keys.length < 2) return '';
+    return '<label class="dt-metric"><span class="sr-only">' + esc(T.trend.metric) + '</span><select class="dt-metric-sel" data-dt-pick="metric">' +
+      keys.map(function (k) { return '<option value="' + esc(k) + '"' + (k === key ? ' selected' : '') + '>' + esc(titleOf(k)) + '</option>'; }).join('') +
+      '</select><svg class="dt-metric-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg></label>';
+  }
   function noneHtml(txt) {
     return '<div class="dt-latest"><span class="dt-none">' + esc(txt) + '</span></div>';
   }
@@ -334,8 +355,23 @@
     return '<div class="dt-trend"><span class="dt-trend-lbl">' + esc(R.avg) + '</span>' +
       '<div class="dt-trend-row"><b class="dt-trend-num">' + esc(st.avg == null ? '—' : avg) + '</b>' + (st.avg != null && unitOf(key) ? '<small>' + esc(unitOf(key)) + '</small>' : '') + pill + '</div></div>';
   }
-  function periodHtml(key, m, end, range) {
-    return '<div class="dt-period">' + trendHtml(key, m, periodStats(m, end, range), range) + rangeHtml(range) + '</div>';
+  // the trend window: `shift` whole windows back from the view end (‹ › stepping; 0 = ends today)
+  function windowEnd(m, end, range, shift) {
+    return shiftIso(end, -(shift || 0) * range);
+  }
+  // ‹ 23 Sep – 29 Sep, 26 ›: back while the previous window still reaches the data, forward until today
+  function winHtml(m, from, to, range, shift) {
+    var R = T.trend, back = shiftIso(to, -range) >= m.start;
+    var lbl = format(R.win, { from: HC.fmtDate(from, { weekday: false }), to: HC.fmtDate(to, { weekday: false }), yy: to.slice(2, 4) });
+    return '<div class="dt-win" role="group" aria-label="' + esc(R.winAria) + '">' +
+      '<button type="button" class="dt-wnav" data-dt-act="win" data-wdir="-1" aria-label="' + esc(R.prevWin) + '"' + (back ? '' : ' disabled') + '>‹</button>' +
+      '<span class="dt-win-lbl">' + esc(lbl) + '</span>' +
+      '<button type="button" class="dt-wnav" data-dt-act="win" data-wdir="1" aria-label="' + esc(R.nextWin) + '"' + (shift > 0 ? '' : ' disabled') + '>›</button></div>';
+  }
+  function periodHtml(key, m, end, range, shift) {
+    var to = windowEnd(m, end, range, shift);
+    return '<div class="dt-period">' + rangeHtml(range) + winHtml(m, windowFrom(m, to, range), to, range, shift) +
+      trendHtml(key, m, periodStats(m, to, range), range) + '</div>';
   }
 
   /* ---------- chart ---------- */
@@ -697,17 +733,18 @@
     var lo = monthOf(m.start), hiM = monthOf(end);
     if (state.month < lo) state.month = lo;
     if (state.month > hiM) state.month = hiM;
-    var from = windowFrom(m, end, state.range);
+    if (windowEnd(m, end, state.range, state.shift) < m.start) state.shift = 0;
+    var to = windowEnd(m, end, state.range, state.shift), from = windowFrom(m, to, state.range);
     state.sel = sel;
     state.view = { key: key, m: m, end: end };
     // the day the sheet was opened on (a dial on a stepped-to day, a day tap): the strain page follows it
     X.sel = state.date && state.date <= end ? state.date : null;
     var dd = deep(key) ? window.HCDeep.render(key, m, end, X) : null;
-    return (dd ? dd.head : head(key, latestHtml(key, m, end) + bandText(key, m))) +
+    return (dd ? dd.head : trendHead(key, latestHtml(key, m, end) + bandText(key, m))) +
       '<div class="dt-body">' + (dd ? dd.top : '') +
       (ve.stale ? '<p class="dt-stale">' + esc(format(T.staleNote, { date: HC.fmtDate(end) })) + '</p>' : '') +
       metricStaleHtml(m, end) +
-      periodHtml(key, m, end, state.range) + chartHtml(key, m, from, end, sel) +
+      periodHtml(key, m, end, state.range, state.shift) + chartHtml(key, m, from, to, sel) +
       '<div data-dt-part="cal">' + calendarHtml(key, m, state.month, sel, end) + '</div>' +
       '<div data-dt-part="day">' + dayPart(key, m, sel) + '</div></div>';
   }
@@ -801,7 +838,7 @@
     var wasOpen = isOpen();
     if (!wasOpen) opener = opts.opener || null;
     var asked = date == null || date === '' ? null : String(date);
-    state = { key: key, date: isoDate(date), range: RANGES[1], month: null, pushed: wasOpen ? state.pushed : !!opts.pushed, sel: null, view: null, geo: null };
+    state = { key: key, date: isoDate(date), range: RANGES.indexOf(opts.range) !== -1 ? opts.range : RANGES[1], shift: 0, month: null, pushed: wasOpen ? state.pushed : !!opts.pushed, sel: null, view: null, geo: null };
     // while a close's Back is in flight, history is left alone: its popstate gives this sheet an entry
     if (opts.push !== false && !pendingBack) {
       var written = setHash(!wasOpen);
@@ -886,7 +923,12 @@
     if (a === 'range') {
       var r = +el.getAttribute('data-range');
       state.range = RANGES.indexOf(r) !== -1 ? r : RANGES[1];
+      state.shift = 0;
       focusSel = '[data-range="' + state.range + '"]';
+    } else if (a === 'win') {
+      var wd = +el.getAttribute('data-wdir') || 0;
+      state.shift = Math.max(0, (state.shift || 0) - wd);
+      focusSel = '[data-wdir="' + wd + '"]';
     } else if (a === 'month') {
       var dir = +el.getAttribute('data-dir') || 0;
       state.month = addMonths(state.month, dir);
@@ -928,6 +970,14 @@
       if (e.preventDefault) e.preventDefault();
       open(o.getAttribute('data-detail'), o.getAttribute('data-date'), { opener: o });
     }
+  });
+  // the trend view's metric picker: the sheet re-opens on the picked metric (same range, URL replaced)
+  document.addEventListener('change', function (e) {
+    var t = e.target;
+    if (!t || !isOpen() || !t.getAttribute || t.getAttribute('data-dt-pick') !== 'metric') return;
+    var k = String(t.value || '');
+    if (trendKeys().indexOf(k) === -1 || k === state.key) return;
+    open(k, null, { range: state.range, focus: '[data-dt-pick="metric"]' });
   });
   document.addEventListener('keydown', function (e) {
     if (isOpen()) {
