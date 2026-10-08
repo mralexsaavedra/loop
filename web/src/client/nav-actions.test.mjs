@@ -124,6 +124,7 @@ test('actions: food opens the existing add sheet with the button as opener; Sync
   assert.equal(p.opened.length, 1);
   assert.equal(p.opened[0].key, 'food-add');
   assert.equal(p.opened[0].opts.opener, p.btn);
+  assert.equal(p.opened[0].opts.focus, '#fa-q, #fa-label', 'focus lands in the search (or the quick name), not the meal select');
   p.fire(p.btn, 'click');
   p.fire(p.items.sync, 'click');
   assert.equal(p.syncBtn.clicks, 1);

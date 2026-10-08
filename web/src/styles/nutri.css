@@ -480,7 +480,9 @@ details.sec-fold.nutri-fold {
   color: var(--muted);
 }
 /* the section's footnote (personal copy): compact and muted */
-.nutri-foot {
+/* .acc-note.nutri-foot: tablas.css's .acc-note (later in the cascade, margin-top -2px) used to win,
+   so the footnote touched the Constancia legend right above it */
+.acc-note.nutri-foot {
   margin-top: var(--sp-7);
   padding-top: var(--sp-5);
   border-top: 1px solid var(--line-soft);
