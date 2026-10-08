@@ -4,6 +4,19 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 (`mem_context`, synced across the owner's machines); durable operating facts live in
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
+## 2026-10-08 — Plan page restyle P7: text diet
+
+- Card text follows one rule: a number + an uppercase label per tile, prose only in the insight card,
+  explanations behind an ⓘ or in a detail sheet — nothing removed, only moved.
+- Inicio: the Today's activities merge note went behind the card's ⓘ; the programmed row carries its
+  whole focus in an aria-label. Salud: the recovery card keeps value, band, one short trend line and
+  compact contributors, its long lines join the Recovery ⓘ; monitor rows print the bare range and a
+  short date; the title's ⓘ is the shared `HC.infoBtn`. Entreno: run rows lost the 2–3-line small line,
+  the watch running dynamics now close the opened day's panel, and a dated sheet scrolls to that day.
+  Nutrición: the Progreso ⓘ keeps its state across a re-render.
+- One `--dock-room` token pads the page end and sets `scroll-padding-bottom` so the floating dock never
+  covers a focused or jumped-to element; `DASH` bakes only what the Intensity rows read.
+
 ## 2026-10-08 — Plan page restyle P6b: Nutrición
 
 - Nutrición opens like Salud / Entreno: a centred uppercase title with an ⓘ (the tab intro and the
