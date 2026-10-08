@@ -2,15 +2,17 @@
  * workouts (modality, minutes, Relative Effort when the source recorded it) and, on the viewer's
  * today, the programmed session (window.HCProgram, client/training-today.js), rendered from
  * SCORES.timeline (lib/score/timeline.mjs, baked by components/Bake.astro) + I18N_SCORE.timeline.
- * Each row = a coloured chip (icon + value: hours asleep / minutes), the uppercase name, and the
- * details stacked on the right (bed / wake clock for sleep; RE and merged parts for a workout — the
- * extract has no workout start times; "programmed" for the plan row). Matching a programmed session
+ * Each row = a coloured chip (icon + value: hours asleep; a workout's Relative Effort, else its
+ * minutes), the uppercase name, and the details stacked on the right (bed / wake clock for sleep; the
+ * minutes when the chip holds RE, and merged parts, for a workout — the extract has no workout start
+ * times, so there is no start / end pair; "programmed" for the plan row). A workout row's accessible
+ * name spells it out ("Run · RE 94 · 45 min"). Matching a programmed session
  * to a done workout is not done anywhere yet, so the plan row is only listed, never ticked.
  *
  * Classic script (is:inline, no module scope). The build bakes only the last few data days; the
  * VIEWER's today is picked here from Date.now(), so consecutive builds stay byte-identical. When
- * today has nothing yet, the newest earlier day is shown under its date with a "nothing logged yet
- * today" line; data older than STALE_DAYS is greyed. When the viewer's clock is EARLIER than every
+ * today has nothing yet, the newest earlier day is shown under its date (no filler line); data older
+ * than STALE_DAYS is greyed. When the viewer's clock is EARLIER than every
  * baked day (clock / timezone skew), the newest baked day is shown under its date instead of the
  * empty state. A throw (even a missing LOCALE global) renders the card's fallback, never a blank
  * Inicio. A row opens the detail sheet on its day (sleep -> the sleep view, a workout -> its
@@ -115,11 +117,15 @@
       ? row('tl-sleep', sleepLink, 'sleep', format(T.sleepVal, { hours: num(day.sleep, 1) }), T.sleep, times.length === 2 ? times : [], 'tl-times')
       : row('tl-sleep tl-none', sleepLink, 'sleep', '—', T.noSleep, []));
     day.items.forEach(function (it) {
-      var side = [];
-      if (it.re != null) side.push(format(T.re, { n: num(it.re, 0) }));
+      // the chip carries the score (RE) when the source recorded one, the minutes move to the right
+      var mins = format(T.minutes, { n: num(it.dur, 0) });
+      var hasRe = it.re != null;
+      var side = hasRe ? [mins] : [];
       if (it.sessions > 1) side.push(format(T.parts, { n: it.sessions }));
       var mod = String(it.modality).replace(/[^a-z]/g, '');
-      list.push(row('tl-' + mod, HC.detailAttrs(modDetail(mod), day.date), mod, format(T.minutes, { n: num(it.dur, 0) }), T.modalities[mod] || mod, side));
+      var name = T.modalities[mod] || mod;
+      var aria = [name].concat(hasRe ? [format(T.re, { n: num(it.re, 0) })] : [], [mins], it.sessions > 1 ? [side[side.length - 1]] : []).join(' · ');
+      list.push(row('tl-' + mod, HC.detailAttrs(modDetail(mod), day.date), mod, hasRe ? num(it.re, 0) : mins, name, side, 'tl-times', aria));
     });
     return list;
   }
@@ -146,7 +152,6 @@
     var note = !!(day && day.items.length && T.note);
     var out = ['<div class="sc-head"><h3>' + esc(title) + '</h3>' + (note ? HC.infoBtn('tl-info', format(T.infoLbl || '{section}', { section: title })) : '') + '</div>' +
       (note ? '<div class="hs-info" id="tl-info" hidden><p>' + esc(T.note) + '</p></div>' : '')];
-    if (!isToday && !ahead) out.push('<div class="sc-note">' + esc(T.noToday) + '</div>');
     var list = day ? dayRows(day) : [];
     // the plan row belongs to the viewer's today: shown under today's heading only
     if (plan && isToday) list.push(plan);

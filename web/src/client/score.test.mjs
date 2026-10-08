@@ -44,7 +44,7 @@ const HEALTH = { recovery: { hasData: true, sleep: { target: 7.5 } } };
 
 // Returns #home-advice + #score-recovery (Salud) + #score-load (Entreno), in that order; pass `hosts` to
 // inspect each one separately.
-function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, loadSectionHidden = false, dials, dialsHost, miniHost, hosts = {}, detail = false, secInfo = null, day } = {}) {
+function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, loadSectionHidden = false, dials, dialsHost, miniHost, hosts = {}, detail = false, secInfo = null, day, ctxExtra } = {}) {
   const host = { innerHTML: '' };
   const rec = (hosts.rec = hosts.rec || { innerHTML: '' });
   const load = (hosts.load = hosts.load || { innerHTML: '' });
@@ -66,6 +66,7 @@ function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entre
   if (detail) ctx.DETAIL = { metrics: {} };
   // the top bar's day stepping (client/today-date.js window.HCDay), when the test selects a day
   if (day) ctx.HCDay = day;
+  if (ctxExtra) Object.assign(ctx, ctxExtra);
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
@@ -116,6 +117,7 @@ test('full render: recovery trend with band, per-component rows and 14 raw daili
   const html = render(s);
   assert.match(html, /sc-recovery/);
   assert.ok(html.includes('<small class="rec-unit">SD</small>'), 'the one recovery unit');
+  assert.match(html, /<b class="rec-num">[^<]+<small class="rec-unit">SD<\/small><\/b><span class="rec-band">/, 'the unit attached to the number, inside it');
   assert.doesNotMatch(html, /MAD/, 'no statistician jargon on the page');
   assert.match(html, /daytime SDNN/i);
   assert.equal(count(html, 'class="rec-comp"'), 4);
@@ -293,15 +295,33 @@ test('advice is rendered with the shared copy when fresh (identical to renderAdv
   assert.ok(es.includes(renderAdvice(s.advice, 'es')));
 });
 
-test('advice = the "outlook" bar under "My day": icon, the sentence (clamped in CSS), a chevron; it opens the recovery sheet that explains it', () => {
+test('advice = the one-line "outlook" bar under "My day": icon, the short title, a chevron; the sentence is its accessible name and opens the recovery sheet', () => {
   const s = fixtureScores();
   const text = renderAdvice(s.advice, 'en');
   const linked = render(s, { now: addDays(ASOF, 1), detail: true });
-  assert.ok(linked.includes(`<div class="sc-advice outlook" data-detail="recovery" role="button" tabindex="0" aria-haspopup="dialog"><svg class="outlook-ico"`));
-  assert.match(linked, new RegExp(`<span class="outlook-txt">${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</span><span class="outlook-chev" aria-hidden="true">›</span></div>`));
+  const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  assert.match(linked, new RegExp(`<div class="sc-advice outlook" data-detail="recovery" role="button" tabindex="0" aria-haspopup="dialog" aria-label="${esc(enT.home.outlook + ': ' + text)}"><svg class="outlook-ico"`));
+  assert.ok(linked.includes(`<span class="outlook-txt">${enT.home.outlook}</span><span class="outlook-chev" aria-hidden="true">›</span></div>`), 'one line: the short title');
+  assert.equal(enT.home.outlook, 'Your daily outlook');
+  const es = render(s, { now: addDays(ASOF, 1), detail: true, locale: 'es' });
+  assert.ok(es.includes(`<span class="outlook-txt">${esT.home.outlook}</span>`));
   const plain = render(s, { now: addDays(ASOF, 1) });
   assert.match(plain, /<div class="sc-advice outlook"><svg class="outlook-ico"/, 'no detail sheet baked: a plain bar');
+  assert.ok(plain.includes(`<span class="outlook-txt">${text}</span>`), 'nothing to tap: the sentence itself');
   assert.doesNotMatch(plain, /class="sc-card sc-advice/, 'no longer a bordered card');
+});
+
+test('window.HCAdvice: the sentence for the recovery page (today, fresh data); empty on a past day or stale data', () => {
+  const s = fixtureScores();
+  const run = (opts) => {
+    const out = {};
+    const ctx = { window: out };
+    render(s, { ...opts, ctxExtra: ctx });
+    return out.HCAdvice ? out.HCAdvice() : null;
+  };
+  assert.equal(run({ now: addDays(ASOF, 1) }), renderAdvice(s.advice, 'en'));
+  assert.equal(run({ now: addDays(ASOF, 1), day: fakeDay(addDays(ASOF, -2)) }), '', 'a past day: no advice');
+  assert.equal(run({ now: addDays(ASOF, 5) }), '', 'stale: no advice');
 });
 
 test('stale: > 3 days old is greyed, shows "as of <date>" and the note, and suppresses advice', () => {
@@ -601,13 +621,12 @@ test('sleep dial: sleep performance % in the ring (asleep / need), hours + need 
   assert.match(h, /<b class="dial-num">\d,\d<small>h<\/small><\/b>/);
 });
 
-test('load dial: one visible modality (default = first ungated), switch for all three, gated greyed with the existing copy', () => {
+test('load dial: one visible modality (default = first ungated), no pills on Inicio (they are in the load deep-dive), gated greyed with the existing copy', () => {
   const s = fixtureScores();
   const html = withDials(s);
   const D = buildDials(s, HEALTH).load;
-  assert.equal(count(html, 'class="dial-mod"'), 3, 'gym / run / bike switch');
-  assert.match(html, new RegExp(`class="dial-mod" data-dmod="${D.defaultKey}" aria-pressed="true"`));
-  assert.equal(count(html, 'aria-pressed="true"'), 1);
+  assert.doesNotMatch(html, /dial-switch|dial-mod|aria-pressed/, 'no gym / run / bike pills under the dials');
+  assert.equal(count(html, '<figure class="dial dial-load'), D.modalities.length, 'every modality keeps its (hidden) dial for scMod');
   for (const m of D.modalities) {
     const vis = new RegExp(`<figure class="dial dial-load[^"]*" data-dmod="${m.key}"${m.key === D.defaultKey ? '>' : ' hidden>'}`);
     assert.match(html, vis, m.key);
@@ -677,8 +696,9 @@ function withToday(s, reByKey) {
   }
   return s;
 }
-const pressedMod = (html) => (html.match(/class="dial-mod" data-dmod="([a-z]+)" aria-pressed="true"/) || [])[1];
 const visibleFig = (html) => (html.match(/<figure class="dial dial-load[^"]*" data-dmod="([a-z]+)"[^>]*?(?<!hidden)>/) || [])[1];
+// the modality the load dial opens on = its one visible figure (the pills moved to the load deep-dive)
+const pressedMod = visibleFig;
 
 test('load dial default: the modality with a session on the viewer\'s today, not the first ungated one', () => {
   const ok = buildDials(fixtureScores(), HEALTH).load.modalities.filter((m) => m.state === 'ok').map((m) => m.key);
@@ -686,11 +706,10 @@ test('load dial default: the modality with a session on the viewer\'s today, not
   const [first, second] = ok;
   const s = withToday(fixtureScores(), { [second]: 94 });
   const html = withDials(s);
-  assert.equal(pressedMod(html), second, 'switch starts on today\'s modality');
   assert.equal(visibleFig(html), second, 'its dial is the visible one');
   assert.ok(figOf(html, second).includes('<b class="dial-num">94<small>RE</small></b>'));
-  assert.match(html, new RegExp(`<figure class="dial dial-load[^"]*" data-dmod="${first}" hidden`), 'the first ungated one is behind the switch');
-  assert.equal(count(html, 'aria-pressed="true"'), 1);
+  assert.match(html, new RegExp(`<figure class="dial dial-load[^"]*" data-dmod="${first}" hidden`), 'the first ungated one is hidden');
+  assert.equal(count(html.match(/<figure class="dial dial-load[^>]*>/g).join(''), ' hidden>'), 2, 'one visible load dial');
 });
 
 test('load dial default: several sessions today -> the one with the highest RE; none today -> the first ungated', () => {
@@ -781,27 +800,20 @@ test('dials: a null asOf / date never produces NaN/undefined text', () => {
   assert.doesNotMatch(render(s, { dials }), /NaN|undefined|null/);
 });
 
-test('scMod: the switch shows only the chosen modality and moves aria-pressed', () => {
-  const el = (key, isBtn) => ({
-    key, hidden: false, pressed: null,
-    classList: { contains: (c) => isBtn && c === 'dial-mod' },
-    getAttribute: (a) => (a === 'data-dmod' ? key : null),
-    setAttribute(a, v) { if (a === 'aria-pressed') this.pressed = v; },
-  });
-  const btns = ['gym', 'run', 'bike'].map((k) => el(k, true));
-  const panes = ['gym', 'run', 'bike'].flatMap((k) => [el(k, false), el(k, false)]);
-  const root = { querySelectorAll: () => [...btns, ...panes] };
-  btns.forEach((b) => { b.closest = () => root; });
-  const minis = ['gym', 'run', 'bike'].map((k) => el(k, false));
-  const mini = { querySelectorAll: () => minis };
-  const ctx = { document: { getElementById: (id) => (id === 'home-mini' ? mini : null) } };
+test('scMod: shows only the chosen modality\'s load dial on Inicio and in the collapsed row (the pills live in the load deep-dive)', () => {
+  const el = (key) => ({ key, hidden: false, getAttribute: (a) => (a === 'data-dmod' ? key : null) });
+  const panes = ['gym', 'run', 'bike'].map((k) => el(k));
+  const minis = ['gym', 'run', 'bike'].map((k) => el(k));
+  const hosts = { 'home-dials': { querySelectorAll: () => panes }, 'home-mini': { querySelectorAll: () => minis } };
+  const ctx = { document: { getElementById: (id) => hosts[id] || null } };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
-  ctx.scMod('bike', btns[2]);
-  assert.deepEqual(btns.map((b) => b.pressed), ['false', 'false', 'true']);
-  assert.deepEqual(panes.map((p) => p.hidden), [true, true, true, true, false, false]);
-  assert.deepEqual(minis.map((p) => p.hidden), [true, true, false], 'the collapsed row follows the switch');
+  ctx.scMod('bike');
+  assert.deepEqual(panes.map((p) => p.hidden), [true, true, false]);
+  assert.deepEqual(minis.map((p) => p.hidden), [true, true, false], 'the collapsed row follows');
+  ctx.scMod('gym');
+  assert.deepEqual(panes.map((p) => p.hidden), [false, true, true]);
 });
 
 test('load: sessions without effort data in the acute window are noted on the card', () => {
@@ -965,9 +977,9 @@ test('strain dial: day stepping shows that day\'s strain; a day the data does no
   assert.match(dialOf(none.innerHTML, 'dial-load dial-strain dial-off'), /<span class="dial-word">No data<\/span>/);
 });
 
-test('strain dial: not calibrated (strain ok false / absent) -> the load dial and its pills, unchanged', () => {
+test('strain dial: not calibrated (strain ok false / absent) -> the per-modality load dials (their pills are in the load deep-dive)', () => {
   const s = { ...fixtureScores(), strain: { ok: false, reason: 'fewDays', asOf: ASOF, n: 3 } };
   const h = render(s, { dials: buildDials(s, HEALTH) });
-  assert.doesNotMatch(h, /dial-strain/);
-  assert.match(h, /dial-switch/);
+  assert.doesNotMatch(h, /dial-strain|dial-switch/);
+  assert.match(h, /<figure class="dial dial-load[^"]*" data-dmod="/);
 });

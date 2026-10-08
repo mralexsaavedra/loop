@@ -92,7 +92,9 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   (source + sha256 in the script header); `scripts/loop-logo.test.mjs` fails if they are hand-edited,
   `web/test/brand.test.mjs` pins the built head and wordmark.
 - **Top bar** (`.topbar`, above the dock, one row at every width, a 3-column grid so the pill stays
-  centred): avatar left (`components/Avatar.astro`, 36 px circle in a 44 px target, opens the profile
+  centred; on Salud, Entreno and Nutrición only the freshness / Sync controls remain — the avatar and
+  the date pill, which steps Inicio's day, hide with the same `.wrap:has(> .tab-panel[data-tab="home"][hidden])`
+  rule as the wordmark, and those tabs open on their centred title): avatar left (`components/Avatar.astro`, 36 px circle in a 44 px target, opens the profile
   sheet) · a centred date pill "‹ HOY ›" / "‹ TODAY ›" (`.date-pill`, uppercase, letter-spaced; the
   viewer's full date ("mié 30 sept" / "Wed 30 Sep") is the `<time id="today-date">` inside it, written
   client-side by `web/src/client/today-date.js` with `HC.fmtDate` and read by assistive tech only,
@@ -117,8 +119,9 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
 - **Bottom dock** (`.dock`, every width): a floating rounded tab bar (`rgba(var(--nav-rgb), 0.94)`,
   blurred, 24 px radius, max 440 px, centred) with the four tabs as icon + small sentence-case label
   (active white, inactive `--faint` grey), and to its RIGHT, outside the tablist, a separate 56 px
-  white circular **"+" action button** (`#act`, `client/nav-actions.js`). The "+" opens a dark frosted
-  popover card (12 px radius, icon + uppercase label rows, a blurred scrim under the dock dims the page;
+  white circular **"+" action button** (`#act`, `client/nav-actions.js`). The "+" opens a navy → violet
+  popover card (12 px radius, a gradient from `--link` at 15 % to `--insight-b` at 62 %, each mixed into `--surface`, 47 px
+  icon + uppercase label rows; a scrim under the dock dims the page 40 % with a light 4 px blur;
   the "+" turns 45° into an "×" and its label becomes "Cerrar acciones"); Escape, the button again or a
   tap outside the card closes it, Tab stays inside (button + listed actions) and focus returns to the
   button. It lists only REAL actions available on this page, decided at view time: **Añadir comida**
@@ -195,7 +198,7 @@ work whatever `page.hideTabs` hides (core.js `jumpOr` stays as API but no card u
 **Look & typography.** Dark, data-first design language: colour carries meaning, never decoration.
 All colours are tokens in `web/src/styles/tokens.css`; the palette (2026-10-07) is sampled from a
 reference fitness app: a blue-grey page gradient (`--ground-top` → `--ground-mid` → `--ground`), flat
-cards (`--card-bg` = `--surface`, no gradient, no shadow), nested tiles `--surface-2`, inset troughs
+cards (`--card-bg` = `--surface`, no gradient, no shadow, and no border on Inicio's cards, Salud's recovery card and the eat card: `.sc-card`, `.eat-card`, `.wp`), nested tiles `--surface-2`, inset troughs
 `--rail`, dial / bar tracks `--track`, three text tiers (`--ink` white, `--muted`, `--faint`).
 `--good`/`--mid`/`--low` = state, `--up`/`--down` = better / worse deltas, `--trend` = neutral data
 lines/sparklines, `--strain` = load, `--sleep` = sleep, `--accent` = ACTIONS only (white: filled

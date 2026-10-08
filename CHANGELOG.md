@@ -5,6 +5,30 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Visual polish: Inicio, the "+" popover, tab headers (Q11b-1)
+
+From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); no new data.
+
+- "My day": the outlook bar is one 46 px line with a short title ("Your daily outlook" / "Tu panorama
+  del día"); the advice sentence is its accessible name and leads the recovery deep-dive's insight
+  card (`window.HCAdvice`). Today's activities drops the "nothing logged yet today" filler; a workout's
+  RE moves into its chip and its minutes to the right. The reference's start / end clock pair is not
+  drawn: workouts.csv has no start time. The collapsed dial row fades over the page gradient (no
+  fill, no line) and its empty rings draw the full grey track.
+- Cards: Inicio's cards, the eat card and Salud's recovery card are flat (no border); the weekly plan
+  also drops the bare-`details` ring. Tonight's clocks are 24 px and the wake side shows a teal
+  "● Usual wake" state over "Last N nights" (no alarm data). Dashboard rows are 60 px (the opener rule
+  had capped them at 44), values 22 px, full metric names.
+- The health monitor tile is 96 px with a square status icon (✓ teal / ! orange). The gym / run / bike
+  pills leave Inicio for the load deep-dives; a pill opens that modality's page and still switches
+  Inicio's load dial (`scMod`).
+- The "+" popover is a navy → violet card (`--link` 15 % → `--insight-b` 62 % on `--surface`), 47 px
+  rows, over a 40 % dim with a 4 px blur.
+- Salud / Entreno / Nutrición open on their centred title alone: the avatar and the date pill show on
+  Inicio only, the freshness / Sync controls stay. Salud's glow is stronger; its recovery card's "%"
+  is attached to the number.
+- CSS budget: 105,784 of 106,000 after removing the replaced rules (no raise).
+
 ## 2026-10-08 — Nutrition score (Inicio "My day" + Nutrición)
 
 - Model: `lib/nutrition/score.mjs` (`NSCORE`, baked as `NUTRI.score`; ported in

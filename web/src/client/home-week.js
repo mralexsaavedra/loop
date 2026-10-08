@@ -168,14 +168,18 @@
     }
     function tonightHtml(tn) {
       var TT = T.tonight;
-      var end = function (ico, time, lbl) {
-        return '<div class="tn-end"><span class="tn-time">' + icon(ico, 'tn-ico') + '<b>' + esc(time) + '</b></span><span class="tn-lbl">' + esc(lbl) + '</span></div>';
+      // state: a teal "● Usual wake" line under the wake clock (the page sets no alarm: it is the
+      // median of the last nights, which the caption under it names)
+      var end = function (ico, time, lbl, state) {
+        return '<div class="tn-end"><span class="tn-time">' + icon(ico, 'tn-ico') + '<b>' + esc(time) + '</b></span>' +
+          (state ? '<span class="tn-lbl tn-state">' + esc(state) + '</span>' : '') + '<span class="tn-lbl">' + esc(lbl) + '</span></div>';
       };
+      var wakeLbl = fin(tn.nights) && TT.nights ? format(TT.nights, { n: tn.nights }) : TT.wake;
       var stale = HC.daysOld(tn.asOf) > HC.STALE_DAYS;
       return '<div class="sc-card tn' + (stale ? ' sc-stale' : '') + '"' + HC.detailAttrs('tonight') +
         ' aria-label="' + esc(format(TT.aria, { bed: clock(tn.bed), wake: clock(tn.wake) })) + '">' +
         '<h3 class="tn-h">' + esc(TT.heading) + '</h3>' +
-        '<div class="tn-row">' + end('moon', clock(tn.bed), TT.bed) + '<span class="tn-dash" aria-hidden="true"></span>' + end('alarm', clock(tn.wake), TT.wake) + '</div></div>';
+        '<div class="tn-row">' + end('moon', clock(tn.bed), TT.bed) + '<span class="tn-dash" aria-hidden="true"></span>' + end('alarm', clock(tn.wake), wakeLbl, TT.wakeState) + '</div></div>';
     }
     // Inicio's day stepping (window.HCDay): Tonight is about the coming night, so a PAST day hides it
     function pastDay() {

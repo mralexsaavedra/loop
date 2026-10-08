@@ -108,6 +108,8 @@ export const en = {
     nightLine: '{when} · {band}',
     sleepLine: '{when}: {value} h · {delta} h vs the {target} h target',
     cta: 'View trend',
+    // the gym / run / bike pills on a load page (deepdive.js modSwitch; they also set Inicio's load dial)
+    modSwitch: 'Load modality',
     contrib: {
       aria: 'What makes up today\'s value',
       legendToday: 'Today',
@@ -447,6 +449,8 @@ export const es = {
     nightLine: '{when} · {band}',
     sleepLine: '{when}: {value} h · {delta} h frente al objetivo de {target} h',
     cta: 'Ver tendencia',
+    // las pastillas gimnasio / carrera / bici de una página de carga (deepdive.js modSwitch; también cambian el dial de carga de Inicio)
+    modSwitch: 'Modalidad de carga',
     contrib: {
       aria: 'Qué compone el valor de hoy',
       legendToday: 'Hoy',

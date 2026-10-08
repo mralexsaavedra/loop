@@ -4,9 +4,9 @@
 #home-advice {
   display: block;
 }
+/* flat like the reference: one fill, no border, no shadow (Inicio's cards, Salud's recovery card) */
 .sc-card {
   background: var(--card-bg);
-  border: 1px solid var(--line);
   border-radius: var(--r-lg, 14px);
   padding: var(--sp-5, 16px);
   margin: 0 0 var(--sp-5, 16px);
@@ -96,15 +96,15 @@
   font-size: var(--fs-xs);
   margin: 6px 0;
 }
-/* "My day" outlook bar (the advice sentence): full width, ~46px, warm grey -> dark horizontal
-   gradient, sun icon, the sentence clamped to two lines, a chevron; opens the recovery sheet */
+/* "My day" outlook bar: full width, 46px, warm grey -> dark horizontal gradient, sun icon, ONE line
+   (the short title; the advice sentence is behind the tap, in the recovery sheet), a chevron */
 .outlook {
   display: flex;
   align-items: center;
   gap: var(--sp-4);
   min-height: 46px;
   margin: 0 0 var(--sp-5);
-  padding: var(--sp-3) var(--sp-5);
+  padding: 0 var(--sp-5);
   border-radius: var(--r-sm);
   background: linear-gradient(90deg, #4a4642 0%, #34363a 45%, var(--surface) 100%);
   color: var(--ink);
@@ -132,13 +132,11 @@
 .outlook-txt {
   flex: 1;
   min-width: 0;
-  font-size: var(--fs-md);
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  font-size: var(--fs-xl);
+  font-weight: 500;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 .outlook-chev {
   flex: none;
@@ -275,7 +273,6 @@
  * The dials sit on the page ground, not in a card; the captions live in each dial's detail sheet. */
 .sc-card.sc-dials {
   background: none;
-  border: 0;
   box-shadow: none;
   padding: var(--sp-5) 0 var(--sp-3);
   margin-bottom: var(--sp-7);
@@ -400,7 +397,7 @@
   margin-left: 3px;
   color: var(--muted);
 }
-.dial-off .dial-svg {
+.dial.dial-off .dial-svg {
   opacity: 0.45;
 }
 /* the day strain dial: its label in strain blue, like the reference's "STRAIN ›" */
@@ -410,14 +407,13 @@
 .dial-off .dial-lbl {
   color: var(--muted);
 }
-/* compact gym / run / bike pills, right-aligned under the load dial */
-.dial-foot {
-  margin-top: var(--sp-3);
-}
+/* compact gym / run / bike pills, centred under the contributors of a load deep-dive (deepdive.js
+   modSwitch) */
 .dial-switch {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: center;
+  margin: var(--sp-5) 0;
   align-items: center;
   gap: var(--sp-2);
   /* a wrapped row sits past both 7px hit-area extensions (see .dial-mod::before) */
@@ -546,6 +542,16 @@
 /* Inicio "Today's activities": per row a coloured score chip (sleep --sleep, a workout --strain; icon
    + value), the uppercase name, and the details stacked on the right behind a thin coloured bar.
    The programmed session's chip is an outline (not done, just planned). */
+/* the header row: the title centred on its 44px ⓘ, which overhangs the card padding instead of
+   pushing the title down */
+.tl .sc-head {
+  align-items: center;
+  min-height: 44px;
+  margin: calc(-1 * var(--sp-3)) 0;
+}
+.tl .sc-head h3 {
+  margin: 0;
+}
 .tl-list {
   list-style: none;
   display: flex;
@@ -686,8 +692,8 @@
   flex-direction: column;
   justify-content: space-between;
   gap: var(--sp-4);
-  min-height: 90px;
-  padding: var(--sp-5);
+  min-height: 96px;
+  padding: var(--sp-6) var(--sp-5);
   border: 0;
   border-radius: var(--r-sm);
   background: var(--card-bg);
@@ -753,6 +759,20 @@
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+/* the summary tile's square status icon: ✓ teal / ! orange on a 16 % tint of the same colour */
+.hmt-sq {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  font-weight: 800;
+}
+.hmt-sq .hmt-ico {
+  background: none;
 }
 .hmt-sub {
   font-size: var(--fs-2xs);
@@ -863,9 +883,9 @@
   line-height: 1.1;
   color: var(--rec-c, var(--ink));
 }
+/* the unit attached to the number at ~55 % of its size, in the same colour ("99%") */
 .rec-unit {
-  font-size: var(--fs-sm);
-  color: var(--faint);
+  font-size: 0.55em;
 }
 .rec-band {
   font-size: var(--fs-sm);
@@ -964,8 +984,10 @@ details.rec-raw[open] > summary::after {
 }
 
 /* Collapsed dial row (#home-mini, Home.astro; written by client/score.js): once the dials scroll
- * above the viewport a frosted strip fixed at the top shows the same three rings small (the dial's
- * own svg, its colour class, no markers) + their labels; a tap opens the dial's detail.
+ * above the viewport a strip fixed at the top shows the same three rings small (the dial's own svg,
+ * its colour class, no markers, the grey track drawn in full even with no value) + their labels; a
+ * tap opens the dial's detail. No fill or line of its own: the page's top colour fades out under it,
+ * so the content scrolls away beneath like on the page gradient.
  * Off = visibility: hidden (out of the tab order and the accessibility tree); it slides in, and
  * prefers-reduced-motion drops the motion (base.css). Inside the Inicio panel, so other tabs never
  * show it. */
@@ -976,10 +998,7 @@ details.rec-raw[open] > summary::after {
   right: 0;
   z-index: 25;
   padding: calc(env(safe-area-inset-top) + var(--sp-1)) calc(12px + env(safe-area-inset-right)) var(--sp-1) calc(12px + env(safe-area-inset-left));
-  background: rgba(var(--nav-rgb), 0.92);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--line);
+  background: linear-gradient(var(--ground-top) 55%, transparent);
   visibility: hidden;
   opacity: 0;
   transform: translateY(-100%);
@@ -1072,7 +1091,7 @@ details.rec-raw[open] > summary::after {
 }
 .tn-time b {
   font-family: var(--num);
-  font-size: var(--fs-4xl);
+  font-size: 24px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -1086,13 +1105,20 @@ details.rec-raw[open] > summary::after {
   stroke-linejoin: round;
 }
 .tn-lbl {
-  max-width: 11ch;
+  max-width: 15ch;
   color: var(--muted);
   font-size: var(--fs-2xs);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   line-height: 1.3;
   text-transform: uppercase;
+}
+/* the wake side's state line: "● USUAL WAKE" in teal (no alarm: the page cannot set one) */
+.tn-state {
+  color: var(--up);
+}
+.tn-state::before {
+  content: "● ";
 }
 .tn-dash {
   flex: 1;
@@ -1153,8 +1179,13 @@ details.rec-raw[open] > summary::after {
 /* Inicio "My plan" (client/home-week.js): one collapsible weekly card — title + chevron, days left,
    "X % accomplished", a teal progress bar; expanded: the goal rows (label + basis, done/target, ▲▼,
    a small bar) */
+/* flat like the other cards: no border, no open-state ring (tablas.css styles bare details) */
 .wp {
   padding: 0;
+  border: 0;
+}
+.wp[open] {
+  box-shadow: none;
 }
 .wp-sum {
   display: flex;
@@ -1355,6 +1386,7 @@ details.rec-raw[open] > summary::after {
   background: var(--card-bg);
 }
 .db-row[data-detail][role="button"] {
+  min-height: 60px;
   padding-right: var(--sp-5);
 }
 .db-row[data-detail][role="button"]::after {
@@ -1432,6 +1464,10 @@ details.rec-raw[open] > summary::after {
   color: var(--faint);
   font-family: var(--num);
   font-size: var(--fs-2xs);
+}
+/* My dashboard: the value larger (the unit stays ~half its size), full metric names */
+#home-dash .db-val b {
+  font-size: 22px;
 }
 .db-empty {
   color: var(--muted);
