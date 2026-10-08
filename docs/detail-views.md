@@ -176,8 +176,13 @@ switch is outside every opener); run / ride rows →
      model and the max HR; docs/training.md "Per-workout HR zones"); no `z` → no block.
   The copy is the dial's own (`score-templates.mjs` via `I18N_DETAIL.rec` / `load` / `deep`).
 - **The sheet** (`detail.js`, one renderer, per-view try/catch with a message fallback, no NaN ever
-  printed): header = the shared "‹ METRIC" header above (no ⓘ: a spacer), then the latest value + date, the band / target / typical day in words (the dial
-  pages above replace this header). The header NEVER contradicts the card it opens from; the
+  printed): header = the shared header above titled "‹ TREND VIEW" (`trend.title`, es "Tendencia"; the
+  metric is the dialog's screen-reader label, `sheetHead({sr})`; no ⓘ: a spacer), then the **metric
+  picker** — a native `<select>` dressed as a pill with a ⌄ (`.dt-metric`, `data-dt-pick="metric"`)
+  listing every baked metric with copy EXCEPT the dial pages (sleep, recovery, strain, `load-<m>`: their
+  own layout, reached from the dials); a change re-opens the sheet on that metric with the same range
+  and replaces the URL (no new history entry; an unknown value is ignored) — then the latest value +
+  date, the band / target / typical day in words (the dial pages above replace this header). The header NEVER contradicts the card it opens from; the
   recovery chart's zone is the trend band at ±`cutTrend`, the daily points use the day band; weight / energy = the cards'
   7-day rolling average (`roll`, also the chart line) with the latest reading / day underneath; a
   daily total's newest day, when it is the viewer's today, is "Today, in progress" (neutral
@@ -185,7 +190,12 @@ switch is outside every opener); run / ride rows →
   shows the newest day in range ("Rest" on a rest day). The band note says colours are the CURRENT
   range (static, as of the newest day), except recovery, scored per day; a signal / total / sleep /
   recovery metric whose own last day is > 3 days before the view end says so. The trend view: a
-  W · M · 6M · 1Y switch (7 / 30 / 182 / 365 days, `RANGES`; opens on M; es S · M · 6M · 1A) beside
+  small right-aligned W · M · 6M · 1Y switch (dark 28 px squares, the pressed one grey, each with a
+  44 px-tall hit area; 7 / 30 / 182 / 365 days, `RANGES`; opens on M; es S · M · 6M · 1A), under it the
+  window row "‹ 23 Sep – 29 Sep, 26 ›" (`trend.win`): ‹ › step the window back / forward by its own
+  length (`state.shift` whole windows back from the view end; › disabled at today, ‹ disabled once the
+  previous window would end before the metric's first day; a new range or metric starts at today;
+  the chart, the average and its delta follow the window, the calendar and the day panel do not), then
   "AVERAGE" = the mean of the days with data in the window (a daily total's partial today left out; a
   missing day skipped, never 0) and a delta pill vs the previous window of the same length (▲▼ + % —
   absolute in sd for recovery — `--up` / `--down` by the metric's good direction, neutral • when
