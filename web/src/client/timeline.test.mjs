@@ -45,25 +45,26 @@ function render(timeline, { locale = 'en', now = ASOF, at, healthNav = false, en
 }
 const rows = (html) => [...html.matchAll(/<li class="tl-row ([^"]+)"[^>]*>([\s\S]*?)<\/li>/g)].map((m) => ({ cls: m[1], text: m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() }));
 
-test('viewer today: "Today\'s activities" heading, last night\'s sleep first, then each workout: a coloured chip (icon + value), the name, the details stacked on the right', () => {
+test('viewer today: "Today\'s activities" heading, last night\'s sleep first, then each workout: a coloured chip (icon + RE, else minutes), the name, the minutes stacked on the right', () => {
   const html = render(TL);
   assert.equal(enT.timeline.heading, 'Today\'s activities');
   assert.ok(html.includes(`<h3>${enT.timeline.heading}</h3>`));
   assert.deepEqual(rows(html), [
     { cls: 'tl-sleep', text: '6.9 h Sleep' },
-    { cls: 'tl-run', text: '45 min Run RE 94' },
+    { cls: 'tl-run', text: '94 Run 45 min' },
     { cls: 'tl-bike', text: '30 min Bike' },
   ]);
   const sleep = html.match(/<li class="tl-row tl-sleep"[\s\S]*?<\/li>/)[0];
   assert.match(sleep, /<span class="tl-chip"><svg class="tl-ico"[^>]*aria-hidden="true">[\s\S]*?<\/svg><b>6\.9 h<\/b><\/span><span class="tl-name">Sleep<\/span>/);
-  assert.match(html, /<li class="tl-row tl-run"[^>]*><span class="tl-chip">[\s\S]*?<\/span><span class="tl-name">Run<\/span><span class="tl-side"><span>RE 94<\/span><\/span>/);
+  assert.match(html, /<li class="tl-row tl-run" aria-label="Run · RE 94 · 45 min"><span class="tl-chip">[\s\S]*?<b>94<\/b><\/span><span class="tl-name">Run<\/span><span class="tl-side tl-times"><span>45 min<\/span><\/span>/);
+  assert.match(html, /<li class="tl-row tl-bike" aria-label="Bike · 30 min"><span class="tl-chip">[\s\S]*?<b>30 min<\/b><\/span><span class="tl-name">Bike<\/span><\/li>/, 'no RE: the minutes stay in the chip, nothing on the right');
   assert.doesNotMatch(html, /NaN|undefined|<script|src=|href=/);
 });
 
-test('today not in the data: the newest earlier day, labelled by its date, and "nothing logged yet today"', () => {
+test('today not in the data: the newest earlier day, labelled by its date, with no filler line', () => {
   const html = render(TL, { now: '2026-09-30' });
   assert.ok(html.includes(enT.timeline.dateHeading.replace('{date}', 'Tue 29 Sep')));
-  assert.ok(html.includes(enT.timeline.noToday));
+  assert.doesNotMatch(html, /sc-note|Nothing logged/, 'no "nothing logged yet today" filler');
   assert.equal(rows(html).length, 3);
   const earlier = render(TL, { now: '2026-09-28' });
   assert.ok(earlier.includes(`<h3>${enT.timeline.heading}</h3>`), 'viewer a day behind the data: their today is the 28th');
@@ -74,7 +75,7 @@ test('clock edge: 23:59 is still that day, 00:01 is the next one (local calendar
   assert.ok(render(TL, { at: '2026-09-29T23:59:00' }).includes(`<h3>${enT.timeline.heading}</h3>`));
   const after = render(TL, { at: '2026-09-30T00:01:00' });
   assert.ok(after.includes(enT.timeline.dateHeading.replace('{date}', 'Tue 29 Sep')));
-  assert.ok(after.includes(enT.timeline.noToday));
+  assert.doesNotMatch(after, /sc-note/);
   const behind = render(TL, { at: '2026-09-28T00:01:00' });
   assert.deepEqual(rows(behind).map((r) => r.cls), ['tl-sleep', 'tl-gym'], 'just after midnight on the 28th: the 28th');
 });
@@ -83,7 +84,7 @@ test('clock skew: the viewer\'s today EARLIER than every baked day -> the newest
   const html = render(TL, { now: '2026-09-20' });
   assert.ok(html.includes(enT.timeline.dateHeading.replace('{date}', 'Tue 29 Sep')), 'labelled by its date');
   assert.ok(!html.includes(enT.timeline.empty), 'not the empty state');
-  assert.ok(!html.includes(enT.timeline.noToday), 'no "nothing logged yet today": the day is ahead of the viewer\'s clock');
+  assert.doesNotMatch(html, /sc-note/, 'no filler line');
   assert.equal(rows(html).length, 3);
   assert.doesNotMatch(html, /sc-stale/, 'a day ahead of the clock is not stale');
   const midnight = render(TL, { at: '2026-09-27T23:59:00' });
@@ -111,7 +112,7 @@ test('es: decimal comma, Spanish labels, merged parts counted', () => {
   const r = rows(render(tl, { locale: 'es' }));
   assert.deepEqual(r, [
     { cls: 'tl-sleep', text: '7,3 h Sueño' },
-    { cls: 'tl-gym', text: '55 min Gimnasio Esf. 20 2 partes' },
+    { cls: 'tl-gym', text: '20 Gimnasio 55 min 2 partes' },
   ]);
 });
 
@@ -207,7 +208,8 @@ test('day stepping: a past day lists THAT day from DETAIL — the same rows SCOR
   const ref = render(timelineFromInputs(WO.filter((r) => r.date <= '2026-09-28'), SL.filter((r) => r.date <= '2026-09-28')), { detail: DET, now: '2026-09-28' });
   assert.deepEqual(rows(html), rows(ref));
   assert.deepEqual(rows(html).map((r) => r.cls), ['tl-sleep', 'tl-gym', 'tl-run']);
-  assert.match(rows(html)[1].text, /55 min.*RE 40.*2 parts/);
+  assert.match(rows(html)[1].text, /^40 Gym 55 min 2 parts$/);
+  assert.match(html, /aria-label="Gym · RE 40 · 55 min · 2 parts"/);
   assert.match(html, /data-detail="load-run" data-date="2026-09-28"/);
   assert.doesNotMatch(html, /sc-stale|tl-prog|Nothing logged yet today/);
 });

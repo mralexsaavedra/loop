@@ -174,12 +174,16 @@
     var trendTxt = tr.dir && R.dirs[tr.dir] ? format(R.trendLine, { dir: R.dirs[tr.dir], value: X.signed(tr.value, 1) }) : format(R.trendLineNoDir, { value: X.signed(tr.value, 1) });
     var trend = { cls: 'dt-c-' + (BAND_STATE[tr.band] || 'normal'), text: trendTxt + (X.T.day.bands[tr.band] ? ' · ' + X.T.day.bands[tr.band] : '') };
     var band = X.T.day.bands[h.band] || '';
-    if (h.mode !== 'today') return [{ text: R.noLastNight }, { text: band }, trend];
+    // Inicio's outlook bar shows one line; its full sentence (score.js window.HCAdvice, '' on a past
+    // day or stale data) leads this card, the page the bar opens
+    var adv = typeof window !== 'undefined' && typeof window.HCAdvice === 'function' ? window.HCAdvice() : '';
+    var lead = adv ? [{ text: adv }] : [];
+    if (h.mode !== 'today') return lead.concat([{ text: R.noLastNight }, { text: band }, trend]);
     var d = isoDate(h.date);
     // "Last night" only when the night is dated the viewer's today AND has a sleep reading (as the dial)
     var when = HC.daysOld(d) === 0 && h.sleep !== false ? R.lastNight : HC.fmtDate(d);
     var pct = pctOf(h);
-    var out = [{ text: format(X.T.deep.nightLine, { when: when, band: pct != null ? R.pctBands[dials().recovery.band] : band }) }];
+    var out = lead.concat([{ text: format(X.T.deep.nightLine, { when: when, band: pct != null ? R.pctBands[dials().recovery.band] : band }) }]);
     // with a % headline the night's SD value moves under ⓘ (infoHtml), so the insight carries ONE band
     if (h.sleep === false) out.push({ cls: 'dt-nodata', text: R.noSleep });
     out.push(trend);
