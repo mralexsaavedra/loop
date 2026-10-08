@@ -52,3 +52,25 @@ a day is "journaled" when at least one behaviour is answered (`isJournaled`).
   host.docker.internal`, `gzip off`). A public reverse proxy must NEVER forward `/journal/*`.
 - **Rollout**: `cd services/health-ingest && docker compose up -d --build health-ingest` (runs
   `010_journal.sql`), then `docker compose up -d` in `services/plan-web` (new nginx location).
+
+## Page (`web/src/client/journal.js`, LAN page only for writing)
+
+- **Bake**: `SCORES.journal` (`lib/journal/bake.mjs`, through `lib/score/index.mjs`) carries the
+  behaviour list, groups and limits; copy in `I18N_SCORE.home.journal` (es / en). Styles:
+  `web/src/styles/journal.css` (tokens only; the card reuses `.sc-card`, `.tn-h`, `.tn-more`).
+- **Gating** like the food log: the script asks `GET /api/journal/settings` (header `X-HC-Journal: 1`,
+  15 s timeout) and, on an answer, `GET /api/journal/summary` for the 7 days ending on the viewer's
+  today (`Date.now()`, never baked). Only then: the sheet registers (`HCViews.journal`, deep link
+  `#journal`, an ASYNC view in `detail.js`), the "+" popover lists "Complete your journal"
+  (`nav-actions.js`) and the card renders. No API (example build, `file://`, a static copy, an old
+  service) → nothing new shows and nothing is stored in the browser.
+- **My journal card** (`#my-journal`, Inicio, between Tonight and My plan): "MY JOURNAL" + a chevron, 7
+  day columns (weekday + a check circle, `--up` = journaled); a column opens the sheet on that day.
+- **Sheet**: the strip of the same 7 days (the picked day ringed; a tap switches day, dropping an
+  unsaved draft), "What's happening today?" (or "What happened on <date>?"), the switched-ON behaviours
+  in DAYTIME / NIGHTTIME / STATUS rows with a ✕ / ✓ pair (✓ pressed = `--trend` fill; pressing the
+  pressed button again = not answered), the drinks as ✕ (= 0) + a − n + stepper (0..`countMax`), notes
+  (≤ 500), a "Behaviors" fold with an on / off toggle per behaviour (`PUT /api/journal/settings` at
+  once; answers of a switched-off behaviour are kept), a status line (coarse errors; "offline" = nothing
+  saved) and the sticky "SAVE JOURNAL" pill: `PUT /api/journal/day` with the whole day, then the sheet
+  closes and the card re-renders. Desktop: the same sheet as a centred panel (single column).

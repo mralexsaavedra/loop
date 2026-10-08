@@ -13,7 +13,7 @@ top bar, from `layouts/Plan.astro` and shown on Inicio only: the LOOP wordmark �
 see `docs/plan-page.md` → Brand) → dials
 (`#home-dials`) → the monitor tiles (`#home-tiles`) → "My day" (`#my-day`: a Title Case heading, the
 advice sentence as the outlook bar in `#home-advice`, then "Today's activities" in `#timeline`) → the
-"today you eat" card → "Tonight" (`#home-tonight`) → "My plan" (`#my-plan`) → "My dashboard" (`#my-dash`)
+"today you eat" card → "Tonight" (`#home-tonight`) → "My journal" (`#my-journal`) → "My plan" (`#my-plan`) → "My dashboard" (`#my-dash`)
 → the programmed session's hidden source section (`hoy`). The full health monitor list is NOT on
 Inicio: it leads Salud (see "Health monitor" below). Little
 text on the tab: each block's explanation lives in the detail sheet it opens
@@ -280,6 +280,9 @@ trend is the line under it.
   clock ≥ 18:00 is unwrapped to a negative hour before the median (23:50 and 00:10 sit together). Fewer
   than `TONIGHT_MIN_NIGHTS` (7) such nights → `null` and the card stays hidden. Data > 3 days old greys
   it. No alarm editing (the page cannot set one); the sheet links to the sleep history.
+- **My journal** (`#my-journal`, `client/journal.js`, design in `docs/journal.md`): "MY JOURNAL" + a
+  chevron, 7 day columns (the 7 days ending on the viewer's today: weekday + a check circle, `--up` when
+  that day is journaled); a column or the chevron opens the journal sheet on that day. Ships hidden.
 - **My plan** (`#my-plan`, `client/home-week.js`, `window.HCWeekPlan.weekGoals`): one collapsible
   `<details>` card "Weekly plan · N days left · X % accomplished" + a teal progress bar, for the VIEWER's
   week (Monday–Sunday from `Date.now()`, never baked; days left = after today). Expanded: one row per
