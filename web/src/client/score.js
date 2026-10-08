@@ -55,7 +55,7 @@ function scMod(key, btn) {
       '<path class="line" d="M' + pts.join(' L') + '"/></svg>'
     );
   }
-  var GLYPH = { above: '▲', ramping: '▲', below: '▼', wellBelow: '▼', at: '■', steady: '■' };
+  var GLYPH = { above: '▲', ramping: '▲', below: '▼', wellBelow: '▼', at: '•', steady: '•' };
   function arrow(band) {
     var g = GLYPH[band] || GLYPH.at;
     return '<span class="sc-arrow sc-arrow-' + esc(band) + '" aria-hidden="true">' + g + '</span>';
@@ -83,9 +83,13 @@ function scMod(key, btn) {
   var ADV_MOD = ES ? { gym: 'gimnasio', run: 'carrera', bike: 'bici' } : { gym: 'gym', run: 'run', bike: 'bike' };
 
   /* ---- recovery ---- */
-  // Whoop-style detail: headline (last night, big number + band word) | 14-day sparkline |
-  // compact contributors; the 7-day trend is a small secondary line and the raw last-14-days lists
-  // are folded into a <details>. Every number is the same as the glance on Inicio.
+  // Whoop-style detail: headline (last night, big number + band word, one short 7-day trend line) |
+  // 14-day sparkline | compact contributors (name, latest value, ±SD); the raw last-14-days lists are
+  // folded into a <details>. The long lines (what the baseline is, the full trend sentence with the
+  // week-on-week change, confidence, the SDNN caveat, the unit in words, each contributor's baseline
+  // and n, missing / lowest signal) are the card's notes: they go behind the Salud Recovery section's
+  // ⓘ (#hs-info-recovery, client/health.js) when it exists, else behind the card's own ⓘ (#rec-info).
+  // Every number is the same as the glance on Inicio.
   function compDec(c) {
     return c.unit === 'h' ? 2 : c.unit === 'min' ? 0 : 1;
   }
@@ -101,16 +105,41 @@ function scMod(key, btn) {
       out.push('<div class="rec-when">' + esc(when) + '</div>');
       out.push('<div class="rec-big sc-band-' + esc(R.today.band) + '"><b class="rec-num">' + esc(num(R.today.value, 1, true)) + '</b>' +
         '<small class="rec-unit">' + esc(rt.unit) + '</small><span class="rec-band">' + esc(rt.bands[R.today.band]) + '</span></div>');
-      out.push('<div class="rec-vs">' + esc(rt.vsBaseLbl) + '</div>');
     } else {
       out.push('<div class="sc-note">' + esc(rt.noToday) + '</div>');
     }
-    out.push('<div class="rec-trend">' + arrow(R.band) + esc(format(rt.trendLbl, { value: num(R.trend7, 1, true) })) +
-      ' · <span class="sc-band-' + esc(R.band) + '">' + esc(rt.bands[R.band]) + '</span>' +
-      (R.delta7 != null ? ' · ' + esc(format(rt.deltaLbl, { value: num(R.delta7, 1, true) })) : '') + '</div>');
-    out.push('<div class="sc-chips rec-chips"><span class="sc-chip">' + esc(format(rt.confLbl, { level: rt.confLevels[R.confidence.level] })) + '</span>' +
-      '<span class="sc-chip">' + esc(rt.sdnnLbl) + '</span></div>');
+    out.push('<div class="rec-trend">' + arrow(R.band) + esc(format(rt.trendShort, { value: num(R.trend7, 1, true) })) +
+      ' · <span class="sc-band-' + esc(R.band) + '">' + esc(rt.bands[R.band]) + '</span></div>');
     return '<div class="rec-head">' + out.join('') + '</div>';
+  }
+  // the card's notes (plain text, escaped by recInfoHtml), in reading order
+  function recNotes(R, rt) {
+    var out = [];
+    if (R.today) out.push(rt.vsBaseLbl);
+    out.push(format(rt.trendLbl, { value: num(R.trend7, 1, true) }) + ' · ' + rt.bands[R.band] +
+      (R.delta7 != null ? ' · ' + format(rt.deltaLbl, { value: num(R.delta7, 1, true) }) : ''));
+    (R.components || []).forEach(function (c) {
+      var dec = compDec(c);
+      out.push(rt.components[c.key] + ': ' + format(rt.baselineLbl, { value: num(c.baseline, dec, false), unit: c.unit }) + ' · ' + format(rt.nLbl, { n: c.n }));
+    });
+    // the composite's unit in plain words (rt.unit = the ONE recovery unit, also the dial's and the sheet's)
+    out.push(rt.unitNote);
+    out.push(format(rt.confLbl, { level: rt.confLevels[R.confidence.level] }) + ' · ' + rt.sdnnLbl);
+    if (R.missing && R.missing.length) out.push(format(rt.missingLbl, { list: R.missing.map(function (k) { return rt.components[k]; }).join(', ') }));
+    if (R.driver) out.push(format(rt.driverLbl, { name: rt.components[R.driver] }));
+    return out;
+  }
+  function recInfoHtml(notes) {
+    return notes.map(function (n) { return '<p>' + esc(n) + '</p>'; }).join('');
+  }
+  // the Salud Recovery section's ⓘ block: the card's notes are (re)written into their own child,
+  // after the section's notes, so a re-render replaces them instead of stacking them
+  function intoSectionInfo(notes) {
+    var box = document.getElementById('hs-info-recovery');
+    if (!box) return false;
+    var own = String(box.innerHTML || '').replace(/<div class="rec-info-notes">[\s\S]*<\/div>$/, '');
+    box.innerHTML = own + '<div class="rec-info-notes">' + recInfoHtml(notes) + '</div>';
+    return true;
   }
   function recContributor(c, rt) {
     var dec = compDec(c);
@@ -119,8 +148,7 @@ function scMod(key, btn) {
       '<span class="rec-dot sc-dot-' + esc(c.band) + '" aria-hidden="true"></span>' +
       '<span class="rec-comp-name">' + esc(rt.components[c.key]) + '</span>' +
       '<span class="rec-comp-val"><b>' + (last ? esc(num(last.value, dec, false)) : '—') + '</b> ' + esc(c.unit) + '</span>' +
-      '<span class="rec-comp-base">' + esc(format(rt.baselineLbl, { value: num(c.baseline, dec, false), unit: c.unit })) +
-      ' · ' + esc(num(c.trend7, 1, true) + ' ' + rt.unit) + ' · ' + esc(format(rt.nLbl, { n: c.n })) + '</span></div><!--/comp-->';
+      '<span class="rec-comp-base">' + esc(num(c.trend7, 1, true) + ' ' + rt.unit) + '</span></div><!--/comp-->';
   }
   function recRaw(comps, rt) {
     return '<details class="rec-raw"><summary>' + esc(rt.rawSummary) + '</summary>' + comps.map(function (c) {
@@ -135,8 +163,12 @@ function scMod(key, btn) {
     var out = ['<div class="sc-card sc-recovery' + (stale ? ' sc-stale' : '') + '">'];
     // the card holds a <details> fold, so it is not itself an opener: a real button opens the history
     var hist = HC.detailAttrs('recovery', null, { plain: true });
+    var notes = R.gated ? [] : recNotes(R, rt);
+    var own = notes.length && !intoSectionInfo(notes);
     out.push('<div class="sc-head"><h3>' + esc(rt.heading) + '</h3>' + asOfHtml(R.asOf) +
-      (hist ? '<button type="button" class="dt-open-btn"' + hist + ' aria-haspopup="dialog">' + esc(rt.historyBtn) + '</button>' : '') + '</div>');
+      (hist ? '<button type="button" class="dt-open-btn"' + hist + ' aria-haspopup="dialog">' + esc(rt.historyBtn) + '</button>' : '') +
+      (own ? HC.infoBtn('rec-info', format(rt.infoLbl, { section: rt.heading })) : '') + '</div>');
+    if (own) out.push('<div class="hs-info" id="rec-info" hidden>' + recInfoHtml(notes) + '</div><!--/rec-info-->');
     if (stale) out.push(staleHtml(R.asOf));
     if (R.gated) {
       out.push('<div class="sc-insufficient">' + esc(rt.insufficient) + '</div></div>');
@@ -146,13 +178,7 @@ function scMod(key, btn) {
     out.push('<div class="rec-layout">' + recHeadline(R, rt) +
       '<div class="sc-spark rec-spark">' + sparkSvg(R.spark && R.spark.v) + '<div class="sc-spark-lbl">' + esc(rt.sparkLbl) + '</div></div>' +
       '<div class="rec-contrib">' + comps.map(function (c) { return recContributor(c, rt); }).join('') + '</div></div>');
-    // the composite's unit in plain words (rt.unit = the ONE recovery unit, also the dial's and the sheet's)
-    out.push('<div class="sc-note rec-unit-note">' + esc(rt.unitNote) + '</div>');
     if (comps.length) out.push(recRaw(comps, rt));
-    if (R.missing && R.missing.length) {
-      out.push('<div class="sc-note">' + esc(format(rt.missingLbl, { list: R.missing.map(function (k) { return rt.components[k]; }).join(', ') })) + '</div>');
-    }
-    if (R.driver) out.push('<div class="sc-note">' + esc(format(rt.driverLbl, { name: rt.components[R.driver] })) + '</div>');
     out.push('</div>');
     return out.join('');
   }

@@ -92,7 +92,13 @@ test('the normal range is the small line under the value, written one decimal fi
   const html = render(monitor());
   const rhr = cardOf(html, 'rhr');
   const c = monitor().cards.find((x) => x.key === 'rhr');
-  assert.ok(rhr.includes('<span class="db-base">' + enT.monitor.rangeLbl.replace('{lo}', c.band.lo.toFixed(1)).replace('{hi}', c.band.hi.toFixed(1)) + '</span>'));
+  const lo = c.band.lo.toFixed(1), hi = c.band.hi.toFixed(1);
+  // short enough for one line next to a long name at 390 px: the bare range, the word lives in the label
+  assert.ok(rhr.includes(`<span class="db-base">${lo}–${hi}</span>`), rhr);
+  assert.equal(enT.monitor.rangeLbl, '{lo}–{hi}');
+  assert.ok(rhr.includes(enT.monitor.rangeAria.replace('{lo}', lo).replace('{hi}', hi)), 'the screen reader still hears "Normal range"');
+  assert.match(enT.monitor.rangeAria, /^Normal range /);
+  assert.match(esT.monitor.rangeAria, /^Rango normal /);
   assert.doesNotMatch(rhr, /style=/);
 });
 
@@ -117,9 +123,9 @@ test('building baseline: value shown, status "building", no bar; missing series:
 test('a value from last night carries no date; an older one shows its date', () => {
   const html = render(monitor());
   assert.doesNotMatch(cardOf(html, 'rhr'), /Sep</);
-  assert.match(cardOf(html, 'sleep'), /<span class="db-base">[^<]* · Sat 26 Sep<\/span>/, 'the shared display date, never ISO');
-  assert.match(cardOf(render(monitor(), { locale: 'es' }), 'sleep'), / · sáb 26 sept<\/span>/);
-  assert.match(cardOf(render(monitor(), { now: addDays(ASOF, 1) }), 'rhr'), / · Tue 29 Sep<\/span>/, 'yesterday-dated reading is not last night');
+  assert.match(cardOf(html, 'sleep'), /<span class="db-base">[^<]* · 26 Sep<\/span>/, 'the shared display date (no weekday), never ISO');
+  assert.match(cardOf(render(monitor(), { locale: 'es' }), 'sleep'), / · 26 sept<\/span>/);
+  assert.match(cardOf(render(monitor(), { now: addDays(ASOF, 1) }), 'rhr'), / · 29 Sep<\/span>/, 'yesterday-dated reading is not last night');
 });
 
 test('es: Alto / Bajo / Normal, decimal comma, Spanish units', () => {

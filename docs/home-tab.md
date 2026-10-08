@@ -46,7 +46,7 @@ is the newest day, and the trend is the line under it.
 - **Recovery** is in units of the owner's typical spread (scaled MAD), never a 0-100 grade; ONE unit
   key, `RECOVERY_UNIT` (`lib/score/advice-copy.mjs`, re-exported by score-templates: en "SD", es
   "desv."; dict `recovery.unit`), builds every recovery string — advice, dial, Salud card, monitor note,
-  detail sheet — and the Salud card explains it in one line (`recovery.unitNote`: "typical spread" /
+  detail sheet — and the Salud card explains it behind its ⓘ (`recovery.unitNote`: "typical spread" /
   "variación típica"); no unit literal in score.js: HRV (daytime SDNN), resting HR, sleep duration and
   sleep regularity vs a median/MAD baseline (42 days ending asOf-1), z clamped ±3, weights
   .40/.25/.25/.10. Band: ≥ +0.5 above / within ±0.5 at / ≤ -0.5 below baseline (`BAND_CUTOFF` in
@@ -61,11 +61,15 @@ is the newest day, and the trend is the line under it.
   week's trend7 − last week's): two non-overlapping 7-day means differ with noise √2 × σ_7 ≈ 0.46,
   so it is cut at `TREND_DIR_CUTOFF` = `BAND_CUTOFF` × √2 ≈ 0.7: up / steady / down. The recovery
   detail card (Salud `#score-recovery`, Whoop-style) spans the full grid row: headline (last night's
-  composite as the big number + band word; the 7-day trend is a small secondary line) | 14-day
-  sparkline | compact contributors (state dot, name, latest value + unit, baseline · MAD · n for HRV,
-  RHR, sleep duration, sleep regularity), side by side on wide screens and stacked on phones; the
-  confidence + SDNN chips stay on one line and the raw last-14-days lists fold into a `<details>`
-  ("Last 14 days" / "Últimos 14 días"). Gated ("insufficient")
+  composite as the big number + band word; ONE short trend line "7-day +0.5 SD · at baseline") |
+  14-day sparkline | compact contributors (state dot, name, latest value + unit, ±SD for HRV, RHR,
+  sleep duration, sleep regularity), side by side on wide screens and stacked on phones; the raw
+  last-14-days lists fold into a `<details>` ("Last 14 days" / "Últimos 14 días"). Text diet: what
+  the baseline is, the full trend sentence with the week-on-week change, each contributor's baseline
+  and n, the unit in words, confidence + the SDNN caveat, missing / lowest signal are the card's notes:
+  `score.js` writes them into the Salud Recovery section's ⓘ block (`#hs-info-recovery`, in their own
+  `.rec-info-notes` child after the section's notes) and only draws its own ⓘ (`#rec-info`) when that
+  block is absent. Gated ("insufficient")
   unless components with ≥ 14 baseline days carry ≥ 0.60 of the weight, include HRV or RHR, and there
   are ≥ 7 composite days in the last 14. "Last night" is the newest COMPLETE day among asOf and the 2
   days before it (`MAX_TODAY_FALLBACK_DAYS`): it needs a sleep-duration reading AND a resting-HR value
@@ -108,7 +112,8 @@ is the newest day, and the trend is the line under it.
   an UPPERCASE "HEALTH MONITOR" label with the same status chip as tile 1 and an ⓘ button (the band
   explanation, collapsed: `#hm-info`), then one shared metric row per signal (`HC.metricRow`, the
   "My dashboard" row: icon · NAME · value + unit · ▲ above / ▼ below / • inside the band, the range
-  "Normal lo–hi" as the small line under the value, + the date when not last night) for respiratory
+  "lo–hi" as the small line under the value — the word "Normal range" is in the row's aria-label and
+  the ⓘ — + the short date "28 Sep" when not last night) for respiratory
   rate, resting HR, HRV, sleeping wrist temperature and sleep duration. Each = the newest daily value
   (per-day median of plausibility-clamped samples) + unit, its date when it is not from the viewer's
   today, and Normal / High / Low (es: Normal / Alto / Bajo) vs a personal band = median ± 1.5 × scaled
@@ -158,8 +163,8 @@ is the newest day, and the trend is the line under it.
   fallback, and every host write (`#home-advice`, `#home-dials`, `#score-recovery`, `#score-load`, the advice)
   is isolated, so one throw never blanks Inicio or the other hosts; with no score data every host gets
   the empty state. Stale data (> 3 days) greys a dial; the fill
-  animation is off under `prefers-reduced-motion`. Nutrición's kcal dial keeps the former 270° open
-  arc (`OPEN_ARC` in `dial.mjs`, baked as `NUTRI_ARC`) until that tab moves to the ring language.
+  animation is off under `prefers-reduced-motion`. Nutrición's kcal ring draws the same full ring (no
+  open arc any more, see `docs/nutrition.md`).
 - **Today's activities** (`lib/score/timeline.mjs`, baked as `SCORES.timeline` even when `hasData` is
   false; `#timeline` + `client/timeline.js`, under the outlook bar in "My day"): per day, last night's
   sleep (`sleep-daily.csv`, dated the wake-up day, with its bed / wake clock `bed` / `wake` when the
@@ -169,7 +174,8 @@ is the newest day, and the trend is the line under it.
   behind a thin bar of the row's colour: bed / wake time for sleep, RE and "N parts" for a workout
   (workouts.csv has no start time, so no clock). On the viewer's today the programmed session
   (`window.HCProgram` from `client/training-today.js`) is the last row: an outline chip "Plan", its
-  focus, "Programmed"; it opens the session as the `hoy-session` detail view. Nothing matches a
+  focus (one line, ellipsised; the row's `aria-label` carries the whole focus and the session view
+  shows it in full), "Programmed"; it opens the session as the `hoy-session` detail view. Nothing matches a
   programmed session to a done workout yet, so it is only listed, never ticked; it is not shown
   under an older day's heading, and with no baked day but a session today the card lists only it. Rows follow the shared same-day
   rule (`DISPLAY_RULE`: stubs dropped, one source, same-day rows of one modality merge; the row says "N parts"). Only the last 3 data days are
@@ -177,7 +183,8 @@ is the newest day, and the trend is the line under it.
   with "nothing logged yet today", greyed when > 3 days old; when the viewer's clock is EARLIER than
   every baked day (clock / timezone skew) → the newest baked day under its date (no "nothing logged"
   line, not greyed); no baked days → empty state. No sleep
-  that night → "No sleep recorded", never 0 h.
+  that night → "No sleep recorded", never 0 h. The same-day merge note ("RE only comes from Strava")
+  sits behind the card header's ⓘ (`#tl-info`, only when the day lists workouts), not under the list.
 - **Tonight** (`#home-tonight`, `lib/score/tonight.mjs` baked as `SCORES.tonight`, `client/home-week.js`):
   the recommended bedtime (moon icon) and the usual wake time (alarm icon) joined by a dashed line, D-DIN
   clocks, uppercase captions. Rule (stated in the sheet the card opens — the registered `tonight` view —

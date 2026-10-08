@@ -15,12 +15,14 @@ its own try/catch (a throw in one half renders that half's empty state, never bl
 `#health-body` (Salud) and `#health-train` (Entreno: running, cycling, load vs recovery).
 
 **Salud layout** (`web/src/tabs/Salud.astro` + `health.js`), top to bottom: a centred UPPERCASE title
-("SALUD" / "HEALTH") with an ⓘ toggle (`#hs-intro`: the tab intro + how to read a row), over a soft
+("SALUD" / "HEALTH") with an ⓘ toggle (`#hs-intro`: the tab intro + how to read a row; the button is
+`HC.infoBtn`'s markup written by `health.js` into the `#hs-intro-i` slot), over a soft
 green glow at the top of the page (`.hs-glow`, `--up` at 16 % via `color-mix`, absolute behind the
 content, only while the panel shows); the health monitor list (`#monitor`, `client/monitor.js`, see
 `docs/home-tab.md` "Health monitor"); then the sections of `#health-body`, each a `<section
 class="hs-sec" id="hl-<key>">` with an UPPERCASE label, an ⓘ toggle and a list of metric rows:
-**Recovery** (`#score-recovery`, the recovery card filled by score.js, restyled borderless, then
+**Recovery** (`#score-recovery`, the recovery card filled by score.js, restyled borderless — its long
+lines join this section's ⓘ block, see `docs/home-tab.md` — then
 resting HR, HRV, respiratory rate, wrist temperature), **Fitness** (VO₂max, walking HR — moved out of
 Recovery), **Sleep** (last night, then % nights ≥ target, night-to-night ±, bedtime / wake time),
 **Body composition** (weight, body fat, lean mass, waist), **Activity** (steps, exercise, distance,
@@ -110,10 +112,10 @@ caveat (`energyTdeeNote`, which points to Nutrición → Balance); the balance n
   (`docs/ios-shortcut.md`), `npm run sync -- --full` once, then `npm run generate`.
 - **Running** — `workouts.csv` Running rows (Watch export AND `sync:strava`, via `readRuns`), merged
   per day exactly like the rides, as RECENT-RUNS list rows on Entreno (same row budget, newest first;
-  `HC.metricRow` with its `note` line): icon · the date (UPPERCASE) with avg HR, relative effort,
-  elevation and the watch running dynamics (power, GCT, vertical osc, stride) as the small line under
-  it · the distance big on the right with time and pace = time / distance (none without a distance)
-  under it. The dynamics are LEFT-joined by date from `running-daily.csv` (export.xml only — a
+  `HC.metricRow`): icon · the date (UPPERCASE) · the distance big on the right with time and pace =
+  time / distance (none without a distance) under it. Text diet: no small line under the date — avg
+  HR, relative effort and elevation are in the row's aria-label and the day it opens, the watch
+  running dynamics (power, GCT, vertical osc, stride) in that day's panel (`docs/detail-views.md`). The dynamics are LEFT-joined by date from `running-daily.csv` (export.xml only — a
   Strava-only run simply has none; a dynamics-only day never adds a run; sub-5 km/h dynamics are walks
   / GPS garbage and are not joined). Count = distinct run days, in the section's ⓘ with the source
   notes. A row opens that day in `load-run`.

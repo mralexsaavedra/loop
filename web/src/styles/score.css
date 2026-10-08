@@ -59,19 +59,6 @@
   color: var(--faint);
   font-size: var(--fs-2xs);
 }
-.sc-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 8px 0;
-}
-.sc-chip {
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 2px 10px;
-  font-size: var(--fs-2xs);
-  color: var(--muted);
-}
 .sc-comp {
   border-top: 1px solid var(--line-soft);
   padding: 10px 0;
@@ -813,10 +800,6 @@
   font-weight: 650;
   color: var(--rec-c, var(--ink));
 }
-.rec-vs {
-  color: var(--faint);
-  font-size: var(--fs-2xs);
-}
 .rec-trend {
   margin-top: var(--sp-2);
   color: var(--muted);
@@ -826,17 +809,6 @@
 .rec-trend .sc-band-at,
 .rec-trend .sc-band-below {
   color: var(--rec-c);
-}
-/* the two chips stay on ONE line; a long chip is cut with an ellipsis instead of wrapping */
-.rec-chips {
-  flex-wrap: nowrap;
-  min-width: 0;
-}
-.rec-chips .sc-chip {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .rec-spark {
   align-self: center;

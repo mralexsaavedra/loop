@@ -32,6 +32,8 @@ function run({ weight = CUT, goal = 'cut', settings = null, locale = 'en', today
   const doc = new StubDocument();
   const host = doc.el('nutri-progress');
   const info = doc.el('nutri-progress-info');
+  info.hidden = true; // as served (Dia.astro)
+  const btn = doc.el('nutri-progress-i', { attrs: { 'aria-expanded': 'false' } });
   const window = { HCNutri: { state: () => ({ goal }) } };
   if (settings) window.HCSettings = settings;
   const ctx = {
@@ -43,7 +45,7 @@ function run({ weight = CUT, goal = 'cut', settings = null, locale = 'en', today
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
-  return { host, info, window, P: window.HCProgress };
+  return { host, info, btn, window, P: window.HCProgress };
 }
 // the card (numbers + labels) and the section's ⓘ block (the why, the rate window, the method)
 const both = (r) => ({ card: text(r.host.innerHTML), info: text(r.info.innerHTML) });
@@ -143,4 +145,32 @@ test('a settings change (the target weight saved) re-renders the block', () => {
   st.targetWeight = () => 75;
   st.fns.forEach((fn) => fn({}));
   assert.match(text(host.innerHTML), /Target weight: 75\.0 kg/);
+});
+
+test('the Progreso ⓘ keeps its open state across a settings re-render (like Constancia); with no notes left it closes', () => {
+  const st = settingsStub(null);
+  const r = run({ settings: st });
+  // the viewer opens the ⓘ (client/health.js toggle)
+  r.info.hidden = false;
+  r.btn.setAttribute('aria-expanded', 'true');
+  st.targetWeight = () => 75;
+  st.fns.forEach((fn) => fn({}));
+  assert.equal(r.info.hidden, false, 'still open after the re-render');
+  assert.equal(r.btn.getAttribute('aria-expanded'), 'true');
+  assert.ok(r.info.innerHTML.length > 0);
+  // closed stays closed
+  r.info.hidden = true;
+  r.btn.setAttribute('aria-expanded', 'false');
+  st.fns.forEach((fn) => fn({}));
+  assert.equal(r.info.hidden, true);
+  assert.equal(r.btn.getAttribute('aria-expanded'), 'false');
+  // an empty state has no notes: the button hides and an open block closes with it (no orphan box)
+  const est = settingsStub(null);
+  const e = run({ weight: null, settings: est });
+  e.info.hidden = false;
+  e.btn.setAttribute('aria-expanded', 'true');
+  est.fns.forEach((fn) => fn({}));
+  assert.equal(e.btn.hidden, true);
+  assert.equal(e.info.hidden, true);
+  assert.equal(e.btn.getAttribute('aria-expanded'), 'false');
 });

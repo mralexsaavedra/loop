@@ -106,18 +106,21 @@
     return '<div class="dash-note">' + html + '</div>';
   }
 
-  // Entreno run / ride rows (HC.metricRow): icon · the date (UPPERCASE) with the session's other
-  // numbers as a small line under it · the distance big on the right with time and pace / climb under
-  // it. A dash never stands in for a missing value: a field the source did not record is left out of
+  // Entreno run / ride rows (HC.metricRow): icon · the date (UPPERCASE) · the distance big on the
+  // right with time and pace / climb under it; a ride adds its HR, effort and work as a small line
+  // under the date (one line), a run does not (HR, effort, climb and up to four watch dynamics would
+  // wrap to 2-3 lines at 390 px: they are in the opened day instead). A dash never stands in for a missing value: a field the source did not record is left out of
   // the small lines (the ⓘ says which source records what). The row opens that day in its load view
   // (client/detail.js); without the detail sheet it is a plain row (no fake link).
   function parts(list) {
     return list.filter(function (x) { return x != null && x !== ''; }).join(' · ');
   }
-  function sessionRow(key, icon, r, base, note) {
+  // shown = the small line under the date (rides); a run row shows none: its numbers stay in the aria
+  // label and in the day the row opens (client/detail.js day panel, incl. the watch dynamics)
+  function sessionRow(key, icon, r, base, note, shown) {
     var name = HC.fmtDate(r.date);
     var value = r.dist != null ? nf(r.dist) : '—';
-    return HC.metricRow({ key: icon, attrs: HC.detailAttrs(key, r.date), name: name, note: note, value: value, unit: r.dist != null ? 'km' : '', base: base,
+    return HC.metricRow({ key: icon, attrs: HC.detailAttrs(key, r.date), name: name, note: shown ? note : '', value: value, unit: r.dist != null ? 'km' : '', base: base,
       aria: parts([name, r.dist != null ? nf(r.dist) + ' km' : '', base, note]) });
   }
   function runRow(r) {
@@ -126,13 +129,13 @@
     var note = parts([r.hrAvg != null ? r.hrAvg + ' ' + u : null, r.re != null ? RT.reH + ' ' + r.re : null, r.elev != null ? '↑' + nf(r.elev) + ' m' : null,
       r.power != null ? nf(r.power) + ' W' : null, r.gct != null ? RT.gctH + ' ' + nf(r.gct) + ' ms' : null,
       r.vosc != null ? RT.oscH + ' ' + nf(r.vosc) + ' cm' : null, r.stride != null ? RT.strideH + ' ' + nf(r.stride) + ' m' : null]);
-    return sessionRow('load-run', 'run', r, base, note);
+    return sessionRow('load-run', 'run', r, base, note, false);
   }
   function rideRow(r) {
     var CT = T.cyclingTable, u = T.trend.rhr.unit;
     var base = parts([r.time, r.elev != null ? '↑' + nf(r.elev) + ' m' : null]);
     var note = parts([r.hrAvg != null ? r.hrAvg + ' ' + u : null, r.re != null ? CT.reH + ' ' + r.re : null, r.kj != null ? nf(r.kj) + ' kJ' : null]);
-    return sessionRow('load-bike', 'bike', r, base, note);
+    return sessionRow('load-bike', 'bike', r, base, note, true);
   }
 
   // A Salud section: UPPERCASE label (the hl-<key> anchor is the section itself), an ⓘ toggle
@@ -383,6 +386,10 @@
   }
 
   render();
+
+  // the Salud title's ⓘ (tabs/Salud.astro leaves a slot): the one shared button markup, HC.infoBtn
+  var introSlot = document.getElementById('hs-intro-i');
+  if (introSlot) introSlot.innerHTML = HC.infoBtn('hs-intro', introSlot.getAttribute('data-label') || '');
 
   // ⓘ toggles of Salud (the monitor list, client/monitor.js, and each section): a button
   // [data-hs-info="<id>"] shows / hides the block #<id> in place and mirrors it in aria-expanded.
