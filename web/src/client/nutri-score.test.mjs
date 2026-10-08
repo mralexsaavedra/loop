@@ -137,3 +137,37 @@ test('Spanish copy', () => {
   assert.match(text(els.host.innerHTML), /Proteína · 100/);
   assert.match(text(els.host.innerHTML), /Media 7 días 100 %/);
 });
+
+test('Inicio card: today so far in My day, opens the sheet, the 7-day average under it', () => {
+  const { els } = setup({ nutri: false, log: [day('2030-01-27', 2000, 150, 70), day(TODAY, 1500, 120, 60)] });
+  assert.equal(els.home.hidden, false);
+  const h = els.home.innerHTML;
+  assert.match(h, /class="sc-card tn en ns de-mid" data-detail="nutrition" role="button"/);
+  assert.match(text(h), /^Nutrition so far 66 %/);
+  assert.match(text(h), /Kcal · 40 1500 \/ 2000 kcal/);
+  assert.match(text(h), /7-day average 100%/);
+});
+
+test('Inicio card: nothing logged today -> the newest scored day while fresh, with its date; stale or no log -> hidden', () => {
+  const y = setup({ nutri: false, log: [day('2030-01-26', 2000, 150, 70)] });
+  assert.equal(y.els.home.hidden, false);
+  assert.match(y.els.home.innerHTML, /data-date="2030-01-26"/);
+  assert.doesNotMatch(text(y.els.home.innerHTML), /so far/);
+  const stale = setup({ nutri: false, log: [day('2030-01-10', 2000, 150, 70)] });
+  assert.equal(stale.els.home.hidden, true);
+  assert.equal(stale.els.home.innerHTML, '');
+  assert.equal(setup({ nutri: false }).els.home.hidden, true);
+});
+
+test('Inicio card: day stepping shows that day\'s final score (no average) or hides on a day without a log', () => {
+  const t = setup({ nutri: false, log: [day('2030-01-20', 2500, 105, 94.5), day(TODAY, 1500, 120, 60)] });
+  t.step('2030-01-20');
+  assert.equal(t.els.home.hidden, false);
+  assert.match(t.els.home.innerHTML, /data-detail="nutrition" data-date="2030-01-20"/);
+  assert.match(t.els.home.innerHTML, /<b class="en-num">46</);
+  assert.doesNotMatch(text(t.els.home.innerHTML), /7-day average|so far/);
+  t.step('2030-01-21');
+  assert.equal(t.els.home.hidden, true);
+  t.step(null);
+  assert.match(text(t.els.home.innerHTML), /so far 66 %/);
+});
