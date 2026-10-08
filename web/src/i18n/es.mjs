@@ -6,6 +6,8 @@
  * web/test/leak.test.mjs. */
 export default {
   strings: {
+    // the product name (document title, home-screen name): the same in every locale
+    brand: 'LOOP',
     nav: {
       ariaLabel: 'Secciones',
       // four top-level tabs, in nav order; the former tabs are now sections (see `sections`)

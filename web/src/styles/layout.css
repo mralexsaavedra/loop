@@ -144,6 +144,37 @@ details.sec-fold > summary:hover > h2 {
   padding-top: max(var(--sp-3), env(safe-area-inset-top));
   margin: 0 0 var(--sp-5);
 }
+/* the LOOP wordmark (layouts/Plan.astro, right after the top bar), centred like a brand line: the
+ * letters' font size is 19px, so the caps are ~12.7px and the rings (0.71em) set the svg height; it
+ * tucks up into the bar's bottom margin so the dials do not move down by its full height. Letters and
+ * the plain ring are currentColor (--ink); the arcs take the dial tokens, overriding the svg's hex
+ * fallbacks (the generated asset also renders standalone). */
+.wordmark {
+  display: flex;
+  justify-content: center;
+  color: var(--ink);
+  font-size: 19px;
+  line-height: 1;
+  margin: calc(-1 * var(--sp-2)) 0 var(--sp-4);
+}
+/* Inicio only: hidden while the home panel is (core.js setTab toggles the panels' `hidden`) */
+.wrap:has(> .tab-panel[data-tab="home"][hidden]) > .wordmark {
+  display: none;
+}
+.wordmark svg {
+  display: block;
+  height: 0.71em;
+  width: auto;
+}
+.wordmark .lw-sleep {
+  stroke: var(--sleep);
+}
+.wordmark .lw-recovery {
+  stroke: var(--good);
+}
+.wordmark .lw-strain {
+  stroke: var(--strain);
+}
 /* the date pill: "TODAY" in letter-spaced caps (a past day: its date, same caps); the viewer's full
  * date is the <time> inside, written by client/today-date.js and read by assistive tech only. With a
  * past day in reach the script adds .has-steps and shows the ‹ › chevrons (44 px targets that overhang
