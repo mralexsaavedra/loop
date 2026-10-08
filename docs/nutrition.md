@@ -304,15 +304,16 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   `--mid`; widths normalised so rounded percentages leave no gap). Too few logged days → a short empty
   line, "intake can't be scored" (with the last logged day) behind the ⓘ; no expenditure at all → the
   host stays hidden. Same data and numbers as the former Salud cards; Salud keeps the expenditure row.
-- **Plan de hoy — layout** — restrained cards (no accent border): meal name as a caps label, its kcal
+- **Plan de hoy — layout** — flat `--surface` cards (no border, no shadow): meal name as a caps label, its kcal
   budget big in `--num`, the macro rows (caps label left, "~45 g" in `--num` right; the example select
   below with the amount and the "+"; a long amount wraps under the select at 360 px, right-aligned), the
   muted P / C / F (es: G) mini line. On wide screens (>= 900 px) the four meal-group cards flow into two
   masonry-like CSS columns (`columns: 2`, cards `break-inside: avoid`). The block is a native
   `<details class="nutri-block sec-fold nutri-fold" id="nutri-plan-fold">`, COLLAPSED by default: the
-  summary = the heading + the meals target (`#nutri-plan-kcal`, written on every refresh); the open
+  summary (a flat `--surface` row like every Nutrición fold — Mis productos, Mis recetas, Tablas:
+  UPPERCASE label, optional figure, chevron; `layout.css`) = the heading + the meals target (`#nutri-plan-kcal`, written on every refresh); the open
   state is a per-viewer convenience (`hc.nutri.planOpen` '1' / '0', every access wrapped, saved on
-  `toggle`); the guide renders while collapsed. Avituallamiento stays after it, never collapsed. Styles:
+  `toggle`); the guide renders while collapsed. Avituallamiento stays after it, never collapsed, under the shared `.hs-head` label. Styles:
   `.gd-*` in `web/src/styles/nutri.css` (tokens only: `--good` = covered / done, `--mid` = a portion at its
   maximum, `--accent` = the "+").
 - **Supplements** — optional `supplements: [{ name, dose?, meal }]` in `profile/profile.json`

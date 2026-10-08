@@ -6,7 +6,7 @@
  *
  * isComplete / dayState / adherence port lib/nutrition/adherence.mjs line by line (a test runs both
  * over ADHERENCE_CASES): logged days, COMPLETE days (>= 1 entry in each of breakfast, lunch, dinner —
- * the rule is on screen), mean kcal vs mean target and protein-target days, computed ONLY over complete
+ * the rule sits behind the section ⓘ), mean kcal vs mean target and protein-target days, computed ONLY over complete
  * days with a target; a complete day without one is counted apart. A 7 / 14 / 28-day switch (real
  * radios, in memory) picks the window; a 28-cell strip (7 per row, each a >= 44px button with its state
  * in words as its label, never colour only) opens Registrar on that day (HCFood.showDay). Missing macros
@@ -136,22 +136,31 @@
   function k0(n) { return HC.num(n, 0); }
   function pctOf(share) { return HC.num(share * 100, 0); }
   function stateText(st) { return format(T.states[st] || '', { band: pctOf(A.onBand) }); }
-  function stat(label, value, sub) {
-    return '<div class="adh-stat"><span class="adh-lbl">' + esc(label) + '</span><b class="adh-val">' + esc(value) + '</b>' + (sub ? '<small class="adh-sub">' + esc(sub) + '</small>' : '') + '</div>';
+  // one tile: UPPERCASE label, the number big in --num, "of N" small; share = a thin bar under it
+  // (days logged / complete days of the window), the shared card language's small bar
+  function stat(label, value, sub, share) {
+    return '<div class="adh-stat"><span class="adh-lbl">' + esc(label) + '</span><b class="adh-val">' + esc(value) + '</b>' + (sub ? '<small class="adh-sub">' + esc(sub) + '</small>' : '') +
+      (share != null ? '<span class="adh-bar" aria-hidden="true">' + (share > 0 ? '<i style="width:' + Math.round(Math.min(1, share) * 100) + '%"></i>' : '') + '</span>' : '') + '</div>';
   }
+  // the tiles; the notes (no comparison, minimums, unknown / assumed days) go to the ⓘ block (notesOf)
   function statsHtml(r) {
-    var out = [stat(T.logged, String(r.logged), format(T.ofDays, { n: r.days })), stat(T.complete, String(r.complete), format(T.ofDays, { n: r.days }))];
+    var out = [stat(T.logged, String(r.logged), format(T.ofDays, { n: r.days }), r.days ? r.logged / r.days : 0),
+      stat(T.complete, String(r.complete), format(T.ofDays, { n: r.days }), r.days ? r.complete / r.days : 0)];
     if (r.compared) {
       out.push(stat(T.kcal, k0(r.meanK), format(T.kcalVs, { t: k0(r.meanTarget), pct: k0((r.meanK / r.meanTarget) * 100) })));
       out.push(stat(format(T.protein, { pct: pctOf(A.proteinShare) }), String(r.proteinHit), format(T.proteinOf, { n: r.compared })));
     }
+    return '<div class="adh-stats">' + out.join('') + '</div>';
+  }
+  function notesOf(r) {
     var notes = [];
     if (!r.compared) notes.push(T.noCompared);
     if (r.proteinMin) notes.push(T.proteinMin);
     if (r.proteinUnknown) notes.push(format(T.proteinUnknown, { n: r.proteinUnknown }));
     if (r.unknown) notes.push(format(T.unknown, { n: r.unknown }));
     if (r.assumed) notes.push(format(T.assumed, { n: r.assumed }));
-    return '<div class="adh-stats">' + out.join('') + '</div>' + notes.map(function (s) { return '<p class="adh-note">' + esc(s) + '</p>'; }).join('');
+    notes.push(T.rule, format(T.goalNote, { goal: goalName() }));
+    return notes;
   }
   function stripHtml(r) {
     var today = HC.todayIso();
@@ -166,16 +175,17 @@
     var title = format(T.strip, { n: A.stripDays });
     return '<h3 class="adh-h">' + esc(title) + '</h3><div class="adh-strip" role="group" aria-label="' + esc(title) + '">' + cells + '</div><div class="adh-legend">' + legend + '</div>';
   }
+  // The ⓘ block (#adh-info, toggled by the section header's ⓘ in Dia.astro) leads the host: the
+  // window's notes + the complete-day rule + the goal note, nothing lost; then the card of tiles,
+  // then the strip (outside the card: at 360px only the full block width fits 7 cells of >= 44px)
   function html() {
     if (S.failed) return '<p class="nutri-failed">' + esc(T.failed) + ' <button type="button" class="lnk" data-adh-retry="1">' + esc(T.retry) + '</button></p>';
     var all = lastDays(A.stripDays);
     var tg = targets(all);
     var strip = adherence(all, S.days, tg);
     var win = adherence(all.slice(all.length - S.win), S.days, tg);
-    // the strip sits outside the card: at 360px only the full block width fits 7 cells of >= 44px
-    return '<div class="nutri-card adh-card">' + statsHtml(win) +
-      '<p class="adh-rule">' + esc(T.rule) + '</p><p class="adh-rule">' + esc(format(T.goalNote, { goal: goalName() })) + '</p></div>' +
-      stripHtml(strip);
+    return '<div class="hs-info" id="adh-info" hidden>' + notesOf(win).map(function (n) { return '<p>' + esc(n) + '</p>'; }).join('') + '</div>' +
+      '<div class="nutri-card adh-card">' + statsHtml(win) + '</div>' + stripHtml(strip);
   }
   function syncSwitch() {
     (document.querySelectorAll ? document.querySelectorAll('[name="adh-win"]') : []).forEach(function (inp) {
@@ -187,7 +197,10 @@
     if (!block || !host || S.days == null) return;
     block.hidden = false;
     try { syncSwitch(); } catch (e) { /* the server-rendered switch keeps its state */ }
+    var was = $('adh-info'), open = !!(was && !was.hidden); // a re-render keeps the ⓘ block as it was
     try { host.innerHTML = html(); } catch (e) { host.innerHTML = '<p class="nutri-failed">' + esc(TN.failed) + '</p>'; }
+    var now = $('adh-info');
+    if (now && open) now.hidden = false;
   }
 
   /* ---------- events ---------- */

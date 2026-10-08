@@ -109,7 +109,7 @@ const DAY_ICONS: Record<string, string> = {
     {/* heading row: the title + the day navigator on the same line (the viewed day is decided at view
         time by client/food-*.js, which always opens on today) */}
     <div class="food-head">
-      <h2>{F.headings.log}</h2>
+      <h2 class="hs-lbl">{F.headings.log}</h2>
       <div class="food-day" role="group" aria-label={F.day.navLabel}>
         <button type="button" class="food-btn food-btn-ghost food-day-today" id="food-day-today" data-food-act="day-today" aria-label={F.day.back} hidden>{F.day.today}</button>
         <button type="button" class="food-icon-btn food-day-btn" id="food-day-prev" data-food-act="day-prev" aria-label={F.day.prev}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
@@ -126,7 +126,7 @@ const DAY_ICONS: Record<string, string> = {
   </details>
 
   <div class="nutri-block" id="nutri-fuel-block" hidden>
-    <h2>{T.headings.fuel}</h2>
+    <div class="hs-head"><h2 class="hs-lbl">{T.headings.fuel}</h2></div>
     <div class="nutri-card">
       <div id="nutri-ride-wrap"></div>
       <div id="nutri-fuel-body"></div>
@@ -141,13 +141,22 @@ const DAY_ICONS: Record<string, string> = {
       rendered (an empty state without weigh-ins). After the day's blocks: today's actions come first,
       the multi-week look back follows */}
   <div class="nutri-block" id="nutri-progress-block">
-    <h2>{T.headings.progress}</h2>
+    <div class="hs-head">
+      <h2 class="hs-lbl">{T.headings.progress}</h2>
+      <button type="button" class="hs-i" id="nutri-progress-i" data-hs-info="nutri-progress-info" aria-expanded="false" aria-controls="nutri-progress-info" aria-label={T.infoTpl.replace('{section}', T.headings.progress)}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg></button>
+    </div>
+    {/* the status why, the rate window and the method: written by client/progress.js */}
+    <div class="hs-info" id="nutri-progress-info" hidden></div>
     <div id="nutri-progress" aria-live="polite"></div>
   </div>
 
   {/* Constancia (client/adherence.js): the food log's adherence, hidden until the LAN summary answers */}
   <div class="nutri-block" id="food-adherence-block" hidden>
-    <h2>{T.headings.adherence}</h2>
+    <div class="hs-head">
+      <h2 class="hs-lbl">{T.headings.adherence}</h2>
+      {/* the notes block (#adh-info) leads #food-adherence, written by client/adherence.js */}
+      <button type="button" class="hs-i" data-hs-info="adh-info" aria-expanded="false" aria-controls="adh-info" aria-label={T.infoTpl.replace('{section}', T.headings.adherence)}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg></button>
+    </div>
     <fieldset class="seg adh-seg" id="adh-window">
       <legend class="seg-lbl">{T.adherence.windowLegend}</legend>
       <div class="seg-opts adh-opts">

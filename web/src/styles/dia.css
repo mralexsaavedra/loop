@@ -73,14 +73,12 @@
   font-weight: 700;
 }
 
-/* meal cards: restrained, no decorative accent border */
+/* meal cards: flat --surface cards (one fill, no border, no shadow), the shared card language */
 .meal {
   background: var(--card-bg);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  padding: var(--sp-7);
-  margin-bottom: var(--sp-4);
-  box-shadow: var(--card-shadow);
+  border-radius: var(--r-sm);
+  padding: var(--sp-6) var(--sp-5);
+  margin-bottom: var(--sp-3);
 }
 .meal-top {
   display: flex;

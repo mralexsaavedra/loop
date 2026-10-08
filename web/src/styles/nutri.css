@@ -16,6 +16,10 @@
   color: var(--muted);
   white-space: nowrap;
 }
+/* Plan de hoy opens its own group of blocks: a section gap, not the folds' row gap */
+details.sec-fold.nutri-fold {
+  margin-top: var(--sp-8);
+}
 .nutri-fold > #nutri-plan {
   margin-top: var(--sp-5);
 }
@@ -688,24 +692,30 @@
 }
 .pg-kg {
   font-family: var(--num);
-  font-size: 34px;
+  font-size: var(--fs-4xl);
   line-height: 1;
   color: var(--ink);
 }
-.pg-num small,
-.pg-rate small {
+.pg-num small {
   font-size: var(--fs-sm);
   color: var(--muted);
 }
-.pg-rate {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.pg-rate b {
+/* the weekly rate as a pill (the shared delta pill: --rail inset), coloured by the status */
+.pg-pill {
+  padding: 2px var(--sp-3);
+  border-radius: var(--r-xs);
+  background: var(--rail);
   font-family: var(--num);
-  font-size: var(--fs-2xl);
-  color: var(--trend);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pg-pill.pg-s-good {
+  color: var(--up);
+}
+.pg-pill.pg-s-mid,
+.pg-pill.pg-s-low {
+  color: var(--down);
 }
 .pg-status {
   display: flex;
@@ -713,7 +723,9 @@
   align-items: baseline;
   gap: var(--sp-1) var(--sp-3);
   margin: 0 0 var(--sp-3);
-  font-size: var(--fs-md);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
 }
 .pg-dot {
   width: 8px;
@@ -737,13 +749,11 @@
 .pg-s-muted {
   color: var(--muted);
 }
-.pg-why {
-  color: var(--muted);
-}
 .pg-target,
 .pg-eta {
   margin: 0 0 var(--sp-2);
-  font-size: var(--fs-md);
+  font-size: var(--fs-sm);
+  color: var(--muted);
 }
 .pg-warn {
   margin: 0 0 var(--sp-2);
@@ -754,23 +764,22 @@
 .pg-empty {
   color: var(--muted);
 }
-.pg-note {
-  margin: var(--sp-4) 0 0;
-  font-size: var(--fs-xs);
-  color: var(--faint);
-}
 
 /* ---------- Constancia (client/adherence.js): the food log's adherence + a 28-day strip ---------- */
+/* number tiles, Entreno's Activity stat tiles: --surface-2 inside the flat card */
 .adh-stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-6) var(--sp-5);
+  gap: var(--sp-3);
 }
 .adh-stat {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  padding: var(--sp-4);
+  border-radius: var(--r-xs);
+  background: var(--surface-2);
 }
 .adh-lbl {
   font-size: var(--fs-2xs);
@@ -782,20 +791,27 @@
 .adh-val {
   font-family: var(--num);
   font-size: var(--fs-3xl);
+  line-height: 1.1;
   color: var(--ink);
 }
 .adh-sub {
   font-size: var(--fs-sm);
   color: var(--muted);
 }
-.adh-note,
-.adh-rule {
-  margin: var(--sp-4) 0 0;
-  font-size: var(--fs-xs);
-  color: var(--faint);
+/* the share of the window (days logged / complete): a thin bar under the number */
+.adh-bar {
+  position: relative;
+  height: 4px;
+  margin-top: var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--track);
+  overflow: hidden;
 }
-.adh-note {
-  color: var(--muted);
+.adh-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--r-pill);
+  background: var(--up);
 }
 .adh-h {
   margin: var(--sp-7) 0 var(--sp-3);
