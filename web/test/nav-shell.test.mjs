@@ -1,6 +1,6 @@
 /* Navigation shell (web/layouts/Plan.astro + web/src/tabs/Home.astro) on the built example page:
- * - top bar: avatar left · centred date pill "Today" (the client-filled <time> inside, no arrows: there
- *   is no global "view another day" yet) · freshness / Sync right;
+ * - top bar: avatar left · centred date pill "‹ Today ›" (the client-filled <time> inside; the day
+ *   stepping chevrons ship hidden, client/today-date.js shows them) · freshness / Sync right;
  * - the bottom dock: the tab bar (role=tablist, four role=tab buttons, aria-pressed on the active one)
  *   and, outside the tablist, the "+" action button + its popover, shipped HIDDEN (nav-actions.js
  *   reveals only the actions that exist on this page: never a dead control in a static build);
@@ -29,9 +29,18 @@ test('top bar: avatar first, then the centred "Today" pill with the empty client
   const pill = bar.indexOf('class="date-pill"');
   const fresh = bar.indexOf('id="freshness"');
   assert.ok(avatar !== -1 && avatar < pill && pill < fresh, 'avatar · pill · freshness');
-  assert.match(bar, new RegExp(`<span class="date-pill-lbl" aria-hidden="true">${N.today}</span>`));
+  assert.match(bar, new RegExp(`<span class="date-pill-lbl" id="day-word" aria-hidden="true">${N.today}</span>`));
   assert.match(bar, /<time id="today-date" class="today-date"><\/time>/, 'nothing time-based baked');
-  assert.doesNotMatch(bar, /date-step|aria-label="(Previous|Next) day"/, 'no day stepping until a global day view exists');
+});
+
+test('top bar pill: ‹ / › day-stepping buttons ship hidden with their labels; the date label is a live, "back to today" button', () => {
+  const bar = between('<div class="date-pill"', '<div class="fresh"');
+  assert.match(bar, new RegExp(`role="group" aria-label="${N.day.group}"`));
+  const prev = bar.indexOf('id="day-prev"'), lbl = bar.indexOf('id="day-lbl"'), next = bar.indexOf('id="day-next"');
+  assert.ok(prev !== -1 && prev < lbl && lbl < next, '‹ · label · ›');
+  assert.match(bar, new RegExp(`<button type="button" class="day-step" id="day-prev" aria-label="${N.day.prev}" hidden>`));
+  assert.match(bar, new RegExp(`<button type="button" class="day-step" id="day-next" aria-label="${N.day.next}" hidden>`));
+  assert.match(bar, new RegExp(`id="day-lbl" aria-disabled="true" aria-live="polite" data-back="${N.day.back}"`));
 });
 
 test('dock: a role=tablist of four role=tab buttons with aria-pressed, and the "+" outside the tablist', () => {
