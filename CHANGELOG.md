@@ -5,6 +5,21 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Energy bank (Inicio "My day", our own intraday model)
+
+- Model: `lib/score/energy.mjs` → `SCORES.energy`, an intraday 0–100 level per day (last 14): starts
+  at the wake time at the morning's recovery %, then per awake hour −1.5 baseline, −1.5 × the stress
+  estimate, −30 × (1 − e^(−TRIMP / K)) heart-rate load (day strain's TRIMP and K; a Strava activity's
+  TRIMP spread over the hours it covers), +1 in a calm hour (stress < 0.5, no workout); clamped
+  0–100, a missing hour carries the level. Constants exported as `ENERGY`, chosen by hand and
+  documented as ours (not a validated measure). No recovery %, wake time or strain scale → no value.
+- Demo: the synthetic daytime heart rate is calmer (58–70 bpm instead of 64–80) so the demo's stress
+  estimate and energy bank read as ordinary days rather than every day ending at 0.
+- Page: an "Energy bank · estimate" card in My day (level, curve from wake, start and low; day
+  stepping) and its page (`energy-bank`: 0–100 gauge, intraday curve with workout / high-stress dots,
+  what moved it, ⓘ with the formula and constants; trend = each day's latest level). es / en.
+- Docs: `analysis/methodology.md`, `docs/home-tab.md`, `docs/detail-views.md`.
+
 ## 2026-10-08 — Fitness age (Salud, mean-based, Loe 2013)
 
 - Reference: Loe H, Rognmo Ø, Saltin B, Wisløff U, PLoS ONE 2013;8(5):e64319, Table 2
