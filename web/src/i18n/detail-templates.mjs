@@ -92,12 +92,15 @@ export const en = {
       legendRest: 'vs prior 30 days',
       cmp: { better: 'better than usual', worse: 'worse than usual', above: 'above usual', below: 'below usual', typical: 'typical' },
       rows: {
-        hrv: 'Heart rate variability', rhr: 'Resting heart rate', sleep: 'Hours of sleep', vsTarget: 'vs sleep target',
+        hrv: 'Heart rate variability', rhr: 'Resting heart rate', resp: 'Respiratory rate', perf: 'Sleep performance',
+        sleep: 'Hours of sleep', vsTarget: 'vs sleep target',
         need: 'Hours vs need', eff: 'Sleep efficiency', cons: 'Sleep consistency', restor: 'REM + deep sleep',
         bed: 'Bedtime', wake: 'Wake time', re: 'Today\'s effort', acute: '7 days vs 42 days', sessions: 'Sessions, last 7 days',
         typical: 'Typical training day',
       },
     },
+    // the recovery page's ⓘ: respiratory rate is a contributor row for context only
+    respNote: 'Respiratory rate is shown as context: it is not part of the recovery score. It has no better direction, so the arrow only says above or below your usual (the middle half of the prior 30 days); a grey dot = within it.',
     weekly: { title: 'Weekly trends', aria: '{title}, last 7 days', minutes: 'Minutes', perf: 'Sleep performance (%)', restor: 'REM + deep (h)' },
     // the sleep page's stages bar (awake / REM / core / deep + the unspecified remainder)
     stages: { aria: 'Sleep stages', awake: 'Awake', rem: 'REM', core: 'Core', deep: 'Deep', unspec: 'Unspecified' },
@@ -276,12 +279,14 @@ export const es = {
       legendRest: 'frente a los 30 días previos',
       cmp: { better: 'mejor de lo habitual', worse: 'peor de lo habitual', above: 'por encima de lo habitual', below: 'por debajo de lo habitual', typical: 'habitual' },
       rows: {
-        hrv: 'Variabilidad de la frecuencia cardiaca', rhr: 'Frecuencia cardiaca en reposo', sleep: 'Horas de sueño', vsTarget: 'Frente al objetivo de sueño',
+        hrv: 'Variabilidad de la frecuencia cardiaca', rhr: 'Frecuencia cardiaca en reposo', resp: 'Frecuencia respiratoria',
+        perf: 'Rendimiento del sueño', sleep: 'Horas de sueño', vsTarget: 'Frente al objetivo de sueño',
         need: 'Horas frente a la necesidad', eff: 'Eficiencia del sueño', cons: 'Regularidad del sueño', restor: 'Sueño REM + profundo',
         bed: 'Hora de acostarte', wake: 'Hora de despertar', re: 'Esfuerzo de hoy', acute: '7 días frente a 42 días', sessions: 'Sesiones, últimos 7 días',
         typical: 'Día de entreno típico',
       },
     },
+    respNote: 'La frecuencia respiratoria se muestra como contexto: no forma parte de la puntuación de recuperación. No tiene una dirección mejor, así que la flecha solo indica por encima o por debajo de lo habitual (la mitad central de los 30 días previos); un punto gris = dentro de ello.',
     weekly: { title: 'Tendencias semanales', aria: '{title}, últimos 7 días', minutes: 'Minutos', perf: 'Rendimiento del sueño (%)', restor: 'REM + profundo (h)' },
     stages: { aria: 'Fases del sueño', awake: 'Despierto', rem: 'REM', core: 'Ligero', deep: 'Profundo', unspec: 'Sin especificar' },
     sleepNotes: {

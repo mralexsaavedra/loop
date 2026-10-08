@@ -5,6 +5,13 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Recovery contributors like the reference
+
+- The recovery deep-dive's contributors become HRV, resting HR, respiratory rate and sleep performance %
+  (replacing hours of sleep), each on the scored night with ▲▼ vs the prior 30 days. Display only: the
+  composite is unchanged; respiratory rate is context (no good direction: grey arrows, ⓘ note). A
+  missing value hides its row.
+
 ## 2026-10-08 — Day stepping on Inicio ("‹ HOY ›")
 
 - The top bar's date pill gets ‹ / › chevrons (`client/today-date.js`, `window.HCDay`): Inicio can show
