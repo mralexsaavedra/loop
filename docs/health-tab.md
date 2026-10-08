@@ -22,7 +22,8 @@ green glow at the top of the page (`.hs-glow`, `--up` at 16 % via `color-mix`, a
 content, only while the panel shows); the health monitor list (`#monitor`, `client/monitor.js`, see
 `docs/home-tab.md` "Health monitor"; its header reads title → "n out of range" chip → ⓘ at the end); then the sections of `#health-body`, each a `<section
 class="hs-sec" id="hl-<key>">` with an UPPERCASE label, an ⓘ toggle and a list of metric rows:
-**Recovery** (`#score-recovery`, the recovery card filled by score.js, restyled borderless — its long
+**Recovery** (`#score-recovery`, the recovery card filled by score.js, restyled borderless; its
+headline is last night's recovery % with the % band word, or the SD value under 21 prior nights — its long
 lines join this section's ⓘ block, and its raw "Last 14 days" lists fold behind a quiet disclosure
 line, see `docs/home-tab.md` — then only the signals among resting HR, HRV, respiratory rate and wrist
 temperature that the monitor does NOT list: the monitor already shows them at the top, so they are

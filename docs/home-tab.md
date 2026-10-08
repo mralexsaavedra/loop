@@ -40,10 +40,21 @@ consecutive builds are byte-identical). The tab is first and active by default; 
 derived from the FILTERED nav list (`activeTabKey`), so `page.hideTabs: ["home"]` hands over to the next
 tab and hiding every tab is a build error.
 
-**Today first, trend as context** (Bevel/Whoop-style, but no invented 0-100 scale): every headline
-is the newest day, and the trend is the line under it.
+**Today first, trend as context** (Bevel/Whoop-style): every headline is the newest day, and the
+trend is the line under it.
 
-- **Recovery** is in units of the owner's typical spread (scaled MAD), never a 0-100 grade; ONE unit
+- **Recovery %** (the headline, `today.pct`): last night's composite RANKED among the composites of
+  the 90 days before it (`PCT_WINDOW_DAYS`), all scored against the same baseline, days with ≥ 0.60
+  of the weight only — empirical CDF: share of prior days with a lower composite, ties counted half,
+  rounded to an integer 0–100 (`percentileRank`, `lib/score/recovery.mjs`, baked, never computed in
+  the browser). Bands (`pctBand`): good (`--good`) ≥ 67, mid (`--mid`) 34–66, low (`--low`) ≤ 33
+  (thirds of the owner's own distribution). Under 21 prior days (`MIN_PCT_DAYS`) `pct` is null and
+  every surface keeps the SD presentation below (the documented fallback). It is a transparent
+  mapping of the same composite, not a new metric; the ⓘ says so (`recovery.pctNote`: "% = how last
+  night ranks against your previous 90 days"), and the night's SD value + day band stay in the Salud
+  card's ⓘ and the deep-dive insight (`recovery.sdLbl`). The 7-day trend, the contributors and the
+  advice stay in SD (the advice describes the trend, not the night).
+- **Recovery** composite is in units of the owner's typical spread (scaled MAD); ONE unit
   key, `RECOVERY_UNIT` (`lib/score/advice-copy.mjs`, re-exported by score-templates: en "SD", es
   "desv."; dict `recovery.unit`), builds every recovery string — advice, dial, Salud card, monitor note,
   detail sheet — and the Salud card explains it behind its ⓘ (`recovery.unitNote`: "typical spread" /
@@ -61,7 +72,7 @@ is the newest day, and the trend is the line under it.
   week's trend7 − last week's): two non-overlapping 7-day means differ with noise √2 × σ_7 ≈ 0.46,
   so it is cut at `TREND_DIR_CUTOFF` = `BAND_CUTOFF` × √2 ≈ 0.7: up / steady / down. The recovery
   detail card (Salud `#score-recovery`, Whoop-style) stacks at every width: headline (last night's
-  composite as the big number + band word; ONE short trend line "7-day +0.5 SD · at baseline") |
+  % + its % band word, e.g. "85 % High", or the composite in SD as the fallback; ONE short trend line "7-day +0.5 SD · at baseline") |
   14-day sparkline | compact contributors (state dot, name, latest value + unit, ±SD for HRV, RHR,
   sleep duration, sleep regularity, a 2 × 2 block), one under the other; the raw
   last-14-days lists fold into a `<details class="rec-raw">` ("Last 14 days" / "Últimos 14 días"),
@@ -128,8 +139,8 @@ is the newest day, and the trend is the line under it.
   OWN date is > 3 days before the viewer's today is greyed with "no recent data", no tone, no marker; the
   whole block greys when its newest date is > 3 days old. Display units come from the i18n dict. A
   card that throws falls back to its empty state.
-- **Dials** (top of the tab: Sleep / Recovery / Load) only VISUALISE baked values — no new metric and
-  no percentage. `web/src/view/dial.mjs` (`buildDials(scores, health)`, unit-tested, baked as `DIALS`)
+- **Dials** (top of the tab: Sleep / Recovery / Load) only VISUALISE baked values — no new metric (the
+  recovery % is a rank of the same composite). `web/src/view/dial.mjs` (`buildDials(scores, health)`, unit-tested, baked as `DIALS`)
   pre-computes the ring geometry; `score.js` only formats numbers and joins SVG strings. Layout: three
   equal full rings in a row (≈ 92 px at a 390 px viewport), each starting at 12 o'clock and filling
   clockwise, round caps, a thin stroke (7 of 120 units ≈ 6 % of the diameter) on `--track`; the value
@@ -137,7 +148,10 @@ is the newest day, and the trend is the line under it.
   ground, not in a card. No caption under them: each dial's words live in its deep-dive page (insight card)
   (see `docs/detail-views.md`) and in its accessible name. Only a stale-data warning stays under the
   dials (`.dial-stale`, one short line: `staleNote`), plus the compact caveat lines below.
-  Recovery: ring = −3…+3 MAD, filled from 12 o'clock to last night's composite (`today`; falls back
+  Recovery with a % (`today.pct`): the ring fills to pct % from 12 o'clock, ONE colour = its % band
+  (`dial-band-good` / `-mid` / `-low`), no baseline tick, the centre "85" + a small "%"; the mini row
+  reuses the same svg. Without a % (fallback):
+  ring = −3…+3 MAD, filled from 12 o'clock to last night's composite (`today`; falls back
   to `trend7`), a tick at 6 o'clock marks the baseline (0); the centre = the signed value + the unit
   (sd). The fill takes ONE state colour end to end, its band's: above = `--good`, at = `--mid`,
   below = `--low` (single night cut at ±`DAY_BAND_CUTOFF`, the trend fallback at ±`BAND_CUTOFF`). No

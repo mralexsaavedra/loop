@@ -316,6 +316,16 @@
 .dial-band-below {
   --dial-c: var(--low);
 }
+/* the recovery % bands (good >= 67, mid 34-66, low <= 33): the same three state tokens */
+.dial-band-good {
+  --dial-c: var(--good);
+}
+.dial-band-mid {
+  --dial-c: var(--mid);
+}
+.dial-band-low {
+  --dial-c: var(--low);
+}
 .dial-load {
   --dial-c: var(--strain);
 }
@@ -769,10 +779,20 @@
 /* Recovery detail card (Salud #score-recovery, Whoop-style): headline (last night, big number +
  * band word) | 14-day sparkline | compact contributors, side by side on wide screens and stacked on
  * phones; the 7-day trend is a small secondary line, the raw last-14-days lists are folded. The band
- * colour follows the recovery dial (above = --good, at = --trend, below = --low). */
+ * colour follows the recovery dial (above = --good, at = --trend, below = --low, and the % bands
+ * good / mid / low = --good / --mid / --low). */
 .sc-recovery .sc-band-above,
 .sc-recovery .sc-dot-above {
   --rec-c: var(--good);
+}
+.sc-recovery .sc-band-good {
+  --rec-c: var(--good);
+}
+.sc-recovery .sc-band-mid {
+  --rec-c: var(--mid);
+}
+.sc-recovery .sc-band-low {
+  --rec-c: var(--low);
 }
 .sc-recovery .sc-band-at,
 .sc-recovery .sc-dot-at {

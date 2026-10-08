@@ -56,6 +56,10 @@ export const en = {
     trendLine: enS.dials.recovery.trendLine,
     trendLineNoDir: enS.dials.recovery.trendLineNoDir,
     dirs: enS.dials.recovery.dirs,
+    pctBands: enS.recovery.pctBands,
+    pctNote: enS.recovery.pctNote,
+    sdLbl: enS.recovery.sdLbl,
+    sdBands: enS.recovery.bands,
   },
   load: {
     dayLine: enS.dials.load.dayLine,
@@ -226,6 +230,10 @@ export const es = {
     trendLine: esS.dials.recovery.trendLine,
     trendLineNoDir: esS.dials.recovery.trendLineNoDir,
     dirs: esS.dials.recovery.dirs,
+    pctBands: esS.recovery.pctBands,
+    pctNote: esS.recovery.pctNote,
+    sdLbl: esS.recovery.sdLbl,
+    sdBands: esS.recovery.bands,
   },
   load: {
     dayLine: esS.dials.load.dayLine,

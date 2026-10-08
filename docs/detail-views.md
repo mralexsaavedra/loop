@@ -75,12 +75,14 @@ switch is outside every opener); run / ride rows →
      toggles the long-notes block in place, collapsed by default. A sheet without notes puts an equal
      44px spacer (`.sh-pad`) there so the title stays centred.
   2. **ⓘ block** (`#dd-info`, hidden): the band / cut rules (`bandText`: the recovery day and trend
-     cuts, the per-day note, the sleep band, the typical day), the load sessions-without-effort note,
+     cuts, the per-day note, the sleep band, the typical day), the recovery % mapping (`rec.pctNote`,
+     only when the hero shows a %), the load sessions-without-effort note,
      the sleep "stages are not in the extract" note.
   3. **Hero ring**: ≈ 67 % of the width (max 320 px), the dial's OWN baked arcs (`DIALS`, so it can
      never disagree with Inicio) drawn with a 6.4-unit stroke (≈ 5.9 % of the 108-unit diameter),
      from 12 o'clock clockwise, round caps, on `--track`; inside: the value (D-DIN, 52–72 px) + small
-     unit + the uppercase label. Colour: recovery = ONE state colour, its band (`--good` / `--mid` /
+     unit + the uppercase label. Recovery shows the dial's % (`DIALS.recovery.pct`, when it scores the
+     same night as `head`) with its % band colour, else the SD value. Colour: recovery = ONE state colour, its band (`--good` / `--mid` /
      `--low`), sleep = `--sleep`, load = `--strain` with a white tick at the typical day
      (`DIALS.load.tick`). Off states show the dial's word in an empty ring (recovery "No baseline",
      load "Building" / "No session yet" / "No effort data"; there the typical-day tick dims to a faint
@@ -102,8 +104,9 @@ switch is outside every opener); run / ride rows →
      prior 30 days' training days only), the 7-day vs 42-day trend (`DIALS`), the sessions of the
      last 7 days, the typical training day.
   5. **Insight card** (`--ground` fill inside a 1.5 px teal → indigo stroke, `--insight-a/b`): the
-     dial's former captions in 2–4 plain lines — recovery "Last night · <band>" (or the night's date,
-     "no sleep data", "no recent complete night") + the 7-day trend coloured by the TREND band; sleep
+     dial's former captions in 2–4 plain lines — recovery "Last night · <band>" (the % band word when
+     the hero shows a %, then the night's SD value "Vs your 42-day baseline: +1.1 SD · at baseline";
+     or the night's date, "no sleep data", "no recent complete night") + the 7-day trend coloured by the TREND band; sleep
      the target + last night vs it; load the day line ("Today: RE 28 · typical day ~42" or "No
      session yet today · last session …"), the ring scale and the 7-day vs 42-day trend + band (from
      the baked `DIALS`; no `DIALS` or gated → no trend line); a gated modality shows its gate copy.

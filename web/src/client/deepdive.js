@@ -80,12 +80,21 @@
       '<div class="dd-ring" role="img" aria-label="' + esc(aria) + '">' + svg +
       '<div class="dd-centre" aria-hidden="true">' + centre + '<span class="dd-lbl">' + esc(h.label) + '</span></div></div></section>';
   }
+  // the dial's % when it scores the SAME night as the sheet's headline (DETAIL head), else null
+  function pctOf(h) {
+    var d = dials() && dials().recovery;
+    return h && h.mode === 'today' && d && d.state === 'ok' && d.mode === 'today' && d.date === h.date && isNum(d.pct) ? d.pct : null;
+  }
   // recovery: exactly the dial (view/dial.mjs recoveryDial + score.js recDial): last night's composite,
   // its band as the ONE colour of the whole fill; gated / none = an empty ring with the dial's word
   function recoveryHero(m, X) {
     var P = X.T.deep, h = m.head, d = dials() && dials().recovery;
     var label = P.label.recovery;
     if (!h || !isNum(h.value)) return { cls: 'off', label: label, word: d && d.state === 'none' ? P.words.none : P.words.gated, stale: false };
+    // the % headline (DIALS: the night's rank within the previous 90 days) when the dial has one
+    if (pctOf(h) != null) {
+      return { cls: d.band, label: label, num: String(d.pct), unit: '%', fill: d.fill, stale: stale(d.asOf || X.D.asOf) };
+    }
     return {
       cls: BAND_CLS[h.band] || 'mid', label: label, num: X.signed(h.value, 1), unit: X.unitOf('recovery'),
       fill: d && d.state === 'ok' ? d.fill : null, stale: stale((d && d.asOf) || X.D.asOf),
@@ -130,7 +139,10 @@
     var d = isoDate(h.date);
     // "Last night" only when the night is dated the viewer's today AND has a sleep reading (as the dial)
     var when = HC.daysOld(d) === 0 && h.sleep !== false ? R.lastNight : HC.fmtDate(d);
-    var out = [{ text: format(X.T.deep.nightLine, { when: when, band: band }) }];
+    var pct = pctOf(h);
+    var out = [{ text: format(X.T.deep.nightLine, { when: when, band: pct != null ? R.pctBands[dials().recovery.band] : band }) }];
+    // with a % headline the night's SD value stays here (nothing lost)
+    if (pct != null) out.push({ text: format(R.sdLbl, { value: X.signed(h.value, 1), band: R.sdBands[h.band] || '' }) });
     if (h.sleep === false) out.push({ cls: 'dt-nodata', text: R.noSleep });
     out.push(trend);
     return out;
@@ -170,6 +182,7 @@
     var dm = m.kind === 'load' ? loadDialOf(X.modOf(key)) : null;
     if (dm && dm.state === 'ok' && dm.unscored > 0) extra = '<div class="dt-band-txt">' + esc(format(X.T.load.unscoredNote, { n: dm.unscored })) + '</div>';
     if (key === 'sleep') extra = '<div class="dt-band-txt">' + esc(X.T.day.stagesNote) + '</div>';
+    if (key === 'recovery' && pctOf(m.head) != null) extra = '<div class="dt-band-txt">' + esc(X.T.rec.pctNote) + '</div>';
     return '<div class="dd-info" id="dd-info" hidden>' + X.bandText(key, m) + extra + '</div>';
   }
   function insightHtml(lines, X) {
