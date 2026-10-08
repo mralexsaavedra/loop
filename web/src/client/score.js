@@ -1,4 +1,5 @@
-/* Home tab: recovery TREND (in units of the owner's typical spread, I18N_SCORE recovery.unit; never a 0-100 grade) + per-modality load,
+/* Home tab: recovery = last night as a % RANK within the previous 90 days (recovery.today.pct; under 21
+ * prior days the composite in units of the owner's typical spread, I18N_SCORE recovery.unit) + its 7-day TREND + per-modality load,
  * rendered client-side from SCORES / I18N_SCORE / LOCALE baked by components/Bake.astro.
  *
  * Classic script (is:inline, no module scope). Only `asOf` is baked: staleness is computed here
@@ -8,7 +9,7 @@
  *
  * Dials (Sleep / Recovery / Load): all geometry comes pre-computed in DIALS (web/src/view/dial.mjs,
  * baked by components/Bake.astro); this file only formats the baked numbers and joins SVG strings.
- * Today first: recovery = last night's composite with the 7-day trend underneath, load = the day's
+ * Today first: recovery = last night's % (or composite) with the 7-day trend underneath, load = the day's
  * RE vs the typical training day with acute/chronic as the caption. The "last night" / "today" /
  * "yesterday" words are decided here from Date.now(), never baked.
  */
@@ -103,8 +104,10 @@ function scMod(key, btn) {
         : daysOld(R.today.date) === 0 ? rt.whenLastNight
         : format(rt.whenDate, { date: d });
       out.push('<div class="rec-when">' + esc(when) + '</div>');
-      out.push('<div class="rec-big sc-band-' + esc(R.today.band) + '"><b class="rec-num">' + esc(num(R.today.value, 1, true)) + '</b>' +
-        '<small class="rec-unit">' + esc(rt.unit) + '</small><span class="rec-band">' + esc(rt.bands[R.today.band]) + '</span></div>');
+      var pct = typeof R.today.pct === 'number';
+      var band = pct ? R.today.pctBand : R.today.band;
+      out.push('<div class="rec-big sc-band-' + esc(band) + '"><b class="rec-num">' + esc(pct ? String(R.today.pct) : num(R.today.value, 1, true)) + '</b>' +
+        '<small class="rec-unit">' + esc(pct ? '%' : rt.unit) + '</small><span class="rec-band">' + esc(pct ? rt.pctBands[band] : rt.bands[band]) + '</span></div>');
     } else {
       out.push('<div class="sc-note">' + esc(rt.noToday) + '</div>');
     }
@@ -115,6 +118,10 @@ function scMod(key, btn) {
   // the card's notes (plain text, escaped by recInfoHtml), in reading order
   function recNotes(R, rt) {
     var out = [];
+    if (R.today && typeof R.today.pct === 'number') {
+      out.push(rt.pctNote);
+      out.push(format(rt.sdLbl, { value: num(R.today.value, 1, true), band: rt.bands[R.today.band] }));
+    }
     if (R.today) out.push(rt.vsBaseLbl);
     out.push(format(rt.trendLbl, { value: num(R.trend7, 1, true) }) + ' · ' + rt.bands[R.band] +
       (R.delta7 != null ? ' · ' + format(rt.deltaLbl, { value: num(R.delta7, 1, true) }) : ''));
@@ -337,9 +344,14 @@ function scMod(key, btn) {
       var word = d.state === 'gated' ? rt.gated : dt.none;
       return dialFig('dial-rec dial-off', isStale(d.asOf), '', '', dialSvg({}), offCentre(word), rt.label);
     }
-    var v = num(d.value, 1, true);
     var today = d.mode === 'today';
     var when = today ? nightLbl(d.date, d.sleep !== false, rt) : '';
+    // the % headline (its rank within the previous 90 days), else the SD composite (fallback)
+    if (today && typeof d.pct === 'number') {
+      return dialFig('dial-rec dial-band-' + esc(d.band), isStale(d.asOf), '', format(rt.ariaPct, { when: when, value: d.pct, band: T.recovery.pctBands[d.band] }),
+        dialSvg({ fill: d.fill }), numCentre(String(d.pct), '%'), rt.label);
+    }
+    var v = num(d.value, 1, true);
     var aria = today
       ? format(rt.aria, { when: when, value: v, band: rt.bands[d.band] })
       : format(rt.ariaTrend, { value: v, band: rt.bands[d.band] });
