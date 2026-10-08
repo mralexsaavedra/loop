@@ -182,7 +182,9 @@ export const en = {
     // the programmed session row (client/training-today.js -> window.HCProgram)
     programmed: 'Programmed',
     programmedChip: 'Plan',
+    // behind the card's ⓘ (only when the day has workouts)
     note: 'Same-day parts of one modality are merged (the Watch splits a session). RE only comes from Strava.',
+    infoLbl: 'About {section}',
   },
   advice: ADVICE_COPY.en,
   caveatsHeading: 'How to read this',
@@ -367,7 +369,9 @@ export const es = {
     // la fila de la sesión programada (client/training-today.js -> window.HCProgram)
     programmed: 'Programado',
     programmedChip: 'Plan',
+    // tras la ⓘ de la tarjeta (solo cuando el día tiene entrenos)
     note: 'Las partes del mismo día y modalidad se juntan (el Watch divide una sesión). El Esfuerzo Relativo solo llega de Strava.',
+    infoLbl: 'Sobre {section}',
   },
   advice: ADVICE_COPY.es,
   caveatsHeading: 'Cómo leerlo',

@@ -159,3 +159,20 @@ test('programmed session (window.HCProgram, client/training-today.js): a "progra
   assert.equal(rows(only).length, 1);
   assert.ok(!only.includes(enT.timeline.empty));
 });
+
+test('text diet: the same-day merge note lives in the card\'s ⓘ block (hidden, aria-expanded), not as a visible footnote', () => {
+  const html = render(TL);
+  assert.match(html, /<div class="sc-head"><h3>[^<]+<\/h3><button type="button" class="hs-i" data-hs-info="tl-info" aria-expanded="false" aria-controls="tl-info"/);
+  assert.ok(html.includes(`<div class="hs-info" id="tl-info" hidden><p>${enT.timeline.note}</p></div>`));
+  assert.doesNotMatch(html, /<div class="sc-note">Same-day/);
+  // no workouts that day: no note, no ⓘ
+  const sleepOnly = render(timelineFromInputs([], [{ date: ASOF, value: 7 }]));
+  assert.doesNotMatch(sleepOnly, /tl-info/);
+});
+
+test('the programmed row keeps its long focus whole for assistive tech (aria-label) while the name ellipsises', () => {
+  const focus = 'Lower body strength + threshold intervals on the bike, then core';
+  const html = render(TL, { program: { date: ASOF, kind: 'gym', focus }, detail: true });
+  const row = html.match(/<li class="tl-row tl-prog[^>]*>/)[0];
+  assert.ok(row.includes(` aria-label="${enT.timeline.programmedChip}: ${focus} · ${enT.timeline.programmed}"`), row);
+});

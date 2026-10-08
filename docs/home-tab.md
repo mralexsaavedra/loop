@@ -158,8 +158,8 @@ is the newest day, and the trend is the line under it.
   fallback, and every host write (`#home-advice`, `#home-dials`, `#score-recovery`, `#score-load`, the advice)
   is isolated, so one throw never blanks Inicio or the other hosts; with no score data every host gets
   the empty state. Stale data (> 3 days) greys a dial; the fill
-  animation is off under `prefers-reduced-motion`. Nutrición's kcal dial keeps the former 270° open
-  arc (`OPEN_ARC` in `dial.mjs`, baked as `NUTRI_ARC`) until that tab moves to the ring language.
+  animation is off under `prefers-reduced-motion`. Nutrición's kcal ring draws the same full ring (no
+  open arc any more, see `docs/nutrition.md`).
 - **Today's activities** (`lib/score/timeline.mjs`, baked as `SCORES.timeline` even when `hasData` is
   false; `#timeline` + `client/timeline.js`, under the outlook bar in "My day"): per day, last night's
   sleep (`sleep-daily.csv`, dated the wake-up day, with its bed / wake clock `bed` / `wake` when the
@@ -169,7 +169,8 @@ is the newest day, and the trend is the line under it.
   behind a thin bar of the row's colour: bed / wake time for sleep, RE and "N parts" for a workout
   (workouts.csv has no start time, so no clock). On the viewer's today the programmed session
   (`window.HCProgram` from `client/training-today.js`) is the last row: an outline chip "Plan", its
-  focus, "Programmed"; it opens the session as the `hoy-session` detail view. Nothing matches a
+  focus (one line, ellipsised; the row's `aria-label` carries the whole focus and the session view
+  shows it in full), "Programmed"; it opens the session as the `hoy-session` detail view. Nothing matches a
   programmed session to a done workout yet, so it is only listed, never ticked; it is not shown
   under an older day's heading, and with no baked day but a session today the card lists only it. Rows follow the shared same-day
   rule (`DISPLAY_RULE`: stubs dropped, one source, same-day rows of one modality merge; the row says "N parts"). Only the last 3 data days are
@@ -177,7 +178,8 @@ is the newest day, and the trend is the line under it.
   with "nothing logged yet today", greyed when > 3 days old; when the viewer's clock is EARLIER than
   every baked day (clock / timezone skew) → the newest baked day under its date (no "nothing logged"
   line, not greyed); no baked days → empty state. No sleep
-  that night → "No sleep recorded", never 0 h.
+  that night → "No sleep recorded", never 0 h. The same-day merge note ("RE only comes from Strava")
+  sits behind the card header's ⓘ (`#tl-info`, only when the day lists workouts), not under the list.
 - **Tonight** (`#home-tonight`, `lib/score/tonight.mjs` baked as `SCORES.tonight`, `client/home-week.js`):
   the recommended bedtime (moon icon) and the usual wake time (alarm icon) joined by a dashed line, D-DIN
   clocks, uppercase captions. Rule (stated in the sheet the card opens — the registered `tonight` view —
