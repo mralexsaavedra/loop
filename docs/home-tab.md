@@ -12,7 +12,8 @@ Top to bottom (`web/src/tabs/Home.astro`, which also renders `components/EatCard
 top bar, from `layouts/Plan.astro` and shown on Inicio only: the LOOP wordmark — on a wide screen it sits in the top bar row on the left, the avatar on the right —
 see `docs/plan-page.md` → Brand) → dials
 (`#home-dials`) → the monitor tiles (`#home-tiles`) → "My day" (`#my-day`: a Title Case heading, the
-advice sentence as the outlook bar in `#home-advice`, then "Today's activities" in `#timeline`) → the
+advice sentence as the outlook bar in `#home-advice`, the energy bank card in `#home-energy`, then
+"Today's activities" in `#timeline`) → the
 "today you eat" card → "Tonight" (`#home-tonight`) → "My journal" (`#my-journal`) → "My plan" (`#my-plan`) → "My dashboard" (`#my-dash`)
 → the programmed session's hidden source section (`hoy`). The full health monitor list is NOT on
 Inicio: it leads Salud (see "Health monitor" below). Little
@@ -179,6 +180,8 @@ trend is the line under it.
     modality after the SAME display rule as `SCORES.timeline`, minutes, RE, parts; a test checks both
     give the same rows); no programmed-session row, never greyed, every row opens its sheet on that day;
     nothing that day → "Nothing logged that day".
+  - **Energy bank card** (`energy.js`): that day's `SCORES.energy.days` entry (level, curve, start,
+    low) and it opens the energy bank page on that day; a day without a value hides the card.
   - **Eat card** (`nutri-day.js` `renderEat`): "Target for <date>" with that day's DETECTED day type
     (`dayInput` + `detectDayType`, the same detection as `HCNutri.targetFor`) and its plan targets for
     the current goal; a day whose type cannot be told (no session, sleep or programmed session) hides
@@ -251,6 +254,17 @@ trend is the line under it.
   the empty state. Stale data (> 3 days) greys a dial; the fill
   animation is off under `prefers-reduced-motion`. Nutrición's kcal ring draws the same full ring (no
   open arc any more, see `docs/nutrition.md`).
+- **Energy bank** (`lib/score/energy.mjs`, baked as `SCORES.energy`; `#home-energy` +
+  `client/energy.js`, between the outlook bar and "Today's activities" in "My day"): OUR intraday
+  0–100 estimate, not a validated physiological measure (formula + constants in
+  `analysis/methodology.md`): it starts at the wake time at the morning's recovery % and drains per
+  awake hour by a baseline, the stress estimate and the heart-rate load (day strain's TRIMP / K),
+  recharging in calm hours. Card = `.sc-card.tn.en`: "ENERGY BANK estimate" header (the generic
+  opener chevron), the latest level big in D-DIN coloured by its third (high ≥ 67 `--good`, middle
+  34–66 `--mid`, low < 34 `--low`, `.de-hi/.de-mid/.de-lo` set `--ds`), the latest hour under it, a
+  stretched SVG curve from wake to that hour (line + soft area), and "From 99 at 06:47 · low 3".
+  Today = the newest day with a value when it is ≤ 3 days old; no bake / no value → the host stays
+  hidden. It opens the energy bank page (`docs/detail-views.md`, key `energy-bank`).
 - **Today's activities** (`lib/score/timeline.mjs`, baked as `SCORES.timeline` even when `hasData` is
   false; `#timeline` + `client/timeline.js`, under the outlook bar in "My day"): per day, last night's
   sleep (`sleep-daily.csv`, dated the wake-up day, with its bed / wake clock `bed` / `wake` when the
