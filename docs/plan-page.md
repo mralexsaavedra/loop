@@ -73,18 +73,27 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   shown. The page opens on the top bar and the dials.
 - **Top bar** (`.topbar`, above the dock, one row at every width, a 3-column grid so the pill stays
   centred): avatar left (`components/Avatar.astro`, 36 px circle in a 44 px target, opens the profile
-  sheet) · a centred date pill "HOY" / "TODAY" (`.date-pill`, uppercase, letter-spaced; the viewer's
-  full date ("mié 30 sept" / "Wed 30 Sep") is the `<time id="today-date">` inside it, written
+  sheet) · a centred date pill "‹ HOY ›" / "‹ TODAY ›" (`.date-pill`, uppercase, letter-spaced; the
+  viewer's full date ("mié 30 sept" / "Wed 30 Sep") is the `<time id="today-date">` inside it, written
   client-side by `web/src/client/today-date.js` with `HC.fmtDate` and read by assistive tech only,
-  nothing time-based baked, builds stay byte-identical) · freshness on the right: status dot + short
+  nothing time-based baked, builds stay byte-identical; day stepping below) · freshness on the right: status dot + short
   freshness (`#fresh-sum`, the Shortcut age; the dot carries the worst source level; tap = the
   per-source popover `#fresh-pop`, right-aligned under the bar, capped at the bar width, z 40 like the
   sync line `#sync-msg` so both overlay the dock (z 30) and the collapsed dial row (z 25) but not the
   detail sheet (z 60)) + icon-only Sync (`#sync-btn`, circular-arrows SVG, `aria-label`, 44 px, class
-  `is-busy` spins it while syncing, no spin under reduced motion). **No day stepping**: the pill has no
-  ‹ › arrows because the page has no global "view another day" (only Registrar's own day navigator and
-  the detail sheet's dates); stepping days is a follow-up for when the dials / day views can show a past
-  day.
+  `is-busy` spins it while syncing, no spin under reduced motion). **Day stepping** (`client/today-date.js`, `window.HCDay`): `#day-prev` ‹ / `#day-next` › (44 px
+  targets overhanging the 32 px pill, line chevrons) step Inicio one day back / forward; › is disabled
+  on the viewer's today, ‹ at the oldest reachable day = the baked history's first day
+  (`SCORES.days.from`, `lib/score/days.mjs`, 14 days), never more than `NAV.day.maxDays` (30) before
+  today. Both ship `hidden` and the script shows them (and adds `.has-steps`) only when a past day is in
+  reach: no data, or data far behind the viewer's clock, leaves the pill as it was (no dead control).
+  On a past day the label (`#day-word`) shows its date ("mar 6 oct", uppercased by CSS → "MAR 6 OCT")
+  and the label button (`#day-lbl`, `aria-live="polite"`, `aria-disabled` on today) returns to today
+  (`aria-label` "<date> · Volver a hoy"). Keyboard: ← / → while focus is inside the pill (focus moves
+  to the label when the focused chevron turns off). The day is in the hash (`#d=YYYY-MM-DD`, see
+  "URL hash" below), replaced — never pushed — and only while Inicio is shown and the sheet is closed.
+  `HCDay` = `{sel() (null = today), iso(), oldest(), set(iso|null), step(±1), hash(), on(fn)}`;
+  listeners run in their own try/catch. What follows the day on Inicio: `docs/home-tab.md`.
 - **Bottom dock** (`.dock`, every width): a floating rounded tab bar (`rgba(var(--nav-rgb), 0.94)`,
   blurred, 24 px radius, max 440 px, centred) with the four tabs as icon + small sentence-case label
   (active white, inactive `--faint` grey), and to its RIGHT, outside the tablist, a separate 56 px

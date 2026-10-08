@@ -6,7 +6,7 @@
  * core (setTab/jump) → today-date → tablas (the Tablas equivalence tables) → nutri-day → food (core → sheet → catalog → log) → settings → progress → adherence → intake → training-today → training-dash → training-activity → health → score → monitor → timeline → profile → nav-actions (the dock's "+") → home-week → home-dash (Inicio's Tonight / My plan / My dashboard; their sheets register before detail runs) → deepdive (the dial deep-dive pages, read by detail) → detail → freshness.
  * Tabs render inside <slot />; the detail sheet (components/DetailSheet.astro) renders in the `overlay`
  * slot, after .wrap, so detail.js can make the page behind it inert (the dock and the "+" popover sit inside .wrap). The top bar
- * is ONE row: avatar · centred "Today" date pill · status dot + short freshness (#fresh-sum, per-source detail in the #fresh-pop
+ * is ONE row: avatar · centred "‹ Today ›" date pill (client/today-date.js steps Inicio through past days) · status dot + short freshness (#fresh-sum, per-source detail in the #fresh-pop
  * popover) + icon-only Sync. #freshness renders hidden; freshness.js shows it only when the page's server answers /api/sync/status
  * (see services/plan-web/README.md).
  */
@@ -62,7 +62,7 @@ import numFontUrl from '../src/fonts/hc-num-bold.woff2?inline';
 import textFontUrl from '../src/fonts/hc-text.woff2?inline';
 import { unicodeRange as textUnicodeRange } from '../src/fonts/text-font-ranges.mjs';
 import { jsonForScript } from '../../lib/serialize.mjs';
-import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB, ANCHOR_TAB } from '../../lib/nav/tabs.mjs';
+import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB, ANCHOR_TAB, DAY_HASH } from '../../lib/nav/tabs.mjs';
 import { hcConst } from '../../lib/stale.mjs';
 // every client script is inlined through slimScript (comments + whitespace out, names and syntax kept)
 import { slimScript } from '../src/slim-script.mjs';
@@ -103,7 +103,7 @@ const dateT = locale === 'es' ? esDate : enDate;
 // --ground-top token, the one copy (web/test/mobile.test.mjs pins the built meta to it)
 const themeColor = /--ground-top:\s*(#[0-9a-fA-F]{6})\s*;/.exec(tokensCss)?.[1];
 if (!themeColor) throw new Error('tokens.css: --ground-top must be a #rrggbb colour (theme-color meta)');
-const navSource = `var NAV = ${jsonForScript({ tabs: TAB_KEYS, sectionTab: SECTION_TAB, detailTab: DETAIL_TAB, viewTab: VIEW_TAB, anchorTab: ANCHOR_TAB })};\nvar HC_CONST = ${jsonForScript(hcConst())};\nvar I18N_SYNC = ${jsonForScript(syncT)};\nvar I18N_DATE = ${jsonForScript(dateT)};`;
+const navSource = `var NAV = ${jsonForScript({ tabs: TAB_KEYS, sectionTab: SECTION_TAB, detailTab: DETAIL_TAB, viewTab: VIEW_TAB, anchorTab: ANCHOR_TAB, day: DAY_HASH })};\nvar HC_CONST = ${jsonForScript(hcConst())};\nvar I18N_SYNC = ${jsonForScript(syncT)};\nvar I18N_DATE = ${jsonForScript(dateT)};`;
 // unicode-range = exactly the subset's glyphs, so letters in a --num element fall back to --sans
 const numFontFace = `@font-face{font-family:"HC Num";src:url(${numFontUrl}) format("woff2");font-weight:100 900;font-style:normal;font-display:swap;unicode-range:U+20,U+25,U+2B-2E,U+30-39,U+68,U+D7}`;
 const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) format("woff2");font-weight:400 800;font-style:normal;font-display:swap;unicode-range:${textUnicodeRange()}}`;
@@ -127,12 +127,18 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
       <h1 class="sr-only">{page.h1 || title}</h1>
 
       {/* top bar: the avatar button that opens the profile sheet (components/Avatar.astro,
-          client/profile.js) · a centred "Today" date pill (the viewer's full date is the <time> inside,
-          filled by client/today-date.js, nothing baked; no day stepping: there is no global "view
-          another day" yet) · the freshness line / Sync on the right */}
+          client/profile.js) · a centred "‹ Today ›" date pill (the viewer's full date is the <time>
+          inside, filled by client/today-date.js, nothing baked; the chevrons step Inicio through the
+          baked past days and ship hidden: the script shows them only when a past day is in reach; a
+          past day's date replaces "Today" and the label then returns to today) · the freshness line /
+          Sync on the right */}
       <div class="topbar">
         {profile && <Avatar profile={profile} locale={locale} />}
-        <div class="date-pill"><span class="date-pill-lbl" aria-hidden="true">{nav.today}</span><time id="today-date" class="today-date"></time></div>
+        <div class="date-pill" id="date-pill" role="group" aria-label={nav.day.group}>
+          <button type="button" class="day-step" id="day-prev" aria-label={nav.day.prev} hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6" /></svg></button>
+          <button type="button" class="day-lbl" id="day-lbl" aria-disabled="true" aria-live="polite" data-back={nav.day.back}><span class="date-pill-lbl" id="day-word" aria-hidden="true">{nav.today}</span><time id="today-date" class="today-date"></time></button>
+          <button type="button" class="day-step" id="day-next" aria-label={nav.day.next} hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6" /></svg></button>
+        </div>
         <div class="fresh" id="freshness" role="group" aria-label={syncT.ariaLabel} hidden>
           <button type="button" class="fresh-sum" id="fresh-sum" aria-expanded="false" aria-controls="fresh-pop"><span class="fresh-dot" aria-hidden="true"></span><span class="fresh-short" id="fresh-short"></span></button>
           <button type="button" class="fresh-btn" id="sync-btn" aria-label={syncT.button} title={syncT.button}><svg class="fresh-ico" viewBox="0 0 24 24" aria-hidden="true" set:html={SYNC_ICON} /></button>
