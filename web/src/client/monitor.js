@@ -16,9 +16,12 @@
  * recent data"), whatever the other rows say. One row throwing never blanks the block: it falls back
  * to its empty state. A tap on any row opens its detail sheet (HC.detailAttrs -> client/detail.js).
  *
+ * Tile 2 is the stress monitor (SCORES.stress, lib/score/stress.mjs: a heart-rate-only estimate per
+ * waking hour) when the day has a value, else the HRV signal.
+ *
  * Day stepping (the top bar's "‹ TODAY ›", window.HCDay): on a PAST day the two Inicio tiles show that
  * day's summary (SCORES.days, lib/score/days.mjs: the cards fresh ON that day, scored with the inputs
- * cut at it) and that day's HRV card, which opens its sheet on that day. The Salud list stays the
+ * cut at it) and that day's stress value or HRV card, which opens its sheet on that day. The Salud list stays the
  * latest. Today renders exactly as before.
  */
 (function () {
@@ -117,7 +120,35 @@
     return '<button type="button" class="hmt hmt-sum" onclick="jump(\'monitor\')">' + lbl(T.heading) +
       '<span class="hmt-body">' + chip(n) + '<span class="hmt-sub">' + esc(format(T.tile.metrics, { n: n.inR, total: total })) + '</span></span></button>';
   }
-  // tile 2: HRV, a real baked value (no invented stress score); left out without a fresh reading.
+  // tile 2: the stress monitor (lib/score/stress.mjs, SCORES.stress: a heart-rate-only ESTIMATE per
+  // waking hour) when the day has a value: the latest scored hour's value chip, its band word in the
+  // band colour, the hour (+ the date when it is not today); it opens the stress page. `day` = the
+  // past day shown (null = today: the newest day with a value, when <= STALE_DAYS old)
+  function stressDay(day) {
+    var St = S.stress, out = null;
+    if (!St || !St.ok || !Array.isArray(St.days)) return null;
+    St.days.forEach(function (x) {
+      if (!x || !x.now || !isoDate(x.date)) return;
+      if (day ? x.date === day : !out || x.date > out.date) out = x;
+    });
+    if (out && !day && !(daysOld(out.date) <= STALE_DAYS)) return null;
+    return out;
+  }
+  function stressTile(d, day) {
+    var ST = T.stress, n = d.now, band = ST.bands[n.band] ? n.band : 'low';
+    var time = String(n.t).slice(0, 2) + ':00';
+    var when = !day && daysOld(d.date) !== 0 ? HC.fmtDate(d.date) + ' · ' + time : time;
+    return '<div class="hmt hmt-stress hmt-sb-' + esc(band) + '"' + (day ? HC.detailAttrs('stress', day) : linkAttrs('stress')) +
+      ' aria-label="' + esc(format(ST.aria, { value: num(n.v, 1), band: ST.bands[band], time: when })) + '">' + lbl(ST.label) +
+      '<span class="hmt-body"><span class="hmt-srow"><span class="hmt-sv">' + esc(num(n.v, 1)) + '</span>' +
+      '<span class="hmt-band">' + esc(ST.bands[band]) + '</span></span>' +
+      '<span class="hmt-sub">' + esc(when) + '</span></span></div><!--/hmt-->';
+  }
+  function secondTile(day, hrv) {
+    var d = T.stress ? stressDay(day) : null;
+    return d ? stressTile(d, day) : hrvTile(hrv, day);
+  }
+  // HRV: a real baked value, the fallback of tile 2 without a stress value; left out without a fresh reading.
   // `day` = the past day shown (null = today): its date line and the sheet's opening day
   function hrvTile(c, day) {
     if (!c) return '';
@@ -144,7 +175,7 @@
     var day = DAY && typeof DAY.sel === 'function' ? DAY.sel() || null : null;
     try {
       var p = day ? pastEntry(day) : null;
-      var t2 = p ? hrvTile(p.hrv, day) : hrvTile(todayHrv(), null);
+      var t2 = p ? secondTile(day, p.hrv) : secondTile(null, todayHrv());
       var t1 = p ? sumTile(p, p.total) : sumTile(counts(), M.cards.length);
       tiles.innerHTML = '<div class="hm-tiles' + (t2 ? '' : ' hm-tiles-one') + '" role="group" aria-label="' + esc(T.tile.ariaLabel) + '">' + t1 + t2 + '</div>';
     } catch (e) {
