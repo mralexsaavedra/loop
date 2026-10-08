@@ -302,6 +302,21 @@ test('example build: the Salud recovery card stays stacked at every width (headl
   const map = ruleDeclarationMap(parseCssRules(css)); // selectors in css-scan's canonical form (`a>b`)
   assert.ok(![...map.keys()].some((k) => k.endsWith('|||.rec-layout|||grid-template-columns')), 'no column template on .rec-layout at any width');
   assert.equal(String(map.get('|||.rec-contrib|||grid-template-columns')).replace(/\s+/g, ''), 'repeat(2,minmax(0,1fr))', 'the contributors are a 2 × 2 block');
+  // the "Last 14 days" fold is a quiet disclosure line, never tablas.css's bare details card (an empty box)
+  for (const [p, v] of [['background', 'none'], ['border', '0'], ['box-shadow', 'none']]) assert.equal(map.get('|||details.rec-raw|||' + p), v, 'details.rec-raw ' + p);
+  assert.equal(map.get('|||details.rec-raw>summary|||padding'), '0');
+});
+
+test('example build: Salud headers — the page ⓘ sits beside the centred title, the monitor chip right after its title', async () => {
+  const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  const map = ruleDeclarationMap(parseCssRules(css));
+  assert.equal(String(map.get('|||.hs-top|||grid-template-columns')).replace(/\s+/g, ''), 'minmax(0,1fr)autominmax(0,1fr)');
+  assert.equal(map.get('|||.hs-top>.hs-title|||grid-column'), '2');
+  assert.ok(![...map.keys()].some((k) => k.startsWith('|||.hs-top .hs-i|||position')), 'no longer pinned absolutely at the far right');
+  assert.equal(map.get('|||.hm .hs-lbl|||flex'), '0 1 auto', 'the monitor title does not grow: the chip follows it');
+  assert.equal(map.get('|||.hm .hs-head>.hs-i|||margin-left'), 'auto', 'the ⓘ closes the row');
 });
 
 test('example build: the shared client helpers (util.js) are inlined FIRST, right after the baked HC_CONST, before every other script', () => {

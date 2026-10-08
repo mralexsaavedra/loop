@@ -90,13 +90,24 @@
 
 /* Salud header: centred UPPERCASE title, ⓘ on the right; a soft green glow at the top of the tab
    (behind the content at the top of the page, only while the Salud panel is shown) */
+/* page title row: the title centred, its ⓘ right BESIDE it (a 1fr | title | 1fr grid), so it never
+   sits at the far right stacked over the first section's own ⓘ */
 .hs-top {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: center;
   min-height: 44px;
   margin: var(--sp-2) 0 var(--sp-4);
+}
+.hs-top > .hs-title {
+  grid-column: 2;
+}
+.hs-top > .hs-i,
+.hs-top > .hs-i-slot {
+  grid-column: 3;
+  justify-self: start;
+  display: flex;
 }
 .hs-title {
   margin: 0;
@@ -107,9 +118,14 @@
   text-transform: uppercase;
 }
 .hs-top .hs-i {
-  position: absolute;
-  right: 0;
   margin: 0;
+}
+/* the health monitor's header: the "n out of range" chip right after the title, the ⓘ at the end */
+.hm .hs-lbl {
+  flex: 0 1 auto;
+}
+.hm .hs-head > .hs-i {
+  margin-left: auto;
 }
 .hs-glow {
   position: absolute;

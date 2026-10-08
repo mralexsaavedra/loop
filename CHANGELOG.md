@@ -5,6 +5,13 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Salud: no repeated signals, tidier headers
+
+- Recovery no longer repeats resting HR / HRV / respiratory rate / wrist temp under its card when the
+  health monitor at the top already lists them (a signal the monitor lacks keeps its row). The raw
+  "Last 14 days" fold is a quiet disclosure line instead of an empty box; the page ⓘ sits beside the
+  title and the monitor's "n out of range" chip right after its title.
+
 ## 2026-10-08 — Desktop: one centred 960 px column
 
 - Wide screens (>= 900 px) are the phone's single column, wider: `--content-max` 1160 → 960 px, and the
