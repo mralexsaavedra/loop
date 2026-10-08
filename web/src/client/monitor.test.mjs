@@ -191,20 +191,21 @@ test('tile 1 = the monitor summary: out-of-range count chip, "n/5 metrics" in ra
   assert.match(html, /<button type="button" class="hmt hmt-sum" onclick="jump\('monitor'\)">/);
   const sum = html.match(/<button type="button" class="hmt hmt-sum"[\s\S]*?<\/button>/)[0];
   assert.ok(sum.includes(`<span class="hmt-lbl">${enT.monitor.heading}<span class="hmt-chev" aria-hidden="true">›</span></span>`));
-  assert.match(sum, /<span class="hmt-chip hmt-out">/);
+  assert.match(sum, /<span class="hmt-srow"><span class="hmt-sq hmt-out" aria-hidden="true">!<\/span><span class="hmt-body"><span class="hmt-chip hmt-out">/, 'an orange "!" square left of the status');
   assert.ok(sum.includes(enT.monitor.tile.out.replace('{n}', '2')));
   assert.ok(sum.includes(enT.monitor.tile.metrics.replace('{n}', '1').replace('{total}', '5')));
   assert.doesNotMatch(html, /NaN|undefined|<script|src=|href=/);
 });
 
-test('tile 1: every fresh signal in range -> the teal "within range" chip with a check; nothing fresh -> "no data"', () => {
+test('tile 1: every fresh signal in range -> a teal check square + "within range"; nothing fresh -> "no data", no square', () => {
   const ok = monitorFromInputs({ rhr: series({ base: 50, amp: 1, last: 50 }), hrv: series({ base: 60, amp: 2, last: 60 }) });
   const html = tilesOf(ok);
-  assert.match(html, /<span class="hmt-chip hmt-in"><svg class="hmt-ico"[^>]*aria-hidden="true">/);
+  assert.match(html, /<span class="hmt-sq hmt-in" aria-hidden="true"><svg class="hmt-ico"[^>]*aria-hidden="true">[\s\S]*?<\/svg><\/span><span class="hmt-body"><span class="hmt-chip hmt-in">Within range/, 'a teal check square left of the status, no second check in the chip');
   assert.ok(html.includes(enT.monitor.tile.inRange));
   assert.ok(html.includes(enT.monitor.tile.metrics.replace('{n}', '2').replace('{total}', '5')));
   const none = tilesOf(monitorFromInputs({}));
   assert.match(none, /hmt-chip hmt-none/);
+  assert.doesNotMatch(none, /hmt-sq/, 'no status square without fresh data');
   assert.ok(none.includes(enT.monitor.tile.none));
   // a stale reading never counts as in or out of range
   const later = tilesOf(monitor(), { now: addDays(ASOF, 1) }); // sleep is 4 days old now

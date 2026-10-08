@@ -620,13 +620,12 @@ test('sleep dial: sleep performance % in the ring (asleep / need), hours + need 
   assert.match(h, /<b class="dial-num">\d,\d<small>h<\/small><\/b>/);
 });
 
-test('load dial: one visible modality (default = first ungated), switch for all three, gated greyed with the existing copy', () => {
+test('load dial: one visible modality (default = first ungated), no pills on Inicio (they are in the load deep-dive), gated greyed with the existing copy', () => {
   const s = fixtureScores();
   const html = withDials(s);
   const D = buildDials(s, HEALTH).load;
-  assert.equal(count(html, 'class="dial-mod"'), 3, 'gym / run / bike switch');
-  assert.match(html, new RegExp(`class="dial-mod" data-dmod="${D.defaultKey}" aria-pressed="true"`));
-  assert.equal(count(html, 'aria-pressed="true"'), 1);
+  assert.doesNotMatch(html, /dial-switch|dial-mod|aria-pressed/, 'no gym / run / bike pills under the dials');
+  assert.equal(count(html, '<figure class="dial dial-load'), D.modalities.length, 'every modality keeps its (hidden) dial for scMod');
   for (const m of D.modalities) {
     const vis = new RegExp(`<figure class="dial dial-load[^"]*" data-dmod="${m.key}"${m.key === D.defaultKey ? '>' : ' hidden>'}`);
     assert.match(html, vis, m.key);
@@ -696,8 +695,9 @@ function withToday(s, reByKey) {
   }
   return s;
 }
-const pressedMod = (html) => (html.match(/class="dial-mod" data-dmod="([a-z]+)" aria-pressed="true"/) || [])[1];
 const visibleFig = (html) => (html.match(/<figure class="dial dial-load[^"]*" data-dmod="([a-z]+)"[^>]*?(?<!hidden)>/) || [])[1];
+// the modality the load dial opens on = its one visible figure (the pills moved to the load deep-dive)
+const pressedMod = visibleFig;
 
 test('load dial default: the modality with a session on the viewer\'s today, not the first ungated one', () => {
   const ok = buildDials(fixtureScores(), HEALTH).load.modalities.filter((m) => m.state === 'ok').map((m) => m.key);
@@ -705,11 +705,10 @@ test('load dial default: the modality with a session on the viewer\'s today, not
   const [first, second] = ok;
   const s = withToday(fixtureScores(), { [second]: 94 });
   const html = withDials(s);
-  assert.equal(pressedMod(html), second, 'switch starts on today\'s modality');
   assert.equal(visibleFig(html), second, 'its dial is the visible one');
   assert.ok(figOf(html, second).includes('<b class="dial-num">94<small>RE</small></b>'));
-  assert.match(html, new RegExp(`<figure class="dial dial-load[^"]*" data-dmod="${first}" hidden`), 'the first ungated one is behind the switch');
-  assert.equal(count(html, 'aria-pressed="true"'), 1);
+  assert.match(html, new RegExp(`<figure class="dial dial-load[^"]*" data-dmod="${first}" hidden`), 'the first ungated one is hidden');
+  assert.equal(count(html.match(/<figure class="dial dial-load[^>]*>/g).join(''), ' hidden>'), 2, 'one visible load dial');
 });
 
 test('load dial default: several sessions today -> the one with the highest RE; none today -> the first ungated', () => {
@@ -800,27 +799,20 @@ test('dials: a null asOf / date never produces NaN/undefined text', () => {
   assert.doesNotMatch(render(s, { dials }), /NaN|undefined|null/);
 });
 
-test('scMod: the switch shows only the chosen modality and moves aria-pressed', () => {
-  const el = (key, isBtn) => ({
-    key, hidden: false, pressed: null,
-    classList: { contains: (c) => isBtn && c === 'dial-mod' },
-    getAttribute: (a) => (a === 'data-dmod' ? key : null),
-    setAttribute(a, v) { if (a === 'aria-pressed') this.pressed = v; },
-  });
-  const btns = ['gym', 'run', 'bike'].map((k) => el(k, true));
-  const panes = ['gym', 'run', 'bike'].flatMap((k) => [el(k, false), el(k, false)]);
-  const root = { querySelectorAll: () => [...btns, ...panes] };
-  btns.forEach((b) => { b.closest = () => root; });
-  const minis = ['gym', 'run', 'bike'].map((k) => el(k, false));
-  const mini = { querySelectorAll: () => minis };
-  const ctx = { document: { getElementById: (id) => (id === 'home-mini' ? mini : null) } };
+test('scMod: shows only the chosen modality\'s load dial on Inicio and in the collapsed row (the pills live in the load deep-dive)', () => {
+  const el = (key) => ({ key, hidden: false, getAttribute: (a) => (a === 'data-dmod' ? key : null) });
+  const panes = ['gym', 'run', 'bike'].map((k) => el(k));
+  const minis = ['gym', 'run', 'bike'].map((k) => el(k));
+  const hosts = { 'home-dials': { querySelectorAll: () => panes }, 'home-mini': { querySelectorAll: () => minis } };
+  const ctx = { document: { getElementById: (id) => hosts[id] || null } };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
-  ctx.scMod('bike', btns[2]);
-  assert.deepEqual(btns.map((b) => b.pressed), ['false', 'false', 'true']);
-  assert.deepEqual(panes.map((p) => p.hidden), [true, true, true, true, false, false]);
-  assert.deepEqual(minis.map((p) => p.hidden), [true, true, false], 'the collapsed row follows the switch');
+  ctx.scMod('bike');
+  assert.deepEqual(panes.map((p) => p.hidden), [true, true, false]);
+  assert.deepEqual(minis.map((p) => p.hidden), [true, true, false], 'the collapsed row follows');
+  ctx.scMod('gym');
+  assert.deepEqual(panes.map((p) => p.hidden), [false, true, true]);
 });
 
 test('load: sessions without effort data in the acute window are noted on the card', () => {
@@ -984,9 +976,9 @@ test('strain dial: day stepping shows that day\'s strain; a day the data does no
   assert.match(dialOf(none.innerHTML, 'dial-load dial-strain dial-off'), /<span class="dial-word">No data<\/span>/);
 });
 
-test('strain dial: not calibrated (strain ok false / absent) -> the load dial and its pills, unchanged', () => {
+test('strain dial: not calibrated (strain ok false / absent) -> the per-modality load dials (their pills are in the load deep-dive)', () => {
   const s = { ...fixtureScores(), strain: { ok: false, reason: 'fewDays', asOf: ASOF, n: 3 } };
   const h = render(s, { dials: buildDials(s, HEALTH) });
-  assert.doesNotMatch(h, /dial-strain/);
-  assert.match(h, /dial-switch/);
+  assert.doesNotMatch(h, /dial-strain|dial-switch/);
+  assert.match(h, /<figure class="dial dial-load[^"]*" data-dmod="/);
 });

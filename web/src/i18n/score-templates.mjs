@@ -236,7 +236,6 @@ export const en = {
     },
     load: {
       label: 'Load',
-      switchLabel: 'Load modality',
       scale: 'Half the ring = your typical training day (median of the last 6 weeks); a full ring = twice it',
       gated: 'Building',
       rest: 'No session yet',
@@ -543,7 +542,6 @@ export const es = {
     },
     load: {
       label: 'Carga',
-      switchLabel: 'Modalidad de carga',
       scale: 'Medio anillo = tu día típico de entreno (mediana de las últimas 6 semanas); anillo completo = el doble',
       gated: 'En formación',
       rest: 'Sin sesión aún',

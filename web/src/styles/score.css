@@ -407,14 +407,13 @@
 .dial-off .dial-lbl {
   color: var(--muted);
 }
-/* compact gym / run / bike pills, right-aligned under the load dial */
-.dial-foot {
-  margin-top: var(--sp-3);
-}
+/* compact gym / run / bike pills, centred under the contributors of a load deep-dive (deepdive.js
+   modSwitch) */
 .dial-switch {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: center;
+  margin: var(--sp-5) 0;
   align-items: center;
   gap: var(--sp-2);
   /* a wrapped row sits past both 7px hit-area extensions (see .dial-mod::before) */
@@ -693,8 +692,8 @@
   flex-direction: column;
   justify-content: space-between;
   gap: var(--sp-4);
-  min-height: 90px;
-  padding: var(--sp-5);
+  min-height: 96px;
+  padding: var(--sp-6) var(--sp-5);
   border: 0;
   border-radius: var(--r-sm);
   background: var(--card-bg);
@@ -760,6 +759,20 @@
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+/* the summary tile's square status icon: ✓ teal / ! orange on a 16 % tint of the same colour */
+.hmt-sq {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  font-weight: 800;
+}
+.hmt-sq .hmt-ico {
+  background: none;
 }
 .hmt-sub {
   font-size: var(--fs-2xs);

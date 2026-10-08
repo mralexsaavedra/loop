@@ -24,16 +24,16 @@
  * (data-date), are never greyed as stale, and the advice (it reads the current 7-day trend) is hidden.
  * Today goes through exactly the code it always did (VIEW = null), so its markup is unchanged.
  */
-// Load dial modality switch: shows the chosen modality's dial + caption, hides the others.
-// The collapsed dial row (#home-mini) carries the same data-dmod items, so it follows the switch.
-function scMod(key, btn) {
-  var root = btn && btn.closest ? btn.closest('.sc-dials') : null;
-  if (!root) return;
-  [root, document.getElementById('home-mini')].forEach(function (host) {
-    if (!host) return;
+// Load dial modality switch: shows the chosen modality's dial on Inicio, hides the others. The gym /
+// run / bike pills live in the load deep-dive (client/deepdive.js modSwitch: each opens that
+// modality's page and calls scMod), not under the dials; the collapsed dial row (#home-mini) carries
+// the same data-dmod items, so it follows too. A missing host is skipped.
+function scMod(key) {
+  ['home-dials', 'home-advice', 'home-mini'].forEach(function (id) {
+    var host = document.getElementById(id);
+    if (!host || !host.querySelectorAll) return;
     host.querySelectorAll('[data-dmod]').forEach(function (el) {
-      if (el.classList.contains('dial-mod')) el.setAttribute('aria-pressed', el === btn ? 'true' : 'false');
-      else el.hidden = el.getAttribute('data-dmod') !== key;
+      el.hidden = el.getAttribute('data-dmod') !== key;
     });
   });
 }
@@ -393,7 +393,7 @@ function scMod(key, btn) {
     return dialFig('dial-rec dial-band-' + esc(d.band), dialStale(d.asOf), '', aria,
       dialSvg({ fill: d.fill, mid: d.mid }), numCentre(v, T.recovery.unit), rt.label);
   }
-  // The modality the switch opens on, for the VIEWER's today (never baked): the modality with a
+  // The modality the load dial opens on, for the VIEWER's today (never baked): the modality with a
   // session today, gated or not (a gated one opens in its gated state) — highest RE first, ties by
   // modality order, a session without RE still beats nothing — else the baked default (the first
   // ungated one).
@@ -447,19 +447,7 @@ function scMod(key, btn) {
     });
     return figs.join('');
   }
-  // Compact gym / run / bike pills under the dials (right-aligned under the load dial). They stay on
-  // Inicio rather than in the load sheet: the sheet is one modality's history, and the choice changes
-  // which ring Inicio shows, so it belongs next to that ring. The day vs typical caption, the scale
-  // and acute/chronic context moved to the load detail sheet (client/detail.js loadContext).
-  function loadSwitch(d, dt) {
-    var open = openKey(d);
-    var btns = d.modalities.map(function (m) {
-      return '<button type="button" class="dial-mod" data-dmod="' + attr(m.key) + '" aria-pressed="' + (m.key === open ? 'true' : 'false') +
-        '" onclick="scMod(\'' + attr(m.key) + '\',this)">' + esc(T.load.modalities[m.key] || m.key) + '</button>';
-    }).join('');
-    return '<div class="dial-foot"><div class="dial-switch" role="group" aria-label="' + attr(dt.load.switchLabel) + '">' + btns + '</div></div>';
-  }
-  // the ONE line that stays under the dials besides the switch: the newest data is too old
+  // the ONE line that stays under the dials: the newest data is too old
   function staleLine() {
     if (VIEW) return '';
     var ages = [D.sleep && D.sleep.state === 'ok' ? D.sleep.date : null, D.recovery ? D.recovery.asOf : null, D.strain ? D.strain.asOf : D.load ? D.load.asOf : null]
@@ -498,7 +486,7 @@ function scMod(key, btn) {
     var third = hasStrain ? strainDialHtml(D.strain, dt)
       : hasLoad ? loadDials(D.load, dt) : dialFig('dial-load dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.load.label);
     return '<div class="sc-card sc-dials" role="group" aria-label="' + attr(dt.ariaLabel) + '"><div class="dials">' + first + third +
-      '</div>' + (hasLoad ? loadSwitch(D.load, dt) : '') + staleLine() + caveatLines(dt, hasLoad) + '</div>';
+      '</div>' + staleLine() + caveatLines(dt, hasLoad) + '</div>';
   }
 
   // #home-mini (fixed under the top edge) turns on while the dials are scrolled ABOVE the viewport;

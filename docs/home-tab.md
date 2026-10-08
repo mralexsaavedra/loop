@@ -34,7 +34,7 @@ its grey `--track` in full even with no value (the 45 % dimming of an empty ring
 dial only). Every `dialFig` call also queues
 its mini item from the SAME svg string, colour class, label and detail opener (`HC.detailAttrs`), so
 nothing is recomputed and a tap opens the same detail as the dial; the load items carry `data-dmod`,
-so the modality switch (`scMod`) moves them too. Off it is `visibility: hidden` (out of the tab order
+so the modality pills of the load deep-dive (`scMod`) move them too. Off it is `visibility: hidden` (out of the tab order
 and the accessibility tree); the slide / fade is dropped under `prefers-reduced-motion`; with no data
 or without IntersectionObserver it stays off.
 
@@ -117,10 +117,10 @@ trend is the line under it.
   without RE), and `last` = the newest day with RE > 0. The VIEWER's today is picked client-side from
   `recent`, so nothing today-relative is baked.
 - **Monitor tiles** (`#home-tiles`, `client/monitor.js`, from the SAME `SCORES.monitor` cards — no
-  new metric): two ~90 px tiles under the dials. Tile 1 "HEALTH MONITOR ›" = a status chip — "N out of
-  range" (`--down`) when any fresh card is High / Low, else a check + "Within range" (`--up`) when at
-  least one fresh card is Normal, else "No data" — and "n/5 metrics" (fresh cards in range / all
-  cards); a card counts only when its own date is ≤ 3 days old. It is a button calling
+  new metric): two 96 px tiles under the dials. Tile 1 "HEALTH MONITOR ›" = a square status icon (26 px,
+  a 16 % tint of its colour: "!" `--down` when any fresh card is High / Low, a check `--up` when at least
+  one fresh card is Normal, none without fresh data) left of a status chip — "N out of range", else
+  "Within range", else "No data" — over "n/5 metrics" (fresh cards in range / all cards); a card counts only when its own date is ≤ 3 days old. It is a button calling
   `jump('monitor')` (switches to Salud, scrolls to the monitor list at its top; `#monitor` deep-links
   there too, `ANCHOR_TAB` in lib/nav/tabs.mjs: core.js shows Salud and keeps the hash). Tile 2 =
   **STRESS MONITOR ›** when a day has a stress value (`SCORES.stress`, `lib/score/stress.mjs`: a
@@ -168,7 +168,7 @@ trend is the line under it.
   stepping (unit-tested; 390 px screenshot diff in the PR).
   - **Dials + collapsed row** (`score.js` `renderDay`): sleep + recovery = that day's `DIALS.days`
     entry (a day without its own night reads "No data", never another day's value), load = the
-    modality's baked `recent` session day (the switch opens on the modality trained THAT day; "No
+    modality's baked `recent` session day (the dial opens on the modality trained THAT day; "No
     session" instead of "No session yet"; a gated modality stays gated, the gate is today's), the
     arias name the date instead of "last night" / "today"; never greyed as stale (it is the day you
     asked for), no stale line; every dial and mini ring opens its deep-dive ON that day (`data-date`).
@@ -238,9 +238,11 @@ trend is the line under it.
   there are NO modality pills — per-modality Relative Effort stays in Entreno's load cards and the
   `load-<m>` deep-dives (linked from the strain page). The collapsed row follows (three rings). Without
   a calibrated strain (no `hr-hourly.csv`, no max HR, under 14 full days of all-day heart rate) the
-  third dial is the load dial below, unchanged. Load (fallback): ONE dial with a gym/run/bike
-  switch — compact pills right-aligned under the load dial (kept on Inicio rather than in the load
-  sheet: the sheet is one modality's history, while the switch decides which ring Inicio shows) — that opens
+  third dial is the load dial below, unchanged. Load (fallback): ONE dial per modality, one shown, with
+  NO pills under the dials (as the reference): the gym / run / bike pills live in the `load-<m>`
+  deep-dive, between its contributors and the insight card (`deepdive.js` `modSwitch`, the page's modality pressed, only with two
+  or more load series); a pill opens that modality's page and calls `scMod(key)`, which shows that
+  modality's dial on Inicio and in the collapsed row. The dial opens
   (client-side, from the viewer's today) on the modality with a session today, GATED OR NOT (a gated
   one opens in its greyed gated state, no number; gated modalities bake their `days` without
   geometry) — highest RE first, ties by modality order (gym, run, bike), a session without RE still
