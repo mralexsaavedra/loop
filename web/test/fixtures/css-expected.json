@@ -17,6 +17,8 @@
   "(min-width:900px)|||.day-panel|||display": "grid",
   "(min-width:900px)|||.day-panel|||gap": "var(--sp-5)",
   "(min-width:900px)|||.day-panel|||grid-template-columns": "repeat(auto-fit, minmax(300px, 1fr))",
+  "(min-width:900px)|||.db-list|||display": "grid",
+  "(min-width:900px)|||.db-list|||grid-template-columns": "repeat(auto-fill, minmax(min(100%, 340px), 1fr))",
   "(min-width:900px)|||.dial-num|||font-size": "34px",
   "(min-width:900px)|||.dial-word|||font-size": "11px",
   "(min-width:900px)|||.dt-panel|||border": "1px solid var(--line)",
