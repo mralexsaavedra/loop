@@ -147,6 +147,46 @@ trend is the line under it.
   previous 42 nights — the recovery input `sleepCons`; no documented minutes → % mapping exists, so no
   %); `stages` (REM / deep / core / unspecified / awake / in bed hours), `shares` (REM / deep / core %
   of asleep) and `restorative` (REM + deep hours) only on a staged night.
+- **Day stepping** (the top bar's "‹ HOY ›", `client/today-date.js` `window.HCDay`, see
+  `docs/plan-page.md` → Top bar): Inicio can show a PAST day (`#d=YYYY-MM-DD`). The blocks that follow
+  it re-render on every change (`HCDay.on`); everything else keeps its own scope. TODAY goes through
+  the unchanged code path (no selected day), so today's markup is byte-identical to a page without day
+  stepping (unit-tested; 390 px screenshot diff in the PR).
+  - **Dials + collapsed row** (`score.js` `renderDay`): sleep + recovery = that day's `DIALS.days`
+    entry (a day without its own night reads "No data", never another day's value), load = the
+    modality's baked `recent` session day (the switch opens on the modality trained THAT day; "No
+    session" instead of "No session yet"; a gated modality stays gated, the gate is today's), the
+    arias name the date instead of "last night" / "today"; never greyed as stale (it is the day you
+    asked for), no stale line; every dial and mini ring opens its deep-dive ON that day (`data-date`).
+    The advice outlook bar is hidden (it reads the current 7-day trend).
+  - **Monitor tiles** (`monitor.js` `renderTiles`): that day's `SCORES.days` summary (in / out of
+    range among the cards fresh ON that day, out of `total`) and its HRV card (dated when its reading is
+    older than the day; it opens the HRV sheet on that day); no entry → "No data". The Salud list stays
+    the latest.
+  - **"My day"** (`timeline.js` `pastHtml`): "Activities · <date>" with that day's night
+    (`DETAIL.metrics.sleep`: hours, bed / wake clock) and workouts (`DETAIL.sessions`: one per date +
+    modality after the SAME display rule as `SCORES.timeline`, minutes, RE, parts; a test checks both
+    give the same rows); no programmed-session row, never greyed, every row opens its sheet on that day;
+    nothing that day → "Nothing logged that day".
+  - **Eat card** (`nutri-day.js` `renderEat`): "Target for <date>" with that day's DETECTED day type
+    (`dayInput` + `detectDayType`, the same detection as `HCNutri.targetFor`) and its plan targets for
+    the current goal; a day whose type cannot be told (no session, sleep or programmed session) hides
+    the card.
+  - **Tonight** is hidden (it is about the coming night). **My plan** stays the viewer's week and **My
+    dashboard** the latest values, whatever day is shown.
+- **Day history** (`lib/score/days.mjs`, baked as `SCORES.days` = `{from, to, days}`, null without
+  overnight data; behind the top bar's day stepping): for each of the last `DAY_HISTORY_DAYS` (= the
+  load dial's `RECENT_DAYS`, 14) days ending at the newest overnight date, the inputs are CUT at that
+  day and the same scorers run (`recoveryFromInputs`, `monitorFromInputs`), so the newest entry equals
+  today's bake and an old day is scored against the baseline and 90-day % window it had then. Per day:
+  `rec` = the night scored that morning only when it IS that day (`{value, band, sleep, pct?,
+  pctBand?}`; `'gated'` while recovery was gated; null = no complete night that day — never an older
+  night under its date), `sleep` = that day's asleep hours (the recovery sleep-duration input, the
+  number the sleep dial uses; null while gated), `monitor` = the summary tile on that day (`inR` /
+  `out` among the cards fresh on that day — own date ≤ `STALE_DAYS` before it — `total`, and the HRV
+  card `{value, dec, status, tone, date}` when fresh). `buildDials` turns each entry into
+  `DIALS.days[i]` = `{date, sleep, recovery}` in today's dial shapes (always mode `today`; no trend
+  fallback). Load needs no new bake (its `recent` days). ~7 KB on the example page.
 - **Dials** (top of the tab: Sleep / Recovery / Load) only VISUALISE baked values — no new metric (the
   recovery % is a rank of the same composite). `web/src/view/dial.mjs` (`buildDials(scores, health)`, unit-tested, baked as `DIALS`)
   pre-computes the ring geometry; `score.js` only formats numbers and joins SVG strings. Layout: three

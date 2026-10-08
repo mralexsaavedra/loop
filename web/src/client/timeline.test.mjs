@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { timelineFromInputs } from '../../../lib/score/timeline.mjs';
+import { detailFromInputs } from '../../../lib/detail/detail.mjs';
 import { es as esT, en as enT } from '../i18n/score-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 
@@ -20,7 +21,7 @@ const TL = timelineFromInputs(
   [{ date: '2026-09-28', value: 7.1 }, { date: '2026-09-29', value: 6.86 }],
 );
 
-function render(timeline, { locale = 'en', now = ASOF, at, healthNav = false, entrenoNav = false, T, noLocale = false, detail = false, program = null } = {}) {
+function render(timeline, { locale = 'en', now = ASOF, at, healthNav = false, entrenoNav = false, T, noLocale = false, detail = false, program = null, day = null } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
   const stamp = at || now + 'T12:00:00';
@@ -34,7 +35,8 @@ function render(timeline, { locale = 'en', now = ASOF, at, healthNav = false, en
     SCORES: timeline === undefined ? undefined : { timeline }, I18N_SCORE: T || (locale === 'es' ? esT : enT), ...(noLocale ? {} : { LOCALE: locale }),
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
-  if (detail) ctx.DETAIL = { metrics: {} };
+  if (detail) ctx.DETAIL = detail === true ? { metrics: {} } : detail;
+  if (day) ctx.HCDay = day;
   ctx.window = program ? { HCProgram: program } : {};
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -175,4 +177,49 @@ test('the programmed row keeps its long focus whole for assistive tech (aria-lab
   const html = render(TL, { program: { date: ASOF, kind: 'gym', focus }, detail: true });
   const row = html.match(/<li class="tl-row tl-prog[^>]*>/)[0];
   assert.ok(row.includes(` aria-label="${enT.timeline.programmedChip}: ${focus} · ${enT.timeline.programmed}"`), row);
+});
+
+/* ---- day stepping (the top bar's ‹ TODAY ›): "My day" lists the selected day from DETAIL ---- */
+const SL = [
+  { date: '2026-09-26', value: 7.4, bedtime: 23.5, waketime: 7 },
+  { date: '2026-09-28', value: 7.1, bedtime: 23.25, waketime: 6.5 },
+  { date: '2026-09-29', value: 6.86, bedtime: 0.2, waketime: 7.1 },
+];
+const WO = [
+  w('2026-09-28', 'TraditionalStrengthTraining', 30, 25), w('2026-09-28', 'TraditionalStrengthTraining', 25, 15),
+  w('2026-09-28', 'Running', 40, 60), w('2026-09-29', 'Running', 45.4, 94),
+].map((r) => ({ ...r, source: 'Strava API' }));
+const DET = detailFromInputs({ sleep: SL, workouts: WO });
+const TL2 = timelineFromInputs(WO, SL);
+function stepper(sel) {
+  const subs = [];
+  return { sel: () => sel, on: (fn) => subs.push(fn), go: (x) => { sel = x; subs.forEach((fn) => fn(x)); } };
+}
+
+test('day stepping: today selected renders byte-identically', () => {
+  assert.equal(render(TL2, { detail: DET, day: stepper(null) }), render(TL2, { detail: DET }));
+});
+
+test('day stepping: a past day lists THAT day from DETAIL — the same rows SCORES.timeline gives for it — dated, never greyed, no plan row', () => {
+  const html = render(TL2, { detail: DET, day: stepper('2026-09-28'), program: { date: ASOF, kind: 'gym', focus: 'Legs' } });
+  assert.ok(html.includes('<h3>Activities · Mon 28 Sep</h3>'));
+  // the timeline's own rendering of 2026-09-28 (viewer on that day, before 09-29 existed)
+  const ref = render(timelineFromInputs(WO.filter((r) => r.date <= '2026-09-28'), SL.filter((r) => r.date <= '2026-09-28')), { detail: DET, now: '2026-09-28' });
+  assert.deepEqual(rows(html), rows(ref));
+  assert.deepEqual(rows(html).map((r) => r.cls), ['tl-sleep', 'tl-gym', 'tl-run']);
+  assert.match(rows(html)[1].text, /55 min.*RE 40.*2 parts/);
+  assert.match(html, /data-detail="load-run" data-date="2026-09-28"/);
+  assert.doesNotMatch(html, /sc-stale|tl-prog|Nothing logged yet today/);
+});
+
+test('day stepping: a night without workouts, a day with nothing, and a change back to today', () => {
+  const day = stepper('2026-09-26');
+  const host = render(TL2, { detail: DET, day });
+  assert.deepEqual(rows(host).map((r) => r.cls), ['tl-sleep']);
+  assert.match(rows(host)[0].text, /7.4 h.*23:30.*07:00/);
+  const none = render(TL2, { detail: DET, day: stepper('2026-09-27') });
+  assert.ok(none.includes(enT.timeline.noDay));
+  assert.doesNotMatch(none, /tl-row/);
+  const es = render(TL2, { locale: 'es', detail: DET, day: stepper('2026-09-27') });
+  assert.ok(es.includes('<h3>Actividades · dom 27 sept</h3>'));
 });

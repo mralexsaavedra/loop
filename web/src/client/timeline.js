@@ -16,6 +16,12 @@
  * Inicio. A row opens the detail sheet on its day (sleep -> the sleep view, a workout -> its
  * modality's load view, "other" -> training time, the plan row -> the 'hoy-session' view), whatever
  * tabs page.hideTabs hides.
+ *
+ * Day stepping (the top bar's "‹ TODAY ›", window.HCDay): on a PAST day the card lists THAT day — its
+ * night (DETAIL.metrics.sleep: hours asleep + bed / wake clock, dated the wake-up day) and its workouts
+ * (DETAIL.sessions: one per date + modality after the SAME display rule as SCORES.timeline, minutes,
+ * RE, parts) — under "Activities · <date>", never greyed, without the programmed row; every row opens
+ * its sheet on that day. Nothing that day → "Nothing logged that day". Today renders as before.
  */
 (function () {
   var host = document.getElementById('timeline');
@@ -69,7 +75,58 @@
       focus ? T.programmedChip + ': ' + focus + ' · ' + T.programmed : '');
   }
 
+  // DETAIL dense series value on `iso` ({start, v}: one slot per day), else null
+  function at(m, arr, iso) {
+    if (!m || !isoDate(m.start) || !arr) return null;
+    var i = Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(m.start + 'T00:00:00Z')) / HC.MS_PER_DAY);
+    var v = i >= 0 && i < arr.length ? arr[i] : null;
+    return typeof v === 'number' && isFinite(v) ? v : null;
+  }
+  // a past day in SCORES.timeline's day shape, from DETAIL (null when nothing was logged that day)
+  var MODS = ['gym', 'run', 'bike', 'other'];
+  function pastDay(iso) {
+    var X = typeof DETAIL !== 'undefined' && DETAIL ? DETAIL : {};
+    var sl = X.metrics && X.metrics.sleep;
+    var hours = at(sl, sl && sl.v, iso);
+    var items = [];
+    (Array.isArray(X.sessions) ? X.sessions : []).forEach(function (x) {
+      if (x && x.d === iso && MODS.indexOf(x.m) !== -1) items.push({ modality: x.m, dur: x.min, re: x.re == null ? null : x.re, sessions: x.n || 1 });
+    });
+    items.sort(function (a, b) { return MODS.indexOf(a.modality) - MODS.indexOf(b.modality); });
+    if (hours == null && !items.length) return null;
+    return { date: iso, sleep: hours, bed: at(sl, sl && sl.bed, iso), wake: at(sl, sl && sl.wake, iso), items: items };
+  }
+  function pastHtml(iso) {
+    var day = pastDay(iso);
+    var title = format(T.pastHeading, { date: HC.fmtDate(iso) });
+    var note = !!(day && day.items.length && T.note);
+    var out = ['<div class="sc-head"><h3>' + esc(title) + '</h3>' + (note ? HC.infoBtn('tl-info', format(T.infoLbl || '{section}', { section: title })) : '') + '</div>' +
+      (note ? '<div class="hs-info" id="tl-info" hidden><p>' + esc(T.note) + '</p></div>' : '')];
+    if (!day) out.push('<div class="sc-note">' + esc(T.noDay) + '</div>');
+    else out.push('<ul class="tl-list">' + dayRows(day).join('') + '</ul>');
+    return card(out.join(''), false);
+  }
+  // the night + the workouts of one day (SCORES.timeline day shape), each opening its sheet on that day
+  function dayRows(day) {
+    var list = [];
+    var sleepLink = HC.detailAttrs('sleep', day.date);
+    var times = [clock(day.bed), clock(day.wake)].filter(function (x) { return x; });
+    list.push(day.sleep != null
+      ? row('tl-sleep', sleepLink, 'sleep', format(T.sleepVal, { hours: num(day.sleep, 1) }), T.sleep, times.length === 2 ? times : [], 'tl-times')
+      : row('tl-sleep tl-none', sleepLink, 'sleep', '—', T.noSleep, []));
+    day.items.forEach(function (it) {
+      var side = [];
+      if (it.re != null) side.push(format(T.re, { n: num(it.re, 0) }));
+      if (it.sessions > 1) side.push(format(T.parts, { n: it.sessions }));
+      var mod = String(it.modality).replace(/[^a-z]/g, '');
+      list.push(row('tl-' + mod, HC.detailAttrs(modDetail(mod), day.date), mod, format(T.minutes, { n: num(it.dur, 0) }), T.modalities[mod] || mod, side));
+    });
+    return list;
+  }
+
   function html() {
+    var past = DAY && typeof DAY.sel === 'function' ? DAY.sel() : null;
+    if (past) return pastHtml(past);
     var today = todayIso();
     var day = null, newest = null;
     (TL.days || []).forEach(function (d) {
@@ -90,31 +147,22 @@
     var out = ['<div class="sc-head"><h3>' + esc(title) + '</h3>' + (note ? HC.infoBtn('tl-info', format(T.infoLbl || '{section}', { section: title })) : '') + '</div>' +
       (note ? '<div class="hs-info" id="tl-info" hidden><p>' + esc(T.note) + '</p></div>' : '')];
     if (!isToday && !ahead) out.push('<div class="sc-note">' + esc(T.noToday) + '</div>');
-    var list = [];
-    if (day) {
-      var sleepLink = HC.detailAttrs('sleep', day.date);
-      var times = [clock(day.bed), clock(day.wake)].filter(function (x) { return x; });
-      list.push(day.sleep != null
-        ? row('tl-sleep', sleepLink, 'sleep', format(T.sleepVal, { hours: num(day.sleep, 1) }), T.sleep, times.length === 2 ? times : [], 'tl-times')
-        : row('tl-sleep tl-none', sleepLink, 'sleep', '—', T.noSleep, []));
-      day.items.forEach(function (it) {
-        var side = [];
-        if (it.re != null) side.push(format(T.re, { n: num(it.re, 0) }));
-        if (it.sessions > 1) side.push(format(T.parts, { n: it.sessions }));
-        var mod = String(it.modality).replace(/[^a-z]/g, '');
-        list.push(row('tl-' + mod, HC.detailAttrs(modDetail(mod), day.date), mod, format(T.minutes, { n: num(it.dur, 0) }), T.modalities[mod] || mod, side));
-      });
-    }
+    var list = day ? dayRows(day) : [];
     // the plan row belongs to the viewer's today: shown under today's heading only
     if (plan && isToday) list.push(plan);
     out.push('<ul class="tl-list">' + list.join('') + '</ul>');
     return card(out.join(''), !!day && daysOld(day.date) > HC.STALE_DAYS);
   }
 
-  try {
-    if (typeof LOCALE === 'undefined') throw new Error('LOCALE is not baked');
-    host.innerHTML = html();
-  } catch (e) {
-    host.innerHTML = '<div class="sc-card sc-card-error">' + esc((I18N_SCORE.recovery && I18N_SCORE.recovery.cardError) || '') + '</div>';
+  var DAY = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
+  function paint() {
+    try {
+      if (typeof LOCALE === 'undefined') throw new Error('LOCALE is not baked');
+      host.innerHTML = html();
+    } catch (e) {
+      host.innerHTML = '<div class="sc-card sc-card-error">' + esc((I18N_SCORE.recovery && I18N_SCORE.recovery.cardError) || '') + '</div>';
+    }
   }
+  paint();
+  if (DAY && typeof DAY.on === 'function') DAY.on(paint);
 })();

@@ -73,18 +73,27 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   shown. The page opens on the top bar and the dials.
 - **Top bar** (`.topbar`, above the dock, one row at every width, a 3-column grid so the pill stays
   centred): avatar left (`components/Avatar.astro`, 36 px circle in a 44 px target, opens the profile
-  sheet) · a centred date pill "HOY" / "TODAY" (`.date-pill`, uppercase, letter-spaced; the viewer's
-  full date ("mié 30 sept" / "Wed 30 Sep") is the `<time id="today-date">` inside it, written
+  sheet) · a centred date pill "‹ HOY ›" / "‹ TODAY ›" (`.date-pill`, uppercase, letter-spaced; the
+  viewer's full date ("mié 30 sept" / "Wed 30 Sep") is the `<time id="today-date">` inside it, written
   client-side by `web/src/client/today-date.js` with `HC.fmtDate` and read by assistive tech only,
-  nothing time-based baked, builds stay byte-identical) · freshness on the right: status dot + short
+  nothing time-based baked, builds stay byte-identical; day stepping below) · freshness on the right: status dot + short
   freshness (`#fresh-sum`, the Shortcut age; the dot carries the worst source level; tap = the
   per-source popover `#fresh-pop`, right-aligned under the bar, capped at the bar width, z 40 like the
   sync line `#sync-msg` so both overlay the dock (z 30) and the collapsed dial row (z 25) but not the
   detail sheet (z 60)) + icon-only Sync (`#sync-btn`, circular-arrows SVG, `aria-label`, 44 px, class
-  `is-busy` spins it while syncing, no spin under reduced motion). **No day stepping**: the pill has no
-  ‹ › arrows because the page has no global "view another day" (only Registrar's own day navigator and
-  the detail sheet's dates); stepping days is a follow-up for when the dials / day views can show a past
-  day.
+  `is-busy` spins it while syncing, no spin under reduced motion). **Day stepping** (`client/today-date.js`, `window.HCDay`): `#day-prev` ‹ / `#day-next` › (44 px
+  targets overhanging the 32 px pill, line chevrons) step Inicio one day back / forward; › is disabled
+  on the viewer's today, ‹ at the oldest reachable day = the baked history's first day
+  (`SCORES.days.from`, `lib/score/days.mjs`, 14 days), never more than `NAV.day.maxDays` (30) before
+  today. Both ship `hidden` and the script shows them (and adds `.has-steps`) only when a past day is in
+  reach: no data, or data far behind the viewer's clock, leaves the pill as it was (no dead control).
+  On a past day the label (`#day-word`) shows its date ("mar 6 oct", uppercased by CSS → "MAR 6 OCT")
+  and the label button (`#day-lbl`, `aria-live="polite"`, `aria-disabled` on today) returns to today
+  (`aria-label` "<date> · Volver a hoy"). Keyboard: ← / → while focus is inside the pill (focus moves
+  to the label when the focused chevron turns off). The day is in the hash (`#d=YYYY-MM-DD`, see
+  "URL hash" below), replaced — never pushed — and only while Inicio is shown and the sheet is closed.
+  `HCDay` = `{sel() (null = today), iso(), oldest(), set(iso|null), step(±1), hash(), on(fn)}`;
+  listeners run in their own try/catch. What follows the day on Inicio: `docs/home-tab.md`.
 - **Bottom dock** (`.dock`, every width): a floating rounded tab bar (`rgba(var(--nav-rgb), 0.94)`,
   blurred, 24 px radius, max 440 px, centred) with the four tabs as icon + small sentence-case label
   (active white, inactive `--faint` grey), and to its RIGHT, outside the tablist, a separate 56 px
@@ -146,7 +155,13 @@ left to detail.js and its HOST tab is shown underneath (`DETAIL_TAB` / `VIEW_TAB
 `food-add` → `nutricion`, `hoy-session` / `tonight` / `dash-edit` → `home`, `profile` → none = the default tab; an in-page anchor of `ANCHOR_TAB` (`#monitor` → `health`) shows its tab, keeps the hash and scrolls to the block, on load and on `hashchange`; a test pins every `DETAIL_KEYS` key).
 `hashchange` to a visible tab hash switches tab; a sheet, hidden or unknown hash switches nothing, so
 it never fights detail.js's popstate. Every history / location access is in a try/catch (a sandboxed
-frame still switches tabs). `window.HCNav.hash()` = the current tab's hash, read by detail.js. NO
+frame still switches tabs). `window.HCNav.hash()` = the current tab's hash, read by detail.js.
+**A past day of Inicio** (the top bar's day stepping) is `#d=YYYY-MM-DD` (`DAY_HASH` in
+`lib/nav/tabs.mjs`, baked as `NAV.day`; `parseDayHash` / `dayHash` for tests): core.js shows Inicio
+for it and KEEPS the hash, on load and on `hashchange` (client/today-date.js validates the day and
+replaces an out-of-reach one with `#home`); while a past day is selected Inicio's hash is that day —
+`setTab('home')` and `HCNav.hash()` (a closed sheet) write `#d=…`, not `#home` — so a reload, Back to
+Inicio and the midnight rollover keep the day. NO
 element id may equal a tab key (the browser would scroll a `#<tab>` load to it): the Inicio advice
 host is `#home-advice` and the Salud host `#health-body` (a content test checks the built page). A
 deep link that opens NO sheet (`#detail/<unknown or no-data metric>`, a bad view key) is replaced by

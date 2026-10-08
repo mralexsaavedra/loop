@@ -5,6 +5,19 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Day stepping on Inicio ("‹ HOY ›")
+
+- The top bar's date pill gets ‹ / › chevrons (`client/today-date.js`, `window.HCDay`): Inicio can show
+  any of the last 14 days (the baked history, never more than 30 days back); a past day's date is the
+  label and tapping it returns to today; ← / → step while the pill has focus; the day survives a reload
+  as `#d=YYYY-MM-DD` (`DAY_HASH`, core.js keeps it as Inicio's hash).
+- New bake `SCORES.days` (`lib/score/days.mjs`): per day the inputs are cut at that day and the same
+  scorers run, so a past day shows the recovery %, sleep and monitor summary it had THEN; `DIALS.days`
+  carries the rings. ~7 KB on the example page.
+- What follows the day: the three dials + collapsed row, the monitor tiles, "My day" (from `DETAIL`),
+  the eat card (that day's detected day type); Tonight and the advice hide; My plan / My dashboard stay
+  current. Today's rendering is unchanged (tests + a 390 px screenshot diff).
+
 ## 2026-10-08 — Sleep stages, performance, efficiency
 
 - `sleep-daily.csv` gains six stage columns (`rem_h, deep_h, core_h, unspec_h, awake_h, inbed_h`),
