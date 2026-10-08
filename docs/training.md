@@ -39,8 +39,6 @@ split as ONE stacked horizontal SVG bar (widths in attributes, largest first) wi
 share · time" (gym `--strain`, strength `--strain-ink`, run `--up`, bike `--mid`, other `--faint`;
 always named, never colour alone), then the compact calendar (always the last 30 days). The total and
 the calendar open the `workouts` sheet, a day cell that day; the switch sits outside every opener.
-On wide screens (>= 900 px) the card is two columns, the summary left and the calendar right, scaled
-up to a 300 px column (`docs/plan-page.md`).
 Then running, cycling and load vs recovery (`#health-train`, client/health.js). The card follows the
 dashboard's rules: duration not kcal, DISTINCT days, dashboard modality buckets, and the shared
 same-day rule (`lib/training/sessions.mjs` `DISPLAY_RULE`: stubs under 3 min dropped, one source per
