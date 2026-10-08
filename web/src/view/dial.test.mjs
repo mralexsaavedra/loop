@@ -214,3 +214,46 @@ test('buildDials is deterministic and JSON-safe (idempotent builds)', () => {
   assert.equal(a, b);
   assert.doesNotMatch(a, /NaN|Infinity/);
 });
+
+test('past days (day stepping): one sleep + recovery dial per SCORES.days entry, in today\'s shapes', () => {
+  const scores = {
+    hasData: true,
+    recovery: null,
+    load: null,
+    days: {
+      from: '2026-09-27', to: '2026-09-29', days: [
+        { date: '2026-09-27', sleep: null, rec: 'gated', monitor: {} },
+        { date: '2026-09-28', sleep: 6.9, rec: { value: 0.4, band: 'at', sleep: true, pct: 72, pctBand: 'good' }, monitor: {} },
+        { date: '2026-09-29', sleep: 8.4, rec: { value: -1.4, band: 'below', sleep: true }, monitor: {} },
+      ],
+    },
+  };
+  const D = buildDials(scores, { recovery: { sleep: { target: 7.5 } } });
+  assert.deepEqual(D.days.map((d) => d.date), ['2026-09-27', '2026-09-28', '2026-09-29']);
+  assert.deepEqual(D.days[0].recovery, { state: 'gated', asOf: '2026-09-27' });
+  assert.deepEqual(D.days[0].sleep, { state: 'none' });
+  const r = D.days[1].recovery;
+  assert.equal(r.state, 'ok');
+  assert.equal(r.mode, 'today');
+  assert.equal(r.date, '2026-09-28');
+  assert.equal(r.pct, 72);
+  assert.equal(r.band, 'good', 'with a % the ring takes the % band');
+  assert.equal(r.fill, arcPath(0, 0.72));
+  assert.equal(r.mid, null);
+  const s = D.days[1].sleep;
+  assert.deepEqual(s, { state: 'ok', date: '2026-09-28', hours: 6.9, target: 7.5, pct: 92, fill: arcPath(0, 6.9 / 7.5) });
+  // without a % (under 21 prior days): the SD composite on the -3..+3 ring with the baseline tick
+  const f = D.days[2].recovery;
+  assert.equal(f.pct, null);
+  assert.equal(f.band, 'below');
+  assert.equal(f.fill, arcPath(0, recoveryFrac(-1.4)));
+  assert.ok(f.mid);
+  assert.equal(D.days[2].sleep.pct, 100, 'capped at the need');
+});
+
+test('past days: none without SCORES.days or without data', () => {
+  assert.deepEqual(buildDials({ hasData: true }, null).days, []);
+  assert.deepEqual(buildDials({ hasData: false, days: { days: [{ date: '2026-09-29', sleep: 7, rec: null }] } }, null).days, []);
+  const D = buildDials({ hasData: true, days: { days: [{ date: '2026-09-29', sleep: null, rec: null }] } }, null);
+  assert.deepEqual(D.days[0], { date: '2026-09-29', sleep: { state: 'none' }, recovery: { state: 'none' } });
+});

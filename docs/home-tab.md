@@ -147,6 +147,19 @@ trend is the line under it.
   previous 42 nights — the recovery input `sleepCons`; no documented minutes → % mapping exists, so no
   %); `stages` (REM / deep / core / unspecified / awake / in bed hours), `shares` (REM / deep / core %
   of asleep) and `restorative` (REM + deep hours) only on a staged night.
+- **Day history** (`lib/score/days.mjs`, baked as `SCORES.days` = `{from, to, days}`, null without
+  overnight data; behind the top bar's day stepping): for each of the last `DAY_HISTORY_DAYS` (= the
+  load dial's `RECENT_DAYS`, 14) days ending at the newest overnight date, the inputs are CUT at that
+  day and the same scorers run (`recoveryFromInputs`, `monitorFromInputs`), so the newest entry equals
+  today's bake and an old day is scored against the baseline and 90-day % window it had then. Per day:
+  `rec` = the night scored that morning only when it IS that day (`{value, band, sleep, pct?,
+  pctBand?}`; `'gated'` while recovery was gated; null = no complete night that day — never an older
+  night under its date), `sleep` = that day's asleep hours (the recovery sleep-duration input, the
+  number the sleep dial uses; null while gated), `monitor` = the summary tile on that day (`inR` /
+  `out` among the cards fresh on that day — own date ≤ `STALE_DAYS` before it — `total`, and the HRV
+  card `{value, dec, status, tone, date}` when fresh). `buildDials` turns each entry into
+  `DIALS.days[i]` = `{date, sleep, recovery}` in today's dial shapes (always mode `today`; no trend
+  fallback). Load needs no new bake (its `recent` days). ~7 KB on the example page.
 - **Dials** (top of the tab: Sleep / Recovery / Load) only VISUALISE baked values — no new metric (the
   recovery % is a rank of the same composite). `web/src/view/dial.mjs` (`buildDials(scores, health)`, unit-tested, baked as `DIALS`)
   pre-computes the ring geometry; `score.js` only formats numbers and joins SVG strings. Layout: three
