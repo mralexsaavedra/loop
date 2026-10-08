@@ -46,6 +46,16 @@ var HC = (function () {
     d.setDate(d.getDate() + n);
     return isoOf(d);
   }
+  // whole years between an ISO birthdate and an ISO day; null when either is not a date or birth > day
+  // (the profile sheet's age and Salud's chronological age next to the fitness age)
+  function ageOn(birth, day) {
+    birth = isoDate(birth);
+    day = isoDate(day);
+    if (!birth || !day || birth > day) return null;
+    var age = +day.slice(0, 4) - +birth.slice(0, 4);
+    if (day.slice(5) < birth.slice(5)) age--;
+    return age;
+  }
   // whole days between an ISO date and the viewer's today (negative = ahead of the clock); null if not ISO
   function daysOld(iso) {
     iso = isoDate(iso);
@@ -192,6 +202,7 @@ var HC = (function () {
     todayIso: todayIso,
     shiftIso: shiftIso,
     daysOld: daysOld,
+    ageOn: ageOn,
     nf: nf,
     num: num,
     duration: duration,

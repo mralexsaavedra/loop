@@ -92,13 +92,13 @@ test('each host has its own empty state', () => {
 
 // Salud (#health-body) + Entreno (#health-train) hosts; returns both, Salud first, or each via `out`.
 // `balance: true` adds Nutrición's #nutri-balance host (out.balance, out.balanceHidden).
-function renderWith(HEALTH, { DateCls = Date, SCORES, out = {}, detail = false, balance = false, introSlot = false } = {}) {
+function renderWith(HEALTH, { DateCls = Date, SCORES, PROFILE, out = {}, detail = false, balance = false, introSlot = false } = {}) {
   const doc = new StubDocument();
   const slot = introSlot ? doc.el('hs-intro-i', { attrs: { 'data-label': 'About Health' } }) : null;
   const host = doc.el('health-body');
   const train = doc.el('health-train');
   const bal = balance ? doc.el('nutri-balance') : null;
-  const ctx = { document: doc, window: {}, HEALTH, SCORES, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date: DateCls, JSON };
+  const ctx = { document: doc, window: {}, HEALTH, SCORES, PROFILE, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date: DateCls, JSON };
   if (detail) ctx.DETAIL = { metrics: {} };
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -499,4 +499,67 @@ test('Nutrición Balance without enough logged intake: a short empty line, the "
   renderAt({ ...full(), energy: { hasData: false } }, '2026-07-01', { out: none, balance: true });
   assert.equal(none.balance, '');
   assert.equal(none.balanceHidden, true, 'the empty host is hidden');
+});
+
+// the fitness-age block (SCORES.fitnessAge, lib/score/fitness-age.mjs) at the top of Fitness
+const fitH = () => ({
+  body: none, activity: none, energy: none, running: none, loadRecovery: none,
+  recovery: { hasData: true, vo2max: { latest: 47.2, latestDate: '2026-06-28', first: 44, spark: sp } },
+});
+const fa = (over = {}) => ({ ok: true, age: 31.4, bound: null, sex: 'male', vo2: { value: 47.2, date: '2026-06-28', source: 'Demo <Watch>' },
+  trend: { d30: { date: '2026-05-29', vo2: 46, age: 32.1, bound: null }, d90: { date: '2026-03-30', vo2: 45, age: 33.6, bound: null } }, ref: 'loe2013', ...over });
+const fitSec = (html) => { const i = html.indexOf('id="hl-fitness"'); return i === -1 ? '' : html.slice(i, html.indexOf('</section>', i)); };
+const P36 = { birthdate: '1990-06-15', sex: 'male' }; // 36 on 2026-07-01
+
+test('fitness age: a ring with the fitness age, the years younger than the chronological age, and the VO₂max it comes from', () => {
+  const out = {};
+  renderAt(fitH(), '2026-07-01', { out, detail: true, SCORES: { fitnessAge: fa() }, PROFILE: P36 });
+  const sec = fitSec(out.health);
+  const T = enHealth.fitnessAge;
+  assert.match(sec, /<figure class="dial fa fa-good"[^>]*data-detail="fitnessAge"/, 'the ring opens the fitness-age sheet');
+  assert.match(sec, /<b class="dial-num">31<\/b><span class="dial-word">Fitness age<\/span>/);
+  assert.ok(sec.includes('5 years younger'), 'chronological 36 − fitness 31');
+  assert.ok(sec.includes('VO₂max 47.2 ml/kg/min · 28 Jun · Demo &lt;Watch&gt;'), 'its VO₂max, date and (escaped) source');
+  assert.match(sec, /data-detail="fitnessAge"[\s\S]*Chronological age<\/span>[\s\S]*<b>36<\/b><small>years<\/small>/);
+  // the 90-day trend row: 31.4 vs 33.6 -> Δ −2.2, lower is better
+  assert.match(sec, /Fitness age, 90 days<\/span>[\s\S]*<b>31<\/b><small>years<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span><\/span><span class="db-base">Δ -2.2<\/span>/);
+  assert.ok(sec.includes(T.noteHtml), 'the ⓘ cites the reference');
+  assert.ok(sec.indexOf('class="dial fa') < sec.indexOf('data-detail="vo2max"'), 'the ring leads the section');
+});
+
+test('fitness age: older, bounds ("< 25", "> 75") and the singular year', () => {
+  const at = (score, profile) => { const out = {}; renderAt(fitH(), '2026-07-01', { out, detail: true, SCORES: { fitnessAge: score }, PROFILE: profile }); return fitSec(out.health); };
+  let s = at(fa({ age: 41.2 }), P36);
+  assert.match(s, /class="dial fa fa-bad"/);
+  assert.ok(s.includes('5 years older'));
+  s = at(fa({ age: 35.4 }), P36);
+  assert.ok(s.includes('1 year younger'));
+  s = at(fa({ age: 36.2 }), P36);
+  assert.match(s, /class="dial fa fa-flat"/);
+  assert.ok(s.includes('Same as your age'));
+  s = at(fa({ age: 25, bound: 'below', trend: { d30: null, d90: { date: '2026-03-30', vo2: 45, age: 33.6, bound: null } } }), P36);
+  assert.match(s, /<b class="dial-num">&lt; 25<\/b>/);
+  assert.ok(s.includes('At least 11 years younger'));
+  assert.doesNotMatch(s, /Fitness age, 90 days/, 'no change against a clamped value');
+  s = at(fa({ age: 75, bound: 'above', trend: { d30: null, d90: null } }), P36);
+  assert.match(s, /<b class="dial-num">&gt; 75<\/b>/);
+  assert.ok(s.includes('At least 39 years older'));
+});
+
+test('fitness age: no number without sex, birthdate or VO₂max — the reason instead', () => {
+  const T = enHealth.fitnessAge;
+  const at = (score, profile) => { const out = {}; renderAt(fitH(), '2026-07-01', { out, detail: true, SCORES: { fitnessAge: score }, PROFILE: profile }); return fitSec(out.health); };
+  let s = at({ ok: false, reason: 'no-sex' }, { birthdate: '1990-06-15', sex: null });
+  assert.ok(s.includes(T.noSex));
+  assert.doesNotMatch(s, /class="dial fa/);
+  s = at(fa(), { birthdate: null, sex: 'male' });
+  assert.ok(s.includes(T.noBirth));
+  assert.doesNotMatch(s, /class="dial fa/);
+  s = at({ ok: false, reason: 'no-vo2max' }, P36);
+  assert.ok(s.includes(T.noVo2));
+  // no SCORES / PROFILE at all (an old bake): the section renders as before, no block, no throw
+  const out = {};
+  renderAt(fitH(), '2026-07-01', { out, detail: true });
+  assert.match(fitSec(out.health), /data-detail="vo2max"/);
+  assert.doesNotMatch(fitSec(out.health), /class="dial fa|NaN|undefined/);
 });
