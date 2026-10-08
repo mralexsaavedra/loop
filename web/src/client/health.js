@@ -102,6 +102,22 @@
     return HC.metricRow({ key: o.icon || key, cls: stale ? 'db-stale' : '', attrs: (o.id ? ' id="hl-' + o.id + '"' : '') + (o.detail ? HC.detailAttrs(o.detail) : ''),
       aria: aria.join(' · '), name: title, value: value, unit: unit, arrow: arrow, tone: tone, base: base });
   }
+  // the newest staged night (lib/health/aggregate.mjs sleep.stages): REM / deep / core / awake hours
+  // (+ % of asleep) and efficiency, each vs the mean of the staged nights among the last 30; none
+  // when the extract has no stages
+  function stageRows(st, SCd) {
+    if (!st || !SCd.stages) return [];
+    var L = SCd.stages, sh = st.shares || {};
+    var hrow = function (k, dir) {
+      return function () {
+        return fin(st[k]) ? mrow('sleep', L[k], 'h', { value: st[k], base: st.avg[k], baseTpl: T.avgNightsTpl, dir: dir, date: st.date, detail: 'sleep',
+          when: fin(sh[k]) ? sh[k] + '%' : '' }) : '';
+      };
+    };
+    return [hrow('rem', 1), hrow('deep', 1), hrow('core', 0), hrow('awake', -1), function () {
+      return fin(st.eff) ? mrow('sleep', L.eff, '%', { value: st.eff, base: st.avg.eff, baseTpl: T.avgNightsTpl, dir: 1, date: st.date, detail: 'sleep' }) : '';
+    }];
+  }
   function note(html) {
     return '<div class="dash-note">' + html + '</div>';
   }
@@ -256,7 +272,7 @@
           function () { return fin(sl.sd) ? mrow('sleep', SCd.sdLbl, 'h', { value: sl.sd, text: '±' + nf(sl.sd), detail: 'sleep' }) : ''; },
           function () { return sl.bedtime ? mrow('sleep', SCd.bedtimeLbl, '', { value: 0, text: sl.bedtime, sub: '±' + sl.bedtimeSd + '′', detail: 'sleep' }) : ''; },
           function () { return sl.wake ? mrow('sleep', SCd.wakeLbl, '', { value: 0, text: sl.wake, sub: '±' + sl.wakeSd + '′', detail: 'sleep' }) : ''; },
-        ]), [T.sleepNoteHtml]));
+        ].concat(stageRows(sl.stages, SCd))), [T.sleepNoteHtml].concat(sl.stages && T.sleepStagesNoteHtml ? [T.sleepStagesNoteHtml] : [])));
       }
     }
     /* body composition: weight Δ vs ~30 days ago, body fat / lean mass Δ in their scale window, waist */

@@ -29,7 +29,11 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   weight = day means + `roll` (the Salud card's calendar 7-day rolling average, only on reading days)
   + `latest` (the card's latest raw reading); body fat / lean mass = the most recent scale only AND
   only its last `BODYCOMP_WINDOW` days (`windowDays`), so a scale-switch artefact never shows; sleep
-  also carries bed / wake times and the 7.5 h target; `recovery` = for each day, the composite the
+  also carries bed / wake times and the 7.5 h target, and per night (`lib/score/sleep.mjs`) `perf`
+  (sleep performance %, asleep / target × 100 capped at 100), `eff` (efficiency %, asleep / in bed,
+  only where `inbed_h` exists), `cons` (consistency minutes, `recovery.mjs` `sleepConsistency`) and the
+  stage hours `rem` / `deep` / `core` / `awake` / `inbed` — an array no night has (an extract older
+  than the stage columns) is left out; `recovery` = for each day, the composite the
   dial showed THAT morning (`recoveryFromInputs` with the inputs cut at that day, its own baseline, not
   today's) + that day's 7-day trend (`t7`), `cut` = `DAY_BAND_CUTOFF`, `cutTrend` = `BAND_CUTOFF`, and
   `head` = the dial's own headline (`recoveryHead`, from the same full-input `recoveryFromInputs`
@@ -75,14 +79,22 @@ switch is outside every opener); run / ride rows →
      toggles the long-notes block in place, collapsed by default. A sheet without notes puts an equal
      44px spacer (`.sh-pad`) there so the title stays centred.
   2. **ⓘ block** (`#dd-info`, hidden): the band / cut rules (`bandText`: the recovery day and trend
-     cuts, the per-day note, the sleep band, the typical day), the recovery % mapping (`rec.pctNote`,
-     only when the hero shows a %), the load sessions-without-effort note,
-     the sleep "stages are not in the extract" note.
+     cuts, the per-day note, the sleep band, the typical day), the recovery % mapping (`rec.pctNote`)
+     and the night's SD line ("Vs your 42-day baseline: +1.1 SD · at baseline", `rec.sdLbl`), both only
+     when the hero shows a %, the load sessions-without-effort note, and the sleep formulas
+     (`deep.sleepNotes`: performance = asleep ÷ need × 100 capped at 100 with need = the target,
+     efficiency = asleep ÷ in bed, consistency minutes, what the stages are).
   3. **Hero ring**: ≈ 67 % of the width (max 320 px), the dial's OWN baked arcs (`DIALS`, so it can
      never disagree with Inicio) drawn with a 6.4-unit stroke (≈ 5.9 % of the 108-unit diameter),
      from 12 o'clock clockwise, round caps, on `--track`; inside: the value (D-DIN, 52–72 px) + small
      unit + the uppercase label. Recovery shows the dial's % (`DIALS.recovery.pct`, when it scores the
-     same night as `head`) with its % band colour, else the SD value. Colour: recovery = ONE state colour, its band (`--good` / `--mid` /
+     same night as `head`) with its % band colour, else the SD value. Sleep shows the dial's sleep
+     performance % (`DIALS.sleep.pct`, label "SLEEP PERFORMANCE"), else last night's hours.
+     Sleep only: a **stages bar** right under the ring (`.dd-stages`): one stacked horizontal bar of
+     the night — awake / REM / core / deep (+ the Asleep-unspecified remainder when ≥ 0.05 h), widths by
+     hours — in shades of `--sleep` (REM lighter, deep towards `--link-end`, awake `--faint`), and a
+     legend with each stage's hours and, for the asleep stages, its % of the time asleep. No stage
+     arrays in `DETAIL` (older extract) or no stages that night → no bar. Colour: recovery = ONE state colour, its band (`--good` / `--mid` /
      `--low`), sleep = `--sleep`, load = `--strain` with a white tick at the typical day
      (`DIALS.load.tick`). Off states show the dial's word in an empty ring (recovery "No baseline",
      load "Building" / "No session yet" / "No effort data"; there the typical-day tick dims to a faint
@@ -98,15 +110,16 @@ switch is outside every opener); run / ride rows →
      closes the card when a marker shows. A row without a value that day is hidden (never 0 or a
      dash). Rows: recovery = the composite's inputs on the night it scores (`head.date`) — HRV,
      resting HR, hours of sleep (sleep consistency, its fourth input at 10 %, has no daily series in
-     `DETAIL`: not shown); sleep = last night's hours, the delta vs the target (no marker), bedtime
-     (an after-midnight bedtime counts as late evening, 00:30 = 24.5) and wake time (no efficiency or
-     stages in the extract: not shown); load = today's RE (only on a day with RE, compared with the
+     `DETAIL`: not shown); sleep = hours vs need ("6.9 / 7.5 h", ▲▼ on the hours), efficiency %
+     (`DETAIL` `eff`), consistency minutes (`cons`, lower = better) and REM + deep ("3.1 h · 41%", hours
+     · % of asleep); a missing one is hidden and bedtime (an after-midnight bedtime counts as late
+     evening, 00:30 = 24.5) and wake time fill the card up to four rows; load = today's RE (only on a day with RE, compared with the
      prior 30 days' training days only), the 7-day vs 42-day trend (`DIALS`), the sessions of the
      last 7 days, the typical training day.
   5. **Insight card** (`--ground` fill inside a 1.5 px teal → indigo stroke, `--insight-a/b`): the
-     dial's former captions in 2–4 plain lines — recovery "Last night · <band>" (the % band word when
-     the hero shows a %, then the night's SD value "Vs your 42-day baseline: +1.1 SD · at baseline";
-     or the night's date, "no sleep data", "no recent complete night") + the 7-day trend coloured by the TREND band; sleep
+     dial's former captions in 2–4 plain lines — recovery "Last night · <band>" (the % band word ONLY when
+     the hero shows a % — the SD line lives under ⓘ, so the card never shows two different bands; or
+     the night's date, "no sleep data", "no recent complete night") + the 7-day trend coloured by the TREND band; sleep
      the target + last night vs it; load the day line ("Today: RE 28 · typical day ~42" or "No
      session yet today · last session …"), the ring scale and the 7-day vs 42-day trend + band (from
      the baked `DIALS`; no `DIALS` or gated → no trend line); a gated modality shows its gate copy.
@@ -120,7 +133,7 @@ switch is outside every opener); run / ride rows →
      under each bar, today's column lighter (`.dd-now`); a day without data = "—" and no bar.
      Recovery: the composite per day on the dial's −3…+3 scale, each bar in its own day band's state
      colour (good / mid / low), then HRV and resting HR (`--trend`) and sleep (`--sleep`); sleep:
-     hours (`--sleep`); load: RE per day and the modality's minutes per day from the sessions
+     hours, performance % (bar = % of 100) and REM + deep hours when `DETAIL` has them (`--sleep`); load: RE per day and the modality's minutes per day from the sessions
      (`--strain`; a day after the data's `asOf` is unknown, not rest). Bars are proportional to the
      week's largest value.
   7. The rest of the sheet below, unchanged (period + chart, calendar, day). A DATED open (a run /
@@ -162,8 +175,8 @@ switch is outside every opener); run / ride rows →
   neutral hi / lo), sleep good ≥ target / mid / bad below the band, recovery by the day cut, training
   volume in four `--strain` shades, sparse readings "measured", missing = empty; the picked day below
   (default: the newest day with data): overnight views → the whole night (asleep h vs target, bed –
-  wake, recovery, HRV, RHR, respiratory, wrist temp; sleep says stages / awake time are not in the
-  extract), totals → value vs the median (energy + active / basal), sparse → vs the previous reading,
+  wake, recovery, HRV, RHR, respiratory, wrist temp; sleep adds that night's stages "REM · deep ·
+  core · awake" hours and efficiency %, or a no-stages note when the night has none), totals → value vs the median (energy + active / basal), sparse → vs the previous reading,
   workouts / load → that day's sessions. The view ends at the VIEWER's today, or at `DETAIL.asOf` when
   that is > 3 days old (with a note) or ahead of the clock.
 - **Modal + history** — `#detail` (role="dialog", aria-modal, labelled by the title) renders in

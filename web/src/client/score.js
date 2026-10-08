@@ -322,6 +322,11 @@ function scMod(key, btn) {
     var target = d.target != null ? num(d.target, 1, false) : '';
     if (d.state !== 'ok') return dialFig('dial-sleep dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.sleep.label);
     var h = num(d.hours, 1, false);
+    // sleep performance % (DIALS pct: asleep / need = the target, capped at 100); hours without it
+    if (typeof d.pct === 'number' && dt.sleep.ariaPct) {
+      return dialFig('dial-sleep', isStale(d.date), '', format(dt.sleep.ariaPct, { pct: d.pct, value: h, target: target }),
+        dialSvg({ fill: d.fill }), numCentre(String(d.pct), '%'), dt.sleep.label);
+    }
     return dialFig('dial-sleep', isStale(d.date), '', format(dt.sleep.aria, { value: h, target: target }),
       dialSvg({ fill: d.fill }), numCentre(h, 'h'), dt.sleep.label);
   }

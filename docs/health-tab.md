@@ -28,7 +28,10 @@ lines join this section's ⓘ block, and its raw "Last 14 days" lists fold behin
 line, see `docs/home-tab.md` — then only the signals among resting HR, HRV, respiratory rate and wrist
 temperature that the monitor does NOT list: the monitor already shows them at the top, so they are
 not repeated; with today's monitor that leaves no rows), **Fitness** (VO₂max, walking HR — moved out of
-Recovery), **Sleep** (last night, then % nights ≥ target, night-to-night ±, bedtime / wake time),
+Recovery), **Sleep** (last night, then % nights ≥ target, night-to-night ±, bedtime / wake time, then — when
+the extract has stages — REM / deep / core / awake hours of the newest staged night with their % of
+asleep, and sleep efficiency, each vs the mean of the staged nights among the last 30: `aggRecovery`
+`sleep.stages`, formulas from `lib/score/sleep.mjs`, explained in a second ⓘ note),
 **Body composition** (weight, body fat, lean mass, waist), **Activity** (steps, exercise, distance,
 flights), **Energy** (expenditure only: the intake balance + macro split moved to Nutrición →
 Balance, `docs/nutrition.md`). On ≥ 900 px the sections stay the phone's single column, just wider (the page's 960 px column,

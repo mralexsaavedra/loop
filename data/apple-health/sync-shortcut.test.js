@@ -7,7 +7,7 @@ const sync = require('./sync-shortcut.js');
 const {
   METRICS, SHORTCUT_SOURCE, parseNumber, parsePayload, collectSamples, buildRows,
   unionMinutes, mergeCsv, updateMeta, resolveToken, fetchAllPayloads, planSync,
-  foldPayloads, emptyCache, CACHE_FILE, writeAtomic, syncDir, dropPhantomWeights,
+  foldPayloads, emptyCache, CACHE_FILE, writeAtomic, syncDir, dropPhantomWeights, sleepStageOf,
 } = sync;
 const S_HDR = 'date,value,source';
 
@@ -97,8 +97,10 @@ test('buildRows() sleep: asleep stages only, night = wake-up date, union minutes
     { start: '2030-01-02 22:30:00 +0100', end: '2030-01-03 06:30:00 +0100', stage: 'Asleep' },
   ]);
   assert.deepEqual(rows, [
-    { date: '2030-01-02', line: `2030-01-02,7.25,${SHORTCUT_SOURCE},23.5,7.25` },
-    { date: '2030-01-03', line: `2030-01-03,8.00,${SHORTCUT_SOURCE},22.5,6.5` },
+    // stage columns: rem, deep, core, unspec, awake (inside the window), in bed (window + InBed)
+    { date: '2030-01-02', line: `2030-01-02,7.25,${SHORTCUT_SOURCE},23.5,7.25,4.25,1.50,1.50,0.00,0.50,7.75` },
+    // "Asleep" = unspecified: no REM / deep / core / awake; the 22:00 InBed record widens in bed
+    { date: '2030-01-03', line: `2030-01-03,8.00,${SHORTCUT_SOURCE},22.5,6.5,,,,8.00,,8.50` },
   ]);
 });
 
@@ -109,7 +111,25 @@ test('buildRows() sleep accepts localized stage names and ignores unknown ones',
     { start: '2030-01-02 02:00:00 +0100', end: '2030-01-02 03:00:00 +0100', stage: 'Whatever' },
   ]);
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].line, `2030-01-02,1.00,${SHORTCUT_SOURCE},0,1`);
+  assert.equal(rows[0].line, `2030-01-02,1.00,${SHORTCUT_SOURCE},0,1,0.00,1.00,0.00,0.00,0.00,1.00`);
+});
+
+test('buildRows() sleep maps Spanish stage names to their stage columns', () => {
+  const rows = buildRows('sleep', [
+    { start: '2030-01-01 23:00:00 +0100', end: '2030-01-02 01:00:00 +0100', stage: 'Principal' },
+    { start: '2030-01-02 01:00:00 +0100', end: '2030-01-02 01:30:00 +0100', stage: 'Despierto' },
+    { start: '2030-01-02 01:30:00 +0100', end: '2030-01-02 02:30:00 +0100', stage: 'Profundo' },
+    { start: '2030-01-02 02:30:00 +0100', end: '2030-01-02 04:00:00 +0100', stage: 'REM' },
+    { start: '2030-01-02 04:00:00 +0100', end: '2030-01-02 06:00:00 +0100', stage: 'Ligero' },
+    { start: '2030-01-02 06:00:00 +0100', end: '2030-01-02 07:00:00 +0100', stage: 'Sueño' },
+    { start: '2030-01-01 22:30:00 +0100', end: '2030-01-02 07:30:00 +0100', stage: 'En cama' },
+  ]);
+  assert.equal(rows[0].line, `2030-01-02,7.50,${SHORTCUT_SOURCE},23,7,1.50,1.00,4.00,1.00,0.50,9.00`);
+});
+
+test('sleepStageOf(): Shortcut stage names (English + Spanish) -> stage keys; unknown = null', () => {
+  assert.deepEqual(['Core', 'Deep', 'REM', 'Asleep', 'AsleepUnspecified', 'Awake', 'InBed', 'Ligero', 'Profundo', 'Dormido', 'En cama', 'Despierto', 'x']
+    .map(sleepStageOf), ['core', 'deep', 'rem', 'unspec', 'unspec', 'awake', 'inbed', 'core', 'deep', 'unspec', 'inbed', 'awake', null]);
 });
 
 const HDR = 'date,value,source';
@@ -565,7 +585,7 @@ test('sleep across the DST fall-back: real minutes, one night, wall-clock bed/wa
     '2026-10-24T23:30:00+02:00;2026-10-25T02:30:00+02:00;Core', // 3 h in summer time
     '2026-10-25T02:00:00+01:00;2026-10-25T06:00:00+01:00;Deep', // 4 h after clocks go back
   ].join('\n') }]);
-  assert.deepEqual(buildRows('sleep', s.sleep).map(r => r.line), [`2026-10-25,7.00,${SHORTCUT_SOURCE},23.5,6`]);
+  assert.deepEqual(buildRows('sleep', s.sleep).map(r => r.line), [`2026-10-25,7.00,${SHORTCUT_SOURCE},23.5,6,0.00,4.00,3.00,0.00,0.00,7.50`]); // in bed = the 7.5 h window (a 30 min gap)
 });
 
 test('vo2max: point samples without a source merge into vo2max.csv tagged Shortcut', () => {
@@ -723,12 +743,15 @@ test('extract.js and the Shortcut sync write identical sleep rows (nap excluded)
   for (const f of ['extract.js', 'samples.js']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
   const iv = [
     ['2030-01-01T23:30:00+01:00', '2030-01-02T03:00:00+01:00', 'Core'],
+    ['2030-01-02T03:00:00+01:00', '2030-01-02T04:30:00+01:00', 'Awake'],
+    ['2030-01-01T23:00:00+01:00', '2030-01-02T07:15:00+01:00', 'InBed'],
     ['2030-01-02T04:30:00+01:00', '2030-01-02T07:00:00+01:00', 'REM'],
     ['2030-01-02T17:40:00+01:00', '2030-01-02T18:40:00+01:00', 'Core'], // nap across 18:00
     ['2030-01-03T00:00:00+01:00', '2030-01-03T07:30:00+01:00', 'Deep'],
   ];
   const stamp = t => t.replace('T', ' ').replace(/([+-]\d{2}):(\d{2})$/, ' $1$2');
-  const xmlStage = { Core: 'HKCategoryValueSleepAnalysisAsleepCore', REM: 'HKCategoryValueSleepAnalysisAsleepREM', Deep: 'HKCategoryValueSleepAnalysisAsleepDeep' };
+  const xmlStage = { Core: 'HKCategoryValueSleepAnalysisAsleepCore', REM: 'HKCategoryValueSleepAnalysisAsleepREM', Deep: 'HKCategoryValueSleepAnalysisAsleepDeep',
+    Awake: 'HKCategoryValueSleepAnalysisAwake', InBed: 'HKCategoryValueSleepAnalysisInBed' };
   fs.writeFileSync(path.join(dir, 'export.xml'), [
     ...iv.map(([a, b, st]) => `<Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="${SHORTCUT_SOURCE}" startDate="${stamp(a)}" endDate="${stamp(b)}" value="${xmlStage[st]}"/>`),
     `<Record type="HKQuantityTypeIdentifierAppleSleepingWristTemperature" sourceName="${SHORTCUT_SOURCE}" startDate="2030-01-01 23:40:00 +0100" endDate="2030-01-02 07:00:00 +0100" value="36.1"/>`,
@@ -741,6 +764,7 @@ test('extract.js and the Shortcut sync write identical sleep rows (nap excluded)
   const exportSleep = fs.readFileSync(path.join(out, 'sleep-daily.csv'), 'utf8');
   assert.equal(exportSleep, csvOf(METRICS.sleep.header, buildRows('sleep', sync.sleep)));
   assert.match(exportSleep, /^2030-01-02,6\.00,/m, 'the nap adds no minutes');
+  assert.match(exportSleep, /^2030-01-02,6\.00,[^,]*,23\.5,7,2\.50,0\.00,3\.50,0\.00,1\.50,8\.25$/m, 'stage columns from the export values');
   assert.equal(fs.readFileSync(path.join(out, 'wristTemp.csv'), 'utf8'), csvOf(METRICS.wrist_temp.header, buildRows('wrist_temp', sync.wrist_temp)));
   fs.rmSync(dir, { recursive: true });
 });

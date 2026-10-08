@@ -7,7 +7,20 @@
  */
 
 const READING_HEADER = 'date,value,source';
-const SLEEP_HEADER = 'date,asleep_hours,source,bedtime,waketime';
+// sleep-daily.csv: the first five columns are the original schema (asleep_hours = the union of the
+// main sleep's asleep intervals, unchanged); the six stage columns were appended later, so readers
+// are POSITIONAL and must tolerate older five-column rows (blank = unknown). See sleepNights.
+const SLEEP_HEADER = 'date,asleep_hours,source,bedtime,waketime,rem_h,deep_h,core_h,unspec_h,awake_h,inbed_h';
+// Apple export sleep values -> stage keys. Asleep (pre-iOS 16) and AsleepUnspecified = 'unspec'
+// (asleep, stage unknown: older Watch data and third-party trackers).
+const SLEEP_STAGE_OF = {
+  AsleepCore: 'core', AsleepDeep: 'deep', AsleepREM: 'rem', AsleepUnspecified: 'unspec', Asleep: 'unspec',
+  Awake: 'awake', InBed: 'inbed',
+};
+const ASLEEP_STAGES = new Set(['core', 'deep', 'rem', 'unspec']);
+const sleepStage = value => SLEEP_STAGE_OF[String(value || '').replace(/^HKCategoryValueSleepAnalysis/, '')] || null;
+// a segment without a stage is an asleep one (callers that only pass asleep segments)
+const isAsleepSeg = sg => !sg.stage || ASLEEP_STAGES.has(sg.stage);
 // workouts.csv, written by BOTH extract.js and sync-strava.js. relative_effort / kilojoules /
 // elevation_m are filled only by Strava rows; Apple export rows leave the three trailing columns
 // empty. Readers are POSITIONAL and must tolerate shorter (older, 9- or 11-column) rows.
@@ -97,7 +110,11 @@ const wristTempDate = (start, end) => (end ? midpointNight(start, end) : sleepNi
 
 // total minutes covered by the union of intervals [{start, end}] (overlaps counted once)
 function unionMinutes(intervals) {
-  const iv = intervals.map(i => [absMs(i.start), absMs(i.end)]).filter(([a, b]) => b > a).sort((x, y) => x[0] - y[0]);
+  return unionMsMinutes(intervals.map(i => [absMs(i.start), absMs(i.end)]));
+}
+// [[aMs, bMs]] -> minutes of their union
+function unionMsMinutes(pairs) {
+  const iv = pairs.filter(([a, b]) => b > a).sort((x, y) => x[0] - y[0]);
   let total = 0, curA = null, curB = null;
   for (const [a, b] of iv) {
     if (curB == null || a > curB) { if (curB != null) total += curB - curA; curA = a; curB = b; }
@@ -189,22 +206,49 @@ function mainSleep(blocks) {
     if (bl.a < absMs(ck.start)) ck.start = bl.start;
     if (bl.b > absMs(ck.end)) ck.end = bl.end;
   }
-  return { minutes: unionMinutes(segs), ck };
+  return { minutes: unionMinutes(segs), segs, ck };
 }
 
-/** Asleep segments [{start, end, source}] (export stamps) -> one main-sleep night per wake-up date,
- * [{date, minutes, source, ck: {start, end}}] sorted by date. Shared by extract.js and
- * sync-shortcut.js, so both write identical sleep-daily.csv rows for the same segments. */
+// The night's stage minutes (see sleepNights). `segs` = the winning source's main-sleep asleep
+// segments, `own` = all that source's segments, `all` = every source's segments.
+function nightStages(segs, own, all, ck) {
+  const a = absMs(ck.start), b = absMs(ck.end);
+  const of = st => unionMinutes(segs.filter(sg => (sg.stage || 'unspec') === st));
+  const staged = segs.some(sg => sg.stage === 'rem' || sg.stage === 'deep' || sg.stage === 'core');
+  const awakeSegs = own.filter(sg => sg.stage === 'awake' && absMs(sg.start) < b && absMs(sg.end) > a);
+  const awake = unionMsMinutes(awakeSegs.map(sg => [Math.max(a, absMs(sg.start)), Math.min(b, absMs(sg.end))]));
+  const inbed = unionMsMinutes([[a, b], ...all.filter(sg => sg.stage === 'inbed' && absMs(sg.start) < b && absMs(sg.end) > a)
+    .map(sg => [absMs(sg.start), absMs(sg.end)])]);
+  return {
+    rem: staged ? of('rem') : null, deep: staged ? of('deep') : null, core: staged ? of('core') : null,
+    unspec: of('unspec'), awake: staged || awakeSegs.length ? awake : null, inbed,
+  };
+}
+
+/** Sleep segments [{start, end, source, stage?}] (export stamps; stage = sleepStage() key, absent =
+ * asleep) -> one main-sleep night per wake-up date, [{date, minutes, source, ck: {start, end},
+ * stages}] sorted by date. Only ASLEEP segments (rem / deep / core / unspec / no stage) build the
+ * night and pick the winning source; awake and in-bed records never create a night. Shared by
+ * extract.js and sync-shortcut.js, so both write identical sleep-daily.csv rows for the same segments.
+ * stages (minutes; null = unknown): rem / deep / core / unspec = the union of the winning source's
+ * main-sleep segments of that stage (rem / deep / core null when the night has no staged segment —
+ * Asleep-unspecified only); awake = that source's Awake records clipped to the sleep window
+ * ck.start..ck.end (null when the night is unstaged and has none); inbed = the union of the sleep window with every
+ * source's InBed records that overlap it (the iPhone writes InBed, the Watch does not), so without
+ * an InBed record it is the window itself (asleep + the awake time inside it). */
 function sleepNights(segments) {
-  const bySrc = new Map();
+  const bySrc = new Map(), all = [];
   for (const sg of segments || []) {
     if (!sg || !sg.start || !sg.end || !(minutesBetween(sg.start, sg.end) > 0)) continue;
+    all.push(sg);
     const k = sg.source || '';
     if (!bySrc.has(k)) bySrc.set(k, []);
     bySrc.get(k).push(sg);
   }
-  const best = new Map(); // night -> {minutes, source, ck}
-  for (const [source, segs] of bySrc) {
+  const best = new Map(); // night -> {minutes, source, ck, segs, own}
+  for (const [source, own] of bySrc) {
+    const segs = own.filter(isAsleepSeg);
+    if (!segs.length) continue;
     const byNight = new Map();
     for (const bl of sleepBlocks(segs)) {
       if (!byNight.has(bl.night)) byNight.set(bl.night, []);
@@ -214,10 +258,13 @@ function sleepNights(segments) {
       const m = mainSleep(blocks);
       if (!m) continue;
       const cur = best.get(night);
-      if (!cur || m.minutes > cur.minutes) best.set(night, { minutes: m.minutes, source, ck: m.ck });
+      if (!cur || m.minutes > cur.minutes) best.set(night, { minutes: m.minutes, source, ck: m.ck, segs: m.segs, own });
     }
   }
-  return [...best.keys()].sort().map(date => ({ date, ...best.get(date) }));
+  return [...best.keys()].sort().map(date => {
+    const n = best.get(date);
+    return { date, minutes: n.minutes, source: n.source, ck: n.ck, stages: nightStages(n.segs, n.own, all, n.ck) };
+  });
 }
 
 // ISO-8601 with offset ("2026-09-28T08:53:09+02:00" / "...Z") -> export stamp, keeping the
@@ -231,8 +278,11 @@ function isoToExportStamp(iso) {
 
 const readingRow = r => `${r.date},${r.value},${r.source || ''}`;
 // minutes asleep + clock {start, end} (earliest asleep start / latest asleep end) -> CSV row
-const sleepRow = (date, minutes, source, ck) =>
-  `${date},${(minutes / 60).toFixed(2)},${source || ''},${ck ? clockHour(ck.start) : ''},${ck ? clockHour(ck.end) : ''}`;
+// + the six stage columns (hours, 2 dp; blank = unknown) from sleepNights' `stages`
+const stageH = m => (m == null ? '' : (m / 60).toFixed(2));
+const sleepRow = (date, minutes, source, ck, st) =>
+  `${date},${(minutes / 60).toFixed(2)},${source || ''},${ck ? clockHour(ck.start) : ''},${ck ? clockHour(ck.end) : ''},` +
+  ['rem', 'deep', 'core', 'unspec', 'awake', 'inbed'].map(k => stageH(st ? st[k] : null)).join(',');
 
 // one parsed Apple workout -> workouts.csv row (12 columns; the three Strava-only columns stay empty)
 const workoutRow = w => {
@@ -245,5 +295,5 @@ module.exports = {
   APPLE_WATCH_RE, energySource, pickEnergySource,
   READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow,
   day, num, localMs, absMs, minutesBetween, addDay, clockHour, sleepNight, wristTempDate, isoToExportStamp,
-  readingRow, sleepRow, unionMinutes, sleepNights,
+  readingRow, sleepRow, unionMinutes, sleepNights, sleepStage, SLEEP_STAGE_OF,
 };

@@ -754,6 +754,50 @@ button.dt-day {
     color: transparent;
   }
 }
+/* sleep stages: one stacked bar of the night (awake / REM / core / deep by hours) + a legend with the
+ * hours and the % of time asleep. Shades of the sleep colour towards the violet link end: deeper =
+ * darker-violet; awake is the faint neutral. */
+.dd-stages {
+  margin-top: var(--sp-7);
+}
+.dd-stbar {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.dd-st {
+  display: block;
+  height: 100%;
+}
+.dd-st-awake { background: var(--faint); }
+.dd-st-rem { background: color-mix(in srgb, var(--sleep) 55%, #ffffff); }
+.dd-st-core { background: var(--sleep); }
+.dd-st-deep { background: color-mix(in srgb, var(--sleep) 35%, var(--link-end)); }
+.dd-st-unspec { background: color-mix(in srgb, var(--sleep) 45%, transparent); }
+.dd-stleg {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-6);
+  margin-top: var(--sp-4);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.dd-stleg b {
+  font-family: var(--num);
+  font-weight: 600;
+  color: var(--ink);
+}
+.dd-sw {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--sp-2);
+  border-radius: 2px;
+  vertical-align: -1px;
+}
 /* contributors card: the dial's inputs, each today vs the prior 30 days; a caret notch points up to
  * the hero ring. ▲▼ teal = better, orange = worse (by the metric's good direction), grey = no good
  * direction; a grey dot = typical. */

@@ -14,10 +14,13 @@
  *     pre-computed fill when it has RE), so nothing today-relative is baked: a day with rows
  *     but no RE reads "no effort data", a day with no rows reads rest (with `last` as context);
  *     acute/chronic (trendPct/band) stays as context.
- *   - Sleep: the sleep-duration component's newest night over the stated target.
+ *   - Sleep: the sleep-duration component's newest night over the stated target; `pct` = sleep
+ *     performance (lib/score/sleep.mjs: asleep / need × 100, capped at 100, need = the target), the
+ *     number the dial shows. The ring fills to the same fraction.
  * No new metric: the recovery % is a rank of the same composite (lib/score/recovery.mjs). Baked by components/Bake.astro as DIALS;
  * client/score.js turns it into inline SVG. */
 import { Z_CLAMP } from '../../../lib/score/recovery.mjs';
+import { sleepPerformance } from '../../../lib/score/sleep.mjs';
 
 // 120-unit viewBox, 54-unit radius, 7-unit stroke (~6 % of the ring's diameter): a full ring that
 // starts at 12 o'clock (-90 degrees) and fills clockwise; the midpoint (0.5) sits at 6 o'clock.
@@ -115,7 +118,7 @@ function sleepDial(R, H) {
   const last = comp && comp.daily && comp.daily.length ? comp.daily[comp.daily.length - 1] : null;
   const f = last ? sleepFrac(last.value, target) : null;
   if (f == null) return { state: 'none' };
-  return { state: 'ok', date: last.date, hours: last.value, target, fill: arcPath(0, f) };
+  return { state: 'ok', date: last.date, hours: last.value, target, pct: sleepPerformance(last.value, target), fill: arcPath(0, f) };
 }
 
 function loadDial(L) {

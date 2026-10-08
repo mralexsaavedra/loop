@@ -139,6 +139,14 @@ trend is the line under it.
   OWN date is > 3 days before the viewer's today is greyed with "no recent data", no tone, no marker; the
   whole block greys when its newest date is > 3 days old. Display units come from the i18n dict. A
   card that throws falls back to its empty state.
+- **Sleep scores** (`lib/score/sleep.mjs`, baked as `SCORES.sleep` = `{need, last}`, null without
+  sleep data): last night's `perf` = asleep / need × 100, rounded, capped at 100 — **our need = your
+  target** (`SLEEP_TARGET`, 7.5 h; no adaptive need from strain or debt is invented); `eff` = asleep /
+  in bed × 100 (capped; null when the night has no `inbed_h`); `cons` = sleep consistency in MINUTES
+  (`recovery.mjs` `sleepConsistency`: the mean of |bedtime − median| and |wake − median| over the
+  previous 42 nights — the recovery input `sleepCons`; no documented minutes → % mapping exists, so no
+  %); `stages` (REM / deep / core / unspecified / awake / in bed hours), `shares` (REM / deep / core %
+  of asleep) and `restorative` (REM + deep hours) only on a staged night.
 - **Dials** (top of the tab: Sleep / Recovery / Load) only VISUALISE baked values — no new metric (the
   recovery % is a rank of the same composite). `web/src/view/dial.mjs` (`buildDials(scores, health)`, unit-tested, baked as `DIALS`)
   pre-computes the ring geometry; `score.js` only formats numbers and joins SVG strings. Layout: three
@@ -158,7 +166,10 @@ trend is the line under it.
   zone arcs on the track (they tinted part of the ring a second colour). The band word, "Last night"
   (or the night's date) / "no recent complete night" are in the accessible name, and the recovery
   deep-dive page adds "no sleep data" and the 7-day trend. Sleep: fill = the sleep-duration component's newest night /
-  the stated target (`health.recovery.sleep.target`, 7.5 h), capped at a full ring; the target is in
+  the stated target (`health.recovery.sleep.target`, 7.5 h), capped at a full ring; `pct` = sleep
+  performance (same fraction as a rounded %, `lib/score/sleep.mjs` `sleepPerformance`): the centre shows
+  "92" + a small "%" in the sleep colour (the mini row reuses the same svg + accessible name, which
+  carries the % and "6.9 h of your 7.5 h need"); without a `pct` the hours + "h"; the target is in
   the accessible name and the sleep sheet ("Target 7.5 h"). Load: ONE dial with a gym/run/bike
   switch — compact pills right-aligned under the load dial (kept on Inicio rather than in the load
   sheet: the sheet is one modality's history, while the switch decides which ring Inicio shows) — that opens

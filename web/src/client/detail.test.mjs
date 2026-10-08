@@ -334,7 +334,7 @@ test('calendar: Monday-first weekday header (es / en), prev / next month bounded
   assert.ok(es.host.innerHTML.includes('<span class="dt-wd">L</span><span class="dt-wd">M</span><span class="dt-wd">X</span>'));
 });
 
-test('sleep day detail: asleep hours vs target, bedtime – wake, that night\'s HRV / resting HR / respiratory / wrist temp, and the no-stages note', () => {
+test('sleep day detail: asleep hours vs target, bedtime – wake, that night\'s HRV / resting HR / respiratory / wrist temp, its stages + efficiency (else the no-stages note)', () => {
   const s = setup();
   const d = addDays(NOW, -1);
   s.api.open('sleep', d);
@@ -346,8 +346,16 @@ test('sleep day detail: asleep hours vs target, bedtime – wake, that night\'s 
   assert.ok(html.includes(`${clock(sl.bed[i])}–${clock(sl.wake[i])}`), 'bedtime – wake');
   assert.ok(html.includes(String(valueOn(DEMO.metrics.hrv, d))), 'HRV that night');
   assert.ok(html.includes(String(valueOn(DEMO.metrics.rhr, d))), 'resting HR that night');
-  assert.ok(html.includes(enT.day.stagesNote));
+  const f1 = (k) => valueOn({ ...sl, v: sl[k] }, d).toFixed(1);
+  assert.ok(html.includes(format(enT.day.stages, { rem: f1('rem'), deep: f1('deep'), core: f1('core'), awake: f1('awake') })), 'that night\'s stages');
+  assert.ok(html.includes(`${valueOn({ ...sl, v: sl.eff }, d)} %`), 'efficiency');
+  assert.ok(!html.includes(enT.day.stagesNote));
   assert.ok(html.includes('Mon 28 Sep') || html.includes('Sun 27 Sep'), 'the day heading uses HC.fmtDate');
+  const old = copy();
+  for (const k of ['rem', 'deep', 'core', 'awake', 'inbed', 'eff']) delete old.metrics.sleep[k];
+  const o = setup({ detail: old });
+  o.api.open('sleep', d);
+  assert.ok(o.host.innerHTML.includes(enT.day.stagesNote), 'no stages that night: the note');
 });
 
 test('workouts / load day detail lists that day\'s sessions after the same-day rule; a load view shows only its modality', () => {
@@ -566,7 +574,7 @@ test('ⓘ toggles the long-notes block in place (no re-render); the CTA jumps to
   assert.ok(s.host.innerHTML.includes(`<button type="button" class="dd-cta" data-dt-act="trend">${enT.deep.cta}<span aria-hidden="true"> →</span></button>`));
 });
 
-test('recovery deep-dive = the dial: the hero ring is last night\'s % with ONE % band colour; the insight says "last night" + band, the SD value and the 7-day trend in its own band colour', () => {
+test('recovery deep-dive = the dial: the hero ring is last night\'s % with ONE % band colour; the insight says "last night" + the % band and the 7-day trend in its own band colour; the SD value is under ⓘ', () => {
   const s = setup({ dials: DIALS });
   s.api.open('recovery');
   const html = s.host.innerHTML;
@@ -582,7 +590,9 @@ test('recovery deep-dive = the dial: the hero ring is last night\'s % with ONE %
   const ins = insightOf(html);
   assert.ok(ins.includes(format(enT.deep.nightLine, { when: enT.rec.lastNight, band: enT.rec.pctBands[d.band] })));
   const sdLine = format(enT.rec.sdLbl, { value: sgn(d.value, 1), band: '' });
-  assert.ok(ins.includes(sdLine.slice(0, sdLine.indexOf(' · '))), 'the night\'s SD value stays in the insight');
+  const sdHead = sdLine.slice(0, sdLine.indexOf(' · '));
+  assert.ok(!ins.includes(sdHead), 'the insight carries ONE band (the %): the SD line is not there');
+  assert.ok(infoOf(html).includes(sdHead), 'the night\'s SD value moved under ⓘ (still reachable)');
   const bandState = { above: 'good', at: 'normal', below: 'bad' };
   const trend = format(enT.rec.trendLine, { dir: enT.rec.dirs[d.trend.dir], value: sgn(d.trend.value, 1) });
   assert.ok(ins.includes(`dd-ln dt-c-${bandState[d.trend.band]}">${trend}`), 'trend line coloured by the TREND band');
@@ -738,19 +748,35 @@ test('load deep-dive keeps the dial\'s former captions: the ring scale + the 7-d
   assert.doesNotMatch(none.host.innerHTML, /NaN|undefined/);
 });
 
-test('sleep deep-dive: the hero is last night\'s hours in the sleep colour; the insight states the target and last night vs it', () => {
+test('sleep deep-dive: the hero is last night\'s sleep performance % in the sleep colour; a stages bar under it; ⓘ explains every formula; the insight states the target and last night vs it', () => {
   const s = setup({ dials: DIALS });
   s.api.open('sleep');
   const html = s.host.innerHTML;
   const hero = heroOf(html);
   assert.ok(hero.startsWith(' dd-sleep"'));
-  assert.ok(hero.includes(`<b class="dd-num">${DIALS.sleep.hours.toFixed(1)}<small>h</small></b>`));
+  assert.ok(Number.isInteger(DIALS.sleep.pct));
+  assert.ok(hero.includes(`<b class="dd-num">${DIALS.sleep.pct}<small>%</small></b>`), 'same % as the dial');
+  assert.ok(hero.includes(`<span class="dd-lbl">${enT.deep.label.sleepPerf}</span>`));
   assert.ok(hero.includes(`d="${DIALS.sleep.fill}"`));
   const ins = insightOf(html);
   assert.ok(ins.includes(format(enT.bands.target, { value: '7.5', unit: 'h' })), 'Target 7.5 h');
   const v = valueOn(DEMO.metrics.sleep, NOW);
   assert.ok(ins.includes(format(enT.deep.sleepLine, { when: enT.rec.lastNight, value: v.toFixed(1), delta: Number((v - 7.5).toFixed(1)) === 0 ? '0.0' : sgn(v - 7.5, 1), target: '7.5' })));
-  assert.ok(infoOf(html).includes(enT.day.stagesNote));
+  const info = infoOf(html);
+  assert.ok(info.includes(format(enT.deep.sleepNotes.perf, { target: '7.5' })), 'ⓘ: performance formula, need = target');
+  for (const k of ['eff', 'cons', 'stages']) assert.ok(info.includes(enT.deep.sleepNotes[k]), `ⓘ: ${k}`);
+  // stages bar: awake / REM / core / deep, widths by hours, legend with hours and % of asleep
+  const sl = DEMO.metrics.sleep;
+  const st = html.split('<section class="dd-stages"')[1].split('</section>')[0];
+  assert.ok(html.indexOf('dd-stages') > html.indexOf('dd-hero') && html.indexOf('dd-stages') < html.indexOf('dd-contrib'), 'under the hero');
+  assert.deepEqual([...st.matchAll(/<i class="dd-st dd-st-([a-z]+)"/g)].map((x) => x[1]), ['awake', 'rem', 'core', 'deep']);
+  const rem = valueOn({ ...sl, v: sl.rem }, NOW);
+  assert.ok(st.includes(`${enT.deep.stages.rem} <b>${rem.toFixed(1)} h · ${Math.round((100 * rem) / v)}%</b>`));
+  // no DIALS: the hours hero; no stage arrays: no bar
+  const bare = setup({ detail: (() => { const c = copy(); for (const k of ['rem', 'deep', 'core', 'awake', 'inbed', 'eff']) delete c.metrics.sleep[k]; return c; })() });
+  bare.api.open('sleep');
+  assert.ok(heroOf(bare.host.innerHTML).includes(`<b class="dd-num">${v.toFixed(1)}<small>h</small></b>`));
+  assert.doesNotMatch(bare.host.innerHTML, /dd-stages/);
   clean(html);
 });
 
@@ -1131,19 +1157,30 @@ test('recovery contributors = the composite\'s inputs on the scored night (HRV, 
   clean(html);
 });
 
-test('sleep contributors: hours (▲▼), vs target, bedtime and wake time (neutral arrows, bedtime wraps midnight); load: today\'s RE, 7 vs 42 days, sessions, typical day', () => {
+test('sleep contributors: hours vs need, efficiency, consistency, REM + deep; bedtime and wake time fill in without them (neutral arrows, bedtime wraps midnight); load: today\'s RE, 7 vs 42 days, sessions, typical day', () => {
   const s = setup({ dials: DIALS });
   s.api.open('sleep');
   let html = s.host.innerHTML;
-  assert.deepEqual(rowsOf(html), ['sleep', 'vsTarget', 'bed', 'wake']);
+  assert.deepEqual(rowsOf(html), ['need', 'eff', 'cons', 'restor'], 'hours vs need, efficiency, consistency, REM + deep');
   const sl = DEMO.metrics.sleep;
+  const hv = valueOn(sl, NOW);
+  assert.ok(contribOf(html).includes(`<b class="dd-row-val">${hv.toFixed(1)} / 7.5 h</b>`), 'hours vs need');
+  assert.ok(contribOf(html).includes(`<b class="dd-row-val">${valueOn({ ...sl, v: sl.eff }, NOW)} %</b>`), 'efficiency');
+  assert.ok(contribOf(html).includes(`<b class="dd-row-val">${valueOn({ ...sl, v: sl.cons }, NOW)} min</b>`), 'consistency in minutes');
+  // an extract without stages / efficiency / consistency: bedtime and wake time fill in
+  const old = copy();
+  for (const k of ['rem', 'deep', 'core', 'awake', 'inbed', 'eff', 'cons']) delete old.metrics.sleep[k];
+  const o = setup({ detail: old, dials: DIALS });
+  o.api.open('sleep');
+  assert.deepEqual(rowsOf(o.host.innerHTML), ['need', 'bed', 'wake']);
   const clockOf = (h) => { h = ((h % 24) + 24) % 24; const H = Math.floor(h), M = Math.round((h - H) * 60); return String(M === 60 ? (H + 1) % 24 : H).padStart(2, '0') + ':' + String(M === 60 ? 0 : M).padStart(2, '0'); };
-  assert.ok(contribOf(html).includes(`<b class="dd-row-val">${clockOf(valueOn({ ...sl, v: sl.bed }, NOW))}</b>`), 'bedtime clock');
+  assert.ok(contribOf(o.host.innerHTML).includes(`<b class="dd-row-val">${clockOf(valueOn({ ...sl, v: sl.bed }, NOW))}</b>`), 'bedtime clock');
   const bedRow = (h) => contribOf(h).split('data-row="bed"')[1].split('</li>')[0];
-  assert.doesNotMatch(bedRow(html), /dd-better|dd-worse/, 'bedtime has no good direction');
+  assert.doesNotMatch(bedRow(o.host.innerHTML), /dd-better|dd-worse/, 'bedtime has no good direction');
   // a bedtime just after midnight compares as a LATE evening (▲), not as the earliest of the month
   const late = copy();
   late.metrics.sleep.bed[dayIndex(late.metrics.sleep, NOW)] = 0.5;
+  for (const k of ['eff', 'cons', 'rem']) delete late.metrics.sleep[k];
   const l = setup({ detail: late, dials: DIALS });
   l.api.open('sleep');
   assert.ok(bedRow(l.host.innerHTML).includes('<b class="dd-row-val">00:30</b><span class="dd-mk dd-neutral" aria-hidden="true">▲</span>'));
@@ -1185,6 +1222,7 @@ test('weekly trends: one card per input, 7 bars ending at the view\'s last day (
   s.api.open('sleep');
   wk = weeklyOf(s.host.innerHTML);
   assert.match(wk, /dd-bar dd-c-sleep/);
+  assert.deepEqual([...wk.matchAll(/<h4 class="dd-wk-t">([^<]+)</g)].map((x) => x[1]), ['Sleep', enT.deep.weekly.perf, enT.deep.weekly.restor]);
   s.api.open('load-gym');
   wk = weeklyOf(s.host.innerHTML);
   assert.deepEqual([...wk.matchAll(/<h4 class="dd-wk-t">([^<]+)</g)].map((x) => x[1]), ['Gym load', enT.deep.weekly.minutes]);

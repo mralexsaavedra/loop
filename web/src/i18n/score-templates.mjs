@@ -124,7 +124,7 @@ export const en = {
   dials: {
     ariaLabel: 'Sleep, recovery and load at a glance',
     none: 'No data',
-    sleep: { label: 'Sleep', aria: 'Last night: {value} h of a {target} h target' },
+    sleep: { label: 'Sleep', aria: 'Last night: {value} h of a {target} h target', ariaPct: 'Last night: sleep performance {pct} %, {value} h of your {target} h need' },
     recovery: {
       label: 'Recovery',
       delta: `{value} ${UE}`,
@@ -320,7 +320,7 @@ export const es = {
   dials: {
     ariaLabel: 'Sueño, recuperación y carga de un vistazo',
     none: 'Sin datos',
-    sleep: { label: 'Sueño', aria: 'Anoche: {value} h de un objetivo de {target} h' },
+    sleep: { label: 'Sueño', aria: 'Anoche: {value} h de un objetivo de {target} h', ariaPct: 'Anoche: rendimiento del sueño {pct} %, {value} h de tu necesidad de {target} h' },
     recovery: {
       label: 'Recuperación',
       delta: `{value} ${US}`,
