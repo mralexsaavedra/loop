@@ -456,6 +456,13 @@
     var mid = bars ? step : Math.round((lo + hi) / 2 / step) * step;
     return [mid - step, mid, mid + step].map(function (t) { return Math.round(t * 1000) / 1000; });
   }
+  // a points chart longer than this (6M, 1Y) shows only the out-of-range days as dots
+  var THIN_DAYS = 60;
+  // inside the shaded zone: recovery's day cut (|v| < cut, the calendar's "at baseline"), else the band
+  function inRange(m, v) {
+    if (m.kind === 'recovery') return Math.abs(v) < m.cut;
+    return !m.band || (v >= m.band.lo && v <= m.band.hi);
+  }
   // W (7 days): bars with their value on top and a weekday + day label under each, like the dial
   // pages' weekly cards (recovery keeps its points: its scale is signed around the baseline)
   var WEEK_BARS = 7;
@@ -509,8 +516,11 @@
     out.push('<rect class="dt-sel" x="' + f(sx == null ? 0 : sx) + '" y="0" width="' + f(slot) + '" height="' + CH + '"' + (sx == null ? ' visibility="hidden"' : '') + '/>');
     var bw = Math.max(0.6, slot * (week ? 0.42 : 0.7)), r = n > 120 ? 1.3 : n > 45 ? 1.8 : 2.4;
     var dec = m.kind === 'sleep' ? 1 : m.dec, labels = [];
+    // a long window (6M / 1Y) of points: only the days OUT of the range get a dot, the 7-day line
+    // carries the rest, so the dots never saturate the chart
+    var thin = !bars && n > THIN_DAYS && (m.kind === 'recovery' || !!m.band);
     days.forEach(function (d, i) {
-      if (d.v == null) return;
+      if (d.v == null || (thin && inRange(m, d.v))) return;
       var st = stateOn(m, d.iso, d.v);
       if (bars) {
         if (week) labels.push('<span class="dt-bv" style="left:' + pctX(i) + ';top:' + pctY(Math.max(0, d.v)) + '">' + esc(fmt(d.v, dec)) + '</span>');
@@ -541,7 +551,7 @@
       }
     }
     out.push('</svg>');
-    var key2 = ['<span class="dt-k dt-k-daily">' + esc(T.chartKey.daily) + '</span>'];
+    var key2 = [thin ? '<span class="dt-k dt-k-out">' + esc(T.chartKey.outside) + '</span>' : '<span class="dt-k dt-k-daily">' + esc(T.chartKey.daily) + '</span>'];
     if (line.some(function (v) { return v != null; })) key2.push('<span class="dt-k dt-k-line">' + esc(T.chartKey.roll7) + '</span>');
     if (tg != null) key2.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.target) + '</span>');
     if (m.typical != null) key2.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.typical) + '</span>');
@@ -562,6 +572,33 @@
       axis + '<figcaption class="dt-keys">' + key2.join('') + '</figcaption></figure>';
   }
 
+  /* ---------- the window's days by range ---------- */
+  // one stacked bar of the window's days with data, by calendar state (the legend's order and colours),
+  // + a count per state ("6x"); "Learn more" opens the ⓘ notes. Training volume (four shades of one
+  // colour), sparse readings and a metric without a band have no states worth counting: nothing.
+  var BRK_SKIP = ['workouts', 'load', 'strain', 'sparse'];
+  function breakdownHtml(m, from, to) {
+    var items = BRK_SKIP.indexOf(m.kind) === -1 ? legendItems(m) : [];
+    if (items.length < 2) return '';
+    var n = {}, tot = 0, B = T.trend.brk;
+    items.forEach(function (it) { n[it[0]] = 0; });
+    for (var d = from; d <= to; d = shiftIso(d, 1)) {
+      var v = valueOf(m, d), st = v == null ? 'none' : stateOn(m, d, v);
+      if (!own(n, st)) continue; // no data, today in progress
+      n[st]++;
+      tot++;
+    }
+    if (!tot) return '';
+    var bar = items.filter(function (it) { return n[it[0]] > 0; }).map(function (it) {
+      return '<i class="dt-s-' + it[0] + '" style="width:' + (Math.round((1000 * n[it[0]]) / tot) / 10) + '%"></i>';
+    }).join('');
+    return '<section class="dt-brk" aria-label="' + esc(B.title) + '"><div class="dt-brk-top"><h3 class="dt-brk-t">' + esc(B.title) + '</h3>' +
+      '<button type="button" class="dt-learn" data-dt-act="learn">' + esc(B.learn) + '</button></div>' +
+      '<div class="dt-brk-bar" aria-hidden="true">' + bar + '</div><ul class="dt-brk-leg">' + items.map(function (it) {
+        return '<li data-st="' + it[0] + '"><span class="dt-sw dt-s-' + it[0] + '" aria-hidden="true"></span>' + esc(it[1]) + '<b>' + esc(format(B.count, { n: n[it[0]] })) + '</b></li>';
+      }).join('') + '</ul></section>';
+  }
+
   /* ---------- month calendar ---------- */
   function monthOf(iso) {
     return iso.slice(0, 8) + '01';
@@ -571,7 +608,8 @@
     d.setMonth(d.getMonth() + k, 1);
     return HC.isoOf(d);
   }
-  function legendHtml(m) {
+  // [state, label] per calendar state of a metric (the legend's order), without "no data"
+  function legendItems(m) {
     var L = T.legend, items;
     if (m.kind === 'workouts' || m.kind === 'load' || m.kind === 'strain') items = [['l1', ''], ['l2', ''], ['l3', ''], ['l4', L.levels]];
     else if (m.kind === 'sparse') items = [['measured', L.measured]];
@@ -584,7 +622,10 @@
     else if (m.dir === 0 && m.kind === 'total') items = [['hi', L.hi], ['normal', L.normal], ['lo', L.lo]];
     else if (m.dir === 0) items = [['normal', L.normal], ['watch', L.watch]];
     else items = [['good', L.good], ['normal', L.normal], ['bad', L.bad]];
-    items.push(['none', L.none]);
+    return items;
+  }
+  function legendHtml(m) {
+    var items = legendItems(m).concat([['none', T.legend.none]]);
     return '<div class="dt-legend">' + items.map(function (it) {
       return '<span class="dt-leg"><span class="dt-sw dt-s-' + it[0] + '" aria-hidden="true"></span>' + esc(it[1]) + '</span>';
     }).join('') + '</div>';
@@ -844,6 +885,13 @@
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     box.hidden = !open;
   }
+  // "Learn more" under the breakdown bar: the ⓘ notes open (never closed by it) and come into view
+  function learnMore() {
+    var btn = q('.sh-info'), box = q('#dd-info');
+    if (btn && box && box.hidden) toggleInfo(btn);
+    if (box && typeof box.scrollIntoView === 'function') box.scrollIntoView({ block: 'nearest' });
+    if (btn && typeof btn.focus === 'function') btn.focus();
+  }
   // "View trend →": down to the history chart (the W / M / 6M / 1Y switch); focus follows to the
   // pressed range button so keyboard users land there too
   function toTrend() {
@@ -879,7 +927,7 @@
       '<div class="dt-body">' + (dd ? dd.top : '') +
       (ve.stale ? '<p class="dt-stale">' + esc(format(T.staleNote, { date: HC.fmtDate(end) })) + '</p>' : '') +
       metricStaleHtml(m, end) +
-      periodHtml(key, m, end, state.range, state.shift) + chartHtml(key, m, from, to, sel) +
+      periodHtml(key, m, end, state.range, state.shift) + chartHtml(key, m, from, to, sel) + breakdownHtml(m, from, to) +
       foldHtml(!!dd, '<div data-dt-part="cal">' + calendarHtml(key, m, state.month, sel, end) + '</div>' +
       '<div data-dt-part="day">' + dayPart(key, m, sel) + '</div>') + '</div>';
   }
@@ -1067,6 +1115,7 @@
     }
     if (a === 'info') { toggleInfo(el); return; }
     if (a === 'hist') { toggleHist(el); return; }
+    if (a === 'learn') { learnMore(); return; }
     if (a === 'trend') { toTrend(); return; }
     var focusSel = null;
     if (a === 'range') {

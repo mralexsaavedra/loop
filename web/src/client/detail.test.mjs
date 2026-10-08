@@ -1814,3 +1814,89 @@ test('deep-dive History fold: the month calendar + day panel sit behind one coll
   assert.ok(es.host.innerHTML.includes(`<span class="dd-fold-t">${esT.deep.hist.title}</span>`));
   clean(html);
 });
+
+test('trend view 6M / 1Y: only the days out of the range get a dot (the 7-day line carries the rest); M keeps every day', () => {
+  const s = setup();
+  const m = DEMO.metrics.rhr;
+  const inWin = (from) => { const out = []; for (let d = from < m.start ? m.start : from; d <= NOW; d = addDays(d, 1)) { const v = valueOn(m, d); if (v != null) out.push(v); } return out; };
+  s.api.open('rhr');
+  let html = s.host.innerHTML;
+  assert.equal((html.match(/class="dt-pt/g) || []).length, inWin(addDays(NOW, -29)).length, 'M: a dot per day with data');
+  assert.ok(html.includes(`<span class="dt-k dt-k-daily">${enT.chartKey.daily}</span>`));
+  s.click(act('range', { 'data-range': '182' }));
+  html = s.host.innerHTML;
+  const vals = inWin(addDays(NOW, -181));
+  const out = vals.filter((v) => v < m.band.lo || v > m.band.hi);
+  assert.ok(vals.length > 60 && out.length > 0 && out.length < vals.length / 3, `the demo has a long, mostly in-range window (${out.length}/${vals.length})`);
+  assert.equal((html.match(/class="dt-pt/g) || []).length, out.length, '6M: a dot per out-of-range day only');
+  assert.doesNotMatch(html, /dt-pt dt-s-normal/, 'no in-range dot');
+  assert.match(html, /class="dt-line"/, 'the 7-day line stays');
+  assert.ok(html.includes(`<span class="dt-k dt-k-out">${enT.chartKey.outside}</span>`), 'the key says which days are dots');
+  // recovery: out of range = beyond the day cut (the calendar's above / below baseline)
+  s.api.open('recovery');
+  s.click(act('range', { 'data-range': '182' }));
+  const r = DEMO.metrics.recovery;
+  let n = 0;
+  for (let d = addDays(NOW, -181); d <= NOW; d = addDays(d, 1)) { const v = valueOn(r, d); if (v != null && Math.abs(v) >= r.cut) n++; }
+  assert.equal((s.host.innerHTML.match(/class="dt-pt/g) || []).length, n);
+  // es copy
+  const es = setup({ locale: 'es' });
+  es.api.open('rhr');
+  es.click(act('range', { 'data-range': '365' }));
+  assert.ok(es.host.innerHTML.includes(`<span class="dt-k dt-k-out">${esT.chartKey.outside}</span>`));
+});
+
+test('trend view breakdown: one stacked bar of the window\'s days by calendar state with a count each ("6x"), following the window; LEARN MORE opens ⓘ; none for training volume', () => {
+  const info = new StubElement('div', { hidden: true });
+  info.scrolled = 0;
+  info.scrollIntoView = () => { info.scrolled++; };
+  const ibtn = new StubElement('button', { attrs: { 'aria-expanded': 'false' } });
+  const s = setup({ query: { '#dd-info': info, '.sh-info': ibtn } });
+  const m = DEMO.metrics.rhr;
+  const count = (from) => {
+    const c = { good: 0, normal: 0, bad: 0 };
+    for (let d = from; d <= NOW; d = addDays(d, 1)) {
+      const v = valueOn(m, d);
+      if (v == null) continue;
+      const side = v > m.band.hi ? 1 : v < m.band.lo ? -1 : 0;
+      c[!side ? 'normal' : side === m.dir ? 'good' : 'bad']++;
+    }
+    return c;
+  };
+  const brkOf = (html) => (html.split('<section class="dt-brk"')[1] || '').split('</section>')[0];
+  s.api.open('rhr');
+  for (const [range, from] of [['30', addDays(NOW, -29)], ['7', addDays(NOW, -6)]]) {
+    s.click(act('range', { 'data-range': range }));
+    const b = brkOf(s.host.innerHTML);
+    const c = count(from);
+    const tot = c.good + c.normal + c.bad;
+    assert.ok(b.includes(`<h3 class="dt-brk-t">${enT.trend.brk.title}</h3><button type="button" class="dt-learn" data-dt-act="learn">${enT.trend.brk.learn}</button>`));
+    assert.deepEqual([...b.matchAll(/<li data-st="([a-z]+)">/g)].map((x) => x[1]), ['good', 'normal', 'bad'], 'the legend\'s order');
+    for (const k of ['good', 'normal', 'bad']) {
+      assert.ok(b.includes(`${k === 'good' ? enT.legend.good : k === 'bad' ? enT.legend.bad : enT.legend.normal}<b>${c[k]}x</b>`), `${range}: ${k} ${c[k]}x`);
+      if (c[k]) assert.ok(b.includes(`<i class="dt-s-${k}" style="width:${Math.round((1000 * c[k]) / tot) / 10}%"></i>`), `${range}: ${k} segment`);
+      else assert.ok(!b.includes(`<i class="dt-s-${k}"`), `${range}: no empty segment`);
+    }
+  }
+  const html = s.host.innerHTML;
+  assert.ok(html.indexOf('dt-brk') > html.indexOf('dt-chart') && html.indexOf('dt-brk') < html.indexOf('dt-cal'), 'under the chart');
+  const writes = s.hostWrites();
+  s.click(act('learn'));
+  assert.equal(info.hidden, false, 'ⓘ opens');
+  assert.equal(ibtn.getAttribute('aria-expanded'), 'true');
+  assert.equal(info.scrolled, 1);
+  s.click(act('learn'));
+  assert.equal(info.hidden, false, 'never closes it');
+  assert.equal(s.hostWrites(), writes, 'no re-render');
+  // recovery: its day states; training load / volume: no breakdown
+  s.api.open('recovery');
+  assert.deepEqual([...brkOf(s.host.innerHTML).matchAll(/<li data-st="([a-z]+)">/g)].map((x) => x[1]), ['good', 'normal', 'bad']);
+  s.api.open('load-gym');
+  assert.doesNotMatch(s.host.innerHTML, /dt-brk/);
+  s.api.open('workouts');
+  assert.doesNotMatch(s.host.innerHTML, /dt-brk/);
+  const es = setup({ locale: 'es' });
+  es.api.open('rhr');
+  assert.ok(es.host.innerHTML.includes(`>${esT.trend.brk.learn}</button>`) && /<b>\d+x<\/b>/.test(es.host.innerHTML));
+  clean(html);
+});

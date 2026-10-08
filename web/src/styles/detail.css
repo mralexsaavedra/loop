@@ -497,6 +497,10 @@ html.dt-lock body {
   border-radius: 3px;
   background: var(--trend);
 }
+/* 6M / 1Y: the dots are the out-of-range days, good or bad */
+.dt-k-out::before {
+  background: linear-gradient(90deg, var(--good) 50%, var(--low) 50%);
+}
 .dt-k-line::before {
   height: 2px;
   vertical-align: 3px;
@@ -625,6 +629,54 @@ button.dt-day {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
+}
+/* the window's days by range: a stacked bar (the states' tints) + a count per state */
+.dt-brk-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dt-brk-t,
+.dt-learn {
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.dt-learn {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  color: var(--link);
+  cursor: pointer;
+}
+.dt-brk-bar {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.dt-brk-leg {
+  list-style: none;
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.dt-brk-leg li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.dt-brk-leg b {
+  margin-left: auto;
+  font-family: var(--num);
+  color: var(--ink);
 }
 .dt-sw {
   width: 12px;
