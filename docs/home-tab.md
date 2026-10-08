@@ -9,8 +9,8 @@ Dials, advice, eat card, health monitor (tiles here, the full list on Salud), ti
 ## Home tab — "Inicio / Home" dials, monitor tiles, My day, eat card; recovery + load detail
 
 Top to bottom (`web/src/tabs/Home.astro`, which also renders `components/EatCard.astro`): (under the
-top bar, from `layouts/Plan.astro` and shown on Inicio only: the LOOP wordmark, see `docs/plan-page.md` →
-Brand) → dials
+top bar, from `layouts/Plan.astro` and shown on Inicio only: the LOOP wordmark — on a wide screen it sits in the top bar row on the left, the avatar on the right —
+see `docs/plan-page.md` → Brand) → dials
 (`#home-dials`) → the monitor tiles (`#home-tiles`) → "My day" (`#my-day`: a Title Case heading, the
 advice sentence as the outlook bar in `#home-advice`, then "Today's activities" in `#timeline`) → the
 "today you eat" card → "Tonight" (`#home-tonight`) → "My plan" (`#my-plan`) → "My dashboard" (`#my-dash`)

@@ -3,7 +3,8 @@
  * --mid for the gentle shoe-replacement hint and the missing-scope note, everything else neutral. */
 
 /* the avatar sits at the right end of the top bar, a >= 44px target */
-/* the top bar's first column (layout.css .topbar), left-aligned */
+/* the top bar's first column (layout.css .topbar), left-aligned; from 900px the third, right-aligned
+   beside Sync (layout.css, the wordmark takes the left) */
 .avatar-btn {
   grid-column: 1;
   justify-self: start;
