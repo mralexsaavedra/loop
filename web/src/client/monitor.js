@@ -53,9 +53,12 @@
     // the range is written one decimal finer than the value (max 2), so a value just past the edge
     // never reads as sitting on it (e.g. 15.1 vs "14.2–15.1" for a High)
     var rd = Math.min(c.dec + 1, 2);
-    var range = c.band && !old ? T.rangeLbl.replace('{lo}', num(c.band.lo, rd)).replace('{hi}', num(c.band.hi, rd)) : '';
+    var lo = c.band && !old ? num(c.band.lo, rd) : '', hi = c.band && !old ? num(c.band.hi, rd) : '';
+    var range = c.band && !old ? T.rangeLbl.replace('{lo}', lo).replace('{hi}', hi) : '';
+    var rangeAria = range ? (T.rangeAria || T.rangeLbl).replace('{lo}', lo).replace('{hi}', hi) : '';
     var status = old ? T.status.stale : T.status[c.status] || '';
-    var when = daysOld(c.date) !== 0 && isoDate(c.date) ? HC.fmtDate(c.date) : '';
+    // short date (no weekday), only when the reading is not last night's
+    var when = daysOld(c.date) !== 0 && isoDate(c.date) ? HC.fmtDate(c.date, { weekday: false }) : '';
     // a row with a band: the range under the value (+ its date when it is not last night); without
     // one (building baseline / stale): the status word instead, no marker
     var base = range ? [range, when].filter(Boolean).join(' · ') : status;
@@ -63,7 +66,7 @@
     return row(c.key, {
       cls: old ? 'hm-stale' : 'hm-tone-' + esc(c.tone || 'normal'), value: value, unit: unit, numCls: 'hm-num',
       arrow: marked ? ARROW[c.status] : null, tone: marked ? TONE[c.tone] || 'flat' : null, base: base,
-      aria: [value + (unit ? ' ' + unit : ''), status, range, when].filter(Boolean).join(' · '),
+      aria: [value + (unit ? ' ' + unit : ''), status, rangeAria, when].filter(Boolean).join(' · '),
     });
   }
   function safeCard(c) {

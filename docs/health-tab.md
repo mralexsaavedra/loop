@@ -15,12 +15,14 @@ its own try/catch (a throw in one half renders that half's empty state, never bl
 `#health-body` (Salud) and `#health-train` (Entreno: running, cycling, load vs recovery).
 
 **Salud layout** (`web/src/tabs/Salud.astro` + `health.js`), top to bottom: a centred UPPERCASE title
-("SALUD" / "HEALTH") with an ⓘ toggle (`#hs-intro`: the tab intro + how to read a row), over a soft
+("SALUD" / "HEALTH") with an ⓘ toggle (`#hs-intro`: the tab intro + how to read a row; the button is
+`HC.infoBtn`'s markup written by `health.js` into the `#hs-intro-i` slot), over a soft
 green glow at the top of the page (`.hs-glow`, `--up` at 16 % via `color-mix`, absolute behind the
 content, only while the panel shows); the health monitor list (`#monitor`, `client/monitor.js`, see
 `docs/home-tab.md` "Health monitor"); then the sections of `#health-body`, each a `<section
 class="hs-sec" id="hl-<key>">` with an UPPERCASE label, an ⓘ toggle and a list of metric rows:
-**Recovery** (`#score-recovery`, the recovery card filled by score.js, restyled borderless, then
+**Recovery** (`#score-recovery`, the recovery card filled by score.js, restyled borderless — its long
+lines join this section's ⓘ block, see `docs/home-tab.md` — then
 resting HR, HRV, respiratory rate, wrist temperature), **Fitness** (VO₂max, walking HR — moved out of
 Recovery), **Sleep** (last night, then % nights ≥ target, night-to-night ±, bedtime / wake time),
 **Body composition** (weight, body fat, lean mass, waist), **Activity** (steps, exercise, distance,

@@ -250,7 +250,9 @@ test('example build: the health monitor list leads Salud (before the sections ho
   const html = fs.readFileSync(examplePath, 'utf8');
   const salud = sliceTabPanel(html, 'health');
   // header first: the centred title + an ⓘ toggle holding the tab intro, the green glow behind it
-  const at = ['class="hs-glow"', '<h2 class="hs-title">Health</h2>', 'data-hs-info="hs-intro"', '<div class="hs-info" id="hs-intro" hidden>', 'id="monitor"', 'id="health-body"'].map((n) => salud.indexOf(n));
+  const at = ['class="hs-glow"', '<h2 class="hs-title">Health</h2>', '<span class="hs-i-slot" id="hs-intro-i" data-label="About Health"></span>', '<div class="hs-info" id="hs-intro" hidden>', 'id="monitor"', 'id="health-body"'].map((n) => salud.indexOf(n));
+  // the ⓘ itself is HC.infoBtn's markup, written by client/health.js: no static copy in the tab
+  assert.doesNotMatch(salud.slice(0, salud.indexOf('id="monitor"')), /<button[^>]*class="hs-i"/);
   assert.ok(at.every((v, i) => v !== -1 && (i === 0 || v > at[i - 1])), `Salud order ${at}`);
   assert.match(salud, /<div class="hs-info" id="hs-intro" hidden><p>Body, activity &amp; recovery from your latest Apple Health export\.<\/p><p>Each row:/);
   assert.ok(salud.indexOf('<div id="monitor"></div>') !== -1, 'the monitor host is in Salud');

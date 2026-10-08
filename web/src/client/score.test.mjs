@@ -44,7 +44,7 @@ const HEALTH = { recovery: { hasData: true, sleep: { target: 7.5 } } };
 
 // Returns #home-advice + #score-recovery (Salud) + #score-load (Entreno), in that order; pass `hosts` to
 // inspect each one separately.
-function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, loadSectionHidden = false, dials, dialsHost, miniHost, hosts = {}, detail = false } = {}) {
+function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entrenoNav = healthNav, loadSectionHidden = false, dials, dialsHost, miniHost, hosts = {}, detail = false, secInfo = null } = {}) {
   const host = { innerHTML: '' };
   const rec = (hosts.rec = hosts.rec || { innerHTML: '' });
   const load = (hosts.load = hosts.load || { innerHTML: '' });
@@ -57,6 +57,7 @@ function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entre
     'home-advice': host, 'score-recovery': rec, 'score-load': load,
     'home-dials': dialsHost || null, 'home-mini': miniHost || null, 't-health': healthNav ? {} : null, 't-entreno': entrenoNav ? {} : null,
     'sec-load': { hidden: loadSectionHidden },
+    'hs-info-recovery': secInfo,
   };
   const ctx = {
     document: { getElementById: (id) => byId[id] || null },
@@ -119,7 +120,7 @@ test('full render: recovery trend with band, per-component rows and 14 raw daili
 const recCard = (s, opts = {}) => { const hosts = {}; render(s, { ...opts, hosts }); return hosts.rec.innerHTML; };
 const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
-test('recovery card (Whoop-style): the HEADLINE is last night (big number + band word); the 7-day trend is a small secondary line', () => {
+test('recovery card (text diet): big value + band word + ONE short trend line; the baseline, the full trend sentence, confidence and SDNN live in the ⓘ block', () => {
   const s = fixtureScores();
   const html = recCard(s);
   const t = s.recovery.today;
@@ -131,8 +132,24 @@ test('recovery card (Whoop-style): the HEADLINE is last night (big number + band
   assert.match(html, new RegExp(`<div class="rec-when">${enT.recovery.whenLastNight}</div>`));
   const trend = html.match(/<div class="rec-trend">([\s\S]*?)<\/div>/);
   assert.ok(trend, 'the 7-day trend is its own small line');
-  assert.ok(text(trend[1]).includes(enT.recovery.trendLbl.replace('{value}', (s.recovery.trend7 > 0 ? '+' : '') + s.recovery.trend7.toFixed(1))));
+  const t7 = (s.recovery.trend7 > 0 ? '+' : '') + s.recovery.trend7.toFixed(1);
+  assert.equal(text(trend[1].replace(/<span class="sc-arrow[^>]*>[^<]*<\/span>/, '')), `${enT.recovery.trendShort.replace('{value}', t7)} · ${enT.recovery.bands[s.recovery.band]}`.replace(/\s+/g, ' '));
+  assert.ok(text(trend[1]).split(' ').length <= 8, 'one short line');
   assert.ok(html.indexOf('rec-big') < html.indexOf('rec-trend'), 'headline first, trend under it');
+  // nothing lost: every moved sentence is in the card's ⓘ block (no Salud section block here)
+  const info = html.match(/<div class="hs-info" id="rec-info" hidden>([\s\S]*?)<\/div><!--\/rec-info-->/);
+  assert.ok(info, 'a hidden ⓘ block');
+  assert.match(html, /<button type="button" class="hs-i" data-hs-info="rec-info" aria-expanded="false" aria-controls="rec-info"/);
+  const body = text(info[1]);
+  assert.ok(body.includes(enT.recovery.vsBaseLbl));
+  assert.ok(body.includes(enT.recovery.trendLbl.replace('{value}', t7)));
+  if (s.recovery.delta7 != null) assert.ok(body.includes(enT.recovery.deltaLbl.replace('{value}', (s.recovery.delta7 > 0 ? '+' : '') + s.recovery.delta7.toFixed(1))));
+  assert.ok(body.includes(enT.recovery.confLbl.replace('{level}', enT.recovery.confLevels[s.recovery.confidence.level])));
+  assert.ok(body.includes(enT.recovery.sdnnLbl));
+  assert.ok(body.includes(enT.recovery.unitNote));
+  const outside = html.replace(info[0], '');
+  for (const moved of [enT.recovery.vsBaseLbl, enT.recovery.sdnnLbl, enT.recovery.unitNote]) assert.ok(!outside.includes(moved), `"${moved}" only behind the ⓘ`);
+  assert.doesNotMatch(outside, /rec-chips|rec-vs|rec-unit-note/);
   assert.doesNotMatch(html, /class="sc-val"/, 'the trend is never the big heading any more');
   s.recovery.today = null;
   const none = recCard(s);
@@ -141,11 +158,27 @@ test('recovery card (Whoop-style): the HEADLINE is last night (big number + band
   assert.match(none, /rec-trend/);
 });
 
-test('recovery card: contributors are compact rows (state dot, name, latest value + unit, baseline · SD · n) and the raw 14-day lists are folded', () => {
+test('recovery card inside Salud: the moved notes join the Recovery section\'s own ⓘ block (#hs-info-recovery), so the card draws no second ⓘ', () => {
+  const secInfo = { innerHTML: '<p>section note</p>' };
+  const hosts = {};
+  render(fixtureScores(), { hosts, secInfo });
+  const card = hosts.rec.innerHTML;
+  assert.doesNotMatch(card, /rec-info|class="hs-i"/, 'no second ⓘ on the card');
+  assert.ok(secInfo.innerHTML.startsWith('<p>section note</p>'), 'the section\'s own notes stay first');
+  assert.match(secInfo.innerHTML, /<div class="rec-info-notes">[\s\S]*<\/div>$/);
+  assert.ok(secInfo.innerHTML.includes(enT.recovery.unitNote) && secInfo.innerHTML.includes(enT.recovery.sdnnLbl));
+  // a second render replaces the card's notes, never stacks them
+  render(fixtureScores(), { hosts: {}, secInfo });
+  assert.equal(secInfo.innerHTML.split('rec-info-notes').length - 1, 1);
+});
+
+test('recovery card: contributors are compact rows (state dot, name, latest value + unit, ±SD); baseline and n sit in the ⓘ; the raw 14-day lists are folded', () => {
   const s = fixtureScores();
   const html = recCard(s);
   const rows = [...html.matchAll(/<div class="rec-comp" data-comp="([a-zA-Z]+)">([\s\S]*?)<\/div><!--\/comp-->/g)];
   assert.deepEqual(rows.map((r) => r[1]), s.recovery.components.map((c) => c.key));
+  assert.ok(rows.length <= 4, 'at most 4 contributor rows');
+  const info = text(html.match(/<div class="hs-info" id="rec-info" hidden>([\s\S]*?)<\/div><!--\/rec-info-->/)[1]);
   for (const [i, c] of s.recovery.components.entries()) {
     const body = rows[i][2];
     const dec = c.unit === 'h' ? 2 : c.unit === 'min' ? 0 : 1;
@@ -153,9 +186,11 @@ test('recovery card: contributors are compact rows (state dot, name, latest valu
     assert.match(body, new RegExp(`<span class="rec-dot sc-dot-${c.band}"`), 'state colour dot');
     assert.ok(body.includes(enT.recovery.components[c.key]));
     assert.ok(text(body).includes(`${last.toFixed(dec)} ${c.unit}`), 'latest value + unit');
-    assert.ok(text(body).includes(enT.recovery.baselineLbl.replace('{value}', c.baseline.toFixed(dec)).replace('{unit}', c.unit)), 'baseline');
     assert.ok(text(body).includes(`${(c.trend7 > 0 ? '+' : '') + c.trend7.toFixed(1)} SD`), 'SD vs baseline, the same unit as the composite');
-    assert.ok(text(body).includes(`n=${c.n}`));
+    assert.ok(!text(body).includes('n='), 'n moved to the ⓘ');
+    const baseline = enT.recovery.baselineLbl.replace('{value}', c.baseline.toFixed(dec)).replace('{unit}', c.unit);
+    assert.ok(!text(body).includes(baseline), 'baseline moved to the ⓘ');
+    assert.ok(info.includes(`${enT.recovery.components[c.key]}: ${baseline} · n=${c.n}`), 'baseline · n per contributor in the ⓘ');
     assert.doesNotMatch(body, /sc-raw-v/, 'no raw number list inline');
   }
   const fold = html.match(/<details class="rec-raw"><summary>([^<]*)<\/summary>([\s\S]*?)<\/details>/);
@@ -167,11 +202,8 @@ test('recovery card: contributors are compact rows (state dot, name, latest valu
   assert.match(recCard(s, { locale: 'es' }), /<summary>Últimos 14 días<\/summary>/);
 });
 
-test('recovery card: confidence + SDNN chips on ONE line; layout blocks headline | sparkline | contributors', () => {
+test('recovery card: layout blocks headline | sparkline | contributors', () => {
   const html = recCard(fixtureScores());
-  const chips = html.match(/<div class="sc-chips rec-chips">([\s\S]*?)<\/div>/);
-  assert.ok(chips);
-  assert.equal(count(chips[1], 'class="sc-chip"'), 2);
   const at = ['class="rec-head"', 'class="sc-spark rec-spark"', 'class="rec-contrib"'].map((n) => html.indexOf(n));
   assert.ok(at.every((v, i) => v !== -1 && (i === 0 || v > at[i - 1])), `order ${at}`);
   assert.match(html, /<div class="rec-layout">/);
@@ -765,7 +797,7 @@ test('one recovery unit: the dial, the Salud card and the detail sheet all say S
   assert.match(esT.recovery.unitNote, /variación típica/);
   assert.doesNotMatch(source, /'[^'\n]*\b(MAD|sd)\b[^'\n]*'/, 'score.js hard-codes no recovery unit string');
   const card = recCard(fixtureScores());
-  assert.ok(card.includes(enT.recovery.unitNote), 'the card explains the unit in one line');
+  assert.ok(card.includes(enT.recovery.unitNote), 'the card explains the unit (behind its ⓘ)');
   const es = (() => { const hosts = {}; render(fixtureScores(), { locale: 'es', hosts }); return hosts.rec.innerHTML; })();
   assert.ok(es.includes('<small class="rec-unit">desv.</small>'));
   assert.ok(es.includes(esT.recovery.unitNote));
