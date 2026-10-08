@@ -1,7 +1,10 @@
 /* Inicio dial view-model: full-ring geometry (starts at 12 o'clock, fills clockwise) + value->ring
  * mapping for the Sleep, Recovery and Load dials. Pure presentation glue over values
  * buildScores()/buildHealth() already produce. TODAY FIRST, the trend as context:
- *   - Recovery: the fill ends at last night's composite (recovery.today) on the -3..+3 MAD scale
+ *   - Recovery: with a percentage (recovery.today.pct, its rank within the previous 90 days) the
+ *     ring fills to pct % and takes its % band colour (good >= 67 / mid / low <= 33), no baseline
+ *     tick; `value` keeps the SD composite for the notes. Without one (under 21 prior days):
+ *     the fill ends at last night's composite (recovery.today) on the -3..+3 MAD scale
  *     (baseline = the tick at 6 o'clock) and takes ONE state colour, its band (cut at the single-day
  *     DAY_BAND_CUTOFF, or BAND_CUTOFF for the trend): no zone arcs on the ring; the 7-day
  *     trend + its direction ride along as `trend` for the dial's detail sheet. With no composite for last night the dial falls back to trend7 (zones at
@@ -12,7 +15,7 @@
  *     but no RE reads "no effort data", a day with no rows reads rest (with `last` as context);
  *     acute/chronic (trendPct/band) stays as context.
  *   - Sleep: the sleep-duration component's newest night over the stated target.
- * No new metric and no percentage score. Baked by components/Bake.astro as DIALS;
+ * No new metric: the recovery % is a rank of the same composite (lib/score/recovery.mjs). Baked by components/Bake.astro as DIALS;
  * client/score.js turns it into inline SVG. */
 import { Z_CLAMP } from '../../../lib/score/recovery.mjs';
 
@@ -87,20 +90,22 @@ function recoveryDial(R) {
   if (R.gated || !isNum(R.trend7)) return { state: 'gated', asOf: R.asOf || null };
   const today = R.today && isNum(R.today.value) ? R.today : null;
   const value = today ? today.value : R.trend7;
-  const f = recoveryFrac(value);
+  const pct = today && isNum(today.pct) ? today.pct : null;
+  const f = pct != null ? pct / 100 : recoveryFrac(value);
   return {
     state: 'ok',
     mode: today ? 'today' : 'trend',
     asOf: R.asOf || null,
     date: today ? today.date : null,
     sleep: today ? today.sleep !== false : null,
-    band: today ? today.band : R.band,
+    band: pct != null ? today.pctBand : today ? today.band : R.band,
+    pct,
     value,
     trend: { value: R.trend7, band: R.band, dir: R.trendDir || null },
-    // filled clockwise from 12 o'clock to the value on the -3..+3 scale; the baseline (0) is the tick
-    // at the ring's midpoint (6 o'clock)
+    // filled clockwise from 12 o'clock to pct %, else to the value on the -3..+3 scale with the
+    // baseline (0) as the tick at the ring's midpoint (6 o'clock)
     fill: arcPath(0, f),
-    mid: polar(fracToAngle(0.5), DIAL.r - DIAL.stroke),
+    mid: pct != null ? null : polar(fracToAngle(0.5), DIAL.r - DIAL.stroke),
   };
 }
 

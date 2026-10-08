@@ -5,6 +5,14 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Recovery as a 0–100 % rank
+
+- Last night's recovery is now shown as a % everywhere it is a headline (Inicio dial + mini row, the
+  recovery deep-dive hero, the Salud recovery card): the rank of that night's composite among the
+  previous 90 days (empirical CDF, ties half, same baseline), baked in `lib/score/recovery.mjs`
+  (`today.pct`, `pctBand`). Bands green ≥ 67 / yellow 34–66 / red ≤ 33. Under 21 prior nights the SD
+  presentation stays. The night's SD value, the 7-day trend, the contributors and the advice keep SD.
+
 ## 2026-10-08 — Food add sheet focus, Nutrición footnote spacing
 
 - The add-food sheet opens with focus in the search field (or the quick label), not on the meal select;

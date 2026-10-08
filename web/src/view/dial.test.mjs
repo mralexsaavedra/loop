@@ -112,6 +112,25 @@ test('buildDials: recovery headline = LAST NIGHT (today composite), ONE band col
   assert.equal(d.track, arcPath(0, 1));
 });
 
+test('buildDials: with a percentage, the recovery ring fills to pct %, coloured by its % band, no baseline tick; the SD value rides along', () => {
+  const rec = { ...REC, today: { ...REC.today, pct: 85, pctBand: 'good', pctDays: 90 } };
+  const r = buildDials({ hasData: true, recovery: rec, load: LOAD }, HEALTH).recovery;
+  assert.equal(r.mode, 'today');
+  assert.equal(r.pct, 85);
+  assert.equal(r.band, 'good', 'the % band (good / mid / low), not the SD day band');
+  assert.equal(r.fill, arcPath(0, 0.85), 'ring fill = score %');
+  assert.equal(r.mid, null, 'no baseline tick on a % ring');
+  assert.equal(r.value, -1.4, 'the SD composite is kept for the notes');
+  assert.equal(buildDials({ hasData: true, recovery: { ...rec, today: { ...rec.today, pct: 0, pctBand: 'low' } }, load: LOAD }, HEALTH).recovery.fill, '', '0 % = an empty ring');
+});
+
+test('buildDials: no percentage (under 21 prior days) keeps the SD ring and band (pct null)', () => {
+  const r = buildDials({ hasData: true, recovery: { ...REC, today: { ...REC.today, pct: null, pctBand: null } }, load: LOAD }, HEALTH).recovery;
+  assert.equal(r.pct, null);
+  assert.equal(r.band, 'below');
+  assert.equal(r.fill, arcPath(0, recoveryFrac(-1.4)));
+});
+
 test('buildDials: no composite for last night -> the dial shows the 7-day trend, flagged mode "trend" (never faked)', () => {
   const r = buildDials({ hasData: true, recovery: { ...REC, today: null }, load: LOAD }, HEALTH).recovery;
   assert.equal(r.state, 'ok');

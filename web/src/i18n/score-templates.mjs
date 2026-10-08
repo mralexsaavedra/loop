@@ -90,6 +90,11 @@ export const en = {
     missingLbl: 'Missing or not yet logged: {list}',
     driverLbl: 'Lowest signal: {name}',
     sdnnLbl: 'HRV is daytime SDNN, not nocturnal.',
+    // the % headline (today.pct, lib/score/recovery.mjs): its band words, the mapping in one sentence,
+    // and the night's SD value kept in the notes
+    pctBands: { good: 'High', mid: 'Medium', low: 'Low' },
+    pctNote: '% = how last night ranks against your previous 90 days: 85 % means better than about 85 % of them. Green 67–100, yellow 34–66, red 0–33.',
+    sdLbl: `Vs your 42-day baseline: {value} ${UE} · {band}`,
     components: { hrv: 'HRV', rhr: 'Resting HR', sleepDur: 'Sleep duration', sleepCons: 'Sleep regularity' },
   },
   load: {
@@ -132,6 +137,7 @@ export const en = {
       noLastNight: 'No recent complete night: showing the 7-day trend',
       noSleep: 'No sleep data for this night',
       aria: `Recovery {when}: {value} ${UE} vs baseline, {band}`,
+      ariaPct: 'Recovery {when}: {value} % of your last 90 days, {band}',
       ariaTrend: `No recent complete night. Recovery 7-day trend {value} ${UE} vs baseline: {band}`,
       // shown under the dials only when Salud (the recovery detail + caveats) is hidden
       caveatLine: 'Recovery = HRV (daytime SDNN, not a nocturnal reading), resting HR and sleep vs your own 42-day baseline. Descriptive, not medical advice.',
@@ -282,6 +288,9 @@ export const es = {
     missingLbl: 'Falta o aún sin registrar: {list}',
     driverLbl: 'Señal más baja: {name}',
     sdnnLbl: 'La VFC es SDNN diurna, no nocturna.',
+    pctBands: { good: 'Alta', mid: 'Media', low: 'Baja' },
+    pctNote: '% = cómo se sitúa la última noche frente a tus 90 días anteriores: 85 % significa mejor que cerca del 85 % de ellos. Verde 67–100, amarillo 34–66, rojo 0–33.',
+    sdLbl: `Frente a tu base de 42 días: {value} ${US} · {band}`,
     components: { hrv: 'VFC', rhr: 'FC en reposo', sleepDur: 'Duración del sueño', sleepCons: 'Regularidad del sueño' },
   },
   load: {
@@ -324,6 +333,7 @@ export const es = {
       noLastNight: 'Sin una noche completa reciente: se muestra la tendencia de 7 días',
       noSleep: 'Sin datos de sueño esa noche',
       aria: `Recuperación {when}: {value} ${US} frente a la base, {band}`,
+      ariaPct: 'Recuperación {when}: {value} % de tus últimos 90 días, {band}',
       ariaTrend: `Sin una noche completa reciente. Tendencia de recuperación de 7 días {value} ${US} frente a la base: {band}`,
       // solo bajo los diales cuando Salud (el detalle de recuperación y sus advertencias) está oculta
       caveatLine: 'Recuperación = VFC (SDNN diurna, no una lectura nocturna), FC en reposo y sueño frente a tu propia base de 42 días. Descriptivo, no es consejo médico.',
