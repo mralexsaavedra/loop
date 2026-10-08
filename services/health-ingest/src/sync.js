@@ -1,5 +1,6 @@
 import { createTokenProvider, createTokenStore, fetchActivitiesSince, upsertActivities, lastSyncedStart, classifyStravaError } from './strava.js'
 import { createAthleteRefresher } from './athlete.js'
+import { createHrBackfill } from './hr-zones.js'
 
 const DEFAULT_INTERVAL_MINUTES = 30
 // How far back to re-read on every run, so an activity edited after upload
@@ -67,7 +68,16 @@ export function createStravaSync (pool, env, { status = null, fetchImpl = fetch,
   // activity pull, its status or a waiting POST /sync
   const athlete = createAthleteRefresher({ pool, getAccessToken, fetchImpl, log })
   let athleteRun = Promise.resolve(null)
-  const kickAthlete = () => { athleteRun = athlete.maybeRefresh(); return athleteRun }
+  // then one bounded batch of the HR-stream backfill (hr-zones.js: <= 10 streams per run, newest
+  // first, inside its own 15-min / 24-h budget), AFTER the athlete call so the two never overlap;
+  // it never throws either
+  const hr = createHrBackfill({ pool, getAccessToken, fetchImpl, log })
+  let hrRun = Promise.resolve(null)
+  const kickAthlete = () => {
+    athleteRun = athlete.maybeRefresh()
+    hrRun = athleteRun.then(() => hr.backfill())
+    return hrRun
+  }
 
   async function runOnce () {
     const newest = await lastSyncedStart(pool)
@@ -85,7 +95,9 @@ export function createStravaSync (pool, env, { status = null, fetchImpl = fetch,
   return {
     runOnce: guardSync(runOnce, { status, afterOk: kickAthlete, log }),
     // the latest background athlete refresh (tests / graceful shutdown); resolves, never rejects
-    athleteIdle: () => athleteRun
+    athleteIdle: () => athleteRun,
+    // the latest background HR backfill batch; resolves, never rejects
+    hrIdle: () => hrRun
   }
 }
 
