@@ -21,7 +21,7 @@ test('parseNumber() accepts dot and comma decimals', () => {
 
 test('METRICS is a per-metric table covering the implemented metrics', () => {
   assert.deepEqual(Object.keys(METRICS).sort(),
-    ['active_energy', 'active_energy_hourly', 'basal_energy', 'bodyfat', 'dietary', 'distance_watch', 'exercise_watch', 'flights_watch', 'hr_recovery', 'hrv',
+    ['active_energy', 'active_energy_hourly', 'basal_energy', 'bodyfat', 'dietary', 'distance_watch', 'exercise_watch', 'flights_watch', 'hr_recovery', 'hr_samples', 'hrv',
       'leanmass', 'respiratory', 'rhr', 'sleep', 'steps', 'vo2max', 'waist', 'walking_hr', 'weight', 'wrist_temp']);
   for (const m of Object.values(METRICS)) {
     assert.ok(m.csv && m.header && m.kind);
@@ -348,6 +348,35 @@ test('active_energy_hourly: the latest payload wins an hour; each payload\'s old
     '2030-01-02,2030-01-02T10:00:00+01:00,300.0,Shortcut',
     '2030-01-02,2030-01-02T11:00:00+01:00,0.0,Shortcut',
   ]);
+});
+
+test('hr_samples: deduped by exact timestamp across overlapping payloads (the later payload wins), 25-240 bpm only', () => {
+  const s = collectSamples([
+    { hr_samples: '2030-01-02T09:00:00+01:00;60\n2030-01-02T09:05:00+01:00;70\n2030-01-02T09:06:00+01:00;300' },
+    // the next run overlaps: 09:05 is re-sent with a corrected value, 09:10 is new, 20 bpm is a glitch
+    { hr_samples: '2030-01-02T09:05:00+01:00;72\n2030-01-02T09:10:00+01:00;80\n2030-01-02T09:12:00+01:00;20' },
+  ]);
+  assert.deepEqual(s.hr_samples.map(x => x.value).sort(), [60, 72, 80]);
+  const [line] = buildRows('hr_samples', s.hr_samples).map(r => r.line);
+  assert.equal(line, '2030-01-02,2030-01-02T09:00:00+01:00,70.7,80,60,3,10.0,0.0,60:300 72:300,Shortcut');
+  assert.equal(METRICS.hr_samples.csv, 'hr-hourly.csv');
+});
+
+test('hr_samples: the old hr_hourly key (hourly SUMS) is ignored', () => {
+  const s = collectSamples([{ hr_hourly: '2030-01-02T09:00:00+01:00;4200' }]);
+  assert.equal(s.hr_hourly, undefined);
+  assert.equal(s.hr_samples, undefined);
+});
+
+test('planSync(): hr-hourly.csv leaves the Strava activity windows (workout-zones.csv) out of the histogram', () => {
+  const zones = 'date,activity_id,type,max_hr,max_hr_source,hr_avg,hr_max,z0_s,z1_s,z2_s,z3_s,z4_s,z5_s,source,start,elapsed_s\n' +
+    '2030-01-02,1,Running,190,observed,150,170,0,0,0,0,0,0,Strava API,2030-01-02T09:05:00+01:00,300\n';
+  const files = { 'workout-zones.csv': zones };
+  const plan = planSync([{ id: '1', payload: { hr_samples: '2030-01-02T09:00:00+01:00;90\n2030-01-02T09:10:00+01:00;95\n2030-01-02T09:11:00+01:00;96' } }], n => files[n] ?? null);
+  const csv = plan.writes['hr-hourly.csv'];
+  assert.equal(csv.split('\n')[0], 'date,hour_start,avg,max,min,n,covered_min,act_min,hist,source');
+  assert.equal(csv.split('\n')[1], '2030-01-02,2030-01-02T09:00:00+01:00,93.7,96,90,3,11.0,5.0,90:300 95:60,Shortcut');
+  assert.equal(JSON.parse(plan.writes['_meta.json']).rows.hr_hourly, 1);
 });
 
 test('active_energy_hourly: a DST fall-back night keeps both 02:00 hours (keyed by offset)', () => {

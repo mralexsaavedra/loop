@@ -63,6 +63,18 @@ offset; keyed by local hour + offset so a DST fall-back night keeps both 02:00 h
 payload's oldest, window-truncated HOUR is dropped and the latest payload wins an hour; tagged
 `Shortcut`, so every row is rebuilt each run — the export never writes this file). It only feeds
 the power-meter ride correction (Health tab → Energy).
+`hr_samples` (Watch Heart Rate, NO grouping, 1 day; `docs/ios-shortcut.md`) →
+`hr-hourly.csv` (`date,hour_start,avg,max,min,n,covered_min,act_min,hist,source`; `lib/health/hr-hourly.cjs`).
+Samples are deduped by their exact instant across payloads (the later payload wins) and must be
+25–240 bpm; the raw samples stay in the local cache, the CSV holds one row of aggregates per clock
+hour (keyed by local hour + offset, like the energy hours), rebuilt every run from the whole cache.
+Each sample covers the time until the next sample, at most 10 min (the newest covers nothing),
+all of it in the hour the sample falls in: `covered_min`. The part inside a Strava activity window
+(`workout-zones.csv` `start` + `elapsed_s`) is `act_min` and is left out of `hist` = covered
+seconds per whole bpm (`bpm:s` pairs, space-separated; < 50 bpm omitted: always zone 0). That
+exclusion is why `npm run sync` runs the Strava sync BEFORE the Shortcut sync. Day strain
+(`lib/score/strain.mjs`, `analysis/methodology.md`) reads `hist`; the older `hr_hourly` key
+(hourly sums) is ignored.
 Unreachable service → exits non-zero without touching files. Row helpers are shared in
 `samples.js`, so both paths format rows identically.
 
@@ -124,8 +136,10 @@ corrects anything. `_meta.json` records it: `rows.rides` and `stravaSync.rides` 
 (device_watts true + kJ), withStart (start with offset)}`, plus a sentence in the Strava sync note.
 
 **Per-workout HR zones (`workout-zones.csv`).** The same pull writes `workout-zones.csv`
-(`date,activity_id,type,max_hr,max_hr_source,hr_avg,hr_max,z0_s,z1_s,z2_s,z3_s,z4_s,z5_s,source`,
-gitignored, rebuilt from scratch every run, sorted by local start; `type` = the workouts.csv type)
+(`date,activity_id,type,max_hr,max_hr_source,hr_avg,hr_max,z0_s,z1_s,z2_s,z3_s,z4_s,z5_s,source,start,elapsed_s`,
+gitignored; `start` = local ISO start with its offset, blank when the ingest image does not export
+`start_date`, and `elapsed_s` = elapsed, else moving time, were appended for day strain: they are the
+activity window `hr-hourly.csv` leaves out; readers are positional, rebuilt from scratch every run, sorted by local start; `type` = the workouts.csv type)
 from the per-activity HR histogram `hr_hist` (seconds per whole bpm) that the ingest service builds
 from Strava's HR streams (`services/health-ingest/README.md` "Per-workout HR zones": at most 10
 streams per sync run, newest first, so a long history fills in over a few days). Zone model

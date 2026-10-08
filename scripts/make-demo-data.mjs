@@ -169,7 +169,9 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
     const w = SPLIT[c[1]].map((x) => x * (0.7 + zrnd() * 0.6));
     const sum = w.reduce((a, b) => a + b, 0);
     const total = parseFloat(c[2]) * 60 * 0.97;
-    return [c[0], 9000001 + i, c[1], zMax, 'observed', c[4], c[6], ...w.map((x) => Math.round((total * x) / sum)), SRC.strava].join(',');
+    // the activity window (start + elapsed_s): every demo session starts at 18:00 local, +02:00
+    return [c[0], 9000001 + i, c[1], zMax, 'observed', c[4], c[6], ...w.map((x) => Math.round((total * x) / sum)), SRC.strava,
+      `${c[0]}T18:00:00+02:00`, Math.round(parseFloat(c[2]) * 60)].join(',');
   });
   out[ZONES_CSV] = csv(ZONES_HEADER, zoneRows);
 
