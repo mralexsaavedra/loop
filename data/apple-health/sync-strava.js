@@ -8,8 +8,9 @@
  * Env    : INGEST_URL (default http://localhost:8088), INGEST_TOKEN (falls back to
  *          services/health-ingest/.env, same file sync-shortcut.js reads).
  * Writes : data/apple-health/extract/workouts.csv + rides.csv (ride windows + power flag for the
- *          active-energy correction, see rideRow) + _meta.json (each via temp file + rename;
- *          _meta.json first, belt and braces — see the orphan-safety note below). Nothing is
+ *          active-energy correction, see rideRow) + workout-zones.csv (per-activity time in HR
+ *          zone 0-5 from the ingest's HR histograms, see lib/training/hr-zones.cjs) + _meta.json
+ *          (each via temp file + rename; _meta.json first, belt and braces — see the orphan-safety note below). Nothing is
  *          written if the service can't be reached, answers a non-array, or there is no token.
  *
  * Strategy: FULL pull every run — since_id is used only for keyset pagination against
@@ -31,6 +32,7 @@ const fs = require('fs')
 const path = require('path')
 const common = require('./sync-common.js')
 const { WORKOUTS_HEADER } = require('./samples.js')
+const zones = require('../../lib/training/hr-zones.cjs')
 
 const STRAVA_SOURCE = 'Strava API'
 // SYNC_STRAVA_OUT_DIR / INGEST_ENV_FILE overrides exist ONLY so the child-process error-path
@@ -190,7 +192,7 @@ function buildRides (activities) {
 
 const range = (dates) => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a')
 
-const SYNC_NOTE = 'Strava rows (npm run sync:strava) are always kept, also on dates the export covers, and are rebuilt on every sync from source="Strava API"; readers dedupe a Watch copy of the same session (lib/training/sessions.mjs mergeSameDay: Strava wins per date + modality when it covers at least half the Watch minutes). Historical source=Strava rows (from the old ingest /sync/strava loop) are left untouched. rides.csv (ride start with offset, elapsed time, kJ, device_watts: the windows of the power-meter active-energy correction) is rebuilt from scratch on every sync. Accepted limitations: deleted Strava activities are not removed, and edits older than the ingest service\'s 7-day overlap window are never picked up. See docs/data-pipeline.md.'
+const SYNC_NOTE = 'Strava rows (npm run sync:strava) are always kept, also on dates the export covers, and are rebuilt on every sync from source="Strava API"; readers dedupe a Watch copy of the same session (lib/training/sessions.mjs mergeSameDay: Strava wins per date + modality when it covers at least half the Watch minutes). Historical source=Strava rows (from the old ingest /sync/strava loop) are left untouched. rides.csv (ride start with offset, elapsed time, kJ, device_watts: the windows of the power-meter active-energy correction) and workout-zones.csv (per-activity seconds in HR zone 0-5, % of max HR) are rebuilt from scratch on every sync. Accepted limitations: deleted Strava activities are not removed, and edits older than the ingest service\'s 7-day overlap window are never picked up. See docs/data-pipeline.md.'
 
 // Pure: refresh the workouts rows/range + record the sync. Deterministic (no timestamps) so
 // re-running an unchanged sync rewrites identical bytes.
@@ -215,6 +217,11 @@ function updateMeta (meta, merged, info) {
     out.rows.rides = info.rides.rows
     out.stravaSync.rides = info.rides
   }
+  // workout-zones.csv: rows + the max HR every row was cut with and where it came from
+  if (info.zones) {
+    out.rows['workout-zones'] = info.zones.rows
+    out.stravaSync.zones = { rows: info.zones.rows, maxHr: info.zones.max ? info.zones.max.maxHr : null, maxHrSource: info.zones.max ? info.zones.max.source : null }
+  }
   out.notes = Array.isArray(out.notes) ? out.notes : []
   for (const n of out.notes.filter((n) => /^Strava rows \(npm run sync:strava\)/.test(n) && n !== SYNC_NOTE)) {
     out.notes.splice(out.notes.indexOf(n), 1)
@@ -224,7 +231,7 @@ function updateMeta (meta, merged, info) {
 }
 
 // Pure planner: activities (full pull) + a reader (name -> text|null) -> files to write.
-function planSync (activities, readFile) {
+function planSync (activities, readFile, { profileMaxHr = null } = {}) {
   const { rows, unmapped, dropped } = buildRows(activities)
   const existing = readFile(WORKOUTS_CSV)
   const metaText = readFile('_meta.json')
@@ -249,16 +256,20 @@ function planSync (activities, readFile) {
   const ridesText = buildRides(activities)
   const ridesExisting = readFile(RIDES_CSV)
   if (ridesText !== ridesExisting && (ridesExisting != null || ridesText !== `${RIDES_HEADER}\n`)) writes[RIDES_CSV] = ridesText
+  // workout-zones.csv is rebuilt from scratch like rides.csv; never created header-only
+  const z = zones.buildZones(activities, { translateType, source: STRAVA_SOURCE, profileMaxHr })
+  const zonesExisting = readFile(zones.ZONES_CSV)
+  if (z.text !== zonesExisting && (zonesExisting != null || z.rows > 0)) writes[zones.ZONES_CSV] = z.text
   const csvHasContent = !(existing == null && rows.length === 0) // never create an empty CSV
   if (csvHasContent && merged.text !== existing) writes[WORKOUTS_CSV] = merged.text
 
   if (csvHasContent || prevMeta) {
-    const meta = updateMeta(prevMeta || {}, merged, { activities: activities.length, unmapped, noHr, dropped, rides: ridesStats(activities) })
+    const meta = updateMeta(prevMeta || {}, merged, { activities: activities.length, unmapped, noHr, dropped, rides: ridesStats(activities), zones: (zonesExisting != null || z.rows > 0) ? z : null })
     const text = JSON.stringify(meta, null, 2) + '\n'
     if (text !== metaText) writes['_meta.json'] = text
   }
 
-  return { writes, merged, unmapped, noHr, dropped }
+  return { writes, merged, unmapped, noHr, dropped, zones: z }
 }
 
 // plan + apply against a directory of extract CSVs. _meta.json is written BEFORE workouts.csv
@@ -267,17 +278,18 @@ function planSync (activities, readFile) {
 // the ledger first means a reader that only sees the new _meta.json still gets accurate metadata.
 // _meta.json is shared with sync-shortcut.js (both scripts can touch the same extract/ dir), so
 // the whole read-plan-write sequence runs under an exclusive lock to prevent a lost update.
-function syncDir (dir, activities, { writeAtomic = common.writeAtomic } = {}) {
+function syncDir (dir, activities, { writeAtomic = common.writeAtomic, profileMaxHr = null } = {}) {
   fs.mkdirSync(dir, { recursive: true }) // the lockfile itself needs the directory to exist
   return common.withLock(path.join(dir, '_meta.json.lock'), () => {
     const readFile = (name) => {
       const p = path.join(dir, name)
       return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null
     }
-    const plan = planSync(activities, readFile)
+    const plan = planSync(activities, readFile, { profileMaxHr })
     if (plan.writes['_meta.json'] != null) writeAtomic(path.join(dir, '_meta.json'), plan.writes['_meta.json'])
     if (plan.writes[WORKOUTS_CSV] != null) writeAtomic(path.join(dir, WORKOUTS_CSV), plan.writes[WORKOUTS_CSV])
     if (plan.writes[RIDES_CSV] != null) writeAtomic(path.join(dir, RIDES_CSV), plan.writes[RIDES_CSV])
+    if (plan.writes[zones.ZONES_CSV] != null) writeAtomic(path.join(dir, zones.ZONES_CSV), plan.writes[zones.ZONES_CSV])
     return plan
   })
 }
@@ -316,6 +328,17 @@ function stalePowerWarning (activities) {
     'active-energy correction is off. Rebuild it (docker compose up -d --build health-ingest) and re-run.'
 }
 
+// An ingest image built before the HR-stream backfill exports no `hr_hist` at all (null = not
+// fetched yet / no HR is a real value), so no workout can get HR zones.
+function staleZonesWarning (activities) {
+  if (!activities || !activities.length) return null
+  if (activities.some((a) => a && Object.prototype.hasOwnProperty.call(a, 'hr_hist'))) return null
+  return 'WARNING: no activity carries hr_hist — the ingest image predates the HR zones. Rebuild it ' +
+    '(docker compose up -d --build health-ingest) and re-run once the backfill has fetched some streams.'
+}
+
+const PROFILE_JSON = process.env.SYNC_STRAVA_PROFILE || path.join(__dirname, '..', '..', 'profile', 'profile.json')
+
 async function main () {
   const t0 = Date.now()
   const baseUrl = process.env.INGEST_URL || common.DEFAULT_URL
@@ -342,12 +365,17 @@ async function main () {
   if (stale) console.error(stale)
   const stalePower = stalePowerWarning(activities)
   if (stalePower) console.error(stalePower)
-  const plan = syncDir(OUT, activities)
+  const staleZones = staleZonesWarning(activities)
+  if (staleZones) console.error(staleZones)
+  const prof = zones.readProfileMaxHr(PROFILE_JSON)
+  if (prof.error) console.error(`WARNING: ${PROFILE_JSON} — ${prof.error}; using the observed max HR for the HR zones.`)
+  const plan = syncDir(OUT, activities, { profileMaxHr: prof.maxHr })
   const durationMs = Date.now() - t0
   console.log(`Synced ${activities.length} Strava activities in ${durationMs}ms; ${plan.merged.added} row(s) added for ${range(plan.merged.addedDates)}; ${plan.merged.rows} rows total`)
   if (plan.noHr) console.log(`  ${plan.noHr} row(s) written without HR`)
   if (plan.dropped) console.log(`  ${plan.dropped} activity(ies) dropped (no usable date/duration)`)
   if (Object.keys(plan.unmapped).length) console.log(`  unmapped sport types: ${JSON.stringify(plan.unmapped)}`)
+  if (plan.zones.rows) console.log(`  ${plan.zones.rows} workout(s) with HR zones (max HR ${plan.zones.max.maxHr} bpm, ${plan.zones.max.source})`)
   if (!Object.keys(plan.writes).length) console.log('  (no changes)')
 }
 
@@ -372,5 +400,6 @@ module.exports = {
   rideRow,
   buildRides,
   stalePowerWarning,
+  staleZonesWarning,
   main
 }

@@ -33,7 +33,8 @@ controls instead of the close button.
 - **Sources** (all optional, merged by `lib/profile/profile.mjs` `loadProfile` → `buildProfile`;
   manual wins over Strava for the same field):
   1. `profile/profile.json` (gitignored; tracked template `profile/profile.example.json`, synthetic):
-     `birthdate` (YYYY-MM-DD), `heightCm`, `devices: [{name, type: watch|bike-computer|ems|other,
+     `birthdate` (YYYY-MM-DD), `heightCm`, `maxHr` (optional, bpm 100–230: the max HR of the per-workout
+     HR zones, see docs/data-pipeline.md "Per-workout HR zones"), `devices: [{name, type: watch|bike-computer|ems|other,
      since?: YYYY-MM, manual?: "<file>.pdf"}]` (`manual` = a bare file name in `data/gear/`,
      `MANUAL_FILE_RE`: no folders, no `..`; see "Device manuals" below), `hiddenDevices: [name]`
      (left out of Dispositivos, case-insensitive, manual and Strava-derived alike; applied at build

@@ -614,3 +614,39 @@ test('main(): activities without elevation -> exit 0, rows written, stale-image 
   assert.ok(fs.existsSync(path.join(outDir, WORKOUTS_CSV)), 'the sync still writes its rows');
   fs.rmSync(dir, { recursive: true });
 });
+
+// ---- workout-zones.csv: per-activity HR zones from the ingest's hr_hist --------------------
+
+const ZRUN = { id: '31', start_local: '2026-09-29T08:00:00Z', sport_type: 'Run', moving_time: 1800, average_heartrate: 150, max_heartrate: 190, hr_hist: { 150: 1200, 175: 600 } };
+
+test('planSync writes workout-zones.csv from hr_hist and records rows + the max HR in _meta.json', () => {
+  const zones = require('../../lib/training/hr-zones.cjs');
+  const plan = planSync([ZRUN], () => null);
+  assert.equal(plan.writes[zones.ZONES_CSV], `${zones.ZONES_HEADER}\n2026-09-29,31,Running,190,observed,150,190,0,0,0,1200,0,600,Strava API\n`); // 175 / 190 = 92 % -> Z5
+  const meta = JSON.parse(plan.writes['_meta.json']);
+  assert.equal(meta.rows['workout-zones'], 1);
+  assert.deepEqual(meta.stravaSync.zones, { rows: 1, maxHr: 190, maxHrSource: 'observed' });
+  const prof = planSync([ZRUN], () => null, { profileMaxHr: 200 });
+  assert.match(prof.writes[zones.ZONES_CSV], /,200,profile,/);
+});
+
+test('planSync back-compat: no hr_hist (older ingest image) -> no workout-zones.csv and no zones meta; an existing file is rebuilt', () => {
+  const zones = require('../../lib/training/hr-zones.cjs');
+  const { hr_hist: _h, ...old } = ZRUN;
+  const plan = planSync([old], () => null);
+  assert.equal(plan.writes[zones.ZONES_CSV], undefined);
+  assert.equal(JSON.parse(plan.writes['_meta.json']).stravaSync.zones, undefined);
+  const stale = `${zones.ZONES_HEADER}\n2026-01-01,1,Running,190,observed,,,1,0,0,0,0,0,Strava API\n`;
+  const rebuilt = planSync([old], (n) => (n === zones.ZONES_CSV ? stale : null));
+  assert.equal(rebuilt.writes[zones.ZONES_CSV], `${zones.ZONES_HEADER}\n`);
+  const same = planSync([ZRUN], (n) => (n === zones.ZONES_CSV ? planSync([ZRUN], () => null).writes[zones.ZONES_CSV] : null));
+  assert.equal(same.writes[zones.ZONES_CSV], undefined, 'unchanged -> not rewritten');
+});
+
+test('staleZonesWarning: only when NO activity carries the hr_hist key (null = not fetched yet is fine)', () => {
+  const { staleZonesWarning } = strava;
+  const { hr_hist: _h, ...old } = ZRUN;
+  assert.match(staleZonesWarning([old]), /hr_hist/);
+  assert.equal(staleZonesWarning([{ ...ZRUN, hr_hist: null }]), null);
+  assert.equal(staleZonesWarning([]), null);
+});
