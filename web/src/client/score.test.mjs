@@ -576,15 +576,21 @@ test('recovery dial: gated shows no number and is greyed', () => {
   assert.doesNotMatch(d, /sd<|dial-dot/);
 });
 
-test('sleep dial: last night hours, target labelled on screen, fill capped (es decimal comma)', () => {
+test('sleep dial: sleep performance % in the ring (asleep / need), hours + need in the accessible name (es decimal comma)', () => {
   const s = fixtureScores();
   const last = s.recovery.components.find((c) => c.key === 'sleepDur').daily.at(-1).value;
-  const d = dialOf(withDials(s, { locale: 'es', T: esT }), 'dial-sleep');
-  assert.ok(d.includes(last.toFixed(1).replace('.', ',')), 'hours with a comma');
-  assert.ok(d.includes('7,5'), 'target in the accessible name (on screen it is in the sleep detail sheet)');
-  assert.match(d, /<b class="dial-num">\d,\d<small>h<\/small><\/b>/, 'hours inside the ring, small unit');
+  const dials = buildDials(s, HEALTH);
+  const html = withDials(s, { locale: 'es', T: esT });
+  const d = dialOf(html, 'dial-sleep');
+  assert.ok(Number.isInteger(dials.sleep.pct));
+  assert.equal(dials.sleep.pct, Math.min(100, Math.round((100 * last) / 7.5)));
+  assert.ok(d.includes(`<b class="dial-num">${dials.sleep.pct}<small>%</small></b>`), 'the % inside the ring');
+  assert.ok(d.includes(last.toFixed(1).replace('.', ',')), 'hours with a comma in the accessible name');
+  assert.ok(d.includes('7,5'), 'need (= the target) in the accessible name');
   assert.ok(d.includes(esT.dials.sleep.label));
-  assert.doesNotMatch(d, /%/);
+  // fallback: a dial without a % keeps the hours
+  const h = dialOf(render(s, { dials: { ...dials, sleep: { ...dials.sleep, pct: null } }, locale: 'es', T: esT }), 'dial-sleep');
+  assert.match(h, /<b class="dial-num">\d,\d<small>h<\/small><\/b>/);
 });
 
 test('load dial: one visible modality (default = first ungated), switch for all three, gated greyed with the existing copy', () => {

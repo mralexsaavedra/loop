@@ -167,7 +167,9 @@ trend is the line under it.
   (or the night's date) / "no recent complete night" are in the accessible name, and the recovery
   deep-dive page adds "no sleep data" and the 7-day trend. Sleep: fill = the sleep-duration component's newest night /
   the stated target (`health.recovery.sleep.target`, 7.5 h), capped at a full ring; `pct` = sleep
-  performance (same fraction as a rounded %, `lib/score/sleep.mjs` `sleepPerformance`); the target is in
+  performance (same fraction as a rounded %, `lib/score/sleep.mjs` `sleepPerformance`): the centre shows
+  "92" + a small "%" in the sleep colour (the mini row reuses the same svg + accessible name, which
+  carries the % and "6.9 h of your 7.5 h need"); without a `pct` the hours + "h"; the target is in
   the accessible name and the sleep sheet ("Target 7.5 h"). Load: ONE dial with a gym/run/bike
   switch — compact pills right-aligned under the load dial (kept on Inicio rather than in the load
   sheet: the sheet is one modality's history, while the switch decides which ring Inicio shows) — that opens

@@ -497,6 +497,18 @@
   function row(lbl, val, sub) {
     return '<div class="dt-row"><span class="dt-row-lbl">' + esc(lbl) + '</span><b class="dt-row-val">' + esc(val) + '</b>' + (sub ? '<small class="dt-row-sub">' + esc(sub) + '</small>' : '') + '</div>';
   }
+  // that night's stage hours + efficiency (DETAIL sleep arrays), else the no-stages note
+  function stagesDayHtml(sl, iso) {
+    var get = function (k) { return sl && Array.isArray(sl[k]) ? at(sl[k], sl, iso) : null; };
+    var rem = get('rem'), deep = get('deep'), core = get('core'), eff = get('eff');
+    var out = '';
+    if (rem != null && deep != null && core != null) {
+      var awake = get('awake');
+      out += row(T.day.stagesLbl, format(T.day.stages, { rem: fmt(rem, 1), deep: fmt(deep, 1), core: fmt(core, 1), awake: awake != null ? fmt(awake, 1) : '—' }));
+    }
+    if (eff != null) out += row(T.day.eff, fmt(eff, 0) + ' %');
+    return out || '<p class="dt-note">' + esc(T.day.stagesNote) + '</p>';
+  }
   function nightHtml(key, m, iso) {
     var out = [];
     var main = valueOf(m, iso);
@@ -519,7 +531,7 @@
       var v = at(mk.v, mk, iso);
       if (v != null || k === key) out.push(row(titleOf(k), valUnit(v, mk.dec, unitOf(k))));
     });
-    if (key === 'sleep') out.push('<p class="dt-note">' + esc(T.day.stagesNote) + '</p>');
+    if (key === 'sleep') out.push(stagesDayHtml(sl, iso));
     return out.join('');
   }
   function totalHtml(key, m, iso) {
