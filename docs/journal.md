@@ -68,7 +68,8 @@ a day is "journaled" when at least one behaviour is answered (`isJournaled`).
 - **My journal card** (`#my-journal`, Inicio, between Tonight and My plan): "MY JOURNAL" + a chevron, 7
   day columns (weekday + a check circle, `--up` = journaled); a column opens the sheet on that day.
   Without the API the card still shows when the build baked a journal (`SCORES.journal.recent`, the
-  journaled dates of the 14 days ending at the newest journal day): read-only columns, no chevron, and
+  journaled dates of the 14 days ending at the newest journal day; when that day is older than the
+  7-day window the card shows the journal's own last week instead of an empty one): read-only columns, no chevron, and
   the "BEHAVIOR INSIGHTS" button when insights exist (the example build shows it from the demo data).
 - **Sheet**: the strip of the same 7 days (the picked day ringed; a tap switches day, dropping an
   unsaved draft), "What's happening today?" (or "What happened on <date>?"), the switched-ON behaviours
@@ -77,7 +78,10 @@ a day is "journaled" when at least one behaviour is answered (`isJournaled`).
   (≤ 500), a "Behaviors" fold with an on / off toggle per behaviour (`PUT /api/journal/settings` at
   once; answers of a switched-off behaviour are kept), a status line (coarse errors; "offline" = nothing
   saved) and the sticky "SAVE JOURNAL" pill: `PUT /api/journal/day` with the whole day, then the sheet
-  closes and the card re-renders. Desktop: the same sheet as a centred panel (single column).
+  closes and the card re-renders. One save at a time: while it is in flight the pill is disabled, the
+  note read-only and every edit refused (nothing typed under a request is lost silently). Closing the
+  sheet drops an unsaved draft: the next open starts from the saved day. Desktop: the same sheet as a
+  centred panel (single column).
 
 ## Sync + behaviour insights (build time)
 

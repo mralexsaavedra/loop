@@ -192,3 +192,69 @@ test('insights view: best impact first, signed %, teal / orange bars from the ce
   assert.equal(ctx.HCJournal.barStyle(5, 20), 'left:50.0%;width:12.5%');
   assert.equal(ctx.HCJournal.barStyle(-40, 20), 'left:0.0%;width:50.0%');
 });
+
+// a stand-in for detail.js: open() renders the registered view like the real modal; close() forgets it
+function fakeDetail(ctx) {
+  const D = { st: null, opens: 0, closes: 0, html: null };
+  ctx.HCDetail = {
+    state: () => D.st,
+    open: (key, date) => { D.st = { key, date: date || null }; D.opens++; D.html = ctx.HCViews[key].render(); },
+    close: () => { D.st = null; D.closes++; },
+  };
+  return D;
+}
+const press = (listeners, attrs) => listeners.click({ target: { closest: () => ({ getAttribute: (k) => attrs[k] ?? null, parentElement: null }) } });
+
+test('save: one request at a time; edits during the request are refused, never silently dropped', async () => {
+  const puts = [];
+  let resolvePut;
+  const { ctx, listeners } = load({ routes: {
+    'GET /settings': { behaviors: ALL_ON },
+    'GET /summary': { days: [] },
+    'PUT /day': (init) => { puts.push(JSON.parse(init.body)); return new Promise((r) => { resolvePut = r; }); },
+  } });
+  for (let i = 0; i < 5; i++) await tick();
+  // the stub fetch resolves with a promise for this route: wrap it into a response when settled
+  const D = fakeDetail(ctx);
+  ctx.HCDetail.open('journal', null);
+  press(listeners, { 'data-jr': 'yes', 'data-key': 'nap' });
+  press(listeners, { 'data-jr': 'save' });
+  assert.match(D.html.body, /data-jr="save" disabled/, 'the pill is disabled while saving');
+  assert.match(D.html.body, /id="jr-notes"[^>]*readonly/, 'the note is read-only while saving');
+  press(listeners, { 'data-jr': 'save' });
+  press(listeners, { 'data-jr': 'yes', 'data-key': 'ill' });
+  listeners.input({ target: { id: 'jr-notes', value: 'typed while saving' } });
+  assert.equal(puts.length, 1, 'a second save waits for the first');
+  assert.deepEqual(plain(ctx.HCJournal.state().draft.answers), { nap: true }, 'no edit slips in under the request');
+  assert.equal(ctx.HCJournal.state().draft.notes, '');
+  resolvePut({ day: { date: TODAY, answers: { nap: true }, notes: null } });
+  for (let i = 0; i < 5; i++) await tick();
+  assert.equal(D.closes, 1);
+  assert.equal(ctx.HCJournal.state().saving, false);
+});
+
+test('a closed sheet drops its unsaved draft: reopening shows the saved day', async () => {
+  const { ctx, listeners } = load({ routes: {
+    'GET /settings': { behaviors: ALL_ON },
+    'GET /summary': { days: [{ date: TODAY, answers: { alcohol: 1 }, notes: null }] },
+  } });
+  for (let i = 0; i < 5; i++) await tick();
+  const D = fakeDetail(ctx);
+  ctx.HCDetail.open('journal', null);
+  press(listeners, { 'data-jr': 'inc', 'data-key': 'alcohol' });
+  press(listeners, { 'data-jr': 'yes', 'data-key': 'nap' });
+  assert.match(D.html.body, /<b class="jr-n"[^>]*>2</, 'the open sheet keeps the draft across its re-renders');
+  ctx.HCDetail.close();
+  ctx.HCDetail.open('journal', null);
+  assert.match(D.html.body, /<b class="jr-n"[^>]*>1</, 'back to the saved count');
+  assert.match(D.html.body, /data-jr="yes" data-key="nap" aria-pressed="false"/);
+});
+
+test('baked card: a journal older than the 7-day window shows ITS last week, not an empty one', () => {
+  const stale = load({ journal: BAKED, now: '2026-10-20' });
+  const h = stale.els['my-journal'].innerHTML;
+  assert.match(h, /aria-label="Tue 29 Sep: journaled"/, 'the week ends at the newest baked day');
+  assert.equal((h.match(/jr-dot jr-on/g) || []).length, 2);
+  const fresh = load({ journal: BAKED, now: '2026-09-30' });
+  assert.match(fresh.els['my-journal'].innerHTML, /aria-label="Wed 30 Sep: not journaled"/, 'a recent bake keeps the viewer\'s week');
+});
