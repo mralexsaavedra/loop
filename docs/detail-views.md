@@ -56,7 +56,7 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   so the views exist when it reads the hash; `#tonight` / `#dash-edit` deep-link like `#hoy-session`
   (both are `VIEW_TAB` → `home` in lib/nav/tabs.mjs, baked as `NAV.viewTab`, so core.js shows Inicio
   underneath instead of rewriting a hash it does not know);
-  every Salud metric row → its metric (expenditure → energy; the sleep consistency rows → sleep); the Salud recovery card → a History
+  every Salud metric row → its metric (expenditure → energy; the sleep consistency rows → sleep); Nutrición → Balance's avg burn row → energy (avg intake and deficit / surplus open nothing: no intake series is baked); the Salud recovery card → a History
   button (the card holds a `<details>` fold, so it is not itself a button); Entreno load cards →
   `load-<m>`; the Activity card's total and calendar → workouts (a day cell → that day; its W / M / 6M
 switch is outside every opener); run / ride rows →

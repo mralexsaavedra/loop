@@ -105,6 +105,16 @@ test('example build: Nutrición opens like Salud / Entreno (centred title + ⓘ)
   assert.match(html, /var NUTRI_ARC = "M60 6A54 54 0 0 1 60 114A54 54 0 0 1 60 6";/, 'the full ring of view/dial.mjs, no 270° arc');
 });
 
+test('example build: Balance (intake vs expenditure + macro split) lives in Nutrición, after the day\'s blocks and before Progreso; Salud has no host for it', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const dia = sliceSection(html, 'dia');
+  assert.match(dia, /<div class="nutri-block" id="nutri-balance" hidden><\/div>/, 'client-rendered by health.js, hidden until it has something');
+  const at = (id) => dia.indexOf(`id="${id}"`);
+  assert.ok(at('nutri-fuel-block') < at('nutri-balance') && at('nutri-balance') < at('nutri-progress-block'), 'order: fuelling, Balance, Progreso');
+  assert.equal(sliceTabPanel(html, 'health').indexOf('nutri-balance'), -1);
+  assert.match(html, /"balance":\{"from":"\d{4}-\d{2}-\d{2}"/, 'the demo extract carries a balance window');
+});
+
 test('example build: Tablas shows fixed reference values per natural unit (lib/nutrition/reference.mjs), never portions', () => {
   assert.ok(fs.existsSync(examplePath), `missing ${examplePath} — run \`npm run pretest\` first`);
   const html = fs.readFileSync(examplePath, 'utf8');

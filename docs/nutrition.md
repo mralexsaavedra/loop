@@ -293,6 +293,17 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   guide's Extras absorbs the remainder), then the intake rings — which step aside (host hidden) when
   the logged day is today, since the ring shows it. Inicio's "today you eat" card (`#eat-body`) shows
   the same day type, goal and target.
+- **Balance** (moved from Salud's Energía) — `client/health.js` `renderBalance` renders
+  `HEALTH.energy` (lib/health/aggregate.mjs `aggEnergy`) into `#nutri-balance`, after Avituallamiento
+  and before Progreso: a `.hs-head` "BALANCE" with an ⓘ (the balance note: window, days, "historical",
+  the macro clause), the window as a caption ("31 May – 29 Jun · 30 days logged" — ONE fixed window:
+  the bake carries a single paired window of up to 90 days anchored to the newest expenditure day, so
+  there is no W / M / 6M switch), three shared metric rows (`HC.metricRow`: avg intake, avg burn — opens
+  the expenditure sheet —, deficit / surplus a day), then the average macro split as one stacked bar +
+  counted legend (Entreno's `.act-bar` / `.act-legend`, `.nb-m-p` / `-c` / `-f` = `--up` / `--strain` /
+  `--mid`; widths normalised so rounded percentages leave no gap). Too few logged days → a short empty
+  line, "intake can't be scored" (with the last logged day) behind the ⓘ; no expenditure at all → the
+  host stays hidden. Same data and numbers as the former Salud cards; Salud keeps the expenditure row.
 - **Plan de hoy — layout** — restrained cards (no accent border): meal name as a caps label, its kcal
   budget big in `--num`, the macro rows (caps label left, "~45 g" in `--num` right; the example select
   below with the amount and the "+"; a long amount wraps under the select at 360 px, right-aligned), the

@@ -274,6 +274,31 @@
   margin-top: var(--sp-4);
   line-height: 1.45;
 }
+/* Balance (client/health.js renderBalance): the window caption, the shared metric rows (.db-*), then the
+   macro split card = Entreno's stacked bar + legend (.act-bar / .act-legend / .act-sw, training.css)
+   with a colour per macro; the legend always names them, colour is never alone */
+.nb-win,
+.nb-empty {
+  margin: 0 0 var(--sp-3);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+.nb-split {
+  margin-top: var(--sp-4);
+}
+.nb-m-p {
+  fill: var(--up);
+  background: var(--up);
+}
+.nb-m-c {
+  fill: var(--strain);
+  background: var(--strain);
+}
+.nb-m-f {
+  fill: var(--mid);
+  background: var(--mid);
+}
+
 /* Plan de hoy = a portion guide: per main meal a plate by parts (protein / carbs / vegetables / fat),
    each macro row = name + grams left (--num), then ONE example food (a native select) with its amount
    and a "+" to log it; Extras = a budget line + a muted hint. No accent borders, colour = state only. */

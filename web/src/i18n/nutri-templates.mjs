@@ -7,12 +7,12 @@ export const es = {
   // the tab header (Dia.astro): centred title + ⓘ with the tab intro and the caveats every block shares
   head: {
     title: 'Nutrición',
-    info: 'Más sobre Nutrición',
+    info: 'Sobre Nutrición',
     intro: 'Tu objetivo de hoy según tu meta y el tipo de día, lo que has registrado y cómo evolucionan tu ingesta y tu peso semana a semana. Toca una tarjeta para ver su historial.',
     caveat: 'Los objetivos son estimaciones orientativas, no consejo médico. Un día a medio registrar se ve corto: importan las tendencias de varias semanas, no un día suelto.',
   },
   // the ⓘ button of a section header
-  infoTpl: 'Más sobre {section}',
+  infoTpl: 'Sobre {section}',
   goalChip: 'Objetivo: {goal}. Cámbialo en tu perfil',
   goals: { maintain: 'Mantener', cut: 'Bajar', bulk: 'Ganar' },
   dayLegend: 'Tipo de día',
