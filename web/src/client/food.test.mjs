@@ -192,6 +192,7 @@ test('the add sheet: opens on the tapped meal, lists products by store, filters 
   await flush();
   t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'lunch' }));
   assert.equal(t.opened[0][0], 'food-add');
+  assert.equal(t.opened[0][1].focus, '#fa-q, #fa-label', 'focus lands in the search (or the quick name), not the meal select');
   const view = t.window.HCViews['food-add'];
   assert.equal(view.title(), 'Añadir comida');
   const { body } = view.render();

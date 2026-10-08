@@ -26,7 +26,7 @@
         return !!(window.HCViews && window.HCViews['food-add'] && window.HCDetail && typeof window.HCDetail.open === 'function');
       },
       run: function () {
-        window.HCDetail.open('food-add', null, { opener: btn, focus: '#fa-meal' });
+        window.HCDetail.open('food-add', null, { opener: btn, focus: '#fa-q, #fa-label' });
       },
     },
     sync: {

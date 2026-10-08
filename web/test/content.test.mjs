@@ -329,6 +329,16 @@ test('example build: the load deep-dive\'s typical-day tick is a faint hairline 
   assert.ok(Number(map.get('|||.dd-off .dd-tick|||stroke-width')) < Number(map.get('|||.dd-tick|||stroke-width')), 'thinner than the live tick');
 });
 
+test('example build: the food add sheet\'s tabs sit on --surface-2 (like the other segmented controls); the Nutrición footnote keeps its top margin', async () => {
+  const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  const map = ruleDeclarationMap(parseCssRules(css));
+  assert.equal(map.get('|||.fa-tabs|||background'), 'var(--surface-2)');
+  assert.equal(map.get('|||.fa-tab[aria-pressed=true]|||background'), 'var(--track)', 'the pressed tab still lifts off the trough');
+  assert.equal(map.get('|||.acc-note.nutri-foot|||margin-top'), 'var(--sp-7)', 'out-ranks .acc-note\'s -2px');
+});
+
 test('example build: Salud headers — the page ⓘ sits beside the centred title, the monitor chip right after its title', async () => {
   const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
   const html = fs.readFileSync(examplePath, 'utf8');

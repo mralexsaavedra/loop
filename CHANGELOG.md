@@ -5,6 +5,12 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Food add sheet focus, Nutrición footnote spacing
+
+- The add-food sheet opens with focus in the search field (or the quick label), not on the meal select;
+  its tab trough is `--surface-2` instead of near-black. The Nutrición footnote no longer touches the
+  Constancia legend (its top margin was overridden by `.acc-note`).
+
 ## 2026-10-08 — Detail sheets: one header, a Y axis, softer calendars
 
 - Dial deep-dives and metric details share one header (`HC.sheetHead`): "‹" back, the metric name
