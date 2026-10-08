@@ -58,6 +58,13 @@ test('demo CSVs use the exact extract schemas, cover the window, and are tagged 
     for (const r of rows(f)) assert.match(r, /,Demo [A-Z][a-z]+(,|$)/, `${f} row not demo-tagged: ${r}`);
   }
   for (const r of rows('workouts.csv')) assert.equal(r.split(',').length, 12);
+  // every demo night carries plausible stage columns: REM + deep + core = asleep, in bed >= asleep
+  for (const r of rows('sleep-daily.csv')) {
+    const c = r.split(',').map(Number);
+    assert.equal(c.length, 11, r);
+    assert.ok(Math.abs(c[5] + c[6] + c[7] - c[1]) < 0.03, `stages sum to asleep: ${r}`);
+    assert.ok(c[6] > 0 && c[5] > 0 && c[10] >= c[1], r);
+  }
 });
 
 test('the demo extract populates every Inicio dial and every Salud section', () => withDemoDir(makeDemoData(), (dir) => {

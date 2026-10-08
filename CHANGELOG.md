@@ -5,6 +5,19 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Sleep stages, performance, efficiency
+
+- `sleep-daily.csv` gains six stage columns (`rem_h, deep_h, core_h, unspec_h, awake_h, inbed_h`),
+  written identically by `extract.js` and the Shortcut sync (`samples.js` `sleepNights`); old
+  five-column rows still load (stages = unknown). `asleep_hours` and bed / wake are unchanged. Owner:
+  re-run `node data/apple-health/extract.js` on a new export and `npm run sync -- --full`.
+- Sleep scores (`lib/score/sleep.mjs`): performance % = asleep / need (need = the 7.5 h target, not an
+  adaptive need) capped at 100, efficiency % = asleep / in bed, consistency stays in minutes, stage
+  shares. The Inicio sleep dial shows performance %; the sleep deep-dive gets a % hero, a stages bar,
+  hours-vs-need / efficiency / consistency / REM + deep contributors, extra weekly bars and the
+  formulas under ⓘ; Salud Sueño adds stage + efficiency rows. Recovery deep-dive: the insight shows
+  only the % band, the SD line moved under ⓘ.
+
 ## 2026-10-08 — Recovery as a 0–100 % rank
 
 - Last night's recovery is now shown as a % everywhere it is a headline (Inicio dial + mini row, the

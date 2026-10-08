@@ -126,16 +126,17 @@ const METRICS = {
 const isShortcutSource = src => src === SHORTCUT_SOURCE || (src || '').startsWith(SHORTCUT_SOURCE + ' ');
 const sourceColOf = def => (def.sourceCol === undefined ? 2 : def.sourceCol);
 
-// Shortcut sleep stages (English + Spanish-localized). true = asleep, false = not asleep.
-// Unknown stages are ignored (never counted as sleep).
+// Shortcut sleep stages (English + Spanish-localized) -> samples.js stage keys (asleep: core / deep /
+// rem / unspec; not asleep: awake / inbed). Unknown stages are ignored (never counted as sleep).
 const SLEEP_STAGES = {
-  core: true, deep: true, rem: true, asleep: true, asleepunspecified: true,
-  principal: true, ligero: true, profundo: true, dormido: true, sueno: true,
-  awake: false, inbed: false, despierto: false, encama: false,
+  core: 'core', deep: 'deep', rem: 'rem', asleep: 'unspec', asleepunspecified: 'unspec',
+  principal: 'core', ligero: 'core', profundo: 'deep', dormido: 'unspec', sueno: 'unspec',
+  awake: 'awake', inbed: 'inbed', despierto: 'awake', encama: 'inbed',
 };
 // NFD splits accents off ("sueño" -> "suen" + U+0303); drop the combining marks U+0300-U+036F
 const stageKey = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/gi, '').toLowerCase();
-const isAsleep = stage => SLEEP_STAGES[stageKey(stage)] === true;
+const sleepStageOf = stage => SLEEP_STAGES[stageKey(stage)] || null;
+const isAsleep = stage => ['core', 'deep', 'rem', 'unspec'].includes(sleepStageOf(stage));
 
 // A decimal comma or dot. With BOTH separators the LAST one is the decimal and the other a thousands
 // separator ("1.234,5" / "1,234.5" -> 1234.5); one kind repeated ("1.234.567") is ambiguous -> null.
@@ -362,10 +363,10 @@ function buildRows(metric, samples) {
   if (def.kind === 'daily') {
     return [...samples].sort(byStart).map(s => { const date = S.day(s.start); return { date, line: def.row(date, s.value) }; });
   }
-  // sleep: asleep stages only, main sleep per wake-up night, naps excluded (samples.js
-  // sleepNights, the same rule as extract.js)
-  const segs = samples.filter(s => isAsleep(s.stage)).map(s => ({ start: s.start, end: s.end, source: SHORTCUT_SOURCE }));
-  return S.sleepNights(segs).map(n => ({ date: n.date, line: S.sleepRow(n.date, n.minutes, n.source, n.ck) }));
+  // sleep: main sleep per wake-up night from the asleep stages, naps excluded; Awake / InBed add
+  // only their stage columns (samples.js sleepNights, the same rule as extract.js)
+  const segs = samples.map(s => ({ start: s.start, end: s.end, source: SHORTCUT_SOURCE, stage: sleepStageOf(s.stage) })).filter(s => s.stage);
+  return S.sleepNights(segs).map(n => ({ date: n.date, line: S.sleepRow(n.date, n.minutes, n.source, n.ck, n.stages) }));
 }
 
 // Merge shortcut rows into an existing CSV text (null = no file). Rows the sync wrote before
@@ -378,7 +379,7 @@ function mergeCsv(existingText, header, rows, opts = {}) {
 }
 
 const range = dates => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a');
-const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of the main-sleep asleep intervals per wake-up night (naps excluded, samples.js sleepNights); Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored). Shortcut active_energy_hourly = Watch active energy per clock hour (active-energy-hourly.csv, Shortcut-only; feeds the power-meter ride correction in lib/health/ride-energy.mjs). Shortcut dietary = diet_kcal/diet_protein/diet_carbs/diet_fat day totals joined into one row per day (no kcal = no row). Shortcut exercise/distance/flights = Watch-filtered day totals (exercise_watch/distance_watch/flights_watch; 0 = no data; distance in km). Day totals: the export\'s last date (exportLastDate, a partial day) is never treated as covered: the Shortcut row wins it, and the export row is dropped when there is none.';
+const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of the main-sleep asleep intervals per wake-up night (naps excluded, samples.js sleepNights), plus the stage columns (REM / deep / core / unspecified / awake / in bed, same rule as extract.js); Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored). Shortcut active_energy_hourly = Watch active energy per clock hour (active-energy-hourly.csv, Shortcut-only; feeds the power-meter ride correction in lib/health/ride-energy.mjs). Shortcut dietary = diet_kcal/diet_protein/diet_carbs/diet_fat day totals joined into one row per day (no kcal = no row). Shortcut exercise/distance/flights = Watch-filtered day totals (exercise_watch/distance_watch/flights_watch; 0 = no data; distance in km). Day totals: the export\'s last date (exportLastDate, a partial day) is never treated as covered: the Shortcut row wins it, and the export row is dropped when there is none.';
 
 // Pure: refresh the rows/ranges extract.js wrote for the touched CSVs + record the sync.
 // Deterministic (no timestamps) so re-running an unchanged sync rewrites identical bytes.
@@ -508,7 +509,7 @@ async function main() {
 if (require.main === module) main();
 
 module.exports = {
-  METRICS, SHORTCUT_SOURCE, SLEEP_STAGES, isAsleep,
+  METRICS, SHORTCUT_SOURCE, SLEEP_STAGES, isAsleep, sleepStageOf,
   parseNumber, parseSource, parsePayload, collectSamples, unionMinutes, buildRows, mergeCsv, updateMeta,
   planSync, resolveToken, fetchAllPayloads,
   CACHE_FILE, emptyCache, foldPayloads, writeAtomic, syncDir, dropPhantomWeights,

@@ -100,6 +100,9 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
 
   // ---- recovery -------------------------------------------------------------------------
   const hrv = [], rhr = [], vo2 = [], sleep = [], resp = [], temp = [], walk = [];
+  // sleep stages draw from their OWN stream, so adding them left every other demo series unchanged
+  const srnd = prng(seed + 1);
+  const snoise = (sd) => (srnd() + srnd() + srnd() - 1.5) * sd * 1.41;
   dates.forEach((date, i) => {
     const hard = workMin.has(addDays(date, -1)) ? 1 : 0; // the morning after a session
     const base = 52 + 6 * T(i) + 4 * Math.sin(i / 9);
@@ -110,7 +113,12 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
     const wake = 6.9 + (weekday(date) === 0 ? 0.8 : 0) + noise(0.25);
     let bed = wake - hours - 0.35 + noise(0.1); // a little time awake in bed
     if (bed < 0) bed += 24;
-    sleep.push(`${date},${fx(hours, 2)},${SRC.watch},${fx(bed, 2)},${fx(wake, 2)}`);
+    // stages as shares of the asleep time (REM ~22 %, deep ~15 %, core the rest), awake inside the
+    // window, in bed = the bed-to-wake window (no phone InBed record in the demo)
+    const rem = hours * (0.22 + snoise(0.03)), deep = hours * (0.15 + snoise(0.025)) - hard * 0.1;
+    const inbed = (wake - bed + 24) % 24;
+    const st = [rem, deep, hours - rem - deep, 0, Math.max(0.05, inbed - hours), inbed];
+    sleep.push(`${date},${fx(hours, 2)},${SRC.watch},${fx(bed, 2)},${fx(wake, 2)},${st.map((v) => fx(v, 2)).join(',')}`);
     resp.push(`${date},${fx(14.6 + noise(0.35), 1)}`);
     temp.push(`${date},${fx(35.9 + noise(0.18), 2)},${SRC.watch}`);
     walk.push(`${date},${Math.round(99 - 4 * T(i) + noise(2.5))}`);

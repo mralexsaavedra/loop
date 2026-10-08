@@ -2,8 +2,9 @@
  * laid out as one page — a "‹ TODAY ⓘ" header, the big hero ring (the SAME baked geometry as the dial,
  * view/dial.mjs via the DIALS global), an insight card (the dial's former captions in 2–4 plain lines +
  * a "View trend →" link down to the history chart) and, collapsed under ⓘ, the long notes (bands,
- * scale, rules). Same data and rules as the dial and the rest of the sheet: nothing new is computed
- * here, only read from DETAIL / DIALS and laid out.
+ * scale, rules). Same data and rules as the dial and the rest of the sheet: nothing new is scored
+ * here, only read from DETAIL / DIALS and laid out (the sleep page only adds REM + deep and stage
+ * shares of the baked stage hours).
  *
  * Classic script (is:inline), inlined right BEFORE client/detail.js, which calls it: window.HCDeep =
  * {isDial(key), render(key, m, end, X) -> {head, top}}. X = the sheet's own helpers (copy, series
@@ -24,6 +25,7 @@
     hrv: 'M2 12h4l2-5 4 10 2-5h8',
     rhr: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z',
     sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+    need: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
     vsTarget: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8',
     bed: 'M3 18v-8M3 14h18v4M21 14a3 3 0 0 0-3-3h-7v3M7 12.5a1.5 1.5 0 1 0 0-.01',
     wake: 'M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6',
@@ -31,7 +33,13 @@
     acute: 'M3 17l6-6 4 4 8-8M15 7h6v6',
     sessions: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
     typical: 'M3 12h4M17 12h4M12 3v4M12 17v4M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8',
+    eff: 'M3 19h18M6 19v-5M10 19V9M14 19v-7M18 19V5',
+    cons: 'M4 7h16M4 12h16M4 17h16M8 5v4M15 10v4M11 15v4',
+    restor: 'M3 15c3-6 6-6 9 0s6 6 9 0',
   };
+  // the stages bar, top to bottom of the night's hypnogram order: awake, REM, core, deep (+ the
+  // Asleep-unspecified remainder when a night has some)
+  var STAGES = ['awake', 'rem', 'core', 'deep', 'unspec'];
   // the hero ring's track when no DIALS geometry is baked: the dial's own circle (view/dial.mjs DIAL)
   var RING = { c: 60, r: 54 };
   var BAND_CLS = { above: 'good', at: 'mid', below: 'low' };
@@ -100,13 +108,20 @@
       fill: d && d.state === 'ok' ? d.fill : null, stale: stale((d && d.asOf) || X.D.asOf),
     };
   }
-  // sleep: last night's hours over the stated target (the dial's fill); the night's date sets staleness
+  // sleep: last night's sleep performance % (DIALS pct = asleep / need, the dial's fill); without a
+  // baked % (no DIALS) the night's hours; the night's date sets staleness
   function sleepHero(m, end, X) {
     var P = X.T.deep, d = dials() && dials().sleep;
     var date = d && d.state === 'ok' ? d.date : X.lastDataDate(m, end);
     var v = d && d.state === 'ok' ? d.hours : date ? X.valueOf(m, date) : null;
     if (!isNum(v)) return { cls: 'off', label: P.label.sleep, word: P.words.none };
+    if (d && d.state === 'ok' && isNum(d.pct)) return { cls: 'sleep', label: P.label.sleepPerf, num: String(d.pct), unit: '%', fill: d.fill, stale: stale(date) };
     return { cls: 'sleep', label: P.label.sleep, num: X.fmt(v, 1), unit: 'h', fill: d && d.state === 'ok' ? d.fill : null, stale: stale(date) };
+  }
+  // the night the sleep page describes: the dial's night, else the metric's newest day
+  function sleepNight(m, end, X) {
+    var d = dials() && dials().sleep;
+    return d && d.state === 'ok' && isoDate(d.date) ? d.date : X.lastDataDate(m, end);
   }
   // load: the dial's today logic (score.js loadToday): today's RE fills to its baked arc, the typical
   // day is the white tick at the ring's midpoint; no RE today = the dial's word, an empty ring
@@ -141,8 +156,7 @@
     var when = HC.daysOld(d) === 0 && h.sleep !== false ? R.lastNight : HC.fmtDate(d);
     var pct = pctOf(h);
     var out = [{ text: format(X.T.deep.nightLine, { when: when, band: pct != null ? R.pctBands[dials().recovery.band] : band }) }];
-    // with a % headline the night's SD value stays here (nothing lost)
-    if (pct != null) out.push({ text: format(R.sdLbl, { value: X.signed(h.value, 1), band: R.sdBands[h.band] || '' }) });
+    // with a % headline the night's SD value moves under ⓘ (infoHtml), so the insight carries ONE band
     if (h.sleep === false) out.push({ cls: 'dt-nodata', text: R.noSleep });
     out.push(trend);
     return out;
@@ -181,8 +195,15 @@
     var extra = '';
     var dm = m.kind === 'load' ? loadDialOf(X.modOf(key)) : null;
     if (dm && dm.state === 'ok' && dm.unscored > 0) extra = '<div class="dt-band-txt">' + esc(format(X.T.load.unscoredNote, { n: dm.unscored })) + '</div>';
-    if (key === 'sleep') extra = '<div class="dt-band-txt">' + esc(X.T.day.stagesNote) + '</div>';
-    if (key === 'recovery' && pctOf(m.head) != null) extra = '<div class="dt-band-txt">' + esc(X.T.rec.pctNote) + '</div>';
+    var txt = function (t) { return '<div class="dt-band-txt">' + esc(t) + '</div>'; };
+    if (key === 'sleep') {
+      var N = X.T.deep.sleepNotes;
+      extra = txt(format(N.perf, { target: X.fmt(m.target, 1) })) + txt(N.eff) + txt(N.cons) + txt(N.stages);
+    }
+    if (key === 'recovery' && pctOf(m.head) != null) {
+      var h = m.head, R = X.T.rec;
+      extra = txt(R.pctNote) + txt(format(R.sdLbl, { value: X.signed(h.value, 1), band: R.sdBands[h.band] || '' }));
+    }
     return '<div class="dd-info" id="dd-info" hidden>' + X.bandText(key, m) + extra + '</div>';
   }
   function insightHtml(lines, X) {
@@ -268,20 +289,53 @@
       valRow('sleep', X, sl, nightOf(X, sl, end, ref), 1, 'h', sl ? sl.dir : 1),
     ];
   }
-  // sleep: last night's hours, vs the target, bedtime and wake time (no efficiency or stages in the
-  // extract: not shown)
+  // REM + deep hours of a night (DETAIL stage arrays), null when the night has no stages
+  function restorOf(X, m, iso) {
+    var r = Array.isArray(m.rem) ? X.at(m.rem, m, iso) : null, dp = Array.isArray(m.deep) ? X.at(m.deep, m, iso) : null;
+    return isNum(r) && isNum(dp) ? r + dp : null;
+  }
+  // sleep: hours vs need (the target), efficiency, consistency (minutes, lower = better), REM + deep
+  // (hours · % of asleep); a row without data that night is hidden and bedtime / wake time fill in
   function sleepRows(m, end, X) {
-    var d = dials() && dials().sleep;
-    var iso = d && d.state === 'ok' && isoDate(d.date) ? d.date : X.lastDataDate(m, end);
-    var hours = valRow('sleep', X, m, iso, 1, 'h', m.dir || 1);
-    var v = iso ? X.valueOf(m, iso) : null;
-    var tgt = { k: 'vsTarget', val: isNum(v) && isNum(m.target) ? X.signed(v - m.target, 1) + ' h' : null, cmp: null };
+    var iso = sleepNight(m, end, X);
+    var hours = valRow('need', X, m, iso, 1, 'h', m.dir || 1);
+    if (hours.val != null && isNum(m.target)) hours.val = X.fmt(hours.cmp.v, 1) + ' / ' + X.fmt(m.target, 1) + ' h';
+    var eff = Array.isArray(m.eff) ? valRow('eff', X, m, iso, 0, '%', 1, m.eff) : { k: 'eff', val: null };
+    var cons = Array.isArray(m.cons) ? valRow('cons', X, m, iso, 0, 'min', -1, m.cons) : { k: 'cons', val: null };
+    var restor = { k: 'restor', val: null };
+    var rc = iso ? compare(function (x) { return restorOf(X, m, x); }, iso, 1) : null;
+    var asleep = iso ? X.valueOf(m, iso) : null;
+    if (rc) restor = { k: 'restor', val: X.fmt(rc.v, 1) + ' h' + (isNum(asleep) && asleep > 0 ? ' · ' + Math.round((100 * rc.v) / asleep) + '%' : ''), cmp: rc };
     var clockRow = function (k, arr, wrap) {
       if (!iso || !Array.isArray(arr)) return { k: k, val: null };
       var c = compare(function (x) { var b = X.at(arr, m, x); return wrap ? wrapBed(b) : b; }, iso, 0);
       return { k: k, val: c ? X.clock(c.v) : null, cmp: c };
     };
-    return [hours, tgt, clockRow('bed', m.bed, true), clockRow('wake', m.wake, false)];
+    return [hours, eff, cons, restor, clockRow('bed', m.bed, true), clockRow('wake', m.wake, false)];
+  }
+  // the night's stages as one stacked horizontal bar (awake / REM / core / deep, by hours) + a legend
+  // with the hours and, for the asleep stages, their % of the time asleep; no stages = nothing
+  function stagesHtml(m, end, X) {
+    var iso = sleepNight(m, end, X), P = X.T.deep.stages;
+    if (!iso || !Array.isArray(m.rem)) return '';
+    var asleep = X.valueOf(m, iso), core = Array.isArray(m.core) ? X.at(m.core, m, iso) : null;
+    var h = { awake: Array.isArray(m.awake) ? X.at(m.awake, m, iso) : null, rem: X.at(m.rem, m, iso), core: core, deep: Array.isArray(m.deep) ? X.at(m.deep, m, iso) : null };
+    if (!isNum(h.rem) || !isNum(h.deep) || !isNum(h.core)) return '';
+    // the asleep remainder no stage covers (Asleep-unspecified segments), shown only when it is real
+    var rest = isNum(asleep) ? asleep - h.rem - h.deep - h.core : 0;
+    h.unspec = rest >= 0.05 ? rest : null;
+    var keys = STAGES.filter(function (k) { return isNum(h[k]) && h[k] > 0; });
+    var tot = keys.reduce(function (a, k) { return a + h[k]; }, 0);
+    if (!(tot > 0)) return '';
+    var bar = keys.map(function (k) {
+      return '<i class="dd-st dd-st-' + k + '" style="width:' + (Math.round((1000 * h[k]) / tot) / 10) + '%"></i>';
+    }).join('');
+    var legend = keys.map(function (k) {
+      var share = k !== 'awake' && isNum(asleep) && asleep > 0 ? ' · ' + Math.round((100 * h[k]) / asleep) + '%' : '';
+      return '<li><i class="dd-sw dd-st-' + k + '" aria-hidden="true"></i>' + esc(P[k]) + ' <b>' + esc(X.fmt(h[k], 1) + ' h' + share) + '</b></li>';
+    }).join('');
+    return '<section class="dd-stages" aria-label="' + esc(P.aria) + '"><div class="dd-stbar" aria-hidden="true">' + bar + '</div>' +
+      '<ul class="dd-stleg">' + legend + '</ul></section>';
   }
   function sessionsIn(X, mod, from, to) {
     return (X.D.sessions || []).filter(function (x) { return x.m === mod && x.d >= from && x.d <= to; });
@@ -344,6 +398,13 @@
       simple('sleep', 'sleep');
     } else if (key === 'sleep') {
       simple('sleep', 'sleep');
+      // performance % per night (baked, 0..100) and REM + deep hours, when the extract has them
+      if (Array.isArray(m.perf)) {
+        cards.push({ title: X.T.deep.weekly.perf, get: seriesGet(X, m, m.perf), text: function (v) { return X.fmt(v, 0); }, cls: plain('sleep'), frac: function (v) { return v / 100; } });
+      }
+      if (Array.isArray(m.rem) && Array.isArray(m.deep)) {
+        cards.push({ title: X.T.deep.weekly.restor, get: function (iso) { return restorOf(X, m, iso); }, text: function (v) { return X.fmt(v, 1); }, cls: plain('sleep') });
+      }
     } else {
       var mod = X.modOf(key);
       cards.push({ title: X.titleOf(key), get: seriesGet(X, m), text: function (v) { return X.fmt(v, 0); }, cls: plain('strain') });
@@ -372,7 +433,7 @@
     var rows = key === 'recovery' ? recoveryRows(m, end, X) : key === 'sleep' ? sleepRows(m, end, X) : loadRows(key, m, end, X);
     return {
       head: headHtml(key, X),
-      top: infoHtml(key, m, X) + heroHtml(hero, X) + contribHtml(rows, X) + insightHtml(lines, X) + weeklyHtml(key, m, end, X),
+      top: infoHtml(key, m, X) + heroHtml(hero, X) + (key === 'sleep' ? stagesHtml(m, end, X) : '') + contribHtml(rows, X) + insightHtml(lines, X) + weeklyHtml(key, m, end, X),
     };
   }
 

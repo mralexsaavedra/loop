@@ -157,6 +157,9 @@ test('buildDials: sleep = the newest night of the sleep-duration component over 
   assert.equal(s.date, '2026-09-29');
   assert.equal(s.target, 7.5);
   assert.equal(s.fill, arcPath(0, sleepFrac(6.8, 7.5)));
+  assert.equal(s.pct, 91, 'sleep performance = asleep / need (the target) x 100, lib/score/sleep.mjs');
+  const full = buildDials({ hasData: true, recovery: { ...REC, components: [{ key: 'sleepDur', daily: [{ date: '2026-09-29', value: 9.1 }] }] }, load: LOAD }, HEALTH).sleep;
+  assert.equal(full.pct, 100, 'capped at 100');
   const none = buildDials({ hasData: true, recovery: REC, load: LOAD }, { recovery: { hasData: false } }).sleep;
   assert.equal(none.state, 'none', 'no stated target -> no dial number');
 });
