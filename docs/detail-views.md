@@ -220,8 +220,15 @@ switch is outside every opener); run / ride rows →
      hours, performance % (bar = % of 100) and REM + deep hours when `DETAIL` has them (`--sleep`); load: RE per day and the modality's minutes per day from the sessions
      (`--strain`; a day after the data's `asOf` is unknown, not rest). Bars are proportional to the
      week's largest value.
-  7. The rest of the sheet below, unchanged (period + chart, calendar, day). A DATED open (a run /
-     ride row, a timeline row: `open(key, date)`) scrolls the sheet to the day panel
+  7. The rest of the sheet below: the period block + chart, then the month calendar and the day panel
+     FOLDED behind one "HISTORY · Calendar and day detail ⌄" row (`detail.js` `foldHtml`, a
+     `.dd-fold` button with `aria-expanded` / `aria-controls="dd-hist"`, `data-dt-act="hist"`,
+     toggled in place without a re-render; collapsed by default, so the page reads like the reference;
+     the last state is remembered for the page session — `sessionStorage` `hc-dd-hist`, this load only
+     where storage is refused). Every deep-dive page folds (sleep, recovery, strain, load, stress,
+     energy); the trend view keeps its calendar open. A DATED open (a run /
+     ride row, a timeline row, a stepped Inicio day: `open(key, date)`) starts with the fold open and
+     scrolls the sheet to the day panel
      (`[data-dt-part="day"]`, `block: start`) after focus lands on the back button; an undated open
      (the dial) starts at the top. A run day's panel ends with the watch running dynamics of that day
      (`.dt-dyn`, "Running dynamics: 276 W · GCT 242 ms · Osc. 8.3 cm · Stride 1.14 m", read from

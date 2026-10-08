@@ -820,6 +820,22 @@
     var H = typeof window !== 'undefined' ? window.HCDeep : null;
     return !!H && typeof H.isDial === 'function' && H.isDial(key) && !!T.deep;
   }
+  // the History fold's state for this page session (sessionStorage when the frame allows it)
+  var HIST_KEY = 'hc-dd-hist';
+  var histOpen = (function () {
+    try { return typeof sessionStorage !== 'undefined' && sessionStorage.getItem(HIST_KEY) === '1'; } catch (e) { return false; }
+  })();
+  // the fold opens / closes in place (no re-render): only the block and the button change
+  function toggleHist(btn) {
+    var box = q('#dd-hist');
+    if (!box) return;
+    var open = btn.getAttribute('aria-expanded') !== 'true';
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    box.hidden = !open;
+    histOpen = open;
+    if (state) state.hist = open;
+    try { if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(HIST_KEY, open ? '1' : '0'); } catch (e) { /* a frame without storage: this page load only */ }
+  }
   // ⓘ: the deep-dive's long notes, collapsed by default; only the block and the button change
   function toggleInfo(btn) {
     var box = q('#dd-info');
@@ -864,8 +880,19 @@
       (ve.stale ? '<p class="dt-stale">' + esc(format(T.staleNote, { date: HC.fmtDate(end) })) + '</p>' : '') +
       metricStaleHtml(m, end) +
       periodHtml(key, m, end, state.range, state.shift) + chartHtml(key, m, from, to, sel) +
-      '<div data-dt-part="cal">' + calendarHtml(key, m, state.month, sel, end) + '</div>' +
-      '<div data-dt-part="day">' + dayPart(key, m, sel) + '</div></div>';
+      foldHtml(!!dd, '<div data-dt-part="cal">' + calendarHtml(key, m, state.month, sel, end) + '</div>' +
+      '<div data-dt-part="day">' + dayPart(key, m, sel) + '</div>') + '</div>';
+  }
+  // a deep-dive page folds its month calendar + day panel behind one "History" row, so the page reads
+  // like the reference (dial, contributors, insight, weekly bars, trend); collapsed by default, open
+  // after a dated open (the day it was opened for is in there) and remembered for the session
+  function foldHtml(fold, inner) {
+    if (!fold) return inner;
+    var F = T.deep.hist, open = histOpen || !!state.hist;
+    return '<section class="dd-hist"><button type="button" class="dd-fold" data-dt-act="hist" aria-expanded="' + open + '" aria-controls="dd-hist">' +
+      '<span class="dd-fold-t">' + esc(F.title) + '</span><span class="dd-fold-s">' + esc(F.sub) + '</span>' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg></button>' +
+      '<div class="dd-hist-b" id="dd-hist"' + (open ? '' : ' hidden') + '>' + inner + '</div></section>';
   }
   function dayPart(key, m, sel) {
     return sel ? dayHtml(key, m, sel) : '<p class="dt-note">' + esc(T.day.pick) + '</p>';
@@ -958,6 +985,8 @@
     if (!wasOpen) opener = opts.opener || null;
     var asked = date == null || date === '' ? null : String(date);
     state = { key: key, date: isoDate(date), range: RANGES.indexOf(opts.range) !== -1 ? opts.range : RANGES[1], shift: 0, month: null, pushed: wasOpen ? state.pushed : !!opts.pushed, sel: null, view: null, geo: null };
+    // a dated open shows its day: the History fold of a deep-dive page starts open
+    state.hist = !!state.date;
     // while a close's Back is in flight, history is left alone: its popstate gives this sheet an entry
     if (opts.push !== false && !pendingBack) {
       var written = setHash(!wasOpen);
@@ -1037,6 +1066,7 @@
       return;
     }
     if (a === 'info') { toggleInfo(el); return; }
+    if (a === 'hist') { toggleHist(el); return; }
     if (a === 'trend') { toTrend(); return; }
     var focusSel = null;
     if (a === 'range') {

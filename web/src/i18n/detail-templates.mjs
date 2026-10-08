@@ -233,6 +233,8 @@ export const en = {
       },
     },
     weekly: { title: 'Weekly trends', aria: '{title}, last 7 days', minutes: 'Minutes', perf: 'Sleep performance (%)', restor: 'REM + deep (h)' },
+    // the fold holding a deep-dive's month calendar + day panel (detail.js foldHtml)
+    hist: { title: 'History', sub: 'Calendar and day detail' },
     // the sleep page's stages bar (awake / REM / core / deep + the unspecified remainder)
     stages: { aria: 'Sleep stages', awake: 'Awake', rem: 'REM', core: 'Core', deep: 'Deep', unspec: 'Unspecified' },
     // the sleep page's ⓘ: how every number on it is computed (lib/score/sleep.mjs)
@@ -580,6 +582,7 @@ export const es = {
       },
     },
     weekly: { title: 'Tendencias semanales', aria: '{title}, últimos 7 días', minutes: 'Minutos', perf: 'Rendimiento del sueño (%)', restor: 'REM + profundo (h)' },
+    hist: { title: 'Historial', sub: 'Calendario y detalle del día' },
     stages: { aria: 'Fases del sueño', awake: 'Despierto', rem: 'REM', core: 'Ligero', deep: 'Profundo', unspec: 'Sin especificar' },
     sleepNotes: {
       perf: 'Rendimiento del sueño = horas dormidas ÷ tu necesidad × 100, con un máximo de 100 %. Tu necesidad = tu objetivo de sueño ({target} h); no se ajusta al entrenamiento ni a la deuda de sueño.',
