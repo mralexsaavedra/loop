@@ -66,6 +66,7 @@ export const en = {
     strain: 'Shades: light < 10, moderate 10–14, high 14–18, all out 18–21 (our 0–21 scale, where 18 = your 95th-percentile day).',
     stress: 'Each day = the average of its scored waking hours (0–3): low < 1, medium 1–2, high 2 or more.',
     bank: 'Each day = its latest level (0–100), our own estimate: high 67 or more, middle 34–66, low under 34.',
+    nscore: 'Each day = its nutrition score (0–100) against that day\'s targets: good 85 or more, mid 60–84, low under 60. Today is so far.',
   },
   // the dial's own words (score-templates), so the sheet header reads exactly like the dial it opens from
   rec: {
@@ -251,6 +252,9 @@ export const en = {
     energyHigh: 'High (67+)',
     energyMid: 'Middle (34–66)',
     energyLow: 'Low (under 34)',
+    nsGood: 'Good (85+)',
+    nsMid: 'Mid (60–84)',
+    nsLow: 'Low (under 60)',
     none: 'No data',
   },
   metrics: {
@@ -281,9 +285,12 @@ export const en = {
     stress: { title: 'Stress estimate', unit: '/ 3' },
     // not a DETAIL key either: the energy bank page's series is SCORES.energy.metric (lib/score/energy.mjs)
     'energy-bank': { title: 'Energy bank', unit: '/ 100' },
+    // not a DETAIL key either: the page scores it at view time (client/nutri-score.js metric())
+    nutrition: { title: 'Nutrition score', unit: '%' },
   },
   day: {
     heading: '{date}',
+    ns: { score: 'Score', soFar: 'So far today', k: 'Kcal', p: 'Protein', f: 'Fat', unknown: 'not known (an entry without it): left out', inc: 'Incomplete: an entry lacks a macro, so it is left out and the rest re-weighted.', meals: 'Not every main meal logged: the log may be short.', assumed: 'Rest day assumed from sleep (no session that day).' },
     pick: 'Tap a day in the calendar to see it here.',
     noData: 'No data that day.',
     asleep: 'Asleep',
@@ -401,6 +408,7 @@ export const es = {
     strain: 'Tonos: ligera < 10, moderada 10–14, alta 14–18, máxima 18–21 (nuestra escala 0–21, donde 18 = tu día del percentil 95).',
     stress: 'Cada día = la media de sus horas despierto puntuadas (0–3): bajo < 1, medio 1–2, alto 2 o más.',
     bank: 'Cada día = su último nivel (0–100), estimación propia: alto 67 o más, medio 34–66, bajo por debajo de 34.',
+    nscore: 'Cada día = su puntuación de nutrición (0–100) frente a los objetivos de ese día: bien 85 o más, a medias 60–84, bajo menos de 60. Hoy es de momento.',
   },
   // the dial's own words (score-templates), so the sheet header reads exactly like the dial it opens from
   rec: {
@@ -580,6 +588,9 @@ export const es = {
     energyHigh: 'Alto (67+)',
     energyMid: 'Medio (34–66)',
     energyLow: 'Bajo (menos de 34)',
+    nsGood: 'Bien (85+)',
+    nsMid: 'A medias (60–84)',
+    nsLow: 'Bajo (menos de 60)',
     none: 'Sin datos',
   },
   metrics: {
@@ -608,9 +619,12 @@ export const es = {
     strain: { title: 'Carga del día', unit: '/ 21' },
     stress: { title: 'Estimación de estrés', unit: '/ 3' },
     'energy-bank': { title: 'Banco de energía', unit: '/ 100' },
+    // tampoco es clave de DETAIL: la página la puntúa al verla (client/nutri-score.js metric())
+    nutrition: { title: 'Puntuación de nutrición', unit: '%' },
   },
   day: {
     heading: '{date}',
+    ns: { score: 'Puntuación', soFar: 'Hoy, de momento', k: 'Kcal', p: 'Proteína', f: 'Grasa', unknown: 'no se sabe (una entrada sin él): fuera', inc: 'Incompleto: a una entrada le falta un macro, se deja fuera y el resto se repondera.', meals: 'No están todas las comidas principales: el registro puede quedarse corto.', assumed: 'Día de descanso supuesto por el sueño (sin sesión ese día).' },
     pick: 'Toca un día del calendario para verlo aquí.',
     noData: 'Sin datos ese día.',
     asleep: 'Dormido',

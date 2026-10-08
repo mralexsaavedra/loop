@@ -140,6 +140,21 @@ enough data"; always call it an association, never a cause (training load, sleep
 travel with the same days); prefer behaviours with many days on both sides; a single week never
 changes an action. Use it to pick what to test (e.g. two weeks without late caffeine), not as proof.
 
+### 5b. Nutrition score (daily adherence to your own targets)
+
+A logged day's 0–100 adherence to THAT day's meals target (the current goal × that day's detected
+day type, as Constancia and the intake rings use; `lib/nutrition/score.mjs`, the page's Inicio card
+and Nutrición block). Components: kcal (weight 0.4) = 100 within ±10 % of the target, linear to 0 at
+±35 %; protein (0.4) = 100 at ≥ 90 % of the target, linear to 0 at 50 % (more is never penalised);
+fat (0.2) = 100 from 60 % to 110 % of the target, linear to 0 at 160 % above and 30 % below; score =
+the weighted sum, rounded. The ±10 % and 90 % lines ARE Constancia's (`adherence.mjs`): one
+definition. Bands: ≥ 85 good, 60–84 mid, < 60 low. Rules: a day without a log or without a target has
+no score (never 0); a macro some entry lacked (`missing_macros`) leaves its component out and the
+rest is re-weighted (flagged incomplete) — except a protein minimum that already reaches full credit;
+today is "so far", never a final score and never in an average. It measures logging against the
+plan, not diet quality: a low score on a day with a main meal unlogged says "incomplete log" first.
+Quote the 7-day average, not single days.
+
 ## 6. Report structure
 
 Each report (`analysis/reports/YYYY-MM-DD.md`) is written in **Spanish** (the owner's language),

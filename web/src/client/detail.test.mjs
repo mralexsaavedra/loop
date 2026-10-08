@@ -1650,3 +1650,65 @@ test('es energy page: Spanish copy', () => {
   assert.ok(s.host.innerHTML.includes('−1,5 (estar despierto)'));
   assert.equal(esT.metrics['energy-bank'].title, 'Banco de energía');
 });
+
+// the nutrition score: scored by the page at view time (client/nutri-score.js), read through
+// window.HCNutriScore.metric(); a SYNTHETIC series ending on the viewer's today (so far)
+function nscoreMetric() {
+  const start = addDays(NOW, -89), v = Array(90).fill(null), days = {};
+  const put = (iso, score, o = {}) => {
+    v[dayIndex({ start }, iso)] = score;
+    days[iso] = { score, parts: { k: { v: 2100, t: 2000, pts: 100 }, p: { v: 120, t: 150, pts: 75 }, f: null }, inc: true, partial: false, meals: true, assumed: false, ...o };
+  };
+  put(addDays(NOW, -3), 90, { inc: false, parts: { k: { v: 2000, t: 2000, pts: 100 }, p: { v: 150, t: 150, pts: 100 }, f: { v: 60, t: 70, pts: 100 } } });
+  put(addDays(NOW, -2), 70, { meals: false, assumed: true });
+  put(addDays(NOW, -1), 50);
+  put(NOW, 40, { partial: true, inc: false });
+  return { kind: 'nscore', dir: 1, dec: 0, start, v, days, bands: { good: 85, mid: 60 } };
+}
+
+test('nutrition score sheet: the trend view of the page-scored series, bands 85 / 60, today so far never in the average', () => {
+  const s = setup();
+  s.ctx.window.HCNutriScore = { metric: nscoreMetric };
+  s.api.open('nutrition');
+  const html = s.host.innerHTML;
+  assert.ok(html.includes(enT.metrics.nutrition.title));
+  assert.ok(html.includes(enT.todaySoFar), 'the newest day is today, so far');
+  assert.ok(html.includes(enT.bands.nscore));
+  for (const k of ['nsGood', 'nsMid', 'nsLow']) assert.ok(html.includes(enT.legend[k]), k);
+  // the 7-day average: (90 + 70 + 50) / 3 = 70, today's 40 left out
+  assert.match(html, /<b class="dt-trend-num">70<\/b>/);
+  assert.match(html, new RegExp(`class="dt-day dt-s-good" data-dt-act="day" data-date="${addDays(NOW, -3)}"`));
+  assert.match(html, new RegExp(`class="dt-day dt-s-mid" data-dt-act="day" data-date="${addDays(NOW, -2)}"`));
+  assert.match(html, new RegExp(`class="dt-day dt-s-bad" data-dt-act="day" data-date="${addDays(NOW, -1)}"`));
+  assert.match(html, new RegExp(`class="dt-day dt-s-partial" data-dt-act="day" data-date="${NOW}"`));
+  clean(html);
+});
+
+test('nutrition score day panel: the score, each component eaten / target and points, and why the day may read short', () => {
+  const s = setup();
+  s.ctx.window.HCNutriScore = { metric: nscoreMetric };
+  s.api.open('nutrition', addDays(NOW, -2));
+  const html = s.host.innerHTML, P = enT.day.ns;
+  assert.ok(html.includes(`<span class="dt-row-lbl">${P.score}</span><b class="dt-row-val">70 %</b>`));
+  assert.ok(html.includes(`<span class="dt-row-lbl">${P.k}</span><b class="dt-row-val">2100 / 2000 kcal</b><small class="dt-row-sub">100 / 100</small>`));
+  assert.ok(html.includes(`<span class="dt-row-lbl">${P.p}</span><b class="dt-row-val">120 / 150 g</b><small class="dt-row-sub">75 / 100</small>`));
+  assert.ok(html.includes(`<span class="dt-row-lbl">${P.f}</span><b class="dt-row-val">—</b><small class="dt-row-sub">${P.unknown}</small>`));
+  for (const k of ['inc', 'meals', 'assumed']) assert.ok(html.includes(P[k]), k);
+  s.api.open('nutrition', NOW);
+  assert.ok(s.host.innerHTML.includes(`<b class="dt-row-val">40 %</b><small class="dt-row-sub">${P.soFar}</small>`));
+  const none = setup();
+  none.api.open('nutrition');
+  assert.match(none.host.innerHTML, /dt-empty/, 'no HCNutriScore / no scored day -> the empty sheet');
+});
+
+test('nutrition score: listed in the trend picker (and selected) once the page has a scored day', () => {
+  const s = setup();
+  s.ctx.window.HCNutriScore = { metric: nscoreMetric };
+  s.api.open('nutrition');
+  assert.match(s.host.innerHTML, /<option value="nutrition" selected>Nutrition score<\/option>/);
+  s.api.open('hrv');
+  assert.match(s.host.innerHTML, /<option value="nutrition">Nutrition score<\/option>/);
+  const none = setup();
+  none.api.open('hrv');
+  assert.doesNotMatch(none.host.innerHTML, /value="nutrition"/);
+});
