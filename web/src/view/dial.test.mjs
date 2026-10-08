@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as dialModule from './dial.mjs';
 import {
-  DIAL, fracToAngle, polar, arcPath, recoveryFrac, sleepFrac, loadFrac, loadDayFrac, buildDials, strainDial,
+  DIAL, HERO, fracToAngle, polar, arcPath, recoveryFrac, sleepFrac, loadFrac, loadDayFrac, buildDials, strainDial,
 } from './dial.mjs';
 
 const near = (a, b, eps = 0.01) => assert.ok(Math.abs(a - b) <= eps, `${a} !~ ${b}`);
@@ -27,9 +27,9 @@ test('polar: the ring starts straight above the centre; its midpoint is straight
   near(bottom.y, DIAL.c + DIAL.r);
 });
 
-test('ring geometry: thin stroke (~6 % of the ring\'s diameter) that fits the 120-unit viewBox', () => {
-  const ratio = DIAL.stroke / (2 * DIAL.r);
-  assert.ok(ratio >= 0.05 && ratio <= 0.075, `stroke ratio ${ratio}`);
+test('ring geometry: a ~8 % stroke (of the 120-unit dial) that fits the 120-unit viewBox', () => {
+  const ratio = DIAL.stroke / 120;
+  assert.ok(ratio >= 0.075 && ratio <= 0.085, `stroke ratio ${ratio}`);
   assert.ok(DIAL.c + DIAL.r + DIAL.stroke / 2 <= 120, 'the stroke stays inside the viewBox');
 });
 
@@ -188,10 +188,10 @@ test('buildDials: load bakes the typical day + each recent session day with its 
   assert.equal('zones' in l, false, 'the old trend-band zones do not apply to a day-vs-typical scale');
   assert.deepEqual(l.mid, polar(fracToAngle(0.5), DIAL.r - DIAL.stroke));
   // the deep-dive hero's typical-day tick: a radial line across the stroke at the ring midpoint
-  const a = polar(fracToAngle(0.5), DIAL.r - DIAL.stroke / 2 - 1);
-  const b = polar(fracToAngle(0.5), DIAL.r + DIAL.stroke / 2 + 1);
+  const a = polar(fracToAngle(0.5), HERO.r - HERO.stroke / 2 - 1);
+  const b = polar(fracToAngle(0.5), HERO.r + HERO.stroke / 2 + 1);
   assert.deepEqual(l.tick, { x1: a.x, y1: a.y, x2: b.x, y2: b.y });
-  assert.deepEqual(l.tick, { x1: 60, y1: 109.5, x2: 60, y2: 118.5 }, '6 o\'clock, crossing the 7-unit stroke');
+  assert.deepEqual(l.tick, { x1: 60, y1: 109.25, x2: 60, y2: 118.75 }, '6 o\'clock, crossing the hero\'s 7.5-unit stroke');
 });
 
 test('buildDials: an ok trend without enough recent training days has no "normal" -> gated fewDays', () => {
