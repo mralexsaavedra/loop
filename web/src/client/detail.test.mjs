@@ -1589,3 +1589,64 @@ test('fitness age: the headline reads "≤ 25" / "≥ 75" at a clamp bound of th
   assert.ok(h.includes('>31.4<'));
   clean(n.host.innerHTML);
 });
+
+/* ---------- energy bank page (key 'energy', SCORES.energy: lib/score/energy.mjs) ---------- */
+const partsOf = (html) => (html.split('<section class="dd-contrib"')[1] || '').split('</section>')[0];
+
+test('energy page: hero = the latest level on a 0-100 gauge with its band; the intraday curve from wake; what moved it; our-model notes + constants under ⓘ', () => {
+  const E = DEMO_SCORES.energy;
+  assert.equal(E.ok, true, 'the demo extract bakes the energy bank');
+  const day = E.days[E.days.length - 1];
+  assert.ok(day.now, 'the demo\'s newest day has a value');
+  const band = day.now.lv >= 67 ? 'hi' : day.now.lv >= 34 ? 'mid' : 'lo';
+  const s = setup({ scores: DEMO_SCORES });
+  s.api.open('energy-bank');
+  const html = s.host.innerHTML;
+  const hero = heroOf(html);
+  assert.ok(hero.startsWith(` dd-stress de-${band}"`), hero.slice(0, 60));
+  assert.ok(hero.includes(`<b class="dd-num">${day.now.lv}</b>`));
+  assert.ok(hero.includes(`<span class="ds-band">${enT.deep.energy.bands[band]}</span>`));
+  const curve = curveOf(html);
+  for (const b of ['lo', 'mid', 'hi']) assert.match(curve, new RegExp(`<rect class="ds-zone de-${b}"`));
+  const path = /<path class="ds-line" d="([^"]+)"/.exec(curve)[1];
+  assert.equal((path.match(/[ML]/g) || []).length, day.hours.length + 1, 'the wake point + one per hour');
+  const marked = day.hours.filter((h) => h.wo || h.ld >= 5 || h.st >= 2).length;
+  assert.equal((curve.match(/<circle class="ds-pt /g) || []).length, marked, 'workout / load and high-stress hours are marked');
+  const parts = partsOf(html);
+  for (const k of ['start', 'base', 'stress', 'load', 'charge', 'low']) assert.ok(parts.includes(enT.deep.energy.rows[k]), k);
+  assert.ok(parts.includes(`<b class="dd-row-val">${day.start}</b>`));
+  assert.ok(insightOf(html).includes(format(enT.deep.energy.line, { start: day.start, wake: day.wake, value: day.now.lv, time: String(day.now.h).padStart(2, '0') + ':00' })));
+  const info = infoOf(html);
+  for (const k of ['model', 'hours', 'limits']) assert.ok(info.includes(enT.deep.energy.notes[k]), k);
+  assert.ok(info.includes('−1.5 (being awake)') && info.includes('−30 × (1 − e^(−TRIMP ÷ K))') && info.includes('+1 when stress is under 0.5'), 'the formula with the baked constants');
+  assert.ok(info.includes(enT.bands.bank));
+  // the trend below: each day's latest level, coloured by the three thirds
+  assert.match(html, /class="dt-period"/);
+  assert.match(html, /dt-s-good|dt-s-mid|dt-s-bad/);
+  clean(html);
+});
+
+test('energy page follows the day it was opened on; a day without a recovery % says why; no SCORES.energy -> the empty sheet', () => {
+  const E = DEMO_SCORES.energy;
+  const valued = E.days.filter((d) => d.now);
+  const prev = valued[valued.length - 2];
+  const s = setup({ scores: DEMO_SCORES });
+  s.api.open('energy-bank', prev.date);
+  assert.ok(heroOf(s.host.innerHTML).includes(`<b class="dd-num">${prev.now.lv}</b>`));
+  const gap = E.days.find((d) => !d.now && d.date > E.metric.start);
+  assert.ok(gap, 'the demo has a day without a recovery %');
+  s.api.open('energy-bank', gap.date);
+  assert.ok(insightOf(s.host.innerHTML).includes(enT.deep.energy.reasons.noRecovery));
+  assert.ok(heroOf(s.host.innerHTML).includes(enT.deep.words.none));
+  const none = setup({ scores: { ...DEMO_SCORES, energy: null } });
+  none.api.open('energy-bank');
+  assert.match(none.host.innerHTML, /dt-empty/);
+});
+
+test('es energy page: Spanish copy', () => {
+  const s = setup({ locale: 'es', scores: DEMO_SCORES });
+  s.api.open('energy-bank');
+  assert.ok(s.host.innerHTML.includes(esT.deep.energy.notes.model));
+  assert.ok(s.host.innerHTML.includes('−1,5 (estar despierto)'));
+  assert.equal(esT.metrics['energy-bank'].title, 'Banco de energía');
+});

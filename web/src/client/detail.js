@@ -90,13 +90,18 @@
     return v && typeof v.render === 'function' ? v : null;
   }
   function metric(key) {
-    var m = own(D.metrics, key) ? D.metrics[key] : key === 'stress' ? stressMetric() : null;
+    var m = own(D.metrics, key) ? D.metrics[key] : key === 'stress' ? stressMetric() : key === 'energy-bank' ? energyMetric() : null;
     return m && isoDate(m.start) ? m : null;
   }
   // the stress page's trend series is not in DETAIL: SCORES.stress.metric (lib/score/stress.mjs, the
   // day averages from the first scored day, in the DETAIL metric shape) is its only bake
   function stressMetric() {
     var S = typeof SCORES !== 'undefined' && SCORES ? SCORES.stress : null;
+    return S && S.ok && S.metric && Array.isArray(S.metric.v) ? S.metric : null;
+  }
+  // the energy page's trend (each day's latest level): SCORES.energy.metric (lib/score/energy.mjs)
+  function energyMetric() {
+    var S = typeof SCORES !== 'undefined' && SCORES ? SCORES.energy : null;
     return S && S.ok && S.metric && Array.isArray(S.metric.v) ? S.metric : null;
   }
   function at(arr, m, iso) {
@@ -200,6 +205,8 @@
     if (m.kind === 'sparse') return 'measured';
     // stress (0-3): its own three bands, low < 1, medium 1-2, high >= 2 (lib/score/stress.mjs)
     if (m.kind === 'stress') return v >= 2 ? 'shigh' : v >= 1 ? 'smedium' : 'slow';
+    // energy bank (0-100): the recovery dial's thirds, high >= 67, middle 34-66, low < 34
+    if (m.kind === 'bank') return v >= 67 ? 'good' : v >= 34 ? 'mid' : 'bad';
     if (m.kind === 'recovery') return v >= m.cut ? 'good' : v <= -m.cut ? 'bad' : 'normal';
     if (m.kind === 'sleep') {
       if (m.target != null && v >= m.target) return 'good';
@@ -225,6 +232,7 @@
     if (m.kind === 'load') out.push(m.typical != null ? format(B.typical, { value: fmt(m.typical, 0) }) : B.noTypical);
     if (m.kind === 'strain' && B.strain) out.push(B.strain);
     if (m.kind === 'stress' && B.stress) out.push(B.stress);
+    if (m.kind === 'bank' && B.bank) out.push(B.bank);
     if (m.kind === 'recovery') out.push(format(B.recovery, { cut: fmt(m.cut, 1), cutTrend: fmt(m.cutTrend != null ? m.cutTrend : m.cut, 1) }));
     if (m.kind === 'sparse') out.push(format(B.sparse, { n: m.v.filter(function (x) { return x != null; }).length }));
     if (m.windowDays != null) out.push(format(B.window, { days: m.windowDays }));
@@ -558,6 +566,7 @@
     if (m.kind === 'workouts' || m.kind === 'load' || m.kind === 'strain') items = [['l1', ''], ['l2', ''], ['l3', ''], ['l4', L.levels]];
     else if (m.kind === 'sparse') items = [['measured', L.measured]];
     else if (m.kind === 'stress') items = [['slow', L.stressLow], ['smedium', L.stressMedium], ['shigh', L.stressHigh]];
+    else if (m.kind === 'bank') items = [['good', L.energyHigh], ['mid', L.energyMid], ['bad', L.energyLow]];
     else if (m.kind === 'recovery') items = [['good', L.recAbove], ['normal', L.recAt], ['bad', L.recBelow]];
     else if (m.kind === 'sleep') items = [['good', L.sleepGood], ['mid', L.sleepMid], ['bad', L.sleepBad]];
     else if (!m.band) items = [['normal', L.measured]];
@@ -643,6 +652,16 @@
     ((S && S.days) || []).forEach(function (x) { if (x && x.date === iso) d = x; });
     var sub = d && d.mins ? ['low', 'medium', 'high'].map(function (b) { return P.bands[b] + ' ' + HC.duration(d.mins[b], P.units); }).join(' · ') : '';
     return row(P.avgLbl, fmt(v, 1) + ' · ' + (P.bands[band] || ''), sub);
+  }
+  // an energy day: its latest level + band, and the start and low when the day is baked
+  function energyDayHtml(key, m, iso) {
+    var v = valueOf(m, iso), P = T.deep && T.deep.energy;
+    if (v == null || !P) return '<p class="dt-nodata">' + esc(T.day.noData) + '</p>';
+    var S = energyMetric() ? SCORES.energy : null, d = null;
+    ((S && S.days) || []).forEach(function (x) { if (x && x.date === iso && x.now) d = x; });
+    var b = dayState(m, v);
+    var sub = d ? format(P.daySub, { start: d.start, wake: d.wake, min: d.min.lv }) : '';
+    return row(P.dayLbl, fmt(v, 0) + ' · ' + (P.bands[b === 'good' ? 'hi' : b === 'mid' ? 'mid' : 'lo'] || ''), sub);
   }
   function totalHtml(key, m, iso) {
     var v = valueOf(m, iso);
@@ -756,6 +775,7 @@
     var body = m.kind === 'workouts' || m.kind === 'load' || m.kind === 'strain' ? workoutsHtml(key, m, iso)
       : m.kind === 'total' ? totalHtml(key, m, iso)
       : m.kind === 'stress' ? stressDayHtml(key, m, iso)
+      : m.kind === 'bank' ? energyDayHtml(key, m, iso)
       : m.kind === 'sparse' ? sparseHtml(key, m, iso)
       : NIGHT_KEYS.indexOf(key) !== -1 ? nightHtml(key, m, iso)
       : totalHtml(key, m, iso); // a daytime signal (walking HR): the value vs its personal median

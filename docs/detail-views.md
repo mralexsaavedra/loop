@@ -70,7 +70,20 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   average + band, the band with most time and "an estimate from heart rate only" (under the minimum
   hours: "only n waking hours could be scored"); ⓘ = the formula, how hours are scored, that day's
   resting HR / max HR / minimum hours, the limits (no HRV, no hourly steps, so movement raises it) and
-  "not a medical measure". `sessions` = one entry per date + modality after
+  "not a medical measure". `energy-bank` is not a DETAIL key either (`energy` is the expenditure
+  metric): its series is `SCORES.energy.metric` (kind `bank`, each day's latest level 0–100, dense from
+  the first valued day of the last 14, `lib/score/energy.mjs`), read by detail.js `metric('energy-bank')`
+  (copy `I18N_DETAIL.metrics['energy-bank']`, hash `#detail/energy-bank[/<date>]`, no host tab).
+  Calendar / chart states `good` / `mid` / `bad` (≥ 67 / 34–66 / < 34); the day panel = "Latest level"
+  + band + start / low. Its page (client/deepdive.js `energyPage`) follows the day it was opened on:
+  the hero = a 0–100 half gauge filled to the latest level in its third's colour, the band word and
+  "Latest hour 23:00"; "Through the day" = an SVG curve over 00:00–24:00 on the three thirds as faint
+  stripes, from the wake level, one step per hour end (a flat stretch = hours without data), blue dots
+  on workout / heart-rate-load hours (load drain ≥ 5), orange dots on high-stress hours (≥ 2); "What
+  moved it" = start (recovery % at wake), being awake, stress, heart-rate load, calm hours, low; the
+  insight = start → latest level, the biggest drain and "our own model, an estimate" (no value: why —
+  no recovery % / no wake time); ⓘ = it is OUR model (not validated), the formula with the baked
+  constants (`SCORES.energy.C`), the hour rules, the inputs (K, max HR) and the limits. `sessions` = one entry per date + modality after
   `mergeSameDay` DISPLAY_RULE (minutes, km, elevation, avg HR, RE, parts, source; the source is the
   precedence family, so "Apple Watch de <name>" is written "Apple Watch"), plus, when
   `workout-zones.csv` has that date + modality (`lib/training/zones.mjs` `readWorkoutZones`), `z` =
