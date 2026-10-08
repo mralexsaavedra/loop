@@ -430,6 +430,20 @@ test('sleep consistency: % nights on target, ±spread, bedtime / wake as rows th
   assert.equal((html.match(/data-detail="sleep"/g) || []).length, 5);
 });
 
+test('sleep stages: REM / deep / core / awake rows (hours, % of asleep, vs the staged-night mean) + efficiency, with their ⓘ note; none without stages', () => {
+  const base = { latest: 7.1, avg: 7.2, nights: 30, latestDate: '2026-06-30', spark: sp, target: 7.5, pctTarget: 40, sd: 0.6 };
+  const stages = { date: '2026-06-30', rem: 1.6, deep: 1, core: 4.6, awake: 0.3, eff: 93, shares: { rem: 23, deep: 14, core: 66 }, avg: { rem: 1.4, deep: 1.1, core: 4.6, awake: 0.4, eff: 92 }, nights: 10 };
+  const H = (sl) => ({ body: none, activity: none, energy: none, running: none, loadRecovery: none, recovery: { hasData: true, sleep: sl } });
+  const html = renderAt(H({ ...base, stages }), '2026-07-01', { detail: true });
+  for (const k of ['rem', 'deep', 'core', 'awake', 'eff']) assert.ok(html.includes(`<span class="db-name">${enHealth.sleepCards.stages[k]}</span>`), k);
+  assert.match(html, /REM sleep<\/span><span class="db-vals"><span class="db-val"><b>1.6<\/b><small>h<\/small>/);
+  assert.ok(html.includes('23% · 1.4'), 'share of asleep, then the mean');
+  assert.match(html, /sleep efficiency<\/span><span class="db-vals"><span class="db-val"><b>93<\/b><small>%<\/small>/);
+  assert.ok(html.includes(enHealth.sleepStagesNoteHtml), 'ⓘ explains stages + efficiency');
+  const old = renderAt(H(base), '2026-07-01', { detail: true });
+  assert.ok(!old.includes(enHealth.sleepCards.stages.rem) && !old.includes(enHealth.sleepStagesNoteHtml), 'older extract: no stage rows');
+});
+
 /* ---- Balance: intake vs expenditure + the macro split live in Nutrición (#nutri-balance), not Salud ---- */
 const BAL = {
   hasData: true, tdeeLatest: 2600, tdeeLatestDate: '2026-06-29', tdeeAvg: 2400, tdeeDays: 30, spark: null,
