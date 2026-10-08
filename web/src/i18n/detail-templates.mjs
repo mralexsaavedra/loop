@@ -64,6 +64,7 @@ export const en = {
     staticNote: 'Colours compare every day with your current range.',
     perDayNote: 'Each day is coloured against its own baseline of that day.',
     strain: 'Shades: light < 10, moderate 10–14, high 14–18, all out 18–21 (our 0–21 scale, where 18 = your 95th-percentile day).',
+    stress: 'Each day = the average of its scored waking hours (0–3): low < 1, medium 1–2, high 2 or more.',
   },
   // the dial's own words (score-templates), so the sheet header reads exactly like the dial it opens from
   rec: {
@@ -144,6 +145,37 @@ export const en = {
         estimate: 'Our own estimate, not the reference app\'s formula: compare it with your own days only. Descriptive, not medical advice.',
       },
     },
+    // the stress monitor page (key 'stress', lib/score/stress.mjs): a heart-rate-only estimate per waking hour
+    stress: {
+      bands: { low: 'Low', medium: 'Medium', high: 'High' },
+      bandRows: { low: 'Low (under 1)', medium: 'Medium (1–2)', high: 'High (2 or more)' },
+      units: { h: 'h', min: 'min' },
+      updated: 'Latest hour {time}',
+      heroAria: 'Stress estimate {value}, {band}, latest hour {time}',
+      avgLbl: 'Day average',
+      curveTitle: 'Hour by hour',
+      curveAria: 'Stress estimate hour by hour',
+      curveSr: 'Stress estimate of {n} waking hours, 0 to 3, over the day',
+      ptTitle: '{time}: {value} (heart rate {hr} bpm)',
+      gapNote: 'One point per waking hour outside workouts. Gaps = sleep, workouts or too few heart-rate readings.',
+      bandsTitle: 'Time in each band',
+      avg: 'Your day averaged {value}: {band} stress, by heart rate.',
+      most: {
+        low: 'Most of your scored time was in the low band.',
+        medium: 'Most of your scored time was in the medium band.',
+        high: 'Most of your scored time was in the high band.',
+      },
+      estimateLine: 'An estimate from heart rate only: walking and other movement raise it too.',
+      few: 'Only {n} waking hours could be scored that day; a day value needs {min}.',
+      noDay: 'No all-day heart-rate data for {date}.',
+      notes: {
+        formula: 'Stress = 3 × (HR − resting HR) ÷ (0.3 × (max HR − resting HR)), kept between 0 and 3: 0 at your resting heart rate, 3 at resting HR + 30 % of your heart-rate reserve. Low under 1, medium 1–2, high 2 or more.',
+        hours: 'Scored per waking clock hour: the hour\'s mean heart rate (outside a Strava activity when one touches it), with at least 30 minutes of readings outside workouts. Hours at least half inside your sleep are left out.',
+        inputs: 'This day: resting HR {rhr} bpm, max HR {max} bpm (the workout-zones max HR). A day needs {min} scored hours for a value.',
+        limits: 'Heart rate only: no HRV, which the reference app also uses. There are no hourly steps, so walking or any movement that is not a recorded workout raises it, and so do heat, caffeine or illness.',
+        estimate: 'Our own estimate, not a medical or psychological measure: compare it with your own days only.',
+      },
+    },
     weekly: { title: 'Weekly trends', aria: '{title}, last 7 days', minutes: 'Minutes', perf: 'Sleep performance (%)', restor: 'REM + deep (h)' },
     // the sleep page's stages bar (awake / REM / core / deep + the unspecified remainder)
     stages: { aria: 'Sleep stages', awake: 'Awake', rem: 'REM', core: 'Core', deep: 'Deep', unspec: 'Unspecified' },
@@ -170,6 +202,9 @@ export const en = {
     recBelow: 'Below baseline',
     measured: 'Measured',
     levels: 'Lighter = less, darker = more',
+    stressLow: 'Low',
+    stressMedium: 'Medium',
+    stressHigh: 'High',
     none: 'No data',
   },
   metrics: {
@@ -195,6 +230,8 @@ export const en = {
     'load-run': { title: 'Run load', unit: 'RE' },
     'load-bike': { title: 'Bike load', unit: 'RE' },
     strain: { title: 'Day strain', unit: '/ 21' },
+    // not a DETAIL key: the stress page's series is SCORES.stress.metric (lib/score/stress.mjs)
+    stress: { title: 'Stress estimate', unit: '/ 3' },
   },
   day: {
     heading: '{date}',
@@ -313,6 +350,7 @@ export const es = {
     staticNote: 'Colores respecto a tu rango actual.',
     perDayNote: 'Cada día se colorea respecto a su propia línea base de ese día.',
     strain: 'Tonos: ligera < 10, moderada 10–14, alta 14–18, máxima 18–21 (nuestra escala 0–21, donde 18 = tu día del percentil 95).',
+    stress: 'Cada día = la media de sus horas despierto puntuadas (0–3): bajo < 1, medio 1–2, alto 2 o más.',
   },
   // the dial's own words (score-templates), so the sheet header reads exactly like the dial it opens from
   rec: {
@@ -389,6 +427,37 @@ export const es = {
         estimate: 'Estimación propia, no la fórmula de la app de referencia: compárala solo con tus propios días. Descriptivo, no es consejo médico.',
       },
     },
+    // la página del monitor de estrés (clave 'stress', lib/score/stress.mjs): estimación por hora despierto, solo pulso
+    stress: {
+      bands: { low: 'Bajo', medium: 'Medio', high: 'Alto' },
+      bandRows: { low: 'Bajo (menos de 1)', medium: 'Medio (1–2)', high: 'Alto (2 o más)' },
+      units: { h: 'h', min: 'min' },
+      updated: 'Última hora {time}',
+      heroAria: 'Estimación de estrés {value}, {band}, última hora {time}',
+      avgLbl: 'Media del día',
+      curveTitle: 'Hora a hora',
+      curveAria: 'Estimación de estrés hora a hora',
+      curveSr: 'Estimación de estrés de {n} horas despierto, de 0 a 3, a lo largo del día',
+      ptTitle: '{time}: {value} (pulso {hr} ppm)',
+      gapNote: 'Un punto por hora despierto fuera de entrenos. Huecos = sueño, entrenos o pocas lecturas de pulso.',
+      bandsTitle: 'Tiempo en cada nivel',
+      avg: 'Tu día promedió {value}: estrés {band}, según el pulso.',
+      most: {
+        low: 'La mayor parte del tiempo puntuado estuvo en el nivel bajo.',
+        medium: 'La mayor parte del tiempo puntuado estuvo en el nivel medio.',
+        high: 'La mayor parte del tiempo puntuado estuvo en el nivel alto.',
+      },
+      estimateLine: 'Una estimación solo con el pulso: caminar y otros movimientos también la suben.',
+      few: 'Ese día solo se pudieron puntuar {n} horas despierto; un valor del día necesita {min}.',
+      noDay: 'No hay datos de pulso de todo el día para el {date}.',
+      notes: {
+        formula: 'Estrés = 3 × (pulso − pulso en reposo) ÷ (0,3 × (pulso máximo − pulso en reposo)), entre 0 y 3: 0 en tu pulso en reposo, 3 en reposo + 30 % de tu reserva de pulso. Bajo por debajo de 1, medio 1–2, alto 2 o más.',
+        hours: 'Se puntúa por hora de reloj despierto: el pulso medio de la hora (fuera de una actividad de Strava cuando la toca), con al menos 30 minutos de lecturas fuera de entrenos. Las horas que caen al menos a medias dentro del sueño se excluyen.',
+        inputs: 'Este día: pulso en reposo {rhr} ppm, pulso máximo {max} ppm (el de las zonas de entreno). Un día necesita {min} horas puntuadas para tener valor.',
+        limits: 'Solo pulso: sin VFC, que la app de referencia también usa. No hay pasos por hora, así que caminar o cualquier movimiento que no sea un entreno registrado la sube, igual que el calor, la cafeína o una enfermedad.',
+        estimate: 'Estimación propia, no una medida médica ni psicológica: compárala solo con tus propios días.',
+      },
+    },
     weekly: { title: 'Tendencias semanales', aria: '{title}, últimos 7 días', minutes: 'Minutos', perf: 'Rendimiento del sueño (%)', restor: 'REM + profundo (h)' },
     stages: { aria: 'Fases del sueño', awake: 'Despierto', rem: 'REM', core: 'Ligero', deep: 'Profundo', unspec: 'Sin especificar' },
     sleepNotes: {
@@ -413,6 +482,9 @@ export const es = {
     recBelow: 'Por debajo de tu línea base',
     measured: 'Medido',
     levels: 'Más claro = menos, más oscuro = más',
+    stressLow: 'Bajo',
+    stressMedium: 'Medio',
+    stressHigh: 'Alto',
     none: 'Sin datos',
   },
   metrics: {
@@ -438,6 +510,7 @@ export const es = {
     'load-run': { title: 'Carga de carrera', unit: 'RE' },
     'load-bike': { title: 'Carga de bici', unit: 'RE' },
     strain: { title: 'Carga del día', unit: '/ 21' },
+    stress: { title: 'Estimación de estrés', unit: '/ 3' },
   },
   day: {
     heading: '{date}',
