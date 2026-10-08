@@ -622,7 +622,7 @@ const ZRUN = { id: '31', start_local: '2026-09-29T08:00:00Z', sport_type: 'Run',
 test('planSync writes workout-zones.csv from hr_hist and records rows + the max HR in _meta.json', () => {
   const zones = require('../../lib/training/hr-zones.cjs');
   const plan = planSync([ZRUN], () => null);
-  assert.equal(plan.writes[zones.ZONES_CSV], `${zones.ZONES_HEADER}\n2026-09-29,31,Running,190,observed,150,190,0,0,0,1200,0,600,Strava API\n`); // 175 / 190 = 92 % -> Z5
+  assert.equal(plan.writes[zones.ZONES_CSV], `${zones.ZONES_HEADER}\n2026-09-29,31,Running,190,observed,150,190,0,0,0,1200,0,600,Strava API,,1800\n`); // 175 / 190 = 92 % -> Z5
   const meta = JSON.parse(plan.writes['_meta.json']);
   assert.equal(meta.rows['workout-zones'], 1);
   assert.deepEqual(meta.stravaSync.zones, { rows: 1, maxHr: 190, maxHrSource: 'observed' });

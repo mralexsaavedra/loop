@@ -67,8 +67,16 @@ test('buildZones: one row per activity with a histogram, sorted by start; activi
   assert.deepEqual(r.max, { maxHr: 200, source: 'observed' })
   assert.equal(r.rows, 2)
   assert.equal(r.text, [Z.ZONES_HEADER,
-    '2026-09-29,8,Running,200,observed,160,200,0,0,0,0,0,10,Strava API',
-    '2026-09-30,9,Cycling,200,observed,140,180,0,0,0,60,30,0,Strava API'].join('\n') + '\n')
+    '2026-09-29,8,Running,200,observed,160,200,0,0,0,0,0,10,Strava API,,',
+    '2026-09-30,9,Cycling,200,observed,140,180,0,0,0,60,30,0,Strava API,,'].join('\n') + '\n')
   const p = Z.buildZones(list, { translateType: () => 'Running', source: 'S', profileMaxHr: 190 })
-  assert.match(p.text, /\n2026-09-29,8,Running,190,profile,160,200,0,0,0,0,0,10,S\n/)
+  assert.match(p.text, /\n2026-09-29,8,Running,190,profile,160,200,0,0,0,0,0,10,S,,\n/)
+})
+
+test('buildZones: start (startOf) + elapsed_s (elapsed, else moving time) close the row — the activity window', () => {
+  const list = [act('5', '2026-09-30', { max_heartrate: 180, elapsed_time: 3605.4, moving_time: 3000, hr_hist: { 150: 60 } }),
+    act('6', '2026-09-30', { max_heartrate: 180, moving_time: 1200, start_local: '2026-09-30T09:00:00Z', hr_hist: { 150: 60 } })]
+  const r = Z.buildZones(list, { translateType: () => 'Running', source: 'S', startOf: (a) => a.start_local.slice(0, 19) + '+02:00' })
+  const rows = r.text.trim().split('\n').slice(1)
+  assert.deepEqual(rows.map((l) => l.split(',').slice(-2)), [['2026-09-30T08:00:00+02:00', '3605'], ['2026-09-30T09:00:00+02:00', '1200']])
 })

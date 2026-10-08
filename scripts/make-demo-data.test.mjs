@@ -94,5 +94,5 @@ test('demo workout-zones.csv: one Demo Strava row per Strava run / ride, the rea
     assert.ok(Math.abs(sum - dur * 0.97) <= 6, `zones ~ 97 % of the duration on ${r.date}`);
     assert.equal(r.maxSrc, 'observed');
   }
-  for (const l of files[ZONES_CSV].trim().split('\n').slice(1)) assert.match(l, /,Demo Strava$/);
+  for (const l of files[ZONES_CSV].trim().split('\n').slice(1)) assert.match(l, /,Demo Strava,\d{4}-\d{2}-\d{2}T18:00:00\+02:00,\d+$/);
 });

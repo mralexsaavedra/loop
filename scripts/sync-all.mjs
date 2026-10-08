@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Runner behind `npm run sync`: runs the Shortcut sync, the Strava sync, the profile sync, the settings sync and the food log export sequentially, even
+/* Runner behind `npm run sync`: runs the Strava sync, the Shortcut sync, the profile sync, the settings sync and the food log export sequentially, even
  * when one fails — a shell `&&` chain would skip the second script the moment the first exits
  * non-zero, and `;` both loses the exit code and is shell-specific. Both scripts write
  * _meta.json, so running them one after another (not in parallel) avoids a write race.
@@ -14,9 +14,12 @@ const DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.dirname(DIR);
 // the profile sync (data/profile/, its own files) comes last: it never touches _meta.json, and a
 // failure there must not hide the extract syncs' result (runAll runs every script regardless)
+// Strava runs BEFORE the Shortcut sync: its workout-zones.csv activity windows are what the Shortcut
+// sync leaves out of hr-hourly.csv (lib/health/hr-hourly.cjs), so a new activity is never
+// counted twice in day strain until the next sync.
 export const SCRIPTS = [
-  path.join(ROOT, 'data', 'apple-health', 'sync-shortcut.js'),
   path.join(ROOT, 'data', 'apple-health', 'sync-strava.js'),
+  path.join(ROOT, 'data', 'apple-health', 'sync-shortcut.js'),
   path.join(ROOT, 'data', 'profile', 'sync-profile.js'),
   // the settings snapshot (data/profile/settings.json) never fails the run: a missing / old ingest
   // service is only a warning (exit 0)
