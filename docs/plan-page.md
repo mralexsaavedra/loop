@@ -71,6 +71,23 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   string), but the page no longer DRAWS a header block: `layouts/Plan.astro` renders ONE visually
   hidden `<h1 class="sr-only">` with `page.h1` (else the page title), and the kicker / subtitle are not
   shown. The page opens on the top bar and the dials.
+- **Brand: LOOP.** The `<title>` and `<meta name="apple-mobile-web-app-title">` are the product name
+  (`strings.brand`, the same in every locale; the personal `page.title` only names the hidden h1 when
+  `page.h1` is absent). Icons ship as `data:` URIs in `<head>` (the page stays one file; the output
+  guard's `html-scan.mjs` treats `data:` hrefs as self-contained): the favicon = `loop-favicon.svg` (a
+  32 px rounded dark tile, vertical gradient `#283037` → `#111619`, the three-arc ring) and the
+  `apple-touch-icon` = `loop-touch-icon.png` (180×180, full square: iOS rounds it). On Inicio the
+  **wordmark** (`.wordmark`, rendered by `layouts/Plan.astro` right after `.topbar`; `layout.css` hides
+  it with `.wrap:has(> .tab-panel[data-tab="home"][hidden])` on the other tabs) sits centred under the top bar: "LOOP" with L and P as
+  Syncopate Bold outlines (never the font: Apache 2.0, `web/src/fonts/LICENSE-Syncopate.txt`), the
+  first O a plain ring, the second the three-arc ring (sleep · recovery · strain clockwise from 12
+  o'clock); 19 px letters (caps ~12.7 px), letters + plain ring `currentColor` (`--ink`), arcs coloured
+  by `--sleep` / `--good` / `--strain` in `layout.css` (the svg's hex attributes are only the standalone
+  fallback). All four files in `web/src/assets/` are GENERATED: geometry in `scripts/loop-logo.mjs`
+  (ring r = 50 − sw/2, arcs C/3 − sw − 3 with round caps, rings 0.71em on the baseline −0.02em, the same
+  0.14em gap ink to ink between every pair of neighbours, so P's wide left side bearing adds nothing), written by `node scripts/make-logo.mjs path/to/Syncopate-Bold.ttf`
+  (source + sha256 in the script header); `scripts/loop-logo.test.mjs` fails if they are hand-edited,
+  `web/test/brand.test.mjs` pins the built head and wordmark.
 - **Top bar** (`.topbar`, above the dock, one row at every width, a 3-column grid so the pill stays
   centred): avatar left (`components/Avatar.astro`, 36 px circle in a 44 px target, opens the profile
   sheet) · a centred date pill "‹ HOY ›" / "‹ TODAY ›" (`.date-pill`, uppercase, letter-spaced; the

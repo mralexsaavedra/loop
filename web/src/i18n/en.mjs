@@ -3,6 +3,8 @@
  * Key tree MUST mirror es.mjs exactly — see web/test/i18n.test.mjs. */
 export default {
   strings: {
+    // the product name (document title, home-screen name): the same in every locale
+    brand: 'LOOP',
     nav: {
       ariaLabel: 'Sections',
       // four top-level tabs, in nav order; the former tabs are now sections (see `sections`)
