@@ -146,7 +146,13 @@ left to detail.js and its HOST tab is shown underneath (`DETAIL_TAB` / `VIEW_TAB
 `food-add` → `nutricion`, `hoy-session` / `tonight` / `dash-edit` → `home`, `profile` → none = the default tab; an in-page anchor of `ANCHOR_TAB` (`#monitor` → `health`) shows its tab, keeps the hash and scrolls to the block, on load and on `hashchange`; a test pins every `DETAIL_KEYS` key).
 `hashchange` to a visible tab hash switches tab; a sheet, hidden or unknown hash switches nothing, so
 it never fights detail.js's popstate. Every history / location access is in a try/catch (a sandboxed
-frame still switches tabs). `window.HCNav.hash()` = the current tab's hash, read by detail.js. NO
+frame still switches tabs). `window.HCNav.hash()` = the current tab's hash, read by detail.js.
+**A past day of Inicio** (the top bar's day stepping) is `#d=YYYY-MM-DD` (`DAY_HASH` in
+`lib/nav/tabs.mjs`, baked as `NAV.day`; `parseDayHash` / `dayHash` for tests): core.js shows Inicio
+for it and KEEPS the hash, on load and on `hashchange` (client/today-date.js validates the day and
+replaces an out-of-reach one with `#home`); while a past day is selected Inicio's hash is that day —
+`setTab('home')` and `HCNav.hash()` (a closed sheet) write `#d=…`, not `#home` — so a reload, Back to
+Inicio and the midnight rollover keep the day. NO
 element id may equal a tab key (the browser would scroll a `#<tab>` load to it): the Inicio advice
 host is `#home-advice` and the Salud host `#health-body` (a content test checks the built page). A
 deep link that opens NO sheet (`#detail/<unknown or no-data metric>`, a bad view key) is replaced by
