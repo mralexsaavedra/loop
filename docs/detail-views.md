@@ -112,9 +112,13 @@ switch is outside every opener); run / ride rows →
      direction, grey for a metric without one (bedtime, wake time, load); inside → a grey dot; the
      words ("better than usual"…) are screen-reader text. A legend pill "▲▼ Today vs prior 30 days"
      closes the card when a marker shows. A row without a value that day is hidden (never 0 or a
-     dash). Rows: recovery = the composite's inputs on the night it scores (`head.date`) — HRV,
-     resting HR, hours of sleep (sleep consistency, its fourth input at 10 %, has no daily series in
-     `DETAIL`: not shown); sleep = hours vs need ("6.9 / 7.5 h", ▲▼ on the hours), efficiency %
+     dash). Rows: recovery = the reference's four on the night it scores (`head.date`), display only
+     (the composite and its weights are unchanged) — HRV, resting HR, respiratory rate (`DETAIL`
+     `respiratory`; context, NOT a composite input; no good direction, so a grey ▲ / ▼ outside the
+     usual range and a grey dot inside; the ⓘ says so, `deep.respNote`) and sleep performance %
+     (the sleep metric's baked `perf`, replacing hours of sleep); a missing one is hidden, so no
+     respiratory reading = 3 rows. Like the hero, they stay on the headline night under day stepping
+     (the day panel below opens on the stepped day); sleep = hours vs need ("6.9 / 7.5 h", ▲▼ on the hours), efficiency %
      (`DETAIL` `eff`), consistency minutes (`cons`, lower = better) and REM + deep ("3.1 h · 41%", hours
      · % of asleep); a missing one is hidden and bedtime (an after-midnight bedtime counts as late
      evening, 00:30 = 24.5) and wake time fill the card up to four rows; load = today's RE (only on a day with RE, compared with the
