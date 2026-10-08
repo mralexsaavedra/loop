@@ -20,13 +20,13 @@ function builtMap() {
   return ruleDeclarationMap(parseCssRules(css));
 }
 
-// the declarations of one selector inside the wide-screen query
+// the declarations of one selector inside the wide-screen query (alone or in a selector list)
 function wide(map, selector) {
   const sel = canonicalSelector(selector);
   const out = {};
   for (const [key, value] of map) {
     const [media, s, prop] = key.split('|||');
-    if (media === WIDE && s === sel) out[prop] = value;
+    if (media === WIDE && s.split(/,\s*/).includes(sel)) out[prop] = value;
   }
   return out;
 }
@@ -63,4 +63,12 @@ test('metric-row lists flow into as many >= 340px columns as fit (Salud, Entreno
   assert.equal(list.display, 'grid');
   assert.equal(list['grid-template-columns'], 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))',
     'auto-fill: a narrow host (a Salud section column, Inicio\'s column) keeps one column');
+});
+
+test('Nutrición Progress and Consistency: the whole block is capped, so the heading ⓘ sits over the card', () => {
+  const map = builtMap();
+  for (const id of ['#nutri-progress-block', '#food-adherence-block']) {
+    assert.equal(wide(map, id)['max-width'], '720px', `${id} capped at a readable 720px`);
+  }
+  assert.deepEqual(wide(map, '#nutri-progress > .nutri-card'), {}, 'not the inner card alone (its ⓘ stayed at the far right)');
 });

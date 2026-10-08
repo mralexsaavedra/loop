@@ -13,6 +13,8 @@ Dated history of structural work on this repo. **Current state lives in Engram**
   left quarter of a full-width card (the old `.act-pair` row went away in P6a).
 - Metric-row lists (Salud, Entreno, Balance, My dashboard) flow into >= 340 px columns instead of
   1160 px-wide rows with the value a whole screen away from its name.
+- Nutrición: Progress and Consistency cap the whole block at 720 px, so each heading's ⓘ sits over its
+  card instead of at the far right of the page.
 
 ## 2026-10-08 — Plan page restyle P7: text diet
 
