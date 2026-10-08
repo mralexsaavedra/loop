@@ -3,7 +3,7 @@
  * baked as I18N_NUTRI for web/src/client/nutri-day.js. JSON-safe only: `{placeholder}` strings,
  * substituted client-side; `...Html` entries are trusted, tracked, generic markup. Neutral Spanish. */
 export const es = {
-  headings: { summary: 'Resumen de hoy', plan: 'Plan de hoy', fuel: 'Avituallamiento', progress: 'Progreso', adherence: 'Constancia' },
+  headings: { summary: 'Resumen de hoy', plan: 'Plan de hoy', fuel: 'Avituallamiento', progress: 'Progreso', adherence: 'Constancia', score: 'Puntuación' },
   // the tab header (Dia.astro): centred title + ⓘ with the tab intro and the caveats every block shares
   head: {
     title: 'Nutrición',
@@ -162,6 +162,14 @@ export const es = {
     lineFew: '{avg} kg de media · {status}',
   },
   // Constancia (client/adherence.js): {n}, {pct}, {band} come from the baked NUTRI.adherence
+  // the nutrition score block (client/nutri-score.js, lib/nutrition/score.mjs): averages + the ⓘ notes
+  score: {
+    avgs: 'Media 7 días {a7} % · 30 días {a30} %',
+    none: 'Sin puntuación reciente: registra un día para verla.',
+    formula: 'Puntuación del día (0–100) = kcal × {wk} + proteína × {wp} + grasa × {wf}. Kcal: 100 dentro de ±{kFull} % del objetivo, baja en línea a 0 a ±{kZero} %. Proteína: 100 desde el {pFull} % del objetivo, 0 al {pZero} % (comer más no resta). Grasa: 100 entre el {fLo} % y el {fHi} %, 0 al {fZeroHi} % por arriba y al {fZeroLo} % por abajo.',
+    rules: 'Bandas: {good} o más bien, {mid}–{good} a medias, menos de {mid} bajo. Un día sin registro no tiene puntuación (nunca 0). Si a una entrada le falta un macro, ese componente se deja fuera y el resto se repondera (día incompleto). Hoy es «de momento»: no cuenta en las medias.',
+    target: 'El objetivo de cada día es el de Constancia: tu meta actual × el tipo de día detectado ese día. Mide lo registrado frente al plan, no la calidad de la dieta.',
+  },
   adherence: {
     windowLegend: 'Periodo',
     windowLabel: '{n} días',
@@ -194,7 +202,7 @@ export const es = {
 };
 
 export const en = {
-  headings: { summary: "Today's summary", plan: "Today's plan", fuel: 'Ride fuelling', progress: 'Progress', adherence: 'Consistency' },
+  headings: { summary: "Today's summary", plan: "Today's plan", fuel: 'Ride fuelling', progress: 'Progress', adherence: 'Consistency', score: 'Score' },
   // the tab header (Dia.astro): centred title + ⓘ with the tab intro and the caveats every block shares
   head: {
     title: 'Nutrition',
@@ -353,6 +361,14 @@ export const en = {
     lineFew: '{avg} kg average · {status}',
   },
   // Consistency (client/adherence.js): {n}, {pct}, {band} come from the baked NUTRI.adherence
+  // the nutrition score block (client/nutri-score.js, lib/nutrition/score.mjs): averages + the ⓘ notes
+  score: {
+    avgs: '7-day average {a7}% · 30-day {a30}%',
+    none: 'No recent score: log a day to see it.',
+    formula: 'Day score (0–100) = kcal × {wk} + protein × {wp} + fat × {wf}. Kcal: 100 within ±{kFull}% of the target, falling linearly to 0 at ±{kZero}%. Protein: 100 from {pFull}% of the target, 0 at {pZero}% (more never costs points). Fat: 100 between {fLo}% and {fHi}%, 0 at {fZeroHi}% above and {fZeroLo}% below.',
+    rules: 'Bands: {good} or more good, {mid}–{good} mid, under {mid} low. A day without a log has no score (never 0). When an entry lacks a macro, that component is left out and the rest re-weighted (incomplete day). Today is "so far": it never counts in the averages.',
+    target: 'Each day\'s target is Consistency\'s: your current goal × the day type detected that day. It measures what you logged against the plan, not diet quality.',
+  },
   adherence: {
     windowLegend: 'Period',
     windowLabel: '{n} days',

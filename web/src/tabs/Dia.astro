@@ -31,6 +31,8 @@
  *                        the target weight on the LAN page), a tap opens the weight detail sheet;
  *   7. Constancia      — food log adherence over 7 / 14 / 28 days + a 28-day strip (client/adherence.js,
  *                        LAN page only: ships hidden until GET /api/food/log/summary answers).
+ *   (between 5 and 6) Puntuación — the nutrition score card + 7 / 30-day averages (client/nutri-score.js;
+ *                        hidden without a food log), a tap opens its trend sheet.
  * 5–7 follow the day's blocks on purpose: today's actions first, the multi-week look back after.
  * The day-type control is server-rendered (real labelled radios); the numbers
  * are client-rendered by client/nutri-day.js from NUTRI (lib/nutrition/today.mjs: the 12 precomputed
@@ -136,6 +138,18 @@ const DAY_ICONS: Record<string, string> = {
   {/* Balance (client/health.js renderBalance, HEALTH.energy from the shared Bake): intake vs
       expenditure + the macro split over the baked window; hidden when there is no expenditure data */}
   <div class="nutri-block" id="nutri-balance" hidden></div>
+
+  {/* the nutrition score (client/nutri-score.js, lib/nutrition/score.mjs): the day's adherence to its
+      targets + the 7 / 30-day averages and a 30-day line, a tap opens its trend sheet; hidden without
+      any food log day (baked INTAKE.log or the LAN summary). The formula sits behind its ⓘ */}
+  <div class="nutri-block" id="nutri-score-block" hidden>
+    <div class="hs-head">
+      <h2 class="hs-lbl">{T.headings.score}</h2>
+      <button type="button" class="hs-i" data-hs-info="nutri-score-info" aria-expanded="false" aria-controls="nutri-score-info" aria-label={T.infoTpl.replace('{section}', T.headings.score)}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg></button>
+    </div>
+    <div class="hs-info" id="nutri-score-info" hidden></div>
+    <div id="nutri-score" aria-live="polite"></div>
+  </div>
 
   {/* Progreso (client/progress.js): weight vs the goal from the baked DETAIL weight series; always
       rendered (an empty state without weigh-ins). After the day's blocks: today's actions come first,

@@ -291,8 +291,8 @@ test('detail-templates.mjs (detail sheet) has identical key trees in es/en, no e
   for (const [locale, dict] of [['es', esDetail], ['en', enDetail]]) {
     for (const [path, value] of leaves(dict)) assert.notEqual(String(value).trim(), '', `${locale} detail-templates.${path} must not be empty`);
     // + 'stress' / 'energy': their series are baked in SCORES.stress / SCORES.energy (lib/score), not DETAIL
-    assert.deepEqual(Object.keys(dict.metrics), [...DETAIL_KEYS, 'stress', 'energy-bank'], `${locale}: one entry per DETAIL key, in order, then stress, energy-bank`);
-    for (const k of [...DETAIL_KEYS, 'stress', 'energy-bank']) assert.ok(dict.metrics[k].title && dict.metrics[k].unit, `${locale}.metrics.${k}`);
+    assert.deepEqual(Object.keys(dict.metrics), [...DETAIL_KEYS, 'stress', 'energy-bank', 'nutrition'], `${locale}: one entry per DETAIL key, in order, then stress, energy-bank, nutrition`);
+    for (const k of [...DETAIL_KEYS, 'stress', 'energy-bank', 'nutrition']) assert.ok(dict.metrics[k].title && dict.metrics[k].unit, `${locale}.metrics.${k}`);
     assert.deepEqual(Object.keys(dict.modalities), ['gym', 'run', 'bike', 'other']);
     for (const [k, ph] of [['latestLbl', 'date'], ['staleNote', 'date'], ['chartAria', 'from'], ['calAria', 'month']]) assert.match(dict[k], new RegExp(`\\{${ph}\\}`), `${locale}.${k}`);
     for (const k of ['monitor', 'iqr']) for (const ph of ['lo', 'hi', 'median', 'unit']) assert.match(dict.bands[k], new RegExp(`\\{${ph}\\}`), `${locale}.bands.${k}`);

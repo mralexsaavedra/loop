@@ -28,6 +28,18 @@ export const en = {
       none: 'Not enough nights with a wake time yet (7 needed in the last 14 days).',
     },
     // "My day" energy bank card (client/energy.js, lib/score/energy.mjs): our own intraday estimate
+    // "My day" nutrition card (client/nutri-score.js, lib/nutrition/score.mjs): adherence to your targets
+    nscore: {
+      heading: 'Nutrition',
+      soFar: 'so far',
+      incomplete: 'incomplete',
+      today: 'Today',
+      unknown: 'not logged',
+      parts: { k: 'Kcal', p: 'Protein', f: 'Fat' },
+      aria: 'Nutrition score {value}% on {date}',
+      ariaSoFar: 'Nutrition score so far today {value}%',
+      avg7: '7-day average {value}%',
+    },
     energy: {
       heading: 'Energy bank',
       estimate: 'estimate',
@@ -319,6 +331,18 @@ export const es = {
       none: 'Aún no hay suficientes noches con hora de despertar (hacen falta 7 en los últimos 14 días).',
     },
     // tarjeta "Banco de energía" de "Mi día" (client/energy.js, lib/score/energy.mjs): estimación propia
+    // tarjeta "Nutrición" de "Mi día" (client/nutri-score.js, lib/nutrition/score.mjs): cumplimiento de tus objetivos
+    nscore: {
+      heading: 'Nutrición',
+      soFar: 'de momento',
+      incomplete: 'incompleto',
+      today: 'Hoy',
+      unknown: 'sin registrar',
+      parts: { k: 'Kcal', p: 'Proteína', f: 'Grasa' },
+      aria: 'Puntuación de nutrición {value} % el {date}',
+      ariaSoFar: 'Puntuación de nutrición de momento hoy {value} %',
+      avg7: 'Media de 7 días {value} %',
+    },
     energy: {
       heading: 'Banco de energía',
       estimate: 'estimación',
