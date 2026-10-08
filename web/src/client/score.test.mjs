@@ -104,7 +104,7 @@ test('a missing host element or missing SCORES does not throw', () => {
 });
 
 test('full render: recovery trend with band, per-component rows and 14 raw dailies each', () => {
-  const s = fixtureScores();
+  const s = sdScores();
   const html = render(s);
   assert.match(html, /sc-recovery/);
   assert.ok(html.includes('<small class="rec-unit">SD</small>'), 'the one recovery unit');
@@ -117,11 +117,13 @@ test('full render: recovery trend with band, per-component rows and 14 raw daili
   assert.doesNotMatch(html, /<script|src=|href=/i, 'no scripts or external refs in the rendered markup');
 });
 
+// 21 days of data = 20 prior nights: under MIN_PCT_DAYS, so recovery keeps the SD headline (fallback)
+const sdScores = () => fixtureScores({ days: 21 });
 const recCard = (s, opts = {}) => { const hosts = {}; render(s, { ...opts, hosts }); return hosts.rec.innerHTML; };
 const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
 test('recovery card (text diet): big value + band word + ONE short trend line; the baseline, the full trend sentence, confidence and SDNN live in the ⓘ block', () => {
-  const s = fixtureScores();
+  const s = sdScores();
   const html = recCard(s);
   const t = s.recovery.today;
   const v = (t.value > 0 ? '+' : '') + t.value.toFixed(1);
@@ -447,8 +449,8 @@ test('dials: absent DIALS global renders the cards exactly as before (no dial ca
   assert.doesNotMatch(html, /sc-dials/);
 });
 
-test('recovery dial: value INSIDE the ring = LAST NIGHT (signed number + small SD unit, coloured by its band); the 7-day trend lives in the detail sheet, never a percentage', () => {
-  const s = fixtureScores();
+test('recovery dial (fallback, under 21 prior days): value INSIDE the ring = LAST NIGHT (signed number + small SD unit, coloured by its band); the 7-day trend lives in the detail sheet', () => {
+  const s = sdScores();
   assert.ok(s.recovery.today, 'fixture has a composite for the asOf night');
   const d = dialOf(withDials(s), 'dial-rec');
   const t = s.recovery.today;
@@ -465,6 +467,39 @@ test('recovery dial: value INSIDE the ring = LAST NIGHT (signed number + small S
   assert.equal(count(d, 'class="dial-fill"'), 1);
   assert.match(d, /class="dial-mid"/, 'baseline tick');
   assert.doesNotMatch(d, /class="dial-dot"/, 'no marker dot: the fill ends at the value');
+});
+
+test('recovery dial (% headline): "85" + small "%" inside the ring, coloured by its % band, no baseline tick; the band word in the accessible name', () => {
+  const s = fixtureScores();
+  const t = s.recovery.today;
+  assert.ok(Number.isInteger(t.pct), 'the 49-day fixture has 48 prior nights: a percentage');
+  const d = dialOf(withDials(s), 'dial-rec');
+  assert.match(d, new RegExp(`dial-band-${t.pctBand}`));
+  assert.ok(d.includes(`<b class="dial-num">${t.pct}<small>%</small></b>`));
+  assert.ok(d.includes(`aria-label="${enT.dials.recovery.ariaPct.replace('{when}', enT.dials.recovery.lastNight).replace('{value}', t.pct).replace('{band}', enT.recovery.pctBands[t.pctBand])}"`));
+  assert.doesNotMatch(d, /class="dial-mid"/, 'no baseline tick on a % ring');
+  assert.doesNotMatch(d, /<small>SD<\/small>/);
+});
+
+test('recovery card (% headline): big "pct %" + % band word; the night\'s SD value and the % mapping move behind the ⓘ', () => {
+  const s = fixtureScores();
+  const t = s.recovery.today;
+  const html = recCard(s);
+  const big = html.match(/<div class="rec-big sc-band-([a-z]+)">([\s\S]*?)<\/div>/);
+  assert.equal(big[1], t.pctBand);
+  assert.equal(text(big[2]), `${t.pct} % ${enT.recovery.pctBands[t.pctBand]}`);
+  assert.ok(html.includes(enT.recovery.pctNote), 'the ⓘ explains the mapping');
+  const sd = (t.value > 0 ? '+' : '') + t.value.toFixed(1);
+  assert.ok(html.includes(enT.recovery.sdLbl.replace('{value}', sd).replace('{band}', enT.recovery.bands[t.band])), 'the SD value is kept');
+  assert.match(html, /class="rec-trend"/, 'the 7-day trend line stays');
+});
+
+test('% copy: band words and the mapping note exist in es + en', () => {
+  for (const T of [enT, esT]) {
+    assert.deepEqual(Object.keys(T.recovery.pctBands), ['good', 'mid', 'low']);
+    assert.match(T.recovery.pctNote, /90/);
+    assert.match(T.dials.recovery.ariaPct, /\{value\} %/);
+  }
 });
 
 test('dials: label BELOW the ring, uppercase via CSS, with a chevron; no captions under the dials (they live in each dial\'s detail sheet)', () => {
@@ -796,13 +831,13 @@ test('one recovery unit: the dial, the Salud card and the detail sheet all say S
   assert.match(enT.recovery.unitNote, /typical spread/);
   assert.match(esT.recovery.unitNote, /variación típica/);
   assert.doesNotMatch(source, /'[^'\n]*\b(MAD|sd)\b[^'\n]*'/, 'score.js hard-codes no recovery unit string');
-  const card = recCard(fixtureScores());
+  const card = recCard(sdScores());
   assert.ok(card.includes(enT.recovery.unitNote), 'the card explains the unit (behind its ⓘ)');
-  const es = (() => { const hosts = {}; render(fixtureScores(), { locale: 'es', hosts }); return hosts.rec.innerHTML; })();
+  const es = (() => { const hosts = {}; render(sdScores(), { locale: 'es', hosts }); return hosts.rec.innerHTML; })();
   assert.ok(es.includes('<small class="rec-unit">desv.</small>'));
   assert.ok(es.includes(esT.recovery.unitNote));
   assert.doesNotMatch(es, /MAD/);
-  const dial = dialOf(withDials(fixtureScores()), 'dial-rec');
+  const dial = dialOf(withDials(sdScores()), 'dial-rec');
   assert.match(dial, / SD/, 'the dial: same unit');
   assert.doesNotMatch(dial, / sd\b/);
 });

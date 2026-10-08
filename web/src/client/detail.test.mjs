@@ -566,21 +566,23 @@ test('ⓘ toggles the long-notes block in place (no re-render); the CTA jumps to
   assert.ok(s.host.innerHTML.includes(`<button type="button" class="dd-cta" data-dt-act="trend">${enT.deep.cta}<span aria-hidden="true"> →</span></button>`));
 });
 
-test('recovery deep-dive = the dial: the hero ring is last night\'s value with ONE band colour; the insight says "last night" + band and the 7-day trend in its own band colour', () => {
+test('recovery deep-dive = the dial: the hero ring is last night\'s % with ONE % band colour; the insight says "last night" + band, the SD value and the 7-day trend in its own band colour', () => {
   const s = setup({ dials: DIALS });
   s.api.open('recovery');
   const html = s.host.innerHTML;
   const d = DIALS.recovery;
   assert.equal(d.mode, 'today');
+  assert.ok(Number.isInteger(d.pct), 'the demo extract has 90+ prior nights');
   const hero = heroOf(html);
-  const cls = { above: 'good', at: 'mid', below: 'low' }[d.band];
-  assert.ok(hero.startsWith(` dd-${cls}"`), `one state colour for the whole ring (${cls})`);
-  assert.ok(hero.includes(`<b class="dd-num">${sgn(d.value, 1)}<small>SD</small></b>`), 'same value as the dial');
+  assert.ok(hero.startsWith(` dd-${d.band}"`), `one state colour for the whole ring (${d.band})`);
+  assert.ok(hero.includes(`<b class="dd-num">${d.pct}<small>%</small></b>`), 'same % as the dial');
   assert.equal((hero.match(/class="dd-fill"/g) || []).length, 1, 'one fill path, no zone arcs');
   assert.ok(hero.includes(`d="${d.fill}"`), 'the dial\'s own baked arc');
   assert.ok(hero.includes(`<span class="dd-lbl">${enT.deep.label.recovery}</span>`));
   const ins = insightOf(html);
-  assert.ok(ins.includes(format(enT.deep.nightLine, { when: enT.rec.lastNight, band: enT.day.bands[d.band] })));
+  assert.ok(ins.includes(format(enT.deep.nightLine, { when: enT.rec.lastNight, band: enT.rec.pctBands[d.band] })));
+  const sdLine = format(enT.rec.sdLbl, { value: sgn(d.value, 1), band: '' });
+  assert.ok(ins.includes(sdLine.slice(0, sdLine.indexOf(' · '))), 'the night\'s SD value stays in the insight');
   const bandState = { above: 'good', at: 'normal', below: 'bad' };
   const trend = format(enT.rec.trendLine, { dir: enT.rec.dirs[d.trend.dir], value: sgn(d.trend.value, 1) });
   assert.ok(ins.includes(`dd-ln dt-c-${bandState[d.trend.band]}">${trend}`), 'trend line coloured by the TREND band');
@@ -592,7 +594,13 @@ test('recovery deep-dive = the dial: the hero ring is last night\'s value with O
   const info = infoOf(html);
   assert.ok(info.includes('±1.2') && info.includes('±0.5'), 'day cut and trend cut both stated');
   assert.ok(info.includes(enT.bands.perDayNote));
+  assert.ok(info.includes(enT.rec.pctNote), 'ⓘ explains the % mapping');
   assert.ok(html.includes(enT.chartKey.baseline), 'the history chart stays below');
+  // fallback: a dial without a % (under 21 prior nights) keeps the SD hero
+  const noPct = setup({ dials: { ...DIALS, recovery: { ...d, pct: null, band: 'above', mid: { x: 60, y: 107 } } } });
+  noPct.api.open('recovery');
+  assert.ok(heroOf(noPct.host.innerHTML).includes(`<b class="dd-num">${sgn(d.value, 1)}<small>SD</small></b>`));
+  assert.ok(!infoOf(noPct.host.innerHTML).includes(enT.rec.pctNote));
   // no DIALS: the number still shows, from the same baked headline, with an empty ring
   const bare = setup();
   bare.api.open('recovery');
