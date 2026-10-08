@@ -11,6 +11,8 @@ Dated history of structural work on this repo. **Current state lives in Engram**
   `web/test/desktop.test.mjs` pins every phone declaration to the CSS snapshot.
 - Entreno: the Activity card is two columns (summary | calendar) instead of a tiny calendar in the
   left quarter of a full-width card (the old `.act-pair` row went away in P6a).
+- Metric-row lists (Salud, Entreno, Balance, My dashboard) flow into >= 340 px columns instead of
+  1160 px-wide rows with the value a whole screen away from its name.
 
 ## 2026-10-08 — Plan page restyle P7: text diet
 

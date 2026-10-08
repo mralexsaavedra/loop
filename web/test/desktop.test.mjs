@@ -57,3 +57,10 @@ test('Entreno Activity card: summary | calendar in two columns, the calendar sca
   assert.equal(cal['margin-top'], '0', 'no stacked-card gap above the calendar column');
   assert.equal(wide(map, '.act-cal .cal-svg')['max-width'], 'none', 'the phone 280px cap is lifted, the column caps it');
 });
+
+test('metric-row lists flow into as many >= 340px columns as fit (Salud, Entreno, Balance, My dashboard)', () => {
+  const list = wide(builtMap(), '.db-list');
+  assert.equal(list.display, 'grid');
+  assert.equal(list['grid-template-columns'], 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))',
+    'auto-fill: a narrow host (a Salud section column, Inicio\'s column) keeps one column');
+});

@@ -1357,3 +1357,14 @@ details.rec-raw > summary {
   color: var(--on-accent);
   border-color: var(--accent);
 }
+
+/* wide screens: metric-row lists (Salud, Entreno, Balance, My dashboard). The rows are independent, so
+ * a wide list flows into as many >= 340px columns as fit (3 at 1160px), read left to right then down;
+ * a narrow host (a Salud section column, Inicio's column) keeps one. After the base .db-list rule so
+ * it wins at equal specificity. */
+@media (min-width: 900px) {
+  .db-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  }
+}

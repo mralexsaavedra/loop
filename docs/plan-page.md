@@ -181,6 +181,10 @@ full-bleed while the top bar, tab panels and footer are centred and capped at `-
 - **Entreno** — the Activity card is two columns: total + W / M / 6M switch, stats and modality split
   on the left, the 30-day calendar on the right (`minmax(240px, 300px)`, the SVG scaled to fill it;
   it spans every row and a trailing `1fr` row absorbs its extra height).
+- **Metric-row lists** (`.db-list`: Salud's monitor and sections, Entreno's running / cycling / load
+  vs recovery / intensity rows, Nutrición's Balance, Inicio's My dashboard) — the rows are
+  independent, so a list flows into as many >= 340 px columns as fit (`auto-fill`; three at 1160 px,
+  read left to right then down); a narrow host such as a Salud section column keeps one.
 
 Dark native controls: `color-scheme: dark` (`:root` + a `<meta name="color-scheme">`) and a
 `theme-color` meta read at build time from `--ground-top` (the top of the page background; a test pins
