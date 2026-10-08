@@ -158,8 +158,18 @@
   font: inherit;
   resize: vertical;
 }
+.jr-man,
+.jr-man[open] {
+  margin: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  overflow: visible;
+}
 .jr-man summary {
-  cursor: pointer;
+  justify-content: flex-start;
+  min-height: 44px;
+  padding: 0;
 }
 .jr-man .db-tog {
   min-width: 64px;
@@ -202,4 +212,71 @@
 .jr-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+/* behaviour insights: UPPERCASE behaviour + signed impact, a bar from a centre dot */
+.ji-leg {
+  display: flex;
+  justify-content: space-between;
+  margin: var(--sp-7) 0 var(--sp-3);
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.ji-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-7);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.ji-name {
+  font-size: var(--fs-sm);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.ji-pct {
+  font-family: var(--num);
+  font-size: var(--fs-2xl);
+}
+.ji-up {
+  color: var(--up);
+}
+.ji-down {
+  color: var(--down);
+}
+.ji-flat,
+.ji-need {
+  color: var(--muted);
+}
+.ji-bar {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--track);
+}
+.ji-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--r-pill);
+  background: currentColor;
+}
+.ji-dot {
+  position: absolute;
+  top: -3px;
+  left: calc(50% - 8px);
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 5px solid var(--ground);
+  border-radius: 50%;
+  background: var(--ink);
+}
+.ji-row .jr-msg {
+  grid-column: 1 / -1;
+  margin: 0;
 }

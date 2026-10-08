@@ -7,8 +7,15 @@
  * `X-HC-Journal: 1`). Then the card shows the 7 days ending on the viewer's today (Date.now(), never
  * baked) with a check circle per journaled day (GET /api/journal/summary), the "+" popover lists
  * "Complete your journal" (client/nav-actions.js) and a tap on the card / a day opens the sheet on that
- * day. Without the API (example build, file://, a static copy) nothing here appears and the page is
- * as before.
+ * day. Without the API (example build, file://, a static copy) the card still shows when the build
+ * baked a journal (SCORES.journal.recent: the synced journal-daily.csv, the example's demo data), its
+ * columns read-only, and nothing can be written.
+ *
+ * Behaviour insights (registered view 'journal-insights', every build with a journal): the baked
+ * SCORES.journal.insights rows (lib/journal/journal.mjs behaviorInsights) as impact rows — UPPERCASE
+ * behaviour, the signed difference in recovery points, a bar from a centre dot (--up better, --down
+ * worse) — best first, then the behaviours that need more data; the ⓘ states the formula and that it
+ * is an association, not causation.
  *
  * The sheet: a strip of the same 7 days (the picked one ringed), "What's happening today?" (or "What
  * happened on <date>?"), the switched-on behaviours grouped DAYTIME / NIGHTTIME / STATUS as rows with a
@@ -112,30 +119,98 @@
       var N = typeof I18N_DATE !== 'undefined' && I18N_DATE ? I18N_DATE : null;
       return N ? N.weekdays[HC.weekdayIndex(iso)] : iso.slice(5);
     }
+    // the baked journaled dates (SCORES.journal.recent): the card's checks when there is no API
+    var BAKED = {};
+    (Array.isArray(J.recent) ? J.recent : []).forEach(function (d) { if (HC.isoDate(d)) BAKED[d] = true; });
+    function isDone(d) {
+      return S.ready ? journaled(S.days[d]) : own(BAKED, d);
+    }
+    function hasInsights() {
+      return !!(J.insights && Array.isArray(J.insights.rows) && J.insights.rows.length);
+    }
     function cardHtml(today) {
+      var live = S.ready;
       var cols = weekDays(today).map(function (d) {
-        var on = journaled(S.days[d]);
+        var on = isDone(d);
         var aria = format(on ? T.dayDone : T.dayOpen, { day: HC.fmtDate(d) });
-        return '<li><button type="button" class="jr-day" data-detail="journal" data-date="' + d + '" aria-haspopup="dialog" aria-label="' + esc(aria) + '">' +
-          '<span class="jr-wd">' + esc(dayLabel(d)) + '</span><span class="jr-dot' + (on ? ' jr-on' : '') + '">' + (on ? CHECK : '') + '</span></button></li>';
+        var inner = '<span class="jr-wd">' + esc(dayLabel(d)) + '</span><span class="jr-dot' + (on ? ' jr-on' : '') + '">' + (on ? CHECK : '') + '</span>';
+        // without the API the columns only show (no sheet to open)
+        return '<li>' + (live
+          ? '<button type="button" class="jr-day" data-detail="journal" data-date="' + d + '" aria-haspopup="dialog" aria-label="' + esc(aria) + '">' + inner + '</button>'
+          : '<span class="jr-day" role="img" aria-label="' + esc(aria) + '">' + inner + '</span>') + '</li>';
       }).join('');
-      var ins = window.HCViews && window.HCViews['journal-insights']
+      var ins = hasInsights()
         ? '<button type="button" class="tn-more jr-ins" data-detail="journal-insights" aria-haspopup="dialog">' + esc(T.insights) + '</button>' : '';
       return '<div class="sc-card jr">' +
-        '<div class="jr-top"><h3 class="tn-h">' + esc(T.heading) + '</h3><button type="button" class="jr-chev" data-detail="journal" aria-haspopup="dialog" aria-label="' + esc(T.open) + '">›</button></div>' +
+        '<div class="jr-top"><h3 class="tn-h">' + esc(T.heading) + '</h3>' +
+        (live ? '<button type="button" class="jr-chev" data-detail="journal" aria-haspopup="dialog" aria-label="' + esc(T.open) + '">›</button>' : '') + '</div>' +
         '<ol class="jr-week">' + cols + '</ol>' + ins + '</div>';
     }
     function renderCard() {
       var host = document.getElementById('my-journal');
       if (!host) return;
       try {
-        var show = S.ready;
+        // the API (LAN page), or a baked journal (the synced CSV, the example's demo data)
+        var show = S.ready || Object.keys(BAKED).length > 0 || hasInsights();
         host.innerHTML = show ? cardHtml(HC.todayIso()) : '';
         host.hidden = !show;
       } catch (e) {
         host.innerHTML = '';
         host.hidden = true;
       }
+    }
+
+    /* ---------- behaviour insights (baked, every build with a journal) ---------- */
+    var INFO = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>';
+    function signed(v) {
+      var n = HC.num(Math.abs(v), 0);
+      return (v > 0 ? '+' : v < 0 ? '−' : '') + n + '%';
+    }
+    // ok rows by impact (best first), then the rows that need more data, in the list order
+    function insightRows(rows) {
+      var ok = rows.filter(function (r) { return r.status === 'ok' && typeof r.diff === 'number'; });
+      ok.sort(function (a, b) { return b.diff - a.diff; });
+      return ok.concat(rows.filter(function (r) { return ok.indexOf(r) === -1; }));
+    }
+    // the bar: a centre dot, the fill to the right (better) or left (worse); scale = the largest
+    // |difference| shown, at least 20 points, = half the bar
+    function barStyle(diff, scale) {
+      var half = Math.min(50, (Math.abs(diff) / scale) * 50);
+      return 'left:' + (diff >= 0 ? 50 : 50 - half).toFixed(1) + '%;width:' + half.toFixed(1) + '%';
+    }
+    function insightsHtml() {
+      var I = J.insights, min = (J.limits && J.limits.insightMinDays) || 5;
+      var rows = insightRows(I.rows);
+      var scale = Math.max(20, Math.max.apply(null, rows.map(function (r) { return typeof r.diff === 'number' ? Math.abs(r.diff) : 0; })));
+      var list = rows.map(function (r) {
+        var name = T.names[r.key] || r.key;
+        if (r.status !== 'ok') {
+          return '<li class="ji-row"><span class="ji-name">' + esc(name) + '</span><span class="ji-need">' + esc(T.need) + '</span>' +
+            '<span class="jr-msg">' + esc(format(T.needDetail, { yes: r.yesDays, no: r.noDays, min: min })) + '</span></li>';
+        }
+        var tone = Math.abs(r.diff) < 1 ? 'flat' : r.diff > 0 ? 'up' : 'down';
+        var aria = format(T.rowAria, { name: name, diff: (r.diff > 0 ? '+' : '') + HC.num(r.diff, 1), yesMean: HC.num(r.yesMean, 0), noMean: HC.num(r.noMean, 0), yes: r.yesDays, no: r.noDays });
+        return '<li class="ji-row" aria-label="' + esc(aria) + '"><span class="ji-name" aria-hidden="true">' + esc(name) + '</span>' +
+          '<b class="ji-pct ji-' + tone + '" aria-hidden="true">' + esc(signed(r.diff)) + '</b>' +
+          '<span class="ji-bar" aria-hidden="true"><i class="ji-fill ji-' + tone + '" style="' + barStyle(r.diff, scale) + '"></i><i class="ji-dot"></i></span></li>';
+      }).join('');
+      var days = Math.round((HC.parseIso(I.asOf) - HC.parseIso(I.from)) / HC.MS_PER_DAY) + 1;
+      return {
+        head: '',
+        body: '<div class="jr-top"><p class="jr-g">' + esc(format(T.window, { n: days, date: HC.fmtDate(I.asOf) })) + '</p>' +
+          '<button type="button" class="sh-info" data-dt-act="info" aria-expanded="false" aria-controls="dd-info" aria-label="' + esc(T.infoLabel) + '">' + INFO + '</button></div>' +
+          '<div class="dd-info dt-info" id="dd-info" hidden><p>' + esc(format(T.info, { min: min })) + '</p><p>' + esc(T.caveat) + '</p></div>' +
+          '<h3 class="jr-q">' + esc(T.impact) + '</h3><p class="dt-note">' + esc(T.intro) + '</p>' +
+          '<div class="ji-leg" aria-hidden="true"><span class="ji-down">▼ ' + esc(T.hurts) + '</span><span>' + esc(T.pct) + '</span><span class="ji-up">' + esc(T.helps) + ' ▲</span></div>' +
+          '<ul class="jr-rows">' + list + '</ul>',
+      };
+    }
+    if (hasInsights()) {
+      window.HCViews = window.HCViews || {};
+      window.HCViews['journal-insights'] = {
+        title: function () { return T.insightsTitle; },
+        render: insightsHtml,
+      };
     }
 
     /* ---------- sheet ---------- */
@@ -181,7 +256,7 @@
           return '<li class="jr-row"><span class="jr-txt">' + esc(q) + '</span><span class="jr-ctl">' + pair(b, v, q) + '</span></li>';
         }).join('') + '</ul>';
       }).join('');
-      var manage = '<details class="jr-man"' + (S.manage ? ' open' : '') + '><summary class="jr-g" data-jr="man">' + esc(T.manage) + '</summary>' +
+      var manage = '<details class="jr-man"' + (S.manage ? ' open' : '') + '><summary class="jr-g" data-jr="man">' + esc(T.manage) + ' <span class="chev" aria-hidden="true">›</span></summary>' +
         '<p class="dt-note">' + esc(T.manageNote) + '</p><ul class="jr-rows">' + J.behaviors.map(function (b) {
           var on = S.on[b.key] !== false, name = T.names[b.key] || b.key;
           return '<li class="jr-row"><span class="jr-txt">' + esc(name) + '</span><button type="button" class="db-btn db-tog" data-jr="tog" data-key="' + b.key + '" aria-pressed="' + on + '" aria-label="' + esc(format(T.toggle, { name: name })) + '">' + esc(on ? T.on : T.off) + '</button></li>';
@@ -298,7 +373,7 @@
     }
 
     window.HCJournal = {
-      weekDays: weekDays, did: did, journaled: journaled, press: press, render: renderCard,
+      weekDays: weekDays, did: did, journaled: journaled, press: press, render: renderCard, insightRows: insightRows, barStyle: barStyle,
       ready: function () { return S.ready; }, state: function () { return S; }, load: load,
     };
     renderCard();

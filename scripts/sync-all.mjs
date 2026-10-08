@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Runner behind `npm run sync`: runs the Strava sync, the Shortcut sync, the profile sync, the settings sync and the food log export sequentially, even
+/* Runner behind `npm run sync`: runs the Strava sync, the Shortcut sync, the profile sync, the settings sync, the food log export and the journal export sequentially, even
  * when one fails — a shell `&&` chain would skip the second script the moment the first exits
  * non-zero, and `;` both loses the exit code and is shell-specific. Both scripts write
  * _meta.json, so running them one after another (not in parallel) avoids a write race.
@@ -27,6 +27,9 @@ export const SCRIPTS = [
   // the food log export (data/nutrition/foodlog-daily.csv) likewise only warns (exit 0) when the
   // ingest service is missing / old
   path.join(ROOT, 'data', 'nutrition', 'sync-foodlog.js'),
+  // the behaviour journal export (journal-daily.csv in the extract, scripts/sync-journal.mjs) likewise
+  // only warns (exit 0) when the ingest service is missing / old
+  path.join(ROOT, 'scripts', 'sync-journal.mjs'),
 ];
 
 /**

@@ -78,6 +78,20 @@ export const en = {
       off: 'Off',
       toggle: 'Track {name}',
       allOff: 'Every behavior is switched off: switch one on under Behaviors.',
+      // behaviour insights sheet ('journal-insights', baked at build time from the synced journal)
+      insightsTitle: 'Journal insights',
+      impact: 'Recovery impact',
+      window: 'Last {n} days · to {date}',
+      intro: 'How your recovery the next morning differed after each behavior.',
+      infoLabel: 'How this is computed',
+      info: 'For each behavior: the mean of your recovery % (the recovery dial\'s percentile, 0-100) on the mornings after the days you answered yes, minus the mean on the mornings after the days you answered no, in percentage points. Only mornings with a recovery score count, and each side needs at least {min} days, else "need more data".',
+      caveat: 'An association, not causation: other things happen on the same days (training, late nights), and with few days the difference is noisy.',
+      hurts: 'Hurts',
+      helps: 'Helps',
+      pct: '% impact',
+      need: 'Need more data',
+      needDetail: '{yes} yes · {no} no days ({min} each needed)',
+      rowAria: '{name}: {diff} points of recovery the morning after ({yesMean} % after yes, {noMean} % after no; {yes} and {no} days)',
     },
     // "My plan" weekly card (client/home-week.js)
     plan: {
@@ -348,6 +362,20 @@ export const es = {
       off: 'No',
       toggle: 'Registrar {name}',
       allOff: 'Todos los hábitos están desactivados: activa alguno en Hábitos.',
+      // hoja de impacto ('journal-insights', calculada al generar la página desde el diario sincronizado)
+      insightsTitle: 'Impacto del diario',
+      impact: 'Impacto en la recuperación',
+      window: 'Últimos {n} días · hasta el {date}',
+      intro: 'Cuánto cambió tu recuperación a la mañana siguiente según cada hábito.',
+      infoLabel: 'Cómo se calcula',
+      info: 'Para cada hábito: la media de tu recuperación % (el percentil del dial de recuperación, 0-100) las mañanas después de los días en que respondiste sí, menos la media las mañanas después de los días en que respondiste no, en puntos. Solo cuentan las mañanas con recuperación, y cada lado necesita al menos {min} días; si no, «faltan datos».',
+      caveat: 'Es una asociación, no una causa: esos días pasan más cosas (entrenos, noches cortas) y con pocos días la diferencia es ruidosa.',
+      hurts: 'Empeora',
+      helps: 'Mejora',
+      pct: '% de impacto',
+      need: 'Faltan datos',
+      needDetail: '{yes} días sí · {no} días no (hacen falta {min} de cada)',
+      rowAria: '{name}: {diff} puntos de recuperación a la mañana siguiente ({yesMean} % tras sí, {noMean} % tras no; {yes} y {no} días)',
     },
     // tarjeta semanal "Mi plan" (client/home-week.js)
     plan: {

@@ -66,6 +66,9 @@ a day is "journaled" when at least one behaviour is answered (`isJournaled`).
   service) → nothing new shows and nothing is stored in the browser.
 - **My journal card** (`#my-journal`, Inicio, between Tonight and My plan): "MY JOURNAL" + a chevron, 7
   day columns (weekday + a check circle, `--up` = journaled); a column opens the sheet on that day.
+  Without the API the card still shows when the build baked a journal (`SCORES.journal.recent`, the
+  journaled dates of the 14 days ending at the newest journal day): read-only columns, no chevron, and
+  the "BEHAVIOR INSIGHTS" button when insights exist (the example build shows it from the demo data).
 - **Sheet**: the strip of the same 7 days (the picked day ringed; a tap switches day, dropping an
   unsaved draft), "What's happening today?" (or "What happened on <date>?"), the switched-ON behaviours
   in DAYTIME / NIGHTTIME / STATUS rows with a ✕ / ✓ pair (✓ pressed = `--trend` fill; pressing the
@@ -74,3 +77,25 @@ a day is "journaled" when at least one behaviour is answered (`isJournaled`).
   once; answers of a switched-off behaviour are kept), a status line (coarse errors; "offline" = nothing
   saved) and the sticky "SAVE JOURNAL" pill: `PUT /api/journal/day` with the whole day, then the sheet
   closes and the card re-renders. Desktop: the same sheet as a centred panel (single column).
+
+## Sync + behaviour insights (build time)
+
+- `scripts/sync-journal.mjs` (in `npm run sync`) writes `journal-daily.csv` + `journal-daily.meta.json`
+  into the extract (`docs/data-pipeline.md` → Journal export). The example build reads the synthetic
+  `data/demo/extract/journal-daily.csv` (`scripts/make-demo-data.mjs`, its own PRNG).
+- `lib/journal/bake.mjs` `journalBake(extractDir)` → `SCORES.journal`: the behaviour list + `recent` +
+  `insights = {asOf, from, days, rows}` over the journaled days of the 90 days ending at `asOf` (the
+  newest journal day).
+- **Formula** (`behaviorInsights`, `lib/journal/journal.mjs`): for each behaviour, the journal day D
+  counts as "yes" (a yes answer, or ≥ 1 drink) or "no"; its value is the recovery % of the NEXT
+  morning D+1 = `recoveryFromInputs(...).today.pct` (the recovery dial's percentile: that night's
+  composite ranked among the 90 days before it) with every input cut at D+1, exactly what the dial
+  showed that morning (`morningRecovery`). A morning that was not a complete night (the dial fell back
+  to an older one) or has under 21 prior days has no score and the day counts on neither side.
+  `diff = mean(yes) − mean(no)` in recovery points (1 decimal). Shown only when BOTH sides have ≥
+  `insightMinDays` (5) days, else `need_data` with the counts.
+- **View** (`HCViews['journal-insights']`, every build with insights; "Journal insights"): the window
+  line + ⓘ (the formula, and that it is an ASSOCIATION, not causation), "Recovery impact", a HURTS / %
+  IMPACT / HELPS legend, then one row per behaviour, best first: UPPERCASE name, the signed difference
+  (`+12%` `--up` better / `−6%` `--down` worse / under 1 point `--muted`), a bar from a centre dot
+  (half the bar = max(20, the largest |diff| shown)); the need-more-data rows last with their day counts.
