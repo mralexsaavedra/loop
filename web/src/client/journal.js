@@ -22,8 +22,10 @@
  * ✕ / ✓ pair (a pressed answer pressed again = not answered), the drinks as ✕ (= 0) + a − n + stepper,
  * a note, the behaviours' on / off list (a fold; stored server-side, PUT /api/journal/settings) and a
  * sticky "SAVE JOURNAL" pill: PUT /api/journal/day (the whole day, idempotent), then the sheet closes
- * and the card re-renders. An unsaved draft survives a re-render of the open sheet and is dropped when
- * another day is picked or the sheet closes. Errors are one line from the coarse codes.
+ * and the card re-renders (only the sheet that saved: one reopened meanwhile stays). One save at a time:
+ * while it is in flight the pill is disabled, the note read-only and every edit refused. An unsaved draft
+ * survives a re-render of the open sheet and is dropped when another day is picked or the sheet closes
+ * (the next fresh open starts from the saved day). Errors are one line from the coarse codes.
  *
  * Classic script in layouts/Plan.astro's end-of-body list, after home-dash.js and before deepdive.js /
  * detail.js. Each render runs in its own try/catch; a throw hides the card. */
@@ -38,7 +40,9 @@
     var CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg>';
     var CROSS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>';
     // ready: the API answered; on: {key: bool}; days: {iso: {date, answers, notes}} of the strip window
-    var S = { ready: false, on: {}, days: {}, draft: null, saving: false, msg: '', err: false, manage: false };
+    // inSheet: the next render is a re-render of the open sheet (reopen), not a fresh open; session counts
+    // fresh opens, so a save that answers after the sheet was closed and opened again never closes it
+    var S = { ready: false, on: {}, days: {}, draft: null, saving: false, msg: '', err: false, manage: false, inSheet: false, session: 0 };
 
     function own(o, k) {
       return !!o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, k);
@@ -128,8 +132,18 @@
     function hasInsights() {
       return !!(J.insights && Array.isArray(J.insights.rows) && J.insights.rows.length);
     }
+    // the card's last day: the viewer's today, except a baked (no API) journal whose newest day is older
+    // than the 7-day window: then that journal's own last week (a stale bake never reads as empty)
+    function cardEnd(today) {
+      if (S.ready) return today;
+      var dates = Object.keys(BAKED);
+      if (J.insights && HC.isoDate(J.insights.asOf)) dates.push(J.insights.asOf);
+      var newest = dates.sort().pop();
+      return newest && newest < HC.shiftIso(today, -(WEEK - 1)) ? newest : today;
+    }
     function cardHtml(today) {
       var live = S.ready;
+      today = cardEnd(today);
       var cols = weekDays(today).map(function (d) {
         var on = isDone(d);
         var aria = format(on ? T.dayDone : T.dayOpen, { day: HC.fmtDate(d) });
@@ -266,7 +280,7 @@
         head: stripHtml(date, today),
         body: '<h3 class="jr-q">' + esc(q) + '</h3>' + (rows || '<p class="dt-note">' + esc(T.allOff) + '</p>') +
           '<label class="jr-g" for="jr-notes">' + esc(T.notes) + '</label>' +
-          '<textarea id="jr-notes" class="jr-notes" rows="3" maxlength="' + LIM.notesMax + '" placeholder="' + esc(T.notesPh) + '">' + esc(d.notes) + '</textarea>' +
+          '<textarea id="jr-notes" class="jr-notes" rows="3" maxlength="' + LIM.notesMax + '" placeholder="' + esc(T.notesPh) + '"' + (S.saving ? ' readonly' : '') + '>' + esc(d.notes) + '</textarea>' +
           manage +
           '<p class="jr-msg' + (S.err ? ' jr-err' : '') + '" role="status" aria-live="polite">' + esc(S.msg) + '</p>' +
           '<div class="jr-save"><button type="button" class="jr-btn" data-jr="save"' + (S.saving ? ' disabled' : '') + '>' + esc(S.saving ? T.saving : T.save) + '</button></div>',
@@ -274,12 +288,27 @@
     }
     function reopen(focus) {
       var H = window.HCDetail;
-      if (H && typeof H.open === 'function' && S.draft) H.open('journal', S.draft.date, { focus: focus });
+      if (!H || typeof H.open !== 'function' || !S.draft) return;
+      S.inSheet = true;
+      try { H.open('journal', S.draft.date, { focus: focus }); } finally { S.inSheet = false; }
+    }
+    // the view's render: a fresh open (from the card, the "+", a deep link) starts from the SAVED day,
+    // so a draft left by closing the sheet never comes back; a re-render (reopen) keeps it
+    function renderSheet() {
+      if (!S.inSheet) {
+        S.session++;
+        S.draft = null;
+        S.msg = '';
+        S.err = false;
+      }
+      return sheetHtml();
     }
 
     function save() {
       var d = S.draft;
+      // one save at a time: the pill is disabled and every edit refused until it answers
       if (!d || S.saving) return;
+      var session = S.session;
       S.saving = true;
       S.msg = '';
       S.err = false;
@@ -293,10 +322,13 @@
         else delete S.days[d.date];
         S.draft = null;
         renderCard();
-        if (window.HCDetail && typeof window.HCDetail.close === 'function') window.HCDetail.close();
+        // close the sheet this save came from, never one opened again meanwhile
+        var st = window.HCDetail && typeof window.HCDetail.state === 'function' ? window.HCDetail.state() : null;
+        if (session === S.session && st && st.key === 'journal' && typeof window.HCDetail.close === 'function') window.HCDetail.close();
       }, function (err) {
         S.saving = false;
         S.err = true;
+        if (session !== S.session) return; // the sheet was closed: its draft is gone anyway
         S.msg = err && err.code === 'offline' ? T.offline : format(T.failed, { code: (err && err.code) || 'generic' });
         reopen('[data-jr="save"]');
       });
@@ -322,6 +354,7 @@
       if (!b || !S.ready) return;
       var act = b.getAttribute('data-jr'), key = b.getAttribute('data-key');
       if (act === 'man') { S.manage = !(b.parentElement && b.parentElement.open); return; }
+      if (S.saving) return; // the request in flight carries the draft as it was: no edit may slip in
       if (act === 'save') { save(); return; }
       if (act === 'tog') { toggle(key); return; }
       if (act === 'day') {
@@ -339,16 +372,14 @@
     });
     document.addEventListener('input', function (e) {
       var t = e && e.target;
-      if (t && t.id === 'jr-notes' && S.draft) S.draft.notes = String(t.value || '').slice(0, LIM.notesMax);
+      if (t && t.id === 'jr-notes' && S.draft && !S.saving) S.draft.notes = String(t.value || '').slice(0, LIM.notesMax);
     });
 
     function register() {
       window.HCViews = window.HCViews || {};
       window.HCViews.journal = {
         title: function () { return T.sheetTitle; },
-        render: sheetHtml,
-        // a closed sheet drops its unsaved draft (detail.js calls nothing on close: the next open of
-        // another day starts fresh, the same day keeps it until saved or another day is picked)
+        render: renderSheet,
       };
     }
 
