@@ -111,3 +111,33 @@ test('a rejected token is recorded as strava_auth', async () => {
   await assert.rejects(runOnce())
   assert.deepEqual(status.events, ['error: strava_auth'])
 })
+
+test('createStravaSync runs one HR-stream backfill batch after the athlete refresh, in the background', async () => {
+  const { createStravaSync } = await import('../src/sync.js')
+  const client = { query: async () => ({ rows: [] }), release () {} }
+  const saved = []
+  const pool = {
+    connect: async () => client,
+    query: async (sql, values) => {
+      if (/LEFT JOIN strava_activity_hr/.test(sql)) return { rows: [{ id: '77' }] }
+      if (/INSERT INTO strava_activity_hr/.test(sql)) saved.push(values)
+      return { rows: [] }
+    }
+  }
+  const urls = []
+  const fetchImpl = async (url) => {
+    const u = String(url)
+    urls.push(u)
+    if (u.includes('/oauth/token')) return { ok: true, status: 200, json: async () => ({ access_token: 't', expires_at: Math.floor(Date.now() / 1000) + 3600 }) }
+    if (u.includes('/athlete/activities')) return { ok: true, status: 200, json: async () => [] }
+    if (u.includes('/activities/77/streams')) return { ok: true, status: 200, json: async () => ({ time: { data: [0, 4] }, heartrate: { data: [140, 141] } }) }
+    return { ok: false, status: 500 }
+  }
+  const sync = createStravaSync(pool, { STRAVA_CLIENT_ID: 'i', STRAVA_CLIENT_SECRET: 's', STRAVA_REFRESH_TOKEN: 'r' }, { fetchImpl, log: () => {} })
+  await sync.runOnce()
+  await new Promise((resolve) => setImmediate(resolve))
+  const r = await sync.hrIdle()
+  assert.deepEqual(r, { fetched: 1, stored: 1, pending: 1, stop: null })
+  assert.ok(urls.findIndex((u) => u.endsWith('/api/v3/athlete')) < urls.findIndex((u) => u.includes('/streams')), 'athlete first, then streams')
+  assert.equal(saved[0][0], '77')
+})
