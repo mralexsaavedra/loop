@@ -131,7 +131,10 @@ Plan de hoy) and the
   (`.fe-slot`). **Add sheet**: a registered detail-sheet view
   (`window.HCViews['food-add']`, deep link `#food-add`, registered only once the API answered; focus
   trap / Esc / Back from detail.js, whose Tab trap now includes form fields and whose
-  `HCDetail.open(key, date, {opener})` returns focus to the tapped button): meal select = the four
+  `HCDetail.open(key, date, {opener})` returns focus to the tapped button; it opens with focus in the
+  search field — `#fa-q`, or the quick label `#fa-label` on the Rápido tab — never on the meal select;
+  the tab trough is `--surface-2` with the pressed tab on `--track`, like the other segmented
+  controls): meal select = the four
   groups (Desayuno / Comida / Cena / Añadido; a main group is stored as its slot, Añadido as `snack`;
   a fresh sheet guesses the group by the viewer's hour: < 4 (late night) dinner, < 11 breakfast, < 16 lunch, < 20
   Añadido, else dinner), tabs Mis

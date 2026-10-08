@@ -480,7 +480,9 @@ details.sec-fold.nutri-fold {
   color: var(--muted);
 }
 /* the section's footnote (personal copy): compact and muted */
-.nutri-foot {
+/* .acc-note.nutri-foot: tablas.css's .acc-note (later in the cascade, margin-top -2px) used to win,
+   so the footnote touched the Constancia legend right above it */
+.acc-note.nutri-foot {
   margin-top: var(--sp-7);
   padding-top: var(--sp-5);
   border-top: 1px solid var(--line-soft);
@@ -595,7 +597,7 @@ details.sec-fold.nutri-fold {
  * right the day-type control at its natural width over the three macro bars and the notes. The DOM
  * order stays the phone order (day type, dial, bars): #nutri-target spans the card as a subgrid so
  * its dial and bars land in their own columns; it lets clicks through to the day type it overlaps.
- * Plan de hoy flows into two masonry-like CSS columns of meal cards; the fuelling timeline stays readable-width. */
+ * Everything else stays the phone's single column (Plan de hoy, fuelling, Progreso, Constancia). */
 @media (min-width: 900px) {
   #nutri-summary .nutri-card {
     display: grid;
@@ -639,24 +641,6 @@ details.sec-fold.nutri-fold {
   }
   .nt-kcal {
     font-size: 52px;
-  }
-  /* masonry-like flow: two CSS columns, so a short card (coffee) never leaves a row-height gap
-     next to a tall one; cards read down the first column, then the second (the day's order) */
-  #nutri-plan {
-    columns: 2;
-    column-gap: var(--sp-5);
-  }
-  #nutri-plan > .meal {
-    display: inline-block;
-    width: 100%;
-    margin: 0 0 var(--sp-5);
-    break-inside: avoid;
-  }
-  #nutri-plan > :not(.meal) {
-    column-span: all;
-  }
-  #nutri-fuel-block > .nutri-card {
-    max-width: 720px;
   }
 }
 
@@ -911,9 +895,5 @@ details.sec-fold.nutri-fold {
 @media (min-width: 900px) {
   .adh-stats {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-  #nutri-progress > .nutri-card,
-  #food-adherence > .nutri-card {
-    max-width: 720px;
   }
 }

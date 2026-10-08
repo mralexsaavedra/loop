@@ -15,19 +15,23 @@ its own try/catch (a throw in one half renders that half's empty state, never bl
 `#health-body` (Salud) and `#health-train` (Entreno: running, cycling, load vs recovery).
 
 **Salud layout** (`web/src/tabs/Salud.astro` + `health.js`), top to bottom: a centred UPPERCASE title
-("SALUD" / "HEALTH") with an ⓘ toggle (`#hs-intro`: the tab intro + how to read a row; the button is
+("SALUD" / "HEALTH") with its ⓘ toggle right beside it (a `1fr | title | 1fr` grid, never pinned at the far
+right over the monitor's own ⓘ; `#hs-intro`: the tab intro + how to read a row; the button is
 `HC.infoBtn`'s markup written by `health.js` into the `#hs-intro-i` slot), over a soft
 green glow at the top of the page (`.hs-glow`, `--up` at 16 % via `color-mix`, absolute behind the
 content, only while the panel shows); the health monitor list (`#monitor`, `client/monitor.js`, see
-`docs/home-tab.md` "Health monitor"); then the sections of `#health-body`, each a `<section
+`docs/home-tab.md` "Health monitor"; its header reads title → "n out of range" chip → ⓘ at the end); then the sections of `#health-body`, each a `<section
 class="hs-sec" id="hl-<key>">` with an UPPERCASE label, an ⓘ toggle and a list of metric rows:
 **Recovery** (`#score-recovery`, the recovery card filled by score.js, restyled borderless — its long
-lines join this section's ⓘ block, see `docs/home-tab.md` — then
-resting HR, HRV, respiratory rate, wrist temperature), **Fitness** (VO₂max, walking HR — moved out of
+lines join this section's ⓘ block, and its raw "Last 14 days" lists fold behind a quiet disclosure
+line, see `docs/home-tab.md` — then only the signals among resting HR, HRV, respiratory rate and wrist
+temperature that the monitor does NOT list: the monitor already shows them at the top, so they are
+not repeated; with today's monitor that leaves no rows), **Fitness** (VO₂max, walking HR — moved out of
 Recovery), **Sleep** (last night, then % nights ≥ target, night-to-night ±, bedtime / wake time),
 **Body composition** (weight, body fat, lean mass, waist), **Activity** (steps, exercise, distance,
 flights), **Energy** (expenditure only: the intake balance + macro split moved to Nutrición →
-Balance, `docs/nutrition.md`). On ≥ 900 px the sections flow in two columns, Recovery spans the row.
+Balance, `docs/nutrition.md`). On ≥ 900 px the sections stay the phone's single column, just wider (the page's 960 px column,
+`docs/plan-page.md`).
 
 **Rows, not cards (text diet).** Each metric is the shared row (`HC.metricRow`, the same `.db-*` row as
 Inicio's "My dashboard"): icon · UPPERCASE name · the NEWEST value + unit · a marker · a small line

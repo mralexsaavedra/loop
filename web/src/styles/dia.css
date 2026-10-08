@@ -165,28 +165,6 @@ button.meal-name:focus-visible {
   margin: var(--sp-9) 0 var(--sp-3);
 }
 
-@media (min-width: 900px) {
-  /* Mi día — hero/summary full width, meals flow into 2 columns */
-  .day-panel {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: var(--sp-5);
-    align-items: start;
-  }
-  .day-panel[hidden] {
-    display: none;
-  }
-  .day-panel > .summary,
-  .day-panel > .macros,
-  .day-panel > .deficit,
-  .day-panel > h2 {
-    grid-column: 1 / -1;
-  }
-  .summary {
-    max-width: 520px;
-  }
-}
-
 /* intake rings (client/intake.js): logged intake vs the plan day total. One neutral data colour
  * for every ring (progress, not a grade); --mid only flags a ring that ran past 110 %. */
 .intake-card {

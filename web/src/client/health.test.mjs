@@ -296,6 +296,22 @@ test('recovery: resting HR / HRV / sleep lead with the newest value, the 30-day 
   assert.match(html, /<section class="hs-sec hs-sec-recovery" id="hl-recovery"/, 'the section anchor is kept');
 });
 
+test('recovery: a signal the health monitor already lists is not repeated under Recovery; one it lacks stays', () => {
+  const tr = (latest) => ({ latest, latestDate: '2026-06-30', avg30: latest, d30: 0, spark: sp });
+  const H = {
+    body: none, activity: none, energy: none, running: none, loadRecovery: none,
+    recovery: { hasData: true, rhr: tr(52), hrv: tr(60), respiratory: tr(14.5), wristTemp: tr(36) },
+  };
+  const SCORES = { monitor: { cards: [{ key: 'respiratory' }, { key: 'rhr' }, { key: 'hrv' }, { key: 'sleep' }] } };
+  const html = renderAt(H, '2026-07-01', { SCORES });
+  for (const k of ['rhr', 'hrv', 'respiratory']) assert.doesNotMatch(html, new RegExp(`id="hl-${k}"`), `${k} lives in the monitor only`);
+  assert.match(html, /<li class="db-row" id="hl-wristTemp"/, 'not in the monitor: kept under Recovery');
+  assert.match(html, /<section class="hs-sec hs-sec-recovery" id="hl-recovery"[\s\S]*<div id="score-recovery"><\/div>/, 'the section and its card host stay');
+  const all = renderAt(H, '2026-07-01', { SCORES: { monitor: { cards: [{ key: 'rhr' }, { key: 'hrv' }, { key: 'respiratory' }, { key: 'wristTemp' }] } } });
+  assert.doesNotMatch(all, /<ul class="db-list">[^]*?id="hl-(rhr|hrv|respiratory|wristTemp)"/, 'all four in the monitor: no rows under Recovery');
+  assert.match(all, /<div id="score-recovery"><\/div><\/section>/, 'the section keeps only the card host');
+});
+
 test('energy: expenditure headline = the newest day TDEE with its date; 30-day avg as context', () => {
   const html = renderAt({
     body: none, activity: none, running: none, recovery: none, loadRecovery: none,

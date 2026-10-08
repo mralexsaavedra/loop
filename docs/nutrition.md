@@ -307,8 +307,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
 - **Plan de hoy — layout** — flat `--surface` cards (no border, no shadow): meal name as a caps label, its kcal
   budget big in `--num`, the macro rows (caps label left, "~45 g" in `--num` right; the example select
   below with the amount and the "+"; a long amount wraps under the select at 360 px, right-aligned), the
-  muted P / C / F (es: G) mini line. On wide screens (>= 900 px) the four meal-group cards flow into two
-  masonry-like CSS columns (`columns: 2`, cards `break-inside: avoid`). The block is a native
+  muted P / C / F (es: G) mini line. Wide screens (>= 900 px) keep the single column (no multi-column
+  flow). The block is a native
   `<details class="nutri-block sec-fold nutri-fold" id="nutri-plan-fold">`, COLLAPSED by default: the
   summary (a flat `--surface` row like every Nutrición fold — Mis productos, Mis recetas, Tablas:
   UPPERCASE label, optional figure, chevron; `layout.css`) = the heading + the meals target (`#nutri-plan-kcal`, written on every refresh); the open

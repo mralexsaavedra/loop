@@ -295,15 +295,60 @@ test('example build: Inicio carries a compact "today you eat" card (filled clien
   assert.doesNotMatch(card, /class="meal"/, 'the full meal plan is NOT duplicated on Inicio');
 });
 
-test('example build: the Salud recovery section (with its detail card) spans the full grid row, headline | sparkline | contributors side by side on wide screens', async () => {
+test('example build: the Salud recovery card stays stacked at every width (headline, trend, contributors in 2 × 2)', async () => {
   const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
   const html = fs.readFileSync(examplePath, 'utf8');
   const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
   const map = ruleDeclarationMap(parseCssRules(css)); // selectors in css-scan's canonical form (`a>b`)
-  const wide = [...map.entries()].filter(([k]) => k.startsWith('(min-width:900px)|||'));
-  assert.ok(wide.some(([k, v]) => k.endsWith('|||grid-column') && k.split('|||')[1].split(',').map((x) => x.trim()).includes('#health-body>#hl-recovery') && v === '1 / -1'), 'the recovery section spans 1 / -1');
-  assert.ok(wide.some(([k, v]) => k === '(min-width:900px)|||.rec-layout|||grid-template-columns' && (v.match(/minmax\(/g) || []).length === 3), 'three columns on wide screens');
-  assert.ok(![...map.keys()].some((k) => k.startsWith('|||.rec-layout|||grid-template-columns')), 'stacked (one column) on phones');
+  assert.ok(![...map.keys()].some((k) => k.endsWith('|||.rec-layout|||grid-template-columns')), 'no column template on .rec-layout at any width');
+  assert.equal(String(map.get('|||.rec-contrib|||grid-template-columns')).replace(/\s+/g, ''), 'repeat(2,minmax(0,1fr))', 'the contributors are a 2 × 2 block');
+  // the "Last 14 days" fold is a quiet disclosure line, never tablas.css's bare details card (an empty box)
+  for (const [p, v] of [['background', 'none'], ['border', '0'], ['box-shadow', 'none']]) assert.equal(map.get('|||details.rec-raw|||' + p), v, 'details.rec-raw ' + p);
+  assert.equal(map.get('|||details.rec-raw>summary|||padding'), '0');
+});
+
+test('example build: sheet calendar state tiles are a soft tint + a 40 % ring of the state token, not a saturated block', async () => {
+  const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  const map = ruleDeclarationMap(parseCssRules(css));
+  const get = (sel, p) => { const k = [...map.keys()].find((x) => x.startsWith('|||') && x.endsWith('|||' + p) && x.split('|||')[1].split(',').map((s) => s.trim()).includes(sel)); return k ? String(map.get(k)).replace(/\s+/g, '') : null; };
+  for (const [st, rgb] of [['good', 'good'], ['mid', 'mid'], ['watch', 'mid'], ['bad', 'low']]) {
+    assert.equal(get('.dt-day.dt-s-' + st, 'background'), `rgba(var(--${rgb}-rgb),0.16)`, st);
+    assert.equal(get('.dt-day.dt-s-' + st, 'box-shadow'), `inset0001pxrgba(var(--${rgb}-rgb),0.4)`, st);
+    assert.equal(get('.dt-sw.dt-s-' + st, 'background'), `rgba(var(--${rgb}-rgb),0.16)`, 'legend swatch ' + st);
+  }
+});
+
+test('example build: the load deep-dive\'s typical-day tick is a faint hairline on an empty ring', async () => {
+  const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  const map = ruleDeclarationMap(parseCssRules(css));
+  assert.equal(map.get('|||.dd-off .dd-tick|||stroke'), 'var(--faint)');
+  assert.ok(Number(map.get('|||.dd-off .dd-tick|||stroke-width')) < Number(map.get('|||.dd-tick|||stroke-width')), 'thinner than the live tick');
+});
+
+test('example build: the food add sheet\'s tabs sit on --surface-2 (like the other segmented controls); the Nutrición footnote keeps its top margin', async () => {
+  const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  const map = ruleDeclarationMap(parseCssRules(css));
+  assert.equal(map.get('|||.fa-tabs|||background'), 'var(--surface-2)');
+  assert.equal(map.get('|||.fa-tab[aria-pressed=true]|||background'), 'var(--track)', 'the pressed tab still lifts off the trough');
+  assert.equal(map.get('|||.acc-note.nutri-foot|||margin-top'), 'var(--sp-7)', 'out-ranks .acc-note\'s -2px');
+});
+
+test('example build: Salud headers — the page ⓘ sits beside the centred title, the monitor chip right after its title', async () => {
+  const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  const map = ruleDeclarationMap(parseCssRules(css));
+  assert.equal(String(map.get('|||.hs-top|||grid-template-columns')).replace(/\s+/g, ''), 'minmax(0,1fr)autominmax(0,1fr)');
+  assert.equal(map.get('|||.hs-top>.hs-title|||grid-column'), '2');
+  assert.ok(![...map.keys()].some((k) => k.startsWith('|||.hs-top .hs-i|||position')), 'no longer pinned absolutely at the far right');
+  assert.equal(map.get('|||.hm .hs-lbl|||flex'), '0 1 auto', 'the monitor title does not grow: the chip follows it');
+  assert.equal(map.get('|||.hm .hs-head>.hs-i|||margin-left'), 'auto', 'the ⓘ closes the row');
 });
 
 test('example build: the shared client helpers (util.js) are inlined FIRST, right after the baked HC_CONST, before every other script', () => {

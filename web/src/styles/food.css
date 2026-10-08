@@ -358,7 +358,7 @@
   grid-auto-flow: column; /* one equal column per tab (food.js TAB_KEYS) */
   grid-auto-columns: minmax(0, 1fr);
   gap: var(--sp-1);
-  background: var(--rail);
+  background: var(--surface-2);
   border: 1px solid var(--line-soft);
   border-radius: var(--r-md);
   padding: var(--sp-1);
@@ -376,7 +376,7 @@
   cursor: pointer;
 }
 .fa-tab[aria-pressed="true"] {
-  background: var(--surface-2);
+  background: var(--track);
   color: var(--ink);
 }
 .fa-store,
@@ -548,8 +548,3 @@
   color: var(--mid);
 }
 
-@media (min-width: 900px) {
-  .food-meals {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
