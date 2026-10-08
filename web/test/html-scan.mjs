@@ -13,7 +13,7 @@ export function scanHtml(html) {
     moduleScriptCount: [...html.matchAll(/<script[^>]*\btype=["']module["'][^>]*>/gi)].length,
     externalLinkHrefs: [...html.matchAll(/<link[^>]+\bhref=["']([^"']+)["'][^>]*>/gi)]
       .map((m) => m[1])
-      .filter((href) => !href.startsWith('#')),
+      .filter((href) => !href.startsWith('#') && !href.startsWith('data:')),
     hasAstroAssetsDir: /["'/]_astro\//.test(html),
     hasAstroCidAttr: /\bdata-astro-cid-/.test(html),
   };

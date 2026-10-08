@@ -85,3 +85,11 @@ test('scanHtml treats an in-page anchor <link href="#..."> as internal, not exte
   const scan = scanHtml(html);
   assert.deepEqual(scan.externalLinkHrefs, [], 'a fragment-only href must not be flagged as external');
 });
+
+test('scanHtml treats a data: URI <link> (the inlined favicon / touch icon) as self-contained, not external', () => {
+  const html = GOOD_HTML.replace(
+    '</head>',
+    '<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%3E%3C/svg%3E">\n<link rel="apple-touch-icon" href="https://example.com/i.png">\n</head>',
+  );
+  assert.deepEqual(scanHtml(html).externalLinkHrefs, ['https://example.com/i.png']);
+});
