@@ -5,6 +5,25 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Fitness age (Salud, mean-based, Loe 2013)
+
+- Reference: Loe H, Rognmo Ø, Saltin B, Wisløff U, PLoS ONE 2013;8(5):e64319, Table 2
+  (doi:10.1371/journal.pone.0064319), the HUNT3 healthy-population MEAN treadmill VO₂max per sex and
+  10-year age group. The median definition the brief asked for could not be verified from a primary
+  source (Nes et al. 2014 MSSE is paywalled; no published HUNT medians found), so the owner chose the
+  documented mean-based curve; Nes 2014 is cited as background only.
+- Profile: optional `sex` (`male` | `female`) in `profile/profile.json`, validated and baked into
+  PROFILE (`lib/profile/profile.mjs`).
+- Bake: `lib/score/fitness-age.mjs` → `SCORES.fitnessAge` (latest VO₂max, its date / source, the fitness
+  age interpolated between group midpoints 25 … 75, clamped "< 25" / "> 75", 30 / 90-day trend; missing
+  sex / VO₂max → a reason); `DETAIL.metrics.fitnessAge` (sparse, lower = better, clamp bounds).
+- Page: a fitness-age ring leading Salud → Fitness (vs the chronological age from the birthdate, years
+  younger / older, the VO₂max it comes from, ⓘ with the citation and the smartwatch / not-medical
+  caveat), chronological-age and 90-day rows, a `fitnessAge` detail sheet, and an optional My dashboard
+  row (off by default). es / en.
+- Docs: `docs/health-tab.md`, `analysis/methodology.md` §4 (table with n per group, formula, limits),
+  `docs/detail-views.md`, `docs/home-tab.md`, `docs/profile.md`.
+
 ## 2026-10-08 — Behaviour journal (LAN) + behaviour insights
 
 - Storage + API: `services/health-ingest` optional migration group `journal` (`sql/010_journal.sql`:

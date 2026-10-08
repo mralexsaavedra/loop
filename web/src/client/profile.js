@@ -41,15 +41,8 @@
   function fin(v) {
     return typeof v === 'number' && isFinite(v);
   }
-  // whole years between an ISO birthdate and an ISO day; null when either is not a date or birth > day
-  function ageOn(birth, day) {
-    birth = HC.isoDate(birth);
-    day = HC.isoDate(day);
-    if (!birth || !day || birth > day) return null;
-    var age = +day.slice(0, 4) - +birth.slice(0, 4);
-    if (day.slice(5) < birth.slice(5)) age--;
-    return age;
-  }
+  // whole years between an ISO birthdate and an ISO day (the shared HC.ageOn, client/util.js)
+  var ageOn = HC.ageOn;
   function photoSrc() {
     if (!P.photo) return null;
     var img = document.getElementById ? document.getElementById('avatar-img') : null;

@@ -102,6 +102,42 @@
     return HC.metricRow({ key: o.icon || key, cls: stale ? 'db-stale' : '', attrs: (o.id ? ' id="hl-' + o.id + '"' : '') + (o.detail ? HC.detailAttrs(o.detail) : ''),
       aria: aria.join(' · '), name: title, value: value, unit: unit, arrow: arrow, tone: tone, base: base });
   }
+  // Fitness age (SCORES.fitnessAge, lib/score/fitness-age.mjs) vs the chronological age (PROFILE.birthdate on
+  // the viewer's clock): a full ring with the fitness age in whole years (or "< 25" / "> 75" at the
+  // reference curve's bounds) and how many years younger / older, coloured --up / --down; then the
+  // chronological age and the fitness age's change over 90 (else 30) days as rows. Missing sex,
+  // birthdate or VO2max -> no number, the reason. {before, rows, note}; null = no block (an old bake).
+  function fitnessAgeBlock(SC) {
+    var F = SC && SC.fitnessAge, FT = T.fitnessAge, P = typeof PROFILE === 'undefined' || !PROFILE ? {} : PROFILE;
+    if (!F || !FT) return null;
+    if (!F.ok) return { before: note(F.reason === 'no-sex' ? FT.noSex : FT.noVo2), rows: [], note: FT.noteHtml };
+    var ca = HC.ageOn(P.birthdate, HC.todayIso());
+    if (ca == null) return { before: note(FT.noBirth), rows: [], note: FT.noteHtml };
+    var fa = Math.round(F.age), plural = function (o, n) { return format(n === 1 ? o.one : o.other, { n: n }); };
+    var num = F.bound === 'below' ? '< ' + fa : F.bound === 'above' ? '> ' + fa : String(fa);
+    var diff = '', tone = 'flat';
+    if (F.bound === 'below') { if (ca > fa) { diff = format(FT.atLeastYounger, { n: ca - fa }); tone = 'good'; } }
+    else if (F.bound === 'above') { if (ca < fa) { diff = format(FT.atLeastOlder, { n: fa - ca }); tone = 'bad'; } }
+    else if (ca > fa) { diff = plural(FT.younger, ca - fa); tone = 'good'; }
+    else if (ca < fa) { diff = plural(FT.older, fa - ca); tone = 'bad'; }
+    else diff = FT.same;
+    var v = F.vo2 || {};
+    var basis = format(FT.basisTpl, { vo2: nf(v.value), date: fmtD(v.date), src: v.source || '' }).replace(/ · $/, '');
+    var aria = format(FT.ariaTpl, { fa: num, ca: ca, diff: diff || '—' });
+    var ring = '<figure class="dial fa fa-' + tone + '"' + HC.detailAttrs('fitnessAge') + '><div class="dial-ring" role="img" aria-label="' + esc(aria) + '">' +
+      '<svg class="dial-svg" viewBox="0 0 120 120" aria-hidden="true"><circle class="dial-track" cx="60" cy="60" r="55"/><circle class="dial-fill" pathLength="100" cx="60" cy="60" r="55"/></svg>' +
+      '<div class="dial-centre" aria-hidden="true"><b class="dial-num">' + esc(num) + '</b><span class="dial-word">' + FT.label + '</span></div></div>' +
+      '<figcaption class="dial-lbl">' + (diff ? '<b class="ld-' + tone + '">' + esc(diff) + '</b>' : '') + '<span>' + esc(basis) + '</span></figcaption></figure>';
+    var rows = [function () { return mrow('fitnessAge', FT.chrono, FT.unit, { value: ca, noStale: true }); }];
+    var tr = F.trend || {}, prev = tr.d90 ? [tr.d90, 90] : tr.d30 ? [tr.d30, 30] : null;
+    if (prev && !F.bound && !prev[0].bound && fin(prev[0].age)) {
+      rows.push(function () {
+        return mrow('fitnessAge', format(FT.trend, { days: prev[1] }), FT.unit, { value: fa, delta: round(F.age - prev[0].age, 1), dir: -1, date: v.date, detail: 'fitnessAge' });
+      });
+    }
+    return { before: ring, rows: rows, note: FT.noteHtml };
+  }
+
   // the newest staged night (lib/health/aggregate.mjs sleep.stages): REM / deep / core / awake hours
   // (+ % of asleep) and efficiency, each vs the mean of the staged nights among the last 30; none
   // when the extract has no stages
@@ -258,11 +294,14 @@
         R.hasData ? [T.recoveryNoteHtml] : [], '<div id="score-recovery"></div>'));
     }
     if (R.hasData) {
-      /* fitness: VO2max (change since the first reading) and walking HR */
-      out.push(section('fitness', rows([
+      /* fitness: the fitness-age ring (+ chronological age and its trend), VO2max (change since the
+         first reading) and walking HR */
+      var fab = null;
+      try { fab = fitnessAgeBlock(SC); } catch (e) { fab = null; /* a broken block never blanks the section */ }
+      out.push(section('fitness', rows((fab ? fab.rows : []).concat([
         function () { var m = R.vo2max; return m ? mrow('vo2max', TR.vo2max.title, TR.vo2max.unit, { value: m.latest, delta: fin(m.first) ? round(m.latest - m.first, 1) : null, dir: 1, date: m.latestDate, detail: 'vo2max' }) : ''; },
         sig('walkingHr', -1, false),
-      ]), [T.fitnessNoteHtml]));
+      ])), fab ? [fab.note, T.fitnessNoteHtml] : [T.fitnessNoteHtml], fab ? fab.before : ''));
       /* sleep: last night vs the 30-night mean, then the consistency rows; the section is hl-sleep */
       var sl = R.sleep, SCd = T.sleepCards;
       if (sl) {

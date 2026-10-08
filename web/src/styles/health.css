@@ -143,3 +143,45 @@
   border-radius: var(--r-sm);
   box-shadow: none;
 }
+/* Fitness age (client/health.js fitnessAgeBlock): the dial figure as a large full ring with a soft
+ * glow, coloured by younger (--up) / older (--down) than the chronological age */
+.dial.fa {
+  --dial-size: 176px;
+  --dial-c: var(--faint);
+  margin: var(--sp-2) 0 var(--sp-6);
+}
+.fa.fa-good {
+  --dial-c: var(--up);
+}
+.fa.fa-bad {
+  --dial-c: var(--down);
+}
+.fa .dial-ring {
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--dial-c) 24%, transparent), transparent 68%);
+}
+.fa .dial-track,
+.fa .dial-fill {
+  stroke-width: 4;
+}
+.fa .dial-num {
+  font-size: 56px;
+}
+.fa .dial-word {
+  max-width: none;
+  margin-top: var(--sp-2);
+}
+.fa .dial-lbl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: normal;
+}
+.fa .dial-lbl span {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: 400;
+}

@@ -23,7 +23,7 @@
     var D = typeof DETAIL !== 'undefined' && DETAIL && DETAIL.metrics ? DETAIL : null;
     if (!TS || !TD || typeof HC === 'undefined') return;
     var esc = HC.esc, format = HC.format;
-    var CATALOG = ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'vo2max', 'walkingHr', 'exercise'];
+    var CATALOG = ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'vo2max', 'fitnessAge', 'walkingHr', 'exercise'];
     var DEFAULT_ON = ['rhr', 'hrv', 'sleep', 'weight', 'steps'];
     var PREFS_KEY = 'hc-dash-v1';
     var BASE_DAYS = 30, MIN_BASE = 7, MIN_BASE_SPARSE = 2, FLAT_SHARE = 0.02;
@@ -127,6 +127,11 @@
       if (key === 'sleep') { // hours → 7:32
         var min = Math.round(v * 60);
         return Math.floor(min / 60) + ':' + String(min % 60).padStart(2, '0');
+      }
+      if (key === 'fitnessAge') { // whole years; a value at the reference curve's clamp = that age or beyond
+        if (fin(m.lo) && v <= m.lo) return '≤ ' + m.lo;
+        if (fin(m.hi) && v >= m.hi) return '≥ ' + m.hi;
+        return HC.num(v, 0);
       }
       return HC.num(v, m.dec || 0);
     }
