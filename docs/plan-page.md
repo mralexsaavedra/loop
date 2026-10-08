@@ -117,8 +117,9 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
 - **Bottom dock** (`.dock`, every width): a floating rounded tab bar (`rgba(var(--nav-rgb), 0.94)`,
   blurred, 24 px radius, max 440 px, centred) with the four tabs as icon + small sentence-case label
   (active white, inactive `--faint` grey), and to its RIGHT, outside the tablist, a separate 56 px
-  white circular **"+" action button** (`#act`, `client/nav-actions.js`). The "+" opens a dark frosted
-  popover card (12 px radius, icon + uppercase label rows, a blurred scrim under the dock dims the page;
+  white circular **"+" action button** (`#act`, `client/nav-actions.js`). The "+" opens a navy → violet
+  popover card (12 px radius, a gradient from `--link` at 15 % to `--insight-b` at 62 %, each mixed into `--surface`, 47 px
+  icon + uppercase label rows; a scrim under the dock dims the page 40 % with a light 4 px blur;
   the "+" turns 45° into an "×" and its label becomes "Cerrar acciones"); Escape, the button again or a
   tap outside the card closes it, Tab stays inside (button + listed actions) and focus returns to the
   button. It lists only REAL actions available on this page, decided at view time: **Añadir comida**
