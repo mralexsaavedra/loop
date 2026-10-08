@@ -5,6 +5,14 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Desktop: one centred 960 px column
+
+- Wide screens (>= 900 px) are the phone's single column, wider: `--content-max` 1160 → 960 px, and the
+  last multi-column grids are gone (Salud sections, Nutrición meals and Plan de hoy, the recovery card's
+  3 columns, the 720 px cap on Progreso / Constancia). Inicio's dials are one centred group with the
+  load pills under the load dial; monitor tiles at natural height; Tonight's line and Entreno's
+  calendar are capped and centred; `--fs-2xs` one step up. Phones unchanged.
+
 ## 2026-10-08 — Entreno calendar spans the card on desktop
 
 - The multi-column desktop layouts from #76 were reverted (too compressed); only the Entreno → Activity

@@ -27,7 +27,8 @@ resting HR, HRV, respiratory rate, wrist temperature), **Fitness** (VO₂max, wa
 Recovery), **Sleep** (last night, then % nights ≥ target, night-to-night ±, bedtime / wake time),
 **Body composition** (weight, body fat, lean mass, waist), **Activity** (steps, exercise, distance,
 flights), **Energy** (expenditure only: the intake balance + macro split moved to Nutrición →
-Balance, `docs/nutrition.md`). On ≥ 900 px the sections flow in two columns, Recovery spans the row.
+Balance, `docs/nutrition.md`). On ≥ 900 px the sections stay the phone's single column, just wider (the page's 960 px column,
+`docs/plan-page.md`).
 
 **Rows, not cards (text diet).** Each metric is the shared row (`HC.metricRow`, the same `.db-*` row as
 Inicio's "My dashboard"): icon · UPPERCASE name · the NEWEST value + unit · a marker · a small line

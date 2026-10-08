@@ -183,8 +183,13 @@ footer {
 }
 
 @media (min-width: 900px) {
-  /* app shell: the background stays full-bleed, the content is centred and
-     capped at --content-max so nothing stretches edge to edge on a wide screen */
+  /* the smallest auxiliary text (medians, "4/5 metrics", RE, legends) one step up at reading
+     distance from a big screen; the phone keeps 10.5px */
+  :root {
+    --fs-2xs: 11.5px;
+  }
+  /* app shell: the background stays full-bleed, the content is ONE centred column capped at
+     --content-max (960px, a little wider than a 760px detail sheet); no multi-column grids */
   .wrap {
     --gutter: clamp(24px, 3vw, 52px);
     max-width: none;

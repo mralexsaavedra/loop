@@ -60,10 +60,10 @@ is the newest day, and the trend is the line under it.
   Context = `trend7` (mean composite of the 7 days ending asOf) and `trendDir` = `delta7` (this
   week's trend7 − last week's): two non-overlapping 7-day means differ with noise √2 × σ_7 ≈ 0.46,
   so it is cut at `TREND_DIR_CUTOFF` = `BAND_CUTOFF` × √2 ≈ 0.7: up / steady / down. The recovery
-  detail card (Salud `#score-recovery`, Whoop-style) spans the full grid row: headline (last night's
+  detail card (Salud `#score-recovery`, Whoop-style) stacks at every width: headline (last night's
   composite as the big number + band word; ONE short trend line "7-day +0.5 SD · at baseline") |
   14-day sparkline | compact contributors (state dot, name, latest value + unit, ±SD for HRV, RHR,
-  sleep duration, sleep regularity), side by side on wide screens and stacked on phones; the raw
+  sleep duration, sleep regularity, a 2 × 2 block), one under the other; the raw
   last-14-days lists fold into a `<details>` ("Last 14 days" / "Últimos 14 días"). Text diet: what
   the baseline is, the full trend sentence with the week-on-week change, each contributor's baseline
   and n, the unit in words, confidence + the SDNN caveat, missing / lowest signal are the card's notes:

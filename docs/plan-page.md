@@ -170,13 +170,16 @@ documented exceptions keep the reference value instead of shifting it: `--low` (
 for large numbers, dials, bars and dots only, small red text uses `--low-ink`; on a nested tile
 (`--surface-2`) `--faint` and `--strain` are AA-large only, so small text there prefers `--muted`.
 Layout: on wide
-screens (>= 900 px) the background stays full-bleed while the top bar, tab panels and footer are
-centred and capped at `--content-max` (1160 px); Nutrición's summary
-card turns into two columns (kcal dial | day type + macro bars) and Plan de hoy into a masonry-like
-2-column flow (CSS `columns: 2`, cards `break-inside: avoid`, read down column 1 then column 2, so a
-short card never leaves a row-height gap); Entreno's Activity card stays stacked, but its 30-day
-calendar spans the card's full width (an HTML `.cal-grid`, 7 equal columns, tiles capped at 64 px
-tall — see `docs/training.md`). Dark native controls: `color-scheme: dark` (`:root` + a `<meta name="color-scheme">`) and a
+screens (>= 900 px) the background stays full-bleed while the top bar, tab panels and footer are ONE
+centred column capped at `--content-max` (960 px — a little wider than the 760 px detail sheets). The
+owner's rule (2026-10-08): no multi-column page grids on desktop ("too compressed"); every tab is the
+phone's stack, wider. Only a card's own inner layout may split (Nutrición's summary card: kcal dial |
+day type + macro bars; the recovery contributors' 2 × 2). Inicio's three dials are one centred group
+(`--dial-size` 168 px, a fixed 72 px gap) with the gym / run / bike pills centred under the load dial;
+its monitor tiles take their natural height with the value one size up; Tonight's dashed line is
+capped at 560 px, centred; Entreno's 30-day calendar is capped at 640 px, centred, tiles 48 px tall
+(`docs/training.md`); `--fs-2xs` (auxiliary text) goes from 10.5 to 11.5 px.
+`web/test/desktop.test.mjs` pins the 960 px column and the absence of multi-column grids. Dark native controls: `color-scheme: dark` (`:root` + a `<meta name="color-scheme">`) and a
 `theme-color` meta read at build time from `--ground-top` (the top of the page background; a test pins
 them equal); no `apple-mobile-web-app-*` metas (a home-screen app would draw the top bar under the
 status bar). Phones (< 900 px): every text input / select / textarea

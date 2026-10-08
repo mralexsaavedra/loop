@@ -218,15 +218,21 @@
   background: rgba(var(--strain-rgb), 0.8);
 }
 
-/* wide screens (>= 900 px): client/training-activity.js renders the calendar as an HTML grid across the
- * card's full width — 7 equal columns, square cells capped at 64 px tall (a wide rounded tile at 1160 px)
- * so the month doesn't tower; the phone keeps the fixed-size SVG above */
+/* wide screens (>= 900 px): client/training-activity.js renders the calendar as an HTML grid — 7 equal
+ * columns, at most 640 px wide and centred in the card, tiles capped at 48 px tall so the month stays a
+ * compact block (~250 px) instead of towering; the phone keeps the fixed-size SVG above */
 @media (min-width: 900px) {
   .cal-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     gap: var(--sp-2);
-    margin-top: var(--sp-3);
+    max-width: 640px;
+    margin: var(--sp-3) auto 0;
+  }
+  .cal-legend {
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
   }
   .cal-grid .cal-wd {
     color: var(--faint);
@@ -236,7 +242,7 @@
   .cal-day {
     width: 100%; /* definite width: max-height must clamp the height, not shrink the tile */
     aspect-ratio: 1;
-    max-height: 64px;
+    max-height: 48px;
     border-radius: 8px;
   }
   .cal-day.cal-l0 {
