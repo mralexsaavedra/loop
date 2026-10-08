@@ -180,10 +180,19 @@
     if (!host) return;
     var notes = [];
     try { host.innerHTML = html(notes); } catch (e) { host.innerHTML = '<p class="nutri-failed">' + esc(TN.failed) + '</p>'; notes = []; }
+    // the ⓘ block keeps the state the viewer left it in across a re-render (a settings change), like
+    // Constancia's; with nothing behind it the button hides and the block closes with it
     var info = document.getElementById('nutri-progress-info');
-    if (info) info.innerHTML = notes.map(function (n) { return '<p>' + esc(n) + '</p>'; }).join('');
     var btn = document.getElementById('nutri-progress-i'); // the section's ⓘ: only with something behind it
-    if (btn) btn.hidden = !notes.length;
+    var open = !!(info && !info.hidden) && notes.length > 0;
+    if (info) {
+      info.innerHTML = notes.map(function (n) { return '<p>' + esc(n) + '</p>'; }).join('');
+      info.hidden = !open;
+    }
+    if (btn) {
+      btn.hidden = !notes.length;
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
   }
   /** The profile sheet's one line ("78,4 kg de media · -0,32 kg/sem · A buen ritmo"), or '' without data. */
   function line() {
