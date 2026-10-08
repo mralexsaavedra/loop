@@ -161,3 +161,21 @@ test('dark browser chrome and form controls: color-scheme + theme-color from the
   const root = parseCssRules(css()).filter((r) => r.selector === ':root' && r.media === null).flatMap((r) => r.decls);
   assert.ok(root.some(([p, v]) => p === 'color-scheme' && v === 'dark'), ':root { color-scheme: dark }');
 });
+
+test('the floating dock never covers the end of a tab: one --dock-room (bar + its offset + air + safe area) pads the page and every scroll target', () => {
+  const rules = parseCssRules(css());
+  const decl = (sel, prop, media = null) => {
+    const r = rules.filter((x) => x.selector === sel && x.media === media).flatMap((x) => x.decls).filter(([p]) => p === prop);
+    return r.length ? r[r.length - 1][1] : undefined;
+  };
+  const room = token('dock-room');
+  assert.ok(room, 'a --dock-room token');
+  assert.match(room, /env\(safe-area-inset-bottom\)/, 'the home-indicator inset is part of the room');
+  // the bar: 52px buttons + 5px padding top and bottom + 1px border each side, lifted 10px off the edge
+  assert.equal(decl('.tabnav button', 'min-height'), '52px');
+  assert.equal(decl('.dock', 'bottom'), 'calc(10px + env(safe-area-inset-bottom))');
+  const px = Number(/(\d+)px/.exec(room)[1]);
+  assert.ok(px >= 10 + 52 + 2 * 5 + 2 + 16, `--dock-room ${px}px leaves at least 16px of air above the bar`);
+  assert.equal(decl('body', 'padding-bottom'), 'var(--dock-room)', 'the last block of a tab scrolls clear of the bar');
+  assert.equal(decl('html', 'scroll-padding-bottom'), 'var(--dock-room)', 'a focused / jumped-to element is never parked under the bar');
+});

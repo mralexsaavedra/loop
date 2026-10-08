@@ -116,7 +116,13 @@ switch is outside every opener); run / ride rows →
      hours (`--sleep`); load: RE per day and the modality's minutes per day from the sessions
      (`--strain`; a day after the data's `asOf` is unknown, not rest). Bars are proportional to the
      week's largest value.
-  7. The rest of the sheet below, unchanged (period + chart, calendar, day).
+  7. The rest of the sheet below, unchanged (period + chart, calendar, day). A DATED open (a run /
+     ride row, a timeline row: `open(key, date)`) scrolls the sheet to the day panel
+     (`[data-dt-part="day"]`, `block: start`) after focus lands on the back button; an undated open
+     (the dial) starts at the top. A run day's panel ends with the watch running dynamics of that day
+     (`.dt-dyn`, "Running dynamics: 276 W · GCT 242 ms · Osc. 8.3 cm · Stride 1.14 m", read from
+     `HEALTH.running`; a field not recorded is left out, none → no line): the Entreno run row no
+     longer prints them.
   The copy is the dial's own (`score-templates.mjs` via `I18N_DETAIL.rec` / `load` / `deep`).
 - **The sheet** (`detail.js`, one renderer, per-view try/catch with a message fallback, no NaN ever
   printed): header = metric, latest value + date, the band / target / typical day in words (the dial

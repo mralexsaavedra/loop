@@ -34,7 +34,7 @@ const valueOn = (m, iso) => { const i = dayIndex(m, iso); return i >= 0 && i < m
 
 // parts: true = the sheet's sub-parts (calendar, day panel, chart selection) resolve to stub elements,
 // so a day tap can update them in place; query = extra host.querySelector answers (sel -> element)
-function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync = false, parts = false, query = {}, views = null, withCore = false, settings = null, dials = null } = {}) {
+function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync = false, parts = false, query = {}, views = null, withCore = false, settings = null, dials = null, health = null } = {}) {
   const listeners = { doc: {}, win: {} };
   const host = new StubElement('div', { attrs: { id: 'detail' }, hidden: true });
   const closeBtn = { focused: 0, focus() { this.focused++; } };
@@ -110,6 +110,7 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
   if (views) win.HCViews = views;
   if (settings) win.HCSettings = settings;
   if (dials) ctx.DIALS = dials;
+  if (health) ctx.HEALTH = health;
   win.location = loc;
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -1166,4 +1167,46 @@ test('weekly trends: one card per input, 7 bars ending at the view\'s last day (
   const lw = weeklyOf(later.host.innerHTML);
   assert.ok(lw.includes('<li class="dd-col dd-now"><span class="dd-val">—</span>'), 'today, no data yet');
   clean(s.host.innerHTML);
+});
+
+test('a run day shows the watch running dynamics the Entreno run row no longer prints (power, GCT, oscillation, stride)', () => {
+  const day = DEMO.sessions.find((x) => x.m === 'run');
+  const health = { running: { hasData: true, sessions: [{ date: day.d, dist: 8, power: 276, gct: 242, vosc: 8.3, stride: 1.14 }] } };
+  const s = setup({ health });
+  s.api.open('load-run', day.d);
+  const html = s.host.innerHTML;
+  const dyn = html.match(/<p class="dt-sub dt-dyn">([^<]*)<\/p>/);
+  assert.ok(dyn, 'a dynamics line in the day panel');
+  assert.equal(dyn[1], `${enT.day.dyn.label}: 276 W · GCT 242 ms · Osc. 8.3 cm · Stride 1.14 m`);
+  assert.ok(html.indexOf('dt-dyn') > html.indexOf('class="dt-sessions"'), 'under the sessions of that day');
+  s.api.open('workouts', day.d);
+  assert.match(s.host.innerHTML, /dt-dyn/, 'the training-time view of that day too');
+  // another day, a gym view, no HEALTH or no dynamics recorded: no line
+  s.api.open('load-gym', day.d);
+  assert.doesNotMatch(s.host.innerHTML, /dt-dyn/);
+  const bare = setup({ health: { running: { hasData: true, sessions: [{ date: day.d, dist: 8, power: null, gct: null, vosc: null, stride: null }] } } });
+  bare.api.open('load-run', day.d);
+  assert.doesNotMatch(bare.host.innerHTML, /dt-dyn/);
+  const none = setup();
+  none.api.open('load-run', day.d);
+  assert.doesNotMatch(none.host.innerHTML, /dt-dyn/);
+  assert.match(esT.day.dyn.label, /carrera/i);
+});
+
+test('a dated dial sheet (a run / ride row) opens scrolled to that day\'s panel; an undated one stays at the top', () => {
+  const day = DEMO.sessions.find((x) => x.m === 'run');
+  const s = setup({ parts: true });
+  let scrolled = [];
+  s.part.day.scrollIntoView = (o) => scrolled.push(o);
+  s.api.open('load-run', day.d);
+  assert.equal(scrolled.length, 1, 'scrolled to the day panel');
+  assert.equal(scrolled[0].block, 'start');
+  assert.equal(s.closeBtn.focused, 1, 'focus still lands on the back button');
+  s.api.close();
+  scrolled = [];
+  s.api.open('load-run');
+  assert.equal(scrolled.length, 0, 'the dial itself opens on the hero');
+  s.api.close();
+  s.api.open('hrv', day.d);
+  assert.equal(scrolled.length, 0, 'a plain metric view already shows the day near its top');
 });

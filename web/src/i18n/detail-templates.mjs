@@ -161,6 +161,8 @@ export const en = {
     re: 'RE {n}',
     parts: '{n} parts',
     source: 'Source: {src}',
+    // the watch running dynamics of a run day (moved off the Entreno run row)
+    dyn: { label: 'Running dynamics', power: '{n} W', gct: 'GCT {n} ms', osc: 'Osc. {n} cm', stride: 'Stride {n} m' },
     recValue: `{value} ${UE} · {band}`,
     bands: { above: 'above baseline', at: 'at baseline', below: 'below baseline' },
   },
@@ -327,6 +329,8 @@ export const es = {
     re: 'RE {n}',
     parts: '{n} partes',
     source: 'Fuente: {src}',
+    // la dinámica de carrera del reloj de un día con carrera (sale de la fila de carrera de Entreno)
+    dyn: { label: 'Dinámica de carrera', power: '{n} W', gct: 'TCS {n} ms', osc: 'Osc. {n} cm', stride: 'Zancada {n} m' },
     recValue: `{value} ${US} · {band}`,
     bands: { above: 'por encima de tu línea base', at: 'en tu línea base', below: 'por debajo de tu línea base' },
   },
