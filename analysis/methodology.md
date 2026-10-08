@@ -54,6 +54,15 @@ Calorie target by goal:
   drop-offs.
 - **Recovery signals:** resting HR trend (rising RHR over weeks can signal
   under-recovery), and HRV/sleep if present.
+- **Day strain (0–21, our estimate, not the reference app's formula):** all-day cardiovascular
+  load = Σ minutes × zone weight (Edwards TRIMP; zones by % of max HR: < 50 % → 0, 50–60 → 1,
+  60–70 → 2, 70–80 → 3, 80–90 → 4, ≥ 90 → 5). Strava activities count from their HR-stream
+  histogram; the rest of the day from the Watch samples (`hr-hourly.csv`, each sample until the
+  next one, ≤ 10 min, activity windows left out). Strain = 21 × (1 − e^(−load / K)), with K set so
+  the owner's 95th-percentile full day (≥ 10 h of HR coverage) of the last 90 days = 18
+  (K = p95 / ln 7); under 14 full days there is no strain and Inicio keeps the Relative Effort
+  dial. It is relative to the owner's own history: compare it with their past days, never with
+  another person or app. Code: `lib/score/strain.mjs`.
 
 ## 5. What "good or bad" means
 

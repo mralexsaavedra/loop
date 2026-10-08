@@ -5,6 +5,18 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Day strain 0–21 from all-day heart rate
+
+- The Shortcut sends `hr_samples` (Watch Heart Rate, no grouping, 1 day). The sync dedupes by exact
+  timestamp, keeps 25–240 bpm and writes hourly aggregates to `hr-hourly.csv` (avg / max / min / n,
+  covered minutes, a per-bpm histogram outside Strava activities). `workout-zones.csv` gains `start` +
+  `elapsed_s`; `npm run sync` now runs Strava before the Shortcut sync. The old `hr_hourly` key is ignored.
+- `lib/score/strain.mjs`: Edwards TRIMP per day (Strava zones + the hourly histograms), strain =
+  21 × (1 − e^(−load / K)), K so the 95th-percentile full day of the last 90 = 18; under 14 full days
+  the load dial stays.
+- Inicio's third dial becomes the day strain (no modality pills) with a strain deep-dive. After merge:
+  `npm run sync -- --full`.
+
 ## 2026-10-08 — HR-stream backfill: timeout and per-activity back-off
 
 - Each Strava streams request now times out after 15 s. A 5xx / network error / timeout of one

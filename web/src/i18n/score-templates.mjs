@@ -161,6 +161,12 @@ export const en = {
       // shown under the dials only when Entreno's load detail (with the full caveats) is hidden
       caveatLine: 'Load = Relative Effort, which is HR-derived (it credits the metcon more than heavy sets); modalities are not comparable; there is no comparable load before Relative Effort tracking started; same-day rows are summed.',
     },
+    // the day strain dial (lib/score/strain.mjs), when calibrated: it replaces the load dial
+    strain: {
+      aria: 'Day strain: {value} of 21 (our estimate from heart rate)',
+      ariaPast: 'Strain on {date}: {value} of 21 (our estimate from heart rate)',
+      ariaNone: 'Day strain: no heart-rate data for {date} yet',
+    },
     // a PAST day on Inicio (the top bar's day stepping): the dials name the day instead of "last night" / "today"
     past: {
       sleepAria: '{date}: {value} h of a {target} h target',
@@ -368,6 +374,12 @@ export const es = {
       ariaGated: 'Carga de {modality}: aún sin historial suficiente',
       // solo bajo los diales cuando el detalle de carga de Entreno (con todas las advertencias) está oculto
       caveatLine: 'Carga = Esfuerzo Relativo, que se deriva de la FC (reconoce más el metcon que las series pesadas); las modalidades no son comparables; no hay carga comparable antes de que empezara el seguimiento del Esfuerzo Relativo; las filas del mismo día se suman.',
+    },
+    // the day strain dial (lib/score/strain.mjs), when calibrated: it replaces the load dial
+    strain: {
+      aria: 'Carga del día: {value} sobre 21 (estimación propia a partir de la frecuencia cardiaca)',
+      ariaPast: 'Carga del {date}: {value} sobre 21 (estimación propia a partir de la frecuencia cardiaca)',
+      ariaNone: 'Carga del día: sin datos de frecuencia cardiaca del {date} todavía',
     },
     // un día PASADO en Inicio (el selector de día de la barra superior): los diales nombran el día en vez de "anoche" / "hoy"
     past: {

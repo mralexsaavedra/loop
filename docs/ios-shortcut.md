@@ -105,7 +105,8 @@ Example body (two lines per key shown):
 
 Every key is optional: send only what you track. Formats: **point** = `ISO;value[;source]`,
 **day total** = `ISO;value` (one line per day), **hour total** = `ISO;value` (one line per clock
-hour), **sleep** = `ISO-start;ISO-end;stage`.
+hour), **samples** = `ISO;value` (one line per raw sample, no grouping), **sleep** =
+`ISO-start;ISO-end;stage`.
 Decimal commas (`42,1`) are accepted.
 
 | Key | Health type (English UI) | Format | Group by Day | Source / Origen | Window | Writes |
@@ -134,6 +135,7 @@ Decimal commas (`42,1`) are accepted.
 | `diet_carbs` | Carbohydrates | day total | **yes** | no | 8 days | `dietary-daily.csv` (carbs_g) |
 | `diet_fat` | Total Fat | day total | **yes** | no | 8 days | `dietary-daily.csv` (fat_g) |
 | `sleep` | Sleep (Sleep Analysis) | sleep | no | no | 3 days | `sleep-daily.csv` |
+| `hr_samples` | Heart Rate, *Source is* your watch | samples (bpm) | no: **no grouping** | **filter** by source | 1 day | `hr-hourly.csv` |
 
 What the sync does with each shape:
 
@@ -155,6 +157,12 @@ What the sync does with each shape:
   It is used only to correct ride days: when a bike computer with a power meter records a ride the
   Watch did not, the Watch's energy during the ride hours is replaced by the ride's power-based
   energy (Strava kJ), never lowering a day (`docs/health-tab.md`, Energy).
+- **Heart-rate samples** (`hr_samples`): every Watch heart-rate sample of the window, one line
+  each (`2030-01-02T09:07:12+01:00;72`). Runs overlap, so samples are deduped by their **exact
+  timestamp** across payloads (the later payload wins); a value outside 25–240 bpm is dropped as a
+  glitch. Only **hourly aggregates** reach `hr-hourly.csv` (average, max, min, count, covered
+  minutes and a per-bpm histogram of the time outside Strava activities; see
+  `docs/data-pipeline.md`), never the raw samples. They feed the day strain dial (`docs/home-tab.md`).
 - **Dietary**: the four `diet_*` keys become one row per day. A day without `diet_kcal`, or with
   0 kcal, is skipped; a missing macro stays blank. These feed the intake rings in Nutrición.
 - **Exercise / distance / flights** (`exercise_watch`, `distance_watch`, `flights_watch`): Watch
@@ -185,6 +193,20 @@ Duplicate your `active_energy` search and change only the grouping:
 
 3 days × 24 hours is at most ~72 lines, so it adds little to the payload. After adding it run
 `npm run sync -- --full` once (or only the Shortcut part, `npm run sync:shortcut -- --full`; see Verify).
+
+### Building `hr_samples`
+
+1. **Find Health Samples**: *Type* **Heart Rate** (Spanish: *Frecuencia cardiaca*), *Source is*
+   your watch, *Start Date is in the last* **1 day**, **no** *Group By* (raw samples).
+2. **Repeat with Each** → **Text** `<Start Date ISO 8601>;<Value>`, then **Combine Text** with new
+   lines, like every other key.
+3. Add a JSON field `hr_samples` with that text to the POST body.
+
+A day is a few hundred samples (more on a workout day, the Watch samples every few seconds while
+it records one), so this is the slowest search of the Shortcut; that is expected. The 1-day
+window overlaps between runs on purpose: the sync dedupes by timestamp, so nothing is counted
+twice and a missed run leaves no gap as long as the next one comes within a day. After adding it
+run `npm run sync -- --full` once.
 
 ### Building `exercise_watch`, `distance_watch` and `flights_watch`
 

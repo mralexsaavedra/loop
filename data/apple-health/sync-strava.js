@@ -257,7 +257,7 @@ function planSync (activities, readFile, { profileMaxHr = null } = {}) {
   const ridesExisting = readFile(RIDES_CSV)
   if (ridesText !== ridesExisting && (ridesExisting != null || ridesText !== `${RIDES_HEADER}\n`)) writes[RIDES_CSV] = ridesText
   // workout-zones.csv is rebuilt from scratch like rides.csv; never created header-only
-  const z = zones.buildZones(activities, { translateType, source: STRAVA_SOURCE, profileMaxHr })
+  const z = zones.buildZones(activities, { translateType, source: STRAVA_SOURCE, profileMaxHr, startOf: (a) => localIsoWithOffset(a.start_local, a.start_utc) })
   const zonesExisting = readFile(zones.ZONES_CSV)
   if (z.text !== zonesExisting && (zonesExisting != null || z.rows > 0)) writes[zones.ZONES_CSV] = z.text
   const csvHasContent = !(existing == null && rows.length === 0) // never create an empty CSV

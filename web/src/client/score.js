@@ -13,6 +13,11 @@
  * RE vs the typical training day with acute/chronic as the caption. The "last night" / "today" /
  * "yesterday" words are decided here from Date.now(), never baked.
  *
+ * Day strain (DIALS.strain, lib/score/strain.mjs, when calibrated): the third dial is the day's strain
+ * 0-21 ("12.4" inside, the load label, strain blue), opening the strain deep-dive; no modality pills
+ * (per-modality Relative Effort stays in Entreno's load cards and the load deep-dives). Without a
+ * calibrated strain the third dial is the per-modality load dial with its pills, exactly as before.
+ *
  * Day stepping (the top bar's "‹ TODAY ›", client/today-date.js window.HCDay): on a PAST day the dials
  * and the collapsed row show that day — sleep + recovery from DIALS.days (lib/score/days.mjs, scored
  * on that day), load from the modality's baked recent `days` — open their deep-dive on that day
@@ -401,6 +406,16 @@ function scMod(key, btn) {
     });
     return best || d.defaultKey;
   }
+  // the day strain dial: the viewer's day (or the stepped-to day) from DIALS.strain.days; a day the
+  // data does not reach yet reads "No data" (never a made-up 0.0)
+  function strainDialHtml(d, dt) {
+    var t = dayIso(), day = null, st = dt.strain || {};
+    (d.days || []).forEach(function (x) { if (x.date === t) day = x; });
+    if (!day) return dialFig('dial-load dial-strain dial-off', dialStale(d.asOf), '', format(st.ariaNone || '', { date: HC.fmtDate(t) }), dialSvg({}), offCentre(dt.none), dt.load.label, 'strain');
+    var v = num(day.s, 1, false);
+    return dialFig('dial-load dial-strain', dialStale(d.asOf), '', format(VIEW ? st.ariaPast : st.aria, { value: v, date: HC.fmtDate(t) }),
+      dialSvg({ fill: day.fill }), numCentre(v, ''), dt.load.label, 'strain');
+  }
   function loadDials(d, dt) {
     var lt = dt.load;
     var stale = dialStale(d.asOf);
@@ -447,7 +462,7 @@ function scMod(key, btn) {
   // the ONE line that stays under the dials besides the switch: the newest data is too old
   function staleLine() {
     if (VIEW) return '';
-    var ages = [D.sleep && D.sleep.state === 'ok' ? D.sleep.date : null, D.recovery ? D.recovery.asOf : null, D.load ? D.load.asOf : null]
+    var ages = [D.sleep && D.sleep.state === 'ok' ? D.sleep.date : null, D.recovery ? D.recovery.asOf : null, D.strain ? D.strain.asOf : D.load ? D.load.asOf : null]
       .map(function (iso) { return isStale(iso) ? daysOld(iso) : null; })
       .filter(function (n) { return n != null; });
     if (!ages.length) return '';
@@ -475,11 +490,14 @@ function scMod(key, btn) {
     if (!D || !T.dials) return '';
     var dt = T.dials;
     MINI = [];
-    var hasLoad = D.load && D.load.state === 'ok';
+    var hasStrain = !!(D.strain && D.strain.state === 'ok');
+    var hasLoad = !hasStrain && D.load && D.load.state === 'ok';
     var day = VIEW ? pastDials() : { sleep: D.sleep, recovery: D.recovery };
-    return '<div class="sc-card sc-dials" role="group" aria-label="' + attr(dt.ariaLabel) + '"><div class="dials">' +
-      sleepDial(day.sleep || {}, dt) + recDial(day.recovery || {}, dt) +
-      (hasLoad ? loadDials(D.load, dt) : dialFig('dial-load dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.load.label)) +
+    // in dial order: each dialFig call also queues its collapsed-row ring (MINI)
+    var first = sleepDial(day.sleep || {}, dt) + recDial(day.recovery || {}, dt);
+    var third = hasStrain ? strainDialHtml(D.strain, dt)
+      : hasLoad ? loadDials(D.load, dt) : dialFig('dial-load dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.load.label);
+    return '<div class="sc-card sc-dials" role="group" aria-label="' + attr(dt.ariaLabel) + '"><div class="dials">' + first + third +
       '</div>' + (hasLoad ? loadSwitch(D.load, dt) : '') + staleLine() + caveatLines(dt, hasLoad) + '</div>';
   }
 

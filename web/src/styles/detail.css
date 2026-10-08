@@ -960,6 +960,16 @@ button.dt-day {
   letter-spacing: var(--label-track);
   text-transform: uppercase;
 }
+/* strain contributors: the load behind each share, small and unshouted under the label */
+.dd-row-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-2xs);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+}
 .dd-row-val {
   font-family: var(--num);
   font-size: var(--fs-2xl);
@@ -1089,4 +1099,24 @@ button.dt-day {
     padding: var(--sp-10);
     box-shadow: var(--card-shadow);
   }
+}
+/* strain page: Relative Effort per modality, one tap away (the load deep-dives) */
+.dd-re-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-5);
+}
+.dd-re-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  /* room on the right for the shared opener chevron ([data-detail][role="button"]::after) */
+  padding: 0 30px 0 var(--sp-6);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--strain);
+  cursor: pointer;
 }
