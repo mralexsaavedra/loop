@@ -1123,6 +1123,28 @@ details.rec-raw[open] > summary::after {
   outline-offset: 2px;
 }
 
+/* Inicio "Energy bank" (client/energy.js; also the energy bank page, deepdive.js energyPage): the
+   level's thirds colour --ds (high = good, middle = mid, low = low); the card reuses .tn's header,
+   big D-DIN number and captions, plus a stretched curve from wake to the latest hour */
+.de-hi { --ds: var(--good); }
+.de-mid { --ds: var(--mid); }
+.de-lo { --ds: var(--low); }
+.en .tn-row { align-items: center; max-width: none; }
+.en-num { color: var(--ds); }
+.en-sp {
+  flex: 1;
+  min-width: 0;
+  height: 56px;
+}
+.en-l {
+  fill: none;
+  stroke: var(--ds);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.en-a { fill: var(--ds); fill-opacity: 0.14; }
+.en-sub { max-width: none; margin-top: var(--sp-4); }
+
 /* Inicio "My plan" (client/home-week.js): one collapsible weekly card — title + chevron, days left,
    "X % accomplished", a teal progress bar; expanded: the goal rows (label + basis, done/target, ▲▼,
    a small bar) */

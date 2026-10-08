@@ -65,6 +65,7 @@ export const en = {
     perDayNote: 'Each day is coloured against its own baseline of that day.',
     strain: 'Shades: light < 10, moderate 10–14, high 14–18, all out 18–21 (our 0–21 scale, where 18 = your 95th-percentile day).',
     stress: 'Each day = the average of its scored waking hours (0–3): low < 1, medium 1–2, high 2 or more.',
+    bank: 'Each day = its latest level (0–100), our own estimate: high 67 or more, middle 34–66, low under 34.',
   },
   // the dial's own words (score-templates), so the sheet header reads exactly like the dial it opens from
   rec: {
@@ -176,6 +177,48 @@ export const en = {
         estimate: 'Our own estimate, not a medical or psychological measure: compare it with your own days only.',
       },
     },
+    // the energy bank page (key 'energy', lib/score/energy.mjs): OUR intraday 0-100 estimate
+    energy: {
+      bands: { hi: 'High', mid: 'Middle', lo: 'Low' },
+      updated: 'Latest hour {time}',
+      heroAria: 'Energy bank estimate {value} of 100, {band}, latest hour {time}',
+      curveTitle: 'Through the day',
+      curveAria: 'Energy bank estimate through the day',
+      curveSr: 'Energy bank estimate from {start} at {wake} to {value} in the {time} hour, 0 to 100',
+      ptTitle: '{time}: {value} (heart-rate load drain {load}, stress {stress})',
+      dotNote: 'Blue dots: hours with a workout or heart-rate load. Orange dots: high-stress hours (2 or more). A flat stretch = hours without data (the level carries over).',
+      partsTitle: 'What moved it',
+      rows: {
+        start: 'Start', startSub: 'recovery % at wake, {wake}',
+        base: 'Being awake', baseSub: '1.5 per hour',
+        stress: 'Stress', stressSub: 'stress estimate × 1.5 per hour',
+        load: 'Heart-rate load', loadSub: 'workouts and other hard hours',
+        charge: 'Calm hours', chargeSub: '+1 per hour of low stress, no workout',
+        low: 'Low', lowSub: 'in the {time} hour', lowStart: 'at wake',
+      },
+      clampNote: 'The level stays between 0 and 100, so the parts can add up to more than it moved.',
+      line: 'Your energy went from {start} at {wake} to {value} in the latest hour ({time}).',
+      most: {
+        base: 'Most of it went to simply being awake.',
+        stress: 'Most of it went to stress (heart rate above resting).',
+        load: 'Most of it went to heart-rate load (workouts and hard hours).',
+      },
+      estimateLine: 'Our own model, an estimate: compare it with your own days only.',
+      reasons: {
+        noRecovery: 'No recovery % that morning, so the bank has no starting point.',
+        noWake: 'No wake time that morning, so the bank has no starting point.',
+      },
+      noDay: 'No all-day heart-rate data for {date}.',
+      dayLbl: 'Latest level',
+      daySub: 'from {start} at {wake} · low {min}',
+      notes: {
+        model: 'This is OUR model, not a validated physiological measure: a transparent way to read your day from recovery, stress and heart-rate load.',
+        formula: 'Start = the morning\'s recovery % at your wake time. Then each awake hour: −{base} (being awake), −{stress} × the hour\'s stress estimate (0–3), −{load} × (1 − e^(−TRIMP ÷ K)) for the hour\'s heart-rate load, +{charge} when stress is under {calm} and no workout touches the hour. Kept between 0 and 100.',
+        hours: 'An hour at least half inside a night is not awake. An hour without heart-rate data carries the level over (no drain, no recharge). A workout\'s load is spread evenly over the clock hours it covers.',
+        inputs: 'Inputs: the recovery % (Recovery), the stress estimate (Stress monitor) and the heart-rate load of day strain (TRIMP, K {k}, max HR {max} bpm).',
+        limits: 'It inherits the limits of its inputs (heart rate only, no HRV; walking raises stress) and does not see naps, food or how you feel. The day ends at midnight.',
+      },
+    },
     weekly: { title: 'Weekly trends', aria: '{title}, last 7 days', minutes: 'Minutes', perf: 'Sleep performance (%)', restor: 'REM + deep (h)' },
     // the sleep page's stages bar (awake / REM / core / deep + the unspecified remainder)
     stages: { aria: 'Sleep stages', awake: 'Awake', rem: 'REM', core: 'Core', deep: 'Deep', unspec: 'Unspecified' },
@@ -205,6 +248,9 @@ export const en = {
     stressLow: 'Low',
     stressMedium: 'Medium',
     stressHigh: 'High',
+    energyHigh: 'High (67+)',
+    energyMid: 'Middle (34–66)',
+    energyLow: 'Low (under 34)',
     none: 'No data',
   },
   metrics: {
@@ -233,6 +279,8 @@ export const en = {
     strain: { title: 'Day strain', unit: '/ 21' },
     // not a DETAIL key: the stress page's series is SCORES.stress.metric (lib/score/stress.mjs)
     stress: { title: 'Stress estimate', unit: '/ 3' },
+    // not a DETAIL key either: the energy bank page's series is SCORES.energy.metric (lib/score/energy.mjs)
+    'energy-bank': { title: 'Energy bank', unit: '/ 100' },
   },
   day: {
     heading: '{date}',
@@ -352,6 +400,7 @@ export const es = {
     perDayNote: 'Cada día se colorea respecto a su propia línea base de ese día.',
     strain: 'Tonos: ligera < 10, moderada 10–14, alta 14–18, máxima 18–21 (nuestra escala 0–21, donde 18 = tu día del percentil 95).',
     stress: 'Cada día = la media de sus horas despierto puntuadas (0–3): bajo < 1, medio 1–2, alto 2 o más.',
+    bank: 'Cada día = su último nivel (0–100), estimación propia: alto 67 o más, medio 34–66, bajo por debajo de 34.',
   },
   // the dial's own words (score-templates), so the sheet header reads exactly like the dial it opens from
   rec: {
@@ -459,6 +508,48 @@ export const es = {
         estimate: 'Estimación propia, no una medida médica ni psicológica: compárala solo con tus propios días.',
       },
     },
+    // la página del banco de energía (clave 'energy', lib/score/energy.mjs): NUESTRA estimación intradía 0-100
+    energy: {
+      bands: { hi: 'Alto', mid: 'Medio', lo: 'Bajo' },
+      updated: 'Última hora {time}',
+      heroAria: 'Banco de energía, estimación {value} de 100, {band}, última hora {time}',
+      curveTitle: 'A lo largo del día',
+      curveAria: 'Estimación del banco de energía a lo largo del día',
+      curveSr: 'Estimación del banco de energía de {start} a las {wake} a {value} en la hora de las {time}, de 0 a 100',
+      ptTitle: '{time}: {value} (gasto por carga cardiaca {load}, estrés {stress})',
+      dotNote: 'Puntos azules: horas con entreno o carga cardiaca. Puntos naranjas: horas de estrés alto (2 o más). Un tramo plano = horas sin datos (el nivel se mantiene).',
+      partsTitle: 'Qué lo movió',
+      rows: {
+        start: 'Inicio', startSub: '% de recuperación al despertar, {wake}',
+        base: 'Estar despierto', baseSub: '1,5 por hora',
+        stress: 'Estrés', stressSub: 'estimación de estrés × 1,5 por hora',
+        load: 'Carga cardiaca', loadSub: 'entrenos y otras horas duras',
+        charge: 'Horas tranquilas', chargeSub: '+1 por hora de estrés bajo, sin entreno',
+        low: 'Mínimo', lowSub: 'en la hora de las {time}', lowStart: 'al despertar',
+      },
+      clampNote: 'El nivel se mantiene entre 0 y 100, así que las partes pueden sumar más de lo que se movió.',
+      line: 'Tu energía pasó de {start} a las {wake} a {value} en la última hora ({time}).',
+      most: {
+        base: 'La mayor parte se fue simplemente en estar despierto.',
+        stress: 'La mayor parte se fue en estrés (pulso por encima del de reposo).',
+        load: 'La mayor parte se fue en carga cardiaca (entrenos y horas duras).',
+      },
+      estimateLine: 'Modelo propio, una estimación: compárala solo con tus propios días.',
+      reasons: {
+        noRecovery: 'Sin % de recuperación esa mañana, el banco no tiene punto de partida.',
+        noWake: 'Sin hora de despertar esa mañana, el banco no tiene punto de partida.',
+      },
+      noDay: 'No hay datos de pulso de todo el día para el {date}.',
+      dayLbl: 'Último nivel',
+      daySub: 'desde {start} a las {wake} · mínimo {min}',
+      notes: {
+        model: 'Es NUESTRO modelo, no una medida fisiológica validada: una forma transparente de leer tu día a partir de la recuperación, el estrés y la carga cardiaca.',
+        formula: 'Inicio = el % de recuperación de la mañana a tu hora de despertar. Luego, cada hora despierto: −{base} (estar despierto), −{stress} × la estimación de estrés de la hora (0–3), −{load} × (1 − e^(−TRIMP ÷ K)) por la carga cardiaca de la hora, +{charge} cuando el estrés está por debajo de {calm} y ningún entreno toca la hora. Entre 0 y 100.',
+        hours: 'Una hora que cae al menos a medias dentro de una noche no cuenta como despierto. Una hora sin datos de pulso mantiene el nivel (ni gasto ni recarga). La carga de un entreno se reparte por igual entre las horas de reloj que ocupa.',
+        inputs: 'Entradas: el % de recuperación (Recuperación), la estimación de estrés (Monitor de estrés) y la carga cardiaca del esfuerzo del día (TRIMP, K {k}, pulso máximo {max} ppm).',
+        limits: 'Hereda los límites de sus entradas (solo pulso, sin VFC; caminar sube el estrés) y no ve siestas, comida ni cómo te sientes. El día acaba a medianoche.',
+      },
+    },
     weekly: { title: 'Tendencias semanales', aria: '{title}, últimos 7 días', minutes: 'Minutos', perf: 'Rendimiento del sueño (%)', restor: 'REM + profundo (h)' },
     stages: { aria: 'Fases del sueño', awake: 'Despierto', rem: 'REM', core: 'Ligero', deep: 'Profundo', unspec: 'Sin especificar' },
     sleepNotes: {
@@ -486,6 +577,9 @@ export const es = {
     stressLow: 'Bajo',
     stressMedium: 'Medio',
     stressHigh: 'Alto',
+    energyHigh: 'Alto (67+)',
+    energyMid: 'Medio (34–66)',
+    energyLow: 'Bajo (menos de 34)',
     none: 'Sin datos',
   },
   metrics: {
@@ -513,6 +607,7 @@ export const es = {
     'load-bike': { title: 'Carga de bici', unit: 'RE' },
     strain: { title: 'Carga del día', unit: '/ 21' },
     stress: { title: 'Estimación de estrés', unit: '/ 3' },
+    'energy-bank': { title: 'Banco de energía', unit: '/ 100' },
   },
   day: {
     heading: '{date}',

@@ -1,5 +1,6 @@
 /* Dial deep-dive pages: the detail sheet of the three Inicio dials (sleep, recovery, strain or
  * load-<modality>) and of the stress monitor tile (stress: a 0-3 gauge, the hourly curve, time per band)
+ * and of the energy bank card (energy-bank: a 0-100 gauge, the intraday curve, what drained and recharged it)
  * laid out as one page — a "‹ TODAY ⓘ" header, the big hero ring (the SAME baked geometry as the dial,
  * view/dial.mjs via the DIALS global), an insight card (the dial's former captions in 2–4 plain lines +
  * a "View trend →" link down to the history chart) and, collapsed under ⓘ, the long notes (bands,
@@ -39,6 +40,7 @@
     eff: 'M3 19h18M6 19v-5M10 19V9M14 19v-7M18 19V5',
     cons: 'M4 7h16M4 12h16M4 17h16M8 5v4M15 10v4M11 15v4',
     restor: 'M3 15c3-6 6-6 9 0s6 6 9 0',
+    clock: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 7v5l3 2',
   };
   // the stages bar, top to bottom of the night's hypnogram order: awake, REM, core, deep (+ the
   // Asleep-unspecified remainder when a night has some)
@@ -49,7 +51,7 @@
   var BAND_STATE = { above: 'good', at: 'normal', below: 'bad' };
 
   function isDial(key) {
-    return key === 'sleep' || key === 'recovery' || key === 'strain' || key === 'stress' || /^load-[a-z]+$/.test(String(key));
+    return key === 'sleep' || key === 'recovery' || key === 'strain' || key === 'stress' || key === 'energy-bank' || /^load-[a-z]+$/.test(String(key));
   }
   // SCORES.strain (lib/score/strain.mjs): K, the 95th-percentile day, and the recent days with each
   // contributor's share of the strain; DIALS.strain: the same days' ring arcs
@@ -85,7 +87,7 @@
   // was opened on (Inicio's day stepping), the others = the view end (the viewer's today, or the
   // stale data's last day), the day their hero and insight describe
   function headDay(key, end, X) {
-    return key === 'strain' || key === 'stress' ? strainIso(end, X) : end;
+    return key === 'strain' || key === 'stress' || key === 'energy-bank' ? strainIso(end, X) : end;
   }
   function headHtml(key, end, X) {
     var P = X.T.deep, iso = headDay(key, end, X);
@@ -520,6 +522,7 @@
 
   function render(key, m, end, X) {
     if (key === 'stress') return stressPage(key, m, end, X);
+    if (key === 'energy-bank') return energyPage(key, m, end, X);
     if (key === 'strain') {
       return {
         head: headHtml(key, end, X),
@@ -653,6 +656,113 @@
       head: headHtml(key, end, X),
       top: '<div class="dd-info" id="dd-info" hidden>' + X.bandText(key, m) + (S ? stressNotes(d, S, X) : '') + '</div>' +
         stressHero(d, X) + stressCurve(d, X) + stressBands(d, X) + insightHtml(S ? stressLines(d, iso, S, X) : [], X),
+    };
+  }
+
+  /* ---------- energy bank (key 'energy-bank', SCORES.energy: lib/score/energy.mjs) ---------- */
+  // OUR intraday 0-100 estimate: wake at the morning's recovery %, then per awake hour a baseline,
+  // stress and heart-rate-load drain and a calm-hour recharge. Everything is baked; this lays it out.
+  function energyBake() {
+    var S = typeof SCORES !== 'undefined' && SCORES ? SCORES.energy : null;
+    return S && S.ok && Array.isArray(S.days) ? S : null;
+  }
+  function energyBand(v) {
+    return v >= 67 ? 'hi' : v >= 34 ? 'mid' : 'lo';
+  }
+  function wakeOf(d) {
+    var m = /^(\d{2}):(\d{2})$/.exec(String(d.wake || ''));
+    return m ? +m[1] + m[2] / 60 : null;
+  }
+  function nowTime(d) {
+    return d.now.h != null ? hhmm(d.now.h) : d.wake;
+  }
+  // the hero: the 0-100 half gauge filled to the latest level in its band colour
+  function energyHero(d, X) {
+    var P = X.T.deep.energy, v = d && d.now ? d.now.lv : null;
+    var b = v != null ? energyBand(v) : null;
+    var svg = '<svg class="ds-gauge" viewBox="0 0 120 74" aria-hidden="true"><g class="ds-none"><path class="ds-arc" d="' + gaugeArc(0, 1) + '"/></g>' +
+      (v > 0 ? '<path class="ds-arc" d="' + gaugeArc(0, Math.min(1, v / 100)) + '"/>' : '') +
+      '<text class="ds-ylbl" x="10" y="72" text-anchor="middle">0</text><text class="ds-ylbl" x="110" y="72" text-anchor="middle">100</text></svg>';
+    var centre = v != null
+      ? '<b class="dd-num">' + esc(String(v)) + '</b><span class="ds-band">' + esc(P.bands[b]) + '</span><span class="ds-upd">' + esc(format(P.updated, { time: nowTime(d) })) + '</span>'
+      : '<span class="dd-word">' + esc(X.T.deep.words.none) + '</span>';
+    var aria = v != null ? format(P.heroAria, { value: v, band: P.bands[b], time: nowTime(d) }) : X.T.deep.words.none;
+    return '<section class="dd-hero dd-stress de-' + (b || 'none') + '"><div class="ds-gwrap" role="img" aria-label="' + esc(aria) + '">' + svg +
+      '<div class="ds-centre" aria-hidden="true">' + centre + '</div></div></section>';
+  }
+  // the day's curve: 24 h across, 0-100 up, the three level bands shaded; the line starts at the wake
+  // level and steps at each hour's end. Dots: workout / heart-rate load hours (blue), high-stress hours (orange).
+  function energyCurve(d, X) {
+    var P = X.T.deep.energy, iw = CV.w - CV.l - CV.r, ih = CV.h - CV.t - CV.b, w0 = d ? wakeOf(d) : null;
+    if (!d || !d.now || w0 == null) return '';
+    var x = function (h) { return (CV.l + (iw * h) / 24).toFixed(1); };
+    var y = function (v) { return (CV.t + ih * (1 - v / 100)).toFixed(1); };
+    var out = [['lo', 0, 34], ['mid', 34, 67], ['hi', 67, 100]].map(function (z) {
+      return '<rect class="ds-zone de-' + z[0] + '" x="' + CV.l + '" y="' + y(z[2]) + '" width="' + iw + '" height="' + ((ih * (z[2] - z[1])) / 100).toFixed(1) + '"/>';
+    }).join('');
+    [0, 50, 100].forEach(function (k) {
+      out += '<text class="ds-ylbl" x="' + (CV.l - 5) + '" y="' + (+y(k) + 3).toFixed(1) + '" text-anchor="end">' + k + '</text>';
+    });
+    for (var h = 0; h <= 24; h += 6) {
+      out += '<text class="ds-xlbl" x="' + x(h) + '" y="' + (CV.h - 5) + '" text-anchor="' + (h === 0 ? 'start' : h === 24 ? 'end' : 'middle') + '">' + (h < 10 ? '0' : '') + h + ':00</text>';
+    }
+    var hrs = d.hours || [], path = 'M' + x(w0) + ' ' + y(d.start), dots = '';
+    hrs.forEach(function (p) {
+      path += ' L' + x(p.h + 1) + ' ' + y(p.lv);
+      var cls = p.wo || p.ld >= 5 ? 'ds-low' : isNum(p.st) && p.st >= 2 ? 'ds-high' : '';
+      if (cls) {
+        dots += '<circle class="ds-pt ' + cls + '" cx="' + x(p.h + 1) + '" cy="' + y(p.lv) + '" r="3"><title>' +
+          esc(format(P.ptTitle, { time: hhmm(p.h), value: X.fmt(p.lv, 0), load: X.fmt(p.ld, 1), stress: isNum(p.st) ? X.fmt(p.st, 1) : '—' })) + '</title></circle>';
+      }
+    });
+    out += '<path class="ds-line" d="' + path + '"/>' + dots;
+    return '<section class="ds-curve" aria-label="' + esc(P.curveAria) + '"><h3 class="dd-sec">' + esc(P.curveTitle) + '</h3>' +
+      '<svg class="ds-chart" viewBox="0 0 ' + CV.w + ' ' + CV.h + '" role="img" aria-label="' + esc(format(P.curveSr, { start: d.start, wake: d.wake, value: d.now.lv, time: nowTime(d) })) + '">' + out + '</svg>' +
+      '<p class="dd-legend">' + esc(P.dotNote) + '</p></section>';
+  }
+  // start, what drained it, what recharged it, the low: the contributor rows' look
+  function energyParts(d, X) {
+    var P = X.T.deep.energy, R = P.rows;
+    if (!d || !d.now) return '';
+    var neg = function (v) { return v > 0 ? '−' + X.fmt(v, 1) : X.fmt(0, 0); };
+    var rows = [
+      ['wake', R.start, format(R.startSub, { wake: d.wake }), String(d.start)],
+      ['clock', R.base, R.baseSub, neg(d.sum.base)],
+      ['hrv', R.stress, R.stressSub, neg(d.sum.stress)],
+      ['re', R.load, R.loadSub, neg(d.sum.load)],
+      ['restor', R.charge, R.chargeSub, '+' + X.fmt(d.sum.charge, 0)],
+      ['eff', R.low, d.min.h != null ? format(R.lowSub, { time: hhmm(d.min.h) }) : R.lowStart, String(d.min.lv)],
+    ];
+    return '<section class="dd-contrib" aria-label="' + esc(P.partsTitle) + '"><h3 class="dd-sec">' + esc(P.partsTitle) + '</h3><ul class="dd-rows">' + rows.map(function (r) {
+      return '<li class="dd-row">' + iconHtml(r[0]) + '<span class="dd-row-lbl">' + esc(r[1]) + ' <small class="dd-row-sub">' + esc(r[2]) + '</small></span>' +
+        '<b class="dd-row-val">' + esc(r[3]) + '</b></li>';
+    }).join('') + '</ul><p class="dd-legend">' + esc(P.clampNote) + '</p></section>';
+  }
+  function energyLines(d, iso, X) {
+    var P = X.T.deep.energy;
+    if (!d) return [{ text: format(P.noDay, { date: HC.fmtDate(iso) }) }];
+    if (!d.now) return [{ text: P.reasons[d.reason] || P.reasons.noRecovery }];
+    var out = [{ text: format(P.line, { start: d.start, wake: d.wake, value: d.now.lv, time: nowTime(d) }) }];
+    var top = ['base', 'stress', 'load'].reduce(function (a, k) { return d.sum[k] > d.sum[a] ? k : a; }, 'base');
+    if (d.sum[top] > 0) out.push({ text: P.most[top] });
+    out.push({ cls: 'dt-scale', text: P.estimateLine });
+    return out;
+  }
+  function energyNotes(d, S, X) {
+    var P = X.T.deep.energy, C = S.C || {}, txt = function (t) { return '<div class="dt-band-txt">' + esc(t) + '</div>'; };
+    var out = txt(P.notes.model) + txt(format(P.notes.formula, {
+      base: X.fmt(C.BASE_DRAIN, 1), stress: X.fmt(C.STRESS_DRAIN, 1), load: X.fmt(C.LOAD_DRAIN, 0), calm: X.fmt(C.CALM_STRESS, 1), charge: X.fmt(C.RECHARGE, 0),
+    })) + txt(P.notes.hours);
+    out += txt(format(P.notes.inputs, { k: X.fmt(S.K, 1), max: S.maxHr != null ? X.fmt(S.maxHr, 0) : '—' }));
+    return out + txt(P.notes.limits);
+  }
+  function energyPage(key, m, end, X) {
+    var S = energyBake(), iso = strainIso(end, X);
+    var d = S ? strainDayOf(S.days, iso) : null;
+    return {
+      head: headHtml(key, end, X),
+      top: '<div class="dd-info" id="dd-info" hidden>' + X.bandText(key, m) + (S ? energyNotes(d, S, X) : '') + '</div>' +
+        energyHero(d, X) + energyCurve(d, X) + energyParts(d, X) + insightHtml(S ? energyLines(d, iso, X) : [], X),
     };
   }
 
