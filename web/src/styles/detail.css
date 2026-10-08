@@ -319,12 +319,76 @@ html.dt-lock body {
   color: var(--down);
 }
 
-/* chart */
+/* chart: on the sheet's ground, no card; the grid lines run the full width of the column */
 .dt-fig {
-  background: var(--card-bg);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  padding: var(--sp-4);
+  margin: 0;
+}
+.dt-body > .dt-fig {
+  margin-top: var(--sp-10);
+}
+.dt-fig-top {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--sp-2);
+}
+.dt-typ {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.dt-typ::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--sp-2);
+  vertical-align: -1px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--trend) 25%, transparent);
+}
+/* the plot box the HTML labels are placed in (% of the SVG's own box) */
+.dt-svg {
+  position: relative;
+}
+.dt-labels span {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 4px));
+  color: var(--ink);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+.dt-lastv {
+  padding: 2px 5px;
+  border-radius: var(--r-xs);
+  background: var(--rail);
+}
+.dt-last {
+  fill: var(--ink);
+  stroke: var(--ground);
+  stroke-width: 1.4;
+}
+/* W: the weekday + day under each bar */
+.dt-wdays {
+  position: relative;
+  height: 30px;
+  margin: var(--sp-1) 0 0 36px;
+  color: var(--faint);
+  font-size: var(--fs-2xs);
+}
+.dt-wdays span {
+  position: absolute;
+  transform: translateX(-50%);
+  text-align: center;
+  line-height: 1.3;
+}
+.dt-wdays b {
+  display: block;
+  font-weight: 400;
 }
 .dt-chart {
   display: block;
@@ -364,6 +428,23 @@ html.dt-lock body {
 }
 .dt-fig .dt-ax {
   margin-left: 36px;
+}
+/* AVERAGE, its value, the delta pill on its own line, then one plain sentence */
+.dt-trend-pill {
+  margin-top: var(--sp-2);
+}
+.dt-trend-txt {
+  margin: var(--sp-4) 0 0;
+  color: var(--ink);
+  font-size: var(--fs-md);
+  line-height: 1.45;
+}
+/* the trend view's ⓘ block: the latest value and the band words */
+.dt-info .dt-titles {
+  margin-bottom: 0;
+}
+.dt-info .dt-num {
+  font-size: var(--fs-3xl);
 }
 .dt-med {
   stroke: var(--trend);
