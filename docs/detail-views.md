@@ -103,9 +103,10 @@ switch is outside every opener); run / ride rows →
      when the hero shows a %, the load sessions-without-effort note, and the sleep formulas
      (`deep.sleepNotes`: performance = asleep ÷ need × 100 capped at 100 with need = the target,
      efficiency = asleep ÷ in bed, consistency minutes, what the stages are).
-  3. **Hero ring**: ≈ 67 % of the width (max 320 px), the dial's OWN baked arcs (`DIALS`, so it can
-     never disagree with Inicio) drawn with a 6.4-unit stroke (≈ 5.9 % of the 108-unit diameter),
-     from 12 o'clock clockwise, round caps, on `--track`; inside: the value (D-DIN, 52–72 px) + small
+  3. **Hero ring**: 260 px (≈ 67 % of a 390 px phone; never wider than the sheet), the dial's OWN
+     baked arcs (`DIALS`, so it can never disagree with Inicio) drawn with a 7.5-unit stroke (of the
+     120-unit viewBox), from 12 o'clock clockwise, round caps, on `--track`; inside: the value (D-DIN,
+     56–70 px, 70 px on a phone) + small
      unit + the uppercase label. Recovery shows the dial's % (`DIALS.recovery.pct`, when it scores the
      same night as `head`) with its % band colour, else the SD value. Sleep shows the dial's sleep
      performance % (`DIALS.sleep.pct`, label "SLEEP PERFORMANCE"), else last night's hours.

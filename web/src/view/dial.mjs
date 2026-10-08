@@ -28,9 +28,12 @@
 import { Z_CLAMP } from '../../../lib/score/recovery.mjs';
 import { sleepPerformance } from '../../../lib/score/sleep.mjs';
 
-// 120-unit viewBox, 54-unit radius, 7-unit stroke (~6 % of the ring's diameter): a full ring that
+// 120-unit viewBox, 54-unit radius, 9.5-unit stroke (~8 % of the 120-unit dial): a full ring that
 // starts at 12 o'clock (-90 degrees) and fills clockwise; the midpoint (0.5) sits at 6 o'clock.
-export const DIAL = { c: 60, r: 54, stroke: 7, start: -90, sweep: 360 };
+export const DIAL = { c: 60, r: 54, stroke: 9.5, start: -90, sweep: 360 };
+// the deep-dive hero ring (client/deepdive.js, styles/detail.css .dd-track): the same circle with a
+// lighter 7.5-unit stroke, so its typical-day tick crosses THAT stroke
+export const HERO = { ...DIAL, stroke: 7.5 };
 // Load: the ring midpoint is the typical training day (1x), the end is 2x.
 const LOAD_MAX_RATIO = 2;
 
@@ -178,7 +181,7 @@ function loadDial(L) {
     defaultKey: first.key,
     modalities,
     mid: polar(fracToAngle(0.5), DIAL.r - DIAL.stroke),
-    tick: radialTick(0.5),
+    tick: radialTick(0.5, HERO),
   };
 }
 
