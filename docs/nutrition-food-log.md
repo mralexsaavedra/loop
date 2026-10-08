@@ -288,3 +288,30 @@ filled from them, never typed.
   midnight reload of core.js waits while the page is busy).
 - **Rollout** — ingest rebuild (`docker compose up -d --build health-ingest`, runs 007), then
   `npm run generate`.
+
+## Nutrition score (every page)
+
+A day's 0–100 adherence to the viewer's own targets, from the food log. `lib/nutrition/score.mjs` =
+the reference (`NSCORE`, baked as `NUTRI.score`; `NSCORE_CASES` = the parity fixture of the client port).
+
+- **Formula** — against THAT day's meals target (`HCNutri.targetFor`: the current goal × that day's
+  detected day type, the same target Constancia and the intake rings use; fat = its `g`):
+  kcal (0.4) = 100 within ±`kcal.full` (10 %), linear to 0 at ±`kcal.zero` (35 %); protein (0.4) =
+  100 at ≥ `protein.full` (90 %), linear to 0 at `protein.zero` (50 %), more never penalised; fat (0.2)
+  = 100 from `fat.lo` (60 %) to `fat.hi` (110 %), linear to 0 at `zeroHi` (160 %) / `zeroLo` (30 %);
+  score = the weighted sum, rounded (components to 0.1 first). **One definition with Constancia**:
+  `kcal.full` IS `ADHERENCE.onBand` and `protein.full` IS `ADHERENCE.proteinShare` (the brief's 95 %
+  protein line was folded into Constancia's 90 % so a "protein day" there is full credit here), and a
+  protein MINIMUM counts only once it reaches full credit, as there.
+- **Rules** — no log or no target (unknown day type) → no score, never 0. A macro in
+  `missing_macros` → its component is left out, the others re-weighted, the day flagged
+  "incomplete". The viewer's today = "so far" (`partial`), never a final score, never in an average.
+  Scored but flagged: a main meal missing (`meals` false — Constancia's complete-day rule) and a rest
+  day only assumed from sleep (`assumed`). Bands: ≥ 85 good, 60–84 mid, < 60 low.
+- **Data** — `buildFoodlogBake` bakes `INTAKE.log` = `{asOf, days}`: the last `NSCORE.days` (90) days
+  of `data/nutrition/foodlog-daily.csv` ending at its newest logged day (the example build: the demo
+  extract's synthetic `foodlog-daily.csv`, `scripts/make-demo-data.mjs`), in the summary shape
+  (`{date, k, p, f, n, missing: {p, f}, groups}`). The page scores at VIEW time (the target depends
+  on the viewer's current goal, as Constancia's); on the LAN page each day of the live summary
+  (`HCAdherence.state().days`, the last 28 days) replaces the baked one, and every summary read
+  re-renders the score (`HCNutriScore.refresh`).
