@@ -403,6 +403,10 @@
 .dial-off .dial-svg {
   opacity: 0.45;
 }
+/* the day strain dial: its label in strain blue, like the reference's "STRAIN ›" */
+.dial-strain .dial-lbl {
+  color: var(--strain);
+}
 .dial-off .dial-lbl {
   color: var(--muted);
 }

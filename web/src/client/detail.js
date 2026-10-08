@@ -189,7 +189,7 @@
   // (training volume), measured (a sparse reading), none (no data)
   function dayState(m, v) {
     if (v == null || !isFinite(v)) return 'none';
-    if (m.kind === 'workouts' || m.kind === 'load') return v > 0 ? 'l' + Math.max(1, level(v, m.levels)) : 'rest';
+    if (m.kind === 'workouts' || m.kind === 'load' || m.kind === 'strain') return v > 0 ? 'l' + Math.max(1, level(v, m.levels)) : 'rest';
     if (m.kind === 'sparse') return 'measured';
     if (m.kind === 'recovery') return v >= m.cut ? 'good' : v <= -m.cut ? 'bad' : 'normal';
     if (m.kind === 'sleep') {
@@ -214,6 +214,7 @@
     if ((m.kind === 'signal' || m.kind === 'sleep') && m.band) out.push(format(B.monitor, fill(m.band, d)));
     if (m.kind === 'total' && m.band) out.push(format(B.iqr, fill(m.band, m.dec)));
     if (m.kind === 'load') out.push(m.typical != null ? format(B.typical, { value: fmt(m.typical, 0) }) : B.noTypical);
+    if (m.kind === 'strain' && B.strain) out.push(B.strain);
     if (m.kind === 'recovery') out.push(format(B.recovery, { cut: fmt(m.cut, 1), cutTrend: fmt(m.cutTrend != null ? m.cutTrend : m.cut, 1) }));
     if (m.kind === 'sparse') out.push(format(B.sparse, { n: m.v.filter(function (x) { return x != null; }).length }));
     if (m.windowDays != null) out.push(format(B.window, { days: m.windowDays }));
@@ -371,7 +372,7 @@
   }
   function chartHtml(key, m, from, to, sel) {
     var n = dayDiff(from, to) + 1;
-    var bars = m.kind === 'total' || m.kind === 'workouts' || m.kind === 'load';
+    var bars = m.kind === 'total' || m.kind === 'workouts' || m.kind === 'load' || m.kind === 'strain';
     var days = [], vals = [];
     for (var i = 0; i < n; i++) {
       var iso = shiftIso(from, i), v = valueOf(m, iso);
@@ -459,7 +460,7 @@
   }
   function legendHtml(m) {
     var L = T.legend, items;
-    if (m.kind === 'workouts' || m.kind === 'load') items = [['l1', ''], ['l2', ''], ['l3', ''], ['l4', L.levels]];
+    if (m.kind === 'workouts' || m.kind === 'load' || m.kind === 'strain') items = [['l1', ''], ['l2', ''], ['l3', ''], ['l4', L.levels]];
     else if (m.kind === 'sparse') items = [['measured', L.measured]];
     else if (m.kind === 'recovery') items = [['good', L.recAbove], ['normal', L.recAt], ['bad', L.recBelow]];
     else if (m.kind === 'sleep') items = [['good', L.sleepGood], ['mid', L.sleepMid], ['bad', L.sleepBad]];
@@ -617,10 +618,10 @@
   function workoutsHtml(key, m, iso) {
     var list = sessionsOn(iso, modOf(key));
     var out = [];
-    if (m.kind === 'load') {
+    if (m.kind === 'load' || m.kind === 'strain') {
       var v = valueOf(m, iso);
-      if (v == null && list.length) out.push('<p class="dt-nodata">' + esc(T.day.noEffort) + '</p>');
-      else if (v != null && v > 0) out.push(row(titleOf(key), valUnit(v, 0, unitOf(key))));
+      if (v == null && list.length && m.kind === 'load') out.push('<p class="dt-nodata">' + esc(T.day.noEffort) + '</p>');
+      else if (v != null && v > 0) out.push(row(titleOf(key), valUnit(v, m.kind === 'strain' ? 1 : 0, unitOf(key))));
     }
     if (!list.length) out.push('<p class="dt-nodata">' + esc(T.day.rest) + '</p>');
     else out.push('<ul class="dt-sessions">' + list.map(sessionHtml).join('') + '</ul>');
@@ -645,7 +646,7 @@
     return out.length ? '<p class="dt-sub dt-dyn">' + esc(Y.label + ': ' + out.join(' · ')) + '</p>' : '';
   }
   function dayHtml(key, m, iso) {
-    var body = m.kind === 'workouts' || m.kind === 'load' ? workoutsHtml(key, m, iso)
+    var body = m.kind === 'workouts' || m.kind === 'load' || m.kind === 'strain' ? workoutsHtml(key, m, iso)
       : m.kind === 'total' ? totalHtml(key, m, iso)
       : m.kind === 'sparse' ? sparseHtml(key, m, iso)
       : NIGHT_KEYS.indexOf(key) !== -1 ? nightHtml(key, m, iso)
@@ -699,6 +700,8 @@
     var from = windowFrom(m, end, state.range);
     state.sel = sel;
     state.view = { key: key, m: m, end: end };
+    // the day the sheet was opened on (a dial on a stepped-to day, a day tap): the strain page follows it
+    X.sel = state.date && state.date <= end ? state.date : null;
     var dd = deep(key) ? window.HCDeep.render(key, m, end, X) : null;
     return (dd ? dd.head : head(key, latestHtml(key, m, end) + bandText(key, m))) +
       '<div class="dt-body">' + (dd ? dd.top : '') +

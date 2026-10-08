@@ -34,7 +34,7 @@ const valueOn = (m, iso) => { const i = dayIndex(m, iso); return i >= 0 && i < m
 
 // parts: true = the sheet's sub-parts (calendar, day panel, chart selection) resolve to stub elements,
 // so a day tap can update them in place; query = extra host.querySelector answers (sel -> element)
-function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync = false, parts = false, query = {}, views = null, withCore = false, settings = null, dials = null, health = null } = {}) {
+function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync = false, parts = false, query = {}, views = null, withCore = false, settings = null, dials = null, health = null, scores = null } = {}) {
   const listeners = { doc: {}, win: {} };
   const host = new StubElement('div', { attrs: { id: 'detail' }, hidden: true });
   const closeBtn = { focused: 0, focus() { this.focused++; } };
@@ -110,6 +110,7 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
   if (views) win.HCViews = views;
   if (settings) win.HCSettings = settings;
   if (dials) ctx.DIALS = dials;
+  if (scores) ctx.SCORES = scores;
   if (health) ctx.HEALTH = health;
   win.location = loc;
   vm.createContext(ctx);
@@ -1336,4 +1337,44 @@ test('a session with HR zones shows ZONE 5…0 rows (bar, %, duration, bpm range
   assert.match(bare.host.innerHTML, /class="dt-zones"/);
   assert.doesNotMatch(bare.host.innerHTML, /bpm<\/span><span class="dt-zpct">|NaN|undefined/);
   assert.match(esT.day.zones.title, /zonas/i);
+});
+
+/* ---------- day strain deep-dive (key 'strain') ---------- */
+const DEMO_SCORES = buildScores(DEMO_DIR);
+
+test('strain deep-dive: the hero = the day\'s strain in its baked ring, contributors = the day\'s activities + the all-day load, the band in the insight, formula + K under ⓘ', () => {
+  const S = DEMO_SCORES.strain;
+  assert.equal(S.ok, true, 'the demo extract calibrates day strain');
+  const s = setup({ dials: DIALS, scores: DEMO_SCORES });
+  s.api.open('strain');
+  const html = s.host.innerHTML;
+  const day = S.days[S.days.length - 1];
+  const dial = DIALS.strain.days.find((d) => d.date === day.date);
+  const hero = heroOf(html);
+  assert.ok(hero.startsWith(' dd-strain"'));
+  assert.ok(hero.includes(`<b class="dd-num">${day.s.toFixed(1)}</b>`));
+  assert.ok(hero.includes(`d="${dial.fill}"`), 'the same arc as the Inicio dial');
+  const rows = [...contribOf(html).matchAll(/<span class="dd-row-lbl">([^<]+) <small/g)].map((m) => m[1]);
+  assert.deepEqual(rows, [...day.acts.map((a) => enT.deep.strain.mods[a.m]), enT.deep.strain.allDay]);
+  const band = day.s >= 18 ? 'allOut' : day.s >= 14 ? 'high' : day.s >= 10 ? 'moderate' : 'light';
+  assert.ok(insightOf(html).includes(enT.deep.strain.bands[band]));
+  const info = infoOf(html);
+  assert.ok(info.includes(enT.deep.strain.notes.formula));
+  assert.ok(info.includes(`K = ${S.K.toFixed(1)}`));
+  assert.match(weeklyOf(html), /dd-c-strain/);
+  // Relative Effort per modality stays one tap away
+  for (const k of ['gym', 'run', 'bike']) if (DEMO.metrics['load-' + k]) assert.match(html, new RegExp(`class="dd-re-link" data-detail="load-${k}"`));
+  clean(html);
+});
+
+test('strain deep-dive follows the day it was opened on; a day without all-day heart rate says so', () => {
+  const S = DEMO_SCORES.strain;
+  const prev = S.days[S.days.length - 2];
+  const s = setup({ dials: DIALS, scores: DEMO_SCORES });
+  s.api.open('strain', prev.date);
+  assert.ok(heroOf(s.host.innerHTML).includes(`<b class="dd-num">${prev.s.toFixed(1)}</b>`));
+  const old = addDays(DEMO.metrics.strain.start, -3);
+  const o = setup({ dials: DIALS, scores: DEMO_SCORES });
+  o.api.open('strain', old);
+  assert.ok(heroOf(o.host.innerHTML).includes(enT.deep.words.none) || !o.host.innerHTML.includes('dd-hero'));
 });
