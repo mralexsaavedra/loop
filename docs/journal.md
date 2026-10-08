@@ -42,7 +42,8 @@ a day is "journaled" when at least one behaviour is answered (`isJournaled`).
   - `GET /journal/settings` → `{behaviors: {key: on}}`; `PUT /journal/settings` `{behaviors: {key:
     bool}}` = partial merge. Answers of a switched-off behaviour are still accepted (the switch only
     hides the row; history stays).
-- Validation by hand: unknown keys refused (`400 invalid` + `field`, e.g. `answers.coffee`), dates
+- Validation by hand: unknown keys refused (`400 invalid` + `field`, e.g. `answers.coffee`; the behaviour
+  lookup is a `Map`, so `__proto__` / `constructor` are unknown too), notes keep their line breaks, dates
   round-trip (2000–2100), yes / no = boolean, the count an integer 0..`countMax`, notes trimmed.
 - Security = the food layers (`docs/nutrition-food-log.md` → Security), shared helpers exported by
   `src/food.js`: Host allowlist (`421`; the same `FOOD_ALLOWED_HOSTS`), `Origin` on writes (`403
