@@ -96,3 +96,16 @@ test('demo workout-zones.csv: one Demo Strava row per Strava run / ride, the rea
   }
   for (const l of files[ZONES_CSV].trim().split('\n').slice(1)) assert.match(l, /,Demo Strava,\d{4}-\d{2}-\d{2}T18:00:00\+02:00,\d+$/);
 });
+
+test('demo hr-hourly.csv: four weeks of hours in the sync schema, enough full days to calibrate day strain', async () => {
+  const { buildStrain } = await import('../lib/score/strain.mjs');
+  const { HR_HOURLY_HEADER } = await import('../lib/health/hr-hourly.cjs');
+  const files = makeDemoData();
+  const lines = files['hr-hourly.csv'].trim().split('\n');
+  assert.equal(lines[0], HR_HOURLY_HEADER);
+  assert.equal(lines.length - 1, 28 * 24);
+  const s = withDemoDir(files, buildStrain);
+  assert.equal(s.ok, true);
+  assert.equal(s.asOf, DEMO_DEFAULTS.end);
+  assert.ok(s.days.some((d) => d.acts.length) && s.days.every((d) => d.s >= 0 && d.s <= 21));
+});
