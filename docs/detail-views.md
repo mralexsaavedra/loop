@@ -277,13 +277,23 @@ switch is outside every opener); run / ride rows →
   ("TYPICAL RANGE", `trend.typical`; recovery "BASELINE RANGE", `trend.baseline`; no legend swatch for
   it). An inline SVG chart (points for signals, bars for totals and load, the
   7-day average line that breaks where fewer than 3 of 7 days have data, the band shaded, target /
-  typical dashed; a missing day is a gap; the window's newest value ringed and labelled, `.dt-last` /
+  typical dashed; a missing day is a gap; a points chart longer than 60 days (6M, 1Y) draws a dot
+  only for the days OUT of the range — beyond recovery's day cut, outside a signal's / sleep's band —
+  and leaves the rest to the 7-day line, its key reading "Days out of range" (`chartKey.outside`), so
+  red / green dots never saturate the chart (a metric without a band keeps every dot); the window's newest value ringed and labelled, `.dt-last` /
   `.dt-lastv`; in W every metric but recovery is 7 bars from 0 with each value on top (`.dt-bv`) and
   "Thu / 9" under each bar (`.dt-wdays`) instead of the from / to dates, no 7-day line; labels are HTML
   over the SVG's box `.dt-svg`) with a Y axis: three round, evenly spaced values (step 1 / 2 /
   2.5 / 5 × 10^k; bars from 0) as faint grid lines (`.dt-grid`) and labels in a 36px left gutter
   (`.dt-yax`, HTML so the text never scales with the SVG); the range covers the ticks plus 12 %
-  headroom, so an out-of-range day never sits on the chart's edge; a Monday-first month calendar
+  headroom, so an out-of-range day never sits on the chart's edge; under the chart, "DAYS IN THIS
+  PERIOD" (`breakdownHtml`, `trend.brk`): one stacked horizontal bar of the window's days with data by
+  calendar state — the legend's states, order and tints (better / in / worse than your range, above /
+  at / below baseline, the sleep, stress, energy and nutrition bands; today in progress and missing
+  days left out) — and one row per state with its count ("7x", a state with none says "0x" and has no
+  segment); it follows the window (range + ‹ ›); "LEARN MORE" (`data-dt-act="learn"`) opens the
+  header's ⓘ notes (never closes them) and scrolls them into view. Training volume / load / strain
+  (four shades of one colour), sparse readings and a metric without a band get none. A Monday-first month calendar
   (es/en weekday letters) with prev / next bounded by the baked range, each day tinted by its state
   (good / mid / bad tiles: the state hue at 16 % with a 40 % inset ring, `--good-rgb` / `--mid-rgb` /
   `--low-rgb`, never a saturated block) by `dayState`: signals vs

@@ -23,6 +23,8 @@ export const en = {
     nextWin: 'Later period',
     typical: 'Typical range',
     baseline: 'Baseline range',
+    // the window's days by range (detail.js breakdownHtml): one stacked bar + a count per state
+    brk: { title: 'Days in this period', count: '{n}x', learn: 'Learn more' },
     span: { w: 'this week', m: 'these 30 days', m6: 'these 6 months', y: 'this year' },
     prevSpan: { w: 'the week before', m: 'the 30 days before', m6: 'the 6 months before', y: 'the year before' },
     sent: {
@@ -51,7 +53,7 @@ export const en = {
   staleNote: 'The newest data is from {date}: the view ends there.',
   chartAria: '{title}: daily values from {from} to {to}',
   calAria: '{title}: calendar for {month}',
-  chartKey: { daily: 'Daily', roll7: '7-day average', band: 'Your range', target: 'Target', typical: 'Typical day', baseline: '7-day trend at baseline' },
+  chartKey: { daily: 'Daily', roll7: '7-day average', band: 'Your range', target: 'Target', typical: 'Typical day', baseline: '7-day trend at baseline', outside: 'Days out of range' },
   bands: {
     monitor: 'Your normal range: {lo}–{hi} {unit} (median {median})',
     iqr: 'Your usual day: {lo}–{hi} {unit} (median {median})',
@@ -379,6 +381,7 @@ export const es = {
     nextWin: 'Periodo siguiente',
     typical: 'Rango habitual',
     baseline: 'Rango base',
+    brk: { title: 'Días de este periodo', count: '{n}x', learn: 'Saber más' },
     span: { w: 'esta semana', m: 'estos 30 días', m6: 'estos 6 meses', y: 'este año' },
     prevSpan: { w: 'la semana anterior', m: 'los 30 días anteriores', m6: 'los 6 meses anteriores', y: 'el año anterior' },
     sent: {
@@ -407,7 +410,7 @@ export const es = {
   staleNote: 'Los datos más recientes son del {date}: la vista termina ahí.',
   chartAria: '{title}: valores diarios del {from} al {to}',
   calAria: '{title}: calendario de {month}',
-  chartKey: { daily: 'Diario', roll7: 'Media de 7 días', band: 'Tu rango', target: 'Objetivo', typical: 'Día típico', baseline: 'Tendencia de 7 días en tu línea base' },
+  chartKey: { daily: 'Diario', roll7: 'Media de 7 días', band: 'Tu rango', target: 'Objetivo', typical: 'Día típico', baseline: 'Tendencia de 7 días en tu línea base', outside: 'Días fuera del rango' },
   bands: {
     monitor: 'Tu rango normal: {lo}–{hi} {unit} (mediana {median})',
     iqr: 'Tu día habitual: {lo}–{hi} {unit} (mediana {median})',
