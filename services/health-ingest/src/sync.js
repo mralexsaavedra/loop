@@ -73,7 +73,7 @@ export function createStravaSync (pool, env, { status = null, fetchImpl = fetch,
   // it never throws either
   const hr = createHrBackfill({ pool, getAccessToken, fetchImpl, log })
   let hrRun = Promise.resolve(null)
-  const kickAthlete = () => {
+  const refreshAthleteThenBackfillHr = () => {
     athleteRun = athlete.maybeRefresh()
     hrRun = athleteRun.then(() => hr.backfill())
     return hrRun
@@ -93,7 +93,7 @@ export function createStravaSync (pool, env, { status = null, fetchImpl = fetch,
   }
 
   return {
-    runOnce: guardSync(runOnce, { status, afterOk: kickAthlete, log }),
+    runOnce: guardSync(runOnce, { status, afterOk: refreshAthleteThenBackfillHr, log }),
     // the latest background athlete refresh (tests / graceful shutdown); resolves, never rejects
     athleteIdle: () => athleteRun,
     // the latest background HR backfill batch; resolves, never rejects
