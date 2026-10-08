@@ -534,6 +534,116 @@ button.dt-day {
   font-size: var(--fs-xs);
 }
 
+/* per-workout HR zones in a session (detail.js zonesHtml): ZONE 5…0 tiles, each with its bpm range,
+ * % of the zoned time, duration and a bar in the zone's colour, warm (5) -> cool (0) */
+.dt-zones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.dt-zhead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.dt-zhead b {
+  color: var(--ink);
+  text-transform: uppercase;
+  letter-spacing: var(--label-track);
+}
+.dt-zlist {
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+.dt-zone {
+  --zc: var(--faint);
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: baseline;
+  column-gap: var(--sp-2);
+  row-gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-size: var(--fs-xs);
+}
+.dt-zname {
+  grid-column: 1;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--label-track);
+}
+.dt-zbpm {
+  grid-column: 2;
+  color: var(--muted);
+}
+.dt-zpct {
+  grid-column: 3;
+  color: var(--zc);
+  font-weight: 700;
+}
+.dt-zdur {
+  grid-column: 4;
+  font-family: var(--num);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+.dt-zbar {
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--track);
+  overflow: hidden;
+}
+.dt-zbar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--zc);
+}
+.dt-z5 { --zc: var(--low); }
+.dt-z4 { --zc: var(--down); }
+.dt-z3 { --zc: var(--mid); }
+.dt-z2 { --zc: var(--good); }
+.dt-z1 { --zc: var(--strain); }
+.dt-z0 { --zc: var(--faint); }
+/* a plain fold: reset the Tablas accordion look tablas.css gives every bare details / summary */
+.dt-zinfo,
+.dt-zinfo[open] {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  overflow: visible;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.dt-zinfo summary {
+  justify-content: flex-start;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0;
+  font-size: var(--fs-xs);
+  font-weight: 400;
+}
+.dt-zinfo summary svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+.dt-zinfo p {
+  padding-bottom: var(--sp-2);
+}
+
 /* openers (HC.detailAttrs): every card that opens a view gets the same chevron, a pointer, a focus
  * ring and a >= 44px target; a table row is a mouse target whose date cell holds a real button */
 [data-detail][role="button"] {

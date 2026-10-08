@@ -56,7 +56,9 @@ export async function listRawPayloads (pool, { automation, sinceId, limit }) {
  * `total_elevation_gain` is metres climbed, null on activities without it; `start_utc` is
  * Strava's UTC `start_date`, which with `start_local` gives the UTC offset of the ride window;
  * `device_watts` is true only when the watts came from a real power meter, not Strava's
- * estimate — the local power-meter energy correction needs both). `name` and the raw
+ * estimate — the local power-meter energy correction needs both; `hr_hist` = seconds per whole bpm
+ * from the activity's HR stream (hr-zones.js, sql/008_strava_hr.sql), null until the backfill has
+ * reached it or when it has no HR — the repo cuts the HR zones from it). `name` and the raw
  * payload are never selected — privacy boundary for this endpoint.
  */
 export async function listStravaActivities (pool, { sinceId, limit }) {
@@ -73,7 +75,9 @@ export async function listStravaActivities (pool, { sinceId, limit }) {
             payload->'kilojoules' AS kilojoules,
             payload->'total_elevation_gain' AS total_elevation_gain,
             payload->>'start_date' AS start_utc,
-            payload->'device_watts' AS device_watts
+            payload->'device_watts' AS device_watts,
+            (SELECT h.hr_hist FROM strava_activity_hr h
+              WHERE h.activity_id = strava_activity.id AND h.status = 'ok') AS hr_hist
        FROM strava_activity
       WHERE id > $1
       ORDER BY id ASC
