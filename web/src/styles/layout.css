@@ -462,9 +462,9 @@ details.sec-fold > summary:hover > h2 {
 }
 
 /* the dock's "+" action (client/nav-actions.js; markup in layouts/Plan.astro): a 56 px white circle
- * right of the tab bar, hidden until an action exists. Open: a dark frosted card above it (12 px
- * radius, icon + uppercase label rows), the "+" turns 45 deg into an "x", and a blurred scrim under the
- * dock (z 29) dims the page; a tap anywhere outside the card closes it. */
+ * right of the tab bar, hidden until an action exists. Open: a navy -> violet card above it (12 px
+ * radius, 47 px icon + uppercase label rows), the "+" turns 45 deg into an "x", and a scrim under the
+ * dock (z 29) dims the page 40 % with a light 4 px blur; a tap anywhere outside the card closes it. */
 .act {
   position: relative;
   flex: none;
@@ -512,10 +512,8 @@ details.sec-fold > summary:hover > h2 {
   min-width: 232px;
   max-width: calc(100vw - 24px);
   padding: var(--sp-2) 0;
-  background: rgba(44, 48, 60, 0.86);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  /* navy -> violet: a touch of --link, then the insight stroke's indigo (--insight-b), over the card fill */
+  background: linear-gradient(150deg, color-mix(in srgb, var(--link) 15%, var(--surface)), color-mix(in srgb, var(--insight-b) 62%, var(--surface)));
   border-radius: 12px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
   transform-origin: 100% 100%;
@@ -532,7 +530,7 @@ details.sec-fold > summary:hover > h2 {
   align-items: center;
   gap: var(--sp-6);
   width: 100%;
-  min-height: 48px;
+  min-height: 47px;
   padding: 0 var(--sp-8);
   border: 0;
   background: none;
@@ -567,7 +565,7 @@ details.sec-fold > summary:hover > h2 {
   position: fixed;
   inset: 0;
   z-index: 29;
-  background: rgba(9, 12, 13, 0.45);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
