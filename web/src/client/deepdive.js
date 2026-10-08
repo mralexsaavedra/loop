@@ -405,24 +405,51 @@
     return [re, acute, sessions, typical];
   }
 
-  /* ---------- weekly trends: one card per input, the 7 days ending at the view's last day ---------- */
+  /* ---------- weekly trends: one card per input, the 7 days ending at the page's day ---------- */
   function weekOf(end) {
     var out = [];
     for (var k = WEEK - 1; k >= 0; k--) out.push(shiftIso(end, -k));
     return out;
   }
-  // card: {title, get(iso) -> number|null, text(v), cls(v) -> colour class, frac(v, max) -> 0..1}
+  // the day the week ends on and highlights: the day the page describes — recovery = its headline
+  // night, sleep = the dial's night (when within the last week), strain = the day it was opened on —
+  // else the view end; so the highlighted column carries the hero's value instead of an empty today
+  function weekEnd(key, m, end, X) {
+    var h = m.head;
+    var d = key === 'recovery' ? (h && h.mode === 'today' ? isoDate(h.date) : null)
+      : key === 'sleep' ? sleepNight(m, end, X) : key === 'strain' ? strainIso(end, X) : null;
+    return d && d <= end && d > shiftIso(end, -WEEK) ? d : end;
+  }
+  // a night's recovery % (DIALS.days: the dial as it read THAT morning, lib/score/days.mjs; the newest
+  // night from DIALS.recovery), null when that night has no % (no complete night, too few prior nights)
+  function recPctOn(iso) {
+    var D = dials(), out = null;
+    if (!D) return null;
+    (D.days || []).forEach(function (x) {
+      var r = x && x.recovery;
+      if (x.date === iso && r && r.state === 'ok' && r.mode === 'today' && r.date === iso && isNum(r.pct)) out = r.pct;
+    });
+    var r0 = D.recovery;
+    if (out == null && r0 && r0.state === 'ok' && r0.mode === 'today' && r0.date === iso && isNum(r0.pct)) out = r0.pct;
+    return out;
+  }
+  // the % band (lib/score/recovery.mjs PCT_GOOD 67 / PCT_LOW 33), the dial's colours
+  function pctCls(v) {
+    return v >= 67 ? 'good' : v <= 33 ? 'low' : 'mid';
+  }
+  // card: {title, get(iso) -> number|null, text(v), cls(v) -> colour class, frac(v, max) -> 0..1,
+  // tone (the value is printed in its bar's colour)}; the LAST day is the page's day (highlighted)
   function weeklyCard(card, days, X) {
     var vals = days.map(card.get);
     if (!vals.some(isNum)) return '';
     var max = Math.max.apply(null, vals.map(function (v) { return isNum(v) ? Math.abs(v) : 0; })) || 1;
-    var today = HC.todayIso();
     var N = typeof I18N_DATE !== 'undefined' && I18N_DATE && I18N_DATE.weekdaysMin ? I18N_DATE.weekdaysMin : null;
     var cols = days.map(function (iso, i) {
       var v = vals[i];
       var f = isNum(v) ? Math.max(0, Math.min(1, card.frac ? card.frac(v) : v / max)) : 0;
       var bar = isNum(v) && f > 0 ? '<i class="dd-bar dd-c-' + esc(card.cls(v)) + '" style="height:' + Math.round(f * 100) + '%"></i>' : '';
-      return '<li class="dd-col' + (iso === today ? ' dd-now' : '') + '"><span class="dd-val">' + esc(isNum(v) ? card.text(v) : '—') + '</span>' +
+      return '<li class="dd-col' + (i === days.length - 1 ? ' dd-now' : '') + '"><span class="dd-val' + (card.tone && isNum(v) ? ' dd-v-' + esc(card.cls(v)) : '') + '">' +
+        esc(isNum(v) ? card.text(v) : '—') + '</span>' +
         '<span class="dd-track-col">' + bar + '</span><span class="dd-wd">' + esc(N ? N[HC.weekdayIndex(iso)] : HC.fmtDate(iso)) + '</span>' +
         '<span class="sr-only">' + esc(HC.fmtDate(iso)) + '</span></li>';
     }).join('');
@@ -432,7 +459,7 @@
   function plain(cls) {
     return function () { return cls; };
   }
-  function weeklyCards(key, m, X) {
+  function weeklyCards(key, m, X, days) {
     var cards = [];
     var simple = function (k, cls) {
       var mk = X.metric(k);
@@ -440,12 +467,18 @@
       cards.push({ title: X.titleOf(k), get: seriesGet(X, mk), text: function (v) { return X.fmt(v, k === 'sleep' ? 1 : mk.dec); }, cls: plain(cls) });
     };
     if (key === 'recovery') {
-      // each day by its own day band (the calendar's colours), on the dial's -3..+3 scale
-      cards.push({
-        title: X.titleOf('recovery'), get: seriesGet(X, m), text: function (v) { return X.signed(v, 1); },
-        cls: function (v) { return v >= m.cut ? 'good' : v <= -m.cut ? 'low' : 'mid'; },
-        frac: function (v) { return (Math.max(-Z, Math.min(Z, v)) + Z) / (2 * Z); },
-      });
+      // each night's recovery % (the dial's number that morning), bar and value in its % band colour;
+      // no % baked this week (too few prior nights, no DIALS): each day's composite by its own day band
+      // (the calendar's colours), on the dial's -3..+3 scale
+      if (days.some(function (d) { return recPctOn(d) != null; })) {
+        cards.push({ title: X.titleOf('recovery'), get: recPctOn, text: function (v) { return v + '%'; }, cls: pctCls, frac: function (v) { return v / 100; }, tone: true });
+      } else {
+        cards.push({
+          title: X.titleOf('recovery'), get: seriesGet(X, m), text: function (v) { return X.signed(v, 1); },
+          cls: function (v) { return v >= m.cut ? 'good' : v <= -m.cut ? 'low' : 'mid'; },
+          frac: function (v) { return (Math.max(-Z, Math.min(Z, v)) + Z) / (2 * Z); },
+        });
+      }
       simple('hrv', 'trend');
       simple('rhr', 'trend');
       simple('sleep', 'sleep');
@@ -477,8 +510,8 @@
     return cards;
   }
   function weeklyHtml(key, m, end, X) {
-    var days = weekOf(end);
-    var html = weeklyCards(key, m, X).map(function (c) { return weeklyCard(c, days, X); }).join('');
+    var days = weekOf(weekEnd(key, m, end, X));
+    var html = weeklyCards(key, m, X, days).map(function (c) { return weeklyCard(c, days, X); }).join('');
     return html ? '<section class="dd-weekly"><h3 class="dd-sec">' + esc(X.T.deep.weekly.title) + '</h3>' + html + '</section>' : '';
   }
 

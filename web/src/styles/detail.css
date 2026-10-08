@@ -1242,6 +1242,10 @@ button.dt-day {
 .dd-c-low {
   background: var(--low);
 }
+/* the recovery % bars' value in its band colour (as the reference) */
+.dd-v-good { color: var(--good); }
+.dd-v-mid { color: var(--mid); }
+.dd-v-low { color: var(--low); }
 .dd-c-sleep {
   background: var(--sleep);
 }
