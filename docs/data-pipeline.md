@@ -165,7 +165,9 @@ consumers never query Postgres. `GET <INGEST_URL>/journal/summary` (header `X-HC
 last 366 days ending on the local date → `data/apple-health/extract/journal-daily.csv` (gitignored with
 the extract): header `date,<behaviour keys…>,notes`, one row per journaled day, `1` / `0` for a yes / no
 behaviour, the drinks count as is, blank = not answered, the note quoted (`lib/journal/journal.mjs`
-`journalCsv` / `parseJournalCsv`). Inside the window the server wins (an emptied day disappears);
+`journalCsv` / `parseJournalCsv`). Columns are read by header NAME: a behaviour missing from an older
+file is unanswered, and a column this version does not know is kept (written back after the
+behaviours) but never read as a behaviour. Inside the window the server wins (an emptied day disappears);
 older rows are kept. `journal-daily.meta.json` = `{from, to, days, fetchedAt}` (its own file, never
 `_meta.json`). An unreachable / old service (404, 503, 421, 429, a malformed body) = one `WARNING:` line,
 the old files kept, exit 0; only a failed write exits 1. The demo extract carries a synthetic
