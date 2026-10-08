@@ -24,11 +24,14 @@
  *                        client/nutri-day.js, which also remembers open / closed per viewer);
  *   4. Avituallamiento — before -> during -> after the ride as a 3-step timeline, bike day types only
  *                        (never collapsed);
- *   5. Progreso        — weight vs the goal (client/progress.js, from the baked DETAIL weight series;
+ *   5. Balance         — intake vs expenditure (avg intake, avg burn, deficit / surplus a day) + the
+ *                        average macro split over ONE baked window (client/health.js renderBalance,
+ *                        HEALTH.energy; moved here from Salud's Energía);
+ *   6. Progreso        — weight vs the goal (client/progress.js, from the baked DETAIL weight series;
  *                        the target weight on the LAN page), a tap opens the weight detail sheet;
- *   6. Constancia      — food log adherence over 7 / 14 / 28 days + a 28-day strip (client/adherence.js,
+ *   7. Constancia      — food log adherence over 7 / 14 / 28 days + a 28-day strip (client/adherence.js,
  *                        LAN page only: ships hidden until GET /api/food/log/summary answers).
- * 5 and 6 follow the day's blocks on purpose: today's actions first, the multi-week look back after.
+ * 5–7 follow the day's blocks on purpose: today's actions first, the multi-week look back after.
  * The day-type control is server-rendered (real labelled radios); the numbers
  * are client-rendered by client/nutri-day.js from NUTRI (lib/nutrition/today.mjs: the 12 precomputed
  * plans), baked here with I18N_NUTRI. Today's day type is picked on the viewer's clock, so builds
@@ -129,6 +132,10 @@ const DAY_ICONS: Record<string, string> = {
       <div id="nutri-fuel-body"></div>
     </div>
   </div>
+
+  {/* Balance (client/health.js renderBalance, HEALTH.energy from the shared Bake): intake vs
+      expenditure + the macro split over the baked window; hidden when there is no expenditure data */}
+  <div class="nutri-block" id="nutri-balance" hidden></div>
 
   {/* Progreso (client/progress.js): weight vs the goal from the baked DETAIL weight series; always
       rendered (an empty state without weigh-ins). After the day's blocks: today's actions come first,

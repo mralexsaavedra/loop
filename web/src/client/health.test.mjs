@@ -91,10 +91,12 @@ test('each host has its own empty state', () => {
 });
 
 // Salud (#health-body) + Entreno (#health-train) hosts; returns both, Salud first, or each via `out`.
-function renderWith(HEALTH, { DateCls = Date, SCORES, out = {}, detail = false } = {}) {
+// `balance: true` adds Nutrición's #nutri-balance host (out.balance, out.balanceHidden).
+function renderWith(HEALTH, { DateCls = Date, SCORES, out = {}, detail = false, balance = false } = {}) {
   const doc = new StubDocument();
   const host = doc.el('health-body');
   const train = doc.el('health-train');
+  const bal = balance ? doc.el('nutri-balance') : null;
   const ctx = { document: doc, window: {}, HEALTH, SCORES, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date: DateCls, JSON };
   if (detail) ctx.DETAIL = { metrics: {} };
   vm.createContext(ctx);
@@ -102,6 +104,7 @@ function renderWith(HEALTH, { DateCls = Date, SCORES, out = {}, detail = false }
   vm.runInContext(source, ctx);
   out.health = host.innerHTML;
   out.train = train.innerHTML;
+  if (bal) { out.balance = bal.innerHTML; out.balanceHidden = bal.hidden; }
   return host.innerHTML + train.innerHTML;
 }
 const none = { hasData: false };
@@ -395,4 +398,61 @@ test('sleep consistency: % nights on target, ±spread, bedtime / wake as rows th
   assert.match(html, /<b>23:40<\/b><\/span><span class="db-base">±25′<\/span>/);
   assert.match(html, /<b>07:05<\/b><\/span><span class="db-base">±18′<\/span>/);
   assert.equal((html.match(/data-detail="sleep"/g) || []).length, 5);
+});
+
+/* ---- Balance: intake vs expenditure + the macro split live in Nutrición (#nutri-balance), not Salud ---- */
+const BAL = {
+  hasData: true, tdeeLatest: 2600, tdeeLatestDate: '2026-06-29', tdeeAvg: 2400, tdeeDays: 30, spark: null,
+  lastIntake: '2026-06-29', intakeDays: 40,
+  balance: { from: '2026-05-31', to: '2026-06-29', days: 30, intakeAvg: 2312, tdeeAvg: 2717, net: -405 },
+  macros: { days: 28, p: 140, c: 250, g: 70, pPct: 26, cPct: 46, gPct: 29 },
+};
+test('Balance moved: Salud\'s Energy keeps the expenditure row only — no intake average, deficit, macro cards or balance note', () => {
+  const out = {};
+  renderAt({ ...full(), energy: BAL }, '2026-07-01', { out, balance: true });
+  const h = out.health;
+  const energy = h.slice(h.indexOf('id="hl-energy"'));
+  assert.match(energy, /Daily expenditure/);
+  assert.doesNotMatch(energy, /dash-card|2312|-405|Deficit \/ day|deficit\/day|Avg intake|Macro split|140 g/, 'nothing of the balance is left in Salud');
+  assert.ok(!energy.includes('Balance over'), 'the balance note moved too');
+  assert.ok(energy.includes('<b>Expenditure only.</b>'), 'Salud says where the intake went');
+});
+
+test('Nutrición Balance: window caption, avg intake / avg burn / deficit per day as metric rows, a stacked macro split bar, the balance note behind ⓘ', () => {
+  const out = {};
+  renderAt({ ...full(), energy: BAL }, '2026-07-01', { out, balance: true, detail: true });
+  const b = out.balance;
+  assert.equal(out.balanceHidden, false);
+  assert.match(b, /^<section class="hs-sec nb" aria-labelledby="nb-h"><div class="hs-head"><h2 class="hs-lbl" id="nb-h">Balance<\/h2><button type="button" class="hs-i" data-hs-info="nb-info"[^>]*aria-label="About Balance">/);
+  assert.match(b, /<div class="hs-info" id="nb-info" hidden><p>Balance over 31 May–29 Jun \(30 logged days\)\. Negative = deficit\.[^<]*<b>historical<\/b>[^<]*The macro split is the average of those days\.<\/p><\/div>/);
+  assert.match(b, /<p class="nb-win">31 May – 29 Jun · 30 days logged<\/p>/, 'a fixed window, labelled (no W / M / 6M: the bake has one window)');
+  const rows = [...b.matchAll(/<li class="db-row"[^>]*>[\s\S]*?<span class="db-name">([^<]+)<\/span><span class="db-vals"><span class="db-val"><b>([^<]+)<\/b><small>kcal<\/small>/g)].map((m) => [m[1], m[2]]);
+  assert.deepEqual(rows, [['Avg intake', '2312'], ['Avg burn', '2717'], ['Deficit / day', '-405']]);
+  assert.match(b, /<li class="db-row" data-detail="energy"[^>]*>[\s\S]*?Avg burn/, 'the burn row opens the expenditure sheet');
+  assert.match(b, /<div class="nutri-card nb-split"><span class="dt-trend-lbl">Macro split<\/span><svg class="act-bar" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="Macro split: Protein 140 g, 26%, Carbs 250 g, 46%, Fat 70 g, 29%">/);
+  const segs = [...b.matchAll(/<rect class="nb-m-(\w)" x="([\d.]+)" y="0" width="([\d.]+)" height="8"\/>/g)].map((m) => [m[1], +m[2], +m[3]]);
+  assert.deepEqual(segs.map((x) => x[0]), ['p', 'c', 'f']);
+  assert.ok(Math.abs(segs.reduce((t, x) => t + x[2], 0) - 100) < 0.05, 'the segments fill the bar');
+  assert.equal(segs[1][1], segs[0][2], 'stacked');
+  assert.match(b, /<li><span class="act-sw nb-m-p" aria-hidden="true"><\/span><b>140 g<\/b> Protein <small>26%<\/small><\/li>/);
+});
+
+test('Nutrición Balance: a surplus is labelled as such; no macros -> no split bar', () => {
+  const out = {};
+  renderAt({ ...full(), energy: { ...BAL, balance: { ...BAL.balance, intakeAvg: 2900, net: 183 }, macros: undefined } }, '2026-07-01', { out, balance: true });
+  assert.match(out.balance, /<span class="db-name">Surplus \/ day<\/span><span class="db-vals"><span class="db-val"><b>\+183<\/b>/);
+  assert.doesNotMatch(out.balance, /nb-split|act-bar/);
+  assert.doesNotMatch(out.balance, /The macro split is the average/);
+});
+
+test('Nutrición Balance without enough logged intake: a short empty line, the "intake can\'t be scored" note behind ⓘ; no expenditure -> no section', () => {
+  const out = {};
+  renderAt({ ...full(), energy: { ...BAL, balance: null, macros: undefined, lastIntake: '2026-06-01' } }, '2026-07-01', { out, balance: true });
+  assert.match(out.balance, /<p class="nb-empty">Not enough intake logged yet for a balance\.<\/p>/);
+  assert.match(out.balance, /<div class="hs-info" id="nb-info" hidden><p><b>Intake can’t be scored:<\/b> it was logged on too few recent days \(last on 1 Jun, 31 days ago\)/);
+  assert.doesNotMatch(out.balance, /db-row|act-bar/);
+  const none = {};
+  renderAt({ ...full(), energy: { hasData: false } }, '2026-07-01', { out: none, balance: true });
+  assert.equal(none.balance, '');
+  assert.equal(none.balanceHidden, true, 'the empty host is hidden');
 });

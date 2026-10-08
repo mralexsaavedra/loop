@@ -24,8 +24,8 @@ class="hs-sec" id="hl-<key>">` with an UPPERCASE label, an ⓘ toggle and a list
 resting HR, HRV, respiratory rate, wrist temperature), **Fitness** (VO₂max, walking HR — moved out of
 Recovery), **Sleep** (last night, then % nights ≥ target, night-to-night ±, bedtime / wake time),
 **Body composition** (weight, body fat, lean mass, waist), **Activity** (steps, exercise, distance,
-flights), **Energy** (expenditure; the intake balance + macro split cards stay under it until
-Nutrición takes them). On ≥ 900 px the sections flow in two columns, Recovery spans the row.
+flights), **Energy** (expenditure only: the intake balance + macro split moved to Nutrición →
+Balance, `docs/nutrition.md`). On ≥ 900 px the sections flow in two columns, Recovery spans the row.
 
 **Rows, not cards (text diet).** Each metric is the shared row (`HC.metricRow`, the same `.db-*` row as
 Inicio's "My dashboard"): icon · UPPERCASE name · the NEWEST value + unit · a marker · a small line
@@ -52,8 +52,8 @@ hidden in the DOM, so nothing is lost): Recovery = the good-directions / consist
 short VO₂max / walking HR note; Sleep = the consistency note; Body = the "How to read this" note (scale
 mix, bioimpedance ±3–5 %, single-scale Δ), the "n readings in the last 150 days" of body fat and lean
 mass, and the waist note (or how to start logging it); Activity = the NEAT note; Energy = the
-power-meter notes (headline day corrected / uncovered, days in the window) and the balance note or the
-expenditure-only caveat. The tab intro sits behind the title's ⓘ.
+power-meter notes (headline day corrected / uncovered, days in the window) and the expenditure-only
+caveat (`energyTdeeNote`, which points to Nutrición → Balance); the balance note moved with the balance. The tab intro sits behind the title's ⓘ.
 
 - **Body composition** — `weight.csv` + `bodyfat.csv` + `leanmass.csv`. Weight trend is a 7-day
   rolling average (it mixes scales/apps, so the raw series is noisy). Body fat and lean mass use
@@ -73,9 +73,10 @@ expenditure-only caveat. The tab intro sits behind the title's ⓘ.
 - **Energy** — `active-energy-daily.csv` + `basal-energy-daily.csv` give expenditure (TDEE,
   7-day rolling); `dietary-daily.csv` gives intake AND the macro split (protein/carbs/fat, g + %
   kcal). Data honesty: intake logging is sparse and abandoned, so the balance (deficit/surplus)
-  AND the macro split are shown ONLY when intake was logged within the last 14 days of the newest
-  expenditure day and ≥7 logged days exist in the 90 days ending at that day; otherwise
-  the page shows expenditure alone and says intake can't be scored. Implausible basal readings
+  AND the macro split are baked ONLY when intake was logged within the last 14 days of the newest
+  expenditure day and ≥7 logged days exist in the 90 days ending at that day. Salud shows the
+  expenditure row alone; the balance and the split render in Nutrición → Balance (the same
+  `client/health.js`, host `#nutri-balance`), which otherwise says intake can't be scored. Implausible basal readings
   (double-counts / no-wear) are dropped via a sane band.
   **Power-meter ride correction** (`lib/health/ride-energy.mjs`, `readActiveEnergy` = the ONE active-
   energy reader of the Salud card AND the detail sheet's `energy`): a ride a bike computer recorded

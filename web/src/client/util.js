@@ -116,7 +116,8 @@ var HC = (function () {
     return h ? h + ' ' + units.h + (m ? ' ' + m + ' ' + units.min : '') : m + ' ' + units.min;
   }
 
-  // The ONE metric-row markup (Inicio "My dashboard", the Salud monitor and the Salud metric cards):
+  // The ONE metric-row markup (Inicio "My dashboard", the Salud monitor and metric rows, Entreno's run /
+  // ride rows, Nutrición's Balance):
   // icon · UPPERCASE name · value (+ small unit) and a ▲ / ▼ / • marker on the right, a small line
   // (the baseline, a range or a status word) under the value. Styles: .db-* in styles/score.css.
   // Line icons on a 24-unit grid, stroke only (currentColor via .db-ico); unknown key -> the HRV line.
@@ -139,6 +140,8 @@ var HC = (function () {
     energy: '<path d="M12 21a6 6 0 0 0 6-6c0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-3-2 2-3 4-3 7a6 6 0 0 0 6 6z"/>',
     run: '<circle cx="14" cy="4.5" r="1.8"/><path d="M6 21l3.5-5 3 2 1-5 3 3h3M8 10l3-3h3l-1.5 6"/>',
     bike: '<circle cx="6" cy="16" r="4"/><circle cx="18" cy="16" r="4"/><path d="M6 16l4-7h5l3 7M10 9l2 7h-6M13 5h3"/>',
+    food: '<path d="M7 3v18M4.5 3v5a2.5 2.5 0 0 0 5 0V3M17 21V3c-2 1.5-3 4-3 8h3"/>',
+    balance: '<path d="M12 4v16M8 20h8M5 7h14M5 7l-3 6a3 3 0 0 0 6 0zM19 7l-3 6a3 3 0 0 0 6 0z"/>',
   };
   function metricIcon(key) {
     return '<svg class="db-ico" viewBox="0 0 24 24" aria-hidden="true">' + (Object.prototype.hasOwnProperty.call(ICONS, key) ? ICONS[key] : ICONS.hrv) + '</svg>';
