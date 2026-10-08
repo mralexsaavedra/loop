@@ -194,3 +194,21 @@ test('back on the page on another day (core.js waits while busy): the window is 
   assert.deepEqual(t.calls.at(-1), 'GET /log/summary?from=2030-01-02&to=2030-01-29');
   assert.match(t.els.host.innerHTML, /data-adh-day="2030-01-29"/);
 });
+
+test('Constancia card: number tiles (days logged / complete with a thin bar); every note and rule behind the ⓘ block, none on the card', async () => {
+  const t = setup({ days: [day('2030-01-20', 2500, 150), day('2030-01-21', 3500, 160)] });
+  await flush();
+  const h = t.els.host.innerHTML;
+  assert.ok(h.startsWith('<div class="hs-info" id="adh-info" hidden>'), 'the ⓘ block the section header toggles');
+  const info = h.slice(0, h.indexOf('</div>'));
+  const card = h.slice(h.indexOf('<div class="nutri-card adh-card">'), h.indexOf('<h3 class="adh-h">'));
+  assert.match(info, /No complete days with a target in this period\./);
+  assert.match(info, /Complete = at least one entry in Breakfast, Lunch and Dinner/);
+  assert.doesNotMatch(card, /adh-note|adh-rule|Complete =|<p/, 'the card carries numbers + labels only');
+  assert.match(card, /<span class="adh-lbl">Days logged<\/span><b class="adh-val">0<\/b><small class="adh-sub">of 7<\/small><span class="adh-bar" aria-hidden="true"><\/span>/, 'nothing in the window: an empty bar');
+  const t2 = setup({ days: [day('2030-01-27', 2500, 150), day('2030-01-28', 2500, 150, { breakfast: 1, lunch: 0, dinner: 0, addon: 0 })] });
+  await flush();
+  const h2 = t2.els.host.innerHTML;
+  assert.match(h2, /<div class="adh-stat"><span class="adh-lbl">Days logged<\/span><b class="adh-val">2<\/b><small class="adh-sub">of 7<\/small><span class="adh-bar" aria-hidden="true"><i style="width:29%"><\/i><\/span><\/div>/);
+  assert.match(h2, /<span class="adh-lbl">Complete days<\/span><b class="adh-val">1<\/b><small class="adh-sub">of 7<\/small><span class="adh-bar" aria-hidden="true"><i style="width:14%"><\/i><\/span>/);
+});

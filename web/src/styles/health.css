@@ -1,11 +1,7 @@
 /* Salud tab — body / activity / energy / recovery sections, and the section chrome (.hs-*) Entreno's
- * blocks share.
- * Ported verbatim (selectors + declarations) from the legacy
- * plan-web.template.html <style> block. Markup lands in slice 6 — these
- * rules are ported ahead of the markup (corrective apply pass) so that
- * slice only needs to add markup. Base .dash-cards/.dash-card grid rules
- * (shared with Entrenos) live in training.css; this file only adds the
- * 2-column variant used here. */
+ * and Nutrición's blocks share.
+ * Ported from the legacy plan-web.template.html <style> block, then reshaped into the shared
+ * section language (UPPERCASE label + ⓘ, metric rows). */
 
 .spark {
   display: block;
@@ -61,6 +57,9 @@
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
+}
+.hs-lbl::after {
+  content: none;
 }
 .hs-i {
   flex: none;
@@ -135,7 +134,6 @@
   background: radial-gradient(ellipse 70% 100% at 50% 0, color-mix(in srgb, var(--up) 16%, transparent), transparent 70%);
   pointer-events: none;
 }
-.hs-sec .db-list + .dash-cards,
 .hs-sec #score-recovery + .db-list {
   margin-top: var(--sp-4);
 }

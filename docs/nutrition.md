@@ -95,8 +95,8 @@ While the food API boot request is in flight (`HCFood.pending()`) the rings rend
 the Apple Health day); its answer → the food log, its failure → the Apple Health day, and past
 `INTAKE.bootGraceMs` (`INTAKE_BOOT_GRACE_MS`, 2500 ms, baked) without an answer the Apple Health day
 renders anyway (a fetch hanging in a sandboxed artifact) and a late answer still switches.
-Resumen de hoy's kcal dial + macro bars follow the SAME wait (`window.intakeWaiting()`, owned by
-intake.js, one grace timer): while waiting they show the empty track + target; answered → the food log
+Resumen de hoy's kcal ring + macro rows follow the SAME wait (`window.intakeWaiting()`, owned by
+intake.js, one grace timer): while waiting they show the empty track + "— / target"; answered → the food log
 only (never the Apple Health day); failure / grace over → the Apple Health day. nutri-day.js is inlined
 before the food scripts, so intake.js (inlined after them) re-renders Resumen de hoy (`HCNutri.refresh`)
 at load and when the grace ends; consecutive inline scripts run before the first paint, so the Apple
@@ -110,7 +110,7 @@ today it is labelled as in progress ("Hoy, en curso" / "Today, so far"), so part
 read as a finished day. When NO intake was ever logged (`INTAKE.latest` null, decided at build
 time), Resumen de hoy renders no rings host and NO help line. The one-line hint that lived in the day
 builder's fold summary ("No food logged: the intake rings appear once a food app writes to Apple
-Health", `noneHtml`) was dropped on purpose with the builder: the dial and bars already show the
+Health", `noneHtml`) was dropped on purpose with the builder: the ring and macro rows already show the
 target with empty tracks, and on the LAN page the food log (Registrar, with its own empty state) is
 the way to log; pointing at an Apple Health food app is no longer the recommended path.
 
@@ -268,29 +268,52 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   type from `DETAIL.sessions` — `daytype.mjs` `dayInputFor`, see "Nutrition v2 part 3"), and
   every goal / day type / ride change calls `window.intakeRefresh()` directly (a failure shows a
   one-line message, never a stale ring).
-- **Resumen de hoy** — the day type as ONE row of 4 equal segments (real radios, inline SVG line
-  icons, short labels `dayShort`: Descanso · Gym · Bici · Bici larga; the full `dayTypes` names stay
-  for sentences and the segment title; the DETECTED type's segment gets `.seg-auto`, a small dot), then
-  a 270° kcal dial (`.nt-dial`, the Inicio dials' arc baked as `NUTRI_ARC` from `view/dial.mjs`
-  `arcPath(0, 1)`; target kcal centred in `--num`). The dial and the three macro bars (Protein /
-  Carbs / Fat, grams in `--num`) fill ONLY from intake logged on the viewer's today (`INTAKE.latest`
-  dated today: fill = logged / target via `pathLength` 100, `--trend`, > 110 % `--mid`, a missing macro
-  = an empty bar with a dash; today's page food log, `window.foodTotals`, wins over `INTAKE` when it has
-  entries, with its own note); otherwise the empty track + the target. The goal is a muted chip under
-  the dial (a ≥ 44 px button, `#nutri-goal-chip`) that opens the profile sheet focused on its Objetivo
-  setting (`HCDetail.open('profile', null, { focus: '#pf-goal input:checked' })`), then on bike days the
-  plan line ("meals + ride fuel = total", meals = the guide's meals target; the guide's Extras absorbs the remainder), then the intake
-  rings — which step aside (host hidden) when the logged day is today, since the dial shows it. Inicio's
-  "today you eat" card (`#eat-body`) shows the same day type, goal and target.
-- **Plan de hoy — layout** — restrained cards (no accent border): meal name as a caps label, its kcal
+- **Nutrición header** — the tab opens like Salud / Entreno: a centred uppercase title ("NUTRICIÓN")
+  with an ⓘ (`#nu-intro`, `I18N_NUTRI.head`) holding the tab intro and the shared caveats; it sits in
+  `web/src/tabs/Dia.astro` outside the `dia` section, so it stays when only Tablas is shown. Every
+  section header below is the shared `.hs-head` row (UPPERCASE label + optional ⓘ, `health.css`).
+- **Resumen de hoy** — the day type as compact pills (real radios, short labels `dayShort`: Descanso ·
+  Gym · Bici · Bici larga, the picked one white like the W / M / 6M toggle; inline SVG line icons only
+  from 600 px, where four pills with icons fit one row; the full `dayTypes` names stay for sentences
+  and the pill title; the DETECTED type's pill gets `.seg-auto`, a small dot), then the kcal ring in the
+  Inicio dial language (`.nt-ring` around the shared `.dial-ring` / `.dial-svg` / `.dial-track` /
+  `.dial-fill` / `.dial-num`: the full ring of `view/dial.mjs` `arcPath(0, 1)` baked as `NUTRI_ARC`,
+  12 o'clock, clockwise, round caps, thin stroke). Inside: the kcal EATEN today in `--num` (a dash
+  with no intake) over a small "/ target kcal". ONE state colour: none = the `--track` only, ok =
+  eaten ≤ 110 % of the target (`--up`), over = past it (`--down`, the ring full). Then three compact
+  macro rows (Protein / Carbs / Fat: UPPERCASE label, "eaten / target g" in `--num`, a thin bar; > 110 %
+  `--down`, a missing macro = a dash and an empty bar). Ring and rows fill ONLY from intake logged on
+  the viewer's today (`INTAKE.latest` dated today; today's page food log, `window.foodTotals`, wins over
+  `INTAKE` when it has entries, a macro some entries lack is a minimum "≥"). Where that intake comes
+  from, the "half-logged day looks short" caveat and "carbs are the rest of the kcal" sit behind the
+  section's ⓘ (`#nutri-sum-info`, written by `client/nutri-day.js` on every render). The goal is a
+  muted chip under the ring (a ≥ 44 px button, `#nutri-goal-chip`) that opens the profile sheet
+  focused on its Objetivo setting (`HCDetail.open('profile', null, { focus: '#pf-goal input:checked' })`),
+  then on bike days the plan line ("meals + ride fuel = total", meals = the guide's meals target; the
+  guide's Extras absorbs the remainder), then the intake rings — which step aside (host hidden) when
+  the logged day is today, since the ring shows it. Inicio's "today you eat" card (`#eat-body`) shows
+  the same day type, goal and target.
+- **Balance** (moved from Salud's Energía) — `client/health.js` `renderBalance` renders
+  `HEALTH.energy` (lib/health/aggregate.mjs `aggEnergy`) into `#nutri-balance`, after Avituallamiento
+  and before Progreso: a `.hs-head` "BALANCE" with an ⓘ (the balance note: window, days, "historical",
+  the macro clause), the window as a caption ("31 May – 29 Jun · 30 days logged" — ONE fixed window:
+  the bake carries a single paired window of up to 90 days anchored to the newest expenditure day, so
+  there is no W / M / 6M switch), three shared metric rows (`HC.metricRow`: avg intake, avg burn — opens
+  the expenditure sheet —, deficit / surplus a day), then the average macro split as one stacked bar +
+  counted legend (Entreno's `.act-bar` / `.act-legend`, `.nb-m-p` / `-c` / `-f` = `--up` / `--strain` /
+  `--mid`; widths normalised so rounded percentages leave no gap). Too few logged days → a short empty
+  line, "intake can't be scored" (with the last logged day) behind the ⓘ; no expenditure at all → the
+  host stays hidden. Same data and numbers as the former Salud cards; Salud keeps the expenditure row.
+- **Plan de hoy — layout** — flat `--surface` cards (no border, no shadow): meal name as a caps label, its kcal
   budget big in `--num`, the macro rows (caps label left, "~45 g" in `--num` right; the example select
   below with the amount and the "+"; a long amount wraps under the select at 360 px, right-aligned), the
   muted P / C / F (es: G) mini line. On wide screens (>= 900 px) the four meal-group cards flow into two
   masonry-like CSS columns (`columns: 2`, cards `break-inside: avoid`). The block is a native
   `<details class="nutri-block sec-fold nutri-fold" id="nutri-plan-fold">`, COLLAPSED by default: the
-  summary = the heading + the meals target (`#nutri-plan-kcal`, written on every refresh); the open
+  summary (a flat `--surface` row like every Nutrición fold — Mis productos, Mis recetas, Tablas:
+  UPPERCASE label, optional figure, chevron; `layout.css`) = the heading + the meals target (`#nutri-plan-kcal`, written on every refresh); the open
   state is a per-viewer convenience (`hc.nutri.planOpen` '1' / '0', every access wrapped, saved on
-  `toggle`); the guide renders while collapsed. Avituallamiento stays after it, never collapsed. Styles:
+  `toggle`); the guide renders while collapsed. Avituallamiento stays after it, never collapsed, under the shared `.hs-head` label. Styles:
   `.gd-*` in `web/src/styles/nutri.css` (tokens only: `--good` = covered / done, `--mid` = a portion at its
   maximum, `--accent` = the "+").
 - **Supplements** — optional `supplements: [{ name, dose?, meal }]` in `profile/profile.json`

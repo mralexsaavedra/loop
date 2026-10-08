@@ -105,7 +105,7 @@ Plan de hoy) and the
   when `dia` is visible, no section key) ship `hidden` and appear only when `GET /api/food/products`
   answers — so the claude.ai artifact, file:// and the example build show nothing new and builds stay
   byte-identical. Nothing of the log is kept in the browser. **Day navigator** (on Registrar's heading
-  line, `.food-head`: the title on the left, its rule filling the gap, the navigator on the right; a row too
+  line, `.food-head`: the shared UPPERCASE section label (`.hs-lbl`) on the left, the navigator on the right; a row too
   narrow wraps the navigator under the title; static markup in `Dia.astro`, driven by food-log.js): `‹ <date> ›` = real 44 px buttons (aria-label
   "Día anterior" / "Día siguiente"), the date in an `aria-live` label ("Hoy" on the viewer's today, else
   `HC.fmtDate`), next disabled on today (no future days), a short "Hoy" button (aria-label "Volver a hoy") before `‹` only on another day; the viewed
@@ -122,10 +122,11 @@ Plan de hoy) and the
   commits (a re-read mid-delete cannot bring it back); an add or delete on a past day never touches
   today or calls `HCNutri.refresh()`. The server already accepts any
   valid date (2000–2100). **Registrar**: the day total, then FOUR
-  restrained group cards — Desayuno / Comida / Cena / Añadidos (en: Extras) — (`slots.mjs` `MEAL_GROUPS`
-  + `mealGroup`, baked in `FOOD_CONST` as `groups` / `mainSlots` / `addonGroup` / `addonSlot`; label,
-  amount, kcal in `--num`, P / C / G line, a 44 px delete button with an aria-label, "+ Añadir" per
-  group). The stored slot enum is UNCHANGED (`food_log.meal` = the six `MEAL_SLOTS`, no schema change):
+  flat `--surface` group cards — DESAYUNO / COMIDA / CENA / AÑADIDOS (en: EXTRAS; the UPPERCASE group
+  label + its kcal) — (`slots.mjs` `MEAL_GROUPS` + `mealGroup`, baked in `FOOD_CONST` as `groups` /
+  `mainSlots` / `addonGroup` / `addonSlot`), each entry a list row (~56 px, 1 px divider): the name with
+  the amount as secondary text, P / C / G as the small line under them, the kcal alone on the right in
+  `--num`, a 44 px delete button with an aria-label; a quiet UPPERCASE "+ AÑADIR" per group. The stored slot enum is UNCHANGED (`food_log.meal` = the six `MEAL_SLOTS`, no schema change):
   entries stored as preworkout / postworkout / snack show in Añadidos with a tiny muted slot tag
   (`.fe-slot`). **Add sheet**: a registered detail-sheet view
   (`window.HCViews['food-add']`, deep link `#food-add`, registered only once the API answered; focus
@@ -198,7 +199,7 @@ in the last `days` days (today included) in the same shape, for the intake rings
   (`GET /products`) has not answered yet (true from load, set synchronously, so intake.js sees it on its
   first render); its answer or failure calls `window.intakeRefresh()`, so the rings leave that wait. A macro NO entry states is `null` (a dash, never "0 / 150 g"
   or 0 %); `missing[m]` = at least one entry lacks it, so a non-null value is a minimum and the bar /
-  ring shows "≥ 40" (the rings add a one-line note). ONE logged entry today is enough: the dial, bars
+  ring shows "≥ 40" (the rings add a one-line note). ONE logged entry today is enough: the kcal ring, macro rows
   and rings then show the page's food log for today instead of the Apple Health intake (labelled
   "Registrado hoy en esta página" / the rings' "Registrado hoy"). After every add / delete the food scripts call
   `HCNutri.refresh()` (re-renders Resumen de hoy, which refreshes the rings, and the portion guide, in its own try/catch). A page left open past midnight reloads today's log on `visibilitychange`: a viewer on "today" moves to
@@ -261,8 +262,12 @@ filled from them, never typed.
   "pocos datos". Status per goal band (`PROGRESS.bands`, from `analysis/methodology.md`: cut
   0.25–0.5, bulk 0.1–0.25 kg/week, never > `maxPctWeek` of bodyweight; maintain stable within
   ±`stableKg`, else going up / down). ETA only on pace = remaining ÷ the OBSERVED rate ±`etaSpread`,
-  as months. Target / ETA only with `HCSettings`. Says the series mixes scales. The card opens the
-  weight sheet, which draws the target dashed (`detail.js` `targetOf`).
+  as months. Target / ETA only with `HCSettings`. The card carries numbers + labels only: "MEDIA DE 7
+  DÍAS" + the last weigh-in, the average big in `--num`, the weekly rate as a pill (`.pg-pill`, `--up`
+  on pace / steady / reached, `--down` otherwise), the status word with its dot, target / kg to go, the
+  ETA; the status why, the rate window and "the series mixes scales" sit behind the section's ⓘ
+  (`#nutri-progress-info`, written by progress.js; the ⓘ hides when there is nothing behind it). The
+  card opens the weight sheet, which draws the target dashed (`detail.js` `targetOf`).
 - **Constancia** (LAN page only) — `GET /food/log/summary?from&to` (≤ `summaryDaysMax` days, ≤ 20,000
   rows, 30 reads / min per client) → per-day `daySummaries` (shared formula, food-calc.js copy pinned
   by `SUMMARY_CASES`). `lib/nutrition/adherence.mjs` = the reference (`ADHERENCE_CASES`), ported in
@@ -270,7 +275,11 @@ filled from them, never typed.
   only over complete days with a DETECTED day type (`HCNutri.targetFor` = current goal × that day's
   type; past days via `daytype.mjs` `dayInputFor` over `DETAIL.sessions` + `TRAINING`). Counted apart,
   never compared: unknown type, and an ASSUMED rest day (sleep only, no session: `inferred`). 7 / 14 /
-  28 switch, a 28-cell strip of ≥ 44 px buttons (state in words; a tap = `HCFood.showDay`). Re-read
+  28 switch (compact pills, the day-type pills' style), a card of number tiles (days logged / complete
+  days with a thin bar of the window, mean kcal vs target, protein days), then a 28-cell strip of ≥ 44 px
+  buttons (state in words; a tap = `HCFood.showDay`). Every note (no comparison, minimums, unknown /
+  assumed days), the complete-day rule and the goal note sit behind the section's ⓘ (`#adh-info`, the
+  first child of `#food-adherence`; a re-render keeps it open if it was). Re-read
   debounced (`reloadMs`) after every add / delete, and on `visibilitychange` when the day changed (the
   midnight reload of core.js waits while the page is busy).
 - **Rollout** — ingest rebuild (`docker compose up -d --build health-ingest`, runs 007), then

@@ -1,9 +1,9 @@
-/* Nutrición day blocks — Resumen de hoy (day type segments, kcal dial, macro bars), Plan de hoy
+/* Nutrición day blocks — Resumen de hoy (day type pills, kcal ring, macro rows), Plan de hoy
  * (the portion guide: four meal groups as cards, supplements) and Avituallamiento (3-step ride-fuelling timeline).
- * Tokens only. Dark, data-first, colour = meaning: --accent = the picked segment's icon / actions,
- * --trend = neutral logged progress (dial + bars fill), --mid = past 110 % or a portion at its maximum,
- * --good = a meal / macro already covered, --strain = the ride timeline. Numbers in --num; labels caps + --label-track.
- * The segments are real radios (labelled, keyboard-native), every target >= 44px. */
+ * Tokens only, the shared language of Inicio / Salud / Entreno: flat --surface cards, UPPERCASE tracked
+ * labels, numbers in --num. Colour = meaning: --up = eaten on track (ring + rows), --down = past 110 %,
+ * --track = nothing logged yet, --good = a meal / macro already covered, --strain = the ride timeline.
+ * The day-type pills are real radios (labelled, keyboard-native), every target >= 44px. */
 
 .nutri-block {
   margin-top: var(--sp-8);
@@ -16,21 +16,31 @@
   color: var(--muted);
   white-space: nowrap;
 }
+/* Plan de hoy opens its own group of blocks: a section gap, not the folds' row gap */
+details.sec-fold.nutri-fold {
+  margin-top: var(--sp-8);
+}
 .nutri-fold > #nutri-plan {
   margin-top: var(--sp-5);
 }
+/* a flat card, like Entreno's Activity card: one fill, no border, no shadow */
 .nutri-card {
   background: var(--card-bg);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  padding: var(--sp-7);
-  box-shadow: var(--card-shadow);
+  border-radius: var(--r-sm);
+  padding: var(--sp-6) var(--sp-5);
+}
+/* a section label row (.hs-head, health.css) right above its card: no extra top gap */
+.nutri-block > .hs-head + .hs-info + .nutri-card,
+.nutri-block > .hs-head + .nutri-card {
+  margin-top: 0;
 }
 
-/* day type: ONE row of 4 equal segments (icon over a short label), no wrap at 360 px */
+/* compact pills (day type, the Constancia window): real radios, the picked one white like the
+   W / M / 6M toggle; the pill stays compact, its 44 px hit area is the label's own min-height */
 .seg {
   border: 0;
   margin: 0 0 var(--sp-5);
+  padding: 0;
   min-width: 0;
 }
 .seg-lbl {
@@ -39,7 +49,7 @@
   letter-spacing: var(--label-track);
   text-transform: uppercase;
   color: var(--muted);
-  margin-bottom: var(--sp-3);
+  margin-bottom: var(--sp-2);
 }
 .seg-src {
   text-transform: none;
@@ -48,18 +58,16 @@
   margin-left: var(--sp-2);
 }
 .seg-opts {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--sp-1);
-  background: var(--rail);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--r-md);
-  padding: var(--sp-1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--sp-2);
 }
 .seg-opt {
   position: relative;
-  display: block;
+  display: flex;
+  align-items: center;
   min-width: 0;
+  min-height: 44px;
 }
 .seg-opt input {
   position: absolute;
@@ -71,20 +79,21 @@
   cursor: pointer;
 }
 .seg-in {
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
-  min-height: 52px;
-  padding: var(--sp-2) var(--sp-1);
-  border-radius: var(--r-sm);
+  gap: var(--sp-2);
+  min-height: 30px;
+  padding: var(--sp-1) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
   color: var(--muted);
   transition: background 0.18s, color 0.18s;
 }
 .seg-ico {
-  width: 20px;
-  height: 20px;
+  display: none;
+  width: 16px;
+  height: 16px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.7;
@@ -92,36 +101,33 @@
   stroke-linejoin: round;
 }
 .seg-txt {
-  max-width: 100%;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
   font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
   line-height: 1.15;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .seg-opt input:checked + .seg-in {
-  background: var(--surface-2);
-  color: var(--ink);
-  box-shadow: 0 0 0 1px var(--line) inset;
-}
-.seg-opt input:checked + .seg-in .seg-ico {
-  color: var(--accent);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
 }
 .seg-opt input:focus-visible + .seg-in {
   outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
-/* the detected ("auto") type: a small neutral dot in the segment's corner */
+/* the detected ("auto") type: a small dot on the pill's corner */
 .seg-auto .seg-in::after {
   content: "";
   position: absolute;
-  top: 7px;
-  right: 7px;
-  width: 5px;
-  height: 5px;
+  top: -2px;
+  right: -2px;
+  width: 7px;
+  height: 7px;
   border-radius: var(--r-pill);
   background: var(--muted);
+  box-shadow: 0 0 0 2px var(--card-bg);
 }
 .nutri-auto {
   min-height: 44px;
@@ -131,95 +137,58 @@
 .nutri-why {
   font-size: var(--fs-xs);
   color: var(--faint);
-  margin-top: var(--sp-3);
+  margin-top: var(--sp-2);
 }
 
-/* today's target: the kcal dial (the Inicio dials' 270° arc) with the goal chip under it */
+/* the day-type icons only where four pills with icons fit on one row */
+@media (min-width: 600px) {
+  .seg-ico {
+    display: block;
+  }
+}
+
+/* today's kcal: the Inicio ring (.dial-ring / .dial-svg / .dial-track / .dial-fill / .dial-num in
+   score.css) at a larger size, ONE state colour, the goal chip under it */
 .nt-top {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: var(--sp-2);
   padding-top: var(--sp-5);
   border-top: 1px solid var(--line-soft);
 }
-.nt-dial {
-  position: relative;
+.nt-ring {
+  --dial-size: 168px;
+  --dial-c: var(--track);
   width: 168px;
   max-width: 60vw;
-  aspect-ratio: 1;
   margin: 0;
 }
-.nt-dial-svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
+.nt-ring-ok {
+  --dial-c: var(--up);
 }
-.nt-dial-track {
-  fill: none;
-  stroke: var(--line);
-  stroke-width: 9;
-  stroke-linecap: round;
+.nt-ring-over {
+  --dial-c: var(--down);
 }
-.nt-dial-fill {
-  fill: none;
-  stroke: var(--trend);
-  stroke-width: 9;
-  stroke-linecap: round;
-  animation: nt-dial-in 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+.nt-ring .dial-track,
+.nt-ring .dial-fill {
+  stroke-width: 6;
 }
-.nt-dial-over .nt-dial-fill {
-  stroke: var(--mid);
-}
-.nt-dial-c {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding-top: 6px;
+.nt-ring .dial-centre {
+  gap: var(--sp-1);
 }
 .nt-kcal {
-  font-family: var(--num);
-  font-size: 38px;
-  font-weight: 700;
-  line-height: 1;
-  color: var(--ink);
+  font-size: 40px;
 }
-.nt-unit {
-  font-size: var(--fs-2xs);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.nt-logged {
-  margin-top: var(--sp-1);
-  font-size: var(--fs-2xs);
-  color: var(--muted);
-}
-.nt-logged b {
+.nt-of {
   font-family: var(--num);
   font-size: var(--fs-sm);
-  color: var(--trend);
+  color: var(--muted);
 }
-@keyframes nt-dial-in {
-  from {
-    stroke-dasharray: 0 100;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .nt-dial-fill {
-    animation: none;
-  }
-}
-/* the goal: a low-emphasis pill under the dial; the padding keeps a >= 44 px tap target. It opens
+/* the goal: a low-emphasis pill under the ring; the padding keeps a >= 44 px tap target. It opens
    the profile sheet's goal setting. */
 .nt-goal {
   min-height: 44px;
-  margin-top: -34px; /* sits in the dial's open bottom */
   padding: 0 var(--sp-5);
   border: 0;
   background: none;
@@ -250,53 +219,57 @@
   border-radius: var(--r-pill);
 }
 
-/* three thin macro bars: label left, grams right; fill only from intake logged today */
-.nt-bars {
+/* three compact macro rows: UPPERCASE label left, eaten / target right, a thin bar under them */
+.nt-macros {
   display: grid;
-  gap: var(--sp-5);
-  margin-top: var(--sp-4);
+  gap: var(--sp-4);
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  list-style: none;
 }
-.nt-bar-top {
-  display: flex;
-  justify-content: space-between;
+.nt-mac {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: var(--sp-3);
+  row-gap: var(--sp-2);
 }
-.nt-bar-lbl {
+.nt-mac-lbl {
   font-size: var(--fs-2xs);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--ink);
 }
-.nt-bar-val {
-  font-size: var(--fs-xs);
-  color: var(--muted);
-}
-.nt-bar-val b {
+.nt-mac-val {
   font-family: var(--num);
+  white-space: nowrap;
+}
+.nt-mac-val b {
   font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--ink);
 }
-.nt-bar-track {
+.nt-mac-val small {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.nt-mac-track {
+  grid-column: 1 / -1;
   position: relative;
   height: 4px;
-  margin-top: var(--sp-2);
   border-radius: var(--r-pill);
-  background: var(--line);
+  background: var(--track);
   overflow: hidden;
 }
-.nt-bar-fill {
+.nt-mac-track i {
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: var(--r-pill);
-  background: var(--trend);
+  background: var(--up);
 }
-.nt-bar-over .nt-bar-fill {
-  background: var(--mid);
+.nt-mac-over .nt-mac-track i {
+  background: var(--down);
 }
-.nt-cnote,
 .nt-plan,
 .nutri-factor,
 .fuel-note {
@@ -305,9 +278,31 @@
   margin-top: var(--sp-4);
   line-height: 1.45;
 }
-.nt-cnote {
-  color: var(--faint);
+/* Balance (client/health.js renderBalance): the window caption, the shared metric rows (.db-*), then the
+   macro split card = Entreno's stacked bar + legend (.act-bar / .act-legend / .act-sw, training.css)
+   with a colour per macro; the legend always names them, colour is never alone */
+.nb-win,
+.nb-empty {
+  margin: 0 0 var(--sp-3);
+  color: var(--muted);
+  font-size: var(--fs-xs);
 }
+.nb-split {
+  margin-top: var(--sp-4);
+}
+.nb-m-p {
+  fill: var(--up);
+  background: var(--up);
+}
+.nb-m-c {
+  fill: var(--strain);
+  background: var(--strain);
+}
+.nb-m-f {
+  fill: var(--mid);
+  background: var(--mid);
+}
+
 /* Plan de hoy = a portion guide: per main meal a plate by parts (protein / carbs / vegetables / fat),
    each macro row = name + grams left (--num), then ONE example food (a native select) with its amount
    and a "+" to log it; Extras = a budget line + a muted hint. No accent borders, colour = state only. */
@@ -637,25 +632,13 @@
     padding-top: var(--sp-5);
     border-top: 1px solid var(--line-soft);
   }
-  .nt-dial {
-    width: 240px;
+  .nt-ring {
+    --dial-size: 220px;
+    width: 220px;
     max-width: none;
   }
   .nt-kcal {
-    font-size: 54px;
-  }
-  .nt-unit {
-    font-size: var(--fs-xs);
-  }
-  .nt-goal {
-    margin-top: -46px;
-  }
-  .seg-opts {
-    display: inline-grid;
-    grid-template-columns: repeat(4, minmax(104px, auto));
-  }
-  .seg-in {
-    padding: var(--sp-2) var(--sp-5);
+    font-size: 52px;
   }
   /* masonry-like flow: two CSS columns, so a short card (coffee) never leaves a row-height gap
      next to a tall one; cards read down the first column, then the second (the day's order) */
@@ -709,24 +692,30 @@
 }
 .pg-kg {
   font-family: var(--num);
-  font-size: 34px;
+  font-size: var(--fs-4xl);
   line-height: 1;
   color: var(--ink);
 }
-.pg-num small,
-.pg-rate small {
+.pg-num small {
   font-size: var(--fs-sm);
   color: var(--muted);
 }
-.pg-rate {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.pg-rate b {
+/* the weekly rate as a pill (the shared delta pill: --rail inset), coloured by the status */
+.pg-pill {
+  padding: 2px var(--sp-3);
+  border-radius: var(--r-xs);
+  background: var(--rail);
   font-family: var(--num);
-  font-size: var(--fs-2xl);
-  color: var(--trend);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pg-pill.pg-s-good {
+  color: var(--up);
+}
+.pg-pill.pg-s-mid,
+.pg-pill.pg-s-low {
+  color: var(--down);
 }
 .pg-status {
   display: flex;
@@ -734,7 +723,9 @@
   align-items: baseline;
   gap: var(--sp-1) var(--sp-3);
   margin: 0 0 var(--sp-3);
-  font-size: var(--fs-md);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
 }
 .pg-dot {
   width: 8px;
@@ -758,13 +749,11 @@
 .pg-s-muted {
   color: var(--muted);
 }
-.pg-why {
-  color: var(--muted);
-}
 .pg-target,
 .pg-eta {
   margin: 0 0 var(--sp-2);
-  font-size: var(--fs-md);
+  font-size: var(--fs-sm);
+  color: var(--muted);
 }
 .pg-warn {
   margin: 0 0 var(--sp-2);
@@ -775,29 +764,22 @@
 .pg-empty {
   color: var(--muted);
 }
-.pg-note {
-  margin: var(--sp-4) 0 0;
-  font-size: var(--fs-xs);
-  color: var(--faint);
-}
 
 /* ---------- Constancia (client/adherence.js): the food log's adherence + a 28-day strip ---------- */
-.adh-opts {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.adh-opts .seg-in {
-  min-height: 44px;
-}
+/* number tiles, Entreno's Activity stat tiles: --surface-2 inside the flat card */
 .adh-stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-6) var(--sp-5);
+  gap: var(--sp-3);
 }
 .adh-stat {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  padding: var(--sp-4);
+  border-radius: var(--r-xs);
+  background: var(--surface-2);
 }
 .adh-lbl {
   font-size: var(--fs-2xs);
@@ -809,20 +791,27 @@
 .adh-val {
   font-family: var(--num);
   font-size: var(--fs-3xl);
+  line-height: 1.1;
   color: var(--ink);
 }
 .adh-sub {
   font-size: var(--fs-sm);
   color: var(--muted);
 }
-.adh-note,
-.adh-rule {
-  margin: var(--sp-4) 0 0;
-  font-size: var(--fs-xs);
-  color: var(--faint);
+/* the share of the window (days logged / complete): a thin bar under the number */
+.adh-bar {
+  position: relative;
+  height: 4px;
+  margin-top: var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--track);
+  overflow: hidden;
 }
-.adh-note {
-  color: var(--muted);
+.adh-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--r-pill);
+  background: var(--up);
 }
 .adh-h {
   margin: var(--sp-7) 0 var(--sp-3);
@@ -920,9 +909,6 @@
   font-size: var(--fs-2xs);
 }
 @media (min-width: 900px) {
-  .adh-opts {
-    grid-template-columns: repeat(3, minmax(88px, auto));
-  }
   .adh-stats {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }

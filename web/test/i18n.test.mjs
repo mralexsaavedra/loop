@@ -128,8 +128,11 @@ test('health-templates.mjs note/card sub-dictionaries have the placeholders heal
     assert.match(dict.energyBalanceNote.main, /\{to\}/);
     assert.match(dict.energyBalanceNote.main, /\{days\}/);
     assert.match(dict.energyBalanceNote.main, /\{macroClause\}/);
-    assert.match(dict.energyExpenditureNote.main, /\{tdeeDays\}/);
-    assert.match(dict.energyExpenditureNote.main, /\{lastIntakeClause\}/);
+    assert.match(dict.energyTdeeNote, /\{tdeeDays\}/);
+    assert.match(dict.balanceNoIntakeNote.main, /\{lastIntakeClause\}/);
+    assert.match(dict.balanceNoIntakeNote.lastIntakeClause, /\{date\}.*\{ago\}/);
+    for (const k of ['from', 'to', 'days']) assert.match(dict.balance.winTpl, new RegExp(`\\{${k}\\}`), `${locale} balance.winTpl {${k}}`);
+    for (const k of ['name', 'g', 'pct']) assert.match(dict.balance.splitItem, new RegExp(`\\{${k}\\}`), `${locale} balance.splitItem {${k}}`);
     assert.match(dict.runningNote, /\{count\}/, `${locale} runningNote must contain {count}`);
     assert.match(dict.loadSec.hint, /\{weeks\}/);
     assert.match(dict.loadSec.barTitleTpl, /\{date\}/);

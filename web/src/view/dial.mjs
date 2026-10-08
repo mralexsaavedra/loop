@@ -19,9 +19,6 @@ import { Z_CLAMP } from '../../../lib/score/recovery.mjs';
 // 120-unit viewBox, 54-unit radius, 7-unit stroke (~6 % of the ring's diameter): a full ring that
 // starts at 12 o'clock (-90 degrees) and fills clockwise; the midpoint (0.5) sits at 6 o'clock.
 export const DIAL = { c: 60, r: 54, stroke: 7, start: -90, sweep: 360 };
-// The former 270 degree open arc (opens at the bottom), kept ONLY for Nutrición's kcal dial
-// (tabs/Dia.astro NUTRI_ARC) until that tab moves to the ring language too.
-export const OPEN_ARC = { c: 60, r: 50, stroke: 10, start: 135, sweep: 270 };
 // Load: the ring midpoint is the typical training day (1x), the end is 2x.
 const LOAD_MAX_RATIO = 2;
 
@@ -40,7 +37,7 @@ export function polar(angle, r = DIAL.r, g = DIAL) {
 
 /** SVG path for the arc between two fractions of the sweep (direction preserved). A full ring is
  * two half arcs: one SVG arc cannot start and end on the same point. `g` = the geometry (default the
- * Inicio ring; Nutrición's kcal dial still passes OPEN_ARC). */
+ * Inicio ring, which Nutrición's kcal ring bakes too: tabs/Dia.astro NUTRI_ARC). */
 export function arcPath(f0, f1, g = DIAL) {
   const a0 = fracToAngle(f0, g);
   const a1 = fracToAngle(f1, g);
