@@ -74,6 +74,21 @@ Calorie target by goal:
   "now", plus the day average and minutes per band). Limits: no HRV (the reference app uses it),
   and there are no hourly steps, so walking or any movement that is not a recorded workout raises
   it. Not a medical or psychological measure. Code: `lib/score/stress.mjs`.
+- **Energy bank (0–100, intraday, OUR model, not a validated physiological measure):** per day it
+  starts at the wake time (`sleep-daily.csv` waketime; the first awake clock hour is the one the wake
+  time rounds to) at the morning's recovery % (the recovery dial's % rank). Then, per awake clock hour
+  with an `hr-hourly.csv` row (hours ≥ 30 min inside a night are not awake), up to the latest one:
+  −1.5 baseline; −1.5 × the hour's stress estimate (0–3) when the hour is scored; −30 × (1 − e^(−TRIMP
+  / K)) for the hour's heart-rate load (day strain's TRIMP and K; a Strava activity's TRIMP is spread
+  evenly over the clock hours of its start + elapsed window); +1 when the hour is scored with stress
+  < 0.5 and no workout touches it; clamped to 0–100 after every hour. A missing hour carries the
+  level forward (no drain, no recharge). Constants: `ENERGY` in the code (MAX 100, BASE_DRAIN 1.5,
+  STRESS_DRAIN 1.5, LOAD_DRAIN 30, CALM_STRESS 0.5, RECHARGE 1), chosen by hand, not fitted: a calm
+  day (stress ≈ 0.5) costs ≈ 1 per hour, a medium-stress one ≈ 3, a hard workout hour 15–25. No
+  recovery %, no wake time or no strain scale (K) → no value. Limits: it inherits every limit of its
+  inputs (heart rate only, no HRV, walking raises stress), the day ends at midnight, naps and food
+  are not seen, and the contributions summary adds nominal amounts (the clamp can make them exceed
+  the change). Compare it with your own days only. Code: `lib/score/energy.mjs`.
 - **Fitness age (mean-based, from the smartwatch VO2max):** the age whose healthy-population MEAN
   VO2max equals the latest reading of `vo2max.csv` (one value per day, the later row wins; its date
   and source are shown). Reference: Loe H, Rognmo Ø, Saltin B, Wisløff U, "Aerobic Capacity
