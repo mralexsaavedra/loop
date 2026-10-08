@@ -102,3 +102,10 @@ up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (c
   `STRAVA_REFRESH_TOKEN` (the bootstrap); a failed store read is retried next refresh; a rejected
   stored token falls back to the env one once. Rolling this out needs an ingest rebuild
   (`docker compose up -d --build`, runs the idempotent `sql/003_sync.sql`).
+- **HR-stream backfill.** After each successful Strava pull the loop fetches at most 10 activity HR
+  streams (newest first, never more than 30 per 15 min / 300 per 24 h, counted in
+  `strava_activity_hr`), stores only seconds per bpm (`hr_hist`, never the stream) and exports it on
+  `GET /export/strava` for the per-workout HR zones; details and limits in
+  `services/health-ingest/README.md` ("Per-workout HR zones"). Rollout: `docker compose up -d --build
+  health-ingest` (runs the idempotent `sql/008_strava_hr.sql`), then `npm run sync` once the backfill
+  has run.

@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } = require('../data/apple-health/samples.js');
+const { ZONES_HEADER, ZONES_CSV } = require('../lib/training/hr-zones.cjs');
 
 export const DEMO_DEFAULTS = { end: '2026-09-28', days: 120, seed: 20260928 };
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -155,6 +156,22 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
   out['active-energy-daily.csv'] = csv('date,kcal', active);
   out['basal-energy-daily.csv'] = csv('date,kcal', basal);
   out['dietary-daily.csv'] = csv('date,kcal,protein_g,carbs_g,fat_g', diet);
+
+  // ---- per-workout HR zones (workout-zones.csv, as sync-strava.js writes it) -------------------
+  // one row per Demo Strava run / ride: ~97 % of the duration spread over zones 0-5 around a
+  // typical split (runs mostly zone 3, rides mostly zone 2); max HR = the highest Demo Strava max
+  // HR, like the "observed" rule. Its own PRNG, so the other files never change because of it.
+  const zrnd = prng(seed + 2);
+  const stravaRows = workouts.map((l) => l.split(',')).filter((c) => c[7] === SRC.strava);
+  const zMax = Math.max(...stravaRows.map((c) => Number(c[6])));
+  const SPLIT = { Running: [0.02, 0.05, 0.2, 0.45, 0.22, 0.06], Cycling: [0.05, 0.2, 0.45, 0.22, 0.07, 0.01] };
+  const zoneRows = stravaRows.map((c, i) => {
+    const w = SPLIT[c[1]].map((x) => x * (0.7 + zrnd() * 0.6));
+    const sum = w.reduce((a, b) => a + b, 0);
+    const total = parseFloat(c[2]) * 60 * 0.97;
+    return [c[0], 9000001 + i, c[1], zMax, 'observed', c[4], c[6], ...w.map((x) => Math.round((total * x) / sum)), SRC.strava].join(',');
+  });
+  out[ZONES_CSV] = csv(ZONES_HEADER, zoneRows);
 
   return Object.fromEntries(Object.entries(out).sort(([a], [b]) => a.localeCompare(b)));
 }

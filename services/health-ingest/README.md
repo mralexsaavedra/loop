@@ -27,7 +27,7 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 | POST   | `/ingest/health-auto-export`  | bearer | `202` with the stored row id |
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
 | GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]`; `400` on a bad query |
-| GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain, start_utc, device_watts}]`; `400` on a bad query |
+| GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain, start_utc, device_watts, hr_hist}]`; `400` on a bad query |
 | GET    | `/food/products`              | header | `200` `{products}`: active products (per-100 macros, store, serving size) |
 | POST / PUT / DELETE | `/food/products[/:id]` | header | create `201` / edit `200` / archive `200`; `409 barcode_exists`, `400 atwater` unless `force` |
 | GET    | `/food/recipes`               | header | `200` `{recipes}` with macros COMPUTED from the products + basic snapshots (`perServing` or `per100` cooked) |
@@ -297,6 +297,38 @@ without the field, so the column stays blank until the rebuild and the next
 elevation). Likewise `start_utc` (Strava's UTC `start_date`) and `device_watts` (true only for a
 real power meter) feed `rides.csv` and the power-meter correction of the Watch's active energy on
 ride days; without them the sync warns and the correction stays off.
+
+### Per-workout HR zones: the HR-stream backfill (`hr_hist`)
+
+After each successful activity pull (and after the athlete refresh, so the two never overlap) the
+sync loop runs ONE bounded batch of the HR-stream backfill (`src/hr-zones.js`, table
+`strava_activity_hr` from `sql/008_strava_hr.sql`, a core migration): for activities that have
+heart rate (`has_heartrate` / `average_heartrate`) and no stored row yet, newest first, it calls
+`GET /activities/{id}/streams?keys=time,heartrate&key_by_type=true` and stores only an aggregate —
+seconds spent at each whole bpm (`hr_hist`, `{"142": 37, ...}`), never the raw stream. Each sample
+owns the time until the next one; a gap over 30 s (pause, dropout), a non-increasing time and a
+missing or implausible (< 30 / > 250 bpm) reading add nothing. `GET /export/strava` returns it as
+`hr_hist` (null until the backfill reaches the activity, or when it has no HR); the repo's
+`sync-strava.js` cuts the zones (% of max HR) from it, so a change of max HR never needs a refetch.
+
+**Rate limits.** Strava allows 100 requests / 15 min and 1000 / day per app, shared with the
+activity pull (1-2 calls per run) and the daily athlete refresh. The backfill fetches at most
+**10 streams per run**, and never more than **30 in the last 15 min** or **300 in the last 24 h**,
+counted from `strava_activity_hr.fetched_at` (a restart does not reset the budget). With the 30-min
+loop that is ~300 activities a day: a history of ~1000 activities with HR fills in about 3-4 days,
+then each new activity is picked up by the next run. Every definite answer is stored and never asked
+again (`ok`, `no_hr` = no HR stream, `not_found` = 404); a 429 or a transient failure stops the batch
+(`strava_hr_backfill_failed` in the log, never fails the activity sync or its status) and the
+activity is retried on a later run. The streams of a private activity need the `activity:read_all`
+scope the service already asks for.
+
+Strava also exposes the athlete's own heart-rate zones (`GET /athlete/zones`, needs
+`profile:read_all`); they are NOT used: the page applies one documented % of max HR model
+(docs/training.md) so the zones stay comparable with the reference.
+
+**Rollout.** `docker compose up -d --build health-ingest` (runs the idempotent `008_strava_hr.sql`);
+the backfill starts on the next sync run. An older image keeps answering `/export/strava` without
+`hr_hist`, and the page simply shows no zones.
 
 ### Reading the athlete profile back: `GET /export/athlete`
 

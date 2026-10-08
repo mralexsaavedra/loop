@@ -85,6 +85,18 @@ reactivate). Keep the section visible in the example build (`plan-data.example.j
 `hideTabs`) as a working example. Which program/app the owner actually uses is personal → it
 lives in `profile/about-me.md` (gitignored), never in a tracked file.
 
+**Per-workout HR zones (session / day panel).** A run / ride row of Entreno and the load deep-dive
+open the day panel of `load-<m>` / `workouts` (docs/detail-views.md); each session there that has
+Strava HR zones (`workout-zones.csv`, docs/data-pipeline.md "Per-workout HR zones") gets the
+reference's activity-detail block: a "HEART-RATE ZONES" header with avg / max HR, then rows ZONE 5…0
+— the bpm range at the max HR used, the % of the zoned time, the duration (m:ss) and a horizontal
+bar in the zone colour, warm → cool (`--low`, `--down`, `--mid`, `--good`, `--strain`, `--faint`) —
+and an ⓘ "About the zones" fold with the model and the max HR + its source. Model (the reference's,
+`lib/training/hr-zones.cjs`): % of max HR, Z0 < 50 %, Z1 50–60, Z2 60–70, Z3 70–80, Z4 80–90, Z5 ≥ 90
+%; max HR = `profile/profile.json` `maxHr` if set, else the highest HR Strava recorded in the last 12
+months. Several Strava activities of the same date + modality are summed. No zones for that session
+(a Watch-only session, an activity the backfill has not reached, no HR, no file): no block.
+
 **📈 Intensity (HR) — what is left of the executed-sessions dashboard** (`dash` section,
 `tabs/Entrenos.astro`, client/training-dash.js). Source (OPTIONAL):
 `data/apple-health/extract/workouts.csv`. `lib/training/dashboard.mjs` aggregates it (`DASH`: over 12
@@ -92,8 +104,9 @@ weeks, per modality the minutes + mean / peak HR, and how many sessions carry HR
 reads is baked — no weekly volume, 4-week summary or split %). The page draws only the HR part:
 an "INTENSITY (HR)" header with an ⓘ (`#int-info`: the minute-weighted mean, how many sessions carry HR,
 the window and data date, the strength caveat) over one `HC.metricRow` per modality with HR — the mean
-HR, the peak as the small line, highest first. The extract has no heart-rate zones, so no zone bars
-are drawn, and the HR is a fixed 12-week aggregate (not per W / M / 6M), so it stays a compact card of
+HR, the peak as the small line, highest first. This card draws no zone bars (left as is: the
+per-workout zones below are per session, and a modality total would need a W / M / 6M switch of its
+own), and the HR is a fixed 12-week aggregate (not per W / M / 6M), so it stays a compact card of
 its own instead of joining the Activity card. No data or no HR: nothing is drawn (the Activity card
 holds the empty state). Volume, frequency and the modality split are the Activity card's now (same
 same-day rule, so the numbers agree). Data-honesty rules stay baked in: use DURATION not kcal (blank on

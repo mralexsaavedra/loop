@@ -5,6 +5,17 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Per-workout HR zones like the reference
+
+- health-ingest backfills each Strava activity's HR stream (newest first, ≤ 10 per sync run, ≤ 30 per
+  15 min, ≤ 300 per 24 h, counted in the new `strava_activity_hr` table, `sql/008_strava_hr.sql`) and
+  keeps only seconds per bpm (`hr_hist` on `GET /export/strava`), never the stream.
+- `npm run sync` cuts it into `workout-zones.csv`: % of max HR, Z0 < 50 … Z5 ≥ 90 %; max HR =
+  `profile.json` `maxHr` (new optional field) else the highest Strava max HR of the last 12 months.
+- The day panel of a run / ride (Entreno rows, load deep-dive) shows ZONE 5…0 bars with bpm range, %,
+  duration, avg / max HR and an ⓘ with the model; hidden without zones. The demo extract gets a
+  synthetic `workout-zones.csv`. The Entreno "Intensity (HR)" card is unchanged.
+
 ## 2026-10-08 — Recovery contributors like the reference
 
 - The recovery deep-dive's contributors become HRV, resting HR, respiratory rate and sleep performance %

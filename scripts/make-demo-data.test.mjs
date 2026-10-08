@@ -80,3 +80,19 @@ test('the demo extract populates every Inicio dial and every Salud section', () 
   const intake = buildIntake(dir, { train: { k: 2500, p: 170, c: 260, g: 70 }, rest: { k: 2100, p: 160, c: 200, g: 70 } });
   assert.equal(intake.latest.date, DEMO_DEFAULTS.end, 'intake logged on the last demo day');
 }));
+
+test('demo workout-zones.csv: one Demo Strava row per Strava run / ride, the reader schema, zones ~ the duration', async () => {
+  const { readWorkoutZones, ZONES_CSV } = await import('../lib/training/zones.mjs');
+  const files = makeDemoData();
+  const strava = files['workouts.csv'].trim().split('\n').slice(1).filter((l) => l.includes(',Demo Strava,'));
+  const rows = withDemoDir(files, readWorkoutZones);
+  assert.equal(files[ZONES_CSV].trim().split('\n').length - 1, strava.length);
+  assert.equal(rows.length, strava.length);
+  for (const [i, r] of rows.entries()) {
+    const dur = parseFloat(strava[i].split(',')[2]) * 60;
+    const sum = r.z.reduce((a, b) => a + b, 0);
+    assert.ok(Math.abs(sum - dur * 0.97) <= 6, `zones ~ 97 % of the duration on ${r.date}`);
+    assert.equal(r.maxSrc, 'observed');
+  }
+  for (const l of files[ZONES_CSV].trim().split('\n').slice(1)) assert.match(l, /,Demo Strava$/);
+});

@@ -122,3 +122,22 @@ positional workouts readers and the demo generator stay untouched. It needs `sta
 image leaves `start` / `device_watts` blank, the sync prints a stale-image warning, and no ride
 corrects anything. `_meta.json` records it: `rows.rides` and `stravaSync.rides` = `{rows, power
 (device_watts true + kJ), withStart (start with offset)}`, plus a sentence in the Strava sync note.
+
+**Per-workout HR zones (`workout-zones.csv`).** The same pull writes `workout-zones.csv`
+(`date,activity_id,type,max_hr,max_hr_source,hr_avg,hr_max,z0_s,z1_s,z2_s,z3_s,z4_s,z5_s,source`,
+gitignored, rebuilt from scratch every run, sorted by local start; `type` = the workouts.csv type)
+from the per-activity HR histogram `hr_hist` (seconds per whole bpm) that the ingest service builds
+from Strava's HR streams (`services/health-ingest/README.md` "Per-workout HR zones": at most 10
+streams per sync run, newest first, so a long history fills in over a few days). Zone model
+(`lib/training/hr-zones.cjs`, the reference's): % of max HR — Z0 < 50 %, Z1 50–60, Z2 60–70,
+Z3 70–80, Z4 80–90, Z5 ≥ 90 % (above the max counts as Z5); the lower bound is inclusive and the
+comparison exact (no rounding). Max HR = `profile/profile.json` `maxHr` when set (source `profile`;
+an invalid value is warned about and ignored), else the highest Strava `max_heartrate` of the 365
+days ending at the newest activity (source `observed`; anchored to the data, not the clock, so a
+re-run writes the same bytes); every row records the max HR it used. Because the zones are cut
+locally from the histogram, a new max HR re-cuts every workout on the next sync with no Strava call.
+Back-compat: an activity without `hr_hist` (not fetched yet, no HR) has no row; an ingest image
+without the field at all prints a stale-image warning and the file is not created; a missing file
+= no zones on the page. `_meta.json`: `rows['workout-zones']` and `stravaSync.zones = {rows, maxHr,
+maxHrSource}`. Strava's own athlete HR zones (`GET /athlete/zones`, needs `profile:read_all`) are an
+alternative that is NOT used, so the page keeps one documented model.
