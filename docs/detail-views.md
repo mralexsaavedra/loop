@@ -199,13 +199,25 @@ switch is outside every opener); run / ride rows →
   "AVERAGE" = the mean of the days with data in the window (a daily total's partial today left out; a
   missing day skipped, never 0) and a delta pill vs the previous window of the same length (▲▼ + % —
   absolute in sd for recovery — `--up` / `--down` by the metric's good direction, neutral • when
-  within 1 % / 0.05 sd or for a metric without a direction). A window longer than the data is clamped
-  to the metric's first day (the toggle stays; chart and average start there, the pill says "Data
-  since <date>"); no previous window wholly inside the data → "No earlier period to compare"
-  (`periodStats`, exposed as `HCDetail.periodStats(key, end, days)`); the chart's existing band is the
-  typical range. An inline SVG chart (points for signals, bars for totals and load, the
+  within 1 % / 0.05 sd or for a metric without a direction) on its own line below, then ONE plain
+  sentence (`trend.sent`: "Your average Resting HR this week was 53 bpm, about the same as the week
+  before (53 bpm)."; higher / lower / about the same by the pill's rule, no judgement — the pill's
+  colour carries good / bad; a change that rounds to two equal numbers gets one more decimal). A
+  window longer than the data is clamped to the metric's first day (the toggle stays; chart and
+  average start there, the pill says "Data since <date>"); a previous window that lies wholly before
+  the data, or starts before it and holds data on fewer than half its days → "No earlier period to
+  compare"; one that starts before the data but holds data on at least half its days still compares
+  (a 6-month view on 7+ months of data) (`periodStats`, exposed as `HCDetail.periodStats(key, end,
+  days)`). The latest value and the band / target words no longer lead the view: they sit under the
+  header's ⓘ (`#dd-info.dt-info`, collapsed; the window's average leads and the chart labels the
+  newest value). The chart sits on the sheet's ground (no card), its shaded band named once top-right
+  ("TYPICAL RANGE", `trend.typical`; recovery "BASELINE RANGE", `trend.baseline`; no legend swatch for
+  it). An inline SVG chart (points for signals, bars for totals and load, the
   7-day average line that breaks where fewer than 3 of 7 days have data, the band shaded, target /
-  typical dashed; a missing day is a gap) with a Y axis: three round, evenly spaced values (step 1 / 2 /
+  typical dashed; a missing day is a gap; the window's newest value ringed and labelled, `.dt-last` /
+  `.dt-lastv`; in W every metric but recovery is 7 bars from 0 with each value on top (`.dt-bv`) and
+  "Thu / 9" under each bar (`.dt-wdays`) instead of the from / to dates, no 7-day line; labels are HTML
+  over the SVG's box `.dt-svg`) with a Y axis: three round, evenly spaced values (step 1 / 2 /
   2.5 / 5 × 10^k; bars from 0) as faint grid lines (`.dt-grid`) and labels in a 36px left gutter
   (`.dt-yax`, HTML so the text never scales with the SVG); the range covers the ticks plus 12 %
   headroom, so an out-of-range day never sits on the chart's edge; a Monday-first month calendar

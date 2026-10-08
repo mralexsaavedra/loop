@@ -1094,10 +1094,6 @@
   "|||.dt-dayd|||border-radius": "var(--r-lg)",
   "|||.dt-dayd|||padding": "var(--sp-5)",
   "|||.dt-fig .dt-ax|||margin-left": "36px",
-  "|||.dt-fig|||background": "var(--card-bg)",
-  "|||.dt-fig|||border": "1px solid var(--line)",
-  "|||.dt-fig|||border-radius": "var(--r-lg)",
-  "|||.dt-fig|||padding": "var(--sp-4)",
   "|||.dt-grid|||stroke": "var(--line)",
   "|||.dt-grid|||stroke-width": "0.6",
   "|||.dt-head|||align-items": "center",
@@ -3598,5 +3594,9 @@
   "|||tr.ref-group td|||padding-top": "var(--sp-6)",
   "|||tr.ref-group td|||text-align": "left",
   "|||tr.ref-sub td:first-child|||color": "var(--muted)",
-  "|||tr.ref-sub td:first-child|||padding-left": "var(--sp-7)"
+  "|||tr.ref-sub td:first-child|||padding-left": "var(--sp-7)",
+  "|||.dt-fig|||margin": "0",
+  "|||.dt-period .dt-range button|||min-height": "28px",
+  "|||.dt-period .dt-range|||align-self": "flex-end",
+  "|||.dt-wnav|||height": "44px"
 }
