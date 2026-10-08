@@ -1291,3 +1291,90 @@ button.dt-day {
   color: var(--strain);
   cursor: pointer;
 }
+
+/* ---------- stress monitor page (key 'stress', client/deepdive.js stressPage): low = light blue
+   (--strain-ink), medium = teal (--up), high = orange (--down) on the gauge, curve, bar and calendar */
+.ds-low, .dt-s-slow { --ds: var(--strain-ink); }
+.ds-medium, .dt-s-smedium { --ds: var(--up); }
+.ds-high, .dt-s-shigh { --ds: var(--down); }
+.ds-gwrap {
+  position: relative;
+  width: 280px;
+  max-width: 100%;
+}
+.ds-gauge,
+.ds-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.ds-arc {
+  fill: none;
+  stroke: var(--ds);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+.ds-none .ds-arc { stroke: var(--track); }
+.ds-mark { stroke-width: 3; }
+.ds-centre {
+  position: absolute;
+  inset: 30% 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.ds-band {
+  color: var(--ds);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.ds-upd { font-size: var(--fs-sm); color: var(--muted); }
+.ds-ylbl,
+.ds-xlbl {
+  font-family: var(--num);
+  font-size: 8.5px;
+  fill: var(--faint);
+}
+.ds-chart { margin-top: var(--sp-5); }
+.ds-zone { fill: var(--ds); fill-opacity: 0.09; }
+.ds-line {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.4;
+}
+.ds-pt { fill: var(--ds); }
+.ds-bands {
+  background: var(--surface);
+  border-radius: var(--r-md);
+  padding: var(--sp-2) var(--sp-7) var(--sp-7);
+  margin: var(--sp-8) 0;
+}
+.ds-bands .dd-sec { margin-top: var(--sp-5); font-size: var(--fs-lg); }
+.ds-bar {
+  display: flex;
+  gap: 3px;
+  height: 12px;
+  margin: var(--sp-5) 0 var(--sp-4);
+}
+.ds-seg,
+.ds-dot { border-radius: 2px; background: var(--ds); }
+.ds-blist { list-style: none; }
+.ds-brow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: 36px;
+}
+.ds-dot { width: 10px; height: 10px; }
+.ds-blbl { flex: 1; color: var(--muted); }
+.ds-bmin { font-family: var(--num); }
+.dt-s-slow,
+.dt-s-smedium,
+.dt-s-shigh { fill: var(--ds); background: color-mix(in srgb, var(--ds) 38%, transparent); }
+@media (min-width: 900px) {
+  .ds-chart { max-height: 230px; }
+}

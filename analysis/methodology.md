@@ -63,6 +63,17 @@ Calorie target by goal:
   (K = p95 / ln 7); under 14 full days there is no strain and Inicio keeps the Relative Effort
   dial. It is relative to the owner's own history: compare it with their past days, never with
   another person or app. Code: `lib/score/strain.mjs`.
+- **Stress estimate (0–3, heart rate only, our estimate):** per waking clock hour of
+  `hr-hourly.csv`, stress = clamp(3 × (HR − RHR) / (0.3 × (HRmax − RHR)), 0, 3): 0 at resting HR,
+  3 at resting HR + 30 % of the heart-rate reserve. Bands: low < 1, medium 1–2, high ≥ 2. HR of the
+  hour = its sample mean, or the time-weighted mean outside a Strava activity window when one
+  touches the hour; scored only with ≥ 30 covered minutes outside workouts. Hours ≥ 30 min inside
+  the night (`sleep-daily.csv` bedtime → waketime) are left out. RHR = that day's `rhr.csv` value
+  (else the newest of the 3 days before); HRmax = the HR-zones max HR (profile `maxHr`, else the
+  highest Strava max HR of 12 months). A day needs ≥ 6 scored hours for a value (the latest hour =
+  "now", plus the day average and minutes per band). Limits: no HRV (the reference app uses it),
+  and there are no hourly steps, so walking or any movement that is not a recorded workout raises
+  it. Not a medical or psychological measure. Code: `lib/score/stress.mjs`.
 
 ## 5. What "good or bad" means
 

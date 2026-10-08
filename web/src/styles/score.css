@@ -774,6 +774,34 @@
   text-transform: uppercase;
   color: var(--hm-c, var(--trend));
 }
+/* tile 2 as the stress monitor (lib/score/stress.mjs): the value in a small square chip and the band
+   word in the band colour (low = light blue, medium = teal, high = orange), the hour below */
+.hmt-stress { --sb: var(--strain-ink); }
+.hmt-sb-medium { --sb: var(--up); }
+.hmt-sb-high { --sb: var(--down); }
+.hmt-srow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.hmt-sv {
+  min-width: 26px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--sb) 16%, transparent);
+  color: var(--sb);
+  font-family: var(--num);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-align: center;
+}
+.hmt-band {
+  color: var(--sb);
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
 
 /* the programmed session's section is a hidden source (client/training-today.js) */
 .hoy-src {

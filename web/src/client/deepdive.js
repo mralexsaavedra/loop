@@ -1,5 +1,5 @@
 /* Dial deep-dive pages: the detail sheet of the three Inicio dials (sleep, recovery, strain or
- * load-<modality>)
+ * load-<modality>) and of the stress monitor tile (stress: a 0-3 gauge, the hourly curve, time per band)
  * laid out as one page — a "‹ TODAY ⓘ" header, the big hero ring (the SAME baked geometry as the dial,
  * view/dial.mjs via the DIALS global), an insight card (the dial's former captions in 2–4 plain lines +
  * a "View trend →" link down to the history chart) and, collapsed under ⓘ, the long notes (bands,
@@ -49,7 +49,7 @@
   var BAND_STATE = { above: 'good', at: 'normal', below: 'bad' };
 
   function isDial(key) {
-    return key === 'sleep' || key === 'recovery' || key === 'strain' || /^load-[a-z]+$/.test(String(key));
+    return key === 'sleep' || key === 'recovery' || key === 'strain' || key === 'stress' || /^load-[a-z]+$/.test(String(key));
   }
   // SCORES.strain (lib/score/strain.mjs): K, the 95th-percentile day, and the recent days with each
   // contributor's share of the strain; DIALS.strain: the same days' ring arcs
@@ -85,7 +85,7 @@
   // was opened on (Inicio's day stepping), the others = the view end (the viewer's today, or the
   // stale data's last day), the day their hero and insight describe
   function headDay(key, end, X) {
-    return key === 'strain' ? strainIso(end, X) : end;
+    return key === 'strain' || key === 'stress' ? strainIso(end, X) : end;
   }
   function headHtml(key, end, X) {
     var P = X.T.deep, iso = headDay(key, end, X);
@@ -519,6 +519,7 @@
   }
 
   function render(key, m, end, X) {
+    if (key === 'stress') return stressPage(key, m, end, X);
     if (key === 'strain') {
       return {
         head: headHtml(key, end, X),
@@ -532,6 +533,126 @@
     return {
       head: headHtml(key, end, X),
       top: infoHtml(key, m, X) + heroHtml(hero, X) + (key === 'sleep' ? stagesHtml(m, end, X) : '') + contribHtml(rows, X) + insightHtml(lines, X) + weeklyHtml(key, m, end, X),
+    };
+  }
+
+  /* ---------- stress monitor (key 'stress', SCORES.stress: lib/score/stress.mjs) ---------- */
+  // A heart-rate-only ESTIMATE per waking hour, 0-3. Nothing is scored here: the hours, the latest
+  // hour, the average and the minutes per band are baked; this only lays them out.
+  var SB = ['low', 'medium', 'high'];
+  function stressBake() {
+    var S = typeof SCORES !== 'undefined' && SCORES ? SCORES.stress : null;
+    return S && S.ok && Array.isArray(S.days) ? S : null;
+  }
+  function stressBand(v) {
+    return v >= 2 ? 'high' : v >= 1 ? 'medium' : 'low';
+  }
+  function hhmm(t) {
+    return String(t).slice(0, 2) + ':00';
+  }
+  // the hero: a 0-3 half gauge in the three band colours, a marker at the latest scored hour's value,
+  // the value, its band word and the hour (an empty gauge + the dial's "no data" word without one)
+  var GC = { x: 60, y: 60, r: 50 };
+  function gaugePt(f, r) {
+    var a = Math.PI * (1 - f);
+    return (GC.x + r * Math.cos(a)).toFixed(1) + ' ' + (GC.y - r * Math.sin(a)).toFixed(1);
+  }
+  function gaugeArc(f0, f1) {
+    return 'M' + gaugePt(f0, GC.r) + ' A' + GC.r + ' ' + GC.r + ' 0 0 1 ' + gaugePt(f1, GC.r);
+  }
+  function stressHero(d, X) {
+    var P = X.T.deep.stress, n = d && d.now;
+    var segs = SB.map(function (b, i) {
+      return '<path class="ds-arc ds-' + b + '" d="' + gaugeArc(i / 3 + (i ? 0.01 : 0), (i + 1) / 3 - (i < 2 ? 0.01 : 0)) + '"/>';
+    }).join('');
+    var mark = n ? '<line class="dd-tick ds-mark" x1="' + gaugePt(n.v / 3, GC.r - 9).replace(' ', '" y1="') + '" x2="' + gaugePt(n.v / 3, GC.r + 6).replace(' ', '" y2="') + '"/>' : '';
+    var ends = '<text class="ds-ylbl" x="10" y="72" text-anchor="middle">' + esc(X.fmt(0, 1)) + '</text><text class="ds-ylbl" x="110" y="72" text-anchor="middle">' + esc(X.fmt(3, 1)) + '</text>';
+    var svg = '<svg class="ds-gauge" viewBox="0 0 120 74" aria-hidden="true">' + segs + mark + ends + '</svg>';
+    var band = n ? stressBand(n.v) : null;
+    var centre = n
+      ? '<b class="dd-num">' + esc(X.fmt(n.v, 1)) + '</b><span class="ds-band">' + esc(P.bands[band]) + '</span>' +
+        '<span class="ds-upd">' + esc(format(P.updated, { time: hhmm(n.t) })) + '</span>'
+      : '<span class="dd-word">' + esc(X.T.deep.words.none) + '</span>';
+    var aria = n ? format(P.heroAria, { value: X.fmt(n.v, 1), band: P.bands[band], time: hhmm(n.t) }) : X.T.deep.words.none;
+    return '<section class="dd-hero dd-stress ds-' + (band || 'none') + '"><div class="ds-gwrap" role="img" aria-label="' + esc(aria) + '">' + svg +
+      '<div class="ds-centre" aria-hidden="true">' + centre + '</div></div></section>';
+  }
+  // the day's curve: 24 h across, 0-3 up, the three bands shaded; one point per scored hour (at the
+  // middle of its hour), joined while the hours are consecutive. Gaps = sleep, workouts or no data.
+  var CV = { w: 320, h: 150, l: 22, r: 6, t: 8, b: 20 };
+  function stressCurve(d, X) {
+    var P = X.T.deep.stress, iw = CV.w - CV.l - CV.r, ih = CV.h - CV.t - CV.b;
+    var x = function (h) { return CV.l + (iw * h) / 24; };
+    var y = function (v) { return CV.t + ih * (1 - v / 3); };
+    var out = SB.map(function (b, i) {
+      return '<rect class="ds-zone ds-' + b + '" x="' + CV.l + '" y="' + y(i + 1).toFixed(1) + '" width="' + iw + '" height="' + (ih / 3).toFixed(1) + '"/>';
+    }).join('');
+    for (var k = 0; k <= 3; k++) {
+      out += '<text class="ds-ylbl" x="' + (CV.l - 5) + '" y="' + (y(k) + 3).toFixed(1) + '" text-anchor="end">' + esc(X.fmt(k, 0)) + '</text>';
+    }
+    for (var h = 0; h <= 24; h += 6) {
+      out += '<text class="ds-xlbl" x="' + x(h).toFixed(1) + '" y="' + (CV.h - 5) + '" text-anchor="' + (h === 0 ? 'start' : h === 24 ? 'end' : 'middle') + '">' + (h < 10 ? '0' : '') + h + ':00</text>';
+    }
+    var hours = (d && d.hours) || [], path = '', prev = null;
+    hours.forEach(function (p) {
+      var hh = parseInt(p.t, 10);
+      if (!isFinite(hh) || !isNum(p.v)) return;
+      path += (prev != null && hh === prev + 1 ? ' L' : (path ? ' M' : 'M')) + x(hh + 0.5).toFixed(1) + ' ' + y(p.v).toFixed(1);
+      prev = hh;
+    });
+    if (path) out += '<path class="ds-line" d="' + path + '"/>';
+    hours.forEach(function (p) {
+      var hh = parseInt(p.t, 10);
+      if (!isFinite(hh) || !isNum(p.v)) return;
+      out += '<circle class="ds-pt ds-' + stressBand(p.v) + '" cx="' + x(hh + 0.5).toFixed(1) + '" cy="' + y(p.v).toFixed(1) + '" r="2.6"><title>' +
+        esc(format(P.ptTitle, { time: hhmm(p.t), value: X.fmt(p.v, 1), hr: X.fmt(p.hr, 0) })) + '</title></circle>';
+    });
+    return '<section class="ds-curve" aria-label="' + esc(P.curveAria) + '"><h3 class="dd-sec">' + esc(P.curveTitle) + '</h3>' +
+      '<svg class="ds-chart" viewBox="0 0 ' + CV.w + ' ' + CV.h + '" role="img" aria-label="' + esc(format(P.curveSr, { n: hours.length })) + '">' + out + '</svg>' +
+      '<p class="dd-legend">' + esc(P.gapNote) + '</p></section>';
+  }
+  // time in each band: one stacked bar + a row per band (minutes outside workouts, <= 60 per hour)
+  function stressBands(d, X) {
+    var P = X.T.deep.stress;
+    if (!d || !d.mins) return '';
+    var tot = SB.reduce(function (a, b) { return a + (d.mins[b] || 0); }, 0);
+    if (!(tot > 0)) return '';
+    var bar = SB.map(function (b) {
+      var w = (100 * (d.mins[b] || 0)) / tot;
+      return w > 0 ? '<i class="ds-seg ds-' + b + '" style="width:' + w.toFixed(1) + '%"></i>' : '';
+    }).join('');
+    var rows = SB.slice().reverse().map(function (b) {
+      return '<li class="ds-brow"><span class="ds-dot ds-' + b + '" aria-hidden="true"></span><span class="ds-blbl">' + esc(P.bandRows[b]) + '</span>' +
+        '<b class="ds-bmin">' + esc(HC.duration(d.mins[b] || 0, P.units)) + '</b></li>';
+    }).join('');
+    return '<section class="ds-bands" aria-label="' + esc(P.bandsTitle) + '"><h3 class="dd-sec">' + esc(P.bandsTitle) + '</h3>' +
+      '<div class="ds-bar" aria-hidden="true">' + bar + '</div><ul class="ds-blist">' + rows + '</ul></section>';
+  }
+  function stressLines(d, iso, S, X) {
+    var P = X.T.deep.stress;
+    if (!d) return [{ text: format(P.noDay, { date: HC.fmtDate(iso) }) }];
+    if (d.avg == null) return [{ text: format(P.few, { n: d.n, min: S.minHours }) }];
+    var out = [{ text: format(P.avg, { value: X.fmt(d.avg, 1), band: P.bands[d.band].toLowerCase() }) }];
+    if (d.mins) {
+      var top = SB.reduce(function (a, b) { return d.mins[b] > d.mins[a] ? b : a; }, 'low');
+      out.push({ text: P.most[top] });
+    }
+    out.push({ cls: 'dt-scale', text: P.estimateLine });
+    return out;
+  }
+  function stressNotes(d, S, X) {
+    var P = X.T.deep.stress, txt = function (t) { return '<div class="dt-band-txt">' + esc(t) + '</div>'; };
+    var out = txt(P.notes.formula) + txt(P.notes.hours);
+    if (d && d.rhr != null) out += txt(format(P.notes.inputs, { rhr: X.fmt(d.rhr, 1), max: X.fmt(S.maxHr, 0), min: S.minHours }));
+    return out + txt(P.notes.limits) + txt(P.notes.estimate);
+  }
+  function stressPage(key, m, end, X) {
+    var S = stressBake(), iso = strainIso(end, X);
+    var d = S ? strainDayOf(S.days, iso) : null;
+    return {
+      head: headHtml(key, end, X),
+      top: '<div class="dd-info" id="dd-info" hidden>' + X.bandText(key, m) + (S ? stressNotes(d, S, X) : '') + '</div>' +
+        stressHero(d, X) + stressCurve(d, X) + stressBands(d, X) + insightHtml(S ? stressLines(d, iso, S, X) : [], X),
     };
   }
 
