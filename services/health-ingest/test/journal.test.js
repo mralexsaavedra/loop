@@ -214,3 +214,26 @@ test('a store failure is a coarse 500 internal, logged without data', async (t) 
   assert.deepEqual(await s.call('GET', '/journal/day?date=2030-01-10'), { status: 500, body: { error: 'internal' } })
   assert.equal(logged[0].event, 'journal_error')
 })
+
+test('prototype keys never pass as behaviours (answers and settings)', async (t) => {
+  const field = (fn) => { try { fn(); return null } catch (e) { return e.field } }
+  for (const k of ['__proto__', 'constructor', 'toString', 'hasOwnProperty']) {
+    const answers = JSON.parse(`{"${k}": true}`)
+    assert.equal(field(() => validateDay({ date: '2030-01-10', answers })), `answers.${k}`, k)
+  }
+  const s = await setup()
+  t.after(s.close)
+  for (const raw of ['{"behaviors":{"__proto__":false}}', '{"behaviors":{"constructor":false}}']) {
+    const r = await s.call('PUT', '/journal/settings', { raw, headers: { 'content-type': 'application/json' } })
+    assert.equal(r.status, 400, raw)
+    assert.equal(r.body.error, 'invalid')
+  }
+  const d = await s.call('PUT', '/journal/day', { raw: '{"date":"2030-01-10","answers":{"__proto__":{"nap":true}}}', headers: { 'content-type': 'application/json' } })
+  assert.deepEqual(d.body, { error: 'invalid', field: 'answers.__proto__' })
+  assert.equal(s.store.db.days.size, 0)
+})
+
+test('notes keep their line breaks (spaces trimmed, at most one blank line)', () => {
+  const d = validateDay({ date: '2030-01-10', answers: {}, notes: '  line one  \r\n\r\n\r\n  line   two \n' })
+  assert.equal(d.notes, 'line one\n\nline two')
+})

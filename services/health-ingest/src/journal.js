@@ -34,7 +34,8 @@ export const JOURNAL_BODY_LIMIT = FOOD_BODY_LIMIT // 16 KB, readJson's cap
 export const JOURNAL_WRITE_LIMIT = 60
 export const JOURNAL_SUMMARY_LIMIT = 30
 const WRITE_METHODS = new Set(['PUT'])
-const BY_KEY = Object.fromEntries(JOURNAL_BEHAVIORS.map((b) => [b.key, b]))
+// a Map, never a plain object: a JSON key such as __proto__ or constructor must not resolve to anything
+const BY_KEY = new Map(JOURNAL_BEHAVIORS.map((b) => [b.key, b]))
 
 const ROUTES = [
   { path: '/journal/day', methods: ['GET', 'PUT'] },
@@ -61,7 +62,7 @@ export function validateDay (body) {
   if (!isObj(raw)) bad('answers')
   const answers = {}
   for (const [k, v] of Object.entries(raw)) {
-    const b = BY_KEY[k]
+    const b = BY_KEY.get(k)
     if (!b) bad(`answers.${k}`)
     if (v === null) continue
     if (b.kind === 'count') {
@@ -72,7 +73,8 @@ export function validateDay (body) {
   let notes = null
   if (body.notes !== undefined && body.notes !== null) {
     if (typeof body.notes !== 'string') bad('notes')
-    const s = body.notes.replace(/\s+/g, ' ').trim()
+    // line breaks are kept (spaces / tabs collapsed, at most one blank line between paragraphs)
+    const s = body.notes.replace(/\r\n?/g, '\n').replace(/[^\S\n]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n').trim()
     if (s.length > L.notesMax) bad('notes')
     notes = s || null
   }
@@ -83,9 +85,11 @@ export function validateSettings (body) {
   strictKeys(body, ['behaviors'])
   if (!isObj(body.behaviors)) bad('behaviors')
   for (const [k, v] of Object.entries(body.behaviors)) {
-    if (!BY_KEY[k] || typeof v !== 'boolean') bad(`behaviors.${k}`)
+    if (!BY_KEY.has(k) || typeof v !== 'boolean') bad(`behaviors.${k}`)
   }
-  return body.behaviors
+  const out = {}
+  for (const b of JOURNAL_BEHAVIORS) if (Object.hasOwn(body.behaviors, b.key)) out[b.key] = body.behaviors[b.key]
+  return out
 }
 
 function validateRange (params) {
