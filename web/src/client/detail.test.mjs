@@ -142,7 +142,9 @@ test('every DETAIL key of the demo build renders a view: title, latest value + d
     s.api.open(key);
     const html = s.host.innerHTML;
     assert.equal(s.host.hidden, false, key);
-    assert.ok(html.includes(`id="dt-title">${enT.metrics[key].title}<`), `${key} title`);
+    // a dial page's visible title is its day; the metric stays the dialog's label (screen readers)
+    const dial = ['sleep', 'recovery', 'strain'].includes(key) || key.startsWith('load-');
+    assert.ok(html.includes(dial ? `id="dt-title"><span class="sr-only">${enT.metrics[key].title} · </span>` : `id="dt-title">${enT.metrics[key].title}<`), `${key} title`);
     assert.match(html, /class="dt-range"/, `${key} range switch`);
     assert.match(html, /<svg class="dt-chart"/, `${key} chart`);
     assert.match(html, /class="dt-cal"/, `${key} calendar`);
@@ -526,7 +528,7 @@ test('metric chart: 3 round Y-axis ticks (grid lines + labels), and the Y range 
   assert.ok(Math.min(...cys) >= 14 && Math.max(...cys) <= 140 - 14, `points keep >= 14 units from the edges (${Math.min(...cys)}–${Math.max(...cys)})`);
 });
 
-test('ONE sheet header for dial deep-dives and metric details: "‹" back (= close, focus lands there), the metric name centred as the dialog title, ⓘ = the shared SVG icon (dials) or an equal spacer', () => {
+test('ONE sheet header for dial deep-dives and metric details: "‹" back (= close, focus lands there), the day (dials) or the metric name centred as the dialog title, ⓘ = the shared SVG icon (dials) or an equal spacer', () => {
   const back = '<button type="button" class="sh-back" data-dt-act="close" aria-label="Back">‹</button>';
   for (const key of ['sleep', 'recovery', 'load-gym']) {
     const s = setup({ dials: DIALS });
@@ -535,7 +537,7 @@ test('ONE sheet header for dial deep-dives and metric details: "‹" back (= clo
     opener.focus = () => { opener.focused++; };
     s.click(opener);
     const h = headOf(s.host.innerHTML);
-    assert.ok(h.includes('<div class="dt-head sh-head">' + back + `<h2 class="sh-title" id="dt-title">${enT.metrics[key].title}</h2>`), key + ': ' + h.slice(0, 200));
+    assert.ok(h.includes('<div class="dt-head sh-head">' + back + `<h2 class="sh-title" id="dt-title"><span class="sr-only">${enT.metrics[key].title} · </span>${enT.deep.today}</h2>`), key + ': ' + h.slice(0, 200));
     assert.match(h, /<button type="button" class="sh-info" data-dt-act="info" aria-expanded="false" aria-controls="dd-info" aria-label="How to read this page"><svg viewBox="0 0 24 24" aria-hidden="true">/, 'the ⓘ is the SVG icon, not a serif "i"');
     assert.doesNotMatch(h, /dd-today|dd-back|dd-info-btn|class="dt-close"/, 'the old header is gone');
     assert.equal(s.closeBtn.focused, 1, 'focus moves to the back button');
@@ -544,6 +546,14 @@ test('ONE sheet header for dial deep-dives and metric details: "‹" back (= clo
     assert.equal(s.host.hidden, true, 'back closes the sheet');
     assert.equal(opener.focused, 1, 'focus returns to the dial');
   }
+  // stale data (the view ends at the data's last day): that day's date, not "Today"; Spanish "Hoy"
+  const late = setup({ now: addDays(NOW, 5), dials: DIALS });
+  late.api.open('recovery');
+  assert.doesNotMatch(headOf(late.host.innerHTML), new RegExp(`</span>${enT.deep.today}</h2>`));
+  assert.match(headOf(late.host.innerHTML), /<\/span>[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}<\/h2>/);
+  const es = setup({ locale: 'es', dials: DIALS });
+  es.api.open('sleep');
+  assert.ok(headOf(es.host.innerHTML).includes(`<span class="sr-only">${esT.metrics.sleep.title} · </span>${esT.deep.today}</h2>`));
   // a metric detail: the same header (no ⓘ: an equal spacer keeps the title centred), no dial parts
   const s = setup();
   s.api.open('hrv');
@@ -742,7 +752,7 @@ test('load deep-dive keeps the dial\'s former captions: the ring scale + the 7-d
   const es = setup({ dials: DIALS, locale: 'es' });
   es.api.open('load-' + run.key);
   assert.ok(insightOf(es.host.innerHTML).includes(esT.load.scale));
-  assert.ok(es.host.innerHTML.includes(`>${esT.deep.cta}<`) && es.host.innerHTML.includes(`id="dt-title">${esT.metrics['load-' + run.key].title}<`));
+  assert.ok(es.host.innerHTML.includes(`>${esT.deep.cta}<`) && es.host.innerHTML.includes(`<span class="sr-only">${esT.metrics['load-' + run.key].title} · </span>${esT.deep.today}<`));
   const none = setup();
   none.api.open('load-' + run.key);
   assert.ok(!insightOf(none.host.innerHTML).includes(enT.load.bands[run.band]));
@@ -1373,6 +1383,8 @@ test('strain deep-dive follows the day it was opened on; a day without all-day h
   const s = setup({ dials: DIALS, scores: DEMO_SCORES });
   s.api.open('strain', prev.date);
   assert.ok(heroOf(s.host.innerHTML).includes(`<b class="dd-num">${prev.s.toFixed(1)}</b>`));
+  const dayLbl = format(enDate.dayTpl, { weekday: enDate.weekdays[(new Date(prev.date + 'T12:00:00Z').getUTCDay() + 6) % 7], day: String(Number(prev.date.slice(8))), month: enDate.months[Number(prev.date.slice(5, 7)) - 1] });
+  assert.ok(headOf(s.host.innerHTML).includes(`<span class="sr-only">${enT.metrics.strain.title} · </span>${dayLbl}</h2>`), 'the header names the stepped-to day: ' + headOf(s.host.innerHTML).slice(-160));
   const old = addDays(DEMO.metrics.strain.start, -3);
   const o = setup({ dials: DIALS, scores: DEMO_SCORES });
   o.api.open('strain', old);

@@ -90,10 +90,14 @@ switch is outside every opener); run / ride rows →
   `window.HCDeep.render(key, m, end, X)` with its own helpers `X`, so both files read one set of rules
   and copy): the sheets of the three Inicio dials — `sleep`, `recovery`, `load-<m>` — are laid out as
   one page, top to bottom:
-  1. **Header** "‹ METRIC ⓘ" — the ONE sheet header every detail shares (`HC.sheetHead`,
+  1. **Header** "‹ TODAY ⓘ" — the ONE sheet header every detail shares (`HC.sheetHead`,
      `client/util.js`; a `44px | 1fr | 44px` grid): the back arrow IS the sheet's close button
-     (`data-dt-act="close"`, focus lands on it, Esc / Back still work); the metric name centred,
-     uppercase, as the dialog's label (`h2.sh-title#dt-title`); ⓘ (`.sh-info`, the same SVG icon as the
+     (`data-dt-act="close"`, focus lands on it, Esc / Back still work); centred and uppercase, the DAY
+     the page shows (`h2.sh-title#dt-title`): "Today" (`deep.today`, es "Hoy") or its date ("Mon 28
+     Sep", `HC.fmtDate`) — strain = the day it was opened on (Inicio's day stepping), the others = the
+     view end (the viewer's today, or the stale data's last day: the day their hero describes). The
+     metric name moves into the ring (its uppercase label) and stays the dialog's label for screen
+     readers (`sheetHead({sr})`: a `.sr-only` "Recovery · " before the day); ⓘ (`.sh-info`, the same SVG icon as the
      Salud headers' `HC.infoBtn`, `data-dt-act="info"`, `aria-expanded` / `aria-controls="dd-info"`)
      toggles the long-notes block in place, collapsed by default. A sheet without notes puts an equal
      44px spacer (`.sh-pad`) there so the title stays centred.
@@ -124,7 +128,7 @@ switch is outside every opener); run / ride rows →
      value + marker): the dial's own inputs, each "today vs the prior 30 days" (`HCDeep.compare`):
      today's value vs the middle half (p25–p75) of the values on the 30 days before it — the Salud
      totals' "usual day" idea; fewer than 7 prior values → the value without a marker. Above / below
-     → ▲ / ▼, teal (`--up`) when better and orange (`--down`) when worse by the metric's good
+     → ▲ / ▼ (small ≈ 8 px triangles), teal (`--up`) when better and orange (`--down`) when worse by the metric's good
      direction, grey for a metric without one (bedtime, wake time, load); inside → a grey dot; the
      words ("better than usual"…) are screen-reader text. A legend pill "▲▼ Today vs prior 30 days"
      closes the card when a marker shows. A row without a value that day is hidden (never 0 or a

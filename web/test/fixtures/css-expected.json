@@ -768,7 +768,7 @@
   "|||.dd-low .dd-ring|||--dd-c": "var(--low)",
   "|||.dd-mid .dd-ring|||--dd-c": "var(--mid)",
   "|||.dd-mk|||flex": "none",
-  "|||.dd-mk|||font-size": "11px",
+  "|||.dd-mk|||font-size": "6.5px",
   "|||.dd-mk|||text-align": "center",
   "|||.dd-mk|||width": "14px",
   "|||.dd-neutral, .dd-typical|||color": "var(--faint)",
