@@ -195,7 +195,7 @@ work whatever `page.hideTabs` hides (core.js `jumpOr` stays as API but no card u
 **Look & typography.** Dark, data-first design language: colour carries meaning, never decoration.
 All colours are tokens in `web/src/styles/tokens.css`; the palette (2026-10-07) is sampled from a
 reference fitness app: a blue-grey page gradient (`--ground-top` → `--ground-mid` → `--ground`), flat
-cards (`--card-bg` = `--surface`, no gradient, no shadow), nested tiles `--surface-2`, inset troughs
+cards (`--card-bg` = `--surface`, no gradient, no shadow, and no border on Inicio's cards, Salud's recovery card and the eat card: `.sc-card`, `.eat-card`, `.wp`), nested tiles `--surface-2`, inset troughs
 `--rail`, dial / bar tracks `--track`, three text tiers (`--ink` white, `--muted`, `--faint`).
 `--good`/`--mid`/`--low` = state, `--up`/`--down` = better / worse deltas, `--trend` = neutral data
 lines/sparklines, `--strain` = load, `--sleep` = sleep, `--accent` = ACTIONS only (white: filled

@@ -139,7 +139,6 @@
   margin-top: var(--sp-4);
 }
 .hs-sec .sc-recovery {
-  border: 0;
   border-radius: var(--r-sm);
   box-shadow: none;
 }

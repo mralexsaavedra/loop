@@ -58,7 +58,6 @@ details.sec-fold > summary:hover > h2 {
    big kcal in --num, flat macro tiles); it follows "My day" */
 .eat-card {
   background: var(--card-bg);
-  border: 1px solid var(--line);
   border-radius: var(--r-lg);
   padding: var(--sp-7);
   margin: 0 0 var(--sp-5);
