@@ -67,10 +67,13 @@ switch is outside every opener); run / ride rows →
   `window.HCDeep.render(key, m, end, X)` with its own helpers `X`, so both files read one set of rules
   and copy): the sheets of the three Inicio dials — `sleep`, `recovery`, `load-<m>` — are laid out as
   one page, top to bottom:
-  1. **Header** "‹ TODAY ⓘ": the back arrow IS the sheet's close button (`data-dt-act="close"`, focus
-     lands on it, Esc / Back still work); the metric title stays the dialog's label as a visually
-     hidden `h2#dt-title`; ⓘ (`data-dt-act="info"`, `aria-expanded` / `aria-controls="dd-info"`)
-     toggles the long-notes block in place, collapsed by default.
+  1. **Header** "‹ METRIC ⓘ" — the ONE sheet header every detail shares (`HC.sheetHead`,
+     `client/util.js`; a `44px | 1fr | 44px` grid): the back arrow IS the sheet's close button
+     (`data-dt-act="close"`, focus lands on it, Esc / Back still work); the metric name centred,
+     uppercase, as the dialog's label (`h2.sh-title#dt-title`); ⓘ (`.sh-info`, the same SVG icon as the
+     Salud headers' `HC.infoBtn`, `data-dt-act="info"`, `aria-expanded` / `aria-controls="dd-info"`)
+     toggles the long-notes block in place, collapsed by default. A sheet without notes puts an equal
+     44px spacer (`.sh-pad`) there so the title stays centred.
   2. **ⓘ block** (`#dd-info`, hidden): the band / cut rules (`bandText`: the recovery day and trend
      cuts, the per-day note, the sleep band, the typical day), the load sessions-without-effort note,
      the sleep "stages are not in the extract" note.
@@ -80,7 +83,8 @@ switch is outside every opener); run / ride rows →
      unit + the uppercase label. Colour: recovery = ONE state colour, its band (`--good` / `--mid` /
      `--low`), sleep = `--sleep`, load = `--strain` with a white tick at the typical day
      (`DIALS.load.tick`). Off states show the dial's word in an empty ring (recovery "No baseline",
-     load "Building" / "No session yet" / "No effort data"); stale data (> 3 days) greys it like the
+     load "Building" / "No session yet" / "No effort data"; there the typical-day tick dims to a faint
+     hairline, `.dd-off .dd-tick`); stale data (> 3 days) greys it like the
      dial. No `DIALS` global: the number still shows (from `DETAIL`), the ring has no fill.
   4. **Contributors card** (a caret notch points up to the ring; ≤ 4 rows: icon + UPPERCASE name +
      value + marker): the dial's own inputs, each "today vs the prior 30 days" (`HCDeep.compare`):
@@ -125,7 +129,7 @@ switch is outside every opener); run / ride rows →
      longer prints them.
   The copy is the dial's own (`score-templates.mjs` via `I18N_DETAIL.rec` / `load` / `deep`).
 - **The sheet** (`detail.js`, one renderer, per-view try/catch with a message fallback, no NaN ever
-  printed): header = metric, latest value + date, the band / target / typical day in words (the dial
+  printed): header = the shared "‹ METRIC" header above (no ⓘ: a spacer), then the latest value + date, the band / target / typical day in words (the dial
   pages above replace this header). The header NEVER contradicts the card it opens from; the
   recovery chart's zone is the trend band at ±`cutTrend`, the daily points use the day band; weight / energy = the cards'
   7-day rolling average (`roll`, also the chart line) with the latest reading / day underneath; a
@@ -144,8 +148,13 @@ switch is outside every opener); run / ride rows →
   (`periodStats`, exposed as `HCDetail.periodStats(key, end, days)`); the chart's existing band is the
   typical range. An inline SVG chart (points for signals, bars for totals and load, the
   7-day average line that breaks where fewer than 3 of 7 days have data, the band shaded, target /
-  typical dashed; a missing day is a gap); a Monday-first month calendar (es/en weekday letters) with
-  prev / next bounded by the baked range, each day coloured by state tokens (`dayState`): signals vs
+  typical dashed; a missing day is a gap) with a Y axis: three round, evenly spaced values (step 1 / 2 /
+  2.5 / 5 × 10^k; bars from 0) as faint grid lines (`.dt-grid`) and labels in a 36px left gutter
+  (`.dt-yax`, HTML so the text never scales with the SVG); the range covers the ticks plus 12 %
+  headroom, so an out-of-range day never sits on the chart's edge; a Monday-first month calendar
+  (es/en weekday letters) with prev / next bounded by the baked range, each day tinted by its state
+  (good / mid / bad tiles: the state hue at 16 % with a 40 % inset ring, `--good-rgb` / `--mid-rgb` /
+  `--low-rgb`, never a saturated block) by `dayState`: signals vs
   their band by good direction (good / normal / bad; change signals `watch`), totals likewise (energy:
   neutral hi / lo), sleep good ≥ target / mid / bad below the band, recovery by the day cut, training
   volume in four `--strain` shades, sparse readings "measured", missing = empty; the picked day below

@@ -497,7 +497,28 @@ const insightOf = (html) => (html.split('<div class="dd-insight">')[1] || '').sp
 const infoOf = (html) => (html.split('<div class="dd-info" id="dd-info" hidden>')[1] || '').split('</div><section')[0];
 const heroOf = (html) => (html.split('<section class="dd-hero')[1] || '').split('</section>')[0];
 
-test('dial deep-dive header: "‹ TODAY ⓘ" — back = the close button (focus lands there), the metric title stays the dialog\'s label, ⓘ starts collapsed', () => {
+test('metric chart: 3 round Y-axis ticks (grid lines + labels), and the Y range leaves room past the outermost point so out-of-range days are never pinned to the edge', () => {
+  const s = setup();
+  s.api.open('rhr');
+  s.click(act('range', { 'data-range': '182' }));
+  const html = s.host.innerHTML;
+  const grid = [...html.matchAll(/<line class="dt-grid" x1="0" x2="320" y1="([\d.]+)" y2="\1"\/>/g)].map((m) => Number(m[1]));
+  assert.equal(grid.length, 3, 'three horizontal grid lines');
+  const ticks = [...html.matchAll(/<span style="top:([\d.]+)%">([^<]+)<\/span>/g)];
+  assert.match(html, /<div class="dt-plot"><svg class="dt-chart"[^]*<\/svg><div class="dt-yax" aria-hidden="true">/, 'labels overlay the plot');
+  assert.equal(ticks.length, 3, 'three labels');
+  const vals = ticks.map((t) => Number(t[2]));
+  assert.ok(vals.every((v) => Number.isFinite(v)), 'labels are numbers: ' + vals);
+  assert.ok(vals[0] > vals[1] && vals[1] > vals[2], 'top to bottom: high → low');
+  assert.equal(vals[0] - vals[1], vals[1] - vals[2], 'evenly spaced');
+  ticks.forEach((t, i) => assert.ok(Math.abs(Number(t[1]) - (grid[i] / 140) * 100) < 0.2, 'a label sits on its grid line'));
+  const cys = [...html.matchAll(/<circle class="dt-pt[^"]*" cx="[\d.]+" cy="([\d.]+)"/g)].map((m) => Number(m[1]));
+  assert.ok(cys.length > 0);
+  assert.ok(Math.min(...cys) >= 14 && Math.max(...cys) <= 140 - 14, `points keep >= 14 units from the edges (${Math.min(...cys)}–${Math.max(...cys)})`);
+});
+
+test('ONE sheet header for dial deep-dives and metric details: "‹" back (= close, focus lands there), the metric name centred as the dialog title, ⓘ = the shared SVG icon (dials) or an equal spacer', () => {
+  const back = '<button type="button" class="sh-back" data-dt-act="close" aria-label="Back">‹</button>';
   for (const key of ['sleep', 'recovery', 'load-gym']) {
     const s = setup({ dials: DIALS });
     const opener = new StubElement('div', { attrs: { 'data-detail': key } });
@@ -505,21 +526,21 @@ test('dial deep-dive header: "‹ TODAY ⓘ" — back = the close button (focus 
     opener.focus = () => { opener.focused++; };
     s.click(opener);
     const h = headOf(s.host.innerHTML);
-    assert.match(h, /<button type="button" class="dd-back" data-dt-act="close" aria-label="Back">‹<\/button>/, key);
-    assert.ok(h.includes('<span class="dd-today" aria-hidden="true">Today</span>'));
-    assert.ok(h.includes(`<h2 class="sr-only" id="dt-title">${enT.metrics[key].title}</h2>`), 'the dialog is still labelled by the metric');
-    assert.match(h, /class="dd-info-btn" data-dt-act="info" aria-expanded="false" aria-controls="dd-info"/);
-    assert.doesNotMatch(h, /class="dt-close"/, 'one way out: the back arrow');
+    assert.ok(h.includes('<div class="dt-head sh-head">' + back + `<h2 class="sh-title" id="dt-title">${enT.metrics[key].title}</h2>`), key + ': ' + h.slice(0, 200));
+    assert.match(h, /<button type="button" class="sh-info" data-dt-act="info" aria-expanded="false" aria-controls="dd-info" aria-label="How to read this page"><svg viewBox="0 0 24 24" aria-hidden="true">/, 'the ⓘ is the SVG icon, not a serif "i"');
+    assert.doesNotMatch(h, /dd-today|dd-back|dd-info-btn|class="dt-close"/, 'the old header is gone');
     assert.equal(s.closeBtn.focused, 1, 'focus moves to the back button');
     assert.ok(s.host.innerHTML.includes('<div class="dd-info" id="dd-info" hidden>'), 'the long notes are collapsed');
     s.click(act('close'));
     assert.equal(s.host.hidden, true, 'back closes the sheet');
     assert.equal(opener.focused, 1, 'focus returns to the dial');
   }
-  // a non-dial view keeps the plain header
+  // a metric detail: the same header (no ⓘ: an equal spacer keeps the title centred), no dial parts
   const s = setup();
   s.api.open('hrv');
-  assert.doesNotMatch(s.host.innerHTML, /dd-head|dd-hero|dd-insight/);
+  const h = headOf(s.host.innerHTML);
+  assert.ok(h.includes('<div class="dt-head sh-head">' + back + `<h2 class="sh-title" id="dt-title">${enT.metrics.hrv.title}</h2><span class="sh-pad" aria-hidden="true"></span></div>`), h.slice(0, 260));
+  assert.doesNotMatch(s.host.innerHTML, /dd-head|dd-hero|dd-insight|class="dt-close"/);
 });
 
 test('ⓘ toggles the long-notes block in place (no re-render); the CTA jumps to the history chart and focuses its pressed range', () => {
@@ -702,7 +723,7 @@ test('load deep-dive keeps the dial\'s former captions: the ring scale + the 7-d
   const es = setup({ dials: DIALS, locale: 'es' });
   es.api.open('load-' + run.key);
   assert.ok(insightOf(es.host.innerHTML).includes(esT.load.scale));
-  assert.ok(es.host.innerHTML.includes(`>${esT.deep.cta}<`) && es.host.innerHTML.includes(`>${esT.deep.today}<`));
+  assert.ok(es.host.innerHTML.includes(`>${esT.deep.cta}<`) && es.host.innerHTML.includes(`id="dt-title">${esT.metrics['load-' + run.key].title}<`));
   const none = setup();
   none.api.open('load-' + run.key);
   assert.ok(!insightOf(none.host.innerHTML).includes(enT.load.bands[run.band]));

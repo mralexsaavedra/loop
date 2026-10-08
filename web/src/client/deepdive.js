@@ -60,12 +60,7 @@
   /* ---------- header ---------- */
   function headHtml(key, X) {
     var P = X.T.deep;
-    return '<div class="dt-head dd-head">' +
-      '<button type="button" class="dd-back" data-dt-act="close" aria-label="' + esc(P.back) + '">‹</button>' +
-      '<span class="dd-today" aria-hidden="true">' + esc(P.today) + '</span>' +
-      '<h2 class="sr-only" id="dt-title">' + esc(X.titleOf(key)) + '</h2>' +
-      '<button type="button" class="dd-info-btn" data-dt-act="info" aria-expanded="false" aria-controls="dd-info" aria-label="' + esc(P.info) + '">i</button>' +
-      '</div>';
+    return HC.sheetHead({ title: X.titleOf(key), back: P.back, info: { controls: 'dd-info', label: P.info } });
   }
 
   /* ---------- hero ring ---------- */

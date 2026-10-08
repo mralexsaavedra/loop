@@ -41,6 +41,10 @@
   --mid: #ffde00;
   --low: #ff0026;
   --low-ink: #ff5972;
+  /* the state hues as r, g, b for tinted fills (rgba(var(--good-rgb), a)) */
+  --good-rgb: 25, 236, 6;
+  --mid-rgb: 255, 222, 0;
+  --low-rgb: 255, 0, 38;
   /* deltas: better / worse than the baseline */
   --up: #00f19f;
   --down: #ffa722;

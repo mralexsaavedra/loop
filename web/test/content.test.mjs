@@ -307,6 +307,28 @@ test('example build: the Salud recovery card stays stacked at every width (headl
   assert.equal(map.get('|||details.rec-raw>summary|||padding'), '0');
 });
 
+test('example build: sheet calendar state tiles are a soft tint + a 40 % ring of the state token, not a saturated block', async () => {
+  const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  const map = ruleDeclarationMap(parseCssRules(css));
+  const get = (sel, p) => { const k = [...map.keys()].find((x) => x.startsWith('|||') && x.endsWith('|||' + p) && x.split('|||')[1].split(',').map((s) => s.trim()).includes(sel)); return k ? String(map.get(k)).replace(/\s+/g, '') : null; };
+  for (const [st, rgb] of [['good', 'good'], ['mid', 'mid'], ['watch', 'mid'], ['bad', 'low']]) {
+    assert.equal(get('.dt-day.dt-s-' + st, 'background'), `rgba(var(--${rgb}-rgb),0.16)`, st);
+    assert.equal(get('.dt-day.dt-s-' + st, 'box-shadow'), `inset0001pxrgba(var(--${rgb}-rgb),0.4)`, st);
+    assert.equal(get('.dt-sw.dt-s-' + st, 'background'), `rgba(var(--${rgb}-rgb),0.16)`, 'legend swatch ' + st);
+  }
+});
+
+test('example build: the load deep-dive\'s typical-day tick is a faint hairline on an empty ring', async () => {
+  const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
+  const html = fs.readFileSync(examplePath, 'utf8');
+  const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  const map = ruleDeclarationMap(parseCssRules(css));
+  assert.equal(map.get('|||.dd-off .dd-tick|||stroke'), 'var(--faint)');
+  assert.ok(Number(map.get('|||.dd-off .dd-tick|||stroke-width')) < Number(map.get('|||.dd-tick|||stroke-width')), 'thinner than the live tick');
+});
+
 test('example build: Salud headers — the page ⓘ sits beside the centred title, the monitor chip right after its title', async () => {
   const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
   const html = fs.readFileSync(examplePath, 'utf8');
