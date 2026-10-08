@@ -184,7 +184,7 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
   out[ZONES_CSV] = csv(ZONES_HEADER, zoneRows);
 
   // ---- Watch heart rate per clock hour (hr-hourly.csv, as the Shortcut sync writes it) ---------
-  // the last HR_DAYS days, a sample every 5 min: nights ~55 bpm, days ~65-80 with the odd walk at
+  // the last HR_DAYS days, a sample every 5 min: nights ~55 bpm, days ~58-70 with the odd walk at
   // 100-120 and the Watch-only gym session at 120-140, and the Strava session's window (18:00 + its elapsed time) left out of the histogram
   // (act_min), exactly like lib/health/hr-hourly.cjs. Its own PRNG, so the other files never change.
   const hrnd = prng(seed + 3);
@@ -195,7 +195,7 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
     for (let h = 0; h < 24; h++) {
       const act = Math.max(0, Math.min(60, (actSec.get(date) || 0) / 60 - (h - 18) * 60)) * (h >= 18 ? 1 : 0);
       const night = h < 7 || h === 23;
-      const base = night ? 52 + hrnd() * 6 : 64 + hrnd() * 16;
+      const base = night ? 52 + hrnd() * 6 : 58 + hrnd() * 12;
       const free = 60 - act;
       // minutes of brisk walking, or the gym session (Watch only, no Strava window: all-day load)
       const gym = h === 18 && gymDays.has(date) ? 45 : 0;
