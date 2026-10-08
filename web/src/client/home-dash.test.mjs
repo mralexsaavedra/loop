@@ -114,13 +114,15 @@ test('row value: newest day, 30-day baseline, arrow + tone by the good direction
   assert.equal(ctx.HCDash.rowValue(null, NOW), null);
 });
 
-test('render: one row per shown metric (title, value, unit, baseline, arrow, detail opener); sleep as h:mm', () => {
+test('render: one row per shown metric (full name, value, unit, baseline, arrow, detail opener); sleep as h:mm', () => {
   const { els } = load();
   const html = els['home-dash'].innerHTML;
   assert.equal(els['my-dash'].hidden, false);
   const keys = [...html.matchAll(/data-detail="([\w-]+)"/g)].map((m) => m[1]);
   assert.deepEqual(keys, ['rhr', 'hrv', 'sleep', 'weight', 'steps']);
-  assert.match(html, /Resting HR<\/span><span class="db-vals"><span class="db-val"><b>50<\/b><small>bpm<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span><\/span><span class="db-base">54<\/span>/);
+  assert.match(html, /<span class="db-name">Heart rate variability<\/span>/, 'the full name, not the sheet\'s short title');
+  assert.match(html, /<span class="db-name">Hours of sleep<\/span>/);
+  assert.match(html, /Resting heart rate<\/span><span class="db-vals"><span class="db-val"><b>50<\/b><small>bpm<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span><\/span><span class="db-base">54<\/span>/);
   assert.match(html, /<b>7:30<\/b>/);
   assert.match(html, /<b>12000<\/b>/);
 });
@@ -146,7 +148,7 @@ test('customize: the sheet lists every available metric with show / up / down; a
   assert.equal(v.title(), 'Customize dashboard');
   const body = v.render().body;
   assert.equal([...body.matchAll(/data-dash-act="toggle"/g)].length, 6, 'rhr hrv sleep weight steps vo2max');
-  assert.match(body, /data-dash-act="up" data-key="rhr" aria-label="Move Resting HR up" disabled/);
+  assert.match(body, /data-dash-act="up" data-key="rhr" aria-label="Move Resting heart rate up" disabled/);
   assert.match(body, /data-key="vo2max" aria-pressed="false"/);
   click({ 'data-dash-act': 'toggle', 'data-key': 'vo2max' });
   click({ 'data-dash-act': 'up', 'data-key': 'vo2max' });
@@ -164,9 +166,12 @@ test('every metric hidden: the section stays (Customize brings one back) with a 
   assert.equal(empty.els['my-dash'].hidden, true);
 });
 
-test('Spanish: titles and units come from the detail copy', () => {
+test('Spanish: the full names from the dashboard copy, the other titles and the units from the detail copy', () => {
   const { els } = load({ locale: 'es' });
-  assert.match(els['home-dash'].innerHTML, new RegExp(esD.metrics.rhr.title));
+  const html = els['home-dash'].innerHTML;
+  assert.match(html, /<span class="db-name">Frecuencia cardiaca en reposo<\/span>/);
+  assert.match(html, new RegExp(`<span class="db-name">${esD.metrics.weight.title}</span>`));
+  assert.match(html, new RegExp(`<small>${esD.metrics.rhr.unit}</small>`));
 });
 
 test('fitness age: an optional row (off by default), whole years, lower = better; a value at a clamp bound reads "≤ 25" / "≥ 75"', () => {

@@ -147,7 +147,7 @@ test('Tonight: bedtime ↔ usual wake time on the card, the rule only in its she
   const h = els['home-tonight'];
   assert.equal(h.hidden, false);
   assert.match(h.innerHTML, /class="sc-card tn"/);
-  assert.match(h.innerHTML, /<b>23:45<\/b>[\s\S]*Recommended bedtime[\s\S]*tn-dash[\s\S]*<b>07:15<\/b>[\s\S]*Usual wake time/);
+  assert.match(h.innerHTML, /<b>23:45<\/b><\/span><span class="tn-lbl">Recommended bedtime<\/span>[\s\S]*tn-dash[\s\S]*<b>07:15<\/b><\/span><span class="tn-lbl tn-state">Usual wake<\/span><span class="tn-lbl">Last 12 nights<\/span>/, 'the wake side: a teal state line, then the nights it comes from');
   assert.match(h.innerHTML, /data-detail="tonight"/);
   assert.doesNotMatch(h.innerHTML, /median|target/i, 'the rule is not on the card');
   const v = ctx.HCViews.tonight;

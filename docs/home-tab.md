@@ -307,7 +307,9 @@ trend is the line under it.
   sits behind the card header's ⓘ (`#tl-info`, only when the day lists workouts), not under the list.
 - **Tonight** (`#home-tonight`, `lib/score/tonight.mjs` baked as `SCORES.tonight`, `client/home-week.js`):
   the recommended bedtime (moon icon) and the usual wake time (alarm icon) joined by a dashed line, D-DIN
-  clocks, uppercase captions. Rule (stated in the sheet the card opens — the registered `tonight` view —
+  clocks (24 px), uppercase captions; the wake side carries a teal state line "● Usual wake" (`--up`,
+  where the reference shows its alarm state: the page has no alarm data) and then "Last N nights"
+  (the nights the median used). Rule (stated in the sheet the card opens — the registered `tonight` view —
   never on the card): usual wake = the median wake clock (`sleep-daily.csv` `waketime`, the night dated
   the wake-up day) of the nights in the last `TONIGHT_WINDOW` (14) days ending at the newest night with a
   wake time; bedtime = usual wake − the sleep target (`SLEEP_TARGET`, 7.5 h, the sleep dial's). A wake
@@ -318,7 +320,7 @@ trend is the line under it.
   chevron, 7 day columns (the 7 days ending on the viewer's today: weekday + a check circle, `--up` when
   that day is journaled); a column or the chevron opens the journal sheet on that day. Ships hidden.
 - **My plan** (`#my-plan`, `client/home-week.js`, `window.HCWeekPlan.weekGoals`): one collapsible
-  `<details>` card "Weekly plan · N days left · X % accomplished" + a teal progress bar, for the VIEWER's
+  `<details>` card, flat (no border, no open-state ring), "Weekly plan · N days left · X % accomplished" + a teal progress bar, for the VIEWER's
   week (Monday–Sunday from `Date.now()`, never baked; days left = after today). Expanded: one row per
   goal — uppercase label + its basis, `done/target`, ▲ `--up` on pace / ▼ `--down` behind (on pace =
   done ≥ target × days elapsed / 7), a small bar. % accomplished = the mean of min(1, done / target)
@@ -338,12 +340,14 @@ trend is the line under it.
   card and its "My plan" heading stay hidden. The sleep row opens the sleep sheet, the training row the
   training-time sheet.
 - **My dashboard** (`#my-dash`, `client/home-dash.js`): a Title Case heading with "CUSTOMIZE ✎" on the
-  right, then single-row metric cards — line icon · UPPERCASE metric · the latest value (D-DIN) + unit
-  and an arrow, the 30-day baseline small under it. Catalogue (`CATALOG`): rhr, hrv, sleep, weight,
+  right, then single-row metric cards (60 px) — line icon · UPPERCASE full metric name ("Resting heart
+  rate", "Heart rate variability", "Hours of sleep", "Walking heart rate": `home.dash.names`, else the
+  detail sheet's title) · the latest value (D-DIN, 22 px) + its unit at about half that size and an
+  arrow, the 30-day baseline small under it. Catalogue (`CATALOG`): rhr, hrv, sleep, weight,
   steps (shown by default, `DEFAULT_ON`), vo2max, fitnessAge, walkingHr, exercise (hidden by default;
   fitnessAge in whole years, "≤ 25" / "≥ 75" at the reference curve's bounds, docs/health-tab.md
   "Fitness age"); only keys
-  present in the baked `DETAIL.metrics` are listed. Same series, titles and units as the detail sheet
+  present in the baked `DETAIL.metrics` are listed. Same series and units as the detail sheet
   (`I18N_DETAIL`). Value = the newest day with data up to the viewer's today (a daily total skips
   today, still filling up); sleep shows h:mm. Baseline = the mean of the 30 days before that day, with
   ≥ 7 days of data (≥ 2 readings for a sparse series like weight); no baseline → no arrow. Arrow ▲▼ =
