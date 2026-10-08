@@ -70,6 +70,9 @@ export const en = {
     unitNote: `${UE} = typical spread: values are in units of your own typical day-to-day variation over the last 42 days, not a grade.`,
     trendLbl: `7-day trend: {value} ${UE} vs your 42-day baseline`,
     deltaLbl: `{value} ${UE} vs a week earlier`,
+    // the card's one short trend line (the full sentence above sits behind the ⓘ)
+    trendShort: `7-day {value} ${UE}`,
+    infoLbl: 'About {section}',
     bands: { above: 'above baseline', at: 'at baseline', below: 'below baseline' },
     sparkLbl: '7-day smoothed trend, last 14 days',
     confLbl: 'Confidence: {level}',
@@ -162,7 +165,9 @@ export const en = {
     labels: { respiratory: 'Respiratory rate', rhr: 'Resting HR', hrv: 'HRV', wristTemp: 'Wrist temp (sleep)', sleep: 'Sleep' },
     units: { respiratory: 'brpm', rhr: 'bpm', hrv: 'ms', wristTemp: '°C', sleep: 'h' },
     status: { normal: 'Normal', high: 'High', low: 'Low', building: 'Building baseline', none: 'No data', stale: 'No recent data' },
-    rangeLbl: 'Normal {lo}–{hi}',
+    // the row's small line (bare range, fits next to a long name at 390 px) + its spoken form
+    rangeLbl: '{lo}–{hi}',
+    rangeAria: 'Normal range {lo}–{hi}',
     note: `Normal = your median ± 2 ${UE} (your typical spread) over the 42 days before each reading (14+ days needed). High HRV is good and high resting HR is not; respiratory rate and wrist temperature matter when they shift either way. Descriptive, not medical advice.`,
   },
   // Inicio "today" timeline (client/timeline.js): last night's sleep + the day's workouts
@@ -257,6 +262,9 @@ export const es = {
     unitNote: `${US} = variación típica: los valores están en unidades de tu propia variación típica de un día a otro en los últimos 42 días, no son una nota.`,
     trendLbl: `Tendencia 7 d: {value} ${US} frente a tu línea base de 42 días`,
     deltaLbl: `{value} ${US} frente a la semana anterior`,
+    // la única línea corta de tendencia de la tarjeta (la frase completa va tras la ⓘ)
+    trendShort: `7 d {value} ${US}`,
+    infoLbl: 'Sobre {section}',
     bands: { above: 'por encima de la línea base', at: 'en la línea base', below: 'por debajo de la línea base' },
     sparkLbl: 'Tendencia suavizada a 7 días, últimos 14 días',
     confLbl: 'Confianza: {level}',
@@ -349,7 +357,9 @@ export const es = {
     labels: { respiratory: 'Frecuencia respiratoria', rhr: 'FC en reposo', hrv: 'VFC', wristTemp: 'Temp. de muñeca (sueño)', sleep: 'Sueño' },
     units: { respiratory: 'rpm', rhr: 'ppm', hrv: 'ms', wristTemp: '°C', sleep: 'h' },
     status: { normal: 'Normal', high: 'Alto', low: 'Bajo', building: 'Creando base', none: 'Sin datos', stale: 'Sin datos recientes' },
-    rangeLbl: 'Normal {lo}–{hi}',
+    // la línea pequeña de la fila (solo el rango, cabe junto a un nombre largo a 390 px) + su forma hablada
+    rangeLbl: '{lo}–{hi}',
+    rangeAria: 'Rango normal {lo}–{hi}',
     note: `Normal = tu mediana ± 2 ${US} (tu variación típica) en los 42 días anteriores a cada lectura (hacen falta 14+ días). Una VFC alta es buena y una FC en reposo alta no; la frecuencia respiratoria y la temperatura de muñeca importan cuando cambian en cualquier sentido. Descriptivo, no es consejo médico.`,
   },
   // "Hoy" en Inicio (client/timeline.js): el sueño de anoche + los entrenos del día

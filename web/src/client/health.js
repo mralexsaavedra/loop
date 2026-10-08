@@ -384,6 +384,10 @@
 
   render();
 
+  // the Salud title's ⓘ (tabs/Salud.astro leaves a slot): the one shared button markup, HC.infoBtn
+  var introSlot = document.getElementById('hs-intro-i');
+  if (introSlot) introSlot.innerHTML = HC.infoBtn('hs-intro', introSlot.getAttribute('data-label') || '');
+
   // ⓘ toggles of Salud (the monitor list, client/monitor.js, and each section): a button
   // [data-hs-info="<id>"] shows / hides the block #<id> in place and mirrors it in aria-expanded.
   // One delegated listener for the page; the block stays in the DOM (hidden), so its text is never lost.

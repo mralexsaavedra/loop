@@ -92,8 +92,9 @@ test('each host has its own empty state', () => {
 
 // Salud (#health-body) + Entreno (#health-train) hosts; returns both, Salud first, or each via `out`.
 // `balance: true` adds Nutrición's #nutri-balance host (out.balance, out.balanceHidden).
-function renderWith(HEALTH, { DateCls = Date, SCORES, out = {}, detail = false, balance = false } = {}) {
+function renderWith(HEALTH, { DateCls = Date, SCORES, out = {}, detail = false, balance = false, introSlot = false } = {}) {
   const doc = new StubDocument();
+  const slot = introSlot ? doc.el('hs-intro-i', { attrs: { 'data-label': 'About Health' } }) : null;
   const host = doc.el('health-body');
   const train = doc.el('health-train');
   const bal = balance ? doc.el('nutri-balance') : null;
@@ -105,8 +106,18 @@ function renderWith(HEALTH, { DateCls = Date, SCORES, out = {}, detail = false, 
   out.health = host.innerHTML;
   out.train = train.innerHTML;
   if (bal) { out.balance = bal.innerHTML; out.balanceHidden = bal.hidden; }
+  if (slot) out.intro = slot.innerHTML;
   return host.innerHTML + train.innerHTML;
 }
+
+test('the Salud title\'s ⓘ is the shared HC.infoBtn markup, written into its slot (no hand-copied button in Salud.astro)', () => {
+  const out = {};
+  renderWith({ body: none, activity: none, energy: none, running: none, cycling: none, recovery: none, loadRecovery: none }, { out, introSlot: true });
+  const ctx = vm.createContext({});
+  loadUtil(ctx);
+  assert.equal(out.intro, ctx.HC.infoBtn('hs-intro', 'About Health'));
+  assert.match(out.intro, /data-hs-info="hs-intro" aria-expanded="false" aria-controls="hs-intro" aria-label="About Health"/);
+});
 const none = { hasData: false };
 
 test('energy: a power-meter-corrected headline day says so; corrected days in the window get a note', () => {
