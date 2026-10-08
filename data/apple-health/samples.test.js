@@ -62,12 +62,16 @@ test('isoToExportStamp() converts ISO-8601 with offset to the export format, kee
 
 test('readingRow() and sleepRow() match the extract CSV schemas', () => {
   assert.equal(s.READING_HEADER, 'date,value,source');
-  assert.equal(s.SLEEP_HEADER, 'date,asleep_hours,source,bedtime,waketime');
+  assert.equal(s.SLEEP_HEADER, 'date,asleep_hours,source,bedtime,waketime,rem_h,deep_h,core_h,unspec_h,awake_h,inbed_h');
   assert.equal(s.readingRow({ date: '2030-01-02', value: 50.5, source: 'X' }), '2030-01-02,50.5,X');
   assert.equal(s.readingRow({ date: '2030-01-02', value: 50 }), '2030-01-02,50,');
   const ck = { start: '2030-01-01 23:30:00 +0100', end: '2030-01-02 07:15:00 +0100' };
-  assert.equal(s.sleepRow('2030-01-02', 450, 'X', ck), '2030-01-02,7.50,X,23.5,7.25');
-  assert.equal(s.sleepRow('2030-01-02', 450, 'X', null), '2030-01-02,7.50,X,,');
+  assert.equal(s.sleepRow('2030-01-02', 450, 'X', ck), '2030-01-02,7.50,X,23.5,7.25,,,,,,');
+  assert.equal(s.sleepRow('2030-01-02', 450, 'X', null), '2030-01-02,7.50,X,,,,,,,,');
+  const st = { rem: 90, deep: 60, core: 300, unspec: 0, awake: 15, inbed: 480 };
+  assert.equal(s.sleepRow('2030-01-02', 450, 'X', ck, st), '2030-01-02,7.50,X,23.5,7.25,1.50,1.00,5.00,0.00,0.25,8.00');
+  // unstaged (Asleep-unspecified only): REM / deep / core / awake stay empty, unspec + in bed are written
+  assert.equal(s.sleepRow('2030-01-02', 450, 'X', ck, { rem: null, deep: null, core: null, unspec: 450, awake: null, inbed: 465 }), '2030-01-02,7.50,X,23.5,7.25,,,,7.50,,7.75');
 });
 
 test('WORKOUTS_HEADER has 12 columns and workoutRow() emits three trailing empty Strava-only columns', () => {
@@ -81,7 +85,8 @@ test('WORKOUTS_HEADER has 12 columns and workoutRow() emits three trailing empty
 // ---- sleepNights(): one main-sleep night per wake-up date, naps excluded ----------------
 
 const seg = (start, end, source = 'W') => ({ start, end, source });
-const nightRows = segs => s.sleepNights(segs).map(n => s.sleepRow(n.date, n.minutes, n.source, n.ck));
+const nightRows = segs => s.sleepNights(segs).map(n => s.sleepRow(n.date, n.minutes, n.source, n.ck).split(',').slice(0, 5).join(','));
+const stg = (start, end, stage, source = 'W') => ({ start, end, stage, source });
 
 test('sleepNights(): a nap crossing 18:00 is not split across two nights and never sets bed/wake', () => {
   const rows = nightRows([
@@ -224,4 +229,70 @@ test('sleepNights(): TRADE-OFF — a 07:30-09:30 nap after a 06:30 wake JOINS th
     seg('2030-01-02 07:30:00 +0100', '2030-01-02 09:30:00 +0100'), // ends before 10:00, 1 h gap
   ]);
   assert.deepEqual(rows, ['2030-01-02,9.50,W,23,9.5']);
+});
+
+// ---- sleep stages: per-night REM / deep / core / unspecified / awake / in bed -----------------
+
+test('sleepNights(): per-stage minutes of the main sleep; awake only inside the night; in bed = window + InBed', () => {
+  const [n] = s.sleepNights([
+    stg('2030-01-01 22:50:00 +0100', '2030-01-02 07:10:00 +0100', 'inbed', 'iPhone'), // the phone's bedtime record
+    stg('2030-01-01 23:00:00 +0100', '2030-01-02 01:00:00 +0100', 'core'),
+    stg('2030-01-02 01:00:00 +0100', '2030-01-02 01:20:00 +0100', 'awake'),
+    stg('2030-01-02 01:20:00 +0100', '2030-01-02 02:20:00 +0100', 'deep'),
+    stg('2030-01-02 02:20:00 +0100', '2030-01-02 03:50:00 +0100', 'rem'),
+    stg('2030-01-02 03:50:00 +0100', '2030-01-02 07:00:00 +0100', 'core'),
+    stg('2030-01-02 07:00:00 +0100', '2030-01-02 07:30:00 +0100', 'awake'), // after the last asleep end: not counted
+    stg('2030-01-02 15:00:00 +0100', '2030-01-02 15:40:00 +0100', 'core'), // nap: no stage minutes
+  ]);
+  assert.equal(n.date, '2030-01-02');
+  assert.equal(n.minutes, 460);
+  assert.deepEqual(n.stages, { rem: 90, deep: 60, core: 310, unspec: 0, awake: 20, inbed: 500 });
+});
+
+test('sleepNights(): without an InBed record, in bed = the sleep window (first asleep start to last asleep end)', () => {
+  const [n] = s.sleepNights([
+    stg('2030-01-01 23:00:00 +0100', '2030-01-02 03:00:00 +0100', 'core'),
+    stg('2030-01-02 03:00:00 +0100', '2030-01-02 03:30:00 +0100', 'awake'),
+    stg('2030-01-02 03:30:00 +0100', '2030-01-02 07:00:00 +0100', 'rem'),
+  ]);
+  assert.equal(n.minutes, 450);
+  assert.deepEqual(n.stages, { rem: 210, deep: 0, core: 240, unspec: 0, awake: 30, inbed: 480 });
+});
+
+test('sleepNights(): unstaged (Asleep-unspecified / no stage) nights keep REM / deep / core / awake unknown', () => {
+  const [n] = s.sleepNights([seg('2030-01-01 23:00:00 +0100', '2030-01-02 07:00:00 +0100')]);
+  assert.deepEqual(n.stages, { rem: null, deep: null, core: null, unspec: 480, awake: null, inbed: 480 });
+});
+
+test('sleepNights(): awake / in-bed records never create a night nor make a source win', () => {
+  assert.deepEqual(s.sleepNights([stg('2030-01-01 23:00:00 +0100', '2030-01-02 07:00:00 +0100', 'inbed', 'iPhone'),
+    stg('2030-01-02 01:00:00 +0100', '2030-01-02 02:00:00 +0100', 'awake')]), []);
+  const [n] = s.sleepNights([
+    stg('2030-01-01 23:00:00 +0100', '2030-01-02 06:00:00 +0100', 'core', 'A'),
+    stg('2030-01-01 22:00:00 +0100', '2030-01-02 09:00:00 +0100', 'awake', 'B'),
+    stg('2030-01-01 23:30:00 +0100', '2030-01-02 05:00:00 +0100', 'unspec', 'B'),
+  ]);
+  assert.equal(n.source, 'A');
+  assert.equal(n.stages.awake, 0, "B's awake record is not A's");
+});
+
+test('sleepNights(): duplicated / overlapping stage records of one source count once', () => {
+  const [n] = s.sleepNights([
+    stg('2030-01-01 23:00:00 +0100', '2030-01-02 03:00:00 +0100', 'core'),
+    stg('2030-01-01 23:00:00 +0100', '2030-01-02 03:00:00 +0100', 'core'),
+    stg('2030-01-02 02:00:00 +0100', '2030-01-02 07:00:00 +0100', 'core'),
+  ]);
+  assert.equal(n.minutes, 480);
+  assert.equal(n.stages.core, 480);
+});
+
+test('sleepStage(): Apple export values -> stage keys', () => {
+  assert.equal(s.sleepStage('HKCategoryValueSleepAnalysisAsleepCore'), 'core');
+  assert.equal(s.sleepStage('HKCategoryValueSleepAnalysisAsleepDeep'), 'deep');
+  assert.equal(s.sleepStage('HKCategoryValueSleepAnalysisAsleepREM'), 'rem');
+  assert.equal(s.sleepStage('HKCategoryValueSleepAnalysisAsleepUnspecified'), 'unspec');
+  assert.equal(s.sleepStage('HKCategoryValueSleepAnalysisAsleep'), 'unspec');
+  assert.equal(s.sleepStage('HKCategoryValueSleepAnalysisAwake'), 'awake');
+  assert.equal(s.sleepStage('HKCategoryValueSleepAnalysisInBed'), 'inbed');
+  assert.equal(s.sleepStage('HKCategoryValueSleepAnalysisWhatever'), null);
 });

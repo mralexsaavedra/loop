@@ -66,6 +66,28 @@ the power-meter ride correction (Health tab → Energy).
 Unreachable service → exits non-zero without touching files. Row helpers are shared in
 `samples.js`, so both paths format rows identically.
 
+### Sleep (`sleep-daily.csv`)
+
+`date,asleep_hours,source,bedtime,waketime,rem_h,deep_h,core_h,unspec_h,awake_h,inbed_h`, one row
+per wake-up night, written identically by `extract.js` and the Shortcut sync (`samples.js`
+`sleepNights` / `sleepRow`). Only ASLEEP segments (Core / Deep / REM / Asleep-unspecified, English or
+Spanish Shortcut names) build the night: blocks under 60 min apart, the main sleep inside 20:00–12:00,
+naps excluded, max minutes across sources per night. `asleep_hours` (the union of the main sleep's
+asleep intervals) and `bedtime` / `waketime` (first asleep start / last asleep end, decimal local hour)
+are unchanged by the stage columns. Stage columns (hours, blank = unknown):
+
+- `rem_h` / `deep_h` / `core_h`: the winning source's main-sleep minutes per stage; blank on an
+  unstaged night (Asleep-unspecified only). `unspec_h`: Asleep-unspecified (and pre-iOS 16 `Asleep`)
+  minutes — older Watch data and third-party trackers (Zepp, Mi Fit), kept separate, not folded into core.
+- `awake_h`: that source's Awake records clipped to the sleep window (bedtime → waketime).
+- `inbed_h`: the sleep window united with ANY source's overlapping InBed records (the iPhone writes
+  InBed from the bedtime schedule, the Watch never does), so without an InBed record it is the window
+  itself (asleep + the awake time inside it). Readers (`lib/health/read.mjs` `readSleep`) are
+  positional: rows written before the stage columns existed have five columns and read as `null`.
+  Awake / InBed records never create a night or make a source win. Stages need `node
+  data/apple-health/extract.js` on a new export (history) and `npm run sync -- --full` (Shortcut nights
+  already cached).
+
 ## Strava sync
 
 **Strava sync (`npm run sync:strava`, part of `npm run sync`).** Pulls every activity the
