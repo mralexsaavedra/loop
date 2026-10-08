@@ -27,6 +27,13 @@ export const en = {
       history: 'See sleep history',
       none: 'Not enough nights with a wake time yet (7 needed in the last 14 days).',
     },
+    // "My day" energy bank card (client/energy.js, lib/score/energy.mjs): our own intraday estimate
+    energy: {
+      heading: 'Energy bank',
+      estimate: 'estimate',
+      aria: 'Energy bank estimate {value} of 100, latest hour {time}',
+      from: 'From {start} at {wake} · low {min}',
+    },
     // "My journal" card + the journal sheet (client/journal.js, LAN page only for writing)
     journal: {
       heading: 'My journal',
@@ -310,6 +317,13 @@ export const es = {
       note: 'Solo una sugerencia a partir de tus datos: la página no puede poner una alarma.',
       history: 'Ver historial de sueño',
       none: 'Aún no hay suficientes noches con hora de despertar (hacen falta 7 en los últimos 14 días).',
+    },
+    // tarjeta "Banco de energía" de "Mi día" (client/energy.js, lib/score/energy.mjs): estimación propia
+    energy: {
+      heading: 'Banco de energía',
+      estimate: 'estimación',
+      aria: 'Banco de energía, estimación {value} de 100, última hora {time}',
+      from: 'Desde {start} a las {wake} · mínimo {min}',
     },
     // tarjeta "Mi diario" + la hoja del diario (client/journal.js, escribir solo en la página LAN)
     journal: {

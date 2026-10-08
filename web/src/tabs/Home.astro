@@ -2,7 +2,8 @@
 /* "Inicio / Home" = today, at a glance, top to bottom: the Sleep / Recovery / Load dials
  * (#home-dials, client/score.js), the monitor tiles (#home-tiles: the health monitor's summary + the
  * HRV signal, client/monitor.js), "My day" (#my-day: the advice sentence as the outlook bar in
- * #home-advice, then "Today's activities" in #timeline: last night's sleep, the day's workouts and
+ * #home-advice, then the energy bank card in #home-energy (client/energy.js: our intraday estimate,
+ * hidden without a value), then "Today's activities" in #timeline: last night's sleep, the day's workouts and
  * today's programmed session, client/timeline.js), the "today you eat" card (components/EatCard.astro,
  * client/nutri-day.js). The full health monitor list leads Salud (tabs/Salud.astro); the summary
  * tile jumps there (jump('monitor') switches tab and scrolls). The detail behind each
@@ -35,6 +36,7 @@ const t = (locale === 'es' ? esS : enS).home;
 <section class="my-day" id="my-day" aria-labelledby="my-day-h">
   <h2 class="home-h" id="my-day-h">{t.myDay}</h2>
   <div id="home-advice"></div>
+  <div id="home-energy" hidden></div>
   <div id="timeline"></div>
 </section>
 <EatCard locale={locale} link={eatLink} />
