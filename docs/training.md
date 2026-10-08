@@ -82,8 +82,9 @@ lives in `profile/about-me.md` (gitignored), never in a tracked file.
 
 **📈 Intensity (HR) — what is left of the executed-sessions dashboard** (`dash` section,
 `tabs/Entrenos.astro`, client/training-dash.js). Source (OPTIONAL):
-`data/apple-health/extract/workouts.csv`. `lib/training/dashboard.mjs` aggregates it (`DASH`: 12 weeks
-of frequency, weekly volume, modality split, per-modality HR). Since P6a the page draws only the HR part:
+`data/apple-health/extract/workouts.csv`. `lib/training/dashboard.mjs` aggregates it (`DASH`: over 12
+weeks, per modality the minutes + mean / peak HR, and how many sessions carry HR; only what the page
+reads is baked — no weekly volume, 4-week summary or split %). The page draws only the HR part:
 an "INTENSITY (HR)" header with an ⓘ (`#int-info`: the minute-weighted mean, how many sessions carry HR,
 the window and data date, the strength caveat) over one `HC.metricRow` per modality with HR — the mean
 HR, the peak as the small line, highest first. The extract has no heart-rate zones, so no zone bars
