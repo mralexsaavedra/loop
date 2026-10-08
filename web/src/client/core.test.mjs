@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
-import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB, ANCHOR_TAB } from '../../../lib/nav/tabs.mjs';
+import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB, ANCHOR_TAB, DAY_HASH } from '../../../lib/nav/tabs.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -392,7 +392,7 @@ test('rollover: without the shared helpers (HC) core.js wires nothing and never 
 /* ---------- the open tab lives in the URL hash (#home / #entreno / #health / #nutricion) ---------- */
 // hide = top-level tabs removed by page.hideTabs (no nav button; the server shows the first visible
 // tab); hideSections = sections rendered hidden; throws = a frame that refuses history writes
-function routedPage({ hash = '', hide = [], hideSections = [], throws = false, sheetOpen = false } = {}) {
+function routedPage({ hash = '', hide = [], hideSections = [], throws = false, sheetOpen = false, day = null } = {}) {
   const doc = new StubDocument();
   const first = TAB_KEYS.find((t) => !hide.includes(t));
   const panels = {};
@@ -419,7 +419,9 @@ function routedPage({ hash = '', hide = [], hideSections = [], throws = false, s
   const winL = {};
   const window = { scrollTo() {}, addEventListener: (t, fn) => { (winL[t] = winL[t] || []).push(fn); } };
   const monitor = doc.el('monitor', { parent: panels.health });
-  const NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB }, detailTab: { ...DETAIL_TAB }, viewTab: { ...VIEW_TAB }, anchorTab: { ...ANCHOR_TAB } };
+  const NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB }, detailTab: { ...DETAIL_TAB }, viewTab: { ...VIEW_TAB }, anchorTab: { ...ANCHOR_TAB }, day: { ...DAY_HASH } };
+  // today-date.js (inlined after core.js) owns the selected day: a stand-in with the same hash()
+  if (day !== null) window.HCDay = { hash: () => (day.sel ? '#d=' + day.sel : '') };
   const ctx = { document: doc, window, history, location: loc, setTimeout, console, Math, Number, String, Object, NAV };
   vm.createContext(ctx);
   vm.runInContext(source, ctx);
@@ -569,4 +571,29 @@ test('without history / location (old harnesses, odd frames) setTab keeps workin
   const { window } = makeContext(doc);
   window.setTab('health');
   assert.equal(panels.health.hidden, false);
+});
+
+test('#d=YYYY-MM-DD (Inicio day stepping) opens Inicio and keeps the hash, on load and on hashchange', () => {
+  let p = routedPage({ hash: '#d=2026-09-24' });
+  assert.deepEqual(p.shown(), ['home']);
+  assert.equal(p.calls.length, 0, 'the day hash stays (today-date.js validates the day)');
+  p = routedPage({ hash: '#health' });
+  p.navTo('#d=2026-09-24');
+  assert.deepEqual(p.shown(), ['home']);
+  assert.equal(p.calls.length, 0);
+  p = routedPage({ hash: '#d=2026-09-24', hide: ['home'] });
+  assert.deepEqual(p.shown(), ['entreno'], 'a hidden Inicio: the default tab');
+});
+
+test('with a past day selected, Inicio\'s hash is the day: setTab back to it and HCNav.hash() keep #d=', () => {
+  const day = { sel: '2026-09-24' };
+  const p = routedPage({ hash: '#d=2026-09-24', day });
+  p.window.setTab('health');
+  assert.equal(p.loc.hash, '#health');
+  assert.equal(p.window.HCNav.hash(), '#health');
+  p.window.setTab('home');
+  assert.equal(p.loc.hash, '#d=2026-09-24');
+  assert.equal(p.window.HCNav.hash(), '#d=2026-09-24', 'a closed sheet returns to the day');
+  day.sel = null;
+  assert.equal(p.window.HCNav.hash(), '#home');
 });

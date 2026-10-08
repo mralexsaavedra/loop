@@ -30,6 +30,8 @@ var DETAIL_TAB = (typeof NAV !== 'undefined' && NAV && NAV.detailTab) || {};
 var VIEW_TAB = (typeof NAV !== 'undefined' && NAV && NAV.viewTab) || {};
 // an in-page anchor deep link (#monitor) -> the tab that holds it (lib/nav/tabs.mjs ANCHOR_TAB)
 var ANCHOR_TAB = (typeof NAV !== 'undefined' && NAV && NAV.anchorTab) || {};
+// Inicio's day stepping (lib/nav/tabs.mjs DAY_HASH): #d=YYYY-MM-DD = a past day, shown on DAY.tab
+var DAY = (typeof NAV !== 'undefined' && NAV && NAV.day) || null;
 
 /* The open tab lives in the URL hash (#home / #entreno / #health / #nutricion), so a reload (and
  * the midnight rollover's reload) reopens it. setTab REPLACES the entry (never pushes: Back does not
@@ -58,12 +60,18 @@ function readHash() {
     return '';
   }
 }
+// the hash a tab is named by: Inicio with a past day selected (client/today-date.js HCDay) keeps
+// that day's #d=YYYY-MM-DD, so leaving Inicio and coming back does not drop the day
+function tabHash(key) {
+  var d = DAY && key === DAY.tab && typeof window !== 'undefined' && window.HCDay ? window.HCDay.hash() : '';
+  return d || '#' + key;
+}
 function writeTabHash(key) {
-  if (!tabVisible(key) || readHash() === '#' + key) return;
+  if (!tabVisible(key) || readHash() === tabHash(key)) return;
   var sheet = document.getElementById('detail');
   if (sheet && !sheet.hidden) return;
   try {
-    history.replaceState(null, '', location.pathname + location.search + '#' + key);
+    history.replaceState(null, '', location.pathname + location.search + tabHash(key));
   } catch (e) { /* a frame that refuses history writes: the tab still switches */ }
 }
 
@@ -132,6 +140,8 @@ var KEY_HASH_RE = /^#([a-z][a-z-]*)$/;
 // = anything else (tab = the tab it names, or null when it names none)
 function hashRoute(hash) {
   if (!hash) return null;
+  // a past day of Inicio (#d=YYYY-MM-DD): its tab, the hash kept; today-date.js validates the day
+  if (DAY && hash.indexOf('#' + DAY.prefix) === 0) return { deep: false, tab: DAY.tab, day: true };
   var m = DETAIL_HASH_RE.exec(hash);
   if (m) return { deep: true, tab: hasOwn(DETAIL_TAB, m[1]) ? DETAIL_TAB[m[1]] : null };
   m = KEY_HASH_RE.exec(hash);
@@ -162,6 +172,7 @@ function showAnchor(r) {
     window.addEventListener('hashchange', function () {
       var n = hashRoute(readHash());
       if (n && n.anchor && tabVisible(n.tab)) showAnchor(n);
+      else if (n && n.day && tabVisible(n.tab)) showTab(n.tab);
       else if (n && !n.deep && n.tab && tabVisible(n.tab) && currentTab() !== n.tab) setTab(n.tab);
     });
   }
@@ -229,6 +240,6 @@ window.jumpOr = jumpOr;
 window.HCNav = {
   hash: function () {
     var t = currentTab();
-    return t && tabVisible(t) ? '#' + t : '';
+    return t && tabVisible(t) ? tabHash(t) : '';
   },
 };
