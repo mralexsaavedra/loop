@@ -5,6 +5,23 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Behaviour journal (LAN) + behaviour insights
+
+- Storage + API: `services/health-ingest` optional migration group `journal` (`sql/010_journal.sql`:
+  `journal_day`, `journal_settings`), `/journal/day` (GET / idempotent PUT), `/journal/summary`,
+  `/journal/settings` with the food routes' LAN-only layers and its own `X-HC-Journal` header; plan-web
+  nginx proxies `/api/journal/`. Owner-approved behaviours (alcohol drinks, caffeine after 16:00,
+  screen in bed, dinner < 2 h before sleep, hard / stressful day, nap, feeling ill, mobility, evening
+  supplements), each switchable on / off from the page (server-side, default on).
+- Page: Inicio "My journal" card (7 day columns, a check per journaled day) and the journal sheet (day
+  strip, DAYTIME / NIGHTTIME / STATUS rows with a no / yes pair, a drinks stepper, notes, the behaviour
+  list, a sticky save pill), opened from the card and the "+" popover; LAN page only, like the food log.
+- Sync + insights: `npm run sync` writes `extract/journal-daily.csv`; the build compares the mean
+  NEXT-morning recovery % after yes vs after no per behaviour (≥ 5 days per side, else "need more
+  data") and shows impact rows with the formula and the association-not-causation caveat behind ⓘ.
+  Synthetic demo journal for the example build. Inline CSS budget raised to 106,000 (was at 99.9 KB).
+  Design: `docs/journal.md`.
+
 ## 2026-10-08 — Stress monitor (heart-rate-only estimate)
 
 - `lib/score/stress.mjs`: per waking clock hour of `hr-hourly.csv`, outside workouts and sleep,

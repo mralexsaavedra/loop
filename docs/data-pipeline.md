@@ -156,3 +156,19 @@ without the field at all prints a stale-image warning and the file is not create
 = no zones on the page. `_meta.json`: `rows['workout-zones']` and `stravaSync.zones = {rows, maxHr,
 maxHrSource}`. Strava's own athlete HR zones (`GET /athlete/zones`, needs `profile:read_all`) are an
 alternative that is NOT used, so the page keeps one documented model.
+
+## Journal export (`scripts/sync-journal.mjs`, part of `npm run sync`)
+
+The behaviour journal the LAN page writes (`docs/journal.md`) is snapshotted into the extract so the
+build (`lib/journal/bake.mjs`: the My journal card's checks and the behaviour insights) and read-only
+consumers never query Postgres. `GET <INGEST_URL>/journal/summary` (header `X-HC-Journal: 1`) for the
+last 366 days ending on the local date → `data/apple-health/extract/journal-daily.csv` (gitignored with
+the extract): header `date,<behaviour keys…>,notes`, one row per journaled day, `1` / `0` for a yes / no
+behaviour, the drinks count as is, blank = not answered, the note quoted (`lib/journal/journal.mjs`
+`journalCsv` / `parseJournalCsv`). Columns are read by header NAME: a behaviour missing from an older
+file is unanswered, and a column this version does not know is kept (written back after the
+behaviours) but never read as a behaviour. Inside the window the server wins (an emptied day disappears);
+older rows are kept. `journal-daily.meta.json` = `{from, to, days, fetchedAt}` (its own file, never
+`_meta.json`). An unreachable / old service (404, 503, 421, 429, a malformed body) = one `WARNING:` line,
+the old files kept, exit 0; only a failed write exits 1. The demo extract carries a synthetic
+`journal-daily.csv` from `scripts/make-demo-data.mjs`.

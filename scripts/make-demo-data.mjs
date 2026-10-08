@@ -16,11 +16,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { journalCsv } from '../lib/journal/journal.mjs';
+import { JOURNAL_FILE } from '../lib/journal/bake.mjs';
 
 const require = createRequire(import.meta.url);
 const { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } = require('../data/apple-health/samples.js');
 const { ZONES_HEADER, ZONES_CSV } = require('../lib/training/hr-zones.cjs');
 const { HR_HOURLY_HEADER, HR_HOURLY_CSV } = require('../lib/health/hr-hourly.cjs');
+// journal-daily.csv: the last JOURNAL_DAYS days, most of them journaled (the example's My journal card +
+// behaviour insights)
+const JOURNAL_DAYS = 70;
 // hr-hourly.csv covers only the last four weeks (the Shortcut key is recent; enough to calibrate strain)
 const HR_DAYS = 28;
 
@@ -206,6 +211,25 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
     }
   }
   out[HR_HOURLY_CSV] = csv(HR_HOURLY_HEADER, hourly);
+
+  // ---- behaviour journal (journal-daily.csv, as scripts/sync-journal.mjs writes it) -------------
+  // an invented routine: drinks mostly on Friday / Saturday, late caffeine and screens now and then,
+  // mobility on rest days, rare illness; ~1 day in 8 not journaled. Its own PRNG, so the other files
+  // never change. Any association with the demo recovery is chance, like the rest of the demo.
+  const jrnd = prng(seed + 4);
+  const journal = [];
+  for (const date of dates.slice(-JOURNAL_DAYS)) {
+    if (jrnd() < 0.12) continue;
+    const wd = weekday(date), weekend = wd === 5 || wd === 6;
+    const yes = (p) => jrnd() < p;
+    journal.push({ date, notes: null, answers: {
+      caffeine_late: yes(0.3), nap: yes(weekend ? 0.4 : 0.15), mobility: yes(PLAN[wd] ? 0.25 : 0.8),
+      alcohol: weekend ? (yes(0.7) ? 1 + Math.floor(jrnd() * 4) : 0) : (yes(0.12) ? 1 : 0),
+      late_meal: yes(weekend ? 0.5 : 0.2), screen_in_bed: yes(0.45), evening_supplements: yes(0.85),
+      stressful_day: yes(wd >= 1 && wd <= 4 ? 0.35 : 0.1), ill: yes(0.03),
+    } });
+  }
+  out[JOURNAL_FILE] = journalCsv(journal);
 
   return Object.fromEntries(Object.entries(out).sort(([a], [b]) => a.localeCompare(b)));
 }

@@ -15,7 +15,9 @@ const DIST = path.join(path.dirname(here), '.test-dist');
 // output-guard.test.mjs, so adding the text font (~35 KB of base64) does not eat the CSS margin.
 // Re-measured 2026-10-07 after the dial deep-dive pages (hero ring, contributors, insight, weekly bars):
 // ≈ 92 KB; budget raised to keep the same ~8 KB margin.
-const CSS_BUDGET = 100_000;
+// Re-measured 2026-10-08 before the journal (Q7): 99.9 KB, no margin left; the journal card, sheet and
+// insights rows (web/src/styles/journal.css) add ~4 KB, budget raised to keep a ~2 KB margin.
+const CSS_BUDGET = 106_000;
 const FONT_FACE = /@font-face\{[^}]*\}/g;
 
 function inlineCss(html) {
