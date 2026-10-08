@@ -83,7 +83,17 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   moved it" = start (recovery % at wake), being awake, stress, heart-rate load, calm hours, low; the
   insight = start → latest level, the biggest drain and "our own model, an estimate" (no value: why —
   no recovery % / no wake time); ⓘ = it is OUR model (not validated), the formula with the baked
-  constants (`SCORES.energy.C`), the hour rules, the inputs (K, max HR) and the limits. `sessions` = one entry per date + modality after
+  constants (`SCORES.energy.C`), the hour rules, the inputs (K, max HR) and the limits. `nutrition` is a `VIEW_METRICS` key (`lib/detail/detail.mjs`):
+  never baked, the page scores it at view time (`client/nutri-score.js` `HCNutriScore.metric()`: kind
+  `nscore`, `dir` 1, one value per day of the last 90 ending at the viewer's today, `days` = the
+  per-day results, `bands` = `NSCORE.bands`), because each day's target follows the viewer's CURRENT
+  goal (`HCNutri.targetFor`, like Constancia); detail.js `metric('nutrition')` reads it, and it joins
+  the trend picker once a day is scored. Host tab `nutricion` (`DETAIL_TAB`), copy
+  `I18N_DETAIL.metrics.nutrition`, hash `#detail/nutrition[/<date>]`. Calendar / chart states `good` /
+  `mid` / `bad` (≥ 85 / 60–84 / < 60); today is `partial` ("so far": neutral, never in the period
+  average, like a daily total); the day panel = the score (+ "So far today"), each component's eaten /
+  target and points (a left-out one: "—" + why), then the notes that apply (a macro missing, a main
+  meal unlogged, a rest day assumed from sleep). The generic trend view, no deep-dive page. `sessions` = one entry per date + modality after
   `mergeSameDay` DISPLAY_RULE (minutes, km, elevation, avg HR, RE, parts, source; the source is the
   precedence family, so "Apple Watch de <name>" is written "Apple Watch"), plus, when
   `workout-zones.csv` has that date + modality (`lib/training/zones.mjs` `readWorkoutZones`), `z` =

@@ -59,7 +59,7 @@
   // once GET /api/journal/settings answers)
   var ASYNC_VIEWS = ['food-add', 'journal'];
   // daily totals whose newest day fills up during the day (the extract's "so far" value)
-  var PARTIAL_KINDS = ['total'];
+  var PARTIAL_KINDS = ['total', 'nscore'];
   // kinds whose missing recent days mean stale data (a sparse reading or a rest day is not staleness)
   var STALE_KINDS = ['signal', 'sleep', 'recovery', 'total'];
   // the Tab trap's stops, in document order: buttons, folds, a radio group's checked radio and form
@@ -90,7 +90,7 @@
     return v && typeof v.render === 'function' ? v : null;
   }
   function metric(key) {
-    var m = own(D.metrics, key) ? D.metrics[key] : key === 'stress' ? stressMetric() : key === 'energy-bank' ? energyMetric() : null;
+    var m = own(D.metrics, key) ? D.metrics[key] : key === 'stress' ? stressMetric() : key === 'energy-bank' ? energyMetric() : key === 'nutrition' ? nutritionMetric() : null;
     return m && isoDate(m.start) ? m : null;
   }
   // the stress page's trend series is not in DETAIL: SCORES.stress.metric (lib/score/stress.mjs, the
@@ -103,6 +103,12 @@
   function energyMetric() {
     var S = typeof SCORES !== 'undefined' && SCORES ? SCORES.energy : null;
     return S && S.ok && S.metric && Array.isArray(S.metric.v) ? S.metric : null;
+  }
+  // the nutrition score is scored at VIEW time (the current goal × each day's type): client/nutri-score.js
+  function nutritionMetric() {
+    var S = typeof window !== 'undefined' ? window.HCNutriScore : null;
+    var m = S && typeof S.metric === 'function' ? S.metric() : null;
+    return m && Array.isArray(m.v) ? m : null;
   }
   function at(arr, m, iso) {
     if (!arr || !Array.isArray(arr)) return null;
@@ -207,6 +213,8 @@
     if (m.kind === 'stress') return v >= 2 ? 'shigh' : v >= 1 ? 'smedium' : 'slow';
     // energy bank (0-100): the recovery dial's thirds, high >= 67, middle 34-66, low < 34
     if (m.kind === 'bank') return v >= 67 ? 'good' : v >= 34 ? 'mid' : 'bad';
+    // nutrition score (0-100): its own bands (m.bands, lib/nutrition/score.mjs NSCORE.bands)
+    if (m.kind === 'nscore') return v >= m.bands.good ? 'good' : v >= m.bands.mid ? 'mid' : 'bad';
     if (m.kind === 'recovery') return v >= m.cut ? 'good' : v <= -m.cut ? 'bad' : 'normal';
     if (m.kind === 'sleep') {
       if (m.target != null && v >= m.target) return 'good';
@@ -233,6 +241,7 @@
     if (m.kind === 'strain' && B.strain) out.push(B.strain);
     if (m.kind === 'stress' && B.stress) out.push(B.stress);
     if (m.kind === 'bank' && B.bank) out.push(B.bank);
+    if (m.kind === 'nscore' && B.nscore) out.push(B.nscore);
     if (m.kind === 'recovery') out.push(format(B.recovery, { cut: fmt(m.cut, 1), cutTrend: fmt(m.cutTrend != null ? m.cutTrend : m.cut, 1) }));
     if (m.kind === 'sparse') out.push(format(B.sparse, { n: m.v.filter(function (x) { return x != null; }).length }));
     if (m.windowDays != null) out.push(format(B.window, { days: m.windowDays }));
@@ -254,9 +263,10 @@
       (info && I ? '<div class="dd-info dt-info" id="dd-info" hidden>' + info + '</div>' : '') + pickerHtml(key);
   }
   // the metrics a trend view can switch to: every baked metric with copy, except the dial pages
-  // (sleep, recovery, strain, load-<m>: their own deep-dive layout, reached from the dials)
+  // (sleep, recovery, strain, load-<m>: their own deep-dive layout, reached from the dials), + the
+  // nutrition score the page scores (client/nutri-score.js) when it has a scored day
   function trendKeys() {
-    return Object.keys(D.metrics).filter(function (k) { return own(T.metrics, k) && !!metric(k) && !deep(k); });
+    return Object.keys(D.metrics).concat(['nutrition']).filter(function (k) { return own(T.metrics, k) && !!metric(k) && !deep(k); });
   }
   // a native <select> dressed as a pill with a ⌄ (keyboard, screen readers and the phone's own picker
   // for free); a change re-opens the sheet on that metric (the 'change' listener below)
@@ -567,6 +577,7 @@
     else if (m.kind === 'sparse') items = [['measured', L.measured]];
     else if (m.kind === 'stress') items = [['slow', L.stressLow], ['smedium', L.stressMedium], ['shigh', L.stressHigh]];
     else if (m.kind === 'bank') items = [['good', L.energyHigh], ['mid', L.energyMid], ['bad', L.energyLow]];
+    else if (m.kind === 'nscore') items = [['good', L.nsGood], ['mid', L.nsMid], ['bad', L.nsLow]];
     else if (m.kind === 'recovery') items = [['good', L.recAbove], ['normal', L.recAt], ['bad', L.recBelow]];
     else if (m.kind === 'sleep') items = [['good', L.sleepGood], ['mid', L.sleepMid], ['bad', L.sleepBad]];
     else if (!m.band) items = [['normal', L.measured]];
@@ -662,6 +673,21 @@
     var b = dayState(m, v);
     var sub = d ? format(P.daySub, { start: d.start, wake: d.wake, min: d.min.lv }) : '';
     return row(P.dayLbl, fmt(v, 0) + ' · ' + (P.bands[b === 'good' ? 'hi' : b === 'mid' ? 'mid' : 'lo'] || ''), sub);
+  }
+  // the nutrition score's day: the score (so far today) + each component's eaten / target and points,
+  // then why the day may read short (a macro missing, a main meal unlogged, an assumed rest day)
+  function nscoreDayHtml(m, iso) {
+    var r = m.days && own(m.days, iso) ? m.days[iso] : null, P = T.day.ns;
+    if (!r || !P) return '<p class="dt-nodata">' + esc(T.day.noData) + '</p>';
+    var out = [row(P.score, fmt(r.score, 0) + ' %', r.partial ? P.soFar : '')];
+    ['k', 'p', 'f'].forEach(function (c) {
+      var x = r.parts[c], u = c === 'k' ? 'kcal' : 'g';
+      out.push(x ? row(P[c], (x.min ? '≥ ' : '') + fmt(x.v, 0) + ' / ' + fmt(x.t, 0) + ' ' + u, x.pts + ' / 100') : row(P[c], '—', P.unknown));
+    });
+    if (r.inc) out.push('<p class="dt-note">' + esc(P.inc) + '</p>');
+    if (!r.meals) out.push('<p class="dt-note">' + esc(P.meals) + '</p>');
+    if (r.assumed) out.push('<p class="dt-note">' + esc(P.assumed) + '</p>');
+    return out.join('');
   }
   function totalHtml(key, m, iso) {
     var v = valueOf(m, iso);
@@ -776,6 +802,7 @@
       : m.kind === 'total' ? totalHtml(key, m, iso)
       : m.kind === 'stress' ? stressDayHtml(key, m, iso)
       : m.kind === 'bank' ? energyDayHtml(key, m, iso)
+      : m.kind === 'nscore' ? nscoreDayHtml(m, iso)
       : m.kind === 'sparse' ? sparseHtml(key, m, iso)
       : NIGHT_KEYS.indexOf(key) !== -1 ? nightHtml(key, m, iso)
       : totalHtml(key, m, iso); // a daytime signal (walking HR): the value vs its personal median

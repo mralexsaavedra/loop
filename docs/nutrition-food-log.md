@@ -314,4 +314,13 @@ the reference (`NSCORE`, baked as `NUTRI.score`; `NSCORE_CASES` = the parity fix
   (`{date, k, p, f, n, missing: {p, f}, groups}`). The page scores at VIEW time (the target depends
   on the viewer's current goal, as Constancia's); on the LAN page each day of the live summary
   (`HCAdherence.state().days`, the last 28 days) replaces the baked one, and every summary read
-  re-renders the score (`HCNutriScore.refresh`).
+  re-renders the score (`HCNutriScore.refresh`); a goal change re-renders it through `HCNutri.refresh`.
+- **Nutrición block** (`#nutri-score-block`, Dia.astro, between Balance and Progreso; hidden without
+  any food log day) — "SCORE": the day's card (the score big in its band colour — `de-hi` / `de-mid`
+  / `de-lo` = `--good` / `--mid` / `--low` — "so far" today or "incomplete", the three components as
+  Resumen de hoy's macro rows: "KCAL · 88", "2351 / 2700 kcal", a bar = the component's points in its
+  own band colour; a left-out one reads "not logged"), then "7-day average · 30-day" (final scores
+  only) and a 30-day line (`.en-sp`, gaps skipped). Shows today when logged, else the newest scored
+  day while ≤ `STALE_DAYS` old, else "No recent score". The formula and rules sit behind its ⓘ
+  (`#nutri-score-info`, filled from `NUTRI.score`). A tap opens the `nutrition` trend sheet (W = 7
+  days, M = 30; `docs/detail-views.md`).

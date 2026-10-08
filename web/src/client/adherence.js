@@ -13,7 +13,7 @@
  * are minimums, never 0. The block ships hidden and appears only when the summary answers; it re-reads
  * after every add / delete (client/food-*.js calls HCAdherence.reload) and re-renders on a goal change
  * (HCNutri.refresh calls HCAdherence.render); each read also refreshes Inicio's weekly plan
- * (window.HCWeekPlan.refresh, client/home-week.js). Its own try/catch: a one-line fallback, never a blank tab. */
+ * (window.HCWeekPlan.refresh, client/home-week.js) and the nutrition score (window.HCNutriScore.refresh). Its own try/catch: a one-line fallback, never a blank tab. */
 (function () {
   var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;
   var TN = typeof I18N_NUTRI === 'undefined' || !I18N_NUTRI ? null : I18N_NUTRI;
@@ -126,6 +126,9 @@
   function homePlan() {
     var W = window.HCWeekPlan;
     try { if (W && typeof W.refresh === 'function') W.refresh(); } catch (e) { /* its own fallback */ }
+    // the nutrition score (client/nutri-score.js) takes each summary day in place of the baked one
+    var NS = window.HCNutriScore;
+    try { if (NS && typeof NS.refresh === 'function') NS.refresh(); } catch (e) { /* its own fallback */ }
   }
   function reload() {
     if (S.timer) clearTimeout(S.timer);

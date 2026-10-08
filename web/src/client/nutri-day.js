@@ -920,8 +920,9 @@
     renderFuel(picker !== false);
     guard($('eat-body'), renderEat);
     refreshDependents();
-    // Progreso and Constancia read the goal (client/progress.js, client/adherence.js; absent before load)
-    ['HCProgress', 'HCAdherence'].forEach(function (k) {
+    // Progreso, Constancia and the nutrition score read the goal (client/progress.js, client/adherence.js,
+    // client/nutri-score.js; absent before load)
+    ['HCProgress', 'HCAdherence', 'HCNutriScore'].forEach(function (k) {
       var v = window[k];
       if (v && typeof v.render === 'function') { try { v.render(); } catch (e) { /* each block guards its own host */ } }
     });
