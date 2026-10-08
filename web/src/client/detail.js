@@ -295,8 +295,11 @@
     if (!d) return noneHtml(T.noData);
     var v = valueOf(m, d);
     if (m.kind === 'workouts' && v === 0) return bigHtml(T.restDay, 'rest', '', HC.fmtDate(d), '', []);
-    var partial = isPartial(m, d);
-    return bigHtml(fmt(v, m.kind === 'sleep' ? 1 : m.dec), stateOn(m, d, v), unitOf(key), partial ? T.todaySoFar : format(T.latestLbl, { date: HC.fmtDate(d) }), '', []);
+    var partial = isPartial(m, d), num = fmt(v, m.kind === 'sleep' ? 1 : m.dec);
+    // a series clamped to a reference range (fitness age: lo / hi): a value at a bound = that age or beyond
+    if (typeof m.lo === 'number' && v <= m.lo) num = '≤ ' + fmt(m.lo, 0);
+    else if (typeof m.hi === 'number' && v >= m.hi) num = '≥ ' + fmt(m.hi, 0);
+    return bigHtml(num, stateOn(m, d, v), unitOf(key), partial ? T.todaySoFar : format(T.latestLbl, { date: HC.fmtDate(d) }), '', []);
   }
   // the metric's own newest day is > STALE_DAYS before the view end: say so
   function metricStaleHtml(m, end) {

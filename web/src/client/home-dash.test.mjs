@@ -168,3 +168,19 @@ test('Spanish: titles and units come from the detail copy', () => {
   const { els } = load({ locale: 'es' });
   assert.match(els['home-dash'].innerHTML, new RegExp(esD.metrics.rhr.title));
 });
+
+test('fitness age: an optional row (off by default), whole years, lower = better; a value at a clamp bound reads "≤ 25" / "≥ 75"', () => {
+  const D = detail();
+  D.metrics.fitnessAge = series(NOW, 40, (i) => (i === 39 ? 25 : i % 10 === 0 ? 31.4 : null), { kind: 'sparse', dir: -1, dec: 1, lo: 25, hi: 75 });
+  const ls = storage({ 'hc-dash-v1': JSON.stringify({ order: ['fitnessAge'], hidden: [] }) });
+  const { ctx, els } = load({ DETAIL: D, ls });
+  assert.ok(ctx.HCDash.CATALOG.includes('fitnessAge'));
+  assert.ok(!ctx.HCDash.DEFAULT_ON.includes('fitnessAge'));
+  const html = els['home-dash'].innerHTML;
+  assert.match(html, /data-detail="fitnessAge"/);
+  assert.match(html, /Fitness age<\/span><span class="db-vals"><span class="db-val"><b>≤ 25<\/b><small>years<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span><\/span><span class="db-base">31<\/span>/);
+  D.metrics.fitnessAge.v[39] = 75;
+  assert.match(load({ DETAIL: D, ls, locale: 'es' }).els['home-dash'].innerHTML, /Edad física<\/span>[\s\S]*<b>≥ 75<\/b><small>años<\/small>/);
+  D.metrics.fitnessAge.v[39] = 40.6;
+  assert.match(load({ DETAIL: D, ls }).els['home-dash'].innerHTML, /<b>41<\/b><small>years<\/small>/);
+});

@@ -11,14 +11,18 @@ The full-screen drill-down sheet behind every card.
 WHOOP's drill-down, honest version: a tap on a card opens a full-screen sheet (a large centred panel
 from 900px) with that metric's history. No new score: the sheet only shows the card's own series.
 
-- **Data** — `lib/detail/detail.mjs` `buildDetail(extractDir)` bakes ONE global `DETAIL` (in
+- **Data** — `lib/detail/detail.mjs` `buildDetail(extractDir, { sex })` bakes ONE global `DETAIL` (in
   `components/DetailSheet.astro`, with `I18N_DETAIL` from `web/src/i18n/detail-templates.mjs`):
   `{asOf, days: 365, metrics: {<key>: {kind, dir, dec, start, v, …}}, sessions}`. Each metric = an ISO
   `start` + a `v` array, one slot per calendar day of the last 365 days ending at the newest data date
   (never the build clock, so builds stay byte-identical), `null` = no data that day (never 0), rounded to
   the card's precision. Keys (`DETAIL_KEYS`): sleep, recovery, hrv, rhr, respiratory, wristTemp,
-  walkingHr, vo2max, steps, exercise, distance, flights, energy, weight, bodyfat, lean, waist, workouts,
-  load-gym, load-run, load-bike; a key without data is simply absent (the view shows its empty state).
+  walkingHr, vo2max, fitnessAge, steps, exercise, distance, flights, energy, weight, bodyfat, lean, waist,
+  workouts, load-gym, load-run, load-bike; a key without data is simply absent (the view shows its empty
+  state). `fitnessAge` = each VO2max day mean through `lib/score/fitness-age.mjs` (sparse, `dir` −1,
+  baked only with the profile's `sex`), with `lo` / `hi` = the reference curve's clamp bounds (25 / 75):
+  the sheet's headline and the My dashboard row read a value at a bound as "≤ 25" / "≥ 75" (that age
+  or beyond; the chart and the calendar keep the clamped number).
   Same readers and rules as the cards: HRV / RHR / respiratory / wrist temp / sleep = the monitor's
   clamped day median (`monitor.mjs` `monitorDaily`, partial newest HRV day dropped) with the monitor's
   personal band (`signalBand`, median ± 2 scaled MADs over the 42 days before the newest day; walking

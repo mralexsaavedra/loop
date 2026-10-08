@@ -53,7 +53,7 @@ const profile = { ...loadProfile({ repoRoot, dataMode, extractDir }), goals: goa
 // the profile's sex picks the fitness-age reference curve (lib/score/fitness-age.mjs)
 const scores = buildScores(extractDir, { sex: profile.sex });
 // the detail sheet behind every card: the last 365 days per metric (only the data's own dates)
-const detail = buildDetail(extractDir);
+const detail = buildDetail(extractDir, { sex: profile.sex });
 // intake rings target = the same day totals Mi día shows for a train / rest day
 const intake = buildIntake(extractDir, { train: dayViewModel(nut, 'train').totals, rest: dayViewModel(nut, 'rest').totals });
 
