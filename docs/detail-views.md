@@ -208,10 +208,15 @@ switch is outside every opener); run / ride rows →
      `--ground` both ends pass AA for small text (8.29 / 4.61), on a card the violet end would not
      (3.91), so the gradient only ever sits on the insight card (`tokens-contrast.test.mjs`).
   6. **Weekly trends** ("Weekly trends" title, one card per input): 7 bars for the 7 days ending at
-     the view's last day (the viewer's today, `HCDeep.weekOf`), the value on top, the weekday letter
-     under each bar, today's column lighter (`.dd-now`); a day without data = "—" and no bar.
-     Recovery: the composite per day on the dial's −3…+3 scale, each bar in its own day band's state
-     colour (good / mid / low), then HRV and resting HR (`--trend`) and sleep (`--sleep`); sleep:
+     the PAGE's day (`weekEnd`: recovery = its headline night, sleep = the dial's night, strain = the
+     day it was opened on — each only when within the last week —, load = the view end; `HCDeep.weekOf`),
+     the value on top, the weekday letter under each bar, that last column lighter (`.dd-now`) and
+     carrying the hero's value (no empty "today" column while the newest night is yesterday's); a day
+     without data = "—" and no bar. Recovery: each night's recovery % — the number the dial showed that
+     morning (`DIALS.days[].recovery.pct`, lib/score/days.mjs; the newest from `DIALS.recovery`) — bar
+     = % of 100, bar AND value in its % band colour (≥ 67 `--good`, ≤ 33 `--low`, else `--mid`,
+     `.dd-v-*`); a week with no % at all (too few prior nights, no `DIALS`) falls back to the composite
+     per day on the dial's −3…+3 scale in its day band's colour; then HRV and resting HR (`--trend`) and sleep (`--sleep`); sleep:
      hours, performance % (bar = % of 100) and REM + deep hours when `DETAIL` has them (`--sleep`); load: RE per day and the modality's minutes per day from the sessions
      (`--strain`; a day after the data's `asOf` is unknown, not rest). Bars are proportional to the
      week's largest value.

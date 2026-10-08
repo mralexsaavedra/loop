@@ -1293,7 +1293,7 @@ test('sleep contributors: hours vs need, efficiency, consistency, REM + deep; be
   assert.ok(rowsOf(s.host.innerHTML).length <= 4);
 });
 
-test('weekly trends: one card per input, 7 bars ending at the view\'s last day (today highlighted), values on top; recovery bars by day state, sleep bars sleep, load bars strain; a missing day has no bar', () => {
+test('weekly trends: one card per input, 7 bars ending at the page\'s day (highlighted, with its value), values on top; recovery = each night\'s % in its band colour, sleep bars sleep, load bars strain; a missing day has no bar', () => {
   const s = setup({ dials: DIALS });
   s.api.open('recovery');
   let wk = weeklyOf(s.host.innerHTML);
@@ -1302,19 +1302,41 @@ test('weekly trends: one card per input, 7 bars ending at the view\'s last day (
   assert.deepEqual(cards.map((c) => /<h4 class="dd-wk-t">([^<]+)</.exec(c)[1]), ['Recovery', 'HRV', 'Resting HR', 'Sleep']);
   const rec = cards[0];
   assert.equal((rec.match(/<li class="dd-col/g) || []).length, 7);
-  assert.equal((rec.match(/dd-col dd-now/g) || []).length, 1, 'today\'s column highlighted');
+  assert.equal((rec.match(/dd-col dd-now/g) || []).length, 1, 'the page\'s day highlighted');
   const days = s.ctx.window.HCDeep.weekOf(NOW);
   assert.deepEqual([days[0], days[6]], [addDays(NOW, -6), NOW]);
+  // the % the dial showed each morning (DIALS.days), coloured >= 67 good / <= 33 low / else mid, never SD
+  const pctOn = (d) => { const x = DIALS.days.find((e) => e.date === d); return x && x.recovery.state === 'ok' && x.recovery.date === d ? x.recovery.pct : null; };
+  let shown = 0;
+  days.forEach((d) => {
+    const v = pctOn(d);
+    if (v == null) return;
+    shown++;
+    const st = v >= 67 ? 'good' : v <= 33 ? 'low' : 'mid';
+    assert.ok(rec.includes(`<span class="dd-val dd-v-${st}">${v}%</span><span class="dd-track-col"><i class="dd-bar dd-c-${st}" style="height:${v}%"`), `${d} ${v}% ${st}`);
+  });
+  assert.ok(shown >= 4, 'most nights of the demo week have a %');
+  assert.doesNotMatch(rec, /SD|\+\d\.\d</, 'no z-scores');
+  assert.ok(rec.includes(`<li class="dd-col dd-now"><span class="dd-val dd-v-${DIALS.recovery.band}">${DIALS.recovery.pct}%</span>`), 'the headline night = the last, highlighted column, with its value');
+  const missing = days.filter((d) => pctOn(d) == null);
+  assert.ok(missing.length > 0, 'the demo has a recovery gap this week');
+  assert.equal((rec.match(/<span class="dd-val">—<\/span><span class="dd-track-col"><\/span>/g) || []).length, missing.length, 'a night without a %: a dash, no bar');
+  // a day later (no data yet today): the week still ends on the headline night, so no empty highlighted column
+  const later = setup({ now: addDays(NOW, 1), dials: DIALS });
+  later.api.open('recovery');
+  const lrec = weeklyOf(later.host.innerHTML).split('<section class="dd-wk"')[1];
+  assert.ok(lrec.includes(`<li class="dd-col dd-now"><span class="dd-val dd-v-${DIALS.recovery.band}">${DIALS.recovery.pct}%</span>`));
+  // no DIALS: the SD composite by its day band (the documented fallback)
+  const bare = setup();
+  bare.api.open('recovery');
   const m = DEMO.metrics.recovery;
+  const brec = weeklyOf(bare.host.innerHTML).split('<section class="dd-wk"')[1];
   days.forEach((d) => {
     const v = valueOn(m, d);
     if (v == null) return;
     const st = v >= m.cut ? 'good' : v <= -m.cut ? 'low' : 'mid';
-    assert.ok(rec.includes(`<span class="dd-val">${sgn(v, 1)}</span><span class="dd-track-col"><i class="dd-bar dd-c-${st}"`), `${d} ${st}`);
+    assert.ok(brec.includes(`<span class="dd-val">${sgn(v, 1)}</span><span class="dd-track-col"><i class="dd-bar dd-c-${st}"`), `${d} ${st}`);
   });
-  const missing = days.filter((d) => valueOn(m, d) == null);
-  assert.ok(missing.length > 0, 'the demo has a recovery gap this week');
-  assert.equal((rec.match(/<span class="dd-val">—<\/span><span class="dd-track-col"><\/span>/g) || []).length, missing.length, 'a missing day: a dash, no bar');
   s.api.open('sleep');
   wk = weeklyOf(s.host.innerHTML);
   assert.match(wk, /dd-bar dd-c-sleep/);
@@ -1324,11 +1346,13 @@ test('weekly trends: one card per input, 7 bars ending at the view\'s last day (
   assert.deepEqual([...wk.matchAll(/<h4 class="dd-wk-t">([^<]+)</g)].map((x) => x[1]), ['Gym load', enT.deep.weekly.minutes]);
   assert.match(wk, /dd-bar dd-c-strain/);
   assert.doesNotMatch(wk, /dd-c-(good|mid|low|sleep)/);
-  // a later viewer: the window ends at the viewer's today, its days after the data are empty
-  const later = setup({ now: addDays(NOW, 2), dials: DIALS });
-  later.api.open('sleep');
-  const lw = weeklyOf(later.host.innerHTML);
-  assert.ok(lw.includes('<li class="dd-col dd-now"><span class="dd-val">—</span>'), 'today, no data yet');
+  // a later viewer: sleep ends on the dial's night (within the week); load ends at the viewer's today,
+  // its days after the data are empty
+  const later2 = setup({ now: addDays(NOW, 2), dials: DIALS });
+  later2.api.open('sleep');
+  assert.ok(weeklyOf(later2.host.innerHTML).includes(`<li class="dd-col dd-now"><span class="dd-val">${valueOn(DEMO.metrics.sleep, DIALS.sleep.date).toFixed(1)}</span>`), 'the dial\'s night, highlighted');
+  later2.api.open('load-gym');
+  assert.ok(weeklyOf(later2.host.innerHTML).includes('<li class="dd-col dd-now"><span class="dd-val">—</span>'), 'today, no data yet');
   clean(s.host.innerHTML);
 });
 
