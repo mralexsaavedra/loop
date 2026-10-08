@@ -12,8 +12,8 @@ Top to bottom (`web/src/tabs/Home.astro`, which also renders `components/EatCard
 top bar, from `layouts/Plan.astro` and shown on Inicio only: the LOOP wordmark — on a wide screen it sits in the top bar row on the left, the avatar on the right —
 see `docs/plan-page.md` → Brand) → dials
 (`#home-dials`) → the monitor tiles (`#home-tiles`) → "My day" (`#my-day`: a Title Case heading, the
-advice sentence as the outlook bar in `#home-advice`, the energy bank card in `#home-energy`, then
-"Today's activities" in `#timeline`) → the
+advice sentence as the outlook bar in `#home-advice`, the energy bank card in `#home-energy`, the
+nutrition score card in `#home-nscore`, then "Today's activities" in `#timeline`) → the
 "today you eat" card → "Tonight" (`#home-tonight`) → "My journal" (`#my-journal`) → "My plan" (`#my-plan`) → "My dashboard" (`#my-dash`)
 → the programmed session's hidden source section (`hoy`). The full health monitor list is NOT on
 Inicio: it leads Salud (see "Health monitor" below). Little
@@ -182,6 +182,8 @@ trend is the line under it.
     nothing that day → "Nothing logged that day".
   - **Energy bank card** (`energy.js`): that day's `SCORES.energy.days` entry (level, curve, start,
     low) and it opens the energy bank page on that day; a day without a value hides the card.
+  - **Nutrition card** (`nutri-score.js`): that day's FINAL score (no average line) and it opens the
+    nutrition sheet on that day; a day without a log or a target hides the card.
   - **Eat card** (`nutri-day.js` `renderEat`): "Target for <date>" with that day's DETECTED day type
     (`dayInput` + `detectDayType`, the same detection as `HCNutri.targetFor`) and its plan targets for
     the current goal; a day whose type cannot be told (no session, sleep or programmed session) hides
@@ -265,6 +267,18 @@ trend is the line under it.
   stretched SVG curve from wake to that hour (line + soft area), and "From 99 at 06:47 · low 3".
   Today = the newest day with a value when it is ≤ 3 days old; no bake / no value → the host stays
   hidden. It opens the energy bank page (`docs/detail-views.md`, key `energy-bank`).
+- **Nutrition score** (`lib/nutrition/score.mjs` = the reference, scored at view time by
+  `client/nutri-score.js`; `#home-nscore`, under the energy bank card in "My day"): the day's 0–100
+  adherence to its own targets from the food log (kcal 0.4, protein 0.4, fat 0.2; formula and rules
+  in `docs/nutrition-food-log.md` → Nutrition score and `analysis/methodology.md` 5b). Card =
+  `.sc-card.tn.en.ns`: "NUTRITION" header + "so far" (today) or "incomplete" (a macro missing), the
+  score big in D-DIN coloured by its band (≥ 85 `--good`, 60–84 `--mid`, < 60 `--low`, via
+  `.de-hi/.de-mid/.de-lo`), "Today" or the date under it, beside it Nutrición's three macro rows
+  ("KCAL · 88", "2351 / 2700 kcal", a bar = the component's points in its band colour), then "7-day
+  average 79%" (final scores only). Today = today when logged ("so far", never final), else the newest
+  scored day while ≤ 3 days old; no food log / nothing fresh → hidden. It opens the nutrition trend
+  sheet (`docs/detail-views.md`, key `nutrition`). On the LAN page Constancia's live summary
+  re-renders it after every add / delete.
 - **Today's activities** (`lib/score/timeline.mjs`, baked as `SCORES.timeline` even when `hasData` is
   false; `#timeline` + `client/timeline.js`, under the outlook bar in "My day"): per day, last night's
   sleep (`sleep-daily.csv`, dated the wake-up day, with its bed / wake clock `bed` / `wake` when the
