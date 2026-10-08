@@ -199,3 +199,17 @@ test('renders at once, even while the page is still parsing: it runs at the end 
   assert.equal(els['home-tonight'].hidden, false, 'rendered without waiting for DOMContentLoaded');
   assert.equal(typeof ctx.window.HCViews.tonight.render, 'function', 'the view is registered before detail.js reads the hash');
 });
+
+test('Tonight on a PAST day (the top bar\'s day stepping): hidden, and back on today', () => {
+  let sel = '2026-09-29';
+  const subs = [];
+  const HCDay = { sel: () => sel, on: (fn) => subs.push(fn) };
+  const { els } = load({ globals: { SCORES: { tonight: TONIGHT }, HCDay } });
+  const h = els['home-tonight'];
+  assert.equal(h.hidden, true);
+  assert.equal(h.innerHTML, '');
+  sel = null;
+  subs.forEach((fn) => fn(sel));
+  assert.equal(h.hidden, false);
+  assert.equal(h.innerHTML, load({ globals: { SCORES: { tonight: TONIGHT } } }).els['home-tonight'].innerHTML);
+});

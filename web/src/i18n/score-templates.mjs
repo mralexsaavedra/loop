@@ -161,6 +161,15 @@ export const en = {
       // shown under the dials only when Entreno's load detail (with the full caveats) is hidden
       caveatLine: 'Load = Relative Effort, which is HR-derived (it credits the metcon more than heavy sets); modalities are not comparable; there is no comparable load before Relative Effort tracking started; same-day rows are summed.',
     },
+    // a PAST day on Inicio (the top bar's day stepping): the dials name the day instead of "last night" / "today"
+    past: {
+      sleepAria: '{date}: {value} h of a {target} h target',
+      sleepAriaPct: '{date}: sleep performance {pct} %, {value} h of your {target} h need',
+      rest: 'No session',
+      aria: '{modality} on {date}: Relative Effort {day}, typical training day {typical}',
+      ariaNoEffort: '{modality} on {date}: session without Relative Effort data, typical training day {typical}',
+      ariaRest: '{modality} on {date}: no session, typical training day {typical}',
+    },
   },
   monitor: {
     heading: 'Health monitor',
@@ -182,6 +191,9 @@ export const en = {
     ariaLabel: 'Last night, today\'s workouts and today\'s programmed session',
     dateHeading: 'Latest day · {date}',
     noToday: 'Nothing logged yet today.',
+    // a PAST day (the top bar's day stepping)
+    pastHeading: 'Activities · {date}',
+    noDay: 'Nothing logged that day.',
     empty: 'Nothing logged in the last few days. Sleep and workouts appear here from the Watch and Strava.',
     sleep: 'Sleep',
     sleepVal: '{hours} h',
@@ -357,6 +369,15 @@ export const es = {
       // solo bajo los diales cuando el detalle de carga de Entreno (con todas las advertencias) está oculto
       caveatLine: 'Carga = Esfuerzo Relativo, que se deriva de la FC (reconoce más el metcon que las series pesadas); las modalidades no son comparables; no hay carga comparable antes de que empezara el seguimiento del Esfuerzo Relativo; las filas del mismo día se suman.',
     },
+    // un día PASADO en Inicio (el selector de día de la barra superior): los diales nombran el día en vez de "anoche" / "hoy"
+    past: {
+      sleepAria: '{date}: {value} h de un objetivo de {target} h',
+      sleepAriaPct: '{date}: rendimiento del sueño {pct} %, {value} h de tu necesidad de {target} h',
+      rest: 'Sin sesión',
+      aria: '{modality} el {date}: Esfuerzo Relativo {day}, día típico de entreno {typical}',
+      ariaNoEffort: '{modality} el {date}: sesión sin dato de Esfuerzo Relativo, día típico de entreno {typical}',
+      ariaRest: '{modality} el {date}: sin sesión, día típico de entreno {typical}',
+    },
   },
   monitor: {
     heading: 'Monitor de salud',
@@ -378,6 +399,9 @@ export const es = {
     ariaLabel: 'La noche pasada, los entrenos de hoy y la sesión programada de hoy',
     dateHeading: 'Último día · {date}',
     noToday: 'Hoy aún no hay nada registrado.',
+    // un día PASADO (el selector de día de la barra superior)
+    pastHeading: 'Actividades · {date}',
+    noDay: 'Ese día no hay nada registrado.',
     empty: 'No hay nada registrado en los últimos días. El sueño y los entrenos aparecen aquí desde el Watch y Strava.',
     sleep: 'Sueño',
     sleepVal: '{hours} h',

@@ -17,6 +17,8 @@
  *   - Sleep: the sleep-duration component's newest night over the stated target; `pct` = sleep
  *     performance (lib/score/sleep.mjs: asleep / need × 100, capped at 100, need = the target), the
  *     number the dial shows. The ring fills to the same fraction.
+ *   - Past days (`days`, the top bar's day stepping): the sleep + recovery dials of each SCORES.days
+ *     entry, scored on that day by the same lib functions, in the same shapes.
  * No new metric: the recovery % is a rank of the same composite (lib/score/recovery.mjs). Baked by components/Bake.astro as DIALS;
  * client/score.js turns it into inline SVG. */
 import { Z_CLAMP } from '../../../lib/score/recovery.mjs';
@@ -88,13 +90,19 @@ export function radialTick(f, g = DIAL) {
   return { x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y };
 }
 
+// filled clockwise from 12 o'clock to pct %, else to the value on the -3..+3 scale with the
+// baseline (0) as the tick at the ring's midpoint (6 o'clock)
+function recoveryRing(value, pct) {
+  const f = pct != null ? pct / 100 : recoveryFrac(value);
+  return { fill: arcPath(0, f), mid: pct != null ? null : polar(fracToAngle(0.5), DIAL.r - DIAL.stroke) };
+}
+
 function recoveryDial(R) {
   if (!R) return { state: 'none' };
   if (R.gated || !isNum(R.trend7)) return { state: 'gated', asOf: R.asOf || null };
   const today = R.today && isNum(R.today.value) ? R.today : null;
   const value = today ? today.value : R.trend7;
   const pct = today && isNum(today.pct) ? today.pct : null;
-  const f = pct != null ? pct / 100 : recoveryFrac(value);
   return {
     state: 'ok',
     mode: today ? 'today' : 'trend',
@@ -105,20 +113,36 @@ function recoveryDial(R) {
     pct,
     value,
     trend: { value: R.trend7, band: R.band, dir: R.trendDir || null },
-    // filled clockwise from 12 o'clock to pct %, else to the value on the -3..+3 scale with the
-    // baseline (0) as the tick at the ring's midpoint (6 o'clock)
-    fill: arcPath(0, f),
-    mid: pct != null ? null : polar(fracToAngle(0.5), DIAL.r - DIAL.stroke),
+    ...recoveryRing(value, pct),
   };
 }
 
+function sleepTarget(H) {
+  return H && H.recovery && H.recovery.sleep ? H.recovery.sleep.target : null;
+}
+
+function sleepNight(date, hours, target) {
+  const f = isNum(hours) ? sleepFrac(hours, target) : null;
+  if (f == null) return { state: 'none' };
+  return { state: 'ok', date, hours, target, pct: sleepPerformance(hours, target), fill: arcPath(0, f) };
+}
+
 function sleepDial(R, H) {
-  const target = H && H.recovery && H.recovery.sleep ? H.recovery.sleep.target : null;
   const comp = R && Array.isArray(R.components) ? R.components.find((c) => c.key === 'sleepDur') : null;
   const last = comp && comp.daily && comp.daily.length ? comp.daily[comp.daily.length - 1] : null;
-  const f = last ? sleepFrac(last.value, target) : null;
-  if (f == null) return { state: 'none' };
-  return { state: 'ok', date: last.date, hours: last.value, target, pct: sleepPerformance(last.value, target), fill: arcPath(0, f) };
+  return last ? sleepNight(last.date, last.value, sleepTarget(H)) : { state: 'none' };
+}
+
+/** A PAST day's sleep + recovery dials (Inicio day stepping) from one SCORES.days entry
+ * (lib/score/days.mjs): the same shapes as today's, always mode 'today' for that day's own night
+ * (no trend fallback: a day without its night reads "no data"). */
+function pastDay(d, H) {
+  const n = d.rec && typeof d.rec === 'object' && isNum(d.rec.value) ? d.rec : null;
+  const pct = n && isNum(n.pct) ? n.pct : null;
+  const recovery = d.rec === 'gated' ? { state: 'gated', asOf: d.date }
+    : !n ? { state: 'none' }
+    : { state: 'ok', mode: 'today', asOf: d.date, date: d.date, sleep: n.sleep !== false, band: pct != null ? n.pctBand : n.band, pct, value: n.value, ...recoveryRing(n.value, pct) };
+  return { date: d.date, sleep: sleepNight(d.date, d.sleep, sleepTarget(H)), recovery };
 }
 
 function loadDial(L) {
@@ -162,5 +186,7 @@ export function buildDials(scores, health) {
     sleep: sleepDial(S.recovery, health),
     recovery: recoveryDial(S.recovery),
     load: loadDial(S.load),
+    // the past days the top bar's "‹" reaches (the load dial already carries them in `days`)
+    days: S.days && Array.isArray(S.days.days) ? S.days.days.map((d) => pastDay(d, health)) : [],
   };
 }

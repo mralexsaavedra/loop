@@ -49,7 +49,11 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
 - **Openers** — `HC.detailAttrs(key, date?, {plain?})` writes `data-detail` [+ `data-date`] + a
   button role and tab stop (`plain`: data attributes only, for a real `<button>`, an SVG cell or a
   table row). One delegated click / Enter / Space listener in `web/src/client/detail.js` handles every
-  opener. Map: sleep dial → sleep; recovery dial → recovery; each load dial → its `load-<m>`; Salud monitor
+  opener. On a PAST day of Inicio (the top bar's day stepping, `docs/home-tab.md`) every Inicio
+  opener — the dials, the collapsed row, the HRV tile, "My day" rows — carries THAT day as `data-date`,
+  so its sheet opens with that day selected (calendar, chart selection and the day panel, which a
+  dial page scrolls to); the dial page's hero ring and insight card stay the latest night / today (the
+  dial's own baked values). Map: sleep dial → sleep; recovery dial → recovery; each load dial → its `load-<m>`; Salud monitor
   rows → their signal; the HRV monitor tile → hrv; the "My day" outlook bar (advice) → recovery;
   activity rows → that day (sleep, or `load-<m>` / `workouts` for "other"), the programmed-session row
   → the registered `hoy-session` view (client/training-today.js); the "Tonight" card → the registered

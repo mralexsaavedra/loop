@@ -1111,3 +1111,34 @@ test('no food table baked (FOOD_BASICS absent): the budgets still show, no examp
   assert.deepEqual(cardsOf(h).map((c) => c.name), ['Breakfast', 'Lunch', 'Dinner', 'Extras']);
   assert.doesNotMatch(h, /could not be shown|gd-pick/);
 });
+
+test('Inicio card on a PAST day (the top bar\'s day stepping): that day\'s detected day type and targets under its date; an unknown day hides the card', () => {
+  const DETAIL = {
+    asOf: TODAY,
+    metrics: { sleep: { kind: 'sleep', start: '2030-01-01', v: [7, 7, 7, null, 7, 7, 7, 7, 7, 7] } },
+    sessions: [{ d: '2030-01-02', m: 'bike', min: 170, km: 62 }, { d: '2030-01-03', m: 'gym', min: 55 }],
+  };
+  let sel = '2030-01-03';
+  const subs = [];
+  const HCDay = { sel: () => sel, on: (fn) => subs.push(fn) };
+  const doc = new StubDocument();
+  const card = doc.el(null, { classes: ['eat-card'] });
+  const h3 = doc.el(null, { tag: 'h3', parent: card, textContent: enN.eat.heading });
+  card.querySelector = () => h3;
+  const today = run({ extra: { ...pastCtx([{ date: TODAY, sleep: 7.5, items: [] }]), DETAIL } });
+  const s = run({ extra: { ...pastCtx([{ date: TODAY, sleep: 7.5, items: [] }]), DETAIL, HCDay } });
+  s.els['eat-body'].parent = card;
+  subs.forEach((fn) => fn(sel));
+  const plan = (d) => bake().plans.maintain[d].t;
+  assert.match(s.els['eat-body'].innerHTML, /Gym or run \(auto\) · Maintain/);
+  assert.ok(s.els['eat-body'].innerHTML.includes(`<b>${plan('gym').p} g</b>`));
+  assert.match(h3.textContent, /^Target for \w{3} \d+ \w{3}$/);
+  sel = '2030-01-04'; // nothing recorded that day: the day type cannot be told
+  subs.forEach((fn) => fn(sel));
+  assert.equal(card.hidden, true);
+  sel = null;
+  subs.forEach((fn) => fn(sel));
+  assert.equal(card.hidden, false);
+  assert.equal(h3.textContent, enN.eat.heading);
+  assert.equal(s.els['eat-body'].innerHTML, today.els['eat-body'].innerHTML, 'back to today: today\'s card');
+});

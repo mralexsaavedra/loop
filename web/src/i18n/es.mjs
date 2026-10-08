@@ -17,6 +17,8 @@ export default {
       },
       // top bar date pill (the viewer's full date is the <time> inside it, read by assistive tech)
       today: 'Hoy',
+      // the pill's day stepping (client/today-date.js): Inicio shows a past day; the label returns to today
+      day: { group: 'Día mostrado', prev: 'Día anterior', next: 'Día siguiente', back: 'Volver a hoy' },
       // the dock's "+" button and its popover (client/nav-actions.js lists only the available actions)
       actions: { open: 'Acciones', close: 'Cerrar acciones', label: 'Acciones rápidas', addFood: 'Añadir comida', sync: 'Sincronizar' },
       // headings of the sections that used to be tabs of their own (Mi día/Tablas keep theirs)
