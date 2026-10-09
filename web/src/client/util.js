@@ -68,16 +68,13 @@ var HC = (function () {
   function loc() {
     return isEs() ? 'es' : 'en';
   }
-  // decimal comma in es, the value otherwise untouched (moves to HC_FMT with the display migration)
+  // the decimals the value carries ("1,25"), grouped
   function nf(n) {
-    return isEs() ? String(n).replace('.', ',') : String(n);
+    return HC_FMT.fmtRaw(n, loc());
   }
   // fixed decimals, optional leading "+"; a value that rounds to zero carries no sign
   function num(x, dec, signed) {
-    var s = Number(x).toFixed(dec);
-    if (Number(s) === 0) s = (0).toFixed(dec);
-    else if (signed && Number(s) > 0) s = '+' + s;
-    return isEs() ? s.replace('.', ',') : s;
+    return HC_FMT.fmtNumber(x, dec, loc(), signed);
   }
   // a whole number, grouped ("13.463")
   function int(x, signed) {

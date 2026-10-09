@@ -43,14 +43,14 @@
     var fill = has && len > 0
       ? '<circle class="ring-fill" cx="22" cy="22" r="' + RING_R + '" stroke-dasharray="' + len.toFixed(2) + ' ' + C.toFixed(2) + '" transform="rotate(-90 22 22)"/>'
       : '';
-    var aria = T.rings[key] + ': ' + (has ? shown + ' ' + format(T.ofTpl, { target: target, unit: T.units[key] }) : T.missing);
+    var aria = T.rings[key] + ': ' + (has ? shown + ' ' + format(T.ofTpl, { target: nf(target), unit: T.units[key] }) : T.missing);
     return (
       '<figure class="' + cls + '" role="img" aria-label="' + esc(aria) + '">' +
       '<div class="ring-art"><svg viewBox="0 0 44 44" aria-hidden="true">' +
       '<circle class="ring-track" cx="22" cy="22" r="' + RING_R + '"/>' + fill + '</svg>' +
-      '<span class="ring-pct">' + (has ? pct + '%' : '—') + '</span></div>' +
+      '<span class="ring-pct">' + (has ? HC.pct(pct) : '—') + '</span></div>' +
       '<figcaption><span class="ring-lbl">' + T.rings[key] + '</span>' +
-      '<span class="ring-val"><b>' + (has ? shown : '—') + '</b> ' + format(T.ofTpl, { target: target, unit: T.units[key] }) + '</span></figcaption>' +
+      '<span class="ring-val"><b>' + (has ? shown : '—') + '</b> ' + format(T.ofTpl, { target: nf(target), unit: T.units[key] }) + '</span></figcaption>' +
       '</figure>'
     );
   }

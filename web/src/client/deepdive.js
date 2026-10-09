@@ -139,7 +139,7 @@
     var v = d && d.state === 'ok' ? d.hours : date ? X.valueOf(m, date) : null;
     if (!isNum(v)) return { cls: 'off', label: P.label.sleep, word: P.words.none };
     if (d && d.state === 'ok' && isNum(d.pct)) return { cls: 'sleep', label: P.label.sleepPerf, num: String(d.pct), unit: '%', fill: d.fill, stale: stale(date) };
-    return { cls: 'sleep', label: P.label.sleep, num: X.fmt(v, 1), unit: 'h', fill: d && d.state === 'ok' ? d.fill : null, stale: stale(date) };
+    return { cls: 'sleep', label: P.label.sleep, num: HC.hours(v), unit: '', fill: d && d.state === 'ok' ? d.fill : null, stale: stale(date) };
   }
   // the night the sleep page describes: the dial's night, else the metric's newest day
   function sleepNight(m, end, X) {
@@ -212,7 +212,7 @@
     if (!d) return [{ text: X.T.noData }];
     var v = X.valueOf(m, d);
     var night = m.target != null
-      ? format(W.sleep, { when: whenOf(d, X), value: X.fmt(v, 1), delta: X.signed(v - m.target, 1), target: X.fmt(m.target, 1) })
+      ? format(W.sleep, { when: whenOf(d, X), value: HC.hours(v), delta: HC.hours(v - m.target, true), target: HC.hours(m.target) })
       : format(X.T.latestLbl, { date: HC.fmtDate(d) });
     return prose([night, contribSentence(sleepRows(m, end, X), X)]);
   }
@@ -244,7 +244,7 @@
     if (dm && dm.state === 'ok' && dm.unscored > 0) extra += txt(format(X.T.load.unscoredNote, { n: dm.unscored }));
     if (key === 'sleep') {
       var N = X.T.deep.sleepNotes;
-      extra = txt(format(N.perf, { target: X.fmt(m.target, 1) })) + txt(N.eff) + txt(N.cons) + txt(N.stages);
+      extra = txt(format(N.perf, { target: HC.hours(m.target) })) + txt(N.eff) + txt(N.cons) + txt(N.stages);
     }
     if (key === 'recovery' && pctOf(m.head) != null) {
       var h = m.head, R = X.T.rec;
@@ -325,7 +325,7 @@
     if (!mk || !iso) return { k: k, val: null };
     var get = seriesGet(X, mk, arr);
     var c = compare(get, iso, dir, keep);
-    return { k: k, val: c ? X.fmt(c.v, dec) + (unit ? ' ' + unit : '') : null, cmp: c };
+    return { k: k, val: c ? (unit === '%' ? HC.pct(c.v, false, dec) : X.fmt(c.v, dec) + (unit ? ' ' + unit : '')) : null, cmp: c };
   }
   // recovery, the reference's four rows (display only — the composite is unchanged): HRV, resting HR,
   // respiratory rate (context, NOT a composite input; dir 0 = no good direction, so a neutral ▲▼
@@ -351,14 +351,14 @@
   // (hours · % of asleep); a row without data that night is hidden and bedtime / wake time fill in
   function sleepRows(m, end, X) {
     var iso = sleepNight(m, end, X);
-    var hours = valRow('need', X, m, iso, 1, 'h', m.dir || 1);
-    if (hours.val != null && isNum(m.target)) hours.val = X.fmt(hours.cmp.v, 1) + ' / ' + X.fmt(m.target, 1) + ' h';
+    var hours = valRow('need', X, m, iso, 1, '', m.dir || 1);
+    if (hours.val != null) hours.val = HC.hours(hours.cmp.v) + (isNum(m.target) ? ' / ' + HC.hours(m.target) : '');
     var eff = Array.isArray(m.eff) ? valRow('eff', X, m, iso, 0, '%', 1, m.eff) : { k: 'eff', val: null };
     var cons = Array.isArray(m.cons) ? valRow('cons', X, m, iso, 0, 'min', -1, m.cons) : { k: 'cons', val: null };
     var restor = { k: 'restor', val: null };
     var rc = iso ? compare(function (x) { return restorOf(X, m, x); }, iso, 1) : null;
     var asleep = iso ? X.valueOf(m, iso) : null;
-    if (rc) restor = { k: 'restor', val: X.fmt(rc.v, 1) + ' h' + (isNum(asleep) && asleep > 0 ? ' · ' + Math.round((100 * rc.v) / asleep) + '%' : ''), cmp: rc };
+    if (rc) restor = { k: 'restor', val: HC.hours(rc.v) + (isNum(asleep) && asleep > 0 ? ' · ' + HC.pct((100 * rc.v) / asleep) : ''), cmp: rc };
     var clockRow = function (k, arr, wrap) {
       if (!iso || !Array.isArray(arr)) return { k: k, val: null };
       var c = compare(function (x) { var b = X.at(arr, m, x); return wrap ? wrapBed(b) : b; }, iso, 0);
@@ -384,8 +384,8 @@
       return '<i class="dd-st dd-st-' + k + '" style="width:' + (Math.round((1000 * h[k]) / tot) / 10) + '%"></i>';
     }).join('');
     var legend = keys.map(function (k) {
-      var share = k !== 'awake' && isNum(asleep) && asleep > 0 ? ' · ' + Math.round((100 * h[k]) / asleep) + '%' : '';
-      return '<li><i class="dd-sw dd-st-' + k + '" aria-hidden="true"></i>' + esc(P[k]) + ' <b>' + esc(X.fmt(h[k], 1) + ' h' + share) + '</b></li>';
+      var share = k !== 'awake' && isNum(asleep) && asleep > 0 ? ' · ' + HC.pct((100 * h[k]) / asleep) : '';
+      return '<li><i class="dd-sw dd-st-' + k + '" aria-hidden="true"></i>' + esc(P[k]) + ' <b>' + esc(HC.hours(h[k]) + share) + '</b></li>';
     }).join('');
     return '<section class="dd-stages"><h3 class="dd-sec">' + esc(P.aria) + '</h3><div class="dd-stbar" aria-hidden="true">' + bar + '</div>' +
       '<ul class="dd-stleg">' + legend + '</ul></section>';
@@ -464,14 +464,14 @@
     var simple = function (k, cls) {
       var mk = X.metric(k);
       if (!mk) return;
-      cards.push({ title: X.titleOf(k), get: seriesGet(X, mk), text: function (v) { return X.fmt(v, k === 'sleep' ? 1 : mk.dec); }, cls: plain(cls) });
+      cards.push({ title: X.titleOf(k), get: seriesGet(X, mk), text: function (v) { return X.fmtM(mk, v, mk.dec); }, cls: plain(cls) });
     };
     if (key === 'recovery') {
       // each night's recovery % (the dial's number that morning), bar and value in its % band colour;
       // no % baked this week (too few prior nights, no DIALS): each day's composite by its own day band
       // (the calendar's colours), on the dial's -3..+3 scale
       if (days.some(function (d) { return recPctOn(d) != null; })) {
-        cards.push({ title: X.titleOf('recovery'), get: recPctOn, text: function (v) { return v + '%'; }, cls: pctCls, frac: function (v) { return v / 100; }, tone: true });
+        cards.push({ title: X.titleOf('recovery'), get: recPctOn, text: function (v) { return HC.pct(v); }, cls: pctCls, frac: function (v) { return v / 100; }, tone: true });
       } else {
         cards.push({
           title: X.titleOf('recovery'), get: seriesGet(X, m), text: function (v) { return X.signed(v, 1); },
@@ -489,7 +489,7 @@
         cards.push({ title: X.T.deep.weekly.perf, get: seriesGet(X, m, m.perf), text: function (v) { return X.fmt(v, 0); }, cls: plain('sleep'), frac: function (v) { return v / 100; } });
       }
       if (Array.isArray(m.rem) && Array.isArray(m.deep)) {
-        cards.push({ title: X.T.deep.weekly.restor, get: function (iso) { return restorOf(X, m, iso); }, text: function (v) { return X.fmt(v, 1); }, cls: plain('sleep') });
+        cards.push({ title: X.T.deep.weekly.restor, get: function (iso) { return restorOf(X, m, iso); }, text: function (v) { return HC.hours(v); }, cls: plain('sleep') });
       }
     } else if (key === 'strain') {
       cards.push({ title: X.titleOf('strain'), get: seriesGet(X, m), text: function (v) { return X.fmt(v, 1); }, cls: plain('strain'), frac: function (v) { return v / STRAIN_MAX; } });
@@ -699,7 +699,7 @@
     }).join('');
     var rows = SB.slice().reverse().map(function (b) {
       return '<li class="ds-brow"><span class="ds-dot ds-' + b + '" aria-hidden="true"></span><span class="ds-blbl">' + esc(P.bandRows[b]) + '</span>' +
-        '<b class="ds-bmin">' + esc(HC.duration(d.mins[b] || 0, P.units)) + '</b></li>';
+        '<b class="ds-bmin">' + esc(HC.duration(d.mins[b] || 0)) + '</b></li>';
     }).join('');
     return '<section class="ds-bands" aria-label="' + esc(P.bandsTitle) + '"><h3 class="dd-sec">' + esc(P.bandsTitle) + '</h3>' +
       '<div class="ds-bar" aria-hidden="true">' + bar + '</div><ul class="ds-blist">' + rows + '</ul></section>';
