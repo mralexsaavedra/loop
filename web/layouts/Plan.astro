@@ -70,7 +70,7 @@ import { unicodeRange as textUnicodeRange } from '../src/fonts/text-font-ranges.
 // the page stays one self-contained file
 import faviconSvg from '../src/assets/loop-favicon.svg?raw';
 import touchIconUrl from '../src/assets/loop-touch-icon.png?inline';
-// the wordmark under the top bar (Inicio only, layout.css hides it on the other tabs)
+// the wordmark in the top bar (every tab: centred on the phone, on the left from 900px)
 import wordmarkSvg from '../src/assets/loop-wordmark.svg?raw';
 import { jsonForScript } from '../../lib/serialize.mjs';
 import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB, ANCHOR_TAB, DAY_HASH } from '../../lib/nav/tabs.mjs';
@@ -146,14 +146,18 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
           accepted by the validator but no longer drawn */}
       <h1 class="sr-only">{page.h1 || title}</h1>
 
-      {/* top bar: the avatar button that opens the profile sheet (components/Avatar.astro,
-          client/profile.js) · a centred "‹ Today ›" date pill (the viewer's full date is the <time>
-          inside, filled by client/today-date.js, nothing baked; the chevrons step Inicio through the
+      {/* top bar, on every tab: the avatar button that opens the profile sheet (components/Avatar.astro,
+          client/profile.js) · the LOOP wordmark: the generated outlines of src/assets/loop-wordmark.svg
+          (scripts/make-logo.mjs), inlined; letters and the first ring are --ink, the second ring's arcs
+          --sleep / --good / --strain (layout.css) · a "‹ Today ›" date pill, Inicio only (layout.css; the
+          viewer's full date is the <time> inside, filled by client/today-date.js, nothing baked; the chevrons step Inicio through the
           baked past days and ship hidden: the script shows them only when a past day is in reach; a
           past day's date replaces "Today" and the label then returns to today) · the freshness line /
-          Sync on the right */}
+          Sync on the right. Phone: avatar · LOOP · Sync on one row, the pill on a second; from 900px
+          LOOP left · pill centre · Sync + avatar right, one row */}
       <div class="topbar">
         {profile && <Avatar profile={profile} locale={locale} />}
+        <div class="wordmark" set:html={wordmarkSvg.trim()}></div>
         <div class="date-pill" id="date-pill" role="group" aria-label={nav.day.group}>
           <button type="button" class="day-step" id="day-prev" aria-label={nav.day.prev} hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6" /></svg></button>
           <button type="button" class="day-lbl" id="day-lbl" aria-disabled="true" aria-live="polite" data-back={nav.day.back}><span class="date-pill-lbl" id="day-word" aria-hidden="true">{nav.today}</span><time id="today-date" class="today-date"></time></button>
@@ -166,12 +170,6 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
           <p class="fresh-msg" id="sync-msg" role="status" aria-live="polite"></p>
         </div>
       </div>
-
-      {/* the LOOP wordmark, centred under the top bar like a brand line: the generated outlines of
-          src/assets/loop-wordmark.svg (scripts/make-logo.mjs), inlined; letters and the first ring are
-          --ink, the second ring's arcs --sleep / --good / --strain (layout.css). Shown on Inicio only:
-          layout.css hides it while the home panel is hidden. */}
-      <div class="wordmark" set:html={wordmarkSvg.trim()}></div>
 
       {/* bottom dock (floating, every width): the tab bar + to its right the "+" action button. The
           "+" is outside the tablist; it and every action ship hidden and client/nav-actions.js shows

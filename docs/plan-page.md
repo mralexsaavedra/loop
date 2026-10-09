@@ -76,12 +76,11 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   `page.h1` is absent). Icons ship as `data:` URIs in `<head>` (the page stays one file; the output
   guard's `html-scan.mjs` treats `data:` hrefs as self-contained): the favicon = `loop-favicon.svg` (a
   32 px rounded dark tile, vertical gradient `#283037` → `#111619`, the three-arc ring) and the
-  `apple-touch-icon` = `loop-touch-icon.png` (180×180, full square: iOS rounds it). On Inicio the
-  **wordmark** (`.wordmark`, rendered by `layouts/Plan.astro` right after `.topbar`; `layout.css` hides
-  it with `.wrap:has(> .tab-panel[data-tab="home"][hidden])` on the other tabs) sits centred under the top bar
-  on a phone; from 900 px it moves INTO the top bar row on the left (absolutely positioned at the 960 px
-  column's left edge, 30 px letters ≈ 20 px caps, centred on the date pill) and the avatar moves to the
-  right end beside the freshness / Sync controls, so the pill stays centred (`desktop.test.mjs` pins it): "LOOP" with L and P as
+  `apple-touch-icon` = `loop-touch-icon.png` (180×180, full square: iOS rounds it). On every tab the
+  **wordmark** (`.wordmark`, rendered by `layouts/Plan.astro` INSIDE `.topbar`, between the avatar and the
+  date pill) sits in the top bar's middle column on a phone (avatar · LOOP · freshness / Sync on one row);
+  from 900 px it takes the bar's first column on the left (the 960 px column's left edge, 30 px letters
+  ≈ 20 px caps) and the avatar moves to the right end beside the freshness / Sync controls, so the pill stays centred (`desktop.test.mjs` pins it): "LOOP" with L and P as
   Syncopate Bold outlines (never the font: Apache 2.0, `web/src/fonts/LICENSE-Syncopate.txt`), the
   first O a plain ring, the second the three-arc ring (sleep · recovery · strain clockwise from 12
   o'clock); 19 px letters (caps ~12.7 px), letters + plain ring `currentColor` (`--ink`), arcs coloured
@@ -91,10 +90,11 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   0.14em gap ink to ink between every pair of neighbours, so P's wide left side bearing adds nothing), written by `node scripts/make-logo.mjs path/to/Syncopate-Bold.ttf`
   (source + sha256 in the script header); `scripts/loop-logo.test.mjs` fails if they are hand-edited,
   `web/test/brand.test.mjs` pins the built head and wordmark.
-- **Top bar** (`.topbar`, above the dock, one row at every width, a 3-column grid so the pill stays
-  centred; on Salud, Entreno and Nutrición only the freshness / Sync controls remain — the avatar and
-  the date pill, which steps Inicio's day, hide with the same `.wrap:has(> .tab-panel[data-tab="home"][hidden])`
-  rule as the wordmark, and those tabs open on their centred title): avatar left (`components/Avatar.astro`, 36 px circle in a 44 px target, opens the profile
+- **Top bar** (`.topbar`, above the dock, on every tab, a 3-column grid so the middle stays centred;
+  phone: avatar · wordmark · freshness / Sync on row 1 and the date pill centred on row 2; from 900 px one
+  row: wordmark left · pill · Sync + avatar right. The date pill steps Inicio's day, so it is Inicio only:
+  `.wrap:has(> .tab-panel[data-tab="home"][hidden]) > .topbar > .date-pill` hides it and Salud, Entreno
+  and Nutrición show their centred title under the header row): avatar left (`components/Avatar.astro`, 36 px circle in a 44 px target, opens the profile
   sheet) · a centred date pill "‹ HOY ›" / "‹ TODAY ›" (`.date-pill`, uppercase, letter-spaced; the
   viewer's full date ("mié 30 sept" / "Wed 30 Sep") is the `<time id="today-date">` inside it, written
   client-side by `web/src/client/today-date.js` with `HC.fmtDate` and read by assistive tech only,

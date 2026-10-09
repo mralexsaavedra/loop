@@ -8,8 +8,8 @@ Avatar button, profile sheet, profile sources, device manuals.
 
 ## Profile — avatar button + profile sheet
 
-Strava / WHOOP-style profile, honest data only, opened from a round **avatar button** at the right
-end of the top bar (`web/src/components/Avatar.astro`: the photo, else the initials, else a generic
+Strava / WHOOP-style profile, honest data only, opened from a round **avatar button** in the top bar
+on every tab (left on a phone, at the right end beside Sync from 900 px; `web/src/components/Avatar.astro`: the photo, else the initials, else a generic
 person icon; ≥ 44px; NOT a tab). It reuses the detail sheet: `web/src/client/profile.js` (inlined
 before detail.js) registers `window.HCViews.profile`, and detail.js renders any registered view in
 the same modal (focus, inert, Esc, Back) with the deep link `#profile` instead of
