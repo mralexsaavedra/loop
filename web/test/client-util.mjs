@@ -6,11 +6,15 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import { hcConst } from '../../lib/stale.mjs';
+import { clientSource } from '../../lib/format/numbers.mjs';
 import { es as esDate, en as enDate } from '../src/i18n/date-templates.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-export const UTIL_SOURCE = fs.readFileSync(path.join(here, '..', 'src', 'client', 'util.js'), 'utf8');
 export const HC_CONST_BAKE = hcConst();
+/** The one number formatter's classic-script twin (lib/format/numbers.mjs), inlined before util.js. */
+export const FMT_SOURCE = clientSource();
+/** util.js as the page runs it: after HC_FMT (so running UTIL_SOURCE alone in a vm gives a working HC). */
+export const UTIL_SOURCE = FMT_SOURCE + '\n' + fs.readFileSync(path.join(here, '..', 'src', 'client', 'util.js'), 'utf8');
 
 /** Bakes HC_CONST and I18N_DATE (by ctx.LOCALE, like the page; unless the test set its own) and runs
  * util.js in `ctx` (already a vm context). */
