@@ -332,6 +332,20 @@ details.rec-raw > summary::after {
   outline-offset: 2px;
   border-radius: var(--r-xs);
 }
+/* THE carried-value treatment (docs/design-system.md → Carried values; HC.carried in client/util.js): a
+   "today" display showing an EARLIER day's value is dimmed (colour kept) and names that date in small
+   muted caps; the > 3-day stale grey (.sc-stale, grayscale) stays the stronger state */
+.carried {
+  opacity: 0.55;
+}
+.carried-date {
+  font-size: var(--fs-label);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
 /* THE save button (docs/design-system.md → Components): every primary save — the journal's "SAVE
    JOURNAL", the food sheets' "SAVE" — is one full-width white caps pill (formerly the food sheet's small
    sentence-case pill next to the journal's) */

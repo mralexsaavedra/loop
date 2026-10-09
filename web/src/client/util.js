@@ -111,6 +111,20 @@ var HC = (function () {
     var tpl = opts && opts.weekday === false ? N.dayNoWeekdayTpl : N.dayTpl;
     return format(tpl, { weekday: N.weekdays[weekdayIndex(iso)], day: d.getDate(), month: N.months[d.getMonth()] });
   }
+  // THE carried-value rule (docs/design-system.md → Carried values): a display that stands for a day
+  // (the viewer's today, or the stepped-to day `shownDay`) but shows a value dated EARLIER (`asOf`) is
+  // "carried": it names that date (`label`, fmtDate; opts.weekday === false for a 360 px ring) and is
+  // dimmed (`cls` = ' carried'). A value of the shown day itself is normal. `opts.stale` (the stronger
+  // > STALE_DAYS grey, which the caller already applies) keeps the date but drops the dim class.
+  function carried(asOf, shownDay, opts) {
+    var a = isoDate(asOf), day = isoDate(shownDay) || todayIso();
+    var c = !!a && a < day;
+    return {
+      carried: c,
+      label: c ? fmtDate(a, opts && opts.weekday === false ? { weekday: false } : null) : '',
+      cls: c && !(opts && opts.stale) ? ' carried' : '',
+    };
+  }
   // "septiembre 2026" / "September 2026"; "YYYY-MM" when the names are not baked
   function fmtMonth(iso) {
     iso = isoDate(iso);
@@ -294,6 +308,7 @@ var HC = (function () {
     weekdayIndex: weekdayIndex,
     fmtDate: fmtDate,
     fmtMonth: fmtMonth,
+    carried: carried,
     detailAttrs: detailAttrs,
     cta: cta,
     trendTone: trendTone,

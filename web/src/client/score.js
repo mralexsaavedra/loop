@@ -364,6 +364,15 @@ function scMod(key) {
   function offCentre(word) {
     return '<span class="dial-word">' + esc(word) + '</span>';
   }
+  // THE carried-value rule (HC.carried, docs/design-system.md → Carried values): a dial value dated
+  // before the shown day (the viewer's today or the stepped-to day) names that date inside the ring
+  // (no weekday: it must fit a 360 px ring) and is dimmed, the mini ring too; `stale` (> STALE_DAYS,
+  // the stronger grey) keeps the date without stacking the dim
+  function carry(iso, stale) {
+    var c = HC.carried(iso, dayIso(), { weekday: false, stale: stale });
+    c.html = c.carried ? '<span class="carried-date">' + esc(c.label) + '</span>' : '';
+    return c;
+  }
   function sleepDial(d, dt) {
     var target = d.target != null ? HC.hours(d.target) : '';
     if (d.state !== 'ok') return dialFig('dial-sleep dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.sleep.label);
@@ -372,12 +381,15 @@ function scMod(key) {
     // a past day names its night by date instead of "last night"
     var P = VIEW && dt.past ? dt.past : null;
     var date = P ? HC.fmtDate(d.date) : '';
+    var stale = dialStale(d.date), c = carry(d.date, stale);
+    // a carried night: the past-day arias, which name the night's date instead of "last night"
+    if (c.carried && dt.past) { P = dt.past; date = HC.fmtDate(d.date); }
     if (typeof d.pct === 'number' && dt.sleep.ariaPct) {
-      return dialFig('dial-sleep', dialStale(d.date), '', format(P ? P.sleepAriaPct : dt.sleep.ariaPct, { pct: d.pct, value: h, target: target, date: date }),
-        dialSvg({ fill: d.fill }), numCentre(String(d.pct), '%'), dt.sleep.label);
+      return dialFig('dial-sleep' + c.cls, stale, '', format(P ? P.sleepAriaPct : dt.sleep.ariaPct, { pct: d.pct, value: h, target: target, date: date }),
+        dialSvg({ fill: d.fill }), numCentre(String(d.pct), '%') + c.html, dt.sleep.label);
     }
-    return dialFig('dial-sleep', dialStale(d.date), '', format(P ? P.sleepAria : dt.sleep.aria, { value: h, target: target, date: date }),
-      dialSvg({ fill: d.fill }), numCentre(h, ''), dt.sleep.label);
+    return dialFig('dial-sleep' + c.cls, stale, '', format(P ? P.sleepAria : dt.sleep.aria, { value: h, target: target, date: date }),
+      dialSvg({ fill: d.fill }), numCentre(h, '') + c.html, dt.sleep.label);
   }
   // "Last night" only when the night's data is dated today AND has a sleep reading; else its date
   function nightLbl(iso, hasSleep, rt) {
@@ -400,21 +412,19 @@ function scMod(key) {
     }
     var today = d.mode === 'today';
     var when = today ? nightLbl(d.date, d.sleep !== false, rt) : '';
-    // a night carried from an earlier day (today's is not complete yet): the ring names that day and
-    // is dimmed like stale data, so it never reads as today's (a stepped-to past day shows its own)
-    var carried = !VIEW && today && isoDate(d.date) && daysOld(d.date) > 0;
-    var stale = dialStale(d.asOf) || carried;
-    var asof = carried ? '<span class="dial-asof">' + esc(HC.fmtDate(d.date, { weekday: false })) + '</span>' : '';
+    // a night carried from an earlier day (today's is not complete yet: lib/score/recovery.mjs falls
+    // back up to 2 days) names that day and is dimmed (carry), so it never reads as today's
+    var stale = dialStale(d.asOf), c = carry(today ? d.date : null, stale), asof = c.html;
     // the % headline (its rank within the previous 90 days), else the SD composite (fallback)
     if (today && typeof d.pct === 'number') {
-      return dialFig('dial-rec dial-band-' + esc(d.band), stale, '', format(rt.ariaPct, { when: when, value: d.pct, band: T.recovery.pctBands[d.band] }),
+      return dialFig('dial-rec dial-band-' + esc(d.band) + c.cls, stale, '', format(rt.ariaPct, { when: when, value: d.pct, band: T.recovery.pctBands[d.band] }),
         dialSvg({ fill: d.fill }), numCentre(String(d.pct), '%') + asof, rt.label);
     }
     var v = num(d.value, 1, true);
     var aria = today
       ? format(rt.aria, { when: when, value: v, band: rt.bands[d.band] })
       : format(rt.ariaTrend, { value: v, band: rt.bands[d.band] });
-    return dialFig('dial-rec dial-band-' + esc(d.band), stale, '', aria,
+    return dialFig('dial-rec dial-band-' + esc(d.band) + c.cls, stale, '', aria,
       dialSvg({ fill: d.fill, mid: d.mid }), numCentre(v, T.recovery.unit) + asof, rt.label);
   }
   // The modality the load dial opens on, for the VIEWER's today (never baked): the modality with a
