@@ -58,7 +58,7 @@
   // One Salud metric row (the shared HC.metricRow: icon · NAME · value + unit · ▲▼• · a small line).
   // Today first: the value is the NEWEST one; the small line is its 30-day baseline (`o.base`, with
   // the arrow vs it) or, for a sparse measurement, its change (`o.delta`, arrow by its sign); `o.dir`
-  // = the good direction (1 up, -1 down, 0 none -> grey). A daily total dated the viewer's today
+  // = the good direction (1 up, -1 down, 0 none -> a neutral --ink arrow, HC.trendTone). A daily total dated the viewer's today
   // (`o.soFar`) is partial: "today, so far", no arrow. A row whose date is more than STALE_DAYS old
   // is greyed with "no recent data" and no arrow (decided at view time; `o.noStale` for a sparse
   // manual measurement dated in its own line). `o.id` = an hl-<key> anchor, `o.detail` = the detail

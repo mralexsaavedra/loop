@@ -301,7 +301,7 @@ test('trend view: a daily total skips today (still filling up); recovery deltas 
   assert.deepEqual([st.avg, st.n, st.prev, st.flat, st.tone], [8000, 6, 8000, true, 'normal'], 'today\'s 100 so far is left out');
   s.api.open('steps');
   s.click(act('range', { 'data-range': '7' }));
-  assert.match(s.host.innerHTML, /<span class="dt-pill dt-pill-normal">• 0% vs prior week<\/span>/);
+  assert.match(s.host.innerHTML, /<span class="dt-pill dt-pill-flat">• 0% vs prior week<\/span>/);
   const rec = JSON.parse(JSON.stringify(s.api.periodStats('recovery', NOW, 7)));
   assert.deepEqual([rec.avg, rec.prev, rec.delta, rec.pct, rec.tone], [0.5, 0, 0.5, null, 'good']);
   s.api.open('recovery');

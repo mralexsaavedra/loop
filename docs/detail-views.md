@@ -171,12 +171,12 @@ switch is outside every opener); run / ride rows →
      today's value vs the middle half (p25–p75) of the values on the 30 days before it — the Salud
      totals' "usual day" idea; fewer than 7 prior values → the value without a marker. Above / below
      → ▲ / ▼ (small ≈ 8 px triangles), teal (`--up`) when better and orange (`--down`) when worse by the metric's good
-     direction, grey for a metric without one (bedtime, wake time, load); inside → a grey dot; the
+     direction, `--ink` for a metric without one (bedtime, wake time, load; never a grey arrow); inside → a grey dot; the
      words ("better than usual"…) are screen-reader text. A legend pill "▲▼ Today vs prior 30 days"
      closes the card when a marker shows. A row without a value that day is hidden (never 0 or a
      dash). Rows: recovery = the reference's four on the night it scores (`head.date`), display only
      (the composite and its weights are unchanged) — HRV, resting HR, respiratory rate (`DETAIL`
-     `respiratory`; context, NOT a composite input; no good direction, so a grey ▲ / ▼ outside the
+     `respiratory`; context, NOT a composite input; no good direction, so an `--ink` ▲ / ▼ outside the
      usual range and a grey dot inside; the ⓘ says so, `deep.respNote`) and sleep performance %
      (the sleep metric's baked `perf`, replacing hours of sleep); a missing one is hidden, so no
      respiratory reading = 3 rows. Like the hero, they stay on the headline night under day stepping

@@ -217,15 +217,6 @@
   font-size: var(--fs-2xs);
   font-weight: 600;
 }
-.ld-good {
-  color: var(--up);
-}
-.ld-bad {
-  color: var(--down);
-}
-.ld-flat {
-  color: var(--faint);
-}
 .sc-mod-line b,
 .sc-caveats-h b {
   color: var(--ink);
@@ -1270,12 +1261,6 @@ details.rec-raw[open] > summary::after {
   margin-left: 2px;
   font-size: 0.7em;
 }
-.wp-up {
-  color: var(--up);
-}
-.wp-down {
-  color: var(--down);
-}
 .wp-bar {
   grid-column: 1 / -1;
   height: 3px;
@@ -1404,18 +1389,6 @@ details.rec-raw[open] > summary::after {
   width: 10px;
   font-size: 9px;
   text-align: center;
-}
-.db-good {
-  color: var(--up);
-}
-.db-bad {
-  color: var(--down);
-}
-.db-flat {
-  color: var(--faint);
-}
-.db-watch {
-  color: var(--mid);
 }
 .db-base {
   margin-right: 13px;

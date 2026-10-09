@@ -268,12 +268,6 @@ html.dt-lock body {
   font-size: var(--fs-2xs);
   font-weight: 600;
 }
-.dt-pill-good {
-  color: var(--up);
-}
-.dt-pill-bad {
-  color: var(--down);
-}
 
 /* chart: on the sheet's ground, no card; the grid lines run the full width of the column */
 .dt-fig {
@@ -1100,16 +1094,6 @@ button.dt-day {
   font-size: 6.5px; /* an ~8px triangle */
   text-align: center;
 }
-.dd-better {
-  color: var(--up);
-}
-.dd-worse {
-  color: var(--down);
-}
-.dd-neutral,
-.dd-typical {
-  color: var(--faint);
-}
 .dd-legend {
   display: flex;
   align-items: center;
@@ -1368,4 +1352,37 @@ button.dt-day {
 .dt-s-shigh { fill: var(--ds); background: color-mix(in srgb, var(--ds) 38%, transparent); }
 @media (min-width: 900px) {
   .ds-chart { max-height: 230px; }
+}
+
+/* Trend glyph (docs/design-system.md → Components; HC.trendTone): ▲ / ▼ coloured by what the change
+   means — better --up, worse --down, watch --mid, a change with no good direction --ink; the • of a
+   typical / steady value --faint. Never a grey arrow. Each family keeps its class names; the colours
+   live here only, at the end of detail.css so they win over a pill's own grey (.dt-pill). */
+.db-good,
+.dd-better,
+.dt-pill-good,
+.ld-good,
+.wp-up {
+  color: var(--up);
+}
+.db-bad,
+.dd-worse,
+.dt-pill-bad,
+.ld-bad,
+.wp-down {
+  color: var(--down);
+}
+.db-watch {
+  color: var(--mid);
+}
+.db-neutral,
+.dd-neutral,
+.dt-pill-neutral {
+  color: var(--ink);
+}
+.db-flat,
+.dd-typical,
+.dt-pill-flat,
+.ld-flat {
+  color: var(--faint);
 }

@@ -169,3 +169,17 @@ test('cta is the one CTA link: a .cta button, the label escaped, the arrow hidde
   assert.equal(HC.cta('See <more>', ' data-detail="sleep"'), '<button type="button" class="cta" data-detail="sleep">See &lt;more&gt;<span aria-hidden="true"> →</span></button>');
   assert.equal(HC.cta('Go'), '<button type="button" class="cta">Go<span aria-hidden="true"> →</span></button>');
 });
+
+test('trendTone / metricRow: a ▲ ▼ is never grey — no good direction reads neutral, only the • is flat', () => {
+  const HC = load();
+  assert.equal(HC.trendTone('up', 'good'), 'good');
+  assert.equal(HC.trendTone('down', 'bad'), 'bad');
+  assert.equal(HC.trendTone('up', 'watch'), 'watch');
+  for (const t of [undefined, null, 'flat', 'normal']) assert.equal(HC.trendTone('down', t), 'neutral', String(t));
+  assert.equal(HC.trendTone('flat', 'good'), 'flat', 'the typical dot stays grey whatever the tone');
+  const row = (arrow, tone) => /<span class="db-arr db-(\w+)" aria-hidden="true">(.)<\/span>/.exec(HC.metricRow({ key: 'weight', name: 'W', value: '1', arrow, tone })).slice(1).join(' ');
+  assert.equal(row('up', 'flat'), 'neutral ▲');
+  assert.equal(row('down'), 'neutral ▼');
+  assert.equal(row('flat', 'flat'), 'flat •');
+  assert.equal(row('up', 'good'), 'good ▲');
+});

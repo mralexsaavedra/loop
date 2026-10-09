@@ -406,7 +406,7 @@
     if (st.delta != null) {
       var arrow = st.flat ? '•' : st.delta > 0 ? '▲' : '▼';
       var amount = m.kind === 'recovery' ? signed(st.delta, 1) + ' ' + unitOf(key) : (st.pct == null ? '—' : HC.pct(Math.abs(st.pct)));
-      pill = '<span class="dt-pill dt-pill-' + esc(st.tone) + '">' + esc(arrow + ' ' + amount + ' ' + R.vs[RANGE_KEY[range]]) + '</span>';
+      pill = '<span class="dt-pill dt-pill-' + esc(HC.trendTone(st.flat ? 'flat' : 'up', st.tone)) + '">' + esc(arrow + ' ' + amount + ' ' + R.vs[RANGE_KEY[range]]) + '</span>';
     } else if (st.avg != null) {
       pill = '<span class="dt-pill dt-pill-none">' + esc(st.clamped ? format(R.since, { date: HC.fmtDate(st.from) }) : R.noPrev) + '</span>';
     }
