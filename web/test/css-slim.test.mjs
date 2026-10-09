@@ -17,7 +17,10 @@ const DIST = path.join(path.dirname(here), '.test-dist');
 // ≈ 92 KB; budget raised to keep the same ~8 KB margin.
 // Re-measured 2026-10-08 before the journal (Q7): 99.9 KB, no margin left; the journal card, sheet and
 // insights rows (web/src/styles/journal.css) add ~4 KB, budget raised to keep a ~2 KB margin.
-const CSS_BUDGET = 106_000;
+// Re-measured 2026-10-08 during Q11b-2 (deep-dive History fold, weekly % colours, trend breakdown bar):
+// 105.9 KB before it with nothing replaceable left (the replaced rules were deleted first); the new
+// rules add ~1.5 KB, budget raised by 2 KB.
+const CSS_BUDGET = 108_000;
 const FONT_FACE = /@font-face\{[^}]*\}/g;
 
 function inlineCss(html) {

@@ -593,18 +593,23 @@ test('ⓘ toggles the long-notes block in place (no re-render); the CTA jumps to
   assert.equal(period.scrolled, 1);
   assert.equal(pressed.focused, 1);
   assert.equal(s.hostWrites(), writes, 'neither action re-renders the sheet');
-  assert.ok(s.host.innerHTML.includes(`<button type="button" class="dd-cta" data-dt-act="trend">${enT.deep.cta}<span aria-hidden="true"> →</span></button>`));
+  assert.ok(s.host.innerHTML.includes(`<button type="button" class="dd-cta" data-dt-act="trend">${enT.deep.ctas.recovery}<span aria-hidden="true"> →</span></button>`));
 });
 
 test('recovery deep-dive: the insight card leads with Inicio\'s outlook sentence (window.HCAdvice), the full text behind the one-line bar; nothing without one', () => {
   const s = setup({ dials: DIALS });
   s.ctx.window.HCAdvice = () => 'Over the last 7 days recovery has stayed at baseline.';
   s.api.open('recovery');
-  assert.ok(insightOf(s.host.innerHTML).startsWith('<p class="dd-ln">Over the last 7 days recovery has stayed at baseline.</p>'));
+  const W = enT.deep.prose;
+  const ins = insightOf(s.host.innerHTML);
+  assert.ok(ins.startsWith('<p class="dd-ln">Over the last 7 days recovery has stayed at baseline. '), 'one paragraph, the advice first');
+  assert.ok(ins.includes(format(W.rec, { when: W.lastNight, band: W.recBands[DIALS.recovery.band] })), 'then last night in words');
+  assert.ok(!ins.includes(' it has been '), 'the advice already carries the 7-day trend');
+  assert.equal((ins.match(/<p class="dd-ln/g) || []).length, 1);
   const none = setup({ dials: DIALS });
   none.ctx.window.HCAdvice = () => '';
   none.api.open('recovery');
-  assert.ok(insightOf(none.host.innerHTML).startsWith('<p class="dd-ln">' + format(enT.deep.nightLine, { when: enT.rec.lastNight, band: enT.rec.pctBands[DIALS.recovery.band] })));
+  assert.ok(insightOf(none.host.innerHTML).startsWith('<p class="dd-ln">' + format(W.rec, { when: W.lastNight, band: W.recBands[DIALS.recovery.band] })));
 });
 
 test('recovery deep-dive = the dial: the hero ring is last night\'s % with ONE % band colour; the insight says "last night" + the % band and the 7-day trend in its own band colour; the SD value is under ⓘ', () => {
@@ -621,18 +626,19 @@ test('recovery deep-dive = the dial: the hero ring is last night\'s % with ONE %
   assert.ok(hero.includes(`d="${d.fill}"`), 'the dial\'s own baked arc');
   assert.ok(hero.includes(`<span class="dd-lbl">${enT.deep.label.recovery}</span>`));
   const ins = insightOf(html);
-  assert.ok(ins.includes(format(enT.deep.nightLine, { when: enT.rec.lastNight, band: enT.rec.pctBands[d.band] })));
+  const W = enT.deep.prose;
+  assert.ok(ins.includes(format(W.rec, { when: W.lastNight, band: W.recBands[d.band] })), 'last night in words, the % band');
   const sdLine = format(enT.rec.sdLbl, { value: sgn(d.value, 1), band: '' });
   const sdHead = sdLine.slice(0, sdLine.indexOf(' · '));
   assert.ok(!ins.includes(sdHead), 'the insight carries ONE band (the %): the SD line is not there');
   assert.ok(infoOf(html).includes(sdHead), 'the night\'s SD value moved under ⓘ (still reachable)');
-  const bandState = { above: 'good', at: 'normal', below: 'bad' };
-  const trend = format(enT.rec.trendLine, { dir: enT.rec.dirs[d.trend.dir], value: sgn(d.trend.value, 1) });
-  assert.ok(ins.includes(`dd-ln dt-c-${bandState[d.trend.band]}">${trend}`), 'trend line coloured by the TREND band');
+  const trend = format(W.recTrend, { dir: W.dirs[d.trend.dir], value: sgn(d.trend.value, 1) + ' ' + enT.metrics.recovery.unit });
+  assert.ok(ins.includes(trend), 'the 7-day trend in words (no advice sentence)');
+  assert.equal((ins.match(/<p class="dd-ln/g) || []).length, 1, 'one paragraph of prose');
   const later = setup({ now: addDays(NOW, 1), dials: DIALS });
   later.api.open('recovery');
-  assert.ok(!insightOf(later.host.innerHTML).includes(enT.rec.lastNight), 'a day later the night is dated, like the dial');
-  assert.ok(insightOf(later.host.innerHTML).includes('Mon 28 Sep'));
+  assert.ok(!insightOf(later.host.innerHTML).includes(enT.deep.prose.lastNight), 'a day later the night is dated, like the dial');
+  assert.ok(insightOf(later.host.innerHTML).includes(format(W.on, { date: 'Mon 28 Sep' })));
   // the cut rules are long notes: under ⓘ, not in the insight
   const info = infoOf(html);
   assert.ok(info.includes('±1.2') && info.includes('±0.5'), 'day cut and trend cut both stated');
@@ -763,14 +769,14 @@ test('load deep-dive = the dial: today\'s RE in a strain ring with the typical-d
   } else {
     assert.ok(hero.includes(enT.deep.words.loadGated));
   }
-  const gl = DEMO.metrics['load-gym'].gate ? '' : format(enT.load.dayLine, { day: '28', typical: gym.typical.toFixed(0) });
+  const gl = DEMO.metrics['load-gym'].gate ? '' : format(enT.deep.prose.loadDay, { day: '28', typical: gym.typical.toFixed(0) });
   if (gl) assert.ok(insightOf(s.host.innerHTML).includes(gl));
   s.api.open('load-run');
   const run = DEMO.metrics['load-run'];
   hero = heroOf(s.host.innerHTML);
   assert.ok(hero.includes(`<span class="dd-word">${enT.deep.words.rest}</span>`), 'no session today: the dial\'s word');
   assert.doesNotMatch(hero, /dd-fill/);
-  assert.ok(insightOf(s.host.innerHTML).includes(format(enT.load.restLastLine, { date: 'Sat 26 Sep', re: String(run.last.re), typical: run.typical.toFixed(0) })));
+  assert.ok(insightOf(s.host.innerHTML).includes(format(enT.deep.prose.loadRestLast, { date: 'Sat 26 Sep', re: String(run.last.re), typical: run.typical.toFixed(0) })));
   const gated = copy();
   gated.metrics['load-bike'].gate = 'fewDays';
   const g = setup({ detail: gated });
@@ -779,16 +785,18 @@ test('load deep-dive = the dial: today\'s RE in a strain ring with the typical-d
   assert.ok(heroOf(g.host.innerHTML).includes(enT.deep.words.loadGated));
 });
 
-test('load deep-dive keeps the dial\'s former captions: the ring scale + the 7-day vs 42-day trend in the insight, the unscored note under ⓘ', () => {
+test('load deep-dive: the day and the 7-day vs 42-day trend as prose in the insight; the ring scale and the unscored note under ⓘ', () => {
   const run = DIALS.load.modalities.find((m) => m.key === 'run' && m.state === 'ok') || DIALS.load.modalities.find((m) => m.state === 'ok');
   const s = setup({ dials: DIALS });
   s.api.open('load-' + run.key);
   const ins = insightOf(s.host.innerHTML);
-  assert.ok(ins.includes(enT.load.scale), 'the scale explanation that sat under the dial');
-  const trend = format(enT.load.trendLbl, { pct: (run.trendPct > 0 ? '+' : '') + run.trendPct + '%' }) + ' · ' + enT.load.bands[run.band];
+  assert.ok(!ins.includes(enT.load.scale) && infoOf(s.host.innerHTML).includes(enT.load.scale), 'the scale explanation moved under ⓘ');
+  const trend = format(enT.deep.prose.loadTrend, { band: enT.load.bands[run.band], pct: (run.trendPct > 0 ? '+' : '') + run.trendPct + '%' });
   assert.ok(ins.includes(trend), `acute/chronic context "${trend}"`);
-  const lines = (ins.match(/<p class="dd-ln/g) || []).length;
-  assert.ok(lines >= 2 && lines <= 4, `2–4 insight lines, got ${lines}`);
+  assert.equal((ins.match(/<p class="dd-ln/g) || []).length, 1, 'one paragraph');
+  const sentences = ins.replace(/<[^>]+>/g, '').split('VIEW')[0].split(/[.!?](\s|$)/).filter((x) => x && x.trim()).length;
+  assert.ok(sentences >= 2 && sentences <= 3, `2–3 sentences, got ${sentences}`);
+  assert.ok(s.host.innerHTML.includes(`>${enT.deep.ctas.load}<`), 'the page\'s own CTA');
   const d2 = JSON.parse(JSON.stringify(DIALS));
   d2.load.modalities.find((m) => m.key === run.key).unscored = 2;
   const u = setup({ dials: d2 });
@@ -796,8 +804,8 @@ test('load deep-dive keeps the dial\'s former captions: the ring scale + the 7-d
   assert.ok(infoOf(u.host.innerHTML).includes(format(enT.load.unscoredNote, { n: 2 })));
   const es = setup({ dials: DIALS, locale: 'es' });
   es.api.open('load-' + run.key);
-  assert.ok(insightOf(es.host.innerHTML).includes(esT.load.scale));
-  assert.ok(es.host.innerHTML.includes(`>${esT.deep.cta}<`) && es.host.innerHTML.includes(`<span class="sr-only">${esT.metrics['load-' + run.key].title} · </span>${esT.deep.today}<`));
+  assert.ok(infoOf(es.host.innerHTML).includes(esT.load.scale));
+  assert.ok(es.host.innerHTML.includes(`>${esT.deep.ctas.load}<`) && es.host.innerHTML.includes(`<span class="sr-only">${esT.metrics['load-' + run.key].title} · </span>${esT.deep.today}<`));
   const none = setup();
   none.api.open('load-' + run.key);
   assert.ok(!insightOf(none.host.innerHTML).includes(enT.load.bands[run.band]));
@@ -815,16 +823,18 @@ test('sleep deep-dive: the hero is last night\'s sleep performance % in the slee
   assert.ok(hero.includes(`<span class="dd-lbl">${enT.deep.label.sleepPerf}</span>`));
   assert.ok(hero.includes(`d="${DIALS.sleep.fill}"`));
   const ins = insightOf(html);
-  assert.ok(ins.includes(format(enT.bands.target, { value: '7.5', unit: 'h' })), 'Target 7.5 h');
   const v = valueOn(DEMO.metrics.sleep, NOW);
-  assert.ok(ins.includes(format(enT.deep.sleepLine, { when: enT.rec.lastNight, value: v.toFixed(1), delta: Number((v - 7.5).toFixed(1)) === 0 ? '0.0' : sgn(v - 7.5, 1), target: '7.5' })));
+  assert.ok(ins.includes(format(enT.deep.prose.sleep, { when: enT.deep.prose.lastNight, value: v.toFixed(1), delta: Number((v - 7.5).toFixed(1)) === 0 ? '0.0' : sgn(v - 7.5, 1), target: '7.5' })));
+  assert.ok(ins.includes(enT.deep.prose.allOk) || /(was|were) worse than your usual\./.test(ins), 'the contributors in one sentence');
+  assert.ok(ins.includes(`>${enT.deep.ctas.sleep}<`));
   const info = infoOf(html);
   assert.ok(info.includes(format(enT.deep.sleepNotes.perf, { target: '7.5' })), 'ⓘ: performance formula, need = target');
   for (const k of ['eff', 'cons', 'stages']) assert.ok(info.includes(enT.deep.sleepNotes[k]), `ⓘ: ${k}`);
   // stages bar: awake / REM / core / deep, widths by hours, legend with hours and % of asleep
   const sl = DEMO.metrics.sleep;
   const st = html.split('<section class="dd-stages"')[1].split('</section>')[0];
-  assert.ok(html.indexOf('dd-stages') > html.indexOf('dd-hero') && html.indexOf('dd-stages') < html.indexOf('dd-contrib'), 'under the hero');
+  assert.ok(html.indexOf('dd-contrib') > html.indexOf('dd-hero') && html.indexOf('dd-stages') > html.indexOf('dd-insight') && html.indexOf('dd-stages') < html.indexOf('dd-weekly'), 'dial -> contributors -> insight, then the stages bar');
+  assert.ok(st.startsWith(`><h3 class="dd-sec">${enT.deep.stages.aria}</h3>`), 'a titled section');
   assert.deepEqual([...st.matchAll(/<i class="dd-st dd-st-([a-z]+)"/g)].map((x) => x[1]), ['awake', 'rem', 'core', 'deep']);
   const rem = valueOn({ ...sl, v: sl.rem }, NOW);
   assert.ok(st.includes(`${enT.deep.stages.rem} <b>${rem.toFixed(1)} h · ${Math.round((100 * rem) / v)}%</b>`));
@@ -1283,7 +1293,7 @@ test('sleep contributors: hours vs need, efficiency, consistency, REM + deep; be
   assert.ok(rowsOf(s.host.innerHTML).length <= 4);
 });
 
-test('weekly trends: one card per input, 7 bars ending at the view\'s last day (today highlighted), values on top; recovery bars by day state, sleep bars sleep, load bars strain; a missing day has no bar', () => {
+test('weekly trends: one card per input, 7 bars ending at the page\'s day (highlighted, with its value), values on top; recovery = each night\'s % in its band colour, sleep bars sleep, load bars strain; a missing day has no bar', () => {
   const s = setup({ dials: DIALS });
   s.api.open('recovery');
   let wk = weeklyOf(s.host.innerHTML);
@@ -1292,19 +1302,41 @@ test('weekly trends: one card per input, 7 bars ending at the view\'s last day (
   assert.deepEqual(cards.map((c) => /<h4 class="dd-wk-t">([^<]+)</.exec(c)[1]), ['Recovery', 'HRV', 'Resting HR', 'Sleep']);
   const rec = cards[0];
   assert.equal((rec.match(/<li class="dd-col/g) || []).length, 7);
-  assert.equal((rec.match(/dd-col dd-now/g) || []).length, 1, 'today\'s column highlighted');
+  assert.equal((rec.match(/dd-col dd-now/g) || []).length, 1, 'the page\'s day highlighted');
   const days = s.ctx.window.HCDeep.weekOf(NOW);
   assert.deepEqual([days[0], days[6]], [addDays(NOW, -6), NOW]);
+  // the % the dial showed each morning (DIALS.days), coloured >= 67 good / <= 33 low / else mid, never SD
+  const pctOn = (d) => { const x = DIALS.days.find((e) => e.date === d); return x && x.recovery.state === 'ok' && x.recovery.date === d ? x.recovery.pct : null; };
+  let shown = 0;
+  days.forEach((d) => {
+    const v = pctOn(d);
+    if (v == null) return;
+    shown++;
+    const st = v >= 67 ? 'good' : v <= 33 ? 'low' : 'mid';
+    assert.ok(rec.includes(`<span class="dd-val dd-v-${st}">${v}%</span><span class="dd-track-col"><i class="dd-bar dd-c-${st}" style="height:${v}%"`), `${d} ${v}% ${st}`);
+  });
+  assert.ok(shown >= 4, 'most nights of the demo week have a %');
+  assert.doesNotMatch(rec, /SD|\+\d\.\d</, 'no z-scores');
+  assert.ok(rec.includes(`<li class="dd-col dd-now"><span class="dd-val dd-v-${DIALS.recovery.band}">${DIALS.recovery.pct}%</span>`), 'the headline night = the last, highlighted column, with its value');
+  const missing = days.filter((d) => pctOn(d) == null);
+  assert.ok(missing.length > 0, 'the demo has a recovery gap this week');
+  assert.equal((rec.match(/<span class="dd-val">—<\/span><span class="dd-track-col"><\/span>/g) || []).length, missing.length, 'a night without a %: a dash, no bar');
+  // a day later (no data yet today): the week still ends on the headline night, so no empty highlighted column
+  const later = setup({ now: addDays(NOW, 1), dials: DIALS });
+  later.api.open('recovery');
+  const lrec = weeklyOf(later.host.innerHTML).split('<section class="dd-wk"')[1];
+  assert.ok(lrec.includes(`<li class="dd-col dd-now"><span class="dd-val dd-v-${DIALS.recovery.band}">${DIALS.recovery.pct}%</span>`));
+  // no DIALS: the SD composite by its day band (the documented fallback)
+  const bare = setup();
+  bare.api.open('recovery');
   const m = DEMO.metrics.recovery;
+  const brec = weeklyOf(bare.host.innerHTML).split('<section class="dd-wk"')[1];
   days.forEach((d) => {
     const v = valueOn(m, d);
     if (v == null) return;
     const st = v >= m.cut ? 'good' : v <= -m.cut ? 'low' : 'mid';
-    assert.ok(rec.includes(`<span class="dd-val">${sgn(v, 1)}</span><span class="dd-track-col"><i class="dd-bar dd-c-${st}"`), `${d} ${st}`);
+    assert.ok(brec.includes(`<span class="dd-val">${sgn(v, 1)}</span><span class="dd-track-col"><i class="dd-bar dd-c-${st}"`), `${d} ${st}`);
   });
-  const missing = days.filter((d) => valueOn(m, d) == null);
-  assert.ok(missing.length > 0, 'the demo has a recovery gap this week');
-  assert.equal((rec.match(/<span class="dd-val">—<\/span><span class="dd-track-col"><\/span>/g) || []).length, missing.length, 'a missing day: a dash, no bar');
   s.api.open('sleep');
   wk = weeklyOf(s.host.innerHTML);
   assert.match(wk, /dd-bar dd-c-sleep/);
@@ -1314,11 +1346,13 @@ test('weekly trends: one card per input, 7 bars ending at the view\'s last day (
   assert.deepEqual([...wk.matchAll(/<h4 class="dd-wk-t">([^<]+)</g)].map((x) => x[1]), ['Gym load', enT.deep.weekly.minutes]);
   assert.match(wk, /dd-bar dd-c-strain/);
   assert.doesNotMatch(wk, /dd-c-(good|mid|low|sleep)/);
-  // a later viewer: the window ends at the viewer's today, its days after the data are empty
-  const later = setup({ now: addDays(NOW, 2), dials: DIALS });
-  later.api.open('sleep');
-  const lw = weeklyOf(later.host.innerHTML);
-  assert.ok(lw.includes('<li class="dd-col dd-now"><span class="dd-val">—</span>'), 'today, no data yet');
+  // a later viewer: sleep ends on the dial's night (within the week); load ends at the viewer's today,
+  // its days after the data are empty
+  const later2 = setup({ now: addDays(NOW, 2), dials: DIALS });
+  later2.api.open('sleep');
+  assert.ok(weeklyOf(later2.host.innerHTML).includes(`<li class="dd-col dd-now"><span class="dd-val">${valueOn(DEMO.metrics.sleep, DIALS.sleep.date).toFixed(1)}</span>`), 'the dial\'s night, highlighted');
+  later2.api.open('load-gym');
+  assert.ok(weeklyOf(later2.host.innerHTML).includes('<li class="dd-col dd-now"><span class="dd-val">—</span>'), 'today, no data yet');
   clean(s.host.innerHTML);
 });
 
@@ -1745,4 +1779,124 @@ test('nutrition score: listed in the trend picker (and selected) once the page h
   const none = setup();
   none.api.open('hrv');
   assert.doesNotMatch(none.host.innerHTML, /value="nutrition"/);
+});
+
+test('deep-dive History fold: the month calendar + day panel sit behind one collapsed row, toggled in place and remembered; a dated open starts it open; the trend view has no fold', () => {
+  const box = new StubElement('div', { hidden: true });
+  const s = setup({ dials: DIALS, query: { '#dd-hist': box } });
+  s.api.open('recovery');
+  let html = s.host.innerHTML;
+  const btn = `<button type="button" class="dd-fold" data-dt-act="hist" aria-expanded="false" aria-controls="dd-hist"><span class="dd-fold-t">${enT.deep.hist.title}</span><span class="dd-fold-s">${enT.deep.hist.sub}</span>`;
+  assert.ok(html.includes(btn), 'one collapsed row');
+  const fold = html.split('<div class="dd-hist-b" id="dd-hist" hidden>')[1];
+  assert.ok(fold && fold.includes('class="dt-cal"') && fold.includes('data-dt-part="day"'), 'calendar + day panel inside, hidden');
+  assert.ok(html.indexOf('dd-fold') > html.indexOf('dt-chart'), 'below the trend chart');
+  const writes = s.hostWrites();
+  const b = act('hist', { 'aria-expanded': 'false' });
+  s.click(b);
+  assert.equal(box.hidden, false);
+  assert.equal(b.getAttribute('aria-expanded'), 'true');
+  assert.equal(s.hostWrites(), writes, 'toggled in place, no re-render');
+  s.api.open('sleep');
+  assert.ok(s.host.innerHTML.includes('aria-expanded="true" aria-controls="dd-hist"') && s.host.innerHTML.includes('<div class="dd-hist-b" id="dd-hist">'), 'remembered for the session');
+  s.click(b);
+  assert.equal(box.hidden, true);
+  // a dated open (a run row, a stepped Inicio day): the day it was opened for is visible
+  const d = setup({ dials: DIALS });
+  d.api.open('recovery', addDays(NOW, -2));
+  assert.ok(d.host.innerHTML.includes('<div class="dd-hist-b" id="dd-hist">'));
+  // the trend view keeps its calendar unfolded
+  d.api.open('rhr');
+  assert.doesNotMatch(d.host.innerHTML, /dd-fold|dd-hist/);
+  assert.match(d.host.innerHTML, /class="dt-cal"/);
+  const es = setup({ locale: 'es', dials: DIALS });
+  es.api.open('recovery');
+  assert.ok(es.host.innerHTML.includes(`<span class="dd-fold-t">${esT.deep.hist.title}</span>`));
+  clean(html);
+});
+
+test('trend view 6M / 1Y: only the days out of the range get a dot (the 7-day line carries the rest); M keeps every day', () => {
+  const s = setup();
+  const m = DEMO.metrics.rhr;
+  const inWin = (from) => { const out = []; for (let d = from < m.start ? m.start : from; d <= NOW; d = addDays(d, 1)) { const v = valueOn(m, d); if (v != null) out.push(v); } return out; };
+  s.api.open('rhr');
+  let html = s.host.innerHTML;
+  assert.equal((html.match(/class="dt-pt/g) || []).length, inWin(addDays(NOW, -29)).length, 'M: a dot per day with data');
+  assert.ok(html.includes(`<span class="dt-k dt-k-daily">${enT.chartKey.daily}</span>`));
+  s.click(act('range', { 'data-range': '182' }));
+  html = s.host.innerHTML;
+  const vals = inWin(addDays(NOW, -181));
+  const out = vals.filter((v) => v < m.band.lo || v > m.band.hi);
+  assert.ok(vals.length > 60 && out.length > 0 && out.length < vals.length / 3, `the demo has a long, mostly in-range window (${out.length}/${vals.length})`);
+  assert.equal((html.match(/class="dt-pt/g) || []).length, out.length, '6M: a dot per out-of-range day only');
+  assert.doesNotMatch(html, /dt-pt dt-s-normal/, 'no in-range dot');
+  assert.match(html, /class="dt-line"/, 'the 7-day line stays');
+  assert.ok(html.includes(`<span class="dt-k dt-k-out">${enT.chartKey.outside}</span>`), 'the key says which days are dots');
+  // recovery: out of range = beyond the day cut (the calendar's above / below baseline)
+  s.api.open('recovery');
+  s.click(act('range', { 'data-range': '182' }));
+  const r = DEMO.metrics.recovery;
+  let n = 0;
+  for (let d = addDays(NOW, -181); d <= NOW; d = addDays(d, 1)) { const v = valueOn(r, d); if (v != null && Math.abs(v) >= r.cut) n++; }
+  assert.equal((s.host.innerHTML.match(/class="dt-pt/g) || []).length, n);
+  // es copy
+  const es = setup({ locale: 'es' });
+  es.api.open('rhr');
+  es.click(act('range', { 'data-range': '365' }));
+  assert.ok(es.host.innerHTML.includes(`<span class="dt-k dt-k-out">${esT.chartKey.outside}</span>`));
+});
+
+test('trend view breakdown: one stacked bar of the window\'s days by calendar state with a count each ("6x"), following the window; LEARN MORE opens ⓘ; none for training volume', () => {
+  const info = new StubElement('div', { hidden: true });
+  info.scrolled = 0;
+  info.scrollIntoView = () => { info.scrolled++; };
+  const ibtn = new StubElement('button', { attrs: { 'aria-expanded': 'false' } });
+  const s = setup({ query: { '#dd-info': info, '.sh-info': ibtn } });
+  const m = DEMO.metrics.rhr;
+  const count = (from) => {
+    const c = { good: 0, normal: 0, bad: 0 };
+    for (let d = from; d <= NOW; d = addDays(d, 1)) {
+      const v = valueOn(m, d);
+      if (v == null) continue;
+      const side = v > m.band.hi ? 1 : v < m.band.lo ? -1 : 0;
+      c[!side ? 'normal' : side === m.dir ? 'good' : 'bad']++;
+    }
+    return c;
+  };
+  const brkOf = (html) => (html.split('<section class="dt-brk"')[1] || '').split('</section>')[0];
+  s.api.open('rhr');
+  for (const [range, from] of [['30', addDays(NOW, -29)], ['7', addDays(NOW, -6)]]) {
+    s.click(act('range', { 'data-range': range }));
+    const b = brkOf(s.host.innerHTML);
+    const c = count(from);
+    const tot = c.good + c.normal + c.bad;
+    assert.ok(b.includes(`<h3 class="dt-brk-t">${enT.trend.brk.title}</h3><button type="button" class="dt-learn" data-dt-act="learn">${enT.trend.brk.learn}</button>`));
+    assert.deepEqual([...b.matchAll(/<li data-st="([a-z]+)">/g)].map((x) => x[1]), ['good', 'normal', 'bad'], 'the legend\'s order');
+    for (const k of ['good', 'normal', 'bad']) {
+      assert.ok(b.includes(`${k === 'good' ? enT.legend.good : k === 'bad' ? enT.legend.bad : enT.legend.normal}<b>${c[k]}x</b>`), `${range}: ${k} ${c[k]}x`);
+      if (c[k]) assert.ok(b.includes(`<i class="dt-s-${k}" style="width:${Math.round((1000 * c[k]) / tot) / 10}%"></i>`), `${range}: ${k} segment`);
+      else assert.ok(!b.includes(`<i class="dt-s-${k}"`), `${range}: no empty segment`);
+    }
+  }
+  const html = s.host.innerHTML;
+  assert.ok(html.indexOf('dt-brk') > html.indexOf('dt-chart') && html.indexOf('dt-brk') < html.indexOf('dt-cal'), 'under the chart');
+  const writes = s.hostWrites();
+  s.click(act('learn'));
+  assert.equal(info.hidden, false, 'ⓘ opens');
+  assert.equal(ibtn.getAttribute('aria-expanded'), 'true');
+  assert.equal(info.scrolled, 1);
+  s.click(act('learn'));
+  assert.equal(info.hidden, false, 'never closes it');
+  assert.equal(s.hostWrites(), writes, 'no re-render');
+  // recovery: its day states; training load / volume: no breakdown
+  s.api.open('recovery');
+  assert.deepEqual([...brkOf(s.host.innerHTML).matchAll(/<li data-st="([a-z]+)">/g)].map((x) => x[1]), ['good', 'normal', 'bad']);
+  s.api.open('load-gym');
+  assert.doesNotMatch(s.host.innerHTML, /dt-brk/);
+  s.api.open('workouts');
+  assert.doesNotMatch(s.host.innerHTML, /dt-brk/);
+  const es = setup({ locale: 'es' });
+  es.api.open('rhr');
+  assert.ok(es.host.innerHTML.includes(`>${esT.trend.brk.learn}</button>`) && /<b>\d+x<\/b>/.test(es.host.innerHTML));
+  clean(html);
 });

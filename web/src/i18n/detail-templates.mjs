@@ -23,6 +23,8 @@ export const en = {
     nextWin: 'Later period',
     typical: 'Typical range',
     baseline: 'Baseline range',
+    // the window's days by range (detail.js breakdownHtml): one stacked bar + a count per state
+    brk: { title: 'Days in this period', count: '{n}x', learn: 'Learn more' },
     span: { w: 'this week', m: 'these 30 days', m6: 'these 6 months', y: 'this year' },
     prevSpan: { w: 'the week before', m: 'the 30 days before', m6: 'the 6 months before', y: 'the year before' },
     sent: {
@@ -51,7 +53,7 @@ export const en = {
   staleNote: 'The newest data is from {date}: the view ends there.',
   chartAria: '{title}: daily values from {from} to {to}',
   calAria: '{title}: calendar for {month}',
-  chartKey: { daily: 'Daily', roll7: '7-day average', band: 'Your range', target: 'Target', typical: 'Typical day', baseline: '7-day trend at baseline' },
+  chartKey: { daily: 'Daily', roll7: '7-day average', band: 'Your range', target: 'Target', typical: 'Typical day', baseline: '7-day trend at baseline', outside: 'Days out of range' },
   bands: {
     monitor: 'Your normal range: {lo}–{hi} {unit} (median {median})',
     iqr: 'Your usual day: {lo}–{hi} {unit} (median {median})',
@@ -70,28 +72,16 @@ export const en = {
   },
   // the dial's own words (score-templates), so the sheet header reads exactly like the dial it opens from
   rec: {
-    lastNight: enS.dials.recovery.lastNight,
-    noSleep: enS.dials.recovery.noSleep,
-    noLastNight: enS.dials.recovery.noLastNight,
     gated: enS.dials.recovery.gated,
-    trendLine: enS.dials.recovery.trendLine,
-    trendLineNoDir: enS.dials.recovery.trendLineNoDir,
-    dirs: enS.dials.recovery.dirs,
-    pctBands: enS.recovery.pctBands,
     pctNote: enS.recovery.pctNote,
     sdLbl: enS.recovery.sdLbl,
     sdBands: enS.recovery.bands,
   },
   load: {
-    dayLine: enS.dials.load.dayLine,
-    noEffortLine: enS.dials.load.noEffortLine,
-    restLine: enS.dials.load.restLine,
-    restLastLine: enS.dials.load.restLastLine,
     gated: enS.load.gated,
-    // the dial's former captions (they left Inicio for this header): the ring scale, the acute/chronic
-    // context + band and the sessions-without-effort note
+    // the dial's former captions, now under the deep-dive's ⓘ (the ring scale, the sessions-without-
+    // effort note) and the 7-day vs 42-day band words of the insight sentence
     scale: enS.dials.load.scale,
-    trendLbl: enS.load.trendLbl,
     bands: enS.load.bands,
     unscoredNote: enS.load.unscoredNote,
   },
@@ -105,9 +95,33 @@ export const en = {
     label: { sleep: enS.dials.sleep.label, sleepPerf: 'Sleep performance', recovery: enS.dials.recovery.label, load: enS.dials.load.label, strain: 'Day strain' },
     words: { none: enS.dials.none, gated: enS.dials.recovery.gated, loadGated: enS.dials.load.gated, rest: enS.dials.load.rest, noEffort: enS.dials.load.noEffort },
     heroAria: '{label}: {value}',
-    nightLine: '{when} · {band}',
-    sleepLine: '{when}: {value} h · {delta} h vs the {target} h target',
     cta: 'View trend',
+    // the insight card's CTA per page (it scrolls to the trend chart)
+    ctas: { recovery: 'See my recovery trend', sleep: 'See my sleep trend', load: 'See my load trend', strain: 'See my strain trend' },
+    // the insight card's prose (deepdive.js *Lines): 2–3 plain sentences built from the numbers the page
+    // already shows, no new metric
+    prose: {
+      lastNight: 'Last night',
+      on: 'On {date}',
+      rec: '{when} your recovery was {band}.',
+      recBands: { good: 'high', mid: 'medium', low: 'low' },
+      recSd: { above: 'above your baseline', at: 'at your baseline', below: 'below your baseline' },
+      recTrend: 'Over the last 7 days it has been {dir} ({value} vs your baseline).',
+      recNoNight: 'There is no recent complete night; the 7-day trend is {dir} ({value} vs your baseline).',
+      dirs: { up: 'rising', steady: 'steady', down: 'falling' },
+      noSleep: 'There is no sleep data for that night.',
+      sleep: '{when} you slept {value} h, {delta} h vs your {target} h target.',
+      worse1: '{names} was worse than your usual.',
+      worseN: '{names} were worse than your usual.',
+      allOk: 'Every contributor was at or better than your usual.',
+      and: ' and ',
+      loadDay: 'Today\'s Relative Effort is {day}; your typical training day is ~{typical}.',
+      loadNoEffort: 'Today\'s session has no Relative Effort; your typical training day is ~{typical}.',
+      loadRest: 'No session yet today; your typical training day is ~{typical}.',
+      loadRestLast: 'No session yet today. Your last one, on {date}, scored {re} (typical day ~{typical}).',
+      loadTrend: 'Over the last 7 days your load has been {band} ({pct} vs your 42-day average).',
+      strainUsual: 'Your usual day is {value} (median of the prior 30 days).',
+    },
     // the gym / run / bike pills on a load page (deepdive.js modSwitch; they also set Inicio's load dial)
     modSwitch: 'Load modality',
     contrib: {
@@ -138,8 +152,6 @@ export const en = {
         high: 'Strain between 14.0 and 17.9 is high: your cardiovascular system has been working hard.',
         allOut: 'Strain of 18 or more is all out: one of your hardest days.',
       },
-      usual: 'Your usual day (median of the prior 30 days): {value}',
-      scale: 'Our scale, relative to you: 18 = your 95th-percentile day of the last {days} days.',
       noDay: 'No all-day heart-rate data for {date}.',
       reTitle: 'Relative Effort by modality',
       notes: {
@@ -223,6 +235,8 @@ export const en = {
       },
     },
     weekly: { title: 'Weekly trends', aria: '{title}, last 7 days', minutes: 'Minutes', perf: 'Sleep performance (%)', restor: 'REM + deep (h)' },
+    // the fold holding a deep-dive's month calendar + day panel (detail.js foldHtml)
+    hist: { title: 'History', sub: 'Calendar and day detail' },
     // the sleep page's stages bar (awake / REM / core / deep + the unspecified remainder)
     stages: { aria: 'Sleep stages', awake: 'Awake', rem: 'REM', core: 'Core', deep: 'Deep', unspec: 'Unspecified' },
     // the sleep page's ⓘ: how every number on it is computed (lib/score/sleep.mjs)
@@ -367,6 +381,7 @@ export const es = {
     nextWin: 'Periodo siguiente',
     typical: 'Rango habitual',
     baseline: 'Rango base',
+    brk: { title: 'Días de este periodo', count: '{n}x', learn: 'Saber más' },
     span: { w: 'esta semana', m: 'estos 30 días', m6: 'estos 6 meses', y: 'este año' },
     prevSpan: { w: 'la semana anterior', m: 'los 30 días anteriores', m6: 'los 6 meses anteriores', y: 'el año anterior' },
     sent: {
@@ -395,7 +410,7 @@ export const es = {
   staleNote: 'Los datos más recientes son del {date}: la vista termina ahí.',
   chartAria: '{title}: valores diarios del {from} al {to}',
   calAria: '{title}: calendario de {month}',
-  chartKey: { daily: 'Diario', roll7: 'Media de 7 días', band: 'Tu rango', target: 'Objetivo', typical: 'Día típico', baseline: 'Tendencia de 7 días en tu línea base' },
+  chartKey: { daily: 'Diario', roll7: 'Media de 7 días', band: 'Tu rango', target: 'Objetivo', typical: 'Día típico', baseline: 'Tendencia de 7 días en tu línea base', outside: 'Días fuera del rango' },
   bands: {
     monitor: 'Tu rango normal: {lo}–{hi} {unit} (mediana {median})',
     iqr: 'Tu día habitual: {lo}–{hi} {unit} (mediana {median})',
@@ -414,28 +429,16 @@ export const es = {
   },
   // the dial's own words (score-templates), so the sheet header reads exactly like the dial it opens from
   rec: {
-    lastNight: esS.dials.recovery.lastNight,
-    noSleep: esS.dials.recovery.noSleep,
-    noLastNight: esS.dials.recovery.noLastNight,
     gated: esS.dials.recovery.gated,
-    trendLine: esS.dials.recovery.trendLine,
-    trendLineNoDir: esS.dials.recovery.trendLineNoDir,
-    dirs: esS.dials.recovery.dirs,
-    pctBands: esS.recovery.pctBands,
     pctNote: esS.recovery.pctNote,
     sdLbl: esS.recovery.sdLbl,
     sdBands: esS.recovery.bands,
   },
   load: {
-    dayLine: esS.dials.load.dayLine,
-    noEffortLine: esS.dials.load.noEffortLine,
-    restLine: esS.dials.load.restLine,
-    restLastLine: esS.dials.load.restLastLine,
     gated: esS.load.gated,
-    // the dial's former captions (they left Inicio for this header): the ring scale, the acute/chronic
-    // context + band and the sessions-without-effort note
+    // the dial's former captions, now under the deep-dive's ⓘ (the ring scale, the sessions-without-
+    // effort note) and the 7-day vs 42-day band words of the insight sentence
     scale: esS.dials.load.scale,
-    trendLbl: esS.load.trendLbl,
     bands: esS.load.bands,
     unscoredNote: esS.load.unscoredNote,
   },
@@ -446,9 +449,30 @@ export const es = {
     label: { sleep: esS.dials.sleep.label, sleepPerf: 'Rendimiento del sueño', recovery: esS.dials.recovery.label, load: esS.dials.load.label, strain: 'Carga del día' },
     words: { none: esS.dials.none, gated: esS.dials.recovery.gated, loadGated: esS.dials.load.gated, rest: esS.dials.load.rest, noEffort: esS.dials.load.noEffort },
     heroAria: '{label}: {value}',
-    nightLine: '{when} · {band}',
-    sleepLine: '{when}: {value} h · {delta} h frente al objetivo de {target} h',
     cta: 'Ver tendencia',
+    ctas: { recovery: 'Ver mi tendencia de recuperación', sleep: 'Ver mi tendencia de sueño', load: 'Ver mi tendencia de carga', strain: 'Ver mi tendencia de carga del día' },
+    prose: {
+      lastNight: 'Anoche',
+      on: 'El {date}',
+      rec: '{when} tu recuperación fue {band}.',
+      recBands: { good: 'alta', mid: 'media', low: 'baja' },
+      recSd: { above: 'superior a tu línea base', at: 'la de tu línea base', below: 'inferior a tu línea base' },
+      recTrend: 'En los últimos 7 días ha estado {dir} ({value} frente a tu línea base).',
+      recNoNight: 'No hay ninguna noche completa reciente; la tendencia de 7 días está {dir} ({value} frente a tu línea base).',
+      dirs: { up: 'al alza', steady: 'estable', down: 'a la baja' },
+      noSleep: 'No hay datos de sueño de esa noche.',
+      sleep: '{when} dormiste {value} h, {delta} h frente a tu objetivo de {target} h.',
+      worse1: '{names} estuvo peor que lo habitual.',
+      worseN: '{names} estuvieron peor que lo habitual.',
+      allOk: 'Todo estuvo en lo habitual o mejor.',
+      and: ' y ',
+      loadDay: 'El esfuerzo relativo de hoy es {day}; tu día de entreno típico ronda {typical}.',
+      loadNoEffort: 'La sesión de hoy no tiene esfuerzo relativo; tu día de entreno típico ronda {typical}.',
+      loadRest: 'Aún no hay sesión hoy; tu día de entreno típico ronda {typical}.',
+      loadRestLast: 'Aún no hay sesión hoy. La última, el {date}, marcó {re} (día típico ~{typical}).',
+      loadTrend: 'En los últimos 7 días tu carga ha estado {band} ({pct} frente a tu media de 42 días).',
+      strainUsual: 'Tu día habitual es {value} (mediana de los 30 días anteriores).',
+    },
     // las pastillas gimnasio / carrera / bici de una página de carga (deepdive.js modSwitch; también cambian el dial de carga de Inicio)
     modSwitch: 'Modalidad de carga',
     contrib: {
@@ -478,8 +502,6 @@ export const es = {
         high: 'Una carga entre 14,0 y 17,9 es alta: tu sistema cardiovascular ha trabajado duro.',
         allOut: 'Una carga de 18 o más es máxima: uno de tus días más duros.',
       },
-      usual: 'Tu día habitual (mediana de los 30 días anteriores): {value}',
-      scale: 'Escala propia, relativa a ti: 18 = tu día del percentil 95 de los últimos {days} días.',
       noDay: 'Sin datos de frecuencia cardiaca de todo el día del {date}.',
       reTitle: 'Esfuerzo relativo por modalidad',
       notes: {
@@ -563,6 +585,7 @@ export const es = {
       },
     },
     weekly: { title: 'Tendencias semanales', aria: '{title}, últimos 7 días', minutes: 'Minutos', perf: 'Rendimiento del sueño (%)', restor: 'REM + profundo (h)' },
+    hist: { title: 'Historial', sub: 'Calendario y detalle del día' },
     stages: { aria: 'Fases del sueño', awake: 'Despierto', rem: 'REM', core: 'Ligero', deep: 'Profundo', unspec: 'Sin especificar' },
     sleepNotes: {
       perf: 'Rendimiento del sueño = horas dormidas ÷ tu necesidad × 100, con un máximo de 100 %. Tu necesidad = tu objetivo de sueño ({target} h); no se ajusta al entrenamiento ni a la deuda de sueño.',

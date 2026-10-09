@@ -497,6 +497,10 @@ html.dt-lock body {
   border-radius: 3px;
   background: var(--trend);
 }
+/* 6M / 1Y: the dots are the out-of-range days, good or bad */
+.dt-k-out::before {
+  background: linear-gradient(90deg, var(--good) 50%, var(--low) 50%);
+}
 .dt-k-line::before {
   height: 2px;
   vertical-align: 3px;
@@ -625,6 +629,54 @@ button.dt-day {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
+}
+/* the window's days by range: a stacked bar (the states' tints) + a count per state */
+.dt-brk-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dt-brk-t,
+.dt-learn {
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.dt-learn {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  color: var(--link);
+  cursor: pointer;
+}
+.dt-brk-bar {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.dt-brk-leg {
+  list-style: none;
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.dt-brk-leg li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.dt-brk-leg b {
+  margin-left: auto;
+  font-family: var(--num);
+  color: var(--ink);
 }
 .dt-sw {
   width: 12px;
@@ -1038,11 +1090,9 @@ button.dt-day {
 /* sleep stages: one stacked bar of the night (awake / REM / core / deep by hours) + a legend with the
  * hours and the % of time asleep. Shades of the sleep colour towards the violet link end: deeper =
  * darker-violet; awake is the faint neutral. */
-.dd-stages {
-  margin-top: var(--sp-7);
-}
 .dd-stbar {
   display: flex;
+  margin-top: var(--sp-5);
   gap: 2px;
   height: 12px;
   border-radius: 6px;
@@ -1179,6 +1229,46 @@ button.dt-day {
   font-weight: 600;
   color: var(--ink);
 }
+/* the deep-dive's History fold: one row (title, what is inside, a chevron) over the calendar + day */
+.dd-fold {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--sp-4) var(--sp-7);
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dd-fold-t {
+  font-size: var(--fs-xs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+.dd-fold-s {
+  flex: 1;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.dd-fold svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.dd-fold[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+.dd-hist-b > * {
+  margin-top: var(--sp-6);
+}
 /* weekly trends: one card per input, 7 bars (values on top, today's column lighter) */
 .dd-sec {
   margin-top: var(--sp-11);
@@ -1244,6 +1334,10 @@ button.dt-day {
 .dd-c-low {
   background: var(--low);
 }
+/* the recovery % bars' value in its band colour (as the reference) */
+.dd-v-good { color: var(--good); }
+.dd-v-mid { color: var(--mid); }
+.dd-v-low { color: var(--low); }
 .dd-c-sleep {
   background: var(--sleep);
 }
