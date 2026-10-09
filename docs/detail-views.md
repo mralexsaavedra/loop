@@ -90,9 +90,9 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   goal (`HCNutri.targetFor`, like Constancia); detail.js `metric('nutrition')` reads it, and it joins
   the trend picker once a day is scored. Host tab `nutricion` (`DETAIL_TAB`), copy
   `I18N_DETAIL.metrics.nutrition`, hash `#detail/nutrition[/<date>]`. Calendar / chart states `good` /
-  `mid` / `bad` (≥ 85 / 60–84 / < 60); today is `partial` ("so far": neutral, never in the period
-  average, like a daily total); the day panel = the score (+ "So far today"), each component's eaten /
-  target and points (a left-out one: "—" + why), then the notes that apply (a macro missing, a main
+  `mid` / `bad` (≥ 85 / 60–84 / < 60); today is `partial`: no point on the chart and never in the period
+  average (`HCNutriScore.metric` gives it `null`); the day panel = the score, each component's eaten /
+  target and points ("75 / 100 pts") — for today "In progress" instead of the score and no points (a left-out one: "—" + why), then the notes that apply (a macro missing, a main
   meal unlogged, a rest day assumed from sleep). The generic trend view, no deep-dive page. `sessions` = one entry per date + modality after
   `mergeSameDay` DISPLAY_RULE (minutes, km, elevation, avg HR, RE, parts, source; the source is the
   precedence family, so "Apple Watch de <name>" is written "Apple Watch"), plus, when

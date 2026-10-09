@@ -1066,6 +1066,11 @@ details.rec-raw[open] > summary::after {
    the "%" smaller, Resumen de hoy's macro rows beside it, each bar in its component's band colour */
 .ns .nt-macros { flex: 1; min-width: 0; margin: 0; }
 .ns .nt-mac-track i { background: var(--ds); }
+/* today in progress: eaten / target only, the bar = progress toward the target in the neutral trend
+   colour (no points, no band), under a "Today · in progress" line when a closed day heads the card */
+.ns-run { --ds: var(--trend); }
+.ns-run-box { flex: 1; min-width: 0; }
+.ns-run-lbl { max-width: none; margin-bottom: var(--sp-2); }
 .en-num small { font-size: var(--fs-lg); }
 
 /* Inicio "My plan" (client/home-week.js): one collapsible weekly card — title + chevron, days left,

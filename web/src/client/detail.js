@@ -739,15 +739,16 @@
     var sub = d ? format(P.daySub, { start: d.start, wake: d.wake, min: d.min.lv }) : '';
     return row(P.dayLbl, fmt(v, 0) + ' · ' + (P.bands[b === 'good' ? 'hi' : b === 'mid' ? 'mid' : 'lo'] || ''), sub);
   }
-  // the nutrition score's day: the score (so far today) + each component's eaten / target and points,
-  // then why the day may read short (a macro missing, a main meal unlogged, an assumed rest day)
+  // the nutrition score's day: the score + each component's eaten / target and points ("85 / 100 pts"),
+  // then why the day may read short (a macro missing, a main meal unlogged, an assumed rest day). Today
+  // is still filling up: "in progress" instead of a score, eaten / target without points.
   function nscoreDayHtml(m, iso) {
     var r = m.days && own(m.days, iso) ? m.days[iso] : null, P = T.day.ns;
     if (!r || !P) return '<p class="dt-nodata">' + esc(T.day.noData) + '</p>';
-    var out = [row(P.score, HC.pct(r.score), r.partial ? P.soFar : '')];
+    var out = [r.partial ? row(P.score, P.inProgress, P.inProgressSub) : row(P.score, HC.pct(r.score), '')];
     ['k', 'p', 'f'].forEach(function (c) {
       var x = r.parts[c], u = c === 'k' ? 'kcal' : 'g';
-      out.push(x ? row(P[c], (x.min ? '≥ ' : '') + fmt(x.v, 0) + ' / ' + fmt(x.t, 0) + ' ' + u, x.pts + ' / 100') : row(P[c], '—', P.unknown));
+      out.push(x ? row(P[c], (x.min ? '≥ ' : '') + fmt(x.v, 0) + ' / ' + fmt(x.t, 0) + ' ' + u, r.partial ? '' : format(P.pts, { pts: x.pts })) : row(P[c], '—', P.unknown));
     });
     if (r.inc) out.push('<p class="dt-note">' + esc(P.inc) + '</p>');
     if (!r.meals) out.push('<p class="dt-note">' + esc(P.meals) + '</p>');
