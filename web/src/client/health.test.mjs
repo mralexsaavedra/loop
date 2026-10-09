@@ -289,8 +289,8 @@ test('recovery: resting HR / HRV / sleep lead with the newest value, the 30-day 
   assert.match(html, /<section class="hs-sec hs-sec-sleep" id="hl-sleep"/, 'sleep: the section is the anchor');
   assert.match(html, /71<\/b><small>ms<\/small><span class="db-arr db-good" aria-hidden="true">▲<\/span><\/span><span class="db-base">60<\/span>/);
   assert.match(html, /aria-label="HRV: 71 ms, 30 Jun · 30-day avg 60 ms · above"/);
-  assert.match(html, /6.4<\/b><small>h<\/small><span class="db-arr db-bad" aria-hidden="true">▼<\/span><\/span><span class="db-base">7.2<\/span>/);
-  assert.match(html, /30-night avg 7.2 h/);
+  assert.match(html, /6:24<\/b><span class="db-arr db-bad" aria-hidden="true">▼<\/span><\/span><span class="db-base">7:12<\/span>/);
+  assert.match(html, /30-night avg 7:12/);
   assert.match(html, /52<\/b><small>bpm<\/small><span class="db-arr db-bad" aria-hidden="true">▲<\/span>/, 'resting HR above its baseline is the bad way');
   assert.match(html, /14.8<\/b><small>brpm<\/small><span class="db-arr db-flat"/, 'a change signal has no good direction: grey');
   assert.match(html, /<section class="hs-sec hs-sec-recovery" id="hl-recovery"/, 'the section anchor is kept');
@@ -423,8 +423,8 @@ test('sleep consistency: % nights on target, ±spread, bedtime / wake as rows th
     recovery: { hasData: true, sleep: { latest: 7.1, avg: 7.2, nights: 30, latestDate: '2026-06-30', spark: sp, target: 7.5, pctTarget: 40, sd: 0.6, bedtime: '23:40', bedtimeSd: 25, wake: '07:05', wakeSd: 18 } },
   };
   const html = renderAt(H, '2026-07-01', { detail: true });
-  assert.match(html, /<span class="db-name">nights ≥ 7.5 h<\/span><span class="db-vals"><span class="db-val"><b>40<\/b><small>%<\/small>/);
-  assert.match(html, /<b>±0.6<\/b><small>h<\/small>/);
+  assert.match(html, /<span class="db-name">nights ≥ 7:30<\/span><span class="db-vals"><span class="db-val"><b>40<\/b><small>%<\/small>/);
+  assert.match(html, /<b>±0:36<\/b>/);
   assert.match(html, /<b>23:40<\/b><\/span><span class="db-base">±25′<\/span>/);
   assert.match(html, /<b>07:05<\/b><\/span><span class="db-base">±18′<\/span>/);
   assert.equal((html.match(/data-detail="sleep"/g) || []).length, 5);
@@ -436,8 +436,8 @@ test('sleep stages: REM / deep / core / awake rows (hours, % of asleep, vs the s
   const H = (sl) => ({ body: none, activity: none, energy: none, running: none, loadRecovery: none, recovery: { hasData: true, sleep: sl } });
   const html = renderAt(H({ ...base, stages }), '2026-07-01', { detail: true });
   for (const k of ['rem', 'deep', 'core', 'awake', 'eff']) assert.ok(html.includes(`<span class="db-name">${enHealth.sleepCards.stages[k]}</span>`), k);
-  assert.match(html, /REM sleep<\/span><span class="db-vals"><span class="db-val"><b>1.6<\/b><small>h<\/small>/);
-  assert.ok(html.includes('23% · 1.4'), 'share of asleep, then the mean');
+  assert.match(html, /REM sleep<\/span><span class="db-vals"><span class="db-val"><b>1:36<\/b><span class="db-arr/);
+  assert.ok(html.includes('23% · 1:24'), 'share of asleep, then the mean (h:mm)');
   assert.match(html, /sleep efficiency<\/span><span class="db-vals"><span class="db-val"><b>93<\/b><small>%<\/small>/);
   assert.ok(html.includes(enHealth.sleepStagesNoteHtml), 'ⓘ explains stages + efficiency');
   const old = renderAt(H(base), '2026-07-01', { detail: true });

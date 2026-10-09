@@ -142,11 +142,9 @@ var HC = (function () {
     if (hidden || !isoDate(loadDay) || !isoDate(today) || loadDay === today) return 'none';
     return busy ? 'defer' : 'reload';
   }
-  // minutes -> "1 h 45 min" / "45 min" / "1 h"; units = {h, min} from the page's i18n dict
-  function duration(min, units) {
-    min = Math.round(min);
-    var h = Math.floor(min / 60), m = min % 60;
-    return h ? h + ' ' + units.h + (m ? ' ' + m + ' ' + units.min : '') : m + ' ' + units.min;
+  // minutes -> "1:45" / "0:45" (h:mm, the one duration format; the old `units` argument is ignored)
+  function duration(min) {
+    return HC_FMT.fmtMinutes(min);
   }
 
   // The ONE metric-row markup (Inicio "My dashboard", the Salud monitor and metric rows, Entreno's run /

@@ -27,7 +27,7 @@ export const es = {
   title: 'Salud',
   // ⓘ of the Salud header and of each section: aria-label of the toggle button
   infoTpl: 'Sobre {section}',
-  rowsHelp: 'Cada fila: el último valor a la derecha; debajo, en pequeño, tu media de 30 días (o el cambio Δ en las medidas sueltas) y ▲▼ frente a ella — verde azulado si va en la buena dirección, naranja si no, gris sin dirección buena o dentro de ±2 %. Un total de hoy va en curso y no se compara. Toca una fila para ver su historial (S · M · 6M · 1A).',
+  rowsHelp: 'Cada fila: el último valor a la derecha; debajo, en pequeño, tu media de 30 días (o el cambio Δ en las medidas sueltas) y ▲▼ frente a ella — verde azulado si va en la buena dirección, naranja si no, gris sin dirección buena o dentro de ±2%. Un total de hoy va en curso y no se compara. Toca una fila para ver su historial (S · M · 6M · 1A).',
   fitnessNoteHtml: '<b>↑ VO₂máx y ↓ FC al caminar</b> son las direcciones buenas. VO₂máx: Δ desde la primera lectura. FC al caminar: frente a su media de 30 días.',
   // Fitness: the fitness-age block (client/health.js, SCORES.fitnessAge from lib/score/fitness-age.mjs)
   fitnessAge: {
@@ -143,7 +143,7 @@ export const es = {
   cyclingNote: 'Tus <b>{count}</b> salidas en bici (más recientes arriba). Tiempo = en movimiento (Strava) o duración del entreno (reloj); desnivel positivo, esfuerzo relativo (Esf.) y trabajo en kJ solo llegan de Strava — un guion es un dato que la fuente no registró, nunca un cero. Igual que en carrera: no es una tendencia; compara esfuerzo y FC en rutas parecidas.',
   cyclingEmptyHtml: '<b>Aún no hay salidas en bici.</b> Aparecen desde los entrenos de ciclismo del reloj o desde Strava (<code>npm run sync:strava</code>).',
   sleepCards: {
-    nightsTargetLbl: 'noches ≥ {target} h',
+    nightsTargetLbl: 'noches ≥ {target}',
     sdLbl: 'variación noche a noche',
     bedtimeLbl: 'hora de acostarse',
     wakeLbl: 'hora de despertar',
@@ -277,7 +277,7 @@ export const en = {
   cyclingNote: 'Your <b>{count}</b> rides (most recent first). Time = moving time (Strava) or workout duration (watch); elevation gain, relative effort and work in kJ come from Strava only — a dash is a value the source did not record, never a zero. As with running, this is not a trend; compare effort and HR on similar routes.',
   cyclingEmptyHtml: '<b>No rides yet.</b> They appear from the watch’s cycling workouts or from Strava (<code>npm run sync:strava</code>).',
   sleepCards: {
-    nightsTargetLbl: 'nights ≥ {target} h',
+    nightsTargetLbl: 'nights ≥ {target}',
     sdLbl: 'night-to-night spread',
     bedtimeLbl: 'bedtime',
     wakeLbl: 'wake time',

@@ -61,7 +61,7 @@
   function kf(n) { // thousands separator: 3.050 (es) / 3,050 (en)
     return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, HC.isEs() ? '.' : ',');
   }
-  function dur(min) { return HC.duration(min, T.units); }
+  function dur(min) { return HC.duration(min); }
   function isBike(d) { return d === 'bike' || d === 'bikeLong'; }
 
   /* ---------- storage (per-viewer convenience, never required) ---------- */

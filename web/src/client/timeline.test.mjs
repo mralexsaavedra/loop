@@ -50,14 +50,14 @@ test('viewer today: "Today\'s activities" heading, last night\'s sleep first, th
   assert.equal(enT.timeline.heading, 'Today\'s activities');
   assert.ok(html.includes(`<h3>${enT.timeline.heading}</h3>`));
   assert.deepEqual(rows(html), [
-    { cls: 'tl-sleep', text: '6.9 h Sleep' },
-    { cls: 'tl-run', text: '94 Run 45 min' },
-    { cls: 'tl-bike', text: '30 min Bike' },
+    { cls: 'tl-sleep', text: '6:52 Sleep' },
+    { cls: 'tl-run', text: '94 Run 0:45' },
+    { cls: 'tl-bike', text: '0:30 Bike' },
   ]);
   const sleep = html.match(/<li class="tl-row tl-sleep"[\s\S]*?<\/li>/)[0];
-  assert.match(sleep, /<span class="tl-chip"><svg class="tl-ico"[^>]*aria-hidden="true">[\s\S]*?<\/svg><b>6\.9 h<\/b><\/span><span class="tl-name">Sleep<\/span>/);
-  assert.match(html, /<li class="tl-row tl-run" aria-label="Run · RE 94 · 45 min"><span class="tl-chip">[\s\S]*?<b>94<\/b><\/span><span class="tl-name">Run<\/span><span class="tl-side tl-times"><span>45 min<\/span><\/span>/);
-  assert.match(html, /<li class="tl-row tl-bike" aria-label="Bike · 30 min"><span class="tl-chip">[\s\S]*?<b>30 min<\/b><\/span><span class="tl-name">Bike<\/span><\/li>/, 'no RE: the minutes stay in the chip, nothing on the right');
+  assert.match(sleep, /<span class="tl-chip"><svg class="tl-ico"[^>]*aria-hidden="true">[\s\S]*?<\/svg><b>6:52<\/b><\/span><span class="tl-name">Sleep<\/span>/);
+  assert.match(html, /<li class="tl-row tl-run" aria-label="Run · RE 94 · 0:45"><span class="tl-chip">[\s\S]*?<b>94<\/b><\/span><span class="tl-name">Run<\/span><span class="tl-side tl-times"><span>0:45<\/span><\/span>/);
+  assert.match(html, /<li class="tl-row tl-bike" aria-label="Bike · 0:30"><span class="tl-chip">[\s\S]*?<b>0:30<\/b><\/span><span class="tl-name">Bike<\/span><\/li>/, 'no RE: the duration stays in the chip, nothing on the right');
   assert.doesNotMatch(html, /NaN|undefined|<script|src=|href=/);
 });
 
@@ -107,12 +107,12 @@ test('empty state: no baked days, or no timeline at all', () => {
   assert.doesNotThrow(() => render(undefined));
 });
 
-test('es: decimal comma, Spanish labels, merged parts counted', () => {
+test('es: h:mm, Spanish labels, merged parts counted', () => {
   const tl = timelineFromInputs([w(ASOF, 'HighIntensityIntervalTraining', 30), w(ASOF, 'TraditionalStrengthTraining', 25, 20)], [{ date: ASOF, value: 7.25 }]);
   const r = rows(render(tl, { locale: 'es' }));
   assert.deepEqual(r, [
-    { cls: 'tl-sleep', text: '7,3 h Sueño' },
-    { cls: 'tl-gym', text: '20 Gimnasio 55 min 2 partes' },
+    { cls: 'tl-sleep', text: '7:15 Sueño' },
+    { cls: 'tl-gym', text: '20 Gimnasio 0:55 2 partes' },
   ]);
 });
 
@@ -208,8 +208,8 @@ test('day stepping: a past day lists THAT day from DETAIL — the same rows SCOR
   const ref = render(timelineFromInputs(WO.filter((r) => r.date <= '2026-09-28'), SL.filter((r) => r.date <= '2026-09-28')), { detail: DET, now: '2026-09-28' });
   assert.deepEqual(rows(html), rows(ref));
   assert.deepEqual(rows(html).map((r) => r.cls), ['tl-sleep', 'tl-gym', 'tl-run']);
-  assert.match(rows(html)[1].text, /^40 Gym 55 min 2 parts$/);
-  assert.match(html, /aria-label="Gym · RE 40 · 55 min · 2 parts"/);
+  assert.match(rows(html)[1].text, /^40 Gym 0:55 2 parts$/);
+  assert.match(html, /aria-label="Gym · RE 40 · 0:55 · 2 parts"/);
   assert.match(html, /data-detail="load-run" data-date="2026-09-28"/);
   assert.doesNotMatch(html, /sc-stale|tl-prog|Nothing logged yet today/);
 });
@@ -218,7 +218,7 @@ test('day stepping: a night without workouts, a day with nothing, and a change b
   const day = stepper('2026-09-26');
   const host = render(TL2, { detail: DET, day });
   assert.deepEqual(rows(host).map((r) => r.cls), ['tl-sleep']);
-  assert.match(rows(host)[0].text, /7.4 h.*23:30.*07:00/);
+  assert.match(rows(host)[0].text, /7:24.*23:30.*07:00/);
   const none = render(TL2, { detail: DET, day: stepper('2026-09-27') });
   assert.ok(none.includes(enT.timeline.noDay));
   assert.doesNotMatch(none, /tl-row/);

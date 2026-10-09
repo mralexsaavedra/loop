@@ -12,6 +12,7 @@ import { renderAdvice } from '../../../lib/score/advice-copy.mjs';
 import { es as esT, en as enT } from '../i18n/score-templates.mjs';
 import { buildDials } from '../view/dial.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
+import { fmtHours } from '../../../lib/format/numbers.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'score.js'), 'utf8');
@@ -193,14 +194,14 @@ test('recovery card: contributors are compact rows (state dot, name, latest valu
   const info = text(html.match(/<div class="hs-info" id="rec-info" hidden>([\s\S]*?)<\/div><!--\/rec-info-->/)[1]);
   for (const [i, c] of s.recovery.components.entries()) {
     const body = rows[i][2];
-    const dec = c.unit === 'h' ? 2 : c.unit === 'min' ? 0 : 1;
+    const dec = c.unit === 'min' ? 0 : 1;
     const last = c.daily[c.daily.length - 1].value;
     assert.match(body, new RegExp(`<span class="rec-dot sc-dot-${c.band}"`), 'state colour dot');
     assert.ok(body.includes(enT.recovery.components[c.key]));
-    assert.ok(text(body).includes(`${last.toFixed(dec)} ${c.unit}`), 'latest value + unit');
+    assert.ok(text(body).includes(c.unit === 'h' ? fmtHours(last) : `${last.toFixed(dec)} ${c.unit}`), 'latest value + unit (hours as h:mm, no unit)');
     assert.ok(text(body).includes(`${(c.trend7 > 0 ? '+' : '') + c.trend7.toFixed(1)} SD`), 'SD vs baseline, the same unit as the composite');
     assert.ok(!text(body).includes('n='), 'n moved to the ⓘ');
-    const baseline = enT.recovery.baselineLbl.replace('{value}', c.baseline.toFixed(dec)).replace('{unit}', c.unit);
+    const baseline = c.unit === 'h' ? enT.recovery.baselineLbl.replace('{value}', fmtHours(c.baseline)).replace(' {unit}', '') : enT.recovery.baselineLbl.replace('{value}', c.baseline.toFixed(dec)).replace('{unit}', c.unit);
     assert.ok(!text(body).includes(baseline), 'baseline moved to the ⓘ');
     assert.ok(info.includes(`${enT.recovery.components[c.key]}: ${baseline} · n=${c.n}`), 'baseline · n per contributor in the ⓘ');
     assert.doesNotMatch(body, /sc-raw-v/, 'no raw number list inline');
@@ -526,7 +527,7 @@ test('% copy: band words and the mapping note exist in es + en', () => {
   for (const T of [enT, esT]) {
     assert.deepEqual(Object.keys(T.recovery.pctBands), ['good', 'mid', 'low']);
     assert.match(T.recovery.pctNote, /90/);
-    assert.match(T.dials.recovery.ariaPct, /\{value\} %/);
+    assert.match(T.dials.recovery.ariaPct, /\{value\}%/);
   }
 });
 
@@ -613,12 +614,12 @@ test('sleep dial: sleep performance % in the ring (asleep / need), hours + need 
   assert.ok(Number.isInteger(dials.sleep.pct));
   assert.equal(dials.sleep.pct, Math.min(100, Math.round((100 * last) / 7.5)));
   assert.ok(d.includes(`<b class="dial-num">${dials.sleep.pct}<small>%</small></b>`), 'the % inside the ring');
-  assert.ok(d.includes(last.toFixed(1).replace('.', ',')), 'hours with a comma in the accessible name');
-  assert.ok(d.includes('7,5'), 'need (= the target) in the accessible name');
+  assert.ok(d.includes(fmtHours(last)), 'hours as h:mm in the accessible name');
+  assert.ok(d.includes('7:30'), 'need (= the target) in the accessible name');
   assert.ok(d.includes(esT.dials.sleep.label));
   // fallback: a dial without a % keeps the hours
   const h = dialOf(render(s, { dials: { ...dials, sleep: { ...dials.sleep, pct: null } }, locale: 'es', T: esT }), 'dial-sleep');
-  assert.match(h, /<b class="dial-num">\d,\d<small>h<\/small><\/b>/);
+  assert.match(h, /<b class="dial-num">\d:\d\d<small><\/small><\/b>/, 'hours as h:mm, no unit');
 });
 
 test('load dial: one visible modality (default = first ungated), no pills on Inicio (they are in the load deep-dive), gated greyed with the existing copy', () => {

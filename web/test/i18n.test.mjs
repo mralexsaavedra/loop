@@ -261,7 +261,6 @@ test('activity-templates.mjs (Entreno header + Activity card) has identical key 
 test('score-templates.mjs timeline copy has the placeholders timeline.js relies on', () => {
   for (const dict of [esScore, enScore]) {
     assert.match(dict.timeline.dateHeading, /\{date\}/);
-    assert.match(dict.timeline.minutes, /\{n\}/);
     assert.match(dict.timeline.re, /\{n\}/);
     assert.deepEqual(Object.keys(dict.timeline.modalities), ['gym', 'run', 'bike', 'other']);
   }

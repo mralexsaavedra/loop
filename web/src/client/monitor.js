@@ -57,11 +57,15 @@
     var age = daysOld(c.date);
     var old = age != null && age > STALE_DAYS;
     var unit = T.units[c.key] || '';
-    var value = num(c.value, c.dec);
+    // hours (sleep) read as h:mm and carry no unit (docs/design-system.md → "Numbers")
+    var hm = unit === 'h';
+    if (hm) unit = '';
+    var value = hm ? HC.hours(c.value) : num(c.value, c.dec);
     // the range is written one decimal finer than the value (max 2), so a value just past the edge
-    // never reads as sitting on it (e.g. 15.1 vs "14.2–15.1" for a High)
+    // never reads as sitting on it (e.g. 15.1 vs "14.2–15.1" for a High); hours to the minute
     var rd = Math.min(c.dec + 1, 2);
-    var lo = c.band && !old ? num(c.band.lo, rd) : '', hi = c.band && !old ? num(c.band.hi, rd) : '';
+    var bound = function (v) { return hm ? HC.hours(v) : num(v, rd); };
+    var lo = c.band && !old ? bound(c.band.lo) : '', hi = c.band && !old ? bound(c.band.hi) : '';
     var range = c.band && !old ? T.rangeLbl.replace('{lo}', lo).replace('{hi}', hi) : '';
     var rangeAria = range ? (T.rangeAria || T.rangeLbl).replace('{lo}', lo).replace('{hi}', hi) : '';
     var status = old ? T.status.stale : T.status[c.status] || '';
