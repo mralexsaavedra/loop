@@ -225,3 +225,12 @@ test('day stepping: a night without workouts, a day with nothing, and a change b
   const es = render(TL2, { locale: 'es', detail: DET, day: stepper('2026-09-27') });
   assert.ok(es.includes('<h3>Actividades · dom 27 sept</h3>'));
 });
+
+test('carried values (HC.carried): today not in the data yet -> the newest earlier day keeps its dated heading and is dimmed; today, a day ahead of the clock and a stepped-to day are normal; stale stays the stronger grey', () => {
+  assert.match(render(TL, { now: '2026-09-30' }), /class="sc-card tl carried"/);
+  assert.doesNotMatch(render(TL), /carried/);
+  assert.doesNotMatch(render(TL, { now: '2026-09-20' }), /carried/, 'ahead of the clock');
+  const old = render(TL, { now: '2026-10-03' });
+  assert.match(old, /class="sc-card tl sc-stale"/);
+  assert.doesNotMatch(old, /carried/);
+});

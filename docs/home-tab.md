@@ -167,6 +167,13 @@ trend is the line under it.
   previous 42 nights — the recovery input `sleepCons`; no documented minutes → % mapping exists, so no
   %); `stages` (REM / deep / core / unspecified / awake / in bed hours), `shares` (REM / deep / core %
   of asleep) and `restorative` (REM + deep hours) only on a staged night.
+- **Carried values** (`HC.carried`, `docs/design-system.md` → Carried values): any Inicio display that
+  stands for today (or the stepped-to day) but shows an EARLIER day's value names that date and is
+  dimmed (`.carried`, colour kept; the > 3-day stale grey stays the stronger state): the sleep and
+  recovery dials + mini rings ("7 OCT" under the number), the monitor summary tile ("8 OCT" under
+  "5/5 metrics": the newest night it counts), the stress and HRV tiles ("8 OCT · 23:00"), the energy bank card
+  ("8 OCT · 21:00"; it then opens its page on that day) and "My day" (its "Activities · Thu 8 Oct"
+  heading). The tiles and the energy card drop the weekday (half-width); the "My day" heading keeps it.
 - **Day stepping** (the top bar's "‹ HOY ›", `client/today-date.js` `window.HCDay`, see
   `docs/plan-page.md` → Top bar): Inicio can show a PAST day (`#d=YYYY-MM-DD`). The blocks that follow
   it re-render on every change (`HCDay.on`); everything else keeps its own scope. TODAY goes through
@@ -232,10 +239,12 @@ trend is the line under it.
   (or the night's date) / "no recent complete night" are in the accessible name, and the recovery
   deep-dive page adds "no sleep data" and the 7-day trend. A night CARRIED from an earlier day (today's
   is not complete yet — e.g. no resting HR or too few HRV samples — so `recovery.mjs` falls back up to
-  `MAX_TODAY_FALLBACK_DAYS`) is never shown as today's: the ring adds that night's date under the number
-  (`.dial-asof`, "7 OCT": the weekday does not fit inside a 360 px ring) and is dimmed like stale data (`sc-stale`, the mini ring too); the
-  deep-dive page is titled with that date and dims its hero (`docs/detail-views.md`). A stepped-to
-  past day shows its own night and is never marked. Sleep: fill = the sleep-duration component's newest night /
+  `MAX_TODAY_FALLBACK_DAYS`; or the sleep dial's newest night is not today's) is never shown as today's:
+  the carried-value rule (`HC.carried`, `docs/design-system.md` → Carried values) adds that night's date
+  under the number (`.carried-date`, "7 OCT": the weekday does not fit inside a 360 px ring) and dims the
+  dial (`.carried`, colour kept; the mini ring too; the sleep dial's aria names the date); the deep-dive
+  page is titled with that date and dims its hero (`docs/detail-views.md`). A stepped-to past day's own
+  night is never marked. Sleep: fill = the sleep-duration component's newest night /
   the stated target (`health.recovery.sleep.target`, 7.5 h), capped at a full ring; `pct` = sleep
   performance (same fraction as a rounded %, `lib/score/sleep.mjs` `sleepPerformance`): the centre shows
   "92" + a small "%" in the sleep colour (the mini row reuses the same svg + accessible name, which

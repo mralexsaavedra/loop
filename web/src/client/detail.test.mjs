@@ -690,22 +690,33 @@ test('recovery deep-dive: a gated recovery shows the dial\'s word in an empty ri
   assert.match(heroOf(old.host.innerHTML), /^ dd-\w+ dd-stale"/, 'stale data greys the hero like the dial');
 });
 
-test('recovery deep-dive: a night carried from an earlier day (2 days old, under the stale cut) titles the page with that night\'s date, not "Today", and dims the hero like the dial', () => {
-  const night = DEMO.metrics.recovery.head.date;
-  const s = setup({ now: addDays(night, 2), dials: DIALS });
-  s.api.open('recovery');
-  const h = headOf(s.host.innerHTML);
-  assert.doesNotMatch(h, new RegExp(`</span>${enT.deep.today}</h2>`));
-  const d = new Date(night + 'T00:00:00Z');
-  const want = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getUTCDay()] + ' ' + d.getUTCDate() + ' ';
-  assert.match(h, new RegExp(`</span>${want}[A-Z][a-z]{2,3}</h2>`), h.slice(-80));
-  assert.match(heroOf(s.host.innerHTML), /^ dd-\w+ dd-stale"/);
-  assert.match(s.host.innerHTML, new RegExp(`<p class="dd-legend">.*?<b>${want}[A-Z][a-z]{2,3}</b> ${enT.deep.contrib.legendRest}`), 'the legend names the night too');
-  // the night is today's: "Today", not dimmed
-  const fresh = setup({ now: night, dials: DIALS });
-  fresh.api.open('recovery');
-  assert.ok(headOf(fresh.host.innerHTML).includes(`</span>${enT.deep.today}</h2>`));
-  assert.doesNotMatch(heroOf(fresh.host.innerHTML), /dd-stale/);
+test('carried values (HC.carried): a recovery or sleep night from an earlier day titles its deep-dive with that night\'s date (weekday kept), names it in the legend and dims the hero (not the stale grey); the night of today is "Today", normal', () => {
+  for (const key of ['recovery', 'sleep']) {
+    const night = key === 'recovery' ? DEMO.metrics.recovery.head.date : DIALS.sleep.date;
+    const s = setup({ now: addDays(night, 2), dials: DIALS });
+    s.api.open(key);
+    const h = headOf(s.host.innerHTML);
+    assert.doesNotMatch(h, new RegExp(`</span>${enT.deep.today}</h2>`), key);
+    const d = new Date(night + 'T00:00:00Z');
+    const want = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getUTCDay()] + ' ' + d.getUTCDate() + ' ';
+    assert.match(h, new RegExp(`</span>${want}[A-Z][a-z]{2,3}</h2>`), key + ': ' + h.slice(-80));
+    assert.match(heroOf(s.host.innerHTML), /^ dd-\w+ carried"/, key + ': the hero is dimmed (carried)');
+    assert.doesNotMatch(heroOf(s.host.innerHTML), /dd-stale/, key + ': dimmed, not greyed');
+    assert.match(s.host.innerHTML, new RegExp(`<p class="dd-legend">.*?<b>${want}[A-Z][a-z]{2,3}</b> ${enT.deep.contrib.legendRest}`), key + ': the legend names the night too');
+    // the night is today's: "Today", not dimmed
+    const fresh = setup({ now: night, dials: DIALS });
+    fresh.api.open(key);
+    assert.ok(headOf(fresh.host.innerHTML).includes(`</span>${enT.deep.today}</h2>`), key + ' today');
+    assert.doesNotMatch(heroOf(fresh.host.innerHTML), /carried|dd-stale/, key + ' today');
+  }
+});
+
+test('carried values: the load deep-dive never carries (its hero reads the viewer\'s day only: the day\'s RE, else rest / no session)', () => {
+  const s = setup({ now: addDays(DEMO.asOf, 2), dials: DIALS });
+  const key = Object.keys(DEMO.metrics).find((k) => /^load-/.test(k));
+  s.api.open(key);
+  assert.ok(headOf(s.host.innerHTML).includes(`</span>${enT.deep.today}</h2>`));
+  assert.doesNotMatch(heroOf(s.host.innerHTML), /carried/);
 });
 
 test('weight header = the Salud card\'s 7-day rolling average (the chart line), with the latest raw reading underneath', () => {

@@ -274,9 +274,10 @@ test('day stepping: a past day shows THAT day\'s summary and HRV card (dated whe
   const h = tiles.innerHTML;
   assert.ok(h.includes(enT.monitor.tile.out.replace('{n}', '1')));
   assert.ok(h.includes(enT.monitor.tile.metrics.replace('{n}', '3').replace('{total}', '5')));
-  assert.match(h, /hmt-hrv hm-tone-bad" data-detail="hrv" data-date="2026-09-25"/);
+  assert.match(h, /hmt-hrv hm-tone-bad carried" data-detail="hrv" data-date="2026-09-25"/);
   assert.match(h, /<b>58<\/b>/);
-  assert.ok(h.includes('Thu 24 Sep'), 'the card\'s own date, not the day shown');
+  assert.ok(h.includes('<span class="hmt-sub"><span class="carried-date">24 Sep</span></span>'), 'the card\'s own date (carried from before the day shown), not the day shown');
+  assert.match(h, /class="hmt hmt-hrv hm-tone-bad carried"/, 'an earlier day\'s HRV is dimmed');
   assert.equal(list, render(monitor(), { detail: true }), 'the Salud list is untouched');
 });
 
@@ -329,7 +330,7 @@ test('tile 2 falls back to HRV without a stress value: none baked, too few hours
   assert.doesNotMatch(tilesOf(mon, { stress: STRESS, now: addDays(ASOF, 4) }), /hmt-stress/);
   // 1 day old: still shown, dated
   const y = stressTile(tilesOf(mon, { stress: STRESS, now: addDays(ASOF, 1), detail: true }));
-  assert.ok(y.includes('Tue 29 Sep · 14:00'));
+  assert.ok(y.includes('<span class="hmt-sub"><span class="carried-date">29 Sep</span> · 14:00</span>'));
 });
 
 test('stress tile: a reading from an earlier day (the owner\'s case: Thursday\'s 0.3 shown on Friday) opens the stress page ON that day, so tile and sheet agree; today\'s opens undated', () => {
@@ -357,4 +358,24 @@ test('es stress tile: Spanish copy, decimal comma', () => {
   assert.ok(t.includes('<span class="hmt-sv">1,8</span>'));
   assert.ok(t.includes(`>${esT.monitor.stress.bands.medium}<`));
   assert.equal(esT.monitor.stress.bands.medium, 'Medio');
+});
+
+test('carried values (HC.carried): a tile whose value is from before the shown day names that date (no weekday: a half-width tile) and is dimmed; the shown day\'s own value is normal', () => {
+  const mon = monitorFromInputs({ rhr: series({ base: 50, amp: 1, last: 50 }), hrv: series({ base: 60, amp: 2, last: 61 }) });
+  // the next morning, before the night syncs: every tile shows yesterday's values
+  const y = tilesOf(mon, { stress: STRESS, now: addDays(ASOF, 1), detail: true });
+  const sum = y.match(/<button type="button" class="hmt hmt-sum[^"]*"[\s\S]*?<\/button>/)[0];
+  assert.match(sum, /^<button type="button" class="hmt hmt-sum carried"/, 'summary tile dimmed');
+  assert.ok(sum.includes('</span><span class="hmt-sub"><span class="carried-date">29 Sep</span></span>'), 'the summary names the night it counts, on its own line');
+  assert.match(stressTile(y), /^<div class="hmt hmt-stress hmt-sb-medium carried"/, 'stress tile dimmed');
+  const h = tilesOf(mon, { now: addDays(ASOF, 1), detail: true });
+  assert.match(h, /<div class="hmt hmt-hrv hm-tone-normal carried"/, 'HRV tile dimmed');
+  assert.ok(h.includes('<span class="hmt-sub"><span class="carried-date">29 Sep</span></span>'));
+  // the same day: normal, undated
+  const t = tilesOf(mon, { stress: STRESS, detail: true }) + tilesOf(mon, { detail: true });
+  assert.doesNotMatch(t, /carried/);
+  // a stepped-to day's own stress reading is normal
+  const tiles = { innerHTML: '' };
+  render(monitor(), { tiles, day: stepper('2026-09-25'), days: DAYS, stress: STRESS, now: addDays(ASOF, 1), detail: true });
+  assert.doesNotMatch(stressTile(tiles.innerHTML), /carried/);
 });

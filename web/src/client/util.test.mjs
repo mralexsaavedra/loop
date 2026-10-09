@@ -201,3 +201,19 @@ test('switchBtn is THE switch: role=switch, aria-checked, the label escaped, no 
     '<button type="button" class="sw" role="switch" aria-checked="true" aria-label="Show &lt;HRV&gt;" data-key="hrv"><span class="sw-knob" aria-hidden="true"></span></button>');
   assert.match(HC.switchBtn(false, 'x'), /aria-checked="false"/);
 });
+
+test('carried: a value dated before the shown day names its date and is dimmed; the shown day\'s own value is normal; stale keeps the date, drops the dim', () => {
+  const HC = load({ at: '2026-10-09T08:00:00' });
+  assert.deepEqual({ ...HC.carried('2026-10-07') }, { carried: true, label: 'Wed 7 Oct', cls: ' carried' });
+  assert.deepEqual({ ...HC.carried('2026-10-07', null, { weekday: false }) }, { carried: true, label: '7 Oct', cls: ' carried' });
+  assert.deepEqual({ ...HC.carried('2026-10-09') }, { carried: false, label: '', cls: '' }, "today's value");
+  // a stepped-to past day: its own value is normal, an earlier one is carried
+  assert.equal(HC.carried('2026-10-05', '2026-10-05').carried, false);
+  assert.equal(HC.carried('2026-10-04', '2026-10-05').label, 'Sun 4 Oct');
+  // the stronger stale state keeps the date, never stacks the dim
+  assert.deepEqual({ ...HC.carried('2026-10-01', null, { stale: true }) }, { carried: true, label: 'Thu 1 Oct', cls: '' });
+  // no date / ahead of the clock: never carried
+  assert.equal(HC.carried(null).carried, false);
+  assert.equal(HC.carried('2026-10-10').carried, false);
+  assert.equal(load({ locale: 'es', at: '2026-10-09T08:00:00' }).carried('2026-10-07', null, { weekday: false }).label, '7 oct');
+});

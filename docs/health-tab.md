@@ -26,7 +26,10 @@ date pill show on Inicio only (`docs/plan-page.md`, top bar), the freshness / Sy
 `docs/home-tab.md` "Health monitor"; its header reads title → "n out of range" chip → ⓘ at the end); then the sections of `#health-body`, each a `<section
 class="hs-sec" id="hl-<key>">` with the shared sentence-case section heading (`.hs-lbl`, [design-system.md](design-system.md) → Components), an ⓘ toggle and a list of metric rows:
 **Recovery** (`#score-recovery`, the recovery card filled by score.js, restyled borderless and without a title of its own — the section heading names it, the card head keeps the as-of date, History and its ⓘ; its
-headline is last night's recovery % (the unit attached to the number at ~55 % of its size, "99%") with the % band word, or the SD value under 21 prior nights — its long
+headline is last night's recovery % (the unit attached to the number at ~55 % of its size, "99%") with the % band word, or the SD value under 21 prior nights; a night carried from an earlier day
+keeps its date above and the number + band word are dimmed (`HC.carried`, `docs/design-system.md` →
+Carried values; Salud's metric rows are "latest per metric" lists, each dated in its own line, so they
+keep only the stale grey) — its long
 lines join this section's ⓘ block, and its raw "Last 14 days" lists fold behind a quiet disclosure
 line, see `docs/home-tab.md` — then only the signals among resting HR, HRV, respiratory rate and wrist
 temperature that the monitor does NOT list: the monitor already shows them at the top, so they are

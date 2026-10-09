@@ -82,6 +82,42 @@ so an exception at >= 900 px never excuses the phone rule. A selector counts as 
 the SAME stylesheet puts it in the `--num` face — at the top level or in the same media query — a grouped
 `.a, .b { font-family: var(--num) }` included.
 
+## Carried values
+
+A display that stands for a day — the viewer's today, or the day stepped to with the top bar's "‹ ›" —
+but shows a value dated EARLIER is a **carried** value (today's night is not complete yet, the watch has
+not synced, the newest stress hour is yesterday's). It never reads as that day's:
+
+- **It names its date** and is **dimmed**: `opacity` 0.55, colour kept (`.carried`), the date in small
+  muted caps (`.carried-date`, both in `base.css`).
+- A value OF the shown day looks normal; a stepped-to past day's own value too.
+- The stale grey (> `STALE_DAYS`, `.sc-stale` and friends: dimmer AND greyscale, or "no recent data")
+  stays the STRONGER state: a stale value keeps its date and is never dimmed twice.
+- Date width: a dial centre (a 360 px ring) and a half-width tile drop the weekday ("7 OCT"); a sheet
+  title or a full-width line keeps it ("Wed 7 Oct").
+
+ONE helper decides it: `HC.carried(asOf, shownDay, opts)` (`client/util.js`) → `{carried, label, cls}`
+(`shownDay` null = the viewer's today; `opts.weekday: false` for the short date; `opts.stale` keeps
+the date and drops the dim class). Surfaces:
+
+| Surface | Value | Date shown |
+| --- | --- | --- |
+| Inicio dials: sleep, recovery (`score.js`) | the night | under the number ("7 OCT"); the mini ring dims |
+| Sleep + recovery deep-dives (`deepdive.js`) | the headline night | the sheet title + contributor legend ("Wed 7 Oct"); the hero dims |
+| Monitor summary tile (`monitor.js`) | the newest night it counts | under "5/5 metrics" ("8 OCT") |
+| Stress + HRV tiles (`monitor.js`) | the reading | its sub line ("8 OCT · 23:00") |
+| Energy bank card (`energy.js`) | the latest level | under the number ("8 OCT · 21:00"); opens that day |
+| "My day" (`timeline.js`) | the newest day's activities | the heading ("Activities · Thu 8 Oct") |
+| Salud recovery card (`score.js`) | the headline night | above the number ("Thu 8 Oct"); the number + band word dim |
+
+Kept as they are: Salud's monitor list and metric rows ("latest per metric" lists; each row already
+names its own date or keeps it in its accessible name), My dashboard (the latest value per metric, dimmed only when stale), Tonight (a forecast) and the
+nutrition card (its closed day is labelled "Yesterday" by design). Not carried by design: the load dial and the load / strain / stress / energy bank deep-dives (they read
+the shown day only: "No data", rest or no session, never an earlier day's value).
+
+- Guard (`design-system.test.mjs`): only `base.css` styles `.carried` / `.carried-date` (the dial only
+  places the date), `.carried` dims without greyscale, and every surface above calls `HC.carried`.
+
 ## Numbers
 
 ONE formatter for every number a viewer reads: `lib/format/numbers.mjs` (pure, no `Intl`, so every

@@ -53,14 +53,19 @@
     return '<svg class="en-sp" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">' +
       '<path class="en-a" d="' + line + ' L' + last + ' ' + H + ' L' + x(w0) + ' ' + H + ' Z"/><path class="en-l" d="' + line + '"/></svg>';
   }
+  // THE carried-value rule (HC.carried, docs/design-system.md → Carried values): a level from before
+  // the shown day is dimmed, names its date (short: the narrow column beside the curve) and opens the
+  // page ON that day, like the stress tile
   function cardHtml(d, sel) {
     var lv = d.now.lv, time = d.now.h != null ? clock(d.now.h) : d.wake;
-    var when = !sel && HC.daysOld(d.date) !== 0 ? HC.fmtDate(d.date) + ' · ' + time : time;
-    return '<div class="sc-card tn en de-' + band(lv) + '"' + (sel ? HC.detailAttrs('energy-bank', sel) : HC.detailAttrs('energy-bank')) +
+    var c = HC.carried(d.date, sel, { weekday: false });
+    var when = c.carried ? c.label + ' · ' + time : time;
+    var opens = sel || (c.carried ? d.date : null);
+    return '<div class="sc-card tn en de-' + band(lv) + c.cls + '"' + (opens ? HC.detailAttrs('energy-bank', opens) : HC.detailAttrs('energy-bank')) +
       ' aria-label="' + esc(format(T.aria, { value: lv, time: when })) + '">' +
       '<h3 class="tn-h">' + esc(T.heading) + ' <small class="tn-lbl">' + esc(T.estimate) + '</small></h3>' +
       '<div class="tn-row"><div class="tn-end"><span class="tn-time"><b class="en-num">' + esc(String(lv)) + '</b></span>' +
-      '<span class="tn-lbl">' + esc(when) + '</span></div>' + curve(d) + '</div>' +
+      '<span class="tn-lbl">' + (c.carried ? '<span class="carried-date">' + esc(c.label) + '</span> · ' : '') + esc(time) + '</span></div>' + curve(d) + '</div>' +
       '<p class="tn-lbl en-sub">' + esc(format(T.from, { start: d.start, wake: d.wake, min: d.min.lv })) + '</p></div>';
   }
   function render() {

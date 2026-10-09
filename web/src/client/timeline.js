@@ -64,8 +64,8 @@
     var H = Math.floor(m / 60), M = m % 60;
     return (H < 10 ? '0' : '') + H + ':' + (M < 10 ? '0' : '') + M;
   }
-  function card(inner, stale) {
-    return '<div class="sc-card tl' + (stale ? ' sc-stale' : '') + '" role="group" aria-label="' + esc(T.ariaLabel) + '">' + inner + '</div>';
+  function card(inner, stale, cls) {
+    return '<div class="sc-card tl' + (stale ? ' sc-stale' : cls || '') + '" role="group" aria-label="' + esc(T.ariaLabel) + '">' + inner + '</div>';
   }
   // today's programmed session (client/training-today.js), only on the viewer's today
   function programRow(today) {
@@ -156,7 +156,10 @@
     // the plan row belongs to the viewer's today: shown under today's heading only
     if (plan && isToday) list.push(plan);
     out.push('<ul class="tl-list">' + list.join('') + '</ul>');
-    return card(out.join(''), !!day && daysOld(day.date) > HC.STALE_DAYS);
+    // THE carried-value rule (HC.carried): today's activities not in yet -> the newest earlier day,
+    // dated in the heading (above) and dimmed; stale (> STALE_DAYS) stays the stronger grey
+    var stale = !!day && daysOld(day.date) > HC.STALE_DAYS;
+    return card(out.join(''), stale, day && !ahead ? HC.carried(day.date, today, { stale: stale }).cls : '');
   }
 
   var DAY = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
