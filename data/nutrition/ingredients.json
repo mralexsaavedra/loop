@@ -461,6 +461,60 @@
         "amt": 250
       }
     },
+    "cerveza1906": {
+      "per": 100,
+      "unit": "ml",
+      "cat": "drink",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Cerveza 1906 Reserva Especial (6,5%)",
+        "en": "1906 Reserva Especial beer (6.5%)"
+      },
+      "note": "Values from a nutrition database (fitia.app \"1906 Cerveza Reserva\", per 100 ml); about 6.5% alcohol, so kcal exceed the macros; replace with the label when available",
+      "k": 54,
+      "p": 0,
+      "c": 3.9,
+      "g": 0,
+      "piece": {
+        "name": {
+          "es": "botellín",
+          "en": "small bottle"
+        },
+        "plural": {
+          "es": "botellines",
+          "en": "small bottles"
+        },
+        "amt": 330
+      }
+    },
+    "cerveza00tostada": {
+      "per": 100,
+      "unit": "ml",
+      "cat": "drink",
+      "swap": false,
+      "verified": false,
+      "name": {
+        "es": "Estrella Galicia 0,0 Tostada",
+        "en": "Estrella Galicia 0.0 Tostada (alcohol-free)"
+      },
+      "note": "kcal from a nutrition database (fitia.app \"Cerveza 0% Alcohol Tostada - Estrella Galicia\", per 100 ml), which gives only kcal; protein and carbs DERIVED from the kcal for a 0.0% beer (no alcohol, no fat: 4 × 0.3 + 4 × 5.7 = 24); replace with the label when available",
+      "k": 24,
+      "p": 0.3,
+      "c": 5.7,
+      "g": 0,
+      "piece": {
+        "name": {
+          "es": "botellín",
+          "en": "small bottle"
+        },
+        "plural": {
+          "es": "botellines",
+          "en": "small bottles"
+        },
+        "amt": 250
+      }
+    },
     "chocolate": {
       "per": 100,
       "unit": "g",
