@@ -64,8 +64,7 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
 - Padding: list rows (`.db-row`, 8 × 12 px: rows stack into a list), fold rows (`.sec-fold > summary`,
   a min-height, side padding only), the compact macro tile `.mac`, the empty state `.train-empty` (a
   centred message) and the sheets' own cards (`detail.css`, `profile.css`, the food sheet's form), which
-  sit on the sheet's 16 px inset. Tablas' supplements card takes its `padding: 6px 16px` from an inline
-  style in the plan data (`tablas.supplements` note), not from CSS.
+  sit on the sheet's 16 px inset.
 - Caps colour: the CTA link (`.cta`, `--link`), the journal pill's text on its white fill (`.jr-btn`),
   and a word that IS the reading, coloured like a value — the stress band (`.ds-band`), the monitor's
   within / outside range (`.hmt-status`) and a monitor tile's band (`.hmt-band`).
@@ -206,8 +205,9 @@ the trend sheet's window, its calendar month (formerly 44 px filled circles) and
   (`.gd-pick`) and the ride duration (`.fuel-select`). A `--rail` pill (`--r-pill`, no border), `--ink`
   text at `--fs-sm` / 600, `appearance: none` with the shared chevron turned down: a
   `<span class="chev sel-chev" aria-hidden="true">›</span>` right after the select (pulled back into the
-  pill). The owner only sizes it (`.gd-pick` flexes in its row at 44 px, `.fuel-select` 180 px min, 44 px
-  tall). Formerly Nutrición's food pick was a mini card (card fill, 11 px radius, 1 px border) and the
+  pill). The owner only sizes it (`.gd-pick` flexes in its row at 44 px, asking for its chosen name's width via `--pick`, `.fuel-select` 180 px min, 44 px
+  tall), on a `.sel.gd-pick` / `.sel.fuel-select` selector so the 44 px beats `.sel`'s 36 px by
+  specificity, never by stylesheet order. Formerly Nutrición's food pick was a mini card (card fill, 11 px radius, 1 px border) and the
   ride duration a field. Not the food sheet's form fields (`.food-in`), which keep the text-field look
   of the inputs beside them. Guard: no owner rule sets a select's fill, border, radius, colour, padding
   or font; every other `<select>` in markup carries `.sel`.

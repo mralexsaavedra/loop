@@ -52,7 +52,7 @@ export default {
       verduras: { icon: '🥦', label: 'Vegetables', note: 'Eat them almost freely in a cut — they fill you up and add little. Standard reference values, per 100 g.' },
       quesos: { icon: '🧀', label: 'Cheeses & sauces', note: 'They add fat/salt → count them, they are not "free".' },
       supplementsHeading: 'Supplements',
-      supplementsFallbackHtml: '<div class="meal" style="padding:6px 16px">\n    <div class="supp"><span class="when">Lunch</span><div class="what">Creatine monohydrate<small>3 g, with water</small></div></div>\n    <div class="supp"><span class="when">Dinner</span><div class="what">Magnesium<small>follow product dosage · may support sleep</small></div></div>\n    <div class="supp"><span class="when">Workout</span><div class="what">Electrolytes<small>on hot days / long sessions</small></div></div>\n  </div>',
+      supplementsFallbackHtml: '<div class="meal">\n    <div class="supp"><span class="when">Lunch</span><div class="what">Creatine monohydrate<small>3 g, with water</small></div></div>\n    <div class="supp"><span class="when">Dinner</span><div class="what">Magnesium<small>follow product dosage · may support sleep</small></div></div>\n    <div class="supp"><span class="when">Workout</span><div class="what">Electrolytes<small>on hot days / long sessions</small></div></div>\n  </div>',
       howToHeading: 'How to use it',
       howToHtml: '<b>To swap a food, pick it in Today\'s plan:</b> protein swaps keep the same protein grams and the rest of the day is re-solved. These tables are the fixed reference. For protein, lean <b style="color:var(--lean)">green</b> every day; leave the <b style="color:var(--fat)">red</b> for treats. Count the fat added by oily carbs.',
     },

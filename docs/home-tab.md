@@ -367,11 +367,15 @@ trend is the line under it.
   sheet (detail.js modal): per metric THE switch (`HC.switchBtn`, `role="switch"` +
   `aria-checked`; design-system.md → Components), compact ↑ / ↓ buttons (the keyboard and screen-reader
   way to move) and, last, the reference app's ≡ drag handle (`.db-grip`, `aria-hidden`). The drag uses
-  Pointer Events, so mouse, touch and pen alike: `pointerdown` on a handle calls `setPointerCapture`,
+  Pointer Events, so mouse, touch and pen alike: `pointerdown` on a handle (the primary pointer only, a
+  mouse only with its main button, and never while a drag is active) calls `setPointerCapture`,
   every `pointermove` puts the row where the pointer is (the DOM row moves live, lifted on `--track`;
   `touch-action: none` on the handle keeps the sheet from scrolling), `pointerup` saves through the same
-  `commit()` as ↑ / ↓ (prefs → the dashboard → the sheet re-rendered), `pointercancel` re-renders the saved
-  order. Both reorder through the pure `HCDash.move(list, from, to)`. No auto-scroll while dragging (the
+  `commit()` as ↑ / ↓ (prefs → the dashboard → the sheet re-rendered), `pointercancel` re-renders the saved order.
+  Moving the row in the DOM drops the pointer capture (Chromium fires `lostpointercapture` on every live
+  reorder), so a lost capture is re-taken while the row is on the page; only when that fails (the pointer
+  is gone) or the row left the page does it cancel like `pointercancel`; a re-render of the sheet drops a drag in flight, and a
+  drag whose row has left the page (sheet closed, no `pointerup`) is stale and never blocks the next one. Both reorder through the pure `HCDash.move(list, from, to)`. No auto-scroll while dragging (the
   whole catalogue fits a phone screen). Preferences = `localStorage['hc-dash-v1']` `{order, hidden}`; every read / write is in a
   try/catch, unknown, duplicate or unavailable keys are ignored, a catalogue key missing from the stored
   order is appended with its default visibility, and without storage the choice holds in memory for the

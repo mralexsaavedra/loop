@@ -126,9 +126,11 @@ function fakeSheet(keys) {
     const cls = new Set();
     const li = { parentNode: ul, classList: { add: (c) => cls.add(c), remove: (c) => cls.delete(c), contains: (c) => cls.has(c) },
       getAttribute: (a) => (a === 'data-key' ? k : null),
-      getBoundingClientRect: () => ({ top: ul.children.indexOf(li) * 60, height: 60 }) };
+      getBoundingClientRect: () => ({ top: ul.children.indexOf(li) * 60, height: 60 }),
+      get isConnected() { return !ul.detached && ul.children.includes(li); } };
     const captured = [];
-    const grip = { captured, setPointerCapture: (id) => captured.push(id), releasePointerCapture: () => {},
+    // gone: the pointer is no longer active (setPointerCapture throws, as in the browser)
+    const grip = { captured, gone: false, setPointerCapture: (id) => { if (grip.gone) throw new Error('NotFoundError'); captured.push(id); }, releasePointerCapture: () => {},
       getAttribute: (a) => (a === 'data-key' ? k : null),
       closest: (sel) => (sel === '[data-dash-grip]' ? grip : sel === 'li' ? li : null) };
     li.grip = grip;
@@ -157,7 +159,7 @@ test('drag: pointer down on ≡ captures the pointer, a move reorders the rows l
   const sheet = fakeSheet(['rhr', 'hrv', 'sleep', 'weight', 'steps', 'vo2max']);
   const steps = sheet.rows[4];
   const fire = (type, target, y, id = 7) => {
-    const ev = { type, target, pointerId: id, clientY: y, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+    const ev = { type, target, pointerId: id, isPrimary: true, pointerType: 'touch', clientY: y, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
     ctx.__listeners[type](ev);
     return ev;
   };
@@ -184,7 +186,7 @@ test('drag: pointer down on ≡ captures the pointer, a move reorders the rows l
 
 test('drag: a drop where it started saves nothing; a cancelled drag (pointercancel) restores the sheet without saving', () => {
   const { ctx, ls, opened } = load();
-  const fire = (type, target, y) => ctx.__listeners[type]({ type, target, pointerId: 1, clientY: y, preventDefault() {} });
+  const fire = (type, target, y) => ctx.__listeners[type]({ type, target, pointerId: 1, isPrimary: true, pointerType: 'mouse', button: 0, clientY: y, preventDefault() {} });
   const a = fakeSheet(['rhr', 'hrv', 'sleep']);
   fire('pointerdown', a.rows[0].grip, 30);
   fire('pointermove', a.rows[0].grip, 40);
@@ -298,4 +300,87 @@ test('fitness age: an optional row (off by default), whole years, lower = better
   assert.match(load({ DETAIL: D, ls, locale: 'es' }).els['home-dash'].innerHTML, /Edad física<\/span>[\s\S]*<b>≥ 75<\/b><small>años<\/small>/);
   D.metrics.fitnessAge.v[39] = 40.6;
   assert.match(load({ DETAIL: D, ls }).els['home-dash'].innerHTML, /<b>41<\/b><small>years<\/small>/);
+});
+
+test('drag: only the primary pointer, a mouse main button and no drag in progress start one', () => {
+  const { ctx, ls } = load();
+  const sheet = fakeSheet(['rhr', 'hrv', 'sleep']);
+  const fire = (type, target, y, extra) => {
+    const ev = { type, target, pointerId: 1, isPrimary: true, pointerType: 'mouse', button: 0, clientY: y, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, ...extra };
+    ctx.__listeners[type](ev);
+    return ev;
+  };
+  const [rhr, hrv] = sheet.rows;
+  // a second finger (not the primary pointer) is not a drag
+  const second = fire('pointerdown', rhr.grip, 30, { pointerId: 2, pointerType: 'touch', isPrimary: false });
+  assert.ok(!second.defaultPrevented && !rhr.classList.contains('db-drag'), 'a non-primary pointer is ignored');
+  assert.deepEqual(rhr.grip.captured, []);
+  // a right click (or middle) is not a drag
+  const right = fire('pointerdown', rhr.grip, 30, { button: 2 });
+  assert.ok(!right.defaultPrevented && !rhr.classList.contains('db-drag'), 'a non-left mouse button is ignored');
+  fire('pointermove', rhr.grip, 170, { button: 2 });
+  fire('pointerup', rhr.grip, 170, { button: 2 });
+  assert.deepEqual(sheet.order(), ['rhr', 'hrv', 'sleep']);
+  assert.equal(ls.data['hc-dash-v1'], undefined);
+  // a pointer down while a drag is active does not hijack it
+  fire('pointerdown', rhr.grip, 30);
+  assert.ok(rhr.classList.contains('db-drag'));
+  const again = fire('pointerdown', hrv.grip, 90, { pointerId: 3 });
+  assert.ok(!again.defaultPrevented && !hrv.classList.contains('db-drag'), 'a second pointerdown mid-drag is ignored');
+  assert.deepEqual(hrv.grip.captured, []);
+  fire('pointermove', rhr.grip, 170);
+  fire('pointerup', rhr.grip, 170);
+  assert.deepEqual(sheet.order(), ['hrv', 'sleep', 'rhr'], 'the first drag still drops');
+  assert.ok(ls.data['hc-dash-v1'] != null, 'and saves');
+});
+
+test('drag: a lost capture mid-drag (the row moved) is re-taken; once the pointer is gone it cancels like pointercancel', () => {
+  const { ctx, ls, opened } = load();
+  const fire = (type, target, y, extra) => ctx.__listeners[type]({ type, target, pointerId: 1, isPrimary: true, pointerType: 'touch', button: 0, clientY: y, preventDefault() {}, ...extra });
+  const a = fakeSheet(['rhr', 'hrv', 'sleep']);
+  fire('pointerdown', a.rows[0].grip, 30);
+  fire('pointermove', a.rows[0].grip, 170);
+  assert.deepEqual(a.order(), ['hrv', 'sleep', 'rhr']);
+  fire('lostpointercapture', a.rows[0].grip, 170, { pointerId: 9 }); // another pointer's capture: ignored
+  assert.ok(a.rows[0].classList.contains('db-drag'));
+  // the live reorder moved the row: the browser drops the capture, the drag takes it back and goes on
+  fire('lostpointercapture', a.rows[0].grip, 170);
+  assert.ok(a.rows[0].classList.contains('db-drag'), 'still dragging');
+  assert.deepEqual(a.rows[0].grip.captured, [1, 1], 're-captured');
+  // the pointer is gone (no pointerup reached the page): re-capturing fails, the drag cancels
+  a.rows[0].grip.gone = true;
+  fire('lostpointercapture', a.rows[0].grip, 170);
+  assert.ok(!a.rows[0].classList.contains('db-drag'));
+  assert.equal(ls.data['hc-dash-v1'], undefined, 'a lost capture never saves');
+  assert.equal(plain(opened.at(-1))[0], 'dash-edit', 'the sheet re-renders in the saved order');
+  fire('pointerup', a.rows[0].grip, 170);
+  assert.equal(ls.data['hc-dash-v1'], undefined, 'the late pointerup is not a drop');
+  const b = fakeSheet(['rhr', 'hrv', 'sleep']);
+  fire('pointerdown', b.rows[0].grip, 30);
+  fire('pointermove', b.rows[0].grip, 170);
+  fire('pointerup', b.rows[0].grip, 170);
+  assert.ok(ls.data['hc-dash-v1'] != null, 'a new drag still drops and saves');
+});
+
+test('drag: a stale drag (its row left the page) or a re-render never blocks the next drag', () => {
+  const { ctx, ls } = load();
+  const fire = (type, target, y, extra) => ctx.__listeners[type]({ type, target, pointerId: 1, isPrimary: true, pointerType: 'mouse', button: 0, clientY: y, preventDefault() {}, ...extra });
+  const a = fakeSheet(['rhr', 'hrv', 'sleep']);
+  fire('pointerdown', a.rows[0].grip, 30); // no pointerup ever arrives (e.g. released outside the page)
+  a.ul.detached = true; // the sheet closed
+  const b = fakeSheet(['rhr', 'hrv', 'sleep']);
+  fire('pointerdown', b.rows[0].grip, 30, { pointerId: 2 });
+  assert.ok(b.rows[0].classList.contains('db-drag'), 'the stale drag is reset, the new one starts');
+  fire('pointermove', b.rows[0].grip, 170, { pointerId: 2 });
+  fire('pointerup', b.rows[0].grip, 170, { pointerId: 2 });
+  assert.deepEqual(b.order(), ['hrv', 'sleep', 'rhr']);
+  assert.ok(ls.data['hc-dash-v1'] != null);
+  // a drag interrupted by a re-render of the sheet is dropped too
+  const c = fakeSheet(['rhr', 'hrv', 'sleep']);
+  fire('pointerdown', c.rows[0].grip, 30, { pointerId: 3 });
+  ctx.HCViews['dash-edit'].render();
+  assert.ok(!c.rows[0].classList.contains('db-drag'), 'the re-render clears the drag');
+  const d = fakeSheet(['rhr', 'hrv', 'sleep']);
+  fire('pointerdown', d.rows[1].grip, 90, { pointerId: 4 });
+  assert.ok(d.rows[1].classList.contains('db-drag'), 'the next drag starts');
 });
