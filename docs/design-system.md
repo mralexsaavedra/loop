@@ -104,13 +104,14 @@ the date and drops the dim class). Surfaces:
 | --- | --- | --- |
 | Inicio dials: sleep, recovery (`score.js`) | the night | under the number ("7 OCT"); the mini ring dims |
 | Sleep + recovery deep-dives (`deepdive.js`) | the headline night | the sheet title + contributor legend ("Wed 7 Oct"); the hero dims |
-| Monitor summary tile (`monitor.js`) | the newest night it counts | after "5/5 metrics" ("8 OCT") |
+| Monitor summary tile (`monitor.js`) | the newest night it counts | under "5/5 metrics" ("8 OCT") |
 | Stress + HRV tiles (`monitor.js`) | the reading | its sub line ("8 OCT · 23:00") |
 | Energy bank card (`energy.js`) | the latest level | under the number ("8 OCT · 21:00"); opens that day |
 | "My day" (`timeline.js`) | the newest day's activities | the heading ("Activities · Thu 8 Oct") |
+| Salud recovery card (`score.js`) | the headline night | above the number ("Thu 8 Oct"); the number + band word dim |
 
-Kept as they are: Salud's monitor list rows (a "latest per signal" list; each row already names its own
-date), My dashboard (the latest value per metric, dimmed only when stale), Tonight (a forecast) and the
+Kept as they are: Salud's monitor list and metric rows ("latest per metric" lists; each row already
+names its own date or keeps it in its accessible name), My dashboard (the latest value per metric, dimmed only when stale), Tonight (a forecast) and the
 nutrition card (its closed day is labelled "Yesterday" by design). Not carried by design: the load dial and the load / strain / stress / energy bank deep-dives (they read
 the shown day only: "No data", rest or no session, never an earlier day's value).
 

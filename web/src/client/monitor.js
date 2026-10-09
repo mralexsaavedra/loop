@@ -131,14 +131,14 @@
   // without fresh data) left of the chip + "n/total metrics" in range; a tap jumps to the full monitor
   // list at the top of Salud (core.js jump: switches to the tab that holds #monitor and scrolls to it)
   // `asOf` = the newest night it counts (today only; a past day's summary is that day's): carried when
-  // earlier than today
+  // earlier than today, its date on a line of its own under the count (a ' · ' join wraps at 360 px)
   function sumTile(n, total, asOf) {
     var tone = n.out > 0 ? 'out' : n.inR > 0 ? 'in' : '';
     var sq = tone ? '<span class="hmt-sq hmt-' + tone + '" aria-hidden="true">' + (tone === 'in' ? CHECK : '!') + '</span>' : '';
     var c = carry(asOf, null);
     return '<button type="button" class="hmt hmt-sum' + c.cls + '" onclick="jump(\'monitor\')">' + lbl(T.heading) +
-      '<span class="hmt-srow">' + sq + '<span class="hmt-body">' + chip(n, true) + '<span class="hmt-sub">' + esc(format(T.tile.metrics, { n: n.inR, total: total })) +
-      (c.html ? ' · ' + c.html : '') + '</span></span></span></button>';
+      '<span class="hmt-srow">' + sq + '<span class="hmt-body">' + chip(n, true) + '<span class="hmt-sub">' + esc(format(T.tile.metrics, { n: n.inR, total: total })) + '</span>' +
+      (c.html ? '<span class="hmt-sub">' + c.html + '</span>' : '') + '</span></span></button>';
   }
   // the newest night among the fresh cards (what the summary counts), null without one
   function newestFresh() {

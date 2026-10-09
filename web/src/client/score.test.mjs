@@ -1056,3 +1056,14 @@ test('recovery card head: no duplicate title — only the as-of date, the Histor
   assert.doesNotMatch(hosts.rec.innerHTML, /<h[1-6]|sc-title/, 'no card title: the Salud section heading names it');
   assert.ok(!text(head).includes(enT.recovery.heading), 'the section name is not repeated in the head');
 });
+
+test('carried values (HC.carried): Salud\'s recovery card dims a headline night from an earlier day (its date already heads it); today\'s night is normal; stale keeps the card grey only', () => {
+  const s = fixtureScores();
+  const big = (now) => { const hosts = {}; render(s, { now, hosts }); return hosts.rec.innerHTML.match(/<div class="rec-big[^"]*"/)[0]; };
+  assert.equal(big(addDays(ASOF, 2)).includes(' carried"'), true, 'carried night dimmed');
+  assert.doesNotMatch(big(ASOF), /carried/);
+  const hosts = {};
+  render(s, { now: addDays(ASOF, 2), hosts });
+  assert.ok(hosts.rec.innerHTML.includes('<div class="rec-when">Tue 29 Sep</div>'), 'its date names the night (weekday kept: full width)');
+  assert.doesNotMatch(big(addDays(ASOF, 5)), /carried/, 'stale: the card\'s grey is the stronger state');
+});
