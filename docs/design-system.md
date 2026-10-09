@@ -64,7 +64,45 @@ A new exception is a design decision: add it here first, then to the test's allo
 
 ## Numbers
 
-Stub — filled by DS2: one number / duration formatter (es-ES grouping, sleep as h:mm, one % rule).
+ONE formatter for every number a viewer reads: `lib/format/numbers.mjs` (pure, no `Intl`, so every
+browser and Node ICU build prints the same bytes). The build imports it (Tablas' `RefTable.astro`,
+the advice copy); the page gets the SAME functions as a classic script, `clientSource()` →
+`var HC_FMT`, inlined by `layouts/Plan.astro` right before `client/util.js`, whose `HC.num` /
+`HC.int` / `HC.nf` / `HC.pct` / `HC.hours` / `HC.duration` add the page `LOCALE`.
+
+| Rule | es | en | Call |
+| --- | --- | --- | --- |
+| Grouping: EVERY value ≥ 1,000, 4 digits too | `2.500`, `13.463` | `2,500` | `HC.int(v)`, `HC.num(v, dec)` |
+| Decimals: fixed per call site, comma in es | `7,5`, `1.234,6` | `7.5` | `HC.num(v, 1)`; `HC.nf(v)` keeps the value's own decimals |
+| Sign: `+` only when asked; a value that rounds to 0 has none | `+0,3`, `0,0` | `+0.3` | `HC.num(v, 1, true)` |
+| Percent: no space | `97%`, `+12%` | `97%` | `HC.pct(v[, signed])` |
+| Durations: h:mm, minutes rounded first (7.999 h → `8:00`) | `7:01`, `0:37`, `27:06` | same | `HC.hours(h)`, `HC.duration(min)` |
+| Absent (null, NaN, ±Infinity, '') | `—` | `—` | every function |
+
+- **Why force 4-digit grouping.** es-ES `Intl` leaves 4 digits ungrouped (minimum grouping digits 2),
+  so the page printed "2500 kcal" next to "13.463 pasos" and "2.300 kcal" (one hand-rolled grouper).
+  One rule everywhere reads better than the locale's edge case.
+- **Hours.** Sleep, time in bed, stages, REM + deep, activity and ride durations, the sleep target and
+  every delta of them are h:mm WITHOUT a unit ("7:32", "+0:02 vs your 7:30 target"); the old
+  decimal hours ("7,5 h") and "1 h 45 min" are gone. A metric whose unit is `h` drops the unit where it
+  is shown (`unitOf` in `detail.js`, `mrow` in `health.js`, `compUnit` in `score.js`, the monitor).
+  Baked sleep hours keep 2 decimals so h:mm is exact to the minute.
+- **Units** stay a separate, smaller span where they already were (`<b>2.532</b><small>kcal</small>`).
+- **Input fields** (food amounts, the target weight) are NOT display: `HC.numInput` keeps the decimal
+  comma but never groups, so the field parses its own value back.
+- **Not durations of a value, left as words:** minute COUNTS that are a metric of their own (Apple
+  exercise minutes "45 min", sleep consistency "19 min", the ±′ bedtime spread), whole-hour ranges
+  ("2–3 h before"), relative ages ("3 h ago") and category labels ("< 30 min", "Ride ~2 h").
+- **Not display:** CSV / data outputs, the food log's stored entry names ("Arroz · 1,5 ud", mirrors
+  `lib/nutrition/basics.mjs`), the plan's portion factor port (pinned to `lib/nutrition/scale.mjs`)
+  and SVG / CSS geometry (`toFixed` for coordinates) keep their own code.
+
+The guard `web/test/number-format.test.mjs` scans the display sources (client scripts, views, tabs,
+components, the layout, i18n, the advice copy; comments stripped) and fails on `toLocaleString` /
+`Intl.NumberFormat`, a hand-rolled thousands grouping, a hand-made decimal comma, a `toFixed` that is
+not geometry (per-file counts), a space before `%`, and a `{value} h` template or a `' h'` built in
+code; each exception above is its allowlist. `lib/format/numbers.test.mjs` pins the rules (es + en,
+0, negatives, absent, 999 / 1,000, h:mm rounding) and that `clientSource()` behaves like the module.
 
 ## Components
 

@@ -5,6 +5,23 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-09 — Design system numbers: one number / duration formatter
+
+The same audit (finding F2) found three number styles side by side: "2.500 kcal" next to "2500 kcal"
+and "13463 pasos" (es-ES grouping skips 4 digits, and only one card grouped by hand), sleep as "7:01",
+"7,0 h", "7 h" and "7,01 h", and "97 %" next to "31%" in one card. `lib/format/numbers.mjs` is now the
+ONE formatter: every value >= 1,000 grouped ("2.500" / "2,500"), percent without a space, durations
+as h:mm ("7:32", "0:37", "27:06"; minutes rounded first), absent values "—". The build imports it;
+the page inlines the same functions (`clientSource()` → `HC_FMT`) before util.js, whose `HC.num` /
+`HC.nf` / `HC.duration` now delegate to it, plus `HC.int` / `HC.pct` / `HC.hours` / `HC.numInput`.
+Migrated: Inicio (dials, dashboard rows, Tonight, timeline, plan), Salud (metric rows, stages,
+consistency, monitor, balance, rides), Nutrición (rings, score, adherence, fuel durations, Tablas),
+Entreno (activity totals, split, calendar titles) and the detail / deep-dive / trend sheets; every
+i18n "{x} %" and decimal-hours "{x} h" template. Input fields stay ungrouped; CSV / data outputs and
+the food log's stored names are unchanged. The timeline's baked sleep hours keep 2 decimals so h:mm is
+exact. A new guard (`web/test/number-format.test.mjs`) fails on hand-built number strings, with a
+short reasoned allowlist; rules in `docs/design-system.md` → "Numbers".
+
 ## 2026-10-09 — Design system foundations: role tokens and a guard test
 
 A visual audit found no broken screens but drift: each card picked its own radius, padding, number
