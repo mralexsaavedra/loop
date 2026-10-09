@@ -32,7 +32,7 @@ with `I18N_ACTIVITY`; client/training-activity.js) — ONE card for what used to
 the cumulative training time and the dashboard's weekly volume + modality split: an "ACTIVITY" header
 with an ⓘ (`#act-info`: how each number is counted, the distinct-days / duration note, the Watch-label
 caveat), then TOTAL TIME of the chosen window with a neutral pill vs the window of the same length
-before it (▲▼• and %; "no prior period" when that window starts before the first session — `first` —
+before it (an `--ink` ▲▼ or a grey • when steady, and %; "no prior period" when that window starts before the first session — `first` —
 or outside the baked days; "no training the … before" when it holds none), a W / M / 6M switch (the shared segmented control `.dt-range`, as in the trend sheets; 7 /
 30 / 182 days, the detail sheet's ranges; M by default, the choice kept per viewer in
 `localStorage` `hc-act-range`, optional; the pressed button keeps focus), three tiles SESSIONS (one per

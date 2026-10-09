@@ -356,7 +356,7 @@ trend is the line under it.
   today, still filling up); sleep shows h:mm. Baseline = the mean of the 30 days before that day, with
   ≥ 7 days of data (≥ 2 readings for a sparse series like weight); no baseline → no arrow. Arrow ▲▼ =
   the value vs the baseline: `--up` when better by the metric's good direction (`dir`), `--down` when
-  worse, grey for a neutral metric (weight), a grey dot within ±2 % (`FLAT_SHARE`). A row older than 3
+  worse, `--ink` (white) for a metric with no good direction (weight; never a grey arrow), a grey dot within ±2 % (`FLAT_SHARE`). A row older than 3
   days is dimmed; a tap opens that metric's detail sheet. "Customize" opens the registered `dash-edit`
   sheet (detail.js modal): per metric a Shown / Hidden toggle (`aria-pressed`) and ↑ / ↓ buttons (no
   drag). Preferences = `localStorage['hc-dash-v1']` `{order, hidden}`; every read / write is in a

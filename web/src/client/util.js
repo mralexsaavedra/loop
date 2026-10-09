@@ -175,7 +175,14 @@ var HC = (function () {
   function metricIcon(key) {
     return '<svg class="db-ico" viewBox="0 0 24 24" aria-hidden="true">' + (Object.prototype.hasOwnProperty.call(ICONS, key) ? ICONS[key] : ICONS.hrv) + '</svg>';
   }
+  // the ONE trend glyph (docs/design-system.md → Components → Trend glyph): ▲ / ▼ for a change, • for
+  // typical / steady; the tone class colours it — good / bad / watch by the metric's direction,
+  // `neutral` (--ink) for a change with no good direction, `flat` (grey) ONLY for the • (no grey arrow)
   var ARROWS = { up: '▲', down: '▼', flat: '•' };
+  function trendTone(arrow, tone) {
+    if (arrow === 'flat') return 'flat';
+    return !tone || tone === 'flat' || tone === 'normal' ? 'neutral' : tone;
+  }
   // o = {key, cls?, attrs?, aria?, name, note?, value, unit?, numCls?, arrow? ('up' | 'down' | 'flat'),
   //      tone? ('good' | 'bad' | 'watch' | 'flat'), base?} — every text is escaped here; `note` = a small
   //      line under the name (a session's secondary numbers on Entreno's run / ride rows)
@@ -184,7 +191,7 @@ var HC = (function () {
     return '<li class="db-row' + (o.cls ? ' ' + o.cls : '') + '"' + (o.attrs || '') + (o.aria ? ' aria-label="' + esc(o.aria) + '"' : '') + '>' + metricIcon(o.key) +
       '<span class="db-name">' + esc(o.name) + (o.note ? '<small class="db-note">' + esc(o.note) + '</small>' : '') + '</span>' +
       '<span class="db-vals"><span class="db-val"><b' + (o.numCls ? ' class="' + o.numCls + '"' : '') + '>' + esc(o.value) + '</b>' + (o.unit ? '<small>' + esc(o.unit) + '</small>' : '') +
-      (arrow ? '<span class="db-arr db-' + esc(o.tone || 'flat') + '" aria-hidden="true">' + arrow + '</span>' : '') + '</span>' +
+      (arrow ? '<span class="db-arr db-' + esc(trendTone(o.arrow, o.tone)) + '" aria-hidden="true">' + arrow + '</span>' : '') + '</span>' +
       (o.base != null && o.base !== '' ? '<span class="db-base">' + esc(o.base) + '</span>' : '') + '</span></li>';
   }
 
@@ -239,6 +246,7 @@ var HC = (function () {
     fmtMonth: fmtMonth,
     detailAttrs: detailAttrs,
     cta: cta,
+    trendTone: trendTone,
     metricIcon: metricIcon,
     metricRow: metricRow,
     infoBtn: infoBtn,

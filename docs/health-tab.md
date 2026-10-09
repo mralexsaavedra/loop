@@ -47,8 +47,9 @@ over the last 30 days — for the daily TOTALS of `dailyTrend` the 30 days endin
 latest, since the build cannot know whether that day is complete; sleep: the 30-night mean) with ▲ / ▼
 vs it (a grey • within ±2 %), or, for a sparse measurement, its change "Δ +1.2" (`d30Of` for weight,
 the scale-window Δ for body fat / lean mass, latest − first for VO₂max and waist) with the marker by
-its sign. Colour by the metric's good direction: `--up` teal = better, `--down` orange = worse, grey
-for no good direction (respiratory rate, wrist temp, weight, expenditure). A daily total dated the
+its sign. Colour by the metric's good direction: `--up` teal = better, `--down` orange = worse, `--ink`
+for no good direction (respiratory rate, wrist temp, weight, expenditure; never a grey arrow — the trend glyph,
+design-system.md → Components). A daily total dated the
 viewer's today is partial: its line adds "today, so far" / "hoy, en curso" and it gets no marker
 (decided client-side). A row whose newest value is more than `STALE_DAYS` (3) before the viewer's
 today is greyed (`db-stale`) with "no recent data" / "sin datos recientes" and no marker (waist,

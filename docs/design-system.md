@@ -171,3 +171,17 @@ the trend sheet's window, its calendar month (formerly 44 px filled circles) and
 - Guard: a pressed / checked state that fills or outlines is the chip's or the segmented control's;
   the others are listed with their reason (the calendar's selected day, the journal's answers, the
   food sheet's tabs and the Customize toggles, both audited in DS4).
+
+### Trend glyph
+
+▲ / ▼ for a change, • for typical / steady. `HC.trendTone(arrow, tone)` (`client/util.js`) picks the
+colour class: `good` (`--up`) / `bad` (`--down`) / `watch` (`--mid`) by the metric's good direction,
+`neutral` (`--ink`) for a change with no good direction (weight, expenditure, light sleep, respiratory
+rate, bedtime, training time), and `flat` (`--faint`) ONLY for the •. Never a grey arrow. Used by every
+metric row (`HC.metricRow`: Inicio's dashboard, Salud, the monitor), the trend sheet's delta pill and
+Entreno's total-time pill; the deep-dive contributors map the same tones (`dd-better` / `dd-worse` /
+`dd-neutral` / `dd-typical`). The colours live in ONE block at the end of `detail.css` (after the pill's
+own grey, so they win).
+
+- Guard: no other rule colours a trend class, and only the dot classes are grey; `util.test.mjs` pins
+  that `trendTone` never returns `flat` for an arrow.

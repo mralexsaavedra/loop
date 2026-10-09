@@ -264,3 +264,16 @@ test('selected chip and segmented control: one picked style each; other picked f
   const chip = picked.find((r) => key(r).startsWith('base.css .chip'));
   assert.deepEqual([chip.decl.background, chip.decl.color], ['var(--accent)', 'var(--on-accent)'], 'the picked chip is white-filled');
 });
+
+// the trend glyph's colours live in ONE block (the end of detail.css): arrows are coloured, only the
+// typical / steady dot is grey
+const TONE_CLASS = /\.(db|dd|dt-pill|ld|wp)-(good|bad|watch|neutral|flat|better|worse|typical|up|down)\b/;
+const GREY = new Set(['var(--faint)', 'var(--muted)']);
+test('trend glyph: one colour block; grey only for the typical dot', () => {
+  const toned = RULES.filter((r) => TONE_CLASS.test(r.selector) && r.decl.color);
+  assert.ok(toned.every((r) => r.file === 'detail.css'), `trend colours outside the block: ${toned.filter((r) => r.file !== 'detail.css').map(where)}`);
+  const grey = toned.filter((r) => GREY.has(r.decl.color)).flatMap((r) => r.selector.split(', '));
+  assert.deepEqual(grey.sort(), ['.db-flat', '.dd-typical', '.dt-pill-flat', '.ld-flat'], 'only the dot classes are grey');
+  const neutral = toned.find((r) => r.selector.includes('.db-neutral'));
+  assert.equal(neutral?.decl.color, 'var(--ink)', 'a change with no good direction is an --ink arrow');
+});

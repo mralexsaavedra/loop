@@ -75,7 +75,7 @@ test('M window: total of the last 30 days vs the 30 before, sessions / days / pe
   assert.match(render(ACT), /<span class="dt-pill">no prior period<\/span>/, 'the month before starts before the first session: no comparison');
   const html = render(ACT2);
   // last 30: 15 runs × 60 + a 45-min ride = 945 min; previous 30: 10 gym × 30 = 300 min -> +215%
-  assert.match(html, /<b class="dt-trend-num">15:45<\/b><span class="dt-pill">▲ 215% vs prior month<\/span>/);
+  assert.match(html, /<b class="dt-trend-num">15:45<\/b><span class="dt-pill dt-pill-neutral">▲ 215% vs prior month<\/span>/);
   const stats = [...html.matchAll(/<div class="act-stat"><b>([^<]*)<\/b><span>([^<]*)<\/span><\/div>/g)].map((m) => [m[1], m[2]]);
   assert.deepEqual(stats, [['16', 'Sessions'], ['15', 'Days'], ['3:41', 'Per week']], '16 sessions (15 runs + 1 ride, the run+ride day counts twice) on 15 days');
   const legend = [...html.matchAll(/<li><span class="act-sw act-m-(\w+)" aria-hidden="true"><\/span><b>(\d+)×<\/b> ([^<]+) <small>([^<]+)<\/small><\/li>/g)].map((m) => m.slice(1));
