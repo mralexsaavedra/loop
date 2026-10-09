@@ -267,7 +267,8 @@ switch is outside every opener); run / ride rows →
   within 1 % / 0.05 sd or for a metric without a direction) on its own line below, then ONE plain
   sentence (`trend.sent`: "Your average Resting HR this week was 53 bpm, about the same as the week
   before (53 bpm)."; higher / lower / about the same by the pill's rule, no judgement — the pill's
-  colour carries good / bad; a change that rounds to two equal numbers gets one more decimal). A
+  colour carries good / bad; a change that rounds to two equal numbers gets one more decimal; a sleep window reads h:mm, which has no
+  decimal to add, so two windows that print the same clock read "about the same"). A
   window longer than the data is clamped to the metric's first day (the toggle stays; chart and
   average start there, the pill says "Data since <date>"); a previous window that lies wholly before
   the data, or starts before it and holds data on fewer than half its days → "No earlier period to

@@ -1575,6 +1575,18 @@ test('trend sentence: a real change that rounds to the same number gets one more
   assert.match(s.host.innerHTML, /was 53\.6 bpm, lower than the week before \(54\.4 bpm\)\./);
 });
 
+test('trend sentence: sleep reads h:mm, so two windows that print the same clock are "about the same"', () => {
+  const start = addDays(NOW, -13);
+  // 18.3 vs 18.0 min: a 1.6% change (not flat), but both print 0:18 — never "lower than" next to equal values
+  const v = Array.from({ length: 14 }, (_, i) => (i < 7 ? 0.305 : 0.3));
+  const s = setup({ detail: { asOf: NOW, days: 365, metrics: { sleep: { kind: 'sleep', dir: 1, dec: 2, start, v } }, sessions: [] } });
+  s.api.open('sleep');
+  s.click(act('range', { 'data-range': '7' }));
+  const txt = /<p class="dt-trend-txt">([^<]*)<\/p>/.exec(s.host.innerHTML)[1];
+  assert.match(txt, /was 0:18, about the same as the week before \(0:18\)\./);
+  assert.match(s.host.innerHTML, /dt-pill-neutral|dt-pill-bad/, 'the pill still shows the real change');
+});
+
 /* ---------- stress monitor page (key 'stress', SCORES.stress: lib/score/stress.mjs) ---------- */
 const curveOf = (html) => (html.split('<section class="ds-curve"')[1] || '').split('</section>')[0];
 const bandsOf = (html) => (html.split('<section class="ds-bands"')[1] || '').split('</section>')[0];

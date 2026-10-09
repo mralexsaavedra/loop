@@ -103,6 +103,17 @@ test('the normal range is the small line under the value, written one decimal fi
   assert.doesNotMatch(rhr, /style=/);
 });
 
+test('sleep reads h:mm with no unit: the value and both band bounds (minutes rounded)', () => {
+  const html = render(monitor(), { now: addDays(ASOF, -3) }); // sleep's own day: not stale, band shown
+  const sleep = cardOf(html, 'sleep');
+  const c = monitor().cards.find((x) => x.key === 'sleep');
+  const hm = (h) => { const m = Math.round(h * 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
+  assert.match(sleep, /<b class="hm-num">5:00<\/b>/, 'value 5 h -> 5:00');
+  assert.doesNotMatch(sleep, /<small>h<\/small>|\d h\b/, 'no "h" unit');
+  assert.ok(sleep.includes(`<span class="db-base">${hm(c.band.lo)}–${hm(c.band.hi)}</span>`), sleep);
+  assert.match(sleep, /aria-label="Sleep · 5:00 · Low · Normal range \d+:\d\d–\d+:\d\d"/);
+});
+
 test('the monitor note is behind an ⓘ toggle (collapsed), never lost', () => {
   const html = render(monitor());
   assert.match(html, /<button type="button" class="hs-i" data-hs-info="hm-info" aria-expanded="false" aria-controls="hm-info" aria-label="[^"]+">/);

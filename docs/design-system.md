@@ -55,11 +55,14 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
   the desktop calendar tile (`.cal-day`, 8 px) and the 2 px contributor marker (`.dd-contrib::before`).
 - Hero size: dial centres sized to their ring (Inicio's dials at >= 900 px, Nutrición's kcal dial
   `.nt-kcal`, the deep-dive dial `.dd-num`) and the trend sheet's header value (`.dt-num`); non-number
-  glyphs (`.sh-back`, the desktop `.wordmark`).
+  glyphs (`.sh-back`, the header `.wordmark`, phone and desktop).
 - Caps: the header date pill (`.date-pill-lbl`, 0.14em — the header stays as is). Caps SIZES in
   `detail.css` are not checked yet: the sheets keep a larger label scale (13.5 / 14.5 px), audited in DS4.
 
-A new exception is a design decision: add it here first, then to the test's allowlist.
+A new exception is a design decision: add it here first, then to the test's allowlist. An allowlist
+key names the file, the media query and the selector (`training.css @media (min-width:900px) .cal-day`),
+so an exception at >= 900 px never excuses the phone rule. A selector counts as a number when ANY rule
+puts it in the `--num` face, a grouped `.a, .b { font-family: var(--num) }` included.
 
 ## Numbers
 
@@ -96,11 +99,12 @@ the advice copy); the page gets the SAME functions as a classic script, `clientS
   `lib/nutrition/basics.mjs`), the plan's portion factor port (pinned to `lib/nutrition/scale.mjs`)
   and SVG / CSS geometry (`toFixed` for coordinates) keep their own code.
 
-The guard `web/test/number-format.test.mjs` scans the display sources (client scripts, views, tabs,
-components, the layout, i18n, the advice copy; comments stripped) and fails on `toLocaleString` /
-`Intl.NumberFormat`, a hand-rolled thousands grouping, a hand-made decimal comma, a `toFixed` that is
-not geometry (per-file counts), a space before `%`, and a `{value} h` template or a `' h'` built in
-code; each exception above is its allowlist. `lib/format/numbers.test.mjs` pins the rules (es + en,
+The guard `web/test/number-format.test.mjs` scans the display sources (`web/test/display-sources.mjs`:
+client scripts, views, tabs, components — sub-folders included — the layout, i18n, the advice copy;
+comments stripped) and fails on `toLocaleString` / `Intl.NumberFormat`, a hand-rolled thousands
+grouping, a hand-made decimal comma (string or regex form), a `toFixed` that is not geometry (per-file
+counts), a space before `%` (a template literal's `${v} %` too), and a `{value} h` template, a `' h'`
+or a `${v} h` built in code; each exception above is its allowlist. `lib/format/numbers.test.mjs` pins the rules (es + en,
 0, negatives, absent, 999 / 1,000, h:mm rounding) and that `clientSource()` behaves like the module.
 
 ## Components
