@@ -10,7 +10,9 @@
  *                  of the hero scale, in one weight (700); a dial centre (sized to its ring) is
  *                  listed; no other raw px size reaches the band;
  *   4. caps      — an uppercase rule sizes itself with a caps role token and tracks with
- *                  var(--label-track).
+ *                  var(--label-track);
+ *   5. components — the section heading, CTA link, chevron, segmented control / chip and trend
+ *                  glyph each have ONE style (docs/design-system.md → Components).
  *
  * Every exception is listed below with its reason; keep the lists short. A new exception is a
  * design decision: document it in docs/design-system.md first.
@@ -74,25 +76,33 @@ const RAW_RADIUS_ALLOW = {
   'base.css .tabnav': 'the floating dock bar (app shell, not a card)',
   'base.css .tabnav button': 'a dock button inside the 24px bar (inner radius = 24 - 5px padding)',
   'layout.css .act-pop': 'the "+" action popover (app shell, not a card)',
-  'training.css .cal-day': 'a 48px calendar tile at >= 900px (a day cell, not a card)',
+  'training.css @media (min-width:900px) .cal-day': 'a 48px calendar tile at >= 900px (a day cell, not a card)',
 };
 
 // 3. numbers -------------------------------------------------------------------------------------
 const HERO_MIN = 18;
 const HERO_SIZES = new Set(['var(--fs-num-row)', 'var(--fs-num-card)', 'var(--fs-dial)', 'var(--fs-hero)']);
 const HERO_WEIGHTS = new Set(['700', 'var(--num-weight)']);
+// a selector set in the --num face by ANY rule (a grouped `.a, .b { font-family: var(--num) }` too), so a
+// later `.b { font-size: 24px }` without its own font-family is still a number (R3-002)
+const NUM_SELECTORS = new Set(
+  RULES.filter((r) => (r.decl['font-family'] ?? '').includes('var(--num)')).flatMap((r) => r.selector.split(', ')),
+);
+const inNumFace = (r) => (r.decl['font-family'] ?? '').includes('var(--num)') || r.selector.split(', ').some((s) => NUM_SELECTORS.has(s));
 const isDialClamp = (v) => /^clamp\(.*var\(--fs-dial\)\)$/.test(v);
 // dial centres are sized to their ring (the dial step), plus the one sheet-header value
 const HERO_ALLOW = {
-  'score.css .dial-num': "Inicio's dials at >= 900px (168px ring)",
+  'score.css @media (min-width:900px) .dial-num': "Inicio's dials at >= 900px (168px ring)",
   'nutri.css .nt-kcal': "Nutrición's kcal dial",
+  'nutri.css @media (min-width:900px) .nt-kcal': "Nutrición's kcal dial at >= 900px (its larger ring)",
   'detail.css .dd-num': 'the deep-dive sheet dial',
   'detail.css .dt-num': 'the trend sheet header value (sheet scale, audited in DS4)',
 };
 // raw px font sizes in the hero band that are not numbers
 const RAW_SIZE_ALLOW = {
   'detail.css .sh-back': 'the sheet back-arrow glyph',
-  'layout.css .wordmark': 'the header logo at >= 900px (header stays as is)',
+  'layout.css .wordmark': 'the header logo on the phone, 19px (header stays as is)',
+  'layout.css @media (min-width:900px) .wordmark': 'the header logo at >= 900px (header stays as is)',
 };
 
 // 4. caps ----------------------------------------------------------------------------------------
@@ -103,7 +113,8 @@ const CAPS_ALLOW = {
   'layout.css .date-pill-lbl': 'the header date pill, wide 0.14em tracking (header stays as is)',
 };
 
-const key = (r) => `${r.file} ${r.selector}`;
+// the allowlist key names the media query too, so an exception at >= 900px never excuses the phone rule
+const key = (r) => `${r.file}${r.media ? ` @media ${r.media}` : ''} ${r.selector}`;
 
 test('role tokens exist and point at primitive tokens in their documented range', () => {
   for (const [name, [lo, hi]] of Object.entries(ROLES)) {
@@ -159,11 +170,11 @@ test('hero numbers use the hero scale (row / card / dial) in one weight', () => 
       seen.add(key(r));
       continue;
     }
-    if (raw && n >= HERO_MIN && !(r.decl['font-family'] ?? '').includes('var(--num)')) {
+    if (raw && n >= HERO_MIN && !inNumFace(r)) {
       if (RAW_SIZE_ALLOW[key(r)]) seen.add(key(r));
       else bad.push(`${where(r)} raw font-size \`${size}\` in the hero band (use a role token)`);
     }
-    const isNum = (r.decl['font-family'] ?? '').includes('var(--num)') || HERO_SIZES.has(size);
+    const isNum = inNumFace(r) || HERO_SIZES.has(size);
     if (!isNum) continue;
     const hero = HERO_SIZES.has(size) || isDialClamp(size) || (n != null ? n >= HERO_MIN : /^clamp\(/.test(size));
     if (!hero) continue;

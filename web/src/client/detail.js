@@ -397,7 +397,9 @@
     var vars = { metric: titleOf(key), span: T.trend.span[k], prevSpan: T.trend.prevSpan[k], avg: st.avg == null ? '' : show(st.avg), prev: st.prev == null ? '' : show(st.prev) };
     if (st.avg == null) return format(S.none, vars);
     if (st.delta == null) return format(S.only, vars);
-    return format(st.flat ? S.flat : st.delta > 0 ? S.up : S.down, vars);
+    // h:mm has no decimal to add: two windows that print the same clock read "about the same"
+    var same = st.flat || (st.prev != null && vars.avg === vars.prev);
+    return format(same ? S.flat : st.delta > 0 ? S.up : S.down, vars);
   }
   function trendHtml(key, m, st, range) {
     var R = T.trend, dec = m.kind === 'sleep' ? 1 : m.dec;
