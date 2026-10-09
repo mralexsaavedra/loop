@@ -376,6 +376,32 @@ test('select: one shared pill style; owners only size it', () => {
   for (const s of selects) assert.match(s, /class=\\?["'][^"'\\]*\bsel\b/, `${s} uses the shared .sel`);
 });
 
+// the select's owners that need a 44px target (.gd-pick, .fuel-select) set min-height on a selector
+// that out-specifies base.css .sel's 36px, so the hit area never depends on stylesheet load order
+test('select: an owner 44px min-height beats .sel by specificity (no load-order tie)', () => {
+  const base = RULES.find((r) => r.file === 'base.css' && !r.media && r.selector === '.sel');
+  assert.equal(base.decl['min-height'], '36px');
+  for (const owner of ['gd-pick', 'fuel-select']) {
+    const rs = RULES.filter((r) => !r.media && r.decl['min-height'] != null && new RegExp(`\\.${owner}\\b`).test(r.selector));
+    assert.equal(rs.length, 1, `one rule sizes .${owner}`);
+    assert.equal(rs[0].decl['min-height'], '44px', `.${owner} is a 44px target`);
+    const s = rs[0].selector.split(/,\s*/).find((x) => x.includes(`.${owner}`));
+    assert.ok(cmpSpec(specificity(s), specificity('.sel')) > 0, `${where(rs[0])} must beat .sel by specificity`);
+  }
+});
+
+// Nutrición's example-food row: the select asks for its chosen name's width (--pick, set by
+// nutri-day.js) but never more than the row, and its chevron adds no width (12px box, margins summing to
+// minus the row gap), so a long amount wraps under the select and a lone select never passes the card
+test('food example row: the select is sized by --pick, capped at the row; the chevron adds no width', () => {
+  const one = (sel) => RULES.find((r) => r.file === 'nutri.css' && !r.media && r.selector === sel)?.decl;
+  const pick = one('.sel.gd-pick'), row = one('.gd-ex'), chev = one('.gd-ex .sel-chev');
+  assert.match(pick.flex, /^1 1 min\(100%, calc\(var\(--pick, \d+\) \* [\d.]+em \+ 52px\)\)$/);
+  assert.equal(row['flex-wrap'], 'wrap');
+  assert.equal(chev['margin-left'], `calc(-28px - ${row.gap})`, 'pulled back over the pill and the row gap');
+  assert.equal(px(chev.width) + px(chev['margin-right']), 28, 'width + right margin give back the 28px pull');
+});
+
 // the trend glyph's colours live in ONE block (base.css): arrows are coloured, only the typical /
 // steady dot is grey; each tone selector is its class written twice (0,2,0), so it beats a host's
 // own colour by specificity, never by stylesheet order

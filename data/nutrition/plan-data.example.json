@@ -870,7 +870,7 @@
       "tablas.postre": "For lunch and dinner. Fruit is the lightest; the yogurt with nuts and honey is the richest. The light yogurt does NOT count as protein.",
       "tablas.verduras": "Eat them almost freely in a cut — they fill you up and add little. Standard reference values, per 100 g.",
       "tablas.quesos": "They add fat/salt → count them, they are not \"free\".",
-      "tablas.supplements": "<div class=\"meal\" style=\"padding:6px 16px\">\n    <div class=\"supp\"><span class=\"when\">Lunch</span><div class=\"what\">Creatine monohydrate<small>3 g, with water</small></div></div>\n    <div class=\"supp\"><span class=\"when\">Dinner</span><div class=\"what\">Magnesium<small>follow product dosage · may support sleep</small></div></div>\n    <div class=\"supp\"><span class=\"when\">Workout</span><div class=\"what\">Electrolytes<small>on hot days / long sessions</small></div></div>\n  </div>"
+      "tablas.supplements": "<div class=\"meal\">\n    <div class=\"supp\"><span class=\"when\">Lunch</span><div class=\"what\">Creatine monohydrate<small>3 g, with water</small></div></div>\n    <div class=\"supp\"><span class=\"when\">Dinner</span><div class=\"what\">Magnesium<small>follow product dosage · may support sleep</small></div></div>\n    <div class=\"supp\"><span class=\"when\">Workout</span><div class=\"what\">Electrolytes<small>on hot days / long sessions</small></div></div>\n  </div>"
     },
     "goal": "maintain"
   },

@@ -367,7 +367,8 @@ trend is the line under it.
   sheet (detail.js modal): per metric THE switch (`HC.switchBtn`, `role="switch"` +
   `aria-checked`; design-system.md → Components), compact ↑ / ↓ buttons (the keyboard and screen-reader
   way to move) and, last, the reference app's ≡ drag handle (`.db-grip`, `aria-hidden`). The drag uses
-  Pointer Events, so mouse, touch and pen alike: `pointerdown` on a handle calls `setPointerCapture`,
+  Pointer Events, so mouse, touch and pen alike: `pointerdown` on a handle (the primary pointer only, a
+  mouse only with its main button, and never while a drag is active) calls `setPointerCapture`,
   every `pointermove` puts the row where the pointer is (the DOM row moves live, lifted on `--track`;
   `touch-action: none` on the handle keeps the sheet from scrolling), `pointerup` saves through the same
   `commit()` as ↑ / ↓ (prefs → the dashboard → the sheet re-rendered), `pointercancel` re-renders the saved

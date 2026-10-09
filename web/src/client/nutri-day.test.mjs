@@ -185,7 +185,12 @@ test('no workout, nothing programmed: rest (auto), the default goal, rest target
   assert.match(els['nutri-target'].innerHTML, /<span class="nt-mac-lbl">Protein<\/span><span class="nt-mac-val"><b>—<\/b><small> \/ 125 g<\/small><\/span>/);
   assert.match(els['nutri-target'].innerHTML, /<span class="nt-mac-lbl">Carbs<\/span><span class="nt-mac-val"><b>—<\/b><small> \/ 304 g<\/small><\/span>/);
   assert.match(els['nutri-plan'].innerHTML, /class="meal-name">Breakfast</);
-  assert.match(els['nutri-plan'].innerHTML, /<select class="gd-pick sel" data-guide="lunch\.p" aria-label="Protein example for Lunch">[^]*?<\/select><span class="chev sel-chev" aria-hidden="true">›<\/span>/);
+  assert.match(els['nutri-plan'].innerHTML, /<select class="gd-pick sel" data-guide="lunch\.p" aria-label="Protein example for Lunch" style="--pick:(\d+)">[^]*?<\/select><span class="chev sel-chev" aria-hidden="true">›<\/span>/);
+  // --pick = the chosen food's name length (characters): the CSS sizes the select to it, so a long amount
+  // wraps under the select instead of cutting the name (docs/nutrition.md)
+  const picks = [...els['nutri-plan'].innerHTML.matchAll(/<select class="gd-pick sel"[^>]* style="--pick:(\d+)">[^]*?<option value="[^"]*" selected>([^<]*)<\/option>/g)];
+  assert.ok(picks.length >= 6, 'every example select carries --pick');
+  for (const [, n, name] of picks) assert.equal(+n, name.replace(/&[a-z#0-9]+;/g, 'x').length, `--pick of ${name}`);
   assert.doesNotMatch(els['nutri-plan'].innerHTML, /mp-pick|data-block|meal-addons/, 'no menu: no block selects, no add-ons card');
   assert.equal(els['nutri-fuel-block'].hidden, true);
   assert.deepEqual(calls, [['intake', 2300]], 'the rings are refreshed with today\'s target');
