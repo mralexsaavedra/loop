@@ -3678,13 +3678,7 @@
   "|||.db-drag .db-grip|||cursor": "grabbing",
   "|||.gd-ex .sel-chev|||width": "12px",
   "|||.gd-ex .sel-chev|||margin-right": "16px",
-  "|||.dial-asof|||margin-top": "4px",
-  "|||.dial-asof|||font-size": "var(--fs-label)",
-  "|||.dial-asof|||font-weight": "var(--label-weight)",
-  "|||.dial-asof|||letter-spacing": "var(--label-track)",
-  "|||.dial-asof|||text-transform": "uppercase",
-  "|||.dial-asof|||color": "var(--muted)",
-  "|||.dial-asof|||white-space": "nowrap",
+  "|||.dial-centre .carried-date|||margin-top": "4px",
   "|||.ns-now .en-num|||color": "var(--ink)",
   "|||.ji-flat|||color": "var(--muted)",
   "|||.ji-empty:first-child|||margin-top": "var(--sp-7)",
@@ -3718,5 +3712,12 @@
   "|||.dd-legend b|||white-space": "nowrap",
   "|||.jr-n-none|||color": "var(--faint)",
   "|||.jr-chev:focus-visible, .jr-day:focus-visible, .jr-sd:focus-visible, .jr-x:focus-visible|||outline": "2px solid var(--accent)",
-  "|||.jr-chev:focus-visible, .jr-day:focus-visible, .jr-sd:focus-visible, .jr-x:focus-visible|||outline-offset": "2px"
+  "|||.jr-chev:focus-visible, .jr-day:focus-visible, .jr-sd:focus-visible, .jr-x:focus-visible|||outline-offset": "2px",
+  "|||.carried|||opacity": "0.55",
+  "|||.carried-date|||font-size": "var(--fs-label)",
+  "|||.carried-date|||font-weight": "var(--label-weight)",
+  "|||.carried-date|||letter-spacing": "var(--label-track)",
+  "|||.carried-date|||text-transform": "uppercase",
+  "|||.carried-date|||color": "var(--muted)",
+  "|||.carried-date|||white-space": "nowrap"
 }

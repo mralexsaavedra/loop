@@ -96,6 +96,14 @@
     return a != null && a <= STALE_DAYS;
   }
   var CHECK = '<svg class="hmt-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
+  // THE carried-value rule (HC.carried, docs/design-system.md → Carried values): a tile whose value is
+  // dated before the shown day (`day`, null = the viewer's today) is dimmed and names that date, short
+  // (no weekday: a half-width tile)
+  function carry(iso, day) {
+    var c = HC.carried(iso, day, { weekday: false });
+    c.html = c.carried ? '<span class="carried-date">' + esc(c.label) + '</span>' : '';
+    return c;
+  }
   function lbl(text) {
     return '<span class="hmt-lbl">' + esc(text) + '<span class="chev" aria-hidden="true">›</span></span>';
   }
@@ -122,11 +130,21 @@
   // tile 1: a square status icon (✓ teal: every fresh signal in range; ! orange: one or more out; none
   // without fresh data) left of the chip + "n/total metrics" in range; a tap jumps to the full monitor
   // list at the top of Salud (core.js jump: switches to the tab that holds #monitor and scrolls to it)
-  function sumTile(n, total) {
+  // `asOf` = the newest night it counts (today only; a past day's summary is that day's): carried when
+  // earlier than today, its date on a line of its own under the count (a ' · ' join wraps at 360 px)
+  function sumTile(n, total, asOf) {
     var tone = n.out > 0 ? 'out' : n.inR > 0 ? 'in' : '';
     var sq = tone ? '<span class="hmt-sq hmt-' + tone + '" aria-hidden="true">' + (tone === 'in' ? CHECK : '!') + '</span>' : '';
-    return '<button type="button" class="hmt hmt-sum" onclick="jump(\'monitor\')">' + lbl(T.heading) +
-      '<span class="hmt-srow">' + sq + '<span class="hmt-body">' + chip(n, true) + '<span class="hmt-sub">' + esc(format(T.tile.metrics, { n: n.inR, total: total })) + '</span></span></span></button>';
+    var c = carry(asOf, null);
+    return '<button type="button" class="hmt hmt-sum' + c.cls + '" onclick="jump(\'monitor\')">' + lbl(T.heading) +
+      '<span class="hmt-srow">' + sq + '<span class="hmt-body">' + chip(n, true) + '<span class="hmt-sub">' + esc(format(T.tile.metrics, { n: n.inR, total: total })) + '</span>' +
+      (c.html ? '<span class="hmt-sub">' + c.html + '</span>' : '') + '</span></span></button>';
+  }
+  // the newest night among the fresh cards (what the summary counts), null without one
+  function newestFresh() {
+    var out = null;
+    M.cards.forEach(function (c) { if (fresh(c) && isoDate(c.date) && (!out || c.date > out)) out = c.date; });
+    return out;
   }
   // tile 2: the stress monitor (lib/score/stress.mjs, SCORES.stress: a heart-rate-only ESTIMATE per
   // waking hour) when the day has a value: the latest scored hour's value chip, its band word in the
@@ -145,16 +163,16 @@
   function stressTile(d, day) {
     var ST = T.stress, n = d.now, band = ST.bands[n.band] ? n.band : 'low';
     var time = String(n.t).slice(0, 2) + ':00';
-    var old = !day && daysOld(d.date) !== 0;
-    var when = old ? HC.fmtDate(d.date) + ' · ' + time : time;
+    var c = carry(d.date, day), old = c.carried;
+    var when = old ? c.label + ' · ' + time : time;
     // an earlier day's reading opens the stress page ON that day (tile and sheet agree), never on an
     // empty today
     var opens = day || (old ? d.date : null);
-    return '<div class="hmt hmt-stress hmt-sb-' + esc(band) + '"' + (opens ? HC.detailAttrs('stress', opens) : linkAttrs('stress')) +
+    return '<div class="hmt hmt-stress hmt-sb-' + esc(band) + c.cls + '"' + (opens ? HC.detailAttrs('stress', opens) : linkAttrs('stress')) +
       ' aria-label="' + esc(format(ST.aria, { value: num(n.v, 1), band: ST.bands[band], time: when })) + '">' + lbl(ST.label) +
       '<span class="hmt-body"><span class="hmt-srow"><span class="hmt-sv">' + esc(num(n.v, 1)) + '</span>' +
       '<span class="hmt-band">' + esc(ST.bands[band]) + '</span></span>' +
-      '<span class="hmt-sub">' + esc(when) + '</span></span></div><!--/hmt-->';
+      '<span class="hmt-sub">' + (old ? c.html + ' · ' : '') + esc(time) + '</span></span></div><!--/hmt-->';
   }
   function secondTile(day, hrv) {
     var d = T.stress ? stressDay(day) : null;
@@ -164,11 +182,11 @@
   // `day` = the past day shown (null = today): its date line and the sheet's opening day
   function hrvTile(c, day) {
     if (!c) return '';
-    var dated = day ? c.date !== day : daysOld(c.date) !== 0;
-    return '<div class="hmt hmt-hrv hm-tone-' + esc(c.tone || 'normal') + '"' + (day ? HC.detailAttrs('hrv', day) : linkAttrs('hrv')) + '>' + lbl(T.labels.hrv || 'HRV') +
+    var k = carry(c.date, day);
+    return '<div class="hmt hmt-hrv hm-tone-' + esc(c.tone || 'normal') + k.cls + '"' + (day ? HC.detailAttrs('hrv', day) : linkAttrs('hrv')) + '>' + lbl(T.labels.hrv || 'HRV') +
       '<span class="hmt-body"><span class="hmt-val"><b>' + esc(num(c.value, c.dec)) + '</b><small>' + esc(T.units.hrv || '') + '</small></span>' +
       '<span class="hmt-status">' + esc(T.status[c.status] || '') + '</span>' +
-      (dated && isoDate(c.date) ? '<span class="hmt-sub">' + esc(HC.fmtDate(c.date)) + '</span>' : '') + '</span></div><!--/hmt-->';
+      (k.carried ? '<span class="hmt-sub">' + k.html + '</span>' : '') + '</span></div><!--/hmt-->';
   }
   function todayHrv() {
     var c = null;
@@ -188,7 +206,7 @@
     try {
       var p = day ? pastEntry(day) : null;
       var t2 = p ? secondTile(day, p.hrv) : secondTile(null, todayHrv());
-      var t1 = p ? sumTile(p, p.total) : sumTile(counts(), M.cards.length);
+      var t1 = p ? sumTile(p, p.total, null) : sumTile(counts(), M.cards.length, newestFresh());
       tiles.innerHTML = '<div class="hm-tiles' + (t2 ? '' : ' hm-tiles-one') + '" role="group" aria-label="' + esc(T.tile.ariaLabel) + '">' + t1 + t2 + '</div>';
     } catch (e) {
       tiles.innerHTML = '';

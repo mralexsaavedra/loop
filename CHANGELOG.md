@@ -5,6 +5,18 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-09 — One carried-value rule (DS7)
+
+**Carried values** (the owner: "make it all coherent, like WHOOP"): any display that stands for today (or
+the stepped-to day) but shows an EARLIER day's value names that date and is dimmed — colour kept, one
+treatment (`.carried` + `.carried-date`), one helper (`HC.carried`); the > 3-day stale grey stays the
+stronger state. Inicio's sleep dial now follows it too (it showed an earlier night as last night's), and
+the DS6 recovery dial moved onto the helper (dimmed instead of greyed like stale data).
+The sleep deep-dive follows the recovery one: a carried night titles the page with its date, names it in
+the contributor legend and dims the hero.
+The Inicio monitor tiles (summary, stress, HRV), the energy bank card (which now opens its page on the
+carried day, like the stress tile), "My day" and Salud's recovery card headline follow the same rule.
+
 ## 2026-10-09 — Real-page fixes (DS6)
 
 **Recovery carried from an earlier day** (the owner's page read "HOY · 47 %" for Wednesday's night on

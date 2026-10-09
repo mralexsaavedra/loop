@@ -101,3 +101,12 @@ test('es: Spanish copy', () => {
   assert.match(h, />estimación</i);
   assert.match(h, /Desde 72 a las 07:00/);
 });
+
+test('carried values (HC.carried): the next morning, yesterday\'s level is dimmed, names its date (short) and opens the page on that day; today\'s and a stepped-to day\'s own level are normal', () => {
+  const h = render({ now: '2026-09-30' }).host.innerHTML;
+  assert.match(h, /^<div class="sc-card tn en de-mid carried"/);
+  assert.ok(h.includes('<span class="tn-lbl"><span class="carried-date">29 Sep</span> · 10:00</span>'), h);
+  assert.match(h, /data-detail="energy-bank" data-date="2026-09-29"/, 'tile and page agree, like the stress tile');
+  assert.doesNotMatch(render().host.innerHTML, /carried/);
+  assert.doesNotMatch(render({ sel: '2026-09-27', now: '2026-09-30' }).host.innerHTML, /carried/);
+});
