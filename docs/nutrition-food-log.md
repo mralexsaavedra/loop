@@ -137,7 +137,7 @@ Plan de hoy) and the
   controls): meal select = the four
   groups (Desayuno / Comida / Cena / Añadido; a main group is stored as its slot, Añadido as `snack`;
   a fresh sheet guesses the group by the viewer's hour: < 4 (late night) dinner, < 11 breakfast, < 16 lunch, < 20
-  Añadido, else dinner), tabs Mis
+  Añadido, else dinner), tabs (THE segmented control, `.dt-range.dt-range-fill`) Mis
   productos (search, grouped by store) / Mis recetas / Rápido (label + kcal + optional macros), amount in g / ml / servings (servings only with a serving
   size; a per-serving recipe in servings, a batch one in grams of cooked food; switching a product to
   servings sets the amount to 1, and back to its unit sets one serving in that unit, never reusing the typed number), live preview from the

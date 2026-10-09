@@ -31,6 +31,7 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
 | `--fs-dial`, `--fs-hero` | 26 / 56 px | a dial centre — sized to its ring (see "Exceptions") |
 | `--num-weight` | 700 | the one weight of a hero number |
 | `--fs-section` + `--fw-section` | `--fs-3xl` / 650 | THE section heading, every tab (`.hs-lbl`; see Components) |
+| `--fs-title-sheet` | `--fs-md` (13.5 px) | a sheet's own caps title (`detail.css` only: `.sh-title`, `.dt-month`, `.dt-word`, `.dd-lbl`, `.ds-band`) |
 | `--fs-title-lg` | `--fs-sm` (12.5 px) | caps tab / page title (`.hs-title`), the Hoy date, journal buttons |
 | `--fs-title` | `--fs-xs` (11.5 px) | caps card title, row name, section label (`h2`, `.sc-head h3`, `.db-name`, `.tl-name`) |
 | `--fs-label` | `--fs-2xs` (10.5 px; 11.5 at >= 900 px) | caps small label: stat / dial / chip / table head |
@@ -56,8 +57,10 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
 - Hero size: dial centres sized to their ring (Inicio's dials at >= 900 px, Nutrición's kcal dial
   `.nt-kcal`, the deep-dive dial `.dd-num`) and the trend sheet's header value (`.dt-num`); non-number
   glyphs (`.sh-back`, the header `.wordmark`, phone and desktop).
-- Caps: the header date pill (`.date-pill-lbl`, 0.14em — the header stays as is). Caps SIZES in
-  `detail.css` are not checked yet: the sheets keep a larger label scale (13.5 / 14.5 px), audited in DS4.
+- Caps: the header date pill (`.date-pill-lbl`, 0.14em — the header stays as is). The sheets' own caps
+  title (the sheet header, the trend's month and day word, the deep-dive dial label, the stress band
+  word) is one step up, `--fs-title-sheet` (13.5 px; the stress band was 14.5 px), allowed in `detail.css`
+  only; every other caps size in the sheets is a card caps token like anywhere else.
 
 A new exception is a design decision: add it here first, then to the test's allowlist. An allowlist
 key names the file, the media query and the selector (`training.css @media (min-width:900px) .cal-day`),
@@ -163,10 +166,13 @@ the trend sheet's window, its calendar month (formerly 44 px filled circles) and
 
 ### Segmented control and selected chip
 
-- **Segmented control** `.dt-range` (`detail.css`): THE range switch — the trend sheets' W · M · 6M · 1Y
-  and Entreno Activity's W · M · 6M (formerly a big pill track with a white thumb). Dark 28 px squares
-  (`--rail`, `--r-xs`), caps at `--fs-label`; the pressed one `--track` with `--ink` text; each button
-  keeps a 44 px-tall hit area (`::after`).
+- **Segmented control** `.dt-range` (`detail.css`): THE switch between views of one thing — the trend
+  sheets' W · M · 6M · 1Y, Entreno Activity's W · M · 6M (formerly a big pill track with a white thumb)
+  and the food sheet's source tabs (`.dt-range-fill`: full width, one equal column each; formerly their
+  own trough and pressed style). Dark 28 px squares (`--rail`, `--r-xs`, min 32 px wide), caps at
+  `--fs-label`; the pressed one `--track` with `--ink` text; each button keeps a 44 × 44 px hit area
+  (`::after`, 8 px above / below and 6 px each side) and the 12 px gap keeps neighbours' areas apart
+  (guard: `design-system.test.mjs`).
 - **Chip** `.chip` (`base.css`): a compact 30 px caps pill (1 px `--line` outline) to pick one of a few
   — Nutrición's day type and Constancia window (radios: `.seg-opt` + `.chip.seg-in`) and the load
   sheet's modality switch (`.chip.dial-mod`, which adds the 44 px `::before` hit band). The picked
@@ -179,8 +185,9 @@ the trend sheet's window, its calendar month (formerly 44 px filled circles) and
   34 × 20 track, knob left on `--rail` (off) or right on `--accent` (on); the button is the 44 px hit
   area. Not a pick of one among several — that is the chip.
 - Guard: a pressed / checked state that fills or outlines is the chip's, the segmented control's or
-  the switch's; the others are listed with their reason (the calendar's selected day, the journal's
-  answers, the food sheet's tabs, audited in DS4).
+  the switch's; the others are listed with their reason: the trend calendar's selected day (a ring on a
+  day cell) and the journal's ✕ / ✓ answers (the reference's answer pair, each a yes / no of its own
+  question — not a pick among options, so neither a chip nor a segment).
 
 ### Metric row
 
@@ -209,8 +216,10 @@ colour class: `good` (`--up`) / `bad` (`--down`) / `watch` (`--mid`) by the metr
 rate, bedtime, training time), and `flat` (`--faint`) ONLY for the •. Never a grey arrow. Used by every
 metric row (`HC.metricRow`: Inicio's dashboard, Salud, the monitor), the trend sheet's delta pill and
 Entreno's total-time pill; the deep-dive contributors map the same tones (`dd-better` / `dd-worse` /
-`dd-neutral` / `dd-typical`). The colours live in ONE block at the end of `detail.css` (after the pill's
-own grey, so they win).
+`dd-neutral` / `dd-typical`), and the Salud recovery card's 7-day trend glyph (`.sc-arrow` + `db-*`;
+formerly its own band colours). The colours live in ONE block in `base.css`, each class written twice
+(specificity 0,2,0) so it beats a host's own colour (`.dt-pill`'s grey) by specificity, whatever order the
+stylesheets load in; `design-system.test.mjs` checks the cascade on every host.
 
 - Guard: no other rule colours a trend class, and only the dot classes are grey; `util.test.mjs` pins
   that `trendTone` never returns `flat` for an arrow.

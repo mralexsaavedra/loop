@@ -27,6 +27,14 @@ value; the rides' HR / effort / kJ line under the date moved to the row's aria l
 is gone). Intensity (HR) rows carry their modality's icon instead of a heart each, and Salud's sleep rows
 their own (target, regularity, bed, wake, stages …) instead of ~10 moons — one icon set (`metricIcon`
 falls back to the contributor rows' paths; new simple strokes only for a dumbbell and the stages steps).
+**Leftover pressed states and the sheets' caps:** the food sheet's source tabs are THE segmented control
+(`.dt-range-fill`), so their own trough and pressed style go; the journal's ✕ / ✓ answers stay listed (an
+answer pair, not a pick). Every segmented-control button has a 44 × 44 px hit area again (the W / M / 6M
+squares had shrunk to 36 px wide), with a 12 px gap so neighbours never overlap. The sheets' caps sizes
+use the caps tokens plus one new sheet step (`--fs-title-sheet`, 13.5 px; the stress band word 14.5 → 13.5)
+and are guarded. The trend-glyph colours move into `base.css` with doubled-class specificity, so they win
+over a host's own grey by specificity rather than stylesheet order (a new test walks the cascade), and the
+recovery card's 7-day glyph joins them.
 
 ## 2026-10-09 — Design system components: one style per shared pattern
 

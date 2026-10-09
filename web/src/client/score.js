@@ -67,10 +67,13 @@ function scMod(key) {
       '<path class="line" d="M' + pts.join(' L') + '"/></svg>'
     );
   }
-  var GLYPH = { above: '▲', ramping: '▲', below: '▼', wellBelow: '▼', at: '•', steady: '•' };
+  // the recovery trend's glyph: THE trend glyph (docs/design-system.md), its colour from the shared tone
+  // classes — above baseline = better (▲ db-good), below = worse (▼ db-bad), at = the grey •
+  var GLYPH = { above: '▲', below: '▼', at: '•' };
+  var GLYPH_TONE = { above: 'good', below: 'bad', at: 'flat' };
   function arrow(band) {
-    var g = GLYPH[band] || GLYPH.at;
-    return '<span class="sc-arrow sc-arrow-' + esc(band) + '" aria-hidden="true">' + g + '</span>';
+    var b = Object.prototype.hasOwnProperty.call(GLYPH, band) ? band : 'at';
+    return '<span class="sc-arrow db-' + GLYPH_TONE[b] + '" aria-hidden="true">' + GLYPH[b] + '</span>';
   }
   function asOfHtml(iso) {
     iso = isoDate(iso);

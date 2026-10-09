@@ -254,8 +254,8 @@ switch is outside every opener); run / ride rows →
   shows the newest day in range ("Rest" on a rest day). The band note says colours are the CURRENT
   range (static, as of the newest day), except recovery, scored per day; a signal / total / sleep /
   recovery metric whose own last day is > 3 days before the view end says so. The trend view: a
-  small right-aligned W · M · 6M · 1Y switch (dark 28 px squares, the pressed one grey, each with a
-  44 px-tall hit area; 7 / 30 / 182 / 365 days, `RANGES`; opens on M; es S · M · 6M · 1A), under it the
+  small right-aligned W · M · 6M · 1Y switch (THE segmented control: dark 28 px squares, the pressed one
+  grey, each with a 44 × 44 px hit area; 7 / 30 / 182 / 365 days, `RANGES`; opens on M; es S · M · 6M · 1A), under it the
   window row "‹ 23 Sep – 29 Sep, 26 ›" (`trend.win`): ‹ › (the shared `.nav-btn` + `.chev`, like the
   calendar's month ‹ ›; design-system.md → Components) step the window back / forward by its own
   length (`state.shift` whole windows back from the view end; › disabled at today, ‹ disabled once the
