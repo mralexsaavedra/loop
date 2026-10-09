@@ -740,7 +740,7 @@ test('load deep-dive: the gym / run / bike pills (moved from under Inicio\'s dia
   assert.ok(mods.length >= 2, 'the demo has several load series');
   const sw = (html.match(/<div class="dial-switch" role="group" aria-label="Load modality">[\s\S]*?<\/div>/) || [''])[0];
   assert.deepEqual([...sw.matchAll(/data-detail="load-([a-z]+)"/g)].map((m) => m[1]), mods);
-  assert.match(sw, /<button type="button" class="dial-mod" data-detail="load-run" aria-pressed="true">Run<\/button>/);
+  assert.match(sw, /<button type="button" class="chip dial-mod" data-detail="load-run" aria-pressed="true">Run<\/button>/);
   assert.equal((sw.match(/aria-pressed="true"/g) || []).length, 1);
   assert.doesNotMatch(sw, /onclick/, 'no scMod on the page: plain links');
   assert.ok(html.indexOf('dial-switch') > html.indexOf('dd-hero') && html.indexOf('dial-switch') < html.indexOf('dd-insight'), 'between the contributors and the insight card');

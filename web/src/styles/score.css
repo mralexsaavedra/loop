@@ -413,22 +413,11 @@
   /* a wrapped row sits past both 7px hit-area extensions (see .dial-mod::before) */
   row-gap: var(--sp-6);
 }
-/* the pill stays a compact 30px; its hit area is a centred 44px band (::before) that only reaches
-   7px above and below it, never sideways into the next pill */
+/* a .chip (base.css): the pill stays a compact 30px; its hit area is a centred 44px band (::before)
+   that only reaches 7px above and below it, never sideways into the next pill */
 .dial-mod {
-  position: relative;
-  min-height: 30px;
+  justify-content: center;
   min-width: 44px;
-  padding: var(--sp-1) var(--sp-4);
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: transparent;
-  color: var(--muted);
-  font-family: inherit;
-  font-size: var(--fs-label);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
   cursor: pointer;
 }
 .dial-mod::before {
@@ -438,11 +427,6 @@
   bottom: calc(50% - 22px);
   left: 0;
   right: 0;
-}
-.dial-mod[aria-pressed="true"] {
-  background: rgba(var(--accent-rgb), 0.12);
-  border-color: var(--strain);
-  color: var(--ink);
 }
 .dial-mod:focus-visible {
   outline: 2px solid var(--accent);

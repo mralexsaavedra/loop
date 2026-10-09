@@ -67,7 +67,6 @@ const ROLES = {
 const CARD_FILL = new Set(['var(--card-bg)', 'var(--surface)']);
 // a card-fill rule allowed another radius: `${file} ${selector}` → reason
 const CARD_RADIUS_ALLOW = {
-  'detail.css .dt-range': 'segmented-control track, a pill (DS3)',
   'detail.css .dd-contrib:before': 'a 3px marker bar, not a card',
 };
 // a raw px radius >= 8px allowed: `${file} ${selector}` → reason
@@ -245,4 +244,23 @@ test('chevron: every ‹ / › written in markup is a .chev span', () => {
     if (n !== (GLYPH_ALLOW[f] ?? 0)) bad.push(`${f}: ${n} chevron glyph(s) outside a .chev span (allowed ${GLYPH_ALLOW[f] ?? 0})`);
   }
   assert.deepEqual(bad, []);
+});
+
+// a "picked" state that fills or outlines: the chip and the segmented control own it; every other
+// pressed / checked fill is listed with its reason
+const PICKED_ALLOW = {
+  'base.css .chip[aria-pressed=true], :checked+.chip': 'THE selected chip (white fill)',
+  'detail.css .dt-range button[aria-pressed=true]': 'THE segmented control (grey square)',
+  'detail.css .dt-day[aria-pressed=true]': "the trend calendar's selected day (a ring on a day cell)",
+  'food.css .fa-tab[aria-pressed=true]': "the food sheet's source tabs (audited in DS4)",
+  'journal.css .jr-x[aria-pressed=true]': "a journal answer (yes), not a filter",
+  'journal.css .jr-y[aria-pressed=true]': "a journal answer (no), not a filter",
+  'score.css .db-tog[aria-pressed=true]': 'Customize panel visibility toggle (DS4)',
+};
+test('selected chip and segmented control: one picked style each; other picked fills are listed', () => {
+  const picked = RULES.filter((r) => /\[aria-(pressed|checked|selected)=true\]|:checked/.test(r.selector) && (r.decl.background || r.decl['background-color'] || r.decl['border-color']));
+  assert.deepEqual(picked.map(key).filter((k) => !PICKED_ALLOW[k]), [], 'a new picked style: reuse .chip or .dt-range');
+  assert.deepEqual(Object.keys(PICKED_ALLOW).filter((k) => !picked.some((r) => key(r) === k)), [], 'stale allowlist entries');
+  const chip = picked.find((r) => key(r).startsWith('base.css .chip'));
+  assert.deepEqual([chip.decl.background, chip.decl.color], ['var(--accent)', 'var(--on-accent)'], 'the picked chip is white-filled');
 });
