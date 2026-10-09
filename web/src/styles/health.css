@@ -21,7 +21,7 @@
   stroke-linejoin: round;
   stroke-linecap: round;
 }
-/* Salud section header (the monitor list and every section): UPPERCASE label, an optional status
+/* Salud section header (the monitor list and every section): the section heading, an optional status
  * chip, and an ⓘ button that shows the section's notes in place (client/health.js toggles). */
 .hs-sec {
   margin: var(--sp-5) 0 var(--sp-3);
@@ -33,15 +33,17 @@
   min-height: 44px;
   margin-bottom: var(--sp-2);
 }
+/* THE section heading (docs/design-system.md → Components): sentence case at the section step on
+   every tab (Inicio's "My day" too, as .hs-lbl.home-h), never the caps of an in-card title */
 .hs-lbl {
   flex: 1;
   min-width: 0;
   margin: 0;
   color: var(--ink);
-  font-size: var(--fs-title);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
+  font-size: var(--fs-section);
+  font-weight: var(--fw-section);
+  letter-spacing: 0;
+  text-transform: none;
 }
 .hs-lbl::after {
   content: none;

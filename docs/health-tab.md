@@ -24,8 +24,8 @@ ellipse of `--up` at 24 % via `color-mix`, absolute behind the content, only whi
 Like the reference, Salud, Entreno and Nutrición open on that title alone: the top bar's avatar and
 date pill show on Inicio only (`docs/plan-page.md`, top bar), the freshness / Sync controls stay; the health monitor list (`#monitor`, `client/monitor.js`, see
 `docs/home-tab.md` "Health monitor"; its header reads title → "n out of range" chip → ⓘ at the end); then the sections of `#health-body`, each a `<section
-class="hs-sec" id="hl-<key>">` with an UPPERCASE label, an ⓘ toggle and a list of metric rows:
-**Recovery** (`#score-recovery`, the recovery card filled by score.js, restyled borderless; its
+class="hs-sec" id="hl-<key>">` with the shared sentence-case section heading (`.hs-lbl`, [design-system.md](design-system.md) → Components), an ⓘ toggle and a list of metric rows:
+**Recovery** (`#score-recovery`, the recovery card filled by score.js, restyled borderless and without a title of its own — the section heading names it, the card head keeps the as-of date, History and its ⓘ; its
 headline is last night's recovery % (the unit attached to the number at ~55 % of its size, "99%") with the % band word, or the SD value under 21 prior nights — its long
 lines join this section's ⓘ block, and its raw "Last 14 days" lists fold behind a quiet disclosure
 line, see `docs/home-tab.md` — then only the signals among resting HR, HRV, respiratory rate and wrist
@@ -47,8 +47,9 @@ over the last 30 days — for the daily TOTALS of `dailyTrend` the 30 days endin
 latest, since the build cannot know whether that day is complete; sleep: the 30-night mean) with ▲ / ▼
 vs it (a grey • within ±2 %), or, for a sparse measurement, its change "Δ +1.2" (`d30Of` for weight,
 the scale-window Δ for body fat / lean mass, latest − first for VO₂max and waist) with the marker by
-its sign. Colour by the metric's good direction: `--up` teal = better, `--down` orange = worse, grey
-for no good direction (respiratory rate, wrist temp, weight, expenditure). A daily total dated the
+its sign. Colour by the metric's good direction: `--up` teal = better, `--down` orange = worse, `--ink`
+for no good direction (respiratory rate, wrist temp, weight, expenditure; never a grey arrow — the trend glyph,
+design-system.md → Components). A daily total dated the
 viewer's today is partial: its line adds "today, so far" / "hoy, en curso" and it gets no marker
 (decided client-side). A row whose newest value is more than `STALE_DAYS` (3) before the viewer's
 today is greyed (`db-stale`) with "no recent data" / "sin datos recientes" and no marker (waist,

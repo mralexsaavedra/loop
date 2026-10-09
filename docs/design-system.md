@@ -30,7 +30,7 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
 | `--fs-num-card` | `--fs-4xl` (28 px) | a card's headline value (eat card kcal, Tonight's clocks, the energy / nutrition %, load cards, recovery card, weight, monitor tiles at >= 900 px) |
 | `--fs-dial`, `--fs-hero` | 26 / 56 px | a dial centre — sized to its ring (see "Exceptions") |
 | `--num-weight` | 700 | the one weight of a hero number |
-| `--fs-section` + `--fw-section` | `--fs-3xl` / 650 | a sentence-case section heading (Inicio's "My day", `.home-h`) |
+| `--fs-section` + `--fw-section` | `--fs-3xl` / 650 | THE section heading, every tab (`.hs-lbl`; see Components) |
 | `--fs-title-lg` | `--fs-sm` (12.5 px) | caps tab / page title (`.hs-title`), the Hoy date, journal buttons |
 | `--fs-title` | `--fs-xs` (11.5 px) | caps card title, row name, section label (`h2`, `.sc-head h3`, `.db-name`, `.tl-name`) |
 | `--fs-label` | `--fs-2xs` (10.5 px; 11.5 at >= 900 px) | caps small label: stat / dial / chip / table head |
@@ -52,15 +52,17 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
 ### Exceptions (the guard's allowlists, each with its reason)
 
 - Radius: the dock bar and its buttons (`.tabnav`, 24 / 19 px), the "+" popover (`.act-pop`, 12 px),
-  the desktop calendar tile (`.cal-day`, 8 px), the segmented-control track (`.dt-range`, a pill) and
-  the 2 px contributor marker (`.dd-contrib::before`).
+  the desktop calendar tile (`.cal-day`, 8 px) and the 2 px contributor marker (`.dd-contrib::before`).
 - Hero size: dial centres sized to their ring (Inicio's dials at >= 900 px, Nutrición's kcal dial
   `.nt-kcal`, the deep-dive dial `.dd-num`) and the trend sheet's header value (`.dt-num`); non-number
-  glyphs (`.sh-back`, the desktop `.wordmark`).
+  glyphs (`.sh-back`, the header `.wordmark`, phone and desktop).
 - Caps: the header date pill (`.date-pill-lbl`, 0.14em — the header stays as is). Caps SIZES in
   `detail.css` are not checked yet: the sheets keep a larger label scale (13.5 / 14.5 px), audited in DS4.
 
-A new exception is a design decision: add it here first, then to the test's allowlist.
+A new exception is a design decision: add it here first, then to the test's allowlist. An allowlist
+key names the file, the media query and the selector (`training.css @media (min-width:900px) .cal-day`),
+so an exception at >= 900 px never excuses the phone rule. A selector counts as a number when ANY rule
+puts it in the `--num` face, a grouped `.a, .b { font-family: var(--num) }` included.
 
 ## Numbers
 
@@ -97,19 +99,93 @@ the advice copy); the page gets the SAME functions as a classic script, `clientS
   `lib/nutrition/basics.mjs`), the plan's portion factor port (pinned to `lib/nutrition/scale.mjs`)
   and SVG / CSS geometry (`toFixed` for coordinates) keep their own code.
 
-The guard `web/test/number-format.test.mjs` scans the display sources (client scripts, views, tabs,
-components, the layout, i18n, the advice copy; comments stripped) and fails on `toLocaleString` /
-`Intl.NumberFormat`, a hand-rolled thousands grouping, a hand-made decimal comma, a `toFixed` that is
-not geometry (per-file counts), a space before `%`, and a `{value} h` template or a `' h'` built in
-code; each exception above is its allowlist. `lib/format/numbers.test.mjs` pins the rules (es + en,
+The guard `web/test/number-format.test.mjs` scans the display sources (`web/test/display-sources.mjs`:
+client scripts, views, tabs, components — sub-folders included — the layout, i18n, the advice copy;
+comments stripped) and fails on `toLocaleString` / `Intl.NumberFormat`, a hand-rolled thousands
+grouping, a hand-made decimal comma (string or regex form), a `toFixed` that is not geometry (per-file
+counts), a space before `%` (a template literal's `${v} %` too), and a `{value} h` template, a `' h'`
+or a `${v} h` built in code; each exception above is its allowlist. `lib/format/numbers.test.mjs` pins the rules (es + en,
 0, negatives, absent, 999 / 1,000, h:mm rounding) and that `clientSource()` behaves like the module.
 
 ## Components
 
-Stub — filled by DS3, one shared class per pattern:
+One shared class set per pattern; a new card reuses it instead of styling its own.
 
-- Section heading (one style for every tab's sections).
-- CTA link.
-- Chevron (one size and colour; also the trend sheet's date navigation).
-- Segmented control and the selected chip.
-- Trend glyph (coloured ▲▼, grey dot for typical).
+### Section heading
+
+`.hs-lbl` (`health.css`) is THE section heading on every tab: sentence case at `--fs-section` /
+`--fw-section`, no tracking. In a section it sits in the `.hs-head` row with the optional ⓘ
+(`HC.infoBtn`) on the right; on Inicio it stands alone as `.hs-lbl.home-h` (`home-h` adds only the
+block spacing). Caps at `--fs-title` stay for what is INSIDE a card (card titles, row names), so a
+section heading never looks like the card under it.
+
+- **Duplicate titles.** When a section holds one card whose title would repeat the section heading,
+  the section heading stays and the card drops its title — but only the title: anything else in the
+  card's head (an as-of date, a CTA, its ⓘ) stays. Today: Salud's Recovery card (`score.js`
+  `recoveryHtml`). A card with its own name (Entreno "Load vs recovery" → "Weekly cardiovascular
+  load") keeps it.
+- **Not section headings:** the tab title (`.hs-title`, centred caps), fold rows (`.sec-fold > summary`,
+  a card-level row with a caps title) and in-card titles (`.sc-head h3`).
+
+### CTA link
+
+`HC.cta(label, attrs)` (`client/util.js`) writes THE call-to-action link: a `<button class="cta">`, the
+label in caps (`--fs-title-lg`, `--label-weight`, `--label-track`) in `--link` blue, then " →" (hidden
+from screen readers), at least 44 px tall. Astro writes the same markup (Inicio's eat card "See the full
+plan →"). On the deep-dive insight card the text is the `--link` → `--link-end` gradient, the only
+place it passes contrast (`--ground`, `tokens-contrast.test.mjs`). Uses: the insight "See my … trend",
+the recovery card's "History", Tonight's "See sleep history", the trend sheet's "Learn more".
+
+- **CTA vs button.** A CTA goes somewhere (opens a sheet, scrolls, switches tab). A real action
+  (save, add, the journal's behaviour insights, Customize) keeps its button / pill style.
+- **CTA vs `.lnk`.** `.lnk` is the underlined link INSIDE a sentence (a table jump, "retry").
+- Guard: only `.cta` and `.lnk` paint text in `--link`, and only `.dd-insight .cta` clips the gradient
+  to text.
+
+### Chevron and step navigation
+
+ONE chevron: the "›" glyph (‹ for previous) in `--muted`, at `--chev-size` (`--fs-xl`, 15.5 px),
+regular weight. `base.css` holds its look in one grouped rule: the `.chev` span (dial labels, monitor
+tiles, the outlook bar, My plan, the journal card, folds such as Nutrición's Today's plan and
+Equivalences, the trend sheet's metric picker) and the generated chevrons (every opener
+`[data-detail][role="button"]`, Nutrición's meal rows, the recovery card's last-14-days fold). Each
+owner only places or rotates it (a fold turns it 90°; My plan's points down); it never sets a colour
+or size of its own. In markup a ‹ / › is always `<span class="chev" aria-hidden="true">`.
+
+Step navigation (‹ ›) is `.nav-btn`: a bare 44 px target holding a `.chev`, at 35 % when disabled —
+the trend sheet's window, its calendar month (formerly 44 px filled circles) and Registrar's day.
+
+- **Exceptions:** the sheet header's back "‹" (`.sh-back`, a header control sized with the title) and
+  the top bar's "‹ Today ›" pill (the header stays as is).
+- Guards: no CSS rule but the shared one gives a chevron (a `*chev*` class or a `content: "›"`) a
+  colour / size / weight; every ‹ › glyph in the display sources sits in a `.chev` span (allowlist:
+  `util.js` sheet header).
+
+### Segmented control and selected chip
+
+- **Segmented control** `.dt-range` (`detail.css`): THE range switch — the trend sheets' W · M · 6M · 1Y
+  and Entreno Activity's W · M · 6M (formerly a big pill track with a white thumb). Dark 28 px squares
+  (`--rail`, `--r-xs`), caps at `--fs-label`; the pressed one `--track` with `--ink` text; each button
+  keeps a 44 px-tall hit area (`::after`).
+- **Chip** `.chip` (`base.css`): a compact 30 px caps pill (1 px `--line` outline) to pick one of a few
+  — Nutrición's day type and Constancia window (radios: `.seg-opt` + `.chip.seg-in`) and the load
+  sheet's modality switch (`.chip.dial-mod`, which adds the 44 px `::before` hit band). The picked
+  chip is white-filled (`--accent` / `--on-accent`), the reference app's selected filter; the load
+  sheet's teal outline is gone.
+- Guard: a pressed / checked state that fills or outlines is the chip's or the segmented control's;
+  the others are listed with their reason (the calendar's selected day, the journal's answers, the
+  food sheet's tabs and the Customize toggles, both audited in DS4).
+
+### Trend glyph
+
+▲ / ▼ for a change, • for typical / steady. `HC.trendTone(arrow, tone)` (`client/util.js`) picks the
+colour class: `good` (`--up`) / `bad` (`--down`) / `watch` (`--mid`) by the metric's good direction,
+`neutral` (`--ink`) for a change with no good direction (weight, expenditure, light sleep, respiratory
+rate, bedtime, training time), and `flat` (`--faint`) ONLY for the •. Never a grey arrow. Used by every
+metric row (`HC.metricRow`: Inicio's dashboard, Salud, the monitor), the trend sheet's delta pill and
+Entreno's total-time pill; the deep-dive contributors map the same tones (`dd-better` / `dd-worse` /
+`dd-neutral` / `dd-typical`). The colours live in ONE block at the end of `detail.css` (after the pill's
+own grey, so they win).
+
+- Guard: no other rule colours a trend class, and only the dot classes are grey; `util.test.mjs` pins
+  that `trendTone` never returns `flat` for an arrow.

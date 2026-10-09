@@ -208,7 +208,7 @@
         var head = '<div class="dt-latest"><b class="dt-num">' + esc(clock(tn.bed)) + '</b><span class="dt-when">' + esc(TT.bed) + '</span></div>';
         var body = '<p class="tn-rule">' + esc(format(TT.rule, { wake: clock(tn.wake), n: tn.nights, target: HC.hours(tn.target), bed: clock(tn.bed) })) + '</p>' +
           '<p class="dt-note">' + esc(TT.note) + '</p>' +
-          (D && D.metrics && D.metrics.sleep ? '<button type="button" class="tn-more" data-detail="sleep">' + esc(TT.history) + '</button>' : '');
+          (D && D.metrics && D.metrics.sleep ? HC.cta(TT.history, ' data-detail="sleep"') : '');
         return { head: head, body: body };
       },
     };
@@ -228,7 +228,7 @@
       var P = T.plan, left = g.week.daysLeft;
       var leftTxt = left === 0 ? P.lastDay : left === 1 ? P.oneLeft : format(P.daysLeft, { n: left });
       return '<details class="sc-card wp"' + (open ? ' open' : '') + '><summary class="wp-sum">' +
-        '<span class="wp-top"><b class="wp-title">' + esc(P.card) + '</b><span class="wp-chev" aria-hidden="true"></span></span>' +
+        '<span class="wp-top"><b class="wp-title">' + esc(P.card) + '</b><span class="chev wp-chev" aria-hidden="true">›</span></span>' +
         '<span class="wp-left">' + esc(leftTxt) + '</span>' +
         '<span class="wp-pct"><b>' + g.pct + '</b><small>%</small> ' + esc(P.done) + '</span>' +
         '<span class="wp-prog" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + g.pct + '" aria-label="' + esc(P.card) + '"><i style="width:' + g.pct + '%"></i></span>' +

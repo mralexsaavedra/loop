@@ -226,7 +226,7 @@ them equal); no `apple-mobile-web-app-*` metas (a home-screen app would draw the
 status bar). Phones (< 900 px): every text input / select / textarea
 is `--fs-input` (16px), so iOS never zooms into a focused field — one `:is()` rule in `base.css`
 that out-ranks the form-control classes (`web/test/mobile.test.mjs`). Small pills keep their look
-with a centred 44px `::before` hit band (the load dial's modality switch, `.dial-mod`). Nav tab icons are inline SVG line icons keyed by tab (`TAB_ICONS` in `web/layouts/Plan.astro`,
+with a centred 44px `::before` hit band (the load dial's modality switch, `.chip.dial-mod`). Nav tab icons are inline SVG line icons keyed by tab (`TAB_ICONS` in `web/layouts/Plan.astro`,
 same drawing as the day-type icons; the active tab paints icon + label white) — no emoji. Headings and
 labels (`h2`, dial labels, the date pill, the "+" rows) are caps; the dock's tab labels are small
 sentence case. Caps labels are bold (`--label-weight` 700), `--label-track`

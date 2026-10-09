@@ -31,8 +31,6 @@ summary::-webkit-details-marker {
   display: none;
 }
 summary .chev {
-  color: var(--accent);
-  font-size: var(--fs-md);
   transition: transform 0.2s;
 }
 details[open] summary .chev {

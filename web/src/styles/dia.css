@@ -105,10 +105,6 @@ button.meal-name {
 }
 button.meal-name::after {
   content: "›";
-  color: var(--accent);
-  font-weight: 800;
-  font-size: var(--fs-2xl);
-  line-height: 1;
 }
 button.meal-name:focus-visible {
   outline: 2px solid var(--accent);

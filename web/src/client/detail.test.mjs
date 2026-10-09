@@ -301,7 +301,7 @@ test('trend view: a daily total skips today (still filling up); recovery deltas 
   assert.deepEqual([st.avg, st.n, st.prev, st.flat, st.tone], [8000, 6, 8000, true, 'normal'], 'today\'s 100 so far is left out');
   s.api.open('steps');
   s.click(act('range', { 'data-range': '7' }));
-  assert.match(s.host.innerHTML, /<span class="dt-pill dt-pill-normal">• 0% vs prior week<\/span>/);
+  assert.match(s.host.innerHTML, /<span class="dt-pill dt-pill-flat">• 0% vs prior week<\/span>/);
   const rec = JSON.parse(JSON.stringify(s.api.periodStats('recovery', NOW, 7)));
   assert.deepEqual([rec.avg, rec.prev, rec.delta, rec.pct, rec.tone], [0.5, 0, 0.5, null, 'good']);
   s.api.open('recovery');
@@ -594,7 +594,7 @@ test('ⓘ toggles the long-notes block in place (no re-render); the CTA jumps to
   assert.equal(period.scrolled, 1);
   assert.equal(pressed.focused, 1);
   assert.equal(s.hostWrites(), writes, 'neither action re-renders the sheet');
-  assert.ok(s.host.innerHTML.includes(`<button type="button" class="dd-cta" data-dt-act="trend">${enT.deep.ctas.recovery}<span aria-hidden="true"> →</span></button>`));
+  assert.ok(s.host.innerHTML.includes(`<button type="button" class="cta" data-dt-act="trend">${enT.deep.ctas.recovery}<span aria-hidden="true"> →</span></button>`));
 });
 
 test('recovery deep-dive: the insight card leads with Inicio\'s outlook sentence (window.HCAdvice), the full text behind the one-line bar; nothing without one', () => {
@@ -740,7 +740,7 @@ test('load deep-dive: the gym / run / bike pills (moved from under Inicio\'s dia
   assert.ok(mods.length >= 2, 'the demo has several load series');
   const sw = (html.match(/<div class="dial-switch" role="group" aria-label="Load modality">[\s\S]*?<\/div>/) || [''])[0];
   assert.deepEqual([...sw.matchAll(/data-detail="load-([a-z]+)"/g)].map((m) => m[1]), mods);
-  assert.match(sw, /<button type="button" class="dial-mod" data-detail="load-run" aria-pressed="true">Run<\/button>/);
+  assert.match(sw, /<button type="button" class="chip dial-mod" data-detail="load-run" aria-pressed="true">Run<\/button>/);
   assert.equal((sw.match(/aria-pressed="true"/g) || []).length, 1);
   assert.doesNotMatch(sw, /onclick/, 'no scMod on the page: plain links');
   assert.ok(html.indexOf('dial-switch') > html.indexOf('dd-hero') && html.indexOf('dial-switch') < html.indexOf('dd-insight'), 'between the contributors and the insight card');
@@ -1575,6 +1575,18 @@ test('trend sentence: a real change that rounds to the same number gets one more
   assert.match(s.host.innerHTML, /was 53\.6 bpm, lower than the week before \(54\.4 bpm\)\./);
 });
 
+test('trend sentence: sleep reads h:mm, so two windows that print the same clock are "about the same"', () => {
+  const start = addDays(NOW, -13);
+  // 18.3 vs 18.0 min: a 1.6% change (not flat), but both print 0:18 — never "lower than" next to equal values
+  const v = Array.from({ length: 14 }, (_, i) => (i < 7 ? 0.305 : 0.3));
+  const s = setup({ detail: { asOf: NOW, days: 365, metrics: { sleep: { kind: 'sleep', dir: 1, dec: 2, start, v } }, sessions: [] } });
+  s.api.open('sleep');
+  s.click(act('range', { 'data-range': '7' }));
+  const txt = /<p class="dt-trend-txt">([^<]*)<\/p>/.exec(s.host.innerHTML)[1];
+  assert.match(txt, /was 0:18, about the same as the week before \(0:18\)\./);
+  assert.match(s.host.innerHTML, /dt-pill-neutral|dt-pill-bad/, 'the pill still shows the real change');
+});
+
 /* ---------- stress monitor page (key 'stress', SCORES.stress: lib/score/stress.mjs) ---------- */
 const curveOf = (html) => (html.split('<section class="ds-curve"')[1] || '').split('</section>')[0];
 const bandsOf = (html) => (html.split('<section class="ds-bands"')[1] || '').split('</section>')[0];
@@ -1871,7 +1883,7 @@ test('trend view breakdown: one stacked bar of the window\'s days by calendar st
     const b = brkOf(s.host.innerHTML);
     const c = count(from);
     const tot = c.good + c.normal + c.bad;
-    assert.ok(b.includes(`<h3 class="dt-brk-t">${enT.trend.brk.title}</h3><button type="button" class="dt-learn" data-dt-act="learn">${enT.trend.brk.learn}</button>`));
+    assert.ok(b.includes(`<h3 class="dt-brk-t">${enT.trend.brk.title}</h3><button type="button" class="cta" data-dt-act="learn">${enT.trend.brk.learn}<span aria-hidden="true"> →</span></button>`));
     assert.deepEqual([...b.matchAll(/<li data-st="([a-z]+)">/g)].map((x) => x[1]), ['good', 'normal', 'bad'], 'the legend\'s order');
     for (const k of ['good', 'normal', 'bad']) {
       assert.ok(b.includes(`${k === 'good' ? enT.legend.good : k === 'bad' ? enT.legend.bad : enT.legend.normal}<b>${c[k]}x</b>`), `${range}: ${k} ${c[k]}x`);
@@ -1898,6 +1910,6 @@ test('trend view breakdown: one stacked bar of the window\'s days by calendar st
   assert.doesNotMatch(s.host.innerHTML, /dt-brk/);
   const es = setup({ locale: 'es' });
   es.api.open('rhr');
-  assert.ok(es.host.innerHTML.includes(`>${esT.trend.brk.learn}</button>`) && /<b>\d+x<\/b>/.test(es.host.innerHTML));
+  assert.ok(es.host.innerHTML.includes(`>${esT.trend.brk.learn}<span aria-hidden="true"> →</span></button>`) && /<b>\d+x<\/b>/.test(es.host.innerHTML));
   clean(html);
 });

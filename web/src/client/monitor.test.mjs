@@ -103,6 +103,17 @@ test('the normal range is the small line under the value, written one decimal fi
   assert.doesNotMatch(rhr, /style=/);
 });
 
+test('sleep reads h:mm with no unit: the value and both band bounds (minutes rounded)', () => {
+  const html = render(monitor(), { now: addDays(ASOF, -3) }); // sleep's own day: not stale, band shown
+  const sleep = cardOf(html, 'sleep');
+  const c = monitor().cards.find((x) => x.key === 'sleep');
+  const hm = (h) => { const m = Math.round(h * 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
+  assert.match(sleep, /<b class="hm-num">5:00<\/b>/, 'value 5 h -> 5:00');
+  assert.doesNotMatch(sleep, /<small>h<\/small>|\d h\b/, 'no "h" unit');
+  assert.ok(sleep.includes(`<span class="db-base">${hm(c.band.lo)}–${hm(c.band.hi)}</span>`), sleep);
+  assert.match(sleep, /aria-label="Sleep · 5:00 · Low · Normal range \d+:\d\d–\d+:\d\d"/);
+});
+
 test('the monitor note is behind an ⓘ toggle (collapsed), never lost', () => {
   const html = render(monitor());
   assert.match(html, /<button type="button" class="hs-i" data-hs-info="hm-info" aria-expanded="false" aria-controls="hm-info" aria-label="[^"]+">/);
@@ -190,7 +201,7 @@ test('tile 1 = the monitor summary: out-of-range count chip, "n/5 metrics" in ra
   // respiratory High + sleep Low are out of range; resting HR in range; HRV building; wrist temp no data
   assert.match(html, /<button type="button" class="hmt hmt-sum" onclick="jump\('monitor'\)">/);
   const sum = html.match(/<button type="button" class="hmt hmt-sum"[\s\S]*?<\/button>/)[0];
-  assert.ok(sum.includes(`<span class="hmt-lbl">${enT.monitor.heading}<span class="hmt-chev" aria-hidden="true">›</span></span>`));
+  assert.ok(sum.includes(`<span class="hmt-lbl">${enT.monitor.heading}<span class="chev" aria-hidden="true">›</span></span>`));
   assert.match(sum, /<span class="hmt-srow"><span class="hmt-sq hmt-out" aria-hidden="true">!<\/span><span class="hmt-body"><span class="hmt-chip hmt-out">/, 'an orange "!" square left of the status');
   assert.ok(sum.includes(enT.monitor.tile.out.replace('{n}', '2')));
   assert.ok(sum.includes(enT.monitor.tile.metrics.replace('{n}', '1').replace('{total}', '5')));
@@ -217,7 +228,7 @@ test('tile 2 = HRV (a real baked value, no invented stress score): value + unit 
   const html = tilesOf(mon, { detail: true });
   const t = html.match(/<div class="hmt hmt-hrv[^"]*"[\s\S]*?<!--\/hmt-->/)[0];
   assert.match(t, /data-detail="hrv" role="button"/);
-  assert.ok(t.includes(`<span class="hmt-lbl">${enT.monitor.labels.hrv}<span class="hmt-chev" aria-hidden="true">›</span></span>`));
+  assert.ok(t.includes(`<span class="hmt-lbl">${enT.monitor.labels.hrv}<span class="chev" aria-hidden="true">›</span></span>`));
   assert.ok(t.includes(`<span class="hmt-val"><b>61</b><small>${enT.monitor.units.hrv}</small></span>`));
   assert.ok(t.includes(`>${enT.monitor.status.normal}<`));
   assert.match(html, /class="hm-tiles"/, 'two columns');
@@ -298,7 +309,7 @@ test('tile 2 = Stress monitor: the latest hour\'s value chip, its band word in t
   const t = stressTile(html);
   assert.ok(t, 'stress tile rendered');
   assert.match(t, /class="hmt hmt-stress hmt-sb-medium" data-detail="stress" role="button"/);
-  assert.ok(t.includes(`<span class="hmt-lbl">${enT.monitor.stress.label}<span class="hmt-chev" aria-hidden="true">›</span></span>`));
+  assert.ok(t.includes(`<span class="hmt-lbl">${enT.monitor.stress.label}<span class="chev" aria-hidden="true">›</span></span>`));
   assert.ok(t.includes('<span class="hmt-sv">1.8</span>'));
   assert.ok(t.includes(`<span class="hmt-band">${enT.monitor.stress.bands.medium}</span>`));
   assert.ok(t.includes('<span class="hmt-sub">14:00</span>'));

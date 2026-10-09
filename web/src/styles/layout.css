@@ -42,11 +42,6 @@ details.sec-fold > summary > h2 {
 details.sec-fold > summary > h2::after {
   content: none;
 }
-details.sec-fold > summary > .chev {
-  margin: 0;
-  font-size: var(--fs-xl);
-  color: var(--muted);
-}
 details.sec-fold[open] > summary > .chev {
   transform: rotate(90deg);
 }
@@ -118,9 +113,7 @@ details.sec-fold > summary:hover > h2 {
   font-weight: 700;
 }
 .eat-link {
-  display: inline-block;
   margin-top: var(--sp-6);
-  font-size: var(--fs-md);
 }
 
 /* jump() targets clear the collapsed dial row (score.css .dial-mini, fixed at the top of Inicio) */

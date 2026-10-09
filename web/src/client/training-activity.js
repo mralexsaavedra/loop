@@ -143,15 +143,17 @@
     }).join('') + '</div>';
   }
 
-  // total time + the pill vs the window before (neutral grey: more training is neither good nor bad)
+  // total time + the pill vs the window before (no good direction: more training is neither good nor bad, so a change is a neutral --ink arrow and a
+  // steady window a grey dot, HC.trendTone)
   function totalHtml(s) {
-    var k = RANGE_KEY[range], pill;
+    var k = RANGE_KEY[range], pill, tone = '';
     if (s.pct != null) {
       var flat = Math.abs(s.pct) < 100 * DELTA_FLAT;
       pill = (flat ? '•' : s.pct > 0 ? '▲' : '▼') + ' ' + pct(Math.abs(s.pct)) + ' ' + T.vs[k];
+      tone = ' dt-pill-' + HC.trendTone(flat ? 'flat' : 'up', null);
     } else pill = s.prev === 0 ? T.prevNone[k] : T.noPrev;
     return '<div class="act-sum"' + HC.detailAttrs('workouts') + '><span class="dt-trend-lbl">' + esc(T.totalLbl) + '</span>' +
-      '<div class="dt-trend-row"><b class="dt-trend-num">' + esc(hm(s.min)) + '</b><span class="dt-pill">' + esc(pill) + '</span></div></div>';
+      '<div class="dt-trend-row"><b class="dt-trend-num">' + esc(hm(s.min)) + '</b><span class="dt-pill' + tone + '">' + esc(pill) + '</span></div></div>';
   }
   function statsHtml(s) {
     var tiles = [[String(s.sessions), T.sessionsLbl], [String(s.days), T.daysLbl], [hm(s.perWeek), T.perWeekLbl]];

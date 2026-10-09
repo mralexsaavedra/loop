@@ -259,7 +259,7 @@
     return '<div class="dd-insight">' + lines.map(function (l) {
       return '<p class="dd-ln' + (l.cls ? ' ' + esc(l.cls) : '') + '">' + esc(l.text) + '</p>';
     }).join('') +
-      '<button type="button" class="dd-cta" data-dt-act="trend">' + esc((C && C[cta]) || X.T.deep.cta) + '<span aria-hidden="true"> →</span></button></div>';
+      HC.cta((C && C[cta]) || X.T.deep.cta, ' data-dt-act="trend"') + '</div>';
   }
 
   /* ---------- contributors: today vs the prior 30 days ---------- */
@@ -585,7 +585,7 @@
     if (mods.length < 2) return '';
     var set = typeof scMod === 'function';
     return '<div class="dial-switch" role="group" aria-label="' + esc(X.T.deep.modSwitch) + '">' + mods.map(function (k) {
-      return '<button type="button" class="dial-mod" data-detail="load-' + k + '" aria-pressed="' + (k === cur) + '"' +
+      return '<button type="button" class="chip dial-mod" data-detail="load-' + k + '" aria-pressed="' + (k === cur) + '"' +
         (set ? ' onclick="scMod(\'' + k + '\')"' : '') + '>' + esc(X.T.modalities[k] || k) + '</button>';
     }).join('') + '</div>';
   }
