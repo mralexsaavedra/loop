@@ -509,8 +509,8 @@
       "swap": false,
       "verified": false,
       "name": {
-        "es": "Estrella Galicia 0,0 Tostada",
-        "en": "Estrella Galicia 0.0 Tostada (alcohol-free)"
+        "es": "Cerveza Estrella Galicia 0,0 Tostada",
+        "en": "Estrella Galicia 0.0 Tostada beer (alcohol-free)"
       },
       "note": "kcal from a nutrition database (fitia.app \"Cerveza 0% Alcohol Tostada - Estrella Galicia\", per 100 ml), which gives only kcal; protein and carbs DERIVED from the kcal for a 0.0% beer (no alcohol, no fat: 4 × 0.3 + 4 × 5.7 = 24); replace with the label when available",
       "k": 24,
