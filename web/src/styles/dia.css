@@ -41,7 +41,7 @@
 .mac {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--r-sm);
+  border-radius: var(--card-radius);
   padding: var(--sp-3) var(--sp-5);
   font-size: var(--fs-md);
   font-weight: 600;
@@ -59,9 +59,9 @@
 .mac .lbl {
   color: var(--muted);
   font-weight: 700;
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--label-track);
 }
 .deficit {
   font-size: var(--fs-sm);
@@ -76,7 +76,7 @@
 /* meal cards: flat --surface cards (one fill, no border, no shadow), the shared card language */
 .meal {
   background: var(--card-bg);
-  border-radius: var(--r-sm);
+  border-radius: var(--card-radius);
   padding: var(--sp-6) var(--sp-5);
   margin-bottom: var(--sp-3);
 }
@@ -87,7 +87,7 @@
   gap: var(--sp-5);
 }
 .meal-name {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: 700;
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -116,7 +116,7 @@ button.meal-name:focus-visible {
   border-radius: var(--r-xs);
 }
 .meal-kcal {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -125,8 +125,8 @@ button.meal-name:focus-visible {
 }
 .meal-kcal b {
   font-family: var(--num);
-  font-size: var(--fs-3xl);
-  font-weight: 700;
+  font-size: var(--fs-num-row);
+  font-weight: var(--num-weight);
   letter-spacing: 0;
   color: var(--ink);
 }
@@ -156,15 +156,6 @@ button.meal-name:focus-visible {
 .day-panel[hidden] {
   display: none;
 }
-.combo-h {
-  font-size: var(--fs-xs);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 800;
-  margin: var(--sp-9) 0 var(--sp-3);
-}
-
 /* intake rings (client/intake.js): logged intake vs the plan day total. One neutral data colour
  * for every ring (progress, not a grade); --mid only flags a ring that ran past 110 %. */
 .intake-card {
@@ -172,7 +163,7 @@ button.meal-name:focus-visible {
   padding: var(--sp-7) var(--sp-7) var(--sp-6);
   background: var(--card-bg);
   border: 1px solid var(--line);
-  border-radius: var(--r-xl);
+  border-radius: var(--card-radius);
   box-shadow: var(--card-shadow);
 }
 .intake-head {
@@ -182,7 +173,7 @@ button.meal-name:focus-visible {
   gap: var(--sp-3);
 }
 .intake-card h3 {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -263,7 +254,7 @@ button.meal-name:focus-visible {
   min-width: 0;
 }
 .ring-lbl {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;

@@ -7,8 +7,8 @@
 /* flat like the reference: one fill, no border, no shadow (Inicio's cards, Salud's recovery card) */
 .sc-card {
   background: var(--card-bg);
-  border-radius: var(--r-lg, 14px);
-  padding: var(--sp-5, 16px);
+  border-radius: var(--card-radius);
+  padding: var(--card-pad);
   margin: 0 0 var(--sp-5, 16px);
   box-shadow: var(--card-shadow);
 }
@@ -20,7 +20,7 @@
 }
 .sc-head h3 {
   margin: 0 0 var(--sp-3, 8px);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -158,7 +158,7 @@
   gap: var(--sp-2);
   min-width: 0;
   padding: var(--sp-4);
-  border-radius: var(--r-sm);
+  border-radius: var(--card-radius);
   background: var(--card-bg);
 }
 .ld-card[data-detail][role="button"] {
@@ -170,7 +170,7 @@
 }
 .ld-mod,
 .ld-lbl {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -187,7 +187,7 @@
 }
 .ld-num {
   font-family: var(--num);
-  font-size: var(--fs-4xl);
+  font-size: var(--fs-num-card);
   line-height: 1;
   color: var(--strain);
 }
@@ -378,15 +378,13 @@
 }
 .dial-word {
   max-width: 70%;
-  font-size: 9.5px;
+  font-size: var(--fs-label);
   font-weight: 700;
   line-height: 1.15;
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
   color: var(--muted);
 }
 .dial-lbl {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -431,7 +429,7 @@
   background: transparent;
   color: var(--muted);
   font-family: inherit;
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -497,7 +495,7 @@
     font-size: 40px;
   }
   .dial-word {
-    font-size: 12px;
+    font-size: var(--fs-sm);
   }
   .dial-foot {
     max-width: calc(3 * var(--dial-size) + 2 * var(--dial-gap));
@@ -617,7 +615,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -667,8 +665,8 @@
 .home-h {
   display: block;
   margin: var(--sp-10) 0 var(--sp-5);
-  font-size: var(--fs-3xl);
-  font-weight: 650;
+  font-size: var(--fs-section);
+  font-weight: var(--fw-section);
   letter-spacing: 0;
   text-transform: none;
   color: var(--ink);
@@ -695,7 +693,7 @@
   min-height: 96px;
   padding: var(--sp-6) var(--sp-5);
   border: 0;
-  border-radius: var(--r-sm);
+  border-radius: var(--card-radius);
   background: var(--card-bg);
   color: var(--ink);
   font-family: inherit;
@@ -715,7 +713,7 @@
 .hmt-lbl {
   display: flex;
   justify-content: space-between;
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -734,7 +732,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -788,7 +786,7 @@
   color: var(--muted);
 }
 .hmt-status {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -817,7 +815,7 @@
 }
 .hmt-band {
   color: var(--sb);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -863,7 +861,7 @@
   min-width: 0;
 }
 .rec-when {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -878,8 +876,8 @@
 }
 .rec-num {
   font-family: var(--num);
-  font-size: var(--fs-dial);
-  font-weight: 700;
+  font-size: var(--fs-num-card);
+  font-weight: var(--num-weight);
   line-height: 1.1;
   color: var(--rec-c, var(--ink));
 }
@@ -927,7 +925,7 @@
   align-self: center;
 }
 .rec-comp-name {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -967,7 +965,7 @@ details.rec-raw > summary {
   min-height: 44px;
   padding: 0;
   cursor: pointer;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -1051,7 +1049,7 @@ details.rec-raw[open] > summary::after {
   display: none;
 }
 .dm-lbl {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -1066,7 +1064,7 @@ details.rec-raw[open] > summary::after {
    line; D-DIN clocks, uppercase captions; the generic opener chevron sits in the header row */
 .tn-h {
   margin: 0 0 var(--sp-5);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -1091,7 +1089,7 @@ details.rec-raw[open] > summary::after {
 }
 .tn-time b {
   font-family: var(--num);
-  font-size: 24px;
+  font-size: var(--fs-num-card);
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -1107,7 +1105,7 @@ details.rec-raw[open] > summary::after {
 .tn-lbl {
   max-width: 15ch;
   color: var(--muted);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   line-height: 1.3;
@@ -1138,7 +1136,7 @@ details.rec-raw[open] > summary::after {
   background: var(--surface-2);
   color: var(--ink);
   font-family: inherit;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -1210,7 +1208,7 @@ details.rec-raw[open] > summary::after {
   justify-content: space-between;
 }
 .wp-title {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -1233,7 +1231,7 @@ details.rec-raw[open] > summary::after {
 }
 .wp-pct {
   margin-top: var(--sp-3);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -1285,7 +1283,7 @@ details.rec-raw[open] > summary::after {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -1344,7 +1342,7 @@ details.rec-raw[open] > summary::after {
   background: none;
   color: var(--muted);
   font-family: inherit;
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -1382,7 +1380,7 @@ details.rec-raw[open] > summary::after {
   gap: var(--sp-4);
   min-height: 60px;
   padding: var(--sp-3) var(--sp-5);
-  border-radius: var(--r-sm);
+  border-radius: var(--card-radius);
   background: var(--card-bg);
 }
 .db-row[data-detail][role="button"] {
@@ -1408,7 +1406,7 @@ details.rec-raw[open] > summary::after {
 .db-name {
   flex: 1;
   min-width: 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -1467,7 +1465,7 @@ details.rec-raw[open] > summary::after {
 }
 /* My dashboard: the value larger (the unit stays ~half its size), full metric names */
 #home-dash .db-val b {
-  font-size: 22px;
+  font-size: var(--fs-num-row);
 }
 .db-empty {
   color: var(--muted);
@@ -1500,7 +1498,7 @@ details.rec-raw[open] > summary::after {
 }
 .db-tog {
   min-width: 76px;
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -1519,7 +1517,7 @@ details.rec-raw[open] > summary::after {
     justify-content: flex-start;
   }
   .hmt-val b {
-    font-size: var(--fs-4xl);
+    font-size: var(--fs-num-card);
   }
   .hmt-chip,
   .hmt-status {
