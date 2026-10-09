@@ -64,7 +64,8 @@ function load({ locale = 'en', ls = storage(), DETAIL = detail(), noStorage = fa
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
-  const click = (attrs) => listeners.click({ target: { closest: () => ({ getAttribute: (k) => attrs[k] }) } });
+  ctx.__listeners = listeners;
+  const click = (attrs) => listeners.click({ target: { closest: (s) => (s === '[data-dash-act]' ? { getAttribute: (k) => attrs[k] } : null) } });
   return { ctx, els, ls, click, opened };
 }
 
@@ -95,6 +96,112 @@ test('edit: up / down / toggle return a new list; moves stop at the ends', () =>
   assert.deepEqual(plain(ctx.HCDash.edit(L, 'sleep', 'down')).map((x) => x.key), ['rhr', 'hrv', 'sleep']);
   assert.equal(plain(ctx.HCDash.edit(L, 'sleep', 'toggle'))[2].on, true);
   assert.equal(L[2].on, false, 'the input is not mutated');
+});
+
+test('move: one item from index i to j in a new list; out-of-range or same index = an unchanged copy; up / down are moves by one', () => {
+  const { ctx } = load();
+  const D = ctx.HCDash;
+  const L = [{ key: 'a', on: true }, { key: 'b', on: false }, { key: 'c', on: true }, { key: 'd', on: true }];
+  const keys = (l) => plain(l).map((x) => x.key);
+  assert.deepEqual(keys(D.move(L, 0, 2)), ['b', 'c', 'a', 'd']);
+  assert.deepEqual(keys(D.move(L, 3, 0)), ['d', 'a', 'b', 'c']);
+  assert.deepEqual(keys(D.move(L, 1, 1)), ['a', 'b', 'c', 'd']);
+  for (const [i, j] of [[-1, 0], [0, 4], [4, 0], [0, NaN], [0, 1.5]]) assert.deepEqual(keys(D.move(L, i, j)), ['a', 'b', 'c', 'd'], `${i} -> ${j}`);
+  assert.equal(plain(D.move(L, 1, 3))[3].on, false, 'the item keeps its shown / hidden state');
+  assert.deepEqual(keys(L), ['a', 'b', 'c', 'd'], 'the input is not mutated');
+  assert.notEqual(D.move(L, 0, 0)[0], L[0], 'a copy, never the input objects');
+  assert.deepEqual(keys(D.edit(L, 'c', 'up')), keys(D.move(L, 2, 1)));
+  assert.deepEqual(keys(D.edit(L, 'c', 'down')), keys(D.move(L, 2, 3)));
+});
+
+// a fake customize list for the pointer drag: rows 60px tall, their box follows their DOM position
+function fakeSheet(keys) {
+  const ul = { children: [] };
+  ul.insertBefore = (node, ref) => {
+    ul.children.splice(ul.children.indexOf(node), 1);
+    const at = ref ? ul.children.indexOf(ref) : ul.children.length;
+    ul.children.splice(at, 0, node);
+  };
+  const rows = keys.map((k) => {
+    const cls = new Set();
+    const li = { parentNode: ul, classList: { add: (c) => cls.add(c), remove: (c) => cls.delete(c), contains: (c) => cls.has(c) },
+      getAttribute: (a) => (a === 'data-key' ? k : null),
+      getBoundingClientRect: () => ({ top: ul.children.indexOf(li) * 60, height: 60 }) };
+    const captured = [];
+    const grip = { captured, setPointerCapture: (id) => captured.push(id), releasePointerCapture: () => {},
+      getAttribute: (a) => (a === 'data-key' ? k : null),
+      closest: (sel) => (sel === '[data-dash-grip]' ? grip : sel === 'li' ? li : null) };
+    li.grip = grip;
+    ul.children.push(li);
+    return li;
+  });
+  return { ul, rows, order: () => ul.children.map((li) => li.getAttribute('data-key')) };
+}
+
+test('customize: every row has a ≡ drag handle (hidden from screen readers; the ↑ / ↓ buttons stay for the keyboard)', () => {
+  const { ctx } = load();
+  const body = ctx.HCViews['dash-edit'].render().body;
+  assert.equal([...body.matchAll(/<span class="db-grip" data-dash-grip="" data-key="(\w+)" aria-hidden="true"><svg class="db-grip-ico"/g)].length, 6);
+  assert.equal([...body.matchAll(/data-dash-act="(up|down)"/g)].length, 12, 'keyboard-operable moves kept');
+  assert.match(body, /data-key="rhr" aria-label="Move Resting heart rate down">↓<\/button><span class="db-grip"/, 'the handle sits last, at the row end');
+});
+
+test('drag: pointer down on ≡ captures the pointer, a move reorders the rows live, the drop persists exactly like ↑ / ↓', () => {
+  const byButtons = load();
+  byButtons.click({ 'data-dash-act': 'up', 'data-key': 'steps' });
+  byButtons.click({ 'data-dash-act': 'up', 'data-key': 'steps' });
+  byButtons.click({ 'data-dash-act': 'up', 'data-key': 'steps' });
+
+  const { ctx, els, ls, opened } = load();
+  // the harness keeps the one listener per event name (ctx.__listeners)
+  const sheet = fakeSheet(['rhr', 'hrv', 'sleep', 'weight', 'steps', 'vo2max']);
+  const steps = sheet.rows[4];
+  const fire = (type, target, y, id = 7) => {
+    const ev = { type, target, pointerId: id, clientY: y, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+    ctx.__listeners[type](ev);
+    return ev;
+  };
+  const down = fire('pointerdown', steps.grip, 4 * 60 + 30);
+  assert.ok(down.defaultPrevented, 'no text selection / scroll start');
+  assert.deepEqual(steps.grip.captured, [7], 'setPointerCapture keeps the drag on the handle (touch and mouse)');
+  assert.ok(steps.classList.contains('db-drag'));
+  fire('pointermove', steps.grip, 2 * 60 + 20);
+  assert.deepEqual(sheet.order(), ['rhr', 'hrv', 'steps', 'sleep', 'weight', 'vo2max'], 'reordered on move');
+  fire('pointermove', steps.grip, 1 * 60 + 20, 9); // another pointer: ignored
+  assert.deepEqual(sheet.order(), ['rhr', 'hrv', 'steps', 'sleep', 'weight', 'vo2max']);
+  fire('pointermove', steps.grip, 1 * 60 + 20);
+  assert.deepEqual(sheet.order(), ['rhr', 'steps', 'hrv', 'sleep', 'weight', 'vo2max']);
+  assert.equal(ls.data['hc-dash-v1'], undefined, 'nothing saved while dragging');
+  fire('pointerup', steps.grip, 1 * 60 + 20);
+  assert.ok(!steps.classList.contains('db-drag'));
+  assert.equal(ls.data['hc-dash-v1'], byButtons.ls.data['hc-dash-v1'], 'the same saved prefs as three ↑ clicks');
+  assert.equal(els['home-dash'].innerHTML, byButtons.els['home-dash'].innerHTML, 'the dashboard re-renders the same');
+  assert.equal(plain(opened.at(-1))[0], 'dash-edit', 'the sheet re-opens on the saved order');
+  // a later move without a pointer down does nothing
+  fire('pointermove', steps.grip, 0);
+  assert.equal(ls.data['hc-dash-v1'], byButtons.ls.data['hc-dash-v1']);
+});
+
+test('drag: a drop where it started saves nothing; a cancelled drag (pointercancel) restores the sheet without saving', () => {
+  const { ctx, ls, opened } = load();
+  const fire = (type, target, y) => ctx.__listeners[type]({ type, target, pointerId: 1, clientY: y, preventDefault() {} });
+  const a = fakeSheet(['rhr', 'hrv', 'sleep']);
+  fire('pointerdown', a.rows[0].grip, 30);
+  fire('pointermove', a.rows[0].grip, 40);
+  fire('pointerup', a.rows[0].grip, 40);
+  assert.equal(ls.data['hc-dash-v1'], undefined);
+  assert.equal(opened.length, 0, 'nothing to re-render');
+  const b = fakeSheet(['rhr', 'hrv', 'sleep']);
+  fire('pointerdown', b.rows[0].grip, 30);
+  fire('pointermove', b.rows[0].grip, 170);
+  assert.deepEqual(b.order(), ['hrv', 'sleep', 'rhr']);
+  fire('pointercancel', b.rows[0].grip, 170);
+  assert.equal(ls.data['hc-dash-v1'], undefined, 'a cancel never saves');
+  assert.deepEqual(plain(opened.at(-1))[0], 'dash-edit', 'the sheet re-renders in the saved order');
+  // a pointer down outside a handle is not a drag
+  fire('pointerdown', { closest: () => null }, 0);
+  fire('pointerup', { closest: () => null }, 0);
+  assert.equal(ls.data['hc-dash-v1'], undefined);
 });
 
 test('row value: newest day, 30-day baseline, arrow + tone by the good direction; a daily total skips today', () => {

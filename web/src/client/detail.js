@@ -282,9 +282,9 @@
   function pickerHtml(key) {
     var keys = trendKeys();
     if (keys.length < 2) return '';
-    return '<label class="dt-metric"><span class="sr-only">' + esc(T.trend.metric) + '</span><select class="dt-metric-sel" data-dt-pick="metric">' +
+    return '<label class="dt-metric"><span class="sr-only">' + esc(T.trend.metric) + '</span><select class="dt-metric-sel sel" data-dt-pick="metric">' +
       keys.map(function (k) { return '<option value="' + esc(k) + '"' + (k === key ? ' selected' : '') + '>' + esc(titleOf(k)) + '</option>'; }).join('') +
-      '</select><span class="chev dt-metric-chev" aria-hidden="true">›</span></label>';
+      '</select><span class="chev sel-chev" aria-hidden="true">›</span></label>';
   }
   function noneHtml(txt) {
     return '<div class="dt-latest"><span class="dt-none">' + esc(txt) + '</span></div>';

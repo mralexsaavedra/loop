@@ -33,7 +33,7 @@
   border: 1px solid var(--line);
   border-left: 3px solid var(--strain);
   border-radius: var(--card-radius);
-  padding: var(--sp-6) var(--sp-7);
+  padding: var(--card-pad);
   margin: var(--sp-4) 0;
   box-shadow: var(--card-shadow);
 }
@@ -144,7 +144,7 @@
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--card-radius);
-  padding: var(--sp-6) var(--sp-7);
+  padding: var(--card-pad);
   margin-top: var(--sp-8);
   color: var(--muted);
   font-size: var(--fs-sm);
@@ -265,7 +265,7 @@
 /* Entreno "Load vs recovery": the weekly load bars sit in one card (client/health.js renderEntreno) */
 .lvr-card {
   margin-bottom: var(--sp-3);
-  padding: var(--sp-5);
+  padding: var(--card-pad);
   border-radius: var(--card-radius);
   background: var(--card-bg);
 }
@@ -273,7 +273,7 @@
 /* Entreno Activity card (client/training-activity.js): total + W / M / 6M switch, stats, the modality
  * split bar, the compact calendar */
 .act-card {
-  padding: var(--sp-6) var(--sp-5);
+  padding: var(--card-pad);
   border-radius: var(--card-radius);
   background: var(--card-bg);
 }

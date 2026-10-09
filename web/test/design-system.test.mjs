@@ -5,7 +5,7 @@
  *
  *   1. cards     — a rule that paints a card fill (var(--card-bg) / var(--surface)) and sets a
  *                  border-radius uses var(--card-radius); no rule uses a raw px radius >= 8px;
- *   2. padding   — Inicio's sibling cards share var(--card-pad);
+ *   2. padding   — every card fill (Inicio's sibling cards first) pads itself with var(--card-pad);
  *   3. numbers   — a rule in the --num face whose size reaches the hero band (>= 18px) uses a step
  *                  of the hero scale, in one weight (700); a dial centre (sized to its ring) is
  *                  listed; no other raw px size reaches the band;
@@ -163,6 +163,31 @@ test("Inicio's sibling cards share the card padding token", () => {
   }
 });
 
+// a card-fill rule that pads itself uses var(--card-pad); the sheets' own stylesheets sit on the sheet's
+// 16px inset and are audited as sheets (docs/design-system.md → Exceptions)
+const PAD_SHEET_FILES = new Set(['detail.css', 'profile.css']);
+const CARD_PAD_ALLOW = {
+  'score.css .db-row, .db-erow': 'a list row (8 x 12px), not a card: rows stack into a list',
+  'layout.css details.sec-fold>summary': 'a fold row: its height is a min-height, only side padding',
+  'dia.css .mac': 'a compact macro tile (8 x 12px) inside a card',
+  'training.css .train-empty': 'an empty state: a centred message with tall padding',
+  'food.css .fp-form, .fp-search': "the food sheet's form (a sheet card on the 16px inset)",
+};
+test('every card fill pads itself with the card padding token', () => {
+  const bad = [];
+  const seen = new Set();
+  for (const r of RULES) {
+    const fill = r.decl.background ?? r.decl['background-color'];
+    if (!CARD_FILL.has(fill) || r.decl.padding == null || PAD_SHEET_FILES.has(r.file)) continue;
+    if (r.decl.padding === 'var(--card-pad)') continue;
+    if (CARD_PAD_ALLOW[key(r)]) seen.add(key(r));
+    else bad.push(`${where(r)} card padding \`${r.decl.padding}\` (use var(--card-pad))`);
+  }
+  assert.deepEqual(bad, []);
+  const stale = Object.keys(CARD_PAD_ALLOW).filter((k) => !seen.has(k));
+  assert.deepEqual(stale, [], 'allowlist entries that no longer match a rule — remove them');
+});
+
 test('hero numbers use the hero scale (row / card / dial) in one weight', () => {
   const bad = [];
   const seen = new Set();
@@ -211,6 +236,36 @@ test('caps labels use the caps role sizes and the one label tracking', () => {
   assert.deepEqual(bad, []);
   const stale = Object.keys(CAPS_ALLOW).filter((k) => !seen.has(k));
   assert.deepEqual(stale, [], 'allowlist entries that no longer match a rule — remove them');
+});
+
+// caps labels are white or grey; colour goes on numbers and glyphs (the reference app's rule). A caps
+// rule — or a rule of the same stylesheet for the same selector — paints only a label colour.
+const LABEL_COLORS = new Set(['var(--ink)', 'var(--muted)', 'var(--faint)', 'var(--accent)', 'var(--accent-ink)', 'inherit', 'currentColor']);
+const CAPS_COLOR_ALLOW = {
+  'base.css .cta': 'THE CTA link (--link blue): a link, not a label',
+  'journal.css .jr-btn': 'button text on the white-filled journal pill (--on-accent)',
+  'detail.css .ds-band': "the stress sheet's band word IS the reading (its band colour), not a label",
+  'score.css .hmt-status': "the monitor's within / outside range word IS the reading (its state colour)",
+  'score.css .hmt-band': "a monitor tile's band word IS the reading (its band colour)",
+};
+test('caps labels: white or grey only; colour goes on the number or glyph', () => {
+  const capsSel = new Set(RULES.filter((r) => r.decl['text-transform'] === 'uppercase').flatMap((r) => r.selector.split(', ').map((s) => `${r.file}|${s}`)));
+  const bad = [];
+  const seen = new Set();
+  for (const r of RULES) {
+    const c = r.decl.color;
+    if (c == null || LABEL_COLORS.has(c)) continue;
+    const caps = r.decl['text-transform'] === 'uppercase' || r.selector.split(', ').some((s) => capsSel.has(`${r.file}|${s}`));
+    if (!caps) continue;
+    if (CAPS_COLOR_ALLOW[key(r)]) seen.add(key(r));
+    else bad.push(`${where(r)} caps colour \`${c}\` (a label is --ink / --muted / --faint)`);
+  }
+  assert.deepEqual(bad, []);
+  const stale = Object.keys(CAPS_COLOR_ALLOW).filter((k) => !seen.has(k));
+  assert.deepEqual(stale, [], 'allowlist entries that no longer match a rule — remove them');
+  // the weight status word (caps .pg-status) stays white: only its dot carries the status colour
+  const status = RULES.filter((r) => /\.pg-s-\w+ b\b/.test(r.selector) && r.decl.color).map(where);
+  assert.deepEqual(status, [], 'the weight status word is a caps label: colour its dot');
 });
 
 // 5. components (docs/design-system.md → Components) ---------------------------------------------
@@ -302,6 +357,23 @@ test('segmented control: a 44 x 44px hit area on every .dt-range button, without
   assert.ok(px(btn['min-height']) + 2 * v >= 44, `hit height ${px(btn['min-height']) + 2 * v}px`);
   assert.ok(px(btn['min-width']) + 2 * h >= 44, `hit width ${px(btn['min-width']) + 2 * h}px`);
   assert.ok(px(bar.gap) >= 2 * h, `gap ${px(bar.gap)}px < the two overhangs ${2 * h}px`);
+});
+
+// the select: ONE look (base.css .sel, a --rail pill); its owners only size it, never a card fill,
+// a border or a radius of their own (formerly Nutrición's food pick was a mini card)
+const SELECT_OWNERS = /\.(gd-pick|fuel-select|dt-metric-sel)\b/;
+const SELECT_LOOK = ['background', 'background-color', 'border', 'border-radius', 'color', 'padding', 'font', 'font-size', 'appearance'];
+test('select: one shared pill style; owners only size it', () => {
+  const sel = RULES.find((r) => r.file === 'base.css' && !r.media && r.selector === '.sel');
+  assert.ok(sel, 'base.css holds the one select rule');
+  assert.deepEqual([sel.decl.background, sel.decl.border, sel.decl['border-radius'], sel.decl.appearance], ['var(--rail)', '0', 'var(--r-pill)', 'none']);
+  const bad = RULES.filter((r) => SELECT_OWNERS.test(r.selector) && SELECT_LOOK.some((p) => r.decl[p] != null)).map(where);
+  assert.deepEqual(bad, [], 'a select owner styles its own look (use the .sel class)');
+  const markup = Object.values(SRC).join('\n');
+  // the food sheet's form fields (.food-in) keep the text-field look of the inputs beside them
+  const selects = [...markup.matchAll(/<select\b[^>]*>/g)].map((m) => m[0]).filter((s) => !/class="food-in"/.test(s));
+  assert.equal(selects.length, 3, 'the visible picks: trend metric, food example, ride duration');
+  for (const s of selects) assert.match(s, /class=\\?["'][^"'\\]*\bsel\b/, `${s} uses the shared .sel`);
 });
 
 // the trend glyph's colours live in ONE block (base.css): arrows are coloured, only the typical /

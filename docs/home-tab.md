@@ -304,7 +304,7 @@ trend is the line under it.
   `aria-label` spells it out ("Run · RE 94 · 45 min · 2 parts"). On the viewer's today the programmed session
   (`window.HCProgram` from `client/training-today.js`) is the last row: an outline chip "Plan", its
   focus (one line, ellipsised; the row's `aria-label` carries the whole focus and the session view
-  shows it in full), "Programmed"; it opens the session as the `hoy-session` detail view. Nothing matches a
+  shows it in full), "Programmed" (white caps; the row's bar carries the colour); it opens the session as the `hoy-session` detail view. Nothing matches a
   programmed session to a done workout yet, so it is only listed, never ticked; it is not shown
   under an older day's heading, and with no baked day but a session today the card lists only it. Rows follow the shared same-day
   rule (`DISPLAY_RULE`: stubs dropped, one source, same-day rows of one modality merge; the row says "N parts"). Only the last 3 data days are
@@ -365,7 +365,14 @@ trend is the line under it.
   worse, `--ink` (white) for a metric with no good direction (weight; never a grey arrow), a grey dot within ±2 % (`FLAT_SHARE`). A row older than 3
   days is dimmed; a tap opens that metric's detail sheet. "Customize" opens the registered `dash-edit`
   sheet (detail.js modal): per metric THE switch (`HC.switchBtn`, `role="switch"` +
-  `aria-checked`; design-system.md → Components) and ↑ / ↓ buttons (no drag). Preferences = `localStorage['hc-dash-v1']` `{order, hidden}`; every read / write is in a
+  `aria-checked`; design-system.md → Components), compact ↑ / ↓ buttons (the keyboard and screen-reader
+  way to move) and, last, the reference app's ≡ drag handle (`.db-grip`, `aria-hidden`). The drag uses
+  Pointer Events, so mouse, touch and pen alike: `pointerdown` on a handle calls `setPointerCapture`,
+  every `pointermove` puts the row where the pointer is (the DOM row moves live, lifted on `--track`;
+  `touch-action: none` on the handle keeps the sheet from scrolling), `pointerup` saves through the same
+  `commit()` as ↑ / ↓ (prefs → the dashboard → the sheet re-rendered), `pointercancel` re-renders the saved
+  order. Both reorder through the pure `HCDash.move(list, from, to)`. No auto-scroll while dragging (the
+  whole catalogue fits a phone screen). Preferences = `localStorage['hc-dash-v1']` `{order, hidden}`; every read / write is in a
   try/catch, unknown, duplicate or unavailable keys are ignored, a catalogue key missing from the stored
   order is appended with its default visibility, and without storage the choice holds in memory for the
   visit. Every metric hidden → a one-line note (the section stays so Customize can bring one back); no

@@ -185,7 +185,7 @@ test('no workout, nothing programmed: rest (auto), the default goal, rest target
   assert.match(els['nutri-target'].innerHTML, /<span class="nt-mac-lbl">Protein<\/span><span class="nt-mac-val"><b>—<\/b><small> \/ 125 g<\/small><\/span>/);
   assert.match(els['nutri-target'].innerHTML, /<span class="nt-mac-lbl">Carbs<\/span><span class="nt-mac-val"><b>—<\/b><small> \/ 304 g<\/small><\/span>/);
   assert.match(els['nutri-plan'].innerHTML, /class="meal-name">Breakfast</);
-  assert.match(els['nutri-plan'].innerHTML, /<select class="gd-pick" data-guide="lunch\.p" aria-label="Protein example for Lunch">/);
+  assert.match(els['nutri-plan'].innerHTML, /<select class="gd-pick sel" data-guide="lunch\.p" aria-label="Protein example for Lunch">[^]*?<\/select><span class="chev sel-chev" aria-hidden="true">›<\/span>/);
   assert.doesNotMatch(els['nutri-plan'].innerHTML, /mp-pick|data-block|meal-addons/, 'no menu: no block selects, no add-ons card');
   assert.equal(els['nutri-fuel-block'].hidden, true);
   assert.deepEqual(calls, [['intake', 2300]], 'the rings are refreshed with today\'s target');
@@ -212,6 +212,7 @@ test('a programmed bike session: bike (auto), picker defaults to 2 h; picking 3 
   const { els, fire, api, calls, storage } = run({ programmed: { kind: 'bike', focus: 'Ride', blocks: [] } });
   assert.equal(api.state().dayType, 'bike');
   assert.match(els['nutri-ride-wrap'].innerHTML, /<option value="120" selected>2:00<\/option>/);
+  assert.match(els['nutri-ride-wrap'].innerHTML, /<select id="nutri-ride" class="fuel-select sel">[^]*?<\/select><span class="chev sel-chev" aria-hidden="true">›<\/span>$/, 'the shared select with the system chevron');
   assert.match(els['nutri-fuel-body'].innerHTML, /120 g in total/);
   const two = planFor(bake(), 'maintain', 'bike', 120);
   const three = planFor(bake(), 'maintain', 'bike', 180);
@@ -888,7 +889,7 @@ test('rest day: Breakfast, Lunch, Dinner as plates by parts (protein / carbs / v
   assert.ok(b.meals.lunch.f > noOil.meals.lunch.f && b.meals.dinner.f > noOil.meals.dinner.f, 'half the oil in each');
   assert.equal(b.meals.lunch.f + b.meals.dinner.f + b.extras.f, noOil.meals.lunch.f + noOil.meals.dinner.f + noOil.extras.f);
   assert.doesNotMatch(extras, /Split it before and after training/, 'rest day: nothing to split around');
-  assert.doesNotMatch(h, /<select[^>]*class="gd-pick"[^>]*>[^]*?<\/select>[^]*?gd-add/, 'no "+" without the food log');
+  assert.doesNotMatch(h, /<select[^>]*class="gd-pick sel"[^>]*>[^]*?<\/select>[^]*?gd-add/, 'no "+" without the food log');
   assert.doesNotMatch(h, /gd-left|Left today/);
   assert.match(h, /Orientative: each example covers its macro only/);
 });

@@ -27,7 +27,7 @@ details.sec-fold.nutri-fold {
 .nutri-card {
   background: var(--card-bg);
   border-radius: var(--card-radius);
-  padding: var(--sp-6) var(--sp-5);
+  padding: var(--card-pad);
 }
 /* a section label row (.hs-head, health.css) right above its card: no extra top gap */
 .nutri-block > .hs-head + .hs-info + .nutri-card,
@@ -332,16 +332,11 @@ details.sec-fold.nutri-fold {
   flex: 1 1 150px;
   min-width: 0;
   min-height: 44px;
-  padding: var(--sp-2) var(--sp-4);
-  background: var(--surface-2);
-  color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  font: inherit;
-  font-size: var(--fs-md);
-  text-overflow: ellipsis;
 }
-.gd-pick:focus-visible,
+/* the select's chevron sits inside the pill: pull it back over the row gap too */
+.gd-ex .sel-chev {
+  margin-left: calc(-28px - var(--sp-3));
+}
 .gd-add:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -469,17 +464,6 @@ details.sec-fold.nutri-fold {
      arrow, so it grows to fit and never clips; capped at its card on a 360px screen */
   min-width: 180px;
   max-width: 100%;
-  padding: var(--sp-3) var(--sp-5);
-  background: var(--surface-2);
-  color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  font: inherit;
-  font-size: var(--fs-md);
-}
-.fuel-select:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 .fuel-steps {
   list-style: none;
@@ -681,15 +665,13 @@ details.sec-fold.nutri-fold {
   background: currentColor;
   align-self: center;
 }
-.pg-s-good b,
+/* the status word is a caps label (white); its meaning is the dot's colour, like the pill's number */
 .pg-s-good .pg-dot {
   color: var(--good);
 }
-.pg-s-mid b,
 .pg-s-mid .pg-dot {
   color: var(--mid);
 }
-.pg-s-low b,
 .pg-s-low .pg-dot {
   color: var(--low);
 }
