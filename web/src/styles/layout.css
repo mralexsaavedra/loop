@@ -130,43 +130,39 @@ details.sec-fold > summary:hover > h2 {
   scroll-margin-top: 64px;
 }
 
-/* top bar: ONE row at every width (no wrap down to 360 px), three columns so the date pill stays
- * centred whatever the sides hold: avatar (profile.css) · "Today" pill · status dot + short freshness
- * and icon-only Sync. It is the first thing on the page, so it carries the top safe-area inset. */
+/* top bar, on every tab, three columns so the middle stays centred whatever the sides hold. Phone:
+ * avatar (profile.css) · LOOP wordmark · status dot + short freshness and icon-only Sync on row 1, the
+ * "Today" pill centred on row 2 (Inicio only). From 900px one row: wordmark left · pill · Sync + avatar
+ * right. It is the first thing on the page, so it carries the top safe-area inset. */
 .topbar {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: var(--sp-3);
+  gap: var(--sp-1) var(--sp-3);
   min-height: 52px;
   padding-top: max(var(--sp-3), env(safe-area-inset-top));
   margin: 0 0 var(--sp-5);
 }
-/* the LOOP wordmark (layouts/Plan.astro, right after the top bar), centred like a brand line: the
- * letters' font size is 19px, so the caps are ~12.7px and the rings (0.71em) set the svg height; it
- * tucks up into the bar's bottom margin so the dials do not move down by its full height. Letters and
- * the plain ring are currentColor (--ink); the arcs take the dial tokens, overriding the svg's hex
- * fallbacks (the generated asset also renders standalone). */
+/* the LOOP wordmark (layouts/Plan.astro, inside the top bar): the letters' font size is 19px, so the
+ * caps are ~12.7px and the rings (0.71em) set the svg height. Letters and the plain ring are
+ * currentColor (--ink); the arcs take the dial tokens, overriding the svg's hex fallbacks (the
+ * generated asset also renders standalone). */
 .wordmark {
   display: flex;
   justify-content: center;
   color: var(--ink);
   font-size: 19px;
   line-height: 1;
-  margin: calc(-1 * var(--sp-2)) 0 var(--sp-4);
 }
-/* Inicio only: hidden while the home panel is (core.js setTab toggles the panels' `hidden`) */
-.wrap:has(> .tab-panel[data-tab="home"][hidden]) > .wordmark {
+.topbar > .wordmark {
+  grid-column: 2;
+  grid-row: 1;
+}
+/* Salud / Entreno / Nutrición: the header row stays (avatar, LOOP, freshness / Sync); the date pill
+   (which steps Inicio's day) is Inicio only, their own centred title follows below */
+.wrap:has(> .tab-panel[data-tab="home"][hidden]) > .topbar > .date-pill {
   display: none;
-}
-/* Salud / Entreno / Nutrición open on their own centred title (as the reference): the avatar and the
-   date pill (which steps Inicio's day) stay on Inicio; the freshness / Sync controls stay reachable */
-.wrap:has(> .tab-panel[data-tab="home"][hidden]) > .topbar > :not(.fresh) {
-  display: none;
-}
-.wrap:has(> .tab-panel[data-tab="home"][hidden]) > .topbar {
-  min-height: 0;
 }
 .wordmark svg {
   display: block;
@@ -182,25 +178,21 @@ details.sec-fold > summary:hover > h2 {
 .wordmark .lw-strain {
   stroke: var(--strain);
 }
-/* wide screens (the 960px column, base.css): the wordmark leaves its own row and sits on the LEFT of
- * the top bar row, ~20px caps (30px letters), vertically centred on the date pill (the bar's 8px top
- * padding + half its 44px row); the avatar moves to the right end, next to the freshness / Sync
- * controls (`.fresh` keeps a 48px lane for it: the 44px target + the 4px it overhangs), so the pill
- * stays centred. The left offset is the column's own edge: the gutter, or half the space beside the
- * 960px column. Still Inicio-only (the rule above hides it on the other tabs). The phone keeps the
- * wordmark centred under the pill and the avatar on the left. */
+/* wide screens (the 960px column, base.css): one row. The wordmark takes the bar's first column, at
+ * the column's own left edge, ~20px caps (30px letters); the date pill comes up to the centre; the
+ * avatar moves to the right end, next to the freshness / Sync controls (`.fresh` keeps a 48px lane
+ * for it: the 44px target + the 4px it overhangs), so the pill stays centred. */
 @media (min-width: 900px) {
-  .wrap {
-    position: relative;
-  }
   .wordmark {
-    position: absolute;
-    top: 30px;
-    left: max(var(--gutter), calc((100% - var(--content-max)) / 2));
-    transform: translateY(-50%);
-    margin: 0;
     font-size: 30px;
-    pointer-events: none;
+  }
+  .topbar > .wordmark {
+    grid-column: 1;
+    justify-self: start;
+  }
+  .topbar > .date-pill {
+    grid-column: 2;
+    grid-row: 1;
   }
   .topbar > .avatar-btn {
     grid-column: 3;
@@ -210,16 +202,17 @@ details.sec-fold > summary:hover > h2 {
     margin-right: -4px;
   }
   .topbar > .fresh {
-    grid-row: 1;
     margin-right: 48px;
   }
 }
 /* the date pill: "TODAY" in letter-spaced caps (a past day: its date, same caps); the viewer's full
  * date is the <time> inside, written by client/today-date.js and read by assistive tech only. With a
  * past day in reach the script adds .has-steps and shows the ‹ › chevrons (44 px targets that overhang
- * the 32 px pill, so its height does not change) */
+ * the 32 px pill, so its height does not change). Phone: its own row under the header row, centred */
 .date-pill {
-  grid-column: 2;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -320,6 +313,7 @@ details.sec-fold > summary:hover > h2 {
  * (tokens: fresh = --good, > 24 h --mid, > 72 h --low); the per-source line lives in #fresh-pop. */
 .fresh {
   grid-column: 3;
+  grid-row: 1;
   display: flex;
   flex-wrap: nowrap;
   align-items: center;

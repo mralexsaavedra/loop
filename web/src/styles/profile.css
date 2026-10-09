@@ -2,11 +2,11 @@
  * detail sheet, detail.css). Colour = meaning only: --accent for the action (the avatar's focus ring),
  * --mid for the gentle shoe-replacement hint and the missing-scope note, everything else neutral. */
 
-/* the avatar sits at the right end of the top bar, a >= 44px target */
-/* the top bar's first column (layout.css .topbar), left-aligned; from 900px the third, right-aligned
-   beside Sync (layout.css, the wordmark takes the left) */
+/* the avatar, a >= 44px target, on every tab: the top bar's first column (layout.css .topbar),
+   left-aligned; from 900px the third, right-aligned beside Sync (layout.css, the wordmark takes the left) */
 .avatar-btn {
   grid-column: 1;
+  grid-row: 1;
   justify-self: start;
   flex: none;
   margin-left: -4px;
