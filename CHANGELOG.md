@@ -12,6 +12,8 @@ the stepped-to day) but shows an EARLIER day's value names that date and is dimm
 treatment (`.carried` + `.carried-date`), one helper (`HC.carried`); the > 3-day stale grey stays the
 stronger state. Inicio's sleep dial now follows it too (it showed an earlier night as last night's), and
 the DS6 recovery dial moved onto the helper (dimmed instead of greyed like stale data).
+The sleep deep-dive follows the recovery one: a carried night titles the page with its date, names it in
+the contributor legend and dims the hero.
 
 ## 2026-10-09 — Real-page fixes (DS6)
 

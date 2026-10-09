@@ -137,9 +137,11 @@ switch is outside every opener); run / ride rows →
      the page shows (`h2.sh-title#dt-title`): "Today" (`deep.today`, es "Hoy") or its date ("Mon 28
      Sep", `HC.fmtDate`) — strain = the day it was opened on (Inicio's day stepping), the others = the
      view end (the viewer's today, or the stale data's last day: the day their hero describes);
-     recovery = its headline night when that night is OLDER than the viewer's today (carried, see
-     `docs/home-tab.md`): the title, the contributor legend ("▲▼ Wed 7 Oct vs prior 30 days") name it
-     and the hero is dimmed (`dd-stale`), like the Inicio dial. The
+     recovery and sleep = their headline night when that night is OLDER than the viewer's today (a
+     carried value, `HC.carried`, `docs/design-system.md` → Carried values): the title (weekday kept),
+     the contributor legend ("▲▼ Wed 7 Oct vs prior 30 days") name it and the hero is dimmed
+     (`.carried`, colour kept; stale data keeps the stronger `dd-stale` grey), like the Inicio dials;
+     load, strain, stress and energy bank read the shown day only and never carry. The
      metric name moves into the ring (its uppercase label) and stays the dialog's label for screen
      readers (`sheetHead({sr})`: a `.sr-only` "Recovery · " before the day); ⓘ (`.sh-info`, the same SVG icon as the
      Salud headers' `HC.infoBtn`, `data-dt-act="info"`, `aria-expanded` / `aria-controls="dd-info"`)
