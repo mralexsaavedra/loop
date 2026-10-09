@@ -150,32 +150,37 @@ html.dt-lock body {
   color: var(--muted);
   font-size: var(--fs-sm);
 }
+/* Segmented control (docs/design-system.md → Components): THE range switch — the trend sheets' W ·
+   M · 6M · 1Y and Entreno Activity's W · M · 6M. Dark 28px squares, the pressed one grey; each keeps a
+   44px-tall hit area (::after) */
 .dt-range {
   display: inline-flex;
-  gap: var(--sp-2);
-  padding: var(--sp-1);
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: var(--surface);
+  gap: var(--sp-1);
 }
 .dt-range button {
-  min-width: 64px;
-  min-height: 44px;
-  padding: 0 var(--sp-5);
+  position: relative;
+  min-width: 32px;
+  min-height: 28px;
+  padding: 0 var(--sp-2);
   border: 0;
-  border-radius: var(--r-pill);
-  background: transparent;
+  border-radius: var(--r-xs);
+  background: var(--rail);
   color: var(--muted);
   font-family: inherit;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
   cursor: pointer;
 }
+.dt-range button::after {
+  content: "";
+  position: absolute;
+  inset: -8px -2px;
+}
 .dt-range button[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--track);
+  color: var(--ink);
 }
 
 /* the trend view above the chart, top to bottom: a small W · M · 6M · 1Y switch on the right, the
@@ -185,32 +190,8 @@ html.dt-lock body {
   flex-direction: column;
   gap: var(--sp-4);
 }
-/* the switch: dark 28px squares, the pressed one grey; each keeps a 44px-tall hit area (::after) */
 .dt-period .dt-range {
   align-self: flex-end;
-  gap: var(--sp-1);
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: none;
-}
-.dt-period .dt-range button {
-  position: relative;
-  min-width: 32px;
-  min-height: 28px;
-  padding: 0 var(--sp-2);
-  border-radius: var(--r-xs);
-  background: var(--rail);
-  font-size: var(--fs-2xs);
-}
-.dt-period .dt-range button::after {
-  content: "";
-  position: absolute;
-  inset: -8px -2px;
-}
-.dt-period .dt-range button[aria-pressed="true"] {
-  background: var(--track);
-  color: var(--ink);
 }
 .dt-win {
   display: flex;

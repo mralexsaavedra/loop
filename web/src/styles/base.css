@@ -154,6 +154,34 @@ details.rec-raw > summary::after {
   outline-offset: -2px;
 }
 
+/* Chip (docs/design-system.md → Components): a compact 30px caps pill to pick one of a few
+   (Nutrición's day type and Constancia window, the load sheet's modality); the picked one is
+   white-filled (aria-pressed, or the checked radio before it). A range switch is .dt-range instead. */
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 30px;
+  padding: var(--sp-1) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--fs-label);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  transition: background 0.18s, color 0.18s;
+}
+.chip[aria-pressed="true"],
+:checked + .chip {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
 /* CTA link (docs/design-system.md → Components): a standalone "go there" link, caps in link blue with
    a " →" (HC.cta); on the insight card (--ground) the text is the blue → violet gradient (detail.css).
    .lnk below is the other link: inside a sentence. A real action (save, behaviour insights) is a

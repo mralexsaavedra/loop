@@ -585,7 +585,7 @@
     if (mods.length < 2) return '';
     var set = typeof scMod === 'function';
     return '<div class="dial-switch" role="group" aria-label="' + esc(X.T.deep.modSwitch) + '">' + mods.map(function (k) {
-      return '<button type="button" class="dial-mod" data-detail="load-' + k + '" aria-pressed="' + (k === cur) + '"' +
+      return '<button type="button" class="chip dial-mod" data-detail="load-' + k + '" aria-pressed="' + (k === cur) + '"' +
         (set ? ' onclick="scMod(\'' + k + '\')"' : '') + '>' + esc(X.T.modalities[k] || k) + '</button>';
     }).join('') + '</div>';
   }

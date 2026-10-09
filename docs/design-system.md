@@ -52,8 +52,7 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
 ### Exceptions (the guard's allowlists, each with its reason)
 
 - Radius: the dock bar and its buttons (`.tabnav`, 24 / 19 px), the "+" popover (`.act-pop`, 12 px),
-  the desktop calendar tile (`.cal-day`, 8 px), the segmented-control track (`.dt-range`, a pill) and
-  the 2 px contributor marker (`.dd-contrib::before`).
+  the desktop calendar tile (`.cal-day`, 8 px) and the 2 px contributor marker (`.dd-contrib::before`).
 - Hero size: dial centres sized to their ring (Inicio's dials at >= 900 px, Nutrición's kcal dial
   `.nt-kcal`, the deep-dive dial `.dd-num`) and the trend sheet's header value (`.dt-num`); non-number
   glyphs (`.sh-back`, the desktop `.wordmark`).
@@ -157,3 +156,18 @@ the trend sheet's window, its calendar month (formerly 44 px filled circles) and
 - Guards: no CSS rule but the shared one gives a chevron (a `*chev*` class or a `content: "›"`) a
   colour / size / weight; every ‹ › glyph in the display sources sits in a `.chev` span (allowlist:
   `util.js` sheet header).
+
+### Segmented control and selected chip
+
+- **Segmented control** `.dt-range` (`detail.css`): THE range switch — the trend sheets' W · M · 6M · 1Y
+  and Entreno Activity's W · M · 6M (formerly a big pill track with a white thumb). Dark 28 px squares
+  (`--rail`, `--r-xs`), caps at `--fs-label`; the pressed one `--track` with `--ink` text; each button
+  keeps a 44 px-tall hit area (`::after`).
+- **Chip** `.chip` (`base.css`): a compact 30 px caps pill (1 px `--line` outline) to pick one of a few
+  — Nutrición's day type and Constancia window (radios: `.seg-opt` + `.chip.seg-in`) and the load
+  sheet's modality switch (`.chip.dial-mod`, which adds the 44 px `::before` hit band). The picked
+  chip is white-filled (`--accent` / `--on-accent`), the reference app's selected filter; the load
+  sheet's teal outline is gone.
+- Guard: a pressed / checked state that fills or outlines is the chip's or the segmented control's;
+  the others are listed with their reason (the calendar's selected day, the journal's answers, the
+  food sheet's tabs and the Customize toggles, both audited in DS4).
