@@ -82,6 +82,9 @@ test('example build: the dia section carries Resumen de hoy (day type radios onl
   // labelled radios: the 4 day types are the ONLY control; the goal lives in the profile sheet (a chip
   // next to today's kcal, client-rendered, opens it)
   assert.equal((dia.match(/<input type="radio" name="nutri-day"/g) || []).length, 4);
+  // the day-type chips are text only at every width (with icons the four wrap to two rows at 360 px)
+  const dayField = dia.slice(dia.indexOf('id="nutri-daytype"'), dia.indexOf('</fieldset>', dia.indexOf('id="nutri-daytype"')));
+  assert.doesNotMatch(dayField, /<svg/, 'no icon inside a day-type chip');
   assert.doesNotMatch(dia, /nutri-goal"|name="nutri-goal/, 'no goal radio group in Nutrición');
   assert.match(dia, /<div class="nutri-block" id="nutri-fuel-block" hidden>/, 'fuelling shows only on bike day types (client-side)');
   // the baked plans are the lib's own

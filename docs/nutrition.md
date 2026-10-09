@@ -280,8 +280,9 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   `web/src/tabs/Dia.astro` outside the `dia` section, so it stays when only Tablas is shown. Every
   section header below is the shared `.hs-head` row (the sentence-case section heading `.hs-lbl` + optional ⓘ, `health.css`).
 - **Resumen de hoy** — the day type as compact pills (real radios, short labels `dayShort`: Descanso ·
-  Gym · Bici · Bici larga, `.chip` pills (design-system.md → Components), the picked one white-filled; inline SVG line icons only
-  from 600 px, where four pills with icons fit one row; the full `dayTypes` names stay for sentences
+  Gym · Bici · Bici larga, `.chip` pills (design-system.md → Components), the picked one white-filled; text only at every width
+  (2026-10-09: with icons the four pills need ~370 px and wrap to two rows at 360–390 px, so the
+  1440 px-only icons were dropped rather than shown at one width and not the other); the full `dayTypes` names stay for sentences
   and the pill title; the DETECTED type's pill gets `.seg-auto`, a small dot), then the kcal ring in the
   Inicio dial language (`.nt-ring` around the shared `.dial-ring` / `.dial-svg` / `.dial-track` /
   `.dial-fill` / `.dial-num`: the full ring of `view/dial.mjs` `arcPath(0, 1)` baked as `NUTRI_ARC`,

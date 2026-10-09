@@ -360,8 +360,8 @@ trend is the line under it.
   the value vs the baseline: `--up` when better by the metric's good direction (`dir`), `--down` when
   worse, `--ink` (white) for a metric with no good direction (weight; never a grey arrow), a grey dot within ±2 % (`FLAT_SHARE`). A row older than 3
   days is dimmed; a tap opens that metric's detail sheet. "Customize" opens the registered `dash-edit`
-  sheet (detail.js modal): per metric a Shown / Hidden toggle (`aria-pressed`) and ↑ / ↓ buttons (no
-  drag). Preferences = `localStorage['hc-dash-v1']` `{order, hidden}`; every read / write is in a
+  sheet (detail.js modal): per metric THE switch (`HC.switchBtn`, `role="switch"` +
+  `aria-checked`; design-system.md → Components) and ↑ / ↓ buttons (no drag). Preferences = `localStorage['hc-dash-v1']` `{order, hidden}`; every read / write is in a
   try/catch, unknown, duplicate or unavailable keys are ignored, a catalogue key missing from the stored
   order is appended with its default visibility, and without storage the choice holds in memory for the
   visit. Every metric hidden → a one-line note (the section stays so Customize can bring one back); no

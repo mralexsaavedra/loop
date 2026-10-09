@@ -78,16 +78,6 @@ details.sec-fold.nutri-fold {
   margin: 0;
   cursor: pointer;
 }
-.seg-ico {
-  display: none;
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
 .seg-txt {
   line-height: 1.15;
   white-space: nowrap;
@@ -119,12 +109,6 @@ details.sec-fold.nutri-fold {
   margin-top: var(--sp-2);
 }
 
-/* the day-type icons only where four pills with icons fit on one row */
-@media (min-width: 600px) {
-  .seg-ico {
-    display: block;
-  }
-}
 
 /* today's kcal: the Inicio ring (.dial-ring / .dial-svg / .dial-track / .dial-fill / .dial-num in
    score.css) at a larger size, ONE state colour, the goal chip under it */

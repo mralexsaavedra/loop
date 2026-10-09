@@ -230,6 +230,13 @@ var HC = (function () {
       (m ? '<span class="dd-mk dd-' + esc(m.tone) + '" aria-hidden="true">' + m.glyph + '</span><span class="sr-only">' + esc(m.said) + '</span>' : '') + '</li>';
   }
 
+  // THE switch (docs/design-system.md → Components → Switch): show / hide one item; attrs = its own
+  // data-* hooks; label = what it shows / hides (the state is aria-checked, so no visible word)
+  function switchBtn(on, label, attrs) {
+    return '<button type="button" class="sw" role="switch" aria-checked="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '"' + (attrs || '') + '>' +
+      '<span class="sw-knob" aria-hidden="true"></span></button>';
+  }
+
   // ⓘ button of a Salud header: toggles the hidden block #<id> (client/health.js listens for
   // [data-hs-info]); drawn as an SVG, the page fonts carry no ⓘ glyph
   var INFO_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>';
@@ -286,6 +293,7 @@ var HC = (function () {
     metricRow: metricRow,
     contribIcon: contribIcon,
     contribRow: contribRow,
+    switchBtn: switchBtn,
     infoBtn: infoBtn,
     infoSvg: INFO_SVG,
     sheetHead: sheetHead,

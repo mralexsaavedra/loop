@@ -166,9 +166,6 @@
   min-height: 44px;
   padding: 0;
 }
-.jr-man .db-tog {
-  min-width: 64px;
-}
 .jr-msg {
   min-height: 1.4em;
   color: var(--muted);
