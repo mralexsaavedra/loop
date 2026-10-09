@@ -1803,12 +1803,15 @@ test('nutrition score day panel: the score, each component eaten / target and po
   s.api.open('nutrition', addDays(NOW, -2));
   const html = s.host.innerHTML, P = enT.day.ns;
   assert.ok(html.includes(`<span class="dt-row-lbl">${P.score}</span><b class="dt-row-val">70%</b>`));
-  assert.ok(html.includes(`<span class="dt-row-lbl">${P.k}</span><b class="dt-row-val">2,100 / 2,000 kcal</b><small class="dt-row-sub">100 / 100</small>`));
-  assert.ok(html.includes(`<span class="dt-row-lbl">${P.p}</span><b class="dt-row-val">120 / 150 g</b><small class="dt-row-sub">75 / 100</small>`));
+  assert.ok(html.includes(`<span class="dt-row-lbl">${P.k}</span><b class="dt-row-val">2,100 / 2,000 kcal</b><small class="dt-row-sub">100 / 100 pts</small>`));
+  assert.ok(html.includes(`<span class="dt-row-lbl">${P.p}</span><b class="dt-row-val">120 / 150 g</b><small class="dt-row-sub">75 / 100 pts</small>`));
   assert.ok(html.includes(`<span class="dt-row-lbl">${P.f}</span><b class="dt-row-val">—</b><small class="dt-row-sub">${P.unknown}</small>`));
   for (const k of ['inc', 'meals', 'assumed']) assert.ok(html.includes(P[k]), k);
   s.api.open('nutrition', NOW);
-  assert.ok(s.host.innerHTML.includes(`<b class="dt-row-val">40%</b><small class="dt-row-sub">${P.soFar}</small>`));
+  // today is still filling up: "In progress" instead of a score, eaten / target without points
+  const today = s.host.innerHTML;
+  assert.ok(today.includes(`<span class="dt-row-lbl">${P.score}</span><b class="dt-row-val">${P.inProgress}</b><small class="dt-row-sub">${P.inProgressSub}</small>`));
+  assert.doesNotMatch(today, /dt-row-val">40%|\/ 100 pts/, 'no partial score, no points');
   const none = setup();
   none.api.open('nutrition');
   assert.match(none.host.innerHTML, /dt-empty/, 'no HCNutriScore / no scored day -> the empty sheet');

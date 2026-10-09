@@ -280,13 +280,16 @@ trend is the line under it.
   `client/nutri-score.js`; `#home-nscore`, under the energy bank card in "My day"): the day's 0–100
   adherence to its own targets from the food log (kcal 0.4, protein 0.4, fat 0.2; formula and rules
   in `docs/nutrition-food-log.md` → Nutrition score and `analysis/methodology.md` 5b). Card =
-  `.sc-card.tn.en.ns`: ONE caps title "NUTRITION · SO FAR" (today) or "NUTRITION · INCOMPLETE" (a macro
-  missing) — one size and weight, no smaller tag inside (DS4, F16) — the
-  score big in D-DIN coloured by its band (≥ 85 `--good`, 60–84 `--mid`, < 60 `--low`, via
-  `.de-hi/.de-mid/.de-lo`), "Today" or the date under it, beside it Nutrición's three macro rows
-  ("KCAL · 88", "2351 / 2700 kcal", a bar = the component's points in its band colour), then "7-day
-  average 79%" (final scores only). Today = today when logged ("so far", never final), else the newest
-  scored day while ≤ 3 days old; no food log / nothing fresh → hidden. It opens the nutrition trend
+  `.sc-card.tn.en.ns`: ONE caps title "NUTRITION" ("· INCOMPLETE" when a macro is missing, "· IN
+  PROGRESS" when only today shows) — one size and weight, no smaller tag inside (DS4, F16). The headline
+  is the newest CLOSED day (never today) while ≤ 3 days old: its score big in D-DIN coloured by its band
+  (≥ 85 `--good`, 60–84 `--mid`, < 60 `--low`, via `.de-hi/.de-mid/.de-lo`), "Yesterday" or the date
+  under it. Beside it: when today has a log, TODAY's progress under "TODAY · IN PROGRESS" — Nutrición's
+  three macro rows as "KCAL", "1,500 / 2,000 kcal", the bar = eaten / target in the neutral `--trend`
+  (`.ns-run`), no score and no points (2026-10-09, owner: a mid-day "0%" in red with "KCAL · 0" read as a
+  failed day and as "0 kcal"); otherwise the closed day's rows with their points labelled "KCAL · 85
+  pts", the bar = the points in their band colour. Then "7-day average 79%" (final scores only). Only
+  today logged → today's progress alone; nothing logged / nothing fresh → hidden. It opens the nutrition trend
   sheet (`docs/detail-views.md`, key `nutrition`). On the LAN page Constancia's live summary
   re-renders it after every add / delete.
 - **Today's activities** (`lib/score/timeline.mjs`, baked as `SCORES.timeline` even when `hasData` is

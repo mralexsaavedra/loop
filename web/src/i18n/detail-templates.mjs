@@ -306,7 +306,7 @@ export const en = {
   },
   day: {
     heading: '{date}',
-    ns: { score: 'Score', soFar: 'So far today', k: 'Kcal', p: 'Protein', f: 'Fat', unknown: 'not known (an entry without it): left out', inc: 'Incomplete: an entry lacks a macro, so it is left out and the rest re-weighted.', meals: 'Not every main meal logged: the log may be short.', assumed: 'Rest day assumed from sleep (no session that day).' },
+    ns: { score: 'Score', inProgress: 'In progress', inProgressSub: 'Today is still filling up: scored once the day is over', pts: '{pts} / 100 pts', k: 'Kcal', p: 'Protein', f: 'Fat', unknown: 'not known (an entry without it): left out', inc: 'Incomplete: an entry lacks a macro, so it is left out and the rest re-weighted.', meals: 'Not every main meal logged: the log may be short.', assumed: 'Rest day assumed from sleep (no session that day).' },
     pick: 'Tap a day in the calendar to see it here.',
     noData: 'No data that day.',
     asleep: 'Asleep',
@@ -650,7 +650,7 @@ export const es = {
   },
   day: {
     heading: '{date}',
-    ns: { score: 'Puntuación', soFar: 'Hoy, de momento', k: 'Kcal', p: 'Proteína', f: 'Grasa', unknown: 'no se sabe (una entrada sin él): fuera', inc: 'Incompleto: a una entrada le falta un macro, se deja fuera y el resto se repondera.', meals: 'No están todas las comidas principales: el registro puede quedarse corto.', assumed: 'Día de descanso supuesto por el sueño (sin sesión ese día).' },
+    ns: { score: 'Puntuación', inProgress: 'En curso', inProgressSub: 'Hoy aún se está llenando: se puntúa al acabar el día', pts: '{pts} / 100 pts', k: 'Kcal', p: 'Proteína', f: 'Grasa', unknown: 'no se sabe (una entrada sin él): fuera', inc: 'Incompleto: a una entrada le falta un macro, se deja fuera y el resto se repondera.', meals: 'No están todas las comidas principales: el registro puede quedarse corto.', assumed: 'Día de descanso supuesto por el sueño (sin sesión ese día).' },
     pick: 'Toca un día del calendario para verlo aquí.',
     noData: 'Sin datos ese día.',
     asleep: 'Dormido',

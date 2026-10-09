@@ -36,13 +36,17 @@ export const en = {
     // "My day" nutrition card (client/nutri-score.js, lib/nutrition/score.mjs): adherence to your targets
     nscore: {
       heading: 'Nutrition',
-      soFar: 'so far',
+      // today is still filling up: no score, only its progress (client/nutri-score.js)
+      inProgress: 'in progress',
       incomplete: 'incomplete',
       today: 'Today',
+      yesterday: 'Yesterday',
       unknown: 'not logged',
       parts: { k: 'Kcal', p: 'Protein', f: 'Fat' },
+      // a closed day's component points, never a bare "· 0" that reads like "0 kcal"
+      ptsTpl: '{name} · {pts} pts',
       aria: 'Nutrition score {value}% on {date}',
-      ariaSoFar: 'Nutrition score so far today {value}%',
+      ariaRun: 'Nutrition today: in progress, no score yet',
       avg7: '7-day average {value}%',
     },
     energy: {
@@ -341,13 +345,15 @@ export const es = {
     // tarjeta "Nutrición" de "Mi día" (client/nutri-score.js, lib/nutrition/score.mjs): cumplimiento de tus objetivos
     nscore: {
       heading: 'Nutrición',
-      soFar: 'de momento',
+      inProgress: 'en curso',
       incomplete: 'incompleto',
       today: 'Hoy',
+      yesterday: 'Ayer',
       unknown: 'sin registrar',
       parts: { k: 'Kcal', p: 'Proteína', f: 'Grasa' },
+      ptsTpl: '{name} · {pts} pts',
       aria: 'Puntuación de nutrición {value}% el {date}',
-      ariaSoFar: 'Puntuación de nutrición de momento hoy {value}%',
+      ariaRun: 'Nutrición hoy: en curso, aún sin puntuación',
       avg7: 'Media de 7 días {value}%',
     },
     energy: {

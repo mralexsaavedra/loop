@@ -3670,5 +3670,8 @@
   "|||.db-neutral.db-neutral, .dd-neutral.dd-neutral, .dt-pill-neutral.dt-pill-neutral|||color": "var(--ink)",
   "|||.db-flat.db-flat, .dd-typical.dd-typical, .dt-pill-flat.dt-pill-flat, .ld-flat.ld-flat|||color": "var(--faint)",
   "|||.hs-lbl.home-h|||display": "block",
-  "|||.hs-lbl.home-h|||margin": "var(--sp-10) 0 var(--sp-5)"
+  "|||.hs-lbl.home-h|||margin": "var(--sp-10) 0 var(--sp-5)",
+  "|||.ns-run|||--ds": "var(--trend)",
+  "|||.ns-run-box|||flex": "1",
+  "|||.ns-run-lbl|||max-width": "none"
 }

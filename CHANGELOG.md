@@ -43,6 +43,12 @@ stylesheet and media query.
 **Ride kJ back on the row (owner):** a ride row's HR · effort · kJ is a second small line under the
 value (`HC.metricRow` `base2`), still inside the one run / ride template — the work had become visible
 nowhere.
+**Nutrition score: today is in progress, not a score (owner):** mid-day, today scored "0%" in red with
+"KCAL · 0 / PROTEIN · 0 / FAT · 0" (component points that read like "0 kcal"). Now the card's headline is
+the newest CLOSED day ("Yesterday", or a date ≤ 3 days old); today, when logged, shows only its progress
+(eaten / target, a neutral bar) under "TODAY · IN PROGRESS"; a closed day's points read "KCAL · 85 pts";
+the trend chart has no point for today and its day panel says "In progress". Presentation only:
+`lib/nutrition/score.mjs` and the port are unchanged.
 
 ## 2026-10-09 — Design system components: one style per shared pattern
 
