@@ -188,7 +188,9 @@ function scMod(key) {
     var hist = HC.detailAttrs('recovery', null, { plain: true });
     var notes = R.gated ? [] : recNotes(R, rt);
     var own = notes.length && !intoSectionInfo(notes);
-    out.push('<div class="sc-head"><h3>' + esc(rt.heading) + '</h3>' + asOfHtml(R.asOf) +
+    // no card title: the card is the only one under Salud's "Recovery" section heading, so its head
+    // keeps only what is its own (the as-of date, History, the ⓘ) — docs/design-system.md → Section heading
+    out.push('<div class="sc-head">' + asOfHtml(R.asOf) +
       (hist ? '<button type="button" class="dt-open-btn"' + hist + ' aria-haspopup="dialog">' + esc(rt.historyBtn) + '</button>' : '') +
       (own ? HC.infoBtn('rec-info', format(rt.infoLbl, { section: rt.heading })) : '') + '</div>');
     if (own) out.push('<div class="hs-info" id="rec-info" hidden>' + recInfoHtml(notes) + '</div><!--/rec-info-->');

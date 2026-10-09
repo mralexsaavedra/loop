@@ -661,19 +661,10 @@
   outline-offset: 2px;
 }
 
-/* Inicio "My day" heading: Title Case, the only non-uppercase heading on the tab */
+/* Inicio's section headings ("My day"): the shared .hs-lbl (health.css) standing on its own, no .hs-head row */
 .home-h {
   display: block;
   margin: var(--sp-10) 0 var(--sp-5);
-  font-size: var(--fs-section);
-  font-weight: var(--fw-section);
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--ink);
-}
-
-.home-h::after {
-  content: none;
 }
 
 /* Inicio monitor tiles: two ~90px tiles (summary + HRV), or one full-width tile without HRV */

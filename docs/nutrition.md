@@ -278,7 +278,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
 - **Nutrición header** — the tab opens like Salud / Entreno: a centred uppercase title ("NUTRICIÓN")
   with an ⓘ (`#nu-intro`, `I18N_NUTRI.head`) holding the tab intro and the shared caveats; it sits in
   `web/src/tabs/Dia.astro` outside the `dia` section, so it stays when only Tablas is shown. Every
-  section header below is the shared `.hs-head` row (UPPERCASE label + optional ⓘ, `health.css`).
+  section header below is the shared `.hs-head` row (the sentence-case section heading `.hs-lbl` + optional ⓘ, `health.css`).
 - **Resumen de hoy** — the day type as compact pills (real radios, short labels `dayShort`: Descanso ·
   Gym · Bici · Bici larga, the picked one white like the W / M / 6M toggle; inline SVG line icons only
   from 600 px, where four pills with icons fit one row; the full `dayTypes` names stay for sentences
