@@ -11,7 +11,8 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 gone from the example plan data and the i18n fallbacks (and its guard exception from the docs).
 **Select hit area:** `.sel.gd-pick` / `.sel.fuel-select` keep their 44 px over `.sel`'s 36 px by
 specificity, not stylesheet order (a test resolves the cascade). **Customize drag** starts only on the
-primary pointer, a mouse's main button, and never mid-drag; a lost pointer capture cancels it, and a
+primary pointer, a mouse's main button, and never mid-drag; a lost pointer capture is re-taken (every live
+reorder drops it in Chromium) and cancels only once the pointer is gone, and a
 drag left over by a closed or re-rendered sheet is reset, so it can never block later drags. **Today's plan:** the example-food select
 asks for its chosen name's width (`--pick`), capped at the row, and the chevron no longer eats row
 width, so a long amount ("2½ bread rolls (~112.5 g)") wraps under the select instead of cutting the
