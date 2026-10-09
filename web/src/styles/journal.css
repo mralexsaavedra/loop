@@ -51,7 +51,7 @@
 }
 .jr-wd {
   color: var(--muted);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -92,7 +92,7 @@
   display: block;
   margin: var(--sp-7) 0 var(--sp-3);
   color: var(--muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -196,7 +196,7 @@
   background: var(--accent);
   color: var(--on-accent);
   font: inherit;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-title-lg);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -218,7 +218,7 @@
   display: flex;
   justify-content: space-between;
   margin: var(--sp-7) 0 var(--sp-3);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -232,7 +232,7 @@
   background: var(--surface-2);
 }
 .ji-name {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-title-lg);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
