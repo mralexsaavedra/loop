@@ -10,7 +10,9 @@
  *                  of the hero scale, in one weight (700); a dial centre (sized to its ring) is
  *                  listed; no other raw px size reaches the band;
  *   4. caps      — an uppercase rule sizes itself with a caps role token and tracks with
- *                  var(--label-track).
+ *                  var(--label-track);
+ *   5. components — the section heading, CTA link, chevron, segmented control / chip and trend
+ *                  glyph each have ONE style (docs/design-system.md → Components).
  *
  * Every exception is listed below with its reason; keep the lists short. A new exception is a
  * design decision: document it in docs/design-system.md first.
@@ -21,6 +23,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCssRules } from './css-scan.mjs';
+import { CODE, SRC } from './display-sources.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const STYLES = path.join(here, '..', 'src', 'styles');
@@ -66,7 +69,6 @@ const ROLES = {
 const CARD_FILL = new Set(['var(--card-bg)', 'var(--surface)']);
 // a card-fill rule allowed another radius: `${file} ${selector}` → reason
 const CARD_RADIUS_ALLOW = {
-  'detail.css .dt-range': 'segmented-control track, a pill (DS3)',
   'detail.css .dd-contrib:before': 'a 3px marker bar, not a card',
 };
 // a raw px radius >= 8px allowed: `${file} ${selector}` → reason
@@ -74,25 +76,33 @@ const RAW_RADIUS_ALLOW = {
   'base.css .tabnav': 'the floating dock bar (app shell, not a card)',
   'base.css .tabnav button': 'a dock button inside the 24px bar (inner radius = 24 - 5px padding)',
   'layout.css .act-pop': 'the "+" action popover (app shell, not a card)',
-  'training.css .cal-day': 'a 48px calendar tile at >= 900px (a day cell, not a card)',
+  'training.css @media (min-width:900px) .cal-day': 'a 48px calendar tile at >= 900px (a day cell, not a card)',
 };
 
 // 3. numbers -------------------------------------------------------------------------------------
 const HERO_MIN = 18;
 const HERO_SIZES = new Set(['var(--fs-num-row)', 'var(--fs-num-card)', 'var(--fs-dial)', 'var(--fs-hero)']);
 const HERO_WEIGHTS = new Set(['700', 'var(--num-weight)']);
+// a selector set in the --num face by ANY rule (a grouped `.a, .b { font-family: var(--num) }` too), so a
+// later `.b { font-size: 24px }` without its own font-family is still a number (R3-002)
+const NUM_SELECTORS = new Set(
+  RULES.filter((r) => (r.decl['font-family'] ?? '').includes('var(--num)')).flatMap((r) => r.selector.split(', ')),
+);
+const inNumFace = (r) => (r.decl['font-family'] ?? '').includes('var(--num)') || r.selector.split(', ').some((s) => NUM_SELECTORS.has(s));
 const isDialClamp = (v) => /^clamp\(.*var\(--fs-dial\)\)$/.test(v);
 // dial centres are sized to their ring (the dial step), plus the one sheet-header value
 const HERO_ALLOW = {
-  'score.css .dial-num': "Inicio's dials at >= 900px (168px ring)",
+  'score.css @media (min-width:900px) .dial-num': "Inicio's dials at >= 900px (168px ring)",
   'nutri.css .nt-kcal': "Nutrición's kcal dial",
+  'nutri.css @media (min-width:900px) .nt-kcal': "Nutrición's kcal dial at >= 900px (its larger ring)",
   'detail.css .dd-num': 'the deep-dive sheet dial',
   'detail.css .dt-num': 'the trend sheet header value (sheet scale, audited in DS4)',
 };
 // raw px font sizes in the hero band that are not numbers
 const RAW_SIZE_ALLOW = {
   'detail.css .sh-back': 'the sheet back-arrow glyph',
-  'layout.css .wordmark': 'the header logo at >= 900px (header stays as is)',
+  'layout.css .wordmark': 'the header logo on the phone, 19px (header stays as is)',
+  'layout.css @media (min-width:900px) .wordmark': 'the header logo at >= 900px (header stays as is)',
 };
 
 // 4. caps ----------------------------------------------------------------------------------------
@@ -103,7 +113,8 @@ const CAPS_ALLOW = {
   'layout.css .date-pill-lbl': 'the header date pill, wide 0.14em tracking (header stays as is)',
 };
 
-const key = (r) => `${r.file} ${r.selector}`;
+// the allowlist key names the media query too, so an exception at >= 900px never excuses the phone rule
+const key = (r) => `${r.file}${r.media ? ` @media ${r.media}` : ''} ${r.selector}`;
 
 test('role tokens exist and point at primitive tokens in their documented range', () => {
   for (const [name, [lo, hi]] of Object.entries(ROLES)) {
@@ -159,11 +170,11 @@ test('hero numbers use the hero scale (row / card / dial) in one weight', () => 
       seen.add(key(r));
       continue;
     }
-    if (raw && n >= HERO_MIN && !(r.decl['font-family'] ?? '').includes('var(--num)')) {
+    if (raw && n >= HERO_MIN && !inNumFace(r)) {
       if (RAW_SIZE_ALLOW[key(r)]) seen.add(key(r));
       else bad.push(`${where(r)} raw font-size \`${size}\` in the hero band (use a role token)`);
     }
-    const isNum = (r.decl['font-family'] ?? '').includes('var(--num)') || HERO_SIZES.has(size);
+    const isNum = inNumFace(r) || HERO_SIZES.has(size);
     if (!isNum) continue;
     const hero = HERO_SIZES.has(size) || isDialClamp(size) || (n != null ? n >= HERO_MIN : /^clamp\(/.test(size));
     if (!hero) continue;
@@ -195,4 +206,85 @@ test('caps labels use the caps role sizes and the one label tracking', () => {
   assert.deepEqual(bad, []);
   const stale = Object.keys(CAPS_ALLOW).filter((k) => !seen.has(k));
   assert.deepEqual(stale, [], 'allowlist entries that no longer match a rule — remove them');
+});
+
+// 5. components (docs/design-system.md → Components) ---------------------------------------------
+test('section heading: one class (.hs-lbl) owns the section step, in sentence case', () => {
+  const own = RULES.filter((r) => !r.media && r.selector === '.hs-lbl' && r.decl['font-size']);
+  assert.equal(own.length, 1, 'one .hs-lbl rule sets the section heading type');
+  const d = own[0].decl;
+  assert.deepEqual([d['font-size'], d['font-weight'], d['text-transform'], d['letter-spacing']], ['var(--fs-section)', 'var(--fw-section)', 'none', '0']);
+  const other = RULES.filter((r) => r !== own[0] && /var\(--f[sw]-section\)/.test(`${r.decl['font-size']} ${r.decl['font-weight']}`));
+  assert.deepEqual(other.map(where), [], 'only .hs-lbl uses the section tokens: a section heading reuses the class');
+});
+
+test('CTA link: only .cta (and the in-sentence .lnk) paint link text; the gradient only on the insight card', () => {
+  const linkText = RULES.filter((r) => r.decl.color === 'var(--link)').map(key);
+  assert.deepEqual(linkText.sort(), ['base.css .cta', 'base.css .lnk'], 'a link-coloured rule outside .cta / .lnk is another link style');
+  const gradient = RULES.filter((r) => r.decl['background-clip'] === 'text').map(key);
+  assert.deepEqual(gradient, ['detail.css .dd-insight .cta'], 'the gradient text is drawn only on --ground (tokens.css)');
+});
+
+// the chevron's look lives in ONE rule (base.css); its owners only place / rotate it
+const CHEV_RULE = '.chev, [data-detail][role=button]:after, button.meal-name:after, details.rec-raw>summary:after';
+const CHEV_LOOK = ['color', 'font-size', 'font-weight', 'line-height', 'font'];
+test('chevron: one glyph size and colour; no rule styles a chevron of its own', () => {
+  const base = RULES.find((r) => r.file === 'base.css' && r.selector === CHEV_RULE);
+  assert.ok(base, 'base.css holds the one chevron rule');
+  assert.deepEqual([base.decl.color, base.decl['font-size'], base.decl['font-weight']], ['var(--muted)', 'var(--chev-size)', '400']);
+  const bad = [];
+  for (const r of RULES) {
+    if (r === base) continue;
+    const isChev = /(^|[\s.,>])\.?[\w-]*chev\b/.test(r.selector) || /[›‹]/.test(r.decl.content ?? '');
+    const look = CHEV_LOOK.filter((p) => r.decl[p] != null);
+    if (isChev && look.length) bad.push(`${where(r)} sets ${look.join(', ')} (the chevron's look is base.css's .chev)`);
+  }
+  assert.deepEqual(bad, []);
+});
+
+// a ‹ / › glyph in markup sits in a .chev span; the one exception is the sheet header's back button
+const GLYPH_ALLOW = { 'web/src/client/util.js': 1 }; // sheetHead's .sh-back "‹" (a 44px header control, docs)
+test('chevron: every ‹ / › written in markup is a .chev span', () => {
+  const bad = [];
+  for (const f of CODE) {
+    let n = 0;
+    for (const m of SRC[f].matchAll(/[›‹]/g)) {
+      if (/<span class="chev[^"]*"[^>]*>$/.test(SRC[f].slice(Math.max(0, m.index - 80), m.index))) continue;
+      n++;
+    }
+    if (n !== (GLYPH_ALLOW[f] ?? 0)) bad.push(`${f}: ${n} chevron glyph(s) outside a .chev span (allowed ${GLYPH_ALLOW[f] ?? 0})`);
+  }
+  assert.deepEqual(bad, []);
+});
+
+// a "picked" state that fills or outlines: the chip and the segmented control own it; every other
+// pressed / checked fill is listed with its reason
+const PICKED_ALLOW = {
+  'base.css .chip[aria-pressed=true], :checked+.chip': 'THE selected chip (white fill)',
+  'detail.css .dt-range button[aria-pressed=true]': 'THE segmented control (grey square)',
+  'detail.css .dt-day[aria-pressed=true]': "the trend calendar's selected day (a ring on a day cell)",
+  'food.css .fa-tab[aria-pressed=true]': "the food sheet's source tabs (audited in DS4)",
+  'journal.css .jr-x[aria-pressed=true]': "a journal answer (yes), not a filter",
+  'journal.css .jr-y[aria-pressed=true]': "a journal answer (no), not a filter",
+  'score.css .db-tog[aria-pressed=true]': 'Customize panel visibility toggle (DS4)',
+};
+test('selected chip and segmented control: one picked style each; other picked fills are listed', () => {
+  const picked = RULES.filter((r) => /\[aria-(pressed|checked|selected)=true\]|:checked/.test(r.selector) && (r.decl.background || r.decl['background-color'] || r.decl['border-color']));
+  assert.deepEqual(picked.map(key).filter((k) => !PICKED_ALLOW[k]), [], 'a new picked style: reuse .chip or .dt-range');
+  assert.deepEqual(Object.keys(PICKED_ALLOW).filter((k) => !picked.some((r) => key(r) === k)), [], 'stale allowlist entries');
+  const chip = picked.find((r) => key(r).startsWith('base.css .chip'));
+  assert.deepEqual([chip.decl.background, chip.decl.color], ['var(--accent)', 'var(--on-accent)'], 'the picked chip is white-filled');
+});
+
+// the trend glyph's colours live in ONE block (the end of detail.css): arrows are coloured, only the
+// typical / steady dot is grey
+const TONE_CLASS = /\.(db|dd|dt-pill|ld|wp)-(good|bad|watch|neutral|flat|better|worse|typical|up|down)\b/;
+const GREY = new Set(['var(--faint)', 'var(--muted)']);
+test('trend glyph: one colour block; grey only for the typical dot', () => {
+  const toned = RULES.filter((r) => TONE_CLASS.test(r.selector) && r.decl.color);
+  assert.ok(toned.every((r) => r.file === 'detail.css'), `trend colours outside the block: ${toned.filter((r) => r.file !== 'detail.css').map(where)}`);
+  const grey = toned.filter((r) => GREY.has(r.decl.color)).flatMap((r) => r.selector.split(', '));
+  assert.deepEqual(grey.sort(), ['.db-flat', '.dd-typical', '.dt-pill-flat', '.ld-flat'], 'only the dot classes are grey');
+  const neutral = toned.find((r) => r.selector.includes('.db-neutral'));
+  assert.equal(neutral?.decl.color, 'var(--ink)', 'a change with no good direction is an --ink arrow');
 });

@@ -17,34 +17,8 @@
  * decision: document it in docs/design-system.md first. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { CODE, I18N, SRC } from './display-sources.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.join(here, '..', '..');
-const list = (dir, ext) =>
-  fs.readdirSync(path.join(ROOT, dir))
-    .filter((f) => f.endsWith(ext) && !f.includes('.test.'))
-    .map((f) => `${dir}/${f}`);
-
-const CODE = [
-  ...list('web/src/client', '.js'),
-  ...list('web/src/view', '.mjs'),
-  ...list('web/src/tabs', '.astro'),
-  ...list('web/src/components', '.astro'),
-  'web/layouts/Plan.astro',
-  'lib/score/advice-copy.mjs',
-];
-const I18N = list('web/src/i18n', '.mjs');
-
-// comments out (block comments, and a `//` comment at a line start or after whitespace — a URL's
-// "://" has no space before it), so a comment that says "±2 %" never trips the guard
-function stripComments(src) {
-  return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
-}
-const read = (f) => stripComments(fs.readFileSync(path.join(ROOT, f), 'utf8'));
-const SRC = Object.fromEntries([...CODE, ...I18N].map((f) => [f, read(f)]));
 const hits = (files, re) =>
   files.flatMap((f) => SRC[f].split('\n').flatMap((line, i) => (re.test(line) ? [`${f}:${i + 1}: ${line.trim().slice(0, 120)}`] : [])));
 
@@ -80,6 +54,8 @@ test('no hand-rolled thousands grouping outside the formatter', () => {
 
 test('no hand-made decimal comma outside the formatter (data labels listed)', () => {
   const found = hits(CODE.filter((f) => !DECIMAL_COMMA_DATA.includes(f)), /\.replace\(\s*['"]\.['"]/);
+  // the regex form too: .replace(/\./, ',') / .replace(/\./g, ",")
+  assert.deepEqual(hits(CODE, /\.replace\(\s*\/\\\.\/[a-z]*\s*,\s*['"`],/), [], 'regex-form decimal comma');
   assert.deepEqual(found, []);
   for (const f of DECIMAL_COMMA_DATA) assert.equal(hits([f], /\.replace\(\s*['"]\.['"]/).length, 1, `${f}: only the listed one`);
 });
@@ -94,7 +70,7 @@ test('.toFixed( only for SVG / CSS geometry (per-file counts)', () => {
 });
 
 test('one percent rule: no space before "%"', () => {
-  assert.deepEqual(hits(CODE, /['"] %|\d %/), [], 'code strings');
+  assert.deepEqual(hits(CODE, /['"] %|\d %|\} %/), [], 'code strings and template literals (`${v} %`)');
   assert.deepEqual(hits(I18N, /[\d}] %/), [], 'i18n templates');
 });
 
@@ -104,4 +80,5 @@ test('hours are h:mm: no "{value} h" templates, no " h" built in code', () => {
   );
   assert.deepEqual(tpl, []);
   assert.deepEqual(hits(CODE, /['"] h['"]/), []);
+  assert.deepEqual(hits(CODE, /\$\{[^}]*\} h\b/), [], 'a template literal `${v} h`');
 });

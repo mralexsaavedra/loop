@@ -134,9 +134,9 @@ test('load dial switch: the pill stays compact but its hit area is 44px tall and
     const r = rules.filter((x) => x.selector === sel && x.media === media).flatMap((x) => x.decls).filter(([p]) => p === prop);
     return r.length ? r[r.length - 1][1] : undefined;
   };
-  assert.equal(decl('.dial-mod', 'min-height'), '30px', 'the visible pill keeps its compact height');
+  assert.equal(decl('.chip', 'min-height'), '30px', 'the visible pill (a .chip) keeps its compact height');
   assert.equal(decl('.dial-mod', 'min-width'), '44px');
-  assert.equal(decl('.dial-mod', 'position'), 'relative');
+  assert.equal(decl('.chip', 'position'), 'relative');
   assert.equal(decl('.dial-mod:before', 'content'), '""');
   assert.equal(decl('.dial-mod:before', 'position'), 'absolute');
   // centred 44px band: top / bottom = 50% - 22px, full width

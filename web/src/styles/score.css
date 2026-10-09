@@ -140,9 +140,6 @@
 }
 .outlook-chev {
   flex: none;
-  color: var(--muted);
-  font-size: var(--fs-2xl);
-  line-height: 1;
 }
 /* Entreno load summary (score.js loadCard): three compact cards, one per modality — the last scored
    session's RE big in strain blue + a small ring (the dial's own arc), "LOAD · date", a trend pill */
@@ -219,15 +216,6 @@
   background: var(--rail);
   font-size: var(--fs-2xs);
   font-weight: 600;
-}
-.ld-good {
-  color: var(--up);
-}
-.ld-bad {
-  color: var(--down);
-}
-.ld-flat {
-  color: var(--faint);
 }
 .sc-mod-line b,
 .sc-caveats-h b {
@@ -393,7 +381,6 @@
 }
 .dial-chev {
   margin-left: 3px;
-  color: var(--muted);
 }
 .dial.dial-off .dial-svg {
   opacity: 0.45;
@@ -417,22 +404,11 @@
   /* a wrapped row sits past both 7px hit-area extensions (see .dial-mod::before) */
   row-gap: var(--sp-6);
 }
-/* the pill stays a compact 30px; its hit area is a centred 44px band (::before) that only reaches
-   7px above and below it, never sideways into the next pill */
+/* a .chip (base.css): the pill stays a compact 30px; its hit area is a centred 44px band (::before)
+   that only reaches 7px above and below it, never sideways into the next pill */
 .dial-mod {
-  position: relative;
-  min-height: 30px;
+  justify-content: center;
   min-width: 44px;
-  padding: var(--sp-1) var(--sp-4);
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: transparent;
-  color: var(--muted);
-  font-family: inherit;
-  font-size: var(--fs-label);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
   cursor: pointer;
 }
 .dial-mod::before {
@@ -442,11 +418,6 @@
   bottom: calc(50% - 22px);
   left: 0;
   right: 0;
-}
-.dial-mod[aria-pressed="true"] {
-  background: rgba(var(--accent-rgb), 0.12);
-  border-color: var(--strain);
-  color: var(--ink);
 }
 .dial-mod:focus-visible {
   outline: 2px solid var(--accent);
@@ -661,19 +632,10 @@
   outline-offset: 2px;
 }
 
-/* Inicio "My day" heading: Title Case, the only non-uppercase heading on the tab */
+/* Inicio's section headings ("My day"): the shared .hs-lbl (health.css) standing on its own, no .hs-head row */
 .home-h {
   display: block;
   margin: var(--sp-10) 0 var(--sp-5);
-  font-size: var(--fs-section);
-  font-weight: var(--fw-section);
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--ink);
-}
-
-.home-h::after {
-  content: none;
 }
 
 /* Inicio monitor tiles: two ~90px tiles (summary + HRV), or one full-width tile without HRV */
@@ -717,11 +679,6 @@
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
-}
-.hmt-chev {
-  color: var(--muted);
-  font-size: var(--fs-lg);
-  line-height: 0.8;
 }
 .hmt-body {
   display: flex;
@@ -973,8 +930,6 @@ details.rec-raw > summary {
 }
 details.rec-raw > summary::after {
   content: "›";
-  font-size: var(--fs-lg);
-  line-height: 1;
   transition: transform 0.2s;
 }
 details.rec-raw[open] > summary::after {
@@ -1128,7 +1083,7 @@ details.rec-raw[open] > summary::after {
   font-size: var(--fs-lg);
   line-height: 1.45;
 }
-.tn-more {
+.jr-ins {
   min-height: 44px;
   padding: 0 var(--sp-5);
   border: 1px solid var(--line);
@@ -1142,7 +1097,7 @@ details.rec-raw[open] > summary::after {
   text-transform: uppercase;
   cursor: pointer;
 }
-.tn-more:focus-visible {
+.jr-ins:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -1214,16 +1169,12 @@ details.rec-raw[open] > summary::after {
   text-transform: uppercase;
 }
 .wp-chev {
-  width: 9px;
-  height: 9px;
   margin-right: 4px;
-  border-right: 2px solid var(--muted);
-  border-bottom: 2px solid var(--muted);
-  transform: rotate(45deg) translateY(-3px);
+  transform: rotate(90deg);
   transition: transform 0.2s ease;
 }
 .wp[open] .wp-chev {
-  transform: rotate(-135deg) translateY(-3px);
+  transform: rotate(-90deg);
 }
 .wp-left {
   color: var(--muted);
@@ -1309,12 +1260,6 @@ details.rec-raw[open] > summary::after {
 .wp-arr {
   margin-left: 2px;
   font-size: 0.7em;
-}
-.wp-up {
-  color: var(--up);
-}
-.wp-down {
-  color: var(--down);
 }
 .wp-bar {
   grid-column: 1 / -1;
@@ -1444,18 +1389,6 @@ details.rec-raw[open] > summary::after {
   width: 10px;
   font-size: 9px;
   text-align: center;
-}
-.db-good {
-  color: var(--up);
-}
-.db-bad {
-  color: var(--down);
-}
-.db-flat {
-  color: var(--faint);
-}
-.db-watch {
-  color: var(--mid);
 }
 .db-base {
   margin-right: 13px;

@@ -284,7 +284,7 @@
     if (keys.length < 2) return '';
     return '<label class="dt-metric"><span class="sr-only">' + esc(T.trend.metric) + '</span><select class="dt-metric-sel" data-dt-pick="metric">' +
       keys.map(function (k) { return '<option value="' + esc(k) + '"' + (k === key ? ' selected' : '') + '>' + esc(titleOf(k)) + '</option>'; }).join('') +
-      '</select><svg class="dt-metric-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg></label>';
+      '</select><span class="chev dt-metric-chev" aria-hidden="true">›</span></label>';
   }
   function noneHtml(txt) {
     return '<div class="dt-latest"><span class="dt-none">' + esc(txt) + '</span></div>';
@@ -397,7 +397,9 @@
     var vars = { metric: titleOf(key), span: T.trend.span[k], prevSpan: T.trend.prevSpan[k], avg: st.avg == null ? '' : show(st.avg), prev: st.prev == null ? '' : show(st.prev) };
     if (st.avg == null) return format(S.none, vars);
     if (st.delta == null) return format(S.only, vars);
-    return format(st.flat ? S.flat : st.delta > 0 ? S.up : S.down, vars);
+    // h:mm has no decimal to add: two windows that print the same clock read "about the same"
+    var same = st.flat || (st.prev != null && vars.avg === vars.prev);
+    return format(same ? S.flat : st.delta > 0 ? S.up : S.down, vars);
   }
   function trendHtml(key, m, st, range) {
     var R = T.trend, dec = m.kind === 'sleep' ? 1 : m.dec;
@@ -406,7 +408,7 @@
     if (st.delta != null) {
       var arrow = st.flat ? '•' : st.delta > 0 ? '▲' : '▼';
       var amount = m.kind === 'recovery' ? signed(st.delta, 1) + ' ' + unitOf(key) : (st.pct == null ? '—' : HC.pct(Math.abs(st.pct)));
-      pill = '<span class="dt-pill dt-pill-' + esc(st.tone) + '">' + esc(arrow + ' ' + amount + ' ' + R.vs[RANGE_KEY[range]]) + '</span>';
+      pill = '<span class="dt-pill dt-pill-' + esc(HC.trendTone(st.flat ? 'flat' : 'up', st.tone)) + '">' + esc(arrow + ' ' + amount + ' ' + R.vs[RANGE_KEY[range]]) + '</span>';
     } else if (st.avg != null) {
       pill = '<span class="dt-pill dt-pill-none">' + esc(st.clamped ? format(R.since, { date: HC.fmtDate(st.from) }) : R.noPrev) + '</span>';
     }
@@ -423,9 +425,9 @@
     var R = T.trend, back = shiftIso(to, -range) >= m.start;
     var lbl = format(R.win, { from: HC.fmtDate(from, { weekday: false }), to: HC.fmtDate(to, { weekday: false }), yy: to.slice(2, 4) });
     return '<div class="dt-win" role="group" aria-label="' + esc(R.winAria) + '">' +
-      '<button type="button" class="dt-wnav" data-dt-act="win" data-wdir="-1" aria-label="' + esc(R.prevWin) + '"' + (back ? '' : ' disabled') + '>‹</button>' +
+      '<button type="button" class="nav-btn" data-dt-act="win" data-wdir="-1" aria-label="' + esc(R.prevWin) + '"' + (back ? '' : ' disabled') + '><span class="chev" aria-hidden="true">‹</span></button>' +
       '<span class="dt-win-lbl">' + esc(lbl) + '</span>' +
-      '<button type="button" class="dt-wnav" data-dt-act="win" data-wdir="1" aria-label="' + esc(R.nextWin) + '"' + (shift > 0 ? '' : ' disabled') + '>›</button></div>';
+      '<button type="button" class="nav-btn" data-dt-act="win" data-wdir="1" aria-label="' + esc(R.nextWin) + '"' + (shift > 0 ? '' : ' disabled') + '><span class="chev" aria-hidden="true">›</span></button></div>';
   }
   function periodHtml(key, m, end, range, shift) {
     var to = windowEnd(m, end, range, shift);
@@ -602,7 +604,7 @@
       return '<i class="dt-s-' + it[0] + '" style="width:' + (Math.round((1000 * n[it[0]]) / tot) / 10) + '%"></i>';
     }).join('');
     return '<section class="dt-brk" aria-label="' + esc(B.title) + '"><div class="dt-brk-top"><h3 class="dt-brk-t">' + esc(B.title) + '</h3>' +
-      '<button type="button" class="dt-learn" data-dt-act="learn">' + esc(B.learn) + '</button></div>' +
+      HC.cta(B.learn, ' data-dt-act="learn"') + '</div>' +
       '<div class="dt-brk-bar" aria-hidden="true">' + bar + '</div><ul class="dt-brk-leg">' + items.map(function (it) {
         return '<li data-st="' + it[0] + '"><span class="dt-sw dt-s-' + it[0] + '" aria-hidden="true"></span>' + esc(it[1]) + '<b>' + esc(format(B.count, { n: n[it[0]] })) + '</b></li>';
       }).join('') + '</ul></section>';
@@ -642,9 +644,9 @@
   function calendarHtml(key, m, month, sel, end) {
     var first = monthOf(m.start), last = monthOf(end);
     var N = typeof I18N_DATE !== 'undefined' && I18N_DATE ? I18N_DATE.weekdaysMin : ['1', '2', '3', '4', '5', '6', '7'];
-    var out = ['<div class="dt-cal-head"><button type="button" class="dt-mnav" data-dt-act="month" data-dir="-1" aria-label="' + esc(T.prevMonth) + '"' + (month <= first ? ' disabled' : '') + '>‹</button>' +
+    var out = ['<div class="dt-cal-head"><button type="button" class="nav-btn" data-dt-act="month" data-dir="-1" aria-label="' + esc(T.prevMonth) + '"' + (month <= first ? ' disabled' : '') + '><span class="chev" aria-hidden="true">‹</span></button>' +
       '<h3 class="dt-month">' + esc(HC.fmtMonth(month)) + '</h3>' +
-      '<button type="button" class="dt-mnav" data-dt-act="month" data-dir="1" aria-label="' + esc(T.nextMonth) + '"' + (month >= last ? ' disabled' : '') + '>›</button></div>'];
+      '<button type="button" class="nav-btn" data-dt-act="month" data-dir="1" aria-label="' + esc(T.nextMonth) + '"' + (month >= last ? ' disabled' : '') + '><span class="chev" aria-hidden="true">›</span></button></div>'];
     out.push('<div class="dt-cal" role="group" aria-label="' + esc(format(T.calAria, { title: titleOf(key), month: HC.fmtMonth(month) })) + '">');
     N.forEach(function (w) { out.push('<span class="dt-wd">' + esc(w) + '</span>'); });
     var lead = HC.weekdayIndex(month);

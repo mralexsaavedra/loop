@@ -78,18 +78,6 @@ details.sec-fold.nutri-fold {
   margin: 0;
   cursor: pointer;
 }
-.seg-in {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-2);
-  min-height: 30px;
-  padding: var(--sp-1) var(--sp-4);
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  color: var(--muted);
-  transition: background 0.18s, color 0.18s;
-}
 .seg-ico {
   display: none;
   width: 16px;
@@ -101,17 +89,8 @@ details.sec-fold.nutri-fold {
   stroke-linejoin: round;
 }
 .seg-txt {
-  font-size: var(--fs-label);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
   line-height: 1.15;
   white-space: nowrap;
-}
-.seg-opt input:checked + .seg-in {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
 }
 .seg-opt input:focus-visible + .seg-in {
   outline: 2px solid var(--accent);

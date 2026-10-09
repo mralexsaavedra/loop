@@ -188,8 +188,10 @@ function scMod(key) {
     var hist = HC.detailAttrs('recovery', null, { plain: true });
     var notes = R.gated ? [] : recNotes(R, rt);
     var own = notes.length && !intoSectionInfo(notes);
-    out.push('<div class="sc-head"><h3>' + esc(rt.heading) + '</h3>' + asOfHtml(R.asOf) +
-      (hist ? '<button type="button" class="dt-open-btn"' + hist + ' aria-haspopup="dialog">' + esc(rt.historyBtn) + '</button>' : '') +
+    // no card title: the card is the only one under Salud's "Recovery" section heading, so its head
+    // keeps only what is its own (the as-of date, History, the ⓘ) — docs/design-system.md → Section heading
+    out.push('<div class="sc-head">' + asOfHtml(R.asOf) +
+      (hist ? HC.cta(rt.historyBtn, hist + ' aria-haspopup="dialog"') : '') +
       (own ? HC.infoBtn('rec-info', format(rt.infoLbl, { section: rt.heading })) : '') + '</div>');
     if (own) out.push('<div class="hs-info" id="rec-info" hidden>' + recInfoHtml(notes) + '</div><!--/rec-info-->');
     if (stale) out.push(staleHtml(R.asOf));
@@ -342,7 +344,7 @@ function scMod(key) {
     return '<figure class="dial ' + cls + (stale ? ' sc-stale' : '') + '"' + (extra || '') + (to ? HC.detailAttrs(to, VIEW) : '') + '>' +
       '<div class="dial-ring"' + (aria ? ' role="img" aria-label="' + attr(aria) + '"' : '') + '>' + svg +
       '<div class="dial-centre" aria-hidden="true">' + centre + '</div></div>' +
-      '<figcaption class="dial-lbl">' + esc(label) + '<span class="dial-chev" aria-hidden="true">›</span></figcaption></figure>';
+      '<figcaption class="dial-lbl">' + esc(label) + '<span class="chev dial-chev" aria-hidden="true">›</span></figcaption></figure>';
   }
   function numCentre(value, unit) {
     return '<b class="dial-num">' + esc(value) + '<small>' + esc(unit) + '</small></b>';
@@ -552,7 +554,7 @@ function scMod(key) {
     var link = HC.detailAttrs('recovery');
     var title = link && T.home && T.home.outlook;
     return '<div class="sc-advice outlook"' + link + (title ? ' aria-label="' + attr(title + ': ' + txt) + '"' : '') + '>' + OUTLOOK_ICO +
-      '<span class="outlook-txt">' + esc(title || txt) + '</span><span class="outlook-chev" aria-hidden="true">›</span></div>';
+      '<span class="outlook-txt">' + esc(title || txt) + '</span><span class="chev outlook-chev" aria-hidden="true">›</span></div>';
   }
 
   // the blocks that follow the selected day (HCDay): the dials, the collapsed row, the advice

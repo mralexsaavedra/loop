@@ -224,7 +224,7 @@ test('example build: Inicio reads today top to bottom — dials, monitor tiles, 
   const home = sliceTabPanel(html, 'home');
   const at = ['id="home-dials"', 'id="home-tiles"', 'id="my-day"', 'id="home-advice"', 'id="timeline"', 'class="eat-card"', 'id="home-tonight"', 'id="my-journal"', 'id="my-plan"', 'id="my-dash"', 'data-section="hoy"'].map((n) => home.indexOf(n));
   assert.ok(at.every((v, i) => v !== -1 && (i === 0 || v > at[i - 1])), `Inicio order ${at}`);
-  assert.match(home, /<h2 class="home-h" id="my-day-h">My day<\/h2>/);
+  assert.match(home, /<h2 class="hs-lbl home-h" id="my-day-h">My day<\/h2>/);
   // the full monitor list moved to Salud: Inicio keeps only the summary tiles (no fold, no grid)
   assert.doesNotMatch(home, /id="monitor"|monitor-fold|hm-fold/);
   assert.match(html, /"timeline":\{"asOf":"\d{4}-\d{2}-\d{2}","days":\[\{"date"/, 'demo data fills the timeline');
@@ -233,7 +233,7 @@ test('example build: Inicio reads today top to bottom — dials, monitor tiles, 
   // Tonight + My plan ship hidden; client/home-week.js (an end-of-body script) reveals them
   assert.match(home, /<div id="home-tonight" hidden><\/div>/);
   assert.match(home, /<div id="my-journal" hidden><\/div>/, 'My journal ships hidden (client/journal.js)');
-  assert.match(home, /<section class="home-sec" id="my-plan" aria-labelledby="my-plan-h" hidden>\s*<h2 class="home-h" id="my-plan-h">My plan<\/h2>/);
+  assert.match(home, /<section class="home-sec" id="my-plan" aria-labelledby="my-plan-h" hidden>\s*<h2 class="hs-lbl home-h" id="my-plan-h">My plan<\/h2>/);
   assert.doesNotMatch(home, /<script/, 'no script inside the Inicio panel');
   // home-week.js + home-dash.js run in the end-of-body list, after their globals and before
   // deepdive.js / detail.js, so their views (tonight, dash-edit) exist when detail.js runs

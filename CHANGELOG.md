@@ -5,6 +5,26 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-09 — Design system components: one style per shared pattern
+
+The audit's component findings (F3–F6, F9, F18) were the same pattern drawn several ways. Each now has
+ONE class set (docs/design-system.md → Components) and a guard in `web/test/design-system.test.mjs`:
+the **section heading** is `.hs-lbl` on every tab, sentence case at the section step like Inicio's "My
+day" (Entreno / Salud / Nutrición used 11.5 px caps identical to their card titles; Salud's recovery card
+drops its duplicate "Recovery" title, keeping its date and History); the **CTA link** is `HC.cta` / `.cta`
+(caps link blue + →; the gradient stays on the insight card) for History, Tonight's sleep history, Learn
+more and the eat card's full-plan link, instead of an outline pill, a dark pill, blue caps and an
+underlined link; ONE **chevron** (the muted › at `--chev-size`, from five sizes in white / bold / muted)
+and ONE **step-navigation** button `.nav-btn` (the trend sheet's tiny ‹ › and its 44 px filled month
+circles, Registrar's day); the **segmented control** is the trend sheets' small W / M / 6M everywhere
+(Entreno's big pill track is gone) and the **chip** `.chip` is white-filled when picked (the load
+sheet's teal outline is gone); the **trend glyph** never draws a grey arrow — a change with no good
+direction is an `--ink` ▲▼, grey is the typical dot only (`HC.trendTone`). Inline CSS 107.7 KB → 105.2 KB.
+Folded follow-ups: the guard's allowlist key names the media query and a grouped `--num` font counts;
+the number-format guard catches `${v} %` / `${v} h` and the regex decimal comma and scans sub-folders;
+a sleep trend whose windows print the same h:mm reads "about the same"; the monitor's h:mm sleep row
+is tested.
+
 ## 2026-10-09 — Design system numbers: one number / duration formatter
 
 The same audit (finding F2) found three number styles side by side: "2.500 kcal" next to "2500 kcal"

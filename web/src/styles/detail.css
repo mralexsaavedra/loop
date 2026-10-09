@@ -137,7 +137,6 @@ html.dt-lock body {
   margin-top: var(--sp-1);
 }
 .dt-range button:focus-visible,
-.dt-mnav:focus-visible,
 .dt-day:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -151,32 +150,37 @@ html.dt-lock body {
   color: var(--muted);
   font-size: var(--fs-sm);
 }
+/* Segmented control (docs/design-system.md → Components): THE range switch — the trend sheets' W ·
+   M · 6M · 1Y and Entreno Activity's W · M · 6M. Dark 28px squares, the pressed one grey; each keeps a
+   44px-tall hit area (::after) */
 .dt-range {
   display: inline-flex;
-  gap: var(--sp-2);
-  padding: var(--sp-1);
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: var(--surface);
+  gap: var(--sp-1);
 }
 .dt-range button {
-  min-width: 64px;
-  min-height: 44px;
-  padding: 0 var(--sp-5);
+  position: relative;
+  min-width: 32px;
+  min-height: 28px;
+  padding: 0 var(--sp-2);
   border: 0;
-  border-radius: var(--r-pill);
-  background: transparent;
+  border-radius: var(--r-xs);
+  background: var(--rail);
   color: var(--muted);
   font-family: inherit;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
   cursor: pointer;
 }
+.dt-range button::after {
+  content: "";
+  position: absolute;
+  inset: -8px -2px;
+}
 .dt-range button[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--track);
+  color: var(--ink);
 }
 
 /* the trend view above the chart, top to bottom: a small W · M · 6M · 1Y switch on the right, the
@@ -186,32 +190,8 @@ html.dt-lock body {
   flex-direction: column;
   gap: var(--sp-4);
 }
-/* the switch: dark 28px squares, the pressed one grey; each keeps a 44px-tall hit area (::after) */
 .dt-period .dt-range {
   align-self: flex-end;
-  gap: var(--sp-1);
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: none;
-}
-.dt-period .dt-range button {
-  position: relative;
-  min-width: 32px;
-  min-height: 28px;
-  padding: 0 var(--sp-2);
-  border-radius: var(--r-xs);
-  background: var(--rail);
-  font-size: var(--fs-2xs);
-}
-.dt-period .dt-range button::after {
-  content: "";
-  position: absolute;
-  inset: -8px -2px;
-}
-.dt-period .dt-range button[aria-pressed="true"] {
-  background: var(--track);
-  color: var(--ink);
 }
 .dt-win {
   display: flex;
@@ -227,23 +207,6 @@ html.dt-lock body {
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
-.dt-wnav {
-  width: 44px;
-  height: 44px;
-  border: 0;
-  border-radius: var(--r-pill);
-  background: none;
-  color: var(--ink);
-  font-size: var(--fs-xl);
-  line-height: 1;
-  cursor: pointer;
-}
-.dt-wnav:disabled {
-  color: var(--faint);
-  opacity: 0.4;
-  cursor: default;
-}
-.dt-wnav:focus-visible,
 .dt-metric-sel:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -270,15 +233,8 @@ html.dt-lock body {
   cursor: pointer;
 }
 .dt-metric-chev {
-  position: relative;
-  width: 16px;
-  height: 16px;
   margin: auto 0 auto -28px;
-  fill: none;
-  stroke: var(--muted);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  transform: rotate(90deg);
   pointer-events: none;
 }
 .dt-trend-lbl {
@@ -311,12 +267,6 @@ html.dt-lock body {
   color: var(--muted);
   font-size: var(--fs-2xs);
   font-weight: 600;
-}
-.dt-pill-good {
-  color: var(--up);
-}
-.dt-pill-bad {
-  color: var(--down);
 }
 
 /* chart: on the sheet's ground, no card; the grid lines run the full width of the column */
@@ -562,20 +512,6 @@ html.dt-lock body {
   text-transform: uppercase;
   color: var(--ink);
 }
-.dt-mnav {
-  width: 44px;
-  height: 44px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: var(--surface-2);
-  color: var(--ink);
-  font-size: var(--fs-2xl);
-  cursor: pointer;
-}
-.dt-mnav:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
 .dt-cal {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -636,22 +572,12 @@ button.dt-day {
   align-items: center;
   justify-content: space-between;
 }
-.dt-brk-t,
-.dt-learn {
+.dt-brk-t {
   font-size: var(--fs-xs);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
   color: var(--muted);
-}
-.dt-learn {
-  min-height: 44px;
-  padding: 0;
-  border: 0;
-  background: none;
-  font-family: inherit;
-  color: var(--link);
-  cursor: pointer;
 }
 .dt-brk-bar {
   display: flex;
@@ -882,16 +808,12 @@ button.dt-day {
   top: min(50%, 22px);
   right: 10px;
   transform: translateY(-50%);
-  color: var(--faint);
-  font-size: var(--fs-2xl);
-  line-height: 1;
   pointer-events: none;
 }
 [data-detail][role="button"]:hover::after {
   color: var(--ink);
 }
-[data-detail][role="button"]:focus-visible,
-.dt-open-btn:focus-visible {
+[data-detail][role="button"]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -912,31 +834,13 @@ button.dt-day {
 .cal-cell[data-detail] {
   cursor: pointer;
 }
-.dt-open-btn {
+/* a card head's CTA (the recovery card's History) sits at the right end */
+.sc-head .cta {
   margin-left: auto;
-  min-height: 44px;
-  padding: 0 var(--sp-5);
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: transparent;
-  color: var(--accent-ink);
-  font: inherit;
-  font-size: var(--fs-xs);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  cursor: pointer;
-}
-.dt-open-btn::after {
-  content: " ›";
 }
 
 /* Dial deep-dive pages (client/deepdive.js): the shared sheet header (‹ · metric · ⓘ), the hero ring (≈ 67 % of the width, stroke
  * 6.4 / 108 ≈ 5.9 % of the diameter, the dial's own baked arcs), the insight card and the ⓘ notes. */
-.dd-cta:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
 .dd-info {
   background: var(--surface);
   border-radius: var(--card-radius);
@@ -1063,24 +967,11 @@ button.dt-day {
   font-size: var(--fs-md);
   color: var(--muted);
 }
-.dd-cta {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
+.dd-insight .cta {
   margin-top: var(--sp-3);
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: var(--fs-md);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--link);
-  cursor: pointer;
 }
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
-  .dd-cta {
+  .dd-insight .cta {
     background: linear-gradient(90deg, var(--link), var(--link-end));
     -webkit-background-clip: text;
     background-clip: text;
@@ -1202,16 +1093,6 @@ button.dt-day {
   width: 14px;
   font-size: 6.5px; /* an ~8px triangle */
   text-align: center;
-}
-.dd-better {
-  color: var(--up);
-}
-.dd-worse {
-  color: var(--down);
-}
-.dd-neutral,
-.dd-typical {
-  color: var(--faint);
 }
 .dd-legend {
   display: flex;
@@ -1471,4 +1352,37 @@ button.dt-day {
 .dt-s-shigh { fill: var(--ds); background: color-mix(in srgb, var(--ds) 38%, transparent); }
 @media (min-width: 900px) {
   .ds-chart { max-height: 230px; }
+}
+
+/* Trend glyph (docs/design-system.md → Components; HC.trendTone): ▲ / ▼ coloured by what the change
+   means — better --up, worse --down, watch --mid, a change with no good direction --ink; the • of a
+   typical / steady value --faint. Never a grey arrow. Each family keeps its class names; the colours
+   live here only, at the end of detail.css so they win over a pill's own grey (.dt-pill). */
+.db-good,
+.dd-better,
+.dt-pill-good,
+.ld-good,
+.wp-up {
+  color: var(--up);
+}
+.db-bad,
+.dd-worse,
+.dt-pill-bad,
+.ld-bad,
+.wp-down {
+  color: var(--down);
+}
+.db-watch {
+  color: var(--mid);
+}
+.db-neutral,
+.dd-neutral,
+.dt-pill-neutral {
+  color: var(--ink);
+}
+.db-flat,
+.dd-typical,
+.dt-pill-flat,
+.ld-flat {
+  color: var(--faint);
 }

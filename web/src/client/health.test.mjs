@@ -292,7 +292,7 @@ test('recovery: resting HR / HRV / sleep lead with the newest value, the 30-day 
   assert.match(html, /6:24<\/b><span class="db-arr db-bad" aria-hidden="true">▼<\/span><\/span><span class="db-base">7:12<\/span>/);
   assert.match(html, /30-night avg 7:12/);
   assert.match(html, /52<\/b><small>bpm<\/small><span class="db-arr db-bad" aria-hidden="true">▲<\/span>/, 'resting HR above its baseline is the bad way');
-  assert.match(html, /14.8<\/b><small>brpm<\/small><span class="db-arr db-flat"/, 'a change signal has no good direction: grey');
+  assert.match(html, /14.8<\/b><small>brpm<\/small><span class="db-arr db-neutral"/, 'a change signal has no good direction: a neutral (never grey) arrow');
   assert.match(html, /<section class="hs-sec hs-sec-recovery" id="hl-recovery"/, 'the section anchor is kept');
 });
 
@@ -317,7 +317,7 @@ test('energy: expenditure headline = the newest day TDEE with its date; 30-day a
     body: none, activity: none, running: none, recovery: none, loadRecovery: none,
     energy: { hasData: true, tdeeLatest: 2600, tdeeLatestDate: '2026-06-29', tdeeAvg: 2400, tdeeDays: 30, spark: sp, balance: null, intakeDays: 0 },
   }, '2026-07-01');
-  assert.match(html, /2,600<\/b><small>kcal<\/small><span class="db-arr db-flat" aria-hidden="true">▲<\/span><\/span><span class="db-base">2,400<\/span>/, 'no good direction: grey');
+  assert.match(html, /2,600<\/b><small>kcal<\/small><span class="db-arr db-neutral" aria-hidden="true">▲<\/span><\/span><span class="db-base">2,400<\/span>/, 'no good direction: grey');
   assert.match(html, /aria-label="Daily expenditure: 2,600 kcal, 29 Jun · 30-day avg 2,400 kcal/);
 });
 

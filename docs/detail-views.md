@@ -125,7 +125,7 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   `load-<m>`; the Activity card's total and calendar → workouts (a day cell → that day; its W / M / 6M
 switch is outside every opener); run / ride rows →
   that day in `load-run` / `load-bike` (the whole list row is the button). Every
-  opener shows the same chevron, pointer, focus ring and ≥ 44px target (`web/src/styles/detail.css`);
+  opener shows the same chevron (the one `.chev` look, `base.css`), pointer, focus ring and ≥ 44px target (`web/src/styles/detail.css`);
   the chevron is centred on a one-line opener and pinned to the header row (top-right) of a tall card.
 - **Dial deep-dive pages** (`web/src/client/deepdive.js`, inlined right before `detail.js`, which calls
   `window.HCDeep.render(key, m, end, X)` with its own helpers `X`, so both files read one set of rules
@@ -171,12 +171,12 @@ switch is outside every opener); run / ride rows →
      today's value vs the middle half (p25–p75) of the values on the 30 days before it — the Salud
      totals' "usual day" idea; fewer than 7 prior values → the value without a marker. Above / below
      → ▲ / ▼ (small ≈ 8 px triangles), teal (`--up`) when better and orange (`--down`) when worse by the metric's good
-     direction, grey for a metric without one (bedtime, wake time, load); inside → a grey dot; the
+     direction, `--ink` for a metric without one (bedtime, wake time, load; never a grey arrow); inside → a grey dot; the
      words ("better than usual"…) are screen-reader text. A legend pill "▲▼ Today vs prior 30 days"
      closes the card when a marker shows. A row without a value that day is hidden (never 0 or a
      dash). Rows: recovery = the reference's four on the night it scores (`head.date`), display only
      (the composite and its weights are unchanged) — HRV, resting HR, respiratory rate (`DETAIL`
-     `respiratory`; context, NOT a composite input; no good direction, so a grey ▲ / ▼ outside the
+     `respiratory`; context, NOT a composite input; no good direction, so an `--ink` ▲ / ▼ outside the
      usual range and a grey dot inside; the ⓘ says so, `deep.respNote`) and sleep performance %
      (the sleep metric's baked `perf`, replacing hours of sleep); a missing one is hidden, so no
      respiratory reading = 3 rows. Like the hero, they stay on the headline night under day stepping
@@ -203,7 +203,8 @@ switch is outside every opener); run / ride rows →
      days)." (the scale's calibration is in ⓘ). Then the page's own CTA (`deep.ctas`: "SEE MY
      RECOVERY TREND →", sleep / load / strain likewise; the stress and energy pages keep "VIEW
      TREND"; `data-dt-act="trend"`, a button: scrolls to the period block and focuses
-     the pressed W / M / 6M / 1Y button). Its text is the `--link` → `--link-end` gradient (blue →
+     the pressed W / M / 6M / 1Y button). It is the shared CTA link (`HC.cta`, `.cta`; design-system.md →
+     Components); here its text is the `--link` → `--link-end` gradient (blue →
      violet) clipped to the glyphs, solid `--link` where `background-clip: text` is unsupported: on
      `--ground` both ends pass AA for small text (8.29 / 4.61), on a card the violet end would not
      (3.91), so the gradient only ever sits on the insight card (`tokens-contrast.test.mjs`).
@@ -255,7 +256,8 @@ switch is outside every opener); run / ride rows →
   recovery metric whose own last day is > 3 days before the view end says so. The trend view: a
   small right-aligned W · M · 6M · 1Y switch (dark 28 px squares, the pressed one grey, each with a
   44 px-tall hit area; 7 / 30 / 182 / 365 days, `RANGES`; opens on M; es S · M · 6M · 1A), under it the
-  window row "‹ 23 Sep – 29 Sep, 26 ›" (`trend.win`): ‹ › step the window back / forward by its own
+  window row "‹ 23 Sep – 29 Sep, 26 ›" (`trend.win`): ‹ › (the shared `.nav-btn` + `.chev`, like the
+  calendar's month ‹ ›; design-system.md → Components) step the window back / forward by its own
   length (`state.shift` whole windows back from the view end; › disabled at today, ‹ disabled once the
   previous window would end before the metric's first day; a new range or metric starts at today;
   the chart, the average and its delta follow the window, the calendar and the day panel do not), then
@@ -265,7 +267,8 @@ switch is outside every opener); run / ride rows →
   within 1 % / 0.05 sd or for a metric without a direction) on its own line below, then ONE plain
   sentence (`trend.sent`: "Your average Resting HR this week was 53 bpm, about the same as the week
   before (53 bpm)."; higher / lower / about the same by the pill's rule, no judgement — the pill's
-  colour carries good / bad; a change that rounds to two equal numbers gets one more decimal). A
+  colour carries good / bad; a change that rounds to two equal numbers gets one more decimal; a sleep window reads h:mm, which has no
+  decimal to add, so two windows that print the same clock read "about the same"). A
   window longer than the data is clamped to the metric's first day (the toggle stays; chart and
   average start there, the pill says "Data since <date>"); a previous window that lies wholly before
   the data, or starts before it and holds data on fewer than half its days → "No earlier period to
@@ -291,7 +294,7 @@ switch is outside every opener); run / ride rows →
   calendar state — the legend's states, order and tints (better / in / worse than your range, above /
   at / below baseline, the sleep, stress, energy and nutrition bands; today in progress and missing
   days left out) — and one row per state with its count ("7x", a state with none says "0x" and has no
-  segment); it follows the window (range + ‹ ›); "LEARN MORE" (`data-dt-act="learn"`) opens the
+  segment); it follows the window (range + ‹ ›); "LEARN MORE →" (a `.cta`, `data-dt-act="learn"`) opens the
   header's ⓘ notes (never closes them) and scrolls them into view. Training volume / load / strain
   (four shades of one colour), sparse readings and a metric without a band get none. A Monday-first month calendar
   (es/en weekday letters) with prev / next bounded by the baked range, each day tinted by its state

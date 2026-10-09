@@ -12,7 +12,7 @@ Top to bottom (`web/src/tabs/Home.astro`, which also renders `components/EatCard
 top bar from `layouts/Plan.astro`, shared by every tab: avatar · LOOP wordmark · freshness / Sync, plus
 the Inicio-only date pill — on a phone on its own row under them, on a wide screen centred in the bar
 row with the wordmark on the left and the avatar on the right — see `docs/plan-page.md` → Brand / Top bar) → dials
-(`#home-dials`) → the monitor tiles (`#home-tiles`) → "My day" (`#my-day`: a Title Case heading, the
+(`#home-dials`) → the monitor tiles (`#home-tiles`) → "My day" (`#my-day`: a sentence-case section heading, `.hs-lbl.home-h`, the
 advice sentence as the outlook bar in `#home-advice`, the energy bank card in `#home-energy`, the
 nutrition score card in `#home-nscore`, then "Today's activities" in `#timeline`) → the
 "today you eat" card → "Tonight" (`#home-tonight`) → "My journal" (`#my-journal`) → "My plan" (`#my-plan`) → "My dashboard" (`#my-dash`)
@@ -319,7 +319,7 @@ trend is the line under it.
   wake time; bedtime = usual wake − the sleep target (`SLEEP_TARGET`, 7.5 h, the sleep dial's). A wake
   clock ≥ 18:00 is unwrapped to a negative hour before the median (23:50 and 00:10 sit together). Fewer
   than `TONIGHT_MIN_NIGHTS` (7) such nights → `null` and the card stays hidden. Data > 3 days old greys
-  it. No alarm editing (the page cannot set one); the sheet links to the sleep history.
+  it. No alarm editing (the page cannot set one); the sheet links to the sleep history (a `.cta` link, "SEE SLEEP HISTORY →").
 - **My journal** (`#my-journal`, `client/journal.js`, design in `docs/journal.md`): "MY JOURNAL" + a
   chevron, 7 day columns (the 7 days ending on the viewer's today: weekday + a check circle, `--up` when
   that day is journaled); a column or the chevron opens the journal sheet on that day. Ships hidden.
@@ -343,7 +343,7 @@ trend is the line under it.
   calls `HCWeekPlan.refresh()` after every read (the card keeps its open / closed state). No row → the
   card and its "My plan" heading stay hidden. The sleep row opens the sleep sheet, the training row the
   training-time sheet.
-- **My dashboard** (`#my-dash`, `client/home-dash.js`): a Title Case heading with "CUSTOMIZE ✎" on the
+- **My dashboard** (`#my-dash`, `client/home-dash.js`): a section heading with "CUSTOMIZE ✎" on the
   right, then single-row metric cards (60 px) — line icon · UPPERCASE full metric name ("Resting heart
   rate", "Heart rate variability", "Hours of sleep", "Walking heart rate": `home.dash.names`, else the
   detail sheet's title) · the latest value (D-DIN, 22 px) + its unit at about half that size and an
@@ -356,7 +356,7 @@ trend is the line under it.
   today, still filling up); sleep shows h:mm. Baseline = the mean of the 30 days before that day, with
   ≥ 7 days of data (≥ 2 readings for a sparse series like weight); no baseline → no arrow. Arrow ▲▼ =
   the value vs the baseline: `--up` when better by the metric's good direction (`dir`), `--down` when
-  worse, grey for a neutral metric (weight), a grey dot within ±2 % (`FLAT_SHARE`). A row older than 3
+  worse, `--ink` (white) for a metric with no good direction (weight; never a grey arrow), a grey dot within ±2 % (`FLAT_SHARE`). A row older than 3
   days is dimmed; a tap opens that metric's detail sheet. "Customize" opens the registered `dash-edit`
   sheet (detail.js modal): per metric a Shown / Hidden toggle (`aria-pressed`) and ↑ / ↓ buttons (no
   drag). Preferences = `localStorage['hc-dash-v1']` `{order, hidden}`; every read / write is in a

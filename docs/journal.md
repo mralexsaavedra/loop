@@ -58,7 +58,7 @@ a day is "journaled" when at least one behaviour is answered (`isJournaled`).
 
 - **Bake**: `SCORES.journal` (`lib/journal/bake.mjs`, through `lib/score/index.mjs`) carries the
   behaviour list, groups and limits; copy in `I18N_SCORE.home.journal` (es / en). Styles:
-  `web/src/styles/journal.css` (tokens only; the card reuses `.sc-card`, `.tn-h`, `.tn-more`).
+  `web/src/styles/journal.css` (tokens only; the card reuses `.sc-card`, `.tn-h`; the behaviour insights button `.jr-ins` is a real action, a pill button, not a CTA link).
 - **Gating** like the food log: the script asks `GET /api/journal/settings` (header `X-HC-Journal: 1`,
   15 s timeout) and, on an answer, `GET /api/journal/summary` for the 7 days ending on the viewer's
   today (`Date.now()`, never baked). Only then: the sheet registers (`HCViews.journal`, deep link

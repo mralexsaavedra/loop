@@ -93,7 +93,7 @@ const DAY_ICONS: Record<string, string> = {
         <legend class="seg-lbl">{T.dayLegend}<span class="seg-src" id="nutri-daytype-src"></span></legend>
         <div class="seg-opts">
           {nutri.dayTypes.map((d: string) => (
-            <label class="seg-opt" title={T.dayTypes[d]}><input type="radio" name="nutri-day" value={d} /><span class="seg-in"><svg class="seg-ico" viewBox="0 0 24 24" aria-hidden="true" set:html={DAY_ICONS[d]} /><span class="seg-txt">{T.dayShort[d]}</span></span></label>
+            <label class="seg-opt" title={T.dayTypes[d]}><input type="radio" name="nutri-day" value={d} /><span class="chip seg-in"><svg class="seg-ico" viewBox="0 0 24 24" aria-hidden="true" set:html={DAY_ICONS[d]} /><span class="seg-txt">{T.dayShort[d]}</span></span></label>
           ))}
         </div>
         <button type="button" class="lnk nutri-auto" id="nutri-auto" hidden></button>
@@ -114,9 +114,9 @@ const DAY_ICONS: Record<string, string> = {
       <h2 class="hs-lbl">{F.headings.log}</h2>
       <div class="food-day" role="group" aria-label={F.day.navLabel}>
         <button type="button" class="food-btn food-btn-ghost food-day-today" id="food-day-today" data-food-act="day-today" aria-label={F.day.back} hidden>{F.day.today}</button>
-        <button type="button" class="food-icon-btn food-day-btn" id="food-day-prev" data-food-act="day-prev" aria-label={F.day.prev}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <button type="button" class="nav-btn" id="food-day-prev" data-food-act="day-prev" aria-label={F.day.prev}><span class="chev" aria-hidden="true">‹</span></button>
         <span class="food-day-label" id="food-day-label" aria-live="polite"></span>
-        <button type="button" class="food-icon-btn food-day-btn" id="food-day-next" data-food-act="day-next" aria-label={F.day.next} disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+        <button type="button" class="nav-btn" id="food-day-next" data-food-act="day-next" aria-label={F.day.next} disabled><span class="chev" aria-hidden="true">›</span></button>
       </div>
     </div>
     <div id="food-log"></div>
@@ -175,7 +175,7 @@ const DAY_ICONS: Record<string, string> = {
       <legend class="seg-lbl">{T.adherence.windowLegend}</legend>
       <div class="seg-opts adh-opts">
         {nutri.adherence.windows.map((w: number, i: number) => (
-          <label class="seg-opt"><input type="radio" name="adh-win" value={String(w)} checked={i === 0} /><span class="seg-in"><span class="seg-txt">{T.adherence.windowLabel.replace('{n}', String(w))}</span></span></label>
+          <label class="seg-opt"><input type="radio" name="adh-win" value={String(w)} checked={i === 0} /><span class="chip seg-in"><span class="seg-txt">{T.adherence.windowLabel.replace('{n}', String(w))}</span></span></label>
         ))}
       </div>
     </fieldset>
