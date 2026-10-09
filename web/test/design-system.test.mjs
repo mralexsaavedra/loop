@@ -196,3 +196,13 @@ test('caps labels use the caps role sizes and the one label tracking', () => {
   const stale = Object.keys(CAPS_ALLOW).filter((k) => !seen.has(k));
   assert.deepEqual(stale, [], 'allowlist entries that no longer match a rule — remove them');
 });
+
+// 5. components (docs/design-system.md → Components) ---------------------------------------------
+test('section heading: one class (.hs-lbl) owns the section step, in sentence case', () => {
+  const own = RULES.filter((r) => !r.media && r.selector === '.hs-lbl' && r.decl['font-size']);
+  assert.equal(own.length, 1, 'one .hs-lbl rule sets the section heading type');
+  const d = own[0].decl;
+  assert.deepEqual([d['font-size'], d['font-weight'], d['text-transform'], d['letter-spacing']], ['var(--fs-section)', 'var(--fw-section)', 'none', '0']);
+  const other = RULES.filter((r) => r !== own[0] && /var\(--f[sw]-section\)/.test(`${r.decl['font-size']} ${r.decl['font-weight']}`));
+  assert.deepEqual(other.map(where), [], 'only .hs-lbl uses the section tokens: a section heading reuses the class');
+});

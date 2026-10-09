@@ -30,7 +30,7 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
 | `--fs-num-card` | `--fs-4xl` (28 px) | a card's headline value (eat card kcal, Tonight's clocks, the energy / nutrition %, load cards, recovery card, weight, monitor tiles at >= 900 px) |
 | `--fs-dial`, `--fs-hero` | 26 / 56 px | a dial centre — sized to its ring (see "Exceptions") |
 | `--num-weight` | 700 | the one weight of a hero number |
-| `--fs-section` + `--fw-section` | `--fs-3xl` / 650 | a sentence-case section heading (Inicio's "My day", `.home-h`) |
+| `--fs-section` + `--fw-section` | `--fs-3xl` / 650 | THE section heading, every tab (`.hs-lbl`; see Components) |
 | `--fs-title-lg` | `--fs-sm` (12.5 px) | caps tab / page title (`.hs-title`), the Hoy date, journal buttons |
 | `--fs-title` | `--fs-xs` (11.5 px) | caps card title, row name, section label (`h2`, `.sc-head h3`, `.db-name`, `.tl-name`) |
 | `--fs-label` | `--fs-2xs` (10.5 px; 11.5 at >= 900 px) | caps small label: stat / dial / chip / table head |
@@ -106,10 +106,20 @@ code; each exception above is its allowlist. `lib/format/numbers.test.mjs` pins 
 
 ## Components
 
-Stub — filled by DS3, one shared class per pattern:
+One shared class set per pattern; a new card reuses it instead of styling its own.
 
-- Section heading (one style for every tab's sections).
-- CTA link.
-- Chevron (one size and colour; also the trend sheet's date navigation).
-- Segmented control and the selected chip.
-- Trend glyph (coloured ▲▼, grey dot for typical).
+### Section heading
+
+`.hs-lbl` (`health.css`) is THE section heading on every tab: sentence case at `--fs-section` /
+`--fw-section`, no tracking. In a section it sits in the `.hs-head` row with the optional ⓘ
+(`HC.infoBtn`) on the right; on Inicio it stands alone as `.hs-lbl.home-h` (`home-h` adds only the
+block spacing). Caps at `--fs-title` stay for what is INSIDE a card (card titles, row names), so a
+section heading never looks like the card under it.
+
+- **Duplicate titles.** When a section holds one card whose title would repeat the section heading,
+  the section heading stays and the card drops its title — but only the title: anything else in the
+  card's head (an as-of date, a CTA, its ⓘ) stays. Today: Salud's Recovery card (`score.js`
+  `recoveryHtml`). A card with its own name (Entreno "Load vs recovery" → "Weekly cardiovascular
+  load") keeps it.
+- **Not section headings:** the tab title (`.hs-title`, centred caps), fold rows (`.sec-fold > summary`,
+  a card-level row with a caps title) and in-card titles (`.sc-head h3`).

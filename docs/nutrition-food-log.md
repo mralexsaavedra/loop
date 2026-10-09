@@ -105,7 +105,7 @@ Plan de hoy) and the
   when `dia` is visible, no section key) ship `hidden` and appear only when `GET /api/food/products`
   answers — so the claude.ai artifact, file:// and the example build show nothing new and builds stay
   byte-identical. Nothing of the log is kept in the browser. **Day navigator** (on Registrar's heading
-  line, `.food-head`: the shared UPPERCASE section label (`.hs-lbl`) on the left, the navigator on the right; a row too
+  line, `.food-head`: the shared sentence-case section heading (`.hs-lbl`) on the left, the navigator on the right; a row too
   narrow wraps the navigator under the title; static markup in `Dia.astro`, driven by food-log.js): `‹ <date> ›` = real 44 px buttons (aria-label
   "Día anterior" / "Día siguiente"), the date in an `aria-live` label ("Hoy" on the viewer's today, else
   `HC.fmtDate`), next disabled on today (no future days), a short "Hoy" button (aria-label "Volver a hoy") before `‹` only on another day; the viewed

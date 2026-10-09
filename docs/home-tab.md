@@ -12,7 +12,7 @@ Top to bottom (`web/src/tabs/Home.astro`, which also renders `components/EatCard
 top bar from `layouts/Plan.astro`, shared by every tab: avatar · LOOP wordmark · freshness / Sync, plus
 the Inicio-only date pill — on a phone on its own row under them, on a wide screen centred in the bar
 row with the wordmark on the left and the avatar on the right — see `docs/plan-page.md` → Brand / Top bar) → dials
-(`#home-dials`) → the monitor tiles (`#home-tiles`) → "My day" (`#my-day`: a Title Case heading, the
+(`#home-dials`) → the monitor tiles (`#home-tiles`) → "My day" (`#my-day`: a sentence-case section heading, `.hs-lbl.home-h`, the
 advice sentence as the outlook bar in `#home-advice`, the energy bank card in `#home-energy`, the
 nutrition score card in `#home-nscore`, then "Today's activities" in `#timeline`) → the
 "today you eat" card → "Tonight" (`#home-tonight`) → "My journal" (`#my-journal`) → "My plan" (`#my-plan`) → "My dashboard" (`#my-dash`)
@@ -343,7 +343,7 @@ trend is the line under it.
   calls `HCWeekPlan.refresh()` after every read (the card keeps its open / closed state). No row → the
   card and its "My plan" heading stay hidden. The sleep row opens the sleep sheet, the training row the
   training-time sheet.
-- **My dashboard** (`#my-dash`, `client/home-dash.js`): a Title Case heading with "CUSTOMIZE ✎" on the
+- **My dashboard** (`#my-dash`, `client/home-dash.js`): a section heading with "CUSTOMIZE ✎" on the
   right, then single-row metric cards (60 px) — line icon · UPPERCASE full metric name ("Resting heart
   rate", "Heart rate variability", "Hours of sleep", "Walking heart rate": `home.dash.names`, else the
   detail sheet's title) · the latest value (D-DIN, 22 px) + its unit at about half that size and an
