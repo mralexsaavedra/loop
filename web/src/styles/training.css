@@ -9,11 +9,11 @@
   margin: var(--sp-8) 0 var(--sp-6);
 }
 .train-day {
-  font-size: var(--fs-sm);
-  letter-spacing: 0.14em;
+  font-size: var(--fs-title-lg);
+  letter-spacing: var(--label-track);
   text-transform: uppercase;
   color: var(--muted);
-  font-weight: 800;
+  font-weight: var(--label-weight);
 }
 .train-focus {
   display: inline-flex;
@@ -32,7 +32,7 @@
   background: var(--card-bg);
   border: 1px solid var(--line);
   border-left: 3px solid var(--strain);
-  border-radius: var(--r-md);
+  border-radius: var(--card-radius);
   padding: var(--sp-6) var(--sp-7);
   margin: var(--sp-4) 0;
   box-shadow: var(--card-shadow);
@@ -80,7 +80,7 @@
 .train-empty {
   background: var(--surface);
   border: 1px dashed var(--line);
-  border-radius: var(--r-md);
+  border-radius: var(--card-radius);
   padding: var(--sp-10) var(--sp-7);
   text-align: center;
   color: var(--muted);
@@ -143,7 +143,7 @@
 .dash-note {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--r-md);
+  border-radius: var(--card-radius);
   padding: var(--sp-6) var(--sp-7);
   margin-top: var(--sp-8);
   color: var(--muted);
@@ -266,7 +266,7 @@
 .lvr-card {
   margin-bottom: var(--sp-3);
   padding: var(--sp-5);
-  border-radius: var(--r-sm);
+  border-radius: var(--card-radius);
   background: var(--card-bg);
 }
 
@@ -274,7 +274,7 @@
  * split bar, the compact calendar */
 .act-card {
   padding: var(--sp-6) var(--sp-5);
-  border-radius: var(--r-sm);
+  border-radius: var(--card-radius);
   background: var(--card-bg);
 }
 .act-card > * + * {
@@ -319,7 +319,7 @@
 }
 .act-stat span {
   color: var(--muted);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;

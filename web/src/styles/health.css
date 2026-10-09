@@ -38,7 +38,7 @@
   min-width: 0;
   margin: 0;
   color: var(--ink);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -116,7 +116,7 @@
   margin: 0;
   text-indent: var(--label-track);
   color: var(--ink);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-title-lg);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -168,7 +168,7 @@
   stroke-width: 4;
 }
 .fa .dial-num {
-  font-size: 56px;
+  font-size: var(--fs-hero);
 }
 .fa .dial-word {
   max-width: none;

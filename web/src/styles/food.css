@@ -35,7 +35,7 @@
   min-width: 4.5em;
   text-align: center;
   white-space: nowrap;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -62,11 +62,11 @@
 }
 .food-sum b {
   font-family: var(--num);
-  font-size: var(--fs-3xl);
+  font-size: var(--fs-num-row);
   color: var(--ink);
 }
 .food-sum-lbl {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -99,7 +99,7 @@
 /* a meal group = one flat --surface card: UPPERCASE group label + its kcal, then the list rows */
 .food-meal {
   background: var(--card-bg);
-  border-radius: var(--r-sm);
+  border-radius: var(--card-radius);
   padding: var(--sp-5);
   min-width: 0;
 }
@@ -111,7 +111,7 @@
 }
 .food-meal-name {
   margin: 0;
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -171,7 +171,7 @@
 }
 /* an add-on entry's stored slot (Pre-entreno, Snack…): a tiny muted caps tag */
 .fe-slot {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -221,7 +221,7 @@
   border-radius: var(--r-sm);
   color: var(--ink);
   font: inherit;
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -249,7 +249,7 @@
   margin-bottom: var(--sp-4);
 }
 .food-lbl {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -381,7 +381,7 @@
 }
 .fa-store,
 .fp-store {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -481,7 +481,7 @@
 .fp-search {
   background: var(--card-bg);
   border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+  border-radius: var(--card-radius);
   padding: var(--sp-7);
   margin-bottom: var(--sp-5);
 }
@@ -520,7 +520,7 @@
 }
 /* a basic's "valor medio" tag (an average table value, not a label) */
 .food-tag {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;

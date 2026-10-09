@@ -250,7 +250,7 @@ trend is the line under it.
   beats none — else on the baked `defaultKey` (first ungated modality), for the VIEWER's today, picked client-side from the baked `recent` days (each
   with its pre-computed fill): a session with RE → centre = today's RE, fill = RE / typical day (ring
   midpoint = the typical training day, a full ring = 2×, no zones; the typical-day tick at 6 o'clock);
-  rows today but no RE → "No effort data" (never rest); no rows today → "No session yet". `DIALS.load.tick`
+  rows today but no RE → "No effort data" (never rest); no rows today → "No session yet" (a dial word: sentence case, muted, `--fs-label`, as in the deep-dive hero). `DIALS.load.tick`
   = the typical-day mark as a radial line across the hero ring's 7.5-unit stroke (`radialTick(0.5, HERO)`), drawn by the load
   deep-dive's hero ring. The load deep-dive's insight card says the day in a sentence ("Today's Relative Effort is 28; your
   typical training day is ~42.", or no session yet / the last one) and the acute/chronic context ("Over
@@ -311,7 +311,7 @@ trend is the line under it.
   sits behind the card header's ⓘ (`#tl-info`, only when the day lists workouts), not under the list.
 - **Tonight** (`#home-tonight`, `lib/score/tonight.mjs` baked as `SCORES.tonight`, `client/home-week.js`):
   the recommended bedtime (moon icon) and the usual wake time (alarm icon) joined by a dashed line, D-DIN
-  clocks (24 px), uppercase captions; the wake side carries a teal state line "● Usual wake" (`--up`,
+  clocks (`--fs-num-card`, 28 px), uppercase captions; the wake side carries a teal state line "● Usual wake" (`--up`,
   where the reference shows its alarm state: the page has no alarm data) and then "Last N nights"
   (the nights the median used). Rule (stated in the sheet the card opens — the registered `tonight` view —
   never on the card): usual wake = the median wake clock (`sleep-daily.csv` `waketime`, the night dated

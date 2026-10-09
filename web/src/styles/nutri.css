@@ -26,7 +26,7 @@ details.sec-fold.nutri-fold {
 /* a flat card, like Entreno's Activity card: one fill, no border, no shadow */
 .nutri-card {
   background: var(--card-bg);
-  border-radius: var(--r-sm);
+  border-radius: var(--card-radius);
   padding: var(--sp-6) var(--sp-5);
 }
 /* a section label row (.hs-head, health.css) right above its card: no extra top gap */
@@ -44,7 +44,7 @@ details.sec-fold.nutri-fold {
   min-width: 0;
 }
 .seg-lbl {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -101,7 +101,7 @@ details.sec-fold.nutri-fold {
   stroke-linejoin: round;
 }
 .seg-txt {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -194,7 +194,7 @@ details.sec-fold.nutri-fold {
   background: none;
   color: var(--muted);
   font: inherit;
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -234,7 +234,7 @@ details.sec-fold.nutri-fold {
   row-gap: var(--sp-2);
 }
 .nt-mac-lbl {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -325,7 +325,7 @@ details.sec-fold.nutri-fold {
   gap: var(--sp-5);
 }
 .gd-l {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -452,7 +452,7 @@ details.sec-fold.nutri-fold {
   color: var(--ink);
 }
 .gd-left-lbl {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -493,7 +493,7 @@ details.sec-fold.nutri-fold {
 /* Avituallamiento: duration picker + a vertical 3-step timeline (before -> during -> after) */
 .fuel-dur {
   display: block;
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -563,7 +563,7 @@ details.sec-fold.nutri-fold {
   gap: var(--sp-5);
 }
 .fuel-step h3 {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -571,8 +571,8 @@ details.sec-fold.nutri-fold {
 }
 .fuel-key {
   font-family: var(--num);
-  font-size: var(--fs-3xl);
-  font-weight: 700;
+  font-size: var(--fs-num-row);
+  font-weight: var(--num-weight);
   color: var(--ink);
   white-space: nowrap;
 }
@@ -652,7 +652,7 @@ details.sec-fold.nutri-fold {
   gap: var(--sp-1) var(--sp-4);
 }
 .pg-lbl {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -676,7 +676,7 @@ details.sec-fold.nutri-fold {
 }
 .pg-kg {
   font-family: var(--num);
-  font-size: var(--fs-4xl);
+  font-size: var(--fs-num-card);
   line-height: 1;
   color: var(--ink);
 }
@@ -707,7 +707,7 @@ details.sec-fold.nutri-fold {
   align-items: baseline;
   gap: var(--sp-1) var(--sp-3);
   margin: 0 0 var(--sp-3);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
 }
@@ -766,7 +766,7 @@ details.sec-fold.nutri-fold {
   background: var(--surface-2);
 }
 .adh-lbl {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -774,7 +774,7 @@ details.sec-fold.nutri-fold {
 }
 .adh-val {
   font-family: var(--num);
-  font-size: var(--fs-3xl);
+  font-size: var(--fs-num-row);
   line-height: 1.1;
   color: var(--ink);
 }
@@ -799,7 +799,7 @@ details.sec-fold.nutri-fold {
 }
 .adh-h {
   margin: var(--sp-7) 0 var(--sp-3);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;

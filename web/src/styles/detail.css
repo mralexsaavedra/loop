@@ -297,7 +297,7 @@ html.dt-lock body {
 }
 .dt-trend-num {
   font-family: var(--num);
-  font-size: var(--fs-4xl);
+  font-size: var(--fs-num-card);
   line-height: 1.1;
 }
 .dt-trend-row small {
@@ -691,7 +691,7 @@ button.dt-day {
 .dt-dayd {
   background: var(--card-bg);
   border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+  border-radius: var(--card-radius);
   padding: var(--sp-5);
 }
 .dt-day-h {
@@ -939,7 +939,7 @@ button.dt-day {
 }
 .dd-info {
   background: var(--surface);
-  border-radius: var(--r-md);
+  border-radius: var(--card-radius);
   padding: var(--sp-6);
 }
 .dd-info[hidden] {
@@ -1135,7 +1135,7 @@ button.dt-day {
 .dd-contrib {
   position: relative;
   background: var(--surface);
-  border-radius: var(--r-md);
+  border-radius: var(--card-radius);
   padding: var(--sp-2) var(--sp-7) var(--sp-7);
   margin-top: var(--sp-8);
 }
@@ -1238,7 +1238,7 @@ button.dt-day {
   min-height: 56px;
   padding: var(--sp-4) var(--sp-7);
   border: 0;
-  border-radius: var(--r-md);
+  border-radius: var(--card-radius);
   background: var(--surface);
   color: var(--ink);
   font: inherit;
@@ -1280,7 +1280,7 @@ button.dt-day {
 }
 .dd-wk {
   background: var(--surface);
-  border-radius: var(--r-md);
+  border-radius: var(--card-radius);
   padding: var(--sp-6) var(--sp-7);
 }
 .dd-wk-t {
@@ -1443,7 +1443,7 @@ button.dt-day {
 .ds-pt { fill: var(--ds); }
 .ds-bands {
   background: var(--surface);
-  border-radius: var(--r-md);
+  border-radius: var(--card-radius);
   padding: var(--sp-2) var(--sp-7) var(--sp-7);
   margin: var(--sp-8) 0;
 }

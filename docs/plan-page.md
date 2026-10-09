@@ -198,7 +198,7 @@ work whatever `page.hideTabs` hides (core.js `jumpOr` stays as API but no card u
 **Look & typography.** Dark, data-first design language: colour carries meaning, never decoration.
 All colours are tokens in `web/src/styles/tokens.css`; the palette (2026-10-07) is sampled from a
 reference fitness app: a blue-grey page gradient (`--ground-top` → `--ground-mid` → `--ground`), flat
-cards (`--card-bg` = `--surface`, no gradient, no shadow, and no border on Inicio's cards, Salud's recovery card and the eat card: `.sc-card`, `.eat-card`, `.wp`), nested tiles `--surface-2`, inset troughs
+cards (`--card-bg` = `--surface`, one radius `--card-radius` and padding `--card-pad`, no gradient, no shadow, and no border on Inicio's cards, Salud's recovery card and the eat card: `.sc-card`, `.eat-card`, `.wp`), nested tiles `--surface-2`, inset troughs
 `--rail`, dial / bar tracks `--track`, three text tiers (`--ink` white, `--muted`, `--faint`).
 `--good`/`--mid`/`--low` = state, `--up`/`--down` = better / worse deltas, `--trend` = neutral data
 lines/sparklines, `--strain` = load, `--sleep` = sleep, `--accent` = ACTIONS only (white: filled
@@ -228,7 +228,9 @@ with a centred 44px `::before` hit band (the load dial's modality switch, `.dial
 same drawing as the day-type icons; the active tab paints icon + label white) — no emoji. Headings and
 labels (`h2`, dial labels, the date pill, the "+" rows) are caps; the dock's tab labels are small
 sentence case. Caps labels are bold (`--label-weight` 700), `--label-track`
-(+0.08em). Text uses `--sans` = "HC Text", a ~26 KB subset of **Inter 4.1 (variable, SIL OFL 1.1, no
+(+0.08em), sized by the caps role tokens. Which token an element uses (card radius / padding, the
+hero-number scale, section vs caps type) is in [`design-system.md`](design-system.md), enforced by
+`web/test/design-system.test.mjs`. Text uses `--sans` = "HC Text", a ~26 KB subset of **Inter 4.1 (variable, SIL OFL 1.1, no
 Reserved Font Name)**: Basic Latin + Latin-1 (every Spanish letter and sign) + the typographic signs the
 page prints, one code-point list in `web/src/fonts/text-font-ranges.mjs` that feeds both the subset and
 the `@font-face` `unicode-range` (emoji and ✓ fall back to the system sans); weight axis cut to 400–800

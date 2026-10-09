@@ -119,6 +119,22 @@
   --r-lg: 16px;
   --r-xl: 20px;
   --r-pill: 999px;
+  /* ROLE tokens (docs/design-system.md): what an element IS picks the token, never a raw value;
+     web/test/design-system.test.mjs fails on a card, hero number or caps label that skips them.
+     cards: every card-level fill (tab cards, folds, sheet cards) */
+  --card-radius: var(--r-sm);
+  --card-pad: var(--sp-5);
+  /* hero numbers (--num face, one weight): a value in a list row / a card's headline value;
+     a dial centre is sized to its ring (--fs-dial on the 112px dial, --fs-hero) */
+  --fs-num-row: var(--fs-3xl);
+  --fs-num-card: var(--fs-4xl);
+  --num-weight: 700;
+  /* type roles: section heading (sentence case) vs caps; every caps text tracks --label-track */
+  --fs-section: var(--fs-3xl);
+  --fw-section: 650;
+  --fs-title-lg: var(--fs-sm);
+  --fs-title: var(--fs-xs);
+  --fs-label: var(--fs-2xs);
   /* space scale (component padding/margin/gap; layout/shell dimensions stay literal) */
   --sp-1: 4px;
   --sp-2: 6px;
