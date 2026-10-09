@@ -118,14 +118,14 @@ test('es: decimal comma, Spanish copy', () => {
   const h = html(setup({ locale: 'es' }));
   assert.ok(h.includes('39 años'));
   assert.match(h, /<b class="pf-val">71,4<\/b>/);
-  assert.match(h, /1234,6/);
+  assert.match(h, /1\.234,6/);
   assert.ok(h.includes('>Material<') && h.includes('>Dispositivos<'));
 });
 
 test('gear: bikes and shoes with km to 1 decimal, detail line, primary badge, retired folded, shoe replace hint', () => {
   const h = html(setup());
   assert.ok(h.includes('>Gear<'));
-  assert.match(h, /Road bike[\s\S]*?Brand Model · Road · 8\.2 kg[\s\S]*?<b class="pf-km">1234\.6<\/b><small>km<\/small>/);
+  assert.match(h, /Road bike[\s\S]*?Brand Model · Road · 8\.2 kg[\s\S]*?<b class="pf-km">1,234\.6<\/b><small>km<\/small>/);
   assert.match(h, /pf-badge">Primary</);
   assert.match(h, /<details class="pf-retired"><summary>Retired \(1\)<\/summary>[\s\S]*Old bike[\s\S]*<\/details>/);
   assert.match(h, /Trainers[\s\S]*?class="pf-hint">Consider replacing[\s\S]*?745\.0/);

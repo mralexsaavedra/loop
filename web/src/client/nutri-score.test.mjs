@@ -82,7 +82,7 @@ test('Nutrición: today so far in its band, the three components "eaten / target
   assert.match(h, /data-detail="nutrition"/);
   assert.doesNotMatch(h, /data-date=/, 'today opens the sheet on its newest day');
   assert.match(text(h), /Nutrition so far/);
-  assert.match(text(h), /Kcal · 40 1500 \/ 2000 kcal/);
+  assert.match(text(h), /Kcal · 40 1,500 \/ 2,000 kcal/);
   assert.match(text(h), /Protein · 75 120 \/ 150 g/);
   assert.match(text(h), /Fat · 100 60 \/ 70 g/);
   assert.match(text(h), /7-day average 73% · 30-day 82%/, '7 days: 100 + 46; 30 days: + 100 (today never counts)');
@@ -136,7 +136,7 @@ test('metric(): the sheet\'s series — one value per day of the last 90 ending 
 test('Spanish copy', () => {
   const { els } = setup({ locale: 'es', log: [day('2030-01-27', 2000, 150, 70)] });
   assert.match(text(els.host.innerHTML), /Proteína · 100/);
-  assert.match(text(els.host.innerHTML), /Media 7 días 100 %/);
+  assert.match(text(els.host.innerHTML), /Media 7 días 100%/);
 });
 
 test('Inicio card: today so far in My day, opens the sheet, the 7-day average under it', () => {
@@ -145,7 +145,7 @@ test('Inicio card: today so far in My day, opens the sheet, the 7-day average un
   const h = els.home.innerHTML;
   assert.match(h, /class="sc-card tn en ns de-mid" data-detail="nutrition" role="button"/);
   assert.match(text(h), /^Nutrition so far 66 %/);
-  assert.match(text(h), /Kcal · 40 1500 \/ 2000 kcal/);
+  assert.match(text(h), /Kcal · 40 1,500 \/ 2,000 kcal/);
   assert.match(text(h), /7-day average 100%/);
 });
 

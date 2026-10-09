@@ -12,6 +12,7 @@ import { buildDetail } from '../../../lib/detail/detail.mjs';
 import { es as esT, en as enT } from '../i18n/detail-templates.mjs';
 import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
+import { fmtHours, fmtMinutes, fmtInt } from '../../../lib/format/numbers.mjs';
 import { StubElement } from '../../test/dom-stub.mjs';
 import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB } from '../../../lib/nav/tabs.mjs';
 import { buildScores } from '../../../lib/score/index.mjs';
@@ -354,13 +355,13 @@ test('sleep day detail: asleep hours vs target, bedtime – wake, that night\'s 
   const sl = DEMO.metrics.sleep;
   const i = dayIndex(sl, d);
   const clock = (h) => { h = ((h % 24) + 24) % 24; const H = Math.floor(h); let M = Math.round((h - H) * 60); let HH = H; if (M === 60) { M = 0; HH = (H + 1) % 24; } return String(HH).padStart(2, '0') + ':' + String(M).padStart(2, '0'); };
-  assert.ok(html.includes(`${sl.v[i].toFixed(1)} h`), 'hours');
+  assert.ok(html.includes(`<b class="dt-row-val">${fmtHours(sl.v[i])}</b>`), 'hours (h:mm)');
   assert.ok(html.includes(`${clock(sl.bed[i])}–${clock(sl.wake[i])}`), 'bedtime – wake');
   assert.ok(html.includes(String(valueOn(DEMO.metrics.hrv, d))), 'HRV that night');
   assert.ok(html.includes(String(valueOn(DEMO.metrics.rhr, d))), 'resting HR that night');
-  const f1 = (k) => valueOn({ ...sl, v: sl[k] }, d).toFixed(1);
+  const f1 = (k) => fmtHours(valueOn({ ...sl, v: sl[k] }, d));
   assert.ok(html.includes(format(enT.day.stages, { rem: f1('rem'), deep: f1('deep'), core: f1('core'), awake: f1('awake') })), 'that night\'s stages');
-  assert.ok(html.includes(`${valueOn({ ...sl, v: sl.eff }, d)} %`), 'efficiency');
+  assert.ok(html.includes(`${valueOn({ ...sl, v: sl.eff }, d)}%`), 'efficiency');
   assert.ok(!html.includes(enT.day.stagesNote));
   assert.ok(html.includes('Mon 28 Sep') || html.includes('Sun 27 Sep'), 'the day heading uses HC.fmtDate');
   const old = copy();
@@ -498,7 +499,7 @@ test('es: Spanish copy, decimal comma, Spanish dates', () => {
   const html = s.host.innerHTML;
   assert.ok(html.includes(esT.metrics.sleep.title));
   const v = valueOn(DEMO.metrics.sleep, d);
-  assert.ok(html.includes(`${v.toFixed(1).replace('.', ',')} h`));
+  assert.ok(html.includes(fmtHours(v)), 'sleep as h:mm');
   assert.match(html, /(lun|dom) 2[78] sept/);
   clean(html);
 });
@@ -707,13 +708,13 @@ test('energy header = the 7-day rolling expenditure of the newest COMPLETE day; 
   const s = setup(); // the viewer's today = the newest data day
   s.api.open('energy');
   let h = headOf(s.host.innerHTML);
-  assert.ok(h.includes(`>${e.roll[e.roll.length - 2]}<`), 'yesterday\'s rolling value, not the partial day');
-  assert.ok(h.includes(format(enT.latestDaySoFar, { value: String(e.v[e.v.length - 1]), unit: 'kcal' })));
+  assert.ok(h.includes(`>${fmtInt(e.roll[e.roll.length - 2], 'en')}<`), 'yesterday\'s rolling value, not the partial day');
+  assert.ok(h.includes(format(enT.latestDaySoFar, { value: fmtInt(e.v[e.v.length - 1], 'en'), unit: 'kcal' })));
   const later = setup({ now: addDays(NOW, 1) });
   later.api.open('energy');
   h = headOf(later.host.innerHTML);
-  assert.ok(h.includes(`>${e.roll[e.roll.length - 1]}<`), 'the newest day is complete once the viewer\'s day moved on');
-  assert.ok(h.includes(format(enT.latestDay, { value: String(e.v[e.v.length - 1]), unit: 'kcal', date: 'Mon 28 Sep' })));
+  assert.ok(h.includes(`>${fmtInt(e.roll[e.roll.length - 1], 'en')}<`), 'the newest day is complete once the viewer\'s day moved on');
+  assert.ok(h.includes(format(enT.latestDay, { value: fmtInt(e.v[e.v.length - 1], 'en'), unit: 'kcal', date: 'Mon 28 Sep' })));
 });
 
 test('a daily total\'s newest day, when it is the viewer\'s today, reads "today, in progress" in neutral colour everywhere and is not compared', () => {
@@ -824,11 +825,11 @@ test('sleep deep-dive: the hero is last night\'s sleep performance % in the slee
   assert.ok(hero.includes(`d="${DIALS.sleep.fill}"`));
   const ins = insightOf(html);
   const v = valueOn(DEMO.metrics.sleep, NOW);
-  assert.ok(ins.includes(format(enT.deep.prose.sleep, { when: enT.deep.prose.lastNight, value: v.toFixed(1), delta: Number((v - 7.5).toFixed(1)) === 0 ? '0.0' : sgn(v - 7.5, 1), target: '7.5' })));
+  assert.ok(ins.includes(format(enT.deep.prose.sleep, { when: enT.deep.prose.lastNight, value: fmtHours(v), delta: fmtHours(v - 7.5, true), target: '7:30' })));
   assert.ok(ins.includes(enT.deep.prose.allOk) || /(was|were) worse than your usual\./.test(ins), 'the contributors in one sentence');
   assert.ok(ins.includes(`>${enT.deep.ctas.sleep}<`));
   const info = infoOf(html);
-  assert.ok(info.includes(format(enT.deep.sleepNotes.perf, { target: '7.5' })), 'ⓘ: performance formula, need = target');
+  assert.ok(info.includes(format(enT.deep.sleepNotes.perf, { target: '7:30' })), 'ⓘ: performance formula, need = target');
   for (const k of ['eff', 'cons', 'stages']) assert.ok(info.includes(enT.deep.sleepNotes[k]), `ⓘ: ${k}`);
   // stages bar: awake / REM / core / deep, widths by hours, legend with hours and % of asleep
   const sl = DEMO.metrics.sleep;
@@ -837,11 +838,11 @@ test('sleep deep-dive: the hero is last night\'s sleep performance % in the slee
   assert.ok(st.startsWith(`><h3 class="dd-sec">${enT.deep.stages.aria}</h3>`), 'a titled section');
   assert.deepEqual([...st.matchAll(/<i class="dd-st dd-st-([a-z]+)"/g)].map((x) => x[1]), ['awake', 'rem', 'core', 'deep']);
   const rem = valueOn({ ...sl, v: sl.rem }, NOW);
-  assert.ok(st.includes(`${enT.deep.stages.rem} <b>${rem.toFixed(1)} h · ${Math.round((100 * rem) / v)}%</b>`));
+  assert.ok(st.includes(`${enT.deep.stages.rem} <b>${fmtHours(rem)} · ${Math.round((100 * rem) / v)}%</b>`));
   // no DIALS: the hours hero; no stage arrays: no bar
   const bare = setup({ detail: (() => { const c = copy(); for (const k of ['rem', 'deep', 'core', 'awake', 'inbed', 'eff']) delete c.metrics.sleep[k]; return c; })() });
   bare.api.open('sleep');
-  assert.ok(heroOf(bare.host.innerHTML).includes(`<b class="dd-num">${v.toFixed(1)}<small>h</small></b>`));
+  assert.ok(heroOf(bare.host.innerHTML).includes(`<b class="dd-num">${fmtHours(v)}</b>`));
   assert.doesNotMatch(bare.host.innerHTML, /dd-stages/);
   clean(html);
 });
@@ -1213,7 +1214,7 @@ test('recovery contributors on the scored night, as the reference: HRV, resting 
   assert.ok(c.includes(`<b class="dd-row-val">${valueOn(DEMO.metrics.rhr, night)} bpm</b>`));
   assert.ok(c.includes(`<span class="dd-row-lbl">${enT.deep.contrib.rows.resp}</span><b class="dd-row-val">${valueOn(DEMO.metrics.respiratory, night).toFixed(1)} brpm</b>`), 'respiratory rate that night');
   const sl = DEMO.metrics.sleep;
-  assert.ok(c.includes(`<span class="dd-row-lbl">${enT.deep.contrib.rows.perf}</span><b class="dd-row-val">${valueOn({ ...sl, v: sl.perf }, night)} %</b>`), 'sleep performance % replaces hours of sleep');
+  assert.ok(c.includes(`<span class="dd-row-lbl">${enT.deep.contrib.rows.perf}</span><b class="dd-row-val">${valueOn({ ...sl, v: sl.perf }, night)}%</b>`), 'sleep performance % replaces hours of sleep');
   assert.match(c, /class="dd-mk dd-(better|worse|typical)" aria-hidden="true">[▲▼•]<\/span><span class="sr-only">/);
   assert.ok(c.includes(`<b>${enT.deep.contrib.legendToday}</b> ${enT.deep.contrib.legendRest}`), 'legend pill');
   assert.ok(html.indexOf('dd-contrib') > html.indexOf('dd-hero') && html.indexOf('dd-contrib') < html.indexOf('dd-insight'), 'under the hero, above the insight');
@@ -1260,8 +1261,8 @@ test('sleep contributors: hours vs need, efficiency, consistency, REM + deep; be
   assert.deepEqual(rowsOf(html), ['need', 'eff', 'cons', 'restor'], 'hours vs need, efficiency, consistency, REM + deep');
   const sl = DEMO.metrics.sleep;
   const hv = valueOn(sl, NOW);
-  assert.ok(contribOf(html).includes(`<b class="dd-row-val">${hv.toFixed(1)} / 7.5 h</b>`), 'hours vs need');
-  assert.ok(contribOf(html).includes(`<b class="dd-row-val">${valueOn({ ...sl, v: sl.eff }, NOW)} %</b>`), 'efficiency');
+  assert.ok(contribOf(html).includes(`<b class="dd-row-val">${fmtHours(hv)} / 7:30</b>`), 'hours vs need');
+  assert.ok(contribOf(html).includes(`<b class="dd-row-val">${valueOn({ ...sl, v: sl.eff }, NOW)}%</b>`), 'efficiency');
   assert.ok(contribOf(html).includes(`<b class="dd-row-val">${valueOn({ ...sl, v: sl.cons }, NOW)} min</b>`), 'consistency in minutes');
   // an extract without stages / efficiency / consistency: bedtime and wake time fill in
   const old = copy();
@@ -1350,7 +1351,7 @@ test('weekly trends: one card per input, 7 bars ending at the page\'s day (highl
   // its days after the data are empty
   const later2 = setup({ now: addDays(NOW, 2), dials: DIALS });
   later2.api.open('sleep');
-  assert.ok(weeklyOf(later2.host.innerHTML).includes(`<li class="dd-col dd-now"><span class="dd-val">${valueOn(DEMO.metrics.sleep, DIALS.sleep.date).toFixed(1)}</span>`), 'the dial\'s night, highlighted');
+  assert.ok(weeklyOf(later2.host.innerHTML).includes(`<li class="dd-col dd-now"><span class="dd-val">${fmtHours(valueOn(DEMO.metrics.sleep, DIALS.sleep.date))}</span>`), 'the dial\'s night, highlighted');
   later2.api.open('load-gym');
   assert.ok(weeklyOf(later2.host.innerHTML).includes('<li class="dd-col dd-now"><span class="dd-val">—</span>'), 'today, no data yet');
   clean(s.host.innerHTML);
@@ -1597,7 +1598,7 @@ test('stress page: hero = the latest scored hour on a 0-3 gauge with its band wo
   assert.match(curve, /<path class="ds-line" d="M/);
   const bands = bandsOf(html);
   for (const b of ['low', 'medium', 'high']) assert.ok(bands.includes(enT.deep.stress.bandRows[b]));
-  const dur = (min) => `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
+  const dur = (min) => fmtMinutes(min);
   for (const b of ['low', 'medium', 'high']) assert.ok(bands.includes(`<b class="ds-bmin">${dur(day.mins[b])}</b>`), b + ': ' + bands);
   assert.ok(insightOf(html).includes(format(enT.deep.stress.avg, { value: day.avg.toFixed(1), band: enT.deep.stress.bands[day.band].toLowerCase() })));
   const info = infoOf(html);
@@ -1757,13 +1758,13 @@ test('nutrition score day panel: the score, each component eaten / target and po
   s.ctx.window.HCNutriScore = { metric: nscoreMetric };
   s.api.open('nutrition', addDays(NOW, -2));
   const html = s.host.innerHTML, P = enT.day.ns;
-  assert.ok(html.includes(`<span class="dt-row-lbl">${P.score}</span><b class="dt-row-val">70 %</b>`));
-  assert.ok(html.includes(`<span class="dt-row-lbl">${P.k}</span><b class="dt-row-val">2100 / 2000 kcal</b><small class="dt-row-sub">100 / 100</small>`));
+  assert.ok(html.includes(`<span class="dt-row-lbl">${P.score}</span><b class="dt-row-val">70%</b>`));
+  assert.ok(html.includes(`<span class="dt-row-lbl">${P.k}</span><b class="dt-row-val">2,100 / 2,000 kcal</b><small class="dt-row-sub">100 / 100</small>`));
   assert.ok(html.includes(`<span class="dt-row-lbl">${P.p}</span><b class="dt-row-val">120 / 150 g</b><small class="dt-row-sub">75 / 100</small>`));
   assert.ok(html.includes(`<span class="dt-row-lbl">${P.f}</span><b class="dt-row-val">—</b><small class="dt-row-sub">${P.unknown}</small>`));
   for (const k of ['inc', 'meals', 'assumed']) assert.ok(html.includes(P[k]), k);
   s.api.open('nutrition', NOW);
-  assert.ok(s.host.innerHTML.includes(`<b class="dt-row-val">40 %</b><small class="dt-row-sub">${P.soFar}</small>`));
+  assert.ok(s.host.innerHTML.includes(`<b class="dt-row-val">40%</b><small class="dt-row-sub">${P.soFar}</small>`));
   const none = setup();
   none.api.open('nutrition');
   assert.match(none.host.innerHTML, /dt-empty/, 'no HCNutriScore / no scored day -> the empty sheet');

@@ -164,7 +164,7 @@ export const es = {
   },
   errors: {
     invalid: 'Revisa este dato: {field}.',
-    atwater: 'Las kcal no cuadran con los macros (más de un 25 %). Revisa la etiqueta o guarda igualmente.',
+    atwater: 'Las kcal no cuadran con los macros (más de un 25%). Revisa la etiqueta o guarda igualmente.',
     barcode_exists: 'Ya tienes un producto con ese código de barras.',
     unknown_product: 'Algún producto ya no existe.',
     unknown_recipe: 'Esa receta ya no existe.',
@@ -338,7 +338,7 @@ export const en = {
   },
   errors: {
     invalid: 'Check this value: {field}.',
-    atwater: 'The kcal do not match the macros (more than 25 % off). Check the label or save anyway.',
+    atwater: 'The kcal do not match the macros (more than 25% off). Check the label or save anyway.',
     barcode_exists: 'You already have a product with that barcode.',
     unknown_product: 'A product no longer exists.',
     unknown_recipe: 'That recipe no longer exists.',

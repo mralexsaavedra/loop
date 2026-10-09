@@ -74,10 +74,13 @@ test('duration: one formatter, h:mm (lib/format/numbers.mjs via HC_FMT)', () => 
 
 test('numbers: grouping for every value >= 1000, one percent rule, "—" when absent, input values never grouped', () => {
   const es = load({ locale: 'es' }), en = load();
+  assert.equal(es.num(2500, 0), '2.500');
   assert.equal(es.int(13463), '13.463');
   assert.equal(en.int(2500), '2,500');
+  assert.equal(es.nf(1234.5), '1.234,5');
   assert.equal(es.pct(97), '97%');
   assert.equal(en.pct(12, true), '+12%');
+  assert.equal(es.num(null, 1), '—');
   assert.equal(es.int(NaN), '—');
   assert.equal(es.numInput(1234.5, 1), '1234,5');
   assert.equal(en.numInput(1000), '1000');
