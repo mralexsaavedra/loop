@@ -469,7 +469,7 @@ test('trend glyph: the tone colour wins the cascade on every host, in ANY styles
 // and ONE treatment paints it (.carried + .carried-date in base.css); every surface that shows a
 // "today" value which may come from an earlier day calls the helper, none rolls its own date compare
 // or dim class
-const CARRIED_SURFACES = ['web/src/client/score.js', 'web/src/client/deepdive.js'];
+const CARRIED_SURFACES = ['web/src/client/score.js', 'web/src/client/deepdive.js', 'web/src/client/monitor.js', 'web/src/client/energy.js', 'web/src/client/timeline.js'];
 test('carried values: one helper, one treatment, used by every surface that can carry', () => {
   const own = RULES.filter((x) => /\.carried(-date)?\b/.test(x.selector) && !(x.file === 'base.css' && !x.media && (x.selector === '.carried' || x.selector === '.carried-date')));
   assert.deepEqual(own.map(where), ['score.css `.dial-centre .carried-date`'], 'only base.css styles the treatment (the dial only places the date)');
