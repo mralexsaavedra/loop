@@ -750,6 +750,9 @@ test('the add sheet has three tabs (no "Del plan": Plan de hoy is a portion guid
   const body = t.window.HCViews['food-add'].render().body;
   assert.deepEqual([...body.matchAll(/data-tab="([a-z]+)"/g)].map((m) => m[1]), ['products', 'recipes', 'quick']);
   assert.doesNotMatch(source, /todayPlan|fa-plan/);
+  // the tabs are THE segmented control (docs/design-system.md), full width: one pressed option
+  assert.match(body, /<div class="dt-range dt-range-fill fa-tabs" role="group" aria-label="[^"]+"><button type="button" class="fa-tab" data-food-act="tab"/);
+  assert.equal((body.match(/class="fa-tab"[^>]*aria-pressed="true"/g) || []).length, 1);
 });
 
 test('HCFood.groupTotals: today\'s sums per Registrar group (a missing macro counts 0); null without the food API', async () => {

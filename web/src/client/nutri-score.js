@@ -8,8 +8,8 @@
  * same target Constancia and the intake rings use); constants = NUTRI.score (NSCORE).
  *
  * Renders: Inicio's "Nutrition" card (#home-nscore in My day; day stepping via HCDay: a past day shows
- * that day's score or nothing; today shows today "so far", else the newest scored day while it is
- * <= STALE_DAYS old) and Nutrición's score block (#nutri-score-block: the same card + the 7 / 30-day
+ * that day's score or nothing; otherwise the headline is the newest CLOSED scored day while it is
+ * <= STALE_DAYS old, and today — still filling up — shows only its progress, "in progress", no score) and Nutrición's score block (#nutri-score-block: the same card + the 7 / 30-day
  * averages and a 30-day line; the formula behind its ⓘ, #nutri-score-info). Both open the detail sheet
  * on key 'nutrition' (detail.js reads HCNutriScore.metric(): kind 'nscore', one value per day of the
  * last NSCORE.days ending today, `days` = the per-day results for the day panel). Days without a log
@@ -169,47 +169,69 @@
     var s = series(), v = [], any = false;
     s.dates.forEach(function (d) {
       var r = s.days[d];
-      v.push(r ? r.score : null);
+      // today is still filling up: no score on the chart (its day panel shows the progress instead)
+      v.push(r && !r.partial ? r.score : null);
       if (r) any = true;
     });
     return any ? { kind: 'nscore', dir: 1, dec: 0, start: s.dates[0], v: v, days: s.days, bands: C.bands } : null;
   }
 
   /* ---------- render ---------- */
+  // Today is a partial day: it gets NO score (a mid-day "0%" in red read as a failed day) — only its
+  // progress, eaten / target per component, labelled "in progress". The headline score is the newest
+  // CLOSED day; a component's points are shown only for a closed day, labelled "· 85 pts".
   var BAND_CLS = { good: 'de-hi', mid: 'de-mid', low: 'de-lo' };
   function kf(v) {
     return HC.num(v, 0);
   }
-  function partRow(c, x) {
+  // pts = true: a closed day (its points in the label, the bar = the points in their band colour);
+  // false: today in progress (eaten / target only, the bar = progress toward the target, neutral)
+  function partRow(c, x, pts) {
     var L = TS.parts[c], unit = c === 'k' ? ' kcal' : ' g';
     if (!x) {
       return '<li class="nt-mac"><span class="nt-mac-lbl">' + esc(L) + '</span><span class="nt-mac-val"><small>' + esc(TS.unknown) + '</small></span>' +
         '<span class="nt-mac-track"></span></li>';
     }
-    return '<li class="nt-mac ' + BAND_CLS[scoreBand(x.pts)] + '"><span class="nt-mac-lbl">' + esc(L) + ' · ' + esc(String(x.pts)) + '</span>' +
+    var w = pts ? x.pts : x.t > 0 ? Math.min(100, Math.round((100 * x.v) / x.t)) : 0;
+    return '<li class="nt-mac ' + (pts ? BAND_CLS[scoreBand(x.pts)] : 'ns-run') + '"><span class="nt-mac-lbl">' +
+      esc(pts ? format(TS.ptsTpl, { name: L, pts: HC.nf(x.pts) }) : L) + '</span>' +
       '<span class="nt-mac-val"><b>' + (x.min ? '≥ ' : '') + esc(kf(x.v)) + '</b><small> / ' + esc(kf(x.t)) + unit + '</small></span>' +
-      '<span class="nt-mac-track">' + (x.pts > 0 ? '<i style="width:' + x.pts + '%"></i>' : '') + '</span></li>';
+      '<span class="nt-mac-track">' + (w > 0 ? '<i style="width:' + w + '%"></i>' : '') + '</span></li>';
   }
-  // the card: heading (+ "so far" / "incomplete"), the score big in its band colour, when, the three rows
-  function cardHtml(date, r, sel, extra) {
-    var tag = r.partial ? TS.soFar : r.inc ? TS.incomplete : '';
-    var when = r.partial ? TS.today : HC.fmtDate(date);
-    var aria = format(r.partial ? TS.ariaSoFar : TS.aria, { value: r.score, date: when });
-    return '<div class="sc-card tn en ns ' + BAND_CLS[scoreBand(r.score)] + '"' + HC.detailAttrs('nutrition', sel || (r.partial ? null : date)) +
+  function partRows(r, pts) {
+    return '<ul class="nt-macros">' + partRow('k', r.parts.k, pts) + partRow('p', r.parts.p, pts) + partRow('f', r.parts.f, pts) + '</ul>';
+  }
+  function dayWord(date) {
+    return date === HC.shiftIso(HC.todayIso(), -1) ? TS.yesterday : HC.fmtDate(date);
+  }
+  // o = {head: {date, r} | null (the scored, closed day), run: r | null (today, in progress), sel, extra}
+  function cardHtml(o) {
+    var h = o.head, run = o.run;
+    var tag = !h ? TS.inProgress : h.r.inc && !run ? TS.incomplete : '';
+    var aria = [h ? format(TS.aria, { value: h.r.score, date: dayWord(h.date) }) : '', run ? TS.ariaRun : ''].filter(Boolean).join(' · ');
+    var opens = o.sel || (h && !run ? h.date : null);
+    var left = h ? '<div class="tn-end"><span class="tn-time"><b class="en-num">' + esc(String(h.r.score)) + '<small>%</small></b></span>' +
+      '<span class="tn-lbl">' + esc(dayWord(h.date)) + '</span></div>' : '';
+    var right = run ? '<div class="ns-run-box">' + (h ? '<p class="tn-lbl ns-run-lbl">' + esc(TS.today + ' · ' + TS.inProgress) + '</p>' : '') + partRows(run, false) + '</div>'
+      : partRows(h.r, true);
+    return '<div class="sc-card tn en ns' + (h ? ' ' + BAND_CLS[scoreBand(h.r.score)] : '') + '"' + HC.detailAttrs('nutrition', opens) +
       ' aria-label="' + esc(aria) + '">' +
-      '<h3 class="tn-h">' + esc(TS.heading) + (tag ? ' <small class="tn-lbl">' + esc(tag) + '</small>' : '') + '</h3>' +
-      '<div class="tn-row"><div class="tn-end"><span class="tn-time"><b class="en-num">' + esc(String(r.score)) + '<small>%</small></b></span>' +
-      '<span class="tn-lbl">' + esc(when) + '</span></div>' +
-      '<ul class="nt-macros">' + partRow('k', r.parts.k) + partRow('p', r.parts.p) + partRow('f', r.parts.f) + '</ul></div>' +
-      (extra || '') + '</div>';
+      '<h3 class="tn-h">' + esc(TS.heading + (tag ? ' · ' + tag : '')) + '</h3>' +
+      '<div class="tn-row">' + left + right + '</div>' + (o.extra || '') + '</div>';
   }
-  // the day a card shows: `sel` (a past day), else today when logged, else the newest scored day <= STALE_DAYS old
-  function pick(s, sel) {
-    if (sel) return s.days[sel] ? sel : null;
+  // the newest CLOSED scored day (never today) while it is <= STALE_DAYS old
+  function closedDay(s) {
     var best = null;
-    s.dates.forEach(function (d) { if (s.days[d]) best = d; });
-    if (!best) return null;
-    return best === HC.todayIso() || HC.daysOld(best) <= HC.STALE_DAYS ? best : null;
+    s.dates.forEach(function (d) { if (s.days[d] && !s.days[d].partial) best = d; });
+    return best && HC.daysOld(best) <= HC.STALE_DAYS ? best : null;
+  }
+  // what a card shows: a stepped-to past day = that day's score; else the newest closed day + today's progress
+  function view(s, sel) {
+    if (sel) return s.days[sel] && !s.days[sel].partial ? { head: { date: sel, r: s.days[sel] }, run: null, sel: sel }
+      : s.days[sel] ? { head: null, run: s.days[sel], sel: sel } : null;
+    var c = closedDay(s), t = s.days[HC.todayIso()];
+    var run = t && t.partial ? t : null;
+    return c || run ? { head: c ? { date: c, r: s.days[c] } : null, run: run, sel: null } : null;
   }
   function renderHome() {
     var host = document.getElementById('home-nscore');
@@ -217,16 +239,17 @@
     var shown = false;
     try {
       var sel = DAY && typeof DAY.sel === 'function' ? DAY.sel() || null : null;
-      var s = series(), d = pick(s, sel);
-      var avg = s.avg != null && !sel ? '<p class="tn-lbl en-sub">' + esc(format(TS.avg7, { value: s.avg })) + '</p>' : '';
-      host.innerHTML = d ? cardHtml(d, s.days[d], sel, avg) : '';
-      shown = !!d;
+      var s = series(), v = view(s, sel);
+      if (v) v.extra = s.avg != null && !sel ? '<p class="tn-lbl en-sub">' + esc(format(TS.avg7, { value: s.avg })) + '</p>' : '';
+      host.innerHTML = v ? cardHtml(v) : '';
+      shown = !!v;
     } catch (e) {
       host.innerHTML = '';
     }
     host.hidden = !shown;
   }
-  // the last WIDE days' final scores as a line (gaps = days without a score), 0-100 up
+  // the last WIDE days' final scores as the Salud sparkline (.sc-spark / .spark: line + area down to the
+  // 0 baseline, a caption under it), x by date (gaps = days without a score, bridged), 0-100 up
   var W = 200, H = 48;
   function lineHtml(s) {
     var dates = s.dates.slice(-WIDE), pts = [];
@@ -236,7 +259,10 @@
     });
     if (pts.length < 2) return '';
     var dd = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
-    return '<svg class="en-sp" style="width:100%" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true"><path class="en-l" d="' + dd + '"/></svg>';
+    var x0 = pts[0][0].toFixed(1), x1 = pts[pts.length - 1][0].toFixed(1);
+    return '<div class="sc-spark ns-spark"><svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">' +
+      '<path class="area" d="' + dd + ' L' + x1 + ' ' + H + ' L' + x0 + ' ' + H + ' Z"/><path class="line" d="' + dd + '"/></svg>' +
+      '<div class="sc-spark-lbl">' + esc(format(TN.lineLbl, { n: WIDE })) + '</div></div>';
   }
   function renderNutri() {
     var block = document.getElementById('nutri-score-block'), host = document.getElementById('nutri-score');
@@ -253,9 +279,10 @@
         })) + '</p><p>' + esc(format(TN.rules, { good: C.bands.good, mid: C.bands.mid })) + '</p><p>' + esc(TN.target) + '</p>';
       }
       if (s.any) {
-        var d = pick(s, null), wide = meanFinal(s, WIDE);
+        var v = view(s, null), wide = meanFinal(s, WIDE);
         var avgs = '<p class="tn-lbl en-sub">' + esc(format(TN.avgs, { a7: HC.pct(s.avg), a30: HC.pct(wide) })) + '</p>' + lineHtml(s);
-        host.innerHTML = d ? cardHtml(d, s.days[d], null, avgs)
+        if (v) v.extra = avgs;
+        host.innerHTML = v ? cardHtml(v)
           : '<div class="sc-card tn"' + HC.detailAttrs('nutrition') + '><p class="tn-lbl en-sub">' + esc(TN.none) + '</p>' + avgs + '</div>';
         shown = true;
       } else host.innerHTML = '';

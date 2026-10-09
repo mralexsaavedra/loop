@@ -41,7 +41,10 @@ Balance, `docs/nutrition.md`). On ≥ 900 px the sections stay the phone's singl
 `docs/plan-page.md`).
 
 **Rows, not cards (text diet).** Each metric is the shared row (`HC.metricRow`, the same `.db-*` row as
-Inicio's "My dashboard"): icon · UPPERCASE name · the NEWEST value + unit · a marker · a small line
+Inicio's "My dashboard"): icon (each row its own from the one set in `util.js` — Sleep's rows: the
+moon for last night, a target for nights ≥ target, the regularity lines for the spread, a bed, a sun
+for wake time, then REM a wave, deep the moon, core the stages steps, awake a clock, efficiency bars) ·
+UPPERCASE name · the NEWEST value + unit · a marker · a small line
 under the value. The small line is the 30-day baseline (`avg30`, `avg30Of`: mean of the daily values
 over the last 30 days — for the daily TOTALS of `dailyTrend` the 30 days ending the day BEFORE the
 latest, since the build cannot know whether that day is complete; sleep: the 30-night mean) with ▲ / ▼
@@ -152,8 +155,10 @@ caveat (`energyTdeeNote`, which points to Nutrición → Balance); the balance n
   notes. A row opens that day in `load-run`.
 - **Cycling** — `workouts.csv` rows of any Cycling type (Watch rides and `sync:strava` rides), shown
   right after Running as RECENT-RIDES list rows with the same style and row budget (8, newest first) so
-  run and bike carry equal weight: the date with avg HR, relative effort and kJ under it; the distance
-  with time (Strava moving time / Watch duration) and elevation gain under it; the ride count and the
+  run and bike carry equal weight — ONE row template (DS4): nothing under the date; the distance with
+  time (Strava moving time / Watch duration) and elevation gain under it, then a second small line
+  avg HR · relative effort · kJ (`base2`; formerly under the date — the ride's work is shown nowhere
+  else, so it stays on the row); all of it in the row's aria-label too; the ride count and the
   source notes in the section's ⓘ; a row opens that day in `load-bike`. Same-day rows merge into ONE ride
   under the shared same-day rule (`DISPLAY_RULE`: stubs dropped, the Strava copy wins over a Watch copy): sums
   for time/distance/kJ/elevation/RE, duration-weighted avg HR, and the count is distinct ride days. Elevation / RE / kJ come from

@@ -75,7 +75,7 @@ a day is "journaled" when at least one behaviour is answered (`isJournaled`).
   unsaved draft), "What's happening today?" (or "What happened on <date>?"), the switched-ON behaviours
   in DAYTIME / NIGHTTIME / STATUS rows with a ✕ / ✓ pair (✓ pressed = `--trend` fill; pressing the
   pressed button again = not answered), the drinks as ✕ (= 0) + a − n + stepper (0..`countMax`), notes
-  (≤ 500), a "Behaviors" fold with an on / off toggle per behaviour (`PUT /api/journal/settings` at
+  (≤ 500), a "Behaviors" fold with THE switch per behaviour (`HC.switchBtn`) (`PUT /api/journal/settings` at
   once; answers of a switched-off behaviour are kept), a status line (coarse errors; "offline" = nothing
   saved) and the sticky "SAVE JOURNAL" pill: `PUT /api/journal/day` with the whole day, then the sheet
   closes and the card re-renders. One save at a time: while it is in flight the pill is disabled, the

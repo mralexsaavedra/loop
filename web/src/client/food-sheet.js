@@ -159,7 +159,7 @@
     return search + '<div id="fa-list" class="fa-list">' + listHtml() + '</div>';
   }
   function tabsHtml() {
-    return '<div class="fa-tabs" role="group" aria-label="' + esc(T.sheet.tabsLabel) + '">' + tabKeys().map(function (k) {
+    return '<div class="dt-range dt-range-fill fa-tabs" role="group" aria-label="' + esc(T.sheet.tabsLabel) + '">' + tabKeys().map(function (k) {
       return '<button type="button" class="fa-tab" data-food-act="tab" data-tab="' + k + '" aria-pressed="' + (S.sheet.tab === k) + '">' + esc(T.sheet.tabs[k]) + '</button>';
     }).join('') + '</div>';
   }

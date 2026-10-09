@@ -90,9 +90,9 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   goal (`HCNutri.targetFor`, like Constancia); detail.js `metric('nutrition')` reads it, and it joins
   the trend picker once a day is scored. Host tab `nutricion` (`DETAIL_TAB`), copy
   `I18N_DETAIL.metrics.nutrition`, hash `#detail/nutrition[/<date>]`. Calendar / chart states `good` /
-  `mid` / `bad` (≥ 85 / 60–84 / < 60); today is `partial` ("so far": neutral, never in the period
-  average, like a daily total); the day panel = the score (+ "So far today"), each component's eaten /
-  target and points (a left-out one: "—" + why), then the notes that apply (a macro missing, a main
+  `mid` / `bad` (≥ 85 / 60–84 / < 60); today is `partial`: no point on the chart and never in the period
+  average (`HCNutriScore.metric` gives it `null`); the day panel = the score, each component's eaten /
+  target and points ("75 / 100 pts") — for today "In progress" instead of the score and no points (a left-out one: "—" + why), then the notes that apply (a macro missing, a main
   meal unlogged, a rest day assumed from sleep). The generic trend view, no deep-dive page. `sessions` = one entry per date + modality after
   `mergeSameDay` DISPLAY_RULE (minutes, km, elevation, avg HR, RE, parts, source; the source is the
   precedence family, so "Apple Watch de <name>" is written "Apple Watch"), plus, when
@@ -254,8 +254,8 @@ switch is outside every opener); run / ride rows →
   shows the newest day in range ("Rest" on a rest day). The band note says colours are the CURRENT
   range (static, as of the newest day), except recovery, scored per day; a signal / total / sleep /
   recovery metric whose own last day is > 3 days before the view end says so. The trend view: a
-  small right-aligned W · M · 6M · 1Y switch (dark 28 px squares, the pressed one grey, each with a
-  44 px-tall hit area; 7 / 30 / 182 / 365 days, `RANGES`; opens on M; es S · M · 6M · 1A), under it the
+  small right-aligned W · M · 6M · 1Y switch (THE segmented control: dark 28 px squares, the pressed one
+  grey, each with a 44 × 44 px hit area; 7 / 30 / 182 / 365 days, `RANGES`; opens on M; es S · M · 6M · 1A), under it the
   window row "‹ 23 Sep – 29 Sep, 26 ›" (`trend.win`): ‹ › (the shared `.nav-btn` + `.chev`, like the
   calendar's month ‹ ›; design-system.md → Components) step the window back / forward by its own
   length (`state.shift` whole windows back from the view end; › disabled at today, ‹ disabled once the
@@ -283,7 +283,10 @@ switch is outside every opener); run / ride rows →
   typical dashed; a missing day is a gap; a points chart longer than 60 days (6M, 1Y) draws a dot
   only for the days OUT of the range — beyond recovery's day cut, outside a signal's / sleep's band —
   and leaves the rest to the 7-day line, its key reading "Days out of range" (`chartKey.outside`), so
-  red / green dots never saturate the chart (a metric without a band keeps every dot); the window's newest value ringed and labelled, `.dt-last` /
+  red / green dots never saturate the chart (a metric without a band keeps every dot); the "Daily" /
+  "Days out of range" key draws one mark per state the window actually drew, with the chart marks' own
+  `dt-s-*` classes (`keyMarks`, `.dt-k-pts`), so its swatch is the dots' colours, never a stand-in blue
+  (none drawn → no key); the window's newest value ringed and labelled, `.dt-last` /
   `.dt-lastv`; in W every metric but recovery is 7 bars from 0 with each value on top (`.dt-bv`) and
   "Thu / 9" under each bar (`.dt-wdays`) instead of the from / to dates, no 7-day line; labels are HTML
   over the SVG's box `.dt-svg`) with a Y axis: three round, evenly spaced values (step 1 / 2 /

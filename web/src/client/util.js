@@ -167,13 +167,18 @@ var HC = (function () {
     distance: '<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7"/>',
     flights: '<path d="M4 20h5v-5h5v-5h5V5"/>',
     energy: '<path d="M12 21a6 6 0 0 0 6-6c0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-3-2 2-3 4-3 7a6 6 0 0 0 6 6z"/>',
+    gym: '<path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/>',
     run: '<circle cx="14" cy="4.5" r="1.8"/><path d="M6 21l3.5-5 3 2 1-5 3 3h3M8 10l3-3h3l-1.5 6"/>',
     bike: '<circle cx="6" cy="16" r="4"/><circle cx="18" cy="16" r="4"/><path d="M6 16l4-7h5l3 7M10 9l2 7h-6M13 5h3"/>',
     food: '<path d="M7 3v18M4.5 3v5a2.5 2.5 0 0 0 5 0V3M17 21V3c-2 1.5-3 4-3 8h3"/>',
     balance: '<path d="M12 4v16M8 20h8M5 7h14M5 7l-3 6a3 3 0 0 0 6 0zM19 7l-3 6a3 3 0 0 0 6 0z"/>',
   };
+  // one icon set: a key missing here falls back to the contributor rows' paths (CONTRIB_ICONS: bed, wake,
+  // vsTarget, cons, eff, stages …), then to the HRV line
   function metricIcon(key) {
-    return '<svg class="db-ico" viewBox="0 0 24 24" aria-hidden="true">' + (Object.prototype.hasOwnProperty.call(ICONS, key) ? ICONS[key] : ICONS.hrv) + '</svg>';
+    var own = Object.prototype.hasOwnProperty;
+    return '<svg class="db-ico" viewBox="0 0 24 24" aria-hidden="true">' + (own.call(ICONS, key) ? ICONS[key]
+      : own.call(CONTRIB_ICONS, key) ? '<path d="' + CONTRIB_ICONS[key] + '"/>' : ICONS.hrv) + '</svg>';
   }
   // the ONE trend glyph (docs/design-system.md → Components → Trend glyph): ▲ / ▼ for a change, • for
   // typical / steady; the tone class colours it — good / bad / watch by the metric's direction,
@@ -183,16 +188,61 @@ var HC = (function () {
     if (arrow === 'flat') return 'flat';
     return !tone || tone === 'flat' || tone === 'normal' ? 'neutral' : tone;
   }
-  // o = {key, cls?, attrs?, aria?, name, note?, value, unit?, numCls?, arrow? ('up' | 'down' | 'flat'),
-  //      tone? ('good' | 'bad' | 'watch' | 'flat'), base?} — every text is escaped here; `note` = a small
-  //      line under the name (a session's secondary numbers on Entreno's run / ride rows)
+  // o = {key, cls?, attrs?, aria?, name, value, unit?, numCls?, arrow? ('up' | 'down' | 'flat'),
+  //      tone? ('good' | 'bad' | 'watch' | 'flat'), base?, base2?} — every text is escaped here; the
+  //      secondary lines sit under the value: `base`, then an optional second one `base2` (a ride's
+  //      HR · effort · kJ; docs/design-system.md → Metric row)
   function metricRow(o) {
     var arrow = o.arrow && Object.prototype.hasOwnProperty.call(ARROWS, o.arrow) ? ARROWS[o.arrow] : '';
     return '<li class="db-row' + (o.cls ? ' ' + o.cls : '') + '"' + (o.attrs || '') + (o.aria ? ' aria-label="' + esc(o.aria) + '"' : '') + '>' + metricIcon(o.key) +
-      '<span class="db-name">' + esc(o.name) + (o.note ? '<small class="db-note">' + esc(o.note) + '</small>' : '') + '</span>' +
+      '<span class="db-name">' + esc(o.name) + '</span>' +
       '<span class="db-vals"><span class="db-val"><b' + (o.numCls ? ' class="' + o.numCls + '"' : '') + '>' + esc(o.value) + '</b>' + (o.unit ? '<small>' + esc(o.unit) + '</small>' : '') +
       (arrow ? '<span class="db-arr db-' + esc(trendTone(o.arrow, o.tone)) + '" aria-hidden="true">' + arrow + '</span>' : '') + '</span>' +
-      (o.base != null && o.base !== '' ? '<span class="db-base">' + esc(o.base) + '</span>' : '') + '</span></li>';
+      (o.base != null && o.base !== '' ? '<span class="db-base">' + esc(o.base) + '</span>' : '') +
+      (o.base2 ? '<span class="db-base">' + esc(o.base2) + '</span>' : '') + '</span></li>';
+  }
+
+  // THE contributor row (docs/design-system.md → Components → Contributor row): the deep-dive sheets'
+  // inputs and Salud's Recovery card — icon · caps label (+ a small sub line) · value · ▲ / ▼ / •.
+  // Styles: .dd-row / .dd-ico / .dd-mk in styles/detail.css. 24-unit stroked paths, one per row key.
+  var CONTRIB_ICONS = {
+    hrv: 'M2 12h4l2-5 4 10 2-5h8',
+    rhr: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z',
+    sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+    need: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+    perf: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+    resp: 'M12 3v8M12 11l-3 3M12 11l3 3M9 7c-3 0-6 4-6 10 0 2 1 3 3 3s3-1 3-3zM15 7c3 0 6 4 6 10 0 2-1 3-3 3s-3-1-3-3z',
+    vsTarget: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8',
+    bed: 'M3 18v-8M3 14h18v4M21 14a3 3 0 0 0-3-3h-7v3M7 12.5a1.5 1.5 0 1 0 0-.01',
+    wake: 'M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6',
+    re: 'M13 2 4 14h7l-1 8 9-12h-7z',
+    acute: 'M3 17l6-6 4 4 8-8M15 7h6v6',
+    sessions: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
+    typical: 'M3 12h4M17 12h4M12 3v4M12 17v4M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8',
+    eff: 'M3 19h18M6 19v-5M10 19V9M14 19v-7M18 19V5',
+    cons: 'M4 7h16M4 12h16M4 17h16M8 5v4M15 10v4M11 15v4',
+    restor: 'M3 15c3-6 6-6 9 0s6 6 9 0',
+    clock: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 7v5l3 2',
+    stages: 'M3 6h5v6h6v6h7',
+  };
+  function contribIcon(k) {
+    return '<svg class="dd-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="' + CONTRIB_ICONS[k] + '"/></svg>';
+  }
+  // o = {row? (data-row key), icon (CONTRIB_ICONS key), label, sub?, value, mark? {glyph, tone
+  // ('better' | 'worse' | 'neutral' | 'typical'), said (screen-reader words)}} — texts escaped here
+  function contribRow(o) {
+    var m = o.mark;
+    return '<li class="dd-row"' + (o.row ? ' data-row="' + esc(o.row) + '"' : '') + '>' + contribIcon(o.icon) +
+      '<span class="dd-row-lbl">' + esc(o.label) + (o.sub ? ' <small class="dd-row-sub">' + esc(o.sub) + '</small>' : '') + '</span>' +
+      '<b class="dd-row-val">' + esc(o.value) + '</b>' +
+      (m ? '<span class="dd-mk dd-' + esc(m.tone) + '" aria-hidden="true">' + m.glyph + '</span><span class="sr-only">' + esc(m.said) + '</span>' : '') + '</li>';
+  }
+
+  // THE switch (docs/design-system.md → Components → Switch): show / hide one item; attrs = its own
+  // data-* hooks; label = what it shows / hides (the state is aria-checked, so no visible word)
+  function switchBtn(on, label, attrs) {
+    return '<button type="button" class="sw" role="switch" aria-checked="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '"' + (attrs || '') + '>' +
+      '<span class="sw-knob" aria-hidden="true"></span></button>';
   }
 
   // ⓘ button of a Salud header: toggles the hidden block #<id> (client/health.js listens for
@@ -249,6 +299,9 @@ var HC = (function () {
     trendTone: trendTone,
     metricIcon: metricIcon,
     metricRow: metricRow,
+    contribIcon: contribIcon,
+    contribRow: contribRow,
+    switchBtn: switchBtn,
     infoBtn: infoBtn,
     infoSvg: INFO_SVG,
     sheetHead: sheetHead,

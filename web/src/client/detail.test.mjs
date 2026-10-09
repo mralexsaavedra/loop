@@ -326,6 +326,23 @@ test('missing days are gaps, never zero: no point, no bar, an empty calendar cel
   assert.equal(pts, expected);
 });
 
+test('step navigation: the trend sheet\'s window and month arrows are .nav-btn + .chev, disabled at their edges', () => {
+  const s = setup();
+  s.api.open('sleep');
+  const html = s.host.innerHTML;
+  const btn = (attrs, glyph) => new RegExp(`<button type="button" class="nav-btn" ${attrs} aria-label="[^"]+"( disabled)?><span class="chev" aria-hidden="true">${glyph}</span></button>`);
+  const winNext = html.match(btn('data-dt-act="win" data-wdir="1"', '›'));
+  const winPrev = html.match(btn('data-dt-act="win" data-wdir="-1"', '‹'));
+  const monNext = html.match(btn('data-dt-act="month" data-dir="1"', '›'));
+  const monPrev = html.match(btn('data-dt-act="month" data-dir="-1"', '‹'));
+  assert.ok(winNext && winPrev && monNext && monPrev, 'all four arrows are the shared step button');
+  assert.equal(winNext[1], ' disabled', 'no window after today');
+  assert.equal(monNext[1], ' disabled', 'no month after the current one');
+  assert.equal(winPrev[1], undefined, 'earlier windows exist');
+  assert.equal(monPrev[1], undefined, 'earlier months exist');
+  assert.doesNotMatch(html, /dt-nav|dt-mnav|class="[^"]*circle/, 'no second arrow style in the sheet');
+});
+
 test('calendar: Monday-first weekday header (es / en), prev / next month bounded by the baked range, tapping a day shows it', () => {
   const s = setup();
   s.api.open('sleep');
@@ -1584,7 +1601,22 @@ test('trend sentence: sleep reads h:mm, so two windows that print the same clock
   s.click(act('range', { 'data-range': '7' }));
   const txt = /<p class="dt-trend-txt">([^<]*)<\/p>/.exec(s.host.innerHTML)[1];
   assert.match(txt, /was 0:18, about the same as the week before \(0:18\)\./);
-  assert.match(s.host.innerHTML, /dt-pill-neutral|dt-pill-bad/, 'the pill still shows the real change');
+  // sleep has a good direction (up): a 1.6% drop is a real ▼ in the worse colour, never a flat dot
+  assert.match(s.host.innerHTML, /<span class="dt-pill dt-pill-bad">▼ 2% vs prior week<\/span>/, 'the pill still shows the real change');
+});
+
+test('trend pill: a change with no good direction is a neutral ▲ / ▼ (dt-pill-neutral, --ink), never grey or coloured', () => {
+  const start = addDays(NOW, -13);
+  const up = Array.from({ length: 14 }, (_, i) => (i < 7 ? 80 : 82));
+  const s = setup({ detail: { asOf: NOW, days: 365, metrics: { weight: { kind: 'signal', dir: 0, dec: 1, start, v: up } }, sessions: [] } });
+  s.api.open('weight');
+  s.click(act('range', { 'data-range': '7' }));
+  assert.match(s.host.innerHTML, /<span class="dt-pill dt-pill-neutral">▲ \d+% vs prior week<\/span>/);
+  assert.doesNotMatch(s.host.innerHTML, /dt-pill-(good|bad|flat)"/);
+  const down = setup({ detail: { asOf: NOW, days: 365, metrics: { weight: { kind: 'signal', dir: 0, dec: 1, start, v: up.slice().reverse() } }, sessions: [] } });
+  down.api.open('weight');
+  down.click(act('range', { 'data-range': '7' }));
+  assert.match(down.host.innerHTML, /<span class="dt-pill dt-pill-neutral">▼ \d+% vs prior week<\/span>/);
 });
 
 /* ---------- stress monitor page (key 'stress', SCORES.stress: lib/score/stress.mjs) ---------- */
@@ -1771,12 +1803,15 @@ test('nutrition score day panel: the score, each component eaten / target and po
   s.api.open('nutrition', addDays(NOW, -2));
   const html = s.host.innerHTML, P = enT.day.ns;
   assert.ok(html.includes(`<span class="dt-row-lbl">${P.score}</span><b class="dt-row-val">70%</b>`));
-  assert.ok(html.includes(`<span class="dt-row-lbl">${P.k}</span><b class="dt-row-val">2,100 / 2,000 kcal</b><small class="dt-row-sub">100 / 100</small>`));
-  assert.ok(html.includes(`<span class="dt-row-lbl">${P.p}</span><b class="dt-row-val">120 / 150 g</b><small class="dt-row-sub">75 / 100</small>`));
+  assert.ok(html.includes(`<span class="dt-row-lbl">${P.k}</span><b class="dt-row-val">2,100 / 2,000 kcal</b><small class="dt-row-sub">100 / 100 pts</small>`));
+  assert.ok(html.includes(`<span class="dt-row-lbl">${P.p}</span><b class="dt-row-val">120 / 150 g</b><small class="dt-row-sub">75 / 100 pts</small>`));
   assert.ok(html.includes(`<span class="dt-row-lbl">${P.f}</span><b class="dt-row-val">—</b><small class="dt-row-sub">${P.unknown}</small>`));
   for (const k of ['inc', 'meals', 'assumed']) assert.ok(html.includes(P[k]), k);
   s.api.open('nutrition', NOW);
-  assert.ok(s.host.innerHTML.includes(`<b class="dt-row-val">40%</b><small class="dt-row-sub">${P.soFar}</small>`));
+  // today is still filling up: "In progress" instead of a score, eaten / target without points
+  const today = s.host.innerHTML;
+  assert.ok(today.includes(`<span class="dt-row-lbl">${P.score}</span><b class="dt-row-val">${P.inProgress}</b><small class="dt-row-sub">${P.inProgressSub}</small>`));
+  assert.doesNotMatch(today, /dt-row-val">40%|\/ 100 pts/, 'no partial score, no points');
   const none = setup();
   none.api.open('nutrition');
   assert.match(none.host.innerHTML, /dt-empty/, 'no HCNutriScore / no scored day -> the empty sheet');
@@ -1835,7 +1870,16 @@ test('trend view 6M / 1Y: only the days out of the range get a dot (the 7-day li
   s.api.open('rhr');
   let html = s.host.innerHTML;
   assert.equal((html.match(/class="dt-pt/g) || []).length, inWin(addDays(NOW, -29)).length, 'M: a dot per day with data');
-  assert.ok(html.includes(`<span class="dt-k dt-k-daily">${enT.chartKey.daily}</span>`));
+  // the "Daily" key shows the dots' own colours: one mark per state drawn, never a stand-in blue swatch
+  const keyStates = (h, cls) => {
+    const k = h.match(new RegExp(`<span class="dt-k dt-k-pts ${cls}"><svg class="dt-k-sw"[^>]*>([\\s\\S]*?)<\\/svg>([^<]*)<\\/span>`));
+    return k ? { label: k[2], sts: [...k[1].matchAll(/class="dt-kd dt-s-(\w+)"/g)].map((x) => x[1]) } : null;
+  };
+  const drawnStates = (h) => [...new Set([...h.matchAll(/class="dt-pt dt-s-(\w+)"/g)].map((x) => x[1]))].sort();
+  const dk = keyStates(html, 'dt-k-daily');
+  assert.equal(dk.label, enT.chartKey.daily);
+  assert.deepEqual([...dk.sts].sort(), drawnStates(html), 'the key marks = the states the chart drew');
+  assert.ok(dk.sts.length > 1, 'the demo month mixes states (so a single blue swatch would lie)');
   s.click(act('range', { 'data-range': '182' }));
   html = s.host.innerHTML;
   const vals = inWin(addDays(NOW, -181));
@@ -1844,7 +1888,9 @@ test('trend view 6M / 1Y: only the days out of the range get a dot (the 7-day li
   assert.equal((html.match(/class="dt-pt/g) || []).length, out.length, '6M: a dot per out-of-range day only');
   assert.doesNotMatch(html, /dt-pt dt-s-normal/, 'no in-range dot');
   assert.match(html, /class="dt-line"/, 'the 7-day line stays');
-  assert.ok(html.includes(`<span class="dt-k dt-k-out">${enT.chartKey.outside}</span>`), 'the key says which days are dots');
+  const ok = keyStates(html, 'dt-k-out');
+  assert.equal(ok.label, enT.chartKey.outside, 'the key says which days are dots');
+  assert.deepEqual([...ok.sts].sort(), drawnStates(html), 'in the out-of-range days\' own colours');
   // recovery: out of range = beyond the day cut (the calendar's above / below baseline)
   s.api.open('recovery');
   s.click(act('range', { 'data-range': '182' }));
@@ -1856,7 +1902,7 @@ test('trend view 6M / 1Y: only the days out of the range get a dot (the 7-day li
   const es = setup({ locale: 'es' });
   es.api.open('rhr');
   es.click(act('range', { 'data-range': '365' }));
-  assert.ok(es.host.innerHTML.includes(`<span class="dt-k dt-k-out">${esT.chartKey.outside}</span>`));
+  assert.equal(keyStates(es.host.innerHTML, 'dt-k-out').label, esT.chartKey.outside);
 });
 
 test('trend view breakdown: one stacked bar of the window\'s days by calendar state with a count each ("6x"), following the window; LEARN MORE opens ⓘ; none for training volume', () => {

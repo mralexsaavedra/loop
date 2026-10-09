@@ -121,7 +121,7 @@ test('full render: recovery trend with band, per-component rows and 14 raw daili
   assert.match(html, /<b class="rec-num">[^<]+<small class="rec-unit">SD<\/small><\/b><span class="rec-band">/, 'the unit attached to the number, inside it');
   assert.doesNotMatch(html, /MAD/, 'no statistician jargon on the page');
   assert.match(html, /daytime SDNN/i);
-  assert.equal(count(html, 'class="rec-comp"'), 4);
+  assert.equal(count(html, 'class="dd-row"'), 4);
   assert.equal(count(html, 'class="sc-raw-v"'), 4 * 14);
   assert.match(html, new RegExp(`sc-band-${s.recovery.band}`));
   assert.equal(count(html, 'class="spark"'), 1, 'one inline SVG sparkline (recovery); the load cards carry a ring, not a sparkline');
@@ -185,10 +185,10 @@ test('recovery card inside Salud: the moved notes join the Recovery section\'s o
   assert.equal(secInfo.innerHTML.split('rec-info-notes').length - 1, 1);
 });
 
-test('recovery card: contributors are compact rows (state dot, name, latest value + unit, ±SD); baseline and n sit in the ⓘ; the raw 14-day lists are folded', () => {
+test('recovery card: contributors are THE contributor row (icon, name, latest value + unit, ±SD sub line, ▲ / ▼ / • by the band); baseline and n sit in the ⓘ; the raw 14-day lists are folded', () => {
   const s = fixtureScores();
   const html = recCard(s);
-  const rows = [...html.matchAll(/<div class="rec-comp" data-comp="([a-zA-Z]+)">([\s\S]*?)<\/div><!--\/comp-->/g)];
+  const rows = [...html.matchAll(/<li class="dd-row" data-row="([a-zA-Z]+)">([\s\S]*?)<\/li>/g)];
   assert.deepEqual(rows.map((r) => r[1]), s.recovery.components.map((c) => c.key));
   assert.ok(rows.length <= 4, 'at most 4 contributor rows');
   const info = text(html.match(/<div class="hs-info" id="rec-info" hidden>([\s\S]*?)<\/div><!--\/rec-info-->/)[1]);
@@ -196,7 +196,11 @@ test('recovery card: contributors are compact rows (state dot, name, latest valu
     const body = rows[i][2];
     const dec = c.unit === 'min' ? 0 : 1;
     const last = c.daily[c.daily.length - 1].value;
-    assert.match(body, new RegExp(`<span class="rec-dot sc-dot-${c.band}"`), 'state colour dot');
+    assert.match(body, /^<svg class="dd-ico"/, 'the row opens with its icon');
+    assert.doesNotMatch(body, /rec-dot|sc-dot/, 'no state colour dot');
+    const tone = { above: 'better', below: 'worse', at: 'typical' }[c.band];
+    const side = c.band === 'above' ? c.dir : c.band === 'below' ? -c.dir : 0;
+    assert.ok(body.includes(`<span class="dd-mk dd-${tone}" aria-hidden="true">${side > 0 ? '▲' : side < 0 ? '▼' : '•'}</span><span class="sr-only">${enT.recovery.cmp[tone]}</span>`), 'the trend glyph: raw direction, coloured by meaning');
     assert.ok(body.includes(enT.recovery.components[c.key]));
     assert.ok(text(body).includes(c.unit === 'h' ? fmtHours(last) : `${last.toFixed(dec)} ${c.unit}`), 'latest value + unit (hours as h:mm, no unit)');
     assert.ok(text(body).includes(`${(c.trend7 > 0 ? '+' : '') + c.trend7.toFixed(1)} SD`), 'SD vs baseline, the same unit as the composite');
@@ -206,6 +210,8 @@ test('recovery card: contributors are compact rows (state dot, name, latest valu
     assert.ok(info.includes(`${enT.recovery.components[c.key]}: ${baseline} · n=${c.n}`), 'baseline · n per contributor in the ⓘ');
     assert.doesNotMatch(body, /sc-raw-v/, 'no raw number list inline');
   }
+  // the fixture's resting HR fell this week (better): ▼ in the better colour, never a red arrow
+  assert.match(rows.find((r) => r[1] === 'rhr')[2], /<span class="dd-mk dd-better" aria-hidden="true">▼<\/span>/);
   const fold = html.match(/<details class="rec-raw"><summary>([^<]*)<\/summary>([\s\S]*?)<\/details>/);
   assert.ok(fold, 'the raw lists sit in a collapsed <details>');
   assert.equal(fold[1], enT.recovery.rawSummary);
@@ -217,14 +223,14 @@ test('recovery card: contributors are compact rows (state dot, name, latest valu
 
 test('recovery card: layout blocks headline | sparkline | contributors', () => {
   const html = recCard(fixtureScores());
-  const at = ['class="rec-head"', 'class="sc-spark rec-spark"', 'class="rec-contrib"'].map((n) => html.indexOf(n));
+  const at = ['class="rec-head"', 'class="sc-spark rec-spark"', 'class="dd-rows rec-contrib"'].map((n) => html.indexOf(n));
   assert.ok(at.every((v, i) => v !== -1 && (i === 0 || v > at[i - 1])), `order ${at}`);
   assert.match(html, /<div class="rec-layout">/);
 });
 
 test('colour only on the direction arrow: no grade-fill classes on the recovery card', () => {
   const html = render(fixtureScores());
-  assert.match(html, /sc-arrow sc-arrow-(above|at|below)/);
+  assert.match(html, /<span class="sc-arrow db-(good|flat|bad)" aria-hidden="true">[▲•▼]<\/span>/, 'THE trend glyph, coloured by the shared tone classes');
   assert.doesNotMatch(html, /sc-(red|amber|green|grade)/);
 });
 
@@ -983,4 +989,17 @@ test('strain dial: not calibrated (strain ok false / absent) -> the per-modality
   const h = render(s, { dials: buildDials(s, HEALTH) });
   assert.doesNotMatch(h, /dial-strain|dial-switch/);
   assert.match(h, /<figure class="dial dial-load[^"]*" data-dmod="/);
+});
+
+test('recovery card head: no duplicate title — only the as-of date, the History CTA and the ⓘ, in that order', () => {
+  const s = fixtureScores();
+  const hosts = {};
+  render(s, { now: addDays(ASOF, 1), hosts, detail: true });
+  const head = hosts.rec.innerHTML.match(/<div class="sc-head">([\s\S]*?)<\/div>/)[1];
+  const parts = [...head.matchAll(/<(span|button) [^>]*class="([^"]+)"/g)].map((m) => m[2]).filter((c) => !/chev|sc-asof-/.test(c));
+  assert.deepEqual(parts, ['sc-asof', 'cta', 'hs-i'], 'date, History, ⓘ');
+  assert.match(head, /<button type="button" class="cta" data-detail="recovery" aria-haspopup="dialog">History<span aria-hidden="true"> →<\/span><\/button>/);
+  assert.match(head, /<button type="button" class="hs-i" data-hs-info="rec-info" aria-expanded="false" aria-controls="rec-info" aria-label="About Recovery">/);
+  assert.doesNotMatch(hosts.rec.innerHTML, /<h[1-6]|sc-title/, 'no card title: the Salud section heading names it');
+  assert.ok(!text(head).includes(enT.recovery.heading), 'the section name is not repeated in the head');
 });

@@ -132,6 +132,9 @@
   /* type roles: section heading (sentence case) vs caps; every caps text tracks --label-track */
   --fs-section: var(--fs-3xl);
   --fw-section: 650;
+  /* a sheet's own caps title (the sheet header, the trend's month / day word, the deep-dive dial
+     label, the stress band word): one step above the card's caps */
+  --fs-title-sheet: var(--fs-md);
   --fs-title-lg: var(--fs-sm);
   --fs-title: var(--fs-xs);
   --fs-label: var(--fs-2xs);

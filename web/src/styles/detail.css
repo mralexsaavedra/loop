@@ -38,7 +38,7 @@ html.dt-lock body {
   margin: 0;
   text-align: center;
   color: var(--ink);
-  font-size: var(--fs-md);
+  font-size: var(--fs-title-sheet);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -91,7 +91,7 @@ html.dt-lock body {
   margin-bottom: var(--sp-5);
 }
 .dt-titles h2 {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-title-lg);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -119,7 +119,7 @@ html.dt-lock body {
   font-size: var(--fs-xs);
 }
 .dt-word {
-  font-size: var(--fs-md);
+  font-size: var(--fs-title-sheet);
   font-weight: 600;
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -151,11 +151,12 @@ html.dt-lock body {
   font-size: var(--fs-sm);
 }
 /* Segmented control (docs/design-system.md → Components): THE range switch — the trend sheets' W ·
-   M · 6M · 1Y and Entreno Activity's W · M · 6M. Dark 28px squares, the pressed one grey; each keeps a
-   44px-tall hit area (::after) */
+   M · 6M · 1Y, Entreno Activity's W · M · 6M and the food sheet's source tabs (.dt-range-fill). Dark
+   28px squares (min 32px wide), the pressed one grey; each keeps a 44 × 44px hit area (::after, 8px
+   above / below and 6px each side), the 12px gap keeps two neighbours' hit areas from overlapping */
 .dt-range {
   display: inline-flex;
-  gap: var(--sp-1);
+  gap: var(--sp-5);
 }
 .dt-range button {
   position: relative;
@@ -176,11 +177,17 @@ html.dt-lock body {
 .dt-range button::after {
   content: "";
   position: absolute;
-  inset: -8px -2px;
+  inset: -8px -6px;
 }
 .dt-range button[aria-pressed="true"] {
   background: var(--track);
   color: var(--ink);
+}
+/* full width, one equal column per option (the food sheet's source tabs, food-sheet.js) */
+.dt-range-fill {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
 }
 
 /* the trend view above the chart, top to bottom: a small W · M · 6M · 1Y switch on the right, the
@@ -200,7 +207,7 @@ html.dt-lock body {
   gap: var(--sp-3);
 }
 .dt-win-lbl {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -240,7 +247,7 @@ html.dt-lock body {
 .dt-trend-lbl {
   display: block;
   color: var(--muted);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -283,7 +290,7 @@ html.dt-lock body {
 }
 .dt-typ {
   color: var(--muted);
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -419,7 +426,8 @@ html.dt-lock body {
   stroke-linecap: round;
 }
 .dt-pt,
-.dt-bar {
+.dt-bar,
+.dt-kd {
   fill: var(--trend);
 }
 .dt-ax {
@@ -447,9 +455,13 @@ html.dt-lock body {
   border-radius: 3px;
   background: var(--trend);
 }
-/* 6M / 1Y: the dots are the out-of-range days, good or bad */
-.dt-k-out::before {
-  background: linear-gradient(90deg, var(--good) 50%, var(--low) 50%);
+/* the daily / out-of-range key: the chart's own marks, one per state drawn (detail.js keyMarks) */
+.dt-k-pts::before {
+  content: none;
+}
+.dt-k-sw {
+  margin-right: var(--sp-2);
+  vertical-align: -1px;
 }
 .dt-k-line::before {
   height: 2px;
@@ -506,7 +518,7 @@ html.dt-lock body {
   gap: var(--sp-3);
 }
 .dt-month {
-  font-size: var(--fs-md);
+  font-size: var(--fs-title-sheet);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -573,7 +585,7 @@ button.dt-day {
   justify-content: space-between;
 }
 .dt-brk-t {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -621,7 +633,7 @@ button.dt-day {
   padding: var(--sp-5);
 }
 .dt-day-h {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-title-lg);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -942,7 +954,7 @@ button.dt-day {
   color: var(--muted);
 }
 .dd-lbl {
-  font-size: var(--fs-md);
+  font-size: var(--fs-title-sheet);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -1067,7 +1079,7 @@ button.dt-day {
 .dd-row-lbl {
   flex: 1;
   min-width: 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -1127,7 +1139,7 @@ button.dt-day {
   cursor: pointer;
 }
 .dd-fold-t {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -1165,7 +1177,7 @@ button.dt-day {
   padding: var(--sp-6) var(--sp-7);
 }
 .dd-wk-t {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-title);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -1302,7 +1314,7 @@ button.dt-day {
 }
 .ds-band {
   color: var(--ds);
-  font-size: var(--fs-lg);
+  font-size: var(--fs-title-sheet);
   font-weight: 700;
   letter-spacing: var(--label-track);
   text-transform: uppercase;
@@ -1352,37 +1364,4 @@ button.dt-day {
 .dt-s-shigh { fill: var(--ds); background: color-mix(in srgb, var(--ds) 38%, transparent); }
 @media (min-width: 900px) {
   .ds-chart { max-height: 230px; }
-}
-
-/* Trend glyph (docs/design-system.md → Components; HC.trendTone): ▲ / ▼ coloured by what the change
-   means — better --up, worse --down, watch --mid, a change with no good direction --ink; the • of a
-   typical / steady value --faint. Never a grey arrow. Each family keeps its class names; the colours
-   live here only, at the end of detail.css so they win over a pill's own grey (.dt-pill). */
-.db-good,
-.dd-better,
-.dt-pill-good,
-.ld-good,
-.wp-up {
-  color: var(--up);
-}
-.db-bad,
-.dd-worse,
-.dt-pill-bad,
-.ld-bad,
-.wp-down {
-  color: var(--down);
-}
-.db-watch {
-  color: var(--mid);
-}
-.db-neutral,
-.dd-neutral,
-.dt-pill-neutral {
-  color: var(--ink);
-}
-.db-flat,
-.dd-typical,
-.dt-pill-flat,
-.ld-flat {
-  color: var(--faint);
 }

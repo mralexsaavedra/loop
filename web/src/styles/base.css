@@ -182,6 +182,87 @@ details.rec-raw > summary::after {
   color: var(--on-accent);
 }
 
+/* Switch (docs/design-system.md → Components): show / hide one item (Customize's metrics, the journal's
+   behaviours) — role=switch; a 34 × 20 track with the knob left on --rail (off) or right on --accent
+   (on); the button itself is the 44 px hit area. */
+.sw {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.sw::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  left: 5px;
+  width: 34px;
+  height: 20px;
+  border-radius: var(--r-pill);
+  background: var(--rail);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.sw-knob {
+  position: absolute;
+  top: 15px;
+  left: 8px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.15s;
+}
+.sw[aria-checked="true"]::before {
+  background: var(--accent);
+  box-shadow: none;
+}
+.sw[aria-checked="true"] .sw-knob {
+  background: var(--on-accent);
+  transform: translateX(14px);
+}
+.sw:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Trend glyph (docs/design-system.md → Components; HC.trendTone): ▲ / ▼ coloured by what the change
+   means — better --up, worse --down, watch --mid, a change with no good direction --ink; the • of a
+   typical / steady value --faint. Never a grey arrow. Each family keeps its class names; the colours
+   live here only. Each class is written twice (specificity 0,2,0) so it wins over a host's own colour
+   (.dt-pill's grey, .sc-arrow) whatever order the stylesheets load in — design-system.test.mjs checks. */
+.db-good.db-good,
+.dd-better.dd-better,
+.dt-pill-good.dt-pill-good,
+.ld-good.ld-good,
+.wp-up.wp-up {
+  color: var(--up);
+}
+.db-bad.db-bad,
+.dd-worse.dd-worse,
+.dt-pill-bad.dt-pill-bad,
+.ld-bad.ld-bad,
+.wp-down.wp-down {
+  color: var(--down);
+}
+.db-watch.db-watch {
+  color: var(--mid);
+}
+.db-neutral.db-neutral,
+.dd-neutral.dd-neutral,
+.dt-pill-neutral.dt-pill-neutral {
+  color: var(--ink);
+}
+.db-flat.db-flat,
+.dd-typical.dd-typical,
+.dt-pill-flat.dt-pill-flat,
+.ld-flat.ld-flat {
+  color: var(--faint);
+}
+
 /* CTA link (docs/design-system.md → Components): a standalone "go there" link, caps in link blue with
    a " →" (HC.cta); on the insight card (--ground) the text is the blue → violet gradient (detail.css).
    .lnk below is the other link: inside a sentence. A real action (save, behaviour insights) is a

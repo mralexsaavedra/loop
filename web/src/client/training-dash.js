@@ -16,6 +16,8 @@
   var host = document.getElementById('train-dash');
   if (!host) return;
   var LBL = I18N_DASH.modalityLabels;
+  // each modality its own icon (one set, util.js), not the same heart on every row; other = neutral
+  var ICON = { strength: 'gym', hiit: 're', run: 'run', bike: 'bike' };
   var DASH_ = typeof DASH === 'undefined' ? null : DASH;
   var esc = HC.esc, format = HC.format;
 
@@ -25,7 +27,7 @@
     var rows = D.modality.filter(function (m) { return m.avgHr; }).slice().sort(function (a, b) { return b.avgHr - a.avgHr; })
       .map(function (m) {
         var name = LBL[m.key] || m.key, peak = m.peakHr ? format(I18N_DASH.peakTpl, { value: m.peakHr }) : '';
-        return HC.metricRow({ key: 'rhr', name: name, value: String(m.avgHr), unit: I18N_DASH.bpmLabel, base: peak,
+        return HC.metricRow({ key: ICON[m.key] || 'exercise', name: name, value: String(m.avgHr), unit: I18N_DASH.bpmLabel, base: peak,
           aria: format(I18N_DASH.rowAria, { name: name, value: m.avgHr }) + (peak ? ' · ' + peak : '') });
       });
     var q = D.intensity, title = I18N_DASH.intensityHeading;

@@ -5,6 +5,51 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-09 — Design system card alignment (DS4)
+
+The audit's remaining card findings move onto the shared components (docs/design-system.md).
+**Salud Recovery card (F7):** the 2 × 2 grid of state-coloured dots (a red dot read as an alarm) is now
+THE contributor row the recovery sheet already used — `HC.contribRow` in `client/util.js`, shared by the
+deep-dive sheets — icon, name, latest value, the 7-day ±SD as a sub line and a ▲ / ▼ / • whose colour
+says what the change means.
+**Nutrición day types (F11):** text-only chips at every width — measured, the four chips with icons need
+~370 px and wrap to two rows at 360–390 px, so the icons shown only on desktop are gone.
+**Customize dashboard (F15):** the heavy white "SHOWN" pill next to a container-less "HIDDEN" word is one
+small switch (`.sw`, `HC.switchBtn`, `role="switch"`) for both states; the journal's behaviour toggles use
+it too. The ↑ / ↓ reorder stays (no drag and drop).
+**Nutrition score card (F16):** one caps title in one weight ("NUTRITION · SO FAR", formerly a smaller muted
+tag inside it); Nutrición's 30-day line is Salud's sparkline — line + area down to the 0 baseline and a
+caption — instead of a lone band-coloured stroke floating in the card. Data unchanged.
+**Trend chart key (F17):** "Daily" (and 6M / 1Y's "Days out of range") shows one mark per state the
+chart actually drew, with the marks' own classes, instead of a blue swatch next to band-coloured dots.
+**Rows and icons (F12):** Entreno's run and ride lists are one row template — the secondary line under the
+value; the rides' HR / effort / kJ line under the date moved to the row's aria label (the dead `.db-note`
+is gone). Intensity (HR) rows carry their modality's icon instead of a heart each, and Salud's sleep rows
+their own (target, regularity, bed, wake, stages …) instead of ~10 moons — one icon set (`metricIcon`
+falls back to the contributor rows' paths; new simple strokes only for a dumbbell and the stages steps).
+**Leftover pressed states and the sheets' caps:** the food sheet's source tabs are THE segmented control
+(`.dt-range-fill`), so their own trough and pressed style go; the journal's ✕ / ✓ answers stay listed (an
+answer pair, not a pick). Every segmented-control button has a 44 × 44 px hit area again (the W / M / 6M
+squares had shrunk to 36 px wide), with a 12 px gap so neighbours never overlap. The sheets' caps sizes
+use the caps tokens plus one new sheet step (`--fs-title-sheet`, 13.5 px; the stress band word 14.5 → 13.5)
+and are guarded. The trend-glyph colours move into `base.css` with doubled-class specificity, so they win
+over a host's own grey by specificity rather than stylesheet order (a new test walks the cascade), and the
+recovery card's 7-day glyph joins them.
+**DS3 follow-ups:** Inicio's heading spacing is `.hs-lbl.home-h` (wins by specificity, not load order);
+new markup tests pin Tonight's sleep-history CTA (and its absence without sleep data), the trend sheet's
+`.nav-btn` arrows disabled at their edges, the recovery card head (date, History, ⓘ — no title) and the
+neutral ▲ / ▼ pill of a metric with no good direction; the design guard keys its number-face lookup by
+stylesheet and media query.
+**Ride kJ back on the row (owner):** a ride row's HR · effort · kJ is a second small line under the
+value (`HC.metricRow` `base2`), still inside the one run / ride template — the work had become visible
+nowhere.
+**Nutrition score: today is in progress, not a score (owner):** mid-day, today scored "0%" in red with
+"KCAL · 0 / PROTEIN · 0 / FAT · 0" (component points that read like "0 kcal"). Now the card's headline is
+the newest CLOSED day ("Yesterday", or a date ≤ 3 days old); today, when logged, shows only its progress
+(eaten / target, a neutral bar) under "TODAY · IN PROGRESS"; a closed day's points read "KCAL · 85 pts";
+the trend chart has no point for today and its day panel says "In progress". Presentation only:
+`lib/nutrition/score.mjs` and the port are unchanged.
+
 ## 2026-10-09 — Design system components: one style per shared pattern
 
 The audit's component findings (F3–F6, F9, F18) were the same pattern drawn several ways. Each now has

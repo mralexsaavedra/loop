@@ -82,6 +82,9 @@ test('example build: the dia section carries Resumen de hoy (day type radios onl
   // labelled radios: the 4 day types are the ONLY control; the goal lives in the profile sheet (a chip
   // next to today's kcal, client-rendered, opens it)
   assert.equal((dia.match(/<input type="radio" name="nutri-day"/g) || []).length, 4);
+  // the day-type chips are text only at every width (with icons the four wrap to two rows at 360 px)
+  const dayField = dia.slice(dia.indexOf('id="nutri-daytype"'), dia.indexOf('</fieldset>', dia.indexOf('id="nutri-daytype"')));
+  assert.doesNotMatch(dayField, /<svg/, 'no icon inside a day-type chip');
   assert.doesNotMatch(dia, /nutri-goal"|name="nutri-goal/, 'no goal radio group in Nutrición');
   assert.match(dia, /<div class="nutri-block" id="nutri-fuel-block" hidden>/, 'fuelling shows only on bike day types (client-side)');
   // the baked plans are the lib's own
@@ -296,13 +299,13 @@ test('example build: Inicio carries a compact "today you eat" card (filled clien
   assert.doesNotMatch(card, /class="meal"/, 'the full meal plan is NOT duplicated on Inicio');
 });
 
-test('example build: the Salud recovery card stays stacked at every width (headline, trend, contributors in 2 × 2)', async () => {
+test('example build: the Salud recovery card stays stacked at every width (headline, trend, contributor rows)', async () => {
   const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
   const html = fs.readFileSync(examplePath, 'utf8');
   const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
   const map = ruleDeclarationMap(parseCssRules(css)); // selectors in css-scan's canonical form (`a>b`)
   assert.ok(![...map.keys()].some((k) => k.endsWith('|||.rec-layout|||grid-template-columns')), 'no column template on .rec-layout at any width');
-  assert.equal(String(map.get('|||.rec-contrib|||grid-template-columns')).replace(/\s+/g, ''), 'repeat(2,minmax(0,1fr))', 'the contributors are a 2 × 2 block');
+  assert.ok(![...map.keys()].some((k) => k.includes('|||.rec-contrib|||grid')), 'the contributors are stacked contributor rows, never a 2 × 2 dot grid');
   // the "Last 14 days" fold is a quiet disclosure line, never tablas.css's bare details card (an empty box)
   for (const [p, v] of [['background', 'none'], ['border', '0'], ['box-shadow', 'none']]) assert.equal(map.get('|||details.rec-raw|||' + p), v, 'details.rec-raw ' + p);
   assert.equal(map.get('|||details.rec-raw>summary|||padding'), '0');
@@ -330,13 +333,13 @@ test('example build: the load deep-dive\'s typical-day tick is a faint hairline 
   assert.ok(Number(map.get('|||.dd-off .dd-tick|||stroke-width')) < Number(map.get('|||.dd-tick|||stroke-width')), 'thinner than the live tick');
 });
 
-test('example build: the food add sheet\'s tabs sit on --surface-2 (like the other segmented controls); the Nutrición footnote keeps its top margin', async () => {
+test('example build: the food add sheet\'s tabs are THE segmented control (full-width variant); the Nutrición footnote keeps its top margin', async () => {
   const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
   const html = fs.readFileSync(examplePath, 'utf8');
   const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
   const map = ruleDeclarationMap(parseCssRules(css));
-  assert.equal(map.get('|||.fa-tabs|||background'), 'var(--surface-2)');
-  assert.equal(map.get('|||.fa-tab[aria-pressed=true]|||background'), 'var(--track)', 'the pressed tab still lifts off the trough');
+  assert.ok(![...map.keys()].some((k) => /\.fa-tab/.test(k.split('|||')[1]) && /background|color/.test(k)), 'no look of their own: .dt-range paints them');
+  assert.equal(map.get('|||.dt-range-fill|||grid-auto-columns'), 'minmax(0, 1fr)', 'one equal column per tab');
   assert.equal(map.get('|||.acc-note.nutri-foot|||margin-top'), 'var(--sp-7)', 'out-ranks .acc-note\'s -2px');
 });
 

@@ -36,13 +36,17 @@ export const en = {
     // "My day" nutrition card (client/nutri-score.js, lib/nutrition/score.mjs): adherence to your targets
     nscore: {
       heading: 'Nutrition',
-      soFar: 'so far',
+      // today is still filling up: no score, only its progress (client/nutri-score.js)
+      inProgress: 'in progress',
       incomplete: 'incomplete',
       today: 'Today',
+      yesterday: 'Yesterday',
       unknown: 'not logged',
       parts: { k: 'Kcal', p: 'Protein', f: 'Fat' },
+      // a closed day's component points, never a bare "· 0" that reads like "0 kcal"
+      ptsTpl: '{name} · {pts} pts',
       aria: 'Nutrition score {value}% on {date}',
-      ariaSoFar: 'Nutrition score so far today {value}%',
+      ariaRun: 'Nutrition today: in progress, no score yet',
       avg7: '7-day average {value}%',
     },
     energy: {
@@ -98,8 +102,6 @@ export const en = {
       failed: 'Could not save ({code}).',
       manage: 'Behaviors',
       manageNote: 'Switch off what you do not track. Past answers are kept.',
-      on: 'On',
-      off: 'Off',
       toggle: 'Track {name}',
       allOff: 'Every behavior is switched off: switch one on under Behaviors.',
       // behaviour insights sheet ('journal-insights', baked at build time from the synced journal)
@@ -137,8 +139,6 @@ export const en = {
       customize: 'Customize',
       editTitle: 'Customize dashboard',
       editNote: 'Show, hide and reorder the metrics. Saved on this device only.',
-      shown: 'Shown',
-      hidden: 'Hidden',
       showAria: 'Show {metric} on the dashboard',
       upAria: 'Move {metric} up',
       downAria: 'Move {metric} down',
@@ -188,6 +188,8 @@ export const en = {
     pctNote: '% = how last night ranks against your previous 90 days: 85% means better than about 85% of them. Green 67–100, yellow 34–66, red 0–33.',
     sdLbl: `Vs your 42-day baseline: {value} ${UE} · {band}`,
     components: { hrv: 'HRV', rhr: 'Resting HR', sleepDur: 'Sleep duration', sleepCons: 'Sleep regularity' },
+    // a contributor row's ▲ / ▼ / • read aloud (HC.contribRow)
+    cmp: { better: 'better than your baseline', worse: 'worse than your baseline', typical: 'at your baseline' },
   },
   load: {
     heading: 'Load',
@@ -343,13 +345,15 @@ export const es = {
     // tarjeta "Nutrición" de "Mi día" (client/nutri-score.js, lib/nutrition/score.mjs): cumplimiento de tus objetivos
     nscore: {
       heading: 'Nutrición',
-      soFar: 'de momento',
+      inProgress: 'en curso',
       incomplete: 'incompleto',
       today: 'Hoy',
+      yesterday: 'Ayer',
       unknown: 'sin registrar',
       parts: { k: 'Kcal', p: 'Proteína', f: 'Grasa' },
+      ptsTpl: '{name} · {pts} pts',
       aria: 'Puntuación de nutrición {value}% el {date}',
-      ariaSoFar: 'Puntuación de nutrición de momento hoy {value}%',
+      ariaRun: 'Nutrición hoy: en curso, aún sin puntuación',
       avg7: 'Media de 7 días {value}%',
     },
     energy: {
@@ -405,8 +409,6 @@ export const es = {
       failed: 'No se ha podido guardar ({code}).',
       manage: 'Hábitos',
       manageNote: 'Desactiva lo que no quieras registrar. Las respuestas anteriores se conservan.',
-      on: 'Sí',
-      off: 'No',
       toggle: 'Registrar {name}',
       allOff: 'Todos los hábitos están desactivados: activa alguno en Hábitos.',
       // hoja de impacto ('journal-insights', calculada al generar la página desde el diario sincronizado)
@@ -444,8 +446,6 @@ export const es = {
       customize: 'Personalizar',
       editTitle: 'Personalizar panel',
       editNote: 'Muestra, oculta y ordena las métricas. Se guarda solo en este dispositivo.',
-      shown: 'Visible',
-      hidden: 'Oculta',
       showAria: 'Mostrar {metric} en el panel',
       upAria: 'Subir {metric}',
       downAria: 'Bajar {metric}',
@@ -493,6 +493,7 @@ export const es = {
     pctNote: '% = cómo se sitúa la última noche frente a tus 90 días anteriores: 85% significa mejor que cerca del 85% de ellos. Verde 67–100, amarillo 34–66, rojo 0–33.',
     sdLbl: `Frente a tu base de 42 días: {value} ${US} · {band}`,
     components: { hrv: 'VFC', rhr: 'FC en reposo', sleepDur: 'Duración del sueño', sleepCons: 'Regularidad del sueño' },
+    cmp: { better: 'mejor que tu base', worse: 'peor que tu base', typical: 'en tu base' },
   },
   load: {
     heading: 'Carga',

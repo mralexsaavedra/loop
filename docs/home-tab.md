@@ -81,8 +81,10 @@ trend is the line under it.
   so it is cut at `TREND_DIR_CUTOFF` = `BAND_CUTOFF` × √2 ≈ 0.7: up / steady / down. The recovery
   detail card (Salud `#score-recovery`, Whoop-style) stacks at every width: headline (last night's
   % + its % band word, e.g. "85% High", or the composite in SD as the fallback; ONE short trend line "7-day +0.5 SD · at baseline") |
-  14-day sparkline | compact contributors (state dot, name, latest value + unit, ±SD for HRV, RHR,
-  sleep duration, sleep regularity, a 2 × 2 block), one under the other; the raw
+  14-day sparkline | the contributors (HRV, RHR, sleep duration, sleep regularity) in THE contributor
+  row the recovery sheet uses (`HC.contribRow`: icon, name, latest value + unit, the 7-day ±SD as a small
+  sub line, ▲ / ▼ = which way the 7-day mean sits from the baseline coloured by what it means — band
+  above = better, below = worse — or • at baseline; no state dots), one under the other; the raw
   last-14-days lists fold into a `<details class="rec-raw">` ("Last 14 days" / "Últimos 14 días"),
   a quiet uppercase disclosure line with a turning chevron (it resets tablas.css's bare details card). Text diet: what
   the baseline is, the full trend sentence with the week-on-week change, each contributor's baseline
@@ -278,12 +280,16 @@ trend is the line under it.
   `client/nutri-score.js`; `#home-nscore`, under the energy bank card in "My day"): the day's 0–100
   adherence to its own targets from the food log (kcal 0.4, protein 0.4, fat 0.2; formula and rules
   in `docs/nutrition-food-log.md` → Nutrition score and `analysis/methodology.md` 5b). Card =
-  `.sc-card.tn.en.ns`: "NUTRITION" header + "so far" (today) or "incomplete" (a macro missing), the
-  score big in D-DIN coloured by its band (≥ 85 `--good`, 60–84 `--mid`, < 60 `--low`, via
-  `.de-hi/.de-mid/.de-lo`), "Today" or the date under it, beside it Nutrición's three macro rows
-  ("KCAL · 88", "2351 / 2700 kcal", a bar = the component's points in its band colour), then "7-day
-  average 79%" (final scores only). Today = today when logged ("so far", never final), else the newest
-  scored day while ≤ 3 days old; no food log / nothing fresh → hidden. It opens the nutrition trend
+  `.sc-card.tn.en.ns`: ONE caps title "NUTRITION" ("· INCOMPLETE" when a macro is missing, "· IN
+  PROGRESS" when only today shows) — one size and weight, no smaller tag inside (DS4, F16). The headline
+  is the newest CLOSED day (never today) while ≤ 3 days old: its score big in D-DIN coloured by its band
+  (≥ 85 `--good`, 60–84 `--mid`, < 60 `--low`, via `.de-hi/.de-mid/.de-lo`), "Yesterday" or the date
+  under it. Beside it: when today has a log, TODAY's progress under "TODAY · IN PROGRESS" — Nutrición's
+  three macro rows as "KCAL", "1,500 / 2,000 kcal", the bar = eaten / target in the neutral `--trend`
+  (`.ns-run`), no score and no points (2026-10-09, owner: a mid-day "0%" in red with "KCAL · 0" read as a
+  failed day and as "0 kcal"); otherwise the closed day's rows with their points labelled "KCAL · 85
+  pts", the bar = the points in their band colour. Then "7-day average 79%" (final scores only). Only
+  today logged → today's progress alone; nothing logged / nothing fresh → hidden. It opens the nutrition trend
   sheet (`docs/detail-views.md`, key `nutrition`). On the LAN page Constancia's live summary
   re-renders it after every add / delete.
 - **Today's activities** (`lib/score/timeline.mjs`, baked as `SCORES.timeline` even when `hasData` is
@@ -358,8 +364,8 @@ trend is the line under it.
   the value vs the baseline: `--up` when better by the metric's good direction (`dir`), `--down` when
   worse, `--ink` (white) for a metric with no good direction (weight; never a grey arrow), a grey dot within ±2 % (`FLAT_SHARE`). A row older than 3
   days is dimmed; a tap opens that metric's detail sheet. "Customize" opens the registered `dash-edit`
-  sheet (detail.js modal): per metric a Shown / Hidden toggle (`aria-pressed`) and ↑ / ↓ buttons (no
-  drag). Preferences = `localStorage['hc-dash-v1']` `{order, hidden}`; every read / write is in a
+  sheet (detail.js modal): per metric THE switch (`HC.switchBtn`, `role="switch"` +
+  `aria-checked`; design-system.md → Components) and ↑ / ↓ buttons (no drag). Preferences = `localStorage['hc-dash-v1']` `{order, hidden}`; every read / write is in a
   try/catch, unknown, duplicate or unavailable keys are ignored, a catalogue key missing from the stored
   order is appended with its default visibility, and without storage the choice holds in memory for the
   visit. Every metric hidden → a one-line note (the section stays so Customize can bring one back); no
