@@ -173,7 +173,7 @@ the trend sheet's window, its calendar month (formerly 44 px filled circles) and
   colour / size / weight; every ‹ › glyph in the display sources sits in a `.chev` span (allowlist:
   `util.js` sheet header).
 
-### Segmented control and selected chip
+### Segmented control, chip, switch and select
 
 - **Segmented control** `.dt-range` (`detail.css`): THE switch between views of one thing — the trend
   sheets' W · M · 6M · 1Y, Entreno Activity's W · M · 6M (formerly a big pill track with a white thumb)
@@ -193,6 +193,16 @@ the trend sheet's window, its calendar month (formerly 44 px filled circles) and
   "HIDDEN" word). `role="switch"` + `aria-checked`, no visible word (the label says what it shows); a
   34 × 20 track, knob left on `--rail` (off) or right on `--accent` (on); the button is the 44 px hit
   area. Not a pick of one among several — that is the chip.
+- **Select** `.sel` (`base.css`): pick one of MANY from a native `<select>` (keyboard, screen readers and
+  the phone's own picker for free) — the trend sheet's metric, Nutrición's example food per macro
+  (`.gd-pick`) and the ride duration (`.fuel-select`). A `--rail` pill (`--r-pill`, no border), `--ink`
+  text at `--fs-sm` / 600, `appearance: none` with the shared chevron turned down: a
+  `<span class="chev sel-chev" aria-hidden="true">›</span>` right after the select (pulled back into the
+  pill). The owner only sizes it (`.gd-pick` flexes in its row at 44 px, `.fuel-select` 180 px min, 44 px
+  tall). Formerly Nutrición's food pick was a mini card (card fill, 11 px radius, 1 px border) and the
+  ride duration a field. Not the food sheet's form fields (`.food-in`), which keep the text-field look
+  of the inputs beside them. Guard: no owner rule sets a select's fill, border, radius, colour, padding
+  or font; every other `<select>` in markup carries `.sel`.
 - Guard: a pressed / checked state that fills or outlines is the chip's, the segmented control's or
   the switch's; the others are listed with their reason: the trend calendar's selected day (a ring on a
   day cell) and the journal's ✕ / ✓ answers (the reference's answer pair, each a yes / no of its own

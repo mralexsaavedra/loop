@@ -215,7 +215,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   0 and the card says so, never negative). The four meal groups add up to the meals target, which is also the
   fold summary's kcal. **A main meal = a plate by parts**: Proteína ~X g (= meal P), Carbohidrato ~Y g
   (carbs), Verdura "libre", Grasa ~Z g (fat); each macro row = ONE example food (a native `<select
-  class="gd-pick">`, ≥ 44 px, aria-label "Ejemplo de Proteína para Comida") + the amount of that food
+  class="gd-pick sel">`, the shared select pill (docs/design-system.md → Select), ≥ 44 px, aria-label "Ejemplo de Proteína para Comida") + the amount of that food
   that supplies the macro (`exampleAmount`: grams ÷ the food's macro per 100 of its amount scale, in its
   natural unit — pieces with the grams reference for a countable food (`fmtPieces`), whole units, a
   tablespoon for a sauce with that piece, else g / ml (olive oil in ml) on the 5 g grid —, never past its `maxAmt`: then "~150 g (máx.)" + "+

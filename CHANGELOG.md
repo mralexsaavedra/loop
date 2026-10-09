@@ -12,6 +12,9 @@ The last audit diffs (docs/design-system.md). **Card padding:** every tab card p
 cards, Nutrición's cards and meal cards, the intake card (formerly 14 × 12, 10 or 16 px); the guard
 now checks every card fill, with a short allowlist (list rows, fold rows, the macro tile, the empty
 state, the sheets' own cards on their 16 px inset).
+**Select:** one form-control style, `.sel` in `base.css` — a `--rail` pill with the system chevron
+turned down — for the three native picks (trend metric, Nutrición's example food, ride duration);
+Nutrición's food pick no longer looks like a mini card (card fill, card radius, border).
 
 ## 2026-10-09 — Design system card alignment (DS4)
 

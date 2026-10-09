@@ -329,6 +329,23 @@ test('segmented control: a 44 x 44px hit area on every .dt-range button, without
   assert.ok(px(bar.gap) >= 2 * h, `gap ${px(bar.gap)}px < the two overhangs ${2 * h}px`);
 });
 
+// the select: ONE look (base.css .sel, a --rail pill); its owners only size it, never a card fill,
+// a border or a radius of their own (formerly Nutrición's food pick was a mini card)
+const SELECT_OWNERS = /\.(gd-pick|fuel-select|dt-metric-sel)\b/;
+const SELECT_LOOK = ['background', 'background-color', 'border', 'border-radius', 'color', 'padding', 'font', 'font-size', 'appearance'];
+test('select: one shared pill style; owners only size it', () => {
+  const sel = RULES.find((r) => r.file === 'base.css' && !r.media && r.selector === '.sel');
+  assert.ok(sel, 'base.css holds the one select rule');
+  assert.deepEqual([sel.decl.background, sel.decl.border, sel.decl['border-radius'], sel.decl.appearance], ['var(--rail)', '0', 'var(--r-pill)', 'none']);
+  const bad = RULES.filter((r) => SELECT_OWNERS.test(r.selector) && SELECT_LOOK.some((p) => r.decl[p] != null)).map(where);
+  assert.deepEqual(bad, [], 'a select owner styles its own look (use the .sel class)');
+  const markup = Object.values(SRC).join('\n');
+  // the food sheet's form fields (.food-in) keep the text-field look of the inputs beside them
+  const selects = [...markup.matchAll(/<select\b[^>]*>/g)].map((m) => m[0]).filter((s) => !/class="food-in"/.test(s));
+  assert.equal(selects.length, 3, 'the visible picks: trend metric, food example, ride duration');
+  for (const s of selects) assert.match(s, /class=\\?["'][^"'\\]*\bsel\b/, `${s} uses the shared .sel`);
+});
+
 // the trend glyph's colours live in ONE block (base.css): arrows are coloured, only the typical /
 // steady dot is grey; each tone selector is its class written twice (0,2,0), so it beats a host's
 // own colour by specificity, never by stylesheet order
