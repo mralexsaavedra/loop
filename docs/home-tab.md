@@ -81,8 +81,10 @@ trend is the line under it.
   so it is cut at `TREND_DIR_CUTOFF` = `BAND_CUTOFF` × √2 ≈ 0.7: up / steady / down. The recovery
   detail card (Salud `#score-recovery`, Whoop-style) stacks at every width: headline (last night's
   % + its % band word, e.g. "85% High", or the composite in SD as the fallback; ONE short trend line "7-day +0.5 SD · at baseline") |
-  14-day sparkline | compact contributors (state dot, name, latest value + unit, ±SD for HRV, RHR,
-  sleep duration, sleep regularity, a 2 × 2 block), one under the other; the raw
+  14-day sparkline | the contributors (HRV, RHR, sleep duration, sleep regularity) in THE contributor
+  row the recovery sheet uses (`HC.contribRow`: icon, name, latest value + unit, the 7-day ±SD as a small
+  sub line, ▲ / ▼ = which way the 7-day mean sits from the baseline coloured by what it means — band
+  above = better, below = worse — or • at baseline; no state dots), one under the other; the raw
   last-14-days lists fold into a `<details class="rec-raw">` ("Last 14 days" / "Últimos 14 días"),
   a quiet uppercase disclosure line with a turning chevron (it resets tablas.css's bare details card). Text diet: what
   the baseline is, the full trend sentence with the week-on-week change, each contributor's baseline

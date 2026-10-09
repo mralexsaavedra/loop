@@ -195,6 +195,41 @@ var HC = (function () {
       (o.base != null && o.base !== '' ? '<span class="db-base">' + esc(o.base) + '</span>' : '') + '</span></li>';
   }
 
+  // THE contributor row (docs/design-system.md → Components → Contributor row): the deep-dive sheets'
+  // inputs and Salud's Recovery card — icon · caps label (+ a small sub line) · value · ▲ / ▼ / •.
+  // Styles: .dd-row / .dd-ico / .dd-mk in styles/detail.css. 24-unit stroked paths, one per row key.
+  var CONTRIB_ICONS = {
+    hrv: 'M2 12h4l2-5 4 10 2-5h8',
+    rhr: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z',
+    sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+    need: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+    perf: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+    resp: 'M12 3v8M12 11l-3 3M12 11l3 3M9 7c-3 0-6 4-6 10 0 2 1 3 3 3s3-1 3-3zM15 7c3 0 6 4 6 10 0 2-1 3-3 3s-3-1-3-3z',
+    vsTarget: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8',
+    bed: 'M3 18v-8M3 14h18v4M21 14a3 3 0 0 0-3-3h-7v3M7 12.5a1.5 1.5 0 1 0 0-.01',
+    wake: 'M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6',
+    re: 'M13 2 4 14h7l-1 8 9-12h-7z',
+    acute: 'M3 17l6-6 4 4 8-8M15 7h6v6',
+    sessions: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
+    typical: 'M3 12h4M17 12h4M12 3v4M12 17v4M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8',
+    eff: 'M3 19h18M6 19v-5M10 19V9M14 19v-7M18 19V5',
+    cons: 'M4 7h16M4 12h16M4 17h16M8 5v4M15 10v4M11 15v4',
+    restor: 'M3 15c3-6 6-6 9 0s6 6 9 0',
+    clock: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 7v5l3 2',
+  };
+  function contribIcon(k) {
+    return '<svg class="dd-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="' + CONTRIB_ICONS[k] + '"/></svg>';
+  }
+  // o = {row? (data-row key), icon (CONTRIB_ICONS key), label, sub?, value, mark? {glyph, tone
+  // ('better' | 'worse' | 'neutral' | 'typical'), said (screen-reader words)}} — texts escaped here
+  function contribRow(o) {
+    var m = o.mark;
+    return '<li class="dd-row"' + (o.row ? ' data-row="' + esc(o.row) + '"' : '') + '>' + contribIcon(o.icon) +
+      '<span class="dd-row-lbl">' + esc(o.label) + (o.sub ? ' <small class="dd-row-sub">' + esc(o.sub) + '</small>' : '') + '</span>' +
+      '<b class="dd-row-val">' + esc(o.value) + '</b>' +
+      (m ? '<span class="dd-mk dd-' + esc(m.tone) + '" aria-hidden="true">' + m.glyph + '</span><span class="sr-only">' + esc(m.said) + '</span>' : '') + '</li>';
+  }
+
   // ⓘ button of a Salud header: toggles the hidden block #<id> (client/health.js listens for
   // [data-hs-info]); drawn as an SVG, the page fonts carry no ⓘ glyph
   var INFO_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>';
@@ -249,6 +284,8 @@ var HC = (function () {
     trendTone: trendTone,
     metricIcon: metricIcon,
     metricRow: metricRow,
+    contribIcon: contribIcon,
+    contribRow: contribRow,
     infoBtn: infoBtn,
     infoSvg: INFO_SVG,
     sheetHead: sheetHead,
