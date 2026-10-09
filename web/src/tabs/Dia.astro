@@ -66,14 +66,6 @@ const nutri = buildNutriToday(nut, plan, { supplements, weight, units: { g: 'g',
 const F = locale === 'es' ? esFood : enFood;
 const sumInfoLbl = T.infoTpl.replace('{section}', T.headings.summary);
 const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForScript(T)};\nvar NUTRI_ARC = ${jsonForScript(arcPath(0, 1))};\nvar I18N_FOOD = ${jsonForScript(F)};\nvar FOOD_CONST = ${jsonForScript({ meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS, limits: FOOD_LIMITS, goals: SETTINGS_GOALS, groups: MEAL_GROUPS, mainSlots: MAIN_SLOTS, addonGroup: ADDON_GROUP, addonSlot: ADDON_SLOT, lateNightHour: LATE_NIGHT_HOUR })};\nvar FOOD_BASICS = ${jsonForScript(buildBasics(nut.ING, es ? 'es' : 'en'))};`;
-// simple 24-unit line icons for the day-type segments (stroke = currentColor; no emoji, no vendor icons)
-const BIKE = '<circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M5.5 16.5 9 9.5h6l3.5 7M9 9.5l3.5 7h-7M13 6.5h3l-1 3"/>';
-const DAY_ICONS: Record<string, string> = {
-  rest: '<path d="M3 6v13M3 15h18v4M21 15v-2.5a3 3 0 0 0-3-3h-7V15"/><circle cx="7" cy="12" r="1.8"/>',
-  gym: '<path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/>',
-  bike: BIKE,
-  bikeLong: BIKE + '<path d="M5 2.5v5M2.5 5h5"/>',
-};
 ---
 <div class="hs-top nu-top">
   <h2 class="hs-title">{T.head.title}</h2>
@@ -93,7 +85,7 @@ const DAY_ICONS: Record<string, string> = {
         <legend class="seg-lbl">{T.dayLegend}<span class="seg-src" id="nutri-daytype-src"></span></legend>
         <div class="seg-opts">
           {nutri.dayTypes.map((d: string) => (
-            <label class="seg-opt" title={T.dayTypes[d]}><input type="radio" name="nutri-day" value={d} /><span class="chip seg-in"><svg class="seg-ico" viewBox="0 0 24 24" aria-hidden="true" set:html={DAY_ICONS[d]} /><span class="seg-txt">{T.dayShort[d]}</span></span></label>
+            <label class="seg-opt" title={T.dayTypes[d]}><input type="radio" name="nutri-day" value={d} /><span class="chip seg-in"><span class="seg-txt">{T.dayShort[d]}</span></span></label>
           ))}
         </div>
         <button type="button" class="lnk nutri-auto" id="nutri-auto" hidden></button>

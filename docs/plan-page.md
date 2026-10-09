@@ -215,7 +215,7 @@ screens (>= 900 px) the background stays full-bleed while the top bar, tab panel
 centred column capped at `--content-max` (960 px — a little wider than the 760 px detail sheets). The
 owner's rule (2026-10-08): no multi-column page grids on desktop ("too compressed"); every tab is the
 phone's stack, wider. Only a card's own inner layout may split (Nutrición's summary card: kcal dial |
-day type + macro bars; the recovery contributors' 2 × 2). Inicio's three dials are one centred group
+day type + macro bars). Inicio's three dials are one centred group
 (`--dial-size` 168 px, a fixed 72 px gap) with the gym / run / bike pills centred under the load dial;
 its monitor tiles take their natural height with the value one size up; Tonight's dashed line is
 capped at 560 px, centred; Entreno's 30-day calendar is capped at 640 px, centred, tiles 48 px tall

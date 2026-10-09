@@ -183,3 +183,21 @@ test('trendTone / metricRow: a ▲ ▼ is never grey — no good direction reads
   assert.equal(row('flat', 'flat'), 'flat •');
   assert.equal(row('up', 'good'), 'good ▲');
 });
+
+test('contribRow is THE contributor row: icon, escaped label + sub, value, the glyph with its tone and words', () => {
+  const HC = load();
+  const row = HC.contribRow({ row: 'rhr', icon: 'rhr', label: 'Resting <HR>', sub: '+0.4 SD', value: '52 bpm', mark: { glyph: '▼', tone: 'better', said: 'better than usual' } });
+  assert.match(row, /^<li class="dd-row" data-row="rhr"><svg class="dd-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="[^"]+"\/><\/svg>/);
+  assert.ok(row.includes('<span class="dd-row-lbl">Resting &lt;HR&gt; <small class="dd-row-sub">+0.4 SD</small></span><b class="dd-row-val">52 bpm</b>'));
+  assert.ok(row.endsWith('<span class="dd-mk dd-better" aria-hidden="true">▼</span><span class="sr-only">better than usual</span></li>'));
+  const bare = HC.contribRow({ icon: 'cons', label: 'Regularity', value: '19 min' });
+  assert.doesNotMatch(bare, /data-row|dd-row-sub|dd-mk/, 'no row key, sub line or glyph when not given');
+  assert.equal(HC.contribIcon('cons'), HC.contribRow({ icon: 'cons', label: '', value: '' }).match(/<svg[\s\S]*?<\/svg>/)[0]);
+});
+
+test('switchBtn is THE switch: role=switch, aria-checked, the label escaped, no visible word', () => {
+  const HC = load();
+  assert.equal(HC.switchBtn(true, 'Show <HRV>', ' data-key="hrv"'),
+    '<button type="button" class="sw" role="switch" aria-checked="true" aria-label="Show &lt;HRV&gt;" data-key="hrv"><span class="sw-knob" aria-hidden="true"></span></button>');
+  assert.match(HC.switchBtn(false, 'x'), /aria-checked="false"/);
+});

@@ -120,7 +120,7 @@ test('the sheet: grouped rows of the switched-on behaviours, ✕/✓ pairs, the 
   assert.match(r.body, /What's happening today\?/);
   assert.deepEqual([...r.body.matchAll(/<p class="jr-g">([^<]+)<\/p>/g)].map((m) => m[1]), ['Daytime', 'Nighttime', 'Status']);
   assert.doesNotMatch(r.body, /data-jr="yes" data-key="nap"/, 'a switched-off behaviour has no row');
-  assert.match(r.body, /data-jr="tog" data-key="nap" aria-pressed="false"/, 'but is listed in the on / off fold');
+  assert.match(r.body, /<button type="button" class="sw" role="switch" aria-checked="false" aria-label="Track Nap" data-jr="tog" data-key="nap">/, 'but is listed in the on / off fold, as THE switch');
   assert.match(r.body, /data-jr="inc" data-key="alcohol"/);
   assert.match(r.body, /id="jr-notes"[^>]*maxlength="500"/);
   assert.match(r.body, /data-jr="save"/);

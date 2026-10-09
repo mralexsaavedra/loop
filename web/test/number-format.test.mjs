@@ -31,7 +31,7 @@ const GEOMETRY_TOFIXED = {
   'web/src/client/intake.js': 2, // the ring's stroke-dasharray
   'web/src/client/journal.js': 2, // an insight bar's left / width
   'web/src/client/nutri-day.js': 1, // the portion factor of the lib/nutrition/scale.mjs port (see below)
-  'web/src/client/nutri-score.js': 2, // the sparkline path
+  'web/src/client/nutri-score.js': 4, // the sparkline path + its area's two baseline corners
   'web/src/client/score.js': 2, // the sparkline points
   'web/src/client/training-activity.js': 2, // the modality bar's rect x / width
 };

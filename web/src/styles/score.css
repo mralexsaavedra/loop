@@ -37,19 +37,6 @@
 }
 .sc-arrow {
   font-size: 0.8em;
-  color: var(--muted);
-}
-.sc-arrow-above,
-.sc-arrow-ramping {
-  color: var(--good);
-}
-.sc-arrow-below,
-.sc-arrow-detraining {
-  color: var(--low-ink);
-}
-.sc-arrow-at,
-.sc-arrow-steady {
-  color: var(--muted);
 }
 .sc-spark .spark {
   width: 100%;
@@ -633,7 +620,7 @@
 }
 
 /* Inicio's section headings ("My day"): the shared .hs-lbl (health.css) standing on its own, no .hs-head row */
-.home-h {
+.hs-lbl.home-h {
   display: block;
   margin: var(--sp-10) 0 var(--sp-5);
 }
@@ -784,12 +771,11 @@
 }
 
 /* Recovery detail card (Salud #score-recovery, Whoop-style): headline (last night, big number +
- * band word) | 14-day sparkline | compact contributors, side by side on wide screens and stacked on
- * phones; the 7-day trend is a small secondary line, the raw last-14-days lists are folded. The band
+ * band word) | 14-day sparkline | the contributors in THE contributor row (.dd-row, detail.css), stacked
+ * at every width; the 7-day trend is a small secondary line, the raw last-14-days lists are folded. The band
  * colour follows the recovery dial (above = --good, at = --trend, below = --low, and the % bands
  * good / mid / low = --good / --mid / --low). */
-.sc-recovery .sc-band-above,
-.sc-recovery .sc-dot-above {
+.sc-recovery .sc-band-above {
   --rec-c: var(--good);
 }
 .sc-recovery .sc-band-good {
@@ -801,12 +787,10 @@
 .sc-recovery .sc-band-low {
   --rec-c: var(--low);
 }
-.sc-recovery .sc-band-at,
-.sc-recovery .sc-dot-at {
+.sc-recovery .sc-band-at {
   --rec-c: var(--trend);
 }
-.sc-recovery .sc-band-below,
-.sc-recovery .sc-dot-below {
+.sc-recovery .sc-band-below {
   --rec-c: var(--low);
 }
 .rec-layout {
@@ -859,51 +843,6 @@
 }
 .rec-spark {
   align-self: center;
-}
-.rec-contrib {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-3, 8px);
-  align-content: start;
-}
-.rec-comp {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  column-gap: 6px;
-  align-items: baseline;
-  border-top: 1px solid var(--line-soft);
-  padding-top: 6px;
-}
-.rec-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--rec-c, var(--muted));
-  align-self: center;
-}
-.rec-comp-name {
-  font-size: var(--fs-label);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.rec-comp-val,
-.rec-comp-base {
-  grid-column: 2;
-}
-.rec-comp-val {
-  font-size: var(--fs-xs);
-  color: var(--faint);
-}
-.rec-comp-val b {
-  font-family: var(--num);
-  font-size: var(--fs-md);
-  color: var(--ink);
-}
-.rec-comp-base {
-  font-size: var(--fs-2xs);
-  color: var(--faint);
 }
 /* the raw last-14-days lists: a quiet disclosure line (label + a chevron that turns when open), NOT
    the bare details/summary card of tablas.css, which drew it as an empty 50px box */
@@ -1127,6 +1066,11 @@ details.rec-raw[open] > summary::after {
    the "%" smaller, Resumen de hoy's macro rows beside it, each bar in its component's band colour */
 .ns .nt-macros { flex: 1; min-width: 0; margin: 0; }
 .ns .nt-mac-track i { background: var(--ds); }
+/* today in progress: eaten / target only, the bar = progress toward the target in the neutral trend
+   colour (no points, no band), under a "Today · in progress" line when a closed day heads the card */
+.ns-run { --ds: var(--trend); }
+.ns-run-box { flex: 1; min-width: 0; }
+.ns-run-lbl { max-width: none; margin-bottom: var(--sp-2); }
 .en-num small { font-size: var(--fs-lg); }
 
 /* Inicio "My plan" (client/home-week.js): one collapsible weekly card — title + chevron, days left,
@@ -1356,15 +1300,6 @@ details.rec-raw[open] > summary::after {
   letter-spacing: var(--label-track);
   text-transform: uppercase;
 }
-.db-note {
-  display: block;
-  margin-top: 2px;
-  color: var(--faint);
-  font-size: var(--fs-2xs);
-  font-weight: 400;
-  letter-spacing: 0;
-  text-transform: none;
-}
 .db-vals {
   display: flex;
   flex-direction: column;
@@ -1429,19 +1364,6 @@ details.rec-raw[open] > summary::after {
   opacity: 0.3;
   cursor: default;
 }
-.db-tog {
-  min-width: 76px;
-  font-size: var(--fs-label);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-}
-.db-tog[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--on-accent);
-  border-color: var(--accent);
-}
-
 /* wide screens, after the base rules they override: Inicio's monitor tiles at natural height with the
    value one size up, and Tonight's dashed bedtime → wake line a readable span, centred */
 @media (min-width: 900px) {

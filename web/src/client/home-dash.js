@@ -174,7 +174,7 @@
       return '<p class="dt-note">' + esc(TS.editNote) + '</p><ul class="db-edit">' + list.map(function (p, i) {
         var t = titleOf(p.key);
         return '<li class="db-erow' + (p.on ? '' : ' db-off') + '">' + icon(p.key) + '<span class="db-name">' + esc(t) + '</span>' +
-          '<button type="button" class="db-btn db-tog" data-dash-act="toggle" data-key="' + esc(p.key) + '" aria-pressed="' + (p.on ? 'true' : 'false') + '" aria-label="' + esc(format(TS.showAria, { metric: t })) + '">' + esc(p.on ? TS.shown : TS.hidden) + '</button>' +
+          HC.switchBtn(p.on, format(TS.showAria, { metric: t }), ' data-dash-act="toggle" data-key="' + esc(p.key) + '"') +
           '<button type="button" class="db-btn" data-dash-act="up" data-key="' + esc(p.key) + '" aria-label="' + esc(format(TS.upAria, { metric: t })) + '"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
           '<button type="button" class="db-btn" data-dash-act="down" data-key="' + esc(p.key) + '" aria-label="' + esc(format(TS.downAria, { metric: t })) + '"' + (i === list.length - 1 ? ' disabled' : '') + '>↓</button></li>';
       }).join('') + '</ul>';

@@ -530,9 +530,11 @@
     // a long window (6M / 1Y) of points: only the days OUT of the range get a dot, the 7-day line
     // carries the rest, so the dots never saturate the chart
     var thin = !bars && n > THIN_DAYS && (m.kind === 'recovery' || !!m.band);
+    var drawn = [];
     days.forEach(function (d, i) {
       if (d.v == null || (thin && inRange(m, d.v))) return;
       var st = stateOn(m, d.iso, d.v);
+      if (drawn.indexOf(st) < 0 && !(bars && d.v <= 0)) drawn.push(st);
       if (bars) {
         if (week) labels.push('<span class="dt-bv" style="left:' + pctX(i) + ';top:' + pctY(Math.max(0, d.v)) + '">' + esc(fmtM(m, d.v, dec)) + '</span>');
         if (d.v <= 0) return;
@@ -562,7 +564,7 @@
       }
     }
     out.push('</svg>');
-    var key2 = [thin ? '<span class="dt-k dt-k-out">' + esc(T.chartKey.outside) + '</span>' : '<span class="dt-k dt-k-daily">' + esc(T.chartKey.daily) + '</span>'];
+    var key2 = drawn.length ? ['<span class="dt-k dt-k-pts ' + (thin ? 'dt-k-out' : 'dt-k-daily') + '">' + keyMarks(m, drawn, bars) + esc(thin ? T.chartKey.outside : T.chartKey.daily) + '</span>'] : [];
     if (line.some(function (v) { return v != null; })) key2.push('<span class="dt-k dt-k-line">' + esc(T.chartKey.roll7) + '</span>');
     if (tg != null) key2.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.target) + '</span>');
     if (m.typical != null) key2.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.typical) + '</span>');
@@ -618,6 +620,17 @@
     var d = parseIso(first);
     d.setMonth(d.getMonth() + k, 1);
     return HC.isoOf(d);
+  }
+  // the chart key's daily swatch: one mark per state the window actually drew, in the legend's order,
+  // with the chart marks' own state classes — so "Daily" shows the dots' colours, never a stand-in blue
+  function keyMarks(m, drawn, bars) {
+    var order = legendItems(m).map(function (it) { return it[0]; });
+    var rank = function (st) { var i = order.indexOf(st); return i < 0 ? order.length : i; };
+    var sts = drawn.slice().sort(function (a, b) { return rank(a) - rank(b); }), w = 10 * sts.length;
+    return '<svg class="dt-k-sw" viewBox="0 0 ' + w + ' 10" width="' + w + '" height="10" aria-hidden="true">' + sts.map(function (st, i) {
+      return bars ? '<rect class="dt-kd dt-s-' + esc(st) + '" x="' + (10 * i + 1) + '" y="1" width="8" height="8" rx="2"/>'
+        : '<circle class="dt-kd dt-s-' + esc(st) + '" cx="' + (10 * i + 5) + '" cy="5" r="4"/>';
+    }).join('') + '</svg>';
   }
   // [state, label] per calendar state of a metric (the legend's order), without "no data"
   function legendItems(m) {
@@ -726,15 +739,16 @@
     var sub = d ? format(P.daySub, { start: d.start, wake: d.wake, min: d.min.lv }) : '';
     return row(P.dayLbl, fmt(v, 0) + ' · ' + (P.bands[b === 'good' ? 'hi' : b === 'mid' ? 'mid' : 'lo'] || ''), sub);
   }
-  // the nutrition score's day: the score (so far today) + each component's eaten / target and points,
-  // then why the day may read short (a macro missing, a main meal unlogged, an assumed rest day)
+  // the nutrition score's day: the score + each component's eaten / target and points ("85 / 100 pts"),
+  // then why the day may read short (a macro missing, a main meal unlogged, an assumed rest day). Today
+  // is still filling up: "in progress" instead of a score, eaten / target without points.
   function nscoreDayHtml(m, iso) {
     var r = m.days && own(m.days, iso) ? m.days[iso] : null, P = T.day.ns;
     if (!r || !P) return '<p class="dt-nodata">' + esc(T.day.noData) + '</p>';
-    var out = [row(P.score, HC.pct(r.score), r.partial ? P.soFar : '')];
+    var out = [r.partial ? row(P.score, P.inProgress, P.inProgressSub) : row(P.score, HC.pct(r.score), '')];
     ['k', 'p', 'f'].forEach(function (c) {
       var x = r.parts[c], u = c === 'k' ? 'kcal' : 'g';
-      out.push(x ? row(P[c], (x.min ? '≥ ' : '') + fmt(x.v, 0) + ' / ' + fmt(x.t, 0) + ' ' + u, x.pts + ' / 100') : row(P[c], '—', P.unknown));
+      out.push(x ? row(P[c], (x.min ? '≥ ' : '') + fmt(x.v, 0) + ' / ' + fmt(x.t, 0) + ' ' + u, r.partial ? '' : format(P.pts, { pts: x.pts })) : row(P[c], '—', P.unknown));
     });
     if (r.inc) out.push('<p class="dt-note">' + esc(P.inc) + '</p>');
     if (!r.meals) out.push('<p class="dt-note">' + esc(P.meals) + '</p>');

@@ -22,26 +22,7 @@
   var WEEK = 7;
   // the recovery composite's scale (view/dial.mjs recoveryFrac: -3..+3 MAD), for the weekly bars
   var Z = 3;
-  // 24-unit stroked icons (currentColor), one per contributor row
-  var ICONS = {
-    hrv: 'M2 12h4l2-5 4 10 2-5h8',
-    rhr: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z',
-    sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
-    need: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
-    perf: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
-    resp: 'M12 3v8M12 11l-3 3M12 11l3 3M9 7c-3 0-6 4-6 10 0 2 1 3 3 3s3-1 3-3zM15 7c3 0 6 4 6 10 0 2-1 3-3 3s-3-1-3-3z',
-    vsTarget: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8',
-    bed: 'M3 18v-8M3 14h18v4M21 14a3 3 0 0 0-3-3h-7v3M7 12.5a1.5 1.5 0 1 0 0-.01',
-    wake: 'M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6',
-    re: 'M13 2 4 14h7l-1 8 9-12h-7z',
-    acute: 'M3 17l6-6 4 4 8-8M15 7h6v6',
-    sessions: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
-    typical: 'M3 12h4M17 12h4M12 3v4M12 17v4M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8',
-    eff: 'M3 19h18M6 19v-5M10 19V9M14 19v-7M18 19V5',
-    cons: 'M4 7h16M4 12h16M4 17h16M8 5v4M15 10v4M11 15v4',
-    restor: 'M3 15c3-6 6-6 9 0s6 6 9 0',
-    clock: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 7v5l3 2',
-  };
+
   // the stages bar, top to bottom of the night's hypnogram order: awake, REM, core, deep (+ the
   // Asleep-unspecified remainder when a night has some)
   var STAGES = ['awake', 'rem', 'core', 'deep', 'unspec'];
@@ -294,15 +275,11 @@
   function wrapBed(v) {
     return isNum(v) && v < 12 ? v + 24 : v;
   }
-  function markHtml(c, X) {
-    if (!c || c.side == null) return '';
+  function markOf(c, X) {
+    if (!c || c.side == null) return null;
     var C = X.T.deep.contrib.cmp;
     var glyph = c.side > 0 ? '▲' : c.side < 0 ? '▼' : '•';
-    var said = c.tone === 'neutral' ? (c.side > 0 ? C.above : C.below) : C[c.tone];
-    return '<span class="dd-mk dd-' + esc(c.tone) + '" aria-hidden="true">' + glyph + '</span><span class="sr-only">' + esc(said) + '</span>';
-  }
-  function iconHtml(k) {
-    return '<svg class="dd-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="' + ICONS[k] + '"/></svg>';
+    return { glyph: glyph, tone: c.tone, said: c.tone === 'neutral' ? (c.side > 0 ? C.above : C.below) : C[c.tone] };
   }
   // rows: [{k (icon + label key), val (string) | null = hidden, cmp}]; at most 4
   function contribHtml(rows, X) {
@@ -311,8 +288,7 @@
     if (!shown.length) return '';
     var marked = shown.some(function (r) { return r.cmp && r.cmp.side != null; });
     return '<section class="dd-contrib" aria-label="' + esc(P.aria) + '"><ul class="dd-rows">' + shown.map(function (r) {
-      return '<li class="dd-row" data-row="' + esc(r.k) + '">' + iconHtml(r.k) + '<span class="dd-row-lbl">' + esc(P.rows[r.k]) + '</span>' +
-        '<b class="dd-row-val">' + esc(r.val) + '</b>' + markHtml(r.cmp, X) + '</li>';
+      return HC.contribRow({ row: r.k, icon: r.k, label: P.rows[r.k], value: r.val, mark: markOf(r.cmp, X) });
     }).join('') + '</ul>' +
       (marked ? '<p class="dd-legend"><span class="dd-mk dd-better" aria-hidden="true">▲</span><span class="dd-mk dd-worse" aria-hidden="true">▼</span><b>' +
         esc(P.legendToday) + '</b> ' + esc(P.legendRest) + '</p>' : '') + '</section>';
@@ -555,8 +531,7 @@
     });
     rows.push({ icon: 'acute', lbl: P.allDay, val: X.fmt(d.alls, 1), sub: format(P.loadLbl, { load: X.fmt(d.all, 0) }) });
     return '<section class="dd-contrib" aria-label="' + esc(P.contribAria) + '"><ul class="dd-rows">' + rows.map(function (r) {
-      return '<li class="dd-row">' + iconHtml(r.icon) + '<span class="dd-row-lbl">' + esc(r.lbl) + ' <small class="dd-row-sub">' + esc(r.sub) + '</small></span>' +
-        '<b class="dd-row-val">' + esc(r.val) + '</b></li>';
+      return HC.contribRow({ icon: r.icon, label: r.lbl, sub: r.sub, value: r.val });
     }).join('') + '</ul><p class="dd-legend">' + esc(P.shareNote) + '</p></section>';
   }
   // the long notes (ⓘ): the formula, this owner's K and 95th-percentile day, the max HR, the coverage
@@ -807,8 +782,7 @@
       ['eff', R.low, d.min.h != null ? format(R.lowSub, { time: hhmm(d.min.h) }) : R.lowStart, String(d.min.lv)],
     ];
     return '<section class="dd-contrib" aria-label="' + esc(P.partsTitle) + '"><h3 class="dd-sec">' + esc(P.partsTitle) + '</h3><ul class="dd-rows">' + rows.map(function (r) {
-      return '<li class="dd-row">' + iconHtml(r[0]) + '<span class="dd-row-lbl">' + esc(r[1]) + ' <small class="dd-row-sub">' + esc(r[2]) + '</small></span>' +
-        '<b class="dd-row-val">' + esc(r[3]) + '</b></li>';
+      return HC.contribRow({ icon: r[0], label: r[1], sub: r[2], value: r[3] });
     }).join('') + '</ul><p class="dd-legend">' + esc(P.clampNote) + '</p></section>';
   }
   function energyLines(d, iso, X) {

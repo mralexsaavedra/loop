@@ -62,6 +62,7 @@ const ROLES = {
   '--fs-label': [10.5, 10.5],
   '--fs-title': [11.5, 11.5],
   '--fs-title-lg': [12.5, 12.5],
+  '--fs-title-sheet': [13.5, 13.5],
   '--fs-section': [20, 20],
 };
 
@@ -85,10 +86,14 @@ const HERO_SIZES = new Set(['var(--fs-num-row)', 'var(--fs-num-card)', 'var(--fs
 const HERO_WEIGHTS = new Set(['700', 'var(--num-weight)']);
 // a selector set in the --num face by ANY rule (a grouped `.a, .b { font-family: var(--num) }` too), so a
 // later `.b { font-size: 24px }` without its own font-family is still a number (R3-002)
+// keyed by file + media + selector: a `.x` in the --num face in one stylesheet (or one media query)
+// says nothing about a `.x` elsewhere; a top-level rule still applies inside its own file's media rules
+const numKey = (file, media, sel) => `${file}|${media || ''}|${sel}`;
 const NUM_SELECTORS = new Set(
-  RULES.filter((r) => (r.decl['font-family'] ?? '').includes('var(--num)')).flatMap((r) => r.selector.split(', ')),
+  RULES.filter((r) => (r.decl['font-family'] ?? '').includes('var(--num)')).flatMap((r) => r.selector.split(', ').map((s) => numKey(r.file, r.media, s))),
 );
-const inNumFace = (r) => (r.decl['font-family'] ?? '').includes('var(--num)') || r.selector.split(', ').some((s) => NUM_SELECTORS.has(s));
+const inNumFace = (r) => (r.decl['font-family'] ?? '').includes('var(--num)') ||
+  r.selector.split(', ').some((s) => NUM_SELECTORS.has(numKey(r.file, r.media, s)) || NUM_SELECTORS.has(numKey(r.file, '', s)));
 const isDialClamp = (v) => /^clamp\(.*var\(--fs-dial\)\)$/.test(v);
 // dial centres are sized to their ring (the dial step), plus the one sheet-header value
 const HERO_ALLOW = {
@@ -107,8 +112,8 @@ const RAW_SIZE_ALLOW = {
 
 // 4. caps ----------------------------------------------------------------------------------------
 const CAPS_SIZES = new Set(['var(--fs-label)', 'var(--fs-title)', 'var(--fs-title-lg)']);
-// detail sheets keep a larger sheet-level label scale (13.5 / 14.5px) — audited in DS4
-const CAPS_SIZE_SKIP_FILES = new Set(['detail.css']);
+// the sheets' own caps title, one step up — only in the sheet stylesheet (detail.css)
+const SHEET_CAPS = { size: 'var(--fs-title-sheet)', file: 'detail.css' };
 const CAPS_ALLOW = {
   'layout.css .date-pill-lbl': 'the header date pill, wide 0.14em tracking (header stays as is)',
 };
@@ -199,8 +204,8 @@ test('caps labels use the caps role sizes and the one label tracking', () => {
     const ls = r.decl['letter-spacing'];
     if (ls != null && ls !== 'var(--label-track)') bad.push(`${where(r)} tracking \`${ls}\` (use var(--label-track))`);
     const fs_ = r.decl['font-size'];
-    if (fs_ != null && !CAPS_SIZE_SKIP_FILES.has(r.file) && !CAPS_SIZES.has(fs_)) {
-      bad.push(`${where(r)} caps size \`${fs_}\` (use --fs-label / --fs-title / --fs-title-lg)`);
+    if (fs_ != null && !CAPS_SIZES.has(fs_) && !(fs_ === SHEET_CAPS.size && r.file === SHEET_CAPS.file)) {
+      bad.push(`${where(r)} caps size \`${fs_}\` (use --fs-label / --fs-title / --fs-title-lg; --fs-title-sheet in detail.css)`);
     }
   }
   assert.deepEqual(bad, []);
@@ -261,12 +266,12 @@ test('chevron: every ‹ / › written in markup is a .chev span', () => {
 // pressed / checked fill is listed with its reason
 const PICKED_ALLOW = {
   'base.css .chip[aria-pressed=true], :checked+.chip': 'THE selected chip (white fill)',
+  'base.css .sw[aria-checked=true]:before': 'THE switch, on (show / hide one item: a track, not a pick)',
+  'base.css .sw[aria-checked=true] .sw-knob': "THE switch's knob, on",
   'detail.css .dt-range button[aria-pressed=true]': 'THE segmented control (grey square)',
   'detail.css .dt-day[aria-pressed=true]': "the trend calendar's selected day (a ring on a day cell)",
-  'food.css .fa-tab[aria-pressed=true]': "the food sheet's source tabs (audited in DS4)",
-  'journal.css .jr-x[aria-pressed=true]': "a journal answer (yes), not a filter",
-  'journal.css .jr-y[aria-pressed=true]': "a journal answer (no), not a filter",
-  'score.css .db-tog[aria-pressed=true]': 'Customize panel visibility toggle (DS4)',
+  'journal.css .jr-x[aria-pressed=true]': "a journal answer (the reference's ✕ / ✓ pair), not a pick among options",
+  'journal.css .jr-y[aria-pressed=true]': "a journal answer (the reference's ✕ / ✓ pair), not a pick among options",
 };
 test('selected chip and segmented control: one picked style each; other picked fills are listed', () => {
   const picked = RULES.filter((r) => /\[aria-(pressed|checked|selected)=true\]|:checked/.test(r.selector) && (r.decl.background || r.decl['background-color'] || r.decl['border-color']));
@@ -276,15 +281,74 @@ test('selected chip and segmented control: one picked style each; other picked f
   assert.deepEqual([chip.decl.background, chip.decl.color], ['var(--accent)', 'var(--on-accent)'], 'the picked chip is white-filled');
 });
 
-// the trend glyph's colours live in ONE block (the end of detail.css): arrows are coloured, only the
-// typical / steady dot is grey
+// Inicio's headings are `.hs-lbl.home-h`: the block spacing must win over .hs-lbl's `margin: 0` by
+// specificity, never by which stylesheet loads last
+test('section heading: Inicio\'s .home-h spacing out-specifies .hs-lbl (no load-order tie)', () => {
+  const lbl = RULES.filter((r) => !r.media && r.decl.margin != null && r.selector.split(/,\s*/).includes('.hs-lbl'));
+  const home = RULES.filter((r) => !r.media && r.decl.margin != null && r.selector.split(/,\s*/).some((s) => /\.home-h\b/.test(s)));
+  assert.equal(home.length, 1, 'one rule spaces the Inicio heading');
+  const hs = home[0].selector.split(/,\s*/).find((s) => /\.home-h\b/.test(s));
+  assert.match(hs, /\.hs-lbl/, 'it names the heading it spaces (.hs-lbl.home-h)');
+  for (const r of lbl) assert.ok(cmpSpec(specificity(hs), specificity('.hs-lbl')) > 0, `${hs} must beat ${where(r)}`);
+});
+
+// every segmented-control button is a 44 × 44 target (the ::after hit area), the visual square stays
+// 28px tall, and two neighbours' hit areas never overlap (the gap covers both overhangs)
+test('segmented control: a 44 x 44px hit area on every .dt-range button, without overlap', () => {
+  const one = (sel) => RULES.find((r) => r.file === 'detail.css' && !r.media && r.selector === sel);
+  const btn = one('.dt-range button').decl, hit = one('.dt-range button:after').decl, bar = one('.dt-range').decl;
+  const [v, h = v] = hit.inset.split(/\s+/).map((x) => -px(x));
+  assert.equal(px(btn['min-height']), 28, 'the visual square keeps its 28px');
+  assert.ok(px(btn['min-height']) + 2 * v >= 44, `hit height ${px(btn['min-height']) + 2 * v}px`);
+  assert.ok(px(btn['min-width']) + 2 * h >= 44, `hit width ${px(btn['min-width']) + 2 * h}px`);
+  assert.ok(px(bar.gap) >= 2 * h, `gap ${px(bar.gap)}px < the two overhangs ${2 * h}px`);
+});
+
+// the trend glyph's colours live in ONE block (base.css): arrows are coloured, only the typical /
+// steady dot is grey; each tone selector is its class written twice (0,2,0), so it beats a host's
+// own colour by specificity, never by stylesheet order
 const TONE_CLASS = /\.(db|dd|dt-pill|ld|wp)-(good|bad|watch|neutral|flat|better|worse|typical|up|down)\b/;
 const GREY = new Set(['var(--faint)', 'var(--muted)']);
 test('trend glyph: one colour block; grey only for the typical dot', () => {
   const toned = RULES.filter((r) => TONE_CLASS.test(r.selector) && r.decl.color);
-  assert.ok(toned.every((r) => r.file === 'detail.css'), `trend colours outside the block: ${toned.filter((r) => r.file !== 'detail.css').map(where)}`);
+  assert.ok(toned.every((r) => r.file === 'base.css'), `trend colours outside the block: ${toned.filter((r) => r.file !== 'base.css').map(where)}`);
   const grey = toned.filter((r) => GREY.has(r.decl.color)).flatMap((r) => r.selector.split(', '));
-  assert.deepEqual(grey.sort(), ['.db-flat', '.dd-typical', '.dt-pill-flat', '.ld-flat'], 'only the dot classes are grey');
+  assert.deepEqual(grey.sort(), ['.db-flat.db-flat', '.dd-typical.dd-typical', '.dt-pill-flat.dt-pill-flat', '.ld-flat.ld-flat'], 'only the dot classes are grey');
   const neutral = toned.find((r) => r.selector.includes('.db-neutral'));
   assert.equal(neutral?.decl.color, 'var(--ink)', 'a change with no good direction is an --ink arrow');
+});
+
+// a selector's specificity [ids, classes / attributes / pseudo-classes, elements] (no :is / :not args)
+function specificity(sel) {
+  const s = sel.replace(/::?(before|after)\b/g, '');
+  return [(s.match(/#[\w-]+/g) || []).length, (s.match(/\.[\w-]+|\[[^\]]+\]|:[\w-]+/g) || []).length,
+    (s.replace(/\.[\w-]+|\[[^\]]+\]|:[\w-]+|#[\w-]+/g, ' ').match(/[a-z][\w-]*/gi) || []).length];
+}
+const cmpSpec = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+// the elements that carry a tone class, as the client writes them (host class + tone class)
+const TONED_HOSTS = [
+  ['db-arr', 'db-good'], ['db-arr', 'db-flat'], ['dd-mk', 'dd-worse'], ['dd-mk', 'dd-typical'], ['dt-pill', 'dt-pill-neutral'],
+  ['dt-pill', 'dt-pill-flat'], ['ld-pill', 'ld-bad'], ['sc-arrow', 'db-good'], ['sc-arrow', 'db-flat'],
+];
+test('trend glyph: the tone colour wins the cascade on every host, in ANY stylesheet order', () => {
+  // the rules that could colour such an element: a selector whose last compound is made only of the
+  // element's own classes (a contextual ancestor, e.g. `.db-stale .db-arr`, is a deliberate override)
+  const bad = [];
+  for (const cls of TONED_HOSTS) {
+    const hits = [];
+    for (const r of RULES) {
+      if (!r.decl.color || r.media) continue;
+      for (const sel of r.selector.split(/,\s*/)) {
+        if (/\s|>/.test(sel.trim())) continue;
+        const own = sel.match(/\.[\w-]+/g) || [];
+        if (!own.length || sel.replace(/\.[\w-]+/g, '') !== '' || !own.every((c) => cls.includes(c.slice(1)))) continue;
+        hits.push({ sel, spec: specificity(sel), color: r.decl.color, tone: own.some((c) => cls[1] === c.slice(1)) });
+      }
+    }
+    const tone = hits.filter((h) => h.tone);
+    if (tone.length !== 1) { bad.push(`${cls.join(' ')}: ${tone.length} tone rules`); continue; }
+    const rivals = hits.filter((h) => !h.tone && cmpSpec(h.spec, tone[0].spec) >= 0);
+    if (rivals.length) bad.push(`${cls.join(' ')}: ${rivals.map((h) => h.sel).join(', ')} ties or beats ${tone[0].sel} — the winner would depend on order`);
+  }
+  assert.deepEqual(bad, []);
 });

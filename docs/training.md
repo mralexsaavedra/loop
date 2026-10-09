@@ -105,8 +105,9 @@ months. Several Strava activities of the same date + modality are summed. No zon
 weeks, per modality the minutes + mean / peak HR, and how many sessions carry HR; only what the page
 reads is baked — no weekly volume, 4-week summary or split %). The page draws only the HR part:
 an "INTENSITY (HR)" header with an ⓘ (`#int-info`: the minute-weighted mean, how many sessions carry HR,
-the window and data date, the strength caveat) over one `HC.metricRow` per modality with HR — the mean
-HR, the peak as the small line, highest first. This card draws no zone bars (left as is: the
+the window and data date, the strength caveat) over one `HC.metricRow` per modality with HR — its own
+icon (strength a dumbbell, gym a bolt, run, bike; other cardio a neutral clock; formerly a heart on every
+row), the mean HR, the peak as the small line, highest first. This card draws no zone bars (left as is: the
 per-workout zones below are per session, and a modality total would need a W / M / 6M switch of its
 own), and the HR is a fixed 12-week aggregate (not per W / M / 6M), so it stays a compact card of
 its own instead of joining the Activity card. No data or no HR: nothing is drawn (the Activity card

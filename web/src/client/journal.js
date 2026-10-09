@@ -273,7 +273,7 @@
       var manage = '<details class="jr-man"' + (S.manage ? ' open' : '') + '><summary class="jr-g" data-jr="man">' + esc(T.manage) + ' <span class="chev" aria-hidden="true">›</span></summary>' +
         '<p class="dt-note">' + esc(T.manageNote) + '</p><ul class="jr-rows">' + J.behaviors.map(function (b) {
           var on = S.on[b.key] !== false, name = T.names[b.key] || b.key;
-          return '<li class="jr-row"><span class="jr-txt">' + esc(name) + '</span><button type="button" class="db-btn db-tog" data-jr="tog" data-key="' + b.key + '" aria-pressed="' + on + '" aria-label="' + esc(format(T.toggle, { name: name })) + '">' + esc(on ? T.on : T.off) + '</button></li>';
+          return '<li class="jr-row"><span class="jr-txt">' + esc(name) + '</span>' + HC.switchBtn(on, format(T.toggle, { name: name }), ' data-jr="tog" data-key="' + b.key + '"') + '</li>';
         }).join('') + '</ul></details>';
       var q = date === today ? T.today : format(T.past, { date: HC.fmtDate(date) });
       return {
