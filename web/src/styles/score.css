@@ -602,7 +602,7 @@
   text-transform: uppercase;
   letter-spacing: var(--label-track);
   font-weight: var(--label-weight);
-  color: var(--strain-ink);
+  color: var(--ink);
 }
 .tl-row[data-detail][role="button"] {
   cursor: pointer;

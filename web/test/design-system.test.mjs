@@ -238,6 +238,36 @@ test('caps labels use the caps role sizes and the one label tracking', () => {
   assert.deepEqual(stale, [], 'allowlist entries that no longer match a rule — remove them');
 });
 
+// caps labels are white or grey; colour goes on numbers and glyphs (the reference app's rule). A caps
+// rule — or a rule of the same stylesheet for the same selector — paints only a label colour.
+const LABEL_COLORS = new Set(['var(--ink)', 'var(--muted)', 'var(--faint)', 'var(--accent)', 'var(--accent-ink)', 'inherit', 'currentColor']);
+const CAPS_COLOR_ALLOW = {
+  'base.css .cta': 'THE CTA link (--link blue): a link, not a label',
+  'journal.css .jr-btn': 'button text on the white-filled journal pill (--on-accent)',
+  'detail.css .ds-band': "the stress sheet's band word IS the reading (its band colour), not a label",
+  'score.css .hmt-status': "the monitor's within / outside range word IS the reading (its state colour)",
+  'score.css .hmt-band': "a monitor tile's band word IS the reading (its band colour)",
+};
+test('caps labels: white or grey only; colour goes on the number or glyph', () => {
+  const capsSel = new Set(RULES.filter((r) => r.decl['text-transform'] === 'uppercase').flatMap((r) => r.selector.split(', ').map((s) => `${r.file}|${s}`)));
+  const bad = [];
+  const seen = new Set();
+  for (const r of RULES) {
+    const c = r.decl.color;
+    if (c == null || LABEL_COLORS.has(c)) continue;
+    const caps = r.decl['text-transform'] === 'uppercase' || r.selector.split(', ').some((s) => capsSel.has(`${r.file}|${s}`));
+    if (!caps) continue;
+    if (CAPS_COLOR_ALLOW[key(r)]) seen.add(key(r));
+    else bad.push(`${where(r)} caps colour \`${c}\` (a label is --ink / --muted / --faint)`);
+  }
+  assert.deepEqual(bad, []);
+  const stale = Object.keys(CAPS_COLOR_ALLOW).filter((k) => !seen.has(k));
+  assert.deepEqual(stale, [], 'allowlist entries that no longer match a rule — remove them');
+  // the weight status word (caps .pg-status) stays white: only its dot carries the status colour
+  const status = RULES.filter((r) => /\.pg-s-\w+ b\b/.test(r.selector) && r.decl.color).map(where);
+  assert.deepEqual(status, [], 'the weight status word is a caps label: colour its dot');
+});
+
 // 5. components (docs/design-system.md → Components) ---------------------------------------------
 test('section heading: one class (.hs-lbl) owns the section step, in sentence case', () => {
   const own = RULES.filter((r) => !r.media && r.selector === '.hs-lbl' && r.decl['font-size']);

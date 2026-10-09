@@ -15,6 +15,10 @@ state, the sheets' own cards on their 16 px inset).
 **Select:** one form-control style, `.sel` in `base.css` — a `--rail` pill with the system chevron
 turned down — for the three native picks (trend metric, Nutrición's example food, ride duration);
 Nutrición's food pick no longer looks like a mini card (card fill, card radius, border).
+**Caps colour:** caps labels are white or grey; the colour moves to the number or glyph — the weight
+status word turns white beside its coloured dot (the rate pill keeps its colour), the supplement timing
+tags and Inicio's "PROGRAMMED" timeline label turn white. A new guard rejects any other colour on a caps
+rule, with a reasoned allowlist (the CTA, button text on a fill, and words that ARE the reading).
 
 ## 2026-10-09 — Design system card alignment (DS4)
 

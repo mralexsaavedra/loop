@@ -304,7 +304,7 @@ trend is the line under it.
   `aria-label` spells it out ("Run · RE 94 · 45 min · 2 parts"). On the viewer's today the programmed session
   (`window.HCProgram` from `client/training-today.js`) is the last row: an outline chip "Plan", its
   focus (one line, ellipsised; the row's `aria-label` carries the whole focus and the session view
-  shows it in full), "Programmed"; it opens the session as the `hoy-session` detail view. Nothing matches a
+  shows it in full), "Programmed" (white caps; the row's bar carries the colour); it opens the session as the `hoy-session` detail view. Nothing matches a
   programmed session to a done workout yet, so it is only listed, never ticked; it is not shown
   under an older day's heading, and with no baked day but a session today the card lists only it. Rows follow the shared same-day
   rule (`DISPLAY_RULE`: stubs dropped, one source, same-day rows of one modality merge; the row says "N parts"). Only the last 3 data days are

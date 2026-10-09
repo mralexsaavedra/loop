@@ -270,7 +270,8 @@ filled from them, never typed.
   ±`stableKg`, else going up / down). ETA only on pace = remaining ÷ the OBSERVED rate ±`etaSpread`,
   as months. Target / ETA only with `HCSettings`. The card carries numbers + labels only: "MEDIA DE 7
   DÍAS" + the last weigh-in, the average big in `--num`, the weekly rate as a pill (`.pg-pill`, `--up`
-  on pace / steady / reached, `--down` otherwise), the status word with its dot, target / kg to go, the
+  on pace / steady / reached, `--down` otherwise), the status word with its dot (the word in white caps, the dot in the status colour — a caps label
+  is never coloured, docs/design-system.md), target / kg to go, the
   ETA; the status why, the rate window and "the series mixes scales" sit behind the section's ⓘ
   (`#nutri-progress-info`, written by progress.js; the ⓘ hides when there is nothing behind it, and a
   re-render — a settings change — keeps the block open or closed as the viewer left it, like Constancia's). The
