@@ -62,13 +62,28 @@ test('numbers: nf swaps the decimal point in es; num fixes decimals, drops the s
   assert.equal(load().num(-1.5, 1, true), '-1.5');
 });
 
-test('duration: one formatter, units from the i18n dict', () => {
+test('duration: one formatter, h:mm (lib/format/numbers.mjs via HC_FMT)', () => {
   const HC = load();
-  const U = { h: 'h', min: 'min' };
-  assert.equal(HC.duration(45, U), '45 min');
-  assert.equal(HC.duration(60, U), '1 h');
-  assert.equal(HC.duration(105.4, U), '1 h 45 min');
-  assert.equal(HC.duration(0, U), '0 min');
+  assert.equal(HC.duration(45), '0:45');
+  assert.equal(HC.duration(60), '1:00');
+  assert.equal(HC.duration(105.4), '1:45');
+  assert.equal(HC.duration(0), '0:00');
+  assert.equal(HC.hours(7.999), '8:00');
+  assert.equal(HC.hours(-0.5, true), '-0:30');
+});
+
+test('numbers: grouping for every value >= 1000, one percent rule, "—" when absent, input values never grouped', () => {
+  const es = load({ locale: 'es' }), en = load();
+  assert.equal(es.num(2500, 0), '2.500');
+  assert.equal(es.int(13463), '13.463');
+  assert.equal(en.int(2500), '2,500');
+  assert.equal(es.nf(1234.5), '1.234,5');
+  assert.equal(es.pct(97), '97%');
+  assert.equal(en.pct(12, true), '+12%');
+  assert.equal(es.num(null, 1), '—');
+  assert.equal(es.int(NaN), '—');
+  assert.equal(es.numInput(1234.5, 1), '1234,5');
+  assert.equal(en.numInput(1000), '1000');
 });
 
 test('fmtDate: one shared date formatter, "lun 29 sept" in es / "Mon 29 Sep" in en; names from the baked I18N_DATE', () => {

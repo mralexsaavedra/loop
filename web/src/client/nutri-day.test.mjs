@@ -115,7 +115,7 @@ test('Avituallamiento with own fuel items: the piece mix, the gap, a fast item i
   assert.match(h, /1 × Demo bar at min 30, then 2 × Demo paste from min 50, every ~20 min → 62 g/);
   assert.match(h, /~30 g more/);
   assert.match(h, /Last hour: 30–60 g of easy carbs, e\.g\. 2 × Demo paste \(42 g\)/);
-  assert.match(h, /Alternative: 3 bottles of 500 ml at 6–8 %/);
+  assert.match(h, /Alternative: 3 bottles of 500 ml at 6–8%/);
   assert.doesNotMatch(h, /gels \(~25 g\)/, 'the generic gel / bar equivalents give way to the own items');
   assert.match(h, /Not medical advice/);
 });
@@ -194,9 +194,9 @@ test('no workout, nothing programmed: rest (auto), the default goal, rest target
 test('a long ride recorded today: bikeLong (auto) with its real minutes, the ride fuel block, the plan counts the fuel', () => {
   const { els, radios, api, calls } = run({ items: [{ modality: 'gym', dur: 50 }, { modality: 'bike', dur: 185 }] });
   assert.deepEqual(checkedOf(radios, 'd-'), ['bikeLong']);
-  assert.match(els['nutri-why'].textContent, /Ride recorded today: 3 h 5 min/);
+  assert.match(els['nutri-why'].textContent, /Ride recorded today: 3:05/);
   assert.equal(els['nutri-fuel-block'].hidden, false);
-  assert.match(els['nutri-ride-wrap'].innerHTML, /Ride duration: 3 h 5 min \(recorded\)/);
+  assert.match(els['nutri-ride-wrap'].innerHTML, /Ride duration: 3:05 \(recorded\)/);
   assert.doesNotMatch(els['nutri-ride-wrap'].innerHTML, /<select/, 'a recorded ride is not re-picked');
   assert.match(els['nutri-fuel-body'].innerHTML, /60–90 g\/h/);
   assert.match(els['nutri-fuel-body'].innerHTML, /Not medical advice/);
@@ -211,7 +211,7 @@ test('a long ride recorded today: bikeLong (auto) with its real minutes, the rid
 test('a programmed bike session: bike (auto), picker defaults to 2 h; picking 3 h re-scales the meals, fuel, rings', () => {
   const { els, fire, api, calls, storage } = run({ programmed: { kind: 'bike', focus: 'Ride', blocks: [] } });
   assert.equal(api.state().dayType, 'bike');
-  assert.match(els['nutri-ride-wrap'].innerHTML, /<option value="120" selected>2 h<\/option>/);
+  assert.match(els['nutri-ride-wrap'].innerHTML, /<option value="120" selected>2:00<\/option>/);
   assert.match(els['nutri-fuel-body'].innerHTML, /120 g in total/);
   const two = planFor(bake(), 'maintain', 'bike', 120);
   const three = planFor(bake(), 'maintain', 'bike', 180);
@@ -234,7 +234,7 @@ test('the picked ride duration is kept for the day (and that day type) only; a r
   const programmed = { kind: 'bike' };
   const kept = run({ programmed, storage: memStorage({ 'hc.nutri.rideMin': JSON.stringify({ date: TODAY, type: 'bike', min: 240 }) }) });
   assert.equal(kept.api.state().rideMin, 240);
-  assert.match(kept.els['nutri-ride-wrap'].innerHTML, /<option value="240" selected>4 h<\/option>/);
+  assert.match(kept.els['nutri-ride-wrap'].innerHTML, /<option value="240" selected>4:00<\/option>/);
   const expired = run({ programmed, storage: memStorage({ 'hc.nutri.rideMin': JSON.stringify({ date: '2030-01-09', type: 'bike', min: 240 }) }) });
   assert.equal(expired.api.state().rideMin, 120, 'yesterday\'s pick expired at midnight');
   const otherType = run({ programmed, storage: memStorage({ 'hc.nutri.rideMin': JSON.stringify({ date: TODAY, type: 'bikeLong', min: 300 }) }) });
@@ -570,20 +570,20 @@ test('kcal ring, no intake today: the full ring track only (state none), "—" i
   assert.doesNotMatch(y, /dial-fill|<i style/);
 });
 
-test('kcal ring states: on track (<= 110 %) fills to eaten / target; over (> 110 %) is a full ring in the over state', () => {
+test('kcal ring states: on track (<= 110%) fills to eaten / target; over (> 110%) is a full ring in the over state', () => {
   const ok = ringOf(run({ intake: { latest: { date: TODAY, k: 1150, p: 75, c: 200, g: 40 }, freshDays: 3 } }).els['nutri-target'].innerHTML);
   assert.match(ok, /^<figure class="nt-ring nt-ring-ok" role="img" aria-label="Logged today: 1,150 of 2,300 kcal">/);
   assert.match(ok, new RegExp('<path class="dial-fill" pathLength="100" style="stroke-dasharray:50 100" d="' + ARC + '"/>'));
   assert.match(ok, /<b class="dial-num nt-kcal">1,150<\/b><span class="nt-of">\/ 2,300 kcal<\/span>/, 'the value inside is the kcal EATEN');
   const edge = ringOf(run({ intake: { latest: { date: TODAY, k: 2530, p: 75, c: 200, g: 40 }, freshDays: 3 } }).els['nutri-target'].innerHTML);
-  assert.match(edge, /nt-ring-ok/, 'exactly 110 % is still on track');
+  assert.match(edge, /nt-ring-ok/, 'exactly 110% is still on track');
   const over = ringOf(run({ intake: { latest: { date: TODAY, k: 2600, p: 75, c: 200, g: 40 }, freshDays: 3 } }).els['nutri-target'].innerHTML);
   assert.match(over, /^<figure class="nt-ring nt-ring-over"/);
   assert.match(over, /style="stroke-dasharray:100 100"/, 'the fill is capped at the full ring');
   assert.match(over, /<b class="dial-num nt-kcal">2,600<\/b>/);
 });
 
-test('macro rows: protein / carbs / fat, eaten / target in --num, a bar each; > 110 % flagged; a missing macro is a dash', () => {
+test('macro rows: protein / carbs / fat, eaten / target in --num, a bar each; > 110% flagged; a missing macro is a dash', () => {
   const none = macrosOf(run().els['nutri-target'].innerHTML);
   assert.deepEqual(none.map((m) => m.lbl), ['Protein', 'Carbs', 'Fat'], 'order: protein, carbs, fat');
   assert.deepEqual(none.map((m) => m.val), ['<b>—</b><small> / 125 g</small>', '<b>—</b><small> / 304 g</small>', '<b>—</b><small> / 65 g</small>']);
@@ -591,7 +591,7 @@ test('macro rows: protein / carbs / fat, eaten / target in --num, a bar each; > 
   const h = run({ intake: { latest: { date: TODAY, k: 1150, p: 75, c: 400, g: null }, freshDays: 3 } }).els['nutri-target'].innerHTML;
   const [p, c, f] = macrosOf(h);
   assert.deepEqual(p, { cls: 'nt-mac', lbl: 'Protein', val: '<b>75</b><small> / 125 g</small>', fill: '<i style="width:60%"></i>' });
-  assert.deepEqual(c, { cls: 'nt-mac nt-mac-over', lbl: 'Carbs', val: '<b>400</b><small> / 304 g</small>', fill: '<i style="width:100%"></i>' }, 'carbs 400 / 304 is over 110 %: capped bar, flagged');
+  assert.deepEqual(c, { cls: 'nt-mac nt-mac-over', lbl: 'Carbs', val: '<b>400</b><small> / 304 g</small>', fill: '<i style="width:100%"></i>' }, 'carbs 400 / 304 is over 110%: capped bar, flagged');
   assert.deepEqual(f, { cls: 'nt-mac', lbl: 'Fat', val: '<b>—</b><small> / 65 g</small>', fill: '' }, 'no fat logged: an empty bar with a dash');
 });
 
@@ -1019,7 +1019,7 @@ test('day cap: the day has fewer carbs left than the lunch row -> the row is cap
   const nutri = bake();
   const x = planFor(nutri, 'maintain', 'rest', null);
   const b = guideBudgets(x, nutri.base.rest.sl, MAIN_SLOTS, nutri.guide.oil.rest);
-  const D = Math.max(30, Math.ceil(0.1 * b.total.c) + 5); // still open for the day (> 10 % of its carbs)
+  const D = Math.max(30, Math.ceil(0.1 * b.total.c) + 5); // still open for the day (> 10% of its carbs)
   assert.ok(b.meals.lunch.c > D, 'fixture: lunch has more carbs left than the day');
   const groups = { meals: { breakfast: { k: 900, p: 20, c: b.total.c - D, f: 5 }, lunch: Z, dinner: Z }, addon: Z };
   const h = run({ nutri, hooks: foodHooks({ groups }) }).els['nutri-plan'].innerHTML;
@@ -1045,7 +1045,7 @@ test('day cap: the day allows more than the meal -> the meal\'s own left is unch
   assert.doesNotMatch(off, /covered \(day\)|gd-add|gd-left/);
 });
 
-test('day cap: Extras kcal capped at the day remainder; covered by the day when <= 10 % of the day kcal is left', () => {
+test('day cap: Extras kcal capped at the day remainder; covered by the day when <= 10% of the day kcal is left', () => {
   const nutri = bake();
   const x = planFor(nutri, 'maintain', 'rest', null);
   const b = guideBudgets(x, nutri.base.rest.sl, MAIN_SLOTS, nutri.guide.oil.rest);

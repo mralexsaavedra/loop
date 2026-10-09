@@ -51,8 +51,8 @@ test('fresh intake without Nutrición today: four rings (kcal, protein, carbs, f
   const { host } = run({ latest: { date: '2030-01-09', k: 1200, p: 170, c: 130, g: 35 }, today: '2030-01-10' });
   const html = host.innerHTML;
   assert.equal((html.match(/class="ring /g) || []).length, 4);
-  assert.match(html, /1200<\/b>/);
-  assert.match(html, /of 2400 kcal/);
+  assert.match(html, /1,200<\/b>/);
+  assert.match(html, /of 2,400 kcal/);
   assert.match(html, /50%/);
   assert.match(html, /100%/, 'protein 170/170');
   assert.match(html, /Training-day target/);
@@ -62,17 +62,17 @@ test('no train/rest toggle any more: intakeRefresh re-renders against today\'s t
   let t = { k: 2500, p: 150, c: 340, g: 60, fuelK: 0, label: "Today's target · Rest · Maintain" };
   const { host, window, doc } = run({ latest: { date: '2030-01-09', k: 1000, p: 80, c: 90, g: 35 }, today: '2030-01-10', nutriTarget: () => t });
   assert.equal(doc.getElementById('b-train'), null);
-  assert.match(host.innerHTML, /of 2500 kcal/);
+  assert.match(host.innerHTML, /of 2,500 kcal/);
   t = { k: 3050, p: 150, c: 477, g: 60, fuelK: 0, label: "Today's target · Gym or run · Maintain" };
   window.intakeRefresh();
-  assert.match(host.innerHTML, /of 3050 kcal/);
+  assert.match(host.innerHTML, /of 3,050 kcal/);
   assert.match(host.innerHTML, /Gym or run/);
 });
 
 test('bike days: the rings compare against the MEALS target and the ride fuel is its own line', () => {
   const nutriTarget = () => ({ k: 3070, p: 150, c: 437, g: 60, fuelK: 480, label: "Today's meals · Ride ~2 h · Maintain" });
   const html = run({ latest: { date: '2030-01-09', k: 1535, p: 75, c: 200, g: 30 }, today: '2030-01-10', nutriTarget }).host.innerHTML;
-  assert.match(html, /of 3070 kcal/);
+  assert.match(html, /of 3,070 kcal/);
   assert.match(html, /50%/);
   assert.match(html, /class="intake-fuel">\+ 480 kcal on the bike</);
   const es = run({ latest: { date: '2030-01-09', k: 1535, p: 75, c: 200, g: 30 }, today: '2030-01-10', locale: 'es', nutriTarget }).host.innerHTML;
@@ -150,11 +150,11 @@ test('a logged day that is the viewer\'s today is labelled as in progress, not a
 test('with Nutrición today (window.nutriTarget), the rings measure against that goal x day type target', () => {
   const nutriTarget = () => ({ k: 3050, p: 150, c: 424, g: 60, label: "Today's target · Gym or run · Maintain" });
   const html = run({ latest: { date: '2030-01-09', k: 1525, p: 75, c: 212, g: 30 }, today: '2030-01-10', nutriTarget }).host.innerHTML;
-  assert.match(html, /of 3050 kcal/);
+  assert.match(html, /of 3,050 kcal/);
   assert.match(html, /50%/);
   assert.match(html, /Today&#39;s target · Gym or run · Maintain|Today's target · Gym or run · Maintain/);
   const broken = run({ latest: { date: '2030-01-09', k: 1200, p: 1, c: 1, g: 1 }, today: '2030-01-10', nutriTarget: () => { throw new Error('x'); } }).host.innerHTML;
-  assert.match(broken, /of 2400 kcal/, 'falls back to the plan\'s training-day total');
+  assert.match(broken, /of 2,400 kcal/, 'falls back to the plan\'s training-day total');
 });
 
 test('a PAST logged day is measured against THAT day\'s target (HCNutri.targetFor(date)), never today\'s', () => {
@@ -165,7 +165,7 @@ test('a PAST logged day is measured against THAT day\'s target (HCNutri.targetFo
   const html = run({ latest: { date: '2030-01-09', k: 1535, p: 75, c: 200, g: 30 }, today: '2030-01-10', nutriTarget, targetFor }).host.innerHTML;
   assert.deepEqual(asked, ['2030-01-09']);
   assert.equal(todayCalls, 0, 'today\'s target is not read for a past day');
-  assert.match(html, /of 3070 kcal/);
+  assert.match(html, /of 3,070 kcal/);
   assert.match(html, /50%/);
   assert.match(html, /That day&#39;s meals · Ride ~2 h|That day's meals · Ride ~2 h/);
   assert.match(html, /class="intake-asof">Wed 9 Jan</, 'labelled with that day\'s date (the shared format)');
@@ -180,7 +180,7 @@ test('a past day whose day type is unknown (targetFor -> null): no rings at all,
 
 test('Nutrición without HCNutri.targetFor (never in a real build): a past day falls back to the plan total, never today\'s target', () => {
   const html = run({ latest: { date: '2030-01-09', k: 1200, p: 1, c: 1, g: 1 }, today: '2030-01-10', nutriTarget: () => ({ k: 3050, p: 150, c: 424, g: 60, label: 'today' }), targetFor: false }).host.innerHTML;
-  assert.match(html, /of 2400 kcal/);
+  assert.match(html, /of 2,400 kcal/);
   assert.doesNotMatch(html, /3050/);
 });
 
@@ -202,10 +202,10 @@ test('today\'s page food log (window.foodTotals) wins over the Apple Health day:
   assert.match(alone, /50%/);
   assert.match(alone, /class="intake-asof">Logged today</);
   const broken = run({ latest: { date: '2030-01-09', k: 1200, p: 1, c: 1, g: 1 }, today: '2030-01-10', foodTotals: () => { throw new Error('x'); } }).host.innerHTML;
-  assert.match(broken, /1200/, 'a throwing hook falls back to the Apple Health day');
+  assert.match(broken, /1,200/, 'a throwing hook falls back to the Apple Health day');
 });
 
-test('rings from the food log: a macro no entry states is a dash (never 0 %); one some entries lack is marked as a minimum', () => {
+test('rings from the food log: a macro no entry states is a dash (never 0%); one some entries lack is marked as a minimum', () => {
   const food = () => ({ date: '2030-01-10', k: 1200, p: 85, c: null, g: 40, n: 2, missing: { protein: true, carbs: true, fat: false }, src: 'log' });
   const html = run({ latest: { date: '2030-01-09', k: 900, p: 1, c: 1, g: 1 }, today: '2030-01-10', foodTotals: food }).host.innerHTML;
   assert.match(html, /class="ring ring-c ring-none"/, 'no carbs stated: empty ring');
@@ -228,9 +228,9 @@ test('LAN page, today empty, yesterday logged: rings for yesterday from the food
   const { host } = run({ latest: { date: '2030-01-10', k: 999, p: 1, c: 1, g: 1 }, today: '2030-01-10', nutriTarget, targetFor, foodTotals: () => null, hcFood: lanFood(day, calls) });
   assert.equal(host.hidden, false);
   const html = host.innerHTML;
-  assert.match(html, /<b>1200<\/b>/);
+  assert.match(html, /<b>1,200<\/b>/);
   assert.doesNotMatch(html, /999/, 'never the Apple Health day');
-  assert.match(html, /of 2400 kcal/);
+  assert.match(html, /of 2,400 kcal/);
   assert.match(html, /Meals that day/);
   assert.doesNotMatch(html, /Logged today|Today, so far/);
   assert.match(html, /class="intake-asof">Wed 9 Jan</);
@@ -271,7 +271,7 @@ test('LAN page, a past food-log day with a macro some entries lack: shown as a m
 
 test('no food API (HCFood absent or not ready): the Apple Health day as before', () => {
   const html = run({ latest: { date: '2030-01-09', k: 1200, p: 170, c: 130, g: 35 }, today: '2030-01-10', hcFood: { ready: () => false, recentDay: () => { throw new Error('never asked'); } } }).host.innerHTML;
-  assert.match(html, /1200<\/b>/);
+  assert.match(html, /1,200<\/b>/);
 });
 
 /* The food API boot request (GET /api/food/products, client/food-log.js) decides which source the rings
@@ -305,7 +305,7 @@ test('food API answers (today\'s log loaded): the rings come from the food log, 
   window.intakeRefresh();
   assert.equal(host.hidden, false);
   assert.match(host.innerHTML, /777<\/b>/);
-  assert.doesNotMatch(host.innerHTML, /1200<\/b>/);
+  assert.doesNotMatch(host.innerHTML, /1,200<\/b>/);
 });
 
 test('food API fails (unreachable): the Apple Health day as before', () => {
@@ -314,7 +314,7 @@ test('food API fails (unreachable): the Apple Health day as before', () => {
   st.boot = 'fail';
   window.intakeRefresh();
   assert.equal(host.hidden, false);
-  assert.match(host.innerHTML, /1200<\/b>/);
+  assert.match(host.innerHTML, /1,200<\/b>/);
 });
 
 test('no answer within the grace period: the Apple Health day; a late answer still switches to the food log', () => {
@@ -323,11 +323,11 @@ test('no answer within the grace period: the Apple Health day; a late answer sti
   assert.equal(host.hidden, true);
   timers[0].fn();
   assert.equal(host.hidden, false);
-  assert.match(host.innerHTML, /1200<\/b>/);
+  assert.match(host.innerHTML, /1,200<\/b>/);
   st.boot = 'ok'; st.log = true;
   window.intakeRefresh();
   assert.match(host.innerHTML, /777<\/b>/);
-  assert.doesNotMatch(host.innerHTML, /1200<\/b>/);
+  assert.doesNotMatch(host.innerHTML, /1,200<\/b>/);
 });
 
 test('LAN page, products answered but today\'s log read failed (or not back yet): no rings, never the Apple Health day', () => {
@@ -359,6 +359,6 @@ test('one shared boot wait: window.intakeWaiting() follows the rings; at load an
 
 test('static page (no HCFood at all): the Apple Health day immediately, no grace timer', () => {
   const { host, timers } = run({ latest: AH, today: '2030-01-10' });
-  assert.match(host.innerHTML, /1200<\/b>/);
+  assert.match(host.innerHTML, /1,200<\/b>/);
   assert.equal(timers.length, 0);
 });

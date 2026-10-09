@@ -2,7 +2,7 @@
 /* Shared page shell — header (personal copy), tab nav, footer
  * (personal copy), and the end-of-body script order per design: bake (the
  * shared Bake rendered by pages/index.astro, plus the per-tab bakes such as Dia's NUTRI) → NAV +
- * HC_CONST → util (window.HC, the shared client helpers, FIRST so every later script can read it) →
+ * HC_CONST → HC_FMT (the one number formatter, lib/format/numbers.mjs clientSource) → util (window.HC, the shared client helpers, FIRST so every later script can read it) →
  * core (setTab/jump) → today-date → tablas (the Tablas equivalence tables) → nutri-day → food (core → sheet → catalog → log) → settings → progress → adherence → intake → training-today → training-dash → training-activity → health → score → monitor → energy (Inicio's energy bank card) → nutri-score (the nutrition score: Inicio's card + Nutrición's block, after nutri-day / adherence) → timeline → profile → nav-actions (the dock's "+") → home-week → home-dash (Inicio's Tonight / My plan / My dashboard; their sheets register before detail runs) → journal (My journal + its LAN sheet) → deepdive (the dial deep-dive pages, read by detail) → detail → freshness.
  * Tabs render inside <slot />; the detail sheet (components/DetailSheet.astro) renders in the `overlay`
  * slot, after .wrap, so detail.js can make the page behind it inert (the dock and the "+" popover sit inside .wrap). The top bar
@@ -24,6 +24,7 @@ import '../src/styles/profile.css';
 import '../src/styles/food.css';
 import '../src/styles/journal.css';
 import utilScript from '../src/client/util.js?raw';
+import { clientSource as fmtClientSource } from '../../lib/format/numbers.mjs';
 import coreScript from '../src/client/core.js?raw';
 import nutriDayScript from '../src/client/nutri-day.js?raw';
 import foodCoreScript from '../src/client/food-core.js?raw';
@@ -206,6 +207,7 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
     </div>
     <slot name="overlay" />
     <script is:inline set:html={navSource} />
+    <script is:inline set:html={slimScript(fmtClientSource())} />
     <script is:inline set:html={slimScript(utilScript)} />
     <script is:inline set:html={slimScript(coreScript)} />
     <script is:inline set:html={slimScript(todayDateScript)} />

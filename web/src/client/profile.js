@@ -239,7 +239,7 @@
     var G = T.goal, L = st.limits(), v = st.targetWeight();
     return '<div class="food-field pf-target"><label class="food-lbl" for="pf-target">' + esc(G.target) + '</label>' +
       '<div class="food-in-wrap"><input class="food-in" id="pf-target" type="text" inputmode="decimal" autocomplete="off" value="' +
-      (fin(v) ? esc(HC.num(v, 1)) : '') + '" aria-describedby="pf-target-hint pf-target-err"><span class="food-suffix" aria-hidden="true">kg</span></div>' +
+      (fin(v) ? esc(HC.numInput(v, 1)) : '') + '" aria-describedby="pf-target-hint pf-target-err"><span class="food-suffix" aria-hidden="true">kg</span></div>' +
       '<small class="pf-goal-desc" id="pf-target-hint">' + esc(format(G.targetHint, { min: L.min, max: L.max })) + '</small>' +
       '<small class="food-err" id="pf-target-err"></small></div>';
   }

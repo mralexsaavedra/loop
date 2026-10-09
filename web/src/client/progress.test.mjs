@@ -72,7 +72,7 @@ test('cut on pace with a target (LAN page): the card = average big + rate pill +
   assert.match(h, /<span class="pg-pill pg-s-good">-0\.35 kg\/wk<\/span>/, 'the rate as a pill coloured by the status');
   assert.match(h, /class="pg-status pg-s-good"/);
   assert.match(card, /On pace Target weight: 75\.0 kg · 3\.0 kg to lose/);
-  assert.match(card, /Estimated arrival at your current rate \(±20 %\): between March 2030 and April 2030\./, '3 kg ÷ 0.35 kg/week = 8.6 weeks ±20 %');
+  assert.match(card, /Estimated arrival at your current rate \(±20%\): between March 2030 and April 2030\./, '3 kg ÷ 0.35 kg/week = 8.6 weeks ±20%');
   assert.doesNotMatch(card, /Between 0\.25 and 0\.50|rate over the last|mixes scales/, 'no prose on the card');
   assert.match(info, /Between 0\.25 and 0\.50 kg a week towards your goal/);
   assert.match(info, /rate over the last 28 days/);
@@ -94,7 +94,7 @@ test('statuses: the wrong way and faster than safe say so plainly (word on the c
   const fast = PROGRESS_CASES[0].metric.roll.map((v, i) => (v == null ? null : Math.round((90 - i * 0.12) * 10) / 10));
   const f = both(run({ weight: { ...CUT, v: fast, roll: fast } }));
   assert.match(f.card, /Too fast/);
-  assert.match(f.info, /More than 0\.50 kg a week or more than 1 % of your weight a week: that risks muscle\./);
+  assert.match(f.info, /More than 0\.50 kg a week or more than 1% of your weight a week: that risks muscle\./);
   const m = both(run({ goal: 'maintain' }));
   assert.match(m.card, /Going down/);
   assert.match(m.info, /Down more than 0\.10 kg a week while the goal is to maintain/);
@@ -132,7 +132,7 @@ test('es: decimal comma and Spanish copy; the profile line', () => {
   assert.match(t, /-0,35 kg\/sem/);
   assert.match(t, /A buen ritmo/);
   assert.match(t, /Peso objetivo: 75,0 kg · faltan 3,0 kg por bajar/);
-  assert.match(t, /Llegada estimada a tu ritmo actual \(±20 %\): entre marzo 2030 y abril 2030/);
+  assert.match(t, /Llegada estimada a tu ritmo actual \(±20%\): entre marzo 2030 y abril 2030/);
   assert.equal(P.line(), '78,0 kg de media · -0,35 kg/sem · A buen ritmo');
   assert.equal(run({ weight: null }).P.line(), '');
   assert.equal(run({ today: '2030-03-10' }).P.line(), '78.0 kg average · no recent weigh-ins', 'a stale series claims no rate');

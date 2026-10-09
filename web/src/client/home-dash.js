@@ -127,10 +127,7 @@
       return own(TD.metrics, key) && TD.metrics[key].unit ? TD.metrics[key].unit : '';
     }
     function fmt(key, m, v) {
-      if (key === 'sleep') { // hours → 7:32
-        var min = Math.round(v * 60);
-        return Math.floor(min / 60) + ':' + String(min % 60).padStart(2, '0');
-      }
+      if (key === 'sleep') return HC.hours(v); // hours → 7:32
       if (key === 'fitnessAge') { // whole years; a value at the reference curve's clamp = that age or beyond
         if (fin(m.lo) && v <= m.lo) return '≤ ' + m.lo;
         if (fin(m.hi) && v >= m.hi) return '≥ ' + m.hi;

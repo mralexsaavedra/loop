@@ -175,7 +175,14 @@
     return v == null || !isFinite(v) ? '—' : HC.num(v, dec, true);
   }
   function pct(v) {
-    return signed(v, 0) + (HC.isEs() ? ' %' : '%');
+    return HC.pct(v, true);
+  }
+  // a value of metric m: sleep hours as h:mm (no unit), anything else fixed decimals
+  function fmtM(m, v, dec) {
+    return m && m.kind === 'sleep' ? HC.hours(v) : fmt(v, dec);
+  }
+  function signedM(m, v, dec) {
+    return m && m.kind === 'sleep' ? HC.hours(v, true) : signed(v, dec);
   }
   function clock(h) {
     if (h == null || !isFinite(h)) return '—';
@@ -184,8 +191,10 @@
     if (M === 60) { M = 0; H = (H + 1) % 24; }
     return String(H).padStart(2, '0') + ':' + String(M).padStart(2, '0');
   }
+  // the unit shown next to a value; hours (sleep) read as h:mm and carry none
   function unitOf(key) {
-    return (own(T.metrics, key) && T.metrics[key].unit) || '';
+    var u = (own(T.metrics, key) && T.metrics[key].unit) || '';
+    return u === 'h' ? '' : u;
   }
   function titleOf(key) {
     var vw = viewOf(key);
@@ -231,10 +240,10 @@
   /* ---------- header ---------- */
   function bandText(key, m) {
     var B = T.bands, u = unitOf(key), d = Math.min(m.dec + 1, 2);
-    var fill = function (b, dec) { return { lo: fmt(b.lo, dec), hi: fmt(b.hi, dec), median: fmt(b.median, dec), unit: u }; };
+    var fill = function (b, dec) { return { lo: fmtM(m, b.lo, dec), hi: fmtM(m, b.hi, dec), median: fmtM(m, b.median, dec), unit: u }; };
     var out = [];
     var tg = targetOf(key, m);
-    if ((m.kind === 'sleep' || key === 'weight') && tg != null) out.push(format(B.target, { value: fmt(tg, 1), unit: u }));
+    if ((m.kind === 'sleep' || key === 'weight') && tg != null) out.push(format(B.target, { value: fmtM(m, tg, 1), unit: u }));
     if ((m.kind === 'signal' || m.kind === 'sleep') && m.band) out.push(format(B.monitor, fill(m.band, d)));
     if (m.kind === 'total' && m.band) out.push(format(B.iqr, fill(m.band, m.dec)));
     if (m.kind === 'load') out.push(m.typical != null ? format(B.typical, { value: fmt(m.typical, 0) }) : B.noTypical);
@@ -313,7 +322,7 @@
     if (!d) return noneHtml(T.noData);
     var v = valueOf(m, d);
     if (m.kind === 'workouts' && v === 0) return bigHtml(T.restDay, 'rest', '', HC.fmtDate(d), '', []);
-    var partial = isPartial(m, d), num = fmt(v, m.kind === 'sleep' ? 1 : m.dec);
+    var partial = isPartial(m, d), num = fmtM(m, v, m.dec);
     // a series clamped to a reference range (fitness age: lo / hi): a value at a bound = that age or beyond
     if (typeof m.lo === 'number' && v <= m.lo) num = '≤ ' + fmt(m.lo, 0);
     else if (typeof m.hi === 'number' && v >= m.hi) num = '≥ ' + fmt(m.hi, 0);
@@ -383,8 +392,8 @@
     var S = T.trend.sent, k = RANGE_KEY[range], dec = m.kind === 'sleep' ? 1 : m.dec, u = unitOf(key);
     // a real change (not flat) that rounds to the same number gets one more decimal, so "lower than"
     // never sits next to two equal numbers
-    if (st.delta != null && !st.flat && fmt(st.avg, dec) === fmt(st.prev, dec)) dec = Math.min(dec + 1, 3);
-    var show = function (v) { return m.kind === 'recovery' ? signed(v, 1) + ' ' + u : valUnit(v, dec, u); };
+    if (st.delta != null && !st.flat && fmtM(m, st.avg, dec) === fmtM(m, st.prev, dec)) dec = Math.min(dec + 1, 3);
+    var show = function (v) { return m.kind === 'recovery' ? signed(v, 1) + ' ' + u : m.kind === 'sleep' ? HC.hours(v) : valUnit(v, dec, u); };
     var vars = { metric: titleOf(key), span: T.trend.span[k], prevSpan: T.trend.prevSpan[k], avg: st.avg == null ? '' : show(st.avg), prev: st.prev == null ? '' : show(st.prev) };
     if (st.avg == null) return format(S.none, vars);
     if (st.delta == null) return format(S.only, vars);
@@ -392,11 +401,11 @@
   }
   function trendHtml(key, m, st, range) {
     var R = T.trend, dec = m.kind === 'sleep' ? 1 : m.dec;
-    var avg = m.kind === 'recovery' ? signed(st.avg, 1) : fmt(st.avg, dec);
+    var avg = m.kind === 'recovery' ? signed(st.avg, 1) : fmtM(m, st.avg, dec);
     var pill = '';
     if (st.delta != null) {
       var arrow = st.flat ? '•' : st.delta > 0 ? '▲' : '▼';
-      var amount = m.kind === 'recovery' ? signed(st.delta, 1) + ' ' + unitOf(key) : (st.pct == null ? '—' : HC.num(Math.abs(st.pct), 0) + (HC.isEs() ? ' %' : '%'));
+      var amount = m.kind === 'recovery' ? signed(st.delta, 1) + ' ' + unitOf(key) : (st.pct == null ? '—' : HC.pct(Math.abs(st.pct)));
       pill = '<span class="dt-pill dt-pill-' + esc(st.tone) + '">' + esc(arrow + ' ' + amount + ' ' + R.vs[RANGE_KEY[range]]) + '</span>';
     } else if (st.avg != null) {
       pill = '<span class="dt-pill dt-pill-none">' + esc(st.clamped ? format(R.since, { date: HC.fmtDate(st.from) }) : R.noPrev) + '</span>';
@@ -523,7 +532,7 @@
       if (d.v == null || (thin && inRange(m, d.v))) return;
       var st = stateOn(m, d.iso, d.v);
       if (bars) {
-        if (week) labels.push('<span class="dt-bv" style="left:' + pctX(i) + ';top:' + pctY(Math.max(0, d.v)) + '">' + esc(fmt(d.v, dec)) + '</span>');
+        if (week) labels.push('<span class="dt-bv" style="left:' + pctX(i) + ';top:' + pctY(Math.max(0, d.v)) + '">' + esc(fmtM(m, d.v, dec)) + '</span>');
         if (d.v <= 0) return;
         out.push('<rect class="dt-bar dt-s-' + st + '" x="' + f(x(i) - bw / 2) + '" y="' + f(y(d.v)) + '" width="' + f(bw) + '" height="' + f(Math.max(0.5, y(0) - y(d.v))) + '"/>');
       } else {
@@ -546,7 +555,7 @@
         if (days[j].v == null) continue;
         var ly = bars ? Math.max(0, days[j].v) : days[j].v;
         out.push('<circle class="dt-last" cx="' + f(x(j)) + '" cy="' + f(y(ly)) + '" r="3.2"/>');
-        labels.push('<span class="dt-lastv" style="left:' + pctX(j) + ';top:' + pctY(ly) + '">' + esc(fmt(days[j].v, dec)) + '</span>');
+        labels.push('<span class="dt-lastv" style="left:' + pctX(j) + ';top:' + pctY(ly) + '">' + esc(fmtM(m, days[j].v, dec)) + '</span>');
         break;
       }
     }
@@ -559,7 +568,7 @@
     var band = zc != null ? T.trend.baseline : m.band ? T.trend.typical : '';
     var tdec = tk[1] - tk[0] < 0.1 ? 2 : tk[1] - tk[0] < 1 ? 1 : 0;
     var yax = '<div class="dt-yax" aria-hidden="true">' + tk.slice().reverse().map(function (t) {
-      return '<span style="top:' + (y(t) / CH * 100).toFixed(1) + '%">' + esc(fmt(t, tdec)) + '</span>';
+      return '<span style="top:' + (y(t) / CH * 100).toFixed(1) + '%">' + esc(fmtM(m, t, tdec)) + '</span>';
     }).join('') + '</div>';
     var N = typeof I18N_DATE !== 'undefined' && I18N_DATE ? I18N_DATE.weekdays : null;
     var axis = week && N
@@ -645,7 +654,7 @@
       var day = String(parseIso(d).getDate());
       if (d > end || d < m.start) { out.push('<span class="dt-day dt-out">' + day + '</span>'); continue; }
       var v = valueOf(m, d), st = stateOn(m, d, v);
-      var lbl = HC.fmtDate(d) + ': ' + (v == null ? T.noData : (m.kind === 'recovery' ? signed(v, 1) : fmt(v, m.dec)) + ' ' + unitOf(key)) +
+      var lbl = HC.fmtDate(d) + ': ' + (v == null ? T.noData : (m.kind === 'recovery' ? signed(v, 1) : fmtM(m, v, m.dec)) + (unitOf(key) ? ' ' + unitOf(key) : '')) +
         (st === 'partial' ? ' (' + T.todaySoFar + ')' : '');
       out.push('<button type="button" class="dt-day dt-s-' + st + '" data-dt-act="day" data-date="' + d + '" aria-pressed="' + (d === sel ? 'true' : 'false') + '" aria-label="' + esc(lbl) + '">' + day + '</button>');
     }
@@ -664,9 +673,9 @@
     var out = '';
     if (rem != null && deep != null && core != null) {
       var awake = get('awake');
-      out += row(T.day.stagesLbl, format(T.day.stages, { rem: fmt(rem, 1), deep: fmt(deep, 1), core: fmt(core, 1), awake: awake != null ? fmt(awake, 1) : '—' }));
+      out += row(T.day.stagesLbl, format(T.day.stages, { rem: HC.hours(rem), deep: HC.hours(deep), core: HC.hours(core), awake: HC.hours(awake) }));
     }
-    if (eff != null) out += row(T.day.eff, fmt(eff, 0) + ' %');
+    if (eff != null) out += row(T.day.eff, HC.pct(eff));
     return out || '<p class="dt-note">' + esc(T.day.stagesNote) + '</p>';
   }
   function nightHtml(key, m, iso) {
@@ -676,7 +685,7 @@
     var sl = metric('sleep');
     if (sl) {
       var h = at(sl.v, sl, iso);
-      out.push(row(T.day.asleep, valUnit(h, 1, 'h'), h != null && sl.target != null ? format(T.day.vsTarget, { delta: signed(h - sl.target, 1), target: fmt(sl.target, 1) }) : ''));
+      out.push(row(T.day.asleep, HC.hours(h), h != null && sl.target != null ? format(T.day.vsTarget, { delta: HC.hours(h - sl.target, true), target: HC.hours(sl.target) }) : ''));
       var bed = at(sl.bed, sl, iso), wake = at(sl.wake, sl, iso);
       if (bed != null || wake != null) out.push(row(T.day.bedWake, clock(bed) + '–' + clock(wake)));
     }
@@ -720,7 +729,7 @@
   function nscoreDayHtml(m, iso) {
     var r = m.days && own(m.days, iso) ? m.days[iso] : null, P = T.day.ns;
     if (!r || !P) return '<p class="dt-nodata">' + esc(T.day.noData) + '</p>';
-    var out = [row(P.score, fmt(r.score, 0) + ' %', r.partial ? P.soFar : '')];
+    var out = [row(P.score, HC.pct(r.score), r.partial ? P.soFar : '')];
     ['k', 'p', 'f'].forEach(function (c) {
       var x = r.parts[c], u = c === 'k' ? 'kcal' : 'g';
       out.push(x ? row(P[c], (x.min ? '≥ ' : '') + fmt(x.v, 0) + ' / ' + fmt(x.t, 0) + ' ' + u, x.pts + ' / 100') : row(P[c], '—', P.unknown));
@@ -758,7 +767,7 @@
     return row(titleOf(key), valUnit(v, m.dec, u), sub);
   }
   function sessionHtml(s) {
-    var D2 = T.day, parts = [format(D2.minutes, { n: fmt(s.min, 0) })];
+    var D2 = T.day, parts = [HC.duration(s.min)];
     if (s.km != null) parts.push(format(D2.km, { n: fmt(s.km, s.km < 10 ? 2 : 1) }));
     if (s.el != null) parts.push(format(D2.elev, { n: fmt(s.el, 0) }));
     if (s.hr != null) parts.push(format(D2.hr, { n: fmt(s.hr, 0) }));
@@ -799,7 +808,7 @@
       var sec = z[k] > 0 ? z[k] : 0, p = Math.round((100 * sec) / tot);
       rows.push('<li class="dt-zone dt-z' + k + '"><span class="dt-zname">' + esc(format(Z.zone, { n: k })) + '</span>' +
         (zm ? '<span class="dt-zbpm">' + esc(zoneBpm(k, zm.hr)) + '</span>' : '') +
-        '<span class="dt-zpct">' + p + '%</span><span class="dt-zdur">' + mss(sec) + '</span>' +
+        '<span class="dt-zpct">' + HC.pct(p) + '</span><span class="dt-zdur">' + mss(sec) + '</span>' +
         '<span class="dt-zbar"><i style="width:' + p + '%"></i></span></li>');
     }
     var note = zm ? format(Z.note, { max: fmt(zm.hr, 0), src: Z.src[zm.src] || '' }).replace(' ()', '') : Z.noteNoMax;
@@ -854,7 +863,7 @@
   // the sheet's own helpers, handed to deepdive.js so the dial pages read the same rules and copy
   var X = {
     T: T, D: D, at: at, valueOf: valueOf, lastDataDate: lastDataDate, dayDiff: dayDiff, modOf: modOf,
-    fmt: fmt, signed: signed, pct: pct, clock: clock, unitOf: unitOf, titleOf: titleOf, bandText: bandText,
+    fmt: fmt, fmtM: fmtM, signed: signed, signedM: signedM, pct: pct, clock: clock, unitOf: unitOf, titleOf: titleOf, bandText: bandText,
     metric: metric, dayState: dayState,
   };
   function deep(key) {

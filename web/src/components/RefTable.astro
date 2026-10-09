@@ -2,6 +2,8 @@
 /* One Tablas reference table: food | natural unit | kcal | P | C | G, from lib/nutrition/reference.mjs
  * rows (a food per its natural unit, a composite option as a group row + its component foods, a manual
  * option per serving). Fixed values only — today's amounts live in Plan de hoy. */
+import { fmtRaw } from '../../../lib/format/numbers.mjs';
+
 interface Row {
   kind: 'food' | 'group' | 'serving';
   name: string;
@@ -16,11 +18,12 @@ interface Row {
 interface Props {
   rows: Row[];
   cols: { food: string; ref: string; f: string; typical: string };
-  dec: string;
+  locale: string;
   caption?: string;
 }
-const { rows, cols, dec, caption } = Astro.props;
-const n1 = (v: number) => String(v).replace('.', dec);
+const { rows, cols, locale, caption } = Astro.props;
+// the one number formatter (lib/format/numbers.mjs): decimal comma in es, >= 1000 grouped
+const n1 = (v: number) => fmtRaw(v, locale);
 ---
 {rows.length > 0 && (
   <div class="table-scroll"><table class="ref-table">
@@ -33,7 +36,7 @@ const n1 = (v: number) => String(v).replace('.', dec);
         <tr class={r.sub ? 'ref-sub' : undefined}>
           <td>{r.name}</td>
           <td class="ref-unit">{r.unit}{r.typical && <small class="ref-typ">{cols.typical}</small>}</td>
-          <td class="kc">{r.k}</td>
+          <td class="kc">{r.k != null ? fmtRaw(r.k, locale) : ""}</td>
           <td>{n1(r.p as number)}</td>
           <td>{n1(r.c as number)}</td>
           <td>{n1(r.g as number)}</td>
