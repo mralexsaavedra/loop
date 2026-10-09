@@ -167,13 +167,18 @@ var HC = (function () {
     distance: '<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7"/>',
     flights: '<path d="M4 20h5v-5h5v-5h5V5"/>',
     energy: '<path d="M12 21a6 6 0 0 0 6-6c0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-3-2 2-3 4-3 7a6 6 0 0 0 6 6z"/>',
+    gym: '<path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/>',
     run: '<circle cx="14" cy="4.5" r="1.8"/><path d="M6 21l3.5-5 3 2 1-5 3 3h3M8 10l3-3h3l-1.5 6"/>',
     bike: '<circle cx="6" cy="16" r="4"/><circle cx="18" cy="16" r="4"/><path d="M6 16l4-7h5l3 7M10 9l2 7h-6M13 5h3"/>',
     food: '<path d="M7 3v18M4.5 3v5a2.5 2.5 0 0 0 5 0V3M17 21V3c-2 1.5-3 4-3 8h3"/>',
     balance: '<path d="M12 4v16M8 20h8M5 7h14M5 7l-3 6a3 3 0 0 0 6 0zM19 7l-3 6a3 3 0 0 0 6 0z"/>',
   };
+  // one icon set: a key missing here falls back to the contributor rows' paths (CONTRIB_ICONS: bed, wake,
+  // vsTarget, cons, eff, stages …), then to the HRV line
   function metricIcon(key) {
-    return '<svg class="db-ico" viewBox="0 0 24 24" aria-hidden="true">' + (Object.prototype.hasOwnProperty.call(ICONS, key) ? ICONS[key] : ICONS.hrv) + '</svg>';
+    var own = Object.prototype.hasOwnProperty;
+    return '<svg class="db-ico" viewBox="0 0 24 24" aria-hidden="true">' + (own.call(ICONS, key) ? ICONS[key]
+      : own.call(CONTRIB_ICONS, key) ? '<path d="' + CONTRIB_ICONS[key] + '"/>' : ICONS.hrv) + '</svg>';
   }
   // the ONE trend glyph (docs/design-system.md → Components → Trend glyph): ▲ / ▼ for a change, • for
   // typical / steady; the tone class colours it — good / bad / watch by the metric's direction,
@@ -183,13 +188,13 @@ var HC = (function () {
     if (arrow === 'flat') return 'flat';
     return !tone || tone === 'flat' || tone === 'normal' ? 'neutral' : tone;
   }
-  // o = {key, cls?, attrs?, aria?, name, note?, value, unit?, numCls?, arrow? ('up' | 'down' | 'flat'),
-  //      tone? ('good' | 'bad' | 'watch' | 'flat'), base?} — every text is escaped here; `note` = a small
-  //      line under the name (a session's secondary numbers on Entreno's run / ride rows)
+  // o = {key, cls?, attrs?, aria?, name, value, unit?, numCls?, arrow? ('up' | 'down' | 'flat'),
+  //      tone? ('good' | 'bad' | 'watch' | 'flat'), base?} — every text is escaped here; the ONE small
+  //      secondary line is `base`, under the value (docs/design-system.md → Metric row)
   function metricRow(o) {
     var arrow = o.arrow && Object.prototype.hasOwnProperty.call(ARROWS, o.arrow) ? ARROWS[o.arrow] : '';
     return '<li class="db-row' + (o.cls ? ' ' + o.cls : '') + '"' + (o.attrs || '') + (o.aria ? ' aria-label="' + esc(o.aria) + '"' : '') + '>' + metricIcon(o.key) +
-      '<span class="db-name">' + esc(o.name) + (o.note ? '<small class="db-note">' + esc(o.note) + '</small>' : '') + '</span>' +
+      '<span class="db-name">' + esc(o.name) + '</span>' +
       '<span class="db-vals"><span class="db-val"><b' + (o.numCls ? ' class="' + o.numCls + '"' : '') + '>' + esc(o.value) + '</b>' + (o.unit ? '<small>' + esc(o.unit) + '</small>' : '') +
       (arrow ? '<span class="db-arr db-' + esc(trendTone(o.arrow, o.tone)) + '" aria-hidden="true">' + arrow + '</span>' : '') + '</span>' +
       (o.base != null && o.base !== '' ? '<span class="db-base">' + esc(o.base) + '</span>' : '') + '</span></li>';
@@ -216,6 +221,7 @@ var HC = (function () {
     cons: 'M4 7h16M4 12h16M4 17h16M8 5v4M15 10v4M11 15v4',
     restor: 'M3 15c3-6 6-6 9 0s6 6 9 0',
     clock: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 7v5l3 2',
+    stages: 'M3 6h5v6h6v6h7',
   };
   function contribIcon(k) {
     return '<svg class="dd-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="' + CONTRIB_ICONS[k] + '"/></svg>';
