@@ -202,7 +202,7 @@ Duplicate your `active_energy` search and change only the grouping:
 3 days × 24 hours is at most ~72 lines, so it adds little to the payload. After adding it run
 `npm run sync -- --full` once (or only the Shortcut part, `npm run sync:shortcut -- --full`; see Verify).
 
-### Building `hr_samples`
+### Building `hr_t` and `hr_v` (heart-rate samples)
 
 A day is a few hundred samples, and thousands on a workout day (the Watch samples every few seconds
 while it records one), so build this key **without a loop**: two lists taken straight from the
