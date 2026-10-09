@@ -19,6 +19,9 @@ Nutrición's food pick no longer looks like a mini card (card fill, card radius,
 status word turns white beside its coloured dot (the rate pill keeps its colour), the supplement timing
 tags and Inicio's "PROGRAMMED" timeline label turn white. A new guard rejects any other colour on a caps
 rule, with a reasoned allowlist (the CTA, button text on a fill, and words that ARE the reading).
+**Customize dashboard:** a ≡ drag handle per row, as in the reference app — Pointer Events with pointer
+capture (mouse and touch), the row moves live and the drop saves exactly like ↑ / ↓, which stay (now
+compact, muted) as the keyboard / screen-reader way to reorder.
 
 ## 2026-10-09 — Design system card alignment (DS4)
 

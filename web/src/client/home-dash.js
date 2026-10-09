@@ -11,7 +11,8 @@
  * of data (MIN_BASE_SPARSE (2) readings for a sparse series such as weight); no baseline → no arrow.
  *
  * "Customize ✎" opens a registered sheet ('dash-edit', client/detail.js modal) to show / hide and move
- * rows up / down. Preferences live in localStorage (PREFS_KEY) as {order, hidden}; every read and
+ * rows: drag a row's ≡ handle (Pointer Events: mouse, touch, pen) or use its ↑ / ↓ buttons (keyboard,
+ * screen readers); both go through the pure move() and save the same way. Preferences live in localStorage (PREFS_KEY) as {order, hidden}; every read and
  * write is wrapped in try/catch, unknown or unavailable keys are ignored and missing ones fall back to
  * the catalogue order + default visibility, so the page works the same without storage (in memory).
  *
@@ -72,15 +73,30 @@
         memory = s; // keeps working for this visit
       }
     }
+    function copy(list) {
+      return list.map(function (x) { return { key: x.key, on: x.on }; });
+    }
+    function indexOf(list, key) {
+      for (var j = 0; j < list.length; j++) if (list[j].key === key) return j;
+      return -1;
+    }
+    // one item from index `from` to index `to` (pure): a new list; an out-of-range or equal index
+    // returns an unchanged copy. The ↑ / ↓ buttons and the ≡ drag both reorder through it.
+    function move(list, from, to) {
+      var out = copy(list), n = out.length;
+      var ok = function (i) { return typeof i === 'number' && i % 1 === 0 && i >= 0 && i < n; };
+      if (!ok(from) || !ok(to) || from === to) return out;
+      out.splice(to, 0, out.splice(from, 1)[0]);
+      return out;
+    }
     // up / down / toggle on the list (pure): returns a new list
     function edit(list, key, act) {
-      var out = list.map(function (x) { return { key: x.key, on: x.on }; });
-      var i = -1;
-      out.forEach(function (x, j) { if (x.key === key) i = j; });
-      if (i === -1) return out;
+      var i = indexOf(list, key);
+      if (i === -1) return copy(list);
+      if (act === 'up') return move(list, i, i - 1);
+      if (act === 'down') return move(list, i, i + 1);
+      var out = copy(list);
       if (act === 'toggle') out[i].on = !out[i].on;
-      else if (act === 'up' && i > 0) out.splice(i - 1, 0, out.splice(i, 1)[0]);
-      else if (act === 'down' && i < out.length - 1) out.splice(i + 1, 0, out.splice(i, 1)[0]);
       return out;
     }
 
@@ -176,7 +192,9 @@
         return '<li class="db-erow' + (p.on ? '' : ' db-off') + '">' + icon(p.key) + '<span class="db-name">' + esc(t) + '</span>' +
           HC.switchBtn(p.on, format(TS.showAria, { metric: t }), ' data-dash-act="toggle" data-key="' + esc(p.key) + '"') +
           '<button type="button" class="db-btn" data-dash-act="up" data-key="' + esc(p.key) + '" aria-label="' + esc(format(TS.upAria, { metric: t })) + '"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
-          '<button type="button" class="db-btn" data-dash-act="down" data-key="' + esc(p.key) + '" aria-label="' + esc(format(TS.downAria, { metric: t })) + '"' + (i === list.length - 1 ? ' disabled' : '') + '>↓</button></li>';
+          '<button type="button" class="db-btn" data-dash-act="down" data-key="' + esc(p.key) + '" aria-label="' + esc(format(TS.downAria, { metric: t })) + '"' + (i === list.length - 1 ? ' disabled' : '') + '>↓</button>' +
+          // the ≡ handle: pointer drag (mouse, touch, pen); the ↑ / ↓ buttons are its keyboard / screen-reader twin
+          '<span class="db-grip" data-dash-grip="" data-key="' + esc(p.key) + '" aria-hidden="true"><svg class="db-grip-ico" viewBox="0 0 20 20"><path d="M3 6h14M3 10h14M3 14h14"/></svg></span></li>';
       }).join('') + '</ul>';
     }
     window.HCViews = window.HCViews || {};
@@ -184,20 +202,69 @@
       title: function () { return TS.editTitle; },
       render: function () { return { head: '', body: editHtml(current()) }; },
     };
+    // save a new list, re-render the dashboard and the open sheet (focus: a selector to keep, or none)
+    function commit(list, focus) {
+      writePrefs(list);
+      renderDash();
+      reopen(focus);
+    }
+    function reopen(focus) {
+      var H = window.HCDetail;
+      if (H && typeof H.open === 'function') H.open('dash-edit', null, focus ? { focus: focus } : undefined);
+    }
     document.addEventListener('click', function (e) {
       var b = e && e.target && e.target.closest ? e.target.closest('[data-dash-act]') : null;
       if (!b) return;
       var key = b.getAttribute('data-key'), act = b.getAttribute('data-dash-act');
-      var list = edit(current(), key, act);
-      writePrefs(list);
-      renderDash();
-      // re-render the open sheet, keeping focus on the control just used (or its row's toggle when
-      // the move disabled it)
-      var H = window.HCDetail;
-      if (H && typeof H.open === 'function') H.open('dash-edit', null, { focus: '[data-dash-act="' + act + '"][data-key="' + key + '"]' });
+      // keep focus on the control just used (or its row's toggle when the move disabled it)
+      commit(edit(current(), key, act), '[data-dash-act="' + act + '"][data-key="' + key + '"]');
     });
 
-    window.HCDash = { prefsFrom: prefsFrom, serialize: serialize, edit: edit, rowValue: rowValue, render: renderDash, CATALOG: CATALOG, DEFAULT_ON: DEFAULT_ON, PREFS_KEY: PREFS_KEY };
+    /* ≡ drag (Pointer Events, so mouse, touch and pen alike): pointerdown on a handle captures the
+     * pointer, every move puts the row where the pointer is (the DOM row moves live), the drop saves
+     * through commit() like ↑ / ↓; a cancel re-renders the saved order. */
+    var drag = null;
+    function rowsBut(d) {
+      return [].slice.call(d.ul.children).filter(function (r) { return r !== d.li; });
+    }
+    document.addEventListener('pointerdown', function (e) {
+      var g = e && e.target && e.target.closest ? e.target.closest('[data-dash-grip]') : null;
+      var li = g && g.closest('li');
+      if (!li || !li.parentNode) return;
+      var from = [].slice.call(li.parentNode.children).indexOf(li);
+      drag = { id: e.pointerId, grip: g, li: li, ul: li.parentNode, key: li.getAttribute('data-key') || g.getAttribute('data-key'), from: from, to: from };
+      try { g.setPointerCapture(e.pointerId); } catch (err) { /* capture is a nicety: document listeners still see the moves */ }
+      li.classList.add('db-drag');
+      e.preventDefault();
+    });
+    document.addEventListener('pointermove', function (e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      var others = rowsBut(drag), to = 0;
+      others.forEach(function (r) {
+        var b = r.getBoundingClientRect();
+        if (b.top + b.height / 2 < e.clientY) to++;
+      });
+      if (to !== drag.to) {
+        drag.ul.insertBefore(drag.li, others[to] || null);
+        drag.to = to;
+      }
+      e.preventDefault();
+    });
+    function endDrag(e, save) {
+      if (!drag || e.pointerId !== drag.id) return;
+      var d = drag;
+      drag = null;
+      d.li.classList.remove('db-drag');
+      try { d.grip.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
+      if (save && d.to !== d.from) {
+        var list = current();
+        commit(move(list, indexOf(list, d.key), d.to));
+      } else if (d.to !== d.from) reopen();
+    }
+    document.addEventListener('pointerup', function (e) { endDrag(e, true); });
+    document.addEventListener('pointercancel', function (e) { endDrag(e, false); });
+
+    window.HCDash = { prefsFrom: prefsFrom, serialize: serialize, edit: edit, move: move, rowValue: rowValue, render: renderDash, CATALOG: CATALOG, DEFAULT_ON: DEFAULT_ON, PREFS_KEY: PREFS_KEY };
     renderDash();
   }
   boot();

@@ -1339,9 +1339,13 @@ details.rec-raw[open] > summary::after {
   color: var(--muted);
   font-size: var(--fs-sm);
 }
-/* the customize sheet: show / hide + up / down per row */
+/* the customize sheet: show / hide, compact ↑ / ↓ (the keyboard's way to move) and the ≡ drag handle */
 .db-erow {
+  gap: var(--sp-2);
   background: var(--surface-2);
+}
+.db-erow .db-name {
+  margin-left: var(--sp-2);
 }
 .db-off .db-name,
 .db-off .db-ico {
@@ -1349,16 +1353,46 @@ details.rec-raw[open] > summary::after {
 }
 .db-btn {
   flex: none;
-  min-width: 44px;
+  min-width: 32px;
   min-height: 44px;
-  padding: 0 var(--sp-3);
-  border: 1px solid var(--line);
+  padding: 0;
+  border: 0;
   border-radius: var(--r-pill);
   background: transparent;
-  color: var(--ink);
+  color: var(--muted);
   font-family: inherit;
   font-size: var(--fs-md);
   cursor: pointer;
+}
+.db-grip {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  min-height: 44px;
+  margin-right: calc(-1 * var(--sp-2));
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.db-grip-ico {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+/* the row being dragged: lifted onto the pressed fill */
+.db-erow.db-drag {
+  position: relative;
+  z-index: 1;
+  background: var(--track);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+.db-drag .db-grip {
+  cursor: grabbing;
 }
 .db-btn:disabled {
   opacity: 0.3;
