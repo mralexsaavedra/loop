@@ -239,8 +239,7 @@
 .ji-down {
   color: var(--down);
 }
-.ji-flat,
-.ji-need {
+.ji-flat {
   color: var(--muted);
 }
 .ji-bar {
@@ -271,4 +270,16 @@
 .ji-row .jr-msg {
   grid-column: 1 / -1;
   margin: 0;
+}
+/* the rows without enough days share one card: nothing scored yet → the sheet's empty state (no legend
+   above it, so it keeps the legend's spacing); else their yes / no counts */
+.ji-empty:first-child {
+  margin-top: var(--sp-7);
+}
+.ji-need-list {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
 }

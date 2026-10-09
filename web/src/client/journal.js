@@ -196,18 +196,26 @@
       var I = J.insights, min = (J.limits && J.limits.insightMinDays) || 5;
       var rows = insightRows(I.rows);
       var scale = Math.max(20, Math.max.apply(null, rows.map(function (r) { return typeof r.diff === 'number' ? Math.abs(r.diff) : 0; })));
-      var list = rows.map(function (r) {
+      var ok = rows.filter(function (r) { return r.status === 'ok'; });
+      var need = rows.filter(function (r) { return r.status !== 'ok'; });
+      var list = ok.map(function (r) {
         var name = T.names[r.key] || r.key;
-        if (r.status !== 'ok') {
-          return '<li class="ji-row"><span class="ji-name">' + esc(name) + '</span><span class="ji-need">' + esc(T.need) + '</span>' +
-            '<span class="jr-msg">' + esc(format(T.needDetail, { yes: r.yesDays, no: r.noDays, min: min })) + '</span></li>';
-        }
         var tone = Math.abs(r.diff) < 1 ? 'flat' : r.diff > 0 ? 'up' : 'down';
         var aria = format(T.rowAria, { name: name, diff: (r.diff > 0 ? '+' : '') + HC.num(r.diff, 1), yesMean: HC.num(r.yesMean, 0), noMean: HC.num(r.noMean, 0), yes: r.yesDays, no: r.noDays });
         return '<li class="ji-row" aria-label="' + esc(aria) + '"><span class="ji-name" aria-hidden="true">' + esc(name) + '</span>' +
           '<b class="ji-pct ji-' + tone + '" aria-hidden="true">' + esc(signed(r.diff)) + '</b>' +
           '<span class="ji-bar" aria-hidden="true"><i class="ji-fill ji-' + tone + '" style="' + barStyle(r.diff, scale) + '"></i><i class="ji-dot"></i></span></li>';
       }).join('');
+      // the behaviours without enough days share ONE card (formerly one identical "Need more data" card
+      // each): with nothing scored yet, what is needed + how many days count so far; else their counts
+      if (need.length) {
+        var counted = Math.max.apply(null, need.map(function (r) { return (r.yesDays || 0) + (r.noDays || 0); }));
+        list += '<li class="ji-row ji-empty"><span class="ji-name">' + esc(T.need) + '</span>' + (ok.length
+          ? '<p class="jr-msg">' + esc(format(T.needSome, { min: min })) + '</p><ul class="ji-need-list">' + need.map(function (r) {
+            return '<li>' + esc(format(T.needItem, { name: T.names[r.key] || r.key, yes: r.yesDays, no: r.noDays })) + '</li>';
+          }).join('') + '</ul>'
+          : '<p class="jr-msg">' + esc(format(T.needAll, { min: min, n: counted })) + '</p>') + '</li>';
+      }
       var days = Math.round((HC.parseIso(I.asOf) - HC.parseIso(I.from)) / HC.MS_PER_DAY) + 1;
       return {
         head: '',
@@ -215,7 +223,7 @@
           '<button type="button" class="sh-info" data-dt-act="info" aria-expanded="false" aria-controls="dd-info" aria-label="' + esc(T.infoLabel) + '">' + INFO + '</button></div>' +
           '<div class="dd-info dt-info" id="dd-info" hidden><p>' + esc(format(T.info, { min: min })) + '</p><p>' + esc(T.caveat) + '</p></div>' +
           '<h3 class="jr-q">' + esc(T.impact) + '</h3><p class="dt-note">' + esc(T.intro) + '</p>' +
-          '<div class="ji-leg" aria-hidden="true"><span class="ji-down">▼ ' + esc(T.hurts) + '</span><span>' + esc(T.pct) + '</span><span class="ji-up">' + esc(T.helps) + ' ▲</span></div>' +
+          (ok.length ? '<div class="ji-leg" aria-hidden="true"><span class="ji-down">▼ ' + esc(T.hurts) + '</span><span>' + esc(T.pct) + '</span><span class="ji-up">' + esc(T.helps) + ' ▲</span></div>' : '') +
           '<ul class="jr-rows">' + list + '</ul>',
       };
     }

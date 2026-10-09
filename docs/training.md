@@ -24,7 +24,8 @@ bike): the LAST scored session's Relative Effort big in `--strain`, a small ring
 arc for that session (`DIALS.load.modalities[].days[].fill`, the typical-day tick), "LOAD · <date>"
 (`today` when it is the viewer's today) and a 7-day vs 42-day pill — grey • steady, teal ▲▼ above /
 below usual, orange ▲▼ ramping / well below (`lib/score/load.mjs` bands); a gated modality shows "—"
-and the dial's "Building" word. A card opens that modality's deep-dive (`load-<m>`). These cards are
+and the dial's "Building" word; a card without a value ("—": no session in the data) has no pill (a
+"▼ -64%" beside "—" read as a value, DS6). A card opens that modality's deep-dive (`load-<m>`). These cards are
 where per-modality Relative Effort lives once Inicio's third dial is the day strain (`docs/home-tab.md`):
 the strain dial has no modality pills, and its deep-dive links back to the three `load-<m>` pages. Then the
 **Activity card** (`#train-activity`, `lib/training/activity.mjs` → `ACTIVITY`, baked in TrainingDetail
