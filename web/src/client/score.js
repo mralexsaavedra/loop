@@ -127,7 +127,10 @@ function scMod(key) {
       out.push('<div class="rec-when">' + esc(when) + '</div>');
       var pct = typeof R.today.pct === 'number';
       var band = pct ? R.today.pctBand : R.today.band;
-      out.push('<div class="rec-big sc-band-' + esc(band) + '"><b class="rec-num">' + esc(pct ? String(R.today.pct) : num(R.today.value, 1, true)) +
+      // THE carried-value rule (HC.carried): a night from an earlier day (dated just above) is dimmed;
+      // a stale card's grey is the stronger state
+      var c = HC.carried(R.today.date, null, { stale: isStale(R.asOf) });
+      out.push('<div class="rec-big sc-band-' + esc(band) + c.cls + '"><b class="rec-num">' + esc(pct ? String(R.today.pct) : num(R.today.value, 1, true)) +
         '<small class="rec-unit">' + esc(pct ? '%' : rt.unit) + '</small></b><span class="rec-band">' + esc(pct ? rt.pctBands[band] : rt.bands[band]) + '</span></div>');
     } else {
       out.push('<div class="sc-note">' + esc(rt.noToday) + '</div>');

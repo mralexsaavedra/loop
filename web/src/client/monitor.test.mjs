@@ -366,7 +366,7 @@ test('carried values (HC.carried): a tile whose value is from before the shown d
   const y = tilesOf(mon, { stress: STRESS, now: addDays(ASOF, 1), detail: true });
   const sum = y.match(/<button type="button" class="hmt hmt-sum[^"]*"[\s\S]*?<\/button>/)[0];
   assert.match(sum, /^<button type="button" class="hmt hmt-sum carried"/, 'summary tile dimmed');
-  assert.ok(sum.includes(' · <span class="carried-date">29 Sep</span></span>'), 'the summary names the night it counts');
+  assert.ok(sum.includes('</span><span class="hmt-sub"><span class="carried-date">29 Sep</span></span>'), 'the summary names the night it counts, on its own line');
   assert.match(stressTile(y), /^<div class="hmt hmt-stress hmt-sb-medium carried"/, 'stress tile dimmed');
   const h = tilesOf(mon, { now: addDays(ASOF, 1), detail: true });
   assert.match(h, /<div class="hmt hmt-hrv hm-tone-normal carried"/, 'HRV tile dimmed');

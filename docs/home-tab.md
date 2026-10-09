@@ -170,8 +170,8 @@ trend is the line under it.
 - **Carried values** (`HC.carried`, `docs/design-system.md` → Carried values): any Inicio display that
   stands for today (or the stepped-to day) but shows an EARLIER day's value names that date and is
   dimmed (`.carried`, colour kept; the > 3-day stale grey stays the stronger state): the sleep and
-  recovery dials + mini rings ("7 OCT" under the number), the monitor summary tile ("5/5 metrics · 8
-  OCT": the newest night it counts), the stress and HRV tiles ("8 OCT · 23:00"), the energy bank card
+  recovery dials + mini rings ("7 OCT" under the number), the monitor summary tile ("8 OCT" under
+  "5/5 metrics": the newest night it counts), the stress and HRV tiles ("8 OCT · 23:00"), the energy bank card
   ("8 OCT · 21:00"; it then opens its page on that day) and "My day" (its "Activities · Thu 8 Oct"
   heading). The tiles and the energy card drop the weekday (half-width); the "My day" heading keeps it.
 - **Day stepping** (the top bar's "‹ HOY ›", `client/today-date.js` `window.HCDay`, see
