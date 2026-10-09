@@ -21,6 +21,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCssRules } from './css-scan.mjs';
+import { CODE, SRC } from './display-sources.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const STYLES = path.join(here, '..', 'src', 'styles');
@@ -212,4 +213,36 @@ test('CTA link: only .cta (and the in-sentence .lnk) paint link text; the gradie
   assert.deepEqual(linkText.sort(), ['base.css .cta', 'base.css .lnk'], 'a link-coloured rule outside .cta / .lnk is another link style');
   const gradient = RULES.filter((r) => r.decl['background-clip'] === 'text').map(key);
   assert.deepEqual(gradient, ['detail.css .dd-insight .cta'], 'the gradient text is drawn only on --ground (tokens.css)');
+});
+
+// the chevron's look lives in ONE rule (base.css); its owners only place / rotate it
+const CHEV_RULE = '.chev, [data-detail][role=button]:after, button.meal-name:after, details.rec-raw>summary:after';
+const CHEV_LOOK = ['color', 'font-size', 'font-weight', 'line-height', 'font'];
+test('chevron: one glyph size and colour; no rule styles a chevron of its own', () => {
+  const base = RULES.find((r) => r.file === 'base.css' && r.selector === CHEV_RULE);
+  assert.ok(base, 'base.css holds the one chevron rule');
+  assert.deepEqual([base.decl.color, base.decl['font-size'], base.decl['font-weight']], ['var(--muted)', 'var(--chev-size)', '400']);
+  const bad = [];
+  for (const r of RULES) {
+    if (r === base) continue;
+    const isChev = /(^|[\s.,>])\.?[\w-]*chev\b/.test(r.selector) || /[›‹]/.test(r.decl.content ?? '');
+    const look = CHEV_LOOK.filter((p) => r.decl[p] != null);
+    if (isChev && look.length) bad.push(`${where(r)} sets ${look.join(', ')} (the chevron's look is base.css's .chev)`);
+  }
+  assert.deepEqual(bad, []);
+});
+
+// a ‹ / › glyph in markup sits in a .chev span; the one exception is the sheet header's back button
+const GLYPH_ALLOW = { 'web/src/client/util.js': 1 }; // sheetHead's .sh-back "‹" (a 44px header control, docs)
+test('chevron: every ‹ / › written in markup is a .chev span', () => {
+  const bad = [];
+  for (const f of CODE) {
+    let n = 0;
+    for (const m of SRC[f].matchAll(/[›‹]/g)) {
+      if (/<span class="chev[^"]*"[^>]*>$/.test(SRC[f].slice(Math.max(0, m.index - 80), m.index))) continue;
+      n++;
+    }
+    if (n !== (GLYPH_ALLOW[f] ?? 0)) bad.push(`${f}: ${n} chevron glyph(s) outside a .chev span (allowed ${GLYPH_ALLOW[f] ?? 0})`);
+  }
+  assert.deepEqual(bad, []);
 });

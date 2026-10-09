@@ -97,7 +97,7 @@
   }
   var CHECK = '<svg class="hmt-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7"/></svg>';
   function lbl(text) {
-    return '<span class="hmt-lbl">' + esc(text) + '<span class="hmt-chev" aria-hidden="true">›</span></span>';
+    return '<span class="hmt-lbl">' + esc(text) + '<span class="chev" aria-hidden="true">›</span></span>';
   }
   // tile 1: out-of-range count (teal check "within range" when none), "n/total metrics" in range; a
   // tap jumps to the full monitor grid (core.js jump: opens its fold / switches to its tab)

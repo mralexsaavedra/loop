@@ -9,7 +9,6 @@
 .jr-top .tn-h {
   margin: 0;
 }
-.jr-chev,
 .jr-day,
 .jr-sd,
 .jr-x {
@@ -20,11 +19,7 @@
   cursor: pointer;
 }
 .jr-chev {
-  width: 44px;
-  height: 44px;
   margin-right: -12px;
-  color: var(--muted);
-  font-size: var(--fs-3xl);
 }
 .jr-week,
 .jr-strip {

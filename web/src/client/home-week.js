@@ -228,7 +228,7 @@
       var P = T.plan, left = g.week.daysLeft;
       var leftTxt = left === 0 ? P.lastDay : left === 1 ? P.oneLeft : format(P.daysLeft, { n: left });
       return '<details class="sc-card wp"' + (open ? ' open' : '') + '><summary class="wp-sum">' +
-        '<span class="wp-top"><b class="wp-title">' + esc(P.card) + '</b><span class="wp-chev" aria-hidden="true"></span></span>' +
+        '<span class="wp-top"><b class="wp-title">' + esc(P.card) + '</b><span class="chev wp-chev" aria-hidden="true">›</span></span>' +
         '<span class="wp-left">' + esc(leftTxt) + '</span>' +
         '<span class="wp-pct"><b>' + g.pct + '</b><small>%</small> ' + esc(P.done) + '</span>' +
         '<span class="wp-prog" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + g.pct + '" aria-label="' + esc(P.card) + '"><i style="width:' + g.pct + '%"></i></span>' +

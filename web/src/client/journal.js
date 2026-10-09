@@ -157,7 +157,7 @@
         ? '<button type="button" class="jr-ins" data-detail="journal-insights" aria-haspopup="dialog">' + esc(T.insights) + '</button>' : '';
       return '<div class="sc-card jr">' +
         '<div class="jr-top"><h3 class="tn-h">' + esc(T.heading) + '</h3>' +
-        (live ? '<button type="button" class="jr-chev" data-detail="journal" aria-haspopup="dialog" aria-label="' + esc(T.open) + '">›</button>' : '') + '</div>' +
+        (live ? '<button type="button" class="nav-btn jr-chev" data-detail="journal" aria-haspopup="dialog" aria-label="' + esc(T.open) + '"><span class="chev" aria-hidden="true">›</span></button>' : '') + '</div>' +
         '<ol class="jr-week">' + cols + '</ol>' + ins + '</div>';
     }
     function renderCard() {

@@ -137,7 +137,6 @@ html.dt-lock body {
   margin-top: var(--sp-1);
 }
 .dt-range button:focus-visible,
-.dt-mnav:focus-visible,
 .dt-day:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -227,23 +226,6 @@ html.dt-lock body {
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
-.dt-wnav {
-  width: 44px;
-  height: 44px;
-  border: 0;
-  border-radius: var(--r-pill);
-  background: none;
-  color: var(--ink);
-  font-size: var(--fs-xl);
-  line-height: 1;
-  cursor: pointer;
-}
-.dt-wnav:disabled {
-  color: var(--faint);
-  opacity: 0.4;
-  cursor: default;
-}
-.dt-wnav:focus-visible,
 .dt-metric-sel:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -270,15 +252,8 @@ html.dt-lock body {
   cursor: pointer;
 }
 .dt-metric-chev {
-  position: relative;
-  width: 16px;
-  height: 16px;
   margin: auto 0 auto -28px;
-  fill: none;
-  stroke: var(--muted);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  transform: rotate(90deg);
   pointer-events: none;
 }
 .dt-trend-lbl {
@@ -561,20 +536,6 @@ html.dt-lock body {
   letter-spacing: var(--label-track);
   text-transform: uppercase;
   color: var(--ink);
-}
-.dt-mnav {
-  width: 44px;
-  height: 44px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: var(--surface-2);
-  color: var(--ink);
-  font-size: var(--fs-2xl);
-  cursor: pointer;
-}
-.dt-mnav:disabled {
-  opacity: 0.35;
-  cursor: default;
 }
 .dt-cal {
   display: grid;
@@ -872,9 +833,6 @@ button.dt-day {
   top: min(50%, 22px);
   right: 10px;
   transform: translateY(-50%);
-  color: var(--faint);
-  font-size: var(--fs-2xl);
-  line-height: 1;
   pointer-events: none;
 }
 [data-detail][role="button"]:hover::after {

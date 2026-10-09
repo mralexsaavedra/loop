@@ -302,7 +302,7 @@ test('advice = the one-line "outlook" bar under "My day": icon, the short title,
   const linked = render(s, { now: addDays(ASOF, 1), detail: true });
   const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   assert.match(linked, new RegExp(`<div class="sc-advice outlook" data-detail="recovery" role="button" tabindex="0" aria-haspopup="dialog" aria-label="${esc(enT.home.outlook + ': ' + text)}"><svg class="outlook-ico"`));
-  assert.ok(linked.includes(`<span class="outlook-txt">${enT.home.outlook}</span><span class="outlook-chev" aria-hidden="true">›</span></div>`), 'one line: the short title');
+  assert.ok(linked.includes(`<span class="outlook-txt">${enT.home.outlook}</span><span class="chev outlook-chev" aria-hidden="true">›</span></div>`), 'one line: the short title');
   assert.equal(enT.home.outlook, 'Your daily outlook');
   const es = render(s, { now: addDays(ASOF, 1), detail: true, locale: 'es' });
   assert.ok(es.includes(`<span class="outlook-txt">${esT.home.outlook}</span>`));
@@ -534,7 +534,7 @@ test('% copy: band words and the mapping note exist in es + en', () => {
 test('dials: label BELOW the ring, uppercase via CSS, with a chevron; no captions under the dials (they live in each dial\'s detail sheet)', () => {
   const html = withDials(fixtureScores());
   for (const lbl of [enT.dials.sleep.label, enT.dials.recovery.label, enT.dials.load.label]) {
-    assert.ok(html.includes(`<figcaption class="dial-lbl">${lbl}<span class="dial-chev" aria-hidden="true">›</span></figcaption>`), lbl);
+    assert.ok(html.includes(`<figcaption class="dial-lbl">${lbl}<span class="chev dial-chev" aria-hidden="true">›</span></figcaption>`), lbl);
   }
   assert.doesNotMatch(html, /class="dial-sub"|class="dial-cap"|class="dial-scale"|class="dial-switch-lbl"/);
   assert.ok(!html.includes(enT.dials.load.scale), 'the load scale explanation is in the load detail sheet');
