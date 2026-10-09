@@ -5,6 +5,17 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-09 — Loop-free heart-rate samples from the Shortcut (`hr_t` + `hr_v`)
+
+The `hr_samples` step looped once per Watch heart-rate sample (thousands on a workout day), so the
+Shortcut ran very long. It can now send two parallel lists built straight from the Find Health
+Samples result: `hr_t` (Start Dates, ISO 8601) and `hr_v` (Values; a unit or decimal comma is
+fine). `lib/health/hr-hourly.cjs` zips them by line number (`zipHrLists`) and unions them with any
+`hr_samples` lines (`mergeHrSamples`), with the same exact-timestamp dedupe and 25-240 bpm check.
+Lists of different lengths are dropped whole and `npm run sync` prints a `WARNING` (never
+mis-paired). `hr_samples` stays supported. The ingest service already stores any key and allows a
+32 MB body, so it needs no change. Docs: `docs/ios-shortcut.md` (new recipe), `docs/data-pipeline.md`.
+
 ## 2026-10-08 — Visual polish: deep-dives and the trend view (Q11b-2)
 
 From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); no new data or metric.

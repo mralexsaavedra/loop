@@ -135,7 +135,9 @@ Decimal commas (`42,1`) are accepted.
 | `diet_carbs` | Carbohydrates | day total | **yes** | no | 8 days | `dietary-daily.csv` (carbs_g) |
 | `diet_fat` | Total Fat | day total | **yes** | no | 8 days | `dietary-daily.csv` (fat_g) |
 | `sleep` | Sleep (Sleep Analysis) | sleep | no | no | 3 days | `sleep-daily.csv` |
-| `hr_samples` | Heart Rate, *Source is* your watch | samples (bpm) | no: **no grouping** | **filter** by source | 1 day | `hr-hourly.csv` |
+| `hr_t` | Heart Rate, *Source is* your watch | samples: Start Dates (ISO 8601), one per line | no: **no grouping** | **filter** by source | 1 day | `hr-hourly.csv` |
+| `hr_v` | the same search | samples: Values (bpm), same line order as `hr_t` | no: **no grouping** | **filter** by source | 1 day | `hr-hourly.csv` |
+| `hr_samples` | the same search (older, loop-based alternative to `hr_t` + `hr_v`) | samples (`ISO;bpm`) | no: **no grouping** | **filter** by source | 1 day | `hr-hourly.csv` |
 
 What the sync does with each shape:
 
@@ -157,8 +159,14 @@ What the sync does with each shape:
   It is used only to correct ride days: when a bike computer with a power meter records a ride the
   Watch did not, the Watch's energy during the ride hours is replaced by the ride's power-based
   energy (Strava kJ), never lowering a day (`docs/health-tab.md`, Energy).
-- **Heart-rate samples** (`hr_samples`): every Watch heart-rate sample of the window, one line
-  each (`2030-01-02T09:07:12+01:00;72`). Runs overlap, so samples are deduped by their **exact
+- **Heart-rate samples** (`hr_t` + `hr_v`, or `hr_samples`): every Watch heart-rate sample of the
+  window. `hr_t` holds one Start Date per line (`2030-01-02T09:07:12+01:00`) and `hr_v` the Value
+  on the same line number (`72`, `72 count/min`, `72 lpm` or `72,5`: the leading number is the
+  bpm); the sync pairs them by line number. If the two lists have a different number of lines (a
+  blank line counts unless it is blank in both), the payload's lists are dropped whole and
+  `npm run sync` prints a `WARNING`, so a sample is never paired with another one's value. The
+  older `hr_samples` key (one `2030-01-02T09:07:12+01:00;72` line per sample) is still accepted;
+  a payload may carry both, and they are merged. Runs overlap, so samples are deduped by their **exact
   timestamp** across payloads (the later payload wins); a value outside 25–240 bpm is dropped as a
   glitch. Only **hourly aggregates** reach `hr-hourly.csv` (average, max, min, count, covered
   minutes and a per-bpm histogram of the time outside Strava activities; see
@@ -194,16 +202,28 @@ Duplicate your `active_energy` search and change only the grouping:
 3 days × 24 hours is at most ~72 lines, so it adds little to the payload. After adding it run
 `npm run sync -- --full` once (or only the Shortcut part, `npm run sync:shortcut -- --full`; see Verify).
 
-### Building `hr_samples`
+### Building `hr_t` and `hr_v` (heart-rate samples)
 
-1. **Find Health Samples**: *Type* **Heart Rate** (Spanish: *Frecuencia cardiaca*), *Source is*
-   your watch, *Start Date is in the last* **1 day**, **no** *Group By* (raw samples).
-2. **Repeat with Each** → **Text** `<Start Date ISO 8601>;<Value>`, then **Combine Text** with new
-   lines, like every other key.
-3. Add a JSON field `hr_samples` with that text to the POST body.
+A day is a few hundred samples, and thousands on a workout day (the Watch samples every few seconds
+while it records one), so build this key **without a loop**: two lists taken straight from the
+search result, paired by line number on the sync side.
 
-A day is a few hundred samples (more on a workout day, the Watch samples every few seconds while
-it records one), so this is the slowest search of the Shortcut; that is expected. The 1-day
+1. **Find Health Samples** (*Buscar muestras de Salud*): *Type* **Heart Rate** (*Frecuencia
+   cardiaca*), *Source is* your watch, *Start Date is in the last* **1 day**, **no** *Group By*
+   (raw samples).
+2. **Text** (*Texto*) with the magic variable **Health Samples** (*Muestras de Salud*); tap it and
+   pick the property **Start Date** (*Fecha de inicio*), *Date Format* (*Formato de fecha*)
+   **ISO 8601**. Then **Combine Text** (*Combinar texto*) with **New Lines** (*Saltos de línea*).
+   Add that text to the POST body as the JSON field `hr_t`.
+3. **Text** (*Texto*) with the magic variable **Health Samples** (*Muestras de Salud*) › **Value**
+   (*Valor*), then **Combine Text** (*Combinar texto*) with **New Lines** (*Saltos de línea*). Add
+   it as the JSON field `hr_v`. A unit after the number (`72 count/min`, `72 lpm`) is fine.
+
+Both lists come from the same search, so they always have the same length and order. The older
+recipe (**Repeat with Each** (*Repetir con cada*) → **Text** `<Start Date ISO 8601>;<Value>` →
+**Combine Text** → field `hr_samples`) is still accepted, but it loops once per sample and is very
+slow on workout days. A workout day of about 5,000 samples is roughly 150 KB of `hr_t` plus 25 KB
+of `hr_v`, well under the ingest service's 32 MB body limit (`MAX_BODY_BYTES`). The 1-day
 window overlaps between runs on purpose: the sync dedupes by timestamp, so nothing is counted
 twice and a missed run leaves no gap as long as the next one comes within a day. After adding it
 run `npm run sync -- --full` once.

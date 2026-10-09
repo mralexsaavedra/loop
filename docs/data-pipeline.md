@@ -63,7 +63,10 @@ offset; keyed by local hour + offset so a DST fall-back night keeps both 02:00 h
 payload's oldest, window-truncated HOUR is dropped and the latest payload wins an hour; tagged
 `Shortcut`, so every row is rebuilt each run — the export never writes this file). It only feeds
 the power-meter ride correction (Health tab → Energy).
-`hr_samples` (Watch Heart Rate, NO grouping, 1 day; `docs/ios-shortcut.md`) →
+`hr_t` + `hr_v` (Watch Heart Rate, NO grouping, 1 day: two parallel lists of Start Dates and
+Values, zipped by line number; lists of different lengths are dropped with a sync `WARNING`, never
+mis-paired) or the older `hr_samples` (`ISO;bpm` lines), unioned when both come
+(`docs/ios-shortcut.md`) →
 `hr-hourly.csv` (`date,hour_start,avg,max,min,n,covered_min,act_min,hist,source`; `lib/health/hr-hourly.cjs`).
 Samples are deduped by their exact instant across payloads (the later payload wins) and must be
 25–240 bpm; the raw samples stay in the local cache, the CSV holds one row of aggregates per clock

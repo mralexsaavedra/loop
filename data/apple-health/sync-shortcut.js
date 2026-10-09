@@ -50,7 +50,10 @@ const OUT = path.join(__dirname, 'extract');
 //                   local hour + offset, so a DST fall-back night keeps both 02:00 hours.
 //   kind interval : "start;end;stage"        -> one row per night    (sleep-daily schema)
 //   kind hrSamples : "start;bpm" (ungrouped Watch heart-rate samples) -> one row per CLOCK HOUR of
-//                   aggregates (lib/health/hr-hourly.cjs); samples deduped by their exact instant, later payload wins
+//                   aggregates (lib/health/hr-hourly.cjs); samples deduped by their exact instant, later payload wins.
+//                   Also read from the loop-free parallel lists `hr_t` (Start Dates) + `hr_v` (Values),
+//                   zipped by index (HR.mergeHrSamples); lists of different lengths are dropped with a warning
+//   payloadKeys   : every payload key the metric reads, when not just its own name (hrSamples)
 //   withSource    : keep the payload's per-sample source in the CSV (else "Shortcut")
 //   sourceCol     : index of the CSV source column, null when the schema has none
 //   metaKey / rangeKey : the _meta.json rows/ranges keys extract.js uses for that CSV.
@@ -116,7 +119,7 @@ const METRICS = {
   // Watch heart-rate samples (Heart Rate, Source = the watch, NO grouping, last 1 day): only hourly
   // aggregates reach the CSV (lib/health/hr-hourly.cjs), the raw samples live in the local cache. Feeds day
   // strain (lib/score/strain.mjs). Tagged "Shortcut", so every row is rebuilt each run.
-  hr_samples: { kind: 'hrSamples', csv: HR.HR_HOURLY_CSV, header: HR.HR_HOURLY_HEADER, metaKey: 'hr_hourly', sourceCol: 9 },
+  hr_samples: { kind: 'hrSamples', payloadKeys: ['hr_samples', HR.HR_TIMES_KEY, HR.HR_VALUES_KEY], csv: HR.HR_HOURLY_CSV, header: HR.HR_HOURLY_HEADER, metaKey: 'hr_hourly', sourceCol: 9 },
   // Watch-filtered day totals (one search per key, *Source is* the watch, Group by Day), the same
   // CSVs extract.js writes (max-per-device there; the Watch is the device that logs these fully).
   // No source column -> ownership via the ledger, like energy. A 0 day (Fill Missing, watch not worn)
@@ -246,8 +249,9 @@ function dropTruncatedOldestHour(samples) {
   return samples.filter(s => DEDUP_KEY.hourly(s) !== k);
 }
 
-// one payload object -> { metric: [sample] } for known metrics only
-function parsePayload(payload) {
+// one payload object -> { metric: [sample] } for known metrics only; payload-level problems (the
+// hr_t / hr_v lists of different lengths) are pushed onto `warnings` as strings
+function parsePayload(payload, warnings = []) {
   const out = {};
   if (!payload || typeof payload !== 'object') return out;
   const lines = raw => (typeof raw === 'string' ? raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean) : []);
@@ -256,10 +260,18 @@ function parsePayload(payload) {
       lines(payload[key]).map(PARSERS.daily).filter(Boolean).map(s => ({ ...s, [tag]: label })));
     const samples = def.kind === 'deviceDaily' ? perKey(def.devices, 'device')
       : def.kind === 'fieldsDaily' ? perKey(def.fields, 'field')
-        : lines(payload[metric]).map(l => PARSERS[def.kind](l, def)).filter(Boolean);
+        : def.kind === 'hrSamples' ? hrSamplesOf(payload, warnings)
+          : lines(payload[metric]).map(l => PARSERS[def.kind](l, def)).filter(Boolean);
     if (samples.length) out[metric] = samples;
   }
   return out;
+}
+
+// hr_samples lines + the zipped hr_t / hr_v lists of one payload (lib/health/hr-hourly.cjs)
+function hrSamplesOf(payload, warnings) {
+  const { samples, warning } = HR.mergeHrSamples(payload);
+  if (warning) warnings.push(warning);
+  return samples;
 }
 
 // ---- sample cache ------------------------------------------------------------------------
@@ -272,8 +284,9 @@ const emptyCache = () => ({ version: CACHE_VERSION, lastPayloadId: null, payload
 const idAfter = (id, last) => last == null || BigInt(id) > BigInt(last);
 
 // Pure: fold payload rows [{id, payload}] (any order) into a cache. Payloads at or below
-// lastPayloadId are skipped, so re-folding the same rows is a no-op.
-function foldPayloads(cache, items) {
+// lastPayloadId are skipped, so re-folding the same rows is a no-op. Parse warnings are pushed onto
+// `warnings` ("payload <id>: ..."), never stored in the cache.
+function foldPayloads(cache, items, warnings = []) {
   const out = JSON.parse(JSON.stringify(cache));
   // a metric whose dedupe key changed (rhr: timestamp+value -> timestamp) is re-keyed in place, in
   // cache order (= fold order), so an older cache needs no --full rebuild
@@ -287,7 +300,10 @@ function foldPayloads(cache, items) {
   const fresh = items.filter(i => idAfter(i.id, out.lastPayloadId))
     .sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
   for (const item of fresh) {
-    for (const [metric, parsed] of Object.entries(parsePayload(item.payload))) {
+    const itemWarnings = [];
+    const parsedPayload = parsePayload(item.payload, itemWarnings);
+    for (const w of itemWarnings) warnings.push(`payload ${item.id}: ${w}`);
+    for (const [metric, parsed] of Object.entries(parsedPayload)) {
       const def = METRICS[metric], kind = def.kind;
       // zeros still mark the window start, so drop the truncated oldest day BEFORE the zeros
       let samples = isDailyKind(kind) ? dropTruncatedOldest(parsed) : kind === 'hourly' ? dropTruncatedOldestHour(parsed) : parsed;
@@ -392,7 +408,7 @@ function mergeCsv(existingText, header, rows, opts = {}) {
 }
 
 const range = dates => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a');
-const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of the main-sleep asleep intervals per wake-up night (naps excluded, samples.js sleepNights), plus the stage columns (REM / deep / core / unspecified / awake / in bed, same rule as extract.js); Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored). Shortcut active_energy_hourly = Watch active energy per clock hour (active-energy-hourly.csv, Shortcut-only; feeds the power-meter ride correction in lib/health/ride-energy.mjs). Shortcut hr_samples = ungrouped Watch heart-rate samples (deduped by exact timestamp, 25-240 bpm) aggregated per clock hour into hr-hourly.csv (avg/max/min/n, covered minutes = each sample until the next, max 10 min; act_min + the per-bpm histogram leave the Strava activity windows of workout-zones.csv out; feeds day strain, lib/score/strain.mjs). Shortcut dietary = diet_kcal/diet_protein/diet_carbs/diet_fat day totals joined into one row per day (no kcal = no row). Shortcut exercise/distance/flights = Watch-filtered day totals (exercise_watch/distance_watch/flights_watch; 0 = no data; distance in km). Day totals: the export\'s last date (exportLastDate, a partial day) is never treated as covered: the Shortcut row wins it, and the export row is dropped when there is none.';
+const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of the main-sleep asleep intervals per wake-up night (naps excluded, samples.js sleepNights), plus the stage columns (REM / deep / core / unspecified / awake / in bed, same rule as extract.js); Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored). Shortcut active_energy_hourly = Watch active energy per clock hour (active-energy-hourly.csv, Shortcut-only; feeds the power-meter ride correction in lib/health/ride-energy.mjs). Shortcut hr_samples = ungrouped Watch heart-rate samples, as "ISO;bpm" lines and/or the loop-free parallel lists hr_t (Start Dates) + hr_v (Values) zipped by index (lists of different lengths are dropped with a sync warning, never mis-paired) (deduped by exact timestamp, 25-240 bpm) aggregated per clock hour into hr-hourly.csv (avg/max/min/n, covered minutes = each sample until the next, max 10 min; act_min + the per-bpm histogram leave the Strava activity windows of workout-zones.csv out; feeds day strain, lib/score/strain.mjs). Shortcut dietary = diet_kcal/diet_protein/diet_carbs/diet_fat day totals joined into one row per day (no kcal = no row). Shortcut exercise/distance/flights = Watch-filtered day totals (exercise_watch/distance_watch/flights_watch; 0 = no data; distance in km). Day totals: the export\'s last date (exportLastDate, a partial day) is never treated as covered: the Shortcut row wins it, and the export row is dropped when there is none.';
 
 // Pure: refresh the rows/ranges extract.js wrote for the touched CSVs + record the sync.
 // Deterministic (no timestamps) so re-running an unchanged sync rewrites identical bytes.
@@ -432,7 +448,8 @@ function readCache(readFile, full) {
 // write (CSVs, _meta.json, the sample cache). { full: true } ignores the existing cache.
 function planSync(items, readFile, { full = false } = {}) {
   const prev = readCache(readFile, full);
-  const cache = foldPayloads(prev.cache, items);
+  const warnings = [];
+  const cache = foldPayloads(prev.cache, items, warnings);
   const samples = samplesOf(cache);
   const metaText = readFile('_meta.json');
   const prevMeta = metaText != null ? JSON.parse(metaText) : null;
@@ -459,7 +476,7 @@ function planSync(items, readFile, { full = false } = {}) {
     const text = JSON.stringify(meta, null, 2) + '\n';
     if (text !== metaText) writes['_meta.json'] = text;
   }
-  return { writes, stats, cache };
+  return { writes, stats, cache, warnings };
 }
 
 const { writeAtomic } = common;
@@ -513,11 +530,12 @@ async function main() {
     console.error(`ERROR: could not read from the ingest service at ${baseUrl} (${err.cause?.code || err.message}). Is it running? No files touched.`);
     process.exit(1);
   }
-  const { writes, stats, cache } = syncDir(OUT, items, { full });
+  const { writes, stats, cache, warnings } = syncDir(OUT, items, { full });
   console.log(`Synced ${items.length} new "${automation}" payload(s)${full ? ' (full rebuild)' : ''}; ${cache.payloads} cached → ${OUT}`);
   for (const [metric, st] of Object.entries(stats)) {
     console.log(`  ${metric}: ${st.added} shortcut row(s) for ${range(st.addedDates)}; ${st.rows} rows total`);
   }
+  for (const w of warnings) console.log(`  WARNING: ${w}`);
   if (!Object.keys(writes).length) console.log('  (no changes)');
 }
 
