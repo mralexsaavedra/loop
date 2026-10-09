@@ -588,21 +588,31 @@ test('recovery dial: an older night is labelled with its date, not "last night"'
   assert.ok(d.includes('as of Tue 29 Sep'), 'the shared display date, never ISO');
 });
 
-test('recovery dial: a night carried from an earlier day (2 days old, under the stale cut) names that day on the ring and is dimmed; today\'s night is not', () => {
+test('carried values (HC.carried): sleep + recovery dials whose night is an earlier day name it on the ring (short date, no weekday) and are dimmed, mini rings too; today\'s and a stepped-to day\'s own values are normal', () => {
   const s = fixtureScores();
   const mini = { innerHTML: '' }, dh = { innerHTML: '' };
   withDials(s, { now: addDays(ASOF, 2), miniHost: mini, dialsHost: dh });
   const html = dh.innerHTML;
-  const d = dialOf(html, 'dial-rec');
-  assert.match(d, /^class="dial dial-rec[^"]* sc-stale"/, 'dimmed like stale data');
-  assert.ok(d.includes('<span class="dial-asof">29 Sep</span>'), 'the night\'s date inside the ring');
-  assert.doesNotMatch(dialOf(html, 'dial-sleep'), /dial-asof/, 'only the carried recovery value');
-  assert.match(mini.innerHTML, /class="dm dial-rec[^"]* sc-stale"/, 'the collapsed row dims it too');
-  const fresh = dialOf(withDials(s), 'dial-rec');
-  assert.doesNotMatch(fresh, /sc-stale|dial-asof/);
+  for (const cls of ['dial-rec', 'dial-sleep']) {
+    const d = dialOf(html, cls);
+    assert.match(d, new RegExp(`^class="dial ${cls}[^"]* carried"`), cls + ' dimmed (carried)');
+    assert.doesNotMatch(d.slice(0, d.indexOf('>')), /sc-stale/, cls + ': dimmed, not the stale grey');
+    assert.ok(d.includes('<span class="carried-date">29 Sep</span>'), cls + ': the night\'s date inside the ring');
+    assert.match(mini.innerHTML, new RegExp(`class="dm ${cls}[^"]* carried"`), cls + ': the collapsed row dims it too');
+  }
+  const fresh = withDials(s);
+  for (const cls of ['dial-rec', 'dial-sleep']) assert.doesNotMatch(dialOf(fresh, cls), / carried|carried-date|sc-stale/, cls + ' today');
   // a stepped-to past day shows ITS own night: never marked as carried
-  const past = dialOf(withDials(s, { now: addDays(ASOF, 2), day: fakeDay(ASOF) }), 'dial-rec');
-  assert.doesNotMatch(past, /sc-stale|dial-asof/);
+  const past = withDials(s, { now: addDays(ASOF, 2), day: fakeDay(ASOF) });
+  for (const cls of ['dial-rec', 'dial-sleep']) assert.doesNotMatch(dialOf(past, cls), / carried|carried-date|sc-stale/, cls + ' past day');
+  // > STALE_DAYS old: the stronger stale grey wins (no dim stacked on it), the date stays
+  const old = dialOf(withDials(s, { now: addDays(ASOF, 5) }), 'dial-sleep');
+  assert.match(old, /^class="dial dial-sleep sc-stale"/);
+  assert.ok(old.includes('<span class="carried-date">29 Sep</span>'));
+  // load never carries: its dials read the viewer's day only ("No data" / rest, never an earlier day's value)
+  const ld = withDials(s, { now: addDays(ASOF, 2) });
+  const i = ld.indexOf('class="dial dial-load'), load = ld.slice(i, ld.indexOf('</figure>', i));
+  assert.doesNotMatch(load, / carried"|carried-date/);
 });
 
 test('recovery dial: a composite without a sleep-duration reading is labelled by date + "no sleep data", never "last night"', () => {

@@ -464,3 +464,18 @@ test('trend glyph: the tone colour wins the cascade on every host, in ANY styles
   }
   assert.deepEqual(bad, []);
 });
+
+// Carried values (docs/design-system.md → Carried values): ONE helper decides (HC.carried in util.js)
+// and ONE treatment paints it (.carried + .carried-date in base.css); every surface that shows a
+// "today" value which may come from an earlier day calls the helper, none rolls its own date compare
+// or dim class
+const CARRIED_SURFACES = ['web/src/client/score.js'];
+test('carried values: one helper, one treatment, used by every surface that can carry', () => {
+  const own = RULES.filter((x) => /\.carried(-date)?\b/.test(x.selector) && !(x.file === 'base.css' && !x.media && (x.selector === '.carried' || x.selector === '.carried-date')));
+  assert.deepEqual(own.map(where), ['score.css `.dial-centre .carried-date`'], 'only base.css styles the treatment (the dial only places the date)');
+  const dim = RULES.find((x) => x.file === 'base.css' && x.selector === '.carried');
+  assert.ok(dim && dim.decl.opacity && !dim.decl.filter, 'carried = dimmed, colour kept (the stale grey stays the stronger state)');
+  for (const f of CARRIED_SURFACES) assert.match(SRC[f], /HC\.carried\(/, `${f} uses HC.carried`);
+  // the retired per-surface markers
+  for (const [f, src] of Object.entries(SRC)) assert.doesNotMatch(src, /dial-asof/, `${f}: the DS6 .dial-asof is now .carried-date`);
+});

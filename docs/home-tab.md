@@ -232,10 +232,12 @@ trend is the line under it.
   (or the night's date) / "no recent complete night" are in the accessible name, and the recovery
   deep-dive page adds "no sleep data" and the 7-day trend. A night CARRIED from an earlier day (today's
   is not complete yet — e.g. no resting HR or too few HRV samples — so `recovery.mjs` falls back up to
-  `MAX_TODAY_FALLBACK_DAYS`) is never shown as today's: the ring adds that night's date under the number
-  (`.dial-asof`, "7 OCT": the weekday does not fit inside a 360 px ring) and is dimmed like stale data (`sc-stale`, the mini ring too); the
-  deep-dive page is titled with that date and dims its hero (`docs/detail-views.md`). A stepped-to
-  past day shows its own night and is never marked. Sleep: fill = the sleep-duration component's newest night /
+  `MAX_TODAY_FALLBACK_DAYS`; or the sleep dial's newest night is not today's) is never shown as today's:
+  the carried-value rule (`HC.carried`, `docs/design-system.md` → Carried values) adds that night's date
+  under the number (`.carried-date`, "7 OCT": the weekday does not fit inside a 360 px ring) and dims the
+  dial (`.carried`, colour kept; the mini ring too; the sleep dial's aria names the date); the deep-dive
+  page is titled with that date and dims its hero (`docs/detail-views.md`). A stepped-to past day's own
+  night is never marked. Sleep: fill = the sleep-duration component's newest night /
   the stated target (`health.recovery.sleep.target`, 7.5 h), capped at a full ring; `pct` = sleep
   performance (same fraction as a rounded %, `lib/score/sleep.mjs` `sleepPerformance`): the centre shows
   "92" + a small "%" in the sleep colour (the mini row reuses the same svg + accessible name, which
