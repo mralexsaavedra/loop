@@ -136,7 +136,10 @@ switch is outside every opener); run / ride rows →
      (`data-dt-act="close"`, focus lands on it, Esc / Back still work); centred and uppercase, the DAY
      the page shows (`h2.sh-title#dt-title`): "Today" (`deep.today`, es "Hoy") or its date ("Mon 28
      Sep", `HC.fmtDate`) — strain = the day it was opened on (Inicio's day stepping), the others = the
-     view end (the viewer's today, or the stale data's last day: the day their hero describes). The
+     view end (the viewer's today, or the stale data's last day: the day their hero describes);
+     recovery = its headline night when that night is OLDER than the viewer's today (carried, see
+     `docs/home-tab.md`): the title, the contributor legend ("▲▼ Wed 7 Oct vs prior 30 days") name it
+     and the hero is dimmed (`dd-stale`), like the Inicio dial. The
      metric name moves into the ring (its uppercase label) and stays the dialog's label for screen
      readers (`sheetHead({sr})`: a `.sr-only` "Recovery · " before the day); ⓘ (`.sh-info`, the same SVG icon as the
      Salud headers' `HC.infoBtn`, `data-dt-act="info"`, `aria-expanded` / `aria-controls="dd-info"`)

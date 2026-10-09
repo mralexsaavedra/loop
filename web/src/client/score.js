@@ -399,17 +399,22 @@ function scMod(key) {
     }
     var today = d.mode === 'today';
     var when = today ? nightLbl(d.date, d.sleep !== false, rt) : '';
+    // a night carried from an earlier day (today's is not complete yet): the ring names that day and
+    // is dimmed like stale data, so it never reads as today's (a stepped-to past day shows its own)
+    var carried = !VIEW && today && isoDate(d.date) && daysOld(d.date) > 0;
+    var stale = dialStale(d.asOf) || carried;
+    var asof = carried ? '<span class="dial-asof">' + esc(HC.fmtDate(d.date)) + '</span>' : '';
     // the % headline (its rank within the previous 90 days), else the SD composite (fallback)
     if (today && typeof d.pct === 'number') {
-      return dialFig('dial-rec dial-band-' + esc(d.band), dialStale(d.asOf), '', format(rt.ariaPct, { when: when, value: d.pct, band: T.recovery.pctBands[d.band] }),
-        dialSvg({ fill: d.fill }), numCentre(String(d.pct), '%'), rt.label);
+      return dialFig('dial-rec dial-band-' + esc(d.band), stale, '', format(rt.ariaPct, { when: when, value: d.pct, band: T.recovery.pctBands[d.band] }),
+        dialSvg({ fill: d.fill }), numCentre(String(d.pct), '%') + asof, rt.label);
     }
     var v = num(d.value, 1, true);
     var aria = today
       ? format(rt.aria, { when: when, value: v, band: rt.bands[d.band] })
       : format(rt.ariaTrend, { value: v, band: rt.bands[d.band] });
-    return dialFig('dial-rec dial-band-' + esc(d.band), dialStale(d.asOf), '', aria,
-      dialSvg({ fill: d.fill, mid: d.mid }), numCentre(v, T.recovery.unit), rt.label);
+    return dialFig('dial-rec dial-band-' + esc(d.band), stale, '', aria,
+      dialSvg({ fill: d.fill, mid: d.mid }), numCentre(v, T.recovery.unit) + asof, rt.label);
   }
   // The modality the load dial opens on, for the VIEWER's today (never baked): the modality with a
   // session today, gated or not (a gated one opens in its gated state) — highest RE first, ties by

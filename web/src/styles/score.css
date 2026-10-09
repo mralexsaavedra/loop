@@ -358,6 +358,16 @@
   line-height: 1.15;
   color: var(--muted);
 }
+/* a recovery night carried from an earlier day: its date under the number (score.js recDial) */
+.dial-asof {
+  margin-top: 4px;
+  font-size: var(--fs-label);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
 .dial-lbl {
   font-size: var(--fs-label);
   font-weight: var(--label-weight);
