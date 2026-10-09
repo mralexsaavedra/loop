@@ -1,6 +1,6 @@
 /* The LOOP brand in the built page (web/layouts/Plan.astro): the product
  * name as the document title, the tile favicon + home-screen icon as data: URIs (the page stays one
- * self-contained file), and the wordmark centred under the top bar (layouts/Plan.astro, Inicio only), its arcs coloured by the
+ * self-contained file), and the wordmark inside the top bar on every tab (layouts/Plan.astro), its arcs coloured by the
  * score tokens. The geometry itself is pinned by scripts/loop-logo.test.mjs.
  * Run `npm run pretest` (or `npm test`) first: it reads an already-built fixture. */
 import { test } from 'node:test';
@@ -39,9 +39,10 @@ test('home-screen icon: a 180×180 PNG apple-touch-icon inlined as base64', () =
   assert.ok(m[1].length < 12 * 1024, `apple-touch-icon payload ${m[1].length} B stays small`);
 });
 
-test('the wordmark sits right after the top bar, before every tab panel, once', () => {
+test('the wordmark sits inside the top bar, between the avatar and the date pill, before every tab panel, once', () => {
   const at = html.indexOf('<div class="wordmark">');
-  assert.ok(at > html.indexOf('<div class="topbar"'), 'after the top bar');
+  assert.ok(at > html.indexOf('<div class="topbar"'), 'inside the top bar');
+  assert.ok(at > html.indexOf('id="avatar-btn"') && at < html.indexOf('class="date-pill"'), 'avatar · wordmark · pill');
   assert.ok(at < html.indexOf('<div class="dock"'), 'before the dock');
   assert.ok(at < html.indexOf('class="tab-panel"'), 'before the panels');
   const mark = /<div class="wordmark">([\s\S]*?)<\/div>/.exec(html)[1];
@@ -50,8 +51,8 @@ test('the wordmark sits right after the top bar, before every tab panel, once', 
   assert.equal([...html.matchAll(/class="wordmark"/g)].length, 1);
 });
 
-test('the wordmark shows on Inicio only: hidden while the home panel is hidden', () => {
-  assert.equal(decl('.wrap:has(>.tab-panel[data-tab=home][hidden])>.wordmark', 'display'), 'none', 'the built (slimmed) selector');
+test('the wordmark shows on every tab: no rule hides it while the home panel is hidden', () => {
+  assert.ok(!rules.some((r) => r.selector.includes('[hidden])') && r.selector.includes('wordmark')), 'never hidden off Inicio');
 });
 
 test('the wordmark arcs take the score tokens, so the colours stay single-sourced', () => {

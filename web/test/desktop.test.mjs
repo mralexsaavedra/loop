@@ -59,20 +59,25 @@ test('wide screens: monitor tiles at natural height, Tonight bounded, aux text o
   assert.equal(decl(wide, ':root', '--fs-2xs'), '11.5px');
 });
 
-test('wide screens: the wordmark sits on the left of the top bar row (~20px caps), the avatar moves right beside Sync; the phone keeps both as they are', () => {
+test('wide screens: the wordmark sits in the top bar first column (left, ~20px caps), the pill centred, the avatar right beside Sync; the phone: avatar · LOOP · Sync, the pill on its own row', () => {
   const all = rules();
   const wide = all.filter((r) => r.media === WIDE);
   const base = all.filter((r) => !r.media);
-  assert.equal(decl(wide, '.wordmark', 'position'), 'absolute');
-  assert.equal(decl(wide, '.wordmark', 'left'), 'max(var(--gutter),calc((100%-var(--content-max))/2))', 'the column\'s left edge');
+  assert.equal(decl(wide, '.wordmark', 'position'), null, 'a grid item, not pinned absolutely');
+  assert.equal(decl(wide, '.topbar>.wordmark', 'grid-column'), '1');
+  assert.equal(decl(wide, '.topbar>.wordmark', 'justify-self'), 'start');
   assert.equal(decl(wide, '.wordmark', 'font-size'), '30px', '30px letters = ~20px caps');
-  assert.equal(decl(wide, '.wrap', 'position'), 'relative');
+  assert.equal(decl(wide, '.topbar>.date-pill', 'grid-column'), '2');
+  assert.equal(decl(wide, '.topbar>.date-pill', 'grid-row'), '1');
   assert.equal(decl(wide, '.topbar>.avatar-btn', 'grid-column'), '3');
   assert.equal(decl(wide, '.topbar>.avatar-btn', 'justify-self'), 'end');
   assert.equal(decl(wide, '.topbar>.fresh', 'margin-right'), '48px', 'a lane for the avatar');
-  // the phone: centred under the pill, avatar in the first column
+  // the phone: avatar · centred wordmark · freshness on row 1, the date pill centred on row 2
   assert.equal(decl(base, '.wordmark', 'justify-content'), 'center');
   assert.equal(decl(base, '.wordmark', 'font-size'), '19px');
   assert.equal(decl(base, '.wordmark', 'position'), null);
+  assert.equal(decl(base, '.topbar>.wordmark', 'grid-column'), '2');
   assert.equal(decl(base, '.avatar-btn', 'grid-column'), '1');
+  assert.equal(decl(base, '.date-pill', 'grid-column'), '1/-1');
+  assert.equal(decl(base, '.date-pill', 'grid-row'), '2');
 });
