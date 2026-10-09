@@ -126,7 +126,8 @@ function fakeSheet(keys) {
     const cls = new Set();
     const li = { parentNode: ul, classList: { add: (c) => cls.add(c), remove: (c) => cls.delete(c), contains: (c) => cls.has(c) },
       getAttribute: (a) => (a === 'data-key' ? k : null),
-      getBoundingClientRect: () => ({ top: ul.children.indexOf(li) * 60, height: 60 }) };
+      getBoundingClientRect: () => ({ top: ul.children.indexOf(li) * 60, height: 60 }),
+      get isConnected() { return !ul.detached && ul.children.includes(li); } };
     const captured = [];
     const grip = { captured, setPointerCapture: (id) => captured.push(id), releasePointerCapture: () => {},
       getAttribute: (a) => (a === 'data-key' ? k : null),
@@ -330,4 +331,49 @@ test('drag: only the primary pointer, a mouse main button and no drag in progres
   fire('pointerup', rhr.grip, 170);
   assert.deepEqual(sheet.order(), ['hrv', 'sleep', 'rhr'], 'the first drag still drops');
   assert.ok(ls.data['hc-dash-v1'] != null, 'and saves');
+});
+
+test('drag: a lost pointer capture cancels like pointercancel (saved order back, nothing saved, next drag works)', () => {
+  const { ctx, ls, opened } = load();
+  const fire = (type, target, y, extra) => ctx.__listeners[type]({ type, target, pointerId: 1, isPrimary: true, pointerType: 'touch', button: 0, clientY: y, preventDefault() {}, ...extra });
+  const a = fakeSheet(['rhr', 'hrv', 'sleep']);
+  fire('pointerdown', a.rows[0].grip, 30);
+  fire('pointermove', a.rows[0].grip, 170);
+  assert.deepEqual(a.order(), ['hrv', 'sleep', 'rhr']);
+  fire('lostpointercapture', a.rows[0].grip, 170, { pointerId: 9 }); // another pointer's capture: ignored
+  assert.ok(a.rows[0].classList.contains('db-drag'));
+  fire('lostpointercapture', a.rows[0].grip, 170);
+  assert.ok(!a.rows[0].classList.contains('db-drag'));
+  assert.equal(ls.data['hc-dash-v1'], undefined, 'a lost capture never saves');
+  assert.equal(plain(opened.at(-1))[0], 'dash-edit', 'the sheet re-renders in the saved order');
+  fire('pointerup', a.rows[0].grip, 170);
+  assert.equal(ls.data['hc-dash-v1'], undefined, 'the late pointerup is not a drop');
+  const b = fakeSheet(['rhr', 'hrv', 'sleep']);
+  fire('pointerdown', b.rows[0].grip, 30);
+  fire('pointermove', b.rows[0].grip, 170);
+  fire('pointerup', b.rows[0].grip, 170);
+  assert.ok(ls.data['hc-dash-v1'] != null, 'a new drag still drops and saves');
+});
+
+test('drag: a stale drag (its row left the page) or a re-render never blocks the next drag', () => {
+  const { ctx, ls } = load();
+  const fire = (type, target, y, extra) => ctx.__listeners[type]({ type, target, pointerId: 1, isPrimary: true, pointerType: 'mouse', button: 0, clientY: y, preventDefault() {}, ...extra });
+  const a = fakeSheet(['rhr', 'hrv', 'sleep']);
+  fire('pointerdown', a.rows[0].grip, 30); // no pointerup ever arrives (e.g. released outside the page)
+  a.ul.detached = true; // the sheet closed
+  const b = fakeSheet(['rhr', 'hrv', 'sleep']);
+  fire('pointerdown', b.rows[0].grip, 30, { pointerId: 2 });
+  assert.ok(b.rows[0].classList.contains('db-drag'), 'the stale drag is reset, the new one starts');
+  fire('pointermove', b.rows[0].grip, 170, { pointerId: 2 });
+  fire('pointerup', b.rows[0].grip, 170, { pointerId: 2 });
+  assert.deepEqual(b.order(), ['hrv', 'sleep', 'rhr']);
+  assert.ok(ls.data['hc-dash-v1'] != null);
+  // a drag interrupted by a re-render of the sheet is dropped too
+  const c = fakeSheet(['rhr', 'hrv', 'sleep']);
+  fire('pointerdown', c.rows[0].grip, 30, { pointerId: 3 });
+  ctx.HCViews['dash-edit'].render();
+  assert.ok(!c.rows[0].classList.contains('db-drag'), 'the re-render clears the drag');
+  const d = fakeSheet(['rhr', 'hrv', 'sleep']);
+  fire('pointerdown', d.rows[1].grip, 90, { pointerId: 4 });
+  assert.ok(d.rows[1].classList.contains('db-drag'), 'the next drag starts');
 });
