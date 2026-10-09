@@ -62,7 +62,13 @@ var HC = (function () {
     if (!iso) return null;
     return Math.round((parseIso(todayIso()) - parseIso(iso)) / MS_PER_DAY);
   }
-  // decimal comma in es, the value otherwise untouched
+  // Numbers: the ONE formatter is HC_FMT (lib/format/numbers.mjs, inlined before this script); these
+  // wrappers only add the page LOCALE. Grouping for every value >= 1000 ("2.500" / "2,500"), percent
+  // without a space ("97%"), durations as h:mm ("7:01"), absent values as "—".
+  function loc() {
+    return isEs() ? 'es' : 'en';
+  }
+  // decimal comma in es, the value otherwise untouched (moves to HC_FMT with the display migration)
   function nf(n) {
     return isEs() ? String(n).replace('.', ',') : String(n);
   }
@@ -72,6 +78,23 @@ var HC = (function () {
     if (Number(s) === 0) s = (0).toFixed(dec);
     else if (signed && Number(s) > 0) s = '+' + s;
     return isEs() ? s.replace('.', ',') : s;
+  }
+  // a whole number, grouped ("13.463")
+  function int(x, signed) {
+    return HC_FMT.fmtInt(x, loc(), signed);
+  }
+  // "97%"
+  function pct(x, signed, dec) {
+    return HC_FMT.fmtPercent(x, loc(), signed, dec);
+  }
+  // decimal hours -> "7:30"
+  function hours(h, signed) {
+    return HC_FMT.fmtHours(h, signed);
+  }
+  // an input field's value: decimal comma in es, NEVER grouped (the field parses it back); `dec`
+  // fixed decimals or (omitted) the decimals the value carries
+  function numInput(x, dec) {
+    return HC_FMT.fmtPlain(x, dec, loc());
   }
   function dateNames() {
     return typeof I18N_DATE !== 'undefined' && I18N_DATE ? I18N_DATE : null;
@@ -194,6 +217,11 @@ var HC = (function () {
     MS_PER_DAY: MS_PER_DAY,
     STALE_DAYS: C.staleDays,
     isEs: isEs,
+    DASH: HC_FMT.DASH,
+    int: int,
+    pct: pct,
+    hours: hours,
+    numInput: numInput,
     esc: esc,
     format: format,
     isoDate: isoDate,

@@ -367,6 +367,8 @@ test('example build: the shared client helpers (util.js) are inlined FIRST, righ
   assert.match(html, /var ACTIVITY = \{[^;]*"windowDays":30,"periods":\[7,30,182\],"bakeDays":367,"levelMin":\[1,30,60,90\]\}/, 'calendar + window constants baked from lib');
   const dateIdx = scripts.findIndex((s) => /\bvar I18N_DATE = \{"weekdays":\["Mon"/.test(s));
   assert.ok(dateIdx !== -1 && dateIdx <= utilIdx, 'the date names of HC.fmtDate are baked before util.js');
+  const fmtIdx = scripts.findIndex((s) => /\bvar HC_FMT\s*=\s*\(function/.test(s));
+  assert.ok(fmtIdx !== -1 && fmtIdx < utilIdx, 'the one number formatter (HC_FMT) is inlined before util.js');
 });
 
 test('example build: the detail sheet ships hidden OUTSIDE .wrap (so the page can go inert), with DETAIL baked for every demo metric and detail.js before freshness.js', () => {

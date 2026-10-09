@@ -71,6 +71,23 @@ test('duration: one formatter, units from the i18n dict', () => {
   assert.equal(HC.duration(0, U), '0 min');
 });
 
+test('hours: decimal hours as h:mm (lib/format/numbers.mjs via HC_FMT)', () => {
+  const HC = load();
+  assert.equal(HC.hours(7.999), '8:00');
+  assert.equal(HC.hours(-0.5, true), '-0:30');
+});
+
+test('numbers: grouping for every value >= 1000, one percent rule, "—" when absent, input values never grouped', () => {
+  const es = load({ locale: 'es' }), en = load();
+  assert.equal(es.int(13463), '13.463');
+  assert.equal(en.int(2500), '2,500');
+  assert.equal(es.pct(97), '97%');
+  assert.equal(en.pct(12, true), '+12%');
+  assert.equal(es.int(NaN), '—');
+  assert.equal(es.numInput(1234.5, 1), '1234,5');
+  assert.equal(en.numInput(1000), '1000');
+});
+
 test('fmtDate: one shared date formatter, "lun 29 sept" in es / "Mon 29 Sep" in en; names from the baked I18N_DATE', () => {
   assert.equal(load({ locale: 'es' }).fmtDate('2026-09-29'), 'mar 29 sept');
   assert.equal(load().fmtDate('2026-09-28'), 'Mon 28 Sep');
