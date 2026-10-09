@@ -1946,8 +1946,6 @@
   "|||.hmt|||min-height": "96px",
   "|||.hmt|||padding": "var(--sp-6) var(--sp-5)",
   "|||.hmt|||text-align": "left",
-  "|||.home-h|||display": "block",
-  "|||.home-h|||margin": "var(--sp-10) 0 var(--sp-5)",
   "|||.home-hrow|||align-items": "baseline",
   "|||.home-hrow|||display": "flex",
   "|||.home-hrow|||gap": "var(--sp-4)",
@@ -3670,5 +3668,7 @@
   "|||.db-bad.db-bad, .dd-worse.dd-worse, .dt-pill-bad.dt-pill-bad, .ld-bad.ld-bad, .wp-down.wp-down|||color": "var(--down)",
   "|||.db-watch.db-watch|||color": "var(--mid)",
   "|||.db-neutral.db-neutral, .dd-neutral.dd-neutral, .dt-pill-neutral.dt-pill-neutral|||color": "var(--ink)",
-  "|||.db-flat.db-flat, .dd-typical.dd-typical, .dt-pill-flat.dt-pill-flat, .ld-flat.ld-flat|||color": "var(--faint)"
+  "|||.db-flat.db-flat, .dd-typical.dd-typical, .dt-pill-flat.dt-pill-flat, .ld-flat.ld-flat|||color": "var(--faint)",
+  "|||.hs-lbl.home-h|||display": "block",
+  "|||.hs-lbl.home-h|||margin": "var(--sp-10) 0 var(--sp-5)"
 }

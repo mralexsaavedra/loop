@@ -620,7 +620,7 @@
 }
 
 /* Inicio's section headings ("My day"): the shared .hs-lbl (health.css) standing on its own, no .hs-head row */
-.home-h {
+.hs-lbl.home-h {
   display: block;
   margin: var(--sp-10) 0 var(--sp-5);
 }

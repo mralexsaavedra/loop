@@ -990,3 +990,16 @@ test('strain dial: not calibrated (strain ok false / absent) -> the per-modality
   assert.doesNotMatch(h, /dial-strain|dial-switch/);
   assert.match(h, /<figure class="dial dial-load[^"]*" data-dmod="/);
 });
+
+test('recovery card head: no duplicate title — only the as-of date, the History CTA and the ⓘ, in that order', () => {
+  const s = fixtureScores();
+  const hosts = {};
+  render(s, { now: addDays(ASOF, 1), hosts, detail: true });
+  const head = hosts.rec.innerHTML.match(/<div class="sc-head">([\s\S]*?)<\/div>/)[1];
+  const parts = [...head.matchAll(/<(span|button) [^>]*class="([^"]+)"/g)].map((m) => m[2]).filter((c) => !/chev|sc-asof-/.test(c));
+  assert.deepEqual(parts, ['sc-asof', 'cta', 'hs-i'], 'date, History, ⓘ');
+  assert.match(head, /<button type="button" class="cta" data-detail="recovery" aria-haspopup="dialog">History<span aria-hidden="true"> →<\/span><\/button>/);
+  assert.match(head, /<button type="button" class="hs-i" data-hs-info="rec-info" aria-expanded="false" aria-controls="rec-info" aria-label="About Recovery">/);
+  assert.doesNotMatch(hosts.rec.innerHTML, /<h[1-6]|sc-title/, 'no card title: the Salud section heading names it');
+  assert.ok(!text(head).includes(enT.recovery.heading), 'the section name is not repeated in the head');
+});

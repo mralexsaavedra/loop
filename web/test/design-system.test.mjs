@@ -86,10 +86,14 @@ const HERO_SIZES = new Set(['var(--fs-num-row)', 'var(--fs-num-card)', 'var(--fs
 const HERO_WEIGHTS = new Set(['700', 'var(--num-weight)']);
 // a selector set in the --num face by ANY rule (a grouped `.a, .b { font-family: var(--num) }` too), so a
 // later `.b { font-size: 24px }` without its own font-family is still a number (R3-002)
+// keyed by file + media + selector: a `.x` in the --num face in one stylesheet (or one media query)
+// says nothing about a `.x` elsewhere; a top-level rule still applies inside its own file's media rules
+const numKey = (file, media, sel) => `${file}|${media || ''}|${sel}`;
 const NUM_SELECTORS = new Set(
-  RULES.filter((r) => (r.decl['font-family'] ?? '').includes('var(--num)')).flatMap((r) => r.selector.split(', ')),
+  RULES.filter((r) => (r.decl['font-family'] ?? '').includes('var(--num)')).flatMap((r) => r.selector.split(', ').map((s) => numKey(r.file, r.media, s))),
 );
-const inNumFace = (r) => (r.decl['font-family'] ?? '').includes('var(--num)') || r.selector.split(', ').some((s) => NUM_SELECTORS.has(s));
+const inNumFace = (r) => (r.decl['font-family'] ?? '').includes('var(--num)') ||
+  r.selector.split(', ').some((s) => NUM_SELECTORS.has(numKey(r.file, r.media, s)) || NUM_SELECTORS.has(numKey(r.file, '', s)));
 const isDialClamp = (v) => /^clamp\(.*var\(--fs-dial\)\)$/.test(v);
 // dial centres are sized to their ring (the dial step), plus the one sheet-header value
 const HERO_ALLOW = {
@@ -275,6 +279,17 @@ test('selected chip and segmented control: one picked style each; other picked f
   assert.deepEqual(Object.keys(PICKED_ALLOW).filter((k) => !picked.some((r) => key(r) === k)), [], 'stale allowlist entries');
   const chip = picked.find((r) => key(r).startsWith('base.css .chip'));
   assert.deepEqual([chip.decl.background, chip.decl.color], ['var(--accent)', 'var(--on-accent)'], 'the picked chip is white-filled');
+});
+
+// Inicio's headings are `.hs-lbl.home-h`: the block spacing must win over .hs-lbl's `margin: 0` by
+// specificity, never by which stylesheet loads last
+test('section heading: Inicio\'s .home-h spacing out-specifies .hs-lbl (no load-order tie)', () => {
+  const lbl = RULES.filter((r) => !r.media && r.decl.margin != null && r.selector.split(/,\s*/).includes('.hs-lbl'));
+  const home = RULES.filter((r) => !r.media && r.decl.margin != null && r.selector.split(/,\s*/).some((s) => /\.home-h\b/.test(s)));
+  assert.equal(home.length, 1, 'one rule spaces the Inicio heading');
+  const hs = home[0].selector.split(/,\s*/).find((s) => /\.home-h\b/.test(s));
+  assert.match(hs, /\.hs-lbl/, 'it names the heading it spaces (.hs-lbl.home-h)');
+  for (const r of lbl) assert.ok(cmpSpec(specificity(hs), specificity('.hs-lbl')) > 0, `${hs} must beat ${where(r)}`);
 });
 
 // every segmented-control button is a 44 × 44 target (the ::after hit area), the visual square stays

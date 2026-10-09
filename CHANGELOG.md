@@ -35,6 +35,11 @@ use the caps tokens plus one new sheet step (`--fs-title-sheet`, 13.5 px; the st
 and are guarded. The trend-glyph colours move into `base.css` with doubled-class specificity, so they win
 over a host's own grey by specificity rather than stylesheet order (a new test walks the cascade), and the
 recovery card's 7-day glyph joins them.
+**DS3 follow-ups:** Inicio's heading spacing is `.hs-lbl.home-h` (wins by specificity, not load order);
+new markup tests pin Tonight's sleep-history CTA (and its absence without sleep data), the trend sheet's
+`.nav-btn` arrows disabled at their edges, the recovery card head (date, History, ⓘ — no title) and the
+neutral ▲ / ▼ pill of a metric with no good direction; the design guard keys its number-face lookup by
+stylesheet and media query.
 
 ## 2026-10-09 — Design system components: one style per shared pattern
 
