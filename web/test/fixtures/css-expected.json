@@ -1154,7 +1154,6 @@
   "|||.dt-pill|||padding": "2px var(--sp-3)",
   "|||.dt-plot|||padding-left": "36px",
   "|||.dt-plot|||position": "relative",
-  "|||.dt-pt, .dt-bar|||fill": "var(--trend)",
   "|||.dt-range button[aria-pressed=true]|||background": "var(--track)",
   "|||.dt-range button[aria-pressed=true]|||color": "var(--ink)",
   "|||.dt-range button|||background": "var(--rail)",
@@ -3695,5 +3694,8 @@
   "|||.sw-knob|||background": "var(--muted)",
   "|||.sw[aria-checked=true]:before|||background": "var(--accent)",
   "|||.sw[aria-checked=true] .sw-knob|||background": "var(--on-accent)",
-  "|||.sw[aria-checked=true] .sw-knob|||transform": "translatex(14px)"
+  "|||.sw[aria-checked=true] .sw-knob|||transform": "translatex(14px)",
+  "|||.dt-pt, .dt-bar, .dt-kd|||fill": "var(--trend)",
+  "|||.dt-k-pts:before|||content": "none",
+  "|||.dt-k-sw|||margin-right": "var(--sp-2)"
 }

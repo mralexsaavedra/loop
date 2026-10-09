@@ -165,6 +165,7 @@ export const es = {
   // the nutrition score block (client/nutri-score.js, lib/nutrition/score.mjs): averages + the ⓘ notes
   score: {
     avgs: 'Media 7 días {a7} · 30 días {a30}',
+    lineLbl: 'Puntuación de cada día, últimos {n} días (0–100)',
     none: 'Sin puntuación reciente: registra un día para verla.',
     formula: 'Puntuación del día (0–100) = kcal × {wk} + proteína × {wp} + grasa × {wf}. Kcal: 100 dentro de ±{kFull}% del objetivo, baja en línea a 0 a ±{kZero}%. Proteína: 100 desde el {pFull}% del objetivo, 0 al {pZero}% (comer más no resta). Grasa: 100 entre el {fLo}% y el {fHi}%, 0 al {fZeroHi}% por arriba y al {fZeroLo}% por abajo.',
     rules: 'Bandas: {good} o más bien, {mid}–{good} a medias, menos de {mid} bajo. Un día sin registro no tiene puntuación (nunca 0). Si a una entrada le falta un macro, ese componente se deja fuera y el resto se repondera (día incompleto). Hoy es «de momento»: no cuenta en las medias.',
@@ -364,6 +365,7 @@ export const en = {
   // the nutrition score block (client/nutri-score.js, lib/nutrition/score.mjs): averages + the ⓘ notes
   score: {
     avgs: '7-day average {a7} · 30-day {a30}',
+    lineLbl: 'Each day\'s score, last {n} days (0–100)',
     none: 'No recent score: log a day to see it.',
     formula: 'Day score (0–100) = kcal × {wk} + protein × {wp} + fat × {wf}. Kcal: 100 within ±{kFull}% of the target, falling linearly to 0 at ±{kZero}%. Protein: 100 from {pFull}% of the target, 0 at {pZero}% (more never costs points). Fat: 100 between {fLo}% and {fHi}%, 0 at {fZeroHi}% above and {fZeroLo}% below.',
     rules: 'Bands: {good} or more good, {mid}–{good} mid, under {mid} low. A day without a log has no score (never 0). When an entry lacks a macro, that component is left out and the rest re-weighted (incomplete day). Today is "so far": it never counts in the averages.',

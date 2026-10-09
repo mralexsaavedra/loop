@@ -530,9 +530,11 @@
     // a long window (6M / 1Y) of points: only the days OUT of the range get a dot, the 7-day line
     // carries the rest, so the dots never saturate the chart
     var thin = !bars && n > THIN_DAYS && (m.kind === 'recovery' || !!m.band);
+    var drawn = [];
     days.forEach(function (d, i) {
       if (d.v == null || (thin && inRange(m, d.v))) return;
       var st = stateOn(m, d.iso, d.v);
+      if (drawn.indexOf(st) < 0 && !(bars && d.v <= 0)) drawn.push(st);
       if (bars) {
         if (week) labels.push('<span class="dt-bv" style="left:' + pctX(i) + ';top:' + pctY(Math.max(0, d.v)) + '">' + esc(fmtM(m, d.v, dec)) + '</span>');
         if (d.v <= 0) return;
@@ -562,7 +564,7 @@
       }
     }
     out.push('</svg>');
-    var key2 = [thin ? '<span class="dt-k dt-k-out">' + esc(T.chartKey.outside) + '</span>' : '<span class="dt-k dt-k-daily">' + esc(T.chartKey.daily) + '</span>'];
+    var key2 = drawn.length ? ['<span class="dt-k dt-k-pts ' + (thin ? 'dt-k-out' : 'dt-k-daily') + '">' + keyMarks(m, drawn, bars) + esc(thin ? T.chartKey.outside : T.chartKey.daily) + '</span>'] : [];
     if (line.some(function (v) { return v != null; })) key2.push('<span class="dt-k dt-k-line">' + esc(T.chartKey.roll7) + '</span>');
     if (tg != null) key2.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.target) + '</span>');
     if (m.typical != null) key2.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.typical) + '</span>');
@@ -618,6 +620,17 @@
     var d = parseIso(first);
     d.setMonth(d.getMonth() + k, 1);
     return HC.isoOf(d);
+  }
+  // the chart key's daily swatch: one mark per state the window actually drew, in the legend's order,
+  // with the chart marks' own state classes — so "Daily" shows the dots' colours, never a stand-in blue
+  function keyMarks(m, drawn, bars) {
+    var order = legendItems(m).map(function (it) { return it[0]; });
+    var rank = function (st) { var i = order.indexOf(st); return i < 0 ? order.length : i; };
+    var sts = drawn.slice().sort(function (a, b) { return rank(a) - rank(b); }), w = 10 * sts.length;
+    return '<svg class="dt-k-sw" viewBox="0 0 ' + w + ' 10" width="' + w + '" height="10" aria-hidden="true">' + sts.map(function (st, i) {
+      return bars ? '<rect class="dt-kd dt-s-' + esc(st) + '" x="' + (10 * i + 1) + '" y="1" width="8" height="8" rx="2"/>'
+        : '<circle class="dt-kd dt-s-' + esc(st) + '" cx="' + (10 * i + 5) + '" cy="5" r="4"/>';
+    }).join('') + '</svg>';
   }
   // [state, label] per calendar state of a metric (the legend's order), without "no data"
   function legendItems(m) {

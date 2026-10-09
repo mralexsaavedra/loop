@@ -17,6 +17,11 @@ says what the change means.
 **Customize dashboard (F15):** the heavy white "SHOWN" pill next to a container-less "HIDDEN" word is one
 small switch (`.sw`, `HC.switchBtn`, `role="switch"`) for both states; the journal's behaviour toggles use
 it too. The ↑ / ↓ reorder stays (no drag and drop).
+**Nutrition score card (F16):** one caps title in one weight ("NUTRITION · SO FAR", formerly a smaller muted
+tag inside it); Nutrición's 30-day line is Salud's sparkline — line + area down to the 0 baseline and a
+caption — instead of a lone band-coloured stroke floating in the card. Data unchanged.
+**Trend chart key (F17):** "Daily" (and 6M / 1Y's "Days out of range") shows one mark per state the
+chart actually drew, with the marks' own classes, instead of a blue swatch next to band-coloured dots.
 
 ## 2026-10-09 — Design system components: one style per shared pattern
 

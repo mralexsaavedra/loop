@@ -1835,7 +1835,16 @@ test('trend view 6M / 1Y: only the days out of the range get a dot (the 7-day li
   s.api.open('rhr');
   let html = s.host.innerHTML;
   assert.equal((html.match(/class="dt-pt/g) || []).length, inWin(addDays(NOW, -29)).length, 'M: a dot per day with data');
-  assert.ok(html.includes(`<span class="dt-k dt-k-daily">${enT.chartKey.daily}</span>`));
+  // the "Daily" key shows the dots' own colours: one mark per state drawn, never a stand-in blue swatch
+  const keyStates = (h, cls) => {
+    const k = h.match(new RegExp(`<span class="dt-k dt-k-pts ${cls}"><svg class="dt-k-sw"[^>]*>([\\s\\S]*?)<\\/svg>([^<]*)<\\/span>`));
+    return k ? { label: k[2], sts: [...k[1].matchAll(/class="dt-kd dt-s-(\w+)"/g)].map((x) => x[1]) } : null;
+  };
+  const drawnStates = (h) => [...new Set([...h.matchAll(/class="dt-pt dt-s-(\w+)"/g)].map((x) => x[1]))].sort();
+  const dk = keyStates(html, 'dt-k-daily');
+  assert.equal(dk.label, enT.chartKey.daily);
+  assert.deepEqual([...dk.sts].sort(), drawnStates(html), 'the key marks = the states the chart drew');
+  assert.ok(dk.sts.length > 1, 'the demo month mixes states (so a single blue swatch would lie)');
   s.click(act('range', { 'data-range': '182' }));
   html = s.host.innerHTML;
   const vals = inWin(addDays(NOW, -181));
@@ -1844,7 +1853,9 @@ test('trend view 6M / 1Y: only the days out of the range get a dot (the 7-day li
   assert.equal((html.match(/class="dt-pt/g) || []).length, out.length, '6M: a dot per out-of-range day only');
   assert.doesNotMatch(html, /dt-pt dt-s-normal/, 'no in-range dot');
   assert.match(html, /class="dt-line"/, 'the 7-day line stays');
-  assert.ok(html.includes(`<span class="dt-k dt-k-out">${enT.chartKey.outside}</span>`), 'the key says which days are dots');
+  const ok = keyStates(html, 'dt-k-out');
+  assert.equal(ok.label, enT.chartKey.outside, 'the key says which days are dots');
+  assert.deepEqual([...ok.sts].sort(), drawnStates(html), 'in the out-of-range days\' own colours');
   // recovery: out of range = beyond the day cut (the calendar's above / below baseline)
   s.api.open('recovery');
   s.click(act('range', { 'data-range': '182' }));
@@ -1856,7 +1867,7 @@ test('trend view 6M / 1Y: only the days out of the range get a dot (the 7-day li
   const es = setup({ locale: 'es' });
   es.api.open('rhr');
   es.click(act('range', { 'data-range': '365' }));
-  assert.ok(es.host.innerHTML.includes(`<span class="dt-k dt-k-out">${esT.chartKey.outside}</span>`));
+  assert.equal(keyStates(es.host.innerHTML, 'dt-k-out').label, esT.chartKey.outside);
 });
 
 test('trend view breakdown: one stacked bar of the window\'s days by calendar state with a count each ("6x"), following the window; LEARN MORE opens ⓘ; none for training volume', () => {

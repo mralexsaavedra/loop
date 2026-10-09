@@ -283,7 +283,10 @@ switch is outside every opener); run / ride rows →
   typical dashed; a missing day is a gap; a points chart longer than 60 days (6M, 1Y) draws a dot
   only for the days OUT of the range — beyond recovery's day cut, outside a signal's / sleep's band —
   and leaves the rest to the 7-day line, its key reading "Days out of range" (`chartKey.outside`), so
-  red / green dots never saturate the chart (a metric without a band keeps every dot); the window's newest value ringed and labelled, `.dt-last` /
+  red / green dots never saturate the chart (a metric without a band keeps every dot); the "Daily" /
+  "Days out of range" key draws one mark per state the window actually drew, with the chart marks' own
+  `dt-s-*` classes (`keyMarks`, `.dt-k-pts`), so its swatch is the dots' colours, never a stand-in blue
+  (none drawn → no key); the window's newest value ringed and labelled, `.dt-last` /
   `.dt-lastv`; in W every metric but recovery is 7 bars from 0 with each value on top (`.dt-bv`) and
   "Thu / 9" under each bar (`.dt-wdays`) instead of the from / to dates, no 7-day line; labels are HTML
   over the SVG's box `.dt-svg`) with a Y axis: three round, evenly spaced values (step 1 / 2 /
