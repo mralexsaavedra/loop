@@ -39,6 +39,13 @@ Plan data pipeline, the published artifact, intake rings, goals / day types / po
   fruit, a tablespoon, an egg ~50 g), NOT a weighed label — a tablespoon's weight is PER FOOD (its own
   `piece.amt`: allioli / mayonesa 15 g; olive oil has NO piece, it is per 100 ml and logged in ml); and `weighed: raw | dry |
   cooked` (how the plan weighs it: meat raw, rice / pasta / oats dry, potato / legumes cooked).
+  Optional `basic: false` (a boolean, validated by `validateIngredientCats`; default true) hides a food from the
+  food log's basics search and recipe picker while keeping it in the DB for the plan and the portion guide: set
+  on the 18 foods the owner already logs as his own Mercadona products (confitura, jamón serrano, gambas,
+  salpicón, tranchete, mozzarella, salsa de tomate, soja, allioli, mayonesa, pisto, chocolate 85%, helado,
+  napolitana, palomitas, panecillo, patatas horno, tomate frito); `lib/nutrition/basics.mjs` bakes them with `h: 1`.
+  Drinks with alcohol (`cerveza`, `cerveza1906`, `clara`) carry kcal above their macros (alcohol 7 kcal/g);
+  `cerveza00tostada`'s macros are derived from its kcal (the source lists only kcal).
 - `data/nutrition/plan-data.json` (GITIGNORED, **personal** plan) — the owner's actual diet:
   `data`/`dayPlan`/`extras`/`quesoKeys`/`vegKeys`/`legumeKeys`/`legumePlate`/
   `page`. Each item's `recipe` (`[{ing, amt}]`) references ingredient keys from
