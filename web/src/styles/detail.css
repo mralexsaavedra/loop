@@ -630,7 +630,7 @@ button.dt-day {
   background: var(--card-bg);
   border: 1px solid var(--line);
   border-radius: var(--card-radius);
-  padding: var(--sp-5);
+  padding: var(--card-pad);
 }
 .dt-day-h {
   font-size: var(--fs-title-lg);

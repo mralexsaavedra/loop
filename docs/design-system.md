@@ -25,7 +25,7 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
 | Role token | = primitive | Use it for |
 | --- | --- | --- |
 | `--card-radius` | `--r-sm` (11 px) | the corner of EVERY card-level fill: tab cards, list rows (`.db-row`), folds (`details`, `.sec-fold > summary`), sheet cards |
-| `--card-pad` | `--sp-5` (12 px) | a card's inner padding (Inicio's `.sc-card` and `.eat-card` share it) |
+| `--card-pad` | `--sp-5` (12 px) | EVERY tab card's inner padding, all four sides (Inicio's `.sc-card`, `.eat-card`, the monitor tiles `.hmt`; Entreno's `.act-card`, `.lvr-card`, `.ld-card`; Nutrición's `.nutri-card`, `.meal`, `.intake-card`) |
 | `--fs-num-row` | `--fs-3xl` (20 px) | a number that heads a row or a small block (Inicio panel rows, meal kcal, fuelling key, adherence) |
 | `--fs-num-card` | `--fs-4xl` (28 px) | a card's headline value (eat card kcal, Tonight's clocks, the energy / nutrition %, load cards, recovery card, weight, monitor tiles at >= 900 px) |
 | `--fs-dial`, `--fs-hero` | 26 / 56 px | a dial centre — sized to its ring (see "Exceptions") |
@@ -41,7 +41,9 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
 
 - **Cards.** A rule that paints `var(--card-bg)` or `var(--surface)` and rounds its corners uses
   `var(--card-radius)`. No rule uses a raw px radius >= 8 px; smaller raw radii (bar ends, swatches,
-  3 px markers) are fine.
+  3 px markers) are fine. The same card rule pads itself with `var(--card-pad)` (formerly 14 × 12 px on
+  the monitor tile, Entreno's Activity card and Nutrición's cards, 10 px on the load tiles, 16 px on the
+  intake card).
 - **Hero numbers.** In the `--num` face, a size of 18 px or more is a step of the scale: row
   (`--fs-num-row`), card (`--fs-num-card`) or a dial centre; weight 700 (`--num-weight`), never 800.
   No other rule sets a raw px size of 18 px or more.
@@ -54,6 +56,11 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
 
 - Radius: the dock bar and its buttons (`.tabnav`, 24 / 19 px), the "+" popover (`.act-pop`, 12 px),
   the desktop calendar tile (`.cal-day`, 8 px) and the 2 px contributor marker (`.dd-contrib::before`).
+- Padding: list rows (`.db-row`, 8 × 12 px: rows stack into a list), fold rows (`.sec-fold > summary`,
+  a min-height, side padding only), the compact macro tile `.mac`, the empty state `.train-empty` (a
+  centred message) and the sheets' own cards (`detail.css`, `profile.css`, the food sheet's form), which
+  sit on the sheet's 16 px inset. Tablas' supplements card takes its `padding: 6px 16px` from an inline
+  style in the plan data (`tablas.supplements` note), not from CSS.
 - Hero size: dial centres sized to their ring (Inicio's dials at >= 900 px, Nutrición's kcal dial
   `.nt-kcal`, the deep-dive dial `.dd-num`) and the trend sheet's header value (`.dt-num`); non-number
   glyphs (`.sh-back`, the header `.wordmark`, phone and desktop).

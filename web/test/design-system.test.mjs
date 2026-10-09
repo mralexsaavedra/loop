@@ -5,7 +5,7 @@
  *
  *   1. cards     — a rule that paints a card fill (var(--card-bg) / var(--surface)) and sets a
  *                  border-radius uses var(--card-radius); no rule uses a raw px radius >= 8px;
- *   2. padding   — Inicio's sibling cards share var(--card-pad);
+ *   2. padding   — every card fill (Inicio's sibling cards first) pads itself with var(--card-pad);
  *   3. numbers   — a rule in the --num face whose size reaches the hero band (>= 18px) uses a step
  *                  of the hero scale, in one weight (700); a dial centre (sized to its ring) is
  *                  listed; no other raw px size reaches the band;
@@ -161,6 +161,31 @@ test("Inicio's sibling cards share the card padding token", () => {
     assert.ok(r, `${sel} must declare its padding`);
     assert.equal(r.decl.padding, 'var(--card-pad)', `${where(r)} padding`);
   }
+});
+
+// a card-fill rule that pads itself uses var(--card-pad); the sheets' own stylesheets sit on the sheet's
+// 16px inset and are audited as sheets (docs/design-system.md → Exceptions)
+const PAD_SHEET_FILES = new Set(['detail.css', 'profile.css']);
+const CARD_PAD_ALLOW = {
+  'score.css .db-row, .db-erow': 'a list row (8 x 12px), not a card: rows stack into a list',
+  'layout.css details.sec-fold>summary': 'a fold row: its height is a min-height, only side padding',
+  'dia.css .mac': 'a compact macro tile (8 x 12px) inside a card',
+  'training.css .train-empty': 'an empty state: a centred message with tall padding',
+  'food.css .fp-form, .fp-search': "the food sheet's form (a sheet card on the 16px inset)",
+};
+test('every card fill pads itself with the card padding token', () => {
+  const bad = [];
+  const seen = new Set();
+  for (const r of RULES) {
+    const fill = r.decl.background ?? r.decl['background-color'];
+    if (!CARD_FILL.has(fill) || r.decl.padding == null || PAD_SHEET_FILES.has(r.file)) continue;
+    if (r.decl.padding === 'var(--card-pad)') continue;
+    if (CARD_PAD_ALLOW[key(r)]) seen.add(key(r));
+    else bad.push(`${where(r)} card padding \`${r.decl.padding}\` (use var(--card-pad))`);
+  }
+  assert.deepEqual(bad, []);
+  const stale = Object.keys(CARD_PAD_ALLOW).filter((k) => !seen.has(k));
+  assert.deepEqual(stale, [], 'allowlist entries that no longer match a rule — remove them');
 });
 
 test('hero numbers use the hero scale (row / card / dial) in one weight', () => {
