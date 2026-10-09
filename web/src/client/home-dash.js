@@ -222,12 +222,14 @@
 
     /* ≡ drag (Pointer Events, so mouse, touch and pen alike): pointerdown on a handle captures the
      * pointer, every move puts the row where the pointer is (the DOM row moves live), the drop saves
-     * through commit() like ↑ / ↓; a cancel re-renders the saved order. */
+     * through commit() like ↑ / ↓; a cancel re-renders the saved order. Only the primary pointer starts
+     * a drag (never a second finger), a mouse only with its main button, and never while one is active. */
     var drag = null;
     function rowsBut(d) {
       return [].slice.call(d.ul.children).filter(function (r) { return r !== d.li; });
     }
     document.addEventListener('pointerdown', function (e) {
+      if (drag || !e || !e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
       var g = e && e.target && e.target.closest ? e.target.closest('[data-dash-grip]') : null;
       var li = g && g.closest('li');
       if (!li || !li.parentNode) return;

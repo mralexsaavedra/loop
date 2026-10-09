@@ -320,7 +320,10 @@ details.sec-fold.nutri-fold {
 .gd-done .gd-l {
   color: var(--faint);
 }
-/* phones: the select keeps a readable width; a long amount (pieces + grams) wraps under it, right-aligned */
+/* the select asks for the width of its chosen food's name (--pick = its length in characters, set by
+   nutri-day.js; ~0.58em a character, a slight over-estimate for the UI font) plus its 52px padding,
+   never more than the row; when that and the amount do not fit one row the amount wraps under it,
+   right-aligned, so the name is never cut by the amount beside it */
 .gd-ex {
   display: flex;
   flex-wrap: wrap;
@@ -328,14 +331,19 @@ details.sec-fold.nutri-fold {
   gap: var(--sp-3);
   margin-top: var(--sp-3);
 }
-.gd-pick {
-  flex: 1 1 150px;
+/* .sel.gd-pick: the 44px target out-specifies .sel's 36px, whatever the stylesheet order */
+.sel.gd-pick {
+  flex: 1 1 min(100%, calc(var(--pick, 10) * 0.58em + 52px));
   min-width: 0;
   min-height: 44px;
 }
-/* the select's chevron sits inside the pill: pull it back over the row gap too */
+/* the select's chevron sits inside the pill: pulled back over the row gap too, and a 12px box whose
+   margins sum to minus the gap, so it adds no width to the row (a select alone on its row fills it
+   exactly, never past the card) */
 .gd-ex .sel-chev {
+  width: 12px;
   margin-left: calc(-28px - var(--sp-3));
+  margin-right: 16px;
 }
 .gd-add:focus-visible {
   outline: 2px solid var(--accent);
@@ -458,7 +466,7 @@ details.sec-fold.nutri-fold {
   color: var(--muted);
   margin-bottom: var(--sp-3);
 }
-.fuel-select {
+.sel.fuel-select {
   min-height: 44px;
   /* a floor, not a width: at 16px on phones the longest option ("5 h 30 min") is ~140px with the
      arrow, so it grows to fit and never clips; capped at its card on a 360px screen */

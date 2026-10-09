@@ -157,7 +157,7 @@ test('drag: pointer down on ≡ captures the pointer, a move reorders the rows l
   const sheet = fakeSheet(['rhr', 'hrv', 'sleep', 'weight', 'steps', 'vo2max']);
   const steps = sheet.rows[4];
   const fire = (type, target, y, id = 7) => {
-    const ev = { type, target, pointerId: id, clientY: y, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+    const ev = { type, target, pointerId: id, isPrimary: true, pointerType: 'touch', clientY: y, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
     ctx.__listeners[type](ev);
     return ev;
   };
@@ -184,7 +184,7 @@ test('drag: pointer down on ≡ captures the pointer, a move reorders the rows l
 
 test('drag: a drop where it started saves nothing; a cancelled drag (pointercancel) restores the sheet without saving', () => {
   const { ctx, ls, opened } = load();
-  const fire = (type, target, y) => ctx.__listeners[type]({ type, target, pointerId: 1, clientY: y, preventDefault() {} });
+  const fire = (type, target, y) => ctx.__listeners[type]({ type, target, pointerId: 1, isPrimary: true, pointerType: 'mouse', button: 0, clientY: y, preventDefault() {} });
   const a = fakeSheet(['rhr', 'hrv', 'sleep']);
   fire('pointerdown', a.rows[0].grip, 30);
   fire('pointermove', a.rows[0].grip, 40);
@@ -298,4 +298,36 @@ test('fitness age: an optional row (off by default), whole years, lower = better
   assert.match(load({ DETAIL: D, ls, locale: 'es' }).els['home-dash'].innerHTML, /Edad física<\/span>[\s\S]*<b>≥ 75<\/b><small>años<\/small>/);
   D.metrics.fitnessAge.v[39] = 40.6;
   assert.match(load({ DETAIL: D, ls }).els['home-dash'].innerHTML, /<b>41<\/b><small>years<\/small>/);
+});
+
+test('drag: only the primary pointer, a mouse main button and no drag in progress start one', () => {
+  const { ctx, ls } = load();
+  const sheet = fakeSheet(['rhr', 'hrv', 'sleep']);
+  const fire = (type, target, y, extra) => {
+    const ev = { type, target, pointerId: 1, isPrimary: true, pointerType: 'mouse', button: 0, clientY: y, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, ...extra };
+    ctx.__listeners[type](ev);
+    return ev;
+  };
+  const [rhr, hrv] = sheet.rows;
+  // a second finger (not the primary pointer) is not a drag
+  const second = fire('pointerdown', rhr.grip, 30, { pointerId: 2, pointerType: 'touch', isPrimary: false });
+  assert.ok(!second.defaultPrevented && !rhr.classList.contains('db-drag'), 'a non-primary pointer is ignored');
+  assert.deepEqual(rhr.grip.captured, []);
+  // a right click (or middle) is not a drag
+  const right = fire('pointerdown', rhr.grip, 30, { button: 2 });
+  assert.ok(!right.defaultPrevented && !rhr.classList.contains('db-drag'), 'a non-left mouse button is ignored');
+  fire('pointermove', rhr.grip, 170, { button: 2 });
+  fire('pointerup', rhr.grip, 170, { button: 2 });
+  assert.deepEqual(sheet.order(), ['rhr', 'hrv', 'sleep']);
+  assert.equal(ls.data['hc-dash-v1'], undefined);
+  // a pointer down while a drag is active does not hijack it
+  fire('pointerdown', rhr.grip, 30);
+  assert.ok(rhr.classList.contains('db-drag'));
+  const again = fire('pointerdown', hrv.grip, 90, { pointerId: 3 });
+  assert.ok(!again.defaultPrevented && !hrv.classList.contains('db-drag'), 'a second pointerdown mid-drag is ignored');
+  assert.deepEqual(hrv.grip.captured, []);
+  fire('pointermove', rhr.grip, 170);
+  fire('pointerup', rhr.grip, 170);
+  assert.deepEqual(sheet.order(), ['hrv', 'sleep', 'rhr'], 'the first drag still drops');
+  assert.ok(ls.data['hc-dash-v1'] != null, 'and saves');
 });
