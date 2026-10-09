@@ -189,15 +189,17 @@ var HC = (function () {
     return !tone || tone === 'flat' || tone === 'normal' ? 'neutral' : tone;
   }
   // o = {key, cls?, attrs?, aria?, name, value, unit?, numCls?, arrow? ('up' | 'down' | 'flat'),
-  //      tone? ('good' | 'bad' | 'watch' | 'flat'), base?} — every text is escaped here; the ONE small
-  //      secondary line is `base`, under the value (docs/design-system.md → Metric row)
+  //      tone? ('good' | 'bad' | 'watch' | 'flat'), base?, base2?} — every text is escaped here; the
+  //      secondary lines sit under the value: `base`, then an optional second one `base2` (a ride's
+  //      HR · effort · kJ; docs/design-system.md → Metric row)
   function metricRow(o) {
     var arrow = o.arrow && Object.prototype.hasOwnProperty.call(ARROWS, o.arrow) ? ARROWS[o.arrow] : '';
     return '<li class="db-row' + (o.cls ? ' ' + o.cls : '') + '"' + (o.attrs || '') + (o.aria ? ' aria-label="' + esc(o.aria) + '"' : '') + '>' + metricIcon(o.key) +
       '<span class="db-name">' + esc(o.name) + '</span>' +
       '<span class="db-vals"><span class="db-val"><b' + (o.numCls ? ' class="' + o.numCls + '"' : '') + '>' + esc(o.value) + '</b>' + (o.unit ? '<small>' + esc(o.unit) + '</small>' : '') +
       (arrow ? '<span class="db-arr db-' + esc(trendTone(o.arrow, o.tone)) + '" aria-hidden="true">' + arrow + '</span>' : '') + '</span>' +
-      (o.base != null && o.base !== '' ? '<span class="db-base">' + esc(o.base) + '</span>' : '') + '</span></li>';
+      (o.base != null && o.base !== '' ? '<span class="db-base">' + esc(o.base) + '</span>' : '') +
+      (o.base2 ? '<span class="db-base">' + esc(o.base2) + '</span>' : '') + '</span></li>';
   }
 
   // THE contributor row (docs/design-system.md → Components → Contributor row): the deep-dive sheets'

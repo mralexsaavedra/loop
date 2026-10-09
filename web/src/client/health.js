@@ -160,20 +160,20 @@
   }
 
   // Entreno run / ride rows (HC.metricRow): ONE template for both lists — icon · the date (UPPERCASE) ·
-  // the distance big on the right with ONE small line under it (run: time · pace; ride: time · climb).
-  // HR, effort, work and the watch dynamics are not on the row (they wrapped to 2-3 lines at 390 px and
-  // made the two lists differ): they stay in the aria label and in the day the row opens. A dash never
-  // stands in for a missing value: a field the source did not record is left out (the ⓘ says which
-  // source records what). The row opens that day in its load view (client/detail.js); without the
-  // detail sheet it is a plain row (no fake link).
+  // the distance big on the right with the small lines under it (run: time · pace; ride: time · climb,
+  // then a second line HR · effort · kJ — the ride's work is shown nowhere else). Nothing under the date.
+  // A run's HR, effort and watch dynamics stay in the aria label and the day the row opens (they would
+  // wrap to 2-3 lines at 390 px). A dash never stands in for a missing value: a field the source did not
+  // record is left out (the ⓘ says which source records what). The row opens that day in its load view
+  // (client/detail.js); without the detail sheet it is a plain row (no fake link).
   function parts(list) {
     return list.filter(function (x) { return x != null && x !== ''; }).join(' · ');
   }
-  // note = the numbers kept off the row, read in its aria label
-  function sessionRow(key, icon, r, base, note) {
+  // note = the run's numbers kept off the row (aria only); base2 = the ride's second small line
+  function sessionRow(key, icon, r, base, note, base2) {
     var name = HC.fmtDate(r.date);
     var value = r.dist != null ? nf(r.dist) : '—';
-    return HC.metricRow({ key: icon, attrs: HC.detailAttrs(key, r.date), name: name, value: value, unit: r.dist != null ? 'km' : '', base: base,
+    return HC.metricRow({ key: icon, attrs: HC.detailAttrs(key, r.date), name: name, value: value, unit: r.dist != null ? 'km' : '', base: base, base2: base2 || '',
       aria: parts([name, r.dist != null ? nf(r.dist) + ' km' : '', base, note]) });
   }
   function runRow(r) {
@@ -188,7 +188,7 @@
     var CT = T.cyclingTable, u = T.trend.rhr.unit;
     var base = parts([r.time, r.elev != null ? '↑' + nf(r.elev) + ' m' : null]);
     var note = parts([r.hrAvg != null ? r.hrAvg + ' ' + u : null, r.re != null ? CT.reH + ' ' + r.re : null, r.kj != null ? nf(r.kj) + ' kJ' : null]);
-    return sessionRow('load-bike', 'bike', r, base, note);
+    return sessionRow('load-bike', 'bike', r, base, note, note);
   }
 
   // A Salud section: UPPERCASE label (the hl-<key> anchor is the section itself), an ⓘ toggle

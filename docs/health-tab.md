@@ -156,8 +156,9 @@ caveat (`energyTdeeNote`, which points to Nutrición → Balance); the balance n
 - **Cycling** — `workouts.csv` rows of any Cycling type (Watch rides and `sync:strava` rides), shown
   right after Running as RECENT-RIDES list rows with the same style and row budget (8, newest first) so
   run and bike carry equal weight — ONE row template (DS4): nothing under the date; the distance with
-  time (Strava moving time / Watch duration) and elevation gain under it; avg HR, relative effort and kJ
-  in the row's aria-label (formerly a small line under the date, rides only); the ride count and the
+  time (Strava moving time / Watch duration) and elevation gain under it, then a second small line
+  avg HR · relative effort · kJ (`base2`; formerly under the date — the ride's work is shown nowhere
+  else, so it stays on the row); all of it in the row's aria-label too; the ride count and the
   source notes in the section's ⓘ; a row opens that day in `load-bike`. Same-day rows merge into ONE ride
   under the shared same-day rule (`DISPLAY_RULE`: stubs dropped, the Strava copy wins over a Watch copy): sums
   for time/distance/kJ/elevation/RE, duration-weighted avg HR, and the count is distinct ride days. Elevation / RE / kJ come from
