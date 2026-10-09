@@ -395,7 +395,7 @@ test('Entreno load cards open their modality\'s detail view; the Salud recovery 
     assert.match(hosts.load.innerHTML, new RegExp(`<div class="ld-card(?: ld-off)?" data-mod="${m.key}" data-detail="load-${m.key}" role="button" tabindex="0" aria-haspopup="dialog" aria-label="`), m.key);
   }
   // the recovery card holds a <details> fold, so the card itself is not a button: a real button opens the view
-  assert.match(hosts.rec.innerHTML, new RegExp(`<button type="button" class="dt-open-btn" data-detail="recovery" aria-haspopup="dialog">${enT.recovery.historyBtn}</button>`));
+  assert.match(hosts.rec.innerHTML, new RegExp(`<div class="sc-head"><span class="sc-asof">[^<]*</span><button type="button" class="cta" data-detail="recovery" aria-haspopup="dialog">${enT.recovery.historyBtn}<span aria-hidden="true"> →</span></button>`));
   assert.doesNotMatch(hosts.rec.innerHTML + hosts.load.innerHTML, /jumpOr\(/);
   const plain = {};
   render(s, { now: addDays(ASOF, 1), hosts: plain });

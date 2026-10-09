@@ -118,9 +118,7 @@ details.sec-fold > summary:hover > h2 {
   font-weight: 700;
 }
 .eat-link {
-  display: inline-block;
   margin-top: var(--sp-6);
-  font-size: var(--fs-md);
 }
 
 /* jump() targets clear the collapsed dial row (score.css .dial-mini, fixed at the top of Inicio) */

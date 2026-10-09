@@ -18,5 +18,5 @@ const t = (locale === 'es' ? esNutri : enNutri).eat;
     <h3>{t.heading}</h3>
   </div>
   <div id="eat-body" aria-live="polite"></div>
-  {link && <button type="button" class="lnk eat-link" onclick="setTab('nutricion')">{t.fullPlan} →</button>}
+  {link && <button type="button" class="cta eat-link" onclick="setTab('nutricion')">{t.fullPlan}<span aria-hidden="true"> →</span></button>}
 </div>

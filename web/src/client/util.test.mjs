@@ -163,3 +163,9 @@ test('one date format: no client script formats a date with toLocale*String / In
     assert.doesNotMatch(src, /DATE_LOCALE/, `${f} keeps its own date locale`);
   }
 });
+
+test('cta is the one CTA link: a .cta button, the label escaped, the arrow hidden from screen readers', () => {
+  const HC = load();
+  assert.equal(HC.cta('See <more>', ' data-detail="sleep"'), '<button type="button" class="cta" data-detail="sleep">See &lt;more&gt;<span aria-hidden="true"> →</span></button>');
+  assert.equal(HC.cta('Go'), '<button type="button" class="cta">Go<span aria-hidden="true"> →</span></button>');
+});

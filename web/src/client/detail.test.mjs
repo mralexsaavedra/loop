@@ -594,7 +594,7 @@ test('ⓘ toggles the long-notes block in place (no re-render); the CTA jumps to
   assert.equal(period.scrolled, 1);
   assert.equal(pressed.focused, 1);
   assert.equal(s.hostWrites(), writes, 'neither action re-renders the sheet');
-  assert.ok(s.host.innerHTML.includes(`<button type="button" class="dd-cta" data-dt-act="trend">${enT.deep.ctas.recovery}<span aria-hidden="true"> →</span></button>`));
+  assert.ok(s.host.innerHTML.includes(`<button type="button" class="cta" data-dt-act="trend">${enT.deep.ctas.recovery}<span aria-hidden="true"> →</span></button>`));
 });
 
 test('recovery deep-dive: the insight card leads with Inicio\'s outlook sentence (window.HCAdvice), the full text behind the one-line bar; nothing without one', () => {
@@ -1871,7 +1871,7 @@ test('trend view breakdown: one stacked bar of the window\'s days by calendar st
     const b = brkOf(s.host.innerHTML);
     const c = count(from);
     const tot = c.good + c.normal + c.bad;
-    assert.ok(b.includes(`<h3 class="dt-brk-t">${enT.trend.brk.title}</h3><button type="button" class="dt-learn" data-dt-act="learn">${enT.trend.brk.learn}</button>`));
+    assert.ok(b.includes(`<h3 class="dt-brk-t">${enT.trend.brk.title}</h3><button type="button" class="cta" data-dt-act="learn">${enT.trend.brk.learn}<span aria-hidden="true"> →</span></button>`));
     assert.deepEqual([...b.matchAll(/<li data-st="([a-z]+)">/g)].map((x) => x[1]), ['good', 'normal', 'bad'], 'the legend\'s order');
     for (const k of ['good', 'normal', 'bad']) {
       assert.ok(b.includes(`${k === 'good' ? enT.legend.good : k === 'bad' ? enT.legend.bad : enT.legend.normal}<b>${c[k]}x</b>`), `${range}: ${k} ${c[k]}x`);
@@ -1898,6 +1898,6 @@ test('trend view breakdown: one stacked bar of the window\'s days by calendar st
   assert.doesNotMatch(s.host.innerHTML, /dt-brk/);
   const es = setup({ locale: 'es' });
   es.api.open('rhr');
-  assert.ok(es.host.innerHTML.includes(`>${esT.trend.brk.learn}</button>`) && /<b>\d+x<\/b>/.test(es.host.innerHTML));
+  assert.ok(es.host.innerHTML.includes(`>${esT.trend.brk.learn}<span aria-hidden="true"> →</span></button>`) && /<b>\d+x<\/b>/.test(es.host.innerHTML));
   clean(html);
 });

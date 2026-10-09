@@ -154,7 +154,7 @@
           : '<span class="jr-day" role="img" aria-label="' + esc(aria) + '">' + inner + '</span>') + '</li>';
       }).join('');
       var ins = hasInsights()
-        ? '<button type="button" class="tn-more jr-ins" data-detail="journal-insights" aria-haspopup="dialog">' + esc(T.insights) + '</button>' : '';
+        ? '<button type="button" class="jr-ins" data-detail="journal-insights" aria-haspopup="dialog">' + esc(T.insights) + '</button>' : '';
       return '<div class="sc-card jr">' +
         '<div class="jr-top"><h3 class="tn-h">' + esc(T.heading) + '</h3>' +
         (live ? '<button type="button" class="jr-chev" data-detail="journal" aria-haspopup="dialog" aria-label="' + esc(T.open) + '">›</button>' : '') + '</div>' +

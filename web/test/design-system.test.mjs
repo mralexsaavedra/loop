@@ -206,3 +206,10 @@ test('section heading: one class (.hs-lbl) owns the section step, in sentence ca
   const other = RULES.filter((r) => r !== own[0] && /var\(--f[sw]-section\)/.test(`${r.decl['font-size']} ${r.decl['font-weight']}`));
   assert.deepEqual(other.map(where), [], 'only .hs-lbl uses the section tokens: a section heading reuses the class');
 });
+
+test('CTA link: only .cta (and the in-sentence .lnk) paint link text; the gradient only on the insight card', () => {
+  const linkText = RULES.filter((r) => r.decl.color === 'var(--link)').map(key);
+  assert.deepEqual(linkText.sort(), ['base.css .cta', 'base.css .lnk'], 'a link-coloured rule outside .cta / .lnk is another link style');
+  const gradient = RULES.filter((r) => r.decl['background-clip'] === 'text').map(key);
+  assert.deepEqual(gradient, ['detail.css .dd-insight .cta'], 'the gradient text is drawn only on --ground (tokens.css)');
+});
