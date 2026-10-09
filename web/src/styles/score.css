@@ -37,19 +37,6 @@
 }
 .sc-arrow {
   font-size: 0.8em;
-  color: var(--muted);
-}
-.sc-arrow-above,
-.sc-arrow-ramping {
-  color: var(--good);
-}
-.sc-arrow-below,
-.sc-arrow-detraining {
-  color: var(--low-ink);
-}
-.sc-arrow-at,
-.sc-arrow-steady {
-  color: var(--muted);
 }
 .sc-spark .spark {
   width: 100%;

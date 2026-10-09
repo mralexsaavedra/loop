@@ -225,7 +225,6 @@
 .food-icon-btn:focus-visible,
 .food-add:focus-visible,
 .food-btn:focus-visible,
-.fa-tab:focus-visible,
 .fa-item:focus-visible,
 .food-in:focus-visible {
   outline: 2px solid var(--accent);
@@ -346,30 +345,7 @@
 
 /* ---------- add sheet ---------- */
 .fa-tabs {
-  display: grid;
-  grid-auto-flow: column; /* one equal column per tab (food.js TAB_KEYS) */
-  grid-auto-columns: minmax(0, 1fr);
-  gap: var(--sp-1);
-  background: var(--surface-2);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--r-md);
-  padding: var(--sp-1);
   margin-bottom: var(--sp-5);
-}
-.fa-tab {
-  min-height: 44px;
-  background: none;
-  border: 0;
-  border-radius: var(--r-sm);
-  color: var(--muted);
-  font: inherit;
-  font-size: var(--fs-sm);
-  font-weight: 650;
-  cursor: pointer;
-}
-.fa-tab[aria-pressed="true"] {
-  background: var(--track);
-  color: var(--ink);
 }
 .fa-store,
 .fp-store {

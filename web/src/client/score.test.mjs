@@ -230,7 +230,7 @@ test('recovery card: layout blocks headline | sparkline | contributors', () => {
 
 test('colour only on the direction arrow: no grade-fill classes on the recovery card', () => {
   const html = render(fixtureScores());
-  assert.match(html, /sc-arrow sc-arrow-(above|at|below)/);
+  assert.match(html, /<span class="sc-arrow db-(good|flat|bad)" aria-hidden="true">[▲•▼]<\/span>/, 'THE trend glyph, coloured by the shared tone classes');
   assert.doesNotMatch(html, /sc-(red|amber|green|grade)/);
 });
 
