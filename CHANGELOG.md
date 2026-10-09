@@ -5,6 +5,18 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-09 — Beer basics and hiding basics that duplicate Mercadona products
+
+Two log-only drink basics for the beers the owner usually drinks: `cerveza1906` (1906 Reserva
+Especial, 6.5 %, 54 kcal / 100 ml, botellín 330 ml) and `cerveza00tostada` (Estrella Galicia 0,0
+Tostada, 24 kcal / 100 ml, botellín 250 ml), both `verified: false` with fitia.app named as the
+source; the Tostada's protein / carbs are derived from its kcal because the source lists only kcal.
+A new optional ingredient field `basic: false` hides a food from the add sheet's basics search and
+the recipe picker (`buildBasics` bakes it with `h: 1`, `basicMatches` skips it) while it stays in
+`ingredients.json` and FOOD_BASICS for the plan, the portion guide and old entries. Set on the 18
+foods the owner already logs as his own Mercadona products (allioli, jamón serrano, tomate frito…),
+so the search no longer shows each of them twice.
+
 ## 2026-10-09 — Loop-free heart-rate samples from the Shortcut (`hr_t` + `hr_v`)
 
 The `hr_samples` step looped once per Watch heart-rate sample (thousands on a workout day), so the

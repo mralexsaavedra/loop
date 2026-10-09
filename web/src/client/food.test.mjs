@@ -872,8 +872,31 @@ test('basics search: a verified product label of the food DB says so instead of 
   const t = setup({ routes: BOOT, extraIds: BASIC_IDS });
   await flush();
   openProducts(t);
-  t.fire('input', t.input('fa-q', 'allioli'));
-  assert.match(text(t.els['fa-list'].innerHTML), new RegExp('Allioli \\(Hacendado\\) 712 kcal por 100 g · ' + esF.sheet.basicLabelSrc));
+  t.fire('input', t.input('fa-q', 'estrella galicia (5'));
+  assert.match(text(t.els['fa-list'].innerHTML), new RegExp('Cerveza especial Estrella Galicia \\(5,5%\\) 47 kcal por 100 ml · ' + esF.sheet.basicLabelSrc));
+});
+
+// a hidden basic (h: 1, `basic: false` in the food DB: the owner logs it as his own product) never lists
+const HIDDEN_BASICS = [
+  { k: 'vis', n: 'Salsa visible', u: 'g', m: [100, 1, 2, 3], c: 'sauce' },
+  { k: 'hid', n: 'Salsa oculta', u: 'g', m: [200, 1, 2, 3], c: 'sauce', h: 1 },
+];
+
+test('basics search: a hidden basic (h) is never listed, in the add sheet or the recipe picker', async () => {
+  const t = setup({ routes: BOOT, extraIds: [...BASIC_IDS, 'frf-list-0', 'frf-prev'], basics: HIDDEN_BASICS });
+  await flush();
+  openProducts(t);
+  t.fire('input', t.input('fa-q', 'salsa'));
+  const html = t.els['fa-list'].innerHTML;
+  assert.match(html, /data-kind="basic" data-id="vis"/);
+  assert.doesNotMatch(html, /data-id="hid"/);
+  t.fire('input', t.input('fa-q', 'oculta'));
+  assert.doesNotMatch(t.els['fa-list'].innerHTML, /data-id="hid"/);
+  t.fire('click', t.button({ 'data-food-act': 'r-new' }));
+  t.fire('input', t.input('frf-ing-0', 'salsa'));
+  const list = t.els['frf-list-0'].innerHTML;
+  assert.match(list, /data-kind="basic" data-id="vis"/);
+  assert.doesNotMatch(list, /data-id="hid"/);
 });
 
 test('basics without any product yet: the search box is there and finds basics', async () => {
