@@ -103,9 +103,10 @@ the date and drops the dim class). Surfaces:
 | Surface | Value | Date shown |
 | --- | --- | --- |
 | Inicio dials: sleep, recovery (`score.js`) | the night | under the number ("7 OCT"); the mini ring dims |
+| Sleep + recovery deep-dives (`deepdive.js`) | the headline night | the sheet title + contributor legend ("Wed 7 Oct"); the hero dims |
 
-Not carried by design: the load dial (it reads the shown day only: "No data", rest or no session,
-never an earlier day's value).
+Not carried by design: the load dial and the load / strain / stress / energy bank deep-dives (they read
+the shown day only: "No data", rest or no session, never an earlier day's value).
 
 - Guard (`design-system.test.mjs`): only `base.css` styles `.carried` / `.carried-date` (the dial only
   places the date), `.carried` dims without greyscale, and every surface above calls `HC.carried`.

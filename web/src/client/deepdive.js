@@ -67,16 +67,18 @@
   // was opened on (Inicio's day stepping), the others = the view end (the viewer's today, or the
   // stale data's last day), the day their hero and insight describe
   function headDay(key, end, X, m) {
-    if (key === 'recovery') return carriedNight(m, end) || end;
+    if (key === 'recovery' || key === 'sleep') return carriedNight(key, m, end, X) || end;
     return key === 'strain' || key === 'stress' || key === 'energy-bank' ? strainIso(end, X) : end;
   }
-  // recovery: the headline night when it is OLDER than the viewer's today (today's night is not
-  // complete yet, lib/score/recovery.mjs falls back up to 2 days): the page is titled with that
-  // night's date and its hero dimmed like stale data, as the Inicio dial (score.js recDial)
-  function carriedNight(m, end) {
+  // THE carried-value rule (HC.carried, docs/design-system.md → Carried values), as the Inicio dials:
+  // the night a recovery / sleep page headlines when it is OLDER than the viewer's today (today's night
+  // is not complete yet; lib/score/recovery.mjs falls back up to 2 days) — the page is titled with that
+  // night's date (weekday kept), the legend names it and the hero is dimmed. Stale data (end = the
+  // data's last day) is the stronger state, never carried.
+  function carriedNight(key, m, end, X) {
     var h = m && m.head;
-    var n = h && h.mode === 'today' ? isoDate(h.date) : null;
-    return n && end === HC.todayIso() && n < end ? n : null;
+    var n = key === 'sleep' ? sleepNight(m, end, X) : h && h.mode === 'today' ? h.date : null;
+    return end === HC.todayIso() && HC.carried(n, end).carried ? n : null;
   }
   function headHtml(key, end, X, m) {
     var P = X.T.deep, iso = headDay(key, end, X, m);
@@ -85,7 +87,8 @@
   }
 
   /* ---------- hero ring ---------- */
-  // h: {cls (colour), fill (baked path | null), tick (load: typical day), num + unit | word, label, stale}
+  // h: {cls (colour), fill (baked path | null), tick (load: typical day), num + unit | word, label, stale,
+  // carried (a night from an earlier day: the one dim, HC.carried; stale = the stronger grey wins)}
   function heroHtml(h, X) {
     var D = dials();
     var track = D && D.track ? '<path class="dd-track" d="' + esc(D.track) + '"/>' : '<circle class="dd-track" cx="' + RING.c + '" cy="' + RING.c + '" r="' + RING.r + '"/>';
@@ -97,7 +100,7 @@
       ? '<b class="dd-num">' + esc(h.num) + (h.unit ? '<small>' + esc(h.unit) + '</small>' : '') + '</b>'
       : '<span class="dd-word">' + esc(h.word) + '</span>';
     var aria = format(X.T.deep.heroAria, { label: h.label, value: h.num != null ? h.num + (h.unit ? ' ' + h.unit : '') : h.word });
-    return '<section class="dd-hero dd-' + esc(h.cls) + (h.fill ? '' : ' dd-off') + (h.stale ? ' dd-stale' : '') + '">' +
+    return '<section class="dd-hero dd-' + esc(h.cls) + (h.fill ? '' : ' dd-off') + (h.stale ? ' dd-stale' : h.carried ? ' carried' : '') + '">' +
       '<div class="dd-ring" role="img" aria-label="' + esc(aria) + '">' + svg +
       '<div class="dd-centre" aria-hidden="true">' + centre + '<span class="dd-lbl">' + esc(h.label) + '</span></div></div></section>';
   }
@@ -109,16 +112,16 @@
   // recovery: exactly the dial (view/dial.mjs recoveryDial + score.js recDial): last night's composite,
   // its band as the ONE colour of the whole fill; gated / none = an empty ring with the dial's word
   function recoveryHero(m, end, X) {
-    var P = X.T.deep, h = m.head, d = dials() && dials().recovery, old = !!carriedNight(m, end);
+    var P = X.T.deep, h = m.head, d = dials() && dials().recovery;
     var label = P.label.recovery;
     if (!h || !isNum(h.value)) return { cls: 'off', label: label, word: d && d.state === 'none' ? P.words.none : P.words.gated, stale: false };
     // the % headline (DIALS: the night's rank within the previous 90 days) when the dial has one
     if (pctOf(h) != null) {
-      return { cls: d.band, label: label, num: String(d.pct), unit: '%', fill: d.fill, stale: old || stale(d.asOf || X.D.asOf) };
+      return { cls: d.band, label: label, num: String(d.pct), unit: '%', fill: d.fill, stale: stale(d.asOf || X.D.asOf) };
     }
     return {
       cls: BAND_CLS[h.band] || 'mid', label: label, num: X.signed(h.value, 1), unit: X.unitOf('recovery'),
-      fill: d && d.state === 'ok' ? d.fill : null, stale: old || stale((d && d.asOf) || X.D.asOf),
+      fill: d && d.state === 'ok' ? d.fill : null, stale: stale((d && d.asOf) || X.D.asOf),
     };
   }
   // sleep: last night's sleep performance % (DIALS pct = asleep / need, the dial's fill); without a
@@ -585,9 +588,10 @@
           strainContribHtml(m, end, X) + insightHtml(strainLines(m, end, X), X, 'strain') + weeklyHtml(key, m, end, X) + reLinksHtml(X),
       };
     }
-    var carried = key === 'recovery' ? carriedNight(m, end) : null;
+    var carried = key === 'recovery' || key === 'sleep' ? carriedNight(key, m, end, X) : null;
     var carriedDay = carried ? HC.fmtDate(carried) : null;
     var hero = key === 'recovery' ? recoveryHero(m, end, X) : key === 'sleep' ? sleepHero(m, end, X) : loadHero(key, m, X);
+    hero.carried = !!carried;
     var lines = key === 'recovery' ? recoveryLines(m, X) : key === 'sleep' ? sleepLines(m, end, X) : loadLines(key, m, X);
     var rows = key === 'recovery' ? recoveryRows(m, end, X) : key === 'sleep' ? sleepRows(m, end, X) : loadRows(key, m, end, X);
     return {
