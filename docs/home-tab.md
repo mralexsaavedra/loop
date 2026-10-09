@@ -365,7 +365,14 @@ trend is the line under it.
   worse, `--ink` (white) for a metric with no good direction (weight; never a grey arrow), a grey dot within ±2 % (`FLAT_SHARE`). A row older than 3
   days is dimmed; a tap opens that metric's detail sheet. "Customize" opens the registered `dash-edit`
   sheet (detail.js modal): per metric THE switch (`HC.switchBtn`, `role="switch"` +
-  `aria-checked`; design-system.md → Components) and ↑ / ↓ buttons (no drag). Preferences = `localStorage['hc-dash-v1']` `{order, hidden}`; every read / write is in a
+  `aria-checked`; design-system.md → Components), compact ↑ / ↓ buttons (the keyboard and screen-reader
+  way to move) and, last, the reference app's ≡ drag handle (`.db-grip`, `aria-hidden`). The drag uses
+  Pointer Events, so mouse, touch and pen alike: `pointerdown` on a handle calls `setPointerCapture`,
+  every `pointermove` puts the row where the pointer is (the DOM row moves live, lifted on `--track`;
+  `touch-action: none` on the handle keeps the sheet from scrolling), `pointerup` saves through the same
+  `commit()` as ↑ / ↓ (prefs → the dashboard → the sheet re-rendered), `pointercancel` re-renders the saved
+  order. Both reorder through the pure `HCDash.move(list, from, to)`. No auto-scroll while dragging (the
+  whole catalogue fits a phone screen). Preferences = `localStorage['hc-dash-v1']` `{order, hidden}`; every read / write is in a
   try/catch, unknown, duplicate or unavailable keys are ignored, a catalogue key missing from the stored
   order is appended with its default visibility, and without storage the choice holds in memory for the
   visit. Every metric hidden → a one-line note (the section stays so Customize can bring one back); no
