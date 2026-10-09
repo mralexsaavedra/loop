@@ -132,7 +132,9 @@ trend is the line under it.
   (low < 1 light blue `--strain-ink`, medium 1–2 teal `--up`, high ≥ 2 orange `--down`), the hour
   ("14:00", prefixed by the date when the day is not today); today = the newest day with a value when
   it is ≤ 3 days old (a day needs ≥ 6 scored hours, so early in the morning it is yesterday's, dated).
-  It opens the stress page (`docs/detail-views.md`). Without a stress value tile 2 falls back to HRV
+  It opens the stress page (`docs/detail-views.md`) — on the reading's own day when it is not today
+  (`data-date`), so the tile and the page agree (formerly the page opened on an empty today, "No data").
+  Without a stress value tile 2 falls back to HRV
   (the real baked value, its unit, its status word in its tone colour, its date when not today),
   opening the HRV sheet; without a fresh HRV value either, tile 2 is left out and tile 1 spans the row
   (`.hm-tiles-one`).

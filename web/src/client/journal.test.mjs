@@ -179,18 +179,30 @@ test('insights view: best impact first, signed %, teal / orange bars from the ce
   const { ctx } = load({ journal: BAKED });
   const r = ctx.HCViews['journal-insights'].render();
   const names = [...r.body.matchAll(/<span class="ji-name"[^>]*>([^<]+)</g)].map((m) => m[1]);
-  assert.deepEqual(names, ['Mobility', 'Alcohol', 'Feeling ill']);
+  assert.deepEqual(names, ['Mobility', 'Alcohol', 'Need more data'], 'the rows without enough data share ONE card, last');
   assert.match(r.body, /<b class="ji-pct ji-up" aria-hidden="true">\+10%<\/b>/);
   assert.match(r.body, /<b class="ji-pct ji-down" aria-hidden="true">−15%<\/b>/);
   assert.match(r.body, /class="ji-fill ji-up" style="left:50\.0%;width:25\.0%"/, 'scale = max(20, the largest |diff|) = half the bar');
   assert.match(r.body, /class="ji-fill ji-down" style="left:12\.5%;width:37\.5%"/);
-  assert.match(r.body, /Need more data/);
-  assert.match(r.body, /1 yes · 31 no days \(5 each needed\)/);
+  assert.equal((r.body.match(/Need more data/g) || []).length, 1);
+  assert.match(r.body, /<li class="ji-row ji-empty"><span class="ji-name">Need more data<\/span><p class="jr-msg">At least 5 days with and 5 without each:<\/p><ul class="ji-need-list"><li>Feeling ill · 1 yes · 31 no<\/li><\/ul><\/li>/);
   assert.match(r.body, /id="dd-info" hidden><p>For each behavior: the mean of your recovery %/);
   assert.match(r.body, /An association, not causation/);
   assert.match(r.body, /aria-label="Alcohol: -15\.0 points of recovery the morning after \(60% after yes, 75% after no; 12 and 20 days\)"/);
   assert.equal(ctx.HCJournal.barStyle(5, 20), 'left:50.0%;width:12.5%');
   assert.equal(ctx.HCJournal.barStyle(-40, 20), 'left:0.0%;width:50.0%');
+});
+
+test('insights view with no behavior scored yet (the owner\'s first days): ONE empty-state card saying what is needed and how many days count so far, not a column of identical "Need more data" cards', () => {
+  const rows = ['caffeine_late', 'nap', 'mobility', 'alcohol'].map((key, i) => ({ key, yesDays: i === 1 ? 1 : 0, noDays: i === 1 ? 1 : 2, status: 'need_data', yesMean: null, noMean: null, diff: null }));
+  const { ctx } = load({ journal: { ...BAKED, insights: { ...BAKED.insights, rows } } });
+  const r = ctx.HCViews['journal-insights'].render();
+  assert.equal((r.body.match(/class="ji-row/g) || []).length, 1, 'one card');
+  assert.equal((r.body.match(/Need more data/g) || []).length, 1);
+  assert.match(r.body, /<li class="ji-row ji-empty"><span class="ji-name">Need more data<\/span><p class="jr-msg">Each behavior needs at least 5 days with it and 5 without, each followed by a morning with a recovery score\. Days that count so far: 2\.<\/p><\/li>/);
+  assert.doesNotMatch(r.body, /ji-leg/, 'no Hurts / Helps legend without a bar');
+  const es = load({ locale: 'es', journal: { ...BAKED, insights: { ...BAKED.insights, rows } } });
+  assert.match(es.ctx.HCViews['journal-insights'].render().body, /Faltan datos<\/span><p class="jr-msg">Cada hábito necesita al menos 5 días/);
 });
 
 // a stand-in for detail.js: open() renders the registered view like the real modal; close() forgets it

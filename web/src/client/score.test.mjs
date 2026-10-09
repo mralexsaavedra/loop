@@ -258,6 +258,21 @@ test('load: one compact card per modality (gym/run/bike): last session RE, "LOAD
   assert.match(html, /vs your own run days/, 'the relative score moved behind ⓘ, not dropped');
 });
 
+test('load card without a value (the owner\'s Run card: no recent session, "—") shows no delta pill: a "▼ -64%" beside "—" read as a value', () => {
+  const s = fixtureScores();
+  const run = s.load.modalities.find((m) => m.key === 'run');
+  assert.equal(run.trend.ok, true);
+  run.last = null;
+  const dials = buildDials(s, HEALTH);
+  dials.load.modalities.find((m) => m.key === 'run').last = null;
+  const hosts = {};
+  render(s, { hosts, dials });
+  const card = hosts.load.innerHTML.match(/<div class="ld-card" data-mod="run"[\s\S]*?<\/div>/)[0];
+  assert.match(card, /<b class="ld-num">—<\/b>/);
+  assert.doesNotMatch(card, /ld-pill/, 'no trend pill without a value');
+  assert.doesNotMatch(card, /7-day vs 42-day/, 'nor in the accessible name');
+});
+
 test('load section: the relative score, coverage, other activities and caveats sit in a hidden ⓘ block the header button controls', () => {
   const s = fixtureScores();
   const hosts = {};

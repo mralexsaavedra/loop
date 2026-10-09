@@ -2050,7 +2050,6 @@
   "|||.ji-fill|||bottom": "0",
   "|||.ji-fill|||position": "absolute",
   "|||.ji-fill|||top": "0",
-  "|||.ji-flat, .ji-need|||color": "var(--muted)",
   "|||.ji-leg|||display": "flex",
   "|||.ji-leg|||font-size": "var(--fs-title)",
   "|||.ji-leg|||font-weight": "var(--label-weight)",
@@ -3701,5 +3700,12 @@
   "|||.dial-asof|||text-transform": "uppercase",
   "|||.dial-asof|||color": "var(--muted)",
   "|||.dial-asof|||white-space": "nowrap",
-  "|||.ns-now .en-num|||color": "var(--ink)"
+  "|||.ns-now .en-num|||color": "var(--ink)",
+  "|||.ji-flat|||color": "var(--muted)",
+  "|||.ji-empty:first-child|||margin-top": "var(--sp-7)",
+  "|||.ji-need-list|||grid-column": "1 / -1",
+  "|||.ji-need-list|||margin": "0",
+  "|||.ji-need-list|||padding-left": "18px",
+  "|||.ji-need-list|||color": "var(--muted)",
+  "|||.ji-need-list|||font-size": "var(--fs-sm)"
 }

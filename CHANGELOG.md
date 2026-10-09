@@ -17,6 +17,12 @@ kcal % of target, white, no band — and the closed day's score moves to the foo
 7-day average 85%"; formerly a big red "56% YESTERDAY" beside today's bars, and the aria read "56% el
 Ayer"). The nutrition trend calendar marks today partial ("in progress") instead of "No data".
 
+**Stress tile** opens the stress page on its reading's day when that is not today (it opened on an
+empty today). **Entreno load card** without a value ("—") drops its delta pill. **Journal insights**:
+the behaviours without enough days share one card; with none scored yet it is the sheet's empty state
+(what is needed, ≥ 5 days per side, and how many days count so far) instead of a column of identical
+"Need more data" cards.
+
 ## 2026-10-09 — Design system follow-ups (DS5b)
 
 **Tablas supplements card** pads with `--card-pad` like every card: the inline `padding:6px 16px` is

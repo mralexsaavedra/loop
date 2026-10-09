@@ -103,4 +103,8 @@ a day is "journaled" when at least one behaviour is answered (`isJournaled`).
   line + ⓘ (the formula, and that it is an ASSOCIATION, not causation), "Recovery impact", a HURTS / %
   IMPACT / HELPS legend, then one row per behaviour, best first: UPPERCASE name, the signed difference
   (`+12%` `--up` better / `−6%` `--down` worse / under 1 point `--muted`), a bar from a centre dot
-  (half the bar = max(20, the largest |diff| shown)); the need-more-data rows last with their day counts.
+  (half the bar = max(20, the largest |diff| shown)); the need-more-data behaviours share ONE last card
+  (`.ji-empty`, "NEED MORE DATA" + "Alcohol · 1 yes · 31 no" per behaviour). With NO behaviour scored yet
+  that card is the sheet's empty state, without the legend: what is needed (≥ `insightMinDays` days per
+  side, each followed by a morning with a recovery score) and how many days count so far (the largest
+  yes + no) — formerly a column of identical "Need more data" cards (DS6).

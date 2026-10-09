@@ -250,9 +250,10 @@ function scMod(key) {
     if (last && dm) (dm.days || []).forEach(function (x) { if (x.date === last.date && x.fill) fill = x.fill; });
     var when = last ? (last.date === todayIso() ? lt.today : HC.fmtDate(last.date, { weekday: false })) : '';
     var val = last && !gated ? HC.num(last.re, 0, false) : "—";
-    var tr = m.trend && m.trend.ok ? m.trend : null;
+    // no value ("—": no session in the data) = no delta pill either: "▼ -64%" beside "—" read as a value
+    var tr = m.trend && m.trend.ok && last && !gated ? m.trend : null;
     var pill = tr ? '<span class="ld-pill ld-' + LOAD_TONE[tr.band] + '">' + esc(LOAD_ARROW[tr.band] + ' ' + pct(tr.trendPct)) + '</span>'
-      : '<span class="ld-pill ld-flat">' + esc(dl.gated) + '</span>';
+      : gated ? '<span class="ld-pill ld-flat">' + esc(dl.gated) + '</span>' : '';
     var aria = [format(lt.cardAria, { modality: name })];
     aria.push(last && !gated ? format(lt.lastAria, { date: HC.fmtDate(last.date), re: val }) : gated ? lt.gated[(m.trend && m.trend.reason) || 'baselineBuilding'] : lt.noSession);
     if (tr) aria.push(format(lt.trendLbl, { pct: pct(tr.trendPct) }) + ', ' + lt.bands[tr.band]);
