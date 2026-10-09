@@ -138,3 +138,22 @@ the recovery card's "History", Tonight's "See sleep history", the trend sheet's 
 - **CTA vs `.lnk`.** `.lnk` is the underlined link INSIDE a sentence (a table jump, "retry").
 - Guard: only `.cta` and `.lnk` paint text in `--link`, and only `.dd-insight .cta` clips the gradient
   to text.
+
+### Chevron and step navigation
+
+ONE chevron: the "›" glyph (‹ for previous) in `--muted`, at `--chev-size` (`--fs-xl`, 15.5 px),
+regular weight. `base.css` holds its look in one grouped rule: the `.chev` span (dial labels, monitor
+tiles, the outlook bar, My plan, the journal card, folds such as Nutrición's Today's plan and
+Equivalences, the trend sheet's metric picker) and the generated chevrons (every opener
+`[data-detail][role="button"]`, Nutrición's meal rows, the recovery card's last-14-days fold). Each
+owner only places or rotates it (a fold turns it 90°; My plan's points down); it never sets a colour
+or size of its own. In markup a ‹ / › is always `<span class="chev" aria-hidden="true">`.
+
+Step navigation (‹ ›) is `.nav-btn`: a bare 44 px target holding a `.chev`, at 35 % when disabled —
+the trend sheet's window, its calendar month (formerly 44 px filled circles) and Registrar's day.
+
+- **Exceptions:** the sheet header's back "‹" (`.sh-back`, a header control sized with the title) and
+  the top bar's "‹ Today ›" pill (the header stays as is).
+- Guards: no CSS rule but the shared one gives a chevron (a `*chev*` class or a `content: "›"`) a
+  colour / size / weight; every ‹ › glyph in the display sources sits in a `.chev` span (allowlist:
+  `util.js` sheet header).

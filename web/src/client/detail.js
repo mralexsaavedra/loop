@@ -284,7 +284,7 @@
     if (keys.length < 2) return '';
     return '<label class="dt-metric"><span class="sr-only">' + esc(T.trend.metric) + '</span><select class="dt-metric-sel" data-dt-pick="metric">' +
       keys.map(function (k) { return '<option value="' + esc(k) + '"' + (k === key ? ' selected' : '') + '>' + esc(titleOf(k)) + '</option>'; }).join('') +
-      '</select><svg class="dt-metric-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg></label>';
+      '</select><span class="chev dt-metric-chev" aria-hidden="true">›</span></label>';
   }
   function noneHtml(txt) {
     return '<div class="dt-latest"><span class="dt-none">' + esc(txt) + '</span></div>';
@@ -423,9 +423,9 @@
     var R = T.trend, back = shiftIso(to, -range) >= m.start;
     var lbl = format(R.win, { from: HC.fmtDate(from, { weekday: false }), to: HC.fmtDate(to, { weekday: false }), yy: to.slice(2, 4) });
     return '<div class="dt-win" role="group" aria-label="' + esc(R.winAria) + '">' +
-      '<button type="button" class="dt-wnav" data-dt-act="win" data-wdir="-1" aria-label="' + esc(R.prevWin) + '"' + (back ? '' : ' disabled') + '>‹</button>' +
+      '<button type="button" class="nav-btn" data-dt-act="win" data-wdir="-1" aria-label="' + esc(R.prevWin) + '"' + (back ? '' : ' disabled') + '><span class="chev" aria-hidden="true">‹</span></button>' +
       '<span class="dt-win-lbl">' + esc(lbl) + '</span>' +
-      '<button type="button" class="dt-wnav" data-dt-act="win" data-wdir="1" aria-label="' + esc(R.nextWin) + '"' + (shift > 0 ? '' : ' disabled') + '>›</button></div>';
+      '<button type="button" class="nav-btn" data-dt-act="win" data-wdir="1" aria-label="' + esc(R.nextWin) + '"' + (shift > 0 ? '' : ' disabled') + '><span class="chev" aria-hidden="true">›</span></button></div>';
   }
   function periodHtml(key, m, end, range, shift) {
     var to = windowEnd(m, end, range, shift);
@@ -642,9 +642,9 @@
   function calendarHtml(key, m, month, sel, end) {
     var first = monthOf(m.start), last = monthOf(end);
     var N = typeof I18N_DATE !== 'undefined' && I18N_DATE ? I18N_DATE.weekdaysMin : ['1', '2', '3', '4', '5', '6', '7'];
-    var out = ['<div class="dt-cal-head"><button type="button" class="dt-mnav" data-dt-act="month" data-dir="-1" aria-label="' + esc(T.prevMonth) + '"' + (month <= first ? ' disabled' : '') + '>‹</button>' +
+    var out = ['<div class="dt-cal-head"><button type="button" class="nav-btn" data-dt-act="month" data-dir="-1" aria-label="' + esc(T.prevMonth) + '"' + (month <= first ? ' disabled' : '') + '><span class="chev" aria-hidden="true">‹</span></button>' +
       '<h3 class="dt-month">' + esc(HC.fmtMonth(month)) + '</h3>' +
-      '<button type="button" class="dt-mnav" data-dt-act="month" data-dir="1" aria-label="' + esc(T.nextMonth) + '"' + (month >= last ? ' disabled' : '') + '>›</button></div>'];
+      '<button type="button" class="nav-btn" data-dt-act="month" data-dir="1" aria-label="' + esc(T.nextMonth) + '"' + (month >= last ? ' disabled' : '') + '><span class="chev" aria-hidden="true">›</span></button></div>'];
     out.push('<div class="dt-cal" role="group" aria-label="' + esc(format(T.calAria, { title: titleOf(key), month: HC.fmtMonth(month) })) + '">');
     N.forEach(function (w) { out.push('<span class="dt-wd">' + esc(w) + '</span>'); });
     var lead = HC.weekdayIndex(month);

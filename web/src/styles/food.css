@@ -41,14 +41,6 @@
   text-transform: uppercase;
   color: var(--ink);
 }
-.food-day-btn[disabled] {
-  opacity: 0.35;
-  cursor: default;
-}
-.food-day-btn[disabled]:hover {
-  border-color: transparent;
-  color: inherit;
-}
 .food-day-today {
   padding: 0 var(--sp-3);
 }

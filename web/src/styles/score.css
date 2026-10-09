@@ -140,9 +140,6 @@
 }
 .outlook-chev {
   flex: none;
-  color: var(--muted);
-  font-size: var(--fs-2xl);
-  line-height: 1;
 }
 /* Entreno load summary (score.js loadCard): three compact cards, one per modality — the last scored
    session's RE big in strain blue + a small ring (the dial's own arc), "LOAD · date", a trend pill */
@@ -393,7 +390,6 @@
 }
 .dial-chev {
   margin-left: 3px;
-  color: var(--muted);
 }
 .dial.dial-off .dial-svg {
   opacity: 0.45;
@@ -709,11 +705,6 @@
   letter-spacing: var(--label-track);
   text-transform: uppercase;
 }
-.hmt-chev {
-  color: var(--muted);
-  font-size: var(--fs-lg);
-  line-height: 0.8;
-}
 .hmt-body {
   display: flex;
   flex-direction: column;
@@ -964,8 +955,6 @@ details.rec-raw > summary {
 }
 details.rec-raw > summary::after {
   content: "›";
-  font-size: var(--fs-lg);
-  line-height: 1;
   transition: transform 0.2s;
 }
 details.rec-raw[open] > summary::after {
@@ -1205,16 +1194,12 @@ details.rec-raw[open] > summary::after {
   text-transform: uppercase;
 }
 .wp-chev {
-  width: 9px;
-  height: 9px;
   margin-right: 4px;
-  border-right: 2px solid var(--muted);
-  border-bottom: 2px solid var(--muted);
-  transform: rotate(45deg) translateY(-3px);
+  transform: rotate(90deg);
   transition: transform 0.2s ease;
 }
 .wp[open] .wp-chev {
-  transform: rotate(-135deg) translateY(-3px);
+  transform: rotate(-90deg);
 }
 .wp-left {
   color: var(--muted);

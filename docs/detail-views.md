@@ -125,7 +125,7 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   `load-<m>`; the Activity card's total and calendar → workouts (a day cell → that day; its W / M / 6M
 switch is outside every opener); run / ride rows →
   that day in `load-run` / `load-bike` (the whole list row is the button). Every
-  opener shows the same chevron, pointer, focus ring and ≥ 44px target (`web/src/styles/detail.css`);
+  opener shows the same chevron (the one `.chev` look, `base.css`), pointer, focus ring and ≥ 44px target (`web/src/styles/detail.css`);
   the chevron is centred on a one-line opener and pinned to the header row (top-right) of a tall card.
 - **Dial deep-dive pages** (`web/src/client/deepdive.js`, inlined right before `detail.js`, which calls
   `window.HCDeep.render(key, m, end, X)` with its own helpers `X`, so both files read one set of rules
@@ -256,7 +256,8 @@ switch is outside every opener); run / ride rows →
   recovery metric whose own last day is > 3 days before the view end says so. The trend view: a
   small right-aligned W · M · 6M · 1Y switch (dark 28 px squares, the pressed one grey, each with a
   44 px-tall hit area; 7 / 30 / 182 / 365 days, `RANGES`; opens on M; es S · M · 6M · 1A), under it the
-  window row "‹ 23 Sep – 29 Sep, 26 ›" (`trend.win`): ‹ › step the window back / forward by its own
+  window row "‹ 23 Sep – 29 Sep, 26 ›" (`trend.win`): ‹ › (the shared `.nav-btn` + `.chev`, like the
+  calendar's month ‹ ›; design-system.md → Components) step the window back / forward by its own
   length (`state.shift` whole windows back from the view end; › disabled at today, ‹ disabled once the
   previous window would end before the metric's first day; a new range or metric starts at today;
   the chart, the average and its delta follow the window, the calendar and the day panel do not), then

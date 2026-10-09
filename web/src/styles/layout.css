@@ -42,11 +42,6 @@ details.sec-fold > summary > h2 {
 details.sec-fold > summary > h2::after {
   content: none;
 }
-details.sec-fold > summary > .chev {
-  margin: 0;
-  font-size: var(--fs-xl);
-  color: var(--muted);
-}
 details.sec-fold[open] > summary > .chev {
   transform: rotate(90deg);
 }

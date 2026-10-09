@@ -344,7 +344,7 @@ function scMod(key) {
     return '<figure class="dial ' + cls + (stale ? ' sc-stale' : '') + '"' + (extra || '') + (to ? HC.detailAttrs(to, VIEW) : '') + '>' +
       '<div class="dial-ring"' + (aria ? ' role="img" aria-label="' + attr(aria) + '"' : '') + '>' + svg +
       '<div class="dial-centre" aria-hidden="true">' + centre + '</div></div>' +
-      '<figcaption class="dial-lbl">' + esc(label) + '<span class="dial-chev" aria-hidden="true">›</span></figcaption></figure>';
+      '<figcaption class="dial-lbl">' + esc(label) + '<span class="chev dial-chev" aria-hidden="true">›</span></figcaption></figure>';
   }
   function numCentre(value, unit) {
     return '<b class="dial-num">' + esc(value) + '<small>' + esc(unit) + '</small></b>';
@@ -554,7 +554,7 @@ function scMod(key) {
     var link = HC.detailAttrs('recovery');
     var title = link && T.home && T.home.outlook;
     return '<div class="sc-advice outlook"' + link + (title ? ' aria-label="' + attr(title + ': ' + txt) + '"' : '') + '>' + OUTLOOK_ICO +
-      '<span class="outlook-txt">' + esc(title || txt) + '</span><span class="outlook-chev" aria-hidden="true">›</span></div>';
+      '<span class="outlook-txt">' + esc(title || txt) + '</span><span class="chev outlook-chev" aria-hidden="true">›</span></div>';
   }
 
   // the blocks that follow the selected day (HCDay): the dials, the collapsed row, the advice
