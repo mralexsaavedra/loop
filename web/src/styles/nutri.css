@@ -27,7 +27,7 @@ details.sec-fold.nutri-fold {
 .nutri-card {
   background: var(--card-bg);
   border-radius: var(--card-radius);
-  padding: var(--sp-6) var(--sp-5);
+  padding: var(--card-pad);
 }
 /* a section label row (.hs-head, health.css) right above its card: no extra top gap */
 .nutri-block > .hs-head + .hs-info + .nutri-card,

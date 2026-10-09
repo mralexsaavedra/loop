@@ -141,7 +141,7 @@
   align-items: flex-start;
   gap: var(--sp-2);
   min-width: 0;
-  padding: var(--sp-4);
+  padding: var(--card-pad);
   border-radius: var(--card-radius);
   background: var(--card-bg);
 }
@@ -640,7 +640,7 @@
   justify-content: space-between;
   gap: var(--sp-4);
   min-height: 96px;
-  padding: var(--sp-6) var(--sp-5);
+  padding: var(--card-pad);
   border: 0;
   border-radius: var(--card-radius);
   background: var(--card-bg);

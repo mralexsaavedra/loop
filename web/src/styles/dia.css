@@ -77,7 +77,7 @@
 .meal {
   background: var(--card-bg);
   border-radius: var(--card-radius);
-  padding: var(--sp-6) var(--sp-5);
+  padding: var(--card-pad);
   margin-bottom: var(--sp-3);
 }
 .meal-top {
@@ -156,7 +156,7 @@ button.meal-name:focus-visible {
  * for every ring (progress, not a grade); --mid only flags a ring that ran past 110 %. */
 .intake-card {
   margin: var(--sp-8) 0 0;
-  padding: var(--sp-7) var(--sp-7) var(--sp-6);
+  padding: var(--card-pad);
   background: var(--card-bg);
   border: 1px solid var(--line);
   border-radius: var(--card-radius);

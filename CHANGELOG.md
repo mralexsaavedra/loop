@@ -5,6 +5,14 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-09 — Design system final polish (DS5)
+
+The last audit diffs (docs/design-system.md). **Card padding:** every tab card pads itself with
+`--card-pad` (12 px on all four sides) — the monitor tile, Entreno's Activity / load / load-vs-recovery
+cards, Nutrición's cards and meal cards, the intake card (formerly 14 × 12, 10 or 16 px); the guard
+now checks every card fill, with a short allowlist (list rows, fold rows, the macro tile, the empty
+state, the sheets' own cards on their 16 px inset).
+
 ## 2026-10-09 — Design system card alignment (DS4)
 
 The audit's remaining card findings move onto the shared components (docs/design-system.md).

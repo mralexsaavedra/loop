@@ -92,7 +92,7 @@
 .food-meal {
   background: var(--card-bg);
   border-radius: var(--card-radius);
-  padding: var(--sp-5);
+  padding: var(--card-pad);
   min-width: 0;
 }
 .food-meal-top {
