@@ -22,6 +22,11 @@ tag inside it); Nutrición's 30-day line is Salud's sparkline — line + area do
 caption — instead of a lone band-coloured stroke floating in the card. Data unchanged.
 **Trend chart key (F17):** "Daily" (and 6M / 1Y's "Days out of range") shows one mark per state the
 chart actually drew, with the marks' own classes, instead of a blue swatch next to band-coloured dots.
+**Rows and icons (F12):** Entreno's run and ride lists are one row template — the secondary line under the
+value; the rides' HR / effort / kJ line under the date moved to the row's aria label (the dead `.db-note`
+is gone). Intensity (HR) rows carry their modality's icon instead of a heart each, and Salud's sleep rows
+their own (target, regularity, bed, wake, stages …) instead of ~10 moons — one icon set (`metricIcon`
+falls back to the contributor rows' paths; new simple strokes only for a dumbbell and the stages steps).
 
 ## 2026-10-09 — Design system components: one style per shared pattern
 

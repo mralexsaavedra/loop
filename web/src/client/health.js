@@ -143,35 +143,37 @@
   function stageRows(st, SCd) {
     if (!st || !SCd.stages) return [];
     var L = SCd.stages, sh = st.shares || {};
+    // each row its own icon (one set, util.js): REM a wave, deep the moon, core the stages, awake a clock
+    var ICO = { rem: 'restor', deep: 'sleep', core: 'stages', awake: 'clock' };
     var hrow = function (k, dir) {
       return function () {
-        return fin(st[k]) ? mrow('sleep', L[k], 'h', { value: st[k], base: st.avg[k], baseTpl: T.avgNightsTpl, dir: dir, date: st.date, detail: 'sleep',
+        return fin(st[k]) ? mrow('sleep', L[k], 'h', { icon: ICO[k], value: st[k], base: st.avg[k], baseTpl: T.avgNightsTpl, dir: dir, date: st.date, detail: 'sleep',
           when: fin(sh[k]) ? HC.pct(sh[k]) : '' }) : '';
       };
     };
     return [hrow('rem', 1), hrow('deep', 1), hrow('core', 0), hrow('awake', -1), function () {
-      return fin(st.eff) ? mrow('sleep', L.eff, '%', { value: st.eff, base: st.avg.eff, baseTpl: T.avgNightsTpl, dir: 1, date: st.date, detail: 'sleep' }) : '';
+      return fin(st.eff) ? mrow('sleep', L.eff, '%', { icon: 'eff', value: st.eff, base: st.avg.eff, baseTpl: T.avgNightsTpl, dir: 1, date: st.date, detail: 'sleep' }) : '';
     }];
   }
   function note(html) {
     return '<div class="dash-note">' + html + '</div>';
   }
 
-  // Entreno run / ride rows (HC.metricRow): icon · the date (UPPERCASE) · the distance big on the
-  // right with time and pace / climb under it; a ride adds its HR, effort and work as a small line
-  // under the date (one line), a run does not (HR, effort, climb and up to four watch dynamics would
-  // wrap to 2-3 lines at 390 px: they are in the opened day instead). A dash never stands in for a missing value: a field the source did not record is left out of
-  // the small lines (the ⓘ says which source records what). The row opens that day in its load view
-  // (client/detail.js); without the detail sheet it is a plain row (no fake link).
+  // Entreno run / ride rows (HC.metricRow): ONE template for both lists — icon · the date (UPPERCASE) ·
+  // the distance big on the right with ONE small line under it (run: time · pace; ride: time · climb).
+  // HR, effort, work and the watch dynamics are not on the row (they wrapped to 2-3 lines at 390 px and
+  // made the two lists differ): they stay in the aria label and in the day the row opens. A dash never
+  // stands in for a missing value: a field the source did not record is left out (the ⓘ says which
+  // source records what). The row opens that day in its load view (client/detail.js); without the
+  // detail sheet it is a plain row (no fake link).
   function parts(list) {
     return list.filter(function (x) { return x != null && x !== ''; }).join(' · ');
   }
-  // shown = the small line under the date (rides); a run row shows none: its numbers stay in the aria
-  // label and in the day the row opens (client/detail.js day panel, incl. the watch dynamics)
-  function sessionRow(key, icon, r, base, note, shown) {
+  // note = the numbers kept off the row, read in its aria label
+  function sessionRow(key, icon, r, base, note) {
     var name = HC.fmtDate(r.date);
     var value = r.dist != null ? nf(r.dist) : '—';
-    return HC.metricRow({ key: icon, attrs: HC.detailAttrs(key, r.date), name: name, note: shown ? note : '', value: value, unit: r.dist != null ? 'km' : '', base: base,
+    return HC.metricRow({ key: icon, attrs: HC.detailAttrs(key, r.date), name: name, value: value, unit: r.dist != null ? 'km' : '', base: base,
       aria: parts([name, r.dist != null ? nf(r.dist) + ' km' : '', base, note]) });
   }
   function runRow(r) {
@@ -180,13 +182,13 @@
     var note = parts([r.hrAvg != null ? r.hrAvg + ' ' + u : null, r.re != null ? RT.reH + ' ' + r.re : null, r.elev != null ? '↑' + nf(r.elev) + ' m' : null,
       r.power != null ? nf(r.power) + ' W' : null, r.gct != null ? RT.gctH + ' ' + nf(r.gct) + ' ms' : null,
       r.vosc != null ? RT.oscH + ' ' + nf(r.vosc) + ' cm' : null, r.stride != null ? RT.strideH + ' ' + nf(r.stride) + ' m' : null]);
-    return sessionRow('load-run', 'run', r, base, note, false);
+    return sessionRow('load-run', 'run', r, base, note);
   }
   function rideRow(r) {
     var CT = T.cyclingTable, u = T.trend.rhr.unit;
     var base = parts([r.time, r.elev != null ? '↑' + nf(r.elev) + ' m' : null]);
     var note = parts([r.hrAvg != null ? r.hrAvg + ' ' + u : null, r.re != null ? CT.reH + ' ' + r.re : null, r.kj != null ? nf(r.kj) + ' kJ' : null]);
-    return sessionRow('load-bike', 'bike', r, base, note, true);
+    return sessionRow('load-bike', 'bike', r, base, note);
   }
 
   // A Salud section: UPPERCASE label (the hl-<key> anchor is the section itself), an ⓘ toggle
@@ -306,10 +308,10 @@
       if (sl) {
         out.push(section('sleep', rows([
           function () { return mrow('sleep', TR.sleep.title, TR.sleep.unit, { value: sl.latest, base: sl.avg, baseTpl: T.avgNightsTpl, dir: 1, date: sl.latestDate, detail: 'sleep' }); },
-          function () { return fin(sl.pctTarget) ? mrow('sleep', format(SCd.nightsTargetLbl, { target: HC.hours(sl.target) }), '%', { value: sl.pctTarget, detail: 'sleep' }) : ''; },
-          function () { return fin(sl.sd) ? mrow('sleep', SCd.sdLbl, 'h', { value: sl.sd, text: '±' + HC.hours(sl.sd), detail: 'sleep' }) : ''; },
-          function () { return sl.bedtime ? mrow('sleep', SCd.bedtimeLbl, '', { value: 0, text: sl.bedtime, sub: '±' + sl.bedtimeSd + '′', detail: 'sleep' }) : ''; },
-          function () { return sl.wake ? mrow('sleep', SCd.wakeLbl, '', { value: 0, text: sl.wake, sub: '±' + sl.wakeSd + '′', detail: 'sleep' }) : ''; },
+          function () { return fin(sl.pctTarget) ? mrow('sleep', format(SCd.nightsTargetLbl, { target: HC.hours(sl.target) }), '%', { icon: 'vsTarget', value: sl.pctTarget, detail: 'sleep' }) : ''; },
+          function () { return fin(sl.sd) ? mrow('sleep', SCd.sdLbl, 'h', { icon: 'cons', value: sl.sd, text: '±' + HC.hours(sl.sd), detail: 'sleep' }) : ''; },
+          function () { return sl.bedtime ? mrow('sleep', SCd.bedtimeLbl, '', { icon: 'bed', value: 0, text: sl.bedtime, sub: '±' + sl.bedtimeSd + '′', detail: 'sleep' }) : ''; },
+          function () { return sl.wake ? mrow('sleep', SCd.wakeLbl, '', { icon: 'wake', value: 0, text: sl.wake, sub: '±' + sl.wakeSd + '′', detail: 'sleep' }) : ''; },
         ].concat(stageRows(sl.stages, SCd))), [T.sleepNoteHtml].concat(sl.stages && T.sleepStagesNoteHtml ? [T.sleepStagesNoteHtml] : [])));
       }
     }

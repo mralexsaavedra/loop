@@ -46,6 +46,12 @@ test('intensity only: one metric row per modality with HR (mean HR, the peak as 
   assert.deepEqual(rows, withHr.map((m) => [enD.modalityLabels[m.key], m.avgHr, `peak ${m.peakHr}`]));
   assert.doesNotMatch(html, /dash-cards|wbar|class="mrow"|Weekly volume|Modality split/, 'the merged parts are not drawn twice');
   assert.doesNotMatch(html, /NaN|undefined|null|Infinity/);
+  // each modality its own icon (not the same heart on every row): the same paths as HC.metricIcon
+  const icons = [...html.matchAll(/<li class="db-row"[^>]*>(<svg class="db-ico"[\s\S]*?<\/svg>)/g)].map((m) => m[1]);
+  const want = { strength: 'gym', hiit: 're', run: 'run', bike: 'bike' };
+  const ctx = loadUtil(vm.createContext({ LOCALE: 'en' }));
+  assert.deepEqual(icons, withHr.map((m) => ctx.HC.metricIcon(want[m.key] || 'exercise')));
+  assert.ok(new Set(icons).size > 1 && !icons.includes(ctx.HC.metricIcon('rhr')), 'no heart on the modality rows');
 });
 
 test('the window, HR coverage, data date and strength caveat sit behind ⓘ (hidden), not lost', () => {

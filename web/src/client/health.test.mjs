@@ -173,7 +173,9 @@ test('cycling section: one list row per ride (newest first): icon · date with H
   assert.match(html, /<section class="hs-sec hs-sec-cycling" id="hl-cycling" aria-labelledby="hs-h-cycling"><div class="hs-head"><h3 class="hs-lbl" id="hs-h-cycling">Cycling<\/h3><button type="button" class="hs-i" data-hs-info="hs-info-cycling"/);
   assert.doesNotMatch(html, /<table|run-tbl/, 'no tables left');
   const rows = [...html.slice(html.indexOf('id="hl-cycling"')).matchAll(/<li class="db-row"[^>]*><svg class="db-ico"[^>]*>[\s\S]*?<\/svg><span class="db-name">([^<]+)(?:<small class="db-note">([^<]*)<\/small>)?<\/span><span class="db-vals"><span class="db-val"><b>([^<]+)<\/b>(?:<small>([^<]*)<\/small>)?<\/span>(?:<span class="db-base">([^<]*)<\/span>)?/g)].map((m) => m.slice(1));
-  assert.deepEqual(rows[0], ['Wed 10 Jun', '141 bpm · Effort 96 · 1,310 kJ', '40.25', 'km', '1:30 · ↑412 m']);
+  // ONE row template with the runs: the secondary line under the value, nothing under the date
+  assert.deepEqual(rows[0], ['Wed 10 Jun', undefined, '40.25', 'km', '1:30 · ↑412 m']);
+  assert.match(html, /aria-label="Wed 10 Jun · 40.25 km · 1:30 · ↑412 m · 141 bpm · Effort 96 · 1,310 kJ"/, 'HR, effort and work stay in the aria label');
   assert.deepEqual(rows[1], ['Thu 4 Jun', undefined, '—', undefined, '1:00'], 'missing fields are left out, never 0; no distance = a dash, no unit');
   const info = html.match(/<div class="hs-info" id="hs-info-cycling" hidden>([\s\S]*?)<\/div>/)[1];
   assert.match(info, /<b>12<\/b> rides/);
@@ -294,6 +296,12 @@ test('recovery: resting HR / HRV / sleep lead with the newest value, the 30-day 
   assert.match(html, /52<\/b><small>bpm<\/small><span class="db-arr db-bad" aria-hidden="true">▲<\/span>/, 'resting HR above its baseline is the bad way');
   assert.match(html, /14.8<\/b><small>brpm<\/small><span class="db-arr db-neutral"/, 'a change signal has no good direction: a neutral (never grey) arrow');
   assert.match(html, /<section class="hs-sec hs-sec-recovery" id="hl-recovery"/, 'the section anchor is kept');
+  // the sleep rows carry their own icons (moon, target, spread), not a moon on every row
+  const sleepSec = html.slice(html.indexOf('id="hl-sleep"'), html.indexOf('</section>', html.indexOf('id="hl-sleep"')));
+  const moon = (sleepSec.match(/<path d="M20 14.5A8/g) || []).length;
+  assert.equal(moon, 1, 'one moon: the sleep row itself');
+  assert.match(sleepSec, /<path d="M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 8a4/, 'nights at target: the target icon');
+  assert.match(sleepSec, /<path d="M4 7h16M4 12h16M4 17h16/, 'night-to-night spread: the regularity icon');
 });
 
 test('recovery: a signal the health monitor already lists is not repeated under Recovery; one it lacks stays', () => {
