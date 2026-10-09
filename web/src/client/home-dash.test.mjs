@@ -149,7 +149,10 @@ test('customize: the sheet lists every available metric with show / up / down; a
   const body = v.render().body;
   assert.equal([...body.matchAll(/data-dash-act="toggle"/g)].length, 6, 'rhr hrv sleep weight steps vo2max');
   assert.match(body, /data-dash-act="up" data-key="rhr" aria-label="Move Resting heart rate up" disabled/);
-  assert.match(body, /data-key="vo2max" aria-pressed="false"/);
+  // show / hide is THE switch (no visible word, the state is aria-checked); one control for both states
+  assert.match(body, /<button type="button" class="sw" role="switch" aria-checked="false" aria-label="Show VO₂max on the dashboard" data-dash-act="toggle" data-key="vo2max">/);
+  assert.equal([...body.matchAll(/class="sw" role="switch" aria-checked="true"/g)].length, 5);
+  assert.doesNotMatch(body, /db-tog|>Shown<|>Hidden</, 'no white VISIBLE pill / bare HIDDEN word');
   click({ 'data-dash-act': 'toggle', 'data-key': 'vo2max' });
   click({ 'data-dash-act': 'up', 'data-key': 'vo2max' });
   assert.deepEqual(JSON.parse(ls.data['hc-dash-v1']), { order: ['rhr', 'hrv', 'sleep', 'weight', 'vo2max', 'steps'], hidden: [] });

@@ -1381,19 +1381,6 @@ details.rec-raw[open] > summary::after {
   opacity: 0.3;
   cursor: default;
 }
-.db-tog {
-  min-width: 76px;
-  font-size: var(--fs-label);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-}
-.db-tog[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--on-accent);
-  border-color: var(--accent);
-}
-
 /* wide screens, after the base rules they override: Inicio's monitor tiles at natural height with the
    value one size up, and Tonight's dashed bedtime → wake line a readable span, centred */
 @media (min-width: 900px) {

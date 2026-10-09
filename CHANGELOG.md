@@ -12,6 +12,11 @@ The audit's remaining card findings move onto the shared components (docs/design
 THE contributor row the recovery sheet already used — `HC.contribRow` in `client/util.js`, shared by the
 deep-dive sheets — icon, name, latest value, the 7-day ±SD as a sub line and a ▲ / ▼ / • whose colour
 says what the change means.
+**Nutrición day types (F11):** text-only chips at every width — measured, the four chips with icons need
+~370 px and wrap to two rows at 360–390 px, so the icons shown only on desktop are gone.
+**Customize dashboard (F15):** the heavy white "SHOWN" pill next to a container-less "HIDDEN" word is one
+small switch (`.sw`, `HC.switchBtn`, `role="switch"`) for both states; the journal's behaviour toggles use
+it too. The ↑ / ↓ reorder stays (no drag and drop).
 
 ## 2026-10-09 — Design system components: one style per shared pattern
 

@@ -194,3 +194,10 @@ test('contribRow is THE contributor row: icon, escaped label + sub, value, the g
   assert.doesNotMatch(bare, /data-row|dd-row-sub|dd-mk/, 'no row key, sub line or glyph when not given');
   assert.equal(HC.contribIcon('cons'), HC.contribRow({ icon: 'cons', label: '', value: '' }).match(/<svg[\s\S]*?<\/svg>/)[0]);
 });
+
+test('switchBtn is THE switch: role=switch, aria-checked, the label escaped, no visible word', () => {
+  const HC = load();
+  assert.equal(HC.switchBtn(true, 'Show <HRV>', ' data-key="hrv"'),
+    '<button type="button" class="sw" role="switch" aria-checked="true" aria-label="Show &lt;HRV&gt;" data-key="hrv"><span class="sw-knob" aria-hidden="true"></span></button>');
+  assert.match(HC.switchBtn(false, 'x'), /aria-checked="false"/);
+});

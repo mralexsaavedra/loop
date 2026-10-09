@@ -171,10 +171,16 @@ the trend sheet's window, its calendar month (formerly 44 px filled circles) and
   — Nutrición's day type and Constancia window (radios: `.seg-opt` + `.chip.seg-in`) and the load
   sheet's modality switch (`.chip.dial-mod`, which adds the 44 px `::before` hit band). The picked
   chip is white-filled (`--accent` / `--on-accent`), the reference app's selected filter; the load
-  sheet's teal outline is gone.
-- Guard: a pressed / checked state that fills or outlines is the chip's or the segmented control's;
-  the others are listed with their reason (the calendar's selected day, the journal's answers, the
-  food sheet's tabs and the Customize toggles, both audited in DS4).
+  sheet's teal outline is gone. Text only: Nutrición's day types dropped their 1440-px-only icons
+  (with icons the four chips need ~370 px and wrap at 360–390 px).
+- **Switch** `.sw` (`base.css`, `HC.switchBtn(on, label, attrs)`): show / hide ONE item — Customize
+  dashboard's metrics and the journal's behaviours (formerly a heavy white "SHOWN" pill next to a bare
+  "HIDDEN" word). `role="switch"` + `aria-checked`, no visible word (the label says what it shows); a
+  34 × 20 track, knob left on `--rail` (off) or right on `--accent` (on); the button is the 44 px hit
+  area. Not a pick of one among several — that is the chip.
+- Guard: a pressed / checked state that fills or outlines is the chip's, the segmented control's or
+  the switch's; the others are listed with their reason (the calendar's selected day, the journal's
+  answers, the food sheet's tabs, audited in DS4).
 
 ### Contributor row
 
