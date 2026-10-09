@@ -715,7 +715,7 @@
     if (!ex) return '<li class="gd-row">' + head + '</li>';
     var a = exampleAmount(ex.food, role, leftG, N.scale);
     var key = slot + '.' + role;
-    var sel = '<select class="gd-pick sel" data-guide="' + esc(key) + '" aria-label="' + esc(format(G2.pickAria, { role: G2.roles[role], meal: mealName })) + '">' + optionsHtml(o, ex.id) + '</select><span class="chev sel-chev" aria-hidden="true">›</span>';
+    var sel = '<select class="gd-pick sel" data-guide="' + esc(key) + '" aria-label="' + esc(format(G2.pickAria, { role: G2.roles[role], meal: mealName })) + '" style="--pick:' + String(ex.n).length + '">' + optionsHtml(o, ex.id) + '</select><span class="chev sel-chev" aria-hidden="true">›</span>';
     var amt = a ? amountText(ex.food, a.amt) : '';
     var add = canAdd && a
       ? '<button type="button" class="gd-add" data-guide-add="' + esc(key) + '" data-food="' + esc(ex.id) + '" data-amt="' + a.amt + '" data-meal="' + esc(slot) + '" aria-label="' + esc(format(G2.addAria, { amount: amt.replace(/^~/, ''), food: ex.n, meal: mealName })) + '">+</button>'
