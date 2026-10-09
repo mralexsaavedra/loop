@@ -1,5 +1,5 @@
 /* Navigation shell (web/layouts/Plan.astro + web/src/tabs/Home.astro) on the built example page:
- * - top bar: avatar left · centred date pill "‹ Today ›" (the client-filled <time> inside; the day
+ * - top bar: avatar left · LOOP wordmark · centred date pill "‹ Today ›" (the client-filled <time> inside; the day
  *   stepping chevrons ship hidden, client/today-date.js shows them) · freshness / Sync right;
  * - the bottom dock: the tab bar (role=tablist, four role=tab buttons, aria-pressed on the active one)
  *   and, outside the tablist, the "+" action button + its popover, shipped HIDDEN (nav-actions.js
@@ -23,12 +23,13 @@ const between = (start, end) => {
   return html.slice(i, j === -1 ? undefined : j);
 };
 
-test('top bar: avatar first, then the centred "Today" pill with the empty client-filled date, then freshness', () => {
+test('top bar: avatar first, then the LOOP wordmark, the centred "Today" pill with the empty client-filled date, then freshness', () => {
   const bar = between('<div class="topbar"', '<div class="dock"');
   const avatar = bar.indexOf('id="avatar-btn"');
+  const mark = bar.indexOf('class="wordmark"');
   const pill = bar.indexOf('class="date-pill"');
   const fresh = bar.indexOf('id="freshness"');
-  assert.ok(avatar !== -1 && avatar < pill && pill < fresh, 'avatar · pill · freshness');
+  assert.ok(avatar !== -1 && avatar < mark && mark < pill && pill < fresh, 'avatar · wordmark · pill · freshness');
   assert.match(bar, new RegExp(`<span class="date-pill-lbl" id="day-word" aria-hidden="true">${N.today}</span>`));
   assert.match(bar, /<time id="today-date" class="today-date"><\/time>/, 'nothing time-based baked');
 });

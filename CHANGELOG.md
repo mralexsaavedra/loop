@@ -5,6 +5,18 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-09 — LOOP logo and avatar in the header on every tab
+
+The header used to belong to Inicio: the wordmark and the avatar hid on Salud, Entreno and
+Nutrición, leaving only the freshness / Sync controls above their titles. Now the LOOP wordmark and
+the avatar stay on every tab. The wordmark moved INSIDE `.topbar` (between the avatar and the date
+pill) and is a grid item instead of an absolutely positioned overlay. Phone: avatar · LOOP (centred)
+· freshness / Sync on one row, the date pill centred on a second row on Inicio. Desktop (>= 900 px):
+one row as before, wordmark left, pill centred (Inicio), Sync + avatar right. The only off-Inicio
+rule left hides the date pill (it steps Inicio's day). On a phone the Inicio dials sit ~20 px lower
+(the pill now has its own row under the logo); desktop is unchanged.
+
+
 ## 2026-10-09 — Beer basics and hiding basics that duplicate Mercadona products
 
 Two log-only drink basics for the beers the owner usually drinks: `cerveza1906` (1906 Reserva
