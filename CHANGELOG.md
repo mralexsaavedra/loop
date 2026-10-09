@@ -5,6 +5,13 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-09 — Real-page fixes (DS6)
+
+**Recovery carried from an earlier day** (the owner's page read "HOY · 47 %" for Wednesday's night on
+Friday): when today's night is not complete yet and the headline falls back to an earlier night, the
+Inicio dial shows that night's date under the number and is dimmed like stale data (the mini ring too),
+and the recovery deep-dive is titled with that date (its legend too) with a dimmed hero.
+
 ## 2026-10-09 — Design system follow-ups (DS5b)
 
 **Tablas supplements card** pads with `--card-pad` like every card: the inline `padding:6px 16px` is

@@ -562,6 +562,23 @@ test('recovery dial: an older night is labelled with its date, not "last night"'
   assert.ok(d.includes('as of Tue 29 Sep'), 'the shared display date, never ISO');
 });
 
+test('recovery dial: a night carried from an earlier day (2 days old, under the stale cut) names that day on the ring and is dimmed; today\'s night is not', () => {
+  const s = fixtureScores();
+  const mini = { innerHTML: '' }, dh = { innerHTML: '' };
+  withDials(s, { now: addDays(ASOF, 2), miniHost: mini, dialsHost: dh });
+  const html = dh.innerHTML;
+  const d = dialOf(html, 'dial-rec');
+  assert.match(d, /^class="dial dial-rec[^"]* sc-stale"/, 'dimmed like stale data');
+  assert.ok(d.includes('<span class="dial-asof">Tue 29 Sep</span>'), 'the night\'s date inside the ring');
+  assert.doesNotMatch(dialOf(html, 'dial-sleep'), /dial-asof/, 'only the carried recovery value');
+  assert.match(mini.innerHTML, /class="dm dial-rec[^"]* sc-stale"/, 'the collapsed row dims it too');
+  const fresh = dialOf(withDials(s), 'dial-rec');
+  assert.doesNotMatch(fresh, /sc-stale|dial-asof/);
+  // a stepped-to past day shows ITS own night: never marked as carried
+  const past = dialOf(withDials(s, { now: addDays(ASOF, 2), day: fakeDay(ASOF) }), 'dial-rec');
+  assert.doesNotMatch(past, /sc-stale|dial-asof/);
+});
+
 test('recovery dial: a composite without a sleep-duration reading is labelled by date + "no sleep data", never "last night"', () => {
   const s = fixtureScores();
   s.recovery.today = { ...s.recovery.today, sleep: false };

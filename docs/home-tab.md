@@ -227,7 +227,12 @@ trend is the line under it.
   below = `--low` (single night cut at ±`DAY_BAND_CUTOFF`, the trend fallback at ±`BAND_CUTOFF`). No
   zone arcs on the track (they tinted part of the ring a second colour). The band word, "Last night"
   (or the night's date) / "no recent complete night" are in the accessible name, and the recovery
-  deep-dive page adds "no sleep data" and the 7-day trend. Sleep: fill = the sleep-duration component's newest night /
+  deep-dive page adds "no sleep data" and the 7-day trend. A night CARRIED from an earlier day (today's
+  is not complete yet — e.g. no resting HR or too few HRV samples — so `recovery.mjs` falls back up to
+  `MAX_TODAY_FALLBACK_DAYS`) is never shown as today's: the ring adds that night's date under the number
+  (`.dial-asof`, "WED 7 OCT") and is dimmed like stale data (`sc-stale`, the mini ring too); the
+  deep-dive page is titled with that date and dims its hero (`docs/detail-views.md`). A stepped-to
+  past day shows its own night and is never marked. Sleep: fill = the sleep-duration component's newest night /
   the stated target (`health.recovery.sleep.target`, 7.5 h), capped at a full ring; `pct` = sleep
   performance (same fraction as a rounded %, `lib/score/sleep.mjs` `sleepPerformance`): the centre shows
   "92" + a small "%" in the sleep colour (the mini row reuses the same svg + accessible name, which

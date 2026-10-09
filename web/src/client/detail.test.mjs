@@ -690,6 +690,24 @@ test('recovery deep-dive: a gated recovery shows the dial\'s word in an empty ri
   assert.match(heroOf(old.host.innerHTML), /^ dd-\w+ dd-stale"/, 'stale data greys the hero like the dial');
 });
 
+test('recovery deep-dive: a night carried from an earlier day (2 days old, under the stale cut) titles the page with that night\'s date, not "Today", and dims the hero like the dial', () => {
+  const night = DEMO.metrics.recovery.head.date;
+  const s = setup({ now: addDays(night, 2), dials: DIALS });
+  s.api.open('recovery');
+  const h = headOf(s.host.innerHTML);
+  assert.doesNotMatch(h, new RegExp(`</span>${enT.deep.today}</h2>`));
+  const d = new Date(night + 'T00:00:00Z');
+  const want = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getUTCDay()] + ' ' + d.getUTCDate() + ' ';
+  assert.match(h, new RegExp(`</span>${want}[A-Z][a-z]{2,3}</h2>`), h.slice(-80));
+  assert.match(heroOf(s.host.innerHTML), /^ dd-\w+ dd-stale"/);
+  assert.match(s.host.innerHTML, new RegExp(`<p class="dd-legend">.*?<b>${want}[A-Z][a-z]{2,3}</b> ${enT.deep.contrib.legendRest}`), 'the legend names the night too');
+  // the night is today's: "Today", not dimmed
+  const fresh = setup({ now: night, dials: DIALS });
+  fresh.api.open('recovery');
+  assert.ok(headOf(fresh.host.innerHTML).includes(`</span>${enT.deep.today}</h2>`));
+  assert.doesNotMatch(heroOf(fresh.host.innerHTML), /dd-stale/);
+});
+
 test('weight header = the Salud card\'s 7-day rolling average (the chart line), with the latest raw reading underneath', () => {
   const s = setup();
   s.api.open('weight');

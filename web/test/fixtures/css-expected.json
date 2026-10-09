@@ -3694,5 +3694,12 @@
   "|||.db-erow.db-drag|||box-shadow": "0 6px 18px rgba(0, 0, 0, 0.45)",
   "|||.db-drag .db-grip|||cursor": "grabbing",
   "|||.gd-ex .sel-chev|||width": "12px",
-  "|||.gd-ex .sel-chev|||margin-right": "16px"
+  "|||.gd-ex .sel-chev|||margin-right": "16px",
+  "|||.dial-asof|||margin-top": "4px",
+  "|||.dial-asof|||font-size": "var(--fs-label)",
+  "|||.dial-asof|||font-weight": "var(--label-weight)",
+  "|||.dial-asof|||letter-spacing": "var(--label-track)",
+  "|||.dial-asof|||text-transform": "uppercase",
+  "|||.dial-asof|||color": "var(--muted)",
+  "|||.dial-asof|||white-space": "nowrap"
 }
