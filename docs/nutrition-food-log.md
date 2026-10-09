@@ -149,7 +149,10 @@ Plan de hoy) and the
   lists the matching products by store, then a "Básicos" / "Basics" group (accent- and case-insensitive,
   names that start with the text first, ≤ 25 rows), each row "88 kcal por 100 g · valor medio" ("por ud"
   for a unit food; "etiqueta" / "label values" for a `verified` label of the DB); nothing matching →
-  "Ningún producto coincide.". A pick opens the same amount panel as a product: amount in the NATURAL unit
+  "Ningún producto coincide.". A HIDDEN basic (`h: 1`, from `basic: false` in `ingredients.json`: a food the
+  owner already logs as his own Mercadona product, e.g. allioli, jamón serrano, tomate frito) never lists here nor in
+  the recipe picker (`basicMatches` skips it), but stays in FOOD_BASICS so the portion guide still uses it as a
+  category example and `findBasic` still resolves an old entry or a guide "+". A pick opens the same amount panel as a product: amount in the NATURAL unit
   (pieces when the food has a `piece` — the option names it, "huevos (~50 g)" —, ml for a liquid, g
   otherwise), prefilled with 1 piece or 100 g / ml (never a "usual" serving), a pieces ↔ g / ml select
   that converts the typed amount (`basicConvert`), the live preview = the label that will be saved + kcal

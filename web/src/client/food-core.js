@@ -45,7 +45,7 @@
 (function () {
   var T = typeof I18N_FOOD === 'undefined' || !I18N_FOOD ? null : I18N_FOOD;
   var K = typeof FOOD_CONST === 'undefined' || !FOOD_CONST ? null : FOOD_CONST;
-  // the public basics (lib/nutrition/basics.mjs): [{k, n, u, m: [kcal, p, c, f] per 100 of u, pc?, v?}]
+  // the public basics (lib/nutrition/basics.mjs): [{k, n, u, m: [kcal, p, c, f] per 100 of u, pc?, v?, h?}]
   var BASICS = typeof FOOD_BASICS !== 'undefined' && Array.isArray(FOOD_BASICS) ? FOOD_BASICS : [];
   var BASIC_RESULTS_MAX = 25; // a short list: typing narrows it
   window.foodTotals = function () { return null; };
@@ -458,9 +458,10 @@
   function norm(s) {
     return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   }
-  // the basics whose name contains the search (accent- and case-insensitive), names that START with it first
+  // the basics whose name contains the search (accent- and case-insensitive), names that START with it first;
+  // a hidden basic (h: the owner logs that food as his own product) is never listed, findBasic still knows it
   function basicMatches(q) {
-    var hits = BASICS.filter(function (b) { return norm(b.n).indexOf(q) >= 0; });
+    var hits = BASICS.filter(function (b) { return !b.h && norm(b.n).indexOf(q) >= 0; });
     var first = hits.filter(function (b) { return norm(b.n).indexOf(q) === 0; });
     return first.concat(hits.filter(function (b) { return norm(b.n).indexOf(q) !== 0; })).slice(0, BASIC_RESULTS_MAX);
   }
