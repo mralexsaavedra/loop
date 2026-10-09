@@ -419,7 +419,8 @@ html.dt-lock body {
   stroke-linecap: round;
 }
 .dt-pt,
-.dt-bar {
+.dt-bar,
+.dt-kd {
   fill: var(--trend);
 }
 .dt-ax {
@@ -447,9 +448,13 @@ html.dt-lock body {
   border-radius: 3px;
   background: var(--trend);
 }
-/* 6M / 1Y: the dots are the out-of-range days, good or bad */
-.dt-k-out::before {
-  background: linear-gradient(90deg, var(--good) 50%, var(--low) 50%);
+/* the daily / out-of-range key: the chart's own marks, one per state drawn (detail.js keyMarks) */
+.dt-k-pts::before {
+  content: none;
+}
+.dt-k-sw {
+  margin-right: var(--sp-2);
+  vertical-align: -1px;
 }
 .dt-k-line::before {
   height: 2px;

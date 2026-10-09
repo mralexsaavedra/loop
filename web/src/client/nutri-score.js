@@ -190,14 +190,14 @@
       '<span class="nt-mac-val"><b>' + (x.min ? '≥ ' : '') + esc(kf(x.v)) + '</b><small> / ' + esc(kf(x.t)) + unit + '</small></span>' +
       '<span class="nt-mac-track">' + (x.pts > 0 ? '<i style="width:' + x.pts + '%"></i>' : '') + '</span></li>';
   }
-  // the card: heading (+ "so far" / "incomplete"), the score big in its band colour, when, the three rows
+  // the card: heading (+ " · so far" / " · incomplete", one caps title in one weight), the score big in its band colour, when, the three rows
   function cardHtml(date, r, sel, extra) {
     var tag = r.partial ? TS.soFar : r.inc ? TS.incomplete : '';
     var when = r.partial ? TS.today : HC.fmtDate(date);
     var aria = format(r.partial ? TS.ariaSoFar : TS.aria, { value: r.score, date: when });
     return '<div class="sc-card tn en ns ' + BAND_CLS[scoreBand(r.score)] + '"' + HC.detailAttrs('nutrition', sel || (r.partial ? null : date)) +
       ' aria-label="' + esc(aria) + '">' +
-      '<h3 class="tn-h">' + esc(TS.heading) + (tag ? ' <small class="tn-lbl">' + esc(tag) + '</small>' : '') + '</h3>' +
+      '<h3 class="tn-h">' + esc(TS.heading + (tag ? ' · ' + tag : '')) + '</h3>' +
       '<div class="tn-row"><div class="tn-end"><span class="tn-time"><b class="en-num">' + esc(String(r.score)) + '<small>%</small></b></span>' +
       '<span class="tn-lbl">' + esc(when) + '</span></div>' +
       '<ul class="nt-macros">' + partRow('k', r.parts.k) + partRow('p', r.parts.p) + partRow('f', r.parts.f) + '</ul></div>' +
@@ -226,7 +226,8 @@
     }
     host.hidden = !shown;
   }
-  // the last WIDE days' final scores as a line (gaps = days without a score), 0-100 up
+  // the last WIDE days' final scores as the Salud sparkline (.sc-spark / .spark: line + area down to the
+  // 0 baseline, a caption under it), x by date (gaps = days without a score, bridged), 0-100 up
   var W = 200, H = 48;
   function lineHtml(s) {
     var dates = s.dates.slice(-WIDE), pts = [];
@@ -236,7 +237,10 @@
     });
     if (pts.length < 2) return '';
     var dd = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
-    return '<svg class="en-sp" style="width:100%" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true"><path class="en-l" d="' + dd + '"/></svg>';
+    var x0 = pts[0][0].toFixed(1), x1 = pts[pts.length - 1][0].toFixed(1);
+    return '<div class="sc-spark ns-spark"><svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">' +
+      '<path class="area" d="' + dd + ' L' + x1 + ' ' + H + ' L' + x0 + ' ' + H + ' Z"/><path class="line" d="' + dd + '"/></svg>' +
+      '<div class="sc-spark-lbl">' + esc(format(TN.lineLbl, { n: WIDE })) + '</div></div>';
   }
   function renderNutri() {
     var block = document.getElementById('nutri-score-block'), host = document.getElementById('nutri-score');

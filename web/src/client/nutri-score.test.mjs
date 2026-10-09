@@ -81,12 +81,15 @@ test('Nutrición: today so far in its band, the three components "eaten / target
   assert.match(h, /class="sc-card tn en ns de-mid"/, 'today so far: 0.4 * 40 + 0.4 * 75 + 0.2 * 100 = 66');
   assert.match(h, /data-detail="nutrition"/);
   assert.doesNotMatch(h, /data-date=/, 'today opens the sheet on its newest day');
-  assert.match(text(h), /Nutrition so far/);
+  assert.match(h, /<h3 class="tn-h">Nutrition · so far<\/h3>/, 'one caps title in one weight, no smaller tag inside');
   assert.match(text(h), /Kcal · 40 1,500 \/ 2,000 kcal/);
   assert.match(text(h), /Protein · 75 120 \/ 150 g/);
   assert.match(text(h), /Fat · 100 60 \/ 70 g/);
   assert.match(text(h), /7-day average 73% · 30-day 82%/, '7 days: 100 + 46; 30 days: + 100 (today never counts)');
-  assert.match(h, /<svg class="en-sp"/);
+  // the 30-day line is the Salud sparkline: line + area down to the 0 baseline, a caption under it
+  const sp = h.match(/<div class="sc-spark ns-spark"><svg class="spark" viewBox="0 0 200 48"[^>]*><path class="area" d="(M[^"]+)"\/><path class="line" d="(M[^"]+)"\/><\/svg><div class="sc-spark-lbl">Each day's score, last 30 days \(0–100\)<\/div><\/div>/);
+  assert.ok(sp, 'anchored sparkline + caption');
+  assert.ok(sp[1].startsWith(sp[2]) && / 48 L[\d.]+ 48 Z$/.test(sp[1]), 'the area is the line closed down to the baseline');
   assert.match(text(els.info.innerHTML), /kcal × 0\.4 \+ protein × 0\.4 \+ fat × 0\.2/);
   assert.match(text(els.info.innerHTML), /within ±10% .* 0 at ±35%/);
   assert.match(text(els.info.innerHTML), /100 from 90% .* 0 at 50%/);
@@ -95,7 +98,7 @@ test('Nutrición: today so far in its band, the three components "eaten / target
 test('missing macros: the component reads "not logged", the card is flagged incomplete', () => {
   const { els } = setup({ log: [day('2030-01-27', 2000, 100, 5, { missing: { p: true, f: true } })] });
   const t = text(els.host.innerHTML);
-  assert.match(t, /Nutrition incomplete/);
+  assert.match(t, /Nutrition · incomplete/);
   assert.match(t, /Protein not logged/);
   assert.match(t, /Fat not logged/);
   assert.match(els.host.innerHTML, /<b class="en-num">100<small>%<\/small><\/b>/, 'kcal alone, on target');
@@ -144,7 +147,7 @@ test('Inicio card: today so far in My day, opens the sheet, the 7-day average un
   assert.equal(els.home.hidden, false);
   const h = els.home.innerHTML;
   assert.match(h, /class="sc-card tn en ns de-mid" data-detail="nutrition" role="button"/);
-  assert.match(text(h), /^Nutrition so far 66 %/);
+  assert.match(text(h), /^Nutrition · so far 66 %/);
   assert.match(text(h), /Kcal · 40 1,500 \/ 2,000 kcal/);
   assert.match(text(h), /7-day average 100%/);
 });

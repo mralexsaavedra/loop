@@ -280,7 +280,8 @@ trend is the line under it.
   `client/nutri-score.js`; `#home-nscore`, under the energy bank card in "My day"): the day's 0–100
   adherence to its own targets from the food log (kcal 0.4, protein 0.4, fat 0.2; formula and rules
   in `docs/nutrition-food-log.md` → Nutrition score and `analysis/methodology.md` 5b). Card =
-  `.sc-card.tn.en.ns`: "NUTRITION" header + "so far" (today) or "incomplete" (a macro missing), the
+  `.sc-card.tn.en.ns`: ONE caps title "NUTRITION · SO FAR" (today) or "NUTRITION · INCOMPLETE" (a macro
+  missing) — one size and weight, no smaller tag inside (DS4, F16) — the
   score big in D-DIN coloured by its band (≥ 85 `--good`, 60–84 `--mid`, < 60 `--low`, via
   `.de-hi/.de-mid/.de-lo`), "Today" or the date under it, beside it Nutrición's three macro rows
   ("KCAL · 88", "2351 / 2700 kcal", a bar = the component's points in its band colour), then "7-day
