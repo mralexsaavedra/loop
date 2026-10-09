@@ -326,6 +326,23 @@ test('missing days are gaps, never zero: no point, no bar, an empty calendar cel
   assert.equal(pts, expected);
 });
 
+test('step navigation: the trend sheet\'s window and month arrows are .nav-btn + .chev, disabled at their edges', () => {
+  const s = setup();
+  s.api.open('sleep');
+  const html = s.host.innerHTML;
+  const btn = (attrs, glyph) => new RegExp(`<button type="button" class="nav-btn" ${attrs} aria-label="[^"]+"( disabled)?><span class="chev" aria-hidden="true">${glyph}</span></button>`);
+  const winNext = html.match(btn('data-dt-act="win" data-wdir="1"', '›'));
+  const winPrev = html.match(btn('data-dt-act="win" data-wdir="-1"', '‹'));
+  const monNext = html.match(btn('data-dt-act="month" data-dir="1"', '›'));
+  const monPrev = html.match(btn('data-dt-act="month" data-dir="-1"', '‹'));
+  assert.ok(winNext && winPrev && monNext && monPrev, 'all four arrows are the shared step button');
+  assert.equal(winNext[1], ' disabled', 'no window after today');
+  assert.equal(monNext[1], ' disabled', 'no month after the current one');
+  assert.equal(winPrev[1], undefined, 'earlier windows exist');
+  assert.equal(monPrev[1], undefined, 'earlier months exist');
+  assert.doesNotMatch(html, /dt-nav|dt-mnav|class="[^"]*circle/, 'no second arrow style in the sheet');
+});
+
 test('calendar: Monday-first weekday header (es / en), prev / next month bounded by the baked range, tapping a day shows it', () => {
   const s = setup();
   s.api.open('sleep');
@@ -1584,7 +1601,22 @@ test('trend sentence: sleep reads h:mm, so two windows that print the same clock
   s.click(act('range', { 'data-range': '7' }));
   const txt = /<p class="dt-trend-txt">([^<]*)<\/p>/.exec(s.host.innerHTML)[1];
   assert.match(txt, /was 0:18, about the same as the week before \(0:18\)\./);
-  assert.match(s.host.innerHTML, /dt-pill-neutral|dt-pill-bad/, 'the pill still shows the real change');
+  // sleep has a good direction (up): a 1.6% drop is a real ▼ in the worse colour, never a flat dot
+  assert.match(s.host.innerHTML, /<span class="dt-pill dt-pill-bad">▼ 2% vs prior week<\/span>/, 'the pill still shows the real change');
+});
+
+test('trend pill: a change with no good direction is a neutral ▲ / ▼ (dt-pill-neutral, --ink), never grey or coloured', () => {
+  const start = addDays(NOW, -13);
+  const up = Array.from({ length: 14 }, (_, i) => (i < 7 ? 80 : 82));
+  const s = setup({ detail: { asOf: NOW, days: 365, metrics: { weight: { kind: 'signal', dir: 0, dec: 1, start, v: up } }, sessions: [] } });
+  s.api.open('weight');
+  s.click(act('range', { 'data-range': '7' }));
+  assert.match(s.host.innerHTML, /<span class="dt-pill dt-pill-neutral">▲ \d+% vs prior week<\/span>/);
+  assert.doesNotMatch(s.host.innerHTML, /dt-pill-(good|bad|flat)"/);
+  const down = setup({ detail: { asOf: NOW, days: 365, metrics: { weight: { kind: 'signal', dir: 0, dec: 1, start, v: up.slice().reverse() } }, sessions: [] } });
+  down.api.open('weight');
+  down.click(act('range', { 'data-range': '7' }));
+  assert.match(down.host.innerHTML, /<span class="dt-pill dt-pill-neutral">▼ \d+% vs prior week<\/span>/);
 });
 
 /* ---------- stress monitor page (key 'stress', SCORES.stress: lib/score/stress.mjs) ---------- */

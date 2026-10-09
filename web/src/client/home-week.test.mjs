@@ -155,6 +155,13 @@ test('Tonight: bedtime ↔ usual wake time on the card, the rule only in its she
   const body = v.render().body;
   assert.match(body, /Bedtime 23:45 = your usual wake time \(07:15, the median of your last 12 nights\) minus your sleep target of 7:30\./);
   assert.match(body, /data-detail="sleep"/, 'a way to the sleep history');
+  // THE CTA link (HC.cta): a .cta button opening the sleep sheet, the arrow hidden from screen readers
+  assert.ok(body.endsWith('<button type="button" class="cta" data-detail="sleep">See sleep history<span aria-hidden="true"> →</span></button>'), body.slice(-200));
+  // no sleep metric to open: the sheet keeps its rule and drops the CTA (never a link to an empty sheet)
+  const bare = load({ globals: { SCORES: { tonight: TONIGHT }, DETAIL: { asOf: WED, metrics: {}, sessions: [] } } });
+  const bareBody = bare.ctx.HCViews.tonight.render().body;
+  assert.match(bareBody, /class="tn-rule"/);
+  assert.doesNotMatch(bareBody, /class="cta"|data-detail="sleep"/);
   const none = load({ globals: { SCORES: { tonight: null } } });
   assert.equal(none.els['home-tonight'].hidden, true);
   assert.equal(none.els['home-tonight'].innerHTML, '');

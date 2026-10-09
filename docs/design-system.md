@@ -64,8 +64,9 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
 
 A new exception is a design decision: add it here first, then to the test's allowlist. An allowlist
 key names the file, the media query and the selector (`training.css @media (min-width:900px) .cal-day`),
-so an exception at >= 900 px never excuses the phone rule. A selector counts as a number when ANY rule
-puts it in the `--num` face, a grouped `.a, .b { font-family: var(--num) }` included.
+so an exception at >= 900 px never excuses the phone rule. A selector counts as a number when a rule of
+the SAME stylesheet puts it in the `--num` face — at the top level or in the same media query — a grouped
+`.a, .b { font-family: var(--num) }` included.
 
 ## Numbers
 
@@ -119,7 +120,8 @@ One shared class set per pattern; a new card reuses it instead of styling its ow
 `.hs-lbl` (`health.css`) is THE section heading on every tab: sentence case at `--fs-section` /
 `--fw-section`, no tracking. In a section it sits in the `.hs-head` row with the optional ⓘ
 (`HC.infoBtn`) on the right; on Inicio it stands alone as `.hs-lbl.home-h` (`home-h` adds only the
-block spacing). Caps at `--fs-title` stay for what is INSIDE a card (card titles, row names), so a
+block spacing, in a rule written `.hs-lbl.home-h` so it beats `.hs-lbl`'s `margin: 0` by specificity,
+never by stylesheet order — guarded). Caps at `--fs-title` stay for what is INSIDE a card (card titles, row names), so a
 section heading never looks like the card under it.
 
 - **Duplicate titles.** When a section holds one card whose title would repeat the section heading,

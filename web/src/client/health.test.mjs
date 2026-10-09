@@ -325,7 +325,7 @@ test('energy: expenditure headline = the newest day TDEE with its date; 30-day a
     body: none, activity: none, running: none, recovery: none, loadRecovery: none,
     energy: { hasData: true, tdeeLatest: 2600, tdeeLatestDate: '2026-06-29', tdeeAvg: 2400, tdeeDays: 30, spark: sp, balance: null, intakeDays: 0 },
   }, '2026-07-01');
-  assert.match(html, /2,600<\/b><small>kcal<\/small><span class="db-arr db-neutral" aria-hidden="true">▲<\/span><\/span><span class="db-base">2,400<\/span>/, 'no good direction: grey');
+  assert.match(html, /2,600<\/b><small>kcal<\/small><span class="db-arr db-neutral" aria-hidden="true">▲<\/span><\/span><span class="db-base">2,400<\/span>/, 'no good direction: a neutral --ink arrow, never grey');
   assert.match(html, /aria-label="Daily expenditure: 2,600 kcal, 29 Jun · 30-day avg 2,400 kcal/);
 });
 
