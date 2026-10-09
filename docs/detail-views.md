@@ -242,7 +242,7 @@ switch is outside every opener); run / ride rows →
 - **The sheet** (`detail.js`, one renderer, per-view try/catch with a message fallback, no NaN ever
   printed): header = the shared header above titled "‹ TREND VIEW" (`trend.title`, es "Tendencia"; the
   metric is the dialog's screen-reader label, `sheetHead({sr})`; no ⓘ: a spacer), then the **metric
-  picker** — a native `<select>` dressed as a pill with a ⌄ (`.dt-metric`, `data-dt-pick="metric"`)
+  picker** — a native `<select>`, the shared select pill (`.sel` + the turned `.chev.sel-chev`, docs/design-system.md → Select; `.dt-metric`, `data-dt-pick="metric"`)
   listing every baked metric with copy EXCEPT the dial pages (sleep, recovery, strain, `load-<m>`: their
   own layout, reached from the dials); a change re-opens the sheet on that metric with the same range
   and replaces the URL (no new history entry; an unknown value is ignored) — then the latest value +
