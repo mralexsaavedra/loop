@@ -362,6 +362,29 @@ test('hr_samples: deduped by exact timestamp across overlapping payloads (the la
   assert.equal(METRICS.hr_samples.csv, 'hr-hourly.csv');
 });
 
+test('hr_t + hr_v (loop-free parallel lists): zipped by index into hr_samples, unioned with hr_samples lines', () => {
+  const s = collectSamples([
+    { hr_samples: '2030-01-02T09:00:00+01:00;60' },
+    { hr_t: '2030-01-02T09:05:00+01:00\n2030-01-02T09:10:00+01:00', hr_v: '72 count/min\n80,5 lpm' },
+  ]);
+  assert.deepEqual(s.hr_samples.map(x => x.value).sort(), [60, 72, 80.5]);
+  assert.deepEqual(parsePayload({ hr_t: '2030-01-02T09:05:00+01:00', hr_v: '72' }).hr_samples, [{ start: '2030-01-02 09:05:00 +0100', value: 72 }]);
+});
+
+test('hr_t / hr_v of different lengths: the lists are dropped (hr_samples kept) and planSync returns a warning', () => {
+  const warnings = [];
+  const out = parsePayload({ hr_samples: '2030-01-02T09:00:00+01:00;60', hr_t: '2030-01-02T09:05:00+01:00\n2030-01-02T09:10:00+01:00', hr_v: '72' }, warnings);
+  assert.deepEqual(out.hr_samples.map(x => x.value), [60]);
+  assert.equal(warnings.length, 1);
+  const plan = planSync([{ id: '7', payload: { hr_t: '2030-01-02T09:05:00+01:00\n2030-01-02T09:10:00+01:00', hr_v: '72' } }], () => null);
+  assert.equal(plan.writes['hr-hourly.csv'], undefined);
+  assert.equal(plan.warnings.length, 1);
+  assert.match(plan.warnings[0], /^payload 7: hr_t \/ hr_v have 2 vs 1 lines/);
+  assert.deepEqual(planSync([{ id: '8', payload: { hr_samples: '2030-01-02T09:00:00+01:00;60' } }], () => null).warnings, []);
+  // the warning never reaches the cache file
+  assert.ok(!JSON.stringify(plan.cache).includes('warning'));
+});
+
 test('hr_samples: the old hr_hourly key (hourly SUMS) is ignored', () => {
   const s = collectSamples([{ hr_hourly: '2030-01-02T09:00:00+01:00;4200' }]);
   assert.equal(s.hr_hourly, undefined);
@@ -760,7 +783,7 @@ test('dietary: export rows win; Shortcut rows fill only dates the export lacks a
 test('docs/ios-shortcut.md documents every payload key the sync reads (and no retired one)', () => {
   const doc = fs.readFileSync(path.join(__dirname, '..', '..', 'docs', 'ios-shortcut.md'), 'utf8');
   const keys = Object.entries(METRICS).flatMap(([metric, def]) =>
-    def.devices ? Object.keys(def.devices) : def.fields ? Object.keys(def.fields) : [metric]);
+    def.payloadKeys || (def.devices ? Object.keys(def.devices) : def.fields ? Object.keys(def.fields) : [metric]));
   const rows = new Set([...doc.matchAll(/^\| `([a-z0-9_]+)` \|/gm)].map(m => m[1]));
   assert.deepEqual([...rows].sort(), [...keys].sort(), 'the key table must list exactly the keys in METRICS');
 });
