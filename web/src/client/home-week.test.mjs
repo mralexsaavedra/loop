@@ -136,7 +136,7 @@ test('% accomplished = the mean of min(1, done / target) over the shown rows', (
   assert.equal(g.pct, Math.round(100 * (0.6 + 1 / 7) / 2));
   const capped = ctx.HCWeekPlan.weekGoals({ today: '2026-10-04', asOf: '2026-10-04', sleep: series('2026-09-28', Array(7).fill(8), { target: 7.5 }) });
   assert.equal(capped.rows[0].done, 7);
-  assert.equal(capped.rows[0].frac, 1, 'over the target counts as done, never above 100 %');
+  assert.equal(capped.rows[0].frac, 1, 'over the target counts as done, never above 100%');
   assert.equal(capped.pct, 100);
 });
 
@@ -153,7 +153,7 @@ test('Tonight: bedtime ↔ usual wake time on the card, the rule only in its she
   const v = ctx.HCViews.tonight;
   assert.equal(v.title(), "Tonight's sleep");
   const body = v.render().body;
-  assert.match(body, /Bedtime 23:45 = your usual wake time \(07:15, the median of your last 12 nights\) minus your sleep target of 7\.5 h\./);
+  assert.match(body, /Bedtime 23:45 = your usual wake time \(07:15, the median of your last 12 nights\) minus your sleep target of 7:30\./);
   assert.match(body, /data-detail="sleep"/, 'a way to the sleep history');
   const none = load({ globals: { SCORES: { tonight: null } } });
   assert.equal(none.els['home-tonight'].hidden, true);
@@ -174,7 +174,7 @@ test('My plan renders a collapsible card (title, days left, %, bar) + its rows; 
   assert.match(html, /^<details class="sc-card wp"><summary class="wp-sum">/);
   assert.match(html, /Weekly plan[\s\S]*4 days left[\s\S]*<b>45<\/b><small>%<\/small> accomplished/);
   assert.match(html, /aria-valuenow="45"/);
-  assert.match(html, /Nights ≥ 7\.5 h<small>Goal: 5 this week<\/small>[\s\S]*<b>2<\/b>\/5/);
+  assert.match(html, /Nights ≥ 7:30<small>Goal: 5 this week<\/small>[\s\S]*<b>2<\/b>\/5/);
   assert.match(html, /Training days<small>Vs the days programmed this week<\/small>[\s\S]*<b>1<\/b>\/2/);
   assert.match(html, /data-detail="sleep"/);
   const empty = load({ globals: { DETAIL: { asOf: '2026-09-01', metrics: {}, sessions: [] } } });

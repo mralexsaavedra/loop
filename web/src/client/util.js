@@ -62,16 +62,36 @@ var HC = (function () {
     if (!iso) return null;
     return Math.round((parseIso(todayIso()) - parseIso(iso)) / MS_PER_DAY);
   }
-  // decimal comma in es, the value otherwise untouched
+  // Numbers: the ONE formatter is HC_FMT (lib/format/numbers.mjs, inlined before this script); these
+  // wrappers only add the page LOCALE. Grouping for every value >= 1000 ("2.500" / "2,500"), percent
+  // without a space ("97%"), durations as h:mm ("7:01"), absent values as "—".
+  function loc() {
+    return isEs() ? 'es' : 'en';
+  }
+  // the decimals the value carries ("1,25"), grouped
   function nf(n) {
-    return isEs() ? String(n).replace('.', ',') : String(n);
+    return HC_FMT.fmtRaw(n, loc());
   }
   // fixed decimals, optional leading "+"; a value that rounds to zero carries no sign
   function num(x, dec, signed) {
-    var s = Number(x).toFixed(dec);
-    if (Number(s) === 0) s = (0).toFixed(dec);
-    else if (signed && Number(s) > 0) s = '+' + s;
-    return isEs() ? s.replace('.', ',') : s;
+    return HC_FMT.fmtNumber(x, dec, loc(), signed);
+  }
+  // a whole number, grouped ("13.463")
+  function int(x, signed) {
+    return HC_FMT.fmtInt(x, loc(), signed);
+  }
+  // "97%"
+  function pct(x, signed, dec) {
+    return HC_FMT.fmtPercent(x, loc(), signed, dec);
+  }
+  // decimal hours -> "7:30"
+  function hours(h, signed) {
+    return HC_FMT.fmtHours(h, signed);
+  }
+  // an input field's value: decimal comma in es, NEVER grouped (the field parses it back); `dec`
+  // fixed decimals or (omitted) the decimals the value carries
+  function numInput(x, dec) {
+    return HC_FMT.fmtPlain(x, dec, loc());
   }
   function dateNames() {
     return typeof I18N_DATE !== 'undefined' && I18N_DATE ? I18N_DATE : null;
@@ -119,11 +139,9 @@ var HC = (function () {
     if (hidden || !isoDate(loadDay) || !isoDate(today) || loadDay === today) return 'none';
     return busy ? 'defer' : 'reload';
   }
-  // minutes -> "1 h 45 min" / "45 min" / "1 h"; units = {h, min} from the page's i18n dict
-  function duration(min, units) {
-    min = Math.round(min);
-    var h = Math.floor(min / 60), m = min % 60;
-    return h ? h + ' ' + units.h + (m ? ' ' + m + ' ' + units.min : '') : m + ' ' + units.min;
+  // minutes -> "1:45" / "0:45" (h:mm, the one duration format; the old `units` argument is ignored)
+  function duration(min) {
+    return HC_FMT.fmtMinutes(min);
   }
 
   // The ONE metric-row markup (Inicio "My dashboard", the Salud monitor and metric rows, Entreno's run /
@@ -194,6 +212,11 @@ var HC = (function () {
     MS_PER_DAY: MS_PER_DAY,
     STALE_DAYS: C.staleDays,
     isEs: isEs,
+    DASH: HC_FMT.DASH,
+    int: int,
+    pct: pct,
+    hours: hours,
+    numInput: numInput,
     esc: esc,
     format: format,
     isoDate: isoDate,

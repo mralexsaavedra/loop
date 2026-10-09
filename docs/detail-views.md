@@ -180,8 +180,8 @@ switch is outside every opener); run / ride rows →
      usual range and a grey dot inside; the ⓘ says so, `deep.respNote`) and sleep performance %
      (the sleep metric's baked `perf`, replacing hours of sleep); a missing one is hidden, so no
      respiratory reading = 3 rows. Like the hero, they stay on the headline night under day stepping
-     (the day panel below opens on the stepped day); sleep = hours vs need ("6.9 / 7.5 h", ▲▼ on the hours), efficiency %
-     (`DETAIL` `eff`), consistency minutes (`cons`, lower = better) and REM + deep ("3.1 h · 41%", hours
+     (the day panel below opens on the stepped day); sleep = hours vs need as h:mm ("6:54 / 7:30", ▲▼ on the hours), efficiency %
+     (`DETAIL` `eff`), consistency minutes (`cons`, lower = better) and REM + deep ("3:06 · 41%", h:mm
      · % of asleep); a missing one is hidden and bedtime (an after-midnight bedtime counts as late
      evening, 00:30 = 24.5) and wake time fill the card up to four rows; load = today's RE (only on a day with RE, compared with the
      prior 30 days' training days only), the 7-day vs 42-day trend (`DIALS`), the sessions of the
@@ -193,8 +193,8 @@ switch is outside every opener); run / ride rows →
      SD band "at your baseline" — the SD line lives under ⓘ, so the card never shows two different
      bands; "On Mon 28 Sep …" for an older night; + "There is no sleep data for that night."); without
      the advice, "Over the last 7 days it has been steady (+0.5 SD vs your baseline)."; no recent
-     complete night → the 7-day trend sentence; sleep: "Last night you slept 7.5 h, +0.0 h vs your
-     7.5 h target." + the contributors that were worse than usual ("Sleep consistency was worse than
+     complete night → the 7-day trend sentence; sleep: "Last night you slept 7:32, +0:02 vs your
+     7:30 target." + the contributors that were worse than usual ("Sleep consistency was worse than
      your usual.", or "Every contributor was at or better than your usual." when they carry markers);
      load: the day ("Today's Relative Effort is 28; your typical training day is ~42.", or no session /
      the last one) + "Over the last 7 days your load has been steady (−6% vs your 42-day average)."

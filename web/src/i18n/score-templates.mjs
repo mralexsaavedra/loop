@@ -27,7 +27,7 @@ export const en = {
       wakeState: 'Usual wake',
       nights: 'Last {n} nights',
       aria: 'Tonight\'s sleep: recommended bedtime {bed}, usual wake time {wake}',
-      rule: 'Bedtime {bed} = your usual wake time ({wake}, the median of your last {n} nights) minus your sleep target of {target} h.',
+      rule: 'Bedtime {bed} = your usual wake time ({wake}, the median of your last {n} nights) minus your sleep target of {target}.',
       note: 'A suggestion from your own data only: the page cannot set an alarm.',
       history: 'See sleep history',
       none: 'Not enough nights with a wake time yet (7 needed in the last 14 days).',
@@ -115,7 +115,7 @@ export const en = {
       pct: '% impact',
       need: 'Need more data',
       needDetail: '{yes} yes · {no} no days ({min} each needed)',
-      rowAria: '{name}: {diff} points of recovery the morning after ({yesMean} % after yes, {noMean} % after no; {yes} and {no} days)',
+      rowAria: '{name}: {diff} points of recovery the morning after ({yesMean}% after yes, {noMean}% after no; {yes} and {no} days)',
     },
     // "My plan" weekly card (client/home-week.js)
     plan: {
@@ -126,7 +126,7 @@ export const en = {
       lastDay: 'Last day',
       done: 'accomplished',
       goal: 'Goal: {n} this week',
-      rows: { sleep: 'Nights ≥ {hours} h', training: 'Training days', food: 'Days with food logged', kcal: 'Days on kcal target' },
+      rows: { sleep: 'Nights ≥ {hours}', training: 'Training days', food: 'Days with food logged', kcal: 'Days on kcal target' },
       basis: { programmed: 'Vs the days programmed this week', typical: 'Vs your usual week (last 6 weeks)' },
       onTrack: 'on track',
       behind: 'behind pace',
@@ -185,7 +185,7 @@ export const en = {
     // the % headline (today.pct, lib/score/recovery.mjs): its band words, the mapping in one sentence,
     // and the night's SD value kept in the notes
     pctBands: { good: 'High', mid: 'Medium', low: 'Low' },
-    pctNote: '% = how last night ranks against your previous 90 days: 85 % means better than about 85 % of them. Green 67–100, yellow 34–66, red 0–33.',
+    pctNote: '% = how last night ranks against your previous 90 days: 85% means better than about 85% of them. Green 67–100, yellow 34–66, red 0–33.',
     sdLbl: `Vs your 42-day baseline: {value} ${UE} · {band}`,
     components: { hrv: 'HRV', rhr: 'Resting HR', sleepDur: 'Sleep duration', sleepCons: 'Sleep regularity' },
   },
@@ -196,7 +196,7 @@ export const en = {
     cardAria: '{modality} load',
     lastAria: 'last session {date}: Relative Effort {re}',
     noSession: 'no scored session yet',
-    pillHelp: 'Each card: the last scored session\'s Relative Effort; the ring is that session against your typical day (the tick = a typical day, half the ring). The pill is the 7-day vs 42-day load: grey • steady, teal ▲▼ above or below usual (±10 %), orange ▲▼ ramping (+30 % or more) or well below (−30 % or less). Tap a card for its history.',
+    pillHelp: 'Each card: the last scored session\'s Relative Effort; the ring is that session against your typical day (the tick = a typical day, half the ring). The pill is the 7-day vs 42-day load: grey • steady, teal ▲▼ above or below usual (±10%), orange ▲▼ ramping (+30% or more) or well below (−30% or less). Tap a card for its history.',
     relLbl: '{score}/100 vs your own {modality} days',
     noRel: 'No relative score yet (needs 8 active days)',
     trendLbl: '7-day vs 42-day load: {pct}',
@@ -216,7 +216,7 @@ export const en = {
   dials: {
     ariaLabel: 'Sleep, recovery and load at a glance',
     none: 'No data',
-    sleep: { label: 'Sleep', aria: 'Last night: {value} h of a {target} h target', ariaPct: 'Last night: sleep performance {pct} %, {value} h of your {target} h need' },
+    sleep: { label: 'Sleep', aria: 'Last night: {value} of a {target} target', ariaPct: 'Last night: sleep performance {pct}%, {value} of your {target} need' },
     recovery: {
       label: 'Recovery',
       delta: `{value} ${UE}`,
@@ -229,7 +229,7 @@ export const en = {
       noLastNight: 'No recent complete night: showing the 7-day trend',
       noSleep: 'No sleep data for this night',
       aria: `Recovery {when}: {value} ${UE} vs baseline, {band}`,
-      ariaPct: 'Recovery {when}: {value} % of your last 90 days, {band}',
+      ariaPct: 'Recovery {when}: {value}% of your last 90 days, {band}',
       ariaTrend: `No recent complete night. Recovery 7-day trend {value} ${UE} vs baseline: {band}`,
       // shown under the dials only when Salud (the recovery detail + caveats) is hidden
       caveatLine: 'Recovery = HRV (daytime SDNN, not a nocturnal reading), resting HR and sleep vs your own 42-day baseline. Descriptive, not medical advice.',
@@ -260,8 +260,8 @@ export const en = {
     },
     // a PAST day on Inicio (the top bar's day stepping): the dials name the day instead of "last night" / "today"
     past: {
-      sleepAria: '{date}: {value} h of a {target} h target',
-      sleepAriaPct: '{date}: sleep performance {pct} %, {value} h of your {target} h need',
+      sleepAria: '{date}: {value} of a {target} target',
+      sleepAriaPct: '{date}: sleep performance {pct}%, {value} of your {target} need',
       rest: 'No session',
       aria: '{modality} on {date}: Relative Effort {day}, typical training day {typical}',
       ariaNoEffort: '{modality} on {date}: session without Relative Effort data, typical training day {typical}',
@@ -294,10 +294,9 @@ export const en = {
     noDay: 'Nothing logged that day.',
     empty: 'Nothing logged in the last few days.',
     sleep: 'Sleep',
-    sleepVal: '{hours} h',
+    sleepVal: '{hours}',
     noSleep: 'No sleep recorded',
     modalities: { gym: 'Gym', run: 'Run', bike: 'Bike', other: 'Other' },
-    minutes: '{n} min',
     re: 'RE {n}',
     parts: '{n} parts',
     // the programmed session row (client/training-today.js -> window.HCProgram)
@@ -335,7 +334,7 @@ export const es = {
       wakeState: 'Despertar habitual',
       nights: 'Últimas {n} noches',
       aria: 'Esta noche: hora recomendada para acostarte {bed}, despertar habitual {wake}',
-      rule: 'Acostarte a las {bed} = tu hora habitual de despertar ({wake}, la mediana de tus últimas {n} noches) menos tu objetivo de sueño de {target} h.',
+      rule: 'Acostarte a las {bed} = tu hora habitual de despertar ({wake}, la mediana de tus últimas {n} noches) menos tu objetivo de sueño de {target}.',
       note: 'Solo una sugerencia a partir de tus datos: la página no puede poner una alarma.',
       history: 'Ver historial de sueño',
       none: 'Aún no hay suficientes noches con hora de despertar (hacen falta 7 en los últimos 14 días).',
@@ -349,9 +348,9 @@ export const es = {
       today: 'Hoy',
       unknown: 'sin registrar',
       parts: { k: 'Kcal', p: 'Proteína', f: 'Grasa' },
-      aria: 'Puntuación de nutrición {value} % el {date}',
-      ariaSoFar: 'Puntuación de nutrición de momento hoy {value} %',
-      avg7: 'Media de 7 días {value} %',
+      aria: 'Puntuación de nutrición {value}% el {date}',
+      ariaSoFar: 'Puntuación de nutrición de momento hoy {value}%',
+      avg7: 'Media de 7 días {value}%',
     },
     energy: {
       heading: 'Banco de energía',
@@ -423,7 +422,7 @@ export const es = {
       pct: '% de impacto',
       need: 'Faltan datos',
       needDetail: '{yes} días sí · {no} días no (hacen falta {min} de cada)',
-      rowAria: '{name}: {diff} puntos de recuperación a la mañana siguiente ({yesMean} % tras sí, {noMean} % tras no; {yes} y {no} días)',
+      rowAria: '{name}: {diff} puntos de recuperación a la mañana siguiente ({yesMean}% tras sí, {noMean}% tras no; {yes} y {no} días)',
     },
     // tarjeta semanal "Mi plan" (client/home-week.js)
     plan: {
@@ -434,7 +433,7 @@ export const es = {
       lastDay: 'Último día',
       done: 'conseguido',
       goal: 'Objetivo: {n} esta semana',
-      rows: { sleep: 'Noches ≥ {hours} h', training: 'Días de entreno', food: 'Días con comida registrada', kcal: 'Días en objetivo de kcal' },
+      rows: { sleep: 'Noches ≥ {hours}', training: 'Días de entreno', food: 'Días con comida registrada', kcal: 'Días en objetivo de kcal' },
       basis: { programmed: 'Frente a los días programados esta semana', typical: 'Frente a tu semana habitual (últimas 6 semanas)' },
       onTrack: 'a buen ritmo',
       behind: 'por detrás del ritmo',
@@ -463,7 +462,7 @@ export const es = {
   staleNote: 'El dato más reciente tiene {days} días: se muestra en gris y no se da consejo.',
   recovery: {
     heading: 'Recuperación',
-    insufficient: 'Aún no hay base suficiente: la FC en reposo o la VFC, junto con otras señales hasta sumar el 60 % del peso, necesitan al menos 14 días cada una en las últimas 6 semanas, y al menos 7 de los últimos 14 días deben tener datos. No se muestra tendencia ni consejo.',
+    insufficient: 'Aún no hay base suficiente: la FC en reposo o la VFC, junto con otras señales hasta sumar el 60% del peso, necesitan al menos 14 días cada una en las últimas 6 semanas, y al menos 7 de los últimos 14 días deben tener datos. No se muestra tendencia ni consejo.',
     cardError: 'No se ha podido mostrar esta tarjeta.',
     noToday: 'Sin una noche completa reciente (hacen falta sueño y FC en reposo, más VFC si la registras, en los últimos 3 días): la tendencia de 7 días de abajo es la lectura más reciente.',
     unit: US,
@@ -491,7 +490,7 @@ export const es = {
     driverLbl: 'Señal más baja: {name}',
     sdnnLbl: 'La VFC es SDNN diurna, no nocturna.',
     pctBands: { good: 'Alta', mid: 'Media', low: 'Baja' },
-    pctNote: '% = cómo se sitúa la última noche frente a tus 90 días anteriores: 85 % significa mejor que cerca del 85 % de ellos. Verde 67–100, amarillo 34–66, rojo 0–33.',
+    pctNote: '% = cómo se sitúa la última noche frente a tus 90 días anteriores: 85% significa mejor que cerca del 85% de ellos. Verde 67–100, amarillo 34–66, rojo 0–33.',
     sdLbl: `Frente a tu base de 42 días: {value} ${US} · {band}`,
     components: { hrv: 'VFC', rhr: 'FC en reposo', sleepDur: 'Duración del sueño', sleepCons: 'Regularidad del sueño' },
   },
@@ -502,7 +501,7 @@ export const es = {
     cardAria: 'Carga de {modality}',
     lastAria: 'última sesión {date}: Esfuerzo Relativo {re}',
     noSession: 'aún no hay sesiones puntuadas',
-    pillHelp: 'Cada tarjeta: el Esfuerzo Relativo de la última sesión puntuada; el anillo es esa sesión frente a tu día típico (la marca = un día típico, medio anillo). La píldora es la carga de 7 días frente a la de 42: gris • estable, verde azulado ▲▼ por encima o por debajo de lo habitual (±10 %), naranja ▲▼ subiendo rápido (+30 % o más) o muy por debajo (−30 % o menos). Toca una tarjeta para ver su historial.',
+    pillHelp: 'Cada tarjeta: el Esfuerzo Relativo de la última sesión puntuada; el anillo es esa sesión frente a tu día típico (la marca = un día típico, medio anillo). La píldora es la carga de 7 días frente a la de 42: gris • estable, verde azulado ▲▼ por encima o por debajo de lo habitual (±10%), naranja ▲▼ subiendo rápido (+30% o más) o muy por debajo (−30% o menos). Toca una tarjeta para ver su historial.',
     relLbl: '{score}/100 frente a tus propios días de {modality}',
     noRel: 'Aún sin puntuación relativa (necesita 8 días activos)',
     trendLbl: 'Carga 7 días frente a 42 días: {pct}',
@@ -522,7 +521,7 @@ export const es = {
   dials: {
     ariaLabel: 'Sueño, recuperación y carga de un vistazo',
     none: 'Sin datos',
-    sleep: { label: 'Sueño', aria: 'Anoche: {value} h de un objetivo de {target} h', ariaPct: 'Anoche: rendimiento del sueño {pct} %, {value} h de tu necesidad de {target} h' },
+    sleep: { label: 'Sueño', aria: 'Anoche: {value} de un objetivo de {target}', ariaPct: 'Anoche: rendimiento del sueño {pct}%, {value} de tu necesidad de {target}' },
     recovery: {
       label: 'Recuperación',
       delta: `{value} ${US}`,
@@ -535,7 +534,7 @@ export const es = {
       noLastNight: 'Sin una noche completa reciente: se muestra la tendencia de 7 días',
       noSleep: 'Sin datos de sueño esa noche',
       aria: `Recuperación {when}: {value} ${US} frente a la base, {band}`,
-      ariaPct: 'Recuperación {when}: {value} % de tus últimos 90 días, {band}',
+      ariaPct: 'Recuperación {when}: {value}% de tus últimos 90 días, {band}',
       ariaTrend: `Sin una noche completa reciente. Tendencia de recuperación de 7 días {value} ${US} frente a la base: {band}`,
       // solo bajo los diales cuando Salud (el detalle de recuperación y sus advertencias) está oculta
       caveatLine: 'Recuperación = VFC (SDNN diurna, no una lectura nocturna), FC en reposo y sueño frente a tu propia base de 42 días. Descriptivo, no es consejo médico.',
@@ -566,8 +565,8 @@ export const es = {
     },
     // un día PASADO en Inicio (el selector de día de la barra superior): los diales nombran el día en vez de "anoche" / "hoy"
     past: {
-      sleepAria: '{date}: {value} h de un objetivo de {target} h',
-      sleepAriaPct: '{date}: rendimiento del sueño {pct} %, {value} h de tu necesidad de {target} h',
+      sleepAria: '{date}: {value} de un objetivo de {target}',
+      sleepAriaPct: '{date}: rendimiento del sueño {pct}%, {value} de tu necesidad de {target}',
       rest: 'Sin sesión',
       aria: '{modality} el {date}: Esfuerzo Relativo {day}, día típico de entreno {typical}',
       ariaNoEffort: '{modality} el {date}: sesión sin dato de Esfuerzo Relativo, día típico de entreno {typical}',
@@ -600,10 +599,9 @@ export const es = {
     noDay: 'Ese día no hay nada registrado.',
     empty: 'No hay nada registrado en los últimos días.',
     sleep: 'Sueño',
-    sleepVal: '{hours} h',
+    sleepVal: '{hours}',
     noSleep: 'Sin sueño registrado',
     modalities: { gym: 'Gimnasio', run: 'Carrera', bike: 'Bici', other: 'Otro' },
-    minutes: '{n} min',
     re: 'Esf. {n}',
     parts: '{n} partes',
     // la fila de la sesión programada (client/training-today.js -> window.HCProgram)

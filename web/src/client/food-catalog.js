@@ -360,7 +360,7 @@
     var from = row.mode || to;
     if (from !== to) {
       var v = basicConvert(b, parseNum(val('frf-amt-' + i), modeUnits(from)), from, to);
-      var txt = v != null ? nf(v) : modeDefault(to);
+      var txt = v != null ? HC.numInput(v) : modeDefault(to);
       var el = $('frf-amt-' + i);
       if (el) el.value = txt;
       row.amount = txt;

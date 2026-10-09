@@ -188,7 +188,7 @@ test('insights view: best impact first, signed %, teal / orange bars from the ce
   assert.match(r.body, /1 yes · 31 no days \(5 each needed\)/);
   assert.match(r.body, /id="dd-info" hidden><p>For each behavior: the mean of your recovery %/);
   assert.match(r.body, /An association, not causation/);
-  assert.match(r.body, /aria-label="Alcohol: -15\.0 points of recovery the morning after \(60 % after yes, 75 % after no; 12 and 20 days\)"/);
+  assert.match(r.body, /aria-label="Alcohol: -15\.0 points of recovery the morning after \(60% after yes, 75% after no; 12 and 20 days\)"/);
   assert.equal(ctx.HCJournal.barStyle(5, 20), 'left:50.0%;width:12.5%');
   assert.equal(ctx.HCJournal.barStyle(-40, 20), 'left:0.0%;width:50.0%');
 });

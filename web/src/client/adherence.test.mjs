@@ -97,8 +97,8 @@ test('reads the last 28 days ending at the viewer\'s today and shows logged / co
   const h = text(t.els.host.innerHTML);
   assert.match(h, /Days logged 5 of 7/);
   assert.match(h, /Complete days 4 of 7/);
-  assert.match(h, /Mean kcal 2488 target 2500 kcal · 100 %/);
-  assert.match(h, /Days with protein ≥ 90 % 2 of 4 compared/);
+  assert.match(h, /Mean kcal 2,488 target 2,500 kcal · 100%/);
+  assert.match(h, /Days with protein ≥ 90% 2 of 4 compared/);
   assert.match(h, /its total counts as a minimum/);
   assert.match(h, /Days without any protein data \(not counted as met\): 1\./);
   assert.match(h, /Complete = at least one entry in Breakfast, Lunch and Dinner/);
@@ -114,7 +114,7 @@ test('the 7 / 14 / 28-day switch changes the window; a complete day without a da
   const h = text(t.els.host.innerHTML);
   assert.match(h, /Complete days 2 of 14/);
   assert.match(h, /Complete days without a known day type, left out of the comparison: 1\./);
-  assert.match(h, /Mean kcal 3500/);
+  assert.match(h, /Mean kcal 3,500/);
   assert.equal(t.radios[1].checked, true);
   t.fire(t.els.win, 'change', { value: '99' });
   assert.match(text(t.els.host.innerHTML), /of 14/, 'an unknown window is ignored');
@@ -125,7 +125,7 @@ test('the 28-day strip: one >= 44px button per day with its state in words, toda
   await flush();
   const h = t.els.host.innerHTML;
   assert.equal((h.match(/class="adh-cell /g) || []).length, 28);
-  assert.match(h, /data-adh-day="2030-01-27" aria-label="Sun 27 Jan: complete, on target \(±10 %\)\. Open in the log"/);
+  assert.match(h, /data-adh-day="2030-01-27" aria-label="Sun 27 Jan: complete, on target \(±10%\)\. Open in the log"/);
   assert.match(h, /class="adh-cell adh-partial" data-adh-day="2030-01-26"/);
   assert.match(h, /class="adh-cell adh-none adh-today" data-adh-day="2030-01-28" aria-label="Mon 28 Jan: nothing logged/);
   assert.match(h, /data-adh-day="2030-01-01"/, 'the oldest cell');
@@ -164,7 +164,7 @@ test('es: Spanish copy and thousands with a dot', async () => {
   await flush();
   const h = text(t.els.host.innerHTML);
   assert.match(h, /Días completos 2 de 7/);
-  assert.match(h, /Media de kcal 2500 objetivo 2500 kcal · 100 %/);
+  assert.match(h, /Media de kcal 2\.500 objetivo 2\.500 kcal · 100%/);
   assert.match(h, /Completo = al menos una entrada en Desayuno, Comida y Cena/);
 });
 
@@ -176,8 +176,8 @@ test('an ASSUMED rest day (sleep only, no session) is labelled in the strip and 
   await flush();
   const h = text(t.els.host.innerHTML);
   assert.match(h, /Complete days 2 of 7/);
-  assert.match(h, /Mean kcal 2500 target 2500 kcal · 100 %/, 'only the day with a detected type');
-  assert.match(h, /Days with protein ≥ 90 % 1 of 1 compared/);
+  assert.match(h, /Mean kcal 2,500 target 2,500 kcal · 100%/, 'only the day with a detected type');
+  assert.match(h, /Days with protein ≥ 90% 1 of 1 compared/);
   assert.match(h, /Assumed rest days \(sleep only, no session\), left out of the comparison: 1\./);
   assert.match(t.els.host.innerHTML, /class="adh-cell adh-assumed" data-adh-day="2030-01-27" aria-label="Sun 27 Jan: complete, assumed rest day\. Open in the log"/);
   assert.match(h, /Assumed rest/, 'in the legend');

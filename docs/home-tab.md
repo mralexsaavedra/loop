@@ -80,7 +80,7 @@ trend is the line under it.
   week's trend7 − last week's): two non-overlapping 7-day means differ with noise √2 × σ_7 ≈ 0.46,
   so it is cut at `TREND_DIR_CUTOFF` = `BAND_CUTOFF` × √2 ≈ 0.7: up / steady / down. The recovery
   detail card (Salud `#score-recovery`, Whoop-style) stacks at every width: headline (last night's
-  % + its % band word, e.g. "85 % High", or the composite in SD as the fallback; ONE short trend line "7-day +0.5 SD · at baseline") |
+  % + its % band word, e.g. "85% High", or the composite in SD as the fallback; ONE short trend line "7-day +0.5 SD · at baseline") |
   14-day sparkline | compact contributors (state dot, name, latest value + unit, ±SD for HRV, RHR,
   sleep duration, sleep regularity, a 2 × 2 block), one under the other; the raw
   last-14-days lists fold into a `<details class="rec-raw">` ("Last 14 days" / "Últimos 14 días"),
@@ -229,8 +229,8 @@ trend is the line under it.
   the stated target (`health.recovery.sleep.target`, 7.5 h), capped at a full ring; `pct` = sleep
   performance (same fraction as a rounded %, `lib/score/sleep.mjs` `sleepPerformance`): the centre shows
   "92" + a small "%" in the sleep colour (the mini row reuses the same svg + accessible name, which
-  carries the % and "6.9 h of your 7.5 h need"); without a `pct` the hours + "h"; the target is in
-  the accessible name and the sleep sheet ("Target 7.5 h"). **Day strain** (when calibrated,
+  carries the % and "6:54 of your 7:30 need"); without a `pct` the hours as h:mm ("6:54", no unit); the target is in
+  the accessible name and the sleep sheet ("Target: 7:30"). **Day strain** (when calibrated,
   `SCORES.strain.ok`, `lib/score/strain.mjs`; formula in `analysis/methodology.md`): the third dial
   is the day's strain 0–21 — the centre "12.4" (no unit), the label "LOAD ›" / "CARGA ›" in strain
   blue (`.dial-strain`), ring = strain / 21 (`DIALS.strain.days`, the last 14 days, each with its baked
@@ -333,7 +333,7 @@ trend is the line under it.
 
   | Row | Done (this week, up to today) | Target | Source | Hidden when |
   | --- | --- | --- | --- | --- |
-  | Nights ≥ 7.5 h | nights (dated the wake-up day) asleep ≥ the sleep target | 5 | `DETAIL.metrics.sleep` | no sleep metric, or `DETAIL.asOf` > 3 days old |
+  | Nights ≥ 7:30 | nights (dated the wake-up day) asleep ≥ the sleep target | 5 | `DETAIL.metrics.sleep` | no sleep metric, or `DETAIL.asOf` > 3 days old |
   | Training days | distinct dates with a session | the days programmed this week, else the usual week | `DETAIL.sessions` (display rule) + `TRAINING` (training-data.json) | stale as above; no programme AND < 3 complete weeks of data (of the last 6) or a usual week of 0 |
   | Days with food logged | days with ≥ 1 food log entry | 7 | `HCAdherence.state().days` (the Constancia summary, LAN page only) | no summary (static / example page) |
   | Days on kcal target | days whose Constancia state is `on` (complete, within ±10 % of the day's target) | 5 | `HCAdherence.dayState` + `HCNutri.targetFor` | no summary, or no `HCNutri.targetFor` |

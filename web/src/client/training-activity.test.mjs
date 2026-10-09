@@ -74,17 +74,17 @@ test('openers: the total and the calendar open the training-time sheet; a day ce
 test('M window: total of the last 30 days vs the 30 before, sessions / days / per week, split with counts', () => {
   assert.match(render(ACT), /<span class="dt-pill">no prior period<\/span>/, 'the month before starts before the first session: no comparison');
   const html = render(ACT2);
-  // last 30: 15 runs × 60 + a 45-min ride = 945 min; previous 30: 10 gym × 30 = 300 min -> +215 %
-  assert.match(html, /<b class="dt-trend-num">15 h 45 min<\/b><span class="dt-pill">▲ 215% vs prior month<\/span>/);
+  // last 30: 15 runs × 60 + a 45-min ride = 945 min; previous 30: 10 gym × 30 = 300 min -> +215%
+  assert.match(html, /<b class="dt-trend-num">15:45<\/b><span class="dt-pill">▲ 215% vs prior month<\/span>/);
   const stats = [...html.matchAll(/<div class="act-stat"><b>([^<]*)<\/b><span>([^<]*)<\/span><\/div>/g)].map((m) => [m[1], m[2]]);
-  assert.deepEqual(stats, [['16', 'Sessions'], ['15', 'Days'], ['3 h 41 min', 'Per week']], '16 sessions (15 runs + 1 ride, the run+ride day counts twice) on 15 days');
+  assert.deepEqual(stats, [['16', 'Sessions'], ['15', 'Days'], ['3:41', 'Per week']], '16 sessions (15 runs + 1 ride, the run+ride day counts twice) on 15 days');
   const legend = [...html.matchAll(/<li><span class="act-sw act-m-(\w+)" aria-hidden="true"><\/span><b>(\d+)×<\/b> ([^<]+) <small>([^<]+)<\/small><\/li>/g)].map((m) => m.slice(1));
-  assert.deepEqual(legend, [['run', '15', 'Run', '95% · 15 h'], ['bike', '1', 'Bike', '5% · 45 min']], 'largest first, sessions ×, share of the minutes');
+  assert.deepEqual(legend, [['run', '15', 'Run', '95% · 15:00'], ['bike', '1', 'Bike', '5% · 0:45']], 'largest first, sessions ×, share of the minutes');
   const segs = [...html.matchAll(/<rect class="act-m-(\w+)" x="([\d.]+)" y="0" width="([\d.]+)" height="8"\/>/g)].map((m) => [m[1], +m[2], +m[3]]);
   assert.deepEqual(segs.map((x) => x[0]), ['run', 'bike']);
   assert.equal(segs[1][1], segs[0][2], 'stacked: each segment starts where the last ended');
   assert.ok(Math.abs(segs[0][2] + segs[1][2] - 100) < 0.02, 'the bar is the whole window');
-  assert.match(html, /<svg class="act-bar" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="By modality: Run 15 sessions, 95% \(15 h\), Bike 1 sessions, 5% \(45 min\)">/);
+  assert.match(html, /<svg class="act-bar" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="By modality: Run 15 sessions, 95% \(15:00\), Bike 1 sessions, 5% \(0:45\)">/);
 });
 
 test('W and 6M windows (HCActivity.summary): totals, sessions and split follow the window; a window before the first session has no comparison', () => {
@@ -134,7 +134,7 @@ test('the switch: 6M re-renders the card (total, pill, split) and keeps focus; t
   const btn = { getAttribute: () => '182' };
   onClick({ target: { closest: (sel) => (sel === '[data-act-range]' ? btn : null) } });
   assert.match(host.innerHTML, /data-act-range="182" aria-pressed="true"/);
-  assert.match(host.innerHTML, /<b class="dt-trend-num">20 h 45 min<\/b><span class="dt-pill">no prior period<\/span>/);
+  assert.match(host.innerHTML, /<b class="dt-trend-num">20:45<\/b><span class="dt-pill">no prior period<\/span>/);
   assert.match(host.innerHTML, /act-m-hiit/, 'the gym sessions of the previous month are inside 6M');
   assert.deepEqual(sets, [['hc-act-range', '182']]);
   assert.deepEqual(focused, ['[data-act-range="182"]']);
@@ -146,7 +146,7 @@ test('calendar: 30 day cells ending at the viewer\'s today, level by total minut
   const html = render(ACT);
   const c = cells(html);
   assert.equal(c.length, 30);
-  assert.equal(c[29].title, `Tue 29 Sep: 1 h 45 min (Run 1 h, Bike 45 min)`, 'today: run + ride summed into one day, split in the title');
+  assert.equal(c[29].title, `Tue 29 Sep: 1:45 (Run 1:00, Bike 0:45)`, 'today: run + ride summed into one day, split in the title');
   assert.equal(c[29].level, 4, '105 min -> 90+');
   assert.equal(c[28].level, 0);
   assert.equal(c[28].title, 'Mon 28 Sep: no training');
@@ -161,20 +161,20 @@ test('the viewer a day ahead of the data: windows end today (today empty), not s
   const html = render(ACT, { now: addDays(ASOF, 1) });
   const c = cells(html);
   assert.equal(c[29].level, 0);
-  assert.equal(c[28].title, `Tue 29 Sep: 1 h 45 min (Run 1 h, Bike 45 min)`);
+  assert.equal(c[28].title, `Tue 29 Sep: 1:45 (Run 1:00, Bike 0:45)`);
   assert.doesNotMatch(html, /sc-stale|act-stale/);
 });
 
 test('clock skew: the viewer\'s today EARLIER than the data -> windows end at the data date (its sessions stay visible), not stale', () => {
   for (const opts of [{ now: addDays(ASOF, -1) }, { now: addDays(ASOF, -40) }, { at: addDays(ASOF, -1) + 'T23:59:00' }]) {
     const html = render(ACT, opts);
-    assert.equal(cells(html)[29].title, `Tue 29 Sep: 1 h 45 min (Run 1 h, Bike 45 min)`, JSON.stringify(opts));
+    assert.equal(cells(html)[29].title, `Tue 29 Sep: 1:45 (Run 1:00, Bike 0:45)`, JSON.stringify(opts));
     assert.doesNotMatch(html, /act-stale/);
   }
 });
 
 test('clock edge: 23:59 ends the windows that day, 00:01 the next', () => {
-  assert.equal(cells(render(ACT, { at: ASOF + 'T23:59:00' }))[29].title, `Tue 29 Sep: 1 h 45 min (Run 1 h, Bike 45 min)`);
+  assert.equal(cells(render(ACT, { at: ASOF + 'T23:59:00' }))[29].title, `Tue 29 Sep: 1:45 (Run 1:00, Bike 0:45)`);
   const next = cells(render(ACT, { at: addDays(ASOF, 1) + 'T00:01:00' }));
   assert.equal(next[29].title, 'Wed 30 Sep: no training');
 });
@@ -183,7 +183,7 @@ test('stale data (> 3 days old): windows end at the data date, the block is grey
   const html = render(ACT, { now: addDays(ASOF, 10) });
   assert.match(html, /act-stale/);
   assert.ok(html.includes(enT.staleNote.replace('{days}', '10').replace('{date}', 'Tue 29 Sep')));
-  assert.equal(cells(html)[29].title, `Tue 29 Sep: 1 h 45 min (Run 1 h, Bike 45 min)`);
+  assert.equal(cells(html)[29].title, `Tue 29 Sep: 1:45 (Run 1:00, Bike 0:45)`);
 });
 
 test('empty state and resilience', () => {
@@ -193,11 +193,11 @@ test('empty state and resilience', () => {
   assert.doesNotMatch(broken, /NaN|undefined/);
 });
 
-test('es: Spanish copy and decimal-free h/min durations', () => {
+test('es: Spanish copy and h:mm durations', () => {
   const html = render(ACT2, { locale: 'es' });
   assert.ok(html.includes(esT.calHeading));
-  assert.ok(html.includes('15 h 45 min'));
-  assert.match(html, /▲ 215 % vs mes anterior/, 'Spanish percent spacing');
+  assert.ok(html.includes('15:45'));
+  assert.match(html, /▲ 215% vs mes anterior/, 'one percent rule: no space');
 });
 
 test('wide screens (>= 900 px): the calendar is a full-width HTML grid with the same levels, titles and day openers', () => {

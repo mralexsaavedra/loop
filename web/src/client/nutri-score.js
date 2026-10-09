@@ -254,7 +254,7 @@
       }
       if (s.any) {
         var d = pick(s, null), wide = meanFinal(s, WIDE);
-        var avgs = '<p class="tn-lbl en-sub">' + esc(format(TN.avgs, { a7: s.avg == null ? '—' : s.avg, a30: wide == null ? '—' : wide })) + '</p>' + lineHtml(s);
+        var avgs = '<p class="tn-lbl en-sub">' + esc(format(TN.avgs, { a7: HC.pct(s.avg), a30: HC.pct(wide) })) + '</p>' + lineHtml(s);
         host.innerHTML = d ? cardHtml(d, s.days[d], null, avgs)
           : '<div class="sc-card tn"' + HC.detailAttrs('nutrition') + '><p class="tn-lbl en-sub">' + esc(TN.none) + '</p>' + avgs + '</div>';
         shown = true;

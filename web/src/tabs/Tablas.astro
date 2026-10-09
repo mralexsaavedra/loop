@@ -27,7 +27,7 @@ const t = dict.strings.tablas;
 const es = locale === 'es';
 const ref = buildReference(nut, { lang: es ? 'es' : 'en', words: t.units });
 const cols = t.cols;
-const dec = es ? ',' : '.';
+const loc = es ? 'es' : 'en';
 ---
 <details class="tab-section sec-fold" data-section="tablas" id="sec-tablas" hidden={hidden}>
   <summary><h2>{t.heading}</h2><span class="chev">›</span></summary>
@@ -40,7 +40,7 @@ const dec = es ? ',' : '.';
       <summary>{t.desayunos.icon} {t.desayunos.label} <span class="chev">›</span></summary>
       <div class="acc-body">
         <Note id="tablas.desayunos" page={page} fallback={t.desayunos.noteHtml} class="acc-note" />
-        <RefTable rows={ref.desayunos} cols={cols} dec={dec} />
+        <RefTable rows={ref.desayunos} cols={cols} locale={loc} />
       </div>
     </details>
   )}
@@ -50,7 +50,7 @@ const dec = es ? ',' : '.';
       <summary>{t.carboComida.icon} {t.carboComida.label} <span class="chev">›</span></summary>
       <div class="acc-body">
         <Note id="tablas.carboComida" page={page} fallback={t.carboComida.note} class="acc-note" />
-        <RefTable rows={ref.carboComida} cols={cols} dec={dec} />
+        <RefTable rows={ref.carboComida} cols={cols} locale={loc} />
       </div>
     </details>
   )}
@@ -60,7 +60,7 @@ const dec = es ? ',' : '.';
       <summary>{t.carboCena.icon} {t.carboCena.label} <span class="chev">›</span></summary>
       <div class="acc-body">
         <Note id="tablas.carboCena" page={page} fallback={t.carboCena.note} class="acc-note" />
-        <RefTable rows={ref.carboCena} cols={cols} dec={dec} />
+        <RefTable rows={ref.carboCena} cols={cols} locale={loc} />
       </div>
     </details>
   )}
@@ -73,7 +73,7 @@ const dec = es ? ',' : '.';
         {(['lean', 'mod', 'fat'] as const).map((tier) => ref.proteina[tier].length > 0 && (
           <Fragment>
             <div class={`tier ${tier}`}><span class={`dot ${tier}`} />{t.proteina[tier]}</div>
-            <RefTable rows={ref.proteina[tier]} cols={cols} dec={dec} />
+            <RefTable rows={ref.proteina[tier]} cols={cols} locale={loc} />
           </Fragment>
         ))}
       </div>
@@ -87,7 +87,7 @@ const dec = es ? ',' : '.';
       <summary>{t.anclaje.icon} {t.anclaje.label} <span class="chev">›</span></summary>
       <div class="acc-body">
         <Note id="tablas.anclaje" page={page} fallback={t.anclaje.note} class="acc-note" />
-        <RefTable rows={ref.anclaje} cols={cols} dec={dec} />
+        <RefTable rows={ref.anclaje} cols={cols} locale={loc} />
       </div>
     </details>
   )}
@@ -97,7 +97,7 @@ const dec = es ? ',' : '.';
       <summary>{t.postentreno.icon} {t.postentreno.label} <span class="chev">›</span></summary>
       <div class="acc-body">
         <Note id="tablas.postentreno" page={page} fallback={t.postentreno.note} class="acc-note" />
-        <RefTable rows={ref.postentreno} cols={cols} dec={dec} />
+        <RefTable rows={ref.postentreno} cols={cols} locale={loc} />
       </div>
     </details>
   )}
@@ -107,7 +107,7 @@ const dec = es ? ',' : '.';
       <summary>{t.fruta.icon} {t.fruta.label} <span class="chev">›</span></summary>
       <div class="acc-body">
         <Note id="tablas.fruta" page={page} fallback={t.fruta.note} class="acc-note" />
-        <RefTable rows={ref.fruta} cols={cols} dec={dec} />
+        <RefTable rows={ref.fruta} cols={cols} locale={loc} />
       </div>
     </details>
   )}
@@ -117,7 +117,7 @@ const dec = es ? ',' : '.';
       <summary>{t.postre.icon} {t.postre.label} <span class="chev">›</span></summary>
       <div class="acc-body">
         <Note id="tablas.postre" page={page} fallback={t.postre.note} class="acc-note" />
-        <RefTable rows={ref.postre} cols={cols} dec={dec} />
+        <RefTable rows={ref.postre} cols={cols} locale={loc} />
         <Note id="tablas.postreExtra" page={page} style="margin-top:10px" class="acc-note" />
       </div>
     </details>
@@ -130,7 +130,7 @@ const dec = es ? ',' : '.';
       <summary>{t.verduras.icon} {t.verduras.label} <span class="chev">›</span></summary>
       <div class="acc-body">
         <Note id="tablas.verduras" page={page} fallback={t.verduras.note} class="acc-note" />
-        <RefTable rows={ref.verduras} cols={cols} dec={dec} />
+        <RefTable rows={ref.verduras} cols={cols} locale={loc} />
       </div>
     </details>
   )}
@@ -140,7 +140,7 @@ const dec = es ? ',' : '.';
       <summary>{t.quesos.icon} {t.quesos.label} <span class="chev">›</span></summary>
       <div class="acc-body">
         <Note id="tablas.quesos" page={page} fallback={t.quesos.note} class="acc-note" />
-        <RefTable rows={ref.quesos} cols={cols} dec={dec} />
+        <RefTable rows={ref.quesos} cols={cols} locale={loc} />
       </div>
     </details>
   )}

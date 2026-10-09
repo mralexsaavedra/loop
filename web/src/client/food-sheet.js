@@ -102,7 +102,7 @@
     var from = sh.basicMode || to;
     var v = basicConvert(b, parseNum(val('fa-amt'), modeUnits(from)), from, to);
     var el = $('fa-amt');
-    if (el && from !== to) el.value = v != null ? nf(v) : modeDefault(to);
+    if (el && from !== to) el.value = v != null ? HC.numInput(v) : modeDefault(to);
     sh.basicMode = to;
   }
   // a product switched to servings starts at 1 serving; back to its own unit, at one serving in that
@@ -113,7 +113,7 @@
     if (!item || unitsOf('product', item).indexOf(to) < 0) return;
     var from = pk.unit || unitsOf('product', item)[0];
     var el = $('fa-amt');
-    if (el && from !== to) el.value = to === 'serving' ? '1' : nf(item.servingSize);
+    if (el && from !== to) el.value = to === 'serving' ? '1' : HC.numInput(item.servingSize);
     pk.unit = to;
   }
   // the units a picked item can be logged in: a product in its own unit (+ servings when it states a

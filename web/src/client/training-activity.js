@@ -46,7 +46,7 @@
   } catch (e) { /* no storage: the default window */ }
 
   function hm(min) {
-    return HC.duration(min, T.units);
+    return HC.duration(min);
   }
   function level(min, cuts) {
     var l = 0;
@@ -54,7 +54,7 @@
     return l;
   }
   function pct(v) {
-    return HC.num(v, 0, false) + (HC.isEs() ? ' %' : '%');
+    return HC.pct(v);
   }
 
   // The numbers of one window [end − n + 1, end] (pure; exposed as HCActivity.summary): total minutes,

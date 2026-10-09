@@ -235,8 +235,8 @@
 
   /* ---------- small helpers ---------- */
   function $(id) { return document.getElementById(id); }
-  function kf(n) { // thousands separator: 3.050 (es) / 3,050 (en)
-    return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, HC.isEs() ? '.' : ',');
+  function kf(n) { // a whole number, grouped: 3.050 (es) / 3,050 (en) — the one formatter (HC.int)
+    return HC.int(n);
   }
   function val(id) {
     var el = $(id);

@@ -124,7 +124,7 @@ test('render: one row per shown metric (full name, value, unit, baseline, arrow,
   assert.match(html, /<span class="db-name">Hours of sleep<\/span>/);
   assert.match(html, /Resting heart rate<\/span><span class="db-vals"><span class="db-val"><b>50<\/b><small>bpm<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span><\/span><span class="db-base">54<\/span>/);
   assert.match(html, /<b>7:30<\/b>/);
-  assert.match(html, /<b>12000<\/b>/);
+  assert.match(html, /<b>12,000<\/b>/);
 });
 
 test('render with stored prefs; storage that throws falls back to defaults and still saves in memory', () => {
