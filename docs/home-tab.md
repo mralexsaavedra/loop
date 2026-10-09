@@ -58,7 +58,7 @@ trend is the line under it.
   every surface keeps the SD presentation below (the documented fallback). It is a transparent
   mapping of the same composite, not a new metric; the ⓘ says so (`recovery.pctNote`: "% = how last
   night ranks against your previous 90 days"), and the night's SD value + day band stay in the Salud
-  card's ⓘ and the deep-dive insight (`recovery.sdLbl`). The deep-dive contributors show the night's
+  card's ⓘ and the deep-dive's ⓘ (`recovery.sdLbl`). The deep-dive contributors show the night's
   HRV, resting HR, respiratory rate (context only, not a composite input) and sleep performance %
   (display only, `docs/detail-views.md`). The 7-day trend and the advice stay in SD (the advice describes the trend, not the night).
 - **Recovery** composite is in units of the owner's typical spread (scaled MAD); ONE unit
@@ -251,9 +251,10 @@ trend is the line under it.
   midpoint = the typical training day, a full ring = 2×, no zones; the typical-day tick at 6 o'clock);
   rows today but no RE → "No effort data" (never rest); no rows today → "No session yet". `DIALS.load.tick`
   = the typical-day mark as a radial line across the hero ring's 7.5-unit stroke (`radialTick(0.5, HERO)`), drawn by the load
-  deep-dive's hero ring. The load deep-dive's insight card carries the day line ("Today: RE 28 · typical day ~42" or "No session yet today · last
-  session <date>: RE <n>"), the ring scale and the acute/chronic context ("7-day vs 42-day load: -6% ·
-  steady", + "includes N sessions without effort data"). A gated modality (`baselineBuilding`, or
+  deep-dive's hero ring. The load deep-dive's insight card says the day in a sentence ("Today's Relative Effort is 28; your
+  typical training day is ~42.", or no session yet / the last one) and the acute/chronic context ("Over
+  the last 7 days your load has been steady (−6% vs your 42-day average)."); the ring scale and "includes
+  N sessions without effort data" sit under its ⓘ (docs/detail-views.md). A gated modality (`baselineBuilding`, or
   `fewDays` when there is no typical day) is greyed with no number (its reason is in the sheet). Each
   dial block / card renders through a try/catch with an empty-state
   fallback, and every host write (`#home-advice`, `#home-dials`, `#score-recovery`, `#score-load`, the advice)

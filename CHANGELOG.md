@@ -5,6 +5,23 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-08 — Visual polish: deep-dives and the trend view (Q11b-2)
+
+From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); no new data or metric.
+
+- Deep-dive insight cards are one paragraph of 2–3 plain sentences built from the numbers on the page
+  (recovery keeps Inicio's advice sentence first; sleep names the contributors worse than usual; load
+  says the day and the 7-day vs 42-day load), with a per-page CTA ("See my recovery trend →"). The load
+  ring scale moved under ⓘ. The sleep stages bar now follows the insight (dial → contributors → insight).
+- Weekly trends: recovery bars are each night's % (the dial's number that morning, `DIALS.days`) with
+  bar and value in the % band colour (≥ 67 / 34–66 / ≤ 33), no z-scores (SD only as the fallback); every
+  weekly card ends on the page's day, so the highlighted column carries the hero's value.
+- Deep-dive pages fold the month calendar + day panel behind a "History" row (collapsed, remembered
+  for the session, open after a dated open); the trend view keeps its calendar.
+- Trend view: 6M / 1Y point charts dot only the out-of-range days (the 7-day line carries the rest);
+  a "Days in this period" breakdown bar under the chart counts the window's days per calendar state
+  ("7x / 104x / 9x") with "Learn more" opening ⓘ. CSS budget 106 → 108 KB.
+
 ## 2026-10-08 — Visual polish: Inicio, the "+" popover, tab headers (Q11b-1)
 
 From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); no new data.

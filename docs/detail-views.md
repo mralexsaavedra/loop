@@ -52,8 +52,8 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   scale), bars in the chart, and the day panel lists the day's sessions; its deep-dive page (key
   `strain`, client/deepdive.js) is the hero ring = the day's strain with the Inicio dial's own arc,
   contributors = the day's activities + "all day (outside workouts)", each with its share of the
-  strain (∝ its load; from `SCORES.strain.days`, the last 14 days), the insight = the band sentence,
-  the usual day (median of the prior 30) and "18 = your 95th-percentile day"; ⓘ = the formula, the
+  strain (∝ its load; from `SCORES.strain.days`, the last 14 days), the insight = the band sentence
+  and the usual day (median of the prior 30) in one paragraph; ⓘ = the formula, the
   sources, this owner's K / p95 / full days / max HR and "our estimate"; the 7-day strain bars; then
   "Relative Effort by modality" links to the `load-<m>` pages. It follows the day it was opened on
   (`X.sel`); `stress` is NOT a DETAIL key: its series is `SCORES.stress.metric` (kind `stress`, the
@@ -145,7 +145,7 @@ switch is outside every opener); run / ride rows →
   2. **ⓘ block** (`#dd-info`, hidden): the band / cut rules (`bandText`: the recovery day and trend
      cuts, the per-day note, the sleep band, the typical day), the recovery % mapping (`rec.pctNote`)
      and the night's SD line ("Vs your 42-day baseline: +1.1 SD · at baseline", `rec.sdLbl`), both only
-     when the hero shows a %, the load sessions-without-effort note, and the sleep formulas
+     when the hero shows a %, the load ring scale + sessions-without-effort note, and the sleep formulas
      (`deep.sleepNotes`: performance = asleep ÷ need × 100 capped at 100 with need = the target,
      efficiency = asleep ÷ in bed, consistency minutes, what the stages are).
   3. **Hero ring**: 260 px (≈ 67 % of a 390 px phone; never wider than the sheet), the dial's OWN
@@ -155,7 +155,8 @@ switch is outside every opener); run / ride rows →
      unit + the uppercase label. Recovery shows the dial's % (`DIALS.recovery.pct`, when it scores the
      same night as `head`) with its % band colour, else the SD value. Sleep shows the dial's sleep
      performance % (`DIALS.sleep.pct`, label "SLEEP PERFORMANCE"), else last night's hours.
-     Sleep only: a **stages bar** right under the ring (`.dd-stages`): one stacked horizontal bar of
+     Sleep only: a **stages bar** AFTER the insight card (`.dd-stages`, titled "Sleep stages", so the page
+     reads dial → contributors → insight like the reference): one stacked horizontal bar of
      the night — awake / REM / core / deep (+ the Asleep-unspecified remainder when ≥ 0.05 h), widths by
      hours — in shades of `--sleep` (REM lighter, deep towards `--link-end`, awake `--faint`), and a
      legend with each stage's hours and, for the asleep stages, its % of the time asleep. No stage
@@ -185,28 +186,49 @@ switch is outside every opener); run / ride rows →
      evening, 00:30 = 24.5) and wake time fill the card up to four rows; load = today's RE (only on a day with RE, compared with the
      prior 30 days' training days only), the 7-day vs 42-day trend (`DIALS`), the sessions of the
      last 7 days, the typical training day.
-  5. **Insight card** (`--ground` fill inside a 1.5 px teal → indigo stroke, `--insight-a/b`): the
-     dial's former captions in 2–4 plain lines — recovery "Last night · <band>" (the % band word ONLY when
-     the hero shows a % — the SD line lives under ⓘ, so the card never shows two different bands; or
-     the night's date, "no sleep data", "no recent complete night") + the 7-day trend coloured by the TREND band; sleep
-     the target + last night vs it; load the day line ("Today: RE 28 · typical day ~42" or "No
-     session yet today · last session …"), the ring scale and the 7-day vs 42-day trend + band (from
-     the baked `DIALS`; no `DIALS` or gated → no trend line); a gated modality shows its gate copy.
-     Then "VIEW TREND →" (`data-dt-act="trend"`, a button: scrolls to the period block and focuses
+  5. **Insight card** (`--ground` fill inside a 1.5 px teal → indigo stroke, `--insight-a/b`): ONE
+     paragraph of 2–3 plain sentences built only from numbers the page already shows (`deep.prose`) —
+     recovery: Inicio's outlook sentence first (`window.HCAdvice`, it already carries the 7-day trend),
+     then "Last night your recovery was high." (the % band word ONLY when the hero shows a %, else the
+     SD band "at your baseline" — the SD line lives under ⓘ, so the card never shows two different
+     bands; "On Mon 28 Sep …" for an older night; + "There is no sleep data for that night."); without
+     the advice, "Over the last 7 days it has been steady (+0.5 SD vs your baseline)."; no recent
+     complete night → the 7-day trend sentence; sleep: "Last night you slept 7.5 h, +0.0 h vs your
+     7.5 h target." + the contributors that were worse than usual ("Sleep consistency was worse than
+     your usual.", or "Every contributor was at or better than your usual." when they carry markers);
+     load: the day ("Today's Relative Effort is 28; your typical training day is ~42.", or no session /
+     the last one) + "Over the last 7 days your load has been steady (−6% vs your 42-day average)."
+     (baked `DIALS`; none or gated → no trend sentence; the ring scale moved under ⓘ); a gated modality
+     shows its gate copy; strain: the band sentence + "Your usual day is 12.4 (median of the prior 30
+     days)." (the scale's calibration is in ⓘ). Then the page's own CTA (`deep.ctas`: "SEE MY
+     RECOVERY TREND →", sleep / load / strain likewise; the stress and energy pages keep "VIEW
+     TREND"; `data-dt-act="trend"`, a button: scrolls to the period block and focuses
      the pressed W / M / 6M / 1Y button). Its text is the `--link` → `--link-end` gradient (blue →
      violet) clipped to the glyphs, solid `--link` where `background-clip: text` is unsupported: on
      `--ground` both ends pass AA for small text (8.29 / 4.61), on a card the violet end would not
      (3.91), so the gradient only ever sits on the insight card (`tokens-contrast.test.mjs`).
   6. **Weekly trends** ("Weekly trends" title, one card per input): 7 bars for the 7 days ending at
-     the view's last day (the viewer's today, `HCDeep.weekOf`), the value on top, the weekday letter
-     under each bar, today's column lighter (`.dd-now`); a day without data = "—" and no bar.
-     Recovery: the composite per day on the dial's −3…+3 scale, each bar in its own day band's state
-     colour (good / mid / low), then HRV and resting HR (`--trend`) and sleep (`--sleep`); sleep:
+     the PAGE's day (`weekEnd`: recovery = its headline night, sleep = the dial's night, strain = the
+     day it was opened on — each only when within the last week —, load = the view end; `HCDeep.weekOf`),
+     the value on top, the weekday letter under each bar, that last column lighter (`.dd-now`) and
+     carrying the hero's value (no empty "today" column while the newest night is yesterday's); a day
+     without data = "—" and no bar. Recovery: each night's recovery % — the number the dial showed that
+     morning (`DIALS.days[].recovery.pct`, lib/score/days.mjs; the newest from `DIALS.recovery`) — bar
+     = % of 100, bar AND value in its % band colour (≥ 67 `--good`, ≤ 33 `--low`, else `--mid`,
+     `.dd-v-*`); a week with no % at all (too few prior nights, no `DIALS`) falls back to the composite
+     per day on the dial's −3…+3 scale in its day band's colour; then HRV and resting HR (`--trend`) and sleep (`--sleep`); sleep:
      hours, performance % (bar = % of 100) and REM + deep hours when `DETAIL` has them (`--sleep`); load: RE per day and the modality's minutes per day from the sessions
      (`--strain`; a day after the data's `asOf` is unknown, not rest). Bars are proportional to the
      week's largest value.
-  7. The rest of the sheet below, unchanged (period + chart, calendar, day). A DATED open (a run /
-     ride row, a timeline row: `open(key, date)`) scrolls the sheet to the day panel
+  7. The rest of the sheet below: the period block + chart, then the month calendar and the day panel
+     FOLDED behind one "HISTORY · Calendar and day detail ⌄" row (`detail.js` `foldHtml`, a
+     `.dd-fold` button with `aria-expanded` / `aria-controls="dd-hist"`, `data-dt-act="hist"`,
+     toggled in place without a re-render; collapsed by default, so the page reads like the reference;
+     the last state is remembered for the page session — `sessionStorage` `hc-dd-hist`, this load only
+     where storage is refused). Every deep-dive page folds (sleep, recovery, strain, load, stress,
+     energy); the trend view keeps its calendar open. A DATED open (a run /
+     ride row, a timeline row, a stepped Inicio day: `open(key, date)`) starts with the fold open and
+     scrolls the sheet to the day panel
      (`[data-dt-part="day"]`, `block: start`) after focus lands on the back button; an undated open
      (the dial) starts at the top. A run day's panel ends with the watch running dynamics of that day
      (`.dt-dyn`, "Running dynamics: 276 W · GCT 242 ms · Osc. 8.3 cm · Stride 1.14 m", read from
@@ -255,13 +277,23 @@ switch is outside every opener); run / ride rows →
   ("TYPICAL RANGE", `trend.typical`; recovery "BASELINE RANGE", `trend.baseline`; no legend swatch for
   it). An inline SVG chart (points for signals, bars for totals and load, the
   7-day average line that breaks where fewer than 3 of 7 days have data, the band shaded, target /
-  typical dashed; a missing day is a gap; the window's newest value ringed and labelled, `.dt-last` /
+  typical dashed; a missing day is a gap; a points chart longer than 60 days (6M, 1Y) draws a dot
+  only for the days OUT of the range — beyond recovery's day cut, outside a signal's / sleep's band —
+  and leaves the rest to the 7-day line, its key reading "Days out of range" (`chartKey.outside`), so
+  red / green dots never saturate the chart (a metric without a band keeps every dot); the window's newest value ringed and labelled, `.dt-last` /
   `.dt-lastv`; in W every metric but recovery is 7 bars from 0 with each value on top (`.dt-bv`) and
   "Thu / 9" under each bar (`.dt-wdays`) instead of the from / to dates, no 7-day line; labels are HTML
   over the SVG's box `.dt-svg`) with a Y axis: three round, evenly spaced values (step 1 / 2 /
   2.5 / 5 × 10^k; bars from 0) as faint grid lines (`.dt-grid`) and labels in a 36px left gutter
   (`.dt-yax`, HTML so the text never scales with the SVG); the range covers the ticks plus 12 %
-  headroom, so an out-of-range day never sits on the chart's edge; a Monday-first month calendar
+  headroom, so an out-of-range day never sits on the chart's edge; under the chart, "DAYS IN THIS
+  PERIOD" (`breakdownHtml`, `trend.brk`): one stacked horizontal bar of the window's days with data by
+  calendar state — the legend's states, order and tints (better / in / worse than your range, above /
+  at / below baseline, the sleep, stress, energy and nutrition bands; today in progress and missing
+  days left out) — and one row per state with its count ("7x", a state with none says "0x" and has no
+  segment); it follows the window (range + ‹ ›); "LEARN MORE" (`data-dt-act="learn"`) opens the
+  header's ⓘ notes (never closes them) and scrolls them into view. Training volume / load / strain
+  (four shades of one colour), sparse readings and a metric without a band get none. A Monday-first month calendar
   (es/en weekday letters) with prev / next bounded by the baked range, each day tinted by its state
   (good / mid / bad tiles: the state hue at 16 % with a 40 % inset ring, `--good-rgb` / `--mid-rgb` /
   `--low-rgb`, never a saturated block) by `dayState`: signals vs
