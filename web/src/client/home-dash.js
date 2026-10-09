@@ -200,7 +200,8 @@
     window.HCViews = window.HCViews || {};
     window.HCViews['dash-edit'] = {
       title: function () { return TS.editTitle; },
-      render: function () { return { head: '', body: editHtml(current()) }; },
+      // a re-render replaces the rows: any drag still in flight is dropped (nothing saved)
+      render: function () { clearDrag(); return { head: '', body: editHtml(current()) }; },
     };
     // save a new list, re-render the dashboard and the open sheet (focus: a selector to keep, or none)
     function commit(list, focus) {
@@ -223,12 +224,19 @@
     /* ≡ drag (Pointer Events, so mouse, touch and pen alike): pointerdown on a handle captures the
      * pointer, every move puts the row where the pointer is (the DOM row moves live), the drop saves
      * through commit() like ↑ / ↓; a cancel re-renders the saved order. Only the primary pointer starts
-     * a drag (never a second finger), a mouse only with its main button, and never while one is active. */
+     * a drag (never a second finger), a mouse only with its main button, and never while one is active.
+     * A lost capture cancels like pointercancel; a drag whose row left the page (sheet closed or
+     * re-rendered) is stale and never blocks the next one. */
     var drag = null;
+    function clearDrag() {
+      if (drag) drag.li.classList.remove('db-drag');
+      drag = null;
+    }
     function rowsBut(d) {
       return [].slice.call(d.ul.children).filter(function (r) { return r !== d.li; });
     }
     document.addEventListener('pointerdown', function (e) {
+      if (drag && !drag.li.isConnected) clearDrag();
       if (drag || !e || !e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
       var g = e && e.target && e.target.closest ? e.target.closest('[data-dash-grip]') : null;
       var li = g && g.closest('li');
@@ -265,6 +273,7 @@
     }
     document.addEventListener('pointerup', function (e) { endDrag(e, true); });
     document.addEventListener('pointercancel', function (e) { endDrag(e, false); });
+    document.addEventListener('lostpointercapture', function (e) { endDrag(e, false); });
 
     window.HCDash = { prefsFrom: prefsFrom, serialize: serialize, edit: edit, move: move, rowValue: rowValue, render: renderDash, CATALOG: CATALOG, DEFAULT_ON: DEFAULT_ON, PREFS_KEY: PREFS_KEY };
     renderDash();
