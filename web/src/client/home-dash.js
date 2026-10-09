@@ -225,7 +225,8 @@
      * pointer, every move puts the row where the pointer is (the DOM row moves live), the drop saves
      * through commit() like ↑ / ↓; a cancel re-renders the saved order. Only the primary pointer starts
      * a drag (never a second finger), a mouse only with its main button, and never while one is active.
-     * A lost capture cancels like pointercancel; a drag whose row left the page (sheet closed or
+     * A lost capture is re-taken while the pointer is active, else it cancels like pointercancel; a drag
+     * whose row left the page (sheet closed or
      * re-rendered) is stale and never blocks the next one. */
     var drag = null;
     function clearDrag() {
@@ -273,7 +274,16 @@
     }
     document.addEventListener('pointerup', function (e) { endDrag(e, true); });
     document.addEventListener('pointercancel', function (e) { endDrag(e, false); });
-    document.addEventListener('lostpointercapture', function (e) { endDrag(e, false); });
+    // moving the row in the DOM drops the capture (Chromium fires lostpointercapture on every live
+    // reorder): while the row is on the page, take it back; only when that fails (the pointer is gone)
+    // or the row left the page does the lost capture cancel like pointercancel
+    document.addEventListener('lostpointercapture', function (e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      if (drag.li.isConnected) {
+        try { drag.grip.setPointerCapture(e.pointerId); return; } catch (err) { /* the pointer is no longer active */ }
+      }
+      endDrag(e, false);
+    });
 
     window.HCDash = { prefsFrom: prefsFrom, serialize: serialize, edit: edit, move: move, rowValue: rowValue, render: renderDash, CATALOG: CATALOG, DEFAULT_ON: DEFAULT_ON, PREFS_KEY: PREFS_KEY };
     renderDash();

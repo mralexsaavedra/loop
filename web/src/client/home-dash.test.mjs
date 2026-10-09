@@ -129,7 +129,8 @@ function fakeSheet(keys) {
       getBoundingClientRect: () => ({ top: ul.children.indexOf(li) * 60, height: 60 }),
       get isConnected() { return !ul.detached && ul.children.includes(li); } };
     const captured = [];
-    const grip = { captured, setPointerCapture: (id) => captured.push(id), releasePointerCapture: () => {},
+    // gone: the pointer is no longer active (setPointerCapture throws, as in the browser)
+    const grip = { captured, gone: false, setPointerCapture: (id) => { if (grip.gone) throw new Error('NotFoundError'); captured.push(id); }, releasePointerCapture: () => {},
       getAttribute: (a) => (a === 'data-key' ? k : null),
       closest: (sel) => (sel === '[data-dash-grip]' ? grip : sel === 'li' ? li : null) };
     li.grip = grip;
@@ -333,7 +334,7 @@ test('drag: only the primary pointer, a mouse main button and no drag in progres
   assert.ok(ls.data['hc-dash-v1'] != null, 'and saves');
 });
 
-test('drag: a lost pointer capture cancels like pointercancel (saved order back, nothing saved, next drag works)', () => {
+test('drag: a lost capture mid-drag (the row moved) is re-taken; once the pointer is gone it cancels like pointercancel', () => {
   const { ctx, ls, opened } = load();
   const fire = (type, target, y, extra) => ctx.__listeners[type]({ type, target, pointerId: 1, isPrimary: true, pointerType: 'touch', button: 0, clientY: y, preventDefault() {}, ...extra });
   const a = fakeSheet(['rhr', 'hrv', 'sleep']);
@@ -342,6 +343,12 @@ test('drag: a lost pointer capture cancels like pointercancel (saved order back,
   assert.deepEqual(a.order(), ['hrv', 'sleep', 'rhr']);
   fire('lostpointercapture', a.rows[0].grip, 170, { pointerId: 9 }); // another pointer's capture: ignored
   assert.ok(a.rows[0].classList.contains('db-drag'));
+  // the live reorder moved the row: the browser drops the capture, the drag takes it back and goes on
+  fire('lostpointercapture', a.rows[0].grip, 170);
+  assert.ok(a.rows[0].classList.contains('db-drag'), 'still dragging');
+  assert.deepEqual(a.rows[0].grip.captured, [1, 1], 're-captured');
+  // the pointer is gone (no pointerup reached the page): re-capturing fails, the drag cancels
+  a.rows[0].grip.gone = true;
   fire('lostpointercapture', a.rows[0].grip, 170);
   assert.ok(!a.rows[0].classList.contains('db-drag'));
   assert.equal(ls.data['hc-dash-v1'], undefined, 'a lost capture never saves');
