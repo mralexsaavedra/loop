@@ -194,9 +194,9 @@ test('no workout, nothing programmed: rest (auto), the default goal, rest target
 test('a long ride recorded today: bikeLong (auto) with its real minutes, the ride fuel block, the plan counts the fuel', () => {
   const { els, radios, api, calls } = run({ items: [{ modality: 'gym', dur: 50 }, { modality: 'bike', dur: 185 }] });
   assert.deepEqual(checkedOf(radios, 'd-'), ['bikeLong']);
-  assert.match(els['nutri-why'].textContent, /Ride recorded today: 3 h 5 min/);
+  assert.match(els['nutri-why'].textContent, /Ride recorded today: 3:05/);
   assert.equal(els['nutri-fuel-block'].hidden, false);
-  assert.match(els['nutri-ride-wrap'].innerHTML, /Ride duration: 3 h 5 min \(recorded\)/);
+  assert.match(els['nutri-ride-wrap'].innerHTML, /Ride duration: 3:05 \(recorded\)/);
   assert.doesNotMatch(els['nutri-ride-wrap'].innerHTML, /<select/, 'a recorded ride is not re-picked');
   assert.match(els['nutri-fuel-body'].innerHTML, /60–90 g\/h/);
   assert.match(els['nutri-fuel-body'].innerHTML, /Not medical advice/);
@@ -211,7 +211,7 @@ test('a long ride recorded today: bikeLong (auto) with its real minutes, the rid
 test('a programmed bike session: bike (auto), picker defaults to 2 h; picking 3 h re-scales the meals, fuel, rings', () => {
   const { els, fire, api, calls, storage } = run({ programmed: { kind: 'bike', focus: 'Ride', blocks: [] } });
   assert.equal(api.state().dayType, 'bike');
-  assert.match(els['nutri-ride-wrap'].innerHTML, /<option value="120" selected>2 h<\/option>/);
+  assert.match(els['nutri-ride-wrap'].innerHTML, /<option value="120" selected>2:00<\/option>/);
   assert.match(els['nutri-fuel-body'].innerHTML, /120 g in total/);
   const two = planFor(bake(), 'maintain', 'bike', 120);
   const three = planFor(bake(), 'maintain', 'bike', 180);
@@ -234,7 +234,7 @@ test('the picked ride duration is kept for the day (and that day type) only; a r
   const programmed = { kind: 'bike' };
   const kept = run({ programmed, storage: memStorage({ 'hc.nutri.rideMin': JSON.stringify({ date: TODAY, type: 'bike', min: 240 }) }) });
   assert.equal(kept.api.state().rideMin, 240);
-  assert.match(kept.els['nutri-ride-wrap'].innerHTML, /<option value="240" selected>4 h<\/option>/);
+  assert.match(kept.els['nutri-ride-wrap'].innerHTML, /<option value="240" selected>4:00<\/option>/);
   const expired = run({ programmed, storage: memStorage({ 'hc.nutri.rideMin': JSON.stringify({ date: '2030-01-09', type: 'bike', min: 240 }) }) });
   assert.equal(expired.api.state().rideMin, 120, 'yesterday\'s pick expired at midnight');
   const otherType = run({ programmed, storage: memStorage({ 'hc.nutri.rideMin': JSON.stringify({ date: TODAY, type: 'bikeLong', min: 300 }) }) });

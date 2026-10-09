@@ -15,14 +15,9 @@
  * re-escaped (see design's Trusted markup row: dict content is
  * generic/tracked, never user input).
  *
- * `nf()` (decimal-comma display) is the one LOCALE-sensitive number format
- * here, same rationale as training-dash.js's `hc()`: the tracked English
- * template never localizes the decimal separator, but the owner's live
- * Spanish page does (`75.6` -> `75,6`). Applied at every call site where the
- * legacy Spanish page applies it (real-valued fields); integer-only fields
- * (Math.round results with no decimals — e.g. resting HR, HRV, the
- * load-vs-recovery HRV split cards) are left unwrapped, matching the
- * legacy page exactly.
+ * `nf()` / `HC.hours()` / `HC.pct()` are the one number formatter (lib/format/numbers.mjs via
+ * HC_FMT, docs/design-system.md → "Numbers"): decimal comma in es, every value >= 1000 grouped
+ * ("2.532"), sleep hours as h:mm, percents without a space.
  *
  * `ago()` depends on `Date.now()` (real wall-clock time, not a baked
  * value) — unlike training-today.js this is NOT about "what day is it"
@@ -73,17 +68,21 @@
     var age = o.date ? daysOld(o.date) : null;
     var stale = !o.noStale && age != null && age > HC.STALE_DAYS;
     var partial = !!o.soFar && age === 0;
-    var value = o.text || nf(o.value), u = unit ? ' ' + unit : '';
+    // hours (sleep) read as h:mm and carry no unit; anything else = the baked value + its unit
+    var hm = unit === 'h';
+    if (hm) unit = '';
+    var show = function (v, signed) { return hm ? HC.hours(v, signed) : (signed && v > 0 ? '+' : '') + nf(v); };
+    var value = o.text || show(o.value), u = unit ? ' ' + unit : '';
     var base = '', arrow = null, aria = [title + ': ' + value + u + (o.date ? ', ' + (partial ? T.soFar : fmtD(o.date)) : '')];
     if (fin(o.base)) {
-      base = nf(round(o.base, decOf(o.value)));
+      base = hm ? HC.hours(o.base) : nf(round(o.base, decOf(o.value)));
       aria.push(format(o.baseTpl || T.avg30Tpl, { value: base + u }));
       if (!partial) {
         var rel = o.base ? (o.value - o.base) / Math.abs(o.base) : o.value - o.base;
         arrow = Math.abs(rel) < FLAT_SHARE ? 'flat' : rel > 0 ? 'up' : 'down';
       }
     } else if (fin(o.delta)) {
-      base = 'Δ ' + (o.delta > 0 ? '+' : '') + nf(round(o.delta, 1)) + (o.deltaUnit || '');
+      base = 'Δ ' + show(hm ? o.delta : round(o.delta, 1), true) + (o.deltaUnit || '');
       aria.push(format(T.deltaAriaTpl, { value: base.slice(2) }));
       arrow = o.delta === 0 ? 'flat' : o.delta > 0 ? 'up' : 'down';
     } else if (o.sub) {
@@ -147,7 +146,7 @@
     var hrow = function (k, dir) {
       return function () {
         return fin(st[k]) ? mrow('sleep', L[k], 'h', { value: st[k], base: st.avg[k], baseTpl: T.avgNightsTpl, dir: dir, date: st.date, detail: 'sleep',
-          when: fin(sh[k]) ? sh[k] + '%' : '' }) : '';
+          when: fin(sh[k]) ? HC.pct(sh[k]) : '' }) : '';
       };
     };
     return [hrow('rem', 1), hrow('deep', 1), hrow('core', 0), hrow('awake', -1), function () {
@@ -307,8 +306,8 @@
       if (sl) {
         out.push(section('sleep', rows([
           function () { return mrow('sleep', TR.sleep.title, TR.sleep.unit, { value: sl.latest, base: sl.avg, baseTpl: T.avgNightsTpl, dir: 1, date: sl.latestDate, detail: 'sleep' }); },
-          function () { return fin(sl.pctTarget) ? mrow('sleep', format(SCd.nightsTargetLbl, { target: nf(sl.target) }), '%', { value: sl.pctTarget, detail: 'sleep' }) : ''; },
-          function () { return fin(sl.sd) ? mrow('sleep', SCd.sdLbl, 'h', { value: sl.sd, text: '±' + nf(sl.sd), detail: 'sleep' }) : ''; },
+          function () { return fin(sl.pctTarget) ? mrow('sleep', format(SCd.nightsTargetLbl, { target: HC.hours(sl.target) }), '%', { value: sl.pctTarget, detail: 'sleep' }) : ''; },
+          function () { return fin(sl.sd) ? mrow('sleep', SCd.sdLbl, 'h', { value: sl.sd, text: '±' + HC.hours(sl.sd), detail: 'sleep' }) : ''; },
           function () { return sl.bedtime ? mrow('sleep', SCd.bedtimeLbl, '', { value: 0, text: sl.bedtime, sub: '±' + sl.bedtimeSd + '′', detail: 'sleep' }) : ''; },
           function () { return sl.wake ? mrow('sleep', SCd.wakeLbl, '', { value: 0, text: sl.wake, sub: '±' + sl.wakeSd + '′', detail: 'sleep' }) : ''; },
         ].concat(stageRows(sl.stages, SCd))), [T.sleepNoteHtml].concat(sl.stages && T.sleepStagesNoteHtml ? [T.sleepStagesNoteHtml] : [])));
@@ -395,7 +394,7 @@
       var w = 100 * pcts[k[0]] / sum, name = TB[k[2]], g = m[k[1]];
       segs.push('<rect class="nb-m-' + k[0] + '" x="' + x.toFixed(2) + '" y="0" width="' + w.toFixed(2) + '" height="8"/>');
       x += w;
-      items.push('<li><span class="act-sw nb-m-' + k[0] + '" aria-hidden="true"></span><b>' + esc(nf(g)) + ' g</b> ' + esc(name) + ' <small>' + pcts[k[0]] + '%</small></li>');
+      items.push('<li><span class="act-sw nb-m-' + k[0] + '" aria-hidden="true"></span><b>' + esc(nf(g)) + ' g</b> ' + esc(name) + ' <small>' + HC.pct(pcts[k[0]]) + '</small></li>');
       aria.push(format(TB.splitItem, { name: name, g: nf(g), pct: pcts[k[0]] }));
     });
     return '<div class="nutri-card nb-split"><span class="dt-trend-lbl">' + esc(TB.splitLbl) + '</span>' +

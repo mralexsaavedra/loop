@@ -205,9 +205,8 @@
       render: function () {
         var tn = tonightData(), TT = T.tonight;
         if (!tn) return { head: '', body: '<p class="dt-empty">' + esc(TT.none) + '</p>' };
-        var num = function (v) { return HC.num(v, v % 1 ? 1 : 0); };
         var head = '<div class="dt-latest"><b class="dt-num">' + esc(clock(tn.bed)) + '</b><span class="dt-when">' + esc(TT.bed) + '</span></div>';
-        var body = '<p class="tn-rule">' + esc(format(TT.rule, { wake: clock(tn.wake), n: tn.nights, target: num(tn.target), bed: clock(tn.bed) })) + '</p>' +
+        var body = '<p class="tn-rule">' + esc(format(TT.rule, { wake: clock(tn.wake), n: tn.nights, target: HC.hours(tn.target), bed: clock(tn.bed) })) + '</p>' +
           '<p class="dt-note">' + esc(TT.note) + '</p>' +
           (D && D.metrics && D.metrics.sleep ? '<button type="button" class="tn-more" data-detail="sleep">' + esc(TT.history) + '</button>' : '');
         return { head: head, body: body };
@@ -217,7 +216,7 @@
     /* ---------- render: My plan ---------- */
     var open = false; // the card's expanded state survives a re-render (food summary answers later)
     function rowHtml(r) {
-      var P = T.plan, lbl = format(P.rows[r.key], { hours: r.hours != null ? HC.num(r.hours, r.hours % 1 ? 1 : 0) : '' });
+      var P = T.plan, lbl = format(P.rows[r.key], { hours: r.hours != null ? HC.hours(r.hours) : '' });
       var sub = r.key === 'training' ? P.basis[r.basis] : format(P.goal, { n: r.target });
       var link = r.key === 'sleep' ? HC.detailAttrs('sleep') : r.key === 'training' ? HC.detailAttrs('workouts') : '';
       var tone = r.onTrack ? 'up' : 'down';

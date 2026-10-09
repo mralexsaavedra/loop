@@ -1597,7 +1597,7 @@ test('stress page: hero = the latest scored hour on a 0-3 gauge with its band wo
   assert.match(curve, /<path class="ds-line" d="M/);
   const bands = bandsOf(html);
   for (const b of ['low', 'medium', 'high']) assert.ok(bands.includes(enT.deep.stress.bandRows[b]));
-  const dur = (min) => { const h = Math.floor(min / 60), m = min % 60; return h ? `${h} h${m ? ` ${m} min` : ''}` : `${m} min`; };
+  const dur = (min) => `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
   for (const b of ['low', 'medium', 'high']) assert.ok(bands.includes(`<b class="ds-bmin">${dur(day.mins[b])}</b>`), b + ': ' + bands);
   assert.ok(insightOf(html).includes(format(enT.deep.stress.avg, { value: day.avg.toFixed(1), band: enT.deep.stress.bands[day.band].toLowerCase() })));
   const info = infoOf(html);

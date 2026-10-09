@@ -114,11 +114,11 @@
     var sleepLink = HC.detailAttrs('sleep', day.date);
     var times = [clock(day.bed), clock(day.wake)].filter(function (x) { return x; });
     list.push(day.sleep != null
-      ? row('tl-sleep', sleepLink, 'sleep', format(T.sleepVal, { hours: num(day.sleep, 1) }), T.sleep, times.length === 2 ? times : [], 'tl-times')
+      ? row('tl-sleep', sleepLink, 'sleep', format(T.sleepVal, { hours: HC.hours(day.sleep) }), T.sleep, times.length === 2 ? times : [], 'tl-times')
       : row('tl-sleep tl-none', sleepLink, 'sleep', '—', T.noSleep, []));
     day.items.forEach(function (it) {
-      // the chip carries the score (RE) when the source recorded one, the minutes move to the right
-      var mins = format(T.minutes, { n: num(it.dur, 0) });
+      // the chip carries the score (RE) when the source recorded one, the duration (h:mm) moves to the right
+      var mins = HC.duration(it.dur);
       var hasRe = it.re != null;
       var side = hasRe ? [mins] : [];
       if (it.sessions > 1) side.push(format(T.parts, { n: it.sessions }));

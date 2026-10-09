@@ -48,7 +48,7 @@ function scMod(key) {
   // shared helpers (web/src/client/util.js)
   var esc = HC.esc, format = HC.format, num = HC.num, isoDate = HC.isoDate, daysOld = HC.daysOld, todayIso = HC.todayIso;
   function pct(x) {
-    return num(x, 0, true) + (ES ? ' %' : '%');
+    return HC.pct(x, true);
   }
   function isStale(iso) {
     var d = daysOld(iso);
@@ -103,7 +103,14 @@ function scMod(key) {
   // ⓘ (#hs-info-recovery, client/health.js) when it exists, else behind the card's own ⓘ (#rec-info).
   // Every number is the same as the glance on Inicio.
   function compDec(c) {
-    return c.unit === 'h' ? 2 : c.unit === 'min' ? 0 : 1;
+    return c.unit === 'min' ? 0 : 1;
+  }
+  // a contributor's value: hours as h:mm (no unit), anything else at its decimals
+  function compVal(c, v) {
+    return c.unit === 'h' ? HC.hours(v) : num(v, compDec(c), false);
+  }
+  function compUnit(c) {
+    return c.unit === 'h' ? '' : c.unit;
   }
   function recHeadline(R, rt) {
     var out = [];
@@ -137,8 +144,7 @@ function scMod(key) {
     out.push(format(rt.trendLbl, { value: num(R.trend7, 1, true) }) + ' · ' + rt.bands[R.band] +
       (R.delta7 != null ? ' · ' + format(rt.deltaLbl, { value: num(R.delta7, 1, true) }) : ''));
     (R.components || []).forEach(function (c) {
-      var dec = compDec(c);
-      out.push(rt.components[c.key] + ': ' + format(rt.baselineLbl, { value: num(c.baseline, dec, false), unit: c.unit }) + ' · ' + format(rt.nLbl, { n: c.n }));
+      out.push(rt.components[c.key] + ': ' + format(rt.baselineLbl, { value: compVal(c, c.baseline), unit: compUnit(c) }).trim() + ' · ' + format(rt.nLbl, { n: c.n }));
     });
     // the composite's unit in plain words (rt.unit = the ONE recovery unit, also the dial's and the sheet's)
     out.push(rt.unitNote);
@@ -160,19 +166,18 @@ function scMod(key) {
     return true;
   }
   function recContributor(c, rt) {
-    var dec = compDec(c);
     var last = c.daily && c.daily.length ? c.daily[c.daily.length - 1] : null;
     return '<div class="rec-comp" data-comp="' + esc(c.key) + '">' +
       '<span class="rec-dot sc-dot-' + esc(c.band) + '" aria-hidden="true"></span>' +
       '<span class="rec-comp-name">' + esc(rt.components[c.key]) + '</span>' +
-      '<span class="rec-comp-val"><b>' + (last ? esc(num(last.value, dec, false)) : '—') + '</b> ' + esc(c.unit) + '</span>' +
+      '<span class="rec-comp-val"><b>' + (last ? esc(compVal(c, last.value)) : '—') + '</b>' + (compUnit(c) ? ' ' + esc(compUnit(c)) : '') + '</span>' +
       '<span class="rec-comp-base">' + esc(num(c.trend7, 1, true) + ' ' + rt.unit) + '</span></div><!--/comp-->';
   }
   function recRaw(comps, rt) {
     return '<details class="rec-raw"><summary>' + esc(rt.rawSummary) + '</summary>' + comps.map(function (c) {
-      var dec = compDec(c);
-      return '<div class="sc-raw"><span class="sc-raw-lbl">' + esc(format(rt.rawCompLbl, { name: rt.components[c.key], unit: c.unit })) + '</span>' +
-        c.daily.map(function (d) { return '<span class="sc-raw-v">' + esc(num(d.value, dec, false)) + '</span>'; }).join('') + '</div>';
+      var lbl = compUnit(c) ? format(rt.rawCompLbl, { name: rt.components[c.key], unit: c.unit }) : rt.components[c.key];
+      return '<div class="sc-raw"><span class="sc-raw-lbl">' + esc(lbl) + '</span>' +
+        c.daily.map(function (d) { return '<span class="sc-raw-v">' + esc(compVal(c, d.value)) + '</span>'; }).join('') + '</div>';
     }).join('') + '</details>';
   }
   function recoveryHtml(R) {
@@ -346,9 +351,9 @@ function scMod(key) {
     return '<span class="dial-word">' + esc(word) + '</span>';
   }
   function sleepDial(d, dt) {
-    var target = d.target != null ? num(d.target, 1, false) : '';
+    var target = d.target != null ? HC.hours(d.target) : '';
     if (d.state !== 'ok') return dialFig('dial-sleep dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.sleep.label);
-    var h = num(d.hours, 1, false);
+    var h = HC.hours(d.hours);
     // sleep performance % (DIALS pct: asleep / need = the target, capped at 100); hours without it
     // a past day names its night by date instead of "last night"
     var P = VIEW && dt.past ? dt.past : null;
@@ -358,7 +363,7 @@ function scMod(key) {
         dialSvg({ fill: d.fill }), numCentre(String(d.pct), '%'), dt.sleep.label);
     }
     return dialFig('dial-sleep', dialStale(d.date), '', format(P ? P.sleepAria : dt.sleep.aria, { value: h, target: target, date: date }),
-      dialSvg({ fill: d.fill }), numCentre(h, 'h'), dt.sleep.label);
+      dialSvg({ fill: d.fill }), numCentre(h, ''), dt.sleep.label);
   }
   // "Last night" only when the night's data is dated today AND has a sleep reading; else its date
   function nightLbl(iso, hasSleep, rt) {

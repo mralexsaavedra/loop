@@ -62,17 +62,12 @@ test('numbers: nf swaps the decimal point in es; num fixes decimals, drops the s
   assert.equal(load().num(-1.5, 1, true), '-1.5');
 });
 
-test('duration: one formatter, units from the i18n dict', () => {
+test('duration: one formatter, h:mm (lib/format/numbers.mjs via HC_FMT)', () => {
   const HC = load();
-  const U = { h: 'h', min: 'min' };
-  assert.equal(HC.duration(45, U), '45 min');
-  assert.equal(HC.duration(60, U), '1 h');
-  assert.equal(HC.duration(105.4, U), '1 h 45 min');
-  assert.equal(HC.duration(0, U), '0 min');
-});
-
-test('hours: decimal hours as h:mm (lib/format/numbers.mjs via HC_FMT)', () => {
-  const HC = load();
+  assert.equal(HC.duration(45), '0:45');
+  assert.equal(HC.duration(60), '1:00');
+  assert.equal(HC.duration(105.4), '1:45');
+  assert.equal(HC.duration(0), '0:00');
   assert.equal(HC.hours(7.999), '8:00');
   assert.equal(HC.hours(-0.5, true), '-0:30');
 });
