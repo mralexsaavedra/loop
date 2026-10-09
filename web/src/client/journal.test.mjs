@@ -122,6 +122,9 @@ test('the sheet: grouped rows of the switched-on behaviours, ✕/✓ pairs, the 
   assert.doesNotMatch(r.body, /data-jr="yes" data-key="nap"/, 'a switched-off behaviour has no row');
   assert.match(r.body, /<button type="button" class="sw" role="switch" aria-checked="false" aria-label="Track Nap" data-jr="tog" data-key="nap">/, 'but is listed in the on / off fold, as THE switch');
   assert.match(r.body, /data-jr="inc" data-key="alcohol"/);
+  // an unanswered count reads "0" (dimmed), never a "–" that looks like the minus beside it
+  assert.match(r.body, /<b class="jr-n jr-n-none" aria-live="polite" aria-label="[^"]*">0<\/b>/);
+  assert.doesNotMatch(r.body, />–</);
   assert.match(r.body, /id="jr-notes"[^>]*maxlength="500"/);
   assert.match(r.body, /data-jr="save"/);
   const es = load({ locale: 'es', routes: { 'GET /settings': { behaviors: ALL_ON }, 'GET /summary': { days: [] } } });

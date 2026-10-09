@@ -332,6 +332,31 @@ details.rec-raw > summary::after {
   outline-offset: 2px;
   border-radius: var(--r-xs);
 }
+/* THE save button (docs/design-system.md → Components): every primary save — the journal's "SAVE
+   JOURNAL", the food sheets' "SAVE" — is one full-width white caps pill (formerly the food sheet's small
+   sentence-case pill next to the journal's) */
+.save-btn {
+  width: 100%;
+  min-height: 52px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-size: var(--fs-title-lg);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.save-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.save-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 .tip {
   background: linear-gradient(var(--accent-soft), var(--surface));

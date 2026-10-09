@@ -271,6 +271,17 @@ test('load card without a value (the owner\'s Run card: no recent session, "—"
   assert.match(card, /<b class="ld-num">—<\/b>/);
   assert.doesNotMatch(card, /ld-pill/, 'no trend pill without a value');
   assert.doesNotMatch(card, /7-day vs 42-day/, 'nor in the accessible name');
+  // the owner's Run card: the trend is ok but the dial is gated (too few run days for a typical day) →
+  // the dial's "Building" word, never the trend's delta beside "—"
+  const s2 = fixtureScores();
+  const d2 = buildDials(s2, HEALTH);
+  Object.assign(d2.load.modalities.find((m) => m.key === 'run'), { state: 'gated', reason: 'fewDays' });
+  const h2 = {};
+  render(s2, { hosts: h2, dials: d2 });
+  const c2 = h2.load.innerHTML.match(/<div class="ld-card ld-off" data-mod="run"[\s\S]*?<\/div>/)[0];
+  assert.match(c2, /<b class="ld-num">—<\/b>/);
+  assert.ok(c2.includes(`<span class="ld-pill ld-flat">${enT.dials.load.gated}</span>`));
+  assert.doesNotMatch(c2, /[▲▼] [+-]?\d+%/);
 });
 
 test('load section: the relative score, coverage, other activities and caveats sit in a hidden ⓘ block the header button controls', () => {
@@ -584,7 +595,7 @@ test('recovery dial: a night carried from an earlier day (2 days old, under the 
   const html = dh.innerHTML;
   const d = dialOf(html, 'dial-rec');
   assert.match(d, /^class="dial dial-rec[^"]* sc-stale"/, 'dimmed like stale data');
-  assert.ok(d.includes('<span class="dial-asof">Tue 29 Sep</span>'), 'the night\'s date inside the ring');
+  assert.ok(d.includes('<span class="dial-asof">29 Sep</span>'), 'the night\'s date inside the ring');
   assert.doesNotMatch(dialOf(html, 'dial-sleep'), /dial-asof/, 'only the carried recovery value');
   assert.match(mini.innerHTML, /class="dm dial-rec[^"]* sc-stale"/, 'the collapsed row dims it too');
   const fresh = dialOf(withDials(s), 'dial-rec');

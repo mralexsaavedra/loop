@@ -29,8 +29,9 @@ Salud with `jump('monitor')` (switches to Salud and scrolls to it).
 
 **Collapsed dial row** (`#home-mini`, first in `Home.astro`): once the dials scroll above the viewport
 (an IntersectionObserver on `#home-dials`, `score.js`), a strip fixed at the top shows the
-three dials again as mini rings + labels (Sleep · Recovery · Load). It has no fill or border of its own:
-`--ground-top` fades to transparent under it, so the page scrolls away beneath it; each mini ring draws
+three dials again as mini rings + labels (Sleep · Recovery · Load). A SOLID `--ground-top` fill behind the
+whole bar and a `--line-soft` hairline under it (DS6: formerly a fade to transparent, so the content
+showed through under the labels); each mini ring draws
 its grey `--track` in full even with no value (the 45 % dimming of an empty ring applies to the big
 dial only). Every `dialFig` call also queues
 its mini item from the SAME svg string, colour class, label and detail opener (`HC.detailAttrs`), so
@@ -232,7 +233,7 @@ trend is the line under it.
   deep-dive page adds "no sleep data" and the 7-day trend. A night CARRIED from an earlier day (today's
   is not complete yet — e.g. no resting HR or too few HRV samples — so `recovery.mjs` falls back up to
   `MAX_TODAY_FALLBACK_DAYS`) is never shown as today's: the ring adds that night's date under the number
-  (`.dial-asof`, "WED 7 OCT") and is dimmed like stale data (`sc-stale`, the mini ring too); the
+  (`.dial-asof`, "7 OCT": the weekday does not fit inside a 360 px ring) and is dimmed like stale data (`sc-stale`, the mini ring too); the
   deep-dive page is titled with that date and dims its hero (`docs/detail-views.md`). A stepped-to
   past day shows its own night and is never marked. Sleep: fill = the sleep-duration component's newest night /
   the stated target (`health.recovery.sleep.target`, 7.5 h), capped at a full ring; `pct` = sleep
@@ -375,7 +376,8 @@ trend is the line under it.
   the value vs the baseline: `--up` when better by the metric's good direction (`dir`), `--down` when
   worse, `--ink` (white) for a metric with no good direction (weight; never a grey arrow), a grey dot within ±2 % (`FLAT_SHARE`). A row older than 3
   days is dimmed; a tap opens that metric's detail sheet. "Customize" opens the registered `dash-edit`
-  sheet (detail.js modal): per metric THE switch (`HC.switchBtn`, `role="switch"` +
+  sheet (detail.js modal): per metric its SHORT name (the trend sheet's title: "HRV", "Resting HR", so
+  a row fits 1–2 lines at 360 px; the full name stays in the buttons' accessible names), THE switch (`HC.switchBtn`, `role="switch"` +
   `aria-checked`; design-system.md → Components), compact ↑ / ↓ buttons (the keyboard and screen-reader
   way to move) and, last, the reference app's ≡ drag handle (`.db-grip`, `aria-hidden`). The drag uses
   Pointer Events, so mouse, touch and pen alike: `pointerdown` on a handle (the primary pointer only, a

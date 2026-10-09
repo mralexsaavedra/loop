@@ -23,6 +23,16 @@ the behaviours without enough days share one card; with none scored yet it is th
 (what is needed, ≥ 5 days per side, and how many days count so far) instead of a column of identical
 "Need more data" cards.
 
+**Visual fixes from the audit of the real page:** the collapsed dial header has a solid fill (content
+showed through); Customize shows the short metric names ("HRV", "Resting HR") so rows fit 1–2 lines; the
+sleep deep-dive's "SLEEP PERFORMANCE" wraps inside the ring instead of touching it; the food sheet's tabs
+are one word each ("Products / Recipes / Quick"); every primary save is ONE component (`.save-btn`, the
+journal's full-width caps pill, guarded); Entreno's load pills sit on the card's bottom edge; the journal
+drinks stepper shows a dimmed "0" for unanswered (the "–" read as a minus); contributor rows use the short
+metric names like the trends beside them. Follow-ups: the carried recovery date on the dial drops its
+weekday (it did not fit a 360 px ring), a dated stress page opens at its hero (not scrolled to the day
+panel), and a load card whose dial is gated shows the "Building" word instead of a trend delta.
+
 ## 2026-10-09 — Design system follow-ups (DS5b)
 
 **Tablas supplements card** pads with `--card-pad` like every card: the inline `padding:6px 16px` is

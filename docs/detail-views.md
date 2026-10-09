@@ -155,7 +155,8 @@ switch is outside every opener); run / ride rows →
      baked arcs (`DIALS`, so it can never disagree with Inicio) drawn with a 7.5-unit stroke (of the
      120-unit viewBox), from 12 o'clock clockwise, round caps, on `--track`; inside: the value (D-DIN,
      56–70 px, 70 px on a phone) + small
-     unit + the uppercase label. Recovery shows the dial's % (`DIALS.recovery.pct`, when it scores the
+     unit + the uppercase label (at most 60 % of the ring wide, so "SLEEP PERFORMANCE" takes 2 lines
+     instead of touching the ring). Recovery shows the dial's % (`DIALS.recovery.pct`, when it scores the
      same night as `head`) with its % band colour, else the SD value. Sleep shows the dial's sleep
      performance % (`DIALS.sleep.pct`, label "SLEEP PERFORMANCE"), else last night's hours.
      Sleep only: a **stages bar** AFTER the insight card (`.dd-stages`, titled "Sleep stages", so the page
@@ -177,7 +178,8 @@ switch is outside every opener); run / ride rows →
      direction, `--ink` for a metric without one (bedtime, wake time, load; never a grey arrow); inside → a grey dot; the
      words ("better than usual"…) are screen-reader text. A legend pill "▲▼ Today vs prior 30 days"
      closes the card when a marker shows. A row without a value that day is hidden (never 0 or a
-     dash). Rows: recovery = the reference's four on the night it scores (`head.date`), display only
+     dash). Row labels use the SHORT metric names ("HRV", "Resting HR" — `metrics.*.title`, as the weekly
+trends below; formerly "HEART RATE VARIABILITY" above a "HRV" trend). Rows: recovery = the reference's four on the night it scores (`head.date`), display only
      (the composite and its weights are unchanged) — HRV, resting HR, respiratory rate (`DETAIL`
      `respiratory`; context, NOT a composite input; no good direction, so an `--ink` ▲ / ▼ outside the
      usual range and a grey dot inside; the ⓘ says so, `deep.respNote`) and sleep performance %
@@ -234,7 +236,8 @@ switch is outside every opener); run / ride rows →
      ride row, a timeline row, a stepped Inicio day: `open(key, date)`) starts with the fold open and
      scrolls the sheet to the day panel
      (`[data-dt-part="day"]`, `block: start`) after focus lands on the back button; an undated open
-     (the dial) starts at the top. A run day's panel ends with the watch running dynamics of that day
+     (the dial) starts at the top, and so does a dated stress page (its hero IS that day: Inicio's stress
+     tile opens it on an earlier reading's day). A run day's panel ends with the watch running dynamics of that day
      (`.dt-dyn`, "Running dynamics: 276 W · GCT 242 ms · Osc. 8.3 cm · Stride 1.14 m", read from
      `HEALTH.running`; a field not recorded is left out, none → no line): the Entreno run row no
      longer prints them. A session with HR zones (`z`) also gets the zones block under its meta line

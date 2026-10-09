@@ -137,11 +137,13 @@ Plan de hoy) and the
   controls): meal select = the four
   groups (Desayuno / Comida / Cena / Añadido; a main group is stored as its slot, Añadido as `snack`;
   a fresh sheet guesses the group by the viewer's hour: < 4 (late night) dinner, < 11 breakfast, < 16 lunch, < 20
-  Añadido, else dinner), tabs (THE segmented control, `.dt-range.dt-range-fill`) Mis
-  productos (search, grouped by store) / Mis recetas / Rápido (label + kcal + optional macros), amount in g / ml / servings (servings only with a serving
+  Añadido, else dinner), tabs (THE segmented control, `.dt-range.dt-range-fill`, one word each and
+  `nowrap` so they fit one line at 360 px — formerly "MIS PRODUCTOS" wrapped) Productos (search,
+  grouped by store) / Recetas / Rápido (label + kcal + optional macros), amount in g / ml / servings (servings only with a serving
   size; a per-serving recipe in servings, a batch one in grams of cooked food; switching a product to
   servings sets the amount to 1, and back to its unit sets one serving in that unit, never reusing the typed number), live preview from the
-  ported formula, `aria-live` results; save closes it, re-renders Registrar and announces "Añadido:
+  ported formula, `aria-live` results; "SAVE" is THE save button (`.save-btn`, design-system.md →
+  Components; also the product and recipe forms' save) and closes it, re-renders Registrar and announces "Añadido:
   …". The portion guide's "+" logs
   an example amount (see "Plan de hoy = a PORTION GUIDE"). **Basics in the Mis productos tab**: the search box also looks in `FOOD_BASICS`
   (baked by `Dia.astro`, each food with its category `c` and portion cap `x`, which the portion guide reads — size budget in `web/test/food-build.test.mjs`; the box shows even with no product yet). An EMPTY search

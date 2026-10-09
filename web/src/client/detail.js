@@ -1084,8 +1084,9 @@
     focusEl(opts.focus || '[data-dt-act="close"]');
     if (opts.focus) scrollTo(opts.focus);
     // a dated dial page (a run / ride / timeline row): the day it was opened for sits below the hero,
-    // the insight and the chart, so the sheet starts at that day's panel
-    else if (state.date && deep(key)) scrollTo('[data-dt-part="day"]', 'start');
+    // the insight and the chart, so the sheet starts at that day's panel — except the stress page,
+    // whose hero IS the dated day (the Inicio tile's earlier reading): it starts at the top
+    else if (state.date && deep(key) && key !== 'stress') scrollTo('[data-dt-part="day"]', 'start');
   }
   function scrollTo(sel, block) {
     var el = q(sel);
