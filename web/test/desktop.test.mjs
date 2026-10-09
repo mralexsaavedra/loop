@@ -54,7 +54,7 @@ test('wide screens: the three dials are one centred group, the load pills centre
 test('wide screens: monitor tiles at natural height, Tonight bounded, aux text one step up', () => {
   const wide = rules().filter((r) => r.media === WIDE);
   assert.equal(decl(wide, '.hmt', 'min-height'), '0');
-  assert.equal(decl(wide, '.hmt-val b', 'font-size'), 'var(--fs-4xl)');
+  assert.equal(decl(wide, '.hmt-val b', 'font-size'), 'var(--fs-num-card)');
   assert.equal(decl(wide, '.tn-row', 'max-width'), '560px');
   assert.equal(decl(wide, ':root', '--fs-2xs'), '11.5px');
 });

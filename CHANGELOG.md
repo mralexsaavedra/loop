@@ -5,6 +5,22 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-09 — Design system foundations: role tokens and a guard test
+
+A visual audit found no broken screens but drift: each card picked its own radius, padding, number
+size and label style. `tokens.css` now has ROLE tokens on top of the primitives — `--card-radius`
+(11 px) and `--card-pad` (12 px) for every card, a hero-number scale (`--fs-num-row` 20 px,
+`--fs-num-card` 28 px, dial centres sized to their ring) in one weight (`--num-weight` 700), and
+section vs caps type (`--fs-section`, `--fs-title-lg`, `--fs-title`, `--fs-label`). Migrated: Inicio's
+cards, the eat card, Tablas' folds and the sheet cards from 14–20 px to the card radius; the eat card
+from 16 to 12 px padding; Tonight's clocks and the energy / nutrition % from 24 to 28 px, the
+recovery card's number from 26 to 28 px, Inicio's panel values from 22 to 20 px, the eat card kcal
+from weight 800 to 700; the dial word from 9.5 px caps to sentence case at the label size (like the
+deep-dive hero), the activity name from 12.5 to 11.5 px, Tablas' 0.06em tracking and the Hoy date's
+0.14em to `--label-track`; a dead `.combo-h` rule removed. `docs/design-system.md` holds the roles,
+rules and exceptions; `web/test/design-system.test.mjs` fails on a card, hero number or caps label
+that skips them.
+
 ## 2026-10-09 — LOOP logo and avatar in the header on every tab
 
 The header used to belong to Inicio: the wordmark and the avatar hid on Salud, Entreno and

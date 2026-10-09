@@ -95,6 +95,7 @@ One line per area; the design detail lives in the linked doc (read it on demand)
 | Apple Health extract, iOS Shortcut sync, Strava sync, `rides.csv` | [`docs/data-pipeline.md`](docs/data-pipeline.md) |
 | iOS Shortcut: how to build it, every payload key | [`docs/ios-shortcut.md`](docs/ios-shortcut.md) |
 | Plan page: Astro single-file build, shared client helpers, tabs & sections, URL hash, look & typography | [`docs/plan-page.md`](docs/plan-page.md) |
+| Design system: role tokens (card radius / padding, hero-number scale, caps type), the rules, the guard test | [`docs/design-system.md`](docs/design-system.md) |
 | Detail views: the tap-any-card history sheet (`DETAIL`, `detail.js`) | [`docs/detail-views.md`](docs/detail-views.md) |
 | Profile: avatar button, profile sheet, sources, goal setting, device manuals | [`docs/profile.md`](docs/profile.md) |
 | Nutrition plan pipeline (`ingredients.json` + `plan-data.json`), intake rings, Nutrición v2 part 1 (goals, day types, portion guide, fuelling, Tablas) | [`docs/nutrition.md`](docs/nutrition.md) |

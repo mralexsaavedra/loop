@@ -6,7 +6,7 @@
 details {
   background: var(--card-bg);
   border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+  border-radius: var(--card-radius);
   margin-bottom: var(--sp-4);
   overflow: hidden;
   scroll-margin-top: 72px;
@@ -64,8 +64,8 @@ table {
 }
 caption {
   text-align: left;
-  font-size: var(--fs-xs);
-  letter-spacing: 0.08em;
+  font-size: var(--fs-title);
+  letter-spacing: var(--label-track);
   text-transform: uppercase;
   color: var(--accent-ink);
   font-weight: 700;
@@ -87,10 +87,10 @@ td:first-child {
   font-family: var(--sans);
 }
 thead th {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--label-track);
   font-weight: 700;
   font-family: var(--sans);
 }
@@ -184,10 +184,10 @@ tr.ref-sub td:first-child {
   border-bottom: 0;
 }
 .supp .when {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-label);
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--label-track);
   color: var(--trend);
   background: var(--accent-soft);
   padding: var(--sp-2) var(--sp-4);
