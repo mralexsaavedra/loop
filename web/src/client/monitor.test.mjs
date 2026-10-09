@@ -332,6 +332,14 @@ test('tile 2 falls back to HRV without a stress value: none baked, too few hours
   assert.ok(y.includes('Tue 29 Sep · 14:00'));
 });
 
+test('stress tile: a reading from an earlier day (the owner\'s case: Thursday\'s 0.3 shown on Friday) opens the stress page ON that day, so tile and sheet agree; today\'s opens undated', () => {
+  const mon = monitorFromInputs({ hrv: series({ base: 60, amp: 2, last: 61 }) });
+  const y = stressTile(tilesOf(mon, { stress: STRESS, now: addDays(ASOF, 1), detail: true }));
+  assert.match(y, new RegExp(`data-detail="stress" data-date="${ASOF}"`));
+  const t = stressTile(tilesOf(mon, { stress: STRESS, detail: true }));
+  assert.doesNotMatch(t, /data-date=/);
+});
+
 test('day stepping: a past day with a stress value shows it (opening that day); one without falls back to its HRV', () => {
   const tiles = { innerHTML: '' };
   const day = stepper('2026-09-25');

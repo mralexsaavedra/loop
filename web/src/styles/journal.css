@@ -142,6 +142,9 @@
   font-size: var(--fs-2xl);
   text-align: center;
 }
+.jr-n-none {
+  color: var(--faint);
+}
 .jr-notes {
   width: 100%;
   box-sizing: border-box;
@@ -180,28 +183,10 @@
   padding: var(--sp-3) 0 calc(var(--sp-3) + env(safe-area-inset-bottom));
   background: linear-gradient(180deg, transparent, var(--ground) 40%);
 }
-.jr-btn {
-  width: 100%;
-  min-height: 52px;
-  border: 0;
-  border-radius: var(--r-pill);
-  background: var(--accent);
-  color: var(--on-accent);
-  font: inherit;
-  font-size: var(--fs-title-lg);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  cursor: pointer;
-}
-.jr-btn:disabled {
-  opacity: 0.6;
-}
 .jr-chev:focus-visible,
 .jr-day:focus-visible,
 .jr-sd:focus-visible,
-.jr-x:focus-visible,
-.jr-btn:focus-visible {
+.jr-x:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -239,8 +224,7 @@
 .ji-down {
   color: var(--down);
 }
-.ji-flat,
-.ji-need {
+.ji-flat {
   color: var(--muted);
 }
 .ji-bar {
@@ -271,4 +255,16 @@
 .ji-row .jr-msg {
   grid-column: 1 / -1;
   margin: 0;
+}
+/* the rows without enough days share one card: nothing scored yet → the sheet's empty state (no legend
+   above it, so it keeps the legend's spacing); else their yes / no counts */
+.ji-empty:first-child {
+  margin-top: var(--sp-7);
+}
+.ji-need-list {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
 }

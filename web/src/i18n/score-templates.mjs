@@ -45,8 +45,12 @@ export const en = {
       parts: { k: 'Kcal', p: 'Protein', f: 'Fat' },
       // a closed day's component points, never a bare "· 0" that reads like "0 kcal"
       ptsTpl: '{name} · {pts} pts',
-      aria: 'Nutrition score {value}% on {date}',
+      aria: '{date}: nutrition score {value}%',
       ariaRun: 'Nutrition today: in progress, no score yet',
+      ariaRunPct: 'Nutrition today: in progress, {pct}% of the kcal target, no score yet',
+      // today being logged heads the card alone (its kcal % of target); the closed day goes to the footer
+      runLbl: 'Kcal today',
+      prev: '{date} {value}',
       avg7: '7-day average {value}%',
     },
     energy: {
@@ -116,7 +120,10 @@ export const en = {
       helps: 'Helps',
       pct: '% impact',
       need: 'Need more data',
-      needDetail: '{yes} yes · {no} no days ({min} each needed)',
+      // the rows without enough days share one card (client/journal.js insightsHtml)
+      needAll: 'Each behavior needs at least {min} days with it and {min} without, each followed by a morning with a recovery score. Days that count so far: {n}.',
+      needSome: 'At least {min} days with and {min} without each:',
+      needItem: '{name} · {yes} yes · {no} no',
       rowAria: '{name}: {diff} points of recovery the morning after ({yesMean}% after yes, {noMean}% after no; {yes} and {no} days)',
     },
     // "My plan" weekly card (client/home-week.js)
@@ -352,8 +359,11 @@ export const es = {
       unknown: 'sin registrar',
       parts: { k: 'Kcal', p: 'Proteína', f: 'Grasa' },
       ptsTpl: '{name} · {pts} pts',
-      aria: 'Puntuación de nutrición {value}% el {date}',
+      aria: '{date}: puntuación de nutrición {value}%',
       ariaRun: 'Nutrición hoy: en curso, aún sin puntuación',
+      ariaRunPct: 'Nutrición hoy: en curso, {pct}% de las kcal objetivo, aún sin puntuación',
+      runLbl: 'Kcal hoy',
+      prev: '{date} {value}',
       avg7: 'Media de 7 días {value}%',
     },
     energy: {
@@ -423,7 +433,9 @@ export const es = {
       helps: 'Mejora',
       pct: '% de impacto',
       need: 'Faltan datos',
-      needDetail: '{yes} días sí · {no} días no (hacen falta {min} de cada)',
+      needAll: 'Cada hábito necesita al menos {min} días con él y {min} sin él, cada uno seguido de una mañana con puntuación de recuperación. Días que cuentan hasta ahora: {n}.',
+      needSome: 'Hacen falta al menos {min} días con y {min} sin cada uno:',
+      needItem: '{name} · {yes} sí · {no} no',
       rowAria: '{name}: {diff} puntos de recuperación a la mañana siguiente ({yesMean}% tras sí, {noMean}% tras no; {yes} y {no} días)',
     },
     // tarjeta semanal "Mi plan" (client/home-week.js)

@@ -65,7 +65,7 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
   a min-height, side padding only), the compact macro tile `.mac`, the empty state `.train-empty` (a
   centred message) and the sheets' own cards (`detail.css`, `profile.css`, the food sheet's form), which
   sit on the sheet's 16 px inset.
-- Caps colour: the CTA link (`.cta`, `--link`), the journal pill's text on its white fill (`.jr-btn`),
+- Caps colour: the CTA link (`.cta`, `--link`), the save button's text on its white fill (`.save-btn`),
   and a word that IS the reading, coloured like a value — the stress band (`.ds-band`), the monitor's
   within / outside range (`.hmt-status`) and a monitor tile's band (`.hmt-band`).
 - Hero size: dial centres sized to their ring (Inicio's dials at >= 900 px, Nutrición's kcal dial
@@ -225,10 +225,23 @@ a ride's HR · effort · kJ) — nothing under the name, so run and ride rows ar
 which falls back to the contributor rows' paths): each row picks the icon of what it measures (a
 modality, bed, wake, target …), a neutral one when none fits; never the same icon on every row of a list.
 
+### Save button
+
+`.save-btn` (`base.css`) is THE primary save: a full-width white caps pill (`--accent` fill,
+`--on-accent` text at `--fs-title-lg`, `--label-weight`, `--label-track`, 52 px tall, `--r-pill`), at 60 %
+when disabled. Uses: the journal's sticky "SAVE JOURNAL" and the food sheets' "SAVE" (the add sheet's
+three tabs, the product and recipe forms) — formerly the food sheet's small sentence-case `.food-btn`
+pill next to the journal's caps one. Secondary actions (cancel, change, use) keep `.food-btn-ghost`.
+
+- Guard (`design-system.test.mjs`): only `base.css` styles `.save-btn`, and every save button in the
+  display sources (`data-jr="save"`, `data-food-act="save" | "p-save" | "r-save"`) carries it.
+
 ### Contributor row
 
 `HC.contribRow(o)` (`client/util.js`; styles `.dd-row` / `.dd-ico` / `.dd-mk` in `detail.css`) is THE row
 for a score's inputs: a stroked icon (`HC.contribIcon`, one 24-unit path per row key), the caps label
+(the SHORT metric name, as everywhere else in the sheet: "HRV", "Resting HR"; never "HEART RATE
+VARIABILITY" above an "HRV" trend)
 (+ an optional small sub line), the value, and the trend glyph with its screen-reader words. Uses: the
 deep-dive sheets' contributors (recovery, sleep, load, strain, energy bank) and Salud's Recovery card
 (formerly a 2 × 2 grid of state-coloured dots). On the card the glyph is the raw direction of the 7-day

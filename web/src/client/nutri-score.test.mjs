@@ -72,24 +72,24 @@ test('no food log at all: the Nutrición block stays hidden and the metric is nu
   assert.equal(S.metric(), null);
 });
 
-test('Nutrición: headline = the newest closed day (yesterday) in its band; today only as progress (eaten / target, no score, no points); 7 / 30-day averages; formula behind ⓘ', () => {
+test('Nutrición: with today being logged the headline is today\'s progress alone (kcal % of target, neutral); yesterday\'s closed score moves to the footer line with the 7 / 30-day averages; formula behind ⓘ', () => {
   const { els } = setup({
     log: [day('2030-01-27', 2000, 150, 70), day('2030-01-26', 2500, 105, 94.5), day('2030-01-10', 2000, 150, 70), day(TODAY, 1500, 120, 60)],
   });
   assert.equal(els.block.hidden, false);
   const h = els.host.innerHTML;
-  assert.match(h, /class="sc-card tn en ns de-hi"/, 'the headline is yesterday\'s closed 100, not today\'s partial 66');
-  assert.match(h, /<b class="en-num">100<small>%<\/small><\/b><\/span><span class="tn-lbl">Yesterday<\/span>/);
+  assert.match(h, /class="sc-card tn en ns" /, 'no band colour: today has no score yet');
+  assert.match(h, /<div class="tn-end ns-now"><span class="tn-time"><b class="en-num">75<small>%<\/small><\/b><\/span><span class="tn-lbl">Kcal today<\/span><\/div>/, 'the headline = today\'s kcal eaten / target (1,500 / 2,000)');
   assert.match(h, /data-detail="nutrition"/);
   assert.doesNotMatch(h, /data-date=/, 'with today in progress it opens the sheet on its newest day');
-  assert.match(h, /<h3 class="tn-h">Nutrition<\/h3>/, 'one caps title in one weight, no smaller tag inside');
-  assert.match(h, /<p class="tn-lbl ns-run-lbl">Today · in progress<\/p>/);
+  assert.match(h, /<h3 class="tn-h">Nutrition · in progress<\/h3>/, 'one caps title in one weight, no smaller tag inside');
+  assert.doesNotMatch(h, /ns-run-lbl|de-hi|de-mid|de-lo/, 'no second "Today · in progress" line, no band');
   assert.match(text(h), /Kcal 1,500 \/ 2,000 kcal/, 'today: eaten / target only');
   assert.match(text(h), /Protein 120 \/ 150 g/);
   assert.match(text(h), /Fat 60 \/ 70 g/);
   assert.doesNotMatch(text(h), /· \d+ |pts|66/, 'no points and no partial score for today');
   assert.match(h, /<li class="nt-mac ns-run">[\s\S]*?<i style="width:75%"><\/i>/, 'the bar = progress toward the target (1,500 / 2,000), not points');
-  assert.match(text(h), /7-day average 73% · 30-day 82%/, '7 days: 100 + 46; 30 days: + 100 (today never counts)');
+  assert.match(text(h), /Yesterday 100% · 7-day average 73% · 30-day 82%/, 'yesterday in the footer; 7 days: 100 + 46; 30 days: + 100 (today never counts)');
   // the 30-day line is the Salud sparkline: line + area down to the 0 baseline, a caption under it
   const sp = h.match(/<div class="sc-spark ns-spark"><svg class="spark" viewBox="0 0 200 48"[^>]*><path class="area" d="(M[^"]+)"\/><path class="line" d="(M[^"]+)"\/><\/svg><div class="sc-spark-lbl">Each day's score, last 30 days \(0–100\)<\/div><\/div>/);
   assert.ok(sp, 'anchored sparkline + caption');
@@ -149,13 +149,21 @@ test('Spanish copy', () => {
   assert.match(text(els.host.innerHTML), /Media 7 días 100%/);
 });
 
-test('Inicio card: yesterday\'s score heads it, today as progress, opens the sheet, the 7-day average under it', () => {
-  const { els } = setup({ nutri: false, log: [day('2030-01-27', 2000, 150, 70), day(TODAY, 1500, 120, 60)] });
+test('Inicio card (the owner\'s real case: today logged, yesterday closed at 56): today\'s progress heads it alone, neutral; "Yesterday 56% · 7-day average" is the footer; the aria names both', () => {
+  // 2,700 kcal on a 2,000 target, protein 105 / 150, fat 105 / 70 = a closed 56
+  const { els } = setup({ nutri: false, log: [day('2030-01-27', 2600, 105, 95), day(TODAY, 433, 30, 17)] });
   assert.equal(els.home.hidden, false);
   const h = els.home.innerHTML;
-  assert.match(h, /class="sc-card tn en ns de-hi" data-detail="nutrition" role="button"/);
-  assert.match(text(h), /^Nutrition 100 % Yesterday Today · in progress Kcal 1,500 \/ 2,000 kcal/);
-  assert.match(text(h), /7-day average 100%/);
+  const y = setup({ home: false, nutri: false, log: [day('2030-01-27', 2600, 105, 95)] }).S.metric().days['2030-01-27'].score;
+  assert.ok(y < 60, 'a low (red) closed day: ' + y);
+  assert.match(h, /class="sc-card tn en ns" data-detail="nutrition" role="button"/, 'no red band on today\'s card');
+  assert.match(text(h), /^Nutrition · in progress 22 % Kcal today Kcal 433 \/ 2,000 kcal/);
+  assert.match(text(h), new RegExp(`Yesterday ${y}% · 7-day average ${y}%$`), 'yesterday\'s score in the footer line');
+  assert.match(h, new RegExp(`aria-label="Nutrition today: in progress, 22% of the kcal target, no score yet · Yesterday: nutrition score ${y}%"`));
+  const es = setup({ locale: 'es', nutri: false, log: [day('2030-01-27', 2600, 105, 95), day(TODAY, 433, 30, 17)] });
+  assert.match(text(es.els.home.innerHTML), new RegExp(`Ayer ${y}% · Media de 7 días ${y}%$`));
+  assert.match(es.els.home.innerHTML, new RegExp(`aria-label="Nutrición hoy: en curso, 22% de las kcal objetivo, aún sin puntuación · Ayer: puntuación de nutrición ${y}%"`));
+  assert.doesNotMatch(es.els.home.innerHTML, / el Ayer/, 'never "56% el Ayer"');
 });
 
 test('Inicio card: nothing logged today -> the newest scored day while fresh, with its date; stale or no log -> hidden', () => {
@@ -181,8 +189,8 @@ test('Inicio card: day stepping shows that day\'s final score (no average) or hi
   t.step('2030-01-21');
   assert.equal(t.els.home.hidden, true);
   t.step(null);
-  assert.match(text(t.els.home.innerHTML), /^Nutrition · in progress Kcal 1,500 \/ 2,000 kcal/, 'no closed day fresh enough: today\'s progress only');
-  assert.doesNotMatch(t.els.home.innerHTML, /en-num|%</, 'no score at all');
+  assert.match(text(t.els.home.innerHTML), /^Nutrition · in progress 75 % Kcal today Kcal 1,500 \/ 2,000 kcal/, 'no closed day fresh enough: today\'s progress only');
+  assert.doesNotMatch(text(t.els.home.innerHTML), /Yesterday|average/, 'no closed day, no footer');
 });
 
 test('Inicio card: a day exactly 3 days old still shows (with its date), 4 days old hides', () => {
@@ -210,10 +218,14 @@ test('today in progress only: no score, no red %, no "· N" points — the progr
   const h = els.home.innerHTML;
   assert.equal(els.home.hidden, false);
   assert.match(h, /<h3 class="tn-h">Nutrition · in progress<\/h3>/);
-  assert.doesNotMatch(h, /en-num|de-lo|de-mid|de-hi/, 'no score, no band colour');
+  assert.doesNotMatch(h, /de-lo|de-mid|de-hi/, 'no score, no band colour');
   assert.doesNotMatch(text(h), /· 0|pts|0 %/, 'no bare "· 0" that reads like 0 kcal');
-  assert.match(text(h), /Kcal 433 \/ 2,000 kcal Protein 30 \/ 150 g Fat 17 \/ 70 g/);
-  assert.match(h, /aria-label="Nutrition today: in progress, no score yet"/);
+  assert.match(text(h), /22 % Kcal today Kcal 433 \/ 2,000 kcal Protein 30 \/ 150 g Fat 17 \/ 70 g/);
+  assert.match(h, /aria-label="Nutrition today: in progress, 22% of the kcal target, no score yet"/);
+  // kcal not logged today: no headline number, the old words
+  const nk = setup({ log: [day(TODAY, null, 30, 17)] });
+  assert.doesNotMatch(nk.els.home.innerHTML, /ns-now/);
+  assert.match(nk.els.home.innerHTML, /aria-label="Nutrition today: in progress, no score yet"/);
   const es = setup({ locale: 'es', log: [day(TODAY, 433, 30, 17)] });
   assert.match(es.els.home.innerHTML, /<h3 class="tn-h">Nutrición · en curso<\/h3>/);
 });

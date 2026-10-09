@@ -73,7 +73,7 @@
       '<div class="food-row food-row-2">' + pf('fpf-kcal', F.kcal, 'kcal', { unit: T.kcal }) + pf('fpf-p', F.protein, 'protein', { unit: T.units.g }) +
       pf('fpf-c', F.carbs, 'carbs', { unit: T.units.g }) + pf('fpf-f', F.fat, 'fat', { unit: T.units.g }) + '</div>' +
       '<div class="food-row">' + pf('fpf-serv', F.serving, 'servingSize', { unit: T.units[unit], ph: F.servingPh }) + '</div>' +
-      '<div class="food-btns"><button type="button" class="food-btn" id="fp-save" data-food-act="p-save">' + esc(T.products.save) + '</button>' +
+      '<div class="food-btns"><button type="button" class="save-btn" id="fp-save" data-food-act="p-save">' + esc(T.products.save) + '</button>' +
       '<button type="button" class="food-btn food-btn-ghost" data-food-act="p-cancel">' + esc(T.products.cancel) + '</button></div>' +
       formMsgHtml('fp-form-msg') + '</div>';
   }
@@ -342,7 +342,7 @@
       '<h4 class="fa-store">' + esc(R.ingredients) + '</h4>' + f.rows.map(ingRowHtml).join('') +
       '<div class="food-btns"><button type="button" class="food-btn food-btn-ghost" data-food-act="r-add-ing">' + esc(R.addIngredient) + '</button></div>' +
       '<p class="fa-prev" id="frf-prev" aria-live="polite"></p>' +
-      '<div class="food-btns"><button type="button" class="food-btn" data-food-act="r-save">' + esc(R.save) + '</button>' +
+      '<div class="food-btns"><button type="button" class="save-btn" data-food-act="r-save">' + esc(R.save) + '</button>' +
       '<button type="button" class="food-btn food-btn-ghost" data-food-act="r-cancel">' + esc(R.cancel) + '</button></div>' +
       formMsgHtml('fr-form-msg') + '</div>';
   }

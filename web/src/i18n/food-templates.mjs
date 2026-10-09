@@ -30,7 +30,8 @@ export const es = {
     titleDate: 'Añadir comida · {date}',
     meal: 'Comida del día',
     tabsLabel: 'Origen',
-    tabs: { products: 'Mis productos', recipes: 'Mis recetas', quick: 'Rápido' },
+    // one short word each: the three fit one line at 360 px (formerly "Mis productos" wrapped)
+    tabs: { products: 'Productos', recipes: 'Recetas', quick: 'Rápido' },
     search: 'Buscar producto',
     searchPh: 'Nombre o marca',
     noProducts: 'Aún no hay productos: añádelos en Mis productos.',
@@ -207,7 +208,7 @@ export const en = {
     titleDate: 'Add food · {date}',
     meal: 'Meal',
     tabsLabel: 'Source',
-    tabs: { products: 'My products', recipes: 'My recipes', quick: 'Quick' },
+    tabs: { products: 'Products', recipes: 'Recipes', quick: 'Quick' },
     search: 'Search products',
     searchPh: 'Name or brand',
     noProducts: 'No products yet: add them under My products.',

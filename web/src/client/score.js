@@ -250,9 +250,10 @@ function scMod(key) {
     if (last && dm) (dm.days || []).forEach(function (x) { if (x.date === last.date && x.fill) fill = x.fill; });
     var when = last ? (last.date === todayIso() ? lt.today : HC.fmtDate(last.date, { weekday: false })) : '';
     var val = last && !gated ? HC.num(last.re, 0, false) : "—";
-    var tr = m.trend && m.trend.ok ? m.trend : null;
+    // no value ("—": no session in the data) = no delta pill either: "▼ -64%" beside "—" read as a value
+    var tr = m.trend && m.trend.ok && last && !gated ? m.trend : null;
     var pill = tr ? '<span class="ld-pill ld-' + LOAD_TONE[tr.band] + '">' + esc(LOAD_ARROW[tr.band] + ' ' + pct(tr.trendPct)) + '</span>'
-      : '<span class="ld-pill ld-flat">' + esc(dl.gated) + '</span>';
+      : gated ? '<span class="ld-pill ld-flat">' + esc(dl.gated) + '</span>' : '';
     var aria = [format(lt.cardAria, { modality: name })];
     aria.push(last && !gated ? format(lt.lastAria, { date: HC.fmtDate(last.date), re: val }) : gated ? lt.gated[(m.trend && m.trend.reason) || 'baselineBuilding'] : lt.noSession);
     if (tr) aria.push(format(lt.trendLbl, { pct: pct(tr.trendPct) }) + ', ' + lt.bands[tr.band]);
@@ -260,7 +261,7 @@ function scMod(key) {
       '<span class="ld-mod" aria-hidden="true">' + esc(name) + '</span>' +
       '<span class="ld-mid" aria-hidden="true"><b class="ld-num">' + esc(val) + '</b>' + miniRing(gated ? null : fill) + '</span>' +
       '<span class="ld-lbl" aria-hidden="true">' + esc(dl.label) + (when && !gated ? ' · ' + esc(when) : '') + '</span>' +
-      '<span aria-hidden="true">' + pill + '</span></div>';
+      (pill ? '<span class="ld-foot" aria-hidden="true">' + pill + '</span>' : '') + '</div>';
   }
   // the notes behind the section's ⓘ: as-of date, one line per modality (relative score, trend band
   // or why it is gated, sessions without effort), other activities, coverage, the epoch, the caveats
@@ -399,17 +400,22 @@ function scMod(key) {
     }
     var today = d.mode === 'today';
     var when = today ? nightLbl(d.date, d.sleep !== false, rt) : '';
+    // a night carried from an earlier day (today's is not complete yet): the ring names that day and
+    // is dimmed like stale data, so it never reads as today's (a stepped-to past day shows its own)
+    var carried = !VIEW && today && isoDate(d.date) && daysOld(d.date) > 0;
+    var stale = dialStale(d.asOf) || carried;
+    var asof = carried ? '<span class="dial-asof">' + esc(HC.fmtDate(d.date, { weekday: false })) + '</span>' : '';
     // the % headline (its rank within the previous 90 days), else the SD composite (fallback)
     if (today && typeof d.pct === 'number') {
-      return dialFig('dial-rec dial-band-' + esc(d.band), dialStale(d.asOf), '', format(rt.ariaPct, { when: when, value: d.pct, band: T.recovery.pctBands[d.band] }),
-        dialSvg({ fill: d.fill }), numCentre(String(d.pct), '%'), rt.label);
+      return dialFig('dial-rec dial-band-' + esc(d.band), stale, '', format(rt.ariaPct, { when: when, value: d.pct, band: T.recovery.pctBands[d.band] }),
+        dialSvg({ fill: d.fill }), numCentre(String(d.pct), '%') + asof, rt.label);
     }
     var v = num(d.value, 1, true);
     var aria = today
       ? format(rt.aria, { when: when, value: v, band: rt.bands[d.band] })
       : format(rt.ariaTrend, { value: v, band: rt.bands[d.band] });
-    return dialFig('dial-rec dial-band-' + esc(d.band), dialStale(d.asOf), '', aria,
-      dialSvg({ fill: d.fill, mid: d.mid }), numCentre(v, T.recovery.unit), rt.label);
+    return dialFig('dial-rec dial-band-' + esc(d.band), stale, '', aria,
+      dialSvg({ fill: d.fill, mid: d.mid }), numCentre(v, T.recovery.unit) + asof, rt.label);
   }
   // The modality the load dial opens on, for the VIEWER's today (never baked): the modality with a
   // session today, gated or not (a gated one opens in its gated state) — highest RE first, ties by
