@@ -12,6 +12,11 @@ Friday): when today's night is not complete yet and the headline falls back to a
 Inicio dial shows that night's date under the number and is dimmed like stale data (the mini ring too),
 and the recovery deep-dive is titled with that date (its legend too) with a dimmed hero.
 
+**Nutrition card** (Inicio + Nutrición): while today is being logged it heads the card alone — today's
+kcal % of target, white, no band — and the closed day's score moves to the footer ("Yesterday 56% ·
+7-day average 85%"; formerly a big red "56% YESTERDAY" beside today's bars, and the aria read "56% el
+Ayer"). The nutrition trend calendar marks today partial ("in progress") instead of "No data".
+
 ## 2026-10-09 — Design system follow-ups (DS5b)
 
 **Tablas supplements card** pads with `--card-pad` like every card: the inline `padding:6px 16px` is

@@ -3646,7 +3646,6 @@
   "|||.hs-lbl.home-h|||margin": "var(--sp-10) 0 var(--sp-5)",
   "|||.ns-run|||--ds": "var(--trend)",
   "|||.ns-run-box|||flex": "1",
-  "|||.ns-run-lbl|||max-width": "none",
   "|||.sel|||appearance": "none",
   "|||.sel|||-webkit-appearance": "none",
   "|||.sel|||min-height": "36px",
@@ -3701,5 +3700,6 @@
   "|||.dial-asof|||letter-spacing": "var(--label-track)",
   "|||.dial-asof|||text-transform": "uppercase",
   "|||.dial-asof|||color": "var(--muted)",
-  "|||.dial-asof|||white-space": "nowrap"
+  "|||.dial-asof|||white-space": "nowrap",
+  "|||.ns-now .en-num|||color": "var(--ink)"
 }

@@ -45,8 +45,12 @@ export const en = {
       parts: { k: 'Kcal', p: 'Protein', f: 'Fat' },
       // a closed day's component points, never a bare "· 0" that reads like "0 kcal"
       ptsTpl: '{name} · {pts} pts',
-      aria: 'Nutrition score {value}% on {date}',
+      aria: '{date}: nutrition score {value}%',
       ariaRun: 'Nutrition today: in progress, no score yet',
+      ariaRunPct: 'Nutrition today: in progress, {pct}% of the kcal target, no score yet',
+      // today being logged heads the card alone (its kcal % of target); the closed day goes to the footer
+      runLbl: 'Kcal today',
+      prev: '{date} {value}',
       avg7: '7-day average {value}%',
     },
     energy: {
@@ -352,8 +356,11 @@ export const es = {
       unknown: 'sin registrar',
       parts: { k: 'Kcal', p: 'Proteína', f: 'Grasa' },
       ptsTpl: '{name} · {pts} pts',
-      aria: 'Puntuación de nutrición {value}% el {date}',
+      aria: '{date}: puntuación de nutrición {value}%',
       ariaRun: 'Nutrición hoy: en curso, aún sin puntuación',
+      ariaRunPct: 'Nutrición hoy: en curso, {pct}% de las kcal objetivo, aún sin puntuación',
+      runLbl: 'Kcal hoy',
+      prev: '{date} {value}',
       avg7: 'Media de 7 días {value}%',
     },
     energy: {

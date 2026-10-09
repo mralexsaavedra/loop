@@ -286,15 +286,19 @@ trend is the line under it.
   adherence to its own targets from the food log (kcal 0.4, protein 0.4, fat 0.2; formula and rules
   in `docs/nutrition-food-log.md` → Nutrition score and `analysis/methodology.md` 5b). Card =
   `.sc-card.tn.en.ns`: ONE caps title "NUTRITION" ("· INCOMPLETE" when a macro is missing, "· IN
-  PROGRESS" when only today shows) — one size and weight, no smaller tag inside (DS4, F16). The headline
-  is the newest CLOSED day (never today) while ≤ 3 days old: its score big in D-DIN coloured by its band
-  (≥ 85 `--good`, 60–84 `--mid`, < 60 `--low`, via `.de-hi/.de-mid/.de-lo`), "Yesterday" or the date
-  under it. Beside it: when today has a log, TODAY's progress under "TODAY · IN PROGRESS" — Nutrición's
-  three macro rows as "KCAL", "1,500 / 2,000 kcal", the bar = eaten / target in the neutral `--trend`
-  (`.ns-run`), no score and no points (2026-10-09, owner: a mid-day "0%" in red with "KCAL · 0" read as a
-  failed day and as "0 kcal"); otherwise the closed day's rows with their points labelled "KCAL · 85
-  pts", the bar = the points in their band colour. Then "7-day average 79%" (final scores only). Only
-  today logged → today's progress alone; nothing logged / nothing fresh → hidden. It opens the nutrition trend
+  PROGRESS" while today is being logged) — one size and weight, no smaller tag inside (DS4, F16).
+  **Today logged** → today heads the card ALONE (DS6, owner 2026-10-09: a big red "56% YESTERDAY" beside
+  the "TODAY · IN PROGRESS" bars read as today's score): the headline is today's kcal eaten as a % of its
+  target in white (`.ns-now`, "22%" over "KCAL TODAY"; no score, no band colour; none without a kcal log),
+  beside Nutrición's three macro rows as "KCAL", "1,500 / 2,000 kcal", the bar = eaten / target in the
+  neutral `--trend` (`.ns-run`), no points (a mid-day "0%" in red with "KCAL · 0" read as a failed day and
+  as "0 kcal"); the newest closed day moves to the footer line: "Yesterday 56% · 7-day average 85%". The
+  accessible name says both ("Nutrition today: in progress, 22% of the kcal target, no score yet ·
+  Yesterday: nutrition score 56%"; formerly "56% el Ayer"). **Nothing logged today** → the headline is the
+  newest CLOSED day while ≤ 3 days old: its score big in D-DIN coloured by its band (≥ 85 `--good`, 60–84
+  `--mid`, < 60 `--low`, via `.de-hi/.de-mid/.de-lo`), "Yesterday" or the date under it, its rows with
+  their points labelled "KCAL · 85 pts", the bar = the points in their band colour, then "7-day average
+  79%" (final scores only). Nothing logged / nothing fresh → hidden. It opens the nutrition trend
   sheet (`docs/detail-views.md`, key `nutrition`). On the LAN page Constancia's live summary
   re-renders it after every add / delete.
 - **Today's activities** (`lib/score/timeline.mjs`, baked as `SCORES.timeline` even when `hasData` is

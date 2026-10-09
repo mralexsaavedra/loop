@@ -1816,6 +1816,24 @@ test('nutrition score sheet: the trend view of the page-scored series, bands 85 
   clean(html);
 });
 
+test('nutrition score calendar: today being logged (no score yet: v null, the day result partial, as nutri-score.js metric() bakes it) is a partial mark, not "No data"', () => {
+  const s = setup();
+  s.ctx.window.HCNutriScore = {
+    metric() {
+      const m = nscoreMetric();
+      m.v[m.v.length - 1] = null; // HCNutriScore.metric(): a partial day has no score on the chart
+      return m;
+    },
+  };
+  s.api.open('nutrition');
+  const html = s.host.innerHTML;
+  const cell = html.match(new RegExp(`<button type="button" class="dt-day ([^"]+)" data-dt-act="day" data-date="${NOW}"[^>]*aria-label="([^"]+)"`));
+  assert.ok(cell, 'today has a day cell');
+  assert.equal(cell[1], 'dt-s-partial');
+  assert.ok(!cell[2].includes(enT.noData), cell[2]);
+  assert.ok(cell[2].includes(enT.day.ns.inProgress), cell[2]);
+});
+
 test('nutrition score day panel: the score, each component eaten / target and points, and why the day may read short', () => {
   const s = setup();
   s.ctx.window.HCNutriScore = { metric: nscoreMetric };
