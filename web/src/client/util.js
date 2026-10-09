@@ -195,6 +195,11 @@ var HC = (function () {
     return '<button type="button" class="hs-i" data-hs-info="' + esc(id) + '" aria-expanded="false" aria-controls="' + esc(id) + '" aria-label="' + esc(label) + '">' +
       INFO_SVG + '</button>';
   }
+  // the ONE CTA link (docs/design-system.md → Components → CTA link): a standalone "go there" link —
+  // caps, link blue (.cta, base.css), the arrow drawn here; attrs = the button's own attributes
+  function cta(label, attrs) {
+    return '<button type="button" class="cta"' + (attrs || '') + '>' + esc(label) + '<span aria-hidden="true"> →</span></button>';
+  }
   // the ONE detail-sheet header (dial deep-dives and metric details, client/detail.js): "‹" back =
   // the sheet's close button, the title centred (the dialog's label, #dt-title), and on the right
   // either the ⓘ (the same SVG as infoBtn; toggles o.info.controls via data-dt-act="info") or an
@@ -233,6 +238,7 @@ var HC = (function () {
     fmtDate: fmtDate,
     fmtMonth: fmtMonth,
     detailAttrs: detailAttrs,
+    cta: cta,
     metricIcon: metricIcon,
     metricRow: metricRow,
     infoBtn: infoBtn,

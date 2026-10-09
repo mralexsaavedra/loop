@@ -120,7 +120,27 @@ h2::after {
   background: linear-gradient(90deg, var(--line), transparent);
 }
 
-/* inline link to a table */
+/* CTA link (docs/design-system.md → Components): a standalone "go there" link, caps in link blue with
+   a " →" (HC.cta); on the insight card (--ground) the text is the blue → violet gradient (detail.css).
+   .lnk below is the other link: inside a sentence. A real action (save, behaviour insights) is a
+   button, never a .cta. */
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font: inherit;
+  font-size: var(--fs-title-lg);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+/* inline link inside a sentence (a table jump, retry) */
 .lnk {
   background: none;
   border: 0;
@@ -134,6 +154,7 @@ h2::after {
   text-decoration-thickness: 1px;
   text-decoration-color: color-mix(in srgb, var(--link) 40%, transparent);
 }
+.cta:focus-visible,
 .lnk:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

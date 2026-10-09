@@ -203,7 +203,8 @@ switch is outside every opener); run / ride rows →
      days)." (the scale's calibration is in ⓘ). Then the page's own CTA (`deep.ctas`: "SEE MY
      RECOVERY TREND →", sleep / load / strain likewise; the stress and energy pages keep "VIEW
      TREND"; `data-dt-act="trend"`, a button: scrolls to the period block and focuses
-     the pressed W / M / 6M / 1Y button). Its text is the `--link` → `--link-end` gradient (blue →
+     the pressed W / M / 6M / 1Y button). It is the shared CTA link (`HC.cta`, `.cta`; design-system.md →
+     Components); here its text is the `--link` → `--link-end` gradient (blue →
      violet) clipped to the glyphs, solid `--link` where `background-clip: text` is unsupported: on
      `--ground` both ends pass AA for small text (8.29 / 4.61), on a card the violet end would not
      (3.91), so the gradient only ever sits on the insight card (`tokens-contrast.test.mjs`).
@@ -291,7 +292,7 @@ switch is outside every opener); run / ride rows →
   calendar state — the legend's states, order and tints (better / in / worse than your range, above /
   at / below baseline, the sleep, stress, energy and nutrition bands; today in progress and missing
   days left out) — and one row per state with its count ("7x", a state with none says "0x" and has no
-  segment); it follows the window (range + ‹ ›); "LEARN MORE" (`data-dt-act="learn"`) opens the
+  segment); it follows the window (range + ‹ ›); "LEARN MORE →" (a `.cta`, `data-dt-act="learn"`) opens the
   header's ⓘ notes (never closes them) and scrolls them into view. Training volume / load / strain
   (four shades of one colour), sparse readings and a metric without a band get none. A Monday-first month calendar
   (es/en weekday letters) with prev / next bounded by the baked range, each day tinted by its state

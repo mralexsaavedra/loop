@@ -208,7 +208,7 @@
         var head = '<div class="dt-latest"><b class="dt-num">' + esc(clock(tn.bed)) + '</b><span class="dt-when">' + esc(TT.bed) + '</span></div>';
         var body = '<p class="tn-rule">' + esc(format(TT.rule, { wake: clock(tn.wake), n: tn.nights, target: HC.hours(tn.target), bed: clock(tn.bed) })) + '</p>' +
           '<p class="dt-note">' + esc(TT.note) + '</p>' +
-          (D && D.metrics && D.metrics.sleep ? '<button type="button" class="tn-more" data-detail="sleep">' + esc(TT.history) + '</button>' : '');
+          (D && D.metrics && D.metrics.sleep ? HC.cta(TT.history, ' data-detail="sleep"') : '');
         return { head: head, body: body };
       },
     };

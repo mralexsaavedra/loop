@@ -123,3 +123,18 @@ section heading never looks like the card under it.
   load") keeps it.
 - **Not section headings:** the tab title (`.hs-title`, centred caps), fold rows (`.sec-fold > summary`,
   a card-level row with a caps title) and in-card titles (`.sc-head h3`).
+
+### CTA link
+
+`HC.cta(label, attrs)` (`client/util.js`) writes THE call-to-action link: a `<button class="cta">`, the
+label in caps (`--fs-title-lg`, `--label-weight`, `--label-track`) in `--link` blue, then " →" (hidden
+from screen readers), at least 44 px tall. Astro writes the same markup (Inicio's eat card "See the full
+plan →"). On the deep-dive insight card the text is the `--link` → `--link-end` gradient, the only
+place it passes contrast (`--ground`, `tokens-contrast.test.mjs`). Uses: the insight "See my … trend",
+the recovery card's "History", Tonight's "See sleep history", the trend sheet's "Learn more".
+
+- **CTA vs button.** A CTA goes somewhere (opens a sheet, scrolls, switches tab). A real action
+  (save, add, the journal's behaviour insights, Customize) keeps its button / pill style.
+- **CTA vs `.lnk`.** `.lnk` is the underlined link INSIDE a sentence (a table jump, "retry").
+- Guard: only `.cta` and `.lnk` paint text in `--link`, and only `.dd-insight .cta` clips the gradient
+  to text.

@@ -259,7 +259,7 @@
     return '<div class="dd-insight">' + lines.map(function (l) {
       return '<p class="dd-ln' + (l.cls ? ' ' + esc(l.cls) : '') + '">' + esc(l.text) + '</p>';
     }).join('') +
-      '<button type="button" class="dd-cta" data-dt-act="trend">' + esc((C && C[cta]) || X.T.deep.cta) + '<span aria-hidden="true"> →</span></button></div>';
+      HC.cta((C && C[cta]) || X.T.deep.cta, ' data-dt-act="trend"') + '</div>';
   }
 
   /* ---------- contributors: today vs the prior 30 days ---------- */

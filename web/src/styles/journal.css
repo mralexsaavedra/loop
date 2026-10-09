@@ -1,6 +1,6 @@
 /* Journal (client/journal.js, docs/journal.md): Inicio's "My journal" card (7 day columns with check
    circles), the journal sheet (day strip, grouped ✕ / ✓ rows, drinks stepper, notes, sticky save pill)
-   and the behaviour insights rows. Tokens only; the card reuses .sc-card / .tn-h / .tn-more. */
+   and the behaviour insights rows. Tokens only; the card reuses .sc-card / .tn-h; .jr-ins is a real action, a pill button (score.css). */
 .jr-top {
   display: flex;
   align-items: center;

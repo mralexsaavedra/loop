@@ -319,7 +319,7 @@ trend is the line under it.
   wake time; bedtime = usual wake − the sleep target (`SLEEP_TARGET`, 7.5 h, the sleep dial's). A wake
   clock ≥ 18:00 is unwrapped to a negative hour before the median (23:50 and 00:10 sit together). Fewer
   than `TONIGHT_MIN_NIGHTS` (7) such nights → `null` and the card stays hidden. Data > 3 days old greys
-  it. No alarm editing (the page cannot set one); the sheet links to the sleep history.
+  it. No alarm editing (the page cannot set one); the sheet links to the sleep history (a `.cta` link, "SEE SLEEP HISTORY →").
 - **My journal** (`#my-journal`, `client/journal.js`, design in `docs/journal.md`): "MY JOURNAL" + a
   chevron, 7 day columns (the 7 days ending on the viewer's today: weekday + a check circle, `--up` when
   that day is journaled); a column or the chevron opens the journal sheet on that day. Ships hidden.

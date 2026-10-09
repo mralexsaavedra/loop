@@ -636,22 +636,12 @@ button.dt-day {
   align-items: center;
   justify-content: space-between;
 }
-.dt-brk-t,
-.dt-learn {
+.dt-brk-t {
   font-size: var(--fs-xs);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
   color: var(--muted);
-}
-.dt-learn {
-  min-height: 44px;
-  padding: 0;
-  border: 0;
-  background: none;
-  font-family: inherit;
-  color: var(--link);
-  cursor: pointer;
 }
 .dt-brk-bar {
   display: flex;
@@ -890,8 +880,7 @@ button.dt-day {
 [data-detail][role="button"]:hover::after {
   color: var(--ink);
 }
-[data-detail][role="button"]:focus-visible,
-.dt-open-btn:focus-visible {
+[data-detail][role="button"]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -912,31 +901,13 @@ button.dt-day {
 .cal-cell[data-detail] {
   cursor: pointer;
 }
-.dt-open-btn {
+/* a card head's CTA (the recovery card's History) sits at the right end */
+.sc-head .cta {
   margin-left: auto;
-  min-height: 44px;
-  padding: 0 var(--sp-5);
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: transparent;
-  color: var(--accent-ink);
-  font: inherit;
-  font-size: var(--fs-xs);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  cursor: pointer;
-}
-.dt-open-btn::after {
-  content: " ›";
 }
 
 /* Dial deep-dive pages (client/deepdive.js): the shared sheet header (‹ · metric · ⓘ), the hero ring (≈ 67 % of the width, stroke
  * 6.4 / 108 ≈ 5.9 % of the diameter, the dial's own baked arcs), the insight card and the ⓘ notes. */
-.dd-cta:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
 .dd-info {
   background: var(--surface);
   border-radius: var(--card-radius);
@@ -1063,24 +1034,11 @@ button.dt-day {
   font-size: var(--fs-md);
   color: var(--muted);
 }
-.dd-cta {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
+.dd-insight .cta {
   margin-top: var(--sp-3);
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: var(--fs-md);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--link);
-  cursor: pointer;
 }
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
-  .dd-cta {
+  .dd-insight .cta {
     background: linear-gradient(90deg, var(--link), var(--link-end));
     -webkit-background-clip: text;
     background-clip: text;

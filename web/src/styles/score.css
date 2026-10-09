@@ -1119,7 +1119,7 @@ details.rec-raw[open] > summary::after {
   font-size: var(--fs-lg);
   line-height: 1.45;
 }
-.tn-more {
+.jr-ins {
   min-height: 44px;
   padding: 0 var(--sp-5);
   border: 1px solid var(--line);
@@ -1133,7 +1133,7 @@ details.rec-raw[open] > summary::after {
   text-transform: uppercase;
   cursor: pointer;
 }
-.tn-more:focus-visible {
+.jr-ins:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
