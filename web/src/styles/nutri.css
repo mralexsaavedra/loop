@@ -665,15 +665,13 @@ details.sec-fold.nutri-fold {
   background: currentColor;
   align-self: center;
 }
-.pg-s-good b,
+/* the status word is a caps label (white); its meaning is the dot's colour, like the pill's number */
 .pg-s-good .pg-dot {
   color: var(--good);
 }
-.pg-s-mid b,
 .pg-s-mid .pg-dot {
   color: var(--mid);
 }
-.pg-s-low b,
 .pg-s-low .pg-dot {
   color: var(--low);
 }

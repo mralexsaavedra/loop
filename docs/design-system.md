@@ -49,6 +49,11 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
   No other rule sets a raw px size of 18 px or more.
 - **Caps.** An uppercase rule sizes itself with `--fs-label`, `--fs-title` or `--fs-title-lg` and
   tracks with `var(--label-track)` — no raw em tracking.
+- **Caps colour.** A caps label is white (`--ink`, `--accent`) or grey (`--muted`, `--faint`); the
+  meaning colour goes on the number or the glyph beside it (the reference app's rule). Nutrición's
+  weight status word is white with its dot coloured (formerly the word too, e.g. yellow "GOING DOWN"),
+  Tablas' supplement timing tags are white (formerly `--trend` blue) and Inicio's "PROGRAMMED" timeline
+  label is white beside its coloured bar (formerly `--strain-ink`).
 - **Empty states** read in sentence case, like the source strings: a dial word ("Sin sesión aún",
   "Sin datos", `.dial-word`) is muted sentence case at `--fs-label`, as in the deep-dive hero.
 
@@ -61,6 +66,9 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
   centred message) and the sheets' own cards (`detail.css`, `profile.css`, the food sheet's form), which
   sit on the sheet's 16 px inset. Tablas' supplements card takes its `padding: 6px 16px` from an inline
   style in the plan data (`tablas.supplements` note), not from CSS.
+- Caps colour: the CTA link (`.cta`, `--link`), the journal pill's text on its white fill (`.jr-btn`),
+  and a word that IS the reading, coloured like a value — the stress band (`.ds-band`), the monitor's
+  within / outside range (`.hmt-status`) and a monitor tile's band (`.hmt-band`).
 - Hero size: dial centres sized to their ring (Inicio's dials at >= 900 px, Nutrición's kcal dial
   `.nt-kcal`, the deep-dive dial `.dd-num`) and the trend sheet's header value (`.dt-num`); non-number
   glyphs (`.sh-back`, the header `.wordmark`, phone and desktop).
