@@ -188,6 +188,8 @@ export const en = {
     pctNote: '% = how last night ranks against your previous 90 days: 85% means better than about 85% of them. Green 67–100, yellow 34–66, red 0–33.',
     sdLbl: `Vs your 42-day baseline: {value} ${UE} · {band}`,
     components: { hrv: 'HRV', rhr: 'Resting HR', sleepDur: 'Sleep duration', sleepCons: 'Sleep regularity' },
+    // a contributor row's ▲ / ▼ / • read aloud (HC.contribRow)
+    cmp: { better: 'better than your baseline', worse: 'worse than your baseline', typical: 'at your baseline' },
   },
   load: {
     heading: 'Load',
@@ -493,6 +495,7 @@ export const es = {
     pctNote: '% = cómo se sitúa la última noche frente a tus 90 días anteriores: 85% significa mejor que cerca del 85% de ellos. Verde 67–100, amarillo 34–66, rojo 0–33.',
     sdLbl: `Frente a tu base de 42 días: {value} ${US} · {band}`,
     components: { hrv: 'VFC', rhr: 'FC en reposo', sleepDur: 'Duración del sueño', sleepCons: 'Regularidad del sueño' },
+    cmp: { better: 'mejor que tu base', worse: 'peor que tu base', typical: 'en tu base' },
   },
   load: {
     heading: 'Carga',

@@ -296,13 +296,13 @@ test('example build: Inicio carries a compact "today you eat" card (filled clien
   assert.doesNotMatch(card, /class="meal"/, 'the full meal plan is NOT duplicated on Inicio');
 });
 
-test('example build: the Salud recovery card stays stacked at every width (headline, trend, contributors in 2 × 2)', async () => {
+test('example build: the Salud recovery card stays stacked at every width (headline, trend, contributor rows)', async () => {
   const { parseCssRules, ruleDeclarationMap } = await import('./css-scan.mjs');
   const html = fs.readFileSync(examplePath, 'utf8');
   const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
   const map = ruleDeclarationMap(parseCssRules(css)); // selectors in css-scan's canonical form (`a>b`)
   assert.ok(![...map.keys()].some((k) => k.endsWith('|||.rec-layout|||grid-template-columns')), 'no column template on .rec-layout at any width');
-  assert.equal(String(map.get('|||.rec-contrib|||grid-template-columns')).replace(/\s+/g, ''), 'repeat(2,minmax(0,1fr))', 'the contributors are a 2 × 2 block');
+  assert.ok(![...map.keys()].some((k) => k.includes('|||.rec-contrib|||grid')), 'the contributors are stacked contributor rows, never a 2 × 2 dot grid');
   // the "Last 14 days" fold is a quiet disclosure line, never tablas.css's bare details card (an empty box)
   for (const [p, v] of [['background', 'none'], ['border', '0'], ['box-shadow', 'none']]) assert.equal(map.get('|||details.rec-raw|||' + p), v, 'details.rec-raw ' + p);
   assert.equal(map.get('|||details.rec-raw>summary|||padding'), '0');

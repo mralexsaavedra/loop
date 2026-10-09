@@ -165,13 +165,21 @@ function scMod(key) {
     box.innerHTML = own + '<div class="rec-info-notes">' + recInfoHtml(notes) + '</div>';
     return true;
   }
+  // a contributor in THE contributor row (HC.contribRow, the recovery sheet's look): its latest value,
+  // the 7-day ±SD as the small sub line, and ▲ / ▼ = which way its 7-day mean sits from the baseline
+  // (the raw direction: a lower resting HR is ▼), coloured by what that means — band above = better,
+  // below = worse — or • at baseline (docs/design-system.md → Contributor row)
+  var COMP_ICON = { hrv: 'hrv', rhr: 'rhr', sleepDur: 'sleep', sleepCons: 'cons' };
+  var COMP_TONE = { above: 'better', below: 'worse', at: 'typical' };
   function recContributor(c, rt) {
     var last = c.daily && c.daily.length ? c.daily[c.daily.length - 1] : null;
-    return '<div class="rec-comp" data-comp="' + esc(c.key) + '">' +
-      '<span class="rec-dot sc-dot-' + esc(c.band) + '" aria-hidden="true"></span>' +
-      '<span class="rec-comp-name">' + esc(rt.components[c.key]) + '</span>' +
-      '<span class="rec-comp-val"><b>' + (last ? esc(compVal(c, last.value)) : '—') + '</b>' + (compUnit(c) ? ' ' + esc(compUnit(c)) : '') + '</span>' +
-      '<span class="rec-comp-base">' + esc(num(c.trend7, 1, true) + ' ' + rt.unit) + '</span></div><!--/comp-->';
+    var tone = COMP_TONE[c.band];
+    var side = c.band === 'above' ? (c.dir || 1) : c.band === 'below' ? -(c.dir || 1) : 0;
+    return HC.contribRow({
+      row: c.key, icon: COMP_ICON[c.key] || 'hrv', label: rt.components[c.key], sub: num(c.trend7, 1, true) + ' ' + rt.unit,
+      value: last ? compVal(c, last.value) + (compUnit(c) ? ' ' + compUnit(c) : '') : '—',
+      mark: tone ? { glyph: side > 0 ? '▲' : side < 0 ? '▼' : '•', tone: tone, said: rt.cmp[tone] } : null,
+    });
   }
   function recRaw(comps, rt) {
     return '<details class="rec-raw"><summary>' + esc(rt.rawSummary) + '</summary>' + comps.map(function (c) {
@@ -202,7 +210,7 @@ function scMod(key) {
     var comps = R.components || [];
     out.push('<div class="rec-layout">' + recHeadline(R, rt) +
       '<div class="sc-spark rec-spark">' + sparkSvg(R.spark && R.spark.v) + '<div class="sc-spark-lbl">' + esc(rt.sparkLbl) + '</div></div>' +
-      '<div class="rec-contrib">' + comps.map(function (c) { return recContributor(c, rt); }).join('') + '</div></div>');
+      '<ul class="dd-rows rec-contrib">' + comps.map(function (c) { return recContributor(c, rt); }).join('') + '</ul></div>');
     if (comps.length) out.push(recRaw(comps, rt));
     out.push('</div>');
     return out.join('');

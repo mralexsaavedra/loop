@@ -5,6 +5,14 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-09 — Design system card alignment (DS4)
+
+The audit's remaining card findings move onto the shared components (docs/design-system.md).
+**Salud Recovery card (F7):** the 2 × 2 grid of state-coloured dots (a red dot read as an alarm) is now
+THE contributor row the recovery sheet already used — `HC.contribRow` in `client/util.js`, shared by the
+deep-dive sheets — icon, name, latest value, the 7-day ±SD as a sub line and a ▲ / ▼ / • whose colour
+says what the change means.
+
 ## 2026-10-09 — Design system components: one style per shared pattern
 
 The audit's component findings (F3–F6, F9, F18) were the same pattern drawn several ways. Each now has

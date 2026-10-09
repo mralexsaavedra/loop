@@ -784,12 +784,11 @@
 }
 
 /* Recovery detail card (Salud #score-recovery, Whoop-style): headline (last night, big number +
- * band word) | 14-day sparkline | compact contributors, side by side on wide screens and stacked on
- * phones; the 7-day trend is a small secondary line, the raw last-14-days lists are folded. The band
+ * band word) | 14-day sparkline | the contributors in THE contributor row (.dd-row, detail.css), stacked
+ * at every width; the 7-day trend is a small secondary line, the raw last-14-days lists are folded. The band
  * colour follows the recovery dial (above = --good, at = --trend, below = --low, and the % bands
  * good / mid / low = --good / --mid / --low). */
-.sc-recovery .sc-band-above,
-.sc-recovery .sc-dot-above {
+.sc-recovery .sc-band-above {
   --rec-c: var(--good);
 }
 .sc-recovery .sc-band-good {
@@ -801,12 +800,10 @@
 .sc-recovery .sc-band-low {
   --rec-c: var(--low);
 }
-.sc-recovery .sc-band-at,
-.sc-recovery .sc-dot-at {
+.sc-recovery .sc-band-at {
   --rec-c: var(--trend);
 }
-.sc-recovery .sc-band-below,
-.sc-recovery .sc-dot-below {
+.sc-recovery .sc-band-below {
   --rec-c: var(--low);
 }
 .rec-layout {
@@ -859,51 +856,6 @@
 }
 .rec-spark {
   align-self: center;
-}
-.rec-contrib {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-3, 8px);
-  align-content: start;
-}
-.rec-comp {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  column-gap: 6px;
-  align-items: baseline;
-  border-top: 1px solid var(--line-soft);
-  padding-top: 6px;
-}
-.rec-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--rec-c, var(--muted));
-  align-self: center;
-}
-.rec-comp-name {
-  font-size: var(--fs-label);
-  font-weight: var(--label-weight);
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.rec-comp-val,
-.rec-comp-base {
-  grid-column: 2;
-}
-.rec-comp-val {
-  font-size: var(--fs-xs);
-  color: var(--faint);
-}
-.rec-comp-val b {
-  font-family: var(--num);
-  font-size: var(--fs-md);
-  color: var(--ink);
-}
-.rec-comp-base {
-  font-size: var(--fs-2xs);
-  color: var(--faint);
 }
 /* the raw last-14-days lists: a quiet disclosure line (label + a chevron that turns when open), NOT
    the bare details/summary card of tablas.css, which drew it as an empty 50px box */

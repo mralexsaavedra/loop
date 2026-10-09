@@ -176,6 +176,16 @@ the trend sheet's window, its calendar month (formerly 44 px filled circles) and
   the others are listed with their reason (the calendar's selected day, the journal's answers, the
   food sheet's tabs and the Customize toggles, both audited in DS4).
 
+### Contributor row
+
+`HC.contribRow(o)` (`client/util.js`; styles `.dd-row` / `.dd-ico` / `.dd-mk` in `detail.css`) is THE row
+for a score's inputs: a stroked icon (`HC.contribIcon`, one 24-unit path per row key), the caps label
+(+ an optional small sub line), the value, and the trend glyph with its screen-reader words. Uses: the
+deep-dive sheets' contributors (recovery, sleep, load, strain, energy bank) and Salud's Recovery card
+(formerly a 2 × 2 grid of state-coloured dots). On the card the glyph is the raw direction of the 7-day
+mean vs the baseline (a lower resting HR is ▼) coloured by the band (above = better, below = worse,
+at = the grey •).
+
 ### Trend glyph
 
 ▲ / ▼ for a change, • for typical / steady. `HC.trendTone(arrow, tone)` (`client/util.js`) picks the
