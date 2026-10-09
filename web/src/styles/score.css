@@ -196,6 +196,10 @@
   stroke: var(--ink);
   stroke-width: 5;
 }
+/* the pill sits on the card's bottom edge, so the three pills align when a "LOAD · 6 OCT" label wraps */
+.ld-foot {
+  margin-top: auto;
+}
 .ld-pill {
   display: inline-block;
   padding: 2px var(--sp-3);
@@ -888,8 +892,8 @@ details.rec-raw[open] > summary::after {
 /* Collapsed dial row (#home-mini, Home.astro; written by client/score.js): once the dials scroll
  * above the viewport a strip fixed at the top shows the same three rings small (the dial's own svg,
  * its colour class, no markers, the grey track drawn in full even with no value) + their labels; a
- * tap opens the dial's detail. No fill or line of its own: the page's top colour fades out under it,
- * so the content scrolls away beneath like on the page gradient.
+ * tap opens the dial's detail. A SOLID fill (the page's top colour) behind the whole bar and a hairline
+ * under it, so the content scrolling beneath never shows through (formerly a fade to transparent).
  * Off = visibility: hidden (out of the tab order and the accessibility tree); it slides in, and
  * prefers-reduced-motion drops the motion (base.css). Inside the Inicio panel, so other tabs never
  * show it. */
@@ -900,7 +904,8 @@ details.rec-raw[open] > summary::after {
   right: 0;
   z-index: 25;
   padding: calc(env(safe-area-inset-top) + var(--sp-1)) calc(12px + env(safe-area-inset-right)) var(--sp-1) calc(12px + env(safe-area-inset-left));
-  background: linear-gradient(var(--ground-top) 55%, transparent);
+  background: var(--ground-top);
+  box-shadow: 0 1px 0 var(--line-soft);
   visibility: hidden;
   opacity: 0;
   transform: translateY(-100%);

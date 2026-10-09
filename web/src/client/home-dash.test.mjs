@@ -148,6 +148,15 @@ test('customize: every row has a ≡ drag handle (hidden from screen readers; th
   assert.match(body, /data-key="rhr" aria-label="Move Resting heart rate down">↓<\/button><span class="db-grip"/, 'the handle sits last, at the row end');
 });
 
+test('customize: rows show the SHORT metric names (the trend sheet\'s titles: "HRV", "Resting HR") so they fit 1–2 lines at 360 px; the full name stays in the button labels', () => {
+  const { ctx } = load();
+  const body = ctx.HCViews['dash-edit'].render().body;
+  assert.match(body, /<span class="db-name">HRV<\/span>/);
+  assert.match(body, /<span class="db-name">Resting HR<\/span>/);
+  assert.doesNotMatch(body, /<span class="db-name">(Heart rate variability|Resting heart rate)</);
+  assert.match(body, /aria-label="Move Resting heart rate down"/);
+});
+
 test('drag: pointer down on ≡ captures the pointer, a move reorders the rows live, the drop persists exactly like ↑ / ↓', () => {
   const byButtons = load();
   byButtons.click({ 'data-dash-act': 'up', 'data-key': 'steps' });

@@ -256,7 +256,8 @@
       if (b.kind === 'count') {
         var n = typeof v === 'number' ? v : null;
         return html + '<span class="jr-step"><button type="button" class="jr-x" data-jr="dec" data-key="' + b.key + '" aria-label="' + esc(T.less) + '"' + (n ? '' : ' disabled') + '>−</button>' +
-          '<b class="jr-n" aria-live="polite" aria-label="' + esc(format(T.count, { n: n == null ? '—' : n })) + '">' + (n == null ? '–' : n) + '</b>' +
+          // unanswered = a dimmed "0" (a "–" read as the minus beside it); its spoken form stays "—"
+          '<b class="jr-n' + (n == null ? ' jr-n-none' : '') + '" aria-live="polite" aria-label="' + esc(format(T.count, { n: n == null ? '—' : n })) + '">' + (n == null ? 0 : n) + '</b>' +
           '<button type="button" class="jr-x" data-jr="inc" data-key="' + b.key + '" aria-label="' + esc(T.more) + '"' + (n != null && n >= LIM.countMax ? ' disabled' : '') + '>+</button></span>';
       }
       return html + '<button type="button" class="jr-x jr-y" data-jr="yes" data-key="' + b.key + '" aria-pressed="' + (v === true) + '" aria-label="' + esc(format(T.yes, { q: q })) + '">' + CHECK + '</button>';
@@ -291,7 +292,7 @@
           '<textarea id="jr-notes" class="jr-notes" rows="3" maxlength="' + LIM.notesMax + '" placeholder="' + esc(T.notesPh) + '"' + (S.saving ? ' readonly' : '') + '>' + esc(d.notes) + '</textarea>' +
           manage +
           '<p class="jr-msg' + (S.err ? ' jr-err' : '') + '" role="status" aria-live="polite">' + esc(S.msg) + '</p>' +
-          '<div class="jr-save"><button type="button" class="jr-btn" data-jr="save"' + (S.saving ? ' disabled' : '') + '>' + esc(S.saving ? T.saving : T.save) + '</button></div>',
+          '<div class="jr-save"><button type="button" class="save-btn" data-jr="save"' + (S.saving ? ' disabled' : '') + '>' + esc(S.saving ? T.saving : T.save) + '</button></div>',
       };
     }
     function reopen(focus) {

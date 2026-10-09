@@ -189,6 +189,9 @@ html.dt-lock body {
   grid-auto-flow: column;
   grid-auto-columns: minmax(0, 1fr);
 }
+.dt-range-fill button {
+  white-space: nowrap;
+}
 
 /* the trend view above the chart, top to bottom: a small W · M · 6M · 1Y switch on the right, the
    window row "‹ 23 Sep – 29 Sep, 26 ›", then AVERAGE + the window's mean, the delta pill and a sentence */
@@ -931,6 +934,10 @@ button.dt-day {
   color: var(--muted);
 }
 .dd-lbl {
+  /* up to 2 lines inside the ring ("SLEEP PERFORMANCE" touched it at one line) */
+  max-width: 60%;
+  line-height: 1.25;
+  text-align: center;
   font-size: var(--fs-title-sheet);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
@@ -1096,6 +1103,7 @@ button.dt-day {
 }
 .dd-legend b {
   margin-left: var(--sp-3);
+  white-space: nowrap;
   font-weight: 600;
   color: var(--ink);
 }

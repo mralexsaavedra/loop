@@ -1692,6 +1692,17 @@ test('stress page follows the day it was opened on; a day under the minimum hour
   assert.match(none.host.innerHTML, /dt-empty/);
 });
 
+test('a dated stress page (the Inicio tile\'s earlier reading) opens at its hero — the hero IS that day — not scrolled to the day panel', () => {
+  const S = DEMO_SCORES.stress;
+  const prev = S.days[S.days.length - 2];
+  const s = setup({ scores: DEMO_SCORES, parts: true });
+  const scrolled = [];
+  s.part.day.scrollIntoView = (o) => scrolled.push(o);
+  s.api.open('stress', prev.date);
+  assert.ok(heroOf(s.host.innerHTML).includes(`<b class="dd-num">${prev.now.v.toFixed(1)}</b>`));
+  assert.equal(scrolled.length, 0);
+});
+
 test('es stress page: Spanish copy, decimal comma', () => {
   const s = setup({ locale: 'es', scores: DEMO_SCORES });
   s.api.open('stress');
@@ -1814,6 +1825,17 @@ test('nutrition score sheet: the trend view of the page-scored series, bands 85 
   assert.match(html, new RegExp(`class="dt-day dt-s-bad" data-dt-act="day" data-date="${addDays(NOW, -1)}"`));
   assert.match(html, new RegExp(`class="dt-day dt-s-partial" data-dt-act="day" data-date="${NOW}"`));
   clean(html);
+});
+
+test('contributor rows use the short metric names the same sheet\'s weekly trends use ("HRV", "Resting HR"), never the long ones beside them', () => {
+  for (const T of [enT, esT]) {
+    assert.equal(T.deep.contrib.rows.hrv, T.metrics.hrv.title);
+    assert.equal(T.deep.contrib.rows.rhr, T.metrics.rhr.title);
+  }
+  const s = setup({ dials: DIALS });
+  s.api.open('recovery');
+  assert.ok(s.host.innerHTML.includes('<span class="dd-row-lbl">HRV</span>'));
+  assert.doesNotMatch(s.host.innerHTML, /Heart rate variability/);
 });
 
 test('nutrition score calendar: today being logged (no score yet: v null, the day result partial, as nutri-score.js metric() bakes it) is a partial mark, not "No data"', () => {

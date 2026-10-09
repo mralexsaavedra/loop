@@ -243,7 +243,7 @@ test('caps labels use the caps role sizes and the one label tracking', () => {
 const LABEL_COLORS = new Set(['var(--ink)', 'var(--muted)', 'var(--faint)', 'var(--accent)', 'var(--accent-ink)', 'inherit', 'currentColor']);
 const CAPS_COLOR_ALLOW = {
   'base.css .cta': 'THE CTA link (--link blue): a link, not a label',
-  'journal.css .jr-btn': 'button text on the white-filled journal pill (--on-accent)',
+  'base.css .save-btn': 'button text on the white-filled save pill (--on-accent)',
   'detail.css .ds-band': "the stress sheet's band word IS the reading (its band colour), not a label",
   'score.css .hmt-status': "the monitor's within / outside range word IS the reading (its state colour)",
   'score.css .hmt-band': "a monitor tile's band word IS the reading (its band colour)",
@@ -374,6 +374,20 @@ test('select: one shared pill style; owners only size it', () => {
   const selects = [...markup.matchAll(/<select\b[^>]*>/g)].map((m) => m[0]).filter((s) => !/class="food-in"/.test(s));
   assert.equal(selects.length, 3, 'the visible picks: trend metric, food example, ride duration');
   for (const s of selects) assert.match(s, /class=\\?["'][^"'\\]*\bsel\b/, `${s} uses the shared .sel`);
+});
+
+// the save button: ONE component (base.css .save-btn, the journal's full-width white caps pill) for every
+// primary save — the journal and the food sheets (formerly the food sheet's small sentence-case "Save")
+const SAVES = /<button\b[^>]*(?:data-jr="save"|data-food-act="(?:save|p-save|r-save)")[^>]*>/g;
+test('save button: one shared component; every primary save uses it and nobody restyles it', () => {
+  const r = RULES.find((x) => x.file === 'base.css' && !x.media && x.selector === '.save-btn');
+  assert.ok(r, 'base.css holds the one save-button rule');
+  assert.deepEqual([r.decl.width, r.decl.background, r.decl['border-radius'], r.decl['text-transform']], ['100%', 'var(--accent)', 'var(--r-pill)', 'uppercase']);
+  const owners = RULES.filter((x) => x.file !== 'base.css' && /\.save-btn\b/.test(x.selector)).map(where);
+  assert.deepEqual(owners, [], 'no other stylesheet restyles .save-btn');
+  const saves = [...Object.values(SRC).join('\n').matchAll(SAVES)].map((m) => m[0]);
+  assert.ok(saves.length >= 6, 'journal + 3 add-sheet saves + product + recipe: ' + saves.length);
+  for (const b of saves) assert.match(b, /class="save-btn"/, b);
 });
 
 // the select's owners that need a 44px target (.gd-pick, .fuel-select) set min-height on a selector

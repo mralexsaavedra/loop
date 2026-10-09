@@ -186,10 +186,15 @@
     }
 
     // the customize sheet: one row per available metric — show / hide, up, down
+    // the SHORT name (the trend sheet's title: "HRV", "Resting HR"), so a row fits 1-2 lines at 360 px
+    // beside its controls; the full name stays in the buttons' accessible names
+    function shortOf(key) {
+      return own(TD.metrics, key) && TD.metrics[key].title ? TD.metrics[key].title : titleOf(key);
+    }
     function editHtml(list) {
       return '<p class="dt-note">' + esc(TS.editNote) + '</p><ul class="db-edit">' + list.map(function (p, i) {
         var t = titleOf(p.key);
-        return '<li class="db-erow' + (p.on ? '' : ' db-off') + '">' + icon(p.key) + '<span class="db-name">' + esc(t) + '</span>' +
+        return '<li class="db-erow' + (p.on ? '' : ' db-off') + '">' + icon(p.key) + '<span class="db-name">' + esc(shortOf(p.key)) + '</span>' +
           HC.switchBtn(p.on, format(TS.showAria, { metric: t }), ' data-dash-act="toggle" data-key="' + esc(p.key) + '"') +
           '<button type="button" class="db-btn" data-dash-act="up" data-key="' + esc(p.key) + '" aria-label="' + esc(format(TS.upAria, { metric: t })) + '"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
           '<button type="button" class="db-btn" data-dash-act="down" data-key="' + esc(p.key) + '" aria-label="' + esc(format(TS.downAria, { metric: t })) + '"' + (i === list.length - 1 ? ' disabled' : '') + '>↓</button>' +

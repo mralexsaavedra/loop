@@ -92,7 +92,7 @@
       }).join('') + '</select>') + '</div>' +
       '<p class="fa-prev" id="fa-prev" aria-live="polite"></p>' +
       '<p class="food-note">' + esc(b.v ? T.sheet.basicLabelNote : T.sheet.basicNote) + '</p>' +
-      '<button type="button" class="food-btn" id="fa-save" data-food-act="save">' + esc(T.sheet.save) + '</button></div>';
+      '<button type="button" class="save-btn" id="fa-save" data-food-act="save">' + esc(T.sheet.save) + '</button></div>';
   }
   // pieces <-> grams keeps the same food: the typed amount converted, else the new mode's prefill
   function switchBasicMode() {
@@ -139,7 +139,7 @@
         return '<option value="' + u + '"' + (i === 0 ? ' selected' : '') + '>' + esc(T.units[u]) + '</option>';
       }).join('') + '</select>') + '</div>' +
       '<p class="fa-prev" id="fa-prev" aria-live="polite"></p>' +
-      '<button type="button" class="food-btn" id="fa-save" data-food-act="save">' + esc(T.sheet.save) + '</button></div>';
+      '<button type="button" class="save-btn" id="fa-save" data-food-act="save">' + esc(T.sheet.save) + '</button></div>';
   }
   function quickHtml() {
     return '<div class="fa-quick">' + field('fa-label', T.sheet.label, '<input class="food-in" id="fa-label" type="text" maxlength="' + LIM.nameMax + '" autocomplete="off">') +
@@ -147,7 +147,7 @@
       '<div class="food-row food-row-3">' + numField('fa-p', T.sheet.protein, '', { unit: T.units.g }) + numField('fa-c', T.sheet.carbs, '', { unit: T.units.g }) +
       numField('fa-f', T.sheet.fat, '', { unit: T.units.g }) + '</div>' +
       '<p class="food-note">' + esc(T.sheet.quickNote) + '</p>' +
-      '<button type="button" class="food-btn" id="fa-save" data-food-act="save">' + esc(T.sheet.save) + '</button></div>';
+      '<button type="button" class="save-btn" id="fa-save" data-food-act="save">' + esc(T.sheet.save) + '</button></div>';
   }
   function panelHtml() {
     var sh = S.sheet;

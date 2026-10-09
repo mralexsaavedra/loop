@@ -261,7 +261,7 @@ function scMod(key) {
       '<span class="ld-mod" aria-hidden="true">' + esc(name) + '</span>' +
       '<span class="ld-mid" aria-hidden="true"><b class="ld-num">' + esc(val) + '</b>' + miniRing(gated ? null : fill) + '</span>' +
       '<span class="ld-lbl" aria-hidden="true">' + esc(dl.label) + (when && !gated ? ' · ' + esc(when) : '') + '</span>' +
-      '<span aria-hidden="true">' + pill + '</span></div>';
+      (pill ? '<span class="ld-foot" aria-hidden="true">' + pill + '</span>' : '') + '</div>';
   }
   // the notes behind the section's ⓘ: as-of date, one line per modality (relative score, trend band
   // or why it is gated, sessions without effort), other activities, coverage, the epoch, the caveats
@@ -404,7 +404,7 @@ function scMod(key) {
     // is dimmed like stale data, so it never reads as today's (a stepped-to past day shows its own)
     var carried = !VIEW && today && isoDate(d.date) && daysOld(d.date) > 0;
     var stale = dialStale(d.asOf) || carried;
-    var asof = carried ? '<span class="dial-asof">' + esc(HC.fmtDate(d.date)) + '</span>' : '';
+    var asof = carried ? '<span class="dial-asof">' + esc(HC.fmtDate(d.date, { weekday: false })) + '</span>' : '';
     // the % headline (its rank within the previous 90 days), else the SD composite (fallback)
     if (today && typeof d.pct === 'number') {
       return dialFig('dial-rec dial-band-' + esc(d.band), stale, '', format(rt.ariaPct, { when: when, value: d.pct, band: T.recovery.pctBands[d.band] }),
