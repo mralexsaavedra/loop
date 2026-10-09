@@ -204,20 +204,40 @@
   function dayWord(date) {
     return date === HC.shiftIso(HC.todayIso(), -1) ? TS.yesterday : HC.fmtDate(date);
   }
-  // o = {head: {date, r} | null (the scored, closed day), run: r | null (today, in progress), sel, extra}
+  // today's kcal eaten as a % of its target (the in-progress headline), null without a kcal log
+  function runPct(run) {
+    var k = run && run.parts ? run.parts.k : null;
+    return k && fin(k.v) && fin(k.t) && k.t > 0 ? Math.round((100 * k.v) / k.t) : null;
+  }
+  // the footer's "Yesterday 56%": the closed day, when today's progress heads the card instead
+  function prevTxt(o) {
+    return o.run && o.head && !o.sel ? format(TS.prev, { date: dayWord(o.head.date), value: HC.pct(o.head.r.score) }) : '';
+  }
+  // o = {head: {date, r} | null (the scored, closed day), run: r | null (today, in progress), sel, extra}.
+  // Today being logged heads the card ALONE (its kcal % of target, neutral: no score, no band); the
+  // closed day's score moves to the footer line (o.extra, prevTxt). Without today, the closed day heads it.
   function cardHtml(o) {
     var h = o.head, run = o.run;
-    var tag = !h ? TS.inProgress : h.r.inc && !run ? TS.incomplete : '';
-    var aria = [h ? format(TS.aria, { value: h.r.score, date: dayWord(h.date) }) : '', run ? TS.ariaRun : ''].filter(Boolean).join(' · ');
+    var tag = run ? TS.inProgress : h.r.inc ? TS.incomplete : '';
+    var pct = run ? runPct(run) : null;
+    var aria = run
+      ? [pct != null ? format(TS.ariaRunPct, { pct: pct }) : TS.ariaRun, h ? format(TS.aria, { value: h.r.score, date: dayWord(h.date) }) : '']
+      : [format(TS.aria, { value: h.r.score, date: dayWord(h.date) })];
     var opens = o.sel || (h && !run ? h.date : null);
-    var left = h ? '<div class="tn-end"><span class="tn-time"><b class="en-num">' + esc(String(h.r.score)) + '<small>%</small></b></span>' +
-      '<span class="tn-lbl">' + esc(dayWord(h.date)) + '</span></div>' : '';
-    var right = run ? '<div class="ns-run-box">' + (h ? '<p class="tn-lbl ns-run-lbl">' + esc(TS.today + ' · ' + TS.inProgress) + '</p>' : '') + partRows(run, false) + '</div>'
-      : partRows(h.r, true);
-    return '<div class="sc-card tn en ns' + (h ? ' ' + BAND_CLS[scoreBand(h.r.score)] : '') + '"' + HC.detailAttrs('nutrition', opens) +
-      ' aria-label="' + esc(aria) + '">' +
+    var left = run
+      ? (pct != null ? '<div class="tn-end ns-now"><span class="tn-time"><b class="en-num">' + esc(String(pct)) + '<small>%</small></b></span>' +
+        '<span class="tn-lbl">' + esc(TS.runLbl) + '</span></div>' : '')
+      : '<div class="tn-end"><span class="tn-time"><b class="en-num">' + esc(String(h.r.score)) + '<small>%</small></b></span>' +
+        '<span class="tn-lbl">' + esc(dayWord(h.date)) + '</span></div>';
+    var right = run ? '<div class="ns-run-box">' + partRows(run, false) + '</div>' : partRows(h.r, true);
+    return '<div class="sc-card tn en ns' + (run ? '' : ' ' + BAND_CLS[scoreBand(h.r.score)]) + '"' + HC.detailAttrs('nutrition', opens) +
+      ' aria-label="' + esc(aria.filter(Boolean).join(' · ')) + '">' +
       '<h3 class="tn-h">' + esc(TS.heading + (tag ? ' · ' + tag : '')) + '</h3>' +
       '<div class="tn-row">' + left + right + '</div>' + (o.extra || '') + '</div>';
+  }
+  function footHtml(parts) {
+    var t = parts.filter(Boolean).join(' · ');
+    return t ? '<p class="tn-lbl en-sub">' + esc(t) + '</p>' : '';
   }
   // the newest CLOSED scored day (never today) while it is <= STALE_DAYS old
   function closedDay(s) {
@@ -240,7 +260,7 @@
     try {
       var sel = DAY && typeof DAY.sel === 'function' ? DAY.sel() || null : null;
       var s = series(), v = view(s, sel);
-      if (v) v.extra = s.avg != null && !sel ? '<p class="tn-lbl en-sub">' + esc(format(TS.avg7, { value: s.avg })) + '</p>' : '';
+      if (v) v.extra = footHtml([prevTxt(v), s.avg != null && !sel ? format(TS.avg7, { value: s.avg }) : '']);
       host.innerHTML = v ? cardHtml(v) : '';
       shown = !!v;
     } catch (e) {
@@ -280,8 +300,9 @@
       }
       if (s.any) {
         var v = view(s, null), wide = meanFinal(s, WIDE);
-        var avgs = '<p class="tn-lbl en-sub">' + esc(format(TN.avgs, { a7: HC.pct(s.avg), a30: HC.pct(wide) })) + '</p>' + lineHtml(s);
-        if (v) v.extra = avgs;
+        var avgTxt = format(TN.avgs, { a7: HC.pct(s.avg), a30: HC.pct(wide) });
+        var avgs = footHtml([avgTxt]) + lineHtml(s);
+        if (v) v.extra = footHtml([prevTxt(v), avgTxt]) + lineHtml(s);
         host.innerHTML = v ? cardHtml(v)
           : '<div class="sc-card tn"' + HC.detailAttrs('nutrition') + '><p class="tn-lbl en-sub">' + esc(TN.none) + '</p>' + avgs + '</div>';
         shown = true;

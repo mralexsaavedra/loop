@@ -669,8 +669,12 @@
       var day = String(parseIso(d).getDate());
       if (d > end || d < m.start) { out.push('<span class="dt-day dt-out">' + day + '</span>'); continue; }
       var v = valueOf(m, d), st = stateOn(m, d, v);
-      var lbl = HC.fmtDate(d) + ': ' + (v == null ? T.noData : (m.kind === 'recovery' ? signed(v, 1) : fmtM(m, v, m.dec)) + (unitOf(key) ? ' ' + unitOf(key) : '')) +
-        (st === 'partial' ? ' (' + T.todaySoFar + ')' : '');
+      // the nutrition score's today while it is being logged: no score yet (v null), still a partial
+      // mark ("in progress"), never "No data"
+      var run = v == null && m.kind === 'nscore' && own(m.days, d) && m.days[d] && m.days[d].partial && T.day.ns;
+      if (run) st = 'partial';
+      var lbl = HC.fmtDate(d) + ': ' + (run ? T.day.ns.inProgress : v == null ? T.noData : (m.kind === 'recovery' ? signed(v, 1) : fmtM(m, v, m.dec)) + (unitOf(key) ? ' ' + unitOf(key) : '')) +
+        (st === 'partial' && !run ? ' (' + T.todaySoFar + ')' : '');
       out.push('<button type="button" class="dt-day dt-s-' + st + '" data-dt-act="day" data-date="' + d + '" aria-pressed="' + (d === sel ? 'true' : 'false') + '" aria-label="' + esc(lbl) + '">' + day + '</button>');
     }
     out.push('</div>');
