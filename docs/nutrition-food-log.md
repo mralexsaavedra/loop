@@ -137,11 +137,13 @@ Plan de hoy) and the
   controls): meal select = the four
   groups (Desayuno / Comida / Cena / Añadido; a main group is stored as its slot, Añadido as `snack`;
   a fresh sheet guesses the group by the viewer's hour: < 4 (late night) dinner, < 11 breakfast, < 16 lunch, < 20
-  Añadido, else dinner), tabs (THE segmented control, `.dt-range.dt-range-fill`) Mis
-  productos (search, grouped by store) / Mis recetas / Rápido (label + kcal + optional macros), amount in g / ml / servings (servings only with a serving
+  Añadido, else dinner), tabs (THE segmented control, `.dt-range.dt-range-fill`, one word each and
+  `nowrap` so they fit one line at 360 px — formerly "MIS PRODUCTOS" wrapped) Productos (search,
+  grouped by store) / Recetas / Rápido (label + kcal + optional macros), amount in g / ml / servings (servings only with a serving
   size; a per-serving recipe in servings, a batch one in grams of cooked food; switching a product to
   servings sets the amount to 1, and back to its unit sets one serving in that unit, never reusing the typed number), live preview from the
-  ported formula, `aria-live` results; save closes it, re-renders Registrar and announces "Añadido:
+  ported formula, `aria-live` results; "SAVE" is THE save button (`.save-btn`, design-system.md →
+  Components; also the product and recipe forms' save) and closes it, re-renders Registrar and announces "Añadido:
   …". The portion guide's "+" logs
   an example amount (see "Plan de hoy = a PORTION GUIDE"). **Basics in the Mis productos tab**: the search box also looks in `FOOD_BASICS`
   (baked by `Dia.astro`, each food with its category `c` and portion cap `x`, which the portion guide reads — size budget in `web/test/food-build.test.mjs`; the box shows even with no product yet). An EMPTY search
@@ -312,8 +314,8 @@ target / no entries) and over a whole `scoreSeries`, and must equal the referenc
 - **Rules** — no log or no target (unknown day type) → no score, never 0. A macro in
   `missing_macros`, or a blank macro cell the sync did not flag → its component is left out, the others re-weighted, the day flagged
   "incomplete". The viewer's today = `partial`: scored by the same math but never SHOWN as a score (the
-  cards show its progress, "in progress"; the chart has no point for it; the day panel says "In
-  progress"), never in an average.
+  cards show its progress, "in progress"; the chart has no point for it; the trend calendar marks it
+  partial — dashed, "in progress", never "No data"; the day panel says "In progress"), never in an average.
   Scored but flagged: a main meal missing (`meals` false — Constancia's complete-day rule) and a rest
   day only assumed from sleep (`assumed`). Bands: ≥ 85 good, 60–84 mid, < 60 low.
 - **Data** — `buildFoodlogBake` bakes `INTAKE.log` = `{asOf, days}`: the last `NSCORE.days` (90) days
@@ -327,10 +329,12 @@ target / no entries) and over a whole `scoreSeries`, and must equal the referenc
   re-renders the score (`HCNutriScore.refresh`; the computed series is cached per viewer day, so a page
   left open past midnight recomputes); a goal change re-renders it through `HCNutri.refresh`.
 - **Nutrición block** (`#nutri-score-block`, Dia.astro, between Balance and Progreso; hidden without
-  any food log day) — "SCORE": the same card as Inicio's (`docs/home-tab.md`): the newest CLOSED day's
-  score big in its band colour — `de-hi` / `de-mid` / `de-lo` = `--good` / `--mid` / `--low` — with
-  "Yesterday" / its date; today, when logged, only as progress under "TODAY · IN PROGRESS" ("KCAL",
-  "1,500 / 2,000 kcal", the bar = eaten / target in `--trend`, no points); a closed day's rows carry their
+  any food log day) — "SCORE": the same card as Inicio's (`docs/home-tab.md`): today, when logged,
+  heads it alone — its kcal % of target in white (`.ns-now`, "KCAL TODAY"), the progress rows ("KCAL",
+  "1,500 / 2,000 kcal", the bar = eaten / target in `--trend`, no points) — and the newest closed day
+  moves to the footer ("Yesterday 56% · 7-day average · 30-day"); without today, the newest CLOSED day's
+  score heads it big in its band colour — `de-hi` / `de-mid` / `de-lo` = `--good` / `--mid` / `--low` — with
+  "Yesterday" / its date; a closed day's rows carry their
   points as "KCAL · 85 pts" (`ptsTpl`), a bar = the points in their band colour; a left-out one reads
   "not logged"; title "NUTRITION" (+ "· INCOMPLETE" / "· IN PROGRESS"), one caps title in one weight), then "7-day average · 30-day" (final scores
   only) and the 30-day line as Salud's sparkline (`.sc-spark` / `.spark`: the line in `--trend` with its

@@ -5,6 +5,34 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-09 — Real-page fixes (DS6)
+
+**Recovery carried from an earlier day** (the owner's page read "HOY · 47 %" for Wednesday's night on
+Friday): when today's night is not complete yet and the headline falls back to an earlier night, the
+Inicio dial shows that night's date under the number and is dimmed like stale data (the mini ring too),
+and the recovery deep-dive is titled with that date (its legend too) with a dimmed hero.
+
+**Nutrition card** (Inicio + Nutrición): while today is being logged it heads the card alone — today's
+kcal % of target, white, no band — and the closed day's score moves to the footer ("Yesterday 56% ·
+7-day average 85%"; formerly a big red "56% YESTERDAY" beside today's bars, and the aria read "56% el
+Ayer"). The nutrition trend calendar marks today partial ("in progress") instead of "No data".
+
+**Stress tile** opens the stress page on its reading's day when that is not today (it opened on an
+empty today). **Entreno load card** without a value ("—") drops its delta pill. **Journal insights**:
+the behaviours without enough days share one card; with none scored yet it is the sheet's empty state
+(what is needed, ≥ 5 days per side, and how many days count so far) instead of a column of identical
+"Need more data" cards.
+
+**Visual fixes from the audit of the real page:** the collapsed dial header has a solid fill (content
+showed through); Customize shows the short metric names ("HRV", "Resting HR") so rows fit 1–2 lines; the
+sleep deep-dive's "SLEEP PERFORMANCE" wraps inside the ring instead of touching it; the food sheet's tabs
+are one word each ("Products / Recipes / Quick"); every primary save is ONE component (`.save-btn`, the
+journal's full-width caps pill, guarded); Entreno's load pills sit on the card's bottom edge; the journal
+drinks stepper shows a dimmed "0" for unanswered (the "–" read as a minus); contributor rows use the short
+metric names like the trends beside them. Follow-ups: the carried recovery date on the dial drops its
+weekday (it did not fit a 360 px ring), a dated stress page opens at its hero (not scrolled to the day
+panel), and a load card whose dial is gated shows the "Building" word instead of a trend delta.
+
 ## 2026-10-09 — Design system follow-ups (DS5b)
 
 **Tablas supplements card** pads with `--card-pad` like every card: the inline `padding:6px 16px` is

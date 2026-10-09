@@ -145,8 +145,12 @@
   function stressTile(d, day) {
     var ST = T.stress, n = d.now, band = ST.bands[n.band] ? n.band : 'low';
     var time = String(n.t).slice(0, 2) + ':00';
-    var when = !day && daysOld(d.date) !== 0 ? HC.fmtDate(d.date) + ' · ' + time : time;
-    return '<div class="hmt hmt-stress hmt-sb-' + esc(band) + '"' + (day ? HC.detailAttrs('stress', day) : linkAttrs('stress')) +
+    var old = !day && daysOld(d.date) !== 0;
+    var when = old ? HC.fmtDate(d.date) + ' · ' + time : time;
+    // an earlier day's reading opens the stress page ON that day (tile and sheet agree), never on an
+    // empty today
+    var opens = day || (old ? d.date : null);
+    return '<div class="hmt hmt-stress hmt-sb-' + esc(band) + '"' + (opens ? HC.detailAttrs('stress', opens) : linkAttrs('stress')) +
       ' aria-label="' + esc(format(ST.aria, { value: num(n.v, 1), band: ST.bands[band], time: when })) + '">' + lbl(ST.label) +
       '<span class="hmt-body"><span class="hmt-srow"><span class="hmt-sv">' + esc(num(n.v, 1)) + '</span>' +
       '<span class="hmt-band">' + esc(ST.bands[band]) + '</span></span>' +

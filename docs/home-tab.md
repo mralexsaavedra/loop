@@ -29,8 +29,9 @@ Salud with `jump('monitor')` (switches to Salud and scrolls to it).
 
 **Collapsed dial row** (`#home-mini`, first in `Home.astro`): once the dials scroll above the viewport
 (an IntersectionObserver on `#home-dials`, `score.js`), a strip fixed at the top shows the
-three dials again as mini rings + labels (Sleep · Recovery · Load). It has no fill or border of its own:
-`--ground-top` fades to transparent under it, so the page scrolls away beneath it; each mini ring draws
+three dials again as mini rings + labels (Sleep · Recovery · Load). A SOLID `--ground-top` fill behind the
+whole bar and a `--line-soft` hairline under it (DS6: formerly a fade to transparent, so the content
+showed through under the labels); each mini ring draws
 its grey `--track` in full even with no value (the 45 % dimming of an empty ring applies to the big
 dial only). Every `dialFig` call also queues
 its mini item from the SAME svg string, colour class, label and detail opener (`HC.detailAttrs`), so
@@ -132,7 +133,9 @@ trend is the line under it.
   (low < 1 light blue `--strain-ink`, medium 1–2 teal `--up`, high ≥ 2 orange `--down`), the hour
   ("14:00", prefixed by the date when the day is not today); today = the newest day with a value when
   it is ≤ 3 days old (a day needs ≥ 6 scored hours, so early in the morning it is yesterday's, dated).
-  It opens the stress page (`docs/detail-views.md`). Without a stress value tile 2 falls back to HRV
+  It opens the stress page (`docs/detail-views.md`) — on the reading's own day when it is not today
+  (`data-date`), so the tile and the page agree (formerly the page opened on an empty today, "No data").
+  Without a stress value tile 2 falls back to HRV
   (the real baked value, its unit, its status word in its tone colour, its date when not today),
   opening the HRV sheet; without a fresh HRV value either, tile 2 is left out and tile 1 spans the row
   (`.hm-tiles-one`).
@@ -227,7 +230,12 @@ trend is the line under it.
   below = `--low` (single night cut at ±`DAY_BAND_CUTOFF`, the trend fallback at ±`BAND_CUTOFF`). No
   zone arcs on the track (they tinted part of the ring a second colour). The band word, "Last night"
   (or the night's date) / "no recent complete night" are in the accessible name, and the recovery
-  deep-dive page adds "no sleep data" and the 7-day trend. Sleep: fill = the sleep-duration component's newest night /
+  deep-dive page adds "no sleep data" and the 7-day trend. A night CARRIED from an earlier day (today's
+  is not complete yet — e.g. no resting HR or too few HRV samples — so `recovery.mjs` falls back up to
+  `MAX_TODAY_FALLBACK_DAYS`) is never shown as today's: the ring adds that night's date under the number
+  (`.dial-asof`, "7 OCT": the weekday does not fit inside a 360 px ring) and is dimmed like stale data (`sc-stale`, the mini ring too); the
+  deep-dive page is titled with that date and dims its hero (`docs/detail-views.md`). A stepped-to
+  past day shows its own night and is never marked. Sleep: fill = the sleep-duration component's newest night /
   the stated target (`health.recovery.sleep.target`, 7.5 h), capped at a full ring; `pct` = sleep
   performance (same fraction as a rounded %, `lib/score/sleep.mjs` `sleepPerformance`): the centre shows
   "92" + a small "%" in the sleep colour (the mini row reuses the same svg + accessible name, which
@@ -281,15 +289,19 @@ trend is the line under it.
   adherence to its own targets from the food log (kcal 0.4, protein 0.4, fat 0.2; formula and rules
   in `docs/nutrition-food-log.md` → Nutrition score and `analysis/methodology.md` 5b). Card =
   `.sc-card.tn.en.ns`: ONE caps title "NUTRITION" ("· INCOMPLETE" when a macro is missing, "· IN
-  PROGRESS" when only today shows) — one size and weight, no smaller tag inside (DS4, F16). The headline
-  is the newest CLOSED day (never today) while ≤ 3 days old: its score big in D-DIN coloured by its band
-  (≥ 85 `--good`, 60–84 `--mid`, < 60 `--low`, via `.de-hi/.de-mid/.de-lo`), "Yesterday" or the date
-  under it. Beside it: when today has a log, TODAY's progress under "TODAY · IN PROGRESS" — Nutrición's
-  three macro rows as "KCAL", "1,500 / 2,000 kcal", the bar = eaten / target in the neutral `--trend`
-  (`.ns-run`), no score and no points (2026-10-09, owner: a mid-day "0%" in red with "KCAL · 0" read as a
-  failed day and as "0 kcal"); otherwise the closed day's rows with their points labelled "KCAL · 85
-  pts", the bar = the points in their band colour. Then "7-day average 79%" (final scores only). Only
-  today logged → today's progress alone; nothing logged / nothing fresh → hidden. It opens the nutrition trend
+  PROGRESS" while today is being logged) — one size and weight, no smaller tag inside (DS4, F16).
+  **Today logged** → today heads the card ALONE (DS6, owner 2026-10-09: a big red "56% YESTERDAY" beside
+  the "TODAY · IN PROGRESS" bars read as today's score): the headline is today's kcal eaten as a % of its
+  target in white (`.ns-now`, "22%" over "KCAL TODAY"; no score, no band colour; none without a kcal log),
+  beside Nutrición's three macro rows as "KCAL", "1,500 / 2,000 kcal", the bar = eaten / target in the
+  neutral `--trend` (`.ns-run`), no points (a mid-day "0%" in red with "KCAL · 0" read as a failed day and
+  as "0 kcal"); the newest closed day moves to the footer line: "Yesterday 56% · 7-day average 85%". The
+  accessible name says both ("Nutrition today: in progress, 22% of the kcal target, no score yet ·
+  Yesterday: nutrition score 56%"; formerly "56% el Ayer"). **Nothing logged today** → the headline is the
+  newest CLOSED day while ≤ 3 days old: its score big in D-DIN coloured by its band (≥ 85 `--good`, 60–84
+  `--mid`, < 60 `--low`, via `.de-hi/.de-mid/.de-lo`), "Yesterday" or the date under it, its rows with
+  their points labelled "KCAL · 85 pts", the bar = the points in their band colour, then "7-day average
+  79%" (final scores only). Nothing logged / nothing fresh → hidden. It opens the nutrition trend
   sheet (`docs/detail-views.md`, key `nutrition`). On the LAN page Constancia's live summary
   re-renders it after every add / delete.
 - **Today's activities** (`lib/score/timeline.mjs`, baked as `SCORES.timeline` even when `hasData` is
@@ -364,7 +376,8 @@ trend is the line under it.
   the value vs the baseline: `--up` when better by the metric's good direction (`dir`), `--down` when
   worse, `--ink` (white) for a metric with no good direction (weight; never a grey arrow), a grey dot within ±2 % (`FLAT_SHARE`). A row older than 3
   days is dimmed; a tap opens that metric's detail sheet. "Customize" opens the registered `dash-edit`
-  sheet (detail.js modal): per metric THE switch (`HC.switchBtn`, `role="switch"` +
+  sheet (detail.js modal): per metric its SHORT name (the trend sheet's title: "HRV", "Resting HR", so
+  a row fits 1–2 lines at 360 px; the full name stays in the buttons' accessible names), THE switch (`HC.switchBtn`, `role="switch"` +
   `aria-checked`; design-system.md → Components), compact ↑ / ↓ buttons (the keyboard and screen-reader
   way to move) and, last, the reference app's ≡ drag handle (`.db-grip`, `aria-hidden`). The drag uses
   Pointer Events, so mouse, touch and pen alike: `pointerdown` on a handle (the primary pointer only, a

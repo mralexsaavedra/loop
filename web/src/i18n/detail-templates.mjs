@@ -130,7 +130,8 @@ export const en = {
       legendRest: 'vs prior 30 days',
       cmp: { better: 'better than usual', worse: 'worse than usual', above: 'above usual', below: 'below usual', typical: 'typical' },
       rows: {
-        hrv: 'Heart rate variability', rhr: 'Resting heart rate', resp: 'Respiratory rate', perf: 'Sleep performance',
+        // the short names, as the weekly trends below them (metrics.*.title)
+        hrv: 'HRV', rhr: 'Resting HR', resp: 'Respiratory rate', perf: 'Sleep performance',
         sleep: 'Hours of sleep', vsTarget: 'vs sleep target',
         need: 'Hours vs need', eff: 'Sleep efficiency', cons: 'Sleep consistency', restor: 'REM + deep sleep',
         bed: 'Bedtime', wake: 'Wake time', re: 'Today\'s effort', acute: '7 days vs 42 days', sessions: 'Sessions, last 7 days',
@@ -480,7 +481,7 @@ export const es = {
       legendRest: 'frente a los 30 días previos',
       cmp: { better: 'mejor de lo habitual', worse: 'peor de lo habitual', above: 'por encima de lo habitual', below: 'por debajo de lo habitual', typical: 'habitual' },
       rows: {
-        hrv: 'Variabilidad de la frecuencia cardiaca', rhr: 'Frecuencia cardiaca en reposo', resp: 'Frecuencia respiratoria',
+        hrv: 'VFC', rhr: 'FC en reposo', resp: 'Frecuencia respiratoria',
         perf: 'Rendimiento del sueño', sleep: 'Horas de sueño', vsTarget: 'Frente al objetivo de sueño',
         need: 'Horas frente a la necesidad', eff: 'Eficiencia del sueño', cons: 'Regularidad del sueño', restor: 'Sueño REM + profundo',
         bed: 'Hora de acostarte', wake: 'Hora de despertar', re: 'Esfuerzo de hoy', acute: '7 días frente a 42 días', sessions: 'Sesiones, últimos 7 días',

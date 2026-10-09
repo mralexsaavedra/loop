@@ -258,6 +258,32 @@ test('load: one compact card per modality (gym/run/bike): last session RE, "LOAD
   assert.match(html, /vs your own run days/, 'the relative score moved behind ⓘ, not dropped');
 });
 
+test('load card without a value (the owner\'s Run card: no recent session, "—") shows no delta pill: a "▼ -64%" beside "—" read as a value', () => {
+  const s = fixtureScores();
+  const run = s.load.modalities.find((m) => m.key === 'run');
+  assert.equal(run.trend.ok, true);
+  run.last = null;
+  const dials = buildDials(s, HEALTH);
+  dials.load.modalities.find((m) => m.key === 'run').last = null;
+  const hosts = {};
+  render(s, { hosts, dials });
+  const card = hosts.load.innerHTML.match(/<div class="ld-card" data-mod="run"[\s\S]*?<\/div>/)[0];
+  assert.match(card, /<b class="ld-num">—<\/b>/);
+  assert.doesNotMatch(card, /ld-pill/, 'no trend pill without a value');
+  assert.doesNotMatch(card, /7-day vs 42-day/, 'nor in the accessible name');
+  // the owner's Run card: the trend is ok but the dial is gated (too few run days for a typical day) →
+  // the dial's "Building" word, never the trend's delta beside "—"
+  const s2 = fixtureScores();
+  const d2 = buildDials(s2, HEALTH);
+  Object.assign(d2.load.modalities.find((m) => m.key === 'run'), { state: 'gated', reason: 'fewDays' });
+  const h2 = {};
+  render(s2, { hosts: h2, dials: d2 });
+  const c2 = h2.load.innerHTML.match(/<div class="ld-card ld-off" data-mod="run"[\s\S]*?<\/div>/)[0];
+  assert.match(c2, /<b class="ld-num">—<\/b>/);
+  assert.ok(c2.includes(`<span class="ld-pill ld-flat">${enT.dials.load.gated}</span>`));
+  assert.doesNotMatch(c2, /[▲▼] [+-]?\d+%/);
+});
+
 test('load section: the relative score, coverage, other activities and caveats sit in a hidden ⓘ block the header button controls', () => {
   const s = fixtureScores();
   const hosts = {};
@@ -560,6 +586,23 @@ test('recovery dial: an older night is labelled with its date, not "last night"'
   const d = dialOf(withDials(s, { now: addDays(ASOF, 2) }), 'dial-rec');
   assert.ok(!d.includes(enT.dials.recovery.lastNight));
   assert.ok(d.includes('as of Tue 29 Sep'), 'the shared display date, never ISO');
+});
+
+test('recovery dial: a night carried from an earlier day (2 days old, under the stale cut) names that day on the ring and is dimmed; today\'s night is not', () => {
+  const s = fixtureScores();
+  const mini = { innerHTML: '' }, dh = { innerHTML: '' };
+  withDials(s, { now: addDays(ASOF, 2), miniHost: mini, dialsHost: dh });
+  const html = dh.innerHTML;
+  const d = dialOf(html, 'dial-rec');
+  assert.match(d, /^class="dial dial-rec[^"]* sc-stale"/, 'dimmed like stale data');
+  assert.ok(d.includes('<span class="dial-asof">29 Sep</span>'), 'the night\'s date inside the ring');
+  assert.doesNotMatch(dialOf(html, 'dial-sleep'), /dial-asof/, 'only the carried recovery value');
+  assert.match(mini.innerHTML, /class="dm dial-rec[^"]* sc-stale"/, 'the collapsed row dims it too');
+  const fresh = dialOf(withDials(s), 'dial-rec');
+  assert.doesNotMatch(fresh, /sc-stale|dial-asof/);
+  // a stepped-to past day shows ITS own night: never marked as carried
+  const past = dialOf(withDials(s, { now: addDays(ASOF, 2), day: fakeDay(ASOF) }), 'dial-rec');
+  assert.doesNotMatch(past, /sc-stale|dial-asof/);
 });
 
 test('recovery dial: a composite without a sleep-duration reading is labelled by date + "no sleep data", never "last night"', () => {

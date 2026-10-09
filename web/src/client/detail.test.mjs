@@ -690,6 +690,24 @@ test('recovery deep-dive: a gated recovery shows the dial\'s word in an empty ri
   assert.match(heroOf(old.host.innerHTML), /^ dd-\w+ dd-stale"/, 'stale data greys the hero like the dial');
 });
 
+test('recovery deep-dive: a night carried from an earlier day (2 days old, under the stale cut) titles the page with that night\'s date, not "Today", and dims the hero like the dial', () => {
+  const night = DEMO.metrics.recovery.head.date;
+  const s = setup({ now: addDays(night, 2), dials: DIALS });
+  s.api.open('recovery');
+  const h = headOf(s.host.innerHTML);
+  assert.doesNotMatch(h, new RegExp(`</span>${enT.deep.today}</h2>`));
+  const d = new Date(night + 'T00:00:00Z');
+  const want = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getUTCDay()] + ' ' + d.getUTCDate() + ' ';
+  assert.match(h, new RegExp(`</span>${want}[A-Z][a-z]{2,3}</h2>`), h.slice(-80));
+  assert.match(heroOf(s.host.innerHTML), /^ dd-\w+ dd-stale"/);
+  assert.match(s.host.innerHTML, new RegExp(`<p class="dd-legend">.*?<b>${want}[A-Z][a-z]{2,3}</b> ${enT.deep.contrib.legendRest}`), 'the legend names the night too');
+  // the night is today's: "Today", not dimmed
+  const fresh = setup({ now: night, dials: DIALS });
+  fresh.api.open('recovery');
+  assert.ok(headOf(fresh.host.innerHTML).includes(`</span>${enT.deep.today}</h2>`));
+  assert.doesNotMatch(heroOf(fresh.host.innerHTML), /dd-stale/);
+});
+
 test('weight header = the Salud card\'s 7-day rolling average (the chart line), with the latest raw reading underneath', () => {
   const s = setup();
   s.api.open('weight');
@@ -1674,6 +1692,17 @@ test('stress page follows the day it was opened on; a day under the minimum hour
   assert.match(none.host.innerHTML, /dt-empty/);
 });
 
+test('a dated stress page (the Inicio tile\'s earlier reading) opens at its hero — the hero IS that day — not scrolled to the day panel', () => {
+  const S = DEMO_SCORES.stress;
+  const prev = S.days[S.days.length - 2];
+  const s = setup({ scores: DEMO_SCORES, parts: true });
+  const scrolled = [];
+  s.part.day.scrollIntoView = (o) => scrolled.push(o);
+  s.api.open('stress', prev.date);
+  assert.ok(heroOf(s.host.innerHTML).includes(`<b class="dd-num">${prev.now.v.toFixed(1)}</b>`));
+  assert.equal(scrolled.length, 0);
+});
+
 test('es stress page: Spanish copy, decimal comma', () => {
   const s = setup({ locale: 'es', scores: DEMO_SCORES });
   s.api.open('stress');
@@ -1796,6 +1825,35 @@ test('nutrition score sheet: the trend view of the page-scored series, bands 85 
   assert.match(html, new RegExp(`class="dt-day dt-s-bad" data-dt-act="day" data-date="${addDays(NOW, -1)}"`));
   assert.match(html, new RegExp(`class="dt-day dt-s-partial" data-dt-act="day" data-date="${NOW}"`));
   clean(html);
+});
+
+test('contributor rows use the short metric names the same sheet\'s weekly trends use ("HRV", "Resting HR"), never the long ones beside them', () => {
+  for (const T of [enT, esT]) {
+    assert.equal(T.deep.contrib.rows.hrv, T.metrics.hrv.title);
+    assert.equal(T.deep.contrib.rows.rhr, T.metrics.rhr.title);
+  }
+  const s = setup({ dials: DIALS });
+  s.api.open('recovery');
+  assert.ok(s.host.innerHTML.includes('<span class="dd-row-lbl">HRV</span>'));
+  assert.doesNotMatch(s.host.innerHTML, /Heart rate variability/);
+});
+
+test('nutrition score calendar: today being logged (no score yet: v null, the day result partial, as nutri-score.js metric() bakes it) is a partial mark, not "No data"', () => {
+  const s = setup();
+  s.ctx.window.HCNutriScore = {
+    metric() {
+      const m = nscoreMetric();
+      m.v[m.v.length - 1] = null; // HCNutriScore.metric(): a partial day has no score on the chart
+      return m;
+    },
+  };
+  s.api.open('nutrition');
+  const html = s.host.innerHTML;
+  const cell = html.match(new RegExp(`<button type="button" class="dt-day ([^"]+)" data-dt-act="day" data-date="${NOW}"[^>]*aria-label="([^"]+)"`));
+  assert.ok(cell, 'today has a day cell');
+  assert.equal(cell[1], 'dt-s-partial');
+  assert.ok(!cell[2].includes(enT.noData), cell[2]);
+  assert.ok(cell[2].includes(enT.day.ns.inProgress), cell[2]);
 });
 
 test('nutrition score day panel: the score, each component eaten / target and points, and why the day may read short', () => {
