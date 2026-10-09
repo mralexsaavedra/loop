@@ -25,7 +25,7 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
 | Role token | = primitive | Use it for |
 | --- | --- | --- |
 | `--card-radius` | `--r-sm` (11 px) | the corner of EVERY card-level fill: tab cards, list rows (`.db-row`), folds (`details`, `.sec-fold > summary`), sheet cards |
-| `--card-pad` | `--sp-5` (12 px) | a card's inner padding (Inicio's `.sc-card` and `.eat-card` share it) |
+| `--card-pad` | `--sp-5` (12 px) | EVERY tab card's inner padding, all four sides (Inicio's `.sc-card`, `.eat-card`, the monitor tiles `.hmt`; Entreno's `.act-card`, `.lvr-card`, `.ld-card`; Nutrición's `.nutri-card`, `.meal`, `.intake-card`) |
 | `--fs-num-row` | `--fs-3xl` (20 px) | a number that heads a row or a small block (Inicio panel rows, meal kcal, fuelling key, adherence) |
 | `--fs-num-card` | `--fs-4xl` (28 px) | a card's headline value (eat card kcal, Tonight's clocks, the energy / nutrition %, load cards, recovery card, weight, monitor tiles at >= 900 px) |
 | `--fs-dial`, `--fs-hero` | 26 / 56 px | a dial centre — sized to its ring (see "Exceptions") |
@@ -41,12 +41,19 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
 
 - **Cards.** A rule that paints `var(--card-bg)` or `var(--surface)` and rounds its corners uses
   `var(--card-radius)`. No rule uses a raw px radius >= 8 px; smaller raw radii (bar ends, swatches,
-  3 px markers) are fine.
+  3 px markers) are fine. The same card rule pads itself with `var(--card-pad)` (formerly 14 × 12 px on
+  the monitor tile, Entreno's Activity card and Nutrición's cards, 10 px on the load tiles, 16 px on the
+  intake card).
 - **Hero numbers.** In the `--num` face, a size of 18 px or more is a step of the scale: row
   (`--fs-num-row`), card (`--fs-num-card`) or a dial centre; weight 700 (`--num-weight`), never 800.
   No other rule sets a raw px size of 18 px or more.
 - **Caps.** An uppercase rule sizes itself with `--fs-label`, `--fs-title` or `--fs-title-lg` and
   tracks with `var(--label-track)` — no raw em tracking.
+- **Caps colour.** A caps label is white (`--ink`, `--accent`) or grey (`--muted`, `--faint`); the
+  meaning colour goes on the number or the glyph beside it (the reference app's rule). Nutrición's
+  weight status word is white with its dot coloured (formerly the word too, e.g. yellow "GOING DOWN"),
+  Tablas' supplement timing tags are white (formerly `--trend` blue) and Inicio's "PROGRAMMED" timeline
+  label is white beside its coloured bar (formerly `--strain-ink`).
 - **Empty states** read in sentence case, like the source strings: a dial word ("Sin sesión aún",
   "Sin datos", `.dial-word`) is muted sentence case at `--fs-label`, as in the deep-dive hero.
 
@@ -54,6 +61,14 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
 
 - Radius: the dock bar and its buttons (`.tabnav`, 24 / 19 px), the "+" popover (`.act-pop`, 12 px),
   the desktop calendar tile (`.cal-day`, 8 px) and the 2 px contributor marker (`.dd-contrib::before`).
+- Padding: list rows (`.db-row`, 8 × 12 px: rows stack into a list), fold rows (`.sec-fold > summary`,
+  a min-height, side padding only), the compact macro tile `.mac`, the empty state `.train-empty` (a
+  centred message) and the sheets' own cards (`detail.css`, `profile.css`, the food sheet's form), which
+  sit on the sheet's 16 px inset. Tablas' supplements card takes its `padding: 6px 16px` from an inline
+  style in the plan data (`tablas.supplements` note), not from CSS.
+- Caps colour: the CTA link (`.cta`, `--link`), the journal pill's text on its white fill (`.jr-btn`),
+  and a word that IS the reading, coloured like a value — the stress band (`.ds-band`), the monitor's
+  within / outside range (`.hmt-status`) and a monitor tile's band (`.hmt-band`).
 - Hero size: dial centres sized to their ring (Inicio's dials at >= 900 px, Nutrición's kcal dial
   `.nt-kcal`, the deep-dive dial `.dd-num`) and the trend sheet's header value (`.dt-num`); non-number
   glyphs (`.sh-back`, the header `.wordmark`, phone and desktop).
@@ -166,7 +181,7 @@ the trend sheet's window, its calendar month (formerly 44 px filled circles) and
   colour / size / weight; every ‹ › glyph in the display sources sits in a `.chev` span (allowlist:
   `util.js` sheet header).
 
-### Segmented control and selected chip
+### Segmented control, chip, switch and select
 
 - **Segmented control** `.dt-range` (`detail.css`): THE switch between views of one thing — the trend
   sheets' W · M · 6M · 1Y, Entreno Activity's W · M · 6M (formerly a big pill track with a white thumb)
@@ -186,6 +201,16 @@ the trend sheet's window, its calendar month (formerly 44 px filled circles) and
   "HIDDEN" word). `role="switch"` + `aria-checked`, no visible word (the label says what it shows); a
   34 × 20 track, knob left on `--rail` (off) or right on `--accent` (on); the button is the 44 px hit
   area. Not a pick of one among several — that is the chip.
+- **Select** `.sel` (`base.css`): pick one of MANY from a native `<select>` (keyboard, screen readers and
+  the phone's own picker for free) — the trend sheet's metric, Nutrición's example food per macro
+  (`.gd-pick`) and the ride duration (`.fuel-select`). A `--rail` pill (`--r-pill`, no border), `--ink`
+  text at `--fs-sm` / 600, `appearance: none` with the shared chevron turned down: a
+  `<span class="chev sel-chev" aria-hidden="true">›</span>` right after the select (pulled back into the
+  pill). The owner only sizes it (`.gd-pick` flexes in its row at 44 px, `.fuel-select` 180 px min, 44 px
+  tall). Formerly Nutrición's food pick was a mini card (card fill, 11 px radius, 1 px border) and the
+  ride duration a field. Not the food sheet's form fields (`.food-in`), which keep the text-field look
+  of the inputs beside them. Guard: no owner rule sets a select's fill, border, radius, colour, padding
+  or font; every other `<select>` in markup carries `.sel`.
 - Guard: a pressed / checked state that fills or outlines is the chip's, the segmented control's or
   the switch's; the others are listed with their reason: the trend calendar's selected day (a ring on a
   day cell) and the journal's ✕ / ✓ answers (the reference's answer pair, each a yes / no of its own

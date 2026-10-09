@@ -5,6 +5,24 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-09 — Design system final polish (DS5)
+
+The last audit diffs (docs/design-system.md). **Card padding:** every tab card pads itself with
+`--card-pad` (12 px on all four sides) — the monitor tile, Entreno's Activity / load / load-vs-recovery
+cards, Nutrición's cards and meal cards, the intake card (formerly 14 × 12, 10 or 16 px); the guard
+now checks every card fill, with a short allowlist (list rows, fold rows, the macro tile, the empty
+state, the sheets' own cards on their 16 px inset).
+**Select:** one form-control style, `.sel` in `base.css` — a `--rail` pill with the system chevron
+turned down — for the three native picks (trend metric, Nutrición's example food, ride duration);
+Nutrición's food pick no longer looks like a mini card (card fill, card radius, border).
+**Caps colour:** caps labels are white or grey; the colour moves to the number or glyph — the weight
+status word turns white beside its coloured dot (the rate pill keeps its colour), the supplement timing
+tags and Inicio's "PROGRAMMED" timeline label turn white. A new guard rejects any other colour on a caps
+rule, with a reasoned allowlist (the CTA, button text on a fill, and words that ARE the reading).
+**Customize dashboard:** a ≡ drag handle per row, as in the reference app — Pointer Events with pointer
+capture (mouse and touch), the row moves live and the drop saves exactly like ↑ / ↓, which stay (now
+compact, muted) as the keyboard / screen-reader way to reorder.
+
 ## 2026-10-09 — Design system card alignment (DS4)
 
 The audit's remaining card findings move onto the shared components (docs/design-system.md).

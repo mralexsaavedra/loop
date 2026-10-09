@@ -1531,7 +1531,8 @@ test('trend view: "TREND VIEW" header + a metric picker pill (non-dial metrics o
   assert.ok(opts.length >= 2);
   assert.deepEqual(opts.filter((o) => o[2]).map((o) => o[1]), ['rhr'], 'the open metric is selected');
   for (const k of ['sleep', 'recovery', 'strain', 'load-gym']) assert.ok(!opts.some((o) => o[1] === k), `${k} keeps its dial page`);
-  assert.match(html, /<label class="dt-metric"><span class="sr-only">Metric<\/span><select class="dt-metric-sel" data-dt-pick="metric">/);
+  assert.match(html, /<label class="dt-metric"><span class="sr-only">Metric<\/span><select class="dt-metric-sel sel" data-dt-pick="metric">/);
+  assert.match(html, /<\/select><span class="chev sel-chev" aria-hidden="true">›<\/span><\/label>/, 'the shared select: the system chevron, not the browser arrow');
   s.click(act('range', { 'data-range': '182' }));
   const sel = new StubElement('select', { attrs: { 'data-dt-pick': 'metric' } });
   sel.value = 'hrv';

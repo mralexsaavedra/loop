@@ -186,7 +186,7 @@ tr.ref-sub td:first-child {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: var(--label-track);
-  color: var(--trend);
+  color: var(--ink);
   background: var(--accent-soft);
   padding: var(--sp-2) var(--sp-4);
   border-radius: var(--r-xs);
