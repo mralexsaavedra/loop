@@ -173,9 +173,12 @@ test('cycling section: one list row per ride (newest first): icon · date with H
   assert.match(html, /<section class="hs-sec hs-sec-cycling" id="hl-cycling" aria-labelledby="hs-h-cycling"><div class="hs-head"><h3 class="hs-lbl" id="hs-h-cycling">Cycling<\/h3><button type="button" class="hs-i" data-hs-info="hs-info-cycling"/);
   assert.doesNotMatch(html, /<table|run-tbl/, 'no tables left');
   const rows = [...html.slice(html.indexOf('id="hl-cycling"')).matchAll(/<li class="db-row"[^>]*><svg class="db-ico"[^>]*>[\s\S]*?<\/svg><span class="db-name">([^<]+)(?:<small class="db-note">([^<]*)<\/small>)?<\/span><span class="db-vals"><span class="db-val"><b>([^<]+)<\/b>(?:<small>([^<]*)<\/small>)?<\/span>(?:<span class="db-base">([^<]*)<\/span>)?/g)].map((m) => m.slice(1));
-  // ONE row template with the runs: the secondary line under the value, nothing under the date
+  // ONE row template with the runs: the small lines under the value, nothing under the date
   assert.deepEqual(rows[0], ['Wed 10 Jun', undefined, '40.25', 'km', '1:30 · ↑412 m']);
-  assert.match(html, /aria-label="Wed 10 Jun · 40.25 km · 1:30 · ↑412 m · 141 bpm · Effort 96 · 1,310 kJ"/, 'HR, effort and work stay in the aria label');
+  // a ride's second small line: HR · effort · kJ (the work is visible on the row, grouped by HC.nf)
+  assert.match(html, /<span class="db-base">1:30 · ↑412 m<\/span><span class="db-base">141 bpm · Effort 96 · 1,310 kJ<\/span><\/span><\/li>/);
+  assert.match(html, /aria-label="Wed 10 Jun · 40.25 km · 1:30 · ↑412 m · 141 bpm · Effort 96 · 1,310 kJ"/, 'and in the aria label');
+  assert.doesNotMatch(html.slice(html.indexOf('Thu 4 Jun')).split('</li>')[0], /class="db-base">[^<]*<\/span><span class="db-base">/, 'nothing recorded: no empty second line');
   assert.deepEqual(rows[1], ['Thu 4 Jun', undefined, '—', undefined, '1:00'], 'missing fields are left out, never 0; no distance = a dash, no unit');
   const info = html.match(/<div class="hs-info" id="hs-info-cycling" hidden>([\s\S]*?)<\/div>/)[1];
   assert.match(info, /<b>12<\/b> rides/);

@@ -40,6 +40,9 @@ new markup tests pin Tonight's sleep-history CTA (and its absence without sleep 
 `.nav-btn` arrows disabled at their edges, the recovery card head (date, History, ⓘ — no title) and the
 neutral ▲ / ▼ pill of a metric with no good direction; the design guard keys its number-face lookup by
 stylesheet and media query.
+**Ride kJ back on the row (owner):** a ride row's HR · effort · kJ is a second small line under the
+value (`HC.metricRow` `base2`), still inside the one run / ride template — the work had become visible
+nowhere.
 
 ## 2026-10-09 — Design system components: one style per shared pattern
 

@@ -195,8 +195,8 @@ the trend sheet's window, its calendar month (formerly 44 px filled circles) and
 
 `HC.metricRow(o)` (`client/util.js`, `.db-*` in `score.css`) is THE list row of Salud, My dashboard, the
 monitor and Entreno's run / ride / intensity lists: icon · caps name · value (+ unit) · trend glyph, and ONE
-small secondary line under the value, right-aligned (`base`) — nothing under the name (the rides' line
-under the date is gone, so run and ride rows are one template). Icons come from ONE set (`metricIcon`,
+small secondary line under the value, right-aligned (`base`), plus an optional second one (`base2`:
+a ride's HR · effort · kJ) — nothing under the name, so run and ride rows are one template. Icons come from ONE set (`metricIcon`,
 which falls back to the contributor rows' paths): each row picks the icon of what it measures (a
 modality, bed, wake, target …), a neutral one when none fits; never the same icon on every row of a list.
 
