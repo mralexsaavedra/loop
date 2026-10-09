@@ -14,6 +14,8 @@ stronger state. Inicio's sleep dial now follows it too (it showed an earlier nig
 the DS6 recovery dial moved onto the helper (dimmed instead of greyed like stale data).
 The sleep deep-dive follows the recovery one: a carried night titles the page with its date, names it in
 the contributor legend and dims the hero.
+The Inicio monitor tiles (summary, stress, HRV), the energy bank card (which now opens its page on the
+carried day, like the stress tile) and "My day" follow the same rule.
 
 ## 2026-10-09 — Real-page fixes (DS6)
 
