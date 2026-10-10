@@ -11,7 +11,7 @@
  *   GET    /food/off?barcode=|q=     Open Food Facts lookup, server side (src/off.js); saves nothing
  *   GET    /food/log/summary?from=&to=  per-day sums of the log (<= FOOD_LIMITS.summaryDaysMax days): the
  *                                   page's adherence view (food-calc.js daySummaries)
- *   GET    /food/settings            the owner's goal + target weight (one row, sql/007_settings.sql)
+ *   GET    /food/settings            the user's goal + target weight (one row, sql/007_settings.sql)
  *   PUT    /food/settings            partial update {goal?, targetWeightKg?} (targetWeightKg null clears it)
  *
  * The settings live in their OWN optional migration group (`settings`): when 007 fails only

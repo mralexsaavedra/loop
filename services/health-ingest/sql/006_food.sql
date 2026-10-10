@@ -1,14 +1,14 @@
--- Food log (Nutrición part 2): the owner's supermarket products, his own recipes and what he ate.
+-- Food log (Nutrición part 2): the user's supermarket products, their own recipes and what they ate.
 -- Written from the LAN plan page through plan-web's /api/food/ proxy (src/food.js); a public
 -- reverse proxy must NEVER forward /food/*. Idempotent like 003-005: safe to run on every start.
 --
---   food_product  per-100 g / ml macros from the label or Open Food Facts, confirmed by the owner;
+--   food_product  per-100 g / ml macros from the label or Open Food Facts, confirmed by the user;
 --                 archived instead of deleted, so recipes and old log entries keep their reference
 --   food_recipe   ingredients [{productId, amount}] (amount in the product's unit); macros are
 --                 COMPUTED from the products (per serving, or per 100 g cooked for a batch), never typed
---   food_log      one eaten item per row, dated with the owner's LOCAL date sent by the page, with a
+--   food_log      one eaten item per row, dated with the user's LOCAL date sent by the page, with a
 --                 SNAPSHOT of its macros taken at log time (a later product edit never rewrites history);
---                 macros may be NULL only for quick entries whose macros the owner did not know
+--                 macros may be NULL only for quick entries whose macros the user did not know
 CREATE TABLE IF NOT EXISTS food_product (
   id            BIGSERIAL    PRIMARY KEY,
   name          TEXT         NOT NULL CHECK (char_length(name) BETWEEN 1 AND 120),
