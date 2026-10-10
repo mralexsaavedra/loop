@@ -1035,8 +1035,8 @@ productos.
 ## 2026-10-01 — Daily energy: one source per day by precedence
 
 The Watch-only energy rule below (fallback to every source only when the whole export had no Watch
-energy) dropped ~1,300 days of the owner's history: active-energy-daily went from 1,622 to 321 rows,
-because before the Apple Watch (late 2025) energy came from Zepp, Mi Fit and the iPhone. It is
+energy) dropped most of a history whose older days (before an Apple Watch) came from another wearable
+app and the iPhone. It is
 SUPERSEDED: per day and type extract.js now picks ONE source by precedence — Apple Watch > a
 dedicated wrist-wearable app (Zepp, Mi Fit, Amazfit, Garmin Connect, Polar Flow, Fitbit, Huawei
 Health) > iPhone — and writes only its sum, never a sum across sources. Scales (RENPHO's BMR) and
@@ -1047,11 +1047,11 @@ no row. The whole-export fallback is gone (the iPhone rank covers phone-only use
 
 ## 2026-10-01 — Data-integrity fixes from the real-data audit
 
-A read-only audit of the owner's extract found eight ways bad rows reached the page; each is fixed
+A read-only audit of a real extract found eight ways bad rows reached the page; each is fixed
 in code, with synthetic tests.
 
-- **Partial last export day** — export.xml taken early on 2026-08-20 left a 971-step / 1-min / 103 kcal
-  day that beat complete Shortcut totals ("export rows always win"). extract.js now records
+- **Partial last export day** — an export.xml taken early in the day left a partial day (a few hundred
+  steps) that beat complete Shortcut totals ("export rows always win"). extract.js now records
   `exportLastDate` (`<ExportDate>`, else the newest record date) in `_meta.json` and skips that date
   in the daily TOTAL series; the Shortcut sync treats it as a sync-owned date for `total: true`
   metrics (Shortcut row wins, export row dropped when there is none).
@@ -1069,15 +1069,15 @@ in code, with synthetic tests.
   joins the night; later-ending naps keep the 60-min cap.
 - **RHR** — deduped by timestamp only (Apple rewrites the day's value at the same stamp).
 
-Owner actions: re-run `node data/apple-health/extract.js` on export.xml (energy + partial day), add
+Follow-up actions: re-run `node data/apple-health/extract.js` on export.xml (energy + partial day), add
 the three Shortcut keys and the weight source field (`docs/ios-shortcut.md`), then
 `npm run sync -- --full` and `npm run generate`.
 
 ## 2026-10-01 — Power-meter ride days correct the Watch's active energy
 
 A ride recorded by a bike computer with a power meter (and not by the Watch) was under-counted by
-the Watch's Active Energy (real case: a 2,311 kJ ride, 1,821 Watch kcal over the ride hours, a 2,207
-kcal day). Now corrected active(day) = Watch day − Watch energy during the ride + ride kJ ×
+the Watch's Active Energy (a long power-meter ride whose kJ far exceeded the Watch's kcal over the ride
+hours). Now corrected active(day) = Watch day − Watch energy during the ride + ride kJ ×
 `KJ_TO_KCAL` (1.0), only for rides with kJ AND `device_watts: true`, only when the Watch's hourly
 buckets cover the whole ride window, and only when it RAISES the day (`lib/health/ride-energy.mjs`;
 buckets prorated by overlap, instants compared so DST and the host timezone do not matter, a ride over
@@ -1091,8 +1091,8 @@ is corrected). `readActiveEnergy` is the one reader of the Salud expenditure car
 sheet's `energy`: the raw CSV stays untouched, the card says "incluye la salida medida con
 potenciómetro" on a corrected headline day (+ a note with the corrected days of the window), and the
 detail day panel shows "reloj <n> + corrección por potencia" under Activa. Note: with proration the
-literal case lands near 2,744 kcal for an even-ish hourly split, not the full-hour 2,697 (the partial
-first / last ride hours keep part of the Watch's energy).
+result differs slightly from a full-hour estimate (the partial first / last ride hours keep part of
+the Watch's energy).
 
 Follow-up after review (same day): the Watch day in the formula is max(daily row, sum of that day's
 hourly buckets), so a stale daily total cannot skew a correction; each midnight of a ride over
@@ -1105,7 +1105,7 @@ data does not cover is flagged and the Salud card / detail day panel say it was 
 
 ## 2026-10-01 — Plan de hoy becomes a portion guide (trial, branch `feat/portion-guide`)
 
-Owner feedback: Plan de hoy is useful only as an orientative "how much can I eat"; the menu structure
+Feedback: Plan de hoy is useful only as an orientative "how much can I eat"; the menu structure
 was not (add-ons that changed by day type — coffee on rest days, pre / post on gym days —, option lists
 that could never be complete, imposed items). Plan de hoy now shows ALWAYS the same four blocks —
 Desayuno, Comida, Cena + Extras — and the day type / goal only change the amounts
@@ -1113,7 +1113,7 @@ Desayuno, Comida, Cena + Extras — and the day type / goal only change the amou
 budget = the solved plan meals of its slot (`planFor`, caps and water-fill as before, no picks); Extras =
 the meals target − the three (it absorbs the add-ons and whatever capped plates leave over; never
 negative). A main meal is a plate by parts: protein / carbs / vegetables (free) / fat, each macro with
-ONE example food from a native select (the public basics of its categories + the owner's products when
+ONE example food from a native select (the public basics of its categories + the user's products when
 the food API answers) and the amount of it that supplies the macro, in its natural unit, capped at its
 `maxAmt` ("(máx.) + completa con otra fuente"). Defaults = the food the base plan uses there, else
 chicken / rice / olive oil; picks persist per viewer (`hc.nutri.guide`). Extras = a budget line + example
@@ -1129,8 +1129,8 @@ Registrar are unchanged.
 
 ## 2026-10-01 — Plan de hoy adds an automatic snack when the meals fall short
 
-With realistic portion caps the owner's five meals often end below today's target (maintain gym −209,
-bike −229, bikeLong −299 meal kcal; bulk −366…−599) and the page only said "add a snack". Now
+With realistic portion caps a plan's five meals often end below today's target (by about 200–600 meal
+kcal depending on goal and day type) and the page only said "add a snack". Now
 `planFor` adds one: after the capped carb solve, a shortfall beyond the 75 kcal tolerance gets a
 "Tentempié" / "Snack" add-on sized to it (`lib/nutrition/snack.mjs`). Six tracked options built from
 the public food DB incl. the log-only basics (fruit + yogurt, banana + quark, yogurt + cereal, toast
@@ -1145,9 +1145,9 @@ rest becomes the snack. The example plan's shortfalls drop from 95–835 kcal to
 
 ## 2026-10-01 — Food log basics: log an egg without creating a product
 
-The owner wanted to log generic foods (egg, milk…) without first creating a product in Mis productos.
+Goal: log generic foods (egg, milk…) without first creating a product in Mis productos.
 The add sheet's product search now also looks in the public food DB (`ingredients.json`, baked as
-`FOOD_BASICS` by `lib/nutrition/basics.mjs`): an empty search lists only his products, typing adds a
+`FOOD_BASICS` by `lib/nutrition/basics.mjs`): an empty search lists only your products, typing adds a
 "Básicos" group after them (accent- and case-insensitive, "platano" finds "Plátano"), marked "valor
 medio". A pick takes an amount in the food's natural unit (1 piece / 100 g / 100 ml, pieces ↔ grams for
 countable foods) with a live preview, and is saved as ONE quick entry with its four macros and the
@@ -1161,7 +1161,7 @@ Cooked chickpeas and lentils already existed. Page bake +~9.5 KB (104 basics).
 
 ## 2026-10-01 — Realistic portions: caps, water-filling, Registrar first
 
-The owner's maintain gym day (3050 kcal) asked for 235 g of dry pasta at lunch: only the 2–3 parts
+A maintain gym day asked for an unrealistic plate of dry pasta at lunch: only the 2–3 parts
 marked `flex: "carb"` scaled, so every extra carb piled onto them. Now every carb / fruit food (and a
 sweet carb staple such as honey or jam) is carb-flex by its category (`lib/nutrition/flex.mjs`;
 `flex: null` opts out), and an optional per-food `maxAmt` in the tracked `ingredients.json` caps a
@@ -1179,8 +1179,7 @@ mozzarella) moved from `dairy` to its own `cheese` category so it is never offer
 
 ## 2026-10-01 — Every food in Plan de hoy is choosable (food categories)
 
-The owner objected to imposed fixed foods ("no tiene sentido que me marques que tengo que comer
-calabacín sí o sí"): only `{use, match}` parts were selects, while `{ing}` parts — courgette at lunch /
+Imposed fixed foods made no sense (courgette whether you want it or not): only `{use, match}` parts were selects, while `{ing}` parts — courgette at lunch /
 dinner, the milk in the after-lunch coffee, the pear of the protein anchor, the pre-workout's milk +
 bread roll + honey, the cooking oil — were fixed. Every ingredient of the tracked `ingredients.json` now
 has a food category (`cat`, closed set in the new `lib/nutrition/categories.mjs`, validated by
@@ -1189,13 +1188,13 @@ plus "none" for veg / fruit / sweet / dairy / drink / sauce. One explicit rule t
 keeps equal (protein grams, carb grams, fat grams, kcal or the same weight), clamped 0.5–2× like the
 protein swaps; the whole day is then re-solved by the carb-flex engine. Generic: no personal-plan
 migration. The page ports it line by line (parity tests); the no-pick plan is unchanged byte for byte
-(pinned totals of the 12 plans; on the owner's plan all 36 plan × ride cases checked identical);
+(pinned totals of the 12 plans; on a personal plan all 36 plan × ride cases checked identical);
 "Del plan" logs what was picked and leaves skipped foods out. NUTRI on the example: ~10.5 → ~17.9 KB.
 
 ## 2026-10-01 — Three main meals + one "Añadidos" group (Plan de hoy, Registrar)
 
-The owner disliked separate full cards for small things ("Café (tras comer)" on rest days,
-"Pre-entreno" on training days). Plan de hoy and the food log now show only three main meals —
+Small things had separate full cards ("Café (tras comer)" on rest days, "Pre-entreno" on
+training days). Plan de hoy and the food log now show only three main meals —
 Desayuno, Comida, Cena — plus ONE "Añadidos" / "Extras" group for everything else (pre / post
 workout, protein anchor, after-lunch coffee, cooking oil, snacks). `lib/nutrition/slots.mjs` holds the
 classification (`MAIN_SLOTS`, `isMainMeal`, `MEAL_GROUPS`, `mealGroup`, `ADDON_SLOT`), baked for the page.
@@ -1207,8 +1206,8 @@ food-log slot enum and schema are unchanged, and a test pins `planFor`'s totals 
 
 ## 2026-10-01 — Plan de hoy by blocks; Tablas = fixed reference values
 
-The owner never knows in advance what he will eat, but Plan de hoy showed one fixed day and the variety
-of his option lists only lived in the removed day builder; Tablas meanwhile showed old train / rest
+What gets eaten is rarely known in advance, but Plan de hoy showed one fixed day and the variety of
+the option lists only lived in the removed day builder; Tablas meanwhile showed old train / rest
 portions that contradicted the scaled plan. Now a dayPlan part that points at an option list is a
 choosable BLOCK (`lib/nutrition/blocks.mjs`): a compact select in its meal card lists that list's
 options (grouped like the tables); protein lists (proteina, anclaje, postentreno) scale the pick to
@@ -1237,9 +1236,9 @@ dropped on purpose (the dial shows the target; the food log is the way to log).
 
 ## 2026-09-30 — Nutrition v2, part 2: food log, my products, my recipes
 
-The owner logs what he eats from the LAN page. Nutrición gains Registrar (today's log by meal slot,
-right after Plan de hoy) with an add sheet (his products grouped Mercadona / Dia / Eroski / other, his
-recipes, or a quick label + kcal), and two folds next to the day builder: Mis productos (barcode or
+You log what you eat from the LAN page. Nutrición gains Registrar (today's log by meal slot,
+right after Plan de hoy) with an add sheet (your products grouped by store — Mercadona / Dia / Eroski /
+other —, your recipes, or a quick label + kcal), and two folds next to the day builder: Mis productos (barcode or
 text lookup on Open Food Facts, done by the ingest service; every value confirmed or typed from the
 label before saving, missing ones flagged, never guessed) and Mis recetas (per-serving recipes such
 as tortitas or a shake, batch recipes such as lentejas weighed cooked; macros always computed from
@@ -1277,7 +1276,7 @@ is left over; ride days add before / during / after fuelling ranges (orientative
 personal plans upgrade with `scripts/migrate-plan-v2.mjs` (dated backup, idempotent). Logging and a
 product catalogue are part 2.
 
-The goal later moved out of the way (owner feedback: too prominent): Resumen de hoy keeps only the
+The goal later moved out of the way (feedback: too prominent): Resumen de hoy keeps only the
 day-type selector and shows the goal as a small chip next to today's kcal; the chip opens the profile
 sheet, whose new "Objetivo" setting (first section) sets it, with each option's kcal/day change vs
 maintain derived from the targets. Same storage key (`hc.nutri.goal`), same refresh path.
@@ -1354,11 +1353,11 @@ view Strava can't build for a strength/HIIT athlete.
 
 - `extract.js` now keeps each `<Workout>` OPEN across lines (`handleWorkoutOpen/Stat/Close`) to
   read its child `<WorkoutStatistics>`: per-workout HR (`hr_avg/hr_min/hr_max`, bpm) and the
-  energy the opening tag drops on newer exports. `workouts.csv` gains 3 HR columns; 305/387
+  energy the opening tag drops on newer exports. `workouts.csv` gains 3 HR columns; most
   sessions carry HR (Apple-Watch-era).
 - **Entrenos** gains an *Intensity (HR)* section: duration-weighted mean HR + peak per modality
   (`aggregateDashboard` → `modality[].avgHr/peakHr` + `intensity{}`). HR honestly under-reads
-  strength (avg 89 vs run 153), said on-screen — never folded into a single "load" number.
+  strength (far below running), said on-screen — never folded into a single "load" number.
 - **Salud** gains a 6th section, *Load vs recovery*: weekly cardiovascular load index
   (`Σ(min × avgHR) / 100`) vs weekly HRV + resting HR, with a high- vs low-load split
   (`aggLoadRecovery`). `generate-health.js` reads `workouts.csv` directly rather than importing
@@ -1384,14 +1383,14 @@ plan (what to eat, equivalence tables) vs *logging* what was eaten. Reorganized 
 
 ## 2026-06-30 — Food check-in: "Copiar para Claude" on the day-builder
 
-Closed the biggest data gap (food logging stopped 2025-11-26) by turning the existing
+Closed the biggest data gap (food logging had stopped months earlier) by turning the existing
 day-builder in `plan-web.html` into a food log instead of adding a separate section.
 
 - Renamed "Arma tu día" → **"Registro de comida"**; intro reframed to "mark what you ate
   → copy → paste into chat."
 - Added a free-text **"Fuera de plan / notas"** field (`#bld-notes`) for off-plan/social
-  meals the builder's plan-only dropdowns can't represent (the real blind spot: pintxos,
-  restaurants, weekend).
+  meals the builder's plan-only dropdowns can't represent (the real blind spot: eating
+  out, weekends).
 - Added **"📋 Copiar para Claude"** (`#bld-copy`): exports a plain-text block — day type,
   each selected meal, nonzero extras, the notes, and the COMPUTED totals vs target — to the
   clipboard (`navigator.clipboard` + `execCommand` fallback + a visible readonly textarea).
@@ -1425,10 +1424,9 @@ Last hand-written data in `plan-web.html` is now generated:
   item (matched by `n`/`l`) → day cards are LINKED to the tables. `resolvePart()` + `dayPanel()`.
 - **Extras stepper labels** ← `extrasDisplay`, between `<!-- GEN:EXTRAS -->`. kcal pulled
   from resolved EXTRAS; `bump('key')`/`id="x-key"` preserved. `extraRow()`.
-- Day totals now COMPUTED (train ~2,440 / 175P / 312C / 56G; rest ~2,031 / 165P / 225C /
-  54G) — honest sums of referenced parts, not typed estimates (old hand figures were
-  2,570/2,150). Rest-day protein ~165 g is a touch under the ~170 g target — user can pick
-  higher-protein options to close it.
+- Day totals now COMPUTED — honest sums of referenced parts, not typed estimates (the old
+  hand figures were ~5 % higher). Rest-day protein landed a touch under its target — the user
+  can pick higher-protein options to close it.
 - Five GEN regions total: DATA, BREAKFAST, DAYPLAN, EXTRAS (+ plan-tables.md).
 
 ## 2026-06-30 — Breakfast detail tables generated
@@ -1458,7 +1456,7 @@ k/p/c/g from `ingredient*amt`. Change a label or a serving gram in ONE place →
   rows + the soup row + `pintxo`).
 - Rounding: kcal → integer, macros → 1 decimal (.0 dropped). Generator is idempotent.
 - Reconciliation — building the ingredient layer exposed real source inconsistencies; 4
-  material divergences resolved with the owner:
+  material divergences resolved:
   - **anclaje Atún:** serving 130 g → **100 g** to hold the ~25 g anchor (130 g of 25 g/100 g
     tuna was really 32.5 g P — the old 25 was wrong).
   - **protein Claras:** **400 ml → 370 ml** to hold ~40 g (egg white is ~10.8 g P/100 ml).
