@@ -41,7 +41,7 @@ function fixedDate(iso, time = '12:00:00') {
 }
 
 /** routes: { 'GET /api/food/products': response | fn(init, n) | Error }; unknown -> network error */
-function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], time, basics } = {}) {
+function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], time, basics, location } = {}) {
   const calls = [];
   const counts = {};
   const fetch = fetchImpl || (async (url, init = {}) => {
@@ -74,6 +74,7 @@ function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], time, bas
   const ctx = {
     document: doc, window, I18N_FOOD: locale === 'es' ? esF : enF, FOOD_CONST, FOOD_BASICS: basics === undefined ? BASICS[locale] : basics,
     LOCALE: locale, I18N_DATE: locale === 'es' ? esDate : enDate, Date: fixedDate(TODAY, time), Math, JSON, Number, String, Object, Array, Promise, isFinite, fetch, Uint8Array, setTimeout, clearTimeout,
+    ...(location ? { location } : {}),
   };
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -1718,4 +1719,18 @@ test('recentDay: an empty window or a failed read is null (no retry loop); an ad
   assert.equal(f.F.recentDay(3), null);
   await flush();
   assert.equal(f.calls.filter((c) => c.key === SUMMARY_URL).length, 1);
+});
+
+test('file:// (no LAN): the food log never calls /api/food and degrades as when the API is down; http still fetches', async () => {
+  const off = setup({ routes: BOOT, location: { protocol: 'file:' } });
+  await flush();
+  assert.equal(off.calls.length, 0, 'no LAN fetch from a file');
+  const down = setup({ routes: {}, location: { protocol: 'http:' } });
+  await flush();
+  assert.ok(down.calls.length > 0, 'served: it asks the API');
+  assert.equal(off.els['food-log-block'].hidden, down.els['food-log-block'].hidden, 'same state as an unreachable API');
+  assert.equal(off.els['food-log'].innerHTML, down.els['food-log'].innerHTML);
+  const on = setup({ routes: BOOT, location: { protocol: 'http:' } });
+  await flush();
+  assert.ok(on.calls.some((c) => c.key === 'GET /api/food/products'), 'the LAN page still fetches');
 });

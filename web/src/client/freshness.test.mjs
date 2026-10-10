@@ -24,7 +24,7 @@ const text = (html) => html.replace(/<[^>]+>/g, '');
 const json = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 
 /** routes: { 'GET /api/sync/status': fn|response, ... }; a function gets the call index. */
-function setup({ routes = {}, locale = 'es' } = {}) {
+function setup({ routes = {}, locale = 'es', protocol } = {}) {
   const clock = { t: NOW };
   const RealDate = Date;
   class FakeDate extends RealDate {
@@ -53,7 +53,7 @@ function setup({ routes = {}, locale = 'es' } = {}) {
   const short = doc.el('fresh-short');
   const pop = doc.el('fresh-pop', { hidden: true });
   const reloads = [];
-  const window = { location: { reload: () => reloads.push(clock.t) } };
+  const window = { location: { reload: () => reloads.push(clock.t), ...(protocol ? { protocol } : {}) } };
   const ctx = {
     document: doc, window, fetch, I18N_SYNC: locale === 'es' ? esSync : enSync, LOCALE: locale,
     Math, String, Number, JSON, Promise, Date: FakeDate,
@@ -97,6 +97,21 @@ test('ingest unreachable (example build, file://, no service): line and button s
   await s.advance(0);
   assert.equal(s.host.hidden, true);
   assert.equal(s.line.innerHTML, '');
+});
+
+test('file:// (no LAN): no /api/sync/status or /status.json request, everything stays hidden; a sync tap fails without a request', async () => {
+  const s = setup({ routes: { 'GET /api/sync/status': json(freshStatus) }, protocol: 'file:' });
+  await s.advance(0);
+  assert.deepEqual(s.calls, []);
+  assert.equal(s.host.hidden, true);
+  assert.equal(s.line.innerHTML, '');
+  s.btn.dispatch('click');
+  await s.advance(0);
+  assert.deepEqual(s.calls, [], 'no POST /api/sync');
+  assert.equal(s.btn.disabled, false, 'the tap ends at once, as a failed request');
+  const on = setup({ routes: { 'GET /api/sync/status': json(freshStatus) }, protocol: 'http:' });
+  await on.advance(0);
+  assert.ok(on.calls.includes('GET /api/sync/status'), 'the LAN page still fetches');
 });
 
 test('a non-OK status answer (404/502) also hides everything', async () => {

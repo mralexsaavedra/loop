@@ -106,6 +106,7 @@
         timer = setTimeout(function () { ctl.abort(); }, TIMEOUT_MS);
       }
       var done = function () { if (timer) clearTimeout(timer); };
+      if (!HC.lan()) { done(); return Promise.reject({ code: 'offline', status: 0 }); }
       return fetch(API + path, init).then(function (res) {
         done();
         return res.json().catch(function () { return null; }).then(function (data) {

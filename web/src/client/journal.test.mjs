@@ -19,7 +19,7 @@ function host(id) {
   return { id, innerHTML: '', hidden: true };
 }
 /** routes: {'GET /settings': body | {status, body}} answered by the stub fetch; null = no fetch at all */
-function load({ routes = null, locale = 'en', journal = journalBake(), now = TODAY } = {}) {
+function load({ routes = null, locale = 'en', journal = journalBake(), now = TODAY, protocol } = {}) {
   const RealDate = Date;
   class FakeDate extends RealDate {
     constructor(...a) { if (a.length) super(...a); else super(new RealDate(now + 'T12:00:00').getTime()); }
@@ -32,7 +32,7 @@ function load({ routes = null, locale = 'en', journal = journalBake(), now = TOD
     document: { getElementById: (id) => els[id] || null, addEventListener: (e, f) => { listeners[e] = f; } },
     I18N_SCORE: locale === 'es' ? esT : enT, LOCALE: locale, SCORES: { journal },
     Date: FakeDate, Math, String, Number, Array, Object, JSON, Promise, setTimeout, clearTimeout,
-    location: { hash: '' },
+    location: protocol ? { hash: '', protocol } : { hash: '' },
   };
   if (routes) {
     ctx.fetch = (url, init) => {
@@ -272,4 +272,17 @@ test('baked card: a journal older than the 7-day window shows ITS last week, not
   assert.equal((h.match(/jr-dot jr-on/g) || []).length, 2);
   const fresh = load({ journal: BAKED, now: '2026-09-30' });
   assert.match(fresh.els['my-journal'].innerHTML, /aria-label="Wed 30 Sep: not journaled"/, 'a recent bake keeps the viewer\'s week');
+});
+
+test('file:// (no LAN): the journal never calls /api/journal and stays hidden as without the API; http still fetches', async () => {
+  const routes = { 'GET /settings': { behaviors: ALL_ON }, 'GET /summary': { from: '2026-09-24', to: TODAY, days: [] } };
+  const off = load({ routes, protocol: 'file:' });
+  for (let i = 0; i < 5; i++) await tick();
+  assert.equal(off.calls.length, 0, 'no LAN fetch from a file');
+  assert.equal(off.ctx.HCJournal.ready(), false);
+  assert.equal(off.els['my-journal'].hidden, true);
+  const on = load({ routes, protocol: 'http:' });
+  for (let i = 0; i < 5; i++) await tick();
+  assert.ok(on.calls.length >= 2, 'the LAN page still fetches');
+  assert.equal(on.ctx.HCJournal.ready(), true);
 });
