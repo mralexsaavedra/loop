@@ -8,9 +8,9 @@ The LAN-only food log and its API, plus the server-side goal, Progreso and Const
 
 ## Nutrition v2 part 2 — food log, products, recipes (LAN page only)
 
-The owner logs what he eats from the LAN page (`services/plan-web`), with his usual supermarket
-products and his own recipes; Resumen de hoy fills from that log. Honest data: macros come only from
-product labels / Open Food Facts values the owner confirmed, recipes are computed, unknown macros stay
+You log what you eat from the LAN page (`services/plan-web`), with your usual supermarket
+products and your own recipes; Resumen de hoy fills from that log. Honest data: macros come only from
+product labels / Open Food Facts values you confirmed, recipes are computed, unknown macros stay
 unknown.
 
 - **Formula** — `lib/nutrition/foodlog.mjs` is the ONE reference (constants `FOOD_STORES`
@@ -47,7 +47,7 @@ unknown.
   (per-100 kcal / protein / carbs / fat, store, unit g / ml, serving size?, barcode? unique among
   ACTIVE products, source off / label / manual, off_code?, archived), `food_recipe` (kind, servings
   XOR cooked_weight_g, ingredients JSONB `[{productId, amount} | {basic, name, unit, amount, per100}]`,
-  archived), `food_log` (the owner's
+  archived), `food_log` (the user's
   LOCAL date sent by the page, meal slot, ref_type product / recipe / quick, ref_id?, label, amount +
   unit, SNAPSHOT kcal / protein / carbs / fat taken at log time — a later product edit never rewrites
   history; macros NULL only on a quick entry that did not state them). `src/food.js` routes:
@@ -68,7 +68,7 @@ unknown.
   token buckets (≤ 10 searches / min, ≤ 100 product reads / min; over → `429 off_rate_limited`
   without calling OFF). Only normalized fields leave it: `{code, name (es first), brand, stores, unit,
   per100 {kcal (kcal, else kJ ÷ 4.184), protein, carbs, fat}, servingSize, complete}`; a missing or
-  implausible nutriment is `null`, never 0, and `complete: false`. Nothing is stored until the owner
+  implausible nutriment is `null`, never 0, and `complete: false`. Nothing is stored until the user
   saves the product (`source: "off"`). No `?store=` bias (not trivial with OFF's search).
 - **Security** — the routes are UNAUTHENTICATED (a static page cannot hold a secret) and LAN only.
   Layers: (1) **DNS rebinding** — plan-web nginx answers EVERY path (page, `status.json`, `/api/*`)
@@ -151,8 +151,8 @@ Plan de hoy) and the
   lists the matching products by store, then a "Básicos" / "Basics" group (accent- and case-insensitive,
   names that start with the text first, ≤ 25 rows), each row "88 kcal por 100 g · valor medio" ("por ud"
   for a unit food; "etiqueta" / "label values" for a `verified` label of the DB); nothing matching →
-  "Ningún producto coincide.". A HIDDEN basic (`h: 1`, from `basic: false` in `ingredients.json`: a food the
-  owner already logs as his own Mercadona product, e.g. allioli, jamón serrano, tomate frito) never lists here nor in
+  "Ningún producto coincide.". A HIDDEN basic (`h: 1`, from `basic: false` in `ingredients.json`: a food you
+  already log as your own supermarket product, e.g. allioli, jamón serrano, tomate frito) never lists here nor in
   the recipe picker (`basicMatches` skips it), but stays in FOOD_BASICS so the portion guide still uses it as a
   category example and `findBasic` still resolves an old entry or a guide "+". A pick opens the same amount panel as a product: amount in the NATURAL unit
   (pieces when the food has a `piece` — the option names it, "huevos (~50 g)" —, ml for a liquid, g
@@ -165,7 +165,7 @@ Plan de hoy) and the
   **Mis productos**: list by store
   (per-100 line, serving, Editar, Archivar with a confirm step); add = barcode or text lookup → OFF
   cards showing what OFF has (missing values marked) → "Usar este" fills the form with the missing
-  fields flagged (`--mid`) → the owner confirms every value and the store → save; "desde la etiqueta"
+  fields flagged (`--mid`) → the user confirms every value and the store → save; "desde la etiqueta"
   = the same form empty (`source: "label"`). **Mis recetas**: list with per serving / per 100 g
   cooked macros and the ingredients ("Avena 80 g · Huevo 2 ud VALOR MEDIO"); editor = name, kind,
   servings or cooked weight, ingredient rows (add / remove) and a live preview. **Recipe basics**: an

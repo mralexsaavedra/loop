@@ -47,7 +47,7 @@
     }
     var q = norm(sh.q).trim();
     var hint = BASICS.length ? '<p class="food-note">' + esc(T.sheet.typeToSearch) + '</p>' : '';
-    // an empty search lists the owner's products only (the basics appear once he types, so the list stays short)
+    // an empty search lists the user's products only (the basics appear once they type, so the list stays short)
     if (!q) return (S.products.length ? productGroupsHtml(S.products) : '<p class="food-note">' + esc(T.sheet.noProducts) + '</p>') + hint;
     var shown = S.products.filter(function (p) { return norm(p.name + ' ' + (p.brand || '')).indexOf(q) >= 0; });
     var basics = basicMatches(q);

@@ -850,7 +850,7 @@ test('exampleAmount port agrees with lib over GUIDE_CASES and every basic x role
   assert.ok(capped > 20, `the sweep reaches portion caps (${capped})`);
 });
 
-test('roleOptions port agrees with lib (basics + the owner\'s products, both locales)', () => {
+test('roleOptions port agrees with lib (basics + the user\'s products, both locales)', () => {
   const { api } = run();
   const prods = [
     { id: 3, name: 'Ñoquis frescos', unit: 'g', per100: { kcal: 160, protein: 4, carbs: 33, fat: 1 } },
@@ -1083,7 +1083,7 @@ test('"+" logs the example amount into that meal through the food log (HCFood.ad
   assert.doesNotThrow(() => run().fire('nutri-plan', 'click', { closest: () => btn2 }));
 });
 
-test('the owner\'s products (food API, view time) join the selects as "My products"; a product pick falls back when they are not there', () => {
+test('the user\'s products (food API, view time) join the selects as "My products"; a product pick falls back when they are not there', () => {
   const products = [{ id: 12, name: 'Atún claro Demo', unit: 'g', per100: { kcal: 110, protein: 25, carbs: 0, fat: 1 } }];
   const groups = { meals: { breakfast: Z, lunch: Z, dinner: Z }, addon: Z };
   const storage = memStorage({ 'hc.nutri.guide': JSON.stringify({ picks: { 'lunch.p': 'p:12' } }) });

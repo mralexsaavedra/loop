@@ -13,7 +13,7 @@
  * training data, "Objetivo" in Spanish), so it is intentionally
  * locale-specific, unlike every other key here.
  *
- * `beforeFirstMsg` is a genuine improvement over the owner's live personal
+ * `beforeFirstMsg` is a genuine improvement over the user's live personal
  * page: their hand-edited copy dropped this third branch (only kept
  * "after last" / "rest day") when they translated the template by hand.
  * The tracked template (source of truth for generic/example copy, same

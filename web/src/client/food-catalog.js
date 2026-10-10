@@ -280,7 +280,7 @@
     return { basic: b.k, name: String(b.n).slice(0, LIM.nameMax || 120), unit: b.u, per100: { kcal: b.m[0], protein: b.m[1], carbs: b.m[2], fat: b.m[3] } };
   }
   function modeWord(mode) { return mode === 'piece' ? T.units.ud : T.units[mode] || mode; }
-  // the picker list of row i: the owner's products ("Mis productos") first, then — once he types — the
+  // the picker list of row i: the user's products ("Mis productos") first, then — once they type — the
   // matching basics ("Básicos · valor medio"), the add sheet's search rules (accent- and case-insensitive)
   function ingListHtml(i, query) {
     var R = T.recipes, q = norm(query).trim();

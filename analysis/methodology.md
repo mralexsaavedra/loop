@@ -59,9 +59,9 @@ Calorie target by goal:
   60–70 → 2, 70–80 → 3, 80–90 → 4, ≥ 90 → 5). Strava activities count from their HR-stream
   histogram; the rest of the day from the Watch samples (`hr-hourly.csv`, each sample until the
   next one, ≤ 10 min, activity windows left out). Strain = 21 × (1 − e^(−load / K)), with K set so
-  the owner's 95th-percentile full day (≥ 10 h of HR coverage) of the last 90 days = 18
+  the user's 95th-percentile full day (≥ 10 h of HR coverage) of the last 90 days = 18
   (K = p95 / ln 7); under 14 full days there is no strain and Inicio keeps the Relative Effort
-  dial. It is relative to the owner's own history: compare it with their past days, never with
+  dial. It is relative to the user's own history: compare it with their past days, never with
   another person or app. Code: `lib/score/strain.mjs`.
 - **Stress estimate (0–3, heart rate only, our estimate):** per waking clock hour of
   `hr-hourly.csv`, stress = clamp(3 × (HR − RHR) / (0.3 × (HRmax − RHR)), 0, 3): 0 at resting HR,
@@ -157,7 +157,7 @@ Quote the 7-day average, not single days.
 
 ## 6. Report structure
 
-Each report (`analysis/reports/YYYY-MM-DD.md`) is written in **Spanish** (the owner's language),
+Each report (`analysis/reports/YYYY-MM-DD.md`) is written in **Spanish** (the user's language),
 opens with a short "why now / what changed since the last report" paragraph, and contains:
 
 0. **Data freshness & limits** — a table with the newest date of every source used

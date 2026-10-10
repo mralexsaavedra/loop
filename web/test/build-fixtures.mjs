@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Pretest fixture builder — wired into `npm run pretest` (which `npm test`
  * depends on via the `pretest` npm lifecycle hook). Builds the example-mode
- * page (always) and the personal-mode page (only if the owner's gitignored
+ * page (always) and the personal-mode page (only if the user's gitignored
  * plan-data.json exists — fresh clones / CI without it just skip), so
  * web/test/*.test.mjs can assert against already-built static files
  * instead of invoking Astro's build pipeline inside every test run. See

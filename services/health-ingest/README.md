@@ -79,7 +79,7 @@ steps: `services/plan-web/README.md`).
   clicks in the window reuse that seq. The deferred run pulls Strava only if
   its own 5 min cooldown allows.
 
-There is no `429`, so nobody can lock the owner out, and cost stays bounded: at
+There is no `429`, so nobody can lock the user out, and cost stays bounded: at
 most one trigger write (= one rebuild) per minute and one Strava pull per 5 min.
 The 60 s window runs from the write's completion, not from the click, so a slow
 Strava pull cannot produce two writes seconds apart. Nothing new is persisted
@@ -131,14 +131,14 @@ meanwhile).
 
 ## Food log: `/food/*`
 
-The LAN plan page's Nutrición tab logs what the owner eats (Registrar), keeps his
-supermarket products (Mis productos: Mercadona / Dia / Eroski / other) and his
+The LAN plan page's Nutrición tab logs what the user eats (Registrar), keeps their
+supermarket products (Mis productos: Mercadona / Dia / Eroski / other) and their
 own recipes (Mis recetas), through plan-web's `/api/food/` proxy. Tables in
 `sql/006_food.sql` (idempotent, runs on every start): `food_product`,
 `food_recipe`, `food_log`.
 
 - **Settings** (`sql/007_settings.sql`, table `app_settings`, ONE row): the
-  owner's goal (`maintain` / `cut` / `bulk`) and target weight (35–250 kg,
+  user's goal (`maintain` / `cut` / `bulk`) and target weight (35–250 kg,
   1 decimal), so every device that opens the page agrees. Its own optional
   migration group: a failure only answers `503 settings_unavailable` on
   `/food/settings` (the food log keeps working, and the other way round). Same
@@ -153,7 +153,7 @@ own recipes (Mis recetas), through plan-web's `/api/food/` proxy. Tables in
   20,000 rows read, and 30 reads / min per client address (`429 rate_limited`).
 
 - **Products** hold per-100 g / ml kcal, protein, carbs and fat from the label or
-  Open Food Facts, confirmed by the owner (`source`: `off` / `label` / `manual`),
+  Open Food Facts, confirmed by the user (`source`: `off` / `label` / `manual`),
   plus an optional serving size (one yogurt) and barcode (unique among active
   products). Delete = archive, so recipes and old entries keep their reference.
 - **Recipes** list their ingredients in the `ingredients` JSONB column, each either a
@@ -174,7 +174,7 @@ own recipes (Mis recetas), through plan-web's `/api/food/` proxy. Tables in
   cooked weight, macros per 100 g cooked). Macros are always COMPUTED
   (`src/food-calc.js`, a port of `lib/nutrition/foodlog.mjs`, pinned by a parity
   test), never typed.
-- **Log entries** carry the owner's LOCAL date (sent by the page), a meal slot
+- **Log entries** carry the user's LOCAL date (sent by the page), a meal slot
   (`breakfast`, `lunch`, `preworkout`, `postworkout`, `dinner`, `snack`) and a
   SNAPSHOT of their macros taken at log time, so editing a product later never
   rewrites history. A quick entry (`refType: quick`) is a label + kcal with
@@ -191,8 +191,8 @@ own recipes (Mis recetas), through plan-web's `/api/food/` proxy. Tables in
   in-memory 24 h LRU cache and token buckets (≤ 10 searches / min, ≤ 100 product
   reads / min; over → `429 off_rate_limited` without calling OFF). Only
   normalized fields are returned; a nutriment OFF lacks is `null` with
-  `complete: false`, and the page asks the owner to fill it from the label.
-  Nothing from OFF is stored until the owner saves the product.
+  `complete: false`, and the page asks the user to fill it from the label.
+  Nothing from OFF is stored until the user saves the product.
 
 **Why no token, and what keeps other websites out.** Like `/sync`, a static
 page cannot hold a secret, so `/food/*` is unauthenticated and meant for the LAN

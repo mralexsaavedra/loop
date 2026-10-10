@@ -280,7 +280,7 @@ in the repo owner's crontab) stays as the fallback.
 
 - **`User=REPO_OWNER`**: the build runs as the user that owns the clone, the
   same one as the cron job. Use `root` only when the clone itself is
-  root-owned. Running as the owner is also why `refresh.sh` needs no git
+  root-owned. Running as the repo owner is also why `refresh.sh` needs no git
   `safe.directory` override (git only complains about a repo owned by another user).
 - **`ProtectSystem=strict` + `ReadWritePaths=<clone>`**: the whole filesystem is
   read-only except the clone, which the build writes (`node_modules`, the
