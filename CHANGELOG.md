@@ -1,13 +1,13 @@
 # Changelog
 
 Dated history of structural work on this repo. **Current state lives in Engram**
-(`mem_context`, synced across the owner's machines); durable operating facts live in
+(`mem_context`, synced across machines); durable operating facts live in
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
 ## 2026-10-09 — One carried-value rule (DS7)
 
-**Carried values** (the owner: "make it all coherent, like WHOOP"): any display that stands for today (or
+**Carried values**: any display that stands for today (or
 the stepped-to day) but shows an EARLIER day's value names that date and is dimmed — colour kept, one
 treatment (`.carried` + `.carried-date`), one helper (`HC.carried`); the > 3-day stale grey stays the
 stronger state. Inicio's sleep dial now follows it too (it showed an earlier night as last night's), and
@@ -19,8 +19,7 @@ carried day, like the stress tile), "My day" and Salud's recovery card headline 
 
 ## 2026-10-09 — Real-page fixes (DS6)
 
-**Recovery carried from an earlier day** (the owner's page read "HOY · 47 %" for Wednesday's night on
-Friday): when today's night is not complete yet and the headline falls back to an earlier night, the
+**Recovery carried from an earlier day** (the page read "TODAY" for a night two days old): when today's night is not complete yet and the headline falls back to an earlier night, the
 Inicio dial shows that night's date under the number and is dimmed like stale data (the mini ring too),
 and the recovery deep-dive is titled with that date (its legend too) with a dimmed hero.
 
@@ -111,10 +110,10 @@ new markup tests pin Tonight's sleep-history CTA (and its absence without sleep 
 `.nav-btn` arrows disabled at their edges, the recovery card head (date, History, ⓘ — no title) and the
 neutral ▲ / ▼ pill of a metric with no good direction; the design guard keys its number-face lookup by
 stylesheet and media query.
-**Ride kJ back on the row (owner):** a ride row's HR · effort · kJ is a second small line under the
+**Ride kJ back on the row:** a ride row's HR · effort · kJ is a second small line under the
 value (`HC.metricRow` `base2`), still inside the one run / ride template — the work had become visible
 nowhere.
-**Nutrition score: today is in progress, not a score (owner):** mid-day, today scored "0%" in red with
+**Nutrition score: today is in progress, not a score:** mid-day, today scored "0%" in red with
 "KCAL · 0 / PROTEIN · 0 / FAT · 0" (component points that read like "0 kcal"). Now the card's headline is
 the newest CLOSED day ("Yesterday", or a date ≤ 3 days old); today, when logged, shows only its progress
 (eaten / target, a neutral bar) under "TODAY · IN PROGRESS"; a closed day's points read "KCAL · 85 pts";
@@ -186,17 +185,17 @@ rule left hides the date pill (it steps Inicio's day). On a phone the Inicio dia
 (the pill now has its own row under the logo); desktop is unchanged.
 
 
-## 2026-10-09 — Beer basics and hiding basics that duplicate Mercadona products
+## 2026-10-09 — Beer basics and hiding basics that duplicate your own products
 
-Two log-only drink basics for the beers the owner usually drinks: `cerveza1906` (1906 Reserva
+Two log-only drink basics for beers: `cerveza1906` (1906 Reserva
 Especial, 6.5 %, 54 kcal / 100 ml, botellín 330 ml) and `cerveza00tostada` (Estrella Galicia 0,0
 Tostada, 24 kcal / 100 ml, botellín 250 ml), both `verified: false` with fitia.app named as the
 source; the Tostada's protein / carbs are derived from its kcal because the source lists only kcal.
 A new optional ingredient field `basic: false` hides a food from the add sheet's basics search and
 the recipe picker (`buildBasics` bakes it with `h: 1`, `basicMatches` skips it) while it stays in
-`ingredients.json` and FOOD_BASICS for the plan, the portion guide and old entries. Set on the 18
-foods the owner already logs as his own Mercadona products (allioli, jamón serrano, tomate frito…),
-so the search no longer shows each of them twice.
+`ingredients.json` and FOOD_BASICS for the plan, the portion guide and old entries. Set on 18
+sample foods that duplicate supermarket products logged as one's own (allioli, jamón serrano, tomate
+frito…), so the search no longer shows each of them twice.
 
 ## 2026-10-09 — Loop-free heart-rate samples from the Shortcut (`hr_t` + `hr_v`)
 
@@ -290,8 +289,8 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
 - Reference: Loe H, Rognmo Ø, Saltin B, Wisløff U, PLoS ONE 2013;8(5):e64319, Table 2
   (doi:10.1371/journal.pone.0064319), the HUNT3 healthy-population MEAN treadmill VO₂max per sex and
   10-year age group. The median definition the brief asked for could not be verified from a primary
-  source (Nes et al. 2014 MSSE is paywalled; no published HUNT medians found), so the owner chose the
-  documented mean-based curve; Nes 2014 is cited as background only.
+  source (Nes et al. 2014 MSSE is paywalled; no published HUNT medians found), so the
+  documented mean-based curve was chosen; Nes 2014 is cited as background only.
 - Profile: optional `sex` (`male` | `female`) in `profile/profile.json`, validated and baked into
   PROFILE (`lib/profile/profile.mjs`).
 - Bake: `lib/score/fitness-age.mjs` → `SCORES.fitnessAge` (latest VO₂max, its date / source, the fitness
@@ -309,7 +308,7 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
 - Storage + API: `services/health-ingest` optional migration group `journal` (`sql/010_journal.sql`:
   `journal_day`, `journal_settings`), `/journal/day` (GET / idempotent PUT), `/journal/summary`,
   `/journal/settings` with the food routes' LAN-only layers and its own `X-HC-Journal` header; plan-web
-  nginx proxies `/api/journal/`. Owner-approved behaviours (alcohol drinks, caffeine after 16:00,
+  nginx proxies `/api/journal/`. Behaviours (alcohol drinks, caffeine after 16:00,
   screen in bed, dinner < 2 h before sleep, hard / stressful day, nap, feeling ill, mobility, evening
   supplements), each switchable on / off from the page (server-side, default on).
 - Page: Inicio "My journal" card (7 day columns, a check per journaled day) and the journal sheet (day
@@ -418,7 +417,7 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
 
 - `sleep-daily.csv` gains six stage columns (`rem_h, deep_h, core_h, unspec_h, awake_h, inbed_h`),
   written identically by `extract.js` and the Shortcut sync (`samples.js` `sleepNights`); old
-  five-column rows still load (stages = unknown). `asleep_hours` and bed / wake are unchanged. Owner:
+  five-column rows still load (stages = unknown). `asleep_hours` and bed / wake are unchanged. After merge:
   re-run `node data/apple-health/extract.js` on a new export and `npm run sync -- --full`.
 - Sleep scores (`lib/score/sleep.mjs`): performance % = asleep / need (need = the 7.5 h target, not an
   adaptive need) capped at 100, efficiency % = asleep / in bed, consistency stays in minutes, stage
