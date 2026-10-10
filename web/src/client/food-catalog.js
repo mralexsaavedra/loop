@@ -64,7 +64,7 @@
     };
     var F = T.products.form;
     return '<div class="fp-form">' +
-      (S.pform.source === 'off' ? '<p class="food-note">' + esc(T.products.offIntro) + '</p>' : '') +
+      (S.pform.source === 'off' ? '<p class="food-note">' + esc(T.products.offIntro) + ' ' + esc(T.products.offCredit) + '</p>' : '') +
       field('fpf-name', F.name, '<input class="food-in" id="fpf-name" type="text" maxlength="' + LIM.nameMax + '" autocomplete="off" value="' + esc(f.name || '') + '">') +
       field('fpf-brand', F.brand, '<input class="food-in" id="fpf-brand" type="text" maxlength="' + LIM.brandMax + '" autocomplete="off" value="' + esc(f.brand || '') + '">') +
       '<div class="food-row">' + field('fpf-store', F.store, '<select class="food-in" id="fpf-store">' + opt(K.stores, f.store || 'mercadona', T.stores) + '</select>') +
@@ -85,6 +85,7 @@
       '<div class="food-row">' + field('fp-q', P.query, '<input class="food-in" id="fp-q" type="search" maxlength="' + LIM.queryMax + '" autocomplete="off">') +
       '<button type="button" class="food-btn food-btn-ghost food-btn-end" data-food-act="p-search">' + esc(P.queryBtn) + '</button></div>' +
       '<ul class="off-results" id="fp-results" aria-live="polite"></ul>' +
+      '<p class="food-note">' + esc(P.offCredit) + '</p>' +
       '<div class="food-btns"><button type="button" class="food-btn food-btn-ghost" data-food-act="p-label">' + esc(P.fromLabel) + '</button>' +
       '<button type="button" class="food-btn food-btn-ghost" data-food-act="p-cancel">' + esc(P.cancel) + '</button></div>' +
       formMsgHtml('fp-form-msg') + '</div>';

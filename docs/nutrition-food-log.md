@@ -166,7 +166,10 @@ Plan de hoy) and the
   (per-100 line, serving, Editar, Archivar with a confirm step); add = barcode or text lookup → OFF
   cards showing what OFF has (missing values marked) → "Usar este" fills the form with the missing
   fields flagged (`--mid`) → the user confirms every value and the store → save; "desde la etiqueta"
-  = the same form empty (`source: "label"`). **Mis recetas**: list with per serving / per 100 g
+  = the same form empty (`source: "label"`). Attribution (ODbL): a muted `.food-note` under the
+  search ("Datos de Open Food Facts (© colaboradores de Open Food Facts, licencia ODbL)." / en
+  `products.offCredit`) and appended to the OFF intro of an OFF-filled form; README → License credits it
+  too. **Mis recetas**: list with per serving / per 100 g
   cooked macros and the ingredients ("Avena 80 g · Huevo 2 ud VALOR MEDIO"); editor = name, kind,
   servings or cooked weight, ingredient rows (add / remove) and a live preview. **Recipe basics**: an
   ingredient row not picked yet is a SEARCH (`frf-ing-<i>` + `frf-list-<i>`) with the add sheet's rules:
