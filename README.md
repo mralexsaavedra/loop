@@ -112,3 +112,8 @@ medication, or prescribed diet.
 
 MIT — see [LICENSE](LICENSE). The license covers the framework and tooling. Any data
 you add is yours and stays local (gitignored).
+
+Food data from [Open Food Facts](https://world.openfoodfacts.org), © Open Food Facts contributors,
+available under the [Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/1-0/).
+The LAN page's product search (barcode / name) queries it live and credits it under the search and on
+an Open Food Facts–filled product form.

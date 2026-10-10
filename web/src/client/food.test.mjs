@@ -391,6 +391,7 @@ test('Open Food Facts: a barcode result shows what OFF has, marks what is missin
   const t = setup({ routes, extraIds: ['fp-results', 'fp-form-msg'] });
   await flush();
   t.fire('click', t.button({ 'data-food-act': 'p-new' }));
+  assert.ok(t.els['fp-body'].innerHTML.includes(esF.products.offCredit), 'the search panel credits Open Food Facts (ODbL)');
   t.input('fp-code', ' 8480000123456 ');
   t.fire('click', t.button({ 'data-food-act': 'p-code' }));
   await flush();
@@ -403,6 +404,7 @@ test('Open Food Facts: a barcode result shows what OFF has, marks what is missin
   assert.match(form, /id="fpf-name"[^>]*value="Yogur griego"/);
   assert.match(form, /id="fpf-f"[^>]*value=""/);
   assert.match(form, new RegExp(esF.products.offMissing));
+  assert.ok(form.includes(esF.products.offCredit), 'an OFF-filled form credits Open Food Facts');
   assert.match(form, /<label[^>]*for="fpf-kcal"/);
   for (const [id, v] of [['fpf-name', 'Yogur griego'], ['fpf-brand', 'Demo'], ['fpf-store', 'mercadona'], ['fpf-code', '8480000123456'], ['fpf-unit', 'g'], ['fpf-kcal', '130'], ['fpf-p', '6'], ['fpf-c', '4'], ['fpf-f', '10'], ['fpf-serv', '125']]) t.input(id, v);
   t.fire('click', t.button({ 'data-food-act': 'p-save' }));
