@@ -5,6 +5,17 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-10 — Public readiness pass
+
+Docs and code comments speak to "you" / "the user" (no owner narrative or dated owner notes). README →
+License credits Open Food Facts (ODbL), and the LAN page's product search and OFF-filled form carry a
+muted credit line (`products.offCredit`, es / en). `docs/nutrition.md` presents `ingredients.json` as a
+Spanish-supermarket sample and `basic: false` as a per-user choice. The coach-agent guard compares
+SHA-256 hashes of words and word pairs instead of listing names. `npm audit fix` (http-cache-semantics
+4.3.0, source-map-js 1.2.2). Opened from `file://`, the page skips every LAN fetch (`HC.lan()`): no
+console errors, same degraded page. This file's history was neutralised (no sources, habits, hosting
+specifics or personal numbers); the technical content and dates are unchanged.
+
 ## 2026-10-09 — One carried-value rule (DS7)
 
 **Carried values**: any display that stands for today (or
