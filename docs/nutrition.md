@@ -11,6 +11,8 @@ Plan data pipeline, the published artifact, intake rings, goals / day types / po
 **Two files, merged in memory (by both `generate.js` and the Astro build, from the same
 `lib/nutrition/macros.mjs`):**
 - `data/nutrition/ingredients.json` (TRACKED, **public** food DB) — the reusable
+  **sample** (it ships built around Spanish supermarket products and BEDCA values: replace or extend it
+  with your own foods and labels; the plan and food log read whatever it holds)
   `{ "ingredients": { … } }` of per-100 g/ml/ud base foods (`verified:true` = real product
   label, `false` = DB estimate; each carries `name` + `note` + a food category `cat`, see
   `lib/nutrition/categories.mjs`). `name` is localized, `{es, en}`
@@ -40,8 +42,9 @@ Plan data pipeline, the published artifact, intake rings, goals / day types / po
   `piece.amt`: allioli / mayonesa 15 g; olive oil has NO piece, it is per 100 ml and logged in ml); and `weighed: raw | dry |
   cooked` (how the plan weighs it: meat raw, rice / pasta / oats dry, potato / legumes cooked).
   Optional `basic: false` (a boolean, validated by `validateIngredientCats`; default true) hides a food from the
-  food log's basics search and recipe picker while keeping it in the DB for the plan and the portion guide: set
-  on the 18 foods the sample already treats as supermarket products of their own (confitura, jamón serrano, gambas,
+  food log's basics search and recipe picker while keeping it in the DB for the plan and the portion guide. It is a
+  per-user choice: set it on a food you log as one of your own products (Mis productos), so the add sheet does not
+  list a generic duplicate. The sample sets it on 18 foods (confitura, jamón serrano, gambas,
   salpicón, tranchete, mozzarella, salsa de tomate, soja, allioli, mayonesa, pisto, chocolate 85%, helado,
   napolitana, palomitas, panecillo, patatas horno, tomate frito); `lib/nutrition/basics.mjs` bakes them with `h: 1`.
   Drinks with alcohol (`cerveza`, `cerveza1906`, `clara`) carry kcal above their macros (alcohol 7 kcal/g);
