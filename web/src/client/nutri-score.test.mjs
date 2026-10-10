@@ -149,7 +149,7 @@ test('Spanish copy', () => {
   assert.match(text(els.host.innerHTML), /Media 7 días 100%/);
 });
 
-test('Inicio card (the owner\'s real case: today logged, yesterday closed at 56): today\'s progress heads it alone, neutral; "Yesterday 56% · 7-day average" is the footer; the aria names both', () => {
+test('Inicio card (the user\'s real case: today logged, yesterday closed at 56): today\'s progress heads it alone, neutral; "Yesterday 56% · 7-day average" is the footer; the aria names both', () => {
   // 2,700 kcal on a 2,000 target, protein 105 / 150, fat 105 / 70 = a closed 56
   const { els } = setup({ nutri: false, log: [day('2030-01-27', 2600, 105, 95), day(TODAY, 433, 30, 17)] });
   assert.equal(els.home.hidden, false);

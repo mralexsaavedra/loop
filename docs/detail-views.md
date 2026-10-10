@@ -54,7 +54,7 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   contributors = the day's activities + "all day (outside workouts)", each with its share of the
   strain (∝ its load; from `SCORES.strain.days`, the last 14 days), the insight = the band sentence
   and the usual day (median of the prior 30) in one paragraph; ⓘ = the formula, the
-  sources, this owner's K / p95 / full days / max HR and "our estimate"; the 7-day strain bars; then
+  sources, this user's K / p95 / full days / max HR and "our estimate"; the 7-day strain bars; then
   "Relative Effort by modality" links to the `load-<m>` pages. It follows the day it was opened on
   (`X.sel`); `stress` is NOT a DETAIL key: its series is `SCORES.stress.metric` (kind `stress`, the
   day averages 0–3 dense from the first scored day, `lib/score/stress.mjs`), which detail.js

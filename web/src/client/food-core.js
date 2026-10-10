@@ -16,14 +16,14 @@
  * byte-identical. Every request carries `X-HC-Food: 1` (the ingest service refuses anything else) and
  * writes send JSON. Nothing of the log is kept in the browser: the server is the one copy.
  *
- * Data honesty: macros come from the owner's products / recipes (per-100 values from the label or Open
- * Food Facts, confirmed by him) and the live preview uses a line-by-line port of
+ * Data honesty: macros come from the user's products / recipes (per-100 values from the label or Open
+ * Food Facts, confirmed by the user) and the live preview uses a line-by-line port of
  * lib/nutrition/foodlog.mjs (window.HCFood; food.test.mjs runs it over the shared FOODLOG_CASES).
  * A quick entry without macros counts its kcal only; unknown macros are never filled in.
  *
  * Basics (the add sheet's "Mis productos" search): the public food DB (data/nutrition/ingredients.json),
  * baked as FOOD_BASICS by Dia.astro (lib/nutrition/basics.mjs). Typing also lists the matching basics, in a
- * "Básicos" group after the owner's products (accent- and case-insensitive); a pick takes an amount in
+ * "Básicos" group after the user's products (accent- and case-insensitive); a pick takes an amount in
  * the food's natural unit (pieces / ml / g, pieces <-> grams for a countable food) and is logged as ONE
  * quick entry with its four macros (a port of lib/nutrition/foodlog.mjs basicEntry / basicLabel; average
  * table values, marked as such). Mis recetas' ingredient picker searches the same way (its products
@@ -242,7 +242,7 @@
     var el = $(id);
     return el && el.value != null ? String(el.value) : '';
   }
-  // the words the owner may type after a number ("30 g", "30g", "250 ml", "130 kcal"), by unit
+  // the words the user may type after a number ("30 g", "30g", "250 ml", "130 kcal"), by unit
   var UNIT_WORDS = { g: ['g', 'gr', 'grs', 'gramo', 'gramos', 'gram', 'grams'], ml: ['ml'], kcal: ['kcal'], kg: ['kg', 'kilo', 'kilos'] };
   function unitOfWord(w) {
     for (var u in UNIT_WORDS) if (Object.prototype.hasOwnProperty.call(UNIT_WORDS, u) && UNIT_WORDS[u].indexOf(w) >= 0) return u;
@@ -400,6 +400,7 @@
       timer = setTimeout(function () { ctl.abort(); }, TIMEOUT_MS);
     }
     var done = function () { if (timer) clearTimeout(timer); };
+    if (!HC.lan()) { done(); return Promise.reject({ code: 'offline', status: 0 }); }
     return fetch(API + path, init).then(function (res) {
       done();
       return res.json().catch(function () { return null; }).then(function (data) {
@@ -459,7 +460,7 @@
     return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   }
   // the basics whose name contains the search (accent- and case-insensitive), names that START with it first;
-  // a hidden basic (h: the owner logs that food as his own product) is never listed, findBasic still knows it
+  // a hidden basic (h: the food is logged as one of your own products instead) is never listed, findBasic still knows it
   function basicMatches(q) {
     var hits = BASICS.filter(function (b) { return !b.h && norm(b.n).indexOf(q) >= 0; });
     var first = hits.filter(function (b) { return norm(b.n).indexOf(q) === 0; });

@@ -44,7 +44,8 @@ paragraphs of ~30–60 s, rolling auto-caption repeats removed); optional `index
   numbers "verify") — edit it in all three at once: `.claude/hooks/coach-agents.test.js` (run by
   `npm test`) fails when the span from "## Shared rules" up to "## Knowledge source" (shared rules +
   User facts) differs byte-for-byte between the three, when an agent or this doc names an
-  owner-specific source / device / program (a token list in the test), or when
+  user-specific source / device / program (a list of SHA-256 token hashes in the test, so the test names
+  nobody), or when
   `profile/coaches.example.md` is not tracked / `profile/coaches.md` not ignored.
   `model: inherit` in each frontmatter is deliberate: the coaches run on the session model, so
   citation fidelity (quotes, timestamps, doses) is never traded for a cheaper model; the test pins it.

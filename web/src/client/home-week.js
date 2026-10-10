@@ -198,7 +198,7 @@
         host.hidden = true;
       }
     }
-    // the sheet behind the card: the rule, with the owner's own numbers, and a way to the sleep history
+    // the sheet behind the card: the rule, with the user's own numbers, and a way to the sleep history
     window.HCViews = window.HCViews || {};
     window.HCViews.tonight = {
       title: function () { return T.tonight.heading; },

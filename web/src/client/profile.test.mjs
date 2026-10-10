@@ -35,7 +35,7 @@ const FULL = buildProfile({ manual: MANUAL, strava: STRAVA, weight: { kg: 71.4, 
 
 // nutri = a stand-in for client/nutri-day.js's window.HCNutri (the goal's owner), or null
 // fetch = a stand-in for window.fetch (the manual HEAD probe); links = the elements querySelectorAll returns
-function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null, nutri = null, settings = null, progress = null, els = {}, fetch = undefined, links = [] } = {}) {
+function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null, nutri = null, settings = null, progress = null, els = {}, fetch = undefined, links = [], location } = {}) {
   const img = photo ? { getAttribute: (k) => (k === 'src' ? photo : null) } : null;
   const win = nutri ? { HCNutri: nutri } : {};
   if (settings) win.HCSettings = settings;
@@ -55,6 +55,7 @@ function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null
       querySelectorAll: (sel) => (sel === 'a.pf-manual' ? links : []),
     },
     ...(fetch ? { fetch } : {}),
+    ...(location ? { location } : {}),
     encodeURIComponent,
     PROFILE: { ...baked, photo: Boolean(profile.photo) },
     I18N_PROFILE: locale === 'es' ? esP : enP,
@@ -192,6 +193,20 @@ test('device manual: revealed when HEAD /manuales/<file> answers 200 with a PDF;
   assert.equal(other.getAttribute('hidden'), '', 'another file untouched');
   assert.doesNotMatch(/<a class="pf-manual"[^>]*>/.exec(html(s))[0], / hidden/);
   assert.equal(fetch.calls.length, 1, 'probed once');
+});
+
+test('device manual: a file:// page never probes /manuales (the link stays hidden); http still probes', async () => {
+  const fetch = pdfFetch();
+  const link = fakeLink('demo-edge-manual.pdf');
+  const s = setup({ profile: WITH_MANUAL, fetch, links: [link], location: { protocol: 'file:' } });
+  html(s);
+  await flush();
+  assert.equal(fetch.calls.length, 0);
+  assert.equal(link.getAttribute('hidden'), '');
+  const served = pdfFetch();
+  html(setup({ profile: WITH_MANUAL, fetch: served, links: [fakeLink('demo-edge-manual.pdf')], location: { protocol: 'http:' } }));
+  await flush();
+  assert.equal(served.calls.length, 1);
 });
 
 test('device manual: stays hidden on a 404, a non-PDF 200 (an SPA fallback page), a failed request or without fetch', async () => {

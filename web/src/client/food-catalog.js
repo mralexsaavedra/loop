@@ -64,7 +64,7 @@
     };
     var F = T.products.form;
     return '<div class="fp-form">' +
-      (S.pform.source === 'off' ? '<p class="food-note">' + esc(T.products.offIntro) + '</p>' : '') +
+      (S.pform.source === 'off' ? '<p class="food-note">' + esc(T.products.offIntro) + ' ' + esc(T.products.offCredit) + '</p>' : '') +
       field('fpf-name', F.name, '<input class="food-in" id="fpf-name" type="text" maxlength="' + LIM.nameMax + '" autocomplete="off" value="' + esc(f.name || '') + '">') +
       field('fpf-brand', F.brand, '<input class="food-in" id="fpf-brand" type="text" maxlength="' + LIM.brandMax + '" autocomplete="off" value="' + esc(f.brand || '') + '">') +
       '<div class="food-row">' + field('fpf-store', F.store, '<select class="food-in" id="fpf-store">' + opt(K.stores, f.store || 'mercadona', T.stores) + '</select>') +
@@ -85,6 +85,7 @@
       '<div class="food-row">' + field('fp-q', P.query, '<input class="food-in" id="fp-q" type="search" maxlength="' + LIM.queryMax + '" autocomplete="off">') +
       '<button type="button" class="food-btn food-btn-ghost food-btn-end" data-food-act="p-search">' + esc(P.queryBtn) + '</button></div>' +
       '<ul class="off-results" id="fp-results" aria-live="polite"></ul>' +
+      '<p class="food-note">' + esc(P.offCredit) + '</p>' +
       '<div class="food-btns"><button type="button" class="food-btn food-btn-ghost" data-food-act="p-label">' + esc(P.fromLabel) + '</button>' +
       '<button type="button" class="food-btn food-btn-ghost" data-food-act="p-cancel">' + esc(P.cancel) + '</button></div>' +
       formMsgHtml('fp-form-msg') + '</div>';
@@ -280,7 +281,7 @@
     return { basic: b.k, name: String(b.n).slice(0, LIM.nameMax || 120), unit: b.u, per100: { kcal: b.m[0], protein: b.m[1], carbs: b.m[2], fat: b.m[3] } };
   }
   function modeWord(mode) { return mode === 'piece' ? T.units.ud : T.units[mode] || mode; }
-  // the picker list of row i: the owner's products ("Mis productos") first, then — once he types — the
+  // the picker list of row i: the user's products ("Mis productos") first, then — once they type — the
   // matching basics ("Básicos · valor medio"), the add sheet's search rules (accent- and case-insensitive)
   function ingListHtml(i, query) {
     var R = T.recipes, q = norm(query).trim();

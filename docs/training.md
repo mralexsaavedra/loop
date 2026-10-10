@@ -82,11 +82,11 @@ absent keeps the section visible but permanently in its empty state.
 
 **The Hoy section is optional and source-agnostic.** The program can come from any dated source
 (coach PDFs, a spreadsheet, or a login-gated training app whose content can't be scraped). If
-the owner's program lives in an external app they open directly, maintaining a dated copy here
+the user's program lives in an external app they open directly, maintaining a dated copy here
 is redundant — set `page.hideTabs: ["hoy"]` in `plan-data.json` to hide the section in Inicio
 (the markup + baked training data stay fully wired, just `hidden`; remove the entry to
 reactivate). Keep the section visible in the example build (`plan-data.example.json` has no
-`hideTabs`) as a working example. Which program/app the owner actually uses is personal → it
+`hideTabs`) as a working example. Which program/app the user actually uses is personal → it
 lives in `profile/about-me.md` (gitignored), never in a tracked file.
 
 **Per-workout HR zones (session / day panel).** A run / ride row of Entreno and the load deep-dive
@@ -124,8 +124,8 @@ keeps its own label.
 
 Strava sync (`npm run sync:strava`): see `docs/data-pipeline.md` → Strava sync.
 
-**Source of the program:** whatever the owner's coach/app provides — a coach PDF, a spreadsheet,
-or a login-gated training app. For a source that can't be fetched (a login-gated app), the owner
+**Source of the program:** whatever the user's coach/app provides — a coach PDF, a spreadsheet,
+or a login-gated training app. For a source that can't be fetched (a login-gated app), the user
 pastes/screenshots the sessions and you transcribe into `training-data.json`. For PDF grids in
 `data/training/*.pdf` (spreadsheet-style weekly grids), transcribe by rendering pages to PNG
 (`pdftoppm -png -r 130`) and reading the grid visually (`pdftotext` interleaves the day columns).

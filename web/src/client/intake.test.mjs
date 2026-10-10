@@ -94,7 +94,7 @@ test('intake older than 3 days -> the block renders nothing (no rings, no help t
   assert.equal(host.hidden, true);
 });
 
-test('no intake ever logged -> the block renders nothing (the owner may not log food)', () => {
+test('no intake ever logged -> the block renders nothing (the user may not log food)', () => {
   const { host } = run({ latest: null, today: '2030-01-10' });
   assert.equal(host.innerHTML, '');
   assert.equal(host.hidden, true);

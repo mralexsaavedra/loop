@@ -1,5 +1,5 @@
 /* Tests for extract.js against SYNTHETIC export.xml files: the script is copied (with samples.js)
- * into a temp dir and run as a child process, exactly like the owner runs it. No personal data. */
+ * into a temp dir and run as a child process, exactly like the user runs it. No personal data. */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');

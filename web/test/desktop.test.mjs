@@ -1,5 +1,5 @@
 /* Desktop guards on the built example page (web/.test-dist/en-example, built by `npm run pretest`).
- * The owner's rule (2026-10-08): on a wide screen the page is ONE centred column of ~960px, the
+ * The rule: on a wide screen the page is ONE centred column of ~960px, the
  * phone's stack made wider; no multi-column page grids ("too compressed"). Detail sheets stay 760px.
  * Run `npm run pretest` (or `npm test`) first: it reads an already-built fixture. */
 import { test } from 'node:test';

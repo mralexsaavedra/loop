@@ -12,7 +12,7 @@ at the end. **Engram is optional**: without it, this file (durable operating fac
 open questions).
 
 **First-run check:** if `profile/about-me.md` does NOT exist (only the `.example` template), the
-owner has not been onboarded: do NOT analyse empty data — run the `/setup` skill (installation, by level;
+user has not been onboarded: do NOT analyse empty data — run the `/setup` skill (installation, by level;
 `.claude/skills/setup/SKILL.md`), which hands over to [`docs/onboarding.md`](docs/onboarding.md).
 
 ## Analysis reports

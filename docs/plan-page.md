@@ -32,7 +32,7 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   every built `<style>` through `slimStyle` (same module, esbuild `loader: 'css'`, whitespace + comments
   only; Vite's `cssMinify` stays off), so CSS tests parse it through `web/test/css-scan.mjs` (`a>b`, `[t=x]`).
 
-- `LOCALE`: env var → `plan.locale` → `en` (the owner's `plan-data.json` sets `locale:"es"`).
+- `LOCALE`: env var → `plan.locale` → `en` (the user's `plan-data.json` sets `locale:"es"`).
 - `DATA_MODE=personal|example`: personal reads the gitignored real files; example reads the
   tracked `.example` seeds plus the tracked, clearly SYNTHETIC demo extract in `data/demo/extract/`
   (so the example page shows every dial and section). Optional data (Apple Health extract CSVs)
@@ -46,7 +46,10 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   the demo end date, which is the normal staleness handling.
 - **Shared client helpers.** `web/src/client/util.js` is inlined FIRST (right after `var NAV` and
   `var HC_CONST`, baked by `layouts/Plan.astro` from `lib/stale.mjs`) and exposes the global `HC`
-  (window.HC): `esc`, `format`, `isoDate`, `todayIso`, `daysOld`, `shiftIso`, the number helpers `nf`, `num`,
+  (window.HC): `lan()` (false when the page is opened from `file://`: every LAN fetch — `/api/food/*`,
+  `/api/journal/*`, `/api/sync/status` + Sync, `/status.json`, the `/manuales/` probe — is skipped there and the
+  page degrades exactly as with the services down, with no console errors; read at call time, no location = served),
+  `esc`, `format`, `isoDate`, `todayIso`, `daysOld`, `shiftIso`, the number helpers `nf`, `num`,
   `int`, `pct`, `hours`, `duration` (h:mm), `numInput` (an input field's value, never grouped) — thin wrappers that
   add the page `LOCALE` to `HC_FMT`, the ONE number formatter (`lib/format/numbers.mjs` `clientSource()`, inlined
   right before util.js; rules in [`design-system.md`](design-system.md) → "Numbers"), `MS_PER_DAY`, `STALE_DAYS`, the ONE display-date formatter `fmtDate`
@@ -213,7 +216,7 @@ for large numbers, dials, bars and dots only, small red text uses `--low-ink`; o
 Layout: on wide
 screens (>= 900 px) the background stays full-bleed while the top bar, tab panels and footer are ONE
 centred column capped at `--content-max` (960 px — a little wider than the 760 px detail sheets). The
-owner's rule (2026-10-08): no multi-column page grids on desktop ("too compressed"); every tab is the
+rule: no multi-column page grids on desktop ("too compressed"); every tab is the
 phone's stack, wider. Only a card's own inner layout may split (Nutrición's summary card: kcal dial |
 day type + macro bars). Inicio's three dials are one centred group
 (`--dial-size` 168 px, a fixed 72 px gap) with the gym / run / bike pills centred under the load dial;

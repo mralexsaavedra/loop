@@ -217,3 +217,17 @@ test('carried: a value dated before the shown day names its date and is dimmed; 
   assert.equal(HC.carried('2026-10-10').carried, false);
   assert.equal(load({ locale: 'es', at: '2026-10-09T08:00:00' }).carried('2026-10-07', null, { weekday: false }).label, '7 oct');
 });
+
+test('lan: LAN fetches only when served (http/https or no location); a file:// page skips them', () => {
+  assert.equal(load().lan(), true, 'no location (a vm, the build) = served');
+  const at = (loc) => {
+    const ctx = { LOCALE: 'en', HC_CONST: HC_CONST_BAKE, I18N_DATE: enDate, Date, Math, String, Number, Array, Object, JSON, ...loc };
+    vm.createContext(ctx);
+    vm.runInContext(UTIL_SOURCE, ctx);
+    return ctx.HC.lan();
+  };
+  assert.equal(at({ location: { protocol: 'http:' } }), true);
+  assert.equal(at({ location: { protocol: 'https:' } }), true);
+  assert.equal(at({ location: { protocol: 'file:' } }), false);
+  assert.equal(at({ window: { location: { protocol: 'file:' } } }), false, 'window.location counts too');
+});

@@ -1,4 +1,4 @@
--- The owner's nutrition settings (goal + target weight), shared by every device that opens the LAN
+-- The user's nutrition settings (goal + target weight), shared by every device that opens the LAN
 -- plan page (phone and Mac agree). Written through plan-web's /api/food/ proxy (GET / PUT
 -- /food/settings, src/food.js), so it sits behind the food routes' security layers. ONE row (id = 1);
 -- a NULL column = not set yet (the page then keeps its local fallback). Its own OPTIONAL migration

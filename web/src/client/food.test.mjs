@@ -41,7 +41,7 @@ function fixedDate(iso, time = '12:00:00') {
 }
 
 /** routes: { 'GET /api/food/products': response | fn(init, n) | Error }; unknown -> network error */
-function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], time, basics } = {}) {
+function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], time, basics, location } = {}) {
   const calls = [];
   const counts = {};
   const fetch = fetchImpl || (async (url, init = {}) => {
@@ -74,6 +74,7 @@ function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], time, bas
   const ctx = {
     document: doc, window, I18N_FOOD: locale === 'es' ? esF : enF, FOOD_CONST, FOOD_BASICS: basics === undefined ? BASICS[locale] : basics,
     LOCALE: locale, I18N_DATE: locale === 'es' ? esDate : enDate, Date: fixedDate(TODAY, time), Math, JSON, Number, String, Object, Array, Promise, isFinite, fetch, Uint8Array, setTimeout, clearTimeout,
+    ...(location ? { location } : {}),
   };
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -278,7 +279,7 @@ test('switching a product to servings sets the amount to 1; back to its unit set
   assert.equal(t.doc.getElementById('fa-amt').value, '40', 'the same unit again changes nothing');
 });
 
-test('a recipe entry is logged in servings; a quick entry sends only what the owner typed', async () => {
+test('a recipe entry is logged in servings; a quick entry sends only what the user typed', async () => {
   const bodies = [];
   const routes = { ...BOOT, 'POST /api/food/log': (init) => { const b = JSON.parse(init.body); delete b.requestId; bodies.push(b); return json({ entry: { ...ENTRY, id: 60 + bodies.length }, totals: TOTALS1 }, 201); } };
   const t = setup({ routes, extraIds: ['fa-panel', 'fa-prev', 'fa-msg'] });
@@ -376,7 +377,7 @@ test('Mis productos: grouped by store with per-100 macros, edit / archive button
   assert.match(text(html), /60 kcal · P 10 · C 4 · G 0,2 por 100 g/);
 });
 
-test('Open Food Facts: a barcode result shows what OFF has, marks what is missing, and saves only after the owner confirms', async () => {
+test('Open Food Facts: a barcode result shows what OFF has, marks what is missing, and saves only after the user confirms', async () => {
   const offProduct = { code: '8480000123456', name: 'Yogur griego', brand: 'Demo', stores: 'Mercadona', unit: 'g', per100: { kcal: 130, protein: 6, carbs: 4, fat: null }, servingSize: 125, complete: false };
   let posted = [];
   const routes = {
@@ -391,6 +392,7 @@ test('Open Food Facts: a barcode result shows what OFF has, marks what is missin
   const t = setup({ routes, extraIds: ['fp-results', 'fp-form-msg'] });
   await flush();
   t.fire('click', t.button({ 'data-food-act': 'p-new' }));
+  assert.ok(t.els['fp-body'].innerHTML.includes(esF.products.offCredit), 'the search panel credits Open Food Facts (ODbL)');
   t.input('fp-code', ' 8480000123456 ');
   t.fire('click', t.button({ 'data-food-act': 'p-code' }));
   await flush();
@@ -403,6 +405,7 @@ test('Open Food Facts: a barcode result shows what OFF has, marks what is missin
   assert.match(form, /id="fpf-name"[^>]*value="Yogur griego"/);
   assert.match(form, /id="fpf-f"[^>]*value=""/);
   assert.match(form, new RegExp(esF.products.offMissing));
+  assert.ok(form.includes(esF.products.offCredit), 'an OFF-filled form credits Open Food Facts');
   assert.match(form, /<label[^>]*for="fpf-kcal"/);
   for (const [id, v] of [['fpf-name', 'Yogur griego'], ['fpf-brand', 'Demo'], ['fpf-store', 'mercadona'], ['fpf-code', '8480000123456'], ['fpf-unit', 'g'], ['fpf-kcal', '130'], ['fpf-p', '6'], ['fpf-c', '4'], ['fpf-f', '10'], ['fpf-serv', '125']]) t.input(id, v);
   t.fire('click', t.button({ 'data-food-act': 'p-save' }));
@@ -836,7 +839,7 @@ test('HCFood.addGuide: an ambiguous failure keeps the request id for the retry (
   await assert.rejects(off.F.addGuide({ group: 'lunch', food: 'b:arroz', amt: 50 }));
 });
 
-/* ---------- basics: generic foods of the public food DB, searched next to the owner's products ---------- */
+/* ---------- basics: generic foods of the public food DB, searched next to the user's products ---------- */
 const BASIC_IDS = ['fa-panel', 'fa-prev', 'fa-msg', 'fa-list', 'fa-amt-err', 'food-add-breakfast', 'food-add-addon'];
 function openProducts(t, meal = 'breakfast') {
   t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': meal }));
@@ -863,7 +866,7 @@ test('basics search: an empty search lists only the products (plus a hint); typi
   assert.doesNotMatch(text(html), new RegExp(esF.sheet.noMatch));
   t.fire('input', t.input('fa-q', 'lech'));
   const both = t.els['fa-list'].innerHTML;
-  assert.ok(both.indexOf('data-kind="product" data-id="2"') < both.indexOf('Básicos'), 'the owner\'s products first');
+  assert.ok(both.indexOf('data-kind="product" data-id="2"') < both.indexOf('Básicos'), 'the user\'s products first');
   assert.match(both, /data-kind="basic" data-id="leche"/);
   assert.match(both, /data-kind="basic" data-id="lechuga"/);
   assert.match(text(both), /Huevo|Leche/);
@@ -881,7 +884,7 @@ test('basics search: a verified product label of the food DB says so instead of 
   assert.match(text(t.els['fa-list'].innerHTML), new RegExp('Cerveza especial Estrella Galicia \\(5,5%\\) 47 kcal por 100 ml · ' + esF.sheet.basicLabelSrc));
 });
 
-// a hidden basic (h: 1, `basic: false` in the food DB: the owner logs it as his own product) never lists
+// a hidden basic (h: 1, `basic: false` in the food DB: it is logged as one of your own products instead) never lists
 const HIDDEN_BASICS = [
   { k: 'vis', n: 'Salsa visible', u: 'g', m: [100, 1, 2, 3], c: 'sauce' },
   { k: 'hid', n: 'Salsa oculta', u: 'g', m: [200, 1, 2, 3], c: 'sauce', h: 1 },
@@ -1032,7 +1035,7 @@ test('recipe picker: an empty search lists Mis productos (+ a hint); typing adds
   assert.match(text(list), /Plátano 88 kcal por 100 g · valor medio/);
   t.fire('input', t.input('frf-ing-0', 'lech'));
   const both = t.els['frf-list-0'].innerHTML;
-  assert.ok(both.indexOf('Mis productos') < both.indexOf('data-id="2"') && both.indexOf('data-id="2"') < both.indexOf('Básicos'), 'the owner\'s products first');
+  assert.ok(both.indexOf('Mis productos') < both.indexOf('data-id="2"') && both.indexOf('data-id="2"') < both.indexOf('Básicos'), 'the user\'s products first');
   assert.match(both, /data-kind="basic" data-id="leche"/);
   t.fire('input', t.input('frf-ing-0', 'zzzz'));
   assert.equal(text(t.els['frf-list-0'].innerHTML), 'Nada coincide.');
@@ -1658,7 +1661,7 @@ test('late night: a viewer on "today" who comes back after midnight lands on the
   await flush();
   assert.equal(t.els['food-day-label'].textContent, 'Hoy', 'the automatic late-night view expires at 04:00');
 
-  // a day the owner picked by hand is never moved
+  // a day the user picked by hand is never moved
   const p = setup({ routes: NAV, time: '00:30:00' });
   await flush();
   p.fire('click', p.els['food-day-prev']);
@@ -1716,4 +1719,18 @@ test('recentDay: an empty window or a failed read is null (no retry loop); an ad
   assert.equal(f.F.recentDay(3), null);
   await flush();
   assert.equal(f.calls.filter((c) => c.key === SUMMARY_URL).length, 1);
+});
+
+test('file:// (no LAN): the food log never calls /api/food and degrades as when the API is down; http still fetches', async () => {
+  const off = setup({ routes: BOOT, location: { protocol: 'file:' } });
+  await flush();
+  assert.equal(off.calls.length, 0, 'no LAN fetch from a file');
+  const down = setup({ routes: {}, location: { protocol: 'http:' } });
+  await flush();
+  assert.ok(down.calls.length > 0, 'served: it asks the API');
+  assert.equal(off.els['food-log-block'].hidden, down.els['food-log-block'].hidden, 'same state as an unreachable API');
+  assert.equal(off.els['food-log'].innerHTML, down.els['food-log'].innerHTML);
+  const on = setup({ routes: BOOT, location: { protocol: 'http:' } });
+  await flush();
+  assert.ok(on.calls.some((c) => c.key === 'GET /api/food/products'), 'the LAN page still fetches');
 });

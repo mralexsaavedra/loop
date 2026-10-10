@@ -6,7 +6,7 @@
  *
  * Every case runs against a TEMPORARY git repo fixture (mkdtemp + `git init`)
  * that carries a copy of this repo's real .gitignore and a few synthetic
- * files, so the tests never depend on the owner's personal files existing and
+ * files, so the tests never depend on the user's personal files existing and
  * the hook's "gitignored = personal" check is exercised against git itself.
  */
 const { test, before, after } = require('node:test');
