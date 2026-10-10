@@ -1,11 +1,11 @@
 # --- Local-only notes (private: personal URLs, secrets, scratch). NEVER commit ---
 # Convention: any *.local.md is a per-machine note (e.g. the personal artifact URL).
 *.local.md
-# Claude Code auto-loads CLAUDE.local.md next to CLAUDE.md: the owner's own operating notes
+# Claude Code auto-loads CLAUDE.local.md next to CLAUDE.md: your own operating notes
 # (setup-specific workflow). Already covered by *.local.md; listed explicitly so it is never lost.
 CLAUDE.local.md
 
-# Owner's working notes (feature task docs, progress, queued work) — kept locally, never published.
+# Your working notes (feature task docs, progress, queued work) — kept locally, never published.
 odd/
 
 # Backups of personal data files taken before a hand edit (*.bak), and the
@@ -58,7 +58,7 @@ services/health-ingest/trigger/
 # is generated from it. Both hold personal plan data → ignore.
 data/nutrition/plan-data.json
 data/nutrition/plan-tables.md
-# Food log export written by data/nutrition/sync-foodlog.js (per-day sums of the owner's LAN food
+# Food log export written by data/nutrition/sync-foodlog.js (per-day sums of your LAN food
 # log) — personal. The script and its test are plain tooling → tracked by default.
 data/nutrition/foodlog-daily.csv
 data/nutrition/foodlog-daily.meta.json
@@ -138,6 +138,6 @@ web/.test-dist/
 knowledge/*
 !knowledge/README.md
 
-# Owner-only tools, never published (e.g. a private training-program sync against a
+# Personal tools, never published (e.g. a private training-program sync against a
 # login-gated service). Run them in place: `node local/<tool>/<script>.mjs`.
 /local/
