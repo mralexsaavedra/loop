@@ -32,7 +32,7 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   every built `<style>` through `slimStyle` (same module, esbuild `loader: 'css'`, whitespace + comments
   only; Vite's `cssMinify` stays off), so CSS tests parse it through `web/test/css-scan.mjs` (`a>b`, `[t=x]`).
 
-- `LOCALE`: env var → `plan.locale` → `en` (the owner's `plan-data.json` sets `locale:"es"`).
+- `LOCALE`: env var → `plan.locale` → `en` (the user's `plan-data.json` sets `locale:"es"`).
 - `DATA_MODE=personal|example`: personal reads the gitignored real files; example reads the
   tracked `.example` seeds plus the tracked, clearly SYNTHETIC demo extract in `data/demo/extract/`
   (so the example page shows every dial and section). Optional data (Apple Health extract CSVs)
@@ -213,7 +213,7 @@ for large numbers, dials, bars and dots only, small red text uses `--low-ink`; o
 Layout: on wide
 screens (>= 900 px) the background stays full-bleed while the top bar, tab panels and footer are ONE
 centred column capped at `--content-max` (960 px — a little wider than the 760 px detail sheets). The
-owner's rule (2026-10-08): no multi-column page grids on desktop ("too compressed"); every tab is the
+rule: no multi-column page grids on desktop ("too compressed"); every tab is the
 phone's stack, wider. Only a card's own inner layout may split (Nutrición's summary card: kcal dial |
 day type + macro bars). Inicio's three dials are one centred group
 (`--dial-size` 168 px, a fixed 72 px gap) with the gym / run / bike pills centred under the load dial;

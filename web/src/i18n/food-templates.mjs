@@ -116,7 +116,7 @@ export const es = {
     ingredient: 'Ingrediente {n}',
     amount: 'Cantidad {n}',
     pick: 'Elige un producto',
-    // the ingredient picker: the owner's products first, then the basics of the public food DB
+    // the ingredient picker: the user's products first, then the basics of the public food DB
     searchPh: 'Producto o básico (huevo, leche…)',
     mine: 'Mis productos',
     basics: 'Básicos · valor medio',

@@ -1,7 +1,7 @@
 /* "Health monitor": the full list leads Salud (#monitor, components/HealthMonitor.astro, first in
  * tabs/Salud.astro) and two summary tiles sit near the top of Inicio (#home-tiles: the out-of-range
  * count + the HRV signal). The latest overnight signals (respiratory rate, resting HR, HRV, sleeping
- * wrist temperature, sleep duration) against the owner's own normal range, rendered from
+ * wrist temperature, sleep duration) against the user's own normal range, rendered from
  * SCORES.monitor (lib/score/monitor.mjs, baked by components/Bake.astro) + I18N_SCORE.monitor.
  *
  * Classic script (is:inline, no module scope). Everything numeric is baked: the band comes from the

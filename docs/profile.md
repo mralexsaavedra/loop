@@ -66,7 +66,7 @@ controls instead of the close button.
      never fatal.
   3. Derived: weight = the newest row of `weight.csv` with its date (never Strava's weight). The AGE is
      computed client-side from `birthdate` on the viewer's clock, so builds stay byte-identical.
-- **One source of truth per owner fact** (read as FILES by the read-only coach subagents, see
+- **One source of truth per user fact** (read as FILES by the read-only coach subagents, see
   "Knowledge base + expert subagents"): weight = `weight.csv` (live), height / birthdate / devices /
   supplements / events = `profile/profile.json`, goal + target weight = `data/profile/settings.json`,
   stable context (injuries, history, preferences) = `profile/about-me.md` — never numbers in prose.
@@ -114,7 +114,7 @@ controls instead of the close button.
   omitted without events. Nothing known at all
   → only the onboarding hint (copy `profile.example.json`, run `npm run sync`). Styles:
   `web/src/styles/profile.css` (tokens only).
-- **Device manuals (LAN page only)** — the owner's PDFs live in `data/gear/` (gitignored); only the
+- **Device manuals (LAN page only)** — the user's PDFs live in `data/gear/` (gitignored); only the
   file names are baked. `scripts/publish-manuals.mjs` (`npm run publish:manuals`, rules in
   `lib/profile/manuals.mjs`) copies ONLY the PDFs named by the visible devices' `manual` into
   `services/plan-web/site/manuales/` and removes everything else there: a regular file directly in

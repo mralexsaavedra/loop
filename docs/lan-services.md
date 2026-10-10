@@ -28,7 +28,7 @@ up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (c
   (window measured from the rename, so a slow pull cannot yield two writes seconds apart) gets a NEW seq, `{seq, coalesced:true, deferred:true}`, and ONE trigger write is scheduled for
   the end of the window (later clicks reuse it), so a Shortcut payload POSTed right after a rebuild
   is still published (the deferred run pulls Strava only if its own 5 min cooldown allows). Cost stays
-  ≤ 1 rebuild/min and ≤ 1 Strava pull/5 min and nobody can lock the owner out. Nothing new is
+  ≤ 1 rebuild/min and ≤ 1 Strava pull/5 min and nobody can lock the user out. Nothing new is
   persisted; SIGTERM flushes a pending deferred write and awaits an in-flight run (2 s, then writes
   the persisted seq directly; 3 s hard cap); after a crash, boot finds the DB seq ahead of the trigger
   file and writes it once (5 s after boot, ≥ 60 s after the last recorded write), so a waiting page
@@ -51,7 +51,7 @@ up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (c
   still exit 0, unless `PLAN_WEB_ALLOW_BRANCH=1`), `install`, `build`, `sanity`, `lock` (on-demand lock
   wait timed out; a cron skip is not an error). `sync` / `generate` run under `PLAN_WEB_STEP_TIMEOUT`
   (300 s), `npm ci` under `PLAN_WEB_CI_TIMEOUT` (900 s). No git `safe.directory` override (the unit
-  runs as the owner).
+  runs as the repo owner).
 - **Freshness line** (`web/src/client/freshness.js`, copy `web/src/i18n/sync-templates.mjs`, markup
   in `layouts/Plan.astro` above the nav): at view time it reads `GET /api/sync/status` and
   `/status.json`; the top bar shows a dot + the Shortcut age ("hace 5 min"), and the per-source line

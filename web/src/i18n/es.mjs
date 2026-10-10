@@ -1,7 +1,7 @@
 /* Generic (non-personal) Spanish UI copy — ported verbatim from the hand-
  * maintained legacy `data/nutrition/plan-web.html` for the tabs/strings
  * that exist so far (astro-plan-web slice 3: Mi día; the day builder's copy went with it). Anything
- * PERSONAL (page title/kicker/h1/sub/footer/notes) lives in the owner's
+ * PERSONAL (page title/kicker/h1/sub/footer/notes) lives in the user's
  * gitignored `plan-data.json` `page` block instead — see
  * web/test/leak.test.mjs. */
 export default {

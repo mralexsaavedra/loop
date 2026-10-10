@@ -258,7 +258,7 @@ test('load: one compact card per modality (gym/run/bike): last session RE, "LOAD
   assert.match(html, /vs your own run days/, 'the relative score moved behind ⓘ, not dropped');
 });
 
-test('load card without a value (the owner\'s Run card: no recent session, "—") shows no delta pill: a "▼ -64%" beside "—" read as a value', () => {
+test('load card without a value (the user\'s Run card: no recent session, "—") shows no delta pill: a "▼ -64%" beside "—" read as a value', () => {
   const s = fixtureScores();
   const run = s.load.modalities.find((m) => m.key === 'run');
   assert.equal(run.trend.ok, true);
@@ -271,7 +271,7 @@ test('load card without a value (the owner\'s Run card: no recent session, "—"
   assert.match(card, /<b class="ld-num">—<\/b>/);
   assert.doesNotMatch(card, /ld-pill/, 'no trend pill without a value');
   assert.doesNotMatch(card, /7-day vs 42-day/, 'nor in the accessible name');
-  // the owner's Run card: the trend is ok but the dial is gated (too few run days for a typical day) →
+  // the user's Run card: the trend is ok but the dial is gated (too few run days for a typical day) →
   // the dial's "Building" word, never the trend's delta beside "—"
   const s2 = fixtureScores();
   const d2 = buildDials(s2, HEALTH);

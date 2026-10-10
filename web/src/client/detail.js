@@ -143,7 +143,7 @@
     if (age > HC.STALE_DAYS) return { end: asOf, stale: true };
     return { end: age < 0 ? asOf : today, stale: false };
   }
-  // the dashed target line: a baked target (sleep), else the owner's target weight on the weight view
+  // the dashed target line: a baked target (sleep), else the user's target weight on the weight view
   // (client/settings.js, LAN page only; nothing without it)
   function targetOf(key, m) {
     if (m.target != null) return m.target;

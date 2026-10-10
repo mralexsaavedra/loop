@@ -196,7 +196,7 @@ test('insights view: best impact first, signed %, teal / orange bars from the ce
   assert.equal(ctx.HCJournal.barStyle(-40, 20), 'left:0.0%;width:50.0%');
 });
 
-test('insights view with no behavior scored yet (the owner\'s first days): ONE empty-state card saying what is needed and how many days count so far, not a column of identical "Need more data" cards', () => {
+test('insights view with no behavior scored yet (the user\'s first days): ONE empty-state card saying what is needed and how many days count so far, not a column of identical "Need more data" cards', () => {
   const rows = ['caffeine_late', 'nap', 'mobility', 'alcohol'].map((key, i) => ({ key, yesDays: i === 1 ? 1 : 0, noDays: i === 1 ? 1 : 2, status: 'need_data', yesMean: null, noMean: null, diff: null }));
   const { ctx } = load({ journal: { ...BAKED, insights: { ...BAKED.insights, rows } } });
   const r = ctx.HCViews['journal-insights'].render();

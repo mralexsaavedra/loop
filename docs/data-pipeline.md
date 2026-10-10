@@ -21,8 +21,8 @@ writes its own estimate of the same burn; RENPHO's weigh-in BMR as Basal Energy 
 Precedence (`samples.js` `energySource` / `pickEnergySource`): 1. Apple Watch (`APPLE_WATCH_RE`,
 the same anchored `/^Apple\s+Watch\b/i` as `sessions.mjs`, pinned by a test); 2. a dedicated
 wrist-wearable app (`ENERGY_WEARABLES`: Zepp / Zepp Life, Mi Fit / Mi Fitness, Amazfit, Garmin
-Connect, Polar Flow, Fitbit, Huawei Health — the owner's pre-Watch history came from Zepp and Mi
-Fit); 3. the iPhone (`/^iPhone\b/i`); everything else is EXCLUDED — scales (RENPHO, OKOK,
+Connect, Polar Flow, Fitbit, Huawei Health — older history from another app, e.g. before an Apple Watch,
+is covered too); 3. the iPhone (`/^iPhone\b/i`); everything else is EXCLUDED — scales (RENPHO, OKOK,
 Withings / Health Mate, which serves both scales and watches) and training / nutrition apps
 (Hevy, Nike *, Strava, YAZIO, Merge, Training, ROXFIT…). Two sources of one rank on a day → the
 larger total (then name ascending). A day with excluded sources only has NO row. `_meta.json`
@@ -115,7 +115,7 @@ Apple Health uses, so they land in the same `bike` bucket. Racket, team and outd
 Apple type the Watch writes (Tennis, Squash, Badminton, Pickleball, Soccer, Basketball, Volleyball,
 Golf…; Padel keeps its name), all in the `other` modality, so a Watch Tennis row and a Strava Tennis
 row merge into ONE session (pinned by a test). Strava's generic `Workout` maps to `Other`, the
-Watch's generic label that stays in `GYM_TYPES` (the owner's gym / metcon label). An unknown sport
+Watch's generic label that stays in `GYM_TYPES` (the user's gym / metcon label). An unknown sport
 falls back to `Unmapped` (→ `other`, never gym) and is listed in `_meta.json` `stravaSync.unmapped`. Strava rows are ALWAYS kept, also on
 dates the export covers (Strava is the only source of Relative Effort, kJ and elevation), and are
 rebuilt each run and removed only by their `Strava API` tag. Dedupe happens at READ time: every

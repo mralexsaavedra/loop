@@ -36,7 +36,7 @@ const GEOMETRY_TOFIXED = {
   'web/src/client/training-activity.js': 2, // the modality bar's rect x / width
 };
 // a hand-made decimal comma that is DATA, not display: the logged food entry's stored name
-// ("Arroz · 1,5 ud") mirrors lib/nutrition/basics.mjs byte for byte (the owner logs with these names)
+// ("Arroz · 1,5 ud") mirrors lib/nutrition/basics.mjs byte for byte (the user logs with these names)
 // and the plan's portion factor ("×1,25"), a port of lib/nutrition/scale.mjs pinned byte for byte by
 // the nutri-day parity test (it takes the plan's own decimal mark)
 const DECIMAL_COMMA_DATA = ['web/src/client/food-core.js', 'web/src/client/nutri-day.js'];

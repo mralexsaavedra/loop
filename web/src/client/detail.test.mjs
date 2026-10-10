@@ -731,7 +731,7 @@ test('weight header = the Salud card\'s 7-day rolling average (the chart line), 
   assert.match(s.host.innerHTML, /<path class="dt-line"/, 'the baked rolling line is drawn');
 });
 
-test('weight: the owner\'s target weight (LAN settings) is a dashed line + a "Target" note; none without the settings API', () => {
+test('weight: the user\'s target weight (LAN settings) is a dashed line + a "Target" note; none without the settings API', () => {
   const settings = (ready, kg) => ({ ready: () => ready, targetWeight: () => kg });
   const s = setup({ settings: settings(true, 66.5) });
   s.api.open('weight');

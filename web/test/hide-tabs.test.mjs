@@ -4,8 +4,8 @@
  * (hoy/dia/tablas/dash) now hide the matching SECTION inside a tab; `registro` (the removed day
  * builder) is a deprecated no-op that must keep building. This test
  * is DATA-DRIVEN: it reads whichever `hideTabs` array the personal plan
- * actually declares (instead of hardcoding the owner's current `["hoy"]`),
- * so it keeps passing whenever the owner's plan changes which tab(s) it
+ * actually declares (instead of hardcoding the user's current `["hoy"]`),
+ * so it keeps passing whenever the user's plan changes which tab(s) it
  * hides — or hides none at all. See docs/training.md, "The Hoy section is optional and
  * source-agnostic". The example build must never hide anything — formerly CLAUDE.md:
  * "Keep the tab in the public plan-web.template.html seed as a working
@@ -13,7 +13,7 @@
  * example plan itself is the working example now).
  *
  * Skips gracefully when the personal fixture is absent (fresh clone / CI
- * without the owner's data), same pattern as web/test/leak.test.mjs.
+ * without the user's data), same pattern as web/test/leak.test.mjs.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
