@@ -602,12 +602,12 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
 
 ## 2026-10-07 — Public template: personal pieces out of the tracked tree
 
-- The repo becomes usable as a public template; every personal piece stays on the owner's disk, gitignored.
+- The repo becomes usable as a public template; every personal piece stays on the local disk, gitignored.
 - A private training-program sync moved to the ignored `local/`; the built-in `DEFAULT_BY_GOAL` targets
   became a generic 70 kg seed.
 - The coach subagents became generic templates that read the ignored `profile/coaches.md` (sources,
   gear, language, jurisdiction); onboarding now builds it.
-- The owner's working notes (`odd/`) left the index and are ignored; owner-only operating notes
+- Personal working notes (`odd/`) left the index and are ignored; setup-specific operating notes
   (publishing routine, branch policy, the retired artifact flow) moved from `CLAUDE.md` and
   `docs/nutrition.md` to the ignored `CLAUDE.local.md`.
 - README restructured for newcomers: prerequisites and setup levels (1 Apple Health + Claude, 2 LAN
@@ -630,7 +630,7 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
   - `targets.train` / `targets.rest` fed the removed day builder; its `targetFor` is gone.
   - plan-tables.md "Daily targets by goal and day type": the Snack column went with the automatic snack.
   - Plan de hoy: the choosable blocks, the Añadidos card that changed by day type and the automatic snack were removed when it became a portion guide.
-  - 2026-10-06: the generic coffee basics (cortado, café con leche) were dropped from the Extras examples: the owner logs his coffees as his own recipes.
+  - 2026-10-06: the generic coffee basics (cortado, café con leche) were dropped from the Extras examples: coffees are logged as one's own recipes instead.
   - Resumen de hoy: the remainder and macro-off notes are gone: the guide's Extras absorbs them.
   - Tablas: the generic notes and the example plan's `page.notes['tablas.*']` no longer talk about portions.
   - The retired one-shot migration scripts (`scripts/migrate-plan-data.mjs`, last in 76b9c3b; `scripts/migrate-plan-v2.mjs`, last in 22cfabd) live in git history.
@@ -644,7 +644,7 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
   number typed for one unit was kept for the other (25 g became 25 servings). Basics and recipes
   unchanged (`food.js` `switchProductUnit`, test in `food.test.mjs`).
 
-## 2026-10-06 — Avituallamiento in the owner's own fuel items
+## 2026-10-06 — Avituallamiento in your own fuel items
 
 - New optional plan field `fuel.items` (`{name, carbs per piece, fat?, kind?: fast | slow}`), validated
   by `npm run check` and baked localized into `NUTRI.fuel.items` only when present.
@@ -658,13 +658,13 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
 
 ## 2026-10-06 — food DB: olive oil in ml
 
-- Owner preference (like black coffee, 2026-10-05): olive oil is measured and logged in ml, not tablespoons.
+- Like black coffee (2026-10-05): olive oil is measured and logged in ml, not tablespoons.
 - `aceiteoliva` is now per 100 ml (824 kcal, 91.6 g fat = the per-100 g values × density 0.916 g/ml) with no
   `piece`, so the food log, the portion guide and Tablas use ml; the example plan's oil amounts were converted (g ÷ 0.916).
 
 ## 2026-10-06 — Plan de hoy: rows capped by what the day still allows
 
-- Real case: 72.6 g fat logged vs a 65 g day target, yet Cena offered "Grasa ~11 g de 23" and a "+"
+- Case: more fat logged than the day's target, yet Cena offered "Grasa ~11 g de 23" and a "+"
   tablespoon of olive oil; each meal only looked at its own budget.
 - `lib/nutrition/guide.mjs` `dayRemaining` (the "Te queda hoy" sum, now shared) + `capByDay`
   (`DAYCAP_CASES`), ported in `web/src/client/nutri-day.js`: a macro row shows min(meal left, day
@@ -675,7 +675,7 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
 ## 2026-10-06 — food DB: drop the generic coffee basics
 
 - `cortado` and `cafeconleche` removed from `data/nutrition/ingredients.json` (107 log-only basics
-  left): the owner logs his coffees as his own server-side recipes. `cafe` and `leche` stay.
+  left): coffees are logged as one's own server-side recipes instead. `cafe` and `leche` stay.
 - The cortado is also gone from the portion guide's Extras examples (plátano, yogur, batido remain).
 
 ## 2026-10-05 — food log: black coffee in ml
@@ -691,7 +691,7 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
   is untouched). For a device that shows up only because Strava saw it once (a borrowed bike
   computer). The names are applied at build time and never baked.
 - **Device manuals** — a device entry may carry `manual: "<file>.pdf"` (a bare file name,
-  `MANUAL_FILE_RE` in `lib/profile/profile.mjs`: no folders, no `..`), the owner's own PDF in
+  `MANUAL_FILE_RE` in `lib/profile/profile.mjs`: no folders, no `..`), your own PDF in
   `data/gear/` (gitignored). A manual entry merged with a Strava-derived one keeps it. Only the file
   name is baked in `PROFILE`.
 - **Publishing** — `scripts/publish-manuals.mjs` (`npm run publish:manuals`, rules in
@@ -705,7 +705,7 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
   (no extension types), `Content-Disposition: inline`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy:
   default-src 'none'; object-src 'self'` (CSP `sandbox` would block the built-in PDF viewer), no listing;
   everything else under `/manuales/` is a 404. The Host allow-list and raw-path guard apply; behind
-  the SSO tunnel it stays behind SSO (never a bypass rule). Validated with `nginx -t` and curl in a
+  an SSO tunnel it stays behind SSO (never a bypass rule). Validated with `nginx -t` and curl in a
   throwaway `nginx:alpine` container.
 - **Profile sheet** — a "Manual" link (≥ 44 px, new tab, `rel="noopener"`) per device with a manual,
   rendered `hidden` and revealed at view time only when `HEAD /manuales/<file>` answers 200 with a
@@ -714,7 +714,7 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
 - Rollout: merge → `docker compose up -d` in `services/plan-web` (new nginx location) → edit
   `profile/profile.json` → next refresh (or `npm run publish:manuals`).
 
-## 2026-10-05 — profile: one source of truth per owner fact (events, settings snapshot, coaches)
+## 2026-10-05 — profile: one source of truth per user fact (events, settings snapshot, coaches)
 
 - **Events in `profile/profile.json`** — optional `events: [{name, date: YYYY-MM-DD, type?: hyrox |
   race | sportive | other, location?}]`, validated by `validateManual` (`EVENT_TYPES` in
@@ -732,46 +732,44 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
   subagents cannot reach — now they read a file.
 - **Coach subagents** (`cycling-coach`, `hybrid-coach`, `nutrition-coach`) — the same "Shared rules"
   block in all three (user's language, not-a-doctor, never read `.env*`, sponsor / affiliate bias,
-  auto-caption numbers "verificar") and the same "Owner facts" table: weight from the newest
+  auto-caption numbers "verificar") and the same facts table: weight from the newest
   `weight.csv` rows (+ 7-day context), height / birthdate / devices / supplements / events from
   `profile.json`, goal + target from `settings.json` (missing / stale by `fetchedAt` said so), stable
   context from `about-me.md`; never numbers from profile prose; data freshness checked against TODAY
   (> 3 days flagged); days to each event from TODAY. `Bash` removed (`tools: Read, Grep, Glob`).
   Routing made explicit: fuelling, hydration, supplements and body-composition nutrition belong to
   `nutrition-coach`; the training coaches hand off ("para la nutrición, pregunta al nutrition-coach")
-  and vice versa. `cycling-coach`: Edu's commercial ties listed, never estimates an unknown FTP
-  (power curve / kJ / HR + a suggested test), adds the VitalControl SEM 42 EMS manual.
-  `hybrid-coach`: Hyprogram synced by cron (Sun 21:15 / Mon 06:15), nothing before 2026-09-21
+  and vice versa. `cycling-coach`: the expert's commercial ties listed, never estimates an unknown FTP
+  (power curve / kJ / HR + a suggested test), adds an EMS device manual.
+  `hybrid-coach`: the current program synced by cron (Sun 21:15 / Mon 06:15), nothing before 2026-09-21
   (rolling window), read `semanas/` directly; the HYROX station weights table is "verificar" — point
   to the current official rulebook.
 
-## 2026-10-05 — knowledge: Hyprogram "HP Hybrid" sync
+## 2026-10-05 — knowledge: private training-program sync
 
-- **`scripts/sync-hyprogram.mjs`** — pulls the owner's current training program ("HP Hybrid", at
-  hyprogram.com) into `knowledge/hybrid/hyprogram/` for `hybrid-coach`. The site is a Next.js app
-  behind NextAuth credential login (AWS Cognito server-side; no public client secret, no SRP needed);
-  the script logs in with the owner's own account, then reads the program through the same-origin app
-  API the web client uses (`/api/workouts/important_days` for the programmed dates,
-  `/api/workouts/get_by_date` per day — athletes can view only a rolling recent window, so it
-  early-stops at the window edge). Output: `raw/<id>.json` (the workout JSON, per-user data stripped),
+- **A program sync script** (moved to the ignored `local/` on 2026-10-07) — pulls the current training
+  program from a login-gated training app into a `knowledge/hybrid/` subfolder for `hybrid-coach`.
+  The site is a Next.js app behind NextAuth credential login (AWS Cognito server-side; no public client secret, no SRP needed);
+  the script logs in with the user's own account, then reads the program through the same-origin app
+  API the web client uses (the programmed dates, then one request per day — athletes can view only a
+  rolling recent window, so it early-stops at the window edge). Output: `raw/<id>.json` (the workout JSON, per-user data stripped),
   `semanas/<YYYY-Www>.md` (faithful Spanish render — sections, WOD, coach notes, loads, RPE, running
   distances) and `manifest.json` (incremental, per-date `fetchedAt`). Flags `--dry-run` / `--limit N`.
-- **Security / etiquette** — credentials in `data/training/.env.hyprogram` (gitignored, 0600;
-  `HYPROGRAM_ENV` overrides the path), read in-process and never logged; no password, token or cookie
+- **Security / etiquette** — credentials in a gitignored `.env` file under `data/training/` (0600;
+  an env var overrides the path), read in-process and never logged; no password, token or cookie
   ever printed or written to disk; coarse errors only (`auth_failed`, `http_403`). Read-only GETs,
   sequential ~1.5 s apart, nothing on the account modified. `knowledge/*` stays gitignored.
-- **Pure core** — `scripts/hyprogram-lib.mjs` (ProseMirror → Markdown, PII strip, ISO-week math,
-  fetch-plan selection, manifest merge) with `scripts/hyprogram-lib.test.mjs` (`node --test`, zero
-  deps). First real sync fetched 15 days (2026-09-21 → 2026-10-10, block "PREPARATORIO ESPECÍFICO"),
-  3 week files.
+- **Pure core** — a library module (ProseMirror → Markdown, PII strip, ISO-week math, fetch-plan
+  selection, manifest merge) with `node --test` unit tests, zero deps. The first real sync fetched 15
+  days, 3 week files.
 
 ## 2026-10-04 — knowledge: a nutrition-coach subagent
 
 - **`nutrition-coach` subagent** (`.claude/agents/`) — read-only sports nutrition and supplementation
   coach over `knowledge/nutrition/` (`evidencia/`: AIS framework, IOC 2018, ISSN position stands,
-  AESAN, WADA — the evidence base, which outranks influencers; `ferrandis/`: Andrea Ferrandis YouTube
-  cards + transcripts, the practitioner source; optional `index.md` + `temas/`) plus the nutrition
-  topics of the cycling and hybrid knowledge bases. Every claim cited, "Andrea dice" kept apart from
+  AESAN, WADA — the evidence base, which outranks influencers; a practitioner's YouTube cards +
+  transcripts, the practitioner source; optional `index.md` + `temas/`) plus the nutrition
+  topics of the cycling and hybrid knowledge bases. Every claim cited, what the practitioner says kept apart from
   the evidence, contradictions / sponsor bias / auto-caption numbers flagged, Spain context (AESAN
   limits, BEDCA, products sold in Spain), anti-doping warnings, not-a-doctor referrals and the
   methodology's safe deficit ranges. Grounded read-only in the plan (`plan-data.json` +
@@ -781,11 +779,11 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
 ## 2026-10-02 — knowledge: a hybrid-coach subagent
 
 - **`hybrid-coach` subagent** (`.claude/agents/`) — read-only HYROX / hybrid coach over
-  `knowledge/hybrid/` (the HYP(R)ODCAST transcripts, coach Ferry's Dec 2025 – Jun 2026 program, the
-  Training Culture 6-week block, the current Hyprogram "HP Hybrid" program once synced). Same rules as
+  `knowledge/hybrid/` (podcast transcripts, a coach's past program, a 6-week training block, the
+  current program once synced). Same rules as
   `cycling-coach`: every claim cited (podcast `&t=<seconds>s`, programs by file / month / week),
   auto-caption numbers and sponsor bias flagged, sources kept apart from `analysis/methodology.md`,
-  advice grounded in the owner's workouts, running dynamics and recovery, and a program-vs-reality
+  advice grounded in the user's workouts, running dynamics and recovery, and a program-vs-reality
   comparison when asked. Cycling questions stay with `cycling-coach`.
 
 ## 2026-10-02 — knowledge: YouTube transcript ingest + a cycling-coach subagent
@@ -800,9 +798,9 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
   `subs: none`) atomically, paces requests and retries. Pure helpers in
   `scripts/youtube-transcript.mjs` with synthetic-VTT unit tests.
 - **`cycling-coach` subagent** (`.claude/agents/`) — read-only coach that applies the first
-  source's criteria (cycling coach Eduardo Talavera), cites title + timestamped URL for every claim,
+  source's criteria (a cycling coach's YouTube channel), cites title + timestamped URL for every claim,
   keeps "what the expert says" apart from `analysis/methodology.md`, and grounds advice in the
-  owner's ride data.
+  user's ride data.
 
 ## 2026-10-02 — nutrition: server-side goal + target weight, weight progress, food log adherence
 
@@ -891,8 +889,8 @@ rollover's reload reopen it.
 
 ## 2026-10-02 — 82 everyday Spanish foods as log-only basics
 
-The owner lives in Spain and logs from the food log's Basics search; many everyday foods (fish of the
-day, charcuterie, a caña, a croqueta) were missing. 82 log-only basics (`swap: false`, `verified:
+Many everyday Spanish foods (fish of the day, charcuterie, a caña, a croqueta) were missing from the
+food log's Basics search. 82 log-only basics (`swap: false`, `verified:
 false`) were added to `data/nutrition/ingredients.json`: fish / seafood 14, meat / charcuterie 11,
 dairy 9, carbs 9, veg 11, legumes 5, nuts / seeds 4, drinks 11, dishes / pastries 8.
 
@@ -957,8 +955,8 @@ An audit of the page on a phone found five small problems; each is fixed with a 
 
 ## 2026-10-02 — plan-web: the Shortcut upload route
 
-The owner exposes plan-web publicly through an SSO tunnel and keeps the ingest service unexposed, so
-the iOS Shortcut must reach ingest through plan-web.
+When plan-web is exposed publicly through an SSO tunnel and the ingest service stays unexposed, the
+iOS Shortcut must reach ingest through plan-web.
 
 - **nginx** — `location = /ingest/health-auto-export` (exact, POST only) → ingest's same route:
   `Authorization`, `Automation-Name` and `Content-Type` forwarded (ingest checks the bearer),
@@ -985,13 +983,13 @@ the iOS Shortcut must reach ingest through plan-web.
 
 - **Tablas** — a list section (desayunos, carbo, proteína, anclaje, post-entreno, fruta, postre,
   verduras, quesos) renders only when it has rows; a plan whose list holds only the "none" option no
-  longer shows an empty accordion. The owner removed his composite options (breakfasts, post-workout
-  combos) from his personal plan, which left two such sections. Pinned on both builds
+  longer shows an empty accordion. A personal plan without composite options (breakfasts, post-workout
+  combos) had shown two such sections. Pinned on both builds
   (`web/test/content.test.mjs`; the personal check skips without a personal build).
 
 ## 2026-10-02 — Registrar: a day navigator
 
-The owner logged meals the day before and could not see them: Registrar only read the viewer's today.
+Meals logged on the day before could not be seen: Registrar only read the viewer's today.
 
 - **Page** — `‹ <date> ›` at the top of Registrar (static markup in `Dia.astro`: real 44 px buttons
   "Día anterior" / "Día siguiente", an `aria-live` label "Hoy" or `HC.fmtDate`, next disabled on
@@ -1014,8 +1012,8 @@ The owner logged meals the day before and could not see them: Registrar only rea
 
 ## 2026-10-01 — Recipes can use the public basics
 
-The owner asked to build recipes with generic foods (huevo, plátano, leche…) without first adding them
-to Mis productos.
+Goal: build recipes with generic foods (huevo, plátano, leche…) without first adding them to Mis
+productos.
 
 - **Model** — a recipe ingredient is a product `{productId, amount}` or a basic SNAPSHOT `{basic, name,
   unit, amount, per100}` taken from FOOD_BASICS when the recipe is saved (per 100 g / ml, per unit for a
