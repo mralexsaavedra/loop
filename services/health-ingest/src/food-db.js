@@ -1,5 +1,5 @@
 /**
- * Postgres access for the food log (sql/006_food.sql) and the owner's settings (sql/007_settings.sql).
+ * Postgres access for the food log (sql/006_food.sql) and the user's settings (sql/007_settings.sql).
  * Every query is parameterized; rows come
  * back as plain objects with numbers (pg returns NUMERIC / BIGINT as strings), ISO timestamps and
  * the log date as a YYYY-MM-DD string (to_char, so no timezone ever shifts it). Validation and the

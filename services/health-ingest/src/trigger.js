@@ -76,7 +76,7 @@ function settleWithin (promise, ms) {
  * has published as `processedSeq` in status.json, so the page waits for
  * `processedSeq >= seq` — no clock comparison anywhere.
  *
- * Cost is bounded WITHOUT ever refusing the owner (no 429) and WITHOUT ever
+ * Cost is bounded WITHOUT ever refusing the user (no 429) and WITHOUT ever
  * dropping a call that may carry newer data:
  *   - a click while a trigger is still pending (its Strava pull + write not
  *     done yet) coalesces onto that seq: 202 {seq: <current>, coalesced: true}.

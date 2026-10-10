@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Settings sync — snapshots the owner's goal + target weight that the LAN page stores on the ingest
+/* Settings sync — snapshots the user's goal + target weight that the LAN page stores on the ingest
  * service (services/health-ingest, GET /food/settings, sql/007_settings.sql) into
  * data/profile/settings.json, so read-only consumers (the coach subagents, which only read files)
  * see the same goal the page uses.
