@@ -16,6 +16,14 @@ var HC = (function () {
   function isEs() {
     return typeof LOCALE !== 'undefined' && LOCALE === 'es';
   }
+  // the LAN services (food / journal / sync APIs, status.json, device manuals) answer only when the page is
+  // served over http(s); opened from a file (file://) every LAN fetch is skipped, so the page degrades
+  // exactly as when they are down, with no console errors. Read at call time; no location = served.
+  function lan() {
+    var loc = typeof location !== 'undefined' && location ? location
+      : typeof window !== 'undefined' && window && window.location ? window.location : null;
+    return !loc || loc.protocol !== 'file:';
+  }
   // markup-safe text AND attribute value (quotes too)
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -288,6 +296,7 @@ var HC = (function () {
     MS_PER_DAY: MS_PER_DAY,
     STALE_DAYS: C.staleDays,
     isEs: isEs,
+    lan: lan,
     DASH: HC_FMT.DASH,
     int: int,
     pct: pct,
