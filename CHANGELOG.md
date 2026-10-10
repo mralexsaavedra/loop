@@ -1,13 +1,24 @@
 # Changelog
 
 Dated history of structural work on this repo. **Current state lives in Engram**
-(`mem_context`, synced across the owner's machines); durable operating facts live in
+(`mem_context`, synced across machines); durable operating facts live in
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-10 — Public readiness pass
+
+Docs and code comments speak to "you" / "the user" (no owner narrative or dated owner notes). README →
+License credits Open Food Facts (ODbL), and the LAN page's product search and OFF-filled form carry a
+muted credit line (`products.offCredit`, es / en). `docs/nutrition.md` presents `ingredients.json` as a
+Spanish-supermarket sample and `basic: false` as a per-user choice. The coach-agent guard compares
+SHA-256 hashes of words and word pairs instead of listing names. `npm audit fix` (http-cache-semantics
+4.3.0, source-map-js 1.2.2). Opened from `file://`, the page skips every LAN fetch (`HC.lan()`): no
+console errors, same degraded page. This file's history was neutralised (no sources, habits, hosting
+specifics or personal numbers); the technical content and dates are unchanged.
+
 ## 2026-10-09 — One carried-value rule (DS7)
 
-**Carried values** (the owner: "make it all coherent, like WHOOP"): any display that stands for today (or
+**Carried values**: any display that stands for today (or
 the stepped-to day) but shows an EARLIER day's value names that date and is dimmed — colour kept, one
 treatment (`.carried` + `.carried-date`), one helper (`HC.carried`); the > 3-day stale grey stays the
 stronger state. Inicio's sleep dial now follows it too (it showed an earlier night as last night's), and
@@ -19,8 +30,7 @@ carried day, like the stress tile), "My day" and Salud's recovery card headline 
 
 ## 2026-10-09 — Real-page fixes (DS6)
 
-**Recovery carried from an earlier day** (the owner's page read "HOY · 47 %" for Wednesday's night on
-Friday): when today's night is not complete yet and the headline falls back to an earlier night, the
+**Recovery carried from an earlier day** (the page read "TODAY" for a night two days old): when today's night is not complete yet and the headline falls back to an earlier night, the
 Inicio dial shows that night's date under the number and is dimmed like stale data (the mini ring too),
 and the recovery deep-dive is titled with that date (its legend too) with a dimmed hero.
 
@@ -111,10 +121,10 @@ new markup tests pin Tonight's sleep-history CTA (and its absence without sleep 
 `.nav-btn` arrows disabled at their edges, the recovery card head (date, History, ⓘ — no title) and the
 neutral ▲ / ▼ pill of a metric with no good direction; the design guard keys its number-face lookup by
 stylesheet and media query.
-**Ride kJ back on the row (owner):** a ride row's HR · effort · kJ is a second small line under the
+**Ride kJ back on the row:** a ride row's HR · effort · kJ is a second small line under the
 value (`HC.metricRow` `base2`), still inside the one run / ride template — the work had become visible
 nowhere.
-**Nutrition score: today is in progress, not a score (owner):** mid-day, today scored "0%" in red with
+**Nutrition score: today is in progress, not a score:** mid-day, today scored "0%" in red with
 "KCAL · 0 / PROTEIN · 0 / FAT · 0" (component points that read like "0 kcal"). Now the card's headline is
 the newest CLOSED day ("Yesterday", or a date ≤ 3 days old); today, when logged, shows only its progress
 (eaten / target, a neutral bar) under "TODAY · IN PROGRESS"; a closed day's points read "KCAL · 85 pts";
@@ -186,17 +196,17 @@ rule left hides the date pill (it steps Inicio's day). On a phone the Inicio dia
 (the pill now has its own row under the logo); desktop is unchanged.
 
 
-## 2026-10-09 — Beer basics and hiding basics that duplicate Mercadona products
+## 2026-10-09 — Beer basics and hiding basics that duplicate your own products
 
-Two log-only drink basics for the beers the owner usually drinks: `cerveza1906` (1906 Reserva
+Two log-only drink basics for beers: `cerveza1906` (1906 Reserva
 Especial, 6.5 %, 54 kcal / 100 ml, botellín 330 ml) and `cerveza00tostada` (Estrella Galicia 0,0
 Tostada, 24 kcal / 100 ml, botellín 250 ml), both `verified: false` with fitia.app named as the
 source; the Tostada's protein / carbs are derived from its kcal because the source lists only kcal.
 A new optional ingredient field `basic: false` hides a food from the add sheet's basics search and
 the recipe picker (`buildBasics` bakes it with `h: 1`, `basicMatches` skips it) while it stays in
-`ingredients.json` and FOOD_BASICS for the plan, the portion guide and old entries. Set on the 18
-foods the owner already logs as his own Mercadona products (allioli, jamón serrano, tomate frito…),
-so the search no longer shows each of them twice.
+`ingredients.json` and FOOD_BASICS for the plan, the portion guide and old entries. Set on 18
+sample foods that duplicate supermarket products logged as one's own (allioli, jamón serrano, tomate
+frito…), so the search no longer shows each of them twice.
 
 ## 2026-10-09 — Loop-free heart-rate samples from the Shortcut (`hr_t` + `hr_v`)
 
@@ -290,8 +300,8 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
 - Reference: Loe H, Rognmo Ø, Saltin B, Wisløff U, PLoS ONE 2013;8(5):e64319, Table 2
   (doi:10.1371/journal.pone.0064319), the HUNT3 healthy-population MEAN treadmill VO₂max per sex and
   10-year age group. The median definition the brief asked for could not be verified from a primary
-  source (Nes et al. 2014 MSSE is paywalled; no published HUNT medians found), so the owner chose the
-  documented mean-based curve; Nes 2014 is cited as background only.
+  source (Nes et al. 2014 MSSE is paywalled; no published HUNT medians found), so the
+  documented mean-based curve was chosen; Nes 2014 is cited as background only.
 - Profile: optional `sex` (`male` | `female`) in `profile/profile.json`, validated and baked into
   PROFILE (`lib/profile/profile.mjs`).
 - Bake: `lib/score/fitness-age.mjs` → `SCORES.fitnessAge` (latest VO₂max, its date / source, the fitness
@@ -309,7 +319,7 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
 - Storage + API: `services/health-ingest` optional migration group `journal` (`sql/010_journal.sql`:
   `journal_day`, `journal_settings`), `/journal/day` (GET / idempotent PUT), `/journal/summary`,
   `/journal/settings` with the food routes' LAN-only layers and its own `X-HC-Journal` header; plan-web
-  nginx proxies `/api/journal/`. Owner-approved behaviours (alcohol drinks, caffeine after 16:00,
+  nginx proxies `/api/journal/`. Behaviours (alcohol drinks, caffeine after 16:00,
   screen in bed, dinner < 2 h before sleep, hard / stressful day, nap, feeling ill, mobility, evening
   supplements), each switchable on / off from the page (server-side, default on).
 - Page: Inicio "My journal" card (7 day columns, a check per journaled day) and the journal sheet (day
@@ -418,7 +428,7 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
 
 - `sleep-daily.csv` gains six stage columns (`rem_h, deep_h, core_h, unspec_h, awake_h, inbed_h`),
   written identically by `extract.js` and the Shortcut sync (`samples.js` `sleepNights`); old
-  five-column rows still load (stages = unknown). `asleep_hours` and bed / wake are unchanged. Owner:
+  five-column rows still load (stages = unknown). `asleep_hours` and bed / wake are unchanged. After merge:
   re-run `node data/apple-health/extract.js` on a new export and `npm run sync -- --full`.
 - Sleep scores (`lib/score/sleep.mjs`): performance % = asleep / need (need = the 7.5 h target, not an
   adaptive need) capped at 100, efficiency % = asleep / in bed, consistency stays in minutes, stage
@@ -603,12 +613,12 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
 
 ## 2026-10-07 — Public template: personal pieces out of the tracked tree
 
-- The repo becomes usable as a public template; every personal piece stays on the owner's disk, gitignored.
+- The repo becomes usable as a public template; every personal piece stays on the local disk, gitignored.
 - A private training-program sync moved to the ignored `local/`; the built-in `DEFAULT_BY_GOAL` targets
   became a generic 70 kg seed.
 - The coach subagents became generic templates that read the ignored `profile/coaches.md` (sources,
   gear, language, jurisdiction); onboarding now builds it.
-- The owner's working notes (`odd/`) left the index and are ignored; owner-only operating notes
+- Personal working notes (`odd/`) left the index and are ignored; setup-specific operating notes
   (publishing routine, branch policy, the retired artifact flow) moved from `CLAUDE.md` and
   `docs/nutrition.md` to the ignored `CLAUDE.local.md`.
 - README restructured for newcomers: prerequisites and setup levels (1 Apple Health + Claude, 2 LAN
@@ -631,7 +641,7 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
   - `targets.train` / `targets.rest` fed the removed day builder; its `targetFor` is gone.
   - plan-tables.md "Daily targets by goal and day type": the Snack column went with the automatic snack.
   - Plan de hoy: the choosable blocks, the Añadidos card that changed by day type and the automatic snack were removed when it became a portion guide.
-  - 2026-10-06: the generic coffee basics (cortado, café con leche) were dropped from the Extras examples: the owner logs his coffees as his own recipes.
+  - 2026-10-06: the generic coffee basics (cortado, café con leche) were dropped from the Extras examples: coffees are logged as one's own recipes instead.
   - Resumen de hoy: the remainder and macro-off notes are gone: the guide's Extras absorbs them.
   - Tablas: the generic notes and the example plan's `page.notes['tablas.*']` no longer talk about portions.
   - The retired one-shot migration scripts (`scripts/migrate-plan-data.mjs`, last in 76b9c3b; `scripts/migrate-plan-v2.mjs`, last in 22cfabd) live in git history.
@@ -645,7 +655,7 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
   number typed for one unit was kept for the other (25 g became 25 servings). Basics and recipes
   unchanged (`food.js` `switchProductUnit`, test in `food.test.mjs`).
 
-## 2026-10-06 — Avituallamiento in the owner's own fuel items
+## 2026-10-06 — Avituallamiento in your own fuel items
 
 - New optional plan field `fuel.items` (`{name, carbs per piece, fat?, kind?: fast | slow}`), validated
   by `npm run check` and baked localized into `NUTRI.fuel.items` only when present.
@@ -659,13 +669,13 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
 
 ## 2026-10-06 — food DB: olive oil in ml
 
-- Owner preference (like black coffee, 2026-10-05): olive oil is measured and logged in ml, not tablespoons.
+- Like black coffee (2026-10-05): olive oil is measured and logged in ml, not tablespoons.
 - `aceiteoliva` is now per 100 ml (824 kcal, 91.6 g fat = the per-100 g values × density 0.916 g/ml) with no
   `piece`, so the food log, the portion guide and Tablas use ml; the example plan's oil amounts were converted (g ÷ 0.916).
 
 ## 2026-10-06 — Plan de hoy: rows capped by what the day still allows
 
-- Real case: 72.6 g fat logged vs a 65 g day target, yet Cena offered "Grasa ~11 g de 23" and a "+"
+- Case: more fat logged than the day's target, yet Cena offered "Grasa ~11 g de 23" and a "+"
   tablespoon of olive oil; each meal only looked at its own budget.
 - `lib/nutrition/guide.mjs` `dayRemaining` (the "Te queda hoy" sum, now shared) + `capByDay`
   (`DAYCAP_CASES`), ported in `web/src/client/nutri-day.js`: a macro row shows min(meal left, day
@@ -676,7 +686,7 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
 ## 2026-10-06 — food DB: drop the generic coffee basics
 
 - `cortado` and `cafeconleche` removed from `data/nutrition/ingredients.json` (107 log-only basics
-  left): the owner logs his coffees as his own server-side recipes. `cafe` and `leche` stay.
+  left): coffees are logged as one's own server-side recipes instead. `cafe` and `leche` stay.
 - The cortado is also gone from the portion guide's Extras examples (plátano, yogur, batido remain).
 
 ## 2026-10-05 — food log: black coffee in ml
@@ -692,7 +702,7 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
   is untouched). For a device that shows up only because Strava saw it once (a borrowed bike
   computer). The names are applied at build time and never baked.
 - **Device manuals** — a device entry may carry `manual: "<file>.pdf"` (a bare file name,
-  `MANUAL_FILE_RE` in `lib/profile/profile.mjs`: no folders, no `..`), the owner's own PDF in
+  `MANUAL_FILE_RE` in `lib/profile/profile.mjs`: no folders, no `..`), your own PDF in
   `data/gear/` (gitignored). A manual entry merged with a Strava-derived one keeps it. Only the file
   name is baked in `PROFILE`.
 - **Publishing** — `scripts/publish-manuals.mjs` (`npm run publish:manuals`, rules in
@@ -706,7 +716,7 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
   (no extension types), `Content-Disposition: inline`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy:
   default-src 'none'; object-src 'self'` (CSP `sandbox` would block the built-in PDF viewer), no listing;
   everything else under `/manuales/` is a 404. The Host allow-list and raw-path guard apply; behind
-  the SSO tunnel it stays behind SSO (never a bypass rule). Validated with `nginx -t` and curl in a
+  an SSO tunnel it stays behind SSO (never a bypass rule). Validated with `nginx -t` and curl in a
   throwaway `nginx:alpine` container.
 - **Profile sheet** — a "Manual" link (≥ 44 px, new tab, `rel="noopener"`) per device with a manual,
   rendered `hidden` and revealed at view time only when `HEAD /manuales/<file>` answers 200 with a
@@ -715,7 +725,7 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
 - Rollout: merge → `docker compose up -d` in `services/plan-web` (new nginx location) → edit
   `profile/profile.json` → next refresh (or `npm run publish:manuals`).
 
-## 2026-10-05 — profile: one source of truth per owner fact (events, settings snapshot, coaches)
+## 2026-10-05 — profile: one source of truth per user fact (events, settings snapshot, coaches)
 
 - **Events in `profile/profile.json`** — optional `events: [{name, date: YYYY-MM-DD, type?: hyrox |
   race | sportive | other, location?}]`, validated by `validateManual` (`EVENT_TYPES` in
@@ -733,46 +743,44 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
   subagents cannot reach — now they read a file.
 - **Coach subagents** (`cycling-coach`, `hybrid-coach`, `nutrition-coach`) — the same "Shared rules"
   block in all three (user's language, not-a-doctor, never read `.env*`, sponsor / affiliate bias,
-  auto-caption numbers "verificar") and the same "Owner facts" table: weight from the newest
+  auto-caption numbers "verificar") and the same facts table: weight from the newest
   `weight.csv` rows (+ 7-day context), height / birthdate / devices / supplements / events from
   `profile.json`, goal + target from `settings.json` (missing / stale by `fetchedAt` said so), stable
   context from `about-me.md`; never numbers from profile prose; data freshness checked against TODAY
   (> 3 days flagged); days to each event from TODAY. `Bash` removed (`tools: Read, Grep, Glob`).
   Routing made explicit: fuelling, hydration, supplements and body-composition nutrition belong to
   `nutrition-coach`; the training coaches hand off ("para la nutrición, pregunta al nutrition-coach")
-  and vice versa. `cycling-coach`: Edu's commercial ties listed, never estimates an unknown FTP
-  (power curve / kJ / HR + a suggested test), adds the VitalControl SEM 42 EMS manual.
-  `hybrid-coach`: Hyprogram synced by cron (Sun 21:15 / Mon 06:15), nothing before 2026-09-21
+  and vice versa. `cycling-coach`: the expert's commercial ties listed, never estimates an unknown FTP
+  (power curve / kJ / HR + a suggested test), adds an EMS device manual.
+  `hybrid-coach`: the current program synced by cron (Sun 21:15 / Mon 06:15), nothing before 2026-09-21
   (rolling window), read `semanas/` directly; the HYROX station weights table is "verificar" — point
   to the current official rulebook.
 
-## 2026-10-05 — knowledge: Hyprogram "HP Hybrid" sync
+## 2026-10-05 — knowledge: private training-program sync
 
-- **`scripts/sync-hyprogram.mjs`** — pulls the owner's current training program ("HP Hybrid", at
-  hyprogram.com) into `knowledge/hybrid/hyprogram/` for `hybrid-coach`. The site is a Next.js app
-  behind NextAuth credential login (AWS Cognito server-side; no public client secret, no SRP needed);
-  the script logs in with the owner's own account, then reads the program through the same-origin app
-  API the web client uses (`/api/workouts/important_days` for the programmed dates,
-  `/api/workouts/get_by_date` per day — athletes can view only a rolling recent window, so it
-  early-stops at the window edge). Output: `raw/<id>.json` (the workout JSON, per-user data stripped),
+- **A program sync script** (moved to the ignored `local/` on 2026-10-07) — pulls the current training
+  program from a login-gated training app into a `knowledge/hybrid/` subfolder for `hybrid-coach`.
+  The site is a Next.js app behind NextAuth credential login (AWS Cognito server-side; no public client secret, no SRP needed);
+  the script logs in with the user's own account, then reads the program through the same-origin app
+  API the web client uses (the programmed dates, then one request per day — athletes can view only a
+  rolling recent window, so it early-stops at the window edge). Output: `raw/<id>.json` (the workout JSON, per-user data stripped),
   `semanas/<YYYY-Www>.md` (faithful Spanish render — sections, WOD, coach notes, loads, RPE, running
   distances) and `manifest.json` (incremental, per-date `fetchedAt`). Flags `--dry-run` / `--limit N`.
-- **Security / etiquette** — credentials in `data/training/.env.hyprogram` (gitignored, 0600;
-  `HYPROGRAM_ENV` overrides the path), read in-process and never logged; no password, token or cookie
+- **Security / etiquette** — credentials in a gitignored `.env` file under `data/training/` (0600;
+  an env var overrides the path), read in-process and never logged; no password, token or cookie
   ever printed or written to disk; coarse errors only (`auth_failed`, `http_403`). Read-only GETs,
   sequential ~1.5 s apart, nothing on the account modified. `knowledge/*` stays gitignored.
-- **Pure core** — `scripts/hyprogram-lib.mjs` (ProseMirror → Markdown, PII strip, ISO-week math,
-  fetch-plan selection, manifest merge) with `scripts/hyprogram-lib.test.mjs` (`node --test`, zero
-  deps). First real sync fetched 15 days (2026-09-21 → 2026-10-10, block "PREPARATORIO ESPECÍFICO"),
-  3 week files.
+- **Pure core** — a library module (ProseMirror → Markdown, PII strip, ISO-week math, fetch-plan
+  selection, manifest merge) with `node --test` unit tests, zero deps. The first real sync fetched 15
+  days, 3 week files.
 
 ## 2026-10-04 — knowledge: a nutrition-coach subagent
 
 - **`nutrition-coach` subagent** (`.claude/agents/`) — read-only sports nutrition and supplementation
   coach over `knowledge/nutrition/` (`evidencia/`: AIS framework, IOC 2018, ISSN position stands,
-  AESAN, WADA — the evidence base, which outranks influencers; `ferrandis/`: Second Ferrandis YouTube
-  cards + transcripts, the practitioner source; optional `index.md` + `temas/`) plus the nutrition
-  topics of the cycling and hybrid knowledge bases. Every claim cited, "Second dice" kept apart from
+  AESAN, WADA — the evidence base, which outranks influencers; a practitioner's YouTube cards +
+  transcripts, the practitioner source; optional `index.md` + `temas/`) plus the nutrition
+  topics of the cycling and hybrid knowledge bases. Every claim cited, what the practitioner says kept apart from
   the evidence, contradictions / sponsor bias / auto-caption numbers flagged, Spain context (AESAN
   limits, BEDCA, products sold in Spain), anti-doping warnings, not-a-doctor referrals and the
   methodology's safe deficit ranges. Grounded read-only in the plan (`plan-data.json` +
@@ -782,11 +790,11 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
 ## 2026-10-02 — knowledge: a hybrid-coach subagent
 
 - **`hybrid-coach` subagent** (`.claude/agents/`) — read-only HYROX / hybrid coach over
-  `knowledge/hybrid/` (the HYP(R)ODCAST transcripts, coach Ferry's Dec 2025 – Jun 2026 program, the
-  Training Culture 6-week block, the current Hyprogram "HP Hybrid" program once synced). Same rules as
+  `knowledge/hybrid/` (podcast transcripts, a coach's past program, a 6-week training block, the
+  current program once synced). Same rules as
   `cycling-coach`: every claim cited (podcast `&t=<seconds>s`, programs by file / month / week),
   auto-caption numbers and sponsor bias flagged, sources kept apart from `analysis/methodology.md`,
-  advice grounded in the owner's workouts, running dynamics and recovery, and a program-vs-reality
+  advice grounded in the user's workouts, running dynamics and recovery, and a program-vs-reality
   comparison when asked. Cycling questions stay with `cycling-coach`.
 
 ## 2026-10-02 — knowledge: YouTube transcript ingest + a cycling-coach subagent
@@ -801,9 +809,9 @@ From the 390 px reference audit (`odd/tasks/whoop-visual-diff-2026-10-08.md`); n
   `subs: none`) atomically, paces requests and retries. Pure helpers in
   `scripts/youtube-transcript.mjs` with synthetic-VTT unit tests.
 - **`cycling-coach` subagent** (`.claude/agents/`) — read-only coach that applies the first
-  source's criteria (cycling coach Eduardo Talavera), cites title + timestamped URL for every claim,
+  source's criteria (a cycling coach's YouTube channel), cites title + timestamped URL for every claim,
   keeps "what the expert says" apart from `analysis/methodology.md`, and grounds advice in the
-  owner's ride data.
+  user's ride data.
 
 ## 2026-10-02 — nutrition: server-side goal + target weight, weight progress, food log adherence
 
@@ -892,8 +900,8 @@ rollover's reload reopen it.
 
 ## 2026-10-02 — 82 everyday Spanish foods as log-only basics
 
-The owner lives in Spain and logs from the food log's Basics search; many everyday foods (fish of the
-day, charcuterie, a caña, a croqueta) were missing. 82 log-only basics (`swap: false`, `verified:
+Many everyday Spanish foods (fish of the day, charcuterie, a caña, a croqueta) were missing from the
+food log's Basics search. 82 log-only basics (`swap: false`, `verified:
 false`) were added to `data/nutrition/ingredients.json`: fish / seafood 14, meat / charcuterie 11,
 dairy 9, carbs 9, veg 11, legumes 5, nuts / seeds 4, drinks 11, dishes / pastries 8.
 
@@ -958,8 +966,8 @@ An audit of the page on a phone found five small problems; each is fixed with a 
 
 ## 2026-10-02 — plan-web: the Shortcut upload route
 
-The owner exposes plan-web publicly through an SSO tunnel and keeps the ingest service unexposed, so
-the iOS Shortcut must reach ingest through plan-web.
+When plan-web is exposed publicly through an SSO tunnel and the ingest service stays unexposed, the
+iOS Shortcut must reach ingest through plan-web.
 
 - **nginx** — `location = /ingest/health-auto-export` (exact, POST only) → ingest's same route:
   `Authorization`, `Automation-Name` and `Content-Type` forwarded (ingest checks the bearer),
@@ -986,13 +994,13 @@ the iOS Shortcut must reach ingest through plan-web.
 
 - **Tablas** — a list section (desayunos, carbo, proteína, anclaje, post-entreno, fruta, postre,
   verduras, quesos) renders only when it has rows; a plan whose list holds only the "none" option no
-  longer shows an empty accordion. The owner removed his composite options (breakfasts, post-workout
-  combos) from his personal plan, which left two such sections. Pinned on both builds
+  longer shows an empty accordion. A personal plan without composite options (breakfasts, post-workout
+  combos) had shown two such sections. Pinned on both builds
   (`web/test/content.test.mjs`; the personal check skips without a personal build).
 
 ## 2026-10-02 — Registrar: a day navigator
 
-The owner logged meals the day before and could not see them: Registrar only read the viewer's today.
+Meals logged on the day before could not be seen: Registrar only read the viewer's today.
 
 - **Page** — `‹ <date> ›` at the top of Registrar (static markup in `Dia.astro`: real 44 px buttons
   "Día anterior" / "Día siguiente", an `aria-live` label "Hoy" or `HC.fmtDate`, next disabled on
@@ -1015,8 +1023,8 @@ The owner logged meals the day before and could not see them: Registrar only rea
 
 ## 2026-10-01 — Recipes can use the public basics
 
-The owner asked to build recipes with generic foods (huevo, plátano, leche…) without first adding them
-to Mis productos.
+Goal: build recipes with generic foods (huevo, plátano, leche…) without first adding them to Mis
+productos.
 
 - **Model** — a recipe ingredient is a product `{productId, amount}` or a basic SNAPSHOT `{basic, name,
   unit, amount, per100}` taken from FOOD_BASICS when the recipe is saved (per 100 g / ml, per unit for a
@@ -1038,8 +1046,8 @@ to Mis productos.
 ## 2026-10-01 — Daily energy: one source per day by precedence
 
 The Watch-only energy rule below (fallback to every source only when the whole export had no Watch
-energy) dropped ~1,300 days of the owner's history: active-energy-daily went from 1,622 to 321 rows,
-because before the Apple Watch (late 2025) energy came from Zepp, Mi Fit and the iPhone. It is
+energy) dropped most of a history whose older days (before an Apple Watch) came from another wearable
+app and the iPhone. It is
 SUPERSEDED: per day and type extract.js now picks ONE source by precedence — Apple Watch > a
 dedicated wrist-wearable app (Zepp, Mi Fit, Amazfit, Garmin Connect, Polar Flow, Fitbit, Huawei
 Health) > iPhone — and writes only its sum, never a sum across sources. Scales (RENPHO's BMR) and
@@ -1050,11 +1058,11 @@ no row. The whole-export fallback is gone (the iPhone rank covers phone-only use
 
 ## 2026-10-01 — Data-integrity fixes from the real-data audit
 
-A read-only audit of the owner's extract found eight ways bad rows reached the page; each is fixed
+A read-only audit of a real extract found eight ways bad rows reached the page; each is fixed
 in code, with synthetic tests.
 
-- **Partial last export day** — export.xml taken early on 2026-08-20 left a 971-step / 1-min / 103 kcal
-  day that beat complete Shortcut totals ("export rows always win"). extract.js now records
+- **Partial last export day** — an export.xml taken early in the day left a partial day (a few hundred
+  steps) that beat complete Shortcut totals ("export rows always win"). extract.js now records
   `exportLastDate` (`<ExportDate>`, else the newest record date) in `_meta.json` and skips that date
   in the daily TOTAL series; the Shortcut sync treats it as a sync-owned date for `total: true`
   metrics (Shortcut row wins, export row dropped when there is none).
@@ -1072,15 +1080,15 @@ in code, with synthetic tests.
   joins the night; later-ending naps keep the 60-min cap.
 - **RHR** — deduped by timestamp only (Apple rewrites the day's value at the same stamp).
 
-Owner actions: re-run `node data/apple-health/extract.js` on export.xml (energy + partial day), add
+Follow-up actions: re-run `node data/apple-health/extract.js` on export.xml (energy + partial day), add
 the three Shortcut keys and the weight source field (`docs/ios-shortcut.md`), then
 `npm run sync -- --full` and `npm run generate`.
 
 ## 2026-10-01 — Power-meter ride days correct the Watch's active energy
 
 A ride recorded by a bike computer with a power meter (and not by the Watch) was under-counted by
-the Watch's Active Energy (real case: a 2,311 kJ ride, 1,821 Watch kcal over the ride hours, a 2,207
-kcal day). Now corrected active(day) = Watch day − Watch energy during the ride + ride kJ ×
+the Watch's Active Energy (a long power-meter ride whose kJ far exceeded the Watch's kcal over the ride
+hours). Now corrected active(day) = Watch day − Watch energy during the ride + ride kJ ×
 `KJ_TO_KCAL` (1.0), only for rides with kJ AND `device_watts: true`, only when the Watch's hourly
 buckets cover the whole ride window, and only when it RAISES the day (`lib/health/ride-energy.mjs`;
 buckets prorated by overlap, instants compared so DST and the host timezone do not matter, a ride over
@@ -1094,8 +1102,8 @@ is corrected). `readActiveEnergy` is the one reader of the Salud expenditure car
 sheet's `energy`: the raw CSV stays untouched, the card says "incluye la salida medida con
 potenciómetro" on a corrected headline day (+ a note with the corrected days of the window), and the
 detail day panel shows "reloj <n> + corrección por potencia" under Activa. Note: with proration the
-literal case lands near 2,744 kcal for an even-ish hourly split, not the full-hour 2,697 (the partial
-first / last ride hours keep part of the Watch's energy).
+result differs slightly from a full-hour estimate (the partial first / last ride hours keep part of
+the Watch's energy).
 
 Follow-up after review (same day): the Watch day in the formula is max(daily row, sum of that day's
 hourly buckets), so a stale daily total cannot skew a correction; each midnight of a ride over
@@ -1108,7 +1116,7 @@ data does not cover is flagged and the Salud card / detail day panel say it was 
 
 ## 2026-10-01 — Plan de hoy becomes a portion guide (trial, branch `feat/portion-guide`)
 
-Owner feedback: Plan de hoy is useful only as an orientative "how much can I eat"; the menu structure
+Feedback: Plan de hoy is useful only as an orientative "how much can I eat"; the menu structure
 was not (add-ons that changed by day type — coffee on rest days, pre / post on gym days —, option lists
 that could never be complete, imposed items). Plan de hoy now shows ALWAYS the same four blocks —
 Desayuno, Comida, Cena + Extras — and the day type / goal only change the amounts
@@ -1116,7 +1124,7 @@ Desayuno, Comida, Cena + Extras — and the day type / goal only change the amou
 budget = the solved plan meals of its slot (`planFor`, caps and water-fill as before, no picks); Extras =
 the meals target − the three (it absorbs the add-ons and whatever capped plates leave over; never
 negative). A main meal is a plate by parts: protein / carbs / vegetables (free) / fat, each macro with
-ONE example food from a native select (the public basics of its categories + the owner's products when
+ONE example food from a native select (the public basics of its categories + the user's products when
 the food API answers) and the amount of it that supplies the macro, in its natural unit, capped at its
 `maxAmt` ("(máx.) + completa con otra fuente"). Defaults = the food the base plan uses there, else
 chicken / rice / olive oil; picks persist per viewer (`hc.nutri.guide`). Extras = a budget line + example
@@ -1132,8 +1140,8 @@ Registrar are unchanged.
 
 ## 2026-10-01 — Plan de hoy adds an automatic snack when the meals fall short
 
-With realistic portion caps the owner's five meals often end below today's target (maintain gym −209,
-bike −229, bikeLong −299 meal kcal; bulk −366…−599) and the page only said "add a snack". Now
+With realistic portion caps a plan's five meals often end below today's target (by about 200–600 meal
+kcal depending on goal and day type) and the page only said "add a snack". Now
 `planFor` adds one: after the capped carb solve, a shortfall beyond the 75 kcal tolerance gets a
 "Tentempié" / "Snack" add-on sized to it (`lib/nutrition/snack.mjs`). Six tracked options built from
 the public food DB incl. the log-only basics (fruit + yogurt, banana + quark, yogurt + cereal, toast
@@ -1148,9 +1156,9 @@ rest becomes the snack. The example plan's shortfalls drop from 95–835 kcal to
 
 ## 2026-10-01 — Food log basics: log an egg without creating a product
 
-The owner wanted to log generic foods (egg, milk…) without first creating a product in Mis productos.
+Goal: log generic foods (egg, milk…) without first creating a product in Mis productos.
 The add sheet's product search now also looks in the public food DB (`ingredients.json`, baked as
-`FOOD_BASICS` by `lib/nutrition/basics.mjs`): an empty search lists only his products, typing adds a
+`FOOD_BASICS` by `lib/nutrition/basics.mjs`): an empty search lists only your products, typing adds a
 "Básicos" group after them (accent- and case-insensitive, "platano" finds "Plátano"), marked "valor
 medio". A pick takes an amount in the food's natural unit (1 piece / 100 g / 100 ml, pieces ↔ grams for
 countable foods) with a live preview, and is saved as ONE quick entry with its four macros and the
@@ -1164,7 +1172,7 @@ Cooked chickpeas and lentils already existed. Page bake +~9.5 KB (104 basics).
 
 ## 2026-10-01 — Realistic portions: caps, water-filling, Registrar first
 
-The owner's maintain gym day (3050 kcal) asked for 235 g of dry pasta at lunch: only the 2–3 parts
+A maintain gym day asked for an unrealistic plate of dry pasta at lunch: only the 2–3 parts
 marked `flex: "carb"` scaled, so every extra carb piled onto them. Now every carb / fruit food (and a
 sweet carb staple such as honey or jam) is carb-flex by its category (`lib/nutrition/flex.mjs`;
 `flex: null` opts out), and an optional per-food `maxAmt` in the tracked `ingredients.json` caps a
@@ -1182,8 +1190,7 @@ mozzarella) moved from `dairy` to its own `cheese` category so it is never offer
 
 ## 2026-10-01 — Every food in Plan de hoy is choosable (food categories)
 
-The owner objected to imposed fixed foods ("no tiene sentido que me marques que tengo que comer
-calabacín sí o sí"): only `{use, match}` parts were selects, while `{ing}` parts — courgette at lunch /
+Imposed fixed foods made no sense (courgette whether you want it or not): only `{use, match}` parts were selects, while `{ing}` parts — courgette at lunch /
 dinner, the milk in the after-lunch coffee, the pear of the protein anchor, the pre-workout's milk +
 bread roll + honey, the cooking oil — were fixed. Every ingredient of the tracked `ingredients.json` now
 has a food category (`cat`, closed set in the new `lib/nutrition/categories.mjs`, validated by
@@ -1192,13 +1199,13 @@ plus "none" for veg / fruit / sweet / dairy / drink / sauce. One explicit rule t
 keeps equal (protein grams, carb grams, fat grams, kcal or the same weight), clamped 0.5–2× like the
 protein swaps; the whole day is then re-solved by the carb-flex engine. Generic: no personal-plan
 migration. The page ports it line by line (parity tests); the no-pick plan is unchanged byte for byte
-(pinned totals of the 12 plans; on the owner's plan all 36 plan × ride cases checked identical);
+(pinned totals of the 12 plans; on a personal plan all 36 plan × ride cases checked identical);
 "Del plan" logs what was picked and leaves skipped foods out. NUTRI on the example: ~10.5 → ~17.9 KB.
 
 ## 2026-10-01 — Three main meals + one "Añadidos" group (Plan de hoy, Registrar)
 
-The owner disliked separate full cards for small things ("Café (tras comer)" on rest days,
-"Pre-entreno" on training days). Plan de hoy and the food log now show only three main meals —
+Small things had separate full cards ("Café (tras comer)" on rest days, "Pre-entreno" on
+training days). Plan de hoy and the food log now show only three main meals —
 Desayuno, Comida, Cena — plus ONE "Añadidos" / "Extras" group for everything else (pre / post
 workout, protein anchor, after-lunch coffee, cooking oil, snacks). `lib/nutrition/slots.mjs` holds the
 classification (`MAIN_SLOTS`, `isMainMeal`, `MEAL_GROUPS`, `mealGroup`, `ADDON_SLOT`), baked for the page.
@@ -1210,8 +1217,8 @@ food-log slot enum and schema are unchanged, and a test pins `planFor`'s totals 
 
 ## 2026-10-01 — Plan de hoy by blocks; Tablas = fixed reference values
 
-The owner never knows in advance what he will eat, but Plan de hoy showed one fixed day and the variety
-of his option lists only lived in the removed day builder; Tablas meanwhile showed old train / rest
+What gets eaten is rarely known in advance, but Plan de hoy showed one fixed day and the variety of
+the option lists only lived in the removed day builder; Tablas meanwhile showed old train / rest
 portions that contradicted the scaled plan. Now a dayPlan part that points at an option list is a
 choosable BLOCK (`lib/nutrition/blocks.mjs`): a compact select in its meal card lists that list's
 options (grouped like the tables); protein lists (proteina, anclaje, postentreno) scale the pick to
@@ -1240,9 +1247,9 @@ dropped on purpose (the dial shows the target; the food log is the way to log).
 
 ## 2026-09-30 — Nutrition v2, part 2: food log, my products, my recipes
 
-The owner logs what he eats from the LAN page. Nutrición gains Registrar (today's log by meal slot,
-right after Plan de hoy) with an add sheet (his products grouped Mercadona / Dia / Eroski / other, his
-recipes, or a quick label + kcal), and two folds next to the day builder: Mis productos (barcode or
+You log what you eat from the LAN page. Nutrición gains Registrar (today's log by meal slot,
+right after Plan de hoy) with an add sheet (your products grouped by store — Mercadona / Dia / Eroski /
+other —, your recipes, or a quick label + kcal), and two folds next to the day builder: Mis productos (barcode or
 text lookup on Open Food Facts, done by the ingest service; every value confirmed or typed from the
 label before saving, missing ones flagged, never guessed) and Mis recetas (per-serving recipes such
 as tortitas or a shake, batch recipes such as lentejas weighed cooked; macros always computed from
@@ -1280,7 +1287,7 @@ is left over; ride days add before / during / after fuelling ranges (orientative
 personal plans upgrade with `scripts/migrate-plan-v2.mjs` (dated backup, idempotent). Logging and a
 product catalogue are part 2.
 
-The goal later moved out of the way (owner feedback: too prominent): Resumen de hoy keeps only the
+The goal later moved out of the way (feedback: too prominent): Resumen de hoy keeps only the
 day-type selector and shows the goal as a small chip next to today's kcal; the chip opens the profile
 sheet, whose new "Objetivo" setting (first section) sets it, with each option's kcal/day change vs
 maintain derived from the targets. Same storage key (`hc.nutri.goal`), same refresh path.
@@ -1357,11 +1364,11 @@ view Strava can't build for a strength/HIIT athlete.
 
 - `extract.js` now keeps each `<Workout>` OPEN across lines (`handleWorkoutOpen/Stat/Close`) to
   read its child `<WorkoutStatistics>`: per-workout HR (`hr_avg/hr_min/hr_max`, bpm) and the
-  energy the opening tag drops on newer exports. `workouts.csv` gains 3 HR columns; 305/387
+  energy the opening tag drops on newer exports. `workouts.csv` gains 3 HR columns; most
   sessions carry HR (Apple-Watch-era).
 - **Entrenos** gains an *Intensity (HR)* section: duration-weighted mean HR + peak per modality
   (`aggregateDashboard` → `modality[].avgHr/peakHr` + `intensity{}`). HR honestly under-reads
-  strength (avg 89 vs run 153), said on-screen — never folded into a single "load" number.
+  strength (far below running), said on-screen — never folded into a single "load" number.
 - **Salud** gains a 6th section, *Load vs recovery*: weekly cardiovascular load index
   (`Σ(min × avgHR) / 100`) vs weekly HRV + resting HR, with a high- vs low-load split
   (`aggLoadRecovery`). `generate-health.js` reads `workouts.csv` directly rather than importing
@@ -1387,14 +1394,14 @@ plan (what to eat, equivalence tables) vs *logging* what was eaten. Reorganized 
 
 ## 2026-06-30 — Food check-in: "Copiar para Claude" on the day-builder
 
-Closed the biggest data gap (food logging stopped 2025-11-26) by turning the existing
+Closed the biggest data gap (food logging had stopped months earlier) by turning the existing
 day-builder in `plan-web.html` into a food log instead of adding a separate section.
 
 - Renamed "Arma tu día" → **"Registro de comida"**; intro reframed to "mark what you ate
   → copy → paste into chat."
 - Added a free-text **"Fuera de plan / notas"** field (`#bld-notes`) for off-plan/social
-  meals the builder's plan-only dropdowns can't represent (the real blind spot: pintxos,
-  restaurants, weekend).
+  meals the builder's plan-only dropdowns can't represent (the real blind spot: eating
+  out, weekends).
 - Added **"📋 Copiar para Claude"** (`#bld-copy`): exports a plain-text block — day type,
   each selected meal, nonzero extras, the notes, and the COMPUTED totals vs target — to the
   clipboard (`navigator.clipboard` + `execCommand` fallback + a visible readonly textarea).
@@ -1428,10 +1435,9 @@ Last hand-written data in `plan-web.html` is now generated:
   item (matched by `n`/`l`) → day cards are LINKED to the tables. `resolvePart()` + `dayPanel()`.
 - **Extras stepper labels** ← `extrasDisplay`, between `<!-- GEN:EXTRAS -->`. kcal pulled
   from resolved EXTRAS; `bump('key')`/`id="x-key"` preserved. `extraRow()`.
-- Day totals now COMPUTED (train ~2,440 / 175P / 312C / 56G; rest ~2,031 / 165P / 225C /
-  54G) — honest sums of referenced parts, not typed estimates (old hand figures were
-  2,570/2,150). Rest-day protein ~165 g is a touch under the ~170 g target — user can pick
-  higher-protein options to close it.
+- Day totals now COMPUTED — honest sums of referenced parts, not typed estimates (the old
+  hand figures were ~5 % higher). Rest-day protein landed a touch under its target — the user
+  can pick higher-protein options to close it.
 - Five GEN regions total: DATA, BREAKFAST, DAYPLAN, EXTRAS (+ plan-tables.md).
 
 ## 2026-06-30 — Breakfast detail tables generated
@@ -1461,7 +1467,7 @@ k/p/c/g from `ingredient*amt`. Change a label or a serving gram in ONE place →
   rows + the soup row + `pintxo`).
 - Rounding: kcal → integer, macros → 1 decimal (.0 dropped). Generator is idempotent.
 - Reconciliation — building the ingredient layer exposed real source inconsistencies; 4
-  material divergences resolved with the owner:
+  material divergences resolved:
   - **anclaje Atún:** serving 130 g → **100 g** to hold the ~25 g anchor (130 g of 25 g/100 g
     tuna was really 32.5 g P — the old 25 was wrong).
   - **protein Claras:** **400 ml → 370 ml** to hold ~40 g (egg white is ~10.8 g P/100 ml).

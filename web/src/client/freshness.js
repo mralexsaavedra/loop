@@ -48,6 +48,7 @@
     var busy = false;
 
     function getJson(url) {
+      if (!HC.lan()) return Promise.resolve(null);
       return fetch(url, { cache: 'no-store' })
         .then(function (r) { return r && r.ok ? r.json() : null; })
         .catch(function () { return null; });
@@ -169,6 +170,7 @@
       if (busy) return;
       setBusy(true);
       msg.textContent = T.syncing;
+      if (!HC.lan()) { finish(T.failed); return; }
       fetch(SYNC_URL, { method: 'POST' })
         .then(function (r) { return r && r.ok ? r.json() : null; })
         .then(function (body) {

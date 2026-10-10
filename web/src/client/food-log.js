@@ -345,7 +345,7 @@
     out.addon = tidy(out.addon);
     return out;
   }
-  /** The owner's active products (a copy: id, name, brand, unit, per100), or null without the food API. */
+  /** The user's active products (a copy: id, name, brand, unit, per100), or null without the food API. */
   function guideProducts() {
     if (!S.ok) return null;
     return S.products.map(function (p) {

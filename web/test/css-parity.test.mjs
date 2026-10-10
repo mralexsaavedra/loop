@@ -6,8 +6,8 @@
  * astro-plan-web slice 7 (cutover) retires the legacy template entirely, so
  * this test now compares against a CHECKED-IN snapshot fixture
  * (`web/test/fixtures/css-expected.json`) instead: a declaration map
- * captured from a verified-good Astro example build (the same build the
- * owner visually approved before cutover). Any future edit to
+ * captured from a verified-good Astro example build (the same build that was
+ * visually approved before cutover). Any future edit to
  * web/src/styles/*.css that silently drops or changes a declaration will
  * fail this test; a DELIBERATE CSS change must update the fixture too
  * (regenerate with the snippet in this file's header comment below).

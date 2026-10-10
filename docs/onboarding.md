@@ -2,7 +2,7 @@
 
 > Moved out of `CLAUDE.md` on 2026-10-07; `CLAUDE.md` keeps only the first-run check that points
 > here. Run this flow when `profile/about-me.md` does NOT exist (only the `.example` template is
-> present): the clone is fresh and the owner has not been onboarded. Do NOT attempt an analysis
+> present): the clone is fresh and the user has not been onboarded. Do NOT attempt an analysis
 > against empty data.
 
 Installation (dependencies, Apple Health export, LAN services, Shortcut, Strava) is the `/setup` skill

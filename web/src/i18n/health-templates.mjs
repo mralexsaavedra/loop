@@ -19,7 +19,7 @@
  *
  * `runningNote` ends with a GENERIC closing line ("Improving pace at the same effort is the
  * signal to watch.") on purpose: it holds for any runner whatever their goal. A goal-specific
- * sentence (a target race, a pace to hit) is personal copy and belongs in the owner's
+ * sentence (a target race, a pace to hit) is personal copy and belongs in the user's
  * plan-data.json `page` block, never in this tracked file.
  */
 export const es = {

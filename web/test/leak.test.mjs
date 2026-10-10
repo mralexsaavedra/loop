@@ -7,7 +7,7 @@
  * public/generic content, not a leak.
  *
  * Skips gracefully when the personal files are absent (fresh clone / CI
- * without the owner's gitignored data) — see spec's Fresh-clone bootstrap.
+ * without the user's gitignored data) — see spec's Fresh-clone bootstrap.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

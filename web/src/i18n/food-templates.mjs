@@ -77,6 +77,7 @@ export const es = {
     missingShort: 'falta',
     use: 'Usar este',
     noResults: 'Sin resultados en Open Food Facts: escríbelo desde la etiqueta.',
+    offCredit: 'Datos de Open Food Facts (© colaboradores de Open Food Facts, licencia ODbL).',
     form: {
       name: 'Nombre',
       brand: 'Marca (opcional)',
@@ -116,7 +117,7 @@ export const es = {
     ingredient: 'Ingrediente {n}',
     amount: 'Cantidad {n}',
     pick: 'Elige un producto',
-    // the ingredient picker: the owner's products first, then the basics of the public food DB
+    // the ingredient picker: the user's products first, then the basics of the public food DB
     searchPh: 'Producto o básico (huevo, leche…)',
     mine: 'Mis productos',
     basics: 'Básicos · valor medio',
@@ -253,6 +254,7 @@ export const en = {
     missingShort: 'missing',
     use: 'Use this',
     noResults: 'No Open Food Facts results: type it from the label.',
+    offCredit: 'Data from Open Food Facts (© Open Food Facts contributors, ODbL licence).',
     form: {
       name: 'Name',
       brand: 'Brand (optional)',

@@ -6,7 +6,7 @@
  * `note2Html` is TRUSTED markup (same trust boundary as
  * es.mjs/en.mjs's `...Html`-suffixed generic dict entries — tracked,
  * non-personal copy, never user input) — see design's Trusted markup row.
- * The notes stay generic on purpose: a plan-specific aside (which sessions the owner's
+ * The notes stay generic on purpose: a plan-specific aside (which sessions the user's
  * program contains) is personal customization and belongs in plan-data.json's `page.notes`,
  * never in this tracked file.
  */

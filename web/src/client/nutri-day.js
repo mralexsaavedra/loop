@@ -25,7 +25,7 @@
  *   Each main meal's budget = the solved plan meals of its slot (a cooking-oil meal split between lunch
  *   and dinner, NUTRI.guide.oil); Extras = the meals target − the three.
  *   A main meal is a plate by parts (protein / carbs / vegetables free / fat), each macro with ONE
- *   example food (a select of the basics of its categories + the owner's products, view time only) and
+ *   example food (a select of the basics of its categories + the user's products, view time only) and
  *   the amount of it that supplies the macro; the picked examples persist per viewer (hc.nutri.guide =
  *   {picks: {<slot>.<role>: 'b:<key>' | 'p:<id>'}}, a preference, not daily). With the food log (LAN
  *   page: window.HCFood.groupTotals) each meal shows what is LEFT, capped by what the DAY still allows
@@ -824,7 +824,7 @@
     var nf = HC.nf;
     var keyBefore = b.carbsG ? b.carbsG[0] + '–' + b.carbsG[1] + ' g' : nf(b.gPerKg[0]) + '–' + nf(b.gPerKg[1]) + ' ' + F.perKg;
     var keyAfter = a.carbsG ? a.carbsG[0] + '–' + a.carbsG[1] + ' g' : nf(a.gPerKg[0]) + '–' + nf(a.gPerKg[1]) + ' ' + F.perKg;
-    // the owner's own fuel items (NUTRI.fuel.items) replace the generic gel / bar equivalents
+    // the user's own fuel items (NUTRI.fuel.items) replace the generic gel / bar equivalents
     var items = N.fuel.items || [], own = du.own, bo = b.own;
     var lastHour = bo
       ? format(F.lastHourOwn, { lo: b.lastHourG[0], hi: b.lastHourG[1], count: bo.count, name: items[bo.i].n, g: nf(bo.g) })

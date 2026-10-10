@@ -2,8 +2,8 @@
  * Open Food Facts lookups for the food log, done server side (the page never calls OFF). Only
  * normalized fields leave this module: { code, name, brand, stores, unit, per100 { kcal, protein,
  * carbs, fat }, servingSize, complete }. A nutriment OFF does not state (or states implausibly) is
- * null, never 0, and `complete` is false: the page then asks the owner to fill the gaps from the label.
- * Nothing is saved here; the owner confirms every value before POST /food/products.
+ * null, never 0, and `complete` is false: the page then asks the user to fill the gaps from the label.
+ * Nothing is saved here; the user confirms every value before POST /food/products.
  *
  * OFF etiquette: a descriptive User-Agent (no personal data), at most 10 searches / min and 100
  * product reads / min (token buckets; over the limit -> 429 off_rate_limited without calling OFF),

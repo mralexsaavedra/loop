@@ -1,6 +1,6 @@
 # Journal — daily behaviours, LAN page only
 
-The owner answers a short daily journal (did I drink, have caffeine late, use a screen in bed…) from
+You answer a short daily journal (did I drink, have caffeine late, use a screen in bed…) from
 the LAN page; the build relates each behaviour to the next morning's recovery. Same shape as the food
 log (`docs/nutrition-food-log.md`): LAN-only API in `services/health-ingest`, a page client that shows
 nothing without that API, and a sync into a gitignored CSV for read-only consumers.
@@ -12,8 +12,8 @@ nothing without that API, and a sync into a gitignored CSV for read-only consume
 
 `lib/journal/journal.mjs` is the ONE reference (`JOURNAL_GROUPS`, `JOURNAL_BEHAVIORS`,
 `JOURNAL_LIMITS`); `services/health-ingest/src/journal-calc.js` is a LITERAL copy (the service is built
-from its own directory) pinned equal by `lib/journal/journal.test.mjs`. Owner-approved list
-(2026-10-08), stored answer key → kind:
+from its own directory) pinned equal by `lib/journal/journal.test.mjs`. Behaviour list,
+stored answer key → kind:
 
 | Group | Key | Kind |
 | --- | --- | --- |
@@ -27,7 +27,7 @@ a day is "journaled" when at least one behaviour is answered (`isJournaled`).
 
 ## Storage + API (`services/health-ingest`)
 
-- `sql/010_journal.sql` (idempotent): `journal_day` (date PK = the owner's LOCAL date sent by the page,
+- `sql/010_journal.sql` (idempotent): `journal_day` (date PK = the user's LOCAL date sent by the page,
   `answers` JSONB `{key: true | false | count}`, `notes` ≤ 500 chars, `updated_at`) and
   `journal_settings` (one row: the `disabled` keys, so a new behaviour defaults ON). Its own OPTIONAL
   migration group `journal` (`src/db.js`): a failure logs `journal_migration_failed` and only

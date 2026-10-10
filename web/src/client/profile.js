@@ -131,7 +131,7 @@
     }
   }
   function probeManuals(devs) {
-    if (typeof fetch !== 'function') return;
+    if (typeof fetch !== 'function' || !HC.lan()) return;
     devs.forEach(function (d) {
       var file = manualFile(d);
       if (!file || manualState[file]) return;

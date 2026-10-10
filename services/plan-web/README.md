@@ -161,7 +161,7 @@ file answers 200, so the claude.ai artifact and `file://` show nothing.
 Rollout: `docker compose up -d` here (new nginx location), then the next
 refresh (or `npm run publish:manuals` by hand) publishes the files.
 
-### Exposing behind an SSO tunnel (e.g. Pangolin)
+### Exposing behind an SSO tunnel
 
 To reach the page from outside the LAN without opening the ingest service:
 
@@ -280,7 +280,7 @@ in the repo owner's crontab) stays as the fallback.
 
 - **`User=REPO_OWNER`**: the build runs as the user that owns the clone, the
   same one as the cron job. Use `root` only when the clone itself is
-  root-owned. Running as the owner is also why `refresh.sh` needs no git
+  root-owned. Running as the repo owner is also why `refresh.sh` needs no git
   `safe.directory` override (git only complains about a repo owned by another user).
 - **`ProtectSystem=strict` + `ReadWritePaths=<clone>`**: the whole filesystem is
   read-only except the clone, which the build writes (`node_modules`, the

@@ -1,5 +1,5 @@
 /* Home tab: recovery = last night as a % RANK within the previous 90 days (recovery.today.pct; under 21
- * prior days the composite in units of the owner's typical spread, I18N_SCORE recovery.unit) + its 7-day TREND + per-modality load,
+ * prior days the composite in units of the user's typical spread, I18N_SCORE recovery.unit) + its 7-day TREND + per-modality load,
  * rendered client-side from SCORES / I18N_SCORE / LOCALE baked by components/Bake.astro.
  *
  * Classic script (is:inline, no module scope). Only `asOf` is baked: staleness is computed here

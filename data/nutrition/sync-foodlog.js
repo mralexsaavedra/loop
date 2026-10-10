@@ -2,7 +2,7 @@
 /* Food log export — snapshots the per-day sums of the food log the LAN page writes to the ingest
  * service (services/health-ingest, GET /food/log/summary, the shared daySummaries formula of
  * lib/nutrition/foodlog.mjs) into data/nutrition/foodlog-daily.csv, so read-only consumers (the
- * nutrition-coach subagent, which only reads files) see what the owner actually logged.
+ * nutrition-coach subagent, which only reads files) see what the user actually logged.
  *
  *   node data/nutrition/sync-foodlog.js      (part of `npm run sync`, after the settings sync)
  *

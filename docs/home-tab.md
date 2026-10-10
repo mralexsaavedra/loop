@@ -56,14 +56,14 @@ trend is the line under it.
   of the weight only — empirical CDF: share of prior days with a lower composite, ties counted half,
   rounded to an integer 0–100 (`percentileRank`, `lib/score/recovery.mjs`, baked, never computed in
   the browser). Bands (`pctBand`): good (`--good`) ≥ 67, mid (`--mid`) 34–66, low (`--low`) ≤ 33
-  (thirds of the owner's own distribution). Under 21 prior days (`MIN_PCT_DAYS`) `pct` is null and
+  (thirds of the user's own distribution). Under 21 prior days (`MIN_PCT_DAYS`) `pct` is null and
   every surface keeps the SD presentation below (the documented fallback). It is a transparent
   mapping of the same composite, not a new metric; the ⓘ says so (`recovery.pctNote`: "% = how last
   night ranks against your previous 90 days"), and the night's SD value + day band stay in the Salud
   card's ⓘ and the deep-dive's ⓘ (`recovery.sdLbl`). The deep-dive contributors show the night's
   HRV, resting HR, respiratory rate (context only, not a composite input) and sleep performance %
   (display only, `docs/detail-views.md`). The 7-day trend and the advice stay in SD (the advice describes the trend, not the night).
-- **Recovery** composite is in units of the owner's typical spread (scaled MAD); ONE unit
+- **Recovery** composite is in units of the user's typical spread (scaled MAD); ONE unit
   key, `RECOVERY_UNIT` (`lib/score/advice-copy.mjs`, re-exported by score-templates: en "SD", es
   "desv."; dict `recovery.unit`), builds every recovery string — advice, dial, Salud card, monitor note,
   detail sheet — and the Salud card explains it behind its ⓘ (`recovery.unitNote`: "typical spread" /
@@ -299,7 +299,7 @@ trend is the line under it.
   in `docs/nutrition-food-log.md` → Nutrition score and `analysis/methodology.md` 5b). Card =
   `.sc-card.tn.en.ns`: ONE caps title "NUTRITION" ("· INCOMPLETE" when a macro is missing, "· IN
   PROGRESS" while today is being logged) — one size and weight, no smaller tag inside (DS4, F16).
-  **Today logged** → today heads the card ALONE (DS6, owner 2026-10-09: a big red "56% YESTERDAY" beside
+  **Today logged** → today heads the card ALONE (DS6: a big red "56% YESTERDAY" beside
   the "TODAY · IN PROGRESS" bars read as today's score): the headline is today's kcal eaten as a % of its
   target in white (`.ns-now`, "22%" over "KCAL TODAY"; no score, no band colour; none without a kcal log),
   beside Nutrición's three macro rows as "KCAL", "1,500 / 2,000 kcal", the bar = eaten / target in the

@@ -547,7 +547,7 @@
       return HC.contribRow({ icon: r.icon, label: r.lbl, sub: r.sub, value: r.val });
     }).join('') + '</ul><p class="dd-legend">' + esc(P.shareNote) + '</p></section>';
   }
-  // the long notes (ⓘ): the formula, this owner's K and 95th-percentile day, the max HR, the coverage
+  // the long notes (ⓘ): the formula, this user's K and 95th-percentile day, the max HR, the coverage
   function strainNotes(X) {
     var P = X.T.deep.strain, S = strainBake();
     var txt = function (t) { return '<div class="dt-band-txt">' + esc(t) + '</div>'; };

@@ -11,6 +11,8 @@ Plan data pipeline, the published artifact, intake rings, goals / day types / po
 **Two files, merged in memory (by both `generate.js` and the Astro build, from the same
 `lib/nutrition/macros.mjs`):**
 - `data/nutrition/ingredients.json` (TRACKED, **public** food DB) — the reusable
+  **sample** (it ships built around Spanish supermarket products and BEDCA values: replace or extend it
+  with your own foods and labels; the plan and food log read whatever it holds)
   `{ "ingredients": { … } }` of per-100 g/ml/ud base foods (`verified:true` = real product
   label, `false` = DB estimate; each carries `name` + `note` + a food category `cat`, see
   `lib/nutrition/categories.mjs`). `name` is localized, `{es, en}`
@@ -40,13 +42,14 @@ Plan data pipeline, the published artifact, intake rings, goals / day types / po
   `piece.amt`: allioli / mayonesa 15 g; olive oil has NO piece, it is per 100 ml and logged in ml); and `weighed: raw | dry |
   cooked` (how the plan weighs it: meat raw, rice / pasta / oats dry, potato / legumes cooked).
   Optional `basic: false` (a boolean, validated by `validateIngredientCats`; default true) hides a food from the
-  food log's basics search and recipe picker while keeping it in the DB for the plan and the portion guide: set
-  on the 18 foods the owner already logs as his own Mercadona products (confitura, jamón serrano, gambas,
+  food log's basics search and recipe picker while keeping it in the DB for the plan and the portion guide. It is a
+  per-user choice: set it on a food you log as one of your own products (Mis productos), so the add sheet does not
+  list a generic duplicate. The sample sets it on 18 foods (confitura, jamón serrano, gambas,
   salpicón, tranchete, mozzarella, salsa de tomate, soja, allioli, mayonesa, pisto, chocolate 85%, helado,
   napolitana, palomitas, panecillo, patatas horno, tomate frito); `lib/nutrition/basics.mjs` bakes them with `h: 1`.
   Drinks with alcohol (`cerveza`, `cerveza1906`, `clara`) carry kcal above their macros (alcohol 7 kcal/g);
   `cerveza00tostada`'s macros are derived from its kcal (the source lists only kcal).
-- `data/nutrition/plan-data.json` (GITIGNORED, **personal** plan) — the owner's actual diet:
+- `data/nutrition/plan-data.json` (GITIGNORED, **personal** plan) — the user's actual diet:
   `data`/`dayPlan`/`extras`/`quesoKeys`/`vegKeys`/`legumeKeys`/`legumePlate`/
   `page`. Each item's `recipe` (`[{ing, amt}]`) references ingredient keys from
   `ingredients.json`; macros are COMPUTED, never hand-typed. Items with no single label use a
@@ -154,7 +157,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   chocolate, ice cream, pastries) (`autoFlexIng`), and a `{use, match}` item whose recipe lines are ALL
   such foods (a mixed composite, a manual block or a food without category stays fixed). Spreading the
   carbs over every carb / fruit part — not just the 2–3 marked ones — is what stops one plate absorbing
-  the day (the owner's 235 g of dry pasta on a maintain gym day). **Portion caps**: an ingredient may
+  the day (e.g. a large dry-pasta portion on a maintain gym day). **Portion caps**: an ingredient may
   carry `maxAmt` (optional, `data/nutrition/ingredients.json`, in the same scale as a recipe `amt`: g /
   ml, or `UD_AMT` per unit), baked on the model line (`LINE.CAP`, `lineCap` / `capFactor` /
   `capAmount` in `lib/nutrition/amounts.mjs`) and validated by `npm run check` (`validateIngredientCaps`:
@@ -200,7 +203,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   countable food shows pieces with the grams reference (`fmtPieces`: "1½ medium bananas (~180 g)" on the
   half-piece grid, "~2 bread rolls (80 g)" off it; "2 eggs (~100 g)"); `fmt.pieces` bakes only the
   pieces a baked flex line can format.
-- **Plan de hoy = a PORTION GUIDE** (the owner: an orientative "how much can I eat", not a menu) —
+- **Plan de hoy = a PORTION GUIDE** (an orientative "how much can I eat", not a menu) —
   `lib/nutrition/guide.mjs` = the reference, ported line by line in nutri-day.js (parity tests). ALWAYS
   the same four meal groups, every day type: Desayuno, Comida, Cena + Extras; day type and goal only change
   the amounts. **Budgets**: today's plan solve (`planFor`: goal × day type × ride minutes, caps and
@@ -222,7 +225,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   completa con otra fuente"). Options = every basic of the role's categories (`roleOptions`; protein:
   protein; carbs: carb + legume + fruit; fat: fat — log-only `swap: false` basics included) from
   FOOD_BASICS (the ONE food table, baked for the food log; each entry now carries `c` = category and `x`
-  = portion cap), plus the owner's products from the food API when it answered (view time only,
+  = portion cap), plus the user's products from the food API when it answered (view time only,
   `<optgroup>` "Mis productos"), sorted by the folded name. Default example = the food the base plan uses
   for that role in that meal (`mealDefaults`: the role-category recipe line that supplies most of that
   macro, baked per base day as `NUTRI.guide.defaults`), else `GUIDE_FALLBACK` (pollo / arroz / aceite de
