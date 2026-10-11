@@ -7,8 +7,8 @@
  * today's workouts and programmed session. Everything time-based is decided HERE on the viewer's clock,
  * so builds stay byte-identical.
  *
- * - Day type: detectDayType ports lib/nutrition/daytype.mjs over the baked NUTRI.detect (a test runs
- *   both over the same cases). A manual override is kept in localStorage WITH its date (so it expires
+ * - Day type: detectDayType = lib/nutrition/daytype.mjs itself (HC_DAYTYPE, emitted by lib/nutrition/client.mjs
+ *   and inlined with HC_FMT before util.js; no copy). A manual override is kept in localStorage WITH its date (so it expires
  *   the next day) and the type detected when it was picked: an override LESS demanding than a type
  *   detected later that day (picked gym, then a long ride synced) is dropped with a one-line note; a
  *   more demanding one (planning a ride) stays. Storage is a per-viewer convenience: every access is
@@ -19,7 +19,7 @@
  *   chip next to today's kcal; a tap opens the profile sheet (#profile) focused on that setting.
  * - Plan: planFor / solveScale port lib/nutrition/scale.mjs over the baked models (parity test): the
  *   meals aim at target − ride fuel for the ride's minutes (a recorded ride's real minutes, else the
- *   picker, kept per date like the override, else the default). fuelPlan ports lib/nutrition/fuel.mjs.
+ *   picker, kept per date like the override, else the default). fuelPlan = lib/nutrition/fuel.mjs (HC_FUEL).
  * - Plan de hoy = the portion guide (guideBudgets / exampleAmount / remaining / dayRemaining / capByDay / mealState / isCovered /
  *   roleOptions port lib/nutrition/guide.mjs, parity tests): ALWAYS breakfast, lunch, dinner + Extras.
  *   Each main meal's budget = the solved plan meals of its slot (a cooking-oil meal split between lunch
@@ -52,7 +52,7 @@
   var KEY_OLD_PICKS = 'hc.nutri.picks';
   // a goal picked here and not yet confirmed by the settings server (client/settings.js retries it)
   var KEY_GOAL_PENDING = 'hc.nutri.goalPending';
-  var RANK = { rest: 0, gym: 1, bike: 2, bikeLong: 3 };
+  var RANK = HC_DAYTYPE.RANK; // how demanding a day type is (the override rule below)
   // icons (inline SVG line icons, no emoji): the supplement pill of Plan de hoy
   var PILL_SVG = '<svg class="supp-ico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-45 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><path d="M12 8.5v7"/></g></svg>';
   var state = { goal: N.goal, override: null, auto: null, ride: null, raised: null, guide: {} };
@@ -62,7 +62,7 @@
     return HC.int(n);
   }
   function dur(min) { return HC.duration(min); }
-  function isBike(d) { return d === 'bike' || d === 'bikeLong'; }
+  var isBike = HC_FUEL.isBikeDay;
 
   /* ---------- storage (per-viewer convenience, never required) ---------- */
   function store() {
@@ -81,65 +81,11 @@
     } catch (e) { return null; }
   }
 
-  /* ---------- day type detection (port of lib/nutrition/daytype.mjs) ---------- */
-  function rideType(min) {
-    if (min >= N.detect.bikeLongMin) return 'bikeLong';
-    if (min >= N.detect.bikeMin) return 'bike';
-    if (min >= N.detect.rideMin) return 'gym';
-    return null;
-  }
-  function itemType(it) {
-    if (!it || typeof it.dur !== 'number' || !(it.dur > 0)) return null;
-    if (it.modality === 'bike') return rideType(it.dur);
-    if (it.modality === 'other') return it.dur >= N.detect.otherMin ? 'gym' : null;
-    return it.dur >= N.detect.gymMin ? 'gym' : null;
-  }
-  function ofWorkouts(items) {
-    var best = null;
-    (items || []).forEach(function (it) {
-      var type = itemType(it);
-      if (!type) return;
-      var rideMin = isBike(type) ? Math.round(it.dur) : null;
-      if (!best || RANK[type] > RANK[best.type]) best = { type: type, rideMin: rideMin };
-    });
-    return best;
-  }
-  function ofProgram(s) {
-    if (!s || typeof s !== 'object') return null;
-    if (s.kind !== 'bike') return 'gym';
-    return typeof s.durationMin === 'number' && s.durationMin > 0 ? rideType(s.durationMin) : 'bike';
-  }
-  function detectDayType(input) {
-    var done = ofWorkouts(input.items), plan = ofProgram(input.programmed);
-    if (done && !(plan && RANK[plan] > RANK[done.type])) return { type: done.type, why: done.rideMin != null ? 'ride' : 'workout', rideMin: done.rideMin };
-    if (plan) return { type: plan, why: 'programmed', rideMin: null };
-    return { type: 'rest', why: 'none', rideMin: null };
-  }
-  // a date's detection input (port of lib/nutrition/daytype.mjs dayInputFor): the timeline (SCORES,
-  // the last 3 data days) wins its dates; any other date takes its workouts from DETAIL.sessions (one
-  // per date + modality, minutes) + its programmed session (TRAINING); `known` = a timeline row, a
-  // session, a sleep reading (the Watch was worn) or a programmed session, so its day type rests on
-  // data — a date with none of them cannot be told from a day without the Watch
-  function hasValue(m, date) {
-    if (!m || !HC.isoDate(m.start) || !Array.isArray(m.v)) return false;
-    var i = Math.round((HC.parseIso(date) - HC.parseIso(m.start)) / HC.MS_PER_DAY);
-    var v = i >= 0 && i < m.v.length ? m.v[i] : null;
-    return typeof v === 'number' && isFinite(v);
-  }
-  function dayInputFor(date, data) {
-    var o = data || {};
-    var programmed = (o.training && o.training[date]) || null;
-    var row = null;
-    (Array.isArray(o.timeline) ? o.timeline : []).forEach(function (d) { if (!row && d && d.date === date) row = d; });
-    if (row) {
-      var rowItems = Array.isArray(row.items) ? row.items : [];
-      return { items: rowItems, programmed: programmed, known: true, inferred: rowItems.length === 0 && !programmed };
-    }
-    var items = (Array.isArray(o.sessions) ? o.sessions : []).filter(function (x) { return x && x.d === date; })
-      .map(function (x) { return { modality: x.m, dur: x.min }; });
-    var known = items.length > 0 || hasValue(o.sleep, date) || !!programmed;
-    return { items: items, programmed: programmed, known: known, inferred: known && items.length === 0 && !programmed };
-  }
+  /* ---------- day type detection: lib/nutrition/daytype.mjs's own functions (lib/nutrition/client.mjs -> HC_DAYTYPE) ---------- */
+  // dayInputFor: a date's detection input — the timeline (SCORES, the last 3 data days) wins its dates; any
+  // other date takes its workouts from DETAIL.sessions + its programmed session (TRAINING); `known` = the
+  // day type rests on data (a timeline row, a session, a sleep reading or a programmed session)
+  var detectDayType = HC_DAYTYPE.detectDayType, dayInputFor = HC_DAYTYPE.dayInputFor;
   function dayInput(date) {
     var S = typeof SCORES === 'undefined' ? null : SCORES;
     var D = typeof DETAIL === 'undefined' || !DETAIL ? null : DETAIL;
@@ -151,90 +97,8 @@
     });
   }
 
-  /* ---------- fuelling (port of lib/nutrition/fuel.mjs) ---------- */
-  var OWN_START_MIN = 30, OWN_MIN_EVERY = 10;
-  function fuelStep(v, s) { return Math.round(v / s) * s; }
-  function pickFuelItem(items, kind) {
-    var i = -1, j;
-    for (j = 0; j < items.length && i < 0; j++) if (items[j].k === kind) i = j;
-    for (j = 0; j < items.length && i < 0; j++) if (items[j].k == null) i = j;
-    return i < 0 ? 0 : i;
-  }
-  function ownDuring(items, min, gPerH, topG, planG, roundG) {
-    var eat = min - OWN_START_MIN;
-    if (eat <= 0) return null;
-    var targetG = fuelStep(((gPerH[0] + gPerH[1]) / 2) * eat / 60, roundG);
-    var slow = pickFuelItem(items, 'slow'), fast = pickFuelItem(items, 'fast');
-    var maxN = Math.max(1, Math.floor(eat / OWN_MIN_EVERY));
-    var best = null;
-    for (var n = 1; n <= maxN; n++) {
-      var seq = [], total = 0;
-      for (var j = 0; j < n; j++) {
-        var i = 2 * j * eat < (min - 2 * OWN_START_MIN) * n ? slow : fast;
-        seq.push(i);
-        total += items[i].c;
-      }
-      total = Math.round(total * 10) / 10;
-      if (total > topG) continue;
-      if (!best || Math.abs(total - targetG) < Math.abs(best.total - targetG)) best = { n: n, seq: seq, total: total };
-    }
-    if (!best) return null;
-    var every = eat / best.n, slots = [];
-    best.seq.forEach(function (i, j) {
-      var last = slots[slots.length - 1];
-      if (last && last.i === i) last.count++;
-      else slots.push({ i: i, count: 1, fromMin: Math.round(OWN_START_MIN + j * every), everyMin: Math.round(every) });
-    });
-    return { startMin: OWN_START_MIN, targetG: targetG, slots: slots, totalG: best.total, gapG: Math.max(0, fuelStep(planG - best.total, roundG)) };
-  }
-  function ownBefore(items, r) {
-    var i = pickFuelItem(items, 'fast'), c = items[i].c, mid = (r[0] + r[1]) / 2, best = null;
-    for (var k = 1; k * c <= r[1]; k++) {
-      var g = Math.round(k * c * 10) / 10;
-      if (g < r[0]) continue;
-      if (!best || Math.abs(g - mid) < Math.abs(best.g - mid)) best = { i: i, count: k, g: g };
-    }
-    return best;
-  }
-  function fuelPlan(o) {
-    if (!isBike(o.dayType)) return null;
-    var F = N.fuel.rates, U = F.units;
-    var min = isFinite(o.minutes) && o.minutes > 0 ? Math.round(o.minutes) : N.fuel.defaults[o.dayType];
-    var h = min / 60;
-    var kg = isFinite(o.weightKg) && o.weightKg > 0 ? o.weightKg : null;
-    var step = function (v, s) { return Math.round(v / s) * s; };
-    var range = function (r, mul, s) { return [step(r[0] * mul, s), step(r[1] * mul, s)]; };
-    var gPerH = F.during.gPerH[o.dayType];
-    var planG = step(((gPerH[0] + gPerH[1]) / 2) * h, F.roundG);
-    var bottleMid = (U.bottleG[0] + U.bottleG[1]) / 2;
-    var bottles = Math.max(0, Math.min(Math.ceil(h), Math.floor(planG / bottleMid)));
-    var out = {
-      minutes: min,
-      before: { hoursBefore: F.before.hoursBefore, gPerKg: F.before.gPerKg, carbsG: kg ? range(F.before.gPerKg, kg, F.roundG) : null, lastHourG: F.before.lastHourG },
-      during: {
-        gPerH: gPerH,
-        carbsG: range(gPerH, h, F.roundG),
-        planG: planG,
-        fluidsMl: range(F.during.fluidMlPerH, h, F.roundMl),
-        sodiumMg: range(F.during.sodiumMgPerH, h, F.roundMg),
-        equiv: {
-          gels: Math.ceil(planG / U.gelG),
-          bananas: Math.ceil(planG / U.bananaG),
-          bars: Math.ceil(planG / U.barG),
-          bottles: [Math.ceil(planG / U.bottleG[1]), Math.ceil(planG / U.bottleG[0])],
-        },
-        mix: { bottles: bottles, gels: Math.ceil(Math.max(0, planG - bottles * bottleMid) / U.gelG) },
-      },
-      after: { withinH: F.after.withinH, gPerKg: F.after.gPerKg, carbsG: kg ? range(F.after.gPerKg, kg, F.roundG) : null, proteinG: F.after.proteinG },
-      kcal: planG * F.kcalPerG,
-    };
-    var items = o.items;
-    if (items && items.length) {
-      out.during.own = ownDuring(items, min, gPerH, out.during.carbsG[1], planG, F.roundG);
-      out.before.own = ownBefore(items, F.before.lastHourG);
-    }
-    return out;
-  }
+  /* ---------- fuelling: lib/nutrition/fuel.mjs's own fuelPlan (lib/nutrition/client.mjs -> HC_FUEL) ---------- */
+  var fuelPlan = HC_FUEL.fuelPlan;
 
   /* ---------- portion scaling (port of lib/nutrition/amounts.mjs, units.mjs fmtPieces, scale.mjs
    * solveScale / planFor) ---------- */

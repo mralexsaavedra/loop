@@ -131,10 +131,15 @@ bands ride along the same way: `lib/score/recovery.mjs` `clientSource()` → `va
 food log adherence and weight progress functions ride along too (`lib/nutrition/adherence.mjs` →
 `var HC_ADH`, read by `client/adherence.js`; `lib/nutrition/progress.mjs` → `var HC_PROG`, read by
 `client/progress.js`; `lib/nutrition/score.mjs` → `var HC_NSCORE`, read by `client/nutri-score.js`;
-`lib/nutrition/foodlog.mjs` → `var HC_FOODLOG`, read by `client/food-core.js`;
+`lib/nutrition/foodlog.mjs` → `var HC_FOODLOG`, read by `client/food-core.js`; `lib/nutrition/daytype.mjs` →
+`var HC_DAYTYPE` and `lib/nutrition/fuel.mjs` → `var HC_FUEL`, read by `client/nutri-day.js` (these modules only
+declare a `CLIENT` descriptor; `lib/nutrition/client.mjs` emits them, because `data/nutrition/generate.js` loads
+`lib/nutrition` without `lib/format`);
 `web/test/client-copies.test.mjs` guards that no client file re-defines them). Every one is built by `classicGlobal()` (`lib/format/numbers.mjs`): public keys come from an
 explicit map and constants are declared under every spelling the function bodies use, because the
-bundler renames clashing lib names (`fin` → `fin$3`); `web/test/client-globals-build.test.mjs` runs the
+bundler renames clashing lib names (`fin` → `fin$3`); two different functions declaring one name are refused (they would
+shadow each other in the one IIFE); only function declarations can be emitted, so a lib helper a global needs is a
+`function`, not an arrow const; `web/test/client-globals-build.test.mjs` runs the
 globals out of the BUILT page.
 
 | Rule | es | en | Call |
