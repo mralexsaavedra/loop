@@ -220,6 +220,12 @@ the service logs `food_migration_failed` and keeps ingesting, syncing and
 pulling Strava; only `/food/*` answers `503 food_unavailable` until a restart
 runs it successfully.
 
+**Adding a migration.** Every `sql/` file is idempotent and runs on every start
+(there is no applied-migrations table, so a rollout is just a restart). List a
+new file in `src/migrations.js` (`CORE_MIGRATIONS` or an `OPTIONAL_MIGRATIONS`
+group); `test/migrations.test.js` fails if a file is missing, listed twice or out
+of numeric order.
+
 **Idempotent adds.** The page sends a `requestId` (a UUID) with each add and
 reuses it when it retries after a timeout or a lost answer; a unique index on
 `food_log.request_id` makes the retry return the stored row instead of a
