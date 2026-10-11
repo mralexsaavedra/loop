@@ -21,7 +21,7 @@
  *   meals aim at target − ride fuel for the ride's minutes (a recorded ride's real minutes, else the
  *   picker, kept per date like the override, else the default). fuelPlan = lib/nutrition/fuel.mjs (HC_FUEL).
  * - Plan de hoy = the portion guide (guideBudgets / exampleAmount / remaining / dayRemaining / capByDay / mealState / isCovered /
- *   roleOptions port lib/nutrition/guide.mjs, parity tests): ALWAYS breakfast, lunch, dinner + Extras.
+ *   roleOptions = lib/nutrition/guide.mjs itself, HC_GUIDE): ALWAYS breakfast, lunch, dinner + Extras.
  *   Each main meal's budget = the solved plan meals of its slot (a cooking-oil meal split between lunch
  *   and dinner, NUTRI.guide.oil); Extras = the meals target − the three.
  *   A main meal is a plate by parts (protein / carbs / vegetables free / fat), each macro with ONE
@@ -108,99 +108,12 @@
   var floorToStep = SC.floorToStep, fmtPieces = SC.fmtPieces, fmtAmt = SC.fmtAmt, waterFill = SC.waterFill,
     solveScale = SC.solveScale, planFor = SC.planFor;
 
-  /* ---------- the portion guide (port of lib/nutrition/guide.mjs) ---------- */
-  var G = N.guide || null;
-  var MACS = ['k', 'p', 'c', 'f'];
-  var ROLE_KEYS = ['p', 'c', 'f'];
-  function zero4() { return { k: 0, p: 0, c: 0, f: 0 }; }
-  function finite(v) { return typeof v === 'number' && isFinite(v); }
-  var OIL_SLOTS = ['lunch', 'dinner']; // lib/nutrition/guide.mjs OIL_SLOTS
-  function guideBudgets(x, slots, mains, oil) {
-    var meals = {};
-    mains.forEach(function (s) { meals[s] = zero4(); });
-    var oilTo = OIL_SLOTS.filter(function (s) { return meals[s] && slots.indexOf(s) >= 0; });
-    x.meals.forEach(function (row, i) {
-      if (oil && oil.indexOf(i) >= 0 && oilTo.length) { // a cooking-oil meal: half to lunch, the rest to dinner
-        MACS.forEach(function (m, j) {
-          var first = oilTo.length > 1 ? Math.round(row[j] / 2) : row[j];
-          meals[oilTo[0]][m] += first;
-          if (oilTo.length > 1) meals[oilTo[1]][m] += row[j] - first;
-        });
-        return;
-      }
-      var b = meals[slots[i]];
-      if (!b) return;
-      MACS.forEach(function (m, j) { b[m] += row[j]; });
-    });
-    var total = { k: Math.round(x.mt.k), p: Math.round(x.mt.p), c: Math.round(x.mt.c), f: Math.round(x.mt.f) };
-    var extras = zero4(), clamped = false;
-    MACS.forEach(function (m) {
-      var left = total[m];
-      mains.forEach(function (s) { left -= meals[s][m]; });
-      if (left < 0) clamped = true;
-      extras[m] = Math.max(0, left);
-    });
-    return { meals: meals, extras: extras, total: total, clamped: clamped };
-  }
-  function exampleAmount(food, role, grams, grid) {
-    var r = G && G.roles[role];
-    if (!food || !r || !food.m || !finite(grams) || !(grams > 0)) return null;
-    var per = food.m[r.at];
-    if (!finite(per) || !(per > 0)) return null;
-    var raw = (grams * 100) / per;
-    var st = food.u === 'ud' ? grid.ud : food.pc && food.pc.a > 0 ? food.pc.a * grid.grid : grid.step;
-    var amt = Math.max(st, Math.round(raw / st) * st);
-    var cap = finite(food.x) && food.x > 0 ? food.x : null;
-    if (cap && amt > cap) return { amt: floorToStep(cap, st), capped: true };
-    return { amt: amt, capped: false };
-  }
-  function remaining(budget, logged) {
-    var out = {};
-    MACS.forEach(function (m) {
-      var l = logged && finite(logged[m]) ? logged[m] : 0;
-      out[m] = Math.max(0, Math.round(budget[m] - l));
-    });
-    return out;
-  }
-  function mealState(budget, logged) {
-    var k = logged && finite(logged.k) ? logged.k : 0;
-    if (!(k > 0)) return null;
-    return k >= G.done * budget.k ? 'done' : 'partial';
-  }
-  function isCovered(left, budget) {
-    return !(budget > 0) || left <= G.covered * budget;
-  }
-  function dayRemaining(total, groups, mains) { // lib/nutrition/guide.mjs dayRemaining ("Left today")
-    if (!groups) return null;
-    var all = zero4();
-    mains.forEach(function (sl) { addMac(all, groups.meals && groups.meals[sl]); });
-    addMac(all, groups.addon);
-    return remaining(total, all);
-  }
-  function capByDay(mealLeft, dayLeft, dayTotal) { // lib/nutrition/guide.mjs capByDay
-    if (!finite(dayLeft)) return { left: mealLeft, byDay: false };
-    return { left: Math.min(mealLeft, dayLeft), byDay: isCovered(dayLeft, dayTotal) };
-  }
-  function fold(s) { // lib/nutrition/names.mjs foldName
-    return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  }
-  function cmp(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
-  function roleOptions(basics, products, role) {
-    var r = G.roles[role];
-    var b = (basics || []).filter(function (x) {
-      return x && r.cats.indexOf(x.c) >= 0 && Array.isArray(x.m) && finite(x.m[r.at]) && x.m[r.at] > 0;
-    }).map(function (x) { return { id: 'b:' + x.k, n: x.n, food: x }; });
-    var p = [];
-    (products || []).forEach(function (x) {
-      var v = x && x.per100;
-      if (!v || (x.unit !== 'g' && x.unit !== 'ml') || !finite(v.kcal)) return;
-      var m = [v.kcal, v.protein, v.carbs, v.fat].map(function (n) { return finite(n) ? n : null; });
-      if (!(m[r.at] > 0)) return;
-      p.push({ id: 'p:' + x.id, n: String(x.name || ''), food: { u: x.unit, m: m } });
-    });
-    var sort = function (list) { return list.sort(function (x, y) { return cmp(fold(x.n), fold(y.n)) || cmp(x.id, y.id); }); };
-    return { basics: sort(b), products: sort(p) };
-  }
+  /* ---------- the portion guide: lib/nutrition/guide.mjs's own functions (lib/nutrition/client.mjs -> HC_GUIDE) ---------- */
+  var G = N.guide || null; // the baked guide data (defaults, oil meals, Extras examples)
+  var GU = HC_GUIDE;
+  var MACS = GU.MACS, ROLE_KEYS = GU.ROLE_KEYS, zero4 = GU.zero, finite = GU.fin;
+  var guideBudgets = GU.guideBudgets, exampleAmount = GU.exampleAmount, remaining = GU.remaining, mealState = GU.mealState,
+    isCovered = GU.isCovered, dayRemaining = GU.dayRemaining, capByDay = GU.capByDay, roleOptions = GU.roleOptions;
 
   /* ---------- state ---------- */
   function dayType() { return state.override || (state.auto ? state.auto.type : 'rest'); }

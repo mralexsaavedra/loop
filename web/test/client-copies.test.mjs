@@ -26,6 +26,7 @@ const COPIES = [
   ['nutri-day.js', 'HC_DAYTYPE', ['rideType', 'itemType', 'dayTypeOfWorkouts', 'ofWorkouts', 'dayTypeOfProgram', 'ofProgram', 'detectDayType', 'hasValue', 'dayInputFor']],
   ['nutri-day.js', 'HC_FUEL', ['isBikeDay', 'fuelStep', 'range', 'pickItem', 'pickFuelItem', 'ownDuring', 'ownBefore', 'fuelPlan']],
   ['nutri-day.js', 'HC_SCALE', ['round2', 'stepAmount', 'lineUnit', 'lineAmt', 'lineStep', 'lineKey', 'lineCap', 'capFactor', 'floorToStep', 'capAmount', 'pieceOf', 'isDiscrete', 'fmtHalf', 'fmtPieces', 'fmtAmt', 'bound', 'waterFill', 'scaleFill', 'fmtFactor', 'solveScale', 'planFor']],
+  ['nutri-day.js', 'HC_GUIDE', ['zero', 'zero4', 'fin', 'finite', 'foldName', 'fold', 'cmp', 'guideBudgets', 'exampleAmount', 'remaining', 'mealState', 'isCovered', 'dayRemaining', 'capByDay', 'roleOptions']],
 ];
 
 for (const [file, global, fns] of COPIES) {

@@ -1,5 +1,5 @@
 /* The classic-script globals emitted by the libs' clientSource() (HC_FMT, HC_BAND, HC_ADH, HC_PROG,
- * HC_NSCORE, HC_FOODLOG, HC_DAYTYPE, HC_FUEL, HC_SCALE) as
+ * HC_NSCORE, HC_FOODLOG, HC_DAYTYPE, HC_FUEL, HC_SCALE, HC_GUIDE) as
  * they ship in the BUILT page, not as the unbundled modules emit them: Vite / Rollup bundles the libs
  * together and renames clashing top-level names (fin -> fin$3, ISO_RE -> ISO_RE$2), so a global whose
  * keys or constants came from those names breaks only on the real page. Extracts the inline script
@@ -23,6 +23,7 @@ import * as SC from '../../lib/nutrition/scale.mjs';
 import * as AM from '../../lib/nutrition/amounts.mjs';
 import { fmtPieces } from '../../lib/nutrition/units.mjs';
 import { waterFill, FILL_CASES } from '../../lib/nutrition/fill.mjs';
+import * as GU from '../../lib/nutrition/guide.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
@@ -52,6 +53,10 @@ const KEYS = {
     'capFactor', 'floorToStep', 'capAmount', 'pieceOf', 'isDiscrete', 'fmtAmt', 'round2', 'fmtHalf', 'fmtPieces', 'bound', 'waterFill',
     'isBikeDay', 'step', 'range', 'pickItem', 'ownDuring', 'ownBefore', 'fuelPlan', 'zero', 'r0', 'macroRow', 'fmtFactor', 'solveScale', 'planFor',
   ],
+  HC_GUIDE: [
+    'GUIDE_ROLES', 'ROLE_KEYS', 'MACS', 'DONE_SHARE', 'COVERED_SHARE', 'OIL_SLOTS', 'fin', 'floorToStep', 'foldName', 'zero', 'cmp', 'guideBudgets',
+    'exampleAmount', 'remaining', 'mealState', 'isCovered', 'dayRemaining', 'capByDay', 'roleOptions',
+  ],
 };
 
 function globalsOf(htmlPath) {
@@ -62,15 +67,16 @@ function globalsOf(htmlPath) {
   vm.runInContext(script, ctx);
   return ctx;
 }
-// the page's own NUTRI bake (Dia.astro), the models planFor re-solves
-function nutriOf(htmlPath) {
+// the page's own NUTRI bake (Dia.astro: the models planFor re-solves) and its other baked globals (FOOD_BASICS)
+function bakeOf(htmlPath, name) {
   const html = fs.readFileSync(htmlPath, 'utf8');
-  const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).find((s) => /^var NUTRI\s*=/.test(s));
-  assert.ok(script, `${htmlPath}: the NUTRI bake`);
+  const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).find((s) => new RegExp('(^|[;\\n])var ' + name + '\\s*=').test(s));
+  assert.ok(script, `${htmlPath}: the ${name} bake`);
   const ctx = vm.createContext({});
   vm.runInContext(script, ctx);
-  return js(ctx.NUTRI);
+  return js(ctx[name]);
 }
+const nutriOf = (htmlPath) => bakeOf(htmlPath, 'NUTRI');
 
 test('at least the example build is present (npm run pretest)', () => {
   assert.ok(PAGES.length > 0, 'no built page: run npm run pretest');
@@ -184,5 +190,30 @@ for (const page of PAGES) {
     assert.equal(HC_SCALE.fmtAmt(250, 'ud', { ud: 'pc' }, null), AM.fmtAmt(250, 'ud', { ud: 'pc' }, null));
     assert.equal(HC_SCALE.fmtFactor(1.25, ','), SC.fmtFactor(1.25, ','));
     assert.equal(HC_SCALE.floorToStep(0.9, 0.3), AM.floorToStep(0.9, 0.3));
+  });
+
+  test(`${rel}: HC_GUIDE budgets the portion guide like lib/nutrition/guide.mjs`, () => {
+    const { HC_GUIDE, HC_SCALE } = globalsOf(page);
+    const nutri = nutriOf(page);
+    const basics = bakeOf(page, 'FOOD_BASICS');
+    for (const k of ['GUIDE_ROLES', 'ROLE_KEYS', 'DONE_SHARE', 'COVERED_SHARE', 'OIL_SLOTS']) assert.deepEqual(js(HC_GUIDE[k]), js(GU[k]), k);
+    assert.deepEqual(js(HC_GUIDE.MACS), ['k', 'p', 'c', 'f']);
+    for (const g of nutri.goals) for (const d of nutri.dayTypes) {
+      const x = HC_SCALE.planFor(nutri, g, d, 120), b = nutri.base[x.base];
+      assert.deepEqual(js(HC_GUIDE.guideBudgets(x, b.sl, nutri.mainSlots, nutri.guide.oil[x.base])), js(GU.guideBudgets(x, b.sl, nutri.mainSlots, nutri.guide.oil[x.base])), `${g}/${d}`);
+    }
+    for (const c of GU.GUIDE_CASES) assert.deepEqual(js(HC_GUIDE.exampleAmount(c.food, c.role, c.g, GU.GUIDE_GRID)), js(c.expect), JSON.stringify(c));
+    for (const food of basics) for (const role of ['p', 'c', 'f']) for (const g of [0, 7.5, 45, 161]) {
+      assert.deepEqual(js(HC_GUIDE.exampleAmount(food, role, g, nutri.scale)), js(GU.exampleAmount(food, role, g, nutri.scale)), `${food.k}/${role}/${g}`);
+    }
+    for (const c of GU.DAYCAP_CASES) assert.deepEqual(js(HC_GUIDE.capByDay(c.meal, c.day, c.total)), c.expect, JSON.stringify(c));
+    const budget = { k: 600, p: 40, c: 70, f: 20 }, logged = { k: 550, p: 38, c: null, f: 30 };
+    assert.deepEqual(js(HC_GUIDE.remaining(budget, logged)), js(GU.remaining(budget, logged)));
+    assert.equal(HC_GUIDE.mealState(budget, logged), GU.mealState(budget, logged));
+    assert.equal(HC_GUIDE.isCovered(4, 40), GU.isCovered(4, 40));
+    const groups = { meals: { breakfast: logged, lunch: null }, addon: { k: 100, p: 5 } };
+    assert.deepEqual(js(HC_GUIDE.dayRemaining({ k: 2400, p: 150, c: 260, f: 70 }, groups, nutri.mainSlots)), js(GU.dayRemaining({ k: 2400, p: 150, c: 260, f: 70 }, groups, nutri.mainSlots)));
+    const products = [{ id: 7, name: 'Ávena', unit: 'g', per100: { kcal: 370, protein: 13, carbs: 60, fat: 7 } }, { id: 3, name: 'avena', unit: 'ml', per100: { kcal: 40, protein: null, carbs: 5, fat: 1 } }];
+    for (const role of ['p', 'c', 'f']) assert.deepEqual(js(HC_GUIDE.roleOptions(basics, products, role)), js(GU.roleOptions(basics, products, role)), role);
   });
 }

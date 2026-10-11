@@ -144,7 +144,7 @@ Plan de hoy) and the
   grouped by store) / Recetas / Rápido (label + kcal + optional macros), amount in g / ml / servings (servings only with a serving
   size; a per-serving recipe in servings, a batch one in grams of cooked food; switching a product to
   servings sets the amount to 1, and back to its unit sets one serving in that unit, never reusing the typed number), live preview from the
-  ported formula, `aria-live` results; "SAVE" is THE save button (`.save-btn`, design-system.md →
+  lib formula (`HC_FOODLOG`), `aria-live` results; "SAVE" is THE save button (`.save-btn`, design-system.md →
   Components; also the product and recipe forms' save) and closes it, re-renders Registrar and announces "Añadido:
   …". The portion guide's "+" logs
   an example amount (see "Plan de hoy = a PORTION GUIDE"). **Basics in the Mis productos tab**: the search box also looks in `FOOD_BASICS`

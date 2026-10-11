@@ -205,7 +205,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   half-piece grid, "~2 bread rolls (80 g)" off it; "2 eggs (~100 g)"); `fmt.pieces` bakes only the
   pieces a baked flex line can format.
 - **Plan de hoy = a PORTION GUIDE** (an orientative "how much can I eat", not a menu) —
-  `lib/nutrition/guide.mjs` = the reference, ported line by line in nutri-day.js (parity tests). ALWAYS
+  `lib/nutrition/guide.mjs` = the ONE implementation, run by nutri-day.js as `HC_GUIDE` (emitted by
+  `lib/nutrition/client.mjs`; `GUIDE_CASES` / `DAYCAP_CASES` test it in the lib, the page and the built page). ALWAYS
   the same four meal groups, every day type: Desayuno, Comida, Cena + Extras; day type and goal only change
   the amounts. **Budgets**: today's plan solve (`planFor`: goal × day type × ride minutes, caps and
   water-fill, no picks) → each main meal's budget (kcal, P, C, F) = the solved macros of the plan meals
