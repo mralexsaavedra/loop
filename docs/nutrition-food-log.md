@@ -283,8 +283,9 @@ filled from them, never typed.
   card opens the weight sheet, which draws the target dashed (`detail.js` `targetOf`).
 - **Constancia** (LAN page only) — `GET /food/log/summary?from&to` (≤ `summaryDaysMax` days, ≤ 20,000
   rows, 30 reads / min per client) → per-day `daySummaries` (shared formula, food-calc.js copy pinned
-  by `SUMMARY_CASES`). `lib/nutrition/adherence.mjs` = the reference (`ADHERENCE_CASES`), ported in
-  `client/adherence.js`. Complete = ≥ 1 entry in breakfast, lunch and dinner; means and protein days
+  by `SUMMARY_CASES`). `lib/nutrition/adherence.mjs` = the ONE implementation: its `clientSource()` emits
+  `isComplete` / `dayState` / `adherence` as `HC_ADH` (inlined before util.js), which `client/adherence.js`
+  runs (no copy; `ADHERENCE_CASES` test HC_ADH against the module). Complete = ≥ 1 entry in breakfast, lunch and dinner; means and protein days
   only over complete days with a DETECTED day type (`HCNutri.targetFor` = current goal × that day's
   type; past days via `daytype.mjs` `dayInputFor` over `DETAIL.sessions` + `TRAINING`). Counted apart,
   never compared: unknown type, and an ASSUMED rest day (sleep only, no session: `inferred`). 7 / 14 /

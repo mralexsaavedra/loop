@@ -54,7 +54,9 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   add the page `LOCALE` to `HC_FMT`, the ONE number formatter (`lib/format/numbers.mjs` `clientSource()`, inlined
   right before util.js; rules in [`design-system.md`](design-system.md) → "Numbers"; the same script carries
   `HC_BAND`, the recovery 0–100 bands `PCT_GOOD` / `PCT_LOW` / `pctBand` from `lib/score/recovery.mjs`
-  `clientSource()`, which the recovery % colour and the energy bank read instead of literals), `MS_PER_DAY`, `STALE_DAYS`, the ONE display-date formatter `fmtDate`
+  `clientSource()`, which the recovery % colour and the energy bank read instead of literals, and `HC_ADH`, the
+  food log adherence functions from `lib/nutrition/adherence.mjs` `clientSource()`, which `client/adherence.js`
+  runs instead of a copy), `MS_PER_DAY`, `STALE_DAYS`, the ONE display-date formatter `fmtDate`
   ("lun 29 sept" / "Mon 29 Sep") + `fmtMonth` + `weekdayIndex` (Monday = 0; names baked as `I18N_DATE`
   from `web/src/i18n/date-templates.mjs`, not Intl, whose ICU builds disagree) — EVERY user-visible
   date goes through it (ISO only in data attributes / ids; a test fails on any `toLocale*String` /
