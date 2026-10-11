@@ -78,4 +78,6 @@ test('detail.js: the energy bank history colours its days like lib pctBand (bad 
   const f = vm.runInContext(`(function (v) { return ${m[1]}; })`, ctx);
   const map = { good: 'good', mid: 'mid', low: 'bad' };
   for (const v of EDGES) assert.equal(f(v), map[pctBand(v)], `bank day ${v}`);
+  // no band (null / non-finite) stays 'bad', as before the shared thresholds, never undefined
+  for (const v of [null, NaN, undefined]) assert.equal(f(v), 'bad', `bank day ${v}`);
 });

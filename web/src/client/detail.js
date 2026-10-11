@@ -221,7 +221,7 @@
     // stress (0-3): its own three bands, low < 1, medium 1-2, high >= 2 (lib/score/stress.mjs)
     if (m.kind === 'stress') return v >= 2 ? 'shigh' : v >= 1 ? 'smedium' : 'slow';
     // energy bank (0-100): the recovery dial's thirds (HC_BAND.pctBand, lib/score/recovery.mjs)
-    if (m.kind === 'bank') return { good: 'good', mid: 'mid', low: 'bad' }[HC_BAND.pctBand(v)];
+    if (m.kind === 'bank') return { good: 'good', mid: 'mid', low: 'bad' }[HC_BAND.pctBand(v)] || 'bad';
     // nutrition score (0-100): its own bands (m.bands, lib/nutrition/score.mjs NSCORE.bands)
     if (m.kind === 'nscore') return v >= m.bands.good ? 'good' : v >= m.bands.mid ? 'mid' : 'bad';
     if (m.kind === 'recovery') return v >= m.cut ? 'good' : v <= -m.cut ? 'bad' : 'normal';
