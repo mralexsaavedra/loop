@@ -82,7 +82,7 @@ test('the demo extract populates every Inicio dial and every Salud section', () 
 }));
 
 test('demo workout-zones.csv: one Demo Strava row per Strava run / ride, the reader schema, zones ~ the duration', async () => {
-  const { readWorkoutZones, ZONES_CSV } = await import('../lib/training/zones.mjs');
+  const { readWorkoutZones, ZONES_CSV } = await import('../lib/training/read.mjs');
   const files = makeDemoData();
   const strava = files['workouts.csv'].trim().split('\n').slice(1).filter((l) => l.includes(',Demo Strava,'));
   const rows = withDemoDir(files, readWorkoutZones);

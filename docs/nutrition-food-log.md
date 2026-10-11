@@ -330,7 +330,7 @@ missing and blank macros, today partial, no target / no entries) and over a whol
   partial — dashed, "in progress", never "No data"; the day panel says "In progress"), never in an average.
   Scored but flagged: a main meal missing (`meals` false — Constancia's complete-day rule) and a rest
   day only assumed from sleep (`assumed`). Bands: ≥ 85 good, 60–84 mid, < 60 low.
-- **Data** — `buildFoodlogBake` bakes `INTAKE.log` = `{asOf, days}`: the last `NSCORE.days` (90) days
+- **Data** — `buildFoodlogBake` (`lib/nutrition/read.mjs`, the build-time reader) bakes `INTAKE.log` = `{asOf, days}`: the last `NSCORE.days` (90) days
   of `data/nutrition/foodlog-daily.csv` ending at its newest logged day (the example build: the demo
   extract's synthetic `foodlog-daily.csv`, `scripts/make-demo-data.mjs`), in the summary shape
   (`{date, k, p, f, n, missing: {p, f}, groups}`). LF or CRLF; a row with an impossible date, no kcal

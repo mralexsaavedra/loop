@@ -105,7 +105,7 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   meal unlogged, a rest day assumed from sleep). The generic trend view, no deep-dive page. `sessions` = one entry per date + modality after
   `mergeSameDay` DISPLAY_RULE (minutes, km, elevation, avg HR, RE, parts, source; the source is the
   precedence family, so "Apple Watch de <name>" is written "Apple Watch"), plus, when
-  `workout-zones.csv` has that date + modality (`lib/training/zones.mjs` `readWorkoutZones`), `z` =
+  `workout-zones.csv` has that date + modality (`lib/training/read.mjs` `readWorkoutZones`), `z` =
   seconds in HR zone 0–5 summed over its Strava activities (left out when none or all zero) and `hx` =
   their highest max HR; `zoneMax` = `{hr, src}`, the max HR the zones were cut with and its source
   (`profile` / `observed`), absent without the file. Size: ~26 KB on the demo,
