@@ -26,11 +26,13 @@ unknown.
   `batch` × 100 ÷ total COOKED weight (per 100 g cooked); a missing product = incomplete, not
   loggable. Entries round once (kcal whole, macros 1 decimal) and day totals sum the rounded
   snapshots; a macro unknown on any entry is flagged in `missing` (the sum is then a minimum).
-  Atwater: 4p + 4c + 9f within ±25 % of kcal or 10 kcal. Ports: `services/health-ingest/src/food-calc.js`
-  (the service is built from its own directory) and `web/src/client/food-core.js` (`window.HCFood`);
-  `lib/nutrition/foodlog.test.mjs` and `web/src/client/food.test.mjs` run all three over
-  `FOODLOG_CASES`, so a formula change is made in all three (food-calc.js is a LITERAL copy: `var`,
-  semicolons). The add sheet's preview goes through the same functions: a recipe whose products are all
+  Atwater: 4p + 4c + 9f within ±25 % of kcal or 10 kcal. The page runs the lib's own functions:
+  `lib/nutrition/client.mjs` emits them (the module's `CLIENT` descriptor) as `HC_FOODLOG` (inlined with HC_FMT before util.js, + `num.mjs` `fin` /
+  `roundEps`), which `web/src/client/food-core.js` reads (`window.HCFood`, no copy). The one port left is
+  `services/health-ingest/src/food-calc.js` (the service is built from its own directory);
+  `lib/nutrition/foodlog.test.mjs`, `web/src/client/food.test.mjs` and `web/test/client-globals-build.test.mjs`
+  (the built page) run all three over `FOODLOG_CASES`, so a formula change is made in the lib and the
+  service (food-calc.js is a LITERAL copy: `var`, semicolons). The add sheet's preview goes through the same functions: a recipe whose products are all
   listed uses `recipeBasis`, one with an archived product the server's computed basis on the recipe row,
   both through `entryFromBasis` — no fourth copy. **Basics** (generic foods, no product needed):
   `basicModes` / `basicAmount` / `basicEntry` / `basicLabel` / `basicConvert` in the same file, over
@@ -40,9 +42,9 @@ unknown.
   in code-unit order; `normName` = the search's normalization). Modes: `piece` (a countable food, or a
   `ud` food) or the food's own unit; a `ud` food also in `g` when its piece states grams; never g ↔ ml.
   Label = "<name> · <amount> ud (~<g> g)" for pieces, "<name> · <amount> <g|ml>" otherwise (es "ud",
-  en "pc", decimal comma in es), capped at `nameMax`. Only TWO copies: the reference + food-core.js
-  (`BASIC_CASES` / `runBasicCase`, pinned by both test files) — the server never computes a quick
-  entry, so food-calc.js has none.
+  en "pc", decimal comma in es), capped at `nameMax`. ONE implementation: the reference, run by
+  food-core.js through `HC_FOODLOG` (`BASIC_CASES` / `runBasicCase` pin its bytes in the lib, the page and
+  the built page) — the server never computes a quick entry, so food-calc.js has none.
 - **Storage + API** — `services/health-ingest`: `sql/006_food.sql` (idempotent) = `food_product`
   (per-100 kcal / protein / carbs / fat, store, unit g / ml, serving size?, barcode? unique among
   ACTIVE products, source off / label / manual, off_code?, archived), `food_recipe` (kind, servings
@@ -92,7 +94,7 @@ unknown.
   (`src/migrations.js`): if it fails the service logs `food_migration_failed` and keeps ingesting /
   syncing / pulling Strava, and only `/food/*` answers `503 food_unavailable`.
 - **Page** — `web/src/client/food-*.js`, four classic scripts inlined in this order after nutri-day.js, before intake.js:
-  `food-core.js` (the formula port, `parseNum`, the API client, the shared state `S` + helpers, handed to
+  `food-core.js` (the formula from `HC_FOODLOG`, `parseNum`, the API client, the shared state `S` + helpers, handed to
   the others as `window.HCFoodInternal`), `food-sheet.js` (the add sheet), `food-catalog.js` (Mis
   productos / Mis recetas), `food-log.js` (Registrar + navigator, the event listeners, the boot, the
   public `window.HCFood` / `window.foodTotals`); tests load them with `web/test/client-util.mjs`
@@ -142,7 +144,7 @@ Plan de hoy) and the
   grouped by store) / Recetas / Rápido (label + kcal + optional macros), amount in g / ml / servings (servings only with a serving
   size; a per-serving recipe in servings, a batch one in grams of cooked food; switching a product to
   servings sets the amount to 1, and back to its unit sets one serving in that unit, never reusing the typed number), live preview from the
-  ported formula, `aria-live` results; "SAVE" is THE save button (`.save-btn`, design-system.md →
+  lib formula (`HC_FOODLOG`), `aria-live` results; "SAVE" is THE save button (`.save-btn`, design-system.md →
   Components; also the product and recipe forms' save) and closes it, re-renders Registrar and announces "Añadido:
   …". The portion guide's "+" logs
   an example amount (see "Plan de hoy = a PORTION GUIDE"). **Basics in the Mis productos tab**: the search box also looks in `FOOD_BASICS`
@@ -179,10 +181,10 @@ Plan de hoy) and the
   and "Cambiar" (`r-unpick`), the amount in the NATURAL unit (pieces first, prefilled 1 piece / 100 g /
   ml) and, when the food has pieces, a pieces ↔ g / ml select (`frf-mode-<i>`, converts the typed amount
   with `basicConvert`). A basic is saved as a SNAPSHOT `{basic, name, unit, amount, per100}` built by
-  `basicIngredient` (reference + food-core.js, `BASIC_CASES`): unit = the basic's own unit (g / ml / ud),
+  `basicIngredient` (the reference, via `HC_FOODLOG`; `BASIC_CASES`): unit = the basic's own unit (g / ml / ud),
   amount in it (a `ud` food = a count of units; pieces of a g / ml food become grams / ml), 1 decimal as
   stored; per100 = FOOD_BASICS `m` (per one unit for `ud`, `BASIC_UD_AMT` = units.mjs `UD_AMT`). The
-  formula (`ingredientBasis` / `recipeBasis`, all three copies, `FOODLOG_CASES`: product + basic in g +
+  formula (`ingredientBasis` / `recipeBasis`, lib + service copy, `FOODLOG_CASES`: product + basic in g +
   basic in units, per serving and batch) adds products and snapshots alike; `rawWeight` = the g / ml
   amounts only; a basic with an unknown macro is `missing` by its key. Editing loads a basic back with
   its stored snapshot (never refreshed from FOOD_BASICS; the current table only supplies the piece for
@@ -268,7 +270,7 @@ filled from them, never typed.
   on 404 / 503. Profile Objetivo: + "Peso objetivo" (`HCSettings.parseTarget` = `HCFood.parseNum(v,
   ['kg'])` + the range, inline error, saved on `change`), one status line, the Progreso line.
 - **Progreso** (baked data, every build) — `lib/nutrition/progress.mjs` = the ONE implementation (rules
-  and bands in its header): its `clientSource()` emits it as `HC_PROG` (inlined before util.js), which
+  and bands in its header): `lib/nutrition/client.mjs` emits it (its `CLIENT` descriptor) as `HC_PROG` (inlined before util.js), which
   `client/progress.js` runs (no copy; `PROGRESS_CASES` test HC_PROG against the module, plus
   hand-computed tests).
   Rate = least-squares slope of `DETAIL.metrics.weight.roll` over `windowDays`; too few averages →
@@ -285,8 +287,8 @@ filled from them, never typed.
   card opens the weight sheet, which draws the target dashed (`detail.js` `targetOf`).
 - **Constancia** (LAN page only) — `GET /food/log/summary?from&to` (≤ `summaryDaysMax` days, ≤ 20,000
   rows, 30 reads / min per client) → per-day `daySummaries` (shared formula, food-calc.js copy pinned
-  by `SUMMARY_CASES`). `lib/nutrition/adherence.mjs` = the ONE implementation: its `clientSource()` emits
-  `isComplete` / `dayState` / `adherence` as `HC_ADH` (inlined before util.js), which `client/adherence.js`
+  by `SUMMARY_CASES`). `lib/nutrition/adherence.mjs` = the ONE implementation: `lib/nutrition/client.mjs` emits
+  (its `CLIENT` descriptor) `isComplete` / `dayState` / `adherence` as `HC_ADH` (inlined before util.js), which `client/adherence.js`
   runs (no copy; `ADHERENCE_CASES` test HC_ADH against the module). Complete = ≥ 1 entry in breakfast, lunch and dinner; means and protein days
   only over complete days with a DETECTED day type (`HCNutri.targetFor` = current goal × that day's
   type; past days via `daytype.mjs` `dayInputFor` over `DETAIL.sessions` + `TRAINING`). Counted apart,
@@ -304,9 +306,10 @@ filled from them, never typed.
 ## Nutrition score (every page)
 
 A day's 0–100 adherence to the viewer's own targets, from the food log. `lib/nutrition/score.mjs` =
-the reference (`NSCORE`, baked as `NUTRI.score`). `client/nutri-score.js` ports it; the client test
-runs the port over `NSCORE_CASES` (band and zero edges, missing and blank macros, today partial, no
-target / no entries) and over a whole `scoreSeries`, and must equal the reference's output.
+the ONE implementation (`NSCORE`, baked as `NUTRI.score`): `lib/nutrition/client.mjs` emits the scoring functions (its `CLIENT` descriptor) as
+`HC_NSCORE` (inlined before util.js), which `client/nutri-score.js` runs (no copy); the client test and
+`web/test/client-globals-build.test.mjs` (the built page) run it over `NSCORE_CASES` (band and zero edges,
+missing and blank macros, today partial, no target / no entries) and over a whole `scoreSeries`.
 
 - **Formula** — against THAT day's meals target (`HCNutri.targetFor`: the current goal × that day's
   detected day type, the same target Constancia and the intake rings use; fat = its `g`):

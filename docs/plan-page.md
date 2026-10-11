@@ -61,9 +61,14 @@ into the page via `clientSource()`.
   right before util.js; rules in [`design-system.md`](design-system.md) → "Numbers"; the same script carries
   `HC_BAND`, the recovery 0–100 bands `PCT_GOOD` / `PCT_LOW` / `pctBand` from `lib/score/recovery.mjs`
   `clientSource()`, which the recovery % colour and the energy bank read instead of literals, and `HC_ADH`, the
-  food log adherence functions from `lib/nutrition/adherence.mjs` `clientSource()`, which `client/adherence.js`
-  runs instead of a copy, and `HC_PROG`, the weight progress functions from `lib/nutrition/progress.mjs`
-  `clientSource()`, which `client/progress.js` runs), `MS_PER_DAY`, `STALE_DAYS`, the ONE display-date formatter `fmtDate`
+  food log adherence functions from `lib/nutrition/adherence.mjs`, which `client/adherence.js`
+  runs instead of a copy, and `HC_PROG`, the weight progress functions from `lib/nutrition/progress.mjs`,
+  which `client/progress.js` runs, and `HC_NSCORE`, the nutrition score from
+  `lib/nutrition/score.mjs`, which `client/nutri-score.js` runs, and `HC_FOODLOG`, the food log
+  formula from `lib/nutrition/foodlog.mjs`, which `client/food-core.js` runs, and `HC_DAYTYPE` / `HC_FUEL`, the
+  day type detection and ride fuelling from `lib/nutrition/daytype.mjs` / `fuel.mjs`, `HC_SCALE`, the portion
+  scaling from `lib/nutrition/scale.mjs`, and `HC_GUIDE`, the portion guide from `lib/nutrition/guide.mjs`, which `client/nutri-day.js` runs —
+  every nutrition global emitted by `lib/nutrition/client.mjs` `clientSource()` from the modules' `CLIENT` descriptors), `MS_PER_DAY`, `STALE_DAYS`, the ONE display-date formatter `fmtDate`
   ("lun 29 sept" / "Mon 29 Sep") + `fmtMonth` + `weekdayIndex` (Monday = 0; names baked as `I18N_DATE`
   from `web/src/i18n/date-templates.mjs`, not Intl, whose ICU builds disagree) — EVERY user-visible
   date goes through it (ISO only in data attributes / ids; a test fails on any `toLocale*String` /
