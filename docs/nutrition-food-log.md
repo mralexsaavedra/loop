@@ -18,8 +18,7 @@ unknown.
   `slots.mjs` `MEAL_SLOTS`, `RECIPE_KINDS`, `REF_TYPES`; `productEntry`, `recipeBasis`,
   `recipeEntry`, `entryFromBasis`, `dayTotals`, `atwaterOk`; `FOOD_LIMITS` = the shared input limits —
   name / brand / query caps, the barcode pattern, per-100 kcal 900 / macros 100, entry amount 5000… —
-  baked for the page as `FOOD_CONST.limits` and copied into the service's food-calc.js, a test pins them
-  equal). A product entry = per-100 × amount in the product's own
+  baked for the page as `FOOD_CONST.limits` and generated into the service's food-calc.js). A product entry = per-100 × amount in the product's own
   unit, or servings × its `servingSize` (no serving size → no serving; never g ↔ ml). A recipe =
   the sum of its ingredients (amounts in each product's unit; a basic snapshot per 100 g / ml or per unit,
   see "Recipe basics" below): kind `serving` ÷ servings, kind
@@ -28,11 +27,15 @@ unknown.
   snapshots; a macro unknown on any entry is flagged in `missing` (the sum is then a minimum).
   Atwater: 4p + 4c + 9f within ±25 % of kcal or 10 kcal. The page runs the lib's own functions:
   `lib/nutrition/client.mjs` emits them (the module's `CLIENT` descriptor) as `HC_FOODLOG` (inlined with HC_FMT before util.js, + `num.mjs` `fin` /
-  `roundEps`), which `web/src/client/food-core.js` reads (`window.HCFood`, no copy). The one port left is
-  `services/health-ingest/src/food-calc.js` (the service is built from its own directory);
+  `roundEps`), which `web/src/client/food-core.js` reads (`window.HCFood`, no copy). The service gets a
+  GENERATED copy, `services/health-ingest/src/food-calc.js` (it is built from its own directory, so it cannot
+  import `lib/`): `scripts/gen-food-calc.mjs` writes it from the module's `SERVER` descriptor (the enums,
+  `FOOD_LIMITS` and the functions' own source + `fin` / `roundEps`, emitted by `lib/build/esm-module.mjs`;
+  no basics). **A formula change is made in the lib first, then `npm run gen:food-calc`**: the root test
+  `scripts/gen-food-calc.test.mjs` fails while the committed file differs from a regeneration, and
   `lib/nutrition/foodlog.test.mjs`, `web/src/client/food.test.mjs` and `web/test/client-globals-build.test.mjs`
-  (the built page) run all three over `FOODLOG_CASES`, so a formula change is made in the lib and the
-  service (food-calc.js is a LITERAL copy: `var`, semicolons). The add sheet's preview goes through the same functions: a recipe whose products are all
+  (the built page) still run the lib, the committed food-calc.js and the page over `FOODLOG_CASES`. The
+  running service picks a change up on its next image rebuild. The add sheet's preview goes through the same functions: a recipe whose products are all
   listed uses `recipeBasis`, one with an archived product the server's computed basis on the recipe row,
   both through `entryFromBasis` — no fourth copy. **Basics** (generic foods, no product needed):
   `basicModes` / `basicAmount` / `basicEntry` / `basicLabel` / `basicConvert` in the same file, over
@@ -286,8 +289,8 @@ filled from them, never typed.
   re-render — a settings change — keeps the block open or closed as the viewer left it, like Constancia's). The
   card opens the weight sheet, which draws the target dashed (`detail.js` `targetOf`).
 - **Constancia** (LAN page only) — `GET /food/log/summary?from&to` (≤ `summaryDaysMax` days, ≤ 20,000
-  rows, 30 reads / min per client) → per-day `daySummaries` (shared formula, food-calc.js copy pinned
-  by `SUMMARY_CASES`). `lib/nutrition/adherence.mjs` = the ONE implementation: `lib/nutrition/client.mjs` emits
+  rows, 30 reads / min per client) → per-day `daySummaries` (shared formula, generated into food-calc.js,
+  pinned by `SUMMARY_CASES`). `lib/nutrition/adherence.mjs` = the ONE implementation: `lib/nutrition/client.mjs` emits
   (its `CLIENT` descriptor) `isComplete` / `dayState` / `adherence` as `HC_ADH` (inlined before util.js), which `client/adherence.js`
   runs (no copy; `ADHERENCE_CASES` test HC_ADH against the module). Complete = ≥ 1 entry in breakfast, lunch and dinner; means and protein days
   only over complete days with a DETECTED day type (`HCNutri.targetFor` = current goal × that day's
