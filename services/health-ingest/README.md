@@ -466,7 +466,7 @@ token). `.env` is gitignored and must stay that way.
 ```sh
 docker compose up -d --build
 curl -s localhost:8088/healthz
-npm ci && npm test
+npm ci && npm test   # or, from the repo root: npm run test:services
 ```
 
 The image installs from the committed `package-lock.json` (`npm ci --omit=dev`), so a
