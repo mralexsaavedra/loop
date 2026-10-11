@@ -127,8 +127,9 @@ the advice copy); the page gets the SAME functions as a classic script, `clientS
 `HC.int` / `HC.nf` / `HC.pct` / `HC.hours` / `HC.duration` add the page `LOCALE`. The recovery 0–100
 bands ride along the same way: `lib/score/recovery.mjs` `clientSource()` → `var HC_BAND` (`PCT_GOOD`,
 `PCT_LOW`, `pctBand`), so no client script re-types 67 / 33 (`web/test/recovery-band.test.mjs` guards it). The
-food log adherence functions ride along too (`lib/nutrition/adherence.mjs` → `var HC_ADH`, read by
-`client/adherence.js`; `web/test/client-copies.test.mjs` guards that no client file re-defines them).
+food log adherence and weight progress functions ride along too (`lib/nutrition/adherence.mjs` →
+`var HC_ADH`, read by `client/adherence.js`; `lib/nutrition/progress.mjs` → `var HC_PROG`, read by
+`client/progress.js`; `web/test/client-copies.test.mjs` guards that no client file re-defines them).
 
 | Rule | es | en | Call |
 | --- | --- | --- | --- |

@@ -1,5 +1,5 @@
 /* The client scripts run the lib's OWN pure functions, emitted at build time (clientSource, inlined by
- * layouts/Plan.astro before util.js), never hand-kept copies: HC_ADH = lib/nutrition/adherence.mjs.
+ * layouts/Plan.astro before util.js), never hand-kept copies: HC_ADH = lib/nutrition/adherence.mjs, HC_PROG = lib/nutrition/progress.mjs.
  * Guard: the client files no longer define the copied functions, and the built page carries the
  * emitted source before the script that uses it. Reads the fixture built by `npm run pretest`. */
 import { test } from 'node:test';
@@ -18,6 +18,7 @@ const src = (name) => fs.readFileSync(path.join(WEB_ROOT, 'src', 'client', name)
 // client file -> the global it reads + the lib functions it must not re-define
 const COPIES = {
   'adherence.js': { global: 'HC_ADH', fns: ['fin', 'isComplete', 'dayState', 'adherence'] },
+  'progress.js': { global: 'HC_PROG', fns: ['fin', 'round', 'dayNum', 'isoOf', 'rollPoints', 'weeklyRate', 'weightProgress', 'etaMonths'] },
 };
 
 for (const [file, { global, fns }] of Object.entries(COPIES)) {
