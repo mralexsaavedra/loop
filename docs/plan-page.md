@@ -37,6 +37,17 @@ into the page via `clientSource()`.
   `web/test/fixtures/css-expected.json` both ways (dropped/changed AND added declarations fail); after a
   deliberate CSS change run `npm run test:css:update` (after `npm test` / `npm run pretest`), which rewrites
   the fixture keeping key order, appending new keys and deleting stale ones.
+- **Script order: one manifest.** The client scripts are classic `is:inline` scripts that talk only through
+  page globals, so their order is a contract. `web/src/client/manifest.mjs` (`CLIENT_SCRIPTS`) is its ONE source:
+  `layouts/Plan.astro` inlines every `web/src/client/*.js` (`import.meta.glob` `?raw`) in that order, after the
+  bakes and `HC_FMT … HC_GUIDE`. Each entry declares `provides` (top-level `var` / `function` names + every
+  `window.X =` write), `requires` (globals READ while it runs at load, each baked or provided EARLIER; reads in
+  handlers, timers and fetch answers do not count) and `probes` (load-time reads of a LATER script's global,
+  always feature-detected, the later script calls back). `web/test/script-manifest.test.mjs` checks every file is
+  listed once and inlined in that order, `provides` against a static scan, `requires` / `probes` against the order,
+  and runs a vm load trace of the example page (`web/test/script-trace.mjs`: plain load + the `#profile`,
+  `#tonight`, `#detail/sleep` deep links) that fails on any undeclared load-time read or `window` write. A new
+  script goes into the manifest at its place; the test names what to declare.
 
 - `LOCALE`: env var → `plan.locale` → `en` (the user's `plan-data.json` sets `locale:"es"`).
 - `DATA_MODE=personal|example`: personal reads the gitignored real files; example reads the
