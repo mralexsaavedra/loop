@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { es as esT, en as enT } from '../i18n/score-templates.mjs';
-import { journalBake } from '../../../lib/journal/bake.mjs';
+import { journalFromInputs } from '../../../lib/journal/bake.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -19,7 +19,7 @@ function host(id) {
   return { id, innerHTML: '', hidden: true };
 }
 /** routes: {'GET /settings': body | {status, body}} answered by the stub fetch; null = no fetch at all */
-function load({ routes = null, locale = 'en', journal = journalBake(), now = TODAY, protocol } = {}) {
+function load({ routes = null, locale = 'en', journal = journalFromInputs(), now = TODAY, protocol } = {}) {
   const RealDate = Date;
   class FakeDate extends RealDate {
     constructor(...a) { if (a.length) super(...a); else super(new RealDate(now + 'T12:00:00').getTime()); }
@@ -53,7 +53,7 @@ function load({ routes = null, locale = 'en', journal = journalBake(), now = TOD
   return { ctx, els, calls, listeners };
 }
 const tick = () => new Promise((r) => setTimeout(r, 0));
-const ALL_ON = Object.fromEntries(journalBake().behaviors.map((b) => [b.key, true]));
+const ALL_ON = Object.fromEntries(journalFromInputs().behaviors.map((b) => [b.key, true]));
 
 test('pure: the strip is the 7 days ending today; a day is journaled with one answer', () => {
   const { ctx } = load();
@@ -157,7 +157,7 @@ test('save: PUT /day with the draft, then the card shows the day journaled; an e
 });
 
 const BAKED = {
-  ...journalBake(),
+  ...journalFromInputs(),
   recent: ['2026-09-27', '2026-09-29'],
   insights: { asOf: '2026-09-29', from: '2026-07-02', days: 40, rows: [
     { key: 'alcohol', yesDays: 12, noDays: 20, status: 'ok', yesMean: 60, noMean: 75, diff: -15 },
