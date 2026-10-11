@@ -1,4 +1,5 @@
-/* The classic-script globals emitted by the libs' clientSource() (HC_FMT, HC_BAND, HC_ADH, HC_PROG) as
+/* The classic-script globals emitted by the libs' clientSource() (HC_FMT, HC_BAND, HC_ADH, HC_PROG,
+ * HC_NSCORE) as
  * they ship in the BUILT page, not as the unbundled modules emit them: Vite / Rollup bundles the libs
  * together and renames clashing top-level names (fin -> fin$3, ISO_RE -> ISO_RE$2), so a global whose
  * keys or constants came from those names breaks only on the real page. Extracts the inline script
@@ -14,6 +15,7 @@ import * as F from '../../lib/format/numbers.mjs';
 import { pctBand, PCT_GOOD, PCT_LOW } from '../../lib/score/recovery.mjs';
 import { ADHERENCE, ADHERENCE_CASES, isComplete, dayState } from '../../lib/nutrition/adherence.mjs';
 import { PROGRESS, PROGRESS_CASES, rollPoints, weeklyRate, etaMonths } from '../../lib/nutrition/progress.mjs';
+import * as NS from '../../lib/nutrition/score.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
@@ -30,6 +32,7 @@ const KEYS = {
   HC_BAND: ['PCT_GOOD', 'PCT_LOW', 'pctBand'],
   HC_ADH: ['ADHERENCE', 'fin', 'isComplete', 'dayState', 'adherence'],
   HC_PROG: ['PROGRESS', 'fin', 'round', 'dayNum', 'isoOf', 'rollPoints', 'weeklyRate', 'weightProgress', 'etaMonths'],
+  HC_NSCORE: ['NSCORE', 'fin', 'clamp100', 'ratio', 'pts1', 'kcalPoints', 'proteinPoints', 'fatPoints', 'scoreBand', 'hasMeals', 'nutritionScore', 'scoreSeries'],
 };
 
 function globalsOf(htmlPath) {
@@ -48,7 +51,7 @@ test('at least the example build is present (npm run pretest)', () => {
 for (const page of PAGES) {
   const rel = path.relative(WEB_ROOT, page);
 
-  test(`${rel}: HC_FMT / HC_BAND / HC_ADH / HC_PROG expose exactly their public keys, every function defined`, () => {
+  test(`${rel}: the clientSource globals expose exactly their public keys, every function defined`, () => {
     const g = globalsOf(page);
     for (const [name, keys] of Object.entries(KEYS)) {
       assert.ok(g[name], `${name} defined`);
@@ -85,5 +88,21 @@ for (const page of PAGES) {
     }
     assert.deepEqual(js(HC_PROG.etaMonths('2030-02-10', [6, 12])), etaMonths('2030-02-10', [6, 12]));
     assert.equal(HC_PROG.round(1.25, 1), 1.3);
+  });
+
+  test(`${rel}: HC_NSCORE scores what lib/nutrition/score.mjs scores`, () => {
+    const { HC_NSCORE } = globalsOf(page);
+    assert.deepEqual(js(HC_NSCORE.NSCORE), js(NS.NSCORE));
+    for (const c of NS.NSCORE_CASES) {
+      assert.deepEqual(js(HC_NSCORE.nutritionScore(c.day, c.target, { today: c.today })), js(c.expect), c.name);
+    }
+    const dates = NS.NSCORE_CASES.map((c, i) => '2030-01-' + String(i + 1).padStart(2, '0'));
+    const days = NS.NSCORE_CASES.map((c, i) => ({ ...c.day, date: dates[i] }));
+    const targets = Object.fromEntries(dates.map((d, i) => [d, NS.NSCORE_CASES[i].target]));
+    assert.deepEqual(js(HC_NSCORE.scoreSeries(dates, days, targets, dates[2])), js(NS.scoreSeries(dates, days, targets, dates[2])));
+    for (const s of [100, 85, 84.9, 60, 59, null]) assert.equal(HC_NSCORE.scoreBand(s), NS.scoreBand(s), String(s));
+    for (const k of [1300, 1799.9, 2200, 2200.1, 2699]) assert.equal(HC_NSCORE.kcalPoints(k, 2000), NS.kcalPoints(k, 2000), String(k));
+    assert.equal(HC_NSCORE.hasMeals({ groups: { breakfast: 1, lunch: 1, dinner: 0 } }), false);
+    assert.equal(HC_NSCORE.hasMeals({ groups: { breakfast: 1, lunch: 2, dinner: 1 } }), true);
   });
 }

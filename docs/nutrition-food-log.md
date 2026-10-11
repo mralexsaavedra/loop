@@ -304,9 +304,10 @@ filled from them, never typed.
 ## Nutrition score (every page)
 
 A day's 0–100 adherence to the viewer's own targets, from the food log. `lib/nutrition/score.mjs` =
-the reference (`NSCORE`, baked as `NUTRI.score`). `client/nutri-score.js` ports it; the client test
-runs the port over `NSCORE_CASES` (band and zero edges, missing and blank macros, today partial, no
-target / no entries) and over a whole `scoreSeries`, and must equal the reference's output.
+the ONE implementation (`NSCORE`, baked as `NUTRI.score`): its `clientSource()` emits the scoring functions as
+`HC_NSCORE` (inlined before util.js), which `client/nutri-score.js` runs (no copy); the client test and
+`web/test/client-globals-build.test.mjs` (the built page) run it over `NSCORE_CASES` (band and zero edges,
+missing and blank macros, today partial, no target / no entries) and over a whole `scoreSeries`.
 
 - **Formula** — against THAT day's meals target (`HCNutri.targetFor`: the current goal × that day's
   detected day type, the same target Constancia and the intake rings use; fat = its `g`):

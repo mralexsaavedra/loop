@@ -1,6 +1,7 @@
-/* Nutrition score — a day's 0-100 adherence to the viewer's own targets (lib/nutrition/score.mjs is
- * the reference; nutritionScore / scoreSeries port it line by line, a test runs both over
- * NSCORE_CASES). Classic script (is:inline), after nutri-day.js, adherence.js and today-date.js.
+/* Nutrition score — a day's 0-100 adherence to the viewer's own targets. The math is
+ * lib/nutrition/score.mjs itself: its clientSource() emits HC_NSCORE (inlined with HC_FMT before
+ * util.js), so nothing here re-implements it; NSCORE_CASES test it. Classic script (is:inline), after
+ * nutri-day.js, adherence.js and today-date.js.
  *
  * Inputs: the baked food log (INTAKE.log.days: the synced foodlog-daily.csv, the example's demo data)
  * with, on the LAN page, each day of Constancia's live summary (HCAdherence.state().days) in its place;
@@ -23,92 +24,10 @@
   var TN = typeof I18N_NUTRI !== 'undefined' && I18N_NUTRI ? I18N_NUTRI.score : null;
   var esc = HC.esc, format = HC.format, isoDate = HC.isoDate;
   var DAY = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
-  var REQUIRED = ['breakfast', 'lunch', 'dinner'];
   var WIDE = 30; // the Nutrición block's longer average and line
 
-  /* ---------- port of lib/nutrition/score.mjs ---------- */
-  function fin(v) {
-    return typeof v === 'number' && isFinite(v);
-  }
-  function clamp100(x) {
-    return Math.max(0, Math.min(100, x));
-  }
-  function ratio(v, t) {
-    return fin(v) && fin(t) && t > 0 ? Math.round((v / t) * 1e6) / 1e6 : null;
-  }
-  function pts1(x) {
-    return Math.round(x * 10) / 10;
-  }
-  function kcalPoints(k, t) {
-    var r = ratio(k, t), K = C.kcal;
-    if (r == null) return null;
-    var d = Math.round(Math.abs(r - 1) * 1e6) / 1e6;
-    return d <= K.full ? 100 : pts1(clamp100((100 * (K.zero - d)) / (K.zero - K.full)));
-  }
-  function proteinPoints(p, t) {
-    var r = ratio(p, t), P = C.protein;
-    if (r == null) return null;
-    return r >= P.full ? 100 : pts1(clamp100((100 * (r - P.zero)) / (P.full - P.zero)));
-  }
-  function fatPoints(f, t) {
-    var r = ratio(f, t), F = C.fat;
-    if (r == null) return null;
-    if (r > F.hi) return pts1(clamp100((100 * (F.zeroHi - r)) / (F.zeroHi - F.hi)));
-    if (r < F.lo) return pts1(clamp100((100 * (r - F.zeroLo)) / (F.lo - F.zeroLo)));
-    return 100;
-  }
-  function scoreBand(s) {
-    if (!fin(s)) return null;
-    return s >= C.bands.good ? 'good' : s >= C.bands.mid ? 'mid' : 'low';
-  }
-  function hasMeals(day) {
-    var g = day && day.groups;
-    return !!g && REQUIRED.every(function (k) { return fin(g[k]) && g[k] >= 1; });
-  }
-  function nutritionScore(day, target, opts) {
-    if (!day || !(day.n > 0) || !target || !fin(target.k) || !(target.k > 0)) return null;
-    var miss = day.missing || {};
-    var parts = { k: null, p: null, f: null };
-    var raw = {};
-    var kp = kcalPoints(day.k, target.k);
-    if (kp != null) { raw.k = kp; parts.k = { v: day.k, t: target.k, pts: Math.round(kp) }; }
-    var pp = proteinPoints(day.p, target.p);
-    if (pp != null && (!miss.p || pp === 100)) {
-      raw.p = pp;
-      parts.p = { v: day.p, t: target.p, pts: Math.round(pp) };
-      if (miss.p) parts.p.min = true;
-    }
-    var fp = fatPoints(day.f, target.g);
-    if (fp != null && !miss.f) { raw.f = fp; parts.f = { v: day.f, t: target.g, pts: Math.round(fp) }; }
-    var sw = 0, sum = 0;
-    ['k', 'p', 'f'].forEach(function (c) {
-      if (raw[c] == null) return;
-      sw += C.weights[c];
-      sum += C.weights[c] * raw[c];
-    });
-    if (!(sw > 0)) return null;
-    return {
-      score: Math.round(sum / sw), parts: parts, inc: !!(miss.p || miss.f || !fin(day.p) || !fin(day.f)),
-      partial: !!(opts && opts.today && day.date === opts.today), meals: hasMeals(day), assumed: !!target.inferred,
-    };
-  }
-  function scoreSeries(dates, days, targets, today) {
-    var by = {}, T = targets || {}, out = { days: {}, avg: null, n: 0 };
-    (days || []).forEach(function (d) { if (d && typeof d.date === 'string') by[d.date] = d; });
-    (dates || []).forEach(function (date) {
-      var r = nutritionScore(by[date] || null, T[date] || null, { today: today });
-      if (r) out.days[date] = r;
-    });
-    var s = 0;
-    (dates || []).slice(-C.avgDays).forEach(function (date) {
-      var r = out.days[date];
-      if (!r || r.partial) return;
-      s += r.score;
-      out.n++;
-    });
-    if (out.n) out.avg = Math.round(s / out.n);
-    return out;
-  }
+  /* ---------- the score: lib/nutrition/score.mjs's own functions (clientSource -> HC_NSCORE) ---------- */
+  var fin = HC_NSCORE.fin, scoreBand = HC_NSCORE.scoreBand, nutritionScore = HC_NSCORE.nutritionScore, scoreSeries = HC_NSCORE.scoreSeries;
 
   /* ---------- inputs ---------- */
   // the baked days, each replaced by the LAN summary's day when Constancia has read one
