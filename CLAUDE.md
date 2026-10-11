@@ -55,6 +55,7 @@ you MUST follow for any number you produce).
 | `npm run test:services` | The `services/health-ingest` suite (not part of `npm test`, which stays dependency-free): `npm ci` there from its lockfile, then its `node --test` |
 | `npm run test:css:update` | Regenerate `web/test/fixtures/css-expected.json` from the example build after a deliberate CSS change (keeps key order, appends new, drops stale; `-- --check` writes nothing) |
 | `npm run build:example` | Example page from the tracked seeds + the synthetic demo extract (`data/demo/`), no personal files |
+| `npm run gen:food-calc` | Regenerate `services/health-ingest/src/food-calc.js` from `lib/nutrition/foodlog.mjs` (a food log formula change is made in the lib first, then this; a test fails while it is stale) |
 | `npm run sync` | Pull Shortcut payloads, Strava, profile, food log, settings from `services/health-ingest` into the extract (`-- --full` rebuilds the Shortcut cache) |
 | `node data/apple-health/extract.js` | Rebuild the extract CSVs from a new `export.xml` (then re-run `npm run sync`) |
 | `node scripts/build-web.mjs [--mode personal\|example] [--locale es\|en]` | Build one page variant into `web/dist/<mode>/index.html` |
@@ -79,7 +80,7 @@ policy) go in a gitignored `CLAUDE.local.md`, which Claude Code loads next to th
   them (the guard hook blocks it, [`docs/guard-hook.md`](docs/guard-hook.md)). `data/demo/` is tracked
   and must stay synthetic.
 - **Never hand-edit generated files** (`plan-tables.md`, `web/dist/`, `data/demo/extract/` — re-run
-  `npm run demo:data`) and never re-type macros in `food-log.md`; change the source (the JSONs, the
+  `npm run demo:data`, `services/health-ingest/src/food-calc.js` — `npm run gen:food-calc`) and never re-type macros in `food-log.md`; change the source (the JSONs, the
   generator) and regenerate.
 - **`knowledge/` is gitignored** except `knowledge/README.md` (third-party transcripts, personal use):
   never commit, publish or `git add -f` it.
