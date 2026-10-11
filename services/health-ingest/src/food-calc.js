@@ -4,7 +4,7 @@
  * (`var`, semicolons) instead of this service's: a diff against the reference stays empty. The repo's
  * lib/nutrition/foodlog.test.mjs runs this file and the reference over the same FOODLOG_CASES and checks
  * that every constant (FOOD_LIMITS included) is equal, so a change is made there first, then copied here
- * (and into the page's port, web/src/client/food.js).
+ * (and into the page's port, web/src/client/food-core.js).
  *
  * Nothing is converted between g and ml, a serving exists only when the product states its size, a
  * recipe with a missing product has no macros, and a log entry stores its rounded SNAPSHOT (kcal
