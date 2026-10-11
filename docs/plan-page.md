@@ -17,9 +17,11 @@ node scripts/build-web.mjs [--mode personal|example] [--locale es|en]   # or DAT
 ```
 
 writing `web/dist/<mode>/index.html`. `npm run build` = personal/es (default); `npm run
-build:example` = example/en (tracked seeds + the synthetic demo extract, no personal files needed). All pure compute
-(macros, training program/dashboard, health aggregation) lives in root `lib/*.mjs`, shared by
-the Astro build, `data/nutrition/generate.js`, and the test suite — one source, not three.
+build:example` = example/en (tracked seeds + the synthetic demo extract, no personal files needed). The domain
+compute (macros, training program/dashboard, health aggregation) lives in root `lib/*.mjs`, shared by
+the Astro build, `data/nutrition/generate.js`, and the test suite — one source, not three. Most of `lib/` is
+pure; some modules still read their input files themselves (`node:fs`), so only the pure ones can be emitted
+into the page via `clientSource()`.
 
 - **Inlined client scripts are slimmed.** `web/layouts/Plan.astro` inlines every `web/src/client/*.js`
   through `web/src/slim-script.mjs` `slimScript` (esbuild `transformSync`; esbuild is declared in package.json at the exact version astro / vite lock:
