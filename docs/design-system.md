@@ -129,7 +129,10 @@ bands ride along the same way: `lib/score/recovery.mjs` `clientSource()` → `va
 `PCT_LOW`, `pctBand`), so no client script re-types 67 / 33 (`web/test/recovery-band.test.mjs` guards it). The
 food log adherence and weight progress functions ride along too (`lib/nutrition/adherence.mjs` →
 `var HC_ADH`, read by `client/adherence.js`; `lib/nutrition/progress.mjs` → `var HC_PROG`, read by
-`client/progress.js`; `web/test/client-copies.test.mjs` guards that no client file re-defines them).
+`client/progress.js`; `web/test/client-copies.test.mjs` guards that no client file re-defines them). Every one is built by `classicGlobal()` (`lib/format/numbers.mjs`): public keys come from an
+explicit map and constants are declared under every spelling the function bodies use, because the
+bundler renames clashing lib names (`fin` → `fin$3`); `web/test/client-globals-build.test.mjs` runs the
+globals out of the BUILT page.
 
 | Rule | es | en | Call |
 | --- | --- | --- | --- |
