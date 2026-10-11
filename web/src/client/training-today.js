@@ -49,11 +49,10 @@
     var on = !!(s && sec && !sec.hidden);
     window.HCProgram = on ? { date: today, kind: s.kind || 'gym', focus: String(s.focus || '') } : null;
     if (!on) return;
-    var views = window.HCViews = window.HCViews || {};
-    views['hoy-session'] = {
+    HC.registerView('hoy-session', {
       title: function () { return I18N_HOY.viewTitle; },
       render: function () { return { head: '', body: host.innerHTML }; },
-    };
+    });
   }
   function render() {
     var host = document.getElementById('train-today');

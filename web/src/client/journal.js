@@ -229,11 +229,10 @@
       };
     }
     if (hasInsights()) {
-      window.HCViews = window.HCViews || {};
-      window.HCViews['journal-insights'] = {
+      HC.registerView('journal-insights', {
         title: function () { return T.insightsTitle; },
         render: insightsHtml,
-      };
+      });
     }
 
     /* ---------- sheet ---------- */
@@ -386,11 +385,10 @@
     });
 
     function register() {
-      window.HCViews = window.HCViews || {};
-      window.HCViews.journal = {
+      HC.registerView('journal', {
         title: function () { return T.sheetTitle; },
         render: renderSheet,
-      };
+      });
     }
 
     function load() {

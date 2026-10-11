@@ -13,7 +13,7 @@
  *   so the reader falls back now and the later script calls back (intakeRefresh, HCNutri.render…).
  * Adding a script: add it here at its place; the test names any missing require or provide. */
 export const CLIENT_SCRIPTS = [
-  { file: 'util.js', provides: ['HC'], requires: ['HC_CONST', 'HC_FMT'] },
+  { file: 'util.js', provides: ['HC', 'HCViews'], requires: ['HC_CONST', 'HC_FMT'] },
   {
     file: 'core.js',
     provides: [
@@ -41,7 +41,7 @@ export const CLIENT_SCRIPTS = [
   },
   { file: 'food-sheet.js', provides: [], requires: ['HC', 'HCFoodInternal'] },
   { file: 'food-catalog.js', provides: [], requires: ['HC', 'HCFoodInternal'] },
-  { file: 'food-log.js', provides: ['foodTotals', 'HCViews', 'HCFood'], requires: ['HC', 'HCFoodInternal'] },
+  { file: 'food-log.js', provides: ['foodTotals', 'HCFood'], requires: ['HC', 'HCFoodInternal'] },
   { file: 'settings.js', provides: ['HCSettings'], requires: ['FOOD_CONST', 'HC', 'HCFood'] },
   {
     file: 'progress.js',
@@ -58,7 +58,7 @@ export const CLIENT_SCRIPTS = [
     ],
     probes: ['HCNutriScore'],
   },
-  { file: 'training-today.js', provides: ['HCProgram', 'HCViews'], requires: ['HC', 'I18N_DATE', 'I18N_HOY', 'TRAINING', 'TRAINING_META'] },
+  { file: 'training-today.js', provides: ['HCProgram'], requires: ['HC', 'I18N_DATE', 'I18N_HOY', 'TRAINING', 'TRAINING_META'] },
   { file: 'training-dash.js', provides: [], requires: ['DASH', 'HC', 'I18N_DASH', 'I18N_DATE'] },
   {
     file: 'training-activity.js',
@@ -90,19 +90,19 @@ export const CLIENT_SCRIPTS = [
     provides: [],
     requires: ['DETAIL', 'HC', 'HCDay', 'HCProgram', 'HC_FMT', 'I18N_DATE', 'I18N_SCORE', 'LOCALE', 'SCORES'],
   },
-  { file: 'profile.js', provides: ['HCViews', 'HCProfile'], requires: ['HC', 'HCSettings', 'HCViews', 'I18N_PROFILE', 'PROFILE'] },
+  { file: 'profile.js', provides: ['HCProfile'], requires: ['HC', 'HCSettings', 'HCViews', 'I18N_PROFILE', 'PROFILE'] },
   { file: 'nav-actions.js', provides: ['HCActions'], requires: [] },
   {
     file: 'home-week.js',
-    provides: ['HCViews', 'HCWeekPlan'],
+    provides: ['HCWeekPlan'],
     requires: ['DETAIL', 'HC', 'HCAdherence', 'HCDay', 'HCViews', 'I18N_SCORE', 'SCORES', 'TRAINING'],
   },
   {
     file: 'home-dash.js',
-    provides: ['HCViews', 'HCDash'],
+    provides: ['HCDash'],
     requires: ['DETAIL', 'HC', 'HCViews', 'HC_FMT', 'I18N_DATE', 'I18N_DETAIL', 'I18N_SCORE', 'LOCALE'],
   },
-  { file: 'journal.js', provides: ['HCViews', 'HCJournal'], requires: ['HC', 'HCViews', 'I18N_DATE', 'I18N_SCORE', 'SCORES'] },
+  { file: 'journal.js', provides: ['HCJournal'], requires: ['HC', 'HCViews', 'I18N_DATE', 'I18N_SCORE', 'SCORES'] },
   { file: 'deepdive.js', provides: ['HCDeep'], requires: ['HC'] },
   {
     file: 'detail.js',

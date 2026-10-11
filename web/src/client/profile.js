@@ -318,7 +318,6 @@
     return { head: headHtml(), body: goalHtml() + eventsHtml() + bodyHtml() + gearHtml() + devicesHtml() + supplementsHtml() + stravaHtml() + note(T.note, 'pf-foot') };
   }
 
-  window.HCViews = window.HCViews || {};
-  window.HCViews.profile = { title: function () { return T.title; }, render: render };
+  HC.registerView('profile', { title: function () { return T.title; }, render: render });
   window.HCProfile = { ageOn: ageOn, render: render };
 })();

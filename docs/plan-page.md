@@ -84,7 +84,8 @@ into the page via `clientSource()`.
   from `web/src/i18n/date-templates.mjs`, not Intl, whose ICU builds disagree) — EVERY user-visible
   date goes through it (ISO only in data attributes / ids; a test fails on any `toLocale*String` /
   `Intl.DateTimeFormat` in `web/src/client`; `loadUtil` bakes `I18N_DATE` by `LOCALE`), and `detailAttrs`
-  (the detail-sheet opener markup, see "Detail views") and `rolloverAction` (the midnight rollover:
+  (the detail-sheet opener markup, see "Detail views"), `registerView` / `view` (the detail sheet's
+  registered views, the one writer of `window.HCViews`, `docs/detail-views.md`) and `rolloverAction` (the midnight rollover:
   core.js captures the viewer's day at load and, when the page becomes visible on another day,
   reloads once, so the dials, top-bar date, timeline, day type and rings move to the new day; while
   the page is BUSY — the detail sheet `#detail` open, a Mis productos / Mis recetas editor open (a form
