@@ -52,6 +52,8 @@ you MUST follow for any number you produce).
 | `npm run generate` | Validate the plan, write `data/nutrition/plan-tables.md`, build `web/dist/personal/index.html` (idempotent) |
 | `npm run check` | Validators only, no build (plan, ingredients, `training-data.json`, `profile/profile.json`) |
 | `npm test` | Full suite (`node --test`); `pretest` builds the example (+ personal, if present) fixtures |
+| `npm run test:services` | The `services/health-ingest` suite (not part of `npm test`, which stays dependency-free): `npm ci` there from its lockfile, then its `node --test` |
+| `npm run test:css:update` | Regenerate `web/test/fixtures/css-expected.json` from the example build after a deliberate CSS change (keeps key order, appends new, drops stale; `-- --check` writes nothing) |
 | `npm run build:example` | Example page from the tracked seeds + the synthetic demo extract (`data/demo/`), no personal files |
 | `npm run sync` | Pull Shortcut payloads, Strava, profile, food log, settings from `services/health-ingest` into the extract (`-- --full` rebuilds the Shortcut cache) |
 | `node data/apple-health/extract.js` | Rebuild the extract CSVs from a new `export.xml` (then re-run `npm run sync`) |

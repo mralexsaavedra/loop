@@ -31,6 +31,10 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
   The inline CSS gets the same treatment: the `slim-inline-css` integration (`web/astro.config.mjs`) runs
   every built `<style>` through `slimStyle` (same module, esbuild `loader: 'css'`, whitespace + comments
   only; Vite's `cssMinify` stays off), so CSS tests parse it through `web/test/css-scan.mjs` (`a>b`, `[t=x]`).
+  `web/test/css-parity.test.mjs` checks the example build's declarations against
+  `web/test/fixtures/css-expected.json` both ways (dropped/changed AND added declarations fail); after a
+  deliberate CSS change run `npm run test:css:update` (after `npm test` / `npm run pretest`), which rewrites
+  the fixture keeping key order, appending new keys and deleting stale ones.
 
 - `LOCALE`: env var → `plan.locale` → `en` (the user's `plan-data.json` sets `locale:"es"`).
 - `DATA_MODE=personal|example`: personal reads the gitignored real files; example reads the
