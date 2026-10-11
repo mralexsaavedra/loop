@@ -14,10 +14,11 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
 - **Registered views** — a sheet that is not a `DETAIL` metric (profile, tonight, dash-edit, hoy-session,
   food-add, journal, journal-insights) registers with `HC.registerView(<key>, {title(), render() → {head,
   body}})` (`client/util.js`, the ONLY writer of `window.HCViews`; the registry appears with the first view)
-  and `detail.js` reads it through `HC.view(<key>)` (own keys only, else null). Each key registers once per
-  page: a second `registerView` of the same key throws and keeps the first, so two scripts can never claim
-  one deep link `#<key>` silently. `web/src/client/util.test.mjs` checks the throw and that no other client
-  script writes `HCViews` directly.
+  and `detail.js` reads it through `HC.view(<key>)` (own keys only, else null). Registering a key again
+  replaces the view (a re-render or API reload of its own script; never a runtime throw). Ownership is
+  checked statically instead: `web/src/client/util.test.mjs` scans the client scripts and fails when a key
+  is registered by two files, when a `registerView` key is not a string literal, or when any script other
+  than util.js writes `HCViews` directly.
 
 - **Data** — `lib/detail/detail.mjs` `buildDetail(extractDir, { sex })` bakes ONE global `DETAIL` (in
   `components/DetailSheet.astro`, with `I18N_DETAIL` from `web/src/i18n/detail-templates.mjs`):
