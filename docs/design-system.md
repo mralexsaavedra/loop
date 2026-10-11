@@ -133,7 +133,7 @@ food log adherence and weight progress functions ride along too (`lib/nutrition/
 `client/progress.js`; `lib/nutrition/score.mjs` → `var HC_NSCORE`, read by `client/nutri-score.js`;
 `lib/nutrition/foodlog.mjs` → `var HC_FOODLOG`, read by `client/food-core.js`; `lib/nutrition/daytype.mjs` →
 `var HC_DAYTYPE`, `lib/nutrition/fuel.mjs` → `var HC_FUEL` and `lib/nutrition/scale.mjs` (+ amounts / units /
-fill) → `var HC_SCALE`, read by `client/nutri-day.js` (these modules only
+fill) → `var HC_SCALE` and `lib/nutrition/guide.mjs` → `var HC_GUIDE`, read by `client/nutri-day.js` (these modules only
 declare a `CLIENT` descriptor; `lib/nutrition/client.mjs` emits them, because `data/nutrition/generate.js` loads
 `lib/nutrition` without `lib/format`);
 `web/test/client-copies.test.mjs` guards that no client file re-defines them). Every one is built by `classicGlobal()` (`lib/format/numbers.mjs`): public keys come from an

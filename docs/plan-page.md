@@ -66,8 +66,8 @@ into the page via `clientSource()`.
   `clientSource()`, which `client/progress.js` runs, and `HC_NSCORE`, the nutrition score from
   `lib/nutrition/score.mjs` `clientSource()`, which `client/nutri-score.js` runs, and `HC_FOODLOG`, the food log
   formula from `lib/nutrition/foodlog.mjs` `clientSource()`, which `client/food-core.js` runs, and `HC_DAYTYPE` / `HC_FUEL`, the
-  day type detection and ride fuelling from `lib/nutrition/daytype.mjs` / `fuel.mjs`, and `HC_SCALE`, the portion
-  scaling from `lib/nutrition/scale.mjs` (all emitted by
+  day type detection and ride fuelling from `lib/nutrition/daytype.mjs` / `fuel.mjs`, `HC_SCALE`, the portion
+  scaling from `lib/nutrition/scale.mjs`, and `HC_GUIDE`, the portion guide from `lib/nutrition/guide.mjs` (all emitted by
   `lib/nutrition/client.mjs`), which `client/nutri-day.js` runs), `MS_PER_DAY`, `STALE_DAYS`, the ONE display-date formatter `fmtDate`
   ("lun 29 sept" / "Mon 29 Sep") + `fmtMonth` + `weekdayIndex` (Monday = 0; names baked as `I18N_DATE`
   from `web/src/i18n/date-templates.mjs`, not Intl, whose ICU builds disagree) — EVERY user-visible
