@@ -158,11 +158,10 @@ test('008_strava_hr.sql is idempotent: only IF NOT EXISTS creates, no drops or d
   assert.doesNotMatch(sql, /heartrate\s+(JSONB|INTEGER\[\])/i, 'never the raw stream')
 })
 
-test('db.js runs 008_strava_hr.sql as a core migration, after the strava tables it references', async () => {
-  const src = await readFile(new URL('../src/db.js', import.meta.url), 'utf8')
-  const core = /const MIGRATIONS = \[([^\]]*)\]/.exec(src)[1]
-  assert.ok(core.indexOf("'008_strava_hr.sql'") > core.indexOf("'002_strava.sql'"))
-  assert.ok(core.indexOf("'009_strava_hr_retry.sql'") > core.indexOf("'008_strava_hr.sql'"), '009 runs after the table it alters')
+test('008_strava_hr.sql runs as a core migration, after the strava tables it references', async () => {
+  const core = (await import('../src/migrations.js')).CORE_MIGRATIONS
+  assert.ok(core.indexOf('008_strava_hr.sql') > core.indexOf('002_strava.sql'))
+  assert.ok(core.indexOf('009_strava_hr_retry.sql') > core.indexOf('008_strava_hr.sql'), '009 runs after the table it alters')
 })
 
 test('009_strava_hr_retry.sql is idempotent: IF NOT EXISTS columns, the status check re-created in place, no data loss', async () => {

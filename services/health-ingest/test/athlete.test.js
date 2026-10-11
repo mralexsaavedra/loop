@@ -385,20 +385,21 @@ test('athlete export answers the filtered snapshot and logs no field values', as
 
 // ---- schema + wiring ---------------------------------------------------------------------
 
-test('sql/005_athlete_refresh.sql adds the refresh bookkeeping columns idempotently, and db.js runs it after 004', async () => {
+test('sql/005_athlete_refresh.sql adds the refresh bookkeeping columns idempotently, and it runs right after 004', async () => {
   const { readFileSync } = await import('node:fs')
   const sql = readFileSync(new URL('../sql/005_athlete_refresh.sql', import.meta.url), 'utf8')
   for (const col of ['gear_partial', 'last_ok_at', 'last_failure_at']) assert.match(sql, new RegExp(`ADD COLUMN IF NOT EXISTS ${col}\\b`))
   assert.match(sql, /fetched_at DROP NOT NULL/, 'a failure-only row has no snapshot yet')
-  assert.match(readFileSync(new URL('../src/db.js', import.meta.url), 'utf8'), /'004_athlete\.sql', '005_athlete_refresh\.sql'/)
+  const core = (await import('../src/migrations.js')).CORE_MIGRATIONS
+  assert.equal(core.indexOf('005_athlete_refresh.sql'), core.indexOf('004_athlete.sql') + 1)
 })
 
-test('sql/004_athlete.sql defines every strava_athlete column athlete.js reads or writes, and db.js runs it', async () => {
+test('sql/004_athlete.sql defines every strava_athlete column athlete.js reads or writes, and it is a core migration', async () => {
   const { readFileSync } = await import('node:fs')
   const sql = readFileSync(new URL('../sql/004_athlete.sql', import.meta.url), 'utf8')
   for (const col of ['fetched_at', 'athlete', 'gear', 'gear_scope_missing']) assert.match(sql, new RegExp(`\\b${col}\\b`))
   assert.match(sql, /CREATE TABLE IF NOT EXISTS strava_athlete/, 'idempotent')
-  assert.match(readFileSync(new URL('../src/db.js', import.meta.url), 'utf8'), /'004_athlete\.sql'/)
+  assert.ok((await import('../src/migrations.js')).CORE_MIGRATIONS.includes('004_athlete.sql'))
 })
 
 test('server.js routes GET /export/athlete through the bearer-checked handler', async () => {
