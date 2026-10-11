@@ -47,7 +47,7 @@ import { createWindowLimiter } from './limits.js'
 export const FOOD_BODY_LIMIT = 16 * 1024
 export const FOOD_WRITE_LIMIT = 60 // per client address per minute
 export const FOOD_SUMMARY_LIMIT = 30 // GET /food/log/summary per client address per minute (a read of up to 120 days)
-// limits: FOOD_LIMITS (food-calc.js, a copy of lib/nutrition/foodlog.mjs, which is authoritative)
+// limits: FOOD_LIMITS (food-calc.js, generated from lib/nutrition/foodlog.mjs, which is authoritative)
 const ID_RE = /^[1-9][0-9]{0,15}$/
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/
 const BARCODE_RE = new RegExp(L.barcodePattern)
