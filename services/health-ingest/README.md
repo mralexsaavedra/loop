@@ -466,8 +466,12 @@ token). `.env` is gitignored and must stay that way.
 ```sh
 docker compose up -d --build
 curl -s localhost:8088/healthz
-npm test
+npm ci && npm test
 ```
+
+The image installs from the committed `package-lock.json` (`npm ci --omit=dev`), so a
+rebuild gets the same dependency tree; after changing a dependency in `package.json`, run
+`npm install` here and commit the updated lockfile.
 
 ## Exposing it
 
