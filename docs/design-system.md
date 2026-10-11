@@ -130,9 +130,18 @@ bands ride along the same way: `lib/score/recovery.mjs` `clientSource()` → `va
 `PCT_LOW`, `pctBand`), so no client script re-types 67 / 33 (`web/test/recovery-band.test.mjs` guards it). The
 food log adherence and weight progress functions ride along too (`lib/nutrition/adherence.mjs` →
 `var HC_ADH`, read by `client/adherence.js`; `lib/nutrition/progress.mjs` → `var HC_PROG`, read by
-`client/progress.js`; `web/test/client-copies.test.mjs` guards that no client file re-defines them). Every one is built by `classicGlobal()` (`lib/format/numbers.mjs`): public keys come from an
+`client/progress.js`; `lib/nutrition/score.mjs` → `var HC_NSCORE`, read by `client/nutri-score.js`;
+`lib/nutrition/foodlog.mjs` → `var HC_FOODLOG`, read by `client/food-core.js`; `lib/nutrition/daytype.mjs` →
+`var HC_DAYTYPE`, `lib/nutrition/fuel.mjs` → `var HC_FUEL` and `lib/nutrition/scale.mjs` (+ amounts / units /
+fill) → `var HC_SCALE` and `lib/nutrition/guide.mjs` → `var HC_GUIDE`, read by `client/nutri-day.js`. Every
+nutrition module only declares a plain `CLIENT` descriptor; `lib/nutrition/client.mjs` is the ONE module there that
+imports the emitter and exposes the `clientSource()` functions, because `data/nutrition/generate.js` loads
+`lib/nutrition` without `lib/format` — `lib/nutrition/client.test.mjs` guards that no other module imports it);
+`web/test/client-copies.test.mjs` guards that no client file re-defines them). Every one is built by `classicGlobal()` (`lib/format/numbers.mjs`): public keys come from an
 explicit map and constants are declared under every spelling the function bodies use, because the
-bundler renames clashing lib names (`fin` → `fin$3`); `web/test/client-globals-build.test.mjs` runs the
+bundler renames clashing lib names (`fin` → `fin$3`); two different functions declaring one name are refused (they would
+shadow each other in the one IIFE); only function declarations can be emitted, so a lib helper a global needs is a
+`function`, not an arrow const; `web/test/client-globals-build.test.mjs` runs the
 globals out of the BUILT page.
 
 | Rule | es | en | Call |
@@ -158,8 +167,10 @@ globals out of the BUILT page.
 - **Not durations of a value, left as words:** minute COUNTS that are a metric of their own (Apple
   exercise minutes "45 min", sleep consistency "19 min", the ±′ bedtime spread), whole-hour ranges
   ("2–3 h before"), relative ages ("3 h ago") and category labels ("< 30 min", "Ride ~2 h").
-- **Not display:** CSV / data outputs, the food log's stored entry names ("Arroz · 1,5 ud", mirrors
-  `lib/nutrition/basics.mjs`), the plan's portion factor port (pinned to `lib/nutrition/scale.mjs`)
+- **Not display:** CSV / data outputs, the food log's stored entry names ("Arroz · 1,5 ud", built by
+  `lib/nutrition/foodlog.mjs` `basicLabel` itself — the page runs it through `HC_FOODLOG`, so no client file
+  carries that decimal comma; `BASIC_CASES` pin its bytes), the plan's portion factor ("×1,25",
+  `lib/nutrition/scale.mjs` `fmtFactor` itself, run through `HC_SCALE`; the planFor / solveScale tests pin it)
   and SVG / CSS geometry (`toFixed` for coordinates) keep their own code.
 
 The guard `web/test/number-format.test.mjs` scans the display sources (`web/test/display-sources.mjs`:

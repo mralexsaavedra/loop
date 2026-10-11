@@ -193,7 +193,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   feeds the rings' `fatMax`). `planFor(bake, goal,
   dayType, minutes)` gives one plan for a ride of `minutes` (meals target `mt` = target − ride fuel,
   the fuel being all carbs); the page bakes only `{base, t}` per (goal, day type) + the two models and
-  runs a line-by-line port of `solveScale` / `planFor` (parity test), so a new ride duration re-scales
+  runs `solveScale` / `planFor` themselves (`HC_SCALE`, emitted by `lib/nutrition/client.mjs` with what they call
+  from `amounts.mjs`, `units.mjs`, `fill.mjs`, `fuel.mjs`; no copy), so a new ride duration re-scales
   the guide's budgets. `planFor` returns `{base, t, minutes, fuelK, fuelC, mt, meals (each plan meal's
   [k, p, c, g], whole), tot, factor, clamp, udOnly, capped, allCapped, rem}`; the bake per base day is
   `{sl (each meal's slot), fixed, flex}`. `buildDayPlans` precomputes the 12 plans at the default ride minutes for the table in
@@ -204,7 +205,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   half-piece grid, "~2 bread rolls (80 g)" off it; "2 eggs (~100 g)"); `fmt.pieces` bakes only the
   pieces a baked flex line can format.
 - **Plan de hoy = a PORTION GUIDE** (an orientative "how much can I eat", not a menu) —
-  `lib/nutrition/guide.mjs` = the reference, ported line by line in nutri-day.js (parity tests). ALWAYS
+  `lib/nutrition/guide.mjs` = the ONE implementation, run by nutri-day.js as `HC_GUIDE` (emitted by
+  `lib/nutrition/client.mjs`; `GUIDE_CASES` / `DAYCAP_CASES` test it in the lib, the page and the built page). ALWAYS
   the same four meal groups, every day type: Desayuno, Comida, Cena + Extras; day type and goal only change
   the amounts. **Budgets**: today's plan solve (`planFor`: goal × day type × ride minutes, caps and
   water-fill, no picks) → each main meal's budget (kcal, P, C, F) = the solved macros of the plan meals
@@ -256,8 +258,9 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   "+", no "Te queda". `NUTRI` = `{…, base: {<day>: {sl, fixed, flex}}, guide: {roles, defaults, oil,
   fallback, extras, done, covered}}`: a few KB on the example (budget: `lib/nutrition/today.test.mjs`,
   8 KB); FOOD_BASICS carries `c` and `x` (budget: `web/test/food-build.test.mjs`).
-- **Day-type detection** (`lib/nutrition/daytype.mjs` = the reference; nutri-day.js ports it over the
-  baked `DETECT` and a test runs both over `DAYTYPE_CASES`): today's workouts from `SCORES.timeline`
+- **Day-type detection** (`lib/nutrition/daytype.mjs` = the ONE implementation: `lib/nutrition/client.mjs` emits it as
+  `HC_DAYTYPE` (from the module's `CLIENT` descriptor), which nutri-day.js runs — no copy; `DAYTYPE_CASES` / `DAYINPUT_CASES` test it in the lib, the
+  page and the built page): today's workouts from `SCORES.timeline`
   (same-day rows already merged per modality). Only real training counts (`DETECT`): gym / run ≥ 20 min
   → gym (shorter = a stub); `other` (walks, tennis…) only ≥ 45 min, as gym; a ride < 30 min is a commute
   (ignored), 30–74 min → gym, ≥ 75 min → bike, ≥ 150 min → bikeLong; a zero / junk duration is dropped.
@@ -335,8 +338,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   its own `slot` field, else guessed from its es / en name (`mealSlot`: desayuno / breakfast, comida /
   lunch, pre / post-entreno / workout, cena / dinner, merienda / snack / anclaje). They are also listed
   in the profile sheet.
-- **Avituallamiento** (bike day types only; `lib/nutrition/fuel.mjs` = the reference, ported in
-  nutri-day.js over the baked `FUEL`, pinned by a test): Antes (2–3 h before ~1–2 g/kg carbs; last hour
+- **Avituallamiento** (bike day types only; `lib/nutrition/fuel.mjs` = the ONE implementation, run by
+  nutri-day.js as `HC_FUEL` (emitted by `lib/nutrition/client.mjs`), pinned by `FUEL_CASES`): Antes (2–3 h before ~1–2 g/kg carbs; last hour
   30–60 g easy carbs), Durante (bike 60 g/h, bikeLong 60–90 g/h; fluids 500–750 ml/h; sodium ~300–600
   mg/h, more in heat — ranges, no weather data), Después (within 1 h ~1–1.2 g/kg carbs + 30–40 g
   protein). g/kg uses the latest weigh-in (`profile.weight`, else rates only). Duration = today's
@@ -352,7 +355,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   piece, 0–100>, fat?: <g ≥ 0>, kind?: "fast" | "slow" }]`, validated by `npm run check`
   (`validateFuelItems`, called from `validateNutrition`: a malformed item is an error naming the field),
   baked localized as `NUTRI.fuel.items = [{n, c, f, k}]` only when present — absent = the generic
-  output): Durante then shows the PIECE MIX (`fuel.mjs` `ownDuring`, ported in nutri-day.js, pinned by
+  output): Durante then shows the PIECE MIX (`fuel.mjs` `ownDuring`, run in the page through `HC_FUEL`, pinned by
   `FUEL_CASES`): eating starts at min 30 (`OWN_START_MIN`; the first half hour runs on the carbs eaten
   before), pieces target = the during-rate midpoint × (minutes − 30) / 60; n whole pieces spread evenly
   from min 30, a piece before half the ride = the first `slow` item, from half way the first `fast` one

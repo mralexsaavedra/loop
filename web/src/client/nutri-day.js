@@ -7,8 +7,8 @@
  * today's workouts and programmed session. Everything time-based is decided HERE on the viewer's clock,
  * so builds stay byte-identical.
  *
- * - Day type: detectDayType ports lib/nutrition/daytype.mjs over the baked NUTRI.detect (a test runs
- *   both over the same cases). A manual override is kept in localStorage WITH its date (so it expires
+ * - Day type: detectDayType = lib/nutrition/daytype.mjs itself (HC_DAYTYPE, emitted by lib/nutrition/client.mjs
+ *   and inlined with HC_FMT before util.js; no copy). A manual override is kept in localStorage WITH its date (so it expires
  *   the next day) and the type detected when it was picked: an override LESS demanding than a type
  *   detected later that day (picked gym, then a long ride synced) is dropped with a one-line note; a
  *   more demanding one (planning a ride) stays. Storage is a per-viewer convenience: every access is
@@ -17,11 +17,11 @@
  *   in localStorage (hc.nutri.goal, falling back to page.goal); on the LAN page also on the server
  *   (client/settings.js: the server copy wins on load via HCNutri.applyGoal, the local one is the cache). Resumen de hoy shows it only as a small
  *   chip next to today's kcal; a tap opens the profile sheet (#profile) focused on that setting.
- * - Plan: planFor / solveScale port lib/nutrition/scale.mjs over the baked models (parity test): the
+ * - Plan: planFor / solveScale = lib/nutrition/scale.mjs itself (HC_SCALE) over the baked models: the
  *   meals aim at target − ride fuel for the ride's minutes (a recorded ride's real minutes, else the
- *   picker, kept per date like the override, else the default). fuelPlan ports lib/nutrition/fuel.mjs.
+ *   picker, kept per date like the override, else the default). fuelPlan = lib/nutrition/fuel.mjs (HC_FUEL).
  * - Plan de hoy = the portion guide (guideBudgets / exampleAmount / remaining / dayRemaining / capByDay / mealState / isCovered /
- *   roleOptions port lib/nutrition/guide.mjs, parity tests): ALWAYS breakfast, lunch, dinner + Extras.
+ *   roleOptions = lib/nutrition/guide.mjs itself, HC_GUIDE): ALWAYS breakfast, lunch, dinner + Extras.
  *   Each main meal's budget = the solved plan meals of its slot (a cooking-oil meal split between lunch
  *   and dinner, NUTRI.guide.oil); Extras = the meals target − the three.
  *   A main meal is a plate by parts (protein / carbs / vegetables free / fat), each macro with ONE
@@ -37,7 +37,7 @@
  *   HCNutri.targetFor(date) = the same for an earlier logged day: THAT day's detected type (timeline,
  *   else DETAIL.sessions, + programme; its recorded ride minutes) x the current goal, null when the
  *   type cannot be determined (no session, no sleep reading, nothing programmed).
- * - Model lines are read through LINE + the accessors (mirrors of lib/nutrition/amounts.mjs), never a bare index.
+ * - Model lines are read through LINE + the accessors (lib/nutrition/amounts.mjs, in HC_SCALE), never a bare index.
  * - Logged intake: the kcal ring + macro rows fill from today's page food log (window.foodTotals, client/food-*.js,
  *   LAN page only) when it has entries, else from the Apple Health day (INTAKE); HCNutri.refresh() is
  *   the food log's hook after every add / delete, and re-renders the guide too.
@@ -52,7 +52,7 @@
   var KEY_OLD_PICKS = 'hc.nutri.picks';
   // a goal picked here and not yet confirmed by the settings server (client/settings.js retries it)
   var KEY_GOAL_PENDING = 'hc.nutri.goalPending';
-  var RANK = { rest: 0, gym: 1, bike: 2, bikeLong: 3 };
+  var RANK = HC_DAYTYPE.RANK; // how demanding a day type is (the override rule below)
   // icons (inline SVG line icons, no emoji): the supplement pill of Plan de hoy
   var PILL_SVG = '<svg class="supp-ico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-45 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><path d="M12 8.5v7"/></g></svg>';
   var state = { goal: N.goal, override: null, auto: null, ride: null, raised: null, guide: {} };
@@ -62,7 +62,7 @@
     return HC.int(n);
   }
   function dur(min) { return HC.duration(min); }
-  function isBike(d) { return d === 'bike' || d === 'bikeLong'; }
+  var isBike = HC_FUEL.isBikeDay;
 
   /* ---------- storage (per-viewer convenience, never required) ---------- */
   function store() {
@@ -81,65 +81,11 @@
     } catch (e) { return null; }
   }
 
-  /* ---------- day type detection (port of lib/nutrition/daytype.mjs) ---------- */
-  function rideType(min) {
-    if (min >= N.detect.bikeLongMin) return 'bikeLong';
-    if (min >= N.detect.bikeMin) return 'bike';
-    if (min >= N.detect.rideMin) return 'gym';
-    return null;
-  }
-  function itemType(it) {
-    if (!it || typeof it.dur !== 'number' || !(it.dur > 0)) return null;
-    if (it.modality === 'bike') return rideType(it.dur);
-    if (it.modality === 'other') return it.dur >= N.detect.otherMin ? 'gym' : null;
-    return it.dur >= N.detect.gymMin ? 'gym' : null;
-  }
-  function ofWorkouts(items) {
-    var best = null;
-    (items || []).forEach(function (it) {
-      var type = itemType(it);
-      if (!type) return;
-      var rideMin = isBike(type) ? Math.round(it.dur) : null;
-      if (!best || RANK[type] > RANK[best.type]) best = { type: type, rideMin: rideMin };
-    });
-    return best;
-  }
-  function ofProgram(s) {
-    if (!s || typeof s !== 'object') return null;
-    if (s.kind !== 'bike') return 'gym';
-    return typeof s.durationMin === 'number' && s.durationMin > 0 ? rideType(s.durationMin) : 'bike';
-  }
-  function detectDayType(input) {
-    var done = ofWorkouts(input.items), plan = ofProgram(input.programmed);
-    if (done && !(plan && RANK[plan] > RANK[done.type])) return { type: done.type, why: done.rideMin != null ? 'ride' : 'workout', rideMin: done.rideMin };
-    if (plan) return { type: plan, why: 'programmed', rideMin: null };
-    return { type: 'rest', why: 'none', rideMin: null };
-  }
-  // a date's detection input (port of lib/nutrition/daytype.mjs dayInputFor): the timeline (SCORES,
-  // the last 3 data days) wins its dates; any other date takes its workouts from DETAIL.sessions (one
-  // per date + modality, minutes) + its programmed session (TRAINING); `known` = a timeline row, a
-  // session, a sleep reading (the Watch was worn) or a programmed session, so its day type rests on
-  // data — a date with none of them cannot be told from a day without the Watch
-  function hasValue(m, date) {
-    if (!m || !HC.isoDate(m.start) || !Array.isArray(m.v)) return false;
-    var i = Math.round((HC.parseIso(date) - HC.parseIso(m.start)) / HC.MS_PER_DAY);
-    var v = i >= 0 && i < m.v.length ? m.v[i] : null;
-    return typeof v === 'number' && isFinite(v);
-  }
-  function dayInputFor(date, data) {
-    var o = data || {};
-    var programmed = (o.training && o.training[date]) || null;
-    var row = null;
-    (Array.isArray(o.timeline) ? o.timeline : []).forEach(function (d) { if (!row && d && d.date === date) row = d; });
-    if (row) {
-      var rowItems = Array.isArray(row.items) ? row.items : [];
-      return { items: rowItems, programmed: programmed, known: true, inferred: rowItems.length === 0 && !programmed };
-    }
-    var items = (Array.isArray(o.sessions) ? o.sessions : []).filter(function (x) { return x && x.d === date; })
-      .map(function (x) { return { modality: x.m, dur: x.min }; });
-    var known = items.length > 0 || hasValue(o.sleep, date) || !!programmed;
-    return { items: items, programmed: programmed, known: known, inferred: known && items.length === 0 && !programmed };
-  }
+  /* ---------- day type detection: lib/nutrition/daytype.mjs's own functions (lib/nutrition/client.mjs -> HC_DAYTYPE) ---------- */
+  // dayInputFor: a date's detection input — the timeline (SCORES, the last 3 data days) wins its dates; any
+  // other date takes its workouts from DETAIL.sessions + its programmed session (TRAINING); `known` = the
+  // day type rests on data (a timeline row, a session, a sleep reading or a programmed session)
+  var detectDayType = HC_DAYTYPE.detectDayType, dayInputFor = HC_DAYTYPE.dayInputFor;
   function dayInput(date) {
     var S = typeof SCORES === 'undefined' ? null : SCORES;
     var D = typeof DETAIL === 'undefined' || !DETAIL ? null : DETAIL;
@@ -151,356 +97,23 @@
     });
   }
 
-  /* ---------- fuelling (port of lib/nutrition/fuel.mjs) ---------- */
-  var OWN_START_MIN = 30, OWN_MIN_EVERY = 10;
-  function fuelStep(v, s) { return Math.round(v / s) * s; }
-  function pickFuelItem(items, kind) {
-    var i = -1, j;
-    for (j = 0; j < items.length && i < 0; j++) if (items[j].k === kind) i = j;
-    for (j = 0; j < items.length && i < 0; j++) if (items[j].k == null) i = j;
-    return i < 0 ? 0 : i;
-  }
-  function ownDuring(items, min, gPerH, topG, planG, roundG) {
-    var eat = min - OWN_START_MIN;
-    if (eat <= 0) return null;
-    var targetG = fuelStep(((gPerH[0] + gPerH[1]) / 2) * eat / 60, roundG);
-    var slow = pickFuelItem(items, 'slow'), fast = pickFuelItem(items, 'fast');
-    var maxN = Math.max(1, Math.floor(eat / OWN_MIN_EVERY));
-    var best = null;
-    for (var n = 1; n <= maxN; n++) {
-      var seq = [], total = 0;
-      for (var j = 0; j < n; j++) {
-        var i = 2 * j * eat < (min - 2 * OWN_START_MIN) * n ? slow : fast;
-        seq.push(i);
-        total += items[i].c;
-      }
-      total = Math.round(total * 10) / 10;
-      if (total > topG) continue;
-      if (!best || Math.abs(total - targetG) < Math.abs(best.total - targetG)) best = { n: n, seq: seq, total: total };
-    }
-    if (!best) return null;
-    var every = eat / best.n, slots = [];
-    best.seq.forEach(function (i, j) {
-      var last = slots[slots.length - 1];
-      if (last && last.i === i) last.count++;
-      else slots.push({ i: i, count: 1, fromMin: Math.round(OWN_START_MIN + j * every), everyMin: Math.round(every) });
-    });
-    return { startMin: OWN_START_MIN, targetG: targetG, slots: slots, totalG: best.total, gapG: Math.max(0, fuelStep(planG - best.total, roundG)) };
-  }
-  function ownBefore(items, r) {
-    var i = pickFuelItem(items, 'fast'), c = items[i].c, mid = (r[0] + r[1]) / 2, best = null;
-    for (var k = 1; k * c <= r[1]; k++) {
-      var g = Math.round(k * c * 10) / 10;
-      if (g < r[0]) continue;
-      if (!best || Math.abs(g - mid) < Math.abs(best.g - mid)) best = { i: i, count: k, g: g };
-    }
-    return best;
-  }
-  function fuelPlan(o) {
-    if (!isBike(o.dayType)) return null;
-    var F = N.fuel.rates, U = F.units;
-    var min = isFinite(o.minutes) && o.minutes > 0 ? Math.round(o.minutes) : N.fuel.defaults[o.dayType];
-    var h = min / 60;
-    var kg = isFinite(o.weightKg) && o.weightKg > 0 ? o.weightKg : null;
-    var step = function (v, s) { return Math.round(v / s) * s; };
-    var range = function (r, mul, s) { return [step(r[0] * mul, s), step(r[1] * mul, s)]; };
-    var gPerH = F.during.gPerH[o.dayType];
-    var planG = step(((gPerH[0] + gPerH[1]) / 2) * h, F.roundG);
-    var bottleMid = (U.bottleG[0] + U.bottleG[1]) / 2;
-    var bottles = Math.max(0, Math.min(Math.ceil(h), Math.floor(planG / bottleMid)));
-    var out = {
-      minutes: min,
-      before: { hoursBefore: F.before.hoursBefore, gPerKg: F.before.gPerKg, carbsG: kg ? range(F.before.gPerKg, kg, F.roundG) : null, lastHourG: F.before.lastHourG },
-      during: {
-        gPerH: gPerH,
-        carbsG: range(gPerH, h, F.roundG),
-        planG: planG,
-        fluidsMl: range(F.during.fluidMlPerH, h, F.roundMl),
-        sodiumMg: range(F.during.sodiumMgPerH, h, F.roundMg),
-        equiv: {
-          gels: Math.ceil(planG / U.gelG),
-          bananas: Math.ceil(planG / U.bananaG),
-          bars: Math.ceil(planG / U.barG),
-          bottles: [Math.ceil(planG / U.bottleG[1]), Math.ceil(planG / U.bottleG[0])],
-        },
-        mix: { bottles: bottles, gels: Math.ceil(Math.max(0, planG - bottles * bottleMid) / U.gelG) },
-      },
-      after: { withinH: F.after.withinH, gPerKg: F.after.gPerKg, carbsG: kg ? range(F.after.gPerKg, kg, F.roundG) : null, proteinG: F.after.proteinG },
-      kcal: planG * F.kcalPerG,
-    };
-    var items = o.items;
-    if (items && items.length) {
-      out.during.own = ownDuring(items, min, gPerH, out.during.carbsG[1], planG, F.roundG);
-      out.before.own = ownBefore(items, F.before.lastHourG);
-    }
-    return out;
-  }
+  /* ---------- fuelling: lib/nutrition/fuel.mjs's own fuelPlan (lib/nutrition/client.mjs -> HC_FUEL) ---------- */
+  var fuelPlan = HC_FUEL.fuelPlan;
 
-  /* ---------- portion scaling (port of lib/nutrition/amounts.mjs, units.mjs fmtPieces, scale.mjs
-   * solveScale / planFor) ---------- */
-  function round2(v) { return Math.round(v * 100) / 100; }
-  function stepAmount(amt, unit, st) {
-    var ud = N.scale.ud; // lib/nutrition/units.mjs UD_AMT (one unit)
-    if (unit === 'ud') return Math.max(ud, Math.round(amt / ud) * ud);
-    if (st > 0) return Math.max(st, Math.round(amt / st) * st);
-    return Math.max(N.scale.step, Math.round(amt / N.scale.step) * N.scale.step);
-  }
-  // the model line [unit, amt, k, p, c, g, step?, key?, cap?]: mirrors lib/nutrition/amounts.mjs LINE and
-  // its accessors (a test pins LINE equal); never read by a bare index
-  var LINE = { UNIT: 0, AMT: 1, K: 2, P: 3, C: 4, G: 5, STEP: 6, KEY: 7, CAP: 8 };
-  function lineUnit(l) { return l[LINE.UNIT]; }
-  function lineAmt(l) { return l[LINE.AMT]; }
-  function lineStep(l) { return l[LINE.STEP]; }
-  function lineKey(l) { return l[LINE.KEY]; }
-  function lineCap(l) { return l[LINE.CAP] > 0 ? l[LINE.CAP] : null; }
-  function capFactor(l) { return lineCap(l) ? lineCap(l) / lineAmt(l) : Infinity; }
-  var GRID_EPS = 1e-9; // lib/nutrition/amounts.mjs GRID_EPS (a test pins it equal)
-  function floorToStep(cap, st) { return Math.max(st, Math.floor(cap / st + GRID_EPS) * st); }
-  function capAmount(amt, l) {
-    var cap = lineCap(l);
-    if (!cap || amt <= cap) return amt;
-    var st = lineUnit(l) === 'ud' ? N.scale.ud : lineStep(l) > 0 ? lineStep(l) : N.scale.step;
-    return floorToStep(cap, st);
-  }
-  function pieceOf(pieces, l) { return lineKey(l) && pieces ? pieces[lineKey(l)] || null : null; }
-  function isDiscrete(l) { return lineUnit(l) === 'ud' || lineStep(l) > 0; }
-  function fmtFactor(f, dec) { return f.toFixed(2).replace('.', dec); }
-  function fmtHalf(h) {
-    var whole = Math.floor(h), half = h - whole >= 0.5;
-    return (whole ? String(whole) : '') + (half ? '½' : '') || '0';
-  }
-  function fmtPieces(amt, unit, pc) {
-    var n = amt / pc.a;
-    var grid = N.scale.grid; // lib/nutrition/units.mjs PIECE_GRID (half pieces)
-    var h = Math.max(grid, Math.round(n / grid) * grid);
-    var exact = Math.abs(n - h) < 1e-9;
-    var name = h > 1 ? pc.m : pc.o;
-    var ref;
-    if (unit === 'ud') ref = pc.r ? '~' + Math.round(n * pc.r) + ' g' : null;
-    else ref = (exact ? '~' : '') + round2(amt) + ' ' + unit;
-    return (exact ? '' : '~') + fmtHalf(h) + ' ' + name + (ref ? ' (' + ref + ')' : '');
-  }
-  function fmtAmt(amt, unit, units, pc) {
-    if (pc) return fmtPieces(amt, unit, pc);
-    return unit === 'ud' ? round2(amt / N.scale.ud) + ' ' + units.ud : round2(amt) + ' ' + (units[unit] || unit);
-  }
-  // water-filling (port of lib/nutrition/fill.mjs waterFill, the carb solve): one common
-  // factor bounded by clamp ([min, max]; none = floored at 0), an item past its cap held there and the
-  // factor re-solved over the rest until stable; start = the factor when nothing is free to fill
-  function bound(f, clamp) {
-    if (!clamp) return [Math.max(0, f), null];
-    if (f < clamp[0]) return [clamp[0], 'min'];
-    if (f > clamp[1]) return [clamp[1], 'max'];
-    return [f, null];
-  }
-  function waterFill(items, need, opts) {
-    var clamp = opts && opts.clamp ? opts.clamp : null;
-    var held = items.map(function () { return false; });
-    var heldK = 0, f = opts && opts.start != null ? opts.start : 0, hit = null;
-    for (;;) {
-      var freeK = 0;
-      items.forEach(function (it, i) { if (!held[i]) freeK += it.k; });
-      if (!(freeK > 0)) break;
-      var b = bound((need - heldK) / freeK, clamp);
-      f = b[0];
-      hit = b[1];
-      var more = false;
-      items.forEach(function (it, i) {
-        if (!held[i] && it.cap < f) { held[i] = true; heldK += it.k * it.cap; more = true; }
-      });
-      if (!more) break;
-    }
-    if (items.length && held.every(Boolean)) {
-      f = Math.max.apply(null, items.map(function (it) { return it.cap; }));
-      hit = null;
-    }
-    return { f: round2(f), clamp: hit, held: held };
-  }
-  // the carb solve's bounds (lib/nutrition/scale.mjs SCALE_FILL)
-  function scaleFill() { return { clamp: [N.scale.min, N.scale.max], start: 1 }; }
-  function solveScale(model, target, fmt) {
-    var units = fmt.units, dec = fmt.dec, pieces = fmt.pieces || null;
-    var fixedK = 0, udK = 0, contK = 0;
-    var all = [];
-    model.fixed.forEach(function (f) { fixedK += f[0]; });
-    model.flex.forEach(function (x) {
-      if (x.mb) { contK += x.mb[0]; all.push({ k: x.mb[0], cap: Infinity, ud: false }); return; }
-      x.ln.forEach(function (l) {
-        var ud = isDiscrete(l);
-        if (ud) udK += l[LINE.K]; else contK += l[LINE.K];
-        all.push({ k: l[LINE.K], cap: capFactor(l), ud: ud });
-      });
-    });
-    var w0 = waterFill(all, target - fixedK, scaleFill());
-    var f0 = w0.f, clamp = w0.clamp, held = w0.held;
-    var amountAt = function (l, s) { return s === 1 ? lineAmt(l) : capAmount(stepAmount(lineAmt(l) * s, lineUnit(l), lineStep(l)), l); };
-    var factor = f0;
-    if (udK > 0 && contK > 0) {
-      var udNowK = 0;
-      model.flex.forEach(function (x) {
-        if (x.ln) x.ln.forEach(function (l) { if (isDiscrete(l)) udNowK += l[LINE.K] * (amountAt(l, Math.min(f0, capFactor(l))) / lineAmt(l)); });
-      });
-      var w1 = waterFill(all.filter(function (it) { return !it.ud; }), target - fixedK - udNowK, scaleFill());
-      factor = w1.f;
-      clamp = w1.clamp;
-      var ci = 0;
-      held = all.map(function (it, i) { return it.ud ? w0.held[i] : w1.held[ci++]; });
-    }
-    var meals = model.fixed.map(function (f) { return f.slice(); });
-    var q = [], qa = [], dir = [];
-    var capped = false, allCapped = all.length > 0, ii = 0;
-    model.flex.forEach(function (x) {
-      var m = meals[x.m], i;
-      if (x.mb) {
-        ii++;
-        allCapped = false; // a manual block has no cap: it could still grow
-        var bm = x.mb.map(function (v) { return v * factor; });
-        for (i = 0; i < 4; i++) m[i] += bm[i];
-        var t = factor === 1 ? x.q : (x.q + ' ×' + fmtFactor(factor, dec)).trim();
-        q.push(t);
-        qa.push([t]);
-        dir.push(Math.sign(factor - 1));
-        return;
-      }
-      var baseK = 0, nowK = 0;
-      var amts = x.ln.map(function (l) {
-        var cf = capFactor(l);
-        var f = isDiscrete(l) ? f0 : factor;
-        if (held[ii++] || f >= cf) capped = true;
-        else allCapped = false;
-        var amt = amountAt(l, Math.min(f, cf));
-        var r = amt / lineAmt(l);
-        for (var j = 0; j < 4; j++) m[j] += l[LINE.K + j] * r;
-        baseK += l[LINE.K];
-        nowK += l[LINE.K] * r;
-        return fmtAmt(amt, lineUnit(l), units, pieceOf(pieces, l));
-      });
-      q.push(amts.join(' + '));
-      qa.push(amts);
-      dir.push(Math.abs(nowK - baseK) < 0.5 ? 0 : Math.sign(nowK - baseK));
-    });
-    var totals = { k: 0, p: 0, c: 0, g: 0 };
-    meals.forEach(function (m) { totals.k += m[0]; totals.p += m[1]; totals.c += m[2]; totals.g += m[3]; });
-    return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, capped: capped, allCapped: allCapped, meals: meals, q: q, qa: qa, dir: dir, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
-  }
-  function planFor(bake, goal, d, minutes) {
-    var x = bake.plans[goal][d];
-    var fuel = isBike(d) ? fuelPlan({ dayType: d, minutes: minutes }) : null;
-    var fuelK = fuel ? fuel.kcal : 0;
-    var fuelC = fuel ? fuel.during.planG : 0;
-    var s = solveScale(bake.base[x.base], x.t.kcal - fuelK, bake.fmt);
-    var tot = { k: Math.round(s.totals.k), p: Math.round(s.totals.p), c: Math.round(s.totals.c), g: Math.round(s.totals.g) };
-    return {
-      base: x.base,
-      t: x.t,
-      minutes: fuel ? fuel.minutes : null,
-      fuelK: fuelK,
-      fuelC: fuelC,
-      mt: { k: x.t.kcal - fuelK, p: x.t.p, c: x.t.c - fuelC, f: x.t.f },
-      meals: s.meals.map(function (m) { return m.map(Math.round); }),
-      tot: tot,
-      factor: s.factor,
-      clamp: s.clamp,
-      udOnly: s.udOnly,
-      capped: s.capped,
-      allCapped: s.allCapped,
-      rem: x.t.kcal - fuelK - tot.k,
-    };
-  }
+  /* ---------- portion scaling: lib/nutrition/scale.mjs solveScale / planFor with amounts.mjs, units.mjs
+   * and fill.mjs (lib/nutrition/client.mjs -> HC_SCALE) ---------- */
+  var SC = HC_SCALE;
+  // the model line [unit, amt, k, p, c, g, step?, key?, cap?] (lib/nutrition/amounts.mjs LINE): never read by a bare index
+  var LINE = SC.LINE, GRID_EPS = SC.GRID_EPS;
+  var floorToStep = SC.floorToStep, fmtPieces = SC.fmtPieces, fmtAmt = SC.fmtAmt, waterFill = SC.waterFill,
+    solveScale = SC.solveScale, planFor = SC.planFor;
 
-  /* ---------- the portion guide (port of lib/nutrition/guide.mjs) ---------- */
-  var G = N.guide || null;
-  var MACS = ['k', 'p', 'c', 'f'];
-  var ROLE_KEYS = ['p', 'c', 'f'];
-  function zero4() { return { k: 0, p: 0, c: 0, f: 0 }; }
-  function finite(v) { return typeof v === 'number' && isFinite(v); }
-  var OIL_SLOTS = ['lunch', 'dinner']; // lib/nutrition/guide.mjs OIL_SLOTS
-  function guideBudgets(x, slots, mains, oil) {
-    var meals = {};
-    mains.forEach(function (s) { meals[s] = zero4(); });
-    var oilTo = OIL_SLOTS.filter(function (s) { return meals[s] && slots.indexOf(s) >= 0; });
-    x.meals.forEach(function (row, i) {
-      if (oil && oil.indexOf(i) >= 0 && oilTo.length) { // a cooking-oil meal: half to lunch, the rest to dinner
-        MACS.forEach(function (m, j) {
-          var first = oilTo.length > 1 ? Math.round(row[j] / 2) : row[j];
-          meals[oilTo[0]][m] += first;
-          if (oilTo.length > 1) meals[oilTo[1]][m] += row[j] - first;
-        });
-        return;
-      }
-      var b = meals[slots[i]];
-      if (!b) return;
-      MACS.forEach(function (m, j) { b[m] += row[j]; });
-    });
-    var total = { k: Math.round(x.mt.k), p: Math.round(x.mt.p), c: Math.round(x.mt.c), f: Math.round(x.mt.f) };
-    var extras = zero4(), clamped = false;
-    MACS.forEach(function (m) {
-      var left = total[m];
-      mains.forEach(function (s) { left -= meals[s][m]; });
-      if (left < 0) clamped = true;
-      extras[m] = Math.max(0, left);
-    });
-    return { meals: meals, extras: extras, total: total, clamped: clamped };
-  }
-  function exampleAmount(food, role, grams, grid) {
-    var r = G && G.roles[role];
-    if (!food || !r || !food.m || !finite(grams) || !(grams > 0)) return null;
-    var per = food.m[r.at];
-    if (!finite(per) || !(per > 0)) return null;
-    var raw = (grams * 100) / per;
-    var st = food.u === 'ud' ? grid.ud : food.pc && food.pc.a > 0 ? food.pc.a * grid.grid : grid.step;
-    var amt = Math.max(st, Math.round(raw / st) * st);
-    var cap = finite(food.x) && food.x > 0 ? food.x : null;
-    if (cap && amt > cap) return { amt: floorToStep(cap, st), capped: true };
-    return { amt: amt, capped: false };
-  }
-  function remaining(budget, logged) {
-    var out = {};
-    MACS.forEach(function (m) {
-      var l = logged && finite(logged[m]) ? logged[m] : 0;
-      out[m] = Math.max(0, Math.round(budget[m] - l));
-    });
-    return out;
-  }
-  function mealState(budget, logged) {
-    var k = logged && finite(logged.k) ? logged.k : 0;
-    if (!(k > 0)) return null;
-    return k >= G.done * budget.k ? 'done' : 'partial';
-  }
-  function isCovered(left, budget) {
-    return !(budget > 0) || left <= G.covered * budget;
-  }
-  function dayRemaining(total, groups, mains) { // lib/nutrition/guide.mjs dayRemaining ("Left today")
-    if (!groups) return null;
-    var all = zero4();
-    mains.forEach(function (sl) { addMac(all, groups.meals && groups.meals[sl]); });
-    addMac(all, groups.addon);
-    return remaining(total, all);
-  }
-  function capByDay(mealLeft, dayLeft, dayTotal) { // lib/nutrition/guide.mjs capByDay
-    if (!finite(dayLeft)) return { left: mealLeft, byDay: false };
-    return { left: Math.min(mealLeft, dayLeft), byDay: isCovered(dayLeft, dayTotal) };
-  }
-  function fold(s) { // lib/nutrition/names.mjs foldName
-    return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  }
-  function cmp(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
-  function roleOptions(basics, products, role) {
-    var r = G.roles[role];
-    var b = (basics || []).filter(function (x) {
-      return x && r.cats.indexOf(x.c) >= 0 && Array.isArray(x.m) && finite(x.m[r.at]) && x.m[r.at] > 0;
-    }).map(function (x) { return { id: 'b:' + x.k, n: x.n, food: x }; });
-    var p = [];
-    (products || []).forEach(function (x) {
-      var v = x && x.per100;
-      if (!v || (x.unit !== 'g' && x.unit !== 'ml') || !finite(v.kcal)) return;
-      var m = [v.kcal, v.protein, v.carbs, v.fat].map(function (n) { return finite(n) ? n : null; });
-      if (!(m[r.at] > 0)) return;
-      p.push({ id: 'p:' + x.id, n: String(x.name || ''), food: { u: x.unit, m: m } });
-    });
-    var sort = function (list) { return list.sort(function (x, y) { return cmp(fold(x.n), fold(y.n)) || cmp(x.id, y.id); }); };
-    return { basics: sort(b), products: sort(p) };
-  }
+  /* ---------- the portion guide: lib/nutrition/guide.mjs's own functions (lib/nutrition/client.mjs -> HC_GUIDE) ---------- */
+  var G = N.guide || null; // the baked guide data (defaults, oil meals, Extras examples)
+  var GU = HC_GUIDE;
+  var MACS = GU.MACS, ROLE_KEYS = GU.ROLE_KEYS, zero4 = GU.zero, finite = GU.fin;
+  var guideBudgets = GU.guideBudgets, exampleAmount = GU.exampleAmount, remaining = GU.remaining, mealState = GU.mealState,
+    isCovered = GU.isCovered, dayRemaining = GU.dayRemaining, capByDay = GU.capByDay, roleOptions = GU.roleOptions;
 
   /* ---------- state ---------- */
   function dayType() { return state.override || (state.auto ? state.auto.type : 'rest'); }
