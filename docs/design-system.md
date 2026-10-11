@@ -5,7 +5,8 @@ card or number never picks its own value. Colours, fonts and the page layout are
 [`plan-page.md`](plan-page.md) → "Look & typography"; this doc covers the ROLE layer on top.
 
 > Area design doc. Read it before changing `web/src/styles/` and keep it in sync with the code in the
-> same commit. The guard test `web/test/design-system.test.mjs` enforces the rules below.
+> same commit. The guard test `web/test/design-system.test.mjs` enforces the rules below. Every CSS
+> change also updates the declaration fixture: `npm run test:css:update` ([`plan-page.md`](plan-page.md)).
 
 ## Why
 
