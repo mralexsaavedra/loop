@@ -252,12 +252,29 @@ test('HC.registerView: creates window.HCViews on first use; HC.view reads own ke
   assert.equal(ctx.HC.view('toString'), null, 'no inherited keys');
 });
 
-test('HC.registerView: a second registration of the same name throws and keeps the first', () => {
+test('HC.registerView: registering the same name again replaces the view (never throws on the live page)', () => {
   const ctx = loadWithWindow();
-  const first = { render: () => ({}) };
-  ctx.HC.registerView('journal', first);
-  assert.throws(() => ctx.HC.registerView('journal', { render: () => ({}) }), /duplicate view "journal"/);
-  assert.equal(ctx.HC.view('journal'), first);
+  ctx.HC.registerView('journal', { render: () => ({}) });
+  const second = { render: () => ({}) };
+  assert.doesNotThrow(() => ctx.HC.registerView('journal', second));
+  assert.equal(ctx.HC.view('journal'), second);
+});
+
+test('each registered view key belongs to ONE client script, always a string literal (static scan)', () => {
+  const dir = path.dirname(fileURLToPath(import.meta.url));
+  const owner = new Map();
+  for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.js') && x !== 'util.js')) {
+    // comments may name the API (`HC.registerView(<key>, …)`); code may not hide a key in a variable
+    const src = fs.readFileSync(path.join(dir, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    for (const m of src.matchAll(/\bregisterView\s*\(\s*([^,)]*)/g)) {
+      const lit = /^(['"])([\w-]+)\1$/.exec(m[1].trim());
+      assert.ok(lit, `${f}: HC.registerView(${m[1].trim()}, …) must use a string literal key`);
+      const prev = owner.get(lit[2]);
+      assert.ok(!prev || prev === f, `view "${lit[2]}" registered by both ${prev} and ${f}`);
+      owner.set(lit[2], f);
+    }
+  }
+  assert.deepEqual([...owner.keys()].sort(), ['dash-edit', 'food-add', 'hoy-session', 'journal', 'journal-insights', 'profile', 'tonight']);
 });
 
 test('only util.js writes window.HCViews: every other client script registers through HC.registerView', () => {

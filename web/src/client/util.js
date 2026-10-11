@@ -292,12 +292,11 @@ var HC = (function () {
         : '<span class="sh-pad" aria-hidden="true"></span>') + '</div>';
   }
   // the detail sheet's registered views (window.HCViews: {<key>: {title(), render()}}, opened by
-  // client/detail.js, deep link #<key>). The ONE writer: each key belongs to one script and registers
-  // once per page, so a second registration is a bug (two sheets on one deep link) and throws, keeping
-  // the first, instead of silently replacing it. The registry appears with the first view.
+  // client/detail.js, deep link #<key>). The ONE writer; the registry appears with the first view. A
+  // script registering its key again (a re-render, a reload of its API) replaces its view and never
+  // throws on the live page; two scripts claiming one key is caught statically (util.test.mjs scan).
   function registerView(name, view) {
     var all = window.HCViews = window.HCViews || {};
-    if (Object.prototype.hasOwnProperty.call(all, name)) throw new Error('HC.registerView: duplicate view "' + name + '"');
     all[name] = view;
   }
   // a registered view by key (own keys only: never "constructor" / "toString"), or null
