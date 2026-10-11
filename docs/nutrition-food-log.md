@@ -26,8 +26,8 @@ unknown.
   `batch` × 100 ÷ total COOKED weight (per 100 g cooked); a missing product = incomplete, not
   loggable. Entries round once (kcal whole, macros 1 decimal) and day totals sum the rounded
   snapshots; a macro unknown on any entry is flagged in `missing` (the sum is then a minimum).
-  Atwater: 4p + 4c + 9f within ±25 % of kcal or 10 kcal. The page runs the lib's own functions: its
-  `clientSource()` emits them as `HC_FOODLOG` (inlined with HC_FMT before util.js, + `num.mjs` `fin` /
+  Atwater: 4p + 4c + 9f within ±25 % of kcal or 10 kcal. The page runs the lib's own functions:
+  `lib/nutrition/client.mjs` emits them (the module's `CLIENT` descriptor) as `HC_FOODLOG` (inlined with HC_FMT before util.js, + `num.mjs` `fin` /
   `roundEps`), which `web/src/client/food-core.js` reads (`window.HCFood`, no copy). The one port left is
   `services/health-ingest/src/food-calc.js` (the service is built from its own directory);
   `lib/nutrition/foodlog.test.mjs`, `web/src/client/food.test.mjs` and `web/test/client-globals-build.test.mjs`
@@ -270,7 +270,7 @@ filled from them, never typed.
   on 404 / 503. Profile Objetivo: + "Peso objetivo" (`HCSettings.parseTarget` = `HCFood.parseNum(v,
   ['kg'])` + the range, inline error, saved on `change`), one status line, the Progreso line.
 - **Progreso** (baked data, every build) — `lib/nutrition/progress.mjs` = the ONE implementation (rules
-  and bands in its header): its `clientSource()` emits it as `HC_PROG` (inlined before util.js), which
+  and bands in its header): `lib/nutrition/client.mjs` emits it (its `CLIENT` descriptor) as `HC_PROG` (inlined before util.js), which
   `client/progress.js` runs (no copy; `PROGRESS_CASES` test HC_PROG against the module, plus
   hand-computed tests).
   Rate = least-squares slope of `DETAIL.metrics.weight.roll` over `windowDays`; too few averages →
@@ -287,8 +287,8 @@ filled from them, never typed.
   card opens the weight sheet, which draws the target dashed (`detail.js` `targetOf`).
 - **Constancia** (LAN page only) — `GET /food/log/summary?from&to` (≤ `summaryDaysMax` days, ≤ 20,000
   rows, 30 reads / min per client) → per-day `daySummaries` (shared formula, food-calc.js copy pinned
-  by `SUMMARY_CASES`). `lib/nutrition/adherence.mjs` = the ONE implementation: its `clientSource()` emits
-  `isComplete` / `dayState` / `adherence` as `HC_ADH` (inlined before util.js), which `client/adherence.js`
+  by `SUMMARY_CASES`). `lib/nutrition/adherence.mjs` = the ONE implementation: `lib/nutrition/client.mjs` emits
+  (its `CLIENT` descriptor) `isComplete` / `dayState` / `adherence` as `HC_ADH` (inlined before util.js), which `client/adherence.js`
   runs (no copy; `ADHERENCE_CASES` test HC_ADH against the module). Complete = ≥ 1 entry in breakfast, lunch and dinner; means and protein days
   only over complete days with a DETECTED day type (`HCNutri.targetFor` = current goal × that day's
   type; past days via `daytype.mjs` `dayInputFor` over `DETAIL.sessions` + `TRAINING`). Counted apart,
@@ -306,7 +306,7 @@ filled from them, never typed.
 ## Nutrition score (every page)
 
 A day's 0–100 adherence to the viewer's own targets, from the food log. `lib/nutrition/score.mjs` =
-the ONE implementation (`NSCORE`, baked as `NUTRI.score`): its `clientSource()` emits the scoring functions as
+the ONE implementation (`NSCORE`, baked as `NUTRI.score`): `lib/nutrition/client.mjs` emits the scoring functions (its `CLIENT` descriptor) as
 `HC_NSCORE` (inlined before util.js), which `client/nutri-score.js` runs (no copy); the client test and
 `web/test/client-globals-build.test.mjs` (the built page) run it over `NSCORE_CASES` (band and zero edges,
 missing and blank macros, today partial, no target / no entries) and over a whole `scoreSeries`.
