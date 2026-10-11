@@ -4,9 +4,10 @@
  * window.HCNutri.targetFor(date) (the CURRENT goal × that day's detected day type; null = unknown type)
  * and NUTRI.adherence + I18N_NUTRI.adherence.
  *
- * isComplete / dayState / adherence port lib/nutrition/adherence.mjs line by line (a test runs both
- * over ADHERENCE_CASES): logged days, COMPLETE days (>= 1 entry in each of breakfast, lunch, dinner —
- * the rule sits behind the section ⓘ), mean kcal vs mean target and protein-target days, computed ONLY over complete
+ * isComplete / dayState / adherence are lib/nutrition/adherence.mjs's own functions, emitted at build time
+ * as HC_ADH (its clientSource, inlined before util.js; a test runs it over ADHERENCE_CASES): logged
+ * days, COMPLETE days (>= 1 entry in each of breakfast, lunch, dinner — the rule sits behind the
+ * section ⓘ), mean kcal vs mean target and protein-target days, computed ONLY over complete
  * days with a target; a complete day without one is counted apart. A 7 / 14 / 28-day switch (real
  * radios, in memory) picks the window; a 28-cell strip (7 per row, each a >= 44px button with its state
  * in words as its label, never colour only) opens Registrar on that day (HCFood.showDay). Missing macros
@@ -23,57 +24,8 @@
   var MARK = { none: '', partial: '·', unknown: '?', assumed: '–', under: '↓', on: '✓', over: '↑' };
   var S = { win: A.windows[0], days: null, from: null, to: null, failed: false, seq: 0, timer: null };
 
-  /* ---------- port of lib/nutrition/adherence.mjs ---------- */
-  function fin(v) {
-    return typeof v === 'number' && isFinite(v);
-  }
-  function isComplete(day) {
-    var g = day && day.groups;
-    if (!g) return false;
-    return A.required.every(function (k) { return fin(g[k]) && g[k] >= 1; });
-  }
-  function dayState(day, target) {
-    if (!day || !(day.n > 0)) return 'none';
-    if (!isComplete(day)) return 'partial';
-    if (!target || !fin(target.k) || !(target.k > 0) || !fin(day.k)) return 'unknown';
-    // a rest day assumed from sleep alone (no session, nothing programmed): never compared
-    if (target.inferred) return 'assumed';
-    var r = day.k / target.k;
-    if (r < 1 - A.onBand) return 'under';
-    if (r > 1 + A.onBand) return 'over';
-    return 'on';
-  }
-  function adherence(dates, days, targets) {
-    var byDate = {};
-    (days || []).forEach(function (d) { if (d && typeof d.date === 'string') byDate[d.date] = d; });
-    var TT = targets || {};
-    var out = { days: 0, logged: 0, complete: 0, compared: 0, unknown: 0, assumed: 0, meanK: null, meanTarget: null, proteinHit: 0, proteinMin: 0, proteinUnknown: 0, states: [] };
-    var sumK = 0, sumT = 0;
-    (dates || []).forEach(function (date) {
-      var d = byDate[date] || null, t = TT[date] || null;
-      var st = dayState(d, t);
-      out.days++;
-      out.states.push({ date: date, state: st });
-      if (st === 'none') return;
-      out.logged++;
-      if (st === 'partial') return;
-      out.complete++;
-      if (st === 'unknown') { out.unknown++; return; }
-    if (st === 'assumed') { out.assumed++; return; }
-      out.compared++;
-      sumK += d.k;
-      sumT += t.k;
-      if (!fin(d.p)) { out.proteinUnknown++; return; }
-      var hit = fin(t.p) && t.p > 0 && d.p >= A.proteinShare * t.p;
-      if (hit) out.proteinHit++;
-      if (d.missing && d.missing.p) out.proteinMin++;
-    });
-    if (out.compared) {
-      out.meanK = Math.round(sumK / out.compared);
-      out.meanTarget = Math.round(sumT / out.compared);
-    }
-    return out;
-  }
+  // the lib's own functions (lib/nutrition/adherence.mjs clientSource, inlined before util.js)
+  var fin = HC_ADH.fin, isComplete = HC_ADH.isComplete, dayState = HC_ADH.dayState, adherence = HC_ADH.adherence;
 
   /* ---------- data ---------- */
   function $(id) { return document.getElementById ? document.getElementById(id) : null; }

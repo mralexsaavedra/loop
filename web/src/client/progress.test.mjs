@@ -1,6 +1,6 @@
 /* web/src/client/progress.js — Nutrición "Progreso" (weight vs the goal) + the profile sheet's line.
  * Runs the real classic script in node:vm against web/test/dom-stub.mjs with a fixed clock and SYNTHETIC
- * weight series; the port is pinned against lib/nutrition/progress.mjs. */
+ * weight series; its numbers are lib/nutrition/progress.mjs run as HC_PROG (clientSource). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -50,7 +50,7 @@ function run({ weight = CUT, goal = 'cut', settings = null, locale = 'en', today
 // the card (numbers + labels) and the section's ⓘ block (the why, the rate window, the method)
 const both = (r) => ({ card: text(r.host.innerHTML), info: text(r.info.innerHTML) });
 
-test('parity: the port computes exactly what lib/nutrition/progress.mjs computes', () => {
+test('parity: the page (HC_PROG via window.HCProgress) computes exactly what lib/nutrition/progress.mjs computes', () => {
   const { P } = run();
   for (const c of PROGRESS_CASES) assert.deepEqual(JSON.parse(JSON.stringify(P.weightProgress(c.metric, c.opts))), c.expect, c.name);
   for (const c of PROGRESS_CASES) {

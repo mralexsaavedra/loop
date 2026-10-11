@@ -8,14 +8,18 @@ import { fileURLToPath } from 'node:url';
 import { hcConst } from '../../lib/stale.mjs';
 import { clientSource } from '../../lib/format/numbers.mjs';
 import { clientSource as bandSource } from '../../lib/score/recovery.mjs';
+import { clientSource as adhSource } from '../../lib/nutrition/adherence.mjs';
+import { clientSource as progSource } from '../../lib/nutrition/progress.mjs';
 import { es as esDate, en as enDate } from '../src/i18n/date-templates.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const HC_CONST_BAKE = hcConst();
 /** The one number formatter's classic-script twin (lib/format/numbers.mjs) + the recovery bands'
- * (lib/score/recovery.mjs HC_BAND), inlined together before util.js like layouts/Plan.astro does. */
-export const FMT_SOURCE = clientSource() + '\n' + bandSource();
-/** util.js as the page runs it: after HC_FMT + HC_BAND (so running UTIL_SOURCE alone in a vm gives a working HC). */
+ * (lib/score/recovery.mjs HC_BAND) + the food log adherence (lib/nutrition/adherence.mjs HC_ADH) +
+ * the weight progress (lib/nutrition/progress.mjs HC_PROG),
+ * inlined together before util.js like layouts/Plan.astro does. */
+export const FMT_SOURCE = clientSource() + '\n' + bandSource() + '\n' + adhSource() + '\n' + progSource();
+/** util.js as the page runs it: after HC_FMT + HC_BAND + HC_ADH + HC_PROG (so running UTIL_SOURCE alone in a vm gives a working HC). */
 export const UTIL_SOURCE = FMT_SOURCE + '\n' + fs.readFileSync(path.join(here, '..', 'src', 'client', 'util.js'), 'utf8');
 
 /** Bakes HC_CONST and I18N_DATE (by ctx.LOCALE, like the page; unless the test set its own) and runs

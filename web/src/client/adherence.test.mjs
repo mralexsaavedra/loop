@@ -1,6 +1,6 @@
 /* web/src/client/adherence.js — Nutrición "Constancia" (food log adherence, LAN page). Runs the real
  * classic script in node:vm against web/test/dom-stub.mjs with a fixed clock, a stubbed HCFood.api and
- * a stand-in for HCNutri.targetFor; the port is pinned against lib/nutrition/adherence.mjs. */
+ * a stand-in for HCNutri.targetFor; its counts are lib/nutrition/adherence.mjs run as HC_ADH (clientSource). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -63,7 +63,7 @@ function setup({ days = [], fail = false, locale = 'en', targetFor, food = true 
 }
 const cellTarget = (date) => ({ closest: (sel) => (sel === '[data-adh-day]' ? { getAttribute: () => date } : null) });
 
-test('parity: the port computes exactly what lib/nutrition/adherence.mjs computes', () => {
+test('parity: the page (HC_ADH via window.HCAdherence) computes exactly what lib/nutrition/adherence.mjs computes', () => {
   const { A } = setup({ food: false });
   for (const c of ADHERENCE_CASES) assert.deepEqual(JSON.parse(JSON.stringify(A.adherence(c.dates, c.days, c.targets))), c.expect, c.name);
   const samples = [null, day('2030-01-01', 2000, 100), day('2030-01-01', 2000, 100, { breakfast: 1, lunch: 0, dinner: 1, addon: 0 }), { ...day('2030-01-01', 0, null), n: 0 }];
