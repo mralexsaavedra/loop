@@ -3,7 +3,8 @@
  * per awake hour by a baseline, the stress estimate and the heart-rate load, recharges in calm hours).
  * Nothing is scored here: the level, the start, the low and the hourly levels are baked; this lays
  * out the latest level big, a compact curve from wake to the latest hour, "estimate", and the start.
- * Colour by level: high >= 67, middle 34-66, low < 34 (the recovery dial's thirds).
+ * Colour by level: the recovery dial's thirds (HC_BAND.pctBand, lib/score/recovery.mjs: high >= PCT_GOOD,
+ * low <= PCT_LOW, middle between).
  *
  * Day stepping (window.HCDay): a PAST day shows that day's bake and opens the page on it; a day
  * without a value (no recovery %, no wake time) hides the card, as does a newest valued day more than
@@ -19,7 +20,7 @@
   var DAY = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
 
   function band(lv) {
-    return lv >= 67 ? 'hi' : lv >= 34 ? 'mid' : 'lo';
+    return { good: 'hi', mid: 'mid', low: 'lo' }[HC_BAND.pctBand(lv)] || 'mid';
   }
   function clock(h) {
     return (h < 10 ? '0' : '') + h + ':00';

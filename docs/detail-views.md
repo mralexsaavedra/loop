@@ -74,7 +74,7 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   metric): its series is `SCORES.energy.metric` (kind `bank`, each day's latest level 0–100, dense from
   the first valued day of the last 14, `lib/score/energy.mjs`), read by detail.js `metric('energy-bank')`
   (copy `I18N_DETAIL.metrics['energy-bank']`, hash `#detail/energy-bank[/<date>]`, no host tab).
-  Calendar / chart states `good` / `mid` / `bad` (≥ 67 / 34–66 / < 34); the day panel = "Latest level"
+  Calendar / chart states `good` / `mid` / `bad` (≥ 67 / between / ≤ 33, the recovery `pctBand` via `HC_BAND`); the day panel = "Latest level"
   + band + start / low. Its page (client/deepdive.js `energyPage`) follows the day it was opened on:
   the hero = a 0–100 half gauge filled to the latest level in its third's colour, the band word and
   "Latest hour 23:00"; "Through the day" = an SVG curve over 00:00–24:00 on the three thirds as faint

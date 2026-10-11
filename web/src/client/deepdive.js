@@ -422,9 +422,9 @@
     if (out == null && r0 && r0.state === 'ok' && r0.mode === 'today' && r0.date === iso && isNum(r0.pct)) out = r0.pct;
     return out;
   }
-  // the % band (lib/score/recovery.mjs PCT_GOOD 67 / PCT_LOW 33), the dial's colours
+  // the % band (lib/score/recovery.mjs pctBand, baked as HC_BAND), the dial's colours
   function pctCls(v) {
-    return v >= 67 ? 'good' : v <= 33 ? 'low' : 'mid';
+    return HC_BAND.pctBand(v) || 'mid';
   }
   // card: {title, get(iso) -> number|null, text(v), cls(v) -> colour class, frac(v, max) -> 0..1,
   // tone (the value is printed in its bar's colour)}; the LAST day is the page's day (highlighted)
@@ -730,8 +730,9 @@
     var S = typeof SCORES !== 'undefined' && SCORES ? SCORES.energy : null;
     return S && S.ok && Array.isArray(S.days) ? S : null;
   }
+  // the recovery dial's thirds (HC_BAND, lib/score/recovery.mjs) in the energy palette
   function energyBand(v) {
-    return v >= 67 ? 'hi' : v >= 34 ? 'mid' : 'lo';
+    return { good: 'hi', mid: 'mid', low: 'lo' }[HC_BAND.pctBand(v)] || 'mid';
   }
   function wakeOf(d) {
     var m = /^(\d{2}):(\d{2})$/.exec(String(d.wake || ''));
