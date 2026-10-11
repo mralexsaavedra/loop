@@ -4,8 +4,9 @@
  * lib/nutrition/progress.mjs) + I18N_NUTRI.progress, the goal from window.HCNutri and the target weight
  * from window.HCSettings (LAN page only; without it there is no target and no ETA).
  *
- * rollPoints / weeklyRate / weightProgress / etaMonths port lib/nutrition/progress.mjs line by line (a
- * test runs both over PROGRESS_CASES): the rate is the least-squares slope of the 7-day average over the
+ * rollPoints / weeklyRate / weightProgress / etaMonths are lib/nutrition/progress.mjs's own functions,
+ * emitted at build time as HC_PROG (its clientSource, inlined before util.js; a test runs it over
+ * PROGRESS_CASES): the rate is the least-squares slope of the 7-day average over the
  * last windowDays (kg/week), the status is vs the goal's band (NUTRI.progress.bands, never more than
  * maxPctWeek of bodyweight a week), the ETA (only on pace) = remaining ÷ the observed rate ±etaSpread,
  * as a month range from the viewer's today. Everything time-based is
@@ -19,90 +20,10 @@
   if (!N || !TN || !N.progress || !TN.progress) return;
   var P = N.progress, T = TN.progress;
   var esc = HC.esc, format = HC.format;
-  var DIR = { cut: -1, bulk: 1, maintain: 0 };
-  var DAYS_PER_WEEK = P.daysPerWeek; // lib/nutrition/progress.mjs DAYS_PER_WEEK (baked with NUTRI.progress)
-  var MS_PER_DAY = 86400000;
-  var ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
   var TONE = { onPace: 'good', steady: 'good', reached: 'good', slow: 'mid', drift: 'mid', fast: 'low', wrong: 'low', fewData: 'muted' };
 
-  /* ---------- port of lib/nutrition/progress.mjs ---------- */
-  function fin(v) {
-    return typeof v === 'number' && isFinite(v);
-  }
-  function round(v, dec) {
-    var f = Math.pow(10, dec);
-    return Math.round(v * f + (v >= 0 ? 1e-9 : -1e-9)) / f;
-  }
-  function dayNum(iso) {
-    return Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / MS_PER_DAY;
-  }
-  function isoOf(n) {
-    return new Date(n * MS_PER_DAY).toISOString().slice(0, 10);
-  }
-  function rollPoints(m) {
-    if (!m || typeof m.start !== 'string' || !ISO_RE.test(m.start) || !Array.isArray(m.roll)) return [];
-    var s = dayNum(m.start), out = [];
-    m.roll.forEach(function (v, i) { if (fin(v)) out.push({ date: isoOf(s + i), kg: v }); });
-    return out;
-  }
-  function weeklyRate(points) {
-    if (!points || !points.length) return { rate: null, n: 0, span: 0, from: null };
-    var end = dayNum(points[points.length - 1].date);
-    var win = points.filter(function (p) { return dayNum(p.date) > end - P.windowDays; });
-    var x0 = dayNum(win[0].date), span = end - x0;
-    var out = { rate: null, n: win.length, span: span, from: win[0].date };
-    if (win.length < P.minReadings || span < P.minSpanDays) return out;
-    var mx = 0, my = 0;
-    win.forEach(function (p) { mx += dayNum(p.date) - x0; my += p.kg; });
-    mx /= win.length;
-    my /= win.length;
-    var sxy = 0, sxx = 0;
-    win.forEach(function (p) {
-      var dx = dayNum(p.date) - x0 - mx;
-      sxy += dx * (p.kg - my);
-      sxx += dx * dx;
-    });
-    out.rate = sxx > 0 ? (sxy / sxx) * DAYS_PER_WEEK : null;
-    return out;
-  }
-  function weightProgress(m, opts) {
-    var o = opts || {};
-    var pts = rollPoints(m);
-    if (!pts.length) return null;
-    var last = pts[pts.length - 1];
-    var current = { date: last.date, kg: round(last.kg, 1) };
-    var r = weeklyRate(pts);
-    var dir = o.goal in DIR ? DIR[o.goal] : 0;
-    var target = fin(o.target) ? o.target : null;
-    var remaining = target != null ? round(target - current.kg, 1) : null;
-    var toGo = remaining != null ? remaining * dir : null;
-    var mismatch = dir !== 0 && toGo != null && toGo < 0 && Math.abs(remaining) > P.reachedKg;
-    var rate = r.rate != null ? round(r.rate, 2) : null;
-    var status;
-    if (dir !== 0 && remaining != null && Math.abs(remaining) <= P.reachedKg) status = 'reached';
-    else if (rate == null) status = 'fewData';
-    else if (dir === 0) status = Math.abs(rate) <= P.stableKg ? 'steady' : 'drift';
-    else {
-      var band = P.bands[o.goal];
-      var safeMax = Math.min(band.max, (current.kg * P.maxPctWeek) / 100);
-      var s = rate * dir;
-      if (s < -P.flatKg) status = 'wrong';
-      else if (s > safeMax) status = 'fast';
-      else if (s >= band.min) status = 'onPace';
-      else status = 'slow';
-    }
-    var eta = null;
-    if (status === 'onPace' && toGo != null && toGo > 0 && !mismatch) {
-      var weeks = toGo / Math.abs(rate);
-      eta = [round(weeks * (1 - P.etaSpread), 1), round(weeks * (1 + P.etaSpread), 1)];
-    }
-    return { current: current, rate: rate, n: r.n, span: r.span, from: r.from, remaining: remaining, status: status, mismatch: mismatch, etaWeeks: eta };
-  }
-  function etaMonths(today, weeks) {
-    if (!Array.isArray(weeks) || typeof today !== 'string' || !ISO_RE.test(today)) return null;
-    var t = dayNum(today);
-    return weeks.map(function (w) { return isoOf(t + Math.ceil(w * DAYS_PER_WEEK)).slice(0, 8) + '01'; });
-  }
+  // the lib's own functions (lib/nutrition/progress.mjs clientSource, inlined before util.js)
+  var fin = HC_PROG.fin, weightProgress = HC_PROG.weightProgress, etaMonths = HC_PROG.etaMonths;
 
   /* ---------- inputs on the viewer's page ---------- */
   function weightMetric() {
@@ -206,7 +127,7 @@
     }
   }
 
-  window.HCProgress = { rollPoints: rollPoints, weeklyRate: weeklyRate, weightProgress: weightProgress, etaMonths: etaMonths, compute: compute, render: render, line: line };
+  window.HCProgress = { rollPoints: HC_PROG.rollPoints, weeklyRate: HC_PROG.weeklyRate, weightProgress: weightProgress, etaMonths: etaMonths, compute: compute, render: render, line: line };
   var S = window.HCSettings;
   if (S && typeof S.onChange === 'function') S.onChange(render);
   render();

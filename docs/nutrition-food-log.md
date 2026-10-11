@@ -267,8 +267,10 @@ filled from them, never typed.
   the stored local goal once. The GET retries with backoff on offline / timeout / 5xx (3 tries), never
   on 404 / 503. Profile Objetivo: + "Peso objetivo" (`HCSettings.parseTarget` = `HCFood.parseNum(v,
   ['kg'])` + the range, inline error, saved on `change`), one status line, the Progreso line.
-- **Progreso** (baked data, every build) — `lib/nutrition/progress.mjs` = the reference (rules and
-  bands in its header), ported in `client/progress.js` (`PROGRESS_CASES` parity + hand-computed tests).
+- **Progreso** (baked data, every build) — `lib/nutrition/progress.mjs` = the ONE implementation (rules
+  and bands in its header): its `clientSource()` emits it as `HC_PROG` (inlined before util.js), which
+  `client/progress.js` runs (no copy; `PROGRESS_CASES` test HC_PROG against the module, plus
+  hand-computed tests).
   Rate = least-squares slope of `DETAIL.metrics.weight.roll` over `windowDays`; too few averages →
   "pocos datos". Status per goal band (`PROGRESS.bands`, from `analysis/methodology.md`: cut
   0.25–0.5, bulk 0.1–0.25 kg/week, never > `maxPctWeek` of bodyweight; maintain stable within
