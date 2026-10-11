@@ -30,17 +30,16 @@ const GEOMETRY_TOFIXED = {
   'web/src/client/health.js': 2, // the macro-split bar's rect x / width
   'web/src/client/intake.js': 2, // the ring's stroke-dasharray
   'web/src/client/journal.js': 2, // an insight bar's left / width
-  'web/src/client/nutri-day.js': 1, // the portion factor of the lib/nutrition/scale.mjs port (see below)
   'web/src/client/nutri-score.js': 4, // the sparkline path + its area's two baseline corners
   'web/src/client/score.js': 2, // the sparkline points
   'web/src/client/training-activity.js': 2, // the modality bar's rect x / width
 };
-// a hand-made decimal comma that is DATA, not display: the plan's portion factor ("×1,25"), a port of
-// lib/nutrition/scale.mjs pinned byte for byte by the nutri-day parity test (it takes the plan's own
-// decimal mark). The logged food entry's stored name ("Arroz · 1,5 ud") is no longer built here:
-// food-core.js runs lib/nutrition/foodlog.mjs basicLabel (HC_FOODLOG), whose bytes BASIC_CASES pin
-// (es and en decimal marks) in the lib, the page and the built page — so food-core.js gets none.
-const DECIMAL_COMMA_DATA = ['web/src/client/nutri-day.js'];
+// a hand-made decimal comma that is DATA, not display. None left in the display sources: the logged food
+// entry's stored name ("Arroz · 1,5 ud", lib/nutrition/foodlog.mjs basicLabel, run as HC_FOODLOG) and the
+// plan's portion factor ("×1,25", lib/nutrition/scale.mjs fmtFactor with the plan's own decimal mark, run
+// as HC_SCALE) are built by the lib itself, its bytes pinned by BASIC_CASES and the planFor / solveScale
+// tests in the lib, the page and the built page. A new entry here is a design decision (see the header).
+const DECIMAL_COMMA_DATA = [];
 // "{x} h" templates that are not a value's duration: a whole-hour range before a ride ("2–4 h
 // before") and the relative age of a sync ("3 h ago")
 const HOUR_TEMPLATES_OK = /^\s*(beforeCarbs|beforeCarbsNoKg|hAgo):/;

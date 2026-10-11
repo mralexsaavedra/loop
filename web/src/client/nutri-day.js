@@ -17,7 +17,7 @@
  *   in localStorage (hc.nutri.goal, falling back to page.goal); on the LAN page also on the server
  *   (client/settings.js: the server copy wins on load via HCNutri.applyGoal, the local one is the cache). Resumen de hoy shows it only as a small
  *   chip next to today's kcal; a tap opens the profile sheet (#profile) focused on that setting.
- * - Plan: planFor / solveScale port lib/nutrition/scale.mjs over the baked models (parity test): the
+ * - Plan: planFor / solveScale = lib/nutrition/scale.mjs itself (HC_SCALE) over the baked models: the
  *   meals aim at target − ride fuel for the ride's minutes (a recorded ride's real minutes, else the
  *   picker, kept per date like the override, else the default). fuelPlan = lib/nutrition/fuel.mjs (HC_FUEL).
  * - Plan de hoy = the portion guide (guideBudgets / exampleAmount / remaining / dayRemaining / capByDay / mealState / isCovered /
@@ -37,7 +37,7 @@
  *   HCNutri.targetFor(date) = the same for an earlier logged day: THAT day's detected type (timeline,
  *   else DETAIL.sessions, + programme; its recorded ride minutes) x the current goal, null when the
  *   type cannot be determined (no session, no sleep reading, nothing programmed).
- * - Model lines are read through LINE + the accessors (mirrors of lib/nutrition/amounts.mjs), never a bare index.
+ * - Model lines are read through LINE + the accessors (lib/nutrition/amounts.mjs, in HC_SCALE), never a bare index.
  * - Logged intake: the kcal ring + macro rows fill from today's page food log (window.foodTotals, client/food-*.js,
  *   LAN page only) when it has entries, else from the Apple Health day (INTAKE); HCNutri.refresh() is
  *   the food log's hook after every add / delete, and re-renders the guide too.
@@ -100,177 +100,13 @@
   /* ---------- fuelling: lib/nutrition/fuel.mjs's own fuelPlan (lib/nutrition/client.mjs -> HC_FUEL) ---------- */
   var fuelPlan = HC_FUEL.fuelPlan;
 
-  /* ---------- portion scaling (port of lib/nutrition/amounts.mjs, units.mjs fmtPieces, scale.mjs
-   * solveScale / planFor) ---------- */
-  function round2(v) { return Math.round(v * 100) / 100; }
-  function stepAmount(amt, unit, st) {
-    var ud = N.scale.ud; // lib/nutrition/units.mjs UD_AMT (one unit)
-    if (unit === 'ud') return Math.max(ud, Math.round(amt / ud) * ud);
-    if (st > 0) return Math.max(st, Math.round(amt / st) * st);
-    return Math.max(N.scale.step, Math.round(amt / N.scale.step) * N.scale.step);
-  }
-  // the model line [unit, amt, k, p, c, g, step?, key?, cap?]: mirrors lib/nutrition/amounts.mjs LINE and
-  // its accessors (a test pins LINE equal); never read by a bare index
-  var LINE = { UNIT: 0, AMT: 1, K: 2, P: 3, C: 4, G: 5, STEP: 6, KEY: 7, CAP: 8 };
-  function lineUnit(l) { return l[LINE.UNIT]; }
-  function lineAmt(l) { return l[LINE.AMT]; }
-  function lineStep(l) { return l[LINE.STEP]; }
-  function lineKey(l) { return l[LINE.KEY]; }
-  function lineCap(l) { return l[LINE.CAP] > 0 ? l[LINE.CAP] : null; }
-  function capFactor(l) { return lineCap(l) ? lineCap(l) / lineAmt(l) : Infinity; }
-  var GRID_EPS = 1e-9; // lib/nutrition/amounts.mjs GRID_EPS (a test pins it equal)
-  function floorToStep(cap, st) { return Math.max(st, Math.floor(cap / st + GRID_EPS) * st); }
-  function capAmount(amt, l) {
-    var cap = lineCap(l);
-    if (!cap || amt <= cap) return amt;
-    var st = lineUnit(l) === 'ud' ? N.scale.ud : lineStep(l) > 0 ? lineStep(l) : N.scale.step;
-    return floorToStep(cap, st);
-  }
-  function pieceOf(pieces, l) { return lineKey(l) && pieces ? pieces[lineKey(l)] || null : null; }
-  function isDiscrete(l) { return lineUnit(l) === 'ud' || lineStep(l) > 0; }
-  function fmtFactor(f, dec) { return f.toFixed(2).replace('.', dec); }
-  function fmtHalf(h) {
-    var whole = Math.floor(h), half = h - whole >= 0.5;
-    return (whole ? String(whole) : '') + (half ? '½' : '') || '0';
-  }
-  function fmtPieces(amt, unit, pc) {
-    var n = amt / pc.a;
-    var grid = N.scale.grid; // lib/nutrition/units.mjs PIECE_GRID (half pieces)
-    var h = Math.max(grid, Math.round(n / grid) * grid);
-    var exact = Math.abs(n - h) < 1e-9;
-    var name = h > 1 ? pc.m : pc.o;
-    var ref;
-    if (unit === 'ud') ref = pc.r ? '~' + Math.round(n * pc.r) + ' g' : null;
-    else ref = (exact ? '~' : '') + round2(amt) + ' ' + unit;
-    return (exact ? '' : '~') + fmtHalf(h) + ' ' + name + (ref ? ' (' + ref + ')' : '');
-  }
-  function fmtAmt(amt, unit, units, pc) {
-    if (pc) return fmtPieces(amt, unit, pc);
-    return unit === 'ud' ? round2(amt / N.scale.ud) + ' ' + units.ud : round2(amt) + ' ' + (units[unit] || unit);
-  }
-  // water-filling (port of lib/nutrition/fill.mjs waterFill, the carb solve): one common
-  // factor bounded by clamp ([min, max]; none = floored at 0), an item past its cap held there and the
-  // factor re-solved over the rest until stable; start = the factor when nothing is free to fill
-  function bound(f, clamp) {
-    if (!clamp) return [Math.max(0, f), null];
-    if (f < clamp[0]) return [clamp[0], 'min'];
-    if (f > clamp[1]) return [clamp[1], 'max'];
-    return [f, null];
-  }
-  function waterFill(items, need, opts) {
-    var clamp = opts && opts.clamp ? opts.clamp : null;
-    var held = items.map(function () { return false; });
-    var heldK = 0, f = opts && opts.start != null ? opts.start : 0, hit = null;
-    for (;;) {
-      var freeK = 0;
-      items.forEach(function (it, i) { if (!held[i]) freeK += it.k; });
-      if (!(freeK > 0)) break;
-      var b = bound((need - heldK) / freeK, clamp);
-      f = b[0];
-      hit = b[1];
-      var more = false;
-      items.forEach(function (it, i) {
-        if (!held[i] && it.cap < f) { held[i] = true; heldK += it.k * it.cap; more = true; }
-      });
-      if (!more) break;
-    }
-    if (items.length && held.every(Boolean)) {
-      f = Math.max.apply(null, items.map(function (it) { return it.cap; }));
-      hit = null;
-    }
-    return { f: round2(f), clamp: hit, held: held };
-  }
-  // the carb solve's bounds (lib/nutrition/scale.mjs SCALE_FILL)
-  function scaleFill() { return { clamp: [N.scale.min, N.scale.max], start: 1 }; }
-  function solveScale(model, target, fmt) {
-    var units = fmt.units, dec = fmt.dec, pieces = fmt.pieces || null;
-    var fixedK = 0, udK = 0, contK = 0;
-    var all = [];
-    model.fixed.forEach(function (f) { fixedK += f[0]; });
-    model.flex.forEach(function (x) {
-      if (x.mb) { contK += x.mb[0]; all.push({ k: x.mb[0], cap: Infinity, ud: false }); return; }
-      x.ln.forEach(function (l) {
-        var ud = isDiscrete(l);
-        if (ud) udK += l[LINE.K]; else contK += l[LINE.K];
-        all.push({ k: l[LINE.K], cap: capFactor(l), ud: ud });
-      });
-    });
-    var w0 = waterFill(all, target - fixedK, scaleFill());
-    var f0 = w0.f, clamp = w0.clamp, held = w0.held;
-    var amountAt = function (l, s) { return s === 1 ? lineAmt(l) : capAmount(stepAmount(lineAmt(l) * s, lineUnit(l), lineStep(l)), l); };
-    var factor = f0;
-    if (udK > 0 && contK > 0) {
-      var udNowK = 0;
-      model.flex.forEach(function (x) {
-        if (x.ln) x.ln.forEach(function (l) { if (isDiscrete(l)) udNowK += l[LINE.K] * (amountAt(l, Math.min(f0, capFactor(l))) / lineAmt(l)); });
-      });
-      var w1 = waterFill(all.filter(function (it) { return !it.ud; }), target - fixedK - udNowK, scaleFill());
-      factor = w1.f;
-      clamp = w1.clamp;
-      var ci = 0;
-      held = all.map(function (it, i) { return it.ud ? w0.held[i] : w1.held[ci++]; });
-    }
-    var meals = model.fixed.map(function (f) { return f.slice(); });
-    var q = [], qa = [], dir = [];
-    var capped = false, allCapped = all.length > 0, ii = 0;
-    model.flex.forEach(function (x) {
-      var m = meals[x.m], i;
-      if (x.mb) {
-        ii++;
-        allCapped = false; // a manual block has no cap: it could still grow
-        var bm = x.mb.map(function (v) { return v * factor; });
-        for (i = 0; i < 4; i++) m[i] += bm[i];
-        var t = factor === 1 ? x.q : (x.q + ' ×' + fmtFactor(factor, dec)).trim();
-        q.push(t);
-        qa.push([t]);
-        dir.push(Math.sign(factor - 1));
-        return;
-      }
-      var baseK = 0, nowK = 0;
-      var amts = x.ln.map(function (l) {
-        var cf = capFactor(l);
-        var f = isDiscrete(l) ? f0 : factor;
-        if (held[ii++] || f >= cf) capped = true;
-        else allCapped = false;
-        var amt = amountAt(l, Math.min(f, cf));
-        var r = amt / lineAmt(l);
-        for (var j = 0; j < 4; j++) m[j] += l[LINE.K + j] * r;
-        baseK += l[LINE.K];
-        nowK += l[LINE.K] * r;
-        return fmtAmt(amt, lineUnit(l), units, pieceOf(pieces, l));
-      });
-      q.push(amts.join(' + '));
-      qa.push(amts);
-      dir.push(Math.abs(nowK - baseK) < 0.5 ? 0 : Math.sign(nowK - baseK));
-    });
-    var totals = { k: 0, p: 0, c: 0, g: 0 };
-    meals.forEach(function (m) { totals.k += m[0]; totals.p += m[1]; totals.c += m[2]; totals.g += m[3]; });
-    return { factor: factor, clamp: clamp, udOnly: udK > 0 && contK === 0, capped: capped, allCapped: allCapped, meals: meals, q: q, qa: qa, dir: dir, totals: totals, rem: Math.round(target) - Math.round(totals.k) };
-  }
-  function planFor(bake, goal, d, minutes) {
-    var x = bake.plans[goal][d];
-    var fuel = isBike(d) ? fuelPlan({ dayType: d, minutes: minutes }) : null;
-    var fuelK = fuel ? fuel.kcal : 0;
-    var fuelC = fuel ? fuel.during.planG : 0;
-    var s = solveScale(bake.base[x.base], x.t.kcal - fuelK, bake.fmt);
-    var tot = { k: Math.round(s.totals.k), p: Math.round(s.totals.p), c: Math.round(s.totals.c), g: Math.round(s.totals.g) };
-    return {
-      base: x.base,
-      t: x.t,
-      minutes: fuel ? fuel.minutes : null,
-      fuelK: fuelK,
-      fuelC: fuelC,
-      mt: { k: x.t.kcal - fuelK, p: x.t.p, c: x.t.c - fuelC, f: x.t.f },
-      meals: s.meals.map(function (m) { return m.map(Math.round); }),
-      tot: tot,
-      factor: s.factor,
-      clamp: s.clamp,
-      udOnly: s.udOnly,
-      capped: s.capped,
-      allCapped: s.allCapped,
-      rem: x.t.kcal - fuelK - tot.k,
-    };
-  }
+  /* ---------- portion scaling: lib/nutrition/scale.mjs solveScale / planFor with amounts.mjs, units.mjs
+   * and fill.mjs (lib/nutrition/client.mjs -> HC_SCALE) ---------- */
+  var SC = HC_SCALE;
+  // the model line [unit, amt, k, p, c, g, step?, key?, cap?] (lib/nutrition/amounts.mjs LINE): never read by a bare index
+  var LINE = SC.LINE, GRID_EPS = SC.GRID_EPS;
+  var floorToStep = SC.floorToStep, fmtPieces = SC.fmtPieces, fmtAmt = SC.fmtAmt, waterFill = SC.waterFill,
+    solveScale = SC.solveScale, planFor = SC.planFor;
 
   /* ---------- the portion guide (port of lib/nutrition/guide.mjs) ---------- */
   var G = N.guide || null;

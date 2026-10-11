@@ -25,6 +25,7 @@ const COPIES = [
   ['nutri-score.js', 'HC_NSCORE', ['fin', 'clamp100', 'ratio', 'pts1', 'kcalPoints', 'proteinPoints', 'fatPoints', 'scoreBand', 'hasMeals', 'nutritionScore', 'scoreSeries']],
   ['nutri-day.js', 'HC_DAYTYPE', ['rideType', 'itemType', 'dayTypeOfWorkouts', 'ofWorkouts', 'dayTypeOfProgram', 'ofProgram', 'detectDayType', 'hasValue', 'dayInputFor']],
   ['nutri-day.js', 'HC_FUEL', ['isBikeDay', 'fuelStep', 'range', 'pickItem', 'pickFuelItem', 'ownDuring', 'ownBefore', 'fuelPlan']],
+  ['nutri-day.js', 'HC_SCALE', ['round2', 'stepAmount', 'lineUnit', 'lineAmt', 'lineStep', 'lineKey', 'lineCap', 'capFactor', 'floorToStep', 'capAmount', 'pieceOf', 'isDiscrete', 'fmtHalf', 'fmtPieces', 'fmtAmt', 'bound', 'waterFill', 'scaleFill', 'fmtFactor', 'solveScale', 'planFor']],
 ];
 
 for (const [file, global, fns] of COPIES) {

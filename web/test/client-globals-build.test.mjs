@@ -1,5 +1,5 @@
 /* The classic-script globals emitted by the libs' clientSource() (HC_FMT, HC_BAND, HC_ADH, HC_PROG,
- * HC_NSCORE, HC_FOODLOG, HC_DAYTYPE, HC_FUEL) as
+ * HC_NSCORE, HC_FOODLOG, HC_DAYTYPE, HC_FUEL, HC_SCALE) as
  * they ship in the BUILT page, not as the unbundled modules emit them: Vite / Rollup bundles the libs
  * together and renames clashing top-level names (fin -> fin$3, ISO_RE -> ISO_RE$2), so a global whose
  * keys or constants came from those names breaks only on the real page. Extracts the inline script
@@ -19,6 +19,10 @@ import * as NS from '../../lib/nutrition/score.mjs';
 import * as FL from '../../lib/nutrition/foodlog.mjs';
 import * as DT from '../../lib/nutrition/daytype.mjs';
 import * as FU from '../../lib/nutrition/fuel.mjs';
+import * as SC from '../../lib/nutrition/scale.mjs';
+import * as AM from '../../lib/nutrition/amounts.mjs';
+import { fmtPieces } from '../../lib/nutrition/units.mjs';
+import { waterFill, FILL_CASES } from '../../lib/nutrition/fill.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
@@ -43,6 +47,11 @@ const KEYS = {
   ],
   HC_DAYTYPE: ['DETECT', 'RANK', 'rideType', 'itemType', 'dayTypeOfWorkouts', 'dayTypeOfProgram', 'detectDayType', 'hasValue', 'dayInputFor'],
   HC_FUEL: ['FUEL', 'RIDE_DEFAULT_MIN', 'OWN_START_MIN', 'isBikeDay', 'step', 'range', 'pickItem', 'ownDuring', 'ownBefore', 'fuelPlan'],
+  HC_SCALE: [
+    'LINE', 'GRID_EPS', 'FUEL', 'RIDE_DEFAULT_MIN', 'OWN_START_MIN', 'stepAmount', 'lineUnit', 'lineAmt', 'lineStep', 'lineKey', 'lineCap',
+    'capFactor', 'floorToStep', 'capAmount', 'pieceOf', 'isDiscrete', 'fmtAmt', 'round2', 'fmtHalf', 'fmtPieces', 'bound', 'waterFill',
+    'isBikeDay', 'step', 'range', 'pickItem', 'ownDuring', 'ownBefore', 'fuelPlan', 'zero', 'r0', 'macroRow', 'fmtFactor', 'solveScale', 'planFor',
+  ],
 };
 
 function globalsOf(htmlPath) {
@@ -52,6 +61,15 @@ function globalsOf(htmlPath) {
   const ctx = vm.createContext({});
   vm.runInContext(script, ctx);
   return ctx;
+}
+// the page's own NUTRI bake (Dia.astro), the models planFor re-solves
+function nutriOf(htmlPath) {
+  const html = fs.readFileSync(htmlPath, 'utf8');
+  const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).find((s) => /^var NUTRI\s*=/.test(s));
+  assert.ok(script, `${htmlPath}: the NUTRI bake`);
+  const ctx = vm.createContext({});
+  vm.runInContext(script, ctx);
+  return js(ctx.NUTRI);
 }
 
 test('at least the example build is present (npm run pretest)', () => {
@@ -147,5 +165,24 @@ for (const page of PAGES) {
     }
     assert.equal(HC_FUEL.isBikeDay('bikeLong'), true);
     assert.equal(HC_FUEL.isBikeDay('gym'), false);
+  });
+
+  test(`${rel}: HC_SCALE solves the page's own NUTRI bake like lib/nutrition/scale.mjs`, () => {
+    const { HC_SCALE } = globalsOf(page);
+    const nutri = nutriOf(page);
+    assert.deepEqual(js(HC_SCALE.LINE), js(AM.LINE));
+    assert.equal(HC_SCALE.GRID_EPS, AM.GRID_EPS);
+    for (const g of nutri.goals) for (const d of nutri.dayTypes) for (const min of [null, 60, 120, 185, 360]) {
+      assert.deepEqual(js(HC_SCALE.planFor(nutri, g, d, min)), js(SC.planFor(nutri, g, d, min)), `${g}/${d}/${min}`);
+    }
+    for (const day of Object.keys(nutri.base)) for (let t = 300; t < 5000; t += 397) {
+      assert.deepEqual(js(HC_SCALE.solveScale(nutri.base[day], t, nutri.fmt)), js(SC.solveScale(nutri.base[day], t, nutri.fmt)), `${day}/${t}`);
+    }
+    for (const c of FILL_CASES) assert.deepEqual(js(HC_SCALE.waterFill(c.items, c.need, c.opts)), js(waterFill(c.items, c.need, c.opts)), JSON.stringify(c));
+    const pc = { a: 120, r: null, o: 'banana', m: 'bananas' };
+    for (const [amt, unit] of [[180, 'g'], [150, 'g'], [60, 'g']]) assert.equal(HC_SCALE.fmtPieces(amt, unit, pc), fmtPieces(amt, unit, pc));
+    assert.equal(HC_SCALE.fmtAmt(250, 'ud', { ud: 'pc' }, null), AM.fmtAmt(250, 'ud', { ud: 'pc' }, null));
+    assert.equal(HC_SCALE.fmtFactor(1.25, ','), SC.fmtFactor(1.25, ','));
+    assert.equal(HC_SCALE.floorToStep(0.9, 0.3), AM.floorToStep(0.9, 0.3));
   });
 }
