@@ -16,6 +16,7 @@
     "pretest": "node web/test/build-fixtures.mjs",
     "test": "node --test \"lib/**/*.test.mjs\" \"web/**/*.test.mjs\" \"scripts/*.test.mjs\" \".claude/hooks/*.test.js\" data/nutrition/*.test.js data/training/*.test.js data/apple-health/*.test.js data/profile/*.test.js",
     "test:services": "npm --prefix services/health-ingest ci --no-audit --no-fund && npm --prefix services/health-ingest test",
+    "test:css:update": "node scripts/update-css-fixture.mjs",
     "sync": "node scripts/sync-all.mjs",
     "sync:shortcut": "node data/apple-health/sync-shortcut.js",
     "sync:strava": "node data/apple-health/sync-strava.js",
