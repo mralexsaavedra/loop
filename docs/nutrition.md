@@ -193,7 +193,8 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   feeds the rings' `fatMax`). `planFor(bake, goal,
   dayType, minutes)` gives one plan for a ride of `minutes` (meals target `mt` = target − ride fuel,
   the fuel being all carbs); the page bakes only `{base, t}` per (goal, day type) + the two models and
-  runs a line-by-line port of `solveScale` / `planFor` (parity test), so a new ride duration re-scales
+  runs `solveScale` / `planFor` themselves (`HC_SCALE`, emitted by `lib/nutrition/client.mjs` with what they call
+  from `amounts.mjs`, `units.mjs`, `fill.mjs`, `fuel.mjs`; no copy), so a new ride duration re-scales
   the guide's budgets. `planFor` returns `{base, t, minutes, fuelK, fuelC, mt, meals (each plan meal's
   [k, p, c, g], whole), tot, factor, clamp, udOnly, capped, allCapped, rem}`; the bake per base day is
   `{sl (each meal's slot), fixed, flex}`. `buildDayPlans` precomputes the 12 plans at the default ride minutes for the table in

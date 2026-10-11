@@ -132,7 +132,8 @@ food log adherence and weight progress functions ride along too (`lib/nutrition/
 `var HC_ADH`, read by `client/adherence.js`; `lib/nutrition/progress.mjs` → `var HC_PROG`, read by
 `client/progress.js`; `lib/nutrition/score.mjs` → `var HC_NSCORE`, read by `client/nutri-score.js`;
 `lib/nutrition/foodlog.mjs` → `var HC_FOODLOG`, read by `client/food-core.js`; `lib/nutrition/daytype.mjs` →
-`var HC_DAYTYPE` and `lib/nutrition/fuel.mjs` → `var HC_FUEL`, read by `client/nutri-day.js` (these modules only
+`var HC_DAYTYPE`, `lib/nutrition/fuel.mjs` → `var HC_FUEL` and `lib/nutrition/scale.mjs` (+ amounts / units /
+fill) → `var HC_SCALE`, read by `client/nutri-day.js` (these modules only
 declare a `CLIENT` descriptor; `lib/nutrition/client.mjs` emits them, because `data/nutrition/generate.js` loads
 `lib/nutrition` without `lib/format`);
 `web/test/client-copies.test.mjs` guards that no client file re-defines them). Every one is built by `classicGlobal()` (`lib/format/numbers.mjs`): public keys come from an
@@ -167,7 +168,8 @@ globals out of the BUILT page.
   ("2–3 h before"), relative ages ("3 h ago") and category labels ("< 30 min", "Ride ~2 h").
 - **Not display:** CSV / data outputs, the food log's stored entry names ("Arroz · 1,5 ud", built by
   `lib/nutrition/foodlog.mjs` `basicLabel` itself — the page runs it through `HC_FOODLOG`, so no client file
-  carries that decimal comma; `BASIC_CASES` pin its bytes), the plan's portion factor port (pinned to `lib/nutrition/scale.mjs`)
+  carries that decimal comma; `BASIC_CASES` pin its bytes), the plan's portion factor ("×1,25",
+  `lib/nutrition/scale.mjs` `fmtFactor` itself, run through `HC_SCALE`; the planFor / solveScale tests pin it)
   and SVG / CSS geometry (`toFixed` for coordinates) keep their own code.
 
 The guard `web/test/number-format.test.mjs` scans the display sources (`web/test/display-sources.mjs`:
