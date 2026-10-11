@@ -202,12 +202,11 @@
           '<span class="db-grip" data-dash-grip="" data-key="' + esc(p.key) + '" aria-hidden="true"><svg class="db-grip-ico" viewBox="0 0 20 20"><path d="M3 6h14M3 10h14M3 14h14"/></svg></span></li>';
       }).join('') + '</ul>';
     }
-    window.HCViews = window.HCViews || {};
-    window.HCViews['dash-edit'] = {
+    HC.registerView('dash-edit', {
       title: function () { return TS.editTitle; },
       // a re-render replaces the rows: any drag still in flight is dropped (nothing saved)
       render: function () { clearDrag(); return { head: '', body: editHtml(current()) }; },
-    };
+    });
     // save a new list, re-render the dashboard and the open sheet (focus: a selector to keep, or none)
     function commit(list, focus) {
       writePrefs(list);

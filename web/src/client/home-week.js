@@ -199,8 +199,7 @@
       }
     }
     // the sheet behind the card: the rule, with the user's own numbers, and a way to the sleep history
-    window.HCViews = window.HCViews || {};
-    window.HCViews.tonight = {
+    HC.registerView('tonight', {
       title: function () { return T.tonight.heading; },
       render: function () {
         var tn = tonightData(), TT = T.tonight;
@@ -211,7 +210,7 @@
           (D && D.metrics && D.metrics.sleep ? HC.cta(TT.history, ' data-detail="sleep"') : '');
         return { head: head, body: body };
       },
-    };
+    });
 
     /* ---------- render: My plan ---------- */
     var open = false; // the card's expanded state survives a re-render (food summary answers later)

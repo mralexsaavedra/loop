@@ -28,8 +28,9 @@
  * before writing history. Every view renders inside a try/catch with a message fallback; no NaN is ever
  * printed (non-finite values render as a dash). A day tap re-renders only the calendar + day panel.
  *
- * Registered views: another script (inlined BEFORE this one) may add window.HCViews[<key>] =
- * {title(), render() -> {head, body}} (client/profile.js adds `profile`). An opener with
+ * Registered views: another script (inlined BEFORE this one) may call HC.registerView(<key>,
+ * {title(), render() -> {head, body}}) (client/profile.js adds `profile`); this reads them through
+ * HC.view(<key>). An opener with
  * data-detail="<key>" then opens that view in this same modal (focus, inert, Esc, Back), with the deep
  * link #<key> instead of #detail/<metric>; a view that throws gets the same message fallback.
  */
@@ -85,8 +86,7 @@
   }
   // views registered by other scripts before this one: {<key>: {title(): string, render(): {head, body}}}
   function viewOf(key) {
-    var all = typeof window !== 'undefined' && window.HCViews && typeof window.HCViews === 'object' ? window.HCViews : null;
-    var v = own(all, key) ? all[key] : null;
+    var v = HC.view(key);
     return v && typeof v.render === 'function' ? v : null;
   }
   function metric(key) {

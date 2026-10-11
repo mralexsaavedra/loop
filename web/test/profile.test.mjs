@@ -71,11 +71,16 @@ test('example build: ONE avatar button in the top bar (initials, no photo) openi
   assert.equal('age' in p, false, 'the age is computed client-side');
   assert.equal('hiddenDevices' in p, false, 'hidden names are applied at build time, never baked');
   assert.ok(!p.devices.some((d) => d.name === 'Demo Phone App'));
-  assert.equal(p.devices.find((d) => d.manual).manual, 'sample-bike-computer-manual.pdf', 'only the manual file name is baked');  assert.ok(html.indexOf('window.HCViews.profile') < html.indexOf('var VIEW_HASH_RE'), 'profile.js registers its view before detail.js runs');
+  assert.equal(p.devices.find((d) => d.manual).manual, 'sample-bike-computer-manual.pdf', 'only the manual file name is baked');
+  const reg = html.search(/HC\.registerView\(["']profile["']/), viewRe = html.indexOf('var VIEW_HASH_RE');
+  assert.ok(reg >= 0 && viewRe >= 0, 'profile.js registration and detail.js both inlined');
+  assert.ok(reg < viewRe, 'profile.js registers its view before detail.js runs');
   const { plan } = loadInputs({ repoRoot: REPO_ROOT, dataMode: 'example' });
   assert.deepEqual(p.goals, goalOptions(resolveTargets(plan)), 'the goal setting\'s options are the lib\'s own');
   assert.equal(p.goals.length, 3);
-  assert.ok(html.indexOf('window.HCNutri = {') < html.indexOf('window.HCViews.profile'), 'nutri-day.js (the goal\'s owner) runs before profile.js');
+  const nutri = html.search(/window\.HCNutri\s*=\s*\{/);
+  assert.ok(nutri >= 0, 'nutri-day.js inlined');
+  assert.ok(nutri < reg, 'nutri-day.js (the goal\'s owner) runs before profile.js');
   const nav = (html.match(/<nav class="tabnav"[\s\S]*?<\/nav>/) || [''])[0];
   assert.ok(nav && !nav.includes('profile'), 'not a tab');
 });

@@ -235,6 +235,6 @@
     var mq = W && typeof W.matchMedia === 'function' ? W.matchMedia(WIDE) : null;
     if (mq && typeof mq.addEventListener === 'function') mq.addEventListener('change', function () { render(); });
   } catch (e) { /* no media queries: the phone SVG stays */ }
-  if (W) W.HCActivity = { summary: summary, choose: choose };
+  if (W) window.HCActivity = { summary: summary, choose: choose };
   render();
 })();

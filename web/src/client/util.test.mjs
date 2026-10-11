@@ -231,3 +231,55 @@ test('lan: LAN fetches only when served (http/https or no location); a file:// p
   assert.equal(at({ location: { protocol: 'file:' } }), false);
   assert.equal(at({ window: { location: { protocol: 'file:' } } }), false, 'window.location counts too');
 });
+
+/* ---------- HC.registerView / HC.view: the detail sheet's registered views (window.HCViews) ---------- */
+function loadWithWindow() {
+  const ctx = { LOCALE: 'en', HC_CONST: HC_CONST_BAKE, I18N_DATE: enDate, Math, String, Number, Array, Object, JSON, Error };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(UTIL_SOURCE, ctx);
+  return ctx;
+}
+
+test('HC.registerView: creates window.HCViews on first use; HC.view reads own keys only', () => {
+  const ctx = loadWithWindow();
+  assert.equal(ctx.HCViews, undefined, 'nothing registered, no registry');
+  assert.equal(ctx.HC.view('profile'), null);
+  const v = { title: () => 'P', render: () => ({ head: '', body: '' }) };
+  ctx.HC.registerView('profile', v);
+  assert.equal(ctx.HCViews.profile, v);
+  assert.equal(ctx.HC.view('profile'), v);
+  assert.equal(ctx.HC.view('toString'), null, 'no inherited keys');
+});
+
+test('HC.registerView: registering the same name again replaces the view (never throws on the live page)', () => {
+  const ctx = loadWithWindow();
+  ctx.HC.registerView('journal', { render: () => ({}) });
+  const second = { render: () => ({}) };
+  assert.doesNotThrow(() => ctx.HC.registerView('journal', second));
+  assert.equal(ctx.HC.view('journal'), second);
+});
+
+test('each registered view key belongs to ONE client script, always a string literal (static scan)', () => {
+  const dir = path.dirname(fileURLToPath(import.meta.url));
+  const owner = new Map();
+  for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.js') && x !== 'util.js')) {
+    // comments may name the API (`HC.registerView(<key>, …)`); code may not hide a key in a variable
+    const src = fs.readFileSync(path.join(dir, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    for (const m of src.matchAll(/\bregisterView\s*\(\s*([^,)]*)/g)) {
+      const lit = /^(['"])([\w-]+)\1$/.exec(m[1].trim());
+      assert.ok(lit, `${f}: HC.registerView(${m[1].trim()}, …) must use a string literal key`);
+      const prev = owner.get(lit[2]);
+      assert.ok(!prev || prev === f, `view "${lit[2]}" registered by both ${prev} and ${f}`);
+      owner.set(lit[2], f);
+    }
+  }
+  assert.deepEqual([...owner.keys()].sort(), ['dash-edit', 'food-add', 'hoy-session', 'journal', 'journal-insights', 'profile', 'tonight']);
+});
+
+test('only util.js writes window.HCViews: every other client script registers through HC.registerView', () => {
+  const dir = path.dirname(fileURLToPath(import.meta.url));
+  const writers = fs.readdirSync(dir).filter((f) => f.endsWith('.js') && f !== 'util.js')
+    .filter((f) => /\bHCViews\s*(\[[^\]]*\]|\.[\w$]+)?\s*=(?!=)|\bvar\s+\w+\s*=\s*window\.HCViews\b/.test(fs.readFileSync(path.join(dir, f), 'utf8')));
+  assert.deepEqual(writers, []);
+});
