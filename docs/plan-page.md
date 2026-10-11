@@ -22,7 +22,7 @@ compute (macros, training program/dashboard, health aggregation) lives in root `
 the Astro build, `data/nutrition/generate.js`, and the test suite — one source, not three. Most of `lib/` is
 pure; some modules still read their input files themselves (`node:fs`), so only the pure ones can be emitted
 into the page via `clientSource()`. Convention: an area's file reads live in `lib/<area>/read.mjs`
-(`health`, `nutrition`, `training` so far) and compute modules take their data as arguments;
+(`health`, `journal`, `nutrition`, `score`, `training` so far) and compute modules take their data as arguments;
 `lib/fs-boundary.test.mjs` pins the exact set of `lib/` modules that import `fs`, so a new compute module
 that reads files fails the suite (the remaining non-`read.mjs` entries are still to be split).
 

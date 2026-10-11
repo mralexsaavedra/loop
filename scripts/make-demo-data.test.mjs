@@ -98,7 +98,7 @@ test('demo workout-zones.csv: one Demo Strava row per Strava run / ride, the rea
 });
 
 test('demo hr-hourly.csv: four weeks of hours in the sync schema, enough full days to calibrate day strain', async () => {
-  const { buildStrain } = await import('../lib/score/strain.mjs');
+  const { buildStrain } = await import('../lib/score/read.mjs');
   const { HR_HOURLY_HEADER } = await import('../lib/health/hr-hourly.cjs');
   const files = makeDemoData();
   const lines = files['hr-hourly.csv'].trim().split('\n');
