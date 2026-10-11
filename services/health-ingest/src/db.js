@@ -1,11 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import pg from 'pg'
-import { runMigrations } from './migrations.js'
-
-const MIGRATIONS = ['001_init.sql', '002_strava.sql', '003_sync.sql', '004_athlete.sql', '005_athlete_refresh.sql', '008_strava_hr.sql', '009_strava_hr_retry.sql']
-// optional groups: a failure disables only that feature (its routes answer 503), see migrations.js
-const OPTIONAL_MIGRATIONS = { food: ['006_food.sql'], settings: ['007_settings.sql'], journal: ['010_journal.sql'] }
+import { CORE_MIGRATIONS, OPTIONAL_MIGRATIONS, runMigrations } from './migrations.js'
 
 export function createPool (connectionString) {
   return new pg.Pool({ connectionString, max: 4, idleTimeoutMillis: 30_000 })
@@ -14,7 +10,7 @@ export function createPool (connectionString) {
 /** Runs every migration; resolves { food, settings, journal: boolean } (false = that group failed, see migrations.js). */
 export function migrate (pool, log = console.log) {
   const readSql = (file) => readFile(fileURLToPath(new URL(`../sql/${file}`, import.meta.url)), 'utf8')
-  return runMigrations(pool, { core: MIGRATIONS, optional: OPTIONAL_MIGRATIONS, readSql, log })
+  return runMigrations(pool, { core: CORE_MIGRATIONS, optional: OPTIONAL_MIGRATIONS, readSql, log })
 }
 
 export async function insertRawPayload (pool, record) {

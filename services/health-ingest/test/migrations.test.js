@@ -22,3 +22,13 @@ test('all good: every optional group is available', async () => {
   const r = await runMigrations({ query: async () => ({}) }, { core: ['001'], optional: { food: ['006'] }, readSql: async (f) => f, log: () => {} })
   assert.deepEqual(r, { food: true })
 })
+
+test('every sql/*.sql file is listed exactly once, core and each optional group in numeric order', async () => {
+  const { readdir } = await import('node:fs/promises')
+  const { CORE_MIGRATIONS, OPTIONAL_MIGRATIONS } = await import('../src/migrations.js')
+  const onDisk = (await readdir(new URL('../sql/', import.meta.url))).filter((f) => f.endsWith('.sql')).sort()
+  const listed = [...CORE_MIGRATIONS, ...Object.values(OPTIONAL_MIGRATIONS).flat()]
+  assert.deepEqual([...listed].sort(), onDisk, 'a new sql/ file must be added to CORE_MIGRATIONS or an OPTIONAL group, or it never runs')
+  assert.equal(new Set(listed).size, listed.length, 'a migration is listed twice')
+  for (const files of [CORE_MIGRATIONS, ...Object.values(OPTIONAL_MIGRATIONS)]) assert.deepEqual(files, [...files].sort(), 'out of numeric order')
+})

@@ -10,8 +10,7 @@ function fakePool (handler = () => ({ rows: [] })) {
 }
 
 test('migration 010_journal.sql is its own optional group and is idempotent', async () => {
-  const db = await readFile(fileURLToPath(new URL('../src/db.js', import.meta.url)), 'utf8')
-  assert.match(db, /journal: \['010_journal\.sql'\]/)
+  assert.deepEqual((await import('../src/migrations.js')).OPTIONAL_MIGRATIONS.journal, ['010_journal.sql'])
   const sql = await readFile(fileURLToPath(new URL('../sql/010_journal.sql', import.meta.url)), 'utf8')
   for (const table of ['journal_day', 'journal_settings']) assert.match(sql, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}\\b`))
   assert.doesNotMatch(sql, /CREATE TABLE (?!IF NOT EXISTS)/)
