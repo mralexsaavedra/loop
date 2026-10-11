@@ -17,11 +17,12 @@ import { PROGRESS, PROGRESS_CASES, rollPoints, weeklyRate, etaMonths } from '../
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
+// only the fixtures pretest rebuilds from the current sources (web/dist/<mode> may be a stale earlier build);
+// en-example always exists, es-personal only when the personal files do
 const PAGES = [
-  path.join(WEB_ROOT, 'dist', 'example', 'index.html'),
   path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html'),
-  path.join(WEB_ROOT, 'dist', 'personal', 'index.html'),
-].filter((p) => fs.existsSync(p));
+  path.join(WEB_ROOT, '.test-dist', 'es-personal', 'index.html'),
+].filter((p, i) => i === 0 || fs.existsSync(p));
 const js = (v) => JSON.parse(JSON.stringify(v));
 
 const KEYS = {
