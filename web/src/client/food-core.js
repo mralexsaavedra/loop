@@ -3,7 +3,7 @@
  * never persisted), the
  * add sheet (a view of the detail sheet modal), Mis productos and Mis recetas (folds before Tablas).
  * Four classic scripts (is:inline), inlined in this order after nutri-day.js and before intake.js:
- * food-core.js (this file: the formula port, parseNum, the API client, the shared state S and the
+ * food-core.js (this file: the formula from HC_FOODLOG, parseNum, the API client, the shared state S and the
  * small helpers, handed to the others as window.HCFoodInternal), food-sheet.js (the add sheet),
  * food-catalog.js (Mis productos / Mis recetas) and food-log.js (Registrar + its day navigator, the
  * events, the boot and the public window.HCFood / window.foodTotals). Reads
@@ -17,15 +17,16 @@
  * writes send JSON. Nothing of the log is kept in the browser: the server is the one copy.
  *
  * Data honesty: macros come from the user's products / recipes (per-100 values from the label or Open
- * Food Facts, confirmed by the user) and the live preview uses a line-by-line port of
- * lib/nutrition/foodlog.mjs (window.HCFood; food.test.mjs runs it over the shared FOODLOG_CASES).
+ * Food Facts, confirmed by the user) and the live preview runs lib/nutrition/foodlog.mjs's own
+ * functions, emitted at build time as HC_FOODLOG (its clientSource, inlined with HC_FMT before util.js;
+ * window.HCFood; food.test.mjs runs them over the shared FOODLOG_CASES).
  * A quick entry without macros counts its kcal only; unknown macros are never filled in.
  *
  * Basics (the add sheet's "Mis productos" search): the public food DB (data/nutrition/ingredients.json),
  * baked as FOOD_BASICS by Dia.astro (lib/nutrition/basics.mjs). Typing also lists the matching basics, in a
  * "Básicos" group after the user's products (accent- and case-insensitive); a pick takes an amount in
  * the food's natural unit (pieces / ml / g, pieces <-> grams for a countable food) and is logged as ONE
- * quick entry with its four macros (a port of lib/nutrition/foodlog.mjs basicEntry / basicLabel; average
+ * quick entry with its four macros (lib/nutrition/foodlog.mjs basicEntry / basicLabel via HC_FOODLOG; average
  * table values, marked as such). Mis recetas' ingredient picker searches the same way (its products
  * under "Mis productos", then the basics); a basic ingredient is saved as a SNAPSHOT of its FOOD_BASICS
  * row (basicIngredient), so a later table change never alters a saved recipe.
@@ -71,167 +72,12 @@
   // follow today, so a midnight roll moves with it), dayLog / dayFail = that past day's log / load error
   var S = { ok: false, boot: true, products: [], recipes: [], log: null, view: null, autoView: false, dayLog: null, dayFail: null, sheet: null, pform: null, rform: null, confirm: null };
 
-  /* ---------- the formula: a line-by-line port of lib/nutrition/foodlog.mjs ---------- */
-  var ATWATER_TOL = 0.25;
-  var ATWATER_ABS_KCAL = 10;
-  var MACROS = ['protein', 'carbs', 'fat'];
-  var BASIC_UD_AMT = 100; // one unit of a 'ud' basic on the per-100 scale (lib/nutrition/foodlog.mjs)
-  function fin(v) {
-    return typeof v === 'number' && isFinite(v);
-  }
-  function round1(v) {
-    return Math.round(v * 10 + 1e-9) / 10;
-  }
-  function roundKcal(v) {
-    return Math.round(v + 1e-9);
-  }
-  function roundMacros(m) {
-    if (!m) return null;
-    return {
-      kcal: fin(m.kcal) ? roundKcal(m.kcal) : null,
-      protein: fin(m.protein) ? round1(m.protein) : null,
-      carbs: fin(m.carbs) ? round1(m.carbs) : null,
-      fat: fin(m.fat) ? round1(m.fat) : null,
-    };
-  }
-  function scaleMacros(per100, amount) {
-    var f = amount / 100;
-    return { kcal: per100.kcal * f, protein: per100.protein * f, carbs: per100.carbs * f, fat: per100.fat * f };
-  }
-  function times(m, f) {
-    return { kcal: m.kcal * f, protein: m.protein * f, carbs: m.carbs * f, fat: m.fat * f };
-  }
-  function productAmount(product, amount, unit) {
-    if (!product || !product.per100 || !fin(amount) || amount <= 0) return null;
-    if (unit === 'serving') return fin(product.servingSize) && product.servingSize > 0 ? amount * product.servingSize : null;
-    return unit === product.unit ? amount : null;
-  }
-  function productEntry(product, amount, unit) {
-    var a = productAmount(product, amount, unit);
-    return a == null ? null : roundMacros(scaleMacros(product.per100, a));
-  }
-  function knownMacros(m) {
-    return !!m && fin(m.kcal) && fin(m.protein) && fin(m.carbs) && fin(m.fat);
-  }
-  // a product ({productId, amount}) or a basic snapshot ({basic, name, unit, amount, per100}; 'ud' = per unit)
-  function ingredientBasis(ing, byId) {
-    if (!ing || !fin(ing.amount) || ing.amount <= 0) return null;
-    if (ing.basic != null) {
-      if (!knownMacros(ing.per100)) return null;
-      var ud = ing.unit === 'ud';
-      return { per100: ing.per100, amount: ud ? ing.amount * BASIC_UD_AMT : ing.amount, weight: ud ? 0 : ing.amount };
-    }
-    var p = byId ? byId[ing.productId] : null;
-    if (!p || !p.per100) return null;
-    return { per100: p.per100, amount: ing.amount, weight: ing.amount };
-  }
-  function recipeBasis(recipe, byId) {
-    var totals = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
-    var missing = [];
-    var raw = 0;
-    var n = 0;
-    (recipe && recipe.ingredients ? recipe.ingredients : []).forEach(function (ing) {
-      var x = ingredientBasis(ing, byId);
-      if (!x) { missing.push(ing && ing.basic != null ? ing.basic : ing && ing.productId); return; }
-      var m = scaleMacros(x.per100, x.amount);
-      totals = { kcal: totals.kcal + m.kcal, protein: totals.protein + m.protein, carbs: totals.carbs + m.carbs, fat: totals.fat + m.fat };
-      raw += x.weight;
-      n++;
-    });
-    var complete = missing.length === 0 && n > 0;
-    var perServing = null, per100 = null;
-    if (complete && recipe.kind === 'serving' && fin(recipe.servings) && recipe.servings >= 1) perServing = times(totals, 1 / recipe.servings);
-    if (complete && recipe.kind === 'batch' && fin(recipe.cookedWeightG) && recipe.cookedWeightG > 0) per100 = times(totals, 100 / recipe.cookedWeightG);
-    return { complete: complete && (perServing != null || per100 != null), missing: missing, rawWeight: raw, totals: totals, perServing: perServing, per100: per100 };
-  }
-  function entryFromBasis(basis, kind, amount, unit) {
-    if (!basis || !fin(amount) || amount <= 0) return null;
-    if (kind === 'serving' && unit === 'serving' && basis.perServing) return roundMacros(times(basis.perServing, amount));
-    if (kind === 'batch' && unit === 'g' && basis.per100) return roundMacros(times(basis.per100, amount / 100));
-    return null;
-  }
-  function recipeEntry(recipe, byId, amount, unit) {
-    if (!fin(amount) || amount <= 0) return null;
-    var b = recipeBasis(recipe, byId);
-    if (!b.complete) return null;
-    return entryFromBasis(b, recipe.kind, amount, unit);
-  }
-  function dayTotals(entries) {
-    var t = { kcal: 0, protein: 0, carbs: 0, fat: 0, count: 0, missing: { protein: false, carbs: false, fat: false } };
-    (entries || []).forEach(function (e) {
-      t.count++;
-      if (fin(e.kcal)) t.kcal += e.kcal;
-      MACROS.forEach(function (k) {
-        if (fin(e[k])) t[k] += e[k];
-        else t.missing[k] = true;
-      });
-    });
-    t.kcal = roundKcal(t.kcal);
-    MACROS.forEach(function (k) { t[k] = round1(t[k]); });
-    return t;
-  }
-  function atwaterOk(m) {
-    var est = 4 * m.protein + 4 * m.carbs + 9 * m.fat;
-    return Math.abs(est - m.kcal) <= Math.max(ATWATER_TOL * m.kcal, ATWATER_ABS_KCAL);
-  }
-  // basics (lib/nutrition/foodlog.mjs basicModes … basicConvert; food.test.mjs runs BASIC_CASES)
-  function round2(v) {
-    return Math.round(v * 100 + 1e-9) / 100;
-  }
-  function pieceWeight(b, mode) {
-    var pc = b && b.pc;
-    if (!pc) return null;
-    if (b.u === 'ud') return mode === 'g' && fin(pc.r) && pc.r > 0 ? pc.r : null;
-    return mode === b.u && fin(pc.a) && pc.a > 0 ? pc.a : null;
-  }
-  function basicModes(b) {
-    if (!b) return [];
-    if (b.u === 'ud') return pieceWeight(b, 'g') ? ['piece', 'g'] : ['piece'];
-    return b.pc ? ['piece', b.u] : [b.u];
-  }
-  function basicAmount(b, amount, mode) {
-    if (!b || !b.m || !fin(amount) || amount <= 0) return null;
-    if (mode === 'piece') {
-      if (b.u === 'ud') return amount * (b.pc && fin(b.pc.a) ? b.pc.a : 100);
-      return b.pc && fin(b.pc.a) ? amount * b.pc.a : null;
-    }
-    if (mode === b.u) return amount;
-    var w = b.u === 'ud' ? pieceWeight(b, mode) : null;
-    return w ? (amount / w) * 100 : null;
-  }
-  function basicEntry(b, amount, mode) {
-    var a = basicAmount(b, amount, mode);
-    return a == null ? null : roundMacros(scaleMacros({ kcal: b.m[0], protein: b.m[1], carbs: b.m[2], fat: b.m[3] }, a));
-  }
-  function basicLabel(b, amount, mode, w) {
-    if (basicAmount(b, amount, mode) == null) return null;
-    var num = function (x) { return String(round2(x)).replace('.', w.dec); };
-    var s;
-    if (mode === 'piece') {
-      var unit = b.u === 'ud' ? 'g' : b.u;
-      var pw = pieceWeight(b, unit);
-      s = num(amount) + ' ' + w.ud + (pw ? ' (~' + Math.round(amount * pw + 1e-9) + ' ' + w[unit] + ')' : '');
-    } else {
-      s = num(amount) + ' ' + w[mode];
-    }
-    return (b.n + ' · ' + s).slice(0, LIM.nameMax || 120);
-  }
-  function basicConvert(b, amount, from, to) {
-    var a = basicAmount(b, amount, from);
-    if (a == null || basicModes(b).indexOf(to) < 0) return null;
-    if (from === to) return amount;
-    var per = basicAmount(b, 1, to);
-    var v = a / per;
-    return to === 'piece' ? round2(v) : Math.round(v + 1e-9);
-  }
-  // a basic as a recipe ingredient: the snapshot the recipe keeps, amount in its own unit (1 decimal)
-  function basicIngredient(b, amount, mode) {
-    var a = basicAmount(b, amount, mode);
-    if (a == null) return null;
-    var v = round1(b.u === 'ud' ? a / BASIC_UD_AMT : a);
-    if (!(v > 0)) return null;
-    return { basic: b.k, name: String(b.n).slice(0, LIM.nameMax || 120), unit: b.u, amount: v, per100: { kcal: b.m[0], protein: b.m[1], carbs: b.m[2], fat: b.m[3] } };
-  }
+  /* ---------- the formula: lib/nutrition/foodlog.mjs's own functions (clientSource -> HC_FOODLOG) ---------- */
+  var FL = HC_FOODLOG;
+  var MACROS = FL.MACROS, fin = FL.fin, round1 = FL.round1, roundMacros = FL.roundMacros, productEntry = FL.productEntry,
+    recipeBasis = FL.recipeBasis, entryFromBasis = FL.entryFromBasis, recipeEntry = FL.recipeEntry, dayTotals = FL.dayTotals,
+    atwaterOk = FL.atwaterOk, pieceWeight = FL.pieceWeight, basicModes = FL.basicModes, basicAmount = FL.basicAmount,
+    basicEntry = FL.basicEntry, basicLabel = FL.basicLabel, basicConvert = FL.basicConvert, basicIngredient = FL.basicIngredient;
 
   /* ---------- small helpers ---------- */
   function $(id) { return document.getElementById(id); }

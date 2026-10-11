@@ -11,16 +11,18 @@ import { clientSource as bandSource } from '../../lib/score/recovery.mjs';
 import { clientSource as adhSource } from '../../lib/nutrition/adherence.mjs';
 import { clientSource as progSource } from '../../lib/nutrition/progress.mjs';
 import { clientSource as nscoreSource } from '../../lib/nutrition/score.mjs';
+import { clientSource as foodlogSource } from '../../lib/nutrition/foodlog.mjs';
 import { es as esDate, en as enDate } from '../src/i18n/date-templates.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const HC_CONST_BAKE = hcConst();
 /** The one number formatter's classic-script twin (lib/format/numbers.mjs) + the recovery bands'
  * (lib/score/recovery.mjs HC_BAND) + the food log adherence (lib/nutrition/adherence.mjs HC_ADH) +
- * the weight progress (lib/nutrition/progress.mjs HC_PROG) + the nutrition score (lib/nutrition/score.mjs HC_NSCORE),
+ * the weight progress (lib/nutrition/progress.mjs HC_PROG) + the nutrition score (lib/nutrition/score.mjs HC_NSCORE)
+ * + the food log formula (lib/nutrition/foodlog.mjs HC_FOODLOG),
  * inlined together before util.js like layouts/Plan.astro does. */
-export const FMT_SOURCE = clientSource() + '\n' + bandSource() + '\n' + adhSource() + '\n' + progSource() + '\n' + nscoreSource();
-/** util.js as the page runs it: after HC_FMT + HC_BAND + HC_ADH + HC_PROG + HC_NSCORE (so running UTIL_SOURCE alone in a vm gives a working HC). */
+export const FMT_SOURCE = clientSource() + '\n' + bandSource() + '\n' + adhSource() + '\n' + progSource() + '\n' + nscoreSource() + '\n' + foodlogSource();
+/** util.js as the page runs it: after HC_FMT + HC_BAND + HC_ADH + HC_PROG + HC_NSCORE + HC_FOODLOG (so running UTIL_SOURCE alone in a vm gives a working HC). */
 export const UTIL_SOURCE = FMT_SOURCE + '\n' + fs.readFileSync(path.join(here, '..', 'src', 'client', 'util.js'), 'utf8');
 
 /** Bakes HC_CONST and I18N_DATE (by ctx.LOCALE, like the page; unless the test set its own) and runs
@@ -33,7 +35,7 @@ export function loadUtil(ctx) {
 }
 
 /** The food log's four classic scripts in their page order (layouts/Plan.astro): food-core.js (the
- * formula port, the API client, shared state → window.HCFoodInternal), then the add sheet, Mis productos
+ * formula from HC_FOODLOG, the API client, shared state → window.HCFoodInternal), then the add sheet, Mis productos
  * / Mis recetas, and food-log.js (Registrar, events, boot, window.HCFood). FOOD_SOURCE = the four
  * joined: each is its own IIFE, so running the joined text equals running them one after another. */
 export const FOOD_SCRIPTS = ['food-core.js', 'food-sheet.js', 'food-catalog.js', 'food-log.js'];

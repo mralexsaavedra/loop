@@ -1,5 +1,5 @@
 /* The classic-script globals emitted by the libs' clientSource() (HC_FMT, HC_BAND, HC_ADH, HC_PROG,
- * HC_NSCORE) as
+ * HC_NSCORE, HC_FOODLOG) as
  * they ship in the BUILT page, not as the unbundled modules emit them: Vite / Rollup bundles the libs
  * together and renames clashing top-level names (fin -> fin$3, ISO_RE -> ISO_RE$2), so a global whose
  * keys or constants came from those names breaks only on the real page. Extracts the inline script
@@ -16,6 +16,7 @@ import { pctBand, PCT_GOOD, PCT_LOW } from '../../lib/score/recovery.mjs';
 import { ADHERENCE, ADHERENCE_CASES, isComplete, dayState } from '../../lib/nutrition/adherence.mjs';
 import { PROGRESS, PROGRESS_CASES, rollPoints, weeklyRate, etaMonths } from '../../lib/nutrition/progress.mjs';
 import * as NS from '../../lib/nutrition/score.mjs';
+import * as FL from '../../lib/nutrition/foodlog.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
@@ -33,6 +34,11 @@ const KEYS = {
   HC_ADH: ['ADHERENCE', 'fin', 'isComplete', 'dayState', 'adherence'],
   HC_PROG: ['PROGRESS', 'fin', 'round', 'dayNum', 'isoOf', 'rollPoints', 'weeklyRate', 'weightProgress', 'etaMonths'],
   HC_NSCORE: ['NSCORE', 'fin', 'clamp100', 'ratio', 'pts1', 'kcalPoints', 'proteinPoints', 'fatPoints', 'scoreBand', 'hasMeals', 'nutritionScore', 'scoreSeries'],
+  HC_FOODLOG: [
+    'ATWATER_TOL', 'ATWATER_ABS_KCAL', 'BASIC_UD_AMT', 'MACROS', 'fin', 'roundEps', 'round1', 'roundKcal', 'round2', 'roundMacros', 'scaleMacros',
+    'times', 'productAmount', 'productEntry', 'knownMacros', 'ingredientBasis', 'recipeBasis', 'entryFromBasis', 'recipeEntry', 'dayTotals',
+    'atwaterOk', 'pieceWeight', 'basicModes', 'basicAmount', 'basicEntry', 'basicLabel', 'basicConvert', 'basicIngredient',
+  ],
 };
 
 function globalsOf(htmlPath) {
@@ -104,5 +110,21 @@ for (const page of PAGES) {
     for (const k of [1300, 1799.9, 2200, 2200.1, 2699]) assert.equal(HC_NSCORE.kcalPoints(k, 2000), NS.kcalPoints(k, 2000), String(k));
     assert.equal(HC_NSCORE.hasMeals({ groups: { breakfast: 1, lunch: 1, dinner: 0 } }), false);
     assert.equal(HC_NSCORE.hasMeals({ groups: { breakfast: 1, lunch: 2, dinner: 1 } }), true);
+  });
+
+  test(`${rel}: HC_FOODLOG computes what lib/nutrition/foodlog.mjs computes`, () => {
+    const { HC_FOODLOG } = globalsOf(page);
+    assert.equal(HC_FOODLOG.ATWATER_TOL, FL.ATWATER_TOL);
+    assert.equal(HC_FOODLOG.ATWATER_ABS_KCAL, FL.ATWATER_ABS_KCAL);
+    assert.equal(HC_FOODLOG.BASIC_UD_AMT, FL.BASIC_UD_AMT);
+    assert.deepEqual(js(HC_FOODLOG.MACROS), ['protein', 'carbs', 'fat']);
+    for (const c of FL.FOODLOG_CASES) assert.deepEqual(js(FL.runCase(c, HC_FOODLOG)), js(c.expect), c.name);
+    for (const c of FL.BASIC_CASES) assert.deepEqual(js(FL.runBasicCase(c, HC_FOODLOG)), js(c.expect), c.name);
+    for (const v of [1.005, 0.1 + 0.2, 2.45, 7]) {
+      assert.equal(HC_FOODLOG.round1(v), FL.round1(v));
+      assert.equal(HC_FOODLOG.roundKcal(v), FL.roundKcal(v));
+    }
+    const long = { k: 'x', n: 'N'.repeat(200), u: 'g', m: [100, 1, 1, 1] };
+    assert.equal(HC_FOODLOG.basicLabel(long, 10, 'g', { dec: '.', g: 'g' }), FL.basicLabel(long, 10, 'g', { dec: '.', g: 'g' }), 'FOOD_LIMITS.nameMax cap');
   });
 }

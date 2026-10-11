@@ -35,11 +35,12 @@ const GEOMETRY_TOFIXED = {
   'web/src/client/score.js': 2, // the sparkline points
   'web/src/client/training-activity.js': 2, // the modality bar's rect x / width
 };
-// a hand-made decimal comma that is DATA, not display: the logged food entry's stored name
-// ("Arroz · 1,5 ud") mirrors lib/nutrition/basics.mjs byte for byte (the user logs with these names)
-// and the plan's portion factor ("×1,25"), a port of lib/nutrition/scale.mjs pinned byte for byte by
-// the nutri-day parity test (it takes the plan's own decimal mark)
-const DECIMAL_COMMA_DATA = ['web/src/client/food-core.js', 'web/src/client/nutri-day.js'];
+// a hand-made decimal comma that is DATA, not display: the plan's portion factor ("×1,25"), a port of
+// lib/nutrition/scale.mjs pinned byte for byte by the nutri-day parity test (it takes the plan's own
+// decimal mark). The logged food entry's stored name ("Arroz · 1,5 ud") is no longer built here:
+// food-core.js runs lib/nutrition/foodlog.mjs basicLabel (HC_FOODLOG), whose bytes BASIC_CASES pin
+// (es and en decimal marks) in the lib, the page and the built page — so food-core.js gets none.
+const DECIMAL_COMMA_DATA = ['web/src/client/nutri-day.js'];
 // "{x} h" templates that are not a value's duration: a whole-hour range before a ride ("2–4 h
 // before") and the relative age of a sync ("3 h ago")
 const HOUR_TEMPLATES_OK = /^\s*(beforeCarbs|beforeCarbsNoKg|hAgo):/;

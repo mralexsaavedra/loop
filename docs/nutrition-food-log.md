@@ -26,11 +26,13 @@ unknown.
   `batch` × 100 ÷ total COOKED weight (per 100 g cooked); a missing product = incomplete, not
   loggable. Entries round once (kcal whole, macros 1 decimal) and day totals sum the rounded
   snapshots; a macro unknown on any entry is flagged in `missing` (the sum is then a minimum).
-  Atwater: 4p + 4c + 9f within ±25 % of kcal or 10 kcal. Ports: `services/health-ingest/src/food-calc.js`
-  (the service is built from its own directory) and `web/src/client/food-core.js` (`window.HCFood`);
-  `lib/nutrition/foodlog.test.mjs` and `web/src/client/food.test.mjs` run all three over
-  `FOODLOG_CASES`, so a formula change is made in all three (food-calc.js is a LITERAL copy: `var`,
-  semicolons). The add sheet's preview goes through the same functions: a recipe whose products are all
+  Atwater: 4p + 4c + 9f within ±25 % of kcal or 10 kcal. The page runs the lib's own functions: its
+  `clientSource()` emits them as `HC_FOODLOG` (inlined with HC_FMT before util.js, + `num.mjs` `fin` /
+  `roundEps`), which `web/src/client/food-core.js` reads (`window.HCFood`, no copy). The one port left is
+  `services/health-ingest/src/food-calc.js` (the service is built from its own directory);
+  `lib/nutrition/foodlog.test.mjs`, `web/src/client/food.test.mjs` and `web/test/client-globals-build.test.mjs`
+  (the built page) run all three over `FOODLOG_CASES`, so a formula change is made in the lib and the
+  service (food-calc.js is a LITERAL copy: `var`, semicolons). The add sheet's preview goes through the same functions: a recipe whose products are all
   listed uses `recipeBasis`, one with an archived product the server's computed basis on the recipe row,
   both through `entryFromBasis` — no fourth copy. **Basics** (generic foods, no product needed):
   `basicModes` / `basicAmount` / `basicEntry` / `basicLabel` / `basicConvert` in the same file, over
@@ -40,9 +42,9 @@ unknown.
   in code-unit order; `normName` = the search's normalization). Modes: `piece` (a countable food, or a
   `ud` food) or the food's own unit; a `ud` food also in `g` when its piece states grams; never g ↔ ml.
   Label = "<name> · <amount> ud (~<g> g)" for pieces, "<name> · <amount> <g|ml>" otherwise (es "ud",
-  en "pc", decimal comma in es), capped at `nameMax`. Only TWO copies: the reference + food-core.js
-  (`BASIC_CASES` / `runBasicCase`, pinned by both test files) — the server never computes a quick
-  entry, so food-calc.js has none.
+  en "pc", decimal comma in es), capped at `nameMax`. ONE implementation: the reference, run by
+  food-core.js through `HC_FOODLOG` (`BASIC_CASES` / `runBasicCase` pin its bytes in the lib, the page and
+  the built page) — the server never computes a quick entry, so food-calc.js has none.
 - **Storage + API** — `services/health-ingest`: `sql/006_food.sql` (idempotent) = `food_product`
   (per-100 kcal / protein / carbs / fat, store, unit g / ml, serving size?, barcode? unique among
   ACTIVE products, source off / label / manual, off_code?, archived), `food_recipe` (kind, servings
@@ -92,7 +94,7 @@ unknown.
   (`src/migrations.js`): if it fails the service logs `food_migration_failed` and keeps ingesting /
   syncing / pulling Strava, and only `/food/*` answers `503 food_unavailable`.
 - **Page** — `web/src/client/food-*.js`, four classic scripts inlined in this order after nutri-day.js, before intake.js:
-  `food-core.js` (the formula port, `parseNum`, the API client, the shared state `S` + helpers, handed to
+  `food-core.js` (the formula from `HC_FOODLOG`, `parseNum`, the API client, the shared state `S` + helpers, handed to
   the others as `window.HCFoodInternal`), `food-sheet.js` (the add sheet), `food-catalog.js` (Mis
   productos / Mis recetas), `food-log.js` (Registrar + navigator, the event listeners, the boot, the
   public `window.HCFood` / `window.foodTotals`); tests load them with `web/test/client-util.mjs`
@@ -179,10 +181,10 @@ Plan de hoy) and the
   and "Cambiar" (`r-unpick`), the amount in the NATURAL unit (pieces first, prefilled 1 piece / 100 g /
   ml) and, when the food has pieces, a pieces ↔ g / ml select (`frf-mode-<i>`, converts the typed amount
   with `basicConvert`). A basic is saved as a SNAPSHOT `{basic, name, unit, amount, per100}` built by
-  `basicIngredient` (reference + food-core.js, `BASIC_CASES`): unit = the basic's own unit (g / ml / ud),
+  `basicIngredient` (the reference, via `HC_FOODLOG`; `BASIC_CASES`): unit = the basic's own unit (g / ml / ud),
   amount in it (a `ud` food = a count of units; pieces of a g / ml food become grams / ml), 1 decimal as
   stored; per100 = FOOD_BASICS `m` (per one unit for `ud`, `BASIC_UD_AMT` = units.mjs `UD_AMT`). The
-  formula (`ingredientBasis` / `recipeBasis`, all three copies, `FOODLOG_CASES`: product + basic in g +
+  formula (`ingredientBasis` / `recipeBasis`, lib + service copy, `FOODLOG_CASES`: product + basic in g +
   basic in units, per serving and batch) adds products and snapshots alike; `rawWeight` = the g / ml
   amounts only; a basic with an unknown macro is `missing` by its key. Editing loads a basic back with
   its stored snapshot (never refreshed from FOOD_BASICS; the current table only supplies the piece for
