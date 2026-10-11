@@ -37,6 +37,17 @@ into the page via `clientSource()`.
   `web/test/fixtures/css-expected.json` both ways (dropped/changed AND added declarations fail); after a
   deliberate CSS change run `npm run test:css:update` (after `npm test` / `npm run pretest`), which rewrites
   the fixture keeping key order, appending new keys and deleting stale ones.
+- **Script order: one manifest.** The client scripts are classic `is:inline` scripts that talk only through
+  page globals, so their order is a contract. `web/src/client/manifest.mjs` (`CLIENT_SCRIPTS`) is its ONE source:
+  `layouts/Plan.astro` inlines every `web/src/client/*.js` (`import.meta.glob` `?raw`) in that order, after the
+  bakes and `HC_FMT … HC_GUIDE`. Each entry declares `provides` (top-level `var` / `function` names + every
+  `window.X =` write), `requires` (globals READ while it runs at load, each baked or provided EARLIER; reads in
+  handlers, timers and fetch answers do not count) and `probes` (load-time reads of a LATER script's global,
+  always feature-detected, the later script calls back). `web/test/script-manifest.test.mjs` checks every file is
+  listed once and inlined in that order, `provides` against a static scan, `requires` / `probes` against the order,
+  and runs a vm load trace of the example page (`web/test/script-trace.mjs`: plain load + the `#profile`,
+  `#tonight`, `#detail/sleep` deep links) that fails on any undeclared load-time read or `window` write. A new
+  script goes into the manifest at its place; the test names what to declare.
 
 - `LOCALE`: env var → `plan.locale` → `en` (the user's `plan-data.json` sets `locale:"es"`).
 - `DATA_MODE=personal|example`: personal reads the gitignored real files; example reads the
@@ -73,7 +84,8 @@ into the page via `clientSource()`.
   from `web/src/i18n/date-templates.mjs`, not Intl, whose ICU builds disagree) — EVERY user-visible
   date goes through it (ISO only in data attributes / ids; a test fails on any `toLocale*String` /
   `Intl.DateTimeFormat` in `web/src/client`; `loadUtil` bakes `I18N_DATE` by `LOCALE`), and `detailAttrs`
-  (the detail-sheet opener markup, see "Detail views") and `rolloverAction` (the midnight rollover:
+  (the detail-sheet opener markup, see "Detail views"), `registerView` / `view` (the detail sheet's
+  registered views, the one writer of `window.HCViews`, `docs/detail-views.md`) and `rolloverAction` (the midnight rollover:
   core.js captures the viewer's day at load and, when the page becomes visible on another day,
   reloads once, so the dials, top-bar date, timeline, day type and rings move to the new day; while
   the page is BUSY — the detail sheet `#detail` open, a Mis productos / Mis recetas editor open (a form

@@ -2,8 +2,9 @@
 /* Shared page shell — header (personal copy), tab nav, footer
  * (personal copy), and the end-of-body script order per design: bake (the
  * shared Bake rendered by pages/index.astro, plus the per-tab bakes such as Dia's NUTRI) → NAV +
- * HC_CONST → HC_FMT + HC_BAND + HC_ADH + HC_PROG + HC_NSCORE + HC_FOODLOG + HC_DAYTYPE + HC_FUEL + HC_SCALE + HC_GUIDE (the one number formatter, lib/format/numbers.mjs clientSource; the recovery 0-100 bands, lib/score/recovery.mjs clientSource; every nutrition global — food log adherence, weight progress, nutrition score, food log formula, day type, ride fuelling, portion scaling and guide — lib/nutrition/client.mjs clientSource) → util (window.HC, the shared client helpers, FIRST so every later script can read it) →
- * core (setTab/jump) → today-date → nutri-day → food (core → sheet → catalog → log) → settings → progress → adherence → intake → training-today → training-dash → training-activity → health → score → monitor → energy (Inicio's energy bank card) → nutri-score (the nutrition score: Inicio's card + Nutrición's block, after nutri-day / adherence) → timeline → profile → nav-actions (the dock's "+") → home-week → home-dash (Inicio's Tonight / My plan / My dashboard; their sheets register before detail runs) → journal (My journal + its LAN sheet) → deepdive (the dial deep-dive pages, read by detail) → detail → freshness.
+ * HC_CONST → HC_FMT + HC_BAND + HC_ADH + HC_PROG + HC_NSCORE + HC_FOODLOG + HC_DAYTYPE + HC_FUEL + HC_SCALE + HC_GUIDE (the one number formatter, lib/format/numbers.mjs clientSource; the recovery 0-100 bands, lib/score/recovery.mjs clientSource; every nutrition global — food log adherence, weight progress, nutrition score, food log formula, day type, ride fuelling, portion scaling and guide — lib/nutrition/client.mjs clientSource) →
+ * every web/src/client/*.js in the order of src/client/manifest.mjs (util FIRST, … detail → freshness; each entry
+ * states what it provides and requires at load, web/test/script-manifest.test.mjs keeps it true).
  * Tabs render inside <slot />; the detail sheet (components/DetailSheet.astro) renders in the `overlay`
  * slot, after .wrap, so detail.js can make the page behind it inert (the dock and the "+" popover sit inside .wrap). The top bar
  * is ONE row: avatar · centred "‹ Today ›" date pill (client/today-date.js steps Inicio through past days) · status dot + short freshness (#fresh-sum, per-source detail in the #fresh-pop
@@ -23,39 +24,14 @@ import '../src/styles/detail.css';
 import '../src/styles/profile.css';
 import '../src/styles/food.css';
 import '../src/styles/journal.css';
-import utilScript from '../src/client/util.js?raw';
 import { clientSource as fmtClientSource } from '../../lib/format/numbers.mjs';
 import { clientSource as bandClientSource } from '../../lib/score/recovery.mjs';
 import { clientSource as nutriClientSource } from '../../lib/nutrition/client.mjs';
-import coreScript from '../src/client/core.js?raw';
-import nutriDayScript from '../src/client/nutri-day.js?raw';
-import foodCoreScript from '../src/client/food-core.js?raw';
-import foodSheetScript from '../src/client/food-sheet.js?raw';
-import foodCatalogScript from '../src/client/food-catalog.js?raw';
-import foodLogScript from '../src/client/food-log.js?raw';
-import settingsScript from '../src/client/settings.js?raw';
-import progressScript from '../src/client/progress.js?raw';
-import adherenceScript from '../src/client/adherence.js?raw';
-import trainingTodayScript from '../src/client/training-today.js?raw';
-import trainingDashScript from '../src/client/training-dash.js?raw';
-import trainingActivityScript from '../src/client/training-activity.js?raw';
-import healthScript from '../src/client/health.js?raw';
-import scoreScript from '../src/client/score.js?raw';
-import navActionsScript from '../src/client/nav-actions.js?raw';
-import monitorScript from '../src/client/monitor.js?raw';
-import energyScript from '../src/client/energy.js?raw';
-import nutriScoreScript from '../src/client/nutri-score.js?raw';
-import timelineScript from '../src/client/timeline.js?raw';
-import intakeScript from '../src/client/intake.js?raw';
-import freshnessScript from '../src/client/freshness.js?raw';
-import homeWeekScript from '../src/client/home-week.js?raw';
-import homeDashScript from '../src/client/home-dash.js?raw';
-import journalScript from '../src/client/journal.js?raw';
-import deepdiveScript from '../src/client/deepdive.js?raw';
-import detailScript from '../src/client/detail.js?raw';
-import profileScript from '../src/client/profile.js?raw';
+import { CLIENT_SCRIPTS } from '../src/client/manifest.mjs';
+// the raw source of every client script, keyed by path; inlined in CLIENT_SCRIPTS order below (the
+// markup keeps </body> on the map's line: a line break after an expression renders as a space)
+const clientSources = import.meta.glob('../src/client/*.js', { query: '?raw', import: 'default', eager: true });
 import Avatar from '../src/components/Avatar.astro';
-import todayDateScript from '../src/client/today-date.js?raw';
 import tokensCss from '../src/styles/tokens.css?raw';
 import { es as esSync, en as enSync } from '../src/i18n/sync-templates.mjs';
 import { es as esDate, en as enDate } from '../src/i18n/date-templates.mjs';
@@ -210,34 +186,5 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
     <slot name="overlay" />
     <script is:inline set:html={navSource} />
     <script is:inline set:html={slimScript(fmtClientSource() + '\n' + bandClientSource() + '\n' + nutriClientSource())} />
-    <script is:inline set:html={slimScript(utilScript)} />
-    <script is:inline set:html={slimScript(coreScript)} />
-    <script is:inline set:html={slimScript(todayDateScript)} />
-    <script is:inline set:html={slimScript(nutriDayScript)} />
-    <script is:inline set:html={slimScript(foodCoreScript)} />
-    <script is:inline set:html={slimScript(foodSheetScript)} />
-    <script is:inline set:html={slimScript(foodCatalogScript)} />
-    <script is:inline set:html={slimScript(foodLogScript)} />
-    <script is:inline set:html={slimScript(settingsScript)} />
-    <script is:inline set:html={slimScript(progressScript)} />
-    <script is:inline set:html={slimScript(adherenceScript)} />
-    <script is:inline set:html={slimScript(intakeScript)} />
-    <script is:inline set:html={slimScript(trainingTodayScript)} />
-    <script is:inline set:html={slimScript(trainingDashScript)} />
-    <script is:inline set:html={slimScript(trainingActivityScript)} />
-    <script is:inline set:html={slimScript(healthScript)} />
-    <script is:inline set:html={slimScript(scoreScript)} />
-    <script is:inline set:html={slimScript(monitorScript)} />
-    <script is:inline set:html={slimScript(energyScript)} />
-    <script is:inline set:html={slimScript(nutriScoreScript)} />
-    <script is:inline set:html={slimScript(timelineScript)} />
-    <script is:inline set:html={slimScript(profileScript)} />
-    <script is:inline set:html={slimScript(navActionsScript)} />
-    <script is:inline set:html={slimScript(homeWeekScript)} />
-    <script is:inline set:html={slimScript(homeDashScript)} />
-    <script is:inline set:html={slimScript(journalScript)} />
-    <script is:inline set:html={slimScript(deepdiveScript)} />
-    <script is:inline set:html={slimScript(detailScript)} />
-    <script is:inline set:html={slimScript(freshnessScript)} />
-  </body>
+    {CLIENT_SCRIPTS.map(({ file }) => <script is:inline set:html={slimScript(clientSources[`../src/client/${file}`])} />)}</body>
 </html>

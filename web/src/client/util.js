@@ -291,6 +291,19 @@ var HC = (function () {
       (o.info ? '<button type="button" class="sh-info" data-dt-act="info" aria-expanded="false" aria-controls="' + esc(o.info.controls) + '" aria-label="' + esc(o.info.label) + '">' + INFO_SVG + '</button>'
         : '<span class="sh-pad" aria-hidden="true"></span>') + '</div>';
   }
+  // the detail sheet's registered views (window.HCViews: {<key>: {title(), render()}}, opened by
+  // client/detail.js, deep link #<key>). The ONE writer; the registry appears with the first view. A
+  // script registering its key again (a re-render, a reload of its API) replaces its view and never
+  // throws on the live page; two scripts claiming one key is caught statically (util.test.mjs scan).
+  function registerView(name, view) {
+    var all = window.HCViews = window.HCViews || {};
+    all[name] = view;
+  }
+  // a registered view by key (own keys only: never "constructor" / "toString"), or null
+  function view(name) {
+    var all = typeof window !== 'undefined' && window.HCViews && typeof window.HCViews === 'object' ? window.HCViews : null;
+    return all && Object.prototype.hasOwnProperty.call(all, name) ? all[name] : null;
+  }
 
   return {
     MS_PER_DAY: MS_PER_DAY,
@@ -330,5 +343,7 @@ var HC = (function () {
     infoSvg: INFO_SVG,
     sheetHead: sheetHead,
     rolloverAction: rolloverAction,
+    registerView: registerView,
+    view: view,
   };
 })();
