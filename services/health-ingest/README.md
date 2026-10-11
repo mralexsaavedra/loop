@@ -172,8 +172,10 @@ own recipes (Mis recetas), through plan-web's `/api/food/` proxy. Tables in
   one with that product is still `400 unknown_product`). Kind
   `serving` (tortitas, crepes, a shake: N servings) or `batch` (lentejas: total
   cooked weight, macros per 100 g cooked). Macros are always COMPUTED
-  (`src/food-calc.js`, a port of `lib/nutrition/foodlog.mjs`, pinned by a parity
-  test), never typed.
+  (`src/food-calc.js`, GENERATED from `lib/nutrition/foodlog.mjs` by the repo's
+  `scripts/gen-food-calc.mjs` — never edit it here: change the lib, run
+  `npm run gen:food-calc` at the repo root and rebuild this image; a root test
+  fails while the committed file is stale), never typed.
 - **Log entries** carry the user's LOCAL date (sent by the page), a meal slot
   (`breakfast`, `lunch`, `preworkout`, `postworkout`, `dinner`, `snack`) and a
   SNAPSHOT of their macros taken at log time, so editing a product later never
