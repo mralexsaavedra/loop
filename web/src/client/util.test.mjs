@@ -231,3 +231,38 @@ test('lan: LAN fetches only when served (http/https or no location); a file:// p
   assert.equal(at({ location: { protocol: 'file:' } }), false);
   assert.equal(at({ window: { location: { protocol: 'file:' } } }), false, 'window.location counts too');
 });
+
+/* ---------- HC.registerView / HC.view: the detail sheet's registered views (window.HCViews) ---------- */
+function loadWithWindow() {
+  const ctx = { LOCALE: 'en', HC_CONST: HC_CONST_BAKE, I18N_DATE: enDate, Math, String, Number, Array, Object, JSON, Error };
+  ctx.window = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(UTIL_SOURCE, ctx);
+  return ctx;
+}
+
+test('HC.registerView: creates window.HCViews on first use; HC.view reads own keys only', () => {
+  const ctx = loadWithWindow();
+  assert.equal(ctx.HCViews, undefined, 'nothing registered, no registry');
+  assert.equal(ctx.HC.view('profile'), null);
+  const v = { title: () => 'P', render: () => ({ head: '', body: '' }) };
+  ctx.HC.registerView('profile', v);
+  assert.equal(ctx.HCViews.profile, v);
+  assert.equal(ctx.HC.view('profile'), v);
+  assert.equal(ctx.HC.view('toString'), null, 'no inherited keys');
+});
+
+test('HC.registerView: a second registration of the same name throws and keeps the first', () => {
+  const ctx = loadWithWindow();
+  const first = { render: () => ({}) };
+  ctx.HC.registerView('journal', first);
+  assert.throws(() => ctx.HC.registerView('journal', { render: () => ({}) }), /duplicate view "journal"/);
+  assert.equal(ctx.HC.view('journal'), first);
+});
+
+test('only util.js writes window.HCViews: every other client script registers through HC.registerView', () => {
+  const dir = path.dirname(fileURLToPath(import.meta.url));
+  const writers = fs.readdirSync(dir).filter((f) => f.endsWith('.js') && f !== 'util.js')
+    .filter((f) => /\bHCViews\s*(\[[^\]]*\]|\.[\w$]+)?\s*=(?!=)|\bvar\s+\w+\s*=\s*window\.HCViews\b/.test(fs.readFileSync(path.join(dir, f), 'utf8')));
+  assert.deepEqual(writers, []);
+});

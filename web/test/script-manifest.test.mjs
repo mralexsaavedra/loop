@@ -64,7 +64,8 @@ for (const hash of ['', '#profile', '#tonight', '#detail/sleep']) {
         if (baked.includes(n) || providerAt.get(n) < i) assert.ok(e.requires.includes(n), `${e.file} reads ${n} at load: add it to requires`);
         else if (providerAt.get(n) > i) assert.ok((e.probes || []).includes(n), `${e.file} reads ${n} before it exists: add it to probes`);
       }
-      for (const n of t.wrote) assert.ok(e.provides.includes(n), `${e.file} writes window.${n}: add it to provides`);
+      // a write through an earlier script's helper (HC.registerView → window.HCViews) belongs to that script
+      for (const n of t.wrote) assert.ok(providerAt.get(n) <= i, `${e.file} writes window.${n}: add it to provides`);
     });
   });
 }

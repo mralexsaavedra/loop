@@ -11,6 +11,14 @@ The full-screen drill-down sheet behind every card.
 WHOOP's drill-down, honest version: a tap on a card opens a full-screen sheet (a large centred panel
 from 900px) with that metric's history. No new score: the sheet only shows the card's own series.
 
+- **Registered views** — a sheet that is not a `DETAIL` metric (profile, tonight, dash-edit, hoy-session,
+  food-add, journal, journal-insights) registers with `HC.registerView(<key>, {title(), render() → {head,
+  body}})` (`client/util.js`, the ONLY writer of `window.HCViews`; the registry appears with the first view)
+  and `detail.js` reads it through `HC.view(<key>)` (own keys only, else null). Each key registers once per
+  page: a second `registerView` of the same key throws and keeps the first, so two scripts can never claim
+  one deep link `#<key>` silently. `web/src/client/util.test.mjs` checks the throw and that no other client
+  script writes `HCViews` directly.
+
 - **Data** — `lib/detail/detail.mjs` `buildDetail(extractDir, { sex })` bakes ONE global `DETAIL` (in
   `components/DetailSheet.astro`, with `I18N_DETAIL` from `web/src/i18n/detail-templates.mjs`):
   `{asOf, days: 365, metrics: {<key>: {kind, dir, dec, start, v, …}}, sessions}`. Each metric = an ISO
