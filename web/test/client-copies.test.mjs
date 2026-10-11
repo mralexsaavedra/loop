@@ -16,16 +16,19 @@ const htmlPath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html');
 const html = fs.existsSync(htmlPath) ? fs.readFileSync(htmlPath, 'utf8') : '';
 const src = (name) => fs.readFileSync(path.join(WEB_ROOT, 'src', 'client', name), 'utf8');
 
-// client file -> the global it reads + the lib functions it must not re-define
-const COPIES = {
-  'adherence.js': { global: 'HC_ADH', fns: ['fin', 'isComplete', 'dayState', 'adherence'] },
-  'progress.js': { global: 'HC_PROG', fns: ['fin', 'round', 'dayNum', 'isoOf', 'rollPoints', 'weeklyRate', 'weightProgress', 'etaMonths'] },
-  'food-core.js': { global: 'HC_FOODLOG', fns: ['fin', 'roundEps', 'round1', 'roundKcal', 'round2', 'roundMacros', 'scaleMacros', 'times', 'productAmount', 'productEntry', 'knownMacros', 'ingredientBasis', 'recipeBasis', 'entryFromBasis', 'recipeEntry', 'dayTotals', 'atwaterOk', 'pieceWeight', 'basicModes', 'basicAmount', 'basicEntry', 'basicLabel', 'basicConvert', 'basicIngredient'] },
-  'nutri-score.js': { global: 'HC_NSCORE', fns: ['fin', 'clamp100', 'ratio', 'pts1', 'kcalPoints', 'proteinPoints', 'fatPoints', 'scoreBand', 'hasMeals', 'nutritionScore', 'scoreSeries'] },
-};
+// [client file, the global it reads, the lib functions it must not re-define] (a file may read several;
+// old port names listed too; fuel.mjs `step` is left out: nutri-day.js has its own unrelated render helper step())
+const COPIES = [
+  ['adherence.js', 'HC_ADH', ['fin', 'isComplete', 'dayState', 'adherence']],
+  ['progress.js', 'HC_PROG', ['fin', 'round', 'dayNum', 'isoOf', 'rollPoints', 'weeklyRate', 'weightProgress', 'etaMonths']],
+  ['food-core.js', 'HC_FOODLOG', ['fin', 'roundEps', 'round1', 'roundKcal', 'round2', 'roundMacros', 'scaleMacros', 'times', 'productAmount', 'productEntry', 'knownMacros', 'ingredientBasis', 'recipeBasis', 'entryFromBasis', 'recipeEntry', 'dayTotals', 'atwaterOk', 'pieceWeight', 'basicModes', 'basicAmount', 'basicEntry', 'basicLabel', 'basicConvert', 'basicIngredient']],
+  ['nutri-score.js', 'HC_NSCORE', ['fin', 'clamp100', 'ratio', 'pts1', 'kcalPoints', 'proteinPoints', 'fatPoints', 'scoreBand', 'hasMeals', 'nutritionScore', 'scoreSeries']],
+  ['nutri-day.js', 'HC_DAYTYPE', ['rideType', 'itemType', 'dayTypeOfWorkouts', 'ofWorkouts', 'dayTypeOfProgram', 'ofProgram', 'detectDayType', 'hasValue', 'dayInputFor']],
+  ['nutri-day.js', 'HC_FUEL', ['isBikeDay', 'fuelStep', 'range', 'pickItem', 'pickFuelItem', 'ownDuring', 'ownBefore', 'fuelPlan']],
+];
 
-for (const [file, { global, fns }] of Object.entries(COPIES)) {
-  test(`${file} defines none of the lib's functions (${fns.join(', ')}) and reads them from ${global}`, () => {
+for (const [file, global, fns] of COPIES) {
+  test(`${file} defines none of the lib's ${global} functions (${fns.join(', ')}) and reads them from ${global}`, () => {
     const s = src(file);
     for (const fn of fns) assert.doesNotMatch(s, new RegExp(`function ${fn}\\(`), `${file}: function ${fn} is a copy of the lib`);
     assert.match(s, new RegExp(`\\b${global}\\b`), `${file} reads ${global}`);

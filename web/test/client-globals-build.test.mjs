@@ -1,5 +1,5 @@
 /* The classic-script globals emitted by the libs' clientSource() (HC_FMT, HC_BAND, HC_ADH, HC_PROG,
- * HC_NSCORE, HC_FOODLOG) as
+ * HC_NSCORE, HC_FOODLOG, HC_DAYTYPE, HC_FUEL) as
  * they ship in the BUILT page, not as the unbundled modules emit them: Vite / Rollup bundles the libs
  * together and renames clashing top-level names (fin -> fin$3, ISO_RE -> ISO_RE$2), so a global whose
  * keys or constants came from those names breaks only on the real page. Extracts the inline script
@@ -17,6 +17,8 @@ import { ADHERENCE, ADHERENCE_CASES, isComplete, dayState } from '../../lib/nutr
 import { PROGRESS, PROGRESS_CASES, rollPoints, weeklyRate, etaMonths } from '../../lib/nutrition/progress.mjs';
 import * as NS from '../../lib/nutrition/score.mjs';
 import * as FL from '../../lib/nutrition/foodlog.mjs';
+import * as DT from '../../lib/nutrition/daytype.mjs';
+import * as FU from '../../lib/nutrition/fuel.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
@@ -39,6 +41,8 @@ const KEYS = {
     'times', 'productAmount', 'productEntry', 'knownMacros', 'ingredientBasis', 'recipeBasis', 'entryFromBasis', 'recipeEntry', 'dayTotals',
     'atwaterOk', 'pieceWeight', 'basicModes', 'basicAmount', 'basicEntry', 'basicLabel', 'basicConvert', 'basicIngredient',
   ],
+  HC_DAYTYPE: ['DETECT', 'RANK', 'rideType', 'itemType', 'dayTypeOfWorkouts', 'dayTypeOfProgram', 'detectDayType', 'hasValue', 'dayInputFor'],
+  HC_FUEL: ['FUEL', 'RIDE_DEFAULT_MIN', 'OWN_START_MIN', 'isBikeDay', 'step', 'range', 'pickItem', 'ownDuring', 'ownBefore', 'fuelPlan'],
 };
 
 function globalsOf(htmlPath) {
@@ -126,5 +130,22 @@ for (const page of PAGES) {
     }
     const long = { k: 'x', n: 'N'.repeat(200), u: 'g', m: [100, 1, 1, 1] };
     assert.equal(HC_FOODLOG.basicLabel(long, 10, 'g', { dec: '.', g: 'g' }), FL.basicLabel(long, 10, 'g', { dec: '.', g: 'g' }), 'FOOD_LIMITS.nameMax cap');
+  });
+
+  test(`${rel}: HC_DAYTYPE / HC_FUEL detect and fuel like lib/nutrition/daytype.mjs / fuel.mjs`, () => {
+    const { HC_DAYTYPE, HC_FUEL } = globalsOf(page);
+    assert.deepEqual(js(HC_DAYTYPE.DETECT), js(DT.DETECT));
+    assert.deepEqual(js(HC_DAYTYPE.RANK), { rest: 0, gym: 1, bike: 2, bikeLong: 3 });
+    for (const c of DT.DAYTYPE_CASES) assert.deepEqual(js(HC_DAYTYPE.detectDayType(c.input)), js(c.expect), JSON.stringify(c.input));
+    for (const c of DT.DAYINPUT_CASES) assert.deepEqual(js(HC_DAYTYPE.dayInputFor(c.date, c.data)), js(c.expect), c.date);
+    assert.deepEqual(js(HC_FUEL.FUEL), js(FU.FUEL));
+    assert.deepEqual(js(HC_FUEL.RIDE_DEFAULT_MIN), js(FU.RIDE_DEFAULT_MIN));
+    assert.equal(HC_FUEL.OWN_START_MIN, FU.OWN_START_MIN);
+    for (const c of FU.FUEL_CASES) assert.deepEqual(js(HC_FUEL.fuelPlan(c)), js(FU.fuelPlan(c)));
+    for (const d of ['rest', 'gym', 'bike', 'bikeLong']) {
+      for (const o of [{ dayType: d }, { dayType: d, minutes: 185, weightKg: 72 }]) assert.deepEqual(js(HC_FUEL.fuelPlan(o)), js(FU.fuelPlan(o)), JSON.stringify(o));
+    }
+    assert.equal(HC_FUEL.isBikeDay('bikeLong'), true);
+    assert.equal(HC_FUEL.isBikeDay('gym'), false);
   });
 }
