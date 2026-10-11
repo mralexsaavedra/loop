@@ -267,8 +267,10 @@ filled from them, never typed.
   the stored local goal once. The GET retries with backoff on offline / timeout / 5xx (3 tries), never
   on 404 / 503. Profile Objetivo: + "Peso objetivo" (`HCSettings.parseTarget` = `HCFood.parseNum(v,
   ['kg'])` + the range, inline error, saved on `change`), one status line, the Progreso line.
-- **Progreso** (baked data, every build) — `lib/nutrition/progress.mjs` = the reference (rules and
-  bands in its header), ported in `client/progress.js` (`PROGRESS_CASES` parity + hand-computed tests).
+- **Progreso** (baked data, every build) — `lib/nutrition/progress.mjs` = the ONE implementation (rules
+  and bands in its header): its `clientSource()` emits it as `HC_PROG` (inlined before util.js), which
+  `client/progress.js` runs (no copy; `PROGRESS_CASES` test HC_PROG against the module, plus
+  hand-computed tests).
   Rate = least-squares slope of `DETAIL.metrics.weight.roll` over `windowDays`; too few averages →
   "pocos datos". Status per goal band (`PROGRESS.bands`, from `analysis/methodology.md`: cut
   0.25–0.5, bulk 0.1–0.25 kg/week, never > `maxPctWeek` of bodyweight; maintain stable within
@@ -283,8 +285,9 @@ filled from them, never typed.
   card opens the weight sheet, which draws the target dashed (`detail.js` `targetOf`).
 - **Constancia** (LAN page only) — `GET /food/log/summary?from&to` (≤ `summaryDaysMax` days, ≤ 20,000
   rows, 30 reads / min per client) → per-day `daySummaries` (shared formula, food-calc.js copy pinned
-  by `SUMMARY_CASES`). `lib/nutrition/adherence.mjs` = the reference (`ADHERENCE_CASES`), ported in
-  `client/adherence.js`. Complete = ≥ 1 entry in breakfast, lunch and dinner; means and protein days
+  by `SUMMARY_CASES`). `lib/nutrition/adherence.mjs` = the ONE implementation: its `clientSource()` emits
+  `isComplete` / `dayState` / `adherence` as `HC_ADH` (inlined before util.js), which `client/adherence.js`
+  runs (no copy; `ADHERENCE_CASES` test HC_ADH against the module). Complete = ≥ 1 entry in breakfast, lunch and dinner; means and protein days
   only over complete days with a DETECTED day type (`HCNutri.targetFor` = current goal × that day's
   type; past days via `daytype.mjs` `dayInputFor` over `DETAIL.sessions` + `TRAINING`). Counted apart,
   never compared: unknown type, and an ASSUMED rest day (sleep only, no session: `inferred`). 7 / 14 /
