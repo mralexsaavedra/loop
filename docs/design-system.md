@@ -124,7 +124,9 @@ ONE formatter for every number a viewer reads: `lib/format/numbers.mjs` (pure, n
 browser and Node ICU build prints the same bytes). The build imports it (Tablas' `RefTable.astro`,
 the advice copy); the page gets the SAME functions as a classic script, `clientSource()` →
 `var HC_FMT`, inlined by `layouts/Plan.astro` right before `client/util.js`, whose `HC.num` /
-`HC.int` / `HC.nf` / `HC.pct` / `HC.hours` / `HC.duration` add the page `LOCALE`.
+`HC.int` / `HC.nf` / `HC.pct` / `HC.hours` / `HC.duration` add the page `LOCALE`. The recovery 0–100
+bands ride along the same way: `lib/score/recovery.mjs` `clientSource()` → `var HC_BAND` (`PCT_GOOD`,
+`PCT_LOW`, `pctBand`), so no client script re-types 67 / 33 (`web/test/recovery-band.test.mjs` guards it).
 
 | Rule | es | en | Call |
 | --- | --- | --- | --- |

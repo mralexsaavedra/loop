@@ -288,8 +288,8 @@ trend is the line under it.
   `analysis/methodology.md`): it starts at the wake time at the morning's recovery % and drains per
   awake hour by a baseline, the stress estimate and the heart-rate load (day strain's TRIMP / K),
   recharging in calm hours. Card = `.sc-card.tn.en`: "ENERGY BANK estimate" header (the generic
-  opener chevron), the latest level big in D-DIN coloured by its third (high ≥ 67 `--good`, middle
-  34–66 `--mid`, low < 34 `--low`, `.de-hi/.de-mid/.de-lo` set `--ds`), the latest hour under it, a
+  opener chevron), the latest level big in D-DIN coloured by its third (the recovery `pctBand` via
+  `HC_BAND`: high ≥ 67 `--good`, low ≤ 33 `--low`, middle between `--mid`, `.de-hi/.de-mid/.de-lo` set `--ds`), the latest hour under it, a
   stretched SVG curve from wake to that hour (line + soft area), and "From 99 at 06:47 · low 3".
   Today = the newest day with a value when it is ≤ 3 days old; no bake / no value → the host stays
   hidden. It opens the energy bank page (`docs/detail-views.md`, key `energy-bank`).
