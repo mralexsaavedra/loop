@@ -56,7 +56,8 @@ a day is "journaled" when at least one behaviour is answered (`isJournaled`).
 
 ## Page (`web/src/client/journal.js`, LAN page only for writing)
 
-- **Bake**: `SCORES.journal` (`lib/journal/bake.mjs`, through `lib/score/index.mjs`) carries the
+- **Bake**: `SCORES.journal` (`lib/journal/read.mjs` over the pure `lib/journal/bake.mjs`, through
+  `lib/score/index.mjs`) carries the
   behaviour list, groups and limits; copy in `I18N_SCORE.home.journal` (es / en). Styles:
   `web/src/styles/journal.css` (tokens only; the card reuses `.sc-card`, `.tn-h`; the behaviour insights button `.jr-ins` is a real action, a pill button, not a CTA link).
 - **Gating** like the food log: the script asks `GET /api/journal/settings` (header `X-HC-Journal: 1`,
@@ -89,7 +90,9 @@ a day is "journaled" when at least one behaviour is answered (`isJournaled`).
 - `scripts/sync-journal.mjs` (in `npm run sync`) writes `journal-daily.csv` + `journal-daily.meta.json`
   into the extract (`docs/data-pipeline.md` → Journal export). The example build reads the synthetic
   `data/demo/extract/journal-daily.csv` (`scripts/make-demo-data.mjs`, its own PRNG).
-- `lib/journal/bake.mjs` `journalBake(extractDir)` → `SCORES.journal`: the behaviour list + `recent` +
+- `lib/journal/read.mjs` `journalBake(extractDir)` reads `journal-daily.csv` (`readJournal`) and, when there
+  are journaled days, `hrv.csv` / `rhr.csv` / `sleep-daily.csv`, then calls the pure
+  `lib/journal/bake.mjs` `journalFromInputs({journal, hrv, rhr, sleep})` → `SCORES.journal`: the behaviour list + `recent` +
   `insights = {asOf, from, days, rows}` over the journaled days of the 90 days ending at `asOf` (the
   newest journal day).
 - **Formula** (`behaviorInsights`, `lib/journal/journal.mjs`): for each behaviour, the journal day D
