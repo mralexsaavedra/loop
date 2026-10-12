@@ -69,8 +69,8 @@ test('energy.js: the Inicio energy bank card colours its level like lib pctBand 
   }
 });
 
-test('detail.js: the energy bank history colours its days like lib pctBand (bad = low)', () => {
-  const src = read('detail.js');
+test('detail-state.js: the energy bank history colours its days like lib pctBand (bad = low)', () => {
+  const src = read('detail-state.js');
   const m = /if \(m\.kind === 'bank'\) return ([^;]+);/.exec(src);
   assert.ok(m, 'the bank branch of dayState');
   const ctx = vm.createContext({ LOCALE: 'en', Math, String, Number, Array, Object, JSON });
