@@ -37,3 +37,12 @@ export function loadUtil(ctx) {
 export const FOOD_SCRIPTS = ['food-core.js', 'food-sheet.js', 'food-catalog.js', 'food-log.js'];
 export const FOOD_SOURCES = FOOD_SCRIPTS.map((f) => fs.readFileSync(path.join(here, '..', 'src', 'client', f), 'utf8'));
 export const FOOD_SOURCE = FOOD_SOURCES.join('\n');
+
+/** The detail sheet's classic scripts in their page order (web/src/client/manifest.mjs): the data /
+ * state helpers (window.HCDetailState), the trend chart (window.HCDetailChart), then detail.js (the
+ * sheet shell, window.HCDetail).
+ * DETAIL_SOURCE = them joined: each is self-contained, so running the joined text equals running them
+ * one after another. */
+export const DETAIL_SCRIPTS = ['detail-state.js', 'detail-chart.js', 'detail.js'];
+export const DETAIL_SOURCES = DETAIL_SCRIPTS.map((f) => fs.readFileSync(path.join(here, '..', 'src', 'client', f), 'utf8'));
+export const DETAIL_SOURCE = DETAIL_SOURCES.join('\n');

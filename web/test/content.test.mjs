@@ -242,10 +242,10 @@ test('example build: Inicio reads today top to bottom — dials, monitor tiles, 
   // deepdive.js / detail.js, so their views (tonight, dash-edit) exist when detail.js runs
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1]);
   const idx = (re) => scripts.findIndex((x) => re.test(x));
-  const week = idx(/window\.HCWeekPlan\s*=/), dash = idx(/window\.HCDash\s*=/), deep = idx(/window\.HCDeep\s*=/), detail = idx(/window\.HCDetail\s*=/);
+  const week = idx(/window\.HCWeekPlan\s*=/), dash = idx(/window\.HCDash\s*=/), deep = idx(/window\.HCDeep\s*=/), detail = idx(/window\.HCDetailState\s*=/);
   const adherence = idx(/window\.HCAdherence\s*=/), util = idx(/var HC\s*=\s*\(function/);
   assert.ok(util !== -1 && adherence !== -1 && week > adherence && week > util, 'after util.js and adherence.js');
-  assert.ok(dash > week && deep > dash && detail === deep + 1, 'home-week → home-dash → deepdive → detail');
+  assert.ok(dash > week && deep > dash && detail === deep + 1, 'home-week → home-dash → deepdive → the detail sheet (detail-state.js first)');
   assert.match(home, /<section class="home-sec" id="my-dash" aria-labelledby="my-dash-h" hidden>[\s\S]*?My dashboard<\/h2>\s*<button type="button" class="db-cust" id="dash-edit" data-detail="dash-edit"/);
   assert.match(html, /"tonight":\{"asOf":"\d{4}-\d{2}-\d{2}","wake":/, 'demo data bakes a bedtime');
 });

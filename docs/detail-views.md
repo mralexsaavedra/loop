@@ -11,6 +11,16 @@ The full-screen drill-down sheet behind every card.
 WHOOP's drill-down, honest version: a tap on a card opens a full-screen sheet (a large centred panel
 from 900px) with that metric's history. No new score: the sheet only shows the card's own series.
 
+- **Files** — classic scripts inlined in this order right after `deepdive.js` (`web/src/client/manifest.mjs`):
+  `detail-state.js` (`window.HCDetailState(T, D)`: the data / state helpers, no DOM — series access, the
+  view end, the W / M / 6M / 1Y windows + `periodStats`, the cached 7-day line, value formatting,
+  `dayState` + the legend's states; unit-tested in `detail-state.test.mjs`), `detail-chart.js`
+  (`window.HCDetailChart(T, DS)`: the trend chart's SVG + key, `selX` from the geometry it records in the
+  sheet state's `geo`, and the window's breakdown bar) and `detail.js` (the shell: the header, period,
+  calendar and day panel markup, open / close, focus, history, deep links and the public
+  `window.HCDetail`). `detail.js` builds one `HCDetailState` + one `HCDetailChart` per page and hands the
+  state helpers to `deepdive.js` (`X`). Tests load the set through `DETAIL_SOURCE` (`web/test/client-util.mjs`).
+
 - **Registered views** — a sheet that is not a `DETAIL` metric (profile, tonight, dash-edit, hoy-session,
   food-add, journal, journal-insights) registers with `HC.registerView(<key>, {title(), render() → {head,
   body}})` (`client/util.js`, the ONLY writer of `window.HCViews`; the registry appears with the first view)
@@ -66,7 +76,7 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   sources, this user's K / p95 / full days / max HR and "our estimate"; the 7-day strain bars; then
   "Relative Effort by modality" links to the `load-<m>` pages. It follows the day it was opened on
   (`X.sel`); `stress` is NOT a DETAIL key: its series is `SCORES.stress.metric` (kind `stress`, the
-  day averages 0–3 dense from the first scored day, `lib/score/stress.mjs`), which detail.js
+  day averages 0–3 dense from the first scored day, `lib/score/stress.mjs`), which detail-state.js
   `metric('stress')` reads when DETAIL has no such key (copy in `I18N_DETAIL.metrics.stress`, hash
   `#detail/stress[/<date>]`, no host tab). Calendar / chart states `slow` / `smedium` / `shigh` (< 1 /
   1–2 / ≥ 2, light blue / teal / orange), the day panel = "Day average" + band + the minutes per band
@@ -81,7 +91,7 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   resting HR / max HR / minimum hours, the limits (no HRV, no hourly steps, so movement raises it) and
   "not a medical measure". `energy-bank` is not a DETAIL key either (`energy` is the expenditure
   metric): its series is `SCORES.energy.metric` (kind `bank`, each day's latest level 0–100, dense from
-  the first valued day of the last 14, `lib/score/energy.mjs`), read by detail.js `metric('energy-bank')`
+  the first valued day of the last 14, `lib/score/energy.mjs`), read by detail-state.js `metric('energy-bank')`
   (copy `I18N_DETAIL.metrics['energy-bank']`, hash `#detail/energy-bank[/<date>]`, no host tab).
   Calendar / chart states `good` / `mid` / `bad` (≥ 67 / between / ≤ 33, the recovery `pctBand` via `HC_BAND`); the day panel = "Latest level"
   + band + start / low. Its page (client/deepdive.js `energyPage`) follows the day it was opened on:
@@ -96,7 +106,7 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   never baked, the page scores it at view time (`client/nutri-score.js` `HCNutriScore.metric()`: kind
   `nscore`, `dir` 1, one value per day of the last 90 ending at the viewer's today, `days` = the
   per-day results, `bands` = `NSCORE.bands`), because each day's target follows the viewer's CURRENT
-  goal (`HCNutri.targetFor`, like Constancia); detail.js `metric('nutrition')` reads it, and it joins
+  goal (`HCNutri.targetFor`, like Constancia); detail-state.js `metric('nutrition')` reads it, and it joins
   the trend picker once a day is scored. Host tab `nutricion` (`DETAIL_TAB`), copy
   `I18N_DETAIL.metrics.nutrition`, hash `#detail/nutrition[/<date>]`. Calendar / chart states `good` /
   `mid` / `bad` (≥ 85 / 60–84 / < 60); today is `partial`: no point on the chart and never in the period
