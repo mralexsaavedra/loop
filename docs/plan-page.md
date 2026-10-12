@@ -19,12 +19,15 @@ node scripts/build-web.mjs [--mode personal|example] [--locale es|en]   # or DAT
 writing `web/dist/<mode>/index.html`. `npm run build` = personal/es (default); `npm run
 build:example` = example/en (tracked seeds + the synthetic demo extract, no personal files needed). The domain
 compute (macros, training program/dashboard, health aggregation) lives in root `lib/*.mjs`, shared by
-the Astro build, `data/nutrition/generate.js`, and the test suite — one source, not three. Most of `lib/` is
-pure; some modules still read their input files themselves (`node:fs`), so only the pure ones can be emitted
-into the page via `clientSource()`. Convention: an area's file reads live in `lib/<area>/read.mjs`
-(`health`, `journal`, `nutrition`, `profile`, `score`, `training` so far) and compute modules take their data as arguments;
-`lib/fs-boundary.test.mjs` pins the exact set of `lib/` modules that import `fs`, so a new compute module
-that reads files fails the suite (the remaining non-`read.mjs` entries are still to be split).
+the Astro build, `data/nutrition/generate.js`, and the test suite — one source, not three. Compute modules in
+`lib/` take their data as arguments and never import `fs`; disk I/O is confined to the area readers
+`lib/<area>/read.mjs` (`health`, `journal`, `nutrition`, `profile`, `score`, `training`) plus three named
+exceptions: `lib/load/inputs.mjs` (the build-input loader), `lib/profile/manuals.mjs` (write-side manual
+publisher) and `lib/training/hr-zones.cjs` (CommonJS shared with the `data/apple-health` sync scripts).
+`lib/fs-boundary.test.mjs` pins that exact set, so a new compute module that imports `fs` fails the suite.
+Many compute modules still CALL a reader (e.g. `lib/score/*`, `lib/detail/detail.mjs` and
+`lib/health/aggregate.mjs` take an `extractDir` and read through `lib/health/read.mjs`), so only modules
+that neither import `fs` nor call a reader can be emitted into the page via `clientSource()`.
 
 - **Inlined client scripts are slimmed.** `web/layouts/Plan.astro` inlines every `web/src/client/*.js`
   through `web/src/slim-script.mjs` `slimScript` (esbuild `transformSync`; esbuild is declared in package.json at the exact version astro / vite lock:
