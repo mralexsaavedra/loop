@@ -14,10 +14,12 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
 - **Files** — classic scripts inlined in this order right after `deepdive.js` (`web/src/client/manifest.mjs`):
   `detail-state.js` (`window.HCDetailState(T, D)`: the data / state helpers, no DOM — series access, the
   view end, the W / M / 6M / 1Y windows + `periodStats`, the cached 7-day line, value formatting,
-  `dayState` + the legend's states; unit-tested in `detail-state.test.mjs`) and `detail.js` (the shell: the
-  header, period, chart, breakdown, calendar and day panel markup, open / close, focus, history, deep
-  links and the public `window.HCDetail`). `detail.js` builds one `HCDetailState` per page and hands its
-  helpers to `deepdive.js` (`X`). Tests load the set through `DETAIL_SOURCE` (`web/test/client-util.mjs`).
+  `dayState` + the legend's states; unit-tested in `detail-state.test.mjs`), `detail-chart.js`
+  (`window.HCDetailChart(T, DS)`: the trend chart's SVG + key, `selX` from the geometry it records in the
+  sheet state's `geo`, and the window's breakdown bar) and `detail.js` (the shell: the header, period,
+  calendar and day panel markup, open / close, focus, history, deep links and the public
+  `window.HCDetail`). `detail.js` builds one `HCDetailState` + one `HCDetailChart` per page and hands the
+  state helpers to `deepdive.js` (`X`). Tests load the set through `DETAIL_SOURCE` (`web/test/client-util.mjs`).
 
 - **Registered views** — a sheet that is not a `DETAIL` metric (profile, tonight, dash-edit, hoy-session,
   food-add, journal, journal-insights) registers with `HC.registerView(<key>, {title(), render() → {head,
