@@ -117,7 +117,7 @@ caveat (`energyTdeeNote`, which points to Nutrición → Balance); the balance n
   expenditure row alone; the balance and the split render in Nutrición → Balance (the same
   `client/health.js`, host `#nutri-balance`), which otherwise says intake can't be scored. Implausible basal readings
   (double-counts / no-wear) are dropped via a sane band.
-  **Power-meter ride correction** (`lib/health/ride-energy.mjs`, `readActiveEnergy` = the ONE active-
+  **Power-meter ride correction** (pure core `lib/health/ride-energy.mjs`; `readActiveEnergy` in `lib/health/read.mjs` = the ONE active-
   energy reader of the Salud card AND the detail sheet's `energy`): a ride a bike computer recorded
   with a power meter, and the Watch did not, is under-counted by the Watch's Active Energy (real
   case: 2,311 kJ ride, Watch 1,821 kcal over the ride hours). Corrected active(day) = Watch day total
