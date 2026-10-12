@@ -1,4 +1,5 @@
 import { isAuthorized } from './auth.js'
+import { writeJson as send } from './http.js'
 
 /**
  * Strava athlete profile + gear snapshot (sql/004_athlete.sql), refreshed from the sync loop at
@@ -258,12 +259,6 @@ export function createAthleteRefresher ({ pool, getAccessToken, fetchImpl = fetc
       return inflight
     }
   }
-}
-
-function send (res, status, body) {
-  const payload = JSON.stringify(body)
-  res.writeHead(status, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(payload) })
-  res.end(payload)
 }
 
 /** GET /export/athlete — same bearer check as every /export/* route; logs counts only. */

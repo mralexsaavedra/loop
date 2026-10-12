@@ -217,6 +217,11 @@ address; behind plan-web every request comes from nginx, so it is one shared
 budget. **A public reverse proxy must NEVER forward `/food/*`** (same list as
 `/export/*`).
 
+The Host / Origin checks, the 16 KB JSON body reader, the coarse error object
+and the JSON response writers live in `src/http.js`, shared by the food and
+journal routes (and, for the plain JSON writer, by `/ingest`, `/export/*` and
+`/sync`).
+
 **Isolated migration.** `006_food.sql` runs as an optional group: if it fails,
 the service logs `food_migration_failed` and keeps ingesting, syncing and
 pulling Strava; only `/food/*` answers `503 food_unavailable` until a restart
