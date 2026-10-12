@@ -11,7 +11,7 @@
  *   GET  /journal/settings                {behaviors: {key: on}} (every behaviour on by default)
  *   PUT  /journal/settings                partial {behaviors: {key: bool}}
  *
- * Same security model and layers as the food routes (food.js header): unauthenticated, LAN only; a
+ * Same security model and layers as the food routes (food.js header; the shared helpers are http.js): unauthenticated, LAN only; a
  * Host allowlist (421), an Origin check on writes (403 forbidden_origin), the custom header
  * `X-HC-Journal: 1` on every request (403) and `Content-Type: application/json` on writes (415) — a
  * cross-site request needs a CORS preflight this server never approves. Bodies <= 16 KB (413), writes
@@ -27,10 +27,10 @@
 import { JOURNAL_BEHAVIORS, JOURNAL_LIMITS as L } from './journal-calc.js'
 import { createWindowLimiter } from './limits.js'
 import {
-  FOOD_BODY_LIMIT, validDate, hostAllowed, hostOfHeader, hostOfOrigin, httpError, send, isJson, readJson
-} from './food.js'
+  JSON_BODY_LIMIT, validDate, hostAllowed, hostOfHeader, hostOfOrigin, httpError, send, isJson, readJson
+} from './http.js'
 
-export const JOURNAL_BODY_LIMIT = FOOD_BODY_LIMIT // 16 KB, readJson's cap
+export const JOURNAL_BODY_LIMIT = JSON_BODY_LIMIT // 16 KB, readJson's cap
 export const JOURNAL_WRITE_LIMIT = 60
 export const JOURNAL_SUMMARY_LIMIT = 30
 const WRITE_METHODS = new Set(['PUT'])

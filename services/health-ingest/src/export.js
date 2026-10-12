@@ -1,4 +1,5 @@
 import { isAuthorized } from './auth.js'
+import { writeJson as send } from './http.js'
 
 const DEFAULT_LIMIT = 500
 const MAX_LIMIT = 1000
@@ -85,15 +86,6 @@ export async function listStravaActivities (pool, { sinceId, limit }) {
     [sinceId, limit]
   )
   return rows
-}
-
-function send (res, status, body) {
-  const payload = JSON.stringify(body)
-  res.writeHead(status, {
-    'content-type': 'application/json',
-    'content-length': Buffer.byteLength(payload)
-  })
-  res.end(payload)
 }
 
 /**

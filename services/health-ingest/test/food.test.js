@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
-import { createFoodRoutes, FOOD_BODY_LIMIT, hostAllowed, parseAllowedHosts } from '../src/food.js'
+import { createFoodRoutes, FOOD_BODY_LIMIT } from '../src/food.js'
+import { hostAllowed, parseAllowedHosts } from '../src/http.js'
 
 /** In-memory stand-in for src/food-db.js createFoodStore (same method contract). */
 function memoryStore () {
