@@ -69,7 +69,7 @@ interface Props {
   dict: any;
   tabs: { key: string; label: string }[];
   activeTab?: string;
-  profile?: any; // lib/profile/profile.mjs loadProfile() result: the avatar button + the profile sheet
+  profile?: any; // lib/profile/read.mjs loadProfile() result: the avatar button + the profile sheet
 }
 
 const { title, locale, page = {}, dict, tabs, activeTab = tabs[0]?.key, profile = null } = Astro.props;
