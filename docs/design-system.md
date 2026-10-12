@@ -159,7 +159,7 @@ globals out of the BUILT page.
 - **Hours.** Sleep, time in bed, stages, REM + deep, activity and ride durations, the sleep target and
   every delta of them are h:mm WITHOUT a unit ("7:32", "+0:02 vs your 7:30 target"); the old
   decimal hours ("7,5 h") and "1 h 45 min" are gone. A metric whose unit is `h` drops the unit where it
-  is shown (`unitOf` in `detail.js`, `mrow` in `health.js`, `compUnit` in `score.js`, the monitor).
+  is shown (`unitOf` in `detail-state.js`, `mrow` in `health.js`, `compUnit` in `score.js`, the monitor).
   Baked sleep hours keep 2 decimals so h:mm is exact to the minute.
 - **Units** stay a separate, smaller span where they already were (`<b>2.532</b><small>kcal</small>`).
 - **Input fields** (food amounts, the target weight) are NOT display: `HC.numInput` keeps the decimal

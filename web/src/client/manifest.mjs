@@ -104,11 +104,13 @@ export const CLIENT_SCRIPTS = [
   },
   { file: 'journal.js', provides: ['HCJournal'], requires: ['HC', 'HCViews', 'I18N_DATE', 'I18N_SCORE', 'SCORES'] },
   { file: 'deepdive.js', provides: ['HCDeep'], requires: ['HC'] },
+  { file: 'detail-state.js', provides: ['HCDetailState'], requires: [] },
+  { file: 'detail-chart.js', provides: ['HCDetailChart'], requires: [] },
   {
     file: 'detail.js',
     provides: ['HCDetail'],
     requires: [
-      'DETAIL', 'DIALS', 'HC', 'HCDeep', 'HCNav', 'HCNutri', 'HCProgress', 'HCSettings', 'HCViews', 'HC_FMT', 'I18N_DATE', 'I18N_DETAIL',
+      'DETAIL', 'DIALS', 'HC', 'HCDeep', 'HCDetailChart', 'HCDetailState', 'HCNav', 'HCNutri', 'HCProgress', 'HCSettings', 'HCViews', 'HC_FMT', 'I18N_DATE', 'I18N_DETAIL',
       'LOCALE', 'NAV', 'SCORES'
     ],
   },

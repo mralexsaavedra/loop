@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { buildDetail } from '../../../lib/detail/detail.mjs';
 import { es as esT, en as enT } from '../i18n/detail-templates.mjs';
 import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
-import { loadUtil } from '../../test/client-util.mjs';
+import { loadUtil, DETAIL_SOURCE } from '../../test/client-util.mjs';
 import { fmtHours, fmtMinutes, fmtInt } from '../../../lib/format/numbers.mjs';
 import { StubElement } from '../../test/dom-stub.mjs';
 import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB } from '../../../lib/nav/tabs.mjs';
@@ -22,6 +22,7 @@ import { buildDials } from '../view/dial.mjs';
 const format = (tpl, vars) => tpl.replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? vars[k] : ''));
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+// the sheet shell (the Tab trap's selector lives there); the vm runs the whole set, DETAIL_SOURCE
 const source = fs.readFileSync(path.join(here, 'detail.js'), 'utf8');
 // the dial deep-dive pages (sleep, recovery, load-<m>): inlined right before detail.js on the page
 const deepSource = fs.readFileSync(path.join(here, 'deepdive.js'), 'utf8');
@@ -121,7 +122,7 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
     vm.runInContext(coreSource, ctx);
   }
   vm.runInContext(deepSource, ctx);
-  vm.runInContext(source, ctx);
+  vm.runInContext(DETAIL_SOURCE, ctx);
   const api = win.HCDetail;
   const shownTab = () => (tabPanels || []).filter((el) => !el.hidden).map((el) => el.getAttribute('data-tab'));
   return {
