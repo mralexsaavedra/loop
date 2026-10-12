@@ -22,10 +22,10 @@
  *   Strava  — focus + the snapshot date.
  * Nothing known at all -> the onboarding hint.
  *
- * Classic script (is:inline), inlined BEFORE detail.js. Reads PROFILE (lib/profile/profile.mjs, baked by
- * Avatar.astro with `photo` as a flag: the data URI is baked ONCE, in the button's <img id="avatar-img">,
- * and copied from there) + I18N_PROFILE, and window.HC (util.js). The age is computed here on the viewer's
- * clock, so builds stay byte-identical.
+ * Classic script (is:inline), inlined BEFORE detail.js. Reads PROFILE (lib/profile/read.mjs
+ * loadProfile -> profile.mjs buildProfile, baked by Avatar.astro with `photo` as a flag: the data URI
+ * is baked ONCE, in the button's <img id="avatar-img">, and copied from there) + I18N_PROFILE, and
+ * window.HC (util.js). The age is computed here on the viewer's clock, so builds stay byte-identical.
  */
 (function () {
   var P = typeof PROFILE === 'undefined' || !PROFILE ? null : PROFILE;
