@@ -24,7 +24,7 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { loadInputs } from '../lib/load/inputs.mjs';
 import { validateProgram } from '../lib/training/program.mjs';
-import { checkManualProfile } from '../lib/profile/profile.mjs';
+import { checkManualProfile } from '../lib/profile/read.mjs';
 import { resolveEnv } from '../web/src/env.mjs';
 
 function parseArgs(argv) {
