@@ -45,8 +45,8 @@ a day is "journaled" when at least one behaviour is answered (`isJournaled`).
 - Validation by hand: unknown keys refused (`400 invalid` + `field`, e.g. `answers.coffee`; the behaviour
   lookup is a `Map`, so `__proto__` / `constructor` are unknown too), notes keep their line breaks, dates
   round-trip (2000–2100), yes / no = boolean, the count an integer 0..`countMax`, notes trimmed.
-- Security = the food layers (`docs/nutrition-food-log.md` → Security), shared helpers exported by
-  `src/food.js`: Host allowlist (`421`; the same `FOOD_ALLOWED_HOSTS`), `Origin` on writes (`403
+- Security = the food layers (`docs/nutrition-food-log.md` → Security), shared helpers in
+  `src/http.js`: Host allowlist (`421`; the same `FOOD_ALLOWED_HOSTS`), `Origin` on writes (`403
   forbidden_origin`), the header `X-HC-Journal: 1` on every request (`403`), JSON on writes (`415`),
   bodies ≤ 16 KB (`413`), writes ≤ 60 / min per client (`429`). plan-web nginx proxies `/api/journal/`
   → ingest `/journal/` (GET / PUT, `client_max_body_size 16k`, `X-HC-Journal` forwarded, `Host

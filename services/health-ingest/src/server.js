@@ -9,19 +9,11 @@ import { createSyncStatus } from './status.js'
 import { createTriggerWriter, createSyncTrigger, readTriggerSeq } from './trigger.js'
 import { createSyncRoutes } from './sync-routes.js'
 import { createFoodStore } from './food-db.js'
-import { createFoodRoutes, parseAllowedHosts } from './food.js'
+import { createFoodRoutes } from './food.js'
 import { createOffClient } from './off.js'
 import { createJournalStore } from './journal-db.js'
 import { createJournalRoutes } from './journal.js'
-
-function send (res, status, body) {
-  const payload = JSON.stringify(body)
-  res.writeHead(status, {
-    'content-type': 'application/json',
-    'content-length': Buffer.byteLength(payload)
-  })
-  res.end(payload)
-}
+import { writeJson as send, parseAllowedHosts } from './http.js'
 
 /**
  * Read the body with a hard ceiling. Health Auto Export can be told to batch

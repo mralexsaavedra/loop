@@ -11,15 +11,10 @@
  * endpoints (/ingest, /export) keep their bearer token; a public reverse proxy
  * should forward only /ingest/* and /sync (see README).
  */
-function send (res, status, body) {
-  const payload = JSON.stringify(body)
-  res.writeHead(status, {
-    'content-type': 'application/json',
-    'content-length': Buffer.byteLength(payload),
-    'cache-control': 'no-store'
-  })
-  res.end(payload)
-}
+import { writeJson } from './http.js'
+
+// no-store but no nosniff header: the historical /sync response, kept byte for byte
+const send = (res, status, body) => writeJson(res, status, body, { 'cache-control': 'no-store' })
 
 export function createSyncRoutes ({ trigger, status }) {
   return {
