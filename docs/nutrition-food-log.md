@@ -287,7 +287,7 @@ filled from them, never typed.
   ETA; the status why, the rate window and "the series mixes scales" sit behind the section's ⓘ
   (`#nutri-progress-info`, written by progress.js; the ⓘ hides when there is nothing behind it, and a
   re-render — a settings change — keeps the block open or closed as the viewer left it, like Constancia's). The
-  card opens the weight sheet, which draws the target dashed (`detail.js` `targetOf`).
+  card opens the weight sheet, which draws the target dashed (`detail-state.js` `targetOf`).
 - **Constancia** (LAN page only) — `GET /food/log/summary?from&to` (≤ `summaryDaysMax` days, ≤ 20,000
   rows, 30 reads / min per client) → per-day `daySummaries` (shared formula, generated into food-calc.js,
   pinned by `SUMMARY_CASES`). `lib/nutrition/adherence.mjs` = the ONE implementation: `lib/nutrition/client.mjs` emits
