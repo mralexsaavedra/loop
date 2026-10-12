@@ -17,7 +17,7 @@ const WEB_ROOT = path.dirname(here);
 const htmlPath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html');
 const html = fs.existsSync(htmlPath) ? fs.readFileSync(htmlPath, 'utf8') : '';
 const src = (name) => fs.readFileSync(path.join(WEB_ROOT, 'src', 'client', name), 'utf8');
-const NAMES = ['food-core.js', 'food-sheet.js', 'food-catalog.js', 'food-log.js', 'settings.js', 'progress.js', 'adherence.js', 'intake.js', 'profile.js', 'detail-state.js', 'detail.js'];
+const NAMES = ['food-core.js', 'food-sheet.js', 'food-catalog.js', 'food-log.js', 'settings.js', 'progress.js', 'adherence.js', 'intake.js', 'profile.js', 'detail-state.js', 'detail-chart.js', 'detail.js'];
 const at = (name) => {
   const i = html.indexOf(slimScript(src(name)));
   assert.ok(i > 0, `${name} is not inlined whole (as slimScript emits it) in ${htmlPath}`);
