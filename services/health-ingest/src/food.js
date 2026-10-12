@@ -37,25 +37,27 @@
  * numbers finite, rounded to 1 decimal and THEN checked against the shared FOOD_LIMITS (so 0.04 g is
  * 0 and refused where > 0 is required), dates must round trip, and a label whose kcal disagree with 4 p + 4 c + 9 f by more than 25 % is refused with
  * `atwater` unless the request says `force: true` (fibre / polyols make real labels deviate).
+ *
+ * The generic HTTP pieces (send, readJson, httpError, validDate, the Host / Origin checks) live in http.js,
+ * shared with journal.js and the other route modules.
  */
 import {
   FOOD_STORES, FOOD_UNITS, ENTRY_UNITS, FOOD_SOURCES, RECIPE_KINDS, REF_TYPES, FOOD_MEALS, FOOD_LIMITS as L, RECIPE_BASIC_UNITS,
   SETTINGS_GOALS, round1, roundMacros, productEntry, recipeBasis, recipeEntry, dayTotals, daySummaries, atwaterOk
 } from './food-calc.js'
 import { createWindowLimiter } from './limits.js'
+import {
+  JSON_BODY_LIMIT, httpError, send, isJson, readJson, validDate, hostAllowed, hostOfHeader, hostOfOrigin
+} from './http.js'
 
-export const FOOD_BODY_LIMIT = 16 * 1024
+export const FOOD_BODY_LIMIT = JSON_BODY_LIMIT // readJson's cap (http.js), named for the food tests
 export const FOOD_WRITE_LIMIT = 60 // per client address per minute
 export const FOOD_SUMMARY_LIMIT = 30 // GET /food/log/summary per client address per minute (a read of up to 120 days)
 // limits: FOOD_LIMITS (food-calc.js, generated from lib/nutrition/foodlog.mjs, which is authoritative)
 const ID_RE = /^[1-9][0-9]{0,15}$/
-const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/
 const BARCODE_RE = new RegExp(L.barcodePattern)
 const BASIC_KEY_RE = new RegExp(L.basicKeyPattern)
 const REQUEST_ID_RE = /^[A-Za-z0-9-]{8,64}$/ // the page's per-add id (a UUID), makes a retry idempotent
-const IPV4_RE = /^\d{1,3}(\.\d{1,3}){3}$/
-const IPV6_RE = /^\[[0-9a-f:.]+\]$/
-const LOCAL_HOSTS = ['localhost', 'host.docker.internal']
 const OFF_CODE_RE = /^[0-9]{1,14}$/
 const WRITE_METHODS = new Set(['POST', 'PUT', 'DELETE'])
 
@@ -72,10 +74,6 @@ const ROUTES = [
   { re: /^\/food\/off$/, methods: ['GET'] }
 ]
 
-// httpError, hostOfHeader, hostOfOrigin, send, isJson and readJson are shared with journal.js (same layers)
-export function httpError (status, code, field) {
-  return Object.assign(new Error(code), { status, code, field })
-}
 function bad (field) {
   throw httpError(400, 'invalid', field)
 }
@@ -129,41 +127,6 @@ function id (v, field) {
 function pathId (s) {
   return ID_RE.test(s) && Number.isSafeInteger(Number(s)) ? Number(s) : null
 }
-/** YYYY-MM-DD that is a real calendar day (2026-02-31 is refused), years 2000-2100. */
-export function validDate (s) {
-  const m = typeof s === 'string' ? DATE_RE.exec(s) : null
-  if (!m) return null
-  const y = Number(m[1])
-  const d = new Date(Date.UTC(y, Number(m[2]) - 1, Number(m[3])))
-  return y >= 2000 && y <= 2100 && d.toISOString().slice(0, 10) === s ? s : null
-}
-
-/** An allowed host name (no port): an IP literal, localhost, host.docker.internal or an allowlisted name. */
-export function hostAllowed (hostname, extra = []) {
-  const h = String(hostname || '').toLowerCase()
-  if (!h) return false
-  return IPV4_RE.test(h) || IPV6_RE.test(h) || LOCAL_HOSTS.includes(h) || extra.includes(h)
-}
-/** The host part of a Host header ("192.168.1.10:8090" -> "192.168.1.10", "[::1]:8088" -> "[::1]"). */
-export function hostOfHeader (v) {
-  const s = String(v || '').trim()
-  const m = /^(\[[^\]]*\]|[^:]*)(?::\d+)?$/.exec(s)
-  return m ? m[1] : ''
-}
-/** The host of an Origin header, or null when it is not a URL ("null", garbage). */
-export function hostOfOrigin (v) {
-  try {
-    const u = new URL(v)
-    return /^https?:$/.test(u.protocol) ? u.hostname : null
-  } catch {
-    return null
-  }
-}
-/** FOOD_ALLOWED_HOSTS: comma / space separated names, lowercased. */
-export function parseAllowedHosts (v) {
-  return String(v || '').split(/[\s,]+/).map((s) => s.trim().toLowerCase()).filter(Boolean)
-}
-
 export function validateProduct (body) {
   strictKeys(body, ['name', 'brand', 'store', 'barcode', 'unit', 'per100', 'servingSize', 'source', 'offCode', 'force'])
   const p = {
@@ -291,53 +254,6 @@ export function validateRange (params) {
   const days = Math.round((Date.parse(to + 'T00:00:00Z') - Date.parse(from + 'T00:00:00Z')) / 86_400_000) + 1
   if (days < 1 || days > L.summaryDaysMax) bad('to')
   return { from, to }
-}
-
-/* ---------- HTTP ---------- */
-export function send (res, status, body, extra = {}) {
-  const payload = JSON.stringify(body)
-  res.writeHead(status, {
-    'content-type': 'application/json',
-    'content-length': Buffer.byteLength(payload),
-    'cache-control': 'no-store',
-    'x-content-type-options': 'nosniff',
-    ...extra
-  })
-  res.end(payload)
-}
-
-export function isJson (req) {
-  const ct = String(req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase()
-  return ct === 'application/json'
-}
-
-export function readJson (req) {
-  const declared = Number(req.headers['content-length'])
-  if (Number.isFinite(declared) && declared > FOOD_BODY_LIMIT) return Promise.reject(httpError(413, 'payload_too_large'))
-  return new Promise((resolve, reject) => {
-    const chunks = []
-    let size = 0
-    let over = false
-    req.on('data', (chunk) => {
-      if (over) return
-      size += chunk.length
-      if (size > FOOD_BODY_LIMIT) {
-        over = true
-        reject(httpError(413, 'payload_too_large'))
-        return
-      }
-      chunks.push(chunk)
-    })
-    req.on('end', () => {
-      if (over) return
-      try {
-        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')))
-      } catch {
-        reject(httpError(400, 'bad_json'))
-      }
-    })
-    req.on('error', reject)
-  })
 }
 
 /** The product ids of a recipe's ingredients (basics have none). */
