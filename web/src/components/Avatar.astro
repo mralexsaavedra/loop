@@ -3,14 +3,14 @@
  * inlined as a data URI, so the page stays one file with no request), else their initials, else a
  * generic person icon. It opens the profile sheet — client/profile.js registers the `profile` view of
  * the detail sheet (client/detail.js: same modal, focus handling and deep link #profile). Bakes PROFILE
- * (lib/profile/profile.mjs) with `photo` reduced to a flag, since the data URI already sits in the
- * <img> once, and I18N_PROFILE.
+ * (lib/profile/read.mjs loadProfile -> profile.mjs buildProfile) with `photo` reduced to a flag,
+ * since the data URI already sits in the <img> once, and I18N_PROFILE.
  */
 import { jsonForScript } from '../../../lib/serialize.mjs';
 import { es as esProfile, en as enProfile } from '../i18n/profile-templates.mjs';
 
 interface Props {
-  profile: any; // lib/profile/profile.mjs loadProfile() result
+  profile: any; // lib/profile/read.mjs loadProfile() result
   locale: string;
 }
 const { profile, locale } = Astro.props;

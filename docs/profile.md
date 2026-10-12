@@ -30,8 +30,8 @@ controls instead of the close button.
   goal is also stored on the SERVER and the section adds "Peso objetivo" + a status line + the
   Progreso line (see "Nutrition v2 part 3").
 
-- **Sources** (all optional, merged by `lib/profile/profile.mjs` `loadProfile` → `buildProfile`;
-  manual wins over Strava for the same field):
+- **Sources** (all optional, read by `lib/profile/read.mjs` `loadProfile` and merged by the pure
+  `lib/profile/profile.mjs` `buildProfile`; manual wins over Strava for the same field):
   1. `profile/profile.json` (gitignored; tracked template `profile/profile.example.json`, synthetic):
      `birthdate` (YYYY-MM-DD), `heightCm`, `sex` (optional, `male` | `female`: picks the sex-specific
      reference curve of the fitness age, see docs/health-tab.md "Fitness age"; absent = no fitness age), `maxHr` (optional, bpm 100–230: the max HR of the per-workout
@@ -64,8 +64,9 @@ controls instead of the close button.
      unreachable service / an ingest image without the endpoint (404) → exit 1, no file touched; any
      other failure → a one-line `ERROR:` and exit 1. A broken snapshot file is ignored by the build,
      never fatal.
-  3. Derived: weight = the newest row of `weight.csv` with its date (never Strava's weight). The AGE is
-     computed client-side from `birthdate` on the viewer's clock, so builds stay byte-identical.
+  3. Derived: weight = the newest row of `weight.csv` with its date (`read.mjs` `latestWeight`;
+     never Strava's weight). The AGE is computed client-side from `birthdate` on the viewer's clock,
+     so builds stay byte-identical.
 - **One source of truth per user fact** (read as FILES by the read-only coach subagents, see
   "Knowledge base + expert subagents"): weight = `weight.csv` (live), height / birthdate / devices /
   supplements / events = `profile/profile.json`, goal + target weight = `data/profile/settings.json`,
