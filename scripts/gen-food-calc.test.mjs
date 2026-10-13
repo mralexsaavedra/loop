@@ -43,6 +43,17 @@ test('esmModule: exported and hidden constants, local and exported functions, fr
   assert.ok(Object.isFrozen(mod.LIST));
 });
 
+test('esmModule: a frozen constant is frozen at every level; an unfrozen one stays mutable', async () => {
+  const TREE = Object.freeze({ a: [1, [2, { z: 'x' }]], b: { c: 'y' }, n: null });
+  const LOOSE = { d: [1] };
+  const src = esmModule('demo', { consts: { TREE, LOOSE } });
+  assert.match(src, /export const LOOSE = \{"d":\[1\]\};/);
+  const mod = await import('data:text/javascript,' + encodeURIComponent(src));
+  assert.deepEqual(mod.TREE, TREE);
+  for (const v of [mod.TREE, mod.TREE.a, mod.TREE.a[1], mod.TREE.a[1][1], mod.TREE.b]) assert.ok(Object.isFrozen(v), JSON.stringify(v));
+  assert.ok(!Object.isFrozen(mod.LOOSE) && !Object.isFrozen(mod.LOOSE.d));
+});
+
 test('esmModule: refuses values that do not print as themselves, renamed keys and duplicate names', () => {
   assert.throws(() => esmModule('x', { consts: { A: NaN } }), /not JSON-safe/);
   assert.throws(() => esmModule('x', { consts: { A: { b: undefined } } }), /not JSON-safe/);

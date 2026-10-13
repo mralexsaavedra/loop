@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { UTIL_SOURCE, HC_CONST_BAKE } from '../../test/client-util.mjs';
+import { stripComments } from '../../../lib/format/js-scan.mjs';
 import { STALE_DAYS } from '../../../lib/stale.mjs';
 import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 
@@ -260,15 +261,43 @@ test('HC.registerView: registering the same name again replaces the view (never 
   assert.equal(ctx.HC.view('journal'), second);
 });
 
-test('each registered view key belongs to ONE client script, always a string literal (static scan)', () => {
+/** The first argument of every HC.registerView(…) call in CODE: comments may name the API
+ * (`HC.registerView(<key>, …)`), so they are stripped first by a string-aware scanner (a `"http://…"`
+ * or `'/*'` string is not a comment); string contents are kept (the keys are string literals).
+ * Returns each argument's source text, trimmed. */
+function registerViewArgs(src) {
+  return [...stripComments(src).matchAll(/\bregisterView\s*\(\s*([^,)]*)/g)].map((m) => m[1].trim());
+}
+
+/** Every client script under web/src/client, subdirectories included (tests and util.js excluded),
+ * as paths relative to it. */
+function clientScripts() {
   const dir = path.dirname(fileURLToPath(import.meta.url));
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => {
+    const p = path.join(d, e.name);
+    return e.isDirectory() ? walk(p) : [p];
+  });
+  return walk(dir).map((p) => path.relative(dir, p).split(path.sep).join('/'))
+    .filter((f) => f.endsWith('.js') && !/\.test\.m?js$/.test(f) && f !== 'util.js').sort()
+    .map((f) => ({ f, src: fs.readFileSync(path.join(dir, f), 'utf8') }));
+}
+
+test('registerViewArgs: comments are skipped, strings are not mistaken for comments', () => {
+  assert.deepEqual(registerViewArgs('var u = "http://x"; HC.registerView(\'k\', v);'), ["'k'"]);
+  assert.deepEqual(registerViewArgs("var s = '/*'; HC.registerView('a', v); var t = '*/';"), ["'a'"]);
+  assert.deepEqual(registerViewArgs('go(); // then HC.registerView(name, …)\nHC.registerView("b", v);'), ['"b"']);
+  assert.deepEqual(registerViewArgs('/* HC.registerView(<key>, …) */ HC.registerView(key, v);'), ['key']);
+});
+
+test('each registered view key belongs to ONE client script, always a string literal (static scan)', () => {
   const owner = new Map();
-  for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.js') && x !== 'util.js')) {
-    // comments may name the API (`HC.registerView(<key>, …)`); code may not hide a key in a variable
-    const src = fs.readFileSync(path.join(dir, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-    for (const m of src.matchAll(/\bregisterView\s*\(\s*([^,)]*)/g)) {
-      const lit = /^(['"])([\w-]+)\1$/.exec(m[1].trim());
-      assert.ok(lit, `${f}: HC.registerView(${m[1].trim()}, …) must use a string literal key`);
+  const scripts = clientScripts();
+  assert.ok(scripts.length > 20, 'the walk finds the client scripts');
+  for (const { f, src } of scripts) {
+    // code may not hide a key in a variable
+    for (const arg of registerViewArgs(src)) {
+      const lit = /^(['"])([\w-]+)\1$/.exec(arg);
+      assert.ok(lit, `${f}: HC.registerView(${arg}, …) must use a string literal key`);
       const prev = owner.get(lit[2]);
       assert.ok(!prev || prev === f, `view "${lit[2]}" registered by both ${prev} and ${f}`);
       owner.set(lit[2], f);
@@ -278,8 +307,7 @@ test('each registered view key belongs to ONE client script, always a string lit
 });
 
 test('only util.js writes window.HCViews: every other client script registers through HC.registerView', () => {
-  const dir = path.dirname(fileURLToPath(import.meta.url));
-  const writers = fs.readdirSync(dir).filter((f) => f.endsWith('.js') && f !== 'util.js')
-    .filter((f) => /\bHCViews\s*(\[[^\]]*\]|\.[\w$]+)?\s*=(?!=)|\bvar\s+\w+\s*=\s*window\.HCViews\b/.test(fs.readFileSync(path.join(dir, f), 'utf8')));
+  const writers = clientScripts().map(({ f, src }) => ({ f, code: stripComments(src) }))
+    .filter(({ code }) => /\bHCViews\s*(\[[^\]]*\]|\.[\w$]+)?\s*=(?!=)|\bvar\s+\w+\s*=\s*window\.HCViews\b/.test(code)).map(({ f }) => f);
   assert.deepEqual(writers, []);
 });
