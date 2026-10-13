@@ -100,7 +100,7 @@ export const CLIENT_SCRIPTS = [
   {
     file: 'home-dash.js',
     provides: ['HCDash'],
-    requires: ['DETAIL', 'HC', 'HCViews', 'HC_FMT', 'I18N_DATE', 'I18N_DETAIL', 'I18N_SCORE', 'LOCALE'],
+    requires: ['DETAIL', 'HC', 'HCViews', 'HC_FMT', 'I18N_DATE', 'I18N_DETAIL', 'I18N_SCORE', 'LOCALE', 'SCORES'],
   },
   { file: 'journal.js', provides: ['HCJournal'], requires: ['HC', 'HCViews', 'I18N_DATE', 'I18N_SCORE', 'SCORES'] },
   { file: 'deepdive.js', provides: ['HCDeep'], requires: ['HC'] },
