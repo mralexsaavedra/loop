@@ -198,7 +198,7 @@
       return '<span class="cal-legend-item"><span class="cal-legend-sw cal-l' + l + '"></span>' + esc(lbl) + '</span>';
     }).join('');
     return '<section class="hs-sec act' + (stale ? ' act-stale' : '') + '" aria-labelledby="act-h">' + head +
-      (stale ? '<p class="hint">' + esc(format(T.staleNote, { days: age, date: HC.fmtDate(A.asOf) })) + '</p>' : '') +
+      (stale ? HC.staleMark('act-stale-note', format(T.staleShort, { days: age }), format(T.staleNote, { days: age, date: HC.fmtDate(A.asOf) })) : '') +
       '<div class="act-card"><div class="act-top">' + totalHtml(s) + rangeHtml() + '</div>' + statsHtml(s) + splitHtml(s) +
       '<div class="act-cal"' + HC.detailAttrs('workouts') + '><span class="dt-trend-lbl">' + esc(T.calHeading) + '</span>' +
       '<p class="hint">' + esc(format(T.calHint, { days: active })) + '</p>' +
