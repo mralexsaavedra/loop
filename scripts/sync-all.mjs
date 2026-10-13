@@ -9,6 +9,7 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './lib/is-main.mjs';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.dirname(DIR);
@@ -51,6 +52,6 @@ function realSpawn (cmd, spawnArgs) {
   return spawnSync(cmd, spawnArgs, { stdio: 'inherit' });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   process.exit(runAll(SCRIPTS, process.argv.slice(2), realSpawn));
 }
