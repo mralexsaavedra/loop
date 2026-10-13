@@ -97,7 +97,7 @@ a day is "journaled" when at least one behaviour is answered (`isJournaled`).
 - `lib/journal/read.mjs` `readJournal` reads `journal-daily.csv`; `lib/extract/read.mjs` `readExtract` hands it,
   with `hrv.csv` / `rhr.csv` / `sleep-daily.csv`, to the pure `lib/journal/bake.mjs` `journalFrom(inputs)` (from
   `buildScoresFrom`), which calls `journalFromInputs({journal, hrv, rhr, sleep})` — the recovery series only matter
-  when a day is journaled (`journalBake(extractDir)` is the per-directory shim) → `SCORES.journal`: the behaviour list + `recent` +
+  when a day is journaled → `SCORES.journal`: the behaviour list + `recent` +
   `insights = {asOf, from, days, rows}` over the journaled days of the 90 days ending at `asOf` (the
   newest journal day).
 - **Formula** (`behaviorInsights`, `lib/journal/journal.mjs`): for each behaviour, the journal day D
