@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compareCss, updateFixture, buildDeclarationMap, serializeFixture } from './update-css-fixture.mjs';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { compareCss, updateFixture, buildDeclarationMap, serializeFixture, main } from './update-css-fixture.mjs';
 
 const html = (css) => `<html><head><style>${css}</style></head><body></body></html>`;
 
@@ -40,4 +43,45 @@ test('updateFixture is a no-op on an up-to-date fixture (keeps the legacy key sp
   const { fixture: next } = updateFixture(fixture, output);
   assert.equal(serializeFixture(next), serializeFixture(fixture));
   assert.deepEqual(compareCss(next, output), []);
+});
+
+// main() against temp files: the build and the fixture paths are injected, the console is silenced.
+function cli(t, { css, fixture }) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'css-fixture-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  t.mock.method(console, 'log', () => {});
+  t.mock.method(console, 'error', () => {});
+  const buildPath = path.join(dir, 'index.html');
+  const fixturePath = path.join(dir, 'css-expected.json');
+  if (css !== undefined) fs.writeFileSync(buildPath, html(css));
+  fs.writeFileSync(fixturePath, serializeFixture(fixture));
+  return { buildPath, fixturePath, read: () => fs.readFileSync(fixturePath, 'utf8') };
+}
+
+test('main exits 2 when the build is missing', (t) => {
+  const { buildPath, fixturePath } = cli(t, { fixture: {} });
+  assert.equal(main([], { buildPath, fixturePath }), 2);
+});
+
+test('main exits 0 and writes nothing when the fixture is current', (t) => {
+  const fixture = { '|||.a|||color': 'red' };
+  const { buildPath, fixturePath, read } = cli(t, { css: '.a{color:red}', fixture });
+  assert.equal(main(['--check'], { buildPath, fixturePath }), 0);
+  assert.equal(main([], { buildPath, fixturePath }), 0);
+  assert.equal(read(), serializeFixture(fixture));
+});
+
+test('main --check exits 1 on drift and leaves the fixture untouched', (t) => {
+  const fixture = { '|||.a|||color': 'blue' };
+  const { buildPath, fixturePath, read } = cli(t, { css: '.a{color:red}', fixture });
+  assert.equal(main(['--check'], { buildPath, fixturePath }), 1);
+  assert.equal(read(), serializeFixture(fixture));
+});
+
+test('main rewrites a drifted fixture: key order kept, stale keys dropped, new keys appended', (t) => {
+  const fixture = { '|||.z|||color': 'red', '|||.stale|||color': 'red', '|||.a|||color': 'red' };
+  const { buildPath, fixturePath, read } = cli(t, { css: '.new{top:0}.z{color:blue}.a{color:red}', fixture });
+  assert.equal(main([], { buildPath, fixturePath }), 0);
+  assert.equal(read(), serializeFixture({ '|||.z|||color': 'blue', '|||.a|||color': 'red', '|||.new|||top': '0' }));
+  assert.equal(main(['--check'], { buildPath, fixturePath }), 0);
 });
