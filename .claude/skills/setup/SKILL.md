@@ -42,7 +42,7 @@ stop until upgraded.
 1. `npm ci`.
 2. **Apple Health export** (iPhone): Health → profile picture (top right) → *Export All Health Data* →
    Export → send the zip to the computer. Unzip; put `export.xml` in `data/apple-health/`.
-   Run `node data/apple-health/extract.js`; verify `data/apple-health/extract/_meta.json` exists.
+   Run `node data/apple-health/extract.mjs`; verify `data/apple-health/extract/_meta.json` exists.
 3. **Onboarding**: no `profile/about-me.md` → run `docs/onboarding.md` (writes `profile/about-me.md`,
    `profile/baseline.md`, `profile/coaches.md`).
 4. **Seeds** (skip any that exist): `data/nutrition/plan-data.example.json` →

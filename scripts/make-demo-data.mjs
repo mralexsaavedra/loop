@@ -2,7 +2,7 @@
 /* Synthetic demo data for the example build (DATA_MODE=example).
  *
  * Writes clearly FAKE Apple Health extract CSVs to data/demo/extract/ — the same file names and
- * schemas extract.js / the syncs write — so `npm run build:example` renders every section of the
+ * schemas extract.mjs / the syncs write — so `npm run build:example` renders every section of the
  * page (Inicio dials, Salud sections, Entrenos, intake rings) without anyone's personal data.
  * Every row carries a "Demo …" source tag; see data/demo/README.md.
  *
@@ -167,7 +167,7 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
   out['basal-energy-daily.csv'] = csv('date,kcal', basal);
   out['dietary-daily.csv'] = csv('date,kcal,protein_g,carbs_g,fat_g', diet);
 
-  // ---- per-workout HR zones (workout-zones.csv, as sync-strava.js writes it) -------------------
+  // ---- per-workout HR zones (workout-zones.csv, as sync-strava.mjs writes it) -------------------
   // one row per Demo Strava run / ride: ~97 % of the duration spread over zones 0-5 around a
   // typical split (runs mostly zone 3, rides mostly zone 2); max HR = the highest Demo Strava max
   // HR, like the "observed" rule. Its own PRNG, so the other files never change because of it.

@@ -278,7 +278,7 @@ returned nothing. Runs may overlap (rolling window); the reader dedups.
 
 Rows come back oldest first; page by passing the last `id` as `since_id`. Same
 constant-time bearer check as ingest, and only counts are logged. The repo's
-`npm run sync` (`data/apple-health/sync-shortcut.js`) uses it to merge Shortcut
+`npm run sync` (`data/apple-health/sync-shortcut.mjs`) uses it to merge Shortcut
 samples into the Apple Health extract CSVs (export rows win; Shortcut rows fill
 only dates the export does not cover, tagged `source=Shortcut`).
 
@@ -295,7 +295,7 @@ payload. `start_local` is read from the JSON payload (`start_date_local`)
 rather than the `start_local` column, because the upsert in `sync.js` never
 refreshes that column on an edit. Same constant-time bearer check as every
 other endpoint here, and only counts are logged. The repo's
-`data/apple-health/sync-strava.js` uses it to merge Strava activities into the
+`data/apple-health/sync-strava.mjs` uses it to merge Strava activities into the
 Apple Health extract CSVs the same way the Shortcut sync does (export rows
 win; Strava rows fill only dates the export does not cover, tagged
 `source=Strava API`).
@@ -322,7 +322,7 @@ seconds spent at each whole bpm (`hr_hist`, `{"142": 37, ...}`), never the raw s
 owns the time until the next one; a gap over 30 s (pause, dropout), a non-increasing time and a
 missing or implausible (< 30 / > 250 bpm) reading add nothing. `GET /export/strava` returns it as
 `hr_hist` (null until the backfill reaches the activity, or when it has no HR); the repo's
-`sync-strava.js` cuts the zones (% of max HR) from it, so a change of max HR never needs a refetch.
+`sync-strava.mjs` cuts the zones (% of max HR) from it, so a change of max HR never needs a refetch.
 
 **Rate limits.** Strava allows 100 requests / 15 min and 1000 / day per app, shared with the
 activity pull (1-2 calls per run) and the daily athlete refresh. The backfill fetches at most
