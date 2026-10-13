@@ -153,7 +153,7 @@ export const en = {
       dirs: { up: 'above the average', down: 'below the average', flat: 'about the average' },
       empty: 'Every metric is hidden. Use Customize to show some.',
       // full metric names on the rows (client/home-dash.js); the rest use the detail sheet's title
-      names: { rhr: 'Resting heart rate', hrv: 'Heart rate variability', sleep: 'Hours of sleep', walkingHr: 'Walking heart rate' },
+      names: { rhr: 'Resting heart rate', hrv: 'Heart rate variability', sleep: 'Hours of sleep', walkingHr: 'Walking heart rate', stress: 'Stress monitor' },
     },
   },
   emptyMsg: 'No scores yet. Recovery needs the Apple Health extract; load needs workouts with Relative Effort (Strava).',
@@ -465,7 +465,7 @@ export const es = {
       dirs: { up: 'por encima de la media', down: 'por debajo de la media', flat: 'en torno a la media' },
       empty: 'Todas las métricas están ocultas. Usa Personalizar para mostrar alguna.',
       // nombres completos en las filas (client/home-dash.js); el resto usa el título de la hoja de detalle
-      names: { rhr: 'Frecuencia cardiaca en reposo', hrv: 'Variabilidad de la frecuencia cardiaca', sleep: 'Horas de sueño', walkingHr: 'Frecuencia cardiaca al caminar' },
+      names: { rhr: 'Frecuencia cardiaca en reposo', hrv: 'Variabilidad de la frecuencia cardiaca', sleep: 'Horas de sueño', walkingHr: 'Frecuencia cardiaca al caminar', stress: 'Monitor de estrés' },
     },
   },
   emptyMsg: 'Aún no hay puntuaciones. La recuperación necesita la exportación de Apple Health; la carga necesita entrenos con Esfuerzo Relativo (Strava).',

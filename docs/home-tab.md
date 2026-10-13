@@ -382,9 +382,14 @@ trend is the line under it.
   rate", "Heart rate variability", "Hours of sleep", "Walking heart rate": `home.dash.names`, else the
   detail sheet's title) · the latest value (D-DIN, 22 px) + its unit at about half that size and an
   arrow, the 30-day baseline small under it. Catalogue (`CATALOG`): rhr, hrv, sleep, weight,
-  steps (shown by default, `DEFAULT_ON`), vo2max, fitnessAge, walkingHr, exercise (hidden by default;
+  steps and stress (shown by default, `DEFAULT_ON`; saved prefs from before stress existed get it
+  appended, shown), vo2max, fitnessAge, walkingHr, exercise (hidden by default;
   fitnessAge in whole years, "≤ 25" / "≥ 75" at the reference curve's bounds, docs/health-tab.md
-  "Fitness age"); only keys
+  "Fitness age"). `stress` is the one CHART card, the reference dashboard's stress monitor
+  (`stressCard`): available when `SCORES.stress` has a day with a latest scored hour (`now`), the newest
+  such day (as the stress tile); a caps title, "Latest hour HH:00" (+ the date when not today), the band
+  word + value, then the hourly chart (`HC.stressChart`, client/util.js, shared with the stress sheet);
+  it opens the stress sheet on that day; only keys
   present in the baked `DETAIL.metrics` are listed. Same series and units as the detail sheet
   (`I18N_DETAIL`). Value = the newest day with data up to the viewer's today (a daily total skips
   today, still filling up); sleep shows h:mm. Baseline = the mean of the 30 days before that day, with

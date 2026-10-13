@@ -649,39 +649,13 @@
     return '<section class="dd-hero dd-stress ds-' + (band || 'none') + '"><div class="ds-gwrap" role="img" aria-label="' + esc(aria) + '">' + svg +
       '<div class="ds-centre" aria-hidden="true">' + centre + '</div></div></section>';
   }
-  // the day's curve: 24 h across, 0-3 up, the three bands shaded; one point per scored hour (at the
-  // middle of its hour), joined while the hours are consecutive. Gaps = sleep, workouts or no data.
+  // the curves' frame (the energy curve below; the stress curve's is HC.stressChart's, the same numbers)
   var CV = { w: 320, h: 150, l: 22, r: 6, t: 8, b: 20 };
+  // the day's curve (HC.stressChart, shared with Mi panel's stress card). Gaps = sleep, workouts or no data.
   function stressCurve(d, X) {
-    var P = X.T.deep.stress, iw = CV.w - CV.l - CV.r, ih = CV.h - CV.t - CV.b;
-    var x = function (h) { return CV.l + (iw * h) / 24; };
-    var y = function (v) { return CV.t + ih * (1 - v / 3); };
-    var out = SB.map(function (b, i) {
-      return '<rect class="ds-zone ds-' + b + '" x="' + CV.l + '" y="' + y(i + 1).toFixed(1) + '" width="' + iw + '" height="' + (ih / 3).toFixed(1) + '"/>';
-    }).join('');
-    for (var k = 0; k <= 3; k++) {
-      out += '<text class="ds-ylbl" x="' + (CV.l - 5) + '" y="' + (y(k) + 3).toFixed(1) + '" text-anchor="end">' + esc(X.fmt(k, 0)) + '</text>';
-    }
-    for (var h = 0; h <= 24; h += 6) {
-      out += '<text class="ds-xlbl" x="' + x(h).toFixed(1) + '" y="' + (CV.h - 5) + '" text-anchor="' + (h === 0 ? 'start' : h === 24 ? 'end' : 'middle') + '">' + (h < 10 ? '0' : '') + h + ':00</text>';
-    }
-    var hours = (d && d.hours) || [], path = '', prev = null;
-    hours.forEach(function (p) {
-      var hh = parseInt(p.t, 10);
-      if (!isFinite(hh) || !isNum(p.v)) return;
-      path += (prev != null && hh === prev + 1 ? ' L' : (path ? ' M' : 'M')) + x(hh + 0.5).toFixed(1) + ' ' + y(p.v).toFixed(1);
-      prev = hh;
-    });
-    if (path) out += '<path class="ds-line" d="' + path + '"/>';
-    hours.forEach(function (p) {
-      var hh = parseInt(p.t, 10);
-      if (!isFinite(hh) || !isNum(p.v)) return;
-      out += '<circle class="ds-pt ds-' + stressBand(p.v) + '" cx="' + x(hh + 0.5).toFixed(1) + '" cy="' + y(p.v).toFixed(1) + '" r="2.6"><title>' +
-        esc(format(P.ptTitle, { time: hhmm(p.t), value: X.fmt(p.v, 1), hr: X.fmt(p.hr, 0) })) + '</title></circle>';
-    });
+    var P = X.T.deep.stress, hours = (d && d.hours) || [];
     return '<section class="ds-curve" aria-label="' + esc(P.curveAria) + '"><h3 class="dd-sec">' + esc(P.curveTitle) + '</h3>' +
-      '<svg class="ds-chart" viewBox="0 0 ' + CV.w + ' ' + CV.h + '" role="img" aria-label="' + esc(format(P.curveSr, { n: hours.length })) + '">' + out + '</svg>' +
-      '<p class="dd-legend">' + esc(P.gapNote) + '</p></section>';
+      HC.stressChart(hours, P, X.fmt) + '<p class="dd-legend">' + esc(P.gapNote) + '</p></section>';
   }
   // time in each band: one stacked bar + a row per band (minutes outside workouts, <= 60 per hour)
   function stressBands(d, X) {
