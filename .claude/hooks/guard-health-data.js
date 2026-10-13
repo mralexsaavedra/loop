@@ -84,9 +84,9 @@ const ALLOWED = [
   /\.example\.json$/,
   /(^|\/)\.env\.example$/,
   /(^|\/)knowledge\/README\.md$/,
-  /(^|\/)data\/apple-health\/(extract|samples|sync-common|sync-shortcut|sync-strava)\.js$/,
-  /(^|\/)data\/apple-health\/[^/]+\.test\.js$/,
-  /(^|\/)data\/profile\/sync-(profile|settings)(\.test)?\.js$/,
+  /(^|\/)data\/apple-health\/(extract|samples|sync-common|sync-shortcut|sync-strava)\.mjs$/,
+  /(^|\/)data\/apple-health\/[^/]+\.test\.mjs$/,
+  /(^|\/)data\/profile\/sync-(profile|settings)(\.test)?\.mjs$/,
 ];
 const isAllowed = (p) => ALLOWED.some((re) => re.test(p));
 

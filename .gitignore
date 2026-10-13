@@ -58,13 +58,13 @@ services/health-ingest/trigger/
 # is generated from it. Both hold personal plan data → ignore.
 data/nutrition/plan-data.json
 data/nutrition/plan-tables.md
-# Food log export written by data/nutrition/sync-foodlog.js (per-day sums of your LAN food
+# Food log export written by data/nutrition/sync-foodlog.mjs (per-day sums of your LAN food
 # log) — personal. The script and its test are plain tooling → tracked by default.
 data/nutrition/foodlog-daily.csv
 data/nutrition/foodlog-daily.meta.json
 # NOTE: ingredients.json (the public, reusable food DB — per-100g macros + product labels)
-# and generate.js (plain tooling) carry NO personal plan data and are intentionally TRACKED.
-# generate.js MERGES the tracked ingredients.json with the personal plan-data.json.
+# and generate.mjs (plain tooling) carry NO personal plan data and are intentionally TRACKED.
+# generate.mjs MERGES the tracked ingredients.json with the personal plan-data.json.
 # The .template/.example seeds carry NO personal data and are intentionally TRACKED
 # (they are the public starting point a fresh clone copies to the names ignored above).
 # Patterns above match the exact personal filenames only, so ingredients.json and the
@@ -83,15 +83,15 @@ profile/profile.json
 # subagents). The .example template is tracked.
 profile/coaches.md
 
-# Strava profile snapshot + avatar pulled by data/profile/sync-profile.js (name, city, gear,
-# photo) and the goal / target-weight snapshot (settings.json, data/profile/sync-settings.js)
+# Strava profile snapshot + avatar pulled by data/profile/sync-profile.mjs (name, city, gear,
+# photo) and the goal / target-weight snapshot (settings.json, data/profile/sync-settings.mjs)
 # — personal. The sync scripts, their tests and .gitkeep are plain tooling → tracked.
 data/profile/*
 !data/profile/.gitkeep
-!data/profile/sync-profile.js
-!data/profile/sync-profile.test.js
-!data/profile/sync-settings.js
-!data/profile/sync-settings.test.js
+!data/profile/sync-profile.mjs
+!data/profile/sync-profile.test.mjs
+!data/profile/sync-settings.mjs
+!data/profile/sync-settings.test.mjs
 
 # OS / tooling noise
 .DS_Store
