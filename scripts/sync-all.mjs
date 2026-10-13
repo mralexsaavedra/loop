@@ -20,7 +20,7 @@ const ROOT = path.dirname(DIR);
 // counted twice in day strain until the next sync.
 export const SCRIPTS = [
   path.join(ROOT, 'data', 'apple-health', 'sync-strava.js'),
-  path.join(ROOT, 'data', 'apple-health', 'sync-shortcut.js'),
+  path.join(ROOT, 'data', 'apple-health', 'sync-shortcut.mjs'),
   path.join(ROOT, 'data', 'profile', 'sync-profile.js'),
   // the settings snapshot (data/profile/settings.json) never fails the run: a missing / old ingest
   // service is only a warning (exit 0)
