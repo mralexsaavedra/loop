@@ -327,12 +327,25 @@ details.rec-raw > summary::after {
   text-decoration-thickness: 1px;
   text-decoration-color: color-mix(in srgb, var(--link) 40%, transparent);
 }
-/* THE stale-data marker (HC.staleMark): a short yellow line + ⓘ; a tap opens the muted sentence */
+/* THE stale-data marker (HC.staleMark): a short yellow line + ⓘ; a tap opens the muted sentence. A bare
+   <details>: it undoes the global details / summary card look (tablas.css) */
 .stale-mk {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  margin-bottom: 0;
+  box-shadow: none;
+  overflow: visible;
   font-size: var(--fs-xs);
   color: var(--mod);
 }
+.stale-mk[open] {
+  box-shadow: none;
+}
 .stale-mk > summary {
+  padding: 0;
+  font-size: inherit;
+  font-weight: inherit;
   display: inline-flex;
   align-items: center;
   gap: var(--sp-1);
