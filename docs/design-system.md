@@ -45,6 +45,10 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
   3 px markers) are fine. The same card rule pads itself with `var(--card-pad)` (formerly 14 × 12 px on
   the monitor tile, Entreno's Activity card and Nutrición's cards, 10 px on the load tiles, 16 px on the
   intake card).
+- **Flat cards.** A content card has no outline, like the reference app: the profile sections, Día's
+  summary and macro cards, the intake card and the programmed-session block (which keeps only its
+  3 px strain stripe on the left) formerly had a 1 px `--line` border. Inputs, chips, pills, the journal
+  notes field and the desktop sheet frame keep theirs. Guard: `FLAT_CARDS` in `design-system.test.mjs`.
 - **Hero numbers.** In the `--num` face, a size of 18 px or more is a step of the scale: row
   (`--fs-num-row`), card (`--fs-num-card`) or a dial centre; weight 700 (`--num-weight`), never 800.
   No other rule sets a raw px size of 18 px or more.

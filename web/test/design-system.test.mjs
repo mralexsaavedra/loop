@@ -288,6 +288,21 @@ test('CTA link: only .cta (and the in-sentence .lnk) paint link text; every CTA 
   assert.deepEqual(ground, ['detail.css .dd-insight .cta'], 'only the insight card (--ground) ends in the exact --link-end');
 });
 
+// content cards are flat (the reference app draws no outline on a card); inputs, chips, pills and the
+// desktop sheet frame keep theirs. .train-block keeps only its left strain stripe.
+const FLAT_CARDS = ['profile.css .pf-sec', 'dia.css .summary', 'dia.css .mac', 'dia.css .intake-card', 'training.css .train-block'];
+test('content cards: no 1px outline', () => {
+  const found = new Set();
+  const bad = [];
+  for (const r of RULES) {
+    if (!FLAT_CARDS.includes(key(r))) continue;
+    found.add(key(r));
+    if (r.decl.border && r.decl.border !== '0') bad.push(`${where(r)} border: ${r.decl.border}`);
+  }
+  assert.deepEqual([...found].sort(), [...FLAT_CARDS].sort(), 'every flat card still has a rule');
+  assert.deepEqual(bad, []);
+});
+
 // the chevron's look lives in ONE rule (base.css); its owners only place / rotate it
 const CHEV_RULE = '.chev, [data-detail][role=button]:after, button.meal-name:after, details.rec-raw>summary:after';
 const CHEV_LOOK = ['color', 'font-size', 'font-weight', 'line-height', 'font'];

@@ -30,7 +30,6 @@
 }
 .train-block {
   background: var(--card-bg);
-  border: 1px solid var(--line);
   border-left: 3px solid var(--strain);
   border-radius: var(--card-radius);
   padding: var(--card-pad);
