@@ -66,7 +66,7 @@ controls instead of the close button.
      never fatal.
   3. Derived: weight = the newest row of `weight.csv` with its date (the page passes
      `profile.mjs` `newestWeight` over `readExtract`'s `series.weight` as `loadProfile({ weight })`, so the
-     file is read once per build; without it `loadProfile` reads it itself via `read.mjs` `latestWeight`;
+     file is read once per build; `loadProfile` never reads the extract, so omitted = no weigh-in;
      never Strava's weight). The AGE is computed client-side from `birthdate` on the viewer's clock,
      so builds stay byte-identical.
 - **One source of truth per user fact** (read as FILES by the read-only coach subagents, see

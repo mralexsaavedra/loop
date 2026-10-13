@@ -8,7 +8,7 @@ import { jsonForScript } from '../../../lib/serialize.mjs';
 import { es as esDetail, en as enDetail } from '../i18n/detail-templates.mjs';
 
 interface Props {
-  detail: any; // lib/detail/detail.mjs buildDetail() result
+  detail: any; // lib/detail/detail.mjs detailFrom() result
   locale: string;
 }
 const { detail, locale } = Astro.props;

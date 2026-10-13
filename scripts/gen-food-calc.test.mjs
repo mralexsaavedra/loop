@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { foodCalcSource, FOOD_CALC_PATH, FOOD_CALC_HEADER, writeGenerated } from './gen-food-calc.mjs';
+import { writeGenerated } from './lib/generated.mjs';
+import { foodCalcSource, FOOD_CALC_PATH, FOOD_CALC_HEADER } from './gen-food-calc.mjs';
 import { esmModule } from '../lib/build/esm-module.mjs';
 
 const committed = readFileSync(FOOD_CALC_PATH, 'utf8');

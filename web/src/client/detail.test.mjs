@@ -8,15 +8,16 @@ import vm from 'node:vm';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildDetail } from '../../../lib/detail/detail.mjs';
+import { detailFrom } from '../../../lib/detail/detail.mjs';
+import { readExtract } from '../../../lib/extract/read.mjs';
 import { es as esT, en as enT } from '../i18n/detail-templates.mjs';
 import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 import { loadUtil, DETAIL_SOURCE } from '../../test/client-util.mjs';
 import { fmtHours, fmtMinutes, fmtInt } from '../../../lib/format/numbers.mjs';
 import { StubElement } from '../../test/dom-stub.mjs';
 import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB } from '../../../lib/nav/tabs.mjs';
-import { buildScores } from '../../../lib/score/index.mjs';
-import { buildHealth } from '../../../lib/health/aggregate.mjs';
+import { buildScoresFrom } from '../../../lib/score/index.mjs';
+import { healthFrom } from '../../../lib/health/aggregate.mjs';
 import { buildDials } from '../view/dial.mjs';
 
 const format = (tpl, vars) => tpl.replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? vars[k] : ''));
@@ -27,7 +28,9 @@ const source = fs.readFileSync(path.join(here, 'detail.js'), 'utf8');
 // the dial deep-dive pages (sleep, recovery, load-<m>): inlined right before detail.js on the page
 const deepSource = fs.readFileSync(path.join(here, 'deepdive.js'), 'utf8');
 const coreSource = fs.readFileSync(path.join(here, 'core.js'), 'utf8');
-const DEMO = buildDetail(path.join(here, '..', '..', '..', 'data', 'demo', 'extract'));
+// the synthetic demo extract, read once (lib/extract/read.mjs) like the page build
+const DEMO_INPUTS = readExtract(path.join(here, '..', '..', '..', 'data', 'demo', 'extract'));
+const DEMO = detailFrom(DEMO_INPUTS);
 const NOW = DEMO.asOf; // the viewer opens the page on the demo's newest data day
 
 const addDays = (d, n) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
@@ -523,9 +526,8 @@ test('es: Spanish copy, decimal comma, Spanish dates', () => {
 });
 
 /* ---------- the sheet never contradicts the card it opens from ---------- */
-
 const DEMO_DIR = path.join(here, '..', '..', '..', 'data', 'demo', 'extract');
-const DIALS = buildDials(buildScores(DEMO_DIR), buildHealth(DEMO_DIR));
+const DIALS = buildDials(buildScoresFrom(DEMO_INPUTS), healthFrom(DEMO_INPUTS));
 const headOf = (html) => html.split('<div class="dt-body">')[0];
 const sgn = (v, dec) => (v > 0 ? '+' : '') + v.toFixed(dec);
 const copy = () => JSON.parse(JSON.stringify(DEMO));
@@ -1477,7 +1479,7 @@ test('a session with HR zones shows ZONE 5…0 rows (bar, %, duration, bpm range
 });
 
 /* ---------- day strain deep-dive (key 'strain') ---------- */
-const DEMO_SCORES = buildScores(DEMO_DIR);
+const DEMO_SCORES = buildScoresFrom(DEMO_INPUTS);
 
 test('strain deep-dive: the hero = the day\'s strain in its baked ring, contributors = the day\'s activities + the all-day load, the band in the insight, formula + K under ⓘ', () => {
   const S = DEMO_SCORES.strain;

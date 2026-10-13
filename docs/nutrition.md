@@ -86,7 +86,7 @@ the two JSONs.
   builds the example (+ personal, if present) fixtures the web/ tests read.
 
 **Intake rings (in Resumen de hoy).** `lib/nutrition/intake.mjs` `intakeFrom(inputs, targets)` (over the build's
-one `lib/extract/read.mjs` `readExtract`; `buildIntake(extractDir, targets)` is a per-directory shim) bakes the
+one `lib/extract/read.mjs` `readExtract`) bakes the
 most recent LOGGED day of `dietary-daily.csv` (kcal > 0) plus the plan's train/rest base day totals (a fallback);
 `web/src/client/intake.js` draws four rings (kcal, protein, carbs, fat) against THAT day's target
 (`window.HCNutri.targetFor(date)` from client/nutri-day.js: today = `nutriTarget()`, the goal × day
