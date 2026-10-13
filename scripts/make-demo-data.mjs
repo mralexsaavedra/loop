@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { journalCsv } from '../lib/journal/journal.mjs';
 import { JOURNAL_FILE } from '../lib/journal/bake.mjs';
 import { FOODLOG_FILE, FOODLOG_HEADER } from '../lib/nutrition/score.mjs';
+import { isMain } from './lib/is-main.mjs';
 
 const require = createRequire(import.meta.url);
 const { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } = require('../data/apple-health/samples.js');
@@ -273,7 +274,7 @@ function parseArgs(argv) {
   return o;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   const files = makeDemoData(parseArgs(process.argv.slice(2)));
   fs.mkdirSync(DEMO_DIR, { recursive: true });
   for (const [name, text] of Object.entries(files)) fs.writeFileSync(path.join(DEMO_DIR, name), text);

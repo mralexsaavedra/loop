@@ -32,6 +32,7 @@ import { fileURLToPath } from 'node:url';
 import { mock } from 'node:test';
 import { resolveEnv } from '../web/src/env.mjs';
 import { computeBakes } from '../web/src/bakes.mjs';
+import { isMain } from './lib/is-main.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 export const GOLDEN_NOW = '2026-09-28T20:00:00Z';
@@ -180,7 +181,7 @@ export function parseArgs(args) {
   return { update, personal, root: path.resolve(root) };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.error) {
     console.error(opts.error);

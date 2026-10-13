@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { SERVER } from '../lib/journal/journal.mjs';
 import { esmModule } from '../lib/build/esm-module.mjs';
 import { writeGenerated } from './lib/generated.mjs';
+import { isMain } from './lib/is-main.mjs';
 
 export const JOURNAL_CALC_PATH = fileURLToPath(new URL('../services/health-ingest/src/journal-calc.js', import.meta.url));
 export const JOURNAL_CALC_HEADER =
@@ -27,7 +28,7 @@ export function journalCalcSource() {
   return esmModule(HEADER, SERVER);
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isMain(import.meta.url)) {
   process.exitCode = writeGenerated(JOURNAL_CALC_PATH, journalCalcSource(), {
     label: 'services/health-ingest/src/journal-calc.js',
     script: 'gen:journal-calc',
