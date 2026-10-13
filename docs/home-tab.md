@@ -115,6 +115,11 @@ trend is the line under it.
   load dial's detail sheet header ("includes N sessions without effort data"). Trend bands: ramping ≥ +30%, above ≥
   +10%, steady, below ≤ −10%, well below < −30% (never "detraining": the data cannot tell a deload
   or missing effort data from fitness loss).
+  The load `asOf` is the last session or `trainingThrough` (`lib/training/through.mjs`: the newest day
+  of the Watch's HRV / resting HR / sleep / hourly HR), whichever is later: days without a session up to
+  it are rest (zero load), so a rest week decays the trend and is never greyed as stale data (formerly
+  `asOf` = the last session, so 5 rest days read "Data 5 d old" and suppressed the advice). A
+  Strava-only session not yet synced is not seen there (the LAN sync status shows it).
   Today first: `typical` = the median of the NON-ZERO days in the 42 days before asOf (asOf
   excluded; `value: null` under 6 such days — `TYPICAL_WINDOW_DAYS` / `MIN_TYPICAL_DAYS` in
   `load.mjs`). `recent` = the session days of the last `RECENT_DAYS` (14) ending asOf, each
