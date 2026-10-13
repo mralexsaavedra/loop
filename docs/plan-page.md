@@ -29,8 +29,9 @@ publisher) and `lib/training/hr-zones.cjs` (CommonJS shared with the `data/apple
 the composition root (`web/src/bakes.mjs` `computeBakes`) calls it once and passes the result to the pure cores
 (`lib/score/index.mjs` `buildScoresFrom(inputs, {sex})` over `recoveryFrom`, `loadFrom`, `strainFrom`,
 `stressFrom`, `energyFrom`, `journalFrom`, …). It parses nothing itself and imports no `fs` (it only calls the
-area readers, so it is not in the fs-boundary set); it reads each file once (both projections of
-`hr-hourly.csv` come from one read; `workout-zones.csv` is still read by two parsers), keeps the readers'
+area readers, so it is not in the fs-boundary set); it reads each file once (`workouts.csv`, `hr-hourly.csv`
+and `workout-zones.csv` are each read once and projected several ways: the readers expose the cells / lines
+read and pure `*FromCells` / `*FromLines` projections), keeps the readers'
 null-when-absent values (`readExtract(null)` = every value null, `journal` `[]`) and deep-freezes the result,
 so a core that sorts or assigns into its shared inputs throws instead of changing another score. The
 per-directory wrappers (`buildScores(dir)`, `buildStrain/Stress/Energy(dir)`, `journalBake(dir)`, the
