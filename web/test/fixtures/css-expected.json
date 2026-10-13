@@ -3518,8 +3518,8 @@
   "|||.cta|||min-height": "44px",
   "|||.cta|||padding": "0",
   "|||.cta|||border": "0",
-  "|||.cta|||background": "none",
-  "|||.cta|||color": "var(--link)",
+  "|||.cta|||background": "linear-gradient(90deg, var(--link), var(--link-end-card))",
+  "|||.cta|||color": "transparent",
   "|||.cta|||font": "inherit",
   "|||.cta|||font-size": "var(--fs-title-lg)",
   "|||.cta|||font-weight": "var(--label-weight)",
@@ -3548,9 +3548,6 @@
   "|||.sc-head .cta|||margin-left": "auto",
   "|||.dd-insight .cta|||margin-top": "var(--sp-3)",
   "|||.dd-insight .cta|||background": "linear-gradient(90deg, var(--link), var(--link-end))",
-  "|||.dd-insight .cta|||-webkit-background-clip": "text",
-  "|||.dd-insight .cta|||background-clip": "text",
-  "|||.dd-insight .cta|||color": "transparent",
   "|||.cta|||gap": "var(--sp-1)",
   "|||.chev, [data-detail][role=button]:after, button.meal-name:after, details.rec-raw>summary:after|||color": "var(--muted)",
   "|||.chev, [data-detail][role=button]:after, button.meal-name:after, details.rec-raw>summary:after|||font-size": "var(--chev-size)",
@@ -4168,5 +4165,8 @@
   "|||.ds-blbl|||color": "var(--muted)",
   "|||.ds-bmin|||font-family": "var(--num)",
   "|||.dt-s-slow, .dt-s-smedium, .dt-s-shigh|||fill": "var(--ds)",
-  "|||.dt-s-slow, .dt-s-smedium, .dt-s-shigh|||background": "color-mix(in srgb, var(--ds) 38%, transparent)"
+  "|||.dt-s-slow, .dt-s-smedium, .dt-s-shigh|||background": "color-mix(in srgb, var(--ds) 38%, transparent)",
+  "|||:root|||--link-end-card": "#9d7cff",
+  "|||.cta|||-webkit-background-clip": "text",
+  "|||.cta|||background-clip": "text"
 }
