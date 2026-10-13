@@ -44,7 +44,12 @@ wrappers left (tests run the pure `*From` cores over `readExtract` or over readE
 profile's weigh-in also comes from `computeBakes` (`lib/profile/read.mjs` never reads the extract). `lib/fs-boundary.test.mjs` also pins that no compute module
 imports a reader: only the `read.mjs` files (`lib/extract/read.mjs` included) and the three `fs` exceptions may
 import a `read.mjs`. Only modules that neither import `fs` nor import a reader can be emitted into the page via
-`clientSource()`.
+`clientSource()`. The emitter (`lib/format/numbers.mjs` `classicGlobal`) declares each constant
+under its own name and under every Rollup rename (`NAME$n`, the only form Rollup emits) the function bodies
+reference in CODE: comments and string / template / regex literal contents are stripped first by the
+string-aware scanner `lib/format/js-scan.mjs`, so a `'NAME$2'` string or an unrelated local `NAME2` adds no
+declaration. The registerView static scan (`web/src/client/util.test.mjs`) uses the same scanner over every
+client script, subdirectories included.
 
 - **Inlined client scripts are slimmed.** `web/layouts/Plan.astro` inlines every `web/src/client/*.js`
   through `web/src/slim-script.mjs` `slimScript` (esbuild `transformSync`; esbuild is declared in package.json at the exact version astro / vite lock:
