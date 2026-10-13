@@ -29,7 +29,7 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const attr = (s, name) => { const m = s.match(new RegExp(' ' + name + '="([^"]*)"')); return m ? m[1] : null; };
 // shared with sync-shortcut.js so export- and Shortcut-derived rows are formatted identically
-const { pickEnergySource, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights, sleepStage } = require('./samples.js');
+const { pickEnergySource, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights, sleepStage } = require('./samples.mjs');
 
 // sparse readings: [{date, value, source}]
 const readings = { weight: [], bodyfat: [], rhr: [], vo2max: [], hrv: [], leanmass: [], wristTemp: [], hrRecovery: [], waist: [] };
@@ -37,7 +37,7 @@ const readings = { weight: [], bodyfat: [], rhr: [], vo2max: [], hrv: [], leanma
 const READING_FILE = { hrRecovery: 'hr-recovery.csv' };
 // daily energy per source: Map<date, Map<source, kcal sum>>. Every device / app writes its OWN
 // estimate of the same burn (RENPHO writes an estimated BMR as Basal Energy on weigh-in days, which
-// doubled basal), so per day and type ONE source wins by precedence (samples.js pickEnergySource:
+// doubled basal), so per day and type ONE source wins by precedence (samples.mjs pickEnergySource:
 // Apple Watch > a wrist-wearable app > iPhone; scales and training / nutrition apps never count) and
 // only its sum is written. A day with excluded sources only is MISSING (no row).
 const energyBySrc = { active: new Map(), basal: new Map() };
@@ -57,7 +57,7 @@ const running = new Map();
 const stepsBySrc = new Map();
 // dietary daily: Map<date, {kcal,p,c,g}>
 const diet = new Map();
-// sleep segments [{start, end, source, stage}] -> nights via samples.js sleepNights (naps excluded,
+// sleep segments [{start, end, source, stage}] -> nights via samples.mjs sleepNights (naps excluded,
 // max across sources per night avoids a double count) — the same rule sync-shortcut.js uses
 const sleepSegs = [];
 const workouts = []; // {date, type, durationMin, energyKcal, hrAvg, hrMin, hrMax, source}

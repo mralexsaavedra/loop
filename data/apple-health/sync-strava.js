@@ -31,7 +31,7 @@
 const fs = require('fs')
 const path = require('path')
 const common = require('./sync-common.js')
-const { WORKOUTS_HEADER } = require('./samples.js')
+const { WORKOUTS_HEADER } = require('./samples.mjs')
 const zones = require('../../lib/training/hr-zones.cjs')
 
 const STRAVA_SOURCE = 'Strava API'
