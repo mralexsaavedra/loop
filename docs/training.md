@@ -50,7 +50,9 @@ Then running, cycling and load vs recovery (`#health-train`, client/health.js). 
 dashboard's rules: duration not kcal, DISTINCT days, dashboard modality buckets, and the shared
 same-day rule (`lib/training/sessions.mjs` `DISPLAY_RULE`: stubs under 3 min dropped, one source per
 date + bucket, then summed). Only the last 367 data days are baked (6M twice + 3 days of viewer slack),
-one entry per active day; the client ends every window at the VIEWER's today, or at the data date when
+one entry per active day. The data date (`asOf`) is the last session or `trainingThrough` (the newest
+Watch HRV / resting HR / sleep / hourly HR day, `lib/training/through.mjs`), whichever is later, so rest
+days are not stale data; the client ends every window at the VIEWER's today, or at the data date when
 that is more than 3 days old (greyed, with the short stale marker `HC.staleMark`: "Data 10 d old ⓘ", a
 tap opens the sentence) or AFTER the viewer's today (clock / timezone skew,
 so the newest sessions stay visible). Calendar = Monday-first weeks, ONE sequential hue (`--strain`) in
