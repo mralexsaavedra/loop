@@ -16,7 +16,7 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   view end, the W / M / 6M / 1Y windows + `periodStats`, the cached 7-day line, value formatting,
   `dayState` + the legend's states; unit-tested in `detail-state.test.mjs`), `detail-chart.js`
   (`window.HCDetailChart(T, DS)`: the trend chart's SVG + key, `selX` from the geometry it records in the
-  sheet state's `geo`, and the window's breakdown bar) and `detail.js` (the shell: the header, period,
+  sheet state's `geo`, and the window's breakdown bar; unit-tested in `detail-chart.test.mjs`) and `detail.js` (the shell: the header, period,
   calendar and day panel markup, open / close, focus, history, deep links and the public
   `window.HCDetail`). `detail.js` builds one `HCDetailState` + one `HCDetailChart` per page and hands the
   state helpers to `deepdive.js` (`X`). Tests load the set through `DETAIL_SOURCE` (`web/test/client-util.mjs`).

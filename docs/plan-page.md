@@ -53,7 +53,10 @@ that neither import `fs` nor call a reader can be emitted into the page via `cli
   listed once and inlined in that order, `provides` against a static scan, `requires` / `probes` against the order,
   and runs a vm load trace of the example page (`web/test/script-trace.mjs`: plain load + the `#profile`,
   `#tonight`, `#detail/sleep` deep links) that fails on any undeclared load-time read or `window` write. A new
-  script goes into the manifest at its place; the test names what to declare.
+  script goes into the manifest at its place; the test names what to declare. A factory-only script
+  (`detail-state.js`, `detail-chart.js`: one `window.X = function`, nothing read at load) declares
+  `requires: []`: its reads happen when its caller invokes it, so the trace counts them on the caller
+  (`detail.js`), and a load-time read added to the factory itself fails the trace as an undeclared require.
 
 - `LOCALE`: env var → `plan.locale` → `en` (the user's `plan-data.json` sets `locale:"es"`).
 - `DATA_MODE=personal|example`: personal reads the gitignored real files; example reads the
