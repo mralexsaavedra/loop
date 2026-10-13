@@ -302,9 +302,10 @@
     if (S.dayLog && S.dayLog.date === date) return S.dayLog;
     return null;
   }
-  function norm(s) {
-    return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  }
+  // the accent- and case-insensitive search key: lib/nutrition/names.mjs foldName itself, shipped in HC_GUIDE
+  // (no copy). Every caller passes a string (a basic's name, a product's name + brand, an input's value),
+  // so foldName's null / undefined -> '' is the only non-string case that matters.
+  var norm = HC_GUIDE.foldName;
   // the basics whose name contains the search (accent- and case-insensitive), names that START with it first;
   // a hidden basic (h: the food is logged as one of your own products instead) is never listed, findBasic still knows it
   function basicMatches(q) {
