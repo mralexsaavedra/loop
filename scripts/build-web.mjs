@@ -26,6 +26,7 @@ import { loadInputs } from '../lib/load/inputs.mjs';
 import { validateProgram } from '../lib/training/program.mjs';
 import { checkManualProfile } from '../lib/profile/read.mjs';
 import { resolveEnv } from '../web/src/env.mjs';
+import { isMain } from './lib/is-main.mjs';
 
 function parseArgs(argv) {
   const out = {};
@@ -192,4 +193,4 @@ function main() {
   console.log(`build-web: wrote ${path.relative(ROOT, outDir)}/index.html (mode=${mode}, locale=${locale})`);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+if (isMain(import.meta.url)) main();

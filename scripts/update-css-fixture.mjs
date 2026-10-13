@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCssRules, ruleDeclarationMap, canonicalSelector } from '../web/test/css-scan.mjs';
+import { isMain } from './lib/is-main.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 export const FIXTURE_PATH = path.join(ROOT, 'web', 'test', 'fixtures', 'css-expected.json');
@@ -117,6 +118,6 @@ function main(argv) {
   return 0;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   process.exitCode = main(process.argv.slice(2));
 }

@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { SERVER } from '../lib/nutrition/foodlog.mjs';
 import { esmModule } from '../lib/build/esm-module.mjs';
 import { writeGenerated } from './lib/generated.mjs';
+import { isMain } from './lib/is-main.mjs';
 
 export const FOOD_CALC_PATH = fileURLToPath(new URL('../services/health-ingest/src/food-calc.js', import.meta.url));
 export const FOOD_CALC_HEADER =
@@ -31,7 +32,7 @@ export function foodCalcSource() {
   return esmModule(HEADER, SERVER);
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isMain(import.meta.url)) {
   process.exitCode = writeGenerated(FOOD_CALC_PATH, foodCalcSource(), {
     label: 'services/health-ingest/src/food-calc.js',
     script: 'gen:food-calc',

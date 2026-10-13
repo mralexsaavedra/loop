@@ -62,6 +62,9 @@ you MUST follow for any number you produce).
 | `node data/apple-health/extract.js` | Rebuild the extract CSVs from a new `export.xml` (then re-run `npm run sync`) |
 | `node scripts/build-web.mjs [--mode personal\|example] [--locale es\|en]` | Build one page variant into `web/dist/<mode>/index.html` |
 
+A runnable `scripts/*.mjs` guards its CLI with `if (isMain(import.meta.url))` from
+`scripts/lib/is-main.mjs` (realpath compare, so symlinks and relative paths work; importing never runs main).
+
 Fresh-clone bootstrap (copy the `.example` seeds, `npm ci && npm run generate`): README → Setup.
 **To change a plan number, edit `plan-data.json` (servings/day plan) or `ingredients.json` (a food's
 macros/label) — never the generated files** ([`docs/nutrition.md`](docs/nutrition.md)).
