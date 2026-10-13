@@ -25,17 +25,19 @@
  * that keep the scale's real source. extract.js rewrites CSVs AND _meta.json together, so a
  * re-extract drops ledger and rows at once; just sync again afterwards.
  */
-const fs = require('fs');
-const path = require('path');
-const S = require('./samples.mjs');
-const HR = require('../../lib/health/hr-hourly.mjs');
-const { ZONES_CSV } = require('../../lib/training/hr-zones.mjs');
-const common = require('./sync-common.mjs');
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import * as S from './samples.mjs';
+import * as HR from '../../lib/health/hr-hourly.mjs';
+import { ZONES_CSV } from '../../lib/training/hr-zones.mjs';
+import * as common from './sync-common.mjs';
+import { isMain } from '../../scripts/lib/is-main.mjs';
 
 const SHORTCUT_SOURCE = 'Shortcut';
 const { DEFAULT_URL, ENV_FILE } = common;
 const DEFAULT_AUTOMATION = 'atajo-salud';
-const OUT = path.join(__dirname, 'extract');
+const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'extract');
 
 // Per-metric table. Adding a metric = one entry (+ a new `kind` only if its line shape is new).
 //   kind point    : "start;value[;source]"   -> one row per sample   (date,value,source)
@@ -539,9 +541,9 @@ async function main() {
   if (!Object.keys(writes).length) console.log('  (no changes)');
 }
 
-if (require.main === module) main();
+if (isMain(import.meta.url)) main();
 
-module.exports = {
+export {
   METRICS, SHORTCUT_SOURCE, SLEEP_STAGES, isAsleep, sleepStageOf,
   parseNumber, parseSource, parsePayload, collectSamples, unionMinutes, buildRows, mergeCsv, updateMeta,
   planSync, resolveToken, fetchAllPayloads,

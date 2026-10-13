@@ -1,8 +1,15 @@
 /* Tests for the iOS Shortcut sync (ingest service -> extract CSVs). Pure functions only,
  * SYNTHETIC fixtures (no real personal values), no network, no disk. */
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const sync = require('./sync-shortcut.js');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import * as sync from './sync-shortcut.mjs';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const {
   METRICS, SHORTCUT_SOURCE, parseNumber, parsePayload, collectSamples, buildRows,
@@ -575,12 +582,7 @@ test('fetchAllPayloads() aborts a hung request with a clear timeout error', asyn
   await assert.rejects(fetchAllPayloads({ baseUrl: 'http://h', token: 't', automation: 'a', timeoutMs: 20, fetchImpl }), /timed out/);
 });
 
-// ---- disk: atomic writes + the extract.js <-> sync contract ----------------------------
-
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+// ---- disk: atomic writes + the extract.mjs <-> sync contract ---------------------------
 
 test('writeAtomic() replaces the file and leaves no temp file behind', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-atomic-'));
