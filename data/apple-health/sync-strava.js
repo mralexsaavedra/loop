@@ -9,7 +9,7 @@
  *          services/health-ingest/.env, same file sync-shortcut.js reads).
  * Writes : data/apple-health/extract/workouts.csv + rides.csv (ride windows + power flag for the
  *          active-energy correction, see rideRow) + workout-zones.csv (per-activity time in HR
- *          zone 0-5 from the ingest's HR histograms, see lib/training/hr-zones.cjs) + _meta.json
+ *          zone 0-5 from the ingest's HR histograms, see lib/training/hr-zones.mjs) + _meta.json
  *          (each via temp file + rename; _meta.json first, belt and braces — see the orphan-safety note below). Nothing is
  *          written if the service can't be reached, answers a non-array, or there is no token.
  *
@@ -32,7 +32,8 @@ const fs = require('fs')
 const path = require('path')
 const common = require('./sync-common.js')
 const { WORKOUTS_HEADER } = require('./samples.mjs')
-const zones = require('../../lib/training/hr-zones.cjs')
+const zones = require('../../lib/training/hr-zones.mjs')
+const { readProfileMaxHr } = require('../../lib/profile/read.mjs')
 
 const STRAVA_SOURCE = 'Strava API'
 // SYNC_STRAVA_OUT_DIR / INGEST_ENV_FILE overrides exist ONLY so the child-process error-path
@@ -367,7 +368,7 @@ async function main () {
   if (stalePower) console.error(stalePower)
   const staleZones = staleZonesWarning(activities)
   if (staleZones) console.error(staleZones)
-  const prof = zones.readProfileMaxHr(PROFILE_JSON)
+  const prof = readProfileMaxHr(PROFILE_JSON)
   if (prof.error) console.error(`WARNING: ${PROFILE_JSON} — ${prof.error}; using the observed max HR for the HR zones.`)
   const plan = syncDir(OUT, activities, { profileMaxHr: prof.maxHr })
   const durationMs = Date.now() - t0

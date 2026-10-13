@@ -14,7 +14,6 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { journalCsv } from '../lib/journal/journal.mjs';
 import { JOURNAL_FILE } from '../lib/journal/bake.mjs';
@@ -22,9 +21,8 @@ import { FOODLOG_FILE, FOODLOG_HEADER } from '../lib/nutrition/score.mjs';
 import { isMain } from './lib/is-main.mjs';
 import { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } from '../data/apple-health/samples.mjs';
 import { HR_HOURLY_HEADER, HR_HOURLY_CSV } from '../lib/health/hr-hourly.mjs';
+import { ZONES_HEADER, ZONES_CSV } from '../lib/training/hr-zones.mjs';
 
-const require = createRequire(import.meta.url);
-const { ZONES_HEADER, ZONES_CSV } = require('../lib/training/hr-zones.cjs');
 // journal-daily.csv: the last JOURNAL_DAYS days, most of them journaled (the example's My journal card +
 // behaviour insights)
 const JOURNAL_DAYS = 70;
