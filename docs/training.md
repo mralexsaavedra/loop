@@ -12,8 +12,7 @@ The same single-file build carries two training sections (programmed session in 
 the `dash` section at the bottom of Entreno — they were tabs before the tab layout), computed by `lib/training/program.mjs`
 (programmed sessions) and `lib/training/dashboard.mjs` (executed-workout aggregation: the page bakes `DASH` with
 the pure `dashboardFrom(inputs)` over `lib/extract/read.mjs` `readExtract`'s `trainingRows`, the build's one
-`workouts.csv` read; the per-directory reader `loadDashboard` lives in `lib/training/read.mjs`, with the other
-training file reads) and
+`workouts.csv` read; `lib/training/read.mjs` holds the training file reads readExtract calls) and
 rendered by `web/src/tabs/{Hoy,Entrenos}.astro`. Same single-source pattern as nutrition.
 
 **🏃 Entreno tab, above the intensity block** (`web/src/tabs/TrainingDetail.astro`, hosts only): a
@@ -33,8 +32,7 @@ the card's bottom edge (`.ld-foot`), so the three align when a "LOAD · 6 OCT" l
 where per-modality Relative Effort lives once Inicio's third dial is the day strain (`docs/home-tab.md`):
 the strain dial has no modality pills, and its deep-dive links back to the three `load-<m>` pages. Then the
 **Activity card** (`#train-activity`, `lib/training/activity.mjs` → `ACTIVITY`, read by
-the pure `activityFrom(inputs)` over the same `readExtract` inputs (`lib/training/read.mjs` `buildActivity` is
-the per-directory shim), baked in TrainingDetail
+the pure `activityFrom(inputs)` over the same `readExtract` inputs, baked in TrainingDetail
 with `I18N_ACTIVITY`; client/training-activity.js) — ONE card for what used to be the 30-day calendar,
 the cumulative training time and the dashboard's weekly volume + modality split: an "ACTIVITY" header
 with an ⓘ (`#act-info`: how each number is counted, the distinct-days / duration note, the Watch-label

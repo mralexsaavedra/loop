@@ -37,13 +37,15 @@ area readers, so it is not in the fs-boundary set); it reads each file once (`wo
 and `workout-zones.csv` are each read once and projected several ways: the readers expose the cells / lines
 read and pure `*FromCells` / `*FromLines` projections), keeps the readers'
 null-when-absent values (`readExtract(null)` = every value null, `journal` `[]`) and deep-freezes the result,
-so a core that sorts or assigns into its shared inputs throws instead of changing another score. The
-per-directory wrappers (`buildScores(dir)`, `buildStrain/Stress/Energy(dir)`, `journalBake(dir)`, the
-`build*` of each score module, `buildHealth` / `buildDetail` / `buildIntake(dir)`, `loadDashboard` /
-`buildActivity(dir)`) remain as shims for tests and scripts until they are removed. Many compute
-modules still IMPORT a reader for those shims (e.g. `lib/detail/detail.mjs` and `lib/health/aggregate.mjs`),
-so only modules that neither import `fs` nor call a reader can be
-emitted into the page via `clientSource()`.
+so a core that sorts or assigns into its shared inputs throws instead of changing another score.
+`readExtract` is the only extract reader the page uses and `web/src/bakes.mjs` is its only caller (tests
+aside): every compute module takes its inputs as arguments, and there are no per-directory `build*(extractDir)`
+wrappers left (tests run the pure `*From` cores over `readExtract` or over readExtract-shaped literals). One
+fallback remains in a reader: `lib/profile/read.mjs` `loadProfile` reads `weight.csv` itself when the caller
+omits `weight` (`computeBakes` always passes it). `lib/fs-boundary.test.mjs` also pins that no compute module
+imports a reader: only the `read.mjs` files (`lib/extract/read.mjs` included) and the three `fs` exceptions may
+import a `read.mjs`. Only modules that neither import `fs` nor import a reader can be emitted into the page via
+`clientSource()`.
 
 - **Inlined client scripts are slimmed.** `web/layouts/Plan.astro` inlines every `web/src/client/*.js`
   through `web/src/slim-script.mjs` `slimScript` (esbuild `transformSync`; esbuild is declared in package.json at the exact version astro / vite lock:
