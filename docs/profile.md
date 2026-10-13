@@ -64,7 +64,9 @@ controls instead of the close button.
      unreachable service / an ingest image without the endpoint (404) → exit 1, no file touched; any
      other failure → a one-line `ERROR:` and exit 1. A broken snapshot file is ignored by the build,
      never fatal.
-  3. Derived: weight = the newest row of `weight.csv` with its date (`read.mjs` `latestWeight`;
+  3. Derived: weight = the newest row of `weight.csv` with its date (the page passes
+     `profile.mjs` `newestWeight` over `readExtract`'s `series.weight` as `loadProfile({ weight })`, so the
+     file is read once per build; without it `loadProfile` reads it itself via `read.mjs` `latestWeight`;
      never Strava's weight). The AGE is computed client-side from `birthdate` on the viewer's clock,
      so builds stay byte-identical.
 - **One source of truth per user fact** (read as FILES by the read-only coach subagents, see

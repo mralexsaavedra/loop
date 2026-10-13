@@ -1,19 +1,20 @@
 #!/usr/bin/env node
 /* Golden guard for every build-time bake (web/src/bakes.mjs computeBakes, the page's composition root).
  *
- * Canonical JSON of the bakes for two envs is compared against committed fixtures:
+ * Canonical JSON of the bakes for three envs is compared against committed fixtures:
  *   - example: the tracked seeds + the synthetic demo extract (data/demo/extract), as `npm run build:example`
  *   - empty:   the same seeds with an EMPTY extract directory (the fresh-clone shapes)
+ *   - null:    the same seeds with NO extract directory (extractDir null: loadInputs found none)
  * web/test/golden-bake.test.mjs runs the comparison in `npm test`; this script maintains the fixtures:
  *
- *   npm run golden:bake                 compare example + empty, exit 1 on a diff
- *   npm run golden:bake -- --update     rewrite web/test/fixtures/bake-golden.{example,empty}.json
+ *   npm run golden:bake                 compare example + empty + null, exit 1 on a diff
+ *   npm run golden:bake -- --update     rewrite web/test/fixtures/bake-golden.{example,empty,null}.json
  *   npm run golden:bake -- --personal   owner-local: the personal bakes vs web/test/.golden/ (gitignored);
  *                                       the first run writes it, later runs compare (exit 1 on a diff),
  *                                       `--personal --update` rewrites it. Prints only counts and JSON
  *                                       paths, never personal values. Exit 2 when the personal inputs
  *                                       (data/nutrition/plan-data.json) are missing.
- *   npm run golden:bake -- --personal --root <clone>
+ *   npm run golden:bake -- --personal --root <clone>   (or --root=<clone>)
  *                                       the same, but the personal data AND the golden file come from
  *                                       another clone (e.g. the main clone) while THIS checkout's code
  *                                       computes the bakes: compare a branch worktree against the golden
@@ -37,14 +38,19 @@ export const GOLDEN_NOW = '2026-09-28T20:00:00Z';
 export const FIXTURES = {
   example: path.join(ROOT, 'web', 'test', 'fixtures', 'bake-golden.example.json'),
   empty: path.join(ROOT, 'web', 'test', 'fixtures', 'bake-golden.empty.json'),
+  null: path.join(ROOT, 'web', 'test', 'fixtures', 'bake-golden.null.json'),
   personal: path.join(ROOT, 'web', 'test', '.golden', 'bake-golden.personal.json'),
 };
+/** The committed (tracked) golden kinds, in report order. */
+export const TRACKED = ['example', 'empty', 'null'];
 
-/** The env a build of `kind` resolves ('example' | 'personal' | 'empty' = example with an empty extract dir);
- * `root` = the clone whose data it reads (default: this checkout). */
+/** The env a build of `kind` resolves ('example' | 'personal' | 'empty' = example with an empty extract dir |
+ * 'null' = example with no extract dir); `root` = the clone whose data it reads (default: this checkout). */
 export function goldenEnv(kind, { emptyDir, root = ROOT } = {}) {
   const env = resolveEnv({ HC_REPO_ROOT: root, DATA_MODE: kind === 'personal' ? 'personal' : 'example', LOCALE: 'en' });
-  return kind === 'empty' ? { ...env, extractDir: emptyDir } : env;
+  if (kind === 'empty') return { ...env, extractDir: emptyDir };
+  if (kind === 'null') return { ...env, extractDir: null };
+  return env;
 }
 
 /** Recursively sorted keys; JSON round trip first (undefined dropped, NaN -> null, like the page's bake). */
@@ -74,11 +80,11 @@ export function goldenBakes(env) {
   return out;
 }
 
-/** The example and empty goldens (the empty extract dir is a temp dir, removed afterwards). */
+/** The example, empty and null goldens (the empty extract dir is a temp dir, removed afterwards). */
 export function trackedGoldens() {
   const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-golden-empty-'));
   try {
-    return { example: goldenBakes(goldenEnv('example')), empty: goldenBakes(goldenEnv('empty', { emptyDir })) };
+    return Object.fromEntries(TRACKED.map((kind) => [kind, goldenBakes(goldenEnv(kind, { emptyDir }))]));
   } finally {
     fs.rmSync(emptyDir, { recursive: true, force: true });
   }
@@ -120,7 +126,7 @@ const rel = (file, root = ROOT) => path.relative(root, file);
 
 /** root = the clone holding the personal data and golden (--root; default this checkout). With a foreign
  * root nothing is written unless `update`: a missing golden there is exit 2. */
-function runPersonal(update, root = ROOT) {
+export function runPersonal(update, root = ROOT) {
   const foreign = path.resolve(root) !== ROOT;
   if (!fs.existsSync(path.join(root, 'data', 'nutrition', 'plan-data.json'))) {
     console.error('golden:bake --personal: personal inputs missing (data/nutrition/plan-data.json); nothing to compare. Run it in the clone that holds your personal data, or pass --root <that clone>.');
@@ -149,7 +155,7 @@ function runPersonal(update, root = ROOT) {
 function runTracked(update) {
   const actual = trackedGoldens();
   let failed = 0;
-  for (const kind of ['example', 'empty']) {
+  for (const kind of TRACKED) {
     const file = FIXTURES[kind];
     if (update) { write(file, actual[kind]); console.log(`golden:bake: wrote ${rel(file)}`); continue; }
     const expected = readJson(file);
@@ -160,15 +166,26 @@ function runTracked(update) {
   return failed;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const args = process.argv.slice(2);
+/** argv (after the script) -> {update, personal, root} with root an absolute path or null (= this checkout),
+ * or {error} when --root / --root= has no directory or comes without --personal. */
+export function parseArgs(args) {
   const update = args.includes('--update');
-  const at = args.indexOf('--root');
-  const root = at >= 0 ? args[at + 1] : null;
-  if (at >= 0 && (!root || root.startsWith('--') || !args.includes('--personal'))) {
-    console.error('golden:bake: --root <clone> takes a directory and applies only with --personal');
+  const personal = args.includes('--personal');
+  const at = args.findIndex((a) => a === '--root' || a.startsWith('--root='));
+  if (at < 0) return { update, personal, root: null };
+  const root = args[at] === '--root' ? args[at + 1] : args[at].slice('--root='.length);
+  if (!root || root.startsWith('--') || !personal) {
+    return { error: 'golden:bake: --root <clone> takes a directory and applies only with --personal' };
+  }
+  return { update, personal, root: path.resolve(root) };
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const opts = parseArgs(process.argv.slice(2));
+  if (opts.error) {
+    console.error(opts.error);
     process.exitCode = 2;
   } else {
-    process.exitCode = args.includes('--personal') ? runPersonal(update, root ? path.resolve(root) : ROOT) : runTracked(update);
+    process.exitCode = opts.personal ? runPersonal(opts.update, opts.root || ROOT) : runTracked(opts.update);
   }
 }
