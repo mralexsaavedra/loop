@@ -303,6 +303,15 @@ test('content cards: no 1px outline', () => {
   assert.deepEqual(bad, []);
 });
 
+// THE stale marker is a bare <details>: it undoes tablas.css's global details / summary card look
+test('stale marker: no card chrome from the global details / summary rules', () => {
+  const own = (sel) => Object.assign({}, ...RULES.filter((r) => !r.media && key(r) === `base.css ${sel}`).map((r) => r.decl));
+  const d = own('.stale-mk'), s = own('.stale-mk>summary');
+  assert.deepEqual([d.background, d.border, d['border-radius'], d['margin-bottom'], d['box-shadow']], ['none', '0', '0', '0', 'none'], 'details: no fill, outline, radius, gap or shadow');
+  assert.equal(own('.stale-mk[open]')['box-shadow'], 'none', 'open: no ring (details[open] outranks a class)');
+  assert.deepEqual([s.padding, s['font-size'], s['font-weight']], ['0', 'inherit', 'inherit'], 'summary: the marker\'s own size, no card padding');
+});
+
 // the chevron's look lives in ONE rule (base.css); its owners only place / rotate it
 const CHEV_RULE = '.chev, [data-detail][role=button]:after, button.meal-name:after, details.rec-raw>summary:after';
 const CHEV_LOOK = ['color', 'font-size', 'font-weight', 'line-height', 'font'];

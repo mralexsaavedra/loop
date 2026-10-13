@@ -4179,5 +4179,15 @@
   "|||.dial-stale>p|||margin": "0 auto",
   "|||.dial-stale>p|||max-width": "34ch",
   "|||.food-sum-lbl|||display": "block",
-  "|||.food-sum-lbl|||margin-bottom": "var(--sp-1)"
+  "|||.food-sum-lbl|||margin-bottom": "var(--sp-1)",
+  "|||.stale-mk|||background": "none",
+  "|||.stale-mk|||border": "0",
+  "|||.stale-mk|||border-radius": "0",
+  "|||.stale-mk|||margin-bottom": "0",
+  "|||.stale-mk>summary|||padding": "0",
+  "|||.stale-mk>summary|||font-size": "inherit",
+  "|||.stale-mk>summary|||font-weight": "inherit",
+  "|||.stale-mk|||box-shadow": "none",
+  "|||.stale-mk|||overflow": "visible",
+  "|||.stale-mk[open]|||box-shadow": "none"
 }
