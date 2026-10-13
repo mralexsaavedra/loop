@@ -292,8 +292,9 @@ details.rec-raw > summary::after {
   color: var(--faint);
 }
 
-/* CTA link (docs/design-system.md → Components): a standalone "go there" link, caps in link blue with
-   a " →" (HC.cta); on the insight card (--ground) the text is the blue → violet gradient (detail.css).
+/* CTA link (docs/design-system.md → Components): a standalone "go there" link, caps with a " →"
+   (HC.cta), the text a blue → violet gradient (link blue where background-clip:text is unsupported).
+   On cards it ends in --link-end-card; the insight card (--ground) ends in the exact --link-end.
    .lnk below is the other link: inside a sentence. A real action (save, behaviour insights) is a
    button, never a .cta. */
 .cta {
@@ -325,6 +326,14 @@ details.rec-raw > summary::after {
   text-underline-offset: 2px;
   text-decoration-thickness: 1px;
   text-decoration-color: color-mix(in srgb, var(--link) 40%, transparent);
+}
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .cta {
+    background: linear-gradient(90deg, var(--link), var(--link-end-card));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
 }
 .cta:focus-visible,
 .lnk:focus-visible {
