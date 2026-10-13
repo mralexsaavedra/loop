@@ -427,7 +427,9 @@
     return HC_BAND.pctBand(v) || 'mid';
   }
   // card: {title, get(iso) -> number|null, text(v), cls(v) -> colour class, frac(v, max) -> 0..1,
-  // tone (the value is printed in its bar's colour)}; the LAST day is the page's day (highlighted)
+  // tone (the value is printed in its bar's colour), open (the title button's attributes: another
+  // metric's trend view; default = this page's own trend chart)}; the LAST day is the page's day
+  // (highlighted); under each bar the weekday and the day of the month (the reference's "Thu 9")
   function weeklyCard(card, days, X) {
     var vals = days.map(card.get);
     if (!vals.some(isNum)) return '';
@@ -439,10 +441,11 @@
       var bar = isNum(v) && f > 0 ? '<i class="dd-bar dd-c-' + esc(card.cls(v)) + '" style="height:' + Math.round(f * 100) + '%"></i>' : '';
       return '<li class="dd-col' + (i === days.length - 1 ? ' dd-now' : '') + '"><span class="dd-val' + (card.tone && isNum(v) ? ' dd-v-' + esc(card.cls(v)) : '') + '">' +
         esc(isNum(v) ? card.text(v) : '—') + '</span>' +
-        '<span class="dd-track-col">' + bar + '</span><span class="dd-wd">' + esc(N ? N[HC.weekdayIndex(iso)] : HC.fmtDate(iso)) + '</span>' +
+        '<span class="dd-track-col">' + bar + '</span><span class="dd-wd">' + esc(N ? N[HC.weekdayIndex(iso)] : HC.fmtDate(iso)) + '<b>' + (+iso.slice(8)) + '</b></span>' +
         '<span class="sr-only">' + esc(HC.fmtDate(iso)) + '</span></li>';
     }).join('');
-    return '<section class="dd-wk" aria-label="' + esc(format(X.T.deep.weekly.aria, { title: card.title })) + '"><h4 class="dd-wk-t">' + esc(card.title) + '</h4>' +
+    return '<section class="dd-wk" aria-label="' + esc(format(X.T.deep.weekly.aria, { title: card.title })) + '"><h4 class="dd-wk-t"><button type="button" class="dd-wk-btn"' + (card.open || ' data-dt-act="trend"') + '>' + esc(card.title) +
+      '<span class="chev" aria-hidden="true">›</span></button></h4>' +
       '<ol class="dd-cols">' + cols + '</ol></section>';
   }
   function plain(cls) {
@@ -453,7 +456,9 @@
     var simple = function (k, cls) {
       var mk = X.metric(k);
       if (!mk) return;
-      cards.push({ title: X.titleOf(k), get: seriesGet(X, mk), text: function (v) { return X.fmtM(mk, v, mk.dec); }, cls: plain(cls) });
+      // another metric's card opens that metric's trend view; the page's own one scrolls to its chart
+      var open = k !== key ? HC.detailAttrs(k, null, { plain: true }) : '';
+      cards.push({ title: X.titleOf(k), get: seriesGet(X, mk), text: function (v) { return X.fmtM(mk, v, mk.dec); }, cls: plain(cls), open: open });
     };
     if (key === 'recovery') {
       // each night's recovery % (the dial's number that morning), bar and value in its % band colour;
