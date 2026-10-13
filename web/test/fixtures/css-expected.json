@@ -1576,7 +1576,6 @@
   "|||.food-sum-lbl|||font-size": "var(--fs-label)",
   "|||.food-sum-lbl|||font-weight": "var(--label-weight)",
   "|||.food-sum-lbl|||letter-spacing": "var(--label-track)",
-  "|||.food-sum-lbl|||margin-right": "var(--sp-2)",
   "|||.food-sum-lbl|||text-transform": "uppercase",
   "|||.food-sum|||color": "var(--muted)",
   "|||.food-sum|||font-size": "var(--fs-sm)",
@@ -4178,5 +4177,7 @@
   "|||.stale-mk>p|||margin": "0 0 var(--sp-2)",
   "|||.stale-mk>p|||color": "var(--muted)",
   "|||.dial-stale>p|||margin": "0 auto",
-  "|||.dial-stale>p|||max-width": "34ch"
+  "|||.dial-stale>p|||max-width": "34ch",
+  "|||.food-sum-lbl|||display": "block",
+  "|||.food-sum-lbl|||margin-bottom": "var(--sp-1)"
 }
