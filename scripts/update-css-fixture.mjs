@@ -92,16 +92,19 @@ export function serializeFixture(fixture) {
   return JSON.stringify(fixture, null, 2) + '\n';
 }
 
-function main(argv) {
+/** The CLI: compare (or with `--check`, only check) the fixture against the build. `buildPath` and
+ * `fixturePath` default to the real files and are injectable for tests. Returns the exit code:
+ * 0 = up to date or rewritten, 1 = `--check` found drift (nothing written), 2 = no build. */
+export function main(argv, { buildPath = BUILD_PATH, fixturePath = FIXTURE_PATH } = {}) {
   const check = argv.includes('--check');
-  if (!fs.existsSync(BUILD_PATH)) {
-    console.error(`update-css-fixture: missing ${path.relative(ROOT, BUILD_PATH)} — run \`npm run pretest\` first`);
+  if (!fs.existsSync(buildPath)) {
+    console.error(`update-css-fixture: missing ${path.relative(ROOT, buildPath)} — run \`npm run pretest\` first`);
     return 2;
   }
-  const current = fs.readFileSync(FIXTURE_PATH, 'utf8');
+  const current = fs.readFileSync(fixturePath, 'utf8');
   const { fixture, added, removed, changed } = updateFixture(
     JSON.parse(current),
-    buildDeclarationMap(fs.readFileSync(BUILD_PATH, 'utf8')),
+    buildDeclarationMap(fs.readFileSync(buildPath, 'utf8')),
   );
   const text = serializeFixture(fixture);
   const summary = `${added} added, ${removed} removed, ${changed} changed`;
@@ -113,8 +116,8 @@ function main(argv) {
     console.error(`update-css-fixture: fixture out of date (${summary}) — run \`npm run test:css:update\``);
     return 1;
   }
-  fs.writeFileSync(FIXTURE_PATH, text);
-  console.log(`update-css-fixture: wrote ${path.relative(ROOT, FIXTURE_PATH)} (${summary})`);
+  fs.writeFileSync(fixturePath, text);
+  console.log(`update-css-fixture: wrote ${path.relative(ROOT, fixturePath)} (${summary})`);
   return 0;
 }
 
