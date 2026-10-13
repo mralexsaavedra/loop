@@ -44,7 +44,15 @@ function detail() {
     sessions: [],
   };
 }
-function load({ locale = 'en', ls = storage(), DETAIL = detail(), noStorage = false } = {}) {
+// SCORES.stress (lib/score/stress.mjs): the newest day has too few hours (no `now`), the one before has one
+function stress() {
+  const hours = [{ t: '10', v: 0.4, hr: 60 }, { t: '11', v: 1.2, hr: 75 }, { t: '12', v: 1.4, hr: 78 }, { t: '18', v: 2.3, hr: 95 }];
+  return { ok: true, days: [
+    { date: '2026-09-29', now: { t: '18', v: 2.3, band: 'high' }, hours },
+    { date: NOW, now: null, hours: [{ t: '09', v: 0.5, hr: 61 }] },
+  ] };
+}
+function load({ locale = 'en', ls = storage(), DETAIL = detail(), noStorage = false, SCORES } = {}) {
   const RealDate = Date;
   class FakeDate extends RealDate {
     constructor(...a) { if (a.length) super(...a); else super(new RealDate(NOW + 'T12:00:00').getTime()); }
@@ -55,7 +63,7 @@ function load({ locale = 'en', ls = storage(), DETAIL = detail(), noStorage = fa
   const opened = [];
   const ctx = {
     document: { readyState: 'complete', getElementById: (id) => els[id] || null, addEventListener: (e, f) => { listeners[e] = f; } },
-    I18N_SCORE: locale === 'es' ? esT : enT, I18N_DETAIL: locale === 'es' ? esD : enD, LOCALE: locale, DETAIL,
+    I18N_SCORE: locale === 'es' ? esT : enT, I18N_DETAIL: locale === 'es' ? esD : enD, LOCALE: locale, DETAIL, SCORES,
     HCDetail: { open: (k, d, o) => opened.push([k, o && o.focus]) },
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
@@ -72,7 +80,7 @@ function load({ locale = 'en', ls = storage(), DETAIL = detail(), noStorage = fa
 test('prefs: defaults = RHR, HRV, sleep, weight, steps shown, the rest of the catalogue hidden; only available metrics', () => {
   const { ctx } = load();
   const D = ctx.HCDash;
-  assert.deepEqual(plain(D.DEFAULT_ON), ['rhr', 'hrv', 'sleep', 'weight', 'steps']);
+  assert.deepEqual(plain(D.DEFAULT_ON), ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'stress']);
   assert.deepEqual(plain(D.prefsFrom(null, ['steps', 'rhr', 'hrv', 'sleep', 'weight', 'vo2max'])),
     [{ key: 'rhr', on: true }, { key: 'hrv', on: true }, { key: 'sleep', on: true }, { key: 'weight', on: true }, { key: 'steps', on: true }, { key: 'vo2max', on: false }]);
   assert.deepEqual(plain(D.prefsFrom(null, ['hrv', 'energy'])), [{ key: 'hrv', on: true }], 'energy is not a dashboard metric');
@@ -250,6 +258,29 @@ test('render: one row per shown metric (full name, value, unit, baseline, arrow,
   assert.match(html, /Resting heart rate<\/span><span class="db-vals"><span class="db-val"><b>50<\/b><small>bpm<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span><\/span><span class="db-base">54<\/span>/);
   assert.match(html, /<b>7:30<\/b>/);
   assert.match(html, /<b>12,000<\/b>/);
+});
+
+test('stress monitor card (the reference dashboard\'s chart card): the newest day with a latest hour, its band word + value + hour, the hourly chart, opening the stress sheet on that day; last in the default list', () => {
+  const { els } = load({ SCORES: { stress: stress() } });
+  const html = els['home-dash'].innerHTML;
+  const keys = [...html.matchAll(/data-detail="([\w-]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(keys, ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'stress']);
+  const card = /<li class="db-card db-stress ds-high"[^]*?<\/li>/.exec(html)[0];
+  assert.match(card, /data-detail="stress" data-date="2026-09-29" role="button"/, 'the day with a latest hour, not the newer one without');
+  assert.match(card, new RegExp(`<span class="db-card-t">${enT.home.dash.names.stress}</span></div>`), 'the chevron = the shared opener\'s :after');
+  assert.match(card, /<span class="ds-band">High<\/span><b class="db-card-v">2\.3<\/b>/);
+  assert.ok(card.includes(enD.deep.stress.updated.replace('{time}', '18:00')), 'its hour');
+  assert.equal((card.match(/<circle class="ds-pt /g) || []).length, 4, 'one point per scored hour');
+  assert.match(card, /<svg class="ds-chart"[^>]*aria-hidden="true"/, 'the card\'s name carries it; the chart is decoration');
+  // no stress bake (or no day with a latest hour): not in the catalogue, no card
+  assert.doesNotMatch(load().els['home-dash'].innerHTML, /db-stress/);
+  assert.doesNotMatch(load({ SCORES: { stress: { ok: true, days: [{ date: NOW, now: null, hours: [] }] } } }).els['home-dash'].innerHTML, /db-stress/);
+});
+
+test('stress card: saved prefs from before it existed get it appended, shown', () => {
+  const ls = storage({ 'hc-dash-v1': JSON.stringify({ order: ['steps', 'rhr'], hidden: ['rhr'] }) });
+  const { els } = load({ ls, SCORES: { stress: stress() } });
+  assert.deepEqual([...els['home-dash'].innerHTML.matchAll(/data-detail="([\w-]+)"/g)].map((m) => m[1]), ['steps', 'hrv', 'sleep', 'weight', 'stress']);
 });
 
 test('render with stored prefs; storage that throws falls back to defaults and still saves in memory', () => {

@@ -274,6 +274,48 @@ var HC = (function () {
     return '<button type="button" class="hs-i" data-hs-info="' + esc(id) + '" aria-expanded="false" aria-controls="' + esc(id) + '" aria-label="' + esc(label) + '">' +
       INFO_SVG + '</button>';
   }
+  // THE stress chart (lib/score/stress.mjs hours: [{t: 'HH', v: 0-3, hr}]): 24 h across, 0-3 up, the three
+  // bands shaded, one point per scored hour (its middle), joined while the hours are consecutive. Drawn by
+  // the stress sheet (client/deepdive.js) and Mi panel's stress card (client/home-dash.js); P = the
+  // I18N_DETAIL.deep.stress copy, fmt(v, dec) = the page's number format; decorative = aria-hidden
+  var STRESS_BANDS = ['low', 'medium', 'high'];
+  var SCV = { w: 320, h: 150, l: 22, r: 6, t: 8, b: 20 };
+  function stressBand(v) {
+    return v >= 2 ? 'high' : v >= 1 ? 'medium' : 'low';
+  }
+  function stressChart(hours, P, fmt, decorative) {
+    var iw = SCV.w - SCV.l - SCV.r, ih = SCV.h - SCV.t - SCV.b;
+    var x = function (h) { return SCV.l + (iw * h) / 24; };
+    var y = function (v) { return SCV.t + ih * (1 - v / 3); };
+    var hh = function (t) { return String(t).slice(0, 2) + ':00'; };
+    var ok = function (v) { return typeof v === 'number' && isFinite(v); };
+    var out = STRESS_BANDS.map(function (b, i) {
+      return '<rect class="ds-zone ds-' + b + '" x="' + SCV.l + '" y="' + y(i + 1).toFixed(1) + '" width="' + iw + '" height="' + (ih / 3).toFixed(1) + '"/>';
+    }).join('');
+    for (var k = 0; k <= 3; k++) {
+      out += '<text class="ds-ylbl" x="' + (SCV.l - 5) + '" y="' + (y(k) + 3).toFixed(1) + '" text-anchor="end">' + esc(fmt(k, 0)) + '</text>';
+    }
+    for (var h = 0; h <= 24; h += 6) {
+      out += '<text class="ds-xlbl" x="' + x(h).toFixed(1) + '" y="' + (SCV.h - 5) + '" text-anchor="' + (h === 0 ? 'start' : h === 24 ? 'end' : 'middle') + '">' + (h < 10 ? '0' : '') + h + ':00</text>';
+    }
+    hours = hours || [];
+    var path = '', prev = null;
+    hours.forEach(function (p) {
+      var n = parseInt(p.t, 10);
+      if (!isFinite(n) || !ok(p.v)) return;
+      path += (prev != null && n === prev + 1 ? ' L' : (path ? ' M' : 'M')) + x(n + 0.5).toFixed(1) + ' ' + y(p.v).toFixed(1);
+      prev = n;
+    });
+    if (path) out += '<path class="ds-line" d="' + path + '"/>';
+    hours.forEach(function (p) {
+      var n = parseInt(p.t, 10);
+      if (!isFinite(n) || !ok(p.v)) return;
+      out += '<circle class="ds-pt ds-' + stressBand(p.v) + '" cx="' + x(n + 0.5).toFixed(1) + '" cy="' + y(p.v).toFixed(1) + '" r="2.6"><title>' +
+        esc(format(P.ptTitle, { time: hh(p.t), value: fmt(p.v, 1), hr: fmt(p.hr, 0) })) + '</title></circle>';
+    });
+    return '<svg class="ds-chart" viewBox="0 0 ' + SCV.w + ' ' + SCV.h + '"' +
+      (decorative ? ' aria-hidden="true"' : ' role="img" aria-label="' + esc(format(P.curveSr, { n: hours.length })) + '"') + '>' + out + '</svg>';
+  }
   // THE stale-data marker: a short line ("Data 5 d old" + ⓘ) whose full sentence is one tap away. A
   // native <details>, so it needs no listener (works on any tab, also with Salud hidden); cls = the owner
   function staleMark(cls, short, sentence) {
@@ -348,6 +390,8 @@ var HC = (function () {
     infoBtn: infoBtn,
     infoSvg: INFO_SVG,
     staleMark: staleMark,
+    stressBand: stressBand,
+    stressChart: stressChart,
     sheetHead: sheetHead,
     rolloverAction: rolloverAction,
     registerView: registerView,

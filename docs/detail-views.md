@@ -130,7 +130,7 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   dial page scrolls to); the dial page's hero ring and insight card stay the latest night / today (the
   dial's own baked values; the strain page instead follows the day it was opened on). Map: sleep dial → sleep; recovery dial → recovery; the strain dial → strain;
   each load dial (the fallback) → its `load-<m>`; Salud monitor
-  rows → their signal; the stress monitor tile → stress (its HRV fallback → hrv); the "My day" outlook bar (advice) → recovery;
+  rows → their signal; the stress monitor tile and Mi panel's stress card → stress on their day (the tile's HRV fallback → hrv); the "My day" outlook bar (advice) → recovery;
   activity rows → that day (sleep, or `load-<m>` / `workouts` for "other"), the programmed-session row
   → the registered `hoy-session` view (client/training-today.js); the "Tonight" card → the registered
   `tonight` view (the bedtime + a button to the sleep sheet, the rule behind its ⓘ, client/home-week.js); the "My plan"
