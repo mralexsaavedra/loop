@@ -25,9 +25,19 @@ the Astro build, `data/nutrition/generate.js`, and the test suite — one source
 exceptions: `lib/load/inputs.mjs` (the build-input loader), `lib/profile/manuals.mjs` (write-side manual
 publisher) and `lib/training/hr-zones.cjs` (CommonJS shared with the `data/apple-health` sync scripts).
 `lib/fs-boundary.test.mjs` pins that exact set, so a new compute module that imports `fs` fails the suite.
-Many compute modules still CALL a reader (e.g. `lib/score/*`, `lib/detail/detail.mjs` and
-`lib/health/aggregate.mjs` take an `extractDir` and read through `lib/health/read.mjs`), so only modules
-that neither import `fs` nor call a reader can be emitted into the page via `clientSource()`.
+**Read at the edge:** `lib/extract/read.mjs` `readExtract(extractDir)` is the single extract read of a build:
+the composition root (`web/src/bakes.mjs` `computeBakes`) calls it once and passes the result to the pure cores
+(`lib/score/index.mjs` `buildScoresFrom(inputs, {sex})` over `recoveryFrom`, `loadFrom`, `strainFrom`,
+`stressFrom`, `energyFrom`, `journalFrom`, …). It parses nothing itself and imports no `fs` (it only calls the
+area readers, so it is not in the fs-boundary set); it reads each file once (both projections of
+`hr-hourly.csv` come from one read; `workout-zones.csv` is still read by two parsers), keeps the readers'
+null-when-absent values (`readExtract(null)` = every value null, `journal` `[]`) and deep-freezes the result,
+so a core that sorts or assigns into its shared inputs throws instead of changing another score. The
+per-directory wrappers (`buildScores(dir)`, `buildStrain/Stress/Energy(dir)`, `journalBake(dir)`, the
+`build*` of each score module) remain as shims for tests and scripts until they are removed. Many compute
+modules still CALL a reader (e.g. `lib/detail/detail.mjs` and `lib/health/aggregate.mjs` take an `extractDir`
+and read through `lib/health/read.mjs`), so only modules that neither import `fs` nor call a reader can be
+emitted into the page via `clientSource()`.
 
 - **Inlined client scripts are slimmed.** `web/layouts/Plan.astro` inlines every `web/src/client/*.js`
   through `web/src/slim-script.mjs` `slimScript` (esbuild `transformSync`; esbuild is declared in package.json at the exact version astro / vite lock:
@@ -55,6 +65,9 @@ that neither import `fs` nor call a reader can be emitted into the page via `cli
   `web/test/.golden/bake-golden.personal.json` (gitignored, never commit it) on the first run and compares on later
   runs (exit 1 on a diff, paths and counts only, never values; `--personal --update` rewrites it; exit 2 when
   `data/nutrition/plan-data.json` is missing). Run it before and after a refactor in the clone that holds the data.
+  From a branch worktree without personal data, `npm run golden:bake -- --personal --root <clone>` reads the data
+  AND the golden from `<clone>` (e.g. the main clone, where the golden was just written) while this checkout's code
+  computes the bakes; it never writes into `<clone>` (a missing golden there is exit 2) unless `--update` is passed.
 - **Script order: one manifest.** The client scripts are classic `is:inline` scripts that talk only through
   page globals, so their order is a contract. `web/src/client/manifest.mjs` (`CLIENT_SCRIPTS`) is its ONE source:
   `layouts/Plan.astro` inlines every `web/src/client/*.js` (`import.meta.glob` `?raw`) in that order, after the

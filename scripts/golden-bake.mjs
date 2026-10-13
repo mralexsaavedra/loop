@@ -13,6 +13,12 @@
  *                                       `--personal --update` rewrites it. Prints only counts and JSON
  *                                       paths, never personal values. Exit 2 when the personal inputs
  *                                       (data/nutrition/plan-data.json) are missing.
+ *   npm run golden:bake -- --personal --root <clone>
+ *                                       the same, but the personal data AND the golden file come from
+ *                                       another clone (e.g. the main clone) while THIS checkout's code
+ *                                       computes the bakes: compare a branch worktree against the golden
+ *                                       written on main. Read-only on <clone>: a missing golden there is
+ *                                       exit 2 (nothing is written); only `--update` writes into it.
  *
  * Determinism: a fixed clock (GOLDEN_NOW, the demo extract's last day — scripts/make-demo-data.mjs
  * DEMO_DEFAULTS.end) and TZ=UTC while computing; object keys sorted. Canonicalisation drops:
@@ -34,9 +40,10 @@ export const FIXTURES = {
   personal: path.join(ROOT, 'web', 'test', '.golden', 'bake-golden.personal.json'),
 };
 
-/** The env a build of `kind` resolves ('example' | 'personal' | 'empty' = example with an empty extract dir). */
-export function goldenEnv(kind, { emptyDir } = {}) {
-  const env = resolveEnv({ HC_REPO_ROOT: ROOT, DATA_MODE: kind === 'personal' ? 'personal' : 'example', LOCALE: 'en' });
+/** The env a build of `kind` resolves ('example' | 'personal' | 'empty' = example with an empty extract dir);
+ * `root` = the clone whose data it reads (default: this checkout). */
+export function goldenEnv(kind, { emptyDir, root = ROOT } = {}) {
+  const env = resolveEnv({ HC_REPO_ROOT: root, DATA_MODE: kind === 'personal' ? 'personal' : 'example', LOCALE: 'en' });
   return kind === 'empty' ? { ...env, extractDir: emptyDir } : env;
 }
 
@@ -109,25 +116,32 @@ const write = (file, value) => {
   fs.writeFileSync(file, JSON.stringify(value, null, 1) + '\n');
 };
 const readJson = (file) => (fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null);
-const rel = (file) => path.relative(ROOT, file);
+const rel = (file, root = ROOT) => path.relative(root, file);
 
-function runPersonal(update) {
-  if (!fs.existsSync(path.join(ROOT, 'data', 'nutrition', 'plan-data.json'))) {
-    console.error('golden:bake --personal: personal inputs missing (data/nutrition/plan-data.json); nothing to compare. Run it in the clone that holds your personal data.');
+/** root = the clone holding the personal data and golden (--root; default this checkout). With a foreign
+ * root nothing is written unless `update`: a missing golden there is exit 2. */
+function runPersonal(update, root = ROOT) {
+  const foreign = path.resolve(root) !== ROOT;
+  if (!fs.existsSync(path.join(root, 'data', 'nutrition', 'plan-data.json'))) {
+    console.error('golden:bake --personal: personal inputs missing (data/nutrition/plan-data.json); nothing to compare. Run it in the clone that holds your personal data, or pass --root <that clone>.');
     return 2;
   }
-  const env = goldenEnv('personal');
+  const env = goldenEnv('personal', { root });
   if (!env.extractDir) console.warn('golden:bake --personal: no data/apple-health/extract — the personal golden holds the empty-extract shapes.');
   const actual = goldenBakes(env);
-  const file = FIXTURES.personal;
+  const file = path.join(root, path.relative(ROOT, FIXTURES.personal));
   const expected = readJson(file);
+  if (!expected && foreign && !update) {
+    console.error(`golden:bake --personal --root: no golden at ${rel(file, root)} in ${root}; write it there first (on that clone, or with --update). Nothing written.`);
+    return 2;
+  }
   if (update || !expected) {
     write(file, actual);
-    console.log(`golden:bake --personal: ${expected ? 'rewrote' : 'wrote'} ${rel(file)} (gitignored; never commit it)`);
+    console.log(`golden:bake --personal: ${expected ? 'rewrote' : 'wrote'} ${rel(file, root)}${foreign ? ` in ${root}` : ''} (gitignored; never commit it)`);
     return 0;
   }
   const diffs = diffPaths(expected, actual);
-  if (!diffs.length) { console.log(`golden:bake --personal: identical to ${rel(file)}`); return 0; }
+  if (!diffs.length) { console.log(`golden:bake --personal: identical to ${rel(file, root)}${foreign ? ` in ${root}` : ''}`); return 0; }
   console.error(formatDiff('personal', diffs, { values: false }));
   return 1;
 }
@@ -149,5 +163,12 @@ function runTracked(update) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   const update = args.includes('--update');
-  process.exitCode = args.includes('--personal') ? runPersonal(update) : runTracked(update);
+  const at = args.indexOf('--root');
+  const root = at >= 0 ? args[at + 1] : null;
+  if (at >= 0 && (!root || root.startsWith('--') || !args.includes('--personal'))) {
+    console.error('golden:bake: --root <clone> takes a directory and applies only with --personal');
+    process.exitCode = 2;
+  } else {
+    process.exitCode = args.includes('--personal') ? runPersonal(update, root ? path.resolve(root) : ROOT) : runTracked(update);
+  }
 }
