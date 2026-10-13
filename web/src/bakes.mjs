@@ -7,7 +7,8 @@
 import { buildNutrition } from '../../lib/nutrition/macros.mjs';
 import { loadDashboard, buildActivity } from '../../lib/training/read.mjs';
 import { buildHealth } from '../../lib/health/aggregate.mjs';
-import { buildScores } from '../../lib/score/index.mjs';
+import { buildScoresFrom } from '../../lib/score/index.mjs';
+import { readExtract } from '../../lib/extract/read.mjs';
 import { buildIntake } from '../../lib/nutrition/intake.mjs';
 import { buildFoodlogBake } from '../../lib/nutrition/read.mjs';
 import { dayViewModel } from './view/day-totals.mjs';
@@ -19,6 +20,8 @@ import { resolveTargets } from '../../lib/nutrition/targets.mjs';
 export function computeBakes(env) {
   const { plan, ingredients, extractDir, repoRoot, dataMode } = env;
   const nut = buildNutrition(ingredients, plan);
+  // the extract, read once (lib/extract/read.mjs): the deep-frozen inputs of the pure score cores
+  const inputs = readExtract(extractDir);
   const dash = loadDashboard(extractDir);
   const activity = buildActivity(extractDir);
   const health = buildHealth(extractDir);
@@ -26,7 +29,7 @@ export function computeBakes(env) {
   // plus the Goal setting's options (kcal/day vs maintain per goal, from the plan's resolved targets)
   const profile = { ...loadProfile({ repoRoot, dataMode, extractDir }), goals: goalOptions(resolveTargets(plan)) };
   // the profile's sex picks the fitness-age reference curve (lib/score/fitness-age.mjs)
-  const scores = buildScores(extractDir, { sex: profile.sex });
+  const scores = buildScoresFrom(inputs, { sex: profile.sex });
   // the detail sheet behind every card: the last 365 days per metric (only the data's own dates)
   const detail = buildDetail(extractDir, { sex: profile.sex });
   // intake rings target = the same day totals Mi día shows for a train / rest day
