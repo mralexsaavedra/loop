@@ -5,10 +5,10 @@
  * runtime: it gets a GENERATED copy instead of a hand port. A change is made in the lib first, then
  * `npm run gen:food-calc`; scripts/gen-food-calc.test.mjs fails while the committed file differs.
  * Deterministic (no timestamps). `--check` writes nothing and exits 1 on drift. */
-import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { SERVER } from '../lib/nutrition/foodlog.mjs';
 import { esmModule } from '../lib/build/esm-module.mjs';
+import { writeGenerated } from './lib/generated.mjs';
 
 export const FOOD_CALC_PATH = fileURLToPath(new URL('../services/health-ingest/src/food-calc.js', import.meta.url));
 export const FOOD_CALC_HEADER =
@@ -29,33 +29,6 @@ whole, macros 1 decimal) so a later product edit never rewrites history. Pure: n
 /** The file's full source, as it must be committed. */
 export function foodCalcSource() {
   return esmModule(HEADER, SERVER);
-}
-
-/** The generator scripts' CLI, shared with scripts/gen-journal-calc.mjs (here, not in lib/build, because
- * lib/ stays fs-free: lib/fs-boundary.test.mjs). Writes `source` to `path` when it differs (nothing when
- * current), or with `check` writes nothing and reports drift. `label` names the file, `script` the npm script that
- * regenerates it. Returns the process exit code (1 = `check` found drift). */
-export function writeGenerated(path, source, { label, script, check = false }) {
-  let current = null;
-  try {
-    current = readFileSync(path, 'utf8');
-  } catch {
-    // missing: written below, drift under --check
-  }
-  const name = label.split('/').pop();
-  if (check) {
-    if (current !== source) {
-      console.error(`${label} is out of date: run \`npm run ${script}\``);
-      return 1;
-    }
-    console.log(`${name} is current`);
-  } else if (current === source) {
-    console.log(`${name} unchanged`);
-  } else {
-    writeFileSync(path, source);
-    console.log(`wrote ${label}`);
-  }
-  return 0;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
