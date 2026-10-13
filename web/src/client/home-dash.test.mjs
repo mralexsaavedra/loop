@@ -140,6 +140,13 @@ function fakeSheet(keys) {
   return { ul, rows, order: () => ul.children.map((li) => li.getAttribute('data-key')) };
 }
 
+test('customize: the list opens straight away, no intro paragraph (the reference app\'s edit screen)', () => {
+  const { ctx } = load();
+  const body = ctx.HCViews['dash-edit'].render().body;
+  assert.ok(body.startsWith('<ul class="db-edit">'), body.slice(0, 60));
+  assert.doesNotMatch(body, /dt-note/);
+});
+
 test('customize: every row has a ≡ drag handle (hidden from screen readers; the ↑ / ↓ buttons stay for the keyboard)', () => {
   const { ctx } = load();
   const body = ctx.HCViews['dash-edit'].render().body;

@@ -386,7 +386,8 @@ trend is the line under it.
   the value vs the baseline: `--up` when better by the metric's good direction (`dir`), `--down` when
   worse, `--ink` (white) for a metric with no good direction (weight; never a grey arrow), a grey dot within ±2 % (`FLAT_SHARE`). A row older than 3
   days is dimmed; a tap opens that metric's detail sheet. "Customize" opens the registered `dash-edit`
-  sheet (detail.js modal): per metric its SHORT name (the trend sheet's title: "HRV", "Resting HR", so
+  sheet (detail.js modal): the list straight away, no intro paragraph, 48 px rows (the 44 px buttons
+  centred), like the reference app's edit screen; per metric its SHORT name (the trend sheet's title: "HRV", "Resting HR", so
   a row fits 1–2 lines at 360 px; the full name stays in the buttons' accessible names), THE switch (`HC.switchBtn`, `role="switch"` +
   `aria-checked`; design-system.md → Components), compact ↑ / ↓ buttons (the keyboard and screen-reader
   way to move) and, last, the reference app's ≡ drag handle (`.db-grip`, `aria-hidden`). The drag uses
