@@ -31,25 +31,37 @@ export function foodCalcSource() {
   return esmModule(HEADER, SERVER);
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  const src = foodCalcSource();
-  const current = (() => {
-    try {
-      return readFileSync(FOOD_CALC_PATH, 'utf8');
-    } catch {
-      return null;
-    }
-  })();
-  if (process.argv.includes('--check')) {
-    if (current !== src) {
-      console.error('services/health-ingest/src/food-calc.js is out of date: run `npm run gen:food-calc`');
-      process.exit(1);
-    }
-    console.log('food-calc.js is current');
-  } else if (current === src) {
-    console.log('food-calc.js unchanged');
-  } else {
-    writeFileSync(FOOD_CALC_PATH, src);
-    console.log('wrote services/health-ingest/src/food-calc.js');
+/** The generator scripts' CLI, shared with scripts/gen-journal-calc.mjs (here, not in lib/build, because
+ * lib/ stays fs-free: lib/fs-boundary.test.mjs). Writes `source` to `path` when it differs (nothing when
+ * current), or with `check` writes nothing and reports drift. `label` names the file, `script` the npm script that
+ * regenerates it. Returns the process exit code (1 = `check` found drift). */
+export function writeGenerated(path, source, { label, script, check = false }) {
+  let current = null;
+  try {
+    current = readFileSync(path, 'utf8');
+  } catch {
+    // missing: written below, drift under --check
   }
+  const name = label.split('/').pop();
+  if (check) {
+    if (current !== source) {
+      console.error(`${label} is out of date: run \`npm run ${script}\``);
+      return 1;
+    }
+    console.log(`${name} is current`);
+  } else if (current === source) {
+    console.log(`${name} unchanged`);
+  } else {
+    writeFileSync(path, source);
+    console.log(`wrote ${label}`);
+  }
+  return 0;
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  process.exitCode = writeGenerated(FOOD_CALC_PATH, foodCalcSource(), {
+    label: 'services/health-ingest/src/food-calc.js',
+    script: 'gen:food-calc',
+    check: process.argv.includes('--check'),
+  });
 }

@@ -37,7 +37,7 @@ export const CLIENT_SCRIPTS = [
   {
     file: 'food-core.js',
     provides: ['foodTotals', 'HCFoodInternal'],
-    requires: ['FOOD_BASICS', 'FOOD_CONST', 'HC', 'HC_FOODLOG', 'I18N_FOOD'],
+    requires: ['FOOD_BASICS', 'FOOD_CONST', 'HC', 'HC_FOODLOG', 'HC_GUIDE', 'I18N_FOOD'],
   },
   { file: 'food-sheet.js', provides: [], requires: ['HC', 'HCFoodInternal'] },
   { file: 'food-catalog.js', provides: [], requires: ['HC', 'HCFoodInternal'] },
