@@ -28,7 +28,9 @@ const WORKOUTS_HEADER = 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max
 
 // The Apple Watch source family: the SAME anchored regex as lib/training/sessions.mjs
 // SOURCE_PRECEDENCE ("Apple Watch de <name>"; `\s` also matches the no-break space Health writes).
-// A test pins the two equal (extract.test.mjs), so this zero-deps copy cannot drift from that one.
+// A copy, not an import: extract.test.mjs, sync-shortcut.test.mjs and sync-strava.test.mjs run
+// extract.mjs from a flat temp dir holding only extract.mjs + samples.mjs, where a ../../lib import
+// would not resolve. A test pins the two equal (extract.test.mjs), so the copy cannot drift.
 const APPLE_WATCH_RE = /^Apple\s+Watch\b/i;
 
 // Daily ENERGY (ActiveEnergyBurned / BasalEnergyBurned): per day and type ONE source wins and only

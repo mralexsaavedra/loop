@@ -69,12 +69,14 @@ In this repo **gitignored = personal by definition**, so the hook asks git inste
    argument, `xargs git add -f`, `--pathspec-from-file`, or a `cd` to an unresolvable directory.
 6. Fallback when git cannot answer (not installed, cwd missing or not a repo): a small hand-maintained
    list of personal fragments (`PERSONAL`, a subset of `.gitignore`, not a mirror: add new personal
-   directories there too) and exceptions (`ALLOWED`, regexes anchored to their directory, e.g.
-   `data/apple-health/*.test.js`, never a generic `.test.js` suffix), still evaluated per argument; a
-   parent directory of a personal fragment (`data`, `.`) counts as personal.
+   directories there too) and exceptions (`ALLOWED`, regexes anchored to their directory, never a
+   generic `.test.js` suffix), still evaluated per argument; a parent directory of a personal fragment
+   (`data`, `.`) counts as personal. `.gitignore` is the source of truth; this fallback is stricter:
+   `ALLOWED` still names the scripts' former `.js` paths (e.g. `data/apple-health/*.test.js`), so with
+   no git a force-add of the current `.mjs` scripts under a personal directory is blocked.
 
 Allowed: plain `git add .` / `-A` without force, force-adds of tracked or non-ignored files
-(generators, `.example` seeds, `.gitkeep`, `sync-*.js`, `knowledge/README.md`), and aliases that do not
+(generators, `.example` seeds, `.gitkeep`, the sync scripts, `knowledge/README.md`), and aliases that do not
 expand to a force-add of an ignored path (`log --oneline`, `!echo …`).
 
 ## Bash: `.gitignore` rewrites from the shell

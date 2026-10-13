@@ -42,7 +42,7 @@
   if (!host || !T) return;
   var D = typeof DETAIL === 'undefined' || !DETAIL ? { asOf: null, metrics: {}, sessions: [] } : DETAIL;
   var esc = HC.esc, format = HC.format, isoDate = HC.isoDate, parseIso = HC.parseIso, shiftIso = HC.shiftIso;
-  // lower bounds of HR zones 1-5, % of max HR (lib/training/hr-zones.cjs ZONE_CUTS)
+  // lower bounds of HR zones 1-5, % of max HR (lib/training/hr-zones.mjs ZONE_CUTS)
   var ZONE_CUTS = [50, 60, 70, 80, 90];
   // overnight signals: their day detail is the whole night (sleep, bed / wake, the night's signals)
   var NIGHT_KEYS = ['sleep', 'recovery', 'hrv', 'rhr', 'respiratory', 'wristTemp'];
