@@ -5,6 +5,29 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-11 → 2026-10-13 — Code structure, read at the edge, final cleanup
+
+**Code structure (PRs #110–#124).** Recovery bands, adherence, progress and the nutrition score/day/food-core
+helpers reach the page as generated classic globals (`classicGlobal`, `HC_BAND`, `HC_ADH`, `HC_PROG`,
+`HC_NSCORE`…) instead of hand copies; the service's `food-calc.js` is generated from `lib/nutrition/foodlog.mjs`.
+Client scripts render from a manifest (`web/src/client/manifest.mjs`) with an order test; views register through
+`HC.registerView`. `detail.js` split into `detail-state.js`, `detail-chart.js` and the shell. `lib/` disk I/O moved
+into per-area `read.mjs` readers with `lib/fs-boundary.test.mjs` as the guard. The service's shared HTTP helpers
+live in `src/http.js`. Tooling: `npm run test:services`, a service lockfile, `npm run test:css:update`.
+
+**Read at the edge (PRs #125–#130).** `journal-calc.js` is generated too; food search uses `foldName`.
+`web/src/bakes.mjs` `computeBakes` is the single composition root: one `lib/extract/read.mjs` `readExtract`
+reads every extract file once (example build 81 → 24 reads) and every compute module takes inputs
+(`*From(inputs)`); the per-directory `build*` wrappers are gone and the fs guard also forbids compute modules
+from importing a reader. `npm run golden:bake` pins every bake (example, empty and null extract) and offers an
+owner-local `--personal` golden; the built page stayed byte-identical throughout.
+
+**Final cleanup (PRs #131–#135).** Runnable scripts share `isMain(import.meta.url)` (the old guards silently
+skipped main through a symlink). `lib/format/js-scan.mjs` makes the generated-global and registerView scans
+ignore strings and comments; generated service constants are deep-frozen. Every `data/` script and test is an
+ES module (`.mjs`); `.gitignore` and the guard hook's force-add allowlist name the `.mjs` files. The only
+CommonJS left is the guard hook. The health empty state now names `extract.mjs`.
+
 ## 2026-10-10 — Public readiness pass
 
 Docs and code comments speak to "you" / "the user" (no owner narrative or dated owner notes). README →
