@@ -107,22 +107,44 @@
   color: var(--muted);
   margin: 0 0 var(--sp-5);
 }
+/* weekly bars as the reference's trend bars: the value on top, a 100px track, a faint grid in quarters
+   (the grid sits under the value row: --fs-2xs × 1.2 + the --sp-1 gap) */
 .wbars {
   display: flex;
   align-items: flex-end;
   gap: var(--sp-1);
-  height: 120px;
   margin-top: var(--sp-2);
+  background-image: repeating-linear-gradient(to top, var(--line) 0 1px, transparent 1px 25px);
+  background-size: 100% 100px;
+  background-repeat: no-repeat;
+  background-position: 0 calc(var(--fs-2xs) * 1.2 + var(--sp-1));
 }
 .wbar {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  height: 100%;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.wbar-v {
+  font-family: var(--num);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.wbar.zero .wbar-v {
+  color: var(--faint);
+}
+.wbar-t {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 100px;
 }
 .wbar i {
+  width: 100%;
   display: block;
   background: var(--strain);
   border-radius: 2px 2px 0 0;
