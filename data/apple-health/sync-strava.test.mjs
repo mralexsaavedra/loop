@@ -1,9 +1,17 @@
 /* Tests for the Strava sync (ingest service /export/strava -> workouts.csv). Pure functions
  * where possible, SYNTHETIC fixtures (no real personal values), no network. */
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const strava = require('./sync-strava.js');
-const samples = require('./samples.mjs');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import * as strava from './sync-strava.mjs';
+import * as samples from './samples.mjs';
+import * as zones from '../../lib/training/hr-zones.mjs';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const {
   STRAVA_SOURCE, SPORT_TYPE_MAP, FALLBACK_TYPE, translateType, toRow, buildRows, planSync, syncDir,
@@ -272,7 +280,7 @@ test('planSync: a later export rewrite followed by a sync restores every Strava 
   const files = {};
   const read = (name) => files[name] ?? null;
   Object.assign(files, planSync(activities, read).writes);
-  // extract.js rewrites workouts.csv from a fresh export that now has a Watch row on the same date
+  // extract.mjs rewrites workouts.csv from a fresh export that now has a Watch row on the same date
   files[WORKOUTS_CSV] = [WORKOUTS_HEADER, '2026-08-20,HighIntensityIntervalTraining,52,,130,,170,Watch,,,,'].join('\n') + '\n';
   Object.assign(files, planSync(activities, read).writes);
   assert.match(files[WORKOUTS_CSV], /2026-08-20,HighIntensityIntervalTraining,50,,,,,Strava API,,55,,/);
@@ -287,7 +295,7 @@ test('planSync: historical source=Strava rows (not Strava API) survive untouched
 });
 
 // ---- crash-window safety: the merge must drop a row ONLY by its exact source tag, never by a
-// ledger date, so a stale/mismatched ledger (e.g. from a crash between extract.js's CSV write
+// ledger date, so a stale/mismatched ledger (e.g. from a crash between extract.mjs's CSV write
 // and its _meta.json write) can never delete a real export/manual row. The ledger stays pure
 // reporting metadata. ----
 
@@ -304,7 +312,7 @@ test('planSync: a ledger claiming a date must not delete a non-Strava row on tha
 
 test('planSync: simulated crash (fresh export CSV, stale pre-crash ledger in _meta.json) never drops the fresh export row', () => {
   const files = {
-    // extract.js already rewrote workouts.csv with a fresh export row on 08-20...
+    // extract.mjs already rewrote workouts.csv with a fresh export row on 08-20...
     [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-20,Running,28,,138,,162,W,5.1'].join('\n') + '\n',
     // ...but _meta.json still carries the OLD ledger from BEFORE the crash (claims 08-20 + 08-21 as Strava-owned)
     '_meta.json': JSON.stringify({ rows: {}, ranges: {}, notes: [], stravaSync: { owned: { [WORKOUTS_CSV]: ['2026-08-20', '2026-08-21'] } } })
@@ -440,12 +448,7 @@ test('fetchActivities surfaces a 404 distinctly (old ingest image) via err.statu
   await assert.rejects(fetchActivities({ baseUrl: 'http://h', token: 't', fetchImpl }), (err) => err.status === 404);
 });
 
-// ---- disk: writes nothing when unreachable/no token; atomic writes; extract.js contract --
-
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { execFileSync, spawnSync } = require('node:child_process');
+// ---- disk: writes nothing when unreachable/no token; atomic writes; extract.mjs contract -
 
 test('syncDir writes _meta.json and workouts.csv atomically (temp+rename, no leftovers)', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'strava-atomic-'));
@@ -465,7 +468,7 @@ test('syncDir writes _meta.json before workouts.csv (belt and braces against a c
   fs.rmSync(dir, { recursive: true });
 });
 
-test('contract: an extract.js rewrite drops the CSV/ledger; the next Strava sync restores uncovered dates', () => {
+test('contract: an extract.mjs rewrite drops the CSV/ledger; the next Strava sync restores uncovered dates', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'strava-contract-'));
   for (const f of ['extract.mjs', 'samples.mjs']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
   fs.writeFileSync(path.join(dir, 'export.xml'),
@@ -507,7 +510,8 @@ test('end-to-end: an unmapped sport_type lands in the dashboard other bucket, ne
 // image must all exit 1 and touch NO file. SYNC_STRAVA_OUT_DIR/INGEST_ENV_FILE point main() at
 // disposable tmp paths instead of the real personal extract dir / the real service .env. ----
 
-const SCRIPT = path.join(__dirname, 'sync-strava.js');
+const SCRIPT = path.join(__dirname, 'sync-strava.mjs');
+const SCRIPT_URL = pathToFileURL(SCRIPT).href;
 
 function runScript (env) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-strava-main-'));
@@ -549,13 +553,13 @@ test('main(): 404 from an old ingest image -> exit 1, no files written, clear re
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-strava-404-'));
   const outDir = path.join(dir, 'extract');
   const envFile = path.join(dir, 'no-such.env');
-  const harness = path.join(dir, 'harness.js');
+  const harness = path.join(dir, 'harness.mjs');
   fs.writeFileSync(harness, `
-    const http = require('http');
+    import http from 'node:http';
     const server = http.createServer((req, res) => { res.writeHead(404); res.end(); });
-    server.listen(0, '127.0.0.1', () => {
+    server.listen(0, '127.0.0.1', async () => {
       process.env.INGEST_URL = 'http://127.0.0.1:' + server.address().port;
-      require(${JSON.stringify(SCRIPT)}).main();
+      (await import(${JSON.stringify(SCRIPT_URL)})).main();
     });
   `);
   let result;
@@ -589,10 +593,10 @@ test('main(): activities without elevation -> exit 0, rows written, stale-image 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-strava-stale-'));
   const outDir = path.join(dir, 'extract');
   const envFile = path.join(dir, 'no-such.env');
-  const harness = path.join(dir, 'harness.js');
+  const harness = path.join(dir, 'harness.mjs');
   const body = JSON.stringify([{ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 3600, distance: 20000 }]);
   fs.writeFileSync(harness, `
-    const http = require('http');
+    import http from 'node:http';
     const server = http.createServer((req, res) => {
       const since = Number(new URL(req.url, 'http://x').searchParams.get('since_id'));
       res.writeHead(200, { 'content-type': 'application/json' });
@@ -600,7 +604,7 @@ test('main(): activities without elevation -> exit 0, rows written, stale-image 
     });
     server.listen(0, '127.0.0.1', async () => {
       process.env.INGEST_URL = 'http://127.0.0.1:' + server.address().port;
-      await require(${JSON.stringify(SCRIPT)}).main();
+      await (await import(${JSON.stringify(SCRIPT_URL)})).main();
       server.close();
     });
   `);
@@ -620,7 +624,6 @@ test('main(): activities without elevation -> exit 0, rows written, stale-image 
 const ZRUN = { id: '31', start_local: '2026-09-29T08:00:00Z', sport_type: 'Run', moving_time: 1800, average_heartrate: 150, max_heartrate: 190, hr_hist: { 150: 1200, 175: 600 } };
 
 test('planSync writes workout-zones.csv from hr_hist and records rows + the max HR in _meta.json', () => {
-  const zones = require('../../lib/training/hr-zones.mjs');
   const plan = planSync([ZRUN], () => null);
   assert.equal(plan.writes[zones.ZONES_CSV], `${zones.ZONES_HEADER}\n2026-09-29,31,Running,190,observed,150,190,0,0,0,1200,0,600,Strava API,,1800\n`); // 175 / 190 = 92 % -> Z5
   const meta = JSON.parse(plan.writes['_meta.json']);
@@ -631,7 +634,6 @@ test('planSync writes workout-zones.csv from hr_hist and records rows + the max 
 });
 
 test('planSync back-compat: no hr_hist (older ingest image) -> no workout-zones.csv and no zones meta; an existing file is rebuilt', () => {
-  const zones = require('../../lib/training/hr-zones.mjs');
   const { hr_hist: _h, ...old } = ZRUN;
   const plan = planSync([old], () => null);
   assert.equal(plan.writes[zones.ZONES_CSV], undefined);
