@@ -1,10 +1,12 @@
-/* Tests for the per-workout HR zones (lib/training/hr-zones.cjs). SYNTHETIC values only. */
+/* Tests for the per-workout HR zones (lib/training/hr-zones.mjs) and the max HR sync-strava.js cuts them
+ * with (lib/profile/read.mjs readProfileMaxHr). SYNTHETIC values only. */
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
-const Z = require('../../lib/training/hr-zones.cjs')
+const Z = require('../../lib/training/hr-zones.mjs')
+const { readProfileMaxHr } = require('../../lib/profile/read.mjs')
 
 test('zoneOf: % of max HR, lower bound inclusive — Z0 < 50, Z1 50-60, Z2 60-70, Z3 70-80, Z4 80-90, Z5 >= 90', () => {
   const max = 200
@@ -39,19 +41,19 @@ test('pickMaxHr: a valid profile maxHr wins, else the observed one, else null', 
   assert.equal(Z.pickMaxHr([act('1', '2026-09-30')], null), null)
 })
 
-test('readProfileMaxHr: absent file / key -> null; out-of-range or broken JSON -> an error, never a throw', () => {
+test('readProfileMaxHr (lib/profile/read.mjs): absent file / key -> null; out-of-range or broken JSON -> an error, never a throw', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zones-prof-'))
   try {
     const f = path.join(dir, 'profile.json')
-    assert.deepEqual(Z.readProfileMaxHr(f), { maxHr: null, error: null })
+    assert.deepEqual(readProfileMaxHr(f), { maxHr: null, error: null })
     fs.writeFileSync(f, '{"name":"x"}')
-    assert.deepEqual(Z.readProfileMaxHr(f), { maxHr: null, error: null })
+    assert.deepEqual(readProfileMaxHr(f), { maxHr: null, error: null })
     fs.writeFileSync(f, '{"maxHr":187}')
-    assert.deepEqual(Z.readProfileMaxHr(f), { maxHr: 187, error: null })
+    assert.deepEqual(readProfileMaxHr(f), { maxHr: 187, error: null })
     fs.writeFileSync(f, '{"maxHr":300}')
-    assert.match(Z.readProfileMaxHr(f).error, /maxHr must be/)
+    assert.match(readProfileMaxHr(f).error, /maxHr must be/)
     fs.writeFileSync(f, '{')
-    assert.match(Z.readProfileMaxHr(f).error, /not valid JSON/)
+    assert.match(readProfileMaxHr(f).error, /not valid JSON/)
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }

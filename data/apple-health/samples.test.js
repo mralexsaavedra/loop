@@ -2,7 +2,7 @@
  * so export-derived and Shortcut-derived rows are formatted identically). Synthetic values only. */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const s = require('./samples.js');
+const s = require('./samples.mjs');
 
 test('day() keeps the local calendar date of an export stamp', () => {
   assert.equal(s.day('2030-01-02 23:59:00 +0200'), '2030-01-02');

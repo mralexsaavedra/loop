@@ -1,6 +1,7 @@
 /* Shared Apple Health sample helpers — the single definition of how a sample becomes a CSV
  * row. Used by extract.js (export.xml) AND sync-shortcut.js (iOS Shortcut payloads), so rows
- * from either source are indistinguishable. Pure, zero deps.
+ * from either source are indistinguishable. Pure, zero deps. ES module: the CommonJS sync scripts
+ * load it through require(esm) (Node >= 22.12), getting the named exports.
  *
  * Timestamps use the export format "YYYY-MM-DD HH:MM:SS +ZZZZ" (LOCAL wall clock + offset).
  * Dates and clock hours are read from the local part; durations/ordering use the offset.
@@ -291,7 +292,7 @@ const workoutRow = w => {
   return `${w.date},${w.type},${w.durationMin ?? ''},${w.energyKcal ?? ''},${bpm(w.hrAvg)},${bpm(w.hrMin)},${bpm(w.hrMax)},${w.source || ''},${km2(w.distanceKm)},,,`;
 };
 
-module.exports = {
+export {
   APPLE_WATCH_RE, energySource, pickEnergySource,
   READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow,
   day, num, localMs, absMs, minutesBetween, addDay, clockHour, sleepNight, wristTempDate, isoToExportStamp,

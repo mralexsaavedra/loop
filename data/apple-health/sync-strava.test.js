@@ -3,7 +3,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const strava = require('./sync-strava.js');
-const samples = require('./samples.js');
+const samples = require('./samples.mjs');
 
 const {
   STRAVA_SOURCE, SPORT_TYPE_MAP, FALLBACK_TYPE, translateType, toRow, buildRows, planSync, syncDir,
@@ -467,7 +467,7 @@ test('syncDir writes _meta.json before workouts.csv (belt and braces against a c
 
 test('contract: an extract.js rewrite drops the CSV/ledger; the next Strava sync restores uncovered dates', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'strava-contract-'));
-  for (const f of ['extract.js', 'samples.js']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
+  for (const f of ['extract.js', 'samples.mjs']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
   fs.writeFileSync(path.join(dir, 'export.xml'),
     '<Workout workoutActivityType="HKWorkoutActivityTypeRunning" startDate="2026-08-18 08:00:00 +0100" duration="20" sourceName="W"></Workout>\n');
   const extract = () => execFileSync(process.execPath, [path.join(dir, 'extract.js')], { stdio: 'ignore' });
@@ -620,7 +620,7 @@ test('main(): activities without elevation -> exit 0, rows written, stale-image 
 const ZRUN = { id: '31', start_local: '2026-09-29T08:00:00Z', sport_type: 'Run', moving_time: 1800, average_heartrate: 150, max_heartrate: 190, hr_hist: { 150: 1200, 175: 600 } };
 
 test('planSync writes workout-zones.csv from hr_hist and records rows + the max HR in _meta.json', () => {
-  const zones = require('../../lib/training/hr-zones.cjs');
+  const zones = require('../../lib/training/hr-zones.mjs');
   const plan = planSync([ZRUN], () => null);
   assert.equal(plan.writes[zones.ZONES_CSV], `${zones.ZONES_HEADER}\n2026-09-29,31,Running,190,observed,150,190,0,0,0,1200,0,600,Strava API,,1800\n`); // 175 / 190 = 92 % -> Z5
   const meta = JSON.parse(plan.writes['_meta.json']);
@@ -631,7 +631,7 @@ test('planSync writes workout-zones.csv from hr_hist and records rows + the max 
 });
 
 test('planSync back-compat: no hr_hist (older ingest image) -> no workout-zones.csv and no zones meta; an existing file is rebuilt', () => {
-  const zones = require('../../lib/training/hr-zones.cjs');
+  const zones = require('../../lib/training/hr-zones.mjs');
   const { hr_hist: _h, ...old } = ZRUN;
   const plan = planSync([old], () => null);
   assert.equal(plan.writes[zones.ZONES_CSV], undefined);
