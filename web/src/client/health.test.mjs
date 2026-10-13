@@ -212,6 +212,10 @@ test('load vs recovery: weekly bars (strain blue) in a card, HRV and resting HR 
   assert.ok(info.includes(enHealth.loadSec.hint.replace('{weeks}', '2')) && info.includes(enHealth.loadNoteHtml), 'hint + explanation behind ⓘ');
   assert.match(html, /<div class="lvr-card"><span class="dt-trend-lbl">Weekly cardiovascular load<\/span><div class="wbars">/);
   assert.equal((html.match(/class="wbar[ "]/g) || []).length, 2);
+  // the reference's trend bars: each week's value printed on top of its bar, the bar in a fixed track
+  assert.ok(html.includes('<div class="wbar"'), 'a week with load');
+  assert.match(html, /<div class="wbar"[^>]*><span class="wbar-v">10<\/span><span class="wbar-t"><i style="height:100%"><\/i><\/span><\/div>/);
+  assert.match(html, /<div class="wbar zero"[^>]*><span class="wbar-v">0<\/span><span class="wbar-t"><i style="height:0%"><\/i><\/span><\/div>/);
   assert.match(html, /<span class="db-name">HRV · higher-load weeks<\/span><span class="db-vals"><span class="db-val"><b>50.8<\/b><small>ms<\/small><span class="db-arr db-bad" aria-hidden="true">▼<\/span><\/span><span class="db-base">easy weeks 55.5 ms<\/span>/, 'lower HRV in heavier weeks: ▼ orange');
   assert.match(html, /<span class="db-name">resting HR · higher-load<\/span><span class="db-vals"><span class="db-val"><b>54.4<\/b><small>bpm<\/small><span class="db-arr db-flat" aria-hidden="true">•<\/span>/, 'same resting HR: grey dot');
   assert.doesNotMatch(html, /dash-card|class="hsub"/, 'no tiles, no sub-headings left');
