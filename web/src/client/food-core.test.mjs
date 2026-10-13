@@ -27,3 +27,18 @@ test('norm is lib/nutrition/names.mjs foldName, shipped in HC_GUIDE (no copy)', 
   for (const s of ['Plátano', 'YOGUR Griego Ñandú', 'Café con leche', '', null, undefined]) assert.equal(norm(s), foldName(s), String(s));
   assert.equal(norm('Plátano MADURO'), 'platano maduro');
 });
+
+test('norm pins the search normalisation as literals (a foldName change that alters food search fails here)', () => {
+  const { norm } = loadCore().window.HCFoodInternal;
+  const cases = [
+    ['Plátano', 'platano'], // accents are folded
+    ['YOGUR Griego Ñandú', 'yogur griego nandu'], // upper case and ñ
+    ['ÀÉÎÕÜ ç', 'aeiou c'],
+    ['Crème brûlée', 'creme brulee'],
+    // whitespace is kept as typed (no trim, no collapse): the search matches substrings of the folded name
+    ['  Café   con\tleche  ', '  cafe   con\tleche  '],
+    [' Açaí ', ' acai '],
+    ['', ''], [null, ''], [undefined, ''],
+  ];
+  for (const [input, expected] of cases) assert.equal(norm(input), expected, JSON.stringify(input));
+});
