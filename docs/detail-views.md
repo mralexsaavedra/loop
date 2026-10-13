@@ -30,7 +30,9 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   is registered by two files, when a `registerView` key is not a string literal, or when any script other
   than util.js writes `HCViews` directly.
 
-- **Data** — `lib/detail/detail.mjs` `buildDetail(extractDir, { sex })` bakes ONE global `DETAIL` (in
+- **Data** — `lib/detail/detail.mjs` `detailFrom(inputs, { sex })` (a thin mapper of the build's one
+  `lib/extract/read.mjs` `readExtract` onto the pure `detailFromInputs`; `buildDetail(extractDir, { sex })` is a
+  per-directory shim) bakes ONE global `DETAIL` (in
   `components/DetailSheet.astro`, with `I18N_DETAIL` from `web/src/i18n/detail-templates.mjs`):
   `{asOf, days: 365, metrics: {<key>: {kind, dir, dec, start, v, …}}, sessions}`. Each metric = an ISO
   `start` + a `v` array, one slot per calendar day of the last 365 days ending at the newest data date
