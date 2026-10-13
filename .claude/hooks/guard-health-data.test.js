@@ -31,16 +31,16 @@ const FIXTURE_FILES = [
   'knowledge/cycling/transcript.md',
   'data/nutrition/foodlog-daily.csv',
   'data/nutrition/foodlog-daily.meta.json',
-  'data/nutrition/sync-foodlog.js',
+  'data/nutrition/sync-foodlog.mjs',
   'backups/profile/about-me.md.before.bak',
   'data/gear/edge-manual.pdf',
   'data/gear/.gitkeep',
   'data/profile/settings.json',
   'data/profile/strava-profile.json',
   'data/profile/avatar.jpg',
-  'data/profile/sync-profile.js',
-  'data/profile/sync-profile.test.js',
-  'data/profile/sync-settings.js',
+  'data/profile/sync-profile.mjs',
+  'data/profile/sync-profile.test.mjs',
+  'data/profile/sync-settings.mjs',
   'data/profile/.gitkeep',
   'profile/profile.json',
   'profile/profile.example.json',
@@ -146,7 +146,7 @@ test('blocks git -C <dir> add -f of a personal file', () => {
 });
 
 test('an allowed argument never cancels a personal one', () => {
-  assertBlocked(runHook(forceAdd('data/profile/sync-profile.js', 'data/profile/settings.json')), 'mixed');
+  assertBlocked(runHook(forceAdd('data/profile/sync-profile.mjs', 'data/profile/settings.json')), 'mixed');
   assertBlocked(runHook(forceAdd('data/gear/.gitkeep', 'data/gear/edge-manual.pdf')), 'mixed .gitkeep');
 });
 
@@ -195,15 +195,15 @@ test('allows a force-add of an unrelated tracked file', () => {
 
 test('allows a force-add of the tracked tooling and examples', () => {
   for (const p of [
-    'data/profile/sync-profile.js',
-    'data/profile/sync-profile.test.js',
-    'data/profile/sync-settings.js',
+    'data/profile/sync-profile.mjs',
+    'data/profile/sync-profile.test.mjs',
+    'data/profile/sync-settings.mjs',
     'data/profile/.gitkeep',
     'profile/profile.example.json',
     'analysis/reports/.gitkeep',
     'knowledge/README.md',
     'data/gear/.gitkeep',
-    'data/nutrition/sync-foodlog.js',
+    'data/nutrition/sync-foodlog.mjs',
   ]) {
     assertRealNonIgnored(p);
     assertAllowed(runHook(forceAdd(p)), p);
@@ -211,13 +211,13 @@ test('allows a force-add of the tracked tooling and examples', () => {
 });
 
 test('allows a force-add of several non-ignored files at once', () => {
-  for (const p of ['data/profile/sync-settings.js', 'knowledge/README.md', 'README.md']) assertRealNonIgnored(p);
-  assertAllowed(runHook(forceAdd('data/profile/sync-settings.js', 'knowledge/README.md', 'README.md')), 'several');
+  for (const p of ['data/profile/sync-settings.mjs', 'knowledge/README.md', 'README.md']) assertRealNonIgnored(p);
+  assertAllowed(runHook(forceAdd('data/profile/sync-settings.mjs', 'knowledge/README.md', 'README.md')), 'several');
 });
 
 test('allows a force-add after cd when the target is not ignored', () => {
-  assertRealNonIgnored('sync-settings.js', path.join(repo, 'data/profile'));
-  const cmd = ['cd', 'data/profile', '&&', 'git', 'add', '-f', 'sync-settings.js'].join(' ');
+  assertRealNonIgnored('sync-settings.mjs', path.join(repo, 'data/profile'));
+  const cmd = ['cd', 'data/profile', '&&', 'git', 'add', '-f', 'sync-settings.mjs'].join(' ');
   assertAllowed(runHook(cmd), cmd);
 });
 
@@ -240,9 +240,9 @@ test('falls back to the built-in personal list when git is unavailable', () => {
   const env = { ...process.env, PATH: '' };
   assertBlocked(runHook(forceAdd('data'), { env }), 'fallback data');
   assertBlocked(runHook(forceAdd('knowledge/cycling/transcript.md'), { env }), 'fallback knowledge');
-  assertBlocked(runHook(forceAdd('data/profile/sync-profile.js', 'data/profile/settings.json'), { env }), 'fallback mixed');
-  assertRealNonIgnored('data/profile/sync-settings.js');
-  assertAllowed(runHook(forceAdd('data/profile/sync-settings.js'), { env }), 'fallback sync-settings');
+  assertBlocked(runHook(forceAdd('data/profile/sync-profile.mjs', 'data/profile/settings.json'), { env }), 'fallback mixed');
+  assertRealNonIgnored('data/profile/sync-settings.mjs');
+  assertAllowed(runHook(forceAdd('data/profile/sync-settings.mjs'), { env }), 'fallback sync-settings');
   assertAllowed(runHook(forceAdd('README.md'), { env }), 'fallback README');
 });
 
@@ -253,7 +253,7 @@ test('blocks un-ignoring a personal path via sed on .gitignore', () => {
 });
 
 test('an exception name never cancels a personal path in a .gitignore rewrite', () => {
-  assertBlocked(runHook("sed -i '/data\\/profile\\//d;/sync-profile.js/d' .gitignore"), 'sed + exception');
+  assertBlocked(runHook("sed -i '/data\\/profile\\//d;/sync-profile.mjs/d' .gitignore"), 'sed + exception');
 });
 
 // --- Edit / Write / MultiEdit on .gitignore -------------------------------------
@@ -304,14 +304,14 @@ test('allows an Edit that adds a new ignore pattern', () => {
 });
 
 test('allows an Edit that adds a negation matching no ignored file', () => {
-  assertEditApplies('!data/profile/sync-settings.test.js\n');
+  assertEditApplies('!data/profile/sync-settings.test.mjs\n');
   // the negation targets nothing, but the directory does hold ignored files, so the replay really runs
   assert.ok(!fs.existsSync(path.join(repo, 'data/profile/sync-goals.js')), 'precondition: sync-goals.js absent');
   assert.ok(isIgnored('data/profile/settings.json'), 'precondition: data/profile holds an ignored file');
   const res = runTool('Edit', {
     file_path: gitignorePath(),
-    old_string: '!data/profile/sync-settings.test.js\n',
-    new_string: '!data/profile/sync-settings.test.js\n!data/profile/sync-goals.js\n',
+    old_string: '!data/profile/sync-settings.test.mjs\n',
+    new_string: '!data/profile/sync-settings.test.mjs\n!data/profile/sync-goals.js\n',
   });
   assertAllowed(res, 'harmless negation');
 });
@@ -474,8 +474,8 @@ test('the fallback exception list is anchored, not a generic suffix', () => {
   const env = { ...process.env, PATH: '' };
   assertBlocked(runHook(forceAdd('data/training/notes.test.js'), { env }), 'fallback generic .test.js');
   assertBlocked(runHook(forceAdd('data/weight/my-extract.js'), { env }), 'fallback generic extract.js');
-  assertAllowed(runHook(forceAdd('data/apple-health/samples.test.js'), { env }), 'fallback apple-health test');
-  assertAllowed(runHook(forceAdd('data/profile/sync-profile.test.js'), { env }), 'fallback sync-profile test');
+  assertAllowed(runHook(forceAdd('data/apple-health/samples.test.mjs'), { env }), 'fallback apple-health test');
+  assertAllowed(runHook(forceAdd('data/profile/sync-profile.test.mjs'), { env }), 'fallback sync-profile test');
 });
 
 // --- git aliases: an alias can hide the force-add -------------------------------
