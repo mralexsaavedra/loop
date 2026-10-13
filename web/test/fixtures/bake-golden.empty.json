@@ -1,0 +1,5528 @@
+{
+ "activity": {
+  "hasData": false
+ },
+ "dash": {
+  "hasData": false
+ },
+ "detail": {
+  "asOf": null,
+  "days": 365,
+  "metrics": {},
+  "sessions": []
+ },
+ "health": {
+  "activity": {
+   "hasData": false
+  },
+  "body": {
+   "hasData": false
+  },
+  "cycling": {
+   "hasData": false
+  },
+  "energy": {
+   "hasData": false
+  },
+  "loadRecovery": {
+   "hasData": false
+  },
+  "recovery": {
+   "hasData": false
+  },
+  "running": {
+   "hasData": false
+  }
+ },
+ "intake": {
+  "bootGraceMs": 2500,
+  "freshDays": 3,
+  "latest": null,
+  "log": {
+   "asOf": null,
+   "days": []
+  },
+  "target": {
+   "train": {
+    "c": 302,
+    "g": 48,
+    "k": 2197,
+    "p": 142
+   }
+  }
+ },
+ "nut": {
+  "D": {
+   "anclaje": [
+    {
+     "c": 0,
+     "g": 0,
+     "k": 0,
+     "l": "— none —",
+     "none": 1,
+     "p": 0
+    },
+    {
+     "c": 6.9,
+     "g": 2.8,
+     "k": 122,
+     "l": "🥤 Whey shake + milk",
+     "n": "Whey shake + milk",
+     "p": 17.7,
+     "q": "—"
+    },
+    {
+     "c": 0,
+     "g": 1.3,
+     "k": 109,
+     "l": "🐟 Tuna (100 g)",
+     "n": "Tuna",
+     "p": 25,
+     "q": "100 g"
+    },
+    {
+     "c": 1.2,
+     "g": 1.7,
+     "k": 116,
+     "l": "🦃 Turkey ham (130 g)",
+     "n": "Turkey ham",
+     "p": 25.4,
+     "q": "130 g"
+    }
+   ],
+   "carboCena": {
+    "rest": [
+     {
+      "c": 0,
+      "g": 0,
+      "k": 0,
+      "l": "— none —",
+      "none": 1,
+      "p": 0
+     },
+     {
+      "c": 46.1,
+      "g": 0.2,
+      "k": 206,
+      "l": "🥔 Potato (240 g)",
+      "n": "Potato",
+      "p": 4.6,
+      "q": "240 g"
+     },
+     {
+      "c": 43.4,
+      "g": 0.2,
+      "k": 204,
+      "l": "🍠 Sweet potato (167 g)",
+      "n": "Sweet potato",
+      "p": 3.5,
+      "q": "167 g"
+     }
+    ],
+    "train": [
+     {
+      "c": 0,
+      "g": 0,
+      "k": 0,
+      "l": "— none —",
+      "none": 1,
+      "p": 0
+     },
+     {
+      "c": 73.9,
+      "g": 0.4,
+      "k": 331,
+      "l": "🥔 Potato (385 g)",
+      "n": "Potato",
+      "p": 7.3,
+      "q": "385 g"
+     },
+     {
+      "c": 70.2,
+      "g": 0.3,
+      "k": 329,
+      "l": "🍠 Sweet potato (270 g)",
+      "n": "Sweet potato",
+      "p": 5.7,
+      "q": "270 g"
+     }
+    ]
+   },
+   "carboComida": {
+    "rest": [
+     {
+      "c": 0,
+      "g": 0,
+      "k": 0,
+      "l": "— none —",
+      "none": 1,
+      "p": 0
+     },
+     {
+      "c": 102.7,
+      "g": 1.3,
+      "k": 468,
+      "l": "🍚 Rice (130 g dry)",
+      "n": "Rice",
+      "p": 9.1,
+      "q": "130 g"
+     },
+     {
+      "c": 74,
+      "g": 1.5,
+      "k": 357,
+      "l": "🍝 Pasta (100 g dry)",
+      "n": "Pasta",
+      "p": 12,
+      "q": "100 g"
+     },
+     {
+      "c": 63,
+      "g": 4,
+      "k": 380,
+      "l": "🫘 Legumes (bowl)",
+      "n": "Legumes (bowl)",
+      "note": "range ~345–420 by bowl",
+      "p": 25,
+      "q": "~300 g"
+     }
+    ],
+    "train": [
+     {
+      "c": 0,
+      "g": 0,
+      "k": 0,
+      "l": "— none —",
+      "none": 1,
+      "p": 0
+     },
+     {
+      "c": 102.7,
+      "g": 1.3,
+      "k": 468,
+      "l": "🍚 Rice (130 g dry)",
+      "n": "Rice",
+      "p": 9.1,
+      "q": "130 g"
+     },
+     {
+      "c": 96.2,
+      "g": 2,
+      "k": 464,
+      "l": "🍝 Pasta (130 g dry)",
+      "n": "Pasta",
+      "p": 15.6,
+      "q": "130 g"
+     },
+     {
+      "c": 63,
+      "g": 4,
+      "k": 380,
+      "l": "🫘 Legumes (bowl)",
+      "n": "Legumes (bowl)",
+      "note": "range ~345–420 by bowl",
+      "p": 25,
+      "q": "~300 g"
+     }
+    ]
+   },
+   "desayuno": [
+    {
+     "c": 0,
+     "g": 0,
+     "k": 0,
+     "l": "— none —",
+     "none": 1,
+     "p": 0
+    },
+    {
+     "c": 46.1,
+     "g": 8.9,
+     "k": 449,
+     "l": "🥞 A · Oat pancake",
+     "n": "A · Oat pancake",
+     "p": 43.4
+    },
+    {
+     "c": 53,
+     "g": 8.6,
+     "k": 394,
+     "l": "🍞 B · Toast + protein",
+     "n": "B · Toast + protein",
+     "p": 26
+    }
+   ],
+   "postentreno": [
+    {
+     "c": 0,
+     "g": 0,
+     "k": 0,
+     "l": "— none —",
+     "none": 1,
+     "p": 0
+    },
+    {
+     "c": 37.7,
+     "g": 4.6,
+     "k": 264,
+     "l": "🍌 Banana + shake (20 g whey)",
+     "n": "Banana + whey shake",
+     "p": 21.4,
+     "q": "banana + 20 g + 180 ml milk"
+    },
+    {
+     "c": 21.5,
+     "g": 2,
+     "k": 210,
+     "l": "🦃 Turkey ham (120 g) + toast",
+     "n": "Turkey ham + toast",
+     "p": 26.7,
+     "q": "120 g + 1 slice"
+    }
+   ],
+   "postre": [
+    {
+     "c": 0,
+     "g": 0,
+     "k": 0,
+     "l": "— none —",
+     "none": 1,
+     "p": 0
+    },
+    {
+     "c": 27,
+     "cat": "fruit",
+     "g": 0.4,
+     "k": 106,
+     "l": "🍌 Banana",
+     "n": "Banana",
+     "p": 1,
+     "q": "1 (120 g)"
+    },
+    {
+     "c": 21,
+     "cat": "fruit",
+     "g": 0.3,
+     "k": 78,
+     "l": "🍎 Apple",
+     "n": "Apple",
+     "p": 0.5,
+     "q": "1 (150 g)"
+    },
+    {
+     "c": 15.6,
+     "cat": "fruit",
+     "g": 0.1,
+     "k": 61,
+     "l": "🍊 Orange",
+     "n": "Orange",
+     "p": 1.2,
+     "q": "1 (130 g)"
+    },
+    {
+     "c": 5.9,
+     "cat": "yogurt",
+     "g": 2.5,
+     "k": 75,
+     "l": "🥛 Yogurt only",
+     "n": "Light greek yogurt",
+     "p": 7.3,
+     "q": "125 g"
+    },
+    {
+     "c": 13.5,
+     "cat": "yogurt",
+     "g": 11.7,
+     "k": 196,
+     "l": "🍨 Yogurt + nuts + honey",
+     "n": "Yogurt + nuts (15 g) + honey (8 g)",
+     "p": 9.5,
+     "q": "—"
+    }
+   ],
+   "proteina": [
+    {
+     "c": 0,
+     "g": 0,
+     "k": 0,
+     "l": "— none —",
+     "none": 1,
+     "p": 0
+    },
+    {
+     "c": 0,
+     "g": 3.2,
+     "k": 153,
+     "l": "🟢 Chicken breast",
+     "n": "Chicken breast",
+     "p": 32.1,
+     "q": "140 g",
+     "t": "lean"
+    },
+    {
+     "c": 0,
+     "g": 2.9,
+     "k": 151,
+     "l": "🟢 White fish",
+     "n": "White fish",
+     "p": 29.6,
+     "q": "170 g",
+     "t": "lean"
+    },
+    {
+     "c": 0,
+     "g": 2,
+     "k": 174,
+     "l": "🟢 Tuna (160 g)",
+     "n": "Tuna",
+     "p": 40,
+     "q": "160 g",
+     "t": "lean"
+    },
+    {
+     "c": 2.6,
+     "g": 0.7,
+     "k": 192,
+     "l": "🟢 Egg whites (370 ml)",
+     "n": "Egg whites",
+     "p": 40,
+     "q": "370 ml",
+     "t": "lean"
+    },
+    {
+     "c": 1.8,
+     "g": 2.6,
+     "k": 178,
+     "l": "🟡 Turkey ham (200 g)",
+     "n": "Turkey ham",
+     "p": 39,
+     "q": "200 g",
+     "t": "mod"
+    },
+    {
+     "c": 0,
+     "g": 26,
+     "k": 400,
+     "l": "🔴 Salmon (200 g)",
+     "n": "Salmon",
+     "note": "healthy omega-3",
+     "p": 40,
+     "q": "200 g",
+     "t": "fat"
+    }
+   ]
+  },
+  "DAYPLAN": {
+   "rest": {
+    "kcalNote": "Fewer carbs (no training to fuel). Protein stays <b>~150 g</b>.",
+    "meals": [
+     {
+      "descHtml": "Toast + jam + <button class=\"lnk\" onclick=\"jump('acc-anclaje')\">protein anchor</button>",
+      "jump": "acc-desayunos",
+      "name": "Breakfast",
+      "parts": [
+       {
+        "match": "B · Toast + protein",
+        "use": "desayuno"
+       }
+      ],
+      "slot": "breakfast"
+     },
+     {
+      "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-comida')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-fruta')\">fruit</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
+      "jump": "acc-proteina",
+      "name": "Lunch",
+      "parts": [
+       {
+        "match": "Chicken breast",
+        "use": "proteina"
+       },
+       {
+        "flex": "carb",
+        "match": "Rice",
+        "tier": "rest",
+        "use": "carboComida"
+       },
+       {
+        "flex": "carb",
+        "match": "Apple",
+        "use": "postre"
+       },
+       {
+        "amt": 150,
+        "ing": "calabacin",
+        "label": "Zucchini"
+       }
+      ],
+      "slot": "lunch"
+     },
+     {
+      "desc": "Whey shake, tuna or turkey ham",
+      "jump": "acc-anclaje",
+      "name": "Protein anchor",
+      "parts": [
+       {
+        "match": "Whey shake + milk",
+        "use": "anclaje"
+       },
+       {
+        "amt": 120,
+        "flex": "carb",
+        "ing": "platano",
+        "label": "Banana"
+       }
+      ],
+      "slot": "snack"
+     },
+     {
+      "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-cena')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-postre')\">dessert</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
+      "jump": "acc-proteina",
+      "name": "Dinner",
+      "parts": [
+       {
+        "match": "White fish",
+        "use": "proteina"
+       },
+       {
+        "flex": "carb",
+        "match": "Potato",
+        "tier": "rest",
+        "use": "carboCena"
+       },
+       {
+        "match": "nuts",
+        "use": "postre"
+       },
+       {
+        "amt": 150,
+        "ing": "calabacin",
+        "label": "Zucchini"
+       }
+      ],
+      "slot": "dinner"
+     },
+     {
+      "desc": "Spray / drizzle — count it",
+      "jump": null,
+      "name": "Cooking oil",
+      "parts": [
+       {
+        "amt": 12,
+        "ing": "aceiteoliva",
+        "label": "Olive oil"
+       }
+      ],
+      "pcf": false
+     }
+    ]
+   },
+   "train": {
+    "kcalNote": "More carbs to fuel training. Protein target <b>~150 g</b>.",
+    "meals": [
+     {
+      "desc": "Oat pancake",
+      "jump": "acc-desayunos",
+      "name": "Breakfast",
+      "parts": [
+       {
+        "amt": 60,
+        "flex": "carb",
+        "ing": "avena",
+        "label": "Oats"
+       },
+       {
+        "amt": 150,
+        "ing": "claras",
+        "label": "Egg whites"
+       },
+       {
+        "amt": 145,
+        "ing": "leche",
+        "label": "Coffee with milk"
+       }
+      ],
+      "slot": "breakfast"
+     },
+     {
+      "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-comida')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-fruta')\">fruit</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
+      "jump": "acc-proteina",
+      "name": "Lunch",
+      "parts": [
+       {
+        "match": "Chicken breast",
+        "use": "proteina"
+       },
+       {
+        "flex": "carb",
+        "match": "Rice",
+        "tier": "train",
+        "use": "carboComida"
+       },
+       {
+        "flex": "carb",
+        "match": "Apple",
+        "use": "postre"
+       },
+       {
+        "amt": 150,
+        "ing": "calabacin",
+        "label": "Zucchini"
+       }
+      ],
+      "slot": "lunch"
+     },
+     {
+      "desc": "Banana + whey shake, or turkey ham + toast",
+      "jump": "acc-postentreno",
+      "name": "Post-workout",
+      "parts": [
+       {
+        "amt": 120,
+        "flex": "carb",
+        "ing": "platano",
+        "label": "Banana"
+       },
+       {
+        "amt": 20,
+        "ing": "wheyup",
+        "label": "Whey"
+       },
+       {
+        "amt": 180,
+        "ing": "leche",
+        "label": "Milk"
+       }
+      ],
+      "slot": "postworkout"
+     },
+     {
+      "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-cena')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-postre')\">dessert</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
+      "jump": "acc-proteina",
+      "name": "Dinner",
+      "parts": [
+       {
+        "match": "White fish",
+        "use": "proteina"
+       },
+       {
+        "flex": "carb",
+        "match": "Potato",
+        "tier": "train",
+        "use": "carboCena"
+       },
+       {
+        "match": "nuts",
+        "use": "postre"
+       },
+       {
+        "amt": 150,
+        "ing": "calabacin",
+        "label": "Zucchini"
+       }
+      ],
+      "slot": "dinner"
+     },
+     {
+      "desc": "Spray / drizzle — count it",
+      "jump": null,
+      "name": "Cooking oil",
+      "parts": [
+       {
+        "amt": 16,
+        "ing": "aceiteoliva",
+        "label": "Olive oil"
+       }
+      ],
+      "pcf": false
+     }
+    ]
+   }
+  },
+  "EX": {
+   "aceite": {
+    "c": 0,
+    "g": 10.1,
+    "k": 91,
+    "p": 0
+   },
+   "beer": {
+    "c": 9,
+    "g": 0,
+    "k": 118,
+    "p": 0
+   },
+   "cafe": {
+    "c": 7,
+    "g": 2.5,
+    "k": 67,
+    "p": 4.9
+   },
+   "cheeseslice": {
+    "c": 2.7,
+    "g": 3,
+    "k": 46,
+    "n": "Cheese slice",
+    "p": 2.1,
+    "q": "1 slice (20 g)"
+   },
+   "chocolate": {
+    "c": 1.6,
+    "g": 3.9,
+    "k": 48,
+    "p": 1
+   },
+   "pepper": {
+    "c": 6,
+    "g": 0.3,
+    "k": 26,
+    "n": "Bell pepper",
+    "p": 1,
+    "q": "100 g"
+   },
+   "tomatosauce": {
+    "c": 8.9,
+    "g": 0,
+    "k": 42,
+    "n": "Tomato sauce",
+    "p": 0.9,
+    "q": "50 g"
+   },
+   "zucchini": {
+    "c": 3,
+    "g": 0.3,
+    "k": 17,
+    "n": "Zucchini",
+    "p": 1.2,
+    "q": "100 g"
+   }
+  },
+  "ING": {
+   "aceiteoliva": {
+    "c": 0,
+    "cat": "fat",
+    "g": 91.6,
+    "k": 824,
+    "name": {
+     "en": "Olive oil",
+     "es": "Aceite de oliva"
+    },
+    "note": "per 100 ml, from the previous per-100 g values (900 kcal, 100 g fat; no source id recorded) x density 0.916 g/ml",
+    "p": 0,
+    "per": 100,
+    "unit": "ml",
+    "verified": false
+   },
+   "aceitunas": {
+    "c": 1,
+    "cat": "fat",
+    "g": 12.5,
+    "k": 131,
+    "name": {
+     "en": "Olives",
+     "es": "Aceitunas"
+    },
+    "note": "BEDCA 2214 'Aceituna' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 1.3,
+    "per": 100,
+    "piece": {
+     "amt": 4,
+     "name": {
+      "en": "olive",
+      "es": "aceituna"
+     },
+     "plural": {
+      "en": "olives",
+      "es": "aceitunas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "acelgas": {
+    "c": 2.7,
+    "cat": "veg",
+    "g": 0.2,
+    "k": 23,
+    "name": {
+     "en": "Chard",
+     "es": "Acelgas"
+    },
+    "note": "BEDCA 2212 'Acelga, cruda' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 2.1,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "aguacate": {
+    "c": 0.4,
+    "cat": "fat",
+    "g": 12,
+    "k": 128,
+    "name": {
+     "en": "Avocado",
+     "es": "Aguacate"
+    },
+    "note": "BEDCA 2216 'Aguacate' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 1.5,
+    "per": 100,
+    "piece": {
+     "amt": 140,
+     "name": {
+      "en": "medium avocado (flesh)",
+      "es": "aguacate mediano (pulpa)"
+     },
+     "plural": {
+      "en": "medium avocados (flesh)",
+      "es": "aguacates medianos (pulpa)"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "ajo": {
+    "c": 24.3,
+    "cat": "veg",
+    "g": 0.2,
+    "k": 117,
+    "name": {
+     "en": "Garlic",
+     "es": "Ajo"
+    },
+    "note": "BEDCA 2361 'Ajo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 3.9,
+    "per": 100,
+    "piece": {
+     "amt": 5,
+     "name": {
+      "en": "clove",
+      "es": "diente"
+     },
+     "plural": {
+      "en": "cloves",
+      "es": "dientes"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "alcachofas": {
+    "c": 2.3,
+    "cat": "veg",
+    "g": 0.2,
+    "k": 41,
+    "name": {
+     "en": "Artichokes",
+     "es": "Alcachofas"
+    },
+    "note": "BEDCA 1176 'Alcachofa, cruda' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 2.9,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "alitas": {
+    "c": 0,
+    "cat": "protein",
+    "g": 14.1,
+    "k": 200,
+    "name": {
+     "en": "Chicken wings",
+     "es": "Alitas de pollo"
+    },
+    "p": 18.2,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "allioli": {
+    "basic": false,
+    "c": 9.5,
+    "cat": "sauce",
+    "g": 78,
+    "k": 712,
+    "name": {
+     "en": "Aioli (Hacendado)",
+     "es": "Allioli (Hacendado)"
+    },
+    "note": "15 g cda ≈ 107 kcal; sunflower oil — almost pure fat",
+    "p": 1.1,
+    "per": 100,
+    "piece": {
+     "amt": 15,
+     "name": {
+      "en": "tablespoon",
+      "es": "cucharada"
+     },
+     "plural": {
+      "en": "tablespoons",
+      "es": "cucharadas"
+     },
+     "typical": true
+    },
+    "unit": "g",
+    "verified": true
+   },
+   "almendras": {
+    "c": 6.2,
+    "cat": "fat",
+    "g": 54.6,
+    "k": 621,
+    "name": {
+     "en": "Almonds",
+     "es": "Almendras"
+    },
+    "note": "BEDCA 534 'Almendra, cruda' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 19.1,
+    "per": 100,
+    "piece": {
+     "amt": 1.2,
+     "name": {
+      "en": "almond",
+      "es": "almendra"
+     },
+     "plural": {
+      "en": "almonds",
+      "es": "almendras"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "alubias": {
+    "c": 21,
+    "cat": "legume",
+    "g": 0.5,
+    "k": 120,
+    "name": {
+     "en": "Beans",
+     "es": "Alubias"
+    },
+    "p": 8,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "cooked"
+   },
+   "alubiaslata": {
+    "c": 15.7,
+    "cat": "legume",
+    "g": 0.2,
+    "k": 101,
+    "name": {
+     "en": "White beans (canned)",
+     "es": "Alubias blancas en conserva (bote)"
+    },
+    "note": "BEDCA 898 'Alubia blanca, en conserva' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 6.7,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "cooked"
+   },
+   "anacardos": {
+    "c": 32,
+    "cat": "fat",
+    "g": 43.1,
+    "k": 589,
+    "name": {
+     "en": "Cashews",
+     "es": "Anacardos"
+    },
+    "note": "BEDCA 922 'Anacardo, crudo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 17.5,
+    "per": 100,
+    "piece": {
+     "amt": 30,
+     "name": {
+      "en": "handful",
+      "es": "puñado"
+     },
+     "plural": {
+      "en": "handfuls",
+      "es": "puñados"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "aquarius": {
+    "c": 4.4,
+    "cat": "drink",
+    "g": 0,
+    "k": 18,
+    "name": {
+     "en": "Aquarius (lemon)",
+     "es": "Aquarius (limón)"
+    },
+    "note": "Label values of Aquarius limón (sold in Spain; Open Food Facts 5449000018465); BEDCA 1638 lists an older, sweeter recipe (7.9 g carbs)",
+    "p": 0,
+    "per": 100,
+    "piece": {
+     "amt": 330,
+     "name": {
+      "en": "can",
+      "es": "lata"
+     },
+     "plural": {
+      "en": "cans",
+      "es": "latas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "ml",
+    "verified": false
+   },
+   "arandanos": {
+    "c": 14,
+    "cat": "fruit",
+    "g": 0.3,
+    "k": 57,
+    "maxAmt": 150,
+    "name": {
+     "en": "Blueberries",
+     "es": "Arándanos"
+    },
+    "p": 0.7,
+    "per": 100,
+    "unit": "g",
+    "verified": false
+   },
+   "arroz": {
+    "c": 79,
+    "cat": "carb",
+    "g": 1,
+    "k": 360,
+    "maxAmt": 150,
+    "name": {
+     "en": "Rice",
+     "es": "Arroz"
+    },
+    "p": 7,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "dry"
+   },
+   "arrozintegral": {
+    "c": 81.3,
+    "cat": "carb",
+    "g": 2.6,
+    "k": 385,
+    "maxAmt": 150,
+    "name": {
+     "en": "Brown rice",
+     "es": "Arroz integral"
+    },
+    "note": "BEDCA 904 'Arroz integral, crudo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 7.5,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "dry"
+   },
+   "atun": {
+    "c": 0,
+    "cat": "protein",
+    "g": 1.25,
+    "k": 109,
+    "name": {
+     "en": "Tuna",
+     "es": "Atún"
+    },
+    "p": 25,
+    "per": 100,
+    "unit": "g",
+    "verified": false
+   },
+   "atunaceite": {
+    "c": 0,
+    "cat": "protein",
+    "g": 12.1,
+    "k": 204,
+    "name": {
+     "en": "Tuna in oil",
+     "es": "Atún en aceite"
+    },
+    "note": "BEDCA 2131 'Atun en aceite vegetal' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 23.8,
+    "per": 100,
+    "piece": {
+     "amt": 56,
+     "name": {
+      "en": "small can (drained)",
+      "es": "lata pequeña (escurrida)"
+     },
+     "plural": {
+      "en": "small cans (drained)",
+      "es": "latas pequeñas (escurridas)"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "avellanas": {
+    "c": 7,
+    "cat": "fat",
+    "g": 61,
+    "k": 646,
+    "name": {
+     "en": "Hazelnuts",
+     "es": "Avellanas"
+    },
+    "p": 15,
+    "per": 100,
+    "unit": "g",
+    "verified": false
+   },
+   "avena": {
+    "c": 60,
+    "cat": "carb",
+    "g": 8.3,
+    "k": 380,
+    "maxAmt": 100,
+    "name": {
+     "en": "Rolled oats",
+     "es": "Copos de avena"
+    },
+    "p": 13.3,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "dry"
+   },
+   "azucar": {
+    "c": 100,
+    "cat": "sweet",
+    "g": 0,
+    "k": 400,
+    "maxAmt": 30,
+    "name": {
+     "en": "Sugar",
+     "es": "Azúcar"
+    },
+    "note": "BEDCA 2642 'Azúcar blanca' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 0,
+    "per": 100,
+    "piece": {
+     "amt": 5,
+     "name": {
+      "en": "teaspoon",
+      "es": "cucharadita"
+     },
+     "plural": {
+      "en": "teaspoons",
+      "es": "cucharaditas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "bacalaodesalado": {
+    "c": 0,
+    "cat": "protein",
+    "g": 0.4,
+    "k": 108,
+    "name": {
+     "en": "Salt cod (desalted)",
+     "es": "Bacalao desalado"
+    },
+    "note": "BEDCA 797 'Bacalao, salado, remojado, crudo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 26,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "bacalaofresco": {
+    "c": 0,
+    "cat": "protein",
+    "g": 1,
+    "k": 82,
+    "name": {
+     "en": "Cod (fresh)",
+     "es": "Bacalao fresco"
+    },
+    "note": "BEDCA 2302 'Bacalao, crudo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 18.2,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "batataprefrita": {
+    "c": 28,
+    "cat": "carb",
+    "g": 5,
+    "k": 163,
+    "maxAmt": 300,
+    "name": {
+     "en": "Pre-fried sweet potato (frozen)",
+     "es": "Batata prefrita (congelada)"
+    },
+    "note": "from earlier photo",
+    "p": 1.8,
+    "per": 100,
+    "unit": "g",
+    "verified": true
+   },
+   "bebidaavena": {
+    "c": 4.9,
+    "cat": "dairy",
+    "g": 2.3,
+    "k": 45,
+    "name": {
+     "en": "Oat drink",
+     "es": "Bebida de avena"
+    },
+    "note": "USDA FoodData Central FNDDS 2705412 'Oat milk' (average values); carbs = by difference minus fibre",
+    "p": 0.7,
+    "per": 100,
+    "swap": false,
+    "unit": "ml",
+    "verified": false
+   },
+   "berberechos": {
+    "c": 0,
+    "cat": "protein",
+    "g": 0.5,
+    "k": 47,
+    "name": {
+     "en": "Cockles in brine (canned)",
+     "es": "Berberechos al natural (lata)"
+    },
+    "note": "BEDCA 2307 'Berberechos en conserva' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 10.7,
+    "per": 100,
+    "piece": {
+     "amt": 60,
+     "name": {
+      "en": "can (drained)",
+      "es": "lata (escurrida)"
+     },
+     "plural": {
+      "en": "cans (drained)",
+      "es": "latas (escurridas)"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "berenjena": {
+    "c": 3.8,
+    "cat": "veg",
+    "g": 0.2,
+    "k": 25,
+    "name": {
+     "en": "Aubergine",
+     "es": "Berenjena"
+    },
+    "note": "BEDCA 2370 'Berenjena' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 0.7,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "boniato": {
+    "c": 26,
+    "cat": "carb",
+    "g": 0.12,
+    "k": 122,
+    "maxAmt": 400,
+    "name": {
+     "en": "Sweet potato",
+     "es": "Boniato"
+    },
+    "p": 2.1,
+    "per": 100,
+    "unit": "g",
+    "verified": false
+   },
+   "bonitoaceite": {
+    "c": 0,
+    "cat": "protein",
+    "g": 11,
+    "k": 204,
+    "name": {
+     "en": "Albacore tuna in oil (drained)",
+     "es": "Bonito del norte en aceite (escurrido)"
+    },
+    "note": "BEDCA 559 'Bonito, enlatado en aceite, escurrido' (average values); kcal from the macros with EU factors (4/4/9, fibre 2); BEDCA 802 (same food) lists 4.7 g fat but an energy matching ~11 g, so the consistent 559 is used",
+    "p": 26.2,
+    "per": 100,
+    "piece": {
+     "amt": 80,
+     "name": {
+      "en": "can (drained)",
+      "es": "lata (escurrida)"
+     },
+     "plural": {
+      "en": "cans (drained)",
+      "es": "latas (escurridas)"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "boquerones": {
+    "c": 0,
+    "cat": "protein",
+    "g": 6.3,
+    "k": 127,
+    "name": {
+     "en": "Fresh anchovies",
+     "es": "Boquerones"
+    },
+    "note": "BEDCA 2316 'Boquerón' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 17.6,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "brocoli": {
+    "c": 2.4,
+    "cat": "veg",
+    "g": 0.4,
+    "k": 31,
+    "name": {
+     "en": "Broccoli",
+     "es": "Brócoli"
+    },
+    "note": "BEDCA 1177 'Brécol, crudo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 3,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "caballalata": {
+    "c": 0,
+    "cat": "protein",
+    "g": 16.6,
+    "k": 209,
+    "name": {
+     "en": "Mackerel in oil (canned, drained)",
+     "es": "Caballa en aceite (lata, escurrida)"
+    },
+    "note": "BEDCA 805 'Caballa, enlatada en aceite, escurrida' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 14.9,
+    "per": 100,
+    "piece": {
+     "amt": 85,
+     "name": {
+      "en": "can (drained)",
+      "es": "lata (escurrida)"
+     },
+     "plural": {
+      "en": "cans (drained)",
+      "es": "latas (escurridas)"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "cacahuetes": {
+    "c": 7.1,
+    "cat": "fat",
+    "g": 53,
+    "k": 617,
+    "name": {
+     "en": "Roasted peanuts",
+     "es": "Cacahuetes tostados"
+    },
+    "note": "BEDCA 2186 'Cacahuete, tostado, salado' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 24.5,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "cafe": {
+    "c": 0,
+    "cat": "drink",
+    "g": 0.2,
+    "k": 2,
+    "name": {
+     "en": "Black coffee",
+     "es": "Café solo"
+    },
+    "note": "BEDCA 2433 'Café, infusión' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 0.1,
+    "per": 100,
+    "swap": false,
+    "unit": "ml",
+    "verified": false
+   },
+   "calabacin": {
+    "c": 3,
+    "cat": "veg",
+    "g": 0.3,
+    "k": 17,
+    "name": {
+     "en": "Courgette",
+     "es": "Calabacín"
+    },
+    "p": 1.2,
+    "per": 100,
+    "unit": "g",
+    "verified": false
+   },
+   "calamar": {
+    "c": 1.1,
+    "cat": "protein",
+    "g": 1.5,
+    "k": 74,
+    "name": {
+     "en": "Squid",
+     "es": "Calamar"
+    },
+    "note": "BEDCA 807 'Calamar, crudo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 14,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "caqui": {
+    "c": 18.6,
+    "cat": "fruit",
+    "g": 0.2,
+    "k": 70,
+    "maxAmt": 300,
+    "name": {
+     "en": "Persimmon",
+     "es": "Caqui"
+    },
+    "p": 0.6,
+    "per": 100,
+    "piece": {
+     "amt": 150,
+     "name": {
+      "en": "medium persimmon",
+      "es": "caqui mediano"
+     },
+     "plural": {
+      "en": "medium persimmons",
+      "es": "caquis medianos"
+     },
+     "typical": true
+    },
+    "unit": "g",
+    "verified": false
+   },
+   "cebolla": {
+    "c": 9,
+    "cat": "veg",
+    "g": 0.1,
+    "k": 40,
+    "name": {
+     "en": "Onion",
+     "es": "Cebolla"
+    },
+    "p": 1.1,
+    "per": 100,
+    "unit": "g",
+    "verified": false
+   },
+   "cereales": {
+    "c": 80.8,
+    "cat": "carb",
+    "g": 3,
+    "k": 381,
+    "maxAmt": 80,
+    "name": {
+     "en": "Breakfast cereal (corn and wheat)",
+     "es": "Cereales de desayuno (maíz y trigo)"
+    },
+    "note": "BEDCA 1032 'Cereales desayuno base de maíz y trigo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 6,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "cerveza": {
+    "c": 3.6,
+    "cat": "drink",
+    "g": 0,
+    "k": 47,
+    "name": {
+     "en": "Estrella Galicia special beer (5.5%)",
+     "es": "Cerveza especial Estrella Galicia (5,5%)"
+    },
+    "note": "botellín 250 ml ≈ 118 kcal",
+    "p": 0,
+    "per": 100,
+    "piece": {
+     "amt": 250,
+     "name": {
+      "en": "small bottle",
+      "es": "botellín"
+     },
+     "plural": {
+      "en": "small bottles",
+      "es": "botellines"
+     }
+    },
+    "unit": "ml",
+    "verified": true
+   },
+   "cerveza00tostada": {
+    "c": 5.7,
+    "cat": "drink",
+    "g": 0,
+    "k": 24,
+    "name": {
+     "en": "Estrella Galicia 0.0 Tostada beer (alcohol-free)",
+     "es": "Cerveza Estrella Galicia 0,0 Tostada"
+    },
+    "note": "kcal from a nutrition database (fitia.app \"Cerveza 0% Alcohol Tostada - Estrella Galicia\", per 100 ml), which gives only kcal; protein and carbs DERIVED from the kcal for a 0.0% beer (no alcohol, no fat: 4 × 0.3 + 4 × 5.7 = 24); replace with the label when available",
+    "p": 0.3,
+    "per": 100,
+    "piece": {
+     "amt": 250,
+     "name": {
+      "en": "small bottle",
+      "es": "botellín"
+     },
+     "plural": {
+      "en": "small bottles",
+      "es": "botellines"
+     }
+    },
+    "swap": false,
+    "unit": "ml",
+    "verified": false
+   },
+   "cerveza1906": {
+    "c": 3.9,
+    "cat": "drink",
+    "g": 0,
+    "k": 54,
+    "name": {
+     "en": "1906 Reserva Especial beer (6.5%)",
+     "es": "Cerveza 1906 Reserva Especial (6,5%)"
+    },
+    "note": "Values from a nutrition database (fitia.app \"1906 Cerveza Reserva\", per 100 ml); about 6.5% alcohol, so kcal exceed the macros; replace with the label when available",
+    "p": 0,
+    "per": 100,
+    "piece": {
+     "amt": 330,
+     "name": {
+      "en": "small bottle",
+      "es": "botellín"
+     },
+     "plural": {
+      "en": "small bottles",
+      "es": "botellines"
+     }
+    },
+    "swap": false,
+    "unit": "ml",
+    "verified": false
+   },
+   "cervezacana": {
+    "c": 3.1,
+    "cat": "drink",
+    "g": 0,
+    "k": 42,
+    "name": {
+     "en": "Beer (lager, small glass)",
+     "es": "Cerveza (caña)"
+    },
+    "note": "BEDCA 2437 'Cerveza con alcohol' (average values); kcal from the macros with EU factors (4/4/9, fibre 2, alcohol 7)",
+    "p": 0.5,
+    "per": 100,
+    "piece": {
+     "amt": 200,
+     "name": {
+      "en": "small glass",
+      "es": "caña"
+     },
+     "plural": {
+      "en": "small glasses",
+      "es": "cañas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "ml",
+    "verified": false
+   },
+   "champinones": {
+    "c": 4,
+    "cat": "veg",
+    "g": 0.3,
+    "k": 31,
+    "name": {
+     "en": "Mushrooms",
+     "es": "Champiñones"
+    },
+    "note": "BEDCA 2384 'Champiñon' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 1.8,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "chistorra": {
+    "c": 0.9,
+    "cat": "protein",
+    "g": 50.5,
+    "k": 519,
+    "name": {
+     "en": "Chistorra (fresh paprika sausage)",
+     "es": "Chistorra"
+    },
+    "note": "BEDCA 2262 'Chistorra' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 15.3,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "chocolate": {
+    "basic": false,
+    "c": 20,
+    "cat": "sweet",
+    "g": 49,
+    "k": 597,
+    "name": {
+     "en": "Dark chocolate 85% (Hacendado)",
+     "es": "Chocolate negro 85% extrafino (Hacendado)"
+    },
+    "note": "1 onza 8 g ≈ 48 kcal; 200 g/paq",
+    "p": 12,
+    "per": 100,
+    "piece": {
+     "amt": 8,
+     "name": {
+      "en": "square",
+      "es": "onza"
+     },
+     "plural": {
+      "en": "squares",
+      "es": "onzas"
+     }
+    },
+    "unit": "g",
+    "verified": true
+   },
+   "chocolate70": {
+    "c": 35,
+    "cat": "sweet",
+    "g": 42.6,
+    "k": 598,
+    "maxAmt": 40,
+    "name": {
+     "en": "Dark chocolate 70%",
+     "es": "Chocolate negro 70%"
+    },
+    "note": "USDA FoodData Central SR Legacy 170273 'Chocolate, dark, 70-85% cacao solids' (average values); carbs = by difference minus fibre",
+    "p": 7.8,
+    "per": 100,
+    "piece": {
+     "amt": 8,
+     "name": {
+      "en": "square",
+      "es": "onza"
+     },
+     "plural": {
+      "en": "squares",
+      "es": "onzas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "chorizo": {
+    "c": 1.9,
+    "cat": "protein",
+    "g": 23.1,
+    "k": 324,
+    "name": {
+     "en": "Chorizo",
+     "es": "Chorizo"
+    },
+    "note": "BEDCA 2264 'Chorizo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 27,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "chuletacerdo": {
+    "c": 0,
+    "cat": "protein",
+    "g": 15.2,
+    "k": 210,
+    "name": {
+     "en": "Pork chop",
+     "es": "Chuleta de cerdo"
+    },
+    "p": 19,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "churros": {
+    "c": 40,
+    "cat": "sweet",
+    "g": 20,
+    "k": 361,
+    "name": {
+     "en": "Churros",
+     "es": "Churros"
+    },
+    "note": "BEDCA 2668 'Churro' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 4.6,
+    "per": 100,
+    "piece": {
+     "amt": 20,
+     "name": {
+      "en": "churro",
+      "es": "churro"
+     },
+     "plural": {
+      "en": "churros",
+      "es": "churros"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "ciruela": {
+    "c": 11,
+    "cat": "fruit",
+    "g": 0.2,
+    "k": 46,
+    "maxAmt": 130,
+    "name": {
+     "en": "Plum",
+     "es": "Ciruela"
+    },
+    "p": 0.7,
+    "per": 100,
+    "piece": {
+     "amt": 65,
+     "name": {
+      "en": "medium plum",
+      "es": "ciruela mediana"
+     },
+     "plural": {
+      "en": "medium plums",
+      "es": "ciruelas medianas"
+     },
+     "typical": true
+    },
+    "unit": "g",
+    "verified": false
+   },
+   "clara": {
+    "c": 8,
+    "cat": "drink",
+    "g": 0,
+    "k": 37,
+    "name": {
+     "en": "Shandy (beer with lemon)",
+     "es": "Clara (cerveza con limón)"
+    },
+    "note": "Label values of Shandy sabor a limón (Hacendado, sold in Spain; Open Food Facts 8480000667717); about 1% alcohol, so kcal exceed the macros",
+    "p": 0.1,
+    "per": 100,
+    "piece": {
+     "amt": 200,
+     "name": {
+      "en": "small glass",
+      "es": "caña"
+     },
+     "plural": {
+      "en": "small glasses",
+      "es": "cañas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "ml",
+    "verified": false
+   },
+   "claras": {
+    "c": 0.7,
+    "cat": "protein",
+    "g": 0.2,
+    "k": 52,
+    "name": {
+     "en": "Egg whites",
+     "es": "Claras de huevo"
+    },
+    "p": 10.8,
+    "per": 100,
+    "unit": "ml",
+    "verified": false
+   },
+   "cocacola": {
+    "c": 10.6,
+    "cat": "drink",
+    "g": 0,
+    "k": 42,
+    "name": {
+     "en": "Coca-Cola",
+     "es": "Coca-Cola"
+    },
+    "note": "Label values of Coca-Cola (sold in Spain; Open Food Facts 5449000000453)",
+    "p": 0,
+    "per": 100,
+    "piece": {
+     "amt": 330,
+     "name": {
+      "en": "can",
+      "es": "lata"
+     },
+     "plural": {
+      "en": "cans",
+      "es": "latas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "ml",
+    "verified": false
+   },
+   "cocacolazero": {
+    "c": 0,
+    "cat": "drink",
+    "g": 0,
+    "k": 0,
+    "name": {
+     "en": "Coca-Cola Zero",
+     "es": "Coca-Cola Zero"
+    },
+    "note": "Label values of Coca-Cola Zero (sold in Spain; Open Food Facts 90357985: 0.2 kcal per 100 ml)",
+    "p": 0,
+    "per": 100,
+    "piece": {
+     "amt": 330,
+     "name": {
+      "en": "can",
+      "es": "lata"
+     },
+     "plural": {
+      "en": "cans",
+      "es": "latas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "ml",
+    "verified": false
+   },
+   "colacao": {
+    "c": 78,
+    "cat": "sweet",
+    "g": 2.5,
+    "k": 377,
+    "maxAmt": 40,
+    "name": {
+     "en": "Cola Cao (cocoa drink powder)",
+     "es": "Cola Cao (en polvo)"
+    },
+    "note": "Label values of Cola Cao powder (Idilia Foods, sold in Spain; Open Food Facts 8410014020277); the powder only, add the milk apart",
+    "p": 6.6,
+    "per": 100,
+    "piece": {
+     "amt": 15,
+     "name": {
+      "en": "heaped tablespoon",
+      "es": "cucharada colmada"
+     },
+     "plural": {
+      "en": "heaped tablespoons",
+      "es": "cucharadas colmadas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "coliflor": {
+    "c": 2.1,
+    "cat": "veg",
+    "g": 0.2,
+    "k": 23,
+    "name": {
+     "en": "Cauliflower",
+     "es": "Coliflor"
+    },
+    "note": "BEDCA 859 'Coliflor, congelada, cruda' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 2,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "conejo": {
+    "c": 0,
+    "cat": "protein",
+    "g": 5.3,
+    "k": 131,
+    "name": {
+     "en": "Rabbit",
+     "es": "Conejo"
+    },
+    "note": "BEDCA 1162 'Conejo de granja, carne, cruda' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 20.7,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "confitura": {
+    "basic": false,
+    "c": 14.6,
+    "cat": "sweet",
+    "g": 0,
+    "k": 28,
+    "maxAmt": 30,
+    "name": {
+     "en": "Strawberry jam, no added sugar",
+     "es": "Confitura de fresa 0% azúcares añadidos"
+    },
+    "note": "very light",
+    "p": 0.3,
+    "per": 100,
+    "unit": "g",
+    "verified": true
+   },
+   "cordero": {
+    "c": 0,
+    "cat": "protein",
+    "g": 20.1,
+    "k": 243,
+    "name": {
+     "en": "Lamb (chops)",
+     "es": "Cordero (chuletas)"
+    },
+    "note": "BEDCA 2266 'Cordero, costilla, crudo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2); chops / ribs, the usual cut",
+    "p": 15.6,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "cremacacahuete": {
+    "c": 11.2,
+    "cat": "fat",
+    "g": 50.9,
+    "k": 619,
+    "name": {
+     "en": "Peanut butter",
+     "es": "Crema de cacahuete"
+    },
+    "note": "BEDCA 979 'Crema de cacahuete' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 25.5,
+    "per": 100,
+    "piece": {
+     "amt": 15,
+     "name": {
+      "en": "tablespoon",
+      "es": "cucharada"
+     },
+     "plural": {
+      "en": "tablespoons",
+      "es": "cucharadas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "croquetas": {
+    "c": 20.4,
+    "cat": "other",
+    "g": 5.3,
+    "k": 158,
+    "name": {
+     "en": "Croquetas",
+     "es": "Croquetas"
+    },
+    "note": "BEDCA 2268 'Croquetas de pollo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2); BEDCA's generic croquetas entry is chicken croquetas; prepared dish: values vary by recipe",
+    "p": 5.8,
+    "per": 100,
+    "piece": {
+     "amt": 30,
+     "name": {
+      "en": "croqueta",
+      "es": "croqueta"
+     },
+     "plural": {
+      "en": "croquetas",
+      "es": "croquetas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "cruasan": {
+    "c": 55,
+    "cat": "sweet",
+    "g": 17.2,
+    "k": 409,
+    "name": {
+     "en": "Croissant",
+     "es": "Cruasán"
+    },
+    "note": "BEDCA 2669 'Croissant' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 7.5,
+    "per": 100,
+    "piece": {
+     "amt": 60,
+     "name": {
+      "en": "croissant",
+      "es": "cruasán"
+     },
+     "plural": {
+      "en": "croissants",
+      "es": "cruasanes"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "cuajada": {
+    "c": 6.6,
+    "cat": "dairy",
+    "g": 4.7,
+    "k": 87,
+    "name": {
+     "en": "Cuajada (curd dessert)",
+     "es": "Cuajada"
+    },
+    "note": "BEDCA 2485 'Cuajada' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 4.5,
+    "per": 100,
+    "piece": {
+     "amt": 125,
+     "name": {
+      "en": "pot",
+      "es": "tarrina"
+     },
+     "plural": {
+      "en": "pots",
+      "es": "tarrinas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "cuscus": {
+    "c": 72.4,
+    "cat": "carb",
+    "g": 0.6,
+    "k": 376,
+    "maxAmt": 150,
+    "name": {
+     "en": "Couscous",
+     "es": "Cuscús"
+    },
+    "note": "USDA FoodData Central SR Legacy 169699 'Couscous, dry' (average values); carbs = by difference minus fibre",
+    "p": 12.8,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "dry"
+   },
+   "dorada": {
+    "c": 0,
+    "cat": "protein",
+    "g": 1,
+    "k": 77,
+    "name": {
+     "en": "Gilt-head bream",
+     "es": "Dorada"
+    },
+    "note": "BEDCA 1280 'Dorada, cruda' (average values); kcal from the macros with EU factors (4/4/9, fibre 2); BEDCA 815 (same food) lists 7.2 g fat but an energy matching ~1 g, so the consistent 1280 is used",
+    "p": 17,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "emperador": {
+    "c": 0,
+    "cat": "protein",
+    "g": 4.2,
+    "k": 110,
+    "name": {
+     "en": "Swordfish",
+     "es": "Emperador (pez espada)"
+    },
+    "note": "BEDCA 835 'Pez espada, crudo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 18,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "ensaladabolsa": {
+    "c": 3,
+    "cat": "veg",
+    "g": 0.3,
+    "k": 21,
+    "name": {
+     "en": "Bagged salad (mixed leaves)",
+     "es": "Ensalada de bolsa (mezcla de lechugas)"
+    },
+    "note": "BEDCA 2389 'Ensalada' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 1.1,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "ensaladilla": {
+    "c": 9.8,
+    "cat": "other",
+    "g": 6.7,
+    "k": 115,
+    "name": {
+     "en": "Ensaladilla rusa (Russian salad)",
+     "es": "Ensaladilla rusa"
+    },
+    "note": "BEDCA 2617 'Ensaladilla rusa' (average values); kcal from the macros with EU factors (4/4/9, fibre 2); prepared dish: values vary by recipe",
+    "p": 2.7,
+    "per": 100,
+    "piece": {
+     "amt": 150,
+     "name": {
+      "en": "serving",
+      "es": "ración"
+     },
+     "plural": {
+      "en": "servings",
+      "es": "raciones"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "esparragos": {
+    "c": 2,
+    "cat": "veg",
+    "g": 0.6,
+    "k": 28,
+    "name": {
+     "en": "Green asparagus",
+     "es": "Espárragos verdes"
+    },
+    "note": "BEDCA 1179 'Espárrago, verde' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 2.9,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "espinacas": {
+    "c": 1.9,
+    "cat": "veg",
+    "g": 0.5,
+    "k": 25,
+    "name": {
+     "en": "Spinach (cooked)",
+     "es": "Espinacas (cocidas)"
+    },
+    "note": "BEDCA 2395 'Espinaca, hervida' (average values); kcal from the macros with EU factors (4/4/9, fibre 2); BEDCA has no fresh raw spinach entry",
+    "p": 2.4,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "cooked"
+   },
+   "filete": {
+    "c": 0,
+    "cat": "protein",
+    "g": 6.8,
+    "k": 150,
+    "name": {
+     "en": "Steak",
+     "es": "Filete"
+    },
+    "p": 21,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "flan": {
+    "c": 20.4,
+    "cat": "sweet",
+    "g": 3.4,
+    "k": 131,
+    "maxAmt": 200,
+    "name": {
+     "en": "Egg flan",
+     "es": "Flan de huevo"
+    },
+    "note": "BEDCA 2486 'Flan de huevo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 4.8,
+    "per": 100,
+    "piece": {
+     "amt": 100,
+     "name": {
+      "en": "flan",
+      "es": "flan"
+     },
+     "plural": {
+      "en": "flans",
+      "es": "flanes"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "fresas": {
+    "c": 7.7,
+    "cat": "fruit",
+    "g": 0.3,
+    "k": 32,
+    "maxAmt": 250,
+    "name": {
+     "en": "Strawberries",
+     "es": "Fresas"
+    },
+    "p": 0.7,
+    "per": 100,
+    "unit": "g",
+    "verified": false
+   },
+   "fuet": {
+    "c": 5.5,
+    "cat": "protein",
+    "g": 42,
+    "k": 478,
+    "name": {
+     "en": "Fuet (thin cured sausage)",
+     "es": "Fuet"
+    },
+    "note": "BEDCA 1161 'Fuet' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 19.5,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "galletasmaria": {
+    "c": 69,
+    "cat": "sweet",
+    "g": 19,
+    "k": 482,
+    "maxAmt": 60,
+    "name": {
+     "en": "Maria biscuits",
+     "es": "Galletas María"
+    },
+    "note": "BEDCA 2675 'Galletas tipo maria' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 7.1,
+    "per": 100,
+    "piece": {
+     "amt": 6,
+     "name": {
+      "en": "biscuit",
+      "es": "galleta"
+     },
+     "plural": {
+      "en": "biscuits",
+      "es": "galletas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "gallo": {
+    "c": 0,
+    "cat": "protein",
+    "g": 1.9,
+    "k": 80,
+    "name": {
+     "en": "Megrim",
+     "es": "Gallo"
+    },
+    "note": "BEDCA 2336 'Gallo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 15.8,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "gambas": {
+    "basic": false,
+    "c": 0.4,
+    "cat": "protein",
+    "g": 0.5,
+    "k": 72,
+    "name": {
+     "en": "Raw peeled prawns (Hacendado, added water)",
+     "es": "Gamba pelada cruda (Hacendado, agua añadida)"
+    },
+    "note": "360 g/paq escurrido; 250 g ≈ 40 g protein; salt 1.0",
+    "p": 16,
+    "per": 100,
+    "unit": "g",
+    "verified": true,
+    "weighed": "raw"
+   },
+   "garbanzos": {
+    "c": 22,
+    "cat": "legume",
+    "g": 2.5,
+    "k": 140,
+    "name": {
+     "en": "Chickpeas",
+     "es": "Garbanzos"
+    },
+    "p": 9,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "cooked"
+   },
+   "garbanzoslata": {
+    "c": 14.1,
+    "cat": "legume",
+    "g": 2.9,
+    "k": 120,
+    "name": {
+     "en": "Chickpeas (canned)",
+     "es": "Garbanzos en conserva (bote)"
+    },
+    "note": "BEDCA 2191 'Garbanzo, en conserva' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 7.2,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "cooked"
+   },
+   "gazpacho": {
+    "c": 1.6,
+    "cat": "other",
+    "g": 2.8,
+    "k": 34,
+    "name": {
+     "en": "Gazpacho",
+     "es": "Gazpacho"
+    },
+    "note": "BEDCA 2614 'Gazpacho' (average values); kcal from the macros with EU factors (4/4/9, fibre 2); prepared dish: values vary by recipe",
+    "p": 0.6,
+    "per": 100,
+    "piece": {
+     "amt": 250,
+     "name": {
+      "en": "glass",
+      "es": "vaso"
+     },
+     "plural": {
+      "en": "glasses",
+      "es": "vasos"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "gnocchi": {
+    "c": 37.6,
+    "cat": "carb",
+    "g": 0.4,
+    "k": 174,
+    "maxAmt": 300,
+    "name": {
+     "en": "Gnocchi (fresh pasta)",
+     "es": "Gnocchi (pasta fresca)"
+    },
+    "note": "ready weight",
+    "p": 4.5,
+    "per": 100,
+    "unit": "g",
+    "verified": true
+   },
+   "guacamole": {
+    "c": 2,
+    "cat": "fat",
+    "g": 13.7,
+    "k": 149,
+    "name": {
+     "en": "Guacamole 95% avocado",
+     "es": "Guacamole 95% aguacate"
+    },
+    "note": "confirms estimate",
+    "p": 1.9,
+    "per": 100,
+    "unit": "g",
+    "verified": true
+   },
+   "guisantes": {
+    "c": 14,
+    "cat": "veg",
+    "g": 0.4,
+    "k": 80,
+    "name": {
+     "en": "Peas",
+     "es": "Guisantes"
+    },
+    "p": 5,
+    "per": 100,
+    "unit": "g",
+    "verified": false
+   },
+   "hamburguesa": {
+    "c": 2.3,
+    "cat": "protein",
+    "g": 20,
+    "k": 250,
+    "name": {
+     "en": "Burger patty",
+     "es": "Hamburguesa"
+    },
+    "p": 18.2,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "harina": {
+    "c": 73.6,
+    "cat": "carb",
+    "g": 1,
+    "k": 364,
+    "maxAmt": 100,
+    "name": {
+     "en": "Wheat flour",
+     "es": "Harina de trigo"
+    },
+    "note": "USDA FoodData Central SR Legacy 168894 'Wheat flour, white, all-purpose, enriched, bleached' (average values); carbs = by difference minus fibre; BEDCA 2677 'Harina de trigo' states no fat value",
+    "p": 10.3,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "helado": {
+    "basic": false,
+    "c": 36.4,
+    "cat": "sweet",
+    "g": 12.9,
+    "k": 322,
+    "name": {
+     "en": "Cream ice-cream sandwich (Hacendado)",
+     "es": "Helado sándwich de nata (Hacendado)"
+    },
+    "note": "1 ud 103 g ≈ 332 kcal; caja 6 ud",
+    "p": 5,
+    "per": 100,
+    "piece": {
+     "amt": 103,
+     "name": {
+      "en": "ice-cream sandwich",
+      "es": "helado sándwich"
+     },
+     "plural": {
+      "en": "ice-cream sandwiches",
+      "es": "helados sándwich"
+     }
+    },
+    "unit": "g",
+    "verified": true
+   },
+   "huevo": {
+    "c": 0.4,
+    "cat": "protein",
+    "g": 5,
+    "k": 72,
+    "name": {
+     "en": "Egg",
+     "es": "Huevo"
+    },
+    "p": 6.3,
+    "per": 100,
+    "piece": {
+     "amt": 100,
+     "g": 50,
+     "name": {
+      "en": "egg",
+      "es": "huevo"
+     },
+     "plural": {
+      "en": "eggs",
+      "es": "huevos"
+     },
+     "typical": true
+    },
+    "unit": "ud",
+    "verified": false
+   },
+   "hummus": {
+    "c": 9.5,
+    "cat": "sauce",
+    "g": 17.8,
+    "k": 237,
+    "name": {
+     "en": "Hummus",
+     "es": "Hummus"
+    },
+    "note": "USDA FoodData Central SR Legacy 174289 'Hummus, commercial' (average values); carbs = by difference minus fibre",
+    "p": 7.8,
+    "per": 100,
+    "piece": {
+     "amt": 15,
+     "name": {
+      "en": "tablespoon",
+      "es": "cucharada"
+     },
+     "plural": {
+      "en": "tablespoons",
+      "es": "cucharadas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "jamoncocido": {
+    "c": 0.4,
+    "cat": "protein",
+    "g": 3,
+    "k": 113,
+    "name": {
+     "en": "Cooked ham",
+     "es": "Jamón cocido"
+    },
+    "note": "BEDCA 180 'Jamón cocido, categoría s/e' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 21,
+    "per": 100,
+    "piece": {
+     "amt": 15,
+     "name": {
+      "en": "slice",
+      "es": "loncha"
+     },
+     "plural": {
+      "en": "slices",
+      "es": "lonchas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "jamoniberico": {
+    "c": 0.5,
+    "cat": "protein",
+    "g": 22.2,
+    "k": 335,
+    "name": {
+     "en": "Iberian acorn-fed ham",
+     "es": "Jamón ibérico de bellota"
+    },
+    "note": "BEDCA 1781 'Jamón ibérico de bellota' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 33.2,
+    "per": 100,
+    "piece": {
+     "amt": 10,
+     "name": {
+      "en": "slice",
+      "es": "loncha"
+     },
+     "plural": {
+      "en": "slices",
+      "es": "lonchas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "jamonserrano": {
+    "basic": false,
+    "c": 0.75,
+    "cat": "protein",
+    "g": 14.1,
+    "k": 258,
+    "name": {
+     "en": "Serrano ham (Mercadona)",
+     "es": "Jamón serrano (Mercadona)"
+    },
+    "note": "very salty (4.9 g)",
+    "p": 32.9,
+    "per": 100,
+    "unit": "g",
+    "verified": true
+   },
+   "judiasverdes": {
+    "c": 3.7,
+    "cat": "veg",
+    "g": 0.4,
+    "k": 33,
+    "name": {
+     "en": "Green beans",
+     "es": "Judías verdes"
+    },
+    "note": "BEDCA 2198 'Judía verde, cruda' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 2.2,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "kefir": {
+    "c": 4.8,
+    "cat": "dairy",
+    "g": 3.5,
+    "k": 64,
+    "name": {
+     "en": "Kefir",
+     "es": "Kéfir"
+    },
+    "note": "BEDCA 1168 'Kefir' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 3.3,
+    "per": 100,
+    "piece": {
+     "amt": 125,
+     "name": {
+      "en": "cup",
+      "es": "vaso"
+     },
+     "plural": {
+      "en": "cups",
+      "es": "vasos"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "kiwi": {
+    "c": 14.7,
+    "cat": "fruit",
+    "g": 0.5,
+    "k": 60,
+    "maxAmt": 150,
+    "name": {
+     "en": "Kiwi",
+     "es": "Kiwi"
+    },
+    "p": 1.1,
+    "per": 100,
+    "piece": {
+     "amt": 75,
+     "name": {
+      "en": "medium kiwi",
+      "es": "kiwi mediano"
+     },
+     "plural": {
+      "en": "medium kiwis",
+      "es": "kiwis medianos"
+     },
+     "typical": true
+    },
+    "unit": "g",
+    "verified": false
+   },
+   "leche": {
+    "c": 4.8,
+    "cat": "dairy",
+    "g": 1.7,
+    "k": 46,
+    "name": {
+     "en": "Milk",
+     "es": "Leche"
+    },
+    "p": 3.4,
+    "per": 100,
+    "unit": "ml",
+    "verified": false
+   },
+   "lechedesnatada": {
+    "c": 4.6,
+    "cat": "dairy",
+    "g": 0.2,
+    "k": 33,
+    "name": {
+     "en": "Skimmed milk",
+     "es": "Leche desnatada"
+    },
+    "note": "BEDCA 915 'Leche, desnatada, pasteurizada' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 3.3,
+    "per": 100,
+    "swap": false,
+    "unit": "ml",
+    "verified": false
+   },
+   "lechuga": {
+    "c": 1.4,
+    "cat": "veg",
+    "g": 0.6,
+    "k": 18,
+    "name": {
+     "en": "Lettuce",
+     "es": "Lechuga"
+    },
+    "note": "BEDCA 2399 'Lechuga' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 1.1,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "lentejas": {
+    "c": 20,
+    "cat": "legume",
+    "g": 0.4,
+    "k": 115,
+    "name": {
+     "en": "Lentils",
+     "es": "Lentejas"
+    },
+    "p": 9,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "cooked"
+   },
+   "lentejaslata": {
+    "c": 11.4,
+    "cat": "legume",
+    "g": 0.2,
+    "k": 83,
+    "name": {
+     "en": "Lentils (canned)",
+     "es": "Lentejas en conserva (bote)"
+    },
+    "note": "BEDCA 1126 'Lenteja, en conserva' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 6.3,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "cooked"
+   },
+   "levadura": {
+    "c": 14,
+    "cat": "other",
+    "g": 0,
+    "k": 85,
+    "name": {
+     "en": "Baking powder",
+     "es": "Levadura química"
+    },
+    "p": 0,
+    "per": 100,
+    "unit": "g",
+    "verified": false
+   },
+   "lomocerdo": {
+    "c": 0,
+    "cat": "protein",
+    "g": 5.8,
+    "k": 145,
+    "name": {
+     "en": "Pork loin",
+     "es": "Lomo de cerdo"
+    },
+    "p": 21,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "lomoembuchado": {
+    "c": 0.5,
+    "cat": "protein",
+    "g": 5,
+    "k": 199,
+    "name": {
+     "en": "Cured pork loin slices",
+     "es": "Lomo embuchado lonchas"
+    },
+    "note": "37.5 g/pack; salty (3 g)",
+    "p": 38,
+    "per": 100,
+    "unit": "g",
+    "verified": true
+   },
+   "longaniza": {
+    "c": 1.1,
+    "cat": "protein",
+    "g": 27.9,
+    "k": 321,
+    "name": {
+     "en": "Longaniza sausage",
+     "es": "Longaniza"
+    },
+    "p": 15.1,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "lubina": {
+    "c": 0,
+    "cat": "protein",
+    "g": 1.3,
+    "k": 84,
+    "name": {
+     "en": "Sea bass",
+     "es": "Lubina"
+    },
+    "note": "BEDCA 2344 'Lubina' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 18,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "magdalena": {
+    "c": 39.9,
+    "cat": "sweet",
+    "g": 22.4,
+    "k": 388,
+    "name": {
+     "en": "Magdalena (Spanish muffin)",
+     "es": "Magdalena"
+    },
+    "note": "BEDCA 2678 'Magdalena' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 6.1,
+    "per": 100,
+    "piece": {
+     "amt": 30,
+     "name": {
+      "en": "magdalena",
+      "es": "magdalena"
+     },
+     "plural": {
+      "en": "magdalenas",
+      "es": "magdalenas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "maizdulce": {
+    "c": 18.2,
+    "cat": "veg",
+    "g": 1.3,
+    "k": 102,
+    "name": {
+     "en": "Sweetcorn (canned)",
+     "es": "Maíz dulce (lata)"
+    },
+    "note": "BEDCA 2054 'Maíz en conserva' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 3.3,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "mantequilla": {
+    "c": 0.5,
+    "cat": "fat",
+    "g": 82,
+    "k": 743,
+    "name": {
+     "en": "Butter",
+     "es": "Mantequilla"
+    },
+    "note": "BEDCA 202 'Mantequilla salada' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 0.7,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "mantequillalight": {
+    "c": 1.9,
+    "cat": "fat",
+    "g": 41,
+    "k": 384,
+    "name": {
+     "en": "Light butter (40% fat)",
+     "es": "Mantequilla light (40% MG)"
+    },
+    "note": "",
+    "p": 1.8,
+    "per": 100,
+    "unit": "g",
+    "verified": true
+   },
+   "manzana": {
+    "c": 14,
+    "cat": "fruit",
+    "g": 0.2,
+    "k": 52,
+    "maxAmt": 270,
+    "name": {
+     "en": "Apple",
+     "es": "Manzana"
+    },
+    "p": 0.3,
+    "per": 100,
+    "piece": {
+     "amt": 180,
+     "name": {
+      "en": "medium apple",
+      "es": "manzana mediana"
+     },
+     "plural": {
+      "en": "medium apples",
+      "es": "manzanas medianas"
+     },
+     "typical": true
+    },
+    "unit": "g",
+    "verified": false
+   },
+   "mayonesa": {
+    "basic": false,
+    "c": 2.4,
+    "cat": "sauce",
+    "g": 65,
+    "k": 599,
+    "name": {
+     "en": "Mayonnaise (Hacendado)",
+     "es": "Mayonesa (Hacendado)"
+    },
+    "note": "15 g cda ≈ 90 kcal; almost pure fat",
+    "p": 0.6,
+    "per": 100,
+    "piece": {
+     "amt": 15,
+     "name": {
+      "en": "tablespoon",
+      "es": "cucharada"
+     },
+     "plural": {
+      "en": "tablespoons",
+      "es": "cucharadas"
+     },
+     "typical": true
+    },
+    "unit": "g",
+    "verified": true
+   },
+   "mejillones": {
+    "c": 0,
+    "cat": "protein",
+    "g": 1.9,
+    "k": 60,
+    "name": {
+     "en": "Mussels",
+     "es": "Mejillones"
+    },
+    "note": "BEDCA 2345 'Mejillon' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 10.8,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "melocoton": {
+    "c": 10,
+    "cat": "fruit",
+    "g": 0.2,
+    "k": 39,
+    "maxAmt": 300,
+    "name": {
+     "en": "Peach",
+     "es": "Melocotón"
+    },
+    "p": 0.9,
+    "per": 100,
+    "piece": {
+     "amt": 150,
+     "name": {
+      "en": "medium peach",
+      "es": "melocotón mediano"
+     },
+     "plural": {
+      "en": "medium peaches",
+      "es": "melocotones medianos"
+     },
+     "typical": true
+    },
+    "unit": "g",
+    "verified": false
+   },
+   "melon": {
+    "c": 8,
+    "cat": "fruit",
+    "g": 0.2,
+    "k": 34,
+    "maxAmt": 350,
+    "name": {
+     "en": "Melon",
+     "es": "Melón"
+    },
+    "p": 0.8,
+    "per": 100,
+    "unit": "g",
+    "verified": false
+   },
+   "merluza": {
+    "c": 0,
+    "cat": "protein",
+    "g": 1.7,
+    "k": 89,
+    "name": {
+     "en": "Hake",
+     "es": "Merluza"
+    },
+    "p": 17.4,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "miel": {
+    "c": 82,
+    "cat": "sweet",
+    "g": 0,
+    "k": 304,
+    "maxAmt": 30,
+    "name": {
+     "en": "Honey",
+     "es": "Miel"
+    },
+    "p": 0.3,
+    "per": 100,
+    "unit": "g",
+    "verified": false
+   },
+   "morcilla": {
+    "c": 3.2,
+    "cat": "protein",
+    "g": 30,
+    "k": 327,
+    "name": {
+     "en": "Morcilla (blood sausage)",
+     "es": "Morcilla"
+    },
+    "note": "BEDCA 2280 'Morcilla' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 11,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "mozzarella": {
+    "basic": false,
+    "c": 2.6,
+    "cat": "cheese",
+    "g": 21,
+    "k": 283,
+    "name": {
+     "en": "Grated mozzarella (Hacendado)",
+     "es": "Queso rallado mozzarella (Hacendado)"
+    },
+    "note": "30 g ≈ 85 kcal; salt 1.0",
+    "p": 21,
+    "per": 100,
+    "unit": "g",
+    "verified": true
+   },
+   "muslopollo": {
+    "c": 0,
+    "cat": "protein",
+    "g": 4.5,
+    "k": 125,
+    "name": {
+     "en": "Chicken thigh",
+     "es": "Muslo de pollo"
+    },
+    "p": 20,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "napolitana": {
+    "basic": false,
+    "c": 43,
+    "cat": "sweet",
+    "g": 27,
+    "k": 441,
+    "name": {
+     "en": "Chocolate-filled pastry (Hacendado)",
+     "es": "Napolitana rellena de cacao (Hacendado)"
+    },
+    "note": "1 ud 46 g ≈ 204 kcal; 8/paq",
+    "p": 5.6,
+    "per": 100,
+    "piece": {
+     "amt": 46,
+     "name": {
+      "en": "pastry",
+      "es": "napolitana"
+     },
+     "plural": {
+      "en": "pastries",
+      "es": "napolitanas"
+     }
+    },
+    "unit": "g",
+    "verified": true
+   },
+   "naranja": {
+    "c": 12,
+    "cat": "fruit",
+    "g": 0.1,
+    "k": 47,
+    "maxAmt": 260,
+    "name": {
+     "en": "Orange",
+     "es": "Naranja"
+    },
+    "p": 0.9,
+    "per": 100,
+    "piece": {
+     "amt": 130,
+     "name": {
+      "en": "medium orange",
+      "es": "naranja mediana"
+     },
+     "plural": {
+      "en": "medium oranges",
+      "es": "naranjas medianas"
+     },
+     "typical": true
+    },
+    "unit": "g",
+    "verified": false
+   },
+   "natillas": {
+    "c": 15.5,
+    "cat": "sweet",
+    "g": 2.9,
+    "k": 103,
+    "maxAmt": 250,
+    "name": {
+     "en": "Natillas (custard)",
+     "es": "Natillas"
+    },
+    "note": "BEDCA 2497 'Natillas sabor vainilla' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 3.7,
+    "per": 100,
+    "piece": {
+     "amt": 125,
+     "name": {
+      "en": "pot",
+      "es": "tarrina"
+     },
+     "plural": {
+      "en": "pots",
+      "es": "tarrinas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "nectarina": {
+    "c": 10,
+    "cat": "fruit",
+    "g": 0.3,
+    "k": 44,
+    "maxAmt": 280,
+    "name": {
+     "en": "Nectarine",
+     "es": "Nectarina"
+    },
+    "p": 1,
+    "per": 100,
+    "piece": {
+     "amt": 140,
+     "name": {
+      "en": "medium nectarine",
+      "es": "nectarina mediana"
+     },
+     "plural": {
+      "en": "medium nectarines",
+      "es": "nectarinas medianas"
+     },
+     "typical": true
+    },
+    "unit": "g",
+    "verified": false
+   },
+   "nueces": {
+    "c": 3.3,
+    "cat": "fat",
+    "g": 63.3,
+    "k": 649,
+    "name": {
+     "en": "Walnuts",
+     "es": "Nueces"
+    },
+    "note": "BEDCA 2201 'Nuez' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 14,
+    "per": 100,
+    "piece": {
+     "amt": 5,
+     "name": {
+      "en": "walnut (shelled)",
+      "es": "nuez (pelada)"
+     },
+     "plural": {
+      "en": "walnuts (shelled)",
+      "es": "nueces (peladas)"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "paella": {
+    "c": 17.4,
+    "cat": "other",
+    "g": 5.7,
+    "k": 172,
+    "name": {
+     "en": "Paella",
+     "es": "Paella"
+    },
+    "note": "BEDCA 2597 'Paella' (average values); kcal from the macros with EU factors (4/4/9, fibre 2); prepared dish: values vary by recipe",
+    "p": 12.4,
+    "per": 100,
+    "piece": {
+     "amt": 300,
+     "name": {
+      "en": "serving",
+      "es": "ración"
+     },
+     "plural": {
+      "en": "servings",
+      "es": "raciones"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "palomitas": {
+    "basic": false,
+    "c": 55,
+    "cat": "sweet",
+    "g": 20,
+    "k": 456,
+    "name": {
+     "en": "Salted microwave popcorn (Hacendado)",
+     "es": "Palomitas de maíz con sal microondas (Hacendado)"
+    },
+    "note": "90 g bag ≈ 410 kcal",
+    "p": 9.8,
+    "per": 100,
+    "piece": {
+     "amt": 90,
+     "name": {
+      "en": "bag",
+      "es": "bolsa"
+     },
+     "plural": {
+      "en": "bags",
+      "es": "bolsas"
+     }
+    },
+    "unit": "g",
+    "verified": true
+   },
+   "panbarra": {
+    "c": 47,
+    "cat": "carb",
+    "g": 1.6,
+    "k": 243,
+    "maxAmt": 150,
+    "name": {
+     "en": "White bread (baguette)",
+     "es": "Pan blanco (barra)"
+    },
+    "note": "BEDCA 2160 'Pan blanco, de barra' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 8.3,
+    "per": 100,
+    "piece": {
+     "amt": 60,
+     "name": {
+      "en": "piece (¼ baguette)",
+      "es": "trozo (¼ de barra)"
+     },
+     "plural": {
+      "en": "pieces (¼ baguette)",
+      "es": "trozos (¼ de barra)"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "panecillo": {
+    "basic": false,
+    "c": 51,
+    "cat": "carb",
+    "g": 1.1,
+    "k": 259,
+    "maxAmt": 135,
+    "name": {
+     "en": "Bread roll (bakery)",
+     "es": "Panecillo (pan de horno)"
+    },
+    "note": "45 g/unit ≈ 117 kcal",
+    "p": 8.2,
+    "per": 100,
+    "piece": {
+     "amt": 45,
+     "name": {
+      "en": "bread roll",
+      "es": "panecillo"
+     },
+     "plural": {
+      "en": "bread rolls",
+      "es": "panecillos"
+     }
+    },
+    "unit": "g",
+    "verified": true
+   },
+   "panga": {
+    "c": 0,
+    "cat": "protein",
+    "g": 3,
+    "k": 91,
+    "name": {
+     "en": "Pangasius",
+     "es": "Panga"
+    },
+    "p": 15.1,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "panintegral": {
+    "c": 44,
+    "cat": "carb",
+    "g": 3,
+    "k": 259,
+    "maxAmt": 150,
+    "name": {
+     "en": "Wholemeal bread",
+     "es": "Pan integral"
+    },
+    "note": "BEDCA 2163 'Pan integral' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 10.9,
+    "per": 100,
+    "piece": {
+     "amt": 30,
+     "name": {
+      "en": "slice",
+      "es": "rebanada"
+     },
+     "plural": {
+      "en": "slices",
+      "es": "rebanadas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "panmolde": {
+    "c": 46.7,
+    "cat": "carb",
+    "g": 3.3,
+    "k": 266,
+    "maxAmt": 125,
+    "name": {
+     "en": "White sandwich bread",
+     "es": "Pan de molde blanco"
+    },
+    "note": "USDA FoodData Central SR Legacy 174924 'Bread, white, commercially prepared' (average values); carbs = by difference minus fibre",
+    "p": 8.9,
+    "per": 100,
+    "piece": {
+     "amt": 25,
+     "name": {
+      "en": "slice",
+      "es": "rebanada"
+     },
+     "plural": {
+      "en": "slices",
+      "es": "rebanadas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "pansemillas": {
+    "c": 38,
+    "cat": "carb",
+    "g": 9.3,
+    "k": 291,
+    "maxAmt": 125,
+    "name": {
+     "en": "Seeded sandwich bread with pumpkin seeds",
+     "es": "Pan de molde semillas y pipas de calabaza"
+    },
+    "note": "41 g/slice = 119 kcal; 5.7 g fibre",
+    "p": 11,
+    "per": 100,
+    "piece": {
+     "amt": 41,
+     "name": {
+      "en": "slice",
+      "es": "rebanada"
+     },
+     "plural": {
+      "en": "slices",
+      "es": "rebanadas"
+     }
+    },
+    "unit": "g",
+    "verified": true
+   },
+   "paraguayo": {
+    "c": 10,
+    "cat": "fruit",
+    "g": 0.2,
+    "k": 39,
+    "maxAmt": 200,
+    "name": {
+     "en": "Flat peach",
+     "es": "Paraguayo"
+    },
+    "p": 0.9,
+    "per": 100,
+    "piece": {
+     "amt": 100,
+     "name": {
+      "en": "medium flat peach",
+      "es": "paraguayo mediano"
+     },
+     "plural": {
+      "en": "medium flat peaches",
+      "es": "paraguayos medianos"
+     },
+     "typical": true
+    },
+    "unit": "g",
+    "verified": false
+   },
+   "pasta": {
+    "c": 74,
+    "cat": "carb",
+    "g": 1.5,
+    "k": 357,
+    "maxAmt": 150,
+    "name": {
+     "en": "Pasta",
+     "es": "Pasta"
+    },
+    "p": 12,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "dry"
+   },
+   "pastaintegral": {
+    "c": 66.2,
+    "cat": "carb",
+    "g": 2.5,
+    "k": 364,
+    "maxAmt": 150,
+    "name": {
+     "en": "Wholemeal pasta",
+     "es": "Pasta integral"
+    },
+    "note": "BEDCA 1074 'Pasta alimenticia, integral, cruda' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 13.4,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "dry"
+   },
+   "patata": {
+    "c": 19.2,
+    "cat": "carb",
+    "g": 0.1,
+    "k": 86,
+    "maxAmt": 400,
+    "name": {
+     "en": "Potato",
+     "es": "Patata"
+    },
+    "p": 1.9,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "cooked"
+   },
+   "patatashorno": {
+    "basic": false,
+    "c": 23,
+    "cat": "carb",
+    "g": 5.9,
+    "k": 151,
+    "maxAmt": 300,
+    "name": {
+     "en": "Oven / air-fryer fries (frozen)",
+     "es": "Patatas fritas horno/air-fryer (congeladas)"
+    },
+    "note": "from earlier photo",
+    "p": 2.3,
+    "per": 100,
+    "unit": "g",
+    "verified": true
+   },
+   "pavo": {
+    "c": 0.9,
+    "cat": "protein",
+    "g": 1.3,
+    "k": 89,
+    "name": {
+     "en": "Turkey breast 92% slices",
+     "es": "Pechuga de pavo 92% lonchas"
+    },
+    "note": "lean; 1.9 g salt",
+    "p": 19.5,
+    "per": 100,
+    "unit": "g",
+    "verified": true
+   },
+   "pavopechuga": {
+    "c": 0.1,
+    "cat": "protein",
+    "g": 1.5,
+    "k": 114,
+    "name": {
+     "en": "Turkey breast (fresh)",
+     "es": "Pechuga de pavo (fresca)"
+    },
+    "note": "USDA FoodData Central SR Legacy 171098 'Turkey, whole, breast, meat only, raw' (average values); carbs = by difference minus fibre",
+    "p": 23.7,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "pepino": {
+    "c": 2,
+    "cat": "veg",
+    "g": 0.1,
+    "k": 13,
+    "name": {
+     "en": "Cucumber",
+     "es": "Pepino"
+    },
+    "note": "BEDCA 2407 'Pepino' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 0.7,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "pera": {
+    "c": 15,
+    "cat": "fruit",
+    "g": 0.1,
+    "k": 57,
+    "maxAmt": 255,
+    "name": {
+     "en": "Pear",
+     "es": "Pera"
+    },
+    "p": 0.4,
+    "per": 100,
+    "piece": {
+     "amt": 170,
+     "name": {
+      "en": "medium pear",
+      "es": "pera mediana"
+     },
+     "plural": {
+      "en": "medium pears",
+      "es": "peras medianas"
+     },
+     "typical": true
+    },
+    "unit": "g",
+    "verified": false
+   },
+   "picada20": {
+    "c": 0,
+    "cat": "protein",
+    "g": 20,
+    "k": 251,
+    "name": {
+     "en": "Minced meat 20% fat",
+     "es": "Carne picada 20% grasa"
+    },
+    "p": 17,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "picada5": {
+    "c": 0,
+    "cat": "protein",
+    "g": 4.7,
+    "k": 134,
+    "name": {
+     "en": "Minced meat 5% fat",
+     "es": "Carne picada 5% grasa"
+    },
+    "p": 21,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "picos": {
+    "c": 65.4,
+    "cat": "carb",
+    "g": 9.5,
+    "k": 412,
+    "maxAmt": 60,
+    "name": {
+     "en": "Picos (mini breadsticks)",
+     "es": "Picos de pan"
+    },
+    "note": "USDA FoodData Central SR Legacy 174929 'Bread, sticks, plain' (average values); carbs = by difference minus fibre; picos are Spanish mini breadsticks",
+    "p": 12,
+    "per": 100,
+    "piece": {
+     "amt": 15,
+     "name": {
+      "en": "handful",
+      "es": "puñado"
+     },
+     "plural": {
+      "en": "handfuls",
+      "es": "puñados"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "pimiento": {
+    "c": 6,
+    "cat": "veg",
+    "g": 0.3,
+    "k": 26,
+    "name": {
+     "en": "Bell pepper",
+     "es": "Pimiento"
+    },
+    "p": 1,
+    "per": 100,
+    "unit": "g",
+    "verified": false
+   },
+   "pina": {
+    "c": 13,
+    "cat": "fruit",
+    "g": 0.1,
+    "k": 50,
+    "maxAmt": 250,
+    "name": {
+     "en": "Pineapple",
+     "es": "Piña"
+    },
+    "p": 0.5,
+    "per": 100,
+    "unit": "g",
+    "verified": false
+   },
+   "pipasgirasol": {
+    "c": 20,
+    "cat": "fat",
+    "g": 43,
+    "k": 580,
+    "name": {
+     "en": "Sunflower seeds",
+     "es": "Pipas de girasol"
+    },
+    "note": "BEDCA 2205 'Pipa de girasol' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 27,
+    "per": 100,
+    "piece": {
+     "amt": 30,
+     "name": {
+      "en": "handful",
+      "es": "puñado"
+     },
+     "plural": {
+      "en": "handfuls",
+      "es": "puñados"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "pistachos": {
+    "c": 15.7,
+    "cat": "fat",
+    "g": 49.2,
+    "k": 589,
+    "name": {
+     "en": "Pistachios",
+     "es": "Pistachos"
+    },
+    "note": "BEDCA 2207 'Pistacho' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 17.6,
+    "per": 100,
+    "piece": {
+     "amt": 30,
+     "name": {
+      "en": "handful",
+      "es": "puñado"
+     },
+     "plural": {
+      "en": "handfuls",
+      "es": "puñados"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "pisto": {
+    "basic": false,
+    "c": 10.4,
+    "cat": "veg",
+    "g": 4.7,
+    "k": 92,
+    "name": {
+     "en": "Pisto, Spanish ratatouille (Hacendado)",
+     "es": "Fritada pisto (Hacendado)"
+    },
+    "note": "brik 380 g; veg + a bit of oil",
+    "p": 1.3,
+    "per": 100,
+    "unit": "g",
+    "verified": true
+   },
+   "pizza": {
+    "c": 22.2,
+    "cat": "other",
+    "g": 9.8,
+    "k": 213,
+    "name": {
+     "en": "Pizza",
+     "es": "Pizza"
+    },
+    "note": "BEDCA 2589 'Pizza, precocinada' (average values); kcal from the macros with EU factors (4/4/9, fibre 2); prepared dish: values vary by recipe",
+    "p": 8.2,
+    "per": 100,
+    "piece": {
+     "amt": 100,
+     "name": {
+      "en": "slice (¼ pizza)",
+      "es": "porción (¼ de pizza)"
+     },
+     "plural": {
+      "en": "slices (¼ pizza)",
+      "es": "porciones (¼ de pizza)"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "platano": {
+    "c": 22.5,
+    "cat": "fruit",
+    "g": 0.3,
+    "k": 88,
+    "maxAmt": 240,
+    "name": {
+     "en": "Banana",
+     "es": "Plátano"
+    },
+    "p": 0.8,
+    "per": 100,
+    "piece": {
+     "amt": 120,
+     "name": {
+      "en": "medium banana",
+      "es": "plátano mediano"
+     },
+     "plural": {
+      "en": "medium bananas",
+      "es": "plátanos medianos"
+     },
+     "typical": true
+    },
+    "unit": "g",
+    "verified": false
+   },
+   "pollo": {
+    "c": 0,
+    "cat": "protein",
+    "g": 2.3,
+    "k": 109,
+    "name": {
+     "en": "Chicken breast",
+     "es": "Pechuga de pollo"
+    },
+    "p": 22.9,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "pulpo": {
+    "c": 1.4,
+    "cat": "protein",
+    "g": 1.4,
+    "k": 90,
+    "name": {
+     "en": "Octopus",
+     "es": "Pulpo"
+    },
+    "note": "BEDCA 2471 'Pulpo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 17.9,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "quesobatido": {
+    "c": 3.5,
+    "cat": "dairy",
+    "g": 0.2,
+    "k": 46,
+    "name": {
+     "en": "Fat-free quark (queso batido 0%)",
+     "es": "Queso fresco batido 0%"
+    },
+    "note": "Not in BEDCA / USDA: typical Spanish label values of queso fresco batido 0% (average, approx.)",
+    "p": 8,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "quesocabra": {
+    "c": 0,
+    "cat": "cheese",
+    "g": 39.6,
+    "k": 467,
+    "name": {
+     "en": "Goat cheese (cured)",
+     "es": "Queso de cabra (curado)"
+    },
+    "note": "BEDCA 2500 'Queso cabra, curado' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 27.6,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "quesofresco": {
+    "c": 2.5,
+    "cat": "cheese",
+    "g": 15.4,
+    "k": 198,
+    "name": {
+     "en": "Fresh cheese (Burgos style)",
+     "es": "Queso fresco (tipo Burgos)"
+    },
+    "note": "BEDCA 2507 'Queso fresco de burgos' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 12.4,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "quesomanchego": {
+    "c": 0.5,
+    "cat": "cheese",
+    "g": 30.4,
+    "k": 391,
+    "name": {
+     "en": "Cured Manchego cheese",
+     "es": "Queso manchego curado"
+    },
+    "note": "BEDCA 2508 'Queso manchego' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 28.8,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "quesosemicurado": {
+    "c": 0.5,
+    "cat": "cheese",
+    "g": 30.4,
+    "k": 392,
+    "name": {
+     "en": "Semi-cured cheese",
+     "es": "Queso semicurado"
+    },
+    "note": "BEDCA 2515 'Queso semicurado, genérico' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 29,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "rape": {
+    "c": 0,
+    "cat": "protein",
+    "g": 0.6,
+    "k": 69,
+    "name": {
+     "en": "Monkfish",
+     "es": "Rape"
+    },
+    "note": "BEDCA 2623 'Rape, crudo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 15.9,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "requeson": {
+    "c": 3.3,
+    "cat": "cheese",
+    "g": 4.3,
+    "k": 101,
+    "name": {
+     "en": "Requesón (ricotta-style cheese)",
+     "es": "Requesón"
+    },
+    "note": "BEDCA 2517 'Requesón' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 12.3,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "salchichas": {
+    "c": 0.9,
+    "cat": "protein",
+    "g": 28.1,
+    "k": 309,
+    "name": {
+     "en": "Fresh sausages",
+     "es": "Salchichas frescas"
+    },
+    "note": "BEDCA 2305 'Salchicha, fresca' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 13.1,
+    "per": 100,
+    "piece": {
+     "amt": 40,
+     "name": {
+      "en": "sausage",
+      "es": "salchicha"
+     },
+     "plural": {
+      "en": "sausages",
+      "es": "salchichas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "salchichon": {
+    "c": 2,
+    "cat": "protein",
+    "g": 34.7,
+    "k": 424,
+    "name": {
+     "en": "Salchichón (cured sausage)",
+     "es": "Salchichón"
+    },
+    "note": "BEDCA 2310 'Salchichón' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 25.8,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "salmon": {
+    "c": 0,
+    "cat": "protein",
+    "g": 13,
+    "k": 200,
+    "name": {
+     "en": "Salmon",
+     "es": "Salmón"
+    },
+    "p": 20,
+    "per": 100,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "salpicon": {
+    "basic": false,
+    "c": 1.8,
+    "cat": "protein",
+    "g": 1.9,
+    "k": 77,
+    "name": {
+     "en": "Seafood salad (salpicón, Hacendado)",
+     "es": "Salpicón de marisco (Hacendado)"
+    },
+    "note": "400 g/bandeja; 200 g ≈ 154 kcal/25 P; vinagreta aparte",
+    "p": 12.3,
+    "per": 100,
+    "unit": "g",
+    "verified": true
+   },
+   "salsatomate": {
+    "basic": false,
+    "c": 17.8,
+    "cat": "sauce",
+    "g": 0,
+    "k": 83,
+    "name": {
+     "en": "Tomato sauce Zero, no added sugar (Hacendado)",
+     "es": "Salsa de tomate Zero sin azúcar (Hacendado)"
+    },
+    "note": "0 fat; 5.6 g sugars; salt 1.7",
+    "p": 1.7,
+    "per": 100,
+    "unit": "g",
+    "verified": true
+   },
+   "sandia": {
+    "c": 7.6,
+    "cat": "fruit",
+    "g": 0.2,
+    "k": 30,
+    "maxAmt": 400,
+    "name": {
+     "en": "Watermelon",
+     "es": "Sandía"
+    },
+    "p": 0.6,
+    "per": 100,
+    "unit": "g",
+    "verified": false
+   },
+   "sardinas": {
+    "c": 0,
+    "cat": "protein",
+    "g": 15.8,
+    "k": 238,
+    "name": {
+     "en": "Sardines in oil (drained)",
+     "es": "Sardinas en aceite (escurridas)"
+    },
+    "note": "BEDCA 2632 'Sardina, enlatada, en aceite, escurrida' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 23.9,
+    "per": 100,
+    "piece": {
+     "amt": 25,
+     "name": {
+      "en": "sardine",
+      "es": "sardina"
+     },
+     "plural": {
+      "en": "sardines",
+      "es": "sardinas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "sepia": {
+    "c": 0,
+    "cat": "protein",
+    "g": 1,
+    "k": 79,
+    "name": {
+     "en": "Cuttlefish",
+     "es": "Sepia"
+    },
+    "note": "BEDCA 2635 'Sepia' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 17.6,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "soja": {
+    "basic": false,
+    "c": 2,
+    "cat": "sauce",
+    "g": 0,
+    "k": 57,
+    "name": {
+     "en": "Gluten-free soy sauce (Hacendado)",
+     "es": "Salsa de soja sin gluten (Hacendado)"
+    },
+    "note": "CONDIMENT only; VERY salty 16.4 g salt/100 ml",
+    "p": 10,
+    "per": 100,
+    "unit": "ml",
+    "verified": true
+   },
+   "sojatexturizada": {
+    "c": 15.4,
+    "cat": "protein",
+    "g": 3.3,
+    "k": 366,
+    "name": {
+     "en": "Textured soy protein",
+     "es": "Soja texturizada"
+    },
+    "note": "USDA FoodData Central FNDDS 2707451 'Textured vegetable protein, dry' (average values); carbs = by difference minus fibre",
+    "p": 51.1,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "dry"
+   },
+   "solomillocerdo": {
+    "c": 0,
+    "cat": "protein",
+    "g": 5.1,
+    "k": 130,
+    "name": {
+     "en": "Pork tenderloin",
+     "es": "Solomillo de cerdo"
+    },
+    "note": "BEDCA 1021 'Cerdo, solomillo, crudo' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 21,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "terneraguisar": {
+    "c": 0,
+    "cat": "protein",
+    "g": 21,
+    "k": 256,
+    "name": {
+     "en": "Stewing veal",
+     "es": "Ternera para guisar"
+    },
+    "note": "BEDCA 2315 'Ternera, parte sin especificar, cruda, con grasa separable' (average values); kcal from the macros with EU factors (4/4/9, fibre 2); BEDCA has no stewing cut, this is the unspecified cut with its separable fat",
+    "p": 16.7,
+    "per": 100,
+    "swap": false,
+    "unit": "g",
+    "verified": false,
+    "weighed": "raw"
+   },
+   "tintoverano": {
+    "c": 1.8,
+    "cat": "drink",
+    "g": 0,
+    "k": 31,
+    "name": {
+     "en": "Tinto de verano (red wine with lemon soda)",
+     "es": "Tinto de verano"
+    },
+    "note": "Label values of Tinto de verano con refresco de limón (La Casera, sold in Spain; Open Food Facts 8410283346504); kcal include the alcohol",
+    "p": 0,
+    "per": 100,
+    "piece": {
+     "amt": 200,
+     "name": {
+      "en": "glass",
+      "es": "vaso"
+     },
+     "plural": {
+      "en": "glasses",
+      "es": "vasos"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "ml",
+    "verified": false
+   },
+   "tomate": {
+    "c": 3.5,
+    "cat": "veg",
+    "g": 0.1,
+    "k": 21,
+    "name": {
+     "en": "Tomato",
+     "es": "Tomate"
+    },
+    "note": "BEDCA 2421 'Tomate' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 0.9,
+    "per": 100,
+    "piece": {
+     "amt": 150,
+     "name": {
+      "en": "medium tomato",
+      "es": "tomate mediano"
+     },
+     "plural": {
+      "en": "medium tomatoes",
+      "es": "tomates medianos"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "tomatefrito": {
+    "basic": false,
+    "c": 11.6,
+    "cat": "sauce",
+    "g": 3,
+    "k": 81,
+    "name": {
+     "en": "Fried tomato sauce",
+     "es": "Tomate frito"
+    },
+    "note": "~40 g serving ≈ 32 kcal",
+    "p": 1.4,
+    "per": 100,
+    "unit": "g",
+    "verified": true
+   },
+   "tortillatrigo": {
+    "c": 46.9,
+    "cat": "carb",
+    "g": 7.6,
+    "k": 297,
+    "maxAmt": 120,
+    "name": {
+     "en": "Wheat tortilla (wrap)",
+     "es": "Tortilla de trigo (wrap)"
+    },
+    "note": "USDA FoodData Central SR Legacy 167535 'Tortillas, ready-to-bake or -fry, flour, shelf stable' (average values); carbs = by difference minus fibre",
+    "p": 8,
+    "per": 100,
+    "piece": {
+     "amt": 40,
+     "name": {
+      "en": "tortilla",
+      "es": "tortilla"
+     },
+     "plural": {
+      "en": "tortillas",
+      "es": "tortillas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "tortitasarroz": {
+    "c": 76.9,
+    "cat": "carb",
+    "g": 4.3,
+    "k": 392,
+    "maxAmt": 60,
+    "name": {
+     "en": "Rice cakes",
+     "es": "Tortitas de arroz"
+    },
+    "note": "USDA FoodData Central SR Legacy 168107 'Rice cake, cracker (include hain mini rice cakes)' (average values); carbs = by difference minus fibre",
+    "p": 7.1,
+    "per": 100,
+    "piece": {
+     "amt": 8,
+     "name": {
+      "en": "cake",
+      "es": "tortita"
+     },
+     "plural": {
+      "en": "cakes",
+      "es": "tortitas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "tortitasmaiz": {
+    "c": 81.5,
+    "cat": "carb",
+    "g": 2.4,
+    "k": 387,
+    "maxAmt": 60,
+    "name": {
+     "en": "Corn cakes",
+     "es": "Tortitas de maíz"
+    },
+    "note": "USDA FoodData Central SR Legacy 168857 'Snacks, corn cakes' (average values); carbs = by difference minus fibre",
+    "p": 8.1,
+    "per": 100,
+    "piece": {
+     "amt": 8,
+     "name": {
+      "en": "cake",
+      "es": "tortita"
+     },
+     "plural": {
+      "en": "cakes",
+      "es": "tortitas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "tranchete": {
+    "basic": false,
+    "c": 13.5,
+    "cat": "cheese",
+    "g": 15,
+    "k": 231,
+    "name": {
+     "en": "Mild processed cheese slices (Hacendado)",
+     "es": "Queso lonchas fundido suave (tranchete, Hacendado)"
+    },
+    "note": "18.5 g/loncha ≈ 43 kcal; salt 2.9",
+    "p": 10.5,
+    "per": 100,
+    "piece": {
+     "amt": 18.5,
+     "name": {
+      "en": "slice",
+      "es": "loncha"
+     },
+     "plural": {
+      "en": "slices",
+      "es": "lonchas"
+     }
+    },
+    "unit": "g",
+    "verified": true
+   },
+   "uvas": {
+    "c": 18,
+    "cat": "fruit",
+    "g": 0.2,
+    "k": 69,
+    "maxAmt": 200,
+    "name": {
+     "en": "Grapes",
+     "es": "Uvas"
+    },
+    "p": 0.7,
+    "per": 100,
+    "unit": "g",
+    "verified": false
+   },
+   "vermut": {
+    "c": 13.5,
+    "cat": "drink",
+    "g": 0,
+    "k": 139,
+    "name": {
+     "en": "Vermouth",
+     "es": "Vermut"
+    },
+    "note": "BEDCA 1095 'Vermut, s/e' (average values); kcal from the macros with EU factors (4/4/9, fibre 2, alcohol 7); fat not stated (none expected)",
+    "p": 0.1,
+    "per": 100,
+    "piece": {
+     "amt": 100,
+     "name": {
+      "en": "glass",
+      "es": "vaso"
+     },
+     "plural": {
+      "en": "glasses",
+      "es": "vasos"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "ml",
+    "verified": false
+   },
+   "vinoblanco": {
+    "c": 0.1,
+    "cat": "drink",
+    "g": 0,
+    "k": 61,
+    "name": {
+     "en": "White wine",
+     "es": "Vino blanco"
+    },
+    "note": "BEDCA 2462 'Vino blanco' (average values); kcal from the macros with EU factors (4/4/9, fibre 2, alcohol 7)",
+    "p": 0.1,
+    "per": 100,
+    "piece": {
+     "amt": 125,
+     "name": {
+      "en": "glass",
+      "es": "copa"
+     },
+     "plural": {
+      "en": "glasses",
+      "es": "copas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "ml",
+    "verified": false
+   },
+   "vinotinto": {
+    "c": 0.3,
+    "cat": "drink",
+    "g": 0,
+    "k": 71,
+    "name": {
+     "en": "Red wine",
+     "es": "Vino tinto"
+    },
+    "note": "BEDCA 2465 'Vino tinto' (average values); kcal from the macros with EU factors (4/4/9, fibre 2, alcohol 7)",
+    "p": 0.2,
+    "per": 100,
+    "piece": {
+     "amt": 125,
+     "name": {
+      "en": "glass",
+      "es": "copa"
+     },
+     "plural": {
+      "en": "glasses",
+      "es": "copas"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "ml",
+    "verified": false
+   },
+   "wheylp": {
+    "c": 9.1,
+    "cat": "protein",
+    "g": 6.8,
+    "k": 387,
+    "name": {
+     "en": "Whey — Life Pro Choco Monky (concentrate)",
+     "es": "Whey — Life Pro Choco Monky (concentrado)"
+    },
+    "note": "mild flavour, blends as a sauce",
+    "p": 72,
+    "per": 100,
+    "unit": "g",
+    "verified": true
+   },
+   "wheyup": {
+    "c": 10.5,
+    "cat": "protein",
+    "g": 5.7,
+    "k": 379,
+    "name": {
+     "en": "Whey — Uperform The Whey (concentrate)",
+     "es": "Whey — Uperform The Whey (concentrado)"
+    },
+    "note": "strawberry-banana flavour",
+    "p": 71.5,
+    "per": 100,
+    "unit": "g",
+    "verified": true
+   },
+   "yogurgriego": {
+    "c": 4.7,
+    "cat": "dairy",
+    "g": 2,
+    "k": 60,
+    "name": {
+     "en": "Light plain Greek yogurt",
+     "es": "Yogur griego natural ligero"
+    },
+    "note": "125 g/ud; LOW protein (dessert yogurt)",
+    "p": 5.8,
+    "per": 100,
+    "piece": {
+     "amt": 125,
+     "name": {
+      "en": "yogurt",
+      "es": "yogur"
+     },
+     "plural": {
+      "en": "yogurts",
+      "es": "yogures"
+     }
+    },
+    "unit": "g",
+    "verified": true
+   },
+   "yogurnatural": {
+    "c": 4.4,
+    "cat": "dairy",
+    "g": 3.4,
+    "k": 63,
+    "name": {
+     "en": "Plain yogurt",
+     "es": "Yogur natural"
+    },
+    "note": "BEDCA 1927 'Yogur tipo bio, natural' (average values); kcal from the macros with EU factors (4/4/9, fibre 2)",
+    "p": 3.6,
+    "per": 100,
+    "piece": {
+     "amt": 125,
+     "name": {
+      "en": "yogurt",
+      "es": "yogur"
+     },
+     "plural": {
+      "en": "yogurts",
+      "es": "yogures"
+     },
+     "typical": true
+    },
+    "swap": false,
+    "unit": "g",
+    "verified": false
+   },
+   "zanahoria": {
+    "c": 10,
+    "cat": "veg",
+    "g": 0.2,
+    "k": 41,
+    "name": {
+     "en": "Carrot",
+     "es": "Zanahoria"
+    },
+    "p": 0.9,
+    "per": 100,
+    "unit": "g",
+    "verified": false
+   },
+   "zumonaranja": {
+    "c": 8.6,
+    "cat": "drink",
+    "g": 0.1,
+    "k": 37,
+    "name": {
+     "en": "Orange juice with pulp (Dia Saborfera)",
+     "es": "Zumo de naranja con pulpa (Dia Saborfera)"
+    },
+    "note": "200 ml ≈ 75 kcal / 17 g sugar",
+    "p": 0.6,
+    "per": 100,
+    "unit": "ml",
+    "verified": true
+   }
+  },
+  "LEGUMES": [
+   "lentejas",
+   "garbanzos"
+  ],
+  "LEGUME_PLATE": 300,
+  "MACRO": [
+   "k",
+   "p",
+   "c",
+   "g"
+  ],
+  "QUESO": [
+   "cheeseslice",
+   "tomatosauce"
+  ],
+  "RAW": {
+   "anclaje": [
+    {
+     "l": "— none —",
+     "none": 1
+    },
+    {
+     "l": "🥤 Whey shake + milk",
+     "n": "Whey shake + milk",
+     "q": "—",
+     "recipe": [
+      {
+       "amt": 20,
+       "ing": "wheyup",
+       "label": "Whey"
+      },
+      {
+       "amt": 100,
+       "ing": "leche",
+       "label": "Milk"
+      }
+     ]
+    },
+    {
+     "l": "🐟 Tuna (100 g)",
+     "n": "Tuna",
+     "q": "100 g",
+     "recipe": [
+      {
+       "amt": 100,
+       "ing": "atun"
+      }
+     ]
+    },
+    {
+     "l": "🦃 Turkey ham (130 g)",
+     "n": "Turkey ham",
+     "q": "130 g",
+     "recipe": [
+      {
+       "amt": 130,
+       "ing": "pavo"
+      }
+     ]
+    }
+   ],
+   "carboCena": {
+    "rest": [
+     {
+      "l": "— none —",
+      "none": 1
+     },
+     {
+      "l": "🥔 Potato (240 g)",
+      "n": "Potato",
+      "q": "240 g",
+      "recipe": [
+       {
+        "amt": 240,
+        "ing": "patata"
+       }
+      ]
+     },
+     {
+      "l": "🍠 Sweet potato (167 g)",
+      "n": "Sweet potato",
+      "q": "167 g",
+      "recipe": [
+       {
+        "amt": 167,
+        "ing": "boniato"
+       }
+      ]
+     }
+    ],
+    "train": [
+     {
+      "l": "— none —",
+      "none": 1
+     },
+     {
+      "l": "🥔 Potato (385 g)",
+      "n": "Potato",
+      "q": "385 g",
+      "recipe": [
+       {
+        "amt": 385,
+        "ing": "patata"
+       }
+      ]
+     },
+     {
+      "l": "🍠 Sweet potato (270 g)",
+      "n": "Sweet potato",
+      "q": "270 g",
+      "recipe": [
+       {
+        "amt": 270,
+        "ing": "boniato"
+       }
+      ]
+     }
+    ]
+   },
+   "carboComida": {
+    "rest": [
+     {
+      "l": "— none —",
+      "none": 1
+     },
+     {
+      "l": "🍚 Rice (130 g dry)",
+      "n": "Rice",
+      "q": "130 g",
+      "recipe": [
+       {
+        "amt": 130,
+        "ing": "arroz"
+       }
+      ]
+     },
+     {
+      "l": "🍝 Pasta (100 g dry)",
+      "n": "Pasta",
+      "q": "100 g",
+      "recipe": [
+       {
+        "amt": 100,
+        "ing": "pasta"
+       }
+      ]
+     },
+     {
+      "l": "🫘 Legumes (bowl)",
+      "manual": {
+       "c": 63,
+       "g": 4,
+       "k": 380,
+       "p": 25
+      },
+      "n": "Legumes (bowl)",
+      "note": "range ~345–420 by bowl",
+      "q": "~300 g"
+     }
+    ],
+    "train": [
+     {
+      "l": "— none —",
+      "none": 1
+     },
+     {
+      "l": "🍚 Rice (130 g dry)",
+      "n": "Rice",
+      "q": "130 g",
+      "recipe": [
+       {
+        "amt": 130,
+        "ing": "arroz"
+       }
+      ]
+     },
+     {
+      "l": "🍝 Pasta (130 g dry)",
+      "n": "Pasta",
+      "q": "130 g",
+      "recipe": [
+       {
+        "amt": 130,
+        "ing": "pasta"
+       }
+      ]
+     },
+     {
+      "l": "🫘 Legumes (bowl)",
+      "manual": {
+       "c": 63,
+       "g": 4,
+       "k": 380,
+       "p": 25
+      },
+      "n": "Legumes (bowl)",
+      "note": "range ~345–420 by bowl",
+      "q": "~300 g"
+     }
+    ]
+   },
+   "desayuno": [
+    {
+     "l": "— none —",
+     "none": 1
+    },
+    {
+     "cap": "A — Oat pancake",
+     "l": "🥞 A · Oat pancake",
+     "n": "A · Oat pancake",
+     "recipe": [
+      {
+       "amt": 60,
+       "ing": "avena",
+       "label": "Oats"
+      },
+      {
+       "amt": 150,
+       "ing": "claras",
+       "label": "Egg whites"
+      },
+      {
+       "amt": 20,
+       "ing": "wheyup",
+       "label": "Whey (sauce)"
+      },
+      {
+       "amt": 145,
+       "ing": "leche",
+       "label": "Coffee with milk"
+      }
+     ],
+     "tier": "🟢"
+    },
+    {
+     "cap": "B — Toast (rest day)",
+     "l": "🍞 B · Toast + protein",
+     "n": "B · Toast + protein",
+     "recipe": [
+      {
+       "amt": 80,
+       "ing": "panecillo",
+       "label": "Bread",
+       "q": "2 slices (80 g)"
+      },
+      {
+       "amt": 20,
+       "ing": "confitura",
+       "label": "Jam"
+      },
+      {
+       "amt": 10,
+       "ing": "mantequillalight",
+       "label": "Light butter"
+      },
+      {
+       "amt": 20,
+       "ing": "wheyup",
+       "label": "Protein anchor",
+       "link": "acc-anclaje",
+       "q": "1 serving"
+      },
+      {
+       "amt": 145,
+       "ing": "leche",
+       "label": "Coffee with milk"
+      }
+     ],
+     "tier": "🔴"
+    }
+   ],
+   "postentreno": [
+    {
+     "l": "— none —",
+     "none": 1
+    },
+    {
+     "l": "🍌 Banana + shake (20 g whey)",
+     "n": "Banana + whey shake",
+     "q": "banana + 20 g + 180 ml milk",
+     "recipe": [
+      {
+       "amt": 120,
+       "ing": "platano",
+       "label": "Banana"
+      },
+      {
+       "amt": 20,
+       "ing": "wheyup",
+       "label": "Whey"
+      },
+      {
+       "amt": 180,
+       "ing": "leche",
+       "label": "Milk"
+      }
+     ]
+    },
+    {
+     "l": "🦃 Turkey ham (120 g) + toast",
+     "n": "Turkey ham + toast",
+     "q": "120 g + 1 slice",
+     "recipe": [
+      {
+       "amt": 120,
+       "ing": "pavo",
+       "label": "Turkey ham"
+      },
+      {
+       "amt": 40,
+       "ing": "panecillo",
+       "label": "Toast"
+      }
+     ]
+    }
+   ],
+   "postre": [
+    {
+     "l": "— none —",
+     "none": 1
+    },
+    {
+     "cat": "fruit",
+     "l": "🍌 Banana",
+     "n": "Banana",
+     "q": "1 (120 g)",
+     "recipe": [
+      {
+       "amt": 120,
+       "ing": "platano"
+      }
+     ]
+    },
+    {
+     "cat": "fruit",
+     "l": "🍎 Apple",
+     "n": "Apple",
+     "q": "1 (150 g)",
+     "recipe": [
+      {
+       "amt": 150,
+       "ing": "manzana"
+      }
+     ]
+    },
+    {
+     "cat": "fruit",
+     "l": "🍊 Orange",
+     "n": "Orange",
+     "q": "1 (130 g)",
+     "recipe": [
+      {
+       "amt": 130,
+       "ing": "naranja"
+      }
+     ]
+    },
+    {
+     "cat": "yogurt",
+     "l": "🥛 Yogurt only",
+     "n": "Light greek yogurt",
+     "q": "125 g",
+     "recipe": [
+      {
+       "amt": 125,
+       "ing": "yogurgriego"
+      }
+     ]
+    },
+    {
+     "cat": "yogurt",
+     "l": "🍨 Yogurt + nuts + honey",
+     "n": "Yogurt + nuts (15 g) + honey (8 g)",
+     "q": "—",
+     "recipe": [
+      {
+       "amt": 125,
+       "ing": "yogurgriego",
+       "label": "Light greek yogurt"
+      },
+      {
+       "amt": 15,
+       "ing": "avellanas",
+       "label": "Hazelnuts"
+      },
+      {
+       "amt": 8,
+       "ing": "miel",
+       "label": "Honey"
+      }
+     ]
+    }
+   ],
+   "proteina": [
+    {
+     "l": "— none —",
+     "none": 1
+    },
+    {
+     "l": "🟢 Chicken breast",
+     "n": "Chicken breast",
+     "q": "140 g",
+     "recipe": [
+      {
+       "amt": 140,
+       "ing": "pollo"
+      }
+     ],
+     "t": "lean"
+    },
+    {
+     "l": "🟢 White fish",
+     "n": "White fish",
+     "q": "170 g",
+     "recipe": [
+      {
+       "amt": 170,
+       "ing": "merluza"
+      }
+     ],
+     "t": "lean"
+    },
+    {
+     "l": "🟢 Tuna (160 g)",
+     "n": "Tuna",
+     "q": "160 g",
+     "recipe": [
+      {
+       "amt": 160,
+       "ing": "atun"
+      }
+     ],
+     "t": "lean"
+    },
+    {
+     "l": "🟢 Egg whites (370 ml)",
+     "n": "Egg whites",
+     "q": "370 ml",
+     "recipe": [
+      {
+       "amt": 370,
+       "ing": "claras"
+      }
+     ],
+     "t": "lean"
+    },
+    {
+     "l": "🟡 Turkey ham (200 g)",
+     "n": "Turkey ham",
+     "q": "200 g",
+     "recipe": [
+      {
+       "amt": 200,
+       "ing": "pavo"
+      }
+     ],
+     "t": "mod"
+    },
+    {
+     "l": "🔴 Salmon (200 g)",
+     "n": "Salmon",
+     "note": "healthy omega-3",
+     "q": "200 g",
+     "recipe": [
+      {
+       "amt": 200,
+       "ing": "salmon"
+      }
+     ],
+     "t": "fat"
+    }
+   ]
+  },
+  "RAWEX": {
+   "aceite": {
+    "recipe": [
+     {
+      "amt": 11,
+      "ing": "aceiteoliva"
+     }
+    ]
+   },
+   "beer": {
+    "recipe": [
+     {
+      "amt": 250,
+      "ing": "cerveza"
+     }
+    ]
+   },
+   "cafe": {
+    "recipe": [
+     {
+      "amt": 145,
+      "ing": "leche"
+     }
+    ]
+   },
+   "cheeseslice": {
+    "n": "Cheese slice",
+    "q": "1 slice (20 g)",
+    "recipe": [
+     {
+      "amt": 20,
+      "ing": "tranchete"
+     }
+    ]
+   },
+   "chocolate": {
+    "recipe": [
+     {
+      "amt": 8,
+      "ing": "chocolate"
+     }
+    ]
+   },
+   "pepper": {
+    "n": "Bell pepper",
+    "q": "100 g",
+    "recipe": [
+     {
+      "amt": 100,
+      "ing": "pimiento"
+     }
+    ]
+   },
+   "tomatosauce": {
+    "n": "Tomato sauce",
+    "q": "50 g",
+    "recipe": [
+     {
+      "amt": 50,
+      "ing": "salsatomate"
+     }
+    ]
+   },
+   "zucchini": {
+    "n": "Zucchini",
+    "q": "100 g",
+    "recipe": [
+     {
+      "amt": 100,
+      "ing": "calabacin"
+     }
+    ]
+   }
+  },
+  "VEG": [
+   "zucchini",
+   "pepper"
+  ],
+  "breakfast": [
+   {
+    "cap": "🟢 A — Oat pancake · ~449 kcal · 43 P · 46 C · 9 G",
+    "rows": [
+     {
+      "c": "36",
+      "g": "5",
+      "k": 228,
+      "link": null,
+      "name": "Oats",
+      "p": "8",
+      "qty": "60 g"
+     },
+     {
+      "c": "1",
+      "g": "0,3",
+      "k": 78,
+      "link": null,
+      "name": "Egg whites",
+      "p": "16,2",
+      "qty": "150 ml"
+     },
+     {
+      "c": "2,1",
+      "g": "1,1",
+      "k": 76,
+      "link": null,
+      "name": "Whey (sauce)",
+      "p": "14,3",
+      "qty": "20 g"
+     },
+     {
+      "c": "7",
+      "g": "2,5",
+      "k": 67,
+      "link": null,
+      "name": "Coffee with milk",
+      "p": "4,9",
+      "qty": "145 ml"
+     }
+    ]
+   },
+   {
+    "cap": "🔴 B — Toast (rest day) · ~394 kcal · 26 P · 53 C · 9 G",
+    "rows": [
+     {
+      "c": "40,8",
+      "g": "0,9",
+      "k": 207,
+      "link": null,
+      "name": "Bread",
+      "p": "6,6",
+      "qty": "2 slices (80 g)"
+     },
+     {
+      "c": "2,9",
+      "g": "0",
+      "k": 6,
+      "link": null,
+      "name": "Jam",
+      "p": "0,1",
+      "qty": "20 g"
+     },
+     {
+      "c": "0,2",
+      "g": "4,1",
+      "k": 38,
+      "link": null,
+      "name": "Light butter",
+      "p": "0,2",
+      "qty": "10 g"
+     },
+     {
+      "c": "2,1",
+      "g": "1,1",
+      "k": 76,
+      "link": "acc-anclaje",
+      "name": "Protein anchor",
+      "p": "14,3",
+      "qty": "1 serving"
+     },
+     {
+      "c": "7",
+      "g": "2,5",
+      "k": 67,
+      "link": null,
+      "name": "Coffee with milk",
+      "p": "4,9",
+      "qty": "145 ml"
+     }
+    ]
+   }
+  ],
+  "fruitSummary": {
+   "cMax": 27,
+   "cMin": 15.6,
+   "g": 0,
+   "kMax": 106,
+   "kMin": 61,
+   "p": 1
+  }
+ },
+ "profile": {
+  "bikes": [
+   {
+    "detail": "Demo Cycles Roadster",
+    "frame": "road",
+    "km": 8421.3,
+    "name": "Demo Road Bike",
+    "primary": true,
+    "retired": false,
+    "weightKg": 8.4
+   },
+   {
+    "detail": "Demo Cycles Dirt",
+    "frame": "gravel",
+    "km": 2150.8,
+    "name": "Demo Gravel Bike",
+    "primary": false,
+    "retired": false,
+    "weightKg": 9.6
+   },
+   {
+    "detail": null,
+    "frame": null,
+    "km": 15230,
+    "name": "Demo Old Bike",
+    "primary": false,
+    "retired": true,
+    "weightKg": null
+   }
+  ],
+  "birthdate": "1990-06-15",
+  "devices": [
+   {
+    "count": null,
+    "lastUsed": null,
+    "manual": null,
+    "name": "Sample Watch",
+    "since": "2024-03",
+    "source": "manual",
+    "type": "watch"
+   },
+   {
+    "count": null,
+    "lastUsed": null,
+    "manual": "sample-bike-computer-manual.pdf",
+    "name": "Sample Bike Computer",
+    "since": "2025-01",
+    "source": "manual",
+    "type": "bike-computer"
+   },
+   {
+    "count": null,
+    "lastUsed": null,
+    "manual": null,
+    "name": "Sample EMS Suit",
+    "since": null,
+    "source": "manual",
+    "type": "ems"
+   },
+   {
+    "count": 212,
+    "lastUsed": "2026-09-27",
+    "manual": null,
+    "name": "Demo Watch",
+    "since": null,
+    "source": "strava",
+    "type": "other"
+   }
+  ],
+  "events": [
+   {
+    "date": "2031-03-15",
+    "location": "Exampleville",
+    "name": "Sample City HYROX",
+    "type": "hyrox"
+   },
+   {
+    "date": "2031-06-07",
+    "location": null,
+    "name": "Sample Gran Fondo",
+    "type": "sportive"
+   }
+  ],
+  "focus": "cyclist",
+  "gearScopeMissing": false,
+  "goals": [
+   {
+    "bikeKept": false,
+    "goal": "maintain",
+    "kcal": 0
+   },
+   {
+    "bikeKept": true,
+    "goal": "cut",
+    "kcal": -350
+   },
+   {
+    "bikeKept": false,
+    "goal": "bulk",
+    "kcal": 300
+   }
+  ],
+  "hasData": true,
+  "heightCm": 175,
+  "initials": "SS",
+  "location": "Exampleville",
+  "name": "Sam Sample",
+  "photo": null,
+  "sex": "male",
+  "shoes": [
+   {
+    "detail": "Demo Shoes Daily",
+    "km": 734.6,
+    "name": "Demo Daily Trainers",
+    "primary": true,
+    "replace": true,
+    "retired": false
+   },
+   {
+    "detail": "Demo Shoes Fast",
+    "km": 212.4,
+    "name": "Demo Racers",
+    "primary": false,
+    "replace": false,
+    "retired": false
+   },
+   {
+    "detail": null,
+    "km": 902.1,
+    "name": "Demo Worn Trainers",
+    "primary": false,
+    "replace": false,
+    "retired": true
+   }
+  ],
+  "strava": true,
+  "stravaAsOf": "2026-09-28",
+  "supplements": [
+   {
+    "dose": "3 g",
+    "meal": "lunch",
+    "name": "Sample Creatine"
+   },
+   {
+    "dose": "1 capsule",
+    "meal": "dinner",
+    "name": "Sample Magnesium"
+   },
+   {
+    "dose": "1 tablet in 500 ml",
+    "meal": "preworkout",
+    "name": "Sample Electrolytes"
+   }
+  ],
+  "weight": null
+ },
+ "scores": {
+  "advice": null,
+  "asOf": null,
+  "days": null,
+  "energy": null,
+  "fitnessAge": {
+   "ok": false,
+   "reason": "no-vo2max"
+  },
+  "hasData": false,
+  "journal": {
+   "behaviors": [
+    {
+     "group": "day",
+     "key": "caffeine_late",
+     "kind": "yesno"
+    },
+    {
+     "group": "day",
+     "key": "nap",
+     "kind": "yesno"
+    },
+    {
+     "group": "day",
+     "key": "mobility",
+     "kind": "yesno"
+    },
+    {
+     "group": "night",
+     "key": "alcohol",
+     "kind": "count"
+    },
+    {
+     "group": "night",
+     "key": "late_meal",
+     "kind": "yesno"
+    },
+    {
+     "group": "night",
+     "key": "screen_in_bed",
+     "kind": "yesno"
+    },
+    {
+     "group": "night",
+     "key": "evening_supplements",
+     "kind": "yesno"
+    },
+    {
+     "group": "status",
+     "key": "stressful_day",
+     "kind": "yesno"
+    },
+    {
+     "group": "status",
+     "key": "ill",
+     "kind": "yesno"
+    }
+   ],
+   "groups": [
+    "day",
+    "night",
+    "status"
+   ],
+   "insights": null,
+   "limits": {
+    "countMax": 20,
+    "insightMinDays": 5,
+    "notesMax": 500,
+    "rangeDaysMax": 366
+   },
+   "recent": []
+  },
+  "load": null,
+  "monitor": {
+   "asOf": null,
+   "cards": [
+    {
+     "key": "respiratory",
+     "state": "none"
+    },
+    {
+     "key": "rhr",
+     "state": "none"
+    },
+    {
+     "key": "hrv",
+     "state": "none"
+    },
+    {
+     "key": "wristTemp",
+     "state": "none"
+    },
+    {
+     "key": "sleep",
+     "state": "none"
+    }
+   ]
+  },
+  "reEpoch": null,
+  "recovery": null,
+  "sleep": null,
+  "strain": null,
+  "stress": null,
+  "timeline": {
+   "asOf": null,
+   "days": []
+  },
+  "tonight": null
+ }
+}
