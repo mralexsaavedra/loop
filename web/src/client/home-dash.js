@@ -25,8 +25,9 @@
     var D = typeof DETAIL !== 'undefined' && DETAIL && DETAIL.metrics ? DETAIL : null;
     if (!TS || !TD || typeof HC === 'undefined') return;
     var esc = HC.esc, format = HC.format;
-    var CATALOG = ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'vo2max', 'fitnessAge', 'walkingHr', 'exercise'];
-    var DEFAULT_ON = ['rhr', 'hrv', 'sleep', 'weight', 'steps'];
+    // 'stress' is the one chart card (the reference dashboard's stress monitor), from SCORES.stress
+    var CATALOG = ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'vo2max', 'fitnessAge', 'walkingHr', 'exercise', 'stress'];
+    var DEFAULT_ON = ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'stress'];
     var PREFS_KEY = 'hc-dash-v1';
     var BASE_DAYS = 30, MIN_BASE = 7, MIN_BASE_SPARSE = 2, FLAT_SHARE = 0.02;
     var memory = null; // the prefs when storage is unavailable
@@ -159,8 +160,27 @@
       return HC.metricRow({ key: key, cls: stale ? 'db-stale' : '', attrs: HC.detailAttrs(key), aria: aria, name: titleOf(key), value: fmt(key, m, r.value), unit: unit,
         arrow: r.arrow, tone: r.tone, base: r.base != null ? fmt(key, m, r.base) : null });
     }
+    // the stress card's day: the newest with a latest scored hour (as Inicio's stress tile, client/monitor.js)
+    function stressDay() {
+      var S = typeof SCORES !== 'undefined' && SCORES && SCORES.stress && SCORES.stress.ok && Array.isArray(SCORES.stress.days) ? SCORES.stress : null;
+      if (!S) return null;
+      for (var i = S.days.length - 1; i >= 0; i--) if (S.days[i] && S.days[i].now) return S.days[i];
+      return null;
+    }
+    function stressCard(d) {
+      var P = TD.deep.stress, n = d.now, band = HC.stressBand(n.v), time = String(n.t).slice(0, 2) + ':00';
+      var value = HC.num(n.v, 1), when = format(P.updated, { time: time }) + (d.date !== HC.todayIso() ? ' · ' + HC.fmtDate(d.date) : '');
+      var aria = titleOf('stress') + ': ' + value + ' · ' + P.bands[band] + ' · ' + when;
+      return '<li class="db-card db-stress ds-' + band + '"' + HC.detailAttrs('stress', d.date) + ' aria-label="' + esc(aria) + '">' +
+        // the chevron is the shared opener's (base.css [data-detail][role=button]:after)
+        '<div class="db-card-head"><span class="db-card-t">' + esc(titleOf('stress')) + '</span></div>' +
+        '<div class="db-card-sub" aria-hidden="true"><span class="db-card-when">' + esc(when) + '</span><span><span class="ds-band">' + esc(P.bands[band]) + '</span><b class="db-card-v">' + esc(value) + '</b></span></div>' +
+        HC.stressChart(d.hours, P, function (v, dec) { return HC.num(v, dec); }, true) + '</li>';
+    }
     function available() {
-      return D ? CATALOG.filter(function (k) { return own(D.metrics, k) && D.metrics[k] && Array.isArray(D.metrics[k].v); }) : [];
+      var out = D ? CATALOG.filter(function (k) { return own(D.metrics, k) && D.metrics[k] && Array.isArray(D.metrics[k].v); }) : [];
+      if (stressDay()) out.push('stress');
+      return out;
     }
     function current() {
       return prefsFrom(readPrefs(), available());
@@ -173,6 +193,7 @@
         var list = current();
         list.forEach(function (p) {
           if (!p.on) return;
+          if (p.key === 'stress') { var sd = stressDay(); if (sd) rows.push(stressCard(sd)); return; }
           var m = D.metrics[p.key], r = rowValue(m, today);
           if (r) rows.push(rowHtml(p.key, m, r));
         });
