@@ -31,7 +31,7 @@ unknown.
   GENERATED copy, `services/health-ingest/src/food-calc.js` (it is built from its own directory, so it cannot
   import `lib/`): `scripts/gen-food-calc.mjs` writes it from the module's `SERVER` descriptor (the enums,
   `FOOD_LIMITS` and the functions' own source + `fin` / `roundEps`, emitted by `lib/build/esm-module.mjs`;
-  no basics). **A formula change is made in the lib first, then `npm run gen:food-calc`**: the root test
+  no basics; the write / `--check` step, shared with `scripts/gen-journal-calc.mjs`, is `scripts/lib/generated.mjs`). **A formula change is made in the lib first, then `npm run gen:food-calc`**: the root test
   `scripts/gen-food-calc.test.mjs` fails while the committed file differs from a regeneration, and
   `lib/nutrition/foodlog.test.mjs`, `web/src/client/food.test.mjs` and `web/test/client-globals-build.test.mjs`
   (the built page) still run the lib, the committed food-calc.js and the page over `FOODLOG_CASES`. The

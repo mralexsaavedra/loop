@@ -44,7 +44,7 @@ or without IntersectionObserver it stays off.
 (dials + advice on Inicio; the recovery card into Salud's `#score-recovery` and the per-modality load
 summary cards, with the caveats behind its ⓘ, into Entreno's `#score-load` — glance vs detail),
 `buildScoresFrom(inputs, {sex})` (pure, over `lib/extract/read.mjs` `readExtract`, called once by
-`web/src/bakes.mjs`; `buildScores(extractDir)` is its per-directory shim) bakes `SCORES` (only `asOf` dates — staleness is computed client-side, so
+`web/src/bakes.mjs`) bakes `SCORES` (only `asOf` dates — staleness is computed client-side, so
 consecutive builds are byte-identical). The tab is first and active by default; the visible panel is
 derived from the FILTERED nav list (`activeTabKey`), so `page.hideTabs: ["home"]` hands over to the next
 tab and hiding every tab is a build error.

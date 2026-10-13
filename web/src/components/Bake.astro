@@ -27,10 +27,10 @@ interface Props {
   locale: string;
   training: Record<string, any>; // training.days, verbatim (astro-plan-web slice 5)
   trainingMeta: { program: string; coach: string; source: string; first: string; last: string; count: number };
-  dash: any; // lib/training/read.mjs's loadDashboard() result
-  health: any; // lib/health/aggregate.mjs's buildHealth() result
-  scores: any; // lib/score/index.mjs's buildScores() result (Home tab; only asOf dates, no build-time now)
-  intake: any; // lib/nutrition/intake.mjs's buildIntake() result + log (lib/nutrition/read.mjs buildFoodlogBake; no build-time now)
+  dash: any; // lib/training/dashboard.mjs's dashboardFrom() result
+  health: any; // lib/health/aggregate.mjs's healthFrom() result
+  scores: any; // lib/score/index.mjs's buildScoresFrom() result (Home tab; only asOf dates, no build-time now)
+  intake: any; // lib/nutrition/intake.mjs's intakeFrom() result + log (lib/nutrition/read.mjs buildFoodlogBake; no build-time now)
 }
 const { locale, training, trainingMeta, dash, health, scores, intake } = Astro.props;
 const es = locale === 'es';

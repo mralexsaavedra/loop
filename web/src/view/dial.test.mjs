@@ -1,5 +1,5 @@
 /* Dial view-model (web/src/view/dial.mjs): pure geometry + value->arc mapping for the Inicio
- * dials. No new metric: every input is a value buildScores()/buildHealth() already bakes. */
+ * dials. No new metric: every input is a value buildScoresFrom()/healthFrom() already bakes. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as dialModule from './dial.mjs';

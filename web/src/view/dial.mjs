@@ -1,6 +1,6 @@
 /* Inicio dial view-model: full-ring geometry (starts at 12 o'clock, fills clockwise) + value->ring
  * mapping for the Sleep, Recovery and Load dials. Pure presentation glue over values
- * buildScores()/buildHealth() already produce. TODAY FIRST, the trend as context:
+ * buildScoresFrom()/healthFrom() already produce. TODAY FIRST, the trend as context:
  *   - Recovery: with a percentage (recovery.today.pct, its rank within the previous 90 days) the
  *     ring fills to pct % and takes its % band colour (good >= 67 / mid / low <= 33), no baseline
  *     tick; `value` keeps the SD composite for the notes. Without one (under 21 prior days):
@@ -195,7 +195,7 @@ export function strainDial(St) {
   return { state: 'ok', asOf: St.asOf || null, days };
 }
 
-/** scores = buildScores() result, health = buildHealth() result (for the stated sleep target). */
+/** scores = buildScoresFrom() result, health = healthFrom() result (for the stated sleep target). */
 export function buildDials(scores, health) {
   const S = scores && scores.hasData ? scores : {};
   return {

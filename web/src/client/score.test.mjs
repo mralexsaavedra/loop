@@ -7,7 +7,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildScores } from '../../../lib/score/index.mjs';
+import { buildScoresFrom } from '../../../lib/score/index.mjs';
+import { readExtract } from '../../../lib/extract/read.mjs';
 import { renderAdvice } from '../../../lib/score/advice-copy.mjs';
 import { es as esT, en as enT } from '../i18n/score-templates.mjs';
 import { buildDials } from '../view/dial.mjs';
@@ -37,7 +38,7 @@ function fixtureScores({ days = 49, shift = 2 } = {}) {
       if (i === 3) rows.push(`${d},Running,6,,,,,Strava API,,1,`); // junk
     });
     fs.writeFileSync(path.join(dir, 'workouts.csv'), rows.join('\n') + '\n');
-    return buildScores(dir);
+    return buildScoresFrom(readExtract(dir));
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }
 
