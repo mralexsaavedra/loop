@@ -104,6 +104,10 @@ export const CLIENT_SCRIPTS = [
   },
   { file: 'journal.js', provides: ['HCJournal'], requires: ['HC', 'HCViews', 'I18N_DATE', 'I18N_SCORE', 'SCORES'] },
   { file: 'deepdive.js', provides: ['HCDeep'], requires: ['HC'] },
+  // factories: loading them only assigns window.HCDetailState / HCDetailChart and reads nothing, so they
+  // require nothing (the trace proves it, and still runs clean with both moved to the very front). What
+  // they read (HC, HC_BAND, SCORES, HCNutriScore, HCSettings, I18N_DATE) is read when detail.js calls
+  // them: at its load (traced and declared on detail.js) or later in handlers, which do not count.
   { file: 'detail-state.js', provides: ['HCDetailState'], requires: [] },
   { file: 'detail-chart.js', provides: ['HCDetailChart'], requires: [] },
   {
