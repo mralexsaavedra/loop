@@ -57,12 +57,14 @@
   font-size: var(--fs-num-row);
   color: var(--ink);
 }
+/* the caps label on its own line (the reference app's label-over-number), so kcal + P · C · G fit one line */
 .food-sum-lbl {
+  display: block;
+  margin-bottom: var(--sp-1);
   font-size: var(--fs-label);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-track);
   text-transform: uppercase;
-  margin-right: var(--sp-2);
 }
 .food-note {
   font-size: var(--fs-sm);
