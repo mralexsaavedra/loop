@@ -1,12 +1,15 @@
-/* Helpers shared by data/apple-health's sync scripts (sync-shortcut.js, sync-strava.js):
+/* Helpers shared by data/apple-health's sync scripts (sync-shortcut.mjs, sync-strava.mjs):
  * atomic writes, ingest-token resolution, a timed JSON fetch, generic keyset-paged fetching,
- * and the export-wins/ownership-ledger CSV merge rule. Extracted from sync-shortcut.js so
- * sync-strava.js can reuse the exact same contract instead of duplicating it — pure refactor,
- * no behavior change (sync-shortcut.js re-exports these same names, its own default `isOwn`
+ * and the export-wins/ownership-ledger CSV merge rule. Extracted from sync-shortcut.mjs so
+ * sync-strava.mjs can reuse the exact same contract instead of duplicating it — pure refactor,
+ * no behavior change (sync-shortcut.mjs re-exports these same names, its own default `isOwn`
  * applied at the call site keeps its test suite green unmodified).
  */
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DEFAULT_URL = 'http://localhost:8088';
 const ENV_FILE = path.join(__dirname, '..', '..', 'services', 'health-ingest', '.env');
@@ -150,7 +153,7 @@ function withLock (lockFile, fn, opts) {
   }
 }
 
-module.exports = {
+export {
   DEFAULT_URL,
   ENV_FILE,
   writeAtomic,

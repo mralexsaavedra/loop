@@ -26,7 +26,7 @@
  */
 const fs = require('fs')
 const path = require('path')
-const common = require('../apple-health/sync-common.js')
+const common = require('../apple-health/sync-common.mjs')
 
 // SYNC_FOODLOG_OUT_DIR exists ONLY so the child-process tests can point main() at a tmp dir
 const OUT = process.env.SYNC_FOODLOG_OUT_DIR || __dirname

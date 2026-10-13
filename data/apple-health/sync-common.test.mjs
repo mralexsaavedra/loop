@@ -1,12 +1,12 @@
 /* Tests for the helpers shared by data/apple-health's sync scripts (Shortcut + Strava).
  * Pure functions only where possible; disk I/O tested against real temp files, SYNTHETIC
  * fixtures (no real personal values), no network. */
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const common = require('./sync-common.js');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import * as common from './sync-common.mjs';
 
 const {
   mergeCsv, fetchJson, fetchPages, resolveToken, readIngestToken, writeAtomic, DEFAULT_URL, ENV_FILE,
