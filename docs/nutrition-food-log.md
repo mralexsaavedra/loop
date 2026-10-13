@@ -153,7 +153,7 @@ Plan de hoy) and the
   an example amount (see "Plan de hoy = a PORTION GUIDE"). **Basics in the Mis productos tab**: the search box also looks in `FOOD_BASICS`
   (baked by `Dia.astro`, each food with its category `c` and portion cap `x`, which the portion guide reads — size budget in `web/test/food-build.test.mjs`; the box shows even with no product yet). An EMPTY search
   lists the products only, plus a one-line hint ("Escribe para buscar también en los básicos…"); typing
-  lists the matching products by store, then a "Básicos" / "Basics" group (accent- and case-insensitive,
+  lists the matching products by store, then a "Básicos" / "Basics" group (accent- and case-insensitive: lib/nutrition/names.mjs `foldName`, read from HC_GUIDE,
   names that start with the text first, ≤ 25 rows), each row "88 kcal por 100 g · valor medio" ("por ud"
   for a unit food; "etiqueta" / "label values" for a `verified` label of the DB); nothing matching →
   "Ningún producto coincide.". A HIDDEN basic (`h: 1`, from `basic: false` in `ingredients.json`: a food you
