@@ -1,7 +1,7 @@
-/* Tests for the Shortcut heart-rate samples -> hr-hourly.csv aggregation (lib/health/hr-hourly.cjs). SYNTHETIC values only. */
+/* Tests for the Shortcut heart-rate samples -> hr-hourly.csv aggregation (lib/health/hr-hourly.mjs). SYNTHETIC values only. */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const H = require('../../lib/health/hr-hourly.cjs');
+const H = require('../../lib/health/hr-hourly.mjs');
 
 const s = (hm, value, day = '2030-01-02', off = '+0100') => ({ start: `${day} ${hm}:00 ${off}`, value });
 const cols = line => line.split(',');

@@ -99,7 +99,7 @@ reference's activity-detail block: a "HEART-RATE ZONES" header with avg / max HR
 — the bpm range at the max HR used, the % of the zoned time, the duration (m:ss) and a horizontal
 bar in the zone colour, warm → cool (`--low`, `--down`, `--mid`, `--good`, `--strain`, `--faint`) —
 and an ⓘ "About the zones" fold with the model and the max HR + its source. Model (the reference's,
-`lib/training/hr-zones.cjs`): % of max HR, Z0 < 50 %, Z1 50–60, Z2 60–70, Z3 70–80, Z4 80–90, Z5 ≥ 90
+`lib/training/hr-zones.mjs`): % of max HR, Z0 < 50 %, Z1 50–60, Z2 60–70, Z3 70–80, Z4 80–90, Z5 ≥ 90
 %; max HR = `profile/profile.json` `maxHr` if set, else the highest HR Strava recorded in the last 12
 months. Several Strava activities of the same date + modality are summed. No zones for that session
 (a Watch-only session, an activity the backfill has not reached, no HR, no file): no block.
