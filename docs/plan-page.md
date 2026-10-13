@@ -28,16 +28,21 @@ publisher) and `lib/training/hr-zones.cjs` (CommonJS shared with the `data/apple
 **Read at the edge:** `lib/extract/read.mjs` `readExtract(extractDir)` is the single extract read of a build:
 the composition root (`web/src/bakes.mjs` `computeBakes`) calls it once and passes the result to the pure cores
 (`lib/score/index.mjs` `buildScoresFrom(inputs, {sex})` over `recoveryFrom`, `loadFrom`, `strainFrom`,
-`stressFrom`, `energyFrom`, `journalFrom`, …). It parses nothing itself and imports no `fs` (it only calls the
+`stressFrom`, `energyFrom`, `journalFrom`, …; `lib/health/aggregate.mjs` `healthFrom`, `lib/detail/detail.mjs`
+`detailFrom`, `lib/nutrition/intake.mjs` `intakeFrom`, `lib/training/{dashboard,activity}.mjs`
+`dashboardFrom` / `activityFrom`; the profile gets the newest weigh-in from `series.weight`), so a build reads
+every extract file exactly once. The only other files `computeBakes` reads are not extract files (the profile
+JSONs, the avatar, the synced food log). It parses nothing itself and imports no `fs` (it only calls the
 area readers, so it is not in the fs-boundary set); it reads each file once (`workouts.csv`, `hr-hourly.csv`
 and `workout-zones.csv` are each read once and projected several ways: the readers expose the cells / lines
 read and pure `*FromCells` / `*FromLines` projections), keeps the readers'
 null-when-absent values (`readExtract(null)` = every value null, `journal` `[]`) and deep-freezes the result,
 so a core that sorts or assigns into its shared inputs throws instead of changing another score. The
 per-directory wrappers (`buildScores(dir)`, `buildStrain/Stress/Energy(dir)`, `journalBake(dir)`, the
-`build*` of each score module) remain as shims for tests and scripts until they are removed. Many compute
-modules still CALL a reader (e.g. `lib/detail/detail.mjs` and `lib/health/aggregate.mjs` take an `extractDir`
-and read through `lib/health/read.mjs`), so only modules that neither import `fs` nor call a reader can be
+`build*` of each score module, `buildHealth` / `buildDetail` / `buildIntake(dir)`, `loadDashboard` /
+`buildActivity(dir)`) remain as shims for tests and scripts until they are removed. Many compute
+modules still IMPORT a reader for those shims (e.g. `lib/detail/detail.mjs` and `lib/health/aggregate.mjs`),
+so only modules that neither import `fs` nor call a reader can be
 emitted into the page via `clientSource()`.
 
 - **Inlined client scripts are slimmed.** `web/layouts/Plan.astro` inlines every `web/src/client/*.js`
