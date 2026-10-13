@@ -8,7 +8,7 @@ Plan data pipeline, the published artifact, intake rings, goals / day types / po
 
 ## Nutrition plan — data pipeline & published artifact
 
-**Two files, merged in memory (by both `generate.js` and the Astro build, from the same
+**Two files, merged in memory (by both `generate.mjs` and the Astro build, from the same
 `lib/nutrition/macros.mjs`):**
 - `data/nutrition/ingredients.json` (TRACKED, **public** food DB) — the reusable
   **sample** (it ships built around Spanish supermarket products and BEDCA values: replace or extend it
@@ -17,7 +17,7 @@ Plan data pipeline, the published artifact, intake rings, goals / day types / po
   label, `false` = DB estimate; each carries `name` + `note` + a food category `cat`, see
   `lib/nutrition/categories.mjs`). `name` is localized, `{es, en}`
   (a plain string stays valid for backward compat), resolved by the BUILD locale wherever a food is
-  named — Plan de hoy, Tablas, plan-tables.md (generate.js: `LOCALE` env → `plan.locale` → en), the
+  named — Plan de hoy, Tablas, plan-tables.md (generate.mjs: `LOCALE` env → `plan.locale` → en), the
   portion guide's example foods — by `lib/nutrition/names.mjs` `ingName` / `lineName`; an ingredient without a
   name is a `npm run check` WARNING (the page then shows its key), a malformed one an error, and a test
   asserts every tracked ingredient has es + en names. This is shareable and is the
@@ -55,7 +55,7 @@ Plan data pipeline, the published artifact, intake rings, goals / day types / po
   `ingredients.json`; macros are COMPUTED, never hand-typed. Items with no single label use a
   `manual` macro block (legumes, soup, pintxo) — kept verbatim.
 
-`data/nutrition/generate.js` now only VALIDATES the merged plan and writes `plan-tables.md`
+`data/nutrition/generate.mjs` now only VALIDATES the merged plan and writes `plan-tables.md`
 (the human-readable reference tables) — it emits no HTML. It fails with a clear
 error if `ingredients.json` is missing.
 
@@ -71,12 +71,12 @@ no personal files, useful to sanity-check the pipeline on a bare clone.
 **To change a plan number, edit `plan-data.json` (servings/day plan) or `ingredients.json`
 (a food's macros/label) — never the generated files.**
 
-Run `npm run generate` (or `node data/nutrition/generate.js && node scripts/build-web.mjs`) to
+Run `npm run generate` (or `node data/nutrition/generate.mjs && node scripts/build-web.mjs`) to
 regenerate (idempotent): validates the plan, writes `plan-tables.md` (incl. the Legumes and
 Verified product labels tables), then builds `web/dist/personal/index.html`. **Never**
 hand-edit `plan-tables.md`, `web/dist/`, or re-type macros in `food-log.md` — the source is
 the two JSONs.
-- `npm run check` — validators only, no build: `generate.js --check` (unknown-ingredient
+- `npm run check` — validators only, no build: `generate.mjs --check` (unknown-ingredient
   refs, day totals, Atwater, ambiguous matches) — the day-total kcal sanity band defaults to
   train 2000–2800 / rest 1700–2400 and a plan can override it with optional
   `validation.kcalBand = { train: [min, max], rest: [min, max] }` in `plan-data.json` — + `build-web.mjs --check` (training-data.json
@@ -378,7 +378,7 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   collapse to ONE table (no train / rest portion columns); same-named options collapse only when their
   reference rows are equal (the same food at another amount), otherwise both rows show (`listRows`). A one-line note at the top says today's
   amounts are in Plan de hoy; the generic notes (dict `tablas.*`) and the example plan's
-  `page.notes['tablas.*']` do not talk about portions. plan-tables.md (generate.js) keeps "Daily
+  `page.notes['tablas.*']` do not talk about portions. plan-tables.md (generate.mjs) keeps "Daily
   targets by goal and day type" and writes the same reference rows ("Food reference (fixed values per
   natural unit)"; legumes per 100 g cooked instead of a ~300 g plate).
 - **Old plans** — a plan without `targets.byGoal` / `page.goal` falls back to the code defaults

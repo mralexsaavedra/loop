@@ -4,7 +4,7 @@
  * data/profile/settings.json, so read-only consumers (the coach subagents, which only read files)
  * see the same goal the page uses.
  *
- *   node data/profile/sync-settings.js      (part of `npm run sync`, after the profile sync)
+ *   node data/profile/sync-settings.mjs     (part of `npm run sync`, after the profile sync)
  *
  * Env    : INGEST_URL (default http://localhost:8088). No token: /food/* is the unauthenticated,
  *          LAN-only food layer; the request carries `X-HC-Food: 1` and the URL's Host must be one the
@@ -18,9 +18,13 @@
  *          file kept, exit 0: the settings are optional and must never fail `npm run sync`. Only a
  *          failed write exits 1.
  */
-const fs = require('fs')
-const path = require('path')
-const common = require('../apple-health/sync-common.mjs')
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import * as common from '../apple-health/sync-common.mjs'
+import { isMain } from '../../scripts/lib/is-main.mjs'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // SYNC_PROFILE_OUT_DIR exists ONLY so the child-process tests can point main() at a tmp dir
 const OUT = process.env.SYNC_PROFILE_OUT_DIR || __dirname
@@ -118,6 +122,6 @@ async function main () {
   }
 }
 
-if (require.main === module) main()
+if (isMain(import.meta.url)) main()
 
-module.exports = { SETTINGS_JSON, GOALS, TARGET_MIN, TARGET_MAX, normalizeSettings, fetchSettings, syncSettings, warning, main }
+export { SETTINGS_JSON, GOALS, TARGET_MIN, TARGET_MAX, normalizeSettings, fetchSettings, syncSettings, warning, main }

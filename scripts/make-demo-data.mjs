@@ -233,7 +233,7 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
   }
   out[JOURNAL_FILE] = journalCsv(journal);
 
-  // ---- food log (foodlog-daily.csv, as data/nutrition/sync-foodlog.js writes it) ----------------
+  // ---- food log (foodlog-daily.csv, as data/nutrition/sync-foodlog.mjs writes it) ----------------
   // an invented eater around the example plan's maintain targets for the weekday's session (meals
   // kcal: rest 2300, gym / run 2700, ride days ~2800-2900 after the ride fuel; protein 125 g, fat 65 g):
   // ~1 day in 8 not logged, a looser weekend, a dinner left unlogged now and then, and a few days with

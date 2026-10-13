@@ -1,16 +1,19 @@
 /* Tests for the food log export (ingest service GET /food/log/summary -> data/nutrition/foodlog-daily.csv).
  * SYNTHETIC values only, no network: the fetch is injected, and main() talks to a throwaway local server. */
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const http = require('node:http');
-const { execFile } = require('node:child_process');
-const sf = require('./sync-foodlog.js');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import http from 'node:http';
+import { execFile, execFileSync } from 'node:child_process';
+import * as sf from './sync-foodlog.mjs';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const { normalizeSummary, fetchSummary, syncFoodlog, windowFor, toCsv, CSV_FILE, META_FILE, HEADER } = sf;
-const SCRIPT = path.join(__dirname, 'sync-foodlog.js');
+const SCRIPT = path.join(__dirname, 'sync-foodlog.mjs');
 
 const DAY1 = { date: '2030-01-04', k: 2100, p: 140.5, c: 230, f: 60.2, n: 6, missing: { p: false, c: false, f: false }, groups: { breakfast: 2, lunch: 2, dinner: 1, addon: 1 } };
 const DAY2 = { date: '2030-01-05', k: 900, p: 40, c: null, f: 30, n: 2, missing: { p: true, c: true, f: false }, groups: { breakfast: 1, lunch: 0, dinner: 0, addon: 1 } };
@@ -180,7 +183,6 @@ test('main(): 503 / 404 / 421 / malformed / unreachable -> WARNING, the previous
 });
 
 test('the export files are gitignored (personal data)', () => {
-  const { execFileSync } = require('node:child_process');
   for (const f of [CSV_FILE, META_FILE]) {
     const out = execFileSync('git', ['check-ignore', path.join('data', 'nutrition', f)], { cwd: path.join(__dirname, '..', '..') }).toString().trim();
     assert.equal(out, path.join('data', 'nutrition', f));

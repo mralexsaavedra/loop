@@ -19,7 +19,7 @@ node scripts/build-web.mjs [--mode personal|example] [--locale es|en]   # or DAT
 writing `web/dist/<mode>/index.html`. `npm run build` = personal/es (default); `npm run
 build:example` = example/en (tracked seeds + the synthetic demo extract, no personal files needed). The domain
 compute (macros, training program/dashboard, health aggregation) lives in root `lib/*.mjs`, shared by
-the Astro build, `data/nutrition/generate.js`, and the test suite — one source, not three. Compute modules in
+the Astro build, `data/nutrition/generate.mjs`, and the test suite — one source, not three. Compute modules in
 `lib/` take their data as arguments and never import `fs`; disk I/O is confined to the area readers
 `lib/<area>/read.mjs` (`health`, `journal`, `nutrition`, `profile`, `score`, `training`) plus two named
 exceptions: `lib/load/inputs.mjs` (the build-input loader) and `lib/profile/manuals.mjs` (write-side manual
