@@ -161,7 +161,8 @@ client script, subdirectories included.
   32 px rounded dark tile, vertical gradient `#283037` → `#111619`, the three-arc ring) and the
   `apple-touch-icon` = `loop-touch-icon.png` (180×180, full square: iOS rounds it). On every tab the
   **wordmark** (`.wordmark`, rendered by `layouts/Plan.astro` INSIDE `.topbar`, between the avatar and the
-  date pill) sits in the top bar's middle column on a phone (avatar · LOOP · freshness / Sync on one row);
+  date pill; a `<button>` named "LOOP · Home" whose tap opens Inicio — `setTab(defaultTab())`, the first
+  visible tab, scrolled to the top) sits in the top bar's middle column on a phone (avatar · LOOP · freshness / Sync on one row);
   from 900 px it takes the bar's first column on the left (the 960 px column's left edge, 30 px letters
   ≈ 20 px caps) and the avatar moves to the right end beside the freshness / Sync controls, so the pill stays centred (`desktop.test.mjs` pins it): "LOOP" with L and P as
   Syncopate Bold outlines (never the font: Apache 2.0, `web/src/fonts/LICENSE-Syncopate.txt`), the

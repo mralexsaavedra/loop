@@ -233,12 +233,16 @@ trends below; formerly "HEART RATE VARIABILITY" above a "HRV" trend). Rows: reco
      the pressed W / M / 6M / 1Y button). It is the shared CTA link (`HC.cta`, `.cta`; design-system.md →
      Components); here its text is the `--link` → `--link-end` gradient (blue →
      violet) clipped to the glyphs, solid `--link` where `background-clip: text` is unsupported: on
-     `--ground` both ends pass AA for small text (8.29 / 4.61), on a card the violet end would not
-     (3.91), so the gradient only ever sits on the insight card (`tokens-contrast.test.mjs`).
-  6. **Weekly trends** ("Weekly trends" title, one card per input): 7 bars for the 7 days ending at
+     `--ground` both ends pass AA for small text (8.29 / 4.61); on a card the reference violet would not
+     (3.91), so CTAs on cards end in the lighter `--link-end-card` (`tokens-contrast.test.mjs`).
+  6. **Weekly trends** ("Weekly trends" title, one card per input; each card's caps title is a button
+     with the chevron at its right edge: the page's own metric — and its derived cards — scroll to the
+     trend chart (`data-dt-act="trend"`), another metric's card (HRV, resting HR, sleep on the recovery
+     page) opens that metric's trend view (`data-detail`); a faint horizontal grid in quarters behind the
+     bars): 7 bars for the 7 days ending at
      the PAGE's day (`weekEnd`: recovery = its headline night, sleep = the dial's night, strain = the
      day it was opened on — each only when within the last week —, load = the view end; `HCDeep.weekOf`),
-     the value on top, the weekday letter under each bar, that last column lighter (`.dd-now`) and
+     the value on top, the weekday letter and the day of the month under each bar ("T 24"), that last column lighter (`.dd-now`) and
      carrying the hero's value (no empty "today" column while the newest night is yesterday's); a day
      without data = "—" and no bar. Recovery: each night's recovery % — the number the dial showed that
      morning (`DIALS.days[].recovery.pct`, lib/score/days.mjs; the newest from `DIALS.recovery`) — bar

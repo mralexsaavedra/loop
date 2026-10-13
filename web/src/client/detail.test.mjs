@@ -1354,13 +1354,30 @@ test('sleep contributors: hours vs need, efficiency, consistency, REM + deep; be
   assert.ok(rowsOf(s.host.innerHTML).length <= 4);
 });
 
+test('weekly trends: each card title is a button with the chevron: the page\'s own metric scrolls to its trend chart, another metric opens its trend view; under each bar the weekday and the day of the month', () => {
+  const s = setup({ dials: DIALS });
+  s.api.open('recovery');
+  const wk = weeklyOf(s.host.innerHTML);
+  const opener = (title) => new RegExp(`<button type="button" class="dd-wk-btn"([^>]*)>${title}<span class="chev" aria-hidden="true">›</span></button>`).exec(wk)[1];
+  assert.equal(opener('Recovery'), ' data-dt-act="trend"');
+  assert.equal(opener('HRV'), ' data-detail="hrv"');
+  assert.equal(opener('Resting HR'), ' data-detail="rhr"');
+  assert.equal(opener('Sleep'), ' data-detail="sleep"');
+  s.api.open('sleep');
+  const sw = weeklyOf(s.host.innerHTML);
+  assert.equal([...sw.matchAll(/class="dd-wk-btn" data-dt-act="trend"/g)].length, 3, 'on the sleep page every card is about its own trend');
+  const days = s.ctx.window.HCDeep.weekOf(NOW);
+  const wd = (iso) => ['M', 'T', 'W', 'T', 'F', 'S', 'S'][(new Date(iso + 'T12:00:00Z').getUTCDay() + 6) % 7];
+  days.forEach((d) => assert.ok(wk.includes(`<span class="dd-wd">${wd(d)}<b>${+d.slice(8)}</b></span>`), d));
+});
+
 test('weekly trends: one card per input, 7 bars ending at the page\'s day (highlighted, with its value), values on top; recovery = each night\'s % in its band colour, sleep bars sleep, load bars strain; a missing day has no bar', () => {
   const s = setup({ dials: DIALS });
   s.api.open('recovery');
   let wk = weeklyOf(s.host.innerHTML);
   assert.ok(wk.startsWith(`<h3 class="dd-sec">${enT.deep.weekly.title}</h3>`));
   const cards = wk.split('<section class="dd-wk"').slice(1);
-  assert.deepEqual(cards.map((c) => /<h4 class="dd-wk-t">([^<]+)</.exec(c)[1]), ['Recovery', 'HRV', 'Resting HR', 'Sleep']);
+  assert.deepEqual(cards.map((c) => /<h4 class="dd-wk-t"><button type="button" class="dd-wk-btn"[^>]*>([^<]+)</.exec(c)[1]), ['Recovery', 'HRV', 'Resting HR', 'Sleep']);
   const rec = cards[0];
   assert.equal((rec.match(/<li class="dd-col/g) || []).length, 7);
   assert.equal((rec.match(/dd-col dd-now/g) || []).length, 1, 'the page\'s day highlighted');
@@ -1401,10 +1418,10 @@ test('weekly trends: one card per input, 7 bars ending at the page\'s day (highl
   s.api.open('sleep');
   wk = weeklyOf(s.host.innerHTML);
   assert.match(wk, /dd-bar dd-c-sleep/);
-  assert.deepEqual([...wk.matchAll(/<h4 class="dd-wk-t">([^<]+)</g)].map((x) => x[1]), ['Sleep', enT.deep.weekly.perf, enT.deep.weekly.restor]);
+  assert.deepEqual([...wk.matchAll(/<h4 class="dd-wk-t"><button type="button" class="dd-wk-btn"[^>]*>([^<]+)</g)].map((x) => x[1]), ['Sleep', enT.deep.weekly.perf, enT.deep.weekly.restor]);
   s.api.open('load-gym');
   wk = weeklyOf(s.host.innerHTML);
-  assert.deepEqual([...wk.matchAll(/<h4 class="dd-wk-t">([^<]+)</g)].map((x) => x[1]), ['Gym load', enT.deep.weekly.minutes]);
+  assert.deepEqual([...wk.matchAll(/<h4 class="dd-wk-t"><button type="button" class="dd-wk-btn"[^>]*>([^<]+)</g)].map((x) => x[1]), ['Gym load', enT.deep.weekly.minutes]);
   assert.match(wk, /dd-bar dd-c-strain/);
   assert.doesNotMatch(wk, /dd-c-(good|mid|low|sleep)/);
   // a later viewer: sleep ends on the dial's night (within the week); load ends at the viewer's today,

@@ -10,6 +10,8 @@ export default {
     brand: 'LOOP',
     nav: {
       ariaLabel: 'Secciones',
+      // the top bar's wordmark button (opens Inicio)
+      homeLink: 'LOOP · Inicio',
       // four top-level tabs, in nav order; the former tabs are now sections (see `sections`)
       tabs: {
         home: { label: 'Inicio' },
