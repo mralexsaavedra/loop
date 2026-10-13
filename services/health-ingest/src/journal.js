@@ -21,7 +21,7 @@
  *
  * Answers: {behaviourKey: value}; a yes/no behaviour takes a boolean, the drinks count an integer
  * 0..countMax; null or a missing key = not answered. Unknown keys are refused (the list is
- * journal-calc.js, a copy of lib/journal/journal.mjs). Answers of a switched-off behaviour are still
+ * journal-calc.js, GENERATED from lib/journal/journal.mjs). Answers of a switched-off behaviour are still
  * accepted: the switch only hides the row on the page, history is kept.
  */
 import { JOURNAL_BEHAVIORS, JOURNAL_LIMITS as L } from './journal-calc.js'
