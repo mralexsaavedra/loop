@@ -80,7 +80,8 @@ function scMod(key) {
     return iso ? '<span class="sc-asof">' + esc(format(T.asOfLbl, { date: HC.fmtDate(iso) })) + '</span>' : '';
   }
   function staleHtml(iso) {
-    return '<div class="sc-stale-note">' + esc(format(T.staleNote, { days: daysOld(iso) })) + '</div>';
+    var days = { days: daysOld(iso) };
+    return HC.staleMark('sc-stale-note', format(T.staleShort, days), format(T.staleNote, days));
   }
 
   /* ---- advice (mirror of lib/score/advice-copy.mjs renderAdvice) ---- */
@@ -149,6 +150,8 @@ function scMod(key) {
     if (R.today) out.push(rt.vsBaseLbl);
     out.push(format(rt.trendLbl, { value: num(R.trend7, 1, true) }) + ' · ' + rt.bands[R.band] +
       (R.delta7 != null ? ' · ' + format(rt.deltaLbl, { value: num(R.delta7, 1, true) }) : ''));
+    // what the card's sparkline shows (no caption under it: the reference app's cards carry no prose)
+    if (R.spark && R.spark.v && R.spark.v.length) out.push(rt.sparkLbl);
     (R.components || []).forEach(function (c) {
       out.push(rt.components[c.key] + ': ' + format(rt.baselineLbl, { value: compVal(c, c.baseline), unit: compUnit(c) }).trim() + ' · ' + format(rt.nLbl, { n: c.n }));
     });
@@ -215,7 +218,7 @@ function scMod(key) {
     }
     var comps = R.components || [];
     out.push('<div class="rec-layout">' + recHeadline(R, rt) +
-      '<div class="sc-spark rec-spark">' + sparkSvg(R.spark && R.spark.v) + '<div class="sc-spark-lbl">' + esc(rt.sparkLbl) + '</div></div>' +
+      '<div class="sc-spark rec-spark">' + sparkSvg(R.spark && R.spark.v) + '</div>' +
       '<ul class="dd-rows rec-contrib">' + comps.map(function (c) { return recContributor(c, rt); }).join('') + '</ul></div>');
     if (comps.length) out.push(recRaw(comps, rt));
     out.push('</div>');
@@ -484,14 +487,15 @@ function scMod(key) {
     });
     return figs.join('');
   }
-  // the ONE line that stays under the dials: the newest data is too old
+  // the ONE marker that stays under the dials: the newest data is too old (HC.staleMark)
   function staleLine() {
     if (VIEW) return '';
     var ages = [D.sleep && D.sleep.state === 'ok' ? D.sleep.date : null, D.recovery ? D.recovery.asOf : null, D.strain ? D.strain.asOf : D.load ? D.load.asOf : null]
       .map(function (iso) { return isStale(iso) ? daysOld(iso) : null; })
       .filter(function (n) { return n != null; });
     if (!ages.length) return '';
-    return '<div class="dial-stale">' + esc(format(T.staleNote, { days: Math.min.apply(null, ages) })) + '</div>';
+    var days = { days: Math.min.apply(null, ages) };
+    return HC.staleMark('dial-stale', format(T.staleShort, days), format(T.staleNote, days));
   }
   // Data honesty: the full caveats live with each dial's detail (load: Entreno #score-load,
   // recovery: Salud). When page.hideTabs makes that detail unreachable (tab hidden, or Entreno's

@@ -51,7 +51,8 @@ dashboard's rules: duration not kcal, DISTINCT days, dashboard modality buckets,
 same-day rule (`lib/training/sessions.mjs` `DISPLAY_RULE`: stubs under 3 min dropped, one source per
 date + bucket, then summed). Only the last 367 data days are baked (6M twice + 3 days of viewer slack),
 one entry per active day; the client ends every window at the VIEWER's today, or at the data date when
-that is more than 3 days old (greyed, with a note) or AFTER the viewer's today (clock / timezone skew,
+that is more than 3 days old (greyed, with the short stale marker `HC.staleMark`: "Data 10 d old ⓘ", a
+tap opens the sentence) or AFTER the viewer's today (clock / timezone skew,
 so the newest sessions stay visible). Calendar = Monday-first weeks, ONE sequential hue (`--strain`) in
 five levels by total minutes (none, < 30, 30–59, 60–89, 90+), an SVG `<title>` per cell. Phones get
 a fixed-size SVG (max 280 px wide); on wide screens (`matchMedia('(min-width: 900px)')`, re-rendered

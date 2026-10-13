@@ -327,6 +327,34 @@ details.rec-raw > summary::after {
   text-decoration-thickness: 1px;
   text-decoration-color: color-mix(in srgb, var(--link) 40%, transparent);
 }
+/* THE stale-data marker (HC.staleMark): a short yellow line + ⓘ; a tap opens the muted sentence */
+.stale-mk {
+  font-size: var(--fs-xs);
+  color: var(--mod);
+}
+.stale-mk > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: 44px;
+  list-style: none;
+  cursor: pointer;
+}
+.stale-mk > summary::-webkit-details-marker {
+  display: none;
+}
+.stale-mk svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.stale-mk > p {
+  margin: 0 0 var(--sp-2);
+  color: var(--muted);
+}
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
   .cta {
     background: linear-gradient(90deg, var(--link), var(--link-end-card));

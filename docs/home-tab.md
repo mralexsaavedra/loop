@@ -227,8 +227,9 @@ trend is the line under it.
   clockwise, round caps, a 9.5-unit stroke (of the 120-unit dial ≈ 8 %, the reference's weight) on `--track`; the value
   INSIDE (D-DIN number, small unit) and an uppercase "LABEL ›" BELOW; the dials sit on the page
   ground, not in a card. No caption under them: each dial's words live in its deep-dive page (insight card)
-  (see `docs/detail-views.md`) and in its accessible name. Only a stale-data warning stays under the
-  dials (`.dial-stale`, one short line: `staleNote`), plus the compact caveat lines below.
+  (see `docs/detail-views.md`) and in its accessible name. Only a stale-data marker stays under the
+  dials (`HC.staleMark`, `.dial-stale`: "Data 5 d old ⓘ" = `staleShort`, a tap opens the `staleNote`
+  sentence), plus the compact caveat lines below.
   Recovery with a % (`today.pct`): the ring fills to pct % from 12 o'clock, ONE colour = its % band
   (`dial-band-good` / `-mid` / `-low`), no baseline tick, the centre "85" + a small "%"; the mini row
   reuses the same svg. Without a % (fallback):
@@ -341,8 +342,8 @@ trend is the line under it.
   the recommended bedtime (moon icon) and the usual wake time (alarm icon) joined by a dashed line, D-DIN
   clocks (`--fs-num-card`, 28 px), uppercase captions; the wake side carries a teal state line "● Usual wake" (`--up`,
   where the reference shows its alarm state: the page has no alarm data) and then "Last N nights"
-  (the nights the median used). Rule (stated in the sheet the card opens — the registered `tonight` view —
-  never on the card): usual wake = the median wake clock (`sleep-daily.csv` `waketime`, the night dated
+  (the nights the median used). Rule (stated behind the ⓘ of the sheet the card opens — the registered `tonight`
+  view, whose body is the bedtime + the history link — never on the card; the disclaimer sits with it): usual wake = the median wake clock (`sleep-daily.csv` `waketime`, the night dated
   the wake-up day) of the nights in the last `TONIGHT_WINDOW` (14) days ending at the newest night with a
   wake time; bedtime = usual wake − the sleep target (`SLEEP_TARGET`, 7.5 h, the sleep dial's). A wake
   clock ≥ 18:00 is unwrapped to a negative hour before the median (23:50 and 00:10 sit together). Fewer

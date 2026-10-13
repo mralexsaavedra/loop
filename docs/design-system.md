@@ -287,6 +287,13 @@ a ride's HR · effort · kJ) — nothing under the name, so run and ride rows ar
 which falls back to the contributor rows' paths): each row picks the icon of what it measures (a
 modality, bed, wake, target …), a neutral one when none fits; never the same icon on every row of a list.
 
+### Stale-data marker
+
+`HC.staleMark(cls, short, sentence)` (`client/util.js`, `.stale-mk` in `base.css`): data older than 3
+days gets ONE short yellow line ("Data 5 d old" + ⓘ) instead of a sentence on the card; it is a native
+`<details>`, so a tap opens the muted sentence in place with no listener (it works on any tab). Uses: under
+the Inicio dials, the load / recovery cards, Entreno's Activity section.
+
 ### Save button
 
 `.save-btn` (`base.css`) is THE primary save: a full-width white caps pill (`--accent` fill,

@@ -158,6 +158,7 @@ export const en = {
   },
   emptyMsg: 'No scores yet. Recovery needs the Apple Health extract; load needs workouts with Relative Effort (Strava).',
   asOfLbl: 'as of {date}',
+  staleShort: 'Data {days} d old',
   staleNote: 'The newest data is {days} days old: shown greyed, and no advice is given.',
   recovery: {
     heading: 'Recovery',
@@ -469,6 +470,7 @@ export const es = {
   },
   emptyMsg: 'Aún no hay puntuaciones. La recuperación necesita la exportación de Apple Health; la carga necesita entrenos con Esfuerzo Relativo (Strava).',
   asOfLbl: 'a fecha {date}',
+  staleShort: 'Datos de hace {days} d',
   staleNote: 'El dato más reciente tiene {days} días: se muestra en gris y no se da consejo.',
   recovery: {
     heading: 'Recuperación',
