@@ -969,9 +969,6 @@ button.dt-day {
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
   .dd-insight .cta {
     background: linear-gradient(90deg, var(--link), var(--link-end));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
   }
 }
 /* sleep stages: one stacked bar of the night (awake / REM / core / deep by hours) + a legend with the

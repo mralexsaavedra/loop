@@ -192,7 +192,7 @@
       return own(TD.metrics, key) && TD.metrics[key].title ? TD.metrics[key].title : titleOf(key);
     }
     function editHtml(list) {
-      return '<p class="dt-note">' + esc(TS.editNote) + '</p><ul class="db-edit">' + list.map(function (p, i) {
+      return '<ul class="db-edit">' + list.map(function (p, i) {
         var t = titleOf(p.key);
         return '<li class="db-erow' + (p.on ? '' : ' db-off') + '">' + icon(p.key) + '<span class="db-name">' + esc(shortOf(p.key)) + '</span>' +
           HC.switchBtn(p.on, format(TS.showAria, { metric: t }), ' data-dash-act="toggle" data-key="' + esc(p.key) + '"') +

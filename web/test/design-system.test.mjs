@@ -278,11 +278,29 @@ test('section heading: one class (.hs-lbl) owns the section step, in sentence ca
   assert.deepEqual(other.map(where), [], 'only .hs-lbl uses the section tokens: a section heading reuses the class');
 });
 
-test('CTA link: only .cta (and the in-sentence .lnk) paint link text; the gradient only on the insight card', () => {
+test('CTA link: only .cta (and the in-sentence .lnk) paint link text; every CTA is the gradient', () => {
   const linkText = RULES.filter((r) => r.decl.color === 'var(--link)').map(key);
   assert.deepEqual(linkText.sort(), ['base.css .cta', 'base.css .lnk'], 'a link-coloured rule outside .cta / .lnk is another link style');
-  const gradient = RULES.filter((r) => r.decl['background-clip'] === 'text').map(key);
-  assert.deepEqual(gradient, ['detail.css .dd-insight .cta'], 'the gradient text is drawn only on --ground (tokens.css)');
+  const gradient = RULES.filter((r) => r.decl['background-clip'] === 'text');
+  assert.deepEqual(gradient.map(key), ['base.css .cta'], 'one rule clips the CTA gradient to text');
+  assert.equal(gradient[0].decl['background-image'] ?? gradient[0].decl.background, 'linear-gradient(90deg, var(--link), var(--link-end-card))', 'on cards the gradient ends in --link-end-card (AA on --surface / --surface-2)');
+  const ground = RULES.filter((r) => /var\(--link-end\)\)/.test(r.decl.background ?? '') && /\.cta\b/.test(r.selector)).map(key);
+  assert.deepEqual(ground, ['detail.css .dd-insight .cta'], 'only the insight card (--ground) ends in the exact --link-end');
+});
+
+// content cards are flat (the reference app draws no outline on a card); inputs, chips, pills and the
+// desktop sheet frame keep theirs. .train-block keeps only its left strain stripe.
+const FLAT_CARDS = ['profile.css .pf-sec', 'dia.css .summary', 'dia.css .mac', 'dia.css .intake-card', 'training.css .train-block'];
+test('content cards: no 1px outline', () => {
+  const found = new Set();
+  const bad = [];
+  for (const r of RULES) {
+    if (!FLAT_CARDS.includes(key(r))) continue;
+    found.add(key(r));
+    if (r.decl.border && r.decl.border !== '0') bad.push(`${where(r)} border: ${r.decl.border}`);
+  }
+  assert.deepEqual([...found].sort(), [...FLAT_CARDS].sort(), 'every flat card still has a rule');
+  assert.deepEqual(bad, []);
 });
 
 // the chevron's look lives in ONE rule (base.css); its owners only place / rotate it

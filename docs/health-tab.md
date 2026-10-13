@@ -31,7 +31,7 @@ headline is last night's recovery % (the unit attached to the number at ~55 % of
 keeps its date above and the number + band word are dimmed (`HC.carried`, `docs/design-system.md` →
 Carried values; Salud's metric rows are "latest per metric" lists, each dated in its own line, so they
 keep only the stale grey) — its long
-lines join this section's ⓘ block, and its raw "Last 14 days" lists fold behind a quiet disclosure
+lines join this section's ⓘ block (also what the sparkline shows: no caption under it), and its raw "Last 14 days" lists fold behind a quiet disclosure
 line, see `docs/home-tab.md` — then only the signals among resting HR, HRV, respiratory rate and wrist
 temperature that the monitor does NOT list: the monitor already shows them at the top, so they are
 not repeated; with today's monitor that leaves no rows), **Fitness** (the fitness-age ring + chronological

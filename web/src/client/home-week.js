@@ -198,17 +198,18 @@
         host.hidden = true;
       }
     }
-    // the sheet behind the card: the rule, with the user's own numbers, and a way to the sleep history
+    // the sheet behind the card: the bedtime and a way to the sleep history; the rule (with the user's own
+    // numbers) and the disclaimer sit behind the ⓘ
     HC.registerView('tonight', {
       title: function () { return T.tonight.heading; },
       render: function () {
         var tn = tonightData(), TT = T.tonight;
         if (!tn) return { head: '', body: '<p class="dt-empty">' + esc(TT.none) + '</p>' };
         var head = '<div class="dt-latest"><b class="dt-num">' + esc(clock(tn.bed)) + '</b><span class="dt-when">' + esc(TT.bed) + '</span></div>';
-        var body = '<p class="tn-rule">' + esc(format(TT.rule, { wake: clock(tn.wake), n: tn.nights, target: HC.hours(tn.target), bed: clock(tn.bed) })) + '</p>' +
-          '<p class="dt-note">' + esc(TT.note) + '</p>' +
-          (D && D.metrics && D.metrics.sleep ? HC.cta(TT.history, ' data-detail="sleep"') : '');
-        return { head: head, body: body };
+        var info = '<p class="tn-rule">' + esc(format(TT.rule, { wake: clock(tn.wake), n: tn.nights, target: HC.hours(tn.target), bed: clock(tn.bed) })) + '</p>' +
+          '<p class="dt-note">' + esc(TT.note) + '</p>';
+        var body = D && D.metrics && D.metrics.sleep ? HC.cta(TT.history, ' data-detail="sleep"') : '';
+        return { head: head, body: body, info: info };
       },
     });
 
