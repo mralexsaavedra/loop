@@ -43,6 +43,18 @@ that neither import `fs` nor call a reader can be emitted into the page via `cli
   `web/test/fixtures/css-expected.json` both ways (dropped/changed AND added declarations fail); after a
   deliberate CSS change run `npm run test:css:update` (after `npm test` / `npm run pretest`), which rewrites
   the fixture keeping key order, appending new keys and deleting stale ones.
+- **Bakes: one composition root + a golden guard.** `web/pages/index.astro` gets every extract-dependent
+  view-model (`nut`, `dash`, `activity`, `health`, `profile`, `scores`, `detail`, `intake`) from ONE Astro-free
+  call, `web/src/bakes.mjs` `computeBakes(env)` (env = `resolveEnv()`). `web/test/golden-bake.test.mjs` runs that
+  same function for the example env (tracked seeds + `data/demo/extract`) and for an EMPTY extract dir, under a
+  fixed clock (`2026-09-28T20:00:00Z`, the demo extract's last day) and `TZ=UTC`, canonicalises the result (sorted
+  keys; `profile.photo` reduced to `'[photo]'` / `null`) and compares it to `web/test/fixtures/bake-golden.{example,empty}.json`,
+  failing with the first differing JSON paths. A refactor of a compute module must leave both unchanged; a
+  deliberate output change runs `npm run golden:bake -- --update` and reviews the fixture diff. Owner-local, the
+  personal data has what the demo lacks (rides, power): `npm run golden:bake -- --personal` writes
+  `web/test/.golden/bake-golden.personal.json` (gitignored, never commit it) on the first run and compares on later
+  runs (exit 1 on a diff, paths and counts only, never values; `--personal --update` rewrites it; exit 2 when
+  `data/nutrition/plan-data.json` is missing). Run it before and after a refactor in the clone that holds the data.
 - **Script order: one manifest.** The client scripts are classic `is:inline` scripts that talk only through
   page globals, so their order is a contract. `web/src/client/manifest.mjs` (`CLIENT_SCRIPTS`) is its ONE source:
   `layouts/Plan.astro` inlines every `web/src/client/*.js` (`import.meta.glob` `?raw`) in that order, after the
