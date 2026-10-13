@@ -1,21 +1,46 @@
 /* Tests for the nutrition plan generator. Zero dependencies — Node's built-in
  * runner:  node --test  (from data/nutrition/) or  npm test.
- * Importing generate.js does NOT write files (I/O is guarded by require.main).
+ * Importing generate.mjs does NOT write files (I/O is guarded by isMain).
  * The generator merges two files: ingredients.json (public food DB) +
  * plan-data.json (personal plan). These tests exercise the merged result. */
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { execFileSync, spawnSync } = require('node:child_process');
-const os = require('node:os');
-const gen = require('./generate.js');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync, spawnSync } from 'node:child_process';
+import os from 'node:os';
+import { fileURLToPath } from 'node:url';
+import * as gen from './generate.mjs';
+import { ingName } from '../../lib/nutrition/names.mjs';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const REPO = path.join(__dirname, '..', '..');
+
+// Mirrors the repo structure generate.mjs statically imports (data/nutrition/generate.mjs +
+// ../../lib/nutrition/*.mjs + ../../scripts/lib/is-main.mjs) into a temp root, WITHOUT ever copying
+// the real (possibly personal) plan-data.json. `files` are the data/nutrition seeds to copy next to it.
+// Returns the temp data/nutrition dir.
+function mirrorTree(root, files) {
+  const nutDir = path.join(root, 'data', 'nutrition');
+  fs.mkdirSync(nutDir, { recursive: true });
+  fs.mkdirSync(path.join(root, 'lib', 'nutrition'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'scripts', 'lib'), { recursive: true });
+  fs.copyFileSync(path.join(__dirname, 'generate.mjs'), path.join(nutDir, 'generate.mjs'));
+  for (const [from, to] of files) fs.copyFileSync(from, path.join(nutDir, to));
+  // the whole lib/nutrition module set (macros.mjs imports its siblings), tests left out
+  for (const f of fs.readdirSync(path.join(REPO, 'lib', 'nutrition'))) {
+    if (!f.endsWith('.mjs') || f.endsWith('.test.mjs')) continue;
+    fs.copyFileSync(path.join(REPO, 'lib', 'nutrition', f), path.join(root, 'lib', 'nutrition', f));
+  }
+  fs.copyFileSync(path.join(REPO, 'scripts', 'lib', 'is-main.mjs'), path.join(root, 'scripts', 'lib', 'is-main.mjs'));
+  return nutDir;
+}
 
 const { ING, D, macro, mealMacros, buildTables, validate, DAYPLAN, LEGUMES, LEGUME_PLATE } = gen;
 const close = (a, b, tol = 0.5) => Math.abs(a - b) <= tol;
 
-test('generate.js no longer builds plan-web.html — buildHtml is not exported (astro-plan-web cutover)', () => {
-  assert.equal(gen.buildHtml, undefined, 'HTML splicing moved to the Astro build; generate.js now only validates + writes plan-tables.md');
+test('generate.mjs no longer builds plan-web.html — buildHtml is not exported (astro-plan-web cutover)', () => {
+  assert.equal(gen.buildHtml, undefined, 'HTML splicing moved to the Astro build; generate.mjs now only validates + writes plan-tables.md');
 });
 
 test('validate() passes on the merged ingredients.json + plan-data.json', () => {
@@ -32,43 +57,35 @@ test('the food DB lives in ingredients.json, not plan-data.json', () => {
   assert.ok(!('ingredients' in planRaw), 'plan-data.json must NOT carry an ingredients block (it ships in ingredients.json)');
   const ingRaw = JSON.parse(fs.readFileSync(path.join(__dirname, 'ingredients.json'), 'utf8'));
   assert.ok(ingRaw.ingredients && typeof ingRaw.ingredients === 'object', 'ingredients.json must have a top-level ingredients object');
-  // generate.js merged them: every key the recipes resolve against comes from the public DB.
+  // generate.mjs merged them: every key the recipes resolve against comes from the public DB.
   assert.deepEqual(Object.keys(ING).sort(), Object.keys(ingRaw.ingredients).sort());
 });
 
-test('generate.js fails clearly when ingredients.json is missing', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-no-ing-'));
+test('generate.mjs fails clearly when ingredients.json is missing', () => {
+  // The lib imports are static (they resolve before the module body runs), so the mirrored tree carries
+  // them: only ingredients.json is left out, and the error must name it, not a missing module.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-no-ing-'));
   try {
-    fs.copyFileSync(path.join(__dirname, 'generate.js'), path.join(dir, 'generate.js'));
-    fs.copyFileSync(gen.PLAN_PATH, path.join(dir, 'plan-data.json'));
+    const nutDir = mirrorTree(root, [[path.join(__dirname, 'plan-data.example.json'), 'plan-data.json']]);
     assert.throws(
-      () => execFileSync(process.execPath, ['generate.js', '--check'], { cwd: dir, stdio: 'pipe' }),
+      () => execFileSync(process.execPath, ['generate.mjs', '--check'], { cwd: nutDir, stdio: 'pipe' }),
       /ingredients\.json not found/,
     );
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
-test('generate.js falls back to plan-data.example.json (with a clear warning) when the personal plan-data.json is absent — fresh clone with no seeds copied', () => {
-  // Mirrors repo structure (data/nutrition/generate.js + ../../lib/nutrition/macros.mjs)
-  // so generate.js's own require() resolves, WITHOUT ever copying the real
-  // (possibly personal) plan-data.json — only ingredients.json + the tracked
-  // .example seed, exactly like a fresh `git clone` with no bootstrap step run.
+test('generate.mjs falls back to plan-data.example.json (with a clear warning) when the personal plan-data.json is absent — fresh clone with no seeds copied', () => {
+  // Only ingredients.json + the tracked .example seed, exactly like a fresh `git clone` with no
+  // bootstrap step run.
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-no-personal-'));
   try {
-    const nutDir = path.join(root, 'data', 'nutrition');
-    fs.mkdirSync(nutDir, { recursive: true });
-    fs.mkdirSync(path.join(root, 'lib', 'nutrition'), { recursive: true });
-    fs.copyFileSync(path.join(__dirname, 'generate.js'), path.join(nutDir, 'generate.js'));
-    fs.copyFileSync(path.join(__dirname, 'ingredients.json'), path.join(nutDir, 'ingredients.json'));
-    fs.copyFileSync(path.join(__dirname, 'plan-data.example.json'), path.join(nutDir, 'plan-data.example.json'));
-    // the whole lib/nutrition module set (macros.mjs imports its siblings), tests left out
-    for (const f of fs.readdirSync(path.join(__dirname, '..', '..', 'lib', 'nutrition'))) {
-      if (!f.endsWith('.mjs') || f.endsWith('.test.mjs')) continue;
-      fs.copyFileSync(path.join(__dirname, '..', '..', 'lib', 'nutrition', f), path.join(root, 'lib', 'nutrition', f));
-    }
-    const res = spawnSync(process.execPath, ['generate.js', '--check'], { cwd: nutDir, encoding: 'utf8' });
+    const nutDir = mirrorTree(root, [
+      [path.join(__dirname, 'ingredients.json'), 'ingredients.json'],
+      [path.join(__dirname, 'plan-data.example.json'), 'plan-data.example.json'],
+    ]);
+    const res = spawnSync(process.execPath, ['generate.mjs', '--check'], { cwd: nutDir, encoding: 'utf8' });
     assert.equal(res.status, 0, `expected success, got status=${res.status}, stderr=${res.stderr}`);
     assert.match(res.stderr, /plan-data\.example\.json/, 'must say clearly it is validating the example seed, not silently succeed');
     assert.match(res.stdout, /Validation OK/);
@@ -134,7 +151,6 @@ test('legume reference table is single-sourced (computed, not hand-typed) and pe
   const tables = buildTables();
   // Lentils row must equal the ingredient per its natural unit, proving it renders from the source
   // (named in the plan's locale: "Lentejas" in an es plan, "Lentils" in an en one).
-  const { ingName } = require('../../lib/nutrition/names.mjs');
   assert.match(tables, new RegExp(`\\| ${ingName(ING, 'lentejas', gen.LOCALE)} \\| 100 g cooked \\| ${Math.round(ING.lentejas.k)} \\|`));
   assert.doesNotMatch(tables, new RegExp(`~${LEGUME_PLATE} g \\|`), 'no plate portion in the food tables');
 });
@@ -161,7 +177,7 @@ test('plan-tables.md food tables are fixed reference values per natural unit (no
   assert.doesNotMatch(tables, /Training day|Rest day|\| Cant\. \|/);
 });
 
-test('generate.js no longer exports the removed day builder\'s targetFor(train|rest)', () => {
+test('generate.mjs no longer exports the removed day builder\'s targetFor(train|rest)', () => {
   assert.equal(gen.targetFor, undefined);
   assert.equal(typeof gen.dayTotalK, 'function');
 });

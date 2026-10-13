@@ -2,7 +2,7 @@
 /* Profile sync — pulls the Strava athlete snapshot the self-hosted ingest service stores
  * (services/health-ingest, GET /export/athlete) into data/profile/, for the page's profile sheet.
  *
- *   node data/profile/sync-profile.js      (part of `npm run sync`, after the Strava sync)
+ *   node data/profile/sync-profile.mjs     (part of `npm run sync`, after the Strava sync)
  *
  * Env    : INGEST_URL (default http://localhost:8088), INGEST_TOKEN (falls back to
  *          services/health-ingest/.env, like the other syncs).
@@ -18,9 +18,13 @@
  *          download is only a warning: the previous avatar stays, exit 0. Anything else -> one
  *          `ERROR:` line, exit 1.
  */
-const fs = require('fs')
-const path = require('path')
-const common = require('../apple-health/sync-common.mjs')
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import * as common from '../apple-health/sync-common.mjs'
+import { isMain } from '../../scripts/lib/is-main.mjs'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // SYNC_PROFILE_OUT_DIR / INGEST_ENV_FILE exist ONLY so the child-process tests can point main()
 // at a disposable tmp dir / env file — unset in production.
@@ -233,9 +237,9 @@ async function main () {
   }
 }
 
-if (require.main === module) main()
+if (isMain(import.meta.url)) main()
 
-module.exports = {
+export {
   PROFILE_JSON,
   AVATAR_FILE,
   MAX_AVATAR_BYTES,

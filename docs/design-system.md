@@ -135,7 +135,7 @@ food log adherence and weight progress functions ride along too (`lib/nutrition/
 `var HC_DAYTYPE`, `lib/nutrition/fuel.mjs` → `var HC_FUEL` and `lib/nutrition/scale.mjs` (+ amounts / units /
 fill) → `var HC_SCALE` and `lib/nutrition/guide.mjs` → `var HC_GUIDE`, read by `client/nutri-day.js`. Every
 nutrition module only declares a plain `CLIENT` descriptor; `lib/nutrition/client.mjs` is the ONE module there that
-imports the emitter and exposes the `clientSource()` functions, because `data/nutrition/generate.js` loads
+imports the emitter and exposes the `clientSource()` functions, because `data/nutrition/generate.mjs` loads
 `lib/nutrition` without `lib/format` — `lib/nutrition/client.test.mjs` guards that no other module imports it);
 `web/test/client-copies.test.mjs` guards that no client file re-defines them). Every one is built by `classicGlobal()` (`lib/format/numbers.mjs`): public keys come from an
 explicit map and constants are declared under every spelling the function bodies use, because the

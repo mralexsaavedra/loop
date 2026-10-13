@@ -1,5 +1,5 @@
 {
-  "_doc": "EXAMPLE plan data. A fresh clone already ships the public food DB in ingredients.json; copy THIS file to plan-data.json, then edit each item recipe (amt in the ingredient unit) and the day plan to match your own diet. SINGLE SOURCE: ingredient labels/macros live in ingredients.json (per-100g/ml/ud; verified=real product label); plan-data.json holds only your personal plan (data/dayPlan/extras). generate.js MERGES both and COMPUTES per-serving k/p/c/g, writing the DATA/EXTRAS block in plan-web.html + plan-tables.md. Items with manual are ranges/estimates with no single label — kept verbatim. The ingredient keys referenced here MUST exist in ingredients.json.",
+  "_doc": "EXAMPLE plan data. A fresh clone already ships the public food DB in ingredients.json; copy THIS file to plan-data.json, then edit each item recipe (amt in the ingredient unit) and the day plan to match your own diet. SINGLE SOURCE: ingredient labels/macros live in ingredients.json (per-100g/ml/ud; verified=real product label); plan-data.json holds only your personal plan (data/dayPlan/extras). generate.mjs MERGES both and COMPUTES per-serving k/p/c/g, writing the DATA/EXTRAS block in plan-web.html + plan-tables.md. Items with manual are ranges/estimates with no single label — kept verbatim. The ingredient keys referenced here MUST exist in ingredients.json.",
   "data": {
     "desayuno": [
       {
@@ -533,7 +533,7 @@
     }
   },
   "targets": {
-    "_doc": "Legacy per-base-day goals (the removed day builder read them; the page now uses targets.byGoal via Resumen de hoy). kcal is NOT set here — generate.js derives it from each day's prescribed total. p = protein goal (g), fatMax = fat ceiling (g).",
+    "_doc": "Legacy per-base-day goals (the removed day builder read them; the page now uses targets.byGoal via Resumen de hoy). kcal is NOT set here — generate.mjs derives it from each day's prescribed total. p = protein goal (g), fatMax = fat ceiling (g).",
     "train": {
       "p": 150,
       "fatMax": 75

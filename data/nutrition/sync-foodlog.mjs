@@ -4,7 +4,7 @@
  * lib/nutrition/foodlog.mjs) into data/nutrition/foodlog-daily.csv, so read-only consumers (the
  * nutrition-coach subagent, which only reads files) see what the user actually logged.
  *
- *   node data/nutrition/sync-foodlog.js      (part of `npm run sync`, after the settings sync)
+ *   node data/nutrition/sync-foodlog.mjs     (part of `npm run sync`, after the settings sync)
  *
  * Env    : INGEST_URL (default http://localhost:8088). No token: /food/* is the unauthenticated,
  *          LAN-only food layer; the request carries `X-HC-Food: 1` and the URL's Host must be one the
@@ -24,9 +24,13 @@
  *          old files kept, exit 0: the export is optional and must never fail `npm run sync`. Only a
  *          failed write exits 1.
  */
-const fs = require('fs')
-const path = require('path')
-const common = require('../apple-health/sync-common.mjs')
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import * as common from '../apple-health/sync-common.mjs'
+import { isMain } from '../../scripts/lib/is-main.mjs'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // SYNC_FOODLOG_OUT_DIR exists ONLY so the child-process tests can point main() at a tmp dir
 const OUT = process.env.SYNC_FOODLOG_OUT_DIR || __dirname
@@ -187,6 +191,6 @@ async function main () {
   }
 }
 
-if (require.main === module) main()
+if (isMain(import.meta.url)) main()
 
-module.exports = { CSV_FILE, META_FILE, DAYS_MAX, HEADER, windowFor, normalizeSummary, toCsv, fetchSummary, syncFoodlog, warning, main }
+export { CSV_FILE, META_FILE, DAYS_MAX, HEADER, windowFor, normalizeSummary, toCsv, fetchSummary, syncFoodlog, warning, main }
