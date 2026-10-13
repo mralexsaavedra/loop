@@ -136,7 +136,8 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
           LOOP left · pill centre · Sync + avatar right, one row */}
       <div class="topbar">
         {profile && <Avatar profile={profile} locale={locale} />}
-        <div class="wordmark" set:html={wordmarkSvg.trim()}></div>
+        {/* the wordmark is THE way home: a tap opens the default tab (Inicio unless hidden), scrolled to the top */}
+        <button type="button" class="wordmark" onclick="setTab(defaultTab())" aria-label={nav.homeLink} set:html={wordmarkSvg.trim()}></button>
         <div class="date-pill" id="date-pill" role="group" aria-label={nav.day.group}>
           <button type="button" class="day-step" id="day-prev" aria-label={nav.day.prev} hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6" /></svg></button>
           <button type="button" class="day-lbl" id="day-lbl" aria-disabled="true" aria-live="polite" data-back={nav.day.back}><span class="date-pill-lbl" id="day-word" aria-hidden="true">{nav.today}</span><time id="today-date" class="today-date"></time></button>

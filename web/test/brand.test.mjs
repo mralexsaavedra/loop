@@ -40,15 +40,21 @@ test('home-screen icon: a 180×180 PNG apple-touch-icon inlined as base64', () =
 });
 
 test('the wordmark sits inside the top bar, between the avatar and the date pill, before every tab panel, once', () => {
-  const at = html.indexOf('<div class="wordmark">');
+  const at = html.indexOf('<button type="button" class="wordmark"');
   assert.ok(at > html.indexOf('<div class="topbar"'), 'inside the top bar');
   assert.ok(at > html.indexOf('id="avatar-btn"') && at < html.indexOf('class="date-pill"'), 'avatar · wordmark · pill');
   assert.ok(at < html.indexOf('<div class="dock"'), 'before the dock');
   assert.ok(at < html.indexOf('class="tab-panel"'), 'before the panels');
-  const mark = /<div class="wordmark">([\s\S]*?)<\/div>/.exec(html)[1];
+  const mark = /<button type="button" class="wordmark"[^>]*>([\s\S]*?)<\/button>/.exec(html)[1];
   assert.match(mark, /^<svg [^>]*role="img"[^>]*aria-label="LOOP"/);
   assert.doesNotMatch(mark, /<text\b|font-family/, 'outlines, never the font');
   assert.equal([...html.matchAll(/class="wordmark"/g)].length, 1);
+});
+
+test('the wordmark is a button back to Inicio (the default tab, scrolled to the top), named for screen readers', () => {
+  const tag = /<button type="button" class="wordmark"[^>]*>/.exec(html)[0];
+  assert.match(tag, /onclick="setTab\(defaultTab\(\)\)"/, 'the first visible tab = Inicio unless page.hideTabs hides it');
+  assert.match(tag, /aria-label="LOOP · Home"/);
 });
 
 test('the wordmark shows on every tab: no rule hides it while the home panel is hidden', () => {
