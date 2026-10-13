@@ -54,6 +54,7 @@ you MUST follow for any number you produce).
 | `npm test` | Full suite (`node --test`); `pretest` builds the example (+ personal, if present) fixtures |
 | `npm run test:services` | The `services/health-ingest` suite (not part of `npm test`, which stays dependency-free): `npm ci` there from its lockfile, then its `node --test` |
 | `npm run test:css:update` | Regenerate `web/test/fixtures/css-expected.json` from the example build after a deliberate CSS change (keeps key order, appends new, drops stale; `-- --check` writes nothing) |
+| `npm run golden:bake` | Compare every build-time bake (`web/src/bakes.mjs`) for the example + an empty extract against `web/test/fixtures/bake-golden.*.json` (`-- --update` rewrites them after a deliberate change; `-- --personal` writes/compares the gitignored `web/test/.golden/` personal golden, paths only, exit 2 without personal inputs) |
 | `npm run build:example` | Example page from the tracked seeds + the synthetic demo extract (`data/demo/`), no personal files |
 | `npm run gen:food-calc` | Regenerate `services/health-ingest/src/food-calc.js` from `lib/nutrition/foodlog.mjs` (a food log formula change is made in the lib first, then this; a test fails while it is stale) |
 | `npm run gen:journal-calc` | Regenerate `services/health-ingest/src/journal-calc.js` from `lib/journal/journal.mjs` (a journal behaviour / limit change is made in the lib first, then this; a test fails while it is stale) |
