@@ -1,6 +1,6 @@
 -- Per-activity heart-rate time histogram (src/hr-zones.js): seconds spent at each whole bpm, from
 -- Strava's /activities/{id}/streams (time + heartrate). Only this AGGREGATE is kept, never the raw
--- stream; the HR zones (% of max HR) are cut from it on the repo side (sync-strava.js). One row per
+-- stream; the HR zones (% of max HR) are cut from it on the repo side (sync-strava.mjs). One row per
 -- activity that got a definite answer: status 'ok' (hr_hist set), 'no_hr' (no heart-rate stream) or
 -- 'not_found' (404), so it is never fetched again. fetched_at doubles as the rate-limit ledger (the
 -- backfill counts its own calls of the last 15 min / 24 h). Idempotent like 002-007.

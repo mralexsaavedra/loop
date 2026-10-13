@@ -1,12 +1,8 @@
-/* Tests for the per-workout HR zones (lib/training/hr-zones.mjs) and the max HR sync-strava.js cuts them
- * with (lib/profile/read.mjs readProfileMaxHr). SYNTHETIC values only. */
-const { test } = require('node:test')
-const assert = require('node:assert/strict')
-const fs = require('fs')
-const os = require('os')
-const path = require('path')
-const Z = require('../../lib/training/hr-zones.mjs')
-const { readProfileMaxHr } = require('../../lib/profile/read.mjs')
+/* Tests for the per-workout HR zones (lib/training/hr-zones.mjs) that sync-strava.mjs cuts; the max HR
+ * reader (readProfileMaxHr) is tested in lib/profile/read.test.mjs. SYNTHETIC values only. */
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import * as Z from '../../lib/training/hr-zones.mjs'
 
 test('zoneOf: % of max HR, lower bound inclusive — Z0 < 50, Z1 50-60, Z2 60-70, Z3 70-80, Z4 80-90, Z5 >= 90', () => {
   const max = 200
@@ -39,24 +35,6 @@ test('pickMaxHr: a valid profile maxHr wins, else the observed one, else null', 
   assert.deepEqual(Z.pickMaxHr(list, 60), { maxHr: 181, source: 'observed' })
   assert.deepEqual(Z.pickMaxHr(list, null), { maxHr: 181, source: 'observed' })
   assert.equal(Z.pickMaxHr([act('1', '2026-09-30')], null), null)
-})
-
-test('readProfileMaxHr (lib/profile/read.mjs): absent file / key -> null; out-of-range or broken JSON -> an error, never a throw', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zones-prof-'))
-  try {
-    const f = path.join(dir, 'profile.json')
-    assert.deepEqual(readProfileMaxHr(f), { maxHr: null, error: null })
-    fs.writeFileSync(f, '{"name":"x"}')
-    assert.deepEqual(readProfileMaxHr(f), { maxHr: null, error: null })
-    fs.writeFileSync(f, '{"maxHr":187}')
-    assert.deepEqual(readProfileMaxHr(f), { maxHr: 187, error: null })
-    fs.writeFileSync(f, '{"maxHr":300}')
-    assert.match(readProfileMaxHr(f).error, /maxHr must be/)
-    fs.writeFileSync(f, '{')
-    assert.match(readProfileMaxHr(f).error, /not valid JSON/)
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true })
-  }
 })
 
 test('buildZones: one row per activity with a histogram, sorted by start; activities without one are left out', () => {

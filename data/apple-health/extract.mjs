@@ -2,7 +2,7 @@
 /* Apple Health extractor — turns the huge export.xml (~700 MB) into small, grep-able
  * per-metric CSVs so every analysis reads the cache instead of re-streaming the XML.
  *
- *   node data/apple-health/extract.js
+ *   node data/apple-health/extract.mjs
  *
  * Reads  : data/apple-health/export.xml   (gitignored — personal data)
  * Writes : data/apple-health/extract/*.csv + _meta.json  (gitignored)
@@ -16,11 +16,14 @@
  * per day; energy uses ONE source per day by precedence (Watch > wrist wearable app > iPhone). Daily TOTAL series skip the export's last date
  * (a partial day, recorded as _meta.json exportLastDate). Sleep is best-effort (see _meta.json).
  */
-const fs = require('fs');
-const path = require('path');
-const readline = require('readline');
+import fs from 'node:fs';
+import path from 'node:path';
+import readline from 'node:readline';
+import { fileURLToPath } from 'node:url';
+// shared with sync-shortcut.mjs so export- and Shortcut-derived rows are formatted identically
+import { pickEnergySource, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights, sleepStage } from './samples.mjs';
 
-const DIR = __dirname;
+const DIR = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.join(DIR, 'export.xml');
 const OUT = path.join(DIR, 'extract');
 
@@ -28,8 +31,6 @@ if (!fs.existsSync(SRC)) { console.error('ERROR: export.xml not found at ' + SRC
 fs.mkdirSync(OUT, { recursive: true });
 
 const attr = (s, name) => { const m = s.match(new RegExp(' ' + name + '="([^"]*)"')); return m ? m[1] : null; };
-// shared with sync-shortcut.js so export- and Shortcut-derived rows are formatted identically
-const { pickEnergySource, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights, sleepStage } = require('./samples.mjs');
 
 // sparse readings: [{date, value, source}]
 const readings = { weight: [], bodyfat: [], rhr: [], vo2max: [], hrv: [], leanmass: [], wristTemp: [], hrRecovery: [], waist: [] };
@@ -42,7 +43,7 @@ const READING_FILE = { hrRecovery: 'hr-recovery.csv' };
 // only its sum is written. A day with excluded sources only is MISSING (no row).
 const energyBySrc = { active: new Map(), basal: new Map() };
 // The export's last date is a PARTIAL day (export.xml is taken mid-day): <ExportDate value>, else the
-// newest record date. Daily TOTAL series drop it (the Shortcut sync fills it, see sync-shortcut.js).
+// newest record date. Daily TOTAL series drop it (the Shortcut sync fills it, see sync-shortcut.mjs).
 let exportDate = null;
 let maxRecordDate = null;
 // per-source daily totals for series logged by MULTIPLE devices (iPhone + Watch): we take the
@@ -58,7 +59,7 @@ const stepsBySrc = new Map();
 // dietary daily: Map<date, {kcal,p,c,g}>
 const diet = new Map();
 // sleep segments [{start, end, source, stage}] -> nights via samples.mjs sleepNights (naps excluded,
-// max across sources per night avoids a double count) — the same rule sync-shortcut.js uses
+// max across sources per night avoids a double count) — the same rule sync-shortcut.mjs uses
 const sleepSegs = [];
 const workouts = []; // {date, type, durationMin, energyKcal, hrAvg, hrMin, hrMax, source}
 
@@ -277,7 +278,7 @@ rl.on('close', () => {
       'leanmass & wristTemp are sparse, source-tagged (leanmass mixes scales like weight; wrist temp is sleeping-watch only).',
       'workouts now carry hr_avg/hr_min/hr_max (bpm) and energy_kcal pulled from child <WorkoutStatistics> (per-workout intensity; HR coverage starts when a watch was first worn).',
       'workouts.csv has 12 columns; relative_effort, kilojoules and elevation_m are filled only by Strava rows (npm run sync:strava) and stay empty on export rows. Readers tolerate shorter rows from older runs.',
-      'Regenerate after dropping a new export: node data/apple-health/extract.js',
+      'Regenerate after dropping a new export: node data/apple-health/extract.mjs',
     ],
   };
   fs.writeFileSync(path.join(OUT, '_meta.json'), JSON.stringify(meta, null, 2) + '\n');

@@ -1,8 +1,15 @@
 /* Tests for the iOS Shortcut sync (ingest service -> extract CSVs). Pure functions only,
  * SYNTHETIC fixtures (no real personal values), no network, no disk. */
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const sync = require('./sync-shortcut.js');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import * as sync from './sync-shortcut.mjs';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const {
   METRICS, SHORTCUT_SOURCE, parseNumber, parsePayload, collectSamples, buildRows,
@@ -74,7 +81,7 @@ test('unionMinutes() merges overlapping intervals (no double count)', () => {
   assert.equal(unionMinutes([]), 0);
 });
 
-test('buildRows() formats point metrics like extract.js, sorted, tagged Shortcut', () => {
+test('buildRows() formats point metrics like extract.mjs, sorted, tagged Shortcut', () => {
   const rows = buildRows('hrv', [
     { start: '2030-01-03 08:00:00 +0100', value: 41.26 },
     { start: '2030-01-02 08:00:00 +0100', value: 40.04 },
@@ -420,7 +427,7 @@ test('planSync() writes active-energy-hourly.csv and rebuilds it every run (no e
     'date,hour_start,kcal,source\n2030-01-02,2030-01-02T09:00:00+01:00,250.0,Shortcut\n');
 });
 
-// ---- steps: per-device day totals, max-per-device like extract.js ----------------------
+// ---- steps: per-device day totals, max-per-device like extract.mjs ----------------------
 
 const WATCH = METRICS.steps.devices.steps_watch;
 const PHONE = METRICS.steps.devices.steps_phone;
@@ -575,12 +582,7 @@ test('fetchAllPayloads() aborts a hung request with a clear timeout error', asyn
   await assert.rejects(fetchAllPayloads({ baseUrl: 'http://h', token: 't', automation: 'a', timeoutMs: 20, fetchImpl }), /timed out/);
 });
 
-// ---- disk: atomic writes + the extract.js <-> sync contract ----------------------------
-
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+// ---- disk: atomic writes + the extract.mjs <-> sync contract ---------------------------
 
 test('writeAtomic() replaces the file and leaves no temp file behind', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-atomic-'));
@@ -594,7 +596,7 @@ test('writeAtomic() replaces the file and leaves no temp file behind', () => {
 
 test('contract: a re-extract drops Shortcut rows + ledger, the next sync restores them from cache', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-contract-'));
-  for (const f of ['extract.js', 'samples.mjs']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
+  for (const f of ['extract.mjs', 'samples.mjs']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
   const Q = 'HKQuantityTypeIdentifier';
   fs.writeFileSync(path.join(dir, 'export.xml'), [
     '<ExportDate value="2030-01-03 08:00:00 +0100"/>', // 01-01 is a complete day, not the partial last one
@@ -602,7 +604,7 @@ test('contract: a re-extract drops Shortcut rows + ledger, the next sync restore
     // a real Watch name: energy counts only Watch / wearable / iPhone sources (samples.mjs energySource)
     `<Record type="${Q}ActiveEnergyBurned" sourceName="Apple Watch de Demo" startDate="2030-01-01 10:00:00 +0100" endDate="2030-01-01 10:05:00 +0100" value="300"/>`,
   ].join('\n') + '\n');
-  const extract = () => execFileSync(process.execPath, [path.join(dir, 'extract.js')], { stdio: 'ignore' });
+  const extract = () => execFileSync(process.execPath, [path.join(dir, 'extract.mjs')], { stdio: 'ignore' });
   const out = path.join(dir, 'extract');
   const read = f => fs.readFileSync(path.join(out, f), 'utf8');
   const items = [{ id: '1', payload: {
@@ -667,7 +669,7 @@ test('walking_hr: day-grouped mean -> date,bpm (integer)', () => {
   assert.equal(METRICS.walking_hr.csv, 'walking-hr-daily.csv');
 });
 
-test('wrist_temp: dated by the wake-up night (like sleep and extract.js), one row per sample', () => {
+test('wrist_temp: dated by the wake-up night (like sleep and extract.mjs), one row per sample', () => {
   const s = collectSamples([{ wrist_temp: '2030-01-01T23:10:00+01:00;36.123\n2030-01-03T00:20:00+01:00;36,4' }]);
   assert.deepEqual(buildRows('wrist_temp', s.wrist_temp).map(r => r.line),
     [`2030-01-02,36.12,${SHORTCUT_SOURCE}`, `2030-01-03,36.4,${SHORTCUT_SOURCE}`]);
@@ -679,15 +681,15 @@ test('hr_recovery: one row per workout sample -> hr-recovery.csv', () => {
   assert.deepEqual(buildRows('hr_recovery', s.hr_recovery).map(r => r.line),
     [`2030-01-02,25.3,${SHORTCUT_SOURCE}`, `2030-01-02,30,${SHORTCUT_SOURCE}`]);
   assert.equal(METRICS.hr_recovery.csv, 'hr-recovery.csv');
-  assert.equal(METRICS.hr_recovery.metaKey, 'hrRecovery', 'same rows key extract.js writes');
+  assert.equal(METRICS.hr_recovery.metaKey, 'hrRecovery', 'same rows key extract.mjs writes');
 });
 
-test('extract.js writes hr-recovery.csv in the same schema the sync uses', () => {
+test('extract.mjs writes hr-recovery.csv in the same schema the sync uses', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-hrr-'));
-  for (const f of ['extract.js', 'samples.mjs']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
+  for (const f of ['extract.mjs', 'samples.mjs']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
   fs.writeFileSync(path.join(dir, 'export.xml'),
     '<Record type="HKQuantityTypeIdentifierHeartRateRecoveryOneMinute" sourceName="W" startDate="2030-01-02 19:00:00 +0100" endDate="2030-01-02 19:01:00 +0100" value="25.26"/>\n');
-  execFileSync(process.execPath, [path.join(dir, 'extract.js')], { stdio: 'ignore' });
+  execFileSync(process.execPath, [path.join(dir, 'extract.mjs')], { stdio: 'ignore' });
   const out = path.join(dir, 'extract');
   assert.equal(fs.readFileSync(path.join(out, 'hr-recovery.csv'), 'utf8'), 'date,value,source\n2030-01-02,25.3,W\n');
   assert.equal(JSON.parse(fs.readFileSync(path.join(out, '_meta.json'), 'utf8')).rows.hrRecovery, 1);
@@ -704,16 +706,16 @@ test('waist: point samples in cm -> waist.csv (1 decimal, tagged Shortcut); metr
   assert.equal(METRICS.waist.header, 'date,value,source');
 });
 
-test('extract.js writes waist.csv (cm) in the same schema the sync uses', () => {
+test('extract.mjs writes waist.csv (cm) in the same schema the sync uses', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-waist-'));
-  for (const f of ['extract.js', 'samples.mjs']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
+  for (const f of ['extract.mjs', 'samples.mjs']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
   fs.writeFileSync(path.join(dir, 'export.xml'), [
     '<Record type="HKQuantityTypeIdentifierWaistCircumference" sourceName="Health" unit="cm" startDate="2030-01-02 08:00:00 +0100" endDate="2030-01-02 08:00:00 +0100" value="84.26"/>',
     '<Record type="HKQuantityTypeIdentifierWaistCircumference" sourceName="Health" unit="m" startDate="2030-01-09 08:00:00 +0100" endDate="2030-01-09 08:00:00 +0100" value="0.835"/>',
     '<Record type="HKQuantityTypeIdentifierWaistCircumference" sourceName="Health" unit="in" startDate="2030-01-16 08:00:00 +0100" endDate="2030-01-16 08:00:00 +0100" value="33"/>',
     '',
   ].join('\n'));
-  execFileSync(process.execPath, [path.join(dir, 'extract.js')], { stdio: 'ignore' });
+  execFileSync(process.execPath, [path.join(dir, 'extract.mjs')], { stdio: 'ignore' });
   const out = path.join(dir, 'extract');
   assert.equal(fs.readFileSync(path.join(out, 'waist.csv'), 'utf8'),
     'date,value,source\n2030-01-02,84.3,Health\n2030-01-09,83.5,Health\n2030-01-16,83.8,Health\n');
@@ -737,7 +739,7 @@ test('dietary: diet_kcal/protein/carbs/fat day totals merge into one dietary-dai
     '2030-01-03,1850,140.0,190.0,',
   ], 'oldest (truncated) day of the group dropped; a macro missing on a day stays blank, never 0');
   assert.equal(METRICS.dietary.csv, 'dietary-daily.csv');
-  assert.equal(METRICS.dietary.header, DIET_H, 'the exact schema extract.js writes');
+  assert.equal(METRICS.dietary.header, DIET_H, 'the exact schema extract.mjs writes');
   assert.equal(METRICS.dietary.sourceCol, null);
 });
 
@@ -788,11 +790,11 @@ test('docs/ios-shortcut.md documents every payload key the sync reads (and no re
   assert.deepEqual([...rows].sort(), [...keys].sort(), 'the key table must list exactly the keys in METRICS');
 });
 
-// ---- extract.js <-> sync parity for sleep (naps) and wrist temperature -------------------
+// ---- extract.mjs <-> sync parity for sleep (naps) and wrist temperature -------------------
 
-test('extract.js and the Shortcut sync write identical sleep rows (nap excluded) and wrist-temp dates', () => {
+test('extract.mjs and the Shortcut sync write identical sleep rows (nap excluded) and wrist-temp dates', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-sleep-'));
-  for (const f of ['extract.js', 'samples.mjs']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
+  for (const f of ['extract.mjs', 'samples.mjs']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
   const iv = [
     ['2030-01-01T23:30:00+01:00', '2030-01-02T03:00:00+01:00', 'Core'],
     ['2030-01-02T03:00:00+01:00', '2030-01-02T04:30:00+01:00', 'Awake'],
@@ -809,7 +811,7 @@ test('extract.js and the Shortcut sync write identical sleep rows (nap excluded)
     `<Record type="HKQuantityTypeIdentifierAppleSleepingWristTemperature" sourceName="${SHORTCUT_SOURCE}" startDate="2030-01-01 23:40:00 +0100" endDate="2030-01-02 07:00:00 +0100" value="36.1"/>`,
     '',
   ].join('\n'));
-  execFileSync(process.execPath, [path.join(dir, 'extract.js')], { stdio: 'ignore' });
+  execFileSync(process.execPath, [path.join(dir, 'extract.mjs')], { stdio: 'ignore' });
   const out = path.join(dir, 'extract');
   const sync = collectSamples([{ sleep: iv.map(x => x.join(';')).join('\n'), wrist_temp: '2030-01-01T23:40:00+01:00;36.1' }]);
   const csvOf = (header, rows) => [header, ...rows.map(r => r.line)].join('\n') + '\n';
@@ -884,7 +886,7 @@ test('rhr: a cache written under the old timestamp+value key is re-keyed (no --f
 
 // ---- exercise / distance / flights: Watch-filtered day totals --------------------------
 
-test('exercise_watch / distance_watch / flights_watch write the extract.js daily schemas', () => {
+test('exercise_watch / distance_watch / flights_watch write the extract.mjs daily schemas', () => {
   const s = collectSamples([{
     exercise_watch: '2030-01-01T00:00:00+01:00;3\n2030-01-02T00:00:00+01:00;42.4\n2030-01-03T00:00:00+01:00;0',
     distance_watch: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:00:00+01:00;7,456\n2030-01-03T00:00:00+01:00;0',

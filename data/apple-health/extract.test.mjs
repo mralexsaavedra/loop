@@ -1,20 +1,24 @@
-/* Tests for extract.js against SYNTHETIC export.xml files: the script is copied (with samples.mjs)
+/* Tests for extract.mjs against SYNTHETIC export.xml files: the script is copied (with samples.mjs)
  * into a temp dir and run as a child process, exactly like the user runs it. No personal data. */
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const { execFileSync } = require('child_process');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { energySource, APPLE_WATCH_RE } from './samples.mjs';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const NBSP = ' ';
 const WATCH = `Apple${NBSP}Watch de Demo`;
 
 function runExtract(lines) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-test-'));
-  for (const f of ['extract.js', 'samples.mjs']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
+  for (const f of ['extract.mjs', 'samples.mjs']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
   fs.writeFileSync(path.join(dir, 'export.xml'), ['<HealthData locale="en_GB">', ...lines, '</HealthData>', ''].join('\n'));
-  execFileSync(process.execPath, [path.join(dir, 'extract.js')], { stdio: 'ignore' });
+  execFileSync(process.execPath, [path.join(dir, 'extract.mjs')], { stdio: 'ignore' });
   const out = path.join(dir, 'extract');
   const read = f => fs.readFileSync(path.join(out, f), 'utf8');
   return { read, meta: JSON.parse(read('_meta.json')), cleanup: () => fs.rmSync(dir, { recursive: true }) };
@@ -78,7 +82,6 @@ test('energy: two sources of the same rank on one day -> the larger total, never
 });
 
 test('energySource: precedence Apple Watch (NBSP-safe, anchored) > wrist wearable apps > iPhone > excluded', () => {
-  const { energySource } = require('./samples.mjs');
   assert.deepEqual(energySource(WATCH), { rank: 0, family: 'Apple Watch' });
   assert.deepEqual(energySource('Apple Watch de Demo'), { rank: 0, family: 'Apple Watch' });
   for (const w of ['Zepp', 'Zepp Life', 'Mi Fit', 'Mi Fitness', 'Garmin Connect', 'Polar Flow', 'Fitbit', 'Huawei Health', 'Amazfit']) {
@@ -136,9 +139,8 @@ test('without an <ExportDate>, the last date is the newest record date', () => {
   } finally { x.cleanup(); }
 });
 
-test('extract.js uses the same anchored Apple Watch regex as lib/training/sessions.mjs', async () => {
+test('extract.mjs uses the same anchored Apple Watch regex as lib/training/sessions.mjs', async () => {
   const { SOURCE_PRECEDENCE } = await import('../../lib/training/sessions.mjs');
-  const { APPLE_WATCH_RE } = require('./samples.mjs');
   const watch = SOURCE_PRECEDENCE.find(p => p.name === 'Apple Watch').re;
   assert.equal(APPLE_WATCH_RE.source, watch.source);
   assert.equal(APPLE_WATCH_RE.flags, watch.flags);
