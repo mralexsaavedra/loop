@@ -68,7 +68,7 @@ BOTH active and basal energy, never basal alone). Each recovery signal row carri
 anchor. Every row opens its detail sheet (`docs/detail-views.md`: chart, W / M / 6M / 1Y, calendar),
 which holds the history the former sparklines showed.
 
-**Fitness age.** `lib/score/fitness-age.mjs` bakes `SCORES.fitnessAge` (`buildScores(extractDir,
+**Fitness age.** `lib/score/fitness-age.mjs` bakes `SCORES.fitnessAge` (`buildScoresFrom(inputs,
 { sex: profile.sex })`): the age whose healthy-population MEAN VO₂max (Loe et al. 2013, PLoS ONE,
 doi:10.1371/journal.pone.0064319, Table 2: HUNT3 Fitness Study, per sex and 10-year group) equals the
 latest `vo2max.csv` reading, interpolated between group midpoints 25 … 65 and 75 for 70+, clamped
