@@ -8,7 +8,7 @@
 import { fileURLToPath } from 'node:url';
 import { SERVER } from '../lib/journal/journal.mjs';
 import { esmModule } from '../lib/build/esm-module.mjs';
-import { writeGenerated } from './gen-food-calc.mjs';
+import { writeGenerated } from './lib/generated.mjs';
 
 export const JOURNAL_CALC_PATH = fileURLToPath(new URL('../services/health-ingest/src/journal-calc.js', import.meta.url));
 export const JOURNAL_CALC_HEADER =
