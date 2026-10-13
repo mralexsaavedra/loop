@@ -25,7 +25,7 @@ conversationally — do not make them fill a form alone. Replicate a real coach 
    than guessing.
 4. **Capture the baseline.** Walk `profile/baseline.example.md` into `profile/baseline.md`.
    If an Apple Health `export.xml` is already present, offer to run
-   `node data/apple-health/extract.js` and pull weight / RHR / VO2max / body-fat from the
+   `node data/apple-health/extract.mjs` and pull weight / RHR / VO2max / body-fat from the
    cached CSVs instead of asking. Mark every self-reported or estimated number as such, and
    record device/app provenance (bioimpedance body-fat is trend-only, ±3–5%).
 5. **Configure the coaches.** Walk `profile/coaches.example.md` into `profile/coaches.md`
@@ -37,7 +37,7 @@ conversationally — do not make them fill a form alone. Replicate a real coach 
    add yet → write only `## Common`: the coaches then answer from the evidence base and the user's
    data and say no source is configured.
 6. **Point them at their data.** Explain the data-drop steps (README → Setup, by level: Apple Health
-   export → `data/apple-health/`, then `extract.js`; nutrition → the Level 2 food log, or legacy
+   export → `data/apple-health/`, then `extract.mjs`; nutrition → the Level 2 food log, or legacy
    notes in a copy of `food-log.example.md` → `food-log.md`; **training → copy `data/training/training-data.example.json` →
    `training-data.json`** and transcribe their program by date from whatever their coach/app
    provides (PDF grids → render to PNG and read visually; a login-gated training app → have them

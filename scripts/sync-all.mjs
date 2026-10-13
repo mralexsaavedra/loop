@@ -16,7 +16,7 @@ const ROOT = path.dirname(DIR);
 // the profile sync (data/profile/, its own files) comes last: it never touches _meta.json, and a
 // failure there must not hide the extract syncs' result (runAll runs every script regardless)
 // Strava runs BEFORE the Shortcut sync: its workout-zones.csv activity windows are what the Shortcut
-// sync leaves out of hr-hourly.csv (lib/health/hr-hourly.cjs), so a new activity is never
+// sync leaves out of hr-hourly.csv (lib/health/hr-hourly.mjs), so a new activity is never
 // counted twice in day strain until the next sync.
 export const SCRIPTS = [
   path.join(ROOT, 'data', 'apple-health', 'sync-strava.mjs'),

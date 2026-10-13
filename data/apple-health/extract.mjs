@@ -43,7 +43,7 @@ const READING_FILE = { hrRecovery: 'hr-recovery.csv' };
 // only its sum is written. A day with excluded sources only is MISSING (no row).
 const energyBySrc = { active: new Map(), basal: new Map() };
 // The export's last date is a PARTIAL day (export.xml is taken mid-day): <ExportDate value>, else the
-// newest record date. Daily TOTAL series drop it (the Shortcut sync fills it, see sync-shortcut.js).
+// newest record date. Daily TOTAL series drop it (the Shortcut sync fills it, see sync-shortcut.mjs).
 let exportDate = null;
 let maxRecordDate = null;
 // per-source daily totals for series logged by MULTIPLE devices (iPhone + Watch): we take the
@@ -59,7 +59,7 @@ const stepsBySrc = new Map();
 // dietary daily: Map<date, {kcal,p,c,g}>
 const diet = new Map();
 // sleep segments [{start, end, source, stage}] -> nights via samples.mjs sleepNights (naps excluded,
-// max across sources per night avoids a double count) — the same rule sync-shortcut.js uses
+// max across sources per night avoids a double count) — the same rule sync-shortcut.mjs uses
 const sleepSegs = [];
 const workouts = []; // {date, type, durationMin, energyKcal, hrAvg, hrMin, hrMax, source}
 

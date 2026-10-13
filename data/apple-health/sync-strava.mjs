@@ -6,7 +6,7 @@
  *   npm run sync:strava
  *
  * Env    : INGEST_URL (default http://localhost:8088), INGEST_TOKEN (falls back to
- *          services/health-ingest/.env, same file sync-shortcut.js reads).
+ *          services/health-ingest/.env, same file sync-shortcut.mjs reads).
  * Writes : data/apple-health/extract/workouts.csv + rides.csv (ride windows + power flag for the
  *          active-energy correction, see rideRow) + workout-zones.csv (per-activity time in HR
  *          zone 0-5 from the ingest's HR histograms, see lib/training/hr-zones.mjs) + _meta.json
@@ -17,7 +17,7 @@
  * /export/strava, never as an incremental cursor. Strava ids are not insertion order and an
  * edited activity keeps its id, so an id cursor would miss edits.
  *
- * Merge rule (sync-common.js mergeCsv with exportWins: false): every Strava activity is ALWAYS
+ * Merge rule (sync-common.mjs mergeCsv with exportWins: false): every Strava activity is ALWAYS
  * written, even on a date the export also covers — Strava is the only source of Relative Effort,
  * kJ and elevation, so dropping it on every Watch day would blind the load score. A Watch copy of
  * the same session is deduped at READ time by lib/training/sessions.mjs mergeSameDay (Strava
@@ -25,7 +25,7 @@
  * minutes); every workouts.csv reader goes through it. Rows this sync wrote before are
  * identified by the EXACT source tag "Strava API" (not the historical "Strava" tag some rows
  * already carry from the old /sync/strava ingest loop — those are left untouched) and rebuilt
- * from scratch every run, so a date dropping out of the ledger (e.g. after extract.js rewrote
+ * from scratch every run, so a date dropping out of the ledger (e.g. after extract.mjs rewrote
  * _meta.json) can never leave a stale Strava-tagged row behind — see the orphan-safety test.
  */
 import fs from 'node:fs'
@@ -46,7 +46,7 @@ const STRAVA_SOURCE = 'Strava API'
 const OUT = process.env.SYNC_STRAVA_OUT_DIR || path.join(DIR, 'extract')
 const WORKOUTS_CSV = 'workouts.csv'
 
-// sport_type -> workouts.csv `type` (matches extract.js's HKWorkoutActivityType-derived strings, so
+// sport_type -> workouts.csv `type` (matches extract.mjs's HKWorkoutActivityType-derived strings, so
 // a Watch copy and a Strava copy of one session land in the SAME physical modality and
 // lib/training/sessions.mjs mergeSameDay counts them once). Racket, team and outdoor sports map to
 // the Apple type the Watch writes (Tennis, Soccer…; Padel has no Apple type and keeps its name): all
@@ -150,7 +150,7 @@ function buildRows (activities) {
 }
 
 // ---- rides.csv: the ride windows lib/health/ride-energy.mjs needs --------------------------
-// workouts.csv has no start time, and adding columns there would touch extract.js, every
+// workouts.csv has no start time, and adding columns there would touch extract.mjs, every
 // positional reader and the demo generator for data only Strava has and one reader uses. So the
 // window lives in its own small file, rebuilt from scratch on every (full) pull: one row per
 // cycling-family activity. `start` = ISO local start WITH its UTC offset (start_date_local -
@@ -243,7 +243,7 @@ function planSync (activities, readFile, { profileMaxHr = null } = {}) {
   const prevMeta = metaText != null ? JSON.parse(metaText) : null
 
   // Crash-window safety: a row is dropped ONLY when its own source tag is the exact
-  // "Strava API" match — never by a ledger date. A ledger can go stale (e.g. extract.js
+  // "Strava API" match — never by a ledger date. A ledger can go stale (e.g. extract.mjs
   // crashes between rewriting workouts.csv and _meta.json, leaving a pre-crash ledger next to
   // a fresh export CSV); dropping by ledger date would delete a real export/manual row that
   // merely happens to share a date the ledger once claimed. `stravaSync.owned` in _meta.json
@@ -281,7 +281,7 @@ function planSync (activities, readFile, { profileMaxHr = null } = {}) {
 // (belt and braces): even though every run rebuilds its own rows from the source tag alone (so
 // a crash between the two renames can never turn a Strava row into a pseudo-export row), writing
 // the ledger first means a reader that only sees the new _meta.json still gets accurate metadata.
-// _meta.json is shared with sync-shortcut.js (both scripts can touch the same extract/ dir), so
+// _meta.json is shared with sync-shortcut.mjs (both scripts can touch the same extract/ dir), so
 // the whole read-plan-write sequence runs under an exclusive lock to prevent a lost update.
 function syncDir (dir, activities, { writeAtomic = common.writeAtomic, profileMaxHr = null } = {}) {
   fs.mkdirSync(dir, { recursive: true }) // the lockfile itself needs the directory to exist

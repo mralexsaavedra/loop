@@ -101,14 +101,14 @@ caveat (`energyTdeeNote`, which points to Nutrición → Balance); the balance n
   NOT isolate a scale switch (the same app re-tags an old scale's readings, which can show as an
   overnight jump of several points), so their Δ + sparkline use only the last `BODYCOMP_WINDOW` (150) days
   to avoid celebrating that artifact as real change.
-  **Waist** (`waist.csv`, cm; written by extract.js from `WaistCircumference` and by the
+  **Waist** (`waist.csv`, cm; written by extract.mjs from `WaistCircumference` and by the
   Shortcut `waist` key) is a sparse manual tape measurement: every reading is a point (no rolling
   average), the headline carries its measurement date, Δ = latest vs first. No waist data → the
   section shows a hint on how to start logging it instead.
 - **Activity (NEAT + movement)** — `steps-daily.csv` (NEAT), `exercise-minutes-daily.csv`,
   `distance-daily.csv`, `flights-daily.csv`. Each is a daily total → latest day (headline) + 30-day
   average and Δ vs the prior 30 days (context), 7-day rolling sparkline (generic `dailyTrend`). All four are deduped
-  max-per-device by extract.js (iPhone + Watch overlap → summing double-counts, like steps);
+  max-per-device by extract.mjs (iPhone + Watch overlap → summing double-counts, like steps);
   near-zero step/distance days (device not carried) are dropped as missing data.
 - **Energy** — `active-energy-daily.csv` + `basal-energy-daily.csv` give expenditure (TDEE,
   7-day rolling); `dietary-daily.csv` gives intake AND the macro split (protein/carbs/fat, g + %
@@ -182,7 +182,7 @@ caveat (`energyTdeeNote`, which points to Nutrición → Balance); the balance n
   not-absolute signals). Sleep adds CONSISTENCY: % of nights ≥ `SLEEP_TARGET` (7.5 h), night-to-
   night spread (sd), and bedtime/wake-time regularity (median ± a ROBUST sd = 1.4826 × MAD, in
   minutes; after-midnight bedtimes wrapped onto a night scale). Sleep bedtime/waketime come from the
-  extended `sleep-daily.csv`: extract.js and sync-shortcut.js share `samples.mjs` `sleepNights`, which
+  extended `sleep-daily.csv`: extract.mjs and sync-shortcut.mjs share `samples.mjs` `sleepNights`, which
   keeps only the MAIN sleep of each wake-up night (asleep segments chained with gaps < 60 min; the
   longest block whose midpoint falls 20:00-12:00, plus in-window blocks within 3 h of it when they lie
   before it or start before 05:00 on the wake-up date, so a split night with a 3 am wake-up stays one
@@ -198,7 +198,7 @@ caveat (`energyTdeeNote`, which points to Nutrición → Balance); the balance n
   end)`; a Shortcut sample with only a start falls back to its start). Known limitation: night-shift
   sleep (a daytime main sleep) falls outside the 20:00-12:00 window and is treated as a nap. No
   migration: rows of `sleep-daily.csv` / `wristTemp.csv` that came from an earlier export keep the old
-  convention until `node data/apple-health/extract.js` is re-run on a new export (Shortcut rows are
+  convention until `node data/apple-health/extract.mjs` is re-run on a new export (Shortcut rows are
   rebuilt by every sync). Sleep renders
   as its own Salud section; its heading is the `#hl-sleep` anchor.
 

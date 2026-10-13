@@ -5,7 +5,7 @@
  * GET /activities/{id}/streams?keys=time,heartrate&key_by_type=true returns the sampled time
  * (seconds from the start) and heart rate of one activity. Only an AGGREGATE is kept: seconds spent
  * at each whole bpm ({"142": 37, ...}), never the raw stream. The zones themselves are % of max HR
- * and are cut on the repo side (data/apple-health/sync-strava.js), because the max HR can come from
+ * and are cut on the repo side (data/apple-health/sync-strava.mjs), because the max HR can come from
  * the local profile.json; a 1-bpm histogram gives exactly the same time in zone as the stream.
  *
  * Rate limits (Strava: 100 requests / 15 min and 1000 / day per app, shared with the activity pull

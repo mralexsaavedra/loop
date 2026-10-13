@@ -450,10 +450,10 @@ trend is the line under it.
   the remaining rows are summed as ONE session (a session logged in parts adds up; a real two-a-day
   is indistinguishable).
 - **workouts.csv has 12 columns** (`… ,distance_km,relative_effort,kilojoules,elevation_m`), written by
-  both `extract.js` and `sync-strava.js` from the shared `WORKOUTS_HEADER`. The three trailing columns
+  both `extract.mjs` and `sync-strava.mjs` from the shared `WORKOUTS_HEADER`. The three trailing columns
   are Strava-only (export rows leave them empty). Every reader is POSITIONAL and tolerates shorter
   rows, so a file mixing 9-, 11- and 12-column rows (older runs under a newer header) reads fine:
-  an absent column is null. Re-running `node data/apple-health/extract.js` (needs `export.xml`)
+  an absent column is null. Re-running `node data/apple-health/extract.mjs` (needs `export.xml`)
   re-emits every export row at full width. Rollout for a new Strava field (e.g. `elevation_m` from
   `total_elevation_gain`): rebuild the ingest image (`docker compose up -d --build health-ingest`;
   without it `/export/strava` lacks the field and the column stays blank) → `npm run sync:strava` →

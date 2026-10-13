@@ -11,7 +11,7 @@ How the raw sources become the CSVs in `data/apple-health/extract/` that every p
 - Apple Health: **read the cached extract first** — `data/apple-health/extract/*.csv`
 (weight, bodyfat, rhr, vo2max, hrv, steps-daily, active/basal-energy-daily,
 dietary-daily, sleep-daily, workouts) + `_meta.json` (ranges, row counts, caveats).
-Regenerate after a new export is dropped: `node data/apple-health/extract.js`. The
+Regenerate after a new export is dropped: `node data/apple-health/extract.mjs`. The
 raw `export.xml` is ~700 MB — only stream/grep it directly for a series not in the
 cache. Caveats: body metrics carry a `source` column (weight mixes scales — compare
 body fat within one scale only); steps are deduped to max-per-device per day (summing
@@ -31,14 +31,14 @@ larger total (then name ascending). A day with excluded sources only has NO row.
 PARTIAL day (export.xml is taken mid-day): `_meta.json` `exportLastDate` = `<ExportDate>`, else
 the newest record date, and the daily TOTAL series (steps, active / basal energy, exercise,
 distance, flights, dietary) skip it (means, points, sleep and workouts keep it). These need a
-re-run of `node data/apple-health/extract.js` on the export to take effect.
-Between exports, `npm run sync` (`data/apple-health/sync-shortcut.js`; how to build the Shortcut and
+re-run of `node data/apple-health/extract.mjs` on the export to take effect.
+Between exports, `npm run sync` (`data/apple-health/sync-shortcut.mjs`; how to build the Shortcut and
 every payload key: `docs/ios-shortcut.md` — keep its key table in sync with the `METRICS` table) pulls iOS Shortcut
 payloads from the optional `services/health-ingest` service (`GET /export/raw`) and merges
 hrv/rhr/vo2max/weight/bodyfat/leanmass/waist/steps/energy/dietary/sleep/respiratory/
 walking-HR/wrist-temp/hr-recovery/exercise/distance/flights into those CSVs: export rows win,
 Shortcut rows are rebuilt each run and fill only dates the export lacks — so re-run sync after
-`extract.js`. EXCEPT the export's partial last day: for a daily-total metric (`total: true` in
+`extract.mjs`. EXCEPT the export's partial last day: for a daily-total metric (`total: true` in
 `METRICS`) `exportLastDate` is treated like a sync-owned date — the Shortcut total wins it, and
 the export row is dropped when there is none (a 971-step / 1-min export morning never beats a
 complete Shortcut day). `exercise_watch` / `distance_watch` / `flights_watch` = Watch-filtered
@@ -81,13 +81,14 @@ exclusion is why `npm run sync` runs the Strava sync BEFORE the Shortcut sync. D
 (hourly sums) is ignored.
 Unreachable service → exits non-zero without touching files. Row helpers are shared in
 `samples.mjs`, so both paths format rows identically. `samples.mjs`, `lib/health/hr-hourly.mjs`,
-`lib/training/hr-zones.mjs` and `lib/profile/read.mjs` are ES modules; the CommonJS scripts here load them with a plain `require()` (Node's synchronous require(esm),
-unflagged since Node 22.12, the `engines` floor), which returns their named exports.
+`lib/training/hr-zones.mjs` and `lib/profile/read.mjs` are ES modules, imported by the `.mjs` sync scripts
+here; the still-CommonJS profile, settings and food log syncs load `sync-common.mjs` with a plain `require()`
+(Node's synchronous require(esm), unflagged since Node 22.12, the `engines` floor).
 
 ### Sleep (`sleep-daily.csv`)
 
 `date,asleep_hours,source,bedtime,waketime,rem_h,deep_h,core_h,unspec_h,awake_h,inbed_h`, one row
-per wake-up night, written identically by `extract.js` and the Shortcut sync (`samples.mjs`
+per wake-up night, written identically by `extract.mjs` and the Shortcut sync (`samples.mjs`
 `sleepNights` / `sleepRow`). Only ASLEEP segments (Core / Deep / REM / Asleep-unspecified, English or
 Spanish Shortcut names) build the night: blocks under 60 min apart, the main sleep inside 20:00–12:00,
 naps excluded, max minutes across sources per night. `asleep_hours` (the union of the main sleep's
@@ -103,7 +104,7 @@ are unchanged by the stage columns. Stage columns (hours, blank = unknown):
   itself (asleep + the awake time inside it). Readers (`lib/health/read.mjs` `readSleep`) are
   positional: rows written before the stage columns existed have five columns and read as `null`.
   Awake / InBed records never create a night or make a source win. Stages need `node
-  data/apple-health/extract.js` on a new export (history) and `npm run sync -- --full` (Shortcut nights
+  data/apple-health/extract.mjs` on a new export (history) and `npm run sync -- --full` (Shortcut nights
   already cached).
 
 ## Strava sync
@@ -134,7 +135,7 @@ exits non-zero with a message saying so, touching no files. The same pull also w
 every run, one row per cycling-family activity): `start` = the local start as ISO WITH its UTC offset
 (Strava `start_date_local` − `start_date`), `elapsed_s` = elapsed time (moving time when absent),
 `device_watts` = `true` only for a real power meter. A separate file, not new workouts.csv columns:
-the window is Strava-only data with one reader (the energy correction), so extract.js, the
+the window is Strava-only data with one reader (the energy correction), so extract.mjs, the
 positional workouts readers and the demo generator stay untouched. It needs `start_utc` +
 `device_watts` from `GET /export/strava` (added with this change → ingest image rebuild); an older
 image leaves `start` / `device_watts` blank, the sync prints a stale-image warning, and no ride

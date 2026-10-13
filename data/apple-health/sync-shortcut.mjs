@@ -22,7 +22,7 @@
  * scratch every run and added only for DATES the export does not cover. "Rows the sync wrote"
  * = rows tagged source=Shortcut OR on a date in the ownership ledger (_meta.json
  * shortcutSync.owned) — the ledger covers CSVs with no source column (energy) and body-comp rows
- * that keep the scale's real source. extract.js rewrites CSVs AND _meta.json together, so a
+ * that keep the scale's real source. extract.mjs rewrites CSVs AND _meta.json together, so a
  * re-extract drops ledger and rows at once; just sync again afterwards.
  */
 import fs from 'node:fs';
@@ -43,7 +43,7 @@ const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'extract');
 //   kind point    : "start;value[;source]"   -> one row per sample   (date,value,source)
 //   kind daily    : "start;value"            -> one row per day      (already a day total)
 //   kind deviceDaily : like daily, but one payload key PER DEVICE (`devices`: key -> source
-//                   label); the day's value = MAX across devices, exactly like extract.js's
+//                   label); the day's value = MAX across devices, exactly like extract.mjs's
 //                   max-per-device dedupe (summing iPhone + Watch double-counts)
 //   kind fieldsDaily : like daily, but one payload key PER CSV COLUMN (`fields`: key -> column);
 //                   the day's row joins every column (dietary intake: kcal + three macros)
@@ -58,7 +58,7 @@ const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'extract');
 //   payloadKeys   : every payload key the metric reads, when not just its own name (hrSamples)
 //   withSource    : keep the payload's per-sample source in the CSV (else "Shortcut")
 //   sourceCol     : index of the CSV source column, null when the schema has none
-//   metaKey / rangeKey : the _meta.json rows/ranges keys extract.js uses for that CSV.
+//   metaKey / rangeKey : the _meta.json rows/ranges keys extract.mjs uses for that CSV.
 //   total         : a DAILY TOTAL series (not a mean, not a point): on the export's last date
 //                   (_meta.json exportLastDate, a partial day: export.xml is taken mid-day) the
 //                   export row never counts as covering the date: a Shortcut row wins it, and the
@@ -78,7 +78,7 @@ const METRICS = {
   // optional 3rd field = the scale / app (like bodyfat); a row without it stays "Shortcut". Phantom
   // profile weights (a date-only midnight sample with no body-fat reading) are dropped: dropPhantomWeights
   weight:   { kind: 'point', csv: 'weight.csv', header: S.READING_HEADER, metaKey: 'weight', rangeKey: 'weight', withSource: true, fmt: v => +v.toFixed(2) },
-  // body fat is stored as a PERCENT (extract.js converts HealthKit's fraction) -> accept both scales.
+  // body fat is stored as a PERCENT (extract.mjs converts HealthKit's fraction) -> accept both scales.
   // Real scale source kept: generate-health's body-comp uses the LATEST SOURCE only, so a
   // "Shortcut" tag would cut the series off from the same scale's export history.
   bodyfat:  { kind: 'point', csv: 'bodyfat.csv', header: S.READING_HEADER, metaKey: 'bodyfat', withSource: true, fmt: v => +(v < 1 ? v * 100 : v).toFixed(2) },
@@ -97,12 +97,12 @@ const METRICS = {
   basal_energy:  { kind: 'daily', csv: 'basal-energy-daily.csv', header: KCAL_HEADER, metaKey: 'basal_energy', sourceCol: null, total: true,
     row: (date, v) => `${date},${Math.round(v)}` },
   // Sleeping wrist temperature: one sample per night, dated by the wake-up night exactly like
-  // extract.js and sleep-daily.csv (samples.mjs wristTempDate: a 23:xx and a 00:xx start agree).
+  // extract.mjs and sleep-daily.csv (samples.mjs wristTempDate: a 23:xx and a 00:xx start agree).
   wrist_temp:  { kind: 'point', csv: 'wristTemp.csv', header: S.READING_HEADER, metaKey: 'wristTemp', dateOf: S.wristTempDate, fmt: v => +v.toFixed(2) },
   // Cardio Recovery (bpm drop 1 min after a workout): one row per workout sample (per-day means
-  // would hide which session it was; readers can average). extract.js writes the same CSV.
+  // would hide which session it was; readers can average). extract.mjs writes the same CSV.
   hr_recovery: { kind: 'point', csv: 'hr-recovery.csv', header: S.READING_HEADER, metaKey: 'hrRecovery', fmt: v => +v.toFixed(1) },
-  // day-grouped means (extract.js: per-day mean of all samples); "fill missing" 0 rows = no data
+  // day-grouped means (extract.mjs: per-day mean of all samples); "fill missing" 0 rows = no data
   respiratory: { kind: 'daily', csv: 'respiratory-daily.csv', header: 'date,brpm', metaKey: 'respiratory', sourceCol: null, skipZero: true,
     row: (date, v) => `${date},${v.toFixed(1)}` },
   walking_hr:  { kind: 'daily', csv: 'walking-hr-daily.csv', header: 'date,bpm', metaKey: 'walking_hr', sourceCol: null, skipZero: true,
@@ -112,7 +112,7 @@ const METRICS = {
   waist:    { kind: 'point', csv: 'waist.csv', header: S.READING_HEADER, metaKey: 'waist', fmt: v => +(v < 3 ? v * 100 : v).toFixed(1) },
   // Food intake logged by a nutrition app that writes to Health: FOUR day-grouped payload keys
   // (`fields`: key -> CSV column) folded into ONE dietary-daily.csv row per day, the exact schema
-  // extract.js writes. A day without kcal (or 0 kcal = "fill missing") is no data; a macro missing
+  // extract.mjs writes. A day without kcal (or 0 kcal = "fill missing") is no data; a macro missing
   // on a logged day stays blank, never 0.
   dietary:  { kind: 'fieldsDaily', csv: 'dietary-daily.csv', header: 'date,kcal,protein_g,carbs_g,fat_g', metaKey: 'dietary', rangeKey: 'dietary', sourceCol: null, total: true,
     fields: { diet_kcal: 'kcal', diet_protein: 'protein', diet_carbs: 'carbs', diet_fat: 'fat' },
@@ -123,9 +123,9 @@ const METRICS = {
   // strain (lib/score/strain.mjs). Tagged "Shortcut", so every row is rebuilt each run.
   hr_samples: { kind: 'hrSamples', payloadKeys: ['hr_samples', HR.HR_TIMES_KEY, HR.HR_VALUES_KEY], csv: HR.HR_HOURLY_CSV, header: HR.HR_HOURLY_HEADER, metaKey: 'hr_hourly', sourceCol: 9 },
   // Watch-filtered day totals (one search per key, *Source is* the watch, Group by Day), the same
-  // CSVs extract.js writes (max-per-device there; the Watch is the device that logs these fully).
+  // CSVs extract.mjs writes (max-per-device there; the Watch is the device that logs these fully).
   // No source column -> ownership via the ledger, like energy. A 0 day (Fill Missing, watch not worn)
-  // is no data: extract.js only writes days with samples, so it has no zero rows either.
+  // is no data: extract.mjs only writes days with samples, so it has no zero rows either.
   exercise_watch: { kind: 'daily', csv: 'exercise-minutes-daily.csv', header: 'date,minutes', metaKey: 'exercise', sourceCol: null, skipZero: true, total: true,
     row: (date, v) => `${date},${Math.round(v)}` },
   // km. Accepts a unit ("5,1 km", "5400 m", "3 mi"); a bare number above 100 is metres (no one walks
@@ -279,7 +279,7 @@ function hrSamplesOf(payload, warnings) {
 // ---- sample cache ------------------------------------------------------------------------
 // The deduped samples of every payload seen so far + the last payload id, kept locally so each
 // run fetches only NEW payloads. It is independent of the CSVs (rows are rebuilt from it), so an
-// extract.js re-run never invalidates it. `npm run sync -- --full` rebuilds it from scratch.
+// extract.mjs re-run never invalidates it. `npm run sync -- --full` rebuilds it from scratch.
 const CACHE_FILE = '.shortcut-cache.json';
 const CACHE_VERSION = 1;
 const emptyCache = () => ({ version: CACHE_VERSION, lastPayloadId: null, payloads: 0, samples: {} });
@@ -356,7 +356,7 @@ const unionMinutes = S.unionMinutes;
 
 const byStart = (a, b) => (S.absMs(a.start) - S.absMs(b.start)) || (a.start < b.start ? -1 : a.start > b.start ? 1 : 0);
 
-// samples of one metric -> [{date, line}] in the exact CSV format extract.js writes. ctx.windows =
+// samples of one metric -> [{date, line}] in the exact CSV format extract.mjs writes. ctx.windows =
 // the Strava activity windows (lib/health/hr-hourly.mjs activityWindows) the heart-rate histogram leaves out.
 function buildRows(metric, samples, ctx = {}) {
   const def = METRICS[metric];
@@ -395,7 +395,7 @@ function buildRows(metric, samples, ctx = {}) {
     return [...samples].sort(byStart).map(s => { const date = S.day(s.start); return { date, line: def.row(date, s.value) }; });
   }
   // sleep: main sleep per wake-up night from the asleep stages, naps excluded; Awake / InBed add
-  // only their stage columns (samples.mjs sleepNights, the same rule as extract.js)
+  // only their stage columns (samples.mjs sleepNights, the same rule as extract.mjs)
   const segs = samples.map(s => ({ start: s.start, end: s.end, source: SHORTCUT_SOURCE, stage: sleepStageOf(s.stage) })).filter(s => s.stage);
   return S.sleepNights(segs).map(n => ({ date: n.date, line: S.sleepRow(n.date, n.minutes, n.source, n.ck, n.stages) }));
 }
@@ -410,9 +410,9 @@ function mergeCsv(existingText, header, rows, opts = {}) {
 }
 
 const range = dates => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a');
-const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of the main-sleep asleep intervals per wake-up night (naps excluded, samples.mjs sleepNights), plus the stage columns (REM / deep / core / unspecified / awake / in bed, same rule as extract.js); Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored). Shortcut active_energy_hourly = Watch active energy per clock hour (active-energy-hourly.csv, Shortcut-only; feeds the power-meter ride correction in lib/health/ride-energy.mjs). Shortcut hr_samples = ungrouped Watch heart-rate samples, as "ISO;bpm" lines and/or the loop-free parallel lists hr_t (Start Dates) + hr_v (Values) zipped by index (lists of different lengths are dropped with a sync warning, never mis-paired) (deduped by exact timestamp, 25-240 bpm) aggregated per clock hour into hr-hourly.csv (avg/max/min/n, covered minutes = each sample until the next, max 10 min; act_min + the per-bpm histogram leave the Strava activity windows of workout-zones.csv out; feeds day strain, lib/score/strain.mjs). Shortcut dietary = diet_kcal/diet_protein/diet_carbs/diet_fat day totals joined into one row per day (no kcal = no row). Shortcut exercise/distance/flights = Watch-filtered day totals (exercise_watch/distance_watch/flights_watch; 0 = no data; distance in km). Day totals: the export\'s last date (exportLastDate, a partial day) is never treated as covered: the Shortcut row wins it, and the export row is dropped when there is none.';
+const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of the main-sleep asleep intervals per wake-up night (naps excluded, samples.mjs sleepNights), plus the stage columns (REM / deep / core / unspecified / awake / in bed, same rule as extract.mjs); Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored). Shortcut active_energy_hourly = Watch active energy per clock hour (active-energy-hourly.csv, Shortcut-only; feeds the power-meter ride correction in lib/health/ride-energy.mjs). Shortcut hr_samples = ungrouped Watch heart-rate samples, as "ISO;bpm" lines and/or the loop-free parallel lists hr_t (Start Dates) + hr_v (Values) zipped by index (lists of different lengths are dropped with a sync warning, never mis-paired) (deduped by exact timestamp, 25-240 bpm) aggregated per clock hour into hr-hourly.csv (avg/max/min/n, covered minutes = each sample until the next, max 10 min; act_min + the per-bpm histogram leave the Strava activity windows of workout-zones.csv out; feeds day strain, lib/score/strain.mjs). Shortcut dietary = diet_kcal/diet_protein/diet_carbs/diet_fat day totals joined into one row per day (no kcal = no row). Shortcut exercise/distance/flights = Watch-filtered day totals (exercise_watch/distance_watch/flights_watch; 0 = no data; distance in km). Day totals: the export\'s last date (exportLastDate, a partial day) is never treated as covered: the Shortcut row wins it, and the export row is dropped when there is none.';
 
-// Pure: refresh the rows/ranges extract.js wrote for the touched CSVs + record the sync.
+// Pure: refresh the rows/ranges extract.mjs wrote for the touched CSVs + record the sync.
 // Deterministic (no timestamps) so re-running an unchanged sync rewrites identical bytes.
 function updateMeta(meta, stats, info) {
   const out = JSON.parse(JSON.stringify(meta));
@@ -484,7 +484,7 @@ function planSync(items, readFile, { full = false } = {}) {
 const { writeAtomic } = common;
 
 // plan + apply against a directory of extract CSVs (used by main and the contract test)
-// _meta.json is shared with sync-strava.js (both scripts can touch the same extract/ dir), so
+// _meta.json is shared with sync-strava.mjs (both scripts can touch the same extract/ dir), so
 // the whole read-plan-write sequence runs under an exclusive lock to prevent a lost update.
 function syncDir(dir, items, opts = {}) {
   fs.mkdirSync(dir, { recursive: true }); // the lockfile itself needs the directory to exist

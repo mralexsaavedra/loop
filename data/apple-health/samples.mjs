@@ -1,7 +1,6 @@
 /* Shared Apple Health sample helpers — the single definition of how a sample becomes a CSV
- * row. Used by extract.js (export.xml) AND sync-shortcut.js (iOS Shortcut payloads), so rows
- * from either source are indistinguishable. Pure, zero deps. ES module: the CommonJS sync scripts
- * load it through require(esm) (Node >= 22.12), getting the named exports.
+ * row. Used by extract.mjs (export.xml) AND sync-shortcut.mjs (iOS Shortcut payloads), so rows
+ * from either source are indistinguishable. Pure, zero deps; an ES module the scripts import.
  *
  * Timestamps use the export format "YYYY-MM-DD HH:MM:SS +ZZZZ" (LOCAL wall clock + offset).
  * Dates and clock hours are read from the local part; durations/ordering use the offset.
@@ -22,14 +21,14 @@ const ASLEEP_STAGES = new Set(['core', 'deep', 'rem', 'unspec']);
 const sleepStage = value => SLEEP_STAGE_OF[String(value || '').replace(/^HKCategoryValueSleepAnalysis/, '')] || null;
 // a segment without a stage is an asleep one (callers that only pass asleep segments)
 const isAsleepSeg = sg => !sg.stage || ASLEEP_STAGES.has(sg.stage);
-// workouts.csv, written by BOTH extract.js and sync-strava.js. relative_effort / kilojoules /
+// workouts.csv, written by BOTH extract.mjs and sync-strava.mjs. relative_effort / kilojoules /
 // elevation_m are filled only by Strava rows; Apple export rows leave the three trailing columns
 // empty. Readers are POSITIONAL and must tolerate shorter (older, 9- or 11-column) rows.
 const WORKOUTS_HEADER = 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source,distance_km,relative_effort,kilojoules,elevation_m';
 
 // The Apple Watch source family: the SAME anchored regex as lib/training/sessions.mjs
 // SOURCE_PRECEDENCE ("Apple Watch de <name>"; `\s` also matches the no-break space Health writes).
-// A test pins the two equal (extract.test.js), since this CommonJS file cannot import the ESM one.
+// A test pins the two equal (extract.test.mjs), so this zero-deps copy cannot drift from that one.
 const APPLE_WATCH_RE = /^Apple\s+Watch\b/i;
 
 // Daily ENERGY (ActiveEnergyBurned / BasalEnergyBurned): per day and type ONE source wins and only
@@ -230,7 +229,7 @@ function nightStages(segs, own, all, ck) {
  * asleep) -> one main-sleep night per wake-up date, [{date, minutes, source, ck: {start, end},
  * stages}] sorted by date. Only ASLEEP segments (rem / deep / core / unspec / no stage) build the
  * night and pick the winning source; awake and in-bed records never create a night. Shared by
- * extract.js and sync-shortcut.js, so both write identical sleep-daily.csv rows for the same segments.
+ * extract.mjs and sync-shortcut.mjs, so both write identical sleep-daily.csv rows for the same segments.
  * stages (minutes; null = unknown): rem / deep / core / unspec = the union of the winning source's
  * main-sleep segments of that stage (rem / deep / core null when the night has no staged segment —
  * Asleep-unspecified only); awake = that source's Awake records clipped to the sleep window
