@@ -20,7 +20,7 @@
  */
 const fs = require('fs')
 const path = require('path')
-const common = require('../apple-health/sync-common.js')
+const common = require('../apple-health/sync-common.mjs')
 
 // SYNC_PROFILE_OUT_DIR / INGEST_ENV_FILE exist ONLY so the child-process tests can point main()
 // at a disposable tmp dir / env file — unset in production.

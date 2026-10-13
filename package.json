@@ -17,7 +17,7 @@
     "demo:data": "node scripts/make-demo-data.mjs",
     "golden:bake": "node scripts/golden-bake.mjs",
     "pretest": "node web/test/build-fixtures.mjs",
-    "test": "node --test \"lib/**/*.test.mjs\" \"web/**/*.test.mjs\" \"scripts/*.test.mjs\" \".claude/hooks/*.test.js\" data/nutrition/*.test.js data/training/*.test.js data/apple-health/*.test.js data/profile/*.test.js",
+    "test": "node --test \"lib/**/*.test.mjs\" \"web/**/*.test.mjs\" \"scripts/*.test.mjs\" \".claude/hooks/*.test.js\" data/nutrition/*.test.js data/training/*.test.js data/apple-health/*.test.js data/apple-health/*.test.mjs data/profile/*.test.js",
     "test:services": "npm --prefix services/health-ingest ci --no-audit --no-fund && npm --prefix services/health-ingest test",
     "test:css:update": "node scripts/update-css-fixture.mjs",
     "sync": "node scripts/sync-all.mjs",

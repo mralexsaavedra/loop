@@ -467,10 +467,10 @@ test('syncDir writes _meta.json before workouts.csv (belt and braces against a c
 
 test('contract: an extract.js rewrite drops the CSV/ledger; the next Strava sync restores uncovered dates', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'strava-contract-'));
-  for (const f of ['extract.js', 'samples.mjs']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
+  for (const f of ['extract.mjs', 'samples.mjs']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
   fs.writeFileSync(path.join(dir, 'export.xml'),
     '<Workout workoutActivityType="HKWorkoutActivityTypeRunning" startDate="2026-08-18 08:00:00 +0100" duration="20" sourceName="W"></Workout>\n');
-  const extract = () => execFileSync(process.execPath, [path.join(dir, 'extract.js')], { stdio: 'ignore' });
+  const extract = () => execFileSync(process.execPath, [path.join(dir, 'extract.mjs')], { stdio: 'ignore' });
   const out = path.join(dir, 'extract');
   const read = (f) => fs.readFileSync(path.join(out, f), 'utf8');
 
