@@ -11,7 +11,7 @@ Body composition, activity, energy (incl. the power-meter ride correction), runn
 `lib/health/{read,stats,aggregate}.mjs` (same single-source pattern) compute the stacked sections
 from the Apple Health extract CSVs (all OPTIONAL — absent CSVs render an empty state, never fail the
 build; the page bakes `HEALTH` with the pure `aggregate.mjs` `healthFrom(inputs)` over the build's one
-`lib/extract/read.mjs` `readExtract`, `buildHealth(extractDir)` is a per-directory shim); `web/src/client/health.js` renders them into TWO hosts, each with its own empty state and
+`lib/extract/read.mjs` `readExtract`); `web/src/client/health.js` renders them into TWO hosts, each with its own empty state and
 its own try/catch (a throw in one half renders that half's empty state, never blanks the other):
 `#health-body` (Salud) and `#health-train` (Entreno: running, cycling, load vs recovery).
 
