@@ -116,7 +116,6 @@
 /* sections: caps label headings like every other label on the page */
 .pf-sec {
   padding: var(--sp-7);
-  border: 1px solid var(--line);
   border-radius: var(--card-radius);
   background: var(--card-bg);
 }
