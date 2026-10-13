@@ -429,7 +429,9 @@
       var lbars = s
         .map(function (x) {
           var h = Math.round((100 * x.load) / lmax);
-          return '<div class="wbar' + (x.load ? '' : ' zero') + '" title="' + esc(format(T.loadSec.barTitleTpl, { date: fmtD(x.w), load: x.load })) + '"><i style="height:' + h + '%"></i></div>';
+          // the reference's trend bars: the week's value on top, the bar in a fixed-height track
+          return '<div class="wbar' + (x.load ? '' : ' zero') + '" title="' + esc(format(T.loadSec.barTitleTpl, { date: fmtD(x.w), load: x.load })) + '">' +
+            '<span class="wbar-v">' + esc(nf(x.load)) + '</span><span class="wbar-t"><i style="height:' + h + '%"></i></span></div>';
         })
         .join('');
       var lax = '<div class="waxis"><span>' + esc(fmtD(s[0].w)) + '</span><span>' + esc(fmtD(s[s.length - 1].w)) + '</span></div>';

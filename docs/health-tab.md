@@ -170,7 +170,9 @@ caveat (`energyTdeeNote`, which points to Nutrición → Balance); the balance n
   distance is a dash), never 0. When only one of run /
   bike has data, the other shows its empty-state line; with neither, both are omitted.
 - **Load vs recovery** (Entreno, after Cycling; `HEALTH.loadRecovery`) — one card of weekly
-  cardiovascular-load bars (flat `--strain`, minutes × mean HR ÷ 100, the last complete weeks) and two
+  cardiovascular-load bars (the reference's trend bars: each week's value on top, a 100 px track over a
+  faint quarter grid, the first and last week under it; flat `--strain`, minutes × mean HR ÷ 100, the last complete weeks — complete by the calendar up to the Watch's newest
+  day, `trainingThrough`, so rest days after the last session do not hold its week back) and two
   metric rows: HRV and resting HR in the higher-load weeks, with the easy weeks' value as the small
   line and ▲▼• for higher-load vs easy, coloured by the signal's good direction (↑ HRV, ↓ resting HR:
   lower HRV in heavy weeks is ▼ orange — expected, the ⓘ explains what to watch). The index hint and
