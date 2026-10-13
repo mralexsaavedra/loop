@@ -1,16 +1,19 @@
 /* Tests for the settings snapshot sync (ingest service GET /food/settings -> data/profile/settings.json).
  * SYNTHETIC values only, no network: the fetch is injected, and main() talks to a throwaway local server. */
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const http = require('node:http');
-const { execFile } = require('node:child_process');
-const ss = require('./sync-settings.js');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import http from 'node:http';
+import { execFile } from 'node:child_process';
+import * as ss from './sync-settings.mjs';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const { normalizeSettings, fetchSettings, syncSettings, SETTINGS_JSON } = ss;
-const SCRIPT = path.join(__dirname, 'sync-settings.js');
+const SCRIPT = path.join(__dirname, 'sync-settings.mjs');
 
 const BODY = { settings: { goal: 'cut', targetWeightKg: 72.5, updatedAt: '2030-01-05T08:00:00.000Z' } };
 const NOW = new Date('2030-01-06T09:00:00.000Z');

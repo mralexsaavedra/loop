@@ -15,7 +15,7 @@
  * programmed training data for the given mode (fast, no astro binary
  * invoked). This replaces the training validation the retired
  * data/training/generate-training.js --check used to provide — nutrition
- * validation stays in `node data/nutrition/generate.js --check` (`npm run
+ * validation stays in `node data/nutrition/generate.mjs --check` (`npm run
  * check` chains both).
  */
 import { fileURLToPath } from 'node:url';

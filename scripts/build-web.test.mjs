@@ -3,7 +3,7 @@
  * given mode WITHOUT invoking the Astro build (fast, no astro binary
  * needed) — it replaces the training validation the retired
  * data/training/generate-training.js --check used to provide. Nutrition
- * validation stays in `node data/nutrition/generate.js --check` (npm run
+ * validation stays in `node data/nutrition/generate.mjs --check` (npm run
  * check chains both). Uses a synthetic fixture repo, never the real
  * personal data — same pattern as lib/load/inputs.test.mjs.
  */

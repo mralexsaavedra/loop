@@ -21,13 +21,13 @@ const ROOT = path.dirname(DIR);
 export const SCRIPTS = [
   path.join(ROOT, 'data', 'apple-health', 'sync-strava.mjs'),
   path.join(ROOT, 'data', 'apple-health', 'sync-shortcut.mjs'),
-  path.join(ROOT, 'data', 'profile', 'sync-profile.js'),
+  path.join(ROOT, 'data', 'profile', 'sync-profile.mjs'),
   // the settings snapshot (data/profile/settings.json) never fails the run: a missing / old ingest
   // service is only a warning (exit 0)
-  path.join(ROOT, 'data', 'profile', 'sync-settings.js'),
+  path.join(ROOT, 'data', 'profile', 'sync-settings.mjs'),
   // the food log export (data/nutrition/foodlog-daily.csv) likewise only warns (exit 0) when the
   // ingest service is missing / old
-  path.join(ROOT, 'data', 'nutrition', 'sync-foodlog.js'),
+  path.join(ROOT, 'data', 'nutrition', 'sync-foodlog.mjs'),
   // the behaviour journal export (journal-daily.csv in the extract, scripts/sync-journal.mjs) likewise
   // only warns (exit 0) when the ingest service is missing / old
   path.join(ROOT, 'scripts', 'sync-journal.mjs'),
