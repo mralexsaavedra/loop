@@ -1,14 +1,17 @@
 /* Tests for the profile sync (ingest service /export/athlete -> data/profile/strava-profile.json
  * + avatar.jpg). SYNTHETIC fixtures only (no real personal values), no network: the avatar
  * download goes through an injected fetch, and main() talks to a throwaway local server. */
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const http = require('node:http');
-const { execFileSync, execFile } = require('node:child_process');
-const sp = require('./sync-profile.js');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import http from 'node:http';
+import { execFileSync, execFile } from 'node:child_process';
+import * as sp from './sync-profile.mjs';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const { normalizeExport, planAvatar, checkAvatar, downloadAvatar, isAllowedAvatarUrl, syncProfile, errorMessage, MAX_AVATAR_BYTES, PROFILE_JSON, AVATAR_FILE } = sp;
 
@@ -230,7 +233,7 @@ test('errorMessage explains a 404 (stale ingest image) and surfaces a network ca
 
 // ---- main(): error paths keep previous files and exit non-zero --------------------------
 
-const SCRIPT = path.join(__dirname, 'sync-profile.js');
+const SCRIPT = path.join(__dirname, 'sync-profile.mjs');
 
 function runMain(env, seed) {
   const dir = tmpDir('main');

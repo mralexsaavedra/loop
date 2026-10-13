@@ -245,7 +245,7 @@ in the last `days` days (today included) in the same shape, for the intake rings
 ## Food log export for analysis (`npm run sync:foodlog`)
 
 Read-only consumers (reports, the `nutrition-coach` subagent) never query Postgres: they read the
-snapshot `data/nutrition/sync-foodlog.js` writes (part of `npm run sync`).
+snapshot `data/nutrition/sync-foodlog.mjs` writes (part of `npm run sync`).
 
 - `data/nutrition/foodlog-daily.csv` (gitignored): one row per LOGGED day (no entry → no row); the last
   120 days are refreshed from the server, older rows are kept. An unknown macro is blank, never 0;

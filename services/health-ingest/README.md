@@ -377,7 +377,7 @@ activities' `device_name` (`[{name, count, lastUsed}]`, `lastUsed` = the local s
 newest activity); summary activities normally carry it, and an activity without it is simply not
 counted. Photo URLs are returned only when they are `https://` (Strava sends a relative
 placeholder path when the athlete has no photo). The repo's `npm run sync`
-(`data/profile/sync-profile.js`) reads it into the gitignored `data/profile/`.
+(`data/profile/sync-profile.mjs`) reads it into the gitignored `data/profile/`.
 
 **Gear needs the `profile:read_all` scope.** Strava returns `bikes` / `shoes` (and
 `measurement_preference`) on `GET /athlete` only for a token granted `profile:read_all`. With a

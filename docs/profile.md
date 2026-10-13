@@ -46,7 +46,7 @@ controls instead of the close button.
      the Strava + derived data); `npm run check` (`build-web.mjs --check`, `checkManualProfile`)
      FAILS on it with the same reason.
   2. `data/profile/strava-profile.json` + `data/profile/avatar.jpg` (gitignored), written by
-     `data/profile/sync-profile.js` (`npm run sync:profile`, part of `npm run sync`, before the settings sync) from the
+     `data/profile/sync-profile.mjs` (`npm run sync:profile`, part of `npm run sync`, before the settings sync) from the
      ingest service's `GET /export/athlete`: name, city / country, photo URL, athlete type (focus),
      bikes / shoes (name, brand / model, frame type, weight, distance in m, retired, primary),
      `gearScopeMissing`, and devices seen on stored activities (`device_name` → count + last day;
@@ -74,7 +74,7 @@ controls instead of the close button.
   supplements / events = `profile/profile.json`, goal + target weight = `data/profile/settings.json`,
   stable context (injuries, history, preferences) = `profile/about-me.md` — never numbers in prose.
   `settings.json` (gitignored, `data/profile/*`) = `{goal, targetWeightKg, updatedAt, fetchedAt}`,
-  written by `data/profile/sync-settings.js` (`npm run sync:settings`, step of `npm run sync` before `sync:foodlog`)
+  written by `data/profile/sync-settings.mjs` (`npm run sync:settings`, step of `npm run sync` before `sync:foodlog`)
   from the ingest service's `GET /food/settings` (the server-side goal of "Nutrition v2 part 3";
   `INGEST_URL`, `X-HC-Food: 1`, no token; the URL's host must be an IP literal, `localhost` or in
   `FOOD_ALLOWED_HOSTS`): atomic, rewritten only when goal / target / updatedAt changed or the stored
