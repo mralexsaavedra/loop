@@ -42,7 +42,7 @@ through it: it checks what is already in place, then goes one step at a time.
 
 1. **Clone and install:** `npm ci`.
 2. **Export Apple Health:** iPhone → Health → your photo → *Export All Health Data*. Unzip and put
-   `export.xml` in `data/apple-health/`, then run `node data/apple-health/extract.js` (it caches small
+   `export.xml` in `data/apple-health/`, then run `node data/apple-health/extract.mjs` (it caches small
    per-metric CSVs; re-run after each new export).
 3. **Start Claude Code and say hi.** With no profile yet it runs the onboarding interview and writes
    `profile/about-me.md`, `profile/baseline.md` and `profile/coaches.md` for you (all gitignored).

@@ -1,8 +1,8 @@
-/* Tests for the shared Apple Health sample helpers (used by extract.js AND sync-shortcut.js,
+/* Tests for the shared Apple Health sample helpers (used by extract.mjs AND sync-shortcut.mjs,
  * so export-derived and Shortcut-derived rows are formatted identically). Synthetic values only. */
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const s = require('./samples.mjs');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import * as s from './samples.mjs';
 
 test('day() keeps the local calendar date of an export stamp', () => {
   assert.equal(s.day('2030-01-02 23:59:00 +0200'), '2030-01-02');

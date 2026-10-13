@@ -59,7 +59,7 @@ you MUST follow for any number you produce).
 | `npm run gen:food-calc` | Regenerate `services/health-ingest/src/food-calc.js` from `lib/nutrition/foodlog.mjs` (a food log formula change is made in the lib first, then this; a test fails while it is stale) |
 | `npm run gen:journal-calc` | Regenerate `services/health-ingest/src/journal-calc.js` from `lib/journal/journal.mjs` (a journal behaviour / limit change is made in the lib first, then this; a test fails while it is stale) |
 | `npm run sync` | Pull Shortcut payloads, Strava, profile, food log, settings from `services/health-ingest` into the extract (`-- --full` rebuilds the Shortcut cache) |
-| `node data/apple-health/extract.js` | Rebuild the extract CSVs from a new `export.xml` (then re-run `npm run sync`) |
+| `node data/apple-health/extract.mjs` | Rebuild the extract CSVs from a new `export.xml` (then re-run `npm run sync`) |
 | `node scripts/build-web.mjs [--mode personal\|example] [--locale es\|en]` | Build one page variant into `web/dist/<mode>/index.html` |
 
 A runnable `scripts/*.mjs` guards its CLI with `if (isMain(import.meta.url))` from
