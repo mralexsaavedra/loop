@@ -18,7 +18,7 @@ body fat within one scale only); steps are deduped to max-per-device per day (su
 devices double-counts — summing inflates the NEAT figure). Active / basal energy: per DAY and
 type ONE source wins and only its sum is written, never a sum across sources (each device / app
 writes its own estimate of the same burn; RENPHO's weigh-in BMR as Basal Energy doubled basal).
-Precedence (`samples.js` `energySource` / `pickEnergySource`): 1. Apple Watch (`APPLE_WATCH_RE`,
+Precedence (`samples.mjs` `energySource` / `pickEnergySource`): 1. Apple Watch (`APPLE_WATCH_RE`,
 the same anchored `/^Apple\s+Watch\b/i` as `sessions.mjs`, pinned by a test); 2. a dedicated
 wrist-wearable app (`ENERGY_WEARABLES`: Zepp / Zepp Life, Mi Fit / Mi Fitness, Amazfit, Garmin
 Connect, Polar Flow, Fitbit, Huawei Health — older history from another app, e.g. before an Apple Watch,
@@ -67,7 +67,7 @@ the power-meter ride correction (Health tab → Energy).
 Values, zipped by line number; lists of different lengths are dropped with a sync `WARNING`, never
 mis-paired) or the older `hr_samples` (`ISO;bpm` lines), unioned when both come
 (`docs/ios-shortcut.md`) →
-`hr-hourly.csv` (`date,hour_start,avg,max,min,n,covered_min,act_min,hist,source`; `lib/health/hr-hourly.cjs`).
+`hr-hourly.csv` (`date,hour_start,avg,max,min,n,covered_min,act_min,hist,source`; `lib/health/hr-hourly.mjs`).
 Samples are deduped by their exact instant across payloads (the later payload wins) and must be
 25–240 bpm; the raw samples stay in the local cache, the CSV holds one row of aggregates per clock
 hour (keyed by local hour + offset, like the energy hours), rebuilt every run from the whole cache.
@@ -80,12 +80,14 @@ exclusion is why `npm run sync` runs the Strava sync BEFORE the Shortcut sync. D
 (`lib/score/stress.mjs`) reads `avg`, `covered_min`, `act_min` and `hist` per waking hour; the older `hr_hourly` key
 (hourly sums) is ignored.
 Unreachable service → exits non-zero without touching files. Row helpers are shared in
-`samples.js`, so both paths format rows identically.
+`samples.mjs`, so both paths format rows identically. `samples.mjs` and `lib/health/hr-hourly.mjs` are ES
+modules; the CommonJS scripts here load them with a plain `require()` (Node's synchronous require(esm),
+unflagged since Node 22.12, the `engines` floor), which returns their named exports.
 
 ### Sleep (`sleep-daily.csv`)
 
 `date,asleep_hours,source,bedtime,waketime,rem_h,deep_h,core_h,unspec_h,awake_h,inbed_h`, one row
-per wake-up night, written identically by `extract.js` and the Shortcut sync (`samples.js`
+per wake-up night, written identically by `extract.js` and the Shortcut sync (`samples.mjs`
 `sleepNights` / `sleepRow`). Only ASLEEP segments (Core / Deep / REM / Asleep-unspecified, English or
 Spanish Shortcut names) build the night: blocks under 60 min apart, the main sleep inside 20:00–12:00,
 naps excluded, max minutes across sources per night. `asleep_hours` (the union of the main sleep's

@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createRequire } from 'node:module';
 import { makeDemoData, prng, DEMO_DIR, DEMO_DEFAULTS } from './make-demo-data.mjs';
 import { readExtract } from '../lib/extract/read.mjs';
 import { buildScoresFrom } from '../lib/score/index.mjs';
@@ -12,9 +11,8 @@ import { strainFrom } from '../lib/score/strain.mjs';
 import { healthFrom } from '../lib/health/aggregate.mjs';
 import { intakeFrom } from '../lib/nutrition/intake.mjs';
 import { buildDials } from '../web/src/view/dial.mjs';
+import { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } from '../data/apple-health/samples.mjs';
 
-const require = createRequire(import.meta.url);
-const { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } = require('../data/apple-health/samples.js');
 
 function withDemoDir(files, fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-extract-'));
@@ -101,7 +99,7 @@ test('demo workout-zones.csv: one Demo Strava row per Strava run / ride, the rea
 });
 
 test('demo hr-hourly.csv: four weeks of hours in the sync schema, enough full days to calibrate day strain', async () => {
-  const { HR_HOURLY_HEADER } = await import('../lib/health/hr-hourly.cjs');
+  const { HR_HOURLY_HEADER } = await import('../lib/health/hr-hourly.mjs');
   const files = makeDemoData();
   const lines = files['hr-hourly.csv'].trim().split('\n');
   assert.equal(lines[0], HR_HOURLY_HEADER);

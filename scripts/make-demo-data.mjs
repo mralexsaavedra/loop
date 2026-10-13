@@ -20,11 +20,11 @@ import { journalCsv } from '../lib/journal/journal.mjs';
 import { JOURNAL_FILE } from '../lib/journal/bake.mjs';
 import { FOODLOG_FILE, FOODLOG_HEADER } from '../lib/nutrition/score.mjs';
 import { isMain } from './lib/is-main.mjs';
+import { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } from '../data/apple-health/samples.mjs';
+import { HR_HOURLY_HEADER, HR_HOURLY_CSV } from '../lib/health/hr-hourly.mjs';
 
 const require = createRequire(import.meta.url);
-const { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } = require('../data/apple-health/samples.js');
 const { ZONES_HEADER, ZONES_CSV } = require('../lib/training/hr-zones.cjs');
-const { HR_HOURLY_HEADER, HR_HOURLY_CSV } = require('../lib/health/hr-hourly.cjs');
 // journal-daily.csv: the last JOURNAL_DAYS days, most of them journaled (the example's My journal card +
 // behaviour insights)
 const JOURNAL_DAYS = 70;
@@ -190,7 +190,7 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
   // ---- Watch heart rate per clock hour (hr-hourly.csv, as the Shortcut sync writes it) ---------
   // the last HR_DAYS days, a sample every 5 min: nights ~55 bpm, days ~58-70 with the odd walk at
   // 100-120 and the Watch-only gym session at 120-140, and the Strava session's window (18:00 + its elapsed time) left out of the histogram
-  // (act_min), exactly like lib/health/hr-hourly.cjs. Its own PRNG, so the other files never change.
+  // (act_min), exactly like lib/health/hr-hourly.mjs. Its own PRNG, so the other files never change.
   const hrnd = prng(seed + 3);
   const gymDays = new Set(workouts.map((l) => l.split(',')).filter((c) => c[7] === SRC.watch).map((c) => c[0]));
   const actSec = new Map(zoneRows.map((l) => l.split(',')).map((c) => [c[0], Number(c[15])]));

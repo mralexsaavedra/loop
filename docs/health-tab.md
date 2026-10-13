@@ -182,7 +182,7 @@ caveat (`energyTdeeNote`, which points to Nutrición → Balance); the balance n
   not-absolute signals). Sleep adds CONSISTENCY: % of nights ≥ `SLEEP_TARGET` (7.5 h), night-to-
   night spread (sd), and bedtime/wake-time regularity (median ± a ROBUST sd = 1.4826 × MAD, in
   minutes; after-midnight bedtimes wrapped onto a night scale). Sleep bedtime/waketime come from the
-  extended `sleep-daily.csv`: extract.js and sync-shortcut.js share `samples.js` `sleepNights`, which
+  extended `sleep-daily.csv`: extract.js and sync-shortcut.js share `samples.mjs` `sleepNights`, which
   keeps only the MAIN sleep of each wake-up night (asleep segments chained with gaps < 60 min; the
   longest block whose midpoint falls 20:00-12:00, plus in-window blocks within 3 h of it when they lie
   before it or start before 05:00 on the wake-up date, so a split night with a 3 am wake-up stays one
