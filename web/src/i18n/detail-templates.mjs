@@ -334,7 +334,7 @@ export const en = {
     parts: '{n} parts',
     source: 'Source: {src}',
     // the watch running dynamics of a run day (moved off the Entreno run row)
-    // per-workout HR zones (workout-zones.csv: % of max HR, lib/training/hr-zones.cjs)
+    // per-workout HR zones (workout-zones.csv: % of max HR, lib/training/hr-zones.mjs)
     zones: {
       title: 'Heart-rate zones',
       zone: 'Zone {n}',
