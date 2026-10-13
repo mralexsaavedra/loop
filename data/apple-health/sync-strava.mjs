@@ -28,18 +28,22 @@
  * from scratch every run, so a date dropping out of the ledger (e.g. after extract.js rewrote
  * _meta.json) can never leave a stale Strava-tagged row behind — see the orphan-safety test.
  */
-const fs = require('fs')
-const path = require('path')
-const common = require('./sync-common.mjs')
-const { WORKOUTS_HEADER } = require('./samples.mjs')
-const zones = require('../../lib/training/hr-zones.mjs')
-const { readProfileMaxHr } = require('../../lib/profile/read.mjs')
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import * as common from './sync-common.mjs'
+import { WORKOUTS_HEADER } from './samples.mjs'
+import * as zones from '../../lib/training/hr-zones.mjs'
+import { readProfileMaxHr } from '../../lib/profile/read.mjs'
+import { isMain } from '../../scripts/lib/is-main.mjs'
+
+const DIR = path.dirname(fileURLToPath(import.meta.url))
 
 const STRAVA_SOURCE = 'Strava API'
 // SYNC_STRAVA_OUT_DIR / INGEST_ENV_FILE overrides exist ONLY so the child-process error-path
 // tests below can point main() at a disposable tmp dir / tmp env file instead of the real
 // personal data/apple-health/extract or services/health-ingest/.env — unset in production.
-const OUT = process.env.SYNC_STRAVA_OUT_DIR || path.join(__dirname, 'extract')
+const OUT = process.env.SYNC_STRAVA_OUT_DIR || path.join(DIR, 'extract')
 const WORKOUTS_CSV = 'workouts.csv'
 
 // sport_type -> workouts.csv `type` (matches extract.js's HKWorkoutActivityType-derived strings, so
@@ -338,7 +342,7 @@ function staleZonesWarning (activities) {
     '(docker compose up -d --build health-ingest) and re-run once the backfill has fetched some streams.'
 }
 
-const PROFILE_JSON = process.env.SYNC_STRAVA_PROFILE || path.join(__dirname, '..', '..', 'profile', 'profile.json')
+const PROFILE_JSON = process.env.SYNC_STRAVA_PROFILE || path.join(DIR, '..', '..', 'profile', 'profile.json')
 
 async function main () {
   const t0 = Date.now()
@@ -380,9 +384,9 @@ async function main () {
   if (!Object.keys(plan.writes).length) console.log('  (no changes)')
 }
 
-if (require.main === module) main()
+if (isMain(import.meta.url)) main()
 
-module.exports = {
+export {
   STRAVA_SOURCE,
   SPORT_TYPE_MAP,
   FALLBACK_TYPE,

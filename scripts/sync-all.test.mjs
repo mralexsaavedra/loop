@@ -66,5 +66,5 @@ test('runAll() treats a null status (spawn itself failed) as a failure', () => {
 test('npm run sync runs Strava before the Shortcut sync (its activity windows feed hr-hourly.csv), then profile, settings, food log', async () => {
   const { SCRIPTS } = await import('./sync-all.mjs');
   const names = SCRIPTS.map((s) => s.split(/[\\/]/).slice(-2).join('/'));
-  assert.deepEqual(names, ['apple-health/sync-strava.js', 'apple-health/sync-shortcut.mjs', 'profile/sync-profile.js', 'profile/sync-settings.js', 'nutrition/sync-foodlog.js', 'scripts/sync-journal.mjs']);
+  assert.deepEqual(names, ['apple-health/sync-strava.mjs', 'apple-health/sync-shortcut.mjs', 'profile/sync-profile.js', 'profile/sync-settings.js', 'nutrition/sync-foodlog.js', 'scripts/sync-journal.mjs']);
 });
