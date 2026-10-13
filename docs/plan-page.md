@@ -40,9 +40,8 @@ null-when-absent values (`readExtract(null)` = every value null, `journal` `[]`)
 so a core that sorts or assigns into its shared inputs throws instead of changing another score.
 `readExtract` is the only extract reader the page uses and `web/src/bakes.mjs` is its only caller (tests
 aside): every compute module takes its inputs as arguments, and there are no per-directory `build*(extractDir)`
-wrappers left (tests run the pure `*From` cores over `readExtract` or over readExtract-shaped literals). One
-fallback remains in a reader: `lib/profile/read.mjs` `loadProfile` reads `weight.csv` itself when the caller
-omits `weight` (`computeBakes` always passes it). `lib/fs-boundary.test.mjs` also pins that no compute module
+wrappers left (tests run the pure `*From` cores over `readExtract` or over readExtract-shaped literals); the
+profile's weigh-in also comes from `computeBakes` (`lib/profile/read.mjs` never reads the extract). `lib/fs-boundary.test.mjs` also pins that no compute module
 imports a reader: only the `read.mjs` files (`lib/extract/read.mjs` included) and the three `fs` exceptions may
 import a `read.mjs`. Only modules that neither import `fs` nor import a reader can be emitted into the page via
 `clientSource()`.
