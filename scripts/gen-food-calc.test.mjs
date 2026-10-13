@@ -2,8 +2,10 @@
  * must be exactly what the generator writes now (a lib change without `npm run gen:food-calc` fails here). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { foodCalcSource, FOOD_CALC_PATH, FOOD_CALC_HEADER } from './gen-food-calc.mjs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { foodCalcSource, FOOD_CALC_PATH, FOOD_CALC_HEADER, writeGenerated } from './gen-food-calc.mjs';
 import { esmModule } from '../lib/build/esm-module.mjs';
 
 const committed = readFileSync(FOOD_CALC_PATH, 'utf8');
@@ -47,4 +49,24 @@ test('esmModule: refuses values that do not print as themselves, renamed keys an
   assert.throws(() => esmModule('x', { fns: { other: helper } }), /declares helper/);
   assert.throws(() => esmModule('x', { fns: { arrow: () => 1 } }), /not a function declaration/);
   assert.throws(() => esmModule('x', { hidden: { helper: 1 }, local: { helper } }), /declared twice/);
+});
+
+test('writeGenerated: --check reports drift without writing, a write is idempotent, a current file passes', (t) => {
+  t.mock.method(console, 'log', () => {});
+  t.mock.method(console, 'error', () => {});
+  const dir = mkdtempSync(join(tmpdir(), 'gen-'));
+  try {
+    const file = join(dir, 'out.js');
+    const opts = { label: 'x/out.js', script: 'gen:x' };
+    assert.equal(writeGenerated(file, 'A\n', { ...opts, check: true }), 1); // missing = drift
+    assert.throws(() => readFileSync(file));
+    assert.equal(writeGenerated(file, 'A\n', opts), 0);
+    assert.equal(readFileSync(file, 'utf8'), 'A\n');
+    assert.equal(writeGenerated(file, 'A\n', { ...opts, check: true }), 0);
+    writeFileSync(file, 'hand edit\n');
+    assert.equal(writeGenerated(file, 'A\n', { ...opts, check: true }), 1);
+    assert.equal(readFileSync(file, 'utf8'), 'hand edit\n');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

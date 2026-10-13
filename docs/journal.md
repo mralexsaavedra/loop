@@ -11,8 +11,12 @@ nothing without that API, and a sync into a gitignored CSV for read-only consume
 ## Behaviours
 
 `lib/journal/journal.mjs` is the ONE reference (`JOURNAL_GROUPS`, `JOURNAL_BEHAVIORS`,
-`JOURNAL_LIMITS`); `services/health-ingest/src/journal-calc.js` is a LITERAL copy (the service is built
-from its own directory) pinned equal by `lib/journal/journal.test.mjs`. Behaviour list,
+`JOURNAL_LIMITS`); `services/health-ingest/src/journal-calc.js` is a GENERATED copy (the service is
+built from its own directory, so it cannot import `lib/`): `scripts/gen-journal-calc.mjs` writes it from
+the module's `SERVER` descriptor via `lib/build/esm-module.mjs`, the same pattern as the food log's
+`food-calc.js`. **Change the lib, then `npm run gen:journal-calc`** (never hand-edit the service file):
+the root test `scripts/gen-journal-calc.test.mjs` fails while the committed file differs from a
+regeneration. Behaviour list,
 stored answer key → kind:
 
 | Group | Key | Kind |
