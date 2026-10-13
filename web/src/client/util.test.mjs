@@ -171,6 +171,13 @@ test('cta is the one CTA link: a .cta button, the label escaped, the arrow hidde
   assert.equal(HC.cta('Go'), '<button type="button" class="cta">Go<span aria-hidden="true"> →</span></button>');
 });
 
+test('staleMark is THE stale-data marker: a <details>, short line + ⓘ as summary, the sentence inside, all escaped', () => {
+  const HC = load();
+  assert.equal(HC.staleMark('own', 'Data <5> d old', 'Old & greyed.'),
+    '<details class="stale-mk own"><summary>Data &lt;5&gt; d old' + HC.infoSvg + '</summary><p>Old &amp; greyed.</p></details>');
+  assert.ok(HC.staleMark('', 'a', 'b').startsWith('<details class="stale-mk"><summary>'));
+});
+
 test('trendTone / metricRow: a ▲ ▼ is never grey — no good direction reads neutral, only the • is flat', () => {
   const HC = load();
   assert.equal(HC.trendTone('up', 'good'), 'good');

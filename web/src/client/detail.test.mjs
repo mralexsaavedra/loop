@@ -1037,6 +1037,17 @@ test('a registered view opens from its opener: its title + head + body in the sa
   assert.equal(btn.focused, 1, 'focus returns to the avatar');
 });
 
+test('a registered view may return `info`: the header gets the shared ⓘ and the block sits collapsed under it; none = no ⓘ', () => {
+  const s = setup({ views: profileView({ render: () => ({ head: '', body: '<p class="pf-body">B</p>', info: '<p class="pf-why">W</p>' }) }) });
+  s.click(new StubElement('button', { attrs: { 'data-detail': 'profile', 'aria-haspopup': 'dialog' } }));
+  const html = s.host.innerHTML;
+  assert.match(html, /<button type="button" class="sh-info" data-dt-act="info" aria-expanded="false" aria-controls="dd-info"/);
+  assert.ok(html.includes('<div class="dd-info dt-info" id="dd-info" hidden><p class="pf-why">W</p></div>'));
+  const plain = setup({ views: profileView() });
+  plain.click(new StubElement('button', { attrs: { 'data-detail': 'profile', 'aria-haspopup': 'dialog' } }));
+  assert.doesNotMatch(plain.host.innerHTML, /sh-info|dd-info/);
+});
+
 test('deep link #profile opens the registered view on load; an unregistered #profile is ignored', () => {
   const s = setup({ views: profileView(), hash: '#profile' });
   assert.equal(s.host.hidden, false);

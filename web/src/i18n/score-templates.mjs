@@ -145,7 +145,6 @@ export const en = {
       heading: 'My dashboard',
       customize: 'Customize',
       editTitle: 'Customize dashboard',
-      editNote: 'Show, hide and reorder the metrics: drag ≡ or use the arrows. Saved on this device only.',
       showAria: 'Show {metric} on the dashboard',
       upAria: 'Move {metric} up',
       downAria: 'Move {metric} down',
@@ -159,6 +158,7 @@ export const en = {
   },
   emptyMsg: 'No scores yet. Recovery needs the Apple Health extract; load needs workouts with Relative Effort (Strava).',
   asOfLbl: 'as of {date}',
+  staleShort: 'Data {days} d old',
   staleNote: 'The newest data is {days} days old: shown greyed, and no advice is given.',
   recovery: {
     heading: 'Recovery',
@@ -457,7 +457,6 @@ export const es = {
       heading: 'Mi panel',
       customize: 'Personalizar',
       editTitle: 'Personalizar panel',
-      editNote: 'Muestra, oculta y ordena las métricas: arrastra ≡ o usa las flechas. Se guarda solo en este dispositivo.',
       showAria: 'Mostrar {metric} en el panel',
       upAria: 'Subir {metric}',
       downAria: 'Bajar {metric}',
@@ -471,6 +470,7 @@ export const es = {
   },
   emptyMsg: 'Aún no hay puntuaciones. La recuperación necesita la exportación de Apple Health; la carga necesita entrenos con Esfuerzo Relativo (Strava).',
   asOfLbl: 'a fecha {date}',
+  staleShort: 'Datos de hace {days} d',
   staleNote: 'El dato más reciente tiene {days} días: se muestra en gris y no se da consejo.',
   recovery: {
     heading: 'Recuperación',

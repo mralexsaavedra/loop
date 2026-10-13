@@ -69,7 +69,11 @@ test('the CTA link gradient (--link → --link-end) passes AA for small text on 
     const r = ratio(token(fg), token('ground'));
     assert.ok(r >= 4.5, `--${fg} on --ground is ${r.toFixed(2)}:1, AA needs 4.5:1`);
   }
-  assert.ok(ratio(token('link-end'), token('surface')) < 4.5, 'on --surface the violet end fails: keep the gradient off cards');
+  assert.ok(ratio(token('link-end'), token('surface')) < 4.5, 'on --surface the violet end fails: cards use --link-end-card');
+  for (const bg of ['ground', 'surface', 'surface-2']) {
+    const r = ratio(token('link-end-card'), token(bg));
+    assert.ok(r >= 4.5, `--link-end-card on --${bg} is ${r.toFixed(2)}:1, AA needs 4.5:1`);
+  }
   const css = fs.readFileSync(path.join(here, '..', 'src', 'styles', 'detail.css'), 'utf8');
   const m = /\.dd-insight\s*\{([^}]*)\}/.exec(css);
   assert.ok(m && /var\(--ground\)/.test(m[1]), 'the insight card is filled with --ground');

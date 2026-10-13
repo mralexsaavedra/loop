@@ -274,6 +274,12 @@ var HC = (function () {
     return '<button type="button" class="hs-i" data-hs-info="' + esc(id) + '" aria-expanded="false" aria-controls="' + esc(id) + '" aria-label="' + esc(label) + '">' +
       INFO_SVG + '</button>';
   }
+  // THE stale-data marker: a short line ("Data 5 d old" + ⓘ) whose full sentence is one tap away. A
+  // native <details>, so it needs no listener (works on any tab, also with Salud hidden); cls = the owner
+  function staleMark(cls, short, sentence) {
+    return '<details class="stale-mk' + (cls ? ' ' + esc(cls) : '') + '"><summary>' + esc(short) + INFO_SVG + '</summary><p>' +
+      esc(sentence) + '</p></details>';
+  }
   // the ONE CTA link (docs/design-system.md → Components → CTA link): a standalone "go there" link —
   // caps, link blue (.cta, base.css), the arrow drawn here; attrs = the button's own attributes
   function cta(label, attrs) {
@@ -341,6 +347,7 @@ var HC = (function () {
     switchBtn: switchBtn,
     infoBtn: infoBtn,
     infoSvg: INFO_SVG,
+    staleMark: staleMark,
     sheetHead: sheetHead,
     rolloverAction: rolloverAction,
     registerView: registerView,

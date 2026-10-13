@@ -222,6 +222,13 @@ test('recovery card: contributors are THE contributor row (icon, name, latest va
   assert.match(recCard(s, { locale: 'es' }), /<summary>Últimos 14 días<\/summary>/);
 });
 
+test('recovery card: the sparkline has no caption under it; what it shows is a line of the ⓘ notes', () => {
+  const html = recCard(fixtureScores());
+  assert.doesNotMatch(html, /sc-spark-lbl/);
+  const info = /<div class="hs-info" id="rec-info" hidden>([\s\S]*?)<\/div><!--\/rec-info-->/.exec(html);
+  assert.ok(info && info[1].includes(enT.recovery.sparkLbl), 'the caption moved under ⓘ');
+});
+
 test('recovery card: layout blocks headline | sparkline | contributors', () => {
   const html = recCard(fixtureScores());
   const at = ['class="rec-head"', 'class="sc-spark rec-spark"', 'class="dd-rows rec-contrib"'].map((n) => html.indexOf(n));
@@ -363,7 +370,8 @@ test('stale: > 3 days old is greyed, shows "as of <date>" and the note, and supp
   const html = render(s, { now: addDays(ASOF, 5) });
   assert.match(html, /sc-stale/);
   assert.ok(html.includes('as of Tue 29 Sep'), 'the shared display date, never ISO');
-  assert.match(html, /sc-stale-note/);
+  assert.ok(html.includes(`<details class="stale-mk sc-stale-note"><summary>${enT.staleShort.replace('{days}', '5')}<svg`), 'a short marker');
+  assert.ok(html.includes(`<p>${enT.staleNote.replace('{days}', '5')}</p></details>`), 'the sentence one tap away');
   assert.doesNotMatch(html, /sc-advice/);
 });
 
@@ -574,12 +582,15 @@ test('dials: label BELOW the ring, uppercase via CSS, with a chevron; no caption
   assert.ok(!html.includes('Target 7.5 h'), 'the sleep target is in the sleep detail sheet');
 });
 
-test('dials: stale data keeps ONE short warning line under the dials; fresh data has none', () => {
+test('dials: stale data keeps ONE short marker under the dials, its sentence one tap away; fresh data has none', () => {
   const s = fixtureScores();
   assert.doesNotMatch(withDials(s, { now: addDays(ASOF, 1) }), /dial-stale/);
   const stale = withDials(s, { now: addDays(ASOF, 5) });
-  assert.equal(count(stale, 'class="dial-stale"'), 1);
-  assert.ok(stale.includes(`<div class="dial-stale">${enT.staleNote.replace('{days}', '5')}</div>`));
+  assert.equal(count(stale, 'class="stale-mk dial-stale"'), 1);
+  const m = /<details class="stale-mk dial-stale"><summary>([^<]*)<svg[^]*?<\/svg><\/summary><p>([^<]*)<\/p><\/details>/.exec(stale);
+  assert.ok(m, 'a <details>: the short marker (+ the ⓘ) as its summary, the full sentence inside');
+  assert.equal(m[1], enT.staleShort.replace('{days}', '5'));
+  assert.equal(m[2], enT.staleNote.replace('{days}', '5'));
 });
 
 test('recovery dial: an older night is labelled with its date, not "last night"', () => {

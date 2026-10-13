@@ -223,8 +223,6 @@
   filter: grayscale(1);
 }
 .sc-stale-note {
-  color: var(--mod);
-  font-size: var(--fs-xs);
   margin: 4px 0;
 }
 
@@ -418,12 +416,14 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-/* the one line that stays under the dials: the data is too old */
+/* the one marker that stays under the dials (HC.staleMark, base.css .stale-mk): centred */
 .dial-stale {
   margin-top: var(--sp-3);
-  font-size: var(--fs-xs);
-  color: var(--mod);
   text-align: center;
+}
+.dial-stale > p {
+  margin: 0 auto;
+  max-width: 34ch;
 }
 /* compact caveat line, only when the dial's detail (with the full caveats) is hidden */
 .dial-caveat {
@@ -1276,8 +1276,8 @@ details.rec-raw[open] > summary::after {
   display: flex;
   align-items: center;
   gap: var(--sp-4);
-  min-height: 60px;
-  padding: var(--sp-3) var(--sp-5);
+  min-height: 48px;
+  padding: 0 var(--sp-5);
   border-radius: var(--card-radius);
   background: var(--card-bg);
 }

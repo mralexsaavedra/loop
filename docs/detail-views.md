@@ -23,7 +23,7 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
 
 - **Registered views** — a sheet that is not a `DETAIL` metric (profile, tonight, dash-edit, hoy-session,
   food-add, journal, journal-insights) registers with `HC.registerView(<key>, {title(), render() → {head,
-  body}})` (`client/util.js`, the ONLY writer of `window.HCViews`; the registry appears with the first view)
+  body, info?}})` (`info`: notes collapsed under the shared header ⓘ, `#dd-info`, e.g. Tonight's rule) (`client/util.js`, the ONLY writer of `window.HCViews`; the registry appears with the first view)
   and `detail.js` reads it through `HC.view(<key>)` (own keys only, else null). Registering a key again
   replaces the view (a re-render or API reload of its own script; never a runtime throw). Ownership is
   checked statically instead: `web/src/client/util.test.mjs` scans the client scripts and fails when a key
@@ -133,7 +133,7 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   rows → their signal; the stress monitor tile → stress (its HRV fallback → hrv); the "My day" outlook bar (advice) → recovery;
   activity rows → that day (sleep, or `load-<m>` / `workouts` for "other"), the programmed-session row
   → the registered `hoy-session` view (client/training-today.js); the "Tonight" card → the registered
-  `tonight` view (the bedtime rule + a button to the sleep sheet, client/home-week.js); the "My plan"
+  `tonight` view (the bedtime + a button to the sleep sheet, the rule behind its ⓘ, client/home-week.js); the "My plan"
   rows → sleep / workouts; each "My dashboard" row → its metric, and "Customize" → the registered
   `dash-edit` view (client/home-dash.js; its buttons re-open the view through `HCDetail.open` with
   `focus` on the control just used). These two scripts run in the end-of-body list BEFORE `detail.js`,

@@ -182,7 +182,8 @@ test('clock edge: 23:59 ends the windows that day, 00:01 the next', () => {
 test('stale data (> 3 days old): windows end at the data date, the block is greyed with a note', () => {
   const html = render(ACT, { now: addDays(ASOF, 10) });
   assert.match(html, /act-stale/);
-  assert.ok(html.includes(enT.staleNote.replace('{days}', '10').replace('{date}', 'Tue 29 Sep')));
+  assert.ok(html.includes(`<details class="stale-mk act-stale-note"><summary>${enT.staleShort.replace('{days}', '10')}<svg`), 'a short marker');
+  assert.ok(html.includes(`<p>${enT.staleNote.replace('{days}', '10').replace('{date}', 'Tue 29 Sep')}</p></details>`), 'the sentence one tap away');
   assert.equal(cells(html)[29].title, `Tue 29 Sep: 1:45 (Run 1:00, Bike 0:45)`);
 });
 

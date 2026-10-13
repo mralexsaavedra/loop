@@ -100,8 +100,11 @@
     else if (m.band && (m.kind === 'signal' || m.kind === 'sleep' || m.kind === 'total')) out.push(B.staticNote);
     return out.map(function (s) { return '<div class="dt-band-txt">' + esc(s) + '</div>'; }).join('');
   }
-  function head(key, inner) {
-    return HC.sheetHead({ title: titleOf(key), back: (T.deep && T.deep.back) || T.close }) + (inner ? '<div class="dt-titles">' + inner + '</div>' : '');
+  // `info` (a registered view's render().info): its notes collapsed under the shared ⓘ (#dd-info)
+  function head(key, inner, info) {
+    var I = info && T.deep && T.deep.info;
+    return HC.sheetHead({ title: titleOf(key), back: (T.deep && T.deep.back) || T.close, info: I ? { controls: 'dd-info', label: I } : null }) +
+      (I ? '<div class="dd-info dt-info" id="dd-info" hidden>' + info + '</div>' : '') + (inner ? '<div class="dt-titles">' + inner + '</div>' : '');
   }
   // a metric's sheet = the trend view: "‹ TREND VIEW" (the metric stays the dialog's label for screen
   // readers), then the metric picker pill
@@ -517,7 +520,7 @@
     var key = state.key, vw = viewOf(key);
     if (vw) {
       var r = vw.render() || {};
-      return head(key, r.head || '') + '<div class="dt-body">' + (r.body || '') + '</div>';
+      return head(key, r.head || '', r.info) + '<div class="dt-body">' + (r.body || '') + '</div>';
     }
     var m = metric(key);
     if (!m) return head(key) + '<div class="dt-body"><p class="dt-empty">' + esc(T.empty) + '</p></div>';

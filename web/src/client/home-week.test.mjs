@@ -152,15 +152,17 @@ test('Tonight: bedtime ↔ usual wake time on the card, the rule only in its she
   assert.doesNotMatch(h.innerHTML, /median|target/i, 'the rule is not on the card');
   const v = ctx.HCViews.tonight;
   assert.equal(v.title(), "Tonight's sleep");
-  const body = v.render().body;
-  assert.match(body, /Bedtime 23:45 = your usual wake time \(07:15, the median of your last 12 nights\) minus your sleep target of 7:30\./);
+  const r = v.render(), body = r.body;
+  // the rule and the disclaimer sit behind the sheet's ⓘ (r.info), not in the body (the reference app's sheet: the numbers, a way on)
+  assert.match(r.info, /<p class="tn-rule">Bedtime 23:45 = your usual wake time \(07:15, the median of your last 12 nights\) minus your sleep target of 7:30\.<\/p><p class="dt-note">/);
+  assert.doesNotMatch(body, /tn-rule|dt-note/);
   assert.match(body, /data-detail="sleep"/, 'a way to the sleep history');
   // THE CTA link (HC.cta): a .cta button opening the sleep sheet, the arrow hidden from screen readers
   assert.ok(body.endsWith('<button type="button" class="cta" data-detail="sleep">See sleep history<span aria-hidden="true"> →</span></button>'), body.slice(-200));
   // no sleep metric to open: the sheet keeps its rule and drops the CTA (never a link to an empty sheet)
   const bare = load({ globals: { SCORES: { tonight: TONIGHT }, DETAIL: { asOf: WED, metrics: {}, sessions: [] } } });
-  const bareBody = bare.ctx.HCViews.tonight.render().body;
-  assert.match(bareBody, /class="tn-rule"/);
+  const bareR = bare.ctx.HCViews.tonight.render(), bareBody = bareR.body;
+  assert.match(bareR.info, /class="tn-rule"/);
   assert.doesNotMatch(bareBody, /class="cta"|data-detail="sleep"/);
   const none = load({ globals: { SCORES: { tonight: null } } });
   assert.equal(none.els['home-tonight'].hidden, true);
