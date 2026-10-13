@@ -620,7 +620,7 @@ test('main(): activities without elevation -> exit 0, rows written, stale-image 
 const ZRUN = { id: '31', start_local: '2026-09-29T08:00:00Z', sport_type: 'Run', moving_time: 1800, average_heartrate: 150, max_heartrate: 190, hr_hist: { 150: 1200, 175: 600 } };
 
 test('planSync writes workout-zones.csv from hr_hist and records rows + the max HR in _meta.json', () => {
-  const zones = require('../../lib/training/hr-zones.cjs');
+  const zones = require('../../lib/training/hr-zones.mjs');
   const plan = planSync([ZRUN], () => null);
   assert.equal(plan.writes[zones.ZONES_CSV], `${zones.ZONES_HEADER}\n2026-09-29,31,Running,190,observed,150,190,0,0,0,1200,0,600,Strava API,,1800\n`); // 175 / 190 = 92 % -> Z5
   const meta = JSON.parse(plan.writes['_meta.json']);
@@ -631,7 +631,7 @@ test('planSync writes workout-zones.csv from hr_hist and records rows + the max 
 });
 
 test('planSync back-compat: no hr_hist (older ingest image) -> no workout-zones.csv and no zones meta; an existing file is rebuilt', () => {
-  const zones = require('../../lib/training/hr-zones.cjs');
+  const zones = require('../../lib/training/hr-zones.mjs');
   const { hr_hist: _h, ...old } = ZRUN;
   const plan = planSync([old], () => null);
   assert.equal(plan.writes[zones.ZONES_CSV], undefined);

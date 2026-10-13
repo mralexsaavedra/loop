@@ -21,9 +21,10 @@ build:example` = example/en (tracked seeds + the synthetic demo extract, no pers
 compute (macros, training program/dashboard, health aggregation) lives in root `lib/*.mjs`, shared by
 the Astro build, `data/nutrition/generate.js`, and the test suite — one source, not three. Compute modules in
 `lib/` take their data as arguments and never import `fs`; disk I/O is confined to the area readers
-`lib/<area>/read.mjs` (`health`, `journal`, `nutrition`, `profile`, `score`, `training`) plus three named
-exceptions: `lib/load/inputs.mjs` (the build-input loader), `lib/profile/manuals.mjs` (write-side manual
-publisher) and `lib/training/hr-zones.cjs` (CommonJS shared with the `data/apple-health` sync scripts).
+`lib/<area>/read.mjs` (`health`, `journal`, `nutrition`, `profile`, `score`, `training`) plus two named
+exceptions: `lib/load/inputs.mjs` (the build-input loader) and `lib/profile/manuals.mjs` (write-side manual
+publisher). The HR zone model `lib/training/hr-zones.mjs` is pure; the `profile.json` max HR the Strava sync
+cuts zones with is read by `lib/profile/read.mjs` `readProfileMaxHr`.
 `lib/fs-boundary.test.mjs` pins that exact set, so a new compute module that imports `fs` fails the suite.
 **Read at the edge:** `lib/extract/read.mjs` `readExtract(extractDir)` is the single extract read of a build:
 the composition root (`web/src/bakes.mjs` `computeBakes`) calls it once and passes the result to the pure cores

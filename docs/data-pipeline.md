@@ -80,8 +80,8 @@ exclusion is why `npm run sync` runs the Strava sync BEFORE the Shortcut sync. D
 (`lib/score/stress.mjs`) reads `avg`, `covered_min`, `act_min` and `hist` per waking hour; the older `hr_hourly` key
 (hourly sums) is ignored.
 Unreachable service → exits non-zero without touching files. Row helpers are shared in
-`samples.mjs`, so both paths format rows identically. `samples.mjs` and `lib/health/hr-hourly.mjs` are ES
-modules; the CommonJS scripts here load them with a plain `require()` (Node's synchronous require(esm),
+`samples.mjs`, so both paths format rows identically. `samples.mjs`, `lib/health/hr-hourly.mjs`,
+`lib/training/hr-zones.mjs` and `lib/profile/read.mjs` are ES modules; the CommonJS scripts here load them with a plain `require()` (Node's synchronous require(esm),
 unflagged since Node 22.12, the `engines` floor), which returns their named exports.
 
 ### Sleep (`sleep-daily.csv`)
@@ -149,10 +149,10 @@ activity window `hr-hourly.csv` leaves out; readers are positional, rebuilt from
 from the per-activity HR histogram `hr_hist` (seconds per whole bpm) that the ingest service builds
 from Strava's HR streams (`services/health-ingest/README.md` "Per-workout HR zones": at most 10
 streams per sync run, newest first, so a long history fills in over a few days). Zone model
-(`lib/training/hr-zones.cjs`, the reference's): % of max HR — Z0 < 50 %, Z1 50–60, Z2 60–70,
+(`lib/training/hr-zones.mjs`, the reference's): % of max HR — Z0 < 50 %, Z1 50–60, Z2 60–70,
 Z3 70–80, Z4 80–90, Z5 ≥ 90 % (above the max counts as Z5); the lower bound is inclusive and the
-comparison exact (no rounding). Max HR = `profile/profile.json` `maxHr` when set (source `profile`;
-an invalid value is warned about and ignored), else the highest Strava `max_heartrate` of the 365
+comparison exact (no rounding). Max HR = `profile/profile.json` `maxHr` when set (source `profile`,
+read by `lib/profile/read.mjs` `readProfileMaxHr`; an invalid value is warned about and ignored), else the highest Strava `max_heartrate` of the 365
 days ending at the newest activity (source `observed`; anchored to the data, not the clock, so a
 re-run writes the same bytes); every row records the max HR it used. Because the zones are cut
 locally from the histogram, a new max HR re-cuts every workout on the next sync with no Strava call.

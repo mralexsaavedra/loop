@@ -29,7 +29,7 @@ const fs = require('fs');
 const path = require('path');
 const S = require('./samples.mjs');
 const HR = require('../../lib/health/hr-hourly.mjs');
-const { ZONES_CSV } = require('../../lib/training/hr-zones.cjs');
+const { ZONES_CSV } = require('../../lib/training/hr-zones.mjs');
 const common = require('./sync-common.js');
 
 const SHORTCUT_SOURCE = 'Shortcut';
