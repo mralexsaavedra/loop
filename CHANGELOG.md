@@ -5,6 +5,23 @@ Dated history of structural work on this repo. **Current state lives in Engram**
 `CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
 
 
+## 2026-10-14 — Public-ready docs, a second install, onboarding without Claude Code (v1 and v2)
+
+**Docs and installs (PRs #143–#149).** README "Why this exists" with real screenshots and the shared iOS
+Shortcut; the host install rewritten as ten numbered steps; Level 3 (Shortcut target, Strava credentials) and
+first-run errors clarified; `HC_INSTANCE` lets a second person run their own install on the same host.
+
+**In-page onboarding (PRs #150–#154).** Users without Claude Code get starting targets from the page:
+`lib/nutrition/energy.mjs` (Mifflin-St Jeor × NEAT + net exercise, goal factors, safety screen and bounds),
+the `app_profile` document behind `GET/PUT /food/profile`, its host sync and build precedence, and the wizard.
+
+**Onboarding v2 (PRs #155–#159).** After the first real use, the owner asked for a WHOOP-like flow and for
+sports chosen by each person instead of a fixed rest / gym / bike split. The four day-type keys stay as stable
+IDs (no stored data moves); an optional `sports` list drives each day type's exercise (`exerciseFor`), which
+runs and swims count as long days (`enduranceOf`), the names the page shows (`web/src/i18n/day-labels.mjs`), and
+a full-screen, one-question-per-screen wizard. Without `sports` every number and label is unchanged.
+
+
 ## 2026-10-11 → 2026-10-13 — Code structure, read at the edge, final cleanup
 
 **Code structure (PRs #110–#124).** Recovery bands, adherence, progress and the nutrition score/day/food-core
