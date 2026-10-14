@@ -16,7 +16,7 @@ up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (c
 **sequence protocol** (no clock comparison anywhere):
 
 - **Trigger.** The page's Sync button (`POST /api/sync`, proxied by plan-web nginx) or the last
-  Shortcut step (`POST https://<your-host>/sync`, `docs/ios-shortcut.md`) hits health-ingest
+  Shortcut step (`POST <page address>/api/sync`, also through plan-web, `docs/ios-shortcut.md`) hits health-ingest
   `POST /sync`. A new click gets the next `trigger_seq` (persisted in `sync_status`; resumed at startup
   from max(DB, trigger file), never backwards) and answers `202 {seq, coalesced:false}`; it kicks the
   shared Strava pull (timer loop, `POST /sync` and `POST /sync/strava` share ONE in-flight run) unless
