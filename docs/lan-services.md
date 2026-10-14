@@ -77,7 +77,7 @@ up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (c
   (the page included) answers only a Host that is an IP literal, `localhost` or a name in
   `PLAN_WEB_EXTRA_HOSTS`, else `421` (DNS rebinding; how to add a name: [`nutrition-food-log.md` → Security](nutrition-food-log.md#security)).
   The ingest service itself is never exposed: plan-web is the only entry, and nothing forwards `/export/*`,
-  `/sync/strava`, or the ingest port.
+  `/sync/strava`, or the ingest port (published on the host's LAN only, for plan-web).
 - **Health + tokens.** `/healthz` stays 200 but adds `degraded: true` when Strava is configured and its
   PERSISTED last success is > 6 h old or missing (a restart does not reset it). A refresh token rotated
   by Strava is stored in `strava_token` (3 save attempts with backoff; on failure it is kept in memory,

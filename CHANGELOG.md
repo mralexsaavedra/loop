@@ -4,6 +4,18 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## 2026-10-14 (later) — Release polish: AI layer and documentation
+
+Before the first public release every doc and AI file was audited (read-only explorers) and fixed. AI: report
+language per user, the in-page onboarding and the journal as live facts, a `/food-log` skill, a setup skill that
+reads the ports and covers updating, a second install and troubleshooting, four language-neutral coaches
+(a new `training-coach` for any other sport; the coach test finds coaches by file), contributor material moved
+from `CLAUDE.md` to `docs/development.md`, a safe-command allowlist. Docs: an index separating guides from
+reference, user guides (page tour, your plan, troubleshooting, upgrading with a database backup), every
+reference doc restructured by topic with history moved here, stale facts fixed (exposure model, `/api/sync`, the
+8 MB limit, the monitor band, the basics count, fitness-age bounds), and an independent check that the
+restructure dropped no rule (it found two Shortcut instructions, now restored).
+
 ## 2026-10-14 — Public-ready docs, a second install, onboarding without Claude Code (v1 and v2)
 
 **Docs and installs (PRs #143–#149).** README "Why this exists" with real screenshots and the shared iOS

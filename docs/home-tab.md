@@ -388,7 +388,7 @@ What it shows: user-chosen metric cards with the latest value vs a 30-day baseli
   | shown (`DEFAULT_ON`) | rhr, hrv, sleep, weight, steps, stress (saved prefs without stress get it appended, shown) |
   | hidden | vo2max, fitnessAge, walkingHr, exercise |
 
-- fitnessAge in whole years, "≤ 25" / "≥ 75" at the reference curve's bounds (`docs/health-tab.md` →
+- fitnessAge in whole years, "< 25" / "> 75" at the reference curve's bounds (`docs/health-tab.md` →
   Fitness age).
 - Same series and units as the detail sheet (`I18N_DETAIL`).
 - Value = the newest day with data up to the viewer's today (a daily total skips today, still filling

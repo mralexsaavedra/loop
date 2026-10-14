@@ -21,7 +21,9 @@ mechanical.
 - `.claude/settings.json` — wires the hook as a `PreToolUse` command hook on `Bash|Edit|Write|MultiEdit`,
   and denies `Read(**/.env*)` (every credentials file, including private program-sync ones under
   `data/training/`). The deny covers the Read tool only, not `cat` in
-  Bash.
+  Bash. It also pre-allows the everyday commands so a new user is not asked each time: `npm test`,
+  `npm run check|generate|build:example|sync|sync:*`, `node data/apple-health/extract.mjs`, `git status|diff|log`
+  (the guard hook still runs on every one of them).
 
 ## Bash: force-add of ignored paths
 

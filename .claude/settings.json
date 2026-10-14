@@ -1,5 +1,17 @@
 {
   "permissions": {
+    "allow": [
+      "Bash(npm test)",
+      "Bash(npm run check)",
+      "Bash(npm run generate)",
+      "Bash(npm run build:example)",
+      "Bash(npm run sync)",
+      "Bash(npm run sync:*)",
+      "Bash(node data/apple-health/extract.mjs)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ],
     "deny": [
       "Read(**/.env*)"
     ]
