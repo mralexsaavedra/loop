@@ -31,8 +31,9 @@ for f in profile/about-me.md profile/baseline.md profile/coaches.md profile/prof
   test -e "$f" && echo "yes $f" || echo "no  $f"; done
 command -v docker >/dev/null && docker compose version || echo "docker: no"
 # the ports each install uses (not secrets; defaults 8088 / 8090 when the env files do not set them)
-IP=$(grep -s '^INGEST_PORT=' services/health-ingest/.env | cut -d= -f2); IP=${IP:-8088}
-WP=$(grep -s '^PLAN_WEB_PORT=' services/plan-web/.env | cut -d= -f2); WP=${WP:-8090}
+# (only the digits of that one line ever come out)
+IP=$(grep -sE '^[[:space:]]*INGEST_PORT=' services/health-ingest/.env | head -1 | cut -d= -f2 | tr -dc 0-9); IP=${IP:-8088}
+WP=$(grep -sE '^[[:space:]]*PLAN_WEB_PORT=' services/plan-web/.env | head -1 | cut -d= -f2 | tr -dc 0-9); WP=${WP:-8090}
 curl -s -m 3 -o /dev/null -w "ingest /healthz %{http_code}\n" "http://127.0.0.1:$IP/healthz"
 curl -s -m 3 -o /dev/null -w "plan-web %{http_code}\n" "http://127.0.0.1:$WP/status.json"
 ```

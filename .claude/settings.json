@@ -6,11 +6,14 @@
       "Bash(npm run generate)",
       "Bash(npm run build:example)",
       "Bash(npm run sync)",
-      "Bash(npm run sync:*)",
+      "Bash(npm run sync:shortcut)",
+      "Bash(npm run sync:strava)",
+      "Bash(npm run sync:profile)",
+      "Bash(npm run sync:settings)",
+      "Bash(npm run sync:onboarding)",
+      "Bash(npm run sync:foodlog)",
       "Bash(node data/apple-health/extract.mjs)",
-      "Bash(git status)",
-      "Bash(git diff:*)",
-      "Bash(git log:*)"
+      "Bash(git status)"
     ],
     "deny": [
       "Read(**/.env*)"
