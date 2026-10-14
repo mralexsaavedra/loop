@@ -95,7 +95,7 @@ dataset.
 - **Node.js `>=22.12`** (`engines` in `package.json`).
 - **An iPhone (Apple Health)** for the health data — the export is made on the phone; any OS can run
   the tooling.
-- **Docker** — only for Level 2 (the LAN services).
+- **Docker on a Linux machine that stays on** — only for Level 2 (the LAN services).
 - **[Engram](https://github.com/Gentleman-Programming/engram)** — optional persistent memory across
   sessions. Without it, durable state lives in the tracked files and `CHANGELOG.md`.
 
@@ -130,11 +130,17 @@ Optional extras for this level:
 
 `services/health-ingest` (food log, products, recipes, settings; Postgres) and `services/plan-web`
 (nginx serving the page, rebuilt hourly and on demand from a Sync button). `npm run sync` then pulls the
-food log and settings into your local data so `/analysis` can read them.
+food log and settings into your local data so `/analysis` can read them. Once it runs, open
+`http://<server-ip>:8090` from any phone or computer at home.
 
-Setup, security model and install steps: [`docs/lan-services.md`](docs/lan-services.md),
-[`services/plan-web/README.md`](services/plan-web/README.md),
-[`services/health-ingest/README.md`](services/health-ingest/README.md).
+**Needs a Linux machine that stays on** (a home server or a mini PC) with Docker, systemd and Node.js;
+macOS and Windows are not supported as the host.
+
+1. **Install:** [`services/plan-web/README.md` → Install (host)](services/plan-web/README.md#install-host) —
+   ten numbered steps, from the secrets file to opening the page on your phone.
+2. Reference when you need it: the food log API and every setting
+   ([`services/health-ingest/README.md`](services/health-ingest/README.md)); how the refresh and the
+   security model work ([`docs/lan-services.md`](docs/lan-services.md)).
 
 ### Level 3 — live sync and your own knowledge base
 
