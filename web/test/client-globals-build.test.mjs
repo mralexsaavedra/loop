@@ -55,7 +55,7 @@ const KEYS = {
     'isBikeDay', 'step', 'range', 'pickItem', 'ownDuring', 'ownBefore', 'fuelPlan', 'zero', 'r0', 'macroRow', 'fmtFactor', 'solveScale', 'planFor',
   ],
   HC_ENERGY: [
-    'NEAT', 'EXERCISE', 'SPORTS', 'round50', 'ageOn', 'bmi', 'bmrMifflin', 'dayTypeOfMinutes', 'isInt', 'validSports', 'exerciseFor',
+    'NEAT', 'EXERCISE', 'SPORTS', 'round50', 'ageOn', 'bmi', 'referenceKg', 'bmrMifflin', 'dayTypeOfMinutes', 'isInt', 'validSports', 'exerciseFor',
     'usedDayTypes', 'maintenance', 'inRange', 'validatePerson', 'computeTargets', 'screenPerson',
     'checkTargetWeight', 'checkTargets', 'carbsOf',
   ],
@@ -169,6 +169,7 @@ for (const page of PAGES) {
       { sex: 'male', age: 30, heightCm: 175, weightKg: 70, activity: 'light' },
       { sex: 'female', age: 50, heightCm: 150, weightKg: 45, activity: 'sedentary' },
       { sex: 'female', age: 29, heightCm: 165, weightKg: 60, activity: 'active' },
+      { sex: 'male', age: 40, heightCm: 175, weightKg: 120, activity: 'light' },
       { sex: 'female', age: 29, heightCm: 165, weightKg: 60, activity: 'sedentary', sports: [{ sport: 'yoga', minutes: 60, perWeek: 3 }, { sport: 'running', minutes: 90, perWeek: 2 }] },
     ];
     for (const p of people) {
