@@ -47,7 +47,7 @@ const KEYS = {
     'times', 'productAmount', 'productEntry', 'knownMacros', 'ingredientBasis', 'recipeBasis', 'entryFromBasis', 'recipeEntry', 'dayTotals',
     'atwaterOk', 'pieceWeight', 'basicModes', 'basicAmount', 'basicEntry', 'basicLabel', 'basicConvert', 'basicIngredient',
   ],
-  HC_DAYTYPE: ['DETECT', 'RANK', 'rideType', 'itemType', 'dayTypeOfWorkouts', 'dayTypeOfProgram', 'detectDayType', 'hasValue', 'dayInputFor'],
+  HC_DAYTYPE: ['DETECT', 'RANK', 'rideType', 'lengthType', 'itemType', 'dayTypeOfWorkouts', 'dayTypeOfProgram', 'detectDayType', 'hasValue', 'dayInputFor'],
   HC_FUEL: ['FUEL', 'RIDE_DEFAULT_MIN', 'OWN_START_MIN', 'isBikeDay', 'step', 'range', 'pickItem', 'ownDuring', 'ownBefore', 'fuelPlan'],
   HC_SCALE: [
     'LINE', 'GRID_EPS', 'FUEL', 'RIDE_DEFAULT_MIN', 'OWN_START_MIN', 'stepAmount', 'lineUnit', 'lineAmt', 'lineStep', 'lineKey', 'lineCap',

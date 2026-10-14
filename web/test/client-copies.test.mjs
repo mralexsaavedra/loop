@@ -23,7 +23,7 @@ const COPIES = [
   ['progress.js', 'HC_PROG', ['fin', 'round', 'dayNum', 'isoOf', 'rollPoints', 'weeklyRate', 'weightProgress', 'etaMonths']],
   ['food-core.js', 'HC_FOODLOG', ['fin', 'roundEps', 'round1', 'roundKcal', 'round2', 'roundMacros', 'scaleMacros', 'times', 'productAmount', 'productEntry', 'knownMacros', 'ingredientBasis', 'recipeBasis', 'entryFromBasis', 'recipeEntry', 'dayTotals', 'atwaterOk', 'pieceWeight', 'basicModes', 'basicAmount', 'basicEntry', 'basicLabel', 'basicConvert', 'basicIngredient']],
   ['nutri-score.js', 'HC_NSCORE', ['fin', 'clamp100', 'ratio', 'pts1', 'kcalPoints', 'proteinPoints', 'fatPoints', 'scoreBand', 'hasMeals', 'nutritionScore', 'scoreSeries']],
-  ['nutri-day.js', 'HC_DAYTYPE', ['rideType', 'itemType', 'dayTypeOfWorkouts', 'ofWorkouts', 'dayTypeOfProgram', 'ofProgram', 'detectDayType', 'hasValue', 'dayInputFor']],
+  ['nutri-day.js', 'HC_DAYTYPE', ['rideType', 'lengthType', 'itemType', 'dayTypeOfWorkouts', 'ofWorkouts', 'dayTypeOfProgram', 'ofProgram', 'detectDayType', 'hasValue', 'dayInputFor']],
   ['nutri-day.js', 'HC_FUEL', ['isBikeDay', 'fuelStep', 'range', 'pickItem', 'pickFuelItem', 'ownDuring', 'ownBefore', 'fuelPlan']],
   ['nutri-day.js', 'HC_SCALE', ['round2', 'stepAmount', 'lineUnit', 'lineAmt', 'lineStep', 'lineKey', 'lineCap', 'capFactor', 'floorToStep', 'capAmount', 'pieceOf', 'isDiscrete', 'fmtHalf', 'fmtPieces', 'fmtAmt', 'bound', 'waterFill', 'scaleFill', 'fmtFactor', 'solveScale', 'planFor']],
   ['nutri-day.js', 'HC_GUIDE', ['zero', 'zero4', 'fin', 'finite', 'foldName', 'fold', 'cmp', 'guideBudgets', 'exampleAmount', 'remaining', 'mealState', 'isCovered', 'dayRemaining', 'capByDay', 'roleOptions']],
