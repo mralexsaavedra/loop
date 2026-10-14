@@ -9,6 +9,9 @@ built, for anyone changing the code.
 | You want to… | Read |
 | --- | --- |
 | Install it, level by level (local page → LAN services → phone + Strava) | [`README.md`](../README.md) → Levels |
+| Understand what each tab and card tells you | [`guides/page-tour.md`](guides/page-tour.md) |
+| Make the nutrition and training plan yours | [`guides/your-plan.md`](guides/your-plan.md) |
+| Fix something that is not working | [`guides/troubleshooting.md`](guides/troubleshooting.md) |
 | Try it with no data of your own | [`data/demo/README.md`](../data/demo/README.md) |
 | Run the page and the data service at home | [`services/plan-web/README.md`](../services/plan-web/README.md) → Install (host) |
 | Send your Apple Health data from the iPhone every day | [`ios-shortcut.md`](ios-shortcut.md) |
