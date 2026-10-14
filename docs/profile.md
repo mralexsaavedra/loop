@@ -82,6 +82,12 @@ controls instead of the close button.
   `WARNING:` line, the old file kept, exit 0. The goal list and target range are copies of
   `foodlog.mjs` `SETTINGS_GOALS` / `FOOD_LIMITS.targetWeight*` (a test pins them). The page does not
   read it (it asks the service directly).
+  `onboarding.json` (gitignored, `data/profile/*`) = the in-page onboarding document (profile + accepted
+  nutrition targets of a user without an AI coach), written by `scripts/sync-onboarding.mjs`
+  (`npm run sync:onboarding`, step of `npm run sync` right after the settings) from `GET /food/profile`
+  (same layer and headers as the settings; shape check `lib/profile/onboarding.mjs`). A wizard never
+  completed writes nothing; a missing / old service or a malformed body is a `WARNING:`, the old file kept,
+  exit 0.
 - **Ingest side** (`services/health-ingest/src/athlete.js`, table `strava_athlete`,
   `sql/004_athlete.sql` + `005_athlete_refresh.sql`): after a successful Strava pull has been
   recorded, the sync kicks off (in the background, not awaited by `POST /sync`; one refresh in
