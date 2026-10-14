@@ -828,6 +828,25 @@ test('profile: GET before any write = null; PUT stores the whole document and re
     assert.deepEqual(r.body.profile.targets, PROFILE.targets)
     assert.ok(r.body.profile.updatedAt)
     assert.deepEqual((await t.call('GET', '/food/profile')).body.profile.goals, ['maintain', 'cut', 'bulk'])
+    assert.equal('sports' in r.body.profile, false, 'sports are optional')
+  } finally { await t.close() }
+})
+
+test('profile: sports are stored when well-formed and refused otherwise', async () => {
+  const t = await setup()
+  try {
+    const sports = [{ sport: 'running', minutes: 45, perWeek: 3 }, { sport: 'cycling', minutes: 180, perWeek: 1 }]
+    const r = await t.call('PUT', '/food/profile', { body: { ...PROFILE, sports } })
+    assert.equal(r.status, 200)
+    assert.deepEqual(r.body.profile.sports, sports)
+    const put = async (s) => (await t.call('PUT', '/food/profile', { body: { ...PROFILE, sports: s } })).body
+    assert.deepEqual(await put('running'), { error: 'invalid', field: 'sports' })
+    assert.deepEqual(await put([{ sport: 'golf', minutes: 45, perWeek: 3 }]), { error: 'invalid', field: 'sports' })
+    assert.deepEqual(await put([{ sport: 'running', minutes: 10, perWeek: 3 }]), { error: 'invalid', field: 'sports' })
+    assert.deepEqual(await put([{ sport: 'running', minutes: 45, perWeek: 15 }]), { error: 'invalid', field: 'sports' })
+    assert.deepEqual(await put([{ sport: 'running', minutes: 45, perWeek: 3, x: 1 }]), { error: 'invalid', field: 'sports' })
+    assert.deepEqual(await put([sports[0], sports[0]]), { error: 'invalid', field: 'sports' })
+    assert.deepEqual(t.store.db.profile.sports, sports, 'refusals keep the stored document')
   } finally { await t.close() }
 })
 
