@@ -20,7 +20,7 @@ import { goalOptions } from '../../lib/profile/goal.mjs';
 import { resolveTargets } from '../../lib/nutrition/targets.mjs';
 
 export function computeBakes(env) {
-  const { plan, ingredients, extractDir, repoRoot, dataMode } = env;
+  const { plan, ingredients, extractDir, repoRoot, dataMode, onboarding = null } = env;
   const nut = buildNutrition(ingredients, plan);
   // the extract, read once (lib/extract/read.mjs): the deep-frozen inputs of every pure *From core below;
   // nothing else here reads the extract (the food log and the profile JSONs are not extract files)
@@ -31,7 +31,7 @@ export function computeBakes(env) {
   // the avatar + profile sheet: manual profile.json + the Strava snapshot + the latest weigh-in (all optional),
   // plus the Goal setting's options (kcal/day vs maintain per goal, from the plan's resolved targets)
   const weight = newestWeight(inputs.series.weight);
-  const profile = { ...loadProfile({ repoRoot, dataMode, weight }), goals: goalOptions(resolveTargets(plan)) };
+  const profile = { ...loadProfile({ repoRoot, dataMode, weight, onboarding }), goals: goalOptions(resolveTargets(plan), onboarding ? onboarding.goals : undefined) };
   // the profile's sex picks the fitness-age reference curve (lib/score/fitness-age.mjs)
   const scores = buildScoresFrom(inputs, { sex: profile.sex });
   // the detail sheet behind every card: the last 365 days per metric (only the data's own dates)
