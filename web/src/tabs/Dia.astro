@@ -42,6 +42,7 @@
 import Note from '../components/Note.astro';
 import { jsonForScript } from '../../../lib/serialize.mjs';
 import { buildNutriToday } from '../../../lib/nutrition/today.mjs';
+import { personalNutriText, shownDayTypes } from '../i18n/day-labels.mjs';
 import { es as esNutri, en as enNutri } from '../i18n/nutri-templates.mjs';
 import { es as esFood, en as enFood } from '../i18n/food-templates.mjs';
 import { FOOD_MEALS, FOOD_STORES, FOOD_UNITS, FOOD_LIMITS, SETTINGS_GOALS } from '../../../lib/nutrition/foodlog.mjs';
@@ -61,7 +62,7 @@ interface Props {
   sports?: any[]; // the in-page onboarding's sports (lib/profile/onboarding.mjs), absent without one
 }
 const { nut, plan, locale, page, hidden, intakeHost = true, supplements = [], weight = null, sports } = Astro.props;
-const T = locale === 'es' ? esNutri : enNutri;
+const T = personalNutriText(locale === 'es' ? esNutri : enNutri, sports, locale);
 const es = locale === 'es';
 const nutri = buildNutriToday(nut, plan, { supplements, weight, units: { g: 'g', ml: 'ml', ud: es ? 'ud' : 'pc' }, dec: es ? ',' : '.', lang: es ? 'es' : 'en', sports });
 const F = locale === 'es' ? esFood : enFood;
@@ -85,7 +86,7 @@ const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForSc
       <fieldset class="seg" id="nutri-daytype">
         <legend class="seg-lbl">{T.dayLegend}<span class="seg-src" id="nutri-daytype-src"></span></legend>
         <div class="seg-opts">
-          {nutri.dayTypes.map((d: string) => (
+          {shownDayTypes(nutri.dayTypes, sports).map((d: string) => (
             <label class="seg-opt" title={T.dayTypes[d]}><input type="radio" name="nutri-day" value={d} /><span class="chip seg-in"><span class="seg-txt">{T.dayShort[d]}</span></span></label>
           ))}
         </div>

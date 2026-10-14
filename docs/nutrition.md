@@ -307,7 +307,11 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   Gym · Bici · Bici larga, `.chip` pills (design-system.md → Components), the picked one white-filled; text only at every width
   (2026-10-09: with icons the four pills need ~370 px and wrap to two rows at 360–390 px, so the
   1440 px-only icons were dropped rather than shown at one width and not the other); the full `dayTypes` names stay for sentences
-  and the pill title; the DETECTED type's pill gets `.seg-auto`, a small dot), then the kcal ring in the
+  and the pill title; the DETECTED type's pill gets `.seg-auto`, a small dot; a person with onboarding `sports`
+  gets `web/src/i18n/day-labels.mjs`: pills only for the day types their week has (`shownDayTypes`), each named after
+  its sports, most frequent first, two names then "+N", with the usual length in the full name ("Correr ~1,5 h"),
+  and sport-neutral `sportText` wording for the auto-switch note, the ride line and the fuelling labels; without
+  sports the dictionary is untouched), then the kcal ring in the
   Inicio dial language (`.nt-ring` around the shared `.dial-ring` / `.dial-svg` / `.dial-track` /
   `.dial-fill` / `.dial-num`: the full ring of `view/dial.mjs` `arcPath(0, 1)` baked as `NUTRI_ARC`,
   12 o'clock, clockwise, round caps, thin stroke). Inside: the kcal EATEN today in `--num` (a dash
