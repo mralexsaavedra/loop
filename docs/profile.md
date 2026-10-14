@@ -146,22 +146,27 @@ controls instead of the close button.
 ## In-page onboarding (no AI coach needed)
 
 `web/src/client/onboarding.js` registers the `onboarding` view (deep link `#onboarding`; LAN page only, since it
-saves to the ingest service). Four steps:
+saves to the ingest service). A full-screen flow in the sheet, one question per screen (2026-10-14, onboarding
+v2): a progress bar (`.adh-bar`), a large question (`.onb-q`), big option cards (the `.seg` chip radios /
+checkboxes stretched by `.onb-card` / `.onb-in`) and Back / Continue:
 
-1. **About you** — name, sex, date of birth, height, weight (prefilled from the newest weigh-in), activity
-   outside training (`sedentary` / `light` / `active` = the NEAT factor), and the safety questions
-   (pregnancy / breastfeeding, illness or medication, two eating-relationship questions). The answers to the
-   safety questions are never saved: only the goals they allow (`goals`).
-2. **Your goal** — the goals `HC_ENERGY.screenPerson` allows (pregnancy or under 18 stop here with a referral;
-   illness / eating answers offer maintenance only; BMI < 18.5 removes the cut) and an optional target weight
-   (`checkTargetWeight`: no target under BMI 18.5, the right direction for the goal).
-3. **Your daily numbers** — `computeTargets` per day type for the chosen goal, kcal / protein / fat editable,
-   carbs the remainder; `checkTargets` errors block the step, warnings only inform; "Recalculate" drops the
-   edits; the ±10 % disclaimer.
-4. **Your data** — the shared iOS Shortcut link, the page's own origin to put in place of `TU-SERVIDOR`
+1. **Welcome**, then **name** (optional), **sex**, **date of birth**, **height**, **weight** (prefilled from the
+   newest weigh-in) and **activity outside training** (`sedentary` / `light` / `active` = the NEAT factor).
+2. **Sports** — every `HC_ENERGY.SPORTS` key as a card (at least one), then one screen per picked sport: its usual
+   session length (30 min … 4:00 pills) and times a week (1-7); a new pick starts at 1:00 × 3 (cycling 2:00 × 2).
+3. **Safety** — pregnancy / breastfeeding (women), illness or medication, two eating-relationship questions. The
+   answers are never saved: only the goals they allow (`goals`); pregnancy or under 18 stop here with a referral.
+4. **Goal** — the goals `HC_ENERGY.screenPerson` allows (illness / eating answers offer maintenance only; BMI <
+   18.5 removes the cut), then an optional **target weight** for a cut or bulk (`checkTargetWeight`).
+5. **Summary** — the week's average kcal for the goal as the hero number (each sport's sessions on its day type,
+   the other days rest, more than 7 sessions scaled to 7) and protein, one row per day type the sports reach
+   (`usedDayTypes`) with its sports and kcal; "Adjust the numbers" unfolds the kcal / protein / fat grid
+   (carbs the remainder), `checkTargets` errors on those day types block the step, warnings only inform,
+   "Recalculate" drops the edits; the ±10 % disclaimer.
+6. **Your data** — the shared iOS Shortcut link, the page's own origin to put in place of `TU-SERVIDOR`
    (the page never names a data endpoint), where the token comes from (never shown) and the Strava guide.
 
-"Save and finish" PUTs the document (`/api/food/profile`), saves the goal and target weight through
+"Save and finish" PUTs the document with its `sports` (`/api/food/profile`), saves the goal and target weight through
 `HCSettings`, then presses the page's Sync button, so the next build bakes the accepted targets (the
 `onboarding.json` precedence above). The document may also carry `sports` — `[{sport, minutes, perWeek}]`, one
 entry per sport from `energy.mjs` `SPORTS` (strength, running, cycling, swimming, hybrid = HYROX / CrossFit, team,
