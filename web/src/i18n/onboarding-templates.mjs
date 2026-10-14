@@ -10,6 +10,7 @@ export const en = {
   later: 'Later',
   save: 'Save and finish',
   open: 'Set up with the assistant',
+  edit: 'Edit',
   optional: 'Optional',
   welcome: {
     q: "Let's work out your numbers",
@@ -78,10 +79,10 @@ export const en = {
   data: {
     q: 'Connect your data',
     intro: 'The page fills itself from Apple Health and, if you like, Strava.',
-    shortcut: 'Install the iOS Shortcut',
-    url: 'In the Shortcut, replace TU-SERVIDOR with',
-    token: 'The token: ask whoever set up this server (it is never shown on the page).',
-    strava: 'Strava (optional): see "Getting the Strava credentials" in the server guide.',
+    shortcut: { t: 'Install the iOS Shortcut', d: 'It sends your Apple Health data to this page.', btn: 'Open' },
+    server: { t: 'Point it at your server', d: 'In the Shortcut, replace TU-SERVIDOR with', copy: 'Copy', copied: 'Address copied.' },
+    token: { t: 'Add your token', d: 'Ask whoever set up this server (it is never shown on the page).' },
+    strava: { t: 'Strava (optional)', d: 'See "Getting the Strava credentials" in the server guide.' },
     after: 'After saving, the page updates in a couple of minutes.',
   },
   errors: {
@@ -127,6 +128,7 @@ export const es = {
   later: 'Más tarde',
   save: 'Guardar y terminar',
   open: 'Configurar con el asistente',
+  edit: 'Editar',
   optional: 'Opcional',
   welcome: {
     q: 'Vamos a calcular tus números',
@@ -195,10 +197,10 @@ export const es = {
   data: {
     q: 'Conecta tus datos',
     intro: 'La página se rellena sola con Apple Health y, si quieres, con Strava.',
-    shortcut: 'Instalar el atajo de iOS',
-    url: 'En el atajo, cambia TU-SERVIDOR por',
-    token: 'El token: pídeselo a quien montó este servidor (nunca se muestra en la página).',
-    strava: 'Strava (opcional): mira «Getting the Strava credentials» en la guía del servidor.',
+    shortcut: { t: 'Instala el atajo de iOS', d: 'Envía tus datos de Apple Health a esta página.', btn: 'Abrir' },
+    server: { t: 'Apúntalo a tu servidor', d: 'En el atajo, cambia TU-SERVIDOR por', copy: 'Copiar', copied: 'Dirección copiada.' },
+    token: { t: 'Añade tu token', d: 'Pídeselo a quien montó este servidor (nunca se muestra en la página).' },
+    strava: { t: 'Strava (opcional)', d: 'Mira «Getting the Strava credentials» en la guía del servidor.' },
     after: 'Al guardar, la página se actualiza en un par de minutos.',
   },
   errors: {

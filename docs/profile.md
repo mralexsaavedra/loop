@@ -166,8 +166,12 @@ lists the three parts; the summary's average sits inside a ring (`.onb-ring`):
    (`usedDayTypes`) with its sports and kcal; "Adjust the numbers" unfolds the kcal / protein / fat grid
    (carbs the remainder), `checkTargets` errors on those day types block the step, warnings only inform,
    "Recalculate" drops the edits; the ±10 % disclaimer.
-6. **Your data** — the shared iOS Shortcut link, the page's own origin to put in place of `TU-SERVIDOR`
-   (the page never names a data endpoint), where the token comes from (never shown) and the Strava guide.
+6. **Your data** — four numbered steps: the shared iOS Shortcut (an "Open" chip), the page's own origin to put in
+   place of `TU-SERVIDOR` with a "Copy" chip (`navigator.clipboard`; the page never names a data endpoint), where
+   the token comes from (never shown) and the Strava guide.
+
+Enter in a field or on a card presses the primary button (Start / Continue / Save; Close on a stop) with the same
+checks; a focused button or link clicks itself. Esc closes it like every sheet.
 
 "Save and finish" PUTs the document with its `sports` (`/api/food/profile`), saves the goal and target weight through
 `HCSettings`, then presses the page's Sync button, so the next build bakes the accepted targets (the
@@ -181,6 +185,6 @@ the ones a week has. Without `sports` the numbers are the `EXERCISE` defaults. `
 (`lib/nutrition/client.mjs` `energySource`), so the page and the build compute the same numbers
 (`web/test/client-globals-build.test.mjs` runs both). It opens on its own once, when the server has neither
 an onboarding document nor a goal and the page was not opened on a sheet deep link; "Later" is remembered
-in `localStorage` (`hc.onboarding.later`, a convenience only). The profile sheet always shows a "Set up with
-the assistant" button on the LAN page. Copy: `web/src/i18n/onboarding-templates.mjs` (`I18N_ONB`, baked by
+in `localStorage` (`hc.onboarding.later`, a convenience only). The profile sheet opens it from an "Edit" chip at
+the end of its header row (name, age, place) on the LAN page. Copy: `web/src/i18n/onboarding-templates.mjs` (`I18N_ONB`, baked by
 `components/Avatar.astro`).
