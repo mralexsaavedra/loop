@@ -4,6 +4,9 @@ Serves the personal plan page (`web/dist/personal/index.html`) on the LAN with
 nginx, and refreshes it hourly (cron) or on demand (the page's **Sync** button,
 or the iOS Shortcut).
 
+**Installing it? Go straight to [Install (host)](#install-host)** — a Linux machine with Docker; the
+sections before it explain how it works.
+
 | File | Role |
 | ---- | ---- |
 | `refresh.sh` | Sync data, rebuild, publish into `./site`, write `site/status.json` |
@@ -202,23 +205,51 @@ checks instead of "LAN only".
 
 ## Install (host)
 
-Replace `/path/to/health-coach` with your clone's absolute path and
-`REPO_OWNER` with the user that owns the clone. Follow the steps **in order**.
+### Before you start
 
-1. **Trigger directory first** (before any `docker compose up`, or Docker creates
-   it root-owned and the container cannot write it). It must be writable by the
-   ingest container's `node` user (uid 1000):
+| You need | Why |
+| --- | --- |
+| **A Linux machine that stays on** (a home server or a mini PC) | It hosts the page and the food log for your whole home network |
+| **Docker with the compose plugin** (`docker compose version` works) | Both services run in containers |
+| **systemd and `sudo`** (any mainstream distro) | The on-demand refresh (the page's Sync button) is a systemd path unit |
+| **`flock`** (package `util-linux`, preinstalled on Linux) | `refresh.sh` uses it so two refreshes never overlap |
+| **Node.js `>=22.12` and `git` on the host** | `refresh.sh` runs `npm ci` and the build on the host, not in a container |
+
+**macOS / Windows:** not supported as the host. `refresh.sh` needs `flock` and the Sync button needs systemd.
+On a Mac you can still use Level 1 (the page as a local file); run Level 2 on a small Linux box instead.
+
+Replace `/path/to/health-coach` with your clone's absolute path and `REPO_OWNER` with the user that owns the
+clone (run `whoami` as that user). Run every step as that user unless it says `sudo`. Follow the steps **in
+order**: steps 0–1 must happen before the first `docker compose up`.
+
+0. **Secrets file for the ingest service** (generated in place; never paste the values anywhere):
 
    ```sh
-   mkdir -p /path/to/health-coach/services/health-ingest/trigger
-   sudo chown 1000:1000 /path/to/health-coach/services/health-ingest/trigger
+   cd /path/to/health-coach/services/health-ingest
+   cp -n .env.example .env && chmod 600 .env
+   sed -i.tmp "s/^INGEST_TOKEN=.*/INGEST_TOKEN=$(openssl rand -hex 32)/; s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env && rm .env.tmp
+   grep -c 'replace-me' .env   # must print 0
    ```
 
-2. **Rebuild the ingest service** so it mounts the directory and runs
-   `sql/003_sync.sql` (idempotent):
+   `INGEST_TOKEN` is the token the iOS Shortcut sends later; every other variable is documented in
+   [`../health-ingest/README.md`](../health-ingest/README.md).
+
+1. **Create the two shared directories first.** If they do not exist, `docker compose up` creates them owned
+   by root, and then the container (trigger) or `refresh.sh` (site) cannot write them:
+
+   ```sh
+   mkdir -p /path/to/health-coach/services/health-ingest/trigger /path/to/health-coach/services/plan-web/site
+   sudo chown 1000:1000 /path/to/health-coach/services/health-ingest/trigger   # the ingest container's node user
+   ```
+
+   `site/` stays owned by you (`REPO_OWNER`): `refresh.sh` writes it, nginx only reads it.
+
+2. **Start the ingest service** (the first run builds the image and creates the database; later runs also apply
+   new `sql/*.sql` migrations, idempotent):
 
    ```sh
    cd /path/to/health-coach/services/health-ingest && docker compose up -d --build
+   curl -s http://127.0.0.1:8088/healthz   # 200
    ```
 
 3. **First `npm ci` by hand**, as the repo owner (a cold install can take
@@ -235,15 +266,27 @@ Replace `/path/to/health-coach` with your clone's absolute path and
    git -C /path/to/health-coach rev-parse --abbrev-ref HEAD   # main
    ```
 
-5. **Recreate plan-web** so it picks up the nginx template, the host-gateway
-   alias and `INGEST_PORT` (set `INGEST_PORT` in `services/plan-web/.env` if the
-   ingest port is not 8088):
+5. **Start plan-web** (nginx). If the ingest port is not 8088, set `INGEST_PORT` in
+   `services/plan-web/.env` first:
 
    ```sh
    cd /path/to/health-coach/services/plan-web && docker compose up -d
    ```
 
-6. **Install the systemd units** (fill in both placeholders):
+6. **Build the first page by hand** (until now `site/` is empty, so there is no page yet):
+
+   ```sh
+   /path/to/health-coach/services/plan-web/refresh.sh
+   cat /path/to/health-coach/services/plan-web/site/status.json   # a commit and no "error"
+   ```
+
+7. **Hourly rebuild (cron).** Add one line to the repo owner's crontab (`crontab -e`):
+
+   ```cron
+   0 * * * * /path/to/health-coach/services/plan-web/refresh.sh >/dev/null 2>&1
+   ```
+
+8. **On-demand refresh (the Sync button): install the systemd units** (fill in both placeholders):
 
    ```sh
    for u in plan-web-refresh.path plan-web-refresh.service; do
@@ -258,7 +301,7 @@ Replace `/path/to/health-coach` with your clone's absolute path and
    If `node`/`npm` are not in `/usr/local/bin` or `/usr/bin`, add an
    `Environment=PATH=...` line to the service (see the comment in the unit).
 
-7. **Smoke test** end to end:
+9. **Smoke test** end to end:
 
    ```sh
    curl -s -X POST localhost:8090/api/sync         # 202 {"ok":true,"seq":N,"coalesced":false,...}
@@ -270,11 +313,13 @@ Replace `/path/to/health-coach` with your clone's absolute path and
    cat /path/to/health-coach/services/plan-web/site/status.json   # processedSeq >= N
    ```
 
+10. **Open it from your phone.** On the same Wi-Fi, browse to `http://<server-ip>:8090` (find the IP with
+    `hostname -I`). IP addresses work out of the box; to use a name such as `plan.lan`, add it to
+    `PLAN_WEB_EXTRA_HOSTS` in `services/plan-web/.env` **and** `FOOD_ALLOWED_HOSTS` in the ingest `.env`, then
+    `docker compose up -d` in both. Add the page to the home screen (Share → *Add to Home Screen*).
+
 The ingest port must be reachable from the Docker bridge (the default
 `"${INGEST_PORT}:8088"` publish is; a `127.0.0.1:`-only publish is not).
-
-The existing cron entry (e.g. `0 * * * * /path/to/health-coach/services/plan-web/refresh.sh`,
-in the repo owner's crontab) stays as the fallback.
 
 ### The service user and the hardening, and their tradeoffs
 
