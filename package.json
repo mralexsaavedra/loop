@@ -26,6 +26,7 @@
     "sync:profile": "node data/profile/sync-profile.mjs",
     "publish:manuals": "node scripts/publish-manuals.mjs",
     "sync:settings": "node data/profile/sync-settings.mjs",
+    "sync:onboarding": "node scripts/sync-onboarding.mjs",
     "sync:foodlog": "node data/nutrition/sync-foodlog.mjs"
   },
   "dependencies": {
