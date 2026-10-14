@@ -55,6 +55,7 @@ not compute ages, countdowns or staleness.
 | Weight | the newest rows of `data/apple-health/extract/weight.csv` (`date,value,source`): the latest reading with its date, plus the mean of the readings of the last 7 days as context. The series mixes scales / apps — compare within one `source`. |
 | Height, birthdate (→ age from TODAY), devices, supplements, upcoming events | `profile/profile.json` |
 | Goal (maintain / cut / bulk) + target weight | `data/profile/settings.json` (`goal`, `targetWeightKg`, `updatedAt`, `fetchedAt`), the snapshot `npm run sync` takes of the page's server-side setting. Missing file → say the goal is unknown (never assume one); `fetchedAt` more than 3 days before TODAY → say it may be stale. |
+| Sports (sessions per week) + accepted daily targets, when the user set up through the page | `data/profile/onboarding.json` (`sports`, `targets` per goal and day type); absent → the plan's own targets |
 | Stable context: injuries, history, preferences, which program when | `profile/about-me.md` |
 | Knowledge sources, gear manuals, program pointers, language, jurisdiction | `profile/coaches.md` (your section + `## Common`) |
 
