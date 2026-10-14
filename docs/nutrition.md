@@ -156,7 +156,9 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   deficit > 20 %, surplus > 15 %, > 1 % body weight / week, protein outside 1.2–2.4 g/kg, fat < 0.5 g/kg;
   warnings: protein outside 1.6–2.2, fat > 1.0, carbs outside rest 3–5 / gym 5–7 / bike 6–10 / long
   8–12 g/kg where energy is not cut on purpose). Output has the `targets.byGoal` shape. A ±10 % estimate:
-  recalibrate with the 7-day weight trend after 2–3 weeks. `targets.train` / `targets.rest`
+  recalibrate with the 7-day weight trend after 2–3 weeks. **Precedence:** the in-page onboarding's accepted
+  targets (`data/profile/onboarding.json`, when they pass `checkTargets`) > the plan's `targets.byGoal` >
+  `DEFAULT_BY_GOAL` (`lib/load/inputs.mjs`; docs/profile.md). `targets.train` / `targets.rest`
   are read by nothing. Likewise
   `extrasDisplay`, `indulgeKeys`, `alcoholKeys`, `mealReplaceKeys` and `page.notes['registro.*']` /
   `page.offPlanPlaceholder` are IGNORED legacy keys: accepted, never an error, and `npm run check`
