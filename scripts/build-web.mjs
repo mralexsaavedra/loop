@@ -132,6 +132,13 @@ export function sweepStaleStaging({ dir, currentStagingDir, now = Date.now(), ma
   return swept;
 }
 
+/** A missing input file (a fresh clone whose `.example` seeds were not copied yet) as ONE line for the
+ * terminal, or null for any other error (those still surface with their stack). */
+export function inputErrorLine(err) {
+  if (!err || err.code !== 'HC_MISSING_INPUT') return null;
+  return `build-web: ${path.relative(ROOT, err.file) || err.file} not found.${err.hint ? ' ' + err.hint : ''}`;
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const mode = args.mode || process.env.DATA_MODE || 'personal';
@@ -152,7 +159,16 @@ function main() {
   // plan.locale > 'en') — see resolveLocale() above. Previously this
   // defaulted personal builds to a hardcoded 'es' regardless of what the
   // plan itself declared, making plan.locale dead through this CLI path.
-  const locale = resolveLocale({ repoRoot: ROOT, mode, explicitLocale });
+  let locale;
+  try {
+    locale = resolveLocale({ repoRoot: ROOT, mode, explicitLocale });
+  } catch (err) {
+    const line = inputErrorLine(err);
+    if (!line) throw err;
+    console.error(line);
+    process.exitCode = 1;
+    return;
+  }
 
   // Consumed by web/src/env.mjs from slice 2 onward, and by the layout's
   // <html lang> in the meantime.

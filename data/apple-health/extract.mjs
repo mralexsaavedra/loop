@@ -27,7 +27,7 @@ const DIR = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.join(DIR, 'export.xml');
 const OUT = path.join(DIR, 'extract');
 
-if (!fs.existsSync(SRC)) { console.error('ERROR: export.xml not found at ' + SRC); process.exit(1); }
+if (!fs.existsSync(SRC)) { console.error('ERROR: export.xml not found at ' + SRC + '\nNo export yet? Put it there (README → Level 1, step 3), or see the page with demo data: npm run build:example'); process.exit(1); }
 fs.mkdirSync(OUT, { recursive: true });
 
 const attr = (s, name) => { const m = s.match(new RegExp(' ' + name + '="([^"]*)"')); return m ? m[1] : null; };

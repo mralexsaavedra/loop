@@ -106,17 +106,39 @@ through it: it checks what is already in place, then goes one step at a time.
 
 ### Level 1 — Apple Health + Claude (local only)
 
-1. **Clone and install:** `npm ci`.
-2. **Export Apple Health:** iPhone → Health → your photo → *Export All Health Data*. Unzip and put
+1. **Install the tools** (once): [Node.js 22 LTS](https://nodejs.org/) (`node -v` prints `v22.12` or
+   newer), [git](https://git-scm.com/downloads) and [Claude Code](https://claude.com/claude-code).
+2. **Get the code:**
+
+   ```sh
+   git clone https://github.com/mralexsaavedra/health-coach.git
+   cd health-coach
+   npm ci
+   ```
+
+3. **Export Apple Health:** iPhone → Health → your photo → *Export All Health Data*. Unzip and put
    `export.xml` in `data/apple-health/`, then run `node data/apple-health/extract.mjs` (it caches small
-   per-metric CSVs; re-run after each new export).
-3. **Start Claude Code and say hi.** With no profile yet it runs the onboarding interview and writes
-   `profile/about-me.md`, `profile/baseline.md` and `profile/coaches.md` for you (all gitignored).
-   Prefer to fill them yourself? Copy each `*.example.md` → `*.md`.
-4. **Ask for an analysis** — or type `/analysis`.
-5. **See the page:** copy `data/nutrition/plan-data.example.json` → `plan-data.json` (and, optionally,
+   per-metric CSVs; re-run after each new export). No export yet? Skip to step 6 and try the demo first.
+4. **Start Claude Code and say hi** (`claude` inside the folder). With no profile yet it runs the
+   onboarding interview and writes `profile/about-me.md`, `profile/baseline.md` and `profile/coaches.md`
+   for you (all gitignored). Prefer to fill them yourself? Copy each `*.example.md` → `*.md`.
+5. **Ask for an analysis** — or type `/analysis`.
+6. **See the page:** copy `data/nutrition/plan-data.example.json` → `plan-data.json` (and, optionally,
    `data/training/training-data.example.json` → `training-data.json`, `profile/profile.example.json` →
    `profile.json`), then `npm run generate` and open `web/dist/personal/index.html`.
+
+**Your goal for Claude's analyses** (cut / maintain / bulk and a target weight) normally comes from the
+Level 2 settings. Without the server, tell Claude during onboarding, or create
+`data/profile/settings.json` yourself (gitignored):
+
+```json
+{ "goal": "cut", "targetWeightKg": 70 }
+```
+
+The page itself keeps the goal you pick in it, in the browser.
+
+**Language:** the page is in English unless `plan-data.json` says `"locale": "es"` (Spanish); then run
+`npm run generate` again.
 
 Optional extras for this level:
 
@@ -124,7 +146,7 @@ Optional extras for this level:
 | --- | --- | --- |
 | Your own nutrition plan | Edit `plan-data.json` (servings, day plan, `targets.byGoal`); the food DB `ingredients.json` ships tracked | [`docs/nutrition.md`](docs/nutrition.md) |
 | Today's programmed session | Fill `training-data.json` by date (Claude can transcribe a coach's PDF) | [`docs/training.md`](docs/training.md) |
-| Try it with no data | `npm run build:example` — builds from the tracked seeds + a clearly synthetic demo extract (`data/demo/`) | [`data/demo/README.md`](data/demo/README.md) |
+| Try it with no data | `npm run build:example`, then open `web/dist/example/index.html` — the tracked seeds + a clearly synthetic demo extract (`data/demo/`). The demo days are fixed (they end on 28 Sep 2026), so today's dials show as stale: open any card to see its history | [`data/demo/README.md`](data/demo/README.md) |
 
 ### Level 2 — food log + live page on your LAN (Docker)
 
