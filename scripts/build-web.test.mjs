@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { checkTraining, resolveLocale, sweepStaleStaging } from './build-web.mjs';
+import { checkTraining, inputErrorLine, resolveLocale, sweepStaleStaging } from './build-web.mjs';
 
 function fixtureRepo({ trainingDays, personalLocale = 'es', withTraining = true } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-buildweb-check-'));
@@ -105,6 +105,22 @@ test('resolveLocale: an explicit locale (CLI --locale or LOCALE env) wins over p
   const root = fixtureRepo({ personalLocale: 'en' });
   try {
     assert.equal(resolveLocale({ repoRoot: root, mode: 'personal', explicitLocale: 'es' }), 'es');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a missing plan-data.json (fresh clone, seeds not copied) becomes ONE readable line, not a stack trace', () => {
+  const root = fixtureRepo();
+  fs.rmSync(path.join(root, 'data', 'nutrition', 'plan-data.json'));
+  try {
+    let err;
+    try { resolveLocale({ repoRoot: root, mode: 'personal', explicitLocale: null }); } catch (e) { err = e; }
+    assert.ok(err, 'resolveLocale throws without plan-data.json');
+    const line = inputErrorLine(err);
+    assert.match(line, /^build-web: .*plan-data\.json not found\. Copy plan-data\.example\.json -> plan-data\.json/);
+    assert.ok(!line.includes('\n'), 'one line');
+    assert.equal(inputErrorLine(new Error('something else')), null, 'any other error is not swallowed');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

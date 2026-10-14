@@ -42,8 +42,8 @@ conversationally — do not make them fill a form alone. Replicate a real coach 
    `training-data.json`** and transcribe their program by date from whatever their coach/app
    provides (PDF grids → render to PNG and read visually; a login-gated training app → have them
    paste/screenshot the sessions), see `docs/training.md` — then
-   `npm run generate`). The 🏠 Inicio tab then shows today's programmed session and the
-   🏃 Entreno tab fills itself from the Apple Health workouts already extracted in step 4. Don't block onboarding on this — profile + baseline are enough to start.
+   `npm run generate`). The Home tab (Inicio in Spanish) then shows today's programmed session and the
+   Training tab (Entreno) fills itself from the Apple Health workouts already extracted in step 4. Don't block onboarding on this — profile + baseline are enough to start.
 7. **Confirm and offer the first analysis.** Summarize what you captured, ask them to
    correct anything, then offer to run an initial analysis (the `/analysis` skill,
    `.claude/skills/analysis/SKILL.md`).
