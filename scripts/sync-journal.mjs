@@ -5,7 +5,7 @@
  * drinks count, blank = not answered, the note), so the build (lib/journal/bake.mjs: the My journal card
  * and the behaviour insights) and read-only consumers see it. Part of `npm run sync` (scripts/sync-all.mjs).
  *
- * Env    : INGEST_URL (default http://localhost:8088). No token: /journal/* is the unauthenticated,
+ * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/health-ingest/.env>, else :8088). No token: /journal/* is the unauthenticated,
  *          LAN-only layer; the request carries `X-HC-Journal: 1` and the URL's Host must be one the
  *          service accepts (an IP literal, localhost, or a name in its FOOD_ALLOWED_HOSTS).
  * Window : the last JOURNAL_LIMITS.rangeDaysMax (366) days ending on the LOCAL date. Inside it the server
@@ -19,6 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readBaseUrl, ENV_FILE } from '../data/apple-health/sync-common.mjs';
 import { JOURNAL_BEHAVIORS, JOURNAL_LIMITS, journalCsv, parseJournalCsv } from '../lib/journal/journal.mjs';
 import { JOURNAL_FILE } from '../lib/journal/bake.mjs';
 import { isMain } from './lib/is-main.mjs';
@@ -110,7 +111,7 @@ export function syncJournal(dir, body, { now = new Date(), write = writeAtomic }
 
 export async function main({ env = process.env, log = console.log, warn = console.warn, fetchImpl = fetch, now = new Date() } = {}) {
   const dir = env.SYNC_JOURNAL_OUT_DIR || DEFAULT_OUT;
-  const base = env.INGEST_URL || 'http://localhost:8088';
+  const base = readBaseUrl(env, env.INGEST_ENV_FILE || ENV_FILE);
   let body;
   try {
     body = await fetchSummary(base, windowFor(now), { fetchImpl });

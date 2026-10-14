@@ -6,7 +6,7 @@
  *   npm run sync              incremental: fetches only payloads newer than the local cache
  *   npm run sync -- --full    ignore the cache, refetch every payload and rebuild it
  *
- * Env    : INGEST_URL (default http://localhost:8088), INGEST_TOKEN (falls back to
+ * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/health-ingest/.env>, else :8088), INGEST_TOKEN (falls back to
  *          services/health-ingest/.env), SHORTCUT_AUTOMATION (default "atajo-salud").
  * Writes : data/apple-health/extract/<csv of each METRICS entry> + _meta.json + .shortcut-cache.json
  *          (each via temp file + rename; nothing is written if the service can't be read)
@@ -35,7 +35,7 @@ import * as common from './sync-common.mjs';
 import { isMain } from '../../scripts/lib/is-main.mjs';
 
 const SHORTCUT_SOURCE = 'Shortcut';
-const { DEFAULT_URL, ENV_FILE } = common;
+const { ENV_FILE } = common;
 const DEFAULT_AUTOMATION = 'atajo-salud';
 const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'extract');
 
@@ -508,7 +508,7 @@ function fetchAllPayloads({ baseUrl, token, automation, sinceId = '0', limit = 5
 }
 
 async function main() {
-  const baseUrl = process.env.INGEST_URL || DEFAULT_URL;
+  const baseUrl = common.readBaseUrl(process.env, ENV_FILE);
   const automation = process.env.SHORTCUT_AUTOMATION || DEFAULT_AUTOMATION;
   const envText = fs.existsSync(ENV_FILE) ? fs.readFileSync(ENV_FILE, 'utf8') : null;
   const token = resolveToken(process.env, envText);

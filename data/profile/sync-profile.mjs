@@ -4,7 +4,7 @@
  *
  *   node data/profile/sync-profile.mjs     (part of `npm run sync`, after the Strava sync)
  *
- * Env    : INGEST_URL (default http://localhost:8088), INGEST_TOKEN (falls back to
+ * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/health-ingest/.env>, else :8088), INGEST_TOKEN (falls back to
  *          services/health-ingest/.env, like the other syncs).
  * Writes : data/profile/strava-profile.json (only when its content changed, temp file + rename)
  *          and data/profile/avatar.jpg (Strava's `profile_medium`: only from Strava's photo hosts,
@@ -209,7 +209,7 @@ function errorMessage (err, baseUrl) {
 }
 
 async function main () {
-  const baseUrl = (process.env.INGEST_URL || common.DEFAULT_URL).replace(/\/+$/, '')
+  const baseUrl = common.readBaseUrl(process.env, process.env.INGEST_ENV_FILE || common.ENV_FILE)
   const token = common.readIngestToken(process.env, process.env.INGEST_ENV_FILE || common.ENV_FILE)
   if (!token) {
     console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/health-ingest/.env. No files touched.')

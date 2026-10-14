@@ -4,10 +4,13 @@
 # over HTTP. /api/sync, /api/sync/status and /api/food/* (and nothing else)
 # are proxied to the health-ingest service on the host, and only requests
 # naming an allowed Host are answered, see nginx.conf.template.
+# HC_INSTANCE (in .env, empty by default): a second install on the same host, e.g. `second`
+# (services/plan-web/README.md -> Running a second install). Empty = the plain names.
+name: plan-web${HC_INSTANCE:+-${HC_INSTANCE}}
 services:
   plan-web:
     image: nginx:alpine
-    container_name: plan-web
+    container_name: plan-web${HC_INSTANCE:+-${HC_INSTANCE}}
     restart: unless-stopped
     ports:
       - "${PLAN_WEB_PORT:-8090}:80"

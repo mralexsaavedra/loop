@@ -37,6 +37,21 @@ function readIngestToken(env, envFile = ENV_FILE) {
   return resolveToken(env, envText);
 }
 
+// base URL: INGEST_URL env first, then http://localhost:<INGEST_PORT> from THIS clone's service .env, then
+// DEFAULT_URL. A second clone on the same host (another person's install) runs its own service on another
+// port; reading the port from the clone's own .env keeps each person's sync on their own data.
+function resolveBaseUrl(env, envFileText) {
+  if (env.INGEST_URL) return env.INGEST_URL.replace(/\/+$/, '');
+  const m = envFileText ? /^\s*INGEST_PORT\s*=\s*(['"]?)(\d{1,5})\1\s*$/m.exec(envFileText) : null;
+  return m ? `http://localhost:${m[2]}` : DEFAULT_URL;
+}
+
+// resolveBaseUrl() + the disk read of the service's .env file (the readIngestToken() pair).
+function readBaseUrl(env, envFile = ENV_FILE) {
+  const envText = fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : null;
+  return resolveBaseUrl(env, envText);
+}
+
 // one request (headers + body) under a hard timeout; the HTTP status (when any) is kept on
 // err.status so a 404 can be told apart from a generic failure by the caller.
 async function fetchJson(url, token, { fetchImpl = fetch, timeoutMs = 15000 } = {}) {
@@ -159,6 +174,8 @@ export {
   writeAtomic,
   resolveToken,
   readIngestToken,
+  resolveBaseUrl,
+  readBaseUrl,
   fetchJson,
   fetchPages,
   mergeCsv,
