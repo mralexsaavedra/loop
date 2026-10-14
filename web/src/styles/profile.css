@@ -343,37 +343,33 @@
   text-align: right;
 }
 
-/* The in-page onboarding sheet (client/onboarding.js) reuses the profile sections and the food sheet's
- * fields and buttons; these rules lay out its choice groups, safety checkboxes and per-day number grid. */
-.onb-step,
-.onb-cell-lbl {
-  font-size: var(--fs-xs);
-  color: var(--muted);
+/* The in-page onboarding (client/onboarding.js): full screen in the detail sheet, one question per screen —
+ * a progress bar (the adherence bar, .adh-bar), a large question, option cards (the chip radios / checkboxes of .seg, stretched into
+ * cards), the summary's hero number (.kcal) and its day rows (.db-row) with the folded number grid. */
+.onb-q {
+  font-size: var(--fs-num-card);
+  margin: var(--sp-8) 0 var(--sp-3);
 }
-.onb-choice {
-  border: 0;
-  margin: 0 0 var(--sp-4);
-  padding: 0;
-  min-width: 0;
+.onb-card {
+  margin-bottom: var(--sp-3);
 }
-.onb-check {
-  display: flex;
-  gap: var(--sp-2);
-  min-height: 44px;
-  align-items: center;
-  font-size: var(--fs-sm);
+.onb-in {
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--sp-5);
+  border-radius: var(--card-radius);
+  font-size: var(--fs-xl);
+  letter-spacing: 0;
+  text-transform: none;
 }
-.onb-days {
-  list-style: none;
-  padding: 0;
-}
-.onb-day {
-  padding: var(--sp-3) 0;
-  border-bottom: 1px solid var(--line);
+.onb .db-row {
+  flex-wrap: wrap;
 }
 .onb-cells {
+  flex-basis: 100%;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--sp-2);
-  margin-top: var(--sp-2);
+  margin-bottom: var(--sp-3);
 }
