@@ -11,6 +11,7 @@ import { buildProfile } from '../../../lib/profile/profile.mjs';
 import { es as esP, en as enP } from '../i18n/profile-templates.mjs';
 import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
+import { es as esO, en as enO } from '../i18n/onboarding-templates.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'profile.js'), 'utf8');
@@ -35,11 +36,13 @@ const FULL = buildProfile({ manual: MANUAL, strava: STRAVA, weight: { kg: 71.4, 
 
 // nutri = a stand-in for client/nutri-day.js's window.HCNutri (the goal's owner), or null
 // fetch = a stand-in for window.fetch (the manual HEAD probe); links = the elements querySelectorAll returns
-function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null, nutri = null, settings = null, progress = null, els = {}, fetch = undefined, links = [], location } = {}) {
+function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null, nutri = null, settings = null, progress = null, els = {}, fetch = undefined, links = [], location, onb = false } = {}) {
   const img = photo ? { getAttribute: (k) => (k === 'src' ? photo : null) } : null;
   const win = nutri ? { HCNutri: nutri } : {};
   if (settings) win.HCSettings = settings;
   if (progress) win.HCProgress = progress;
+  // the onboarding registers its view before this script on the page (manifest order)
+  if (onb) win.HCViews = { onboarding: { title: () => 'Set up', render: () => ({ bare: true, body: '' }) } };
   const listeners = {};
   const RealDate = Date;
   class FakeDate extends RealDate {
@@ -60,6 +63,7 @@ function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null
     PROFILE: { ...baked, photo: Boolean(profile.photo) },
     I18N_PROFILE: locale === 'es' ? esP : enP,
     I18N_DATE: locale === 'es' ? esDate : enDate,
+    ...(onb ? { I18N_ONB: locale === 'es' ? esO : enO } : {}),
     LOCALE: locale,
     Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite, parseInt,
   };
@@ -440,4 +444,13 @@ test('the Progreso line (client/progress.js) sits in the goal section when there
   assert.match(b, /<p class="pf-note pf-progress" id="pf-progress"><span class="pf-lbl">Progress<\/span> <span id="pf-progress-txt">78.0 kg average · Too few data<\/span><\/p><\/section>/);
   assert.doesNotMatch(setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), progress: { line: () => '' } }).view.render().body, /pf-progress/);
   assert.doesNotMatch(setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), progress: { line: () => { throw new Error('x'); } } }).view.render().body, /pf-progress/);
+});
+
+test('the onboarding opens from a short "Edit" chip in the header row, not a loose button (LAN page only)', () => {
+  const h = html(setup({ onb: true, location: { protocol: 'http:' } }));
+  assert.match(h, /<div class="pf-id">[\s\S]*<button type="button" class="chip pf-edit" data-onb-open="">Edit<\/button><\/div>/);
+  assert.equal((h.match(/data-onb-open/g) || []).length, 1, 'one opener');
+  assert.match(html(setup({ onb: true, locale: 'es', location: { protocol: 'http:' } })), /data-onb-open="">Editar</);
+  assert.doesNotMatch(html(setup({ onb: true, location: { protocol: 'file:' } })), /data-onb-open/, 'a file:// copy cannot save it');
+  assert.doesNotMatch(html(setup({ location: { protocol: 'http:' } })), /data-onb-open/, 'no onboarding view, no chip');
 });

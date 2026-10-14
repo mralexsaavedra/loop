@@ -66,10 +66,17 @@ function setup({ locale = 'en', profile = null, settings = { goal: null }, proto
   const tick = (key) => fire('change', el({ 'data-onb-field': key }, { type: 'checkbox', checked: true }));
   const cellEdit = (cell, value) => fire('change', el({ 'data-onb-cell': cell }, { value }));
   const act = (a) => fire('click', el({ 'data-onb-act': a }));
+  // Enter in a field or on a card: target inside the flow (closest('.onb')), not on a button
+  const enter = (attrs = { 'data-onb-field': 'name' }, tag = 'INPUT') => {
+    const t = { tagName: tag, getAttribute: (k) => (k in attrs ? attrs[k] : null), closest: (sel) => (sel === '.onb' ? {} : null) };
+    let prevented = 0;
+    (listeners.keydown || []).forEach((fn) => fn({ type: 'keydown', key: 'Enter', target: t, preventDefault: () => { prevented += 1; } }));
+    return prevented;
+  };
   const sport = (value, checked = true) => fire('change', el({ 'data-onb-field': 'sport' }, { value, type: 'checkbox', checked }));
   const view = win.HCViews.onboarding;
   const html = () => view.render().body;
-  return { win, view, html, field, choose, tick, cellEdit, act, sport, calls, opened, saved, store, get closed() { return closed; }, get synced() { return synced; }, onb: win.HCOnboarding, fire, el };
+  return { win, view, html, field, choose, tick, cellEdit, act, sport, enter, calls, opened, saved, store, get closed() { return closed; }, get synced() { return synced; }, onb: win.HCOnboarding, fire, el };
 }
 const flush = () => new Promise((r) => setTimeout(r, 0));
 const clean = (h) => assert.doesNotMatch(h, /NaN|undefined|Infinity|\[object/);
@@ -314,4 +321,40 @@ test('first run opens it once: no profile and no goal on the server; never with 
 
 test('the sport names cover energy.mjs SPORTS in both languages', () => {
   for (const T of [esO, enO]) assert.deepEqual(Object.keys(T.sports.names), Object.keys(SPORTS));
+});
+
+test('Enter presses the primary button: Start, Continue (with the same checks), Save; never on a button or outside the flow', async () => {
+  const s = setup();
+  assert.equal(s.enter(), 1);
+  assert.match(s.html(), /data-onb-field="name"/, 'Start');
+  s.field('name', 'Ana'); s.enter();
+  assert.match(s.html(), /data-onb-field="sex"/, 'Continue');
+  s.enter();
+  assert.match(s.html(), /Pick one/, 'the same validation as the button');
+  assert.equal(s.enter({ 'data-onb-act': 'back' }, 'BUTTON'), 0, 'a focused button clicks itself');
+  const out = { tagName: 'INPUT', getAttribute: () => null, closest: () => null };
+  assert.match(s.html(), /data-onb-field="sex"/);
+  const t = setup(); t.enter(); t.enter();
+  t.choose('sex', 'female'); t.enter();
+  t.field('birthdate', '1997-05-20'); t.enter(); t.field('heightCm', '165'); t.enter(); t.field('weightKg', '60'); t.enter(); t.enter();
+  t.sport('yoga'); t.enter(); t.enter(); t.enter(); t.enter(); t.enter(); t.enter();
+  assert.match(t.html(), /data-onb-act="save"/, 'reached the last screen by Enter');
+  t.enter();
+  await flush(); await flush(); await flush();
+  assert.ok(t.calls.some((c) => c[0] === 'PUT'), 'Enter on the last screen saves');
+  void out;
+});
+
+test('the data screen is a numbered list of steps: the Shortcut button, the server address with a copy button, the token, Strava', () => {
+  const s = setup();
+  toSafety(s, [['yoga', '60', '3']]);
+  s.act('next'); s.act('next'); s.act('next');
+  const h = s.html();
+  assert.match(h, /class="db-list onb-steps"/);
+  assert.equal((h.match(/<li class="db-row/g) || []).length, 4);
+  assert.match(h, /<a class="chip" href="https:\/\/www\.icloud\.com\/shortcuts\/[^"]+" target="_blank" rel="noopener">Open</);
+  assert.match(h, /<code>http:\/\/192\.168\.1\.50:8091<\/code>/);
+  assert.match(h, /data-onb-act="copy"/);
+  assert.match(h, /\(optional\)/);
+  clean(h);
 });
