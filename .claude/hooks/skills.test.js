@@ -81,3 +81,15 @@ test('every repo path the setup skill names exists or is a gitignored personal f
     assert.ok(fs.existsSync(path.join(ROOT, rel)), `setup: seed ${rel} must be tracked in the repo`);
   }
 });
+
+test('the food-log skill triggers on logging words in English and Spanish and names only real paths', () => {
+  const text = fs.readFileSync(path.join(SKILLS, 'food-log', 'SKILL.md'), 'utf8');
+  const fm = frontmatter(text);
+  for (const word of ['log food', 'registrar', 'he comido', 'product', 'macros']) {
+    assert.ok(fm.description.includes(word), `food-log: description must mention "${word}"`);
+  }
+  const paths = [...new Set([...text.matchAll(PATH_RE)].map((m) => m[1].replace(/\/$/, '')))];
+  const dead = paths.filter((rel) => !fs.existsSync(path.join(ROOT, rel)) && !isIgnored(rel));
+  assert.deepEqual(dead, [], `food-log: these paths neither exist nor are gitignored: ${dead.join(', ')}`);
+  assert.doesNotMatch(text, /INGEST_TOKEN=|Bearer [0-9a-f]{16,}/, 'never a token value');
+});
