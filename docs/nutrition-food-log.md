@@ -1,10 +1,9 @@
-# Nutrition — food log, products, recipes, settings (parts 2–3)
+# Nutrition — food log, products, recipes, settings
 
 The LAN-only food log and its API, plus the server-side goal, Progreso and Constancia. Plan pipeline and portion guide: `docs/nutrition.md`.
 
-> Area design doc (moved out of `CLAUDE.md` on 2026-10-07). Read it before changing this area and keep
-> it in sync with the code in the same commit. Section names quoted in the text ("Nutrition v2 part 2",
-> "Detail views"…) are listed in `CLAUDE.md` → Architecture map.
+> **Reference** — how this area is built, for anyone changing it (keep it in sync with the code in the same
+> commit). Setting up or using the page? Start at the [documentation index](README.md).
 
 ## Nutrition v2 part 2 — food log, products, recipes (LAN page only)
 

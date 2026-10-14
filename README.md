@@ -86,8 +86,8 @@ dataset.
 | The page | `npm run generate` → `web/dist/personal/index.html`: Home, Training, Health, Nutrition tabs; tap any card for its history ([`docs/plan-page.md`](docs/plan-page.md)) |
 | Guard hook | Blocks force-adding ignored (personal) files and un-ignoring them in `.gitignore` ([`docs/guard-hook.md`](docs/guard-hook.md)) |
 
-`CLAUDE.md` is the operating manual Claude reads every session; per-area design docs live in
-[`docs/`](docs/) (index: `CLAUDE.md` → Architecture map).
+`CLAUDE.md` is the operating manual Claude reads every session. Every guide and reference doc is listed
+in the [documentation index](docs/README.md).
 
 ## Prerequisites
 
