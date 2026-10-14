@@ -147,7 +147,7 @@ macOS and Windows are not supported as the host.
 | Add | What it gives you | Doc |
 | --- | --- | --- |
 | iOS Shortcut | Pushes recent Apple Health samples between full exports. [Import the ready-made one](https://www.icloud.com/shortcuts/ceb66eea36fc434a9d2f910421dd18aa) and set your server, token and watch | [`docs/ios-shortcut.md`](docs/ios-shortcut.md) → Install the ready-made Shortcut |
-| Strava | Rides / runs, Relative Effort for the load dial, your bikes and shoes | [`services/health-ingest/README.md`](services/health-ingest/README.md) |
+| Strava | Rides / runs, Relative Effort for the load dial, your bikes and shoes | [`services/health-ingest/README.md` → Getting the Strava credentials](services/health-ingest/README.md#getting-the-strava-credentials-once-5-minutes) |
 | Knowledge base | Transcripts of the experts *you* choose, read by the coach subagents | [`docs/knowledge-base.md`](docs/knowledge-base.md), [`knowledge/README.md`](knowledge/README.md) |
 
 The knowledge base ingest (`scripts/ingest-youtube.mjs`) uses the external
