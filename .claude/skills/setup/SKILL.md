@@ -72,6 +72,8 @@ Needs a Linux host with Docker (compose), systemd and Node 22. Follow the ordere
    systemd units; the clone stays on `main`). Check the host first: Linux with systemd, `flock`, Node 22 —
    on macOS / Windows stop and say Level 2 needs a Linux box. Each `sudo` step: show it and let the user run it.
 3. Verify: `curl -s http://127.0.0.1:8088/healthz` → 200; the plan-web smoke test from its README.
+   The page's own onboarding assistant then opens on the first visit (no profile and no goal on the
+   server): a user without Claude Code sets up profile and targets there (`docs/profile.md`).
 4. `npm run sync`: each `WARNING:` line names a source not refreshed; report it.
 
 ## Level 3 — live sync and knowledge base
