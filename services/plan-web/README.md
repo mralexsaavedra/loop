@@ -128,9 +128,9 @@ What each proxy may forward:
 | Proxy | Forwards | Never |
 | ----- | -------- | ----- |
 | **plan-web nginx** (this service) | `POST /api/sync` -> `/sync`, `GET /api/sync/status` -> `/sync/status`, `POST /ingest/health-auto-export` -> the same path (bearer checked by ingest, 8 MB, below ingest's `MAX_BODY_BYTES` default) (exact match, method restricted); `/api/food/*` -> `/food/*` (GET / POST / PUT / DELETE, 16 KB) | anything else under `/api/` or `/ingest/` (404), `/export` |
-| **Public reverse proxy** (if any, in front of health-ingest) | `/ingest/*` (bearer token) and `POST /sync` (for the Shortcut's last step); `/sync/status` optional | `/export/*`, `/sync/strava`, `/food/*`, `/healthz` |
 
-`POST /ingest/health-auto-export` is here so the iOS Shortcut can reach ingest
+There is no second proxy: health-ingest's port is never published, and a public entry (an SSO tunnel)
+points at plan-web. `POST /ingest/health-auto-export` is here so the iOS Shortcut can reach ingest
 through plan-web when plan-web is the public entry and ingest is not exposed at
 all. nginx forwards `Authorization`, `Automation-Name` and `Content-Type`,
 refuses a request without a `Bearer` token with `401` before reading the body,

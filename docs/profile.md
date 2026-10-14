@@ -106,7 +106,7 @@ controls instead of the close button.
   payload; photo URLs only when `https://`. Strava returns bikes / shoes only for a token with
   `profile:read_all`; without it `gearScopeMissing: true` (coarse flag) and the sheet says how to
   re-authorize (steps in `services/health-ingest/README.md`: back up `.env`, re-run
-  `scripts/strava-auth.js`, VERIFY the new token against Strava's token endpoint, only then back up
+  `services/health-ingest/scripts/strava-auth.js`, VERIFY the new token against Strava's token endpoint, only then back up
   and delete the stored `strava_token` row, which keeps the old scopes, and the `strava_athlete` row
   to refresh now; rollback = restore `.env.bak` + the backed-up token row). Rollout: `docker compose up -d --build health-ingest` → `npm run sync` → `npm run generate`.
 - **Build**: `Avatar.astro` bakes `PROFILE` (the `photo` data URI replaced by a boolean — the image
