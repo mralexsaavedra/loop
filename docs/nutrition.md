@@ -145,7 +145,18 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   3600 kcal with 125 P / 65 F; cut 1950 / 2350 / 3100 / 3600 with 140 / 55, ≈ −15 % on rest and gym,
   ride days kept fuelled; bulk 2600 / 3000 / 3400 / 3900 with 125 / 70, +300 kcal — rest / gym / bike /
   bikeLong; the example plan copies it), so an old plan keeps working. Your own `plan-data.json`
-  `targets.byGoal` overrides it cell by cell; set all twelve cells once you know your TDEE. Default goal = `page.goal` (else maintain). `targets.train` / `targets.rest`
+  `targets.byGoal` overrides it cell by cell; set all twelve cells once you know your TDEE. Default goal = `page.goal` (else maintain).
+  **Computed starting targets** (`lib/nutrition/energy.mjs`, for the in-page onboarding): Mifflin-St Jeor
+  BMR × NEAT (`sedentary` 1.2 / `light` 1.3 / `active` 1.4) + the net exercise of each day type
+  ((MET − 1) × kg × h: gym 6 × 1 h, ride 7 × 2 h, long ride 7 × 3.5 h); cut −15 % except the long ride,
+  bulk +10 %, kcal to the nearest 50; protein 2.0 g/kg cut / 1.8 otherwise, fat 0.8 g/kg; floors 1500 kcal
+  (men) / 1200 (women). `screenPerson` withholds numbers under 18 or in pregnancy / lactation, offers only
+  maintenance on an illness / medication or eating-risk answer, drops the cut under BMI 18.5;
+  `checkTargetWeight` refuses a target BMI < 18.5; `checkTargets` bounds an edited cell (errors: floor,
+  deficit > 20 %, surplus > 15 %, > 1 % body weight / week, protein outside 1.2–2.4 g/kg, fat < 0.5 g/kg;
+  warnings: protein outside 1.6–2.2, fat > 1.0, carbs outside rest 3–5 / gym 5–7 / bike 6–10 / long
+  8–12 g/kg where energy is not cut on purpose). Output has the `targets.byGoal` shape. A ±10 % estimate:
+  recalibrate with the 7-day weight trend after 2–3 weeks. `targets.train` / `targets.rest`
   are read by nothing. Likewise
   `extrasDisplay`, `indulgeKeys`, `alcoholKeys`, `mealReplaceKeys` and `page.notes['registro.*']` /
   `page.offPlanPlaceholder` are IGNORED legacy keys: accepted, never an error, and `npm run check`
