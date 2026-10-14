@@ -17,6 +17,7 @@ import { ADHERENCE, ADHERENCE_CASES, isComplete, dayState } from '../../lib/nutr
 import { PROGRESS, PROGRESS_CASES, rollPoints, weeklyRate, etaMonths } from '../../lib/nutrition/progress.mjs';
 import * as NS from '../../lib/nutrition/score.mjs';
 import * as FL from '../../lib/nutrition/foodlog.mjs';
+import * as EN from '../../lib/nutrition/energy.mjs';
 import * as DT from '../../lib/nutrition/daytype.mjs';
 import * as FU from '../../lib/nutrition/fuel.mjs';
 import * as SC from '../../lib/nutrition/scale.mjs';
@@ -52,6 +53,10 @@ const KEYS = {
     'LINE', 'GRID_EPS', 'FUEL', 'RIDE_DEFAULT_MIN', 'OWN_START_MIN', 'stepAmount', 'lineUnit', 'lineAmt', 'lineStep', 'lineKey', 'lineCap',
     'capFactor', 'floorToStep', 'capAmount', 'pieceOf', 'isDiscrete', 'fmtAmt', 'round2', 'fmtHalf', 'fmtPieces', 'bound', 'waterFill',
     'isBikeDay', 'step', 'range', 'pickItem', 'ownDuring', 'ownBefore', 'fuelPlan', 'zero', 'r0', 'macroRow', 'fmtFactor', 'solveScale', 'planFor',
+  ],
+  HC_ENERGY: [
+    'NEAT', 'EXERCISE', 'round50', 'ageOn', 'bmi', 'bmrMifflin', 'maintenance', 'inRange', 'validatePerson', 'computeTargets', 'screenPerson',
+    'checkTargetWeight', 'checkTargets', 'carbsOf',
   ],
   HC_GUIDE: [
     'GUIDE_ROLES', 'ROLE_KEYS', 'MACS', 'DONE_SHARE', 'COVERED_SHARE', 'OIL_SLOTS', 'fin', 'floorToStep', 'foldName', 'zero', 'cmp', 'guideBudgets',
@@ -154,6 +159,27 @@ for (const page of PAGES) {
     }
     const long = { k: 'x', n: 'N'.repeat(200), u: 'g', m: [100, 1, 1, 1] };
     assert.equal(HC_FOODLOG.basicLabel(long, 10, 'g', { dec: '.', g: 'g' }), FL.basicLabel(long, 10, 'g', { dec: '.', g: 'g' }), 'FOOD_LIMITS.nameMax cap');
+  });
+
+  test(`${rel}: HC_ENERGY computes the onboarding targets, screen and bounds like lib/nutrition/energy.mjs`, () => {
+    const { HC_ENERGY } = globalsOf(page);
+    assert.deepEqual(js(HC_ENERGY.NEAT), js(EN.NEAT));
+    const people = [
+      { sex: 'male', age: 30, heightCm: 175, weightKg: 70, activity: 'light' },
+      { sex: 'female', age: 50, heightCm: 150, weightKg: 45, activity: 'sedentary' },
+      { sex: 'female', age: 29, heightCm: 165, weightKg: 60, activity: 'active' },
+    ];
+    for (const p of people) {
+      const own = EN.computeTargets(p);
+      assert.deepEqual(js(HC_ENERGY.computeTargets(p)), js(own));
+      const edited = JSON.parse(JSON.stringify(own.targets));
+      edited.cut.rest.kcal = 1100;
+      edited.maintain.gym.p = 200;
+      assert.deepEqual(js(HC_ENERGY.checkTargets(edited, p)), js(EN.checkTargets(edited, p)));
+      assert.deepEqual(js(HC_ENERGY.screenPerson({ ...p, medical: true })), js(EN.screenPerson({ ...p, medical: true })));
+    }
+    assert.equal(HC_ENERGY.ageOn('1997-05-20', '2026-10-14'), EN.ageOn('1997-05-20', '2026-10-14'));
+    assert.deepEqual(js(HC_ENERGY.checkTargetWeight({ heightCm: 175, weightKg: 70, goal: 'cut', targetWeightKg: 55 })), ['targetBmiLow']);
   });
 
   test(`${rel}: HC_DAYTYPE / HC_FUEL detect and fuel like lib/nutrition/daytype.mjs / fuel.mjs`, () => {

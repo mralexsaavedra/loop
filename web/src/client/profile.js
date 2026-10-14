@@ -313,9 +313,15 @@
     });
   }
 
+  // the in-page onboarding's entry (client/onboarding.js registers the view; LAN page only)
+  function onbHtml() {
+    var O = typeof I18N_ONB !== 'undefined' ? I18N_ONB : null, V = window.HCViews;
+    if (!O || !V || !V.onboarding || !HC.lan()) return '';
+    return '<div class="food-btns"><button type="button" class="food-btn food-btn-ghost" data-onb-open="">' + esc(O.open) + '</button></div>';
+  }
   function render() {
-    if (!P.hasData) return { head: headHtml(), body: goalHtml() + note(T.onboarding, 'pf-onboard') };
-    return { head: headHtml(), body: goalHtml() + eventsHtml() + bodyHtml() + gearHtml() + devicesHtml() + supplementsHtml() + stravaHtml() + note(T.note, 'pf-foot') };
+    if (!P.hasData) return { head: headHtml(), body: goalHtml() + note(T.onboarding, 'pf-onboard') + onbHtml() };
+    return { head: headHtml(), body: goalHtml() + onbHtml() + eventsHtml() + bodyHtml() + gearHtml() + devicesHtml() + supplementsHtml() + stravaHtml() + note(T.note, 'pf-foot') };
   }
 
   HC.registerView('profile', { title: function () { return T.title; }, render: render });
