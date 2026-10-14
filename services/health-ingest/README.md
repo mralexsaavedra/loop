@@ -497,7 +497,7 @@ token). `.env` is gitignored and must stay that way.
 | `INGEST_TOKEN`      | Bearer token; refuses to start under 32 characters |
 | `POSTGRES_*`        | Database credentials |
 | `INGEST_PORT`       | Host port (plan-web proxies to it). The host-side sync scripts read it from this file too, so a second install on another port syncs from its own service |
-| `HC_INSTANCE`       | Empty by default. A name for a second install on the same host (`andrea`): suffixes the compose project, container names and database volume. Set the same value in `services/plan-web/.env` ([`../plan-web/README.md` → Running a second install](../plan-web/README.md#running-a-second-install-another-person-same-host)) |
+| `HC_INSTANCE`       | Empty by default. A name for a second install on the same host (`second`): suffixes the compose project, container names and database volume. Set the same value in `services/plan-web/.env` ([`../plan-web/README.md` → Running a second install](../plan-web/README.md#running-a-second-install-another-person-same-host)) |
 | `MAX_BODY_BYTES`    | Upload ceiling, default 32 MB |
 | `TRIGGER_DIR`       | Where `POST /sync` writes `refresh`; compose sets `/trigger` (bind mount of `./trigger`) |
 | `FOOD_ALLOWED_HOSTS` | Extra host names (comma / space separated) the `/food/*` Host + Origin checks accept besides IP literals, `localhost` and `host.docker.internal`; empty by default. Mirror plan-web's `PLAN_WEB_EXTRA_HOSTS` |

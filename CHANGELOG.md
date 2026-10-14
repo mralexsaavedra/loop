@@ -1,8 +1,7 @@
 # Changelog
 
-Dated history of structural work on this repo. **Current state lives in Engram**
-(`mem_context`, synced across machines); durable operating facts live in
-`CLAUDE.md` and the area docs in `docs/`. This file is the append-only narrative of what changed and why.
+Dated history of structural work on this repo: the append-only narrative of what changed and why. Durable
+operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
 ## 2026-10-14 — Public-ready docs, a second install, onboarding without Claude Code (v1 and v2)

@@ -124,16 +124,16 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 
 **Check**
 
-- `docker ps` — each install needs its own containers (`health-ingest-andrea`, `plan-web-andrea`, …).
+- `docker ps` — each install needs its own containers (`health-ingest-second`, `plan-web-second`, …).
 - `HC_INSTANCE` and `INGEST_PORT` in that clone's `services/health-ingest/.env`, and `HC_INSTANCE`,
   `PLAN_WEB_PORT`, `INGEST_PORT` in its `services/plan-web/.env`.
 
 **Fix**
 
-- Give the second clone its own name and ports in both `.env` files (for example `HC_INSTANCE=andrea`,
+- Give the second clone its own name and ports in both `.env` files (for example `HC_INSTANCE=second`,
   `INGEST_PORT=8089`, `PLAN_WEB_PORT=8091`), then `docker compose up -d` in both folders. `npm run sync`
   and `refresh.sh` read `INGEST_PORT` from the clone's own ingest `.env`.
-- Rename that install's systemd units (`plan-web-refresh-andrea.path` / `.service`) so they do not
+- Rename that install's systemd units (`plan-web-refresh-second.path` / `.service`) so they do not
   replace the first install's, and stagger the cron minutes on a small host.
 
 ## Containers are down, unhealthy, or out of date after an update
