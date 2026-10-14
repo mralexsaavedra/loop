@@ -345,13 +345,15 @@ test('Enter presses the primary button: Start, Continue (with the same checks), 
   void out;
 });
 
-test('the data screen is a numbered list of steps: the Shortcut button, the server address with a copy button, the token, Strava', () => {
+test('the data screen is a numbered list of steps: the Shortcut button, the server address with a copy button, the token, Strava, the history export', () => {
   const s = setup();
   toSafety(s, [['yoga', '60', '3']]);
   s.act('next'); s.act('next'); s.act('next');
   const h = s.html();
   assert.match(h, /class="db-list onb-steps"/);
-  assert.equal((h.match(/<li class="db-row/g) || []).length, 4);
+  assert.equal((h.match(/<li class="db-row/g) || []).length, 5);
+  assert.match(h, /Your history \(optional\)/);
+  assert.match(h, /Export All Health Data/);
   assert.match(h, /<a class="chip" href="https:\/\/www\.icloud\.com\/shortcuts\/[^"]+" target="_blank" rel="noopener">Open</);
   assert.match(h, /<code>http:\/\/192\.168\.1\.50:8091<\/code>/);
   assert.match(h, /data-onb-act="copy"/);
