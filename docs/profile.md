@@ -87,7 +87,12 @@ controls instead of the close button.
   (`npm run sync:onboarding`, step of `npm run sync` right after the settings) from `GET /food/profile`
   (same layer and headers as the settings; shape check `lib/profile/onboarding.mjs`). A wizard never
   completed writes nothing; a missing / old service or a malformed body is a `WARNING:`, the old file kept,
-  exit 0.
+  exit 0. **The build uses it** (personal only, `lib/load/inputs.mjs`): its name / sex / birthdate / height
+  win over `profile.json` (`loadProfile({onboarding})`; devices, events, supplements and max HR stay in the
+  file), its accepted targets replace the plan's `targets.byGoal`, and the Goal setting offers only the goals
+  its safety screen allowed (`goalOptions(targets, allowed)`). Targets outside `lib/nutrition/energy.mjs`
+  `checkTargets` hard bounds, or a malformed file, are a build `WARNING:` and ignored (the plan's own targets
+  are used); no file = the page exactly as before.
 - **Ingest side** (`services/health-ingest/src/athlete.js`, table `strava_athlete`,
   `sql/004_athlete.sql` + `005_athlete_refresh.sql`): after a successful Strava pull has been
   recorded, the sync kicks off (in the background, not awaited by `POST /sync`; one refresh in
