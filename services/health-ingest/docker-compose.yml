@@ -1,7 +1,11 @@
+# HC_INSTANCE (in .env, empty by default) names a second install on the same host, e.g. `andrea`: it
+# suffixes the compose project, the container names and so the database volume, so two installs never
+# share a container or a database. Empty = the plain names below.
+name: health-ingest${HC_INSTANCE:+-${HC_INSTANCE}}
 services:
   health-db:
     image: postgres:17-alpine
-    container_name: health-db
+    container_name: health-db${HC_INSTANCE:+-${HC_INSTANCE}}
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -17,7 +21,7 @@ services:
 
   health-ingest:
     build: .
-    container_name: health-ingest
+    container_name: health-ingest${HC_INSTANCE:+-${HC_INSTANCE}}
     restart: unless-stopped
     environment:
       PORT: 8088
