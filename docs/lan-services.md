@@ -14,32 +14,16 @@ data, a BREACH-style oracle; pinned by `scripts/plan-web-config.test.mjs`; rollo
 up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (cron) AND on demand, under a
 **sequence protocol** (no clock comparison anywhere):
 
-- **Trigger.** The page's Sync button (`POST /api/sync`, proxied by plan-web nginx) or the last
-  Shortcut step (`POST <page address>/api/sync`, also through plan-web, `docs/ios-shortcut.md`) hits health-ingest
-  `POST /sync`. A new click gets the next `trigger_seq` (persisted in `sync_status`; resumed at startup
-  from max(DB, trigger file), never backwards) and answers `202 {seq, coalesced:false}`; it kicks the
-  shared Strava pull (timer loop, `POST /sync` and `POST /sync/strava` share ONE in-flight run) unless
-  the last success is < 5 min old, then, once the pull settles (≤ 90 s), writes `seq\n` ATOMICALLY to
-  `services/health-ingest/trigger/refresh` (temp file + rename, `O_NOFOLLOW`, a symlinked target is
-  refused; container `/trigger`, gitignored, uid 1000 must own it). **Coalescing, never 429, never
-  dropped:** a click while a trigger is still pending (write not done, so the rebuild will see any new
-  data) gets `{seq:<current>, coalesced:true}`; a click within 60 s of the last COMPLETED write
-  (window measured from the rename, so a slow pull cannot yield two writes seconds apart) gets a NEW seq, `{seq, coalesced:true, deferred:true}`, and ONE trigger write is scheduled for
-  the end of the window (later clicks reuse it), so a Shortcut payload POSTed right after a rebuild
-  is still published (the deferred run pulls Strava only if its own 5 min cooldown allows). Cost stays
-  ≤ 1 rebuild/min and ≤ 1 Strava pull/5 min and nobody can lock the user out. Nothing new is
-  persisted; SIGTERM flushes a pending deferred write and awaits an in-flight run (2 s, then writes
-  the persisted seq directly; 3 s hard cap); after a crash, boot finds the DB seq ahead of the trigger
-  file and writes it once (5 s after boot, ≥ 60 s after the last recorded write), so a waiting page
-  completes (it times out after 5 min: 60 s + ≤ 90 s pull + rebuild fits). A failed trigger write is exposed as `lastTriggerError: "trigger_write"` +
-  `lastTriggerErrorSeq`. The host's `services/plan-web/systemd/plan-web-refresh.path` (PathModified,
-  also fires on the rename) starts `plan-web-refresh.service` (oneshot as the repo owner,
-  `User=REPO_OWNER` placeholder, hardened: `NoNewPrivileges`, `ProtectSystem=strict` +
-  `ReadWritePaths=<clone>`, `ProtectHome=read-only`, `PrivateTmp`, npm cache via `CacheDirectory`;
-  `PLAN_WEB_WAIT_LOCK=1` so it waits for a running cron refresh). Units ship with
-  `/path/to/health-coach` + `REPO_OWNER` placeholders; the ordered install steps (trigger dir +
-  chown BEFORE compose up → ingest rebuild → first `npm ci` by hand → verify checkout is `main` →
-  plan-web up → units → smoke test) are in `services/plan-web/README.md`.
+- **Trigger and sequence protocol.** The page's Sync button and the
+  Shortcut's last step `POST <page address>/api/sync` (plan-web nginx) → health-ingest `POST /sync`, which numbers
+  the click (`trigger_seq`), pulls Strava (at most once per 5 min) and writes the seq atomically to
+  `services/health-ingest/trigger/refresh`; a systemd path unit runs `refresh.sh`, which publishes `processedSeq`
+  in `site/status.json`, and the page reloads once that covers its seq. Clicks coalesce (never `429`, never
+  dropped; at most one rebuild per minute). Each side is documented once:
+  - service side (seq persistence, coalescing and deferred writes, shutdown and crash recovery, `/sync/status`):
+    [`services/health-ingest/README.md` → On-demand refresh](../services/health-ingest/README.md);
+  - host side (`refresh.sh` passes, `status.json` and its error codes, the systemd units and their hardening,
+    the ordered install steps): [`services/plan-web/README.md` → How a refresh works](../services/plan-web/README.md).
 - **refresh.sh** keeps its resilience rules (failed sync still rebuilds, flock, `npm ci` only on a
   lockfile change, a failed build keeps the last good page). Each pass records the trigger seq it
   started from; a successful publish writes `site/status.json` = `{publishedAt, commit, branch,
@@ -69,7 +53,7 @@ up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (c
   never health data or raw error text (messages stay in logs; tests pin the key set and no leaks).
   plan-web nginx proxies EXACTLY `/api/sync` + `/api/sync/status` (exact-match, method-restricted)
   plus the food log prefix `/api/food/*` → ingest `/food/*` (GET / POST / PUT / DELETE, 16 KB, the
-  `X-HC-Food` header forwarded; see "Nutrition v2 part 2"), the journal prefix `/api/journal/*` →
+  `X-HC-Food` header forwarded; see [`nutrition-food-log.md` → Security](nutrition-food-log.md#security)), the journal prefix `/api/journal/*` →
   ingest `/journal/*` (GET / PUT, 16 KB, the `X-HC-Journal` header forwarded; `docs/journal.md`) and EXACTLY `POST /ingest/health-auto-export`
   → the same ingest route (the iOS Shortcut upload when plan-web is the public entry and ingest is not
   exposed: `Authorization` / `Automation-Name` / `Content-Type` forwarded, no `Bearer` token → `401`
@@ -91,10 +75,9 @@ up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (c
   add the public host to `PLAN_WEB_EXTRA_HOSTS` + `FOOD_ALLOWED_HOSTS` (`services/plan-web/README.md`,
   "Exposing behind an SSO tunnel"). Every path
   (the page included) answers only a Host that is an IP literal, `localhost` or a name in
-  `PLAN_WEB_EXTRA_HOSTS`, else `421` (DNS rebinding; how to add a name: "Nutrition v2 part 2" →
-  Security). A public
-  reverse proxy in front of ingest must forward ONLY `/ingest/*` and `/sync` (`/sync/status`
-  optional), never `/export/*`, `/sync/strava`, `/food/*` or `/journal/*`.
+  `PLAN_WEB_EXTRA_HOSTS`, else `421` (DNS rebinding; how to add a name: [`nutrition-food-log.md` → Security](nutrition-food-log.md#security)).
+  The ingest service itself is never exposed: plan-web is the only entry, and nothing forwards `/export/*`,
+  `/sync/strava`, or the ingest port.
 - **Health + tokens.** `/healthz` stays 200 but adds `degraded: true` when Strava is configured and its
   PERSISTED last success is > 6 h old or missing (a restart does not reset it). A refresh token rotated
   by Strava is stored in `strava_token` (3 save attempts with backoff; on failure it is kept in memory,

@@ -1,4 +1,4 @@
-# HC_INSTANCE (in .env, empty by default) names a second install on the same host, e.g. `andrea`: it
+# HC_INSTANCE (in .env, empty by default) names a second install on the same host, e.g. `second`: it
 # suffixes the compose project, the container names and so the database volume, so two installs never
 # share a container or a database. Empty = the plain names below.
 name: health-ingest${HC_INSTANCE:+-${HC_INSTANCE}}

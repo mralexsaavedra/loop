@@ -27,7 +27,7 @@ controls instead of the close button.
   (`hc.nutri.goal`, fallback `page.goal`) and refreshes the summary, plan, fuelling, Inicio card, rings
   and the kcal chip at once. No `HCNutri` or no options → the section is omitted. On the LAN page the
   goal is also stored on the SERVER and the section adds "Peso objetivo" + a status line + the
-  Progreso line (see "Nutrition v2 part 3").
+  Progress line (see [`nutrition-food-log.md` → Progress](nutrition-food-log.md#progress)).
 
 - **Sources** (all optional, read by `lib/profile/read.mjs` `loadProfile` and merged by the pure
   `lib/profile/profile.mjs` `buildProfile`; manual wins over Strava for the same field):
@@ -38,7 +38,7 @@ controls instead of the close button.
      since?: YYYY-MM, manual?: "<file>.pdf"}]` (`manual` = a bare file name in `data/gear/`,
      `MANUAL_FILE_RE`: no folders, no `..`; see "Device manuals" below), `hiddenDevices: [name]`
      (left out of Dispositivos, case-insensitive, manual and Strava-derived alike; applied at build
-     time, never baked — for a device Strava saw once), `supplements: [{name, dose?, meal}]` (see "Nutrition v2"), `events:
+     time, never baked — for a device Strava saw once), `supplements: [{name, dose?, meal}]` (see [`nutrition.md` → Supplements](nutrition.md#supplements)), `events:
      [{name, date: YYYY-MM-DD, type?: hyrox|race|sportive|other, location?}]` (upcoming races; baked
      sorted by date, `EVENT_TYPES`), optional `name` / `city` overrides. Validated by `validateManual`: at build
      time a malformed file is IGNORED with a `WARNING:` naming the reason (the page still builds from
@@ -74,7 +74,7 @@ controls instead of the close button.
   stable context (injuries, history, preferences) = `profile/about-me.md` — never numbers in prose.
   `settings.json` (gitignored, `data/profile/*`) = `{goal, targetWeightKg, updatedAt, fetchedAt}`,
   written by `data/profile/sync-settings.mjs` (`npm run sync:settings`, step of `npm run sync` before `sync:foodlog`)
-  from the ingest service's `GET /food/settings` (the server-side goal of "Nutrition v2 part 3";
+  from the ingest service's `GET /food/settings` (the server-side goal, [`nutrition-food-log.md` → Settings](nutrition-food-log.md#settings-goal-target-weight);
   `INGEST_URL`, `X-HC-Food: 1`, no token; the URL's host must be an IP literal, `localhost` or in
   `FOOD_ALLOWED_HOSTS`): atomic, rewritten only when goal / target / updatedAt changed or the stored
   `fetchedAt` is from an earlier UTC day; unreachable / 404 / 421 / 503 / a malformed body → a

@@ -69,8 +69,8 @@ there:
    the recovery and stress readings stay empty or partial.
 
 The Apple Health export (`data/apple-health/extract.mjs`) needs no change: steps, exercise and sleep take the
-largest value across sources, and energy prefers the Apple Watch, then a wearable app (Zepp, Mi Fit, Amazfit,
-Garmin Connect, Polar Flow, Fitbit, Huawei Health), then the iPhone.
+largest value across sources, and energy picks one source per day ([`docs/data-pipeline.md` → Energy source
+precedence](data-pipeline.md#energy-source-precedence)).
 
 Then add the personal automation (*Automatización* → *Crear automatización personal* → *App* → pick an
 app you open every day → *Ejecutar inmediatamente* → this Shortcut): automations are not shared with
@@ -199,54 +199,11 @@ Decimal commas (`42,1`) are accepted.
 | `hr_v` | the same search | samples: Values (bpm), same line order as `hr_t` | no: **no grouping** | **filter** by source | 1 day | `hr-hourly.csv` |
 | `hr_samples` | the same search (older, loop-based alternative to `hr_t` + `hr_v`) | samples (`ISO;bpm`) | no: **no grouping** | **filter** by source | 1 day | `hr-hourly.csv` |
 
-What the sync does with each shape:
-
-- **Point keys** keep one row per sample. `rhr` is deduped by timestamp only (Apple rewrites the
-  day's resting HR at the same timestamp; the latest payload wins). `weight` takes an optional 3rd
-  field, the scale or app (*Source* / *Origen*), stored as the row's source like `bodyfat`; without
-  it the row says `Shortcut`. A weight stamped exactly at midnight (local `00:00:00`, or `00:00:00`
-  UTC such as `02:00:00+02:00`) with no body-fat sample within 10 minutes is dropped as a phantom
-  date-only entry (the Health profile weight, or a manual entry without a time): a smart scale
-  writes body fat with every weigh-in, so a real weigh-in is kept. `bodyfat` accepts a fraction (`0.184`) or a percent
-  (`18.4`); `waist` accepts cm, or metres (`0.84`), which it converts. Send it in **centimetres**:
-  the metres check (value below 3) cannot tell inches from cm, so `33` in would be stored as 33 cm.
-- **Day totals**: the oldest day of each key is dropped (a "last N days" query starts mid-day, so
-  that day is partial; the four `diet_*` keys share one oldest day, since they fold into one row), and the latest payload wins for a day. A `0` on `respiratory`/`walking_hr`
-  (from *Fill Missing*) means no data. Steps keep the **max** of watch and phone per day.
-- **Hour totals** (`active_energy_hourly`): one row per clock hour; the stamp is the hour's first
-  sample (e.g. `2030-01-02T09:07:12+01:00;275.3`) and is stored as the hour start. The oldest hour
-  of each payload is dropped (the window starts mid-hour) and the latest payload wins an hour.
-  It is used only to correct ride days: when a bike computer with a power meter records a ride the
-  Watch did not, the Watch's energy during the ride hours is replaced by the ride's power-based
-  energy (Strava kJ), never lowering a day (`docs/health-tab.md`, Energy).
-- **Heart-rate samples** (`hr_t` + `hr_v`, or `hr_samples`): every Watch heart-rate sample of the
-  window. `hr_t` holds one Start Date per line (`2030-01-02T09:07:12+01:00`) and `hr_v` the Value
-  on the same line number (`72`, `72 count/min`, `72 lpm` or `72,5`: the leading number is the
-  bpm); the sync pairs them by line number. If the two lists have a different number of lines (a
-  blank line counts unless it is blank in both), the payload's lists are dropped whole and
-  `npm run sync` prints a `WARNING`, so a sample is never paired with another one's value. The
-  older `hr_samples` key (one `2030-01-02T09:07:12+01:00;72` line per sample) is still accepted;
-  a payload may carry both, and they are merged. Runs overlap, so samples are deduped by their **exact
-  timestamp** across payloads (the later payload wins); a value outside 25–240 bpm is dropped as a
-  glitch. Only **hourly aggregates** reach `hr-hourly.csv` (average, max, min, count, covered
-  minutes and a per-bpm histogram of the time outside Strava activities; see
-  `docs/data-pipeline.md`), never the raw samples. They feed the day strain dial (`docs/home-tab.md`).
-- **Dietary**: the four `diet_*` keys become one row per day. A day without `diet_kcal`, or with
-  0 kcal, is skipped; a missing macro stays blank. These feed the intake rings in Nutrición.
-- **Exercise / distance / flights** (`exercise_watch`, `distance_watch`, `flights_watch`): Watch
-  day totals, same rules as the other day totals; a `0` day (*Fill Missing*, or the watch was not
-  worn) is no data, as in the export. `distance_watch` is stored in **km**: send km (`6.2`), or a
-  value with its unit (`6200 m`, `3.9 mi`); a bare number above 100 is read as metres (`100` = 100 km,
-  `101` = 101 m). Decimal commas work, and with both separators the last one is the decimal
-  (`1.234,5 m`); a repeated single separator (`1.234.567`) is rejected.
-- **The export's last day is partial**: `export.xml` is taken during a day, so its rows for that
-  day are incomplete. For the day totals (steps, energy, exercise, distance, flights, dietary) the
-  Shortcut row wins on that date, and the export row is dropped when no Shortcut row exists.
-- **Sleep**: only asleep stages (Core / Deep / REM / Asleep, English or Spanish names) build the
-  night and its hours; a segment starting after 18:00 belongs to the next morning's night. Every
-  stage also fills its own `sleep-daily.csv` column (REM / deep / core / unspecified / awake / in bed,
-  see `docs/data-pipeline.md` → Sleep), so keep *all* stages in the sample search, Awake and In Bed
-  included (In Bed comes from the iPhone, not the watch).
+What the sync does with the data: export rows win and Shortcut rows fill the other dates; day totals
+drop each payload's partial oldest day and the latest payload wins; steps keep the max of watch and
+phone; a weight stamped exactly at midnight with no body-fat sample nearby is dropped as a phantom entry;
+heart-rate samples reach the CSV only as hourly aggregates. Every rule, per key shape: [`docs/data-pipeline.md`
+→ Shortcut merge into the extract](data-pipeline.md#shortcut-merge-into-the-extract).
 
 ### Building `active_energy_hourly`
 
