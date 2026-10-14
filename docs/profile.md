@@ -166,9 +166,10 @@ lists the three parts; the summary's average sits inside a ring (`.onb-ring`):
    (`usedDayTypes`) with its sports and kcal; "Adjust the numbers" unfolds the kcal / protein / fat grid
    (carbs the remainder), `checkTargets` errors on those day types block the step, warnings only inform,
    "Recalculate" drops the edits; the ±10 % disclaimer.
-6. **Your data** — four numbered steps: the shared iOS Shortcut (an "Open" chip), the page's own origin to put in
+6. **Your data** — five numbered steps: the shared iOS Shortcut (an "Open" chip), the page's own origin to put in
    place of `TU-SERVIDOR` with a "Copy" chip (`navigator.clipboard`; the page never names a data endpoint), where
-   the token comes from (never shown) and the Strava guide.
+   the token comes from (never shown), the Strava guide and the history: a one-off Apple Health export sent as
+   a .zip to whoever runs the server (README → Level 1, step 3), the Shortcut keeping it current afterwards.
 
 Enter in a field or on a card presses the primary button (Start / Continue / Save; Close on a stop) with the same
 checks; a focused button or link clicks itself. Esc closes it like every sheet.
