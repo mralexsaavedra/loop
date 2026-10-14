@@ -90,6 +90,9 @@ test('a 16px input font token exists (iOS zooms into any focused field under 16p
   assert.equal(token('fs-input'), '16px');
 });
 
+// font sizes above --fs-input (16px): an out-ranking rule with one of these only makes a field bigger
+const ABOVE_INPUT = ['var(--fs-hero)', 'var(--fs-num-card)'];
+
 test('narrow screens: every text input, select and textarea is 16px, and no form-control rule out-ranks the guard', () => {
   const rules = parseCssRules(css());
   const guard = rules.find((r) => r.media === NARROW && r.decls.some(([p, v]) => p === 'font-size' && v === 'var(--fs-input)')
@@ -104,6 +107,8 @@ test('narrow screens: every text input, select and textarea is 16px, and no form
   for (const r of rules) {
     if (r === guard || r.media === '(min-width:900px)') continue;
     if (!r.decls.some(([p]) => p === 'font-size' || p === 'font')) continue;
+    // a LARGER size cannot trigger the zoom: the onboarding's big centred numbers (--fs-hero / --fs-num-card)
+    if (r.decls.every(([p, v]) => p !== 'font' && (p !== 'font-size' || ABOVE_INPUT.includes(v)))) continue;
     for (const sel of splitTop(r.selector)) {
       const last = sel.trim().split(/[\s>+~]+/).pop();
       const hits = [...classes].some((k) => new RegExp(`\\.${k}(?![\\w-])`).test(last));

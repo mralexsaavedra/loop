@@ -334,7 +334,8 @@ test('chevron: one glyph size and colour; no rule styles a chevron of its own', 
 });
 
 // a ‹ / › glyph in markup sits in a .chev span; the one exception is the sheet header's back button
-const GLYPH_ALLOW = { 'web/src/client/util.js': 1 }; // sheetHead's .sh-back "‹" (a 44px header control, docs)
+// sheetHead's .sh-back "‹" (a 44px header control, docs) and the onboarding's own header back (a `bare` view, the same .sh-back)
+const GLYPH_ALLOW = { 'web/src/client/util.js': 1, 'web/src/client/onboarding.js': 1 };
 test('chevron: every ‹ / › written in markup is a .chev span', () => {
   const bad = [];
   for (const f of CODE) {
@@ -358,6 +359,7 @@ const PICKED_ALLOW = {
   'detail.css .dt-day[aria-pressed=true]': "the trend calendar's selected day (a ring on a day cell)",
   'journal.css .jr-x[aria-pressed=true]': "a journal answer (the reference's ✕ / ✓ pair), not a pick among options",
   'journal.css .jr-y[aria-pressed=true]': "a journal answer (the reference's ✕ / ✓ pair), not a pick among options",
+  'profile.css .onb-card :checked+.onb-in': "the onboarding's option card (a large .chip stretched into a card: outlined + ✓, the reference's setup flow)",
 };
 test('selected chip and segmented control: one picked style each; other picked fills are listed', () => {
   const picked = RULES.filter((r) => /\[aria-(pressed|checked|selected)=true\]|:checked/.test(r.selector) && (r.decl.background || r.decl['background-color'] || r.decl['border-color']));

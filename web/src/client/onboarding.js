@@ -89,7 +89,7 @@
   function input(key, value, opts) {
     opts = opts || {};
     var id = 'onb-' + key;
-    return '<label class="food-field" for="' + id + '"><span class="food-lbl">' + esc(opts.label || '') + '</span><span class="food-in-wrap"><input class="food-in" id="' + id +
+    return '<label class="food-field' + (opts.big ? ' onb-big' : '') + '" for="' + id + '"><span class="food-lbl">' + esc(opts.label || '') + '</span><span class="food-in-wrap"><input class="food-in" id="' + id +
       '" data-onb-field="' + key + '" type="' + (opts.type || 'text') + '"' + (opts.mode ? ' inputmode="' + opts.mode + '"' : '') + ' value="' + esc(value) + '"' +
       (S.errors[opts.err || key] ? ' aria-invalid="true"' : '') + '>' + (opts.suffix ? '<span class="food-suffix">' + esc(opts.suffix) + '</span>' : '') +
       '</span>' + err(opts.err || key) + '</label>';
@@ -143,7 +143,8 @@
         (S.adjust ? '<div class="onb-cells">' + cell('kcal', N.kcal) + cell('p', N.p) + cell('f', N.f) +
           '<label class="onb-cell"><span class="food-lbl">' + esc(N.c) + '</span><input class="food-in" value="' + esc(String(E.carbsOf(c))) + '" disabled></label></div>' : '') + msgs + '</li>';
     }).join('');
-    return q(N.q) + '<p><b class="kcal">' + esc(HC.int(weekAverage(t))) + '</b></p><p class="pf-note">' + esc(N.hero) + ' · ' + esc(format(N.protein, { p: t[S.goal].rest.p })) + '</p>' +
+    return q(N.q) + '<div class="onb-ring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="57"/></svg><b class="kcal">' + esc(HC.int(weekAverage(t))) +
+      '</b><span class="pf-note">' + esc(N.hero) + '</span></div><p class="pf-note">' + esc(format(N.protein, { p: t[S.goal].rest.p })) + '</p>' +
       (floor ? '<p class="pf-note">' + esc(N.floor) + '</p>' : '') + '<ul class="db-list">' + rows + '</ul><div class="food-btns">' +
       (S.adjust ? '<button type="button" class="food-btn food-btn-ghost" data-onb-act="reset">' + esc(N.reset) + '</button>'
         : '<button type="button" class="food-btn food-btn-ghost" data-onb-act="adjust">' + esc(N.adjust) + '</button>') +
@@ -158,12 +159,16 @@
   }
   function screenHtml(id) {
     var a = S.a;
-    if (id === 'welcome') return q(T.welcome.q, T.welcome.intro) + '<p class="pf-note">' + esc(T.welcome.time) + '</p>';
+    if (id === 'welcome') {
+      return q(T.welcome.q, T.welcome.intro) + '<ol class="db-list onb-steps">' + T.welcome.steps.map(function (x, n) {
+        return '<li class="db-row"><b class="db-val">' + (n + 1) + '</b><span class="db-name">' + esc(x) + '</span></li>';
+      }).join('') + '</ol><p class="pf-note">' + esc(T.welcome.time) + '</p>';
+    }
     if (id === 'name') return q(T.name.q) + input('name', a.name, { label: T.optional });
     if (id === 'sex') return q(T.sex.q, T.sex.hint) + cards('sex', 'radio', ['female', 'male'].map(function (v) { return { value: v, name: T.sex[v], on: a.sex === v }; }), T.sex.q);
-    if (id === 'birth') return q(T.birth.q) + input('birthdate', a.birthdate, { type: 'date', err: 'age' });
-    if (id === 'height') return q(T.height.q) + input('heightCm', a.heightCm, { mode: 'decimal', suffix: 'cm' });
-    if (id === 'weight') return q(T.weight.q, P.weight && P.weight.kg != null ? T.weight.hint : '') + input('weightKg', a.weightKg, { mode: 'decimal', suffix: 'kg' });
+    if (id === 'birth') return q(T.birth.q) + input('birthdate', a.birthdate, { type: 'date', err: 'age', big: true });
+    if (id === 'height') return q(T.height.q) + input('heightCm', a.heightCm, { mode: 'decimal', suffix: 'cm', big: true });
+    if (id === 'weight') return q(T.weight.q, P.weight && P.weight.kg != null ? T.weight.hint : '') + input('weightKg', a.weightKg, { mode: 'decimal', suffix: 'kg', big: true });
     if (id === 'activity') {
       var A = T.activity.options;
       return q(T.activity.q) + cards('activity', 'radio', ['sedentary', 'light', 'active'].map(function (v) { return { value: v, name: A[v].name, desc: A[v].desc, on: a.activity === v }; }), T.activity.q);
@@ -186,27 +191,33 @@
       var notes = sc.flags.filter(function (f) { return G[f]; }).map(function (f) { return '<p class="pf-note">' + esc(G[f]) + '</p>'; }).join('');
       return q(G.q) + notes + cards('goal', 'radio', sc.goals.map(function (g) { return { value: g, name: G.options[g].name, desc: G.options[g].desc, on: S.goal === g }; }), G.q);
     }
-    if (id === 'target') return q(T.target.q, T.target.hint) + input('target', S.target, { mode: 'decimal', suffix: 'kg' });
+    if (id === 'target') return q(T.target.q, T.target.hint) + input('target', S.target, { mode: 'decimal', suffix: 'kg', big: true });
     if (id === 'summary') return summaryHtml();
     return dataHtml();
   }
   function stopHtml() {
     var X = T.stop, why = S.screen.flags[0];
     return q(X.heading) + '<p class="pf-note">' + esc(X[why] || X.minor) + '</p>' +
-      '<div class="food-btns"><button type="button" class="food-btn" data-onb-act="later">' + esc(X.close) + '</button></div>';
+      '<div class="onb-nav"><button type="button" class="food-btn" data-onb-act="later">' + esc(X.close) + '</button></div>';
+  }
+  // the flow's own header (a `bare` view): ONE back arrow (on the cover it closes, like "Later"), the
+  // segmented progress (one segment per screen after the cover) and "Later"
+  function topHtml(i, n) {
+    var back = i > 0 ? 'back' : 'later', segs = '';
+    for (var k = 1; k <= n; k++) segs += '<i' + (k <= i ? ' class="on"' : '') + '></i>';
+    return '<div class="onb-top"><button type="button" class="sh-back" data-onb-act="' + back + '" aria-label="' + esc(i > 0 ? T.back : T.later) + '">‹</button>' +
+      (i > 0 ? '<span class="onb-prog" role="img" aria-label="' + esc(format(T.step, { n: i, total: n })) + '">' + segs + '</span>' : '') +
+      (i > 0 ? '<button type="button" class="lnk" data-onb-act="later">' + esc(T.later) + '</button>' : '') + '</div><h2 class="sr-only" id="dt-title">' + esc(T.title) + '</h2>';
   }
   function navHtml(list, i) {
     var first = i === 0, last = i === list.length - 1;
-    return '<p class="pf-note pf-status" id="onb-status" role="status" aria-live="polite">' + esc(S.status) + '</p><div class="food-btns">' +
-      (first ? '<button type="button" class="food-btn food-btn-ghost" data-onb-act="later">' + esc(T.later) + '</button>'
-        : '<button type="button" class="food-btn food-btn-ghost" data-onb-act="back">' + esc(T.back) + '</button>') +
+    return '<div class="onb-nav"><p class="pf-note pf-status" id="onb-status" role="status" aria-live="polite">' + esc(S.status) + '</p>' +
       '<button type="button" class="food-btn" data-onb-act="' + (last ? 'save' : 'next') + '">' + esc(last ? T.save : first ? T.start : T.next) + '</button></div>';
   }
   function render() {
-    if (S.at === 'stop') return { head: '', body: '<section class="onb">' + stopHtml() + '</section>' };
+    if (S.at === 'stop') return { bare: true, body: '<section class="onb">' + topHtml(0, 0) + stopHtml() + '</section>' };
     var list = screens(), i = list.indexOf(S.at), n = list.length - 1;
-    var bar = i > 0 ? '<div class="adh-bar" role="img" aria-label="' + esc(format(T.step, { n: i, total: n })) + '"><i style="width:' + Math.round((i / n) * 100) + '%"></i></div>' : '';
-    return { head: '', body: '<section class="onb">' + bar + screenHtml(S.at) + navHtml(list, i) + '</section>' };
+    return { bare: true, body: '<section class="onb">' + topHtml(i, n) + screenHtml(S.at) + navHtml(list, i) + '</section>' };
   }
 
   /* ---------- validation per screen ---------- */
@@ -272,7 +283,7 @@
     var list = screens();
     S.at = list[Math.max(0, list.indexOf(S.at) - 1)];
     S.errors = {};
-    reopen('[data-onb-act="back"], [data-onb-act="later"]');
+    reopen('[data-onb-act="next"]');
   }
   function doc() {
     var a = S.a, p = person(), out = {

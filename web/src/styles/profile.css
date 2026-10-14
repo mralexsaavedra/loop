@@ -343,9 +343,35 @@
   text-align: right;
 }
 
-/* The in-page onboarding (client/onboarding.js): full screen in the detail sheet, one question per screen —
- * a progress bar (the adherence bar, .adh-bar), a large question, option cards (the chip radios / checkboxes of .seg, stretched into
- * cards), the summary's hero number (.kcal) and its day rows (.db-row) with the folded number grid. */
+/* The in-page onboarding (client/onboarding.js): full screen in the detail sheet (a `bare` view, own header),
+ * one question per screen — the back arrow + segmented progress, a large question, option cards (the .seg
+ * chip radios / checkboxes stretched into cards: outlined, a check on the picked one), large centred numbers,
+ * (.onb .onb-big out-specifies base.css's 16px phone input rule), the CTA pinned at the bottom, the summary's average inside a ring (.kcal) and its day rows (.db-row). */
+.onb {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 2 * var(--sp-10));
+}
+.onb-top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-top: calc(-1 * var(--sp-3));
+}
+.onb-prog {
+  flex: 1;
+  display: flex;
+  gap: 3px;
+}
+.onb-prog i {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--track);
+}
+.onb-prog .on {
+  background: var(--accent);
+}
 .onb-q {
   font-size: var(--fs-num-card);
   margin: var(--sp-8) 0 var(--sp-3);
@@ -357,14 +383,96 @@
   flex: 1;
   flex-direction: column;
   align-items: flex-start;
-  padding: var(--sp-5);
+  padding: var(--card-pad) 2.6em var(--card-pad) var(--card-pad);
   border-radius: var(--card-radius);
+  background: var(--card-bg);
+  color: var(--ink);
   font-size: var(--fs-xl);
   letter-spacing: 0;
   text-transform: none;
 }
+.onb-in small {
+  color: var(--muted);
+  font-weight: 400;
+}
+.onb-card :checked + .onb-in {
+  background: var(--card-bg);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+.onb-card :checked + .onb-in::after {
+  content: "✓";
+  position: absolute;
+  top: 50%;
+  right: var(--card-pad);
+  transform: translateY(-50%);
+  color: var(--accent);
+  font-size: var(--fs-2xl);
+}
+.onb .onb-big .food-in {
+  min-height: 88px;
+  padding: 0 1.4em;
+  border: 0;
+  border-bottom: 2px solid var(--line);
+  border-radius: 0;
+  background: none;
+  font-family: var(--num);
+  font-size: var(--fs-hero);
+  text-align: center;
+}
+.onb .onb-big [type="date"] {
+  font-size: var(--fs-num-card);
+}
+.onb-big .food-suffix {
+  font-size: var(--fs-2xl);
+}
+.onb-top .lnk {
+  color: var(--muted);
+}
+.onb-steps {
+  margin: var(--sp-6) 0;
+}
+.onb-steps .db-val {
+  color: var(--accent);
+  font-family: var(--num);
+  font-size: var(--fs-2xl);
+}
+.onb-ring {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: min(240px, 70vw);
+  aspect-ratio: 1;
+  margin: var(--sp-4) auto;
+  text-align: center;
+}
+.onb-ring svg {
+  position: absolute;
+  inset: 0;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.onb-nav {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding: var(--sp-5) 0 env(safe-area-inset-bottom);
+  background: var(--ground);
+}
+.onb-nav .food-btn {
+  width: 100%;
+  min-height: 52px;
+}
 .onb .db-row {
   flex-wrap: wrap;
+}
+@media (min-width: 900px) {
+  .onb {
+    min-height: 0;
+  }
 }
 .onb-cells {
   flex-basis: 100%;
