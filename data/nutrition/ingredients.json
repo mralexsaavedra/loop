@@ -1121,6 +1121,33 @@
         "typical": true
       }
     },
+    "mandarina": {
+      "per": 100,
+      "unit": "g",
+      "cat": "fruit",
+      "maxAmt": 240,
+      "verified": false,
+      "name": {
+        "es": "Mandarina",
+        "en": "Mandarin"
+      },
+      "k": 53,
+      "p": 0.8,
+      "c": 13.3,
+      "g": 0.3,
+      "piece": {
+        "name": {
+          "es": "mandarina mediana",
+          "en": "medium mandarin"
+        },
+        "plural": {
+          "es": "mandarinas medianas",
+          "en": "medium mandarins"
+        },
+        "amt": 80,
+        "typical": true
+      }
+    },
     "zumonaranja": {
       "per": 100,
       "unit": "ml",

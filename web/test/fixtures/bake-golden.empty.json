@@ -2888,6 +2888,33 @@
     "unit": "g",
     "verified": false
    },
+   "mandarina": {
+    "c": 13.3,
+    "cat": "fruit",
+    "g": 0.3,
+    "k": 53,
+    "maxAmt": 240,
+    "name": {
+     "en": "Mandarin",
+     "es": "Mandarina"
+    },
+    "p": 0.8,
+    "per": 100,
+    "piece": {
+     "amt": 80,
+     "name": {
+      "en": "medium mandarin",
+      "es": "mandarina mediana"
+     },
+     "plural": {
+      "en": "medium mandarins",
+      "es": "mandarinas medianas"
+     },
+     "typical": true
+    },
+    "unit": "g",
+    "verified": false
+   },
    "mantequilla": {
     "c": 0.5,
     "cat": "fat",
