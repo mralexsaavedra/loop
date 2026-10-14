@@ -5,7 +5,7 @@
  *
  *   npm run sync:strava
  *
- * Env    : INGEST_URL (default http://localhost:8088), INGEST_TOKEN (falls back to
+ * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/health-ingest/.env>, else :8088), INGEST_TOKEN (falls back to
  *          services/health-ingest/.env, same file sync-shortcut.mjs reads).
  * Writes : data/apple-health/extract/workouts.csv + rides.csv (ride windows + power flag for the
  *          active-energy correction, see rideRow) + workout-zones.csv (per-activity time in HR
@@ -346,7 +346,7 @@ const PROFILE_JSON = process.env.SYNC_STRAVA_PROFILE || path.join(DIR, '..', '..
 
 async function main () {
   const t0 = Date.now()
-  const baseUrl = process.env.INGEST_URL || common.DEFAULT_URL
+  const baseUrl = common.readBaseUrl(process.env, process.env.INGEST_ENV_FILE || common.ENV_FILE)
   const token = common.readIngestToken(process.env, process.env.INGEST_ENV_FILE || common.ENV_FILE)
   if (!token) {
     console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/health-ingest/.env. No files touched.')

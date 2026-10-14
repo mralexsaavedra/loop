@@ -9,7 +9,7 @@ import path from 'node:path';
 import * as common from './sync-common.mjs';
 
 const {
-  mergeCsv, fetchJson, fetchPages, resolveToken, readIngestToken, writeAtomic, DEFAULT_URL, ENV_FILE,
+  mergeCsv, fetchJson, fetchPages, resolveToken, readIngestToken, resolveBaseUrl, readBaseUrl, writeAtomic, DEFAULT_URL, ENV_FILE,
   acquireLock, releaseLock, withLock,
 } = common;
 
@@ -174,4 +174,31 @@ test('withLock() serializes contention: a second caller waits for the first to r
   assert.deepEqual(order, ['first', 'second']);
   assert.ok(!fs.existsSync(lock));
   fs.rmSync(dir, { recursive: true });
+});
+
+// A second clone on the same host (another person) runs its own ingest service on another port: the
+// host-side sync scripts must talk to THIS clone's service, or one person's data lands in the other's files.
+test('resolveBaseUrl: INGEST_URL wins, then this clone\'s INGEST_PORT from its .env, then :8088', () => {
+  assert.equal(resolveBaseUrl({ INGEST_URL: 'http://10.0.0.5:9000/' }, 'INGEST_PORT=8089\n'), 'http://10.0.0.5:9000');
+  assert.equal(resolveBaseUrl({}, 'INGEST_TOKEN=x\nINGEST_PORT=8089\n'), 'http://localhost:8089');
+  assert.equal(resolveBaseUrl({}, 'INGEST_PORT="8091"\n'), 'http://localhost:8091');
+  assert.equal(resolveBaseUrl({}, '# INGEST_PORT=9999\nINGEST_TOKEN=x\n'), DEFAULT_URL, 'a commented line is ignored');
+  assert.equal(resolveBaseUrl({}, 'INGEST_PORT=abc\n'), DEFAULT_URL, 'a non-numeric port is ignored');
+});
+
+test('resolveBaseUrl: unchanged default with no env and no .env (the single-install behaviour)', () => {
+  assert.equal(resolveBaseUrl({}, null), 'http://localhost:8088');
+  assert.equal(resolveBaseUrl({}, 'INGEST_PORT=8088\n'), 'http://localhost:8088');
+});
+
+test('readBaseUrl reads the .env file from disk (missing file = default)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-baseurl-'));
+  try {
+    const f = path.join(dir, '.env');
+    assert.equal(readBaseUrl({}, f), DEFAULT_URL);
+    fs.writeFileSync(f, 'INGEST_PORT=8089\n');
+    assert.equal(readBaseUrl({}, f), 'http://localhost:8089');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

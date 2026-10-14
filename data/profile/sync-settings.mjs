@@ -6,7 +6,7 @@
  *
  *   node data/profile/sync-settings.mjs     (part of `npm run sync`, after the profile sync)
  *
- * Env    : INGEST_URL (default http://localhost:8088). No token: /food/* is the unauthenticated,
+ * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/health-ingest/.env>, else :8088). No token: /food/* is the unauthenticated,
  *          LAN-only food layer; the request carries `X-HC-Food: 1` and the URL's Host must be one the
  *          service accepts (an IP literal, localhost, or a name in its FOOD_ALLOWED_HOSTS).
  * Writes : data/profile/settings.json = {goal, targetWeightKg, updatedAt, fetchedAt} (temp file +
@@ -103,7 +103,7 @@ function warning (err, baseUrl) {
 }
 
 async function main () {
-  const baseUrl = (process.env.INGEST_URL || common.DEFAULT_URL).replace(/\/+$/, '')
+  const baseUrl = common.readBaseUrl(process.env)
   let body
   try {
     body = await fetchSettings(baseUrl)

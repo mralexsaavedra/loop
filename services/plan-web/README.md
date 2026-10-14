@@ -321,6 +321,43 @@ order**: steps 0–1 must happen before the first `docker compose up`.
 The ingest port must be reachable from the Docker bridge (the default
 `"${INGEST_PORT}:8088"` publish is; a `127.0.0.1:`-only publish is not).
 
+### Running a second install (another person, same host)
+
+Each person gets their own clone, database, token, page and Shortcut; nothing is shared. On the same host,
+pick a name (`second` below) and two free ports (8089 for the ingest service, 8091 for the page), then:
+
+1. **Clone again** next to the first one and install: `git clone <repo-url> /path/to/health-coach-second`,
+   `cd` into it, `npm ci`.
+2. **Follow Install (host) steps 0–10 in the new clone**, with these values:
+   - `services/health-ingest/.env` (after step 0): add `HC_INSTANCE=second` and set `INGEST_PORT=8089`.
+   - `services/plan-web/.env` (new file, before step 5):
+
+     ```sh
+     printf 'HC_INSTANCE=second\nPLAN_WEB_PORT=8091\nINGEST_PORT=8089\n' > services/plan-web/.env
+     ```
+
+   - Step 7 (cron): the new clone's path.
+   - Step 8 (systemd): rename the units so they do not replace the first install's:
+
+     ```sh
+     for u in path service; do
+       sed -e 's#/path/to/health-coach#/path/to/health-coach-second#g' -e 's#REPO_OWNER#youruser#g' \
+           -e 's#plan-web-refresh\.service#plan-web-refresh-second.service#g' \
+         services/plan-web/systemd/plan-web-refresh.$u | sudo tee /etc/systemd/system/plan-web-refresh-second.$u >/dev/null
+     done
+     sudo systemctl daemon-reload && sudo systemctl enable --now plan-web-refresh-second.path
+     ```
+
+   - Smoke test and phone: port **8091** instead of 8090 (`curl` the ingest on **8089**).
+3. **Check nothing collided:** `docker ps` lists `health-db-second`, `health-ingest-second` and
+   `plan-web-second` next to the first install's containers, and each `site/status.json` shows its own build.
+
+`HC_INSTANCE` suffixes the compose project, the container names and the database volume
+(`health-ingest-second_health-db-data`); left empty, the names are the plain ones, so the first install is
+untouched. The sync scripts (`npm run sync`, `refresh.sh`) read `INGEST_PORT` from the clone's own
+`services/health-ingest/.env`, so each clone only ever reads its own service. Every install runs its own
+hourly build: on a small host (2 CPU / 4 GB) stagger the cron minutes (`0 * * * *` and `30 * * * *`).
+
 ### The service user and the hardening, and their tradeoffs
 
 - **`User=REPO_OWNER`**: the build runs as the user that owns the clone, the
