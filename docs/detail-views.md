@@ -2,9 +2,8 @@
 
 The full-screen drill-down sheet behind every card.
 
-> Area design doc (moved out of `CLAUDE.md` on 2026-10-07). Read it before changing this area and keep
-> it in sync with the code in the same commit. Section names quoted in the text ("Nutrition v2 part 2",
-> "Detail views"…) are listed in `CLAUDE.md` → Architecture map.
+> **Reference** — how this area is built, for anyone changing it (keep it in sync with the code in the same
+> commit). Setting up or using the page? Start at the [documentation index](README.md).
 
 ## Detail views — tap any card, see every day
 

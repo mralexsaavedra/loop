@@ -1,10 +1,9 @@
-# Nutrition — plan pipeline and Nutrición (part 1)
+# Nutrition — the plan pipeline and the Nutrition tab
 
 Plan data pipeline, the published artifact, intake rings, goals / day types / portion guide / fuelling / Tablas. Food log, products, recipes and settings: `docs/nutrition-food-log.md`.
 
-> Area design doc (moved out of `CLAUDE.md` on 2026-10-07). Read it before changing this area and keep
-> it in sync with the code in the same commit. Section names quoted in the text ("Nutrition v2 part 2",
-> "Detail views"…) are listed in `CLAUDE.md` → Architecture map.
+> **Reference** — how this area is built, for anyone changing it (keep it in sync with the code in the same
+> commit). Setting up or using the page? Start at the [documentation index](README.md).
 
 ## Nutrition plan — data pipeline & published artifact
 
