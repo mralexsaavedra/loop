@@ -83,7 +83,7 @@ dataset.
 | Onboarding | On a fresh clone Claude interviews you and writes your profile, baseline and coach config ([`docs/onboarding.md`](docs/onboarding.md)) |
 | `/analysis` skill | Sync → freshness check → trends per [`analysis/methodology.md`](analysis/methodology.md) → a dated report in `analysis/reports/` |
 | Coach subagents | `cycling-coach`, `hybrid-coach`, `nutrition-coach`: read-only, cite every claim, configured by your gitignored `profile/coaches.md` ([`docs/knowledge-base.md`](docs/knowledge-base.md)) |
-| The page | `npm run generate` → `web/dist/personal/index.html`: Home, Training, Health, Nutrition tabs; tap any card for its history ([`docs/plan-page.md`](docs/plan-page.md)) |
+| The page | `npm run generate` → `web/dist/personal/index.html`: Home, Training, Health, Nutrition tabs; tap any card for its history ([a tour of the page](docs/guides/page-tour.md)) |
 | Guard hook | Blocks force-adding ignored (personal) files and un-ignoring them in `.gitignore` ([`docs/guard-hook.md`](docs/guard-hook.md)) |
 
 `CLAUDE.md` is the operating manual Claude reads every session. Every guide and reference doc is listed
@@ -144,8 +144,8 @@ Optional extras for this level:
 
 | Want | Do | Doc |
 | --- | --- | --- |
-| Your own nutrition plan | Edit `plan-data.json` (servings, day plan, `targets.byGoal`); the food DB `ingredients.json` ships tracked | [`docs/nutrition.md`](docs/nutrition.md) |
-| Today's programmed session | Fill `training-data.json` by date (Claude can transcribe a coach's PDF) | [`docs/training.md`](docs/training.md) |
+| Your own nutrition plan | Edit `plan-data.json` (servings, day plan, `targets.byGoal`); the food DB `ingredients.json` ships tracked | [`docs/guides/your-plan.md`](docs/guides/your-plan.md) |
+| Today's programmed session | Fill `training-data.json` by date (Claude can transcribe a coach's PDF) | [`docs/guides/your-plan.md`](docs/guides/your-plan.md) → The training plan |
 | Try it with no data | `npm run build:example`, then open `web/dist/example/index.html` — the tracked seeds + a clearly synthetic demo extract (`data/demo/`). The demo days are fixed (they end on 28 Sep 2026), so today's dials show as stale: open any card to see its history | [`data/demo/README.md`](data/demo/README.md) |
 
 ### Level 2 — food log + live page on your LAN (Docker)
