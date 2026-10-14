@@ -83,6 +83,7 @@ export const en = {
     server: { t: 'Point it at your server', d: 'In the Shortcut, replace TU-SERVIDOR with', copy: 'Copy', copied: 'Address copied.' },
     token: { t: 'Add your token', d: 'Ask whoever set up this server (it is never shown on the page).' },
     strava: { t: 'Strava (optional)', d: 'See "Getting the Strava credentials" in the server guide.' },
+    history: { t: 'Your history (optional)', d: 'Once, for your past data: Health → your photo → Export All Health Data, and send the .zip to whoever set up this server. The Shortcut keeps it up to date afterwards.' },
     after: 'After saving, the page updates in a couple of minutes.',
   },
   errors: {
@@ -201,6 +202,7 @@ export const es = {
     server: { t: 'Apúntalo a tu servidor', d: 'En el atajo, cambia TU-SERVIDOR por', copy: 'Copiar', copied: 'Dirección copiada.' },
     token: { t: 'Añade tu token', d: 'Pídeselo a quien montó este servidor (nunca se muestra en la página).' },
     strava: { t: 'Strava (opcional)', d: 'Mira «Getting the Strava credentials» en la guía del servidor.' },
+    history: { t: 'Tu historial (opcional)', d: 'Una vez, para tus datos antiguos: Salud → tu foto → Exportar todos los datos de salud, y pásale el .zip a quien montó este servidor. Después el atajo lo mantiene al día.' },
     after: 'Al guardar, la página se actualiza en un par de minutos.',
   },
   errors: {
