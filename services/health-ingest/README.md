@@ -1,19 +1,20 @@
 # health-ingest
 
-Phase 1 of the self-hosted health stack: a raw landing zone for personal health
-data, so that keeping the dataset fresh requires no manual work.
+The data service of the self-hosted stack: it receives your health data, keeps your
+food log, journal and settings, and pulls Strava, so the page stays fresh with no manual work.
 
 Two sources feed it:
 
-- **Apple Health**, pushed from the iPhone by [Health Auto Export][hae] over HTTP.
+- **Apple Health**, pushed from the iPhone by the iOS Shortcut
+  ([`docs/ios-shortcut.md`](../../docs/ios-shortcut.md)) to `POST /ingest/health-auto-export`. The path
+  keeps the name of [Health Auto Export][hae], an app that can post the same way.
 - **Strava**, pulled from its API on a timer (and on demand, see `POST /sync`).
 
 ## Why raw first
 
-Health Auto Export does not publish its JSON schema. Rather than parse a guessed
-shape, the service stores every payload verbatim in `raw_payload` together with
-the automation headers the app sends. The normalizer is written afterwards,
-against real samples.
+The service stores every payload verbatim in `raw_payload` together with the headers
+the client sends; the host-side sync (`scripts/sync-shortcut.mjs`) parses it into the
+extract CSVs. A parsing fix later is a re-sync, not a re-import.
 
 Nothing is discarded, so re-normalizing later is a query, not a re-import.
 
@@ -111,11 +112,12 @@ or the payload itself (tests pin the exact key set and that no error text
 leaks). The data endpoints (`/ingest`, `/export`, `/sync/strava`) keep the
 bearer token.
 
-**Exposure model.** A public reverse proxy in front of this service should
-forward ONLY `/ingest/*` and `POST /sync` (the Shortcut's last step);
-`/sync/status` is optional. Never expose `/export/*`, `/sync/strava` or
-`/food/*`. The LAN plan-web nginx proxies only `/api/sync`, `/api/sync/status`
-and `/api/food/*`.
+**Exposure model.** This service is never exposed on its own: plan-web's nginx
+is the only entry, on the LAN or behind a public tunnel, and proxies only
+`POST /ingest/health-auto-export`, `/api/sync`, `/api/sync/status`,
+`/api/food/*` and `/api/journal/*`. Never publish this service's port, and
+never `/export/*` or `/sync/strava` (see
+[`../plan-web/README.md` → Exposing behind an SSO tunnel](../plan-web/README.md)).
 
 **Deploy order.** Create the trigger directory and hand it to the container's
 `node` user (uid 1000) BEFORE `docker compose up`, or Docker creates it
@@ -467,7 +469,10 @@ down with it.
    and shows an error page — **that is expected**. Copy the `code` value from the address bar.
    The scopes: `activity:read_all` reads your activities (private ones included), `profile:read_all`
    your bikes and shoes.
-3. **Exchange the code for a refresh token** within a few minutes (the code is single-use and expires):
+3. **Exchange the code for a refresh token** within a few minutes (the code is single-use and expires).
+   Easiest: put `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` in `.env` and run `node scripts/strava-auth.js`
+   from this folder; it asks for the code and writes the refresh token into `.env` (then skip to step 4's
+   `docker compose up -d`). By hand:
 
    ```sh
    curl -s -X POST https://www.strava.com/oauth/token \
