@@ -310,7 +310,7 @@ test('each registered view key belongs to ONE client script, always a string lit
       owner.set(lit[2], f);
     }
   }
-  assert.deepEqual([...owner.keys()].sort(), ['dash-edit', 'food-add', 'hoy-session', 'journal', 'journal-insights', 'profile', 'tonight']);
+  assert.deepEqual([...owner.keys()].sort(), ['dash-edit', 'food-add', 'hoy-session', 'journal', 'journal-insights', 'onboarding', 'profile', 'tonight']);
 });
 
 test('only util.js writes window.HCViews: every other client script registers through HC.registerView', () => {

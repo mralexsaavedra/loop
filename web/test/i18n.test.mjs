@@ -2,6 +2,7 @@
  * identical key trees, no empty strings". `strings` is walked recursively.
  * The day builder's copy (strings.registro, the verdict functions and the
  * verdict / log client templates) went away with the builder. */
+import { es as esOnb, en as enOnb } from '../src/i18n/onboarding-templates.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { es, en } from '../src/i18n/index.mjs';
@@ -350,4 +351,15 @@ test('one label per meal slot across food / nutri / profile copy (es: snack = "T
   }
   assert.equal(esFood.meals.snack, 'Tentempié');
   assert.equal(esFood.groupOption.addon, 'Añadido', 'the Registrar group keeps its own name');
+});
+
+test('onboarding-templates.mjs (the in-page onboarding) has identical key trees in es/en, all non-empty', () => {
+  const tree = (o) => leaves(o).map(([p]) => p).sort();
+  assert.deepEqual(tree(esOnb), tree(enOnb));
+  for (const [locale, dict] of [['es', esOnb], ['en', enOnb]]) {
+    for (const [p, v] of leaves(dict)) {
+      assert.equal(typeof v, 'string', `${locale}.${p}`);
+      assert.notEqual(v.trim(), '', `${locale} onboarding-templates.${p} must not be empty`);
+    }
+  }
 });

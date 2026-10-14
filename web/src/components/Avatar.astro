@@ -4,10 +4,12 @@
  * generic person icon. It opens the profile sheet — client/profile.js registers the `profile` view of
  * the detail sheet (client/detail.js: same modal, focus handling and deep link #profile). Bakes PROFILE
  * (lib/profile/read.mjs loadProfile -> profile.mjs buildProfile) with `photo` reduced to a flag,
- * since the data URI already sits in the <img> once, and I18N_PROFILE.
+ * since the data URI already sits in the <img> once, I18N_PROFILE and I18N_ONB (the in-page onboarding,
+ * client/onboarding.js).
  */
 import { jsonForScript } from '../../../lib/serialize.mjs';
 import { es as esProfile, en as enProfile } from '../i18n/profile-templates.mjs';
+import { es as esOnb, en as enOnb } from '../i18n/onboarding-templates.mjs';
 
 interface Props {
   profile: any; // lib/profile/read.mjs loadProfile() result
@@ -16,7 +18,7 @@ interface Props {
 const { profile, locale } = Astro.props;
 const T = locale === 'es' ? esProfile : enProfile;
 const { photo, ...rest } = profile;
-const bake = `var PROFILE = ${jsonForScript({ ...rest, photo: Boolean(photo) })};\nvar I18N_PROFILE = ${jsonForScript(T)};`;
+const bake = `var PROFILE = ${jsonForScript({ ...rest, photo: Boolean(photo) })};\nvar I18N_PROFILE = ${jsonForScript(T)};\nvar I18N_ONB = ${jsonForScript(locale === 'es' ? esOnb : enOnb)};`;
 ---
 <button type="button" id="avatar-btn" class="avatar-btn" data-detail="profile" aria-haspopup="dialog" aria-label={T.open}>
   {photo ? (

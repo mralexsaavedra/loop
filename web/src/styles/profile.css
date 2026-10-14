@@ -342,3 +342,38 @@
   font-weight: var(--label-weight);
   text-align: right;
 }
+
+/* The in-page onboarding sheet (client/onboarding.js) reuses the profile sections and the food sheet's
+ * fields and buttons; these rules lay out its choice groups, safety checkboxes and per-day number grid. */
+.onb-step,
+.onb-cell-lbl {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.onb-choice {
+  border: 0;
+  margin: 0 0 var(--sp-4);
+  padding: 0;
+  min-width: 0;
+}
+.onb-check {
+  display: flex;
+  gap: var(--sp-2);
+  min-height: 44px;
+  align-items: center;
+  font-size: var(--fs-sm);
+}
+.onb-days {
+  list-style: none;
+  padding: 0;
+}
+.onb-day {
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.onb-cells {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}

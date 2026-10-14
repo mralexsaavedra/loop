@@ -21,7 +21,7 @@ from 900px) with that metric's history. No new score: the sheet only shows the c
   `window.HCDetail`). `detail.js` builds one `HCDetailState` + one `HCDetailChart` per page and hands the
   state helpers to `deepdive.js` (`X`). Tests load the set through `DETAIL_SOURCE` (`web/test/client-util.mjs`).
 
-- **Registered views** — a sheet that is not a `DETAIL` metric (profile, tonight, dash-edit, hoy-session,
+- **Registered views** — a sheet that is not a `DETAIL` metric (profile, onboarding, tonight, dash-edit, hoy-session,
   food-add, journal, journal-insights) registers with `HC.registerView(<key>, {title(), render() → {head,
   body, info?}})` (`info`: notes collapsed under the shared header ⓘ, `#dd-info`, e.g. Tonight's rule) (`client/util.js`, the ONLY writer of `window.HCViews`; the registry appears with the first view)
   and `detail.js` reads it through `HC.view(<key>)` (own keys only, else null). Registering a key again
