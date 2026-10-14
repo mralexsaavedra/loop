@@ -12,6 +12,8 @@
  *   GET    /food/log/summary?from=&to=  per-day sums of the log (<= FOOD_LIMITS.summaryDaysMax days): the
  *                                   page's adherence view (food-calc.js daySummaries)
  *   GET    /food/settings            the user's goal + target weight (one row, sql/007_settings.sql)
+ *   GET    /food/profile             the in-page onboarding document (profile + accepted targets), null before the first save
+ *   PUT    /food/profile             replaces it (validateProfile; one row, sql/011_profile.sql)
  *   PUT    /food/settings            partial update {goal?, targetWeightKg?} (targetWeightKg null clears it)
  *
  * The settings live in their OWN optional migration group (`settings`): when 007 fails only
@@ -64,6 +66,7 @@ const WRITE_METHODS = new Set(['POST', 'PUT', 'DELETE'])
 // path pattern -> allowed methods (+ the optional migration group it needs, default food)
 const ROUTES = [
   { re: /^\/food\/settings$/, methods: ['GET', 'PUT'], group: 'settings' },
+  { re: /^\/food\/profile$/, methods: ['GET', 'PUT'], group: 'settings' },
   { re: /^\/food\/log\/summary$/, methods: ['GET'] },
   { re: /^\/food\/products$/, methods: ['GET', 'POST'] },
   { re: /^\/food\/products\/([^/]+)$/, methods: ['PUT', 'DELETE'] },
@@ -247,6 +250,63 @@ export function validateSettings (body) {
   return out
 }
 
+// The onboarding document (PUT /food/profile). Coarse bounds only: the host sync and the build re-check the
+// targets against lib/nutrition/energy.mjs (the service is built from its own directory and cannot import lib/).
+const PROFILE_SEX = ['male', 'female']
+const PROFILE_ACTIVITY = ['sedentary', 'light', 'active']
+const PROFILE_DAY_TYPES = ['rest', 'gym', 'bike', 'bikeLong']
+
+/** A real YYYY-MM-DD calendar date from 1900 on (validDate is for log dates, 2000-2100), else null. */
+function birthDate (v) {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null
+  const [y, m, d] = v.split('-').map(Number)
+  return y >= 1900 && new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10) === v ? v : null
+}
+
+/** Whole years from an ISO birthdate to the instant `nowMs` (UTC calendar). */
+function ageAt (birthdate, nowMs) {
+  const [by, bm, bd] = birthdate.split('-').map(Number)
+  const t = new Date(nowMs)
+  const ty = t.getUTCFullYear(); const tm = t.getUTCMonth() + 1; const td = t.getUTCDate()
+  return ty - by - (tm < bm || (tm === bm && td < bd) ? 1 : 0)
+}
+
+/** The whole onboarding document: {name?, sex, birthdate (adult), heightCm, weightKg, activity, goals (the
+ * goals the safety screen allowed), targets {goal: {dayType: {kcal, p, f}}} (all twelve cells)}. */
+export function validateProfile (body, nowMs = Date.now()) {
+  strictKeys(body, ['name', 'sex', 'birthdate', 'heightCm', 'weightKg', 'activity', 'goals', 'targets'])
+  const out = {}
+  const name = str(body.name, 'name', 60, true)
+  if (name !== null) out.name = name
+  out.sex = oneOf(body.sex, 'sex', PROFILE_SEX)
+  out.birthdate = birthDate(body.birthdate) ?? bad('birthdate')
+  const age = ageAt(out.birthdate, nowMs)
+  if (age < 18 || age > 100) bad('birthdate')
+  out.heightCm = number(body.heightCm, 'heightCm', { min: 120, max: 230 })
+  out.weightKg = number(body.weightKg, 'weightKg', { min: 30, max: 250 })
+  out.activity = oneOf(body.activity, 'activity', PROFILE_ACTIVITY)
+  if (!Array.isArray(body.goals) || !body.goals.length || new Set(body.goals).size !== body.goals.length) bad('goals')
+  for (const g of body.goals) oneOf(g, 'goals', SETTINGS_GOALS)
+  out.goals = [...body.goals]
+  strictKeys(body.targets, SETTINGS_GOALS, 'targets.')
+  out.targets = {}
+  for (const g of SETTINGS_GOALS) {
+    strictKeys(body.targets[g], PROFILE_DAY_TYPES, `targets.${g}.`)
+    out.targets[g] = {}
+    for (const d of PROFILE_DAY_TYPES) {
+      const at = `targets.${g}.${d}`
+      const c = body.targets[g][d]
+      strictKeys(c, ['kcal', 'p', 'f'], `${at}.`)
+      out.targets[g][d] = {
+        kcal: number(c.kcal, `${at}.kcal`, { min: 800, max: 6000, integer: true }),
+        p: number(c.p, `${at}.p`, { min: 20, max: 400, integer: true }),
+        f: number(c.f, `${at}.f`, { min: 10, max: 300, integer: true })
+      }
+    }
+  }
+  return out
+}
+
 /** ?from=&to= (YYYY-MM-DD, from <= to, at most FOOD_LIMITS.summaryDaysMax days inclusive). */
 export function validateRange (params) {
   const from = validDate(params.get('from')) ?? bad('from')
@@ -358,6 +418,10 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
     if (path === '/food/settings') {
       if (m === 'GET') return send(res, 200, { settings: await store.getSettings() })
       return send(res, 200, { settings: await store.updateSettings(validateSettings(await readJson(req))) })
+    }
+    if (path === '/food/profile') {
+      if (m === 'GET') return send(res, 200, { profile: await store.getProfile() })
+      return send(res, 200, { profile: await store.putProfile(validateProfile(await readJson(req), now())) })
     }
     if (path === '/food/log/summary') {
       if (!summaries.take(req.socket?.remoteAddress ?? 'unknown')) throw httpError(429, 'rate_limited')
