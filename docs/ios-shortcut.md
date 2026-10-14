@@ -15,6 +15,24 @@ extract CSVs, so the dashboard stays fresh between full `export.xml` drops.
 
 Export rows always win: Shortcut rows only fill dates your last `export.xml` does not cover.
 
+## Install the ready-made Shortcut
+
+Instead of building it from scratch, import the author's copy:
+**[Salud → servidor (iCloud link)](https://www.icloud.com/shortcuts/ceb66eea36fc434a9d2f910421dd18aa)**.
+It has every key in the table below wired up; you still need the prerequisites (the ingest service and
+your token). After importing, edit three things before the first run:
+
+1. **Step 4** (*Get Contents of URL*, the POST): replace `TU-SERVIDOR` in
+   `https://TU-SERVIDOR/ingest/health-auto-export` with your host, and `TU_TOKEN` in the
+   `Authorization: Bearer TU_TOKEN` header with your `INGEST_TOKEN`.
+2. **Step 5** (the refresh): `https://TU-SERVIDOR/api/sync` → your plan-web host. Delete the action if
+   you do not run plan-web.
+3. **Every *Source is* filter**: it points to the author's watch (*Apple Watch de Alexander*); pick
+   yours. A filter left on a device you do not own returns no samples, so those keys arrive empty.
+
+Then add the personal automation (Quick path, step 3): automations are not shared with the Shortcut.
+The shared copy uses the Spanish UI and the default automation name `atajo-salud`.
+
 ## Prerequisites
 
 | You need | Where it comes from |
