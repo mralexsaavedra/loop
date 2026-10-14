@@ -163,7 +163,13 @@ saves to the ingest service). Four steps:
 
 "Save and finish" PUTs the document (`/api/food/profile`), saves the goal and target weight through
 `HCSettings`, then presses the page's Sync button, so the next build bakes the accepted targets (the
-`onboarding.json` precedence above). `HC_ENERGY` is `lib/nutrition/energy.mjs` emitted as a classic global
+`onboarding.json` precedence above). The document may also carry `sports` — `[{sport, minutes, perWeek}]`, one
+entry per sport from `energy.mjs` `SPORTS` (strength, running, cycling, swimming, hybrid = HYROX / CrossFit, team,
+yoga = yoga / pilates, other; minutes 15-600, 1-14 per week; the service keeps its own copy, `PROFILE_SPORTS`, pinned
+by a test). Each session fills a day type by its length (`dayTypeOfMinutes`: short < 75 min ≤ long < 150 min ≤ very
+long, the same cut-offs as `daytype.mjs` `DETECT`), and that day type's exercise becomes the time-weighted MET and
+average length of its sessions (`exerciseFor`; day types no sport reaches keep `EXERCISE`); `usedDayTypes` lists
+the ones a week has. Without `sports` the numbers are the `EXERCISE` defaults. `HC_ENERGY` is `lib/nutrition/energy.mjs` emitted as a classic global
 (`lib/nutrition/client.mjs` `energySource`), so the page and the build compute the same numbers
 (`web/test/client-globals-build.test.mjs` runs both). It opens on its own once, when the server has neither
 an onboarding document nor a goal and the page was not opened on a sheet deep link; "Later" is remembered

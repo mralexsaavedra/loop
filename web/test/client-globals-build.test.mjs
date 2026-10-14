@@ -55,7 +55,8 @@ const KEYS = {
     'isBikeDay', 'step', 'range', 'pickItem', 'ownDuring', 'ownBefore', 'fuelPlan', 'zero', 'r0', 'macroRow', 'fmtFactor', 'solveScale', 'planFor',
   ],
   HC_ENERGY: [
-    'NEAT', 'EXERCISE', 'round50', 'ageOn', 'bmi', 'bmrMifflin', 'maintenance', 'inRange', 'validatePerson', 'computeTargets', 'screenPerson',
+    'NEAT', 'EXERCISE', 'SPORTS', 'round50', 'ageOn', 'bmi', 'bmrMifflin', 'dayTypeOfMinutes', 'isInt', 'validSports', 'exerciseFor',
+    'usedDayTypes', 'maintenance', 'inRange', 'validatePerson', 'computeTargets', 'screenPerson',
     'checkTargetWeight', 'checkTargets', 'carbsOf',
   ],
   HC_GUIDE: [
@@ -168,6 +169,7 @@ for (const page of PAGES) {
       { sex: 'male', age: 30, heightCm: 175, weightKg: 70, activity: 'light' },
       { sex: 'female', age: 50, heightCm: 150, weightKg: 45, activity: 'sedentary' },
       { sex: 'female', age: 29, heightCm: 165, weightKg: 60, activity: 'active' },
+      { sex: 'female', age: 29, heightCm: 165, weightKg: 60, activity: 'sedentary', sports: [{ sport: 'yoga', minutes: 60, perWeek: 3 }, { sport: 'running', minutes: 90, perWeek: 2 }] },
     ];
     for (const p of people) {
       const own = EN.computeTargets(p);
@@ -177,6 +179,8 @@ for (const page of PAGES) {
       edited.maintain.gym.p = 200;
       assert.deepEqual(js(HC_ENERGY.checkTargets(edited, p)), js(EN.checkTargets(edited, p)));
       assert.deepEqual(js(HC_ENERGY.screenPerson({ ...p, medical: true })), js(EN.screenPerson({ ...p, medical: true })));
+      assert.deepEqual(js(HC_ENERGY.usedDayTypes(p.sports)), js(EN.usedDayTypes(p.sports)));
+      assert.deepEqual(js(HC_ENERGY.validatePerson(p)), []);
     }
     assert.equal(HC_ENERGY.ageOn('1997-05-20', '2026-10-14'), EN.ageOn('1997-05-20', '2026-10-14'));
     assert.deepEqual(js(HC_ENERGY.checkTargetWeight({ heightCm: 175, weightKg: 70, goal: 'cut', targetWeightKg: 55 })), ['targetBmiLow']);
