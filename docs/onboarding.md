@@ -40,7 +40,8 @@ conversationally — do not make them fill a form alone. Replicate a real coach 
    record device/app provenance (bioimpedance body-fat is trend-only, ±3–5%).
 5. **Configure the coaches.** Walk `profile/coaches.example.md` into `profile/coaches.md`
    (gitignored): reply language, country / jurisdiction (supplement limits, food database), then
-   per coach the knowledge sources they want (name, folder under `knowledge/`, how to cite,
+   per coach (cycling, HYROX / hybrid, nutrition, and `training-coach` for any other sport they do — its
+   **Sports** key) the knowledge sources they want (name, folder under `knowledge/`, how to cite,
    commercial ties), their gear (with a local manual under `data/gear/` if they have one) and where
    their current program lives. List only sources that already exist under `knowledge/` or that they
    will ingest now (`knowledge/README.md`); never suggest or invent creators for them. Nothing to

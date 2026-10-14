@@ -1,4 +1,4 @@
-/* Build-output guard for the food log (Nutrición part 2): the example build carries the food UI fully
+/* Build-output guard for the food log (docs/nutrition-food-log.md): the example build carries the food UI fully
  * wired but HIDDEN (it only appears on the LAN page, when /api/food/products answers at view time), the
  * copy and constants are baked, and the food scripts (food-core / -sheet / -catalog / -log.js) run after nutri-day.js and before intake.js (it defines
  * window.foodTotals, which both read). Reads the fixture built by `npm run pretest`. */

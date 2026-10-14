@@ -1,8 +1,9 @@
-/* Drift test for the three coach subagents (.claude/agents/*-coach.md).
+/* Drift test for the coach subagents (every .claude/agents/*-coach.md, found on disk).
  *
  * The span from "## Shared rules" up to (not including) "## Knowledge source" — the shared rules
  * and the "User facts" table — must stay byte-identical in every coach, so an edit made in one
- * agent and forgotten in the others fails `npm test` (docs/knowledge-base.md). Also pins the
+ * agent and forgotten in the others fails `npm test` (docs/knowledge-base.md). A new coach file is
+ * picked up automatically. Also pins the
  * deliberate `model: inherit` frontmatter (coaches run on the session model for citation fidelity).
  *
  * The coaches are generic templates: every user-specific fact (named experts / creators, gear,
@@ -21,7 +22,10 @@ const crypto = require('node:crypto');
 
 const ROOT = path.join(__dirname, '..', '..');
 const AGENTS = path.join(__dirname, '..', 'agents');
-const COACHES = ['cycling-coach.md', 'hybrid-coach.md', 'nutrition-coach.md'];
+const COACHES = fs
+  .readdirSync(AGENTS)
+  .filter((name) => name.endsWith('-coach.md'))
+  .sort();
 const START = '## Shared rules (identical in every coach subagent)\n';
 const END = '\n## Knowledge source\n';
 
@@ -38,13 +42,19 @@ function sharedSpan(text, name) {
   return text.slice(start, end);
 }
 
-test('the shared rules + user facts span is byte-identical across the three coaches', () => {
+test('the coach list is found on disk and holds every known coach', () => {
+  for (const name of ['cycling-coach.md', 'hybrid-coach.md', 'nutrition-coach.md', 'training-coach.md']) {
+    assert.ok(COACHES.includes(name), `${name} missing from .claude/agents/`);
+  }
+});
+
+test('the shared rules + user facts span is byte-identical across every coach', () => {
   const spans = COACHES.map((name) => [name, sharedSpan(read(name), name)]);
   const [refName, ref] = spans[0];
   assert.ok(ref.includes('## User facts'), `${refName}: the span must include the User facts table`);
   assert.ok(ref.includes('`profile/coaches.md`'), `${refName}: the span must point at the per-user coach config`);
   for (const [name, span] of spans.slice(1)) {
-    assert.equal(span, ref, `${name} drifted from ${refName}: edit the shared block in all three coaches`);
+    assert.equal(span, ref, `${name} drifted from ${refName}: edit the shared block in every coach`);
   }
 });
 
@@ -133,7 +143,7 @@ test('profile/coaches.example.md is tracked and profile/coaches.md is gitignored
     'profile/coaches.md must be gitignored',
   );
   const example = fs.readFileSync(path.join(ROOT, 'profile/coaches.example.md'), 'utf8');
-  for (const coach of ['cycling-coach', 'hybrid-coach', 'nutrition-coach']) {
+  for (const coach of COACHES.map((name) => name.replace(/\.md$/, ''))) {
     assert.ok(example.includes(`## ${coach}`), `profile/coaches.example.md: missing the "## ${coach}" section`);
   }
 });

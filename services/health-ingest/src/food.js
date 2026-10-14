@@ -1,5 +1,5 @@
 /**
- * Food log routes (Nutrición part 2), mounted by server.js under /food/ and reached from the LAN
+ * Food log routes (docs/nutrition-food-log.md), mounted by server.js under /food/ and reached from the LAN
  * plan page through plan-web's /api/food/ proxy:
  *
  *   GET    /food/products            active products (each with its store)

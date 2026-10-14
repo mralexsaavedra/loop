@@ -12,9 +12,20 @@ knowledge/
     manifest.json             one entry per video: title, date, duration, subs, file, words, fetchedAt
     raw/<YYYY-MM-DD>-<id>.md  clean transcript: header + "[mm:ss]" paragraphs (~30-60 s each)
     index.md                  optional: overview / map of the source (written by hand or by Claude)
-    temas/*.md                optional: topic syntheses with citations to the videos
+    topics/*.md               optional: topic syntheses with citations to the videos (any folder
+                              name works when profile/coaches.md names it, e.g. temas/)
     videos/*.md               optional: per-video summaries
 ```
+
+Default domain folders, one per coach (each can be changed with the coach's **Knowledge folder** key
+in `profile/coaches.md`):
+
+| Folder | Coach | Notes |
+| --- | --- | --- |
+| `knowledge/cycling/<source>/` | `cycling-coach` | one folder per configured source |
+| `knowledge/hybrid/` | `hybrid-coach` | cross-source `index.md` + `topics/`, one folder per podcast / program |
+| `knowledge/nutrition/` | `nutrition-coach` | `evidence/` (position stands, official documents; `evidencia/` also found) + one folder per practitioner |
+| `knowledge/training/` | `training-coach` | optional: any other sport (running, swimming, strength…), one folder per source |
 
 `subs` in the manifest is `manual` (uploaded subtitles), `auto` (YouTube automatic captions —
 names and numbers can be misheard: verify them in the video) or `none` (no subtitles in the

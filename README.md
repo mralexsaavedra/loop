@@ -3,7 +3,7 @@
 A personal, data-driven health and nutrition coaching workspace operated by
 [Claude Code](https://claude.com/claude-code). You drop in your own data (Apple Health export, food log,
 training program); Claude onboards you, analyses real trends against a documented methodology, and
-answers through three coach subagents — and a build step turns everything into one self-contained
+answers through four coach subagents — and a build step turns everything into one self-contained
 dashboard page. **It is not medical advice** (see [Disclaimer](#disclaimer)): it does not replace a
 physician or a registered dietitian.
 
@@ -37,8 +37,8 @@ disk:
   - tell you what to eat tonight from the macros you have left and the products you actually buy —
     and log it for you;
   - write a weekly report that follows up on last week's actions with numbers, not vibes.
-- **Specialist subagents.** One generalist is not enough: `cycling-coach`, `hybrid-coach` (HYROX) and
-  `nutrition-coach` each answer only their own field, read the sources *you* chose for that field, and
+- **Specialist subagents.** One generalist is not enough: `cycling-coach`, `hybrid-coach` (HYROX),
+  `training-coach` (any other sport) and `nutrition-coach` each answer only their own field, read the sources *you* chose for that field, and
   cite every claim. Add your own as a Markdown file in `.claude/agents/`.
 
 It can also run **in the background**: the LAN services (Level 2) sync Apple Health, Strava and the food
@@ -82,7 +82,7 @@ dataset.
 | --- | --- |
 | Onboarding | On a fresh clone Claude interviews you and writes your profile, baseline and coach config ([`docs/onboarding.md`](docs/onboarding.md)) |
 | `/analysis` skill | Sync → freshness check → trends per [`analysis/methodology.md`](analysis/methodology.md) → a dated report in `analysis/reports/` |
-| Coach subagents | `cycling-coach`, `hybrid-coach`, `nutrition-coach`: read-only, cite every claim, configured by your gitignored `profile/coaches.md` ([`docs/knowledge-base.md`](docs/knowledge-base.md)) |
+| Coach subagents | `cycling-coach`, `hybrid-coach`, `training-coach`, `nutrition-coach`: read-only, cite every claim, configured by your gitignored `profile/coaches.md` ([`docs/knowledge-base.md`](docs/knowledge-base.md)) |
 | The page | `npm run generate` → `web/dist/personal/index.html`: Home, Training, Health, Nutrition tabs; tap any card for its history ([a tour of the page](docs/guides/page-tour.md)) |
 | Guard hook | Blocks force-adding ignored (personal) files and un-ignoring them in `.gitignore` ([`docs/guard-hook.md`](docs/guard-hook.md)) |
 
@@ -146,27 +146,28 @@ Optional extras for this level:
 | --- | --- | --- |
 | Your own nutrition plan | Edit `plan-data.json` (servings, day plan, `targets.byGoal`); the food DB `ingredients.json` ships tracked | [`docs/guides/your-plan.md`](docs/guides/your-plan.md) |
 | Today's programmed session | Fill `training-data.json` by date (Claude can transcribe a coach's PDF) | [`docs/guides/your-plan.md`](docs/guides/your-plan.md) → The training plan |
-| Try it with no data | `npm run build:example`, then open `web/dist/example/index.html` — the tracked seeds + a clearly synthetic demo extract (`data/demo/`). The demo days are fixed (they end on 28 Sep 2026), so today's dials show as stale: open any card to see its history | [`data/demo/README.md`](data/demo/README.md) |
+| Try it with no data | `npm run build:example`, then open `web/dist/example/index.html` (synthetic demo data; its days end on 28 Sep 2026, so open any card to see the history) | [`data/demo/README.md`](data/demo/README.md) |
 
 ### Level 2 — food log + live page on your LAN (Docker)
 
-`services/health-ingest` (food log, products, recipes, settings; Postgres) and `services/plan-web`
-(nginx serving the page, rebuilt hourly and on demand from a Sync button). `npm run sync` then pulls the
-food log and settings into your local data so `/analysis` can read them. Once it runs, open
-`http://<server-ip>:8090` from any phone or computer at home.
+What you get: the page at `http://<server-ip>:8090` from any phone or computer at home, a food log you fill
+from the page, and a Sync button that rebuilds the page with your latest data (it also rebuilds every hour).
+Under the hood: two small Docker services, `services/plan-web` (serves the page) and `services/health-ingest`
+(stores your food log, settings and incoming data).
 
 **Needs a Linux machine that stays on** (a home server or a mini PC) with Docker, systemd and Node.js;
 macOS and Windows are not supported as the host.
 
-**No Claude Code? The page sets you up.** The first time the page opens on a fresh server, a full-screen
-assistant asks one question at a time (age, height, weight, activity, the sports you do and how long and how
-often, your goal, plus a short safety check) and computes your starting calories and macros for each kind of
-day; you can edit them before saving, and reopen it from your profile. The page then names your days after
-your own sports ("Running ~1.5 h") instead of a fixed gym / ride split. Everything on the page works without Claude Code; the reports, coaches and agent need it.
+**No Claude Code? The page sets you up.** On a fresh server the page opens an assistant that asks one
+question at a time — you, the sports you do, your goal and a short safety check — and works out your starting
+calories and macros for each kind of day. You can adjust them before saving and reopen it from your profile.
+Everything on the page works without Claude Code; only the reports, the coaches and the agent need it.
 
 1. **Install:** [`services/plan-web/README.md` → Install (host)](services/plan-web/README.md#install-host) —
    ten numbered steps, from the secrets file to opening the page on your phone.
-2. Reference when you need it: the food log API and every setting
+2. Keeping it up to date: [`docs/guides/upgrading.md`](docs/guides/upgrading.md); something not working:
+   [`docs/guides/troubleshooting.md`](docs/guides/troubleshooting.md).
+3. Reference when you need it: the food log API and every setting
    ([`services/health-ingest/README.md`](services/health-ingest/README.md)); how the refresh and the
    security model work ([`docs/lan-services.md`](docs/lan-services.md)).
 
