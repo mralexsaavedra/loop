@@ -230,11 +230,13 @@ async function main () {
   // page may be reached by; mirrors plan-web's PLAN_WEB_EXTRA_HOSTS. Empty by default.
   let foodReady = false // set once 006_food.sql ran; until then (or if it failed) /food/* answers 503
   let settingsReady = false // 007_settings.sql, its own group: only /food/settings depends on it
+let profileReady = false // 011_profile.sql, its own group: only /food/profile depends on it
   const foodRoutes = createFoodRoutes({
     store: createFoodStore(pool),
     off: createOffClient(),
     available: () => foodReady,
     settingsAvailable: () => settingsReady,
+    profileAvailable: () => profileReady,
     allowedHosts: parseAllowedHosts(process.env.FOOD_ALLOWED_HOSTS)
   })
   // Behaviour journal (Q7) under /journal/*: same LAN-only layers as the food routes (its own
@@ -269,6 +271,7 @@ async function main () {
     const optional = await migrate(pool)
     foodReady = optional.food === true
     settingsReady = optional.settings === true
+    profileReady = optional.profile === true
     journalReady = optional.journal === true
     await syncStatus.load() // never throws: a failed load is retried on the next status read
     // A seq handed out but never written (crash before the write) leaves the DB

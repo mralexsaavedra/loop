@@ -25,6 +25,8 @@ export const SCRIPTS = [
   // the settings snapshot (data/profile/settings.json) never fails the run: a missing / old ingest
   // service is only a warning (exit 0)
   path.join(ROOT, 'data', 'profile', 'sync-settings.mjs'),
+  // the in-page onboarding document (data/profile/onboarding.json) likewise only warns (exit 0)
+  path.join(ROOT, 'scripts', 'sync-onboarding.mjs'),
   // the food log export (data/nutrition/foodlog-daily.csv) likewise only warns (exit 0) when the
   // ingest service is missing / old
   path.join(ROOT, 'data', 'nutrition', 'sync-foodlog.mjs'),

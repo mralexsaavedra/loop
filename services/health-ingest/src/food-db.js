@@ -109,8 +109,29 @@ export function settingsFromRow (r) {
   return { goal: r?.goal ?? null, targetWeightKg: num(r?.target_weight_kg), updatedAt: iso(r?.updated_at) }
 }
 
+/** The onboarding row (sql/011_profile.sql): its document plus updatedAt, or null before the first save. */
+export function profileFromRow (r) {
+  return r ? { ...r.data, updatedAt: iso(r.updated_at) } : null
+}
+
 export function createFoodStore (pool) {
   return {
+    async getProfile () {
+      const { rows } = await pool.query('SELECT data, updated_at FROM app_profile WHERE id = 1')
+      return profileFromRow(rows[0])
+    },
+
+    /** Replaces the whole onboarding document (validated by food.js validateProfile). */
+    async putProfile (data) {
+      const { rows } = await pool.query(
+        `INSERT INTO app_profile (id, data) VALUES (1, $1)
+         ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()
+         RETURNING data, updated_at`,
+        [JSON.stringify(data)]
+      )
+      return profileFromRow(rows[0])
+    },
+
     async getSettings () {
       const { rows } = await pool.query(`SELECT ${SETTINGS_COLS} FROM app_settings WHERE id = 1`)
       return settingsFromRow(rows[0])

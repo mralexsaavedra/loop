@@ -6,7 +6,7 @@ import { hostAllowed, parseAllowedHosts } from '../src/http.js'
 
 /** In-memory stand-in for src/food-db.js createFoodStore (same method contract). */
 function memoryStore () {
-  const db = { product: [], recipe: [], log: [], settings: null }
+  const db = { product: [], recipe: [], log: [], settings: null, profile: null }
   let seq = 0
   const clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)))
   const stamp = () => new Date(Date.UTC(2030, 0, 10, 12, 0, seq)).toISOString()
@@ -71,6 +71,11 @@ function memoryStore () {
       db.settings = { ...(db.settings ?? { goal: null, targetWeightKg: null }), ...clone(patch), updatedAt: stamp() }
       return clone(db.settings)
     },
+    async getProfile () { return db.profile ? clone(db.profile) : null },
+    async putProfile (data) {
+      db.profile = { ...clone(data), updatedAt: stamp() }
+      return clone(db.profile)
+    },
     async deleteLog (id) {
       const i = db.log.findIndex((e) => e.id === id)
       if (i < 0) return false
@@ -97,8 +102,8 @@ function stubOff () {
   }
 }
 
-async function setup ({ store = memoryStore(), off = stubOff(), writeLimit, summaryLimit, log = () => {}, available, settingsAvailable, allowedHosts } = {}) {
-  const routes = createFoodRoutes({ store, off, writeLimit, summaryLimit, log, available, settingsAvailable, allowedHosts })
+async function setup ({ store = memoryStore(), off = stubOff(), writeLimit, summaryLimit, log = () => {}, available, settingsAvailable, profileAvailable, allowedHosts } = {}) {
+  const routes = createFoodRoutes({ store, off, writeLimit, summaryLimit, log, available, settingsAvailable, profileAvailable, allowedHosts })
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost')
     if (!(await routes.handle(req, res, url))) { res.writeHead(404); res.end() }
@@ -803,4 +808,70 @@ test('log summary reads are rate limited per client address (429 rate_limited, n
     assert.deepEqual((await t.call('GET', q)).body, { error: 'rate_limited' })
     assert.equal(reads, 2)
   } finally { await t.close() }
+})
+
+/* ---------- the in-page onboarding profile ---------- */
+const cells = (kcal, p, f) => ({ rest: { kcal, p, f }, gym: { kcal: kcal + 350, p, f }, bike: { kcal: kcal + 850, p, f }, bikeLong: { kcal: kcal + 1450, p, f } })
+const PROFILE = {
+  name: 'Ana', sex: 'female', birthdate: '1997-05-20', heightCm: 165, weightKg: 60, activity: 'light',
+  goals: ['maintain', 'cut', 'bulk'],
+  targets: { maintain: cells(1800, 108, 48), cut: cells(1550, 120, 48), bulk: cells(1950, 108, 48) }
+}
+
+test('profile: GET before any write = null; PUT stores the whole document and returns it', async () => {
+  const t = await setup()
+  try {
+    assert.deepEqual((await t.call('GET', '/food/profile')).body, { profile: null })
+    const r = await t.call('PUT', '/food/profile', { body: PROFILE })
+    assert.equal(r.status, 200)
+    assert.equal(r.body.profile.sex, 'female')
+    assert.deepEqual(r.body.profile.targets, PROFILE.targets)
+    assert.ok(r.body.profile.updatedAt)
+    assert.deepEqual((await t.call('GET', '/food/profile')).body.profile.goals, ['maintain', 'cut', 'bulk'])
+  } finally { await t.close() }
+})
+
+test('profile: strict validation with coarse codes; nothing stored on a refusal', async () => {
+  const t = await setup()
+  try {
+    const put = async (patch) => (await t.call('PUT', '/food/profile', { body: { ...PROFILE, ...patch } })).body
+    assert.deepEqual(await put({ sex: 'x' }), { error: 'invalid', field: 'sex' })
+    assert.deepEqual(await put({ birthdate: '1997-02-30' }), { error: 'invalid', field: 'birthdate' })
+    assert.deepEqual(await put({ birthdate: '2015-01-01' }), { error: 'invalid', field: 'birthdate' }, 'under 18')
+    assert.deepEqual(await put({ heightCm: 90 }), { error: 'invalid', field: 'heightCm' })
+    assert.deepEqual(await put({ weightKg: 300 }), { error: 'invalid', field: 'weightKg' })
+    assert.deepEqual(await put({ activity: 'pro' }), { error: 'invalid', field: 'activity' })
+    assert.deepEqual(await put({ goals: [] }), { error: 'invalid', field: 'goals' })
+    assert.deepEqual(await put({ goals: ['cut', 'shred'] }), { error: 'invalid', field: 'goals' })
+    assert.deepEqual(await put({ name: 'x'.repeat(61) }), { error: 'invalid', field: 'name' })
+    assert.deepEqual(await put({ extra: 1 }), { error: 'invalid', field: 'extra' })
+    assert.deepEqual(await put({ targets: { ...PROFILE.targets, cut: undefined } }), { error: 'invalid', field: 'targets.cut' })
+    assert.deepEqual(await put({ targets: { ...PROFILE.targets, cut: { ...PROFILE.targets.cut, rest: { kcal: 500, p: 120, f: 48 } } } }), { error: 'invalid', field: 'targets.cut.rest.kcal' })
+    assert.deepEqual(await put({ targets: { ...PROFILE.targets, cut: { ...PROFILE.targets.cut, rest: { kcal: 1550.5, p: 120, f: 48 } } } }), { error: 'invalid', field: 'targets.cut.rest.kcal' })
+    assert.deepEqual(await put({ targets: { ...PROFILE.targets, cut: { ...PROFILE.targets.cut, gym: { kcal: 1900, p: 120, f: 48, c: 1 } } } }), { error: 'invalid', field: 'targets.cut.gym.c' })
+    assert.equal(t.store.db.profile, null, 'nothing stored')
+    assert.equal((await t.call('POST', '/food/profile', { body: PROFILE })).status, 405)
+  } finally { await t.close() }
+})
+
+test('profile: the food layers apply (X-HC-Food header)', async () => {
+  const t = await setup()
+  try {
+    assert.equal((await t.call('GET', '/food/profile', { headers: { 'x-hc-food': '0' } })).status, 403)
+    assert.equal((await t.call('PUT', '/food/profile', { body: PROFILE, headers: { 'x-hc-food': '0' } })).status, 403)
+  } finally { await t.close() }
+})
+
+test('profile: its own optional group, so a failed 011 migration leaves /food/settings working (and the other way round)', async () => {
+  const noProfile = await setup({ profileAvailable: () => false })
+  try {
+    assert.deepEqual((await noProfile.call('GET', '/food/profile')).body, { error: 'profile_unavailable' })
+    assert.equal((await noProfile.call('GET', '/food/profile')).status, 503)
+    assert.equal((await noProfile.call('GET', '/food/settings')).status, 200)
+  } finally { await noProfile.close() }
+  const noSettings = await setup({ settingsAvailable: () => false })
+  try {
+    assert.equal((await noSettings.call('GET', '/food/settings')).status, 503)
+    assert.equal((await noSettings.call('GET', '/food/profile')).status, 200)
+  } finally { await noSettings.close() }
 })

@@ -20,7 +20,7 @@ test('migration 006_food.sql is registered (as the optional food group) and is i
   // the lists live in migrations.js, which (unlike db.js) does not load pg
   const { CORE_MIGRATIONS, OPTIONAL_MIGRATIONS } = (await import('../src/migrations.js'))
   assert.ok(!CORE_MIGRATIONS.includes('006_food.sql') && !CORE_MIGRATIONS.includes('007_settings.sql'), 'core list: food stays out of it')
-  assert.deepEqual(OPTIONAL_MIGRATIONS, { food: ['006_food.sql'], settings: ['007_settings.sql'], journal: ['010_journal.sql'] }, 'the food tables and the settings are isolated, optional groups')
+  assert.deepEqual(OPTIONAL_MIGRATIONS, { food: ['006_food.sql'], settings: ['007_settings.sql'], profile: ['011_profile.sql'], journal: ['010_journal.sql'] }, 'the food tables and the settings are isolated, optional groups')
   const sql = await readFile(fileURLToPath(new URL('../sql/006_food.sql', import.meta.url)), 'utf8')
   for (const table of ['food_product', 'food_recipe', 'food_log']) {
     assert.match(sql, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}\\b`))
@@ -141,4 +141,29 @@ test('listLogRange: entries between two dates, oldest first, dates as text', asy
   assert.equal(rows[0].date, '2030-01-09')
   assert.equal(rows[0].kcal, 500)
   assert.equal(rows[0].protein, null)
+})
+
+test('migration 011_profile.sql: one idempotent onboarding row, its data a JSONB document', async () => {
+  const sql = await readFile(fileURLToPath(new URL('../sql/011_profile.sql', import.meta.url)), 'utf8')
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS app_profile\b/)
+  assert.doesNotMatch(sql, /CREATE TABLE (?!IF NOT EXISTS)/)
+  assert.match(sql, /CHECK \(id = 1\)/, 'one row')
+  assert.match(sql, /data\s+JSONB\s+NOT NULL/)
+})
+
+test('profile: no row yet = null; a row returns its document plus updatedAt', async () => {
+  const empty = fakePool(() => ({ rows: [] }))
+  assert.equal(await createFoodStore(empty).getProfile(), null)
+  assert.match(empty.calls[0].sql, /FROM app_profile WHERE id = 1/)
+  const pool = fakePool(() => ({ rows: [{ data: { sex: 'female', heightCm: 165 }, updated_at: new Date('2030-01-10T10:00:00Z') }] }))
+  assert.deepEqual(await createFoodStore(pool).getProfile(), { sex: 'female', heightCm: 165, updatedAt: '2030-01-10T10:00:00.000Z' })
+})
+
+test('putProfile: a parameterized whole-document upsert of the one row', async () => {
+  const pool = fakePool(() => ({ rows: [{ data: { sex: 'male' }, updated_at: new Date('2030-01-10T10:00:00Z') }] }))
+  const r = await createFoodStore(pool).putProfile({ sex: 'male' })
+  assert.match(pool.calls[0].sql, /INSERT INTO app_profile \(id, data\) VALUES \(1, \$1\)/)
+  assert.match(pool.calls[0].sql, /ON CONFLICT \(id\) DO UPDATE SET data = EXCLUDED\.data, updated_at = now\(\)/)
+  assert.deepEqual(pool.calls[0].values, [JSON.stringify({ sex: 'male' })])
+  assert.deepEqual(r, { sex: 'male', updatedAt: '2030-01-10T10:00:00.000Z' })
 })
