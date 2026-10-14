@@ -10,6 +10,69 @@ physician or a registered dietitian.
 Your data never leaves your disk: every personal file is gitignored, and a guard hook stops Claude from
 committing it ([Privacy](#privacy)).
 
+<p align="center">
+  <img src="docs/screenshots/home.png" width="200" alt="Home tab: sleep, recovery and load dials, health and stress monitors, today's nutrition">
+  <img src="docs/screenshots/training.png" width="200" alt="Training tab: load per modality, activity time, 30-day calendar">
+  <img src="docs/screenshots/health.png" width="200" alt="Health tab: health monitor and recovery trend">
+  <img src="docs/screenshots/nutrition.png" width="200" alt="Nutrition tab: day type, calories ring, macros against the goal">
+</p>
+
+## Why this exists
+
+Recovery wearables are great at telling you how your body is doing — sleep, recovery, strain, stress — and
+say nothing about what you ate. Food trackers count your macros and know nothing about last night's
+sleep or today's ride. And neither can *do* anything with the other half.
+
+This repo puts both halves in one place, in plain files on your own disk:
+
+- **A recovery-app style dashboard** (the page is called **LOOP**): sleep, recovery, training load,
+  stress, heart-rate variability, body composition — every card opens its own history.
+- **Plus the food log** those apps are missing: what you ate, against targets that follow your goal
+  (cut / maintain / bulk) and the day's training (rest, gym, ride, long ride).
+- **Plus an agent that can read all of it.** Because everything is local files and a small local API,
+  Claude Code sees the whole picture at once: sleep, HRV, every workout, every meal, your goal, your
+  next race. So it can do things no single app can:
+  - build next week's sessions knowing your load, your recovery and how many weeks are left to the race;
+  - tell you what to eat tonight from the macros you have left and the products you actually buy —
+    and log it for you;
+  - write a weekly report that follows up on last week's actions with numbers, not vibes.
+- **Specialist subagents.** One generalist is not enough: `cycling-coach`, `hybrid-coach` (HYROX) and
+  `nutrition-coach` each answer only their own field, read the sources *you* chose for that field, and
+  cite every claim. Add your own as a Markdown file in `.claude/agents/`.
+
+It can also run **in the background**: the LAN services (Level 2) sync Apple Health, Strava and the food
+log on their own and rebuild the page every hour, and a Claude Code session on an always-on machine next
+to them keeps working with the same data — plus [Engram](https://github.com/Gentleman-Programming/engram)
+memory, so it remembers your decisions between sessions.
+
+### What a day with it looks like
+
+Real exchanges, in the author's own setup:
+
+| You say | The agent |
+| --- | --- |
+| "I'm having 3 chicken drumsticks with skin for lunch" | Logs them in the food log (skin and bone accounted for), then tells you how much fat is left for dinner |
+| "Tonight 200 g of this turkey sausage" + a photo of the label | Creates the product from the label, logs it, compares it with a regular pork sausage |
+| "Strava ruined my average, I stopped 30 min at the bike shop" | Reads the ride's streams, finds the stop, gives the real moving average |
+| "How did today go, training and food?" | Crosses the ride (power, HR) with the day's intake and flags what was short |
+| "Analysis" | Runs `/analysis`: sync, freshness, trends, follow-up of the last report's actions, 2–4 new ones |
+
+### Screenshots
+
+Real data from the author's page (the profile sheet is left out). Every card opens a history view:
+
+<p align="center">
+  <img src="docs/screenshots/recovery.png" width="160" alt="Recovery detail: today's score and its contributors">
+  <img src="docs/screenshots/sleep.png" width="160" alt="Sleep detail: performance, hours vs need, stages">
+  <img src="docs/screenshots/bike-load.png" width="160" alt="Bike load detail: the ride and its heart-rate zones">
+  <img src="docs/screenshots/stress.png" width="160" alt="Stress detail: hour-by-hour stress and time per level">
+  <img src="docs/screenshots/hrv-trend.png" width="160" alt="HRV trend: 30-day chart against the usual range">
+  <img src="docs/screenshots/nutrition-score.png" width="160" alt="Nutrition score trend and calendar">
+</p>
+
+Want to see it without your own data? `npm run build:example` builds the same page from a synthetic demo
+dataset.
+
 ## What you get
 
 | Piece | What it does |
@@ -87,7 +150,8 @@ creators' rights** and never publish it.
 
 Raw health data is **medical-grade sensitive** and is excluded from git via
 `.gitignore`. It lives only on local disk. The tracked tree is **framework + tooling +
-`.example` templates only** — never your data. The guard hook
+`.example` templates only** — never your data. (The one exception is deliberate: `docs/screenshots/`
+holds the author's own page, published by choice.) The guard hook
 ([`docs/guard-hook.md`](docs/guard-hook.md)) blocks Claude from force-adding ignored files or
 un-ignoring them.
 
