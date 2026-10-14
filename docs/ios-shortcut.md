@@ -126,9 +126,8 @@ The service answers `202` with the stored row id. A `401` means the token does n
    the payload you just sent is never skipped. Skip this step if you do not
    run `services/plan-web`.
 
-   Your public reverse proxy must forward `/sync` for this step (and `/ingest/*` for step 4),
-   and nothing else from the ingest service: never `/export/*` (see
-   `services/health-ingest/README.md`, exposure model).
+   Both steps go through plan-web (`/ingest/health-auto-export` and `/api/sync`); the ingest service
+   itself is never exposed (see `services/health-ingest/README.md`, exposure model).
 
 ### Through plan-web (ingest not exposed)
 
@@ -284,7 +283,7 @@ Both lists come from the same search, so they always have the same length and or
 recipe (**Repeat with Each** (*Repetir con cada*) → **Text** `<Start Date ISO 8601>;<Value>` →
 **Combine Text** → field `hr_samples`) is still accepted, but it loops once per sample and is very
 slow on workout days. A workout day of about 5,000 samples is roughly 150 KB of `hr_t` plus 25 KB
-of `hr_v`, well under the ingest service's 32 MB body limit (`MAX_BODY_BYTES`). The 1-day
+of `hr_v`, well under the 8 MB plan-web accepts on that path (ingest's own `MAX_BODY_BYTES` is 32 MB). The 1-day
 window overlaps between runs on purpose: the sync dedupes by timestamp, so nothing is counted
 twice and a missed run leaves no gap as long as the next one comes within a day. After adding it
 run `npm run sync -- --full` once.
