@@ -36,7 +36,7 @@ you MUST follow for any number you produce).
   `shortcutSync`), the newest date of every CSV you rely on, `data/nutrition/foodlog-daily.meta.json`
   (`fetchedAt`). Flag any series more than 3 days old.
 - **Apple Health**: the cached extract `data/apple-health/extract/*.csv` + `_meta.json`, never the
-  ~700 MB `export.xml` unless a series is missing. Weight = `extract/weight.csv` (`date,value,source`;
+  multi-hundred-MB `export.xml` unless a series is missing. Weight = `extract/weight.csv` (`date,value,source`;
   compare within one `source`). Steps, energy, partial-day and Shortcut merge caveats:
   [`docs/data-pipeline.md`](docs/data-pipeline.md).
 - **Food log** (the real one, LAN page): `data/nutrition/foodlog-daily.csv` from `npm run sync`;
@@ -54,21 +54,14 @@ you MUST follow for any number you produce).
 
 | Command | What it does |
 | --- | --- |
+| `npm run sync` | Pull Shortcut payloads, Strava, profile, food log, settings, onboarding, journal from `services/health-ingest` into the extract (`-- --full` rebuilds the Shortcut cache) |
 | `npm run generate` | Validate the plan, write `data/nutrition/plan-tables.md`, build `web/dist/personal/index.html` (idempotent) |
 | `npm run check` | Validators only, no build (plan, ingredients, `training-data.json`, `profile/profile.json`) |
-| `npm test` | Full suite (`node --test`); `pretest` builds the example (+ personal, if present) fixtures |
-| `npm run test:services` | The `services/health-ingest` suite (not part of `npm test`, which stays dependency-free): `npm ci` there from its lockfile, then its `node --test` |
-| `npm run test:css:update` | Regenerate `web/test/fixtures/css-expected.json` from the example build after a deliberate CSS change (keeps key order, appends new, drops stale; `-- --check` writes nothing) |
-| `npm run golden:bake` | Compare every build-time bake (`web/src/bakes.mjs`) for the example + an empty extract against `web/test/fixtures/bake-golden.*.json` (`-- --update` rewrites them after a deliberate change; `-- --personal` writes/compares the gitignored `web/test/.golden/` personal golden, paths only, exit 2 without personal inputs; `-- --personal --root <clone>` reads that clone's data + golden with this checkout's code, read-only there) |
-| `npm run build:example` | Example page from the tracked seeds + the synthetic demo extract (`data/demo/`), no personal files |
-| `npm run gen:food-calc` | Regenerate `services/health-ingest/src/food-calc.js` from `lib/nutrition/foodlog.mjs` (a food log formula change is made in the lib first, then this; a test fails while it is stale) |
-| `npm run gen:journal-calc` | Regenerate `services/health-ingest/src/journal-calc.js` from `lib/journal/journal.mjs` (a journal behaviour / limit change is made in the lib first, then this; a test fails while it is stale) |
-| `npm run sync` | Pull Shortcut payloads, Strava, profile, food log, settings from `services/health-ingest` into the extract (`-- --full` rebuilds the Shortcut cache) |
 | `node data/apple-health/extract.mjs` | Rebuild the extract CSVs from a new `export.xml` (then re-run `npm run sync`) |
-| `node scripts/build-web.mjs [--mode personal\|example] [--locale es\|en]` | Build one page variant into `web/dist/<mode>/index.html` |
+| `npm test` | Full suite; run it before and after any code change |
 
-A runnable `scripts/*.mjs` guards its CLI with `if (isMain(import.meta.url))` from
-`scripts/lib/is-main.mjs` (realpath compare, so symlinks and relative paths work; importing never runs main).
+**Changing the code?** Read [`docs/development.md`](docs/development.md) first: the test, golden and fixture
+commands, the generated files and their generators, the guards, and the workflow.
 
 Fresh-clone bootstrap (copy the `.example` seeds, `npm ci && npm run generate`): README → Setup.
 **To change a plan number, edit `plan-data.json` (servings/day plan) or `ingredients.json` (a food's
@@ -89,9 +82,9 @@ policy) go in a gitignored `CLAUDE.local.md`, which Claude Code loads next to th
   CSVs, `analysis/reports/*`, `web/dist/personal/`) are gitignored; never un-ignore them or `git add -f`
   them (the guard hook blocks it, [`docs/guard-hook.md`](docs/guard-hook.md)). `data/demo/` is tracked
   and must stay synthetic.
-- **Never hand-edit generated files** (`plan-tables.md`, `web/dist/`, `data/demo/extract/` — re-run
-  `npm run demo:data`, `services/health-ingest/src/food-calc.js` — `npm run gen:food-calc`, `services/health-ingest/src/journal-calc.js` — `npm run gen:journal-calc`) and never re-type macros in `food-log.md`; change the source (the JSONs, the
-  generator) and regenerate.
+- **Never hand-edit generated files** (`plan-tables.md`, `web/dist/`, `data/demo/extract/`, the service's
+  `food-calc.js` / `journal-calc.js`; table of sources and generators: [`docs/development.md`](docs/development.md))
+  and never re-type macros in `food-log.md`; change the source and regenerate.
 - **`knowledge/` is gitignored** except `knowledge/README.md` (third-party transcripts, personal use):
   never commit, publish or `git add -f` it.
 - **Before changing an area, read its doc in `docs/`; keep the doc in sync with the code in the same
@@ -132,10 +125,11 @@ language, jurisdiction; template `profile/coaches.example.md`), every claim cite
 | --- | --- |
 | Cycling TRAINING: power, FTP, zones, periodization, bike fit, gear, bike computers, training devices | `cycling-coach` |
 | HYROX / hybrid TRAINING: running + strength + conditioning, stations, race strategy, programs | `hybrid-coach` |
+| TRAINING for any other sport: running, swimming, strength / gym, team sports, yoga / pilates, general fitness — sessions, progression, periodization, load | `training-coach` |
 | ANY nutrition: daily diet, body composition, protein / carbs, on-bike / race fuelling, hydration, electrolytes, supplements | `nutrition-coach` |
 
 Fuelling, hydration, supplements and body-composition nutrition go to `nutrition-coach` also when the
-question comes from cycling or HYROX; the training coaches answer only the training part and hand off.
+question comes from a training coach's sport; the training coaches answer only the training part and hand off.
 
 ## Output principles
 

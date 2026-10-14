@@ -1,4 +1,4 @@
-/* Nutrición food log (part 2) — Registrar (one day's log in four groups: Desayuno / Comida / Cena /
+/* Nutrition food log (docs/nutrition-food-log.md) — Registrar (one day's log in four groups: Desayuno / Comida / Cena /
  * Añadidos, inside the `dia` section; a ‹ date › navigator on top opens on today and walks to past days,
  * never persisted), the
  * add sheet (a view of the detail sheet modal), Mis productos and Mis recetas (folds before Tablas).

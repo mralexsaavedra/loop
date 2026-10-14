@@ -5,10 +5,10 @@
 
 ## Basics
 - Name / nickname:
-- Age:
 - Sex (for metabolic calc):
-- Height (cm):
-- Current weight (kg):
+
+Birthdate, height and weight are NOT written here: they live in `profile/profile.json` and your weigh-ins
+(`data/apple-health/extract/weight.csv`), so they never go stale in prose.
 
 ## Lifestyle / work
 - Job / activity level (sedentary desk, on-feet, manual…):

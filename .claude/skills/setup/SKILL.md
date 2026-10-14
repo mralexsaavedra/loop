@@ -1,6 +1,6 @@
 ---
 name: setup
-description: "Trigger: setup, install, instalar, configurar, get started, empezar, first run, level 1, level 2, level 3, Docker, Strava, Shortcut. Walks the user through installing this repo one level at a time, checking state at every step."
+description: "Trigger: setup, install, instalar, configurar, get started, empezar, first run, level 1, level 2, level 3, Docker, Strava, Shortcut, update, upgrade, actualizar, second install, segunda instalación, not working, no funciona. Walks the user through installing this repo one level at a time, checking state at every step; also updating an install, adding a second one, and troubleshooting."
 ---
 
 # Guided setup by level
@@ -30,11 +30,16 @@ for f in profile/about-me.md profile/baseline.md profile/coaches.md profile/prof
   data/apple-health/extract/_meta.json web/dist/personal/index.html services/health-ingest/.env; do
   test -e "$f" && echo "yes $f" || echo "no  $f"; done
 command -v docker >/dev/null && docker compose version || echo "docker: no"
-curl -s -m 3 -o /dev/null -w 'ingest /healthz %{http_code}\n' http://127.0.0.1:8088/healthz
-curl -s -m 3 -o /dev/null -w 'plan-web %{http_code}\n' http://127.0.0.1:8090/status.json
+# the ports each install uses (not secrets; defaults 8088 / 8090 when the env files do not set them)
+# (only the digits of that one line ever come out)
+IP=$(grep -sE '^[[:space:]]*INGEST_PORT=' services/health-ingest/.env | head -1 | cut -d= -f2 | tr -dc 0-9); IP=${IP:-8088}
+WP=$(grep -sE '^[[:space:]]*PLAN_WEB_PORT=' services/plan-web/.env | head -1 | cut -d= -f2 | tr -dc 0-9); WP=${WP:-8090}
+curl -s -m 3 -o /dev/null -w "ingest /healthz %{http_code}\n" "http://127.0.0.1:$IP/healthz"
+curl -s -m 3 -o /dev/null -w "plan-web %{http_code}\n" "http://127.0.0.1:$WP/status.json"
 ```
 
-Report a short checklist (`000` = not running) and propose the next level. Node below `engines` →
+Use `$IP` / `$WP` (never a hard-coded port) in every later check. Report a short checklist (`000` = not
+running) and propose the next level. Node below `engines` →
 stop until upgraded.
 
 ## Level 1 — Apple Health + Claude (local)
@@ -71,7 +76,7 @@ Needs a Linux host with Docker (compose), systemd and Node 22. Follow the ordere
    trigger and `site/` dirs BEFORE `docker compose up`, the first `refresh.sh` by hand, the crontab line, the
    systemd units; the clone stays on `main`). Check the host first: Linux with systemd, `flock`, Node 22 —
    on macOS / Windows stop and say Level 2 needs a Linux box. Each `sudo` step: show it and let the user run it.
-3. Verify: `curl -s http://127.0.0.1:8088/healthz` → 200; the plan-web smoke test from its README.
+3. Verify: `curl -s "http://127.0.0.1:$IP/healthz"` → 200; the plan-web smoke test from its README.
    The page's own onboarding assistant then opens on the first visit (no profile and no goal on the
    server): a user without Claude Code sets up profile and targets there (`docs/profile.md`).
 4. `npm run sync`: each `WARNING:` line names a source not refreshed; report it.
@@ -81,15 +86,34 @@ Needs a Linux host with Docker (compose), systemd and Node 22. Follow the ordere
 - **iOS Shortcut**: `docs/ios-shortcut.md`. First pick the address (*Where the phone sends the data*:
   home Wi-Fi `http://<server-ip>:8090` unless they want to sync away from home), then import the
   ready-made Shortcut and walk its edit list (URL, token, every *Source is* filter), or build it one
-  action at a time; finish with the Verify section. The user copies the token from
+  action at a time; finish with the Verify section. A watch that is not an Apple Watch (Xiaomi, Garmin,
+  Amazfit…): its app must write to Apple Health and the filters point at that app (same doc, "Another watch
+  or band"). The user copies the token from
   `services/health-ingest/.env` on their own screen.
 - **Strava**: `docs/data-pipeline.md` → Strava sync; credentials per `services/health-ingest/README.md`
   → Strava. Walk "Getting the Strava credentials" there step by step (API app,
-  authorize URL, copy the code, token exchange); the user runs the exchange and types `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_REFRESH_TOKEN`
-  into `services/health-ingest/.env` themselves. Then `docker compose up -d` there, `npm run sync`.
+  authorize URL, copy the code, token exchange — easiest with `node scripts/strava-auth.js` from
+  `services/health-ingest`, which writes the refresh token into `.env` itself); the user types
+  `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` into `services/health-ingest/.env` themselves. Then `docker compose up -d` there, `npm run sync`.
 - **Knowledge base**: `docs/knowledge-base.md`, `knowledge/README.md`. `yt-dlp` is optional; content is
   for personal use only. Ingest with `scripts/ingest-youtube.mjs`, then register each source in
   `profile/coaches.md`.
+
+## Updating an install
+
+`docs/guides/upgrading.md`, step by step: pull `main`, `npm ci`, rebuild the data service (it applies new
+database migrations on start), restart the page service, refresh, verify. A second install is updated the same
+way in its own clone.
+
+## A second install (another person, same host)
+
+`services/plan-web/README.md` → Running a second install: a second clone, its own name (`HC_INSTANCE`) and
+ports in both env files, renamed systemd units and a staggered cron line. Check afterwards that `docker ps`
+shows both sets of containers and each `site/status.json` its own build.
+
+## Something does not work
+
+`docs/guides/troubleshooting.md`: find the symptom, run its Check commands (with `$IP` / `$WP`), apply the Fix.
 
 ## Close
 

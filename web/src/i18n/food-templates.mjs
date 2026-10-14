@@ -1,4 +1,4 @@
-/* Copy for the food log (Nutrición part 2): Registrar (today's log, in the `dia` section), the add
+/* Copy for the food log (docs/nutrition-food-log.md): Registrar (today's log, in the `dia` section), the add
  * sheet, Mis productos and Mis recetas. Server-rendered headings (web/src/tabs/Dia.astro,
  * web/src/tabs/Food.astro) + baked as I18N_FOOD for web/src/client/food-*.js. JSON-safe only:
  * `{placeholder}` strings, substituted client-side; plain text (escaped when rendered), no markup.

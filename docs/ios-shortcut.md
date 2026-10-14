@@ -146,7 +146,7 @@ rule must be an EXACT path match, not a prefix. After setup, check from outside 
 dot-segments and encoded slashes in the raw path. `INGEST_TOKEN` also guards `/export/*`, so
 keep it at least 32 random bytes and out of screenshots. plan-web proxies
 only `POST /ingest/health-auto-export` of the ingest routes (any other `/ingest/*` path is a 404)
-and never `/export/*`. Never expose the ingest port itself. Setup:
+and never `/export/*`. Never expose the ingest port to the internet (it listens on the LAN only so plan-web can reach it). Setup:
 `services/plan-web/README.md`, "Exposing behind an SSO tunnel".
 
 Example body (two lines per key shown):
@@ -177,7 +177,7 @@ Decimal commas (`42,1`) are accepted.
 | `weight` | Weight | point | no | optional 3rd field (the scale) | 30 days | `weight.csv` |
 | `bodyfat` | Body Fat Percentage | point | no | **yes**, 3rd field (the scale) | 30 days | `bodyfat.csv` |
 | `leanmass` | Lean Body Mass | point | no | **yes**, 3rd field (the scale) | 30 days | `leanmass.csv` |
-| `waist` | Waist Circumference (cm) | point | no | no | 90 days | `waist.csv` |
+| `waist` | Waist Circumference — send it in centimetres | point | no | no | 90 days | `waist.csv` |
 | `wrist_temp` | Sleeping Wrist Temperature | point | no | no | 7 days | `wristTemp.csv` |
 | `hr_recovery` | Cardio Recovery | point | no | no | 7 days | `hr-recovery.csv` |
 | `steps_watch` | Steps, *Source is* your watch | day total | **yes** | **filter** by source | 8 days | `steps-daily.csv` |
@@ -194,7 +194,7 @@ Decimal commas (`42,1`) are accepted.
 | `diet_protein` | Protein | day total | **yes** | no | 8 days | `dietary-daily.csv` (protein_g) |
 | `diet_carbs` | Carbohydrates | day total | **yes** | no | 8 days | `dietary-daily.csv` (carbs_g) |
 | `diet_fat` | Total Fat | day total | **yes** | no | 8 days | `dietary-daily.csv` (fat_g) |
-| `sleep` | Sleep (Sleep Analysis) | sleep | no | no | 3 days | `sleep-daily.csv` |
+| `sleep` | Sleep (Sleep Analysis) — keep ALL stages in the search, Awake and In Bed included (In Bed comes from the iPhone) | sleep | no | no | 3 days | `sleep-daily.csv` |
 | `hr_t` | Heart Rate, *Source is* your watch | samples: Start Dates (ISO 8601), one per line | no: **no grouping** | **filter** by source | 1 day | `hr-hourly.csv` |
 | `hr_v` | the same search | samples: Values (bpm), same line order as `hr_t` | no: **no grouping** | **filter** by source | 1 day | `hr-hourly.csv` |
 | `hr_samples` | the same search (older, loop-based alternative to `hr_t` + `hr_v`) | samples (`ISO;bpm`) | no: **no grouping** | **filter** by source | 1 day | `hr-hourly.csv` |
@@ -291,5 +291,5 @@ no activity carries elevation.
 
 ## Next step
 
-Once data flows, open the Salud tab: waist, the intake rings and the recovery signals fill in
+Once data flows, open the Health tab: waist, the intake rings and the recovery signals fill in
 as soon as their keys arrive. Metric definitions live in `docs/health-tab.md`.
