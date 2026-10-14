@@ -102,8 +102,8 @@ function stubOff () {
   }
 }
 
-async function setup ({ store = memoryStore(), off = stubOff(), writeLimit, summaryLimit, log = () => {}, available, settingsAvailable, allowedHosts } = {}) {
-  const routes = createFoodRoutes({ store, off, writeLimit, summaryLimit, log, available, settingsAvailable, allowedHosts })
+async function setup ({ store = memoryStore(), off = stubOff(), writeLimit, summaryLimit, log = () => {}, available, settingsAvailable, profileAvailable, allowedHosts } = {}) {
+  const routes = createFoodRoutes({ store, off, writeLimit, summaryLimit, log, available, settingsAvailable, profileAvailable, allowedHosts })
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost')
     if (!(await routes.handle(req, res, url))) { res.writeHead(404); res.end() }
@@ -860,4 +860,18 @@ test('profile: the food layers apply (X-HC-Food header)', async () => {
     assert.equal((await t.call('GET', '/food/profile', { headers: { 'x-hc-food': '0' } })).status, 403)
     assert.equal((await t.call('PUT', '/food/profile', { body: PROFILE, headers: { 'x-hc-food': '0' } })).status, 403)
   } finally { await t.close() }
+})
+
+test('profile: its own optional group, so a failed 011 migration leaves /food/settings working (and the other way round)', async () => {
+  const noProfile = await setup({ profileAvailable: () => false })
+  try {
+    assert.deepEqual((await noProfile.call('GET', '/food/profile')).body, { error: 'profile_unavailable' })
+    assert.equal((await noProfile.call('GET', '/food/profile')).status, 503)
+    assert.equal((await noProfile.call('GET', '/food/settings')).status, 200)
+  } finally { await noProfile.close() }
+  const noSettings = await setup({ settingsAvailable: () => false })
+  try {
+    assert.equal((await noSettings.call('GET', '/food/settings')).status, 503)
+    assert.equal((await noSettings.call('GET', '/food/profile')).status, 200)
+  } finally { await noSettings.close() }
 })

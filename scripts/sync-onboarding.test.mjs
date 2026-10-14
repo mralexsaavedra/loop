@@ -50,3 +50,12 @@ test('an old service (404) or a malformed body only warns and keeps the previous
   assert.match(broken.warns[0], /WARNING: .*onboarding\.json is kept/);
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(first.out, 'onboarding.json'), 'utf8')), DOC);
 });
+
+test('a write failure is an ERROR and exit 1 (the previous file is only ever replaced atomically)', async () => {
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-onboarding-'));
+  const blocker = path.join(parent, 'not-a-dir');
+  fs.writeFileSync(blocker, 'x');
+  const r = await run({ profile: DOC }, { dir: blocker });
+  assert.equal(r.code, 1);
+  assert.match(r.warns[0], /ERROR: onboarding sync could not write onboarding\.json/);
+});

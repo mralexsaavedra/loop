@@ -7,7 +7,7 @@ export function createPool (connectionString) {
   return new pg.Pool({ connectionString, max: 4, idleTimeoutMillis: 30_000 })
 }
 
-/** Runs every migration; resolves { food, settings, journal: boolean } (false = that group failed, see migrations.js). */
+/** Runs every migration; resolves { food, settings, profile, journal: boolean } (false = that group failed, see migrations.js). */
 export function migrate (pool, log = console.log) {
   const readSql = (file) => readFile(fileURLToPath(new URL(`../sql/${file}`, import.meta.url)), 'utf8')
   return runMigrations(pool, { core: CORE_MIGRATIONS, optional: OPTIONAL_MIGRATIONS, readSql, log })
