@@ -6,40 +6,67 @@ extract CSVs, so the dashboard stays fresh between full `export.xml` drops.
 
 ## Quick path
 
-1. Run the ingest service (`services/health-ingest`) somewhere your phone can reach over HTTPS.
-2. Build the Shortcut below: one **Find Health Samples** per payload key, each turned into text,
-   then one **Get Contents of URL** POST, and (optional) a second POST to `/sync` that refreshes
-   the page right away.
+1. Have the Level 2 services running ([`services/plan-web/README.md` → Install](../services/plan-web/README.md#install-host)).
+2. Import the ready-made Shortcut (below) and point it at your server, or build it yourself (*Build the
+   Shortcut*).
 3. Add a personal automation that runs it when you open an app you use every day.
-4. On your computer: `npm run sync && npm run generate`.
+4. On your computer: `npm run sync && npm run generate` (the LAN page does this on its own every hour).
 
 Export rows always win: Shortcut rows only fill dates your last `export.xml` does not cover.
+
+## Where the phone sends the data
+
+Pick one. Both go through plan-web, which forwards only the two routes the Shortcut needs
+(`POST /ingest/health-auto-export` and `POST /api/sync`) to the ingest service.
+
+| Option | URL in the Shortcut | Works | You need |
+| --- | --- | --- | --- |
+| **A. Home Wi-Fi only (start here)** | `http://<server-ip>:8090` | When the phone is on your home Wi-Fi | Nothing more: Level 2 as installed |
+| **B. From anywhere** | `https://<your-host>` | Always | A domain and an HTTPS tunnel or reverse proxy in front of plan-web ([`services/plan-web/README.md` → Exposing behind an SSO tunnel](../services/plan-web/README.md#exposing-behind-an-sso-tunnel)) |
+
+**Option A is enough for most people.** Each payload covers the last 1–30 days (see *Window* in the key
+table), so a day away from home is filled the next time the automation runs at home. The trade-off: the
+token travels unencrypted over your own Wi-Fi (plain HTTP). Use it only on a network you trust, and move
+to option B if you want to sync on the go. Find the server's IP with `hostname -I` on the server, and
+give it a fixed IP in your router so the Shortcut keeps working.
 
 ## Install the ready-made Shortcut
 
 Instead of building it from scratch, import the author's copy:
 **[Salud → servidor (iCloud link)](https://www.icloud.com/shortcuts/ceb66eea36fc434a9d2f910421dd18aa)**.
-It has every key in the table below wired up; you still need the prerequisites (the ingest service and
-your token). After importing, edit three things before the first run:
+It has every key in the table below wired up (Spanish UI, automation name `atajo-salud`). After
+importing, edit these before the first run:
 
-1. **Step 4** (*Get Contents of URL*, the POST): replace `TU-SERVIDOR` in
-   `https://TU-SERVIDOR/ingest/health-auto-export` with your host, and `TU_TOKEN` in the
-   `Authorization: Bearer TU_TOKEN` header with your `INGEST_TOKEN`.
-2. **Step 5** (the refresh): `https://TU-SERVIDOR/api/sync` → your plan-web host. Delete the action if
-   you do not run plan-web.
-3. **Every *Source is* filter**: it points to the author's watch (*Apple Watch de Alexander*); pick
-   yours. A filter left on a device you do not own returns no samples, so those keys arrive empty.
+1. **Step 4** (*Obtener contenido de URL*, the POST):
+   - URL: replace `https://TU-SERVIDOR` with your address from the table above, keeping the path:
+     `http://192.168.1.50:8090/ingest/health-auto-export` (option A) or
+     `https://<your-host>/ingest/health-auto-export` (option B).
+   - Header `Authorization`: replace `TU_TOKEN` in `Bearer TU_TOKEN` with your `INGEST_TOKEN`
+     (`grep INGEST_TOKEN services/health-ingest/.env` on the server; copy it on your own screen).
+2. **Step 5** (the refresh): same address, path `/api/sync`.
+3. **The *Origen es* (Source is) filters** — they name the author's devices; set yours:
+   - 8 searches filtered by the watch (*Apple Watch de …*): `steps_watch`, `active_energy`,
+     `active_energy_hourly`, `basal_energy`, `exercise_watch`, `distance_watch`, `flights_watch`, `hr_t`/`hr_v`;
+   - 1 search filtered by the iPhone (*iPhone de …*): `steps_phone`.
 
-Then add the personal automation (Quick path, step 3): automations are not shared with the Shortcut.
-The shared copy uses the Spanish UI and the default automation name `atajo-salud`.
+   A filter left on a device you do not own returns nothing, so that key arrives empty (no error).
 
-## Prerequisites
+**No Apple Watch?** HRV, resting HR, sleep stages, wrist temperature, respiratory rate and the
+heart-rate samples all come from the watch, so recovery, sleep and stress stay empty. Keep the iPhone
+and scale keys (`steps_phone`, `weight`, `bodyfat`, `leanmass`, `waist`) and delete the watch-filtered
+searches; other wearables that write to Apple Health work only if you point the filters at them.
+
+Then add the personal automation (*Automatización* → *Crear automatización personal* → *App* → pick an
+app you open every day → *Ejecutar inmediatamente* → this Shortcut): automations are not shared with
+the Shortcut.
+
+## Prerequisites (building it yourself)
 
 | You need | Where it comes from |
 |----------|---------------------|
-| The ingest service running | `services/health-ingest` (`docker compose up -d`), see its README |
-| A public HTTPS URL for it | Your reverse proxy or tunnel. The phone POSTs to `https://<your-host>/ingest/health-auto-export`. When `services/plan-web` is your public entry, `<your-host>` is the plan-web host: it proxies exactly that route (and `/api/sync`) to ingest, which stays unexposed (see "Through plan-web" below) |
-| The bearer token | `INGEST_TOKEN` in `services/health-ingest/.env` (generate with `openssl rand -hex 32`) |
+| The Level 2 services running | [`services/plan-web/README.md` → Install](../services/plan-web/README.md#install-host) |
+| The address | *Where the phone sends the data* above |
+| The bearer token | `INGEST_TOKEN` in `services/health-ingest/.env` (step 0 of the install generates it) |
 | An automation name | Any label. The sync reads payloads for `SHORTCUT_AUTOMATION` (default `atajo-salud`), so use that value or set the env var to yours |
 
 Keep the token out of screenshots and shared Shortcuts. Anyone holding it can write to your
@@ -62,7 +89,7 @@ Repeat steps 1 to 3 for every key you want (see the key table). Steps 4 and 5 ru
 3. After **End Repeat**, **Combine Text** (*Repeat Results*) with **New Lines**. That string is
    the value for the key.
 4. **Get Contents of URL**:
-   - URL: `https://<your-host>/ingest/health-auto-export`
+   - URL: `<your address>/ingest/health-auto-export` (`http://<server-ip>:8090` or `https://<your-host>`, see *Where the phone sends the data*)
    - Method: `POST`
    - Headers: `Authorization` = `Bearer <INGEST_TOKEN>`, `Automation-Name` = `atajo-salud`
      (or your `SHORTCUT_AUTOMATION`)
@@ -71,7 +98,7 @@ Repeat steps 1 to 3 for every key you want (see the key table). Steps 4 and 5 ru
 The service answers `202` with the stored row id. A `401` means the token does not match.
 
 5. **Get Contents of URL** (Spanish UI: *Obtener contenido de URL*), right after step 4:
-   - URL: `https://<your-host>/sync`
+   - URL: `<your address>/api/sync`
    - Method: `POST`
    - No headers and no body needed.
 
@@ -89,8 +116,8 @@ The service answers `202` with the stored row id. A `401` means the token does n
 
 ### Through plan-web (ingest not exposed)
 
-When the public entry is `services/plan-web` (e.g. behind an SSO tunnel) instead of the ingest
-service, point both steps at the plan-web host:
+Both options above already go through plan-web. For option B (public entry behind an SSO tunnel),
+point both steps at the plan-web host:
 
 - step 4: `https://<your-host>/ingest/health-auto-export` (same headers; plan-web forwards
   `Authorization` and `Automation-Name`, and ingest still checks the token)

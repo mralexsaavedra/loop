@@ -450,9 +450,36 @@ never blocks a refresh. The token is never returned by any endpoint or logged.
 A failed or rate-limited sync is logged and never takes the ingest endpoint
 down with it.
 
-To obtain the credentials: create an application at
-<https://www.strava.com/settings/api>, then run the authorization-code flow once
-to exchange it for a refresh token.
+### Getting the Strava credentials (once, ~5 minutes)
+
+1. **Create an API application** at <https://www.strava.com/settings/api> (logged in to Strava). Any name
+   and category; *Website* `http://localhost`; **Authorization Callback Domain: `localhost`**. Note the
+   **Client ID** and **Client Secret** it shows.
+2. **Authorize your own account.** Open this URL in the browser where you are logged in, with your
+   Client ID in place of `CLIENT_ID`:
+
+   ```text
+   https://www.strava.com/oauth/authorize?client_id=CLIENT_ID&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=read,activity:read_all,profile:read_all
+   ```
+
+   Click *Authorize*. The browser then lands on `http://localhost/exchange_token?...&code=XXXX&scope=...`
+   and shows an error page — **that is expected**. Copy the `code` value from the address bar.
+   The scopes: `activity:read_all` reads your activities (private ones included), `profile:read_all`
+   your bikes and shoes.
+3. **Exchange the code for a refresh token** within a few minutes (the code is single-use and expires):
+
+   ```sh
+   curl -s -X POST https://www.strava.com/oauth/token \
+     -d client_id=CLIENT_ID -d client_secret=CLIENT_SECRET \
+     -d code=XXXX -d grant_type=authorization_code | grep -o '"refresh_token":"[^"]*"'
+   ```
+
+4. **Fill `.env`** with `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` and `STRAVA_REFRESH_TOKEN`, then
+   `docker compose up -d`. Check: `curl -s localhost:8088/sync/status` shows `"stravaConfigured":true`,
+   and after the first pull `lastStravaOkAt` has a time and `/healthz` is not `degraded`.
+
+A `401` / `invalid_grant` in step 3 means the code was used or expired: repeat step 2. Revoke access any
+time at <https://www.strava.com/settings/apps>.
 
 ## Configuration
 
@@ -482,23 +509,22 @@ rebuild gets the same dependency tree; after changing a dependency in `package.j
 
 ## Exposing it
 
-**Plain HTTP on the LAN.** The service itself speaks plain HTTP: on the local
-network, the bearer token and every health payload travel unencrypted and are
-readable by anyone on that network. That is acceptable only on a trusted home
-network. For anything else (guest/shared Wi-Fi, VPN-less remote access, the
-internet), put it behind a TLS-terminating reverse proxy and rotate the token
-(`openssl rand -hex 32`, update `.env` and the clients) if it may have been exposed.
+**Never publish the ingest port itself.** The phone reaches it through `services/plan-web`, which forwards
+only `POST /ingest/health-auto-export` and `POST /api/sync` (see
+[`docs/ios-shortcut.md` → Where the phone sends the data](../../docs/ios-shortcut.md#where-the-phone-sends-the-data)):
 
-The iPhone must reach the endpoint from outside the LAN. Point the reverse proxy
-at `<your-host>:8088` (the `INGEST_PORT` in `.env`).
+- **Home Wi-Fi only:** `http://<server-ip>:8090`. Plain HTTP: the bearer token and every health payload
+  travel unencrypted over your LAN. Acceptable only on a trusted home network.
+- **From anywhere:** an HTTPS tunnel or reverse proxy in front of plan-web
+  ([`../plan-web/README.md` → Exposing behind an SSO tunnel](../plan-web/README.md#exposing-behind-an-sso-tunnel)).
 
-Two caveats:
+Rotate the token (`openssl rand -hex 32`, update `.env` and the Shortcut) if it may have been exposed.
 
-1. If the proxy enforces its own interactive authentication on the resource,
-   Health Auto Export cannot complete it — it is not a browser. Either leave the
-   resource unauthenticated and rely on the bearer token, or use a proxy
-   mechanism that accepts a static header or query token.
-2. Apple only allows reading HealthKit while the iPhone is unlocked, so schedule
-   frequent daytime syncs rather than an overnight one.
+Two caveats for any client (the iOS Shortcut or Health Auto Export):
+
+1. If a proxy in front enforces its own interactive login, the client cannot complete it — it is not
+   a browser. Bypass the login for exactly the two routes above and rely on the bearer token.
+2. Apple only allows reading HealthKit while the iPhone is unlocked, so trigger the sync when the phone
+   is in use (the Shortcut: an *open app* automation) rather than overnight.
 
 [hae]: https://apps.apple.com/app/id1115567069

@@ -73,11 +73,14 @@ Needs a Linux host with Docker (compose), systemd and Node 22. Follow the ordere
 
 ## Level 3 — live sync and knowledge base
 
-- **iOS Shortcut**: walk `docs/ios-shortcut.md` (prerequisites, build, Verify section) one action at a
-  time. The user copies the token from `services/health-ingest/.env` on their own screen.
+- **iOS Shortcut**: `docs/ios-shortcut.md`. First pick the address (*Where the phone sends the data*:
+  home Wi-Fi `http://<server-ip>:8090` unless they want to sync away from home), then import the
+  ready-made Shortcut and walk its edit list (URL, token, every *Source is* filter), or build it one
+  action at a time; finish with the Verify section. The user copies the token from
+  `services/health-ingest/.env` on their own screen.
 - **Strava**: `docs/data-pipeline.md` → Strava sync; credentials per `services/health-ingest/README.md`
-  → Strava. The user creates their own API app at <https://www.strava.com/settings/api>, runs the
-  authorization flow, and types `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_REFRESH_TOKEN`
+  → Strava. Walk "Getting the Strava credentials" there step by step (API app,
+  authorize URL, copy the code, token exchange); the user runs the exchange and types `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_REFRESH_TOKEN`
   into `services/health-ingest/.env` themselves. Then `docker compose up -d` there, `npm run sync`.
 - **Knowledge base**: `docs/knowledge-base.md`, `knowledge/README.md`. `yt-dlp` is optional; content is
   for personal use only. Ingest with `scripts/ingest-youtube.mjs`, then register each source in
