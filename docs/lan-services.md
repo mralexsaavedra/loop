@@ -2,9 +2,8 @@
 
 `services/plan-web` + `services/health-ingest`: sync trigger protocol, refresh.sh, freshness line, security and exposure, health + tokens.
 
-> Area design doc (moved out of `CLAUDE.md` on 2026-10-07). Read it before changing this area and keep
-> it in sync with the code in the same commit. Section names quoted in the text ("Nutrition v2 part 2",
-> "Detail views"…) are listed in `CLAUDE.md` → Architecture map.
+> **Reference** — how this area is built, for anyone changing it (keep it in sync with the code in the same
+> commit). Setting up or using the page? Start at the [documentation index](README.md).
 
 ## LAN page + on-demand refresh — `services/plan-web` + `services/health-ingest`
 

@@ -1,10 +1,9 @@
-# Home tab — Inicio
+# Home tab
 
 Dials, advice, eat card, health monitor (tiles here, the full list on Salud), timeline; recovery and load scoring; the shared same-day merge rule; workouts.csv columns.
 
-> Area design doc (moved out of `CLAUDE.md` on 2026-10-07). Read it before changing this area and keep
-> it in sync with the code in the same commit. Section names quoted in the text ("Nutrition v2 part 2",
-> "Detail views"…) are listed in `CLAUDE.md` → Architecture map.
+> **Reference** — how this area is built, for anyone changing it (keep it in sync with the code in the same
+> commit). Setting up or using the page? Start at the [documentation index](README.md).
 
 ## Home tab — "Inicio / Home" dials, monitor tiles, My day, eat card; recovery + load detail
 
