@@ -2,9 +2,8 @@
 
 How the raw sources become the CSVs in `data/apple-health/extract/` that every page and analysis reads.
 
-> Area design doc (moved out of `CLAUDE.md` on 2026-10-07). Read it before changing this area and keep
-> it in sync with the code in the same commit. Section names quoted in the text ("Nutrition v2 part 2",
-> "Detail views"…) are listed in `CLAUDE.md` → Architecture map.
+> **Reference** — how this area is built, for anyone changing it (keep it in sync with the code in the same
+> commit). Setting up or using the page? Start at the [documentation index](README.md).
 
 ## Apple Health extract + iOS Shortcut sync
 
