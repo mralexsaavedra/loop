@@ -1037,6 +1037,16 @@ test('a registered view opens from its opener: its title + head + body in the sa
   assert.equal(btn.focused, 1, 'focus returns to the avatar');
 });
 
+test('a registered view may return `bare`: no shared header, the view draws its own (and its own #dt-title)', () => {
+  const s = setup({ views: profileView({ render: () => ({ bare: true, body: '<h2 class="sr-only" id="dt-title">Set up</h2><p class="pf-body">B</p>' }) }) });
+  s.click(new StubElement('button', { attrs: { 'data-detail': 'profile', 'aria-haspopup': 'dialog' } }));
+  const html = s.host.innerHTML;
+  assert.doesNotMatch(html, /sh-head|data-dt-act="close"/);
+  assert.ok(html.includes('<div class="dt-body"><h2 class="sr-only" id="dt-title">Set up</h2><p class="pf-body">B</p></div>'));
+  s.key('Escape');
+  assert.equal(s.host.hidden, true, 'Esc still closes');
+});
+
 test('a registered view may return `info`: the header gets the shared ⓘ and the block sits collapsed under it; none = no ⓘ', () => {
   const s = setup({ views: profileView({ render: () => ({ head: '', body: '<p class="pf-body">B</p>', info: '<p class="pf-why">W</p>' }) }) });
   s.click(new StubElement('button', { attrs: { 'data-detail': 'profile', 'aria-haspopup': 'dialog' } }));

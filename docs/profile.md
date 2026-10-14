@@ -147,8 +147,11 @@ controls instead of the close button.
 
 `web/src/client/onboarding.js` registers the `onboarding` view (deep link `#onboarding`; LAN page only, since it
 saves to the ingest service). A full-screen flow in the sheet, one question per screen (2026-10-14, onboarding
-v2): a progress bar (`.adh-bar`), a large question (`.onb-q`), big option cards (the `.seg` chip radios /
-checkboxes stretched by `.onb-card` / `.onb-in`) and Back / Continue:
+v2): a `bare` sheet view with its own header — ONE back arrow (on the cover it closes) + a segmented progress bar
+(`.onb-prog`, one segment per screen) + "Later" — a large question (`.onb-q`), big option cards (the `.seg` chip
+radios / checkboxes stretched by `.onb-card` / `.onb-in`: outlined, a ✓ on the picked one), large centred numbers
+for height / weight / target (`.onb-big`), and the Continue button pinned at the bottom (`.onb-nav`). The cover
+lists the three parts; the summary's average sits inside a ring (`.onb-ring`):
 
 1. **Welcome**, then **name** (optional), **sex**, **date of birth**, **height**, **weight** (prefilled from the
    newest weigh-in) and **activity outside training** (`sedentary` / `light` / `active` = the NEAT factor).
