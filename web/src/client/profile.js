@@ -73,7 +73,7 @@
     if (P.location) meta.push(P.location);
     return '<div class="pf-id"><span class="pf-avatar">' + avatarHtml() + '</span><div class="pf-who">' +
       (P.name ? '<div class="pf-name">' + esc(P.name) + '</div>' : '') +
-      (meta.length ? '<div class="pf-meta">' + esc(meta.join(' · ')) + '</div>' : '') + '</div></div>';
+      (meta.length ? '<div class="pf-meta">' + esc(meta.join(' · ')) + '</div>' : '') + '</div>' + onbHtml() + '</div>';
   }
 
   function bodyHtml() {
@@ -314,14 +314,16 @@
   }
 
   // the in-page onboarding's entry (client/onboarding.js registers the view; LAN page only)
+  // the in-page onboarding's opener: a short chip at the end of the header row (LAN page only: it saves to
+  // the ingest service)
   function onbHtml() {
     var O = typeof I18N_ONB !== 'undefined' ? I18N_ONB : null, V = window.HCViews;
     if (!O || !V || !V.onboarding || !HC.lan()) return '';
-    return '<div class="food-btns"><button type="button" class="food-btn food-btn-ghost" data-onb-open="">' + esc(O.open) + '</button></div>';
+    return '<button type="button" class="chip pf-edit" data-onb-open="">' + esc(O.edit) + '</button>';
   }
   function render() {
-    if (!P.hasData) return { head: headHtml(), body: goalHtml() + note(T.onboarding, 'pf-onboard') + onbHtml() };
-    return { head: headHtml(), body: goalHtml() + onbHtml() + eventsHtml() + bodyHtml() + gearHtml() + devicesHtml() + supplementsHtml() + stravaHtml() + note(T.note, 'pf-foot') };
+    if (!P.hasData) return { head: headHtml(), body: goalHtml() + note(T.onboarding, 'pf-onboard') };
+    return { head: headHtml(), body: goalHtml() + eventsHtml() + bodyHtml() + gearHtml() + devicesHtml() + supplementsHtml() + stravaHtml() + note(T.note, 'pf-foot') };
   }
 
   HC.registerView('profile', { title: function () { return T.title; }, render: render });
