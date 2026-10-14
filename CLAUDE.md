@@ -26,7 +26,9 @@ you MUST follow for any number you produce).
 
 - **Live facts** (same sources the coach subagents use): `profile/profile.json` (height, birthdate →
   age from today, devices, supplements, upcoming `events`), `data/profile/settings.json` (`goal`,
-  `targetWeightKg`, `fetchedAt`; missing → goal unknown, `fetchedAt` > 3 days old → may be stale).
+  `targetWeightKg`, `fetchedAt`; missing → goal unknown, `fetchedAt` > 3 days old → may be stale),
+  `data/profile/onboarding.json` when the user set up through the page's assistant (sex, birthdate, height,
+  weight, activity, `sports` = their sessions per week, the accepted daily `targets` per goal and day type).
   **Numbers come from these files and the extract, never from the prose of `profile/about-me.md`,
   `profile/baseline.md` or an old report** — when they disagree, the live file wins; say so.
   `about-me.md` = stable context (injuries, history, preferences, which program when).
@@ -39,11 +41,14 @@ you MUST follow for any number you produce).
   [`docs/data-pipeline.md`](docs/data-pipeline.md).
 - **Food log** (the real one, LAN page): `data/nutrition/foodlog-daily.csv` from `npm run sync`;
   `missing_macros` = sums are minimums — see [`docs/nutrition-food-log.md`](docs/nutrition-food-log.md)
-  → Food log export. `data/nutrition/food-log.md` = legacy notes only.
+  → Food log export. `data/nutrition/food-log.md` = legacy notes only. To log food FOR the user, use the
+  `/food-log` skill.
+- **Journal** (daily behaviours, LAN page): `data/apple-health/extract/journal-daily.csv` from `npm run sync`
+  ([`docs/journal.md`](docs/journal.md)).
 - **Plan numbers**: `data/nutrition/plan-tables.md` (generated from `ingredients.json` +
   `plan-data.json`). Training program (modality balance, periodization): source noted in
-  `profile/about-me.md` (`data/training/*.pdf` or an external app). Nutritionist history: `data/nutritionist/`
-  (`RESUMEN-y-comparativa.md`; proven-effective targets, e.g. a rest-day calorie floor).
+  `profile/about-me.md` (`data/training/*.pdf` or an external app). Nutritionist history (optional): any reports
+  in `data/nutritionist/` (proven-effective targets, e.g. a rest-day calorie floor).
 
 ## Commands — build, check, test, sync
 

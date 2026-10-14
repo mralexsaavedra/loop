@@ -19,7 +19,9 @@ sources and their caveats are in `CLAUDE.md` → Data sources. Do not copy them 
    `data/profile/settings.json` (`fetchedAt`). Anything > 3 days old is flagged; the export's last
    date is a partial day.
 4. **Live facts.** Goal + target weight from `settings.json`, events / birthdate / height from
-   `profile/profile.json`, weight from `extract/weight.csv` (within one `source`). Never from the
+   `profile/profile.json`, weight from `extract/weight.csv` (within one `source`), sports and accepted
+   targets from `data/profile/onboarding.json` when it exists, daily behaviours from
+   `extract/journal-daily.csv`. Never from the
    prose of `about-me.md`, `baseline.md` or an old report; when they disagree, the live file wins.
 5. **Load the data** per `CLAUDE.md` → Data sources; compute trends (rolling averages), not single
    days. Reuse the `lib/` functions the page uses when one exists; say when you did not.
@@ -28,9 +30,10 @@ sources and their caveats are in `CLAUDE.md` → Data sources. Do not copy them 
 7. **Coach sub-questions.** Delegate the specialised parts and cite their answers:
    nutrition / body composition / fuelling / supplements → `nutrition-coach`; cycling training →
    `cycling-coach`; HYROX / hybrid training → `hybrid-coach`. They are read-only and cite sources.
-8. **Write** `analysis/reports/YYYY-MM-DD.md` (today's date) in Spanish, per methodology §6:
+8. **Write** `analysis/reports/YYYY-MM-DD.md` (today's date) in the user's language
+   (`profile/coaches.md` → Common → Language; else the language they write in), per methodology §6:
    0. freshness & limits, snapshot, trends, follow-up of previous actions, **2–4 actions**,
-   disclaimer ("no soy médico", device error margins, safety bounds of methodology).
+   disclaimer in that language ("I am not a doctor", device error margins, safety bounds of methodology).
 9. **Chat summary.** Key findings + the 2–4 actions, short; link the report path.
 
 ## Rules

@@ -157,7 +157,8 @@ Quote the 7-day average, not single days.
 
 ## 6. Report structure
 
-Each report (`analysis/reports/YYYY-MM-DD.md`) is written in **Spanish** (the user's language),
+Each report (`analysis/reports/YYYY-MM-DD.md`) is written in **the user's language** (`profile/coaches.md` →
+Common → Language; else the language they write in),
 opens with a short "why now / what changed since the last report" paragraph, and contains:
 
 0. **Data freshness & limits** — a table with the newest date of every source used
