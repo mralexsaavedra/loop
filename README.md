@@ -23,9 +23,10 @@ Recovery wearables are great at telling you how your body is doing — sleep, re
 say nothing about what you ate. Food trackers count your macros and know nothing about last night's
 sleep or today's ride. And neither can *do* anything with the other half.
 
-This repo puts both halves in one place, in plain files on your own disk:
+Inspired by WHOOP-style recovery apps, this repo puts both halves in one place, in plain files on your own
+disk:
 
-- **A recovery-app style dashboard** (the page is called **LOOP**): sleep, recovery, training load,
+- **A WHOOP-style dashboard** (the page is called **LOOP**): sleep, recovery, training load,
   stress, heart-rate variability, body composition — every card opens its own history.
 - **Plus the food log** those apps are missing: what you ate, against targets that follow your goal
   (cut / maintain / bulk) and the day's training (rest, gym, ride, long ride).
@@ -44,6 +45,8 @@ It can also run **in the background**: the LAN services (Level 2) sync Apple Hea
 log on their own and rebuild the page every hour, and a Claude Code session on an always-on machine next
 to them keeps working with the same data — plus [Engram](https://github.com/Gentleman-Programming/engram)
 memory, so it remembers your decisions between sessions.
+
+*LOOP is an independent project, not affiliated with or endorsed by WHOOP.*
 
 ### What a day with it looks like
 
