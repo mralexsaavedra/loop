@@ -284,8 +284,12 @@ test('CTA link: only .cta (and the in-sentence .lnk) paint link text; every CTA 
   const gradient = RULES.filter((r) => r.decl['background-clip'] === 'text');
   assert.deepEqual(gradient.map(key), ['base.css .cta'], 'one rule clips the CTA gradient to text');
   assert.equal(gradient[0].decl['background-image'] ?? gradient[0].decl.background, 'linear-gradient(90deg, var(--link), var(--link-end-card))', 'on cards the gradient ends in --link-end-card (AA on --surface / --surface-2)');
-  const ground = RULES.filter((r) => /var\(--link-end\)\)/.test(r.decl.background ?? '') && /\.cta\b/.test(r.selector)).map(key);
+  const ground = RULES.filter((r) => /var\(--link-end\)\)/.test(r.decl['background-image'] ?? r.decl.background ?? '') && /\.cta\b/.test(r.selector)).map(key);
   assert.deepEqual(ground, ['detail.css .dd-insight .cta'], 'only the insight card (--ground) ends in the exact --link-end');
+  // the `background` shorthand resets background-clip to border-box: a .cta override that uses it paints the
+  // gradient as a solid block over the text instead of clipping it to the glyphs
+  const shorthand = RULES.filter((r) => /\.cta\b/.test(r.selector) && /gradient/.test(r.decl.background ?? '') && r.decl['background-clip'] !== 'text').map(key);
+  assert.deepEqual(shorthand, [], 'a .cta override sets background-image, never the background shorthand');
 });
 
 // content cards are flat (the reference app draws no outline on a card); inputs, chips, pills and the
