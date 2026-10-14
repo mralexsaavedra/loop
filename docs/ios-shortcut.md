@@ -56,6 +56,22 @@ heart-rate samples all come from the watch, so recovery, sleep and stress stay e
 and scale keys (`steps_phone`, `weight`, `bodyfat`, `leanmass`, `waist`) and delete the watch-filtered
 searches; other wearables that write to Apple Health work only if you point the filters at them.
 
+**Another watch or band (Xiaomi, Garmin, Amazfit, Huawei…)?** It works through Apple Health if its app writes
+there:
+1. In the watch's app, turn on writing to Apple Health and pick the data (Mi Fitness: its third-party data
+   settings → Health; Garmin Connect, Zepp, Huawei Health have the same switch). Then check the app under
+   Health → your photo → *Apps*.
+2. In the Shortcut, point every watch-filtered search (*Origen es*, the 8 above) at that app instead of
+   *Apple Watch de …* (e.g. *Mi Fitness*). The unfiltered keys (`sleep`, `rhr`, `hrv`, `respiratory`,
+   `walking_hr`, …) need nothing: they read whatever writes them.
+3. Expect less than with an Apple Watch: steps, energy, heart rate and sleep usually arrive; HRV, wrist
+   temperature, respiratory rate and sleep stages depend on the device and its app, and without HRV / resting HR
+   the recovery and stress readings stay empty or partial.
+
+The Apple Health export (`data/apple-health/extract.mjs`) needs no change: steps, exercise and sleep take the
+largest value across sources, and energy prefers the Apple Watch, then a wearable app (Zepp, Mi Fit, Amazfit,
+Garmin Connect, Polar Flow, Fitbit, Huawei Health), then the iPhone.
+
 Then add the personal automation (*Automatización* → *Crear automatización personal* → *App* → pick an
 app you open every day → *Ejecutar inmediatamente* → this Shortcut): automations are not shared with
 the Shortcut.
