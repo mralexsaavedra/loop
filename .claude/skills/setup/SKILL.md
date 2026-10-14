@@ -55,7 +55,7 @@ stop until upgraded.
 
 ## Level 2 — food log + live page on the LAN (Docker)
 
-Needs Docker with compose. Follow `docs/lan-services.md` and the ordered install in
+Needs a Linux host with Docker (compose), systemd and Node 22. Follow the ordered install in
 `services/plan-web/README.md` → Install (host); env reference in `services/health-ingest/README.md`.
 
 1. Env file from the example, secrets generated in place and never shown:
@@ -64,8 +64,10 @@ Needs Docker with compose. Follow `docs/lan-services.md` and the ordered install
    sed -i.tmp "s/^INGEST_TOKEN=.*/INGEST_TOKEN=$(openssl rand -hex 32)/; s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env && rm .env.tmp
    grep -c 'replace-me' .env   # must print 0
    ```
-2. The plan-web install steps in order (trigger dir + chown BEFORE `docker compose up`; the clone stays
-   on `main`). Each `sudo` step: show it and let the user run it.
+2. The plan-web install steps in order (`services/plan-web/README.md` → Install (host), steps 1–10: the
+   trigger and `site/` dirs BEFORE `docker compose up`, the first `refresh.sh` by hand, the crontab line, the
+   systemd units; the clone stays on `main`). Check the host first: Linux with systemd, `flock`, Node 22 —
+   on macOS / Windows stop and say Level 2 needs a Linux box. Each `sudo` step: show it and let the user run it.
 3. Verify: `curl -s http://127.0.0.1:8088/healthz` → 200; the plan-web smoke test from its README.
 4. `npm run sync`: each `WARNING:` line names a source not refreshed; report it.
 
