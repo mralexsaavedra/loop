@@ -95,33 +95,50 @@ function toSafety(s, picks = [['running', '90', '2'], ['strength', '60', '3']], 
 const PERSON = { sex: 'female', age: 29, heightCm: 165, weightKg: 60, activity: 'light' };
 const SPORTS_RS = [{ sport: 'running', minutes: 90, perWeek: 2 }, { sport: 'strength', minutes: 60, perWeek: 3 }];
 
-test('registers the onboarding view, titled by the locale; it opens on a welcome screen', () => {
+test('registers the onboarding view, titled by the locale; it opens on a welcome cover', () => {
   const s = setup();
   assert.equal(s.view.title(), 'Set up');
   assert.equal(setup({ locale: 'es' }).view.title(), 'Configurar');
-  const h = s.html();
+  const r = s.view.render();
+  assert.equal(r.bare, true, 'its own header: one back arrow, the progress bar');
+  const h = r.body;
   clean(h);
-  assert.match(h, /Let's work out your numbers|Let&#39;s work out your numbers/);
-  assert.match(h, /data-onb-act="next"[^>]*>Start</);
+  assert.match(h, /id="dt-title"/);
+  assert.match(h, /Let&#39;s work out your numbers|Let's work out your numbers/);
+  for (const step of enO.welcome.steps) assert.ok(h.includes(step), step);
+  assert.match(h, /class="onb-nav"[\s\S]*data-onb-act="next"[^>]*>Start</);
   assert.match(h, /data-onb-act="later"/);
+  assert.doesNotMatch(h, /class="onb-prog"/, 'no progress on the cover');
 });
 
-test('one question per screen, with a progress bar that moves forward', () => {
+test('one question per screen, a segmented progress bar that fills, and ONE back (the top arrow)', () => {
   const s = setup();
   s.act('next');
   const h1 = s.html();
   assert.equal(questions(h1), 1);
-  assert.match(h1, /class="adh-bar"/);
+  assert.match(h1, /class="onb-prog"/);
   assert.match(h1, /data-onb-field="name"/);
   assert.doesNotMatch(h1, /data-onb-field="sex"/);
-  const w1 = Number(h1.match(/width:(\d+)%/)[1]);
+  assert.equal((h1.match(/data-onb-act="back"/g) || []).length, 1, 'one back control');
+  assert.match(h1, /class="onb-top"><button[^>]*data-onb-act="back"/);
+  const on = (h) => (h.match(/<i class="on">/g) || []).length;
   s.act('next');
   const h2 = s.html();
   assert.equal(questions(h2), 1);
   assert.match(h2, /data-onb-field="sex"/);
-  assert.ok(Number(h2.match(/width:(\d+)%/)[1]) > w1, 'the bar grows');
+  assert.equal(on(h2), on(h1) + 1, 'one more segment filled');
   s.act('back');
   assert.match(s.html(), /data-onb-field="name"/);
+});
+
+test('height, weight and the target are large centred numbers; the date is a large field', () => {
+  const s = setup();
+  s.act('next'); s.act('next'); s.choose('sex', 'female'); s.act('next');
+  assert.match(s.html(), /class="food-field onb-big"/);
+  s.field('birthdate', '1997-05-20'); s.act('next');
+  assert.match(s.html(), /class="food-field onb-big"[^>]*>[\s\S]*data-onb-field="heightCm"/);
+  s.field('heightCm', '165'); s.act('next');
+  assert.match(s.html(), /class="food-field onb-big"[^>]*>[\s\S]*data-onb-field="weightKg"/);
 });
 
 test('each screen refuses a missing / out-of-range answer and stays (inline error)', () => {
@@ -175,7 +192,7 @@ test('the full path: summary with the weekly average and only the day types the 
   const own = computeTargets({ ...PERSON, sports: SPORTS_RS }).targets.cut;
   // a week: 3 short + 2 long sessions, 2 rest days
   const avg = Math.round((2 * own.rest.kcal + 3 * own.gym.kcal + 2 * own.bike.kcal) / 7 / 50) * 50;
-  assert.match(h, new RegExp(`class="kcal">${avg.toLocaleString('en-US')}<`));
+  assert.match(h, new RegExp(`class="onb-ring">[\\s\\S]*class="kcal">${avg.toLocaleString('en-US')}<`), 'the average inside the ring');
   assert.match(h, /Rest day/);
   assert.match(h, /Short session/);
   assert.match(h, /Long session/);
