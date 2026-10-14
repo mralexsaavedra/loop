@@ -19,6 +19,14 @@ export const es = {
   dayTypes: { rest: 'Descanso', gym: 'Gimnasio o carrera', bike: 'Bici ~2 h', bikeLong: 'Bici larga' },
   // short segment labels (the day-type control); dayTypes above stay the full names used in sentences
   dayShort: { rest: 'Descanso', gym: 'Gym', bike: 'Bici', bikeLong: 'Bici larga' },
+  // a person with onboarding sports (web/src/i18n/day-labels.mjs): sport names and sport-neutral wording
+  sportText: {
+    names: { strength: 'Fuerza', running: 'Correr', cycling: 'Bici', swimming: 'Natación', hybrid: 'HYROX / CrossFit', team: 'Deporte de equipo', yoga: 'Yoga / pilates', other: 'Otro deporte' },
+    autoRaised: 'Detectado entrenamiento: cambiado a {type}.',
+    rideWhy: 'Sesión larga registrada hoy: {dur}.',
+    durationLabel: 'Duración de la sesión',
+    inDay: 'Lo que tomas durante el entreno cuenta dentro del total del día; antes y después suelen salir de las comidas del plan.',
+  },
   auto: '(auto)',
   chosen: '(elegido)',
   backToAuto: 'Usar el detectado: {type}',
@@ -219,6 +227,14 @@ export const en = {
   dayTypes: { rest: 'Rest', gym: 'Gym or run', bike: 'Ride ~2 h', bikeLong: 'Long ride' },
   // short segment labels (the day-type control); dayTypes above stay the full names used in sentences
   dayShort: { rest: 'Rest', gym: 'Gym', bike: 'Ride', bikeLong: 'Long ride' },
+  // a person with onboarding sports (web/src/i18n/day-labels.mjs): sport names and sport-neutral wording
+  sportText: {
+    names: { strength: 'Strength', running: 'Running', cycling: 'Cycling', swimming: 'Swimming', hybrid: 'HYROX / CrossFit', team: 'Team sport', yoga: 'Yoga / pilates', other: 'Other sport' },
+    autoRaised: 'Workout detected: switched to {type}.',
+    rideWhy: 'Long session recorded today: {dur}.',
+    durationLabel: 'Session length',
+    inDay: 'What you take during the session counts inside the day total; before and after usually come from the plan meals.',
+  },
   auto: '(auto)',
   chosen: '(chosen)',
   backToAuto: 'Use the detected one: {type}',
