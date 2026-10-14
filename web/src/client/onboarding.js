@@ -150,12 +150,22 @@
         : '<button type="button" class="food-btn food-btn-ghost" data-onb-act="adjust">' + esc(N.adjust) + '</button>') +
       '</div><p class="pf-note">' + esc(N.disclaimer) + '</p>';
   }
+  // the data screen: numbered steps (the Shortcut, the server address with a copy button, the token, Strava)
   function dataHtml() {
     var D = T.data, origin = typeof location !== 'undefined' && location && location.origin ? location.origin : '';
-    return q(D.q, D.intro) +
-      '<p class="pf-note"><a class="lnk" href="' + esc(SHORTCUT_URL) + '" target="_blank" rel="noopener">' + esc(D.shortcut) + '</a></p>' +
-      '<p class="pf-note"><span class="food-lbl">' + esc(D.url) + '</span><br><code>' + esc(origin) + '</code></p>' +
-      '<p class="pf-note">' + esc(D.token) + '</p><p class="pf-note">' + esc(D.strava) + '</p><p class="pf-note">' + esc(D.after) + '</p>';
+    function step(n, x, extra, action) {
+      return '<li class="db-row"><b class="db-val">' + n + '</b><span class="db-name">' + esc(x.t) + '<br><small>' + esc(x.d) + '</small>' + (extra || '') + '</span>' + (action || '') + '</li>';
+    }
+    return q(D.q, D.intro) + '<ol class="db-list onb-steps">' +
+      step(1, D.shortcut, '', '<a class="chip" href="' + esc(SHORTCUT_URL) + '" target="_blank" rel="noopener">' + esc(D.shortcut.btn) + '</a>') +
+      step(2, D.server, '<br><code>' + esc(origin) + '</code>', '<button type="button" class="chip" data-onb-act="copy">' + esc(D.server.copy) + '</button>') +
+      step(3, D.token) + step(4, D.strava) + '</ol><p class="pf-note">' + esc(D.after) + '</p>';
+  }
+  function copy() {
+    var origin = typeof location !== 'undefined' && location && location.origin ? location.origin : '';
+    var c = typeof navigator !== 'undefined' && navigator && navigator.clipboard;
+    if (!c || typeof c.writeText !== 'function') return;
+    c.writeText(origin).then(function () { S.status = T.data.server.copied; reopen('[data-onb-act="copy"]'); }, function () { /* no clipboard: the address stays on screen */ });
   }
   function screenHtml(id) {
     var a = S.a;
@@ -357,8 +367,21 @@
       else if (act === 'back') back();
       else if (act === 'later') later();
       else if (act === 'save') save();
+      else if (act === 'copy') copy();
       else if (act === 'adjust') { S.adjust = true; reopen('[data-onb-cell]'); }
       else if (act === 'reset') { S.edits = {}; S.errors = {}; reopen('[data-onb-act="reset"]'); }
+    });
+    // Enter in a field or on a card = the primary button (Start / Continue / Save; Close on a stop); a focused
+    // button or link clicks itself
+    document.addEventListener('keydown', function (e) {
+      var t = e && e.target;
+      if (!e || e.key !== 'Enter' || !t || typeof t.closest !== 'function' || !t.closest('.onb')) return;
+      var tag = String(t.tagName || '').toUpperCase();
+      if (tag === 'BUTTON' || tag === 'A' || tag === 'TEXTAREA') return;
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      if (S.at === 'stop') later();
+      else if (S.at === 'data') save();
+      else next();
     });
     document.addEventListener('input', onInput);
     document.addEventListener('change', onInput);

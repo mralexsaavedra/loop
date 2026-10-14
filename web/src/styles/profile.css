@@ -73,6 +73,9 @@
   gap: var(--sp-6);
   margin-top: var(--sp-5);
 }
+.pf-edit {
+  margin-left: auto;
+}
 .pf-avatar {
   flex: none;
   width: 72px;
@@ -432,6 +435,22 @@
 .onb-steps {
   margin: var(--sp-6) 0;
 }
+.onb-steps .db-row {
+  padding-block: var(--sp-4);
+}
+.onb-steps small,
+.onb-steps code {
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.onb-steps code {
+  color: var(--ink);
+}
+.onb-steps .chip {
+  text-decoration: none;
+}
 .onb-steps .db-val {
   color: var(--accent);
   font-family: var(--num);
@@ -472,6 +491,10 @@
 @media (min-width: 900px) {
   .onb {
     min-height: 0;
+  }
+  .onb-nav {
+    position: static;
+    background: none;
   }
 }
 .onb-cells {

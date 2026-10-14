@@ -4349,5 +4349,15 @@
   "|||.onb .onb-big .food-in|||text-align": "center",
   "|||.onb .onb-big [type=date]|||font-size": "var(--fs-num-card)",
   "|||.onb-top .lnk|||color": "var(--muted)",
-  "|||.onb-steps|||margin": "var(--sp-6) 0"
+  "|||.onb-steps|||margin": "var(--sp-6) 0",
+  "(min-width:900px)|||.onb-nav|||position": "static",
+  "(min-width:900px)|||.onb-nav|||background": "none",
+  "|||.pf-edit|||margin-left": "auto",
+  "|||.onb-steps .db-row|||padding-block": "var(--sp-4)",
+  "|||.onb-steps small, .onb-steps code|||color": "var(--muted)",
+  "|||.onb-steps small, .onb-steps code|||font-weight": "400",
+  "|||.onb-steps small, .onb-steps code|||letter-spacing": "0",
+  "|||.onb-steps small, .onb-steps code|||text-transform": "none",
+  "|||.onb-steps code|||color": "var(--ink)",
+  "|||.onb-steps .chip|||text-decoration": "none"
 }
