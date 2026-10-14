@@ -279,7 +279,11 @@ so builds stay byte-identical. Each block renders in its own try/catch (a one-li
   → gym (shorter = a stub); `other` (walks, tennis…) only ≥ 45 min, as gym; a ride < 30 min is a commute
   (ignored), 30–74 min → gym, ≥ 75 min → bike, ≥ 150 min → bikeLong; a zero / junk duration is dropped.
   Then the programmed session in `TRAINING[today]` (`kind: "bike"` by optional `durationMin` with the
-  same ride thresholds, absent = bike; any other kind → gym); else rest. The MOST
+  same ride thresholds, absent = bike; any other kind → gym); else rest. Per person, the in-page
+  onboarding's `sports` add endurance modalities (`enduranceOf`: running → `run`, swimming → `other`),
+  baked as `NUTRI.detect.endurance` only when there are some: a session of those modalities, done or
+  programmed with `durationMin`, of ≥ 75 min is a bike day and ≥ 150 min a bikeLong day like a ride (its
+  minutes travel as `rideMin`, so fuelling follows); shorter ones keep their rule. The MOST
   DEMANDING of done and programmed wins (a gym morning with a long ride programmed → bikeLong; a tie
   goes to what was done, whose ride minutes are real). `training-data.json` accepts `kind: "bike"` +
   `durationMin` for this. The manual override and the goal are kept in localStorage (`hc.nutri.goal`,

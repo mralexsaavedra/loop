@@ -58,11 +58,12 @@ interface Props {
   intakeHost?: boolean; // false = no intake ever logged: no rings host (intake.js also renders nothing for stale intake)
   supplements?: any[]; // profile.json supplements (lib/profile/profile.mjs)
   weight?: { kg: number; date: string } | null; // the latest weigh-in, for the g/kg fuelling amounts
+  sports?: any[]; // the in-page onboarding's sports (lib/profile/onboarding.mjs), absent without one
 }
-const { nut, plan, locale, page, hidden, intakeHost = true, supplements = [], weight = null } = Astro.props;
+const { nut, plan, locale, page, hidden, intakeHost = true, supplements = [], weight = null, sports } = Astro.props;
 const T = locale === 'es' ? esNutri : enNutri;
 const es = locale === 'es';
-const nutri = buildNutriToday(nut, plan, { supplements, weight, units: { g: 'g', ml: 'ml', ud: es ? 'ud' : 'pc' }, dec: es ? ',' : '.', lang: es ? 'es' : 'en' });
+const nutri = buildNutriToday(nut, plan, { supplements, weight, units: { g: 'g', ml: 'ml', ud: es ? 'ud' : 'pc' }, dec: es ? ',' : '.', lang: es ? 'es' : 'en', sports });
 const F = locale === 'es' ? esFood : enFood;
 const sumInfoLbl = T.infoTpl.replace('{section}', T.headings.summary);
 const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForScript(T)};\nvar NUTRI_ARC = ${jsonForScript(arcPath(0, 1))};\nvar I18N_FOOD = ${jsonForScript(F)};\nvar FOOD_CONST = ${jsonForScript({ meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS, limits: FOOD_LIMITS, goals: SETTINGS_GOALS, groups: MEAL_GROUPS, mainSlots: MAIN_SLOTS, addonGroup: ADDON_GROUP, addonSlot: ADDON_SLOT, lateNightHour: LATE_NIGHT_HOUR })};\nvar FOOD_BASICS = ${jsonForScript(buildBasics(nut.ING, es ? 'es' : 'en'))};`;

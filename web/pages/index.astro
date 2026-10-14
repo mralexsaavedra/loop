@@ -67,7 +67,7 @@ const title = plan.page?.title || 'Plan';
     <Salud locale={locale} />
   </div>
   <div class="tab-panel" data-tab="nutricion" hidden={activeTab !== 'nutricion'}>
-    <Dia nut={nut} plan={plan} locale={locale} page={plan.page} hidden={isHidden('dia')} intakeHost={!!intake.latest} supplements={profile.supplements} weight={profile.weight} />
+    <Dia nut={nut} plan={plan} locale={locale} page={plan.page} hidden={isHidden('dia')} intakeHost={!!intake.latest} supplements={profile.supplements} weight={profile.weight} sports={env.onboarding?.sports} />
     {!isHidden('dia') && <Food locale={locale} />}
     <Tablas nut={nut} dict={dict} locale={locale} page={plan.page} hidden={isHidden('tablas')} />
   </div>

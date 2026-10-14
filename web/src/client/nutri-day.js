@@ -86,15 +86,19 @@
   // other date takes its workouts from DETAIL.sessions + its programmed session (TRAINING); `known` = the
   // day type rests on data (a timeline row, a session, a sleep reading or a programmed session)
   var detectDayType = HC_DAYTYPE.detectDayType, dayInputFor = HC_DAYTYPE.dayInputFor;
+  // the person's endurance modalities besides bike (NUTRI.detect.endurance, from the onboarding's sports)
+  var endurance = N && N.detect && N.detect.endurance ? N.detect.endurance : null;
   function dayInput(date) {
     var S = typeof SCORES === 'undefined' ? null : SCORES;
     var D = typeof DETAIL === 'undefined' || !DETAIL ? null : DETAIL;
-    return dayInputFor(date, {
+    var input = dayInputFor(date, {
       timeline: S && S.timeline && S.timeline.days ? S.timeline.days : [],
       sessions: D && Array.isArray(D.sessions) ? D.sessions : [],
       sleep: D && D.metrics ? D.metrics.sleep : null,
       training: typeof TRAINING === 'undefined' || !TRAINING ? {} : TRAINING,
     });
+    if (endurance) input.endurance = endurance;
+    return input;
   }
 
   /* ---------- fuelling: lib/nutrition/fuel.mjs's own fuelPlan (lib/nutrition/client.mjs -> HC_FUEL) ---------- */
