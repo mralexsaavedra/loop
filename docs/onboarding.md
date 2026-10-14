@@ -10,13 +10,15 @@ Installation (dependencies, Apple Health export, LAN services, Shortcut, Strava)
 Level 1. This file covers only the coaching intake.
 
 **Two ways to start.** With Claude Code, the intake below. Without it, the LAN page's own assistant
-(Level 2; `docs/profile.md` → In-page onboarding): four screens that collect sex, date of birth, height,
-weight, activity and the goal, run the same safety screen, and compute the daily targets per day type
-(`lib/nutrition/energy.mjs`); it saves them to the ingest service and the build uses them
-(`data/profile/onboarding.json`). The page works fully either way; what needs Claude Code is the coaching:
+(Level 2; `docs/profile.md` → In-page onboarding): a full-screen flow, one question per screen, that collects
+sex, date of birth, height, weight, activity, the sports the person does (session length and times a week)
+and the goal, runs the same safety screen, and computes the daily targets per day type
+(`lib/nutrition/energy.mjs`); it saves them with the sports to the ingest service and the build uses them
+(`data/profile/onboarding.json`): the sports set each day type's exercise, which runs and swims count as long
+days, and the names the page shows for the day types (`docs/nutrition.md`). The page works fully either way; what needs Claude Code is the coaching:
 reports, the coach subagents, an agent that logs food or plans sessions for you. When a user who started
-with the page assistant later runs this intake, read `data/profile/onboarding.json` first and do not ask
-again what it already holds.
+with the page assistant later runs this intake, read `data/profile/onboarding.json` first (including its
+`sports`) and do not ask again what it already holds.
 
 When `profile/about-me.md` is missing, your job is to BUILD the user's profile with them,
 conversationally — do not make them fill a form alone. Replicate a real coach intake:
