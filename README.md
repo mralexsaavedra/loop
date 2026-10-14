@@ -158,10 +158,11 @@ food log and settings into your local data so `/analysis` can read them. Once it
 **Needs a Linux machine that stays on** (a home server or a mini PC) with Docker, systemd and Node.js;
 macOS and Windows are not supported as the host.
 
-**No Claude Code? The page sets you up.** The first time the page opens on a fresh server, an assistant asks
-a few questions (age, height, weight, activity, goal, plus a short safety check) and computes your starting
-calories and macros for each kind of day; you can edit them before saving, and reopen it from your
-profile. Everything on the page works without Claude Code; the reports, coaches and agent need it.
+**No Claude Code? The page sets you up.** The first time the page opens on a fresh server, a full-screen
+assistant asks one question at a time (age, height, weight, activity, the sports you do and how long and how
+often, your goal, plus a short safety check) and computes your starting calories and macros for each kind of
+day; you can edit them before saving, and reopen it from your profile. The page then names your days after
+your own sports ("Running ~1.5 h") instead of a fixed gym / ride split. Everything on the page works without Claude Code; the reports, coaches and agent need it.
 
 1. **Install:** [`services/plan-web/README.md` → Install (host)](services/plan-web/README.md#install-host) —
    ten numbered steps, from the secrets file to opening the page on your phone.
