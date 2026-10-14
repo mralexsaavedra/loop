@@ -150,7 +150,8 @@
         : '<button type="button" class="food-btn food-btn-ghost" data-onb-act="adjust">' + esc(N.adjust) + '</button>') +
       '</div><p class="pf-note">' + esc(N.disclaimer) + '</p>';
   }
-  // the data screen: numbered steps (the Shortcut, the server address with a copy button, the token, Strava)
+  // the data screen: numbered steps (the Shortcut, the server address with a copy button, the token, Strava,
+  // the one-off Apple Health export for the history)
   function dataHtml() {
     var D = T.data, origin = typeof location !== 'undefined' && location && location.origin ? location.origin : '';
     function step(n, x, extra, action) {
@@ -159,7 +160,7 @@
     return q(D.q, D.intro) + '<ol class="db-list onb-steps">' +
       step(1, D.shortcut, '', '<a class="chip" href="' + esc(SHORTCUT_URL) + '" target="_blank" rel="noopener">' + esc(D.shortcut.btn) + '</a>') +
       step(2, D.server, '<br><code>' + esc(origin) + '</code>', '<button type="button" class="chip" data-onb-act="copy">' + esc(D.server.copy) + '</button>') +
-      step(3, D.token) + step(4, D.strava) + '</ol><p class="pf-note">' + esc(D.after) + '</p>';
+      step(3, D.token) + step(4, D.strava) + step(5, D.history) + '</ol><p class="pf-note">' + esc(D.after) + '</p>';
   }
   function copy() {
     var origin = typeof location !== 'undefined' && location && location.origin ? location.origin : '';
