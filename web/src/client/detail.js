@@ -31,7 +31,8 @@
  * printed (non-finite values render as a dash). A day tap re-renders only the calendar + day panel.
  *
  * Registered views: another script (inlined BEFORE this one) may call HC.registerView(<key>,
- * {title(), render() -> {head, body}}) (client/profile.js adds `profile`); this reads them through
+ * {title(), render() -> {head, body, info?, bare?}}) (client/profile.js adds `profile`; `bare` = no shared header,
+ * the view draws its own with id="dt-title"); this reads them through
  * HC.view(<key>). An opener with
  * data-detail="<key>" then opens that view in this same modal (focus, inert, Esc, Back), with the deep
  * link #<key> instead of #detail/<metric>; a view that throws gets the same message fallback.
@@ -520,7 +521,8 @@
     var key = state.key, vw = viewOf(key);
     if (vw) {
       var r = vw.render() || {};
-      return head(key, r.head || '', r.info) + '<div class="dt-body">' + (r.body || '') + '</div>';
+      // `bare`: the view draws its own header (and #dt-title), e.g. the onboarding's back + progress bar
+      return (r.bare ? '' : head(key, r.head || '', r.info)) + '<div class="dt-body">' + (r.body || '') + '</div>';
     }
     var m = metric(key);
     if (!m) return head(key) + '<div class="dt-body"><p class="dt-empty">' + esc(T.empty) + '</p></div>';

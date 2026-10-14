@@ -277,6 +277,9 @@ the trend sheet's window, its calendar month (formerly 44 px filled circles) and
   the switch's; the others are listed with their reason: the trend calendar's selected day (a ring on a
   day cell) and the journal's ✕ / ✓ answers (the reference's answer pair, each a yes / no of its own
   question — not a pick among options, so neither a chip nor a segment).
+The onboarding (`client/onboarding.js`, a `bare` sheet view) stretches the chip into option cards (`.onb-card` /
+`.onb-in`): the picked card keeps its card fill and gets an `--accent` outline and a ✓ instead of the white fill,
+like the reference's setup flow; its own header reuses `.sh-back` for its one back arrow (both listed in the guard).
 
 ### Metric row
 
