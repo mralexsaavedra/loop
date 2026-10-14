@@ -51,7 +51,10 @@ stop until upgraded.
    `profile/profile.json`. `npm run check`.
 5. `npm run generate`; open `web/dist/personal/index.html` (`open` on macOS, `xdg-open` on Linux; it is
    self-contained, no server).
-6. Offer the first analysis: the `/analysis` skill (`.claude/skills/analysis/SKILL.md`).
+6. Goal without Level 2: ask their goal (cut / maintain / bulk) and target weight and write
+   `data/profile/settings.json` = `{"goal": "...", "targetWeightKg": N}` (gitignored; Level 2's sync
+   overwrites it later). Spanish speaker? set `"locale": "es"` in `plan-data.json` and regenerate.
+7. Offer the first analysis: the `/analysis` skill (`.claude/skills/analysis/SKILL.md`).
 
 ## Level 2 — food log + live page on the LAN (Docker)
 
