@@ -221,7 +221,7 @@ async function main () {
   })
   const syncRoutes = createSyncRoutes({ status: syncStatus, trigger: syncTrigger })
 
-  // Food log (Nutrición part 2): products, recipes, the daily log and a server-side Open Food Facts
+  // Food log (docs/nutrition-food-log.md): products, recipes, the daily log and a server-side Open Food Facts
   // lookup under /food/*. Unauthenticated and LAN-only like /sync (a static page cannot hold a
   // secret). A Host allowlist (DNS rebinding), an Origin check on writes and the required X-HC-Food
   // header + JSON content type (a CORS preflight this server never approves) keep other websites out;

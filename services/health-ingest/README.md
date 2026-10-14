@@ -115,8 +115,9 @@ bearer token.
 **Exposure model.** This service is never exposed on its own: plan-web's nginx
 is the only entry, on the LAN or behind a public tunnel, and proxies only
 `POST /ingest/health-auto-export`, `/api/sync`, `/api/sync/status`,
-`/api/food/*` and `/api/journal/*`. Never publish this service's port, and
-never `/export/*` or `/sync/strava` (see
+`/api/food/*` and `/api/journal/*`. Its port is published on the host only so plan-web
+can reach it (`"${INGEST_PORT}:8088"`, see the plan-web README): keep it off the internet and never
+forward it, `/export/*` or `/sync/strava` through a public proxy or tunnel (see
 [`../plan-web/README.md` → Exposing behind an SSO tunnel](../plan-web/README.md)).
 
 **Deploy order.** Create the trigger directory and hand it to the container's
@@ -516,7 +517,7 @@ rebuild gets the same dependency tree; after changing a dependency in `package.j
 
 ## Exposing it
 
-**Never publish the ingest port itself.** The phone reaches it through `services/plan-web`, which forwards
+**Never expose the ingest port to the internet** (it is published on the host's LAN only for plan-web). The phone reaches it through `services/plan-web`, which forwards
 only `POST /ingest/health-auto-export` and `POST /api/sync` (see
 [`docs/ios-shortcut.md` → Where the phone sends the data](../../docs/ios-shortcut.md#where-the-phone-sends-the-data)):
 

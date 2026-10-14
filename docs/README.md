@@ -12,6 +12,7 @@ built, for anyone changing the code.
 | Understand what each tab and card tells you | [`guides/page-tour.md`](guides/page-tour.md) |
 | Make the nutrition and training plan yours | [`guides/your-plan.md`](guides/your-plan.md) |
 | Fix something that is not working | [`guides/troubleshooting.md`](guides/troubleshooting.md) |
+| Update your install to the latest version (and back up first) | [`guides/upgrading.md`](guides/upgrading.md) |
 | Try it with no data of your own | [`data/demo/README.md`](../data/demo/README.md) |
 | Run the page and the data service at home | [`services/plan-web/README.md`](../services/plan-web/README.md) → Install (host) |
 | Send your Apple Health data from the iPhone every day | [`ios-shortcut.md`](ios-shortcut.md) |
@@ -39,4 +40,5 @@ built, for anyone changing the code.
 | The guard hook that keeps personal data out of git | [`guard-hook.md`](guard-hook.md) |
 | How every number is computed (analysis framework) | [`../analysis/methodology.md`](../analysis/methodology.md) |
 
+Changing the code: [`development.md`](development.md) (commands, tests, generated files, guards, workflow).
 Dated history of changes: [`CHANGELOG.md`](../CHANGELOG.md).
