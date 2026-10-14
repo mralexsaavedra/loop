@@ -13,6 +13,7 @@ import { es as esN, en as enN } from '../i18n/nutri-templates.mjs';
 import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 import { buildNutrition } from '../../../lib/nutrition/macros.mjs';
 import { buildNutriToday } from '../../../lib/nutrition/today.mjs';
+import { DETECT } from '../../../lib/nutrition/daytype.mjs';
 import { DAYTYPE_CASES, DAYINPUT_CASES } from '../../../lib/nutrition/daytype.mjs';
 import { fuelPlan, FUEL_CASES } from '../../../lib/nutrition/fuel.mjs';
 import { planFor, solveScale } from '../../../lib/nutrition/scale.mjs';
@@ -382,6 +383,16 @@ test('HCNutri.targetFor(past day): THAT day\'s detected day type (its recorded r
   const es = run({ locale: 'es', extra: pastCtx([{ date: YDAY, sleep: 7, items: [{ modality: 'gym', dur: 50 }] }]) }).api.targetFor(YDAY);
   assert.equal(es.dayType, 'gym');
   assert.match(es.label, /^Objetivo de ese día · /);
+});
+
+test('the onboarding sports reach the page: a runner\'s 90-min run is a long day; without sports it stays a gym day', () => {
+  const RUNS = [{ sport: 'running', minutes: 90, perWeek: 2 }];
+  assert.deepEqual(bake().detect, { ...DETECT }, 'no sports: the bake is unchanged');
+  assert.deepEqual(bake({ sports: RUNS }).detect, { ...DETECT, endurance: ['run'] });
+  const ctx = pastCtx([{ date: YDAY, sleep: 7, items: [{ modality: 'run', dur: 90 }] }]);
+  assert.equal(run({ nutri: bake({ sports: RUNS }), extra: ctx }).api.targetFor(YDAY).dayType, 'bike');
+  assert.equal(run({ extra: ctx }).api.targetFor(YDAY).dayType, 'gym');
+  assert.equal(run({ nutri: bake({ sports: RUNS }), items: [{ modality: 'run', dur: 160 }] }).window.nutriTarget().dayType, 'bikeLong');
 });
 
 test('HCNutri.targetFor: a day with only sleep is rest, a programmed-only day uses the program, today = nutriTarget()', () => {
