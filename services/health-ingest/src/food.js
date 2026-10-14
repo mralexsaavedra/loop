@@ -255,6 +255,21 @@ export function validateSettings (body) {
 const PROFILE_SEX = ['male', 'female']
 export const PROFILE_ACTIVITY = ['sedentary', 'light', 'active']
 const PROFILE_DAY_TYPES = ['rest', 'gym', 'bike', 'bikeLong']
+// lib/nutrition/energy.mjs SPORTS (a test pins the copy)
+export const PROFILE_SPORTS = ['strength', 'running', 'cycling', 'swimming', 'hybrid', 'team', 'yoga', 'other']
+
+/** The optional sports list: [{sport, minutes (15-600), perWeek (1-14)}], one entry per sport; any fault = 'sports'. */
+function profileSports (v) {
+  const ok = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi
+  if (!Array.isArray(v) || v.length > PROFILE_SPORTS.length) bad('sports')
+  const seen = new Set()
+  return v.map((s) => {
+    if (!s || typeof s !== 'object' || Array.isArray(s) || Object.keys(s).some((k) => !['sport', 'minutes', 'perWeek'].includes(k))) bad('sports')
+    if (!PROFILE_SPORTS.includes(s.sport) || seen.has(s.sport) || !ok(s.minutes, 15, 600) || !ok(s.perWeek, 1, 14)) bad('sports')
+    seen.add(s.sport)
+    return { sport: s.sport, minutes: s.minutes, perWeek: s.perWeek }
+  })
+}
 
 /** A real YYYY-MM-DD calendar date from 1900 on (validDate is for log dates, 2000-2100), else null. */
 function birthDate (v) {
@@ -271,10 +286,10 @@ function ageAt (birthdate, nowMs) {
   return ty - by - (tm < bm || (tm === bm && td < bd) ? 1 : 0)
 }
 
-/** The whole onboarding document: {name?, sex, birthdate (adult), heightCm, weightKg, activity, goals (the
+/** The whole onboarding document: {name?, sex, birthdate (adult), heightCm, weightKg, activity, sports?, goals (the
  * goals the safety screen allowed), targets {goal: {dayType: {kcal, p, f}}} (all twelve cells)}. */
 export function validateProfile (body, nowMs = Date.now()) {
-  strictKeys(body, ['name', 'sex', 'birthdate', 'heightCm', 'weightKg', 'activity', 'goals', 'targets'])
+  strictKeys(body, ['name', 'sex', 'birthdate', 'heightCm', 'weightKg', 'activity', 'sports', 'goals', 'targets'])
   const out = {}
   const name = str(body.name, 'name', 60, true)
   if (name !== null) out.name = name
@@ -285,6 +300,7 @@ export function validateProfile (body, nowMs = Date.now()) {
   out.heightCm = number(body.heightCm, 'heightCm', { min: 120, max: 230 })
   out.weightKg = number(body.weightKg, 'weightKg', { min: 30, max: 250 })
   out.activity = oneOf(body.activity, 'activity', PROFILE_ACTIVITY)
+  if (body.sports !== undefined) out.sports = profileSports(body.sports)
   if (!Array.isArray(body.goals) || !body.goals.length || new Set(body.goals).size !== body.goals.length) bad('goals')
   for (const g of body.goals) oneOf(g, 'goals', SETTINGS_GOALS)
   out.goals = [...body.goals]
