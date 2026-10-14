@@ -13,7 +13,7 @@
  *                                   page's adherence view (food-calc.js daySummaries)
  *   GET    /food/settings            the user's goal + target weight (one row, sql/007_settings.sql)
  *   GET    /food/profile             the in-page onboarding document (profile + accepted targets), null before the first save
- *   PUT    /food/profile             replaces it (validateProfile; one row, sql/011_profile.sql)
+ *   PUT    /food/profile             replaces it (validateProfile; one row, sql/011_profile.sql, its own optional `profile` group)
  *   PUT    /food/settings            partial update {goal?, targetWeightKg?} (targetWeightKg null clears it)
  *
  * The settings live in their OWN optional migration group (`settings`): when 007 fails only
@@ -66,7 +66,7 @@ const WRITE_METHODS = new Set(['POST', 'PUT', 'DELETE'])
 // path pattern -> allowed methods (+ the optional migration group it needs, default food)
 const ROUTES = [
   { re: /^\/food\/settings$/, methods: ['GET', 'PUT'], group: 'settings' },
-  { re: /^\/food\/profile$/, methods: ['GET', 'PUT'], group: 'settings' },
+  { re: /^\/food\/profile$/, methods: ['GET', 'PUT'], group: 'profile' },
   { re: /^\/food\/log\/summary$/, methods: ['GET'] },
   { re: /^\/food\/products$/, methods: ['GET', 'POST'] },
   { re: /^\/food\/products\/([^/]+)$/, methods: ['PUT', 'DELETE'] },
@@ -253,7 +253,7 @@ export function validateSettings (body) {
 // The onboarding document (PUT /food/profile). Coarse bounds only: the host sync and the build re-check the
 // targets against lib/nutrition/energy.mjs (the service is built from its own directory and cannot import lib/).
 const PROFILE_SEX = ['male', 'female']
-const PROFILE_ACTIVITY = ['sedentary', 'light', 'active']
+export const PROFILE_ACTIVITY = ['sedentary', 'light', 'active']
 const PROFILE_DAY_TYPES = ['rest', 'gym', 'bike', 'bikeLong']
 
 /** A real YYYY-MM-DD calendar date from 1900 on (validDate is for log dates, 2000-2100), else null. */
@@ -349,7 +349,7 @@ export function recipeView (recipe, byId) {
   }
 }
 
-export function createFoodRoutes ({ store, off, now = Date.now, log = console.log, writeLimit = FOOD_WRITE_LIMIT, summaryLimit = FOOD_SUMMARY_LIMIT, available = () => true, settingsAvailable = () => true, allowedHosts = [] }) {
+export function createFoodRoutes ({ store, off, now = Date.now, log = console.log, writeLimit = FOOD_WRITE_LIMIT, summaryLimit = FOOD_SUMMARY_LIMIT, available = () => true, settingsAvailable = () => true, profileAvailable = () => true, allowedHosts = [] }) {
   const writes = createWindowLimiter({ limit: writeLimit, windowMs: 60_000, now })
   const summaries = createWindowLimiter({ limit: summaryLimit, windowMs: 60_000, now })
 
@@ -504,7 +504,8 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
         // an unknown path is a 404 whatever is available; a known one needs its migration group
         if (!route) throw httpError(404, 'not_found')
         const group = route.group ?? 'food'
-        if (!(group === 'settings' ? settingsAvailable() : available())) throw httpError(503, `${group}_unavailable`)
+        const ready = group === 'settings' ? settingsAvailable() : group === 'profile' ? profileAvailable() : available()
+        if (!ready) throw httpError(503, `${group}_unavailable`)
         if (!route.methods.includes(req.method)) {
           req.resume()
           send(res, 405, { error: 'method_not_allowed' }, { allow: route.methods.join(', ') })

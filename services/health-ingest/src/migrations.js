@@ -10,7 +10,7 @@
 
 export const CORE_MIGRATIONS = ['001_init.sql', '002_strava.sql', '003_sync.sql', '004_athlete.sql', '005_athlete_refresh.sql', '008_strava_hr.sql', '009_strava_hr_retry.sql']
 // optional groups: a failure disables only that feature (its routes answer 503)
-export const OPTIONAL_MIGRATIONS = { food: ['006_food.sql'], settings: ['007_settings.sql', '011_profile.sql'], journal: ['010_journal.sql'] }
+export const OPTIONAL_MIGRATIONS = { food: ['006_food.sql'], settings: ['007_settings.sql'], profile: ['011_profile.sql'], journal: ['010_journal.sql'] }
 
 export async function runMigrations (pool, { core, optional = {}, readSql, log = console.log }) {
   for (const file of core) await pool.query(await readSql(file))
