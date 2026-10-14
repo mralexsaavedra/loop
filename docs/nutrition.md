@@ -97,6 +97,11 @@ weight trend after 2–3 weeks.
   ((MET − 1) × kg × h: gym 6 × 1 h, ride 7 × 2 h, long ride 7 × 3.5 h). Cut −15 % except the long ride,
   bulk +10 %, kcal to the nearest 50; protein 2.0 g/kg cut / 1.8 otherwise, fat 0.8 g/kg; floors 1500 kcal
   (men) / 1200 (women).
+- The protein and fat kg are a **reference weight** (`referenceKg`): the current weight up to BMI 25, the weight
+  at BMI 25 above it (to 10 g), because fat-free mass, not fat, drives protein needs; fat never drops below
+  0.5 g per kg of CURRENT weight. `checkTargets` measures protein, the fat range and carbs per reference kg and the
+  fat floor (`fatMin`) per current kg. Same factors for men and women (the position stands give no sex-specific
+  g/kg); sex enters through the BMR and the kcal floor.
 - `screenPerson` withholds numbers under 18 or in pregnancy / lactation, offers only maintenance on an
   illness / medication or eating-risk answer, drops the cut under BMI 18.5; `checkTargetWeight` refuses a
   target BMI < 18.5.
