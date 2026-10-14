@@ -260,7 +260,7 @@ there.
 - profile.js reveals it only when `HEAD /manuales/<file>` answers 200 with an `application/pdf` type (one probe
   per file per load), so a static copy (e.g. a claude.ai artifact), `file://` and the example build (whose
   synthetic device names a manual) never show it.
-- nginx side: see [`lan-services.md`](lan-services.md) → Security.
+- nginx side: see [`services/plan-web/README.md` → Security and exposure model](../services/plan-web/README.md#security-and-exposure-model).
 
 ## In-page onboarding (no AI coach needed)
 
