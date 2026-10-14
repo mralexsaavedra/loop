@@ -141,3 +141,10 @@ knowledge/*
 # Personal tools, never published (e.g. a private training-program sync against a
 # login-gated service). Run them in place: `node local/<tool>/<script>.mjs`.
 /local/
+
+# Claude Code local files (per machine, never published)
+.claude/settings.local.json
+.claude/worktrees/
+/.astro/
+skill-registry.md
+.skill-registry.cache.json
