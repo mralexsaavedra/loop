@@ -3534,7 +3534,6 @@
   "|||[data-detail][role=button]:focus-visible|||outline-offset": "2px",
   "|||.sc-head .cta|||margin-left": "auto",
   "|||.dd-insight .cta|||margin-top": "var(--sp-3)",
-  "|||.dd-insight .cta|||background": "linear-gradient(90deg, var(--link), var(--link-end))",
   "|||.cta|||gap": "var(--sp-1)",
   "|||.chev, [data-detail][role=button]:after, button.meal-name:after, details.rec-raw>summary:after|||color": "var(--muted)",
   "|||.chev, [data-detail][role=button]:after, button.meal-name:after, details.rec-raw>summary:after|||font-size": "var(--chev-size)",
@@ -4265,5 +4264,6 @@
   "|||.db-card .ds-chart|||display": "block",
   "|||.db-card .ds-chart|||width": "100%",
   "|||.db-card:focus-visible|||outline": "2px solid var(--accent)",
-  "|||.db-card:focus-visible|||outline-offset": "2px"
+  "|||.db-card:focus-visible|||outline-offset": "2px",
+  "|||.dd-insight .cta|||background-image": "linear-gradient(90deg, var(--link), var(--link-end))"
 }
