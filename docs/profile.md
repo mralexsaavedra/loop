@@ -142,3 +142,31 @@ controls instead of the close button.
   with an `application/pdf` type (one probe per file per load), so the claude.ai artifact, `file://`
   and the example build (whose synthetic device names a manual) never show it. nginx side: see "LAN
   page" → Security.
+
+## In-page onboarding (no AI coach needed)
+
+`web/src/client/onboarding.js` registers the `onboarding` view (deep link `#onboarding`; LAN page only, since it
+saves to the ingest service). Four steps:
+
+1. **About you** — name, sex, date of birth, height, weight (prefilled from the newest weigh-in), activity
+   outside training (`sedentary` / `light` / `active` = the NEAT factor), and the safety questions
+   (pregnancy / breastfeeding, illness or medication, two eating-relationship questions). The answers to the
+   safety questions are never saved: only the goals they allow (`goals`).
+2. **Your goal** — the goals `HC_ENERGY.screenPerson` allows (pregnancy or under 18 stop here with a referral;
+   illness / eating answers offer maintenance only; BMI < 18.5 removes the cut) and an optional target weight
+   (`checkTargetWeight`: no target under BMI 18.5, the right direction for the goal).
+3. **Your daily numbers** — `computeTargets` per day type for the chosen goal, kcal / protein / fat editable,
+   carbs the remainder; `checkTargets` errors block the step, warnings only inform; "Recalculate" drops the
+   edits; the ±10 % disclaimer.
+4. **Your data** — the shared iOS Shortcut link, the page's own origin to put in place of `TU-SERVIDOR`
+   (the page never names a data endpoint), where the token comes from (never shown) and the Strava guide.
+
+"Save and finish" PUTs the document (`/api/food/profile`), saves the goal and target weight through
+`HCSettings`, then presses the page's Sync button, so the next build bakes the accepted targets (the
+`onboarding.json` precedence above). `HC_ENERGY` is `lib/nutrition/energy.mjs` emitted as a classic global
+(`lib/nutrition/client.mjs` `energySource`), so the page and the build compute the same numbers
+(`web/test/client-globals-build.test.mjs` runs both). It opens on its own once, when the server has neither
+an onboarding document nor a goal and the page was not opened on a sheet deep link; "Later" is remembered
+in `localStorage` (`hc.onboarding.later`, a convenience only). The profile sheet always shows a "Set up with
+the assistant" button on the LAN page. Copy: `web/src/i18n/onboarding-templates.mjs` (`I18N_ONB`, baked by
+`components/Avatar.astro`).

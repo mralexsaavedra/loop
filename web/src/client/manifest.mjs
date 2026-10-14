@@ -91,6 +91,7 @@ export const CLIENT_SCRIPTS = [
     requires: ['DETAIL', 'HC', 'HCDay', 'HCProgram', 'HC_FMT', 'I18N_DATE', 'I18N_SCORE', 'LOCALE', 'SCORES'],
   },
   { file: 'profile.js', provides: ['HCProfile'], requires: ['HC', 'HCSettings', 'HCViews', 'I18N_PROFILE', 'PROFILE'] },
+  { file: 'onboarding.js', provides: ['HCOnboarding'], requires: ['HC', 'HCViews', 'HC_ENERGY', 'I18N_ONB', 'PROFILE'] },
   { file: 'nav-actions.js', provides: ['HCActions'], requires: [] },
   {
     file: 'home-week.js',
@@ -114,7 +115,7 @@ export const CLIENT_SCRIPTS = [
     file: 'detail.js',
     provides: ['HCDetail'],
     requires: [
-      'DETAIL', 'DIALS', 'HC', 'HCDeep', 'HCDetailChart', 'HCDetailState', 'HCNav', 'HCNutri', 'HCProgress', 'HCSettings', 'HCViews', 'HC_FMT', 'I18N_DATE', 'I18N_DETAIL',
+      'DETAIL', 'DIALS', 'HC', 'HCDeep', 'HCDetailChart', 'HCDetailState', 'HCNav', 'HCNutri', 'HCProgress', 'HCSettings', 'HCViews', 'HC_FMT', 'I18N_DATE', 'I18N_DETAIL', 'I18N_ONB',
       'LOCALE', 'NAV', 'SCORES'
     ],
   },
