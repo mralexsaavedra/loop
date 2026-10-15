@@ -4,11 +4,13 @@
  * built from its own directory (its Dockerfile copies only src/ and sql/), so it cannot import lib/ at
  * runtime: it gets a GENERATED copy instead of a hand port. A change is made in the lib first, then
  * `npm run gen:food-calc`; scripts/gen-food-calc.test.mjs fails while the committed file differs.
- * Deterministic (no timestamps). `--check` writes nothing and exits 1 on drift. */
+ * Deterministic (no timestamps). `--check` writes nothing and exits 1 on drift; `--help` prints the usage;
+ * an unknown flag exits 2 before anything is written. */
 import { fileURLToPath } from 'node:url';
 import { SERVER } from '../lib/nutrition/foodlog.mjs';
 import { esmModule } from '../lib/build/esm-module.mjs';
-import { writeGenerated } from './lib/generated.mjs';
+import { writeGenerated, generatorUsage, GENERATOR_OPTIONS } from './lib/generated.mjs';
+import { runCli } from '../data/apple-health/sync-common.mjs';
 import { isMain } from './lib/is-main.mjs';
 
 export const FOOD_CALC_PATH = fileURLToPath(new URL('../services/loop-ingest/src/food-calc.js', import.meta.url));
@@ -33,9 +35,6 @@ export function foodCalcSource() {
 }
 
 if (isMain(import.meta.url)) {
-  process.exitCode = writeGenerated(FOOD_CALC_PATH, foodCalcSource(), {
-    label: 'services/loop-ingest/src/food-calc.js',
-    script: 'gen:food-calc',
-    check: process.argv.includes('--check'),
-  });
+  runCli(({ check }) => writeGenerated(FOOD_CALC_PATH, foodCalcSource(), { label: 'services/loop-ingest/src/food-calc.js', script: 'gen:food-calc', check: !!check }),
+    { usage: generatorUsage('gen:food-calc', 'services/loop-ingest/src/food-calc.js'), options: GENERATOR_OPTIONS });
 }

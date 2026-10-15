@@ -10,7 +10,8 @@
  * bytes and the build stays byte-identical. The figures describe an invented person (roughly
  * 82 kg, trains 5-6 days a week) and follow plausible trends, not anyone's history.
  *
- *   node scripts/make-demo-data.mjs [--end YYYY-MM-DD] [--days N] [--seed N]
+ *   node scripts/make-demo-data.mjs [--end YYYY-MM-DD] [--days N] [--seed N]   (--help for the flags; a bad or
+ *   unknown flag exits 2 before anything is written)
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,7 +23,8 @@ import { isMain } from './lib/is-main.mjs';
 import { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } from '../lib/extract/samples.mjs';
 import { HR_HOURLY_HEADER, HR_HOURLY_CSV } from '../lib/health/hr-hourly.mjs';
 import { ZONES_HEADER, ZONES_CSV } from '../lib/training/hr-zones.mjs';
-import { addDays } from '../lib/date.mjs';
+import { addDays, isIsoDate } from '../lib/date.mjs';
+import { runCli } from '../data/apple-health/sync-common.mjs';
 
 // journal-daily.csv: the last JOURNAL_DAYS days, most of them journaled (the example's My journal card +
 // behaviour insights)
@@ -33,6 +35,8 @@ const HR_DAYS = 28;
 const FOOD_DAYS = 60;
 
 export const DEMO_DEFAULTS = { end: '2026-09-28', days: 120, seed: 20260928 };
+// --days bounds: the trends divide by days - 1, and ten years is plenty for a demo
+const DAYS_RANGE = [2, 3650];
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 export const DEMO_DIR = path.join(ROOT, 'data', 'demo', 'extract');
 
@@ -262,19 +266,48 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
   return Object.fromEntries(Object.entries(out).sort(([a], [b]) => a.localeCompare(b)));
 }
 
-function parseArgs(argv) {
+export const USAGE = `Usage: node scripts/make-demo-data.mjs [--end YYYY-MM-DD] [--days N] [--seed N]
+
+Rewrites the synthetic demo extract data/demo/extract/ (deterministic).
+  --end YYYY-MM-DD  the last day (default ${DEMO_DEFAULTS.end})
+  --days N          days of data, a whole number ${DAYS_RANGE[0]}-${DAYS_RANGE[1]} (default ${DEMO_DEFAULTS.days})
+  --seed N          the PRNG seed, a whole number (default ${DEMO_DEFAULTS.seed})
+  --help, -h        this text`;
+export const OPTIONS = { end: { type: 'string' }, days: { type: 'string' }, seed: { type: 'string' } };
+
+/** Parsed flag strings -> makeDemoData options, or {error} for a bad value (checked before anything is written).
+ * @param {{end?: string, days?: string, seed?: string}} [values]
+ * @returns {{end?: string, days?: number, seed?: number, error?: string}} */
+export function demoOptions({ end, days, seed } = {}) {
+  /** @type {{end?: string, days?: number, seed?: number}} */
   const o = {};
-  for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--end') o.end = argv[++i];
-    else if (argv[i] === '--days') o.days = Number(argv[++i]);
-    else if (argv[i] === '--seed') o.seed = Number(argv[++i]);
+  if (end !== undefined) {
+    if (!isIsoDate(end)) return { error: `--end must be a real date YYYY-MM-DD, got ${JSON.stringify(end)}` };
+    o.end = end;
+  }
+  if (days !== undefined) {
+    const n = Number(days);
+    if (!/^\d+$/.test(days) || n < DAYS_RANGE[0] || n > DAYS_RANGE[1]) return { error: `--days must be a whole number ${DAYS_RANGE[0]}-${DAYS_RANGE[1]}, got ${JSON.stringify(days)}` };
+    o.days = n;
+  }
+  if (seed !== undefined) {
+    const n = Number(seed);
+    if (!/^-?\d+$/.test(seed) || !Number.isSafeInteger(n)) return { error: `--seed must be a whole number, got ${JSON.stringify(seed)}` };
+    o.seed = n;
   }
   return o;
 }
 
-if (isMain(import.meta.url)) {
-  const files = makeDemoData(parseArgs(process.argv.slice(2)));
-  fs.mkdirSync(DEMO_DIR, { recursive: true });
-  for (const [name, text] of Object.entries(files)) fs.writeFileSync(path.join(DEMO_DIR, name), text);
-  console.log(`make-demo-data: wrote ${Object.keys(files).length} synthetic CSVs -> ${path.relative(ROOT, DEMO_DIR)}/`);
+/** The CLI after parseCli: validate, then write. `dir` is injectable for tests. Returns the exit code.
+ * @param {{end?: string, days?: string, seed?: string}} [values] */
+export function main(values = {}, { dir = DEMO_DIR, log = console.log, error = console.error } = {}) {
+  const { error: bad, ...opts } = demoOptions(values);
+  if (bad) { error(`ERROR: ${bad}\n\n${USAGE}`); return 2; }
+  const files = makeDemoData(opts);
+  fs.mkdirSync(dir, { recursive: true });
+  for (const [name, text] of Object.entries(files)) fs.writeFileSync(path.join(dir, name), text);
+  log(`make-demo-data: wrote ${Object.keys(files).length} synthetic CSVs -> ${path.relative(ROOT, dir)}/`);
+  return 0;
 }
+
+if (isMain(import.meta.url)) runCli((values) => main(values), { usage: USAGE, options: OPTIONS });
