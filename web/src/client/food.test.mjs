@@ -42,7 +42,7 @@ function fixedDate(iso, time = '12:00:00') {
 }
 
 /** routes: { 'GET /api/food/products': response | fn(init, n) | Error }; unknown -> network error */
-function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], time, basics, location } = {}) {
+function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], time, basics, location, foodConst = FOOD_CONST } = {}) {
   const calls = [];
   const counts = {};
   const fetch = fetchImpl || (async (url, init = {}) => {
@@ -73,7 +73,7 @@ function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], time, bas
     HCDetail: { open: (key, date, opts) => opened.push([key, opts]), close: () => opened.push(['close']) },
   };
   const ctx = {
-    document: doc, window, I18N_FOOD: locale === 'es' ? esF : enF, FOOD_CONST, FOOD_BASICS: basics === undefined ? BASICS[locale] : basics,
+    document: doc, window, I18N_FOOD: locale === 'es' ? esF : enF, FOOD_CONST: foodConst, FOOD_BASICS: basics === undefined ? BASICS[locale] : basics,
     LOCALE: locale, I18N_DATE: locale === 'es' ? esDate : enDate, Date: fixedDate(TODAY, time), Math, JSON, Number, String, Object, Array, Promise, isFinite, fetch, Uint8Array, setTimeout, clearTimeout,
     ...(location ? { location } : {}),
   };
@@ -582,6 +582,17 @@ test('parseNum: trims, takes a decimal comma, strips a trailing unit of that fie
   for (const bad of ['abc', '1e3', '-5', 'Infinity', '30 kg', '0x10', '1,5,2', '3 4']) assert.ok(Number.isNaN(P(bad, ['g'])), bad);
   assert.ok(Number.isNaN(P('250 ml', ['g'])), 'never g <-> ml');
   assert.ok(Number.isNaN(P('2 g', null)), 'a count takes no unit');
+});
+
+test('product form: a new product defaults to the FIRST configured store (FOOD_CONST.stores), not a hard-coded one', async () => {
+  const stores = ['dia', ...FOOD_CONST.stores.filter((x) => x !== 'dia')];
+  const t = setup({ routes: BOOT, foodConst: { ...FOOD_CONST, stores } });
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'p-new' }));
+  t.fire('click', t.button({ 'data-food-act': 'p-label' }));
+  const html = t.els['fp-body'].innerHTML;
+  assert.match(html, /<select class="food-in" id="fpf-store"><option value="dia" selected>/);
+  assert.equal((html.match(/<option value="\w+" selected>[^<]*<\/option>(?=[^]*id="fpf-unit")/g) || []).length, 1, 'one store selected');
 });
 
 test('product form: the serving field says what it asks, shows the product unit as a suffix that follows "Se mide en", and has a placeholder', async () => {

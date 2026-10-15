@@ -260,7 +260,8 @@ The search box also looks in `FOOD_BASICS` (it shows even with no product yet).
 - List by store (per-100 line, serving, Edit, Archive with a confirm step).
 - Add = barcode or text lookup → OFF cards showing what OFF has (missing values marked) → "Usar este" fills
   the form with the missing fields flagged (`--mid`) → the user confirms every value and the store → save.
-  "desde la etiqueta" = the same form empty (`source: "label"`).
+  "desde la etiqueta" = the same form empty (`source: "label"`). A new product's store starts on the FIRST
+  configured store (`FOOD_STORES[0]`, baked as `FOOD_CONST.stores`), never a hard-coded one.
 
 ## My recipes
 
