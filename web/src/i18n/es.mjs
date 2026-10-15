@@ -39,7 +39,7 @@ export default {
       units: { raw: 'crudo', dry: 'seco', cooked: 'cocido', serving: 'ración', unit: 'ud' },
       desayunos: {
         icon: '☕', label: 'Desayunos',
-        noteHtml: 'Elige el desayuno que mejor encaje con el día. Objetivo ~35–40 g de proteína. Las opciones del anclaje proteico están en la tabla <button class="lnk" onclick="jump(\'acc-anclaje\')">🥛 Anclaje proteico</button>.',
+        noteHtml: 'Elige el desayuno que mejor encaje con el día. Objetivo ~35–40 g de proteína. Las opciones del anclaje proteico están en la tabla <button type="button" class="lnk" data-jump="acc-anclaje">🥛 Anclaje proteico</button>.',
       },
       carboComida: { icon: '🍚', label: 'Carbo de la comida', note: 'Arroz y pasta, por 100 g en seco. La forma de la pasta no importa: mismo peso seco = mismos macros.' },
       carboCena: { icon: '🥔', label: 'Carbo de la cena', note: 'Patata y similares, por 100 g cocido/listo para comer.' },

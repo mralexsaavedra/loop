@@ -51,7 +51,11 @@ up -d` in `services/loop-web`). `refresh.sh` rebuilds and publishes it hourly (c
   timer, reads no body and returns only a seq; status returns timestamps, seqs and COARSE codes
   (`strava_auth`, `strava_network`, `strava_other`, `strava_token_save`, `trigger_write`), cached 5 s,
   never health data or raw error text (messages stay in logs; tests pin the key set and no leaks).
-  loop-web nginx proxies EXACTLY `/api/sync` + `/api/sync/status` (exact-match, method-restricted)
+  loop-web nginx proxies EXACTLY `/api/sync` + `/api/sync/status` (exact-match, method-restricted;
+  `POST /api/sync` deliberately needs no custom CSRF header, unlike `/api/food/*` and `/api/journal/*`: a
+  cross-site form can at most queue a page rebuild and a Strava pull, it reads and changes no data (the answer is
+  only a sequence number) and calls within a minute coalesce, while a required header would break the iOS
+  Shortcut's header-less step 5)
   plus the food log prefix `/api/food/*` → ingest `/food/*` (GET / POST / PUT / DELETE, 16 KB, the
   `X-HC-Food` header forwarded; see [`nutrition-food-log.md` → Security](nutrition-food-log.md#security)), the journal prefix `/api/journal/*` →
   ingest `/journal/*` (GET / PUT, 16 KB, the `X-HC-Journal` header forwarded; `docs/journal.md`) and EXACTLY `POST /ingest/health-auto-export`

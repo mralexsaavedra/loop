@@ -67,7 +67,7 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
 - Radius: the dock bar and its buttons (`.tabnav`, 24 / 19 px), the "+" popover (`.act-pop`, 12 px),
   the desktop calendar tile (`.cal-day`, 8 px) and the 2 px contributor marker (`.dd-contrib::before`).
 - Padding: list rows (`.db-row`, 8 × 12 px: rows stack into a list), fold rows (`.sec-fold > summary`,
-  a min-height, side padding only), the compact macro tile `.mac`, the empty state `.train-empty` (a
+  a min-height, side padding only), the empty state `.train-empty` (a
   centred message) and the sheets' own cards (`detail.css`, `profile.css`, the food sheet's form), which
   sit on the sheet's 16 px inset.
 - Caps colour: the CTA link (`.cta`, `--link`), the save button's text on its white fill (`.save-btn`),
@@ -252,8 +252,11 @@ the trend sheet's window, its calendar month (formerly 44 px filled circles) and
   (`::after`, 8 px above / below and 6 px each side) and the 12 px gap keeps neighbours' areas apart
   (guard: `design-system.test.mjs`).
 - **Chip** `.chip` (`base.css`): a compact 30 px caps pill (1 px `--line` outline) to pick one of a few
-  — Nutrición's day type and Constancia window (radios: `.seg-opt` + `.chip.seg-in`) and the load
-  sheet's modality switch (`.chip.dial-mod`, which adds the 44 px `::before` hit band). The picked
+  — Nutrición's day type and Constancia window (radios: `.seg-opt` + `.chip.seg-in`), the load
+  sheet's modality switch (`.chip.dial-mod`, at least 44 px wide) and the onboarding's buttons. Every
+  chip carries a 44 px tall hit band (`.chip::before`, centred, 7 px past the pill above and below,
+  never sideways), so the pill looks compact but is a 44 px target; a wrapped row of chips needs ≥ 14 px
+  between rows (`web/test/mobile.test.mjs`). The picked
   chip is white-filled (`--accent` / `--on-accent`), the reference app's selected filter; the load
   sheet's teal outline is gone. Text only: Nutrición's day types dropped their 1440-px-only icons
   (with icons the four chips need ~370 px and wrap at 360–390 px).

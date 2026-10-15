@@ -1,8 +1,9 @@
 /* Navigation shell (web/layouts/Plan.astro + web/src/tabs/Home.astro) on the built example page:
  * - top bar: avatar left · LOOP wordmark · centred date pill "‹ Today ›" (the client-filled <time> inside; the day
  *   stepping chevrons ship hidden, client/today-date.js shows them) · freshness / Sync right;
- * - the bottom dock: the tab bar (role=tablist, four role=tab buttons, aria-pressed on the active one)
- *   and, outside the tablist, the "+" action button + its popover, shipped HIDDEN (nav-actions.js
+ * - the bottom dock: the tab bar (a labelled <nav> of four plain buttons, aria-current="page" on the
+ *   active one; never role=tab + aria-pressed, an invalid mix) and, outside it, the "+" action button +
+ *   its popover (a labelled group, not a dialog), shipped HIDDEN (nav-actions.js
  *   reveals only the actions that exist on this page: never a dead control in a static build);
  * - the collapsed dial row host (#home-mini) inside the Inicio panel. */
 import { test } from 'node:test';
@@ -44,20 +45,22 @@ test('top bar pill: ‹ / › day-stepping buttons ship hidden with their labels
   assert.match(bar, new RegExp(`id="day-lbl" aria-disabled="true" aria-live="polite" data-back="${N.day.back}"`));
 });
 
-test('dock: a role=tablist of four role=tab buttons with aria-pressed, and the "+" outside the tablist', () => {
+test('dock: a labelled nav of four buttons, aria-current="page" on the active one, and the "+" outside it', () => {
   const dock = between('<div class="dock"', '<div class="tab-panel"');
   const nav = (dock.match(/<nav class="tabnav"[\s\S]*?<\/nav>/) || [''])[0];
-  assert.match(nav, new RegExp(`role="tablist" aria-label="${N.ariaLabel}"`));
-  const tabs = [...nav.matchAll(/<button id="t-([a-z]+)" role="tab" aria-pressed="(true|false)"/g)];
+  assert.match(nav, new RegExp(`^<nav class="tabnav" aria-label="${N.ariaLabel}">`));
+  assert.doesNotMatch(nav, /role="tab|aria-pressed|aria-selected/, 'no tab roles: a nav of buttons');
+  const tabs = [...nav.matchAll(/<button type="button" id="t-([a-z]+)" data-tab-go="([a-z]+)"( aria-current="page")?>/g)];
   assert.deepEqual(tabs.map((m) => m[1]), ['home', 'entreno', 'health', 'nutricion']);
-  assert.equal(tabs.filter((m) => m[2] === 'true').length, 1, 'one active tab');
+  assert.deepEqual(tabs.map((m) => m[2]), tabs.map((m) => m[1]), 'each button opens its own tab');
+  assert.deepEqual(tabs.filter((m) => m[3]).map((m) => m[1]), ['home'], 'one current tab');
   assert.doesNotMatch(nav, /act-btn/, 'the action button is not a tab');
   assert.match(dock, new RegExp(`<button type="button" class="act-btn" id="act-btn" aria-expanded="false" aria-controls="act-pop" aria-label="${N.actions.open}" data-label-close="${N.actions.close}">`));
 });
 
 test('the action root and every action ship hidden; only real actions exist (add food, journal, Sync)', () => {
   assert.match(html, /<div class="act" id="act" hidden>/, 'revealed by nav-actions.js when an action is available');
-  assert.match(html, new RegExp(`<div class="act-pop" id="act-pop" role="dialog" aria-label="${N.actions.label}" hidden>`));
+  assert.match(html, new RegExp(`<div class="act-pop" id="act-pop" role="group" aria-label="${N.actions.label}" hidden>`), 'a group of actions, not a dialog');
   const acts = [...html.matchAll(/<button type="button" class="act-item" data-act="([a-z]+)" hidden>/g)].map((m) => m[1]);
   assert.deepEqual(acts, ['food', 'journal', 'sync']);
   assert.match(html, /<div class="act-scrim" id="act-scrim" hidden><\/div>/);

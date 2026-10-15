@@ -87,7 +87,7 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
   // withCore: the real core.js runs first over four tab panels + nav buttons (home shown, as served)
   const ids = { detail: host };
   const tabPanels = withCore ? TAB_KEYS.map((t) => {
-    ids['t-' + t] = new StubElement('button', { attrs: { 'aria-pressed': String(t === 'home') } });
+    ids['t-' + t] = new StubElement('button', { attrs: t === 'home' ? { 'aria-current': 'page' } : {} });
     const el = new StubElement('div', { classes: ['tab-panel'], attrs: { 'data-tab': t }, hidden: t !== 'home' });
     el.querySelector = () => null;
     return el;
@@ -791,13 +791,13 @@ test('load deep-dive: the gym / run / bike pills (moved from under Inicio\'s dia
   assert.deepEqual([...sw.matchAll(/data-detail="load-([a-z]+)"/g)].map((m) => m[1]), mods);
   assert.match(sw, /<button type="button" class="chip dial-mod" data-detail="load-run" aria-pressed="true">Run<\/button>/);
   assert.equal((sw.match(/aria-pressed="true"/g) || []).length, 1);
-  assert.doesNotMatch(sw, /onclick/, 'no scMod on the page: plain links');
+  assert.doesNotMatch(sw, /onclick|data-mod/, 'no scMod on the page: plain links');
   assert.ok(html.indexOf('dial-switch') > html.indexOf('dd-hero') && html.indexOf('dial-switch') < html.indexOf('dd-insight'), 'between the contributors and the insight card');
   // with score.js's scMod present, a pill also switches Inicio's dial
   const t = setup({ dials: DIALS });
   t.ctx.scMod = () => {};
   t.api.open('load-gym');
-  assert.match(t.host.innerHTML, /data-detail="load-bike" aria-pressed="false" onclick="scMod\('bike'\)">Bike<\/button>/);
+  assert.match(t.host.innerHTML, /data-detail="load-bike" aria-pressed="false" data-mod="bike">Bike<\/button>/);
   // other dial pages: no pills
   const r = setup({ dials: DIALS });
   r.api.open('recovery');

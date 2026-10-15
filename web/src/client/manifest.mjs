@@ -16,11 +16,7 @@ export const CLIENT_SCRIPTS = [
   { file: 'util.js', provides: ['HC', 'HCViews'], requires: ['HC_CONST', 'HC_FMT'] },
   {
     file: 'core.js',
-    provides: [
-      'NAV_TABS', 'SECTION_TAB', 'DETAIL_TAB', 'VIEW_TAB', 'ANCHOR_TAB', 'DAY', 'hasOwn', 'tabVisible', 'defaultTab', 'currentTab',
-      'readHash', 'tabHash', 'writeTabHash', 'setTab', 'showTab', 'jump', 'jumpOr', 'DETAIL_HASH_RE', 'KEY_HASH_RE', 'hashRoute',
-      'showAnchor', 'HCNav'
-    ],
+    provides: ['setTab', 'jump', 'jumpOr', 'currentTab', 'HCNav'],
     requires: ['HC', 'NAV'],
     probes: ['HCDay'],
   },

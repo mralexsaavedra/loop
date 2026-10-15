@@ -39,7 +39,10 @@ server {
     # Security headers on every response: the page writes food and journal entries, so another site must not
     # frame it (clickjacking), nothing is type-sniffed and no URL leaks as a Referer. nginx drops ALL inherited
     # add_header lines in a block that sets its own, so such blocks repeat these four
-    # (scripts/loop-web-config.test.mjs checks it).
+    # (scripts/loop-web-config.test.mjs checks it). The header CSP carries ONLY frame-ancestors: the page's own
+    # policy (script hashes, connect-src 'self', ...) travels in its <meta http-equiv> (web/src/csp.mjs), so it
+    # also applies when the file opens from disk, and a meta CSP cannot set frame-ancestors. Browsers enforce
+    # both policies together; never add script-src / default-src here, it would have to repeat every hash.
     add_header X-Content-Type-Options nosniff always;
     add_header X-Frame-Options DENY always;
     add_header Referrer-Policy no-referrer always;
