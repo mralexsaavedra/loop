@@ -68,6 +68,9 @@ Drinks with alcohol (`cerveza`, `cerveza1906`, `clara`) carry kcal above their m
 `ingredients.json` keys; macros are COMPUTED, never hand-typed. Items with no single label use a `manual`
 macro block (legumes, soup, pintxo), kept verbatim. **To change a plan number, edit `plan-data.json`
 (servings/day plan) or `ingredients.json` (a food's macros/label) — never the generated files.**
+`npm run check` (`validateNutrition`) reports a malformed plan as validation messages, never a crash: `data`
+and `extras` must be objects (`{}` when the plan has none), and every breakfast in `data.desayuno` but the
+`none` row needs a `recipe` (the breakfast tables list its ingredients, so a `manual` block is refused there).
 
 ### `targets.byGoal`
 
@@ -86,7 +89,9 @@ all twelve cells once you know your TDEE.
 - Default goal = `page.goal`, else `maintain`. A plan without `targets.byGoal` / `page.goal` uses these
   code defaults, and scaling is decided by food category, so old plans need no migration.
 - **Precedence:** the in-page onboarding's accepted targets (`data/profile/onboarding.json`, when they pass
-  `checkTargets`) > the plan's `targets.byGoal` > `DEFAULT_BY_GOAL` (`lib/load/inputs.mjs`; docs/profile.md).
+  `checkTargets`; its height 120–230 cm and weight 30–250 kg, the wizard's own `validatePerson` bounds, are
+  checked when it is synced, and the profile fields it supplies must also pass `validateManual` or the build
+  warns and keeps `profile.json`) > the plan's `targets.byGoal` > `DEFAULT_BY_GOAL` (`lib/load/inputs.mjs`; docs/profile.md).
 
 ### Computed starting targets (`lib/nutrition/energy.mjs`)
 
@@ -105,7 +110,8 @@ weight trend after 2–3 weeks.
 - `screenPerson` withholds numbers under 18 or in pregnancy / lactation, offers only maintenance on an
   illness / medication or eating-risk answer, drops the cut under BMI 18.5; `checkTargetWeight` refuses a
   target BMI < 18.5.
-- `checkTargets` bounds an edited cell — errors: floor, deficit > 20 %, surplus > 15 %, > 1 % body weight /
+- `checkTargets` bounds an edited cell — errors: floor, deficit > 20 %, surplus > 15 % (over maintenance, or over
+  the floor when the floor is higher, so a day `computeTargets` raised to the floor always passes), > 1 % body weight /
   week, protein outside 1.2–2.4 g/kg, fat < 0.5 g/kg; warnings: protein outside 1.6–2.2, fat > 1.0, carbs
   outside rest 3–5 / gym 5–7 / bike 6–10 / long 8–12 g/kg where energy is not cut on purpose.
 

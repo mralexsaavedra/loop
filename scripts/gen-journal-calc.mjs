@@ -4,11 +4,13 @@
  * is built from its own directory (its Dockerfile copies only src/ and sql/), so it cannot import lib/ at
  * runtime: it gets a GENERATED copy instead of a hand copy. A change is made in the lib first, then
  * `npm run gen:journal-calc`; scripts/gen-journal-calc.test.mjs fails while the committed file differs.
- * Deterministic (no timestamps). `--check` writes nothing and exits 1 on drift. */
+ * Deterministic (no timestamps). `--check` writes nothing and exits 1 on drift; `--help` prints the usage;
+ * an unknown flag exits 2 before anything is written. */
 import { fileURLToPath } from 'node:url';
 import { SERVER } from '../lib/journal/journal.mjs';
 import { esmModule } from '../lib/build/esm-module.mjs';
-import { writeGenerated } from './lib/generated.mjs';
+import { writeGenerated, generatorUsage, GENERATOR_OPTIONS } from './lib/generated.mjs';
+import { runCli } from '../data/apple-health/sync-common.mjs';
 import { isMain } from './lib/is-main.mjs';
 
 export const JOURNAL_CALC_PATH = fileURLToPath(new URL('../services/loop-ingest/src/journal-calc.js', import.meta.url));
@@ -29,9 +31,6 @@ export function journalCalcSource() {
 }
 
 if (isMain(import.meta.url)) {
-  process.exitCode = writeGenerated(JOURNAL_CALC_PATH, journalCalcSource(), {
-    label: 'services/loop-ingest/src/journal-calc.js',
-    script: 'gen:journal-calc',
-    check: process.argv.includes('--check'),
-  });
+  runCli(({ check }) => writeGenerated(JOURNAL_CALC_PATH, journalCalcSource(), { label: 'services/loop-ingest/src/journal-calc.js', script: 'gen:journal-calc', check: !!check }),
+    { usage: generatorUsage('gen:journal-calc', 'services/loop-ingest/src/journal-calc.js'), options: GENERATOR_OPTIONS });
 }

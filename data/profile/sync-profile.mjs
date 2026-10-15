@@ -100,7 +100,6 @@ function checkAvatar (buf) {
   return null
 }
 
-/** Reads the body chunk by chunk and gives up (cancelling the stream) as soon as it passes `cap`. */
 // JPEG (FF D8 FF) or PNG (89 50 4E 47); null otherwise
 function imageKind (buf) {
   if (!buf || buf.length < 4) return null
@@ -109,6 +108,7 @@ function imageKind (buf) {
   return null
 }
 
+/** Reads the body chunk by chunk and gives up (cancelling the stream) as soon as it passes `cap`. */
 async function readCapped (res, cap) {
   if (!res.body || typeof res.body.getReader !== 'function') throw new Error('avatar response has no body')
   const reader = res.body.getReader()

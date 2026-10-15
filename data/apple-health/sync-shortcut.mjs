@@ -30,6 +30,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as S from '../../lib/extract/samples.mjs';
 import * as HR from '../../lib/health/hr-hourly.mjs';
+import { HOURLY_CSV, HOURLY_HEADER } from '../../lib/health/ride-energy.mjs';
 import { ZONES_CSV } from '../../lib/training/hr-zones.mjs';
 import * as common from './sync-common.mjs';
 import { isMain } from '../../scripts/lib/is-main.mjs';
@@ -85,13 +86,13 @@ const METRICS = {
   // The legacy merged `steps` key is NOT read: iOS's day grouping summed iPhone + Watch.
   steps:         { kind: 'deviceDaily', csv: 'steps-daily.csv', header: DAILY_SOURCE_HEADER, metaKey: 'steps', rangeKey: 'steps', total: true,
     devices: { steps_watch: `${SHORTCUT_SOURCE} Watch`, steps_phone: `${SHORTCUT_SOURCE} iPhone` },
-    row: (date, v, source) => `${date},${Math.round(v)},${source}` },
+    parseValue: v => parseCount(v), row: (date, v, source) => `${date},${Math.round(v)},${source}` },
   active_energy: { kind: 'daily', csv: 'active-energy-daily.csv', header: KCAL_HEADER, metaKey: 'active_energy', sourceCol: null, total: true,
     row: (date, v) => `${date},${Math.round(v)}` },
   // Watch active energy per clock hour (Watch-only search, Group by Hour). Not an export series:
   // it only feeds lib/health/ride-energy.mjs, which replaces the Watch's energy during a ride a
   // power meter measured. Source column = "Shortcut", so every row is rebuilt each run.
-  active_energy_hourly: { kind: 'hourly', csv: 'active-energy-hourly.csv', header: 'date,hour_start,kcal,source', metaKey: 'active_energy_hourly', sourceCol: 3,
+  active_energy_hourly: { kind: 'hourly', csv: HOURLY_CSV, header: HOURLY_HEADER, metaKey: 'active_energy_hourly', sourceCol: 3,
     row: (st, v) => `${S.day(st)},${hourStartIso(st)},${v.toFixed(1)},${SHORTCUT_SOURCE}` },
   basal_energy:  { kind: 'daily', csv: 'basal-energy-daily.csv', header: KCAL_HEADER, metaKey: 'basal_energy', sourceCol: null, total: true,
     row: (date, v) => `${date},${Math.round(v)}` },
@@ -126,13 +127,13 @@ const METRICS = {
   // No source column -> ownership via the ledger, like energy. A 0 day (Fill Missing, watch not worn)
   // is no data: extract.mjs only writes days with samples, so it has no zero rows either.
   exercise_watch: { kind: 'daily', csv: 'exercise-minutes-daily.csv', header: 'date,minutes', metaKey: 'exercise', sourceCol: null, skipZero: true, total: true,
-    row: (date, v) => `${date},${Math.round(v)}` },
+    parseValue: v => parseCount(v), row: (date, v) => `${date},${Math.round(v)}` },
   // km. Accepts a unit ("5,1 km", "5400 m", "3 mi"); a bare number above 100 is metres (no one walks
   // + runs 100 km in a day, and a real total under 100 m is a not-worn day the Salud floor drops anyway)
   distance_watch: { kind: 'daily', csv: 'distance-daily.csv', header: 'date,km', metaKey: 'distance', rangeKey: 'distance', sourceCol: null, skipZero: true, total: true,
     parseValue: v => parseKm(v), row: (date, v) => `${date},${v.toFixed(2)}` },
   flights_watch: { kind: 'daily', csv: 'flights-daily.csv', header: 'date,flights', metaKey: 'flights', sourceCol: null, skipZero: true, total: true,
-    row: (date, v) => `${date},${Math.round(v)}` },
+    parseValue: v => parseCount(v), row: (date, v) => `${date},${Math.round(v)}` },
 };
 // "Shortcut" or a device-tagged "Shortcut <device>" (steps) -> a row this sync wrote
 const isShortcutSource = src => src === SHORTCUT_SOURCE || (src || '').startsWith(SHORTCUT_SOURCE + ' ');
@@ -161,6 +162,15 @@ function parseNumber(v) {
   } else if (dots > 1 || commas > 1) return null;
   else s = s.replace(',', '.');
   return S.num(s);
+}
+// A COUNT (steps, flights, exercise minutes: whole numbers): a separator followed by exactly three digits
+// is a thousands group, never a decimal ("12.345" / "12,345" steps -> 12345, "1.234.567" -> 1234567), since a
+// count never has three decimals; anything else reads as parseNumber does ("12,5" -> 12.5).
+function parseCount(v) {
+  const s = String(v ?? '').trim();
+  // one kind of separator only ("1.234,567" is not a count)
+  if (/^\d{1,3}(\.\d{3})+$/.test(s) || /^\d{1,3}(,\d{3})+$/.test(s)) return S.num(s.replace(/[.,]/g, ''));
+  return parseNumber(s);
 }
 // a distance in km: "6.2" / "6,2 km" -> 6.2, "5400 m" -> 5.4, "3 mi" -> 4.83; a bare number > 100 = metres
 const KM_PER = { km: 1, m: 0.001, mi: 1.609344 };
@@ -257,7 +267,7 @@ function parsePayload(payload, warnings = []) {
   const lines = raw => (typeof raw === 'string' ? raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean) : []);
   for (const [metric, def] of Object.entries(METRICS)) {
     const perKey = (keys, tag) => Object.entries(keys).flatMap(([key, label]) =>
-      lines(payload[key]).map(PARSERS.daily).filter(Boolean).map(s => ({ ...s, [tag]: label })));
+      lines(payload[key]).map(l => PARSERS.daily(l, def)).filter(Boolean).map(s => ({ ...s, [tag]: label })));
     const samples = def.kind === 'deviceDaily' ? perKey(def.devices, 'device')
       : def.kind === 'fieldsDaily' ? perKey(def.fields, 'field')
         : def.kind === 'hrSamples' ? hrSamplesOf(payload, warnings)
@@ -482,14 +492,20 @@ function planSync(items, readFile, { full = false } = {}) {
 const { writeAtomic } = common;
 
 // plan + apply against a directory of extract CSVs (used by main and the contract test)
-// _meta.json is shared with sync-strava.mjs (both scripts can touch the same extract/ dir), so
-// the whole read-plan-write sequence runs under an exclusive lock to prevent a lost update.
+// _meta.json (the ownership ledger) is written FIRST, as sync-strava.mjs does: a crash after it leaves
+// a ledger that lists every date this sync owns, so the next run still drops and rebuilds those
+// Shortcut rows from the cache; written last, a crash would leave Shortcut rows the ledger does not
+// know, which the next merge would keep as export rows. _meta.json is shared with sync-strava.mjs
+// (both scripts can touch the same extract/ dir), so the whole read-plan-write sequence runs under an
+// exclusive lock to prevent a lost update. opts.writeAtomic is injectable for tests.
 function syncDir(dir, items, opts = {}) {
+  const { writeAtomic: write = writeAtomic, ...planOpts } = opts;
   fs.mkdirSync(dir, { recursive: true }); // the lockfile itself needs the directory to exist
   return common.withLock(path.join(dir, '_meta.json.lock'), () => {
     const readFile = name => { const p = path.join(dir, name); return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null; };
-    const plan = planSync(items, readFile, opts);
-    for (const [name, text] of Object.entries(plan.writes)) writeAtomic(path.join(dir, name), text);
+    const plan = planSync(items, readFile, planOpts);
+    const names = Object.keys(plan.writes).sort((a, b) => (a === '_meta.json' ? -1 : b === '_meta.json' ? 1 : 0));
+    for (const name of names) write(path.join(dir, name), plan.writes[name]);
     return plan;
   });
 }
@@ -552,7 +568,7 @@ if (isMain(import.meta.url)) common.runCli(({ full }) => main({ full }), { usage
 
 export {
   METRICS, SHORTCUT_SOURCE, sleepStageOf,
-  parseNumber, parsePayload, collectSamples, unionMinutes, buildRows, mergeCsv, updateMeta,
+  parseNumber, parseCount, parsePayload, collectSamples, unionMinutes, buildRows, mergeCsv, updateMeta,
   planSync, resolveToken, fetchAllPayloads,
   CACHE_FILE, emptyCache, foldPayloads, writeAtomic, syncDir, dropPhantomWeights, main,
 };

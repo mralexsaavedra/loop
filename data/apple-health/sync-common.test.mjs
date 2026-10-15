@@ -354,3 +354,20 @@ test('reclaimStaleLock(): only the stale lock that was observed is reclaimed, an
   assert.deepEqual(fs.readdirSync(dir), ['_meta.json.lock'], 'no claim file left behind');
   fs.rmSync(dir, { recursive: true });
 });
+
+test('localIso / windowEndingOn: the LOCAL calendar date of `now`, a window of `days` days inclusive', () => {
+  const now = new Date(2030, 2, 1, 0, 30); // local 2030-03-01 00:30
+  assert.equal(common.localIso(now), '2030-03-01');
+  assert.deepEqual(common.windowEndingOn(now, 1), { from: '2030-03-01', to: '2030-03-01' });
+  assert.deepEqual(common.windowEndingOn(now, 3), { from: '2030-02-27', to: '2030-03-01' });
+});
+
+test('writeAtomic(): a failed rename removes its temp file (personal data) and rethrows', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-atomic-fail-'));
+  const target = path.join(dir, 'a.csv');
+  fs.mkdirSync(target); // a non-empty directory where the file should go: the rename fails
+  fs.writeFileSync(path.join(target, 'keep'), 'x');
+  assert.throws(() => writeAtomic(target, 'secret\n'));
+  assert.deepEqual(fs.readdirSync(dir), ['a.csv'], 'no .tmp left behind');
+  fs.rmSync(dir, { recursive: true });
+});
