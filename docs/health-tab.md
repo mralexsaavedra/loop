@@ -130,7 +130,7 @@ What it shows: last night's recovery %, then any recovery signal the health moni
 | CSV | Notes |
 | --- | --- |
 | `rhr.csv`, `hrv.csv` | both as the clamped per-day MEDIAN (`score/recovery.mjs` `dailySignal`), the same series Home's recovery and monitor use |
-| `vo2max.csv`, `walking-hr-daily.csv` | rows in [Fitness](#fitness) |
+| `vo2max.csv`, `walking-hr-daily.csv` | rows in [Fitness](#fitness); VO₂max as one value per day, the MEAN of the day's rows (`score/fitness-age.mjs` `vo2maxDaily`), the same series the fitness age card and its detail sheet use |
 | `sleep-daily.csv` | rows in [Sleep](#sleep) |
 | `respiratory-daily.csv`, `wristTemp.csv` | change-not-absolute signals |
 
@@ -148,11 +148,14 @@ What it shows: the fitness-age ring, chronological age and its 90-day change, th
 - **Score**: `lib/score/fitness-age.mjs` bakes `SCORES.fitnessAge` (`buildScoresFrom(inputs, { sex: profile.sex })`).
   - The age whose healthy-population MEAN VO₂max (Loe et al. 2013, PLoS ONE,
     doi:10.1371/journal.pone.0064319, Table 2: HUNT3 Fitness Study, per sex and 10-year group) equals the
-    latest `vo2max.csv` reading.
+    latest `vo2max.csv` day.
+  - A day with several rows (a watch estimate and its Shortcut copy) reads as their mean (`vo2maxDaily`), the
+    one per-day series of this card, the VO₂max row and the detail sheet: the row order is the files' merge
+    order, not a time of day, so "the later row" would be arbitrary.
   - Interpolated between group midpoints 25 … 65, and 75 for 70+.
   - Clamped (`bound` below / above → "< 25" / "> 75").
   - Formula, table and limits: `analysis/methodology.md` §4.
-  - Also bakes the reading's value / date / source, and the fitness age of the newest reading on or before
+  - Also bakes the day's value / date / source (several sources joined with " + "), and the fitness age of the newest reading on or before
     latest − 30 / − 90 days.
 - **Block**: `client/health.js` `fitnessAgeBlock` leads the Fitness section.
   - A large full ring (the dial figure classes, `.fa` in `styles/health.css`): `--up` when younger than the
