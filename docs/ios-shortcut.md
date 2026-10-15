@@ -240,7 +240,7 @@ Both lists come from the same search, so they always have the same length and or
 recipe (**Repeat with Each** (*Repetir con cada*) → **Text** `<Start Date ISO 8601>;<Value>` →
 **Combine Text** → field `hr_samples`) is still accepted, but it loops once per sample and is very
 slow on workout days. A workout day of about 5,000 samples is roughly 150 KB of `hr_t` plus 25 KB
-of `hr_v`, well under the 8 MB loop-web accepts on that path (ingest's own `MAX_BODY_BYTES` is 32 MB). The 1-day
+of `hr_v`, well under the 8 MB loop-web accepts on that path (ingest's own `MAX_BODY_BYTES` defaults to 8 MB as well). The 1-day
 window overlaps between runs on purpose: the sync dedupes by timestamp, so nothing is counted
 twice and a missed run leaves no gap as long as the next one comes within a day. After adding it
 run `npm run sync -- --full` once.
