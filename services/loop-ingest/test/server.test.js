@@ -42,6 +42,7 @@ function setup ({ stravaSync = null, foodRoutes, journalRoutes } = {}) {
     const base = `http://127.0.0.1:${server.address().port}`
     resolve({
       calls,
+      base,
       close: () => new Promise((r) => server.close(r)),
       async call (method, path, { headers = {}, body } = {}) {
         const res = await fetch(base + path, { method, headers, body })
@@ -139,12 +140,46 @@ test('POST /ingest/health-auto-export: bearer, empty / bad / oversized body, the
   assert.equal((await s.call('POST', '/ingest/health-auto-export', { headers: { authorization: 'Bearer wrong' }, body: '{}' })).status, 401)
   assert.deepEqual(await s.call('POST', '/ingest/health-auto-export', { headers: auth }), { status: 400, body: { error: 'empty body' } })
   assert.deepEqual(await s.call('POST', '/ingest/health-auto-export', { headers: auth, body: '{nope' }), { status: 400, body: { error: 'body is not valid JSON' } })
-  const big = await s.call('POST', '/ingest/health-auto-export', { headers: auth, body: JSON.stringify({ a: 'y'.repeat(100) }) }).catch(() => ({ status: 413 }))
-  assert.equal(big.status, 413, 'over maxBodyBytes')
+  const big = await s.call('POST', '/ingest/health-auto-export', { headers: auth, body: JSON.stringify({ a: 'y'.repeat(100) }) })
+  assert.deepEqual(big, { status: 413, body: { error: 'payload too large' } }, 'over maxBodyBytes: a real 413 response, not a reset socket')
   const ok = await s.call('POST', '/ingest/health-auto-export', { headers: auth, body: '{"data":1}' })
   assert.equal(ok.status, 202)
   assert.deepEqual(ok.body, { ok: true, id: '7', received_at: '2030-01-01T00:00:00Z' })
   assert.deepEqual(s.calls, [['insert', 'health-auto-export', 10]])
+})
+
+/** A raw request whose body is streamed in `chunks` (chunked encoding unless `length` is declared). */
+function rawPost (port, { length, chunks }) {
+  return new Promise((resolve, reject) => {
+    const headers = { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json', ...(length ? { 'content-length': length } : {}) }
+    const req = http.request({ host: '127.0.0.1', port, method: 'POST', path: '/ingest/health-auto-export', headers }, (res) => {
+      let text = ''
+      res.setEncoding('utf8')
+      res.on('data', (d) => { text += d })
+      res.on('end', () => resolve({ status: res.statusCode, connection: res.headers.connection, body: JSON.parse(text) }))
+    })
+    req.on('error', reject)
+    let i = 0
+    const next = () => {
+      if (i === chunks.length) return req.end()
+      req.write(chunks[i++], () => setTimeout(next, 5))
+    }
+    next()
+  })
+}
+
+test('an oversized ingest body gets its 413 response (connection: close) before the socket is closed: declared or streamed', async () => {
+  const s = await setup()
+  try {
+    const port = Number(new URL(s.base).port)
+    // a declared Content-Length over the cap: refused before reading the body
+    assert.deepEqual(await rawPost(port, { length: 200, chunks: ['y'.repeat(200)] }), { status: 413, connection: 'close', body: { error: 'payload too large' } })
+    // chunked, no declared length: the cap is hit while streaming
+    assert.deepEqual(await rawPost(port, { chunks: ['{"a":"', 'y'.repeat(40), 'y'.repeat(40), 'y'.repeat(40), '"}'] }), { status: 413, connection: 'close', body: { error: 'payload too large' } })
+    assert.deepEqual(s.calls, [], 'nothing stored')
+  } finally {
+    await s.close()
+  }
 })
 
 test('POST /sync/strava: 401 without the bearer, 409 when Strava is off, else runs one pull', async (t) => {

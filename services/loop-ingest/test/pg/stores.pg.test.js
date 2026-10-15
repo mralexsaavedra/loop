@@ -18,7 +18,7 @@ import { upsertActivities, lastSyncedStart, createTokenStore } from '../../src/s
 import { saveHr, saveFailure, pendingHrActivities } from '../../src/hr-zones.js'
 import { saveAthlete, loadAthlete, listDevices } from '../../src/athlete.js'
 import { createSyncStatus } from '../../src/status.js'
-import { createHandler } from '../../src/server.js'
+import { createHandler, databaseConfig } from '../../src/server.js'
 
 const quiet = () => {}
 let db, pool
@@ -168,5 +168,20 @@ test('HTTP: the food and journal routes write through to Postgres', { skip }, as
     assert.deepEqual((await createJournalStore(pool).getDay('2030-02-01')).answers, { alcohol: 1 })
   } finally {
     await new Promise((resolve) => server.close(resolve))
+  }
+})
+
+test('a password with URL-special characters connects through databaseConfig (the compose fields), no encoding', { skip }, async () => {
+  const password = 'p@ss:w/rd?#%41 x'
+  const role = `loop_pw_${process.pid}`
+  await pool.query(`CREATE ROLE ${role} LOGIN PASSWORD '${password}'`)
+  const u = new URL(db.url)
+  const other = createPool(databaseConfig({ DB_HOST: u.hostname, DB_PORT: u.port, POSTGRES_USER: role, POSTGRES_PASSWORD: password, POSTGRES_DB: db.name }), { log: quiet })
+  try {
+    const { rows: [{ who }] } = await other.query('SELECT current_user AS who')
+    assert.equal(who, role)
+  } finally {
+    await other.end()
+    await pool.query(`DROP ROLE ${role}`)
   }
 })
