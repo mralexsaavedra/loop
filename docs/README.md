@@ -8,7 +8,7 @@ built, for anyone changing the code.
 
 | You want to… | Read |
 | --- | --- |
-| Install it, level by level (local page → LAN services → phone + Strava) | [`README.md`](../README.md) → Levels |
+| Install it, level by level (local page → LAN services → phone + Strava) | [`README.md`](../README.md#setup--pick-your-level) → Setup — pick your level |
 | Understand what each tab and card tells you | [`guides/page-tour.md`](guides/page-tour.md) |
 | Make the nutrition and training plan yours | [`guides/your-plan.md`](guides/your-plan.md) |
 | Fix something that is not working | [`guides/troubleshooting.md`](guides/troubleshooting.md) |
