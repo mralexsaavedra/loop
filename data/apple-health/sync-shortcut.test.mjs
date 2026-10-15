@@ -302,6 +302,14 @@ test('buildRows() bodyfat: percent scale (fractions converted), real source kept
   ]);
 });
 
+test('buildRows() writes the source through csvSource: the same cell as extract.mjs (commas, entities)', () => {
+  const rows = buildRows('weight', [
+    { start: '2030-01-02 07:00:00 +0100', value: 70.5, source: 'Alex, Watch' },
+    { start: '2030-01-03 07:00:00 +0100', value: 70.4, source: 'Scale, Kitchen &amp; Co' },
+  ]);
+  assert.deepEqual(rows.map(r => r.line), ['2030-01-02,70.5,Alex  Watch', '2030-01-03,70.4,Scale  Kitchen & Co']);
+});
+
 test('buildRows() leanmass keeps kg with 2 decimals and the real source', () => {
   const rows = buildRows('leanmass', [{ start: '2030-01-02 07:00:00 +0100', value: 60.123456, source: 'Scale App' }]);
   assert.equal(rows[0].line, '2030-01-02,60.12,Scale App');

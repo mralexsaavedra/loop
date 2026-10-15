@@ -31,6 +31,13 @@ How the raw sources become the CSVs in `data/apple-health/extract/` that every p
 - Regenerate after a new export is dropped: `node data/apple-health/extract.mjs`.
 - The raw `export.xml` is ~700 MB — only stream/grep it directly for a series not in the cache.
 - **Body metrics** carry a `source` column. Weight mixes scales — compare body fat within one scale only.
+- **Source cells** (`source` of the readings, steps, sleep and workouts) go through one helper,
+  `csvSource` in `lib/extract/samples.mjs`, on both the export and the Shortcut path: XML entities (`&amp;`,
+  `&lt;`, `&gt;`, `&quot;`, `&apos;`, `&#NNN;`, `&#xHH;`) are decoded once, then every comma and line break becomes
+  a space (the CSVs are unquoted), so `Scale, Kitchen &amp; Co` is `Scale  Kitchen & Co` from either path. A
+  name with no comma, line break or entity is unchanged. An extract written before this rule keeps its old
+  cells (a comma-named source shifted the columns; entities stayed encoded) until
+  `node data/apple-health/extract.mjs` is re-run.
 - **Steps** are deduped to max-per-device per day. Summing devices double-counts (it inflates the NEAT
   figure).
 
