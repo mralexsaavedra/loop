@@ -1,12 +1,12 @@
 # iOS Shortcut: send Apple Health data to the dashboard
 
 A personal iOS Shortcut reads recent samples from Apple Health and POSTs them, as one JSON
-object, to your self-hosted `health-ingest` service. `npm run sync` then merges them into the
+object, to your self-hosted `loop-ingest` service. `npm run sync` then merges them into the
 extract CSVs, so the dashboard stays fresh between full `export.xml` drops.
 
 ## Quick path
 
-1. Have the Level 2 services running ([`services/plan-web/README.md` → Install](../services/plan-web/README.md#install-host)).
+1. Have the Level 2 services running ([`services/loop-web/README.md` → Install](../services/loop-web/README.md#install-host)).
 2. Import the ready-made Shortcut (below) and point it at your server, or build it yourself (*Build the
    Shortcut*).
 3. Add a personal automation that runs it when you open an app you use every day.
@@ -16,13 +16,13 @@ Export rows always win: Shortcut rows only fill dates your last `export.xml` doe
 
 ## Where the phone sends the data
 
-Pick one. Both go through plan-web, which forwards only the two routes the Shortcut needs
+Pick one. Both go through loop-web, which forwards only the two routes the Shortcut needs
 (`POST /ingest/health-auto-export` and `POST /api/sync`) to the ingest service.
 
 | Option | URL in the Shortcut | Works | You need |
 | --- | --- | --- | --- |
 | **A. Home Wi-Fi only (start here)** | `http://<server-ip>:8090` | When the phone is on your home Wi-Fi | Nothing more: Level 2 as installed |
-| **B. From anywhere** | `https://<your-host>` | Always | A domain and an HTTPS tunnel or reverse proxy in front of plan-web ([`services/plan-web/README.md` → Exposing behind an SSO tunnel](../services/plan-web/README.md#exposing-behind-an-sso-tunnel)) |
+| **B. From anywhere** | `https://<your-host>` | Always | A domain and an HTTPS tunnel or reverse proxy in front of loop-web ([`services/loop-web/README.md` → Exposing behind an SSO tunnel](../services/loop-web/README.md#exposing-behind-an-sso-tunnel)) |
 
 **Option A is enough for most people.** Each payload covers the last 1–30 days (see *Window* in the key
 table), so a day away from home is filled the next time the automation runs at home. The trade-off: the
@@ -42,7 +42,7 @@ importing, edit these before the first run:
      `http://192.168.1.50:8090/ingest/health-auto-export` (option A) or
      `https://<your-host>/ingest/health-auto-export` (option B).
    - Header `Authorization`: replace `TU_TOKEN` in `Bearer TU_TOKEN` with your `INGEST_TOKEN`
-     (`grep INGEST_TOKEN services/health-ingest/.env` on the server; copy it on your own screen).
+     (`grep INGEST_TOKEN services/loop-ingest/.env` on the server; copy it on your own screen).
 2. **Step 5** (the refresh): same address, path `/api/sync`.
 3. **The *Origen es* (Source is) filters** — they name the author's devices; set yours:
    - 8 searches filtered by the watch (*Apple Watch de …*): `steps_watch`, `active_energy`,
@@ -80,9 +80,9 @@ the Shortcut.
 
 | You need | Where it comes from |
 |----------|---------------------|
-| The Level 2 services running | [`services/plan-web/README.md` → Install](../services/plan-web/README.md#install-host) |
+| The Level 2 services running | [`services/loop-web/README.md` → Install](../services/loop-web/README.md#install-host) |
 | The address | *Where the phone sends the data* above |
-| The bearer token | `INGEST_TOKEN` in `services/health-ingest/.env` (step 0 of the install generates it) |
+| The bearer token | `INGEST_TOKEN` in `services/loop-ingest/.env` (step 0 of the install generates it) |
 | An automation name | Any label. The sync reads payloads for `SHORTCUT_AUTOMATION` (default `atajo-salud`), so use that value or set the env var to yours |
 
 Keep the token out of screenshots and shared Shortcuts. Anyone holding it can write to your
@@ -119,22 +119,22 @@ The service answers `202` with the stored row id. A `401` means the token does n
    - No headers and no body needed.
 
    This only **triggers a refresh**: the ingest service pulls Strava and the host rebuilds the
-   plan page (see `services/plan-web/README.md`), so the page shows what you just sent within a
+   plan page (see `services/loop-web/README.md`), so the page shows what you just sent within a
    minute or two instead of at the next hourly run. It sends and returns no health data (only a
    sequence number), needs no token, and never refuses: a call within a minute of the last refresh
    queues ONE follow-up refresh at the end of that minute (`"coalesced": true, "deferred": true`), so
    the payload you just sent is never skipped. Skip this step if you do not
-   run `services/plan-web`.
+   run `services/loop-web`.
 
-   Both steps go through plan-web (`/ingest/health-auto-export` and `/api/sync`); the ingest service
-   itself is never exposed (see `services/health-ingest/README.md`, exposure model).
+   Both steps go through loop-web (`/ingest/health-auto-export` and `/api/sync`); the ingest service
+   itself is never exposed (see `services/loop-ingest/README.md`, exposure model).
 
-### Through plan-web (ingest not exposed)
+### Through loop-web (ingest not exposed)
 
-Both options above already go through plan-web. For option B (public entry behind an SSO tunnel),
-point both steps at the plan-web host:
+Both options above already go through loop-web. For option B (public entry behind an SSO tunnel),
+point both steps at the loop-web host:
 
-- step 4: `https://<your-host>/ingest/health-auto-export` (same headers; plan-web forwards
+- step 4: `https://<your-host>/ingest/health-auto-export` (same headers; loop-web forwards
   `Authorization` and `Automation-Name`, and ingest still checks the token)
 - step 5: `https://<your-host>/api/sync` (not `/sync`)
 
@@ -142,12 +142,12 @@ Behind an SSO proxy, bypass authentication for exactly those two paths (`/ingest
 `/api/sync`); everything else (the page, the food log) stays behind the login. The `/api/sync`
 rule must be an EXACT path match, not a prefix. After setup, check from outside the LAN that
 `https://<your-host>/ingest/%2e%2e/status.json` and `https://<your-host>/ingest/../status.json`
-(`curl --path-as-is`) do NOT return the file (`400` or the SSO redirect): plan-web refuses
+(`curl --path-as-is`) do NOT return the file (`400` or the SSO redirect): loop-web refuses
 dot-segments and encoded slashes in the raw path. `INGEST_TOKEN` also guards `/export/*`, so
-keep it at least 32 random bytes and out of screenshots. plan-web proxies
+keep it at least 32 random bytes and out of screenshots. loop-web proxies
 only `POST /ingest/health-auto-export` of the ingest routes (any other `/ingest/*` path is a 404)
-and never `/export/*`. Never expose the ingest port to the internet (it listens on the LAN only so plan-web can reach it). Setup:
-`services/plan-web/README.md`, "Exposing behind an SSO tunnel".
+and never `/export/*`. Never expose the ingest port to the internet (it listens on the LAN only so loop-web can reach it). Setup:
+`services/loop-web/README.md`, "Exposing behind an SSO tunnel".
 
 Example body (two lines per key shown):
 
@@ -240,7 +240,7 @@ Both lists come from the same search, so they always have the same length and or
 recipe (**Repeat with Each** (*Repetir con cada*) → **Text** `<Start Date ISO 8601>;<Value>` →
 **Combine Text** → field `hr_samples`) is still accepted, but it loops once per sample and is very
 slow on workout days. A workout day of about 5,000 samples is roughly 150 KB of `hr_t` plus 25 KB
-of `hr_v`, well under the 8 MB plan-web accepts on that path (ingest's own `MAX_BODY_BYTES` is 32 MB). The 1-day
+of `hr_v`, well under the 8 MB loop-web accepts on that path (ingest's own `MAX_BODY_BYTES` is 32 MB). The 1-day
 window overlaps between runs on purpose: the sync dedupes by timestamp, so nothing is counted
 twice and a missed run leaves no gap as long as the next one comes within a day. After adding it
 run `npm run sync -- --full` once.
@@ -286,7 +286,7 @@ per CSV. `npm run sync -- --full` rebuilds the local sample cache from every sto
 **After adding new keys** (e.g. `waist`, `diet_*`): run `npm run sync -- --full` once. The
 incremental sync only parses payloads newer than the cache, so keys already sitting in cached
 payloads are picked up only by a full rebuild. For Strava elevation, rebuild the ingest image
-(`docker compose up -d --build health-ingest`) before `npm run sync:strava`; the sync warns when
+(`docker compose up -d --build loop-ingest`) before `npm run sync:strava`; the sync warns when
 no activity carries elevation.
 
 ## Next step

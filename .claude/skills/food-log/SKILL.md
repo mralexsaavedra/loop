@@ -5,10 +5,10 @@ description: "Trigger: log food, registrar comida, regístrame, he comido, hoy c
 
 # Food log for the user
 
-The food log lives in the LAN service (`services/health-ingest`), the same one the page's "+" sheet uses. You
+The food log lives in the LAN service (`services/loop-ingest`), the same one the page's "+" sheet uses. You
 write to it through the page's own address, so what you log appears on the page at once. Reference:
 [`docs/nutrition-food-log.md`](../../../docs/nutrition-food-log.md) and the API table in
-[`services/health-ingest/README.md`](../../../services/health-ingest/README.md).
+[`services/loop-ingest/README.md`](../../../services/loop-ingest/README.md).
 
 ## Calling the API
 

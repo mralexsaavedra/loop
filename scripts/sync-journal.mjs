@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /* Journal export — snapshots the behaviour journal the LAN page writes to the ingest service
- * (services/health-ingest, GET /journal/summary) into the extract as journal-daily.csv
+ * (services/loop-ingest, GET /journal/summary) into the extract as journal-daily.csv
  * (lib/journal/journal.mjs journalCsv: one row per journaled day, 1 / 0 per yes / no behaviour, the
  * drinks count, blank = not answered, the note), so the build (lib/journal/bake.mjs: the My journal card
  * and the behaviour insights) and read-only consumers see it. Part of `npm run sync` (scripts/sync-all.mjs).
  *
- * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/health-ingest/.env>, else :8088). No token: /journal/* is the unauthenticated,
+ * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/loop-ingest/.env>, else :8088). No token: /journal/* is the unauthenticated,
  *          LAN-only layer; the request carries `X-HC-Journal: 1` and the URL's Host must be one the
  *          service accepts (an IP literal, localhost, or a name in its FOOD_ALLOWED_HOSTS).
  * Window : the last JOURNAL_LIMITS.rangeDaysMax (366) days ending on the LOCAL date. Inside it the server

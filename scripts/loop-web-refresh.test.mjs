@@ -1,4 +1,4 @@
-/* services/plan-web/refresh.sh — runs the REAL script inside a throwaway git repo with a stub `npm`
+/* services/loop-web/refresh.sh — runs the REAL script inside a throwaway git repo with a stub `npm`
  * on PATH (never the real sync/build, never real data). Covers the sequence protocol (processedSeq,
  * the re-check loop, error codes that never touch the last good publish), the branch guard, the
  * per-step timeouts and the keep-the-last-good-page rules.
@@ -12,7 +12,7 @@ import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const SCRIPT = path.join(path.dirname(here), 'services', 'plan-web', 'refresh.sh');
+const SCRIPT = path.join(path.dirname(here), 'services', 'loop-web', 'refresh.sh');
 const TOOLS = ['sh', 'flock', 'timeout', 'sha256sum', 'git'];
 const missing = TOOLS.filter((t) => spawnSync('sh', ['-c', `command -v ${t}`]).status !== 0);
 const skip = missing.length ? `needs ${missing.join(', ')}` : false;
@@ -30,7 +30,7 @@ case "$*" in
     fi
     exit "\${STUB_SYNC_EXIT:-0}" ;;
   "run -s publish:manuals"*)
-    [ -f services/plan-web/site/status.json ] && grep -q processedSeq services/plan-web/site/status.json && echo "status-before-manuals" >> "$STUB_LOG"
+    [ -f services/loop-web/site/status.json ] && grep -q processedSeq services/loop-web/site/status.json && echo "status-before-manuals" >> "$STUB_LOG"
     [ -n "\${STUB_MANUALS_SLEEP:-}" ] && sleep "$STUB_MANUALS_SLEEP"
     exit "\${STUB_MANUALS_EXIT:-0}" ;;
   ci*) [ -n "\${STUB_CI_SLEEP:-}" ] && sleep "$STUB_CI_SLEEP"; exit "\${STUB_CI_EXIT:-0}" ;;
@@ -50,7 +50,7 @@ function git(cwd, ...args) {
 function makeRepo(branch = 'main') {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'refresh-'));
   const repo = path.join(root, 'repo');
-  const planWeb = path.join(repo, 'services', 'plan-web');
+  const planWeb = path.join(repo, 'services', 'loop-web');
   fs.mkdirSync(planWeb, { recursive: true });
   fs.copyFileSync(SCRIPT, path.join(planWeb, 'refresh.sh'));
   fs.writeFileSync(path.join(repo, 'package-lock.json'), '{}\n');
@@ -60,7 +60,7 @@ function makeRepo(branch = 'main') {
   git(repo, 'init', '-q', '-b', branch);
   git(repo, 'add', '-A');
   git(repo, '-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '-m', 'init');
-  const trigger = path.join(repo, 'services', 'health-ingest', 'trigger', 'refresh');
+  const trigger = path.join(repo, 'services', 'loop-ingest', 'trigger', 'refresh');
   fs.mkdirSync(path.dirname(trigger), { recursive: true });
   return { root, repo, planWeb, bin, trigger, log: path.join(root, 'npm.log') };
 }

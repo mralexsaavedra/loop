@@ -4,6 +4,16 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## 2026-10-15 — Renamed to LOOP
+
+The project, the page and its services now share one name. `services/health-ingest` -> `services/loop-ingest`,
+`services/plan-web` -> `services/loop-web`; containers and compose projects `loop-db`, `loop-ingest`, `loop-web`
+(a second install keeps its `HC_INSTANCE` suffix); systemd units `loop-web-refresh.path/.service`; package names
+`loop` and `loop-ingest`; the GitHub repo `mralexsaavedra/loop`. The database volume now has an explicit name,
+`loop-db-data` (`loop-db-data-<instance>`), so it no longer depends on the compose project name. Environment
+variable names (`HC_INSTANCE`, `PLAN_WEB_*`, `INGEST_PORT`, ...) are unchanged, so existing `.env` files keep
+working. The old folder names stay gitignored and guarded until every clone has moved its runtime files.
+
 ## 2026-10-14 (later) — Release polish: AI layer and documentation
 
 Before the first public release every doc and AI file was audited (read-only explorers) and fixed. AI: report

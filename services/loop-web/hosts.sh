@@ -6,7 +6,7 @@
 #
 # By default the page answers only to IP literals and localhost (DNS rebinding protection). To reach
 # it by a name too, set PLAN_WEB_EXTRA_HOSTS="plan.lan, nas.home.arpa" (comma or space separated) in
-# services/plan-web/.env, and the same names in health-ingest's FOOD_ALLOWED_HOSTS. Each name becomes
+# services/loop-web/.env, and the same names in loop-ingest's FOOD_ALLOWED_HOSTS. Each name becomes
 # ONE exact, lowercased map key (never a regex); anything but letters, digits, dots and hyphens is
 # skipped with a warning.
 set -eu

@@ -15,7 +15,7 @@ The LAN-only food log and its API, products, recipes, the export, plus the serve
 
 ## Food log & entries
 
-You log what you eat from the LAN page (`services/plan-web`), with your usual supermarket products and your
+You log what you eat from the LAN page (`services/loop-web`), with your usual supermarket products and your
 own recipes; Today's summary fills from that log. Honest data: macros come only from product labels / Open
 Food Facts values you confirmed, recipes are computed, unknown macros stay unknown.
 
@@ -44,7 +44,7 @@ food-calc.js.
   `web/src/client/food-core.js` (`window.HCFood`, no copy). The add sheet's preview uses the same
   functions: a recipe whose products are all listed uses `recipeBasis`, one with an archived product the
   server's computed basis on the recipe row, both through `entryFromBasis` — no fourth copy.
-- **Service** — a GENERATED copy, `services/health-ingest/src/food-calc.js` (built from its own directory, so
+- **Service** — a GENERATED copy, `services/loop-ingest/src/food-calc.js` (built from its own directory, so
   it cannot import `lib/`): `scripts/gen-food-calc.mjs` writes it from the module's `SERVER` descriptor (the
   enums, `FOOD_LIMITS`, the functions' own source + `fin` / `roundEps`, emitted by `lib/build/esm-module.mjs`,
   which deep-freezes every frozen constant with a nested `Object.freeze(…)` per array / object level; no
@@ -79,7 +79,7 @@ u (a `ud` food: per unit), pc?: {a, r, o, m}, v?: 1 = a verified label}`.
 
 ## Storage and API
 
-`services/health-ingest`, `sql/006_food.sql` (idempotent):
+`services/loop-ingest`, `sql/006_food.sql` (idempotent):
 
 | Table | Columns |
 | --- | --- |
@@ -115,7 +115,7 @@ Routes (`src/food.js`):
 
 `src/off.js`, SERVER side only (the page never calls OFF): v2 product API / `cgi/search.pl`.
 
-- User-Agent `health-coach/1.0 (self-hosted personal food log)` (no personal data); 8 s timeout,
+- User-Agent `loop/1.0 (self-hosted personal food log)` (no personal data); 8 s timeout,
   `redirect: 'error'`, 1 MB response cap.
 - In-memory LRU cache (24 h; not-found 1 h; an upstream 429 / 5xx / timeout 60 s); one shared in-flight
   request per identical lookup; token buckets (≤ 10 searches / min, ≤ 100 product reads / min; over →
@@ -132,7 +132,7 @@ Routes (`src/food.js`):
 
 The routes are UNAUTHENTICATED (a static page cannot hold a secret) and LAN only. Layers:
 
-1. **DNS rebinding** — plan-web nginx answers EVERY path (page, `status.json`, `/api/*`) only for a Host
+1. **DNS rebinding** — loop-web nginx answers EVERY path (page, `status.json`, `/api/*`) only for a Host
    that is an IP literal (v4 / bracketed v6), `localhost` or a name in `PLAN_WEB_EXTRA_HOSTS`
    (`map $host $hc_host_ok` + a server-level `return 421`; `hosts.sh`, mounted as
    `/docker-entrypoint.d/15-hc-hosts.sh`, renders the names into exact map entries). Ingest `/food/*`
@@ -146,11 +146,11 @@ Together they keep a website opened in a LAN browser from reading or writing the
 calling the service directly is trusted (the LAN-only model).
 
 - **To add a hostname** (e.g. `http://plan.lan:8090`): `PLAN_WEB_EXTRA_HOSTS=plan.lan` in
-  `services/plan-web/.env` + `FOOD_ALLOWED_HOSTS=plan.lan` in `services/health-ingest/.env`, then
+  `services/loop-web/.env` + `FOOD_ALLOWED_HOSTS=plan.lan` in `services/loop-ingest/.env`, then
   `docker compose up -d` in both; only names you control on your own network.
-- Bodies ≤ 16 KB (`413`); writes ≤ 60 / min per client address (`429`) — behind plan-web every request comes
+- Bodies ≤ 16 KB (`413`); writes ≤ 60 / min per client address (`429`) — behind loop-web every request comes
   from nginx, so it is ONE shared budget.
-- plan-web nginx proxies the prefix `/api/food/` → ingest `/food/` (GET / POST / PUT / DELETE, body passed,
+- loop-web nginx proxies the prefix `/api/food/` → ingest `/food/` (GET / POST / PUT / DELETE, body passed,
   `client_max_body_size 16k`, `X-HC-Food` forwarded, `Host host.docker.internal`). A public reverse proxy
   must NEVER forward `/food/*`.
 
@@ -359,11 +359,11 @@ Settings, Progress and Consistency are render-isolated (own try/catch, one-line 
 `lib/` (baked as `NUTRI.progress` / `NUTRI.adherence` / `FOOD_CONST.limits`); every number in the copy is a
 placeholder filled from them, never typed.
 
-- **Storage** — `services/health-ingest/sql/007_settings.sql` (`app_settings`, one row: goal + target weight
+- **Storage** — `services/loop-ingest/sql/007_settings.sql` (`app_settings`, one row: goal + target weight
   within `FOOD_LIMITS.targetWeight*`), its own optional migration group `settings` (a failure → only
   `/food/settings` answers `503 settings_unavailable`).
 - **API** — `GET /food/settings` and `PUT /food/settings` (partial `{goal?, targetWeightKg?}`, `null` clears
-  the target) sit under the food prefix, so plan-web's `/api/food/` proxy and every food layer apply (no
+  the target) sit under the food prefix, so loop-web's `/api/food/` proxy and every food layer apply (no
   nginx change).
 - **Page** — `client/settings.js` (`HCSettings`, reuses `HCFood.api`).
   - Without an answer: goal in `hc.nutri.goal`, no target field.
@@ -489,10 +489,10 @@ card as Home's (`docs/home-tab.md`).
 
 ## Rollout
 
-- **Food log** — `cd services/health-ingest && docker compose up -d --build health-ingest` (runs
-  `006_food.sql`), restart plan-web (`docker compose up -d` in `services/plan-web`, new nginx location),
+- **Food log** — `cd services/loop-ingest && docker compose up -d --build loop-ingest` (runs
+  `006_food.sql`), restart loop-web (`docker compose up -d` in `services/loop-web`, new nginx location),
   then `npm run generate` (or wait for the hourly refresh).
-- **Settings** — ingest rebuild (`docker compose up -d --build health-ingest`, runs 007), then
+- **Settings** — ingest rebuild (`docker compose up -d --build loop-ingest`, runs 007), then
   `npm run generate`.
 - Out of scope: label photos / OCR (send them to Claude in chat), scraping any supermarket site, Apple
   Health write-back.

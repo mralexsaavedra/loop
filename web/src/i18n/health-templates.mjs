@@ -12,7 +12,7 @@
  * staying JSON-safe.
  *
  * Ported from the legacy `<script>` IIFE in
- * data/nutrition/plan-web.template.html ("health"). Decimal-comma display
+ * data/nutrition/loop-web.template.html ("health"). Decimal-comma display
  * (`nf()` in health.js) and the `es-ES`/`en-GB` date locale are handled in
  * health.js itself from the shared `LOCALE` global — same pattern as
  * training-dash.js's `hc()`.

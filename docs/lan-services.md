@@ -1,34 +1,34 @@
 # LAN page + on-demand refresh
 
-`services/plan-web` + `services/health-ingest`: sync trigger protocol, refresh.sh, freshness line, security and exposure, health + tokens.
+`services/loop-web` + `services/loop-ingest`: sync trigger protocol, refresh.sh, freshness line, security and exposure, health + tokens.
 
 > **Reference** — how this area is built, for anyone changing it (keep it in sync with the code in the same
 > commit). Setting up or using the page? Start at the [documentation index](README.md).
 
-## LAN page + on-demand refresh — `services/plan-web` + `services/health-ingest`
+## LAN page + on-demand refresh — `services/loop-web` + `services/loop-ingest`
 
-Besides opening the built file locally, `services/plan-web` serves `web/dist/personal/index.html` on the LAN
+Besides opening the built file locally, `services/loop-web` serves `web/dist/personal/index.html` on the LAN
 (nginx, `./site` only), gzipped (server level: the page, CSS / JS / JSON, ≥ 1 KB, level 5, `Vary`;
 the four proxied ingest routes are `gzip off` — their responses reflect request input next to stored
-data, a BREACH-style oracle; pinned by `scripts/plan-web-config.test.mjs`; rollout `docker compose
-up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (cron) AND on demand, under a
+data, a BREACH-style oracle; pinned by `scripts/loop-web-config.test.mjs`; rollout `docker compose
+up -d` in `services/loop-web`). `refresh.sh` rebuilds and publishes it hourly (cron) AND on demand, under a
 **sequence protocol** (no clock comparison anywhere):
 
 - **Trigger and sequence protocol.** The page's Sync button and the
-  Shortcut's last step `POST <page address>/api/sync` (plan-web nginx) → health-ingest `POST /sync`, which numbers
+  Shortcut's last step `POST <page address>/api/sync` (loop-web nginx) → loop-ingest `POST /sync`, which numbers
   the click (`trigger_seq`), pulls Strava (at most once per 5 min) and writes the seq atomically to
-  `services/health-ingest/trigger/refresh`; a systemd path unit runs `refresh.sh`, which publishes `processedSeq`
+  `services/loop-ingest/trigger/refresh`; a systemd path unit runs `refresh.sh`, which publishes `processedSeq`
   in `site/status.json`, and the page reloads once that covers its seq. Clicks coalesce (never `429`, never
   dropped; at most one rebuild per minute). Each side is documented once:
   - service side (seq persistence, coalescing and deferred writes, shutdown and crash recovery, `/sync/status`):
-    [`services/health-ingest/README.md` → On-demand refresh](../services/health-ingest/README.md);
+    [`services/loop-ingest/README.md` → On-demand refresh](../services/loop-ingest/README.md);
   - host side (`refresh.sh` passes, `status.json` and its error codes, the systemd units and their hardening,
-    the ordered install steps): [`services/plan-web/README.md` → How a refresh works](../services/plan-web/README.md).
+    the ordered install steps): [`services/loop-web/README.md` → How a refresh works](../services/loop-web/README.md).
 - **refresh.sh** keeps its resilience rules (failed sync still rebuilds, flock, `npm ci` only on a
   lockfile change, a failed build keeps the last good page). Each pass records the trigger seq it
   started from; a successful publish writes `site/status.json` = `{publishedAt, commit, branch,
   processedSeq}` atomically (`processedSeq` never goes backwards; the last good fragment is kept in
-  `services/plan-web/.refresh-state`, outside `./site`). After a pass it re-reads the trigger and runs
+  `services/loop-web/.refresh-state`, outside `./site`). After a pass it re-reads the trigger and runs
   again (max 3 passes) if the seq advanced, so clicks during a run are never lost. Early exits add
   `{error, errorSeq}` WITHOUT touching `publishedAt`/`processedSeq`: codes `branch` (branch guard,
   still exit 0, unless `PLAN_WEB_ALLOW_BRANCH=1`), `install`, `build`, `sanity`, `lock` (on-demand lock
@@ -51,15 +51,15 @@ up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (c
   timer, reads no body and returns only a seq; status returns timestamps, seqs and COARSE codes
   (`strava_auth`, `strava_network`, `strava_other`, `strava_token_save`, `trigger_write`), cached 5 s,
   never health data or raw error text (messages stay in logs; tests pin the key set and no leaks).
-  plan-web nginx proxies EXACTLY `/api/sync` + `/api/sync/status` (exact-match, method-restricted)
+  loop-web nginx proxies EXACTLY `/api/sync` + `/api/sync/status` (exact-match, method-restricted)
   plus the food log prefix `/api/food/*` → ingest `/food/*` (GET / POST / PUT / DELETE, 16 KB, the
   `X-HC-Food` header forwarded; see [`nutrition-food-log.md` → Security](nutrition-food-log.md#security)), the journal prefix `/api/journal/*` →
   ingest `/journal/*` (GET / PUT, 16 KB, the `X-HC-Journal` header forwarded; `docs/journal.md`) and EXACTLY `POST /ingest/health-auto-export`
-  → the same ingest route (the iOS Shortcut upload when plan-web is the public entry and ingest is not
+  → the same ingest route (the iOS Shortcut upload when loop-web is the public entry and ingest is not
   exposed: `Authorization` / `Automation-Name` / `Content-Type` forwarded, no `Bearer` token → `401`
   before the body is read, ingest checks the bearer, `client_max_body_size 8m` ≤ ingest's
   `MAX_BODY_BYTES` default); every other `/api/` or `/ingest/`
-  path 404, never `/export/*` or `/sync/strava` (pinned by `scripts/plan-web-config.test.mjs`).
+  path 404, never `/export/*` or `/sync/strava` (pinned by `scripts/loop-web-config.test.mjs`).
   Static device manuals: EXACTLY `/manuales/<MANUAL_FILE_RE>` (a quoted regex location; GET / HEAD,
   `types { }` + `default_type application/pdf`, `Content-Disposition: inline`, `X-Content-Type-Options:
   nosniff`, `Content-Security-Policy: default-src 'none'; object-src 'self'` (not `sandbox`, which
@@ -69,15 +69,15 @@ up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (c
   server-level guard (next to the Host check) answers `400` when the RAW path (before `?`) holds `..`,
   `%2e`, `%2f`, `%5c` (any case) or `//`, so an SSO proxy matching bypass rules on the raw path cannot
   be walked to the page (`/ingest/%2e%2e/index.html`). Behind an SSO tunnel (one resource →
-  plan-web:8090), bypass SSO for exactly `/ingest/*` and `/api/sync` (EXACT, never a prefix), verify
+  loop-web:8090), bypass SSO for exactly `/ingest/*` and `/api/sync` (EXACT, never a prefix), verify
   from outside that `/ingest/%2e%2e/status.json` does not return the file, keep `INGEST_TOKEN` (it also
   guards `/export/*`) ≥ 32 random bytes, and
-  add the public host to `PLAN_WEB_EXTRA_HOSTS` + `FOOD_ALLOWED_HOSTS` (`services/plan-web/README.md`,
+  add the public host to `PLAN_WEB_EXTRA_HOSTS` + `FOOD_ALLOWED_HOSTS` (`services/loop-web/README.md`,
   "Exposing behind an SSO tunnel"). Every path
   (the page included) answers only a Host that is an IP literal, `localhost` or a name in
   `PLAN_WEB_EXTRA_HOSTS`, else `421` (DNS rebinding; how to add a name: [`nutrition-food-log.md` → Security](nutrition-food-log.md#security)).
-  The ingest service itself is never exposed: plan-web is the only entry, and nothing forwards `/export/*`,
-  `/sync/strava`, or the ingest port (published on the host's LAN only, for plan-web).
+  The ingest service itself is never exposed: loop-web is the only entry, and nothing forwards `/export/*`,
+  `/sync/strava`, or the ingest port (published on the host's LAN only, for loop-web).
 - **Health + tokens.** `/healthz` stays 200 but adds `degraded: true` when Strava is configured and its
   PERSISTED last success is > 6 h old or missing (a restart does not reset it). A refresh token rotated
   by Strava is stored in `strava_token` (3 save attempts with backoff; on failure it is kept in memory,
@@ -89,9 +89,9 @@ up -d` in `services/plan-web`). `refresh.sh` rebuilds and publishes it hourly (c
   streams (newest first, never more than 30 per 15 min / 300 per 24 h, counted in
   `strava_activity_hr`), stores only seconds per bpm (`hr_hist`, never the stream) and exports it on
   `GET /export/strava` for the per-workout HR zones; details and limits in
-  `services/health-ingest/README.md` ("Per-workout HR zones"). Each streams request times out after
+  `services/loop-ingest/README.md` ("Per-workout HR zones"). Each streams request times out after
   15 s; a 429 stops the batch, but a 5xx / timeout of one activity only skips it with a per-activity
   back-off (30 min × 2^(attempts − 1), cap 24 h) and the 5th failure marks it `failed`, so one bad
-  activity can not block the rest. Rollout: `docker compose up -d --build health-ingest` (runs the
+  activity can not block the rest. Rollout: `docker compose up -d --build loop-ingest` (runs the
   idempotent `sql/008_strava_hr.sql` and `sql/009_strava_hr_retry.sql`), then `npm run sync` once the
   backfill has run.

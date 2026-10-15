@@ -64,7 +64,7 @@ as Basal Energy doubled basal). Precedence lives in `samples.mjs` `energySource`
 ### Shortcut merge into the extract
 
 Between exports, `npm run sync` (`data/apple-health/sync-shortcut.mjs`) pulls iOS Shortcut payloads
-from the optional `services/health-ingest` service (`GET /export/raw`) and merges
+from the optional `services/loop-ingest` service (`GET /export/raw`) and merges
 hrv/rhr/vo2max/weight/bodyfat/leanmass/waist/steps/energy/dietary/sleep/respiratory/walking-HR/
 wrist-temp/hr-recovery/exercise/distance/flights into those CSVs. How to build the Shortcut and every
 payload key: [`docs/ios-shortcut.md`](ios-shortcut.md) — keep its key table in sync with the `METRICS`
@@ -213,7 +213,7 @@ Stage columns (hours, blank = unknown):
 ## Strava sync
 
 **`npm run sync:strava`, part of `npm run sync`.** Pulls every activity the ingest service
-(`services/health-ingest`) has stored from Strava via `GET /export/strava` and merges translated rows
+(`services/loop-ingest`) has stored from Strava via `GET /export/strava` and merges translated rows
 into `workouts.csv`, tagged `source=Strava API`, so a ride logged only on Strava (no Watch record)
 still shows up.
 
@@ -246,7 +246,7 @@ still shows up.
 - An edit made more than 7 days ago is never picked up (the ingest service's Strava loop only re-reads
   a 7-day overlap window).
 - `GET /export/strava` requires an ingest image rebuild/restart
-  (`docker compose up -d --build health-ingest`) — an un-rebuilt image answers `404` and the sync exits
+  (`docker compose up -d --build loop-ingest`) — an un-rebuilt image answers `404` and the sync exits
   non-zero with a message saying so, touching no files.
 
 ### `rides.csv`
@@ -284,7 +284,7 @@ start; readers are positional):
   `elapsed_s` = elapsed, else moving time. Together they are the activity window `hr-hourly.csv`
   leaves out (day strain).
 - Built from the per-activity HR histogram `hr_hist` (seconds per whole bpm) that the ingest service
-  builds from Strava's HR streams (`services/health-ingest/README.md` "Per-workout HR zones": at most 10
+  builds from Strava's HR streams (`services/loop-ingest/README.md` "Per-workout HR zones": at most 10
   streams per sync run, newest first, so a long history fills in over a few days).
 
 Zone model (`lib/training/hr-zones.mjs`, the reference's), % of max HR:

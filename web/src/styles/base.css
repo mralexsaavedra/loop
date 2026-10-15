@@ -1,7 +1,7 @@
 /* Shared app shell — day-type toggle, the bottom dock (tab navigation), section
  * heads, footer, and generic inline components (link, tip). Ported
  * verbatim (selectors + declarations) from the legacy
- * plan-web.template.html <style> block. Mobile-first; the trailing
+ * loop-web.template.html <style> block. Mobile-first; the trailing
  * @media block holds this file's desktop (>=900px) overrides, matching
  * the legacy source's single combined desktop query. Per-tab rules live
  * in dia.css / tablas.css / training.css / health.css. */

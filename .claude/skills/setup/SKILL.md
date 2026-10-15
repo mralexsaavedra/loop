@@ -27,15 +27,15 @@ node -v; node -p "require('./package.json').engines.node"
 test -d node_modules && echo "deps: yes" || echo "deps: no"
 for f in profile/about-me.md profile/baseline.md profile/coaches.md profile/profile.json \
   data/nutrition/plan-data.json data/training/training-data.json data/apple-health/export.xml \
-  data/apple-health/extract/_meta.json web/dist/personal/index.html services/health-ingest/.env; do
+  data/apple-health/extract/_meta.json web/dist/personal/index.html services/loop-ingest/.env; do
   test -e "$f" && echo "yes $f" || echo "no  $f"; done
 command -v docker >/dev/null && docker compose version || echo "docker: no"
 # the ports each install uses (not secrets; defaults 8088 / 8090 when the env files do not set them)
 # (only the digits of that one line ever come out)
-IP=$(grep -sE '^[[:space:]]*INGEST_PORT=' services/health-ingest/.env | head -1 | cut -d= -f2 | tr -dc 0-9); IP=${IP:-8088}
-WP=$(grep -sE '^[[:space:]]*PLAN_WEB_PORT=' services/plan-web/.env | head -1 | cut -d= -f2 | tr -dc 0-9); WP=${WP:-8090}
+IP=$(grep -sE '^[[:space:]]*INGEST_PORT=' services/loop-ingest/.env | head -1 | cut -d= -f2 | tr -dc 0-9); IP=${IP:-8088}
+WP=$(grep -sE '^[[:space:]]*PLAN_WEB_PORT=' services/loop-web/.env | head -1 | cut -d= -f2 | tr -dc 0-9); WP=${WP:-8090}
 curl -s -m 3 -o /dev/null -w "ingest /healthz %{http_code}\n" "http://127.0.0.1:$IP/healthz"
-curl -s -m 3 -o /dev/null -w "plan-web %{http_code}\n" "http://127.0.0.1:$WP/status.json"
+curl -s -m 3 -o /dev/null -w "loop-web %{http_code}\n" "http://127.0.0.1:$WP/status.json"
 ```
 
 Use `$IP` / `$WP` (never a hard-coded port) in every later check. Report a short checklist (`000` = not
@@ -64,19 +64,19 @@ stop until upgraded.
 ## Level 2 — food log + live page on the LAN (Docker)
 
 Needs a Linux host with Docker (compose), systemd and Node 22. Follow the ordered install in
-`services/plan-web/README.md` → Install (host); env reference in `services/health-ingest/README.md`.
+`services/loop-web/README.md` → Install (host); env reference in `services/loop-ingest/README.md`.
 
 1. Env file from the example, secrets generated in place and never shown:
    ```sh
-   cd services/health-ingest && cp -n .env.example .env && chmod 600 .env
+   cd services/loop-ingest && cp -n .env.example .env && chmod 600 .env
    sed -i.tmp "s/^INGEST_TOKEN=.*/INGEST_TOKEN=$(openssl rand -hex 32)/; s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env && rm .env.tmp
    grep -c 'replace-me' .env   # must print 0
    ```
-2. The plan-web install steps in order (`services/plan-web/README.md` → Install (host), steps 1–10: the
+2. The loop-web install steps in order (`services/loop-web/README.md` → Install (host), steps 1–10: the
    trigger and `site/` dirs BEFORE `docker compose up`, the first `refresh.sh` by hand, the crontab line, the
    systemd units; the clone stays on `main`). Check the host first: Linux with systemd, `flock`, Node 22 —
    on macOS / Windows stop and say Level 2 needs a Linux box. Each `sudo` step: show it and let the user run it.
-3. Verify: `curl -s "http://127.0.0.1:$IP/healthz"` → 200; the plan-web smoke test from its README.
+3. Verify: `curl -s "http://127.0.0.1:$IP/healthz"` → 200; the loop-web smoke test from its README.
    The page's own onboarding assistant then opens on the first visit (no profile and no goal on the
    server): a user without Claude Code sets up profile and targets there (`docs/profile.md`).
 4. `npm run sync`: each `WARNING:` line names a source not refreshed; report it.
@@ -89,12 +89,12 @@ Needs a Linux host with Docker (compose), systemd and Node 22. Follow the ordere
   action at a time; finish with the Verify section. A watch that is not an Apple Watch (Xiaomi, Garmin,
   Amazfit…): its app must write to Apple Health and the filters point at that app (same doc, "Another watch
   or band"). The user copies the token from
-  `services/health-ingest/.env` on their own screen.
-- **Strava**: `docs/data-pipeline.md` → Strava sync; credentials per `services/health-ingest/README.md`
+  `services/loop-ingest/.env` on their own screen.
+- **Strava**: `docs/data-pipeline.md` → Strava sync; credentials per `services/loop-ingest/README.md`
   → Strava. Walk "Getting the Strava credentials" there step by step (API app,
   authorize URL, copy the code, token exchange — easiest with `node scripts/strava-auth.js` from
-  `services/health-ingest`, which writes the refresh token into `.env` itself); the user types
-  `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` into `services/health-ingest/.env` themselves. Then `docker compose up -d` there, `npm run sync`.
+  `services/loop-ingest`, which writes the refresh token into `.env` itself); the user types
+  `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` into `services/loop-ingest/.env` themselves. Then `docker compose up -d` there, `npm run sync`.
 - **Knowledge base**: `docs/knowledge-base.md`, `knowledge/README.md`. `yt-dlp` is optional; content is
   for personal use only. Ingest with `scripts/ingest-youtube.mjs`, then register each source in
   `profile/coaches.md`.
@@ -107,7 +107,7 @@ way in its own clone.
 
 ## A second install (another person, same host)
 
-`services/plan-web/README.md` → Running a second install: a second clone, its own name (`HC_INSTANCE`) and
+`services/loop-web/README.md` → Running a second install: a second clone, its own name (`HC_INSTANCE`) and
 ports in both env files, renamed systemd units and a staggered cron line. Check afterwards that `docker ps`
 shows both sets of containers and each `site/status.json` its own build.
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env sh
 # Pull fresh Shortcut/Strava data, rebuild the Astro plan page and publish it
 # to ./site. Run hourly by cron and on demand by the systemd path unit
-# (systemd/plan-web-refresh.path, fired by the ingest service's POST /sync).
+# (systemd/loop-web-refresh.path, fired by the ingest service's POST /sync).
 #
 # Sequence protocol (the page's Sync button waits on it, no clocks involved):
 #   - POST /sync writes a sequence number to the trigger file
-#     (services/health-ingest/trigger/refresh, one line: `seq`);
+#     (services/loop-ingest/trigger/refresh, one line: `seq`);
 #   - each pass records the seq it STARTED from and, after a successful
 #     publish, writes site/status.json =
 #       {publishedAt, commit, branch, processedSeq}
@@ -49,7 +49,7 @@ STEP_TIMEOUT=${PLAN_WEB_STEP_TIMEOUT:-300}
 CI_TIMEOUT=${PLAN_WEB_CI_TIMEOUT:-900}
 MANUALS_TIMEOUT=${PLAN_WEB_MANUALS_TIMEOUT:-30}
 MAX_PASSES=3
-TRIGGER_FILE=${PLAN_WEB_TRIGGER_FILE:-$REPO/services/health-ingest/trigger/refresh}
+TRIGGER_FILE=${PLAN_WEB_TRIGGER_FILE:-$REPO/services/loop-ingest/trigger/refresh}
 SITE="$HERE/site"
 # The last successful publish as a JSON fragment, kept OUTSIDE ./site (nginx
 # serves every file there). Error writes reuse it so they never touch it.

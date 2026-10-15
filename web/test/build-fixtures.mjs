@@ -10,7 +10,7 @@
  *
  * Fixtures build into web/.test-dist/{en-example,es-personal} via
  * build-web.mjs's --outdir, NEVER into web/dist/<mode> — that is the live
- * output services/plan-web/refresh.sh publishes from, and `npm test` must
+ * output services/loop-web/refresh.sh publishes from, and `npm test` must
  * never overwrite it (a prior version of this script did exactly that).
  *
  * Run: node web/test/build-fixtures.mjs  (normally via `npm run pretest`)

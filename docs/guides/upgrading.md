@@ -11,12 +11,12 @@ takes a few seconds:
 
 ```sh
 mkdir -p backups
-docker exec health-db pg_dump -U health health > "backups/health-db-$(date +%F).sql"
+docker exec loop-db pg_dump -U health health > "backups/loop-db-$(date +%F).sql"
 ```
 
-`backups/` is gitignored. On a second install the container carries its name (`health-db-second` for
+`backups/` is gitignored. On a second install the container carries its name (`loop-db-second` for
 `HC_INSTANCE=second`). To restore a copy into an empty database:
-`docker exec -i health-db psql -U health -d health < backups/health-db-YYYY-MM-DD.sql`.
+`docker exec -i loop-db psql -U health -d health < backups/loop-db-YYYY-MM-DD.sql`.
 
 ## Update
 
@@ -31,24 +31,24 @@ docker exec health-db pg_dump -U health health > "backups/health-db-$(date +%F).
 3. **The data service.** Rebuild it; on start it applies any new database migrations:
 
    ```sh
-   (cd services/health-ingest && docker compose up -d --build)
+   (cd services/loop-ingest && docker compose up -d --build)
    ```
 
 4. **The page service.** Restart it so it picks up a changed nginx configuration:
 
    ```sh
-   (cd services/plan-web && docker compose up -d)
+   (cd services/loop-web && docker compose up -d)
    ```
 
 5. **Rebuild the page now** instead of waiting for the hourly run: press **Sync** on the page, or run
-   `services/plan-web/refresh.sh` by hand.
+   `services/loop-web/refresh.sh` by hand.
 
 Using the page without the LAN services (Level 1 only)? Steps 1–2, then `npm run generate`.
 
 ## Check
 
 - `curl -s localhost:8088/healthz` answers `200` (use your `INGEST_PORT` if you changed it).
-- `services/plan-web/site/status.json` shows the new `commit` and no `error`.
+- `services/loop-web/site/status.json` shows the new `commit` and no `error`.
 - The page opens and its freshness line is green.
 
 If something is off, see [troubleshooting](troubleshooting.md). Release notes live in

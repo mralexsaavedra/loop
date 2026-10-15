@@ -1,4 +1,4 @@
-# health-ingest
+# loop-ingest
 
 The data service of the self-hosted stack: it receives your health data, keeps your
 food log, journal and settings, and pulls Strava, so the page stays fresh with no manual work.
@@ -47,7 +47,7 @@ for the endpoint, because Health Auto Export can only send a static header.
 
 ## On-demand refresh: `POST /sync` and `GET /sync/status`
 
-The plan page's **Sync** button (through plan-web's nginx, `/api/sync`) and the
+The plan page's **Sync** button (through loop-web's nginx, `/api/sync`) and the
 last step of the iOS Shortcut call `POST /sync`. It uses a **sequence
 protocol**: no clock is compared anywhere.
 
@@ -65,9 +65,9 @@ protocol**: no clock is compared anywhere.
    rebuilds from what is stored.
 
 The host watches that file with a systemd path unit and runs
-`services/plan-web/refresh.sh`, which publishes `processedSeq` in its
+`services/loop-web/refresh.sh`, which publishes `processedSeq` in its
 `status.json`; the page reloads once `processedSeq >= seq` (details and install
-steps: `services/plan-web/README.md`).
+steps: `services/loop-web/README.md`).
 
 **Coalescing instead of rate limiting, and nothing dropped.**
 
@@ -112,19 +112,19 @@ or the payload itself (tests pin the exact key set and that no error text
 leaks). The data endpoints (`/ingest`, `/export`, `/sync/strava`) keep the
 bearer token.
 
-**Exposure model.** This service is never exposed on its own: plan-web's nginx
+**Exposure model.** This service is never exposed on its own: loop-web's nginx
 is the only entry, on the LAN or behind a public tunnel, and proxies only
 `POST /ingest/health-auto-export`, `/api/sync`, `/api/sync/status`,
-`/api/food/*` and `/api/journal/*`. Its port is published on the host only so plan-web
-can reach it (`"${INGEST_PORT}:8088"`, see the plan-web README): keep it off the internet and never
+`/api/food/*` and `/api/journal/*`. Its port is published on the host only so loop-web
+can reach it (`"${INGEST_PORT}:8088"`, see the loop-web README): keep it off the internet and never
 forward it, `/export/*` or `/sync/strava` through a public proxy or tunnel (see
-[`../plan-web/README.md` → Exposing behind an SSO tunnel](../plan-web/README.md)).
+[`../loop-web/README.md` → Exposing behind an SSO tunnel](../loop-web/README.md)).
 
 **Deploy order.** Create the trigger directory and hand it to the container's
 `node` user (uid 1000) BEFORE `docker compose up`, or Docker creates it
 root-owned: `mkdir -p trigger && sudo chown 1000:1000 trigger`. Then
 `docker compose up -d --build` (runs the idempotent `003_sync.sql`). The full
-host sequence is in `services/plan-web/README.md`. A failed write is logged
+host sequence is in `services/loop-web/README.md`. A failed write is logged
 (`trigger_write_failed`), exposed as `trigger_write`, and never fails the request.
 
 **Strava token persistence.** A rotated refresh token is saved with up to 3
@@ -137,7 +137,7 @@ meanwhile).
 
 The LAN plan page's Nutrición tab logs what the user eats (Registrar), keeps their
 supermarket products (Mis productos: Mercadona / Dia / Eroski / other) and their
-own recipes (Mis recetas), through plan-web's `/api/food/` proxy. Tables in
+own recipes (Mis recetas), through loop-web's `/api/food/` proxy. Tables in
 `sql/006_food.sql` (idempotent, runs on every start): `food_product`,
 `food_recipe`, `food_log`.
 
@@ -205,8 +205,8 @@ page cannot hold a secret, so `/food/*` is unauthenticated and meant for the LAN
 ONLY. Layers, in order:
 
 1. **Host** (DNS rebinding): the `Host` must be an IP literal (v4 or bracketed
-   v6), `localhost`, `host.docker.internal` (the plan-web proxy hop) or a name in
-   `FOOD_ALLOWED_HOSTS`, else `421 misdirected`. plan-web's nginx refuses other
+   v6), `localhost`, `host.docker.internal` (the loop-web proxy hop) or a name in
+   `FOOD_ALLOWED_HOSTS`, else `421 misdirected`. loop-web's nginx refuses other
    names first (see its README).
 2. **Origin** on writes: when the browser sends one, its host must pass the same
    check, else `403 forbidden_origin`.
@@ -217,7 +217,7 @@ ONLY. Layers, in order:
 Together they stop a website opened in a LAN browser from reading or writing
 the log; they do not stop a device ON the LAN that calls the service directly
 (the LAN-only trust model). Writes share one rate limit of 60 / min per client
-address; behind plan-web every request comes from nginx, so it is one shared
+address; behind loop-web every request comes from nginx, so it is one shared
 budget. **A public reverse proxy must NEVER forward `/food/*`** (same list as
 `/export/*`).
 
@@ -242,9 +242,9 @@ reuses it when it retries after a timeout or a lost answer; a unique index on
 `food_log.request_id` makes the retry return the stored row instead of a
 duplicate.
 
-**Rollout.** `docker compose up -d --build health-ingest` (runs `006_food.sql`),
-then restart plan-web so its nginx picks up the `/api/food/` proxy
-(`services/plan-web/README.md`).
+**Rollout.** `docker compose up -d --build loop-ingest` (runs `006_food.sql`),
+then restart loop-web so its nginx picks up the `/api/food/` proxy
+(`services/loop-web/README.md`).
 
 ## iOS Shortcut ingestion
 
@@ -305,8 +305,8 @@ win; Strava rows fill only dates the export does not cover, tagged
 `source=Strava API`).
 
 If the image predates this endpoint, `GET /export/strava` answers `404` — the
-`health-ingest` container needs a rebuild/restart (`docker compose up -d
---build health-ingest`) before the Strava sync can run. The same applies when a
+`loop-ingest` container needs a rebuild/restart (`docker compose up -d
+--build loop-ingest`) before the Strava sync can run. The same applies when a
 new field is added to the response (e.g. `total_elevation_gain`, which feeds the
 `elevation_m` column of `workouts.csv`): an un-rebuilt image still answers, but
 without the field, so the column stays blank until the rebuild and the next
@@ -355,7 +355,7 @@ Strava also exposes the athlete's own heart-rate zones (`GET /athlete/zones`, ne
 `profile:read_all`); they are NOT used: the page applies one documented % of max HR model
 (docs/training.md) so the zones stay comparable with the reference.
 
-**Rollout.** `docker compose up -d --build health-ingest` (runs the idempotent `008_strava_hr.sql`
+**Rollout.** `docker compose up -d --build loop-ingest` (runs the idempotent `008_strava_hr.sql`
 and `009_strava_hr_retry.sql`);
 the backfill starts on the next sync run. An older image keeps answering `/export/strava` without
 `hr_hist`, and the page simply shows no zones.
@@ -409,24 +409,24 @@ step before it can be abandoned safely):
 4. Back up, then drop the stored rotated token, which still carries the OLD scopes and would
    otherwise keep winning over `.env` (it is not rejected, just narrower):
    ```bash
-   docker exec health-db psql -U health -d health -c "DROP TABLE IF EXISTS strava_token_backup; CREATE TABLE strava_token_backup AS TABLE strava_token"
-   docker exec health-db psql -U health -d health -c "DELETE FROM strava_token"
+   docker exec loop-db psql -U health -d health -c "DROP TABLE IF EXISTS strava_token_backup; CREATE TABLE strava_token_backup AS TABLE strava_token"
+   docker exec loop-db psql -U health -d health -c "DELETE FROM strava_token"
    ```
 5. Force a fresh snapshot instead of waiting 24 h:
-   `docker exec health-db psql -U health -d health -c "DELETE FROM strava_athlete"`, then restart
-   (`docker compose up -d --force-recreate health-ingest`, which also re-reads `.env`).
+   `docker exec loop-db psql -U health -d health -c "DELETE FROM strava_athlete"`, then restart
+   (`docker compose up -d --force-recreate loop-ingest`, which also re-reads `.env`).
 6. Check it worked: `curl -s localhost:8088/sync/status` must show no `lastStravaError`
    `strava_auth` after the first pull, and `GET /export/athlete` must carry `gearScopeMissing: false`.
-   Then `docker exec health-db psql -U health -d health -c "DROP TABLE strava_token_backup"`.
+   Then `docker exec loop-db psql -U health -d health -c "DROP TABLE strava_token_backup"`.
 
 **Rollback** (step 6 shows `strava_auth`): restore the old credentials and restart:
 `cp .env.bak .env`, then
-`docker exec health-db psql -U health -d health -c "INSERT INTO strava_token SELECT * FROM strava_token_backup ON CONFLICT (id) DO NOTHING"`
-and `docker compose up -d --force-recreate health-ingest`. The service is back on the old token and
+`docker exec loop-db psql -U health -d health -c "INSERT INTO strava_token SELECT * FROM strava_token_backup ON CONFLICT (id) DO NOTHING"`
+and `docker compose up -d --force-recreate loop-ingest`. The service is back on the old token and
 the old scopes; re-run the steps from 2 when ready. Before step 4 nothing needs rolling back (the
 stored token is untouched): just `cp .env.bak .env`.
 
-`GET /export/athlete` needs an image rebuild (`docker compose up -d --build health-ingest`,
+`GET /export/athlete` needs an image rebuild (`docker compose up -d --build loop-ingest`,
 which also runs the idempotent `004_athlete.sql`); an older image answers `404` and the profile
 sync keeps its previous files.
 
@@ -500,11 +500,11 @@ token). `.env` is gitignored and must stay that way.
 | ------------------- | ------- |
 | `INGEST_TOKEN`      | Bearer token; refuses to start under 32 characters |
 | `POSTGRES_*`        | Database credentials |
-| `INGEST_PORT`       | Host port (plan-web proxies to it). The host-side sync scripts read it from this file too, so a second install on another port syncs from its own service |
-| `HC_INSTANCE`       | Empty by default. A name for a second install on the same host (`second`): suffixes the compose project, container names and database volume. Set the same value in `services/plan-web/.env` ([`../plan-web/README.md` → Running a second install](../plan-web/README.md#running-a-second-install-another-person-same-host)) |
+| `INGEST_PORT`       | Host port (loop-web proxies to it). The host-side sync scripts read it from this file too, so a second install on another port syncs from its own service |
+| `HC_INSTANCE`       | Empty by default. A name for a second install on the same host (`second`): suffixes the compose project, container names and database volume. Set the same value in `services/loop-web/.env` ([`../loop-web/README.md` → Running a second install](../loop-web/README.md#running-a-second-install-another-person-same-host)) |
 | `MAX_BODY_BYTES`    | Upload ceiling, default 32 MB |
 | `TRIGGER_DIR`       | Where `POST /sync` writes `refresh`; compose sets `/trigger` (bind mount of `./trigger`) |
-| `FOOD_ALLOWED_HOSTS` | Extra host names (comma / space separated) the `/food/*` Host + Origin checks accept besides IP literals, `localhost` and `host.docker.internal`; empty by default. Mirror plan-web's `PLAN_WEB_EXTRA_HOSTS` |
+| `FOOD_ALLOWED_HOSTS` | Extra host names (comma / space separated) the `/food/*` Host + Origin checks accept besides IP literals, `localhost` and `host.docker.internal`; empty by default. Mirror loop-web's `PLAN_WEB_EXTRA_HOSTS` |
 
 ## Running
 
@@ -520,14 +520,14 @@ rebuild gets the same dependency tree; after changing a dependency in `package.j
 
 ## Exposing it
 
-**Never expose the ingest port to the internet** (it is published on the host's LAN only for plan-web). The phone reaches it through `services/plan-web`, which forwards
+**Never expose the ingest port to the internet** (it is published on the host's LAN only for loop-web). The phone reaches it through `services/loop-web`, which forwards
 only `POST /ingest/health-auto-export` and `POST /api/sync` (see
 [`docs/ios-shortcut.md` → Where the phone sends the data](../../docs/ios-shortcut.md#where-the-phone-sends-the-data)):
 
 - **Home Wi-Fi only:** `http://<server-ip>:8090`. Plain HTTP: the bearer token and every health payload
   travel unencrypted over your LAN. Acceptable only on a trusted home network.
-- **From anywhere:** an HTTPS tunnel or reverse proxy in front of plan-web
-  ([`../plan-web/README.md` → Exposing behind an SSO tunnel](../plan-web/README.md#exposing-behind-an-sso-tunnel)).
+- **From anywhere:** an HTTPS tunnel or reverse proxy in front of loop-web
+  ([`../loop-web/README.md` → Exposing behind an SSO tunnel](../loop-web/README.md#exposing-behind-an-sso-tunnel)).
 
 Rotate the token (`openssl rand -hex 32`, update `.env` and the Shortcut) if it may have been exposed.
 

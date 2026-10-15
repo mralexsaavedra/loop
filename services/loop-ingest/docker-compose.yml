@@ -1,31 +1,31 @@
 # HC_INSTANCE (in .env, empty by default) names a second install on the same host, e.g. `second`: it
-# suffixes the compose project, the container names and so the database volume, so two installs never
+# suffixes the compose project, the container names and the database volume, so two installs never
 # share a container or a database. Empty = the plain names below.
-name: health-ingest${HC_INSTANCE:+-${HC_INSTANCE}}
+name: loop-ingest${HC_INSTANCE:+-${HC_INSTANCE}}
 services:
-  health-db:
+  loop-db:
     image: postgres:17-alpine
-    container_name: health-db${HC_INSTANCE:+-${HC_INSTANCE}}
+    container_name: loop-db${HC_INSTANCE:+-${HC_INSTANCE}}
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - health-db-data:/var/lib/postgresql/data
+      - loop-db-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  health-ingest:
+  loop-ingest:
     build: .
-    container_name: health-ingest${HC_INSTANCE:+-${HC_INSTANCE}}
+    container_name: loop-ingest${HC_INSTANCE:+-${HC_INSTANCE}}
     restart: unless-stopped
     environment:
       PORT: 8088
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@health-db:5432/${POSTGRES_DB}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@loop-db:5432/${POSTGRES_DB}
       INGEST_TOKEN: ${INGEST_TOKEN}
       STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
       STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
@@ -33,17 +33,17 @@ services:
       STRAVA_SYNC_MINUTES: ${STRAVA_SYNC_MINUTES:-30}
       TRIGGER_DIR: /trigger
       # extra host names for the /food/* Host + Origin checks (IP literals, localhost and
-      # host.docker.internal always pass); mirror plan-web's PLAN_WEB_EXTRA_HOSTS
+      # host.docker.internal always pass); mirror loop-web's PLAN_WEB_EXTRA_HOSTS
       FOOD_ALLOWED_HOSTS: ${FOOD_ALLOWED_HOSTS:-}
     # POST /sync writes /trigger/refresh; the host watches ./trigger/refresh with
-    # services/plan-web/systemd/plan-web-refresh.path. The container runs as the
+    # services/loop-web/systemd/loop-web-refresh.path. The container runs as the
     # image's `node` user (uid 1000): chown the host dir to 1000 (see README).
     volumes:
       - ./trigger:/trigger
     ports:
       - "${INGEST_PORT}:8088"
     depends_on:
-      health-db:
+      loop-db:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:8088/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -52,4 +52,7 @@ services:
       retries: 3
 
 volumes:
-  health-db-data:
+  loop-db-data:
+    # An explicit name, so the database volume no longer depends on the compose project name:
+    # renaming the project (or the folder) never orphans the data again.
+    name: loop-db-data${HC_INSTANCE:+-${HC_INSTANCE}}

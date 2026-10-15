@@ -169,7 +169,7 @@ Labels in the reply language (the config may give them):
   and on-bike fuelling ("Avituallamiento") are described in `docs/nutrition.md` and
   `docs/nutrition-food-log.md` and computed by `lib/nutrition/targets.mjs`,
   `scale.mjs`, `fuel.mjs`.
-- The **food log** (what the user logs on the LAN page, stored behind `services/health-ingest`) is
+- The **food log** (what the user logs on the LAN page, stored behind `services/loop-ingest`) is
   exported by `npm run sync` to `data/nutrition/foodlog-daily.csv`: one row per LOGGED day
   (`date,kcal,protein_g,carbs_g,fat_g,entries,breakfast,lunch,dinner,addon,missing_macros`;
   breakfast..addon = entries per meal group; a blank macro = no entry stated it; a macro listed in

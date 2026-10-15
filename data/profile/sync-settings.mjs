@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /* Settings sync — snapshots the user's goal + target weight that the LAN page stores on the ingest
- * service (services/health-ingest, GET /food/settings, sql/007_settings.sql) into
+ * service (services/loop-ingest, GET /food/settings, sql/007_settings.sql) into
  * data/profile/settings.json, so read-only consumers (the coach subagents, which only read files)
  * see the same goal the page uses.
  *
  *   node data/profile/sync-settings.mjs     (part of `npm run sync`, after the profile sync)
  *
- * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/health-ingest/.env>, else :8088). No token: /food/* is the unauthenticated,
+ * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/loop-ingest/.env>, else :8088). No token: /food/* is the unauthenticated,
  *          LAN-only food layer; the request carries `X-HC-Food: 1` and the URL's Host must be one the
  *          service accepts (an IP literal, localhost, or a name in its FOOD_ALLOWED_HOSTS).
  * Writes : data/profile/settings.json = {goal, targetWeightKg, updatedAt, fetchedAt} (temp file +
@@ -95,7 +95,7 @@ function syncSettings (dir, body, { now = new Date(), writeAtomic = common.write
 
 function warning (err, baseUrl) {
   const status = err && err.status
-  if (status === 404) return 'WARNING: the ingest service has no /food/settings — rebuild/restart the health-ingest container. settings.json kept.'
+  if (status === 404) return 'WARNING: the ingest service has no /food/settings — rebuild/restart the loop-ingest container. settings.json kept.'
   if (status === 503) return 'WARNING: the ingest service answered 503 (settings unavailable: its 007_settings migration failed). settings.json kept.'
   if (status === 421) return `WARNING: the ingest service refused the host of ${baseUrl} (421) — use localhost / an IP, or add the name to FOOD_ALLOWED_HOSTS. settings.json kept.`
   const cause = (err && err.cause && (err.cause.code || err.cause.message)) || (err && err.message)
