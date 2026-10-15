@@ -157,6 +157,10 @@ test('blocks git update-index --add of a personal file (stages an ignored path l
     'git update-index --add --cacheinfo 100644,e69de29bb2d1d6434b8b29ae775ad8c2e48c5391,web/dist/personal/index.html',
     'git update-index --add --cacheinfo 100644 e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 web/dist/personal/index.html',
     'git update-index --add --stdin < list.txt',
+    // --index-info stages whatever entries it reads, ignored paths included, even WITHOUT --add
+    'git update-index --index-info < info.txt',
+    'printf x | git update-index --index-info',
+    'git update-index -z --index-info < info.txt',
   ]) {
     assertBlocked(runHook(cmd), cmd);
   }

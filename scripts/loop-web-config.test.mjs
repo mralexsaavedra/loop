@@ -144,7 +144,7 @@ test('loop-web compose: nginx template mount, no host-gateway alias and no inges
   assert.match(planCompose, /\.\/site:\/usr\/share\/nginx\/html:ro/, 'still only ./site is served');
 });
 
-// INGEST_BIND=127.0.0.1 (or the LAN IP) must never cut loop-web off: nginx reaches ingest over the ingest
+// INGEST_BIND=127.0.0.1 must never cut loop-web off: nginx reaches ingest over the ingest
 // stack's named network by service name, never through the host-published port (host.docker.internal is the
 // Docker bridge gateway, which a 127.0.0.1 / LAN-IP publish does not cover).
 test('loop-net: the ingest stack names its network, loop-web joins it as external, both with the same HC_INSTANCE-suffixed name', () => {
