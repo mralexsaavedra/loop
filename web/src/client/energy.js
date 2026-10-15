@@ -71,7 +71,7 @@
   }
   function render() {
     var sel = DAY && typeof DAY.sel === 'function' ? DAY.sel() || null : null;
-    var d = null;
+    var d;
     try {
       d = dayOf(sel);
       host.innerHTML = d ? cardHtml(d, sel) : '';

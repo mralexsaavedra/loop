@@ -70,7 +70,7 @@ const LOCALE = ['es', 'en'].includes(process.env.LOCALE) ? process.env.LOCALE : 
 // `ingredients` comes only from ingredients.json (plan-data.json no longer carries it).
 const nut = buildNutrition(ingFile.ingredients, plan);
 const {
-  ING, RAW, RAWEX, QUESO, VEG, DAYPLAN, LEGUMES, LEGUME_PLATE,
+  ING, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE,
   D, EX, MACRO,
   resolve, macro, mealMacros,
   dayTotalK,

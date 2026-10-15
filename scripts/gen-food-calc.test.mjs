@@ -24,6 +24,7 @@ test('the generator is deterministic', () => {
 });
 
 /* ---------- lib/build/esm-module.mjs ---------- */
+/* global K -- the hidden constant the emitted module declares for twice() */
 function twice(v) {
   return helper(v) * K;
 }

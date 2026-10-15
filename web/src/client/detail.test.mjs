@@ -526,14 +526,12 @@ test('es: Spanish copy, decimal comma, Spanish dates', () => {
 });
 
 /* ---------- the sheet never contradicts the card it opens from ---------- */
-const DEMO_DIR = path.join(here, '..', '..', '..', 'data', 'demo', 'extract');
 const DIALS = buildDials(buildScoresFrom(DEMO_INPUTS), healthFrom(DEMO_INPUTS));
 const headOf = (html) => html.split('<div class="dt-body">')[0];
 const sgn = (v, dec) => (v > 0 ? '+' : '') + v.toFixed(dec);
 const copy = () => JSON.parse(JSON.stringify(DEMO));
 
 // the dial deep-dive pages (client/deepdive.js): the top of the body, its insight card, its ⓘ block
-const topOf = (html) => html.split('<div class="dt-period">')[0];
 const insightOf = (html) => (html.split('<div class="dd-insight">')[1] || '').split('</div>')[0];
 const infoOf = (html) => (html.split('<div class="dd-info" id="dd-info" hidden>')[1] || '').split('</div><section')[0];
 const heroOf = (html) => (html.split('<section class="dd-hero')[1] || '').split('</section>')[0];

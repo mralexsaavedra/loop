@@ -26,8 +26,6 @@ const WEB_ROOT = path.dirname(here);
 const REPO_ROOT = path.dirname(WEB_ROOT);
 const examplePath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html');
 
-const dotThousands = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-
 /** Slices out one tab-panel's markup by finding the next tab-panel's
  * opening <div> (tab panels are rendered as consecutive sibling divs in
  * web/pages/index.astro) — good enough for substring containment checks,
