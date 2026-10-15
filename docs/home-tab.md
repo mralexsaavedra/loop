@@ -493,6 +493,14 @@ What it shows: last night's recovery as a % rank (headline), with the 7-day tren
   | Sleep duration | .25 |
   | Sleep regularity | .10 |
 
+- Missing inputs: the composite is the weighted mean over the inputs present, renormalised, and needs
+  ≥ 0.6 of the weight. Without HRV (a device that records none, e.g. Mi Fitness, or under 14 days of it)
+  recovery is scored on resting HR + sleep duration + regularity (0.25 + 0.25 + 0.1 = 0.6) and the block
+  carries `noHrv: true`: the card shows "Partial: no HRV" under the trend line and its ⓘ explains it.
+  `rhrDerived: true` when the scored day's resting HR is derived from night heart rate
+  ([data-pipeline.md → Resting HR](data-pipeline.md#apple-health-export-and-extract)); the ⓘ says so.
+  Both keys exist only when true, so a Watch user's block is unchanged. Resting HR alone (no sleep) stays
+  gated, and "last night" still needs a sleep row (an estimated in-bed night counts).
 - Band: ≥ +0.5 above / within ±0.5 at / ≤ -0.5 below baseline (`BAND_CUTOFF`).
 - Every band (the trend's and last night's) is taken from the value AS SHOWN, rounded to 2 decimals
   (`shownBand`): an unrounded 0.4996 shown as "0.50" is above, never at. The advice line reads the baked

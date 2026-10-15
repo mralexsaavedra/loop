@@ -41,6 +41,20 @@ How the raw sources become the CSVs in `data/apple-health/extract/` that every p
   `node data/apple-health/extract.mjs` is re-run.
 - **Steps** are deduped to max-per-device per day. Summing devices double-counts (it inflates the NEAT
   figure).
+- **Resting HR** (`rhr.csv`) is Apple's measured `RestingHeartRate` (the Watch). For a device that writes
+  heart rate but no resting HR (Mi Fitness and similar), the extractor DERIVES one per day
+  (`samples.mjs` `derivedRestingHr`), source `<app> (derived)`, counted in `_meta.json` `rows.rhr_derived`:
+  - the lowest 30-minute rolling mean of that date's heart-rate samples between 00:00 and 07:00 (local
+    clock of the sample start), a window counting only with ≥ 4 samples, and the night needing samples in
+    ≥ 3 clock hours. A fixed window, not the sleep window: most such nights have no sleep row, and one
+    window keeps the days comparable for the recovery baseline (night-shift sleep is missed).
+  - Mi Fitness stamps every heart-rate record at the clock hour (`hh:00:00`, several records per hour), so
+    a window there is that hour's records; a real per-sample stream rolls across the hour.
+  - Measured always wins: no derived value on a date with a measured one (any source), none from a source
+    that wrote any `RestingHeartRate`, none from an Apple Watch. A Watch user's `rhr.csv` is unchanged.
+  - Export only for now: the Shortcut's `hr_samples` are deduped by exact timestamp (Mi Fitness's
+    hour-stamped records collapse to one per hour) and the guide filters them to the Watch, so the sync
+    derives nothing; between two exports a non-Watch user has no resting HR from the Shortcut.
 
 ### Energy source precedence
 
