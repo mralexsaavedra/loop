@@ -1,5 +1,4 @@
-/* Content-level regression guard for the example build (astro-plan-web
- * cutover corrective batch). output-guard.test.mjs and css-parity.test.mjs
+/* Content-level regression guard for the example build. output-guard.test.mjs and css-parity.test.mjs
  * only check STRUCTURE (no external refs, CSS present) — nothing asserts
  * that lib-computed VALUES (day totals, breakfast macros, extras names)
  * actually make it into the right tab's rendered markup. This derives its
@@ -25,8 +24,6 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
 const REPO_ROOT = path.dirname(WEB_ROOT);
 const examplePath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html');
-
-const dotThousands = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
 /** Slices out one tab-panel's markup by finding the next tab-panel's
  * opening <div> (tab panels are rendered as consecutive sibling divs in

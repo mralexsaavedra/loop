@@ -41,6 +41,89 @@ window.HCDetailChart = function (T, DS) {
   var WEEK_BARS = 7;
   // the trend chart of [from, to] with `sel` marked; records its geometry in state.geo (the sheet's
   // state) so a day tap can move the selection without a rebuild (selX)
+  var fx = function (v) { return v.toFixed(1); };
+
+  // Y range over every value, the 7-day line, the band / target / typical day / recovery zone; 3 Y ticks on
+  // round numbers (step 1 / 2 / 2.5 / 5 × 10^k), the range widened to cover them, plus 12 % headroom so the
+  // outermost (out-of-range) days never sit on the chart's edge (bars: 8 %, and a week's bars 18 % for the
+  // value labels on top)
+  function yRange(m, vals, line, tg, zc, bars, week) {
+    var ext = vals.concat(line.filter(function (x) { return x != null; }));
+    if (m.band) ext.push(m.band.lo, m.band.hi);
+    if (tg != null) ext.push(tg);
+    if (m.typical != null) ext.push(m.typical);
+    if (zc != null) ext.push(zc, -zc);
+    var lo = bars ? 0 : Math.min.apply(null, ext.length ? ext : [0]);
+    var hi = Math.max.apply(null, ext.length ? ext : [1]);
+    var tk = yTicks(lo, hi, bars);
+    lo = Math.min(lo, tk[0]);
+    hi = Math.max(hi, tk[2]);
+    if (!bars) { var pad = (hi - lo) * 0.12 || 1; lo -= pad; hi += pad; } else hi = hi * (week ? 1.18 : 1.08) || 1;
+    return { lo: lo, hi: hi, tk: tk };
+  }
+  // the chart's geometry: n day slots across, [lo, hi] up; x / y in viewBox units, pctX / pctY in % of the box
+  function chartGeo(n, lo, hi) {
+    var slot = (CW - 2 * CPAD) / n;
+    var x = function (i) { return CPAD + slot * (i + 0.5); };
+    var y = function (v) { return CPAD + (CH - 2 * CPAD) * (1 - (v - lo) / (hi - lo)); };
+    return {
+      n: n, slot: slot, x: x, y: y,
+      pctX: function (i) { return (x(i) / CW * 100).toFixed(1) + '%'; },
+      pctY: function (v) { return (y(v) / CH * 100).toFixed(1) + '%'; },
+    };
+  }
+  // one bar or point per day with a value (a week's bars also get their value label); returns the states drawn
+  function dayMarks(m, days, g, o, out, labels) {
+    var bw = Math.max(0.6, g.slot * (o.week ? 0.42 : 0.7)), r = g.n > 120 ? 1.3 : g.n > 45 ? 1.8 : 2.4;
+    var drawn = [];
+    days.forEach(function (d, i) {
+      if (d.v == null || (o.thin && inRange(m, d.v))) return;
+      var st = stateOn(m, d.iso, d.v);
+      if (drawn.indexOf(st) < 0 && !(o.bars && d.v <= 0)) drawn.push(st);
+      if (o.bars) {
+        if (o.week) labels.push('<span class="dt-bv" style="left:' + g.pctX(i) + ';top:' + g.pctY(Math.max(0, d.v)) + '">' + esc(fmtM(m, d.v, o.dec)) + '</span>');
+        if (d.v <= 0) return;
+        out.push('<rect class="dt-bar dt-s-' + st + '" x="' + fx(g.x(i) - bw / 2) + '" y="' + fx(g.y(d.v)) + '" width="' + fx(bw) + '" height="' + fx(Math.max(0.5, g.y(0) - g.y(d.v))) + '"/>');
+      } else {
+        out.push('<circle class="dt-pt dt-s-' + st + '" cx="' + fx(g.x(i)) + '" cy="' + fx(g.y(d.v)) + '" r="' + r + '"/>');
+      }
+    });
+    return drawn;
+  }
+  // the 7-day line breaks where the average is undefined, so a gap never reads as a trend; a sparse
+  // series (weigh-ins days apart) joins its rolling points, which exist only on reading days
+  function linePath(m, line, g) {
+    var path = '', pen = false, join = m.kind === 'sparse';
+    line.forEach(function (v, i) {
+      if (v == null) { if (!join) pen = false; return; }
+      path += (pen ? ' L' : ' M') + fx(g.x(i)) + ',' + fx(g.y(v));
+      pen = true;
+    });
+    return path ? '<path class="dt-line" d="' + path.trim() + '"/>' : '';
+  }
+  // the chart's key: the marks drawn, the 7-day line, the target / typical day lines
+  function chartKeys(m, drawn, o, line, tg) {
+    var keys = drawn.length ? ['<span class="dt-k dt-k-pts ' + (o.thin ? 'dt-k-out' : 'dt-k-daily') + '">' + keyMarks(m, drawn, o.bars) + esc(o.thin ? T.chartKey.outside : T.chartKey.daily) + '</span>'] : [];
+    if (line.some(function (v) { return v != null; })) keys.push('<span class="dt-k dt-k-line">' + esc(T.chartKey.roll7) + '</span>');
+    if (tg != null) keys.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.target) + '</span>');
+    if (m.typical != null) keys.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.typical) + '</span>');
+    return keys.join('');
+  }
+  // the Y tick labels and the X axis (a week: weekday + day of month under each bar; else the window's ends)
+  function chartAxes(m, tk, g, days, week, from, to) {
+    var tdec = tk[1] - tk[0] < 0.1 ? 2 : tk[1] - tk[0] < 1 ? 1 : 0;
+    var yax = '<div class="dt-yax" aria-hidden="true">' + tk.slice().reverse().map(function (t) {
+      return '<span style="top:' + (g.y(t) / CH * 100).toFixed(1) + '%">' + esc(fmtM(m, t, tdec)) + '</span>';
+    }).join('') + '</div>';
+    var N = typeof I18N_DATE !== 'undefined' && I18N_DATE ? I18N_DATE.weekdays : null;
+    var axis = week && N
+      ? '<div class="dt-wdays" aria-hidden="true">' + days.map(function (d, i) {
+        return '<span style="left:' + g.pctX(i) + '">' + esc(N[HC.weekdayIndex(d.iso)]) + '<b>' + esc(String(parseIso(d.iso).getDate())) + '</b></span>';
+      }).join('') + '</div>'
+      : '<div class="dt-ax"><span>' + esc(HC.fmtDate(from)) + '</span><span>' + esc(HC.fmtDate(to)) + '</span></div>';
+    return { yax: yax, axis: axis };
+  }
+
   function chartHtml(key, m, from, to, sel, state) {
     var n = dayDiff(from, to) + 1;
     var week = n <= WEEK_BARS && m.kind !== 'recovery';
@@ -55,98 +138,47 @@ window.HCDetailChart = function (T, DS) {
     var line = week ? [] : lineFor(key, m, from, n);
     // the recovery zone is the 7-day TREND band (the line); the daily points carry the day band
     var zc = m.kind === 'recovery' ? (m.cutTrend != null ? m.cutTrend : m.cut) : null;
-    var ext = vals.concat(line.filter(function (x) { return x != null; }));
     var tg = targetOf(key, m);
-    if (m.band) ext.push(m.band.lo, m.band.hi);
-    if (tg != null) ext.push(tg);
-    if (m.typical != null) ext.push(m.typical);
-    if (zc != null) ext.push(zc, -zc);
-    var lo = bars ? 0 : Math.min.apply(null, ext.length ? ext : [0]);
-    var hi = Math.max.apply(null, ext.length ? ext : [1]);
-    // 3 Y ticks on round numbers (step 1 / 2 / 2.5 / 5 × 10^k); the range widens to cover them, plus
-    // 12 % headroom, so the outermost (out-of-range) days never sit on the chart's edge (bars: 8 %, and
-    // a week's bars 18 % for the value labels on top)
-    var tk = yTicks(lo, hi, bars);
-    lo = Math.min(lo, tk[0]);
-    hi = Math.max(hi, tk[2]);
-    if (!bars) { var pad = (hi - lo) * 0.12 || 1; lo -= pad; hi += pad; } else hi = hi * (week ? 1.18 : 1.08) || 1;
-    var slot = (CW - 2 * CPAD) / n;
-    var x = function (i) { return CPAD + slot * (i + 0.5); };
-    var y = function (v) { return CPAD + (CH - 2 * CPAD) * (1 - (v - lo) / (hi - lo)); };
-    var f = function (v) { return v.toFixed(1); };
-    var pctX = function (i) { return (x(i) / CW * 100).toFixed(1) + '%'; };
-    var pctY = function (v) { return (y(v) / CH * 100).toFixed(1) + '%'; };
+    var yr = yRange(m, vals, line, tg, zc, bars, week), tk = yr.tk;
+    var g = chartGeo(n, yr.lo, yr.hi), y = g.y;
     var out = ['<svg class="dt-chart" viewBox="0 0 ' + CW + ' ' + CH + '" role="img" aria-label="' +
       esc(format(T.chartAria, { title: titleOf(key), from: HC.fmtDate(from), to: HC.fmtDate(to) })) + '">'];
-    var hline = function (cls, v) { out.push('<line class="' + cls + '" x1="0" x2="' + CW + '" y1="' + f(y(v)) + '" y2="' + f(y(v)) + '"/>'); };
-    var zone = function (a, b) { out.push('<rect class="dt-band" x="0" width="' + CW + '" y="' + f(y(b)) + '" height="' + f(Math.max(0, y(a) - y(b))) + '"/>'); };
+    var hline = function (cls, v) { out.push('<line class="' + cls + '" x1="0" x2="' + CW + '" y1="' + fx(y(v)) + '" y2="' + fx(y(v)) + '"/>'); };
+    var zone = function (a, b) { out.push('<rect class="dt-band" x="0" width="' + CW + '" y="' + fx(y(b)) + '" height="' + fx(Math.max(0, y(a) - y(b))) + '"/>'); };
     tk.slice().reverse().forEach(function (t) { hline('dt-grid', t); });
     if (zc != null) { zone(-zc, zc); hline('dt-med', 0); }
     else if (m.band) { zone(m.band.lo, m.band.hi); hline('dt-med', m.band.median); }
     if (tg != null) hline('dt-target', tg);
     if (m.typical != null) hline('dt-target', m.typical);
     // the selected day's slot: always drawn (hidden outside the range) so a day tap only moves it
-    state.geo = { from: from, n: n, slot: slot };
+    state.geo = { from: from, n: n, slot: g.slot };
     var sx = selX(state.geo, sel);
-    out.push('<rect class="dt-sel" x="' + f(sx == null ? 0 : sx) + '" y="0" width="' + f(slot) + '" height="' + CH + '"' + (sx == null ? ' visibility="hidden"' : '') + '/>');
-    var bw = Math.max(0.6, slot * (week ? 0.42 : 0.7)), r = n > 120 ? 1.3 : n > 45 ? 1.8 : 2.4;
-    var dec = m.kind === 'sleep' ? 1 : m.dec, labels = [];
+    out.push('<rect class="dt-sel" x="' + fx(sx == null ? 0 : sx) + '" y="0" width="' + fx(g.slot) + '" height="' + CH + '"' + (sx == null ? ' visibility="hidden"' : '') + '/>');
     // a long window (6M / 1Y) of points: only the days OUT of the range get a dot, the 7-day line
     // carries the rest, so the dots never saturate the chart
-    var thin = !bars && n > THIN_DAYS && (m.kind === 'recovery' || !!m.band);
-    var drawn = [];
-    days.forEach(function (d, i) {
-      if (d.v == null || (thin && inRange(m, d.v))) return;
-      var st = stateOn(m, d.iso, d.v);
-      if (drawn.indexOf(st) < 0 && !(bars && d.v <= 0)) drawn.push(st);
-      if (bars) {
-        if (week) labels.push('<span class="dt-bv" style="left:' + pctX(i) + ';top:' + pctY(Math.max(0, d.v)) + '">' + esc(fmtM(m, d.v, dec)) + '</span>');
-        if (d.v <= 0) return;
-        out.push('<rect class="dt-bar dt-s-' + st + '" x="' + f(x(i) - bw / 2) + '" y="' + f(y(d.v)) + '" width="' + f(bw) + '" height="' + f(Math.max(0.5, y(0) - y(d.v))) + '"/>');
-      } else {
-        out.push('<circle class="dt-pt dt-s-' + st + '" cx="' + f(x(i)) + '" cy="' + f(y(d.v)) + '" r="' + r + '"/>');
-      }
-    });
-    // the 7-day line breaks where the average is undefined, so a gap never reads as a trend; a sparse
-    // series (weigh-ins days apart) joins its rolling points, which exist only on reading days
-    var path = '', pen = false, join = m.kind === 'sparse';
-    line.forEach(function (v, i) {
-      if (v == null) { if (!join) pen = false; return; }
-      path += (pen ? ' L' : ' M') + f(x(i)) + ',' + f(y(v));
-      pen = true;
-    });
-    if (path) out.push('<path class="dt-line" d="' + path.trim() + '"/>');
+    var o = { week: week, bars: bars, thin: !bars && n > THIN_DAYS && (m.kind === 'recovery' || !!m.band), dec: m.kind === 'sleep' ? 1 : m.dec };
+    var labels = [];
+    var drawn = dayMarks(m, days, g, o, out, labels);
+    var path = linePath(m, line, g);
+    if (path) out.push(path);
     // the window's newest value, labelled (a week's bars already carry every value): a ring on it
     // and its number above
     if (!week) {
       for (var j = days.length - 1; j >= 0; j--) {
         if (days[j].v == null) continue;
         var ly = bars ? Math.max(0, days[j].v) : days[j].v;
-        out.push('<circle class="dt-last" cx="' + f(x(j)) + '" cy="' + f(y(ly)) + '" r="3.2"/>');
-        labels.push('<span class="dt-lastv" style="left:' + pctX(j) + ';top:' + pctY(ly) + '">' + esc(fmtM(m, days[j].v, dec)) + '</span>');
+        out.push('<circle class="dt-last" cx="' + fx(g.x(j)) + '" cy="' + fx(y(ly)) + '" r="3.2"/>');
+        labels.push('<span class="dt-lastv" style="left:' + g.pctX(j) + ';top:' + g.pctY(ly) + '">' + esc(fmtM(m, days[j].v, o.dec)) + '</span>');
         break;
       }
     }
     out.push('</svg>');
-    var key2 = drawn.length ? ['<span class="dt-k dt-k-pts ' + (thin ? 'dt-k-out' : 'dt-k-daily') + '">' + keyMarks(m, drawn, bars) + esc(thin ? T.chartKey.outside : T.chartKey.daily) + '</span>'] : [];
-    if (line.some(function (v) { return v != null; })) key2.push('<span class="dt-k dt-k-line">' + esc(T.chartKey.roll7) + '</span>');
-    if (tg != null) key2.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.target) + '</span>');
-    if (m.typical != null) key2.push('<span class="dt-k dt-k-target">' + esc(T.chartKey.typical) + '</span>');
     // the shaded band is named once, top-right of the chart
     var band = zc != null ? T.trend.baseline : m.band ? T.trend.typical : '';
-    var tdec = tk[1] - tk[0] < 0.1 ? 2 : tk[1] - tk[0] < 1 ? 1 : 0;
-    var yax = '<div class="dt-yax" aria-hidden="true">' + tk.slice().reverse().map(function (t) {
-      return '<span style="top:' + (y(t) / CH * 100).toFixed(1) + '%">' + esc(fmtM(m, t, tdec)) + '</span>';
-    }).join('') + '</div>';
-    var N = typeof I18N_DATE !== 'undefined' && I18N_DATE ? I18N_DATE.weekdays : null;
-    var axis = week && N
-      ? '<div class="dt-wdays" aria-hidden="true">' + days.map(function (d, i) {
-        return '<span style="left:' + pctX(i) + '">' + esc(N[HC.weekdayIndex(d.iso)]) + '<b>' + esc(String(parseIso(d.iso).getDate())) + '</b></span>';
-      }).join('') + '</div>'
-      : '<div class="dt-ax"><span>' + esc(HC.fmtDate(from)) + '</span><span>' + esc(HC.fmtDate(to)) + '</span></div>';
+    var ax = chartAxes(m, tk, g, days, week, from, to);
     return '<figure class="dt-fig">' + (band ? '<div class="dt-fig-top"><span class="dt-typ">' + esc(band) + '</span></div>' : '') +
-      '<div class="dt-plot"><div class="dt-svg">' + out.join('') + (labels.length ? '<div class="dt-labels" aria-hidden="true">' + labels.join('') + '</div>' : '') + '</div>' + yax + '</div>' +
-      axis + '<figcaption class="dt-keys">' + key2.join('') + '</figcaption></figure>';
+      '<div class="dt-plot"><div class="dt-svg">' + out.join('') + (labels.length ? '<div class="dt-labels" aria-hidden="true">' + labels.join('') + '</div>' : '') + '</div>' + ax.yax + '</div>' +
+      ax.axis + '<figcaption class="dt-keys">' + chartKeys(m, drawn, o, line, tg) + '</figcaption></figure>';
   }
 
   /* ---------- the window's days by range ---------- */

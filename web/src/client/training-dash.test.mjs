@@ -35,7 +35,6 @@ function render(dash, { locale = 'en', host = true } = {}) {
   vm.runInContext(source, ctx);
   return el ? el.innerHTML : null;
 }
-const text = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
 test('intensity only: one metric row per modality with HR (mean HR, the peak as the small line), highest first; volume, split and summary cards are gone (Activity card)', () => {
   assert.equal(DASH.hasData, true);

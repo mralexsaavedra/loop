@@ -1,7 +1,5 @@
-/* Build-time env contract for the Astro build (astro-plan-web migration,
- * slice 2). Not yet wired into astro.config.mjs/build-web.mjs/any page —
- * that lands when a page actually needs plan/training/health data (slice
- * 3+). Resolves:
+/* Build-time env contract of the page build (scripts/build-web.mjs sets it; web/src/bakes.mjs and the
+ * page read it). Resolves:
  *   - HC_REPO_ROOT: REQUIRED absolute path, set by scripts/build-web.mjs.
  *   - DATA_MODE: 'personal' | 'example', default 'personal'.
  *   - LOCALE: explicit env var > plan.locale > 'en' (never silently falls

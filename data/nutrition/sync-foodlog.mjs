@@ -28,6 +28,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as common from '../apple-health/sync-common.mjs'
+import { addDays, isIsoDate } from '../../lib/date.mjs'
 import { isMain } from '../../scripts/lib/is-main.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -42,19 +43,15 @@ const GROUPS = ['breakfast', 'lunch', 'dinner', 'addon']
 const MACROS = [['p', 'protein'], ['c', 'carbs'], ['f', 'fat']]
 const HEADER = ['date', 'kcal', 'protein_g', 'carbs_g', 'fat_g', 'entries', ...GROUPS, 'missing_macros']
 
-const DAY_MS = 86400000
 const pad = (n) => String(n).padStart(2, '0')
 const localIso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-const isIsoDate = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) &&
-  new Date(v + 'T00:00:00Z').toISOString().slice(0, 10) === v
-const shiftIso = (iso, days) => new Date(Date.parse(iso + 'T00:00:00Z') + days * DAY_MS).toISOString().slice(0, 10)
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0
 const isCount = (v) => Number.isInteger(v) && v >= 0
 
 /** {from, to}: DAYS_MAX days inclusive, ending on the local date of `now`. */
 function windowFor (now = new Date()) {
   const to = localIso(now)
-  return { from: shiftIso(to, -(DAYS_MAX - 1)), to }
+  return { from: addDays(to, -(DAYS_MAX - 1)), to }
 }
 
 /** The GET /food/log/summary body reduced to the known per-day fields; throws when malformed. */
@@ -123,23 +120,10 @@ function readJsonOrNull (file) {
 
 /** GET <base>/food/log/summary?from&to with the food layer's header; the HTTP status (if any) is kept on err.status. */
 async function fetchSummary (baseUrl, { from, to }, { fetchImpl = fetch, timeoutMs = 15000 } = {}) {
-  const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
-  try {
-    const qs = new URLSearchParams({ from, to })
-    const res = await fetchImpl(`${String(baseUrl).replace(/\/+$/, '')}/food/log/summary?${qs}`, {
-      headers: { 'x-hc-food': '1', accept: 'application/json' },
-      signal: ctrl.signal,
-      redirect: 'error'
-    })
-    if (!res.ok) throw Object.assign(new Error(`ingest service answered HTTP ${res.status}`), { status: res.status })
-    return await res.json()
-  } catch (err) {
-    if (err.name === 'AbortError' || ctrl.signal.aborted) throw new Error(`request timed out after ${timeoutMs / 1000} s`)
-    throw err
-  } finally {
-    clearTimeout(timer)
-  }
+  const qs = new URLSearchParams({ from, to })
+  return common.fetchJson(`${String(baseUrl).replace(/\/+$/, '')}/food/log/summary?${qs}`, null, {
+    fetchImpl, timeoutMs, headers: { 'x-hc-food': '1', accept: 'application/json' }, redirect: 'error'
+  })
 }
 
 /** Writes the CSV + meta when the CSV changed or the stored fetchedAt is from an earlier UTC day. */
@@ -172,6 +156,12 @@ function warning (err, baseUrl) {
   return `WARNING: could not read the food log from ${baseUrl} (${cause}). ${CSV_FILE} kept.`
 }
 
+const USAGE = `Usage: node data/nutrition/sync-foodlog.mjs
+
+Snapshots the food log's per-day sums from the ingest service into data/nutrition/foodlog-daily.csv.
+  -h, --help   this help
+Env: INGEST_URL, INGEST_ENV_FILE (default services/loop-ingest/.env, for its INGEST_PORT).`
+
 async function main () {
   const baseUrl = common.readBaseUrl(process.env)
   let body
@@ -191,6 +181,6 @@ async function main () {
   }
 }
 
-if (isMain(import.meta.url)) main()
+if (isMain(import.meta.url)) common.runCli(main, { usage: USAGE })
 
 export { CSV_FILE, META_FILE, DAYS_MAX, HEADER, windowFor, normalizeSummary, toCsv, fetchSummary, syncFoodlog, warning, main }

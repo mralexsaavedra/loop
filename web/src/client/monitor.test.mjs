@@ -9,11 +9,11 @@ import { fileURLToPath } from 'node:url';
 import { monitorFromInputs } from '../../../lib/score/monitor.mjs';
 import { es as esT, en as enT } from '../i18n/score-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
+import { addDays } from '../../../lib/date.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'monitor.js'), 'utf8');
 
-const addDays = (d, n) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
 const ASOF = '2026-09-29';
 const wig = (i) => ((i * 7) % 5) - 2;
 const series = ({ n = 43, base, amp, last, asOf = ASOF }) => Array.from({ length: n }, (_, i) => ({
@@ -194,7 +194,6 @@ test('stale monitor (> 3 days) is greyed; absent SCORES or host never throws', (
 
 /* ---- Inicio monitor tiles (#home-tiles): a summary tile + the HRV tile, from the SAME baked cards ---- */
 const tilesOf = (mon, opts = {}) => { const tiles = { innerHTML: '' }; render(mon, { ...opts, tiles }); return tiles.innerHTML; };
-const tileText = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
 test('tile 1 = the monitor summary: out-of-range count chip, "n/5 metrics" in range, a button that jumps to the full monitor', () => {
   const html = tilesOf(monitor());

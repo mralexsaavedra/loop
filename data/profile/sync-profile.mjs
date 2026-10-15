@@ -151,7 +151,7 @@ async function downloadAvatar (url, { fetchImpl = fetch, timeoutMs = 15000 } = {
     if (bad) throw new Error(bad)
     return buf
   } catch (err) {
-    if (err.name === 'AbortError') throw new Error(`avatar download timed out after ${timeoutMs / 1000} s`)
+    if (err.name === 'AbortError') throw new Error(`avatar download timed out after ${timeoutMs / 1000} s`, { cause: err })
     throw err
   } finally {
     clearTimeout(timer)
@@ -208,9 +208,16 @@ function errorMessage (err, baseUrl) {
   return `ERROR: could not read from the ingest service at ${baseUrl} (${cause}). Is it running? No files touched.`
 }
 
+const USAGE = `Usage: node data/profile/sync-profile.mjs
+
+Snapshots the Strava athlete (profile, gear, avatar) from the ingest service into data/profile/.
+  -h, --help   this help
+Env: INGEST_URL, INGEST_TOKEN (else from the service .env), INGEST_ENV_FILE (default
+services/loop-ingest/.env).`
+
 async function main () {
-  const baseUrl = common.readBaseUrl(process.env, process.env.INGEST_ENV_FILE || common.ENV_FILE)
-  const token = common.readIngestToken(process.env, process.env.INGEST_ENV_FILE || common.ENV_FILE)
+  const baseUrl = common.readBaseUrl(process.env)
+  const token = common.readIngestToken(process.env)
   if (!token) {
     console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/loop-ingest/.env. No files touched.')
     process.exit(1)
@@ -237,7 +244,7 @@ async function main () {
   }
 }
 
-if (isMain(import.meta.url)) main()
+if (isMain(import.meta.url)) common.runCli(main, { usage: USAGE })
 
 export {
   PROFILE_JSON,
@@ -248,7 +255,6 @@ export {
   checkAvatar,
   isAllowedAvatarUrl,
   AVATAR_HOSTS,
-  AVATAR_HOST_SUFFIXES,
   downloadAvatar,
   syncProfile,
   errorMessage,

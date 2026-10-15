@@ -7,12 +7,12 @@ const ARROW = '-->';
 const SENTENCE_END = /[.?!…]["')»]*$/;
 
 /** Paragraph pacing: a break after a sentence end once SOFT_S have passed, a hard break at HARD_S. */
-export const PARAGRAPH_SOFT_S = 30;
-export const PARAGRAPH_HARD_S = 60;
+const PARAGRAPH_SOFT_S = 30;
+const PARAGRAPH_HARD_S = 60;
 /** How many recently emitted lines a rolling auto-caption cue is compared against. */
 const RECENT_LINES = 2;
 
-export const VALID_TABS = ['videos', 'streams'];
+const VALID_TABS = ['videos', 'streams'];
 
 function tsSeconds(ts) {
   const m = TS_RE.exec(ts.trim());

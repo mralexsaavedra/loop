@@ -32,7 +32,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as common from './sync-common.mjs'
-import { WORKOUTS_HEADER } from './samples.mjs'
+import { WORKOUTS_HEADER } from '../../lib/extract/samples.mjs'
 import * as zones from '../../lib/training/hr-zones.mjs'
 import { readProfileMaxHr } from '../../lib/profile/read.mjs'
 import { isMain } from '../../scripts/lib/is-main.mjs'
@@ -53,7 +53,7 @@ const WORKOUTS_CSV = 'workouts.csv'
 // land in the `other` modality (lib/score/modality.mjs), never gym. Strava's generic "Workout" (where
 // a Watch "Other" workout lands when it syncs) maps to "Other", the Watch's generic label that
 // modality.mjs counts as gym. Anything not in this table lands on FALLBACK_TYPE "Unmapped" (a
-// non-gym type -> `other`; it used to be "Other", which filed every unknown sport, e.g. tennis, as
+// non-gym type -> `other`; not "Other", which would file every unknown sport, e.g. tennis, as
 // gym load) and is counted in the sync's `unmapped` report instead of aborting the sync.
 const SPORT_TYPE_MAP = {
   Run: 'Running', TrailRun: 'Running', VirtualRun: 'Running',
@@ -344,10 +344,18 @@ function staleZonesWarning (activities) {
 
 const PROFILE_JSON = process.env.SYNC_STRAVA_PROFILE || path.join(DIR, '..', '..', 'profile', 'profile.json')
 
+const USAGE = `Usage: node data/apple-health/sync-strava.mjs
+
+Merges every Strava activity stored by the ingest service into workouts.csv, rides.csv and
+workout-zones.csv of the Apple Health extract.
+  -h, --help   this help
+Env: INGEST_URL, INGEST_TOKEN (else from the service .env), INGEST_ENV_FILE (default
+services/loop-ingest/.env).`
+
 async function main () {
   const t0 = Date.now()
-  const baseUrl = common.readBaseUrl(process.env, process.env.INGEST_ENV_FILE || common.ENV_FILE)
-  const token = common.readIngestToken(process.env, process.env.INGEST_ENV_FILE || common.ENV_FILE)
+  const baseUrl = common.readBaseUrl(process.env)
+  const token = common.readIngestToken(process.env)
   if (!token) {
     console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/loop-ingest/.env. No files touched.')
     process.exit(1)
@@ -384,10 +392,9 @@ async function main () {
   if (!Object.keys(plan.writes).length) console.log('  (no changes)')
 }
 
-if (isMain(import.meta.url)) main()
+if (isMain(import.meta.url)) common.runCli(main, { usage: USAGE })
 
 export {
-  STRAVA_SOURCE,
   SPORT_TYPE_MAP,
   FALLBACK_TYPE,
   WORKOUTS_CSV,

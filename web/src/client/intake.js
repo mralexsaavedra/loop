@@ -78,8 +78,8 @@
     } else if (typeof window.foodTotals === 'function') {
       // today's page food log wins over the Apple Health day
       try {
-        var F = window.foodTotals(); // null unless today has entries (the contract in food-*.js)
-        if (F) L = F;
+        var logged = window.foodTotals(); // null unless today has entries (the contract in food-*.js)
+        if (logged) L = logged;
       } catch (e) { /* keep the Apple Health day */ }
     }
     host.hidden = false;

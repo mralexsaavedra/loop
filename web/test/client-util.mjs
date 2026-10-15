@@ -17,7 +17,7 @@ export const HC_CONST_BAKE = hcConst();
  * (lib/score/recovery.mjs HC_BAND) + every nutrition global (lib/nutrition/client.mjs: HC_ADH, HC_PROG,
  * HC_NSCORE, HC_FOODLOG, HC_DAYTYPE, HC_FUEL, HC_SCALE, HC_GUIDE), inlined together before util.js like
  * layouts/Plan.astro does. */
-export const FMT_SOURCE = clientSource() + '\n' + bandSource() + '\n' + nutriSource();
+const FMT_SOURCE = clientSource() + '\n' + bandSource() + '\n' + nutriSource();
 /** util.js as the page runs it: after HC_FMT + HC_BAND + HC_ADH + HC_PROG + HC_NSCORE + HC_FOODLOG + HC_DAYTYPE + HC_FUEL + HC_SCALE + HC_GUIDE (so running UTIL_SOURCE alone in a vm gives a working HC). */
 export const UTIL_SOURCE = FMT_SOURCE + '\n' + fs.readFileSync(path.join(here, '..', 'src', 'client', 'util.js'), 'utf8');
 
@@ -43,6 +43,6 @@ export const FOOD_SOURCE = FOOD_SOURCES.join('\n');
  * sheet shell, window.HCDetail).
  * DETAIL_SOURCE = them joined: each is self-contained, so running the joined text equals running them
  * one after another. */
-export const DETAIL_SCRIPTS = ['detail-state.js', 'detail-chart.js', 'detail.js'];
-export const DETAIL_SOURCES = DETAIL_SCRIPTS.map((f) => fs.readFileSync(path.join(here, '..', 'src', 'client', f), 'utf8'));
+const DETAIL_SCRIPTS = ['detail-state.js', 'detail-chart.js', 'detail.js'];
+const DETAIL_SOURCES = DETAIL_SCRIPTS.map((f) => fs.readFileSync(path.join(here, '..', 'src', 'client', f), 'utf8'));
 export const DETAIL_SOURCE = DETAIL_SOURCES.join('\n');

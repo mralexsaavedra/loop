@@ -3,11 +3,8 @@
  * exercise the SAME text that gets embedded via `is:inline set:html` in
  * the built page (see astro.config.mjs / layouts/Plan.astro).
  *
- * Contract under test (astro-plan-web slice 3, per design's IMPORTANT note
- * carried from slice 1): setTab/jump/bump must use the LEGACY
- * markup contract — ids like `t-dia`, `.tab-panel[data-tab]`
- * — not slice 1's invented `data-tab-btn` scheme,
- * so the parity test (legacy vs Astro id/onclick sets) passes.
+ * Contract under test: setTab / jump / bump use the page's markup contract — ids like `t-dia`,
+ * `.tab-panel[data-tab]`.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -1,10 +1,9 @@
 /* Minimal DOM stub for running the classic (non-module) client scripts
  * (web/src/client/*.js) inside `node:vm`, without a real browser or a
  * jsdom dependency. Only implements the handful of DOM surface those
- * scripts actually call — see design's Testing Strategy: "run legacy IIFEs
- * and Astro scripts in vm with stub DOM (getElementById auto-elements with
+ * scripts actually call: getElementById auto-elements with
  * innerHTML/value/textContent/addEventListener, createElement escaping,
- * querySelectorAll, fixed Date)".
+ * querySelectorAll, a fixed Date.
  *
  * Usage:
  *   const doc = new StubDocument();
@@ -34,7 +33,7 @@ function matchesSelector(el, sel) {
 /** Matches real DOM `div.textContent = s; div.innerHTML` serialization:
  * `&`, `<`, `>` are escaped; quotes are NOT (browsers only escape quotes
  * when serializing an ATTRIBUTE value, never inside a text node). This is
- * the browser behavior the legacy/Astro client scripts' `esc()` helper
+ * the browser behavior the client scripts' `esc()` helper
  * relies on (`document.createElement('div'); d.textContent=s; return
  * d.innerHTML;`) — see web/src/client/training-today.js. */
 function escapeHtml(s) {
@@ -61,10 +60,8 @@ export class StubElement {
     // innerHTML directly never retroactively populates textContent, and
     // vice versa — but setting textContent DOES recompute innerHTML's
     // escaped form, matching the browser's actual text-node serialization.
-    // `configurable: true` lets a test override either property later
-    // (used by the now-retired parity.test.mjs's runBuiltScripts() <select>
-    // override during the astro-plan-web migration; kept for any future
-    // test that needs the same escape hatch).
+    // `configurable: true` lets a test override either property later (a
+    // <select> stub redefines them).
     Object.defineProperty(this, 'textContent', {
       configurable: true,
       enumerable: true,

@@ -42,14 +42,14 @@
   function targets(dates) {
     var n = window.HCNutri, out = {};
     dates.forEach(function (d) {
-      var t = null;
+      var t;
       try { t = n && typeof n.targetFor === 'function' ? n.targetFor(d) : null; } catch (e) { t = null; }
       out[d] = t && fin(t.k) ? { k: t.k, p: fin(t.p) ? t.p : null, inferred: !!t.inferred } : null;
     });
     return out;
   }
   function goalName() {
-    var n = window.HCNutri, g = null;
+    var n = window.HCNutri, g;
     try { g = n && typeof n.state === 'function' ? n.state().goal : N.goal; } catch (e) { g = N.goal; }
     return TN.goals && TN.goals[g] ? TN.goals[g] : '';
   }

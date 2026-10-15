@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import * as common from './sync-common.mjs';
 
 const {
@@ -201,4 +202,77 @@ test('readBaseUrl reads the .env file from disk (missing file = default)', () =>
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+/* ---------- one CLI contract for every sync script ---------- */
+test('readIngestToken / readBaseUrl honour INGEST_ENV_FILE when no file is passed', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-envfile-'));
+  try {
+    const f = path.join(dir, 'other.env');
+    fs.writeFileSync(f, 'INGEST_TOKEN=othertoken\nINGEST_PORT=8091\n');
+    assert.equal(common.envFileOf({ INGEST_ENV_FILE: f }), f);
+    assert.equal(common.envFileOf({}), ENV_FILE);
+    assert.equal(readIngestToken({ INGEST_ENV_FILE: f }), 'othertoken');
+    assert.equal(readBaseUrl({ INGEST_ENV_FILE: f }), 'http://localhost:8091');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('fetchJson() without a token sends no authorization; extra headers and redirect are passed through', async () => {
+  const calls = [];
+  const fetchImpl = async (url, init) => { calls.push(init); return { ok: true, status: 200, json: async () => ({}) }; };
+  await fetchJson('http://h/x', null, { fetchImpl, headers: { 'x-hc-food': '1' }, redirect: 'error' });
+  assert.deepEqual(calls[0].headers, { 'x-hc-food': '1' });
+  assert.equal(calls[0].redirect, 'error');
+  await fetchJson('http://h/x', 'tok', { fetchImpl });
+  assert.deepEqual(calls[1].headers, { authorization: 'Bearer tok' });
+  assert.equal('redirect' in calls[1], false);
+});
+
+test('fetchJson() reports a timeout as its own message', async () => {
+  const fetchImpl = (url, init) => new Promise((resolve, reject) => {
+    init.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+  });
+  await assert.rejects(fetchJson('http://h/x', 'tok', { fetchImpl, timeoutMs: 20 }), /request timed out after 0\.02 s/);
+});
+
+test('parseCli: --help, a strict unknown flag, a stray argument, declared options', () => {
+  const usage = 'Usage: node demo.mjs [--full]';
+  assert.deepEqual(common.parseCli(['--help'], { usage }), { exit: 0, out: usage });
+  assert.deepEqual(common.parseCli(['-h'], { usage }), { exit: 0, out: usage });
+  const bad = common.parseCli(['--nope'], { usage });
+  assert.equal(bad.exit, 2);
+  assert.match(bad.err, /^ERROR: .*--nope[\s\S]*Usage: node demo\.mjs/);
+  assert.equal(common.parseCli(['extra'], { usage }).exit, 2, 'no positional arguments');
+  assert.deepEqual(common.parseCli(['--full'], { usage, options: { full: { type: 'boolean' } } }).values, { full: true });
+  assert.deepEqual(common.parseCli([], { usage }).values, {});
+});
+
+// runCli in a real child process: the exit code is what `npm run sync` (scripts/sync-all.mjs) sees
+function runCliChild(body, args = []) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-runcli-'));
+  try {
+    const f = path.join(dir, 'cli.mjs');
+    const url = new URL('./sync-common.mjs', import.meta.url).href;
+    fs.writeFileSync(f, `import { runCli } from ${JSON.stringify(url)};\nrunCli(${body}, { usage: 'Usage: cli' });\n`);
+    return spawnSync(process.execPath, [f, ...args], { encoding: 'utf8' });
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test('runCli: main\'s number is the exit code; a rejected main -> one ERROR line, exit 1; flags before main', () => {
+  assert.equal(runCliChild('async () => 0').status, 0);
+  assert.equal(runCliChild('async () => undefined').status, 0);
+  assert.equal(runCliChild('async () => 3').status, 3);
+  const thrown = runCliChild('async () => { throw new Error("boom"); }');
+  assert.equal(thrown.status, 1);
+  assert.equal(thrown.stderr.trim(), 'ERROR: boom');
+  const help = runCliChild('async () => { throw new Error("main must not run"); }', ['--help']);
+  assert.equal(help.status, 0);
+  assert.equal(help.stdout.trim(), 'Usage: cli');
+  const bad = runCliChild('async () => { throw new Error("main must not run"); }', ['--nope']);
+  assert.equal(bad.status, 2);
+  assert.doesNotMatch(bad.stderr, /main must not run/);
 });

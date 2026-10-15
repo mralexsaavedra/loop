@@ -27,6 +27,8 @@ suite and dependencies (`npm run test:services`).
 | `npm test` | Full suite (`node --test`); `pretest` builds the example (+ personal, if present) fixtures |
 | `npm run test:services` | The `services/loop-ingest` suite (not part of `npm test`, which stays dependency-free): `npm ci` there from its lockfile, then its `node --test` |
 | `npm run check` | Validators only, no build (plan, ingredients, `training-data.json`, `profile/profile.json`) |
+| `npm run lint` | ESLint over the whole repo ([`eslint.config.mjs`](../eslint.config.mjs)): correctness rules only (unused / undefined names, redeclarations, useless assignments), never formatting; CI runs it |
+| `npm run typecheck` | TypeScript over `lib/**/*.mjs` as JavaScript ([`jsconfig.json`](../jsconfig.json), `checkJs`, no emit): a wrong property, argument count or shape fails; types come from JSDoc (`@param`, `@type`, `@returns`), never `// @ts-ignore`; CI runs it |
 | `npm run build:example` | Example page from the tracked seeds + the synthetic demo extract, no personal files |
 | `node scripts/build-web.mjs [--mode personal\|example] [--locale es\|en]` | Build one page variant into `web/dist/<mode>/index.html` |
 | `npm run test:css:update` | Regenerate `web/test/fixtures/css-expected.json` from the example build after a deliberate CSS change (keeps key order, appends new, drops stale; `-- --check` writes nothing) |
@@ -79,14 +81,21 @@ A runnable `scripts/*.mjs` guards its CLI with `if (isMain(import.meta.url))` fr
 
 - Read the area's doc in `docs/` before changing it, and keep the doc in sync with the code in the same commit.
   Dated history goes to [`CHANGELOG.md`](../CHANGELOG.md), never into the docs.
+- Style: [`.editorconfig`](../.editorconfig) (UTF-8, LF, 2 spaces, a final newline) and the style of the file you
+  touch (some modules end statements without semicolons); no formatter rewrites the repo. The page's client
+  scripts (`web/src/client/*.js`) are classic scripts sharing one global scope: a new global another script or
+  the build provides goes into `BAKED` / `SHARED` in `eslint.config.mjs`, never an `eslint-disable`.
+- Shared helpers have one home: calendar dates (`dayDiff`, `addDays`, `weekStart`, `isIsoDate`, UTC math) are
+  [`lib/date.mjs`](../lib/date.mjs); `lib/` never imports from `data/` (`lib/fs-boundary.test.mjs`). The page's
+  classic client scripts cannot import modules: they keep their local-calendar twins in `web/src/client/util.js`.
 - If you run the LAN services from this clone, keep it on `main`: the refresh only publishes from `main`. Do
   feature work in a separate `git worktree`.
 - Never commit personal data (`CLAUDE.md` → Repo rules); `data/demo/` is tracked and must stay synthetic.
 
 ## Releasing
 
-CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) runs `npm test` and `npm run test:services` on every
-push to `main` and every pull request; a fresh clone needs no personal data to pass. A `vX.Y.Z` tag runs
+CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) runs `npm run lint`, `npm run typecheck`, `npm test` and
+`npm run test:services` on every push to `main` and every pull request; a fresh clone needs no personal data to pass. A `vX.Y.Z` tag runs
 [`.github/workflows/release.yml`](../.github/workflows/release.yml), which publishes the data service image
 `mralexandersaavedra/loop-ingest` to Docker Hub for `linux/amd64` and `linux/arm64` as `X.Y.Z`, `X.Y` and `latest`.
 [`scripts/release.test.mjs`](../scripts/release.test.mjs) keeps the pieces below in step, so a drift fails the suite.

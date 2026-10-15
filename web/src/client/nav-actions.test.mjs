@@ -113,7 +113,7 @@ test('focus trap: Tab cycles over the button and the visible actions only', () =
   let e = p.fire(p.items.sync, 'keydown', { key: 'Tab' });
   assert.equal(e.defaultPrevented, true);
   assert.equal(p.doc.activeElement, p.btn, 'last -> first (the close button)');
-  e = p.fire(p.btn, 'keydown', { key: 'Tab', shiftKey: true });
+  p.fire(p.btn, 'keydown', { key: 'Tab', shiftKey: true });
   assert.equal(p.doc.activeElement, p.items.sync, 'first -> last');
 });
 

@@ -17,10 +17,10 @@ import { parseCssRules, ruleDeclarationMap, canonicalSelector } from '../web/tes
 import { isMain } from './lib/is-main.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-export const FIXTURE_PATH = path.join(ROOT, 'web', 'test', 'fixtures', 'css-expected.json');
-export const BUILD_PATH = path.join(ROOT, 'web', '.test-dist', 'en-example', 'index.html');
+const FIXTURE_PATH = path.join(ROOT, 'web', 'test', 'fixtures', 'css-expected.json');
+const BUILD_PATH = path.join(ROOT, 'web', '.test-dist', 'en-example', 'index.html');
 
-export function extractStyleCss(html) {
+function extractStyleCss(html) {
   const blocks = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]);
   if (blocks.length === 0) throw new Error('no <style> block found in the given HTML');
   return blocks.join('\n');
@@ -32,7 +32,7 @@ export function buildDeclarationMap(html) {
 }
 
 // Fixture keys predate the whitespace-minified CSS: canonicalize their selector part the same way.
-export function canonicalKey(key) {
+function canonicalKey(key) {
   const [media, selector, prop] = key.split('|||');
   return `${media}|||${canonicalSelector(selector)}|||${prop}`;
 }

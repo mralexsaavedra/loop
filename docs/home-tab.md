@@ -500,6 +500,19 @@ What it shows: last night's recovery as a % rank (headline), with the 7-day tren
 - `today` = the composite of the asOf day alone (last night), same baseline. A single day is noisier
   than the 7-day mean (measured σ_daily 0.782 vs σ_7 0.328, `MEASURED_SIGMA`), so its band is cut at
   `DAY_BAND_CUTOFF` = `BAND_CUTOFF` × σ_daily/σ_7 ≈ 1.2 (same false-flip rate).
+- `MEASURED_SIGMA` is a **population default**: measured once (`measureSigma`, 90 days) on one user's
+  data and used for everyone. The composite is already z-scored per user against their own 42-day
+  baseline, so only `DAY_BAND_CUTOFF` depends on it. To check it on an install's own extract:
+
+  ```sh
+  node --input-type=module -e "import { readExtract } from './lib/extract/read.mjs';
+    import { measureSigma } from './lib/score/recovery.mjs';
+    const I = readExtract('data/apple-health/extract');
+    console.log(measureSigma({ hrv: I.series.hrv, rhr: I.series.rhr, sleep: I.sleep }))"
+  ```
+
+  `sigmaD` / `sigma7` far from 0.78 / 0.33 would move the single-night cut; there is no per-user
+  calibration.
 - "Last night" = the newest COMPLETE day among asOf and the 2 days before it
   (`MAX_TODAY_FALLBACK_DAYS`). Complete (`completeDay`) needs:
   - a sleep-duration reading;
