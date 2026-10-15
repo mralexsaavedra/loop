@@ -461,6 +461,10 @@ All three follow the day they were opened on (strain: `X.sel`, else the view end
   `aria-labelledby`; no `aria-label` beside it, which made a second competing name) renders in `layouts/Plan.astro`'s `overlay`
   slot OUTSIDE `.wrap`, which goes `inert` while open (page scroll locked); `.wrap` also gets
   `aria-hidden` while open (fallback where `inert` is unsupported).
+- No region landmarks inside the sheet: a deep dive's or the trend chart's `<section>` carries no
+  `aria-label` / `aria-labelledby` (a named `<section>` is a region); its `<h3>` names the part, and a list
+  without a heading keeps the name on the list itself (the contributors `<ul class="dd-rows">`, the weekly
+  columns `<ol class="dd-cols">`).
 - Focus moves to the close button and Tab stays inside. Esc / the close button / a tap on the backdrop
   close it and focus returns to the opener (none — a deep link or a forward navigation — → the visible
   tab's heading, given `tabindex="-1"`).
