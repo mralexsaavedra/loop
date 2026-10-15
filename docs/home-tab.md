@@ -86,7 +86,7 @@ What it shows: a strip fixed at the top with the three dials as mini rings + lab
   ring applies to the big dial only).
 - Every `dialFig` call also queues its mini item from the SAME svg string, colour class, label and
   detail opener (`HC.detailAttrs`): nothing is recomputed, and a tap opens the same detail as the dial.
-- Load items carry `data-dmod`, so the load deep-dive's modality pills (`scMod`) move them too.
+- Load items carry `data-dmod`, so the load deep-dive's modality pills (`window.HCScore.setMod`) move them too.
 - Off = `visibility: hidden` (out of the tab order and the accessibility tree). The slide / fade is
   dropped under `prefers-reduced-motion`. With no data or without IntersectionObserver it stays off.
 
@@ -159,7 +159,7 @@ values; no new metric (the recovery % is a rank of the same composite).
 - ONE dial per modality, one shown, NO pills under the dials. The gym / run / bike pills live in the
   `load-<m>` deep-dive, between its contributors and the insight card (`deepdive.js` `modSwitch`, the
   page's modality pressed, only with two or more load series); a pill opens that modality's page and,
-  through its `data-mod` attribute (`score.js`'s delegated listener), calls `scMod(key)`, which shows that modality's dial on Home and in the collapsed row.
+  through its `data-mod` attribute (`score.js`'s delegated listener), calls `window.HCScore.setMod(key)` (no bare page global; `deepdive.js` feature-detects it), which shows that modality's dial on Home and in the collapsed row.
 - Which modality it opens on (client-side, from the VIEWER's today, picked from the baked `recent`
   days, each with its pre-computed fill):
   1. the modality with a session today, GATED OR NOT (a gated one opens greyed, no number; gated

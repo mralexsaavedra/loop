@@ -698,7 +698,7 @@ test('load dial: one visible modality (default = first ungated), no pills on Ini
   const html = withDials(s);
   const D = buildDials(s, HEALTH).load;
   assert.doesNotMatch(html, /dial-switch|dial-mod|aria-pressed/, 'no gym / run / bike pills under the dials');
-  assert.equal(count(html, '<figure class="dial dial-load'), D.modalities.length, 'every modality keeps its (hidden) dial for scMod');
+  assert.equal(count(html, '<figure class="dial dial-load'), D.modalities.length, 'every modality keeps its (hidden) dial for HCScore.setMod');
   for (const m of D.modalities) {
     const vis = new RegExp(`<figure class="dial dial-load[^"]*" data-dmod="${m.key}"${m.key === D.defaultKey ? '>' : ' hidden>'}`);
     assert.match(html, vis, m.key);
@@ -872,27 +872,28 @@ test('dials: a null asOf / date never produces NaN/undefined text', () => {
   assert.doesNotMatch(render(s, { dials }), /NaN|undefined|null/);
 });
 
-test('scMod: shows only the chosen modality\'s load dial on Inicio and in the collapsed row (the pills live in the load deep-dive)', () => {
+test('window.HCScore.setMod: shows only the chosen modality\'s load dial on Inicio and in the collapsed row (the pills live in the load deep-dive); no bare global', () => {
   const el = (key) => ({ key, hidden: false, getAttribute: (a) => (a === 'data-dmod' ? key : null) });
   const panes = ['gym', 'run', 'bike'].map((k) => el(k));
   const minis = ['gym', 'run', 'bike'].map((k) => el(k));
   const hosts = { 'home-dials': { querySelectorAll: () => panes }, 'home-mini': { querySelectorAll: () => minis } };
-  const ctx = { document: { getElementById: (id) => hosts[id] || null } };
+  const ctx = { window: {}, document: { getElementById: (id) => hosts[id] || null } };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
-  ctx.scMod('bike');
+  assert.equal(typeof ctx.scMod, 'undefined', 'no bare page global: the setter is exposed explicitly');
+  ctx.window.HCScore.setMod('bike');
   assert.deepEqual(panes.map((p) => p.hidden), [true, true, false]);
   assert.deepEqual(minis.map((p) => p.hidden), [true, true, false], 'the collapsed row follows');
-  ctx.scMod('gym');
+  ctx.window.HCScore.setMod('gym');
   assert.deepEqual(panes.map((p) => p.hidden), [false, true, true]);
 });
 
-test('a click on (or inside) a load page pill [data-mod] runs scMod: delegated, no inline handler', () => {
+test('a click on (or inside) a load page pill [data-mod] sets the dial: delegated, no inline handler', () => {
   const el = (key) => ({ key, hidden: false, getAttribute: (a) => (a === 'data-dmod' ? key : null) });
   const panes = ['gym', 'run', 'bike'].map((k) => el(k));
   const listeners = [];
-  const ctx = { document: { getElementById: (id) => (id === 'home-dials' ? { querySelectorAll: () => panes } : null), addEventListener: (t, fn) => { if (t === 'click') listeners.push(fn); } } };
+  const ctx = { window: {}, document: { getElementById: (id) => (id === 'home-dials' ? { querySelectorAll: () => panes } : null), addEventListener: (t, fn) => { if (t === 'click') listeners.push(fn); } } };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
