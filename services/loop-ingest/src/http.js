@@ -124,6 +124,9 @@ export function writeOriginOk (headers, extra = []) {
   if (!hostAllowed(hostOfOrigin(origin), extra)) return false
   const forwarded = headers['x-forwarded-host']
   if (forwarded === undefined) return true
+  // host:port only, not the scheme: behind a TLS-terminating tunnel nginx sees plain http, so it cannot
+  // know the browser's scheme. A cross-scheme request is still refused above, because browsers send
+  // Sec-Fetch-Site and it is only `same-origin` when scheme, host and port all match.
   return new URL(origin).host === String(forwarded).trim().toLowerCase()
 }
 
