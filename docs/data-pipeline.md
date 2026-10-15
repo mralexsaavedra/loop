@@ -28,7 +28,8 @@ How the raw sources become the CSVs in `data/apple-health/extract/` that every p
 - **Read the cached extract first**: `data/apple-health/extract/*.csv` (weight, bodyfat, rhr, vo2max,
   hrv, steps-daily, active/basal-energy-daily, dietary-daily, sleep-daily, workouts) + `_meta.json`
   (ranges, row counts, caveats).
-- Regenerate after a new export is dropped: `node data/apple-health/extract.mjs`.
+- Regenerate after a new export is dropped: `node data/apple-health/extract.mjs` (no flags; `--help` prints the
+  usage, any other argument exits 2 before reading the export).
 - The raw `export.xml` is ~700 MB — only stream/grep it directly for a series not in the cache.
 - **Body metrics** carry a `source` column. Weight mixes scales — compare body fat within one scale only.
 - **Source cells** (`source` of the readings, steps, sleep and workouts) go through one helper,

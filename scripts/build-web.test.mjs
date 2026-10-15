@@ -232,5 +232,23 @@ test('reportProfileCheck: a malformed profile.json fails --check with the reason
   assert.equal(reportProfileCheck({ ok: true, skipped: false, error: null }, 'example', io), 0);
   assert.match(out[2][1], /profile\.json OK \(mode=example\)/);
   const src = fs.readFileSync(new URL('./build-web.mjs', import.meta.url), 'utf8');
-  assert.match(src, /process\.exitCode = reportProfileCheck\(checkManualProfile\(/, '--check wires the strict profile check');
+  assert.match(src, /return reportProfileCheck\(checkManualProfile\(/, '--check wires the strict profile check');
+});
+
+test('strict CLI: --help prints the usage; an unknown flag (--mod), a bad --mode / --locale value or a stray argument exits 2 before anything runs', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const script = new URL('./build-web.mjs', import.meta.url).pathname;
+  const run = (...args) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8', env: { ...process.env, DATA_MODE: '', LOCALE: '' } });
+  const help = run('--help');
+  assert.equal(help.status, 0);
+  assert.match(help.stdout, /^Usage: node scripts\/build-web\.mjs/);
+  for (const args of [['--check', '--mod', 'example'], ['--check', '--mode', 'exmple'], ['--check', '--locale', 'fr'], ['--check', 'example']]) {
+    const r = run(...args);
+    assert.equal(r.status, 2, args.join(' '));
+    assert.match(r.stderr, /^ERROR: /);
+    assert.doesNotMatch(r.stdout, /build-web --check/, 'the check never ran');
+  }
+  const ok = run('--check', '--mode', 'example');
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.match(ok.stdout, /training-data\.json OK \(mode=example\)/);
 });

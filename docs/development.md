@@ -31,7 +31,7 @@ suite and dependencies (`npm run test:services`).
 | `npm run lint` | ESLint over the whole repo ([`eslint.config.mjs`](../eslint.config.mjs)): correctness rules only (unused / undefined names, redeclarations, useless assignments), never formatting; CI runs it |
 | `npm run typecheck` | TypeScript over `lib/**/*.mjs` as JavaScript ([`jsconfig.json`](../jsconfig.json), `checkJs`, no emit): a wrong property, argument count or shape fails; types come from JSDoc (`@param`, `@type`, `@returns`), never `// @ts-ignore`; CI runs it |
 | `npm run build:example` | Example page from the tracked seeds + the synthetic demo extract, no personal files |
-| `node scripts/build-web.mjs [--mode personal\|example] [--locale es\|en]` | Build one page variant into `web/dist/<mode>/index.html` |
+| `node scripts/build-web.mjs [--mode personal\|example] [--locale es\|en] [--outdir <dir>] [--check]` | Build one page variant into `web/dist/<mode>/index.html` (`--help` for the flags) |
 | `npm run test:css:update` | Regenerate `web/test/fixtures/css-expected.json` from the example build after a deliberate CSS change (keeps key order, appends new, drops stale; `-- --check` writes nothing) |
 | `npm run golden:bake` | Compare every build-time bake (`web/src/bakes.mjs`) for the example + an empty extract against `web/test/fixtures/bake-golden.*.json` (`-- --update` rewrites them after a deliberate change; `-- --personal` writes/compares the gitignored `web/test/.golden/` personal golden, paths only, exit 2 without personal inputs; `-- --personal --root <clone>` reads that clone's data + golden with this checkout's code, read-only there) |
 | `npm run demo:data` | Regenerate the synthetic demo extract `data/demo/extract/` (`scripts/make-demo-data.mjs`) |
@@ -69,7 +69,10 @@ Never hand-edit them; change the source and regenerate:
 | `web/test/fixtures/bake-golden.*.json` | `web/src/bakes.mjs` | `npm run golden:bake -- --update` |
 
 A runnable `scripts/*.mjs` guards its CLI with `if (isMain(import.meta.url))` from `scripts/lib/is-main.mjs`
-(realpath compare, so symlinks and relative paths work; importing never runs main).
+(realpath compare, so symlinks and relative paths work; importing never runs main). The sync scripts,
+`scripts/build-web.mjs`, `data/nutrition/generate.mjs` and `data/apple-health/extract.mjs` parse their flags
+with `parseCli` (`data/apple-health/sync-common.mjs`): `--help` prints the usage, and an unknown flag (a typo
+such as `--chek` or `--mod`) or a stray argument exits 2 before anything is read or written.
 
 ## Guards
 

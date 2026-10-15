@@ -193,3 +193,23 @@ test('source names: commas never shift columns and XML entities are decoded (sam
     assert.equal(w[7], 'Alex  Watch');
   } finally { x.cleanup(); }
 });
+
+test('strict CLI: --help prints the usage (exit 0), an unknown flag or a stray argument exits 2 before any write', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-cli-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'export.xml'), '<HealthData>\n</HealthData>\n');
+    const run = (...args) => spawnSync(process.execPath, [path.join(__dirname, 'extract.mjs'), ...args], { encoding: 'utf8', env: { ...process.env, EXTRACT_DIR: dir } });
+    const help = run('--help');
+    assert.equal(help.status, 0);
+    assert.match(help.stdout, /^Usage: node data\/apple-health\/extract\.mjs/);
+    for (const args of [['--bogus'], ['export.xml']]) {
+      const r = run(...args);
+      assert.equal(r.status, 2, args.join(' '));
+      assert.match(r.stderr, /^ERROR: /);
+      assert.match(r.stderr, /Usage: /);
+    }
+    assert.deepEqual(fs.readdirSync(dir), ['export.xml'], 'no extract/ was written');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
