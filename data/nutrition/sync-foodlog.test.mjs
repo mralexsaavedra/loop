@@ -234,3 +234,23 @@ test('main(): a malformed body warns "unexpected response", never "could not rea
     assert.ok(!fs.existsSync(outDir));
   } finally { h.cleanup(); }
 });
+
+test('main(): the window and fetchedAt come from the injected `now` (no clock read inside)', async () => {
+  const h = mainHarness('sync-foodlog-now-');
+  try {
+    const urls = [];
+    const ok = async (url) => {
+      urls.push(url);
+      const u = new URL(url);
+      return { ok: true, status: 200, json: async () => ({ from: u.searchParams.get('from'), to: u.searchParams.get('to'), days: [] }) };
+    };
+    const now = new Date(2030, 0, 15, 12, 0, 0); // local 2030-01-15
+    const outDir = path.join(h.dir, 'f');
+    assert.equal(await sf.main({ env: h.env, ...h.io, fetchImpl: ok, outDir, now }), 0);
+    const u = new URL(urls[0]);
+    assert.equal(u.searchParams.get('to'), '2030-01-15');
+    assert.deepEqual(sf.windowFor(now), { from: u.searchParams.get('from'), to: '2030-01-15' });
+    const meta = JSON.parse(fs.readFileSync(path.join(outDir, sf.META_FILE), 'utf8'));
+    assert.equal(meta.fetchedAt, now.toISOString());
+  } finally { h.cleanup(); }
+});

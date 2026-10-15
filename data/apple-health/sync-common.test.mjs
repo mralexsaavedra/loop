@@ -354,3 +354,10 @@ test('reclaimStaleLock(): only the stale lock that was observed is reclaimed, an
   assert.deepEqual(fs.readdirSync(dir), ['_meta.json.lock'], 'no claim file left behind');
   fs.rmSync(dir, { recursive: true });
 });
+
+test('localIso / windowEndingOn: the LOCAL calendar date of `now`, a window of `days` days inclusive', () => {
+  const now = new Date(2030, 2, 1, 0, 30); // local 2030-03-01 00:30
+  assert.equal(common.localIso(now), '2030-03-01');
+  assert.deepEqual(common.windowEndingOn(now, 1), { from: '2030-03-01', to: '2030-03-01' });
+  assert.deepEqual(common.windowEndingOn(now, 3), { from: '2030-02-27', to: '2030-03-01' });
+});
