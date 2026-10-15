@@ -452,7 +452,10 @@ database. If the stored token is rejected (for example after you re-authorized
 and put a new token in `.env`), the env token is tried once. A failing store
 never blocks a refresh. The token is never returned by any endpoint or logged.
 A failed or rate-limited sync is logged and never takes the ingest endpoint
-down with it.
+down with it. Every Strava request times out after 15 s and a pull stops after 50 pages, so a hung request
+never blocks the shared sync. The database pool logs an idle client's error (a Postgres restart) instead of
+crashing, gives up connecting after 5 s (so `/healthz` answers while the database is down) and cancels a
+statement after 30 s.
 
 ### Getting the Strava credentials (once, ~5 minutes)
 

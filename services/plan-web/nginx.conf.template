@@ -34,6 +34,17 @@ server {
     # empty segment, so refuse them in the raw path (the query string is not checked).
     if ($request_uri ~* "^[^?]*(\.\.|%2e|%2f|%5c|//)") { return 400; }
 
+    server_tokens off;
+
+    # Security headers on every response: the page writes food and journal entries, so another site must not
+    # frame it (clickjacking), nothing is type-sniffed and no URL leaks as a Referer. nginx drops ALL inherited
+    # add_header lines in a block that sets its own, so such blocks repeat these four
+    # (scripts/plan-web-config.test.mjs checks it).
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header Referrer-Policy no-referrer always;
+    add_header Content-Security-Policy "frame-ancestors 'none'" always;
+
     # Always revalidate: the page is regenerated hourly and on demand.
     add_header Cache-Control "no-cache";
 
@@ -52,6 +63,10 @@ server {
     location = /status.json {
         default_type application/json;
         add_header Cache-Control "no-cache, no-store";
+        add_header X-Content-Type-Options nosniff always;
+        add_header X-Frame-Options DENY always;
+        add_header Referrer-Policy no-referrer always;
+        add_header Content-Security-Policy "frame-ancestors 'none'" always;
     }
 
     # Ingest routes reachable from here, all unauthenticated by design (the
@@ -152,10 +167,12 @@ server {
         types { }
         default_type application/pdf;
         add_header X-Content-Type-Options nosniff always;
+        add_header X-Frame-Options DENY always;
+        add_header Referrer-Policy no-referrer always;
         # Not `sandbox`: a CSP-sandboxed document may not load plugins, and browsers' built-in PDF
         # viewers run as one (Chromium shows a blocked page). This keeps a crafted PDF from running
         # anything but the same-origin PDF viewer embed.
-        add_header Content-Security-Policy "default-src 'none'; object-src 'self'" always;
+        add_header Content-Security-Policy "default-src 'none'; object-src 'self'; frame-ancestors 'none'" always;
         add_header Content-Disposition inline always;
         add_header Cache-Control "no-cache" always;
         try_files $uri =404;

@@ -1,0 +1,8 @@
+# Only package*.json, src/ and sql/ are copied into the image; keep everything else, above all the
+# secrets file, out of the build context (test/dockerignore.test.js).
+.env*
+node_modules
+trigger
+test
+scripts
+*.log
