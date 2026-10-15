@@ -13,6 +13,15 @@ every push and pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-15 (confirmed) — Confirmation-check follow-ups
+
+A last confirmation check found five small items, fixed here. Onboarding: the fat floor is rounded up, so a heavy
+person with a decimal weight is no longer stuck on the summary (no lockout in a decimal-weight grid); a failed Next
+is announced to screen readers and points at the invalid field; the target cells name their day. The plan validator
+refuses a part without a numeric amount and a malformed meal instead of writing NaN into the tables. The food log
+refuses a snapshot too large to store (400 instead of 500). `INGEST_BIND` is documented as loopback only, because
+the host's sync calls `localhost`. The guard hook judges `git update-index --add` like a force-add.
+
 ## 2026-10-15 (last) — Scoring-audit follow-ups
 
 A scoring audit of the final state (lib 8.5, page 9, services 8.5, AI 9.5, docs 8.5, release 9.5) and its fixes, so
