@@ -377,9 +377,28 @@ function routeOf (path) {
   return null
 }
 
+// The food_log columns (sql/006_food.sql): kcal NUMERIC(7,1), protein / carbs / fat NUMERIC(6,1). Every input is
+// within its own limit, yet a large serving times a large amount can still exceed them (Postgres: numeric field
+// overflow), so the computed snapshot is checked before the insert.
+const SNAPSHOT_MAX = Object.freeze({ kcal: 999999.9, protein: 99999.9, carbs: 99999.9, fat: 99999.9 })
+
+/** A computed snapshot the columns cannot store is the amount's fault: 400 `invalid` on `amount`. */
+function storable (snap) {
+  for (const [k, max] of Object.entries(SNAPSHOT_MAX)) {
+    const v = snap.macros[k]
+    if (v != null && !(Math.round(v * 10) / 10 <= max)) bad('amount')
+  }
+  return snap
+}
+
 /** The macros SNAPSHOT a new log entry stores, with its label, amount and unit: a quick entry as typed (its
- * macros must pass Atwater unless forced), a product or a complete recipe computed here (food-calc.js). */
+ * macros must pass Atwater unless forced), a product or a complete recipe computed here (food-calc.js), refused
+ * when it is too big for the stored columns (storable). */
 async function logSnapshot (store, e) {
+  return storable(await computeSnapshot(store, e))
+}
+
+async function computeSnapshot (store, e) {
   if (e.refType === 'quick') {
     const macros = roundMacros(e.macros)
     const { protein, carbs, fat } = macros
