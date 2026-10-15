@@ -220,9 +220,11 @@
       var sub = r.key === 'training' ? P.basis[r.basis] : format(P.goal, { n: r.target });
       var link = r.key === 'sleep' ? HC.detailAttrs('sleep') : r.key === 'training' ? HC.detailAttrs('workouts') : '';
       var tone = r.onTrack ? 'up' : 'down';
-      return '<li class="wp-row"' + link + '><span class="wp-lbl">' + esc(lbl) + '<small>' + esc(sub) + '</small></span>' +
+      // every row is <li><div class="wp-row">: an opener's button role sits on the <div>, so the <li>
+      // stays a list item (the rows keep one shape, styled alike)
+      return '<li><div class="wp-row"' + link + '><span class="wp-lbl">' + esc(lbl) + '<small>' + esc(sub) + '</small></span>' +
         '<span class="wp-val"><b>' + r.done + '</b>/' + r.target + ' <span class="wp-arr wp-' + tone + '" aria-hidden="true">' + (r.onTrack ? '▲' : '▼') + '</span><span class="sr-only">' + esc(r.onTrack ? P.onTrack : P.behind) + '</span></span>' +
-        '<span class="wp-bar" aria-hidden="true"><i class="wp-' + tone + '" style="width:' + Math.round(r.frac * 100) + '%"></i></span></li>';
+        '<span class="wp-bar" aria-hidden="true"><i class="wp-' + tone + '" style="width:' + Math.round(r.frac * 100) + '%"></i></span></div></li>';
     }
     function planHtml(g) {
       var P = T.plan, left = g.week.daysLeft;

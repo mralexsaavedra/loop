@@ -1144,7 +1144,7 @@ details.rec-raw[open] > summary::after {
   padding: var(--sp-5) 0;
   border-bottom: 1px solid var(--line-soft);
 }
-.wp-row:last-child {
+.wp-rows > li:last-child > .wp-row {
   border-bottom: 0;
 }
 .wp-row {

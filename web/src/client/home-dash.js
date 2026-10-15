@@ -171,11 +171,12 @@
       var P = TD.deep.stress, n = d.now, band = HC.stressBand(n.v), time = String(n.t).slice(0, 2) + ':00';
       var value = HC.num(n.v, 1), when = format(P.updated, { time: time }) + (d.date !== HC.todayIso() ? ' · ' + HC.fmtDate(d.date) : '');
       var aria = titleOf('stress') + ': ' + value + ' · ' + P.bands[band] + ' · ' + when;
-      return '<li class="db-card db-stress ds-' + band + '"' + HC.detailAttrs('stress', d.date) + ' aria-label="' + esc(aria) + '">' +
+      // the button role on an inner <div>: the <li> stays a list item of the dashboard list
+      return '<li><div class="db-card db-stress ds-' + band + '"' + HC.detailAttrs('stress', d.date) + ' aria-label="' + esc(aria) + '">' +
         // the chevron is the shared opener's (base.css [data-detail][role=button]:after)
         '<div class="db-card-head"><span class="db-card-t">' + esc(titleOf('stress')) + '</span></div>' +
         '<div class="db-card-sub" aria-hidden="true"><span class="db-card-when">' + esc(when) + '</span><span><span class="ds-band">' + esc(P.bands[band]) + '</span><b class="db-card-v">' + esc(value) + '</b></span></div>' +
-        HC.stressChart(d.hours, P, function (v, dec) { return HC.num(v, dec); }, true) + '</li>';
+        HC.stressChart(d.hours, P, function (v, dec) { return HC.num(v, dec); }, true) + '</div></li>';
     }
     function available() {
       var out = D ? CATALOG.filter(function (k) { return own(D.metrics, k) && D.metrics[k] && Array.isArray(D.metrics[k].v); }) : [];

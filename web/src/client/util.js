@@ -292,14 +292,17 @@ var HC = (function () {
   //      tone? ('good' | 'bad' | 'watch' | 'flat'), base?, base2?} — every text is escaped here; the
   //      secondary lines sit under the value: `base`, then an optional second one `base2` (a ride's
   //      HR · effort · kJ; docs/design-system.md → Metric row)
+  //      An opener row (attrs with role="button", detailAttrs) keeps its <li> a list item: the button
+  //      role sits on an inner <div class="db-row"> (`<li><div role="button">`), styled as the row itself
   function metricRow(o) {
     var arrow = o.arrow && Object.prototype.hasOwnProperty.call(ARROWS, o.arrow) ? ARROWS[o.arrow] : '';
-    return '<li class="db-row' + (o.cls ? ' ' + o.cls : '') + '"' + (o.attrs || '') + (o.aria ? ' aria-label="' + esc(o.aria) + '"' : '') + '>' + metricIcon(o.key) +
+    var tag = /\brole="button"/.test(o.attrs || '') ? 'div' : 'li';
+    return (tag === 'div' ? '<li>' : '') + '<' + tag + ' class="db-row' + (o.cls ? ' ' + o.cls : '') + '"' + (o.attrs || '') + (o.aria ? ' aria-label="' + esc(o.aria) + '"' : '') + '>' + metricIcon(o.key) +
       '<span class="db-name">' + esc(o.name) + '</span>' +
       '<span class="db-vals"><span class="db-val"><b' + (o.numCls ? ' class="' + o.numCls + '"' : '') + '>' + esc(o.value) + '</b>' + (o.unit ? '<small>' + esc(o.unit) + '</small>' : '') +
       (arrow ? '<span class="db-arr db-' + esc(trendTone(o.arrow, o.tone)) + '" aria-hidden="true">' + arrow + '</span>' : '') + '</span>' +
       (o.base != null && o.base !== '' ? '<span class="db-base">' + esc(o.base) + '</span>' : '') +
-      (o.base2 ? '<span class="db-base">' + esc(o.base2) + '</span>' : '') + '</span></li>';
+      (o.base2 ? '<span class="db-base">' + esc(o.base2) + '</span>' : '') + '</span>' + (tag === 'div' ? '</div></li>' : '</li>');
   }
 
   // THE contributor row (docs/design-system.md → Components → Contributor row): the deep-dive sheets'

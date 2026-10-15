@@ -109,7 +109,9 @@ has no such key. None has a host tab except
 ## Openers
 
 - `HC.detailAttrs(key, date?, {plain?})` writes `data-detail` [+ `data-date`] + a button role and tab stop
-  (`plain`: data attributes only, for a real `<button>`, an SVG cell or a table row).
+  (`plain`: data attributes only, for a real `<button>`, an SVG cell or a table row). Never on an `<li>`:
+  the button role would replace its list-item role, so a list row puts it on an inner `<div>`
+  (`<li><div data-detail … role="button">`).
 - One delegated click / Enter / Space listener in `web/src/client/detail.js` handles every opener. It
   ignores a click / Enter on a control inside a card (a, button, summary, input, select, textarea,
   `role="button"`) other than the opener itself.

@@ -323,6 +323,11 @@ test('trendTone / metricRow: a ▲ ▼ is never grey — no good direction reads
   assert.equal(row('down'), 'neutral ▼');
   assert.equal(row('flat', 'flat'), 'flat •');
   assert.equal(row('up', 'good'), 'good ▲');
+  // an opener row keeps its <li> a list item: the button role sits on an inner <div class="db-row">
+  const open = HC.metricRow({ key: 'weight', cls: 'db-stale', attrs: ' id="hl-w" data-detail="weight" role="button" tabindex="0" aria-haspopup="dialog"', aria: 'Weight', name: 'W', value: '1' });
+  assert.match(open, /^<li><div class="db-row db-stale" id="hl-w" data-detail="weight" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Weight"><svg class="db-ico"/);
+  assert.ok(open.endsWith('</span></div></li>'));
+  assert.match(HC.metricRow({ key: 'weight', name: 'W', value: '1' }), /^<li class="db-row"><svg[\s\S]*<\/li>$/, 'a row that opens nothing stays a plain <li>');
 });
 
 test('contribRow is THE contributor row: icon, escaped label + sub, value, the glyph with its tone and words', () => {
