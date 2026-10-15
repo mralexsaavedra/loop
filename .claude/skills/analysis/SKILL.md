@@ -10,7 +10,7 @@ sources and their caveats are in `CLAUDE.md` → Data sources. Do not copy them 
 
 ## Steps
 
-1. **First-run check.** No `profile/about-me.md` → do not analyse; run `docs/onboarding.md`.
+1. **First-run check.** No `profile/about-me.md` → do not analyse; run the `/setup` skill (it hands over to `docs/onboarding.md`).
 2. **Sync.** `npm run sync`. Each `WARNING:` line means that source was NOT refreshed (service
    unreachable / old image / missing token) and its old files were kept: note it for the freshness
    table, do not stop. A non-zero exit means a script failed: report which one.
