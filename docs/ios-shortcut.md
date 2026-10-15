@@ -71,8 +71,8 @@ there:
    HR: delete the `hrv` and `rhr` blocks; keep `sleep` and the heart-rate samples (`hr_t` / `hr_v`).
 4. Expect less than with an Apple Watch: steps, energy, heart rate and sleep usually arrive; HRV, wrist
    temperature, respiratory rate and sleep stages depend on the device and its app. A band that writes only
-   "in bed" sleep gets ESTIMATED nights (time in bed, labelled on the page), and one without resting HR gets it
-   derived from the night's heart rate, from the Apple Health export only
+   "in bed" sleep gets ESTIMATED nights (time in bed, labelled on the page) and one without resting HR gets it
+   derived from the night's heart rate, both from the Apple Health export only, never from this Shortcut
    ([`docs/data-pipeline.md` → Resting HR](data-pipeline.md#apple-health-export-and-extract)). Without HRV the
    recovery score is partial (resting HR and sleep) and says so; stress stays empty or partial.
 
