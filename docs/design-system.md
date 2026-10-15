@@ -59,6 +59,9 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
   weight status word is white with its dot coloured (formerly the word too, e.g. yellow "GOING DOWN"),
   Tablas' supplement timing tags are white (formerly `--trend` blue) and Inicio's "PROGRAMMED" timeline
   label is white beside its coloured bar (formerly `--strain-ink`).
+- **Colours (score.css).** A colour comes from a token: no hex, and a tint is `rgba(var(--x-rgb), a)`
+  (`--good-rgb`, `--up-rgb`, …); the one literal is a black shadow (`rgba(0, 0, 0, a)`). The outlook strip's
+  fade is `--outlook-a` → `--outlook-b` → `--surface`. Guard: the "colours" test in `design-system.test.mjs`.
 - **Empty states** read in sentence case, like the source strings: a dial word ("Sin sesión aún",
   "Sin datos", `.dial-word`) is muted sentence case at `--fs-label`, as in the deep-dive hero.
 
