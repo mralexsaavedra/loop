@@ -26,6 +26,9 @@
   var next = document.getElementById('day-next');
   var lbl = document.getElementById('day-lbl');
   var word = document.getElementById('day-word');
+  // the day change is announced by this sr-only status, not by the label button (a live button reads
+  // its name twice); empty on the first paint, so a load announces nothing
+  var live = document.getElementById('day-live');
   var todayWord = word ? word.textContent : '';
   var sel = null;
   var subs = [];
@@ -68,8 +71,9 @@
     } catch (e) { /* a frame that refuses history writes: the day still changes */ }
   }
 
-  function paint() {
+  function paint(announce) {
     var iso = sel || today();
+    if (announce && live) live.textContent = sel ? HC.fmtDate(sel) : todayWord + ' · ' + HC.fmtDate(iso);
     el.textContent = HC.fmtDate(iso);
     el.setAttribute('datetime', iso);
     if (word) word.textContent = sel ? HC.fmtDate(sel) : todayWord;
@@ -94,7 +98,7 @@
     if (d === undefined) return false;
     if (d === sel) return true;
     sel = d;
-    paint();
+    paint(true);
     if (!opts || opts.hash !== false) writeHash(sel ? '#' + DAY.prefix + sel : '#' + DAY.tab);
     subs.forEach(function (fn) {
       try { fn(sel); } catch (e) { /* one renderer never stops the others */ }

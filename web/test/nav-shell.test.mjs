@@ -35,14 +35,16 @@ test('top bar: avatar first, then the LOOP wordmark, the centred "Today" pill wi
   assert.match(bar, /<time id="today-date" class="today-date"><\/time>/, 'nothing time-based baked');
 });
 
-test('top bar pill: ‹ / › day-stepping buttons ship hidden with their labels; the date label is a live, "back to today" button', () => {
+test('top bar pill: ‹ / › day-stepping buttons ship hidden with their labels; the date label is a "back to today" button, the day announced by a separate status', () => {
   const bar = between('<div class="date-pill"', '<div class="fresh"');
   assert.match(bar, new RegExp(`role="group" aria-label="${N.day.group}"`));
   const prev = bar.indexOf('id="day-prev"'), lbl = bar.indexOf('id="day-lbl"'), next = bar.indexOf('id="day-next"');
   assert.ok(prev !== -1 && prev < lbl && lbl < next, '‹ · label · ›');
   assert.match(bar, new RegExp(`<button type="button" class="day-step" id="day-prev" aria-label="${N.day.prev}" hidden>`));
   assert.match(bar, new RegExp(`<button type="button" class="day-step" id="day-next" aria-label="${N.day.next}" hidden>`));
-  assert.match(bar, new RegExp(`id="day-lbl" aria-disabled="true" aria-live="polite" data-back="${N.day.back}"`));
+  assert.match(bar, new RegExp(`id="day-lbl" aria-disabled="true" data-back="${N.day.back}"`));
+  assert.doesNotMatch(bar, /<button[^>]*aria-live/, 'a live button would read its name twice');
+  assert.match(bar, /<span class="sr-only" id="day-live" role="status" aria-live="polite"><\/span>/, 'the day change is announced by its own status');
 });
 
 test('dock: a labelled nav of four buttons, aria-current="page" on the active one, and the "+" outside it', () => {
