@@ -1,4 +1,4 @@
-# Lint and both test suites on every push and pull request. The suites need no personal data: a fresh clone passes
+# Lint, the lib/ typecheck and both test suites on every push and pull request. The suites need no personal data: a fresh clone passes
 # (the personal-only checks skip themselves).
 name: CI
 
@@ -29,5 +29,6 @@ jobs:
             services/loop-ingest/package-lock.json
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
+      - run: npm run typecheck
       - run: npm test
       - run: npm run test:services
