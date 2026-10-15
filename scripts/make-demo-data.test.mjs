@@ -118,3 +118,25 @@ test('the demo journal (journal-daily.csv) uses the journal CSV schema and is mo
   assert.ok(days.length > 40 && days.length <= 70, `${days.length} demo journal days`);
   assert.equal(days[days.length - 1].date <= DEMO_DEFAULTS.end, true);
 });
+
+test('CLI: --help, an unknown flag or a bad value never writes; flags are validated (exit 2)', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const { main, demoOptions } = await import('./make-demo-data.mjs');
+  const script = path.join(path.dirname(new URL(import.meta.url).pathname), 'make-demo-data.mjs');
+  const before = fs.readdirSync(DEMO_DIR).map((f) => [f, fs.statSync(path.join(DEMO_DIR, f)).mtimeMs]);
+  const help = spawnSync(process.execPath, [script, '--help'], { encoding: 'utf8' });
+  assert.equal(help.status, 0);
+  assert.match(help.stdout, /^Usage: node scripts\/make-demo-data\.mjs/);
+  for (const args of [['--bogus'], ['--days'], ['--days', 'abc'], ['--days', '1'], ['--days', '2.5'], ['--end', '2026-02-31'], ['--seed', 'x'], ['stray']]) {
+    const r = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' });
+    assert.equal(r.status, 2, args.join(' '));
+    assert.match(r.stderr, /^ERROR: /, args.join(' '));
+  }
+  assert.deepEqual(fs.readdirSync(DEMO_DIR).map((f) => [f, fs.statSync(path.join(DEMO_DIR, f)).mtimeMs]), before, 'data/demo/extract untouched');
+  assert.deepEqual(demoOptions({ end: '2026-01-31', days: '30', seed: '7' }), { end: '2026-01-31', days: 30, seed: 7 });
+  // a valid run writes into the injected dir only
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-'));
+  assert.equal(main({ days: '30' }, { dir, log: () => {} }), 0);
+  assert.ok(fs.readFileSync(path.join(dir, 'weight.csv'), 'utf8').split('\n').length > 2);
+  fs.rmSync(dir, { recursive: true });
+});

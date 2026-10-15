@@ -85,3 +85,16 @@ test('main rewrites a drifted fixture: key order kept, stale keys dropped, new k
   assert.equal(read(), serializeFixture({ '|||.z|||color': 'blue', '|||.a|||color': 'red', '|||.new|||top': '0' }));
   assert.equal(main(['--check'], { buildPath, fixturePath }), 0);
 });
+
+test('main: --help prints the usage (0); a typo such as --chek or a stray argument exits 2 and leaves a drifted fixture untouched', (t) => {
+  const fixture = { '|||.a|||color': 'blue' };
+  const { buildPath, fixturePath, read } = cli(t, { css: '.a{color:red}', fixture });
+  const logs = [];
+  t.mock.method(console, 'log', (m) => logs.push(m));
+  t.mock.method(console, 'error', (m) => logs.push(m));
+  assert.equal(main(['--help'], { buildPath, fixturePath }), 0);
+  assert.match(logs[0], /^Usage: npm run test:css:update/);
+  assert.equal(main(['--chek'], { buildPath, fixturePath }), 2);
+  assert.equal(main(['stray'], { buildPath, fixturePath }), 2);
+  assert.equal(read(), serializeFixture(fixture), 'nothing written');
+});

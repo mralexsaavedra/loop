@@ -9,12 +9,14 @@
  *
  *   npm run test:css:update            # rewrite the fixture
  *   npm run test:css:update -- --check # exit 1 if the fixture is out of date, write nothing
+ *   (--help prints the usage; an unknown flag or a stray argument exits 2 before anything is read or written)
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCssRules, ruleDeclarationMap, canonicalSelector } from '../web/test/css-scan.mjs';
 import { isMain } from './lib/is-main.mjs';
+import { parseCli } from '../data/apple-health/sync-common.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const FIXTURE_PATH = path.join(ROOT, 'web', 'test', 'fixtures', 'css-expected.json');
@@ -92,11 +94,24 @@ export function serializeFixture(fixture) {
   return JSON.stringify(fixture, null, 2) + '\n';
 }
 
+export const USAGE = `Usage: npm run test:css:update [-- --check]
+
+Rewrites web/test/fixtures/css-expected.json from the example build (npm run pretest first).
+  --check     write nothing; exit 1 when the fixture is out of date
+  --help, -h  this text`;
+
 /** The CLI: compare (or with `--check`, only check) the fixture against the build. `buildPath` and
  * `fixturePath` default to the real files and are injectable for tests. Returns the exit code:
- * 0 = up to date or rewritten, 1 = `--check` found drift (nothing written), 2 = no build. */
+ * 0 = up to date, rewritten or --help, 1 = `--check` found drift (nothing written), 2 = no build, or an
+ * unknown flag / stray argument (parseCli, before anything is read). */
 export function main(argv, { buildPath = BUILD_PATH, fixturePath = FIXTURE_PATH } = {}) {
-  const check = argv.includes('--check');
+  const cli = parseCli(argv, { usage: USAGE, options: { check: { type: 'boolean' } } });
+  if (cli.exit != null) {
+    if (cli.exit) console.error(cli.err);
+    else console.log(cli.out);
+    return cli.exit;
+  }
+  const check = !!(/** @type {{check?: boolean}} */ (cli.values)).check;
   if (!fs.existsSync(buildPath)) {
     console.error(`update-css-fixture: missing ${path.relative(ROOT, buildPath)} — run \`npm run pretest\` first`);
     return 2;
