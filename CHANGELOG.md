@@ -12,6 +12,19 @@ First versioned release. The data service ships as a Docker Hub image, `mralexan
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-15 (later) — Page quality: CSP, accessible nav, touch targets
+
+The page now ships its own Content-Security-Policy (a meta tag written last at build time: one sha256 per
+inline script and never `'unsafe-inline'` for scripts, `connect-src 'self'`, data: fonts and images); the six
+inline `onclick=` handlers became delegated `data-tab-go` / `data-jump` / `data-mod` listeners, and a personal
+plan's notes that still write `onclick="jump('…')"` / `setTab('…')` are rewritten at build. The dock is a
+labelled nav of buttons with `aria-current="page"` (was `role="tab"` + `aria-pressed`), the "+" popover a
+group instead of a dialog, and the detail sheet has one accessible name. Every chip and the date pill's label
+get a 44 px hit band without growing; jumps honour `prefers-reduced-motion`. About 1.4 KB of dead CSS went
+(budget 111 000 -> 110 000 chars, the sheet is 108.9 KB). Client internals: `HC.esc(null)` is `''`, one
+`HC.jsonApi` fetch wrapper for the food log and the journal, `core.js` keeps its helpers private, and the
+monitor fills its templates with `HC.format`.
+
 ## 2026-10-15 — Renamed to LOOP
 
 The project, the page and its services now share one name. `services/health-ingest` -> `services/loop-ingest`,

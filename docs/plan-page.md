@@ -199,7 +199,8 @@ read these instead of redefining them (a test guards it). Tests load it with `we
 | Helper | What it does |
 | --- | --- |
 | `lan()` | false when the page is opened from `file://`: every LAN fetch — `/api/food/*`, `/api/journal/*`, `/api/sync/status` + Sync, `/status.json`, the `/manuales/` probe — is skipped there and the page degrades exactly as with the services down, with no console errors; read at call time, no location = served |
-| `esc`, `format`, `isoDate`, `todayIso`, `daysOld`, `shiftIso`, `MS_PER_DAY`, `STALE_DAYS` | string / ISO date helpers, constants |
+| `jsonApi(base, header, timeoutMs)` | THE fetch wrapper of the LAN JSON APIs (`food-core.js`: `/api/food` + `X-HC-Food`, `journal.js`: `/api/journal` + `X-HC-Journal`): `api(method, path, body?)` resolves a 2xx's JSON (`{}` without one), rejects `{code, field, status}` (`offline` / status 0 with no answer, a timeout or `file://`) |
+| `esc` (`null` / `undefined` → `''`), `format`, `isoDate`, `todayIso`, `daysOld`, `shiftIso`, `MS_PER_DAY`, `STALE_DAYS` | string / ISO date helpers, constants |
 | `nf`, `num`, `int`, `pct`, `hours`, `duration` (h:mm), `numInput` (an input's value, never grouped) | thin wrappers adding the page `LOCALE` to `HC_FMT` |
 | `fmtDate`, `fmtMonth`, `weekdayIndex` | the ONE display-date formatter (below) |
 | `detailAttrs`, `registerView` / `view` | detail-sheet openers and registered views; `registerView` is the one writer of `window.HCViews` ([`detail-views.md`](detail-views.md)) |

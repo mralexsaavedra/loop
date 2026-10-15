@@ -36,6 +36,63 @@ test('esc escapes markup and quotes; format fills {keys} and blanks missing ones
   assert.equal(HC.format('{a} · {b}', { a: 1 }), '1 · ');
 });
 
+test('esc: an absent value (null / undefined) renders as empty, never "null" / "undefined"; 0 and false stay', () => {
+  const HC = load();
+  assert.equal(HC.esc(null), '');
+  assert.equal(HC.esc(undefined), '');
+  assert.equal(HC.esc(0), '0');
+  assert.equal(HC.esc(false), 'false');
+});
+
+/* HC.jsonApi(base, header, timeoutMs): the ONE fetch wrapper of the LAN APIs (food-core.js, journal.js) */
+function apiCtx({ fetch, protocol = 'http:' } = {}) {
+  const ctx = { LOCALE: 'en', HC_CONST: HC_CONST_BAKE, I18N_DATE: enDate, Math, String, Number, Array, Object, JSON, Promise, setTimeout, clearTimeout, AbortController, fetch, location: { protocol } };
+  vm.createContext(ctx);
+  vm.runInContext(UTIL_SOURCE, ctx);
+  return ctx.HC;
+}
+const res = (status, body) => ({ ok: status >= 200 && status < 300, status, json: () => (body === undefined ? Promise.reject(new Error('no json')) : Promise.resolve(body)) });
+
+test('jsonApi: sends its own required header (+ JSON body), resolves a 2xx body ({} when empty)', async () => {
+  const calls = [];
+  const HC = apiCtx({ fetch: (url, init) => { calls.push([url, init]); return Promise.resolve(res(200, calls.length === 1 ? { a: 1 } : undefined)); } });
+  const food = HC.jsonApi('/api/food', 'X-HC-Food', 15000);
+  assert.deepEqual({ ...(await food('POST', '/log', { x: 1 })) }, { a: 1 });
+  const [url, init] = calls[0];
+  assert.equal(url, '/api/food/log');
+  assert.equal(init.method, 'POST');
+  assert.deepEqual({ ...init.headers }, { 'X-HC-Food': '1', 'Content-Type': 'application/json' });
+  assert.equal(init.body, '{"x":1}');
+  assert.equal(init.cache, 'no-store');
+  assert.equal(init.credentials, 'same-origin');
+  assert.ok(init.signal, 'abortable (timeout)');
+  const journal = HC.jsonApi('/api/journal', 'X-HC-Journal', 15000);
+  assert.deepEqual({ ...(await journal('GET', '/settings')) }, {}, 'a 2xx without a JSON body = {}');
+  assert.deepEqual({ ...calls[1][1].headers }, { 'X-HC-Journal': '1' }, 'no body: no Content-Type');
+  assert.equal(calls[1][1].body, undefined);
+});
+
+test('jsonApi: rejects {code, field, status} on an error answer, {code: offline, status: 0} without one or from file://', async () => {
+  let HC = apiCtx({ fetch: () => Promise.resolve(res(400, { error: 'invalid', field: 'goal' })) });
+  await assert.rejects(HC.jsonApi('/api/food', 'X-HC-Food', 1000)('PUT', '/settings', {}), (e) => e.code === 'invalid' && e.field === 'goal' && e.status === 400);
+  HC = apiCtx({ fetch: () => Promise.resolve(res(500)) });
+  await assert.rejects(HC.jsonApi('/api/food', 'X-HC-Food', 1000)('GET', '/x'), (e) => e.code === 'generic' && e.status === 500);
+  HC = apiCtx({ fetch: () => Promise.reject(new TypeError('Failed to fetch')) });
+  await assert.rejects(HC.jsonApi('/api/journal', 'X-HC-Journal', 1000)('GET', '/x'), (e) => e.code === 'offline' && e.status === 0);
+  let fetched = false;
+  HC = apiCtx({ fetch: () => { fetched = true; }, protocol: 'file:' });
+  await assert.rejects(HC.jsonApi('/api/journal', 'X-HC-Journal', 1000)('GET', '/x'), (e) => e.code === 'offline' && e.status === 0);
+  assert.equal(fetched, false, 'never fetched from a file');
+});
+
+test('food-core.js and journal.js share HC.jsonApi: no fetch of their own', () => {
+  for (const f of ['food-core.js', 'journal.js']) {
+    const src = stripComments(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), f), 'utf8'));
+    assert.doesNotMatch(src, /\bfetch\(/, f);
+    assert.match(src, /HC\.jsonApi\(/, f);
+  }
+});
+
 test('isoDate accepts only real ISO dates; todayIso / daysOld use the viewer\'s LOCAL calendar', () => {
   const HC = load({ at: '2026-09-29T23:59:00' });
   assert.equal(HC.isoDate('2026-09-29'), '2026-09-29');

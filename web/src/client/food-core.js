@@ -230,34 +230,9 @@
   }
 
   /* ---------- API ---------- */
-  // resolves the JSON body of a 2xx; rejects {code, field?, status}: the server's coarse code, or
-  // 'offline' (no answer / timed out, status 0)
-  function api(method, path, body) {
-    var headers = { 'X-HC-Food': '1' };
-    var init = { method: method, headers: headers, cache: 'no-store', credentials: 'same-origin' };
-    if (body !== undefined) {
-      headers['Content-Type'] = 'application/json';
-      init.body = JSON.stringify(body);
-    }
-    var timer = null;
-    if (typeof AbortController === 'function') {
-      var ctl = new AbortController();
-      init.signal = ctl.signal;
-      timer = setTimeout(function () { ctl.abort(); }, TIMEOUT_MS);
-    }
-    var done = function () { if (timer) clearTimeout(timer); };
-    if (!HC.lan()) { done(); return Promise.reject({ code: 'offline', status: 0 }); }
-    return fetch(API + path, init).then(function (res) {
-      done();
-      return res.json().catch(function () { return null; }).then(function (data) {
-        if (res.ok) return data || {};
-        throw { code: (data && typeof data.error === 'string' && data.error) || 'generic', field: data && data.field, status: res.status };
-      });
-    }, function () {
-      done();
-      throw { code: 'offline', status: 0 };
-    });
-  }
+  // HC.jsonApi (util.js): the JSON body of a 2xx; rejects {code, field?, status}: the server's coarse code,
+  // or 'offline' (no answer / timed out, status 0). Every call carries the food API's X-HC-Food header.
+  var api = HC.jsonApi(API, 'X-HC-Food', TIMEOUT_MS);
 
   // the log summary of the rings' window (the last `days` days ending at the viewer's today), read lazily
   // when the rings ask and today has no entry; key = the window it covers (a new day = a new read),

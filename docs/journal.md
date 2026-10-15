@@ -127,7 +127,8 @@ The food layers (`docs/nutrition-food-log.md` → Security), shared helpers in `
 
 Like the food log:
 
-1. The script asks `GET /api/journal/settings` (header `X-HC-Journal: 1`, 15 s timeout).
+1. The script asks `GET /api/journal/settings` (header `X-HC-Journal: 1`, 15 s timeout; through the shared
+   `HC.jsonApi` wrapper, [`plan-page.md`](plan-page.md)).
 2. On an answer, `GET /api/journal/summary` for the 7 days ending on the viewer's today (`Date.now()`, never
    baked).
 3. Only then: the sheet registers (`HCViews.journal`, deep link `#journal`, an ASYNC view in `detail.js`), the

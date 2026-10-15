@@ -379,3 +379,8 @@ test('carried values (HC.carried): a tile whose value is from before the shown d
   render(monitor(), { tiles, day: stepper('2026-09-25'), days: DAYS, stress: STRESS, now: addDays(ASOF, 1), detail: true });
   assert.doesNotMatch(stressTile(tiles.innerHTML), /carried/);
 });
+
+test('monitor.js fills its templates with HC.format only (no ad-hoc .replace of {placeholders})', () => {
+  assert.doesNotMatch(source, /\.replace\(\s*['"]\{/);
+  assert.match(source, /format\(T\.rangeLbl, \{ lo: lo, hi: hi \}\)/);
+});

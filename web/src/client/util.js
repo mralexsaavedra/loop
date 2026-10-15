@@ -24,15 +24,49 @@ var HC = (function () {
       : typeof window !== 'undefined' && window && window.location ? window.location : null;
     return !loc || loc.protocol !== 'file:';
   }
-  // markup-safe text AND attribute value (quotes too)
+  // markup-safe text AND attribute value (quotes too); an absent value (null / undefined) is ''
   function esc(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
   // "{key}" placeholders; a missing value renders as empty, never "undefined"
   function format(tpl, vars) {
     return tpl.replace(/\{(\w+)\}/g, function (_, k) {
       return vars && vars[k] != null ? vars[k] : '';
     });
+  }
+  // The ONE fetch wrapper of the LAN JSON APIs (food-core.js: /api/food + X-HC-Food, journal.js:
+  // /api/journal + X-HC-Journal — each API requires its own header, the CSRF guard of services/loop-ingest).
+  // Returns api(method, path, body?) -> a promise of the JSON body of a 2xx ({} when it has none); it
+  // rejects {code, field, status}: the server's coarse error code (else 'generic'), or 'offline' with
+  // status 0 when there is no answer, it timed out (timeoutMs) or the page runs from a file (lan()).
+  function jsonApi(base, header, timeoutMs) {
+    return function (method, path, body) {
+      var headers = {};
+      headers[header] = '1';
+      var init = { method: method, headers: headers, cache: 'no-store', credentials: 'same-origin' };
+      if (body !== undefined) {
+        headers['Content-Type'] = 'application/json';
+        init.body = JSON.stringify(body);
+      }
+      var timer = null;
+      if (typeof AbortController === 'function') {
+        var ctl = new AbortController();
+        init.signal = ctl.signal;
+        timer = setTimeout(function () { ctl.abort(); }, timeoutMs);
+      }
+      var done = function () { if (timer) clearTimeout(timer); };
+      if (!lan()) { done(); return Promise.reject({ code: 'offline', status: 0 }); }
+      return fetch(base + path, init).then(function (res) {
+        done();
+        return res.json().catch(function () { return null; }).then(function (data) {
+          if (res.ok) return data || {};
+          throw { code: (data && typeof data.error === 'string' && data.error) || 'generic', field: data && data.field, status: res.status };
+        });
+      }, function () {
+        done();
+        throw { code: 'offline', status: 0 };
+      });
+    };
   }
   // baked dates are interpolated into markup: accept only a real ISO date (the shape AND a calendar
   // round trip, so 2026-02-31 is rejected), anything else is absent
@@ -358,6 +392,7 @@ var HC = (function () {
     STALE_DAYS: C.staleDays,
     isEs: isEs,
     lan: lan,
+    jsonApi: jsonApi,
     DASH: HC_FMT.DASH,
     int: int,
     pct: pct,
