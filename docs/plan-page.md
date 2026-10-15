@@ -199,8 +199,9 @@ read these instead of redefining them (a test guards it). Tests load it with `we
 | Helper | What it does |
 | --- | --- |
 | `lan()` | false when the page is opened from `file://`: every LAN fetch — `/api/food/*`, `/api/journal/*`, `/api/sync/status` + Sync, `/status.json`, the `/manuales/` probe — is skipped there and the page degrades exactly as with the services down, with no console errors; read at call time, no location = served |
-| `jsonApi(base, header, timeoutMs)` | THE fetch wrapper of the LAN JSON APIs (`food-core.js`: `/api/food` + `X-HC-Food`, `journal.js`: `/api/journal` + `X-HC-Journal`): `api(method, path, body?)` resolves a 2xx's JSON (`{}` without one), rejects `{code, field, status}` (`offline` / status 0 with no answer, a timeout or `file://`); built on `fetchTimeout` |
-| `fetchTimeout(url, init, ms)` | THE timed fetch (`jsonApi`, `freshness.js`'s status reads + Sync POST at 15 s, `profile.js`'s `/manuales/` probe at 10 s): rejects `{name: 'TimeoutError'}` after `ms` and aborts the request (`AbortController` when present), so a hung service never leaves the Sync button busy |
+| `jsonApi(base, header, timeoutMs)` | THE fetch wrapper of the LAN JSON APIs (`food-core.js`: `/api/food` + `X-HC-Food`, `journal.js`: `/api/journal` + `X-HC-Journal`): `api(method, path, body?)` resolves a 2xx's JSON (`{}` without one), rejects `{code, field, status}` (`offline` / status 0 with no answer, a timeout or `file://`); built on `fetchTimeout`, the body read inside its timeout |
+| `fetchTimeout(url, init, ms, read?)` | THE timed fetch (`jsonApi`, `freshness.js` via `fetchJson`, `profile.js`'s `/manuales/` probe at 10 s): rejects `{name: 'TimeoutError'}` after `ms` and aborts the request (`AbortController` when present), so a hung service never leaves the Sync button busy. `read(res)` reads the body inside the same timeout (a stalled body times out too) and its result resolves. The caller's `init` is copied, never mutated; a caller `init.signal` is combined with the timeout's (`AbortSignal.any`, else relayed by hand) and its abort rejects at once with `{name: 'AbortError'}` |
+| `fetchJson(url, init, ms)` | `fetchTimeout` + the JSON body of a 2xx (`null` otherwise), read inside the timeout: `freshness.js`'s status reads + Sync POST at 15 s |
 | `esc` (`null` / `undefined` → `''`), `format`, `isoDate`, `todayIso`, `daysOld`, `shiftIso`, `MS_PER_DAY`, `STALE_DAYS` | string / ISO date helpers, constants |
 | `nf`, `num`, `int`, `pct`, `hours`, `duration` (h:mm), `numInput` (an input's value, never grouped) | thin wrappers adding the page `LOCALE` to `HC_FMT` |
 | `fmtDate`, `fmtMonth`, `weekdayIndex` | the ONE display-date formatter (below) |
@@ -320,8 +321,10 @@ in tracked Astro/JS source, which stays fully generic.
 - Both ship `hidden`; the script shows them (and adds `.has-steps`) only when a past day is in reach. No
   data, or data far behind the viewer's clock, leaves the pill as it is (no dead control).
 - On a past day the label (`#day-word`) shows its date ("mar 6 oct", uppercased by CSS → "MAR 6 OCT"), and
-  the label button (`#day-lbl`, `aria-live="polite"`, `aria-disabled` on today) returns to today
-  (`aria-label` "<date> · Volver a hoy"). The pill stays 32 px tall; the label's hit area is a 44 px band
+  the label button (`#day-lbl`, `aria-disabled` on today) returns to today
+  (`aria-label` "<date> · Volver a hoy"). A day change is announced by a separate sr-only status
+  (`#day-live`, `role="status"`: the date, or "Hoy · <date>" back on today; empty on load), never by a live
+  button (it would read its name twice). The pill stays 32 px tall; the label's hit area is a 44 px band
   (`.day-lbl::before`, like the chips') and the chevrons are 44 px targets that overhang it.
 - Keyboard: ← / → while focus is inside the pill (focus moves to the label when the focused chevron turns
   off).

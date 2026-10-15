@@ -49,11 +49,14 @@ var HC = (function () {
         init.body = JSON.stringify(body);
       }
       if (!lan()) return Promise.reject({ code: 'offline', status: 0 });
-      return fetchTimeout(base + path, init, timeoutMs).then(function (res) {
+      // the body is read inside the timeout: a service that sends its headers and then stalls is offline too
+      return fetchTimeout(base + path, init, timeoutMs, function (res) {
         return res.json().catch(function () { return null; }).then(function (data) {
-          if (res.ok) return data || {};
-          throw { code: (data && typeof data.error === 'string' && data.error) || 'generic', field: data && data.field, status: res.status };
+          return { ok: res.ok, status: res.status, data: data };
         });
+      }).then(function (r) {
+        if (r.ok) return r.data || {};
+        throw { code: (r.data && typeof r.data.error === 'string' && r.data.error) || 'generic', field: r.data && r.data.field, status: r.status };
       }, function () {
         throw { code: 'offline', status: 0 };
       });
@@ -61,24 +64,53 @@ var HC = (function () {
   }
   // The ONE timed fetch (jsonApi above, client/freshness.js, client/profile.js): fetch(url, init) that rejects
   // with {name: 'TimeoutError'} once `ms` pass without an answer, aborting the request (AbortController,
-  // when the browser has it); the caller's init is kept. A hung LAN service never leaves a control busy.
-  function fetchTimeout(url, init, ms) {
-    init = init || {};
+  // when the browser has it). `read(res)` (optional) reads the body INSIDE the same timeout and its result
+  // is what resolves, so a stalled body is covered too. The caller's init is copied, never mutated; a
+  // caller's init.signal is combined with the timeout's (AbortSignal.any, else relayed by hand), and its
+  // abort rejects at once with an AbortError. A hung LAN service never leaves a control busy.
+  function fetchTimeout(url, init, ms, read) {
+    var opts = {}, k, src = init || {};
+    for (k in src) if (Object.prototype.hasOwnProperty.call(src, k)) opts[k] = src[k];
+    var caller = src.signal || null;
     var ctl = typeof AbortController === 'function' ? new AbortController() : null;
-    if (ctl) init.signal = ctl.signal;
+    if (ctl) {
+      var hasAny = typeof AbortSignal !== 'undefined' && AbortSignal && typeof AbortSignal.any === 'function';
+      opts.signal = caller && hasAny ? AbortSignal.any([caller, ctl.signal]) : ctl.signal;
+    }
     return new Promise(function (resolve, reject) {
-      var timer = setTimeout(function () {
+      var settled = false, timer = null;
+      var onAbort = function () {
         if (ctl) ctl.abort();
-        reject({ name: 'TimeoutError' });
+        finish(reject, { name: 'AbortError' });
+      };
+      var finish = function (fn, v) {
+        if (settled) return;
+        settled = true;
+        if (typeof clearTimeout === 'function') clearTimeout(timer);
+        if (caller && typeof caller.removeEventListener === 'function') caller.removeEventListener('abort', onAbort);
+        fn(v);
+      };
+      timer = setTimeout(function () {
+        if (ctl) ctl.abort();
+        finish(reject, { name: 'TimeoutError' });
       }, ms);
-      var done = function () { if (typeof clearTimeout === 'function') clearTimeout(timer); };
+      if (caller) {
+        if (caller.aborted) onAbort();
+        else if (typeof caller.addEventListener === 'function') caller.addEventListener('abort', onAbort);
+      }
+      if (settled) return;
       try {
-        fetch(url, init).then(function (r) { done(); resolve(r); }, function (e) { done(); reject(e); });
+        fetch(url, opts).then(function (r) { return read ? read(r) : r; })
+          .then(function (v) { finish(resolve, v); }, function (e) { finish(reject, e); });
       } catch (e) {
-        done();
-        reject(e);
+        finish(reject, e);
       }
     });
+  }
+  // fetchTimeout + the JSON body of a 2xx answer (null for any other answer), the body read inside the
+  // timeout (client/freshness.js: the status and sync replies)
+  function fetchJson(url, init, ms) {
+    return fetchTimeout(url, init, ms, function (r) { return r && r.ok ? r.json() : null; });
   }
   // baked dates are interpolated into markup: accept only a real ISO date (the shape AND a calendar
   // round trip, so 2026-02-31 is rejected), anything else is absent
@@ -406,6 +438,7 @@ var HC = (function () {
     lan: lan,
     jsonApi: jsonApi,
     fetchTimeout: fetchTimeout,
+    fetchJson: fetchJson,
     DASH: HC_FMT.DASH,
     int: int,
     pct: pct,

@@ -50,8 +50,7 @@
 
     function getJson(url) {
       if (!HC.lan()) return Promise.resolve(null);
-      return HC.fetchTimeout(url, { cache: 'no-store' }, REQ_MS)
-        .then(function (r) { return r && r.ok ? r.json() : null; })
+      return HC.fetchJson(url, { cache: 'no-store' }, REQ_MS)
         .catch(function () { return null; });
     }
 
@@ -172,8 +171,7 @@
       setBusy(true);
       msg.textContent = T.syncing;
       if (!HC.lan()) { finish(T.failed); return; }
-      HC.fetchTimeout(SYNC_URL, { method: 'POST' }, REQ_MS)
-        .then(function (r) { return r && r.ok ? r.json() : null; })
+      HC.fetchJson(SYNC_URL, { method: 'POST' }, REQ_MS)
         .then(function (body) {
           if (body && isSeq(body.seq)) poll(body.seq);
           else finish(T.failed);
