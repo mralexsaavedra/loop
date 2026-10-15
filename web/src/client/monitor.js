@@ -66,8 +66,8 @@
     var rd = Math.min(c.dec + 1, 2);
     var bound = function (v) { return hm ? HC.hours(v) : num(v, rd); };
     var lo = c.band && !old ? bound(c.band.lo) : '', hi = c.band && !old ? bound(c.band.hi) : '';
-    var range = c.band && !old ? T.rangeLbl.replace('{lo}', lo).replace('{hi}', hi) : '';
-    var rangeAria = range ? (T.rangeAria || T.rangeLbl).replace('{lo}', lo).replace('{hi}', hi) : '';
+    var range = c.band && !old ? format(T.rangeLbl, { lo: lo, hi: hi }) : '';
+    var rangeAria = range ? format(T.rangeAria || T.rangeLbl, { lo: lo, hi: hi }) : '';
     var status = old ? T.status.stale : T.status[c.status] || '';
     // short date (no weekday), only when the reading is not last night's
     var when = daysOld(c.date) !== 0 && isoDate(c.date) ? HC.fmtDate(c.date, { weekday: false }) : '';

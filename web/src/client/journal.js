@@ -92,32 +92,8 @@
     }
 
     /* ---------- API ---------- */
-    function api(method, path, body) {
-      var headers = { 'X-HC-Journal': '1' };
-      var init = { method: method, headers: headers, cache: 'no-store', credentials: 'same-origin' };
-      if (body !== undefined) {
-        headers['Content-Type'] = 'application/json';
-        init.body = JSON.stringify(body);
-      }
-      var timer = null;
-      if (typeof AbortController === 'function') {
-        var ctl = new AbortController();
-        init.signal = ctl.signal;
-        timer = setTimeout(function () { ctl.abort(); }, TIMEOUT_MS);
-      }
-      var done = function () { if (timer) clearTimeout(timer); };
-      if (!HC.lan()) { done(); return Promise.reject({ code: 'offline', status: 0 }); }
-      return fetch(API + path, init).then(function (res) {
-        done();
-        return res.json().catch(function () { return null; }).then(function (data) {
-          if (res.ok) return data || {};
-          throw { code: (data && typeof data.error === 'string' && data.error) || 'generic', status: res.status };
-        });
-      }, function () {
-        done();
-        throw { code: 'offline', status: 0 };
-      });
-    }
+    // HC.jsonApi (util.js), with the journal API's own X-HC-Journal header
+    var api = HC.jsonApi(API, 'X-HC-Journal', TIMEOUT_MS);
 
     /* ---------- card ---------- */
     function dayLabel(iso) {
