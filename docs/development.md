@@ -134,5 +134,9 @@ weekly, together with the npm dependencies.
 
 - `.claude/skills/frontend-design` is a vendored skill (from `anthropics/skills`, pinned in `skills-lock.json`,
   files in `.agents/skills/`) for UI work on the page. End users never need it.
+- `scripts/make-logo.mjs path/to/Syncopate-Bold.ttf` regenerates the logo assets in `web/src/assets/`
+  ([`plan-page.md`](plan-page.md)). It needs `fontkitten` and `sharp`, which `package.json` does NOT declare
+  (they arrive as Astro's own dependencies with `npm ci`); without them it prints one `ERROR:` line naming
+  both and exits 1.
 - Owner-specific setup notes belong in a gitignored `CLAUDE.local.md`, which Claude Code loads next to
   `CLAUDE.md`.
