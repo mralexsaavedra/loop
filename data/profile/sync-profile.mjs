@@ -257,7 +257,6 @@ export {
   planAvatar,
   checkAvatar,
   isAllowedAvatarUrl,
-  AVATAR_HOSTS,
   downloadAvatar,
   syncProfile,
   errorMessage,
