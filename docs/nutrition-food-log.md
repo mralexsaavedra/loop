@@ -401,7 +401,9 @@ hand-computed tests).
 - ⓘ `#nutri-progress-info` (written by progress.js): the status why, the rate window and "the series mixes
   scales"; the ⓘ hides when there is nothing behind it, and a re-render (a settings change) keeps the block
   open or closed as the viewer left it.
-- The card opens the weight sheet, which draws the target dashed (`detail-state.js` `targetOf`).
+- The card opens the weight sheet, which draws the target dashed (`detail-state.js` `targetOf`). Its accessible
+  name carries what it shows (a `role="button"` hides its children): `7-day average 78.0 kg, -0.35 kg/wk. On pace.
+  Target weight: … . Estimated arrival … . See the weight history` (`I18N_NUTRI.progress.aria` + the card's lines + `open`).
 
 ## Consistency
 
