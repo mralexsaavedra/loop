@@ -72,6 +72,10 @@ function assertHonours(html, hideTabs) {
     else assert.match(html, re, `"${key}" visible — nav button #${navId} must be present`);
     // panels always render (baked globals + scripts stay wired)
     assert.match(html, new RegExp(`class="tab-panel" data-tab="${key}"`), `the ${key} tab-panel must still render`);
+    // a panel is named by its nav button; a hidden tab has no button, so no dangling aria-labelledby
+    const tag = (html.match(new RegExp(`<div class="tab-panel" data-tab="${key}"[^>]*>`)) || [''])[0];
+    if (expectHidden) assert.doesNotMatch(tag, /aria-labelledby|role=/, `"${key}" hidden — its panel references no missing button`);
+    else assert.match(tag, new RegExp(`role="region" aria-labelledby="${navId}"`), `"${key}" panel labelled by #${navId}`);
   }
   const { nav, visible } = navOrderAndVisiblePanels(html);
   assert.ok(nav.length <= TAB_KEYS.length);

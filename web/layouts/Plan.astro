@@ -132,9 +132,9 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
           viewer's full date is the <time> inside, filled by client/today-date.js, nothing baked; the chevrons step Inicio through the
           baked past days and ship hidden: the script shows them only when a past day is in reach; a
           past day's date replaces "Today" and the label then returns to today) · the freshness line /
-          Sync on the right. Phone: avatar · LOOP · Sync on one row, the pill on a second; from 900px
+          Sync on the right. It is the page's <header> (banner landmark). Phone: avatar · LOOP · Sync on one row, the pill on a second; from 900px
           LOOP left · pill centre · Sync + avatar right, one row */}
-      <div class="topbar">
+      <header class="topbar">
         {profile && <Avatar profile={profile} locale={locale} />}
         {/* the wordmark is THE way home: a tap opens the default tab (Inicio unless hidden), scrolled to the top */}
         <button type="button" class="wordmark" data-tab-go="" aria-label={nav.homeLink} set:html={wordmarkSvg.trim()}></button>
@@ -149,7 +149,7 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
           <div class="fresh-pop" id="fresh-pop" hidden><p class="fresh-line" id="fresh-line"></p></div>
           <p class="fresh-msg" id="sync-msg" role="status" aria-live="polite"></p>
         </div>
-      </div>
+      </header>
 
       {/* bottom dock (floating, every width): the tab bar (a labelled nav of plain buttons, the shown
           tab's aria-current="page"; client/core.js moves it) + to its right the "+" action button. The
@@ -179,7 +179,10 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
       </div>
       <div class="act-scrim" id="act-scrim" hidden></div>
 
-      <slot />
+      {/* the page's main landmark: the four tab panels (pages/index.astro), each a region named by its nav button */}
+      <main class="panels">
+        <slot />
+      </main>
 
       {page.footerHtml && (
         <footer set:html={page.footerHtml} />

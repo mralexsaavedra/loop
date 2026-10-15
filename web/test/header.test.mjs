@@ -19,7 +19,7 @@ const exampleHtmlPath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.h
 const examplePlanPath = path.join(REPO_ROOT, 'data', 'nutrition', 'plan-data.example.json');
 
 const h1s = (html) => [...html.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/g)];
-const topbar = (html) => (html.match(/<div class="topbar"[^>]*>([\s\S]*?)<div class="dock"/) || [])[1] || '';
+const topbar = (html) => (html.match(/<header class="topbar"[^>]*>([\s\S]*?)<div class="dock"/) || [])[1] || '';
 
 /** Build the tracked example inputs under os.tmpdir() with the page block edited by `edit`. */
 function buildWithPage(edit) {

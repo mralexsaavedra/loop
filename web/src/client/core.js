@@ -237,6 +237,26 @@
     if (typeof window.addEventListener === 'function') window.addEventListener('pageshow', check);
   })();
 
+  /* A USER's tab switch (the delegated click below, never the load or a hash change) moves focus to the
+   * new panel's first visible heading, made script-focusable (tabindex=-1) and focused without scrolling
+   * (setTab already scrolled to the top), so a screen reader lands on the new content instead of staying
+   * on the nav button; a panel without a heading takes the focus itself. */
+  function focusPanel(key) {
+    var panels = document.querySelectorAll('.tab-panel'), panel = null;
+    for (var i = 0; i < panels.length; i++) if (panels[i].getAttribute('data-tab') === key) panel = panels[i];
+    if (!panel || panel.hidden) return;
+    var hs = typeof panel.querySelectorAll === 'function' ? panel.querySelectorAll('h1, h2, h3') : [];
+    var target = panel;
+    for (var j = 0; j < hs.length; j++) {
+      var h = hs[j];
+      var shown = !(typeof h.getClientRects === 'function' && !h.getClientRects().length);
+      for (var up = h; shown && up && up !== panel; up = up.parentElement) if (up.hidden) shown = false;
+      if (shown) { target = h; break; }
+    }
+    if (target.getAttribute('tabindex') == null) target.setAttribute('tabindex', '-1');
+    try { target.focus({ preventScroll: true }); } catch (err) { /* an element that cannot take focus: nothing to do */ }
+  }
+
   /* Delegated navigation (no inline handlers: the CSP blocks them). A click on, or inside, a
    * [data-tab-go] element opens that tab (an empty value = the default tab, scrolled to the top: the
    * wordmark); one on a [data-jump] element jumps to that id (opens its tab and folds, scrolls to it). */
@@ -248,7 +268,10 @@
       if (go) {
         var key = go.getAttribute('data-tab-go') || defaultTab();
         if (e.preventDefault) e.preventDefault();
-        if (key) setTab(key);
+        if (key) {
+          setTab(key);
+          if (NAV_TABS.indexOf(key) !== -1) focusPanel(key);
+        }
         return;
       }
       var to = t.closest('[data-jump]');
