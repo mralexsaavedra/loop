@@ -20,6 +20,8 @@
  *                                       computes the bakes: compare a branch worktree against the golden
  *                                       written on main. Read-only on <clone>: a missing golden there is
  *                                       exit 2 (nothing is written); only `--update` writes into it.
+ *   --help prints the usage; an unknown flag (a typo such as `--updte`) or a stray argument exits 2 before
+ *   anything is computed or written.
  *
  * Determinism: a fixed clock (GOLDEN_NOW, the demo extract's last day — scripts/make-demo-data.mjs
  * DEMO_DEFAULTS.end) and TZ=UTC while computing; object keys sorted. Canonicalisation drops:
@@ -168,15 +170,33 @@ function runTracked(update) {
   return failed;
 }
 
+export const USAGE = `Usage: npm run golden:bake [-- --update] [-- --personal [--root <clone>]]
+
+Compares every build-time bake against its golden (example, empty, null; or the personal one).
+  --update          rewrite the golden(s) instead of comparing
+  --personal        the owner-local personal golden (web/test/.golden/, gitignored)
+  --root <clone>    with --personal: read that clone's data and golden (also --root=<clone>)
+  --help, -h        this text`;
+
 /** argv (after the script) -> {update, personal, root} with root an absolute path or null (= this checkout),
- * or {error} when --root / --root= has no directory or comes without --personal. */
+ * {help} for --help / -h, or {error} for an unknown flag or stray argument, or when --root / --root= has no
+ * directory or comes without --personal. Strict: a typo never silently runs the comparison instead. */
 export function parseArgs(args) {
-  const update = args.includes('--update');
-  const personal = args.includes('--personal');
-  const at = args.findIndex((a) => a === '--root' || a.startsWith('--root='));
-  if (at < 0) return { update, personal, root: null };
-  const root = args[at] === '--root' ? args[at + 1] : args[at].slice('--root='.length);
-  if (!root || root.startsWith('--') || !personal) {
+  let update = false, personal = false, help = false, root = null;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--update') update = true;
+    else if (a === '--personal') personal = true;
+    else if (a === '--help' || a === '-h') help = true;
+    else if (a === '--root') {
+      const v = args[i + 1];
+      if (v != null && !v.startsWith('--')) { root = v; i++; } else root = '';
+    } else if (a.startsWith('--root=')) root = a.slice('--root='.length);
+    else return { error: `golden:bake: unknown argument ${JSON.stringify(a)}\n\n${USAGE}` };
+  }
+  if (help) return { help: USAGE };
+  if (root === null) return { update, personal, root: null };
+  if (!root || !personal) {
     return { error: 'golden:bake: --root <clone> takes a directory and applies only with --personal' };
   }
   return { update, personal, root: path.resolve(root) };
@@ -184,7 +204,9 @@ export function parseArgs(args) {
 
 if (isMain(import.meta.url)) {
   const opts = parseArgs(process.argv.slice(2));
-  if (opts.error) {
+  if (opts.help) {
+    console.log(opts.help);
+  } else if (opts.error) {
     console.error(opts.error);
     process.exitCode = 2;
   } else {

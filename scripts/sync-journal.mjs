@@ -19,8 +19,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readBaseUrl, fetchJson, writeAtomic, runCli } from '../data/apple-health/sync-common.mjs';
-import { addDays, isIsoDate } from '../lib/date.mjs';
+import { readBaseUrl, fetchJson, writeAtomic, runCli, windowEndingOn } from '../data/apple-health/sync-common.mjs';
+import { isIsoDate } from '../lib/date.mjs';
 import { JOURNAL_BEHAVIORS, JOURNAL_LIMITS, journalCsv, parseJournalCsv } from '../lib/journal/journal.mjs';
 import { JOURNAL_FILE } from '../lib/journal/bake.mjs';
 import { isMain } from './lib/is-main.mjs';
@@ -28,13 +28,10 @@ import { isMain } from './lib/is-main.mjs';
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 export const DEFAULT_OUT = path.join(ROOT, 'data', 'apple-health', 'extract');
 export const META_FILE = 'journal-daily.meta.json';
-const pad = (n) => String(n).padStart(2, '0');
-const localIso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 /** {from, to}: rangeDaysMax days inclusive, ending on the local date of `now`. */
 export function windowFor(now = new Date()) {
-  const to = localIso(now);
-  return { from: addDays(to, -(JOURNAL_LIMITS.rangeDaysMax - 1)), to };
+  return windowEndingOn(now, JOURNAL_LIMITS.rangeDaysMax);
 }
 
 /** The GET /journal/summary body reduced to known fields; throws when malformed. */

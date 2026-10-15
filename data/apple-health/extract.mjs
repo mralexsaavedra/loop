@@ -5,7 +5,10 @@
  *   node data/apple-health/extract.mjs
  *
  * Reads  : data/apple-health/export.xml   (gitignored — personal data)
- * Writes : data/apple-health/extract/*.csv + _meta.json  (gitignored), each atomically (temp file + rename)
+ * Writes : data/apple-health/extract/*.csv + _meta.json  (gitignored), each atomically (temp file + rename),
+ *          all under the _meta.json.lock the syncs share (sync-common.mjs withLock), and ONLY after the whole
+ *          file was read: a read error or an export without its closing </HealthData> (truncated: a copy
+ *          still in progress, a full disk) exits 1 with one ERROR line and keeps the previous extract.
  * EXTRACT_DIR (tests only) replaces data/apple-health: <dir>/export.xml in, <dir>/extract out.
  *
  * Streams line by line (never loads the file whole). Each <Record>/<Workout> opening
@@ -22,7 +25,7 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { isMain } from '../../scripts/lib/is-main.mjs';
-import { writeAtomic, runCli } from './sync-common.mjs';
+import { writeAtomic, runCli, withLock } from './sync-common.mjs';
 // shared with sync-shortcut.mjs so export- and Shortcut-derived rows are formatted identically
 import { csvSource, pickEnergySource, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights, sleepStage } from '../../lib/extract/samples.mjs';
 
@@ -166,8 +169,11 @@ const sortByDate = arr => arr.sort((a, b) => (a.date < b.date ? -1 : a.date > b.
 const range = dates => dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a';
 
 let lineCount = 0;
+// the export's closing tag: without it the file is truncated and nothing is written
+let sawEnd = false;
 function onLine(line) {
   lineCount++;
+  if (line.indexOf('</HealthData>') !== -1) sawEnd = true;
   // cheap prefilter before regex work ('<Workout ' has a trailing space → won't match '<WorkoutStatistics')
   if (line.indexOf('<Record ') !== -1) handleRecord(line);
   else if (line.indexOf('<ExportDate ') !== -1) exportDate = day(attr(line, 'value')) || null;
@@ -176,6 +182,9 @@ function onLine(line) {
   else if (line.indexOf('</Workout>') !== -1) handleWorkoutClose();
 }
 function onClose() {
+  if (!sawEnd) {
+    throw new Error(`export.xml ends before </HealthData> after ${lineCount.toLocaleString()} lines (truncated: still copying, or a full disk?); nothing written, the previous extract is kept`);
+  }
   const counts = {};
   const exportLastDate = exportDate || maxRecordDate;
   // daily TOTAL series skip the partial last day (means, points, sleep and workouts keep it)
@@ -290,13 +299,33 @@ export function main() {
     console.error('ERROR: export.xml not found at ' + SRC + '\nNo export yet? Put it there (README → Level 1, step 3), or see the page with demo data: npm run build:example');
     return Promise.resolve(1);
   }
-  fs.mkdirSync(OUT, { recursive: true });
   return new Promise((resolve, reject) => {
     const input = fs.createReadStream(SRC, { encoding: 'utf8' });
-    input.on('error', reject);
     const rl = readline.createInterface({ input, crlfDelay: Infinity });
-    rl.on('line', onLine);
-    rl.on('close', () => { try { onClose(); resolve(0); } catch (err) { reject(err); } });
+    // any failure while reading rejects ONCE (runCli: one ERROR line, exit 1) and the 'close' that follows
+    // writes nothing, so a half-read export never replaces a good extract
+    let failed = false;
+    const fail = (/** @type {any} */ err) => {
+      if (failed) return;
+      failed = true;
+      reject(err);
+      rl.close();
+      input.destroy();
+    };
+    input.on('error', fail);
+    rl.on('error', fail);
+    rl.on('line', (line) => {
+      if (failed) return;
+      try { onLine(line); } catch (err) { fail(err); }
+    });
+    rl.on('close', () => {
+      if (failed) return;
+      try {
+        fs.mkdirSync(OUT, { recursive: true }); // the lockfile needs the directory
+        withLock(path.join(OUT, '_meta.json.lock'), () => onClose());
+        resolve(0);
+      } catch (err) { reject(err); }
+    });
   });
 }
 

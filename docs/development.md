@@ -34,7 +34,7 @@ suite and dependencies (`npm run test:services`).
 | `node scripts/build-web.mjs [--mode personal\|example] [--locale es\|en] [--outdir <dir>] [--check]` | Build one page variant into `web/dist/<mode>/index.html` (`--help` for the flags) |
 | `npm run test:css:update` | Regenerate `web/test/fixtures/css-expected.json` from the example build after a deliberate CSS change (keeps key order, appends new, drops stale; `-- --check` writes nothing) |
 | `npm run golden:bake` | Compare every build-time bake (`web/src/bakes.mjs`) for the example + an empty extract against `web/test/fixtures/bake-golden.*.json` (`-- --update` rewrites them after a deliberate change; `-- --personal` writes/compares the gitignored `web/test/.golden/` personal golden, paths only, exit 2 without personal inputs; `-- --personal --root <clone>` reads that clone's data + golden with this checkout's code, read-only there) |
-| `npm run demo:data` | Regenerate the synthetic demo extract `data/demo/extract/` (`scripts/make-demo-data.mjs`) |
+| `npm run demo:data` | Regenerate the synthetic demo extract `data/demo/extract/` (`scripts/make-demo-data.mjs`; `-- --end YYYY-MM-DD --days N --seed N`, `--days` a whole number 2-3650) |
 | `npm run gen:food-calc` | Regenerate `services/loop-ingest/src/food-calc.js` from `lib/nutrition/foodlog.mjs` (a test fails while it is stale) |
 | `npm run gen:journal-calc` | Regenerate `services/loop-ingest/src/journal-calc.js` from `lib/journal/journal.mjs` (a test fails while it is stale) |
 
@@ -70,9 +70,12 @@ Never hand-edit them; change the source and regenerate:
 
 A runnable `scripts/*.mjs` guards its CLI with `if (isMain(import.meta.url))` from `scripts/lib/is-main.mjs`
 (realpath compare, so symlinks and relative paths work; importing never runs main). The sync scripts,
-`scripts/build-web.mjs`, `data/nutrition/generate.mjs` and `data/apple-health/extract.mjs` parse their flags
-with `parseCli` (`data/apple-health/sync-common.mjs`): `--help` prints the usage, and an unknown flag (a typo
-such as `--chek` or `--mod`) or a stray argument exits 2 before anything is read or written.
+`scripts/build-web.mjs`, `data/nutrition/generate.mjs`, `data/apple-health/extract.mjs` and the dev scripts
+(`publish-manuals`, `make-demo-data`, `gen-food-calc`, `gen-journal-calc`, `update-css-fixture`) parse their
+flags with `parseCli` / `runCli` (`data/apple-health/sync-common.mjs`); `scripts/golden-bake.mjs` keeps its own
+parser with the same rules. `--help` prints the usage, and an unknown flag (a typo such as `--chek`, `--mod`
+or `--updte`), a flag without its value or a stray argument exits 2 before anything is read or written.
+Numeric flags are validated the same way (`make-demo-data --days abc` exits 2 instead of writing empty CSVs).
 
 ## Guards
 
@@ -134,5 +137,9 @@ weekly, together with the npm dependencies.
 
 - `.claude/skills/frontend-design` is a vendored skill (from `anthropics/skills`, pinned in `skills-lock.json`,
   files in `.agents/skills/`) for UI work on the page. End users never need it.
+- `scripts/make-logo.mjs path/to/Syncopate-Bold.ttf` regenerates the logo assets in `web/src/assets/`
+  ([`plan-page.md`](plan-page.md)). It needs `fontkitten` and `sharp`, which `package.json` does NOT declare
+  (they arrive as Astro's own dependencies with `npm ci`); without them it prints one `ERROR:` line naming
+  both and exits 1.
 - Owner-specific setup notes belong in a gitignored `CLAUDE.local.md`, which Claude Code loads next to
   `CLAUDE.md`.
