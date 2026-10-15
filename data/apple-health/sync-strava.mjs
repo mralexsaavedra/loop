@@ -344,10 +344,18 @@ function staleZonesWarning (activities) {
 
 const PROFILE_JSON = process.env.SYNC_STRAVA_PROFILE || path.join(DIR, '..', '..', 'profile', 'profile.json')
 
+const USAGE = `Usage: node data/apple-health/sync-strava.mjs
+
+Merges every Strava activity stored by the ingest service into workouts.csv, rides.csv and
+workout-zones.csv of the Apple Health extract.
+  -h, --help   this help
+Env: INGEST_URL, INGEST_TOKEN (else from the service .env), INGEST_ENV_FILE (default
+services/loop-ingest/.env).`
+
 async function main () {
   const t0 = Date.now()
-  const baseUrl = common.readBaseUrl(process.env, process.env.INGEST_ENV_FILE || common.ENV_FILE)
-  const token = common.readIngestToken(process.env, process.env.INGEST_ENV_FILE || common.ENV_FILE)
+  const baseUrl = common.readBaseUrl(process.env)
+  const token = common.readIngestToken(process.env)
   if (!token) {
     console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/loop-ingest/.env. No files touched.')
     process.exit(1)
@@ -384,7 +392,7 @@ async function main () {
   if (!Object.keys(plan.writes).length) console.log('  (no changes)')
 }
 
-if (isMain(import.meta.url)) main()
+if (isMain(import.meta.url)) common.runCli(main, { usage: USAGE })
 
 export {
   STRAVA_SOURCE,

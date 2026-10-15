@@ -19,7 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readBaseUrl, ENV_FILE } from '../data/apple-health/sync-common.mjs';
+import { readBaseUrl, fetchJson, writeAtomic, runCli } from '../data/apple-health/sync-common.mjs';
 import { JOURNAL_BEHAVIORS, JOURNAL_LIMITS, journalCsv, parseJournalCsv } from '../lib/journal/journal.mjs';
 import { JOURNAL_FILE } from '../lib/journal/bake.mjs';
 import { isMain } from './lib/is-main.mjs';
@@ -70,29 +70,10 @@ export function mergedCsv(prevText, s) {
 }
 
 export async function fetchSummary(baseUrl, { from, to }, { fetchImpl = fetch, timeoutMs = 15000 } = {}) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const qs = new URLSearchParams({ from, to });
-    const res = await fetchImpl(`${String(baseUrl).replace(/\/+$/, '')}/journal/summary?${qs}`, {
-      headers: { 'x-hc-journal': '1', accept: 'application/json' },
-      signal: ctrl.signal,
-      redirect: 'error',
-    });
-    if (!res.ok) throw Object.assign(new Error(`ingest service answered HTTP ${res.status}`), { status: res.status });
-    return await res.json();
-  } catch (err) {
-    if (err.name === 'AbortError' || ctrl.signal.aborted) throw new Error(`request timed out after ${timeoutMs / 1000} s`);
-    throw err;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-function writeAtomic(file, text) {
-  const tmp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, text);
-  fs.renameSync(tmp, file);
+  const qs = new URLSearchParams({ from, to });
+  return fetchJson(`${String(baseUrl).replace(/\/+$/, '')}/journal/summary?${qs}`, null, {
+    fetchImpl, timeoutMs, headers: { 'x-hc-journal': '1', accept: 'application/json' }, redirect: 'error',
+  });
 }
 
 /** Writes the CSV + meta into `dir`; returns {days, changed}. */
@@ -100,7 +81,7 @@ export function syncJournal(dir, body, { now = new Date(), write = writeAtomic }
   const s = normalizeSummary(body);
   fs.mkdirSync(dir, { recursive: true });
   const csvFile = path.join(dir, JOURNAL_FILE);
-  let prev = null;
+  let prev;
   try { prev = fs.readFileSync(csvFile, 'utf8'); } catch { prev = null; }
   const csv = mergedCsv(prev, s);
   const changed = csv !== prev;
@@ -111,7 +92,7 @@ export function syncJournal(dir, body, { now = new Date(), write = writeAtomic }
 
 export async function main({ env = process.env, log = console.log, warn = console.warn, fetchImpl = fetch, now = new Date() } = {}) {
   const dir = env.SYNC_JOURNAL_OUT_DIR || DEFAULT_OUT;
-  const base = readBaseUrl(env, env.INGEST_ENV_FILE || ENV_FILE);
+  const base = readBaseUrl(env);
   let body;
   try {
     body = await fetchSummary(base, windowFor(now), { fetchImpl });
@@ -130,6 +111,10 @@ export async function main({ env = process.env, log = console.log, warn = consol
   }
 }
 
-if (isMain(import.meta.url)) {
-  main().then((code) => process.exit(code));
-}
+const USAGE = `Usage: node scripts/sync-journal.mjs
+
+Snapshots the behaviour journal from the ingest service into the extract's journal-daily.csv.
+  -h, --help   this help
+Env: INGEST_URL, INGEST_ENV_FILE (default services/loop-ingest/.env, for its INGEST_PORT).`;
+
+if (isMain(import.meta.url)) runCli(() => main(), { usage: USAGE });

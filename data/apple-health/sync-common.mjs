@@ -1,12 +1,11 @@
-/* Helpers shared by data/apple-health's sync scripts (sync-shortcut.mjs, sync-strava.mjs):
- * atomic writes, ingest-token resolution, a timed JSON fetch, generic keyset-paged fetching,
- * and the export-wins/ownership-ledger CSV merge rule. Extracted from sync-shortcut.mjs so
- * sync-strava.mjs can reuse the exact same contract instead of duplicating it — pure refactor,
- * no behavior change (sync-shortcut.mjs re-exports these same names, its own default `isOwn`
- * applied at the call site keeps its test suite green unmodified).
+/* Helpers shared by every sync script (data/apple-health/sync-*.mjs, data/nutrition/sync-foodlog.mjs,
+ * data/profile/sync-*.mjs, scripts/sync-*.mjs): atomic writes, the ingest .env (INGEST_ENV_FILE), token
+ * and base-URL resolution, a timed JSON fetch, generic keyset-paged fetching, the export-wins /
+ * ownership-ledger CSV merge rule, a lockfile, and the one command line (parseCli / runCli).
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -30,9 +29,15 @@ function resolveToken(env, envFileText) {
   return m[1].trim().replace(/^(['"])(.*)\1$/, '$2') || null;
 }
 
+// The service .env a script reads: INGEST_ENV_FILE when set (the child-process tests point it at a
+// throwaway file), else this clone's services/loop-ingest/.env.
+function envFileOf(env) {
+  return env.INGEST_ENV_FILE || ENV_FILE;
+}
+
 // resolveToken() + the disk read of the service's .env file, so every sync script's main()
 // does the same one-liner instead of repeating the fs.existsSync/readFileSync pair.
-function readIngestToken(env, envFile = ENV_FILE) {
+function readIngestToken(env, envFile = envFileOf(env)) {
   const envText = fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : null;
   return resolveToken(env, envText);
 }
@@ -47,21 +52,26 @@ function resolveBaseUrl(env, envFileText) {
 }
 
 // resolveBaseUrl() + the disk read of the service's .env file (the readIngestToken() pair).
-function readBaseUrl(env, envFile = ENV_FILE) {
+function readBaseUrl(env, envFile = envFileOf(env)) {
   const envText = fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : null;
   return resolveBaseUrl(env, envText);
 }
 
-// one request (headers + body) under a hard timeout; the HTTP status (when any) is kept on
-// err.status so a 404 can be told apart from a generic failure by the caller.
-async function fetchJson(url, token, { fetchImpl = fetch, timeoutMs = 15000 } = {}) {
+// One GET (headers + body) under a hard timeout; the HTTP status (when any) is kept on err.status so a
+// 404 can be told apart from a generic failure by the caller. `token` null = no authorization header
+// (the LAN-only /food/* and /journal/* layers, which take their own `headers` and `redirect: 'error'`).
+async function fetchJson(url, token, { fetchImpl = fetch, timeoutMs = 15000, headers = {}, redirect } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetchImpl(url, { headers: { authorization: `Bearer ${token}` }, signal: ctrl.signal });
+    const init = { headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers }, signal: ctrl.signal };
+    if (redirect) init.redirect = redirect;
+    const res = await fetchImpl(url, init);
     if (!res.ok) throw Object.assign(new Error(`ingest service answered HTTP ${res.status}`), { status: res.status });
     return await res.json();
   } catch (err) {
+    // no `cause`: the scripts print err.cause.code first (a refused connection), and a timeout must print this
+    // eslint-disable-next-line preserve-caught-error
     if (err.name === 'AbortError' || ctrl.signal.aborted) throw new Error(`request timed out after ${timeoutMs / 1000} s`);
     throw err;
   } finally {
@@ -144,7 +154,7 @@ function acquireLock (lockFile, { staleMs = LOCK_STALE_MS, retryDelayMs = LOCK_R
       } catch {
         continue; // the lock vanished between the failed open and this stat — just retry
       }
-      if (attempt === retries) throw new Error(`could not acquire lock ${lockFile} (held and not stale)`);
+      if (attempt === retries) throw new Error(`could not acquire lock ${lockFile} (held and not stale)`, { cause: err });
       sleepSync(retryDelayMs);
     }
   }
@@ -168,9 +178,47 @@ function withLock (lockFile, fn, opts) {
   }
 }
 
+/* ---------- the command line every sync script shares ---------- */
+
+/** argv (without node and the script) -> {values} | {exit: 0, out: usage} (--help / -h) | {exit: 2, err}
+ * (an unknown flag, a missing value or a stray argument: strict, no positionals). `options` are
+ * util.parseArgs options; --help is always there. Pure. */
+function parseCli(argv, { usage, options = {} }) {
+  let values;
+  try {
+    ({ values } = parseArgs({ args: argv, options: { help: { type: 'boolean', short: 'h' }, ...options }, strict: true, allowPositionals: false }));
+  } catch (err) {
+    return { exit: 2, err: `ERROR: ${err.message}\n\n${usage}` };
+  }
+  if (values.help) return { exit: 0, out: usage };
+  const { help, ...rest } = values;
+  return { values: rest };
+}
+
+/** A sync script's entry point: parseCli first (--help / a bad flag never reaches main), then
+ * `await main(values)`; a number main returns is the exit code (none = 0), a rejected main prints one
+ * `ERROR:` line and exits 1. The exit code is set, not forced, so the output is flushed first. */
+async function runCli(main, { usage, options = {}, argv = process.argv.slice(2) }) {
+  const cli = parseCli(argv, { usage, options });
+  if (cli.exit != null) {
+    if (cli.exit) console.error(cli.err);
+    else console.log(cli.out);
+    process.exitCode = cli.exit;
+    return;
+  }
+  try {
+    const code = await main(cli.values);
+    process.exitCode = typeof code === 'number' ? code : 0;
+  } catch (err) {
+    console.error(`ERROR: ${(err && err.message) || err}`);
+    process.exitCode = 1;
+  }
+}
+
 export {
   DEFAULT_URL,
   ENV_FILE,
+  envFileOf,
   writeAtomic,
   resolveToken,
   readIngestToken,
@@ -182,4 +230,6 @@ export {
   acquireLock,
   releaseLock,
   withLock,
+  parseCli,
+  runCli,
 };

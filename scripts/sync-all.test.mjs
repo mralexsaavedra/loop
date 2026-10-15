@@ -68,3 +68,17 @@ test('npm run sync runs Strava before the Shortcut sync (its activity windows fe
   const names = SCRIPTS.map((s) => s.split(/[\\/]/).slice(-2).join('/'));
   assert.deepEqual(names, ['apple-health/sync-strava.mjs', 'apple-health/sync-shortcut.mjs', 'profile/sync-profile.mjs', 'profile/sync-settings.mjs', 'scripts/sync-onboarding.mjs', 'nutrition/sync-foodlog.mjs', 'scripts/sync-journal.mjs']);
 });
+
+test('runAll() takes per-script argv as a function of the script path', () => {
+  const { spawn, calls } = fakeSpawn({});
+  runAll(['a.js', 'b.js'], (s) => (s === 'b.js' ? ['--full'] : []), spawn);
+  assert.deepEqual(calls.map((c) => c.args), [['a.js'], ['b.js', '--full']]);
+});
+
+test('scriptArgs: `npm run sync -- --full` reaches the Shortcut sync only (the other scripts reject flags they do not know)', async () => {
+  const { SCRIPTS, scriptArgs } = await import('./sync-all.mjs');
+  const full = scriptArgs({ full: true });
+  assert.deepEqual(SCRIPTS.filter((s) => full(s).length).map((s) => path.basename(s)), ['sync-shortcut.mjs']);
+  assert.deepEqual(full(SCRIPTS[1]), ['--full']);
+  assert.deepEqual(SCRIPTS.map(scriptArgs({})), SCRIPTS.map(() => []));
+});

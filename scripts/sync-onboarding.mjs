@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readBaseUrl, ENV_FILE, writeAtomic } from '../data/apple-health/sync-common.mjs';
+import { readBaseUrl, fetchJson, writeAtomic, runCli } from '../data/apple-health/sync-common.mjs';
 import { ONBOARDING_JSON, normalizeOnboarding } from '../lib/profile/onboarding.mjs';
 import { isMain } from './lib/is-main.mjs';
 
@@ -19,27 +19,19 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 export const DEFAULT_OUT = path.join(ROOT, 'data', 'profile');
 
 async function fetchProfile(baseUrl, { fetchImpl = fetch, timeoutMs = 10000 } = {}) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetchImpl(`${baseUrl}/food/profile`, {
-      headers: { 'x-hc-food': '1', accept: 'application/json' },
-      signal: ctrl.signal,
-      redirect: 'error',
+    return await fetchJson(`${baseUrl}/food/profile`, null, {
+      fetchImpl, timeoutMs, headers: { 'x-hc-food': '1', accept: 'application/json' }, redirect: 'error',
     });
-    if (!res.ok) throw new Error(`ingest service answered HTTP ${res.status}${res.status === 404 ? ' (rebuild the loop-ingest container)' : ''}`);
-    return await res.json();
   } catch (err) {
-    if (err.name === 'AbortError' || ctrl.signal.aborted) throw new Error(`request timed out after ${timeoutMs / 1000} s`);
+    if (err.status === 404) err.message += ' (rebuild the loop-ingest container)';
     throw err;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
 export async function main({ env = process.env, log = console.log, warn = console.warn, fetchImpl = fetch } = {}) {
   const dir = env.SYNC_PROFILE_OUT_DIR || DEFAULT_OUT;
-  const base = readBaseUrl(env, env.INGEST_ENV_FILE || ENV_FILE);
+  const base = readBaseUrl(env);
   let doc;
   try {
     doc = normalizeOnboarding(await fetchProfile(base, { fetchImpl }));
@@ -69,6 +61,10 @@ export async function main({ env = process.env, log = console.log, warn = consol
   }
 }
 
-if (isMain(import.meta.url)) {
-  main().then((code) => process.exit(code));
-}
+const USAGE = `Usage: node scripts/sync-onboarding.mjs
+
+Pulls the in-page onboarding document from the ingest service into data/profile/onboarding.json.
+  -h, --help   this help
+Env: INGEST_URL, INGEST_ENV_FILE (default services/loop-ingest/.env, for its INGEST_PORT).`;
+
+if (isMain(import.meta.url)) runCli(() => main(), { usage: USAGE });

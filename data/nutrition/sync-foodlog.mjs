@@ -123,23 +123,10 @@ function readJsonOrNull (file) {
 
 /** GET <base>/food/log/summary?from&to with the food layer's header; the HTTP status (if any) is kept on err.status. */
 async function fetchSummary (baseUrl, { from, to }, { fetchImpl = fetch, timeoutMs = 15000 } = {}) {
-  const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
-  try {
-    const qs = new URLSearchParams({ from, to })
-    const res = await fetchImpl(`${String(baseUrl).replace(/\/+$/, '')}/food/log/summary?${qs}`, {
-      headers: { 'x-hc-food': '1', accept: 'application/json' },
-      signal: ctrl.signal,
-      redirect: 'error'
-    })
-    if (!res.ok) throw Object.assign(new Error(`ingest service answered HTTP ${res.status}`), { status: res.status })
-    return await res.json()
-  } catch (err) {
-    if (err.name === 'AbortError' || ctrl.signal.aborted) throw new Error(`request timed out after ${timeoutMs / 1000} s`)
-    throw err
-  } finally {
-    clearTimeout(timer)
-  }
+  const qs = new URLSearchParams({ from, to })
+  return common.fetchJson(`${String(baseUrl).replace(/\/+$/, '')}/food/log/summary?${qs}`, null, {
+    fetchImpl, timeoutMs, headers: { 'x-hc-food': '1', accept: 'application/json' }, redirect: 'error'
+  })
 }
 
 /** Writes the CSV + meta when the CSV changed or the stored fetchedAt is from an earlier UTC day. */
@@ -172,6 +159,12 @@ function warning (err, baseUrl) {
   return `WARNING: could not read the food log from ${baseUrl} (${cause}). ${CSV_FILE} kept.`
 }
 
+const USAGE = `Usage: node data/nutrition/sync-foodlog.mjs
+
+Snapshots the food log's per-day sums from the ingest service into data/nutrition/foodlog-daily.csv.
+  -h, --help   this help
+Env: INGEST_URL, INGEST_ENV_FILE (default services/loop-ingest/.env, for its INGEST_PORT).`
+
 async function main () {
   const baseUrl = common.readBaseUrl(process.env)
   let body
@@ -191,6 +184,6 @@ async function main () {
   }
 }
 
-if (isMain(import.meta.url)) main()
+if (isMain(import.meta.url)) common.runCli(main, { usage: USAGE })
 
 export { CSV_FILE, META_FILE, DAYS_MAX, HEADER, windowFor, normalizeSummary, toCsv, fetchSummary, syncFoodlog, warning, main }
