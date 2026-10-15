@@ -63,6 +63,13 @@ test('nginx /api/journal/: ingest /journal/ only, GET/PUT, 16 KB cap, the X-HC-J
   assert.doesNotMatch(j.body, /add_header\s+Access-Control/i, 'never approves a cross-site request');
 });
 
+test('nginx /api/food/ + /api/journal/ forward the Host the browser asked for as X-Forwarded-Host (ingest binds the write Origin to it)', () => {
+  for (const spec of ['/api/food/', '/api/journal/']) {
+    const l = locations(nginx).find((x) => x.spec === spec);
+    assert.match(l.body, /proxy_set_header X-Forwarded-Host \$http_host;/, spec);
+  }
+});
+
 test('nginx: everything else under /api is a 404; data endpoints are never named', () => {
   const api = locations(nginx).find((l) => l.spec === '/api/');
   assert.ok(api, 'a catch-all /api/ location exists');
@@ -174,6 +181,18 @@ test('systemd service is hardened: no new privileges, read-only system and home,
   }
 });
 
+test('systemd service: kernel, control groups, SUID, personality, realtime, namespaces and syscall architecture locked down; files stay world-readable for nginx', () => {
+  const directives = serviceUnit.split('\n').map((l) => l.trim());
+  for (const line of ['ProtectKernelTunables=yes', 'ProtectKernelModules=yes', 'ProtectKernelLogs=yes', 'ProtectControlGroups=yes', 'RestrictSUIDSGID=yes',
+    'LockPersonality=yes', 'RestrictRealtime=yes', 'RestrictNamespaces=yes', 'SystemCallArchitectures=native', 'UMask=0022']) {
+    assert.ok(directives.includes(line), line);
+  }
+  // nginx in the loop-web container reads ./site as another uid: a stricter umask (0027) would make the page 403
+  assert.ok(!directives.some((l) => /^UMask=00[2-7]7$/.test(l)), 'never a umask that hides ./site from other users');
+  // node's JIT needs writable + executable memory
+  assert.ok(!directives.some((l) => l.startsWith('MemoryDenyWriteExecute=')), 'no MemoryDenyWriteExecute (breaks node)');
+});
+
 test('refresh.sh does not override the safe.directory setting (the unit runs as the repo owner)', () => {
   assert.doesNotMatch(read(LOOP_WEB, 'refresh.sh'), /safe\.directory/);
 });
@@ -213,7 +232,7 @@ test('nginx: every request is checked against the Host map at SERVER level (421 
   const { body } = hostMap();
   assert.match(body, /default\s+0;/, 'unknown names are refused by default');
   assert.match(body, /^\s*localhost\s+1;/m);
-  assert.match(body, /include \/etc\/nginx\/hc-extra-hosts\.map;/, 'the optional extra names');
+  assert.match(body, /include \/etc\/nginx\/conf\.d\/hc-extra-hosts\.map;/, 'the optional extra names (in conf.d: a tmpfs, the root filesystem is read-only)');
   const server = nginx.slice(nginx.indexOf('server {'));
   const guard = server.indexOf('if ($hc_host_ok = 0) { return 421; }');
   assert.ok(guard > 0, 'server-level guard');
@@ -335,4 +354,66 @@ test('nginx: server_tokens off and the security headers at server level and in e
   const withHeaders = locations(nginx).filter((l) => /add_header\s/.test(l.body));
   assert.ok(withHeaders.length >= 2, 'status.json and the manuals set their own headers');
   for (const l of withHeaders) for (const re of SECURITY_HEADERS) assert.match(l.body, re, `${l.spec}: ${re}`);
+});
+
+// ---- Rate limits: the proxied ingest routes only, never the page ---------------------------------
+test('nginx limit_req: every proxied /api/* and /ingest/* location is rate-limited (429), generously; static serving never is', () => {
+  const directives = nginx.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
+  const zones = Object.fromEntries([...directives.matchAll(/limit_req_zone \$binary_remote_addr zone=(\w+):(\d+)m rate=(\d+)r\/([sm]);/g)]
+    .map((m) => [m[1], { perSecond: Number(m[3]) / (m[4] === 'm' ? 60 : 1) }]));
+  assert.deepEqual(Object.keys(zones).sort(), ['hc_api', 'hc_ingest']);
+  assert.ok(zones.hc_api.perSecond >= 5, 'the page polls /api/sync/status and loads several food / journal calls at once');
+  assert.ok(zones.hc_ingest.perSecond >= 0.5, 'the Shortcut uploads a few payloads in a row');
+  const head = directives.slice(directives.indexOf('server {'), directives.indexOf('location '));
+  assert.match(head, /^\s*limit_req_status 429;/m);
+  const proxied = locations(nginx).filter((l) => /proxy_pass\s/.test(l.body));
+  assert.deepEqual(proxied.map((l) => l.spec).sort(), ['/api/food/', '/api/journal/', '= /api/sync', '= /api/sync/status', '= /ingest/health-auto-export']);
+  for (const l of proxied) {
+    const zone = l.spec === '= /ingest/health-auto-export' ? 'hc_ingest' : 'hc_api';
+    const m = new RegExp(`limit_req zone=${zone} burst=(\\d+) nodelay;`).exec(l.body);
+    assert.ok(m, `${l.spec}: limit_req zone=${zone}`);
+    assert.ok(Number(m[1]) >= 10, `${l.spec}: a generous burst`);
+  }
+  for (const l of locations(nginx).filter((x) => !/proxy_pass\s/.test(x.body))) assert.doesNotMatch(l.body, /limit_req/, `${l.spec} is never limited`);
+  assert.doesNotMatch(head, /^\s*limit_req zone/m, 'no server-level limit (it would cover the page)');
+});
+
+// ---- Container hardening (both compose files) ----------------------------------------------------
+/** The block of one service in a compose file (its indented lines up to the next service or top-level key). */
+function serviceBlock(compose, name) {
+  const m = new RegExp(`^  ${name}:\\n((?: {4,}.*\\n|\\s*\\n)+)`, 'm').exec(compose);
+  assert.ok(m, `service ${name}`);
+  return m[1];
+}
+const HARDENING = [
+  ['loop-web', planCompose, ['/etc/nginx/conf.d', '/var/cache/nginx', '/run', '/tmp'], ['CHOWN', 'SETGID', 'SETUID']],
+  ['loop-db', ingestCompose, ['/var/run/postgresql', '/tmp'], ['CHOWN', 'DAC_READ_SEARCH', 'SETGID', 'SETUID']],
+  ['loop-ingest', ingestCompose, ['/tmp'], []],
+];
+test('compose hardening: read-only root fs + tmpfs for the written paths, every capability dropped but the needed ones, no-new-privileges, limits, rotated logs', () => {
+  for (const [name, compose, tmpfs, caps] of HARDENING) {
+    const b = serviceBlock(compose, name);
+    assert.match(b, /^\s+read_only: true$/m, `${name}: read_only`);
+    const mounts = [...b.matchAll(/^\s+- (\/[^:\s]+):size=\d+m$/gm)].map((m) => m[1]);
+    assert.deepEqual(mounts, tmpfs, `${name}: tmpfs`);
+    assert.match(b, /^\s+cap_drop: \[ALL\]$/m, `${name}: cap_drop ALL`);
+    const add = /^\s+cap_add: \[([A-Z_, ]+)\]$/m.exec(b);
+    assert.deepEqual(add ? add[1].split(/,\s*/) : [], caps, `${name}: cap_add`);
+    assert.match(b, /^\s+security_opt: \[no-new-privileges:true\]$/m, `${name}: no-new-privileges`);
+    assert.match(b, /^\s+mem_limit: \d+[mg]$/m, `${name}: memory limit`);
+    assert.match(b, /^\s+cpus: [\d.]+$/m, `${name}: cpu limit`);
+    assert.match(b, /^\s+pids_limit: \d+$/m, `${name}: pids limit`);
+  }
+  assert.match(ingestCompose, /^x-logging: &logging\n\s+driver: json-file\n\s+options:\n\s+max-size: "10m"\n\s+max-file: "3"$/m);
+  for (const name of ['loop-db', 'loop-ingest']) assert.match(serviceBlock(ingestCompose, name), /^\s+logging: \*logging$/m, name);
+  assert.match(serviceBlock(planCompose, 'loop-web'), /logging:\n\s+driver: json-file\n\s+options:\n\s+max-size: "10m"\n\s+max-file: "3"/);
+});
+
+test('loop-web healthcheck: nginx answers /nginx-health itself (exact, no proxy, inside the Host and raw-path guards)', () => {
+  assert.match(serviceBlock(planCompose, 'loop-web'), /healthcheck:\n\s+#.*\n\s+test: \["CMD", "wget", "-q", "-O", "\/dev\/null", "http:\/\/127\.0\.0\.1\/nginx-health"\]/);
+  const h = locations(nginx).find((l) => l.spec === '= /nginx-health');
+  assert.ok(h, 'location = /nginx-health');
+  assert.match(h.body, /return 200 "ok\\n";/);
+  assert.doesNotMatch(h.body, /proxy_pass|add_header/);
+  assert.equal(allowedByMap('127.0.0.1'), true, 'the healthcheck Host passes the map');
 });

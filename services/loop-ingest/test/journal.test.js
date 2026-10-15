@@ -75,6 +75,17 @@ test('a missing X-HC-Journal header is 403; a foreign Host 421; a foreign Origin
   assert.deepEqual([w.status, w.body.error], [403, 'forbidden_origin'])
 })
 
+test('journal writes through loop-web: Origin bound to X-Forwarded-Host, Sec-Fetch-Site same-origin when sent; the tunnel host works', async (t) => {
+  const s = await setup({ allowedHosts: ['plan.example.com'] })
+  t.after(s.close)
+  const put = (headers) => s.call('PUT', '/journal/day', { body: { date: '2030-01-10', answers: {} }, headers })
+  const lan = { 'x-forwarded-host': '192.168.1.10:8090', 'sec-fetch-site': 'same-origin' }
+  assert.equal((await put({ ...lan, origin: 'http://192.168.1.20:8090' })).status, 403)
+  assert.equal((await put({ ...lan, origin: 'http://192.168.1.10:8090', 'sec-fetch-site': 'cross-site' })).status, 403)
+  assert.equal((await put({ ...lan, origin: 'http://192.168.1.10:8090' })).status, 200)
+  assert.equal((await put({ 'x-forwarded-host': 'plan.example.com', 'sec-fetch-site': 'same-origin', origin: 'https://plan.example.com' })).status, 200)
+})
+
 test('writes need application/json (415); bodies over 16 KB are 413; bad JSON 400', async (t) => {
   const s = await setup()
   t.after(s.close)

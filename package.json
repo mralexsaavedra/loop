@@ -21,6 +21,7 @@
     "pretest": "node web/test/build-fixtures.mjs",
     "test": "node --test \"lib/**/*.test.mjs\" \"web/**/*.test.mjs\" \"scripts/*.test.mjs\" \".claude/hooks/*.test.js\" data/nutrition/*.test.mjs data/apple-health/*.test.mjs data/profile/*.test.mjs",
     "test:services": "npm --prefix services/loop-ingest ci --no-audit --no-fund && npm --prefix services/loop-ingest test",
+    "test:pg": "npm --prefix services/loop-ingest ci --no-audit --no-fund && npm --prefix services/loop-ingest run test:pg",
     "test:css:update": "node scripts/update-css-fixture.mjs",
     "sync": "node scripts/sync-all.mjs",
     "sync:shortcut": "node data/apple-health/sync-shortcut.mjs",

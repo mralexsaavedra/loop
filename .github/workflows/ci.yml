@@ -1,5 +1,5 @@
-# Lint, the lib/ typecheck and both test suites on every push and pull request. The suites need no personal data: a fresh clone passes
-# (the personal-only checks skip themselves).
+# Lint, the lib/ typecheck and both test suites on every push and pull request, plus the data service against a real
+# Postgres (job `postgres`). The suites need no personal data: a fresh clone passes (the personal-only checks skip themselves).
 name: CI
 
 on:
@@ -32,3 +32,32 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:services
+
+  # The data service against a real Postgres (services/loop-ingest/test/pg): the real migrations on an empty
+  # database, the ledger + advisory lock, and the main DB paths. Same image and digest as the compose file
+  # (scripts/release.test.mjs checks it).
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: services/loop-ingest/package-lock.json
+      - run: npm run test:pg

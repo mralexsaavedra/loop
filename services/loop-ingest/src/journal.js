@@ -12,7 +12,7 @@
  *   PUT  /journal/settings                partial {behaviors: {key: bool}}
  *
  * Same security model and layers as the food routes (food.js header; the shared helpers are http.js): unauthenticated, LAN only; a
- * Host allowlist (421), an Origin check on writes (403 forbidden_origin), the custom header
+ * Host allowlist (421), an Origin check on writes (http.js writeOriginOk, 403 forbidden_origin), the custom header
  * `X-HC-Journal: 1` on every request (403) and `Content-Type: application/json` on writes (415) — a
  * cross-site request needs a CORS preflight this server never approves. Bodies <= 16 KB (413), writes
  * <= 60 / min and summary reads <= 30 / min per client address (429). Its own OPTIONAL migration group
@@ -27,7 +27,7 @@
 import { JOURNAL_BEHAVIORS, JOURNAL_LIMITS as L } from './journal-calc.js'
 import { createWindowLimiter } from './limits.js'
 import {
-  JSON_BODY_LIMIT, validDate, hostAllowed, hostOfHeader, hostOfOrigin, httpError, send, isJson, readJson
+  JSON_BODY_LIMIT, validDate, hostAllowed, hostOfHeader, writeOriginOk, httpError, send, isJson, readJson
 } from './http.js'
 
 export const JOURNAL_BODY_LIMIT = JSON_BODY_LIMIT // 16 KB, readJson's cap
@@ -157,8 +157,7 @@ export function createJournalRoutes ({ store, now = Date.now, log = console.log,
           return true
         }
         if (WRITE_METHODS.has(req.method)) {
-          const origin = req.headers.origin
-          if (origin !== undefined && !hostAllowed(hostOfOrigin(origin), allowedHosts)) throw httpError(403, 'forbidden_origin')
+          if (!writeOriginOk(req.headers, allowedHosts)) throw httpError(403, 'forbidden_origin')
           if (!writes.take(req.socket?.remoteAddress ?? 'unknown')) throw httpError(429, 'rate_limited')
           if (!isJson(req)) throw httpError(415, 'unsupported_media_type')
         }

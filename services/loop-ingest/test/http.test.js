@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Readable } from 'node:stream'
 import {
+  writeOriginOk,
   JSON_BODY_LIMIT, httpError, writeJson, send, isJson, readJson, validDate,
   hostAllowed, hostOfHeader, hostOfOrigin, parseAllowedHosts
 } from '../src/http.js'
@@ -115,4 +116,30 @@ test('host checks: Host / Origin parsing, literals, local names and the allowlis
   assert.equal(hostAllowed('plan.lan', parseAllowedHosts('plan.lan')), true)
   assert.deepEqual(parseAllowedHosts(' Plan.Lan, nas.local  other '), ['plan.lan', 'nas.local', 'other'])
   assert.deepEqual(parseAllowedHosts(null), [])
+})
+
+test('writeOriginOk: Sec-Fetch-Site (when sent) must be same-origin; an Origin must be an allowed host and, behind loop-web, exactly the forwarded host', () => {
+  const ok = (headers, extra = []) => writeOriginOk(headers, extra)
+  // no browser headers at all (curl, the food-log skill, the Shortcut): allowed, as before
+  assert.equal(ok({}), true)
+  // direct to the service (no X-Forwarded-Host): the allowed-host check alone, as before
+  assert.equal(ok({ origin: 'http://192.168.1.10:8090' }), true)
+  assert.equal(ok({ origin: 'http://evil.example' }), false)
+  assert.equal(ok({ origin: 'null' }), false)
+  // through loop-web: the Origin's host[:port] must equal the host the browser asked nginx for
+  assert.equal(ok({ origin: 'http://192.168.1.10:8090', 'x-forwarded-host': '192.168.1.10:8090', 'sec-fetch-site': 'same-origin' }), true)
+  assert.equal(ok({ origin: 'http://[fd00::12]:8090', 'x-forwarded-host': '[FD00::12]:8090' }), true)
+  assert.equal(ok({ origin: 'http://192.168.1.20:8090', 'x-forwarded-host': '192.168.1.10:8090' }), false, 'another LAN address')
+  assert.equal(ok({ origin: 'http://192.168.1.10:9999', 'x-forwarded-host': '192.168.1.10:8090' }), false, 'another port on the same address')
+  assert.equal(ok({ origin: 'http://localhost:8090', 'x-forwarded-host': '192.168.1.10:8090' }), false)
+  assert.equal(ok({ 'x-forwarded-host': '192.168.1.10:8090' }), true, 'no Origin: not a browser write')
+  // the SSO tunnel: the public host is allowlisted and is what nginx saw
+  assert.equal(ok({ origin: 'https://plan.example.com', 'x-forwarded-host': 'plan.example.com', 'sec-fetch-site': 'same-origin' }, ['plan.example.com']), true)
+  assert.equal(ok({ origin: 'https://plan.example.com', 'x-forwarded-host': 'plan.example.com' }), false, 'not allowlisted')
+  assert.equal(ok({ origin: 'https://evil.example', 'x-forwarded-host': 'plan.example.com' }, ['plan.example.com']), false)
+  // Sec-Fetch-Site: anything but same-origin is refused, even with a matching Origin
+  for (const site of ['cross-site', 'same-site', 'none', '']) {
+    assert.equal(ok({ origin: 'http://192.168.1.10:8090', 'x-forwarded-host': '192.168.1.10:8090', 'sec-fetch-site': site }), false, site)
+  }
+  assert.equal(ok({ 'sec-fetch-site': 'cross-site' }), false, 'a cross-site browser request without Origin')
 })
