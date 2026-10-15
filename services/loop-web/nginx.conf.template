@@ -47,12 +47,17 @@ server {
     server_tokens off;
 
     # Security headers on every response: the page writes food and journal entries, so another site must not
-    # frame it (clickjacking), nothing is type-sniffed and no URL leaks as a Referer. nginx drops ALL inherited
-    # add_header lines in a block that sets its own, so such blocks repeat these four
+    # frame it (clickjacking), nothing is type-sniffed and no URL leaks as a Referer; a window this page opens
+    # (or that opens it) shares no browsing context with another origin (COOP), no other origin may embed its
+    # responses (CORP), and camera, microphone, location, payment and USB are off (the page uses none). nginx
+    # drops ALL inherited add_header lines in a block that sets its own, so such blocks repeat these seven
     # (scripts/loop-web-config.test.mjs checks it). The header CSP carries ONLY frame-ancestors: the page's own
     # policy (script hashes, connect-src 'self', ...) travels in its <meta http-equiv> (web/src/csp.mjs), so it
     # also applies when the file opens from disk, and a meta CSP cannot set frame-ancestors. Browsers enforce
     # both policies together; never add script-src / default-src here, it would have to repeat every hash.
+    add_header Cross-Origin-Opener-Policy same-origin always;
+    add_header Cross-Origin-Resource-Policy same-origin always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
     add_header X-Content-Type-Options nosniff always;
     add_header X-Frame-Options DENY always;
     add_header Referrer-Policy no-referrer always;
@@ -84,6 +89,9 @@ server {
     location = /status.json {
         default_type application/json;
         add_header Cache-Control "no-cache, no-store";
+        add_header Cross-Origin-Opener-Policy same-origin always;
+        add_header Cross-Origin-Resource-Policy same-origin always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
         add_header X-Content-Type-Options nosniff always;
         add_header X-Frame-Options DENY always;
         add_header Referrer-Policy no-referrer always;
@@ -168,7 +176,7 @@ server {
         limit_except POST { deny all; }
         # no Bearer token: refuse before reading (or buffering) any body; ingest checks the token itself
         if ($http_authorization !~* "^Bearer\s+\S+") { return 401; }
-        # a Shortcut payload is a few hundred KB; stays below loop-ingest's MAX_BODY_BYTES default (32 MB)
+        # a Shortcut payload is a few hundred KB; equals loop-ingest's MAX_BODY_BYTES default (8 MB)
         client_max_body_size 8m;
         # a Shortcut payload is a few hundred KB: keep it in memory, not a temp file
         client_body_buffer_size 1m;
@@ -196,6 +204,9 @@ server {
         autoindex off;
         types { }
         default_type application/pdf;
+        add_header Cross-Origin-Opener-Policy same-origin always;
+        add_header Cross-Origin-Resource-Policy same-origin always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
         add_header X-Content-Type-Options nosniff always;
         add_header X-Frame-Options DENY always;
         add_header Referrer-Policy no-referrer always;

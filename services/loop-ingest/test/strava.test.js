@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createTokenProvider, fetchActivitiesSince, classifyStravaError } from '../src/strava.js'
+import { createTokenProvider, fetchActivitiesSince, pullActivitiesSince, upsertActivities, classifyStravaError } from '../src/strava.js'
 
 const okJson = (body) => ({ ok: true, status: 200, json: async () => body })
 
@@ -274,4 +274,106 @@ test('stops paging after a hard page limit instead of looping forever on full pa
     /strava activities: more than 200 pages/
   )
   assert.equal(pages, 200)
+})
+
+// --- incremental pull (C1): ascending pages, each handed over as it arrives ---------------------
+
+test('a first pull (no stored activity) asks for ascending pages from after=0, never an uncursored newest-first walk', async () => {
+  let seen = null
+  await pullActivitiesSince(async () => 'tok', null, async () => {}, async (url) => { seen = url; return okJson([]) })
+  assert.equal(seen.searchParams.get('after'), '0')
+})
+
+test('pullActivitiesSince hands every page to onPage before requesting the next one, and returns the total', async () => {
+  const events = []
+  const pages = [
+    Array.from({ length: 100 }, (_, i) => ({ id: i })),
+    [{ id: 100 }, { id: 101 }]
+  ]
+  let n = 0
+  const total = await pullActivitiesSince(
+    async () => 'tok',
+    1_700_000_000,
+    async (batch) => { events.push(`saved ${batch.length}`) },
+    async (url) => { events.push(`page ${url.searchParams.get('page')}`); return okJson(pages[n++]) }
+  )
+  assert.equal(total, 102)
+  assert.deepEqual(events, ['page 1', 'saved 100', 'page 2', 'saved 2'])
+})
+
+test('a 429 partway keeps the pages already handed over (the next run resumes from them)', async () => {
+  const saved = []
+  let n = 0
+  await assert.rejects(
+    pullActivitiesSince(async () => 'tok', null, async (batch) => { saved.push(...batch) }, async () => {
+      n += 1
+      if (n === 3) return { ok: false, status: 429 }
+      return okJson(Array.from({ length: 100 }, (_, i) => ({ id: n * 1000 + i })))
+    }),
+    (err) => err.rateLimited === true
+  )
+  assert.equal(saved.length, 200, 'pages 1 and 2 were handed over before the rate limit')
+})
+
+test('a failing onPage stops the walk (no further page is requested)', async () => {
+  let n = 0
+  await assert.rejects(
+    pullActivitiesSince(async () => 'tok', null, async () => { throw new Error('db down') }, async () => { n += 1; return okJson(Array.from({ length: 100 }, (_, i) => ({ id: i }))) }),
+    /db down/
+  )
+  assert.equal(n, 1)
+})
+
+// --- single-flight token refresh (C5) ----------------------------------------------------------
+
+test('two concurrent callers with no valid token trigger ONE refresh and get the same token', async () => {
+  let calls = 0
+  let release
+  const gate = new Promise((resolve) => { release = resolve })
+  const getToken = createTokenProvider({
+    clientId: 'id', clientSecret: 'secret', refreshToken: 'refresh',
+    fetchImpl: async () => { calls += 1; await gate; return tokenResponse(`tok-${calls}`, 3600) }
+  })
+  const a = getToken()
+  const b = getToken()
+  release()
+  assert.deepEqual(await Promise.all([a, b]), ['tok-1', 'tok-1'])
+  assert.equal(calls, 1)
+})
+
+test('a failed shared refresh rejects every waiting caller and the next call refreshes again', async () => {
+  let calls = 0
+  const getToken = createTokenProvider({
+    clientId: 'id', clientSecret: 'secret', refreshToken: 'refresh',
+    fetchImpl: async () => { calls += 1; return calls === 1 ? { ok: false, status: 500 } : tokenResponse('tok', 3600) }
+  })
+  const results = await Promise.allSettled([getToken(), getToken()])
+  assert.deepEqual(results.map((r) => r.status), ['rejected', 'rejected'])
+  assert.equal(calls, 1)
+  assert.equal(await getToken(), 'tok')
+  assert.equal(calls, 2)
+})
+
+// --- upsertActivities on a dead connection (C6) ------------------------------------------------
+
+test('a failing ROLLBACK never hides the original error, and the broken client is released as broken', async () => {
+  const released = []
+  const client = {
+    query: async (sql) => {
+      if (sql === 'ROLLBACK') throw new Error('Connection terminated')
+      if (sql.startsWith('INSERT')) throw new Error('insert failed')
+      return { rows: [] }
+    },
+    release: (err) => { released.push(err) }
+  }
+  await assert.rejects(upsertActivities({ connect: async () => client }, [{ id: 1, start_date_local: '2030-01-01T00:00:00Z' }]), /insert failed/)
+  assert.equal(released.length, 1)
+  assert.match(released[0]?.message ?? '', /insert failed/, 'release(err) so the pool discards the client')
+})
+
+test('a successful upsert releases the client normally', async () => {
+  const released = []
+  const client = { query: async () => ({ rows: [] }), release: (err) => { released.push(err) } }
+  assert.equal(await upsertActivities({ connect: async () => client }, [{ id: 1, start_date_local: '2030-01-01T00:00:00Z' }]), 1)
+  assert.deepEqual(released, [undefined])
 })

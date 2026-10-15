@@ -60,7 +60,7 @@ services:
       - /tmp:size=16m
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
-    # MAX_BODY_BYTES (32 MB) is buffered and parsed in memory: room for a few uploads at once
+    # MAX_BODY_BYTES (8 MB) is buffered and parsed in memory: room for a few uploads at once
     mem_limit: 512m
     cpus: 1
     pids_limit: 128
@@ -87,8 +87,11 @@ services:
     # image's `node` user (uid 1000): chown the host dir to 1000 (see README).
     volumes:
       - ./trigger:/trigger
+    # INGEST_PORT is required (a missing one fails here instead of publishing a random port). INGEST_BIND
+    # (optional, e.g. the LAN IP or 127.0.0.1; an IPv6 address in brackets) publishes on that address only:
+    # Docker-published ports bypass ufw / firewalld. Unset = every address, as before.
     ports:
-      - "${INGEST_PORT}:8088"
+      - "${INGEST_BIND:+${INGEST_BIND}:}${INGEST_PORT:?set INGEST_PORT in services/loop-ingest/.env}:8088"
     depends_on:
       loop-db:
         condition: service_healthy
