@@ -4,7 +4,7 @@
 name: loop-ingest${HC_INSTANCE:+-${HC_INSTANCE}}
 services:
   loop-db:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     container_name: loop-db${HC_INSTANCE:+-${HC_INSTANCE}}
     restart: unless-stopped
     environment:
@@ -20,6 +20,8 @@ services:
       retries: 5
 
   loop-ingest:
+    # the published image (Docker Hub); `docker compose up -d --build` builds it from this clone instead
+    image: mralexandersaavedra/loop-ingest:${HC_VERSION:-1.0.0}
     build: .
     container_name: loop-ingest${HC_INSTANCE:+-${HC_INSTANCE}}
     restart: unless-stopped
