@@ -361,3 +361,13 @@ test('localIso / windowEndingOn: the LOCAL calendar date of `now`, a window of `
   assert.deepEqual(common.windowEndingOn(now, 1), { from: '2030-03-01', to: '2030-03-01' });
   assert.deepEqual(common.windowEndingOn(now, 3), { from: '2030-02-27', to: '2030-03-01' });
 });
+
+test('writeAtomic(): a failed rename removes its temp file (personal data) and rethrows', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-atomic-fail-'));
+  const target = path.join(dir, 'a.csv');
+  fs.mkdirSync(target); // a non-empty directory where the file should go: the rename fails
+  fs.writeFileSync(path.join(target, 'keep'), 'x');
+  assert.throws(() => writeAtomic(target, 'secret\n'));
+  assert.deepEqual(fs.readdirSync(dir), ['a.csv'], 'no .tmp left behind');
+  fs.rmSync(dir, { recursive: true });
+});

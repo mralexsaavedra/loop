@@ -14,11 +14,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_URL = 'http://localhost:8088';
 const ENV_FILE = path.join(__dirname, '..', '..', 'services', 'loop-ingest', '.env');
 
-// write to a temp file in the same directory, then rename: a crash never leaves a half file
+// write to a temp file in the same directory, then rename: a crash never leaves a half file; a failed
+// write or rename removes the temp file (it holds personal data) before the error goes up
 function writeAtomic(file, text) {
   const tmp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, text);
-  fs.renameSync(tmp, file);
+  try {
+    fs.writeFileSync(tmp, text);
+    fs.renameSync(tmp, file);
+  } catch (err) {
+    fs.rmSync(tmp, { force: true });
+    throw err;
+  }
 }
 
 // token: env first, then INGEST_TOKEN=... from the service's .env text

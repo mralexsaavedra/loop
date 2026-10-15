@@ -4,9 +4,12 @@
  * Builds into a private per-process staging directory first and renames it
  * into place only on success. Astro empties its outDir at the start of
  * every build, so building straight into web/dist/<mode> would destroy the
- * last good output the moment a build starts — staging + atomic rename
- * means a failed build never takes down what was already served (see
- * spec: Resilient serving on build failure).
+ * last good output the moment a build starts — staging + swapIntoPlace
+ * (rename the old output aside, rename the staging dir in, then remove the
+ * old one; a failed swap puts the old one back) means a failed build never
+ * takes down what was already served (see spec: Resilient serving on build
+ * failure). Directories cannot be exchanged atomically, so the output path
+ * is missing only for the instant between the two renames.
  *
  * Usage: node scripts/build-web.mjs [--mode personal|example] [--locale es|en] [--outdir <dir>] [--check]
  *   DATA_MODE / LOCALE env vars are equivalent to --mode / --locale; --help prints the usage, and an
@@ -122,6 +125,25 @@ export function sweepStaleStaging({ dir, currentStagingDir, now = Date.now(), ma
   return swept;
 }
 
+/** Moves a finished staging dir to `outDir` without deleting the previous output first: the old output
+ * is renamed aside (`.staging-<mode>-prev-<pid>` next to the staging dir, so sweepStaleStaging removes it
+ * if this process dies mid-swap), the staging dir renamed in, then the old one removed. A failed rename-in
+ * renames the old output back and rethrows. `rename` is injectable for tests. */
+export function swapIntoPlace(stagingDir, outDir, { mode, rename = fs.renameSync }) {
+  fs.mkdirSync(path.dirname(outDir), { recursive: true });
+  const aside = path.join(path.dirname(stagingDir), `.staging-${mode}-prev-${process.pid}`);
+  fs.rmSync(aside, { recursive: true, force: true });
+  const hadOld = fs.existsSync(outDir);
+  if (hadOld) rename(outDir, aside);
+  try {
+    rename(stagingDir, outDir);
+  } catch (err) {
+    if (hadOld) rename(aside, outDir);
+    throw err;
+  }
+  if (hadOld) fs.rmSync(aside, { recursive: true, force: true });
+}
+
 /** A missing input file (a fresh clone whose `.example` seeds were not copied yet) as ONE line for the
  * terminal, or null for any other error (those still surface with their stack). */
 export function inputErrorLine(err) {
@@ -207,9 +229,13 @@ function main(args) {
     return 1;
   }
 
-  fs.rmSync(outDir, { recursive: true, force: true });
-  fs.mkdirSync(path.dirname(outDir), { recursive: true });
-  fs.renameSync(stagingDir, outDir);
+  try {
+    swapIntoPlace(stagingDir, outDir, { mode });
+  } catch (err) {
+    fs.rmSync(stagingDir, { recursive: true, force: true });
+    console.error(`build-web: could not move the build into place (${err.message}) — keeping previous ${path.relative(ROOT, outDir)}/`);
+    return 1;
+  }
 
   console.log(`build-web: wrote ${path.relative(ROOT, outDir)}/index.html (mode=${mode}, locale=${locale})`);
   return 0;

@@ -252,3 +252,32 @@ test('strict CLI: --help prints the usage; an unknown flag (--mod), a bad --mode
   assert.equal(ok.status, 0, ok.stderr);
   assert.match(ok.stdout, /training-data\.json OK \(mode=example\)/);
 });
+
+/* swapIntoPlace — the old output is renamed aside, the staging dir renamed in, then the old one removed:
+ * the last good page is never deleted before the new one is in place, and a failed swap restores it. */
+test('swapIntoPlace: replaces the output, leaves nothing aside; works without a previous output', async () => {
+  const { swapIntoPlace } = await import('./build-web.mjs');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'build-swap-'));
+  const out = path.join(dir, 'example'), staging = path.join(dir, '.staging-example-1');
+  fs.mkdirSync(staging); fs.writeFileSync(path.join(staging, 'index.html'), 'v1');
+  swapIntoPlace(staging, out, { mode: 'example' });
+  assert.equal(fs.readFileSync(path.join(out, 'index.html'), 'utf8'), 'v1');
+  fs.mkdirSync(staging); fs.writeFileSync(path.join(staging, 'index.html'), 'v2');
+  swapIntoPlace(staging, out, { mode: 'example' });
+  assert.equal(fs.readFileSync(path.join(out, 'index.html'), 'utf8'), 'v2');
+  assert.deepEqual(fs.readdirSync(dir), ['example']);
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('swapIntoPlace: a failed rename-in puts the previous output back and rethrows', async () => {
+  const { swapIntoPlace } = await import('./build-web.mjs');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'build-swap-fail-'));
+  const out = path.join(dir, 'example'), staging = path.join(dir, '.staging-example-1');
+  fs.mkdirSync(out); fs.writeFileSync(path.join(out, 'index.html'), 'good');
+  fs.mkdirSync(staging); fs.writeFileSync(path.join(staging, 'index.html'), 'new');
+  const rename = (a, b) => { if (a === staging) throw new Error('EXDEV'); fs.renameSync(a, b); };
+  assert.throws(() => swapIntoPlace(staging, out, { mode: 'example', rename }), /EXDEV/);
+  assert.equal(fs.readFileSync(path.join(out, 'index.html'), 'utf8'), 'good', 'the last good page is back');
+  assert.deepEqual(fs.readdirSync(dir).sort(), ['.staging-example-1', 'example']);
+  fs.rmSync(dir, { recursive: true });
+});
