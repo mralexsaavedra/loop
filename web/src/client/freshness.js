@@ -44,12 +44,13 @@
     var DAYS_AFTER_HOURS = 48; // "hace 30 h" up to 2 days, then "hace 3 d"
     var POLL_MS = 5000;
     var TIMEOUT_MS = 5 * MIN_MS;
+    var REQ_MS = 15000; // one request (a status read, the Sync POST): a hung service fails it, never a forever-busy button
 
     var busy = false;
 
     function getJson(url) {
       if (!HC.lan()) return Promise.resolve(null);
-      return fetch(url, { cache: 'no-store' })
+      return HC.fetchTimeout(url, { cache: 'no-store' }, REQ_MS)
         .then(function (r) { return r && r.ok ? r.json() : null; })
         .catch(function () { return null; });
     }
@@ -171,7 +172,7 @@
       setBusy(true);
       msg.textContent = T.syncing;
       if (!HC.lan()) { finish(T.failed); return; }
-      fetch(SYNC_URL, { method: 'POST' })
+      HC.fetchTimeout(SYNC_URL, { method: 'POST' }, REQ_MS)
         .then(function (r) { return r && r.ok ? r.json() : null; })
         .then(function (body) {
           if (body && isSeq(body.seq)) poll(body.seq);
