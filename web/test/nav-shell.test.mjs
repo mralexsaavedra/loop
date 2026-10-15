@@ -25,7 +25,7 @@ const between = (start, end) => {
 };
 
 test('top bar: avatar first, then the LOOP wordmark, the centred "Today" pill with the empty client-filled date, then freshness', () => {
-  const bar = between('<div class="topbar"', '<div class="dock"');
+  const bar = between('<header class="topbar"', '<div class="dock"');
   const avatar = bar.indexOf('id="avatar-btn"');
   const mark = bar.indexOf('class="wordmark"');
   const pill = bar.indexOf('class="date-pill"');
@@ -65,6 +65,20 @@ test('the action root and every action ship hidden; only real actions exist (add
   assert.deepEqual(acts, ['food', 'journal', 'sync']);
   assert.match(html, /<div class="act-scrim" id="act-scrim" hidden><\/div>/);
   for (const k of ['addFood', 'journal', 'sync']) assert.ok(html.includes(`<span>${N.actions[k]}</span>`), k);
+});
+
+test('landmarks: the top bar is the page <header>, the tab panels sit in one <main>, each panel a region named by its nav button', () => {
+  assert.equal((html.match(/<header\b/g) || []).length, 1, 'one banner');
+  assert.match(html, /<header class="topbar">/);
+  assert.equal((html.match(/<main\b/g) || []).length, 1, 'one main');
+  const main = between('<main', '</main>');
+  assert.ok(main.indexOf('<header') === -1 && main.indexOf('class="dock"') === -1, 'the top bar and the dock stay outside main');
+  const panels = [...main.matchAll(/<div class="tab-panel" data-tab="([a-z]+)"[^>]*>/g)];
+  assert.deepEqual(panels.map((m) => m[1]), ['home', 'entreno', 'health', 'nutricion'], 'every panel inside main');
+  for (const [tag, key] of panels.map((m) => [m[0], m[1]])) {
+    assert.match(tag, new RegExp(` role="region" aria-labelledby="t-${key}"`), key + ' panel named by its nav button');
+    assert.match(html, new RegExp(`<button type="button" id="t-${key}"`), 'the referenced button exists');
+  }
 });
 
 test('no visible hero header: one visually hidden h1, the collapsed dial row host sits in the Inicio panel', () => {

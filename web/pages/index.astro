@@ -50,23 +50,26 @@ const { tabs: TABS, hiddenSections } = resolveNav(TABS_ALL, hideTabs);
 const activeTab = activeTabKey(TABS);
 const isHidden = (key: string) => hiddenSections.includes(key);
 const isTabVisible = (key: string) => TABS.some((t) => t.key === key);
+// each panel is a region named by its nav button (#t-<key>); a tab hidden by hideTabs has no button, so its
+// panel gets neither (no dangling aria-labelledby)
+const panelA11y = (key: string) => (isTabVisible(key) ? { role: 'region', 'aria-labelledby': `t-${key}` } : {});
 
 const title = plan.page?.title || 'Plan';
 ---
 
 <Plan title={title} locale={locale} page={plan.page} dict={dict} tabs={TABS} activeTab={activeTab} profile={profile}>
-  <div class="tab-panel" data-tab="home" hidden={activeTab !== 'home'}>
+  <div class="tab-panel" data-tab="home" hidden={activeTab !== 'home'} {...panelA11y('home')}>
     <Home locale={locale} eatLink={isTabVisible('nutricion')} />
     <Hoy dict={dict} hidden={isHidden('hoy')} />
   </div>
-  <div class="tab-panel" data-tab="entreno" hidden={activeTab !== 'entreno'}>
+  <div class="tab-panel" data-tab="entreno" hidden={activeTab !== 'entreno'} {...panelA11y('entreno')}>
     <TrainingDetail activity={activity} locale={locale} hidden={{ load: isHidden('load'), calendar: isHidden('calendar'), sessions: isHidden('sessions') }} />
     <Entrenos hidden={isHidden('dash')} />
   </div>
-  <div class="tab-panel" data-tab="health" hidden={activeTab !== 'health'}>
+  <div class="tab-panel" data-tab="health" hidden={activeTab !== 'health'} {...panelA11y('health')}>
     <Salud locale={locale} />
   </div>
-  <div class="tab-panel" data-tab="nutricion" hidden={activeTab !== 'nutricion'}>
+  <div class="tab-panel" data-tab="nutricion" hidden={activeTab !== 'nutricion'} {...panelA11y('nutricion')}>
     <Dia nut={nut} plan={plan} locale={locale} page={plan.page} hidden={isHidden('dia')} intakeHost={!!intake.latest} supplements={profile.supplements} weight={profile.weight} sports={env.onboarding?.sports} />
     {!isHidden('dia') && <Food locale={locale} />}
     <Tablas nut={nut} dict={dict} locale={locale} page={plan.page} hidden={isHidden('tablas')} />

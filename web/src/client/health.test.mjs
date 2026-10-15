@@ -578,3 +578,15 @@ test('fitness age: no number without sex, birthdate or VO₂max — the reason i
   assert.match(fitSec(out.health), /data-detail="vo2max"/);
   assert.doesNotMatch(fitSec(out.health), /class="dial fa|NaN|undefined/);
 });
+
+test('the empty-state copy inserted raw with innerHTML is trusted markup: plain text + <code> only (health.js, training-activity.js)', async () => {
+  // these strings deliberately carry <code>…</code> (a path, a command), so the scripts insert them unescaped;
+  // anything else (another tag, an attribute, a stray < or &) must not sneak into them
+  const { es: esHealth } = await import('../i18n/health-templates.mjs');
+  const { en: enAct, es: esAct } = await import('../i18n/activity-templates.mjs');
+  const raw = [enHealth.emptyMsg, enHealth.trainEmptyMsg, esHealth.emptyMsg, esHealth.trainEmptyMsg, enAct.empty, esAct.empty];
+  for (const s of raw) {
+    assert.equal(typeof s, 'string');
+    assert.doesNotMatch(s.replace(/<code>[^<>&"]*<\/code>/g, ''), /[<>&"]/, s);
+  }
+});

@@ -164,6 +164,43 @@ test('a click on (or inside) a [data-tab-go] button opens that tab; an empty val
   assert.equal(p.ctx.window._scrolledTop, true, 'scrolled to the top, like setTab');
 });
 
+test('a user\'s tab switch moves focus to the new panel\'s first visible heading (tabindex=-1, no scroll); never on load or a hash change', () => {
+  const doc = new StubDocument();
+  const page = makeTabPage(doc);
+  const focused = [];
+  const heading = (panel, opts = {}) => {
+    const h = doc.el(null, { tag: 'h2', parent: opts.parent || panel, hidden: !!opts.hidden });
+    h.parent = opts.parent || panel;
+    h.focus = (o) => focused.push({ h, o });
+    return h;
+  };
+  // Salud: a hidden block's heading first (skipped), then the visible one
+  const hiddenBlock = doc.el(null, { hidden: true });
+  hiddenBlock.parent = page.panels.health;
+  const skipped = heading(page.panels.health, { parent: hiddenBlock });
+  const first = heading(page.panels.health);
+  page.panels.health.querySelectorAll = () => [skipped, first];
+  // Entreno: no heading at all -> the panel itself takes the focus
+  page.panels.entreno.querySelectorAll = () => [];
+  page.panels.entreno.focus = (o) => focused.push({ h: page.panels.entreno, o });
+  const listeners = {};
+  doc.addEventListener = (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); };
+  const win = {};
+  makeContext(doc, { addEventListener: (t, fn) => { (win[t] = win[t] || []).push(fn); } });
+  assert.deepEqual(focused, [], 'initial load: focus stays where the browser put it');
+  const click = (target) => (listeners.click || []).forEach((fn) => fn({ target, preventDefault() {} }));
+  click(doc.el('t-health', { tag: 'button', attrs: { 'data-tab-go': 'health' } }));
+  assert.equal(focused.length, 1);
+  assert.equal(focused[0].h, first, 'the first VISIBLE heading');
+  assert.equal(first.getAttribute('tabindex'), '-1', 'focusable by script only');
+  assert.deepEqual({ ...focused[0].o }, { preventScroll: true });
+  click(doc.el('t-entreno', { tag: 'button', attrs: { 'data-tab-go': 'entreno' } }));
+  assert.equal(focused[1].h, page.panels.entreno, 'no heading: the panel');
+  assert.equal(page.panels.entreno.getAttribute('tabindex'), '-1');
+  (win.hashchange || []).forEach((fn) => fn());
+  assert.equal(focused.length, 2, 'a hash change (Back, an edited URL) moves no focus');
+});
+
 test('a click on a [data-jump] link jumps to its target (opens its tab and fold); other clicks are left alone', async () => {
   const p = clickPage();
   const fold = p.doc.el('acc-anclaje', { tag: 'details', parent: p.panels.nutricion });

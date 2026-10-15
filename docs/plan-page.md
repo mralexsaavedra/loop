@@ -82,7 +82,7 @@ from `web/src/csp.mjs`, as a `<meta http-equiv="Content-Security-Policy">` right
 
 - No inline `on*=` handler anywhere: navigation is delegated. `client/core.js` listens on the document for
   `data-tab-go="<tab>"` (empty = the default tab: the wordmark) and `data-jump="<id>"` (in-page links);
-  `client/score.js` for the load pages' `data-mod="<modality>"` pills.
+  `client/score.js` for the load pages' `data-mod="<modality>"` pills (it exposes the setter as `window.HCScore.setMod`, never a bare global).
 - The personal plan's trusted notes (`page.notes`) may still write the legacy `onclick="jump('<id>')"` /
   `onclick="setTab('<tab>')"`: the build rewrites exactly those two into `data-jump` / `data-tab-go` and
   warns (`page-csp: … inline handler(s)`) about any other handler, which the browser would block.
@@ -199,7 +199,8 @@ read these instead of redefining them (a test guards it). Tests load it with `we
 | Helper | What it does |
 | --- | --- |
 | `lan()` | false when the page is opened from `file://`: every LAN fetch — `/api/food/*`, `/api/journal/*`, `/api/sync/status` + Sync, `/status.json`, the `/manuales/` probe — is skipped there and the page degrades exactly as with the services down, with no console errors; read at call time, no location = served |
-| `jsonApi(base, header, timeoutMs)` | THE fetch wrapper of the LAN JSON APIs (`food-core.js`: `/api/food` + `X-HC-Food`, `journal.js`: `/api/journal` + `X-HC-Journal`): `api(method, path, body?)` resolves a 2xx's JSON (`{}` without one), rejects `{code, field, status}` (`offline` / status 0 with no answer, a timeout or `file://`) |
+| `jsonApi(base, header, timeoutMs)` | THE fetch wrapper of the LAN JSON APIs (`food-core.js`: `/api/food` + `X-HC-Food`, `journal.js`: `/api/journal` + `X-HC-Journal`): `api(method, path, body?)` resolves a 2xx's JSON (`{}` without one), rejects `{code, field, status}` (`offline` / status 0 with no answer, a timeout or `file://`); built on `fetchTimeout` |
+| `fetchTimeout(url, init, ms)` | THE timed fetch (`jsonApi`, `freshness.js`'s status reads + Sync POST at 15 s, `profile.js`'s `/manuales/` probe at 10 s): rejects `{name: 'TimeoutError'}` after `ms` and aborts the request (`AbortController` when present), so a hung service never leaves the Sync button busy |
 | `esc` (`null` / `undefined` → `''`), `format`, `isoDate`, `todayIso`, `daysOld`, `shiftIso`, `MS_PER_DAY`, `STALE_DAYS` | string / ISO date helpers, constants |
 | `nf`, `num`, `int`, `pct`, `hours`, `duration` (h:mm), `numInput` (an input's value, never grouped) | thin wrappers adding the page `LOCALE` to `HC_FMT` |
 | `fmtDate`, `fmtMonth`, `weekdayIndex` | the ONE display-date formatter (below) |
@@ -288,7 +289,7 @@ in tracked Astro/JS source, which stays fully generic.
 
 ## Top bar
 
-`.topbar`, above the dock, on every tab: a 3-column grid so the middle stays centred.
+`<header class="topbar">` (the page's banner landmark), above the dock, on every tab: a 3-column grid so the middle stays centred.
 
 | Width | Layout |
 | --- | --- |
@@ -297,7 +298,7 @@ in tracked Astro/JS source, which stays fully generic.
 
 - **Avatar** (`components/Avatar.astro`): 36 px circle in a 44 px target; opens the profile sheet.
 - **Date pill** (`.date-pill`, uppercase, letter-spaced): "‹ HOY ›" / "‹ TODAY ›". Home only:
-  `.wrap:has(> .tab-panel[data-tab="home"][hidden]) > .topbar > .date-pill` hides it, and the other tabs
+  `.wrap:has(> main > .tab-panel[data-tab="home"][hidden]) > .topbar > .date-pill` hides it, and the other tabs
   show their centred title under the header row. Inside it, `<time id="today-date">` holds the viewer's
   full date ("mié 30 sept" / "Wed 30 Sep"), written client-side by `web/src/client/today-date.js` with
   `HC.fmtDate`, for assistive tech only (nothing time-based baked: builds stay byte-identical).
@@ -372,6 +373,18 @@ in tracked Astro/JS source, which stays fully generic.
 Four tabs, one question each (WHOOP-style: the glance on Home, the detail one tap away), switched by the
 bottom dock. Blocks inside a tab are SECTIONS (`data-section="<key>"`,
 `id="sec-<key>"`).
+
+- **Landmarks**: the top bar is the `<header>`, the four `.tab-panel`s sit in one `<main class="panels">`
+  (`layouts/Plan.astro`; the dock and the footer stay outside it), and each panel is a `role="region"` named
+  by its nav button (`aria-labelledby="t-<key>"`); a tab `page.hideTabs` removes has no button, so its panel
+  gets neither attribute (`web/test/nav-shell.test.mjs`, `hide-tabs.test.mjs`).
+- **Focus on a tab switch**: only a USER's switch (`client/core.js`, the delegated `data-tab-go` click) moves
+  focus to the new panel's first visible `h1`–`h3` (made `tabindex="-1"`, focused with `preventScroll`), or the
+  panel itself without one; the initial load, a hash restore and Back never move focus.
+- **Live regions**: never on a whole card re-rendered with `innerHTML` (`#eat-body`, `#nutri-target`,
+  `#nutri-score`, `#nutri-progress`, `#food-adherence`: a screen reader would re-read the card on every render);
+  a short `role="status"` line announces the change instead (the food log's `#food-msg`: "Added …", "Deleted …")
+  (`web/test/content.test.mjs`).
 
 | Tab (key) | Content, top to bottom |
 | --- | --- |

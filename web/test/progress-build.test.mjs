@@ -32,7 +32,7 @@ test('Progreso and Constancia follow the day\'s blocks in the dia section; Const
   const products = html.indexOf('id="food-products"');
   assert.ok(fuel > 0 && fuel < prog && prog < adh && adh < products, 'after Avituallamiento, before Mis productos');
   assert.match(html, /<div class="nutri-block" id="nutri-progress-block"> <div class="hs-head"> <h2 class="hs-lbl">Progress<\/h2> <button type="button" class="hs-i" id="nutri-progress-i" data-hs-info="nutri-progress-info" aria-expanded="false" aria-controls="nutri-progress-info" aria-label="About Progress">/, 'Progreso is not hidden: it needs only baked data; the shared section header with its ⓘ');
-  assert.match(html, /<div class="hs-info" id="nutri-progress-info" hidden><\/div> <div id="nutri-progress" aria-live="polite"><\/div> <\/div>/, 'the ⓘ block (filled by progress.js) right before the card');
+  assert.match(html, /<div class="hs-info" id="nutri-progress-info" hidden><\/div> <div id="nutri-progress"><\/div> <\/div>/, 'the ⓘ block (filled by progress.js) right before the card');
   assert.match(html, /<h2 class="hs-lbl">Consistency<\/h2>[\s\S]{0,200}<button type="button" class="hs-i" data-hs-info="adh-info" aria-expanded="false" aria-controls="adh-info" aria-label="About Consistency">/, 'Constancia\'s ⓘ controls the notes block adherence.js leads its host with');
   assert.match(html, /<div class="nutri-block" id="food-adherence-block" hidden>/);
   const block = html.slice(adh, products);
