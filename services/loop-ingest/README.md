@@ -550,6 +550,15 @@ curl -s localhost:8088/healthz
 npm ci && npm test   # or, from the repo root: npm run test:services
 ```
 
+**Container hardening** (`docker-compose.yml`, pinned by `scripts/loop-web-config.test.mjs`). Both containers
+run with a read-only root filesystem, `no-new-privileges`, every Linux capability dropped, memory / CPU /
+process limits and logs rotated at 3 x 10 MB:
+
+| Container | Writable | Capabilities kept | Limits |
+| --- | --- | --- | --- |
+| `loop-db` | the data volume, tmpfs `/var/run/postgresql`, `/tmp` | `CHOWN`, `DAC_READ_SEARCH`, `SETUID`, `SETGID` (the entrypoint owns its dirs by `postgres`, then drops to it; without any of them it does not start) | 1 GB, 2 CPUs, 256 processes |
+| `loop-ingest` | `/trigger` (bind mount), tmpfs `/tmp` | none (it runs as `node`) | 512 MB, 1 CPU, 128 processes |
+
 **Stopping.** On `SIGTERM` (`docker compose stop` / `restart` / `up -d` recreating it) the service stops the
 Strava loop, stops accepting connections and lets in-flight requests finish for up to 10 s
 (`SHUTDOWN_DEADLINE_MS`), then closes what is left, writes a pending refresh trigger, closes the database pool

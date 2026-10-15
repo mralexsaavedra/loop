@@ -17,7 +17,7 @@ map $host $hc_host_ok {
     localhost 1;
     "~^[0-9]{1,3}(\.[0-9]{1,3}){3}$" 1;
     "~^\[[0-9a-f:.]+\]$" 1;
-    include /etc/nginx/hc-extra-hosts.map;
+    include /etc/nginx/conf.d/hc-extra-hosts.map;
 }
 
 # Rate limits for the proxied ingest routes ONLY (never the page or status.json), per client address: the
@@ -71,6 +71,14 @@ server {
     gzip_min_length 1024;
     gzip_comp_level 5;
     gzip_vary on;
+
+    # The container healthcheck (docker-compose.yml): nginx itself answers, whatever ./site holds. Never
+    # proxied to ingest.
+    location = /nginx-health {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
 
     # Written by refresh.sh after every publish; the page polls it after a Sync.
     location = /status.json {

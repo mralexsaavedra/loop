@@ -220,7 +220,7 @@ test('nginx: every request is checked against the Host map at SERVER level (421 
   const { body } = hostMap();
   assert.match(body, /default\s+0;/, 'unknown names are refused by default');
   assert.match(body, /^\s*localhost\s+1;/m);
-  assert.match(body, /include \/etc\/nginx\/hc-extra-hosts\.map;/, 'the optional extra names');
+  assert.match(body, /include \/etc\/nginx\/conf\.d\/hc-extra-hosts\.map;/, 'the optional extra names (in conf.d: a tmpfs, the root filesystem is read-only)');
   const server = nginx.slice(nginx.indexOf('server {'));
   const guard = server.indexOf('if ($hc_host_ok = 0) { return 421; }');
   assert.ok(guard > 0, 'server-level guard');
@@ -364,4 +364,44 @@ test('nginx limit_req: every proxied /api/* and /ingest/* location is rate-limit
   }
   for (const l of locations(nginx).filter((x) => !/proxy_pass\s/.test(x.body))) assert.doesNotMatch(l.body, /limit_req/, `${l.spec} is never limited`);
   assert.doesNotMatch(head, /^\s*limit_req zone/m, 'no server-level limit (it would cover the page)');
+});
+
+// ---- Container hardening (both compose files) ----------------------------------------------------
+/** The block of one service in a compose file (its indented lines up to the next service or top-level key). */
+function serviceBlock(compose, name) {
+  const m = new RegExp(`^  ${name}:\\n((?: {4,}.*\\n|\\s*\\n)+)`, 'm').exec(compose);
+  assert.ok(m, `service ${name}`);
+  return m[1];
+}
+const HARDENING = [
+  ['loop-web', planCompose, ['/etc/nginx/conf.d', '/var/cache/nginx', '/run', '/tmp'], ['CHOWN', 'SETGID', 'SETUID']],
+  ['loop-db', ingestCompose, ['/var/run/postgresql', '/tmp'], ['CHOWN', 'DAC_READ_SEARCH', 'SETGID', 'SETUID']],
+  ['loop-ingest', ingestCompose, ['/tmp'], []],
+];
+test('compose hardening: read-only root fs + tmpfs for the written paths, every capability dropped but the needed ones, no-new-privileges, limits, rotated logs', () => {
+  for (const [name, compose, tmpfs, caps] of HARDENING) {
+    const b = serviceBlock(compose, name);
+    assert.match(b, /^\s+read_only: true$/m, `${name}: read_only`);
+    const mounts = [...b.matchAll(/^\s+- (\/[^:\s]+):size=\d+m$/gm)].map((m) => m[1]);
+    assert.deepEqual(mounts, tmpfs, `${name}: tmpfs`);
+    assert.match(b, /^\s+cap_drop: \[ALL\]$/m, `${name}: cap_drop ALL`);
+    const add = /^\s+cap_add: \[([A-Z_, ]+)\]$/m.exec(b);
+    assert.deepEqual(add ? add[1].split(/,\s*/) : [], caps, `${name}: cap_add`);
+    assert.match(b, /^\s+security_opt: \[no-new-privileges:true\]$/m, `${name}: no-new-privileges`);
+    assert.match(b, /^\s+mem_limit: \d+[mg]$/m, `${name}: memory limit`);
+    assert.match(b, /^\s+cpus: [\d.]+$/m, `${name}: cpu limit`);
+    assert.match(b, /^\s+pids_limit: \d+$/m, `${name}: pids limit`);
+  }
+  assert.match(ingestCompose, /^x-logging: &logging\n\s+driver: json-file\n\s+options:\n\s+max-size: "10m"\n\s+max-file: "3"$/m);
+  for (const name of ['loop-db', 'loop-ingest']) assert.match(serviceBlock(ingestCompose, name), /^\s+logging: \*logging$/m, name);
+  assert.match(serviceBlock(planCompose, 'loop-web'), /logging:\n\s+driver: json-file\n\s+options:\n\s+max-size: "10m"\n\s+max-file: "3"/);
+});
+
+test('loop-web healthcheck: nginx answers /nginx-health itself (exact, no proxy, inside the Host and raw-path guards)', () => {
+  assert.match(serviceBlock(planCompose, 'loop-web'), /healthcheck:\n\s+#.*\n\s+test: \["CMD", "wget", "-q", "-O", "\/dev\/null", "http:\/\/127\.0\.0\.1\/nginx-health"\]/);
+  const h = locations(nginx).find((l) => l.spec === '= /nginx-health');
+  assert.ok(h, 'location = /nginx-health');
+  assert.match(h.body, /return 200 "ok\\n";/);
+  assert.doesNotMatch(h.body, /proxy_pass|add_header/);
+  assert.equal(allowedByMap('127.0.0.1'), true, 'the healthcheck Host passes the map');
 });

@@ -2,11 +2,37 @@
 # suffixes the compose project, the container names and the database volume, so two installs never
 # share a container or a database. Empty = the plain names below.
 name: loop-ingest${HC_INSTANCE:+-${HC_INSTANCE}}
+
+# Container hardening (both services; scripts/loop-web-config.test.mjs pins it): a read-only root filesystem with
+# tmpfs for the paths each one writes, every Linux capability dropped except the few its entrypoint needs, no
+# privilege gain through setuid binaries, memory / CPU / process limits sized generously for a small host, and
+# rotated logs (3 x 10 MB per container).
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   loop-db:
     image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     container_name: loop-db${HC_INSTANCE:+-${HC_INSTANCE}}
     restart: unless-stopped
+    # Postgres writes only its data volume, its socket dir and /tmp. The entrypoint starts as root to own those
+    # by the postgres user (CHOWN, plus DAC_READ_SEARCH for its `find` in the postgres-owned data dir), then drops
+    # to that user with gosu (SETUID, SETGID). Each one was checked: without it the container does not start.
+    read_only: true
+    tmpfs:
+      - /var/run/postgresql:size=1m
+      - /tmp:size=64m
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_READ_SEARCH, SETGID, SETUID]
+    security_opt: [no-new-privileges:true]
+    # shared_buffers defaults to 128 MB; /dev/shm (docker default 64 MB) is enough for this small database
+    mem_limit: 1g
+    cpus: 2
+    pids_limit: 256
+    logging: *logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -28,6 +54,17 @@ services:
     # SIGTERM lets in-flight requests finish for up to 10 s (src/server.js SHUTDOWN_DEADLINE_MS), then
     # closes the pool; docker waits this long before SIGKILL
     stop_grace_period: 20s
+    # runs as the image's `node` user and writes only /trigger (bind mount): no capability at all
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    # MAX_BODY_BYTES (32 MB) is buffered and parsed in memory: room for a few uploads at once
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 128
+    logging: *logging
     environment:
       PORT: 8088
       # the database as separate fields, never a URL built here: a POSTGRES_PASSWORD with @ : / ? # % then

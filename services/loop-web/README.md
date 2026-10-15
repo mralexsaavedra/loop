@@ -247,6 +247,15 @@ and `Content-Security-Policy: frame-ancestors 'none'` (no other site can frame t
 log), and nginx hides its version (`server_tokens off`); a block with its own `add_header` repeats the set
 (`scripts/loop-web-config.test.mjs`).
 
+**Container hardening** (`docker-compose.yml`, pinned by `scripts/loop-web-config.test.mjs`): a read-only
+root filesystem with tmpfs for what nginx and its entrypoint write (`/etc/nginx/conf.d`, where the template and
+the Host map are rendered, `/var/cache/nginx`, `/run`, `/tmp`); every capability dropped except `CHOWN`,
+`SETUID` and `SETGID` (the master owns the workers' temp dirs and drops them to the `nginx` user; without any of
+the three it does not serve); `no-new-privileges`; 128 MB / 0.5 CPU / 128 processes; logs rotated at 3 x 10 MB;
+and a healthcheck on `/nginx-health`, which nginx answers itself (`docker ps` shows `healthy`). On a Docker
+older than 20.10 a container cannot bind port 80 without `NET_BIND_SERVICE` (the logs say `bind() to
+0.0.0.0:80 failed (13: Permission denied)`): add it to `cap_add` there.
+
 **Rate limits** (`limit_req`, per client address, `429` over the burst): the proxied `/api/sync`,
 `/api/sync/status`, `/api/food/*` and `/api/journal/*` share 10 requests/s with a burst of 60, and
 `/ingest/health-auto-export` gets 60/min with a burst of 20. The page itself, `status.json` and `/manuales/` are
