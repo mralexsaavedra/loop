@@ -253,3 +253,25 @@ test('classifyStravaError maps failures to coarse codes', () => {
   assert.equal(classifyStravaError(Object.assign(new Error('strava rate limit reached'), { rateLimited: true })), 'strava_other')
   assert.equal(classifyStravaError(undefined), 'strava_other')
 })
+
+test('every Strava request carries a timeout signal (a hung request never blocks the shared sync)', async () => {
+  const seen = []
+  const getToken = createTokenProvider({
+    clientId: 'id', clientSecret: 'secret', refreshToken: 'refresh',
+    fetchImpl: async (url, opts) => { seen.push(opts && opts.signal); return tokenResponse('tok', 3600) }
+  })
+  await getToken()
+  await fetchActivitiesSince(async () => 'tok', null, async (url, opts) => { seen.push(opts && opts.signal); return okJson([]) })
+  assert.equal(seen.length, 2)
+  for (const s of seen) assert.ok(s instanceof AbortSignal, 'an AbortSignal on every fetch')
+})
+
+// a regression here would loop forever and eat memory: fail fast instead
+test('stops paging after a hard page limit instead of looping forever on full pages', { timeout: 5000 }, async () => {
+  let pages = 0
+  await assert.rejects(
+    fetchActivitiesSince(async () => 'tok', null, async () => { pages += 1; return okJson(Array.from({ length: 100 }, (_, i) => ({ id: i }))) }),
+    /strava activities: more than 200 pages/
+  )
+  assert.equal(pages, 200)
+})

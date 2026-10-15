@@ -237,6 +237,11 @@ without the ingest service) the line and the button are not shown at all.
 
 ## Security and exposure model
 
+Every response carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`
+and `Content-Security-Policy: frame-ancestors 'none'` (no other site can frame the page that writes your food
+log), and nginx hides its version (`server_tokens off`); a block with its own `add_header` repeats the set
+(`scripts/plan-web-config.test.mjs`).
+
 `POST /sync` and `GET /sync/status` are **unauthenticated** by design: the page
 is a static file and cannot hold a secret. That is acceptable because:
 
