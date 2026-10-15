@@ -30,11 +30,6 @@
   font-size: var(--fs-xs);
   font-family: var(--num);
 }
-.sc-sub {
-  color: var(--muted);
-  font-size: var(--fs-sm);
-  margin: 4px 0;
-}
 .sc-arrow {
   font-size: 0.8em;
 }
@@ -45,19 +40,6 @@
 .sc-spark-lbl {
   color: var(--faint);
   font-size: var(--fs-2xs);
-}
-.sc-comp {
-  border-top: 1px solid var(--line-soft);
-  padding: 10px 0;
-}
-.sc-comp-top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px;
-}
-.sc-comp-val {
-  font-family: var(--num);
 }
 .sc-raw {
   display: flex;
@@ -74,7 +56,6 @@
   font-size: var(--fs-2xs);
   color: var(--faint);
 }
-.sc-gated,
 .sc-insufficient,
 .sc-note,
 .sc-other,
@@ -394,23 +375,14 @@
   margin: var(--sp-5) 0;
   align-items: center;
   gap: var(--sp-2);
-  /* a wrapped row sits past both 7px hit-area extensions (see .dial-mod::before) */
+  /* a wrapped row sits past both 7px hit-area extensions (the .chip::before band, base.css) */
   row-gap: var(--sp-6);
 }
-/* a .chip (base.css): the pill stays a compact 30px; its hit area is a centred 44px band (::before)
-   that only reaches 7px above and below it, never sideways into the next pill */
+/* a .chip (base.css): the pill stays a compact 30px, its 44px hit band is the chip's own ::before */
 .dial-mod {
   justify-content: center;
   min-width: 44px;
   cursor: pointer;
-}
-.dial-mod::before {
-  content: "";
-  position: absolute;
-  top: calc(50% - 22px);
-  bottom: calc(50% - 22px);
-  left: 0;
-  right: 0;
 }
 .dial-mod:focus-visible {
   outline: 2px solid var(--accent);
@@ -462,11 +434,6 @@
   }
   .dial-word {
     font-size: var(--fs-sm);
-  }
-  .dial-foot {
-    max-width: calc(3 * var(--dial-size) + 2 * var(--dial-gap));
-    margin-left: auto;
-    margin-right: auto;
   }
   .dial-switch {
     width: calc(var(--dial-size) + 2 * var(--dial-gap));

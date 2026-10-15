@@ -1,4 +1,4 @@
-/* Mi día tab — day-summary hero, meal cards, day-panel wrapper. Ported
+/* Mi día tab — day-summary hero, meal cards, intake rings. Ported
  * verbatim (selectors + declarations) from the legacy
  * plan-web.template.html <style> block. */
 
@@ -30,36 +30,6 @@
   letter-spacing: 0;
   text-shadow: none;
   margin-left: var(--sp-1);
-}
-.macros {
-  display: flex;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-  margin: var(--sp-5) 0 var(--sp-1);
-}
-.mac {
-  background: var(--surface);
-  border-radius: var(--card-radius);
-  padding: var(--sp-3) var(--sp-5);
-  font-size: var(--fs-md);
-  font-weight: 600;
-  display: flex;
-  gap: var(--sp-3);
-  align-items: baseline;
-}
-.mac b {
-  font-size: var(--fs-xl);
-  font-family: var(--num);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--ink);
-}
-.mac .lbl {
-  color: var(--muted);
-  font-weight: 700;
-  font-size: var(--fs-label);
-  text-transform: uppercase;
-  letter-spacing: var(--label-track);
 }
 .deficit {
   font-size: var(--fs-sm);
@@ -124,11 +94,6 @@ button.meal-name:focus-visible {
   letter-spacing: 0;
   color: var(--ink);
 }
-.meal-desc {
-  color: var(--muted);
-  font-size: var(--fs-md);
-  margin-top: var(--sp-2);
-}
 .meal-pcf {
   font-size: var(--fs-2xs);
   color: var(--faint);
@@ -146,9 +111,6 @@ button.meal-name:focus-visible {
   font-family: var(--num);
   font-size: var(--fs-sm);
   letter-spacing: 0;
-}
-.day-panel[hidden] {
-  display: none;
 }
 /* intake rings (client/intake.js): logged intake vs the plan day total. One neutral data colour
  * for every ring (progress, not a grade); --mid only flags a ring that ran past 110 %. */

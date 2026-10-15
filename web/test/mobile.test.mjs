@@ -1,7 +1,7 @@
 /* Mobile guards on the built example page (web/.test-dist/en-example, built by `npm run pretest`):
  *  - no iOS focus zoom: on narrow screens every text input / select / textarea is >= 16px, and no
  *    form-control rule out-ranks the guard;
- *  - the load dial's modality switch keeps a >= 44px hit area while the pill stays compact;
+ *  - every chip and the date pill's label keep a >= 44px hit area while the pill stays compact;
  *  - dark form controls / browser chrome: color-scheme dark + a theme-color equal to the top of the
  *    page's background (the --ground-top token).
  * Run `npm run pretest` (or `npm test`) first: it reads an already-built fixture. */
@@ -133,26 +133,43 @@ test('specificity helper: the counts the guard test relies on', () => {
   assert.deepEqual(specificity('.dial-mod::before'), [0, 1, 1]);
 });
 
-test('load dial switch: the pill stays compact but its hit area is 44px tall and wide', () => {
+test('every chip (day types, Constancia window, onboarding buttons, load pills) stays a compact 30px pill with a 44px tall hit band', () => {
   const rules = parseCssRules(css());
   const decl = (sel, prop, media = null) => {
     const r = rules.filter((x) => x.selector === sel && x.media === media).flatMap((x) => x.decls).filter(([p]) => p === prop);
     return r.length ? r[r.length - 1][1] : undefined;
   };
-  assert.equal(decl('.chip', 'min-height'), '30px', 'the visible pill (a .chip) keeps its compact height');
-  assert.equal(decl('.dial-mod', 'min-width'), '44px');
+  assert.equal(decl('.chip', 'min-height'), '30px', 'the visible pill keeps its compact height');
   assert.equal(decl('.chip', 'position'), 'relative');
-  assert.equal(decl('.dial-mod:before', 'content'), '""');
-  assert.equal(decl('.dial-mod:before', 'position'), 'absolute');
-  // centred 44px band: top / bottom = 50% - 22px, full width
-  assert.equal(decl('.dial-mod:before', 'top'), 'calc(50% - 22px)');
-  assert.equal(decl('.dial-mod:before', 'bottom'), 'calc(50% - 22px)');
-  assert.equal(decl('.dial-mod:before', 'left'), '0');
-  assert.equal(decl('.dial-mod:before', 'right'), '0');
+  assert.equal(decl('.chip:before', 'content'), '""');
+  assert.equal(decl('.chip:before', 'position'), 'absolute');
+  // centred 44px band: top / bottom = 50% - 22px, full width (never sideways into the next chip)
+  assert.equal(decl('.chip:before', 'top'), 'calc(50% - 22px)');
+  assert.equal(decl('.chip:before', 'bottom'), 'calc(50% - 22px)');
+  assert.equal(decl('.chip:before', 'left'), '0');
+  assert.equal(decl('.chip:before', 'right'), '0');
+  assert.equal(decl('.dial-mod:before', 'content'), undefined, 'the load pills use the shared band');
+  assert.equal(decl('.dial-mod', 'min-width'), '44px', 'a one-letter pill is still 44px wide');
   // wrapped rows never overlap: the band reaches (44 - 30) / 2 = 7px past each pill, so a wrapped
   // row needs >= 14px between rows; side by side the bands stay within each pill's own width
   assert.equal(decl('.dial-switch', 'row-gap'), 'var(--sp-6)');
   assert.equal(token('sp-6'), '14px');
+});
+
+test('the date pill\'s "Today" label stays 32px tall but its hit band is 44px', () => {
+  const rules = parseCssRules(css());
+  const decl = (sel, prop) => {
+    const r = rules.filter((x) => x.selector === sel && x.media === null).flatMap((x) => x.decls).filter(([p]) => p === prop);
+    return r.length ? r[r.length - 1][1] : undefined;
+  };
+  assert.equal(decl('.day-lbl', 'min-height'), '32px', 'the pill does not grow');
+  assert.equal(decl('.day-lbl', 'position'), 'relative');
+  assert.equal(decl('.day-lbl:before', 'content'), '""');
+  assert.equal(decl('.day-lbl:before', 'position'), 'absolute');
+  assert.equal(decl('.day-lbl:before', 'top'), 'calc(50% - 22px)');
+  assert.equal(decl('.day-lbl:before', 'bottom'), 'calc(50% - 22px)');
+  assert.equal(decl('.day-lbl:before', 'left'), '0');
+  assert.equal(decl('.day-lbl:before', 'right'), '0');
 });
 
 test('dark browser chrome and form controls: color-scheme + theme-color from the --ground-top token', () => {

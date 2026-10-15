@@ -319,7 +319,8 @@ in tracked Astro/JS source, which stays fully generic.
   data, or data far behind the viewer's clock, leaves the pill as it is (no dead control).
 - On a past day the label (`#day-word`) shows its date ("mar 6 oct", uppercased by CSS → "MAR 6 OCT"), and
   the label button (`#day-lbl`, `aria-live="polite"`, `aria-disabled` on today) returns to today
-  (`aria-label` "<date> · Volver a hoy").
+  (`aria-label` "<date> · Volver a hoy"). The pill stays 32 px tall; the label's hit area is a 44 px band
+  (`.day-lbl::before`, like the chips') and the chevrons are 44 px targets that overhang it.
 - Keyboard: ← / → while focus is inside the pill (focus moves to the label when the focused chevron turns
   off).
 - The day is in the hash (`#d=YYYY-MM-DD`, see [URL hash & navigation](#url-hash--navigation)), replaced —
