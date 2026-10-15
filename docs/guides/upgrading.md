@@ -34,8 +34,10 @@ docker exec loop-db pg_dump -U health health > "backups/loop-db-$(date +%F).sql"
    (cd services/loop-ingest && docker compose up -d --build)
    ```
 
-   Or, on a release, run the published image instead of building (`mralexandersaavedra/loop-ingest`, the version
-   comes from the clone; set `HC_VERSION` in `.env` to pin another):
+   Or, with the clone checked out at a release tag (`git checkout vX.Y.Z`), run the published image instead
+   of building (`mralexandersaavedra/loop-ingest`, the version comes from the clone; set `HC_VERSION` in
+   `.env` to pin another). On `main` between releases the code is newer than any published image: use
+   `--build` above.
 
    ```sh
    (cd services/loop-ingest && docker compose pull loop-ingest && docker compose up -d)

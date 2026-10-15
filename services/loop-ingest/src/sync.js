@@ -1,4 +1,4 @@
-import { createTokenProvider, createTokenStore, fetchActivitiesSince, upsertActivities, lastSyncedStart, classifyStravaError } from './strava.js'
+import { createTokenProvider, createTokenStore, pullActivitiesSince, upsertActivities, lastSyncedStart, classifyStravaError } from './strava.js'
 import { createAthleteRefresher } from './athlete.js'
 import { createHrBackfill } from './hr-zones.js'
 
@@ -82,13 +82,14 @@ export function createStravaSync (pool, env, { status = null, fetchImpl = fetch,
   async function runOnce () {
     const newest = await lastSyncedStart(pool)
 
-    // First run pulls everything; later runs re-read a short overlap window.
+    // First run walks the whole history from the beginning (after=0); later runs re-read a short overlap
+    // window. Either way every page is upserted as it arrives, so a first pull cut short by a rate limit
+    // resumes here, from the newest activity it already stored, on the next run.
     const since = newest
       ? Math.floor((new Date(newest).getTime() - OVERLAP_DAYS * 86_400_000) / 1000)
-      : null
+      : 0
 
-    const activities = await fetchActivitiesSince(getAccessToken, since, fetchImpl)
-    const count = await upsertActivities(pool, activities)
+    const count = await pullActivitiesSince(getAccessToken, since, (batch) => upsertActivities(pool, batch), fetchImpl)
     return { count, since }
   }
 

@@ -141,3 +141,56 @@ test('createStravaSync runs one HR-stream backfill batch after the athlete refre
   assert.ok(urls.findIndex((u) => u.endsWith('/api/v3/athlete')) < urls.findIndex((u) => u.includes('/streams')), 'athlete first, then streams')
   assert.equal(saved[0][0], '77')
 })
+
+// C1: the first pull of a long history is incremental: every page is upserted as it arrives, so a rate
+// limit partway keeps them, and the next run resumes from the newest stored activity instead of page 1.
+function memoryPool () {
+  const rows = new Map()
+  const client = {
+    async query (sql, values) {
+      if (/^INSERT INTO strava_activity /.test(sql)) rows.set(values[0], values[1])
+      return { rows: [] }
+    },
+    release () {}
+  }
+  return {
+    rows,
+    connect: async () => client,
+    query: async (sql) => {
+      if (/MAX\(start_local\)/.test(sql)) return { rows: [{ newest: rows.size ? [...rows.values()].sort().at(-1) : null }] }
+      return { rows: [] }
+    }
+  }
+}
+
+test('createStravaSync: a first pull hit by a 429 keeps its pages, and the next run resumes from the newest stored one', async () => {
+  const { createStravaSync } = await import('../src/sync.js')
+  const pool = memoryPool()
+  const afters = []
+  let activityCalls = 0
+  const day = (i) => new Date(Date.UTC(2020, 0, 1) + i * 86_400_000).toISOString().replace('.000Z', 'Z')
+  const fetchImpl = async (url) => {
+    const u = new URL(String(url))
+    if (u.pathname.endsWith('/oauth/token')) return { ok: true, status: 200, json: async () => ({ access_token: 't', expires_at: Math.floor(Date.now() / 1000) + 3600 }) }
+    if (u.pathname.endsWith('/athlete/activities')) {
+      activityCalls += 1
+      afters.push(u.searchParams.get('after'))
+      if (activityCalls === 2) return { ok: false, status: 429 }
+      if (activityCalls === 1) return { ok: true, status: 200, json: async () => Array.from({ length: 100 }, (_, i) => ({ id: i + 1, start_date_local: day(i) })) }
+      return { ok: true, status: 200, json: async () => [{ id: 500, start_date_local: day(200) }] }
+    }
+    return { ok: false, status: 500 }
+  }
+  const sync = createStravaSync(pool, { STRAVA_CLIENT_ID: 'i', STRAVA_CLIENT_SECRET: 's', STRAVA_REFRESH_TOKEN: 'r' }, { fetchImpl, log: () => {} })
+
+  await assert.rejects(sync.runOnce(), (err) => err.rateLimited === true)
+  assert.equal(pool.rows.size, 100, 'the first page was stored before the rate limit')
+  assert.equal(afters[0], '0', 'the first pull walks ascending from the beginning')
+
+  const result = await sync.runOnce()
+  assert.equal(result.count, 1)
+  assert.equal(pool.rows.size, 101)
+  const resumedFrom = Number(afters[2])
+  assert.equal(resumedFrom, Date.parse(day(99)) / 1000 - 7 * 86_400, 'resumed from the newest stored start (minus the 7-day overlap), not page 1 of everything')
+  await sync.hrIdle()
+})
