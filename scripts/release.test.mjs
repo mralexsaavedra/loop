@@ -54,6 +54,10 @@ test('CI runs both suites on every push and pull request; tags publish multi-arc
   assert.match(rel, /secrets\.DOCKERHUB_TOKEN/);
   assert.ok(!/password:\s*[^$\s]/.test(rel), 'no credential in the file');
   assert.ok(exists('.github/dependabot.yml'));
+  const dep = read('.github/dependabot.yml');
+  for (const name of ['node', 'postgres']) {
+    assert.match(dep, new RegExp(`dependency-name: ${name}\\n\\s+update-types: \\[version-update:semver-major\\]`), `${name} majors are ignored`);
+  }
 });
 
 test('community files: security policy and contributing guide', () => {
