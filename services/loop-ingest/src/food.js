@@ -365,68 +365,163 @@ export function recipeView (recipe, byId) {
   }
 }
 
+/** The ROUTES entry a path matches, with its regex match; null for an unknown path. */
+function routeOf (path) {
+  for (const route of ROUTES) {
+    const match = route.re.exec(path)
+    if (match) return { route, match }
+  }
+  return null
+}
+
+/** The macros SNAPSHOT a new log entry stores, with its label, amount and unit: a quick entry as typed (its
+ * macros must pass Atwater unless forced), a product or a complete recipe computed here (food-calc.js). */
+async function logSnapshot (store, e) {
+  if (e.refType === 'quick') {
+    const macros = roundMacros(e.macros)
+    const { protein, carbs, fat } = macros
+    if (!e.force && protein != null && carbs != null && fat != null && !atwaterOk(macros)) throw httpError(400, 'atwater')
+    return { macros, label: e.label, amount: 1, unit: 'serving' }
+  }
+  if (e.refType === 'product') {
+    const p = await store.getProduct(e.refId)
+    if (!p || p.archived) throw httpError(400, 'unknown_product')
+    const macros = productEntry(p, e.amount, e.unit)
+    if (!macros) throw httpError(400, 'unit')
+    return { macros, label: p.name, amount: e.amount, unit: e.unit }
+  }
+  const r = await store.getRecipe(e.refId)
+  if (!r || r.archived) throw httpError(400, 'unknown_recipe')
+  const byId = byIdOf(await store.getProducts(productIds(r)))
+  if (!recipeBasis(r, byId).complete) throw httpError(400, 'recipe_incomplete')
+  const macros = recipeEntry(r, byId, e.amount, e.unit)
+  if (!macros) throw httpError(400, 'unit')
+  return { macros, label: r.name, amount: e.amount, unit: e.unit }
+}
+
+/** A failed request's answer: a known httpError as {error, field?} (an oversized upload is answered, then its
+ * connection dropped), anything else logged and answered 500. */
+function sendError (err, req, res, log) {
+  if (res.headersSent) return
+  if (err && err.status && err.code) {
+    const body = { error: err.code }
+    if (err.field) body.field = err.field
+    if (err.status === 413) {
+      // stop reading an oversized upload: answer, then drop the connection
+      res.on('finish', () => req.destroy())
+      send(res, 413, body, { connection: 'close' })
+    } else {
+      req.resume()
+      send(res, err.status, body)
+    }
+  } else {
+    log(JSON.stringify({ event: 'food_error', message: err?.message ?? String(err) }))
+    send(res, 500, { error: 'internal' })
+  }
+}
+
+async function recipeViews (store, recipes) {
+  const ids = [...new Set(recipes.flatMap(productIds))]
+  const byId = byIdOf(await store.getProducts(ids))
+  return recipes.map((r) => recipeView(r, byId))
+}
+
+/** Recipe product ingredients must be ACTIVE products (a basic carries its own snapshot). */
+async function checkIngredients (store, r) {
+  const ids = [...new Set(productIds(r))]
+  const found = await store.getProducts(ids)
+  if (found.filter((p) => !p.archived).length !== ids.length) throw httpError(400, 'unknown_product')
+}
+
+/** The row this request id already stored, if any (a retry of the same add). */
+async function existing (store, requestId) {
+  return requestId ? store.getLogByRequest(requestId) : null
+}
+
+/** {entry, created}: a retry with a known requestId returns the stored row, never a duplicate. */
+async function addLog (store, e) {
+  const prior = await existing(store, e.requestId)
+  if (prior) return { entry: prior, created: false }
+  const { macros, label, amount, unit } = await logSnapshot(store, e)
+  const entry = await store.insertLog({
+    date: e.date, meal: e.meal, refType: e.refType, refId: e.refType === 'quick' ? null : e.refId, label, amount, unit, ...macros, requestId: e.requestId
+  })
+  if (entry) return { entry, created: true }
+  // a concurrent retry stored it first (the unique request id): answer that row
+  const winner = await existing(store, e.requestId)
+  if (!winner) throw new Error('log insert returned no row')
+  return { entry: winner, created: false }
+}
+
+// /food/products and /food/products/:id (DELETE = archive)
+async function products (store, req, res, path, idParam) {
+  if (path === '/food/products') {
+    if (req.method === 'GET') return send(res, 200, { products: await store.listProducts() })
+    return send(res, 201, { product: await store.insertProduct(validateProduct(await readJson(req))) })
+  }
+  if (idParam == null) throw httpError(404, 'not_found')
+  if (req.method === 'DELETE') {
+    if (!(await store.archiveProduct(idParam))) throw httpError(404, 'not_found')
+    return send(res, 200, { ok: true })
+  }
+  const p = await store.updateProduct(idParam, validateProduct(await readJson(req)))
+  if (!p) throw httpError(404, 'not_found')
+  return send(res, 200, { product: p })
+}
+
+// /food/recipes and /food/recipes/:id (DELETE = archive), answered with their computed macros
+async function recipes (store, req, res, path, idParam) {
+  if (path === '/food/recipes') {
+    if (req.method === 'GET') return send(res, 200, { recipes: await recipeViews(store, await store.listRecipes()) })
+    const r = validateRecipe(await readJson(req))
+    await checkIngredients(store, r)
+    const [view] = await recipeViews(store, [await store.insertRecipe(r)])
+    return send(res, 201, { recipe: view })
+  }
+  if (idParam == null) throw httpError(404, 'not_found')
+  if (req.method === 'DELETE') {
+    if (!(await store.archiveRecipe(idParam))) throw httpError(404, 'not_found')
+    return send(res, 200, { ok: true })
+  }
+  const r = validateRecipe(await readJson(req))
+  await checkIngredients(store, r)
+  const saved = await store.updateRecipe(idParam, r)
+  if (!saved) throw httpError(404, 'not_found')
+  const [view] = await recipeViews(store, [saved])
+  return send(res, 200, { recipe: view })
+}
+
+// /food/log?date= (a day + its totals), POST /food/log (add) and DELETE /food/log/:id
+async function logEntries (store, req, res, url, idParam) {
+  if (url.pathname === '/food/log') {
+    if (req.method === 'GET') {
+      const date = validDate(url.searchParams.get('date')) ?? bad('date')
+      const entries = await store.listLog(date)
+      return send(res, 200, { date, entries, totals: dayTotals(entries) })
+    }
+    const e = validateLog(await readJson(req))
+    const { entry, created } = await addLog(store, e)
+    return send(res, created ? 201 : 200, { entry, totals: dayTotals(await store.listLog(e.date)) })
+  }
+  if (idParam == null || !(await store.deleteLog(idParam))) throw httpError(404, 'not_found')
+  return send(res, 200, { ok: true })
+}
+
+// /food/off?barcode= | ?q=: the Open Food Facts lookup (src/off.js)
+async function offLookup (off, res, url) {
+  const barcode = url.searchParams.get('barcode')
+  if (barcode != null) {
+    if (!BARCODE_RE.test(barcode)) bad('barcode')
+    return send(res, 200, { product: await off.byBarcode(barcode) })
+  }
+  const q = (url.searchParams.get('q') ?? '').replace(/\s+/g, ' ').trim()
+  if (q.length < L.queryMin || q.length > L.queryMax) bad('q')
+  return send(res, 200, { results: await off.search(q) })
+}
+
 export function createFoodRoutes ({ store, off, now = Date.now, log = console.log, writeLimit = FOOD_WRITE_LIMIT, summaryLimit = FOOD_SUMMARY_LIMIT, available = () => true, settingsAvailable = () => true, profileAvailable = () => true, allowedHosts = [] }) {
   const writes = createWindowLimiter({ limit: writeLimit, windowMs: 60_000, now })
   const summaries = createWindowLimiter({ limit: summaryLimit, windowMs: 60_000, now })
-
-  async function recipeViews (recipes) {
-    const ids = [...new Set(recipes.flatMap(productIds))]
-    const byId = byIdOf(await store.getProducts(ids))
-    return recipes.map((r) => recipeView(r, byId))
-  }
-
-  /** Recipe product ingredients must be ACTIVE products (a basic carries its own snapshot). */
-  async function checkIngredients (r) {
-    const ids = [...new Set(productIds(r))]
-    const found = await store.getProducts(ids)
-    if (found.filter((p) => !p.archived).length !== ids.length) throw httpError(400, 'unknown_product')
-  }
-
-  /** The row this request id already stored, if any (a retry of the same add). */
-  async function existing (requestId) {
-    return requestId ? store.getLogByRequest(requestId) : null
-  }
-
-  /** {entry, created}: a retry with a known requestId returns the stored row, never a duplicate. */
-  async function addLog (e) {
-    const prior = await existing(e.requestId)
-    if (prior) return { entry: prior, created: false }
-    let macros, label, amount, unit
-    if (e.refType === 'quick') {
-      macros = roundMacros(e.macros)
-      const { protein, carbs, fat } = macros
-      if (!e.force && protein != null && carbs != null && fat != null && !atwaterOk(macros)) throw httpError(400, 'atwater')
-      label = e.label
-      amount = 1
-      unit = 'serving'
-    } else if (e.refType === 'product') {
-      const p = await store.getProduct(e.refId)
-      if (!p || p.archived) throw httpError(400, 'unknown_product')
-      macros = productEntry(p, e.amount, e.unit)
-      if (!macros) throw httpError(400, 'unit')
-      label = p.name
-      amount = e.amount
-      unit = e.unit
-    } else {
-      const r = await store.getRecipe(e.refId)
-      if (!r || r.archived) throw httpError(400, 'unknown_recipe')
-      const byId = byIdOf(await store.getProducts(productIds(r)))
-      if (!recipeBasis(r, byId).complete) throw httpError(400, 'recipe_incomplete')
-      macros = recipeEntry(r, byId, e.amount, e.unit)
-      if (!macros) throw httpError(400, 'unit')
-      label = r.name
-      amount = e.amount
-      unit = e.unit
-    }
-    const entry = await store.insertLog({
-      date: e.date, meal: e.meal, refType: e.refType, refId: e.refType === 'quick' ? null : e.refId, label, amount, unit, ...macros, requestId: e.requestId
-    })
-    if (entry) return { entry, created: true }
-    // a concurrent retry stored it first (the unique request id): answer that row
-    const winner = await existing(e.requestId)
-    if (!winner) throw new Error('log insert returned no row')
-    return { entry: winner, created: false }
-  }
 
   async function dispatch (req, res, url, idParam) {
     const m = req.method
@@ -444,63 +539,30 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
       const { from, to } = validateRange(url.searchParams)
       return send(res, 200, { from, to, days: daySummaries(await store.listLogRange(from, to)) })
     }
-    if (path === '/food/products') {
-      if (m === 'GET') return send(res, 200, { products: await store.listProducts() })
-      return send(res, 201, { product: await store.insertProduct(validateProduct(await readJson(req))) })
+    if (path === '/food/products' || path.startsWith('/food/products/')) return products(store, req, res, path, idParam)
+    if (path === '/food/recipes' || path.startsWith('/food/recipes/')) return recipes(store, req, res, path, idParam)
+    if (path === '/food/log' || path.startsWith('/food/log/')) return logEntries(store, req, res, url, idParam)
+    return offLookup(off, res, url)
+  }
+
+  /** The checks before a known route runs: its migration group is ready, the method is allowed (else a 405 is
+   * sent and false returned) and a write passes the origin, rate and content-type checks. */
+  function admit (req, res, route) {
+    const group = route.group ?? 'food'
+    const ready = group === 'settings' ? settingsAvailable() : group === 'profile' ? profileAvailable() : available()
+    if (!ready) throw httpError(503, `${group}_unavailable`)
+    if (!route.methods.includes(req.method)) {
+      req.resume()
+      send(res, 405, { error: 'method_not_allowed' }, { allow: route.methods.join(', ') })
+      return false
     }
-    if (path.startsWith('/food/products/')) {
-      if (idParam == null) throw httpError(404, 'not_found')
-      if (m === 'DELETE') {
-        if (!(await store.archiveProduct(idParam))) throw httpError(404, 'not_found')
-        return send(res, 200, { ok: true })
-      }
-      const p = await store.updateProduct(idParam, validateProduct(await readJson(req)))
-      if (!p) throw httpError(404, 'not_found')
-      return send(res, 200, { product: p })
+    if (WRITE_METHODS.has(req.method)) {
+      const origin = req.headers.origin
+      if (origin !== undefined && !hostAllowed(hostOfOrigin(origin), allowedHosts)) throw httpError(403, 'forbidden_origin')
+      if (!writes.take(req.socket?.remoteAddress ?? 'unknown')) throw httpError(429, 'rate_limited')
+      if (req.method !== 'DELETE' && !isJson(req)) throw httpError(415, 'unsupported_media_type')
     }
-    if (path === '/food/recipes') {
-      if (m === 'GET') return send(res, 200, { recipes: await recipeViews(await store.listRecipes()) })
-      const r = validateRecipe(await readJson(req))
-      await checkIngredients(r)
-      const [view] = await recipeViews([await store.insertRecipe(r)])
-      return send(res, 201, { recipe: view })
-    }
-    if (path.startsWith('/food/recipes/')) {
-      if (idParam == null) throw httpError(404, 'not_found')
-      if (m === 'DELETE') {
-        if (!(await store.archiveRecipe(idParam))) throw httpError(404, 'not_found')
-        return send(res, 200, { ok: true })
-      }
-      const r = validateRecipe(await readJson(req))
-      await checkIngredients(r)
-      const saved = await store.updateRecipe(idParam, r)
-      if (!saved) throw httpError(404, 'not_found')
-      const [view] = await recipeViews([saved])
-      return send(res, 200, { recipe: view })
-    }
-    if (path === '/food/log') {
-      if (m === 'GET') {
-        const date = validDate(url.searchParams.get('date')) ?? bad('date')
-        const entries = await store.listLog(date)
-        return send(res, 200, { date, entries, totals: dayTotals(entries) })
-      }
-      const e = validateLog(await readJson(req))
-      const { entry, created } = await addLog(e)
-      return send(res, created ? 201 : 200, { entry, totals: dayTotals(await store.listLog(e.date)) })
-    }
-    if (path.startsWith('/food/log/')) {
-      if (idParam == null || !(await store.deleteLog(idParam))) throw httpError(404, 'not_found')
-      return send(res, 200, { ok: true })
-    }
-    // /food/off
-    const barcode = url.searchParams.get('barcode')
-    if (barcode != null) {
-      if (!BARCODE_RE.test(barcode)) bad('barcode')
-      return send(res, 200, { product: await off.byBarcode(barcode) })
-    }
-    const q = (url.searchParams.get('q') ?? '').replace(/\s+/g, ' ').trim()
-    if (q.length < L.queryMin || q.length > L.queryMax) bad('q')
-    return send(res, 200, { results: await off.search(q) })
+    return true
   }
 
   return {
@@ -511,47 +573,14 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
       try {
         if (!hostAllowed(hostOfHeader(req.headers.host), allowedHosts)) throw httpError(421, 'misdirected')
         if (req.headers['x-hc-food'] !== '1') throw httpError(403, 'forbidden')
-        let route = null
-        let match = null
-        for (const r of ROUTES) {
-          match = r.re.exec(path)
-          if (match) { route = r; break }
-        }
         // an unknown path is a 404 whatever is available; a known one needs its migration group
-        if (!route) throw httpError(404, 'not_found')
-        const group = route.group ?? 'food'
-        const ready = group === 'settings' ? settingsAvailable() : group === 'profile' ? profileAvailable() : available()
-        if (!ready) throw httpError(503, `${group}_unavailable`)
-        if (!route.methods.includes(req.method)) {
-          req.resume()
-          send(res, 405, { error: 'method_not_allowed' }, { allow: route.methods.join(', ') })
-          return true
-        }
-        if (WRITE_METHODS.has(req.method)) {
-          const origin = req.headers.origin
-          if (origin !== undefined && !hostAllowed(hostOfOrigin(origin), allowedHosts)) throw httpError(403, 'forbidden_origin')
-          if (!writes.take(req.socket?.remoteAddress ?? 'unknown')) throw httpError(429, 'rate_limited')
-          if (req.method !== 'DELETE' && !isJson(req)) throw httpError(415, 'unsupported_media_type')
-        }
+        const hit = routeOf(path)
+        if (!hit) throw httpError(404, 'not_found')
+        if (!admit(req, res, hit.route)) return true
         if (req.method === 'GET' || req.method === 'DELETE') req.resume()
-        await dispatch(req, res, url, match[1] != null ? pathId(match[1]) : null)
+        await dispatch(req, res, url, hit.match[1] != null ? pathId(hit.match[1]) : null)
       } catch (err) {
-        if (res.headersSent) return true
-        if (err && err.status && err.code) {
-          const body = { error: err.code }
-          if (err.field) body.field = err.field
-          if (err.status === 413) {
-            // stop reading an oversized upload: answer, then drop the connection
-            res.on('finish', () => req.destroy())
-            send(res, 413, body, { connection: 'close' })
-          } else {
-            req.resume()
-            send(res, err.status, body)
-          }
-        } else {
-          log(JSON.stringify({ event: 'food_error', message: err?.message ?? String(err) }))
-          send(res, 500, { error: 'internal' })
-        }
+        sendError(err, req, res, log)
       }
       return true
     }
