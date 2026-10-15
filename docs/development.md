@@ -92,7 +92,9 @@ push to `main` and every pull request; a fresh clone needs no personal data to p
 [`scripts/release.test.mjs`](../scripts/release.test.mjs) keeps the pieces below in step, so a drift fails the suite.
 
 One-time repository settings: the variable `DOCKERHUB_USERNAME` and the secret `DOCKERHUB_TOKEN` (a Docker Hub
-access token with read/write scope, never the account password).
+access token with read/write scope, never the account password); and, once the repository is public, **Settings →
+Code security → Private vulnerability reporting** on, the channel [`SECURITY.md`](../SECURITY.md) points to (GitHub
+offers it only on public repositories).
 
 Checklist for a release:
 

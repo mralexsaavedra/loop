@@ -7,8 +7,8 @@ operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README
 ## [1.0.0] - 2026-10-15
 
 First versioned release. The data service ships as a Docker Hub image, `mralexandersaavedra/loop-ingest:1.0.0`
-(amd64 and arm64); `docker compose up -d` in `services/loop-ingest` runs it, `--build` still builds it from the
-clone. Base images are pinned by digest, CI runs both test suites on every pull request, Dependabot proposes
+(amd64 and arm64): `docker compose pull loop-ingest && docker compose up -d` in `services/loop-ingest` runs it, and
+`up -d --build` still builds it from the clone. Base images are pinned by digest, CI runs both test suites on every pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 

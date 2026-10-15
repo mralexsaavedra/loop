@@ -11,8 +11,9 @@ Only the latest release (the newest `## [X.Y.Z]` in [`CHANGELOG.md`](CHANGELOG.m
 ## Reporting a vulnerability
 
 Report it privately through GitHub: **Security → Report a vulnerability** on this repository (a private security
-advisory). Please do not open a public issue, and do not include anyone's real health data in the report; a
-minimal reproduction with the demo data (`data/demo/`) is ideal.
+advisory). If that button is not there, open an issue that only asks for a private contact, with no details of the
+problem, and the maintainer will reach out. Please never put the details in a public issue, and do not include
+anyone's real health data in the report; a minimal reproduction with the demo data (`data/demo/`) is ideal.
 
 You can expect an acknowledgement within a week. Once a fix is released, the advisory is published with credit,
 unless you prefer to stay anonymous.

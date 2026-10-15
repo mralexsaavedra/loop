@@ -174,6 +174,11 @@ untouched. The sync scripts (`npm run sync`, `refresh.sh`) read `INGEST_PORT` fr
 `services/loop-ingest/.env`, so each clone only ever reads its own service. Every install runs its own
 hourly build: on a small host (2 CPU / 4 GB) stagger the cron minutes (`0 * * * *` and `30 * * * *`).
 
+Both installs share one data service image tag (`mralexandersaavedra/loop-ingest:<version>`): a `--build` in one clone
+also replaces the image the other runs on its next `up`. Keep the clones on the same commit and update both
+together, or set a different `HC_VERSION` in the second one's `services/loop-ingest/.env` (e.g. `1.0.0-second`)
+when it must build its own.
+
 ## How a refresh works (sequence protocol)
 
 Nothing compares clocks. Every accepted click gets a **sequence number**, and
