@@ -17,6 +17,7 @@
     "demo:data": "node scripts/make-demo-data.mjs",
     "golden:bake": "node scripts/golden-bake.mjs",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p jsconfig.json",
     "pretest": "node web/test/build-fixtures.mjs",
     "test": "node --test \"lib/**/*.test.mjs\" \"web/**/*.test.mjs\" \"scripts/*.test.mjs\" \".claude/hooks/*.test.js\" data/nutrition/*.test.mjs data/apple-health/*.test.mjs data/profile/*.test.mjs",
     "test:services": "npm --prefix services/loop-ingest ci --no-audit --no-fund && npm --prefix services/loop-ingest test",
@@ -36,6 +37,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/node": "22.20.4",
     "eslint": "10.11.0",
     "globals": "17.12.0",
     "subset-font": "^2.9.0",
