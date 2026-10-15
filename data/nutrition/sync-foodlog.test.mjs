@@ -188,3 +188,49 @@ test('the export files are gitignored (personal data)', () => {
     assert.equal(out, path.join('data', 'nutrition', f));
   }
 });
+
+// ---- main() returns its exit code (runCli sets it): called in-process, the runner is never killed ----
+
+function mainHarness (prefix) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const out = [], err = [];
+  const env = { INGEST_ENV_FILE: path.join(dir, 'no-such.env'), INGEST_URL: 'http://127.0.0.1:9' };
+  const refused = async () => { throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } }); };
+  const answer = (status, body) => async () => ({ ok: status < 300, status, json: async () => body });
+  const blocked = path.join(dir, 'a-file');
+  fs.writeFileSync(blocked, 'x');
+  return {
+    dir, env, refused, answer, out, err,
+    io: { log: (s) => out.push(s), error: (s) => err.push(s) },
+    unwritable: path.join(blocked, 'sub'), // a path under a regular file: every write fails
+    cleanup: () => fs.rmSync(dir, { recursive: true, force: true }),
+  };
+}
+
+test('main() in-process: unreachable -> warning, returns 0; failed write -> returns 1', async () => {
+  const h = mainHarness('sync-foodlog-main-');
+  try {
+    assert.equal(await sf.main({ env: h.env, ...h.io, fetchImpl: h.refused, outDir: path.join(h.dir, 'f') }), 0);
+    assert.match(h.err.pop(), /^WARNING: could not read the food log .*ECONNREFUSED/);
+    const ok = async (url) => {
+      const u = new URL(url);
+      return { ok: true, status: 200, json: async () => ({ from: u.searchParams.get('from'), to: u.searchParams.get('to'), days: [] }) };
+    };
+    assert.equal(await sf.main({ env: h.env, ...h.io, fetchImpl: ok, outDir: h.unwritable }), 1);
+    assert.match(h.err.pop(), /^ERROR: food log sync failed/);
+  } finally { h.cleanup(); }
+});
+
+test('main(): a malformed body warns "unexpected response", never "could not read" (the service was reached)', async () => {
+  const h = mainHarness('sync-foodlog-bad-');
+  try {
+    const outDir = path.join(h.dir, 'f');
+    assert.equal(await sf.main({ env: h.env, ...h.io, fetchImpl: h.answer(200, { days: 'nope' }), outDir }), 0);
+    const w = h.err.pop();
+    assert.match(w, /^WARNING: unexpected response from the food log at http:\/\/127\.0\.0\.1:9 \(unexpected response shape .*\)\. foodlog-daily\.csv kept\.$/);
+    const notJson = async () => ({ ok: true, status: 200, json: async () => JSON.parse('<html>') });
+    assert.equal(await sf.main({ env: h.env, ...h.io, fetchImpl: notJson, outDir }), 0);
+    assert.match(h.err.pop(), /^WARNING: unexpected response from the food log/);
+    assert.ok(!fs.existsSync(outDir));
+  } finally { h.cleanup(); }
+});

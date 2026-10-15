@@ -215,36 +215,39 @@ Snapshots the Strava athlete (profile, gear, avatar) from the ingest service int
 Env: INGEST_URL, INGEST_TOKEN (else from the service .env), INGEST_ENV_FILE (default
 services/loop-ingest/.env).`
 
-async function main () {
-  const baseUrl = common.readBaseUrl(process.env)
-  const token = common.readIngestToken(process.env)
+// The CLI entry; env / log / error / fetchImpl / outDir are injectable for tests. Returns the exit code: 1 on
+// a missing token, an unreachable service or a failed write.
+async function main ({ env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = OUT } = {}) {
+  const baseUrl = common.readBaseUrl(env)
+  const token = common.readIngestToken(env)
   if (!token) {
-    console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/loop-ingest/.env. No files touched.')
-    process.exit(1)
+    error('ERROR: no ingest token. Set INGEST_TOKEN or create services/loop-ingest/.env. No files touched.')
+    return 1
   }
   let body
   try {
-    body = normalizeExport(await common.fetchJson(`${baseUrl}/export/athlete`, token))
+    body = normalizeExport(await common.fetchJson(`${baseUrl}/export/athlete`, token, { fetchImpl }))
   } catch (err) {
-    console.error(errorMessage(err, baseUrl))
-    process.exit(1)
+    error(errorMessage(err, baseUrl))
+    return 1
   }
   let r
   try {
-    r = await syncProfile(OUT, body)
+    r = await syncProfile(outDir, body, { fetchImpl })
   } catch (err) {
-    console.error(`ERROR: profile sync failed (${(err && err.message) || err}). Files are only ever replaced atomically, so each one is either the previous or the new version.`)
-    process.exit(1)
+    error(`ERROR: profile sync failed (${(err && err.message) || err}). Files are only ever replaced atomically, so each one is either the previous or the new version.`)
+    return 1
   }
-  console.log(`Profile: ${r.snapshot ? 'Strava snapshot' : 'no Strava snapshot yet'}; ${r.bikes} bike(s), ${r.shoes} shoe(s), ${r.devices} device(s); ${r.profileWritten ? 'written' : 'unchanged'}; avatar ${r.avatar}`)
-  if (r.avatar.startsWith('failed')) console.error(`WARNING: avatar not updated (${r.avatar.slice(8)}); the previous one is kept.`)
+  log(`Profile: ${r.snapshot ? 'Strava snapshot' : 'no Strava snapshot yet'}; ${r.bikes} bike(s), ${r.shoes} shoe(s), ${r.devices} device(s); ${r.profileWritten ? 'written' : 'unchanged'}; avatar ${r.avatar}`)
+  if (r.avatar.startsWith('failed')) error(`WARNING: avatar not updated (${r.avatar.slice(8)}); the previous one is kept.`)
   if (r.gearScopeMissing) {
-    console.error('NOTE: Strava returned no gear — the token lacks the profile:read_all scope. ' +
+    error('NOTE: Strava returned no gear — the token lacks the profile:read_all scope. ' +
       'Re-authorize (services/loop-ingest/README.md, "Gear needs the profile:read_all scope").')
   }
+  return 0
 }
 
-if (isMain(import.meta.url)) common.runCli(main, { usage: USAGE })
+if (isMain(import.meta.url)) common.runCli(() => main(), { usage: USAGE })
 
 export {
   PROFILE_JSON,
