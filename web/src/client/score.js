@@ -150,8 +150,8 @@
     }
     out.push('<div class="rec-trend">' + arrow(R.band) + esc(format(rt.trendShort, { value: num(R.trend7, 1, true) })) +
       ' · <span class="sc-band-' + esc(R.band) + '">' + esc(rt.bands[R.band]) + '</span></div>');
-    // a device without HRV (lib/score/recovery.mjs noHrv): the score is partial, said in one short line
-    if (R.noHrv) out.push('<div class="sc-note rec-partial">' + esc(rt.partialShort) + '</div>');
+    // no HRV in the score (lib/score/recovery.mjs noHrv / hrvPending): partial, said in one short line
+    if (R.noHrv || R.hrvPending) out.push('<div class="sc-note rec-partial">' + esc(rt.partialShort) + '</div>');
     return '<div class="rec-head">' + out.join('') + '</div>';
   }
   // the card's notes (plain text, escaped by recInfoHtml), in reading order
@@ -173,6 +173,7 @@
     out.push(rt.unitNote);
     out.push(format(rt.confLbl, { level: rt.confLevels[R.confidence.level] }) + ' · ' + rt.sdnnLbl);
     if (R.noHrv) out.push(rt.partialNote);
+    if (R.hrvPending) out.push(rt.partialPendingNote);
     if (R.rhrDerived) out.push(rt.rhrDerivedNote);
     if (R.missing && R.missing.length) out.push(format(rt.missingLbl, { list: R.missing.map(function (k) { return rt.components[k]; }).join(', ') }));
     if (R.driver) out.push(format(rt.driverLbl, { name: rt.components[R.driver] }));

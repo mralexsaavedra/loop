@@ -185,6 +185,18 @@ test('recovery card: a partial score (no HRV) says so in one short line, the ⓘ
   assert.ok(text(info[1]).includes(enT.recovery.partialNote) && text(info[1]).includes(enT.recovery.rhrDerivedNote));
 });
 
+test('recovery card: HRV still building its baseline -> the same short line, but the ⓘ says "no HRV baseline yet", never "no HRV from your device"', () => {
+  const s = sdScores();
+  s.recovery.hrvPending = true;
+  const html = recCard(s);
+  assert.ok(html.includes(`<div class="sc-note rec-partial">${enT.recovery.partialShort}</div>`));
+  const info = text(html.match(/<div class="hs-info" id="rec-info" hidden>([\s\S]*?)<\/div><!--\/rec-info-->/)[1]);
+  assert.ok(info.includes(enT.recovery.partialPendingNote));
+  assert.ok(!info.includes(enT.recovery.partialNote));
+  assert.match(enT.recovery.partialPendingNote, /no HRV baseline yet/);
+  assert.match(enT.recovery.rhrDerivedNote, /lowest 30-minute or hourly average/);
+});
+
 test('recovery card inside Salud: the moved notes join the Recovery section\'s own ⓘ block (#hs-info-recovery), so the card draws no second ⓘ', () => {
   const secInfo = { innerHTML: '<p>section note</p>' };
   const hosts = {};

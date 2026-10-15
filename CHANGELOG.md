@@ -19,12 +19,16 @@ A second install's band (Mi Fitness) writes to Apple Health only "in bed" sleep 
 stages, no HRV, no resting HR, so the extractor wrote no sleep and no resting HR. Sleep: a night with no asleep data
 from any source now takes the main in-bed block (at least 3 h; afternoon fragments are naps) of a source that never
 writes asleep data as an ESTIMATED night, source `<app> (in bed)`, stage columns blank; Salud and the sleep sheet
-label it. The iPhone's bedtime record never counts, and an Apple Watch never estimates, so Watch output is unchanged.
-Re-run `node data/apple-health/extract.mjs` on a new export (and `npm run sync -- --full` for cached Shortcut nights).
+label it. Estimated nights come from the Apple Health export only (the Shortcut payload has no per-sample source,
+so the iPhone's Sleep Schedule record could not be told apart there); in the export the iPhone's bedtime record never
+counts, and an Apple Watch never estimates, so Watch output is unchanged. Re-run `node data/apple-health/extract.mjs`
+on a new export.
 Resting HR: where no device measures it, the extractor derives it from the night's heart rate (the lowest 30-minute
 mean between 00:00 and 07:00, at least 4 samples per window and 3 night hours), source `<app> (derived)`; a measured
-value always wins and an Apple Watch never gets one. Export only for now (the Shortcut's heart-rate samples cannot
-carry it). Recovery without HRV says so: "Partial: no HRV" on the card, scored on resting HR and sleep.
+value always wins and an Apple Watch never gets one. An older non-Watch band's night heart rate (e.g. a Zepp band
+before a Watch, when nothing measured resting HR) also yields derived rows on those dates. Export only for now (the
+Shortcut's heart-rate samples cannot carry it). Recovery without HRV says so: "Partial: no HRV" on the card, scored
+on resting HR and sleep; the ⓘ tells a device without HRV apart from an HRV baseline still building up (under 14 days).
 The Shortcut guide now says that a search for a type the device never writes stops the Shortcut with "No se ha
 encontrado ninguna muestra", and to delete those blocks (for Mi Fitness: HRV and resting HR).
 
