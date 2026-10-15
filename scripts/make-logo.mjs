@@ -33,7 +33,7 @@ export async function loadDeps(importer = (/** @type {string} */ m) => import(m)
     const [fk, sh] = await Promise.all([importer('fontkitten'), importer('sharp')]);
     return { create: fk.create, sharp: sh.default };
   } catch (err) {
-    throw new Error(`make-logo needs the optional packages fontkitten and sharp (Astro's own dependencies, not declared in package.json): run npm ci, or npm install --no-save fontkitten sharp (${(err && err.message) || err})`);
+    throw new Error(`make-logo needs the optional packages fontkitten and sharp (Astro's own dependencies, not declared in package.json): run npm ci, or npm install --no-save fontkitten sharp (${(err && err.message) || err})`, { cause: err });
   }
 }
 
