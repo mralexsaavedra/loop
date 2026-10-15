@@ -104,8 +104,9 @@ weight trend after 2–3 weeks.
   (men) / 1200 (women).
 - The protein and fat kg are a **reference weight** (`referenceKg`): the current weight up to BMI 25, the weight
   at BMI 25 above it (to 10 g), because fat-free mass, not fat, drives protein needs; fat never drops below
-  0.5 g per kg of CURRENT weight. `checkTargets` measures protein, the fat range and carbs per reference kg and the
-  fat floor (`fatMin`) per current kg. Same factors for men and women (the position stands give no sex-specific
+  0.5 g per kg of CURRENT weight (rounded up to the gram, so a decimal weight never lands under it).
+  `checkTargets` measures protein, the fat range and carbs per reference kg and the fat floor (`fatMin`) per
+  current kg. Same factors for men and women (the position stands give no sex-specific
   g/kg); sex enters through the BMR and the kcal floor.
 - `screenPerson` withholds numbers under 18 or in pregnancy / lactation, offers only maintenance on an
   illness / medication or eating-risk answer, drops the cut under BMI 18.5; `checkTargetWeight` refuses a
