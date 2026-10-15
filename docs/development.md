@@ -76,7 +76,7 @@ A runnable `scripts/*.mjs` guards its CLI with `if (isMain(import.meta.url))` fr
 | Guard | What it keeps true | Doc |
 | --- | --- | --- |
 | Guard hook (`.claude/hooks/guard-health-data.js`) | No force-adding ignored personal files, no un-ignoring them in `.gitignore` | [`guard-hook.md`](guard-hook.md) |
-| Git pre-commit hook (opt-in: `git config core.hooksPath scripts/git-hooks`) | The same rule for your own commits: no staged ignored file, no staged `.gitignore` that drops a pattern or adds a `!` | [`guard-hook.md`](guard-hook.md#git-pre-commit-hook-opt-in) |
+| Git pre-commit hook (opt-in: `git config core.hooksPath scripts/git-hooks`) | The same rule for your own commits: no staged ignored file, no staged `.gitignore` that drops a pattern, adds a `!` or is deleted (judged against `HEAD`'s rules) | [`guard-hook.md`](guard-hook.md#git-pre-commit-hook-opt-in) |
 | Design system test | Role tokens, one picked style, chevrons, card radius / padding | [`design-system.md`](design-system.md) |
 | Inline CSS budget (`web/test/css-slim.test.mjs`) | The slimmed inline CSS (fonts excluded) stays under its budget (110 000 chars; re-measured 2026-10-15 at ≈ 108.9 KB) | [`plan-page.md`](plan-page.md) |
 | Phone inputs (`web/test/mobile.test.mjs`) | Text inputs are ≥ 16 px on phones (no iOS zoom) | [`plan-page.md`](plan-page.md) |
