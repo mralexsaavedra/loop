@@ -1,4 +1,4 @@
-# health-coach
+# LOOP
 
 A personal, data-driven health and nutrition coaching workspace operated by
 [Claude Code](https://claude.com/claude-code). You drop in your own data (Apple Health export, food log,
@@ -111,8 +111,8 @@ through it: it checks what is already in place, then goes one step at a time.
 2. **Get the code:**
 
    ```sh
-   git clone https://github.com/mralexsaavedra/health-coach.git
-   cd health-coach
+   git clone https://github.com/mralexsaavedra/loop.git
+   cd loop
    npm ci
    ```
 
@@ -152,7 +152,7 @@ Optional extras for this level:
 
 What you get: the page at `http://<server-ip>:8090` from any phone or computer at home, a food log you fill
 from the page, and a Sync button that rebuilds the page with your latest data (it also rebuilds every hour).
-Under the hood: two small Docker services, `services/plan-web` (serves the page) and `services/health-ingest`
+Under the hood: two small Docker services, `services/loop-web` (serves the page) and `services/loop-ingest`
 (stores your food log, settings and incoming data).
 
 **Needs a Linux machine that stays on** (a home server or a mini PC) with Docker, systemd and Node.js;
@@ -163,12 +163,12 @@ question at a time — you, the sports you do, your goal and a short safety chec
 calories and macros for each kind of day. You can adjust them before saving and reopen it from your profile.
 Everything on the page works without Claude Code; only the reports, the coaches and the agent need it.
 
-1. **Install:** [`services/plan-web/README.md` → Install (host)](services/plan-web/README.md#install-host) —
+1. **Install:** [`services/loop-web/README.md` → Install (host)](services/loop-web/README.md#install-host) —
    ten numbered steps, from the secrets file to opening the page on your phone.
 2. Keeping it up to date: [`docs/guides/upgrading.md`](docs/guides/upgrading.md); something not working:
    [`docs/guides/troubleshooting.md`](docs/guides/troubleshooting.md).
 3. Reference when you need it: the food log API and every setting
-   ([`services/health-ingest/README.md`](services/health-ingest/README.md)); how the refresh and the
+   ([`services/loop-ingest/README.md`](services/loop-ingest/README.md)); how the refresh and the
    security model work ([`docs/lan-services.md`](docs/lan-services.md)).
 
 ### Level 3 — live sync and your own knowledge base
@@ -176,7 +176,7 @@ Everything on the page works without Claude Code; only the reports, the coaches 
 | Add | What it gives you | Doc |
 | --- | --- | --- |
 | iOS Shortcut | Pushes recent Apple Health samples between full exports. [Import the ready-made one](https://www.icloud.com/shortcuts/ceb66eea36fc434a9d2f910421dd18aa) and set your server, token and watch | [`docs/ios-shortcut.md`](docs/ios-shortcut.md) → Install the ready-made Shortcut |
-| Strava | Rides / runs, Relative Effort for the load dial, your bikes and shoes | [`services/health-ingest/README.md` → Getting the Strava credentials](services/health-ingest/README.md#getting-the-strava-credentials-once-5-minutes) |
+| Strava | Rides / runs, Relative Effort for the load dial, your bikes and shoes | [`services/loop-ingest/README.md` → Getting the Strava credentials](services/loop-ingest/README.md#getting-the-strava-credentials-once-5-minutes) |
 | Knowledge base | Transcripts of the experts *you* choose, read by the coach subagents | [`docs/knowledge-base.md`](docs/knowledge-base.md), [`knowledge/README.md`](knowledge/README.md) |
 
 The knowledge base ingest (`scripts/ingest-youtube.mjs`) uses the external

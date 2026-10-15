@@ -55,7 +55,7 @@ test('barcode lookup: v2 product URL, descriptive User-Agent, no redirects, a ti
   assert.equal(calls.length, 1)
   assert.ok(calls[0].url.startsWith(`${OFF_BASE}/api/v2/product/8480000123456?`))
   assert.equal(calls[0].init.headers['user-agent'], OFF_USER_AGENT)
-  assert.match(OFF_USER_AGENT, /^health-coach\/\d/)
+  assert.match(OFF_USER_AGENT, /^loop\/\d/)
   assert.doesNotMatch(OFF_USER_AGENT, /@/, 'no personal email')
   assert.equal(calls[0].init.redirect, 'error')
   assert.ok(calls[0].init.signal, 'a timeout signal')

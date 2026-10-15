@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Publishes the device manuals profile/profile.json names (devices[].manual) from data/gear/ into the
  * LAN page's site folder (lib/profile/manuals.mjs has the rules). Called by
- * services/plan-web/refresh.sh as `npm run -s publish:manuals`; a missing / refused file is a warning
+ * services/loop-web/refresh.sh as `npm run -s publish:manuals`; a missing / refused file is a warning
  * (exit 0), only an unusable output folder or an unexpected error exits 1.
  *
  *   node scripts/publish-manuals.mjs [--profile <file>] [--gear <dir>] [--out <dir>]
@@ -21,7 +21,7 @@ try {
   const r = publishManuals({
     profileFile: opt('--profile', path.join(ROOT, 'profile', 'profile.json')),
     gearDir: opt('--gear', path.join(ROOT, 'data', 'gear')),
-    outDir: opt('--out', path.join(ROOT, 'services', 'plan-web', 'site', 'manuales')),
+    outDir: opt('--out', path.join(ROOT, 'services', 'loop-web', 'site', 'manuales')),
     warn: (m) => console.error(m),
   });
   if (!r.skipped) {

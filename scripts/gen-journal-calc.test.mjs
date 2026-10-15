@@ -5,16 +5,16 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { journalCalcSource, JOURNAL_CALC_PATH, JOURNAL_CALC_HEADER } from './gen-journal-calc.mjs';
 import * as J from '../lib/journal/journal.mjs';
-import * as S from '../services/health-ingest/src/journal-calc.js';
+import * as S from '../services/loop-ingest/src/journal-calc.js';
 
 const committed = readFileSync(JOURNAL_CALC_PATH, 'utf8');
 
 test('journal-calc.js starts with the GENERATED header', () => {
-  assert.ok(committed.startsWith('/* ' + JOURNAL_CALC_HEADER), 'services/health-ingest/src/journal-calc.js is not generated: run `npm run gen:journal-calc`');
+  assert.ok(committed.startsWith('/* ' + JOURNAL_CALC_HEADER), 'services/loop-ingest/src/journal-calc.js is not generated: run `npm run gen:journal-calc`');
 });
 
 test('journal-calc.js is current: regenerating it from the lib gives the committed bytes', () => {
-  assert.ok(committed === journalCalcSource(), 'services/health-ingest/src/journal-calc.js is out of date: run `npm run gen:journal-calc`');
+  assert.ok(committed === journalCalcSource(), 'services/loop-ingest/src/journal-calc.js is out of date: run `npm run gen:journal-calc`');
 });
 
 test('the generator is deterministic', () => {

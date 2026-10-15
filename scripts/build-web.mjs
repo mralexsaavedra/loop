@@ -179,7 +179,7 @@ function main() {
   // --outdir overrides the default web/dist/<mode> destination — used by
   // web/test/build-fixtures.mjs to build test fixtures into web/.test-dist/
   // instead, so `npm test` never overwrites the live personal build that
-  // services/plan-web/refresh.sh publishes from (design's Testing Strategy).
+  // services/loop-web/refresh.sh publishes from (design's Testing Strategy).
   const outDir = args.outdir ? path.resolve(ROOT, args.outdir) : path.join(WEB_ROOT, 'dist', mode);
   const stagingParent = path.dirname(outDir);
   const stagingDir = path.join(stagingParent, `.staging-${mode}-${process.pid}`);

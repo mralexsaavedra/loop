@@ -14,11 +14,11 @@ built, for anyone changing the code.
 | Fix something that is not working | [`guides/troubleshooting.md`](guides/troubleshooting.md) |
 | Update your install to the latest version (and back up first) | [`guides/upgrading.md`](guides/upgrading.md) |
 | Try it with no data of your own | [`data/demo/README.md`](../data/demo/README.md) |
-| Run the page and the data service at home | [`services/plan-web/README.md`](../services/plan-web/README.md) → Install (host) |
+| Run the page and the data service at home | [`services/loop-web/README.md`](../services/loop-web/README.md) → Install (host) |
 | Send your Apple Health data from the iPhone every day | [`ios-shortcut.md`](ios-shortcut.md) |
-| Connect Strava | [`services/health-ingest/README.md`](../services/health-ingest/README.md) → Getting the Strava credentials |
+| Connect Strava | [`services/loop-ingest/README.md`](../services/loop-ingest/README.md) → Getting the Strava credentials |
 | Set up your profile with Claude Code, or with the page's own assistant | [`onboarding.md`](onboarding.md) |
-| Run a second install for another person on the same host | [`services/plan-web/README.md`](../services/plan-web/README.md) → Running a second install |
+| Run a second install for another person on the same host | [`services/loop-web/README.md`](../services/loop-web/README.md) → Running a second install |
 
 ## Reference — how each area is built
 

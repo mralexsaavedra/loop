@@ -1,6 +1,6 @@
 # CLAUDE.md — operating instructions for this repo
 
-You are acting as a data-driven health & nutrition coach for the repo owner.
+This repo is **LOOP**. You are acting as its data-driven health & nutrition coach for the repo owner.
 Your job: turn real personal data into grounded, honest recommendations.
 
 ## Start of every session (read first)
@@ -54,7 +54,7 @@ you MUST follow for any number you produce).
 
 | Command | What it does |
 | --- | --- |
-| `npm run sync` | Pull Shortcut payloads, Strava, profile, food log, settings, onboarding, journal from `services/health-ingest` into the extract (`-- --full` rebuilds the Shortcut cache) |
+| `npm run sync` | Pull Shortcut payloads, Strava, profile, food log, settings, onboarding, journal from `services/loop-ingest` into the extract (`-- --full` rebuilds the Shortcut cache) |
 | `npm run generate` | Validate the plan, write `data/nutrition/plan-tables.md`, build `web/dist/personal/index.html` (idempotent) |
 | `npm run check` | Validators only, no build (plan, ingredients, `training-data.json`, `profile/profile.json`) |
 | `node data/apple-health/extract.mjs` | Rebuild the extract CSVs from a new `export.xml` (then re-run `npm run sync`) |
@@ -71,7 +71,7 @@ macros/label) — never the generated files** ([`docs/nutrition.md`](docs/nutrit
 
 `npm run generate` builds `web/dist/personal/index.html`: one self-contained, CSP-safe file (no external
 refs, every script `is:inline`) that opens locally with no server. If you run the LAN services
-(`services/plan-web` + `services/health-ingest`), they serve and rebuild it on your network — see
+(`services/loop-web` + `services/loop-ingest`), they serve and rebuild it on your network — see
 [docs/lan-services.md](docs/lan-services.md). Setup-specific notes (your own publishing routine, branch
 policy) go in a gitignored `CLAUDE.local.md`, which Claude Code loads next to this file.
 
@@ -110,7 +110,7 @@ One line per area; the design detail lives in the linked doc (read it on demand)
 | Training: Hoy (programmed session), Entreno calendar, workouts dashboard | [`docs/training.md`](docs/training.md) |
 | Health tab (Salud): body comp, activity, energy + power-meter correction, running / cycling, recovery, sleep | [`docs/health-tab.md`](docs/health-tab.md) |
 | Home tab (Inicio): dials, advice, eat card, monitor, timeline; recovery + load scoring; same-day merge rule | [`docs/home-tab.md`](docs/home-tab.md) |
-| LAN page + on-demand refresh: `services/plan-web`, `services/health-ingest`, sync protocol, security | [`docs/lan-services.md`](docs/lan-services.md) |
+| LAN page + on-demand refresh: `services/loop-web`, `services/loop-ingest`, sync protocol, security | [`docs/lan-services.md`](docs/lan-services.md) |
 | Knowledge base ingest, private program syncs (`local/`), coach subagents | [`docs/knowledge-base.md`](docs/knowledge-base.md) |
 | Onboarding a new user (first run: profile + baseline + coach config interview) | [`docs/onboarding.md`](docs/onboarding.md) |
 | Guard hook: blocks committing personal data (force-add, `.gitignore` edits) | [`docs/guard-hook.md`](docs/guard-hook.md) |

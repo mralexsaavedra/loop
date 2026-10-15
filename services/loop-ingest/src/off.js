@@ -16,7 +16,7 @@ import { createTokenBucket } from './limits.js'
 import { round1 } from './food-calc.js'
 
 export const OFF_BASE = 'https://world.openfoodfacts.org'
-export const OFF_USER_AGENT = 'health-coach/1.0 (self-hosted personal food log)'
+export const OFF_USER_AGENT = 'loop/1.0 (self-hosted personal food log)'
 const FIELDS = 'code,product_name,product_name_es,brands,stores,quantity,product_quantity_unit,serving_quantity,nutriments'
 const KJ_PER_KCAL = 4.184
 const MAX_RESULTS = 10

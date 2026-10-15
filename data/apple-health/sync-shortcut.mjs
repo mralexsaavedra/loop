@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /* iOS Shortcut sync — pulls the payloads an iOS Shortcut POSTed to the self-hosted ingest
- * service (services/health-ingest) and MERGES them into the Apple Health extract CSVs, so the
+ * service (services/loop-ingest) and MERGES them into the Apple Health extract CSVs, so the
  * cache stays fresh between full export.xml drops.
  *
  *   npm run sync              incremental: fetches only payloads newer than the local cache
  *   npm run sync -- --full    ignore the cache, refetch every payload and rebuild it
  *
- * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/health-ingest/.env>, else :8088), INGEST_TOKEN (falls back to
- *          services/health-ingest/.env), SHORTCUT_AUTOMATION (default "atajo-salud").
+ * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/loop-ingest/.env>, else :8088), INGEST_TOKEN (falls back to
+ *          services/loop-ingest/.env), SHORTCUT_AUTOMATION (default "atajo-salud").
  * Writes : data/apple-health/extract/<csv of each METRICS entry> + _meta.json + .shortcut-cache.json
  *          (each via temp file + rename; nothing is written if the service can't be read)
  *
@@ -513,7 +513,7 @@ async function main() {
   const envText = fs.existsSync(ENV_FILE) ? fs.readFileSync(ENV_FILE, 'utf8') : null;
   const token = resolveToken(process.env, envText);
   if (!token) {
-    console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/health-ingest/.env. No files touched.');
+    console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/loop-ingest/.env. No files touched.');
     process.exit(1);
   }
   const full = process.argv.includes('--full');

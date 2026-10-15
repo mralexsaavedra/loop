@@ -3,8 +3,8 @@
  *
  * Everything is decided HERE, at view time: the build bakes no time and no URL state, so consecutive
  * builds stay byte-identical. On load it asks the page's own server for
- *   GET /api/sync/status  (health-ingest via plan-web nginx: timestamps only)
- *   GET /status.json      (written by services/plan-web/refresh.sh after each publish)
+ *   GET /api/sync/status  (loop-ingest via loop-web nginx: timestamps only)
+ *   GET /status.json      (written by services/loop-web/refresh.sh after each publish)
  * The top bar stays ONE row: a status dot + the Shortcut age ("hace 5 min", #fresh-sum, the dot carries
  * the worst source level), an icon-only Sync button (spinner class `is-busy` while syncing) and the
  * avatar. The full per-source line "Atajo: hace 5 min · Strava: hace 2 h · Página: hace 1 min" is the

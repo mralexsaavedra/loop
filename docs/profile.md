@@ -193,7 +193,7 @@ accepted nutrition targets of a user without an AI coach).
 
 ## Ingest side: Strava athlete and gear scope
 
-`services/health-ingest/src/athlete.js`, table `strava_athlete`, `sql/004_athlete.sql` +
+`services/loop-ingest/src/athlete.js`, table `strava_athlete`, `sql/004_athlete.sql` +
 `005_athlete_refresh.sql`.
 
 ### Refresh
@@ -217,14 +217,14 @@ accepted nutrition targets of a user without an AI coach).
 
 - Strava returns bikes / shoes only for a token with `profile:read_all`; without it `gearScopeMissing: true`
   (coarse flag) and the sheet says how to re-authorize.
-- Re-authorize (steps in `services/health-ingest/README.md`):
+- Re-authorize (steps in `services/loop-ingest/README.md`):
   1. back up `.env`;
-  2. re-run `services/health-ingest/scripts/strava-auth.js`;
+  2. re-run `services/loop-ingest/scripts/strava-auth.js`;
   3. VERIFY the new token against Strava's token endpoint;
   4. only then back up and delete the stored `strava_token` row (it keeps the old scopes) and the
      `strava_athlete` row (to refresh now).
 - Rollback = restore `.env.bak` + the backed-up token row.
-- Rollout: `docker compose up -d --build health-ingest` → `npm run sync` → `npm run generate`.
+- Rollout: `docker compose up -d --build loop-ingest` → `npm run sync` → `npm run generate`.
 
 ## Build
 
@@ -242,7 +242,7 @@ The user's PDFs live in `data/gear/` (gitignored); only the file names are baked
 ### Publishing
 
 `scripts/publish-manuals.mjs` (`npm run publish:manuals`, rules in `lib/profile/manuals.mjs`) copies ONLY the
-PDFs named by the visible devices' `manual` into `services/plan-web/site/manuales/` and removes everything else
+PDFs named by the visible devices' `manual` into `services/loop-web/site/manuales/` and removes everything else
 there.
 
 - A file is copied only if it is a regular file directly in `data/gear/` (opened `O_NOFOLLOW`, a symlink
@@ -260,7 +260,7 @@ there.
 - profile.js reveals it only when `HEAD /manuales/<file>` answers 200 with an `application/pdf` type (one probe
   per file per load), so a static copy (e.g. a claude.ai artifact), `file://` and the example build (whose
   synthetic device names a manual) never show it.
-- nginx side: see [`services/plan-web/README.md` → Security and exposure model](../services/plan-web/README.md#security-and-exposure-model).
+- nginx side: see [`services/loop-web/README.md` → Security and exposure model](../services/loop-web/README.md#security-and-exposure-model).
 
 ## In-page onboarding (no AI coach needed)
 

@@ -745,7 +745,7 @@ both `extract.mjs` and `sync-strava.mjs` from the shared `WORKOUTS_HEADER`.
 - Re-running `node data/apple-health/extract.mjs` (needs `export.xml`) re-emits every export row at
   full width.
 - Rollout for a new Strava field (e.g. `elevation_m` from `total_elevation_gain`):
-  1. rebuild the ingest image (`docker compose up -d --build health-ingest`; without it
+  1. rebuild the ingest image (`docker compose up -d --build loop-ingest`; without it
      `/export/strava` lacks the field and the column stays blank);
   2. `npm run sync:strava`;
   3. `npm run generate`.

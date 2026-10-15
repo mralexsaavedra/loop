@@ -113,7 +113,7 @@
   }
 
   // Device manuals (profile.json devices[].manual): the LAN page serves them as /manuales/<file>.pdf
-  // (plan-web, refresh.sh publishes them). The link ships `hidden` and is revealed only once a HEAD of
+  // (loop-web, refresh.sh publishes them). The link ships `hidden` and is revealed only once a HEAD of
   // the file answers 200 with a PDF, so the claude.ai artifact, file:// and the example build (no such
   // file, or an HTML fallback page) never show it. One probe per file per page load.
   var MANUAL_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.pdf$/;

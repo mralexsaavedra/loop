@@ -1,6 +1,6 @@
 /**
  * Food log routes (docs/nutrition-food-log.md), mounted by server.js under /food/ and reached from the LAN
- * plan page through plan-web's /api/food/ proxy:
+ * plan page through loop-web's /api/food/ proxy:
  *
  *   GET    /food/products            active products (each with its store)
  *   POST   /food/products            create        PUT /food/products/:id   edit    DELETE = archive
@@ -22,8 +22,8 @@
  * Security. A static page cannot hold a secret, so these routes are UNAUTHENTICATED like /sync and
  * meant for the LAN only (a public reverse proxy must NEVER forward /food/*, see README). Layers:
  *   - Host check (DNS rebinding): the Host must be an IP literal, localhost, host.docker.internal (the
- *     plan-web proxy hop) or a name in FOOD_ALLOWED_HOSTS, else 421. A rebinding page (its own name
- *     resolved to a LAN address) is refused here and, first, by plan-web's nginx Host map;
+ *     loop-web proxy hop) or a name in FOOD_ALLOWED_HOSTS, else 421. A rebinding page (its own name
+ *     resolved to a LAN address) is refused here and, first, by loop-web's nginx Host map;
  *   - on writes, an Origin header (when the browser sends one) must name an allowed host too (403);
  *   - every request must carry the custom header `X-HC-Food: 1` (403) and every write
  *     `Content-Type: application/json` (415): from another site both force a CORS preflight, which this
@@ -31,7 +31,7 @@
  * Together they stop a website opened on a LAN device from reading or writing the log; none of them
  * stops a device on the LAN that talks to the service directly (that is the LAN-only trust model).
  * Bodies are capped at 16 KB (413), writes share one rate limit per client address (429; behind
- * plan-web every request comes from nginx, so it is one shared budget), the whole feature answers 503
+ * loop-web every request comes from nginx, so it is one shared budget), the whole feature answers 503
  * food_unavailable when its tables failed to migrate, and every error is a COARSE code
  * ({error, field?}), never raw DB text.
  *

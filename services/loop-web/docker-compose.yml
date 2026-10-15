@@ -2,23 +2,23 @@
 # refresh.sh rebuilds it and copies the output into ./site; only that
 # directory is mounted, so nothing else under data/ or web/ is reachable
 # over HTTP. /api/sync, /api/sync/status and /api/food/* (and nothing else)
-# are proxied to the health-ingest service on the host, and only requests
+# are proxied to the loop-ingest service on the host, and only requests
 # naming an allowed Host are answered, see nginx.conf.template.
 # HC_INSTANCE (in .env, empty by default): a second install on the same host, e.g. `second`
-# (services/plan-web/README.md -> Running a second install). Empty = the plain names.
-name: plan-web${HC_INSTANCE:+-${HC_INSTANCE}}
+# (services/loop-web/README.md -> Running a second install). Empty = the plain names.
+name: loop-web${HC_INSTANCE:+-${HC_INSTANCE}}
 services:
-  plan-web:
+  loop-web:
     image: nginx:alpine
-    container_name: plan-web${HC_INSTANCE:+-${HC_INSTANCE}}
+    container_name: loop-web${HC_INSTANCE:+-${HC_INSTANCE}}
     restart: unless-stopped
     ports:
       - "${PLAN_WEB_PORT:-8090}:80"
     environment:
-      # health-ingest's host port (its INGEST_PORT); substituted into the nginx template
+      # loop-ingest's host port (its INGEST_PORT); substituted into the nginx template
       INGEST_PORT: ${INGEST_PORT:-8088}
       # extra host names the page may be reached by (besides IP literals and localhost), comma or
-      # space separated; rendered by hosts.sh. Mirror them in health-ingest's FOOD_ALLOWED_HOSTS.
+      # space separated; rendered by hosts.sh. Mirror them in loop-ingest's FOOD_ALLOWED_HOSTS.
       PLAN_WEB_EXTRA_HOSTS: ${PLAN_WEB_EXTRA_HOSTS:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
