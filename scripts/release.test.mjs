@@ -42,9 +42,11 @@ test('the data service runs the published image by default and still builds from
   assert.match(d, /^ENV NODE_ENV=production$/m);
 });
 
-test('CI runs both suites on every push and pull request; tags publish multi-arch images to Docker Hub', () => {
+test('CI runs the lint and both suites on every push and pull request; tags publish multi-arch images to Docker Hub', () => {
   const ci = read('.github/workflows/ci.yml');
   assert.match(ci, /pull_request/);
+  assert.match(ci, /npm run lint/);
+  assert.equal(JSON.parse(read('package.json')).scripts.lint, 'eslint .');
   assert.match(ci, /npm test/);
   assert.match(ci, /npm run test:services/);
   const rel = read('.github/workflows/release.yml');

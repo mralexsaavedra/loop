@@ -44,7 +44,7 @@
     // -> [{key, on}] in display order
     function prefsFrom(raw, available) {
       var avail = CATALOG.filter(function (k) { return available.indexOf(k) !== -1; });
-      var p = null;
+      var p;
       try { p = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { p = null; }
       var order = p && Array.isArray(p.order) ? p.order : [];
       var hidden = p && Array.isArray(p.hidden) ? p.hidden : null;

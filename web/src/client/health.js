@@ -238,17 +238,6 @@
       bal.hidden = !bal.innerHTML;
     }
   }
-  // one broken trend card must never blank the tab: it is skipped, the rest still render
-  function adder(out) {
-    return function (fn) {
-      try {
-        out.push(fn());
-      } catch (e) {
-        /* skip this card */
-      }
-    };
-  }
-
   // Salud, top to bottom (under the health monitor list, client/monitor.js): Recovery (+ the recovery
   // card host #score-recovery, filled by score.js), Fitness, Sleep, Body composition, Activity, Energy.
   function renderSalud(host) {
@@ -297,7 +286,7 @@
     if (R.hasData) {
       /* fitness: the fitness-age ring (+ chronological age and its trend), VO2max (change since the
          first reading) and walking HR */
-      var fab = null;
+      var fab;
       try { fab = fitnessAgeBlock(SC); } catch (e) { fab = null; /* a broken block never blanks the section */ }
       out.push(section('fitness', rows((fab ? fab.rows : []).concat([
         function () { var m = R.vo2max; return m ? mrow('vo2max', TR.vo2max.title, TR.vo2max.unit, { value: m.latest, delta: fin(m.first) ? round(m.latest - m.first, 1) : null, dir: 1, date: m.latestDate, detail: 'vo2max' }) : ''; },
