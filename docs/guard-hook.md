@@ -85,9 +85,13 @@ expand to a force-add of an ignored path (`log --oneline`, `!echo …`).
 
 ## Bash: `.gitignore` rewrites from the shell
 
-A shell write to `.gitignore` (`>`, `>>`, `tee`, `truncate`, or `sed` on it) that mentions any `PERSONAL`
-fragment is blocked. No exception name cancels the match: editing `.gitignore` from the shell is never
-needed.
+Any shell command that writes, truncates, removes, renames or hides a `.gitignore` is blocked, whatever
+paths it names: `>` / `>>` into it, `tee`, `truncate`, `rm`, `unlink`, `shred`, `mv`, `git rm`,
+`git update-index`, an in-place `sed -i` / `perl -i`, or `cp` / `ln` / `install` / `rsync` with it as the
+destination. A truncated or deleted `.gitignore` un-ignores every personal file at once, and editing it from
+the shell is never needed: the editor tools below check the exact diff. Reading one stays allowed (`cat`,
+`grep`, `sed -n`, `git diff`, `cp` from it). The line is split into simple commands at `;`, `&&`, `||`, `|`
+and newlines outside quotes.
 
 ## Edit / Write / MultiEdit on a `.gitignore`
 
