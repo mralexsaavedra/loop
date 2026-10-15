@@ -570,7 +570,7 @@
   }
 
   // load pages: the gym / run / bike pills (no longer under Inicio's dials): each opens that
-  // modality's page and sets Inicio's load dial to it (score.js scMod, when loaded); the page's own
+  // modality's page and sets Inicio's load dial to it (data-mod: score.js's delegated scMod, when loaded); the page's own
   // modality is the pressed one. Fewer than two modalities with a load series: no pills.
   function modSwitch(key, X) {
     var cur = X.modOf(key);
@@ -579,7 +579,7 @@
     var set = typeof scMod === 'function';
     return '<div class="dial-switch" role="group" aria-label="' + esc(X.T.deep.modSwitch) + '">' + mods.map(function (k) {
       return '<button type="button" class="chip dial-mod" data-detail="load-' + k + '" aria-pressed="' + (k === cur) + '"' +
-        (set ? ' onclick="scMod(\'' + k + '\')"' : '') + '>' + esc(X.T.modalities[k] || k) + '</button>';
+        (set ? ' data-mod="' + k + '"' : '') + '>' + esc(X.T.modalities[k] || k) + '</button>';
     }).join('') + '</div>';
   }
 

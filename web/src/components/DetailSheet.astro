@@ -15,5 +15,5 @@ const { detail, locale } = Astro.props;
 const T = locale === 'es' ? esDetail : enDetail;
 const bake = `var DETAIL = ${jsonForScript(detail)};\nvar I18N_DETAIL = ${jsonForScript(T)};`;
 ---
-<div id="detail" class="dt-sheet" role="dialog" aria-modal="true" aria-labelledby="dt-title" aria-label={T.dialogLabel} hidden></div>
+<div id="detail" class="dt-sheet" role="dialog" aria-modal="true" aria-labelledby="dt-title" hidden></div>
 <script is:inline set:html={bake}></script>

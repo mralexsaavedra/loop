@@ -20,7 +20,7 @@ export function slimScript(src) {
 }
 
 /* The CSS twin of slimScript, applied to the built page's inline <style> blocks (web/astro.config.mjs,
- * the `slim-inline-css` integration): comments and whitespace go, NOTHING else — no minifySyntax (it
+ * the `page-post-build` integration): comments and whitespace go, NOTHING else — no minifySyntax (it
  * would rewrite `::before` → `:before`, `transparent` → `0 0`, rgba → hex) and no target lowering, so
  * every declaration stays as written and web/test/css-parity.test.mjs still matches it. Vite's own
  * cssMinify stays off for that reason. A test reading CSS from the built HTML must be whitespace

@@ -158,8 +158,8 @@ values; no new metric (the recovery % is a rank of the same composite).
 
 - ONE dial per modality, one shown, NO pills under the dials. The gym / run / bike pills live in the
   `load-<m>` deep-dive, between its contributors and the insight card (`deepdive.js` `modSwitch`, the
-  page's modality pressed, only with two or more load series); a pill opens that modality's page and
-  calls `scMod(key)`, which shows that modality's dial on Home and in the collapsed row.
+  page's modality pressed, only with two or more load series); a pill opens that modality's page and,
+  through its `data-mod` attribute (`score.js`'s delegated listener), calls `scMod(key)`, which shows that modality's dial on Home and in the collapsed row.
 - Which modality it opens on (client-side, from the VIEWER's today, picked from the baked `recent`
   days, each with its pre-computed fill):
   1. the modality with a session today, GATED OR NOT (a gated one opens greyed, no number; gated
@@ -194,7 +194,7 @@ What it shows: two 96 px tiles under the dials (`#home-tiles`, `client/monitor.j
   Low; a check `--up` when at least one fresh card is Normal; none without fresh data.
 - Right of it, a status chip — "N out of range", else "Within range", else "No data" — over "n/5
   metrics" (fresh cards in range / all cards). A card counts only when its own date is ≤ 3 days old.
-- It is a button calling `jump('monitor')`: switches to Salud and scrolls to the monitor list at its
+- It is a button with `data-jump="monitor"` (`core.js`'s delegated `jump('monitor')`): switches to Salud and scrolls to the monitor list at its
   top. `#monitor` deep-links there too (`ANCHOR_TAB` in `lib/nav/tabs.mjs`: `core.js` shows Salud and
   keeps the hash).
 

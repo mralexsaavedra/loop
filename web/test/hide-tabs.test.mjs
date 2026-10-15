@@ -53,7 +53,7 @@ function sectionStates(html) {
 /** nav button ids in document order -> tab keys, and the keys of every panel WITHOUT `hidden`. */
 function navOrderAndVisiblePanels(html) {
   const idToKey = Object.fromEntries(Object.entries(NAV_ID).map(([k, v]) => [v, k]));
-  const nav = [...html.matchAll(/<button id="(t-[a-z]+)"/g)].map((m) => idToKey[m[1]]);
+  const nav = [...html.matchAll(/<button type="button" id="(t-[a-z]+)"/g)].map((m) => idToKey[m[1]]);
   const panels = [...html.matchAll(/<div class="tab-panel" data-tab="([a-z]+)"( hidden)?[^>]*>/g)];
   return { nav, visible: panels.filter((m) => !m[2]).map((m) => m[1]), all: panels.map((m) => m[1]) };
 }

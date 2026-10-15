@@ -160,11 +160,11 @@ test('example build: the day builder (Constructor de día, section registro) is 
   assert.doesNotMatch(html, /paint\(\s*["']tb-prot-lean["']/, 'client/tablas.js is gone');
 });
 
-test('example build: t-home is the first nav button and pressed; the Home panel is visible, Nutrición hidden', () => {
+test('example build: t-home is the first nav button and current; the Home panel is visible, Nutrición hidden', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
-  const firstBtn = html.match(/<button id="(t-[a-z]+)"[^>]*>/);
+  const firstBtn = html.match(/<button type="button" id="(t-[a-z]+)"[^>]*>/);
   assert.equal(firstBtn[1], 't-home');
-  assert.match(firstBtn[0], /aria-pressed="true"/);
+  assert.match(firstBtn[0], /aria-current="page"/);
   assert.match(html, /<div class="tab-panel" data-tab="home">/);
   assert.match(html, /<div class="tab-panel" data-tab="nutricion" hidden>/);
   assert.match(html, /<div id="home-advice"><\/div>/);
@@ -262,7 +262,7 @@ test('example build: the health monitor list leads Salud (before the sections ho
   assert.ok(salud.indexOf('<div id="monitor"></div>') !== -1, 'the monitor host is in Salud');
   assert.ok(salud.indexOf('<div id="monitor"></div>') < salud.indexOf('<div id="health-body"></div>'), 'monitor first');
   assert.equal(html.split('id="monitor"').length - 1, 1, 'one monitor host on the page');
-  assert.match(html, /jump\(\\?'monitor\\?'\)/, 'the tile still jumps to #monitor');
+  assert.match(html, /data-jump=\\?"monitor\\?"/, 'the tile still jumps to #monitor (delegated, client/core.js)');
   assert.match(html, /"anchorTab":\{"monitor":"health"\}/, '#monitor deep-links to Salud');
 });
 
@@ -295,7 +295,7 @@ test('example build: Inicio carries a compact "today you eat" card (filled clien
   assert.ok(home.indexOf('<div id="home-advice">') < cardAt && cardAt < home.indexOf('id="home-tonight"'), 'order: dials + advice, eat card, then Tonight');
   const card = home.slice(cardAt, home.indexOf('id="home-tonight"'));
   assert.match(card, /<div id="eat-body" aria-live="polite"><\/div>/);
-  assert.match(card, /onclick="setTab\('nutricion'\)"[^>]*>See the full plan/);
+  assert.match(card, /data-tab-go="nutricion"[^>]*>See the full plan/);
   assert.doesNotMatch(card, /class="meal"/, 'the full meal plan is NOT duplicated on Inicio');
 });
 
@@ -380,6 +380,10 @@ test('example build: the detail sheet ships hidden OUTSIDE .wrap (so the page ca
   assert.ok(sheet, 'sheet host present');
   assert.match(sheet[0], /role="dialog"/);
   assert.match(sheet[0], /aria-modal="true"/);
+  // ONE accessible name: the open view's #dt-title (aria-labelledby); an aria-label next to it was a
+  // second, competing label
+  assert.match(sheet[0], /aria-labelledby="dt-title"/);
+  assert.doesNotMatch(sheet[0], /aria-label=/);
   assert.match(sheet[0], /\shidden(?=[\s>])/);
   const footerEnd = html.lastIndexOf('</footer>');
   assert.ok(html.indexOf('id="detail"') > (footerEnd === -1 ? html.indexOf('class="tab-panel"') : footerEnd), 'after the page content');
