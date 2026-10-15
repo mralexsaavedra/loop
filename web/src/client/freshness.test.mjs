@@ -313,6 +313,27 @@ test('Sync: a network error, a non-2xx answer or a reply without a seq -> the fa
   }
 });
 
+test('Sync: a request that never answers (the POST, or the status poll) times out: the button never stays busy', async () => {
+  const hang = () => new Promise(() => {});
+  // the POST hangs: failed after the request timeout, not after the 5-minute sync window
+  let s = setup({ routes: { 'GET /api/sync/status': json(freshStatus), 'GET /status.json': json({ processedSeq: 0 }), 'POST /api/sync': hang } });
+  await s.advance(0);
+  s.btn.dispatch('click');
+  await s.advance(1000);
+  assert.equal(s.btn.disabled, true);
+  await s.advance(15_000);
+  assert.equal(s.msg.textContent, 'No se pudo actualizar, reintenta');
+  assert.equal(s.btn.disabled, false);
+  // the poll's status.json hangs: the poll keeps going and the 5-minute window still ends it
+  s = setup({ routes: { 'GET /api/sync/status': json(freshStatus), 'GET /status.json': (n) => (n === 1 ? json({ processedSeq: 0 }) : hang()), 'POST /api/sync': accepted(1) } });
+  await s.advance(0);
+  s.btn.dispatch('click');
+  await s.advance(6 * 60_000);
+  assert.equal(s.msg.textContent, 'No se pudo actualizar, reintenta');
+  assert.equal(s.btn.disabled, false);
+  assert.deepEqual(s.reloads, []);
+});
+
 test('Sync: English failure copy', async () => {
   const s = setup({
     locale: 'en',

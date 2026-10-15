@@ -119,6 +119,7 @@
   var MANUAL_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.pdf$/;
   // kept apart from the markup so the built page holds no literal root-relative href (output guard)
   var MANUAL_BASE = '/manuales/';
+  var PROBE_MS = 10000; // the manual HEAD probe: a hung server counts as no manual
   var manualState = {};
   function manualFile(d) {
     var f = d && d.manual;
@@ -137,7 +138,7 @@
       if (!file || manualState[file]) return;
       manualState[file] = 'pending';
       try {
-        fetch(MANUAL_BASE + encodeURIComponent(file), { method: 'HEAD', cache: 'no-store' }).then(function (res) {
+        HC.fetchTimeout(MANUAL_BASE + encodeURIComponent(file), { method: 'HEAD', cache: 'no-store' }, PROBE_MS).then(function (res) {
           var type = res && res.headers && typeof res.headers.get === 'function' ? String(res.headers.get('content-type') || '') : '';
           manualState[file] = res && res.status === 200 && /^application\/pdf\b/i.test(type) ? 'ok' : 'no';
           if (manualState[file] === 'ok') revealManual(file);

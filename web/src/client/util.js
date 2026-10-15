@@ -48,25 +48,37 @@ var HC = (function () {
         headers['Content-Type'] = 'application/json';
         init.body = JSON.stringify(body);
       }
-      var timer = null;
-      if (typeof AbortController === 'function') {
-        var ctl = new AbortController();
-        init.signal = ctl.signal;
-        timer = setTimeout(function () { ctl.abort(); }, timeoutMs);
-      }
-      var done = function () { if (timer) clearTimeout(timer); };
-      if (!lan()) { done(); return Promise.reject({ code: 'offline', status: 0 }); }
-      return fetch(base + path, init).then(function (res) {
-        done();
+      if (!lan()) return Promise.reject({ code: 'offline', status: 0 });
+      return fetchTimeout(base + path, init, timeoutMs).then(function (res) {
         return res.json().catch(function () { return null; }).then(function (data) {
           if (res.ok) return data || {};
           throw { code: (data && typeof data.error === 'string' && data.error) || 'generic', field: data && data.field, status: res.status };
         });
       }, function () {
-        done();
         throw { code: 'offline', status: 0 };
       });
     };
+  }
+  // The ONE timed fetch (jsonApi above, client/freshness.js, client/profile.js): fetch(url, init) that rejects
+  // with {name: 'TimeoutError'} once `ms` pass without an answer, aborting the request (AbortController,
+  // when the browser has it); the caller's init is kept. A hung LAN service never leaves a control busy.
+  function fetchTimeout(url, init, ms) {
+    init = init || {};
+    var ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    if (ctl) init.signal = ctl.signal;
+    return new Promise(function (resolve, reject) {
+      var timer = setTimeout(function () {
+        if (ctl) ctl.abort();
+        reject({ name: 'TimeoutError' });
+      }, ms);
+      var done = function () { if (typeof clearTimeout === 'function') clearTimeout(timer); };
+      try {
+        fetch(url, init).then(function (r) { done(); resolve(r); }, function (e) { done(); reject(e); });
+      } catch (e) {
+        done();
+        reject(e);
+      }
+    });
   }
   // baked dates are interpolated into markup: accept only a real ISO date (the shape AND a calendar
   // round trip, so 2026-02-31 is rejected), anything else is absent
@@ -393,6 +405,7 @@ var HC = (function () {
     isEs: isEs,
     lan: lan,
     jsonApi: jsonApi,
+    fetchTimeout: fetchTimeout,
     DASH: HC_FMT.DASH,
     int: int,
     pct: pct,

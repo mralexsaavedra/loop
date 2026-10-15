@@ -65,7 +65,7 @@ function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null
     I18N_DATE: locale === 'es' ? esDate : enDate,
     ...(onb ? { I18N_ONB: locale === 'es' ? esO : enO } : {}),
     LOCALE: locale,
-    Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite, parseInt,
+    Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite, parseInt, setTimeout, clearTimeout,
   };
   vm.createContext(ctx);
   loadUtil(ctx);
