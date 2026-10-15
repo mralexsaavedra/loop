@@ -22,6 +22,35 @@ services:
       PLAN_WEB_EXTRA_HOSTS: ${PLAN_WEB_EXTRA_HOSTS:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # Hardening (scripts/loop-web-config.test.mjs pins it): read-only root filesystem; tmpfs for what the
+    # entrypoint and nginx write (the rendered template + hosts map in conf.d, the pid file, the temp dirs);
+    # only the capabilities the nginx master needs to own the workers' temp dirs (CHOWN) and drop the workers to
+    # the nginx user (SETUID, SETGID; without any of the three it does not serve); port 80 needs no
+    # NET_BIND_SERVICE (Docker >= 20.10 lets containers bind low ports); no privilege gain; generous limits;
+    # rotated logs.
+    read_only: true
+    tmpfs:
+      - /etc/nginx/conf.d:size=1m
+      - /var/cache/nginx:size=32m
+      - /run:size=1m
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      # nginx answers /nginx-health itself (nginx.conf.template), whatever ./site holds
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/nginx-health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     volumes:
       - ./site:/usr/share/nginx/html:ro
       - ./nginx.conf.template:/etc/nginx/templates/default.conf.template:ro

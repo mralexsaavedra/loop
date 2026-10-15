@@ -1,5 +1,6 @@
 #!/bin/sh
-# Renders PLAN_WEB_EXTRA_HOSTS into /etc/nginx/hc-extra-hosts.map, which nginx.conf.template
+# Renders PLAN_WEB_EXTRA_HOSTS into /etc/nginx/conf.d/hc-extra-hosts.map (conf.d is a tmpfs: the root
+# filesystem is read-only; nginx includes only conf.d/*.conf by itself), which nginx.conf.template
 # includes in its Host allowlist (map $host $hc_host_ok). Mounted as
 # /docker-entrypoint.d/15-hc-hosts.sh, so nginx:alpine runs it at every start, before the template
 # (20-envsubst-on-templates.sh) and before nginx.
@@ -11,7 +12,7 @@
 # skipped with a warning.
 set -eu
 set -f # the names are not file globs
-out="${HC_HOSTS_MAP:-/etc/nginx/hc-extra-hosts.map}"
+out="${HC_HOSTS_MAP:-/etc/nginx/conf.d/hc-extra-hosts.map}"
 : > "$out"
 for h in $(printf '%s' "${PLAN_WEB_EXTRA_HOSTS:-}" | tr ',' ' '); do
   h=$(printf '%s' "$h" | tr 'A-Z' 'a-z')
