@@ -30,6 +30,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as S from '../../lib/extract/samples.mjs';
 import * as HR from '../../lib/health/hr-hourly.mjs';
+import { HOURLY_CSV, HOURLY_HEADER } from '../../lib/health/ride-energy.mjs';
 import { ZONES_CSV } from '../../lib/training/hr-zones.mjs';
 import * as common from './sync-common.mjs';
 import { isMain } from '../../scripts/lib/is-main.mjs';
@@ -91,7 +92,7 @@ const METRICS = {
   // Watch active energy per clock hour (Watch-only search, Group by Hour). Not an export series:
   // it only feeds lib/health/ride-energy.mjs, which replaces the Watch's energy during a ride a
   // power meter measured. Source column = "Shortcut", so every row is rebuilt each run.
-  active_energy_hourly: { kind: 'hourly', csv: 'active-energy-hourly.csv', header: 'date,hour_start,kcal,source', metaKey: 'active_energy_hourly', sourceCol: 3,
+  active_energy_hourly: { kind: 'hourly', csv: HOURLY_CSV, header: HOURLY_HEADER, metaKey: 'active_energy_hourly', sourceCol: 3,
     row: (st, v) => `${S.day(st)},${hourStartIso(st)},${v.toFixed(1)},${SHORTCUT_SOURCE}` },
   basal_energy:  { kind: 'daily', csv: 'basal-energy-daily.csv', header: KCAL_HEADER, metaKey: 'basal_energy', sourceCol: null, total: true,
     row: (date, v) => `${date},${Math.round(v)}` },

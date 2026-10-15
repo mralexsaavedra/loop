@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { addDays } from '../../lib/date.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -239,6 +240,20 @@ function withLock (lockFile, fn, opts) {
   }
 }
 
+/* ---------- the date window the LAN-page syncs (food log, journal) ask for ---------- */
+
+const pad2 = (n) => String(n).padStart(2, '0');
+/** A Date -> its LOCAL calendar date, YYYY-MM-DD (the viewer's day, not UTC's). */
+function localIso(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+/** {from, to}: `days` days inclusive, ending on the local date of `now`. */
+function windowEndingOn(now, days) {
+  const to = localIso(now);
+  return { from: addDays(to, -(days - 1)), to };
+}
+
 /* ---------- the command line every sync script shares ---------- */
 
 /** argv (without node and the script) -> {values} | {exit: 0, out: usage} (--help / -h) | {exit: 2, err}
@@ -281,6 +296,8 @@ export {
   ENV_FILE,
   envFileOf,
   writeAtomic,
+  localIso,
+  windowEndingOn,
   resolveToken,
   readIngestToken,
   resolveBaseUrl,
