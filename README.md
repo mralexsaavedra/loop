@@ -1,5 +1,9 @@
 # LOOP
 
+[![CI](https://github.com/mralexsaavedra/loop/actions/workflows/ci.yml/badge.svg)](https://github.com/mralexsaavedra/loop/actions/workflows/ci.yml)
+[![Docker Hub](https://img.shields.io/docker/v/mralexandersaavedra/loop-ingest?sort=semver&label=docker%20hub)](https://hub.docker.com/r/mralexandersaavedra/loop-ingest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A personal, data-driven health and nutrition coaching workspace operated by
 [Claude Code](https://claude.com/claude-code). You drop in your own data (Apple Health export, food log,
 training program); Claude onboards you, analyses real trends against a documented methodology, and

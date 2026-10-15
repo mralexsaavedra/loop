@@ -28,10 +28,17 @@ docker exec loop-db pg_dump -U health health > "backups/loop-db-$(date +%F).sql"
 
 2. **Dependencies.** `npm ci` (the hourly refresh also does it on its own when the lockfile changed).
 
-3. **The data service.** Rebuild it; on start it applies any new database migrations:
+3. **The data service.** Rebuild it from your clone; on start it applies any new database migrations:
 
    ```sh
    (cd services/loop-ingest && docker compose up -d --build)
+   ```
+
+   Or, on a release, run the published image instead of building (`mralexandersaavedra/loop-ingest`, the version
+   comes from the clone; set `HC_VERSION` in `.env` to pin another):
+
+   ```sh
+   (cd services/loop-ingest && docker compose pull loop-ingest && docker compose up -d)
    ```
 
 4. **The page service.** Restart it so it picks up a changed nginx configuration:
