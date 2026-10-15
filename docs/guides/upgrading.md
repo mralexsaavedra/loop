@@ -66,8 +66,8 @@ Using the page without the LAN services (Level 1 only)? Steps 1–2, then `npm r
 
 ## Check
 
-- `curl -s -o /dev/null -w '%{http_code}\n' localhost:8088/healthz` prints `200` (use your `INGEST_PORT` if you
-  changed it; without `-o /dev/null -w ...` it prints the JSON body, `{"ok":true,...}`).
+- `curl -s -o /dev/null -w '%{http_code}\n' localhost:8088/healthz` prints `200` (use your `INGEST_PORT` if you changed
+  it, and your `INGEST_BIND` address instead of `localhost` if that is a LAN IP; without `-o /dev/null -w ...` it prints the JSON body, `{"ok":true,...}`).
 - `services/loop-web/site/status.json` shows the new `commit` and no `error`.
 - The page opens and its freshness line is green.
 
