@@ -93,7 +93,9 @@ table.
   incremental sync only parses payloads newer than the cache).
 - Payloads (and Strava activities) are fetched in keyset pages (`fetchPages` in `sync-common.mjs`): a full
   page whose last id is missing or not greater than the previous `since_id` stops the sync with
-  `unexpected paging cursor`, and 10 000 pages is a hard cap, so a misbehaving service can never loop it.
+  `unexpected paging cursor`, and 10 000 pages is a hard cap, so a misbehaving service can never loop it. A
+  short page ends the paging unless the service answers `X-Has-More: true` (`/export/raw` cuts a page at its
+  32 MB byte budget), so a full re-sync of a large history still completes in one run.
 - Rows are tagged `source=Shortcut`, except body comp (keeps the real scale source for the
   latest-source logic) and energy (no source column).
 - `_meta.json` `shortcutSync.owned` lists every date sync wrote, per CSV. It is written FIRST (before the CSVs and the

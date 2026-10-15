@@ -69,7 +69,7 @@ Same readers and rules as the cards.
 
 | Metric(s) | Series and extras |
 | --- | --- |
-| hrv, rhr, respiratory, wristTemp, sleep | the monitor's clamped day median (`monitor.mjs` `monitorDaily`, partial newest HRV day dropped) with the monitor's personal band (`signalBand`, median ± 2 scaled MADs over the 42 days before the newest day); walkingHr gets the same kind of band |
+| hrv, rhr, respiratory, wristTemp, walkingHr, sleep | the monitor's day median of the in-range samples (`monitor.mjs` `monitorDaily`; out-of-range sensor artefacts are dropped, not clamped; partial newest HRV day dropped; walking HR bounded 30–230 bpm) with the monitor's personal band (`signalBand`, median ± 2 scaled MADs over the 42 days before the newest day); walkingHr gets the same kind of band |
 | daily totals | the Health floors (a < 200-step day is missing) + a "usual day" band = p25–p75 of the 90 days before the newest (`quartileBand`) |
 | energy | basal (sane band) + active, with both parts (a day missing either part is missing, never basal alone — the Health expenditure card uses the same rule) + `roll`, the card's calendar 7-day rolling average |
 | weight | day means + `roll` (the Health card's calendar 7-day rolling average, only on reading days) + `latest` (the card's latest raw reading) |
