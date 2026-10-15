@@ -25,7 +25,7 @@ import { es as esIntake, en as enIntake } from '../i18n/intake-templates.mjs';
 
 interface Props {
   locale: string;
-  training: Record<string, any>; // training.days, verbatim (astro-plan-web slice 5)
+  training: Record<string, any>; // training.days, verbatim
   trainingMeta: { program: string; coach: string; source: string; first: string; last: string; count: number };
   dash: any; // lib/training/dashboard.mjs's dashboardFrom() result
   health: any; // lib/health/aggregate.mjs's healthFrom() result

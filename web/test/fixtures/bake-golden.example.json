@@ -9819,7 +9819,6 @@
     "kcalNote": "Fewer carbs (no training to fuel). Protein stays <b>~150 g</b>.",
     "meals": [
      {
-      "descHtml": "Toast + jam + <button class=\"lnk\" onclick=\"jump('acc-anclaje')\">protein anchor</button>",
       "jump": "acc-desayunos",
       "name": "Breakfast",
       "parts": [
@@ -9831,7 +9830,6 @@
       "slot": "breakfast"
      },
      {
-      "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-comida')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-fruta')\">fruit</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
       "jump": "acc-proteina",
       "name": "Lunch",
       "parts": [
@@ -9877,7 +9875,6 @@
       "slot": "snack"
      },
      {
-      "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-cena')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-postre')\">dessert</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
       "jump": "acc-proteina",
       "name": "Dinner",
       "parts": [
@@ -9946,7 +9943,6 @@
       "slot": "breakfast"
      },
      {
-      "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-comida')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-fruta')\">fruit</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
       "jump": "acc-proteina",
       "name": "Lunch",
       "parts": [
@@ -9998,7 +9994,6 @@
       "slot": "postworkout"
      },
      {
-      "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-cena')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-postre')\">dessert</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
       "jump": "acc-proteina",
       "name": "Dinner",
       "parts": [

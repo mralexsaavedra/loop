@@ -392,7 +392,7 @@ test('segmented control: a 44 x 44px hit area on every .dt-range button, without
 });
 
 // the select: ONE look (base.css .sel, a --rail pill); its owners only size it, never a card fill,
-// a border or a radius of their own (formerly Nutrición's food pick was a mini card)
+// a border or a radius of their own
 const SELECT_OWNERS = /\.(gd-pick|fuel-select|dt-metric-sel)\b/;
 const SELECT_LOOK = ['background', 'background-color', 'border', 'border-radius', 'color', 'padding', 'font', 'font-size', 'appearance'];
 test('select: one shared pill style; owners only size it', () => {
@@ -409,7 +409,7 @@ test('select: one shared pill style; owners only size it', () => {
 });
 
 // the save button: ONE component (base.css .save-btn, the journal's full-width white caps pill) for every
-// primary save — the journal and the food sheets (formerly the food sheet's small sentence-case "Save")
+// primary save — the journal and the food sheets
 const SAVES = /<button\b[^>]*(?:data-jr="save"|data-food-act="(?:save|p-save|r-save)")[^>]*>/g;
 test('save button: one shared component; every primary save uses it and nobody restyles it', () => {
   const r = RULES.find((x) => x.file === 'base.css' && !x.media && x.selector === '.save-btn');

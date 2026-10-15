@@ -1,9 +1,5 @@
-/* Generic (non-personal) Spanish UI copy — ported verbatim from the hand-
- * maintained legacy `data/nutrition/plan-web.html` for the tabs/strings
- * that exist so far (astro-plan-web slice 3: Mi día; the day builder's copy went with it). Anything
- * PERSONAL (page title/kicker/h1/sub/footer/notes) lives in the user's
- * gitignored `plan-data.json` `page` block instead — see
- * web/test/leak.test.mjs. */
+/* Generic (non-personal) Spanish UI copy. Anything PERSONAL (page title/kicker/h1/sub/footer/notes)
+ * lives in the user's gitignored `plan-data.json` `page` block instead — see web/test/leak.test.mjs. */
 export default {
   strings: {
     // the product name (document title, home-screen name): the same in every locale
@@ -25,7 +21,7 @@ export default {
       day: { group: 'Día mostrado', prev: 'Día anterior', next: 'Día siguiente', back: 'Volver a hoy' },
       // the dock's "+" button and its popover (client/nav-actions.js lists only the available actions)
       actions: { open: 'Acciones', close: 'Cerrar acciones', label: 'Acciones rápidas', addFood: 'Añadir comida', journal: 'Completar el diario', sync: 'Sincronizar' },
-      // headings of the sections that used to be tabs of their own (Mi día/Tablas keep theirs)
+      // headings of the sections inside a tab (Mi día/Tablas keep their own)
       sections: {
         hoy: 'Entreno de hoy',
         dash: 'Intensidad (FC)',

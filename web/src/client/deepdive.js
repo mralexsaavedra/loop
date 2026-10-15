@@ -569,7 +569,7 @@
     }).join('') + '</div></section>';
   }
 
-  // load pages: the gym / run / bike pills (no longer under Inicio's dials): each opens that
+  // load pages: the gym / run / bike pills: each opens that
   // modality's page and sets Inicio's load dial to it (data-mod: score.js's delegated scMod, when loaded); the page's own
   // modality is the pressed one. Fewer than two modalities with a load series: no pills.
   function modSwitch(key, X) {

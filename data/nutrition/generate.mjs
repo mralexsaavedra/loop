@@ -9,9 +9,9 @@
  * This script COMPUTES per-serving k/p/c/g from ingredient*amt, validates the
  * plan's integrity, then writes plan-tables.md (DO NOT edit by hand).
  *
- * The single-file page (plan-web.html equivalent) is built separately by the
+ * The single-file page is built separately by the
  * Astro pipeline (`node scripts/build-web.mjs`, wired into `npm run generate`)
- * using the SAME lib/nutrition/macros.mjs — this file no longer emits HTML.
+ * using the SAME lib/nutrition/macros.mjs — this file emits no HTML.
  *
  * Run:  node data/nutrition/generate.mjs
  */
@@ -66,8 +66,8 @@ const plan = JSON.parse(fs.readFileSync(PLAN_PATH, 'utf8'));
 // like the page (LOCALE env -> plan.locale -> en); the document's headings and words stay English.
 const LOCALE = ['es', 'en'].includes(process.env.LOCALE) ? process.env.LOCALE : (plan.locale === 'es' ? 'es' : 'en');
 
-// Pure macro computation now lives in lib/nutrition/macros.mjs (astro-plan-web slice 2) —
-// `ingredients` comes only from ingredients.json (plan-data.json no longer carries it).
+// Pure macro computation lives in lib/nutrition/macros.mjs; `ingredients` comes only from
+// ingredients.json (plan-data.json does not carry it).
 const nut = buildNutrition(ingFile.ingredients, plan);
 const {
   ING, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE,

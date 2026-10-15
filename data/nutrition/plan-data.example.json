@@ -643,7 +643,6 @@
         {
           "name": "Lunch",
           "jump": "acc-proteina",
-          "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-comida')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-fruta')\">fruit</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
           "parts": [
             {
               "use": "proteina",
@@ -695,7 +694,6 @@
         {
           "name": "Dinner",
           "jump": "acc-proteina",
-          "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-cena')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-postre')\">dessert</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
           "parts": [
             {
               "use": "proteina",
@@ -740,7 +738,6 @@
         {
           "name": "Breakfast",
           "jump": "acc-desayunos",
-          "descHtml": "Toast + jam + <button class=\"lnk\" onclick=\"jump('acc-anclaje')\">protein anchor</button>",
           "parts": [
             {
               "use": "desayuno",
@@ -752,7 +749,6 @@
         {
           "name": "Lunch",
           "jump": "acc-proteina",
-          "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-comida')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-fruta')\">fruit</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
           "parts": [
             {
               "use": "proteina",
@@ -798,7 +794,6 @@
         {
           "name": "Dinner",
           "jump": "acc-proteina",
-          "descHtml": "<button class=\"lnk\" onclick=\"jump('acc-proteina')\">Protein</button> + <button class=\"lnk\" onclick=\"jump('acc-carbo-cena')\">carb</button> + <button class=\"lnk\" onclick=\"jump('acc-postre')\">dessert</button> + <button class=\"lnk\" onclick=\"jump('acc-verduras')\">veg</button>",
           "parts": [
             {
               "use": "proteina",

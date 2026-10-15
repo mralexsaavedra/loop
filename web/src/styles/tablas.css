@@ -1,6 +1,5 @@
 /* Tablas tab — equivalence accordions, data tables, tier tags, and the
- * supplements list. Ported verbatim (selectors + declarations) from the
- * legacy plan-web.template.html <style> block. */
+ * supplements list. */
 
 /* equivalence accordions */
 details {

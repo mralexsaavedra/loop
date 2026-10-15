@@ -1,27 +1,17 @@
-/* Client-side (browser, classic-script) format strings for the "Hoy /
- * Today" tab (astro-plan-web slice 5) — same rationale/constraint as
- * the other *-templates.mjs files: web/src/client/training-today.js
+/* Client-side (browser, classic-script) format strings for the "Hoy / Today" tab — same
+ * rationale/constraint as the other *-templates.mjs files: web/src/client/training-today.js
  * is a classic script and cannot import an ES module, so it can only
  * receive plain JSON-safe data baked by Bake.astro (I18N_HOY).
  *
- * Ported from the legacy `<script>` IIFE in
- * data/nutrition/plan-web.template.html ("today's training"). The
- * `goalLineRe` field is a REGEX SOURCE (not a compiled RegExp — must stay
+ * The `goalLineRe` field is a REGEX SOURCE (not a compiled RegExp — must stay
  * JSON-safe), compiled client-side with `new RegExp(I18N_HOY.goalLineRe,
- * 'i')`; it flags a block line as a goal callout (`<li class="goal">`) —
- * legacy matches the FIRST WORD of the line ("Target"/"Goal" in English
- * training data, "Objetivo" in Spanish), so it is intentionally
- * locale-specific, unlike every other key here.
+ * 'i')`; it flags a block line as a goal callout (`<li class="goal">`) by
+ * the FIRST WORD of the line ("Target"/"Goal" in English training data,
+ * "Objetivo" in Spanish), so it is intentionally locale-specific, unlike
+ * every other key here.
  *
- * `beforeFirstMsg` is a genuine improvement over the user's live personal
- * page: their hand-edited copy dropped this third branch (only kept
- * "after last" / "rest day") when they translated the template by hand.
- * The tracked template (source of truth for generic/example copy, same
- * convention as CSS parity's source choice) keeps all three branches, so
- * this port restores it for the generic/example build. See
- * web/test/parity.test.mjs's KNOWN_DEVIATIONS for the resulting
- * personal-page deviation (which only ever surfaces on a fresh/reset
- * program with no first day yet).
+ * `beforeFirstMsg` covers a program whose first day is still ahead (with "after last" and "rest day",
+ * the three branches of the empty state).
  */
 export const es = {
   sourceLabel: 'Fuente:',

@@ -1,16 +1,13 @@
-/* Integration check for plan-data.json's `page.hideTabs[]` (astro-plan-web
- * slice 5; four-tab layout) — see lib/nav/tabs.mjs for the unit-tested pure logic.
- * Top-level keys (home/entreno/health/nutricion) remove a nav button; the legacy keys
- * (hoy/dia/tablas/dash) now hide the matching SECTION inside a tab; `registro` (the removed day
+/* Integration check for plan-data.json's `page.hideTabs[]` (four-tab layout) — see lib/nav/tabs.mjs for
+ * the unit-tested pure logic.
+ * Top-level keys (home/entreno/health/nutricion) remove a nav button; the section keys
+ * (hoy/dia/tablas/dash) hide the matching SECTION inside a tab; `registro` (the removed day
  * builder) is a deprecated no-op that must keep building. This test
  * is DATA-DRIVEN: it reads whichever `hideTabs` array the personal plan
  * actually declares (instead of hardcoding the user's current `["hoy"]`),
  * so it keeps passing whenever the user's plan changes which tab(s) it
  * hides — or hides none at all. See docs/training.md, "The Hoy section is optional and
- * source-agnostic". The example build must never hide anything — formerly CLAUDE.md:
- * "Keep the tab in the public plan-web.template.html seed as a working
- * example — never hide it there." (that file is gone post-cutover; the
- * example plan itself is the working example now).
+ * source-agnostic". The example build must never hide anything: the example plan is the working example.
  *
  * Skips gracefully when the personal fixture is absent (fresh clone / CI
  * without the user's data), same pattern as web/test/leak.test.mjs.
