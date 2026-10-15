@@ -68,7 +68,7 @@ export const CLIENT_SCRIPTS = [
   },
   {
     file: 'score.js',
-    provides: ['scMod', 'HCAdvice'],
+    provides: ['HCScore', 'HCAdvice'],
     requires: ['DETAIL', 'DIALS', 'HC', 'HCDay', 'HC_FMT', 'I18N_DATE', 'I18N_SCORE', 'LOCALE', 'SCORES'],
   },
   { file: 'monitor.js', provides: [], requires: ['DETAIL', 'HC', 'HCDay', 'HC_FMT', 'I18N_DATE', 'I18N_SCORE', 'LOCALE', 'SCORES'] },
