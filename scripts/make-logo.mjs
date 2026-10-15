@@ -29,7 +29,7 @@ if (!fontPath) {
   console.error('usage: node scripts/make-logo.mjs path/to/Syncopate-Bold.ttf');
   process.exit(1);
 }
-const font = create(fs.readFileSync(fontPath));
+const font = /** @type {import('fontkitten').Font} */ (create(fs.readFileSync(fontPath)));
 if (!/Syncopate/.test(font.familyName) || font.unitsPerEm !== 2048) throw new Error(`not Syncopate Bold: ${font.familyName}`);
 const glyph = (ch) => {
   const g = font.glyphForCodePoint(ch.codePointAt(0));

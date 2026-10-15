@@ -1,6 +1,6 @@
 /* Tests for the nutrition plan generator. Zero dependencies — Node's built-in
  * runner:  node --test  (from data/nutrition/) or  npm test.
- * Importing generate.mjs does NOT write files (I/O is guarded by isMain).
+ * Importing generate.mjs reads and writes nothing: load() reads, main() (behind isMain) writes.
  * The generator merges two files: ingredients.json (public food DB) +
  * plan-data.json (personal plan). These tests exercise the merged result. */
 import { test } from 'node:test';
@@ -34,10 +34,15 @@ function mirrorTree(root, files) {
   }
   fs.copyFileSync(path.join(REPO, 'lib', 'date.mjs'), path.join(root, 'lib', 'date.mjs'));
   fs.copyFileSync(path.join(REPO, 'scripts', 'lib', 'is-main.mjs'), path.join(root, 'scripts', 'lib', 'is-main.mjs'));
+  fs.mkdirSync(path.join(root, 'data', 'apple-health'), { recursive: true });
+  fs.copyFileSync(path.join(REPO, 'data', 'apple-health', 'sync-common.mjs'), path.join(root, 'data', 'apple-health', 'sync-common.mjs'));
   return nutDir;
 }
 
-const { ING, D, macro, mealMacros, buildTables, validate, DAYPLAN, LEGUMES, LEGUME_PLATE } = gen;
+const ctx = gen.load();
+const { ING, D, macro, mealMacros, DAYPLAN, LEGUMES, LEGUME_PLATE } = ctx;
+const buildTables = () => gen.buildTables(ctx);
+const validate = () => gen.validate(ctx);
 const close = (a, b, tol = 0.5) => Math.abs(a - b) <= tol;
 
 test('generate.mjs builds no HTML (no buildHtml export): it validates and writes plan-tables.md, the page is the Astro build', () => {
@@ -54,7 +59,7 @@ test('validate() passes on the merged ingredients.json + plan-data.json', () => 
 });
 
 test('the food DB lives in ingredients.json, not plan-data.json', () => {
-  const planRaw = JSON.parse(fs.readFileSync(gen.PLAN_PATH, 'utf8'));
+  const planRaw = JSON.parse(fs.readFileSync(ctx.PLAN_PATH, 'utf8'));
   assert.ok(!('ingredients' in planRaw), 'plan-data.json must NOT carry an ingredients block (it ships in ingredients.json)');
   const ingRaw = JSON.parse(fs.readFileSync(path.join(__dirname, 'ingredients.json'), 'utf8'));
   assert.ok(ingRaw.ingredients && typeof ingRaw.ingredients === 'object', 'ingredients.json must have a top-level ingredients object');
@@ -123,7 +128,7 @@ test('day totals fall within the sane band validate() enforces', () => {
   // edit lands outside). Exact owner targets are not portable, so we assert the band.
   const total = day => DAYPLAN[day].meals.reduce((s, m) => s + mealMacros(m).k, 0);
   // Same band validate() uses: the plan's optional validation.kcalBand, else the default.
-  const planRaw = JSON.parse(fs.readFileSync(gen.PLAN_PATH, 'utf8'));
+  const planRaw = JSON.parse(fs.readFileSync(ctx.PLAN_PATH, 'utf8'));
   const band = (planRaw.validation && planRaw.validation.kcalBand) || { train: [2000, 2800], rest: [1700, 2400] };
   for (const day of ['train', 'rest']) {
     const t = total(day);
@@ -142,7 +147,7 @@ test('every ingredient referenced by the plan exists in the DB (no broken refs)'
       for (const k of Object.keys(o)) if (k !== 'ingredients') walk(o[k]);
     }
   };
-  walk(gen.RAW); walk(gen.RAWEX); walk(DAYPLAN);
+  walk(ctx.RAW); walk(ctx.RAWEX); walk(DAYPLAN);
   LEGUMES.forEach(k => refs.add(k));
   const broken = [...refs].filter(k => !ING[k]);
   assert.deepEqual(broken, [], 'broken refs: ' + broken.join(', '));
@@ -152,7 +157,7 @@ test('legume reference table is single-sourced (computed, not hand-typed) and pe
   const tables = buildTables();
   // Lentils row must equal the ingredient per its natural unit, proving it renders from the source
   // (named in the plan's locale: "Lentejas" in an es plan, "Lentils" in an en one).
-  assert.match(tables, new RegExp(`\\| ${ingName(ING, 'lentejas', gen.LOCALE)} \\| 100 g cooked \\| ${Math.round(ING.lentejas.k)} \\|`));
+  assert.match(tables, new RegExp(`\\| ${ingName(ING, 'lentejas', ctx.LOCALE)} \\| 100 g cooked \\| ${Math.round(ING.lentejas.k)} \\|`));
   assert.doesNotMatch(tables, new RegExp(`~${LEGUME_PLATE} g \\|`), 'no plate portion in the food tables');
 });
 
@@ -163,7 +168,7 @@ test('plan-tables.md food tables are fixed reference values per natural unit (no
   // language (an `es` plan says "Arroz" / "Plátano"), so look them up instead of hard-coding English.
   const single = (key) => {
     const lists = ['desayuno', 'carboComida', 'carboCena', 'proteina', 'anclaje', 'postentreno', 'postre'];
-    const all = lists.flatMap((u) => { const v = gen.RAW[u] || []; return Array.isArray(v) ? v : Object.values(v).flat(); });
+    const all = lists.flatMap((u) => { const v = ctx.RAW[u] || []; return Array.isArray(v) ? v : Object.values(v).flat(); });
     const item = all.find((o) => o && Array.isArray(o.recipe) && o.recipe.length === 1 && o.recipe[0].ing === key);
     assert.ok(item, `the plan has a single-food ${key} option`);
     return String(item.n || item.cap || item.l);
@@ -180,7 +185,8 @@ test('plan-tables.md food tables are fixed reference values per natural unit (no
 
 test('generate.mjs no longer exports the removed day builder\'s targetFor(train|rest)', () => {
   assert.equal(gen.targetFor, undefined);
-  assert.equal(typeof gen.dayTotalK, 'function');
+  assert.equal(ctx.targetFor, undefined);
+  assert.equal(typeof ctx.dayTotalK, 'function');
 });
 
 test('plan-tables.md lists the 12 goal x day type targets with the scaled plan totals (single-sourced from lib/nutrition/scale.mjs)', () => {
@@ -192,4 +198,63 @@ test('plan-tables.md lists the 12 goal x day type targets with the scaled plan t
 
 test('generation is idempotent (buildTables is stable)', () => {
   assert.equal(buildTables(), buildTables());
+});
+
+test('strict CLI: --help prints the usage, a typo (--chek) or a stray argument exits 2 before any write', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-cli-'));
+  try {
+    const nutDir = mirrorTree(root, [
+      [path.join(__dirname, 'ingredients.json'), 'ingredients.json'],
+      [path.join(__dirname, 'plan-data.example.json'), 'plan-data.json'],
+    ]);
+    const run = (...args) => spawnSync(process.execPath, ['generate.mjs', ...args], { cwd: nutDir, encoding: 'utf8' });
+    const help = run('--help');
+    assert.equal(help.status, 0);
+    assert.match(help.stdout, /^Usage: node data\/nutrition\/generate\.mjs \[--check\]/);
+    for (const args of [['--chek'], ['check']]) {
+      const r = run(...args);
+      assert.equal(r.status, 2, args.join(' '));
+      assert.match(r.stderr, /^ERROR: /);
+    }
+    assert.ok(!fs.existsSync(path.join(nutDir, 'plan-tables.md')), 'nothing written');
+    const ok = run();
+    assert.equal(ok.status, 0, ok.stderr);
+    assert.match(fs.readFileSync(path.join(nutDir, 'plan-tables.md'), 'utf8'), /^# Plan — reference tables/);
+    assert.deepEqual(fs.readdirSync(nutDir).filter((f) => f.endsWith('.tmp')), [], 'written atomically, no temp file left');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a malformed plan-data.json / ingredients.json is one ERROR line and exit 1, nothing written', () => {
+  for (const bad of ['plan-data.json', 'ingredients.json']) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-bad-json-'));
+    try {
+      const nutDir = mirrorTree(root, [
+        [path.join(__dirname, 'ingredients.json'), 'ingredients.json'],
+        [path.join(__dirname, 'plan-data.example.json'), 'plan-data.json'],
+      ]);
+      fs.writeFileSync(path.join(nutDir, bad), '{ "not": json');
+      const r = spawnSync(process.execPath, ['generate.mjs'], { cwd: nutDir, encoding: 'utf8' });
+      assert.equal(r.status, 1, bad);
+      const lines = r.stderr.trim().split('\n');
+      assert.equal(lines.length, 1, r.stderr);
+      assert.match(lines[0], new RegExp(`^ERROR: ${bad.replace('.', '\\.')} is not valid JSON`));
+      assert.ok(!fs.existsSync(path.join(nutDir, 'plan-tables.md')));
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
+test('importing generate.mjs reads no file (load() does): it imports fine with no ingredients.json at all', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-import-'));
+  try {
+    const nutDir = mirrorTree(root, []);
+    const r = spawnSync(process.execPath, ['--input-type=module', '-e', "const g = await import('./generate.mjs'); console.log(typeof g.load);"], { cwd: nutDir, encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout.trim(), 'function');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });

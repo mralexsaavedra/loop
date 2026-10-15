@@ -124,10 +124,15 @@ git config core.hooksPath scripts/git-hooks
 [`scripts/precommit-guard.mjs`](../scripts/precommit-guard.mjs), which refuses the commit (exit 1, with the
 paths and the `git restore --staged` line to unstage them) when:
 
-1. a **staged file is ignored** by the repo's rules (`git check-ignore --no-index` over the added, copied,
-   modified and renamed paths): in this repo that means personal data that got in with `git add -f`;
+1. a **staged file is ignored** by `HEAD`'s rules (the index's on a first commit): `HEAD`'s tracked `.gitignore`
+   files and the clone's `info/exclude` are copied into a scratch repo and asked with
+   `git check-ignore --no-index` over the added, copied, modified and renamed paths. In this repo that means
+   personal data that got in with `git add -f` or after a `.gitignore` edit; an unstaged working-tree edit of a
+   `.gitignore` never changes what is judged;
 2. a **staged `.gitignore` loosens** the rules compared with `HEAD`: it drops an ignore pattern or adds a `!`
-   negation (adding patterns is fine; the commit that does it on purpose uses `--no-verify`).
+   negation, or it is **deleted** (`git rm .gitignore`, a rename away) — every pattern it held is listed, with
+   the `git restore --staged --worktree` line that brings it back (adding patterns is fine; the commit that
+   loosens on purpose uses `--no-verify`).
 
 It asks git directly instead of importing the guard hook: the hook judges shell commands and exports only its
 tokenizer (`tokenize`, `collectForceAdds`), not a per-path check. `git commit --no-verify` skips it;

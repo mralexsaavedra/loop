@@ -96,3 +96,63 @@ test('the documented opt-in (a RELATIVE core.hooksPath) works from a subdirector
     assert.match(c.stderr, /data\/profile\/onboarding\.json/);
   } finally { r.cleanup(); }
 });
+
+test('a staged deletion of a .gitignore is refused (git rm .gitignore + git add -A cannot slip personal files in)', () => {
+  const r = scratchRepo();
+  try {
+    r.git('rm', '-q', '.gitignore');
+    r.write('data/profile/settings.json', '{"goal":"cut"}');
+    r.git('add', '-A');
+    const c = r.git('commit', '-m', 'oops');
+    assert.notEqual(c.status, 0);
+    assert.match(c.stderr, /\.gitignore/);
+    assert.match(c.stderr, /delet/i);
+    assert.match(c.stderr, /data\/profile\/settings\.json/, 'judged against HEAD\'s rules, the staged file is ignored too');
+    assert.equal(r.git('rev-list', '--count', 'HEAD').stdout.trim(), '1');
+  } finally { r.cleanup(); }
+});
+
+test('a nested .gitignore deletion is refused too', () => {
+  const r = scratchRepo();
+  try {
+    r.write('sub/.gitignore', 'secret.txt\n');
+    r.git('add', 'sub/.gitignore');
+    assert.equal(r.git('commit', '-qm', 'nested').status, 0);
+    r.git('rm', '-q', 'sub/.gitignore');
+    const c = r.git('commit', '-m', 'drop nested');
+    assert.notEqual(c.status, 0);
+    assert.match(c.stderr, /sub\/\.gitignore/);
+  } finally { r.cleanup(); }
+});
+
+test('staged paths are judged against HEAD\'s ignore rules, not an unstaged working-tree .gitignore edit', () => {
+  const r = scratchRepo();
+  try {
+    r.write('.gitignore', 'profile/about-me.md\n*.bak\n!keep.bak\n'); // loosened on disk only, never staged
+    r.write('data/profile/settings.json', '{"goal":"cut"}');
+    r.git('add', 'data/profile/settings.json'); // no -f needed: the working tree no longer ignores it
+    const c = r.git('commit', '-m', 'oops');
+    assert.notEqual(c.status, 0);
+    assert.match(c.stderr, /data\/profile\/settings\.json/);
+    assert.equal(r.git('rev-list', '--count', 'HEAD').stdout.trim(), '1');
+  } finally { r.cleanup(); }
+});
+
+test('a nested HEAD .gitignore applies to its own directory only', () => {
+  const r = scratchRepo();
+  try {
+    r.write('sub/.gitignore', 'secret.txt\n');
+    r.git('add', 'sub/.gitignore');
+    assert.equal(r.git('commit', '-qm', 'nested').status, 0);
+    r.write('sub/secret.txt', 's\n');
+    r.write('other/secret.txt', 'fine\n');
+    r.git('add', '-f', 'sub/secret.txt');
+    r.git('add', 'other/secret.txt');
+    const c = r.git('commit', '-m', 'oops');
+    assert.notEqual(c.status, 0);
+    assert.match(c.stderr, /sub\/secret\.txt/);
+    assert.doesNotMatch(c.stderr, /other\/secret\.txt/);
+    r.git('restore', '--staged', 'sub/secret.txt');
+    assert.equal(r.git('commit', '-qm', 'ok').status, 0);
+  } finally { r.cleanup(); }
+});

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-/* Runner behind `npm run sync`: runs the Strava sync, the Shortcut sync, the profile sync, the settings sync, the food log export and the journal export sequentially, even
- * when one fails — a shell `&&` chain would skip the second script the moment the first exits
- * non-zero, and `;` both loses the exit code and is shell-specific. Both scripts write
+/* Runner behind `npm run sync`: runs every sync script (SCRIPTS below) sequentially, each one even
+ * when an earlier one fails — a shell `&&` chain would skip the rest the moment one exits non-zero,
+ * and `;` both loses the exit code and is shell-specific. The Strava and Shortcut syncs both write
  * _meta.json, so running them one after another (not in parallel) avoids a write race.
  *
  * Run: node scripts/sync-all.mjs [--full]   (--full reaches the Shortcut sync only: it rebuilds its cache)

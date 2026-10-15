@@ -171,3 +171,45 @@ test('every extract file is written atomically (sync-common writeAtomic): no dir
     x.cleanup();
   }
 });
+
+test('source names: commas never shift columns and XML entities are decoded (same cell as the Shortcut path)', () => {
+  const x = runExtract([
+    rec('BodyMass', 'Alex, Watch', '2030-01-02 07:00:00 +0100', 70.5),
+    rec('BodyMass', 'Scale, Kitchen &amp; Co', '2030-01-02 08:00:00 +0100', 70.4),
+    rec('StepCount', 'Alex, Watch', '2030-01-02 12:00:00 +0100', 9000),
+    '<Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Scale, Kitchen &amp; Co" startDate="2030-01-01 23:00:00 +0100" endDate="2030-01-02 07:00:00 +0100" value="HKCategoryValueSleepAnalysisAsleepCore"/>',
+    '<Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="30" durationUnit="min" sourceName="Alex, Watch" startDate="2030-01-02 18:00:00 +0100" endDate="2030-01-02 18:30:00 +0100">',
+    '</Workout>',
+    later('2030-01-03'),
+  ]);
+  try {
+    assert.equal(x.read('weight.csv'), 'date,value,source\n2030-01-02,70.5,Alex  Watch\n2030-01-02,70.4,Scale  Kitchen & Co\n');
+    assert.match(x.read('steps-daily.csv'), /\n2030-01-02,9000,Alex {2}Watch\n/);
+    const sleep = x.read('sleep-daily.csv').split('\n')[1].split(',');
+    assert.equal(sleep.length, 11);
+    assert.equal(sleep[2], 'Scale  Kitchen & Co');
+    const w = x.read('workouts.csv').split('\n')[1].split(',');
+    assert.equal(w.length, 12);
+    assert.equal(w[7], 'Alex  Watch');
+  } finally { x.cleanup(); }
+});
+
+test('strict CLI: --help prints the usage (exit 0), an unknown flag or a stray argument exits 2 before any write', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-cli-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'export.xml'), '<HealthData>\n</HealthData>\n');
+    const run = (...args) => spawnSync(process.execPath, [path.join(__dirname, 'extract.mjs'), ...args], { encoding: 'utf8', env: { ...process.env, EXTRACT_DIR: dir } });
+    const help = run('--help');
+    assert.equal(help.status, 0);
+    assert.match(help.stdout, /^Usage: node data\/apple-health\/extract\.mjs/);
+    for (const args of [['--bogus'], ['export.xml']]) {
+      const r = run(...args);
+      assert.equal(r.status, 2, args.join(' '));
+      assert.match(r.stderr, /^ERROR: /);
+      assert.match(r.stderr, /Usage: /);
+    }
+    assert.deepEqual(fs.readdirSync(dir), ['export.xml'], 'no extract/ was written');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

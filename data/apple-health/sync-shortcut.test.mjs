@@ -302,6 +302,14 @@ test('buildRows() bodyfat: percent scale (fractions converted), real source kept
   ]);
 });
 
+test('buildRows() writes the source through csvSource: the same cell as extract.mjs (commas, entities)', () => {
+  const rows = buildRows('weight', [
+    { start: '2030-01-02 07:00:00 +0100', value: 70.5, source: 'Alex, Watch' },
+    { start: '2030-01-03 07:00:00 +0100', value: 70.4, source: 'Scale, Kitchen &amp; Co' },
+  ]);
+  assert.deepEqual(rows.map(r => r.line), ['2030-01-02,70.5,Alex  Watch', '2030-01-03,70.4,Scale  Kitchen & Co']);
+});
+
 test('buildRows() leanmass keeps kg with 2 decimals and the real source', () => {
   const rows = buildRows('leanmass', [{ start: '2030-01-02 07:00:00 +0100', value: 60.123456, source: 'Scale App' }]);
   assert.equal(rows[0].line, '2030-01-02,60.12,Scale App');
@@ -985,4 +993,48 @@ test('parseNumber() reads thousands separators by the LAST separator; ambiguous 
   assert.equal(parseNumber('3.5'), 3.5);
   assert.equal(parseNumber('1.234.567'), null);
   assert.equal(parseNumber('1,234,567'), null);
+});
+
+// ---- main() returns its exit code (runCli sets it): called in-process, the runner is never killed ----
+
+function mainHarness (prefix) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const out = [], err = [];
+  const env = { INGEST_ENV_FILE: path.join(dir, 'no-such.env'), INGEST_URL: 'http://127.0.0.1:9' };
+  const refused = async () => { throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } }); };
+  const answer = (status, body) => async () => ({ ok: status < 300, status, json: async () => body });
+  const blocked = path.join(dir, 'a-file');
+  fs.writeFileSync(blocked, 'x');
+  return {
+    dir, env, refused, answer, out, err,
+    io: { log: (s) => out.push(s), error: (s) => err.push(s) },
+    unwritable: path.join(blocked, 'sub'), // a path under a regular file: every write fails
+    cleanup: () => fs.rmSync(dir, { recursive: true, force: true }),
+  };
+}
+
+test('main() in-process: missing token / bad cache / unreachable service -> returns 1, nothing written', async () => {
+  const h = mainHarness('sync-shortcut-main-');
+  try {
+    const outDir = path.join(h.dir, 'extract');
+    assert.equal(await sync.main({ env: h.env, ...h.io, fetchImpl: h.refused, outDir }), 1);
+    assert.match(h.err.pop(), /no ingest token/);
+    const env = { ...h.env, INGEST_TOKEN: 't' };
+    assert.equal(await sync.main({ env, ...h.io, fetchImpl: h.refused, outDir }), 1);
+    assert.match(h.err.pop(), /could not read from the ingest service .*ECONNREFUSED/);
+    assert.ok(!fs.existsSync(outDir));
+    fs.mkdirSync(outDir);
+    fs.writeFileSync(path.join(outDir, sync.CACHE_FILE), '{not json');
+    assert.equal(await sync.main({ env, ...h.io, fetchImpl: h.answer(200, []), outDir }), 1);
+    assert.match(h.err.pop(), /unreadable or from another version/);
+    assert.deepEqual(fs.readdirSync(outDir), [sync.CACHE_FILE]);
+  } finally { h.cleanup(); }
+});
+
+test('main() in-process: no new payloads -> returns 0', async () => {
+  const h = mainHarness('sync-shortcut-main-');
+  try {
+    assert.equal(await sync.main({ env: { ...h.env, INGEST_TOKEN: 't' }, ...h.io, fetchImpl: h.answer(200, []), outDir: path.join(h.dir, 'extract') }), 0);
+    assert.match(h.out[0], /Synced 0 new/);
+  } finally { h.cleanup(); }
 });
