@@ -19,9 +19,8 @@ data/apple-health/*
 !data/apple-health/.gitkeep
 # extract.mjs is plain tooling (no data) → trackable; its extract/ output stays ignored.
 !data/apple-health/extract.mjs
-# Shared sample helpers + the Shortcut/Strava syncs and their tests are tooling (synthetic
-# fixtures only, no personal values).
-!data/apple-health/samples.mjs
+# The Shortcut/Strava syncs and their tests are tooling (synthetic fixtures only, no personal
+# values).
 !data/apple-health/sync-common.mjs
 !data/apple-health/sync-shortcut.mjs
 !data/apple-health/sync-strava.mjs

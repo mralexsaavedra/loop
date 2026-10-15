@@ -142,4 +142,7 @@ test('writeOriginOk: Sec-Fetch-Site (when sent) must be same-origin; an Origin m
     assert.equal(ok({ origin: 'http://192.168.1.10:8090', 'x-forwarded-host': '192.168.1.10:8090', 'sec-fetch-site': site }), false, site)
   }
   assert.equal(ok({ 'sec-fetch-site': 'cross-site' }), false, 'a cross-site browser request without Origin')
+  // the scheme is not compared (nginx behind a TLS tunnel only sees http); a browser marks a cross-scheme request
+  // same-site, so a plain-http page cannot write to the https one
+  assert.equal(ok({ origin: 'http://plan.example.com', 'x-forwarded-host': 'plan.example.com', 'sec-fetch-site': 'same-site' }, ['plan.example.com']), false, 'cross-scheme')
 })
