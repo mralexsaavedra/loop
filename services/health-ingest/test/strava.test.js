@@ -271,7 +271,7 @@ test('stops paging after a hard page limit instead of looping forever on full pa
   let pages = 0
   await assert.rejects(
     fetchActivitiesSince(async () => 'tok', null, async () => { pages += 1; return okJson(Array.from({ length: 100 }, (_, i) => ({ id: i }))) }),
-    /strava activities: more than 50 pages/
+    /strava activities: more than 200 pages/
   )
-  assert.equal(pages, 50)
+  assert.equal(pages, 200)
 })

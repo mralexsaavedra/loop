@@ -3,8 +3,8 @@ const ACTIVITIES_URL = 'https://www.strava.com/api/v3/athlete/activities'
 const PAGE_SIZE = 100
 // a hung request must never block the shared sync run (POST /sync, the timer and /sync/strava join it)
 const FETCH_TIMEOUT_MS = 15_000
-// 50 x 100 activities is years of history; more means a broken cursor, not data
-const MAX_PAGES = 50
+// 200 x 100 = 20,000 activities: decades of history even on a first pull (no cursor); more means a broken cursor
+const MAX_PAGES = 200
 
 /**
  * Strava access tokens live ~6 hours and stay in memory. The refresh token is
