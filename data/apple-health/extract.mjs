@@ -22,7 +22,7 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { isMain } from '../../scripts/lib/is-main.mjs';
-import { writeAtomic } from './sync-common.mjs';
+import { writeAtomic, runCli } from './sync-common.mjs';
 // shared with sync-shortcut.mjs so export- and Shortcut-derived rows are formatted identically
 import { csvSource, pickEnergySource, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights, sleepStage } from '../../lib/extract/samples.mjs';
 
@@ -283,16 +283,27 @@ function onClose() {
   console.log(Object.entries(counts).map(([k, n]) => `  ${k}: ${n}`).join('\n'));
 }
 
-/** Streams SRC into the extract. Run once per process: the series above are module state. */
+/** Streams SRC into the extract; resolves to the exit code (1 = no export.xml, nothing written). Run once
+ * per process: the series above are module state. */
 export function main() {
   if (!fs.existsSync(SRC)) {
     console.error('ERROR: export.xml not found at ' + SRC + '\nNo export yet? Put it there (README → Level 1, step 3), or see the page with demo data: npm run build:example');
-    process.exit(1);
+    return Promise.resolve(1);
   }
   fs.mkdirSync(OUT, { recursive: true });
-  const rl = readline.createInterface({ input: fs.createReadStream(SRC, { encoding: 'utf8' }), crlfDelay: Infinity });
-  rl.on('line', onLine);
-  rl.on('close', onClose);
+  return new Promise((resolve, reject) => {
+    const input = fs.createReadStream(SRC, { encoding: 'utf8' });
+    input.on('error', reject);
+    const rl = readline.createInterface({ input, crlfDelay: Infinity });
+    rl.on('line', onLine);
+    rl.on('close', () => { try { onClose(); resolve(0); } catch (err) { reject(err); } });
+  });
 }
 
-if (isMain(import.meta.url)) main();
+const USAGE = `Usage: node data/apple-health/extract.mjs
+
+Streams data/apple-health/export.xml into the per-metric CSVs + _meta.json of data/apple-health/extract/.
+  -h, --help   this help
+Env: EXTRACT_DIR (tests only) replaces data/apple-health: <dir>/export.xml in, <dir>/extract out.`;
+
+if (isMain(import.meta.url)) runCli(() => main(), { usage: USAGE });
