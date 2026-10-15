@@ -87,7 +87,7 @@ const ALLOWED = [
   /\.example\.json$/,
   /(^|\/)\.env\.example$/,
   /(^|\/)knowledge\/README\.md$/,
-  /(^|\/)data\/apple-health\/(extract|samples|sync-common|sync-shortcut|sync-strava)\.mjs$/,
+  /(^|\/)data\/apple-health\/(extract|sync-common|sync-shortcut|sync-strava)\.mjs$/,
   /(^|\/)data\/apple-health\/[^/]+\.test\.mjs$/,
   /(^|\/)data\/profile\/sync-(profile|settings)(\.test)?\.mjs$/,
 ];
