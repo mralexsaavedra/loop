@@ -66,7 +66,8 @@ test('cut on pace with a target (LAN page): the card = average big + rate pill +
   const r = run({ settings: settingsStub(75) });
   const h = r.host.innerHTML, { card, info } = both(r);
   assert.match(h, /data-detail="weight"/);
-  assert.match(h, /aria-label="See the weight history"/);
+  // the opener's name carries what the card shows (a role=button hides its children): values, then the action
+  assert.match(h, /aria-label="7-day average 78\.0 kg, -0\.35 kg\/wk\. On pace\. Target weight: 75\.0 kg · 3\.0 kg to lose\. Estimated arrival at your current rate \(±20%\): between March 2030 and April 2030\. See the weight history"/);
   assert.match(card, /7-day average last weigh-in: Sun 10 Feb/);
   assert.match(h, /<b class="pg-kg">78\.0<\/b>/);
   assert.match(h, /<span class="pg-pill pg-s-good">-0\.35 kg\/wk<\/span>/, 'the rate as a pill coloured by the status');
@@ -78,6 +79,13 @@ test('cut on pace with a target (LAN page): the card = average big + rate pill +
   assert.match(info, /rate over the last 28 days/);
   assert.match(info, /mixes scales: a trend, not an exact number/);
   assert.doesNotMatch(h + r.info.innerHTML, /NaN|undefined|null/);
+});
+
+test('the weight card\'s accessible name: values + the action, in Spanish too; a stale series says so', () => {
+  const es = run({ locale: 'es', settings: settingsStub(75) }).host.innerHTML;
+  assert.match(es, /aria-label="media de 7 días 78,0 kg, -0,35 kg\/sem\. A buen ritmo\. Peso objetivo: 75,0 kg · faltan 3,0 kg por bajar\. [^"]+ 2030\. Ver el historial de peso"/);
+  const old = run({ today: '2030-03-10' }).host.innerHTML;
+  assert.match(old, /aria-label="7-day average 78\.0 kg\. No weigh-in since Sun 10 Feb: the rate is not up to date\. See the weight history"/);
 });
 
 test('without the settings API (artifact, example build): no target, no ETA, no hint; the status still reads vs the goal', () => {

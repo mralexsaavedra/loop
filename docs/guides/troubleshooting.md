@@ -53,7 +53,9 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 
 - The Shortcut's URL: `http://<server-ip>:8090/ingest/health-auto-export` (or
   `https://<your-host>/ingest/health-auto-export` behind a tunnel). Any other `/ingest/*` path is a 404.
-- The response: `202` means stored; `401` means the token does not match.
+- The response: `202` means stored; `401` means the token does not match (the service logs each one as
+  `"event":"unauthorized"` with a running `count`, never the token); `400` with `"code":"nul_character"`
+  means the payload holds a `\u0000` character, which the database cannot store.
 - `curl -s localhost:8088/sync/status` — `lastShortcutAt` should move after each run.
 
 **Fix**
@@ -66,7 +68,7 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
   Energy → *Resting Calories*); VO2 max is *Cardio Fitness*.
 - Runs at night send nothing: Health data is locked while the phone is locked. Trigger the automation
   on opening an app you use daily.
-- Very large payloads: loop-web accepts up to 8 MB on that path. Shorten the heart-rate window (1 day).
+- Very large payloads: loop-web and the service accept up to 8 MB on that path. Shorten the heart-rate window (1 day).
 - New keys never show up: run `npm run sync -- --full` once.
 
 ## Strava stays empty
@@ -88,6 +90,9 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
   (`node scripts/strava-auth.js` in `services/loop-ingest`). Leave every scope ticked on the consent
   screen; without `profile:read_all` bikes and shoes stay empty.
 - Then pull it locally: `npm run sync:strava` (or the full `npm run sync`).
+- A long history fills in over a few runs: the first pull stores each page of 100 activities as it
+  arrives, and when Strava's rate limit (`rateLimited: true` in `docker compose logs loop-ingest`) stops
+  it, the next run (every `STRAVA_SYNC_MINUTES`) continues from the newest stored activity.
 
 ## The food log or the "+" sheet cannot reach the server
 
@@ -158,6 +163,12 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 - loop-web restarting with `bind() to 0.0.0.0:80 failed (13: Permission denied)` (a Docker older than 20.10):
   add `NET_BIND_SERVICE` to `cap_add` in `services/loop-web/docker-compose.yml`. Another `Permission denied`
   or `Read-only file system` in a container's logs after the hardening: report it with that log line.
+- `docker compose up` stops with `set INGEST_PORT in services/loop-ingest/.env`: add `INGEST_PORT=8088` (or
+  your port) to that file; it is required, so the port is never left to chance.
+- **Docker ignores ufw** (and firewalld): a published port is reachable from every network the host is on,
+  whatever the firewall says. On a host with a public address (a VPS, a router-exposed machine), set
+  `INGEST_BIND` in `services/loop-ingest/.env` and `PLAN_WEB_BIND` in `services/loop-web/.env` to the LAN IP
+  (or `127.0.0.1` for ingest when only this host uses it), then `docker compose up -d` in each folder.
 - The page or the API answers `429`: nginx's rate limit on the proxied routes (generous; see
   [`services/loop-web/README.md`](../../services/loop-web/README.md) → Rate limits); a script looping on
   `/api/*` is the usual cause.

@@ -162,8 +162,8 @@ test('example build: t-home is the first nav button and current; the Home panel 
   const firstBtn = html.match(/<button type="button" id="(t-[a-z]+)"[^>]*>/);
   assert.equal(firstBtn[1], 't-home');
   assert.match(firstBtn[0], /aria-current="page"/);
-  assert.match(html, /<div class="tab-panel" data-tab="home">/);
-  assert.match(html, /<div class="tab-panel" data-tab="nutricion" hidden>/);
+  assert.match(html, /<div class="tab-panel" data-tab="home" role="region" aria-labelledby="t-home">/);
+  assert.match(html, /<div class="tab-panel" data-tab="nutricion" hidden role="region" aria-labelledby="t-nutricion">/);
   assert.match(html, /<div id="home-advice"><\/div>/);
 });
 
@@ -291,9 +291,20 @@ test('example build: Inicio carries a compact "today you eat" card (filled clien
   assert.ok(cardAt !== -1, 'eat card missing from the Inicio panel');
   assert.ok(home.indexOf('<div id="home-advice">') < cardAt && cardAt < home.indexOf('id="home-tonight"'), 'order: dials + advice, eat card, then Tonight');
   const card = home.slice(cardAt, home.indexOf('id="home-tonight"'));
-  assert.match(card, /<div id="eat-body" aria-live="polite"><\/div>/);
+  assert.match(card, /<div id="eat-body"><\/div>/, 'no aria-live on a whole re-rendered card');
   assert.match(card, /data-tab-go="nutricion"[^>]*>See the full plan/);
   assert.doesNotMatch(card, /class="meal"/, 'the full meal plan is NOT duplicated on Inicio');
+});
+
+test('example build: no live region wraps a whole card re-rendered with innerHTML; the short status lines announce instead', () => {
+  const html = fs.readFileSync(examplePath, 'utf8');
+  for (const id of ['eat-body', 'nutri-target', 'nutri-score', 'nutri-progress', 'food-adherence']) {
+    const tag = html.match(new RegExp(`<div id="${id}"[^>]*>`));
+    assert.ok(tag, id + ' container present');
+    assert.doesNotMatch(tag[0], /aria-live|role="status"/, id + ' re-renders as a whole: a live region would re-read the card');
+  }
+  // the food log's one short line (an add / a delete) stays the announcer
+  assert.match(html, /<p class="food-msg" id="food-msg" role="status" aria-live="polite"><\/p>/);
 });
 
 test('example build: the Salud recovery card stays stacked at every width (headline, trend, contributor rows)', async () => {

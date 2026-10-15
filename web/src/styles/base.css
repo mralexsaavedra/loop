@@ -486,7 +486,7 @@ footer {
     padding: 0 var(--gutter);
   }
   .wrap > .topbar,
-  .wrap > .tab-panel,
+  .wrap > main,
   .wrap > footer {
     max-width: var(--content-max);
     margin-left: auto;

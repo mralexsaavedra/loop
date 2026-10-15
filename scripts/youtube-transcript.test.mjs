@@ -186,3 +186,13 @@ test('parseArgs reads the flags with defaults and rejects bad input', () => {
   assert.throws(() => parseArgs(['--channel', 'c', '--out', 'o', '--lang', 'e s']), /--lang/);
   assert.throws(() => parseArgs(['--channel', 'c', '--out', 'o', '--bogus']), /unknown/);
 });
+
+test('importing ingest-youtube.mjs runs nothing (isMain guard): no argument parsing, no yt-dlp', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const url = new URL('./ingest-youtube.mjs', import.meta.url).href;
+  const r = spawnSync(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(url)}); console.log('imported');`],
+    { encoding: 'utf8', env: { ...process.env, YT_DLP: '/nonexistent/yt-dlp' }, timeout: 20000 });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), 'imported');
+  assert.equal(r.stderr, '');
+});

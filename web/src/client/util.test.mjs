@@ -85,6 +85,38 @@ test('jsonApi: rejects {code, field, status} on an error answer, {code: offline,
   assert.equal(fetched, false, 'never fetched from a file');
 });
 
+/* HC.fetchTimeout(url, init, ms): the ONE timed fetch (jsonApi, freshness.js, profile.js) */
+test('fetchTimeout: passes the answer through; a request that never settles rejects after ms and is aborted', async () => {
+  const seen = [];
+  let HC = apiCtx({ fetch: (url, init) => { seen.push([url, init]); return Promise.resolve(res(200, {})); } });
+  const r = await HC.fetchTimeout('/status.json', { cache: 'no-store' }, 1000);
+  assert.equal(r.status, 200);
+  assert.equal(seen[0][0], '/status.json');
+  assert.equal(seen[0][1].cache, 'no-store', 'the caller\'s init is kept');
+  assert.ok(seen[0][1].signal, 'abortable');
+  let signal = null;
+  HC = apiCtx({ fetch: (url, init) => { signal = init.signal; return new Promise(() => {}); } });
+  const t0 = Date.now();
+  await assert.rejects(HC.fetchTimeout('/api/sync', { method: 'POST' }, 30), (e) => e && e.name === 'TimeoutError');
+  assert.ok(Date.now() - t0 < 1000, 'gave up after its timeout');
+  assert.equal(signal.aborted, true, 'the hanging request is aborted');
+  HC = apiCtx({ fetch: () => Promise.reject(new TypeError('Failed to fetch')) });
+  await assert.rejects(HC.fetchTimeout('/x', {}, 1000), TypeError, 'a network error stays a rejection');
+});
+
+test('jsonApi: a request that never answers times out as offline', async () => {
+  const HC = apiCtx({ fetch: () => new Promise(() => {}) });
+  await assert.rejects(HC.jsonApi('/api/food', 'X-HC-Food', 30)('GET', '/x'), (e) => e.code === 'offline' && e.status === 0);
+});
+
+test('freshness.js and profile.js fetch only through HC.fetchTimeout (no request without a timeout)', () => {
+  for (const f of ['freshness.js', 'profile.js']) {
+    const src = stripComments(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), f), 'utf8'));
+    assert.doesNotMatch(src.replace(/HC\.fetchTimeout\(/g, ''), /\bfetch\(/, f);
+    assert.match(src, /HC\.fetchTimeout\(/, f);
+  }
+});
+
 test('food-core.js and journal.js share HC.jsonApi: no fetch of their own', () => {
   for (const f of ['food-core.js', 'journal.js']) {
     const src = stripComments(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), f), 'utf8'));

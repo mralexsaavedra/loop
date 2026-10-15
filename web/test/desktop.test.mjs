@@ -21,11 +21,11 @@ const decl = (list, sel, prop) => {
   return d ? norm(d[1]) : null;
 };
 
-test('wide screens: the content column is 960px, centred (top bar, tab panels, footer)', () => {
+test('wide screens: the content column is 960px, centred (top bar, main with the tab panels, footer)', () => {
   const all = rules();
   assert.equal(decl(all.filter((r) => !r.media), ':root', '--content-max'), '960px');
   const wide = all.filter((r) => r.media === WIDE);
-  for (const sel of ['.wrap>.topbar', '.wrap>.tab-panel', '.wrap>footer']) {
+  for (const sel of ['.wrap>.topbar', '.wrap>main', '.wrap>footer']) {
     assert.equal(decl(wide, sel, 'max-width'), 'var(--content-max)', sel);
     assert.equal(decl(wide, sel, 'margin-left'), 'auto', sel);
     assert.equal(decl(wide, sel, 'margin-right'), 'auto', sel);

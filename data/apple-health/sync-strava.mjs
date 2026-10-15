@@ -352,47 +352,50 @@ workout-zones.csv of the Apple Health extract.
 Env: INGEST_URL, INGEST_TOKEN (else from the service .env), INGEST_ENV_FILE (default
 services/loop-ingest/.env).`
 
-async function main () {
+// The CLI entry; env / log / error / fetchImpl / outDir / profileJson are injectable for tests. Returns the
+// exit code: 1 on a missing token or an unreachable / old service (no file touched).
+async function main ({ env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = OUT, profileJson = PROFILE_JSON } = {}) {
   const t0 = Date.now()
-  const baseUrl = common.readBaseUrl(process.env)
-  const token = common.readIngestToken(process.env)
+  const baseUrl = common.readBaseUrl(env)
+  const token = common.readIngestToken(env)
   if (!token) {
-    console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/loop-ingest/.env. No files touched.')
-    process.exit(1)
+    error('ERROR: no ingest token. Set INGEST_TOKEN or create services/loop-ingest/.env. No files touched.')
+    return 1
   }
 
   let activities
   try {
-    activities = await fetchActivities({ baseUrl, token })
+    activities = await fetchActivities({ baseUrl, token, fetchImpl })
   } catch (err) {
     if (err.status === 404) {
-      console.error('ERROR: ingest service has no /export/strava — rebuild/restart the loop-ingest container. No files touched.')
+      error('ERROR: ingest service has no /export/strava — rebuild/restart the loop-ingest container. No files touched.')
     } else {
       const cause = (err.cause && err.cause.code) || (err.cause && err.cause.message) || err.message
-      console.error(`ERROR: could not read from the ingest service at ${baseUrl} (${cause}). Is it running? No files touched.`)
+      error(`ERROR: could not read from the ingest service at ${baseUrl} (${cause}). Is it running? No files touched.`)
     }
-    process.exit(1)
+    return 1
   }
 
   const stale = staleImageWarning(activities)
-  if (stale) console.error(stale)
+  if (stale) error(stale)
   const stalePower = stalePowerWarning(activities)
-  if (stalePower) console.error(stalePower)
+  if (stalePower) error(stalePower)
   const staleZones = staleZonesWarning(activities)
-  if (staleZones) console.error(staleZones)
-  const prof = readProfileMaxHr(PROFILE_JSON)
-  if (prof.error) console.error(`WARNING: ${PROFILE_JSON} — ${prof.error}; using the observed max HR for the HR zones.`)
-  const plan = syncDir(OUT, activities, { profileMaxHr: prof.maxHr })
+  if (staleZones) error(staleZones)
+  const prof = readProfileMaxHr(profileJson)
+  if (prof.error) error(`WARNING: ${profileJson} — ${prof.error}; using the observed max HR for the HR zones.`)
+  const plan = syncDir(outDir, activities, { profileMaxHr: prof.maxHr })
   const durationMs = Date.now() - t0
-  console.log(`Synced ${activities.length} Strava activities in ${durationMs}ms; ${plan.merged.added} row(s) added for ${range(plan.merged.addedDates)}; ${plan.merged.rows} rows total`)
-  if (plan.noHr) console.log(`  ${plan.noHr} row(s) written without HR`)
-  if (plan.dropped) console.log(`  ${plan.dropped} activity(ies) dropped (no usable date/duration)`)
-  if (Object.keys(plan.unmapped).length) console.log(`  unmapped sport types: ${JSON.stringify(plan.unmapped)}`)
-  if (plan.zones.rows) console.log(`  ${plan.zones.rows} workout(s) with HR zones (max HR ${plan.zones.max.maxHr} bpm, ${plan.zones.max.source})`)
-  if (!Object.keys(plan.writes).length) console.log('  (no changes)')
+  log(`Synced ${activities.length} Strava activities in ${durationMs}ms; ${plan.merged.added} row(s) added for ${range(plan.merged.addedDates)}; ${plan.merged.rows} rows total`)
+  if (plan.noHr) log(`  ${plan.noHr} row(s) written without HR`)
+  if (plan.dropped) log(`  ${plan.dropped} activity(ies) dropped (no usable date/duration)`)
+  if (Object.keys(plan.unmapped).length) log(`  unmapped sport types: ${JSON.stringify(plan.unmapped)}`)
+  if (plan.zones.rows) log(`  ${plan.zones.rows} workout(s) with HR zones (max HR ${plan.zones.max.maxHr} bpm, ${plan.zones.max.source})`)
+  if (!Object.keys(plan.writes).length) log('  (no changes)')
+  return 0
 }
 
-if (isMain(import.meta.url)) common.runCli(main, { usage: USAGE })
+if (isMain(import.meta.url)) common.runCli(() => main(), { usage: USAGE })
 
 export {
   SPORT_TYPE_MAP,

@@ -46,9 +46,11 @@ function setup({ routes = {}, nutri = nutriStub() } = {}) {
   const docListeners = {};
   doc.addEventListener = (t, fn) => { (docListeners[t] = docListeners[t] || []).push(fn); };
   doc.hidden = false;
+  // collected timers; clearTimeout really cancels (the request timeout of HC.fetchTimeout is cleared on an answer)
   const timers = [];
-  const setTimeout = (fn, ms) => { timers.push({ fn, ms }); return timers.length; };
-  const clearTimeout = () => {};
+  let nextId = 0;
+  const setTimeout = (fn, ms) => { timers.push({ fn, ms, id: ++nextId }); return nextId; };
+  const clearTimeout = (id) => { const i = timers.findIndex((x) => x.id === id); if (i !== -1) timers.splice(i, 1); };
   const window = { HCNutri: nutri };
   const ctx = {
     document: doc, window, I18N_FOOD: esF, FOOD_CONST, FOOD_BASICS: [], LOCALE: 'es',

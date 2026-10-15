@@ -185,3 +185,43 @@ test('a password with URL-special characters connects through databaseConfig (th
     await pool.query(`DROP ROLE ${role}`)
   }
 })
+
+test('strava (C1): a first pull cut by a 429 keeps the stored pages and the next run resumes from them', { skip }, async () => {
+  const { createStravaSync } = await import('../../src/sync.js')
+  await pool.query('TRUNCATE strava_activity CASCADE')
+  const day = (i) => new Date(Date.UTC(2021, 0, 1) + i * 86_400_000).toISOString().replace('.000Z', 'Z')
+  const afters = []
+  let calls = 0
+  const fetchImpl = async (url) => {
+    const u = new URL(String(url))
+    if (u.pathname.endsWith('/oauth/token')) return { ok: true, status: 200, json: async () => ({ access_token: 't', expires_at: Math.floor(Date.now() / 1000) + 3600 }) }
+    if (u.pathname.endsWith('/athlete/activities')) {
+      calls += 1
+      afters.push(Number(u.searchParams.get('after')))
+      if (calls === 2) return { ok: false, status: 429 }
+      if (calls === 1) return { ok: true, status: 200, json: async () => Array.from({ length: 100 }, (_, i) => ({ id: 9000 + i, start_date_local: day(i), sport_type: 'Ride', name: `r${i}` })) }
+      return { ok: true, status: 200, json: async () => [{ id: 9999, start_date_local: day(150), sport_type: 'Run', name: 'last' }] }
+    }
+    return { ok: false, status: 500 }
+  }
+  const sync = createStravaSync(pool, { STRAVA_CLIENT_ID: 'i', STRAVA_CLIENT_SECRET: 's', STRAVA_REFRESH_TOKEN: 'r' }, { fetchImpl, log: quiet })
+  await assert.rejects(sync.runOnce(), (err) => err.rateLimited === true)
+  const count = async () => Number((await pool.query('SELECT count(*) AS n FROM strava_activity')).rows[0].n)
+  assert.equal(await count(), 100, 'page 1 committed before the 429')
+  assert.equal(afters[0], 0)
+  const resumed = await sync.runOnce()
+  assert.equal(resumed.count, 1)
+  // start_local is a timestamp WITHOUT time zone, read back in the process's zone: within a day of the
+  // newest stored start minus the 7-day overlap (the overlap absorbs the offset), never 0 (page 1 again)
+  assert.equal(afters[2], resumed.since)
+  assert.ok(Math.abs(resumed.since - (Date.parse(day(99)) / 1000 - 7 * 86_400)) <= 14 * 3600, `resumed from MAX(start_local) minus the overlap (${resumed.since})`)
+  assert.equal(await count(), 101)
+  await sync.hrIdle()
+})
+
+test('ingest (C3): Postgres jsonb refuses U+0000, which is why the route answers 400 before inserting', { skip }, async () => {
+  await assert.rejects(
+    insertRawPayload(pool, { source: 'health-auto-export', automation: null, aggregation: null, period: null, sessionId: null, byteSize: 1, payload: { a: 'x\u0000' } }),
+    /unsupported Unicode escape sequence/
+  )
+})

@@ -18,7 +18,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
 const REPO_ROOT = path.dirname(WEB_ROOT);
 const exampleHtml = () => fs.readFileSync(path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html'), 'utf8');
-const topbar = (html) => (html.match(/<div class="topbar"[^>]*>([\s\S]*?)<nav class="tabnav"/) || [])[1] || '';
+const topbar = (html) => (html.match(/<header class="topbar"[^>]*>([\s\S]*?)<nav class="tabnav"/) || [])[1] || '';
 const baked = (html) => JSON.parse(html.match(/var PROFILE = (\{[\s\S]*?\});\n/)[1]);
 const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(300, 9)]);
 

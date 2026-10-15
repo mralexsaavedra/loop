@@ -91,7 +91,7 @@ test('nginx = /ingest/health-auto-export: exact, POST only, the body passed with
   assert.doesNotMatch(ingest.body, /proxy_pass_request_body off/, 'the JSON payload is the whole point');
   assert.match(ingest.body, /client_max_body_size 8m;/, 'a Shortcut payload is a few hundred KB');
   const server = read('services', 'loop-ingest', 'src', 'server.js');
-  const def = /MAX_BODY_BYTES = Number\(process\.env\.MAX_BODY_BYTES \?\? ([\d\s*]+)\)/.exec(server);
+  const def = /DEFAULT_MAX_BODY_BYTES = ([\d\s*]+)$/m.exec(server);
   assert.ok(def, 'the ingest default MAX_BODY_BYTES is readable');
   const ingestMax = def[1].split('*').reduce((a, n) => a * Number(n.trim()), 1);
   const capMb = Number(/client_max_body_size (\d+)m;/.exec(ingest.body)[1]);
@@ -341,6 +341,9 @@ test('the SSO docs keep /manuales/ behind SSO (never in a bypass rule)', () => {
 // another site (clickjacking), sniffed as another type or leak its URL. nginx drops ALL inherited add_header
 // lines in a block that has its own, so every block with an add_header repeats the set.
 const SECURITY_HEADERS = [
+  /add_header\s+Cross-Origin-Opener-Policy\s+same-origin\s+always;/,
+  /add_header\s+Cross-Origin-Resource-Policy\s+same-origin\s+always;/,
+  /add_header\s+Permissions-Policy\s+"camera=\(\), microphone=\(\), geolocation=\(\), payment=\(\), usb=\(\)"\s+always;/,
   /add_header\s+X-Content-Type-Options\s+nosniff\s+always;/,
   /add_header\s+X-Frame-Options\s+DENY\s+always;/,
   /add_header\s+Referrer-Policy\s+no-referrer\s+always;/,
@@ -349,7 +352,7 @@ const SECURITY_HEADERS = [
 test('nginx: server_tokens off and the security headers at server level and in every block with its own add_header', () => {
   const directives = nginx.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
   assert.match(directives, /server_tokens\s+off;/);
-  const server = directives.slice(directives.indexOf('server {'), directives.indexOf('location'));
+  const server = directives.slice(directives.indexOf('server {'), directives.search(/^\s*location\s/m));
   for (const re of SECURITY_HEADERS) assert.match(server, re, `server level: ${re}`);
   const withHeaders = locations(nginx).filter((l) => /add_header\s/.test(l.body));
   assert.ok(withHeaders.length >= 2, 'status.json and the manuals set their own headers');
@@ -416,4 +419,60 @@ test('loop-web healthcheck: nginx answers /nginx-health itself (exact, no proxy,
   assert.match(h.body, /return 200 "ok\\n";/);
   assert.doesNotMatch(h.body, /proxy_pass|add_header/);
   assert.equal(allowedByMap('127.0.0.1'), true, 'the healthcheck Host passes the map');
+});
+
+// ---- Published ports: optional bind address (Docker-published ports bypass ufw / firewalld) ------
+test('compose ports: an optional bind address (INGEST_BIND / PLAN_WEB_BIND); unset, the mapping is exactly the old one', () => {
+  assert.match(serviceBlock(ingestCompose, 'loop-ingest'), /^\s+- "\$\{INGEST_BIND:\+\$\{INGEST_BIND\}:\}\$\{INGEST_PORT:\?set INGEST_PORT in services\/loop-ingest\/\.env\}:8088"$/m,
+    'INGEST_PORT is required (a missing one fails loudly instead of publishing a random port)');
+  assert.match(serviceBlock(planCompose, 'loop-web'), /^\s+- "\$\{PLAN_WEB_BIND:\+\$\{PLAN_WEB_BIND\}:\}\$\{PLAN_WEB_PORT:-8090\}:80"$/m);
+  for (const [name, doc] of [['INGEST_BIND', read('services', 'loop-ingest', 'README.md')], ['PLAN_WEB_BIND', read(LOOP_WEB, 'README.md')]]) {
+    assert.match(doc, new RegExp(`\\|\\s*\`${name}\`\\s*\\|`), `${name} in its README's variable table`);
+  }
+  for (const doc of [read(LOOP_WEB, 'README.md'), read('docs', 'guides', 'troubleshooting.md')]) assert.match(doc, /Docker ignores ufw/);
+});
+
+test('compose ports: rendered by docker compose, unset = the plain port, a bind address = that address only, no INGEST_PORT = an error', { skip: spawnSync('docker', ['compose', 'version']).status === 0 ? false : 'docker compose not installed' }, () => {
+  const render = (dir, env) => spawnSync('docker', ['compose', '-f', path.join(ROOT, dir, 'docker-compose.yml'), '--project-directory', fs.mkdtempSync(path.join(os.tmpdir(), 'hc-compose-')), 'config', '--format', 'json'],
+    { env: { PATH: process.env.PATH, HOME: os.tmpdir(), POSTGRES_USER: 'u', POSTGRES_PASSWORD: 'p', POSTGRES_DB: 'd', INGEST_TOKEN: 't', ...env }, encoding: 'utf8' });
+  const port = (dir, service, env) => {
+    const r = render(dir, env);
+    assert.equal(r.status, 0, r.stderr);
+    const p = JSON.parse(r.stdout).services[service].ports[0];
+    return [p.host_ip ?? '', p.published, p.target];
+  };
+  const ingest = path.join('services', 'loop-ingest');
+  assert.deepEqual(port(ingest, 'loop-ingest', { INGEST_PORT: '8088' }), ['', '8088', 8088]);
+  assert.deepEqual(port(ingest, 'loop-ingest', { INGEST_PORT: '8088', INGEST_BIND: '192.168.1.5' }), ['192.168.1.5', '8088', 8088]);
+  const missing = render(ingest, {});
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /set INGEST_PORT in services\/loop-ingest\/\.env/);
+  assert.deepEqual(port(LOOP_WEB, 'loop-web', {}), ['', '8090', 80]);
+  assert.deepEqual(port(LOOP_WEB, 'loop-web', { PLAN_WEB_BIND: '127.0.0.1', PLAN_WEB_PORT: '9000' }), ['127.0.0.1', '9000', 80]);
+});
+
+test('loop-web/.env.example documents every variable the compose file reads, all commented out (the defaults apply)', () => {
+  const example = read(LOOP_WEB, '.env.example');
+  const used = [...new Set([...planCompose.matchAll(/\$\{([A-Z_]+)/g)].map((m) => m[1]))].sort();
+  assert.deepEqual(used, ['HC_INSTANCE', 'INGEST_PORT', 'PLAN_WEB_BIND', 'PLAN_WEB_EXTRA_HOSTS', 'PLAN_WEB_PORT']);
+  for (const name of used) assert.match(example, new RegExp(`^# ${name}=`, 'm'), name);
+  assert.doesNotMatch(example, /^[A-Z_]+=/m, 'nothing set: an untouched copy changes nothing');
+  assert.match(read(LOOP_WEB, 'README.md'), /\.env\.example/);
+});
+
+test('systemd service: clock, hostname, devices, address families and capabilities locked down too', () => {
+  const directives = serviceUnit.split('\n').map((l) => l.trim());
+  for (const line of ['ProtectClock=yes', 'ProtectHostname=yes', 'PrivateDevices=yes', 'RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6']) {
+    assert.ok(directives.includes(line), line);
+  }
+  assert.ok(!directives.some((l) => /^CapabilityBoundingSet=/.test(l)), 'no capability bounding set: root running a clone with directories owned by another user needs CAP_DAC_OVERRIDE');
+  assert.ok(!directives.some((l) => /^ExecStart=.*--ignore-scripts/.test(l)), 'npm install scripts stay on (astro / esbuild need them)');
+});
+
+test('loop-ingest accepts at least what loop-web forwards on /ingest/health-auto-export, and its default is 8 MB', () => {
+  const server = read('services', 'loop-ingest', 'src', 'server.js');
+  assert.match(server, /DEFAULT_MAX_BODY_BYTES = 8 \* 1024 \* 1024/);
+  const ingest = locations(nginx).find((l) => l.spec === '= /ingest/health-auto-export');
+  assert.match(ingest.body, /client_max_body_size 8m;/);
+  assert.match(serviceBlock(ingestCompose, 'loop-ingest'), /MAX_BODY_BYTES \(8 MB\)/);
 });

@@ -406,5 +406,5 @@ test('server.js routes GET /export/athlete through the bearer-checked handler', 
   const { readFileSync } = await import('node:fs')
   const src = readFileSync(new URL('../src/server.js', import.meta.url), 'utf8')
   assert.match(src, /url\.pathname === '\/export\/athlete'/)
-  assert.match(src, /createAthleteExportHandler\(\{ pool, token: INGEST_TOKEN \}\)/)
+  assert.match(src, /createAthleteExportHandler\(\{ pool, token: INGEST_TOKEN, checkBearer \}\)/)
 })

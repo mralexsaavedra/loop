@@ -260,6 +260,55 @@ test('an exception name never cancels a personal path in a .gitignore rewrite', 
   assertBlocked(runHook("sed -i '/data\\/profile\\//d;/sync-profile.mjs/d' .gitignore"), 'sed + exception');
 });
 
+test('blocks every shell write, truncation, removal or rename of a .gitignore, even naming no personal path', () => {
+  for (const cmd of [
+    "echo 'foo' > .gitignore",
+    'echo node_modules > .gitignore',
+    ': > .gitignore',
+    'cp /dev/null .gitignore',
+    'rm .gitignore',
+    'rm -f services/loop-web/.gitignore',
+    'git rm --cached .gitignore',
+    'mv .gitignore .gi && git add .',
+    'sed -i "/profile/d" .gitignore',
+    "sed -i.bak '1d' .gitignore",
+    "perl -pi -e 's/x//' .gitignore",
+    'truncate -s 0 .gitignore',
+    'echo x | tee .gitignore',
+    "echo '!data/' >> .gitignore",
+    'git update-index --skip-worktree .gitignore',
+    'unlink .gitignore',
+    'echo x 1> .gitignore',
+    "echo '!profile/' 1>> .gitignore",
+    'echo x &> .gitignore',
+    "echo '!profile/' &>> .gitignore",
+    'echo x >| .gitignore',
+    'printf "" >| .gitignore',
+    'dd if=/dev/null of=.gitignore',
+    'find . -name .gitignore -delete',
+    'git checkout HEAD~3 -- .gitignore',
+    'git restore --source=HEAD~3 .gitignore',
+    'grep -v profile .gitignore | sponge .gitignore',
+  ]) {
+    assertBlocked(runHook(cmd), cmd);
+  }
+});
+
+test('reading a .gitignore from the shell stays allowed', () => {
+  for (const cmd of [
+    'cat .gitignore',
+    'grep -n profile .gitignore',
+    "sed -n '1,20p' .gitignore",
+    'git diff -- .gitignore',
+    'git log --oneline -- .gitignore',
+    'git check-ignore -v profile/about-me.md',
+    'cp .gitignore /tmp/gitignore.copy',
+    'wc -l .gitignore',
+  ]) {
+    assertAllowed(runHook(cmd), cmd);
+  }
+});
+
 // --- Edit / Write / MultiEdit on .gitignore -------------------------------------
 
 function runTool(tool_name, tool_input, { env } = {}) {

@@ -12,6 +12,20 @@ First versioned release. The data service ships as a Docker Hub image, `mralexan
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-15 (final) — Final audit follow-ups
+
+A last read-only audit of every area (lib, page, services, AI, docs, release) before tagging 1.0.0, and its fixes.
+Page: the weight card reads its numbers to screen readers, whole cards are no longer live regions, `<header>`/`<main>`
+landmarks, a focus move to the panel heading on a tab switch, and every freshness/Sync request times out. Tooling:
+Apple Health source names are decoded and comma-safe in the extract (re-run `node data/apple-health/extract.mjs` to
+rewrite old cells; names without commas or entities are unchanged), paging refuses a cursor that does not advance,
+`generate`, `build-web` and `extract` reject unknown flags, impossible dates are refused by `addDays`/`dayDiff`, and
+`npm run typecheck` covers the scripts too. Services: the first Strava pull stores page by page and resumes after a
+rate limit, optional `INGEST_BIND`/`PLAN_WEB_BIND` (Docker publishes past host firewalls), an 8 MB default body cap,
+a 400 for payloads with NUL characters, logged token failures, more security headers and systemd hardening, and
+`INGEST_PORT` is required. Guards: the Claude hook refuses shell commands that rewrite, empty, remove or restore a `.gitignore`, and the opt-in
+pre-commit hook refuses a deleted `.gitignore` and judges staged files against HEAD's ignore rules.
+
 ## 2026-10-15 (later) — Robustness: migrations ledger, real-Postgres tests, container hardening
 
 The data service records each `sql/` migration in a `schema_migrations` ledger (name, sha-256, applied_at) and
