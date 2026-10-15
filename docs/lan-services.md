@@ -82,6 +82,10 @@ up -d` in `services/loop-web`). `refresh.sh` rebuilds and publishes it hourly (c
   `PLAN_WEB_EXTRA_HOSTS`, else `421` (DNS rebinding; how to add a name: [`nutrition-food-log.md` → Security](nutrition-food-log.md#security)).
   The ingest service itself is never exposed: loop-web is the only entry, and nothing forwards `/export/*`,
   `/sync/strava`, or the ingest port (published on the host's LAN only, for loop-web).
+- **Rate limits.** nginx `limit_req` on the five proxied locations only (`429` over the burst, per client
+  address): `/api/sync`, `/api/sync/status`, `/api/food/*`, `/api/journal/*` share 10 r/s, burst 60;
+  `/ingest/health-auto-export` 60 r/min, burst 20. The page, `status.json` and `/manuales/` are never limited
+  (pinned by `scripts/loop-web-config.test.mjs`).
 - **Health + tokens.** `/healthz` stays 200 but adds `degraded: true` when Strava is configured and its
   PERSISTED last success is > 6 h old or missing (a restart does not reset it). A refresh token rotated
   by Strava is stored in `strava_token` (3 save attempts with backoff; on failure it is kept in memory,

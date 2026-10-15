@@ -247,6 +247,12 @@ and `Content-Security-Policy: frame-ancestors 'none'` (no other site can frame t
 log), and nginx hides its version (`server_tokens off`); a block with its own `add_header` repeats the set
 (`scripts/loop-web-config.test.mjs`).
 
+**Rate limits** (`limit_req`, per client address, `429` over the burst): the proxied `/api/sync`,
+`/api/sync/status`, `/api/food/*` and `/api/journal/*` share 10 requests/s with a burst of 60, and
+`/ingest/health-auto-export` gets 60/min with a burst of 20. The page itself, `status.json` and `/manuales/` are
+never limited. Behind an SSO tunnel every request arrives from the tunnel's address, so it is one shared
+budget, still far above one person's use.
+
 `POST /sync` and `GET /sync/status` are **unauthenticated** by design: the page
 is a static file and cannot hold a secret. That is acceptable because:
 
