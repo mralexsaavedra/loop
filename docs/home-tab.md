@@ -448,7 +448,7 @@ false; `components/HealthMonitor.astro` + `client/monitor.js`.
   ▲ above / ▼ below / • inside the band; the range "lo–hi" as the small line under the value (the word
   "Normal range" is in the row's aria-label and the ⓘ); the short date "28 Sep" when not last night.
 - Signals: respiratory rate, resting HR, HRV, sleeping wrist temperature, sleep duration.
-- Each = the newest daily value (per-day median of plausibility-clamped samples) + unit, its date when
+- Each = the newest daily value (per-day median of the plausible samples; a sample outside the signal's plausibility range is an artefact and is dropped, never clamped, so a lone dropout leaves no day) + unit, its date when
   not from the viewer's today, and Normal / High / Low (es: `Normal` / `Alto` / `Bajo`; the status word
   is in the row's `aria-label`).
 - Band = median ± `BAND_K` (2) × scaled MAD (`robustBaseline`, floored per signal) over the 42 days
@@ -519,7 +519,7 @@ What it shows: last night's recovery as a % rank (headline), with the 7-day tren
   - a resting-HR value;
   - only when HRV is a scored component (the user has an HRV baseline): an HRV day with ≥
     max(min(3, usual), 50% of usual) samples (usual = median daily sample count over the baseline;
-    only plausible samples inside the HRV clamp range count, identical rows once);
+    only plausible samples inside the HRV plausibility range count, identical rows once);
   - plus ≥ 0.60 of the weight.
 - A user without Watch HRV is scored on sleep + resting HR.
 - A partial newest day (e.g. no RHR yet) falls back to the previous complete one, labelled by its

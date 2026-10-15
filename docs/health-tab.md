@@ -129,7 +129,7 @@ What it shows: last night's recovery %, then any recovery signal the health moni
 
 | CSV | Notes |
 | --- | --- |
-| `rhr.csv`, `hrv.csv` | both as the clamped per-day MEDIAN (`score/recovery.mjs` `dailySignal`), the same series Home's recovery and monitor use |
+| `rhr.csv`, `hrv.csv` | both as the per-day MEDIAN of the plausible samples (artefacts dropped) (`score/recovery.mjs` `dailySignal`), the same series Home's recovery and monitor use |
 | `vo2max.csv`, `walking-hr-daily.csv` | rows in [Fitness](#fitness); VO₂max as one value per day, the MEAN of the day's rows (`score/fitness-age.mjs` `vo2maxDaily`), the same series the fitness age card and its detail sheet use |
 | `sleep-daily.csv` | rows in [Sleep](#sleep) |
 | `respiratory-daily.csv`, `wristTemp.csv` | change-not-absolute signals |
