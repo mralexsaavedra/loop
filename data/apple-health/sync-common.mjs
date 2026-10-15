@@ -70,7 +70,7 @@ function readBaseUrl(env, envFile = envFileOf(env)) {
 /**
  * @param {string} url
  * @param {string | null} token
- * @param {{ fetchImpl?: typeof fetch, timeoutMs?: number, headers?: Record<string, string>, redirect?: 'follow' | 'error' | 'manual' }} [opts]
+ * @param {{ fetchImpl?: typeof fetch, timeoutMs?: number, headers?: Record<string, string>, redirect?: 'follow' | 'error' | 'manual', onResponse?: (res: Response) => void }} [opts]
  */
 async function fetchJson(url, token, { fetchImpl = fetch, timeoutMs = 15000, headers = {}, redirect, onResponse } = {}) {
   const ctrl = new AbortController();
