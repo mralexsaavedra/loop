@@ -1,5 +1,4 @@
-/* Generic (non-personal) English UI copy — the en/example counterpart of
- * es.mjs, ported from the tracked `data/nutrition/plan-web.template.html`.
+/* Generic (non-personal) English UI copy — the en/example counterpart of es.mjs.
  * Key tree MUST mirror es.mjs exactly — see web/test/i18n.test.mjs. */
 export default {
   strings: {
@@ -22,7 +21,7 @@ export default {
       day: { group: 'Day shown', prev: 'Previous day', next: 'Next day', back: 'Back to today' },
       // the dock's "+" button and its popover (client/nav-actions.js lists only the available actions)
       actions: { open: 'Actions', close: 'Close actions', label: 'Quick actions', addFood: 'Add food', journal: 'Complete your journal', sync: 'Sync' },
-      // headings of the sections that used to be tabs of their own (Mi día/Tablas keep theirs)
+      // headings of the sections inside a tab (Mi día/Tablas keep their own)
       sections: {
         hoy: "Today's session",
         dash: 'Intensity (HR)',

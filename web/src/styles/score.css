@@ -854,7 +854,7 @@ details.rec-raw[open] > summary::after {
  * above the viewport a strip fixed at the top shows the same three rings small (the dial's own svg,
  * its colour class, no markers, the grey track drawn in full even with no value) + their labels; a
  * tap opens the dial's detail. A SOLID fill (the page's top colour) behind the whole bar and a hairline
- * under it, so the content scrolling beneath never shows through (formerly a fade to transparent).
+ * under it, so the content scrolling beneath never shows through.
  * Off = visibility: hidden (out of the tab order and the accessibility tree); it slides in, and
  * prefers-reduced-motion drops the motion (base.css). Inside the Inicio panel, so other tabs never
  * show it. */

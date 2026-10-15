@@ -12,6 +12,23 @@ First versioned release. The data service ships as a Docker Hub image, `mralexan
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-15 (later) — Code cleanup: lint, typecheck, one home per helper
+
+`npm run lint` (ESLint, correctness rules only, the page's shared client globals declared) and `npm run
+typecheck` (TypeScript `checkJs` over `lib/`, JSDoc types) run in CI; `.editorconfig` states the style. Every
+sync script shares one command line: `--help`, an unknown flag exits 2 before any request, a failure `main`
+did not catch prints one `ERROR:` line and exits 1, `INGEST_ENV_FILE` is honoured everywhere, and `npm run sync
+-- --full` now reaches only the Shortcut sync (the one script with that flag). `extract.mjs` writes its CSVs
+atomically and runs only as the entry point. Shared helpers have one home: `lib/date.mjs` (dates, UTC math,
+replacing ~25 copies), `lib/extract/samples.mjs` (moved from `data/`; `lib/` never imports `data/`), the day
+type's minute thresholds, named Atwater tolerances, the food log's parity cases in `foodlog.cases.mjs`, and
+one `literal()` for both code emitters (a constant JSON cannot carry is refused; a test checks every emitted
+page global declares what it uses). The two `round1` (plain for the plan, epsilon-safe for the food log) and
+`toFixed` display rounding are documented, `MEASURED_SIGMA` is documented as a population default with how to
+re-derive it, the long functions are split into named steps (output unchanged), unused exports and
+migration-history comments are gone, and the example plan drops its unrendered `descHtml` (bake goldens
+regenerated).
+
 ## 2026-10-15 (later) — Page quality: CSP, accessible nav, touch targets
 
 The page now ships its own Content-Security-Policy (a meta tag written last at build time: one sha256 per

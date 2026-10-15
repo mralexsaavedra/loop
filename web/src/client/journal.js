@@ -183,7 +183,7 @@
           '<b class="ji-pct ji-' + tone + '" aria-hidden="true">' + esc(signed(r.diff)) + '</b>' +
           '<span class="ji-bar" aria-hidden="true"><i class="ji-fill ji-' + tone + '" style="' + barStyle(r.diff, scale) + '"></i><i class="ji-dot"></i></span></li>';
       }).join('');
-      // the behaviours without enough days share ONE card (formerly one identical "Need more data" card
+      // the behaviours without enough days share ONE card (not one identical "Need more data" card
       // each): with nothing scored yet, what is needed + how many days count so far; else their counts
       if (need.length) {
         var counted = Math.max.apply(null, need.map(function (r) { return (r.yesDays || 0) + (r.noDays || 0); }));

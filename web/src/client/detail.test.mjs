@@ -779,7 +779,7 @@ test('a daily total\'s newest day, when it is the viewer\'s today, reads "today,
   assert.doesNotMatch(later.host.innerHTML, /dt-s-partial/, 'a finished day gets its state again');
 });
 
-test('load deep-dive: the gym / run / bike pills (moved from under Inicio\'s dials) — the page\'s modality pressed, each opens its page and, with score.js loaded, sets Inicio\'s load dial (scMod)', () => {
+test('load deep-dive: the gym / run / bike pills — the page\'s modality pressed, each opens its page and, with score.js loaded, sets Inicio\'s load dial (scMod)', () => {
   const s = setup({ dials: DIALS });
   s.api.open('load-run');
   const html = s.host.innerHTML;

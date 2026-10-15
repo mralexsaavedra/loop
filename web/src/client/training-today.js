@@ -1,18 +1,11 @@
-/* "Hoy / Today" tab — today's PROGRAMMED training session. Ported
- * verbatim (same DOM contract, same three-branch empty-state logic) from
- * the legacy `<script>` IIFE of the pre-Astro generated page (deleted at
- * the astro-plan-web cutover), adapted to read TRAINING/TRAINING_META/LOCALE
- * from globals baked by web/src/components/Bake.astro instead of a
- * hand-typed JS literal, and
- * I18N_HOY (web/src/i18n/hoy-templates.mjs) instead of hardcoded English
- * strings — same "deliberate documented duplicate" pattern already used by
- * client/nutri-day.js (classic script, is:inline, no ES modules — see
- * spec: Single self-contained output).
+/* "Hoy / Today" tab — today's PROGRAMMED training session (a three-branch empty state: before the first
+ * day, after the last, a rest day). Reads TRAINING / TRAINING_META / LOCALE from the globals baked by
+ * web/src/components/Bake.astro and its copy from I18N_HOY (web/src/i18n/hoy-templates.mjs); a classic
+ * script (is:inline, no ES modules) like every client script.
  *
  * `esc()` is the browser idiom `document.createElement('div');
  * d.textContent=s; return d.innerHTML;` — escapes `&`/`<`/`>` from
- * untrusted training-data.json prose (focus/block titles/lines/meta),
- * per design's Trusted markup row ("training strings" are NOT trusted).
+ * untrusted training-data.json prose (focus/block titles/lines/meta): training strings are NOT trusted.
  * See web/test/dom-stub.mjs for the vm/test-time implementation of this
  * exact behavior.
  */

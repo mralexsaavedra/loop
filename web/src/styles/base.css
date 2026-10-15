@@ -1,10 +1,7 @@
 /* Shared app shell — day-type toggle, the bottom dock (tab navigation), section
- * heads, footer, and generic inline components (link, tip). Ported
- * verbatim (selectors + declarations) from the legacy
- * plan-web.template.html <style> block. Mobile-first; the trailing
- * @media block holds this file's desktop (>=900px) overrides, matching
- * the legacy source's single combined desktop query. Per-tab rules live
- * in dia.css / tablas.css / training.css / health.css. */
+ * heads, footer, and generic inline components (link, tip). Mobile-first; the trailing
+ * @media block holds this file's desktop (>=900px) overrides, in one combined desktop query.
+ * Per-tab rules live in dia.css / tablas.css / training.css / health.css. */
 
 .wrap {
   max-width: 680px;
@@ -407,8 +404,7 @@ details.rec-raw > summary::after {
   white-space: nowrap;
 }
 /* THE save button (docs/design-system.md → Components): every primary save — the journal's "SAVE
-   JOURNAL", the food sheets' "SAVE" — is one full-width white caps pill (formerly the food sheet's small
-   sentence-case pill next to the journal's) */
+   JOURNAL", the food sheets' "SAVE" — is one full-width white caps pill */
 .save-btn {
   width: 100%;
   min-height: 52px;

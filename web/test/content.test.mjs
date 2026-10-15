@@ -1,5 +1,4 @@
-/* Content-level regression guard for the example build (astro-plan-web
- * cutover corrective batch). output-guard.test.mjs and css-parity.test.mjs
+/* Content-level regression guard for the example build. output-guard.test.mjs and css-parity.test.mjs
  * only check STRUCTURE (no external refs, CSS present) — nothing asserts
  * that lib-computed VALUES (day totals, breakfast macros, extras names)
  * actually make it into the right tab's rendered markup. This derives its

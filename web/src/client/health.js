@@ -1,31 +1,20 @@
 /* "Salud / Health" tab sections (recovery, fitness, sleep, body composition, activity/NEAT, energy:
  * metric rows via HC.metricRow, notes behind an ⓘ toggle per section) plus Entreno's
- * running / cycling list rows and load vs recovery (#health-train, see render()), ported from the legacy
- * `<script>` IIFE ("health") of the pre-Astro generated page (deleted at
- * the astro-plan-web cutover), adapted to read HEALTH/LOCALE from globals
- * baked by web/src/components/Bake.astro and I18N_HEALTH
- * (web/src/i18n/health-templates.mjs) instead of hardcoded English
- * strings — same pattern as client/training-today.js and
+ * running / cycling list rows and load vs recovery (#health-train, see render()). Reads HEALTH / LOCALE
+ * from the globals baked by web/src/components/Bake.astro and its copy from I18N_HEALTH
+ * (web/src/i18n/health-templates.mjs) — same pattern as client/training-today.js and
  * client/training-dash.js.
  *
- * `esc()` / `nf()` / `format()` / `daysOld()` are the shared helpers of
- * client/util.js (window.HC). `esc()` calls sit at EXACTLY the same spots as
- * the legacy source (fmtD()/source strings/titles) — static I18N_HEALTH copy
- * is trusted the same way legacy's hardcoded literals were, so it is NOT
- * re-escaped (see design's Trusted markup row: dict content is
- * generic/tracked, never user input).
+ * `esc()` / `format()` / `daysOld()` are the shared helpers of client/util.js (window.HC). `esc()` wraps
+ * every data value (dates, source names, titles); the static I18N_HEALTH copy is generic, tracked text,
+ * never user input, so it is NOT re-escaped.
  *
- * `nf()` / `HC.hours()` / `HC.pct()` are the one number formatter (lib/format/numbers.mjs via
+ * `HC.num()` / `HC.hours()` / `HC.pct()` are the one number formatter (lib/format/numbers.mjs via
  * HC_FMT, docs/design-system.md → "Numbers"): decimal comma in es, every value >= 1000 grouped
  * ("2.532"), sleep hours as h:mm, percents without a space.
  *
- * `ago()` depends on `Date.now()` (real wall-clock time, not a baked
- * value) — unlike training-today.js this is NOT about "what day is it"
- * (HEALTH is a fully precomputed snapshot baked at build time), it is
- * purely a relative-time label for the "last logged" caveat in the energy
- * section. Both the legacy/golden script and this one compute it against
- * the SAME real `Date.now()` when executed together, so it stays
- * deterministic for parity tests (see web/test/parity.test.mjs).
+ * `ago()` depends on `Date.now()` (real wall-clock time, not a baked value): HEALTH is a precomputed
+ * snapshot, and `ago()` is only the relative-time label of the "last logged" caveat in the energy section.
  */
 (function () {
   var T = I18N_HEALTH;

@@ -1,16 +1,11 @@
 /* Unit tests for web/test/dom-stub.mjs's own DOM surface — specifically the
  * `document.createElement('div'); el.textContent = s; el.innerHTML` HTML-
- * escaping round-trip (astro-plan-web slice 5's design note: "run legacy
- * IIFEs and Astro scripts in vm with stub DOM (... createElement escaping
- * ...)"). Training-today/training-dash's `esc()` helper (ported verbatim
- * from the legacy `<script>` block) relies on this exact browser behavior:
- * `&`/`<`/`>` are escaped, quotes are NOT (real browsers only escape quotes
+ * escaping round-trip. training-today / training-dash's `esc()` helper relies on this exact browser
+ * behavior: `&`/`<`/`>` are escaped, quotes are NOT (real browsers only escape quotes
  * when serializing an ATTRIBUTE, not a text node) — see
  * web/src/client/training-today.js. Also covers that innerHTML/textContent
- * stay independently overridable — used by the now-retired parity.test.mjs
- * and by web/src/client/nutrition.test.mjs's `<select>` stub, both of which
- * redefine element properties with Object.defineProperty and need that to
- * keep working. */
+ * stay independently overridable — used by web/src/client/nutrition.test.mjs's `<select>` stub, which
+ * redefines element properties with Object.defineProperty and needs that to keep working. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { StubDocument, StubElement } from './dom-stub.mjs';

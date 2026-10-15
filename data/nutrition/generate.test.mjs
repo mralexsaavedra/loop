@@ -40,8 +40,8 @@ function mirrorTree(root, files) {
 const { ING, D, macro, mealMacros, buildTables, validate, DAYPLAN, LEGUMES, LEGUME_PLATE } = gen;
 const close = (a, b, tol = 0.5) => Math.abs(a - b) <= tol;
 
-test('generate.mjs no longer builds plan-web.html — buildHtml is not exported (astro-plan-web cutover)', () => {
-  assert.equal(gen.buildHtml, undefined, 'HTML splicing moved to the Astro build; generate.mjs now only validates + writes plan-tables.md');
+test('generate.mjs builds no HTML (no buildHtml export): it validates and writes plan-tables.md, the page is the Astro build', () => {
+  assert.equal(gen.buildHtml, undefined, 'generate.mjs only validates + writes plan-tables.md');
 });
 
 test('validate() passes on the merged ingredients.json + plan-data.json', () => {

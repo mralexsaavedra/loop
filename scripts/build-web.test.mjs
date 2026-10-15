@@ -1,8 +1,6 @@
-/* Unit tests for scripts/build-web.mjs's `--check` mode (astro-plan-web
- * slice 7 cutover). `--check` validates the programmed training data for a
+/* Unit tests for scripts/build-web.mjs's `--check` mode: it validates the programmed training data for a
  * given mode WITHOUT invoking the Astro build (fast, no astro binary
- * needed) — it replaces the training validation the retired
- * data/training/generate-training.js --check used to provide. Nutrition
+ * needed). Nutrition
  * validation stays in `node data/nutrition/generate.mjs --check` (npm run
  * check chains both). Uses a synthetic fixture repo, never the real
  * personal data — same pattern as lib/load/inputs.test.mjs.

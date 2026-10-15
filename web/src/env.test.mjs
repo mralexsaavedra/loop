@@ -1,7 +1,5 @@
-/* Unit tests for web/src/env.mjs — resolveEnv(), the build-time env contract
- * (astro-plan-web slice 2). Not yet wired into any Astro page/build-web.mjs
- * (that lands when a page actually consumes plan/training/health data,
- * slice 3+) — this only exercises the module's own resolution contract. */
+/* Unit tests for web/src/env.mjs — resolveEnv(), the build-time env contract: the module's own
+ * resolution rules. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
