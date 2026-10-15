@@ -11,6 +11,7 @@ data out of git. Using the project rather than changing it? Start at the [docume
 - [Generated files](#generated-files)
 - [Guards](#guards)
 - [Workflow](#workflow)
+- [Releasing](#releasing)
 - [Contributor-only tools](#contributor-only-tools)
 
 ## Setup
@@ -81,6 +82,35 @@ A runnable `scripts/*.mjs` guards its CLI with `if (isMain(import.meta.url))` fr
 - If you run the LAN services from this clone, keep it on `main`: the refresh only publishes from `main`. Do
   feature work in a separate `git worktree`.
 - Never commit personal data (`CLAUDE.md` → Repo rules); `data/demo/` is tracked and must stay synthetic.
+
+## Releasing
+
+CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) runs `npm test` and `npm run test:services` on every
+push to `main` and every pull request; a fresh clone needs no personal data to pass. A `vX.Y.Z` tag runs
+[`.github/workflows/release.yml`](../.github/workflows/release.yml), which publishes the data service image
+`mralexandersaavedra/loop-ingest` to Docker Hub for `linux/amd64` and `linux/arm64` as `X.Y.Z`, `X.Y` and `latest`.
+[`scripts/release.test.mjs`](../scripts/release.test.mjs) keeps the pieces below in step, so a drift fails the suite.
+
+One-time repository settings: the variable `DOCKERHUB_USERNAME` and the secret `DOCKERHUB_TOKEN` (a Docker Hub
+access token with read/write scope, never the account password); and, once the repository is public, **Settings →
+Code security → Private vulnerability reporting** on, the channel [`SECURITY.md`](../SECURITY.md) points to (GitHub
+offers it only on public repositories).
+
+Checklist for a release:
+
+1. Bump `version` in `package.json` and `services/loop-ingest/package.json` (`npm install --package-lock-only` in
+   both, so the lock files carry it too), and the `HC_VERSION` default in `services/loop-ingest/docker-compose.yml`.
+2. Add a `## [X.Y.Z] - YYYY-MM-DD` section at the top of [`CHANGELOG.md`](../CHANGELOG.md) with what changed for
+   someone running an install.
+3. Merge to `main` with CI green.
+4. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`. The workflow refuses a tag that differs from
+   `package.json`.
+5. Check the image on Docker Hub, then on an install: `docker compose pull && docker compose up -d` in
+   `services/loop-ingest` ([`docs/guides/upgrading.md`](guides/upgrading.md)).
+
+Base images (`node`, `postgres`, `nginx`) and the GitHub Actions are pinned by digest or commit SHA, with the
+readable tag beside them; Dependabot ([`.github/dependabot.yml`](../.github/dependabot.yml)) proposes the updates
+weekly, together with the npm dependencies.
 
 ## Contributor-only tools
 

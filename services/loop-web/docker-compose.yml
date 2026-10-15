@@ -9,7 +9,7 @@
 name: loop-web${HC_INSTANCE:+-${HC_INSTANCE}}
 services:
   loop-web:
-    image: nginx:alpine
+    image: nginx:alpine@sha256:72aeb3308ef6cb3118242fb16389518923916dfa206e32d1a8377acc328b9870
     container_name: loop-web${HC_INSTANCE:+-${HC_INSTANCE}}
     restart: unless-stopped
     ports:

@@ -1,0 +1,20 @@
+# Weekly update PRs: npm (page/tooling and the data service), the pinned base image digests, the pinned actions.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      dev-dependencies: { dependency-type: development }
+  - package-ecosystem: npm
+    directory: /services/loop-ingest
+    schedule: { interval: weekly }
+  - package-ecosystem: docker
+    directory: /services/loop-ingest
+    schedule: { interval: weekly }
+  - package-ecosystem: docker-compose
+    directories: [/services/loop-ingest, /services/loop-web]
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
