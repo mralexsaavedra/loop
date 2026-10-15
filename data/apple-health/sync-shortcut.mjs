@@ -85,7 +85,7 @@ const METRICS = {
   // The legacy merged `steps` key is NOT read: iOS's day grouping summed iPhone + Watch.
   steps:         { kind: 'deviceDaily', csv: 'steps-daily.csv', header: DAILY_SOURCE_HEADER, metaKey: 'steps', rangeKey: 'steps', total: true,
     devices: { steps_watch: `${SHORTCUT_SOURCE} Watch`, steps_phone: `${SHORTCUT_SOURCE} iPhone` },
-    row: (date, v, source) => `${date},${Math.round(v)},${source}` },
+    parseValue: v => parseCount(v), row: (date, v, source) => `${date},${Math.round(v)},${source}` },
   active_energy: { kind: 'daily', csv: 'active-energy-daily.csv', header: KCAL_HEADER, metaKey: 'active_energy', sourceCol: null, total: true,
     row: (date, v) => `${date},${Math.round(v)}` },
   // Watch active energy per clock hour (Watch-only search, Group by Hour). Not an export series:
@@ -126,13 +126,13 @@ const METRICS = {
   // No source column -> ownership via the ledger, like energy. A 0 day (Fill Missing, watch not worn)
   // is no data: extract.mjs only writes days with samples, so it has no zero rows either.
   exercise_watch: { kind: 'daily', csv: 'exercise-minutes-daily.csv', header: 'date,minutes', metaKey: 'exercise', sourceCol: null, skipZero: true, total: true,
-    row: (date, v) => `${date},${Math.round(v)}` },
+    parseValue: v => parseCount(v), row: (date, v) => `${date},${Math.round(v)}` },
   // km. Accepts a unit ("5,1 km", "5400 m", "3 mi"); a bare number above 100 is metres (no one walks
   // + runs 100 km in a day, and a real total under 100 m is a not-worn day the Salud floor drops anyway)
   distance_watch: { kind: 'daily', csv: 'distance-daily.csv', header: 'date,km', metaKey: 'distance', rangeKey: 'distance', sourceCol: null, skipZero: true, total: true,
     parseValue: v => parseKm(v), row: (date, v) => `${date},${v.toFixed(2)}` },
   flights_watch: { kind: 'daily', csv: 'flights-daily.csv', header: 'date,flights', metaKey: 'flights', sourceCol: null, skipZero: true, total: true,
-    row: (date, v) => `${date},${Math.round(v)}` },
+    parseValue: v => parseCount(v), row: (date, v) => `${date},${Math.round(v)}` },
 };
 // "Shortcut" or a device-tagged "Shortcut <device>" (steps) -> a row this sync wrote
 const isShortcutSource = src => src === SHORTCUT_SOURCE || (src || '').startsWith(SHORTCUT_SOURCE + ' ');
@@ -161,6 +161,15 @@ function parseNumber(v) {
   } else if (dots > 1 || commas > 1) return null;
   else s = s.replace(',', '.');
   return S.num(s);
+}
+// A COUNT (steps, flights, exercise minutes: whole numbers): a separator followed by exactly three digits
+// is a thousands group, never a decimal ("12.345" / "12,345" steps -> 12345, "1.234.567" -> 1234567), since a
+// count never has three decimals; anything else reads as parseNumber does ("12,5" -> 12.5).
+function parseCount(v) {
+  const s = String(v ?? '').trim();
+  // one kind of separator only ("1.234,567" is not a count)
+  if (/^\d{1,3}(\.\d{3})+$/.test(s) || /^\d{1,3}(,\d{3})+$/.test(s)) return S.num(s.replace(/[.,]/g, ''));
+  return parseNumber(s);
 }
 // a distance in km: "6.2" / "6,2 km" -> 6.2, "5400 m" -> 5.4, "3 mi" -> 4.83; a bare number > 100 = metres
 const KM_PER = { km: 1, m: 0.001, mi: 1.609344 };
@@ -257,7 +266,7 @@ function parsePayload(payload, warnings = []) {
   const lines = raw => (typeof raw === 'string' ? raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean) : []);
   for (const [metric, def] of Object.entries(METRICS)) {
     const perKey = (keys, tag) => Object.entries(keys).flatMap(([key, label]) =>
-      lines(payload[key]).map(PARSERS.daily).filter(Boolean).map(s => ({ ...s, [tag]: label })));
+      lines(payload[key]).map(l => PARSERS.daily(l, def)).filter(Boolean).map(s => ({ ...s, [tag]: label })));
     const samples = def.kind === 'deviceDaily' ? perKey(def.devices, 'device')
       : def.kind === 'fieldsDaily' ? perKey(def.fields, 'field')
         : def.kind === 'hrSamples' ? hrSamplesOf(payload, warnings)
@@ -558,7 +567,7 @@ if (isMain(import.meta.url)) common.runCli(({ full }) => main({ full }), { usage
 
 export {
   METRICS, SHORTCUT_SOURCE, sleepStageOf,
-  parseNumber, parsePayload, collectSamples, unionMinutes, buildRows, mergeCsv, updateMeta,
+  parseNumber, parseCount, parsePayload, collectSamples, unionMinutes, buildRows, mergeCsv, updateMeta,
   planSync, resolveToken, fetchAllPayloads,
   CACHE_FILE, emptyCache, foldPayloads, writeAtomic, syncDir, dropPhantomWeights, main,
 };

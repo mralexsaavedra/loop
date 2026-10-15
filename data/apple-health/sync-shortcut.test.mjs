@@ -12,7 +12,7 @@ import * as sync from './sync-shortcut.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const {
-  METRICS, SHORTCUT_SOURCE, parseNumber, parsePayload, collectSamples, buildRows,
+  METRICS, SHORTCUT_SOURCE, parseNumber, parseCount, parsePayload, collectSamples, buildRows,
   unionMinutes, mergeCsv, updateMeta, resolveToken, fetchAllPayloads, planSync,
   foldPayloads, emptyCache, CACHE_FILE, writeAtomic, syncDir, dropPhantomWeights, sleepStageOf,
 } = sync;
@@ -1055,4 +1055,25 @@ test('syncDir writes _meta.json (the ownership ledger) FIRST; a failure after it
   assert.deepEqual(meta.shortcutSync.owned['hrv.csv'], ['2030-01-02']);
   assert.equal(fs.existsSync(path.join(dir, 'hrv.csv')), false);
   fs.rmSync(dir, { recursive: true });
+});
+
+test('integer metrics (steps, flights, exercise minutes): one separator + exactly three digits is a thousands group', () => {
+  assert.equal(parseCount('12.345'), 12345);
+  assert.equal(parseCount('12,345'), 12345);
+  assert.equal(parseCount('1.234.567'), 1234567);
+  assert.equal(parseCount('12.345,0'), 12345);
+  assert.equal(parseCount('8432'), 8432);
+  assert.equal(parseCount('12,5'), 12.5, 'not three digits: still a decimal');
+  assert.equal(parseCount('x'), null);
+  const p = parsePayload({
+    steps_watch: '2030-01-02T00:00:00+01:00;12.345',
+    steps_phone: '2030-01-02T00:00:00+01:00;1,204',
+    flights_watch: '2030-01-02T00:00:00+01:00;12',
+    exercise_watch: '2030-01-02T00:00:00+01:00;1.020',
+  });
+  assert.deepEqual(p.steps.map((s) => [s.device, s.value]), [['Shortcut Watch', 12345], ['Shortcut iPhone', 1204]]);
+  assert.equal(p.flights_watch[0].value, 12);
+  assert.equal(p.exercise_watch[0].value, 1020);
+  // a non-integer metric keeps the decimal reading
+  assert.equal(parsePayload({ respiratory: '2030-01-02T00:00:00+01:00;14,500' }).respiratory[0].value, 14.5);
 });

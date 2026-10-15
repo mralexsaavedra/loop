@@ -136,6 +136,9 @@ table.
   number > 100 is read as metres (`100` = 100 km, `101` = 101 m).
 - With both separators the last one is the decimal (`1.234,5 m`); a repeated single separator
   (`1.234.567`) is rejected.
+- Counts (steps, flights, exercise minutes) are whole numbers, so one kind of separator followed by
+  exactly three digits is a thousands group: `12.345` / `12,345` steps = 12 345, `1.234.567` = 1 234 567
+  (`12,5` is still 12.5).
 
 **Sleep**: only asleep stages build the night (rules under [Sleep](#sleep-sleep-dailycsv)); a segment
 starting after 18:00 belongs to the next morning's night.
