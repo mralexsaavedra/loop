@@ -459,6 +459,16 @@ test('sleep stages: REM / deep / core / awake rows (hours, % of asleep, vs the s
   assert.ok(!old.includes(enHealth.sleepCards.stages.rem) && !old.includes(enHealth.sleepStagesNoteHtml), 'older extract: no stage rows');
 });
 
+test('sleep: an estimated (in-bed-only) newest night is labelled next to its value, and the ⓘ counts the estimated nights; a Watch night has neither', () => {
+  const base = { latest: 8.2, avg: 7.9, nights: 9, latestDate: '2026-06-30', spark: sp, target: 7.5, pctTarget: 60, sd: 0.6 };
+  const H = (sl) => ({ body: none, activity: none, energy: none, running: none, loadRecovery: none, recovery: { hasData: true, sleep: sl } });
+  const html = renderAt(H({ ...base, latestEstimated: true, estimatedNights: 9 }), '2026-07-01', { detail: true });
+  assert.ok(html.includes(enHealth.sleepCards.estimated + ' · '), 'the label before the 30-night mean');
+  assert.ok(html.includes('<b>Estimated nights</b> (9 of the last 30)'));
+  const watch = renderAt(H(base), '2026-07-01', { detail: true });
+  assert.ok(!watch.includes(enHealth.sleepCards.estimated) && !watch.includes('Estimated nights'));
+});
+
 /* ---- Balance: intake vs expenditure + the macro split live in Nutrición (#nutri-balance), not Salud ---- */
 const BAL = {
   hasData: true, tdeeLatest: 2600, tdeeLatestDate: '2026-06-29', tdeeAvg: 2400, tdeeDays: 30, spark: null,

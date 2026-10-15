@@ -41,6 +41,22 @@ How the raw sources become the CSVs in `data/apple-health/extract/` that every p
   `node data/apple-health/extract.mjs` is re-run.
 - **Steps** are deduped to max-per-device per day. Summing devices double-counts (it inflates the NEAT
   figure).
+- **Resting HR** (`rhr.csv`) is Apple's measured `RestingHeartRate` (the Watch). For a device that writes
+  heart rate but no resting HR (Mi Fitness and similar), the extractor DERIVES one per day
+  (`samples.mjs` `derivedRestingHr`), source `<app> (derived)`, counted in `_meta.json` `rows.rhr_derived`:
+  - the lowest 30-minute rolling mean of that date's heart-rate samples between 00:00 and 07:00 (local
+    clock of the sample start), a window counting only with ≥ 4 samples, and the night needing samples in
+    ≥ 3 clock hours. A fixed window, not the sleep window: most such nights have no sleep row, and one
+    window keeps the days comparable for the recovery baseline (night-shift sleep is missed).
+  - Mi Fitness stamps every heart-rate record at the clock hour (`hh:00:00`, several records per hour), so
+    a window there is that hour's records; a real per-sample stream rolls across the hour.
+  - Measured always wins: no derived value on a date with a measured one (any source), none from a source
+    that wrote any `RestingHeartRate`, none from an Apple Watch. A Watch user's measured rows are unchanged;
+    an older non-Watch band's night heart rate (e.g. a Zepp band before the Watch, when nothing measured
+    resting HR) also yields derived rows on those dates.
+  - Export only for now: the Shortcut's `hr_samples` are deduped by exact timestamp (Mi Fitness's
+    hour-stamped records collapse to one per hour) and the guide filters them to the Watch, so the sync
+    derives nothing; between two exports a non-Watch user has no resting HR from the Shortcut.
 
 ### Energy source precedence
 
@@ -143,7 +159,9 @@ table.
   (`12,5` is still 12.5).
 
 **Sleep**: only asleep stages build the night (rules under [Sleep](#sleep-sleep-dailycsv)); a segment
-starting after 18:00 belongs to the next morning's night.
+starting after 18:00 belongs to the next morning's night. In-bed-only nights are never estimated here
+(`sleepNights(segs, { estimateInBed: false })`): the payload has no per-sample source, so a band's InBed and
+the iPhone's Sleep Schedule InBed would be one "Shortcut" source. Estimated nights come from the export only.
 
 ### Energy hourly (`active-energy-hourly.csv`)
 
@@ -228,7 +246,27 @@ per wake-up night, written identically by `extract.mjs` and the Shortcut sync (`
   across sources per night.
 - `asleep_hours` (the union of the main sleep's asleep intervals) and `bedtime` / `waketime` (first
   asleep start / last asleep end, decimal local hour) are unchanged by the stage columns.
-- Awake / InBed records never create a night or make a source win.
+- Awake / InBed records never create a night or make a source win, except an ESTIMATED night (below).
+
+**Estimated nights (in-bed-only bands).** Some bands (Mi Fitness and similar) write only `InBed`, never an
+asleep value. For such a source, a night with no asleep night from ANY source gets its main in-bed block
+as the sleep estimate (`samples.mjs` `inBedNights`):
+
+- Apple Health export only: the Shortcut sync passes `estimateInBed: false` (its payload has no per-sample
+  source, so the iPhone's Sleep Schedule InBed could not be left out). Between two exports a non-Watch
+  user gets no new estimated nights from the Shortcut.
+- Eligible source: one that never wrote an asleep sample in the export, and never the iPhone (its InBed is
+  the Sleep Schedule window, not a measurement). An Apple Watch writes asleep stages, so it never
+  estimates. Apple Watch output is byte-identical.
+- The same block / main-sleep / nap rules as asleep data (the band's 0.3–1 h afternoon fragments are naps),
+  and the main block must last at least 3 h (`MIN_INBED_NIGHT_MIN`: the real records split into fragments
+  under 3 h and whole nights of 5–10 h). Two eligible sources on one night: the longer block wins.
+- The row: `asleep_hours` = the in-bed time, `bedtime` / `waketime` = the block's start / end,
+  `source` = `<app> (in bed)` (`IN_BED_SUFFIX`), every stage
+  column blank (a filled `inbed_h` would read as 100 % efficiency). No new column: the positional readers
+  and the schema are unchanged; `readSleep` sets `estimated: true` on such a row.
+- The page labels it ([health-tab.md → Sleep](health-tab.md#sleep), the sleep sheet). It overstates real
+  sleep by the time awake in bed.
 
 Stage columns (hours, blank = unknown):
 

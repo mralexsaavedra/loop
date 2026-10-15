@@ -194,6 +194,13 @@ What it shows: last night, sleep consistency, and the newest staged night's stag
 | Bedtime / wake-time regularity | median ± a ROBUST sd = 1.4826 × MAD, in minutes; after-midnight bedtimes wrapped onto a night scale |
 
 - Sleep renders as its own Health section; its heading is the `#hl-sleep` anchor.
+- Estimated nights (a band that writes only "in bed", [data-pipeline.md → Sleep](data-pipeline.md#sleep-sleep-dailycsv)):
+  their hours are time in bed. When the newest night is one, last night's row reads "estimated (in bed)"
+  before its 30-night mean (`sleep.latestEstimated`), and the ⓘ adds a note with how many of the last 30
+  nights are estimated (`sleep.estimatedNights`). Both keys exist only when true / non-zero. Such nights
+  count in the mean, the nights on target, the spread and the bed / wake regularity (their bed / wake
+  times are real); they have no stages or efficiency (blank columns), and recovery's sleep duration and
+  consistency read them like any night ([home-tab.md → Recovery](home-tab.md)).
 
 ### Main-sleep night rule
 

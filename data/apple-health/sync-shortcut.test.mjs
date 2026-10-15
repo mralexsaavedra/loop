@@ -1080,3 +1080,14 @@ test('integer metrics (steps, flights, exercise minutes): one separator + exactl
   // a non-integer metric keeps the decimal reading
   assert.equal(parsePayload({ respiratory: '2030-01-02T00:00:00+01:00;14,500' }).respiratory[0].value, 14.5);
 });
+
+test('sleep: in-bed estimation is export-only — a Shortcut payload with only InBed segments (a band + the iPhone\'s Sleep Schedule, one "Shortcut" source) yields no night', () => {
+  const s = collectSamples([{ sleep: [
+    '2030-01-01T23:40:00+01:00;2030-01-02T07:40:00+01:00;En cama', // the band
+    '2030-01-02T23:00:00+01:00;2030-01-03T07:00:00+01:00;InBed', // the iPhone's bedtime window
+  ].join('\n') }]);
+  assert.deepEqual(buildRows('sleep', s.sleep), []);
+  // asleep data still builds its night as before
+  const w = collectSamples([{ sleep: '2030-01-01T23:00:00+01:00;2030-01-02T07:00:00+01:00;Core' }]);
+  assert.equal(buildRows('sleep', w.sleep).length, 1);
+});

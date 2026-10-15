@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url';
 import { isMain } from '../../scripts/lib/is-main.mjs';
 import { writeAtomic, runCli, withLock } from './sync-common.mjs';
 // shared with sync-shortcut.mjs so export- and Shortcut-derived rows are formatted identically
-import { csvSource, pickEnergySource, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights, sleepStage } from '../../lib/extract/samples.mjs';
+import { APPLE_WATCH_RE, derivedRestingHr, csvSource, pickEnergySource, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights, sleepStage } from '../../lib/extract/samples.mjs';
 
 const DIR = process.env.EXTRACT_DIR || path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.join(DIR, 'export.xml');
@@ -64,6 +64,9 @@ const diet = new Map();
 // sleep segments [{start, end, source, stage}] -> nights via samples.mjs sleepNights (naps excluded,
 // max across sources per night avoids a double count) — the same rule sync-shortcut.mjs uses
 const sleepSegs = [];
+// night heart-rate samples (00:00-07:00, never an Apple Watch: it measures its own resting HR) of the
+// devices that may need a DERIVED resting HR (samples.mjs derivedRestingHr); kept small on purpose
+const nightHr = [];
 const workouts = []; // {date, type, durationMin, energyKcal, hrAvg, hrMin, hrMax, source}
 
 const Q = 'HKQuantityTypeIdentifier';
@@ -87,6 +90,11 @@ function handleRecord(line) {
     case Q + 'BodyMass':           return v != null && readings.weight.push({ date: d, value: v, source: src });
     case Q + 'BodyFatPercentage':  return v != null && readings.bodyfat.push({ date: d, value: +(v * 100).toFixed(2), source: src }); // fraction -> %
     case Q + 'RestingHeartRate':   return v != null && readings.rhr.push({ date: d, value: v, source: src });
+    case Q + 'HeartRate': {
+      const start = attr(line, 'startDate');
+      if (v == null || !start || !(+start.slice(11, 13) < 7) || APPLE_WATCH_RE.test(src || '')) return;
+      return nightHr.push({ start, value: v, source: src });
+    }
     case Q + 'VO2Max':             return v != null && readings.vo2max.push({ date: d, value: v, source: src });
     case Q + 'HeartRateVariabilitySDNN': return v != null && readings.hrv.push({ date: d, value: +v.toFixed(1), source: src });
     case Q + 'StepCount': {
@@ -189,11 +197,15 @@ function onClose() {
   const exportLastDate = exportDate || maxRecordDate;
   // daily TOTAL series skip the partial last day (means, points, sleep and workouts keep it)
   const complete = (/** @type {any[]} */ [d]) => d !== exportLastDate;
+  // resting HR derived from the night's heart rate where nothing measured it (measured always wins)
+  const derivedRhr = derivedRestingHr(nightHr, readings.rhr);
+  readings.rhr.push(...derivedRhr);
   // sparse readings
   for (const [k, arr] of Object.entries(readings)) {
     sortByDate(arr);
     counts[k] = csv(READING_FILE[k] || `${k}.csv`, READING_HEADER, arr.map(readingRow));
   }
+  counts.rhr_derived = derivedRhr.length;
   // daily sums
   const dumpDaily = (map, file, col) => {
     const rows = [...map.entries()].filter(complete).sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, v]) => `${d},${Math.round(v)}`);
@@ -275,7 +287,9 @@ function onClose() {
       'exportLastDate = the export\'s <ExportDate> (else the newest record date): a PARTIAL day, dropped from the daily TOTAL series (steps, active/basal energy, exercise, distance, flights, dietary); npm run sync fills it from the Shortcut. Means, points, sleep and workouts keep it.',
       'sleep is best-effort: asleep intervals only, main sleep per wake-up night (naps excluded: blocks outside the 20:00-12:00 window or far from the main block), max across sources per night; verify against the Watch trend.',
       'sleep bedtime/waketime = earliest start / latest end of the night\'s main sleep, decimal local hour.',
+      'sleep ESTIMATED nights: a source that never wrote an asleep value (a band that writes only In bed, e.g. Mi Fitness; never the iPhone) gives a night with no asleep data from any source its main in-bed block (same nap rules, at least 3 h) as asleep_hours, source "<app> (in bed)", every stage column blank.',
       'sleep stage columns (hours; blank = unknown, e.g. rows written before they existed): rem_h/deep_h/core_h = the winning source\'s main-sleep minutes per stage (blank on unstaged nights), unspec_h = "Asleep (unspecified)" (older Watch data, third-party trackers), awake_h = that source\'s Awake records inside the sleep window (first asleep start to last asleep end), inbed_h = that window united with any source\'s overlapping InBed records (the iPhone writes InBed; without one it is the window itself). asleep_hours is unchanged and can differ from the stage sum by overlaps.',
+      'rhr.csv also carries DERIVED resting HR (source "<app> (derived)", rows: rhr_derived) for a device that writes heart rate but no RestingHeartRate (Mi Fitness and similar): the lowest 30-min rolling mean (>= 4 samples) of the heart-rate samples between 00:00 and 07:00 of that date, needing samples in >= 3 clock hours; never on a date with a measured value, never from a source that measures it, never from an Apple Watch.',
       'wristTemp is dated by the wake-up night (18:00 roll-over, like sleep), not the sample start date.',
       'exercise/distance/flights = max across devices per day (iPhone+Watch overlap → summing double-counts, like steps); respiratory & walking-HR are per-day means.',
       'running-daily = per-day MEANS over a run\'s samples (only days with a run get a row); 0-valued samples (Zepp placeholders) dropped. speed km/h, power W, gct ms, vosc cm, stride m.',

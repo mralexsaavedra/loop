@@ -172,6 +172,31 @@ test('recovery card (text diet): big value + band word + ONE short trend line; t
   assert.match(none, /rec-trend/);
 });
 
+test('recovery card: a partial score (no HRV) says so in one short line, the ⓘ explains it and a derived resting HR; a full score has neither', () => {
+  const s = sdScores();
+  const full = recCard(s);
+  for (const k of ['partialShort', 'partialNote', 'rhrDerivedNote']) assert.ok(!full.includes(enT.recovery[k]), k);
+  s.recovery.noHrv = true;
+  s.recovery.rhrDerived = true;
+  const html = recCard(s);
+  assert.ok(html.includes(`<div class="sc-note rec-partial">${enT.recovery.partialShort}</div>`));
+  assert.ok(html.indexOf('rec-trend') < html.indexOf('rec-partial'), 'under the trend line');
+  const info = html.match(/<div class="hs-info" id="rec-info" hidden>([\s\S]*?)<\/div><!--\/rec-info-->/);
+  assert.ok(text(info[1]).includes(enT.recovery.partialNote) && text(info[1]).includes(enT.recovery.rhrDerivedNote));
+});
+
+test('recovery card: HRV still building its baseline -> the same short line, but the ⓘ says "no HRV baseline yet", never "no HRV from your device"', () => {
+  const s = sdScores();
+  s.recovery.hrvPending = true;
+  const html = recCard(s);
+  assert.ok(html.includes(`<div class="sc-note rec-partial">${enT.recovery.partialShort}</div>`));
+  const info = text(html.match(/<div class="hs-info" id="rec-info" hidden>([\s\S]*?)<\/div><!--\/rec-info-->/)[1]);
+  assert.ok(info.includes(enT.recovery.partialPendingNote));
+  assert.ok(!info.includes(enT.recovery.partialNote));
+  assert.match(enT.recovery.partialPendingNote, /no HRV baseline yet/);
+  assert.match(enT.recovery.rhrDerivedNote, /lowest 30-minute or hourly average/);
+});
+
 test('recovery card inside Salud: the moved notes join the Recovery section\'s own ⓘ block (#hs-info-recovery), so the card draws no second ⓘ', () => {
   const secInfo = { innerHTML: '<p>section note</p>' };
   const hosts = {};

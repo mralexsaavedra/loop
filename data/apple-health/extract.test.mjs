@@ -263,3 +263,89 @@ test('the writes run under the _meta.json lock the syncs share: a held fresh loc
     assert.deepEqual(x.snapshot(), before);
   } finally { x.cleanup(); }
 });
+
+// ---- non-Watch wearables (Mi Fitness shapes) vs an Apple Watch: SYNTHETIC values ----------------
+// Shapes observed on a real Mi Fitness export: sleep = InBed records only (whole nights + many 0.3-1 h
+// afternoon fragments); heart rate = hour BUCKETS (every record spans one clock hour, start hh:00:00,
+// several records per hour), no RestingHeartRate, no HRV.
+const sleepRec = (src, start, end, value) =>
+  `<Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="${src}" sourceVersion="1" creationDate="${end}" startDate="${start}" endDate="${end}" value="HKCategoryValueSleepAnalysis${value}"/>`;
+const hrRec = (src, start, end, bpm) =>
+  `<Record type="HKQuantityTypeIdentifierHeartRate" sourceName="${src}" sourceVersion="1" unit="count/min" creationDate="${end}" startDate="${start}" endDate="${end}" value="${bpm}"/>`;
+const rhrRec = (src, start, bpm) =>
+  `<Record type="HKQuantityTypeIdentifierRestingHeartRate" sourceName="${src}" unit="count/min" startDate="${start}" endDate="${start}" value="${bpm}"/>`;
+
+// An Apple Watch user: staged asleep night + the iPhone's InBed bedtime, a Watch-off night with only the
+// iPhone's InBed, heart-rate samples every few minutes at night, a measured resting HR on one day only.
+const WATCH_FIXTURE = [
+  sleepRec(PHONE, '2030-01-01 22:45:00 +0100', '2030-01-02 07:20:00 +0100', 'InBed'),
+  sleepRec(WATCH, '2030-01-01 23:00:00 +0100', '2030-01-02 03:00:00 +0100', 'AsleepCore'),
+  sleepRec(WATCH, '2030-01-02 03:00:00 +0100', '2030-01-02 03:20:00 +0100', 'Awake'),
+  sleepRec(WATCH, '2030-01-02 03:20:00 +0100', '2030-01-02 05:00:00 +0100', 'AsleepDeep'),
+  sleepRec(WATCH, '2030-01-02 05:00:00 +0100', '2030-01-02 07:00:00 +0100', 'AsleepREM'),
+  sleepRec(PHONE, '2030-01-02 23:00:00 +0100', '2030-01-03 07:00:00 +0100', 'InBed'), // Watch off this night
+  ...Array.from({ length: 84 }, (_, i) => {
+    const m = i * 5, hh = String(Math.floor(m / 60)).padStart(2, '0'), mm = String(m % 60).padStart(2, '0');
+    return [hrRec(WATCH, `2030-01-02 ${hh}:${mm}:00 +0100`, `2030-01-02 ${hh}:${mm}:00 +0100`, 50 + (i % 7)),
+      hrRec(WATCH, `2030-01-03 ${hh}:${mm}:00 +0100`, `2030-01-03 ${hh}:${mm}:00 +0100`, 52 + (i % 5))];
+  }).flat(),
+  rhrRec(WATCH, '2030-01-02 09:00:00 +0100', 51),
+  later('2030-01-04'),
+];
+
+test('an Apple Watch export is unchanged: sleep = the asleep night only (no in-bed estimate), rhr = the measured value only', () => {
+  const x = runExtract(WATCH_FIXTURE);
+  try {
+    assert.equal(x.read('sleep-daily.csv'),
+      'date,asleep_hours,source,bedtime,waketime,rem_h,deep_h,core_h,unspec_h,awake_h,inbed_h\n' +
+      `2030-01-02,7.67,${WATCH},23,7,2.00,1.67,4.00,0.00,0.33,8.58\n`);
+    assert.equal(x.read('rhr.csv'), `date,value,source\n2030-01-02,51,${WATCH}\n`);
+    assert.equal(x.read('hrv.csv'), 'date,value,source\n');
+  } finally { x.cleanup(); }
+});
+
+// A Mi Fitness user: two in-bed nights (one split by a short gap), afternoon fragments, a 1 h
+// late-morning fragment on a day without a night.
+const MIF = 'Mi Fitness';
+const MIF_SLEEP = [
+  sleepRec(MIF, '2030-01-01 23:40:00 +0100', '2030-01-02 03:10:00 +0100', 'InBed'),
+  sleepRec(MIF, '2030-01-02 03:30:00 +0100', '2030-01-02 07:40:00 +0100', 'InBed'),
+  sleepRec(MIF, '2030-01-02 15:10:00 +0100', '2030-01-02 15:55:00 +0100', 'InBed'),
+  sleepRec(MIF, '2030-01-02 16:30:00 +0100', '2030-01-02 17:05:00 +0100', 'InBed'),
+  sleepRec(MIF, '2030-01-03 00:15:00 +0100', '2030-01-03 08:45:00 +0100', 'InBed'),
+  sleepRec(MIF, '2030-01-04 10:50:00 +0100', '2030-01-04 11:50:00 +0100', 'InBed'),
+  sleepRec(PHONE, '2030-01-02 23:00:00 +0100', '2030-01-03 07:00:00 +0100', 'InBed'),
+];
+
+test('a Mi Fitness export: in-bed-only nights become ESTIMATED sleep rows ("Mi Fitness (in bed)", stage columns blank); fragments are not nights', () => {
+  const x = runExtract([...MIF_SLEEP, later('2030-01-05')]);
+  try {
+    assert.equal(x.read('sleep-daily.csv'),
+      'date,asleep_hours,source,bedtime,waketime,rem_h,deep_h,core_h,unspec_h,awake_h,inbed_h\n' +
+      '2030-01-02,7.67,Mi Fitness (in bed),23.67,7.67,,,,,,\n' +
+      '2030-01-03,8.50,Mi Fitness (in bed),0.25,8.75,,,,,,\n');
+  } finally { x.cleanup(); }
+});
+
+test('a Mi Fitness export: resting HR is DERIVED from the night\'s hour-bucket heart rate ("Mi Fitness (derived)"); a measured value wins its date', () => {
+  const hour = (date, hh, bpms) => bpms.map(b => hrRec(MIF, `${date} ${hh}:00:00 +0100`, `${date} ${String(+hh + 1).padStart(2, '0')}:00:00 +0100`, b));
+  const night = (date, low) => [
+    ...hour(date, '00', [64, 62, 63, 65, 61]),
+    ...hour(date, '02', [low, low + 1, low - 1, low, low + 2]),
+    ...hour(date, '05', [60, 59, 61, 60]),
+    ...hour(date, '14', [48, 48, 48, 48]), // a daytime low: never the resting value
+  ];
+  const x = runExtract([
+    ...night('2030-01-02', 54), ...night('2030-01-03', 56), ...night('2030-01-04', 58),
+    rhrRec('Some Ring', '2030-01-04 09:00:00 +0100', 57), // measured: wins its date
+    ...hour('2030-01-05', '01', [55, 55, 55, 55]), // one night hour only: too thin
+    later('2030-01-06'),
+  ]);
+  try {
+    assert.equal(x.read('rhr.csv'), 'date,value,source\n' +
+      '2030-01-02,54.4,Mi Fitness (derived)\n2030-01-03,56.4,Mi Fitness (derived)\n2030-01-04,57,Some Ring\n');
+    assert.equal(x.meta.rows.rhr, 3);
+    assert.equal(x.meta.rows.rhr_derived, 2);
+    assert.equal(x.read('hrv.csv'), 'date,value,source\n');
+  } finally { x.cleanup(); }
+});
