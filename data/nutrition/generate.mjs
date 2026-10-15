@@ -154,7 +154,7 @@ section('### Cheeses & sauces (count them — not free)', ref.quesos);
 md.push('## Verified product labels (real, per 100 g/ml/ud)');
 md.push('');
 md.push('> From the user\'s actual product photos — these OVERRIDE generic/database estimates.');
-md.push('> SINGLE SOURCE: the `ingredients` (verified:true) in `plan-data.json`. Do not re-type these anywhere else.');
+md.push('> SINGLE SOURCE: the `verified: true` entries of `ingredients.json`. Do not re-type these anywhere else.');
 md.push('');
 const labelHead = '| Product | Per | kcal | P | C | F | Note |\n|---|---|---|---|---|---|---|';
 const labelRows = Object.entries(ING)

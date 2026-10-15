@@ -134,6 +134,11 @@ What it shows: last night's recovery %, then any recovery signal the health moni
 | `sleep-daily.csv` | rows in [Sleep](#sleep) |
 | `respiratory-daily.csv`, `wristTemp.csv` | change-not-absolute signals |
 
+- Respiratory rate, sleeping wrist temperature and walking HR use the same per-day series as the Inicio
+  monitor and the detail sheet (`score/monitor.mjs` `signalDaily`): samples outside the signal's plausibility
+  range dropped, then the day MEDIAN (walking HR: 30 bpm to `MAX_HR_MAX` 230), so a stray sample or a
+  duplicate row cannot move the row the way a day mean would.
+
 - Good directions, stated behind the section's ⓘ: ↓ resting / walking HR, ↑ HRV, ↑ VO₂max; respiratory
   rate and sleeping wrist temp are change-not-absolute signals.
 - Sleeping wrist temperature is dated by the same midpoint + 18:00 roll-over rule as a sleep block
