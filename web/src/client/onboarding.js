@@ -262,6 +262,18 @@
     var H = window.HCDetail;
     if (H && typeof H.open === 'function') H.open('onboarding', null, focus ? { focus: focus } : undefined);
   }
+  // a status set into the live region already in the sheet, so it is announced (a region re-rendered
+  // together with its text is not); without the node, render first, then set the text
+  function setStatus(text) {
+    var get = function () { return document.getElementById ? document.getElementById('onb-status') : null; };
+    if (!get()) {
+      S.status = '';
+      reopen('[data-onb-act="save"]');
+    }
+    S.status = text;
+    var el = get();
+    if (el) el.textContent = text;
+  }
   function close() {
     var H = window.HCDetail;
     if (H && typeof H.close === 'function') H.close();
@@ -307,8 +319,7 @@
   function save() {
     var call = api();
     if (!call) return;
-    S.status = T.saving;
-    reopen('[data-onb-act="save"]');
+    setStatus(T.saving);
     var st = window.HCSettings;
     call('PUT', '/profile', doc()).then(function () {
       var t = S.goal === 'maintain' ? null : num(S.target);
@@ -322,8 +333,7 @@
       var b = document.getElementById ? document.getElementById('sync-btn') : null;
       if (b && !b.hidden && typeof b.click === 'function') b.click();
     }).catch(function (err) {
-      S.status = format(T.errors.save, { reason: err && err.status === 0 ? T.reasons.offline : T.reasons.generic });
-      reopen('[data-onb-act="save"]');
+      setStatus(format(T.errors.save, { reason: err && err.status === 0 ? T.reasons.offline : T.reasons.generic }));
     });
   }
 

@@ -100,10 +100,12 @@ The food layers (`docs/nutrition-food-log.md` → Security), shared helpers in `
 | Header `X-HC-Journal: 1` on every request | `403` |
 | JSON on writes | `415` |
 | Bodies ≤ 16 KB | `413` |
+| `notes` without U+0000 or another control character but tab / line feed / carriage return (Postgres cannot store U+0000) | `400 invalid` (`field: notes`) |
 | Writes ≤ 60 / min per client (`JOURNAL_WRITE_LIMIT`); summary reads ≤ 30 / min (`JOURNAL_SUMMARY_LIMIT`) | `429` |
 
 - loop-web nginx proxies `/api/journal/` → ingest `/journal/` (GET / PUT, `client_max_body_size 16k`,
-  `X-HC-Journal` forwarded, `Host host.docker.internal`, `gzip off`).
+  `X-HC-Journal` forwarded, `Host loop-ingest`, `gzip off`; over the `loop-net` Docker network,
+  [`lan-services.md` → Network and bind address](lan-services.md#network-and-bind-address)).
 - A public reverse proxy must NEVER forward `/journal/*`.
 
 ## Rollout
@@ -152,15 +154,22 @@ browser.
 
 ### Journal sheet
 
-- **Day strip**: the same 7 days (the picked day ringed; a tap switches day, dropping an unsaved draft).
+- **Day strip**: the same 7 days (the picked day ringed; a tap switches day, dropping an unsaved draft); a
+  `role="group"` named by its week ("Week: <first day> – <last day>", `T.week`).
 - **Question**: "What's happening today?" (or "What happened on <date>?").
 - **Behaviour rows**: the switched-ON behaviours in DAYTIME / NIGHTTIME / STATUS rows.
   - Yes / no: a ✕ / ✓ pair (✓ pressed = `--trend` fill; pressing the pressed button again = not answered).
-  - Drinks: ✕ (= 0) + a − n + stepper (0..`countMax`); unanswered reads a dimmed "0" (`.jr-n-none`).
+  - Drinks: ✕ (= 0) + a − n + stepper (0..`countMax`); unanswered reads a dimmed "0" (`.jr-n-none`). The count
+    is a live region: the digit is visual (`aria-hidden`), an sr-only span says "<n> drinks" ("— drinks"
+    unanswered).
+  - A press repaints its own row in place (`aria-pressed`, the stepper's `disabled`, the count's text), never
+    the whole sheet, so the live count stays in the DOM and is announced.
 - **Notes** (≤ 500).
 - **"Behaviors" fold**: THE switch per behaviour (`HC.switchBtn`), `PUT /api/journal/settings` at once; answers
   of a switched-off behaviour are kept.
-- **Status line**: coarse errors; "offline" = nothing saved.
+- **Status line** (`#jr-status`, `role="status"`): coarse errors; "offline" = nothing saved. A message is set
+  with `textContent` into the node already in the sheet (a failed save unlocks the pill and the note in
+  place, without a re-render), so screen readers announce it.
 - **Save**: the sticky "SAVE JOURNAL" pill (THE save button `.save-btn`, design-system.md → Components):
   `PUT /api/journal/day` with the whole day, then the sheet closes and the card re-renders.
   - One save at a time: while it is in flight the pill is disabled, the note read-only and every edit refused
@@ -209,7 +218,8 @@ Computed at build time.
   impact", a HURTS / % IMPACT / HELPS legend.
 - **Rows**: one per behaviour, best first — UPPERCASE name, the signed difference (`+12%` `--up` better / `−6%`
   `--down` worse / under 1 point `--muted`), a bar from a centre dot (half the bar = max(20, the largest |diff|
-  shown)).
+  shown)). The visible parts are `aria-hidden`; the row's spoken sentence (name, difference, both means, both
+  day counts) is an sr-only span, never an `aria-label` on the plain `<li>` (not read there).
 - **Need more data**: those behaviours share ONE last card (`.ji-empty`, "NEED MORE DATA" +
   "Alcohol · 1 yes · 31 no" per behaviour).
 - **Empty state** (NO behaviour scored yet): that card is the sheet's empty state, without the legend — what is

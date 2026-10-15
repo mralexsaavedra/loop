@@ -34,10 +34,15 @@ docker exec loop-db pg_dump -U health health > "backups/loop-db-$(date +%F).sql"
    (cd services/loop-ingest && docker compose up -d --build)
    ```
 
-   Or, with the clone checked out at a release tag (`git checkout vX.Y.Z`), run the published image instead
-   of building (`mralexandersaavedra/loop-ingest`, the version comes from the clone; set `HC_VERSION` in
-   `.env` to pin another). On `main` between releases the code is newer than any published image: use
-   `--build` above.
+   Coming from before the `loop-net` network, add `--force-recreate` once
+   ([release note below](#loop-web-reaches-the-data-service-over-loop-net)).
+
+   Or, right after a release, run the published image instead of building
+   (`mralexandersaavedra/loop-ingest`): a release is merged to `main` together with the `HC_VERSION` default in
+   `services/loop-ingest/docker-compose.yml`, so on an up-to-date `main` this pulls exactly that version (set
+   `HC_VERSION` in `.env` to pin another). Stay on `main`: a tag checkout (`git checkout vX.Y.Z`) is a detached
+   `HEAD`, and the page refresh publishes only from `main` (it stops with the `branch` error). Between releases
+   `main` is newer than any published image: use `--build` above.
 
    ```sh
    (cd services/loop-ingest && docker compose pull loop-ingest && docker compose up -d)
@@ -61,7 +66,8 @@ Using the page without the LAN services (Level 1 only)? Steps 1–2, then `npm r
 
 ## Check
 
-- `curl -s localhost:8088/healthz` answers `200` (use your `INGEST_PORT` if you changed it).
+- `curl -s -o /dev/null -w '%{http_code}\n' localhost:8088/healthz` prints `200` (use your `INGEST_PORT` if you changed
+  it, and your `INGEST_BIND` address instead of `localhost` if that is a LAN IP; without `-o /dev/null -w ...` it prints the JSON body, `{"ok":true,...}`).
 - `services/loop-web/site/status.json` shows the new `commit` and no `error`.
 - The page opens and its freshness line is green.
 
@@ -69,6 +75,29 @@ If something is off, see [troubleshooting](troubleshooting.md). Release notes li
 [`CHANGELOG.md`](../../CHANGELOG.md).
 
 ## Release notes for existing installs
+
+### loop-web reaches the data service over `loop-net`
+
+loop-web's nginx now proxies to the data service over the ingest stack's Docker network (`loop-net`, or
+`loop-net-<instance>` with `HC_INSTANCE`) instead of the host's published port, so `INGEST_BIND=127.0.0.1` works
+and is the recommended hardening ([Network and bind address](../lan-services.md#network-and-bind-address)). The
+order matters, because the ingest stack creates the network:
+
+1. `(cd services/loop-ingest && docker compose up -d --build --force-recreate)`: both containers are recreated
+   on `loop-net` (once, for this release: a plain `up -d --build` keeps `loop-db` on the removed old network and
+   it stops with `could not find a network matching network mode loop-ingest_default`; this command repairs it).
+2. `(cd services/loop-web && docker compose up -d --force-recreate)`: loop-web joins it.
+3. Optional: `docker network rm loop-web_default` (loop-web's old, now unused network; a second install's is
+   `loop-web-<instance>_default`); delete `INGEST_PORT` from `services/loop-web/.env` (no longer read); set
+   `INGEST_BIND=127.0.0.1` in `services/loop-ingest/.env` and run `docker compose up -d` there.
+
+Check: `docker network inspect loop-net --format '{{range .Containers}}{{.Name}} {{end}}'` lists `loop-db`,
+`loop-ingest` and `loop-web`, and the page's Sync works. A second install does the same in its own clone, with its
+own `HC_INSTANCE` in both `.env` files (`loop-net-second` for `HC_INSTANCE=second`).
+
+The data service also refuses to start on an invalid numeric variable (`STRAVA_SYNC_MINUTES=0`,
+`MAX_BODY_BYTES=8m`: one `startup_failed` line naming it), so check `docker compose logs loop-ingest` if it does
+not come up after step 1.
 
 ### The robustness release (migrations ledger, container hardening)
 

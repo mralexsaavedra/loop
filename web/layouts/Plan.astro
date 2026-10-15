@@ -140,8 +140,9 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
         <button type="button" class="wordmark" data-tab-go="" aria-label={nav.homeLink} set:html={wordmarkSvg.trim()}></button>
         <div class="date-pill" id="date-pill" role="group" aria-label={nav.day.group}>
           <button type="button" class="day-step" id="day-prev" aria-label={nav.day.prev} hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6" /></svg></button>
-          <button type="button" class="day-lbl" id="day-lbl" aria-disabled="true" aria-live="polite" data-back={nav.day.back}><span class="date-pill-lbl" id="day-word" aria-hidden="true">{nav.today}</span><time id="today-date" class="today-date"></time></button>
+          <button type="button" class="day-lbl" id="day-lbl" aria-disabled="true" data-back={nav.day.back}><span class="date-pill-lbl" id="day-word" aria-hidden="true">{nav.today}</span><time id="today-date" class="today-date"></time></button>
           <button type="button" class="day-step" id="day-next" aria-label={nav.day.next} hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6" /></svg></button>
+          <span class="sr-only" id="day-live" role="status" aria-live="polite"></span>
         </div>
         <div class="fresh" id="freshness" role="group" aria-label={syncT.ariaLabel} hidden>
           <button type="button" class="fresh-sum" id="fresh-sum" aria-expanded="false" aria-controls="fresh-pop"><span class="fresh-dot" aria-hidden="true"></span><span class="fresh-short" id="fresh-short"></span></button>

@@ -201,7 +201,8 @@ window.HCDetailChart = function (T, DS) {
     var bar = items.filter(function (it) { return n[it[0]] > 0; }).map(function (it) {
       return '<i class="dt-s-' + it[0] + '" style="width:' + (Math.round((1000 * n[it[0]]) / tot) / 10) + '%"></i>';
     }).join('');
-    return '<section class="dt-brk" aria-label="' + esc(B.title) + '"><div class="dt-brk-top"><h3 class="dt-brk-t">' + esc(B.title) + '</h3>' +
+    // unnamed: a named <section> would be a region landmark; its <h3> names the part
+    return '<section class="dt-brk"><div class="dt-brk-top"><h3 class="dt-brk-t">' + esc(B.title) + '</h3>' +
       HC.cta(B.learn, ' data-dt-act="learn"') + '</div>' +
       '<div class="dt-brk-bar" aria-hidden="true">' + bar + '</div><ul class="dt-brk-leg">' + items.map(function (it) {
         return '<li data-st="' + it[0] + '"><span class="dt-sw dt-s-' + it[0] + '" aria-hidden="true"></span>' + esc(it[1]) + '<b>' + esc(format(B.count, { n: n[it[0]] })) + '</b></li>';

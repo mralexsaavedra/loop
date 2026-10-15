@@ -300,7 +300,8 @@
     var shown = rows.filter(function (r) { return r.val != null; }).slice(0, 4);
     if (!shown.length) return '';
     var marked = shown.some(function (r) { return r.cmp && r.cmp.side != null; });
-    return '<section class="dd-contrib" aria-label="' + esc(P.aria) + '"><ul class="dd-rows">' + shown.map(function (r) {
+    // no name on the <section> (a named section is a region landmark): the list carries it
+    return '<section class="dd-contrib"><ul class="dd-rows" aria-label="' + esc(P.aria) + '">' + shown.map(function (r) {
       return HC.contribRow({ row: r.k, icon: r.k, label: P.rows[r.k], value: r.val, mark: markOf(r.cmp, X) });
     }).join('') + '</ul>' +
       (marked ? '<p class="dd-legend"><span class="dd-mk dd-better" aria-hidden="true">▲</span><span class="dd-mk dd-worse" aria-hidden="true">▼</span><b>' +
@@ -444,9 +445,9 @@
         '<span class="dd-track-col">' + bar + '</span><span class="dd-wd">' + esc(N ? N[HC.weekdayIndex(iso)] : HC.fmtDate(iso)) + '<b>' + (+iso.slice(8)) + '</b></span>' +
         '<span class="sr-only">' + esc(HC.fmtDate(iso)) + '</span></li>';
     }).join('');
-    return '<section class="dd-wk" aria-label="' + esc(format(X.T.deep.weekly.aria, { title: card.title })) + '"><h4 class="dd-wk-t"><button type="button" class="dd-wk-btn"' + (card.open || ' data-dt-act="trend"') + '>' + esc(card.title) +
+    return '<section class="dd-wk"><h4 class="dd-wk-t"><button type="button" class="dd-wk-btn"' + (card.open || ' data-dt-act="trend"') + '>' + esc(card.title) +
       '<span class="chev" aria-hidden="true">›</span></button></h4>' +
-      '<ol class="dd-cols">' + cols + '</ol></section>';
+      '<ol class="dd-cols" aria-label="' + esc(format(X.T.deep.weekly.aria, { title: card.title })) + '">' + cols + '</ol></section>';
   }
   function plain(cls) {
     return function () { return cls; };
@@ -548,7 +549,7 @@
       return { icon: 're', lbl: P.mods[a.m] || a.t, val: X.fmt(a.s, 1), sub: format(P.loadLbl, { load: X.fmt(a.load, 0) }) };
     });
     rows.push({ icon: 'acute', lbl: P.allDay, val: X.fmt(d.alls, 1), sub: format(P.loadLbl, { load: X.fmt(d.all, 0) }) });
-    return '<section class="dd-contrib" aria-label="' + esc(P.contribAria) + '"><ul class="dd-rows">' + rows.map(function (r) {
+    return '<section class="dd-contrib"><ul class="dd-rows" aria-label="' + esc(P.contribAria) + '">' + rows.map(function (r) {
       return HC.contribRow({ icon: r.icon, label: r.lbl, sub: r.sub, value: r.val });
     }).join('') + '</ul><p class="dd-legend">' + esc(P.shareNote) + '</p></section>';
   }
@@ -654,7 +655,7 @@
   // the day's curve (HC.stressChart, shared with Mi panel's stress card). Gaps = sleep, workouts or no data.
   function stressCurve(d, X) {
     var P = X.T.deep.stress, hours = (d && d.hours) || [];
-    return '<section class="ds-curve" aria-label="' + esc(P.curveAria) + '"><h3 class="dd-sec">' + esc(P.curveTitle) + '</h3>' +
+    return '<section class="ds-curve"><h3 class="dd-sec">' + esc(P.curveTitle) + '</h3>' +
       HC.stressChart(hours, P, X.fmt) + '<p class="dd-legend">' + esc(P.gapNote) + '</p></section>';
   }
   // time in each band: one stacked bar + a row per band (minutes outside workouts, <= 60 per hour)
@@ -671,7 +672,7 @@
       return '<li class="ds-brow"><span class="ds-dot ds-' + b + '" aria-hidden="true"></span><span class="ds-blbl">' + esc(P.bandRows[b]) + '</span>' +
         '<b class="ds-bmin">' + esc(HC.duration(d.mins[b] || 0)) + '</b></li>';
     }).join('');
-    return '<section class="ds-bands" aria-label="' + esc(P.bandsTitle) + '"><h3 class="dd-sec">' + esc(P.bandsTitle) + '</h3>' +
+    return '<section class="ds-bands"><h3 class="dd-sec">' + esc(P.bandsTitle) + '</h3>' +
       '<div class="ds-bar" aria-hidden="true">' + bar + '</div><ul class="ds-blist">' + rows + '</ul></section>';
   }
   function stressLines(d, iso, S, X) {
@@ -760,7 +761,7 @@
       }
     });
     out += '<path class="ds-line" d="' + path + '"/>' + dots;
-    return '<section class="ds-curve" aria-label="' + esc(P.curveAria) + '"><h3 class="dd-sec">' + esc(P.curveTitle) + '</h3>' +
+    return '<section class="ds-curve"><h3 class="dd-sec">' + esc(P.curveTitle) + '</h3>' +
       '<svg class="ds-chart" viewBox="0 0 ' + CV.w + ' ' + CV.h + '" role="img" aria-label="' + esc(format(P.curveSr, { start: d.start, wake: d.wake, value: d.now.lv, time: nowTime(d) })) + '">' + out + '</svg>' +
       '<p class="dd-legend">' + esc(P.dotNote) + '</p></section>';
   }
@@ -777,7 +778,7 @@
       ['restor', R.charge, R.chargeSub, '+' + X.fmt(d.sum.charge, 0)],
       ['eff', R.low, d.min.h != null ? format(R.lowSub, { time: hhmm(d.min.h) }) : R.lowStart, String(d.min.lv)],
     ];
-    return '<section class="dd-contrib" aria-label="' + esc(P.partsTitle) + '"><h3 class="dd-sec">' + esc(P.partsTitle) + '</h3><ul class="dd-rows">' + rows.map(function (r) {
+    return '<section class="dd-contrib"><h3 class="dd-sec">' + esc(P.partsTitle) + '</h3><ul class="dd-rows">' + rows.map(function (r) {
       return HC.contribRow({ icon: r[0], label: r[1], sub: r[2], value: r[3] });
     }).join('') + '</ul><p class="dd-legend">' + esc(P.clampNote) + '</p></section>';
   }

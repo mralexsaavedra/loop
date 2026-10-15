@@ -67,7 +67,7 @@
       (S.pform.source === 'off' ? '<p class="food-note">' + esc(T.products.offIntro) + ' ' + esc(T.products.offCredit) + '</p>' : '') +
       field('fpf-name', F.name, '<input class="food-in" id="fpf-name" type="text" maxlength="' + LIM.nameMax + '" autocomplete="off" value="' + esc(f.name || '') + '">') +
       field('fpf-brand', F.brand, '<input class="food-in" id="fpf-brand" type="text" maxlength="' + LIM.brandMax + '" autocomplete="off" value="' + esc(f.brand || '') + '">') +
-      '<div class="food-row">' + field('fpf-store', F.store, '<select class="food-in" id="fpf-store">' + opt(K.stores, f.store || 'mercadona', T.stores) + '</select>') +
+      '<div class="food-row">' + field('fpf-store', F.store, '<select class="food-in" id="fpf-store">' + opt(K.stores, f.store || K.stores[0], T.stores) + '</select>') +
       field('fpf-unit', F.unit, '<select class="food-in" id="fpf-unit">' + opt(K.units, f.unit || 'g', T.units) + '</select>') + '</div>' +
       field('fpf-code', F.barcode, '<input class="food-in" id="fpf-code" type="text" inputmode="numeric" maxlength="14" autocomplete="off" value="' + esc(f.barcode || '') + '">') +
       '<div class="food-row food-row-2">' + pf('fpf-kcal', F.kcal, 'kcal', { unit: T.kcal }) + pf('fpf-p', F.protein, 'protein', { unit: T.units.g }) +
@@ -487,7 +487,8 @@
     'p-new': function () { S.pform = { mode: 'search' }; renderProducts(); prodMsg(''); focus('fp-code'); },
     'p-code': function () { offLookup('code'); },
     'p-search': function () { offLookup('q'); },
-    'p-label': function () { openProductForm('label', { store: 'mercadona', unit: 'g' }); },
+    // a new product starts on the FIRST configured store (FOOD_CONST.stores), never a hard-coded one
+    'p-label': function () { openProductForm('label', { store: K.stores[0], unit: 'g' }); },
     'p-use': function (el) { useOff(Number(el.getAttribute('data-i'))); },
     'p-save': function () { saveProduct(false); },
     'p-save-force': function () { saveProduct(true); },

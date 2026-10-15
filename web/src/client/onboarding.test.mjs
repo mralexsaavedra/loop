@@ -15,7 +15,7 @@ import { loadUtil } from '../../test/client-util.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'onboarding.js'), 'utf8');
 
-function setup({ locale = 'en', profile = null, settings = { goal: null }, protocol = 'http:', later = false, putFails = false, hash = '' } = {}) {
+function setup({ locale = 'en', profile = null, settings = { goal: null }, protocol = 'http:', later = false, putFails = false, hash = '', statusNode = null } = {}) {
   const listeners = {};
   const calls = [];
   const opened = [];
@@ -46,7 +46,7 @@ function setup({ locale = 'en', profile = null, settings = { goal: null }, proto
     window: win,
     document: {
       addEventListener: (t, fn) => { (listeners[t] = listeners[t] || []).push(fn); },
-      getElementById: (id) => (id === 'sync-btn' ? { hidden: false, click: () => { synced += 1; } } : null),
+      getElementById: (id) => (id === 'sync-btn' ? { hidden: false, click: () => { synced += 1; } } : id === 'onb-status' ? statusNode : null),
     },
     location: { protocol, origin: 'http://192.168.1.50:8091', hash },
     localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } },
@@ -258,6 +258,21 @@ test('a failed save keeps the sheet open with the reason', async () => {
   assert.match(s.html(), /Could not save \(no connection\)/);
   assert.equal(s.synced, 0);
   assert.deepEqual(s.saved, []);
+});
+
+test('a failed save sets its reason into the status node already in the sheet (announced), without re-rendering it', async () => {
+  const node = { textContent: '' };
+  const s = setup({ putFails: true, statusNode: node });
+  toSafety(s, [['team', '90', '2']]);
+  s.act('next'); s.act('next'); s.act('next'); s.act('next');
+  assert.match(s.html(), /<p class="pf-note pf-status" id="onb-status" role="status" aria-live="polite"><\/p>/, 'rendered empty');
+  await flush(); // the first-run open (GET /profile + /settings) settles first
+  const opens = s.opened.length;
+  s.act('save');
+  assert.equal(node.textContent, 'Saving…');
+  await flush(); await flush();
+  assert.deepEqual(s.opened.slice(opens), [], 'the sheet is not re-rendered: the live region stays the same node');
+  assert.equal(node.textContent, 'Could not save (no connection). Try again.');
 });
 
 test('safety screen: pregnancy or under 18 -> no numbers, a referral; illness / eating answers -> maintenance only', () => {

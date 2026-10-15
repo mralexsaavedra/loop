@@ -3,7 +3,7 @@
 # directory is mounted, so nothing else under data/ or web/ is reachable
 # over HTTP. /api/sync, /api/sync/status, /api/food/*, /api/journal/* and
 # /ingest/health-auto-export (and nothing else) are proxied to the loop-ingest
-# service on the host, and only requests
+# service over the ingest stack's network (loop-net, below), and only requests
 # naming an allowed Host are answered, see nginx.conf.template.
 # Variables: services/loop-web/.env.example (all optional).
 # HC_INSTANCE (in .env, empty by default): a second install on the same host, e.g. `second`
@@ -19,13 +19,9 @@ services:
     ports:
       - "${PLAN_WEB_BIND:+${PLAN_WEB_BIND}:}${PLAN_WEB_PORT:-8090}:80"
     environment:
-      # loop-ingest's host port (its INGEST_PORT); substituted into the nginx template
-      INGEST_PORT: ${INGEST_PORT:-8088}
       # extra host names the page may be reached by (besides IP literals and localhost), comma or
       # space separated; rendered by hosts.sh. Mirror them in loop-ingest's FOOD_ALLOWED_HOSTS.
       PLAN_WEB_EXTRA_HOSTS: ${PLAN_WEB_EXTRA_HOSTS:-}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     # Hardening (scripts/loop-web-config.test.mjs pins it): read-only root filesystem; tmpfs for what the
     # entrypoint and nginx write (the rendered template + hosts map in conf.d, the pid file, the temp dirs);
     # only the capabilities the nginx master needs to own the workers' temp dirs (CHOWN) and drop the workers to
@@ -59,3 +55,12 @@ services:
       - ./site:/usr/share/nginx/html:ro
       - ./nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ./hosts.sh:/docker-entrypoint.d/15-hc-hosts.sh:ro
+
+# The ingest stack's network, created by `docker compose up` in services/loop-ingest (start that stack
+# first; without it this one stops with "network loop-net declared as external, but could not be found").
+# nginx reaches the service as loop-ingest:8088 on it, so the ingest port's host publish (INGEST_BIND) never
+# matters here. A second install (HC_INSTANCE) joins its own loop-net-<instance>.
+networks:
+  default:
+    name: loop-net${HC_INSTANCE:+-${HC_INSTANCE}}
+    external: true

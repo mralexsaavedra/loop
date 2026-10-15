@@ -8,9 +8,27 @@ operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README
 
 First versioned release. The data service ships as a Docker Hub image, `mralexandersaavedra/loop-ingest:1.0.0`
 (amd64 and arm64): `docker compose pull loop-ingest && docker compose up -d` in `services/loop-ingest` runs it, and
-`up -d --build` still builds it from the clone. Base images are pinned by digest, CI runs both test suites on every pull request, Dependabot proposes
+`up -d --build` still builds it from the clone. Base images are pinned by digest, CI runs lint, the typecheck and all three test suites (including the data service against a real Postgres) on
+every push and pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
+
+## 2026-10-15 (last) — Scoring-audit follow-ups
+
+A scoring audit of the final state (lib 8.5, page 9, services 8.5, AI 9.5, docs 8.5, release 9.5) and its fixes, so
+that no must-fix or should-fix item is left. Onboarding: the computed targets always pass their own check (a very
+light, older person was locked out by the calorie floor). Scores: one per-day VO2max (mean of the day) for the
+fitness-age card, its detail and Salud; out-of-range sensor samples are dropped instead of clamped; the recovery band
+follows the rounded value on screen; Salud's respiratory rate, wrist temperature and walking HR use the monitor's
+day median. Data: the Shortcut sync writes its ownership ledger first; a truncated `export.xml` is refused; a
+thousands separator in a step count is read as grouping; `writeAtomic` cleans its temp file; the page build swaps
+its output in place; every dev script has a strict CLI. Services: loop-web reaches loop-ingest over a shared Docker
+network (`loop-net`), so `INGEST_BIND=127.0.0.1` keeps the data service off the network without breaking the page;
+`/export/raw` pages by bytes too (the sync follows `X-Has-More`); numeric settings are validated at start; control
+characters in food and journal text get a 400; migrations run without the statement timeout. Page: journal and
+onboarding messages are announced to screen readers, list rows keep their list semantics, and request timeouts cover
+the whole body. Upgrade: `docker compose up -d --build --force-recreate` in `services/loop-ingest` once (the network
+changes), then `docker compose up -d --force-recreate` in `services/loop-web`.
 
 ## 2026-10-15 (final) — Final audit follow-ups
 
@@ -1622,3 +1640,5 @@ its duplicated per-serving tables were replaced with pointers to `plan-tables.md
 Repo created and git-initialized. Structure, `CLAUDE.md`, `analysis/methodology.md` in place.
 Reframed "24/7 Claude" → persistent context + scheduled/on-demand runs. Apple Health is
 iOS/HealthKit-only → analysis via exported XML. Privacy: raw health data gitignored, stays local.
+
+[1.0.0]: https://github.com/mralexsaavedra/loop/releases/tag/v1.0.0

@@ -235,7 +235,13 @@ test('lock: an on-demand run that cannot get the lock in time writes error "lock
   const ctx = makeRepo('main');
   const holder = spawn('flock', [path.join(ctx.planWeb, '.refresh.lock'), 'sleep', '5'], { stdio: 'ignore' });
   try {
-    await new Promise((r) => setTimeout(r, 300));
+    // wait until flock really HOLDS the lock (a fixed sleep raced the spawn on a loaded machine): a
+    // non-blocking attempt fails once it is held; bounded at 10 s
+    const lockFile = path.join(ctx.planWeb, '.refresh.lock');
+    for (const t0 = Date.now(); spawnSync('flock', ['-n', lockFile, 'true']).status === 0;) {
+      assert.ok(Date.now() - t0 < 10000, 'flock never took the lock');
+      await new Promise((r) => setTimeout(r, 20));
+    }
     setSeq(ctx, 11);
     const cron = run(ctx);
     assert.equal(cron.code, 0);

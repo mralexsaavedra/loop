@@ -511,3 +511,15 @@ test('carried values: one helper, one treatment, used by every surface that can 
   // the retired per-surface markers
   for (const [f, src] of Object.entries(SRC)) assert.doesNotMatch(src, /dial-asof/, `${f}: the DS6 .dial-asof is now .carried-date`);
 });
+
+test('colours: score.css picks no colour of its own — no hex, no rgba() of a literal hue (tokens: rgba(var(--x-rgb), a)); a black shadow is the one literal', () => {
+  const css = RULES.filter((r) => r.file === 'score.css');
+  const bad = [];
+  for (const r of css) {
+    for (const [prop, v] of Object.entries(r.decl)) {
+      const lit = String(v).replace(/rgba\(0, 0, 0, [\d.]+\)/g, '');
+      if (/#[0-9a-fA-F]{3,8}\b|rgba?\(\s*\d/.test(lit)) bad.push(`${where(r)} ${prop}: ${v}`);
+    }
+  }
+  assert.deepEqual(bad, []);
+});

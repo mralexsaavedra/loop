@@ -12,7 +12,7 @@ import * as sync from './sync-shortcut.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const {
-  METRICS, SHORTCUT_SOURCE, parseNumber, parsePayload, collectSamples, buildRows,
+  METRICS, SHORTCUT_SOURCE, parseNumber, parseCount, parsePayload, collectSamples, buildRows,
   unionMinutes, mergeCsv, updateMeta, resolveToken, fetchAllPayloads, planSync,
   foldPayloads, emptyCache, CACHE_FILE, writeAtomic, syncDir, dropPhantomWeights, sleepStageOf,
 } = sync;
@@ -610,6 +610,7 @@ test('contract: a re-extract drops Shortcut rows + ledger, the next sync restore
     `<Record type="${Q}HeartRateVariabilitySDNN" sourceName="W" startDate="2030-01-01 08:00:00 +0100" endDate="2030-01-01 08:00:00 +0100" value="40"/>`,
     // a real Watch name: energy counts only Watch / wearable / iPhone sources (samples.mjs energySource)
     `<Record type="${Q}ActiveEnergyBurned" sourceName="Apple Watch de Demo" startDate="2030-01-01 10:00:00 +0100" endDate="2030-01-01 10:05:00 +0100" value="300"/>`,
+    '</HealthData>',
   ].join('\n') + '\n');
   const extract = () => execFileSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { stdio: 'ignore', env: { ...process.env, EXTRACT_DIR: dir } });
   const out = path.join(dir, 'extract');
@@ -694,7 +695,7 @@ test('hr_recovery: one row per workout sample -> hr-recovery.csv', () => {
 test('extract.mjs writes hr-recovery.csv in the same schema the sync uses', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-hrr-'));
   fs.writeFileSync(path.join(dir, 'export.xml'),
-    '<Record type="HKQuantityTypeIdentifierHeartRateRecoveryOneMinute" sourceName="W" startDate="2030-01-02 19:00:00 +0100" endDate="2030-01-02 19:01:00 +0100" value="25.26"/>\n');
+    '<Record type="HKQuantityTypeIdentifierHeartRateRecoveryOneMinute" sourceName="W" startDate="2030-01-02 19:00:00 +0100" endDate="2030-01-02 19:01:00 +0100" value="25.26"/>\n</HealthData>\n');
   execFileSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { stdio: 'ignore', env: { ...process.env, EXTRACT_DIR: dir } });
   const out = path.join(dir, 'extract');
   assert.equal(fs.readFileSync(path.join(out, 'hr-recovery.csv'), 'utf8'), 'date,value,source\n2030-01-02,25.3,W\n');
@@ -718,6 +719,7 @@ test('extract.mjs writes waist.csv (cm) in the same schema the sync uses', () =>
     '<Record type="HKQuantityTypeIdentifierWaistCircumference" sourceName="Health" unit="cm" startDate="2030-01-02 08:00:00 +0100" endDate="2030-01-02 08:00:00 +0100" value="84.26"/>',
     '<Record type="HKQuantityTypeIdentifierWaistCircumference" sourceName="Health" unit="m" startDate="2030-01-09 08:00:00 +0100" endDate="2030-01-09 08:00:00 +0100" value="0.835"/>',
     '<Record type="HKQuantityTypeIdentifierWaistCircumference" sourceName="Health" unit="in" startDate="2030-01-16 08:00:00 +0100" endDate="2030-01-16 08:00:00 +0100" value="33"/>',
+    '</HealthData>',
     '',
   ].join('\n'));
   execFileSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { stdio: 'ignore', env: { ...process.env, EXTRACT_DIR: dir } });
@@ -813,6 +815,7 @@ test('extract.mjs and the Shortcut sync write identical sleep rows (nap excluded
   fs.writeFileSync(path.join(dir, 'export.xml'), [
     ...iv.map(([a, b, st]) => `<Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="${SHORTCUT_SOURCE}" startDate="${stamp(a)}" endDate="${stamp(b)}" value="${xmlStage[st]}"/>`),
     `<Record type="HKQuantityTypeIdentifierAppleSleepingWristTemperature" sourceName="${SHORTCUT_SOURCE}" startDate="2030-01-01 23:40:00 +0100" endDate="2030-01-02 07:00:00 +0100" value="36.1"/>`,
+    '</HealthData>',
     '',
   ].join('\n'));
   execFileSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { stdio: 'ignore', env: { ...process.env, EXTRACT_DIR: dir } });
@@ -1037,4 +1040,43 @@ test('main() in-process: no new payloads -> returns 0', async () => {
     assert.equal(await sync.main({ env: { ...h.env, INGEST_TOKEN: 't' }, ...h.io, fetchImpl: h.answer(200, []), outDir: path.join(h.dir, 'extract') }), 0);
     assert.match(h.out[0], /Synced 0 new/);
   } finally { h.cleanup(); }
+});
+
+test('syncDir writes _meta.json (the ownership ledger) FIRST; a failure after it leaves the ledger listing the dates', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-order-'));
+  const items = [{ id: '1', payload: { hrv: '2030-01-02T08:00:00+01:00;42' } }];
+  const order = [];
+  syncDir(dir, items, { writeAtomic: (file) => order.push(path.basename(file)) });
+  assert.equal(order[0], '_meta.json');
+  assert.ok(order.includes('hrv.csv') && order.includes(CACHE_FILE));
+
+  // the CSV write fails after the ledger write: the ledger already owns the date
+  assert.throws(() => syncDir(dir, items, {
+    writeAtomic: (file, text) => { if (path.basename(file) !== '_meta.json') throw new Error('disk full'); writeAtomic(file, text); },
+  }), /disk full/);
+  const meta = JSON.parse(fs.readFileSync(path.join(dir, '_meta.json'), 'utf8'));
+  assert.deepEqual(meta.shortcutSync.owned['hrv.csv'], ['2030-01-02']);
+  assert.equal(fs.existsSync(path.join(dir, 'hrv.csv')), false);
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('integer metrics (steps, flights, exercise minutes): one separator + exactly three digits is a thousands group', () => {
+  assert.equal(parseCount('12.345'), 12345);
+  assert.equal(parseCount('12,345'), 12345);
+  assert.equal(parseCount('1.234.567'), 1234567);
+  assert.equal(parseCount('12.345,0'), 12345);
+  assert.equal(parseCount('8432'), 8432);
+  assert.equal(parseCount('12,5'), 12.5, 'not three digits: still a decimal');
+  assert.equal(parseCount('x'), null);
+  const p = parsePayload({
+    steps_watch: '2030-01-02T00:00:00+01:00;12.345',
+    steps_phone: '2030-01-02T00:00:00+01:00;1,204',
+    flights_watch: '2030-01-02T00:00:00+01:00;12',
+    exercise_watch: '2030-01-02T00:00:00+01:00;1.020',
+  });
+  assert.deepEqual(p.steps.map((s) => [s.device, s.value]), [['Shortcut Watch', 12345], ['Shortcut iPhone', 1204]]);
+  assert.equal(p.flights_watch[0].value, 12);
+  assert.equal(p.exercise_watch[0].value, 1020);
+  // a non-integer metric keeps the decimal reading
+  assert.equal(parsePayload({ respiratory: '2030-01-02T00:00:00+01:00;14,500' }).respiratory[0].value, 14.5);
 });

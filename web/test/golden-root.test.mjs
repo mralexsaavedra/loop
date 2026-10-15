@@ -46,6 +46,23 @@ test('parseArgs: a missing --root value or --root without --personal is an error
   }
 });
 
+test('parseArgs: strict — a typo (--updte) or a stray argument is an error, --help returns the usage', () => {
+  for (const args of [['--updte'], ['--update', 'x'], ['--persnal']]) {
+    assert.match(parseArgs(args).error ?? '', /unknown argument/, args.join(' '));
+  }
+  assert.match(parseArgs(['--help']).help, /^Usage: npm run golden:bake/);
+});
+
+test('the CLI: --help exits 0 and a typo exits 2, both before computing anything', () => {
+  const help = spawnSync(process.execPath, [SCRIPT, '--help'], { encoding: 'utf8' });
+  assert.equal(help.status, 0);
+  assert.match(help.stdout, /^Usage: npm run golden:bake/);
+  const typo = spawnSync(process.execPath, [SCRIPT, '--updte'], { encoding: 'utf8' });
+  assert.equal(typo.status, 2);
+  assert.match(typo.stderr, /unknown argument "--updte"/);
+  assert.doesNotMatch(typo.stdout, /identical/);
+});
+
 test('the CLI exits 2 on a bad --root before computing anything', () => {
   for (const args of [['--personal', '--root'], ['--root', ROOT], [`--root=${ROOT}`]]) {
     const r = spawnSync(process.execPath, [SCRIPT, ...args], { encoding: 'utf8' });

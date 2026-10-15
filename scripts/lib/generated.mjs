@@ -29,3 +29,14 @@ export function writeGenerated(path, source, { label, script, check = false }) {
   }
   return 0;
 }
+
+/** The generators' shared CLI (gen-food-calc, gen-journal-calc): `--check` and `--help` only, parsed strictly
+ * by runCli (an unknown flag such as `--chek` or a stray argument exits 2 before anything is written). */
+export const GENERATOR_OPTIONS = { check: { type: 'boolean' } };
+export function generatorUsage(script, label) {
+  return `Usage: npm run ${script} [-- --check]
+
+Regenerates ${label} from the lib (deterministic).
+  --check     write nothing; exit 1 when the committed file is out of date
+  --help, -h  this text`;
+}

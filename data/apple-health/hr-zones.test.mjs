@@ -29,6 +29,13 @@ test('observedMaxHr: highest Strava max HR over the 365 days ending at the newes
   assert.equal(Z.observedMaxHr([]), null)
 })
 
+test('observedMaxHr: the same plausibility range as a profile max HR (MAX_HR_MIN..MAX_HR_MAX = 100..230)', () => {
+  assert.equal(Z.MAX_HR_MAX, 230)
+  assert.equal(Z.observedMaxHr([act('1', '2026-09-30', { max_heartrate: 240 }), act('2', '2026-09-29', { max_heartrate: 185 })]), 185)
+  assert.equal(Z.observedMaxHr([act('1', '2026-09-30', { max_heartrate: 230 })]), 230)
+  assert.equal(Z.observedMaxHr([act('1', '2026-09-30', { max_heartrate: 99 })]), null)
+})
+
 test('pickMaxHr: a valid profile maxHr wins, else the observed one, else null', () => {
   const list = [act('1', '2026-09-30', { max_heartrate: 181 })]
   assert.deepEqual(Z.pickMaxHr(list, 192), { maxHr: 192, source: 'profile' })

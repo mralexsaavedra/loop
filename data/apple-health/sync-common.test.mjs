@@ -71,6 +71,31 @@ test('fetchPages() pages via buildUrl until a short page, forwarding the bearer 
   assert.equal(calls[0].auth, 'Bearer tok');
 });
 
+test('fetchPages() keeps paging after a short page the server marks X-Has-More (byte-capped page)', async () => {
+  // /export/raw cuts a page at its byte budget: fewer rows than `limit`, but more exist after it
+  const rows = [1, 2, 3, 4].map((id) => ({ id: String(id) }));
+  const fetchImpl = async (url) => {
+    const since = Number(new URL(url).searchParams.get('since_id'));
+    const rest = rows.filter((p) => Number(p.id) > since);
+    const page = since === 0 ? rest.slice(0, 1) : rest.slice(0, 10); // first page byte-capped to 1 row
+    const more = since === 0;
+    return { ok: true, status: 200, headers: new Headers({ 'x-has-more': String(more) }), json: async () => page };
+  };
+  const out = await fetchPages({
+    baseUrl: 'http://h', token: 't', limit: 10, fetchImpl,
+    buildUrl: ({ baseUrl, since, limit }) => `${baseUrl}/export/raw?since_id=${since}&limit=${limit}`,
+  });
+  assert.deepEqual(out.map((p) => p.id), ['1', '2', '3', '4']);
+});
+
+test('fetchPages() rejects an empty page that still claims X-Has-More (no progress possible)', async () => {
+  const fetchImpl = async () => ({ ok: true, status: 200, headers: new Headers({ 'x-has-more': 'true' }), json: async () => [] });
+  await assert.rejects(
+    fetchPages({ baseUrl: 'http://h', token: 't', limit: 10, fetchImpl, buildUrl: ({ since }) => `http://h/x?since_id=${since}` }),
+    /unexpected paging cursor/,
+  );
+});
+
 test('fetchPages() rejects a non-array response', async () => {
   const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ not: 'an array' }) });
   await assert.rejects(
@@ -352,5 +377,22 @@ test('reclaimStaleLock(): only the stale lock that was observed is reclaimed, an
   assert.equal(reclaimStaleLock(lock, seen), false);
   assert.equal(fs.readFileSync(lock, 'utf8'), '424242');
   assert.deepEqual(fs.readdirSync(dir), ['_meta.json.lock'], 'no claim file left behind');
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('localIso / windowEndingOn: the LOCAL calendar date of `now`, a window of `days` days inclusive', () => {
+  const now = new Date(2030, 2, 1, 0, 30); // local 2030-03-01 00:30
+  assert.equal(common.localIso(now), '2030-03-01');
+  assert.deepEqual(common.windowEndingOn(now, 1), { from: '2030-03-01', to: '2030-03-01' });
+  assert.deepEqual(common.windowEndingOn(now, 3), { from: '2030-02-27', to: '2030-03-01' });
+});
+
+test('writeAtomic(): a failed rename removes its temp file (personal data) and rethrows', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-atomic-fail-'));
+  const target = path.join(dir, 'a.csv');
+  fs.mkdirSync(target); // a non-empty directory where the file should go: the rename fails
+  fs.writeFileSync(path.join(target, 'keep'), 'x');
+  assert.throws(() => writeAtomic(target, 'secret\n'));
+  assert.deepEqual(fs.readdirSync(dir), ['a.csv'], 'no .tmp left behind');
   fs.rmSync(dir, { recursive: true });
 });

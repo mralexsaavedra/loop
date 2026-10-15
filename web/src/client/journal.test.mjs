@@ -123,7 +123,7 @@ test('the sheet: grouped rows of the switched-on behaviours, ✕/✓ pairs, the 
   assert.match(r.body, /<button type="button" class="sw" role="switch" aria-checked="false" aria-label="Track Nap" data-jr="tog" data-key="nap">/, 'but is listed in the on / off fold, as THE switch');
   assert.match(r.body, /data-jr="inc" data-key="alcohol"/);
   // an unanswered count reads "0" (dimmed), never a "–" that looks like the minus beside it
-  assert.match(r.body, /<b class="jr-n jr-n-none" aria-live="polite" aria-label="[^"]*">0<\/b>/);
+  assert.match(r.body, /<b class="jr-n jr-n-none" id="jr-n-alcohol" aria-live="polite" aria-atomic="true"><span id="jr-nv-alcohol" aria-hidden="true">0<\/span>/);
   assert.doesNotMatch(r.body, />–</);
   assert.match(r.body, /id="jr-notes"[^>]*maxlength="500"/);
   assert.match(r.body, /data-jr="save"/);
@@ -191,7 +191,7 @@ test('insights view: best impact first, signed %, teal / orange bars from the ce
   assert.match(r.body, /<li class="ji-row ji-empty"><span class="ji-name">Need more data<\/span><p class="jr-msg">At least 5 days with and 5 without each:<\/p><ul class="ji-need-list"><li>Feeling ill · 1 yes · 31 no<\/li><\/ul><\/li>/);
   assert.match(r.body, /id="dd-info" hidden><p>For each behavior: the mean of your recovery %/);
   assert.match(r.body, /An association, not causation/);
-  assert.match(r.body, /aria-label="Alcohol: -15\.0 points of recovery the morning after \(60% after yes, 75% after no; 12 and 20 days\)"/);
+  assert.match(r.body, /<span class="sr-only">Alcohol: -15\.0 points of recovery the morning after \(60% after yes, 75% after no; 12 and 20 days\)<\/span>/);
   assert.equal(ctx.HCJournal.barStyle(5, 20), 'left:50.0%;width:12.5%');
   assert.equal(ctx.HCJournal.barStyle(-40, 20), 'left:0.0%;width:50.0%');
 });
@@ -258,11 +258,11 @@ test('a closed sheet drops its unsaved draft: reopening shows the saved day', as
   ctx.HCDetail.open('journal', null);
   press(listeners, { 'data-jr': 'inc', 'data-key': 'alcohol' });
   press(listeners, { 'data-jr': 'yes', 'data-key': 'nap' });
-  assert.match(D.html.body, /<b class="jr-n"[^>]*>2</, 'the open sheet keeps the draft across its re-renders');
+  assert.match(D.html.body, /<b class="jr-n"[^>]*><span[^>]*>2</, 'the open sheet keeps the draft across its re-renders');
   ctx.HCDetail.close();
   ctx.HCDetail.open('journal', null);
-  assert.match(D.html.body, /<b class="jr-n"[^>]*>1</, 'back to the saved count');
-  assert.match(D.html.body, /data-jr="yes" data-key="nap" aria-pressed="false"/);
+  assert.match(D.html.body, /<b class="jr-n"[^>]*><span[^>]*>1</, 'back to the saved count');
+  assert.match(D.html.body, /id="jr-yes-nap" data-jr="yes" data-key="nap" aria-pressed="false"/);
 });
 
 test('baked card: a journal older than the 7-day window shows ITS last week, not an empty one', () => {
@@ -285,4 +285,109 @@ test('file:// (no LAN): the journal never calls /api/journal and stays hidden as
   for (let i = 0; i < 5; i++) await tick();
   assert.ok(on.calls.length >= 2, 'the LAN page still fetches');
   assert.equal(on.ctx.HCJournal.ready(), true);
+});
+
+// a minimal mounted sheet: every element with an id in the rendered head + body becomes a node in
+// `els` (document.getElementById), recreated on every render like the real host.innerHTML
+function mountDetail(ctx, els) {
+  const D = { st: null, opens: 0, focused: null };
+  const mount = (html) => {
+    for (const k of Object.keys(els)) if (k !== 'my-journal') delete els[k];
+    for (const m of html.matchAll(/<(\w+)((?:\s+[\w-]+(?:="[^"]*")?)*)\s*>([^<]*)/g)) {
+      const attrs = Object.fromEntries([...m[2].matchAll(/([\w-]+)(?:="([^"]*)")?/g)].map((a) => [a[1], a[2] ?? '']));
+      if (!attrs.id) continue;
+      const cls = new Set((attrs.class || '').split(/\s+/).filter(Boolean));
+      els[attrs.id] = {
+        id: attrs.id, attrs, textContent: m[3], disabled: 'disabled' in attrs, readOnly: 'readonly' in attrs,
+        get className() { return [...cls].join(' '); }, set className(v) { cls.clear(); String(v).split(/\s+/).filter(Boolean).forEach((c) => cls.add(c)); },
+        classList: { toggle: (c, on) => (on ? cls.add(c) : cls.delete(c)), contains: (c) => cls.has(c) },
+        setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
+        removeAttribute(k) { delete this.attrs[k]; }, focus() { D.focused = attrs.id; },
+      };
+    }
+  };
+  ctx.HCDetail = {
+    state: () => D.st,
+    open: (key, date) => { D.st = { key, date: date || null }; D.opens++; const r = ctx.HCViews[key].render(); D.html = r; mount(r.head + r.body); },
+    close: () => { D.st = null; },
+  };
+  return D;
+}
+
+test('a failed save keeps the status node in place and sets its text after the render, so it is announced', async () => {
+  const { ctx, els, listeners } = load({ routes: {
+    'GET /settings': { behaviors: ALL_ON }, 'GET /summary': { days: [] }, 'PUT /day': { status: 500, body: { error: 'boom' } },
+  } });
+  for (let i = 0; i < 5; i++) await tick();
+  const D = mountDetail(ctx, els);
+  ctx.HCDetail.open('journal', null);
+  assert.match(D.html.body, /<p class="jr-msg" id="jr-status" role="status" aria-live="polite"><\/p>/);
+  press(listeners, { 'data-jr': 'yes', 'data-key': 'nap' });
+  press(listeners, { 'data-jr': 'save' });
+  const status = els['jr-status'], opens = D.opens;
+  assert.equal(status.textContent, '', 'the status node is rendered empty');
+  for (let i = 0; i < 5; i++) await tick();
+  assert.equal(els['jr-status'], status, 'the same live region before and after the failure');
+  assert.equal(D.opens, opens, 'no re-render after the failure');
+  assert.equal(status.textContent, 'Could not save (boom).');
+  assert.ok(status.classList.contains('jr-err'));
+  assert.equal(els['jr-save'].disabled, false, 'the pill is enabled again');
+  assert.equal(els['jr-save'].textContent, 'Save journal');
+  assert.equal(els['jr-notes'].readOnly, false);
+});
+
+test('a failed behaviour switch sets the message in place', async () => {
+  const { ctx, els, listeners } = load({ routes: { 'GET /settings': { behaviors: ALL_ON }, 'GET /summary': { days: [] } } });
+  for (let i = 0; i < 5; i++) await tick();
+  const D = mountDetail(ctx, els);
+  ctx.HCDetail.open('journal', null);
+  const status = els['jr-status'], opens = D.opens;
+  press(listeners, { 'data-jr': 'tog', 'data-key': 'nap' });
+  for (let i = 0; i < 5; i++) await tick();
+  assert.equal(els['jr-status'], status);
+  assert.equal(D.opens, opens);
+  assert.equal(status.textContent, 'The server cannot be reached: nothing was saved.');
+});
+
+test('the drinks stepper updates its count in place: visible digit + a spoken sr-only text, no aria-label on the <b>', async () => {
+  const { ctx, els, listeners } = load({ routes: { 'GET /settings': { behaviors: ALL_ON }, 'GET /summary': { days: [] } } });
+  for (let i = 0; i < 5; i++) await tick();
+  const D = mountDetail(ctx, els);
+  ctx.HCDetail.open('journal', null);
+  assert.match(D.html.body, /<b class="jr-n jr-n-none" id="jr-n-alcohol" aria-live="polite" aria-atomic="true"><span id="jr-nv-alcohol" aria-hidden="true">0<\/span><span class="sr-only" id="jr-ns-alcohol">— drinks<\/span><\/b>/);
+  assert.doesNotMatch(D.html.body, /<b class="jr-n[^>]*aria-label/);
+  const count = els['jr-n-alcohol'], opens = D.opens;
+  press(listeners, { 'data-jr': 'inc', 'data-key': 'alcohol' });
+  press(listeners, { 'data-jr': 'inc', 'data-key': 'alcohol' });
+  assert.equal(D.opens, opens, 'a press re-renders nothing');
+  assert.equal(els['jr-n-alcohol'], count, 'the live count node stays in place');
+  assert.equal(els['jr-nv-alcohol'].textContent, '2');
+  assert.equal(els['jr-ns-alcohol'].textContent, '2 drinks');
+  assert.equal(count.classList.contains('jr-n-none'), false);
+  assert.equal(els['jr-dec-alcohol'].disabled, false);
+  assert.equal(els['jr-no-alcohol'].getAttribute('aria-pressed'), 'false');
+  press(listeners, { 'data-jr': 'no', 'data-key': 'alcohol' });
+  assert.equal(els['jr-nv-alcohol'].textContent, '0');
+  assert.equal(els['jr-no-alcohol'].getAttribute('aria-pressed'), 'true');
+  assert.equal(els['jr-dec-alcohol'].disabled, true);
+  press(listeners, { 'data-jr': 'yes', 'data-key': 'nap' });
+  assert.equal(els['jr-yes-nap'].getAttribute('aria-pressed'), 'true');
+  assert.equal(els['jr-no-nap'].getAttribute('aria-pressed'), 'false');
+  assert.deepEqual(plain(ctx.HCJournal.state().draft.answers), { alcohol: 0, nap: true });
+});
+
+test('insight rows: the sentence is real text (sr-only), never an aria-label on a plain <li>', () => {
+  const { ctx } = load({ journal: BAKED });
+  const r = ctx.HCViews['journal-insights'].render();
+  assert.doesNotMatch(r.body, /<li class="ji-row"[^>]*aria-label/);
+  assert.match(r.body, /<li class="ji-row"><span class="sr-only">Alcohol: -15\.0 points of recovery the morning after \(60% after yes, 75% after no; 12 and 20 days\)<\/span><span class="ji-name" aria-hidden="true">Alcohol<\/span>/);
+});
+
+test('the day strip group is named by its week', async () => {
+  const { ctx } = load({ routes: { 'GET /settings': { behaviors: ALL_ON }, 'GET /summary': { days: [] } } });
+  for (let i = 0; i < 5; i++) await tick();
+  assert.match(ctx.HCViews.journal.render().head, /<div class="jr-strip" role="group" aria-label="Week: [^"]+ – [^"]+">/);
+  const es = load({ locale: 'es', routes: { 'GET /settings': { behaviors: ALL_ON }, 'GET /summary': { days: [] } } });
+  for (let i = 0; i < 5; i++) await tick();
+  assert.match(es.ctx.HCViews.journal.render().head, /<div class="jr-strip" role="group" aria-label="Semana: [^"]+ – [^"]+">/);
 });

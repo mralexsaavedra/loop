@@ -27,7 +27,7 @@
 import { JOURNAL_BEHAVIORS, JOURNAL_LIMITS as L } from './journal-calc.js'
 import { createWindowLimiter } from './limits.js'
 import {
-  JSON_BODY_LIMIT, validDate, hostAllowed, hostOfHeader, writeOriginOk, httpError, send, isJson, readJson
+  JSON_BODY_LIMIT, validDate, hostAllowed, hostOfHeader, writeOriginOk, httpError, send, isJson, readJson, hasControlChars
 } from './http.js'
 
 export const JOURNAL_BODY_LIMIT = JSON_BODY_LIMIT // 16 KB, readJson's cap
@@ -72,7 +72,7 @@ export function validateDay (body) {
   }
   let notes = null
   if (body.notes !== undefined && body.notes !== null) {
-    if (typeof body.notes !== 'string') bad('notes')
+    if (typeof body.notes !== 'string' || hasControlChars(body.notes)) bad('notes')
     // line breaks are kept (spaces / tabs collapsed, at most one blank line between paragraphs)
     const s = body.notes.replace(/\r\n?/g, '\n').replace(/[^\S\n]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n').trim()
     if (s.length > L.notesMax) bad('notes')

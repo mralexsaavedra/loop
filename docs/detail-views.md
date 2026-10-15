@@ -69,7 +69,7 @@ Same readers and rules as the cards.
 
 | Metric(s) | Series and extras |
 | --- | --- |
-| hrv, rhr, respiratory, wristTemp, sleep | the monitor's clamped day median (`monitor.mjs` `monitorDaily`, partial newest HRV day dropped) with the monitor's personal band (`signalBand`, median ± 2 scaled MADs over the 42 days before the newest day); walkingHr gets the same kind of band |
+| hrv, rhr, respiratory, wristTemp, walkingHr, sleep | the monitor's day median of the in-range samples (`monitor.mjs` `monitorDaily`; out-of-range sensor artefacts are dropped, not clamped; partial newest HRV day dropped; walking HR bounded 30–230 bpm) with the monitor's personal band (`signalBand`, median ± 2 scaled MADs over the 42 days before the newest day); walkingHr gets the same kind of band |
 | daily totals | the Health floors (a < 200-step day is missing) + a "usual day" band = p25–p75 of the 90 days before the newest (`quartileBand`) |
 | energy | basal (sane band) + active, with both parts (a day missing either part is missing, never basal alone — the Health expenditure card uses the same rule) + `roll`, the card's calendar 7-day rolling average |
 | weight | day means + `roll` (the Health card's calendar 7-day rolling average, only on reading days) + `latest` (the card's latest raw reading) |
@@ -109,7 +109,9 @@ has no such key. None has a host tab except
 ## Openers
 
 - `HC.detailAttrs(key, date?, {plain?})` writes `data-detail` [+ `data-date`] + a button role and tab stop
-  (`plain`: data attributes only, for a real `<button>`, an SVG cell or a table row).
+  (`plain`: data attributes only, for a real `<button>`, an SVG cell or a table row). Never on an `<li>`:
+  the button role would replace its list-item role, so a list row puts it on an inner `<div>`
+  (`<li><div data-detail … role="button">`).
 - One delegated click / Enter / Space listener in `web/src/client/detail.js` handles every opener. It
   ignores a click / Enter on a control inside a card (a, button, summary, input, select, textarea,
   `role="button"`) other than the opener itself.
@@ -459,6 +461,10 @@ All three follow the day they were opened on (strain: `X.sel`, else the view end
   `aria-labelledby`; no `aria-label` beside it, which made a second competing name) renders in `layouts/Plan.astro`'s `overlay`
   slot OUTSIDE `.wrap`, which goes `inert` while open (page scroll locked); `.wrap` also gets
   `aria-hidden` while open (fallback where `inert` is unsupported).
+- No region landmarks inside the sheet: a deep dive's or the trend chart's `<section>` carries no
+  `aria-label` / `aria-labelledby` (a named `<section>` is a region); its `<h3>` names the part, and a list
+  without a heading keeps the name on the list itself (the contributors `<ul class="dd-rows">`, the weekly
+  columns `<ol class="dd-cols">`).
 - Focus moves to the close button and Tab stays inside. Esc / the close button / a tap on the backdrop
   close it and focus returns to the opener (none — a deep link or a forward navigation — → the visible
   tab's heading, given `tabindex="-1"`).
