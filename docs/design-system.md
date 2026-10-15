@@ -299,6 +299,10 @@ small secondary line under the value, right-aligned (`base`), plus an optional s
 a ride's HR · effort · kJ) — nothing under the name, so run and ride rows are one template. Icons come from ONE set (`metricIcon`,
 which falls back to the contributor rows' paths): each row picks the icon of what it measures (a
 modality, bed, wake, target …), a neutral one when none fits; never the same icon on every row of a list.
+A row that opens a sheet (`attrs` with `HC.detailAttrs`) is `<li><div class="db-row" role="button" …>`: the
+button role sits on the inner `<div>` so the `<li>` stays a list item (a button role on the `<li>` itself drops
+it); a row that opens nothing stays `<li class="db-row">`. Same for My dashboard's stress card
+(`<li><div class="db-card db-stress">`) and the weekly plan's rows (`<li><div class="wp-row">`).
 
 ### Stale-data marker
 

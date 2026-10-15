@@ -52,7 +52,7 @@ function render(mon, { locale = 'en', now = ASOF, healthNav = false, detail = fa
 const cardOf = (html, key) => {
   const at = html.indexOf(`data-hm="${key}"`);
   assert.ok(at !== -1, `missing card ${key}`);
-  const i = html.lastIndexOf('<li class="db-row', at);
+  const i = html.lastIndexOf('<', html.lastIndexOf('class="db-row', at));
   return html.slice(i, html.indexOf('</li>', i) + 5);
 };
 
@@ -153,7 +153,7 @@ test('every card (also an empty or stale one) opens its detail view, whatever ta
   for (const nav of [true, false]) {
     const linked = render(monitor(), { healthNav: nav, detail: true });
     for (const k of ['respiratory', 'rhr', 'hrv', 'wristTemp', 'sleep']) {
-      assert.match(cardOf(linked, k), new RegExp(`data-hm="${k}" data-detail="${k}" role="button" tabindex="0" aria-haspopup="dialog"`), k);
+      assert.match(cardOf(linked, k), new RegExp(`^<div class="db-row hm-row[^"]*" data-hm="${k}" data-detail="${k}" role="button" tabindex="0" aria-haspopup="dialog"`), k);
     }
     assert.doesNotMatch(linked, /jumpOr|onclick/);
   }
