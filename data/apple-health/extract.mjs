@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { isMain } from '../../scripts/lib/is-main.mjs';
 import { writeAtomic } from './sync-common.mjs';
 // shared with sync-shortcut.mjs so export- and Shortcut-derived rows are formatted identically
-import { pickEnergySource, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights, sleepStage } from '../../lib/extract/samples.mjs';
+import { csvSource, pickEnergySource, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights, sleepStage } from '../../lib/extract/samples.mjs';
 
 const DIR = process.env.EXTRACT_DIR || path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.join(DIR, 'export.xml');
@@ -195,7 +195,7 @@ function onClose() {
     [...stepsBySrc.entries()].filter(complete).sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, bySrc]) => {
       let best = null;
       for (const [s, v] of bySrc) if (!best || v > best.v) best = { s, v };
-      return `${d},${Math.round(best.v)},${best.s || ''}`;
+      return `${d},${Math.round(best.v)},${csvSource(best.s)}`;
     }));
   // energy: ONE source per day by precedence; energySources counts the days each family won
   const energySources = { active: {}, basal: {} };
