@@ -1,9 +1,11 @@
 # Serves the Astro-built plan page (web/dist/personal/index.html) on the LAN.
 # refresh.sh rebuilds it and copies the output into ./site; only that
 # directory is mounted, so nothing else under data/ or web/ is reachable
-# over HTTP. /api/sync, /api/sync/status and /api/food/* (and nothing else)
-# are proxied to the loop-ingest service on the host, and only requests
+# over HTTP. /api/sync, /api/sync/status, /api/food/*, /api/journal/* and
+# /ingest/health-auto-export (and nothing else) are proxied to the loop-ingest
+# service on the host, and only requests
 # naming an allowed Host are answered, see nginx.conf.template.
+# Variables: services/loop-web/.env.example (all optional).
 # HC_INSTANCE (in .env, empty by default): a second install on the same host, e.g. `second`
 # (services/loop-web/README.md -> Running a second install). Empty = the plain names.
 name: loop-web${HC_INSTANCE:+-${HC_INSTANCE}}
@@ -12,8 +14,10 @@ services:
     image: nginx:alpine@sha256:72aeb3308ef6cb3118242fb16389518923916dfa206e32d1a8377acc328b9870
     container_name: loop-web${HC_INSTANCE:+-${HC_INSTANCE}}
     restart: unless-stopped
+    # PLAN_WEB_BIND (optional, e.g. the LAN IP or 127.0.0.1; an IPv6 address in brackets) publishes on that
+    # address only: Docker-published ports bypass ufw / firewalld. Unset = every address, as before.
     ports:
-      - "${PLAN_WEB_PORT:-8090}:80"
+      - "${PLAN_WEB_BIND:+${PLAN_WEB_BIND}:}${PLAN_WEB_PORT:-8090}:80"
     environment:
       # loop-ingest's host port (its INGEST_PORT); substituted into the nginx template
       INGEST_PORT: ${INGEST_PORT:-8088}

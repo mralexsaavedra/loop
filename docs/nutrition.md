@@ -120,8 +120,10 @@ weight trend after 2–3 weeks.
 
 ## Build, check and generated files
 
-- `data/nutrition/generate.mjs` only VALIDATES the merged plan and writes `plan-tables.md`; it emits no HTML
-  and fails with a clear error if `ingredients.json` is missing.
+- `data/nutrition/generate.mjs` only VALIDATES the merged plan and writes `plan-tables.md` (atomically); it
+  emits no HTML. A missing or malformed `ingredients.json` / `plan-data.json` is one `ERROR:` line and exit 1;
+  an unknown flag (`--chek`) exits 2 before anything is read or written (`--help` for the usage). Importing it
+  reads nothing: `load()` reads the two files.
 - `npm run generate` (= `node data/nutrition/generate.mjs && node scripts/build-web.mjs`, idempotent):
   validate, write `plan-tables.md`, build `web/dist/personal/index.html`.
 - `npm run check` — validators only: `generate.mjs --check` (unknown-ingredient refs, day totals vs the kcal

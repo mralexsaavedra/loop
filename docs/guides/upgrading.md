@@ -34,8 +34,10 @@ docker exec loop-db pg_dump -U health health > "backups/loop-db-$(date +%F).sql"
    (cd services/loop-ingest && docker compose up -d --build)
    ```
 
-   Or, on a release, run the published image instead of building (`mralexandersaavedra/loop-ingest`, the version
-   comes from the clone; set `HC_VERSION` in `.env` to pin another):
+   Or, with the clone checked out at a release tag (`git checkout vX.Y.Z`), run the published image instead
+   of building (`mralexandersaavedra/loop-ingest`, the version comes from the clone; set `HC_VERSION` in
+   `.env` to pin another). On `main` between releases the code is newer than any published image: use
+   `--build` above.
 
    ```sh
    (cd services/loop-ingest && docker compose pull loop-ingest && docker compose up -d)
@@ -44,11 +46,13 @@ docker exec loop-db pg_dump -U health health > "backups/loop-db-$(date +%F).sql"
 4. **The page service.** Recreate it so it picks up a changed nginx configuration or compose file:
 
    ```sh
-   (cd services/loop-web && docker compose up -d)
+   (cd services/loop-web && docker compose up -d --force-recreate)
    ```
 
-   `up -d` (not `restart`) is what applies a changed `docker-compose.yml`, such as the container hardening
-   below; `docker compose ps` should then show `healthy` for every container.
+   `--force-recreate` applies both a changed `docker-compose.yml` (such as the container hardening below) and a
+   changed `nginx.conf.template`, which is bind-mounted and rendered only when the container starts: a plain
+   `up -d` leaves the container alone when only the template changed. `docker compose ps` should then show
+   `healthy` for every container.
 
 5. **Rebuild the page now** instead of waiting for the hourly run: press **Sync** on the page, or run
    `services/loop-web/refresh.sh` by hand.

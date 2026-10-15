@@ -85,9 +85,17 @@ expand to a force-add of an ignored path (`log --oneline`, `!echo …`).
 
 ## Bash: `.gitignore` rewrites from the shell
 
-A shell write to `.gitignore` (`>`, `>>`, `tee`, `truncate`, or `sed` on it) that mentions any `PERSONAL`
-fragment is blocked. No exception name cancels the match: editing `.gitignore` from the shell is never
-needed.
+Any shell command that writes, truncates, removes, renames or hides a `.gitignore` is blocked, whatever
+paths it names: a redirect into it (`>`, `>>`, `>|`, with or without an fd number or `&` before it: `1>`, `&>`,
+`&>>`), `tee`, `sponge`, `truncate`, `rm`, `unlink`, `shred`, `mv`, `git rm`, `git update-index`,
+`git checkout` / `git restore` of it, `dd of=` it, `find … -delete`, an in-place `sed -i` / `perl -i`, or `cp` /
+`ln` / `install` / `rsync` with it as the destination. A truncated or deleted `.gitignore` un-ignores every personal file at once, and editing it from
+the shell is never needed: the editor tools below check the exact diff. Reading one stays allowed (`cat`,
+`grep`, `sed -n`, `git diff`, `cp` from it). The line is split into simple commands at `;`, `&&`, `||`, `|`
+and newlines outside quotes (`>|` stays a redirect). Not covered, by design of a text check: a write from inside
+another interpreter (`python3 -c`, `node -e`), a name hidden in a variable or a glob (`rm $f`, `rm .giti*`) and
+whole-tree removals such as `git rm -r --cached .`. The opt-in git pre-commit hook (`scripts/git-hooks`) catches
+the result of any of them at commit time.
 
 ## Edit / Write / MultiEdit on a `.gitignore`
 
@@ -124,10 +132,15 @@ git config core.hooksPath scripts/git-hooks
 [`scripts/precommit-guard.mjs`](../scripts/precommit-guard.mjs), which refuses the commit (exit 1, with the
 paths and the `git restore --staged` line to unstage them) when:
 
-1. a **staged file is ignored** by the repo's rules (`git check-ignore --no-index` over the added, copied,
-   modified and renamed paths): in this repo that means personal data that got in with `git add -f`;
+1. a **staged file is ignored** by `HEAD`'s rules (the index's on a first commit): `HEAD`'s tracked `.gitignore`
+   files and the clone's `info/exclude` are copied into a scratch repo and asked with
+   `git check-ignore --no-index` over the added, copied, modified and renamed paths. In this repo that means
+   personal data that got in with `git add -f` or after a `.gitignore` edit; an unstaged working-tree edit of a
+   `.gitignore` never changes what is judged;
 2. a **staged `.gitignore` loosens** the rules compared with `HEAD`: it drops an ignore pattern or adds a `!`
-   negation (adding patterns is fine; the commit that does it on purpose uses `--no-verify`).
+   negation, or it is **deleted** (`git rm .gitignore`, a rename away) — every pattern it held is listed, with
+   the `git restore --staged --worktree` line that brings it back (adding patterns is fine; the commit that
+   loosens on purpose uses `--no-verify`).
 
 It asks git directly instead of importing the guard hook: the hook judges shell commands and exports only its
 tokenizer (`tokenize`, `collectForceAdds`), not a per-path check. `git commit --no-verify` skips it;

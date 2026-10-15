@@ -12,7 +12,8 @@ write to it through the page's own address, so what you log appears on the page 
 
 ## Calling the API
 
-- Base URL: the address the user opens the page on (default `http://localhost:8090`), path `/api/food/…`.
+- Base URL: the address the user opens the page on (default `http://localhost:8090`, or the `PLAN_WEB_PORT` in `services/loop-web/.env`), path `/api/food/…`. Writes
+  also send `Content-Type: application/json`.
 - Every call sends the header `x-hc-food: 1`; without it the service answers `403`. No token is needed for
   `/food/*` (LAN-only trust model). Never print or echo `INGEST_TOKEN` or any secret.
 - A write carries a fresh `requestId` (a UUID): a retry with the same id is answered with the stored row, so a

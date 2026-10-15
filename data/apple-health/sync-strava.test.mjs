@@ -558,7 +558,8 @@ test('main(): 404 from an old ingest image -> exit 1, no files written, clear re
     const server = http.createServer((req, res) => { res.writeHead(404); res.end(); });
     server.listen(0, '127.0.0.1', async () => {
       process.env.INGEST_URL = 'http://127.0.0.1:' + server.address().port;
-      (await import(${JSON.stringify(SCRIPT_URL)})).main();
+      process.exitCode = await (await import(${JSON.stringify(SCRIPT_URL)})).main();
+      server.close();
     });
   `);
   let result;
@@ -603,7 +604,7 @@ test('main(): activities without elevation -> exit 0, rows written, stale-image 
     });
     server.listen(0, '127.0.0.1', async () => {
       process.env.INGEST_URL = 'http://127.0.0.1:' + server.address().port;
-      await (await import(${JSON.stringify(SCRIPT_URL)})).main();
+      process.exitCode = await (await import(${JSON.stringify(SCRIPT_URL)})).main();
       server.close();
     });
   `);
@@ -650,4 +651,38 @@ test('staleZonesWarning: only when NO activity carries the hr_hist key (null = n
   assert.match(staleZonesWarning([old]), /hr_hist/);
   assert.equal(staleZonesWarning([{ ...ZRUN, hr_hist: null }]), null);
   assert.equal(staleZonesWarning([]), null);
+});
+
+// ---- main() returns its exit code (runCli sets it): called in-process, the runner is never killed ----
+
+function mainHarness (prefix) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const out = [], err = [];
+  const env = { INGEST_ENV_FILE: path.join(dir, 'no-such.env'), INGEST_URL: 'http://127.0.0.1:9' };
+  const refused = async () => { throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } }); };
+  const answer = (status, body) => async () => ({ ok: status < 300, status, json: async () => body });
+  const blocked = path.join(dir, 'a-file');
+  fs.writeFileSync(blocked, 'x');
+  return {
+    dir, env, refused, answer, out, err,
+    io: { log: (s) => out.push(s), error: (s) => err.push(s) },
+    unwritable: path.join(blocked, 'sub'), // a path under a regular file: every write fails
+    cleanup: () => fs.rmSync(dir, { recursive: true, force: true }),
+  };
+}
+
+test('main() in-process: missing token / unreachable / 404 -> returns 1, nothing written', async () => {
+  const h = mainHarness('sync-strava-main-');
+  try {
+    const outDir = path.join(h.dir, 'extract');
+    const profileJson = path.join(h.dir, 'profile.json');
+    assert.equal(await strava.main({ env: h.env, ...h.io, fetchImpl: h.refused, outDir, profileJson }), 1);
+    assert.match(h.err.pop(), /no ingest token/);
+    const env = { ...h.env, INGEST_TOKEN: 't' };
+    assert.equal(await strava.main({ env, ...h.io, fetchImpl: h.refused, outDir, profileJson }), 1);
+    assert.match(h.err.pop(), /ECONNREFUSED/);
+    assert.equal(await strava.main({ env, ...h.io, fetchImpl: h.answer(404, {}), outDir, profileJson }), 1);
+    assert.match(h.err.pop(), /rebuild\/restart the loop-ingest container/);
+    assert.ok(!fs.existsSync(outDir));
+  } finally { h.cleanup(); }
 });

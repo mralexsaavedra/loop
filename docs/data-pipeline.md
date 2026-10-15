@@ -28,9 +28,17 @@ How the raw sources become the CSVs in `data/apple-health/extract/` that every p
 - **Read the cached extract first**: `data/apple-health/extract/*.csv` (weight, bodyfat, rhr, vo2max,
   hrv, steps-daily, active/basal-energy-daily, dietary-daily, sleep-daily, workouts) + `_meta.json`
   (ranges, row counts, caveats).
-- Regenerate after a new export is dropped: `node data/apple-health/extract.mjs`.
+- Regenerate after a new export is dropped: `node data/apple-health/extract.mjs` (no flags; `--help` prints the
+  usage, any other argument exits 2 before reading the export).
 - The raw `export.xml` is ~700 MB — only stream/grep it directly for a series not in the cache.
 - **Body metrics** carry a `source` column. Weight mixes scales — compare body fat within one scale only.
+- **Source cells** (`source` of the readings, steps, sleep and workouts) go through one helper,
+  `csvSource` in `lib/extract/samples.mjs`, on both the export and the Shortcut path: XML entities (`&amp;`,
+  `&lt;`, `&gt;`, `&quot;`, `&apos;`, `&#NNN;`, `&#xHH;`) are decoded once, then every comma and line break becomes
+  a space (the CSVs are unquoted), so `Scale, Kitchen &amp; Co` is `Scale  Kitchen & Co` from either path. A
+  name with no comma, line break or entity is unchanged. An extract written before this rule keeps its old
+  cells (a comma-named source shifted the columns; entities stayed encoded) until
+  `node data/apple-health/extract.mjs` is re-run.
 - **Steps** are deduped to max-per-device per day. Summing devices double-counts (it inflates the NEAT
   figure).
 
@@ -83,6 +91,9 @@ table.
 - Sync is incremental: a local gitignored `extract/.shortcut-cache.json` of deduped samples + the last
   payload id. `npm run sync -- --full` rebuilds it (needed once after adding a key, since the
   incremental sync only parses payloads newer than the cache).
+- Payloads (and Strava activities) are fetched in keyset pages (`fetchPages` in `sync-common.mjs`): a full
+  page whose last id is missing or not greater than the previous `since_id` stops the sync with
+  `unexpected paging cursor`, and 10 000 pages is a hard cap, so a misbehaving service can never loop it.
 - Rows are tagged `source=Shortcut`, except body comp (keeps the real scale source for the
   latest-source logic) and energy (no source column).
 - `_meta.json` `shortcutSync.owned` lists every date sync wrote, per CSV.
@@ -184,7 +195,13 @@ offset (like the energy hours).
   `services/loop-ingest/.env`, for `INGEST_TOKEN` / `INGEST_PORT`) and one command line (`parseCli` /
   `runCli`): `--help` prints the usage and exits 0; an unknown flag or a stray argument prints `ERROR:` +
   the usage and exits 2 before any request or write; a failure `main` did not handle prints one `ERROR:`
-  line and exits 1. Only the Shortcut sync takes a flag (`--full`); `npm run sync -- --full` passes it to
+  line and exits 1. Each script's exported `main` returns its exit code (never `process.exit`) and takes its
+  `env`, `log`, `error`, `fetchImpl` and output dir as injectable options, so a test calls it in-process. The
+  Shortcut and Strava syncs share `_meta.json` under one lockfile (`withLock`, `_meta.json.lock` holding the
+  pid): it is released only by the process whose pid it holds, and a lock older than 2 min is reclaimed by
+  an atomic rename that only one process can win (a fresh lock that took its place is put back). The
+  food-log sync warns `unexpected response` for a body it cannot read (the service was reached) and
+  `could not read the food log` when the service is not. Only the Shortcut sync takes a flag (`--full`); `npm run sync -- --full` passes it to
   that script alone.
 - `extract.mjs` runs only as the entry point (`isMain`), and writes every CSV and `_meta.json` atomically.
 

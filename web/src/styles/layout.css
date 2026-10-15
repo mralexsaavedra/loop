@@ -164,7 +164,7 @@ details.sec-fold > summary:hover > h2 {
 }
 /* Salud / Entreno / Nutrición: the header row stays (avatar, LOOP, freshness / Sync); the date pill
    (which steps Inicio's day) is Inicio only, their own centred title follows below */
-.wrap:has(> .tab-panel[data-tab="home"][hidden]) > .topbar > .date-pill {
+.wrap:has(> main > .tab-panel[data-tab="home"][hidden]) > .topbar > .date-pill {
   display: none;
 }
 .wordmark svg {

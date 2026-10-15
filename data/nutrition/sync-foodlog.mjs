@@ -146,7 +146,14 @@ function syncFoodlog (dir, body, { now = new Date(), writeAtomic = common.writeA
   return { written: true, days: s.days.length }
 }
 
+// A body the service sent but that is not the summary (non-JSON, or normalizeSummary rejected it): the
+// service was reached, so the warning says so instead of "could not read".
+function malformedWarning (err, baseUrl) {
+  return `WARNING: unexpected response from the food log at ${baseUrl} (${(err && err.message) || err}). ${CSV_FILE} kept.`
+}
+
 function warning (err, baseUrl) {
+  if (err && err.name === 'SyntaxError') return malformedWarning(err, baseUrl)
   const status = err && err.status
   if (status === 404) return `WARNING: the ingest service has no /food/log/summary — rebuild/restart the loop-ingest container. ${CSV_FILE} kept.`
   if (status === 503) return `WARNING: the ingest service answered 503 (food log unavailable: its 006_food migration failed). ${CSV_FILE} kept.`
@@ -162,25 +169,34 @@ Snapshots the food log's per-day sums from the ingest service into data/nutritio
   -h, --help   this help
 Env: INGEST_URL, INGEST_ENV_FILE (default services/loop-ingest/.env, for its INGEST_PORT).`
 
-async function main () {
-  const baseUrl = common.readBaseUrl(process.env)
+// The CLI entry; env / log / error / fetchImpl / outDir are injectable for tests. Returns the exit code: an
+// unreachable service or a malformed body is a warning (0), a failed write 1.
+async function main ({ env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = OUT } = {}) {
+  const baseUrl = common.readBaseUrl(env)
+  /** @type {any} */
   let body
   try {
-    body = await fetchSummary(baseUrl, windowFor())
-    normalizeSummary(body)
+    body = await fetchSummary(baseUrl, windowFor(), { fetchImpl })
   } catch (err) {
-    console.error(warning(err, baseUrl))
-    return
+    error(warning(err, baseUrl))
+    return 0
   }
   try {
-    const r = syncFoodlog(OUT, body)
-    console.log(`Food log: ${r.days} logged day${r.days === 1 ? '' : 's'} in ${body.from}..${body.to}; ${r.written ? 'written' : 'unchanged'}`)
+    normalizeSummary(body)
   } catch (err) {
-    console.error(`ERROR: food log sync failed (${(err && err.message) || err}). The files are only ever replaced atomically.`)
-    process.exit(1)
+    error(malformedWarning(err, baseUrl))
+    return 0
+  }
+  try {
+    const r = syncFoodlog(outDir, body)
+    log(`Food log: ${r.days} logged day${r.days === 1 ? '' : 's'} in ${body.from}..${body.to}; ${r.written ? 'written' : 'unchanged'}`)
+    return 0
+  } catch (err) {
+    error(`ERROR: food log sync failed (${(err && err.message) || err}). The files are only ever replaced atomically.`)
+    return 1
   }
 }
 
-if (isMain(import.meta.url)) common.runCli(main, { usage: USAGE })
+if (isMain(import.meta.url)) common.runCli(() => main(), { usage: USAGE })
 
 export { CSV_FILE, META_FILE, DAYS_MAX, HEADER, windowFor, normalizeSummary, toCsv, fetchSummary, syncFoodlog, warning, main }

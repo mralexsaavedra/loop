@@ -70,31 +70,45 @@
     var m = weightMetric(), p = compute();
     if (!p) return '<p class="pg-empty">' + esc(T.empty) + '</p>';
     var g = goal(), old = stale(p), tone = old ? 'muted' : TONE[p.status] || 'muted';
+    // the opener's accessible name: a role=button hides its children, so it carries the card's values
+    var aria = [format(T.aria, { kg: kg(p.current.kg) }) + (p.rate != null && !old ? ', ' + rateText(p) : '')];
     var out = ['<div class="pg-head"><span class="pg-lbl">' + esc(T.avg) + '</span><span class="pg-date">' + esc(format(T.asOf, { date: HC.fmtDate(p.current.date) })) + '</span></div>',
       '<div class="pg-main"><span class="pg-num"><b class="pg-kg">' + esc(kg(p.current.kg)) + '</b><small>kg</small></span>' +
       (p.rate != null && !old ? '<span class="pg-pill pg-s-' + tone + '">' + esc(rateText(p)) + '</span>' : '') + '</div>'];
     if (p.rate != null) notes.push(format(T.rateWin, { win: P.windowDays }));
-    if (old) out.push('<p class="pg-status pg-s-muted">' + esc(format(T.stale, { date: HC.fmtDate(p.current.date) })) + '</p>');
-    else {
+    if (old) {
+      out.push('<p class="pg-status pg-s-muted">' + esc(format(T.stale, { date: HC.fmtDate(p.current.date) })) + '</p>');
+      aria.push(format(T.stale, { date: HC.fmtDate(p.current.date) }));
+    } else {
+      aria.push(T.status[statusKey(p)] || '');
       out.push('<p class="pg-status pg-s-' + tone + '"><span class="pg-dot" aria-hidden="true"></span><b>' + esc(T.status[statusKey(p)] || '') + '</b></p>');
       if (detailText(p, g)) notes.unshift(detailText(p, g));
     }
     var S = window.HCSettings, ready = S && typeof S.ready === 'function' && S.ready();
     if (p.remaining != null) {
       var togo = p.remaining === 0 ? '' : format(p.remaining > 0 ? T.toGoUp : T.toGoDown, { kg: kg(Math.abs(p.remaining)) });
-      out.push('<p class="pg-target">' + esc(format(T.target, { kg: kg(target()) })) + (togo && p.status !== 'reached' ? ' · ' + esc(togo) : '') + '</p>');
-      if (p.mismatch && T['mismatch' + g]) out.push('<p class="pg-warn">' + esc(T['mismatch' + g]) + '</p>');
+      var tgt = format(T.target, { kg: kg(target()) }) + (togo && p.status !== 'reached' ? ' · ' + togo : '');
+      out.push('<p class="pg-target">' + esc(tgt) + '</p>');
+      aria.push(tgt);
+      if (p.mismatch && T['mismatch' + g]) {
+        out.push('<p class="pg-warn">' + esc(T['mismatch' + g]) + '</p>');
+        aria.push(T['mismatch' + g]);
+      }
     } else if (ready) out.push('<p class="pg-target pg-faint">' + esc(T.addTarget) + '</p>');
     if (!old && p.etaWeeks) {
       var mo = etaMonths(HC.todayIso(), p.etaWeeks);
       if (mo) {
         var a = HC.fmtMonth(mo[0]), b = HC.fmtMonth(mo[1]), spread = HC.num(P.etaSpread * 100, 0);
-        out.push('<p class="pg-eta">' + esc(a === b ? format(T.etaOne, { from: a, spread: spread }) : format(T.eta, { from: a, to: b, spread: spread })) + '</p>');
+        var eta = a === b ? format(T.etaOne, { from: a, spread: spread }) : format(T.eta, { from: a, to: b, spread: spread });
+        out.push('<p class="pg-eta">' + esc(eta) + '</p>');
+        aria.push(eta);
       }
     }
     notes.push(format(T.method, { win: P.windowDays }));
     var open = m ? HC.detailAttrs('weight') : '';
-    return '<div class="nutri-card pg-card"' + open + (open ? ' aria-label="' + esc(T.open) + '"' : '') + '>' + out.join('') + '</div>';
+    aria.push(T.open);
+    var label = aria.filter(Boolean).map(function (s) { return String(s).replace(/\.$/, ''); }).join('. ');
+    return '<div class="nutri-card pg-card"' + open + (open ? ' aria-label="' + esc(label) + '"' : '') + '>' + out.join('') + '</div>';
   }
   function render() {
     var host = document.getElementById ? document.getElementById('nutri-progress') : null;

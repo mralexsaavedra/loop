@@ -3,7 +3,8 @@ const ACTIVITIES_URL = 'https://www.strava.com/api/v3/athlete/activities'
 const PAGE_SIZE = 100
 // a hung request must never block the shared sync run (POST /sync, the timer and /sync/strava join it)
 const FETCH_TIMEOUT_MS = 15_000
-// 200 x 100 = 20,000 activities: decades of history even on a first pull (no cursor); more means a broken cursor
+// 200 x 100 = 20,000 activities per run: decades of history even on a first pull; more means a broken cursor.
+// Every page is stored as it arrives (pullActivitiesSince), so even hitting this cap keeps the progress.
 const MAX_PAGES = 200
 
 /**
@@ -84,10 +85,7 @@ export function createTokenProvider ({
     })
   }
 
-  return async function getAccessToken () {
-    // 60s of slack so a token cannot expire mid-request.
-    if (accessToken && Date.now() < expiresAt - 60_000) return accessToken
-
+  async function refresh () {
     let used = await loadCurrent()
     let res = await requestToken(used)
     if (!res.ok && (res.status === 400 || res.status === 401) && used !== refreshToken) {
@@ -112,6 +110,17 @@ export function createTokenProvider ({
       try { await onSaveResult?.(ok) } catch {}
     }
     return accessToken
+  }
+
+  // Single flight: callers that find no valid token while a refresh is running (the activity pull, the
+  // athlete refresh and the HR backfill share this provider) wait for THAT refresh instead of starting
+  // their own, so a rotating refresh token is never spent twice.
+  let inflight = null
+  return function getAccessToken () {
+    // 60s of slack so a token cannot expire mid-request.
+    if (accessToken && Date.now() < expiresAt - 60_000) return Promise.resolve(accessToken)
+    if (!inflight) inflight = refresh().finally(() => { inflight = null })
+    return inflight
   }
 }
 
@@ -152,19 +161,21 @@ export function createTokenStore (pool) {
 }
 
 /**
- * Walk /athlete/activities newest-first, stopping once we reach activities we
- * already hold. `after` is a unix timestamp; Strava returns them ascending when
- * it is set, so we page until exhausted.
+ * Walk /athlete/activities from `sinceEpochSeconds` (a unix timestamp; 0 when nothing is stored yet). With
+ * `after` set Strava returns the activities ASCENDING, so every page is handed to `onPage` (awaited) before
+ * the next one is requested: the caller stores it right away, and a rate limit (429) or any failure partway
+ * keeps everything already stored. The next run then resumes from the newest stored activity instead of
+ * starting over, so a long first history completes over a few runs. Resolves the number of activities.
  */
-export async function fetchActivitiesSince (getAccessToken, sinceEpochSeconds, fetchImpl = fetch) {
-  const collected = []
+export async function pullActivitiesSince (getAccessToken, sinceEpochSeconds, onPage, fetchImpl = fetch) {
+  let total = 0
   let page = 1
 
   while (true) {
     const url = new URL(ACTIVITIES_URL)
     url.searchParams.set('per_page', String(PAGE_SIZE))
     url.searchParams.set('page', String(page))
-    if (sinceEpochSeconds) url.searchParams.set('after', String(sinceEpochSeconds))
+    url.searchParams.set('after', String(sinceEpochSeconds ?? 0))
 
     const token = await getAccessToken()
     const res = await fetchImpl(url, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
@@ -177,18 +188,27 @@ export async function fetchActivitiesSince (getAccessToken, sinceEpochSeconds, f
     if (!res.ok) throw new Error(`strava activities failed: ${res.status}`)
 
     const batch = await res.json()
-    collected.push(...batch)
-    if (batch.length < PAGE_SIZE) return collected
+    if (batch.length > 0) await onPage(batch)
+    total += batch.length
+    if (batch.length < PAGE_SIZE) return total
     if (page >= MAX_PAGES) throw new Error(`strava activities: more than ${MAX_PAGES} pages`)
 
     page += 1
   }
 }
 
+/** pullActivitiesSince, collected into one array (no incremental storage). */
+export async function fetchActivitiesSince (getAccessToken, sinceEpochSeconds, fetchImpl = fetch) {
+  const collected = []
+  await pullActivitiesSince(getAccessToken, sinceEpochSeconds, (batch) => { collected.push(...batch) }, fetchImpl)
+  return collected
+}
+
 export async function upsertActivities (pool, activities) {
   if (activities.length === 0) return 0
 
   const client = await pool.connect()
+  let failure
   try {
     await client.query('BEGIN')
     for (const activity of activities) {
@@ -212,10 +232,13 @@ export async function upsertActivities (pool, activities) {
     await client.query('UPDATE strava_sync_state SET last_synced_at = now() WHERE id = 1')
     await client.query('COMMIT')
   } catch (err) {
-    await client.query('ROLLBACK')
+    failure = err
+    // on a dead connection the ROLLBACK throws too: never let it hide the original error
+    await client.query('ROLLBACK').catch(() => {})
     throw err
   } finally {
-    client.release()
+    // release(err) makes the pool discard a client that failed mid-transaction instead of reusing it
+    client.release(failure)
   }
 
   return activities.length

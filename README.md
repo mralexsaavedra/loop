@@ -122,7 +122,7 @@ through it: it checks what is already in place, then goes one step at a time.
 
 3. **Export Apple Health:** iPhone → Health → your photo → *Export All Health Data*. Unzip and put
    `export.xml` in `data/apple-health/`, then run `node data/apple-health/extract.mjs` (it caches small
-   per-metric CSVs; re-run after each new export). No export yet? Skip to step 6 and try the demo first.
+   per-metric CSVs; re-run after each new export). No export yet? See the demo first: `npm run build:example` and open `web/dist/example/index.html`.
 4. **Start Claude Code and say hi** (`claude` inside the folder). With no profile yet it runs the
    onboarding interview and writes `profile/about-me.md`, `profile/baseline.md` and `profile/coaches.md`
    for you (all gitignored). Prefer to fill them yourself? Copy each `*.example.md` → `*.md`.
@@ -168,7 +168,7 @@ calories and macros for each kind of day. You can adjust them before saving and 
 Everything on the page works without Claude Code; only the reports, the coaches and the agent need it.
 
 1. **Install:** [`services/loop-web/README.md` → Install (host)](services/loop-web/README.md#install-host) —
-   ten numbered steps, from the secrets file to opening the page on your phone.
+   eleven numbered steps (0–10), from the secrets file to opening the page on your phone.
 2. Keeping it up to date: [`docs/guides/upgrading.md`](docs/guides/upgrading.md); something not working:
    [`docs/guides/troubleshooting.md`](docs/guides/troubleshooting.md).
 3. Reference when you need it: the food log API and every setting

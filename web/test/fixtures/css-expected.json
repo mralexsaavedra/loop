@@ -52,9 +52,6 @@
   "(min-width:900px)|||.tn-row|||margin-left": "auto",
   "(min-width:900px)|||.tn-row|||margin-right": "auto",
   "(min-width:900px)|||.tn-row|||max-width": "560px",
-  "(min-width:900px)|||.wrap>.topbar, .wrap>.tab-panel, .wrap>footer|||margin-left": "auto",
-  "(min-width:900px)|||.wrap>.topbar, .wrap>.tab-panel, .wrap>footer|||margin-right": "auto",
-  "(min-width:900px)|||.wrap>.topbar, .wrap>.tab-panel, .wrap>footer|||max-width": "var(--content-max)",
   "(min-width:900px)|||.wrap|||--gutter": "clamp(24px, 3vw, 52px)",
   "(min-width:900px)|||.wrap|||display": "block",
   "(min-width:900px)|||.wrap|||margin": "0",
@@ -3258,7 +3255,6 @@
   "|||.wp-val|||white-space": "nowrap",
   "|||.wp[open] .wp-chev|||transform": "rotate(-90deg)",
   "|||.wp|||padding": "0",
-  "|||.wrap:has(>.tab-panel[data-tab=home][hidden])>.topbar>.date-pill|||display": "none",
   "|||.wrap|||margin": "0 auto",
   "|||.wrap|||max-width": "680px",
   "|||.wrap|||padding": "0 var(--sp-7)",
@@ -4319,5 +4315,9 @@
   "|||.day-lbl:before|||top": "calc(50% - 22px)",
   "|||.day-lbl:before|||bottom": "calc(50% - 22px)",
   "|||.day-lbl:before|||left": "0",
-  "|||.day-lbl:before|||right": "0"
+  "|||.day-lbl:before|||right": "0",
+  "(min-width:900px)|||.wrap>.topbar, .wrap>main, .wrap>footer|||max-width": "var(--content-max)",
+  "(min-width:900px)|||.wrap>.topbar, .wrap>main, .wrap>footer|||margin-left": "auto",
+  "(min-width:900px)|||.wrap>.topbar, .wrap>main, .wrap>footer|||margin-right": "auto",
+  "|||.wrap:has(>main>.tab-panel[data-tab=home][hidden])>.topbar>.date-pill|||display": "none"
 }

@@ -12,6 +12,6 @@
     "skipLibCheck": true,
     "maxNodeModuleJsDepth": 0
   },
-  "include": ["lib/**/*.mjs"],
-  "exclude": ["lib/**/*.test.mjs"]
+  "include": ["lib/**/*.mjs", "data/**/*.mjs", "scripts/*.mjs"],
+  "exclude": ["lib/**/*.test.mjs", "data/**/*.test.mjs", "scripts/*.test.mjs"]
 }

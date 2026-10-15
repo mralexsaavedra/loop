@@ -29,9 +29,9 @@ suite and dependencies (`npm run test:services`).
 | `TEST_DATABASE_URL=postgres://… npm run test:pg` | The data service against a real Postgres (`services/loop-ingest/test/pg/`): the real migrations on a fresh empty database per file, the ledger + lock, the main DB paths. Needs a Postgres 17 where the user may `CREATE DATABASE` (a throwaway `docker run --rm -e POSTGRES_PASSWORD=x -p 127.0.0.1:5544:5432 postgres:17-alpine` does); without the variable the tests skip. CI runs it in the `postgres` job |
 | `npm run check` | Validators only, no build (plan, ingredients, `training-data.json`, `profile/profile.json`) |
 | `npm run lint` | ESLint over the whole repo ([`eslint.config.mjs`](../eslint.config.mjs)): correctness rules only (unused / undefined names, redeclarations, useless assignments), never formatting; CI runs it |
-| `npm run typecheck` | TypeScript over `lib/**/*.mjs` as JavaScript ([`jsconfig.json`](../jsconfig.json), `checkJs`, no emit): a wrong property, argument count or shape fails; types come from JSDoc (`@param`, `@type`, `@returns`), never `// @ts-ignore`; CI runs it |
+| `npm run typecheck` | TypeScript over `lib/**/*.mjs`, `data/**/*.mjs` and `scripts/*.mjs` (tests excluded) as JavaScript ([`jsconfig.json`](../jsconfig.json), `checkJs`, no emit): a wrong property, argument count or shape fails; types come from JSDoc (`@param`, `@type`, `@returns`), never `// @ts-ignore`; CI runs it |
 | `npm run build:example` | Example page from the tracked seeds + the synthetic demo extract, no personal files |
-| `node scripts/build-web.mjs [--mode personal\|example] [--locale es\|en]` | Build one page variant into `web/dist/<mode>/index.html` |
+| `node scripts/build-web.mjs [--mode personal\|example] [--locale es\|en] [--outdir <dir>] [--check]` | Build one page variant into `web/dist/<mode>/index.html` (`--help` for the flags) |
 | `npm run test:css:update` | Regenerate `web/test/fixtures/css-expected.json` from the example build after a deliberate CSS change (keeps key order, appends new, drops stale; `-- --check` writes nothing) |
 | `npm run golden:bake` | Compare every build-time bake (`web/src/bakes.mjs`) for the example + an empty extract against `web/test/fixtures/bake-golden.*.json` (`-- --update` rewrites them after a deliberate change; `-- --personal` writes/compares the gitignored `web/test/.golden/` personal golden, paths only, exit 2 without personal inputs; `-- --personal --root <clone>` reads that clone's data + golden with this checkout's code, read-only there) |
 | `npm run demo:data` | Regenerate the synthetic demo extract `data/demo/extract/` (`scripts/make-demo-data.mjs`) |
@@ -69,14 +69,17 @@ Never hand-edit them; change the source and regenerate:
 | `web/test/fixtures/bake-golden.*.json` | `web/src/bakes.mjs` | `npm run golden:bake -- --update` |
 
 A runnable `scripts/*.mjs` guards its CLI with `if (isMain(import.meta.url))` from `scripts/lib/is-main.mjs`
-(realpath compare, so symlinks and relative paths work; importing never runs main).
+(realpath compare, so symlinks and relative paths work; importing never runs main). The sync scripts,
+`scripts/build-web.mjs`, `data/nutrition/generate.mjs` and `data/apple-health/extract.mjs` parse their flags
+with `parseCli` (`data/apple-health/sync-common.mjs`): `--help` prints the usage, and an unknown flag (a typo
+such as `--chek` or `--mod`) or a stray argument exits 2 before anything is read or written.
 
 ## Guards
 
 | Guard | What it keeps true | Doc |
 | --- | --- | --- |
 | Guard hook (`.claude/hooks/guard-health-data.js`) | No force-adding ignored personal files, no un-ignoring them in `.gitignore` | [`guard-hook.md`](guard-hook.md) |
-| Git pre-commit hook (opt-in: `git config core.hooksPath scripts/git-hooks`) | The same rule for your own commits: no staged ignored file, no staged `.gitignore` that drops a pattern or adds a `!` | [`guard-hook.md`](guard-hook.md#git-pre-commit-hook-opt-in) |
+| Git pre-commit hook (opt-in: `git config core.hooksPath scripts/git-hooks`) | The same rule for your own commits: no staged ignored file, no staged `.gitignore` that drops a pattern, adds a `!` or is deleted (judged against `HEAD`'s rules) | [`guard-hook.md`](guard-hook.md#git-pre-commit-hook-opt-in) |
 | Design system test | Role tokens, one picked style, chevrons, card radius / padding | [`design-system.md`](design-system.md) |
 | Inline CSS budget (`web/test/css-slim.test.mjs`) | The slimmed inline CSS (fonts excluded) stays under its budget (110 000 chars; re-measured 2026-10-15 at ≈ 108.9 KB) | [`plan-page.md`](plan-page.md) |
 | Phone inputs (`web/test/mobile.test.mjs`) | Text inputs are ≥ 16 px on phones (no iOS zoom) | [`plan-page.md`](plan-page.md) |

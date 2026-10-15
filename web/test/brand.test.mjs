@@ -41,7 +41,7 @@ test('home-screen icon: a 180×180 PNG apple-touch-icon inlined as base64', () =
 
 test('the wordmark sits inside the top bar, between the avatar and the date pill, before every tab panel, once', () => {
   const at = html.indexOf('<button type="button" class="wordmark"');
-  assert.ok(at > html.indexOf('<div class="topbar"'), 'inside the top bar');
+  assert.ok(at > html.indexOf('<header class="topbar"'), 'inside the top bar');
   assert.ok(at > html.indexOf('id="avatar-btn"') && at < html.indexOf('class="date-pill"'), 'avatar · wordmark · pill');
   assert.ok(at < html.indexOf('<div class="dock"'), 'before the dock');
   assert.ok(at < html.indexOf('class="tab-panel"'), 'before the panels');

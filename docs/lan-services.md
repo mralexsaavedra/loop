@@ -9,7 +9,8 @@
 
 Besides opening the built file locally, `services/loop-web` serves `web/dist/personal/index.html` on the LAN
 (nginx, `./site` only), gzipped (server level: the page, CSS / JS / JSON, ≥ 1 KB, level 5, `Vary`;
-the four proxied ingest routes are `gzip off` — their responses reflect request input next to stored
+the five proxied ingest routes (`/api/sync`, `/api/sync/status`, `/api/food/`, `/api/journal/`,
+`/ingest/health-auto-export`) are `gzip off` — their responses reflect request input next to stored
 data, a BREACH-style oracle; pinned by `scripts/loop-web-config.test.mjs`; rollout `docker compose
 up -d` in `services/loop-web`). `refresh.sh` rebuilds and publishes it hourly (cron) AND on demand, under a
 **sequence protocol** (no clock comparison anywhere):
@@ -61,8 +62,9 @@ up -d` in `services/loop-web`). `refresh.sh` rebuilds and publishes it hourly (c
   ingest `/journal/*` (GET / PUT, 16 KB, the `X-HC-Journal` header forwarded; `docs/journal.md`) and EXACTLY `POST /ingest/health-auto-export`
   → the same ingest route (the iOS Shortcut upload when loop-web is the public entry and ingest is not
   exposed: `Authorization` / `Automation-Name` / `Content-Type` forwarded, no `Bearer` token → `401`
-  before the body is read, ingest checks the bearer, `client_max_body_size 8m` ≤ ingest's
-  `MAX_BODY_BYTES` default); every other `/api/` or `/ingest/`
+  before the body is read, ingest checks the bearer, `client_max_body_size 8m` = ingest's
+  `MAX_BODY_BYTES` default, 8 MB; a payload holding `\u0000` is a `400 nul_character`, which jsonb cannot
+  store); every other `/api/` or `/ingest/`
   path 404, never `/export/*` or `/sync/strava` (pinned by `scripts/loop-web-config.test.mjs`).
   Static device manuals: EXACTLY `/manuales/<MANUAL_FILE_RE>` (a quoted regex location; GET / HEAD,
   `types { }` + `default_type application/pdf`, `Content-Disposition: inline`, `X-Content-Type-Options:
@@ -81,7 +83,12 @@ up -d` in `services/loop-web`). `refresh.sh` rebuilds and publishes it hourly (c
   (the page included) answers only a Host that is an IP literal, `localhost` or a name in
   `PLAN_WEB_EXTRA_HOSTS`, else `421` (DNS rebinding; how to add a name: [`nutrition-food-log.md` → Security](nutrition-food-log.md#security)).
   The ingest service itself is never exposed: loop-web is the only entry, and nothing forwards `/export/*`,
-  `/sync/strava`, or the ingest port (published on the host's LAN only, for loop-web).
+  `/sync/strava`, or the ingest port (published on the host's LAN only, for loop-web). Docker-published
+  ports bypass ufw / firewalld: on a host with a public address set `INGEST_BIND` / `PLAN_WEB_BIND` (both
+  optional, unset = every address) to the LAN IP. Every failed bearer check is logged as a counted
+  `unauthorized` event (path, reason, client address; never the token). Response headers on every path:
+  nosniff, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, CSP `frame-ancestors 'none'`, COOP and
+  CORP `same-origin`, and a `Permissions-Policy` turning off camera, microphone, geolocation, payment and USB.
 - **Container hardening.** All three containers run read-only (tmpfs for what they write), with every
   capability dropped but the few their entrypoints need (`loop-db`: `CHOWN`, `DAC_READ_SEARCH`, `SETUID`,
   `SETGID`; `loop-web`: `CHOWN`, `SETUID`, `SETGID`; `loop-ingest`: none), `no-new-privileges`, memory / CPU /
@@ -96,7 +103,10 @@ up -d` in `services/loop-web`). `refresh.sh` rebuilds and publishes it hourly (c
   by Strava is stored in `strava_token` (3 save attempts with backoff; on failure it is kept in memory,
   status shows `strava_token_save`, and the save is retried next refresh) and preferred over
   `STRAVA_REFRESH_TOKEN` (the bootstrap); a failed store read is retried next refresh; a rejected
-  stored token falls back to the env one once. Rolling this out needs an ingest rebuild
+  stored token falls back to the env one once. Concurrent callers share one in-flight token refresh. The
+  activity pull walks ascending from a cursor (newest stored start − 7 days, or 0 on an empty database) and
+  upserts each page of 100 as it arrives, so a first pull of a long history stopped by a `429` resumes from
+  what it stored on the next run. Rolling this out needs an ingest rebuild
   (`docker compose up -d --build`, runs the idempotent `sql/003_sync.sql`).
 - **HR-stream backfill.** After each successful Strava pull the loop fetches at most 10 activity HR
   streams (newest first, never more than 30 per 15 min / 300 per 24 h, counted in

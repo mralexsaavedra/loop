@@ -26,25 +26,29 @@
  */
 // Load dial modality switch: shows the chosen modality's dial on Inicio, hides the others. The gym /
 // run / bike pills live in the load deep-dive (client/deepdive.js modSwitch: each opens that
-// modality's page and, through data-mod, calls scMod), not under the dials; the collapsed dial row (#home-mini) carries
-// the same data-dmod items, so it follows too. A missing host is skipped.
-function scMod(key) {
-  ['home-dials', 'home-advice', 'home-mini'].forEach(function (id) {
-    var host = document.getElementById(id);
-    if (!host || !host.querySelectorAll) return;
-    host.querySelectorAll('[data-dmod]').forEach(function (el) {
-      el.hidden = el.getAttribute('data-dmod') !== key;
+// modality's page and, through data-mod, sets this dial), not under the dials; the collapsed dial row (#home-mini) carries
+// the same data-dmod items, so it follows too. A missing host is skipped. No bare page global: the setter is
+// window.HCScore.setMod (deepdive.js feature-detects it), and the load pages' pills carry data-mod="<modality>"
+// (no inline onclick: the page's CSP blocks them); a click on one follows Inicio's dial through the delegated
+// listener below, the pill's own data-detail still opens its page (detail.js)
+(function () {
+  function setMod(key) {
+    ['home-dials', 'home-advice', 'home-mini'].forEach(function (id) {
+      var host = document.getElementById(id);
+      if (!host || !host.querySelectorAll) return;
+      host.querySelectorAll('[data-dmod]').forEach(function (el) {
+        el.hidden = el.getAttribute('data-dmod') !== key;
+      });
     });
-  });
-}
-// the load pages' pills carry data-mod="<modality>" (no inline onclick: the page's CSP blocks them);
-// a click on one follows Inicio's dial, the pill's own data-detail still opens its page (detail.js)
-if (typeof document.addEventListener === 'function') {
-  document.addEventListener('click', function (e) {
-    var b = e && e.target && typeof e.target.closest === 'function' ? e.target.closest('[data-mod]') : null;
-    if (b) scMod(b.getAttribute('data-mod'));
-  });
-}
+  }
+  if (typeof window !== 'undefined') window.HCScore = { setMod: setMod };
+  if (typeof document.addEventListener === 'function') {
+    document.addEventListener('click', function (e) {
+      var b = e && e.target && typeof e.target.closest === 'function' ? e.target.closest('[data-mod]') : null;
+      if (b) setMod(b.getAttribute('data-mod'));
+    });
+  }
+})();
 (function () {
   var host = document.getElementById('home-advice');
   if (!host) return;

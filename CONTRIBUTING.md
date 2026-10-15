@@ -24,7 +24,8 @@ user's data, never just one person's.
 ## Pull requests
 
 1. Branch from `main`.
-2. Run `npm test` and `npm run test:services`; CI runs both again on the pull request.
+2. Run `npm run lint`, `npm run typecheck`, `npm test` and `npm run test:services`; CI runs them all again, plus the
+   real-Postgres suite, on the pull request.
 3. Describe what changes for someone running LOOP, and how you checked it.
 
 Security problems go through the private channel in [`SECURITY.md`](SECURITY.md), not a public issue or PR.
