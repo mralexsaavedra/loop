@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /* Food log export — snapshots the per-day sums of the food log the LAN page writes to the ingest
- * service (services/health-ingest, GET /food/log/summary, the shared daySummaries formula of
+ * service (services/loop-ingest, GET /food/log/summary, the shared daySummaries formula of
  * lib/nutrition/foodlog.mjs) into data/nutrition/foodlog-daily.csv, so read-only consumers (the
  * nutrition-coach subagent, which only reads files) see what the user actually logged.
  *
  *   node data/nutrition/sync-foodlog.mjs     (part of `npm run sync`, after the settings sync)
  *
- * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/health-ingest/.env>, else :8088). No token: /food/* is the unauthenticated,
+ * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/loop-ingest/.env>, else :8088). No token: /food/* is the unauthenticated,
  *          LAN-only food layer; the request carries `X-HC-Food: 1` and the URL's Host must be one the
  *          service accepts (an IP literal, localhost, or a name in its FOOD_ALLOWED_HOSTS).
  * Window : the last DAYS_MAX (= FOOD_LIMITS.summaryDaysMax, the server's cap) days ending on the
@@ -164,7 +164,7 @@ function syncFoodlog (dir, body, { now = new Date(), writeAtomic = common.writeA
 
 function warning (err, baseUrl) {
   const status = err && err.status
-  if (status === 404) return `WARNING: the ingest service has no /food/log/summary — rebuild/restart the health-ingest container. ${CSV_FILE} kept.`
+  if (status === 404) return `WARNING: the ingest service has no /food/log/summary — rebuild/restart the loop-ingest container. ${CSV_FILE} kept.`
   if (status === 503) return `WARNING: the ingest service answered 503 (food log unavailable: its 006_food migration failed). ${CSV_FILE} kept.`
   if (status === 421) return `WARNING: the ingest service refused the host of ${baseUrl} (421) — use localhost / an IP, or add the name to FOOD_ALLOWED_HOSTS. ${CSV_FILE} kept.`
   if (status === 429) return `WARNING: the ingest service rate-limited the food log summary (429) — retry later. ${CSV_FILE} kept.`

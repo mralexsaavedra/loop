@@ -89,7 +89,7 @@ test('stalePowerWarning: rides with kJ but none carrying device_watts / start_ut
   assert.equal(stalePowerWarning([RIDE]), null);
   assert.equal(stalePowerWarning([{ ...RIDE, device_watts: false }]), null, 'false is a real value');
   assert.equal(stalePowerWarning([{ ...old, sport_type: 'Run' }]), null, 'only rides with kJ count');
-  assert.match(stalePowerWarning([old]), /docker compose up -d --build health-ingest/);
+  assert.match(stalePowerWarning([old]), /docker compose up -d --build loop-ingest/);
 });
 
 // ---- sport_type -> type mapping table ----------------------------------------------------
@@ -573,7 +573,7 @@ test('main(): 404 from an old ingest image -> exit 1, no files written, clear re
     result = { status: err.status, stderr: err.stderr.toString() };
   }
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /rebuild\/restart the health-ingest container/);
+  assert.match(result.stderr, /rebuild\/restart the loop-ingest container/);
   assert.ok(!fs.existsSync(outDir), 'no file must be written on a 404');
   fs.rmSync(dir, { recursive: true });
 });
@@ -585,7 +585,7 @@ test('staleImageWarning(): warns only when activities exist and NONE carries tot
   assert.equal(staleImageWarning([]), null, 'nothing fetched -> nothing to judge');
   assert.equal(staleImageWarning([act({ total_elevation_gain: 0 })]), null, '0 m (indoor ride) is a real value');
   assert.equal(staleImageWarning([act({}), act({ total_elevation_gain: 120 })]), null, 'one activity with the field is enough');
-  assert.match(staleImageWarning([act({}), act({})]), /docker compose up -d --build health-ingest/);
+  assert.match(staleImageWarning([act({}), act({})]), /docker compose up -d --build loop-ingest/);
 });
 
 test('main(): activities without elevation -> exit 0, rows written, stale-image warning on stderr', () => {
@@ -614,7 +614,7 @@ test('main(): activities without elevation -> exit 0, rows written, stale-image 
   });
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stderr, /ingest image is probably stale/);
-  assert.match(r.stderr, /docker compose up -d --build health-ingest/);
+  assert.match(r.stderr, /docker compose up -d --build loop-ingest/);
   assert.ok(fs.existsSync(path.join(outDir, WORKOUTS_CSV)), 'the sync still writes its rows');
   fs.rmSync(dir, { recursive: true });
 });

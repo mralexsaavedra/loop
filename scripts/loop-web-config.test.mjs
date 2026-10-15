@@ -1,5 +1,5 @@
-/* Static guards for the on-demand refresh wiring (services/plan-web nginx + compose + systemd units,
- * services/health-ingest compose). They pin the SECURITY boundary: the plan-web server may proxy
+/* Static guards for the on-demand refresh wiring (services/loop-web nginx + compose + systemd units,
+ * services/loop-ingest compose). They pin the SECURITY boundary: the loop-web server may proxy
  * exactly three exact ingest routes (POST /sync, GET /sync/status, and the Shortcut's bearer-checked
  * POST /ingest/health-auto-export) plus the food log prefix (/api/food/ -> /food/) and the journal
  * prefix (/api/journal/ -> /journal/), never a data
@@ -14,12 +14,12 @@ import { spawnSync } from 'node:child_process';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const read = (...p) => fs.readFileSync(path.join(ROOT, ...p), 'utf8');
-const PLAN_WEB = path.join('services', 'plan-web');
-const nginx = read(PLAN_WEB, 'nginx.conf.template');
-const planCompose = read(PLAN_WEB, 'docker-compose.yml');
-const pathUnit = read(PLAN_WEB, 'systemd', 'plan-web-refresh.path');
-const serviceUnit = read(PLAN_WEB, 'systemd', 'plan-web-refresh.service');
-const ingestCompose = read('services', 'health-ingest', 'docker-compose.yml');
+const LOOP_WEB = path.join('services', 'loop-web');
+const nginx = read(LOOP_WEB, 'nginx.conf.template');
+const planCompose = read(LOOP_WEB, 'docker-compose.yml');
+const pathUnit = read(LOOP_WEB, 'systemd', 'loop-web-refresh.path');
+const serviceUnit = read(LOOP_WEB, 'systemd', 'loop-web-refresh.service');
+const ingestCompose = read('services', 'loop-ingest', 'docker-compose.yml');
 
 /** `location <spec> { body }` blocks (bodies may hold one nested level, e.g. limit_except; a quoted
  * regex spec may hold braces). */
@@ -74,7 +74,7 @@ test('nginx: everything else under /api is a 404; data endpoints are never named
   assert.deepEqual(specs.filter((s) => /ingest/.test(s)), ['= /ingest/health-auto-export'], 'the only ingest location is the exact Shortcut route');
 });
 
-// The iOS Shortcut posts its payload through plan-web when plan-web is the public entry (behind an
+// The iOS Shortcut posts its payload through loop-web when loop-web is the public entry (behind an
 // SSO tunnel that bypasses /ingest/* and /api/sync); ingest checks the bearer itself.
 test('nginx = /ingest/health-auto-export: exact, POST only, the body passed with the ingest cap, auth headers forwarded', () => {
   const ingest = locations(nginx).find((l) => l.spec === '= /ingest/health-auto-export');
@@ -83,7 +83,7 @@ test('nginx = /ingest/health-auto-export: exact, POST only, the body passed with
   assert.match(ingest.body, /limit_except POST \{ deny all; \}/);
   assert.doesNotMatch(ingest.body, /proxy_pass_request_body off/, 'the JSON payload is the whole point');
   assert.match(ingest.body, /client_max_body_size 8m;/, 'a Shortcut payload is a few hundred KB');
-  const server = read('services', 'health-ingest', 'src', 'server.js');
+  const server = read('services', 'loop-ingest', 'src', 'server.js');
   const def = /MAX_BODY_BYTES = Number\(process\.env\.MAX_BODY_BYTES \?\? ([\d\s*]+)\)/.exec(server);
   assert.ok(def, 'the ingest default MAX_BODY_BYTES is readable');
   const ingestMax = def[1].split('*').reduce((a, n) => a * Number(n.trim()), 1);
@@ -131,21 +131,27 @@ test('nginx serves status.json uncached', () => {
   assert.match(status.body, /Cache-Control\s+"no-cache/);
 });
 
-test('plan-web compose: host-gateway alias, nginx template mount, INGEST_PORT default', () => {
+test('loop-web compose: host-gateway alias, nginx template mount, INGEST_PORT default', () => {
   assert.match(planCompose, /extra_hosts:\s*\n\s*-\s*"host\.docker\.internal:host-gateway"/);
   assert.match(planCompose, /\.\/nginx\.conf\.template:\/etc\/nginx\/templates\/default\.conf\.template:ro/);
   assert.match(planCompose, /INGEST_PORT:\s*\$\{INGEST_PORT:-8088\}/);
   assert.match(planCompose, /\.\/site:\/usr\/share\/nginx\/html:ro/, 'still only ./site is served');
 });
 
-test('health-ingest compose bind-mounts the trigger dir', () => {
+test('loop-ingest compose bind-mounts the trigger dir', () => {
   assert.match(ingestCompose, /-\s*\.\/trigger:\/trigger/);
   assert.match(ingestCompose, /TRIGGER_DIR:\s*\/trigger/);
 });
 
+test('loop-ingest compose: the database volume has an explicit name, independent of the project name', () => {
+  assert.match(ingestCompose, /^\s+- loop-db-data:\/var\/lib\/postgresql\/data$/m);
+  assert.match(ingestCompose, /^volumes:\n  loop-db-data:\n(?:\s+#.*\n)*\s+name: loop-db-data\$\{HC_INSTANCE:\+-\$\{HC_INSTANCE\}\}$/m);
+  assert.match(ingestCompose, /^\s+container_name: loop-db\$\{HC_INSTANCE:\+-\$\{HC_INSTANCE\}\}$/m);
+});
+
 test('systemd path unit watches the trigger file and starts the refresh service', () => {
-  assert.match(pathUnit, /^PathModified=\/path\/to\/health-coach\/services\/health-ingest\/trigger\/refresh$/m);
-  assert.match(pathUnit, /^Unit=plan-web-refresh\.service$/m);
+  assert.match(pathUnit, /^PathModified=\/path\/to\/loop\/services\/loop-ingest\/trigger\/refresh$/m);
+  assert.match(pathUnit, /^Unit=loop-web-refresh\.service$/m);
   assert.match(pathUnit, /^WantedBy=multi-user\.target$/m);
 });
 
@@ -153,8 +159,8 @@ test('systemd service: oneshot running refresh.sh from the repo as the repo OWNE
   assert.match(serviceUnit, /^Type=oneshot$/m);
   assert.match(serviceUnit, /^User=REPO_OWNER$/m, 'a placeholder the installer must replace, never a hardcoded root');
   assert.doesNotMatch(serviceUnit, /^User=root$/m);
-  assert.match(serviceUnit, /^WorkingDirectory=\/path\/to\/health-coach$/m);
-  assert.match(serviceUnit, /^ExecStart=\/path\/to\/health-coach\/services\/plan-web\/refresh\.sh$/m);
+  assert.match(serviceUnit, /^WorkingDirectory=\/path\/to\/loop$/m);
+  assert.match(serviceUnit, /^ExecStart=\/path\/to\/loop\/services\/loop-web\/refresh\.sh$/m);
   assert.match(serviceUnit, /^Environment=PLAN_WEB_WAIT_LOCK=1$/m);
   const timeout = Number(/^TimeoutStartSec=(\d+)$/m.exec(serviceUnit)[1]);
   assert.ok(timeout >= 900 + 3 * (300 + 900 + 300), 'covers the lock wait + 3 passes of sync/npm ci/generate');
@@ -162,33 +168,33 @@ test('systemd service: oneshot running refresh.sh from the repo as the repo OWNE
 
 test('systemd service is hardened: no new privileges, read-only system and home, writable repo only', () => {
   const directives = serviceUnit.split('\n').map((l) => l.trim());
-  for (const line of ['NoNewPrivileges=yes', 'PrivateTmp=yes', 'ProtectSystem=strict', 'ProtectHome=read-only', 'ReadWritePaths=/path/to/health-coach',
-    'CacheDirectory=plan-web-refresh', 'Environment=npm_config_cache=/var/cache/plan-web-refresh']) {
+  for (const line of ['NoNewPrivileges=yes', 'PrivateTmp=yes', 'ProtectSystem=strict', 'ProtectHome=read-only', 'ReadWritePaths=/path/to/loop',
+    'CacheDirectory=loop-web-refresh', 'Environment=npm_config_cache=/var/cache/loop-web-refresh']) {
     assert.ok(directives.includes(line), line);
   }
 });
 
 test('refresh.sh does not override the safe.directory setting (the unit runs as the repo owner)', () => {
-  assert.doesNotMatch(read(PLAN_WEB, 'refresh.sh'), /safe\.directory/);
+  assert.doesNotMatch(read(LOOP_WEB, 'refresh.sh'), /safe\.directory/);
 });
 
 test('every error code refresh.sh can write has a human reason in the page copy (es + en)', async () => {
   const { es, en } = await import('../web/src/i18n/sync-templates.mjs');
-  const codes = [...read(PLAN_WEB, 'refresh.sh').matchAll(/^\s*fail ([a-z_]+) /gm)].map((m) => m[1]);
+  const codes = [...read(LOOP_WEB, 'refresh.sh').matchAll(/^\s*fail ([a-z_]+) /gm)].map((m) => m[1]);
   assert.deepEqual([...new Set(codes)].sort(), ['branch', 'build', 'install', 'lock', 'sanity']);
   for (const code of [...codes, 'trigger_write']) {
     assert.ok(es.errors[code] && en.errors[code], code);
   }
 });
 
-test('no personal paths in the tracked plan-web files', () => {
-  for (const text of [nginx, planCompose, pathUnit, serviceUnit, read(PLAN_WEB, 'refresh.sh'), read(PLAN_WEB, 'README.md')]) {
+test('no personal paths in the tracked loop-web files', () => {
+  for (const text of [nginx, planCompose, pathUnit, serviceUnit, read(LOOP_WEB, 'refresh.sh'), read(LOOP_WEB, 'README.md')]) {
     assert.doesNotMatch(text, /\/root\/|\/home\/|\/Users\//);
   }
 });
 
 // ---- DNS rebinding: a Host allowlist for EVERY path ----------------------------------------------
-const hostsScript = path.join(ROOT, PLAN_WEB, 'hosts.sh');
+const hostsScript = path.join(ROOT, LOOP_WEB, 'hosts.sh');
 
 /** The map block that decides $hc_host_ok, and its regex keys as JS RegExps (PCRE subset). */
 function hostMap() {
@@ -221,7 +227,7 @@ test('nginx Host map: IP literals (v4, bracketed v6) and localhost pass; any oth
   }
 });
 
-test('plan-web compose: PLAN_WEB_EXTRA_HOSTS (empty by default) and the entrypoint script that renders it', () => {
+test('loop-web compose: PLAN_WEB_EXTRA_HOSTS (empty by default) and the entrypoint script that renders it', () => {
   assert.match(planCompose, /PLAN_WEB_EXTRA_HOSTS:\s*\$\{PLAN_WEB_EXTRA_HOSTS:-\}/);
   assert.match(planCompose, /\.\/hosts\.sh:\/docker-entrypoint\.d\/15-hc-hosts\.sh:ro/);
   assert.ok(fs.statSync(hostsScript).mode & 0o111, 'executable (the nginx entrypoint skips non-executable scripts)');
@@ -242,7 +248,7 @@ test('hosts.sh: comma / space separated names, lowercased, one exact map entry e
   for (const bad of ['bad_host;x', '.dot', 'trailing.', '~^.*$']) assert.match(r.stderr, new RegExp(bad.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 
-test('health-ingest compose passes FOOD_ALLOWED_HOSTS (empty by default) for the same extra names', () => {
+test('loop-ingest compose passes FOOD_ALLOWED_HOSTS (empty by default) for the same extra names', () => {
   assert.match(ingestCompose, /FOOD_ALLOWED_HOSTS:\s*\$\{FOOD_ALLOWED_HOSTS:-\}/);
 });
 
@@ -308,7 +314,7 @@ test('nginx /manuales/ sits behind the server-level Host and raw-path guards (bo
 });
 
 test('the SSO docs keep /manuales/ behind SSO (never in a bypass rule)', () => {
-  const readme = read(PLAN_WEB, 'README.md');
+  const readme = read(LOOP_WEB, 'README.md');
   assert.match(readme, /`\/manuales\/`[^\n]*stays behind SSO/);
 });
 

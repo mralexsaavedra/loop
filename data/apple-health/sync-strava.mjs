@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /* Strava sync — pulls every stored Strava activity from the self-hosted ingest service
- * (services/health-ingest, GET /export/strava) and MERGES them into workouts.csv, so rides
+ * (services/loop-ingest, GET /export/strava) and MERGES them into workouts.csv, so rides
  * logged only on Strava (not captured by the Watch) show up on the Entrenos dashboard.
  *
  *   npm run sync:strava
  *
- * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/health-ingest/.env>, else :8088), INGEST_TOKEN (falls back to
- *          services/health-ingest/.env, same file sync-shortcut.mjs reads).
+ * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/loop-ingest/.env>, else :8088), INGEST_TOKEN (falls back to
+ *          services/loop-ingest/.env, same file sync-shortcut.mjs reads).
  * Writes : data/apple-health/extract/workouts.csv + rides.csv (ride windows + power flag for the
  *          active-energy correction, see rideRow) + workout-zones.csv (per-activity time in HR
  *          zone 0-5 from the ingest's HR histograms, see lib/training/hr-zones.mjs) + _meta.json
@@ -42,7 +42,7 @@ const DIR = path.dirname(fileURLToPath(import.meta.url))
 const STRAVA_SOURCE = 'Strava API'
 // SYNC_STRAVA_OUT_DIR / INGEST_ENV_FILE overrides exist ONLY so the child-process error-path
 // tests below can point main() at a disposable tmp dir / tmp env file instead of the real
-// personal data/apple-health/extract or services/health-ingest/.env — unset in production.
+// personal data/apple-health/extract or services/loop-ingest/.env — unset in production.
 const OUT = process.env.SYNC_STRAVA_OUT_DIR || path.join(DIR, 'extract')
 const WORKOUTS_CSV = 'workouts.csv'
 
@@ -319,7 +319,7 @@ function staleImageWarning (activities) {
   if (!activities || !activities.length) return null
   if (activities.some(a => a && a.total_elevation_gain != null)) return null
   return 'WARNING: no activity carries total_elevation_gain — the ingest image is probably stale. ' +
-    'Rebuild it (docker compose up -d --build health-ingest) and re-run to fill elevation_m.'
+    'Rebuild it (docker compose up -d --build loop-ingest) and re-run to fill elevation_m.'
 }
 
 // An ingest image built before the energy correction exports neither start_date nor
@@ -330,7 +330,7 @@ function stalePowerWarning (activities) {
   if (!rides.length) return null
   if (rides.some((a) => typeof a.device_watts === 'boolean' && a.start_utc)) return null
   return 'WARNING: no ride carries device_watts / start_date — the ingest image is probably stale, so the power-meter ' +
-    'active-energy correction is off. Rebuild it (docker compose up -d --build health-ingest) and re-run.'
+    'active-energy correction is off. Rebuild it (docker compose up -d --build loop-ingest) and re-run.'
 }
 
 // An ingest image built before the HR-stream backfill exports no `hr_hist` at all (null = not
@@ -339,7 +339,7 @@ function staleZonesWarning (activities) {
   if (!activities || !activities.length) return null
   if (activities.some((a) => a && Object.prototype.hasOwnProperty.call(a, 'hr_hist'))) return null
   return 'WARNING: no activity carries hr_hist — the ingest image predates the HR zones. Rebuild it ' +
-    '(docker compose up -d --build health-ingest) and re-run once the backfill has fetched some streams.'
+    '(docker compose up -d --build loop-ingest) and re-run once the backfill has fetched some streams.'
 }
 
 const PROFILE_JSON = process.env.SYNC_STRAVA_PROFILE || path.join(DIR, '..', '..', 'profile', 'profile.json')
@@ -349,7 +349,7 @@ async function main () {
   const baseUrl = common.readBaseUrl(process.env, process.env.INGEST_ENV_FILE || common.ENV_FILE)
   const token = common.readIngestToken(process.env, process.env.INGEST_ENV_FILE || common.ENV_FILE)
   if (!token) {
-    console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/health-ingest/.env. No files touched.')
+    console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/loop-ingest/.env. No files touched.')
     process.exit(1)
   }
 
@@ -358,7 +358,7 @@ async function main () {
     activities = await fetchActivities({ baseUrl, token })
   } catch (err) {
     if (err.status === 404) {
-      console.error('ERROR: ingest service has no /export/strava — rebuild/restart the health-ingest container. No files touched.')
+      console.error('ERROR: ingest service has no /export/strava — rebuild/restart the loop-ingest container. No files touched.')
     } else {
       const cause = (err.cause && err.cause.code) || (err.cause && err.cause.message) || err.message
       console.error(`ERROR: could not read from the ingest service at ${baseUrl} (${cause}). Is it running? No files touched.`)

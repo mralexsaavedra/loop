@@ -1,5 +1,5 @@
 -- Food log (Nutrición part 2): the user's supermarket products, their own recipes and what they ate.
--- Written from the LAN plan page through plan-web's /api/food/ proxy (src/food.js); a public
+-- Written from the LAN plan page through loop-web's /api/food/ proxy (src/food.js); a public
 -- reverse proxy must NEVER forward /food/*. Idempotent like 003-005: safe to run on every start.
 --
 --   food_product  per-100 g / ml macros from the label or Open Food Facts, confirmed by the user;

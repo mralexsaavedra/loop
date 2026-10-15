@@ -39,7 +39,7 @@ server {
     # Security headers on every response: the page writes food and journal entries, so another site must not
     # frame it (clickjacking), nothing is type-sniffed and no URL leaks as a Referer. nginx drops ALL inherited
     # add_header lines in a block that sets its own, so such blocks repeat these four
-    # (scripts/plan-web-config.test.mjs checks it).
+    # (scripts/loop-web-config.test.mjs checks it).
     add_header X-Content-Type-Options nosniff always;
     add_header X-Frame-Options DENY always;
     add_header Referrer-Policy no-referrer always;
@@ -52,7 +52,7 @@ server {
     # compresses well. text/html is always compressed once gzip is on, so it is not listed. The
     # proxied ingest routes below turn it off: their responses reflect request input next to stored
     # data (a BREACH-style length oracle) and are small anyway.
-    # RULE: every block that proxies to ingest MUST set `gzip off;` (scripts/plan-web-config.test.mjs fails otherwise).
+    # RULE: every block that proxies to ingest MUST set `gzip off;` (scripts/loop-web-config.test.mjs fails otherwise).
     gzip on;
     gzip_types text/css application/javascript application/json;
     gzip_min_length 1024;
@@ -138,7 +138,7 @@ server {
         limit_except POST { deny all; }
         # no Bearer token: refuse before reading (or buffering) any body; ingest checks the token itself
         if ($http_authorization !~* "^Bearer\s+\S+") { return 401; }
-        # a Shortcut payload is a few hundred KB; stays below health-ingest's MAX_BODY_BYTES default (32 MB)
+        # a Shortcut payload is a few hundred KB; stays below loop-ingest's MAX_BODY_BYTES default (32 MB)
         client_max_body_size 8m;
         # a Shortcut payload is a few hundred KB: keep it in memory, not a temp file
         client_body_buffer_size 1m;

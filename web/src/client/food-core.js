@@ -11,7 +11,7 @@
  * web/src/tabs/Dia.astro, and window.HC (util.js).
  *
  * LAN only, decided at VIEW time like freshness.js: every host ships `hidden` and appears only when
- * GET /api/food/products answers (plan-web proxies /api/food/ to the ingest service). The claude.ai
+ * GET /api/food/products answers (loop-web proxies /api/food/ to the ingest service). The claude.ai
  * artifact, file:// and the example build never reach it, so they show nothing new and builds stay
  * byte-identical. Every request carries `X-HC-Food: 1` (the ingest service refuses anything else) and
  * writes send JSON. Nothing of the log is kept in the browser: the server is the one copy.

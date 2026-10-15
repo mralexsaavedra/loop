@@ -109,7 +109,7 @@ test('writeAtomic() replaces the file and leaves no temp file behind', () => {
 
 test('DEFAULT_URL and ENV_FILE are exported', () => {
   assert.equal(DEFAULT_URL, 'http://localhost:8088');
-  assert.match(ENV_FILE, /services[/\\]health-ingest[/\\]\.env$/);
+  assert.match(ENV_FILE, /services[/\\]loop-ingest[/\\]\.env$/);
 });
 
 // ---- exclusive lock guarding _meta.json's read-compute-write sequence against a lost update

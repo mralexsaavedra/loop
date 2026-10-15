@@ -46,7 +46,9 @@ const FIXTURE_FILES = [
   'profile/profile.example.json',
   'web/dist/personal/index.html',
   'web/test/.golden/personal/blocks.json',
+  'services/loop-web/site/index.html',
   'services/plan-web/site/index.html',
+  'services/health-ingest/.env',
   'web/.test-dist/es-personal/index.html',
 ];
 
@@ -99,7 +101,9 @@ function assertRealNonIgnored(rel, cwd = repo) {
 const PERSONAL_PATHS = [
   'web/dist/personal/index.html',
   'web/test/.golden/personal/blocks.json',
+  'services/loop-web/site/index.html',
   'services/plan-web/site/index.html',
+  'services/health-ingest/.env',
   'web/.test-dist/es-personal/index.html',
   'data/profile/strava-profile.json',
   'data/profile/avatar.jpg',

@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DEFAULT_URL = 'http://localhost:8088';
-const ENV_FILE = path.join(__dirname, '..', '..', 'services', 'health-ingest', '.env');
+const ENV_FILE = path.join(__dirname, '..', '..', 'services', 'loop-ingest', '.env');
 
 // write to a temp file in the same directory, then rename: a crash never leaves a half file
 function writeAtomic(file, text) {

@@ -2,7 +2,7 @@
 
 Fixes for the common problems when you run the page and the LAN services at home. Each section names
 a symptom, what to **check** (1–3 places or commands), and the **fix**. Commands assume the clone is at
-`/path/to/health-coach`, the page on port 8090 and the ingest service on port 8088 (the defaults).
+`/path/to/loop`, the page on port 8090 and the ingest service on port 8088 (the defaults).
 
 ## The page shows old data, or a source is amber / red
 
@@ -10,7 +10,7 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 
 - Tap the dot in the top bar: it lists the age of each source ("Atajo", "Strava", "Página"). Amber means
   older than 24 h, red older than 72 h.
-- `cat /path/to/health-coach/services/plan-web/site/status.json` — `publishedAt` and `commit` are the
+- `cat /path/to/loop/services/loop-web/site/status.json` — `publishedAt` and `commit` are the
   last good build; an `error` field means the last run stopped early (next section).
 - `data/apple-health/extract/_meta.json` — `exportLastDate` is a partial day; `shortcutSync.owned`
   lists the dates the Shortcut wrote.
@@ -28,20 +28,20 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 
 - `curl -s localhost:8090/api/sync/status` — `lastTriggerError: "trigger_write"` means the ingest
   container could not write the trigger file.
-- The `error` code in `services/plan-web/site/status.json`: `branch`, `install`, `build`, `sanity` or
+- The `error` code in `services/loop-web/site/status.json`: `branch`, `install`, `build`, `sanity` or
   `lock`.
-- `journalctl -u plan-web-refresh.service -f` while you press Sync (the `refresh.sh` output).
+- `journalctl -u loop-web-refresh.service -f` while you press Sync (the `refresh.sh` output).
 
 **Fix**
 
 - `branch`: only `main` is published. Check with
-  `git -C /path/to/health-coach rev-parse --abbrev-ref HEAD` and switch back to `main`; do feature work
+  `git -C /path/to/loop rev-parse --abbrev-ref HEAD` and switch back to `main`; do feature work
   in a separate git worktree.
 - `trigger_write`: the trigger directory must belong to the container user:
-  `sudo chown 1000:1000 /path/to/health-coach/services/health-ingest/trigger`.
+  `sudo chown 1000:1000 /path/to/loop/services/loop-ingest/trigger`.
 - Nothing happens at all: the systemd path unit is missing or stopped.
-  `sudo systemctl enable --now plan-web-refresh.path` (install steps in the plan-web README, step 8).
-- `install` / `build`: run `/path/to/health-coach/services/plan-web/refresh.sh` by hand and read the
+  `sudo systemctl enable --now loop-web-refresh.path` (install steps in the loop-web README, step 8).
+- `install` / `build`: run `/path/to/loop/services/loop-web/refresh.sh` by hand and read the
   error. A failed build keeps the last good page online.
 - `lock`: another refresh was still running; press Sync again in a minute.
 - No Sync button or freshness dot at all: the page cannot reach `/api/sync/status` (opened as a file,
@@ -59,14 +59,14 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 **Fix**
 
 - `401`: the `Authorization` header must be `Bearer <INGEST_TOKEN>`; on the server,
-  `grep INGEST_TOKEN services/health-ingest/.env` and copy it on your own screen.
+  `grep INGEST_TOKEN services/loop-ingest/.env` and copy it on your own screen.
 - Keys are empty: check the *Source is* (*Origen es*) filters name **your** devices, one search per
   device (two filters in one search are combined with AND and return nothing).
 - A type is missing from the list: iOS 26 renamed some (Active Energy → *Active Calories*, Resting
   Energy → *Resting Calories*); VO2 max is *Cardio Fitness*.
 - Runs at night send nothing: Health data is locked while the phone is locked. Trigger the automation
   on opening an app you use daily.
-- Very large payloads: plan-web accepts up to 8 MB on that path. Shorten the heart-rate window (1 day).
+- Very large payloads: loop-web accepts up to 8 MB on that path. Shorten the heart-rate window (1 day).
 - New keys never show up: run `npm run sync -- --full` once.
 
 ## Strava stays empty
@@ -82,10 +82,10 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 **Fix**
 
 - `stravaConfigured: false`: fill `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` and `STRAVA_REFRESH_TOKEN`
-  in `services/health-ingest/.env`, then `docker compose up -d` in that folder.
+  in `services/loop-ingest/.env`, then `docker compose up -d` in that folder.
 - `strava_auth`, or `401` / `invalid_grant` while exchanging the code: the code was used or expired.
   Authorize again with `scope=read,activity:read_all,profile:read_all` and exchange the new code at once
-  (`node scripts/strava-auth.js` in `services/health-ingest`). Leave every scope ticked on the consent
+  (`node scripts/strava-auth.js` in `services/loop-ingest`). Leave every scope ticked on the consent
   screen; without `profile:read_all` bikes and shoes stay empty.
 - Then pull it locally: `npm run sync:strava` (or the full `npm run sync`).
 
@@ -93,7 +93,7 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 
 **Check**
 
-- Are you on the home network, opening the page from plan-web (`http://<server-ip>:8090`)? The food log
+- Are you on the home network, opening the page from loop-web (`http://<server-ip>:8090`)? The food log
   is LAN only and does not work from the local file.
 - `curl -s -H 'X-HC-Food: 1' localhost:8090/api/food/products` — should list products. Without the
   header it answers `403`.
@@ -103,8 +103,8 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 **Fix**
 
 - IP addresses work out of the box. To open the page by name (`plan.lan` or a tunnel host), add the
-  name to `PLAN_WEB_EXTRA_HOSTS` in `services/plan-web/.env` **and** to `FOOD_ALLOWED_HOSTS` in
-  `services/health-ingest/.env`, then `docker compose up -d` in both folders.
+  name to `PLAN_WEB_EXTRA_HOSTS` in `services/loop-web/.env` **and** to `FOOD_ALLOWED_HOSTS` in
+  `services/loop-ingest/.env`, then `docker compose up -d` in both folders.
 
 ## The build fails on a fresh clone
 
@@ -124,31 +124,31 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 
 **Check**
 
-- `docker ps` — each install needs its own containers (`health-ingest-second`, `plan-web-second`, …).
-- `HC_INSTANCE` and `INGEST_PORT` in that clone's `services/health-ingest/.env`, and `HC_INSTANCE`,
-  `PLAN_WEB_PORT`, `INGEST_PORT` in its `services/plan-web/.env`.
+- `docker ps` — each install needs its own containers (`loop-ingest-second`, `loop-web-second`, …).
+- `HC_INSTANCE` and `INGEST_PORT` in that clone's `services/loop-ingest/.env`, and `HC_INSTANCE`,
+  `PLAN_WEB_PORT`, `INGEST_PORT` in its `services/loop-web/.env`.
 
 **Fix**
 
 - Give the second clone its own name and ports in both `.env` files (for example `HC_INSTANCE=second`,
   `INGEST_PORT=8089`, `PLAN_WEB_PORT=8091`), then `docker compose up -d` in both folders. `npm run sync`
   and `refresh.sh` read `INGEST_PORT` from the clone's own ingest `.env`.
-- Rename that install's systemd units (`plan-web-refresh-second.path` / `.service`) so they do not
+- Rename that install's systemd units (`loop-web-refresh-second.path` / `.service`) so they do not
   replace the first install's, and stagger the cron minutes on a small host.
 
 ## Containers are down, unhealthy, or out of date after an update
 
 **Check**
 
-- `docker compose ps` in `services/health-ingest` and in `services/plan-web`.
+- `docker compose ps` in `services/loop-ingest` and in `services/loop-web`.
 - `curl -s localhost:8088/healthz` — `200` when the database answers; `degraded: true` only concerns
   Strava (see above).
 
 **Fix**
 
-- After pulling new code on `main` (`git -C /path/to/health-coach pull`), rebuild the ingest service
-  (`docker compose up -d --build` in `services/health-ingest`; it applies new database migrations) and
-  restart plan-web (`docker compose up -d` in `services/plan-web`). `refresh.sh` reinstalls npm packages
+- After pulling new code on `main` (`git -C /path/to/loop pull`), rebuild the ingest service
+  (`docker compose up -d --build` in `services/loop-ingest`; it applies new database migrations) and
+  restart loop-web (`docker compose up -d` in `services/loop-web`). `refresh.sh` reinstalls npm packages
   on its own when the lockfile changed.
 - A container that will not start: `docker compose logs` in its folder. The ingest service refuses to
   start with an `INGEST_TOKEN` shorter than 32 characters.
@@ -157,5 +157,5 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 
 - [LAN services reference](../lan-services.md) — the sync protocol, error codes and security.
 - [iOS Shortcut](../ios-shortcut.md) — every payload key, Gotchas and Verify.
-- [plan-web README](../../services/plan-web/README.md) — install steps, smoke test, second install.
-- [health-ingest README](../../services/health-ingest/README.md) — endpoints, Strava, configuration.
+- [loop-web README](../../services/loop-web/README.md) — install steps, smoke test, second install.
+- [loop-ingest README](../../services/loop-ingest/README.md) — endpoints, Strava, configuration.
