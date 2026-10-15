@@ -70,7 +70,7 @@ A runnable `scripts/*.mjs` guards its CLI with `if (isMain(import.meta.url))` fr
 | --- | --- | --- |
 | Guard hook (`.claude/hooks/guard-health-data.js`) | No force-adding ignored personal files, no un-ignoring them in `.gitignore` | [`guard-hook.md`](guard-hook.md) |
 | Design system test | Role tokens, one picked style, chevrons, card radius / padding | [`design-system.md`](design-system.md) |
-| Inline CSS budget (`web/test/css-slim.test.mjs`) | The slimmed inline CSS stays under its budget | [`plan-page.md`](plan-page.md) |
+| Inline CSS budget (`web/test/css-slim.test.mjs`) | The slimmed inline CSS (fonts excluded) stays under its budget (110 000 chars; re-measured 2026-10-15 at ≈ 108.9 KB) | [`plan-page.md`](plan-page.md) |
 | Phone inputs (`web/test/mobile.test.mjs`) | Text inputs are ≥ 16 px on phones (no iOS zoom) | [`plan-page.md`](plan-page.md) |
 | Page content (`web/test/content.test.mjs`) | The built page names no data endpoint (`/ingest/`, `/export/`) | [`lan-services.md`](lan-services.md) |
 | i18n parity | Every English string has its Spanish twin and the reverse | — |

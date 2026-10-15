@@ -93,20 +93,6 @@
 }
 
 /* training dashboard — "Workouts" tab */
-.dash-sec {
-  margin-top: var(--sp-10);
-}
-.dash-sec h3 {
-  font-size: var(--fs-lg);
-  font-weight: 750;
-  margin: 0 0 var(--sp-1);
-  letter-spacing: -0.01em;
-}
-.dash-sec .hint {
-  font-size: var(--fs-sm);
-  color: var(--muted);
-  margin: 0 0 var(--sp-5);
-}
 /* weekly bars as the reference's trend bars: the value on top, a 100px track, a faint grid in quarters
    (the grid sits under the value row: --fs-2xs × 1.2 + the --sp-1 gap) */
 .wbars {

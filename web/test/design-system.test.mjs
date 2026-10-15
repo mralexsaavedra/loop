@@ -169,7 +169,6 @@ const PAD_SHEET_FILES = new Set(['detail.css', 'profile.css']);
 const CARD_PAD_ALLOW = {
   'score.css .db-row, .db-erow': 'a list row (8 x 12px), not a card: rows stack into a list',
   'layout.css details.sec-fold>summary': 'a fold row: its height is a min-height, only side padding',
-  'dia.css .mac': 'a compact macro tile (8 x 12px) inside a card',
   'training.css .train-empty': 'an empty state: a centred message with tall padding',
   'food.css .fp-form, .fp-search': "the food sheet's form (a sheet card on the 16px inset)",
 };
@@ -294,7 +293,7 @@ test('CTA link: only .cta (and the in-sentence .lnk) paint link text; every CTA 
 
 // content cards are flat (the reference app draws no outline on a card); inputs, chips, pills and the
 // desktop sheet frame keep theirs. .train-block keeps only its left strain stripe.
-const FLAT_CARDS = ['profile.css .pf-sec', 'dia.css .summary', 'dia.css .mac', 'dia.css .intake-card', 'training.css .train-block'];
+const FLAT_CARDS = ['profile.css .pf-sec', 'dia.css .summary', 'dia.css .intake-card', 'training.css .train-block'];
 test('content cards: no 1px outline', () => {
   const found = new Set();
   const bad = [];

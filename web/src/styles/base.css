@@ -184,8 +184,10 @@ details.rec-raw > summary::after {
 }
 
 /* Chip (docs/design-system.md → Components): a compact 30px caps pill to pick one of a few
-   (Nutrición's day type and Constancia window, the load sheet's modality); the picked one is
-   white-filled (aria-pressed, or the checked radio before it). A range switch is .dt-range instead. */
+   (Nutrición's day type and Constancia window, the load sheet's modality, the onboarding's buttons); the
+   picked one is white-filled (aria-pressed, or the checked radio before it). Its hit area is a centred
+   44px band (::before) that reaches 7px above and below the pill, never sideways into the next one.
+   A range switch is .dt-range instead. */
 .chip {
   position: relative;
   display: inline-flex;
@@ -203,6 +205,14 @@ details.rec-raw > summary::after {
   letter-spacing: var(--label-track);
   text-transform: uppercase;
   transition: background 0.18s, color 0.18s;
+}
+.chip::before {
+  content: "";
+  position: absolute;
+  top: calc(50% - 22px);
+  bottom: calc(50% - 22px);
+  left: 0;
+  right: 0;
 }
 .chip[aria-pressed="true"],
 :checked + .chip {
