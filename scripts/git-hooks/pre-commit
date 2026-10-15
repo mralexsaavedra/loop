@@ -1,0 +1,5 @@
+#!/bin/sh
+# Opt-in git pre-commit hook: refuses a commit that stages personal (gitignored) files or loosens .gitignore
+# (scripts/precommit-guard.mjs; docs/guard-hook.md). Enable it once per clone:
+#   git config core.hooksPath scripts/git-hooks
+exec node "$(dirname "$0")/../precommit-guard.mjs"
