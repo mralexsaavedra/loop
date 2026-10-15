@@ -17,7 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, '..', '..');
 
 // Mirrors the repo structure generate.mjs statically imports (data/nutrition/generate.mjs +
-// ../../lib/nutrition/*.mjs + ../../scripts/lib/is-main.mjs) into a temp root, WITHOUT ever copying
+// ../../lib/nutrition/*.mjs + ../../lib/date.mjs + ../../scripts/lib/is-main.mjs) into a temp root, WITHOUT ever copying
 // the real (possibly personal) plan-data.json. `files` are the data/nutrition seeds to copy next to it.
 // Returns the temp data/nutrition dir.
 function mirrorTree(root, files) {
@@ -32,6 +32,7 @@ function mirrorTree(root, files) {
     if (!f.endsWith('.mjs') || f.endsWith('.test.mjs')) continue;
     fs.copyFileSync(path.join(REPO, 'lib', 'nutrition', f), path.join(root, 'lib', 'nutrition', f));
   }
+  fs.copyFileSync(path.join(REPO, 'lib', 'date.mjs'), path.join(root, 'lib', 'date.mjs'));
   fs.copyFileSync(path.join(REPO, 'scripts', 'lib', 'is-main.mjs'), path.join(root, 'scripts', 'lib', 'is-main.mjs'));
   return nutDir;
 }

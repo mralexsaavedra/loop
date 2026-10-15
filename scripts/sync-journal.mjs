@@ -20,6 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readBaseUrl, fetchJson, writeAtomic, runCli } from '../data/apple-health/sync-common.mjs';
+import { addDays, isIsoDate } from '../lib/date.mjs';
 import { JOURNAL_BEHAVIORS, JOURNAL_LIMITS, journalCsv, parseJournalCsv } from '../lib/journal/journal.mjs';
 import { JOURNAL_FILE } from '../lib/journal/bake.mjs';
 import { isMain } from './lib/is-main.mjs';
@@ -27,25 +28,22 @@ import { isMain } from './lib/is-main.mjs';
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 export const DEFAULT_OUT = path.join(ROOT, 'data', 'apple-health', 'extract');
 export const META_FILE = 'journal-daily.meta.json';
-const DAY_MS = 86400000;
 const pad = (n) => String(n).padStart(2, '0');
 const localIso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const isIso = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(v + 'T00:00:00Z').toISOString().slice(0, 10) === v;
-const shiftIso = (iso, n) => new Date(Date.parse(iso + 'T00:00:00Z') + n * DAY_MS).toISOString().slice(0, 10);
 
 /** {from, to}: rangeDaysMax days inclusive, ending on the local date of `now`. */
 export function windowFor(now = new Date()) {
   const to = localIso(now);
-  return { from: shiftIso(to, -(JOURNAL_LIMITS.rangeDaysMax - 1)), to };
+  return { from: addDays(to, -(JOURNAL_LIMITS.rangeDaysMax - 1)), to };
 }
 
 /** The GET /journal/summary body reduced to known fields; throws when malformed. */
 export function normalizeSummary(body) {
   if (!body || typeof body !== 'object' || !Array.isArray(body.days)) throw new Error('unexpected response shape (expected {from, to, days: [...]})');
-  if (!isIso(body.from) || !isIso(body.to) || body.to < body.from) throw new Error('unexpected from / to');
+  if (!isIsoDate(body.from) || !isIsoDate(body.to) || body.to < body.from) throw new Error('unexpected from / to');
   const seen = new Set();
   const days = body.days.map((d) => {
-    if (!d || !isIso(d.date) || d.date < body.from || d.date > body.to) throw new Error(`unexpected date ${JSON.stringify(d && d.date)}`);
+    if (!d || !isIsoDate(d.date) || d.date < body.from || d.date > body.to) throw new Error(`unexpected date ${JSON.stringify(d && d.date)}`);
     if (seen.has(d.date)) throw new Error(`duplicate date ${d.date}`);
     seen.add(d.date);
     if (!d.answers || typeof d.answers !== 'object' || Array.isArray(d.answers)) throw new Error(`unexpected answers on ${d.date}`);

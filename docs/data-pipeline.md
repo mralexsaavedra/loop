@@ -38,7 +38,7 @@ How the raw sources become the CSVs in `data/apple-health/extract/` that every p
 
 Active / basal energy: per DAY and type ONE source wins and only its sum is written, never a sum
 across sources (each device / app writes its own estimate of the same burn; RENPHO's weigh-in BMR
-as Basal Energy doubled basal). Precedence lives in `samples.mjs` `energySource` / `pickEnergySource`:
+as Basal Energy doubled basal). Precedence lives in `lib/extract/samples.mjs` `energySource` / `pickEnergySource`:
 
 | Rank | Source | Match |
 | --- | --- | --- |
@@ -177,7 +177,7 @@ offset (like the energy hours).
 ### Module notes
 
 - Unreachable service → the sync exits non-zero without touching files.
-- Row helpers are shared in `samples.mjs`, so both paths (extract and sync) format rows identically.
+- Row helpers are shared in `lib/extract/samples.mjs`, so both paths (extract and sync) format rows identically.
 - Every sync script (`data/apple-health/sync-*.mjs`, `data/nutrition/sync-foodlog.mjs`,
   `data/profile/sync-*.mjs`, `scripts/sync-*.mjs`) shares `sync-common.mjs`: `fetchJson` (one timed GET),
   `writeAtomic` (temp file + rename), the service `.env` (`INGEST_ENV_FILE` when set, else

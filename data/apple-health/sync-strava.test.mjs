@@ -8,7 +8,7 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as strava from './sync-strava.mjs';
-import * as samples from './samples.mjs';
+import * as samples from '../../lib/extract/samples.mjs';
 import * as zones from '../../lib/training/hr-zones.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

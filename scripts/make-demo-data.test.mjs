@@ -11,7 +11,7 @@ import { strainFrom } from '../lib/score/strain.mjs';
 import { healthFrom } from '../lib/health/aggregate.mjs';
 import { intakeFrom } from '../lib/nutrition/intake.mjs';
 import { buildDials } from '../web/src/view/dial.mjs';
-import { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } from '../data/apple-health/samples.mjs';
+import { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } from '../lib/extract/samples.mjs';
 
 
 function withDemoDir(files, fn) {

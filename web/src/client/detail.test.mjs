@@ -19,6 +19,7 @@ import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB } from '../../../lib/nav/ta
 import { buildScoresFrom } from '../../../lib/score/index.mjs';
 import { healthFrom } from '../../../lib/health/aggregate.mjs';
 import { buildDials } from '../view/dial.mjs';
+import { addDays } from '../../../lib/date.mjs';
 
 const format = (tpl, vars) => tpl.replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? vars[k] : ''));
 
@@ -33,7 +34,6 @@ const DEMO_INPUTS = readExtract(path.join(here, '..', '..', '..', 'data', 'demo'
 const DEMO = detailFrom(DEMO_INPUTS);
 const NOW = DEMO.asOf; // the viewer opens the page on the demo's newest data day
 
-const addDays = (d, n) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
 const dayIndex = (m, iso) => Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(m.start + 'T00:00:00Z')) / 86400000);
 const valueOn = (m, iso) => { const i = dayIndex(m, iso); return i >= 0 && i < m.v.length ? m.v[i] : null; };
 

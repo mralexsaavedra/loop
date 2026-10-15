@@ -28,6 +28,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as common from '../apple-health/sync-common.mjs'
+import { addDays, isIsoDate } from '../../lib/date.mjs'
 import { isMain } from '../../scripts/lib/is-main.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -42,19 +43,15 @@ const GROUPS = ['breakfast', 'lunch', 'dinner', 'addon']
 const MACROS = [['p', 'protein'], ['c', 'carbs'], ['f', 'fat']]
 const HEADER = ['date', 'kcal', 'protein_g', 'carbs_g', 'fat_g', 'entries', ...GROUPS, 'missing_macros']
 
-const DAY_MS = 86400000
 const pad = (n) => String(n).padStart(2, '0')
 const localIso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-const isIsoDate = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) &&
-  new Date(v + 'T00:00:00Z').toISOString().slice(0, 10) === v
-const shiftIso = (iso, days) => new Date(Date.parse(iso + 'T00:00:00Z') + days * DAY_MS).toISOString().slice(0, 10)
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0
 const isCount = (v) => Number.isInteger(v) && v >= 0
 
 /** {from, to}: DAYS_MAX days inclusive, ending on the local date of `now`. */
 function windowFor (now = new Date()) {
   const to = localIso(now)
-  return { from: shiftIso(to, -(DAYS_MAX - 1)), to }
+  return { from: addDays(to, -(DAYS_MAX - 1)), to }
 }
 
 /** The GET /food/log/summary body reduced to the known per-day fields; throws when malformed. */

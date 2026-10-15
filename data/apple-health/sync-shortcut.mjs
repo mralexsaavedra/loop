@@ -28,7 +28,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import * as S from './samples.mjs';
+import * as S from '../../lib/extract/samples.mjs';
 import * as HR from '../../lib/health/hr-hourly.mjs';
 import { ZONES_CSV } from '../../lib/training/hr-zones.mjs';
 import * as common from './sync-common.mjs';
