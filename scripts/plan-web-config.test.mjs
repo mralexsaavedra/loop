@@ -286,7 +286,7 @@ test('nginx /manuales/: only a bare .pdf file name is served, as an inline PDF w
   assert.match(pdf.body, /default_type application\/pdf;/);
   assert.match(pdf.body, /add_header X-Content-Type-Options nosniff always;/);
   assert.match(pdf.body, /add_header Content-Disposition inline always;/);
-  assert.match(pdf.body, /add_header Content-Security-Policy "default-src 'none'; object-src 'self'" always;/,
+  assert.match(pdf.body, /add_header Content-Security-Policy "default-src 'none'; object-src 'self'; frame-ancestors 'none'" always;/,
     'a restrictive CSP that still lets the built-in PDF viewer render inline (CSP `sandbox` blocks it)');
   assert.match(pdf.body, /add_header Cache-Control "no-cache" always;/, 'a location add_header drops the server one: re-added');
   assert.match(pdf.body, /limit_except GET \{ deny all; \}/, 'GET (and HEAD) only');
@@ -310,4 +310,23 @@ test('nginx /manuales/ sits behind the server-level Host and raw-path guards (bo
 test('the SSO docs keep /manuales/ behind SSO (never in a bypass rule)', () => {
   const readme = read(PLAN_WEB, 'README.md');
   assert.match(readme, /`\/manuales\/`[^\n]*stays behind SSO/);
+});
+
+// Security headers on every response: the page writes food and journal entries, so it must not be framed by
+// another site (clickjacking), sniffed as another type or leak its URL. nginx drops ALL inherited add_header
+// lines in a block that has its own, so every block with an add_header repeats the set.
+const SECURITY_HEADERS = [
+  /add_header\s+X-Content-Type-Options\s+nosniff\s+always;/,
+  /add_header\s+X-Frame-Options\s+DENY\s+always;/,
+  /add_header\s+Referrer-Policy\s+no-referrer\s+always;/,
+  /add_header\s+Content-Security-Policy\s+"[^"]*frame-ancestors 'none'[^"]*"\s+always;/,
+];
+test('nginx: server_tokens off and the security headers at server level and in every block with its own add_header', () => {
+  const directives = nginx.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
+  assert.match(directives, /server_tokens\s+off;/);
+  const server = directives.slice(directives.indexOf('server {'), directives.indexOf('location'));
+  for (const re of SECURITY_HEADERS) assert.match(server, re, `server level: ${re}`);
+  const withHeaders = locations(nginx).filter((l) => /add_header\s/.test(l.body));
+  assert.ok(withHeaders.length >= 2, 'status.json and the manuals set their own headers');
+  for (const l of withHeaders) for (const re of SECURITY_HEADERS) assert.match(l.body, re, `${l.spec}: ${re}`);
 });

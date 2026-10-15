@@ -3,8 +3,19 @@ import { fileURLToPath } from 'node:url'
 import pg from 'pg'
 import { CORE_MIGRATIONS, OPTIONAL_MIGRATIONS, runMigrations } from './migrations.js'
 
-export function createPool (connectionString) {
-  return new pg.Pool({ connectionString, max: 4, idleTimeoutMillis: 30_000 })
+/** The pool. An idle client's error (a Postgres restart) is logged instead of crashing the process, a
+ * connection attempt gives up after 5 s (so /healthz answers instead of hanging while the DB is down) and a
+ * statement after 30 s. */
+export function createPool (connectionString, { Pool = pg.Pool, log = console.error } = {}) {
+  const pool = new Pool({
+    connectionString,
+    max: 4,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 5_000,
+    statement_timeout: 30_000
+  })
+  pool.on('error', (err) => log(JSON.stringify({ event: 'db_pool_error', message: err.message })))
+  return pool
 }
 
 /** Runs every migration; resolves { food, settings, profile, journal: boolean } (false = that group failed, see migrations.js). */
