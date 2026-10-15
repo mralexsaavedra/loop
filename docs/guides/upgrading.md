@@ -41,11 +41,14 @@ docker exec loop-db pg_dump -U health health > "backups/loop-db-$(date +%F).sql"
    (cd services/loop-ingest && docker compose pull loop-ingest && docker compose up -d)
    ```
 
-4. **The page service.** Restart it so it picks up a changed nginx configuration:
+4. **The page service.** Recreate it so it picks up a changed nginx configuration or compose file:
 
    ```sh
    (cd services/loop-web && docker compose up -d)
    ```
+
+   `up -d` (not `restart`) is what applies a changed `docker-compose.yml`, such as the container hardening
+   below; `docker compose ps` should then show `healthy` for every container.
 
 5. **Rebuild the page now** instead of waiting for the hourly run: press **Sync** on the page, or run
    `services/loop-web/refresh.sh` by hand.
@@ -60,6 +63,32 @@ Using the page without the LAN services (Level 1 only)? Steps 1–2, then `npm r
 
 If something is off, see [troubleshooting](troubleshooting.md). Release notes live in
 [`CHANGELOG.md`](../../CHANGELOG.md).
+
+## Release notes for existing installs
+
+### The robustness release (migrations ledger, container hardening)
+
+Nothing to change in your `.env` files: no new variable is required. Back up first (above), then run the
+**Update** steps; in detail:
+
+- **Step 3** recreates `loop-db` and `loop-ingest` with the hardening (read-only root filesystem, dropped
+  capabilities, limits, rotated logs) and creates the migrations ledger on the first start: the service
+  re-runs each existing `sql/` file once (they are idempotent; no row changes) and records it in
+  `schema_migrations`. The logs show eleven `migration_applied` lines on that first start and none after.
+  Check: `docker exec loop-db psql -U health -d health -c "SELECT count(*) FROM schema_migrations"` answers
+  `11`. The database password is now passed to the service as its own field, so a `POSTGRES_PASSWORD`
+  holding `@ : / ? # %` works too (it used to stop the service with `Invalid URL`).
+- **Step 4** recreates `loop-web` with the hardening, its healthcheck and the new nginx rules (rate limits on
+  `/api/*` and `/ingest/*`, the write check bound to the page's own address). Behind an SSO tunnel, keep the
+  public host in both `PLAN_WEB_EXTRA_HOSTS` and `FOOD_ALLOWED_HOSTS` (as before).
+- **Optional, the refresh unit**: the template gained more systemd hardening. To use it, install the unit
+  again ([`services/loop-web/README.md`](../../services/loop-web/README.md), Install step 8: the same
+  `sed ... | sudo tee` loop), then `sudo systemctl daemon-reload`. The installed unit keeps working if you
+  skip this.
+- **Optional, the git pre-commit hook** against committing personal data:
+  `git config core.hooksPath scripts/git-hooks` ([`docs/guard-hook.md`](../guard-hook.md)).
+
+A second install does the same in its own clone.
 
 ## Moving from the pre-LOOP names
 

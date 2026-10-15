@@ -151,7 +151,16 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
   restart loop-web (`docker compose up -d` in `services/loop-web`). `refresh.sh` reinstalls npm packages
   on its own when the lockfile changed.
 - A container that will not start: `docker compose logs` in its folder. The ingest service refuses to
-  start with an `INGEST_TOKEN` shorter than 32 characters.
+  start with an `INGEST_TOKEN` shorter than 32 characters, and with `migration <file> was changed after it
+  was applied` when a file under `services/loop-ingest/sql/` was edited after it ran: restore it
+  (`git checkout -- services/loop-ingest/sql/<file>`) and put the change in a new migration
+  ([`services/loop-ingest/README.md` → Database migrations](../../services/loop-ingest/README.md#database-migrations)).
+- loop-web restarting with `bind() to 0.0.0.0:80 failed (13: Permission denied)` (a Docker older than 20.10):
+  add `NET_BIND_SERVICE` to `cap_add` in `services/loop-web/docker-compose.yml`. Another `Permission denied`
+  or `Read-only file system` in a container's logs after the hardening: report it with that log line.
+- The page or the API answers `429`: nginx's rate limit on the proxied routes (generous; see
+  [`services/loop-web/README.md`](../../services/loop-web/README.md) → Rate limits); a script looping on
+  `/api/*` is the usual cause.
 
 ## Still stuck?
 
