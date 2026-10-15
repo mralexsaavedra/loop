@@ -64,9 +64,17 @@ there:
 2. In the Shortcut, point every watch-filtered search (*Origen es*, the 8 above) at that app instead of
    *Apple Watch de …* (e.g. *Mi Fitness*). The unfiltered keys (`sleep`, `rhr`, `hrv`, `respiratory`,
    `walking_hr`, …) need nothing: they read whatever writes them.
-3. Expect less than with an Apple Watch: steps, energy, heart rate and sleep usually arrive; HRV, wrist
-   temperature, respiratory rate and sleep stages depend on the device and its app, and without HRV / resting HR
-   the recovery and stress readings stay empty or partial.
+3. **Remove the searches for metrics your device never writes.** A *Find Health Samples* that finds nothing
+   stops the whole Shortcut with "No se ha encontrado ninguna muestra" ("No samples found"), so nothing is
+   sent. Check what the app writes in Health → your photo → *Apps* → the app → *Data*, and delete each search
+   block (and its JSON field) for a type it does not write. Mi Fitness, for example, writes no HRV and no resting
+   HR: delete the `hrv` and `rhr` blocks; keep `sleep` and the heart-rate samples (`hr_t` / `hr_v`).
+4. Expect less than with an Apple Watch: steps, energy, heart rate and sleep usually arrive; HRV, wrist
+   temperature, respiratory rate and sleep stages depend on the device and its app. A band that writes only
+   "in bed" sleep gets ESTIMATED nights (time in bed, labelled on the page) and one without resting HR gets it
+   derived from the night's heart rate, both from the Apple Health export only, never from this Shortcut
+   ([`docs/data-pipeline.md` → Resting HR](data-pipeline.md#apple-health-export-and-extract)). Without HRV the
+   recovery score is partial (resting HR and sleep) and says so; stress stays empty or partial.
 
 The Apple Health export (`data/apple-health/extract.mjs`) needs no change: steps, exercise and sleep take the
 largest value across sources, and energy picks one source per day ([`docs/data-pipeline.md` → Energy source
@@ -270,6 +278,7 @@ Then run `npm run sync -- --full` once.
 | The value column holds text like `18,4 %` or `70 kg` | You used the sample's *Name*, which is the formatted value. Use *Value* for the number; *Source* (*Origen*) is the device or app. |
 | No `vo2max` type in the list | Health calls it *Cardio Fitness* (Spanish: *Capacidad aeróbica*). |
 | A key is missing from the payload | Normal: a query with no results produces empty text, and empty keys are skipped. |
+| The Shortcut stops with "No se ha encontrado ninguna muestra" ("No samples found") | A *Find Health Samples* whose type your device never writes found nothing, and the next action stops the run, so nothing is sent. Delete that search block and its JSON field (a watch or band other than an Apple Watch: usually HRV and resting HR; see [Another watch or band](#install-the-ready-made-shortcut)). |
 | The automation runs but sends nothing | Health data is locked while the phone is locked, so a time-of-day trigger at night finds no samples. Trigger on **opening an app** you use daily (with *Run Immediately*), which only fires on an unlocked phone. |
 | Old days change after a sync | Expected: the latest payload corrects day totals, and export rows replace Shortcut rows once a new `export.xml` covers those dates. |
 
