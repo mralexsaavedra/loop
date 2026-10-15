@@ -631,6 +631,7 @@ What it shows: last night's sleep performance, efficiency, consistency and stage
 | `stages` | REM / deep / core / unspecified / awake / in bed hours (staged night only) |
 | `shares` | REM / deep / core % of asleep (staged night only) |
 | `restorative` | REM + deep hours (staged night only) |
+| `estimated` | `true` only on an estimated (in-bed-only) night: its hours are time in bed, so `perf` and `cons` read it, `eff` / `stages` are null ([data-pipeline.md → Sleep](data-pipeline.md#sleep-sleep-dailycsv)) |
 
 ### Day history
 

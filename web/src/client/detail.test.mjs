@@ -392,6 +392,22 @@ test('sleep day detail: asleep hours vs target, bedtime – wake, that night\'s 
   assert.ok(o.host.innerHTML.includes(enT.day.stagesNote), 'no stages that night: the note');
 });
 
+test('sleep day detail: an estimated (in-bed-only) night says so under its hours; other nights do not', () => {
+  const d = addDays(NOW, -1);
+  const plain = setup();
+  plain.api.open('sleep', d);
+  assert.ok(!plain.host.innerHTML.includes(enT.day.estimated), 'the demo has no estimated night');
+  const est = copy();
+  const sl = est.metrics.sleep;
+  sl.est = sl.v.map(() => null);
+  sl.est[dayIndex(sl, d)] = 1;
+  const o = setup({ detail: est });
+  o.api.open('sleep', d);
+  assert.ok(o.host.innerHTML.includes(`<p class="dt-note">${enT.day.estimated}</p>`));
+  o.api.open('sleep', addDays(NOW, -2));
+  assert.ok(!o.host.innerHTML.includes(enT.day.estimated), 'only that night');
+});
+
 test('workouts / load day detail lists that day\'s sessions after the same-day rule; a load view shows only its modality', () => {
   const s = setup();
   const day = DEMO.sessions.find((x) => x.m === 'run');

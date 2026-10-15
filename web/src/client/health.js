@@ -280,12 +280,14 @@
   function sleepSection(sl) {
     var TR = T.trend, SCd = T.sleepCards;
     return section('sleep', safeRows([
-      function () { return mrow('sleep', TR.sleep.title, TR.sleep.unit, { value: sl.latest, base: sl.avg, baseTpl: T.avgNightsTpl, dir: 1, date: sl.latestDate, detail: 'sleep' }); },
+      // an in-bed-only night (lib/health/aggregate.mjs latestEstimated) says so next to its value
+      function () { return mrow('sleep', TR.sleep.title, TR.sleep.unit, { value: sl.latest, base: sl.avg, baseTpl: T.avgNightsTpl, dir: 1, date: sl.latestDate, detail: 'sleep', when: sl.latestEstimated ? SCd.estimated : '' }); },
       function () { return fin(sl.pctTarget) ? mrow('sleep', format(SCd.nightsTargetLbl, { target: HC.hours(sl.target) }), '%', { icon: 'vsTarget', value: sl.pctTarget, detail: 'sleep' }) : ''; },
       function () { return fin(sl.sd) ? mrow('sleep', SCd.sdLbl, 'h', { icon: 'cons', value: sl.sd, text: '±' + HC.hours(sl.sd), detail: 'sleep' }) : ''; },
       function () { return sl.bedtime ? mrow('sleep', SCd.bedtimeLbl, '', { icon: 'bed', value: 0, text: sl.bedtime, sub: '±' + sl.bedtimeSd + '′', detail: 'sleep' }) : ''; },
       function () { return sl.wake ? mrow('sleep', SCd.wakeLbl, '', { icon: 'wake', value: 0, text: sl.wake, sub: '±' + sl.wakeSd + '′', detail: 'sleep' }) : ''; },
-    ].concat(stageRows(sl.stages, SCd))), [T.sleepNoteHtml].concat(sl.stages && T.sleepStagesNoteHtml ? [T.sleepStagesNoteHtml] : []));
+    ].concat(stageRows(sl.stages, SCd))), [T.sleepNoteHtml].concat(sl.stages && T.sleepStagesNoteHtml ? [T.sleepStagesNoteHtml] : [],
+      sl.estimatedNights ? [format(T.sleepEstimatedNoteHtml, { count: sl.estimatedNights })] : []));
   }
   /* body composition: weight Δ vs ~30 days ago, body fat / lean mass Δ in their scale window, waist */
   function bodySection(B) {

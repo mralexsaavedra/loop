@@ -291,6 +291,8 @@
     if (sl) {
       var h = at(sl.v, sl, iso);
       out.push(row(T.day.asleep, HC.hours(h), h != null && sl.target != null ? format(T.day.vsTarget, { delta: HC.hours(h - sl.target, true), target: HC.hours(sl.target) }) : ''));
+      // an in-bed-only night (DETAIL sleep.est): its hours are time in bed
+      if (h != null && Array.isArray(sl.est) && at(sl.est, sl, iso) === 1) out.push('<p class="dt-note">' + esc(T.day.estimated) + '</p>');
       var bed = at(sl.bed, sl, iso), wake = at(sl.wake, sl, iso);
       if (bed != null || wake != null) out.push(row(T.day.bedWake, clock(bed) + '–' + clock(wake)));
     }

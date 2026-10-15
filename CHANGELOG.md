@@ -13,6 +13,15 @@ every push and pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-15 (non-Watch) — Sleep and resting HR for bands that write only "in bed" and raw heart rate
+
+A second install's band (Mi Fitness) writes to Apple Health only "in bed" sleep records and raw heart rate: no asleep
+stages, no HRV, no resting HR, so the extractor wrote no sleep and no resting HR. Sleep: a night with no asleep data
+from any source now takes the main in-bed block (at least 3 h; afternoon fragments are naps) of a source that never
+writes asleep data as an ESTIMATED night, source `<app> (in bed)`, stage columns blank; Salud and the sleep sheet
+label it. The iPhone's bedtime record never counts, and an Apple Watch never estimates, so Watch output is unchanged.
+Re-run `node data/apple-health/extract.mjs` on a new export (and `npm run sync -- --full` for cached Shortcut nights).
+
 ## 2026-10-15 (confirmed) — Confirmation-check follow-ups
 
 A last confirmation check found five small items, fixed here. Onboarding: the fat floor is rounded up, so a heavy

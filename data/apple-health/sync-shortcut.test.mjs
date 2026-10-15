@@ -1080,3 +1080,15 @@ test('integer metrics (steps, flights, exercise minutes): one separator + exactl
   // a non-integer metric keeps the decimal reading
   assert.equal(parsePayload({ respiratory: '2030-01-02T00:00:00+01:00;14,500' }).respiratory[0].value, 14.5);
 });
+
+test('sleep: an in-bed-only Shortcut (a Mi Fitness band) -> an ESTIMATED night tagged "Shortcut (in bed)", owned by the sync', () => {
+  const s = collectSamples([{ sleep: [
+    '2030-01-01T23:40:00+01:00;2030-01-02T07:40:00+01:00;En cama',
+    '2030-01-02T15:10:00+01:00;2030-01-02T15:55:00+01:00;En cama', // an afternoon fragment: not a night
+  ].join('\n') }]);
+  const rows = buildRows('sleep', s.sleep);
+  assert.deepEqual(rows.map(r => r.line), ['2030-01-02,8.00,Shortcut (in bed),23.67,7.67,,,,,,']);
+  // rebuilt every run like any Shortcut row: a second merge replaces it instead of keeping it as an export row
+  const once = mergeCsv(null, METRICS.sleep.header, rows).text;
+  assert.equal(mergeCsv(once, METRICS.sleep.header, []).text, METRICS.sleep.header + '\n');
+});
