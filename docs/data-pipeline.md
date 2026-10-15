@@ -96,7 +96,9 @@ table.
   `unexpected paging cursor`, and 10 000 pages is a hard cap, so a misbehaving service can never loop it.
 - Rows are tagged `source=Shortcut`, except body comp (keeps the real scale source for the
   latest-source logic) and energy (no source column).
-- `_meta.json` `shortcutSync.owned` lists every date sync wrote, per CSV.
+- `_meta.json` `shortcutSync.owned` lists every date sync wrote, per CSV. It is written FIRST (before the CSVs and the
+  cache), like the Strava sync's: a crash mid-write leaves a ledger that already owns those dates, so the next
+  run drops and rebuilds the Shortcut rows instead of keeping them as export rows.
 
 **Point keys** (one row per sample)
 
