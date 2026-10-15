@@ -30,8 +30,8 @@ mechanical.
 ## Bash: force-add of ignored paths
 
 In this repo **gitignored = personal by definition**, so the hook asks git instead of keeping a path list. `git update-index --add <path>` (also `--cacheinfo <mode>,<object>,<path>`) stages an ignored path
-just like `git add -f`, so its paths are judged the same way, and `--add --stdin` / `--index-info` count as
-unresolvable targets:
+just like `git add -f`, so its paths are judged the same way, `--add --stdin` counts as an unresolvable
+target, and so does `--index-info` with or without `--add` (it stages whatever entries it reads):
 
 1. The command is tokenized (quotes, escapes, `&&` / `||` / `;` / `|` / `&`, subshells, `bash -c '…'`,
    redirections, comments). Each simple command is inspected after stripping `VAR=…` assignments and
