@@ -1,0 +1,17 @@
+# Rebuilds the plan page on demand: loop-ingest's POST /sync writes this
+# trigger file (container /trigger/refresh, bind-mounted from the host path
+# below; written atomically, so the change arrives as a rename, which
+# PathModified also reacts to) and systemd starts loop-web-refresh.service.
+# A trigger that lands while the service is still running may not re-fire
+# the unit; refresh.sh covers that by re-reading the trigger seq after each pass.
+# Replace /path/to/loop with your clone's absolute path, then see
+# services/loop-web/README.md for the install steps.
+[Unit]
+Description=Watch the loop-ingest trigger file to refresh the plan page
+
+[Path]
+PathModified=/path/to/loop/services/loop-ingest/trigger/refresh
+Unit=loop-web-refresh.service
+
+[Install]
+WantedBy=multi-user.target

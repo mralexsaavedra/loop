@@ -301,7 +301,7 @@ What the page shows:
     shows "Active <corrected> kcal — watch 2207 + power-meter correction" (`reloj {watch} + corrección por
     potencia`) plus the note in the day panel, and the note under the header when the newest day is
     corrected.
-- Enabling it on an install: rebuild the ingest image (`docker compose up -d --build health-ingest`), add
+- Enabling it on an install: rebuild the ingest image (`docker compose up -d --build loop-ingest`), add
   the Shortcut key (`docs/ios-shortcut.md`), `npm run sync -- --full` once, then `npm run generate`.
 
 ## Section notes

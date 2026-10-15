@@ -1,6 +1,6 @@
 /**
  * Behaviour journal routes (Q7), mounted by server.js under /journal/ and reached from the LAN plan page
- * through plan-web's /api/journal/ proxy:
+ * through loop-web's /api/journal/ proxy:
  *
  *   GET  /journal/day?date=YYYY-MM-DD     that (local) day: {date, answers, notes, updatedAt} (empty when
  *                                         never journaled: answers {}, notes / updatedAt null)

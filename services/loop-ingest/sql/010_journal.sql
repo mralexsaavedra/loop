@@ -1,5 +1,5 @@
 -- Daily behaviour journal (Q7): what the user did each day (alcohol, late caffeine, screen in bed...),
--- written from the LAN plan page through plan-web's /api/journal/ proxy (src/journal.js); a public
+-- written from the LAN plan page through loop-web's /api/journal/ proxy (src/journal.js); a public
 -- reverse proxy must NEVER forward /journal/*. Its own OPTIONAL migration group (db.js `journal`): a
 -- failure only disables /journal/*. Idempotent like 003-009: safe to run on every start.
 --

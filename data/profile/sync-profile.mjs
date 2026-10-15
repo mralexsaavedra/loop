@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /* Profile sync — pulls the Strava athlete snapshot the self-hosted ingest service stores
- * (services/health-ingest, GET /export/athlete) into data/profile/, for the page's profile sheet.
+ * (services/loop-ingest, GET /export/athlete) into data/profile/, for the page's profile sheet.
  *
  *   node data/profile/sync-profile.mjs     (part of `npm run sync`, after the Strava sync)
  *
- * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/health-ingest/.env>, else :8088), INGEST_TOKEN (falls back to
- *          services/health-ingest/.env, like the other syncs).
+ * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/loop-ingest/.env>, else :8088), INGEST_TOKEN (falls back to
+ *          services/loop-ingest/.env, like the other syncs).
  * Writes : data/profile/strava-profile.json (only when its content changed, temp file + rename)
  *          and data/profile/avatar.jpg (Strava's `profile_medium`: only from Strava's photo hosts,
  *          https, no redirects, image/jpeg|png + JPEG/PNG magic bytes, streamed with a hard
@@ -203,7 +203,7 @@ async function syncProfile (dir, body, { fetchImpl = fetch, writeAtomic = common
 }
 
 function errorMessage (err, baseUrl) {
-  if (err && err.status === 404) return 'ERROR: ingest service has no /export/athlete — rebuild/restart the health-ingest container. No files touched.'
+  if (err && err.status === 404) return 'ERROR: ingest service has no /export/athlete — rebuild/restart the loop-ingest container. No files touched.'
   const cause = (err && err.cause && (err.cause.code || err.cause.message)) || (err && err.message)
   return `ERROR: could not read from the ingest service at ${baseUrl} (${cause}). Is it running? No files touched.`
 }
@@ -212,7 +212,7 @@ async function main () {
   const baseUrl = common.readBaseUrl(process.env, process.env.INGEST_ENV_FILE || common.ENV_FILE)
   const token = common.readIngestToken(process.env, process.env.INGEST_ENV_FILE || common.ENV_FILE)
   if (!token) {
-    console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/health-ingest/.env. No files touched.')
+    console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/loop-ingest/.env. No files touched.')
     process.exit(1)
   }
   let body
@@ -233,7 +233,7 @@ async function main () {
   if (r.avatar.startsWith('failed')) console.error(`WARNING: avatar not updated (${r.avatar.slice(8)}); the previous one is kept.`)
   if (r.gearScopeMissing) {
     console.error('NOTE: Strava returned no gear — the token lacks the profile:read_all scope. ' +
-      'Re-authorize (services/health-ingest/README.md, "Gear needs the profile:read_all scope").')
+      'Re-authorize (services/loop-ingest/README.md, "Gear needs the profile:read_all scope").')
   }
 }
 

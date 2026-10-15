@@ -227,7 +227,7 @@ async function main () {
   // header + JSON content type (a CORS preflight this server never approves) keep other websites out;
   // see food.js. A public proxy must never forward /food/*.
   // FOOD_ALLOWED_HOSTS: extra host names (besides IP literals, localhost, host.docker.internal) the
-  // page may be reached by; mirrors plan-web's PLAN_WEB_EXTRA_HOSTS. Empty by default.
+  // page may be reached by; mirrors loop-web's PLAN_WEB_EXTRA_HOSTS. Empty by default.
   let foodReady = false // set once 006_food.sql ran; until then (or if it failed) /food/* answers 503
   let settingsReady = false // 007_settings.sql, its own group: only /food/settings depends on it
 let profileReady = false // 011_profile.sql, its own group: only /food/profile depends on it

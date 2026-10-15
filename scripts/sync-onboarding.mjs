@@ -2,7 +2,7 @@
 /* Pulls the in-page onboarding document (GET <INGEST_URL>/food/profile, the profile + accepted nutrition
  * targets of a user without an AI coach) into data/profile/onboarding.json, which the build reads.
  *
- * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/health-ingest/.env>, else
+ * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/loop-ingest/.env>, else
  *          :8088). No token: /food/* is the unauthenticated, LAN-only layer (header X-HC-Food: 1).
  * Output : data/profile/onboarding.json (gitignored), replaced atomically and only when it changed. A wizard
  *          never completed (profile null) writes nothing.
@@ -27,7 +27,7 @@ async function fetchProfile(baseUrl, { fetchImpl = fetch, timeoutMs = 10000 } = 
       signal: ctrl.signal,
       redirect: 'error',
     });
-    if (!res.ok) throw new Error(`ingest service answered HTTP ${res.status}${res.status === 404 ? ' (rebuild the health-ingest container)' : ''}`);
+    if (!res.ok) throw new Error(`ingest service answered HTTP ${res.status}${res.status === 404 ? ' (rebuild the loop-ingest container)' : ''}`);
     return await res.json();
   } catch (err) {
     if (err.name === 'AbortError' || ctrl.signal.aborted) throw new Error(`request timed out after ${timeoutMs / 1000} s`);

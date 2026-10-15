@@ -2,7 +2,7 @@
 
 You answer a short daily journal (did I drink, have caffeine late, use a screen in bed…) from the LAN page; the
 build relates each behaviour to the next morning's recovery. Same shape as the food log
-(`docs/nutrition-food-log.md`): LAN-only API in `services/health-ingest`, a page client that shows nothing without
+(`docs/nutrition-food-log.md`): LAN-only API in `services/loop-ingest`, a page client that shows nothing without
 that API, and a sync into a gitignored CSV for read-only consumers.
 
 > **Reference** — how this area is built, for anyone changing it (keep it in sync with the code in the same
@@ -23,7 +23,7 @@ On this page:
 
 `lib/journal/journal.mjs` is the ONE reference (`JOURNAL_GROUPS`, `JOURNAL_BEHAVIORS`, `JOURNAL_LIMITS`).
 
-- **Generated service copy**: `services/health-ingest/src/journal-calc.js` (the service is built from its own
+- **Generated service copy**: `services/loop-ingest/src/journal-calc.js` (the service is built from its own
   directory, so it cannot import `lib/`). `scripts/gen-journal-calc.mjs` writes it from the module's `SERVER`
   descriptor via `lib/build/esm-module.mjs`, the same pattern as the food log's `food-calc.js`.
 - **Change the lib, then `npm run gen:journal-calc`** (never hand-edit the service file): the root test
@@ -53,7 +53,7 @@ Behaviour list, stored answer key → kind:
 
 ## Storage
 
-`services/health-ingest/sql/010_journal.sql` (idempotent):
+`services/loop-ingest/sql/010_journal.sql` (idempotent):
 
 | Table | Columns |
 | --- | --- |
@@ -102,14 +102,14 @@ The food layers (`docs/nutrition-food-log.md` → Security), shared helpers in `
 | Bodies ≤ 16 KB | `413` |
 | Writes ≤ 60 / min per client (`JOURNAL_WRITE_LIMIT`); summary reads ≤ 30 / min (`JOURNAL_SUMMARY_LIMIT`) | `429` |
 
-- plan-web nginx proxies `/api/journal/` → ingest `/journal/` (GET / PUT, `client_max_body_size 16k`,
+- loop-web nginx proxies `/api/journal/` → ingest `/journal/` (GET / PUT, `client_max_body_size 16k`,
   `X-HC-Journal` forwarded, `Host host.docker.internal`, `gzip off`).
 - A public reverse proxy must NEVER forward `/journal/*`.
 
 ## Rollout
 
-1. `cd services/health-ingest && docker compose up -d --build health-ingest` (runs `010_journal.sql`).
-2. `docker compose up -d` in `services/plan-web` (the nginx location).
+1. `cd services/loop-ingest && docker compose up -d --build loop-ingest` (runs `010_journal.sql`).
+2. `docker compose up -d` in `services/loop-web` (the nginx location).
 
 ## Page
 

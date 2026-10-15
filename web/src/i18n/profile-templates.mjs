@@ -43,7 +43,7 @@ export const en = {
     frames: { mtb: 'Mountain', cross: 'Cyclocross', road: 'Road', tt: 'Time trial', gravel: 'Gravel' },
     weightKg: '{value} kg',
     none: 'No bikes or shoes on Strava.',
-    scopeMissing: 'Strava shares bikes and shoes only with the profile:read_all permission. Re-authorize the ingest service to show them (services/health-ingest/README.md).',
+    scopeMissing: 'Strava shares bikes and shoes only with the profile:read_all permission. Re-authorize the ingest service to show them (services/loop-ingest/README.md).',
   },
   devices: {
     heading: 'Devices',
@@ -121,7 +121,7 @@ export const es = {
     frames: { mtb: 'Montaña', cross: 'Ciclocross', road: 'Carretera', tt: 'Contrarreloj', gravel: 'Gravel' },
     weightKg: '{value} kg',
     none: 'No hay bicis ni zapatillas en Strava.',
-    scopeMissing: 'Strava solo comparte bicis y zapatillas con el permiso profile:read_all. Vuelve a autorizar el servicio de ingesta para verlas (services/health-ingest/README.md).',
+    scopeMissing: 'Strava solo comparte bicis y zapatillas con el permiso profile:read_all. Vuelve a autorizar el servicio de ingesta para verlas (services/loop-ingest/README.md).',
   },
   devices: {
     heading: 'Dispositivos',

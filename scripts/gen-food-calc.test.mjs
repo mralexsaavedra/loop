@@ -12,11 +12,11 @@ import { esmModule } from '../lib/build/esm-module.mjs';
 const committed = readFileSync(FOOD_CALC_PATH, 'utf8');
 
 test('food-calc.js starts with the GENERATED header', () => {
-  assert.ok(committed.startsWith('/* ' + FOOD_CALC_HEADER), 'services/health-ingest/src/food-calc.js is not generated: run `npm run gen:food-calc`');
+  assert.ok(committed.startsWith('/* ' + FOOD_CALC_HEADER), 'services/loop-ingest/src/food-calc.js is not generated: run `npm run gen:food-calc`');
 });
 
 test('food-calc.js is current: regenerating it from the lib gives the committed bytes', () => {
-  assert.ok(committed === foodCalcSource(), 'services/health-ingest/src/food-calc.js is out of date: run `npm run gen:food-calc`');
+  assert.ok(committed === foodCalcSource(), 'services/loop-ingest/src/food-calc.js is out of date: run `npm run gen:food-calc`');
 });
 
 test('the generator is deterministic', () => {

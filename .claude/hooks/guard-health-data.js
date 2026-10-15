@@ -71,8 +71,11 @@ const PERSONAL = [
   // personal data above (baked JSON globals, rendered copy).
   'web/dist/',
   'web/test/.golden/',
-  'services/plan-web/site/',
-  'services/plan-web/.env',
+  'services/loop-web/site/',
+  'services/loop-web/.env',
+  // Pre-LOOP folder names: a clone pulled before its migration keeps its runtime files there.
+  'services/plan-web/',
+  'services/health-ingest/',
   'web/.test-dist/',
 ];
 

@@ -72,7 +72,7 @@ function settleWithin (promise, ms) {
 
 /**
  * POST /sync, sequence protocol. Every accepted click gets a sequence number;
- * the host refresh (services/plan-web/refresh.sh) reports the highest one it
+ * the host refresh (services/loop-web/refresh.sh) reports the highest one it
  * has published as `processedSeq` in status.json, so the page waits for
  * `processedSeq >= seq` — no clock comparison anywhere.
  *
