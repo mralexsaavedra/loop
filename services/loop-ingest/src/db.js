@@ -3,12 +3,13 @@ import { fileURLToPath } from 'node:url'
 import pg from 'pg'
 import { CORE_MIGRATIONS, OPTIONAL_MIGRATIONS, runMigrations } from './migrations.js'
 
-/** The pool. An idle client's error (a Postgres restart) is logged instead of crashing the process, a
- * connection attempt gives up after 5 s (so /healthz answers instead of hanging while the DB is down) and a
- * statement after 30 s. */
-export function createPool (connectionString, { Pool = pg.Pool, log = console.error } = {}) {
+/** The pool. `connection` is a connection string or a {host, port, user, password, database} object
+ * (server.js databaseConfig). An idle client's error (a Postgres restart) is logged instead of crashing the
+ * process, a connection attempt gives up after 5 s (so /healthz answers instead of hanging while the DB is
+ * down) and a statement after 30 s. */
+export function createPool (connection, { Pool = pg.Pool, log = console.error } = {}) {
   const pool = new Pool({
-    connectionString,
+    ...(typeof connection === 'string' ? { connectionString: connection } : connection),
     max: 4,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 5_000,

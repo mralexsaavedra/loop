@@ -17,23 +17,32 @@ import { writeJson as send, parseAllowedHosts } from './http.js'
 
 /**
  * Read the body with a hard ceiling. Health Auto Export can be told to batch
- * requests, so rejecting an oversized upload is preferable to buffering it.
+ * requests, so rejecting an oversized upload is preferable to buffering it. A
+ * declared Content-Length over the cap is refused before reading; a streamed body
+ * stops being buffered at the cap. Either way the caller answers 413 and only then
+ * closes the socket (see the catch in createHandler), so the client gets a response.
  */
 function readBody (req, limit) {
+  const tooLarge = () => Object.assign(new Error('payload too large'), { status: 413 })
+  const declared = Number(req.headers['content-length'])
+  if (Number.isFinite(declared) && declared > limit) return Promise.reject(tooLarge())
   return new Promise((resolve, reject) => {
     const chunks = []
     let size = 0
+    let over = false
 
     req.on('data', (chunk) => {
+      if (over) return
       size += chunk.length
       if (size > limit) {
-        reject(Object.assign(new Error('payload too large'), { status: 413 }))
-        req.destroy()
+        over = true
+        chunks.length = 0
+        reject(tooLarge())
         return
       }
       chunks.push(chunk)
     })
-    req.on('end', () => resolve(Buffer.concat(chunks)))
+    req.on('end', () => { if (!over) resolve(Buffer.concat(chunks)) })
     req.on('error', reject)
   })
 }
@@ -166,29 +175,90 @@ export function createHandler ({
     } catch (err) {
       const status = err.status ?? 500
       if (status >= 500) console.error(JSON.stringify({ event: 'error', message: err.message }))
-      if (!res.headersSent) send(res, status, { error: status === 413 ? 'payload too large' : 'internal error' })
+      if (res.headersSent) return
+      if (status === 413) {
+        // the response first, then drop the connection (the rest of the upload is never read)
+        res.on('finish', () => req.destroy())
+        send(res, 413, { error: 'payload too large' }, { connection: 'close' })
+        return
+      }
+      send(res, status, { error: 'internal error' })
     }
+  }
+}
+
+/**
+ * The database connection from the environment. DATABASE_URL wins when set (a connection string: any special
+ * character in its password must be percent-encoded). Otherwise DB_HOST (+ DB_PORT, default 5432) with the
+ * same POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB the database container gets, passed to the driver as
+ * separate fields, so a password with @ : / ? # % needs no encoding (docker-compose.yml does this). null when
+ * neither is complete.
+ */
+export function databaseConfig (env) {
+  if (env.DATABASE_URL) return { connectionString: env.DATABASE_URL }
+  const { DB_HOST: host, POSTGRES_USER: user, POSTGRES_PASSWORD: password, POSTGRES_DB: database } = env
+  if (!host || !user || !password || !database) return null
+  return { host, port: Number(env.DB_PORT || 5432), user, password, database }
+}
+
+/** How long a SIGTERM waits for in-flight requests before closing them (below the compose stop_grace_period). */
+export const SHUTDOWN_DEADLINE_MS = 10_000
+const POOL_END_CAP_MS = 2_000
+
+/**
+ * The SIGTERM / SIGINT handler: stop the background loops, stop accepting (closing idle keep-alive
+ * connections), let in-flight requests finish for up to `deadlineMs`, then close whatever is left, wait for
+ * `flush` (the pending trigger write, capped by the caller), close the pool (capped at 2 s) and exit 0. A
+ * second signal returns the same shutdown.
+ */
+export function createShutdown ({ server, pool, stop = () => {}, flush = async () => {}, deadlineMs = SHUTDOWN_DEADLINE_MS, exit = (code) => process.exit(code), log = console.log }) {
+  let running = null
+  const capped = (promise, ms) => {
+    let timer
+    return Promise.race([Promise.resolve(promise).catch(() => {}), new Promise((resolve) => { timer = setTimeout(resolve, ms) })]).finally(() => clearTimeout(timer))
+  }
+  return function shutdown () {
+    if (running) return running
+    log(JSON.stringify({ event: 'shutdown', deadlineMs }))
+    running = (async () => {
+      stop()
+      const flushed = flush()
+      const drained = new Promise((resolve) => server.close(() => resolve(true)))
+      server.closeIdleConnections?.()
+      let timer
+      const deadline = new Promise((resolve) => { timer = setTimeout(() => resolve(false), deadlineMs) })
+      const clean = await Promise.race([drained, deadline])
+      clearTimeout(timer)
+      if (!clean) {
+        log(JSON.stringify({ event: 'shutdown_deadline', deadlineMs }))
+        server.closeAllConnections?.()
+      }
+      await Promise.resolve(flushed).catch(() => {})
+      await capped(pool.end(), POOL_END_CAP_MS)
+      exit(0)
+    })()
+    return running
   }
 }
 
 const PORT = Number(process.env.PORT ?? 8088)
 const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES ?? 32 * 1024 * 1024)
 const INGEST_TOKEN = process.env.INGEST_TOKEN
-const DATABASE_URL = process.env.DATABASE_URL
 
 async function main () {
   if (!INGEST_TOKEN || INGEST_TOKEN.length < 32) {
     console.error('INGEST_TOKEN missing or shorter than 32 characters')
     process.exit(1)
   }
-  if (!DATABASE_URL) {
-    console.error('DATABASE_URL missing')
+  const database = databaseConfig(process.env)
+  if (!database) {
+    console.error('database settings missing: set DB_HOST, POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB (docker-compose.yml does), or DATABASE_URL')
     process.exit(1)
   }
 
   // loaded here, not at the top: db.js pulls in the pg driver, which the test run does not install
   const { createPool, migrate, insertRawPayload, ping } = await import('./db.js')
-  const pool = createPool(DATABASE_URL)
+  const pool = createPool(database)
   const handleExport = createExportHandler({ pool, token: INGEST_TOKEN })
   const handleStravaExport = createStravaExportHandler({ pool, token: INGEST_TOKEN })
   const handleAthleteExport = createAthleteExportHandler({ pool, token: INGEST_TOKEN })
@@ -230,7 +300,7 @@ async function main () {
   // page may be reached by; mirrors loop-web's PLAN_WEB_EXTRA_HOSTS. Empty by default.
   let foodReady = false // set once 006_food.sql ran; until then (or if it failed) /food/* answers 503
   let settingsReady = false // 007_settings.sql, its own group: only /food/settings depends on it
-let profileReady = false // 011_profile.sql, its own group: only /food/profile depends on it
+  let profileReady = false // 011_profile.sql, its own group: only /food/profile depends on it
   const foodRoutes = createFoodRoutes({
     store: createFoodStore(pool),
     off: createOffClient(),
@@ -290,17 +360,18 @@ let profileReady = false // 011_profile.sql, its own group: only /food/profile d
       console.log(JSON.stringify({ event: 'listening', port: PORT, strava: STRAVA_ENABLED })))
   }
 
-  for (const signal of ['SIGTERM', 'SIGINT']) {
-    process.on(signal, () => {
-      stravaLoop?.stop()
-      // Write a pending deferred seq now and let an in-flight run finish; if it
-      // outlives flush's own 2 s budget, flush writes the persisted seq directly
-      // (no Strava pull). Hard-capped at 3 s: a stuck write must not block
-      // shutdown (boot recovery and the hourly refresh are the fallbacks).
-      const flushed = Promise.race([syncTrigger.flush(), new Promise((resolve) => setTimeout(resolve, 3_000).unref())])
-      server.close(() => flushed.then(() => pool.end()).then(() => process.exit(0)))
-    })
-  }
+  // Graceful stop (docker compose stop / restart sends SIGTERM): stop the Strava loop, stop accepting, let
+  // in-flight requests finish for up to SHUTDOWN_DEADLINE_MS, close the pool, exit. Meanwhile a pending
+  // deferred seq is written and an in-flight run may finish; if it outlives flush's own 2 s budget, flush
+  // writes the persisted seq directly (no Strava pull). Hard-capped at 3 s: a stuck write must not block
+  // shutdown (boot recovery and the hourly refresh are the fallbacks).
+  const shutdown = createShutdown({
+    server,
+    pool,
+    stop: () => stravaLoop?.stop(),
+    flush: () => Promise.race([syncTrigger.flush(), new Promise((resolve) => setTimeout(resolve, 3_000).unref())])
+  })
+  for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, shutdown)
 
   start().catch((err) => {
     console.error(JSON.stringify({ event: 'startup_failed', message: err.message }))

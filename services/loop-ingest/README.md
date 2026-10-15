@@ -208,8 +208,15 @@ ONLY. Layers, in order:
    v6), `localhost`, `host.docker.internal` (the loop-web proxy hop) or a name in
    `FOOD_ALLOWED_HOSTS`, else `421 misdirected`. loop-web's nginx refuses other
    names first (see its README).
-2. **Origin** on writes: when the browser sends one, its host must pass the same
-   check, else `403 forbidden_origin`.
+2. **Origin** on writes (POST / PUT / DELETE), else `403 forbidden_origin`:
+   `Sec-Fetch-Site`, when the browser sends it, must be `same-origin`; an `Origin`
+   must name a host that passes the same check and, behind loop-web (whose nginx
+   sends the Host the browser asked for as `X-Forwarded-Host`), be exactly that
+   host and port. So another LAN address, another port of the same address or a
+   rebinding name cannot write even when the allowlist would accept it. A request
+   with neither header (curl, the food-log skill) is not a browser and passes. The
+   SSO tunnel works as long as its public host is in `FOOD_ALLOWED_HOSTS` (nginx
+   sees that host and the page's `Origin` names it).
 3. `X-HC-Food: 1` on every request (`403`) and `Content-Type: application/json`
    on writes (`415`): from another site both need a CORS preflight, which this
    service never approves (no CORS headers at all).
@@ -527,10 +534,11 @@ token). `.env` is gitignored and must stay that way.
 | Variable            | Meaning |
 | ------------------- | ------- |
 | `INGEST_TOKEN`      | Bearer token; refuses to start under 32 characters |
-| `POSTGRES_*`        | Database credentials |
+| `POSTGRES_*`        | Database credentials. Compose hands them to the service as separate fields (with `DB_HOST=loop-db`), never as a URL, so the password may hold any character (`@ : / ? # %`) |
+| `DATABASE_URL`      | Optional, outside compose: a connection string that wins over `DB_HOST` + `POSTGRES_*` (percent-encode special characters in its password there) |
 | `INGEST_PORT`       | Host port (loop-web proxies to it). The host-side sync scripts read it from this file too, so a second install on another port syncs from its own service |
 | `HC_INSTANCE`       | Empty by default. A name for a second install on the same host (`second`): suffixes the compose project, container names and database volume. Set the same value in `services/loop-web/.env` ([`../loop-web/README.md` → Running a second install](../loop-web/README.md#running-a-second-install-another-person-same-host)) |
-| `MAX_BODY_BYTES`    | Upload ceiling, default 32 MB |
+| `MAX_BODY_BYTES`    | Upload ceiling, default 32 MB; a larger upload (declared or streamed) gets a `413` response before the connection is closed |
 | `TRIGGER_DIR`       | Where `POST /sync` writes `refresh`; compose sets `/trigger` (bind mount of `./trigger`) |
 | `FOOD_ALLOWED_HOSTS` | Extra host names (comma / space separated) the `/food/*` Host + Origin checks accept besides IP literals, `localhost` and `host.docker.internal`; empty by default. Mirror loop-web's `PLAN_WEB_EXTRA_HOSTS` |
 
@@ -541,6 +549,11 @@ docker compose up -d --build
 curl -s localhost:8088/healthz
 npm ci && npm test   # or, from the repo root: npm run test:services
 ```
+
+**Stopping.** On `SIGTERM` (`docker compose stop` / `restart` / `up -d` recreating it) the service stops the
+Strava loop, stops accepting connections and lets in-flight requests finish for up to 10 s
+(`SHUTDOWN_DEADLINE_MS`), then closes what is left, writes a pending refresh trigger, closes the database pool
+and exits 0; compose gives it `stop_grace_period: 20s` before a `SIGKILL`.
 
 The image installs from the committed `package-lock.json` (`npm ci --omit=dev`), so a
 rebuild gets the same dependency tree; after changing a dependency in `package.json`, run
