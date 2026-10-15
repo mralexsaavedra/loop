@@ -5,7 +5,7 @@
  * receive plain JSON-safe data baked by Bake.astro (I18N_HOY).
  *
  * Ported from the legacy `<script>` IIFE in
- * data/nutrition/loop-web.template.html ("today's training"). The
+ * data/nutrition/plan-web.template.html ("today's training"). The
  * `goalLineRe` field is a REGEX SOURCE (not a compiled RegExp — must stay
  * JSON-safe), compiled client-side with `new RegExp(I18N_HOY.goalLineRe,
  * 'i')`; it flags a block line as a goal callout (`<li class="goal">`) —

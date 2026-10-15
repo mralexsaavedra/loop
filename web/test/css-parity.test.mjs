@@ -1,7 +1,7 @@
 /* CSS regression guard — originally a corrective apply pass (CSS-porting
  * gap found in slices 1-4: web/src/styles/ only ever grew tokens.css, so
  * Dia/Registro/Tablas rendered unstyled), diffed against the legacy
- * `data/nutrition/loop-web.template.html` at the time.
+ * `data/nutrition/plan-web.template.html` at the time.
  *
  * astro-plan-web slice 7 (cutover) retires the legacy template entirely, so
  * this test now compares against a CHECKED-IN snapshot fixture

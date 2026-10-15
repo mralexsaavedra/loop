@@ -1,6 +1,6 @@
 /* Salud tab — body / activity / energy / recovery sections, and the section chrome (.hs-*) Entreno's
  * and Nutrición's blocks share.
- * Ported from the legacy loop-web.template.html <style> block, then reshaped into the shared
+ * Ported from the legacy plan-web.template.html <style> block, then reshaped into the shared
  * section language (UPPERCASE label + ⓘ, metric rows). */
 
 .spark {
