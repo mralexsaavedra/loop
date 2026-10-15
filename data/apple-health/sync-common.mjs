@@ -60,6 +60,11 @@ function readBaseUrl(env, envFile = envFileOf(env)) {
 // One GET (headers + body) under a hard timeout; the HTTP status (when any) is kept on err.status so a
 // 404 can be told apart from a generic failure by the caller. `token` null = no authorization header
 // (the LAN-only /food/* and /journal/* layers, which take their own `headers` and `redirect: 'error'`).
+/**
+ * @param {string} url
+ * @param {string | null} token
+ * @param {{ fetchImpl?: typeof fetch, timeoutMs?: number, headers?: Record<string, string>, redirect?: 'follow' | 'error' | 'manual' }} [opts]
+ */
 async function fetchJson(url, token, { fetchImpl = fetch, timeoutMs = 15000, headers = {}, redirect } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -113,6 +118,12 @@ async function fetchPages({ baseUrl, token, buildUrl, sinceId = '0', limit = 500
 // for dates with no surviving (export) row. `exportWins: false` skips that date filter and adds
 // EVERY row (sync-strava: its rows carry data the export never has, and the readers dedupe a
 // Watch + Strava copy of one session themselves). Stable sort keeps export rows' original order.
+/**
+ * @param {string | null} existingText
+ * @param {string} header
+ * @param {{ date: string, line: string }[]} rows
+ * @param {{ sourceCol?: number | null, isOwn?: (source: string) => boolean, ownedDates?: string[], exportWins?: boolean }} [opts]
+ */
 function mergeCsv(existingText, header, rows, { sourceCol = 2, isOwn = () => false, ownedDates = [], exportWins = true } = {}) {
   const lines = existingText ? existingText.split('\n').filter(Boolean) : [];
   const body = lines.length && lines[0].startsWith('date,') ? lines.slice(1) : lines;

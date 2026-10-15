@@ -179,7 +179,7 @@ function onClose() {
   const counts = {};
   const exportLastDate = exportDate || maxRecordDate;
   // daily TOTAL series skip the partial last day (means, points, sleep and workouts keep it)
-  const complete = ([d]) => d !== exportLastDate;
+  const complete = (/** @type {any[]} */ [d]) => d !== exportLastDate;
   // sparse readings
   for (const [k, arr] of Object.entries(readings)) {
     sortByDate(arr);

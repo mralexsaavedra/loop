@@ -47,6 +47,7 @@ export const TRACKED = ['example', 'empty', 'null'];
 
 /** The env a build of `kind` resolves ('example' | 'personal' | 'empty' = example with an empty extract dir |
  * 'null' = example with no extract dir); `root` = the clone whose data it reads (default: this checkout). */
+/** @param {string} kind @param {{ emptyDir?: string, root?: string }} [opts] */
 function goldenEnv(kind, { emptyDir, root = ROOT } = {}) {
   const env = resolveEnv({ HC_REPO_ROOT: root, DATA_MODE: kind === 'personal' ? 'personal' : 'example', LOCALE: 'en' });
   if (kind === 'empty') return { ...env, extractDir: emptyDir };

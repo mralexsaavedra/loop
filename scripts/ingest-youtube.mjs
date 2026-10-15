@@ -66,7 +66,7 @@ async function runRetry(args, label) {
       await sleep(RETRY_WAIT_MS[attempt]);
     }
   }
-  const e = new Error(firstError(last.err) || `yt-dlp exited ${last.code}`);
+  const e = /** @type {Error & { permanent?: boolean }} */ (new Error(firstError(last.err) || `yt-dlp exited ${last.code}`));
   e.permanent = PERMANENT_RE.test(last.err);
   throw e;
 }
