@@ -265,7 +265,8 @@ test('stress monitor card (the reference dashboard\'s chart card): the newest da
   const html = els['home-dash'].innerHTML;
   const keys = [...html.matchAll(/data-detail="([\w-]+)"/g)].map((m) => m[1]);
   assert.deepEqual(keys, ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'stress']);
-  const card = /<li class="db-card db-stress ds-high"[^]*?<\/li>/.exec(html)[0];
+  const card = /<li><div class="db-card db-stress ds-high"[^]*?<\/div><\/li>/.exec(html)[0];
+  assert.doesNotMatch(html, /<li[^>]*role="button"/, 'no <li> loses its listitem role to a button role');
   assert.match(card, /data-detail="stress" data-date="2026-09-29" role="button"/, 'the day with a latest hour, not the newer one without');
   assert.match(card, new RegExp(`<span class="db-card-t">${enT.home.dash.names.stress}</span></div>`), 'the chevron = the shared opener\'s :after');
   assert.match(card, /<span class="ds-band">High<\/span><b class="db-card-v">2\.3<\/b>/);

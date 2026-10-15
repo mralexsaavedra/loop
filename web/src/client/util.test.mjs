@@ -45,8 +45,10 @@ test('esc: an absent value (null / undefined) renders as empty, never "null" / "
 });
 
 /* HC.jsonApi(base, header, timeoutMs): the ONE fetch wrapper of the LAN APIs (food-core.js, journal.js) */
-function apiCtx({ fetch, protocol = 'http:' } = {}) {
+function apiCtx({ fetch, protocol = 'http:', anySignal = true } = {}) {
   const ctx = { LOCALE: 'en', HC_CONST: HC_CONST_BAKE, I18N_DATE: enDate, Math, String, Number, Array, Object, JSON, Promise, setTimeout, clearTimeout, AbortController, fetch, location: { protocol } };
+  // anySignal false: a browser without AbortSignal.any (the caller's signal is relayed by hand)
+  if (anySignal) ctx.AbortSignal = AbortSignal;
   vm.createContext(ctx);
   vm.runInContext(UTIL_SOURCE, ctx);
   return ctx.HC;
@@ -109,12 +111,54 @@ test('jsonApi: a request that never answers times out as offline', async () => {
   await assert.rejects(HC.jsonApi('/api/food', 'X-HC-Food', 30)('GET', '/x'), (e) => e.code === 'offline' && e.status === 0);
 });
 
-test('freshness.js and profile.js fetch only through HC.fetchTimeout (no request without a timeout)', () => {
+test('jsonApi + fetchJson: the timeout also covers a body that never arrives (headers came, res.json() stalls)', async () => {
+  let signal = null;
+  const stalled = (url, init) => { signal = init.signal; return Promise.resolve({ ok: true, status: 200, json: () => new Promise(() => {}) }); };
+  let HC = apiCtx({ fetch: stalled });
+  const t0 = Date.now();
+  await assert.rejects(HC.jsonApi('/api/food', 'X-HC-Food', 30)('GET', '/x'), (e) => e.code === 'offline' && e.status === 0);
+  assert.ok(Date.now() - t0 < 1000);
+  assert.equal(signal.aborted, true, 'the stalled body is aborted');
+  HC = apiCtx({ fetch: stalled });
+  await assert.rejects(HC.fetchJson('/status.json', { cache: 'no-store' }, 30), (e) => e && e.name === 'TimeoutError');
+  HC = apiCtx({ fetch: () => Promise.resolve(res(200, { commit: 'abc' })) });
+  assert.deepEqual({ ...(await HC.fetchJson('/status.json', {}, 1000)) }, { commit: 'abc' });
+  HC = apiCtx({ fetch: () => Promise.resolve(res(503, { error: 'x' })) });
+  assert.equal(await HC.fetchJson('/status.json', {}, 1000), null, 'a non-2xx answer = null');
+});
+
+test('fetchTimeout: a caller\'s signal is combined with the timeout (never overwritten), with or without AbortSignal.any', async () => {
+  for (const anySignal of [true, false]) {
+    let signal = null;
+    const HC = apiCtx({ anySignal, fetch: (url, init) => { signal = init.signal; return new Promise(() => {}); } });
+    const caller = new AbortController();
+    const init = { method: 'GET', signal: caller.signal };
+    const p = HC.fetchTimeout('/x', init, 5000);
+    assert.equal(init.signal, caller.signal, 'the caller\'s init is not mutated');
+    assert.notEqual(signal, caller.signal, 'the request carries a combined signal');
+    assert.equal(signal.aborted, false);
+    const t0 = Date.now();
+    caller.abort();
+    await assert.rejects(p, (e) => e && e.name === 'AbortError');
+    assert.ok(Date.now() - t0 < 1000, 'the caller abort ends it at once, not at the timeout');
+    assert.equal(signal.aborted, true, 'the request is aborted by the caller');
+    // and the timeout still aborts a request that carries a caller signal
+    let s2 = null;
+    const HC2 = apiCtx({ anySignal, fetch: (url, i) => { s2 = i.signal; return new Promise(() => {}); } });
+    await assert.rejects(HC2.fetchTimeout('/x', { signal: new AbortController().signal }, 30), (e) => e && e.name === 'TimeoutError');
+    assert.equal(s2.aborted, true);
+  }
+});
+
+test('freshness.js and profile.js fetch only through HC.fetchTimeout / HC.fetchJson (no request without a timeout)', () => {
   for (const f of ['freshness.js', 'profile.js']) {
     const src = stripComments(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), f), 'utf8'));
-    assert.doesNotMatch(src.replace(/HC\.fetchTimeout\(/g, ''), /\bfetch\(/, f);
-    assert.match(src, /HC\.fetchTimeout\(/, f);
+    assert.doesNotMatch(src.replace(/HC\.fetch(Timeout|Json)\(/g, ''), /\bfetch\(/, f);
+    assert.match(src, /HC\.fetch(Timeout|Json)\(/, f);
   }
+  // freshness reads JSON bodies: through fetchJson, so the timeout covers the body too
+  const fr = stripComments(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'freshness.js'), 'utf8'));
+  assert.doesNotMatch(fr, /\.json\(\)/, 'no res.json() outside the timeout');
 });
 
 test('food-core.js and journal.js share HC.jsonApi: no fetch of their own', () => {
@@ -279,6 +323,11 @@ test('trendTone / metricRow: a ▲ ▼ is never grey — no good direction reads
   assert.equal(row('down'), 'neutral ▼');
   assert.equal(row('flat', 'flat'), 'flat •');
   assert.equal(row('up', 'good'), 'good ▲');
+  // an opener row keeps its <li> a list item: the button role sits on an inner <div class="db-row">
+  const open = HC.metricRow({ key: 'weight', cls: 'db-stale', attrs: ' id="hl-w" data-detail="weight" role="button" tabindex="0" aria-haspopup="dialog"', aria: 'Weight', name: 'W', value: '1' });
+  assert.match(open, /^<li><div class="db-row db-stale" id="hl-w" data-detail="weight" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Weight"><svg class="db-ico"/);
+  assert.ok(open.endsWith('</span></div></li>'));
+  assert.match(HC.metricRow({ key: 'weight', name: 'W', value: '1' }), /^<li class="db-row"><svg[\s\S]*<\/li>$/, 'a row that opens nothing stays a plain <li>');
 });
 
 test('contribRow is THE contributor row: icon, escaped label + sub, value, the glyph with its tone and words', () => {

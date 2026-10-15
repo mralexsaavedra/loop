@@ -1855,7 +1855,7 @@
   "|||.hmt-chip|||gap": "var(--sp-2)",
   "|||.hmt-chip|||letter-spacing": "var(--label-track)",
   "|||.hmt-chip|||text-transform": "uppercase",
-  "|||.hmt-ico|||background": "rgba(0, 241, 159, 0.16)",
+  "|||.hmt-ico|||background": "rgba(var(--up-rgb), 0.16)",
   "|||.hmt-ico|||border-radius": "3px",
   "|||.hmt-ico|||fill": "none",
   "|||.hmt-ico|||height": "16px",
@@ -2406,7 +2406,7 @@
   "|||.outlook[role=button]:focus-visible|||outline": "2px solid var(--accent)",
   "|||.outlook[role=button]:focus-visible|||outline-offset": "2px",
   "|||.outlook|||align-items": "center",
-  "|||.outlook|||background": "linear-gradient(90deg, #4a4642 0%, #34363a 45%, var(--surface) 100%)",
+  "|||.outlook|||background": "linear-gradient(90deg, var(--outlook-a) 0%, var(--outlook-b) 45%, var(--surface) 100%)",
   "|||.outlook|||border-radius": "var(--r-sm)",
   "|||.outlook|||color": "var(--ink)",
   "|||.outlook|||display": "flex",
@@ -3217,7 +3217,6 @@
   "|||.wp-prog, .wp-bar|||display": "block",
   "|||.wp-prog, .wp-bar|||height": "4px",
   "|||.wp-prog, .wp-bar|||overflow": "hidden",
-  "|||.wp-row:last-child|||border-bottom": "0",
   "|||.wp-row|||border-bottom": "1px solid var(--line-soft)",
   "|||.wp-row|||display": "grid",
   "|||.wp-row|||gap": "var(--sp-2) var(--sp-4)",
@@ -4319,5 +4318,9 @@
   "(min-width:900px)|||.wrap>.topbar, .wrap>main, .wrap>footer|||max-width": "var(--content-max)",
   "(min-width:900px)|||.wrap>.topbar, .wrap>main, .wrap>footer|||margin-left": "auto",
   "(min-width:900px)|||.wrap>.topbar, .wrap>main, .wrap>footer|||margin-right": "auto",
-  "|||.wrap:has(>main>.tab-panel[data-tab=home][hidden])>.topbar>.date-pill|||display": "none"
+  "|||.wrap:has(>main>.tab-panel[data-tab=home][hidden])>.topbar>.date-pill|||display": "none",
+  "|||.wp-rows>li:last-child>.wp-row|||border-bottom": "0",
+  "|||:root|||--up-rgb": "0, 241, 159",
+  "|||:root|||--outlook-a": "#4a4642",
+  "|||:root|||--outlook-b": "#34363a"
 }

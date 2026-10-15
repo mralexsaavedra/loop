@@ -32,6 +32,7 @@ function run({ locale = 'en', at = '2026-09-29T09:00:00', withHost = true, pill 
     ui.next = doc.el('day-next', { tag: 'button', hidden: true });
     ui.lbl = doc.el('day-lbl', { tag: 'button', attrs: { 'data-back': locale === 'es' ? 'Volver a hoy' : 'Back to today' } });
     ui.word = doc.el('day-word', { tag: 'span', textContent: locale === 'es' ? 'Hoy' : 'Today' });
+    ui.live = doc.el('day-live', { tag: 'span' });
   }
   if (sheetOpen) doc.el('detail', { hidden: false });
   const writes = [];
@@ -94,6 +95,16 @@ test('a past day: the label shows its date (CSS uppercases it), the <time> carri
   assert.equal(r.ui.word.textContent, 'Hoy');
   assert.equal(r.el.textContent, 'mar 29 sept');
   assert.equal(r.ui.lbl.getAttribute('aria-label'), null);
+});
+
+test('the selected day is announced by a separate sr-only status, not by the label button (named once)', () => {
+  const r = run({ locale: 'en' });
+  assert.equal(r.ui.live.textContent, '', 'nothing announced on the first paint');
+  r.D.step(-1);
+  assert.equal(r.ui.live.textContent, 'Mon 28 Sep');
+  r.ui.lbl._listeners.click[0]();
+  assert.equal(r.ui.live.textContent, 'Today · Tue 29 Sep');
+  assert.equal(r.ui.lbl.getAttribute('aria-live'), null);
 });
 
 test('the history caps the reach: data far behind the clock = no stepping (no dead chevrons); no history = none', () => {

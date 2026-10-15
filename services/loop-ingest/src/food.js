@@ -21,8 +21,9 @@
  *
  * Security. A static page cannot hold a secret, so these routes are UNAUTHENTICATED like /sync and
  * meant for the LAN only (a public reverse proxy must NEVER forward /food/*, see README). Layers:
- *   - Host check (DNS rebinding): the Host must be an IP literal, localhost, host.docker.internal (the
- *     loop-web proxy hop) or a name in FOOD_ALLOWED_HOSTS, else 421. A rebinding page (its own name
+ *   - Host check (DNS rebinding): the Host must be an IP literal, localhost, loop-ingest (the loop-web proxy
+ *     hop over loop-net; host.docker.internal, its former name, still passes) or a name in FOOD_ALLOWED_HOSTS,
+ *     else 421. A rebinding page (its own name
  *     resolved to a LAN address) is refused here and, first, by loop-web's nginx Host map;
  *   - on writes (http.js writeOriginOk, 403 forbidden_origin): Sec-Fetch-Site, when sent, must be same-origin, and
  *     an Origin must name an allowed host and, behind loop-web, be exactly the host[:port] nginx was asked for
@@ -51,7 +52,7 @@ import {
 } from './food-calc.js'
 import { createWindowLimiter } from './limits.js'
 import {
-  JSON_BODY_LIMIT, httpError, send, isJson, readJson, validDate, hostAllowed, hostOfHeader, writeOriginOk
+  JSON_BODY_LIMIT, httpError, send, isJson, readJson, validDate, hostAllowed, hostOfHeader, writeOriginOk, hasControlChars
 } from './http.js'
 
 export const FOOD_BODY_LIMIT = JSON_BODY_LIMIT // readJson's cap (http.js), named for the food tests
@@ -96,7 +97,7 @@ function absent (v) {
 }
 function str (v, field, max, optional = false) {
   if (optional && (absent(v) || v === '')) return null
-  if (typeof v !== 'string') bad(field)
+  if (typeof v !== 'string' || hasControlChars(v)) bad(field)
   const s = v.replace(/\s+/g, ' ').trim()
   if (!s || s.length > max) bad(field)
   return s

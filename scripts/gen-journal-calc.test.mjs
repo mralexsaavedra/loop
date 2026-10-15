@@ -27,3 +27,24 @@ test('the service module exports exactly the reference behaviours, groups and li
   assert.deepEqual(S.JOURNAL_BEHAVIORS, J.JOURNAL_BEHAVIORS);
   assert.deepEqual(S.JOURNAL_LIMITS, J.JOURNAL_LIMITS);
 });
+
+test('both generators: --help prints the usage, an unknown flag or a stray argument exits 2, --check exits 0 when current', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const { statSync } = await import('node:fs');
+  const { FOOD_CALC_PATH } = await import('./gen-food-calc.mjs');
+  for (const [name, file] of [['gen-journal-calc.mjs', JOURNAL_CALC_PATH], ['gen-food-calc.mjs', FOOD_CALC_PATH]]) {
+    const script = new URL('./' + name, import.meta.url).pathname;
+    const before = statSync(file).mtimeMs;
+    const run = (args) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' });
+    const help = run(['--help']);
+    assert.equal(help.status, 0, name);
+    assert.match(help.stdout, /^Usage: npm run gen:/);
+    for (const args of [['--chek'], ['stray']]) {
+      const r = run(args);
+      assert.equal(r.status, 2, `${name} ${args}`);
+      assert.match(r.stderr, /^ERROR: /);
+    }
+    assert.equal(run(['--check']).status, 0, name);
+    assert.equal(statSync(file).mtimeMs, before, `${name} wrote nothing`);
+  }
+});

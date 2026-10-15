@@ -28,7 +28,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as common from '../apple-health/sync-common.mjs'
-import { addDays, isIsoDate } from '../../lib/date.mjs'
+import { isIsoDate } from '../../lib/date.mjs'
 import { isMain } from '../../scripts/lib/is-main.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -43,15 +43,12 @@ const GROUPS = ['breakfast', 'lunch', 'dinner', 'addon']
 const MACROS = [['p', 'protein'], ['c', 'carbs'], ['f', 'fat']]
 const HEADER = ['date', 'kcal', 'protein_g', 'carbs_g', 'fat_g', 'entries', ...GROUPS, 'missing_macros']
 
-const pad = (n) => String(n).padStart(2, '0')
-const localIso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0
 const isCount = (v) => Number.isInteger(v) && v >= 0
 
 /** {from, to}: DAYS_MAX days inclusive, ending on the local date of `now`. */
 function windowFor (now = new Date()) {
-  const to = localIso(now)
-  return { from: addDays(to, -(DAYS_MAX - 1)), to }
+  return common.windowEndingOn(now, DAYS_MAX)
 }
 
 /** The GET /food/log/summary body reduced to the known per-day fields; throws when malformed. */
@@ -171,12 +168,12 @@ Env: INGEST_URL, INGEST_ENV_FILE (default services/loop-ingest/.env, for its ING
 
 // The CLI entry; env / log / error / fetchImpl / outDir are injectable for tests. Returns the exit code: an
 // unreachable service or a malformed body is a warning (0), a failed write 1.
-async function main ({ env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = OUT } = {}) {
+async function main ({ env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = OUT, now = new Date() } = {}) {
   const baseUrl = common.readBaseUrl(env)
   /** @type {any} */
   let body
   try {
-    body = await fetchSummary(baseUrl, windowFor(), { fetchImpl })
+    body = await fetchSummary(baseUrl, windowFor(now), { fetchImpl })
   } catch (err) {
     error(warning(err, baseUrl))
     return 0
@@ -188,7 +185,7 @@ async function main ({ env = process.env, log = console.log, error = console.err
     return 0
   }
   try {
-    const r = syncFoodlog(outDir, body)
+    const r = syncFoodlog(outDir, body, { now })
     log(`Food log: ${r.days} logged day${r.days === 1 ? '' : 's'} in ${body.from}..${body.to}; ${r.written ? 'written' : 'unchanged'}`)
     return 0
   } catch (err) {

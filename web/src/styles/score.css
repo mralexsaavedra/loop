@@ -74,7 +74,7 @@
   margin: 0 0 var(--sp-5);
   padding: 0 var(--sp-5);
   border-radius: var(--r-sm);
-  background: linear-gradient(90deg, #4a4642 0%, #34363a 45%, var(--surface) 100%);
+  background: linear-gradient(90deg, var(--outlook-a) 0%, var(--outlook-b) 45%, var(--surface) 100%);
   color: var(--ink);
 }
 .outlook[data-detail][role="button"] {
@@ -670,7 +670,7 @@
   height: 16px;
   padding: 1px;
   border-radius: 3px;
-  background: rgba(0, 241, 159, 0.16);
+  background: rgba(var(--up-rgb), 0.16);
   fill: none;
   stroke: var(--up);
   stroke-width: 2;
@@ -1144,7 +1144,7 @@ details.rec-raw[open] > summary::after {
   padding: var(--sp-5) 0;
   border-bottom: 1px solid var(--line-soft);
 }
-.wp-row:last-child {
+.wp-rows > li:last-child > .wp-row {
   border-bottom: 0;
 }
 .wp-row {

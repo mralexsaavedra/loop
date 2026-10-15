@@ -179,7 +179,8 @@
         var name = T.names[r.key] || r.key;
         var tone = Math.abs(r.diff) < 1 ? 'flat' : r.diff > 0 ? 'up' : 'down';
         var aria = format(T.rowAria, { name: name, diff: (r.diff > 0 ? '+' : '') + HC.num(r.diff, 1), yesMean: HC.num(r.yesMean, 0), noMean: HC.num(r.noMean, 0), yes: r.yesDays, no: r.noDays });
-        return '<li class="ji-row" aria-label="' + esc(aria) + '"><span class="ji-name" aria-hidden="true">' + esc(name) + '</span>' +
+        // the sentence is real (sr-only) text: an aria-label on a plain <li> is not read
+        return '<li class="ji-row"><span class="sr-only">' + esc(aria) + '</span><span class="ji-name" aria-hidden="true">' + esc(name) + '</span>' +
           '<b class="ji-pct ji-' + tone + '" aria-hidden="true">' + esc(signed(r.diff)) + '</b>' +
           '<span class="ji-bar" aria-hidden="true"><i class="ji-fill ji-' + tone + '" style="' + barStyle(r.diff, scale) + '"></i><i class="ji-dot"></i></span></li>';
       }).join('');
@@ -228,18 +229,24 @@
     }
     function pair(b, v, q) {
       var no = b.kind === 'count' ? v === 0 : v === false;
-      var html = '<button type="button" class="jr-x" data-jr="no" data-key="' + b.key + '" aria-pressed="' + no + '" aria-label="' + esc(format(T.no, { q: q })) + '">' + CROSS + '</button>';
+      var html = '<button type="button" class="jr-x" id="jr-no-' + b.key + '" data-jr="no" data-key="' + b.key + '" aria-pressed="' + no + '" aria-label="' + esc(format(T.no, { q: q })) + '">' + CROSS + '</button>';
       if (b.kind === 'count') {
         var n = typeof v === 'number' ? v : null;
-        return html + '<span class="jr-step"><button type="button" class="jr-x" data-jr="dec" data-key="' + b.key + '" aria-label="' + esc(T.less) + '"' + (n ? '' : ' disabled') + '>−</button>' +
-          // unanswered = a dimmed "0" (a "–" read as the minus beside it); its spoken form stays "—"
-          '<b class="jr-n' + (n == null ? ' jr-n-none' : '') + '" aria-live="polite" aria-label="' + esc(format(T.count, { n: n == null ? '—' : n })) + '">' + (n == null ? 0 : n) + '</b>' +
-          '<button type="button" class="jr-x" data-jr="inc" data-key="' + b.key + '" aria-label="' + esc(T.more) + '"' + (n != null && n >= LIM.countMax ? ' disabled' : '') + '>+</button></span>';
+        return html + '<span class="jr-step"><button type="button" class="jr-x" id="jr-dec-' + b.key + '" data-jr="dec" data-key="' + b.key + '" aria-label="' + esc(T.less) + '"' + (n ? '' : ' disabled') + '>−</button>' +
+          // unanswered = a dimmed "0" (a "–" read as the minus beside it); its spoken form stays "—".
+          // A live region updated in place (paintRow): the digit is visual, the sr-only text is spoken
+          '<b class="jr-n' + (n == null ? ' jr-n-none' : '') + '" id="jr-n-' + b.key + '" aria-live="polite" aria-atomic="true">' +
+          '<span id="jr-nv-' + b.key + '" aria-hidden="true">' + (n == null ? 0 : n) + '</span><span class="sr-only" id="jr-ns-' + b.key + '">' + esc(countText(n)) + '</span></b>' +
+          '<button type="button" class="jr-x" id="jr-inc-' + b.key + '" data-jr="inc" data-key="' + b.key + '" aria-label="' + esc(T.more) + '"' + (n != null && n >= LIM.countMax ? ' disabled' : '') + '>+</button></span>';
       }
-      return html + '<button type="button" class="jr-x jr-y" data-jr="yes" data-key="' + b.key + '" aria-pressed="' + (v === true) + '" aria-label="' + esc(format(T.yes, { q: q })) + '">' + CHECK + '</button>';
+      return html + '<button type="button" class="jr-x jr-y" id="jr-yes-' + b.key + '" data-jr="yes" data-key="' + b.key + '" aria-pressed="' + (v === true) + '" aria-label="' + esc(format(T.yes, { q: q })) + '">' + CHECK + '</button>';
+    }
+    function countText(n) {
+      return format(T.count, { n: n == null ? '—' : n });
     }
     function stripHtml(sel, today) {
-      return '<div class="jr-strip" role="group">' + weekDays(today).map(function (d) {
+      var week = weekDays(today);
+      return '<div class="jr-strip" role="group" aria-label="' + esc(format(T.week, { from: HC.fmtDate(week[0]), to: HC.fmtDate(week[week.length - 1]) })) + '">' + week.map(function (d) {
         var on = journaled(S.days[d]);
         return '<button type="button" class="jr-sd" data-jr="day" data-date="' + d + '" aria-pressed="' + (d === sel) + '" aria-label="' + esc(format(on ? T.dayDone : T.dayOpen, { day: HC.fmtDate(d) })) + '">' +
           '<span class="jr-wd">' + HC.parseIso(d).getDate() + '</span><span class="jr-dot' + (on ? ' jr-on' : '') + '">' + (on ? CHECK : '') + '</span></button>';
@@ -267,8 +274,9 @@
           '<label class="jr-g" for="jr-notes">' + esc(T.notes) + '</label>' +
           '<textarea id="jr-notes" class="jr-notes" rows="3" maxlength="' + LIM.notesMax + '" placeholder="' + esc(T.notesPh) + '"' + (S.saving ? ' readonly' : '') + '>' + esc(d.notes) + '</textarea>' +
           manage +
-          '<p class="jr-msg' + (S.err ? ' jr-err' : '') + '" role="status" aria-live="polite">' + esc(S.msg) + '</p>' +
-          '<div class="jr-save"><button type="button" class="save-btn" data-jr="save"' + (S.saving ? ' disabled' : '') + '>' + esc(S.saving ? T.saving : T.save) + '</button></div>',
+          // the live region: a message is set in place (showMsg), never rendered in with the node
+          '<p class="jr-msg' + (S.err ? ' jr-err' : '') + '" id="jr-status" role="status" aria-live="polite">' + esc(S.msg) + '</p>' +
+          '<div class="jr-save"><button type="button" class="save-btn" id="jr-save" data-jr="save"' + (S.saving ? ' disabled' : '') + '>' + esc(S.saving ? T.saving : T.save) + '</button></div>',
       };
     }
     function reopen(focus) {
@@ -276,6 +284,45 @@
       if (!H || typeof H.open !== 'function' || !S.draft) return;
       S.inSheet = true;
       try { H.open('journal', S.draft.date, { focus: focus }); } finally { S.inSheet = false; }
+    }
+    function byId(id) {
+      return typeof document !== 'undefined' && document.getElementById ? document.getElementById(id) : null;
+    }
+    // a status message set into the live region already in the DOM, so screen readers announce it (a
+    // region re-rendered together with its text is not); without the sheet's node, render first, then set
+    function showMsg(msg, err, focus) {
+      S.msg = '';
+      S.err = !!err;
+      if (!byId('jr-status')) reopen(focus);
+      S.msg = msg;
+      var el = byId('jr-status');
+      if (!el) return;
+      el.textContent = msg;
+      el.className = 'jr-msg' + (err ? ' jr-err' : '');
+    }
+    // a ✕ / ✓ / stepper press repaints its own row in place (the count is a live region that must stay
+    // in the DOM); false when the row is not mounted, and the caller re-renders the sheet instead
+    function paintRow(b, act) {
+      var key = b.key, no = byId('jr-no-' + key), v = own(S.draft.answers, key) ? S.draft.answers[key] : null;
+      var yes = byId('jr-yes-' + key), dec = byId('jr-dec-' + key), inc = byId('jr-inc-' + key);
+      var box = byId('jr-n-' + key), shown = byId('jr-nv-' + key), said = byId('jr-ns-' + key);
+      if (!no || (b.kind === 'count' ? !(dec && inc && box && shown && said) : !yes)) return false;
+      if (b.kind !== 'count') {
+        no.setAttribute('aria-pressed', String(v === false));
+        yes.setAttribute('aria-pressed', String(v === true));
+        return true;
+      }
+      var n = typeof v === 'number' ? v : null;
+      no.setAttribute('aria-pressed', String(n === 0));
+      dec.disabled = !n;
+      inc.disabled = n != null && n >= LIM.countMax;
+      if (box.classList) box.classList.toggle('jr-n-none', n == null);
+      shown.textContent = String(n == null ? 0 : n);
+      said.textContent = countText(n);
+      // a press that disabled its own button hands focus to the other step, never out of the sheet
+      if (act === 'dec' && dec.disabled && typeof inc.focus === 'function') inc.focus();
+      if (act === 'inc' && inc.disabled && typeof dec.focus === 'function') dec.focus();
+      return true;
     }
     // the view's render: a fresh open (from the card, the "+", a deep link) starts from the SAVED day,
     // so a draft left by closing the sheet never comes back; a re-render (reopen) keeps it
@@ -314,9 +361,22 @@
         S.saving = false;
         S.err = true;
         if (session !== S.session) return; // the sheet was closed: its draft is gone anyway
-        S.msg = err && err.code === 'offline' ? T.offline : format(T.failed, { code: (err && err.code) || 'generic' });
-        reopen('[data-jr="save"]');
+        // the sheet stays as it is: the pill and the note are unlocked in place, then the message is set
+        var btn = byId('jr-save'), notes = byId('jr-notes');
+        if (btn && notes) {
+          btn.disabled = false;
+          btn.textContent = T.save;
+          notes.readOnly = false;
+          if (typeof btn.focus === 'function') btn.focus();
+        } else {
+          S.msg = '';
+          reopen('[data-jr="save"]');
+        }
+        showMsg(failMsg(err), true, '[data-jr="save"]');
       });
+    }
+    function failMsg(err) {
+      return err && err.code === 'offline' ? T.offline : format(T.failed, { code: (err && err.code) || 'generic' });
     }
     function toggle(key) {
       var patch = {};
@@ -328,9 +388,7 @@
         S.msg = '';
         reopen('[data-jr="tog"][data-key="' + key + '"]');
       }, function (err) {
-        S.err = true;
-        S.msg = err && err.code === 'offline' ? T.offline : format(T.failed, { code: (err && err.code) || 'generic' });
-        reopen('[data-jr="tog"][data-key="' + key + '"]');
+        showMsg(failMsg(err), true, '[data-jr="tog"][data-key="' + key + '"]');
       });
     }
 
@@ -353,7 +411,9 @@
       if (!S.draft || !byKey(key)) return;
       S.draft.answers = press(S.draft.answers, key, act);
       S.msg = '';
-      reopen('[data-jr="' + act + '"][data-key="' + key + '"]');
+      var st = byId('jr-status');
+      if (st) st.textContent = '';
+      if (!paintRow(byKey(key), act)) reopen('[data-jr="' + act + '"][data-key="' + key + '"]');
     });
     document.addEventListener('input', function (e) {
       var t = e && e.target;

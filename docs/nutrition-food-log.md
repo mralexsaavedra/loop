@@ -137,8 +137,9 @@ The routes are UNAUTHENTICATED (a static page cannot hold a secret) and LAN only
    that is an IP literal (v4 / bracketed v6), `localhost` or a name in `PLAN_WEB_EXTRA_HOSTS`
    (`map $host $hc_host_ok` + a server-level `return 421`; `hosts.sh`, mounted as
    `/docker-entrypoint.d/15-hc-hosts.sh`, renders the names into exact map entries). Ingest `/food/*`
-   repeats it (IP literal, `localhost`, `host.docker.internal` = the proxy hop, which nginx sends as
-   `Host`, or `FOOD_ALLOWED_HOSTS`; else `421 misdirected`).
+   repeats it (IP literal, `localhost`, `loop-ingest` = the proxy hop over the `loop-net` Docker network, which
+   nginx sends as `Host` (`host.docker.internal`, its former name, still passes), or `FOOD_ALLOWED_HOSTS`; else
+   `421 misdirected`).
 2. On writes (`403 forbidden_origin`): `Sec-Fetch-Site`, when sent, must be `same-origin`; an `Origin` header must
    name an allowed host and, behind loop-web, be exactly the host + port the browser asked nginx for (nginx
    forwards it as `X-Forwarded-Host`), so another LAN address or port cannot write. No `Origin` and no
@@ -154,10 +155,12 @@ calling the service directly is trusted (the LAN-only model).
 - **To add a hostname** (e.g. `http://plan.lan:8090`): `PLAN_WEB_EXTRA_HOSTS=plan.lan` in
   `services/loop-web/.env` + `FOOD_ALLOWED_HOSTS=plan.lan` in `services/loop-ingest/.env`, then
   `docker compose up -d` in both; only names you control on your own network.
-- Bodies ≤ 16 KB (`413`); writes ≤ 60 / min per client address (`429`) — behind loop-web every request comes
+- Text fields refuse U+0000 and the other control characters but tab / line feed / carriage return (`400 invalid`
+  with the `field`; Postgres cannot store U+0000). Bodies ≤ 16 KB (`413`); writes ≤ 60 / min per client address (`429`) — behind loop-web every request comes
   from nginx, so it is ONE shared budget.
 - loop-web nginx proxies the prefix `/api/food/` → ingest `/food/` (GET / POST / PUT / DELETE, body passed,
-  `client_max_body_size 16k`, `X-HC-Food` forwarded, `Host host.docker.internal`, `X-Forwarded-Host $http_host`). A public reverse proxy
+  `client_max_body_size 16k`, `X-HC-Food` forwarded, `Host loop-ingest`, `X-Forwarded-Host $http_host`; to
+  `loop-ingest:8088` over `loop-net`, [`lan-services.md` → Network and bind address](lan-services.md#network-and-bind-address)). A public reverse proxy
   must NEVER forward `/food/*`.
 
 ## The Log food block
@@ -260,7 +263,8 @@ The search box also looks in `FOOD_BASICS` (it shows even with no product yet).
 - List by store (per-100 line, serving, Edit, Archive with a confirm step).
 - Add = barcode or text lookup → OFF cards showing what OFF has (missing values marked) → "Usar este" fills
   the form with the missing fields flagged (`--mid`) → the user confirms every value and the store → save.
-  "desde la etiqueta" = the same form empty (`source: "label"`).
+  "desde la etiqueta" = the same form empty (`source: "label"`). A new product's store starts on the FIRST
+  configured store (`FOOD_STORES[0]`, baked as `FOOD_CONST.stores`), never a hard-coded one.
 
 ## My recipes
 

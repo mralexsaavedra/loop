@@ -263,9 +263,9 @@ test('every Salud trend card opens its detail view; run / ride rows open that da
   };
   const html = renderAt(H, '2026-07-01', { detail: true });
   const keys = ['rhr', 'hrv', 'vo2max', 'walkingHr', 'respiratory', 'wristTemp', 'sleep', 'weight', 'bodyfat', 'lean', 'waist', 'steps', 'exercise', 'distance', 'flights', 'energy'];
-  for (const k of keys) assert.match(html, new RegExp(`<li class="db-row"(?: id="hl-\\w+")? data-detail="${k}" role="button" tabindex="0" aria-haspopup="dialog" aria-label="`), k);
-  assert.match(html, /<li class="db-row" data-detail="load-run" data-date="2026-06-22" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Mon 22 Jun · 7.7 km · /);
-  assert.match(html, /<li class="db-row" data-detail="load-bike" data-date="2026-06-10" role="button" tabindex="0" aria-haspopup="dialog" aria-label="/);
+  for (const k of keys) assert.match(html, new RegExp(`<li><div class="db-row"(?: id="hl-\\w+")? data-detail="${k}" role="button" tabindex="0" aria-haspopup="dialog" aria-label="`), k);
+  assert.match(html, /<li><div class="db-row" data-detail="load-run" data-date="2026-06-22" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Mon 22 Jun · 7.7 km · /);
+  assert.match(html, /<li><div class="db-row" data-detail="load-bike" data-date="2026-06-10" role="button" tabindex="0" aria-haspopup="dialog" aria-label="/);
   assert.doesNotMatch(renderAt(H, '2026-07-01'), /data-detail/, 'no detail sheet baked: plain cards and rows');
 });
 
@@ -485,9 +485,10 @@ test('Nutrición Balance: window caption, avg intake / avg burn / deficit per da
   assert.match(b, /^<section class="hs-sec nb" aria-labelledby="nb-h"><div class="hs-head"><h2 class="hs-lbl" id="nb-h">Balance<\/h2><button type="button" class="hs-i" data-hs-info="nb-info"[^>]*aria-label="About Balance">/);
   assert.match(b, /<div class="hs-info" id="nb-info" hidden><p>Balance over 31 May–29 Jun \(30 logged days\)\. Negative = deficit\.[^<]*<b>historical<\/b>[^<]*The macro split is the average of those days\.<\/p><\/div>/);
   assert.match(b, /<p class="nb-win">31 May – 29 Jun · 30 days logged<\/p>/, 'a fixed window, labelled (no W / M / 6M: the bake has one window)');
-  const rows = [...b.matchAll(/<li class="db-row"[^>]*>[\s\S]*?<span class="db-name">([^<]+)<\/span><span class="db-vals"><span class="db-val"><b>([^<]+)<\/b><small>kcal<\/small>/g)].map((m) => [m[1], m[2]]);
+  const rows = [...b.matchAll(/<(?:li|div) class="db-row"[^>]*>[\s\S]*?<span class="db-name">([^<]+)<\/span><span class="db-vals"><span class="db-val"><b>([^<]+)<\/b><small>kcal<\/small>/g)].map((m) => [m[1], m[2]]);
   assert.deepEqual(rows, [['Avg intake', '2,312'], ['Avg burn', '2,717'], ['Deficit / day', '-405']]);
-  assert.match(b, /<li class="db-row" data-detail="energy"[^>]*>[\s\S]*?Avg burn/, 'the burn row opens the expenditure sheet');
+  assert.match(b, /<li><div class="db-row" data-detail="energy"[^>]*>[\s\S]*?Avg burn<\/span>[\s\S]*?<\/div><\/li>/, 'the burn row opens the expenditure sheet; its button role sits inside the <li>');
+  assert.match(b, /<li class="db-row"[^>]*>[\s\S]*?Avg intake/, 'a row that opens nothing stays a plain <li class="db-row">');
   assert.match(b, /<div class="nutri-card nb-split"><span class="dt-trend-lbl">Macro split<\/span><svg class="act-bar" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="Macro split: Protein 140 g, 26%, Carbs 250 g, 46%, Fat 70 g, 29%">/);
   const segs = [...b.matchAll(/<rect class="nb-m-(\w)" x="([\d.]+)" y="0" width="([\d.]+)" height="8"\/>/g)].map((m) => [m[1], +m[2], +m[3]]);
   assert.deepEqual(segs.map((x) => x[0]), ['p', 'c', 'f']);

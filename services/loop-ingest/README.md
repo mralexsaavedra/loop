@@ -25,7 +25,7 @@ parses it into the extract CSVs. A parsing fix later is a re-sync, not a re-impo
 | GET    | `/sync/status`                | none   | `200` `{lastShortcutAt, lastStravaOkAt, lastStravaError, lastTriggerAt, lastTriggerError, lastTriggerErrorSeq, triggerSeq, stravaConfigured}` (coarse codes only, cached 5 s) |
 | POST   | `/ingest/health-auto-export`  | bearer | `202` with the stored row id; `400` on an empty body, invalid JSON or a `\u0000` anywhere in it (`code: "nul_character"`: Postgres cannot store it, so it is refused rather than a `500` the client retries forever); `413` over `MAX_BODY_BYTES` |
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
-| GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]`; `400` on a bad query |
+| GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]` (at most `limit` rows and about 32 MB of payloads per page; `X-Has-More: true` when the byte budget cut it); `400` on a bad query |
 | GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain, start_utc, device_watts, hr_hist}]`; `400` on a bad query |
 | GET    | `/food/products`              | header | `200` `{products}`: active products (per-100 macros, store, serving size) |
 | POST / PUT / DELETE | `/food/products[/:id]` | header | create `201` / edit `200` / archive `200`; `409 barcode_exists`, `400 atwater` unless `force` |
@@ -40,7 +40,7 @@ parses it into the extract CSVs. A parsing fix later is a re-sync, not a re-impo
 | GET    | `/export/athlete`             | bearer | `200` with the latest athlete snapshot: `{fetchedAt, firstname, lastname, city, state, country, profile, profileMedium, measurementPreference, athleteType, bikes, shoes, gearScopeMissing, devices}` (nulls / empty lists when nothing is stored) |
 | GET    | `/journal/day?date=YYYY-MM-DD` | journal | `200` `{day: {date, answers, notes, updatedAt}}` (empty when never journaled) |
 | PUT    | `/journal/day`                | journal | full replace of one day `{date, answers, notes?}`; no answer and no note removes the day |
-| GET    | `/journal/summary?from=&to=`  | journal | `200` `{from, to, days: [{date, answers, notes}]}` |
+| GET    | `/journal/summary?from=&to=`  | journal | `200` `{from, to, days: [{date, answers, notes}]}` (≤ 366 days) |
 | GET / PUT | `/journal/settings`        | journal | `200` `{behaviors: {key: on}}`; PUT takes a partial `{behaviors: {key: bool}}` |
 
 Bearer token is compared in constant time; it is the entire security boundary
@@ -124,8 +124,9 @@ bearer token.
 **Exposure model.** This service is never exposed on its own: loop-web's nginx
 is the only entry, on the LAN or behind a public tunnel, and proxies only
 `POST /ingest/health-auto-export`, `/api/sync`, `/api/sync/status`,
-`/api/food/*` and `/api/journal/*`. Its port is published on the host only so loop-web
-can reach it (`"${INGEST_PORT}:8088"`, or only on `INGEST_BIND` when set; see the loop-web README): keep it off the internet and never
+`/api/food/*` and `/api/journal/*`, reaching this service as `loop-ingest:8088` over the `loop-net` Docker
+network. Its port is published on the host only for the host's sync scripts (`"${INGEST_PORT}:8088"`, or only on
+`INGEST_BIND` when set: `127.0.0.1` is the recommended hardening, [`docs/lan-services.md` → Network and bind address](../../docs/lan-services.md#network-and-bind-address)): keep it off the internet and never
 forward it, `/export/*` or `/sync/strava` through a public proxy or tunnel (see
 [`../loop-web/README.md` → Exposing behind an SSO tunnel](../loop-web/README.md)).
 
@@ -196,7 +197,8 @@ own recipes (Mis recetas), through loop-web's `/api/food/` proxy. Tables in
   optional macros; unknown macros stay `null`, never 0, and the day totals flag
   them (`missing`).
 - **Validation**: strict JSON (unknown keys refused), body ≤ 16 KB (`413`),
-  strings trimmed and capped, per-100 kcal ≤ 900 and macros ≤ 100 g, dates must
+  strings trimmed and capped (a `\u0000` or another control character but tab / line feed / carriage return is
+  `400 invalid` with its `field`: Postgres cannot store U+0000, which was a `500`), per-100 kcal ≤ 900 and macros ≤ 100 g, dates must
   round trip, and a label whose kcal disagree with 4 p + 4 c + 9 f by more than
   25 % (or 10 kcal) answers `400 atwater` unless the body says `force: true`
   (fibre / polyols make real labels deviate; the page offers "save anyway").
@@ -214,7 +216,8 @@ page cannot hold a secret, so `/food/*` is unauthenticated and meant for the LAN
 ONLY. Layers, in order:
 
 1. **Host** (DNS rebinding): the `Host` must be an IP literal (v4 or bracketed
-   v6), `localhost`, `host.docker.internal` (the loop-web proxy hop) or a name in
+   v6), `localhost`, `loop-ingest` (the loop-web proxy hop over `loop-net`; `host.docker.internal`, its former
+   name, still passes) or a name in
    `FOOD_ALLOWED_HOSTS`, else `421 misdirected`. loop-web's nginx refuses other
    names first (see its README).
 2. **Origin** on writes (POST / PUT / DELETE), else `403 forbidden_origin`:
@@ -292,8 +295,13 @@ returned nothing. Runs may overlap (rolling window); the reader dedups.
 | `since_id`   | return rows with `id >` this (default `0`) |
 | `limit`      | page size, default 500, max 1000 |
 
-Rows come back oldest first; page by passing the last `id` as `since_id`. Same
-constant-time bearer check as ingest, and only counts are logged. The repo's
+Rows come back oldest first; page by passing the last `id` as `since_id`. A page also
+stops after the payload that takes its stored sizes (`byte_size`) past **32 MB**, always holding at least one
+row, so 500 payloads of up to 8 MB never sit in the service's 512 MB at once; such a byte-capped page is
+shorter than `limit` and answers `X-Has-More: true` (otherwise `false`; the body stays a plain array). A
+client that stops at the first short page (the repo's sync today) picks up the rest from its cursor on its
+next run; one that reads the header pages on. Same constant-time bearer check as ingest, and only counts are
+logged (`exported`, with `more`). The repo's
 `npm run sync` (`data/apple-health/sync-shortcut.mjs`) uses it to merge Shortcut
 samples into the Apple Health extract CSVs (export rows win; Shortcut rows fill
 only dates the export does not cover, tagged `source=Shortcut`).
@@ -462,6 +470,11 @@ of 100 as it arrives. So the first pull of a long history needs no single long r
 limit (100 requests / 15 min) or anything else stops it partway, the pages already stored stay, and the
 next run continues from the newest one instead of starting over.
 
+Each run's outcome goes to the freshness status (`/sync/status`) as a coarse code. Writing that status is
+bookkeeping apart from the pull: if it fails (the database down) it is logged as its own
+`sync_status_write_failed` event (`outcome: ok | error`), never reported as a Strava failure, and a failed pull
+still answers with its own error.
+
 Access tokens are refreshed in memory with a 60-second slack; callers that need one while a refresh is
 running (the activity pull, the athlete refresh, the HR backfill) wait for that same refresh. The refresh token
 is the durable credential, and Strava may **rotate** it on any refresh: the
@@ -520,6 +533,9 @@ On every start the service applies the `sql/` files listed in `src/migrations.js
 - **One migrator at a time.** The run holds a Postgres advisory lock (`pg_advisory_lock`, key `0x4c4f4f50`),
   so two processes starting together never migrate concurrently; the second waits, then finds everything
   recorded.
+- **No statement timeout.** The pool's 30 s `statement_timeout` (meant for requests) is off for the migration
+  run, the lock wait included (`SET statement_timeout = 0`); the client gets it back (`RESET`) before it returns
+  to the pool.
 - **Optional groups.** A failing core file fails the start; a failing optional group (`food`, `settings`,
   `profile`, `journal`) is rolled back, logged (`<group>_migration_failed`), left unrecorded and retried on
   the next start, and only its routes answer `503` meanwhile.
@@ -552,19 +568,25 @@ token). `.env` is gitignored and must stay that way.
 | `INGEST_TOKEN`      | Bearer token; refuses to start under 32 characters |
 | `POSTGRES_*`        | Database credentials. Compose hands them to the service as separate fields (with `DB_HOST=loop-db`), never as a URL, so the password may hold any character (`@ : / ? # %`) |
 | `DATABASE_URL`      | Optional, outside compose: a connection string that wins over `DB_HOST` + `POSTGRES_*` (percent-encode special characters in its password there) |
-| `INGEST_PORT`       | Required: host port (loop-web proxies to it); compose refuses to start without it (`set INGEST_PORT in services/loop-ingest/.env`). The host-side sync scripts read it from this file too, so a second install on another port syncs from its own service |
-| `INGEST_BIND`       | Optional host address to publish `INGEST_PORT` on (the LAN IP, or `127.0.0.1` when only this host's loop-web and sync scripts use it; an IPv6 address in brackets). Empty = every address, as before. **Docker ignores ufw**: a published port bypasses ufw / firewalld, so on a host with a public address set this ([`docs/guides/troubleshooting.md`](../../docs/guides/troubleshooting.md)) |
+| `INGEST_PORT`       | Required: host port (the host's sync scripts and `refresh.sh` call `http://localhost:<INGEST_PORT>`; loop-web does not use it, it proxies over `loop-net`); compose refuses to start without it (`set INGEST_PORT in services/loop-ingest/.env`). The host-side sync scripts read it from this file too, so a second install on another port syncs from its own service |
+| `INGEST_BIND`       | Optional host address to publish `INGEST_PORT` on: `127.0.0.1` (recommended; loop-web is unaffected, [`docs/lan-services.md` → Network and bind address](../../docs/lan-services.md#network-and-bind-address)), or the LAN IP; an IPv6 address in brackets. Empty = every address, as before. **Docker ignores ufw**: a published port bypasses ufw / firewalld, so on a host with a public address set this |
 | `HC_VERSION`        | Tag of the `mralexandersaavedra/loop-ingest` image `docker compose pull` / `up -d` uses; default = this clone's release version (the value in `docker-compose.yml`). `docker compose up -d --build` ignores it and builds from the clone |
-| `HC_INSTANCE`       | Empty by default. A name for a second install on the same host (`second`): suffixes the compose project, container names and database volume. Set the same value in `services/loop-web/.env` ([`../loop-web/README.md` → Running a second install](../loop-web/README.md#running-a-second-install-another-person-same-host)) |
-| `MAX_BODY_BYTES`    | Upload ceiling, default 8 MB (what loop-web forwards; a Shortcut payload is a few hundred KB); a larger upload (declared or streamed) gets a `413` response before the connection is closed. Raise it only for a direct client that sends more, within the 512 MB container limit |
+| `HC_INSTANCE`       | Empty by default. A name for a second install on the same host (`second`): suffixes the compose project, container names, database volume and the `loop-net` network. Set the same value in `services/loop-web/.env` ([`../loop-web/README.md` → Running a second install](../loop-web/README.md#running-a-second-install-another-person-same-host)) |
+| `MAX_BODY_BYTES`    | Upload ceiling, default 8 MB (what loop-web forwards; a Shortcut payload is a few hundred KB); a larger upload (declared or streamed) gets a `413` response before the connection is closed. Raise it only for a direct client that sends more, within the 512 MB container limit. A whole number of bytes from 1024 to 1 GiB (no unit: `8m` is refused) |
+| `STRAVA_SYNC_MINUTES` | Minutes between Strava pulls, default `30`; a number from 1 to 10080 (a week) |
+| `PORT`              | The port inside the container, default `8088` (compose sets it; an integer 1–65535). `DB_PORT` (outside compose, default `5432`) is checked the same way |
 | `TRIGGER_DIR`       | Where `POST /sync` writes `refresh`; compose sets `/trigger` (bind mount of `./trigger`) |
-| `FOOD_ALLOWED_HOSTS` | Extra host names (comma / space separated) the `/food/*` Host + Origin checks accept besides IP literals, `localhost` and `host.docker.internal`; empty by default. Mirror loop-web's `PLAN_WEB_EXTRA_HOSTS` |
+| `FOOD_ALLOWED_HOSTS` | Extra host names (comma / space separated) the `/food/*` and `/journal/*` Host + Origin checks accept besides IP literals, `localhost`, `loop-ingest` and `host.docker.internal`; empty by default. Mirror loop-web's `PLAN_WEB_EXTRA_HOSTS` |
+
+A numeric variable that is set but not valid (`STRAVA_SYNC_MINUTES=0`, `MAX_BODY_BYTES=8m`, `PORT=abc`) stops
+the service at start with one `startup_failed` log line naming it (`invalid STRAVA_SYNC_MINUTES="0": expected a
+number from 1 to 10080`), instead of a 1 ms Strava loop or no upload cap; unset or empty keeps the default.
 
 ## Running
 
 ```sh
 docker compose up -d --build
-curl -s localhost:8088/healthz
+curl -s localhost:8088/healthz   # {"ok":true,...}
 npm ci && npm test   # or, from the repo root: npm run test:services
 ```
 
@@ -588,7 +610,7 @@ rebuild gets the same dependency tree; after changing a dependency in `package.j
 
 ## Exposing it
 
-**Never expose the ingest port to the internet** (it is published on the host's LAN only for loop-web). The phone reaches it through `services/loop-web`, which forwards
+**Never expose the ingest port to the internet** (it is published only for the host's sync scripts; loop-web reaches the service over `loop-net`). The phone reaches it through `services/loop-web`, which forwards
 only `POST /ingest/health-auto-export` and `POST /api/sync` (see
 [`docs/ios-shortcut.md` → Where the phone sends the data](../../docs/ios-shortcut.md#where-the-phone-sends-the-data)):
 

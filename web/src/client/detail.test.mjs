@@ -2068,3 +2068,13 @@ test('trend view breakdown: one stacked bar of the window\'s days by calendar st
   assert.ok(es.host.innerHTML.includes(`>${esT.trend.brk.learn}<span aria-hidden="true"> →</span></button>`) && /<b>\d+x<\/b>/.test(es.host.innerHTML));
   clean(html);
 });
+
+test('no region landmarks inside the sheet: a <section> of a deep dive or the trend chart carries no accessible name (its <h3> names the part; a list keeps its own label)', () => {
+  const chartSource = fs.readFileSync(path.join(here, 'detail-chart.js'), 'utf8');
+  for (const [f, src] of [['deepdive.js', deepSource], ['detail-chart.js', chartSource]]) {
+    const named = [...src.matchAll(/<section\b[^>]*?(aria-label|aria-labelledby)=/g)].map((m) => m[0]);
+    assert.deepEqual(named, [], f);
+  }
+  assert.match(deepSource, /<ul class="dd-rows" aria-label="' \+ esc\(P\.aria\)/, 'the contributors list keeps its name');
+  assert.match(deepSource, /<ol class="dd-cols" aria-label="/, 'the weekly columns keep theirs');
+});

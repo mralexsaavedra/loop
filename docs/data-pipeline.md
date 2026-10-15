@@ -93,10 +93,14 @@ table.
   incremental sync only parses payloads newer than the cache).
 - Payloads (and Strava activities) are fetched in keyset pages (`fetchPages` in `sync-common.mjs`): a full
   page whose last id is missing or not greater than the previous `since_id` stops the sync with
-  `unexpected paging cursor`, and 10 000 pages is a hard cap, so a misbehaving service can never loop it.
+  `unexpected paging cursor`, and 10 000 pages is a hard cap, so a misbehaving service can never loop it. A
+  short page ends the paging unless the service answers `X-Has-More: true` (`/export/raw` cuts a page at its
+  32 MB byte budget), so a full re-sync of a large history still completes in one run.
 - Rows are tagged `source=Shortcut`, except body comp (keeps the real scale source for the
   latest-source logic) and energy (no source column).
-- `_meta.json` `shortcutSync.owned` lists every date sync wrote, per CSV.
+- `_meta.json` `shortcutSync.owned` lists every date sync wrote, per CSV. It is written FIRST (before the CSVs and the
+  cache), like the Strava sync's: a crash mid-write leaves a ledger that already owns those dates, so the next
+  run drops and rebuilds the Shortcut rows instead of keeping them as export rows.
 
 **Point keys** (one row per sample)
 
@@ -134,6 +138,9 @@ table.
   number > 100 is read as metres (`100` = 100 km, `101` = 101 m).
 - With both separators the last one is the decimal (`1.234,5 m`); a repeated single separator
   (`1.234.567`) is rejected.
+- Counts (steps, flights, exercise minutes) are whole numbers, so one kind of separator followed by
+  exactly three digits is a thousands group: `12.345` / `12,345` steps = 12 345, `1.234.567` = 1 234 567
+  (`12,5` is still 12.5).
 
 **Sleep**: only asleep stages build the night (rules under [Sleep](#sleep-sleep-dailycsv)); a segment
 starting after 18:00 belongs to the next morning's night.
@@ -203,7 +210,12 @@ offset (like the energy hours).
   food-log sync warns `unexpected response` for a body it cannot read (the service was reached) and
   `could not read the food log` when the service is not. Only the Shortcut sync takes a flag (`--full`); `npm run sync -- --full` passes it to
   that script alone.
-- `extract.mjs` runs only as the entry point (`isMain`), and writes every CSV and `_meta.json` atomically.
+- `extract.mjs` runs only as the entry point (`isMain`), and writes every CSV and `_meta.json` atomically,
+  under the same `_meta.json.lock` as the syncs, and only after reading the whole file: a read error, or an
+  export without its closing `</HealthData>` (truncated: a copy still in progress, a full disk), prints one
+  `ERROR:` line, exits 1 and keeps the previous extract.
+- `writeAtomic` (`sync-common.mjs`) writes a `.tmp` next to the file and renames it; a failed write or rename
+  removes the `.tmp` (it holds personal data) before the error goes up.
 
 ### Sleep (`sleep-daily.csv`)
 

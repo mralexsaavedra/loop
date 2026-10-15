@@ -69,7 +69,34 @@ export function containsNul (value) {
 /** The upload ceiling: MAX_BODY_BYTES, else 8 MB, the most loop-web forwards (its client_max_body_size 8m). */
 export const DEFAULT_MAX_BODY_BYTES = 8 * 1024 * 1024
 export function maxBodyBytes (env) {
-  return Number(env.MAX_BODY_BYTES ?? DEFAULT_MAX_BODY_BYTES)
+  return numericEnv(env, 'MAX_BODY_BYTES', { def: DEFAULT_MAX_BODY_BYTES, min: 1024, max: 1024 * 1024 * 1024, integer: true })
+}
+
+/**
+ * A numeric environment variable. Unset or blank = `def`; otherwise a plain decimal number (no unit, no hex)
+ * within [min, max] (and whole when `integer`), else an Error `invalid NAME=<value>: ...` that main() turns into
+ * one startup_failed line: a typo ('8m', 'abc', 0) must stop the service, never silently disable a limit (NaN)
+ * or spin a timer (a 0-minute interval).
+ */
+export function numericEnv (env, name, { def, min, max, integer = false }) {
+  const raw = env[name]
+  if (raw === undefined || String(raw).trim() === '') return def
+  const s = String(raw).trim()
+  const n = /^[+]?(\d+(\.\d*)?|\.\d+)$/.test(s) ? Number(s) : NaN
+  if (!Number.isFinite(n) || n < min || n > max || (integer && !Number.isInteger(n))) {
+    throw new Error(`invalid ${name}=${JSON.stringify(String(raw)).slice(0, 40)}: expected ${integer ? 'an integer' : 'a number'} from ${min} to ${max}`)
+  }
+  return n
+}
+
+/** The numeric settings main() reads (each through numericEnv; throws on the first invalid one). */
+export function envConfig (env) {
+  return {
+    port: numericEnv(env, 'PORT', { def: 8088, min: 1, max: 65_535, integer: true }),
+    maxBodyBytes: maxBodyBytes(env),
+    // at least a minute (Strava's rate limits), at most a week (setInterval overflows past ~24.8 days)
+    stravaSyncMinutes: numericEnv(env, 'STRAVA_SYNC_MINUTES', { def: 30, min: 1, max: 10_080 })
+  }
 }
 
 /**
@@ -232,7 +259,7 @@ export function databaseConfig (env) {
   if (env.DATABASE_URL) return { connectionString: env.DATABASE_URL }
   const { DB_HOST: host, POSTGRES_USER: user, POSTGRES_PASSWORD: password, POSTGRES_DB: database } = env
   if (!host || !user || !password || !database) return null
-  return { host, port: Number(env.DB_PORT || 5432), user, password, database }
+  return { host, port: numericEnv(env, 'DB_PORT', { def: 5432, min: 1, max: 65_535, integer: true }), user, password, database }
 }
 
 /** How long a SIGTERM waits for in-flight requests before closing them (below the compose stop_grace_period). */
@@ -275,11 +302,11 @@ export function createShutdown ({ server, pool, stop = () => {}, flush = async (
   }
 }
 
-const PORT = Number(process.env.PORT ?? 8088)
-const MAX_BODY_BYTES = maxBodyBytes(process.env)
 const INGEST_TOKEN = process.env.INGEST_TOKEN
 
 async function main () {
+  // a numeric variable that is set but invalid throws here: one startup_failed line, exit 1 (the catch below)
+  const { port: PORT, maxBodyBytes: MAX_BODY_BYTES, stravaSyncMinutes } = envConfig(process.env)
   if (!INGEST_TOKEN || INGEST_TOKEN.length < 32) {
     console.error('INGEST_TOKEN missing or shorter than 32 characters')
     process.exit(1)
@@ -332,7 +359,7 @@ async function main () {
   // secret). A Host allowlist (DNS rebinding), an Origin check on writes and the required X-HC-Food
   // header + JSON content type (a CORS preflight this server never approves) keep other websites out;
   // see food.js. A public proxy must never forward /food/*.
-  // FOOD_ALLOWED_HOSTS: extra host names (besides IP literals, localhost, host.docker.internal) the
+  // FOOD_ALLOWED_HOSTS: extra host names (besides IP literals, localhost, loop-ingest, host.docker.internal) the
   // page may be reached by; mirrors loop-web's PLAN_WEB_EXTRA_HOSTS. Empty by default.
   let foodReady = false // set once 006_food.sql ran; until then (or if it failed) /food/* answers 503
   let settingsReady = false // 007_settings.sql, its own group: only /food/settings depends on it
@@ -390,7 +417,7 @@ async function main () {
     })
     if (stravaSync) {
       stravaLoop = startSyncLoop(stravaSync, {
-        intervalMinutes: Number(process.env.STRAVA_SYNC_MINUTES ?? 30)
+        intervalMinutes: stravaSyncMinutes
       })
     }
     server.listen(PORT, () =>

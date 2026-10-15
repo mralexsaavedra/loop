@@ -59,6 +59,9 @@ Primitives (`tokens.css`) stay the scale; ROLE tokens reference them (never a ra
   weight status word is white with its dot coloured (formerly the word too, e.g. yellow "GOING DOWN"),
   Tablas' supplement timing tags are white (formerly `--trend` blue) and Inicio's "PROGRAMMED" timeline
   label is white beside its coloured bar (formerly `--strain-ink`).
+- **Colours (score.css).** A colour comes from a token: no hex, and a tint is `rgba(var(--x-rgb), a)`
+  (`--good-rgb`, `--up-rgb`, …); the one literal is a black shadow (`rgba(0, 0, 0, a)`). The outlook strip's
+  fade is `--outlook-a` → `--outlook-b` → `--surface`. Guard: the "colours" test in `design-system.test.mjs`.
 - **Empty states** read in sentence case, like the source strings: a dial word ("Sin sesión aún",
   "Sin datos", `.dial-word`) is muted sentence case at `--fs-label`, as in the deep-dive hero.
 
@@ -299,6 +302,10 @@ small secondary line under the value, right-aligned (`base`), plus an optional s
 a ride's HR · effort · kJ) — nothing under the name, so run and ride rows are one template. Icons come from ONE set (`metricIcon`,
 which falls back to the contributor rows' paths): each row picks the icon of what it measures (a
 modality, bed, wake, target …), a neutral one when none fits; never the same icon on every row of a list.
+A row that opens a sheet (`attrs` with `HC.detailAttrs`) is `<li><div class="db-row" role="button" …>`: the
+button role sits on the inner `<div>` so the `<li>` stays a list item (a button role on the `<li>` itself drops
+it); a row that opens nothing stays `<li class="db-row">`. Same for My dashboard's stress card
+(`<li><div class="db-card db-stress">`) and the weekly plan's rows (`<li><div class="wp-row">`).
 
 ### Stale-data marker
 
