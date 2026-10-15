@@ -197,4 +197,4 @@ if (isMain(import.meta.url)) {
   else main();
 }
 
-export { ING, D, EX, MACRO, resolve, macro, mealMacros, buildTables, validate, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE, dayTotalK, PLAN_PATH, usedExampleFallback, LOCALE };
+export { ING, D, EX, MACRO, resolve, macro, mealMacros, buildTables, validate, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE, dayTotalK, PLAN_PATH, LOCALE };

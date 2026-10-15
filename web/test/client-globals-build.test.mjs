@@ -17,6 +17,7 @@ import { ADHERENCE, ADHERENCE_CASES, isComplete, dayState } from '../../lib/nutr
 import { PROGRESS, PROGRESS_CASES, rollPoints, weeklyRate, etaMonths } from '../../lib/nutrition/progress.mjs';
 import * as NS from '../../lib/nutrition/score.mjs';
 import * as FL from '../../lib/nutrition/foodlog.mjs';
+import * as FLC from '../../lib/nutrition/foodlog.cases.mjs';
 import * as EN from '../../lib/nutrition/energy.mjs';
 import * as DT from '../../lib/nutrition/daytype.mjs';
 import * as FU from '../../lib/nutrition/fuel.mjs';
@@ -152,8 +153,8 @@ for (const page of PAGES) {
     assert.equal(HC_FOODLOG.ATWATER_ABS_KCAL, FL.ATWATER_ABS_KCAL);
     assert.equal(HC_FOODLOG.BASIC_UD_AMT, FL.BASIC_UD_AMT);
     assert.deepEqual(js(HC_FOODLOG.MACROS), ['protein', 'carbs', 'fat']);
-    for (const c of FL.FOODLOG_CASES) assert.deepEqual(js(FL.runCase(c, HC_FOODLOG)), js(c.expect), c.name);
-    for (const c of FL.BASIC_CASES) assert.deepEqual(js(FL.runBasicCase(c, HC_FOODLOG)), js(c.expect), c.name);
+    for (const c of FLC.FOODLOG_CASES) assert.deepEqual(js(FLC.runCase(c, HC_FOODLOG)), js(c.expect), c.name);
+    for (const c of FLC.BASIC_CASES) assert.deepEqual(js(FLC.runBasicCase(c, HC_FOODLOG)), js(c.expect), c.name);
     for (const v of [1.005, 0.1 + 0.2, 2.45, 7]) {
       assert.equal(HC_FOODLOG.round1(v), FL.round1(v));
       assert.equal(HC_FOODLOG.roundKcal(v), FL.roundKcal(v));

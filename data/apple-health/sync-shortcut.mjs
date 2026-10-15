@@ -148,7 +148,6 @@ const SLEEP_STAGES = {
 // NFD splits accents off ("sueño" -> "suen" + U+0303); drop the combining marks U+0300-U+036F
 const stageKey = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/gi, '').toLowerCase();
 const sleepStageOf = stage => SLEEP_STAGES[stageKey(stage)] || null;
-const isAsleep = stage => ['core', 'deep', 'rem', 'unspec'].includes(sleepStageOf(stage));
 
 // A decimal comma or dot. With BOTH separators the LAST one is the decimal and the other a thousands
 // separator ("1.234,5" / "1,234.5" -> 1234.5); one kind repeated ("1.234.567") is ambiguous -> null.
@@ -549,8 +548,8 @@ async function main({ full = false } = {}) {
 if (isMain(import.meta.url)) common.runCli(main, { usage: USAGE, options: { full: { type: 'boolean' } } });
 
 export {
-  METRICS, SHORTCUT_SOURCE, SLEEP_STAGES, isAsleep, sleepStageOf,
-  parseNumber, parseSource, parsePayload, collectSamples, unionMinutes, buildRows, mergeCsv, updateMeta,
+  METRICS, SHORTCUT_SOURCE, sleepStageOf,
+  parseNumber, parsePayload, collectSamples, unionMinutes, buildRows, mergeCsv, updateMeta,
   planSync, resolveToken, fetchAllPayloads,
   CACHE_FILE, emptyCache, foldPayloads, writeAtomic, syncDir, dropPhantomWeights,
 };

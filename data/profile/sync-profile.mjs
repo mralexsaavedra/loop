@@ -255,7 +255,6 @@ export {
   checkAvatar,
   isAllowedAvatarUrl,
   AVATAR_HOSTS,
-  AVATAR_HOST_SUFFIXES,
   downloadAvatar,
   syncProfile,
   errorMessage,

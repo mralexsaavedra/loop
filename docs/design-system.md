@@ -145,7 +145,10 @@ imports the emitter and exposes the `clientSource()` functions, because `data/nu
 explicit map and constants are declared under every spelling the function bodies use, because the
 bundler renames clashing lib names (`fin` → `fin$3`); two different functions declaring one name are refused (they would
 shadow each other in the one IIFE); only function declarations can be emitted, so a lib helper a global needs is a
-`function`, not an arrow const; `web/test/client-globals-build.test.mjs` runs the
+`function`, not an arrow const; constants are written by the same `literal()` as the service's generated modules
+(`lib/build/literal.mjs`: a value JSON cannot carry — NaN, `undefined`, a Date — is refused, a RegExp is kept);
+`lib/format/classic-globals.test.mjs` checks that every emitted global declares each identifier its functions use
+(ESLint `no-undef`, ECMAScript built-ins only); `web/test/client-globals-build.test.mjs` runs the
 globals out of the BUILT page.
 
 | Rule | es | en | Call |
@@ -165,6 +168,10 @@ globals out of the BUILT page.
   decimal hours ("7,5 h") and "1 h 45 min" are gone. A metric whose unit is `h` drops the unit where it
   is shown (`unitOf` in `detail-state.js`, `mrow` in `health.js`, `compUnit` in `score.js`, the monitor).
   Baked sleep hours keep 2 decimals so h:mm is exact to the minute.
+- **Display rounding is `toFixed`'s** (binary, no epsilon): a float just under x.x5 shows the lower digit
+  (`HC.num(2.3 + 0.05, 1)` → `2,3`). Values that must round half-up are rounded by the lib BEFORE they are
+  baked or shown (`lib/nutrition/num.mjs` `roundEps`, the food log's `round1` / `roundKcal`); the plan keeps the
+  plain `round1` / `round2` so its pinned numbers never move (`lib/nutrition/num.test.mjs` pins both).
 - **Units** stay a separate, smaller span where they already were (`<b>2.532</b><small>kcal</small>`).
 - **Input fields** (food amounts, the target weight) are NOT display: `HC.numInput` keeps the decimal
   comma but never groups, so the field parses its own value back.

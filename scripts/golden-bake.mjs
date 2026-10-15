@@ -47,7 +47,7 @@ export const TRACKED = ['example', 'empty', 'null'];
 
 /** The env a build of `kind` resolves ('example' | 'personal' | 'empty' = example with an empty extract dir |
  * 'null' = example with no extract dir); `root` = the clone whose data it reads (default: this checkout). */
-export function goldenEnv(kind, { emptyDir, root = ROOT } = {}) {
+function goldenEnv(kind, { emptyDir, root = ROOT } = {}) {
   const env = resolveEnv({ HC_REPO_ROOT: root, DATA_MODE: kind === 'personal' ? 'personal' : 'example', LOCALE: 'en' });
   if (kind === 'empty') return { ...env, extractDir: emptyDir };
   if (kind === 'null') return { ...env, extractDir: null };
@@ -65,7 +65,7 @@ export function canonical(value) {
 }
 
 /** computeBakes(env) under the fixed clock + UTC, canonicalised (see the drops in the header). */
-export function goldenBakes(env) {
+function goldenBakes(env) {
   const tz = process.env.TZ;
   process.env.TZ = 'UTC';
   mock.timers.enable({ apis: ['Date'], now: new Date(GOLDEN_NOW) });
