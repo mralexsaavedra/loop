@@ -133,8 +133,9 @@ weight trend after 2–3 weeks.
   reads nothing: `load()` reads the two files.
 - `npm run generate` (= `node data/nutrition/generate.mjs && node scripts/build-web.mjs`, idempotent):
   validate, write `plan-tables.md`, build `web/dist/personal/index.html`.
-- `npm run check` — validators only: `generate.mjs --check` (unknown-ingredient refs, day totals vs the kcal
-  band, Atwater, ambiguous matches) + `build-web.mjs --check` (training-data.json integrity). Ingredients
+- `npm run check` — validators only: `generate.mjs --check` (unknown-ingredient refs, every `{ing}` line's
+  `amt` a number > 0, every meal an object with a `parts` array, day totals vs the kcal band, Atwater, ambiguous
+  matches) + `build-web.mjs --check` (training-data.json integrity). Ingredients
   unused by the plan are a non-fatal WARNING (expected for a shared DB).
 - `npm test` — `node --test`, zero deps beyond `astro`; `pretest` builds the example (+ personal, if
   present) fixtures the web/ tests read.
