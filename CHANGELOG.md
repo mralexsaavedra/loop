@@ -25,6 +25,8 @@ Resting HR: where no device measures it, the extractor derives it from the night
 mean between 00:00 and 07:00, at least 4 samples per window and 3 night hours), source `<app> (derived)`; a measured
 value always wins and an Apple Watch never gets one. Export only for now (the Shortcut's heart-rate samples cannot
 carry it). Recovery without HRV says so: "Partial: no HRV" on the card, scored on resting HR and sleep.
+The Shortcut guide now says that a search for a type the device never writes stops the Shortcut with "No se ha
+encontrado ninguna muestra", and to delete those blocks (for Mi Fitness: HRV and resting HR).
 
 ## 2026-10-15 (confirmed) — Confirmation-check follow-ups
 
