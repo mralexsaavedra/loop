@@ -15,13 +15,15 @@
 // keep it in a gitignored folder (knowledge/ is).
 
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import {
   parseArgs, pickSubtitle, cleanCues, parseVtt, toParagraphs, renderTranscript, transcriptFileName,
   mergeManifest, pendingIds, isoDate, wordCount, videoUrl,
 } from './youtube-transcript.mjs';
+import { isMain } from './lib/is-main.mjs';
+import { writeAtomic } from '../data/apple-health/sync-common.mjs';
 
 const CALL_TIMEOUT_MS = 180_000;
 const RETRY_WAIT_MS = [20_000, 60_000];
@@ -91,12 +93,6 @@ async function listTab(channel, tab, lang) {
 function readManifest(path) {
   if (!existsSync(path)) return null;
   return JSON.parse(readFileSync(path, 'utf8'));
-}
-
-function writeAtomic(path, text) {
-  const tmp = `${path}.tmp-${process.pid}`;
-  writeFileSync(tmp, text);
-  renameSync(tmp, path);
 }
 
 async function ingestVideo(video, { lang, tmpDir, rawDir }) {
@@ -187,7 +183,9 @@ async function main() {
   if (tally.failed) process.exitCode = 1;
 }
 
-main().catch((e) => {
-  console.error(`ERROR: ${e.message}`);
-  process.exit(1);
-});
+if (isMain(import.meta.url)) {
+  main().catch((e) => {
+    console.error(`ERROR: ${e.message}`);
+    process.exitCode = 1;
+  });
+}
