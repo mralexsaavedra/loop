@@ -395,7 +395,6 @@ async function main () {
 if (isMain(import.meta.url)) common.runCli(main, { usage: USAGE })
 
 export {
-  STRAVA_SOURCE,
   SPORT_TYPE_MAP,
   FALLBACK_TYPE,
   WORKOUTS_CSV,

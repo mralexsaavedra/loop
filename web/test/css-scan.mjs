@@ -39,7 +39,7 @@ function normalizeMedia(media) {
 // numbers (`.14` → `0.14`, `0.10` → `0.1`) via parseFloat, lowercase. Two
 // declarations that only differ by this kind of formatting are considered
 // equivalent.
-export function normalizeValue(value) {
+function normalizeValue(value) {
   let v = value.replace(/\s+/g, ' ').trim();
   v = v.replace(/\s*,\s*/g, ', ');
   v = v.replace(/\s*!\s*important/gi, ' !important');

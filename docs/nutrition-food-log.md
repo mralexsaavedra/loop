@@ -53,7 +53,8 @@ food-calc.js.
 - **A formula change is made in the lib first, then `npm run gen:food-calc`**: `scripts/gen-food-calc.test.mjs`
   fails while the committed file differs from a regeneration; `lib/nutrition/foodlog.test.mjs`,
   `web/src/client/food.test.mjs` and `web/test/client-globals-build.test.mjs` (the built page) run the lib,
-  the committed food-calc.js and the page over `FOODLOG_CASES`.
+  the committed food-calc.js and the page over `FOODLOG_CASES` (with `SUMMARY_CASES` and `BASIC_CASES`, in the
+  test-only `lib/nutrition/foodlog.cases.mjs`).
 
 ## Basics (quick entries)
 
