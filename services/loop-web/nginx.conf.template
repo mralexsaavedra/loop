@@ -20,6 +20,14 @@ map $host $hc_host_ok {
     include /etc/nginx/hc-extra-hosts.map;
 }
 
+# Rate limits for the proxied ingest routes ONLY (never the page or status.json), per client address: the
+# page polls /api/sync/status after a Sync and loads a few food / journal calls at once; the Shortcut uploads
+# a handful of payloads in a row. Generous on purpose: they stop a runaway client or a flood, never a person.
+# Over the burst = 429 (limit_req_status). Behind an SSO tunnel every request comes from the tunnel's address,
+# so it is one shared budget, still far above one user's use. scripts/loop-web-config.test.mjs pins it.
+limit_req_zone $binary_remote_addr zone=hc_api:1m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=hc_ingest:1m rate=60r/m;
+
 server {
     listen 80;
     root /usr/share/nginx/html;
@@ -27,6 +35,8 @@ server {
     charset utf-8;
 
     if ($hc_host_ok = 0) { return 421; }
+
+    limit_req_status 429;
 
     # Path normalization: an SSO proxy in front may match its bypass rules (/ingest/*, /api/sync)
     # on the RAW path while nginx serves the normalized one (/ingest/%2e%2e/index.html would be the
@@ -94,6 +104,7 @@ server {
     # proxied: they, and everything else under /api/, are a 404.
     location = /api/sync {
         gzip off;
+        limit_req zone=hc_api burst=60 nodelay;
         limit_except POST { deny all; }
         proxy_pass_request_body off;
         proxy_set_header Content-Length "";
@@ -104,6 +115,7 @@ server {
 
     location = /api/sync/status {
         gzip off;
+        limit_req zone=hc_api burst=60 nodelay;
         limit_except GET { deny all; }
         proxy_pass_request_body off;
         proxy_set_header Content-Length "";
@@ -114,6 +126,7 @@ server {
 
     location /api/food/ {
         gzip off;
+        limit_req zone=hc_api burst=60 nodelay;
         limit_except GET POST PUT DELETE { deny all; }
         client_max_body_size 16k;
         proxy_set_header X-HC-Food $http_x_hc_food;
@@ -128,6 +141,7 @@ server {
 
     location /api/journal/ {
         gzip off;
+        limit_req zone=hc_api burst=60 nodelay;
         limit_except GET PUT { deny all; }
         client_max_body_size 16k;
         proxy_set_header X-HC-Journal $http_x_hc_journal;
@@ -142,6 +156,7 @@ server {
 
     location = /ingest/health-auto-export {
         gzip off;
+        limit_req zone=hc_ingest burst=20 nodelay;
         limit_except POST { deny all; }
         # no Bearer token: refuse before reading (or buffering) any body; ingest checks the token itself
         if ($http_authorization !~* "^Bearer\s+\S+") { return 401; }

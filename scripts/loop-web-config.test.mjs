@@ -343,3 +343,25 @@ test('nginx: server_tokens off and the security headers at server level and in e
   assert.ok(withHeaders.length >= 2, 'status.json and the manuals set their own headers');
   for (const l of withHeaders) for (const re of SECURITY_HEADERS) assert.match(l.body, re, `${l.spec}: ${re}`);
 });
+
+// ---- Rate limits: the proxied ingest routes only, never the page ---------------------------------
+test('nginx limit_req: every proxied /api/* and /ingest/* location is rate-limited (429), generously; static serving never is', () => {
+  const directives = nginx.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
+  const zones = Object.fromEntries([...directives.matchAll(/limit_req_zone \$binary_remote_addr zone=(\w+):(\d+)m rate=(\d+)r\/([sm]);/g)]
+    .map((m) => [m[1], { perSecond: Number(m[3]) / (m[4] === 'm' ? 60 : 1) }]));
+  assert.deepEqual(Object.keys(zones).sort(), ['hc_api', 'hc_ingest']);
+  assert.ok(zones.hc_api.perSecond >= 5, 'the page polls /api/sync/status and loads several food / journal calls at once');
+  assert.ok(zones.hc_ingest.perSecond >= 0.5, 'the Shortcut uploads a few payloads in a row');
+  const head = directives.slice(directives.indexOf('server {'), directives.indexOf('location '));
+  assert.match(head, /^\s*limit_req_status 429;/m);
+  const proxied = locations(nginx).filter((l) => /proxy_pass\s/.test(l.body));
+  assert.deepEqual(proxied.map((l) => l.spec).sort(), ['/api/food/', '/api/journal/', '= /api/sync', '= /api/sync/status', '= /ingest/health-auto-export']);
+  for (const l of proxied) {
+    const zone = l.spec === '= /ingest/health-auto-export' ? 'hc_ingest' : 'hc_api';
+    const m = new RegExp(`limit_req zone=${zone} burst=(\\d+) nodelay;`).exec(l.body);
+    assert.ok(m, `${l.spec}: limit_req zone=${zone}`);
+    assert.ok(Number(m[1]) >= 10, `${l.spec}: a generous burst`);
+  }
+  for (const l of locations(nginx).filter((x) => !/proxy_pass\s/.test(x.body))) assert.doesNotMatch(l.body, /limit_req/, `${l.spec} is never limited`);
+  assert.doesNotMatch(head, /^\s*limit_req zone/m, 'no server-level limit (it would cover the page)');
+});
