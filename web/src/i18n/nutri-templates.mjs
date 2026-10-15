@@ -133,6 +133,8 @@ export const es = {
   // Progreso (client/progress.js): every number comes from the baked NUTRI.progress ({win}, {min}, {max}, {pct}, …)
   progress: {
     open: 'Ver el historial de peso',
+    // the card's accessible name starts with the average (the rest is the card's own lines + open)
+    aria: 'media de 7 días {kg} kg',
     avg: 'media de 7 días',
     asOf: 'último pesaje: {date}',
     rate: '{rate} kg/sem',
@@ -341,6 +343,8 @@ export const en = {
   // Progress (client/progress.js): every number comes from the baked NUTRI.progress ({win}, {min}, {max}, {pct}, …)
   progress: {
     open: 'See the weight history',
+    // the card's accessible name starts with the average (the rest is the card's own lines + open)
+    aria: '7-day average {kg} kg',
     avg: '7-day average',
     asOf: 'last weigh-in: {date}',
     rate: '{rate} kg/wk',
