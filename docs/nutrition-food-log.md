@@ -139,7 +139,8 @@ The routes are UNAUTHENTICATED (a static page cannot hold a secret) and LAN only
    repeats it (IP literal, `localhost`, `host.docker.internal` = the proxy hop, which nginx sends as
    `Host`, or `FOOD_ALLOWED_HOSTS`; else `421 misdirected`).
 2. On writes an `Origin` header must name an allowed host (`403 forbidden_origin`).
-3. `X-HC-Food: 1` on every request (`403`) and `Content-Type: application/json` on writes (`415`) — from
+3. `X-HC-Food: 1` on every request (`403`; the page sends it through `HC.jsonApi`, the fetch wrapper it
+   shares with the journal) and `Content-Type: application/json` on writes (`415`) — from
    another site both need a CORS preflight the service never approves (no CORS headers).
 
 Together they keep a website opened in a LAN browser from reading or writing the log; a device ON the LAN

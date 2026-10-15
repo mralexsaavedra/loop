@@ -211,7 +211,8 @@ details.sec-fold > summary:hover > h2 {
 /* the date pill: "TODAY" in letter-spaced caps (a past day: its date, same caps); the viewer's full
  * date is the <time> inside, written by client/today-date.js and read by assistive tech only. With a
  * past day in reach the script adds .has-steps and shows the ‹ › chevrons (44 px targets that overhang
- * the 32 px pill, so its height does not change). Phone: its own row under the header row, centred */
+ * the 32 px pill, so its height does not change); the label's own hit area is a 44 px band (::before)
+ * the same way. Phone: its own row under the header row, centred */
 .date-pill {
   grid-column: 1 / -1;
   grid-row: 2;
@@ -237,6 +238,7 @@ details.sec-fold > summary:hover > h2 {
   padding: 0;
 }
 .day-lbl {
+  position: relative;
   display: inline-flex;
   align-items: center;
   min-height: 32px;
@@ -246,6 +248,14 @@ details.sec-fold > summary:hover > h2 {
   color: inherit;
   font: inherit;
   cursor: pointer;
+}
+.day-lbl::before {
+  content: "";
+  position: absolute;
+  top: calc(50% - 22px);
+  bottom: calc(50% - 22px);
+  left: 0;
+  right: 0;
 }
 .day-lbl[aria-disabled="true"] {
   cursor: default;

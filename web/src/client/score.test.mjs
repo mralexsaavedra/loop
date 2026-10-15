@@ -888,6 +888,22 @@ test('scMod: shows only the chosen modality\'s load dial on Inicio and in the co
   assert.deepEqual(panes.map((p) => p.hidden), [false, true, true]);
 });
 
+test('a click on (or inside) a load page pill [data-mod] runs scMod: delegated, no inline handler', () => {
+  const el = (key) => ({ key, hidden: false, getAttribute: (a) => (a === 'data-dmod' ? key : null) });
+  const panes = ['gym', 'run', 'bike'].map((k) => el(k));
+  const listeners = [];
+  const ctx = { document: { getElementById: (id) => (id === 'home-dials' ? { querySelectorAll: () => panes } : null), addEventListener: (t, fn) => { if (t === 'click') listeners.push(fn); } } };
+  vm.createContext(ctx);
+  loadUtil(ctx);
+  vm.runInContext(source, ctx);
+  const pill = { getAttribute: (a) => (a === 'data-mod' ? 'run' : null) };
+  const inside = { closest: (sel) => (sel === '[data-mod]' ? pill : null) };
+  listeners.forEach((fn) => fn({ target: inside }));
+  assert.deepEqual(panes.map((p) => p.hidden), [true, false, true]);
+  listeners.forEach((fn) => fn({ target: { closest: () => null } }));
+  assert.deepEqual(panes.map((p) => p.hidden), [true, false, true], 'any other click: unchanged');
+});
+
 test('load: sessions without effort data in the acute window are noted on the card', () => {
   const s = fixtureScores();
   const run = s.load.modalities.find((m) => m.key === 'run');

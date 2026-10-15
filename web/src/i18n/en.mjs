@@ -35,7 +35,7 @@ export default {
       units: { raw: 'raw', dry: 'dry', cooked: 'cooked', serving: 'serving', unit: 'pc' },
       desayunos: {
         icon: '☕', label: 'Breakfasts',
-        noteHtml: 'Pick the breakfast that fits the day. Target ~35–40 g protein. The protein anchor options live in the <button class="lnk" onclick="jump(\'acc-anclaje\')">🥛 Protein anchor</button> table.',
+        noteHtml: 'Pick the breakfast that fits the day. Target ~35–40 g protein. The protein anchor options live in the <button type="button" class="lnk" data-jump="acc-anclaje">🥛 Protein anchor</button> table.',
       },
       carboComida: { icon: '🍚', label: 'Lunch carbs', note: 'Rice and pasta per 100 g dry. Pasta shape does not matter: same dry weight = same macros.' },
       carboCena: { icon: '🥔', label: 'Dinner carbs', note: 'Potato and the like per 100 g cooked/ready to eat.' },

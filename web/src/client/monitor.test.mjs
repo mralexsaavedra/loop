@@ -199,7 +199,7 @@ const tileText = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').tr
 test('tile 1 = the monitor summary: out-of-range count chip, "n/5 metrics" in range, a button that jumps to the full monitor', () => {
   const html = tilesOf(monitor());
   // respiratory High + sleep Low are out of range; resting HR in range; HRV building; wrist temp no data
-  assert.match(html, /<button type="button" class="hmt hmt-sum" onclick="jump\('monitor'\)">/);
+  assert.match(html, /<button type="button" class="hmt hmt-sum" data-jump="monitor">/, 'a delegated jump (client/core.js), no inline handler');
   const sum = html.match(/<button type="button" class="hmt hmt-sum"[\s\S]*?<\/button>/)[0];
   assert.ok(sum.includes(`<span class="hmt-lbl">${enT.monitor.heading}<span class="chev" aria-hidden="true">›</span></span>`));
   assert.match(sum, /<span class="hmt-srow"><span class="hmt-sq hmt-out" aria-hidden="true">!<\/span><span class="hmt-body"><span class="hmt-chip hmt-out">/, 'an orange "!" square left of the status');
@@ -378,4 +378,9 @@ test('carried values (HC.carried): a tile whose value is from before the shown d
   const tiles = { innerHTML: '' };
   render(monitor(), { tiles, day: stepper('2026-09-25'), days: DAYS, stress: STRESS, now: addDays(ASOF, 1), detail: true });
   assert.doesNotMatch(stressTile(tiles.innerHTML), /carried/);
+});
+
+test('monitor.js fills its templates with HC.format only (no ad-hoc .replace of {placeholders})', () => {
+  assert.doesNotMatch(source, /\.replace\(\s*['"]\{/);
+  assert.match(source, /format\(T\.rangeLbl, \{ lo: lo, hi: hi \}\)/);
 });

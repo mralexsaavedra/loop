@@ -4,18 +4,26 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { slimHtmlStyles } from './src/slim-script.mjs';
+import { addCsp, delegateLegacyHandlers, inlineHandlers } from './src/csp.mjs';
 
-// Slims the inlined CSS of every built page (comments + whitespace only, see slimStyle). Runs after
-// Astro wrote the HTML, so it sees the final <style> blocks whatever Vite / Astro did to them.
-const slimInlineCss = {
-  name: 'slim-inline-css',
+// Post-processes every built page once Astro wrote it, so it sees the final markup whatever Vite /
+// Astro did: (1) slims the inlined CSS (comments + whitespace only, see slimStyle); (2) turns the
+// legacy onclick="jump(…)" / "setTab(…)" of the personal trusted notes into delegated data-* attributes
+// and warns about any other inline handler (the CSP blocks them); (3) LAST, writes the
+// Content-Security-Policy meta with the sha256 of every inline script (src/csp.mjs), so nothing may
+// change a script after it.
+const postBuild = {
+  name: 'page-post-build',
   hooks: {
     'astro:build:done': ({ dir }) => {
       const root = fileURLToPath(dir);
       for (const entry of fs.readdirSync(root, { recursive: true })) {
         if (!String(entry).endsWith('.html')) continue;
         const file = path.join(root, String(entry));
-        fs.writeFileSync(file, slimHtmlStyles(fs.readFileSync(file, 'utf8')));
+        const html = delegateLegacyHandlers(slimHtmlStyles(fs.readFileSync(file, 'utf8')));
+        const left = inlineHandlers(html);
+        if (left.length) console.warn(`page-csp: ${entry} keeps ${left.length} inline handler(s) the CSP blocks (use data-jump / data-tab-go)`);
+        fs.writeFileSync(file, addCsp(html));
       }
     },
   },
@@ -42,7 +50,7 @@ export default defineConfig({
   // the collapse HTML-safe instead.
   compressHTML: true,
   devToolbar: { enabled: false },
-  integrations: [slimInlineCss],
+  integrations: [postBuild],
   vite: {
     server: {
       fs: {
@@ -58,7 +66,7 @@ export default defineConfig({
       // `::before` → `:before`). Harmless for rendering, but it defeats the
       // CSS parity guard's byte-level "every legacy declaration is present"
       // check (web/test/css-parity.test.mjs) and makes web/src/styles/*.css
-      // harder to diff against the legacy source. The `slim-inline-css`
+      // harder to diff against the legacy source. The `page-post-build`
       // integration above removes comments + whitespace only instead.
       cssMinify: false,
     },

@@ -22,8 +22,8 @@ import { loadUtil } from '../../test/client-util.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'core.js'), 'utf8');
 
-function makeContext(doc) {
-  const window = { scrollTo: () => { window._scrolledTop = true; } };
+function makeContext(doc, extra = {}) {
+  const window = { scrollTo: () => { window._scrolledTop = true; }, ...extra };
   // the page bakes NAV from lib/nav/tabs.mjs (layouts/Plan.astro) before core.js runs
   const NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB } };
   const ctx = { document: doc, window, setTimeout, console, Math, Number, String, NAV };
@@ -33,10 +33,10 @@ function makeContext(doc) {
 }
 
 function makeTabPage(doc) {
-  // four top-level tabs (Inicio / Entreno / Salud / Nutrición) — nav ids t-<key>, aria-pressed toggled by setTab
+  // four top-level tabs (Inicio / Entreno / Salud / Nutrición) — nav ids t-<key>, aria-current moved by setTab
   const tabs = [...TAB_KEYS];
   const navIds = Object.fromEntries(tabs.map((t) => [t, 't-' + t]));
-  tabs.forEach((t) => doc.el(navIds[t], { attrs: { 'aria-pressed': String(t === 'home') } }));
+  tabs.forEach((t) => doc.el(navIds[t], { attrs: t === 'home' ? { 'aria-current': 'page' } : {} }));
   // tab panels — `.tab-panel[data-tab]` contract
   const panels = {};
   tabs.forEach((t) => { panels[t] = doc.el(null, { classes: ['tab-panel'], attrs: { 'data-tab': t }, hidden: t !== 'home' }); });
@@ -61,8 +61,8 @@ test('setTab shows the Entreno tab (t-entreno) and hides the others', () => {
   window.setTab('entreno');
   assert.equal(panels.entreno.hidden, false);
   assert.equal(panels.home.hidden, true);
-  assert.equal(doc.getElementById(navIds.entreno).getAttribute('aria-pressed'), 'true');
-  assert.equal(doc.getElementById(navIds.home).getAttribute('aria-pressed'), 'false');
+  assert.equal(doc.getElementById(navIds.entreno).getAttribute('aria-current'), 'page');
+  assert.equal(doc.getElementById(navIds.home).getAttribute('aria-current'), null);
 });
 
 test('setTab shows only the matching .tab-panel[data-tab] and hides the rest (legacy contract)', () => {
@@ -77,16 +77,16 @@ test('setTab shows only the matching .tab-panel[data-tab] and hides the rest (le
   assert.equal(panels.health.hidden, true);
 });
 
-test('setTab toggles aria-pressed on the nav button ids (t-home, t-nutricion, t-health)', () => {
+test('setTab moves aria-current="page" to the nav button of the shown tab (t-home, t-nutricion, t-health)', () => {
   const doc = new StubDocument();
   const { navIds } = makeTabPage(doc);
   const { window } = makeContext(doc);
 
   window.setTab('health');
 
-  assert.equal(doc.getElementById(navIds.home).getAttribute('aria-pressed'), 'false');
-  assert.equal(doc.getElementById(navIds.health).getAttribute('aria-pressed'), 'true');
-  assert.equal(doc.getElementById(navIds.nutricion).getAttribute('aria-pressed'), 'false');
+  assert.equal(doc.getElementById(navIds.home).getAttribute('aria-current'), null);
+  assert.equal(doc.getElementById(navIds.health).getAttribute('aria-current'), 'page');
+  assert.equal(doc.getElementById(navIds.nutricion).getAttribute('aria-current'), null);
 });
 
 test('setTab scrolls to top unless called with scrollTop=false (used internally by jump())', () => {
@@ -116,6 +116,81 @@ test('jump() opens the target <details>, switches to its tab (without scrolling 
   assert.equal(details._scrolledIntoView, true);
 });
 
+test('jump() scrolls smoothly, but instantly when the viewer prefers reduced motion', async () => {
+  for (const [reduce, behavior] of [[false, 'smooth'], [true, 'auto']]) {
+    const doc = new StubDocument();
+    const { panels } = makeTabPage(doc);
+    const el = doc.el('acc-fruta', { tag: 'details', parent: panels.nutricion });
+    let args = null;
+    el.scrollIntoView = (o) => { args = o; };
+    const { window } = makeContext(doc, { matchMedia: (q) => ({ matches: reduce && q === '(prefers-reduced-motion: reduce)' }) });
+    window.jump('acc-fruta');
+    await new Promise((r) => setTimeout(r, 40));
+    assert.deepEqual({ ...args }, { behavior, block: 'start' }, `reduce=${reduce}`);
+  }
+  // no matchMedia at all (an old browser, the vm): the smooth default
+  const doc = new StubDocument();
+  const el = doc.el('x');
+  let args = null;
+  el.scrollIntoView = (o) => { args = o; };
+  makeContext(doc).window.jump('x');
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(args.behavior, 'smooth');
+});
+
+/* Delegated navigation: no inline onclick= (the page's CSP blocks them). One document click listener
+ * reads data-tab-go (a tab key; empty = the default tab) and data-jump (an element id). */
+function clickPage() {
+  const doc = new StubDocument();
+  const page = makeTabPage(doc);
+  const listeners = {};
+  doc.addEventListener = (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); };
+  const ctx = makeContext(doc);
+  const click = (target) => {
+    let prevented = false;
+    (listeners.click || []).forEach((fn) => fn({ target, preventDefault: () => { prevented = true; } }));
+    return prevented;
+  };
+  return { doc, ...page, ctx, click };
+}
+
+test('a click on (or inside) a [data-tab-go] button opens that tab; an empty value opens the default tab', () => {
+  const p = clickPage();
+  const btn = p.doc.el('t-health', { tag: 'button', attrs: { 'data-tab-go': 'health' } });
+  const icon = p.doc.el(null, { tag: 'svg', parent: btn });
+  assert.equal(p.click(icon), true, 'handled (default prevented)');
+  assert.equal(p.panels.health.hidden, false);
+  assert.equal(p.panels.home.hidden, true);
+  const mark = p.doc.el(null, { tag: 'button', classes: ['wordmark'], attrs: { 'data-tab-go': '' } });
+  p.click(mark);
+  assert.equal(p.panels.home.hidden, false, 'the wordmark: the first visible tab');
+  assert.equal(p.ctx.window._scrolledTop, true, 'scrolled to the top, like setTab');
+});
+
+test('a click on a [data-jump] link jumps to its target (opens its tab and fold); other clicks are left alone', async () => {
+  const p = clickPage();
+  const fold = p.doc.el('acc-anclaje', { tag: 'details', parent: p.panels.nutricion });
+  const link = p.doc.el(null, { tag: 'button', classes: ['lnk'], attrs: { 'data-jump': 'acc-anclaje' } });
+  p.click(link);
+  assert.equal(p.panels.nutricion.hidden, false);
+  assert.equal(fold.open, true);
+  const other = p.doc.el(null, { tag: 'button' });
+  assert.equal(p.click(other), false, 'not ours: no preventDefault');
+  assert.equal(p.panels.nutricion.hidden, false, 'nothing switched');
+  assert.doesNotThrow(() => p.click(null));
+});
+
+test('core.js keeps its helpers private: only setTab, jump, jumpOr, currentTab and HCNav are page globals', () => {
+  const doc = new StubDocument();
+  makeTabPage(doc);
+  const ctx = makeContext(doc);
+  for (const name of ['NAV_TABS', 'SECTION_TAB', 'DAY', 'hasOwn', 'tabVisible', 'defaultTab', 'readHash', 'tabHash', 'showTab', 'hashRoute', 'showAnchor']) {
+    assert.equal(vm.runInContext(`typeof ${name}`, ctx), 'undefined', `${name} is not a global`);
+  }
+  for (const name of ['setTab', 'jump', 'jumpOr', 'currentTab']) assert.equal(typeof ctx.window[name], 'function', name);
+  assert.equal(typeof ctx.window.HCNav.hash, 'function');
+});
+
 test('jump() is a no-op when the target id does not exist', () => {
   const doc = new StubDocument();
   const { window } = makeContext(doc);
@@ -137,8 +212,8 @@ test('setTab knows the Home tab: t-home <-> home', () => {
   window.setTab('home');
   assert.equal(panels.home.hidden, false);
   assert.equal(panels.nutricion.hidden, true);
-  assert.equal(doc.getElementById(navIds.home).getAttribute('aria-pressed'), 'true');
-  assert.equal(doc.getElementById(navIds.nutricion).getAttribute('aria-pressed'), 'false');
+  assert.equal(doc.getElementById(navIds.home).getAttribute('aria-current'), 'page');
+  assert.equal(doc.getElementById(navIds.nutricion).getAttribute('aria-current'), null);
 });
 
 test('setTab with a legacy tab key opens the tab that now hosts that section and scrolls to it', async () => {
@@ -150,7 +225,7 @@ test('setTab with a legacy tab key opens the tab that now hosts that section and
 
   assert.equal(panels.nutricion.hidden, false);
   assert.equal(panels.home.hidden, true);
-  assert.equal(doc.getElementById(navIds.nutricion).getAttribute('aria-pressed'), 'true');
+  assert.equal(doc.getElementById(navIds.nutricion).getAttribute('aria-current'), 'page');
   assert.equal(sections.tablas.open, true, 'the collapsed Tablas fold is opened');
   await new Promise((r) => setTimeout(r, 40));
   assert.equal(sections.tablas._scrolledIntoView, true);
@@ -397,7 +472,7 @@ function routedPage({ hash = '', hide = [], hideSections = [], throws = false, s
   const first = TAB_KEYS.find((t) => !hide.includes(t));
   const panels = {};
   for (const t of TAB_KEYS) {
-    if (!hide.includes(t)) doc.el('t-' + t, { attrs: { 'aria-pressed': String(t === first) } });
+    if (!hide.includes(t)) doc.el('t-' + t, { attrs: t === first ? { 'aria-current': 'page' } : {} });
     panels[t] = doc.el(null, { classes: ['tab-panel'], attrs: { 'data-tab': t }, hidden: t !== first });
   }
   for (const [key, tab] of Object.entries(SECTION_TAB)) {
@@ -466,7 +541,7 @@ test('load with #<tab> opens that tab (a reload keeps the tab); an empty hash na
   for (const t of TAB_KEYS) {
     const p = routedPage({ hash: '#' + t });
     assert.deepEqual(p.shown(), [t], t);
-    assert.equal(p.doc.getElementById('t-' + t).getAttribute('aria-pressed'), 'true');
+    assert.equal(p.doc.getElementById('t-' + t).getAttribute('aria-current'), 'page');
     assert.equal(p.calls.length, 0, `${t}: the URL already matches`);
   }
   // so Back from a sheet opened before any tab tap still lands on a tab hash

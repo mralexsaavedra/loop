@@ -66,8 +66,8 @@
     var rd = Math.min(c.dec + 1, 2);
     var bound = function (v) { return hm ? HC.hours(v) : num(v, rd); };
     var lo = c.band && !old ? bound(c.band.lo) : '', hi = c.band && !old ? bound(c.band.hi) : '';
-    var range = c.band && !old ? T.rangeLbl.replace('{lo}', lo).replace('{hi}', hi) : '';
-    var rangeAria = range ? (T.rangeAria || T.rangeLbl).replace('{lo}', lo).replace('{hi}', hi) : '';
+    var range = c.band && !old ? format(T.rangeLbl, { lo: lo, hi: hi }) : '';
+    var rangeAria = range ? format(T.rangeAria || T.rangeLbl, { lo: lo, hi: hi }) : '';
     var status = old ? T.status.stale : T.status[c.status] || '';
     // short date (no weekday), only when the reading is not last night's
     var when = daysOld(c.date) !== 0 && isoDate(c.date) ? HC.fmtDate(c.date, { weekday: false }) : '';
@@ -136,7 +136,7 @@
     var tone = n.out > 0 ? 'out' : n.inR > 0 ? 'in' : '';
     var sq = tone ? '<span class="hmt-sq hmt-' + tone + '" aria-hidden="true">' + (tone === 'in' ? CHECK : '!') + '</span>' : '';
     var c = carry(asOf, null);
-    return '<button type="button" class="hmt hmt-sum' + c.cls + '" onclick="jump(\'monitor\')">' + lbl(T.heading) +
+    return '<button type="button" class="hmt hmt-sum' + c.cls + '" data-jump="monitor">' + lbl(T.heading) +
       '<span class="hmt-srow">' + sq + '<span class="hmt-body">' + chip(n, true) + '<span class="hmt-sub">' + esc(format(T.tile.metrics, { n: n.inR, total: total })) + '</span>' +
       (c.html ? '<span class="hmt-sub">' + c.html + '</span>' : '') + '</span></span></button>';
   }

@@ -137,7 +137,7 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
       <div class="topbar">
         {profile && <Avatar profile={profile} locale={locale} />}
         {/* the wordmark is THE way home: a tap opens the default tab (Inicio unless hidden), scrolled to the top */}
-        <button type="button" class="wordmark" onclick="setTab(defaultTab())" aria-label={nav.homeLink} set:html={wordmarkSvg.trim()}></button>
+        <button type="button" class="wordmark" data-tab-go="" aria-label={nav.homeLink} set:html={wordmarkSvg.trim()}></button>
         <div class="date-pill" id="date-pill" role="group" aria-label={nav.day.group}>
           <button type="button" class="day-step" id="day-prev" aria-label={nav.day.prev} hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6" /></svg></button>
           <button type="button" class="day-lbl" id="day-lbl" aria-disabled="true" aria-live="polite" data-back={nav.day.back}><span class="date-pill-lbl" id="day-word" aria-hidden="true">{nav.today}</span><time id="today-date" class="today-date"></time></button>
@@ -151,17 +151,18 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
         </div>
       </div>
 
-      {/* bottom dock (floating, every width): the tab bar + to its right the "+" action button. The
-          "+" is outside the tablist; it and every action ship hidden and client/nav-actions.js shows
+      {/* bottom dock (floating, every width): the tab bar (a labelled nav of plain buttons, the shown
+          tab's aria-current="page"; client/core.js moves it) + to its right the "+" action button. The
+          "+" is outside the nav; it and every action ship hidden and client/nav-actions.js shows
           only what this page can really do (add food / Sync, both LAN only) */}
       <div class="dock">
-        <nav class="tabnav" role="tablist" aria-label={nav.ariaLabel}>
+        <nav class="tabnav" aria-label={nav.ariaLabel}>
           {tabs.map((tab) => (
             <button
+              type="button"
               id={`t-${tab.key}`}
-              role="tab"
-              aria-pressed={tab.key === activeTab}
-              onclick={`setTab('${tab.key}')`}
+              data-tab-go={tab.key}
+              aria-current={tab.key === activeTab ? 'page' : undefined}
             >
               <svg class="tico" viewBox="0 0 24 24" aria-hidden="true" set:html={TAB_ICONS[tab.key] || ''} /><span class="tlbl">{tab.label}</span>
             </button>
@@ -169,7 +170,7 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
         </nav>
         <div class="act" id="act" hidden>
           <button type="button" class="act-btn" id="act-btn" aria-expanded="false" aria-controls="act-pop" aria-label={nav.actions.open} data-label-close={nav.actions.close}><svg class="act-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></button>
-          <div class="act-pop" id="act-pop" role="dialog" aria-label={nav.actions.label} hidden>
+          <div class="act-pop" id="act-pop" role="group" aria-label={nav.actions.label} hidden>
             <button type="button" class="act-item" data-act="food" hidden><svg class="act-item-ico" viewBox="0 0 24 24" aria-hidden="true" set:html={TAB_ICONS.nutricion} /><span>{nav.actions.addFood}</span></button>
             <button type="button" class="act-item" data-act="journal" hidden><svg class="act-item-ico" viewBox="0 0 24 24" aria-hidden="true" set:html={JOURNAL_ICON} /><span>{nav.actions.journal}</span></button>
             <button type="button" class="act-item" data-act="sync" hidden><svg class="act-item-ico" viewBox="0 0 24 24" aria-hidden="true" set:html={SYNC_ICON} /><span>{nav.actions.sync}</span></button>
