@@ -24,7 +24,9 @@
  *   - Host check (DNS rebinding): the Host must be an IP literal, localhost, host.docker.internal (the
  *     loop-web proxy hop) or a name in FOOD_ALLOWED_HOSTS, else 421. A rebinding page (its own name
  *     resolved to a LAN address) is refused here and, first, by loop-web's nginx Host map;
- *   - on writes, an Origin header (when the browser sends one) must name an allowed host too (403);
+ *   - on writes (http.js writeOriginOk, 403 forbidden_origin): Sec-Fetch-Site, when sent, must be same-origin, and
+ *     an Origin must name an allowed host and, behind loop-web, be exactly the host[:port] nginx was asked for
+ *     (X-Forwarded-Host), so another LAN address or port cannot write;
  *   - every request must carry the custom header `X-HC-Food: 1` (403) and every write
  *     `Content-Type: application/json` (415): from another site both force a CORS preflight, which this
  *     server never approves (it sends no CORS headers at all), so a plain cross-site request is not sent.
@@ -49,7 +51,7 @@ import {
 } from './food-calc.js'
 import { createWindowLimiter } from './limits.js'
 import {
-  JSON_BODY_LIMIT, httpError, send, isJson, readJson, validDate, hostAllowed, hostOfHeader, hostOfOrigin
+  JSON_BODY_LIMIT, httpError, send, isJson, readJson, validDate, hostAllowed, hostOfHeader, writeOriginOk
 } from './http.js'
 
 export const FOOD_BODY_LIMIT = JSON_BODY_LIMIT // readJson's cap (http.js), named for the food tests
@@ -557,8 +559,7 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
       return false
     }
     if (WRITE_METHODS.has(req.method)) {
-      const origin = req.headers.origin
-      if (origin !== undefined && !hostAllowed(hostOfOrigin(origin), allowedHosts)) throw httpError(403, 'forbidden_origin')
+      if (!writeOriginOk(req.headers, allowedHosts)) throw httpError(403, 'forbidden_origin')
       if (!writes.take(req.socket?.remoteAddress ?? 'unknown')) throw httpError(429, 'rate_limited')
       if (req.method !== 'DELETE' && !isJson(req)) throw httpError(415, 'unsupported_media_type')
     }

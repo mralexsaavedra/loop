@@ -107,6 +107,26 @@ export function hostOfOrigin (v) {
     return null
   }
 }
+/**
+ * The write check of the page routes (food.js, journal.js), on POST / PUT / DELETE. Sec-Fetch-Site, when the
+ * browser sends it, must be `same-origin`. An Origin, when sent, must name an allowed host (hostAllowed) and,
+ * behind loop-web (nginx sets X-Forwarded-Host to the Host the browser asked for, port included), must be
+ * exactly that host[:port]: another LAN address, another port of the same address or a rebinding name is
+ * refused even though each would pass the allowlist alone. Neither header (curl, the food-log skill): allowed,
+ * the LAN-only trust model. The SSO tunnel works when its public host is in FOOD_ALLOWED_HOSTS: nginx sees
+ * that host, and the page's Origin names it.
+ */
+export function writeOriginOk (headers, extra = []) {
+  const site = headers['sec-fetch-site']
+  if (site !== undefined && site !== 'same-origin') return false
+  const origin = headers.origin
+  if (origin === undefined) return true
+  if (!hostAllowed(hostOfOrigin(origin), extra)) return false
+  const forwarded = headers['x-forwarded-host']
+  if (forwarded === undefined) return true
+  return new URL(origin).host === String(forwarded).trim().toLowerCase()
+}
+
 /** FOOD_ALLOWED_HOSTS: comma / space separated names, lowercased. */
 export function parseAllowedHosts (v) {
   return String(v || '').split(/[\s,]+/).map((s) => s.trim().toLowerCase()).filter(Boolean)
