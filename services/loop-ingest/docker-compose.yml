@@ -79,17 +79,19 @@ services:
       STRAVA_REFRESH_TOKEN: ${STRAVA_REFRESH_TOKEN:-}
       STRAVA_SYNC_MINUTES: ${STRAVA_SYNC_MINUTES:-30}
       TRIGGER_DIR: /trigger
-      # extra host names for the /food/* Host + Origin checks (IP literals, localhost and
-      # host.docker.internal always pass); mirror loop-web's PLAN_WEB_EXTRA_HOSTS
+      # extra host names for the /food/* and /journal/* Host + Origin checks (IP literals, localhost and
+      # loop-ingest, the loop-web proxy hop, always pass); mirror loop-web's PLAN_WEB_EXTRA_HOSTS
       FOOD_ALLOWED_HOSTS: ${FOOD_ALLOWED_HOSTS:-}
     # POST /sync writes /trigger/refresh; the host watches ./trigger/refresh with
     # services/loop-web/systemd/loop-web-refresh.path. The container runs as the
     # image's `node` user (uid 1000): chown the host dir to 1000 (see README).
     volumes:
       - ./trigger:/trigger
-    # INGEST_PORT is required (a missing one fails here instead of publishing a random port). INGEST_BIND
-    # (optional, e.g. the LAN IP or 127.0.0.1; an IPv6 address in brackets) publishes on that address only:
-    # Docker-published ports bypass ufw / firewalld. Unset = every address, as before.
+    # INGEST_PORT is required (a missing one fails here instead of publishing a random port): the host's sync
+    # scripts and refresh.sh call http://localhost:<INGEST_PORT>. loop-web does not use it (it proxies over
+    # loop-net), so INGEST_BIND=127.0.0.1 publishes on loopback only, the recommended hardening (an IPv6
+    # address in brackets works too). Docker-published ports bypass ufw / firewalld. Unset = every address.
+    # docs/lan-services.md -> Network and bind address.
     ports:
       - "${INGEST_BIND:+${INGEST_BIND}:}${INGEST_PORT:?set INGEST_PORT in services/loop-ingest/.env}:8088"
     depends_on:
@@ -106,3 +108,9 @@ volumes:
     # An explicit name, so the database volume no longer depends on the compose project name:
     # renaming the project (or the folder) never orphans the data again.
     name: loop-db-data${HC_INSTANCE:+-${HC_INSTANCE}}
+
+networks:
+  default:
+    # A fixed name (not <project>_default), so services/loop-web can join it as an external network and reach
+    # this service as loop-ingest:8088 whatever INGEST_BIND says; a second install gets its own.
+    name: loop-net${HC_INSTANCE:+-${HC_INSTANCE}}

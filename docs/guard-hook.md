@@ -140,7 +140,14 @@ paths and the `git restore --staged` line to unstage them) when:
 2. a **staged `.gitignore` loosens** the rules compared with `HEAD`: it drops an ignore pattern or adds a `!`
    negation, or it is **deleted** (`git rm .gitignore`, a rename away) — every pattern it held is listed, with
    the `git restore --staged --worktree` line that brings it back (adding patterns is fine; the commit that
-   loosens on purpose uses `--no-verify`).
+   loosens on purpose uses `--no-verify`). Lines are compared as git reads them: a **leading space is part of
+   the pattern**, so indenting `data/profile/` to ` data/profile/` (which un-ignores it) is a dropped pattern;
+   only unescaped trailing spaces (and a CRLF ending) are ignored;
+3. a staged `.gitignore` **un-ignores a file on disk**: the untracked files (whole untracked directories as
+   `dir/`) that `HEAD`'s rules ignore are asked again with `git check-ignore --no-index` under the staged rules
+   (the index's `.gitignore` files in a second scratch repo); any that is no longer ignored is listed. This
+   catches what a line comparison cannot, such as a reordered `!` line (the last matching line wins). It runs
+   only when a `.gitignore` is staged.
 
 It asks git directly instead of importing the guard hook: the hook judges shell commands and exports only its
 tokenizer (`tokenize`, `collectForceAdds`), not a per-path check. `git commit --no-verify` skips it;

@@ -98,3 +98,55 @@ test('the shutdown deadline stays below the container stop grace period (docker 
   assert.ok(grace, 'loop-ingest sets stop_grace_period')
   assert.ok(SHUTDOWN_DEADLINE_MS + 3_000 + 2_000 <= Number(grace[1]) * 1000, 'deadline + flush cap + pool close fit in the grace period')
 })
+
+// ---- Numeric environment variables (C3): a typo must stop the service, never silently disable a limit ----
+test('numericEnv: unset or empty keeps the default; a valid value is used', async () => {
+  const { numericEnv } = await import('../src/server.js')
+  const spec = { def: 30, min: 1, max: 10_080 }
+  assert.equal(numericEnv({}, 'STRAVA_SYNC_MINUTES', spec), 30)
+  assert.equal(numericEnv({ STRAVA_SYNC_MINUTES: '' }, 'STRAVA_SYNC_MINUTES', spec), 30)
+  assert.equal(numericEnv({ STRAVA_SYNC_MINUTES: ' 15 ' }, 'STRAVA_SYNC_MINUTES', spec), 15)
+  assert.equal(numericEnv({ STRAVA_SYNC_MINUTES: '1.5' }, 'STRAVA_SYNC_MINUTES', spec), 1.5)
+})
+
+test('numericEnv: not a number, not finite, below the minimum, above the maximum or a fraction where an integer is needed -> a clear error', async () => {
+  const { numericEnv } = await import('../src/server.js')
+  const spec = { def: 8, min: 1024, max: 1e9, integer: true }
+  for (const v of ['abc', '8m', 'NaN', 'Infinity', '-1', '0', '1023', '1e10', '2048.5', '0x10']) {
+    assert.throws(() => numericEnv({ MAX_BODY_BYTES: v }, 'MAX_BODY_BYTES', spec), (err) => {
+      assert.match(err.message, /^invalid MAX_BODY_BYTES=/)
+      assert.match(err.message, /an integer from 1024 to 1000000000/)
+      return true
+    }, v)
+  }
+})
+
+test('envConfig: the defaults, and each variable checked (PORT, MAX_BODY_BYTES, STRAVA_SYNC_MINUTES, DB_PORT)', async () => {
+  const { envConfig, DEFAULT_MAX_BODY_BYTES } = await import('../src/server.js')
+  assert.deepEqual(envConfig({}), { port: 8088, maxBodyBytes: DEFAULT_MAX_BODY_BYTES, stravaSyncMinutes: 30 })
+  assert.deepEqual(envConfig({ PORT: '9000', MAX_BODY_BYTES: '1048576', STRAVA_SYNC_MINUTES: '5' }), { port: 9000, maxBodyBytes: 1048576, stravaSyncMinutes: 5 })
+  for (const env of [{ PORT: '0' }, { PORT: '70000' }, { MAX_BODY_BYTES: '8m' }, { STRAVA_SYNC_MINUTES: '0' }, { STRAVA_SYNC_MINUTES: 'abc' }, { STRAVA_SYNC_MINUTES: '100000' }]) {
+    assert.throws(() => envConfig(env), new RegExp(`^Error: invalid ${Object.keys(env)[0]}=`), JSON.stringify(env))
+  }
+  const { databaseConfig } = await import('../src/server.js')
+  const base = { DB_HOST: 'db', POSTGRES_USER: 'u', POSTGRES_PASSWORD: 'p', POSTGRES_DB: 'd' }
+  assert.equal(databaseConfig({ ...base, DB_PORT: '' }).port, 5432)
+  assert.throws(() => databaseConfig({ ...base, DB_PORT: 'abc' }), /^Error: invalid DB_PORT=/)
+})
+
+test('startup: an invalid numeric variable stops the service with one startup_failed line before it touches the database', async () => {
+  const { spawnSync } = await import('node:child_process')
+  const { fileURLToPath } = await import('node:url')
+  const server = fileURLToPath(new URL('../src/server.js', import.meta.url))
+  for (const [name, value] of [['STRAVA_SYNC_MINUTES', '0'], ['STRAVA_SYNC_MINUTES', 'abc'], ['MAX_BODY_BYTES', '8m'], ['PORT', 'x']]) {
+    const r = spawnSync(process.execPath, [server], {
+      env: { PATH: process.env.PATH, INGEST_TOKEN: 'x'.repeat(32), DB_HOST: '127.0.0.1', DB_PORT: '1', POSTGRES_USER: 'u', POSTGRES_PASSWORD: 'p', POSTGRES_DB: 'd', [name]: value },
+      encoding: 'utf8',
+      timeout: 10_000
+    })
+    assert.equal(r.status, 1, `${name}=${value}: ${r.stdout}${r.stderr}`)
+    const line = JSON.parse(r.stderr.trim().split('\n').pop())
+    assert.equal(line.event, 'startup_failed')
+    assert.match(line.message, new RegExp(`^invalid ${name}=`))
+  }
+})

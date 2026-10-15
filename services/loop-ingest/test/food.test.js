@@ -427,15 +427,15 @@ test('handle() returns false for non-/food paths so the server keeps routing', a
   assert.equal(await routes.handle({ method: 'GET', headers: {} }, {}, new URL('http://x/sync')), false)
 })
 
-test('DNS rebinding: a Host that is not an IP literal, localhost, host.docker.internal or allowlisted -> 421, reads included', async () => {
+test('DNS rebinding: a Host that is not an IP literal, localhost, loop-ingest (the loop-web hop), host.docker.internal or allowlisted -> 421, reads included', async () => {
   const t = await setup({ allowedHosts: ['plan.lan'] })
   try {
-    for (const host of ['evil.example', 'evil.example:8090', 'plan.lan.evil.example', '192.168.1.10.nip.io', '[::1].evil.example']) {
+    for (const host of ['evil.example', 'evil.example:8090', 'loop-ingest.evil.example', 'plan.lan.evil.example', '192.168.1.10.nip.io', '[::1].evil.example']) {
       const r = await t.rawCall('GET', '/food/products', { host })
       assert.equal(r.status, 421, host)
       assert.deepEqual(r.body, { error: 'misdirected' })
     }
-    for (const host of ['192.168.1.10:8090', '127.0.0.1', 'localhost:8088', 'LOCALHOST', 'host.docker.internal:8088', '[::1]:8088', '[fd00::12]', 'plan.lan', 'Plan.Lan:8090']) {
+    for (const host of ['192.168.1.10:8090', '127.0.0.1', 'localhost:8088', 'LOCALHOST', 'loop-ingest', 'loop-ingest:8088', 'host.docker.internal:8088', '[::1]:8088', '[fd00::12]', 'plan.lan', 'Plan.Lan:8090']) {
       assert.equal((await t.rawCall('GET', '/food/products', { host })).status, 200, host)
     }
   } finally { await t.close() }
@@ -916,4 +916,24 @@ test('profile: its own optional group, so a failed 011 migration leaves /food/se
     assert.equal((await noSettings.call('GET', '/food/settings')).status, 503)
     assert.equal((await noSettings.call('GET', '/food/profile')).status, 200)
   } finally { await noSettings.close() }
+})
+
+// U+0000 cannot be stored by Postgres (text 22021, jsonb 22P05): it was a 500. It and the other C0 controls
+// (but tab, line feed, carriage return) are refused as 400 invalid, naming the field.
+test('text fields refuse U+0000 and the C0 control characters (tab / LF / CR still pass, collapsed to a space)', async () => {
+  const t = await setup()
+  try {
+    for (const bad of ['a\u0000b', 'a\u0001', '\u0007bell', 'a\u000bb', 'a\u000cb', 'esc\u001b[0m', 'a\u001fb']) {
+      const p = await t.call('POST', '/food/products', { body: { ...YOGURT, barcode: null, name: bad } })
+      assert.deepEqual([p.status, p.body], [400, { error: 'invalid', field: 'name' }], JSON.stringify(bad))
+      const l = await t.call('POST', '/food/log', { body: { date: '2030-01-10', meal: 'snack', refType: 'quick', label: bad, kcal: 10 } })
+      assert.deepEqual([l.status, l.body], [400, { error: 'invalid', field: 'label' }], JSON.stringify(bad))
+      const pr = await t.call('PUT', '/food/profile', { body: { ...PROFILE, name: bad } })
+      assert.deepEqual([pr.status, pr.body], [400, { error: 'invalid', field: 'name' }], JSON.stringify(bad))
+    }
+    assert.equal(t.store.db.product.length, 0)
+    const ok = await t.call('POST', '/food/products', { body: { ...YOGURT, barcode: null, name: 'Yogur\tnatural\r\nbio' } })
+    assert.equal(ok.status, 201)
+    assert.equal(ok.body.product.name, 'Yogur natural bio')
+  } finally { await t.close() }
 })
