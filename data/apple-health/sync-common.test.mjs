@@ -71,6 +71,31 @@ test('fetchPages() pages via buildUrl until a short page, forwarding the bearer 
   assert.equal(calls[0].auth, 'Bearer tok');
 });
 
+test('fetchPages() keeps paging after a short page the server marks X-Has-More (byte-capped page)', async () => {
+  // /export/raw cuts a page at its byte budget: fewer rows than `limit`, but more exist after it
+  const rows = [1, 2, 3, 4].map((id) => ({ id: String(id) }));
+  const fetchImpl = async (url) => {
+    const since = Number(new URL(url).searchParams.get('since_id'));
+    const rest = rows.filter((p) => Number(p.id) > since);
+    const page = since === 0 ? rest.slice(0, 1) : rest.slice(0, 10); // first page byte-capped to 1 row
+    const more = since === 0;
+    return { ok: true, status: 200, headers: new Headers({ 'x-has-more': String(more) }), json: async () => page };
+  };
+  const out = await fetchPages({
+    baseUrl: 'http://h', token: 't', limit: 10, fetchImpl,
+    buildUrl: ({ baseUrl, since, limit }) => `${baseUrl}/export/raw?since_id=${since}&limit=${limit}`,
+  });
+  assert.deepEqual(out.map((p) => p.id), ['1', '2', '3', '4']);
+});
+
+test('fetchPages() rejects an empty page that still claims X-Has-More (no progress possible)', async () => {
+  const fetchImpl = async () => ({ ok: true, status: 200, headers: new Headers({ 'x-has-more': 'true' }), json: async () => [] });
+  await assert.rejects(
+    fetchPages({ baseUrl: 'http://h', token: 't', limit: 10, fetchImpl, buildUrl: ({ since }) => `http://h/x?since_id=${since}` }),
+    /unexpected paging cursor/,
+  );
+});
+
 test('fetchPages() rejects a non-array response', async () => {
   const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ not: 'an array' }) });
   await assert.rejects(

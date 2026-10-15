@@ -13,6 +13,23 @@ every push and pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-15 (last) — Scoring-audit follow-ups
+
+A scoring audit of the final state (lib 8.5, page 9, services 8.5, AI 9.5, docs 8.5, release 9.5) and its fixes, so
+that no must-fix or should-fix item is left. Onboarding: the computed targets always pass their own check (a very
+light, older person was locked out by the calorie floor). Scores: one per-day VO2max (mean of the day) for the
+fitness-age card, its detail and Salud; out-of-range sensor samples are dropped instead of clamped; the recovery band
+follows the rounded value on screen; Salud's respiratory rate, wrist temperature and walking HR use the monitor's
+day median. Data: the Shortcut sync writes its ownership ledger first; a truncated `export.xml` is refused; a
+thousands separator in a step count is read as grouping; `writeAtomic` cleans its temp file; the page build swaps
+its output in place; every dev script has a strict CLI. Services: loop-web reaches loop-ingest over a shared Docker
+network (`loop-net`), so `INGEST_BIND=127.0.0.1` keeps the data service off the network without breaking the page;
+`/export/raw` pages by bytes too (the sync follows `X-Has-More`); numeric settings are validated at start; control
+characters in food and journal text get a 400; migrations run without the statement timeout. Page: journal and
+onboarding messages are announced to screen readers, list rows keep their list semantics, and request timeouts cover
+the whole body. Upgrade: `docker compose up -d --build --force-recreate` in `services/loop-ingest` once (the network
+changes), then `docker compose up -d --force-recreate` in `services/loop-web`.
+
 ## 2026-10-15 (final) — Final audit follow-ups
 
 A last read-only audit of every area (lib, page, services, AI, docs, release) before tagging 1.0.0, and its fixes.

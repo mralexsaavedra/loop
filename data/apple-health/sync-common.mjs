@@ -72,7 +72,7 @@ function readBaseUrl(env, envFile = envFileOf(env)) {
  * @param {string | null} token
  * @param {{ fetchImpl?: typeof fetch, timeoutMs?: number, headers?: Record<string, string>, redirect?: 'follow' | 'error' | 'manual' }} [opts]
  */
-async function fetchJson(url, token, { fetchImpl = fetch, timeoutMs = 15000, headers = {}, redirect } = {}) {
+async function fetchJson(url, token, { fetchImpl = fetch, timeoutMs = 15000, headers = {}, redirect, onResponse } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -80,6 +80,7 @@ async function fetchJson(url, token, { fetchImpl = fetch, timeoutMs = 15000, hea
     if (redirect) init.redirect = redirect;
     const res = await fetchImpl(url, init);
     if (!res.ok) throw Object.assign(new Error(`ingest service answered HTTP ${res.status}`), { status: res.status });
+    if (onResponse) onResponse(res); // e.g. fetchPages reads the X-Has-More header
     return await res.json();
   } catch (err) {
     // no `cause`: the scripts print err.cause.code first (a refused connection), and a timeout must print this
@@ -96,7 +97,9 @@ async function fetchJson(url, token, { fetchImpl = fetch, timeoutMs = 15000, hea
 // (e.g. sync-shortcut's `automation`), fetchPages owns paging + auth + shape validation. The cursor
 // must advance: a full page whose last id is missing, non-numeric or not greater than `since` throws
 // `unexpected paging cursor` (ids are compared as BigInt, exact past 2^53), and `maxPages` is a hard cap,
-// so a misbehaving server can never loop it forever.
+// so a misbehaving server can never loop it forever. A short page normally ends the paging, unless the
+// server answers `X-Has-More: true` (loop-ingest's /export/raw cuts a page at its byte budget): then the
+// next page is requested from the last id of this one.
 const MAX_PAGES = 10000;
 const cursorOf = (v) => (typeof v === 'number' || typeof v === 'bigint' || typeof v === 'string') && /^\d+$/.test(String(v)) ? BigInt(v) : null;
 async function fetchPages({ baseUrl, token, buildUrl, sinceId = '0', limit = 500, timeoutMs = 15000, fetchImpl = fetch, maxPages = MAX_PAGES }) {
@@ -106,10 +109,14 @@ async function fetchPages({ baseUrl, token, buildUrl, sinceId = '0', limit = 500
     if (pages >= maxPages) throw new Error(`unexpected paging: more than ${maxPages} pages`);
     pages++;
     const url = buildUrl({ baseUrl: baseUrl.replace(/\/+$/, ''), since, limit });
-    const page = await fetchJson(url, token, { fetchImpl, timeoutMs });
+    let more = false;
+    const page = await fetchJson(url, token, {
+      fetchImpl, timeoutMs,
+      onResponse: (res) => { more = String(res.headers?.get?.('x-has-more') ?? '').toLowerCase() === 'true'; },
+    });
     if (!Array.isArray(page)) throw new Error('unexpected response shape (expected an array)');
     all.push(...page);
-    if (page.length < limit) return all;
+    if (page.length < limit && !more) return all;
     const next = page[page.length - 1] && page[page.length - 1].id;
     const nextN = cursorOf(next), sinceN = cursorOf(since);
     if (nextN == null || (sinceN != null && nextN <= sinceN)) {
