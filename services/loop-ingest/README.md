@@ -138,7 +138,7 @@ meanwhile).
 The LAN plan page's Nutrición tab logs what the user eats (Registrar), keeps their
 supermarket products (Mis productos: Mercadona / Dia / Eroski / other) and their
 own recipes (Mis recetas), through loop-web's `/api/food/` proxy. Tables in
-`sql/006_food.sql` (idempotent, runs on every start): `food_product`,
+`sql/006_food.sql` (an optional migration group): `food_product`,
 `food_recipe`, `food_log`.
 
 - **Settings** (`sql/007_settings.sql`, table `app_settings`, ONE row): the
@@ -208,8 +208,15 @@ ONLY. Layers, in order:
    v6), `localhost`, `host.docker.internal` (the loop-web proxy hop) or a name in
    `FOOD_ALLOWED_HOSTS`, else `421 misdirected`. loop-web's nginx refuses other
    names first (see its README).
-2. **Origin** on writes: when the browser sends one, its host must pass the same
-   check, else `403 forbidden_origin`.
+2. **Origin** on writes (POST / PUT / DELETE), else `403 forbidden_origin`:
+   `Sec-Fetch-Site`, when the browser sends it, must be `same-origin`; an `Origin`
+   must name a host that passes the same check and, behind loop-web (whose nginx
+   sends the Host the browser asked for as `X-Forwarded-Host`), be exactly that
+   host and port. So another LAN address, another port of the same address or a
+   rebinding name cannot write even when the allowlist would accept it. A request
+   with neither header (curl, the food-log skill) is not a browser and passes. The
+   SSO tunnel works as long as its public host is in `FOOD_ALLOWED_HOSTS` (nginx
+   sees that host and the page's `Origin` names it).
 3. `X-HC-Food: 1` on every request (`403`) and `Content-Type: application/json`
    on writes (`415`): from another site both need a CORS preflight, which this
    service never approves (no CORS headers at all).
@@ -231,11 +238,7 @@ the service logs `food_migration_failed` and keeps ingesting, syncing and
 pulling Strava; only `/food/*` answers `503 food_unavailable` until a restart
 runs it successfully.
 
-**Adding a migration.** Every `sql/` file is idempotent and runs on every start
-(there is no applied-migrations table, so a rollout is just a restart). List a
-new file in `src/migrations.js` (`CORE_MIGRATIONS` or an `OPTIONAL_MIGRATIONS`
-group); `test/migrations.test.js` fails if a file is missing, listed twice or out
-of numeric order.
+**Adding a migration.** See [Database migrations](#database-migrations).
 
 **Idempotent adds.** The page sends a `requestId` (a UUID) with each add and
 reuses it when it retries after a timeout or a lost answer; a unique index on
@@ -491,6 +494,38 @@ statement after 30 s.
 A `401` / `invalid_grant` in step 3 means the code was used or expired: repeat step 2. Revoke access any
 time at <https://www.strava.com/settings/apps>.
 
+## Database migrations
+
+On every start the service applies the `sql/` files listed in `src/migrations.js`, in order:
+
+- **Ledger.** The table `schema_migrations` (`name`, `checksum`, `applied_at`) records each file that ran;
+  a recorded file never runs again. Each pending file runs in one transaction together with its ledger row,
+  so it is either applied and recorded, or neither.
+- **One migrator at a time.** The run holds a Postgres advisory lock (`pg_advisory_lock`, key `0x4c4f4f50`),
+  so two processes starting together never migrate concurrently; the second waits, then finds everything
+  recorded.
+- **Optional groups.** A failing core file fails the start; a failing optional group (`food`, `settings`,
+  `profile`, `journal`) is rolled back, logged (`<group>_migration_failed`), left unrecorded and retried on
+  the next start, and only its routes answer `503` meanwhile.
+- **Installs from before the ledger** (before the release that added it) have every file applied and none
+  recorded: on their first start with the ledger every file runs once more (each is idempotent: `IF NOT
+  EXISTS`, `ON CONFLICT DO NOTHING`, 009's `CHECK` dropped and re-created; no row is touched) and is
+  recorded. Nothing to do by hand.
+
+**Rule: never edit an applied migration; add a new file.** The ledger keeps each file's sha-256 (line
+endings normalised); if a recorded file's content changed, the service refuses to start and logs
+`startup_failed` with `migration <file> was changed after it was applied ...`. Restore the original file
+(`git checkout -- sql/<file>`) and put the change in a new `sql/0NN_<name>.sql`, listed in `src/migrations.js`
+(`CORE_MIGRATIONS` or an `OPTIONAL_MIGRATIONS` group); `test/migrations.test.js` fails if a file is missing,
+listed twice or out of numeric order. Write new files idempotently too (`IF NOT EXISTS`), so a partly
+recovered database can replay them.
+
+Tests against a real Postgres (`test/pg/`): `TEST_DATABASE_URL=postgres://postgres:x@127.0.0.1:5544/postgres
+npm run test:pg`, with any Postgres 17 where that user may `CREATE DATABASE` (e.g. a throwaway
+`docker run --rm -e POSTGRES_PASSWORD=x -p 127.0.0.1:5544:5432 postgres:17-alpine`). Each test file creates
+its own empty database and drops it; without the variable those tests skip (so `npm test` needs no
+database). CI runs them in the `postgres` job.
+
 ## Configuration
 
 Copy `.env.example` to `.env` and fill it in (`openssl rand -hex 32` for the
@@ -499,10 +534,11 @@ token). `.env` is gitignored and must stay that way.
 | Variable            | Meaning |
 | ------------------- | ------- |
 | `INGEST_TOKEN`      | Bearer token; refuses to start under 32 characters |
-| `POSTGRES_*`        | Database credentials |
+| `POSTGRES_*`        | Database credentials. Compose hands them to the service as separate fields (with `DB_HOST=loop-db`), never as a URL, so the password may hold any character (`@ : / ? # %`) |
+| `DATABASE_URL`      | Optional, outside compose: a connection string that wins over `DB_HOST` + `POSTGRES_*` (percent-encode special characters in its password there) |
 | `INGEST_PORT`       | Host port (loop-web proxies to it). The host-side sync scripts read it from this file too, so a second install on another port syncs from its own service |
 | `HC_INSTANCE`       | Empty by default. A name for a second install on the same host (`second`): suffixes the compose project, container names and database volume. Set the same value in `services/loop-web/.env` ([`../loop-web/README.md` → Running a second install](../loop-web/README.md#running-a-second-install-another-person-same-host)) |
-| `MAX_BODY_BYTES`    | Upload ceiling, default 32 MB |
+| `MAX_BODY_BYTES`    | Upload ceiling, default 32 MB; a larger upload (declared or streamed) gets a `413` response before the connection is closed |
 | `TRIGGER_DIR`       | Where `POST /sync` writes `refresh`; compose sets `/trigger` (bind mount of `./trigger`) |
 | `FOOD_ALLOWED_HOSTS` | Extra host names (comma / space separated) the `/food/*` Host + Origin checks accept besides IP literals, `localhost` and `host.docker.internal`; empty by default. Mirror loop-web's `PLAN_WEB_EXTRA_HOSTS` |
 
@@ -513,6 +549,20 @@ docker compose up -d --build
 curl -s localhost:8088/healthz
 npm ci && npm test   # or, from the repo root: npm run test:services
 ```
+
+**Container hardening** (`docker-compose.yml`, pinned by `scripts/loop-web-config.test.mjs`). Both containers
+run with a read-only root filesystem, `no-new-privileges`, every Linux capability dropped, memory / CPU /
+process limits and logs rotated at 3 x 10 MB:
+
+| Container | Writable | Capabilities kept | Limits |
+| --- | --- | --- | --- |
+| `loop-db` | the data volume, tmpfs `/var/run/postgresql`, `/tmp` | `CHOWN`, `DAC_READ_SEARCH`, `SETUID`, `SETGID` (the entrypoint owns its dirs by `postgres`, then drops to it; without any of them it does not start) | 1 GB, 2 CPUs, 256 processes |
+| `loop-ingest` | `/trigger` (bind mount), tmpfs `/tmp` | none (it runs as `node`) | 512 MB, 1 CPU, 128 processes |
+
+**Stopping.** On `SIGTERM` (`docker compose stop` / `restart` / `up -d` recreating it) the service stops the
+Strava loop, stops accepting connections and lets in-flight requests finish for up to 10 s
+(`SHUTDOWN_DEADLINE_MS`), then closes what is left, writes a pending refresh trigger, closes the database pool
+and exits 0; compose gives it `stop_grace_period: 20s` before a `SIGKILL`.
 
 The image installs from the committed `package-lock.json` (`npm ci --omit=dev`), so a
 rebuild gets the same dependency tree; after changing a dependency in `package.json`, run

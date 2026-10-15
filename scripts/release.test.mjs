@@ -64,6 +64,16 @@ test('CI runs the lint, the typecheck and both suites on every push and pull req
   }
 });
 
+test('CI runs the data service suite against a real Postgres, the same image and digest as the compose file', () => {
+  const ci = read('.github/workflows/ci.yml');
+  const pinned = read('services/loop-ingest/docker-compose.yml').match(/image: (postgres:17-alpine@sha256:[0-9a-f]{64})/)[1];
+  assert.ok(ci.includes(`image: ${pinned}`), 'the CI postgres service uses the compose pin');
+  assert.match(ci, /TEST_DATABASE_URL: postgres:\/\//);
+  assert.match(ci, /npm run test:pg/);
+  assert.equal(JSON.parse(read('package.json')).scripts['test:pg'], 'npm --prefix services/loop-ingest ci --no-audit --no-fund && npm --prefix services/loop-ingest run test:pg');
+  assert.equal(JSON.parse(read('services/loop-ingest/package.json')).scripts['test:pg'], 'node --test "test/pg/*.test.js"');
+});
+
 test('community files: security policy and contributing guide', () => {
   for (const p of ['SECURITY.md', 'CONTRIBUTING.md', 'services/loop-ingest/.dockerignore']) assert.ok(exists(p), p);
   assert.equal(JSON.parse(read('services/loop-ingest/package.json')).license, 'MIT');

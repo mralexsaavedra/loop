@@ -110,3 +110,26 @@ replacements applied in order; an edit whose `old_string` is missing is left to 
    directory of one) and is not an `ALLOWED` exception is blocked.
 
 Adding new ignore patterns is always allowed.
+
+## Git pre-commit hook (opt-in)
+
+The guard above only sees what the assistant runs. For commits you make yourself, a tracked git hook applies
+the same rule at `git commit` time. Enable it once per clone:
+
+```sh
+git config core.hooksPath scripts/git-hooks
+```
+
+[`scripts/git-hooks/pre-commit`](../scripts/git-hooks/pre-commit) runs
+[`scripts/precommit-guard.mjs`](../scripts/precommit-guard.mjs), which refuses the commit (exit 1, with the
+paths and the `git restore --staged` line to unstage them) when:
+
+1. a **staged file is ignored** by the repo's rules (`git check-ignore --no-index` over the added, copied,
+   modified and renamed paths): in this repo that means personal data that got in with `git add -f`;
+2. a **staged `.gitignore` loosens** the rules compared with `HEAD`: it drops an ignore pattern or adds a `!`
+   negation (adding patterns is fine; the commit that does it on purpose uses `--no-verify`).
+
+It asks git directly instead of importing the guard hook: the hook judges shell commands and exports only its
+tokenizer (`tokenize`, `collectForceAdds`), not a per-path check. `git commit --no-verify` skips it;
+`git config --unset core.hooksPath` turns it off. Tests: `scripts/precommit-guard.test.mjs` (real commits in a
+scratch repo).

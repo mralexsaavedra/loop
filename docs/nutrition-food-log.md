@@ -139,7 +139,11 @@ The routes are UNAUTHENTICATED (a static page cannot hold a secret) and LAN only
    `/docker-entrypoint.d/15-hc-hosts.sh`, renders the names into exact map entries). Ingest `/food/*`
    repeats it (IP literal, `localhost`, `host.docker.internal` = the proxy hop, which nginx sends as
    `Host`, or `FOOD_ALLOWED_HOSTS`; else `421 misdirected`).
-2. On writes an `Origin` header must name an allowed host (`403 forbidden_origin`).
+2. On writes (`403 forbidden_origin`): `Sec-Fetch-Site`, when sent, must be `same-origin`; an `Origin` header must
+   name an allowed host and, behind loop-web, be exactly the host + port the browser asked nginx for (nginx
+   forwards it as `X-Forwarded-Host`), so another LAN address or port cannot write. No `Origin` and no
+   `Sec-Fetch-Site` (curl, the food-log skill) passes. The SSO tunnel's public host works once it is in
+   `FOOD_ALLOWED_HOSTS`.
 3. `X-HC-Food: 1` on every request (`403`; the page sends it through `HC.jsonApi`, the fetch wrapper it
    shares with the journal) and `Content-Type: application/json` on writes (`415`) — from
    another site both need a CORS preflight the service never approves (no CORS headers).
@@ -153,7 +157,7 @@ calling the service directly is trusted (the LAN-only model).
 - Bodies ≤ 16 KB (`413`); writes ≤ 60 / min per client address (`429`) — behind loop-web every request comes
   from nginx, so it is ONE shared budget.
 - loop-web nginx proxies the prefix `/api/food/` → ingest `/food/` (GET / POST / PUT / DELETE, body passed,
-  `client_max_body_size 16k`, `X-HC-Food` forwarded, `Host host.docker.internal`). A public reverse proxy
+  `client_max_body_size 16k`, `X-HC-Food` forwarded, `Host host.docker.internal`, `X-Forwarded-Host $http_host`). A public reverse proxy
   must NEVER forward `/food/*`.
 
 ## The Log food block

@@ -44,3 +44,17 @@ CacheDirectory=loop-web-refresh
 Environment=npm_config_cache=/var/cache/loop-web-refresh
 Environment=npm_config_update_notifier=false
 Environment=ASTRO_TELEMETRY_DISABLED=1
+# The build (git, npm, node, astro / esbuild) never touches the kernel, control groups, setuid files,
+# realtime scheduling or namespaces, nor runs foreign-architecture code: all locked down. Not set on
+# purpose: MemoryDenyWriteExecute (node's JIT needs it) and a stricter UMask than 0022 (nginx in the
+# loop-web container reads ./site as another user; 0027 would make the page answer 403).
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+SystemCallArchitectures=native
+UMask=0022

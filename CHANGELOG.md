@@ -12,6 +12,26 @@ First versioned release. The data service ships as a Docker Hub image, `mralexan
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-15 (later) — Robustness: migrations ledger, real-Postgres tests, container hardening
+
+The data service records each `sql/` migration in a `schema_migrations` ledger (name, sha-256, applied_at) and
+runs it once, in one transaction with its ledger row, under a Postgres advisory lock, so two processes never
+migrate at once and 009 no longer re-creates its `CHECK` on every boot; an edited applied migration refuses the
+start ("never edit an applied migration; add a new file"). Existing installs replay the idempotent files once
+on their first start and get recorded, rows untouched. A real-Postgres suite (`npm run test:pg`,
+`TEST_DATABASE_URL`) runs the real migrations on an empty database and the main DB paths, and CI runs it
+against a Postgres 17 service container (same digest as compose). The three containers run read-only with
+tmpfs, every capability dropped but the few each entrypoint needs (checked one by one), `no-new-privileges`,
+memory / CPU / process limits and rotated logs; loop-web gets a healthcheck (`/nginx-health`). nginx
+rate-limits the proxied `/api/*` and `/ingest/*` routes (`429`), never the page. Page writes are bound to the
+page's own address: the Origin must equal the host and port nginx forwards as `X-Forwarded-Host`, and
+`Sec-Fetch-Site`, when sent, must be `same-origin` (the SSO tunnel host keeps working). The ingest server
+answers an oversized upload with a real `413` before closing the socket, drains in-flight requests on
+`SIGTERM` for up to 10 s (`stop_grace_period: 20s`), and gets the database password as its own field, so any
+character works. The refresh unit template gains kernel / namespace / SUID hardening, and an opt-in git
+pre-commit hook (`git config core.hooksPath scripts/git-hooks`) refuses commits that stage personal files.
+Upgrade notes: [`docs/guides/upgrading.md`](docs/guides/upgrading.md) → Release notes for existing installs.
+
 ## 2026-10-15 (later) — Code cleanup: lint, typecheck, one home per helper
 
 `npm run lint` (ESLint, correctness rules only, the page's shared client globals declared) and `npm run

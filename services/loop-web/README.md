@@ -247,6 +247,21 @@ and `Content-Security-Policy: frame-ancestors 'none'` (no other site can frame t
 log), and nginx hides its version (`server_tokens off`); a block with its own `add_header` repeats the set
 (`scripts/loop-web-config.test.mjs`).
 
+**Container hardening** (`docker-compose.yml`, pinned by `scripts/loop-web-config.test.mjs`): a read-only
+root filesystem with tmpfs for what nginx and its entrypoint write (`/etc/nginx/conf.d`, where the template and
+the Host map are rendered, `/var/cache/nginx`, `/run`, `/tmp`); every capability dropped except `CHOWN`,
+`SETUID` and `SETGID` (the master owns the workers' temp dirs and drops them to the `nginx` user; without any of
+the three it does not serve); `no-new-privileges`; 128 MB / 0.5 CPU / 128 processes; logs rotated at 3 x 10 MB;
+and a healthcheck on `/nginx-health`, which nginx answers itself (`docker ps` shows `healthy`). On a Docker
+older than 20.10 a container cannot bind port 80 without `NET_BIND_SERVICE` (the logs say `bind() to
+0.0.0.0:80 failed (13: Permission denied)`): add it to `cap_add` there.
+
+**Rate limits** (`limit_req`, per client address, `429` over the burst): the proxied `/api/sync`,
+`/api/sync/status`, `/api/food/*` and `/api/journal/*` share 10 requests/s with a burst of 60, and
+`/ingest/health-auto-export` gets 60/min with a burst of 20. The page itself, `status.json` and `/manuales/` are
+never limited. Behind an SSO tunnel every request arrives from the tunnel's address, so it is one shared
+budget, still far above one person's use.
+
 `POST /sync` and `GET /sync/status` are **unauthenticated** by design: the page
 is a static file and cannot hold a secret. That is acceptable because:
 
@@ -273,7 +288,8 @@ page (all health data, and the food log read + write). nginx therefore answers
 EVERY path (the page, `status.json`, `/api/*`) only when the request names it
 by an IP literal (`http://192.168.1.10:8090`, `http://[fd00::12]:8090`) or
 `localhost`; any other name gets `421`. The ingest service repeats the check on
-`/food/*` (plus the `Origin` of writes) as defence in depth.
+`/food/*` (plus the `Origin` of writes, which must be exactly the host and port
+the browser asked nginx for, forwarded as `X-Forwarded-Host`) as defence in depth.
 
 To reach the page by a name too (e.g. `http://plan.lan:8090`):
 
@@ -387,3 +403,11 @@ checks instead of "LAN only".
   settings.
 - **`NoNewPrivileges=yes`, `PrivateTmp=yes`**: no setuid escalation, a private
   `/tmp`. No known downside for this build.
+- **`ProtectKernelTunables`, `ProtectKernelModules`, `ProtectKernelLogs`, `ProtectControlGroups`,
+  `RestrictSUIDSGID`, `LockPersonality`, `RestrictRealtime`, `RestrictNamespaces`,
+  `SystemCallArchitectures=native`**: the build (git, npm, node, astro / esbuild) needs none of what these
+  forbid. Checked with `systemd-analyze verify` and a transient `systemd-run` of the example build under the
+  same settings. **`UMask=0022`** is explicit: nginx in the loop-web container reads `./site` as another user,
+  so a stricter mask (`0027`) would make the page answer `403`. `MemoryDenyWriteExecute` is deliberately not
+  set (node's JIT needs writable, executable memory). To pick up these settings on an installed unit, copy
+  the template again (Install step 8 fills the placeholders) and `sudo systemctl daemon-reload`.
