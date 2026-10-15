@@ -209,6 +209,8 @@ offset (like the energy hours).
   `could not read the food log` when the service is not. Only the Shortcut sync takes a flag (`--full`); `npm run sync -- --full` passes it to
   that script alone.
 - `extract.mjs` runs only as the entry point (`isMain`), and writes every CSV and `_meta.json` atomically.
+- `writeAtomic` (`sync-common.mjs`) writes a `.tmp` next to the file and renames it; a failed write or rename
+  removes the `.tmp` (it holds personal data) before the error goes up.
 
 ### Sleep (`sleep-daily.csv`)
 
