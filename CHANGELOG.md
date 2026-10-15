@@ -8,7 +8,8 @@ operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README
 
 First versioned release. The data service ships as a Docker Hub image, `mralexandersaavedra/loop-ingest:1.0.0`
 (amd64 and arm64): `docker compose pull loop-ingest && docker compose up -d` in `services/loop-ingest` runs it, and
-`up -d --build` still builds it from the clone. Base images are pinned by digest, CI runs both test suites on every pull request, Dependabot proposes
+`up -d --build` still builds it from the clone. Base images are pinned by digest, CI runs lint, the typecheck and all three test suites (including the data service against a real Postgres) on
+every push and pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
@@ -1622,3 +1623,5 @@ its duplicated per-serving tables were replaced with pointers to `plan-tables.md
 Repo created and git-initialized. Structure, `CLAUDE.md`, `analysis/methodology.md` in place.
 Reframed "24/7 Claude" → persistent context + scheduled/on-demand runs. Apple Health is
 iOS/HealthKit-only → analysis via exported XML. Privacy: raw health data gitignored, stays local.
+
+[1.0.0]: https://github.com/mralexsaavedra/loop/releases/tag/v1.0.0

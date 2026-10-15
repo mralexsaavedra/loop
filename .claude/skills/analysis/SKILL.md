@@ -16,7 +16,7 @@ sources and their caveats are in `CLAUDE.md` → Data sources. Do not copy them 
    table, do not stop. A non-zero exit means a script failed: report which one.
 3. **Freshness.** `data/apple-health/extract/_meta.json` (`exportLastDate`, `shortcutSync`), the
    newest date of every CSV you will use, `data/nutrition/foodlog-daily.meta.json` (`fetchedAt`),
-   `data/profile/settings.json` (`fetchedAt`). Anything > 3 days old is flagged; the export's last
+   `data/apple-health/extract/journal-daily.meta.json` (`fetchedAt`), `data/profile/settings.json` (`fetchedAt`). Anything > 3 days old is flagged; the export's last
    date is a partial day.
 4. **Live facts.** Goal + target weight from `settings.json`, events / birthdate / height from
    `profile/profile.json`, weight from `extract/weight.csv` (within one `source`), sports and accepted
