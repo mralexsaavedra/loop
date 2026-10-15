@@ -1,11 +1,11 @@
-/* Tests for extract.mjs against SYNTHETIC export.xml files: the script is copied (with samples.mjs)
- * into a temp dir and run as a child process, exactly like the user runs it. No personal data. */
+/* Tests for extract.mjs against SYNTHETIC export.xml files: the script runs as a child process, exactly
+ * like the user runs it, on a temp dir (EXTRACT_DIR: its export.xml in, its extract/ out). No personal data. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { energySource, APPLE_WATCH_RE } from './samples.mjs';
 
@@ -16,12 +16,11 @@ const WATCH = `Apple${NBSP}Watch de Demo`;
 
 function runExtract(lines) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-test-'));
-  for (const f of ['extract.mjs', 'samples.mjs']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
   fs.writeFileSync(path.join(dir, 'export.xml'), ['<HealthData locale="en_GB">', ...lines, '</HealthData>', ''].join('\n'));
-  execFileSync(process.execPath, [path.join(dir, 'extract.mjs')], { stdio: 'ignore' });
+  execFileSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { stdio: 'ignore', env: { ...process.env, EXTRACT_DIR: dir } });
   const out = path.join(dir, 'extract');
   const read = f => fs.readFileSync(path.join(out, f), 'utf8');
-  return { read, meta: JSON.parse(read('_meta.json')), cleanup: () => fs.rmSync(dir, { recursive: true }) };
+  return { read, files: fs.readdirSync(out), meta: JSON.parse(read('_meta.json')), cleanup: () => fs.rmSync(dir, { recursive: true }) };
 }
 const rec = (type, src, start, value, extra = '') =>
   `<Record type="HKQuantityTypeIdentifier${type}" sourceName="${src}" unit="kcal" startDate="${start}" endDate="${start}" value="${value}"${extra}/>`;
@@ -145,4 +144,30 @@ test('extract.mjs uses the same anchored Apple Watch regex as lib/training/sessi
   assert.equal(APPLE_WATCH_RE.source, watch.source);
   assert.equal(APPLE_WATCH_RE.flags, watch.flags);
   assert.ok(APPLE_WATCH_RE.test(WATCH) && !APPLE_WATCH_RE.test('My Apple Watch') && !APPLE_WATCH_RE.test('RENPHO'));
+});
+
+test('importing extract.mjs runs nothing (isMain guard); run without an export.xml it exits 1 and writes nothing', async () => {
+  const mod = await import('./extract.mjs');
+  assert.equal(typeof mod.main, 'function');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-none-'));
+  try {
+    const r = spawnSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { encoding: 'utf8', env: { ...process.env, EXTRACT_DIR: dir } });
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /export\.xml not found/);
+    assert.deepEqual(fs.readdirSync(dir), []);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('every extract file is written atomically (sync-common writeAtomic): no direct write, no temp file left', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'extract.mjs'), 'utf8');
+  assert.doesNotMatch(src, /\bwriteFileSync\(/);
+  const x = runExtract([rec('StepCount', PHONE, '2030-01-01 12:00:00 +0100', 10), later('2030-01-02')]);
+  try {
+    assert.ok(x.files.includes('_meta.json') && x.files.includes('steps-daily.csv'), x.files.join());
+    assert.deepEqual(x.files.filter((f) => f.endsWith('.tmp')), []);
+  } finally {
+    x.cleanup();
+  }
 });

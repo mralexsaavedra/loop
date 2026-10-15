@@ -144,7 +144,7 @@ function run(env, args = []) {
   });
 }
 
-test('main(): 200 -> writes the CSV, exit 0 (extra args from npm run sync are ignored)', async () => {
+test('main(): 200 -> writes the CSV, exit 0', async () => {
   let req;
   const server = await serve((r, res) => {
     req = { url: r.url, headers: r.headers };
@@ -154,7 +154,7 @@ test('main(): 200 -> writes the CSV, exit 0 (extra args from npm run sync are ig
     res.end(JSON.stringify(body));
   });
   const dir = tmpDir('main-ok');
-  const r = await run({ INGEST_URL: `http://localhost:${server.address().port}`, SYNC_FOODLOG_OUT_DIR: dir }, ['--full']);
+  const r = await run({ INGEST_URL: `http://localhost:${server.address().port}`, SYNC_FOODLOG_OUT_DIR: dir });
   server.close();
   assert.equal(r.code, 0, r.stderr);
   assert.equal(req.headers['x-hc-food'], '1');

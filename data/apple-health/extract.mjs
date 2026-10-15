@@ -5,7 +5,8 @@
  *   node data/apple-health/extract.mjs
  *
  * Reads  : data/apple-health/export.xml   (gitignored — personal data)
- * Writes : data/apple-health/extract/*.csv + _meta.json  (gitignored)
+ * Writes : data/apple-health/extract/*.csv + _meta.json  (gitignored), each atomically (temp file + rename)
+ * EXTRACT_DIR (tests only) replaces data/apple-health: <dir>/export.xml in, <dir>/extract out.
  *
  * Streams line by line (never loads the file whole). Each <Record>/<Workout> opening
  * tag carries the attributes we need on a single line, so a per-line regex is enough.
@@ -20,15 +21,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
+import { isMain } from '../../scripts/lib/is-main.mjs';
+import { writeAtomic } from './sync-common.mjs';
 // shared with sync-shortcut.mjs so export- and Shortcut-derived rows are formatted identically
 import { pickEnergySource, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights, sleepStage } from './samples.mjs';
 
-const DIR = path.dirname(fileURLToPath(import.meta.url));
+const DIR = process.env.EXTRACT_DIR || path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.join(DIR, 'export.xml');
 const OUT = path.join(DIR, 'extract');
-
-if (!fs.existsSync(SRC)) { console.error('ERROR: export.xml not found at ' + SRC + '\nNo export yet? Put it there (README → Level 1, step 3), or see the page with demo data: npm run build:example'); process.exit(1); }
-fs.mkdirSync(OUT, { recursive: true });
 
 const attr = (s, name) => { const m = s.match(new RegExp(' ' + name + '="([^"]*)"')); return m ? m[1] : null; };
 
@@ -64,7 +64,6 @@ const sleepSegs = [];
 const workouts = []; // {date, type, durationMin, energyKcal, hrAvg, hrMin, hrMax, source}
 
 const Q = 'HKQuantityTypeIdentifier';
-const addSum = (map, d, v) => { if (d && v != null) map.set(d, (map.get(d) || 0) + v); };
 const addEnergy = (key, d, src, v) => addMaxSrc(energyBySrc[key], d, src || '', v);
 const addDiet = (d, key, v) => { if (!d || v == null) return; const o = diet.get(d) || { kcal: 0, p: 0, c: 0, g: 0 }; o[key] += v; diet.set(d, o); };
 const addMean = (map, d, v) => { if (!d || v == null) return; const o = map.get(d) || { s: 0, n: 0 }; o.s += v; o.n++; map.set(d, o); };
@@ -160,15 +159,14 @@ function handleWorkoutClose() {
 }
 
 const csv = (file, header, rows) => {
-  fs.writeFileSync(path.join(OUT, file), [header, ...rows].join('\n') + '\n');
+  writeAtomic(path.join(OUT, file), [header, ...rows].join('\n') + '\n');
   return rows.length;
 };
 const sortByDate = arr => arr.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 const range = dates => dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a';
 
 let lineCount = 0;
-const rl = readline.createInterface({ input: fs.createReadStream(SRC, { encoding: 'utf8' }), crlfDelay: Infinity });
-rl.on('line', line => {
+function onLine(line) {
   lineCount++;
   // cheap prefilter before regex work ('<Workout ' has a trailing space → won't match '<WorkoutStatistics')
   if (line.indexOf('<Record ') !== -1) handleRecord(line);
@@ -176,8 +174,8 @@ rl.on('line', line => {
   else if (line.indexOf('<Workout ') !== -1) handleWorkoutOpen(line);
   else if (line.indexOf('<WorkoutStatistics ') !== -1) handleWorkoutStat(line);
   else if (line.indexOf('</Workout>') !== -1) handleWorkoutClose();
-});
-rl.on('close', () => {
+}
+function onClose() {
   const counts = {};
   const exportLastDate = exportDate || maxRecordDate;
   // daily TOTAL series skip the partial last day (means, points, sleep and workouts keep it)
@@ -246,7 +244,6 @@ rl.on('close', () => {
   sortByDate(workouts);
   counts.workouts = csv('workouts.csv', WORKOUTS_HEADER, workouts.map(workoutRow));
 
-  const allDates = sortByDate([...readings.weight]).map(r => r.date);
   const meta = {
     extractedFrom: 'export.xml',
     linesScanned: lineCount,
@@ -281,7 +278,21 @@ rl.on('close', () => {
       'Regenerate after dropping a new export: node data/apple-health/extract.mjs',
     ],
   };
-  fs.writeFileSync(path.join(OUT, '_meta.json'), JSON.stringify(meta, null, 2) + '\n');
+  writeAtomic(path.join(OUT, '_meta.json'), JSON.stringify(meta, null, 2) + '\n');
   console.log(`Scanned ${lineCount.toLocaleString()} lines → ${OUT}`);
   console.log(Object.entries(counts).map(([k, n]) => `  ${k}: ${n}`).join('\n'));
-});
+}
+
+/** Streams SRC into the extract. Run once per process: the series above are module state. */
+export function main() {
+  if (!fs.existsSync(SRC)) {
+    console.error('ERROR: export.xml not found at ' + SRC + '\nNo export yet? Put it there (README → Level 1, step 3), or see the page with demo data: npm run build:example');
+    process.exit(1);
+  }
+  fs.mkdirSync(OUT, { recursive: true });
+  const rl = readline.createInterface({ input: fs.createReadStream(SRC, { encoding: 'utf8' }), crlfDelay: Infinity });
+  rl.on('line', onLine);
+  rl.on('close', onClose);
+}
+
+if (isMain(import.meta.url)) main();

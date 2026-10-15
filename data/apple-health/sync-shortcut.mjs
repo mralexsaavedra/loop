@@ -35,7 +35,6 @@ import * as common from './sync-common.mjs';
 import { isMain } from '../../scripts/lib/is-main.mjs';
 
 const SHORTCUT_SOURCE = 'Shortcut';
-const { ENV_FILE } = common;
 const DEFAULT_AUTOMATION = 'atajo-salud';
 const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'extract');
 
@@ -507,16 +506,22 @@ function fetchAllPayloads({ baseUrl, token, automation, sinceId = '0', limit = 5
   });
 }
 
-async function main() {
-  const baseUrl = common.readBaseUrl(process.env, ENV_FILE);
+const USAGE = `Usage: node data/apple-health/sync-shortcut.mjs [--full]
+
+Merges the iOS Shortcut payloads stored by the ingest service into the Apple Health extract.
+  --full       ignore the local cache, refetch every payload and rebuild it
+  -h, --help   this help
+Env: INGEST_URL, INGEST_TOKEN (else from the service .env), INGEST_ENV_FILE (default
+services/loop-ingest/.env), SHORTCUT_AUTOMATION (default "atajo-salud").`;
+
+async function main({ full = false } = {}) {
+  const baseUrl = common.readBaseUrl(process.env);
   const automation = process.env.SHORTCUT_AUTOMATION || DEFAULT_AUTOMATION;
-  const envText = fs.existsSync(ENV_FILE) ? fs.readFileSync(ENV_FILE, 'utf8') : null;
-  const token = resolveToken(process.env, envText);
+  const token = common.readIngestToken(process.env);
   if (!token) {
     console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/loop-ingest/.env. No files touched.');
     process.exit(1);
   }
-  const full = process.argv.includes('--full');
   const readFile = name => { const p = path.join(OUT, name); return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null; };
   let sinceId;
   try {
@@ -541,7 +546,7 @@ async function main() {
   if (!Object.keys(writes).length) console.log('  (no changes)');
 }
 
-if (isMain(import.meta.url)) main();
+if (isMain(import.meta.url)) common.runCli(main, { usage: USAGE, options: { full: { type: 'boolean' } } });
 
 export {
   METRICS, SHORTCUT_SOURCE, SLEEP_STAGES, isAsleep, sleepStageOf,
