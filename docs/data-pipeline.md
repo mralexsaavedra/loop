@@ -90,6 +90,9 @@ table.
 - Sync is incremental: a local gitignored `extract/.shortcut-cache.json` of deduped samples + the last
   payload id. `npm run sync -- --full` rebuilds it (needed once after adding a key, since the
   incremental sync only parses payloads newer than the cache).
+- Payloads (and Strava activities) are fetched in keyset pages (`fetchPages` in `sync-common.mjs`): a full
+  page whose last id is missing or not greater than the previous `since_id` stops the sync with
+  `unexpected paging cursor`, and 10 000 pages is a hard cap, so a misbehaving service can never loop it.
 - Rows are tagged `source=Shortcut`, except body comp (keeps the real scale source for the
   latest-source logic) and energy (no source column).
 - `_meta.json` `shortcutSync.owned` lists every date sync wrote, per CSV.

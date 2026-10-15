@@ -79,6 +79,53 @@ test('fetchPages() rejects a non-array response', async () => {
   );
 });
 
+test('fetchPages() throws on a cursor that does not advance (a repeated last id) instead of looping forever', async () => {
+  let calls = 0;
+  const fetchImpl = async () => { calls++; return { ok: true, status: 200, json: async () => [{ id: '1' }, { id: '2' }] }; };
+  await assert.rejects(
+    fetchPages({ baseUrl: 'http://h', token: 't', limit: 2, fetchImpl, buildUrl: ({ since }) => `http://h/x?since_id=${since}` }),
+    /unexpected paging cursor/,
+  );
+  assert.equal(calls, 2);
+});
+
+test('fetchPages() throws on a full page whose last row has no id, or a non-numeric one', async () => {
+  for (const last of [{}, { id: null }, { id: 'abc' }, { id: '' }]) {
+    const fetchImpl = async () => ({ ok: true, status: 200, json: async () => [{ id: '1' }, last] });
+    await assert.rejects(
+      fetchPages({ baseUrl: 'http://h', token: 't', limit: 2, fetchImpl, buildUrl: () => 'http://h/x' }),
+      /unexpected paging cursor/, JSON.stringify(last),
+    );
+  }
+});
+
+test('fetchPages() compares ids beyond 2^53 exactly (BigInt) and accepts numeric ids', async () => {
+  const big = ['9007199254740993', '9007199254740994', '9007199254740995'];
+  const fetchImpl = async (url) => {
+    const since = BigInt(new URL(url).searchParams.get('since_id'));
+    return { ok: true, status: 200, json: async () => big.filter((id) => BigInt(id) > since).slice(0, 2).map((id) => ({ id })) };
+  };
+  const out = await fetchPages({ baseUrl: 'http://h', token: 't', limit: 2, sinceId: '9007199254740992', fetchImpl,
+    buildUrl: ({ since }) => `http://h/x?since_id=${since}` });
+  assert.deepEqual(out.map((p) => p.id), big);
+  const nums = async (url) => {
+    const since = Number(new URL(url).searchParams.get('since_id'));
+    return { ok: true, status: 200, json: async () => [1, 2, 3].filter((id) => id > since).slice(0, 2).map((id) => ({ id })) };
+  };
+  assert.equal((await fetchPages({ baseUrl: 'http://h', token: 't', limit: 2, sinceId: 0, fetchImpl: nums,
+    buildUrl: ({ since }) => `http://h/x?since_id=${since}` })).length, 3);
+});
+
+test('fetchPages() stops at a hard page cap', async () => {
+  let n = 0;
+  const fetchImpl = async () => { const id = ++n; return { ok: true, status: 200, json: async () => [{ id }] }; };
+  await assert.rejects(
+    fetchPages({ baseUrl: 'http://h', token: 't', limit: 1, maxPages: 5, fetchImpl, buildUrl: () => 'http://h/x' }),
+    /more than 5 pages/,
+  );
+  assert.equal(n, 5);
+});
+
 test('resolveToken() prefers env, falls back to the .env file text', () => {
   assert.equal(resolveToken({ INGEST_TOKEN: 'fromenv' }, 'INGEST_TOKEN=fromfile'), 'fromenv');
   assert.equal(resolveToken({}, '# c\nOTHER=1\nINGEST_TOKEN="fromfile"\n'), 'fromfile');
