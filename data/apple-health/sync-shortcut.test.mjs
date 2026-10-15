@@ -1038,3 +1038,21 @@ test('main() in-process: no new payloads -> returns 0', async () => {
     assert.match(h.out[0], /Synced 0 new/);
   } finally { h.cleanup(); }
 });
+
+test('syncDir writes _meta.json (the ownership ledger) FIRST; a failure after it leaves the ledger listing the dates', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-order-'));
+  const items = [{ id: '1', payload: { hrv: '2030-01-02T08:00:00+01:00;42' } }];
+  const order = [];
+  syncDir(dir, items, { writeAtomic: (file) => order.push(path.basename(file)) });
+  assert.equal(order[0], '_meta.json');
+  assert.ok(order.includes('hrv.csv') && order.includes(CACHE_FILE));
+
+  // the CSV write fails after the ledger write: the ledger already owns the date
+  assert.throws(() => syncDir(dir, items, {
+    writeAtomic: (file, text) => { if (path.basename(file) !== '_meta.json') throw new Error('disk full'); writeAtomic(file, text); },
+  }), /disk full/);
+  const meta = JSON.parse(fs.readFileSync(path.join(dir, '_meta.json'), 'utf8'));
+  assert.deepEqual(meta.shortcutSync.owned['hrv.csv'], ['2030-01-02']);
+  assert.equal(fs.existsSync(path.join(dir, 'hrv.csv')), false);
+  fs.rmSync(dir, { recursive: true });
+});

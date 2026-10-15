@@ -482,14 +482,20 @@ function planSync(items, readFile, { full = false } = {}) {
 const { writeAtomic } = common;
 
 // plan + apply against a directory of extract CSVs (used by main and the contract test)
-// _meta.json is shared with sync-strava.mjs (both scripts can touch the same extract/ dir), so
-// the whole read-plan-write sequence runs under an exclusive lock to prevent a lost update.
+// _meta.json (the ownership ledger) is written FIRST, as sync-strava.mjs does: a crash after it leaves
+// a ledger that lists every date this sync owns, so the next run still drops and rebuilds those
+// Shortcut rows from the cache; written last, a crash would leave Shortcut rows the ledger does not
+// know, which the next merge would keep as export rows. _meta.json is shared with sync-strava.mjs
+// (both scripts can touch the same extract/ dir), so the whole read-plan-write sequence runs under an
+// exclusive lock to prevent a lost update. opts.writeAtomic is injectable for tests.
 function syncDir(dir, items, opts = {}) {
+  const { writeAtomic: write = writeAtomic, ...planOpts } = opts;
   fs.mkdirSync(dir, { recursive: true }); // the lockfile itself needs the directory to exist
   return common.withLock(path.join(dir, '_meta.json.lock'), () => {
     const readFile = name => { const p = path.join(dir, name); return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null; };
-    const plan = planSync(items, readFile, opts);
-    for (const [name, text] of Object.entries(plan.writes)) writeAtomic(path.join(dir, name), text);
+    const plan = planSync(items, readFile, planOpts);
+    const names = Object.keys(plan.writes).sort((a, b) => (a === '_meta.json' ? -1 : b === '_meta.json' ? 1 : 0));
+    for (const name of names) write(path.join(dir, name), plan.writes[name]);
     return plan;
   });
 }
