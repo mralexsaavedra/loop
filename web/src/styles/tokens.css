@@ -47,6 +47,7 @@
   --low-rgb: 255, 0, 38;
   /* deltas: better / worse than the baseline */
   --up: #00f19f;
+  --up-rgb: 0, 241, 159;
   --down: #ffa722;
   /* data */
   --trend: #67aee6;
@@ -66,6 +67,9 @@
   --link-end: #8a63ff;
   /* the same gradient on a card ends in a lighter violet: 4.98 on --surface, 4.53 on --surface-2 */
   --link-end-card: #9d7cff;
+  /* Inicio's outlook strip: a warm grey → grey fade into --surface (score.css .outlook) */
+  --outlook-a: #4a4642;
+  --outlook-b: #34363a;
   /* insight card stroke: teal → indigo */
   --insight-a: #31748c;
   --insight-b: #4d3e8c;
