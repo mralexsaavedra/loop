@@ -96,7 +96,7 @@ The food layers (`docs/nutrition-food-log.md` → Security), shared helpers in `
 | Check | Failure |
 | --- | --- |
 | Host allowlist (the same `FOOD_ALLOWED_HOSTS`) | `421` |
-| `Origin` on writes | `403 forbidden_origin` |
+| `Origin` on writes (bound to `X-Forwarded-Host` behind loop-web; `Sec-Fetch-Site` `same-origin` when sent) | `403 forbidden_origin` |
 | Header `X-HC-Journal: 1` on every request | `403` |
 | JSON on writes | `415` |
 | Bodies ≤ 16 KB | `413` |

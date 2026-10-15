@@ -119,6 +119,8 @@ server {
         proxy_set_header X-HC-Food $http_x_hc_food;
         # the hop's Host: a name the ingest Host check accepts (the browser's Origin is passed on)
         proxy_set_header Host host.docker.internal;
+        # the Host the browser asked for (port included): ingest refuses a write whose Origin is not exactly it
+        proxy_set_header X-Forwarded-Host $http_host;
         proxy_connect_timeout 5s;
         proxy_read_timeout 15s;
         proxy_pass http://host.docker.internal:${INGEST_PORT}/food/;
@@ -131,6 +133,8 @@ server {
         proxy_set_header X-HC-Journal $http_x_hc_journal;
         # the hop's Host: a name the ingest Host check accepts (the browser's Origin is passed on)
         proxy_set_header Host host.docker.internal;
+        # the Host the browser asked for (port included): ingest refuses a write whose Origin is not exactly it
+        proxy_set_header X-Forwarded-Host $http_host;
         proxy_connect_timeout 5s;
         proxy_read_timeout 15s;
         proxy_pass http://host.docker.internal:${INGEST_PORT}/journal/;

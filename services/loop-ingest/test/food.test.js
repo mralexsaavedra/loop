@@ -459,6 +459,29 @@ test('writes with an Origin header: its host must pass the same check (403 forbi
   } finally { await t.close() }
 })
 
+test('writes through loop-web: the Origin must be the host nginx was asked for (X-Forwarded-Host) and Sec-Fetch-Site, when sent, same-origin; the SSO tunnel host works', async () => {
+  const t = await setup({ allowedHosts: ['plan.example.com'] })
+  try {
+    const body = { date: '2030-01-10', meal: 'snack', refType: 'quick', label: 'x', kcal: 10 }
+    const lan = { 'x-forwarded-host': '192.168.1.10:8090', 'sec-fetch-site': 'same-origin' }
+    for (const [headers, why] of [
+      [{ ...lan, origin: 'http://192.168.1.20:8090' }, 'another LAN address'],
+      [{ ...lan, origin: 'http://192.168.1.10:9999' }, 'another port of the same address'],
+      [{ ...lan, origin: 'http://192.168.1.10:8090', 'sec-fetch-site': 'cross-site' }, 'cross-site'],
+      [{ ...lan, origin: 'http://192.168.1.10:8090', 'sec-fetch-site': 'same-site' }, 'same-site'],
+      [{ 'x-forwarded-host': 'plan.example.com', origin: 'https://evil.example' }, 'tunnel host, foreign origin']
+    ]) {
+      const r = await t.rawCall('POST', '/food/log', { body, headers })
+      assert.deepEqual([r.status, r.body.error], [403, 'forbidden_origin'], why)
+    }
+    assert.equal((await t.rawCall('DELETE', '/food/log/1', { headers: { ...lan, origin: 'http://192.168.1.20:8090' } })).status, 403)
+    assert.equal(t.store.db.log.length, 0)
+    assert.equal((await t.rawCall('POST', '/food/log', { body, headers: { ...lan, origin: 'http://192.168.1.10:8090' } })).status, 201, 'the LAN page')
+    assert.equal((await t.rawCall('POST', '/food/log', { body, headers: { 'x-forwarded-host': 'plan.example.com', 'sec-fetch-site': 'same-origin', origin: 'https://plan.example.com' } })).status, 201, 'the SSO tunnel')
+    assert.equal((await t.rawCall('POST', '/food/log', { body, headers: { 'x-forwarded-host': '192.168.1.10:8090' } })).status, 201, 'curl through nginx (the food-log skill): no Origin')
+  } finally { await t.close() }
+})
+
 test('numbers are rounded to 1 decimal BEFORE the bounds: 0.04 becomes 0 and is refused where > 0 is required', async () => {
   const t = await setup()
   try {

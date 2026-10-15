@@ -63,6 +63,13 @@ test('nginx /api/journal/: ingest /journal/ only, GET/PUT, 16 KB cap, the X-HC-J
   assert.doesNotMatch(j.body, /add_header\s+Access-Control/i, 'never approves a cross-site request');
 });
 
+test('nginx /api/food/ + /api/journal/ forward the Host the browser asked for as X-Forwarded-Host (ingest binds the write Origin to it)', () => {
+  for (const spec of ['/api/food/', '/api/journal/']) {
+    const l = locations(nginx).find((x) => x.spec === spec);
+    assert.match(l.body, /proxy_set_header X-Forwarded-Host \$http_host;/, spec);
+  }
+});
+
 test('nginx: everything else under /api is a 404; data endpoints are never named', () => {
   const api = locations(nginx).find((l) => l.spec === '/api/');
   assert.ok(api, 'a catch-all /api/ location exists');

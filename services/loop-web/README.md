@@ -273,7 +273,8 @@ page (all health data, and the food log read + write). nginx therefore answers
 EVERY path (the page, `status.json`, `/api/*`) only when the request names it
 by an IP literal (`http://192.168.1.10:8090`, `http://[fd00::12]:8090`) or
 `localhost`; any other name gets `421`. The ingest service repeats the check on
-`/food/*` (plus the `Origin` of writes) as defence in depth.
+`/food/*` (plus the `Origin` of writes, which must be exactly the host and port
+the browser asked nginx for, forwarded as `X-Forwarded-Host`) as defence in depth.
 
 To reach the page by a name too (e.g. `http://plan.lan:8090`):
 
