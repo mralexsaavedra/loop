@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
-import { createHandler } from '../src/server.js'
+import { createHandler, maxBodyBytes } from '../src/server.js'
 import { createFoodRoutes } from '../src/food.js'
 import { createJournalRoutes } from '../src/journal.js'
 
@@ -146,6 +146,41 @@ test('POST /ingest/health-auto-export: bearer, empty / bad / oversized body, the
   assert.equal(ok.status, 202)
   assert.deepEqual(ok.body, { ok: true, id: '7', received_at: '2030-01-01T00:00:00Z' })
   assert.deepEqual(s.calls, [['insert', 'health-auto-export', 10]])
+})
+
+test('POST /ingest/health-auto-export: a \\u0000 anywhere in the JSON (value or key) is a 400 with a code, never stored or a 500', async (t) => {
+  const s = await setup()
+  t.after(s.close)
+  const auth = { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' }
+  const expected = { status: 400, body: { error: 'body contains a \\u0000 character, which cannot be stored', code: 'nul_character' } }
+  assert.deepEqual(await s.call('POST', '/ingest/health-auto-export', { headers: auth, body: '{"a":["x\\u0000"]}' }), expected)
+  assert.deepEqual(await s.call('POST', '/ingest/health-auto-export', { headers: auth, body: '{"k\\u0000":1}' }), expected)
+  assert.deepEqual(s.calls, [], 'nothing stored')
+  // an escaped backslash followed by "u0000" is ordinary text, not a NUL
+  assert.equal((await s.call('POST', '/ingest/health-auto-export', { headers: auth, body: '{"a":"\\\\u0000"}' })).status, 202)
+})
+
+test('a failed bearer check on any token route is logged as a counted event without the token', async (t) => {
+  const s = await setup()
+  t.after(s.close)
+  const orig = console.log
+  const lines = []
+  console.log = (l) => { lines.push(String(l)) }
+  try {
+    await s.call('POST', '/ingest/health-auto-export', { headers: { authorization: 'Bearer not-the-token' }, body: '{}' })
+    await s.call('POST', '/sync/strava')
+  } finally {
+    console.log = orig
+  }
+  const events = lines.map((l) => JSON.parse(l)).filter((e) => e.event === 'unauthorized')
+  assert.deepEqual(events.map((e) => [e.path, e.reason]), [['/ingest/health-auto-export', 'invalid'], ['/sync/strava', 'missing']])
+  assert.ok(events[1].count > events[0].count, 'counted')
+  assert.ok(!lines.join('\n').includes('not-the-token'))
+})
+
+test('maxBodyBytes: 8 MB by default (the size loop-web forwards), MAX_BODY_BYTES overrides', () => {
+  assert.equal(maxBodyBytes({}), 8 * 1024 * 1024)
+  assert.equal(maxBodyBytes({ MAX_BODY_BYTES: '1048576' }), 1048576)
 })
 
 /** A raw request whose body is streamed in `chunks` (chunked encoding unless `length` is declared). */

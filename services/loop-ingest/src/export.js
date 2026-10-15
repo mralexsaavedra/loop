@@ -1,4 +1,4 @@
-import { isAuthorized } from './auth.js'
+import { createBearerCheck } from './auth.js'
 import { writeJson as send } from './http.js'
 
 const DEFAULT_LIMIT = 500
@@ -93,9 +93,9 @@ export async function listStravaActivities (pool, { sinceId, limit }) {
  * oldest first, paged by `since_id`. Same bearer check as ingest; logs counts
  * only, never payload contents.
  */
-export function createExportHandler ({ pool, token, log = console.log }) {
+export function createExportHandler ({ pool, token, log = console.log, checkBearer = createBearerCheck(token) }) {
   return async function handleExport (req, res, url) {
-    if (!isAuthorized(req.headers.authorization, token)) {
+    if (!checkBearer(req)) {
       send(res, 401, { error: 'unauthorized' })
       return
     }
@@ -119,9 +119,9 @@ export function createExportHandler ({ pool, token, log = console.log }) {
  * script, oldest first, paged by `since_id`. Same bearer check and
  * counts-only logging as `/export/raw`; never logs activity field values.
  */
-export function createStravaExportHandler ({ pool, token, log = console.log }) {
+export function createStravaExportHandler ({ pool, token, log = console.log, checkBearer = createBearerCheck(token) }) {
   return async function handleStravaExport (req, res, url) {
-    if (!isAuthorized(req.headers.authorization, token)) {
+    if (!checkBearer(req)) {
       send(res, 401, { error: 'unauthorized' })
       return
     }

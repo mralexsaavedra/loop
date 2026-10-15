@@ -13,10 +13,8 @@ Two sources feed it:
 ## Why raw first
 
 The service stores every payload verbatim in `raw_payload` together with the headers
-the client sends; the host-side sync (`scripts/sync-shortcut.mjs`) parses it into the
-extract CSVs. A parsing fix later is a re-sync, not a re-import.
-
-Nothing is discarded, so re-normalizing later is a query, not a re-import.
+the client sends; the host-side sync (`data/apple-health/sync-shortcut.mjs`, part of `npm run sync`)
+parses it into the extract CSVs. A parsing fix later is a re-sync, not a re-import.
 
 ## Endpoints
 
@@ -25,7 +23,7 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 | GET    | `/healthz`                    | none   | `200` when the database answers; `degraded: true, reason: "strava_stale"` when Strava is configured and its last PERSISTED success is older than 6 h (or it never succeeded) |
 | POST   | `/sync`                       | none   | `202` `{ok, seq, coalesced, deferred?, strava?}`; never refuses (repeated clicks coalesce or defer) |
 | GET    | `/sync/status`                | none   | `200` `{lastShortcutAt, lastStravaOkAt, lastStravaError, lastTriggerAt, lastTriggerError, lastTriggerErrorSeq, triggerSeq, stravaConfigured}` (coarse codes only, cached 5 s) |
-| POST   | `/ingest/health-auto-export`  | bearer | `202` with the stored row id |
+| POST   | `/ingest/health-auto-export`  | bearer | `202` with the stored row id; `400` on an empty body, invalid JSON or a `\u0000` anywhere in it (`code: "nul_character"`: Postgres cannot store it, so it is refused rather than a `500` the client retries forever); `413` over `MAX_BODY_BYTES` |
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
 | GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]`; `400` on a bad query |
 | GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain, start_utc, device_watts, hr_hist}]`; `400` on a bad query |
@@ -40,10 +38,21 @@ Nothing is discarded, so re-normalizing later is a query, not a re-import.
 | GET / PUT | `/food/settings`           | header | `200` `{settings: {goal, targetWeightKg, updatedAt}}`; PUT = partial update `{goal?, targetWeightKg?}` (`null` clears the target); `503 settings_unavailable` when its migration failed |
 | GET / PUT | `/food/profile`            | header | the in-page onboarding document: `200` `{profile: {name?, sex, birthdate, heightCm, weightKg, activity, goals, targets, updatedAt} \| null}`; PUT replaces it (adult birthdate, height 120–230, weight 30–250, `activity` sedentary / light / active, `goals` = the goals the safety screen allowed, all twelve `targets` cells `{kcal, p, f}` as integers); its own optional migration group (`sql/011_profile.sql`): a failure only answers `503 profile_unavailable` here |
 | GET    | `/export/athlete`             | bearer | `200` with the latest athlete snapshot: `{fetchedAt, firstname, lastname, city, state, country, profile, profileMedium, measurementPreference, athleteType, bikes, shoes, gearScopeMissing, devices}` (nulls / empty lists when nothing is stored) |
+| GET    | `/journal/day?date=YYYY-MM-DD` | journal | `200` `{day: {date, answers, notes, updatedAt}}` (empty when never journaled) |
+| PUT    | `/journal/day`                | journal | full replace of one day `{date, answers, notes?}`; no answer and no note removes the day |
+| GET    | `/journal/summary?from=&to=`  | journal | `200` `{from, to, days: [{date, answers, notes}]}` |
+| GET / PUT | `/journal/settings`        | journal | `200` `{behaviors: {key: on}}`; PUT takes a partial `{behaviors: {key: bool}}` |
 
 Bearer token is compared in constant time; it is the entire security boundary
 for the endpoint, because Health Auto Export can only send a static header.
-`header` = no token, but the request must carry `X-HC-Food: 1` (see "Food log" below).
+`header` = no token, but the request must carry `X-HC-Food: 1` (see "Food log" below); `journal` = the
+same with `X-HC-Journal: 1` (the behaviour journal, [`docs/journal.md`](../../docs/journal.md); same Host,
+Origin, JSON and size checks as the food routes, `src/journal.js`).
+
+Every failed bearer check is logged as `{"event":"unauthorized","path","reason","remote","count"}`
+(`reason`: `missing`, `malformed` or `invalid`; `count`: failures since the service started), never with
+the presented token: a rising count in `docker compose logs loop-ingest` is a misconfigured client or
+someone guessing.
 
 ## On-demand refresh: `POST /sync` and `GET /sync/status`
 
@@ -116,7 +125,7 @@ bearer token.
 is the only entry, on the LAN or behind a public tunnel, and proxies only
 `POST /ingest/health-auto-export`, `/api/sync`, `/api/sync/status`,
 `/api/food/*` and `/api/journal/*`. Its port is published on the host only so loop-web
-can reach it (`"${INGEST_PORT}:8088"`, see the loop-web README): keep it off the internet and never
+can reach it (`"${INGEST_PORT}:8088"`, or only on `INGEST_BIND` when set; see the loop-web README): keep it off the internet and never
 forward it, `/export/*` or `/sync/strava` through a public proxy or tunnel (see
 [`../loop-web/README.md` → Exposing behind an SSO tunnel](../loop-web/README.md)).
 
@@ -447,7 +456,14 @@ into `strava_activity` by id. Each run re-reads a seven-day overlap window, so a
 activity edited after upload — renamed, or given a description by the coach — is
 picked up on the next pass rather than frozen at its first version.
 
-Access tokens are refreshed in memory with a 60-second slack. The refresh token
+The pull asks Strava for the activities after a cursor (the newest stored start minus that overlap, or
+the beginning of time on a fresh database), which Strava returns oldest first, and upserts every page
+of 100 as it arrives. So the first pull of a long history needs no single long run: if Strava's rate
+limit (100 requests / 15 min) or anything else stops it partway, the pages already stored stay, and the
+next run continues from the newest one instead of starting over.
+
+Access tokens are refreshed in memory with a 60-second slack; callers that need one while a refresh is
+running (the activity pull, the athlete refresh, the HR backfill) wait for that same refresh. The refresh token
 is the durable credential, and Strava may **rotate** it on any refresh: the
 service stores the rotated value in the single-row `strava_token` table and
 prefers it over `STRAVA_REFRESH_TOKEN`, which stays the bootstrap for a fresh
@@ -455,8 +471,8 @@ database. If the stored token is rejected (for example after you re-authorized
 and put a new token in `.env`), the env token is tried once. A failing store
 never blocks a refresh. The token is never returned by any endpoint or logged.
 A failed or rate-limited sync is logged and never takes the ingest endpoint
-down with it. Every Strava request times out after 15 s and a pull stops after 200 pages (20,000 activities), so a hung request
-never blocks the shared sync. The database pool logs an idle client's error (a Postgres restart) instead of
+down with it. Every Strava request times out after 15 s and one run stops after 200 pages (20,000 activities;
+what it stored stays, the next run continues), so a hung request never blocks the shared sync. The database pool logs an idle client's error (a Postgres restart) instead of
 crashing, gives up connecting after 5 s (so `/healthz` answers while the database is down) and cancels a
 statement after 30 s.
 
@@ -536,9 +552,11 @@ token). `.env` is gitignored and must stay that way.
 | `INGEST_TOKEN`      | Bearer token; refuses to start under 32 characters |
 | `POSTGRES_*`        | Database credentials. Compose hands them to the service as separate fields (with `DB_HOST=loop-db`), never as a URL, so the password may hold any character (`@ : / ? # %`) |
 | `DATABASE_URL`      | Optional, outside compose: a connection string that wins over `DB_HOST` + `POSTGRES_*` (percent-encode special characters in its password there) |
-| `INGEST_PORT`       | Host port (loop-web proxies to it). The host-side sync scripts read it from this file too, so a second install on another port syncs from its own service |
+| `INGEST_PORT`       | Required: host port (loop-web proxies to it); compose refuses to start without it (`set INGEST_PORT in services/loop-ingest/.env`). The host-side sync scripts read it from this file too, so a second install on another port syncs from its own service |
+| `INGEST_BIND`       | Optional host address to publish `INGEST_PORT` on (the LAN IP, or `127.0.0.1` when only this host's loop-web and sync scripts use it; an IPv6 address in brackets). Empty = every address, as before. **Docker ignores ufw**: a published port bypasses ufw / firewalld, so on a host with a public address set this ([`docs/guides/troubleshooting.md`](../../docs/guides/troubleshooting.md)) |
+| `HC_VERSION`        | Tag of the `mralexandersaavedra/loop-ingest` image `docker compose pull` / `up -d` uses; default = this clone's release version (the value in `docker-compose.yml`). `docker compose up -d --build` ignores it and builds from the clone |
 | `HC_INSTANCE`       | Empty by default. A name for a second install on the same host (`second`): suffixes the compose project, container names and database volume. Set the same value in `services/loop-web/.env` ([`../loop-web/README.md` → Running a second install](../loop-web/README.md#running-a-second-install-another-person-same-host)) |
-| `MAX_BODY_BYTES`    | Upload ceiling, default 32 MB; a larger upload (declared or streamed) gets a `413` response before the connection is closed |
+| `MAX_BODY_BYTES`    | Upload ceiling, default 8 MB (what loop-web forwards; a Shortcut payload is a few hundred KB); a larger upload (declared or streamed) gets a `413` response before the connection is closed. Raise it only for a direct client that sends more, within the 512 MB container limit |
 | `TRIGGER_DIR`       | Where `POST /sync` writes `refresh`; compose sets `/trigger` (bind mount of `./trigger`) |
 | `FOOD_ALLOWED_HOSTS` | Extra host names (comma / space separated) the `/food/*` Host + Origin checks accept besides IP literals, `localhost` and `host.docker.internal`; empty by default. Mirror loop-web's `PLAN_WEB_EXTRA_HOSTS` |
 

@@ -57,4 +57,13 @@ LockPersonality=yes
 RestrictRealtime=yes
 RestrictNamespaces=yes
 SystemCallArchitectures=native
+# Nor the clock, the hostname or any device node (a private /dev with null, zero, random, ...); it talks
+# only to local sockets, loop-ingest and the npm registry / git remote over IPv4 / IPv6 (no netlink, no raw
+# packets), and needs no capability at all: it runs as the clone's owner. npm install scripts stay ON
+# (astro / esbuild download their native binary in one).
+ProtectClock=yes
+ProtectHostname=yes
+PrivateDevices=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
 UMask=0022
