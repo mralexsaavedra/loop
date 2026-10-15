@@ -11,7 +11,7 @@ import * as common from './sync-common.mjs';
 
 const {
   mergeCsv, fetchJson, fetchPages, resolveToken, readIngestToken, resolveBaseUrl, readBaseUrl, writeAtomic, DEFAULT_URL, ENV_FILE,
-  acquireLock, releaseLock, withLock,
+  acquireLock, releaseLock, withLock, reclaimStaleLock,
 } = common;
 
 const H = 'date,value,source';
@@ -322,4 +322,35 @@ test('runCli: main\'s number is the exit code; a rejected main -> one ERROR line
   const bad = runCliChild('async () => { throw new Error("main must not run"); }', ['--nope']);
   assert.equal(bad.status, 2);
   assert.doesNotMatch(bad.stderr, /main must not run/);
+});
+
+test('releaseLock() removes only a lock that holds OUR pid (a lock reclaimed by another process survives)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-common-lock-'));
+  const lock = path.join(dir, '_meta.json.lock');
+  fs.writeFileSync(lock, '999999');
+  releaseLock(lock);
+  assert.equal(fs.readFileSync(lock, 'utf8'), '999999', 'another process\'s lock is never removed');
+  fs.rmSync(lock);
+  // our run outlived staleMs and another process took the lock over: withLock must not release theirs
+  withLock(lock, () => fs.writeFileSync(lock, '999998'));
+  assert.equal(fs.readFileSync(lock, 'utf8'), '999998');
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('reclaimStaleLock(): only the stale lock that was observed is reclaimed, and only once', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-common-lock-'));
+  const lock = path.join(dir, '_meta.json.lock');
+  fs.writeFileSync(lock, '999999');
+  const old = (Date.now() - 5000) / 1000;
+  fs.utimesSync(lock, old, old);
+  const seen = fs.statSync(lock);
+  // two processes saw the same stale lock: the first reclaims it and takes the lock ...
+  assert.equal(reclaimStaleLock(lock, seen), true);
+  assert.ok(!fs.existsSync(lock));
+  fs.writeFileSync(lock, '424242'); // ... the first process's fresh lock (a new file)
+  // ... and the second one, still holding its old observation, must not reclaim the fresh lock
+  assert.equal(reclaimStaleLock(lock, seen), false);
+  assert.equal(fs.readFileSync(lock, 'utf8'), '424242');
+  assert.deepEqual(fs.readdirSync(dir), ['_meta.json.lock'], 'no claim file left behind');
+  fs.rmSync(dir, { recursive: true });
 });
