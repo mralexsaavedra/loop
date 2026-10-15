@@ -258,3 +258,25 @@ test('importing generate.mjs reads no file (load() does): it imports fine with n
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('generate.mjs --check exits non-zero, naming the line, on an {ing} part without an amt (never NaN in the tables)', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-no-amt-'));
+  try {
+    const plan = JSON.parse(fs.readFileSync(path.join(__dirname, 'plan-data.example.json'), 'utf8'));
+    const meal = plan.dayPlan.train.meals.find((m) => m.parts.some((p) => p.ing));
+    const part = meal.parts.find((p) => p.ing);
+    delete part.amt;
+    const planFile = path.join(root, 'plan-src.json');
+    fs.writeFileSync(planFile, JSON.stringify(plan));
+    const nutDir = mirrorTree(root, [
+      [path.join(__dirname, 'ingredients.json'), 'ingredients.json'],
+      [planFile, 'plan-data.json'],
+    ]);
+    const res = spawnSync(process.execPath, ['generate.mjs', '--check'], { cwd: nutDir, encoding: 'utf8' });
+    assert.notEqual(res.status, 0, 'a missing amt must fail the check');
+    assert.match(res.stderr + res.stdout, /needs a numeric amt > 0 \(got undefined\)/);
+    assert.doesNotMatch(res.stderr + res.stdout, /TypeError/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
