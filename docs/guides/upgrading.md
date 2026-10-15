@@ -88,7 +88,8 @@ Nothing to change in your `.env` files: no new variable is required. Back up fir
 - **Optional, the git pre-commit hook** against committing personal data:
   `git config core.hooksPath scripts/git-hooks` ([`docs/guard-hook.md`](../guard-hook.md)).
 
-A second install does the same in its own clone.
+A second install does the same in its own clone; its containers carry the `HC_INSTANCE` suffix, so every
+`docker exec` above names `loop-db-<instance>` (e.g. `loop-db-second`) instead of `loop-db`.
 
 ## Moving from the pre-LOOP names
 
