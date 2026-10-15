@@ -1,5 +1,5 @@
 /* Generic (non-personal) English UI copy — the en/example counterpart of
- * es.mjs, ported from the tracked `data/nutrition/loop-web.template.html`.
+ * es.mjs, ported from the tracked `data/nutrition/plan-web.template.html`.
  * Key tree MUST mirror es.mjs exactly — see web/test/i18n.test.mjs. */
 export default {
   strings: {

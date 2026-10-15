@@ -1,6 +1,6 @@
 /* Hoy (training "today") + Entrenos (training dashboard) tabs. Ported
  * verbatim (selectors + declarations) from the legacy
- * loop-web.template.html <style> block. Markup for these tabs lands in
+ * plan-web.template.html <style> block. Markup for these tabs lands in
  * slice 5 — these rules are ported ahead of the markup (corrective apply
  * pass) so that slice only needs to add markup. */
 
