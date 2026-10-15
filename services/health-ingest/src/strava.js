@@ -1,6 +1,10 @@
 const TOKEN_URL = 'https://www.strava.com/oauth/token'
 const ACTIVITIES_URL = 'https://www.strava.com/api/v3/athlete/activities'
 const PAGE_SIZE = 100
+// a hung request must never block the shared sync run (POST /sync, the timer and /sync/strava join it)
+const FETCH_TIMEOUT_MS = 15_000
+// 50 x 100 activities is years of history; more means a broken cursor, not data
+const MAX_PAGES = 50
 
 /**
  * Strava access tokens live ~6 hours and stay in memory. The refresh token is
@@ -69,6 +73,7 @@ export function createTokenProvider ({
   function requestToken (token) {
     return fetchImpl(TOKEN_URL, {
       method: 'POST',
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         client_id: clientId,
@@ -162,7 +167,7 @@ export async function fetchActivitiesSince (getAccessToken, sinceEpochSeconds, f
     if (sinceEpochSeconds) url.searchParams.set('after', String(sinceEpochSeconds))
 
     const token = await getAccessToken()
-    const res = await fetchImpl(url, { headers: { authorization: `Bearer ${token}` } })
+    const res = await fetchImpl(url, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
 
     if (res.status === 429) {
       const err = new Error('strava rate limit reached')
@@ -174,6 +179,7 @@ export async function fetchActivitiesSince (getAccessToken, sinceEpochSeconds, f
     const batch = await res.json()
     collected.push(...batch)
     if (batch.length < PAGE_SIZE) return collected
+    if (page >= MAX_PAGES) throw new Error(`strava activities: more than ${MAX_PAGES} pages`)
 
     page += 1
   }
