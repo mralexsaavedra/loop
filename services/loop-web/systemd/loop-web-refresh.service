@@ -65,5 +65,4 @@ ProtectClock=yes
 ProtectHostname=yes
 PrivateDevices=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
-CapabilityBoundingSet=
 UMask=0022

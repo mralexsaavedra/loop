@@ -462,9 +462,10 @@ test('loop-web/.env.example documents every variable the compose file reads, all
 
 test('systemd service: clock, hostname, devices, address families and capabilities locked down too', () => {
   const directives = serviceUnit.split('\n').map((l) => l.trim());
-  for (const line of ['ProtectClock=yes', 'ProtectHostname=yes', 'PrivateDevices=yes', 'RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6', 'CapabilityBoundingSet=']) {
+  for (const line of ['ProtectClock=yes', 'ProtectHostname=yes', 'PrivateDevices=yes', 'RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6']) {
     assert.ok(directives.includes(line), line);
   }
+  assert.ok(!directives.some((l) => /^CapabilityBoundingSet=/.test(l)), 'no capability bounding set: root running a clone with directories owned by another user needs CAP_DAC_OVERRIDE');
   assert.ok(!directives.some((l) => /^ExecStart=.*--ignore-scripts/.test(l)), 'npm install scripts stay on (astro / esbuild need them)');
 });
 
