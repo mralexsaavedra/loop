@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { energySource, APPLE_WATCH_RE } from './samples.mjs';
+import { energySource, APPLE_WATCH_RE } from '../../lib/extract/samples.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

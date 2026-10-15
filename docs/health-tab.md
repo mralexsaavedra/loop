@@ -190,7 +190,7 @@ What it shows: last night, sleep consistency, and the newest staged night's stag
 ### Main-sleep night rule
 
 Bedtime / wake time come from the extended `sleep-daily.csv`: `extract.mjs` and `sync-shortcut.mjs` share
-`samples.mjs` `sleepNights`, which keeps only the MAIN sleep of each wake-up night.
+`lib/extract/samples.mjs` `sleepNights`, which keeps only the MAIN sleep of each wake-up night.
 
 - Asleep segments are chained with gaps < 60 min.
 - The main block: the longest block whose midpoint falls 20:00–12:00.

@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { isMain } from '../../scripts/lib/is-main.mjs';
 import { writeAtomic } from './sync-common.mjs';
 // shared with sync-shortcut.mjs so export- and Shortcut-derived rows are formatted identically
-import { pickEnergySource, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights, sleepStage } from './samples.mjs';
+import { pickEnergySource, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights, sleepStage } from '../../lib/extract/samples.mjs';
 
 const DIR = process.env.EXTRACT_DIR || path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.join(DIR, 'export.xml');
