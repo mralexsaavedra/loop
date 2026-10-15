@@ -403,3 +403,11 @@ checks instead of "LAN only".
   settings.
 - **`NoNewPrivileges=yes`, `PrivateTmp=yes`**: no setuid escalation, a private
   `/tmp`. No known downside for this build.
+- **`ProtectKernelTunables`, `ProtectKernelModules`, `ProtectKernelLogs`, `ProtectControlGroups`,
+  `RestrictSUIDSGID`, `LockPersonality`, `RestrictRealtime`, `RestrictNamespaces`,
+  `SystemCallArchitectures=native`**: the build (git, npm, node, astro / esbuild) needs none of what these
+  forbid. Checked with `systemd-analyze verify` and a transient `systemd-run` of the example build under the
+  same settings. **`UMask=0022`** is explicit: nginx in the loop-web container reads `./site` as another user,
+  so a stricter mask (`0027`) would make the page answer `403`. `MemoryDenyWriteExecute` is deliberately not
+  set (node's JIT needs writable, executable memory). To pick up these settings on an installed unit, copy
+  the template again (Install step 8 fills the placeholders) and `sudo systemctl daemon-reload`.

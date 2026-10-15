@@ -181,6 +181,18 @@ test('systemd service is hardened: no new privileges, read-only system and home,
   }
 });
 
+test('systemd service: kernel, control groups, SUID, personality, realtime, namespaces and syscall architecture locked down; files stay world-readable for nginx', () => {
+  const directives = serviceUnit.split('\n').map((l) => l.trim());
+  for (const line of ['ProtectKernelTunables=yes', 'ProtectKernelModules=yes', 'ProtectKernelLogs=yes', 'ProtectControlGroups=yes', 'RestrictSUIDSGID=yes',
+    'LockPersonality=yes', 'RestrictRealtime=yes', 'RestrictNamespaces=yes', 'SystemCallArchitectures=native', 'UMask=0022']) {
+    assert.ok(directives.includes(line), line);
+  }
+  // nginx in the loop-web container reads ./site as another uid: a stricter umask (0027) would make the page 403
+  assert.ok(!directives.some((l) => /^UMask=00[2-7]7$/.test(l)), 'never a umask that hides ./site from other users');
+  // node's JIT needs writable + executable memory
+  assert.ok(!directives.some((l) => l.startsWith('MemoryDenyWriteExecute=')), 'no MemoryDenyWriteExecute (breaks node)');
+});
+
 test('refresh.sh does not override the safe.directory setting (the unit runs as the repo owner)', () => {
   assert.doesNotMatch(read(LOOP_WEB, 'refresh.sh'), /safe\.directory/);
 });
