@@ -19,6 +19,7 @@ import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB } from '../../../lib/nav/ta
 import { buildScoresFrom } from '../../../lib/score/index.mjs';
 import { healthFrom } from '../../../lib/health/aggregate.mjs';
 import { buildDials } from '../view/dial.mjs';
+import { addDays } from '../../../lib/date.mjs';
 
 const format = (tpl, vars) => tpl.replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? vars[k] : ''));
 
@@ -33,7 +34,6 @@ const DEMO_INPUTS = readExtract(path.join(here, '..', '..', '..', 'data', 'demo'
 const DEMO = detailFrom(DEMO_INPUTS);
 const NOW = DEMO.asOf; // the viewer opens the page on the demo's newest data day
 
-const addDays = (d, n) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
 const dayIndex = (m, iso) => Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(m.start + 'T00:00:00Z')) / 86400000);
 const valueOn = (m, iso) => { const i = dayIndex(m, iso); return i >= 0 && i < m.v.length ? m.v[i] : null; };
 
@@ -526,14 +526,12 @@ test('es: Spanish copy, decimal comma, Spanish dates', () => {
 });
 
 /* ---------- the sheet never contradicts the card it opens from ---------- */
-const DEMO_DIR = path.join(here, '..', '..', '..', 'data', 'demo', 'extract');
 const DIALS = buildDials(buildScoresFrom(DEMO_INPUTS), healthFrom(DEMO_INPUTS));
 const headOf = (html) => html.split('<div class="dt-body">')[0];
 const sgn = (v, dec) => (v > 0 ? '+' : '') + v.toFixed(dec);
 const copy = () => JSON.parse(JSON.stringify(DEMO));
 
 // the dial deep-dive pages (client/deepdive.js): the top of the body, its insight card, its ⓘ block
-const topOf = (html) => html.split('<div class="dt-period">')[0];
 const insightOf = (html) => (html.split('<div class="dd-insight">')[1] || '').split('</div>')[0];
 const infoOf = (html) => (html.split('<div class="dd-info" id="dd-info" hidden>')[1] || '').split('</div><section')[0];
 const heroOf = (html) => (html.split('<section class="dd-hero')[1] || '').split('</section>')[0];
@@ -781,7 +779,7 @@ test('a daily total\'s newest day, when it is the viewer\'s today, reads "today,
   assert.doesNotMatch(later.host.innerHTML, /dt-s-partial/, 'a finished day gets its state again');
 });
 
-test('load deep-dive: the gym / run / bike pills (moved from under Inicio\'s dials) — the page\'s modality pressed, each opens its page and, with score.js loaded, sets Inicio\'s load dial (scMod)', () => {
+test('load deep-dive: the gym / run / bike pills — the page\'s modality pressed, each opens its page and, with score.js loaded, sets Inicio\'s load dial (scMod)', () => {
   const s = setup({ dials: DIALS });
   s.api.open('load-run');
   const html = s.host.innerHTML;

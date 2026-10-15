@@ -219,7 +219,7 @@
 
   var age = daysOld(M.asOf);
   var stale = age != null && age > STALE_DAYS;
-  var head = '';
+  var head;
   try {
     head = T.tile ? chip(counts()) : '';
   } catch (e) {

@@ -6,13 +6,7 @@
  * page.hideTabs never drops it): the training sections (TRAINING /
  * TRAINING_META / DASH / I18N_HOY / I18N_DASH), Salud (HEALTH /
  * I18N_HEALTH), Inicio (SCORES / DIALS / I18N_SCORE) and the intake rings
- * (INTAKE / I18N_INTAKE). It used to sit in the day builder's section
- * (Registro.astro), removed with the builder together with its own
- * globals (TARGET, EXTRA_KEYS, EXTRA_NAMES, INDULGE, ALCOHOL_KEYS,
- * MEAL_REPLACE_KEYS, I18N_VERDICT, I18N_LOG, PE_LABEL, COPY_MSG,
- * COPY_FALLBACK_MSG). The Tablas globals (DATA / EXTRAS / QUESO_KEYS / VEG_KEYS / FRUIT_SUMMARY /
- * I18N_TABLAS, painted by the removed client/tablas.js) went when Tablas became server-rendered
- * reference values (web/src/tabs/Tablas.astro, lib/nutrition/reference.mjs).
+ * (INTAKE / I18N_INTAKE).
  */
 import { jsonForScript } from '../../../lib/serialize.mjs';
 import { buildDials } from '../view/dial.mjs';
@@ -25,7 +19,7 @@ import { es as esIntake, en as enIntake } from '../i18n/intake-templates.mjs';
 
 interface Props {
   locale: string;
-  training: Record<string, any>; // training.days, verbatim (astro-plan-web slice 5)
+  training: Record<string, any>; // training.days, verbatim
   trainingMeta: { program: string; coach: string; source: string; first: string; last: string; count: number };
   dash: any; // lib/training/dashboard.mjs's dashboardFrom() result
   health: any; // lib/health/aggregate.mjs's healthFrom() result

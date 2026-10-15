@@ -10,10 +10,10 @@ import { fileURLToPath } from 'node:url';
 import { activityFromRows, activityBake } from '../../../lib/training/activity.mjs';
 import { es as esT, en as enT } from '../i18n/activity-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
+import { addDays } from '../../../lib/date.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'training-activity.js'), 'utf8');
-const addDays = (d, n) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
 const ASOF = '2026-09-29';
 
 // every 2nd day in the last 30 (60 min run), every 3rd day in the previous 30 (30 min gym)

@@ -1,13 +1,5 @@
-/* CSS regression guard — originally a corrective apply pass (CSS-porting
- * gap found in slices 1-4: web/src/styles/ only ever grew tokens.css, so
- * Dia/Registro/Tablas rendered unstyled), diffed against the legacy
- * `data/nutrition/plan-web.template.html` at the time.
- *
- * astro-plan-web slice 7 (cutover) retires the legacy template entirely, so
- * this test now compares against a CHECKED-IN snapshot fixture
- * (`web/test/fixtures/css-expected.json`) instead: a declaration map
- * captured from a verified-good Astro example build (the same build that was
- * visually approved before cutover), kept in sync since.
+/* CSS regression guard: the example build's inline CSS, as a declaration map, against the CHECKED-IN
+ * snapshot fixture `web/test/fixtures/css-expected.json`.
  *
  * The check is two-way: an edit to web/src/styles/*.css that drops or changes
  * a declaration fails it, and so does a declaration added to the CSS but not

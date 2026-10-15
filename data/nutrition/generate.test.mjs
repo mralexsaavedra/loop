@@ -17,7 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, '..', '..');
 
 // Mirrors the repo structure generate.mjs statically imports (data/nutrition/generate.mjs +
-// ../../lib/nutrition/*.mjs + ../../scripts/lib/is-main.mjs) into a temp root, WITHOUT ever copying
+// ../../lib/nutrition/*.mjs + ../../lib/date.mjs + ../../scripts/lib/is-main.mjs) into a temp root, WITHOUT ever copying
 // the real (possibly personal) plan-data.json. `files` are the data/nutrition seeds to copy next to it.
 // Returns the temp data/nutrition dir.
 function mirrorTree(root, files) {
@@ -32,6 +32,7 @@ function mirrorTree(root, files) {
     if (!f.endsWith('.mjs') || f.endsWith('.test.mjs')) continue;
     fs.copyFileSync(path.join(REPO, 'lib', 'nutrition', f), path.join(root, 'lib', 'nutrition', f));
   }
+  fs.copyFileSync(path.join(REPO, 'lib', 'date.mjs'), path.join(root, 'lib', 'date.mjs'));
   fs.copyFileSync(path.join(REPO, 'scripts', 'lib', 'is-main.mjs'), path.join(root, 'scripts', 'lib', 'is-main.mjs'));
   return nutDir;
 }
@@ -39,8 +40,8 @@ function mirrorTree(root, files) {
 const { ING, D, macro, mealMacros, buildTables, validate, DAYPLAN, LEGUMES, LEGUME_PLATE } = gen;
 const close = (a, b, tol = 0.5) => Math.abs(a - b) <= tol;
 
-test('generate.mjs no longer builds plan-web.html — buildHtml is not exported (astro-plan-web cutover)', () => {
-  assert.equal(gen.buildHtml, undefined, 'HTML splicing moved to the Astro build; generate.mjs now only validates + writes plan-tables.md');
+test('generate.mjs builds no HTML (no buildHtml export): it validates and writes plan-tables.md, the page is the Astro build', () => {
+  assert.equal(gen.buildHtml, undefined, 'generate.mjs only validates + writes plan-tables.md');
 });
 
 test('validate() passes on the merged ingredients.json + plan-data.json', () => {

@@ -115,7 +115,7 @@
   /* ---------- the portion guide: lib/nutrition/guide.mjs's own functions (lib/nutrition/client.mjs -> HC_GUIDE) ---------- */
   var G = N.guide || null; // the baked guide data (defaults, oil meals, Extras examples)
   var GU = HC_GUIDE;
-  var MACS = GU.MACS, ROLE_KEYS = GU.ROLE_KEYS, zero4 = GU.zero, finite = GU.fin;
+  var MACS = GU.MACS, ROLE_KEYS = GU.ROLE_KEYS, zero4 = GU.zero;
   var guideBudgets = GU.guideBudgets, exampleAmount = GU.exampleAmount, remaining = GU.remaining, mealState = GU.mealState,
     isCovered = GU.isCovered, dayRemaining = GU.dayRemaining, capByDay = GU.capByDay, roleOptions = GU.roleOptions;
 
@@ -206,7 +206,7 @@
   // answered (HCFood.ready) the food log only, never the Apple Health day; a failure or the grace's end
   // -> the Apple Health day (a late answer still switches: food-log.js refreshes us).
   function intakeToday() {
-    var W = window.intakeWaiting, H = window.HCFood, lan = false, F = null;
+    var W = window.intakeWaiting, H = window.HCFood, lan, F = null;
     try { if (typeof W === 'function' && W()) return null; } catch (e) { /* no wait known: go on */ }
     try { lan = !!(H && typeof H.ready === 'function' && H.ready()); } catch (e) { lan = false; }
     if (typeof window.foodTotals === 'function') {
@@ -383,10 +383,6 @@
       (d !== 'rest' ? '<p class="gd-hint">' + esc(G2.extrasSplit) + '</p>' : '') +
       (B.clamped ? '<p class="gd-hint">' + esc(G2.clamped) + '</p>' : '') +
       pcfHtml(pcf) + supps + '</div>';
-  }
-  function addMac(a, b) {
-    MACS.forEach(function (m) { a[m] += b && finite(b[m]) ? b[m] : 0; });
-    return a;
   }
   // Plan de hoy: the same four meal groups every day (breakfast, lunch, dinner, Extras); the day type and
   // the goal only change the amounts. With today's food log (LAN page) each group shows what is left.

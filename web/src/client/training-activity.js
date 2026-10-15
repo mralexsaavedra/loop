@@ -1,5 +1,5 @@
-/* Entreno "Activity" card: ONE card for what used to be the 30-day calendar, the cumulative training
- * time and the workouts dashboard's weekly volume + modality split. Rendered from ACTIVITY
+/* Entreno "Activity" card: ONE card for the 30-day calendar, the cumulative training time and the
+ * weekly volume + modality split. Rendered from ACTIVITY
  * (lib/training/activity.mjs) + I18N_ACTIVITY, both baked by tabs/TrainingDetail.astro.
  *
  * Top to bottom: the "ACTIVITY" header with an ⓘ (how the numbers are counted, the Watch-label

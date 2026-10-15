@@ -734,7 +734,7 @@
     if (a === 'hist') { toggleHist(el); return; }
     if (a === 'learn') { learnMore(); return; }
     if (a === 'trend') { toTrend(); return; }
-    var focusSel = null;
+    var focusSel;
     if (a === 'range') {
       var r = +el.getAttribute('data-range');
       state.range = RANGES.indexOf(r) !== -1 ? r : RANGES[1];

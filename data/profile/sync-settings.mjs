@@ -51,22 +51,9 @@ function normalizeSettings (body) {
 
 /** GET <base>/food/settings with the food layer's header; the HTTP status (if any) is kept on err.status. */
 async function fetchSettings (baseUrl, { fetchImpl = fetch, timeoutMs = 10000 } = {}) {
-  const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
-  try {
-    const res = await fetchImpl(`${String(baseUrl).replace(/\/+$/, '')}/food/settings`, {
-      headers: { 'x-hc-food': '1', accept: 'application/json' },
-      signal: ctrl.signal,
-      redirect: 'error'
-    })
-    if (!res.ok) throw Object.assign(new Error(`ingest service answered HTTP ${res.status}`), { status: res.status })
-    return await res.json()
-  } catch (err) {
-    if (err.name === 'AbortError' || ctrl.signal.aborted) throw new Error(`request timed out after ${timeoutMs / 1000} s`)
-    throw err
-  } finally {
-    clearTimeout(timer)
-  }
+  return common.fetchJson(`${String(baseUrl).replace(/\/+$/, '')}/food/settings`, null, {
+    fetchImpl, timeoutMs, headers: { 'x-hc-food': '1', accept: 'application/json' }, redirect: 'error'
+  })
 }
 
 function readJsonOrNull (file) {
@@ -102,6 +89,12 @@ function warning (err, baseUrl) {
   return `WARNING: could not read the settings from ${baseUrl} (${cause}). settings.json kept.`
 }
 
+const USAGE = `Usage: node data/profile/sync-settings.mjs
+
+Snapshots the page's settings (goal, target weight) from the ingest service into data/profile/settings.json.
+  -h, --help   this help
+Env: INGEST_URL, INGEST_ENV_FILE (default services/loop-ingest/.env, for its INGEST_PORT).`
+
 async function main () {
   const baseUrl = common.readBaseUrl(process.env)
   let body
@@ -122,6 +115,6 @@ async function main () {
   }
 }
 
-if (isMain(import.meta.url)) main()
+if (isMain(import.meta.url)) common.runCli(main, { usage: USAGE })
 
 export { SETTINGS_JSON, GOALS, TARGET_MIN, TARGET_MAX, normalizeSettings, fetchSettings, syncSettings, warning, main }

@@ -35,7 +35,7 @@
     var L = typeof INTAKE !== 'undefined' && INTAKE && INTAKE.log && Array.isArray(INTAKE.log.days) ? INTAKE.log.days : [];
     var by = {};
     L.forEach(function (d) { if (d && isoDate(d.date)) by[d.date] = d; });
-    var A = window.HCAdherence, st = null;
+    var A = window.HCAdherence, st;
     try { st = A && typeof A.state === 'function' ? A.state() : null; } catch (e) { st = null; }
     if (st && Array.isArray(st.days)) {
       st.days.forEach(function (d) {
@@ -48,7 +48,7 @@
   function targetsFor(dates) {
     var n = window.HCNutri, out = {};
     dates.forEach(function (d) {
-      var t = null;
+      var t;
       try { t = n && typeof n.targetFor === 'function' ? n.targetFor(d) : null; } catch (e) { t = null; }
       out[d] = t && fin(t.k) ? { k: t.k, p: fin(t.p) ? t.p : null, g: fin(t.g) ? t.g : null, inferred: !!t.inferred } : null;
     });

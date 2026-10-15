@@ -38,7 +38,7 @@ How the raw sources become the CSVs in `data/apple-health/extract/` that every p
 
 Active / basal energy: per DAY and type ONE source wins and only its sum is written, never a sum
 across sources (each device / app writes its own estimate of the same burn; RENPHO's weigh-in BMR
-as Basal Energy doubled basal). Precedence lives in `samples.mjs` `energySource` / `pickEnergySource`:
+as Basal Energy doubled basal). Precedence lives in `lib/extract/samples.mjs` `energySource` / `pickEnergySource`:
 
 | Rank | Source | Match |
 | --- | --- | --- |
@@ -177,11 +177,16 @@ offset (like the energy hours).
 ### Module notes
 
 - Unreachable service → the sync exits non-zero without touching files.
-- Row helpers are shared in `samples.mjs`, so both paths (extract and sync) format rows identically.
-- `samples.mjs`, `lib/health/hr-hourly.mjs`, `lib/training/hr-zones.mjs` and `lib/profile/read.mjs` are
-  ES modules, imported by the `.mjs` sync scripts here.
-- The still-CommonJS profile, settings and food log syncs load `sync-common.mjs` with a plain
-  `require()` (Node's synchronous require(esm), unflagged since Node 22.12, the `engines` floor).
+- Row helpers are shared in `lib/extract/samples.mjs`, so both paths (extract and sync) format rows identically.
+- Every sync script (`data/apple-health/sync-*.mjs`, `data/nutrition/sync-foodlog.mjs`,
+  `data/profile/sync-*.mjs`, `scripts/sync-*.mjs`) shares `sync-common.mjs`: `fetchJson` (one timed GET),
+  `writeAtomic` (temp file + rename), the service `.env` (`INGEST_ENV_FILE` when set, else
+  `services/loop-ingest/.env`, for `INGEST_TOKEN` / `INGEST_PORT`) and one command line (`parseCli` /
+  `runCli`): `--help` prints the usage and exits 0; an unknown flag or a stray argument prints `ERROR:` +
+  the usage and exits 2 before any request or write; a failure `main` did not handle prints one `ERROR:`
+  line and exits 1. Only the Shortcut sync takes a flag (`--full`); `npm run sync -- --full` passes it to
+  that script alone.
+- `extract.mjs` runs only as the entry point (`isMain`), and writes every CSV and `_meta.json` atomically.
 
 ### Sleep (`sleep-daily.csv`)
 

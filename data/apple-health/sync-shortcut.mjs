@@ -28,14 +28,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import * as S from './samples.mjs';
+import * as S from '../../lib/extract/samples.mjs';
 import * as HR from '../../lib/health/hr-hourly.mjs';
 import { ZONES_CSV } from '../../lib/training/hr-zones.mjs';
 import * as common from './sync-common.mjs';
 import { isMain } from '../../scripts/lib/is-main.mjs';
 
 const SHORTCUT_SOURCE = 'Shortcut';
-const { ENV_FILE } = common;
 const DEFAULT_AUTOMATION = 'atajo-salud';
 const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'extract');
 
@@ -149,7 +148,6 @@ const SLEEP_STAGES = {
 // NFD splits accents off ("sueño" -> "suen" + U+0303); drop the combining marks U+0300-U+036F
 const stageKey = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/gi, '').toLowerCase();
 const sleepStageOf = stage => SLEEP_STAGES[stageKey(stage)] || null;
-const isAsleep = stage => ['core', 'deep', 'rem', 'unspec'].includes(sleepStageOf(stage));
 
 // A decimal comma or dot. With BOTH separators the LAST one is the decimal and the other a thousands
 // separator ("1.234,5" / "1,234.5" -> 1234.5); one kind repeated ("1.234.567") is ambiguous -> null.
@@ -507,16 +505,22 @@ function fetchAllPayloads({ baseUrl, token, automation, sinceId = '0', limit = 5
   });
 }
 
-async function main() {
-  const baseUrl = common.readBaseUrl(process.env, ENV_FILE);
+const USAGE = `Usage: node data/apple-health/sync-shortcut.mjs [--full]
+
+Merges the iOS Shortcut payloads stored by the ingest service into the Apple Health extract.
+  --full       ignore the local cache, refetch every payload and rebuild it
+  -h, --help   this help
+Env: INGEST_URL, INGEST_TOKEN (else from the service .env), INGEST_ENV_FILE (default
+services/loop-ingest/.env), SHORTCUT_AUTOMATION (default "atajo-salud").`;
+
+async function main({ full = false } = {}) {
+  const baseUrl = common.readBaseUrl(process.env);
   const automation = process.env.SHORTCUT_AUTOMATION || DEFAULT_AUTOMATION;
-  const envText = fs.existsSync(ENV_FILE) ? fs.readFileSync(ENV_FILE, 'utf8') : null;
-  const token = resolveToken(process.env, envText);
+  const token = common.readIngestToken(process.env);
   if (!token) {
     console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/loop-ingest/.env. No files touched.');
     process.exit(1);
   }
-  const full = process.argv.includes('--full');
   const readFile = name => { const p = path.join(OUT, name); return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null; };
   let sinceId;
   try {
@@ -541,11 +545,11 @@ async function main() {
   if (!Object.keys(writes).length) console.log('  (no changes)');
 }
 
-if (isMain(import.meta.url)) main();
+if (isMain(import.meta.url)) common.runCli(main, { usage: USAGE, options: { full: { type: 'boolean' } } });
 
 export {
-  METRICS, SHORTCUT_SOURCE, SLEEP_STAGES, isAsleep, sleepStageOf,
-  parseNumber, parseSource, parsePayload, collectSamples, unionMinutes, buildRows, mergeCsv, updateMeta,
+  METRICS, SHORTCUT_SOURCE, sleepStageOf,
+  parseNumber, parsePayload, collectSamples, unionMinutes, buildRows, mergeCsv, updateMeta,
   planSync, resolveToken, fetchAllPayloads,
   CACHE_FILE, emptyCache, foldPayloads, writeAtomic, syncDir, dropPhantomWeights,
 };

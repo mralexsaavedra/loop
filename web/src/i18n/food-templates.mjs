@@ -30,7 +30,7 @@ export const es = {
     titleDate: 'Añadir comida · {date}',
     meal: 'Comida del día',
     tabsLabel: 'Origen',
-    // one short word each: the three fit one line at 360 px (formerly "Mis productos" wrapped)
+    // one short word each: the three fit one line at 360 px ("Mis productos" would wrap)
     tabs: { products: 'Productos', recipes: 'Recetas', quick: 'Rápido' },
     search: 'Buscar producto',
     searchPh: 'Nombre o marca',

@@ -13,8 +13,7 @@
  *
  * `--check` skips the Astro build entirely and only validates the
  * programmed training data for the given mode (fast, no astro binary
- * invoked). This replaces the training validation the retired
- * data/training/generate-training.js --check used to provide — nutrition
+ * invoked); nutrition
  * validation stays in `node data/nutrition/generate.mjs --check` (`npm run
  * check` chains both).
  */
@@ -170,8 +169,7 @@ function main() {
     return;
   }
 
-  // Consumed by web/src/env.mjs from slice 2 onward, and by the layout's
-  // <html lang> in the meantime.
+  // read by web/src/env.mjs (and the layout's <html lang>)
   process.env.DATA_MODE = mode;
   process.env.LOCALE = locale;
   process.env.HC_REPO_ROOT = ROOT;

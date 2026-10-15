@@ -1,31 +1,20 @@
 /* "Salud / Health" tab sections (recovery, fitness, sleep, body composition, activity/NEAT, energy:
  * metric rows via HC.metricRow, notes behind an ⓘ toggle per section) plus Entreno's
- * running / cycling list rows and load vs recovery (#health-train, see render()), ported from the legacy
- * `<script>` IIFE ("health") of the pre-Astro generated page (deleted at
- * the astro-plan-web cutover), adapted to read HEALTH/LOCALE from globals
- * baked by web/src/components/Bake.astro and I18N_HEALTH
- * (web/src/i18n/health-templates.mjs) instead of hardcoded English
- * strings — same pattern as client/training-today.js and
+ * running / cycling list rows and load vs recovery (#health-train, see render()). Reads HEALTH / LOCALE
+ * from the globals baked by web/src/components/Bake.astro and its copy from I18N_HEALTH
+ * (web/src/i18n/health-templates.mjs) — same pattern as client/training-today.js and
  * client/training-dash.js.
  *
- * `esc()` / `nf()` / `format()` / `daysOld()` are the shared helpers of
- * client/util.js (window.HC). `esc()` calls sit at EXACTLY the same spots as
- * the legacy source (fmtD()/source strings/titles) — static I18N_HEALTH copy
- * is trusted the same way legacy's hardcoded literals were, so it is NOT
- * re-escaped (see design's Trusted markup row: dict content is
- * generic/tracked, never user input).
+ * `esc()` / `format()` / `daysOld()` are the shared helpers of client/util.js (window.HC). `esc()` wraps
+ * every data value (dates, source names, titles); the static I18N_HEALTH copy is generic, tracked text,
+ * never user input, so it is NOT re-escaped.
  *
- * `nf()` / `HC.hours()` / `HC.pct()` are the one number formatter (lib/format/numbers.mjs via
+ * `HC.num()` / `HC.hours()` / `HC.pct()` are the one number formatter (lib/format/numbers.mjs via
  * HC_FMT, docs/design-system.md → "Numbers"): decimal comma in es, every value >= 1000 grouped
  * ("2.532"), sleep hours as h:mm, percents without a space.
  *
- * `ago()` depends on `Date.now()` (real wall-clock time, not a baked
- * value) — unlike training-today.js this is NOT about "what day is it"
- * (HEALTH is a fully precomputed snapshot baked at build time), it is
- * purely a relative-time label for the "last logged" caveat in the energy
- * section. Both the legacy/golden script and this one compute it against
- * the SAME real `Date.now()` when executed together, so it stays
- * deterministic for parity tests (see web/test/parity.test.mjs).
+ * `ago()` depends on `Date.now()` (real wall-clock time, not a baked value): HEALTH is a precomputed
+ * snapshot, and `ago()` is only the relative-time label of the "last logged" caveat in the energy section.
  */
 (function () {
   var T = I18N_HEALTH;
@@ -238,19 +227,104 @@
       bal.hidden = !bal.innerHTML;
     }
   }
-  // one broken trend card must never blank the tab: it is skipped, the rest still render
-  function adder(out) {
-    return function (fn) {
-      try {
-        out.push(fn());
-      } catch (e) {
-        /* skip this card */
-      }
-    };
-  }
-
   // Salud, top to bottom (under the health monitor list, client/monitor.js): Recovery (+ the recovery
   // card host #score-recovery, filled by score.js), Fitness, Sleep, Body composition, Activity, Energy.
+  // each row builder runs alone: one broken row is skipped, never the tab
+  function safeRows(list) {
+    var r = [];
+    list.forEach(function (fn) {
+      try {
+        var h = fn();
+        if (h) r.push(h);
+      } catch (e) {
+        /* skip this row */
+      }
+    });
+    return r;
+  }
+  // a recovery signal's row builder: the newest value vs its 30-day mean
+  function signalRow(R, k, dir, id) {
+    var TR = T.trend;
+    return function () {
+      var m = R[k];
+      return m ? mrow(k, TR[k].title, TR[k].unit, { value: m.latest, base: m.avg30, dir: dir, date: m.latestDate, id: id ? k : null, detail: k }) : '';
+    };
+  }
+  /* recovery: the recovery dial's detail card lands in #score-recovery, right under the label; a
+     signal the health monitor at the top of Salud already lists (client/monitor.js) is not repeated
+     here, one it lacks keeps its row */
+  function recoverySection(R, SC) {
+    var inMonitor = {};
+    (SC && SC.monitor && Array.isArray(SC.monitor.cards) ? SC.monitor.cards : []).forEach(function (c) {
+      if (c && c.key) inMonitor[c.key] = true;
+    });
+    var recSigs = [['rhr', -1], ['hrv', 1], ['respiratory', 0], ['wristTemp', 0]].filter(function (x) {
+      return !inMonitor[x[0]];
+    }).map(function (x) {
+      return signalRow(R, x[0], x[1], true);
+    });
+    return section('recovery', R.hasData ? safeRows(recSigs) : [],
+      R.hasData ? [T.recoveryNoteHtml] : [], '<div id="score-recovery"></div>');
+  }
+  /* fitness: the fitness-age ring (+ chronological age and its trend), VO2max (change since the
+     first reading) and walking HR */
+  function fitnessSection(R, SC) {
+    var TR = T.trend, fab;
+    try { fab = fitnessAgeBlock(SC); } catch (e) { fab = null; /* a broken block never blanks the section */ }
+    return section('fitness', safeRows((fab ? fab.rows : []).concat([
+      function () { var m = R.vo2max; return m ? mrow('vo2max', TR.vo2max.title, TR.vo2max.unit, { value: m.latest, delta: fin(m.first) ? round(m.latest - m.first, 1) : null, dir: 1, date: m.latestDate, detail: 'vo2max' }) : ''; },
+      signalRow(R, 'walkingHr', -1, false),
+    ])), fab ? [fab.note, T.fitnessNoteHtml] : [T.fitnessNoteHtml], fab ? fab.before : '');
+  }
+  /* sleep: last night vs the 30-night mean, then the consistency rows; the section is hl-sleep */
+  function sleepSection(sl) {
+    var TR = T.trend, SCd = T.sleepCards;
+    return section('sleep', safeRows([
+      function () { return mrow('sleep', TR.sleep.title, TR.sleep.unit, { value: sl.latest, base: sl.avg, baseTpl: T.avgNightsTpl, dir: 1, date: sl.latestDate, detail: 'sleep' }); },
+      function () { return fin(sl.pctTarget) ? mrow('sleep', format(SCd.nightsTargetLbl, { target: HC.hours(sl.target) }), '%', { icon: 'vsTarget', value: sl.pctTarget, detail: 'sleep' }) : ''; },
+      function () { return fin(sl.sd) ? mrow('sleep', SCd.sdLbl, 'h', { icon: 'cons', value: sl.sd, text: '±' + HC.hours(sl.sd), detail: 'sleep' }) : ''; },
+      function () { return sl.bedtime ? mrow('sleep', SCd.bedtimeLbl, '', { icon: 'bed', value: 0, text: sl.bedtime, sub: '±' + sl.bedtimeSd + '′', detail: 'sleep' }) : ''; },
+      function () { return sl.wake ? mrow('sleep', SCd.wakeLbl, '', { icon: 'wake', value: 0, text: sl.wake, sub: '±' + sl.wakeSd + '′', detail: 'sleep' }) : ''; },
+    ].concat(stageRows(sl.stages, SCd))), [T.sleepNoteHtml].concat(sl.stages && T.sleepStagesNoteHtml ? [T.sleepStagesNoteHtml] : []));
+  }
+  /* body composition: weight Δ vs ~30 days ago, body fat / lean mass Δ in their scale window, waist */
+  function bodySection(B) {
+    var TB = T.trend;
+    var bcPts = function (k) { var m = B[k]; return m && m.windowPoints != null && m.windowDays != null ? '<b>' + TB[k].title + '</b>: ' + esc(format(T.bodyCompPointsTpl, { n: m.windowPoints, days: m.windowDays })) : ''; };
+    var wsrc = B.weight ? B.weight.source : '', bsrc = B.bodyfat ? B.bodyfat.source : '';
+    var sourcesClause = B.weight ? format(T.bodyNote.sourcesClause, { n: B.weight.sources }) : '';
+    var wsrcClause = wsrc ? format(T.bodyNote.sourceClause, { src: esc(wsrc) }) : '';
+    var bsrcClause = bsrc ? format(T.bodyNote.sourceClause, { src: esc(bsrc) }) : '';
+    var bodyNotes = [format(T.bodyNote.main, { sourcesClause: sourcesClause, sourceClause: wsrcClause, bfSourceClause: bsrcClause }), bcPts('bodyfat'), bcPts('lean'),
+      B.waist ? format(T.waist.noteTpl, { n: B.waist.points, first: esc(fmtD(B.waist.firstDate)) }) : T.waist.emptyHtml];
+    var bc = function (k, dir) {
+      return function () { var m = B[k]; return m ? mrow(k, TB[k].title, TB[k].unit, { value: m.latest, delta: k === 'weight' ? m.d30 : m.delta, deltaUnit: TB[k].deltaUnit, dir: dir, date: m.latestDate, detail: k }) : ''; };
+    };
+    return section('body', safeRows([bc('weight', 0), bc('bodyfat', -1), bc('lean', 1),
+      function () { var w = B.waist; return w ? mrow('waist', T.waist.title, T.waist.unit, { value: w.latest, delta: w.delta, deltaUnit: T.waist.deltaUnit, dir: -1, date: w.latestDate, when: fmtD(w.latestDate), noStale: true, detail: 'waist' }) : ''; },
+    ]), bodyNotes);
+  }
+  /* activity / NEAT: the latest day vs its 30-day average (today = so far, no arrow) */
+  function activitySection(A) {
+    return section('activity', safeRows(['steps', 'exercise', 'distance', 'flights'].map(function (k) {
+      return function () { var a = A[k], tt = T.trend[k]; return a ? mrow(k, tt.title, tt.unit, { value: a.latest, base: a.avg30, dir: 1, date: a.latestDate, soFar: true, detail: k }) : ''; };
+    })), [T.activityNoteHtml]);
+  }
+  /* energy: expenditure (TDEE) only; the intake balance + macro split are Nutrición's Balance
+     (renderBalance); every caveat sits behind ⓘ */
+  function energySection(E) {
+    var en = [];
+    // a power-meter ride day (lib/health/ride-energy.mjs): the headline day's active energy was corrected
+    if (T.energyRide && E.latestCorrected) en.push(esc(T.energyRide.latest));
+    else if (T.energyRide && E.latestUncovered) en.push(esc(T.energyRide.uncovered));
+    if (E.correctedDays > 0 && T.energyRide) en.push(format(T.energyRide.days, { n: E.correctedDays }));
+    if (E.uncoveredDays > 0 && T.energyRide) en.push(format(T.energyRide.uncoveredDays, { n: E.uncoveredDays }));
+    en.push(format(T.energyTdeeNote, { tdeeDays: E.tdeeDays }));
+    return section('energy', safeRows([function () {
+      return E.tdeeLatest != null ? mrow('energy', T.trend.expenditure.title, T.trend.expenditure.unit, { value: E.tdeeLatest, base: E.tdeeAvg, dir: 0, date: E.tdeeLatestDate, soFar: true, detail: 'energy' }) : '';
+    }]), en);
+  }
+
   function renderSalud(host) {
     var B = HEALTH.body || {}, A = HEALTH.activity || {}, E = HEALTH.energy || {}, R = HEALTH.recovery || {};
     var SC = typeof SCORES === 'undefined' || !SCORES ? null : SCORES;
@@ -259,99 +333,15 @@
       host.innerHTML = '<div class="train-empty">' + T.emptyMsg + '</div>';
       return;
     }
-    var TR = T.trend, out = [];
-    function rows(list) {
-      var r = [];
-      list.forEach(function (fn) {
-        try {
-          var h = fn();
-          if (h) r.push(h);
-        } catch (e) {
-          /* one broken row is skipped, never the tab */
-        }
-      });
-      return r;
-    }
-    function sig(k, dir, id) {
-      return function () {
-        var m = R[k];
-        return m ? mrow(k, TR[k].title, TR[k].unit, { value: m.latest, base: m.avg30, dir: dir, date: m.latestDate, id: id ? k : null, detail: k }) : '';
-      };
-    }
-    /* recovery: the recovery dial's detail card lands in #score-recovery, right under the label; a
-       signal the health monitor at the top of Salud already lists (client/monitor.js) is not repeated
-       here, one it lacks keeps its row */
-    var inMonitor = {};
-    (SC && SC.monitor && Array.isArray(SC.monitor.cards) ? SC.monitor.cards : []).forEach(function (c) {
-      if (c && c.key) inMonitor[c.key] = true;
-    });
-    var recSigs = [['rhr', -1], ['hrv', 1], ['respiratory', 0], ['wristTemp', 0]].filter(function (x) {
-      return !inMonitor[x[0]];
-    }).map(function (x) {
-      return sig(x[0], x[1], true);
-    });
-    if (R.hasData || recScore) {
-      out.push(section('recovery', R.hasData ? rows(recSigs) : [],
-        R.hasData ? [T.recoveryNoteHtml] : [], '<div id="score-recovery"></div>'));
-    }
+    var out = [];
+    if (R.hasData || recScore) out.push(recoverySection(R, SC));
     if (R.hasData) {
-      /* fitness: the fitness-age ring (+ chronological age and its trend), VO2max (change since the
-         first reading) and walking HR */
-      var fab = null;
-      try { fab = fitnessAgeBlock(SC); } catch (e) { fab = null; /* a broken block never blanks the section */ }
-      out.push(section('fitness', rows((fab ? fab.rows : []).concat([
-        function () { var m = R.vo2max; return m ? mrow('vo2max', TR.vo2max.title, TR.vo2max.unit, { value: m.latest, delta: fin(m.first) ? round(m.latest - m.first, 1) : null, dir: 1, date: m.latestDate, detail: 'vo2max' }) : ''; },
-        sig('walkingHr', -1, false),
-      ])), fab ? [fab.note, T.fitnessNoteHtml] : [T.fitnessNoteHtml], fab ? fab.before : ''));
-      /* sleep: last night vs the 30-night mean, then the consistency rows; the section is hl-sleep */
-      var sl = R.sleep, SCd = T.sleepCards;
-      if (sl) {
-        out.push(section('sleep', rows([
-          function () { return mrow('sleep', TR.sleep.title, TR.sleep.unit, { value: sl.latest, base: sl.avg, baseTpl: T.avgNightsTpl, dir: 1, date: sl.latestDate, detail: 'sleep' }); },
-          function () { return fin(sl.pctTarget) ? mrow('sleep', format(SCd.nightsTargetLbl, { target: HC.hours(sl.target) }), '%', { icon: 'vsTarget', value: sl.pctTarget, detail: 'sleep' }) : ''; },
-          function () { return fin(sl.sd) ? mrow('sleep', SCd.sdLbl, 'h', { icon: 'cons', value: sl.sd, text: '±' + HC.hours(sl.sd), detail: 'sleep' }) : ''; },
-          function () { return sl.bedtime ? mrow('sleep', SCd.bedtimeLbl, '', { icon: 'bed', value: 0, text: sl.bedtime, sub: '±' + sl.bedtimeSd + '′', detail: 'sleep' }) : ''; },
-          function () { return sl.wake ? mrow('sleep', SCd.wakeLbl, '', { icon: 'wake', value: 0, text: sl.wake, sub: '±' + sl.wakeSd + '′', detail: 'sleep' }) : ''; },
-        ].concat(stageRows(sl.stages, SCd))), [T.sleepNoteHtml].concat(sl.stages && T.sleepStagesNoteHtml ? [T.sleepStagesNoteHtml] : [])));
-      }
+      out.push(fitnessSection(R, SC));
+      if (R.sleep) out.push(sleepSection(R.sleep));
     }
-    /* body composition: weight Δ vs ~30 days ago, body fat / lean mass Δ in their scale window, waist */
-    if (B.hasData) {
-      var TB = T.trend;
-      var bcPts = function (k) { var m = B[k]; return m && m.windowPoints != null && m.windowDays != null ? '<b>' + TB[k].title + '</b>: ' + esc(format(T.bodyCompPointsTpl, { n: m.windowPoints, days: m.windowDays })) : ''; };
-      var wsrc = B.weight ? B.weight.source : '', bsrc = B.bodyfat ? B.bodyfat.source : '';
-      var sourcesClause = B.weight ? format(T.bodyNote.sourcesClause, { n: B.weight.sources }) : '';
-      var wsrcClause = wsrc ? format(T.bodyNote.sourceClause, { src: esc(wsrc) }) : '';
-      var bsrcClause = bsrc ? format(T.bodyNote.sourceClause, { src: esc(bsrc) }) : '';
-      var bodyNotes = [format(T.bodyNote.main, { sourcesClause: sourcesClause, sourceClause: wsrcClause, bfSourceClause: bsrcClause }), bcPts('bodyfat'), bcPts('lean'),
-        B.waist ? format(T.waist.noteTpl, { n: B.waist.points, first: esc(fmtD(B.waist.firstDate)) }) : T.waist.emptyHtml];
-      var bc = function (k, dir) {
-        return function () { var m = B[k]; return m ? mrow(k, TB[k].title, TB[k].unit, { value: m.latest, delta: k === 'weight' ? m.d30 : m.delta, deltaUnit: TB[k].deltaUnit, dir: dir, date: m.latestDate, detail: k }) : ''; };
-      };
-      out.push(section('body', rows([bc('weight', 0), bc('bodyfat', -1), bc('lean', 1),
-        function () { var w = B.waist; return w ? mrow('waist', T.waist.title, T.waist.unit, { value: w.latest, delta: w.delta, deltaUnit: T.waist.deltaUnit, dir: -1, date: w.latestDate, when: fmtD(w.latestDate), noStale: true, detail: 'waist' }) : ''; },
-      ]), bodyNotes));
-    }
-    /* activity / NEAT: the latest day vs its 30-day average (today = so far, no arrow) */
-    if (A.hasData) {
-      out.push(section('activity', rows(['steps', 'exercise', 'distance', 'flights'].map(function (k) {
-        return function () { var a = A[k], tt = T.trend[k]; return a ? mrow(k, tt.title, tt.unit, { value: a.latest, base: a.avg30, dir: 1, date: a.latestDate, soFar: true, detail: k }) : ''; };
-      })), [T.activityNoteHtml]));
-    }
-    /* energy: expenditure (TDEE) only; the intake balance + macro split are Nutrición's Balance
-       (renderBalance); every caveat sits behind ⓘ */
-    if (E.hasData) {
-      var en = [];
-      // a power-meter ride day (lib/health/ride-energy.mjs): the headline day's active energy was corrected
-      if (T.energyRide && E.latestCorrected) en.push(esc(T.energyRide.latest));
-      else if (T.energyRide && E.latestUncovered) en.push(esc(T.energyRide.uncovered));
-      if (E.correctedDays > 0 && T.energyRide) en.push(format(T.energyRide.days, { n: E.correctedDays }));
-      if (E.uncoveredDays > 0 && T.energyRide) en.push(format(T.energyRide.uncoveredDays, { n: E.uncoveredDays }));
-      en.push(format(T.energyTdeeNote, { tdeeDays: E.tdeeDays }));
-      out.push(section('energy', rows([function () {
-        return E.tdeeLatest != null ? mrow('energy', T.trend.expenditure.title, T.trend.expenditure.unit, { value: E.tdeeLatest, base: E.tdeeAvg, dir: 0, date: E.tdeeLatestDate, soFar: true, detail: 'energy' }) : '';
-      }]), en));
-    }
+    if (B.hasData) out.push(bodySection(B));
+    if (A.hasData) out.push(activitySection(A));
+    if (E.hasData) out.push(energySection(E));
     host.innerHTML = out.join('');
   }
 

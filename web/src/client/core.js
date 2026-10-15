@@ -5,7 +5,7 @@
  * the public contract is the explicit list of window writes at the end (setTab, jump, jumpOr, currentTab,
  * HCNav).
  *
- * Markup contract (ported from the legacy hand-maintained page): nav buttons `#t-<key>`, panels
+ * Markup contract: nav buttons `#t-<key>`, panels
  * `.tab-panel[data-tab]`. The page has NO inline onclick= (its Content-Security-Policy blocks them,
  * src/csp.mjs): one delegated document click listener below reads `data-tab-go="<tab>"` (empty = the
  * default tab: the wordmark) and `data-jump="<id>"` (in-page links, the personal notes' links too).

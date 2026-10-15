@@ -1,21 +1,16 @@
-/* Client-side (browser, classic-script) format strings for the "Salud /
- * Health" tab (astro-plan-web slice 6) — same rationale/constraint as
- * hoy-templates.mjs / dash-templates.mjs: web/src/client/health.js is a
+/* Client-side (browser, classic-script) format strings for the "Salud / Health" tab — same
+ * rationale/constraint as hoy-templates.mjs / dash-templates.mjs: web/src/client/health.js is a
  * classic script and cannot import an ES module, so it can only receive
  * plain JSON-safe data baked by Bake.astro (I18N_HEALTH). No functions or
  * RegExp allowed here — every dynamic fragment is a `{placeholder}` string
  * substituted client-side via the shared `format(tpl, vars)` helper (see
  * health.js), including two-level nesting for the notes that have optional
  * clauses (e.g. `sourcesClause`/`sourceClause` built from a sub-template,
- * then spliced into the note's `main` template) — this preserves the exact
- * conditional-concatenation structure of the legacy `<script>` IIFE while
- * staying JSON-safe.
+ * then spliced into the note's `main` template), so a note keeps its
+ * conditional clauses while staying JSON-safe.
  *
- * Ported from the legacy `<script>` IIFE in
- * data/nutrition/plan-web.template.html ("health"). Decimal-comma display
- * (`nf()` in health.js) and the `es-ES`/`en-GB` date locale are handled in
- * health.js itself from the shared `LOCALE` global — same pattern as
- * training-dash.js's `hc()`.
+ * Decimal-comma display and the date locale are handled in health.js itself from the shared `LOCALE`
+ * global.
  *
  * `runningNote` ends with a GENERIC closing line ("Improving pace at the same effort is the
  * signal to watch.") on purpose: it holds for any runner whatever their goal. A goal-specific

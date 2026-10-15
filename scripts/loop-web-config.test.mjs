@@ -145,7 +145,7 @@ test('loop-ingest compose bind-mounts the trigger dir', () => {
 
 test('loop-ingest compose: the database volume has an explicit name, independent of the project name', () => {
   assert.match(ingestCompose, /^\s+- loop-db-data:\/var\/lib\/postgresql\/data$/m);
-  assert.match(ingestCompose, /^volumes:\n  loop-db-data:\n(?:\s+#.*\n)*\s+name: loop-db-data\$\{HC_INSTANCE:\+-\$\{HC_INSTANCE\}\}$/m);
+  assert.match(ingestCompose, /^volumes:\n {2}loop-db-data:\n(?:\s+#.*\n)*\s+name: loop-db-data\$\{HC_INSTANCE:\+-\$\{HC_INSTANCE\}\}$/m);
   assert.match(ingestCompose, /^\s+container_name: loop-db\$\{HC_INSTANCE:\+-\$\{HC_INSTANCE\}\}$/m);
 });
 

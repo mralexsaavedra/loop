@@ -22,7 +22,7 @@ import { waterFill, FILL_CASES } from '../../../lib/nutrition/fill.mjs';
 import { LINE, floorToStep, GRID_EPS } from '../../../lib/nutrition/amounts.mjs';
 import { MAIN_SLOTS } from '../../../lib/nutrition/slots.mjs';
 import { buildBasics } from '../../../lib/nutrition/basics.mjs';
-import { guideBudgets, exampleAmount, remaining, mealState, isCovered, dayRemaining, capByDay, DAYCAP_CASES, roleOptions, GUIDE_CASES, GUIDE_GRID } from '../../../lib/nutrition/guide.mjs';
+import { guideBudgets, exampleAmount, remaining, mealState, isCovered, dayRemaining, DAYCAP_CASES, roleOptions, GUIDE_CASES, GUIDE_GRID } from '../../../lib/nutrition/guide.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, '..', '..', '..');
@@ -514,7 +514,7 @@ test('the removed day builder\'s hook is never called (a stale window.bldRefresh
 });
 
 test('Spanish: labels, thousands with a dot, the guide localized', () => {
-  const { els, api } = run({ locale: 'es', nutri: bake({ units: { g: 'g', ml: 'ml', ud: 'ud' }, dec: ',' }) });
+  const { els } = run({ locale: 'es', nutri: bake({ units: { g: 'g', ml: 'ml', ud: 'ud' }, dec: ',' }) });
   assert.match(els['nutri-target'].innerHTML, /<span class="nt-of">\/ 2\.300 kcal<\/span>/);
   assert.match(els['nutri-target'].innerHTML, /Proteína/);
   assert.match(els['nutri-plan'].innerHTML, /class="meal-name">Desayuno</);

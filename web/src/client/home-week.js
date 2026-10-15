@@ -126,7 +126,7 @@
       var by = {}, k = {};
       st.days.forEach(function (x) { if (x && HC.isoDate(x.date)) by[x.date] = x; });
       for (var d = weekOf(today).start; d <= today; d = HC.shiftIso(d, 1)) {
-        var t = null;
+        var t;
         try { t = N.targetFor(d); } catch (e) { t = null; }
         t = t && fin(t.k) ? { k: t.k, p: fin(t.p) ? t.p : null, inferred: !!t.inferred } : null;
         k[d] = A.dayState(by[d] || null, t);

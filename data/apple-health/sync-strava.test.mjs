@@ -8,14 +8,14 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as strava from './sync-strava.mjs';
-import * as samples from './samples.mjs';
+import * as samples from '../../lib/extract/samples.mjs';
 import * as zones from '../../lib/training/hr-zones.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const {
-  STRAVA_SOURCE, SPORT_TYPE_MAP, FALLBACK_TYPE, translateType, toRow, buildRows, planSync, syncDir,
-  fetchActivities, updateMeta, WORKOUTS_HEADER, WORKOUTS_CSV, staleImageWarning,
+  SPORT_TYPE_MAP, FALLBACK_TYPE, translateType, toRow, buildRows, planSync, syncDir,
+  fetchActivities, WORKOUTS_HEADER, WORKOUTS_CSV, staleImageWarning,
   RIDES_CSV, RIDES_HEADER, rideRow, buildRides, stalePowerWarning,
 } = strava;
 
@@ -470,10 +470,9 @@ test('syncDir writes _meta.json before workouts.csv (belt and braces against a c
 
 test('contract: an extract.mjs rewrite drops the CSV/ledger; the next Strava sync restores uncovered dates', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'strava-contract-'));
-  for (const f of ['extract.mjs', 'samples.mjs']) fs.copyFileSync(path.join(__dirname, f), path.join(dir, f));
   fs.writeFileSync(path.join(dir, 'export.xml'),
     '<Workout workoutActivityType="HKWorkoutActivityTypeRunning" startDate="2026-08-18 08:00:00 +0100" duration="20" sourceName="W"></Workout>\n');
-  const extract = () => execFileSync(process.execPath, [path.join(dir, 'extract.mjs')], { stdio: 'ignore' });
+  const extract = () => execFileSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { stdio: 'ignore', env: { ...process.env, EXTRACT_DIR: dir } });
   const out = path.join(dir, 'extract');
   const read = (f) => fs.readFileSync(path.join(out, f), 'utf8');
 
