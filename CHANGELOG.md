@@ -23,7 +23,7 @@ rewrite old cells; names without commas or entities are unchanged), paging refus
 `npm run typecheck` covers the scripts too. Services: the first Strava pull stores page by page and resumes after a
 rate limit, optional `INGEST_BIND`/`PLAN_WEB_BIND` (Docker publishes past host firewalls), an 8 MB default body cap,
 a 400 for payloads with NUL characters, logged token failures, more security headers and systemd hardening, and
-`INGEST_PORT` is required. Guards: the Claude hook refuses any shell rewrite of a `.gitignore`, and the opt-in
+`INGEST_PORT` is required. Guards: the Claude hook refuses shell commands that rewrite, empty, remove or restore a `.gitignore`, and the opt-in
 pre-commit hook refuses a deleted `.gitignore` and judges staged files against HEAD's ignore rules.
 
 ## 2026-10-15 (later) — Robustness: migrations ledger, real-Postgres tests, container hardening

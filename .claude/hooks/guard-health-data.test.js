@@ -278,6 +278,17 @@ test('blocks every shell write, truncation, removal or rename of a .gitignore, e
     "echo '!data/' >> .gitignore",
     'git update-index --skip-worktree .gitignore',
     'unlink .gitignore',
+    'echo x 1> .gitignore',
+    "echo '!profile/' 1>> .gitignore",
+    'echo x &> .gitignore',
+    "echo '!profile/' &>> .gitignore",
+    'echo x >| .gitignore',
+    'printf "" >| .gitignore',
+    'dd if=/dev/null of=.gitignore',
+    'find . -name .gitignore -delete',
+    'git checkout HEAD~3 -- .gitignore',
+    'git restore --source=HEAD~3 .gitignore',
+    'grep -v profile .gitignore | sponge .gitignore',
   ]) {
     assertBlocked(runHook(cmd), cmd);
   }

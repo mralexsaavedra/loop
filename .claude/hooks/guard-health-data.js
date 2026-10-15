@@ -683,6 +683,7 @@ function simpleCommands(command) {
     }
     if (c === "'" || c === '"') { quote = c; cur += c; continue; }
     if (c === '\\') { cur += c + (command[++i] ?? ''); continue; }
+    if (c === '|' && cur.endsWith('>')) { cur += c; continue; } // `>|` is a redirect (noclobber override), not a pipe
     if (c === ';' || c === '\n' || c === '|' || (c === '&' && command[i + 1] === '&')) {
       out.push(cur);
       cur = '';
@@ -698,8 +699,12 @@ function simpleCommands(command) {
 function modifiesGitignore(command) {
   return simpleCommands(command).some((seg) => {
     if (!/\.gitignore\b/.test(seg)) return false;
-    if (/(^|[^<>&\d])>>?\s*[^\s|;&]*\.gitignore\b/.test(seg)) return true; // > or >> into it
-    if (/\b(tee|truncate|rm|unlink|shred|mv|update-index)\b/.test(seg)) return true;
+    // > >> >| into it, with an optional fd number or & before (1> &> 1>>); 2>&1 elsewhere does not count
+    if (/(^|[^<>])(\d*|&)>>?\|?\s*[^\s|;&<>]*\.gitignore\b/.test(seg)) return true;
+    if (/\b(tee|sponge|truncate|rm|unlink|shred|mv|update-index)\b/.test(seg)) return true;
+    if (/\bdd\b[^]*\bof=\S*\.gitignore\b/.test(seg)) return true;
+    if (/\bfind\b/.test(seg) && /\s-delete\b/.test(seg)) return true;
+    if (/\bgit\b[^]*\b(checkout|restore)\b/.test(seg)) return true; // overwrites it from another revision
     if (/\b(sed|perl)\b/.test(seg) && /\s-[A-Za-z]*i/.test(seg)) return true; // in-place edit
     if (/\b(cp|ln|install|rsync)\b/.test(seg) && /\.gitignore\s*$/.test(seg.trim())) return true; // as destination
     return false;

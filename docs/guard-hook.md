@@ -86,12 +86,16 @@ expand to a force-add of an ignored path (`log --oneline`, `!echo …`).
 ## Bash: `.gitignore` rewrites from the shell
 
 Any shell command that writes, truncates, removes, renames or hides a `.gitignore` is blocked, whatever
-paths it names: `>` / `>>` into it, `tee`, `truncate`, `rm`, `unlink`, `shred`, `mv`, `git rm`,
-`git update-index`, an in-place `sed -i` / `perl -i`, or `cp` / `ln` / `install` / `rsync` with it as the
-destination. A truncated or deleted `.gitignore` un-ignores every personal file at once, and editing it from
+paths it names: a redirect into it (`>`, `>>`, `>|`, with or without an fd number or `&` before it: `1>`, `&>`,
+`&>>`), `tee`, `sponge`, `truncate`, `rm`, `unlink`, `shred`, `mv`, `git rm`, `git update-index`,
+`git checkout` / `git restore` of it, `dd of=` it, `find … -delete`, an in-place `sed -i` / `perl -i`, or `cp` /
+`ln` / `install` / `rsync` with it as the destination. A truncated or deleted `.gitignore` un-ignores every personal file at once, and editing it from
 the shell is never needed: the editor tools below check the exact diff. Reading one stays allowed (`cat`,
 `grep`, `sed -n`, `git diff`, `cp` from it). The line is split into simple commands at `;`, `&&`, `||`, `|`
-and newlines outside quotes.
+and newlines outside quotes (`>|` stays a redirect). Not covered, by design of a text check: a write from inside
+another interpreter (`python3 -c`, `node -e`), a name hidden in a variable or a glob (`rm $f`, `rm .giti*`) and
+whole-tree removals such as `git rm -r --cached .`. The opt-in git pre-commit hook (`scripts/git-hooks`) catches
+the result of any of them at commit time.
 
 ## Edit / Write / MultiEdit on a `.gitignore`
 

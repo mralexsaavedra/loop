@@ -431,9 +431,11 @@ checks instead of "LAN only".
   set (node's JIT needs writable, executable memory). To pick up these settings on an installed unit, copy
   the template again (Install step 8 fills the placeholders) and `sudo systemctl daemon-reload`.
 - **`ProtectClock`, `ProtectHostname`, `PrivateDevices` (a private `/dev` with only `null`, `zero`,
-  `random`, ...), `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6`, an empty `CapabilityBoundingSet=`**:
-  the build sets no clock or hostname, opens no device, talks only to local sockets, loop-ingest, the npm
-  registry and the git remote, and as the repo owner holds no capability. Tradeoff: without `AF_NETLINK`
+  `random`, ...), `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6`**:
+  the build sets no clock or hostname, opens no device and talks only to local sockets, loop-ingest, the npm
+  registry and the git remote. There is deliberately no `CapabilityBoundingSet=`: a unit running as root on a
+  clone whose directories belong to another user needs `CAP_DAC_OVERRIDE` to create files there (the atomic
+  writes of `generate` and the syncs), and as the repo owner the build holds no capability anyway. Tradeoff: without `AF_NETLINK`
   node's `os.networkInterfaces()` throws (`Unknown system error 97`); the example build passes under these
   settings (`systemd-run`), but if a tool fails that way, add `AF_NETLINK` to the list. npm install scripts stay on (astro /
   esbuild fetch their native binary in one), so there is no `--ignore-scripts`.

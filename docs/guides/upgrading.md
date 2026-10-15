@@ -46,11 +46,13 @@ docker exec loop-db pg_dump -U health health > "backups/loop-db-$(date +%F).sql"
 4. **The page service.** Recreate it so it picks up a changed nginx configuration or compose file:
 
    ```sh
-   (cd services/loop-web && docker compose up -d)
+   (cd services/loop-web && docker compose up -d --force-recreate)
    ```
 
-   `up -d` (not `restart`) is what applies a changed `docker-compose.yml`, such as the container hardening
-   below; `docker compose ps` should then show `healthy` for every container.
+   `--force-recreate` applies both a changed `docker-compose.yml` (such as the container hardening below) and a
+   changed `nginx.conf.template`, which is bind-mounted and rendered only when the container starts: a plain
+   `up -d` leaves the container alone when only the template changed. `docker compose ps` should then show
+   `healthy` for every container.
 
 5. **Rebuild the page now** instead of waiting for the hourly run: press **Sync** on the page, or run
    `services/loop-web/refresh.sh` by hand.
