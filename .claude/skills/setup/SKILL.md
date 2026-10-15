@@ -34,8 +34,12 @@ command -v docker >/dev/null && docker compose version || echo "docker: no"
 # (only the digits of that one line ever come out)
 IP=$(grep -sE '^[[:space:]]*INGEST_PORT=' services/loop-ingest/.env | head -1 | cut -d= -f2 | tr -dc 0-9); IP=${IP:-8088}
 WP=$(grep -sE '^[[:space:]]*PLAN_WEB_PORT=' services/loop-web/.env | head -1 | cut -d= -f2 | tr -dc 0-9); WP=${WP:-8090}
-curl -s -m 3 -o /dev/null -w "ingest /healthz %{http_code}\n" "http://127.0.0.1:$IP/healthz"
-curl -s -m 3 -o /dev/null -w "loop-web %{http_code}\n" "http://127.0.0.1:$WP/status.json"
+# an optional bind address (INGEST_BIND / PLAN_WEB_BIND) replaces 127.0.0.1; only address characters come out
+IA=$(grep -sE '^[[:space:]]*INGEST_BIND=' services/loop-ingest/.env | head -1 | cut -d= -f2 | tr -dc '0-9a-fA-F.:'); IA=${IA:-127.0.0.1}
+WA=$(grep -sE '^[[:space:]]*PLAN_WEB_BIND=' services/loop-web/.env | head -1 | cut -d= -f2 | tr -dc '0-9a-fA-F.:'); WA=${WA:-127.0.0.1}
+case "$IA" in *:*) IA="[$IA]";; esac; case "$WA" in *:*) WA="[$WA]";; esac
+curl -s -m 3 -o /dev/null -w "ingest /healthz %{http_code}\n" "http://$IA:$IP/healthz"
+curl -s -m 3 -o /dev/null -w "loop-web %{http_code}\n" "http://$WA:$WP/status.json"
 ```
 
 Use `$IP` / `$WP` (never a hard-coded port) in every later check. Report a short checklist (`000` = not
@@ -76,7 +80,7 @@ Needs a Linux host with Docker (compose), systemd and Node 22. Follow the ordere
    trigger and `site/` dirs BEFORE `docker compose up`, the first `refresh.sh` by hand, the crontab line, the
    systemd units; the clone stays on `main`). Check the host first: Linux with systemd, `flock`, Node 22 —
    on macOS / Windows stop and say Level 2 needs a Linux box. Each `sudo` step: show it and let the user run it.
-3. Verify: `curl -s "http://127.0.0.1:$IP/healthz"` → 200; the loop-web smoke test from its README.
+3. Verify: `curl -s -o /dev/null -w '%{http_code}\n' "http://$IA:$IP/healthz"` → 200; the loop-web smoke test from its README.
    The page's own onboarding assistant then opens on the first visit (no profile and no goal on the
    server): a user without Claude Code sets up profile and targets there (`docs/profile.md`).
 4. `npm run sync`: each `WARNING:` line names a source not refreshed; report it.

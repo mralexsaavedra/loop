@@ -34,7 +34,7 @@ you MUST follow for any number you produce).
   `about-me.md` = stable context (injuries, history, preferences, which program when).
 - **Freshness**: `data/apple-health/extract/_meta.json` (`exportLastDate` — a PARTIAL day,
   `shortcutSync`), the newest date of every CSV you rely on, `data/nutrition/foodlog-daily.meta.json`
-  (`fetchedAt`). Flag any series more than 3 days old.
+  and `data/apple-health/extract/journal-daily.meta.json` (`fetchedAt`). Flag any series more than 3 days old.
 - **Apple Health**: the cached extract `data/apple-health/extract/*.csv` + `_meta.json`, never the
   multi-hundred-MB `export.xml` unless a series is missing. Weight = `extract/weight.csv` (`date,value,source`;
   compare within one `source`). Steps, energy, partial-day and Shortcut merge caveats:
