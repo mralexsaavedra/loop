@@ -11,6 +11,7 @@
  * so two processes never migrate at once; the second waits, then finds everything recorded. An
  * install from before the ledger has every file applied but none recorded: they run once more (each is
  * idempotent: IF NOT EXISTS, ON CONFLICT DO NOTHING, a CHECK dropped then re-created) and are recorded.
+ * The run (lock wait included) has no statement_timeout; the pooled client gets the pool's back afterwards.
  * RULE: never edit an applied migration; add a new sql/ file. A recorded file whose content changed
  * (sha-256 of the text, line endings normalised) refuses the start before anything runs.
  * A new sql/ file must be listed below; test/migrations.test.js fails if one is missing.
@@ -49,7 +50,11 @@ async function applyOne (client, file, sql) {
 
 export async function runMigrations (pool, { core, optional = {}, readSql, log = console.log }) {
   const client = await pool.connect()
+  let broken
   try {
+    // The pool's 30 s statement_timeout (db.js) is for requests: a migration rewriting a big table, or the
+    // wait for another process's lock, may take longer. Off for this session, restored before release.
+    await client.query('SET statement_timeout = 0')
     await client.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_KEY])
     try {
       return await migrateLocked(client, { core, optional, readSql, log })
@@ -57,7 +62,9 @@ export async function runMigrations (pool, { core, optional = {}, readSql, log =
       await client.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_KEY]).catch(() => {})
     }
   } finally {
-    client.release()
+    // RESET = the connection's startup value (the pool's 30 s); if even that fails, destroy the client
+    await client.query('RESET statement_timeout').catch((err) => { broken = err })
+    client.release(broken)
   }
 }
 

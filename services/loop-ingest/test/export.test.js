@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  parseExportQuery, listRawPayloads, createExportHandler,
+  parseExportQuery, listRawPayloads, createExportHandler, EXPORT_PAGE_BYTES,
   parsePaging, listStravaActivities, createStravaExportHandler
 } from '../src/export.js'
 
@@ -30,22 +30,65 @@ function fakePool (rows) {
   return { calls, query: async (sql, values) => { calls.push({ sql, values }); return { rows } } }
 }
 
-test('lists payloads with a parameterized, id-ordered query', async () => {
-  const pool = fakePool([{ id: '13', received_at: 't', payload: { hrv: '' } }])
-  const rows = await listRawPayloads(pool, { automation: 'a', sinceId: '12', limit: 5 })
-  assert.equal(rows.length, 1)
+/** A fake pool for the two-step raw export: the id + byte_size scan, then the payloads up to the chosen id. */
+function rawPool (stored) {
+  const calls = []
+  return {
+    calls,
+    query: async (sql, values) => {
+      calls.push({ sql, values })
+      const after = stored.filter((r) => BigInt(r.id) > BigInt(values[1]))
+      if (/byte_size/.test(sql)) return { rows: after.slice(0, values[2]).map((r) => ({ id: r.id, byte_size: r.byte_size })) }
+      return { rows: after.filter((r) => BigInt(r.id) <= BigInt(values[2])).map(({ id, received_at: at, payload }) => ({ id, received_at: at, payload })) }
+    }
+  }
+}
+const MB = 1024 * 1024
+const stored = (sizes) => sizes.map((size, i) => ({ id: String(13 + i), received_at: 't', byte_size: size, payload: { n: i } }))
+
+test('lists payloads with parameterized, id-ordered queries', async () => {
+  const pool = rawPool(stored([100]))
+  const page = await listRawPayloads(pool, { automation: 'a', sinceId: '12', limit: 5 })
+  assert.deepEqual(page, { rows: [{ id: '13', received_at: 't', payload: { n: 0 } }], more: false })
   assert.deepEqual(pool.calls[0].values, ['a', '12', 5])
   assert.match(pool.calls[0].sql, /automation = \$1/)
   assert.match(pool.calls[0].sql, /id > \$2/)
   assert.match(pool.calls[0].sql, /ORDER BY id ASC/)
   assert.match(pool.calls[0].sql, /LIMIT \$3/)
+  assert.doesNotMatch(pool.calls[0].sql, /\bpayload\b/, 'the scan reads sizes, never the payloads')
+  assert.deepEqual(pool.calls[1].values, ['a', '12', '13'])
+  assert.match(pool.calls[1].sql, /id <= \$3/)
+})
+
+test('a page stops once its payloads pass the byte budget (32 MB): the row that crosses it is the last, `more` says the rest is there', async () => {
+  assert.equal(EXPORT_PAGE_BYTES, 32 * MB)
+  const pool = rawPool(stored([10 * MB, 10 * MB, 10 * MB, 10 * MB, 10 * MB]))
+  const page = await listRawPayloads(pool, { automation: 'a', sinceId: '12', limit: 500 })
+  assert.deepEqual(page.rows.map((r) => r.id), ['13', '14', '15', '16'], '30 MB before the 4th row: it is still sent; 40 MB before the 5th')
+  assert.equal(page.more, true)
+  const rest = await listRawPayloads(pool, { automation: 'a', sinceId: '16', limit: 500 })
+  assert.deepEqual([rest.rows.map((r) => r.id), rest.more], [['17'], false])
+})
+
+test('a single payload over the budget is still returned on its own (the cursor always advances)', async () => {
+  const pool = rawPool(stored([40 * MB, 1]))
+  const page = await listRawPayloads(pool, { automation: 'a', sinceId: '0', limit: 500, maxBytes: 32 * MB })
+  assert.deepEqual([page.rows.map((r) => r.id), page.more], [['13'], true])
+})
+
+test('more is false on a full row-limited page (the client pages on as before) and on an empty one', async () => {
+  const full = await listRawPayloads(rawPool(stored([1, 1, 1])), { automation: 'a', sinceId: '0', limit: 2 })
+  assert.deepEqual([full.rows.length, full.more], [2, false])
+  const empty = await listRawPayloads(rawPool([]), { automation: 'a', sinceId: '0', limit: 2 })
+  assert.deepEqual(empty, { rows: [], more: false })
 })
 
 function fakeRes () {
   return {
     status: null,
     body: null,
-    writeHead (status) { this.status = status },
+    headers: null,
+    writeHead (status, headers = {}) { this.status = status; this.headers = headers },
     end (payload) { this.body = JSON.parse(payload) }
   }
 }
@@ -61,13 +104,14 @@ test('export handler rejects requests without the bearer token', async () => {
 
 test('export handler returns rows and logs counts only', async () => {
   const logged = []
-  const pool = fakePool([{ id: '3', received_at: 't', payload: { hrv: 'secret-values' } }])
+  const pool = rawPool([{ id: '3', received_at: 't', byte_size: 30, payload: { hrv: 'secret-values' } }])
   const handle = createExportHandler({ pool, token: TOKEN, log: (line) => logged.push(line) })
   const res = fakeRes()
   await handle({ headers: { authorization: `Bearer ${TOKEN}` } }, res,
     new URL('http://x/export/raw?automation=a&since_id=2'))
   assert.equal(res.status, 200)
-  assert.deepEqual(res.body, [{ id: '3', received_at: 't', payload: { hrv: 'secret-values' } }])
+  assert.deepEqual(res.body, [{ id: '3', received_at: 't', payload: { hrv: 'secret-values' } }], 'the body stays a plain array')
+  assert.equal(res.headers['x-has-more'], 'false')
   assert.equal(logged.length, 1)
   assert.ok(!logged[0].includes('secret-values'), 'payload contents never logged')
 })
@@ -188,4 +232,13 @@ test('strava export carries the HR histogram (hr_hist) of the activity, only for
   assert.match(sql, /SELECT h\.hr_hist FROM strava_activity_hr h/)
   assert.match(sql, /h\.activity_id = strava_activity\.id AND h\.status = 'ok'\) AS hr_hist/)
   assert.doesNotMatch(sql, /stream/)
+})
+
+test('export handler: a byte-capped page answers X-Has-More: true and logs it', async () => {
+  const logged = []
+  const handle = createExportHandler({ pool: rawPool(stored([40 * MB, 1])), token: TOKEN, log: (line) => logged.push(JSON.parse(line)) })
+  const res = fakeRes()
+  await handle({ headers: { authorization: `Bearer ${TOKEN}` } }, res, new URL('http://x/export/raw?automation=a'))
+  assert.deepEqual([res.status, res.body.map((r) => r.id), res.headers['x-has-more']], [200, ['13'], 'true'])
+  assert.deepEqual(logged, [{ event: 'exported', automation: 'a', since_id: '0', count: 1, more: true }])
 })

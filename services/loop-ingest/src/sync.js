@@ -33,17 +33,30 @@ export function guardSync (run, { status = null, afterOk = null, log = console.l
     }
   }
 
+  // The status write is bookkeeping, apart from the pull: a failed write (the database down) is its own log
+  // event and never turns a good pull into a Strava failure, nor hides the pull's own error.
+  async function record (outcome, write) {
+    try {
+      await write()
+    } catch (err) {
+      log(JSON.stringify({ event: 'sync_status_write_failed', outcome, message: err?.message }))
+    }
+  }
+
   return function runOnce () {
     if (inflight) return inflight
     inflight = (async () => {
       try {
-        const result = await run()
-        await status?.recordStravaOk()
+        let result
+        try {
+          result = await run()
+        } catch (err) {
+          await record('error', () => status?.recordStravaError(classifyStravaError(err)))
+          throw err
+        }
+        await record('ok', () => status?.recordStravaOk())
         if (afterOk) startAfterOk()
         return result
-      } catch (err) {
-        await status?.recordStravaError(classifyStravaError(err))
-        throw err
       } finally {
         inflight = null
       }

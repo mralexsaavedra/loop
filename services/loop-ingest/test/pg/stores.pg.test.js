@@ -40,7 +40,8 @@ test('ingest: a payload is stored and paged back by the export query', { skip },
   const b = await insertRawPayload(pool, { source: 'health-auto-export', automation: 'shortcut', aggregation: null, period: null, sessionId: 's2', byteSize: 11, payload: { data: [2] } })
   assert.ok(a.received_at instanceof Date)
   const page = await listRawPayloads(pool, { automation: 'shortcut', sinceId: a.id, limit: 10 })
-  assert.deepEqual(page.map((r) => [String(r.id), r.payload]), [[String(b.id), { data: [2] }]])
+  assert.deepEqual(page.rows.map((r) => [String(r.id), r.payload]), [[String(b.id), { data: [2] }]])
+  assert.equal(page.more, false)
 })
 
 test('food store: products (barcode unique among active ones), recipes, entries (request id makes a retry idempotent), settings, profile', { skip }, async () => {
@@ -224,4 +225,48 @@ test('ingest (C3): Postgres jsonb refuses U+0000, which is why the route answers
     insertRawPayload(pool, { source: 'health-auto-export', automation: null, aggregation: null, period: null, sessionId: null, byteSize: 1, payload: { a: 'x\u0000' } }),
     /unsupported Unicode escape sequence/
   )
+})
+
+test('food / journal / profile text with U+0000: Postgres refuses it (22021), so the routes answer 400 invalid, never 500', { skip }, async () => {
+  await assert.rejects(pool.query('SELECT $1::text', ['a\u0000b']), (err) => err.code === '22021')
+  const foodRoutes = createFoodRoutes({ store: createFoodStore(pool), off: {}, available: () => true, settingsAvailable: () => true, profileAvailable: () => true, allowedHosts: [] })
+  const journalRoutes = createJournalRoutes({ store: createJournalStore(pool), available: () => true, allowedHosts: [] })
+  const server = http.createServer(createHandler({ token: 'x'.repeat(32), maxBodyBytes: 1024, pool, ping, insertRawPayload, syncStatus: { health: () => ({}) }, foodRoutes, journalRoutes }))
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const call = async (method, path, body) => {
+    const res = await fetch(`http://127.0.0.1:${server.address().port}${path}`, {
+      method, headers: { 'x-hc-food': '1', 'x-hc-journal': '1', 'content-type': 'application/json' }, body: JSON.stringify(body)
+    })
+    return [res.status, await res.json()]
+  }
+  try {
+    assert.deepEqual(await call('POST', '/food/products', { name: 'Oats\u0000', store: 'other', unit: 'g', per100: { kcal: 372, protein: 13.5, carbs: 58.7, fat: 7 }, source: 'manual' }),
+      [400, { error: 'invalid', field: 'name' }])
+    assert.deepEqual(await call('POST', '/food/log', { date: '2030-02-02', meal: 'snack', refType: 'quick', label: 'x\u0000', kcal: 10 }), [400, { error: 'invalid', field: 'label' }])
+    assert.deepEqual(await call('PUT', '/journal/day', { date: '2030-02-02', answers: {}, notes: 'n\u0000' }), [400, { error: 'invalid', field: 'notes' }])
+    const targets = Object.fromEntries(['maintain', 'cut', 'bulk'].map((g) => [g, Object.fromEntries(['rest', 'gym', 'bike', 'bikeLong'].map((d) => [d, { kcal: 2200, p: 140, f: 70 }]))]))
+    assert.deepEqual(await call('PUT', '/food/profile', { name: 'A\u0000', sex: 'male', birthdate: '1990-01-01', heightCm: 180, weightKg: 75, activity: 'active', goals: ['maintain'], targets }),
+      [400, { error: 'invalid', field: 'name' }])
+    const quick = await call('POST', '/food/log', { date: '2030-02-02', meal: 'snack', refType: 'quick', label: 'tab\there', kcal: 10 })
+    assert.equal(quick[0], 201, 'a tab is fine (collapsed to a space)')
+  } finally {
+    await new Promise((resolve) => server.close(resolve))
+  }
+})
+
+test('export (C2): a page stops once the stored byte_size sum passes the budget, at least one row, more = true; paging on reaches every row', { skip }, async () => {
+  const ids = []
+  for (const size of [600, 600, 600, 5000, 10]) {
+    ids.push(String((await insertRawPayload(pool, { source: 'health-auto-export', automation: 'budget', aggregation: null, period: null, sessionId: null, byteSize: size, payload: { size } })).id))
+  }
+  const one = await listRawPayloads(pool, { automation: 'budget', sinceId: '0', limit: 500, maxBytes: 1000 })
+  assert.deepEqual([one.rows.map((r) => String(r.id)), one.more], [ids.slice(0, 2), true], '600 before the 2nd row (< 1000): sent; 1200 before the 3rd')
+  const two = await listRawPayloads(pool, { automation: 'budget', sinceId: ids[1], limit: 500, maxBytes: 1000 })
+  assert.deepEqual([two.rows.map((r) => String(r.id)), two.more], [ids.slice(2, 4), true], 'a 5000-byte row after 600 still goes: the budget is checked before each row')
+  const big = await listRawPayloads(pool, { automation: 'budget', sinceId: ids[2], limit: 500, maxBytes: 1000 })
+  assert.deepEqual([big.rows.map((r) => String(r.id)), big.more], [[ids[3]], true], 'one row over the budget alone')
+  const last = await listRawPayloads(pool, { automation: 'budget', sinceId: ids[3], limit: 500, maxBytes: 1000 })
+  assert.deepEqual([last.rows.map((r) => String(r.id)), last.more], [[ids[4]], false])
+  const limited = await listRawPayloads(pool, { automation: 'budget', sinceId: '0', limit: 2 })
+  assert.deepEqual([limited.rows.length, limited.more], [2, false], 'the default 32 MB budget: only the row limit cut it')
 })

@@ -156,3 +156,35 @@ test('a nested HEAD .gitignore applies to its own directory only', () => {
     assert.equal(r.git('commit', '-qm', 'ok').status, 0);
   } finally { r.cleanup(); }
 });
+
+// git treats a leading space as part of the pattern (" data/profile/" matches nothing at the root), so
+// indenting a rule un-ignores the files; only unescaped TRAILING spaces are dropped by git.
+test('indenting a rule (a leading space) is refused as dropping that pattern; trailing spaces change nothing', () => {
+  const r = scratchRepo();
+  try {
+    r.write('.gitignore', ' data/profile/\nprofile/about-me.md\n*.bak\n!keep.bak\n');
+    r.git('add', '.gitignore');
+    const c = r.git('commit', '-m', 'indent');
+    assert.notEqual(c.status, 0);
+    assert.match(c.stderr, /removes {2}data\/profile\//);
+    r.write('.gitignore', 'data/profile/  \nprofile/about-me.md\n*.bak\n!keep.bak\n');
+    r.git('add', '.gitignore');
+    assert.equal(r.git('commit', '-qm', 'trailing spaces').status, 0, 'git strips unescaped trailing spaces: the same rule');
+  } finally { r.cleanup(); }
+});
+
+test('a reorder that un-ignores a file on disk (no line dropped, no ! added) is refused, naming the file', () => {
+  const r = scratchRepo();
+  try {
+    r.write('.gitignore', 'data/profile/\nprofile/about-me.md\n!old.bak\n*.bak\n');
+    r.git('add', '.gitignore');
+    assert.equal(r.git('commit', '--no-verify', '-qm', 'old.bak ignored (the last match wins)').status, 0);
+    r.write('old.bak', 'personal\n');
+    r.write('.gitignore', 'data/profile/\nprofile/about-me.md\n*.bak\n!old.bak\n');
+    r.git('add', '.gitignore');
+    const c = r.git('commit', '-m', 'reorder');
+    assert.notEqual(c.status, 0);
+    assert.match(c.stderr, /no longer ignore these files on disk/);
+    assert.match(c.stderr, /old\.bak/);
+  } finally { r.cleanup(); }
+});

@@ -71,6 +71,7 @@ test('a missing X-HC-Journal header is 403; a foreign Host 421; a foreign Origin
   assert.equal((await s.call('GET', '/journal/settings', { headers: { 'x-hc-journal': '0' } })).status, 403)
   assert.equal((await s.rawCall('GET', '/journal/settings', { host: 'evil.example' })).status, 421)
   assert.equal((await s.rawCall('GET', '/journal/settings', { host: 'host.docker.internal' })).status, 200)
+  assert.equal((await s.rawCall('GET', '/journal/settings', { host: 'loop-ingest' })).status, 200, 'the loop-web hop over loop-net')
   const w = await s.call('PUT', '/journal/day', { body: { date: '2030-01-10', answers: {} }, headers: { origin: 'http://evil.example' } })
   assert.deepEqual([w.status, w.body.error], [403, 'forbidden_origin'])
 })
@@ -247,4 +248,16 @@ test('prototype keys never pass as behaviours (answers and settings)', async (t)
 test('notes keep their line breaks (spaces trimmed, at most one blank line)', () => {
   const d = validateDay({ date: '2030-01-10', answers: {}, notes: '  line one  \r\n\r\n\r\n  line   two \n' })
   assert.equal(d.notes, 'line one\n\nline two')
+})
+
+test('notes refuse U+0000 and the C0 control characters (400 invalid notes); tab / LF / CR still pass', async (t) => {
+  const s = await setup()
+  t.after(s.close)
+  for (const bad of ['a\u0000b', 'x\u0008', 'esc\u001b[0m', 'a\u000bb']) {
+    const r = await s.call('PUT', '/journal/day', { body: { date: '2030-01-10', answers: {}, notes: bad } })
+    assert.deepEqual([r.status, r.body], [400, { error: 'invalid', field: 'notes' }], JSON.stringify(bad))
+  }
+  const ok = await s.call('PUT', '/journal/day', { body: { date: '2030-01-10', answers: {}, notes: 'one\ttwo\r\nthree' } })
+  assert.equal(ok.status, 200)
+  assert.equal(ok.body.day.notes, 'one two\nthree')
 })
