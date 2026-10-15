@@ -105,7 +105,8 @@ weight trend after 2–3 weeks.
 - `screenPerson` withholds numbers under 18 or in pregnancy / lactation, offers only maintenance on an
   illness / medication or eating-risk answer, drops the cut under BMI 18.5; `checkTargetWeight` refuses a
   target BMI < 18.5.
-- `checkTargets` bounds an edited cell — errors: floor, deficit > 20 %, surplus > 15 %, > 1 % body weight /
+- `checkTargets` bounds an edited cell — errors: floor, deficit > 20 %, surplus > 15 % (over maintenance, or over
+  the floor when the floor is higher, so a day `computeTargets` raised to the floor always passes), > 1 % body weight /
   week, protein outside 1.2–2.4 g/kg, fat < 0.5 g/kg; warnings: protein outside 1.6–2.2, fat > 1.0, carbs
   outside rest 3–5 / gym 5–7 / bike 6–10 / long 8–12 g/kg where energy is not cut on purpose.
 
