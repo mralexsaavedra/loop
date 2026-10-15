@@ -11,7 +11,9 @@ export const JSON_BODY_LIMIT = 16 * 1024
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/
 const IPV4_RE = /^\d{1,3}(\.\d{1,3}){3}$/
 const IPV6_RE = /^\[[0-9a-f:.]+\]$/
-const LOCAL_HOSTS = ['localhost', 'host.docker.internal']
+// loop-ingest: the Host loop-web's nginx sends on its hop over the loop-net Docker network; host.docker.internal:
+// the hop's name before loop-net (an old loop-web container still proxying through the host port)
+const LOCAL_HOSTS = ['localhost', 'loop-ingest', 'host.docker.internal']
 
 /** An Error carrying the HTTP status and a coarse {error: code, field?} for the response. */
 export function httpError (status, code, field) {
@@ -77,6 +79,17 @@ export function readJson (req) {
   })
 }
 
+// U+0000 (Postgres text and jsonb cannot store it: 22021 / 22P05, a 500) and the other C0 controls, but tab,
+// line feed and carriage return, which the text validators collapse or keep
+/** Whether a string holds a character no text field accepts (the shared check of food.js str and journal.js notes). */
+export function hasControlChars (s) {
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i)
+    if (c < 0x20 && c !== 0x09 && c !== 0x0a && c !== 0x0d) return true
+  }
+  return false
+}
+
 /** YYYY-MM-DD that is a real calendar day (2026-02-31 is refused), years 2000-2100. */
 export function validDate (s) {
   const m = typeof s === 'string' ? DATE_RE.exec(s) : null
@@ -86,7 +99,7 @@ export function validDate (s) {
   return y >= 2000 && y <= 2100 && d.toISOString().slice(0, 10) === s ? s : null
 }
 
-/** An allowed host name (no port): an IP literal, localhost, host.docker.internal or an allowlisted name. */
+/** An allowed host name (no port): an IP literal, localhost, loop-ingest, host.docker.internal or an allowlisted name. */
 export function hostAllowed (hostname, extra = []) {
   const h = String(hostname || '').toLowerCase()
   if (!h) return false

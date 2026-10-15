@@ -194,3 +194,26 @@ test('createStravaSync: a first pull hit by a 429 keeps its pages, and the next 
   assert.equal(resumedFrom, Date.parse(day(99)) / 1000 - 7 * 86_400, 'resumed from the newest stored start (minus the 7-day overlap), not page 1 of everything')
   await sync.hrIdle()
 })
+
+test('a failed status write after a good pull is its own log event, never reported as a Strava failure', async () => {
+  const events = []
+  const logs = []
+  let afterCalls = 0
+  const status = {
+    async recordStravaOk () { throw new Error('connect ECONNREFUSED db') },
+    async recordStravaError (code) { events.push(`error: ${code}`) }
+  }
+  const runOnce = guardSync(async () => ({ count: 3 }), { status, afterOk: () => { afterCalls++ }, log: (l) => logs.push(JSON.parse(l)) })
+  assert.deepEqual(await runOnce(), { count: 3 }, 'the pull succeeded: the caller gets its result')
+  assert.deepEqual(events, [], 'no strava error recorded')
+  assert.deepEqual(logs, [{ event: 'sync_status_write_failed', outcome: 'ok', message: 'connect ECONNREFUSED db' }])
+  assert.equal(afterCalls, 1, 'the after-ok work still runs')
+})
+
+test('a failed status write after a failed pull is logged and the Strava error is still rethrown', async () => {
+  const logs = []
+  const status = { async recordStravaOk () {}, async recordStravaError () { throw new Error('db down') } }
+  const runOnce = guardSync(async () => { throw new Error('strava activities failed: 401') }, { status, log: (l) => logs.push(JSON.parse(l)) })
+  await assert.rejects(runOnce(), /activities failed: 401/)
+  assert.deepEqual(logs, [{ event: 'sync_status_write_failed', outcome: 'error', message: 'db down' }])
+})

@@ -130,13 +130,16 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 **Check**
 
 - `docker ps` — each install needs its own containers (`loop-ingest-second`, `loop-web-second`, …).
-- `HC_INSTANCE` and `INGEST_PORT` in that clone's `services/loop-ingest/.env`, and `HC_INSTANCE`,
-  `PLAN_WEB_PORT`, `INGEST_PORT` in its `services/loop-web/.env`.
+- `HC_INSTANCE` and `INGEST_PORT` in that clone's `services/loop-ingest/.env`, and `HC_INSTANCE` and
+  `PLAN_WEB_PORT` in its `services/loop-web/.env` (the same `HC_INSTANCE` in both: it names the `loop-net-<name>`
+  network the page proxies over).
+- `docker network ls --filter name=loop-net`: one network per install.
 
 **Fix**
 
-- Give the second clone its own name and ports in both `.env` files (for example `HC_INSTANCE=second`,
-  `INGEST_PORT=8089`, `PLAN_WEB_PORT=8091`), then `docker compose up -d` in both folders. `npm run sync`
+- Give the second clone its own name and ports in both `.env` files (for example `HC_INSTANCE=second` in both,
+  `INGEST_PORT=8089` in the ingest one, `PLAN_WEB_PORT=8091` in the loop-web one), then `docker compose up -d` in
+  both folders, the ingest one first. `npm run sync`
   and `refresh.sh` read `INGEST_PORT` from the clone's own ingest `.env`.
 - Rename that install's systemd units (`loop-web-refresh-second.path` / `.service`) so they do not
   replace the first install's, and stagger the cron minutes on a small host.
@@ -153,10 +156,11 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 
 - After pulling new code on `main` (`git -C /path/to/loop pull`), rebuild the ingest service
   (`docker compose up -d --build` in `services/loop-ingest`; it applies new database migrations) and
-  restart loop-web (`docker compose up -d` in `services/loop-web`). `refresh.sh` reinstalls npm packages
+  recreate loop-web (`docker compose up -d --force-recreate` in `services/loop-web`). `refresh.sh` reinstalls npm packages
   on its own when the lockfile changed.
 - A container that will not start: `docker compose logs` in its folder. The ingest service refuses to
-  start with an `INGEST_TOKEN` shorter than 32 characters, and with `migration <file> was changed after it
+  start with an `INGEST_TOKEN` shorter than 32 characters, with `invalid <NAME>=...` when a numeric variable
+  (`STRAVA_SYNC_MINUTES`, `MAX_BODY_BYTES`, `PORT`) is set to something that is not a plain number in range, and with `migration <file> was changed after it
   was applied` when a file under `services/loop-ingest/sql/` was edited after it ran: restore it
   (`git checkout -- services/loop-ingest/sql/<file>`) and put the change in a new migration
   ([`services/loop-ingest/README.md` → Database migrations](../../services/loop-ingest/README.md#database-migrations)).
@@ -165,10 +169,17 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
   or `Read-only file system` in a container's logs after the hardening: report it with that log line.
 - `docker compose up` stops with `set INGEST_PORT in services/loop-ingest/.env`: add `INGEST_PORT=8088` (or
   your port) to that file; it is required, so the port is never left to chance.
+- `loop-db` stops with `could not find a network matching network mode loop-ingest_default` after an update:
+  the update that moved the services to `loop-net` needs `docker compose up -d --build --force-recreate` in
+  `services/loop-ingest` once ([upgrading](upgrading.md)).
+- loop-web stops with `network loop-net declared as external, but could not be found`: start the ingest stack
+  first (`docker compose up -d` in `services/loop-ingest` creates the network), then loop-web. The page loads but
+  Sync, the food log and the journal answer `502` / `504`: the ingest container is down or not on `loop-net`
+  (`docker network inspect loop-net` lists both containers); [`docs/lan-services.md` → Network and bind address](../lan-services.md#network-and-bind-address).
 - **Docker ignores ufw** (and firewalld): a published port is reachable from every network the host is on,
   whatever the firewall says. On a host with a public address (a VPS, a router-exposed machine), set
-  `INGEST_BIND` in `services/loop-ingest/.env` and `PLAN_WEB_BIND` in `services/loop-web/.env` to the LAN IP
-  (or `127.0.0.1` for ingest when only this host uses it), then `docker compose up -d` in each folder.
+  `INGEST_BIND=127.0.0.1` in `services/loop-ingest/.env` (loop-web does not use that port) and `PLAN_WEB_BIND` in
+  `services/loop-web/.env` to the LAN IP, then `docker compose up -d` in each folder ([`docs/lan-services.md` → Network and bind address](../lan-services.md#network-and-bind-address)).
 - The page or the API answers `429`: nginx's rate limit on the proxied routes (generous; see
   [`services/loop-web/README.md`](../../services/loop-web/README.md) → Rate limits); a script looping on
   `/api/*` is the usual cause.

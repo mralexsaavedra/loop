@@ -10,8 +10,8 @@ it works.
 | File | Role |
 | ---- | ---- |
 | `refresh.sh` | Sync data, rebuild, publish into `./site`, write `site/status.json` |
-| `docker-compose.yml` | nginx serving `./site` (read-only) and proxying a few exact ingest routes |
-| `nginx.conf.template` | nginx config, rendered with `INGEST_PORT` at container start |
+| `docker-compose.yml` | nginx serving `./site` (read-only) and proxying a few exact ingest routes over the ingest stack's `loop-net` network |
+| `nginx.conf.template` | nginx config, rendered at container start (the Host map from `PLAN_WEB_EXTRA_HOSTS`) |
 | `systemd/loop-web-refresh.path` | Watches the ingest trigger file |
 | `systemd/loop-web-refresh.service` | Runs `refresh.sh` (as the repo owner, hardened) when it changes |
 | `.env.example` | Every variable `docker-compose.yml` reads, commented out (all optional): copy it to `.env` to set one |
@@ -20,7 +20,6 @@ it works.
 | -------- | ------- |
 | `PLAN_WEB_PORT` | Host port of the page, default `8090` |
 | `PLAN_WEB_BIND` | Optional host address to publish `PLAN_WEB_PORT` on (the LAN IP; an IPv6 address in brackets). Empty = every address, as before. **Docker ignores ufw**: see [Security and exposure model](#security-and-exposure-model) |
-| `INGEST_PORT` | loop-ingest's host port (its `INGEST_PORT`), default `8088` |
 | `PLAN_WEB_EXTRA_HOSTS` | Extra host names the page may be reached by, besides IP literals and `localhost` ([DNS rebinding and the Host allowlist](#security-and-exposure-model)) |
 | `HC_INSTANCE` | A second install on the same host ([Running a second install](#running-a-second-install-another-person-same-host)) |
 
@@ -74,8 +73,11 @@ order**: steps 0–1 must happen before the first `docker compose up`.
 
    ```sh
    cd /path/to/loop/services/loop-ingest && docker compose up -d --build
-   curl -s http://127.0.0.1:8088/healthz   # 200
+   curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8088/healthz   # 200
    ```
+
+   It also creates the Docker network `loop-net` that loop-web joins in step 5, so this stack always starts
+   first ([Network and bind address](../../docs/lan-services.md#network-and-bind-address)).
 
 3. **First `npm ci` by hand**, as the repo owner (a cold install can take
    minutes; the unit's timeout is meant for incremental reinstalls):
@@ -91,12 +93,16 @@ order**: steps 0–1 must happen before the first `docker compose up`.
    git -C /path/to/loop rev-parse --abbrev-ref HEAD   # main
    ```
 
-5. **Start loop-web** (nginx). If the ingest port is not 8088, set `INGEST_PORT` in
-   `services/loop-web/.env` first (`cp -n .env.example .env` gives a template with every variable):
+5. **Start loop-web** (nginx). It reaches the ingest service as `loop-ingest:8088` on the `loop-net` network
+   step 2 created, whatever the ingest host port or `INGEST_BIND` (`cp -n .env.example .env` gives a template
+   with every optional variable):
 
    ```sh
    cd /path/to/loop/services/loop-web && docker compose up -d
    ```
+
+   `network loop-net declared as external, but could not be found` means the ingest stack is not up: run step 2
+   first.
 
 6. **Build the first page by hand** (until now `site/` is empty, so there is no page yet):
 
@@ -143,8 +149,9 @@ order**: steps 0–1 must happen before the first `docker compose up`.
     `PLAN_WEB_EXTRA_HOSTS` in `services/loop-web/.env` **and** `FOOD_ALLOWED_HOSTS` in the ingest `.env`, then
     `docker compose up -d` in both. Add the page to the home screen (Share → *Add to Home Screen*).
 
-The ingest port must be reachable from the Docker bridge (the default
-`"${INGEST_PORT}:8088"` publish is; a `127.0.0.1:`-only publish is not).
+loop-web never uses the ingest host port: the sync scripts on the host do (`http://localhost:<INGEST_PORT>`), so
+`INGEST_BIND=127.0.0.1` in `services/loop-ingest/.env` is the recommended hardening
+([Network and bind address](../../docs/lan-services.md#network-and-bind-address)).
 
 ### Running a second install (another person, same host)
 
@@ -158,7 +165,7 @@ pick a name (`second` below) and two free ports (8089 for the ingest service, 80
    - `services/loop-web/.env` (new file, before step 5):
 
      ```sh
-     printf 'HC_INSTANCE=second\nPLAN_WEB_PORT=8091\nINGEST_PORT=8089\n' > services/loop-web/.env
+     printf 'HC_INSTANCE=second\nPLAN_WEB_PORT=8091\n' > services/loop-web/.env
      ```
 
    - Step 7 (cron): the new clone's path.
@@ -177,8 +184,8 @@ pick a name (`second` below) and two free ports (8089 for the ingest service, 80
 3. **Check nothing collided:** `docker ps` lists `loop-db-second`, `loop-ingest-second` and
    `loop-web-second` next to the first install's containers, and each `site/status.json` shows its own build.
 
-`HC_INSTANCE` suffixes the compose project, the container names and the database volume
-(`loop-db-data-second`); left empty, the names are the plain ones, so the first install is
+`HC_INSTANCE` suffixes the compose project, the container names, the database volume
+(`loop-db-data-second`) and the network (`loop-net-second`, so each page proxies only to its own service); left empty, the names are the plain ones, so the first install is
 untouched. The sync scripts (`npm run sync`, `refresh.sh`) read `INGEST_PORT` from the clone's own
 `services/loop-ingest/.env`, so each clone only ever reads its own service. Every install runs its own
 hourly build: on a small host (2 CPU / 4 GB) stagger the cron minutes (`0 * * * *` and `30 * * * *`).
@@ -195,7 +202,7 @@ the page waits until a publish covers it.
 
 ```
 Sync button / Shortcut
-  -> POST /api/sync (loop-web nginx) -> POST /sync (loop-ingest, host port)
+  -> POST /api/sync (loop-web nginx) -> POST /sync (loop-ingest:8088 over loop-net)
        202 {seq, coalesced}
        1. pulls Strava now, unless the last successful pull is < 5 min old
        2. writes `seq` atomically to services/loop-ingest/trigger/refresh
@@ -215,7 +222,8 @@ Sync button / Shortcut
   (`{coalesced: true, deferred: true}`) whose trigger write happens when the
   60 s window closes, so data sent right after a rebuild (the Shortcut's
   payload) is still published; later clicks reuse it. The page's 5 min wait
-  covers the 60 s delay plus the rebuild. Nobody is ever refused (no `429`).
+  covers the 60 s delay plus the rebuild. The service never refuses a click; only nginx's rate limit
+  (10 r/s, burst 60) answers `429` to a runaway client.
 - **Failures fail fast.** An early exit adds `{error, errorSeq}` to
   `status.json` without touching `publishedAt`/`processedSeq`; the page shows
   "No se pudo actualizar: <reason>". Codes: `branch`, `install`, `build`,
@@ -261,10 +269,10 @@ microphone=(), geolocation=(), payment=(), usb=()` (the page uses none of them),
 **Docker ignores ufw.** A port Docker publishes is opened in Docker's own firewall chains, ahead of ufw or
 firewalld rules, so a "deny" there does not protect it: both services are reachable from every network the
 host is on. On a home server behind a router that is the LAN; on a host with a public address (a VPS, a
-machine in the router's DMZ) set the bind to the LAN IP: `PLAN_WEB_BIND=192.168.1.10` in
-`services/loop-web/.env` and `INGEST_BIND=192.168.1.10` (or `127.0.0.1`, since loop-web reaches it through the
-host) in `services/loop-ingest/.env`, then `docker compose up -d` in each folder. Unset, both publish on every
-address, as before.
+machine in the router's DMZ) set the binds: `PLAN_WEB_BIND=192.168.1.10` (the LAN IP) in
+`services/loop-web/.env` and `INGEST_BIND=127.0.0.1` in `services/loop-ingest/.env` (loop-web reaches the service
+over `loop-net`, never through that port: [Network and bind address](../../docs/lan-services.md#network-and-bind-address)), then `docker compose up -d` in each folder. Unset, both
+publish on every address, as before.
 
 **Container hardening** (`docker-compose.yml`, pinned by `scripts/loop-web-config.test.mjs`): a read-only
 root filesystem with tmpfs for what nginx and its entrypoint write (`/etc/nginx/conf.d`, where the template and

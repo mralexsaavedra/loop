@@ -33,9 +33,11 @@ test('first boot: every file runs once inside its own transaction and is recorde
   const r = await runMigrations(f.pool, { core: ['001', '005'], optional: { food: ['006'] }, readSql, log: () => {} })
   assert.deepEqual(r, { food: true })
   assert.deepEqual(ran(f.log), ['SQL 001', 'SQL 005', 'SQL 006'])
-  assert.equal(f.log[0], `SELECT pg_advisory_lock($1) [${MIGRATION_LOCK_KEY}]`, 'the lock comes first')
-  assert.equal(f.log.at(-1), `SELECT pg_advisory_unlock($1) [${MIGRATION_LOCK_KEY}]`, 'and is released last')
-  assert.match(f.log[1], /CREATE TABLE IF NOT EXISTS schema_migrations/)
+  assert.equal(f.log[0], 'SET statement_timeout = 0', 'no statement timeout for the lock wait and the migrations')
+  assert.equal(f.log[1], `SELECT pg_advisory_lock($1) [${MIGRATION_LOCK_KEY}]`, 'the lock comes next')
+  assert.equal(f.log.at(-2), `SELECT pg_advisory_unlock($1) [${MIGRATION_LOCK_KEY}]`, 'and is released')
+  assert.equal(f.log.at(-1), 'RESET statement_timeout', 'the pooled client gets the pool timeout back before release')
+  assert.match(f.log[2], /CREATE TABLE IF NOT EXISTS schema_migrations/)
   const i = f.log.indexOf('SQL 001')
   assert.deepEqual(f.log.slice(i - 1, i + 3), ['BEGIN', 'SQL 001', `INSERT INTO schema_migrations (name, checksum) VALUES ($1, $2) [001,${checksum('SQL 001')}]`, 'COMMIT'])
   assert.deepEqual([...f.ledger.keys()], ['001', '005', '006'])
@@ -59,7 +61,7 @@ test('an applied file whose content changed refuses to start, before any migrati
       return true
     })
   assert.deepEqual(ran(f.log), [], 'nothing ran, not even the new 012')
-  assert.equal(f.log.at(-1), `SELECT pg_advisory_unlock($1) [${MIGRATION_LOCK_KEY}]`, 'the lock is released on the way out')
+  assert.equal(f.log.at(-2), `SELECT pg_advisory_unlock($1) [${MIGRATION_LOCK_KEY}]`, 'the lock is released on the way out')
   assert.equal(f.released(), 1)
 })
 
@@ -83,7 +85,7 @@ test('a failing CORE migration still fails the start (ingest cannot run without 
   const f = fakePool({ fail: { 'SQL 002': 'boom' } })
   await assert.rejects(runMigrations(f.pool, { core: ['001', '002'], optional: { food: ['006'] }, readSql, log: () => {} }), /boom/)
   assert.deepEqual([...f.ledger.keys()], ['001'])
-  assert.equal(f.log.at(-1), `SELECT pg_advisory_unlock($1) [${MIGRATION_LOCK_KEY}]`)
+  assert.equal(f.log.at(-2), `SELECT pg_advisory_unlock($1) [${MIGRATION_LOCK_KEY}]`)
   assert.equal(f.released(), 1)
 })
 
@@ -95,4 +97,12 @@ test('every sql/*.sql file is listed exactly once, core and each optional group 
   assert.deepEqual([...listed].sort(), onDisk, 'a new sql/ file must be added to CORE_MIGRATIONS or an OPTIONAL group, or it never runs')
   assert.equal(new Set(listed).size, listed.length, 'a migration is listed twice')
   for (const files of [CORE_MIGRATIONS, ...Object.values(OPTIONAL_MIGRATIONS)]) assert.deepEqual(files, [...files].sort(), 'out of numeric order')
+})
+
+test('migrations run without the pool\'s 30 s statement_timeout, which is restored even when a core migration fails', async () => {
+  const f = fakePool({ fail: { 'SQL 002': 'boom' } })
+  await assert.rejects(runMigrations(f.pool, { core: ['001', '002'], optional: {}, readSql, log: () => {} }), /boom/)
+  assert.equal(f.log[0], 'SET statement_timeout = 0')
+  assert.equal(f.log.at(-1), 'RESET statement_timeout')
+  assert.equal(f.released(), 1)
 })

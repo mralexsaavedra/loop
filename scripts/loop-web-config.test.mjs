@@ -27,12 +27,12 @@ function locations(conf) {
   return [...conf.matchAll(/location\s+((?:"[^"]*"|[^{"])+?)\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g)].map((m) => ({ spec: m[1].trim(), body: m[2] }));
 }
 
-test('nginx proxies ONLY /api/sync, /api/sync/status, /ingest/health-auto-export (exact) and the /api/food/ + /api/journal/ prefixes, to the host ingest port', () => {
+test('nginx proxies ONLY /api/sync, /api/sync/status, /ingest/health-auto-export (exact) and the /api/food/ + /api/journal/ prefixes, to the loop-ingest service over loop-net', () => {
   const proxied = locations(nginx).filter((l) => /proxy_pass\s/.test(l.body));
   assert.deepEqual(proxied.map((l) => l.spec).sort(), ['/api/food/', '/api/journal/', '= /api/sync', '= /api/sync/status', '= /ingest/health-auto-export']);
   const target = (spec) => /proxy_pass\s+([^;]+);/.exec(proxied.find((l) => l.spec === spec).body)[1];
-  assert.equal(target('= /api/sync'), 'http://host.docker.internal:${INGEST_PORT}/sync');
-  assert.equal(target('= /api/sync/status'), 'http://host.docker.internal:${INGEST_PORT}/sync/status');
+  assert.equal(target('= /api/sync'), 'http://loop-ingest/sync');
+  assert.equal(target('= /api/sync/status'), 'http://loop-ingest/sync/status');
   assert.match(proxied.find((l) => l.spec === '= /api/sync').body, /limit_except POST/);
   assert.match(proxied.find((l) => l.spec === '= /api/sync/status').body, /limit_except GET/);
   assert.equal((nginx.match(/proxy_pass\s/g) || []).length, 5, 'no other proxy_pass anywhere');
@@ -41,12 +41,12 @@ test('nginx proxies ONLY /api/sync, /api/sync/status, /ingest/health-auto-export
 test('nginx /api/food/: ingest /food/ only, GET/POST/PUT/DELETE, the body passed, 16 KB cap, the X-HC-Food header forwarded', () => {
   const food = locations(nginx).find((l) => l.spec === '/api/food/');
   assert.ok(food, 'a prefix location for the food log');
-  assert.match(food.body, /proxy_pass\s+http:\/\/host\.docker\.internal:\$\{INGEST_PORT\}\/food\/;/);
+  assert.match(food.body, /proxy_pass\s+http:\/\/loop-ingest\/food\/;/);
   assert.match(food.body, /limit_except GET POST PUT DELETE \{ deny all; \}/);
   assert.doesNotMatch(food.body, /proxy_pass_request_body off/, 'writes carry a JSON body');
   assert.match(food.body, /client_max_body_size 16k;/, 'same cap as the service');
   assert.match(food.body, /proxy_set_header X-HC-Food \$http_x_hc_food;/);
-  assert.match(food.body, /proxy_set_header Host host\.docker\.internal;/, 'the proxy hop names a host ingest allows');
+  assert.match(food.body, /proxy_set_header Host loop-ingest;/, 'the proxy hop names a host ingest allows');
   assert.match(food.body, /proxy_connect_timeout 5s;/);
   assert.match(food.body, /proxy_read_timeout 15s;/);
   assert.doesNotMatch(food.body, /add_header\s+Access-Control/i, 'never approves a cross-site request');
@@ -55,11 +55,11 @@ test('nginx /api/food/: ingest /food/ only, GET/POST/PUT/DELETE, the body passed
 test('nginx /api/journal/: ingest /journal/ only, GET/PUT, 16 KB cap, the X-HC-Journal header forwarded', () => {
   const j = locations(nginx).find((l) => l.spec === '/api/journal/');
   assert.ok(j, 'a prefix location for the journal');
-  assert.match(j.body, /proxy_pass\s+http:\/\/host\.docker\.internal:\$\{INGEST_PORT\}\/journal\/;/);
+  assert.match(j.body, /proxy_pass\s+http:\/\/loop-ingest\/journal\/;/);
   assert.match(j.body, /limit_except GET PUT \{ deny all; \}/);
   assert.match(j.body, /client_max_body_size 16k;/, 'same cap as the service');
   assert.match(j.body, /proxy_set_header X-HC-Journal \$http_x_hc_journal;/);
-  assert.match(j.body, /proxy_set_header Host host\.docker\.internal;/);
+  assert.match(j.body, /proxy_set_header Host loop-ingest;/);
   assert.doesNotMatch(j.body, /add_header\s+Access-Control/i, 'never approves a cross-site request');
 });
 
@@ -86,7 +86,7 @@ test('nginx: everything else under /api is a 404; data endpoints are never named
 test('nginx = /ingest/health-auto-export: exact, POST only, the body passed with the ingest cap, auth headers forwarded', () => {
   const ingest = locations(nginx).find((l) => l.spec === '= /ingest/health-auto-export');
   assert.ok(ingest, 'an EXACT-match location for the Shortcut upload');
-  assert.match(ingest.body, /proxy_pass\s+http:\/\/host\.docker\.internal:\$\{INGEST_PORT\}\/ingest\/health-auto-export;/);
+  assert.match(ingest.body, /proxy_pass\s+http:\/\/loop-ingest\/ingest\/health-auto-export;/);
   assert.match(ingest.body, /limit_except POST \{ deny all; \}/);
   assert.doesNotMatch(ingest.body, /proxy_pass_request_body off/, 'the JSON payload is the whole point');
   assert.match(ingest.body, /client_max_body_size 8m;/, 'a Shortcut payload is a few hundred KB');
@@ -99,7 +99,7 @@ test('nginx = /ingest/health-auto-export: exact, POST only, the body passed with
   assert.match(ingest.body, /proxy_set_header Authorization \$http_authorization;/);
   assert.match(ingest.body, /proxy_set_header Automation-Name \$http_automation_name;/);
   assert.match(ingest.body, /proxy_set_header Content-Type \$content_type;/);
-  assert.match(ingest.body, /proxy_set_header Host host\.docker\.internal;/);
+  assert.match(ingest.body, /proxy_set_header Host loop-ingest;/);
   assert.match(ingest.body, /proxy_connect_timeout 5s;/);
   assert.match(ingest.body, /proxy_read_timeout 60s;/);
   assert.match(ingest.body, /client_body_buffer_size 1m;/, 'a few-hundred-KB payload stays in memory');
@@ -138,11 +138,50 @@ test('nginx serves status.json uncached', () => {
   assert.match(status.body, /Cache-Control\s+"no-cache/);
 });
 
-test('loop-web compose: host-gateway alias, nginx template mount, INGEST_PORT default', () => {
-  assert.match(planCompose, /extra_hosts:\s*\n\s*-\s*"host\.docker\.internal:host-gateway"/);
+test('loop-web compose: nginx template mount, no host-gateway alias and no ingest host port (it proxies over loop-net)', () => {
+  assert.doesNotMatch(planCompose, /extra_hosts|host-gateway|host\.docker\.internal|INGEST_PORT/);
   assert.match(planCompose, /\.\/nginx\.conf\.template:\/etc\/nginx\/templates\/default\.conf\.template:ro/);
-  assert.match(planCompose, /INGEST_PORT:\s*\$\{INGEST_PORT:-8088\}/);
   assert.match(planCompose, /\.\/site:\/usr\/share\/nginx\/html:ro/, 'still only ./site is served');
+});
+
+// INGEST_BIND=127.0.0.1 (or the LAN IP) must never cut loop-web off: nginx reaches ingest over the ingest
+// stack's named network by service name, never through the host-published port (host.docker.internal is the
+// Docker bridge gateway, which a 127.0.0.1 / LAN-IP publish does not cover).
+test('loop-net: the ingest stack names its network, loop-web joins it as external, both with the same HC_INSTANCE-suffixed name', () => {
+  const net = (compose) => /^networks:\n {2}default:\n(?:\s+#.*\n)*((?:\s{4}\S.*\n?)+)/m.exec(compose)?.[1] ?? '';
+  const NAME = /^\s+name: loop-net\$\{HC_INSTANCE:\+-\$\{HC_INSTANCE\}\}$/m;
+  assert.match(net(ingestCompose), NAME, 'loop-ingest names its default network');
+  assert.doesNotMatch(net(ingestCompose), /external/, 'loop-ingest creates it');
+  assert.match(net(planCompose), NAME, 'loop-web joins the same name');
+  assert.match(net(planCompose), /^\s+external: true$/m, 'loop-web never creates it (start order: ingest first)');
+});
+
+test('nginx: no host.docker.internal / host port left; one upstream loop-ingest:8088 resolved at run time by Docker DNS', () => {
+  const directives = nginx.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
+  assert.doesNotMatch(directives, /host\.docker\.internal|INGEST_PORT/);
+  const targets = [...directives.matchAll(/proxy_pass\s+([^;]+);/g)].map((m) => m[1]);
+  assert.equal(targets.length, 5);
+  for (const t of targets) assert.match(t, /^http:\/\/loop-ingest\//, t);
+  assert.match(directives, /^resolver 127\.0\.0\.11 valid=\d+s ipv6=off;$/m, 'Docker embedded DNS: a recreated ingest container is followed');
+  assert.match(directives, /upstream loop-ingest \{\n\s+zone loop-ingest \d+k;\n\s+server loop-ingest:8088 resolve;\n\s*\}/,
+    'resolve: nginx starts and serves the page while ingest is down');
+});
+
+test('loop-net rendered by docker compose: plain name by default, the instance suffix for a second install', { skip: spawnSync('docker', ['compose', 'version']).status === 0 ? false : 'docker compose not installed' }, () => {
+  const render = (dir, env) => {
+    const r = spawnSync('docker', ['compose', '-f', path.join(ROOT, dir, 'docker-compose.yml'), '--project-directory', fs.mkdtempSync(path.join(os.tmpdir(), 'hc-compose-')), 'config', '--format', 'json'],
+      { env: { PATH: process.env.PATH, HOME: os.tmpdir(), POSTGRES_USER: 'u', POSTGRES_PASSWORD: 'p', POSTGRES_DB: 'd', INGEST_TOKEN: 't', INGEST_PORT: '8088', ...env }, encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    return JSON.parse(r.stdout).networks.default;
+  };
+  for (const [env, name] of [[{}, 'loop-net'], [{ HC_INSTANCE: 'second' }, 'loop-net-second']]) {
+    const ingest = render(path.join('services', 'loop-ingest'), env);
+    const web = render(LOOP_WEB, env);
+    assert.equal(ingest.name, name);
+    assert.ok(!ingest.external, 'ingest creates it');
+    assert.equal(web.name, name);
+    assert.equal(web.external, true);
+  }
 });
 
 test('loop-ingest compose bind-mounts the trigger dir', () => {
@@ -454,7 +493,7 @@ test('compose ports: rendered by docker compose, unset = the plain port, a bind 
 test('loop-web/.env.example documents every variable the compose file reads, all commented out (the defaults apply)', () => {
   const example = read(LOOP_WEB, '.env.example');
   const used = [...new Set([...planCompose.matchAll(/\$\{([A-Z_]+)/g)].map((m) => m[1]))].sort();
-  assert.deepEqual(used, ['HC_INSTANCE', 'INGEST_PORT', 'PLAN_WEB_BIND', 'PLAN_WEB_EXTRA_HOSTS', 'PLAN_WEB_PORT']);
+  assert.deepEqual(used, ['HC_INSTANCE', 'PLAN_WEB_BIND', 'PLAN_WEB_EXTRA_HOSTS', 'PLAN_WEB_PORT']);
   for (const name of used) assert.match(example, new RegExp(`^# ${name}=`, 'm'), name);
   assert.doesNotMatch(example, /^[A-Z_]+=/m, 'nothing set: an untouched copy changes nothing');
   assert.match(read(LOOP_WEB, 'README.md'), /\.env\.example/);

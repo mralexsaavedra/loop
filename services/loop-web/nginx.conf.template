@@ -1,7 +1,6 @@
 # nginx:alpine renders this template into /etc/nginx/conf.d/default.conf at
 # start, substituting ONLY variables defined in the container environment
-# (${INGEST_PORT}, see docker-compose.yml); nginx's own $variables are left
-# untouched.
+# (none is used today); nginx's own $variables are left untouched.
 #
 # The Astro build already declares <meta charset="utf-8">, but nginx sending
 # the header too is cheap insurance against browsers guessing Latin-1 and
@@ -27,6 +26,17 @@ map $host $hc_host_ok {
 # so it is one shared budget, still far above one user's use. scripts/loop-web-config.test.mjs pins it.
 limit_req_zone $binary_remote_addr zone=hc_api:1m rate=10r/s;
 limit_req_zone $binary_remote_addr zone=hc_ingest:1m rate=60r/m;
+
+# The data service, reached over the ingest stack's Docker network (loop-net, docker-compose.yml) by its
+# service name, never through a port published on the host: so INGEST_BIND=127.0.0.1 (or the LAN IP) on the
+# ingest side never cuts this proxy off. `resolve` + Docker's embedded DNS (127.0.0.11) look the name up at
+# run time: nginx starts (and serves the page) while loop-ingest is down, and follows its new address after
+# the ingest container is recreated (502 meanwhile). docs/lan-services.md -> Network and bind address.
+resolver 127.0.0.11 valid=10s ipv6=off;
+upstream loop-ingest {
+    zone loop-ingest 64k;
+    server loop-ingest:8088 resolve;
+}
 
 server {
     listen 80;
@@ -126,7 +136,7 @@ server {
         proxy_set_header Content-Length "";
         proxy_connect_timeout 5s;
         proxy_read_timeout 15s;
-        proxy_pass http://host.docker.internal:${INGEST_PORT}/sync;
+        proxy_pass http://loop-ingest/sync;
     }
 
     location = /api/sync/status {
@@ -137,7 +147,7 @@ server {
         proxy_set_header Content-Length "";
         proxy_connect_timeout 5s;
         proxy_read_timeout 15s;
-        proxy_pass http://host.docker.internal:${INGEST_PORT}/sync/status;
+        proxy_pass http://loop-ingest/sync/status;
     }
 
     location /api/food/ {
@@ -147,12 +157,12 @@ server {
         client_max_body_size 16k;
         proxy_set_header X-HC-Food $http_x_hc_food;
         # the hop's Host: a name the ingest Host check accepts (the browser's Origin is passed on)
-        proxy_set_header Host host.docker.internal;
+        proxy_set_header Host loop-ingest;
         # the Host the browser asked for (port included): ingest refuses a write whose Origin is not exactly it
         proxy_set_header X-Forwarded-Host $http_host;
         proxy_connect_timeout 5s;
         proxy_read_timeout 15s;
-        proxy_pass http://host.docker.internal:${INGEST_PORT}/food/;
+        proxy_pass http://loop-ingest/food/;
     }
 
     location /api/journal/ {
@@ -162,12 +172,12 @@ server {
         client_max_body_size 16k;
         proxy_set_header X-HC-Journal $http_x_hc_journal;
         # the hop's Host: a name the ingest Host check accepts (the browser's Origin is passed on)
-        proxy_set_header Host host.docker.internal;
+        proxy_set_header Host loop-ingest;
         # the Host the browser asked for (port included): ingest refuses a write whose Origin is not exactly it
         proxy_set_header X-Forwarded-Host $http_host;
         proxy_connect_timeout 5s;
         proxy_read_timeout 15s;
-        proxy_pass http://host.docker.internal:${INGEST_PORT}/journal/;
+        proxy_pass http://loop-ingest/journal/;
     }
 
     location = /ingest/health-auto-export {
@@ -183,11 +193,11 @@ server {
         proxy_set_header Authorization $http_authorization;
         proxy_set_header Automation-Name $http_automation_name;
         proxy_set_header Content-Type $content_type;
-        proxy_set_header Host host.docker.internal;
+        proxy_set_header Host loop-ingest;
         proxy_connect_timeout 5s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
-        proxy_pass http://host.docker.internal:${INGEST_PORT}/ingest/health-auto-export;
+        proxy_pass http://loop-ingest/ingest/health-auto-export;
     }
 
     location /api/ {

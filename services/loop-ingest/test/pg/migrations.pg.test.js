@@ -7,7 +7,8 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { skip, freshDatabase } from './pg-helper.js'
 import { createPool, migrate } from '../../src/db.js'
-import { CORE_MIGRATIONS, OPTIONAL_MIGRATIONS, checksum } from '../../src/migrations.js'
+import { CORE_MIGRATIONS, OPTIONAL_MIGRATIONS, checksum, runMigrations } from '../../src/migrations.js'
+import pg from 'pg'
 
 const ALL = [...CORE_MIGRATIONS, ...Object.values(OPTIONAL_MIGRATIONS).flat()]
 const readSql = (f) => readFile(new URL(`../../sql/${f}`, import.meta.url), 'utf8')
@@ -96,4 +97,17 @@ test('two processes booting at once on an empty database: the advisory lock seri
     assert.deepEqual([...applied].sort(), [...ALL].sort(), 'no file ran twice')
     assert.equal((await ledger(pool)).length, ALL.length)
   } finally { await other.end() }
+}))
+
+test('a migration slower than the pool\'s statement_timeout still runs; the pooled client gets the timeout back afterwards', { skip }, () => withDb(async (_pool, db) => {
+  // one client, a 200 ms statement_timeout standing in for the pool's 30 s
+  const tight = new pg.Pool({ connectionString: db.url, max: 1, statement_timeout: 200 })
+  try {
+    await assert.rejects(tight.query('SELECT pg_sleep(0.5)'), /statement timeout/, 'the pool timeout is live')
+    const r = await runMigrations(tight, { core: ['900_slow.sql'], optional: {}, readSql: async () => 'SELECT pg_sleep(0.5)', log: quiet })
+    assert.deepEqual(r, {})
+    assert.equal((await tight.query("SELECT count(*)::int AS n FROM schema_migrations WHERE name = '900_slow.sql'")).rows[0].n, 1)
+    assert.equal((await tight.query('SHOW statement_timeout')).rows[0].statement_timeout, '200ms', 'restored on the released client')
+    await assert.rejects(tight.query('SELECT pg_sleep(0.5)'), /statement timeout/)
+  } finally { await tight.end() }
 }))
