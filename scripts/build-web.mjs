@@ -144,7 +144,7 @@ const CLI_OPTIONS = { mode: { type: 'string' }, locale: { type: 'string' }, outd
 export function parseBuildArgs(argv) {
   const cli = parseCli(argv, { usage: USAGE, options: CLI_OPTIONS });
   if (cli.exit != null) return cli;
-  const { mode, locale } = cli.values;
+  const { mode, locale } = /** @type {{ mode?: string, locale?: string }} */ (cli.values);
   if (mode != null && !['personal', 'example'].includes(mode)) return { exit: 2, err: `ERROR: --mode must be personal or example, got ${JSON.stringify(mode)}\n\n${USAGE}` };
   if (locale != null && !['es', 'en'].includes(locale)) return { exit: 2, err: `ERROR: --locale must be es or en, got ${JSON.stringify(locale)}\n\n${USAGE}` };
   return cli;

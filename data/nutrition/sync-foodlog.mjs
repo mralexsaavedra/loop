@@ -173,6 +173,7 @@ Env: INGEST_URL, INGEST_ENV_FILE (default services/loop-ingest/.env, for its ING
 // unreachable service or a malformed body is a warning (0), a failed write 1.
 async function main ({ env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = OUT } = {}) {
   const baseUrl = common.readBaseUrl(env)
+  /** @type {any} */
   let body
   try {
     body = await fetchSummary(baseUrl, windowFor(), { fetchImpl })
