@@ -60,6 +60,11 @@ function readBaseUrl(env, envFile = envFileOf(env)) {
 // One GET (headers + body) under a hard timeout; the HTTP status (when any) is kept on err.status so a
 // 404 can be told apart from a generic failure by the caller. `token` null = no authorization header
 // (the LAN-only /food/* and /journal/* layers, which take their own `headers` and `redirect: 'error'`).
+/**
+ * @param {string} url
+ * @param {string | null} token
+ * @param {{ fetchImpl?: typeof fetch, timeoutMs?: number, headers?: Record<string, string>, redirect?: 'follow' | 'error' | 'manual' }} [opts]
+ */
 async function fetchJson(url, token, { fetchImpl = fetch, timeoutMs = 15000, headers = {}, redirect } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -81,17 +86,29 @@ async function fetchJson(url, token, { fetchImpl = fetch, timeoutMs = 15000, hea
 
 // page through a paged GET endpoint from since_id until a short page. `buildUrl({baseUrl, since,
 // limit})` builds each page's URL — the caller owns the endpoint path and any extra query params
-// (e.g. sync-shortcut's `automation`), fetchPages owns paging + auth + shape validation.
-async function fetchPages({ baseUrl, token, buildUrl, sinceId = '0', limit = 500, timeoutMs = 15000, fetchImpl = fetch }) {
+// (e.g. sync-shortcut's `automation`), fetchPages owns paging + auth + shape validation. The cursor
+// must advance: a full page whose last id is missing, non-numeric or not greater than `since` throws
+// `unexpected paging cursor` (ids are compared as BigInt, exact past 2^53), and `maxPages` is a hard cap,
+// so a misbehaving server can never loop it forever.
+const MAX_PAGES = 10000;
+const cursorOf = (v) => (typeof v === 'number' || typeof v === 'bigint' || typeof v === 'string') && /^\d+$/.test(String(v)) ? BigInt(v) : null;
+async function fetchPages({ baseUrl, token, buildUrl, sinceId = '0', limit = 500, timeoutMs = 15000, fetchImpl = fetch, maxPages = MAX_PAGES }) {
   const all = [];
   let since = sinceId;
-  for (;;) {
+  for (let pages = 0; ; ) {
+    if (pages >= maxPages) throw new Error(`unexpected paging: more than ${maxPages} pages`);
+    pages++;
     const url = buildUrl({ baseUrl: baseUrl.replace(/\/+$/, ''), since, limit });
     const page = await fetchJson(url, token, { fetchImpl, timeoutMs });
     if (!Array.isArray(page)) throw new Error('unexpected response shape (expected an array)');
     all.push(...page);
     if (page.length < limit) return all;
-    since = page[page.length - 1].id;
+    const next = page[page.length - 1] && page[page.length - 1].id;
+    const nextN = cursorOf(next), sinceN = cursorOf(since);
+    if (nextN == null || (sinceN != null && nextN <= sinceN)) {
+      throw new Error(`unexpected paging cursor (last id ${JSON.stringify(next ?? null)} after since_id ${since})`);
+    }
+    since = next;
   }
 }
 
@@ -101,6 +118,12 @@ async function fetchPages({ baseUrl, token, buildUrl, sinceId = '0', limit = 500
 // for dates with no surviving (export) row. `exportWins: false` skips that date filter and adds
 // EVERY row (sync-strava: its rows carry data the export never has, and the readers dedupe a
 // Watch + Strava copy of one session themselves). Stable sort keeps export rows' original order.
+/**
+ * @param {string | null} existingText
+ * @param {string} header
+ * @param {{ date: string, line: string }[]} rows
+ * @param {{ sourceCol?: number | null, isOwn?: (source: string) => boolean, ownedDates?: string[], exportWins?: boolean }} [opts]
+ */
 function mergeCsv(existingText, header, rows, { sourceCol = 2, isOwn = () => false, ownedDates = [], exportWins = true } = {}) {
   const lines = existingText ? existingText.split('\n').filter(Boolean) : [];
   const body = lines.length && lines[0].startsWith('date,') ? lines.slice(1) : lines;
@@ -148,8 +171,8 @@ function acquireLock (lockFile, { staleMs = LOCK_STALE_MS, retryDelayMs = LOCK_R
       try {
         const stat = fs.statSync(lockFile);
         if (Date.now() - stat.mtimeMs > staleMs) {
-          fs.rmSync(lockFile, { force: true });
-          continue; // retry immediately, no need to sleep
+          reclaimStaleLock(lockFile, stat);
+          continue; // retry immediately (reclaimed, or another process got there first), no need to sleep
         }
       } catch {
         continue; // the lock vanished between the failed open and this stat — just retry
@@ -160,11 +183,49 @@ function acquireLock (lockFile, { staleMs = LOCK_STALE_MS, retryDelayMs = LOCK_R
   }
 }
 
+/**
+ * Removes the stale lock `seen` (the fs.Stats that judged it stale) and nothing else: the lock is renamed to a
+ * claim file first (atomic, so of two processes that judged the same lock stale only one gets it), and the
+ * claim is deleted only when it is still that file (same dev, inode and mtime). If a fresh lock had already
+ * replaced it, it is linked back into place (unless yet another lock took the path meanwhile). True when this
+ * call removed the stale lock.
+ */
+function reclaimStaleLock (lockFile, seen) {
+  const claim = `${lockFile}.${process.pid}.reclaim`;
+  try {
+    fs.renameSync(lockFile, claim);
+  } catch (err) {
+    if (err.code === 'ENOENT') return false; // another process reclaimed (or released) it first
+    throw err;
+  }
+  const st = fs.statSync(claim);
+  if (st.dev === seen.dev && st.ino === seen.ino && st.mtimeMs === seen.mtimeMs) {
+    fs.rmSync(claim, { force: true });
+    return true;
+  }
+  try {
+    fs.linkSync(claim, lockFile); // not the stale lock: give the fresh one back to its holder
+  } catch {
+    // EEXIST: a newer lock already holds the path; the displaced holder never removes it (releaseLock checks the pid)
+  }
+  fs.rmSync(claim, { force: true });
+  return false;
+}
+
+/** Removes the lock only when it holds OUR pid: after a run that outlived staleMs, another process may have
+ * reclaimed it, and its lock must survive. */
 function releaseLock (lockFile) {
+  let owner;
+  try {
+    owner = fs.readFileSync(lockFile, 'utf8').trim();
+  } catch {
+    return; // already gone — releasing an already-released lock is not an error
+  }
+  if (owner !== String(process.pid)) return;
   try {
     fs.unlinkSync(lockFile);
   } catch {
-    // already gone — releasing an already-released lock is not an error
+    // gone in between
   }
 }
 
@@ -229,6 +290,7 @@ export {
   mergeCsv,
   acquireLock,
   releaseLock,
+  reclaimStaleLock,
   withLock,
   parseCli,
   runCli,

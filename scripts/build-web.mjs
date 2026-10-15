@@ -8,8 +8,9 @@
  * means a failed build never takes down what was already served (see
  * spec: Resilient serving on build failure).
  *
- * Usage: node scripts/build-web.mjs [--mode personal|example] [--locale es|en]
- *   DATA_MODE / LOCALE env vars are equivalent to --mode / --locale.
+ * Usage: node scripts/build-web.mjs [--mode personal|example] [--locale es|en] [--outdir <dir>] [--check]
+ *   DATA_MODE / LOCALE env vars are equivalent to --mode / --locale; --help prints the usage, and an
+ *   unknown flag or a bad --mode / --locale value exits 2 before anything is read or built.
  *
  * `--check` skips the Astro build entirely and only validates the
  * programmed training data for the given mode (fast, no astro binary
@@ -26,17 +27,7 @@ import { validateProgram } from '../lib/training/program.mjs';
 import { checkManualProfile } from '../lib/profile/read.mjs';
 import { resolveEnv } from '../web/src/env.mjs';
 import { isMain } from './lib/is-main.mjs';
-
-function parseArgs(argv) {
-  const out = {};
-  for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--mode') out.mode = argv[++i];
-    else if (argv[i] === '--locale') out.locale = argv[++i];
-    else if (argv[i] === '--check') out.check = true;
-    else if (argv[i] === '--outdir') out.outdir = argv[++i];
-  }
-  return out;
-}
+import { parseCli } from '../data/apple-health/sync-common.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const WEB_ROOT = path.join(ROOT, 'web');
@@ -138,8 +129,29 @@ export function inputErrorLine(err) {
   return `build-web: ${path.relative(ROOT, err.file) || err.file} not found.${err.hint ? ' ' + err.hint : ''}`;
 }
 
-function main() {
-  const args = parseArgs(process.argv.slice(2));
+const USAGE = `Usage: node scripts/build-web.mjs [--mode personal|example] [--locale es|en] [--outdir <dir>] [--check]
+
+Builds the single-file plan page into web/dist/<mode>/index.html (staged, then renamed into place).
+  --mode       personal (default) or example; env DATA_MODE is equivalent
+  --locale     es or en (default: the plan's locale, else en); env LOCALE is equivalent
+  --outdir     build into <dir> instead of web/dist/<mode> (the test fixtures)
+  --check      validate training-data.json and profile/profile.json only, no build
+  -h, --help   this help`;
+
+const CLI_OPTIONS = { mode: { type: 'string' }, locale: { type: 'string' }, outdir: { type: 'string' }, check: { type: 'boolean' } };
+
+/** argv -> parseCli's result, plus the --mode / --locale value check (exit 2, like an unknown flag). Pure. */
+export function parseBuildArgs(argv) {
+  const cli = parseCli(argv, { usage: USAGE, options: CLI_OPTIONS });
+  if (cli.exit != null) return cli;
+  const { mode, locale } = /** @type {{ mode?: string, locale?: string }} */ (cli.values);
+  if (mode != null && !['personal', 'example'].includes(mode)) return { exit: 2, err: `ERROR: --mode must be personal or example, got ${JSON.stringify(mode)}\n\n${USAGE}` };
+  if (locale != null && !['es', 'en'].includes(locale)) return { exit: 2, err: `ERROR: --locale must be es or en, got ${JSON.stringify(locale)}\n\n${USAGE}` };
+  return cli;
+}
+
+/** The build; returns the exit code. */
+function main(args) {
   const mode = args.mode || process.env.DATA_MODE || 'personal';
   const explicitLocale = args.locale || process.env.LOCALE || null;
 
@@ -150,14 +162,11 @@ function main() {
         ? `build-web --check: training-data.json not present (mode=${mode}) — optional, skipping (Hoy/Entrenos will render their empty state)`
         : `build-web --check: training-data.json OK (mode=${mode})`,
     );
-    process.exitCode = reportProfileCheck(checkManualProfile({ repoRoot: ROOT, mode }), mode);
-    return;
+    return reportProfileCheck(checkManualProfile({ repoRoot: ROOT, mode }), mode);
   }
 
   // Resolved with the SAME precedence env.mjs's resolveEnv uses (explicit >
-  // plan.locale > 'en') — see resolveLocale() above. Previously this
-  // defaulted personal builds to a hardcoded 'es' regardless of what the
-  // plan itself declared, making plan.locale dead through this CLI path.
+  // plan.locale > 'en') — see resolveLocale() above.
   let locale;
   try {
     locale = resolveLocale({ repoRoot: ROOT, mode, explicitLocale });
@@ -165,8 +174,7 @@ function main() {
     const line = inputErrorLine(err);
     if (!line) throw err;
     console.error(line);
-    process.exitCode = 1;
-    return;
+    return 1;
   }
 
   // read by web/src/env.mjs (and the layout's <html lang>)
@@ -196,8 +204,7 @@ function main() {
   } catch (err) {
     fs.rmSync(stagingDir, { recursive: true, force: true });
     console.error(`build-web: build failed (mode=${mode}) — keeping previous ${path.relative(ROOT, outDir)}/ untouched`);
-    process.exitCode = 1;
-    return;
+    return 1;
   }
 
   fs.rmSync(outDir, { recursive: true, force: true });
@@ -205,6 +212,16 @@ function main() {
   fs.renameSync(stagingDir, outDir);
 
   console.log(`build-web: wrote ${path.relative(ROOT, outDir)}/index.html (mode=${mode}, locale=${locale})`);
+  return 0;
 }
 
-if (isMain(import.meta.url)) main();
+if (isMain(import.meta.url)) {
+  const cli = parseBuildArgs(process.argv.slice(2));
+  if (cli.exit != null) {
+    if (cli.exit) console.error(cli.err);
+    else console.log(cli.out);
+    process.exitCode = cli.exit;
+  } else {
+    process.exitCode = main(cli.values);
+  }
+}

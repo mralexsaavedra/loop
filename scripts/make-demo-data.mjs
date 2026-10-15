@@ -87,7 +87,7 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
       row = [date, 'Cycling', fx(dur, 2), '', Math.round(hr), '', Math.round(hr + 30 + noise(4)), SRC.strava, fx(km, 2), Math.round(dur * (0.85 + noise(0.08))), fx(dur * 11 * (0.9 + rnd() * 0.2), 1), fx(km * (6 + rnd() * 8), 1)];
     }
     workouts.push(row.join(','));
-    workMin.set(date, parseFloat(row[2]));
+    workMin.set(date, parseFloat(String(row[2])));
   });
   out['workouts.csv'] = csv(WORKOUTS_HEADER, workouts);
   out['running-daily.csv'] = csv('date,speed_kmh,power_w,gct_ms,vosc_cm,stride_m,samples', running);

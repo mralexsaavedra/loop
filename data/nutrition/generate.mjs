@@ -23,58 +23,50 @@ import { buildNutrition, validateNutrition } from '../../lib/nutrition/macros.mj
 import { buildDayPlans, fmtFactor } from '../../lib/nutrition/scale.mjs';
 import { buildReference } from '../../lib/nutrition/reference.mjs';
 import { ingName } from '../../lib/nutrition/names.mjs';
+import { writeAtomic, runCli } from '../apple-health/sync-common.mjs';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
-const ingPath = path.join(DIR, 'ingredients.json');
-if (!fs.existsSync(ingPath)) {
-  throw new Error('ingredients.json not found at ' + ingPath + ' — it is the public food DB the plan depends on. A fresh clone ships it; do not delete it.');
-}
-const ingFile = JSON.parse(fs.readFileSync(ingPath, 'utf8'));
-if (!ingFile.ingredients || typeof ingFile.ingredients !== 'object') {
-  throw new Error('ingredients.json must contain a top-level "ingredients" object.');
-}
 
-// The personal plan-data.json is gitignored — a fresh clone with no bootstrap
-// step run has only the tracked plan-data.example.json. Rather than crash
-// module load (which used to take down every test in generate.test.js, not
-// just the personal-data-dependent ones), fall back to the example seed with
-// a clear, loud warning. `npm run generate`/`check` on such a clone then
-// validates + regenerates plan-tables.md from the PUBLIC example plan
-// instead of failing outright — matching build-web.mjs's own DATA_MODE
-// fallback story (lib/load/inputs.mjs), just without an explicit flag here
-// since this script has always been personal-plan-only by convention.
-const PLAN_PATH = fs.existsSync(path.join(DIR, 'plan-data.json'))
-  ? path.join(DIR, 'plan-data.json')
-  : path.join(DIR, 'plan-data.example.json');
-const usedExampleFallback = PLAN_PATH.endsWith('plan-data.example.json');
-if (usedExampleFallback) {
-  if (!fs.existsSync(PLAN_PATH)) {
-    throw new Error(
-      'Neither plan-data.json nor plan-data.example.json found in ' + DIR +
-      ' — plan-data.example.json ships tracked in every clone; do not delete it.',
+const readJson = (file, name) => {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (err) {
+    if (err instanceof SyntaxError) throw new Error(`${name} is not valid JSON (${err.message})`, { cause: err });
+    throw err;
+  }
+};
+
+/** Reads ingredients.json + the plan from `dir` and builds the nutrition model; throws one-line errors on a
+ * missing or malformed file. The personal plan-data.json is gitignored, so a fresh clone falls back to the
+ * tracked plan-data.example.json, with a warning (it validates / regenerates the PUBLIC example plan). */
+export function load({ dir = DIR, env = process.env, warn = console.warn } = {}) {
+  const ingPath = path.join(dir, 'ingredients.json');
+  if (!fs.existsSync(ingPath)) {
+    throw new Error('ingredients.json not found at ' + ingPath + ' — it is the public food DB the plan depends on. A fresh clone ships it; do not delete it.');
+  }
+  const ingFile = readJson(ingPath, 'ingredients.json');
+  if (!ingFile || !ingFile.ingredients || typeof ingFile.ingredients !== 'object') {
+    throw new Error('ingredients.json must contain a top-level "ingredients" object.');
+  }
+  const personal = path.join(dir, 'plan-data.json');
+  const PLAN_PATH = fs.existsSync(personal) ? personal : path.join(dir, 'plan-data.example.json');
+  if (PLAN_PATH !== personal) {
+    if (!fs.existsSync(PLAN_PATH)) {
+      throw new Error('Neither plan-data.json nor plan-data.example.json found in ' + dir + ' — plan-data.example.json ships tracked in every clone; do not delete it.');
+    }
+    warn(
+      'generate.mjs: personal plan-data.json not found — falling back to plan-data.example.json ' +
+      '(fresh-clone default). This validates/regenerates the PUBLIC example plan-tables.md, not ' +
+      'your personal plan. Copy plan-data.example.json -> plan-data.json to use your own plan.',
     );
   }
-  console.warn(
-    'generate.mjs: personal plan-data.json not found — falling back to plan-data.example.json ' +
-    '(fresh-clone default). This validates/regenerates the PUBLIC example plan-tables.md, not ' +
-    'your personal plan. Copy plan-data.example.json -> plan-data.json to use your own plan.',
-  );
+  const plan = readJson(PLAN_PATH, path.basename(PLAN_PATH));
+  // Food names (the plan's own option names and the ingredients' {es, en} names) follow the build locale
+  // like the page (LOCALE env -> plan.locale -> en); the document's headings and words stay English.
+  const LOCALE = ['es', 'en'].includes(env.LOCALE) ? env.LOCALE : (plan && plan.locale === 'es' ? 'es' : 'en');
+  // Pure macro computation lives in lib/nutrition/macros.mjs; `ingredients` comes only from ingredients.json.
+  return { ...buildNutrition(ingFile.ingredients, plan), ingredients: ingFile.ingredients, plan, PLAN_PATH, LOCALE };
 }
-const plan = JSON.parse(fs.readFileSync(PLAN_PATH, 'utf8'));
-
-// Food names (the plan's own option names and the ingredients' {es, en} names) follow the build locale
-// like the page (LOCALE env -> plan.locale -> en); the document's headings and words stay English.
-const LOCALE = ['es', 'en'].includes(process.env.LOCALE) ? process.env.LOCALE : (plan.locale === 'es' ? 'es' : 'en');
-
-// Pure macro computation lives in lib/nutrition/macros.mjs; `ingredients` comes only from
-// ingredients.json (plan-data.json does not carry it).
-const nut = buildNutrition(ingFile.ingredients, plan);
-const {
-  ING, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE,
-  D, EX, MACRO,
-  resolve, macro, mealMacros,
-  dayTotalK,
-} = nut;
 
 /* ---------- render plan-tables.md ---------- */
 /* Food tables = FIXED reference values per natural unit (lib/nutrition/reference.mjs, the same rows the
@@ -91,7 +83,10 @@ function mdRefTable(rows) {
   return [head, ...body].join('\n');
 }
 
-function buildTables() {
+/** The plan-tables.md text for a load() result. */
+function buildTables(ctx) {
+const { ING, plan, LOCALE } = ctx;
+const nut = ctx;
 const md = [];
 md.push('# Plan — reference tables');
 md.push('');
@@ -172,12 +167,11 @@ return md.join('\n');
 }
 
 /* ---------- integrity validation ----------
-   Runs before every generate, and standalone via `node generate.mjs --check`.
-   Catches the failure modes that would silently corrupt the plan numbers.
-   Logic now lives in lib/nutrition/macros.mjs (validateNutrition), rebuilding
-   its own `nut` from (ingredients, plan) so it stays a 0-arg call here. */
-function validate() {
-  return validateNutrition(ingFile.ingredients, plan);
+   Runs before every generate, and standalone via `node data/nutrition/generate.mjs --check`.
+   Catches the failure modes that would silently corrupt the plan numbers (validateNutrition in
+   lib/nutrition/macros.mjs). */
+function validate(ctx) {
+  return validateNutrition(ctx.ingredients, ctx.plan);
 }
 
 function reportWarnings(warnings) {
@@ -186,15 +180,27 @@ function reportWarnings(warnings) {
   }
 }
 
-function main() {
-  reportWarnings(validate().warnings);
-  fs.writeFileSync(path.join(DIR, 'plan-tables.md'), buildTables());
+const USAGE = `Usage: node data/nutrition/generate.mjs [--check]
+
+Validates the nutrition plan (ingredients.json + plan-data.json, else plan-data.example.json) and writes
+data/nutrition/plan-tables.md.
+  --check      validate only, write nothing
+  -h, --help   this help
+Env: LOCALE (es|en) for the food names (default: the plan's locale, else en).`;
+
+/** The CLI entry (runCli parses the flags first: an unknown one exits 2 before any read or write). */
+function main({ check = false } = {}) {
+  const ctx = load();
+  reportWarnings(validate(ctx).warnings);
+  if (check) {
+    console.log('Validation OK: ingredients, recipes, day totals consistent.');
+    return 0;
+  }
+  writeAtomic(path.join(DIR, 'plan-tables.md'), buildTables(ctx));
   console.log('Generated: plan-tables.md');
+  return 0;
 }
 
-if (isMain(import.meta.url)) {
-  if (process.argv.includes('--check')) { reportWarnings(validate().warnings); console.log('Validation OK: ingredients, recipes, day totals consistent.'); }
-  else main();
-}
+if (isMain(import.meta.url)) runCli(main, { usage: USAGE, options: { check: { type: 'boolean' } } });
 
-export { ING, D, EX, MACRO, resolve, macro, mealMacros, buildTables, validate, RAW, RAWEX, DAYPLAN, LEGUMES, LEGUME_PLATE, dayTotalK, PLAN_PATH, LOCALE };
+export { buildTables, validate };
