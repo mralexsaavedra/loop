@@ -73,6 +73,9 @@ const PERSONAL = [
   'web/test/.golden/',
   'services/loop-web/site/',
   'services/loop-web/.env',
+  'services/loop-ingest/.env',
+  'profile/coaches.md',
+  'local/',
   // Pre-LOOP folder names: a clone pulled before its migration keeps its runtime files there.
   'services/plan-web/',
   'services/health-ingest/',
@@ -658,21 +661,57 @@ function checkForceAdds(command, baseCwd) {
 
 // --- .gitignore rewrites from the shell ----------------------------------------
 
-function mentionsPersonal(cmd) {
-  // Strip shell/regex backslash escapes so an escaped slash (e.g. sed's
-  // `profile\/about-me.md`) still matches the plain path fragment. No
-  // exception name cancels a match: rewriting .gitignore from the shell is
-  // never needed (the editor tools are guarded with a precise diff check).
-  const normalized = cmd.replace(/\\/g, '');
-  return PERSONAL.some((p) => normalized.includes(p));
+/**
+ * true when one simple command of the line writes, truncates, removes, renames or hides a .gitignore.
+ * Rewriting a .gitignore from the shell is never needed (the editor tools are guarded with a precise
+ * diff check), and a truncated or deleted one un-ignores every personal file at once, so any such
+ * command is refused, whatever paths it names. Reading one (cat, grep, sed -n, git diff, cp FROM it)
+ * stays allowed.
+ */
+/** Split a command line into simple commands at ; && || | and newlines outside quotes. */
+function simpleCommands(command) {
+  const out = [];
+  let cur = '';
+  let quote = null;
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i];
+    if (quote) {
+      if (c === quote) quote = null;
+      else if (c === '\\' && quote === '"') { cur += c + (command[++i] ?? ''); continue; }
+      cur += c;
+      continue;
+    }
+    if (c === "'" || c === '"') { quote = c; cur += c; continue; }
+    if (c === '\\') { cur += c + (command[++i] ?? ''); continue; }
+    if (c === ';' || c === '\n' || c === '|' || (c === '&' && command[i + 1] === '&')) {
+      out.push(cur);
+      cur = '';
+      if ((c === '|' || c === '&') && command[i + 1] === c) i++;
+      continue;
+    }
+    cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+
+function modifiesGitignore(command) {
+  return simpleCommands(command).some((seg) => {
+    if (!/\.gitignore\b/.test(seg)) return false;
+    if (/(^|[^<>&\d])>>?\s*[^\s|;&]*\.gitignore\b/.test(seg)) return true; // > or >> into it
+    if (/\b(tee|truncate|rm|unlink|shred|mv|update-index)\b/.test(seg)) return true;
+    if (/\b(sed|perl)\b/.test(seg) && /\s-[A-Za-z]*i/.test(seg)) return true; // in-place edit
+    if (/\b(cp|ln|install|rsync)\b/.test(seg) && /\.gitignore\s*$/.test(seg.trim())) return true; // as destination
+    return false;
+  });
 }
 
 function checkShellGitignore(command) {
-  const writesGitignore =
-    /(>>?|tee|truncate)\s*[^|;&]*\.gitignore/.test(command) ||
-    (/\.gitignore/.test(command) && /\bsed\b/.test(command));
-  if (writesGitignore && mentionsPersonal(command)) {
-    block('Detected an attempt to un-ignore a personal-data path in .gitignore.');
+  if (modifiesGitignore(command)) {
+    block(
+      'Detected a shell command that writes, truncates, removes or renames a .gitignore.\n' +
+        'A changed .gitignore can un-ignore personal data; edit it with the editor tools (checked diff) instead.'
+    );
   }
 }
 
