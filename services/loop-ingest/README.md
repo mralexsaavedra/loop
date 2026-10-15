@@ -138,7 +138,7 @@ meanwhile).
 The LAN plan page's Nutrición tab logs what the user eats (Registrar), keeps their
 supermarket products (Mis productos: Mercadona / Dia / Eroski / other) and their
 own recipes (Mis recetas), through loop-web's `/api/food/` proxy. Tables in
-`sql/006_food.sql` (idempotent, runs on every start): `food_product`,
+`sql/006_food.sql` (an optional migration group): `food_product`,
 `food_recipe`, `food_log`.
 
 - **Settings** (`sql/007_settings.sql`, table `app_settings`, ONE row): the
@@ -231,11 +231,7 @@ the service logs `food_migration_failed` and keeps ingesting, syncing and
 pulling Strava; only `/food/*` answers `503 food_unavailable` until a restart
 runs it successfully.
 
-**Adding a migration.** Every `sql/` file is idempotent and runs on every start
-(there is no applied-migrations table, so a rollout is just a restart). List a
-new file in `src/migrations.js` (`CORE_MIGRATIONS` or an `OPTIONAL_MIGRATIONS`
-group); `test/migrations.test.js` fails if a file is missing, listed twice or out
-of numeric order.
+**Adding a migration.** See [Database migrations](#database-migrations).
 
 **Idempotent adds.** The page sends a `requestId` (a UUID) with each add and
 reuses it when it retries after a timeout or a lost answer; a unique index on
@@ -490,6 +486,38 @@ statement after 30 s.
 
 A `401` / `invalid_grant` in step 3 means the code was used or expired: repeat step 2. Revoke access any
 time at <https://www.strava.com/settings/apps>.
+
+## Database migrations
+
+On every start the service applies the `sql/` files listed in `src/migrations.js`, in order:
+
+- **Ledger.** The table `schema_migrations` (`name`, `checksum`, `applied_at`) records each file that ran;
+  a recorded file never runs again. Each pending file runs in one transaction together with its ledger row,
+  so it is either applied and recorded, or neither.
+- **One migrator at a time.** The run holds a Postgres advisory lock (`pg_advisory_lock`, key `0x4c4f4f50`),
+  so two processes starting together never migrate concurrently; the second waits, then finds everything
+  recorded.
+- **Optional groups.** A failing core file fails the start; a failing optional group (`food`, `settings`,
+  `profile`, `journal`) is rolled back, logged (`<group>_migration_failed`), left unrecorded and retried on
+  the next start, and only its routes answer `503` meanwhile.
+- **Installs from before the ledger** (before the release that added it) have every file applied and none
+  recorded: on their first start with the ledger every file runs once more (each is idempotent: `IF NOT
+  EXISTS`, `ON CONFLICT DO NOTHING`, 009's `CHECK` dropped and re-created; no row is touched) and is
+  recorded. Nothing to do by hand.
+
+**Rule: never edit an applied migration; add a new file.** The ledger keeps each file's sha-256 (line
+endings normalised); if a recorded file's content changed, the service refuses to start and logs
+`startup_failed` with `migration <file> was changed after it was applied ...`. Restore the original file
+(`git checkout -- sql/<file>`) and put the change in a new `sql/0NN_<name>.sql`, listed in `src/migrations.js`
+(`CORE_MIGRATIONS` or an `OPTIONAL_MIGRATIONS` group); `test/migrations.test.js` fails if a file is missing,
+listed twice or out of numeric order. Write new files idempotently too (`IF NOT EXISTS`), so a partly
+recovered database can replay them.
+
+Tests against a real Postgres (`test/pg/`): `TEST_DATABASE_URL=postgres://postgres:x@127.0.0.1:5544/postgres
+npm run test:pg`, with any Postgres 17 where that user may `CREATE DATABASE` (e.g. a throwaway
+`docker run --rm -e POSTGRES_PASSWORD=x -p 127.0.0.1:5544:5432 postgres:17-alpine`). Each test file creates
+its own empty database and drops it; without the variable those tests skip (so `npm test` needs no
+database). CI runs them in the `postgres` job.
 
 ## Configuration
 
