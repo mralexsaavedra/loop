@@ -494,6 +494,9 @@ What it shows: last night's recovery as a % rank (headline), with the 7-day tren
   | Sleep regularity | .10 |
 
 - Band: ≥ +0.5 above / within ±0.5 at / ≤ -0.5 below baseline (`BAND_CUTOFF`).
+- Every band (the trend's and last night's) is taken from the value AS SHOWN, rounded to 2 decimals
+  (`shownBand`): an unrounded 0.4996 shown as "0.50" is above, never at. The advice line reads the baked
+  `recovery.band` instead of recomputing it.
 
 **Headline (`today`) and "last night"**
 
