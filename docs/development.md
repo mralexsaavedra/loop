@@ -26,6 +26,7 @@ suite and dependencies (`npm run test:services`).
 | --- | --- |
 | `npm test` | Full suite (`node --test`); `pretest` builds the example (+ personal, if present) fixtures |
 | `npm run test:services` | The `services/loop-ingest` suite (not part of `npm test`, which stays dependency-free): `npm ci` there from its lockfile, then its `node --test` |
+| `TEST_DATABASE_URL=postgres://… npm run test:pg` | The data service against a real Postgres (`services/loop-ingest/test/pg/`): the real migrations on a fresh empty database per file, the ledger + lock, the main DB paths. Needs a Postgres 17 where the user may `CREATE DATABASE` (a throwaway `docker run --rm -e POSTGRES_PASSWORD=x -p 127.0.0.1:5544:5432 postgres:17-alpine` does); without the variable the tests skip. CI runs it in the `postgres` job |
 | `npm run check` | Validators only, no build (plan, ingredients, `training-data.json`, `profile/profile.json`) |
 | `npm run lint` | ESLint over the whole repo ([`eslint.config.mjs`](../eslint.config.mjs)): correctness rules only (unused / undefined names, redeclarations, useless assignments), never formatting; CI runs it |
 | `npm run typecheck` | TypeScript over `lib/**/*.mjs` as JavaScript ([`jsconfig.json`](../jsconfig.json), `checkJs`, no emit): a wrong property, argument count or shape fails; types come from JSDoc (`@param`, `@type`, `@returns`), never `// @ts-ignore`; CI runs it |
@@ -44,6 +45,10 @@ the README.
 
 - `npm test` runs the `*.test.mjs` files of `lib/`, `web/`, `scripts/` and `data/{nutrition,apple-health,profile}/`,
   plus the Claude Code hooks (`.claude/hooks/*.test.js`: the guard hook, the skills and the coach subagents).
+- Database migrations (`services/loop-ingest/sql/`) run once each and are recorded in `schema_migrations` with a
+  checksum. **Never edit an applied migration; add a new file** (and list it in `src/migrations.js`): the
+  service refuses to start when a recorded file changed
+  ([`services/loop-ingest/README.md` → Database migrations](../services/loop-ingest/README.md#database-migrations)).
 - Each rule gets a test through the public interface; a changed command, option or message updates its help
   text and docs in the same commit.
 - Lib code that also runs in the page is emitted from the lib itself (`lib/nutrition/client.mjs` and friends),
@@ -94,8 +99,8 @@ A runnable `scripts/*.mjs` guards its CLI with `if (isMain(import.meta.url))` fr
 
 ## Releasing
 
-CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) runs `npm run lint`, `npm run typecheck`, `npm test` and
-`npm run test:services` on every push to `main` and every pull request; a fresh clone needs no personal data to pass. A `vX.Y.Z` tag runs
+CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) runs `npm run lint`, `npm run typecheck`, `npm test`,
+`npm run test:services` and (job `postgres`, a Postgres 17 service container) `npm run test:pg` on every push to `main` and every pull request; a fresh clone needs no personal data to pass. A `vX.Y.Z` tag runs
 [`.github/workflows/release.yml`](../.github/workflows/release.yml), which publishes the data service image
 `mralexandersaavedra/loop-ingest` to Docker Hub for `linux/amd64` and `linux/arm64` as `X.Y.Z`, `X.Y` and `latest`.
 [`scripts/release.test.mjs`](../scripts/release.test.mjs) keeps the pieces below in step, so a drift fails the suite.
