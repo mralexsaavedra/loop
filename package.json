@@ -30,7 +30,7 @@
     "sync:foodlog": "node data/nutrition/sync-foodlog.mjs"
   },
   "dependencies": {
-    "astro": "7.3.5",
+    "astro": "7.3.8",
     "esbuild": "0.28.2"
   },
   "devDependencies": {
