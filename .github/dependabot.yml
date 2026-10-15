@@ -19,8 +19,6 @@ updates:
         update-types: [version-update:semver-major]
       - dependency-name: postgres
         update-types: [version-update:semver-major]
-      - dependency-name: nginx
-        update-types: [version-update:semver-major]
   - package-ecosystem: docker-compose
     directories: [/services/loop-ingest, /services/loop-web]
     schedule: { interval: weekly }

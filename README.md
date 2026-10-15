@@ -201,7 +201,7 @@ Before pushing to any remote, confirm nothing personal is staged or in history:
 
 ```sh
 git status                 # working tree clean of personal data
-git log --all --oneline -- profile/ data/   # should show only .example / tooling / .gitkeep
+git log --all --name-only --format= -- profile/ data/ | sort -u   # should list only .example / tooling / .gitkeep
 ```
 
 If you ever committed real data by accident, rewrite history (e.g. `git filter-repo`)
