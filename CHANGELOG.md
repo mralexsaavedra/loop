@@ -4,6 +4,14 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [1.0.0] - 2026-10-15
+
+First versioned release. The data service ships as a Docker Hub image, `mralexandersaavedra/loop-ingest:1.0.0`
+(amd64 and arm64); `docker compose up -d` in `services/loop-ingest` runs it, `--build` still builds it from the
+clone. Base images are pinned by digest, CI runs both test suites on every pull request, Dependabot proposes
+dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
+(`CONTRIBUTING.md`). The dated entries below are the pre-release history.
+
 ## 2026-10-15 — Renamed to LOOP
 
 The project, the page and its services now share one name. `services/health-ingest` -> `services/loop-ingest`,
