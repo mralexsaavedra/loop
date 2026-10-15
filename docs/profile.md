@@ -14,7 +14,7 @@ On this page:
 - [Ingest side: Strava athlete and gear scope](#ingest-side-strava-athlete-and-gear-scope)
 - [Build](#build)
 - [Device manuals (LAN page only)](#device-manuals-lan-page-only)
-- [In-page onboarding (no AI coach needed)](#in-page-onboarding-no-ai-coach-needed): [layout](#layout), [screens](#screens), [keyboard](#keyboard), [sports and day types](#sports-and-day-types), [saving](#saving), [first run and entry points](#first-run-and-entry-points)
+- [In-page onboarding (no AI coach needed)](#in-page-onboarding-no-ai-coach-needed): [layout](#layout), [screens](#screens), [errors and screen readers](#errors-and-screen-readers), [keyboard](#keyboard), [sports and day types](#sports-and-day-types), [saving](#saving), [first run and entry points](#first-run-and-entry-points)
 
 ## Avatar button and sheet wiring
 
@@ -306,6 +306,18 @@ A full-screen flow in the sheet, one question per screen: a `bare` sheet view wi
    4. the Strava guide;
    5. the history: a one-off Apple Health export sent as a .zip to whoever runs the server (README → Level 1,
       step 3), the Shortcut keeping it current afterwards.
+
+### Errors and screen readers
+
+- A refused step re-renders with the inline error and an empty live region (`#onb-status`, `role="status"`), then
+  sets its first error into that region in place, so it is announced (WCAG 4.1.3): "Pick one.", "Pick at least
+  one.", a field's range, or on the summary the first blocking bound with its day ("Rest day: Below the safe
+  minimum (1200 kcal).").
+- The error `<small>` has an id (`onb-err-<field>`); the field (on a card screen, its first option) carries
+  `aria-invalid="true"` and `aria-describedby` pointing at it, and focus moves there.
+- Summary grid: each cell's name includes its day type (a visually hidden prefix, "Rest day kcal"); every cell of a
+  row is described by that row's messages (`onb-msg-<day>-<n>`), and the cell a `checkTargets` error is about
+  (kcal, protein or fat) is `aria-invalid`.
 
 ### Keyboard
 
