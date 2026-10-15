@@ -160,8 +160,8 @@ function acquireLock (lockFile, { staleMs = LOCK_STALE_MS, retryDelayMs = LOCK_R
       try {
         const stat = fs.statSync(lockFile);
         if (Date.now() - stat.mtimeMs > staleMs) {
-          fs.rmSync(lockFile, { force: true });
-          continue; // retry immediately, no need to sleep
+          reclaimStaleLock(lockFile, stat);
+          continue; // retry immediately (reclaimed, or another process got there first), no need to sleep
         }
       } catch {
         continue; // the lock vanished between the failed open and this stat — just retry
@@ -172,11 +172,49 @@ function acquireLock (lockFile, { staleMs = LOCK_STALE_MS, retryDelayMs = LOCK_R
   }
 }
 
+/**
+ * Removes the stale lock `seen` (the fs.Stats that judged it stale) and nothing else: the lock is renamed to a
+ * claim file first (atomic, so of two processes that judged the same lock stale only one gets it), and the
+ * claim is deleted only when it is still that file (same dev, inode and mtime). If a fresh lock had already
+ * replaced it, it is linked back into place (unless yet another lock took the path meanwhile). True when this
+ * call removed the stale lock.
+ */
+function reclaimStaleLock (lockFile, seen) {
+  const claim = `${lockFile}.${process.pid}.reclaim`;
+  try {
+    fs.renameSync(lockFile, claim);
+  } catch (err) {
+    if (err.code === 'ENOENT') return false; // another process reclaimed (or released) it first
+    throw err;
+  }
+  const st = fs.statSync(claim);
+  if (st.dev === seen.dev && st.ino === seen.ino && st.mtimeMs === seen.mtimeMs) {
+    fs.rmSync(claim, { force: true });
+    return true;
+  }
+  try {
+    fs.linkSync(claim, lockFile); // not the stale lock: give the fresh one back to its holder
+  } catch {
+    // EEXIST: a newer lock already holds the path; the displaced holder never removes it (releaseLock checks the pid)
+  }
+  fs.rmSync(claim, { force: true });
+  return false;
+}
+
+/** Removes the lock only when it holds OUR pid: after a run that outlived staleMs, another process may have
+ * reclaimed it, and its lock must survive. */
 function releaseLock (lockFile) {
+  let owner;
+  try {
+    owner = fs.readFileSync(lockFile, 'utf8').trim();
+  } catch {
+    return; // already gone — releasing an already-released lock is not an error
+  }
+  if (owner !== String(process.pid)) return;
   try {
     fs.unlinkSync(lockFile);
   } catch {
-    // already gone — releasing an already-released lock is not an error
+    // gone in between
   }
 }
 
@@ -241,6 +279,7 @@ export {
   mergeCsv,
   acquireLock,
   releaseLock,
+  reclaimStaleLock,
   withLock,
   parseCli,
   runCli,

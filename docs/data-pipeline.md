@@ -197,6 +197,9 @@ offset (like the energy hours).
   the usage and exits 2 before any request or write; a failure `main` did not handle prints one `ERROR:`
   line and exits 1. Each script's exported `main` returns its exit code (never `process.exit`) and takes its
   `env`, `log`, `error`, `fetchImpl` and output dir as injectable options, so a test calls it in-process. The
+  Shortcut and Strava syncs share `_meta.json` under one lockfile (`withLock`, `_meta.json.lock` holding the
+  pid): it is released only by the process whose pid it holds, and a lock older than 2 min is reclaimed by
+  an atomic rename that only one process can win (a fresh lock that took its place is put back). The
   food-log sync warns `unexpected response` for a body it cannot read (the service was reached) and
   `could not read the food log` when the service is not. Only the Shortcut sync takes a flag (`--full`); `npm run sync -- --full` passes it to
   that script alone.
