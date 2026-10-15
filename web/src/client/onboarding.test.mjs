@@ -375,3 +375,84 @@ test('the data screen is a numbered list of steps: the Shortcut button, the serv
   assert.match(h, /\(optional\)/);
   clean(h);
 });
+
+// WCAG 4.1.3 / 3.3.1: a refused step names its error in the live region already in the sheet (rendered empty,
+// then its text set in place) and ties the error text to the field it is about
+test('a refused choice screen announces its error and marks the first option invalid, described by the error', () => {
+  const node = { textContent: '' };
+  const s = setup({ statusNode: node });
+  s.act('next'); s.act('next'); // welcome, name
+  const renders = [];
+  const open = s.win.HCDetail.open;
+  s.win.HCDetail.open = (k, d, o) => { renders.push([s.html(), node.textContent]); open(k, d, o); };
+  s.act('next'); // sex: nothing picked
+  assert.equal(node.textContent, 'Pick one.');
+  assert.equal(renders.length, 1, 'one re-render');
+  assert.match(renders[0][0], /id="onb-status" role="status" aria-live="polite"><\/p>/, 'the region renders empty; the text is set into it after');
+  assert.equal(renders[0][1], '', 'the text arrives after the render');
+  s.win.HCDetail.open = open;
+  const h = s.html();
+  assert.match(h, /<small class="food-err" id="onb-err-sex">Pick one\.<\/small>/);
+  assert.match(h, /name="onb-sex"[^>]*value="female" aria-invalid="true" aria-describedby="onb-err-sex"/);
+  assert.equal((h.match(/aria-invalid="true"/g) || []).length, 1, 'only the first option carries it');
+  assert.equal(s.opened.at(-1)[1], '[aria-invalid="true"], [data-onb-act="next"]', 'focus moves to the invalid option');
+  s.choose('sex', 'female'); s.act('next');
+  assert.doesNotMatch(s.html(), /aria-invalid|onb-err-sex/);
+  assert.match(s.html(), /id="onb-status" role="status" aria-live="polite"><\/p>/, 'a passed step clears the status');
+});
+
+test('a refused sports screen announces "Pick at least one." with the same wiring', () => {
+  const node = { textContent: '' };
+  const s = setup({ statusNode: node });
+  toSports(s);
+  s.act('next');
+  assert.equal(node.textContent, 'Pick at least one.');
+  const h = s.html();
+  assert.match(h, /<small class="food-err" id="onb-err-sport">Pick at least one\.<\/small>/);
+  assert.match(h, /data-onb-field="sport" value="[a-z]+" aria-invalid="true" aria-describedby="onb-err-sport"/);
+});
+
+test('a refused text field is described by its error, and the error is announced', () => {
+  const node = { textContent: '' };
+  const s = setup({ statusNode: node });
+  s.act('next'); s.act('next'); s.choose('sex', 'male'); s.act('next');
+  s.field('birthdate', '1990-01-01'); s.act('next');
+  s.field('heightCm', '300'); s.act('next');
+  assert.equal(node.textContent, 'Height between 120 and 230 cm.');
+  assert.match(s.html(), /id="onb-heightCm"[^>]*aria-invalid="true" aria-describedby="onb-err-heightCm"/);
+  assert.match(s.html(), /<small class="food-err" id="onb-err-heightCm">/);
+});
+
+test('a refused summary announces the first blocking bound with its day; the offending cell is invalid and described', () => {
+  const node = { textContent: '' };
+  const s = setup({ statusNode: node });
+  toSafety(s, [['yoga', '60', '3']]);
+  s.act('next'); s.act('next'); // safety, maintain -> summary
+  s.act('adjust');
+  s.cellEdit('rest.kcal', '400');
+  s.act('next');
+  assert.equal(node.textContent, 'Rest day: Below the safe minimum (1200 kcal).');
+  const h = s.html();
+  assert.match(h, /<small class="food-err" id="onb-msg-rest-0">Below the safe minimum \(1200 kcal\)\.<\/small>/);
+  assert.match(h, /data-onb-cell="rest\.kcal"[^>]*aria-invalid="true" aria-describedby="onb-msg-rest-0[^"]*"/);
+  assert.doesNotMatch(h, /data-onb-cell="rest\.p"[^>]*aria-invalid/, 'only the cell the bound is about');
+  assert.match(h, /data-onb-cell="rest\.p"[^>]*aria-describedby="onb-msg-rest-0[^"]*"/, 'every cell of the row points at its messages');
+  assert.doesNotMatch(h, /data-onb-cell="gym\.kcal"[^>]*aria-invalid/);
+});
+
+test('each adjust cell names its day type (sr-only), so "kcal" is never ambiguous', () => {
+  const s = setup();
+  toSafety(s, [['yoga', '60', '3']]);
+  s.act('next'); s.act('next');
+  s.act('adjust');
+  const h = s.html();
+  for (const [d, name] of [['rest', 'Rest day'], ['gym', 'Short session']]) {
+    for (const [k, lbl] of [['kcal', 'kcal'], ['p', 'Prot\\. g'], ['f', 'Fat g']]) {
+      assert.match(h, new RegExp(`<label class="onb-cell"><span class="food-lbl"><span class="sr-only">${name} </span>${lbl}</span><input class="food-in" data-onb-cell="${d}\\.${k}"`), d + '.' + k);
+    }
+  }
+  const es = setup({ locale: 'es' });
+  toSafety(es, [['yoga', '60', '3']]);
+  es.act('next'); es.act('next'); es.act('adjust');
+  assert.match(es.html(), new RegExp(`<span class="sr-only">${esO.summary.days.rest} </span>`));
+});

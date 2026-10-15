@@ -149,6 +149,26 @@ test('blocks git -C <dir> add -f of a personal file', () => {
   assertBlocked(runHook(cmd), cmd);
 });
 
+test('blocks git update-index --add of a personal file (stages an ignored path like add -f)', () => {
+  for (const cmd of [
+    'git update-index --add web/dist/personal/index.html',
+    'git update-index --add -- web/dist/personal/index.html',
+    'git -C data/weight update-index --add weight-log.md',
+    'git update-index --add --cacheinfo 100644,e69de29bb2d1d6434b8b29ae775ad8c2e48c5391,web/dist/personal/index.html',
+    'git update-index --add --cacheinfo 100644 e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 web/dist/personal/index.html',
+    'git update-index --add --stdin < list.txt',
+    // --index-info stages whatever entries it reads, ignored paths included, even WITHOUT --add
+    'git update-index --index-info < info.txt',
+    'printf x | git update-index --index-info',
+    'git update-index -z --index-info < info.txt',
+  ]) {
+    assertBlocked(runHook(cmd), cmd);
+  }
+  // without --add, update-index cannot stage a new path; a tracked file stays allowed
+  assertAllowed(runHook('git update-index --refresh'), 'refresh');
+  assertAllowed(runHook('git update-index --add README.md'), 'tracked file');
+});
+
 test('an allowed argument never cancels a personal one', () => {
   assertBlocked(runHook(forceAdd('data/profile/sync-profile.mjs', 'data/profile/settings.json')), 'mixed');
   assertBlocked(runHook(forceAdd('data/gear/.gitkeep', 'data/gear/edge-manual.pdf')), 'mixed .gitkeep');

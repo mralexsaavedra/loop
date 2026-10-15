@@ -28,8 +28,8 @@ limit_req_zone $binary_remote_addr zone=hc_api:1m rate=10r/s;
 limit_req_zone $binary_remote_addr zone=hc_ingest:1m rate=60r/m;
 
 # The data service, reached over the ingest stack's Docker network (loop-net, docker-compose.yml) by its
-# service name, never through a port published on the host: so INGEST_BIND=127.0.0.1 (or the LAN IP) on the
-# ingest side never cuts this proxy off. `resolve` + Docker's embedded DNS (127.0.0.11) look the name up at
+# service name, never through a port published on the host: so INGEST_BIND=127.0.0.1 on the ingest side never
+# cuts this proxy off. `resolve` + Docker's embedded DNS (127.0.0.11) look the name up at
 # run time: nginx starts (and serves the page) while loop-ingest is down, and follows its new address after
 # the ingest container is recreated (502 meanwhile). docs/lan-services.md -> Network and bind address.
 resolver 127.0.0.11 valid=10s ipv6=off;
