@@ -2976,8 +2976,6 @@
   "|||.tabnav button:focus-visible|||outline": "2px solid var(--accent)",
   "|||.tabnav button:focus-visible|||outline-offset": "-2px",
   "|||.tabnav button:hover|||color": "var(--muted)",
-  "|||.tabnav button[aria-pressed=true]:hover|||color": "var(--ink)",
-  "|||.tabnav button[aria-pressed=true]|||color": "var(--ink)",
   "|||.tabnav button|||align-items": "center",
   "|||.tabnav button|||background": "transparent",
   "|||.tabnav button|||border": "0",
@@ -4359,5 +4357,7 @@
   "|||.onb-steps small, .onb-steps code|||letter-spacing": "0",
   "|||.onb-steps small, .onb-steps code|||text-transform": "none",
   "|||.onb-steps code|||color": "var(--ink)",
-  "|||.onb-steps .chip|||text-decoration": "none"
+  "|||.onb-steps .chip|||text-decoration": "none",
+  "|||.tabnav button[aria-current=page]|||color": "var(--ink)",
+  "|||.tabnav button[aria-current=page]:hover|||color": "var(--ink)"
 }

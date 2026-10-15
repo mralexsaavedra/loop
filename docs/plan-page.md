@@ -22,7 +22,8 @@ The single-file Astro page in `web/`: build modes, shared client helpers, tabs a
 ## Build & single-file output
 
 ONE Astro project in `web/` builds to a single self-contained HTML file: no external requests, no
-`_astro/` asset directory, CSP-safe. `scripts/build-web.mjs` drives the build:
+`_astro/` asset directory, with its own Content-Security-Policy ([below](#content-security-policy)).
+`scripts/build-web.mjs` drives the build:
 
 ```
 node scripts/build-web.mjs [--mode personal|example] [--locale es|en]   # or DATA_MODE/LOCALE env vars
@@ -56,13 +57,40 @@ It writes `web/dist/<mode>/index.html`.
 - The built page drops comments and may re-print quotes / number literals (`'x'` → `"x"`): a test that
   matches a script in the built HTML compares against `slimScript(source)` or a whitespace / quote
   tolerant regex, never the raw file. Baked JSON globals are not touched.
-- CSS: the `slim-inline-css` integration (`web/astro.config.mjs`) runs every built `<style>` through
+- CSS: the `page-post-build` integration (`web/astro.config.mjs`) runs every built `<style>` through
   `slimStyle` (same module, esbuild `loader: 'css'`, whitespace + comments only; Vite's `cssMinify` stays
   off), so CSS tests parse it through `web/test/css-scan.mjs` (`a>b`, `[t=x]`).
 - `web/test/css-parity.test.mjs` checks the example build's declarations against
   `web/test/fixtures/css-expected.json` both ways (dropped/changed AND added fail). After a deliberate CSS
   change: `npm run test:css:update` (after `npm test` / `npm run pretest`; keeps key order, appends new
   keys, deletes stale ones).
+
+### Content-Security-Policy
+
+The `page-post-build` integration (`web/astro.config.mjs`) writes the policy LAST, after the CSS is slimmed,
+from `web/src/csp.mjs`, as a `<meta http-equiv="Content-Security-Policy">` right after `<meta charset>`
+(so it also applies when the file opens from disk):
+
+| Directive | Value | Why |
+| --- | --- | --- |
+| `default-src` | `'none'` | anything not listed is refused |
+| `script-src` | one `'sha256-…'` per distinct inline `<script>` body | every script is `is:inline`; never `'unsafe-inline'`, so inline event handlers are blocked |
+| `style-src` | `'unsafe-inline'` | the client writes computed `style="width:…"` attributes into its markup, which no hash can cover |
+| `img-src`, `font-src` | `data:` | favicon, touch icon, avatar and the two fonts are inlined data URIs |
+| `connect-src` | `'self'` | the LAN APIs (`/api/*`, `/status.json`, the `/manuales/` probe) are same-origin |
+| `base-uri`, `form-action`, `object-src` | `'none'` | no `<base>`, no native form submit, no plugins |
+
+- No inline `on*=` handler anywhere: navigation is delegated. `client/core.js` listens on the document for
+  `data-tab-go="<tab>"` (empty = the default tab: the wordmark) and `data-jump="<id>"` (in-page links);
+  `client/score.js` for the load pages' `data-mod="<modality>"` pills.
+- The personal plan's trusted notes (`page.notes`) may still write the legacy `onclick="jump('<id>')"` /
+  `onclick="setTab('<tab>')"`: the build rewrites exactly those two into `data-jump` / `data-tab-go` and
+  warns (`page-csp: … inline handler(s)`) about any other handler, which the browser would block.
+- A change to a script body after the policy is written breaks its hash: the policy step stays last.
+- The LAN server adds only `frame-ancestors 'none'` as a header (a meta policy cannot carry it;
+  `services/loop-web/nginx.conf.template`); browsers enforce both.
+- Guards: `web/test/csp.test.mjs` (built page: no `on*=` handler, the meta first in `<head>`, `script-src`
+  = exactly the hashes of its scripts, no `'unsafe-*'`) and `web/src/csp.test.mjs` (the helpers).
 
 ## Compute modules & the fs boundary
 
@@ -239,7 +267,7 @@ in tracked Astro/JS source, which stays fully generic.
   `#111619`, the three-arc ring); `apple-touch-icon` = `loop-touch-icon.png` (180×180, full square: iOS
   rounds it).
 - **Wordmark** (`.wordmark`, rendered by `layouts/Plan.astro` INSIDE `.topbar` between the avatar and the
-  date pill, every tab): a `<button>` named "LOOP · Home" that opens Home — `setTab(defaultTab())`, the
+  date pill, every tab): a `<button>` named "LOOP · Home" that opens Home — `data-tab-go=""`, the
   first visible tab, scrolled to the top.
   - Phone: the bar's middle column. From 900 px: the bar's first column on the left (the 960 px column's
     left edge, 30 px letters ≈ 20 px caps) and the avatar moves to the right end beside freshness / Sync,
@@ -308,6 +336,9 @@ in tracked Astro/JS source, which stays fully generic.
   blurred, 24 px radius, max 440 px, centred); four equal icon + small sentence-case label buttons
   (active white, inactive `--faint`) that fit a 360 px phone next to the "+", safe-area insets on
   bottom/left/right.
+- Markup: a labelled `<nav class="tabnav">` of plain `<button type="button" id="t-<tab>" data-tab-go="<tab>">`;
+  the shown tab's button carries `aria-current="page"` (moved by `client/core.js` `showTab`). No
+  `role="tab"` / `aria-pressed` (that mix is invalid ARIA); `web/test/nav-shell.test.mjs` pins it.
 - No top nav at any width, so jump targets only clear the collapsed dial row (`scroll-margin-top: 64px`).
 - `--dock-room` (`calc(96px + env(safe-area-inset-bottom))`: the 64 px bar, its 10 px lift, 22 px of air,
   the home-indicator inset) keeps the bottom free: the body pads every tab's end with it and
@@ -317,7 +348,7 @@ in tracked Astro/JS source, which stays fully generic.
 ### "+" action button
 
 - `#act` (`client/nav-actions.js`): a separate 56 px white circular button to the RIGHT of the dock,
-  outside the tablist.
+  outside the tab nav. Its popover `#act-pop` is a labelled `role="group"` of buttons, not a dialog.
 - Opens a navy → violet popover card (12 px radius, gradient from `--link` at 15 % to `--insight-b` at
   62 %, each mixed into `--surface`; 47 px icon + uppercase label rows) over a scrim that dims the page
   40 % with a 4 px blur; the "+" turns 45° into an "×" labelled "Cerrar acciones".
@@ -385,6 +416,10 @@ bottom dock. Blocks inside a tab are SECTIONS (`data-section="<key>"`,
 - A legacy section key writes its HOSTING tab's hash; a hidden tab (no nav button) is never written;
   nothing is written while the sheet is open (its `#detail/…` owns the URL).
 - `window.HCNav.hash()` = the current tab's hash, read by detail.js.
+- core.js runs in one function scope; its page globals are only `setTab`, `jump`, `jumpOr`, `currentTab`
+  (read by today-date.js) and `HCNav`.
+- `jump(id)` scrolls smoothly, instantly when the viewer prefers reduced motion
+  (`prefers-reduced-motion: reduce`, read per jump).
 - Every history / location access is in a try/catch (a sandboxed frame still switches tabs).
 
 ### On load and on `hashchange`

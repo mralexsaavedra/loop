@@ -84,13 +84,13 @@
   max-width: 100%;
 }
 /* active tab: white icon + label (inactive ones stay --faint grey) */
-.tabnav button[aria-pressed="true"] {
+.tabnav button[aria-current="page"] {
   color: var(--ink);
 }
 .tabnav button:hover {
   color: var(--muted);
 }
-.tabnav button[aria-pressed="true"]:hover {
+.tabnav button[aria-current="page"]:hover {
   color: var(--ink);
 }
 .tabnav button:focus-visible {

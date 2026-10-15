@@ -53,7 +53,8 @@ test('the wordmark sits inside the top bar, between the avatar and the date pill
 
 test('the wordmark is a button back to Inicio (the default tab, scrolled to the top), named for screen readers', () => {
   const tag = /<button type="button" class="wordmark"[^>]*>/.exec(html)[0];
-  assert.match(tag, /onclick="setTab\(defaultTab\(\)\)"/, 'the first visible tab = Inicio unless page.hideTabs hides it');
+  assert.match(tag, /data-tab-go=""/, 'empty = the default tab: the first visible one, Inicio unless page.hideTabs hides it (client/core.js)');
+  assert.doesNotMatch(tag, /onclick/);
   assert.match(tag, /aria-label="LOOP · Home"/);
 });
 

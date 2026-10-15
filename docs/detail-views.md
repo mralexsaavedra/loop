@@ -455,7 +455,8 @@ All three follow the day they were opened on (strain: `X.sel`, else the view end
 
 ### Modal and focus
 
-- `#detail` (role="dialog", aria-modal, labelled by the title) renders in `layouts/Plan.astro`'s `overlay`
+- `#detail` (role="dialog", aria-modal, labelled ONLY by the open view's title `#dt-title` through
+  `aria-labelledby`; no `aria-label` beside it, which made a second competing name) renders in `layouts/Plan.astro`'s `overlay`
   slot OUTSIDE `.wrap`, which goes `inert` while open (page scroll locked); `.wrap` also gets
   `aria-hidden` while open (fallback where `inert` is unsupported).
 - Focus moves to the close button and Tab stays inside. Esc / the close button / a tap on the backdrop

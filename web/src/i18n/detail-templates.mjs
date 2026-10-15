@@ -4,7 +4,6 @@
 import { en as enS, es as esS, RECOVERY_UNIT } from './score-templates.mjs';
 const UE = RECOVERY_UNIT.en, US = RECOVERY_UNIT.es;
 export const en = {
-  dialogLabel: 'Detail',
   close: 'Close',
   rangeLabel: 'Range',
   ranges: { w: 'W', m: 'M', m6: '6M', y: '1Y' },
@@ -362,7 +361,6 @@ export const en = {
 };
 
 export const es = {
-  dialogLabel: 'Detalle',
   close: 'Cerrar',
   rangeLabel: 'Periodo',
   ranges: { w: 'S', m: 'M', m6: '6M', y: '1A' },
