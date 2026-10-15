@@ -194,7 +194,10 @@ offset (like the energy hours).
   `services/loop-ingest/.env`, for `INGEST_TOKEN` / `INGEST_PORT`) and one command line (`parseCli` /
   `runCli`): `--help` prints the usage and exits 0; an unknown flag or a stray argument prints `ERROR:` +
   the usage and exits 2 before any request or write; a failure `main` did not handle prints one `ERROR:`
-  line and exits 1. Only the Shortcut sync takes a flag (`--full`); `npm run sync -- --full` passes it to
+  line and exits 1. Each script's exported `main` returns its exit code (never `process.exit`) and takes its
+  `env`, `log`, `error`, `fetchImpl` and output dir as injectable options, so a test calls it in-process. The
+  food-log sync warns `unexpected response` for a body it cannot read (the service was reached) and
+  `could not read the food log` when the service is not. Only the Shortcut sync takes a flag (`--full`); `npm run sync -- --full` passes it to
   that script alone.
 - `extract.mjs` runs only as the entry point (`isMain`), and writes every CSV and `_meta.json` atomically.
 

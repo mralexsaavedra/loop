@@ -291,3 +291,34 @@ test('main(): an unexpected failure while writing -> one tidy ERROR line, exit 1
     fs.rmSync(dir, { recursive: true });
   }
 });
+
+// ---- main() returns its exit code (runCli sets it): called in-process, the runner is never killed ----
+
+function mainHarness (prefix) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const out = [], err = [];
+  const env = { INGEST_ENV_FILE: path.join(dir, 'no-such.env'), INGEST_URL: 'http://127.0.0.1:9' };
+  const refused = async () => { throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } }); };
+  const answer = (status, body) => async () => ({ ok: status < 300, status, json: async () => body });
+  const blocked = path.join(dir, 'a-file');
+  fs.writeFileSync(blocked, 'x');
+  return {
+    dir, env, refused, answer, out, err,
+    io: { log: (s) => out.push(s), error: (s) => err.push(s) },
+    unwritable: path.join(blocked, 'sub'), // a path under a regular file: every write fails
+    cleanup: () => fs.rmSync(dir, { recursive: true, force: true }),
+  };
+}
+
+test('main() in-process: missing token / unreachable / failed write -> returns 1', async () => {
+  const h = mainHarness('sync-profile-main-');
+  try {
+    assert.equal(await sp.main({ env: h.env, ...h.io, fetchImpl: h.refused, outDir: path.join(h.dir, 'p') }), 1);
+    assert.match(h.err.pop(), /no ingest token/);
+    const env = { ...h.env, INGEST_TOKEN: 't' };
+    assert.equal(await sp.main({ env, ...h.io, fetchImpl: h.refused, outDir: path.join(h.dir, 'p') }), 1);
+    assert.ok(!fs.existsSync(path.join(h.dir, 'p')));
+    assert.equal(await sp.main({ env, ...h.io, fetchImpl: h.answer(200, {}), outDir: h.unwritable }), 1);
+    assert.match(h.err.pop(), /^ERROR: profile sync failed/);
+  } finally { h.cleanup(); }
+});

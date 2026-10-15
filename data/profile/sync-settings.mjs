@@ -95,26 +95,29 @@ Snapshots the page's settings (goal, target weight) from the ingest service into
   -h, --help   this help
 Env: INGEST_URL, INGEST_ENV_FILE (default services/loop-ingest/.env, for its INGEST_PORT).`
 
-async function main () {
-  const baseUrl = common.readBaseUrl(process.env)
+// The CLI entry; env / log / error / fetchImpl / outDir are injectable for tests. Returns the exit code: an
+// unreachable service is a warning (0), a failed write 1.
+async function main ({ env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = OUT } = {}) {
+  const baseUrl = common.readBaseUrl(env)
   let body
   try {
-    body = await fetchSettings(baseUrl)
+    body = await fetchSettings(baseUrl, { fetchImpl })
     normalizeSettings(body)
   } catch (err) {
-    console.error(warning(err, baseUrl))
-    return
+    error(warning(err, baseUrl))
+    return 0
   }
   try {
-    const r = syncSettings(OUT, body)
+    const r = syncSettings(outDir, body)
     const s = r.settings
-    console.log(`Settings: goal ${s.goal || 'not set'}, target ${s.targetWeightKg != null ? `${s.targetWeightKg} kg` : 'not set'}; ${r.written ? 'written' : 'unchanged'}`)
+    log(`Settings: goal ${s.goal || 'not set'}, target ${s.targetWeightKg != null ? `${s.targetWeightKg} kg` : 'not set'}; ${r.written ? 'written' : 'unchanged'}`)
+    return 0
   } catch (err) {
-    console.error(`ERROR: settings sync failed (${(err && err.message) || err}). The file is only ever replaced atomically.`)
-    process.exit(1)
+    error(`ERROR: settings sync failed (${(err && err.message) || err}). The file is only ever replaced atomically.`)
+    return 1
   }
 }
 
-if (isMain(import.meta.url)) common.runCli(main, { usage: USAGE })
+if (isMain(import.meta.url)) common.runCli(() => main(), { usage: USAGE })
 
 export { SETTINGS_JSON, GOALS, TARGET_MIN, TARGET_MAX, normalizeSettings, fetchSettings, syncSettings, warning, main }

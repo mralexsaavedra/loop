@@ -513,43 +513,46 @@ Merges the iOS Shortcut payloads stored by the ingest service into the Apple Hea
 Env: INGEST_URL, INGEST_TOKEN (else from the service .env), INGEST_ENV_FILE (default
 services/loop-ingest/.env), SHORTCUT_AUTOMATION (default "atajo-salud").`;
 
-async function main({ full = false } = {}) {
-  const baseUrl = common.readBaseUrl(process.env);
-  const automation = process.env.SHORTCUT_AUTOMATION || DEFAULT_AUTOMATION;
-  const token = common.readIngestToken(process.env);
+// The CLI entry (runCli passes the parsed flags); env / log / error / fetchImpl / outDir are injectable for
+// tests. Returns the exit code: 1 on a missing token, a bad cache or an unreachable service (no file touched).
+async function main({ full = false, env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = OUT } = {}) {
+  const baseUrl = common.readBaseUrl(env);
+  const automation = env.SHORTCUT_AUTOMATION || DEFAULT_AUTOMATION;
+  const token = common.readIngestToken(env);
   if (!token) {
-    console.error('ERROR: no ingest token. Set INGEST_TOKEN or create services/loop-ingest/.env. No files touched.');
-    process.exit(1);
+    error('ERROR: no ingest token. Set INGEST_TOKEN or create services/loop-ingest/.env. No files touched.');
+    return 1;
   }
-  const readFile = name => { const p = path.join(OUT, name); return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null; };
+  const readFile = name => { const p = path.join(outDir, name); return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null; };
   let sinceId;
   try {
     sinceId = readCache(readFile, full).cache.lastPayloadId || '0';
   } catch (err) {
-    console.error(`ERROR: ${err.message}. No files touched.`);
-    process.exit(1);
+    error(`ERROR: ${err.message}. No files touched.`);
+    return 1;
   }
   let items;
   try {
-    items = await fetchAllPayloads({ baseUrl, token, automation, sinceId });
+    items = await fetchAllPayloads({ baseUrl, token, automation, sinceId, fetchImpl });
   } catch (err) {
-    console.error(`ERROR: could not read from the ingest service at ${baseUrl} (${err.cause?.code || err.message}). Is it running? No files touched.`);
-    process.exit(1);
+    error(`ERROR: could not read from the ingest service at ${baseUrl} (${err.cause?.code || err.message}). Is it running? No files touched.`);
+    return 1;
   }
-  const { writes, stats, cache, warnings } = syncDir(OUT, items, { full });
-  console.log(`Synced ${items.length} new "${automation}" payload(s)${full ? ' (full rebuild)' : ''}; ${cache.payloads} cached → ${OUT}`);
+  const { writes, stats, cache, warnings } = syncDir(outDir, items, { full });
+  log(`Synced ${items.length} new "${automation}" payload(s)${full ? ' (full rebuild)' : ''}; ${cache.payloads} cached → ${outDir}`);
   for (const [metric, st] of Object.entries(stats)) {
-    console.log(`  ${metric}: ${st.added} shortcut row(s) for ${range(st.addedDates)}; ${st.rows} rows total`);
+    log(`  ${metric}: ${st.added} shortcut row(s) for ${range(st.addedDates)}; ${st.rows} rows total`);
   }
-  for (const w of warnings) console.log(`  WARNING: ${w}`);
-  if (!Object.keys(writes).length) console.log('  (no changes)');
+  for (const w of warnings) log(`  WARNING: ${w}`);
+  if (!Object.keys(writes).length) log('  (no changes)');
+  return 0;
 }
 
-if (isMain(import.meta.url)) common.runCli(main, { usage: USAGE, options: { full: { type: 'boolean' } } });
+if (isMain(import.meta.url)) common.runCli(({ full }) => main({ full }), { usage: USAGE, options: { full: { type: 'boolean' } } });
 
 export {
   METRICS, SHORTCUT_SOURCE, sleepStageOf,
   parseNumber, parsePayload, collectSamples, unionMinutes, buildRows, mergeCsv, updateMeta,
   planSync, resolveToken, fetchAllPayloads,
-  CACHE_FILE, emptyCache, foldPayloads, writeAtomic, syncDir, dropPhantomWeights,
+  CACHE_FILE, emptyCache, foldPayloads, writeAtomic, syncDir, dropPhantomWeights, main,
 };
