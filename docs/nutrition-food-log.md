@@ -103,7 +103,9 @@ Routes (`src/food.js`):
 
 - Strict hand-written validation: unknown keys refused, trimmed + capped strings, per-100 kcal ≤ 900 and
   macros ≤ 100 g, amounts ≤ 5000, dates round-trip (any valid date 2000–2100), recipe macros never accepted
-  from the client; `400 atwater` unless `force: true` (the page offers "save anyway").
+  from the client; `400 atwater` unless `force: true` (the page offers "save anyway"). A log entry whose computed
+  snapshot would not fit its columns (kcal > 999 999.9 or a macro > 99 999.9, e.g. many servings of a product
+  with a large serving size) is `400 invalid` on `amount`, never a database overflow.
 - Errors are coarse `{error, field?}` codes, never DB text: `invalid`, `atwater`, `barcode_exists`,
   `unknown_product`, `unknown_recipe`, `recipe_incomplete`, `unit`, `not_found`, `rate_limited`, `off_*`,
   `payload_too_large`, `internal`. An unknown `/food/*` path is always `404`.

@@ -514,6 +514,7 @@ function inspectGit(args, cwd, out, ctx) {
   if (!sub) return;
   const rest = args.slice(i + 1);
   if (sub === 'add' || sub === 'stage') inspectAdd(rest, gitCwd, out, ctx.viaXargs);
+  else if (sub === 'update-index') inspectUpdateIndex(rest, gitCwd, out, ctx.viaXargs);
   else expandAlias(sub, rest, gitCwd, out, { ...ctx, aliases }, configOpts);
 }
 
@@ -591,6 +592,54 @@ function inspectAdd(addArgs, gitCwd, out, viaXargs) {
   if (!force) return;
   if (unknownSource) out.push({ cwd: gitCwd, spec: '(pathspecs read from stdin/file)', unknown: true });
   if (!specs.length && all) out.push({ cwd: gitCwd, spec: ':/', unknown: false });
+  for (const s of specs) out.push({ cwd: gitCwd, spec: s.word, unknown: s.dynamic || gitCwd === null });
+}
+
+/**
+ * `git update-index --add <path>` stages a path that `git add` would refuse because it is ignored, so with
+ * --add its paths are judged like force-add targets: plain path arguments, the path of `--cacheinfo
+ * <mode>,<object>,<path>` (or its three-argument form), and paths read from stdin (--stdin) as an
+ * unresolvable source. Without --add, plain paths and --cacheinfo cannot add a new path (git refuses), but
+ * --index-info stages whatever entries it reads, ignored paths included, so it is always an unresolvable add.
+ */
+function inspectUpdateIndex(uiArgs, gitCwd, out, viaXargs) {
+  let add = false;
+  let indexInfo = false;
+  let unknownSource = viaXargs;
+  const specs = [];
+  let endOfOptions = false;
+  for (let i = 0; i < uiArgs.length; i++) {
+    const a = uiArgs[i];
+    const w = a.word;
+    if (!endOfOptions && w === '--') {
+      endOfOptions = true;
+    } else if (!endOfOptions && w === '--add') {
+      add = true;
+    } else if (!endOfOptions && w === '--index-info') {
+      indexInfo = true;
+    } else if (!endOfOptions && w === '--stdin') {
+      unknownSource = true;
+    } else if (!endOfOptions && w.startsWith('--cacheinfo')) {
+      const inline = w.includes('=') ? w.slice(w.indexOf('=') + 1) : null;
+      const next = inline ?? (uiArgs[i + 1] && uiArgs[i + 1].word);
+      if (next && next.split(',').length === 3) {
+        if (!inline) i++;
+        specs.push({ ...(inline ? a : uiArgs[i]), word: next.split(',')[2] });
+      } else if (uiArgs[i + 3]) {
+        specs.push(uiArgs[i + 3]); // --cacheinfo <mode> <object> <path>
+        i += 3;
+      } else {
+        unknownSource = true;
+      }
+    } else if (!endOfOptions && w.startsWith('-')) {
+      // another option (--remove, --chmod=+x, --info-only, ...): no path argument of its own
+    } else {
+      specs.push(a);
+    }
+  }
+  if (indexInfo) out.push({ cwd: gitCwd, spec: '(index entries read by --index-info)', unknown: true });
+  if (!add) return;
+  if (unknownSource) out.push({ cwd: gitCwd, spec: '(paths read from stdin/file)', unknown: true });
   for (const s of specs) out.push({ cwd: gitCwd, spec: s.word, unknown: s.dynamic || gitCwd === null });
 }
 

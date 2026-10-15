@@ -937,3 +937,20 @@ test('text fields refuse U+0000 and the C0 control characters (tab / LF / CR sti
     assert.equal(ok.body.product.name, 'Yogur natural bio')
   } finally { await t.close() }
 })
+
+test('log: a snapshot too big for the stored columns (kcal NUMERIC(7,1), macros NUMERIC(6,1)) is refused 400 on amount, never a 500', async () => {
+  const t = await setup()
+  try {
+    // within every input limit: a 5000 g serving of a 900 kcal / 100 g food, logged 30 times = 1 350 000 kcal
+    const big = (await t.call('POST', '/food/products', { body: { name: 'Big', store: 'other', unit: 'g', per100: { kcal: 900, protein: 0, carbs: 0, fat: 100 }, servingSize: 5000, source: 'manual' } })).body.product
+    const base = { date: '2030-01-10', meal: 'lunch', refType: 'product', refId: big.id, unit: 'serving' }
+    const r = await t.call('POST', '/food/log', { body: { ...base, amount: 30 } })
+    assert.deepEqual([r.status, r.body], [400, { error: 'invalid', field: 'amount' }])
+    // kcal fits (22 * 45 000 = 990 000) but fat does not (22 * 5000 g = 110 000 g > 99 999.9)
+    assert.deepEqual((await t.call('POST', '/food/log', { body: { ...base, amount: 22 } })).body, { error: 'invalid', field: 'amount' })
+    // a large but storable entry still logs (2 servings = 90 000 kcal, 10 000 g fat)
+    const ok = await t.call('POST', '/food/log', { body: { ...base, amount: 2 } })
+    assert.equal(ok.status, 201)
+    assert.equal(ok.body.entry.kcal, 90000)
+  } finally { await t.close() }
+})

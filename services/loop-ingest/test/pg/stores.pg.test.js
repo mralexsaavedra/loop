@@ -164,6 +164,12 @@ test('HTTP: the food and journal routes write through to Postgres', { skip }, as
     assert.equal(e.status, 201)
     const day = await call('GET', '/food/log?date=2030-02-01')
     assert.deepEqual([day.status, day.body.entries.length, day.body.totals.kcal], [200, 1, 186])
+    // a serving logged within amountMax whose snapshot overflows NUMERIC(7,1) / NUMERIC(6,1): 400, not a 500
+    const big = await call('POST', '/food/products', { name: 'Big', store: 'other', unit: 'g', per100: { kcal: 900, protein: 0, carbs: 0, fat: 100 }, servingSize: 5000, source: 'manual' })
+    const over = await call('POST', '/food/log', { date: '2030-02-01', meal: 'lunch', refType: 'product', refId: big.body.product.id, amount: 30, unit: 'serving' })
+    assert.deepEqual([over.status, over.body], [400, { error: 'invalid', field: 'amount' }])
+    const edge = await call('POST', '/food/log', { date: '2030-02-01', meal: 'lunch', refType: 'product', refId: big.body.product.id, amount: 19.9, unit: 'serving' })
+    assert.deepEqual([edge.status, edge.body.entry.fat], [201, 99500], 'the largest storable amounts still log')
     const j = await call('PUT', '/journal/day', { date: '2030-02-01', answers: { alcohol: 1 } })
     assert.equal(j.status, 200)
     assert.deepEqual((await createJournalStore(pool).getDay('2030-02-01')).answers, { alcohol: 1 })

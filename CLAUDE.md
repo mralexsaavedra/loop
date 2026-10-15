@@ -59,7 +59,7 @@ you MUST follow for any number you produce).
 | `npm run check` | Validators only, no build (plan, ingredients, `training-data.json`, `profile/profile.json`) |
 | `node data/apple-health/extract.mjs` | Rebuild the extract CSVs from a new `export.xml` (then re-run `npm run sync`) |
 | `npm test` | Full suite; run it before and after any code change |
-| `npm run lint` / `npm run typecheck` | ESLint over the repo / `tsc` over `lib/` (both run in CI) |
+| `npm run lint` / `npm run typecheck` | ESLint over the repo / `tsc` over `lib/`, `data/` and `scripts/` (tests excluded; both run in CI) |
 
 **Changing the code?** Read [`docs/development.md`](docs/development.md) first: the test, golden and fixture
 commands, the generated files and their generators, the guards, and the workflow.

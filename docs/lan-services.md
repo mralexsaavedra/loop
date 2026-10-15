@@ -132,9 +132,9 @@ the ingest port published on the host: that publish (`INGEST_PORT`, required) on
 scripts and `refresh.sh`, which call `http://localhost:<INGEST_PORT>`. Hence the binds:
 
 - `INGEST_BIND=127.0.0.1` (`services/loop-ingest/.env`) is the recommended hardening: loopback only, so nothing on
-  the LAN reaches `/export/*`, `/sync/strava` or the food log except through loop-web's nginx. A LAN IP works too
-  (LAN clients then reach the service directly; the bearer routes still need the token). Unset = every address,
-  as before. Docker-published ports bypass ufw / firewalld, so this is the only filter on them.
+  the LAN reaches `/export/*`, `/sync/strava` or the food log except through loop-web's nginx. Do not set it to the LAN IP: the host's sync
+  scripts and `refresh.sh` call `localhost:<INGEST_PORT>`, so a LAN-IP-only publish breaks `npm run sync` and the Sync
+  button (the page would silently rebuild from old CSVs). Unset = every address, as before. Docker-published ports bypass ufw / firewalld, so this is the only filter on them.
 - `PLAN_WEB_BIND` (`services/loop-web/.env`) is the page's address: the LAN IP on a host with a public address,
   unset otherwise.
 - Before `loop-net`, nginx went through `host.docker.internal` (the Docker bridge gateway), which a `127.0.0.1` or

@@ -83,21 +83,26 @@
   function q(text, hint) {
     return '<h3 class="onb-q">' + esc(text) + '</h3>' + (hint ? '<p class="pf-note">' + esc(hint) + '</p>' : '');
   }
+  // an inline error, with the id its field's aria-describedby points at
   function err(key) {
-    return S.errors[key] ? '<small class="food-err">' + esc(S.errors[key]) + '</small>' : '';
+    return S.errors[key] ? '<small class="food-err" id="onb-err-' + key + '">' + esc(S.errors[key]) + '</small>' : '';
+  }
+  function invalid(key) {
+    return S.errors[key] ? ' aria-invalid="true" aria-describedby="onb-err-' + key + '"' : '';
   }
   function input(key, value, opts) {
     opts = opts || {};
     var id = 'onb-' + key;
     return '<label class="food-field' + (opts.big ? ' onb-big' : '') + '" for="' + id + '"><span class="food-lbl">' + esc(opts.label || '') + '</span><span class="food-in-wrap"><input class="food-in" id="' + id +
       '" data-onb-field="' + key + '" type="' + (opts.type || 'text') + '"' + (opts.mode ? ' inputmode="' + opts.mode + '"' : '') + ' value="' + esc(value) + '"' +
-      (S.errors[opts.err || key] ? ' aria-invalid="true"' : '') + '>' + (opts.suffix ? '<span class="food-suffix">' + esc(opts.suffix) + '</span>' : '') +
+      invalid(opts.err || key) + '>' + (opts.suffix ? '<span class="food-suffix">' + esc(opts.suffix) + '</span>' : '') +
       '</span>' + err(opts.err || key) + '</label>';
   }
-  // big option cards: radios (one) or checkboxes (several); `o` = [{value, name, desc?, on}]
+  // big option cards: radios (one) or checkboxes (several); `o` = [{value, name, desc?, on}]. A refused
+  // choice marks the first option invalid and describes it by the error (the group's error text)
   function cards(key, type, o, label) {
-    return '<fieldset class="seg"><legend class="sr-only">' + esc(label) + '</legend>' + o.map(function (x) {
-      return '<label class="seg-opt onb-card"><input type="' + type + '" name="onb-' + key + '" data-onb-field="' + key + '" value="' + esc(x.value) + '"' + (x.on ? ' checked' : '') +
+    return '<fieldset class="seg"><legend class="sr-only">' + esc(label) + '</legend>' + o.map(function (x, i) {
+      return '<label class="seg-opt onb-card"><input type="' + type + '" name="onb-' + key + '" data-onb-field="' + key + '" value="' + esc(x.value) + '"' + (i === 0 ? invalid(key) : '') + (x.on ? ' checked' : '') +
         '><span class="chip seg-in onb-in"><b>' + esc(x.name) + '</b>' + (x.desc ? '<small>' + esc(x.desc) + '</small>' : '') + '</span></label>';
     }).join('') + '</fieldset>' + err(key);
   }
@@ -124,24 +129,36 @@
     sum += (7 - Math.min(7, total)) * t[S.goal].rest.kcal;
     return E.round50(sum / 7);
   }
+  // the summary's bounds for the chosen goal on the day types the week has (errors first, then warnings)
+  function summaryChecks(t, p) {
+    var res = E.checkTargets(t, p), used = E.usedDayTypes(p.sports);
+    return res.errors.concat(res.warnings).filter(function (x) { return x.goal === S.goal && used.indexOf(x.day) >= 0; });
+  }
+  function checkText(x, p) {
+    return T.errors[x.code] ? format(T.errors[x.code], { min: p.sex === 'male' ? 1500 : 1200 }) : T.warnings[x.code];
+  }
+  // the adjust cell a hard bound is about
+  var CELL_OF = { kcalFloor: 'kcal', deficitMax: 'kcal', surplusMax: 'kcal', rateMax: 'kcal', proteinMin: 'p', proteinMax: 'p', fatMin: 'f' };
   function summaryHtml() {
     var N = T.summary, t = targets(), p = person(), used = E.usedDayTypes(p.sports);
-    var res = E.checkTargets(t, p), mine = res.errors.concat(res.warnings).filter(function (x) { return x.goal === S.goal && used.indexOf(x.day) >= 0; });
-    var floor = E.computeTargets(p).flags.indexOf('floor') >= 0, min = p.sex === 'male' ? 1500 : 1200;
+    var mine = summaryChecks(t, p);
+    var floor = E.computeTargets(p).flags.indexOf('floor') >= 0;
     var rows = used.map(function (d) {
-      var c = t[S.goal][d], names = sportsOf(d);
-      var msgs = mine.filter(function (x) { return x.day === d; }).map(function (x) {
-        var txt = T.errors[x.code] ? format(T.errors[x.code], { min: min }) : T.warnings[x.code];
-        return '<small class="' + (T.errors[x.code] ? 'food-err' : 'pf-note') + '">' + esc(txt) + '</small>';
+      var c = t[S.goal][d], names = sportsOf(d), own = mine.filter(function (x) { return x.day === d; });
+      // each message has an id; every cell of the row is described by them, the cell a bound is about is invalid
+      var ids = own.map(function (x, i) { return 'onb-msg-' + d + '-' + i; });
+      var msgs = own.map(function (x, i) {
+        return '<small class="' + (T.errors[x.code] ? 'food-err' : 'pf-note') + '" id="' + ids[i] + '">' + esc(checkText(x, p)) + '</small>';
       }).join('');
       function cell(k, lbl) {
-        var bad = S.errors[d + '.' + k];
-        return '<label class="onb-cell"><span class="food-lbl">' + esc(lbl) + '</span><input class="food-in" data-onb-cell="' + d + '.' + k + '" inputmode="numeric" value="' + esc(String(c[k])) + '"' + (bad ? ' aria-invalid="true"' : '') + '></label>';
+        var bad = S.errors[d + '.' + k] || own.some(function (x) { return T.errors[x.code] && CELL_OF[x.code] === k; });
+        return '<label class="onb-cell"><span class="food-lbl"><span class="sr-only">' + esc(N.days[d]) + ' </span>' + esc(lbl) + '</span><input class="food-in" data-onb-cell="' + d + '.' + k +
+          '" inputmode="numeric" value="' + esc(String(c[k])) + '"' + (bad ? ' aria-invalid="true"' : '') + (ids.length ? ' aria-describedby="' + ids.join(' ') + '"' : '') + '></label>';
       }
       return '<li class="db-row"><span class="db-name">' + esc(N.days[d]) + (names.length ? '<br><small class="pf-goal-desc">' + esc(names.join(' · ')) + '</small>' : '') + '</span>' +
         '<span class="db-val"><b>' + esc(HC.int(c.kcal)) + '</b>' + esc(N.kcal) + '</span>' +
         (S.adjust ? '<div class="onb-cells">' + cell('kcal', N.kcal) + cell('p', N.p) + cell('f', N.f) +
-          '<label class="onb-cell"><span class="food-lbl">' + esc(N.c) + '</span><input class="food-in" value="' + esc(String(E.carbsOf(c))) + '" disabled></label></div>' : '') + msgs + '</li>';
+          '<label class="onb-cell"><span class="food-lbl"><span class="sr-only">' + esc(N.days[d]) + ' </span>' + esc(N.c) + '</span><input class="food-in" value="' + esc(String(E.carbsOf(c))) + '" disabled></label></div>' : '') + msgs + '</li>';
     }).join('');
     return q(N.q) + '<div class="onb-ring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="57"/></svg><b class="kcal">' + esc(HC.int(weekAverage(t))) +
       '</b><span class="pf-note">' + esc(N.hero) + '</span></div><p class="pf-note">' + esc(format(N.protein, { p: t[S.goal].rest.p })) + '</p>' +
@@ -240,8 +257,8 @@
     if (id === 'sports' && !S.picks.length) S.errors.sport = T.errors.sports;
     if (id === 'target') validTarget();
     if (id === 'summary') {
-      var res = E.checkTargets(targets(), person()), used = E.usedDayTypes(sports());
-      if (res.errors.some(function (x) { return x.goal === S.goal && used.indexOf(x.day) >= 0; })) S.errors.summary = true;
+      var p = person(), bad = summaryChecks(targets(), p).filter(function (x) { return T.errors[x.code]; })[0];
+      if (bad) S.errors.summary = T.summary.days[bad.day] + ': ' + checkText(bad, p);
     }
     return !Object.keys(S.errors).length;
   }
@@ -264,11 +281,11 @@
   }
   // a status set into the live region already in the sheet, so it is announced (a region re-rendered
   // together with its text is not); without the node, render first, then set the text
-  function setStatus(text) {
+  function setStatus(text, focus) {
     var get = function () { return document.getElementById ? document.getElementById('onb-status') : null; };
     if (!get()) {
       S.status = '';
-      reopen('[data-onb-act="save"]');
+      reopen(focus || '[data-onb-act="save"]');
     }
     S.status = text;
     var el = get();
@@ -291,21 +308,32 @@
     // under 18 with a real date is the safety screen's stop, not an input error
     var age = person().age;
     if (id === 'birth' && age != null && age >= 0 && age < 18) { S.screen = { numbers: false, goals: [], flags: ['minor'] }; return stop(); }
-    if (!valid(id)) return reopen('[aria-invalid="true"], [data-onb-act="next"]');
+    if (!valid(id)) return refuse();
     if (id === 'safety') {
       S.screen = screen();
       if (!S.screen.numbers) return stop();
       if (S.screen.goals.indexOf(S.goal) < 0) S.goal = S.screen.goals[0];
     }
     if (id === 'goal' || id === 'target') { S.edits = {}; S.adjust = false; }
+    S.status = '';
     var list = screens();
     S.at = list[Math.min(list.length - 1, list.indexOf(id) + 1)];
     reopen('[data-onb-act="' + (S.at === 'data' ? 'save' : 'next') + '"]');
+  }
+  // a refused step: re-render with the errors and an EMPTY live region, then set the first error into it, so a
+  // screen reader announces it (WCAG 4.1.3); focus goes to the first invalid field
+  function refuse() {
+    var focus = '[aria-invalid="true"], [data-onb-act="next"]';
+    var first = Object.keys(S.errors).map(function (k) { return S.errors[k]; }).filter(function (v) { return typeof v === 'string'; })[0] || '';
+    S.status = '';
+    reopen(focus);
+    setStatus(first, focus);
   }
   function back() {
     var list = screens();
     S.at = list[Math.max(0, list.indexOf(S.at) - 1)];
     S.errors = {};
+    S.status = '';
     reopen('[data-onb-act="next"]');
   }
   function doc() {
@@ -346,6 +374,7 @@
       var n = /^\d+$/.test(v) ? Number(v) : null;
       S.errors[cell] = n == null;
       if (n != null) S.edits[cell] = n;
+      if (e.type === 'change') S.status = ''; // the edit re-renders the region: a stale refusal must not linger
       return e.type === 'change' ? reopen('[data-onb-cell="' + cell + '"]') : undefined;
     }
     var key = t.getAttribute('data-onb-field');
