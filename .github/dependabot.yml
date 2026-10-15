@@ -12,9 +12,27 @@ updates:
   - package-ecosystem: docker
     directory: /services/loop-ingest
     schedule: { interval: weekly }
+    ignore:
+      # Major versions of the runtime and the database are planned upgrades, never a weekly bump: Node stays on the
+      # LTS line pinned in .nvmrc, and a new Postgres major cannot open the old data directory (dump and restore).
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+      - dependency-name: postgres
+        update-types: [version-update:semver-major]
+      - dependency-name: nginx
+        update-types: [version-update:semver-major]
   - package-ecosystem: docker-compose
     directories: [/services/loop-ingest, /services/loop-web]
     schedule: { interval: weekly }
+    ignore:
+      # Major versions of the runtime and the database are planned upgrades, never a weekly bump: Node stays on the
+      # LTS line pinned in .nvmrc, and a new Postgres major cannot open the old data directory (dump and restore).
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+      - dependency-name: postgres
+        update-types: [version-update:semver-major]
+      - dependency-name: nginx
+        update-types: [version-update:semver-major]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
