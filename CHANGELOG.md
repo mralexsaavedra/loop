@@ -21,6 +21,10 @@ from any source now takes the main in-bed block (at least 3 h; afternoon fragmen
 writes asleep data as an ESTIMATED night, source `<app> (in bed)`, stage columns blank; Salud and the sleep sheet
 label it. The iPhone's bedtime record never counts, and an Apple Watch never estimates, so Watch output is unchanged.
 Re-run `node data/apple-health/extract.mjs` on a new export (and `npm run sync -- --full` for cached Shortcut nights).
+Resting HR: where no device measures it, the extractor derives it from the night's heart rate (the lowest 30-minute
+mean between 00:00 and 07:00, at least 4 samples per window and 3 night hours), source `<app> (derived)`; a measured
+value always wins and an Apple Watch never gets one. Export only for now (the Shortcut's heart-rate samples cannot
+carry it). Recovery without HRV says so: "Partial: no HRV" on the card, scored on resting HR and sleep.
 
 ## 2026-10-15 (confirmed) — Confirmation-check follow-ups
 

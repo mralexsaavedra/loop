@@ -326,3 +326,26 @@ test('a Mi Fitness export: in-bed-only nights become ESTIMATED sleep rows ("Mi F
       '2030-01-03,8.50,Mi Fitness (in bed),0.25,8.75,,,,,,\n');
   } finally { x.cleanup(); }
 });
+
+test('a Mi Fitness export: resting HR is DERIVED from the night\'s hour-bucket heart rate ("Mi Fitness (derived)"); a measured value wins its date', () => {
+  const hour = (date, hh, bpms) => bpms.map(b => hrRec(MIF, `${date} ${hh}:00:00 +0100`, `${date} ${String(+hh + 1).padStart(2, '0')}:00:00 +0100`, b));
+  const night = (date, low) => [
+    ...hour(date, '00', [64, 62, 63, 65, 61]),
+    ...hour(date, '02', [low, low + 1, low - 1, low, low + 2]),
+    ...hour(date, '05', [60, 59, 61, 60]),
+    ...hour(date, '14', [48, 48, 48, 48]), // a daytime low: never the resting value
+  ];
+  const x = runExtract([
+    ...night('2030-01-02', 54), ...night('2030-01-03', 56), ...night('2030-01-04', 58),
+    rhrRec('Some Ring', '2030-01-04 09:00:00 +0100', 57), // measured: wins its date
+    ...hour('2030-01-05', '01', [55, 55, 55, 55]), // one night hour only: too thin
+    later('2030-01-06'),
+  ]);
+  try {
+    assert.equal(x.read('rhr.csv'), 'date,value,source\n' +
+      '2030-01-02,54.4,Mi Fitness (derived)\n2030-01-03,56.4,Mi Fitness (derived)\n2030-01-04,57,Some Ring\n');
+    assert.equal(x.meta.rows.rhr, 3);
+    assert.equal(x.meta.rows.rhr_derived, 2);
+    assert.equal(x.read('hrv.csv'), 'date,value,source\n');
+  } finally { x.cleanup(); }
+});
