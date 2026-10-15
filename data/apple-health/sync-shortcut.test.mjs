@@ -610,6 +610,7 @@ test('contract: a re-extract drops Shortcut rows + ledger, the next sync restore
     `<Record type="${Q}HeartRateVariabilitySDNN" sourceName="W" startDate="2030-01-01 08:00:00 +0100" endDate="2030-01-01 08:00:00 +0100" value="40"/>`,
     // a real Watch name: energy counts only Watch / wearable / iPhone sources (samples.mjs energySource)
     `<Record type="${Q}ActiveEnergyBurned" sourceName="Apple Watch de Demo" startDate="2030-01-01 10:00:00 +0100" endDate="2030-01-01 10:05:00 +0100" value="300"/>`,
+    '</HealthData>',
   ].join('\n') + '\n');
   const extract = () => execFileSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { stdio: 'ignore', env: { ...process.env, EXTRACT_DIR: dir } });
   const out = path.join(dir, 'extract');
@@ -694,7 +695,7 @@ test('hr_recovery: one row per workout sample -> hr-recovery.csv', () => {
 test('extract.mjs writes hr-recovery.csv in the same schema the sync uses', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-hrr-'));
   fs.writeFileSync(path.join(dir, 'export.xml'),
-    '<Record type="HKQuantityTypeIdentifierHeartRateRecoveryOneMinute" sourceName="W" startDate="2030-01-02 19:00:00 +0100" endDate="2030-01-02 19:01:00 +0100" value="25.26"/>\n');
+    '<Record type="HKQuantityTypeIdentifierHeartRateRecoveryOneMinute" sourceName="W" startDate="2030-01-02 19:00:00 +0100" endDate="2030-01-02 19:01:00 +0100" value="25.26"/>\n</HealthData>\n');
   execFileSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { stdio: 'ignore', env: { ...process.env, EXTRACT_DIR: dir } });
   const out = path.join(dir, 'extract');
   assert.equal(fs.readFileSync(path.join(out, 'hr-recovery.csv'), 'utf8'), 'date,value,source\n2030-01-02,25.3,W\n');
@@ -718,6 +719,7 @@ test('extract.mjs writes waist.csv (cm) in the same schema the sync uses', () =>
     '<Record type="HKQuantityTypeIdentifierWaistCircumference" sourceName="Health" unit="cm" startDate="2030-01-02 08:00:00 +0100" endDate="2030-01-02 08:00:00 +0100" value="84.26"/>',
     '<Record type="HKQuantityTypeIdentifierWaistCircumference" sourceName="Health" unit="m" startDate="2030-01-09 08:00:00 +0100" endDate="2030-01-09 08:00:00 +0100" value="0.835"/>',
     '<Record type="HKQuantityTypeIdentifierWaistCircumference" sourceName="Health" unit="in" startDate="2030-01-16 08:00:00 +0100" endDate="2030-01-16 08:00:00 +0100" value="33"/>',
+    '</HealthData>',
     '',
   ].join('\n'));
   execFileSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { stdio: 'ignore', env: { ...process.env, EXTRACT_DIR: dir } });
@@ -813,6 +815,7 @@ test('extract.mjs and the Shortcut sync write identical sleep rows (nap excluded
   fs.writeFileSync(path.join(dir, 'export.xml'), [
     ...iv.map(([a, b, st]) => `<Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="${SHORTCUT_SOURCE}" startDate="${stamp(a)}" endDate="${stamp(b)}" value="${xmlStage[st]}"/>`),
     `<Record type="HKQuantityTypeIdentifierAppleSleepingWristTemperature" sourceName="${SHORTCUT_SOURCE}" startDate="2030-01-01 23:40:00 +0100" endDate="2030-01-02 07:00:00 +0100" value="36.1"/>`,
+    '</HealthData>',
     '',
   ].join('\n'));
   execFileSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { stdio: 'ignore', env: { ...process.env, EXTRACT_DIR: dir } });

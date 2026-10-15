@@ -208,7 +208,10 @@ offset (like the energy hours).
   food-log sync warns `unexpected response` for a body it cannot read (the service was reached) and
   `could not read the food log` when the service is not. Only the Shortcut sync takes a flag (`--full`); `npm run sync -- --full` passes it to
   that script alone.
-- `extract.mjs` runs only as the entry point (`isMain`), and writes every CSV and `_meta.json` atomically.
+- `extract.mjs` runs only as the entry point (`isMain`), and writes every CSV and `_meta.json` atomically,
+  under the same `_meta.json.lock` as the syncs, and only after reading the whole file: a read error, or an
+  export without its closing `</HealthData>` (truncated: a copy still in progress, a full disk), prints one
+  `ERROR:` line, exits 1 and keeps the previous extract.
 - `writeAtomic` (`sync-common.mjs`) writes a `.tmp` next to the file and renames it; a failed write or rename
   removes the `.tmp` (it holds personal data) before the error goes up.
 
