@@ -1,7 +1,7 @@
 import http from 'node:http'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { isAuthorized } from './auth.js'
+import { createBearerCheck } from './auth.js'
 import { createStravaSync, startSyncLoop, isConfigured as stravaConfigured } from './sync.js'
 import { createExportHandler, createStravaExportHandler } from './export.js'
 import { createAthleteExportHandler } from './athlete.js'
@@ -47,12 +47,39 @@ function readBody (req, limit) {
   })
 }
 
+/** Whether any string (value or object key) in a parsed JSON value holds U+0000. Iterative: no recursion limit. */
+export function containsNul (value) {
+  const stack = [value]
+  while (stack.length > 0) {
+    const v = stack.pop()
+    if (typeof v === 'string') {
+      if (v.includes('\0')) return true
+    } else if (Array.isArray(v)) {
+      for (const item of v) stack.push(item)
+    } else if (v !== null && typeof v === 'object') {
+      for (const [k, item] of Object.entries(v)) {
+        if (k.includes('\0')) return true
+        stack.push(item)
+      }
+    }
+  }
+  return false
+}
+
+/** The upload ceiling: MAX_BODY_BYTES, else 8 MB, the most loop-web forwards (its client_max_body_size 8m). */
+export const DEFAULT_MAX_BODY_BYTES = 8 * 1024 * 1024
+export function maxBodyBytes (env) {
+  return Number(env.MAX_BODY_BYTES ?? DEFAULT_MAX_BODY_BYTES)
+}
+
 /**
  * The request listener, with every dependency injected so the route table can be tested without
  * Postgres, Strava or the network (test/server.test.js). main() below wires the real ones.
  */
 export function createHandler ({
   token,
+  // one checker for every bearer route, so its failure count covers them all (auth.js)
+  checkBearer = createBearerCheck(token),
   maxBodyBytes,
   pool,
   ping,
@@ -68,7 +95,7 @@ export function createHandler ({
   handleAthleteExport
 }) {
   async function handleIngest (req, res, source) {
-    if (!isAuthorized(req.headers.authorization, token)) {
+    if (!checkBearer(req)) {
       send(res, 401, { error: 'unauthorized' })
       return
     }
@@ -84,6 +111,13 @@ export function createHandler ({
       payload = JSON.parse(raw.toString('utf8'))
     } catch {
       send(res, 400, { error: 'body is not valid JSON' })
+      return
+    }
+    // Valid JSON, but Postgres jsonb cannot store U+0000 ("unsupported Unicode escape sequence"): refuse it as
+    // the client's error instead of a 500 the app would retry forever. Not stripped: raw_payload keeps what
+    // was sent, byte for byte, or nothing.
+    if (containsNul(payload)) {
+      send(res, 400, { error: 'body contains a \\u0000 character, which cannot be stored', code: 'nul_character' })
       return
     }
 
@@ -158,7 +192,7 @@ export function createHandler ({
       }
 
       if (req.method === 'POST' && url.pathname === '/sync/strava') {
-        if (!isAuthorized(req.headers.authorization, token)) {
+        if (!checkBearer(req)) {
           send(res, 401, { error: 'unauthorized' })
           return
         }
@@ -242,7 +276,7 @@ export function createShutdown ({ server, pool, stop = () => {}, flush = async (
 }
 
 const PORT = Number(process.env.PORT ?? 8088)
-const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES ?? 32 * 1024 * 1024)
+const MAX_BODY_BYTES = maxBodyBytes(process.env)
 const INGEST_TOKEN = process.env.INGEST_TOKEN
 
 async function main () {
@@ -259,9 +293,11 @@ async function main () {
   // loaded here, not at the top: db.js pulls in the pg driver, which the test run does not install
   const { createPool, migrate, insertRawPayload, ping } = await import('./db.js')
   const pool = createPool(database)
-  const handleExport = createExportHandler({ pool, token: INGEST_TOKEN })
-  const handleStravaExport = createStravaExportHandler({ pool, token: INGEST_TOKEN })
-  const handleAthleteExport = createAthleteExportHandler({ pool, token: INGEST_TOKEN })
+  // one bearer checker for every token route: its `unauthorized` log lines carry one running count
+  const checkBearer = createBearerCheck(INGEST_TOKEN)
+  const handleExport = createExportHandler({ pool, token: INGEST_TOKEN, checkBearer })
+  const handleStravaExport = createStravaExportHandler({ pool, token: INGEST_TOKEN, checkBearer })
+  const handleAthleteExport = createAthleteExportHandler({ pool, token: INGEST_TOKEN, checkBearer })
 
   // Strava is optional: without credentials the service still ingests Apple Health.
   const STRAVA_ENABLED = stravaConfigured(process.env)
@@ -320,6 +356,7 @@ async function main () {
 
   const server = http.createServer(createHandler({
     token: INGEST_TOKEN,
+    checkBearer,
     maxBodyBytes: MAX_BODY_BYTES,
     pool,
     ping,

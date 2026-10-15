@@ -14,6 +14,15 @@ it works.
 | `nginx.conf.template` | nginx config, rendered with `INGEST_PORT` at container start |
 | `systemd/loop-web-refresh.path` | Watches the ingest trigger file |
 | `systemd/loop-web-refresh.service` | Runs `refresh.sh` (as the repo owner, hardened) when it changes |
+| `.env.example` | Every variable `docker-compose.yml` reads, commented out (all optional): copy it to `.env` to set one |
+
+| Variable | Meaning |
+| -------- | ------- |
+| `PLAN_WEB_PORT` | Host port of the page, default `8090` |
+| `PLAN_WEB_BIND` | Optional host address to publish `PLAN_WEB_PORT` on (the LAN IP; an IPv6 address in brackets). Empty = every address, as before. **Docker ignores ufw**: see [Security and exposure model](#security-and-exposure-model) |
+| `INGEST_PORT` | loop-ingest's host port (its `INGEST_PORT`), default `8088` |
+| `PLAN_WEB_EXTRA_HOSTS` | Extra host names the page may be reached by, besides IP literals and `localhost` ([DNS rebinding and the Host allowlist](#security-and-exposure-model)) |
+| `HC_INSTANCE` | A second install on the same host ([Running a second install](#running-a-second-install-another-person-same-host)) |
 
 `./site` (including `./site/manuales/`, the published device manuals),
 `.refresh.lock`, `.refresh-state` and the ingest `trigger/` directory are
@@ -83,7 +92,7 @@ order**: steps 0–1 must happen before the first `docker compose up`.
    ```
 
 5. **Start loop-web** (nginx). If the ingest port is not 8088, set `INGEST_PORT` in
-   `services/loop-web/.env` first:
+   `services/loop-web/.env` first (`cp -n .env.example .env` gives a template with every variable):
 
    ```sh
    cd /path/to/loop/services/loop-web && docker compose up -d
@@ -244,8 +253,18 @@ without the ingest service) the line and the button are not shown at all.
 
 Every response carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`
 and `Content-Security-Policy: frame-ancestors 'none'` (no other site can frame the page that writes your food
-log), and nginx hides its version (`server_tokens off`); a block with its own `add_header` repeats the set
-(`scripts/loop-web-config.test.mjs`).
+log), `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Resource-Policy: same-origin` (no other
+origin shares a window with the page or embeds its responses) and `Permissions-Policy: camera=(),
+microphone=(), geolocation=(), payment=(), usb=()` (the page uses none of them), and nginx hides its version
+(`server_tokens off`); a block with its own `add_header` repeats the set (`scripts/loop-web-config.test.mjs`).
+
+**Docker ignores ufw.** A port Docker publishes is opened in Docker's own firewall chains, ahead of ufw or
+firewalld rules, so a "deny" there does not protect it: both services are reachable from every network the
+host is on. On a home server behind a router that is the LAN; on a host with a public address (a VPS, a
+machine in the router's DMZ) set the bind to the LAN IP: `PLAN_WEB_BIND=192.168.1.10` in
+`services/loop-web/.env` and `INGEST_BIND=192.168.1.10` (or `127.0.0.1`, since loop-web reaches it through the
+host) in `services/loop-ingest/.env`, then `docker compose up -d` in each folder. Unset, both publish on every
+address, as before.
 
 **Container hardening** (`docker-compose.yml`, pinned by `scripts/loop-web-config.test.mjs`): a read-only
 root filesystem with tmpfs for what nginx and its entrypoint write (`/etc/nginx/conf.d`, where the template and
@@ -308,7 +327,7 @@ What each proxy may forward:
 
 | Proxy | Forwards | Never |
 | ----- | -------- | ----- |
-| **loop-web nginx** (this service) | `POST /api/sync` -> `/sync`, `GET /api/sync/status` -> `/sync/status`, `POST /ingest/health-auto-export` -> the same path (bearer checked by ingest, 8 MB, below ingest's `MAX_BODY_BYTES` default) (exact match, method restricted); `/api/food/*` -> `/food/*` (GET / POST / PUT / DELETE, 16 KB) | anything else under `/api/` or `/ingest/` (404), `/export` |
+| **loop-web nginx** (this service) | `POST /api/sync` -> `/sync`, `GET /api/sync/status` -> `/sync/status`, `POST /ingest/health-auto-export` -> the same path (bearer checked by ingest, 8 MB, ingest's `MAX_BODY_BYTES` default) (exact match, method restricted); `/api/food/*` -> `/food/*` (GET / POST / PUT / DELETE, 16 KB, `X-HC-Food` forwarded); `/api/journal/*` -> `/journal/*` (GET / PUT, 16 KB, `X-HC-Journal` forwarded) | anything else under `/api/` (beyond these four) or `/ingest/` (404), `/export`, `/sync/strava` |
 
 There is no second proxy: loop-ingest's port stays on the LAN (published for loop-web, never forwarded to the
 internet), and a public entry (an SSO tunnel) points at loop-web. `POST /ingest/health-auto-export` is here so the iOS Shortcut can reach ingest
@@ -411,3 +430,10 @@ checks instead of "LAN only".
   so a stricter mask (`0027`) would make the page answer `403`. `MemoryDenyWriteExecute` is deliberately not
   set (node's JIT needs writable, executable memory). To pick up these settings on an installed unit, copy
   the template again (Install step 8 fills the placeholders) and `sudo systemctl daemon-reload`.
+- **`ProtectClock`, `ProtectHostname`, `PrivateDevices` (a private `/dev` with only `null`, `zero`,
+  `random`, ...), `RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6`, an empty `CapabilityBoundingSet=`**:
+  the build sets no clock or hostname, opens no device, talks only to local sockets, loop-ingest, the npm
+  registry and the git remote, and as the repo owner holds no capability. Tradeoff: without `AF_NETLINK`
+  node's `os.networkInterfaces()` throws (`Unknown system error 97`); the example build passes under these
+  settings (`systemd-run`), but if a tool fails that way, add `AF_NETLINK` to the list. npm install scripts stay on (astro /
+  esbuild fetch their native binary in one), so there is no `--ignore-scripts`.

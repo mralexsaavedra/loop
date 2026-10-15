@@ -1,4 +1,4 @@
-import { isAuthorized } from './auth.js'
+import { createBearerCheck } from './auth.js'
 import { writeJson as send } from './http.js'
 
 /**
@@ -262,9 +262,9 @@ export function createAthleteRefresher ({ pool, getAccessToken, fetchImpl = fetc
 }
 
 /** GET /export/athlete — same bearer check as every /export/* route; logs counts only. */
-export function createAthleteExportHandler ({ pool, token, log = console.log }) {
+export function createAthleteExportHandler ({ pool, token, log = console.log, checkBearer = createBearerCheck(token) }) {
   return async function handleAthleteExport (req, res) {
-    if (!isAuthorized(req.headers.authorization, token)) {
+    if (!checkBearer(req)) {
       send(res, 401, { error: 'unauthorized' })
       return
     }
