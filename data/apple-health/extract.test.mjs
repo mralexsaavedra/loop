@@ -213,3 +213,53 @@ test('strict CLI: --help prints the usage (exit 0), an unknown flag or a stray a
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// ---- failure paths: a truncated or unreadable export never replaces a good extract; writes hold the lock ----
+
+function goodExtractDir() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-fail-'));
+  fs.writeFileSync(path.join(dir, 'export.xml'), ['<HealthData locale="en_GB">', later('2030-01-02'), later('2030-01-03'), '</HealthData>', ''].join('\n'));
+  const run = () => spawnSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { encoding: 'utf8', env: { ...process.env, EXTRACT_DIR: dir } });
+  assert.equal(run().status, 0);
+  const out = path.join(dir, 'extract');
+  const snapshot = () => Object.fromEntries(fs.readdirSync(out).sort().map((f) => [f, fs.readFileSync(path.join(out, f), 'utf8')]));
+  return { dir, out, run, snapshot, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) };
+}
+
+test('a truncated export (no </HealthData>) exits 1 with one ERROR line and keeps the previous extract', () => {
+  const x = goodExtractDir();
+  try {
+    const before = x.snapshot();
+    fs.writeFileSync(path.join(x.dir, 'export.xml'), ['<HealthData locale="en_GB">', later('2030-01-02'), ''].join('\n'));
+    const r = x.run();
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /^ERROR: .*<\/HealthData>/);
+    assert.deepEqual(x.snapshot(), before, 'the good extract is untouched');
+  } finally { x.cleanup(); }
+});
+
+test('an unreadable export (a read error mid-stream) exits 1 with one ERROR line and writes nothing', () => {
+  const x = goodExtractDir();
+  try {
+    const before = x.snapshot();
+    fs.rmSync(path.join(x.dir, 'export.xml'));
+    fs.mkdirSync(path.join(x.dir, 'export.xml')); // exists, but reading it fails (EISDIR)
+    const r = x.run();
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /^ERROR: /);
+    assert.deepEqual(x.snapshot(), before);
+  } finally { x.cleanup(); }
+});
+
+test('the writes run under the _meta.json lock the syncs share: a held fresh lock -> exit 1, nothing written', () => {
+  const x = goodExtractDir();
+  try {
+    const before = x.snapshot();
+    fs.writeFileSync(path.join(x.out, '_meta.json.lock'), String(process.pid)); // a live holder, not stale
+    const r = x.run();
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /^ERROR: could not acquire lock/);
+    fs.rmSync(path.join(x.out, '_meta.json.lock'));
+    assert.deepEqual(x.snapshot(), before);
+  } finally { x.cleanup(); }
+});
