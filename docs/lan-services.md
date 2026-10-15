@@ -19,8 +19,9 @@ up -d` in `services/loop-web`). `refresh.sh` rebuilds and publishes it hourly (c
   Shortcut's last step `POST <page address>/api/sync` (loop-web nginx) → loop-ingest `POST /sync`, which numbers
   the click (`trigger_seq`), pulls Strava (at most once per 5 min) and writes the seq atomically to
   `services/loop-ingest/trigger/refresh`; a systemd path unit runs `refresh.sh`, which publishes `processedSeq`
-  in `site/status.json`, and the page reloads once that covers its seq. Clicks coalesce (never `429`, never
-  dropped; at most one rebuild per minute). Each side is documented once:
+  in `site/status.json`, and the page reloads once that covers its seq. Clicks coalesce (the service never
+  refuses or drops one, only nginx's rate limit answers `429` to a runaway client; at most one rebuild per
+  minute). Each side is documented once:
   - service side (seq persistence, coalescing and deferred writes, shutdown and crash recovery, `/sync/status`):
     [`services/loop-ingest/README.md` → On-demand refresh](../services/loop-ingest/README.md);
   - host side (`refresh.sh` passes, `status.json` and its error codes, the systemd units and their hardening,
@@ -82,10 +83,11 @@ up -d` in `services/loop-web`). `refresh.sh` rebuilds and publishes it hourly (c
   "Exposing behind an SSO tunnel"). Every path
   (the page included) answers only a Host that is an IP literal, `localhost` or a name in
   `PLAN_WEB_EXTRA_HOSTS`, else `421` (DNS rebinding; how to add a name: [`nutrition-food-log.md` → Security](nutrition-food-log.md#security)).
-  The ingest service itself is never exposed: loop-web is the only entry, and nothing forwards `/export/*`,
-  `/sync/strava`, or the ingest port (published on the host's LAN only, for loop-web). Docker-published
-  ports bypass ufw / firewalld: on a host with a public address set `INGEST_BIND` / `PLAN_WEB_BIND` (both
-  optional, unset = every address) to the LAN IP. Every failed bearer check is logged as a counted
+  The ingest service itself is never exposed: loop-web is the only entry (it reaches the service over the
+  `loop-net` Docker network, never through the published ingest port), and nothing forwards `/export/*`,
+  `/sync/strava`, or the ingest port. Docker-published ports bypass ufw / firewalld: on a host with a public
+  address set `INGEST_BIND=127.0.0.1` and `PLAN_WEB_BIND` to the LAN IP (both optional, unset = every address;
+  [Network and bind address](#network-and-bind-address)). Every failed bearer check is logged as a counted
   `unauthorized` event (path, reason, client address; never the token). Response headers on every path:
   nosniff, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, CSP `frame-ancestors 'none'`, COOP and
   CORP `same-origin`, and a `Permissions-Policy` turning off camera, microphone, geolocation, payment and USB.
@@ -118,3 +120,36 @@ up -d` in `services/loop-web`). `refresh.sh` rebuilds and publishes it hourly (c
   activity can not block the rest. Rollout: `docker compose up -d --build loop-ingest` (runs the
   idempotent `sql/008_strava_hr.sql` and `sql/009_strava_hr_retry.sql`), then `npm run sync` once the
   backfill has run.
+
+### Network and bind address
+
+The ingest compose file names its default network `loop-net${HC_INSTANCE:+-${HC_INSTANCE}}` (`loop-net`, or
+`loop-net-second` for a second install); loop-web joins that same name as an `external` network, and its nginx
+proxies to `http://loop-ingest/...`: an `upstream` holding `loop-ingest:8088 resolve`, which Docker's embedded DNS
+(`resolver 127.0.0.11`) looks up at run time, with `Host: loop-ingest` on the hop (an allowed name in the ingest
+Host check; `host.docker.internal`, the hop's name before `loop-net`, still passes). So the proxy never depends on
+the ingest port published on the host: that publish (`INGEST_PORT`, required) only serves the host's own sync
+scripts and `refresh.sh`, which call `http://localhost:<INGEST_PORT>`. Hence the binds:
+
+- `INGEST_BIND=127.0.0.1` (`services/loop-ingest/.env`) is the recommended hardening: loopback only, so nothing on
+  the LAN reaches `/export/*`, `/sync/strava` or the food log except through loop-web's nginx. A LAN IP works too
+  (LAN clients then reach the service directly; the bearer routes still need the token). Unset = every address,
+  as before. Docker-published ports bypass ufw / firewalld, so this is the only filter on them.
+- `PLAN_WEB_BIND` (`services/loop-web/.env`) is the page's address: the LAN IP on a host with a public address,
+  unset otherwise.
+- Before `loop-net`, nginx went through `host.docker.internal` (the Docker bridge gateway), which a `127.0.0.1` or
+  LAN-IP publish does not cover: that combination cut the page off from its data.
+
+**Start order.** The ingest stack first: `docker compose up -d` there creates `loop-net`; loop-web without it stops
+with `network loop-net declared as external, but could not be found`. nginx starts and serves the page while the
+ingest container is down (the proxied routes answer `502` / `504` meanwhile) and follows the container's new
+address after it is recreated (within the resolver's 10 s).
+
+**An existing install upgrades** with `docker compose up -d --build --force-recreate` in `services/loop-ingest`
+(both containers move to `loop-net` and compose removes the old `loop-ingest_default`; without
+`--force-recreate` compose keeps `loop-db` and it fails with `could not find a network matching network mode
+loop-ingest_default`, which the same command with `--force-recreate` repairs), then `docker compose up -d
+--force-recreate` in `services/loop-web` ([upgrading](guides/upgrading.md)). loop-web's old `loop-web_default`
+network is left unused: `docker network rm loop-web_default` (a second install's is
+`loop-web-<instance>_default`). `INGEST_PORT` in `services/loop-web/.env` is no longer read and can be deleted. Pinned by `scripts/loop-web-config.test.mjs` (both
+compose files agree on the name, no `host.docker.internal` proxy left).

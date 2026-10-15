@@ -100,10 +100,12 @@ The food layers (`docs/nutrition-food-log.md` → Security), shared helpers in `
 | Header `X-HC-Journal: 1` on every request | `403` |
 | JSON on writes | `415` |
 | Bodies ≤ 16 KB | `413` |
+| `notes` without U+0000 or another control character but tab / line feed / carriage return (Postgres cannot store U+0000) | `400 invalid` (`field: notes`) |
 | Writes ≤ 60 / min per client (`JOURNAL_WRITE_LIMIT`); summary reads ≤ 30 / min (`JOURNAL_SUMMARY_LIMIT`) | `429` |
 
 - loop-web nginx proxies `/api/journal/` → ingest `/journal/` (GET / PUT, `client_max_body_size 16k`,
-  `X-HC-Journal` forwarded, `Host host.docker.internal`, `gzip off`).
+  `X-HC-Journal` forwarded, `Host loop-ingest`, `gzip off`; over the `loop-net` Docker network,
+  [`lan-services.md` → Network and bind address](lan-services.md#network-and-bind-address)).
 - A public reverse proxy must NEVER forward `/journal/*`.
 
 ## Rollout
