@@ -39,6 +39,8 @@ parses it into the extract CSVs. A parsing fix later is a re-sync, not a re-impo
 | GET / PUT | `/food/profile`            | header | the in-page onboarding document: `200` `{profile: {name?, sex, birthdate, heightCm, weightKg, activity, goals, targets, updatedAt} \| null}`; PUT saves it: its own fields replace the stored ones, the identity fields are merged (a save without `name` keeps the stored name) (adult birthdate, height 120–230, weight 30–250, `activity` sedentary / light / active, `goals` = the goals the safety screen allowed, all twelve `targets` cells `{kcal, p, f}` as integers); name / sex / birthdate / height are stored in the profile document (`/documents/profile`, merged at its next revision) and the rest in `app_profile` (`src/profile-db.js`); GET composes them; needs both `sql/011_profile.sql` and `sql/012_documents.sql`: either failing, or the start-time move of an older onboarding's identity failing, only answers `503 profile_unavailable` here |
 | GET    | `/export/athlete`             | bearer | `200` with the latest athlete snapshot: `{fetchedAt, firstname, lastname, city, state, country, profile, profileMedium, measurementPreference, athleteType, bikes, shoes, gearScopeMissing, devices}` (nulls / empty lists when nothing is stored) |
 | GET / PUT | `/documents/:kind`         | bearer | the owner's documents, `kind` = `plan` / `training` / `profile` (see "Documents" below): GET `200` `{kind, document, revision, updatedAt}` (`document: null, revision: 0` before the first save); PUT `{revision, document}` `200` `{kind, revision, updatedAt}`, `409 revision_conflict` with the current `revision`, `400 invalid` + `field`, `413` over 256 KB; `503 documents_unavailable` when its migration failed |
+| GET    | `/export/files`               | bearer | container mode only (else the plain `404`): `200` `{files: [{path, size, sha256, mtimeMs}], site: {processedSeq, error, errorSeq}}`, the allowlisted part of the data root a coach clone mirrors (see "Files export" below) |
+| GET    | `/export/file?path=`          | bearer | container mode only: `200` the bytes of one manifest path (`application/octet-stream`, `content-length`); `400 invalid_path` (`..`, `.`, an empty segment, a backslash, NUL, absolute, over 1024 characters), `404 not_found` for anything not in the manifest at request time |
 | GET    | `/journal/day?date=YYYY-MM-DD` | journal | `200` `{day: {date, answers, notes, updatedAt}}` (empty when never journaled) |
 | PUT    | `/journal/day`                | journal | full replace of one day `{date, answers, notes?}`; no answer and no note removes the day |
 | GET    | `/journal/summary?from=&to=`  | journal | `200` `{from, to, days: [{date, answers, notes}]}` (≤ 366 days) |
@@ -310,6 +312,31 @@ the table `app_document` (`sql/012_documents.sql`, its own optional group `docum
   `1.0` is `1`, `1e2` is `100`, and integer-like keys come first.
 - **Size.** Up to 256 KB per request (a personal plan is about 36 KB), above the 16 KB of the page routes.
 - **Logs.** A save logs `{"event":"document_saved","kind","revision","bytes"}`, never the content.
+
+## Files export: `/export/files` and `/export/file` (container mode)
+
+In container mode (`HC_BUILD=container`, the `loop-server` image) the server owns the processed data in its data root
+(`HC_DATA_DIR`, `/data`), and a coach clone's `npm run sync` mirrors part of it instead of syncing on its own
+([`docs/data-pipeline.md` → Coach as a client](../../docs/data-pipeline.md#coach-as-a-client-of-a-loop-server)).
+`src/files-export.js`:
+
+- **Allowlist.** `extract/`, `profile/`, `foodlog/`, `files/documents/` and `files/manuals/` (`files/` is
+  `HC_FILES_DIR` when set), recursively, regular files only. Never `cache/` (the document copies: the clone pulls
+  those through `/documents/:kind`, with its local-edit protection), `files/import/` (the Health zips), `import-work/`,
+  `import-state.json`, nor, inside the allowlisted folders, a hidden name (`.shortcut-cache.json`), a temp, lock or
+  backup file (`*.tmp`, `*.lock`, `*.bak`) or a symlink (file or folder: never followed, listed or served).
+- **Manifest.** `GET /export/files` lists them sorted by path with `size`, `sha256` and `mtimeMs`, plus `site`: the
+  last publish's `processedSeq` and a failed build's `error` / `errorSeq` from `HC_SITE_DIR/status.json` (what a
+  client waits on after its `POST /sync`). The sha256 is cached per file by (size, mtimeMs), so a client polling the
+  manifest every 2 s only re-hashes what changed.
+- **Download.** `GET /export/file?path=` serves one path that is in the manifest at request time (listed again on
+  every request), opened without following a symlink, streamed with its `content-length`. A malformed path is
+  `400 invalid_path`; anything else not listed (a folder, `cache/plan.json`, a file deleted since) is `404 not_found`.
+- **Security.** The bearer token (`INGEST_TOKEN`), checked first: no token is `401` even for a bad path. Outside
+  container mode the routes are not mounted, so a host-mode server answers the plain `404` of an unknown path, which
+  is how a clone tells the two apart. loop-web's nginx never proxies them (`scripts/loop-web-config.test.mjs`).
+- **Logs.** `{"event":"export_files","count","bytes"}` and `{"event":"export_file","bytes"}`: never a path (document
+  names are personal) nor any content; a failure logs only its error code.
 
 ## iOS Shortcut ingestion
 

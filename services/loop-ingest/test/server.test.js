@@ -5,12 +5,13 @@ import { createHandler, maxBodyBytes } from '../src/server.js'
 import { createFoodRoutes } from '../src/food.js'
 import { createJournalRoutes } from '../src/journal.js'
 import { createDocumentRoutes } from '../src/documents.js'
+import { createFilesExportRoutes } from '../src/files-export.js'
 import { createBearerCheck } from '../src/auth.js'
 
 const TOKEN = 'x'.repeat(40)
 
 /** Every dependency stubbed: no Postgres, no Strava, no network beyond 127.0.0.1. */
-function setup ({ stravaSync = null, foodRoutes, journalRoutes, documentRoutes } = {}) {
+function setup ({ stravaSync = null, foodRoutes, journalRoutes, documentRoutes, filesExportRoutes } = {}) {
   const calls = []
   const mark = (name, status = 200) => async (req, res) => {
     calls.push(name)
@@ -35,6 +36,7 @@ function setup ({ stravaSync = null, foodRoutes, journalRoutes, documentRoutes }
     },
     ...(journalRoutes ? { journalRoutes } : {}),
     ...(documentRoutes ? { documentRoutes } : {}),
+    ...(filesExportRoutes ? { filesExportRoutes } : {}),
     syncRoutes: { handleSync: mark('sync', 202), handleStatus: mark('syncStatus') },
     handleExport: mark('exportRaw'),
     handleStravaExport: mark('exportStrava'),
@@ -146,6 +148,29 @@ test('/documents/* reaches the real document routes (401 without the token, 503 
   const plain = await setup()
   t.after(plain.close)
   assert.deepEqual((await plain.call('GET', '/documents/plan', { headers: auth })).body, { error: 'not found' })
+})
+
+test('/export/files and /export/file reach the files export routes in container mode, the plain 404 otherwise', async (t) => {
+  const auth = { authorization: `Bearer ${TOKEN}` }
+  const routes = (available) => createFilesExportRoutes({ available: () => available, dataDir: '/nonexistent', siteDir: '/nonexistent', checkBearer: createBearerCheck(TOKEN, { log: () => {} }), log: () => {} })
+  const container = await setup({ filesExportRoutes: routes(true) })
+  t.after(container.close)
+  assert.deepEqual((await container.call('GET', '/export/files')).body, { error: 'unauthorized' })
+  assert.deepEqual((await container.call('GET', '/export/files', { headers: auth })).body, { files: [], site: { processedSeq: 0, error: null, errorSeq: null } })
+  assert.deepEqual((await container.call('GET', '/export/file?path=extract/x.csv', { headers: auth })).body, { error: 'not_found' })
+  // the other /export/* routes still reach their own handlers
+  await container.call('GET', '/export/raw?automation=a', { headers: auth })
+  assert.deepEqual(container.calls, ['exportRaw'])
+  for (const s of [await setup({ filesExportRoutes: routes(false) }), await setup()]) {
+    t.after(s.close)
+    for (const p of ['/export/files', '/export/file?path=extract/x.csv']) {
+      for (const headers of [{}, auth]) {
+        const res = await s.call('GET', p, { headers })
+        assert.equal(res.status, 404, p)
+        assert.deepEqual(res.body, { error: 'not found' })
+      }
+    }
+  }
 })
 
 test('POST /ingest/health-auto-export: bearer, empty / bad / oversized body, then stored', async (t) => {
