@@ -15,6 +15,7 @@ import { createJournalStore } from './journal-db.js'
 import { createJournalRoutes } from './journal.js'
 import { writeJson as send, parseAllowedHosts, containsNul } from './http.js'
 import { createDocumentStore } from './documents-db.js'
+import { moveIdentityToDocument } from './profile-db.js'
 import { createDocumentRoutes } from './documents.js'
 
 /**
@@ -351,7 +352,7 @@ async function main () {
   // page may be reached by; mirrors loop-web's PLAN_WEB_EXTRA_HOSTS. Empty by default.
   let foodReady = false // set once 006_food.sql ran; until then (or if it failed) /food/* answers 503
   let settingsReady = false // 007_settings.sql, its own group: only /food/settings depends on it
-  let profileReady = false // 011_profile.sql, its own group: only /food/profile depends on it
+  let profileReady = false // 011_profile.sql + 012_documents.sql (the identity's profile document): only /food/profile depends on it
   const foodRoutes = createFoodRoutes({
     store: createFoodStore(pool),
     off: createOffClient(),
@@ -404,9 +405,18 @@ async function main () {
     const optional = await migrate(pool)
     foodReady = optional.food === true
     settingsReady = optional.settings === true
-    profileReady = optional.profile === true
     journalReady = optional.journal === true
     documentsReady = optional.documents === true
+    // the onboarding needs both of its tables: app_profile (011) and the profile document (012) that holds the
+    // identity; an onboarding row from before that layout moves its identity there first (profile-db.js)
+    if (optional.profile === true && documentsReady) {
+      try {
+        await moveIdentityToDocument(pool)
+        profileReady = true
+      } catch (err) {
+        console.error(JSON.stringify({ event: 'profile_identity_move_failed', message: err.message }))
+      }
+    }
     await syncStatus.load() // never throws: a failed load is retried on the next status read
     // A seq handed out but never written (crash before the write) leaves the DB
     // ahead of the trigger file: write it once, shortly after boot, so the host

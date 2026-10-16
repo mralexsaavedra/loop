@@ -151,19 +151,21 @@ test('migration 011_profile.sql: one idempotent onboarding row, its data a JSONB
   assert.match(sql, /data\s+JSONB\s+NOT NULL/)
 })
 
-test('profile: no row yet = null; a row returns its document plus updatedAt', async () => {
-  const empty = fakePool(() => ({ rows: [] }))
-  assert.equal(await createFoodStore(empty).getProfile(), null)
-  assert.match(empty.calls[0].sql, /FROM app_profile WHERE id = 1/)
-  const pool = fakePool(() => ({ rows: [{ data: { sex: 'female', heightCm: 165 }, updated_at: new Date('2030-01-10T10:00:00Z') }] }))
-  assert.deepEqual(await createFoodStore(pool).getProfile(), { sex: 'female', heightCm: 165, updatedAt: '2030-01-10T10:00:00.000Z' })
+test('profile: the identity fields are split off to the profile document and composed back (profile-db.js)', async () => {
+  const { IDENTITY_KEYS, splitProfile, composeProfile } = await import('../src/profile-db.js')
+  assert.deepEqual([...IDENTITY_KEYS], ['name', 'sex', 'birthdate', 'heightCm'])
+  const wizard = { weightKg: 60, heightCm: 165, sex: 'female', name: undefined, goals: ['cut'] }
+  const { own, identity } = splitProfile(wizard)
+  assert.deepEqual(own, { weightKg: 60, goals: ['cut'] })
+  assert.deepEqual(Object.keys(identity), ['sex', 'heightCm'], 'IDENTITY_KEYS order, undefined dropped')
+  const doc = { devices: [], heightCm: 166, sex: 'female', birthdate: '1990-01-01' }
+  assert.deepEqual(composeProfile(own, doc, new Date('2030-01-10T10:00:00Z')),
+    { sex: 'female', birthdate: '1990-01-01', heightCm: 166, weightKg: 60, goals: ['cut'], updatedAt: '2030-01-10T10:00:00.000Z' })
+  assert.deepEqual(composeProfile(own, null, null), { weightKg: 60, goals: ['cut'], updatedAt: null }, 'no document: no identity')
 })
 
-test('putProfile: a parameterized whole-document upsert of the one row', async () => {
-  const pool = fakePool(() => ({ rows: [{ data: { sex: 'male' }, updated_at: new Date('2030-01-10T10:00:00Z') }] }))
-  const r = await createFoodStore(pool).putProfile({ sex: 'male' })
-  assert.match(pool.calls[0].sql, /INSERT INTO app_profile \(id, data\) VALUES \(1, \$1\)/)
-  assert.match(pool.calls[0].sql, /ON CONFLICT \(id\) DO UPDATE SET data = EXCLUDED\.data, updated_at = now\(\)/)
-  assert.deepEqual(pool.calls[0].values, [JSON.stringify({ sex: 'male' })])
-  assert.deepEqual(r, { sex: 'male', updatedAt: '2030-01-10T10:00:00.000Z' })
+test('the food store delegates the onboarding to profile-db.js (one query joining the profile document)', async () => {
+  const empty = fakePool(() => ({ rows: [] }))
+  assert.equal(await createFoodStore(empty).getProfile(), null)
+  assert.match(empty.calls[0].sql, /FROM app_profile p LEFT JOIN app_document d ON d\.kind = 'profile'/)
 })

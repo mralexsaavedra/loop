@@ -84,10 +84,11 @@ test('food store: products (barcode unique among active ones), recipes, entries 
   assert.equal((await store.updateSettings({ targetWeightKg: null })).targetWeightKg, null)
 
   assert.equal(await store.getProfile(), null)
-  const { updatedAt, ...doc } = await store.putProfile({ sex: 'f', heightCm: 165 })
-  assert.deepEqual([doc, typeof updatedAt], [{ sex: 'f', heightCm: 165 }, 'string'])
-  const { updatedAt: _u, ...replaced } = await store.putProfile({ sex: 'm' })
-  assert.deepEqual(replaced, { sex: 'm' }, 'a put replaces the whole document')
+  const { updatedAt, ...doc } = await store.putProfile({ sex: 'f', heightCm: 165, weightKg: 60, activity: 'light' })
+  assert.deepEqual([doc, typeof updatedAt], [{ sex: 'f', heightCm: 165, weightKg: 60, activity: 'light' }, 'string'])
+  const { updatedAt: _u, ...replaced } = await store.putProfile({ sex: 'm', weightKg: 61 })
+  // the onboarding's own fields are replaced as a whole; the identity merges into the profile document (profile.pg.test.js)
+  assert.deepEqual(replaced, { sex: 'm', heightCm: 165, weightKg: 61 })
 })
 
 test('journal store: a day upserts, lists by range, deletes; the disabled list round-trips', { skip }, async () => {

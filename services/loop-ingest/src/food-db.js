@@ -1,5 +1,6 @@
 /**
- * Postgres access for the food log (sql/006_food.sql) and the user's settings (sql/007_settings.sql).
+ * Postgres access for the food log (sql/006_food.sql) and the user's settings (sql/007_settings.sql); the onboarding
+ * (sql/011 + the profile document of sql/012) is profile-db.js.
  * Every query is parameterized; rows come
  * back as plain objects with numbers (pg returns NUMERIC / BIGINT as strings), ISO timestamps and
  * the log date as a YYYY-MM-DD string (to_char, so no timezone ever shifts it). Validation and the
@@ -8,6 +9,8 @@
  * Errors: a unique violation on the barcode becomes { status: 409, code: 'barcode_exists' }; any
  * other DB error propagates and the route answers a coarse 500 (raw DB text is never sent).
  */
+import { createProfileStore } from './profile-db.js'
+
 const PRODUCT_COLS = `id, name, brand, store, barcode, unit, kcal_100, protein_100, carbs_100, fat_100,
   serving_size, source, off_code, archived, created_at, updated_at`
 const RECIPE_COLS = 'id, name, kind, servings, cooked_weight_g, ingredients, archived, created_at, updated_at'
@@ -109,28 +112,12 @@ export function settingsFromRow (r) {
   return { goal: r?.goal ?? null, targetWeightKg: num(r?.target_weight_kg), updatedAt: iso(r?.updated_at) }
 }
 
-/** The onboarding row (sql/011_profile.sql): its document plus updatedAt, or null before the first save. */
-export function profileFromRow (r) {
-  return r ? { ...r.data, updatedAt: iso(r.updated_at) } : null
-}
-
 export function createFoodStore (pool) {
+  const profiles = createProfileStore(pool)
   return {
-    async getProfile () {
-      const { rows } = await pool.query('SELECT data, updated_at FROM app_profile WHERE id = 1')
-      return profileFromRow(rows[0])
-    },
-
-    /** Replaces the whole onboarding document (validated by food.js validateProfile). */
-    async putProfile (data) {
-      const { rows } = await pool.query(
-        `INSERT INTO app_profile (id, data) VALUES (1, $1)
-         ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()
-         RETURNING data, updated_at`,
-        [JSON.stringify(data)]
-      )
-      return profileFromRow(rows[0])
-    },
+    // the onboarding's two rows (its own fields + the identity in the profile document): profile-db.js
+    getProfile: () => profiles.getProfile(),
+    putProfile: (data) => profiles.putProfile(data),
 
     async getSettings () {
       const { rows } = await pool.query(`SELECT ${SETTINGS_COLS} FROM app_settings WHERE id = 1`)

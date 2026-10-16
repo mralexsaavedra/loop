@@ -150,10 +150,18 @@ the ingest service's `GET /export/athlete`.
 
 Read as FILES by the read-only coach subagents (see [`knowledge-base.md`](knowledge-base.md)):
 
+In the data service, name, sex, birthdate and height are stored ONCE, in the profile document (the database
+copy of `profile.json`, [`data-pipeline.md` → Owner documents](data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync)),
+whoever writes them: the coach's `npm run documents -- push profile` or the page's onboarding wizard, whose save
+the service splits (its own fields to `app_profile`, the identity merged into the profile document at the next
+revision; `services/loop-ingest/src/profile-db.js`). `GET /food/profile` composes them back, so `onboarding.json`
+carries the same values as `profile.json`. An onboarding saved before this layout has its identity moved into
+the document when the service starts (a value the document already has wins).
+
 | Fact | Source |
 | --- | --- |
 | Weight | `weight.csv` (live) |
-| Height, birthdate, devices, supplements, events | `profile/profile.json` |
+| Name, sex, height, birthdate, devices, supplements, events | `profile/profile.json` |
 | Goal + target weight | `data/profile/settings.json` |
 | Stable context (injuries, history, preferences) | `profile/about-me.md` — never numbers in prose |
 
@@ -184,8 +192,9 @@ accepted nutrition targets of a user without an AI coach).
 - A wizard never completed writes nothing; a missing / old service or a malformed body is a `WARNING:`, the old
   file kept, exit 0.
 - **The build uses it** (personal only, `lib/load/inputs.mjs`):
-  - its name / sex / birthdate / height win over `profile.json` (`loadProfile({onboarding})`); devices,
-    events, supplements and max HR stay in the file;
+  - its name / sex / birthdate / height win over `profile.json` (`loadProfile({onboarding})`): with the data
+    service both come from the same stored values (above), so they agree; devices, events, supplements and max
+    HR stay in the file;
   - its accepted targets replace the plan's `targets.byGoal`;
   - the goal setting offers only the goals its safety screen allowed (`goalOptions(targets, allowed)`).
 - Targets outside `lib/nutrition/energy.mjs` `checkTargets` hard bounds, or a malformed file → a build
