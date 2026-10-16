@@ -1,5 +1,7 @@
-# A `vX.Y.Z` tag publishes the data service image to Docker Hub for amd64 and arm64
-# (mralexandersaavedra/loop-ingest:X.Y.Z, :X.Y and :latest). Checklist: docs/development.md -> Releasing.
+# A `vX.Y.Z` tag publishes the two LOOP server images to Docker Hub for amd64 and arm64, built from the repo root:
+# mralexandersaavedra/loop-server (docker/loop-server.Dockerfile) and mralexandersaavedra/loop-web
+# (docker/loop-web.Dockerfile), each as X.Y.Z, X.Y and latest. The host-mode data service image (loop-ingest) is no
+# longer published; it still builds from a clone. Checklist: docs/development.md -> Releasing.
 # Needs two repository settings: the variable DOCKERHUB_USERNAME and the secret DOCKERHUB_TOKEN
 # (a Docker Hub access token with read/write scope, never the account password).
 name: Release
@@ -13,15 +15,32 @@ permissions:
   contents: read
 
 jobs:
-  image:
+  # Nothing is pushed unless one version is everywhere: the tag, package.json, the image tag default in
+  # docker/docker-compose.yml and docker/.env.example (what `docker compose pull` fetches), and a dated CHANGELOG
+  # heading (a `## [X.Y.Z] - UNRELEASED` one refuses the release).
+  check:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: The tag matches the version in package.json
+      - name: The tag matches package.json, the compose HC_VERSION default and a dated CHANGELOG entry
         run: |
           v="$(node -p "require('./package.json').version")"
-          test "${GITHUB_REF_NAME}" = "v${v}" || { echo "tag ${GITHUB_REF_NAME} != v${v}"; exit 1; }
+          test "${GITHUB_REF_NAME}" = "v${v}" || { echo "tag ${GITHUB_REF_NAME} != v${v} (package.json)"; exit 1; }
+          defaults="$(grep -o 'HC_VERSION:-[^}]*' docker/docker-compose.yml | sort -u)"
+          test "${defaults}" = "HC_VERSION:-${v}" || { echo "docker/docker-compose.yml HC_VERSION defaults: ${defaults} != ${v}"; exit 1; }
+          grep -qx "HC_VERSION=${v}" docker/.env.example || { echo "docker/.env.example HC_VERSION != ${v}"; exit 1; }
+          grep -qE "^## \[${v//./\\.}\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$" CHANGELOG.md || { echo "CHANGELOG.md has no dated '## [${v}] - YYYY-MM-DD' heading (still UNRELEASED?)"; exit 1; }
+
+  image:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        image: [loop-server, loop-web]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -31,14 +50,15 @@ jobs:
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: mralexandersaavedra/loop-ingest
+          images: mralexandersaavedra/${{ matrix.image }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          context: services/loop-ingest
+          context: .
+          file: docker/${{ matrix.image }}.Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
