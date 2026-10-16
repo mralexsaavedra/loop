@@ -61,6 +61,7 @@ Every personal file lives under the data root `loop-data/` (gitignored; `HC_DATA
 | `npm run generate` | Validate the plan, write `data/nutrition/plan-tables.md`, build `web/dist/personal/index.html` (idempotent) |
 | `npm run check` | Validators only, no build (plan, ingredients, `loop-data/cache/training.json`, `loop-data/cache/profile.json`) |
 | `npm run migrate:data-root` | One time on a clone from before the data root: move the personal files from the old paths into `loop-data/` (backup first; `-- --dry-run` to preview) |
+| `npm run import:health` | Import the newest iPhone Health export zip (or `export.xml`) in `loop-data/files/import/` into the extract; skips one already imported (`-- --force` re-imports); then re-run `npm run sync` |
 | `node data/apple-health/extract.mjs` | Rebuild the extract CSVs from a new `export.xml` (then re-run `npm run sync`) |
 | `npm test` | Full suite; run it before and after any code change |
 | `npm run lint` / `npm run typecheck` | ESLint over the repo / `tsc` over `lib/`, `data/` and `scripts/` (tests excluded; both run in CI) |

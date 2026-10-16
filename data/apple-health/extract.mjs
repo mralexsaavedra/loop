@@ -2,7 +2,7 @@
 /* Apple Health extractor — turns the huge export.xml (~700 MB) into small, grep-able
  * per-metric CSVs so every analysis reads the cache instead of re-streaming the XML.
  *
- *   node data/apple-health/extract.mjs
+ *   node data/apple-health/extract.mjs [--source <file>]
  *
  * Reads  : loop-data/files/import/export.xml   (gitignored — personal data)
  * Writes : loop-data/extract/*.csv + _meta.json  (gitignored), each atomically (temp file + rename),
@@ -11,6 +11,8 @@
  *          still in progress, a full disk) exits 1 with one ERROR line and keeps the previous extract.
  * HC_DATA_DIR (lib/paths.mjs) moves both: <data root>/files/import/export.xml in, <data root>/extract out.
  * EXTRACT_DIR (tests only) replaces data/apple-health: <dir>/export.xml in, <dir>/extract out (wins over HC_DATA_DIR).
+ * --source <file> reads that export instead (the output stays where it was): scripts/import-health.mjs passes the
+ * export it streamed out of an iPhone zip.
  *
  * Streams line by line (never loads the file whole). Each <Record>/<Workout> opening
  * tag carries the attributes we need on a single line, so a per-line regex is enough.
@@ -33,7 +35,7 @@ import { APPLE_WATCH_RE, derivedRestingHr, csvSource, pickEnergySource, READING_
 
 const DIR = process.env.EXTRACT_DIR;
 const PATHS = dataPaths({ repoRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..') });
-const SRC = DIR ? path.join(DIR, 'export.xml') : PATHS.exportXml;
+const DEFAULT_SRC = DIR ? path.join(DIR, 'export.xml') : PATHS.exportXml;
 const OUT = DIR ? path.join(DIR, 'extract') : PATHS.extractDir;
 
 const attr = (s, name) => { const m = s.match(new RegExp(' ' + name + '="([^"]*)"')); return m ? m[1] : null; };
@@ -309,9 +311,11 @@ function onClose() {
   console.log(Object.entries(counts).map(([k, n]) => `  ${k}: ${n}`).join('\n'));
 }
 
-/** Streams SRC into the extract; resolves to the exit code (1 = no export.xml, nothing written). Run once
- * per process: the series above are module state. */
-export function main() {
+/** Streams `source` (default <files>/import/export.xml) into the extract; resolves to the exit code (1 = no export,
+ * nothing written). Run once per process: the series above are module state.
+ * @param {{ source?: string }} [opts] */
+export function main({ source } = {}) {
+  const SRC = source ? path.resolve(source) : DEFAULT_SRC;
   if (!fs.existsSync(SRC)) {
     console.error('ERROR: export.xml not found at ' + SRC + '\nNo export yet? Put it there (README → Level 1, step 3), or see the page with demo data: npm run build:example');
     return Promise.resolve(1);
@@ -346,11 +350,12 @@ export function main() {
   });
 }
 
-const USAGE = `Usage: node data/apple-health/extract.mjs
+const USAGE = `Usage: node data/apple-health/extract.mjs [--source <file>]
 
 Streams loop-data/files/import/export.xml into the per-metric CSVs + _meta.json of loop-data/extract/.
-  -h, --help   this help
+  --source <file>  read this export instead (npm run import:health passes the one it took out of an iPhone zip)
+  -h, --help       this help
 Env: HC_DATA_DIR (the data root: <root>/files/import/export.xml in, <root>/extract out; HC_FILES_DIR moves files/);
 EXTRACT_DIR (tests only) replaces data/apple-health: <dir>/export.xml in, <dir>/extract out.`;
 
-if (isMain(import.meta.url)) runCli(() => main(), { usage: USAGE });
+if (isMain(import.meta.url)) runCli((values) => main(values), { usage: USAGE, options: { source: { type: 'string' } } });

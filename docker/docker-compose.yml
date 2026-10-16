@@ -91,13 +91,18 @@ services:
       FOOD_ALLOWED_HOSTS: ${FOOD_ALLOWED_HOSTS:-}
       # the in-container build (the image sets HC_BUILD=container, HC_DATA_DIR=/data, HC_SITE_DIR=/site)
       HC_REFRESH_MINUTES: ${HC_REFRESH_MINUTES:-60}
+      # the Health import (scripts/import-health.mjs: the newest iPhone zip in files/import) before every sync: its
+      # own timeout in seconds (a first import of a large export takes minutes); a failure never blocks the page
+      HC_IMPORT_TIMEOUT: ${HC_IMPORT_TIMEOUT:-1800}
+      HC_IMPORT_MAX_BYTES: ${HC_IMPORT_MAX_BYTES:-10737418240}
     volumes:
       # internal state: the processed extract, the document copies, the sync state
       - loop-server-data:/data
       # the published page + status.json + manuales/ (loop-web serves it read-only)
       - loop-site:/site
-      # the owner files folder on the host (import/ Health exports, manuals/ device manuals, documents/ coach PDFs)
-      - ${HC_FILES_LOCATION:-./files}:/data/files
+      # the owner files folder on the host (import/ Health exports, manuals/ device manuals, documents/ coach PDFs),
+      # read-only: the server only reads it (the Health import works in /data/import-work), so a root-owned folder works
+      - ${HC_FILES_LOCATION:-./files}:/data/files:ro
     # INGEST_PORT is required (a missing one fails here instead of publishing a random port): the iOS Shortcut and
     # the coach's `npm run sync` call it. INGEST_BIND=127.0.0.1 publishes on loopback only, the recommended
     # hardening; Docker-published ports bypass ufw / firewalld. Unset = every address.

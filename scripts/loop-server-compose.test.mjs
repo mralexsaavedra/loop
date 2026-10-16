@@ -52,9 +52,13 @@ test('compose: the image + a build from the repo root, the volumes, the owner fi
   const b = serviceBlock(compose, 'loop-server');
   assert.match(b, /^\s+image: mralexandersaavedra\/loop-server:\$\{HC_VERSION:-[\d.]+\}$/m);
   assert.match(b, /^\s+context: \.\.\n\s+dockerfile: docker\/loop-server\.Dockerfile\n\s+args:\n\s+VERSION: \$\{HC_VERSION:-[\d.]+\}$/m);
-  for (const v of ['loop-server-data:/data', 'loop-site:/site', '${HC_FILES_LOCATION:-./files}:/data/files']) {
+  // the owner files folder is only READ (import/, manuals/, documents/): mounted read-only, so a root-owned folder works
+  for (const v of ['loop-server-data:/data', 'loop-site:/site', '${HC_FILES_LOCATION:-./files}:/data/files:ro']) {
     assert.ok(b.includes(`      - ${v}\n`), v);
   }
+  // the Health import's own timeout (scripts/refresh.mjs), configurable from .env
+  assert.ok(b.includes('      HC_IMPORT_TIMEOUT: ${HC_IMPORT_TIMEOUT:-1800}\n'), 'HC_IMPORT_TIMEOUT');
+  assert.ok(b.includes('      HC_IMPORT_MAX_BYTES: ${HC_IMPORT_MAX_BYTES:-10737418240}\n'), 'HC_IMPORT_MAX_BYTES');
   assert.match(b, /^\s+- "\$\{INGEST_BIND:\+\$\{INGEST_BIND\}:\}\$\{INGEST_PORT:\?set INGEST_PORT in docker\/\.env\}:8088"$/m);
   assert.match(compose, /^name: loop-server\$\{HC_INSTANCE:\+-\$\{HC_INSTANCE\}\}$/m);
   for (const n of ['container_name: loop-db', 'container_name: loop-server', 'container_name: loop-web', 'name: loop-db-data', 'name: loop-server-data', 'name: loop-site', 'name: loop-net']) {

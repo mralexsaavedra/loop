@@ -26,7 +26,7 @@ detail lives in the linked docs: read them, do not copy them into chat.
 node -v; node -p "require('./package.json').engines.node"
 test -d node_modules && echo "deps: yes" || echo "deps: no"
 for f in profile/about-me.md profile/baseline.md profile/coaches.md loop-data/cache/profile.json \
-  loop-data/cache/plan.json loop-data/cache/training.json loop-data/files/import/export.xml \
+  loop-data/cache/plan.json loop-data/cache/training.json loop-data/files/import/export.xml loop-data/import-state.json \
   loop-data/extract/_meta.json web/dist/personal/index.html services/loop-ingest/.env; do
   test -e "$f" && echo "yes $f" || echo "no  $f"; done
 # personal files at the old paths (a clone from before the data root loop-data/): counts only
@@ -54,9 +54,12 @@ stop until upgraded.
 
 1. `npm ci`.
 2. **Apple Health export** (iPhone): Health → profile picture (top right) → *Export All Health Data* →
-   Export → send the zip to the computer. Unzip; put `export.xml` in `loop-data/files/import/`
-   (`mkdir -p loop-data/files/import`).
-   Run `node data/apple-health/extract.mjs`; verify `loop-data/extract/_meta.json` exists.
+   Export → send the zip to the computer. Put the zip, as it is (no unzipping), in `loop-data/files/import/`
+   (`mkdir -p loop-data/files/import`) and run `npm run import:health`; verify `loop-data/extract/_meta.json`
+   exists (`loop-data/import-state.json` records the import; exit 1 = a damaged or incomplete zip: export again).
+   A later export: drop the new zip there and run it again (the same zip twice is skipped).
+   Manual way, still valid: unzip, put `export.xml` (`exportación.xml` on a Spanish iPhone, renamed) in that folder,
+   `node data/apple-health/extract.mjs`.
 3. **Onboarding**: no `profile/about-me.md` → run `docs/onboarding.md` (writes `profile/about-me.md`,
    `profile/baseline.md`, `profile/coaches.md`).
 4. **Seeds** (skip any that exist; `mkdir -p loop-data/cache`, `cp -n`): `data/nutrition/plan-data.example.json` →
