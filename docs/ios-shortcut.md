@@ -1,16 +1,18 @@
 # iOS Shortcut: send Apple Health data to the dashboard
 
 A personal iOS Shortcut reads recent samples from Apple Health and POSTs them, as one JSON
-object, to your self-hosted `loop-ingest` service. `npm run sync` then merges them into the
-extract CSVs, so the dashboard stays fresh between full `export.xml` drops.
+object, to your self-hosted LOOP server (its data service, `loop-server`; `loop-ingest` in host mode). The
+server's next sync merges them into the extract CSVs, so the page stays fresh between full Apple Health exports.
 
 ## Quick path
 
-1. Have the Level 2 services running ([`services/loop-web/README.md` → Install](../services/loop-web/README.md#install-host)).
+1. Have the LOOP server running ([`README.md` → Setup → Server](../README.md#server--the-page-the-food-log-and-the-iphone-sync-docker-no-clone);
+   host mode: [`services/loop-web/README.md` → Install](../services/loop-web/README.md#install-host)).
 2. Import the ready-made Shortcut (below) and point it at your server, or build it yourself (*Build the
    Shortcut*).
 3. Add a personal automation that runs it when you open an app you use every day.
-4. On your computer: `npm run sync && npm run generate` (the LAN page does this on its own every hour).
+4. Nothing else: the Shortcut's last step asks the server to rebuild the page (it also rebuilds every hour). A
+   coach clone gets the new data with `npm run sync`.
 
 Export rows always win: Shortcut rows only fill dates your last `export.xml` does not cover.
 
@@ -21,7 +23,7 @@ Pick one. Both go through loop-web, which forwards only the two routes the Short
 
 | Option | URL in the Shortcut | Works | You need |
 | --- | --- | --- | --- |
-| **A. Home Wi-Fi only (start here)** | `http://<server-ip>:8090` | When the phone is on your home Wi-Fi | Nothing more: Level 2 as installed |
+| **A. Home Wi-Fi only (start here)** | `http://<server-ip>:8090` | When the phone is on your home Wi-Fi | Nothing more: the server as installed |
 | **B. From anywhere** | `https://<your-host>` | Always | A domain and an HTTPS tunnel or reverse proxy in front of loop-web ([`services/loop-web/README.md` → Exposing behind an SSO tunnel](../services/loop-web/README.md#exposing-behind-an-sso-tunnel)) |
 
 **Option A is enough for most people.** Each payload covers the last 1–30 days (see *Window* in the key
@@ -42,7 +44,8 @@ importing, edit these before the first run:
      `http://192.168.1.50:8090/ingest/health-auto-export` (option A) or
      `https://<your-host>/ingest/health-auto-export` (option B).
    - Header `Authorization`: replace `TU_TOKEN` in `Bearer TU_TOKEN` with your `INGEST_TOKEN`
-     (`grep INGEST_TOKEN services/loop-ingest/.env` on the server; copy it on your own screen).
+     (`grep '^INGEST_TOKEN=' .env` in the server's folder, host mode `services/loop-ingest/.env`; copy it on your
+     own screen).
 2. **Step 5** (the refresh): same address, path `/api/sync`.
 3. **The *Origen es* (Source is) filters** — they name the author's devices; set yours:
    - 8 searches filtered by the watch (*Apple Watch de …*): `steps_watch`, `active_energy`,
@@ -78,6 +81,19 @@ there:
    ([`docs/data-pipeline.md` → Resting HR](data-pipeline.md#apple-health-export-and-extract)). Without HRV the
    recovery score is partial (resting HR and sleep) and says so; stress stays empty or partial.
 
+**Example: a Xiaomi band through Mi Fitness.** Mi Fitness writes heart rate as hourly buckets and sleep only as
+"in bed": no HRV, no resting HR, no VO2 max. Starting from the ready-made Shortcut, a second install for a Mi
+Fitness user changed it like this:
+
+| Change | Blocks |
+| --- | --- |
+| Delete (Mi Fitness never writes them, so each one stops the run) | HRV, resting HR, VO2 max, respiratory rate, sleeping wrist temperature, walking heart rate average, heart rate recovery, exercise time; waist circumference (no tape measure logged); the four dietary blocks (Dietary Energy, Protein, Carbohydrates, Fat: the food is logged in LOOP, not in Health); the distance and flights blocks filtered by the Apple Watch |
+| Change the *Origen es* filter from *Apple Watch de …* to **Mi Fitness** | steps (the watch-filtered search) and active energy; the heart-rate search (`hr_t` / `hr_v`), so the server derives resting HR from it |
+| Keep as they are | iPhone steps, basal energy, weight, body fat and lean mass (a smart scale), heart rate, sleep |
+
+A metric that the band writes only now and then (Mi Fitness wrote distance twice in months) is better deleted too:
+the run stops on every day it is missing.
+
 The Apple Health export (`data/apple-health/extract.mjs`) needs no change: steps, exercise and sleep take the
 largest value across sources, and energy picks one source per day ([`docs/data-pipeline.md` → Energy source
 precedence](data-pipeline.md#energy-source-precedence)).
@@ -90,9 +106,9 @@ the Shortcut.
 
 | You need | Where it comes from |
 |----------|---------------------|
-| The Level 2 services running | [`services/loop-web/README.md` → Install](../services/loop-web/README.md#install-host) |
+| The LOOP server running | [`README.md` → Setup → Server](../README.md#server--the-page-the-food-log-and-the-iphone-sync-docker-no-clone) (host mode: [`services/loop-web/README.md` → Install](../services/loop-web/README.md#install-host)) |
 | The address | *Where the phone sends the data* above |
-| The bearer token | `INGEST_TOKEN` in `services/loop-ingest/.env` (step 0 of the install generates it) |
+| The bearer token | `INGEST_TOKEN` in the server's `.env` (the install generates it; host mode: `services/loop-ingest/.env`) |
 | An automation name | Any label. The sync reads payloads for `SHORTCUT_AUTOMATION` (default `atajo-salud`), so use that value or set the env var to yours |
 
 Keep the token out of screenshots and shared Shortcuts. Anyone holding it can write to your
@@ -280,15 +296,48 @@ Then run `npm run sync -- --full` once.
 | The value column holds text like `18,4 %` or `70 kg` | You used the sample's *Name*, which is the formatted value. Use *Value* for the number; *Source* (*Origen*) is the device or app. |
 | No `vo2max` type in the list | Health calls it *Cardio Fitness* (Spanish: *Capacidad aeróbica*). |
 | A key is missing from the payload | Normal: a query with no results produces empty text, and empty keys are skipped. |
-| The Shortcut stops with "No se ha encontrado ninguna muestra" ("No samples found") | A *Find Health Samples* whose type your device never writes found nothing, and the next action stops the run, so nothing is sent. Delete that search block and its JSON field (a watch or band other than an Apple Watch: usually HRV and resting HR; see [Another watch or band](#install-the-ready-made-shortcut)). |
+| The Shortcut stops with "No se ha encontrado ninguna muestra" ("No samples found") | A *Find Health Samples* whose type your device never writes found nothing, and the next action stops the run, so nothing is sent. Delete that search block and its JSON field (a watch or band other than an Apple Watch: usually HRV and resting HR; see [Another watch or band](#install-the-ready-made-shortcut) and [Troubleshooting](#troubleshooting)). |
 | The automation runs but sends nothing | Health data is locked while the phone is locked, so a time-of-day trigger at night finds no samples. Trigger on **opening an app** you use daily (with *Run Immediately*), which only fires on an unlocked phone. |
 | Old days change after a sync | Expected: the latest payload corrects day totals, and export rows replace Shortcut rows once a new `export.xml` covers those dates. |
 
+## Troubleshooting
+
+Errors the iPhone shows while the Shortcut runs. The quoted strings are the Spanish iOS interface, as the
+ready-made Shortcut shows them; the English labels are in brackets.
+
+**"Puedes permitir su ejecución en Ajustes"** on *Obtener contenido de* (*Get Contents of URL*): iOS blocked the
+upload, not the server (nothing reaches it). Allow it in three places, then run the Shortcut again:
+
+1. **Large uploads**: *Ajustes* → *Apps* → *Atajos* → *Avanzado* → turn on **"Permitir compartir grandes cantidades
+   de datos"** (Settings → Apps → Shortcuts → Advanced → Allow Sharing Large Amounts of Data). A payload with a
+   week of heart-rate samples is large enough to need it.
+2. **The server's address, per Shortcut**: in the Shortcut, tap ⓘ → *Privacidad* (Privacy) and allow your server's
+   address (e.g. `192.168.1.50`), or tap *Restablecer privacidad* (Reset Privacy) so iOS asks again on the next
+   run; then answer **"Permitir siempre"** (Always Allow).
+3. **Health access**: *Salud* (Health) → your photo → *Apps* → *Atajos* (Shortcuts) → turn on every category the
+   Shortcut reads.
+
+**"No se ha encontrado ninguna muestra"** (No samples found): a search for a type your device never writes found
+nothing and stopped the run, so nothing was sent. Delete that block and its JSON field
+([Another watch or band](#install-the-ready-made-shortcut), with the Mi Fitness example).
+
+**The upload answers `401`** (the server logs `"event":"unauthorized"` with reason `invalid`): the `Authorization`
+header holds another install's token, or a typo. Copy `INGEST_TOKEN` from that server's `.env` again and keep the
+form `Bearer <token>`. On a host with two installs, each has its own token and port.
+
 ## Verify
+
+On the server, `lastShortcutAt` moves after each run, and the page's freshness dot shows "Atajo" a few minutes old:
+
+```bash
+curl -s localhost:8088/sync/status
+```
+
+In a coach clone (or host mode):
 
 ```bash
 npm run sync        # prints rows added per key; exits non-zero if the service is unreachable
-npm run generate    # rebuilds the page
+npm run generate    # rebuilds the page (host mode / local only)
 ```
 
 `loop-data/extract/_meta.json` → `shortcutSync.owned` lists every date the sync wrote

@@ -1,8 +1,10 @@
 # Troubleshooting
 
-Fixes for the common problems when you run the page and the LAN services at home. Each section names
-a symptom, what to **check** (1–3 places or commands), and the **fix**. Commands assume the clone is at
-`/path/to/loop`, the page on port 8090 and the ingest service on port 8088 (the defaults).
+Fixes for the common problems when you run the LOOP server at home. Each section names a symptom, what to
+**check** (1–3 places or commands), and the **fix**. Commands assume a server installed from the images
+([`README.md` → Setup](../../README.md#setup)), run in the folder holding its `docker-compose.yml`, with the default
+ports (page 8090, data service 8088). An older host-mode install (the services run from a clone at
+`/path/to/loop`) differs where a **Host mode** line says so.
 
 ## The page shows old data, or a source is amber / red
 
@@ -10,42 +12,61 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 
 - Tap the dot in the top bar: it lists the age of each source ("Atajo", "Strava", "Página"). Amber means
   older than 24 h, red older than 72 h.
-- `cat /path/to/loop/services/loop-web/site/status.json` — `publishedAt` and `commit` are the
-  last good build; an `error` field means the last run stopped early (next section).
-- `loop-data/extract/_meta.json` — `exportLastDate` is a partial day; `shortcutSync.owned`
-  lists the dates the Shortcut wrote.
+- `curl -s http://<server-ip>:8090/status.json` — `publishedAt` and `commit` are the last good build; an `error`
+  field means the last run stopped early (next section). Host mode: `cat /path/to/loop/services/loop-web/site/status.json`.
+- `docker compose exec loop-server cat /data/extract/_meta.json` — `exportLastDate` is a partial day;
+  `shortcutSync.owned` lists the dates the Shortcut wrote (in a coach clone or host mode: `loop-data/extract/_meta.json`).
 
 **Fix**
 
-- Press **Sync** on the page, or wait for the hourly cron rebuild.
+- Press **Sync** on the page, or wait for the hourly rebuild.
 - If only "Atajo" is old, the phone has not sent anything: see "The Shortcut runs but nothing arrives".
 - If only "Strava" is old, see "Strava stays empty".
-- Working on the command line instead: `npm run sync` then `npm run generate`.
+- In a coach clone, `npm run sync` pulls the server's latest data (host mode or local only: `npm run sync` then
+  `npm run generate`).
 
 ## The Sync button does nothing or shows "No se pudo actualizar"
 
 **Check**
 
-- `curl -s localhost:8090/api/sync/status` — `lastTriggerError: "trigger_write"` means the ingest
-  container could not write the trigger file.
-- The `error` code in `services/loop-web/site/status.json`: `branch`, `install`, `build`, `sanity` or
-  `lock`.
-- `journalctl -u loop-web-refresh.service -f` while you press Sync (the `refresh.sh` output).
+- `curl -s http://<server-ip>:8090/api/sync/status` — `lastTriggerError` names what failed on the data service side.
+- The `error` code in `status.json` (above): `build`, `sanity` or `lock` (host mode adds `branch` and `install`).
+- `docker compose logs -f loop-server` while you press Sync (the build's output). Host mode:
+  `journalctl -u loop-web-refresh.service -f` (the `refresh.sh` output).
 
 **Fix**
 
-- `branch`: only `main` is published. Check with
-  `git -C /path/to/loop rev-parse --abbrev-ref HEAD` and switch back to `main`; do feature work
-  in a separate git worktree.
-- `trigger_write`: the trigger directory must belong to the container user:
-  `sudo chown 1000:1000 /path/to/loop/services/loop-ingest/trigger`.
-- Nothing happens at all: the systemd path unit is missing or stopped.
-  `sudo systemctl enable --now loop-web-refresh.path` (install steps in the loop-web README, step 8).
-- `install` / `build`: run `/path/to/loop/services/loop-web/refresh.sh` by hand and read the
-  error. A failed build keeps the last good page online.
+- `build` / `sanity`: the log names the step that failed. A failed build keeps the last good page online.
 - `lock`: another refresh was still running; press Sync again in a minute.
 - No Sync button or freshness dot at all: the page cannot reach `/api/sync/status` (opened as a file,
-  the example build, or ingest is down). That is expected outside the LAN page.
+  the example build, or the data service is down). That is expected outside the LAN page.
+- **Host mode:**
+  - `branch`: only `main` is published. Check with `git -C /path/to/loop rev-parse --abbrev-ref HEAD` and switch
+    back to `main`; do feature work in a separate git worktree.
+  - `trigger_write`: the trigger directory must belong to the container user:
+    `sudo chown 1000:1000 /path/to/loop/services/loop-ingest/trigger`.
+  - Nothing happens at all: the systemd path unit is missing or stopped.
+    `sudo systemctl enable --now loop-web-refresh.path` (install steps in the loop-web README, step 8).
+  - `install` / `build`: run `/path/to/loop/services/loop-web/refresh.sh` by hand and read the error.
+
+## The Apple Health export in `files/import/` is not imported
+
+**Check**
+
+- `docker compose exec loop-server cat /data/import-state.json` — `file`, `importedAt` and `exportLastDate` of the
+  last import; a `lastError` with its `code` when the newest file failed.
+- `docker compose logs loop-server | grep import:health` — one line per attempt.
+
+**Fix**
+
+- No state file and `no import folder` in the log: the zip is not in the files folder the server reads
+  (`HC_FILES_LOCATION` in `.env`, default `./files`, so `files/import/` next to `docker-compose.yml`). Press
+  **Sync** after copying it (or wait for the hourly run).
+- `corrupt`, `truncated` or `no-export`: the zip was damaged or still being copied; export again from the iPhone and
+  copy it again (it is retried on the next run).
+- `too-large`: the export is over `HC_IMPORT_MAX_BYTES` (10 GiB by default); raise it in `.env`, then
+  `docker compose up -d`. A first import that times out: raise `HC_IMPORT_TIMEOUT` (seconds) the same way.
+- To import the same zip again: `docker compose exec loop-server npm run import:health -- --force`.
 
 ## The Shortcut runs but nothing arrives
 
@@ -57,11 +78,13 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
   `"event":"unauthorized"` with a running `count`, never the token); `400` with `"code":"nul_character"`
   means the payload holds a `\u0000` character, which the database cannot store.
 - `curl -s localhost:8088/sync/status` — `lastShortcutAt` should move after each run.
+- An error on the iPhone itself ("Puedes permitir su ejecución en Ajustes", "No se ha encontrado ninguna
+  muestra"): [`docs/ios-shortcut.md` → Troubleshooting](../ios-shortcut.md#troubleshooting).
 
 **Fix**
 
 - `401`: the `Authorization` header must be `Bearer <INGEST_TOKEN>`; on the server,
-  `grep INGEST_TOKEN services/loop-ingest/.env` and copy it on your own screen.
+  `grep '^INGEST_TOKEN=' .env` and copy it on your own screen (host mode: `services/loop-ingest/.env`).
 - Keys are empty: check the *Source is* (*Origen es*) filters name **your** devices, one search per
   device (two filters in one search are combined with AND and return nothing).
 - A type is missing from the list: iOS 26 renamed some (Active Energy → *Active Calories*, Resting
@@ -69,7 +92,7 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 - Runs at night send nothing: Health data is locked while the phone is locked. Trigger the automation
   on opening an app you use daily.
 - Very large payloads: loop-web and the service accept up to 8 MB on that path. Shorten the heart-rate window (1 day).
-- New keys never show up: run `npm run sync -- --full` once.
+- New keys never show up (host mode or a local-only clone): run `npm run sync -- --full` once.
 
 ## Strava stays empty
 
@@ -84,14 +107,15 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 **Fix**
 
 - `stravaConfigured: false`: fill `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` and `STRAVA_REFRESH_TOKEN`
-  in `services/loop-ingest/.env`, then `docker compose up -d` in that folder.
+  in `.env`, then `docker compose up -d` (host mode: `services/loop-ingest/.env`, `docker compose up -d` in that folder).
 - `strava_auth`, or `401` / `invalid_grant` while exchanging the code: the code was used or expired.
-  Authorize again with `scope=read,activity:read_all,profile:read_all` and exchange the new code at once
-  (`node scripts/strava-auth.js` in `services/loop-ingest`). Leave every scope ticked on the consent
-  screen; without `profile:read_all` bikes and shoes stay empty.
-- Then pull it locally: `npm run sync:strava` (or the full `npm run sync`).
+  Authorize again with `scope=read,activity:read_all,profile:read_all` and exchange the new code at once:
+  `docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print`, then put the printed
+  line in `.env` and `docker compose up -d` (host mode: `node scripts/strava-auth.js` in `services/loop-ingest`).
+  Leave every scope ticked on the consent screen; without `profile:read_all` bikes and shoes stay empty.
+- Then press **Sync** (a coach clone: `npm run sync`).
 - A long history fills in over a few runs: the first pull stores each page of 100 activities as it
-  arrives, and when Strava's rate limit (`rateLimited: true` in `docker compose logs loop-ingest`) stops
+  arrives, and when Strava's rate limit (`rateLimited: true` in `docker compose logs loop-server`) stops
   it, the next run (every `STRAVA_SYNC_MINUTES`) continues from the newest stored activity.
 
 ## The food log or the "+" sheet cannot reach the server
@@ -108,8 +132,26 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 **Fix**
 
 - IP addresses work out of the box. To open the page by name (`plan.lan` or a tunnel host), add the
-  name to `PLAN_WEB_EXTRA_HOSTS` in `services/loop-web/.env` **and** to `FOOD_ALLOWED_HOSTS` in
-  `services/loop-ingest/.env`, then `docker compose up -d` in both folders.
+  name to both `PLAN_WEB_EXTRA_HOSTS` and `FOOD_ALLOWED_HOSTS` in `.env`, then `docker compose up -d` (host mode:
+  the first in `services/loop-web/.env`, the second in `services/loop-ingest/.env`, `docker compose up -d` in both
+  folders).
+
+## A coach clone does not get the server's data
+
+**Check**
+
+- `npm run sync` prints `Client mode: ...` and a `Mirror: ...` line when it reaches a server from the images.
+- An `ERROR: ... (HTTP 401)` line: the clone's `INGEST_TOKEN` is not the server's.
+- A connection error: the clone cannot reach `INGEST_URL`.
+
+**Fix**
+
+- `401`: set `INGEST_TOKEN` to the value in the server's `.env`.
+- From another computer, the data port must be on the LAN: `INGEST_BIND` in the server's `.env` defaults to
+  `127.0.0.1` (loopback only); set it to the server's LAN IP and run `docker compose up -d` there
+  ([Network and bind address](../lan-services.md#network-and-bind-address)), or run the coach on the server itself
+  with `INGEST_URL=http://127.0.0.1:8088`.
+- More cases (an empty manifest, too many removals): [`docs/data-pipeline.md` → Coach as a client](../data-pipeline.md#coach-as-a-client-of-a-loop-server).
 
 ## The build fails on a fresh clone
 
@@ -129,64 +171,71 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 
 **Check**
 
-- `docker ps` — each install needs its own containers (`loop-ingest-second`, `loop-web-second`, …).
-- `HC_INSTANCE` and `INGEST_PORT` in that clone's `services/loop-ingest/.env`, and `HC_INSTANCE` and
-  `PLAN_WEB_PORT` in its `services/loop-web/.env` (the same `HC_INSTANCE` in both: it names the `loop-net-<name>`
-  network the page proxies over).
+- `docker ps` — each install needs its own containers (`loop-server-second`, `loop-web-second`, …).
+- `HC_INSTANCE`, `INGEST_PORT` and `PLAN_WEB_PORT` in that install's `.env`.
 - `docker network ls --filter name=loop-net`: one network per install.
 
 **Fix**
 
-- Give the second clone its own name and ports in both `.env` files (for example `HC_INSTANCE=second` in both,
-  `INGEST_PORT=8089` in the ingest one, `PLAN_WEB_PORT=8091` in the loop-web one), then `docker compose up -d` in
-  both folders, the ingest one first. `npm run sync`
-  and `refresh.sh` read `INGEST_PORT` from the clone's own ingest `.env`.
-- Rename that install's systemd units (`loop-web-refresh-second.path` / `.service`) so they do not
-  replace the first install's, and stagger the cron minutes on a small host.
+- Give the second install its own folder, name and ports in its `.env` (for example `HC_INSTANCE=second`,
+  `INGEST_PORT=8089`, `PLAN_WEB_PORT=8091`), then `docker compose up -d` there
+  ([`docs/lan-services.md` → A second install](../lan-services.md#a-second-install)).
+- **Host mode:** the same `HC_INSTANCE` in both of the clone's `.env` files (`services/loop-ingest/.env` with
+  `INGEST_PORT`, `services/loop-web/.env` with `PLAN_WEB_PORT`; it names the `loop-net-<name>` network the page
+  proxies over), `docker compose up -d` in both folders, the ingest one first; `npm run sync` and `refresh.sh` read
+  `INGEST_PORT` from the clone's own ingest `.env`. Rename that install's systemd units
+  (`loop-web-refresh-second.path` / `.service`) so they do not replace the first install's, and stagger the cron
+  minutes on a small host.
 
 ## Containers are down, unhealthy, or out of date after an update
 
 **Check**
 
-- `docker compose ps` in `services/loop-ingest` and in `services/loop-web`.
+- `docker compose ps` (host mode: in `services/loop-ingest` and in `services/loop-web`).
 - `curl -s localhost:8088/healthz` — `200` when the database answers; `degraded: true` only concerns
   Strava (see above).
 
 **Fix**
 
-- After pulling new code on `main` (`git -C /path/to/loop pull`), rebuild the ingest service
-  (`docker compose up -d --build` in `services/loop-ingest`; it applies new database migrations) and
-  recreate loop-web (`docker compose up -d --force-recreate` in `services/loop-web`). `refresh.sh` reinstalls npm packages
-  on its own when the lockfile changed.
-- A container that will not start: `docker compose logs` in its folder. The ingest service refuses to
-  start with an `INGEST_TOKEN` shorter than 32 characters, with `invalid <NAME>=...` when a numeric variable
-  (`STRAVA_SYNC_MINUTES`, `MAX_BODY_BYTES`, `PORT`) is set to something that is not a plain number in range, and with `migration <file> was changed after it
-  was applied` when a file under `services/loop-ingest/sql/` was edited after it ran: restore it
-  (`git checkout -- services/loop-ingest/sql/<file>`) and put the change in a new migration
-  ([`services/loop-ingest/README.md` → Database migrations](../../services/loop-ingest/README.md#database-migrations)).
+- Out of date: [`upgrading.md`](upgrading.md) (`docker compose pull && docker compose up -d`, after a backup).
+- `loop-web` is not started: it waits until `loop-server` is healthy; `docker compose logs loop-server` says why it
+  is not.
+- A container that will not start: `docker compose logs <container>`. The data service refuses to start with an
+  `INGEST_TOKEN` shorter than 32 characters, with `invalid <NAME>=...` when a numeric variable
+  (`STRAVA_SYNC_MINUTES`, `MAX_BODY_BYTES`, `PORT`) is set to something that is not a plain number in range, and with
+  `migration <file> was changed after it was applied` when a file under `services/loop-ingest/sql/` was edited after
+  it ran (a clone only): restore it (`git checkout -- services/loop-ingest/sql/<file>`) and put the change in a new
+  migration ([`services/loop-ingest/README.md` → Database migrations](../../services/loop-ingest/README.md#database-migrations)).
+- `docker compose up` stops with `set INGEST_PORT in docker/.env`: add `INGEST_PORT=8088` (or your port) to `.env`;
+  it is required, so the port is never left to chance (host mode: `set INGEST_PORT in services/loop-ingest/.env`).
 - loop-web restarting with `bind() to 0.0.0.0:80 failed (13: Permission denied)` (a Docker older than 20.10):
-  add `NET_BIND_SERVICE` to `cap_add` in `services/loop-web/docker-compose.yml`. Another `Permission denied`
-  or `Read-only file system` in a container's logs after the hardening: report it with that log line.
-- `docker compose up` stops with `set INGEST_PORT in services/loop-ingest/.env`: add `INGEST_PORT=8088` (or
-  your port) to that file; it is required, so the port is never left to chance.
-- `loop-db` stops with `could not find a network matching network mode loop-ingest_default` after an update:
-  the update that moved the services to `loop-net` needs `docker compose up -d --build --force-recreate` in
-  `services/loop-ingest` once ([upgrading](upgrading.md)).
-- loop-web stops with `network loop-net declared as external, but could not be found`: start the ingest stack
-  first (`docker compose up -d` in `services/loop-ingest` creates the network), then loop-web. The page loads but
-  Sync, the food log and the journal answer `502` / `504`: the ingest container is down or not on `loop-net`
-  (`docker network inspect loop-net` lists both containers); [`docs/lan-services.md` → Network and bind address](../lan-services.md#network-and-bind-address).
+  add `NET_BIND_SERVICE` to loop-web's `cap_add` in `docker-compose.yml`. Another `Permission denied` or
+  `Read-only file system` in a container's logs: report it with that log line.
 - **Docker ignores ufw** (and firewalld): a published port is reachable from every network the host is on,
-  whatever the firewall says. On a host with a public address (a VPS, a router-exposed machine), set
-  `INGEST_BIND=127.0.0.1` in `services/loop-ingest/.env` (loop-web does not use that port) and `PLAN_WEB_BIND` in
-  `services/loop-web/.env` to the LAN IP, then `docker compose up -d` in each folder ([`docs/lan-services.md` → Network and bind address](../lan-services.md#network-and-bind-address)).
+  whatever the firewall says. On a host with a public address (a VPS, a router-exposed machine), keep
+  `INGEST_BIND=127.0.0.1` and set `PLAN_WEB_BIND` to the LAN IP in `.env`, then `docker compose up -d`
+  ([`docs/lan-services.md` → Network and bind address](../lan-services.md#network-and-bind-address)).
 - The page or the API answers `429`: nginx's rate limit on the proxied routes (generous; see
   [`services/loop-web/README.md`](../../services/loop-web/README.md) → Rate limits); a script looping on
   `/api/*` is the usual cause.
+- **Host mode:**
+  - After pulling new code on `main` (`git -C /path/to/loop pull`), rebuild the ingest service
+    (`docker compose up -d --build` in `services/loop-ingest`; it applies new database migrations) and
+    recreate loop-web (`docker compose up -d --force-recreate` in `services/loop-web`). `refresh.sh` reinstalls npm
+    packages on its own when the lockfile changed.
+  - `loop-db` stops with `could not find a network matching network mode loop-ingest_default` after an update:
+    the update that moved the services to `loop-net` needs `docker compose up -d --build --force-recreate` in
+    `services/loop-ingest` once ([upgrading](upgrading.md)).
+  - loop-web stops with `network loop-net declared as external, but could not be found`: start the ingest stack
+    first (`docker compose up -d` in `services/loop-ingest` creates the network), then loop-web. The page loads but
+    Sync, the food log and the journal answer `502` / `504`: the ingest container is down or not on `loop-net`
+    (`docker network inspect loop-net` lists both containers).
+  - On a host with a public address: `INGEST_BIND=127.0.0.1` in `services/loop-ingest/.env` (loop-web does not use
+    that port) and `PLAN_WEB_BIND` in `services/loop-web/.env`, then `docker compose up -d` in each folder.
 
 ## Still stuck?
 
-- [LAN services reference](../lan-services.md) — the sync protocol, error codes and security.
-- [iOS Shortcut](../ios-shortcut.md) — every payload key, Gotchas and Verify.
-- [loop-web README](../../services/loop-web/README.md) — install steps, smoke test, second install.
+- [LOOP server reference](../lan-services.md) — the images, the sync protocol, error codes and security.
+- [iOS Shortcut](../ios-shortcut.md) — every payload key, Gotchas, Troubleshooting and Verify.
 - [loop-ingest README](../../services/loop-ingest/README.md) — endpoints, Strava, configuration.
+- [loop-web README](../../services/loop-web/README.md) — host mode: install steps, smoke test, second install.

@@ -1,4 +1,4 @@
-# LOOP server (preview, docs/lan-services.md -> Server image): the database, the loop-server image, which ingests
+# LOOP server (docs/lan-services.md -> The stack — `docker/`): the database, the loop-server image, which ingests
 # the iOS Shortcut / Strava data AND builds + publishes the page in the container (no clone, Node, cron or systemd
 # on the host), and the loop-web image (nginx with the audited services/loop-web config) serving that page on the LAN
 # and proxying its few data routes. Copy .env.example to .env next to this file, fill it in, then `docker compose up -d`.

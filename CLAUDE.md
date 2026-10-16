@@ -12,7 +12,7 @@ at the end. **Engram is optional**: without it, this file (durable operating fac
 open questions).
 
 **First-run check:** if `profile/about-me.md` does NOT exist (only the `.example` template), the
-user has not been onboarded: do NOT analyse empty data — run the `/setup` skill (installation, by level;
+user has not been onboarded: do NOT analyse empty data — run the `/setup` skill (installation: the server images and / or this coach clone;
 `.claude/skills/setup/SKILL.md`), which hands over to [`docs/onboarding.md`](docs/onboarding.md).
 
 ## Analysis reports
@@ -123,7 +123,7 @@ One line per area; the design detail lives in the linked doc (read it on demand)
 | Training: Hoy (programmed session), Entreno calendar, workouts dashboard | [`docs/training.md`](docs/training.md) |
 | Health tab (Salud): body comp, activity, energy + power-meter correction, running / cycling, recovery, sleep | [`docs/health-tab.md`](docs/health-tab.md) |
 | Home tab (Inicio): dials, advice, eat card, monitor, timeline; recovery + load scoring; same-day merge rule | [`docs/home-tab.md`](docs/home-tab.md) |
-| LAN page + on-demand refresh: `services/loop-web`, `services/loop-ingest`, sync protocol, security | [`docs/lan-services.md`](docs/lan-services.md) |
+| LOOP server: the `loop-server` + `loop-web` images (`docker/`), sync protocol, security; host mode (`services/loop-web`, `services/loop-ingest`, `refresh.sh`) | [`docs/lan-services.md`](docs/lan-services.md) |
 | Knowledge base ingest, private program syncs (`local/`), coach subagents | [`docs/knowledge-base.md`](docs/knowledge-base.md) |
 | Onboarding a new user (first run: profile + baseline + coach config interview) | [`docs/onboarding.md`](docs/onboarding.md) |
 | Guard hook: blocks committing personal data (force-add, `.gitignore` edits) | [`docs/guard-hook.md`](docs/guard-hook.md) |

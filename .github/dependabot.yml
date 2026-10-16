@@ -1,4 +1,5 @@
-# Weekly update PRs: npm (page/tooling and the data service), the pinned base image digests, the pinned actions.
+# Weekly update PRs: npm (page/tooling and the data service), the pinned base image digests (Dockerfiles and compose
+# files, host mode and docker/), the pinned actions.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -9,8 +10,9 @@ updates:
   - package-ecosystem: npm
     directory: /services/loop-ingest
     schedule: { interval: weekly }
+  # the Dockerfiles: services/loop-ingest/Dockerfile (host mode) and docker/*.Dockerfile (the published images)
   - package-ecosystem: docker
-    directory: /services/loop-ingest
+    directories: [/services/loop-ingest, /docker]
     schedule: { interval: weekly }
     ignore:
       # Major versions of the runtime and the database are planned upgrades, never a weekly bump: Node stays on the
@@ -19,8 +21,10 @@ updates:
         update-types: [version-update:semver-major]
       - dependency-name: postgres
         update-types: [version-update:semver-major]
+      - dependency-name: nginx
+        update-types: [version-update:semver-major]
   - package-ecosystem: docker-compose
-    directories: [/services/loop-ingest, /services/loop-web]
+    directories: [/services/loop-ingest, /services/loop-web, /docker]
     schedule: { interval: weekly }
     ignore:
       # Major versions of the runtime and the database are planned upgrades, never a weekly bump: Node stays on the

@@ -1,24 +1,79 @@
 # Updating your install
 
-How to bring a running install up to date with the latest `main`, and how to back up your data first. Run
-everything from the root of your clone. A second install (another person on the same host) is updated the
-same way inside its own clone.
+How to bring an install up to date, and how to back up your data first. A **server** installed from the images
+(`docker-compose.yml` + `.env` in a folder of their own, [`README.md` → Setup](../../README.md#setup)) updates by
+pulling the new images; a **coach clone** by pulling the code; an older **host-mode** install (the services run from
+a clone, [below](#update-a-host-mode-install-development--legacy)) by pulling and rebuilding. A second install is
+updated the same way in its own folder or clone.
 
 ## Before you start: back up the database
 
-Your food log, recipes, journal, settings and Strava history live in the data service's database. A copy
-takes a few seconds:
+Your food log, recipes, journal, settings, documents and Strava history live in the database. A copy takes a few
+seconds; on a server, from the folder holding `docker-compose.yml`:
 
 ```sh
 mkdir -p backups
-docker exec loop-db pg_dump -U health health > "backups/loop-db-$(date +%F).sql"
+docker compose exec -T loop-db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > "backups/loop-db-$(date +%F).sql"
 ```
 
-`backups/` is gitignored. On a second install the container carries its name (`loop-db-second` for
-`HC_INSTANCE=second`). To restore a copy into an empty database:
-`docker exec -i loop-db psql -U health -d health < backups/loop-db-YYYY-MM-DD.sql`.
+To restore a copy into an empty database (a new install, or after `docker compose down -v`): start only the
+database and wait until it accepts connections (`--wait`), load the copy, then start the rest. Paste the block
+as a whole: the `&&` at each line end stops it at the first error, so the rest never starts on an empty or
+half-loaded database (a database that is not empty refuses the copy with `relation ... already exists`, and
+nothing changes):
 
-## Update
+```sh
+docker compose up -d --wait loop-db &&
+docker compose exec -T loop-db sh -c 'psql -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < backups/loop-db-YYYY-MM-DD.sql > /dev/null &&
+docker compose up -d
+```
+
+Keep the Apple Health export zip in `files/import/` too: it is the source of your Health history.
+
+On a host-mode install the same copy is `docker exec loop-db pg_dump -U health health > "backups/loop-db-$(date +%F).sql"`
+in the clone (restore, into an empty database:
+`docker exec -i loop-db psql -q -v ON_ERROR_STOP=1 -U health -d health < backups/loop-db-YYYY-MM-DD.sql`); on a
+second install the container carries its name (`loop-db-second` for `HC_INSTANCE=second`).
+
+## Update the server
+
+1. **Read the release notes** of the new version in [`CHANGELOG.md`](../../CHANGELOG.md): they say when a release
+   needs more than the steps below (a new variable in `.env`, a new compose file).
+2. **Back up** (above).
+3. **Pick the version**: set `HC_VERSION` in `.env` to the new release (e.g. `HC_VERSION=1.0.1`). When the notes
+   say the compose file changed, download that release's `docker-compose.yml` over yours (the README's `curl -fsSLO`
+   line with the new version in the URL); keep your `.env`.
+4. **Pull and restart**:
+
+   ```sh
+   docker compose pull && docker compose up -d
+   ```
+
+   The data service applies any new database migrations on start, and the page is rebuilt a few seconds later.
+
+## Update a coach clone
+
+```sh
+git pull && npm ci
+npm run sync
+```
+
+The clone stays a client of the server: nothing else to restart.
+
+## Check
+
+- `docker compose ps`: every container `healthy`.
+- `curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8088/healthz` prints `200` (use your `INGEST_PORT` /
+  `INGEST_BIND` if you changed them; without `-o /dev/null -w ...` it prints the JSON body, `{"ok":true,...}`).
+- `http://<server-ip>:8090/status.json` shows the new version as `commit` and no `error` (host mode:
+  `services/loop-web/site/status.json`, the git commit).
+- The page opens and its freshness line is green.
+
+If something is off, see [troubleshooting](troubleshooting.md).
+
+## Update a host-mode install (development / legacy)
+
+Run everything from the root of the clone.
 
 1. **Get the new code.** The page only publishes from `main`, so stay on it:
 
@@ -30,7 +85,8 @@ docker exec loop-db pg_dump -U health health > "backups/loop-db-$(date +%F).sql"
    Coming from before the data root `loop-data/`? Move your personal files now, before the next Sync
    ([release note below](#your-personal-files-move-to-loop-data)): `npm run migrate:data-root`.
 
-3. **The data service.** Rebuild it from your clone; on start it applies any new database migrations:
+3. **The data service.** Rebuild it from your clone; on start it applies any new database migrations (its image is
+   no longer published, so always `--build`):
 
    ```sh
    (cd services/loop-ingest && docker compose up -d --build)
@@ -38,17 +94,6 @@ docker exec loop-db pg_dump -U health health > "backups/loop-db-$(date +%F).sql"
 
    Coming from before the `loop-net` network, add `--force-recreate` once
    ([release note below](#loop-web-reaches-the-data-service-over-loop-net)).
-
-   Or, right after a release, run the published image instead of building
-   (`mralexandersaavedra/loop-ingest`): a release is merged to `main` together with the `HC_VERSION` default in
-   `services/loop-ingest/docker-compose.yml`, so on an up-to-date `main` this pulls exactly that version (set
-   `HC_VERSION` in `.env` to pin another). Stay on `main`: a tag checkout (`git checkout vX.Y.Z`) is a detached
-   `HEAD`, and the page refresh publishes only from `main` (it stops with the `branch` error). Between releases
-   `main` is newer than any published image: use `--build` above.
-
-   ```sh
-   (cd services/loop-ingest && docker compose pull loop-ingest && docker compose up -d)
-   ```
 
 4. **The page service.** Recreate it so it picks up a changed nginx configuration or compose file:
 
@@ -64,19 +109,11 @@ docker exec loop-db pg_dump -U health health > "backups/loop-db-$(date +%F).sql"
 5. **Rebuild the page now** instead of waiting for the hourly run: press **Sync** on the page, or run
    `services/loop-web/refresh.sh` by hand.
 
-Using the page without the LAN services (Level 1 only)? Steps 1–2, then `npm run generate`.
-
-## Check
-
-- `curl -s -o /dev/null -w '%{http_code}\n' localhost:8088/healthz` prints `200` (use your `INGEST_PORT` if you changed
-  it; without `-o /dev/null -w ...` it prints the JSON body, `{"ok":true,...}`).
-- `services/loop-web/site/status.json` shows the new `commit` and no `error`.
-- The page opens and its freshness line is green.
-
-If something is off, see [troubleshooting](troubleshooting.md). Release notes live in
-[`CHANGELOG.md`](../../CHANGELOG.md).
+Using the page without any server (coach, local only)? Steps 1–2, then `npm run generate`.
 
 ## Release notes for existing installs
+
+The notes below concern host-mode installs (the services run from a clone).
 
 ### Your personal files move to `loop-data/`
 

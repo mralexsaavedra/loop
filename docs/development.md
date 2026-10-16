@@ -149,9 +149,20 @@ has the full table; `lib/paths.test.mjs` pins both layouts path by path.
 
 CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) runs `npm run lint`, `npm run typecheck`, `npm test`,
 `npm run test:services` and (job `postgres`, a Postgres 17 service container) `npm run test:pg` on every push to `main` and every pull request; a fresh clone needs no personal data to pass. A `vX.Y.Z` tag runs
-[`.github/workflows/release.yml`](../.github/workflows/release.yml), which publishes the data service image
-`mralexandersaavedra/loop-ingest` to Docker Hub for `linux/amd64` and `linux/arm64` as `X.Y.Z`, `X.Y` and `latest`.
-[`scripts/release.test.mjs`](../scripts/release.test.mjs) keeps the pieces below in step, so a drift fails the suite.
+[`.github/workflows/release.yml`](../.github/workflows/release.yml), which publishes the two server images to Docker
+Hub, `mralexandersaavedra/loop-server` (`docker/loop-server.Dockerfile`) and `mralexandersaavedra/loop-web`
+(`docker/loop-web.Dockerfile`), built from the repo root for `linux/amd64` and `linux/arm64` and tagged `X.Y.Z` and
+`X.Y` (the OCI `version` label comes from the `VERSION` build argument), plus `latest` only when the version is the
+highest `X.Y.Z` tag in the repo: a backport tag (`v1.0.5` after `v1.1.0`) leaves `latest` where it is. Its first job,
+`check`, stops the release before anything is built or pushed unless the version is a plain `X.Y.Z` (no pre-release),
+the tag equals `v` + the `package.json` version, the tagged commit is on `main`, every `loop-server` / `loop-web`
+`image:` line of [`docker/docker-compose.yml`](../docker/docker-compose.yml) uses `${HC_VERSION:-X.Y.Z}` with that
+version (no hard-coded tag), `HC_VERSION` in `docker/.env.example` is exactly that version, and the first version
+heading of `CHANGELOG.md` is `## [X.Y.Z] - YYYY-MM-DD` (a `- UNRELEASED` one is refused). The
+host-mode data service image (`mralexandersaavedra/loop-ingest`) is no longer published: `services/loop-ingest` still
+builds it from a clone (`docker compose up -d --build`). [`scripts/release.test.mjs`](../scripts/release.test.mjs) keeps
+the pieces below in step and runs the `check` script against good and bad scratch git repos (the `latest` ordering
+included), so a drift fails the suite.
 
 One-time repository settings: the variable `DOCKERHUB_USERNAME` and the secret `DOCKERHUB_TOKEN` (a Docker Hub
 access token with read/write scope, never the account password); and, once the repository is public, **Settings →
@@ -161,27 +172,30 @@ offers it only on public repositories).
 Checklist for a release:
 
 1. Bump `version` in `package.json` and `services/loop-ingest/package.json` (`npm install --package-lock-only` in
-   both, so the lock files carry it too), and the `HC_VERSION` default in `services/loop-ingest/docker-compose.yml`.
-2. Add a `## [X.Y.Z] - YYYY-MM-DD` section at the top of [`CHANGELOG.md`](../CHANGELOG.md) with what changed for
-   someone running an install.
-3. Merge to `main` with CI green.
-4. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`. The workflow refuses a tag that differs from
-   `package.json`.
-5. Check the image on Docker Hub, then on an install: `docker compose pull && docker compose up -d` in
-   `services/loop-ingest` ([`docs/guides/upgrading.md`](guides/upgrading.md)).
+   both, so the lock files carry it too), every `HC_VERSION:-` default in `docker/docker-compose.yml` (the two
+   images and their two `VERSION` build arguments) and `HC_VERSION` in `docker/.env.example`.
+2. Write the `## [X.Y.Z] - UNRELEASED` section at the top of [`CHANGELOG.md`](../CHANGELOG.md) with what changed for
+   someone running an install. While it says `UNRELEASED` the suite passes but the release workflow refuses the tag.
+3. **Set the date**: replace `UNRELEASED` with the release day (`## [X.Y.Z] - YYYY-MM-DD`) in the last pull request
+   before the tag.
+4. Merge to `main` with CI green.
+5. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`. A failed `check` job publishes nothing: fix the file it
+   names on `main`, delete the tag (`git push origin :refs/tags/vX.Y.Z && git tag -d vX.Y.Z`) and tag again.
+6. Check both images on Docker Hub (each tag lists `linux/amd64` and `linux/arm64`), then on an install:
+   `docker compose pull && docker compose up -d` next to its `docker-compose.yml`
+   ([`docs/guides/upgrading.md`](guides/upgrading.md)).
 
 Base images (`node`, `postgres`, `nginx`) and the GitHub Actions are pinned by digest or commit SHA, with the
 readable tag beside them; Dependabot ([`.github/dependabot.yml`](../.github/dependabot.yml)) proposes the updates
-weekly, together with the npm dependencies.
+weekly for the Dockerfiles and compose files of both `services/` and `docker/`, together with the npm dependencies.
 
-The `loop-server` and `loop-web` images (preview, [`lan-services.md` → Server image](lan-services.md#server-image-preview--docker))
-are not released yet: `docker build -f docker/loop-server.Dockerfile --build-arg VERSION=<x.y.z> .` and
-`docker build -f docker/loop-web.Dockerfile --build-arg VERSION=<x.y.z> .` from the repo root build them locally
-(`loop-server`: only production dependencies, `astro` and `esbuild` are `dependencies` because the page build runs in
-the image; `loop-web`: nginx with `services/loop-web/nginx.conf.template` and `hosts.sh` copied in, so a change to
-the audited config reaches both stacks). `scripts/loop-server-compose.test.mjs` / `scripts/dockerignore.test.mjs` pin
-both Dockerfiles, the compose file and the default-deny build context; `docker compose -f docker/docker-compose.yml
-up -d --build` with a `docker/.env` runs the whole stack from a clone.
+To build the images locally from the repo root: `docker build -f docker/loop-server.Dockerfile --build-arg
+VERSION=<x.y.z> .` and `docker build -f docker/loop-web.Dockerfile --build-arg VERSION=<x.y.z> .` (`loop-server`:
+only production dependencies, `astro` and `esbuild` are `dependencies` because the page build runs in the image;
+`loop-web`: nginx with `services/loop-web/nginx.conf.template` and `hosts.sh` copied in, so a change to the audited
+config reaches both stacks). `scripts/loop-server-compose.test.mjs` / `scripts/dockerignore.test.mjs` pin both
+Dockerfiles, the compose file and the default-deny build context; `docker compose -f docker/docker-compose.yml up -d
+--build` with a `docker/.env` runs the whole stack from a clone ([`lan-services.md`](lan-services.md)).
 
 ## Contributor-only tools
 
