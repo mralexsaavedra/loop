@@ -113,7 +113,7 @@ test('moveIdentityToDocument: an onboarding row from before moves its identity i
   assert.deepEqual(await rawRow(), OWN)
   const doc = await createDocumentStore(pool).get('profile')
   assert.deepEqual([doc.data, doc.revision], [{ name: 'Ana', sex: 'female', birthdate: '1995-03-02', heightCm: 165 }, 1])
-  assert.deepEqual(logs, [{ event: 'profile_identity_moved', keys: ['name', 'sex', 'birthdate', 'heightCm'] }])
+  assert.deepEqual(logs, [{ event: 'profile_identity_moved', keys: ['name', 'sex', 'birthdate', 'heightCm'], kept: [] }])
   // a second start has nothing to move
   assert.deepEqual(await moveIdentityToDocument(pool, quiet), { moved: [] })
   assert.equal((await createDocumentStore(pool).get('profile')).revision, 1)
@@ -125,7 +125,9 @@ test('moveIdentityToDocument: a value the document already has wins over the old
   await reset()
   await createDocumentStore(pool).put('profile', { heightCm: 170, devices: [] }, 0)
   await pool.query('INSERT INTO app_profile (id, data) VALUES (1, $1)', [JSON.stringify(WIZARD)])
-  await moveIdentityToDocument(pool, quiet)
+  const logs = []
+  await moveIdentityToDocument(pool, (l) => logs.push(JSON.parse(l)))
+  assert.deepEqual(logs, [{ event: 'profile_identity_moved', keys: ['name', 'sex', 'birthdate', 'heightCm'], kept: ['heightCm'] }])
   const doc = await createDocumentStore(pool).get('profile')
   assert.deepEqual(doc.data, { heightCm: 170, devices: [], name: 'Ana', sex: 'female', birthdate: '1995-03-02' })
   assert.equal(doc.revision, 2)

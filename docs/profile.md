@@ -150,20 +150,20 @@ the ingest service's `GET /export/athlete`.
 
 Read as FILES by the read-only coach subagents (see [`knowledge-base.md`](knowledge-base.md)):
 
-In the data service, name, sex, birthdate and height are stored ONCE, in the profile document (the database
-copy of `profile.json`, [`data-pipeline.md` → Owner documents](data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync)),
-whoever writes them: the coach's `npm run documents -- push profile` or the page's onboarding wizard, whose save
-the service splits (its own fields to `app_profile`, the identity merged into the profile document at the next
-revision; `services/loop-ingest/src/profile-db.js`). `GET /food/profile` composes them back, so `onboarding.json`
-carries the same values as `profile.json`. An onboarding saved before this layout has its identity moved into
-the document when the service starts (a value the document already has wins).
-
 | Fact | Source |
 | --- | --- |
 | Weight | `weight.csv` (live) |
 | Name, sex, height, birthdate, devices, supplements, events | `profile/profile.json` |
 | Goal + target weight | `data/profile/settings.json` |
 | Stable context (injuries, history, preferences) | `profile/about-me.md` — never numbers in prose |
+
+In the data service, name, sex, birthdate and height are stored ONCE, in the profile document (the database
+copy of `profile.json`, [`data-pipeline.md` → Owner documents](data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync)),
+whoever writes them: the coach's `npm run documents -- push profile` or the page's onboarding wizard, whose save
+the service splits (its own fields to `app_profile`, the identity merged into the profile document at the next
+revision; `services/loop-ingest/src/profile-db.js`). `GET /food/profile` composes them back, so `onboarding.json`
+carries the same values as `profile.json`. An onboarding saved before this layout has its identity moved into
+the document when the service starts (a value the document already has wins; the onboarding values it replaces are named in the `profile_identity_moved` log line).
 
 ### `settings.json`
 

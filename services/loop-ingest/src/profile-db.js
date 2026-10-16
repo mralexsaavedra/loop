@@ -11,7 +11,8 @@
  * created concurrently by the coach makes the insert lose: the whole save is retried (MAX_ATTEMPTS).
  *
  * moveIdentityToDocument: an onboarding row saved before this layout holds the identity itself; on start the
- * service moves it into the document (a value the document already has wins) and strips it from the row. Once;
+ * service moves it into the document (a value the document already has wins; the replaced keys are logged as
+ * `kept`, the document's) and strips it from the row. Once;
  * a later start finds nothing to move.
  */
 export const IDENTITY_KEYS = Object.freeze(['name', 'sex', 'birthdate', 'heightCm'])
@@ -129,14 +130,16 @@ export async function moveIdentityToDocument (pool, log = console.log) {
       const base = current?.data ?? {}
       // a value the profile document already has wins over the old onboarding copy
       const missing = Object.fromEntries(Object.entries(identity).filter(([k]) => base[k] === undefined))
+      // the old onboarding values a different document value replaces (named in the log, never their values)
+      const dropped = Object.keys(identity).filter((k) => base[k] !== undefined && JSON.stringify(base[k]) !== JSON.stringify(identity[k]))
       const next = mergedDocument(current?.data, missing)
       if (next && !(await writeDocument(client, current, next))) return undefined
       await client.query('UPDATE app_profile SET data = $1 WHERE id = 1', [JSON.stringify(own)])
-      return { moved }
+      return { moved, dropped }
     })
     if (result) {
-      if (result.moved.length) log(JSON.stringify({ event: 'profile_identity_moved', keys: result.moved }))
-      return result
+      if (result.moved.length) log(JSON.stringify({ event: 'profile_identity_moved', keys: result.moved, kept: result.dropped }))
+      return { moved: result.moved }
     }
   }
   throw new Error('profile document kept changing; the identity was not moved')

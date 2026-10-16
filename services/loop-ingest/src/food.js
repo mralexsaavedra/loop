@@ -13,7 +13,8 @@
  *                                   page's adherence view (food-calc.js daySummaries)
  *   GET    /food/settings            the user's goal + target weight (one row, sql/007_settings.sql)
  *   GET    /food/profile             the in-page onboarding document (profile + accepted targets), null before the first save
- *   PUT    /food/profile             replaces it (validateProfile; one row, sql/011_profile.sql, its own optional `profile` group)
+ *   PUT    /food/profile             saves it (validateProfile; its own fields replace the app_profile row, sql/011; name / sex /
+ *                                     birthdate / height merge into the profile document, sql/012: profile-db.js; needs both groups)
  *   PUT    /food/settings            partial update {goal?, targetWeightKg?} (targetWeightKg null clears it)
  *
  * The settings live in their OWN optional migration group (`settings`): when 007 fails only
