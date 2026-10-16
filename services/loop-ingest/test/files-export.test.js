@@ -396,3 +396,29 @@ test('GET /export/file refuses a file replaced by another one after the listing 
     await s.close()
   }
 })
+
+test('a folder that became a symlink loop (a swap mid-walk) is skipped like a vanished one: 200, never a 500', async () => {
+  const s = await setup()
+  try {
+    // the deepest case of the race: the allowlisted folder itself resolves to a loop when the walk reads it
+    fs.mkdirSync(path.join(s.root, 'profile', 'loop'), { recursive: true })
+    fs.rmSync(path.join(s.root, 'profile', 'loop'), { recursive: true })
+    fs.symlinkSync('loop', path.join(s.root, 'profile', 'loop'))
+    const walked = []
+    const real = fs.promises.readdir
+    fs.promises.readdir = async (p, o) => {
+      walked.push(p)
+      if (p === path.join(s.root, 'foodlog')) return real(path.join(s.root, 'profile', 'loop'), o)
+      return real(p, o)
+    }
+    let res
+    try { res = await s.get('/export/files') } finally { fs.promises.readdir = real }
+    assert.equal(res.status, 200)
+    const paths = res.json().files.map((f) => f.path)
+    assert.ok(!paths.some((p) => p.startsWith('foodlog/')), 'the looping folder lists nothing')
+    assert.ok(paths.includes('extract/weight.csv'), 'the rest is listed')
+    assert.ok(walked.length > 0)
+  } finally {
+    await s.close()
+  }
+})

@@ -100,7 +100,8 @@ async function walk (absRoot, rel, depth, out) {
   try {
     entries = await fs.promises.readdir(absRoot, { withFileTypes: true })
   } catch (err) {
-    if (err.code === 'ENOENT' || err.code === 'ENOTDIR') return
+    // a folder that vanished, became a file or a symlink loop while the walk ran (a swap): nothing to list there
+    if (['ENOENT', 'ENOTDIR', 'ELOOP'].includes(err.code)) return
     throw err
   }
   for (const e of entries) {
