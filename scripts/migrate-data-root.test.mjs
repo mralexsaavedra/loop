@@ -214,3 +214,34 @@ test('the CLI: --help exits 0, a typo exits 2, --dry-run on a clone writes nothi
   assert.match(dry.stdout, /would move 22 files into loop-data/);
   assert.deepEqual(snapshot(dir), before);
 });
+
+test('an interrupted copy: its temp files are removed, older backups dropped (only the newest kept)', (t) => {
+  const dir = clone();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  // a killed earlier run: a half temp file next to a target, and its backup tar
+  const tmp = path.join(dir, 'loop-data/cache/plan.json.migrate-99999.tmp');
+  put(tmp, 'half');
+  put(path.join(dir, 'backups/data-root-before-20300101T000000Z.tar'), 'old tar');
+  put(path.join(dir, 'backups/other.bak'), 'kept');
+  const r = run(dir);
+  assert.equal(r.code, 0, r.warns.join('\n'));
+  assert.match(r.logs.at(-1), /\. Removed 1 temp file of an interrupted run\.$/);
+  assert.equal(fs.existsSync(tmp), false);
+  const tars = fs.readdirSync(path.join(dir, 'backups')).filter((n) => n.endsWith('.tar'));
+  assert.deepEqual(tars, ['data-root-before-20300102T030405Z.tar']);
+  assert.ok(fs.existsSync(path.join(dir, 'backups/other.bak')), 'other backups untouched');
+});
+
+test('a sync running with the new layout (a fresh data-root lock) refuses; the run releases its own lock', (t) => {
+  const dir = clone();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const lock = path.join(dir, 'loop-data/extract/_meta.json.lock');
+  put(lock, '1');
+  const busy = run(dir, { now: new Date() });
+  assert.equal(busy.code, 1);
+  assert.match(busy.warns[0], /^ERROR: a sync is running \(loop-data\/extract\/_meta\.json\.lock\); nothing moved/);
+  // a stale one (a crashed run) is taken over, and released at the end
+  const done = run(dir, { now: new Date(Date.now() + 10 * 60 * 1000) });
+  assert.equal(done.code, 0, done.warns.join('\n'));
+  assert.equal(fs.existsSync(lock), false);
+});

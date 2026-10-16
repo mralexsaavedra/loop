@@ -20,10 +20,13 @@
  *             nutritionist,clinical}/ (the coach-only PDFs and reports)
  *
  * Safety: nothing is touched when a target already exists with other content (exit 1, each conflict named)
- * or while a sync holds the extract lock. Otherwise: a backup tarball of every source first
- * (backups/data-root-before-<UTC stamp>.tar), then two phases: copy every file (temp file, fsync, rename;
- * the mtime kept), verify every copy by sha256, and only then remove the sources. A target that already holds
- * the same bytes (a run interrupted after its copies) is not copied again. A second run has nothing to move.
+ * or while a sync holds the extract lock (old or new layout). The run holds the new layout's extract lock
+ * itself, so a sync started meanwhile waits or gives up instead of writing into the data root. Otherwise: a
+ * backup tarball of every source first (backups/data-root-before-<UTC stamp>.tar), then two phases: copy every
+ * file (temp file, fsync, rename; the mtime kept), verify every copy by sha256, and only then remove the
+ * sources. A target that already holds the same bytes (a run interrupted after its copies) is not copied again,
+ * and the temp files an interrupted run left in the data root are removed (counted in the output). After a
+ * successful run only the newest data-root-before-*.tar is kept. A second run has nothing to move.
  * Prints counts and sizes, never file contents.
  * Env: HC_DATA_DIR, HC_FILES_DIR (lib/paths.mjs); MIGRATE_REPO_ROOT (tests) the clone, default this one.
  * Exit: 0 done (or nothing to move), 1 refused or failed, 2 bad usage. */
@@ -139,19 +142,8 @@ function summary(moves) {
 }
 
 /** The migration; returns the exit code (see the header). */
-export function main({ repoRoot = ROOT, env = process.env, dryRun = false, log = console.log, warn = console.warn, now = new Date() } = {}) {
-  const shown = (f) => displayPath(repoRoot, f);
-  const target = dataPaths({ repoRoot, env });
-  const moves = planMoves({ repoRoot, env, tracked: trackedFiles(repoRoot) });
-  if (!moves.length) {
-    log(`migrate:data-root: nothing to move (no personal file at the old paths); the data root is ${shown(target.root)}`);
-    return 0;
-  }
-  const lock = path.join(legacyPaths({ repoRoot }).extractDir, LOCK);
-  if (fs.existsSync(lock) && now.getTime() - fs.statSync(lock).mtimeMs < LOCK_FRESH_MS) {
-    warn(`ERROR: a sync is running (${shown(lock)}); nothing moved. Run it again when the sync is done.`);
-    return 1;
-  }
+/** The targets with other content (each named; exit code 1), marking same-bytes targets done; 0 when none. */
+function refuseConflicts(moves, warn, shown) {
   // a target with other content is never overwritten; one with the same bytes only lacks its source's removal
   const conflicts = [];
   for (const m of moves) {
@@ -159,16 +151,27 @@ export function main({ repoRoot = ROOT, env = process.env, dryRun = false, log =
     if (!fs.lstatSync(m.to).isFile() || sha256(m.to) !== sha256(m.from)) conflicts.push(m);
     else m.done = true;
   }
-  if (conflicts.length) {
-    for (const m of conflicts) warn(`ERROR: ${shown(m.to)} already exists with other content than ${shown(m.from)}`);
-    warn(`ERROR: ${conflicts.length} conflict${conflicts.length > 1 ? 's' : ''}; nothing moved. Keep one version of each (compare them, then delete or rename the other) and run it again.`);
-    return 1;
-  }
+  if (!conflicts.length) return 0;
+  for (const m of conflicts) warn(`ERROR: ${shown(m.to)} already exists with other content than ${shown(m.from)}`);
+  warn(`ERROR: ${conflicts.length} conflict${conflicts.length > 1 ? 's' : ''}; nothing moved. Keep one version of each (compare them, then delete or rename the other) and run it again.`);
+  return 1;
+}
+
+/** The temp files a run killed while copying left next to the targets. */
+function orphansOf(moves) {
+  return moves.flatMap((m) => {
+    const dir = path.dirname(m.to);
+    if (!fs.existsSync(dir)) return [];
+    const prefix = `${path.basename(m.to)}.migrate-`;
+    return fs.readdirSync(dir).filter((n) => n.startsWith(prefix) && n.endsWith('.tmp')).map((n) => path.join(dir, n));
+  });
+}
+
+/** Backup, copy all, verify all, remove the sources; returns the exit code. */
+function moveAll({ repoRoot, target, moves, now, log, warn, shown, lockFile }) {
   const what = summary(moves);
-  if (dryRun) {
-    log(`migrate:data-root --dry-run: would move ${moves.length} files into ${shown(target.root)}: ${what}. Nothing written.`);
-    return 0;
-  }
+  const orphans = orphansOf(moves);
+  for (const f of orphans) fs.rmSync(f, { force: true });
 
   // the backup of every source, before anything changes
   const backup = path.join(repoRoot, 'backups', `data-root-before-${stamp(now)}.tar`);
@@ -182,8 +185,13 @@ export function main({ repoRoot = ROOT, env = process.env, dryRun = false, log =
   }
 
   // phase 1: copy all; phase 2: verify all; phase 3: remove the sources
-  for (const m of moves) if (!m.done) copyDurable(m.from, m.to);
-  const bad = moves.filter((m) => sha256(m.to) !== sha256(m.from));
+  // the held lock is refreshed after every file: sync-common takes over a lock untouched for 2 minutes
+  const keepLock = () => { try { fs.utimesSync(lockFile, new Date(), new Date()); } catch { /* released */ } };
+  for (const m of moves) {
+    if (!m.done) copyDurable(m.from, m.to);
+    keepLock();
+  }
+  const bad = moves.filter((m) => { keepLock(); return sha256(m.to) !== sha256(m.from); });
   if (bad.length) {
     for (const m of bad) warn(`ERROR: the copy ${shown(m.to)} differs from ${shown(m.from)}`);
     warn(`ERROR: ${bad.length} cop${bad.length > 1 ? 'ies' : 'y'} failed verification; no source removed (the backup is ${shown(backup)}).`);
@@ -197,8 +205,47 @@ export function main({ repoRoot = ROOT, env = process.env, dryRun = false, log =
       try { fs.rmdirSync(d); } catch { break; }
     }
   }
-  log(`migrate:data-root: moved ${moves.length} files into ${shown(target.root)}: ${what}. Backup: ${shown(backup)}`);
+  // the backups convention: only the newest one (an interrupted run's older tar is covered by this one's sources)
+  const backupsDir = path.dirname(backup);
+  for (const n of fs.readdirSync(backupsDir)) {
+    if (/^data-root-before-.*\.tar$/.test(n) && n !== path.basename(backup)) fs.rmSync(path.join(backupsDir, n));
+  }
+  const cleaned = orphans.length ? `. Removed ${orphans.length} temp file${orphans.length > 1 ? 's' : ''} of an interrupted run.` : '';
+  log(`migrate:data-root: moved ${moves.length} files into ${shown(target.root)}: ${what}. Backup: ${shown(backup)}${cleaned}`);
   return 0;
+}
+
+/** The migration; returns the exit code (see the header). */
+export function main({ repoRoot = ROOT, env = process.env, dryRun = false, log = console.log, warn = console.warn, now = new Date() } = {}) {
+  const shown = (f) => displayPath(repoRoot, f);
+  const target = dataPaths({ repoRoot, env });
+  const moves = planMoves({ repoRoot, env, tracked: trackedFiles(repoRoot) });
+  if (!moves.length) {
+    log(`migrate:data-root: nothing to move (no personal file at the old paths); the data root is ${shown(target.root)}`);
+    return 0;
+  }
+  // a sync running with either layout (the old code writes the old extract, the new code the data root's)
+  const newLock = path.join(target.extractDir, LOCK);
+  for (const f of [path.join(legacyPaths({ repoRoot }).extractDir, LOCK), newLock]) {
+    if (fs.existsSync(f) && now.getTime() - fs.statSync(f).mtimeMs < LOCK_FRESH_MS) {
+      warn(`ERROR: a sync is running (${shown(f)}); nothing moved. Run it again when the sync is done.`);
+      return 1;
+    }
+  }
+  if (refuseConflicts(moves, warn, shown)) return 1;
+  if (dryRun) {
+    log(`migrate:data-root --dry-run: would move ${moves.length} files into ${shown(target.root)}: ${summary(moves)}. Nothing written.`);
+    return 0;
+  }
+  // hold the data root's extract lock for the whole run, so a sync started meanwhile waits (sync-common withLock)
+  // instead of writing into the data root; a stale one is a crashed run's and is taken over
+  fs.mkdirSync(target.extractDir, { recursive: true });
+  fs.writeFileSync(newLock, String(process.pid));
+  try {
+    return moveAll({ repoRoot, target, moves, now, log, warn, shown, lockFile: newLock });
+  } finally {
+    try { if (fs.readFileSync(newLock, 'utf8') === String(process.pid)) fs.rmSync(newLock); } catch { /* already gone */ }
+  }
 }
 
 const USAGE = `Usage: npm run migrate:data-root [-- --dry-run]
