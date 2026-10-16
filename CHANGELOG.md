@@ -13,6 +13,14 @@ every push and pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-16 (later) — Server images, step 1b: `npm run sync` writes the owner's documents
+
+`scripts/sync-documents.mjs` (`npm run sync:documents`, the FIRST step of `npm run sync`, because sync-strava reads
+`maxHr` from `profile.json`) writes each document saved in the data service (`GET /documents/:kind`, bearer token)
+to `profile/profile.json`, `data/nutrition/plan-data.json` and `data/training/training-data.json`. Only on a content
+change (compared as parsed JSON), atomically; a document never saved keeps its file; no token or an old service
+only warns. Nothing is in the database yet, so every install keeps its files until the import (next step).
+
 ## 2026-10-16 — Server images, step 1: the owner's documents in the database (API)
 
 First step of making the server installable from images with no clone: the nutrition plan, the training program

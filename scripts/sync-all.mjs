@@ -20,6 +20,9 @@ const ROOT = path.dirname(DIR);
 // sync leaves out of hr-hourly.csv (lib/health/hr-hourly.mjs), so a new activity is never
 // counted twice in day strain until the next sync.
 export const SCRIPTS = [
+  // the owner's documents (profile.json, plan-data.json, training-data.json) come FIRST: sync-strava reads
+  // maxHr from profile.json; a missing / old service or no token only warns (exit 0)
+  path.join(ROOT, 'scripts', 'sync-documents.mjs'),
   path.join(ROOT, 'data', 'apple-health', 'sync-strava.mjs'),
   path.join(ROOT, 'data', 'apple-health', 'sync-shortcut.mjs'),
   path.join(ROOT, 'data', 'profile', 'sync-profile.mjs'),
@@ -36,7 +39,7 @@ export const SCRIPTS = [
   path.join(ROOT, 'scripts', 'sync-journal.mjs'),
 ];
 
-const SHORTCUT = SCRIPTS[1];
+const SHORTCUT = path.join(ROOT, 'data', 'apple-health', 'sync-shortcut.mjs');
 
 /** The argv each script gets from sync-all's own flags: --full is the Shortcut sync's (every script parses
  * its flags strictly, so an unknown one would fail it). */

@@ -20,6 +20,7 @@ How the raw sources become the CSVs in `data/apple-health/extract/` that every p
   - [`rides.csv`](#ridescsv)
   - [Per-workout HR zones (`workout-zones.csv`)](#per-workout-hr-zones-workout-zonescsv)
 - [Journal export (`scripts/sync-journal.mjs`, part of `npm run sync`)](#journal-export-scriptssync-journalmjs-part-of-npm-run-sync)
+- [Owner documents (`scripts/sync-documents.mjs`, first step of `npm run sync`)](#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync)
 
 ## Apple Health extract + iOS Shortcut sync
 
@@ -405,3 +406,25 @@ consumers never query Postgres.
 - An unreachable / old service (404, 503, 421, 429, a malformed body) = one `WARNING:` line, the old
   files kept, exit 0; only a failed write exits 1.
 - The demo extract carries a synthetic `journal-daily.csv` from `scripts/make-demo-data.mjs`.
+
+## Owner documents (`scripts/sync-documents.mjs`, first step of `npm run sync`)
+
+The profile, the nutrition plan and the training program can live in the data service's database
+(`GET /documents/:kind`, [`services/loop-ingest/README.md` → Documents](../services/loop-ingest/README.md#documents-documentskind)).
+This step writes each saved one to the file the build, the other syncs and the coach read:
+
+| Document | File |
+| --- | --- |
+| `profile` | `profile/profile.json` |
+| `plan` | `data/nutrition/plan-data.json` |
+| `training` | `data/training/training-data.json` |
+
+- It runs first (`npm run sync:documents` alone): `sync-strava.mjs` reads `maxHr` from `profile.json`.
+- Bearer token (`INGEST_TOKEN`, else the service's `.env`, like the Shortcut sync).
+- **Once a document is saved in the database, the database wins**: a file whose content differs is replaced on the
+  next sync, so a hand edit of that file is lost. A document never saved (`null`) leaves its file alone.
+- A file is rewritten only when its content changed (compared as parsed JSON: the same content in another
+  formatting is left untouched), atomically, as 2-space JSON in the document's key order.
+- No token, an unreachable / old service (404, 503, 401) or a body that is not the document's shape = one
+  `WARNING:` line per document, the file kept, exit 0; only a failed write exits 1 (the other documents still sync).
+
