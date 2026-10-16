@@ -13,6 +13,22 @@ every push and pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-16 — Server images, step 3: the loop-server image builds the page in the container
+
+A preview of the no-clone server: `docker/loop-server.Dockerfile` (built from the repo root) packs the data service
+and the page toolchain into one image, and `docker/docker-compose.yml` + `docker/.env.example` run it next to the
+database. With `HC_BUILD=container` (the image's default) `POST /sync` and an hourly timer (plus one build right
+after start) run the new `scripts/refresh.mjs`, the Node port of `refresh.sh`'s pass: sync (non-fatal), plan
+validation + page build under a timeout, sanity check, atomic publish into the `/site` volume with `status.json`
+(`commit` is now the image version, never git; error codes `build` / `sanity` / `lock`), then the device manuals.
+Builds run one at a time and clicks during a build coalesce onto one follow-up run; the sequence protocol, the
+coalescing and the 60 s deferral are unchanged, and a failed build shows as `lastTriggerError: build`. A personal
+build without a plan document (a fresh install) now uses the example plan, the onboarding's targets and one
+`WARNING` line instead of failing. The repo-root `.dockerignore` is default-deny (only the code and the tracked
+seeds reach the build context, a test pins that no personal path does). Nothing changes for existing installs:
+without `HC_BUILD` the service writes the trigger file as before and `refresh.sh` keeps publishing; loop-web serving
+the new site volume, the release and the install docs are the next steps.
+
 ## 2026-10-16 — Server images, step 2b: every personal file moves into `loop-data/`
 
 The data root is now the default: without `HC_DATA_DIR` every sync, the page build, `generate.mjs`, `extract.mjs`,

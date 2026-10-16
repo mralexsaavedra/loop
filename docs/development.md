@@ -174,6 +174,12 @@ Base images (`node`, `postgres`, `nginx`) and the GitHub Actions are pinned by d
 readable tag beside them; Dependabot ([`.github/dependabot.yml`](../.github/dependabot.yml)) proposes the updates
 weekly, together with the npm dependencies.
 
+The `loop-server` image (preview, [`lan-services.md` → Server image](lan-services.md#server-image-preview--docker))
+is not released yet: `docker build -f docker/loop-server.Dockerfile --build-arg VERSION=<x.y.z> .` from the repo
+root builds it locally (only production dependencies: `astro` and `esbuild` are `dependencies` because the page
+build runs in the image), and `scripts/loop-server-compose.test.mjs` / `scripts/dockerignore.test.mjs` pin the
+Dockerfile, the compose file and the default-deny build context.
+
 ## Contributor-only tools
 
 - `.claude/skills/frontend-design` is a vendored skill (from `anthropics/skills`, pinned in `skills-lock.json`,
