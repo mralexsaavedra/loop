@@ -9,6 +9,7 @@ import http from 'node:http';
 import { execFile, execFileSync } from 'node:child_process';
 import * as sf from './sync-foodlog.mjs';
 import { fileURLToPath } from 'node:url';
+import { dataPaths } from '../../lib/paths.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -253,4 +254,26 @@ test('main(): the window and fetchedAt come from the injected `now` (no clock re
     const meta = JSON.parse(fs.readFileSync(path.join(outDir, sf.META_FILE), 'utf8'));
     assert.equal(meta.fetchedAt, now.toISOString());
   } finally { h.cleanup(); }
+});
+
+// ---- the default output: lib/paths.mjs (HC_DATA_DIR), SYNC_FOODLOG_OUT_DIR still wins -------------------------
+
+test('main() in-process: HC_DATA_DIR redirects the default output to <data root>/foodlog; SYNC_FOODLOG_OUT_DIR wins over it', async () => {
+  const root = tmpDir('data-root');
+  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => BODY });
+  const io = { log: () => {}, error: () => {} };
+  try {
+    assert.equal(await sf.main({ env: { HC_DATA_DIR: root, INGEST_URL: 'http://127.0.0.1:9' }, ...io, fetchImpl, now: NOW }), 0);
+    const paths = dataPaths({ repoRoot: '/repo', env: { HC_DATA_DIR: root } });
+    assert.match(fs.readFileSync(paths.foodlogCsv, 'utf8'), /^date,kcal,/, 'where the build reads it');
+    assert.equal(paths.foodlogCsv, path.join(root, 'foodlog', CSV_FILE));
+    assert.ok(fs.existsSync(paths.foodlogMeta));
+    const own = tmpDir('override');
+    assert.equal(await sf.main({ env: { HC_DATA_DIR: path.join(root, 'other'), SYNC_FOODLOG_OUT_DIR: own, INGEST_URL: 'http://127.0.0.1:9' }, ...io, fetchImpl, now: NOW }), 0);
+    assert.match(readCsv(own), /^date,kcal,/);
+    assert.equal(fs.existsSync(path.join(root, 'other')), false);
+    fs.rmSync(own, { recursive: true });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });

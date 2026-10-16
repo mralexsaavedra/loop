@@ -17,7 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, '..', '..');
 
 // Mirrors the repo structure generate.mjs statically imports (data/nutrition/generate.mjs +
-// ../../lib/nutrition/*.mjs + ../../lib/date.mjs + ../../scripts/lib/is-main.mjs) into a temp root, WITHOUT ever copying
+// ../../lib/nutrition/*.mjs + ../../lib/date.mjs + ../../lib/paths.mjs + ../../scripts/lib/is-main.mjs) into a temp root, WITHOUT ever copying
 // the real (possibly personal) plan-data.json. `files` are the data/nutrition seeds to copy next to it.
 // Returns the temp data/nutrition dir.
 function mirrorTree(root, files) {
@@ -33,6 +33,7 @@ function mirrorTree(root, files) {
     fs.copyFileSync(path.join(REPO, 'lib', 'nutrition', f), path.join(root, 'lib', 'nutrition', f));
   }
   fs.copyFileSync(path.join(REPO, 'lib', 'date.mjs'), path.join(root, 'lib', 'date.mjs'));
+  fs.copyFileSync(path.join(REPO, 'lib', 'paths.mjs'), path.join(root, 'lib', 'paths.mjs'));
   fs.copyFileSync(path.join(REPO, 'scripts', 'lib', 'is-main.mjs'), path.join(root, 'scripts', 'lib', 'is-main.mjs'));
   fs.mkdirSync(path.join(root, 'data', 'apple-health'), { recursive: true });
   fs.copyFileSync(path.join(REPO, 'data', 'apple-health', 'sync-common.mjs'), path.join(root, 'data', 'apple-health', 'sync-common.mjs'));
@@ -278,5 +279,25 @@ test('generate.mjs --check exits non-zero, naming the line, on an {ing} part wit
     assert.doesNotMatch(res.stderr + res.stdout, /TypeError/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('load(): HC_DATA_DIR reads the personal plan from <data root>/cache/plan.json (ingredients.json stays the clone\'s)', () => {
+  const data = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-data-root-'));
+  try {
+    fs.mkdirSync(path.join(data, 'cache'));
+    const plan = JSON.parse(fs.readFileSync(path.join(__dirname, 'plan-data.example.json'), 'utf8'));
+    fs.writeFileSync(path.join(data, 'cache', 'plan.json'), JSON.stringify({ ...plan, locale: 'es' }));
+    const warns = [];
+    const ctx = gen.load({ env: { HC_DATA_DIR: data }, warn: (w) => warns.push(w) });
+    assert.equal(ctx.PLAN_PATH, path.join(data, 'cache', 'plan.json'));
+    assert.equal(ctx.LOCALE, 'es');
+    assert.deepEqual(warns, []);
+    // an empty data root: the tracked example plan, with the fresh-clone warning
+    const empty = gen.load({ env: { HC_DATA_DIR: path.join(data, 'none') }, warn: (w) => warns.push(w) });
+    assert.equal(empty.PLAN_PATH, path.join(__dirname, 'plan-data.example.json'));
+    assert.match(warns[0], /personal plan-data\.json not found/);
+  } finally {
+    fs.rmSync(data, { recursive: true, force: true });
   }
 });

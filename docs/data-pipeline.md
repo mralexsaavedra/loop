@@ -2,6 +2,11 @@
 
 How the raw sources become the CSVs in `data/apple-health/extract/` that every page and analysis reads.
 
+The paths below are the default (legacy) layout. With `HC_DATA_DIR` set, every script writes and reads under
+that data root instead (`extract/`, `foodlog/`, `profile/`, `cache/` for the documents, `files/import/export.xml`
+for the Health export); `lib/paths.mjs` and [`development.md`](development.md#where-the-data-files-live) have the
+table.
+
 > **Reference** — how this area is built, for anyone changing it (keep it in sync with the code in the same
 > commit). Setting up or using the page? Start at the [documentation index](README.md).
 

@@ -9,6 +9,7 @@ import http from 'node:http';
 import { execFile } from 'node:child_process';
 import * as ss from './sync-settings.mjs';
 import { fileURLToPath } from 'node:url';
+import { dataPaths } from '../../lib/paths.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -171,4 +172,23 @@ test('main() in-process: unreachable -> warning, returns 0; failed write -> retu
     assert.equal(await ss.main({ env: h.env, ...h.io, fetchImpl: h.answer(200, body), outDir: h.unwritable }), 1);
     assert.match(h.err.pop(), /^ERROR: settings sync failed/);
   } finally { h.cleanup(); }
+});
+
+// ---- the default output: lib/paths.mjs (HC_DATA_DIR), SYNC_PROFILE_OUT_DIR still wins -------------------------
+
+test('main() in-process: HC_DATA_DIR redirects the default output to <data root>/profile; SYNC_PROFILE_OUT_DIR wins over it', async () => {
+  const root = tmpDir('data-root');
+  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => BODY });
+  const io = { log: () => {}, error: () => {} };
+  try {
+    assert.equal(await ss.main({ env: { HC_DATA_DIR: root, INGEST_URL: 'http://127.0.0.1:9' }, ...io, fetchImpl }), 0);
+    assert.equal(JSON.parse(fs.readFileSync(dataPaths({ repoRoot: '/repo', env: { HC_DATA_DIR: root } }).settings, 'utf8')).goal, 'cut');
+    const own = tmpDir('override');
+    assert.equal(await ss.main({ env: { HC_DATA_DIR: path.join(root, 'other'), SYNC_PROFILE_OUT_DIR: own, INGEST_URL: 'http://127.0.0.1:9' }, ...io, fetchImpl }), 0);
+    assert.equal(readJson(own).goal, 'cut');
+    assert.equal(fs.existsSync(path.join(root, 'other')), false);
+    fs.rmSync(own, { recursive: true });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });

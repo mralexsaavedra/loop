@@ -13,6 +13,17 @@ every push and pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-16 (late night) — Server images, step 2a: one module knows where the data files live
+
+Every personal and generated data path now comes from `lib/paths.mjs` `dataPaths({ repoRoot, env })` (pure, no
+`fs`): the syncs, the page build, `generate.mjs`, `extract.mjs`, the documents CLI, `publish:manuals`,
+`golden:bake` and the fixture build. Without `HC_DATA_DIR` it returns today's paths exactly, so nothing moved
+(the personal golden is unchanged). With `HC_DATA_DIR` set, everything lives under that data root: `extract/`,
+`foodlog/`, `profile/`, `cache/` (the copies of the database documents and their sync state, no longer next to the
+code) and `files/{import,manuals,documents}` (`HC_FILES_DIR` replaces `files/`, the owner files folder for a bind
+mount). Example mode still reads the tracked seeds; every per-script test hook still wins. Flipping the default to
+`loop-data/` and moving the files is the next step.
+
 ## 2026-10-16 (night) — Server images, step 1d: one stored copy of name, sex, birthdate and height
 
 The page's onboarding wizard and the profile document both held name, sex, birthdate and height. Now the profile

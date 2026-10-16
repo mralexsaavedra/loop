@@ -38,3 +38,19 @@ test('main: an empty flag value exits 2 and never publishes; flags resolve to th
   assert.match(err[0], /^ERROR: device manuals not published: boom/);
   fs.rmSync(dir, { recursive: true });
 });
+
+test('main: without flags the profile and the manuals folder come from lib/paths.mjs (HC_DATA_DIR / HC_FILES_DIR); flags still win', () => {
+  const calls = [];
+  const publish = (o) => { calls.push(o); return { skipped: true }; };
+  const io = { log: () => {}, error: () => {} };
+  const root = path.join(os.tmpdir(), 'hc-manuals-root');
+  assert.equal(main({ out: path.join(root, 'site') }, { publish, ...io, env: { HC_DATA_DIR: root } }), 0);
+  assert.deepEqual([calls[0].profileFile, calls[0].gearDir], [path.join(root, 'cache', 'profile.json'), path.join(root, 'files', 'manuals')]);
+  assert.equal(main({ out: path.join(root, 'site') }, { publish, ...io, env: { HC_DATA_DIR: root, HC_FILES_DIR: path.join(root, 'owner') } }), 0);
+  assert.equal(calls[1].gearDir, path.join(root, 'owner', 'manuals'));
+  const repo = path.dirname(path.dirname(SCRIPT));
+  assert.equal(main({ out: path.join(root, 'site') }, { publish, ...io, env: {} }), 0);
+  assert.deepEqual([calls[2].profileFile, calls[2].gearDir], [path.join(repo, 'profile', 'profile.json'), path.join(repo, 'data', 'gear')], 'today\'s defaults');
+  assert.equal(main({ out: path.join(root, 'site'), gear: path.join(root, 'g'), profile: path.join(root, 'p.json') }, { publish, ...io, env: { HC_DATA_DIR: root } }), 0);
+  assert.deepEqual([calls[3].profileFile, calls[3].gearDir], [path.join(root, 'p.json'), path.join(root, 'g')]);
+});

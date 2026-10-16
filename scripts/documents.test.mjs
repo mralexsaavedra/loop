@@ -222,3 +222,21 @@ test('a push that loses a race to another writer names both ways out', async (t)
   assert.match(warns[0], /^ERROR: profile not pushed: the database changed while pushing \(revision 2\)\. Take the database's with `npm run documents -- pull profile --force`.*or replace it with `npm run documents -- push profile --force`$/);
   assert.equal(svc.rows.get('profile').data.city, 'Theirs');
 });
+
+test('HC_DATA_DIR: push reads <data root>/cache and records cache/.sync-state.json; validation still uses the clone\'s ingredients.json', async (t) => {
+  const svc = await service();
+  t.after(svc.close);
+  const root = clone();
+  const data = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-docs-cli-root-'));
+  t.after(() => fs.rmSync(data, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(data, 'cache'));
+  fs.writeFileSync(path.join(data, 'cache', 'plan.json'), JSON.stringify(PLAN));
+  const r = await cli(svc, root, ['push', 'plan'], { HC_DATA_DIR: data });
+  assert.equal(r.code, 0, r.warns.join('\n'));
+  assert.deepEqual(r.logs, [`Documents: plan pushed from ${path.join(data, 'cache', 'plan.json')} (revision 1)`]);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(data, 'cache', '.sync-state.json'), 'utf8')).plan.revision, 1);
+  assert.equal(fs.existsSync(path.join(root, 'data', 'profile', 'documents-sync.json')), false);
+  const missing = await cli(svc, root, ['push', 'training'], { HC_DATA_DIR: data });
+  assert.equal(missing.code, 1);
+  assert.match(missing.warns[0], new RegExp(`training not pushed: ${path.join(data, 'cache', 'training.json').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} does not exist`));
+});

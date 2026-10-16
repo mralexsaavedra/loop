@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { main } from './sync-onboarding.mjs';
+import { dataPaths } from '../lib/paths.mjs';
 
 const cells = (kcal, p, f) => ({ rest: { kcal, p, f }, gym: { kcal: kcal + 350, p, f }, bike: { kcal: kcal + 850, p, f }, bikeLong: { kcal: kcal + 1450, p, f } });
 const DOC = {
@@ -58,4 +59,23 @@ test('a write failure is an ERROR and exit 1 (the previous file is only ever rep
   const r = await run({ profile: DOC }, { dir: blocker });
   assert.equal(r.code, 1);
   assert.match(r.warns[0], /ERROR: onboarding sync could not write onboarding\.json/);
+});
+
+test('HC_DATA_DIR redirects the default output to <data root>/profile; SYNC_PROFILE_OUT_DIR wins over it', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-onboarding-root-'));
+  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ profile: DOC }) });
+  const logs = [];
+  try {
+    assert.equal(await main({ env: { HC_DATA_DIR: root, INGEST_URL: 'http://127.0.0.1:9' }, log: (l) => logs.push(l), warn: () => {}, fetchImpl }), 0);
+    const file = dataPaths({ repoRoot: '/repo', env: { HC_DATA_DIR: root } }).onboarding;
+    assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), DOC, 'where the build reads it');
+    assert.equal(logs[0], `Onboarding: written -> ${file}`);
+    const own = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-onboarding-'));
+    assert.equal(await main({ env: { HC_DATA_DIR: path.join(root, 'other'), SYNC_PROFILE_OUT_DIR: own, INGEST_URL: 'http://127.0.0.1:9' }, log: () => {}, warn: () => {}, fetchImpl }), 0);
+    assert.ok(fs.existsSync(path.join(own, 'onboarding.json')));
+    assert.equal(fs.existsSync(path.join(root, 'other')), false);
+    fs.rmSync(own, { recursive: true });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });

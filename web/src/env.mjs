@@ -2,6 +2,7 @@
  * page read it). Resolves:
  *   - HC_REPO_ROOT: REQUIRED absolute path, set by scripts/build-web.mjs.
  *   - DATA_MODE: 'personal' | 'example', default 'personal'.
+ *   - HC_DATA_DIR / HC_FILES_DIR: where the personal files live (lib/paths.mjs); `env` reaches loadInputs.
  *   - LOCALE: explicit env var > plan.locale > 'en' (never silently falls
  *     back to English when the plan itself declares a locale).
  */
@@ -13,7 +14,7 @@ export function resolveEnv(env = process.env) {
     throw new Error('resolveEnv: HC_REPO_ROOT is required (an absolute path; set by scripts/build-web.mjs).');
   }
   const dataMode = env.DATA_MODE === 'example' ? 'example' : 'personal';
-  const inputs = loadInputs({ repoRoot, dataMode });
+  const inputs = loadInputs({ repoRoot, dataMode, env });
 
   const envLocale = env.LOCALE === 'es' || env.LOCALE === 'en' ? env.LOCALE : null;
   const planLocale = inputs.plan.locale === 'es' || inputs.plan.locale === 'en' ? inputs.plan.locale : null;

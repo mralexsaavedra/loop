@@ -34,6 +34,7 @@ import { fileURLToPath } from 'node:url';
 import { mock } from 'node:test';
 import { resolveEnv } from '../web/src/env.mjs';
 import { computeBakes } from '../web/src/bakes.mjs';
+import { dataPaths, displayPath, DATA_DIR_ENV, FILES_DIR_ENV } from '../lib/paths.mjs';
 import { isMain } from './lib/is-main.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -51,7 +52,9 @@ export const TRACKED = ['example', 'empty', 'null'];
  * 'null' = example with no extract dir); `root` = the clone whose data it reads (default: this checkout). */
 /** @param {string} kind @param {{ emptyDir?: string, root?: string }} [opts] */
 function goldenEnv(kind, { emptyDir, root = ROOT } = {}) {
-  const env = resolveEnv({ HC_REPO_ROOT: root, DATA_MODE: kind === 'personal' ? 'personal' : 'example', LOCALE: 'en' });
+  // personal: the data root this process was given (lib/paths.mjs), like the page build
+  const dataRoot = kind === 'personal' ? { [DATA_DIR_ENV]: process.env[DATA_DIR_ENV], [FILES_DIR_ENV]: process.env[FILES_DIR_ENV] } : {};
+  const env = resolveEnv({ ...dataRoot, HC_REPO_ROOT: root, DATA_MODE: kind === 'personal' ? 'personal' : 'example', LOCALE: 'en' });
   if (kind === 'empty') return { ...env, extractDir: emptyDir };
   if (kind === 'null') return { ...env, extractDir: null };
   return env;
@@ -132,12 +135,13 @@ const rel = (file, root = ROOT) => path.relative(root, file);
  * root nothing is written unless `update`: a missing golden there is exit 2. */
 export function runPersonal(update, root = ROOT) {
   const foreign = path.resolve(root) !== ROOT;
-  if (!fs.existsSync(path.join(root, 'data', 'nutrition', 'plan-data.json'))) {
-    console.error('golden:bake --personal: personal inputs missing (data/nutrition/plan-data.json); nothing to compare. Run it in the clone that holds your personal data, or pass --root <that clone>.');
+  const planFile = dataPaths({ repoRoot: root }).documents.plan;
+  if (!fs.existsSync(planFile)) {
+    console.error(`golden:bake --personal: personal inputs missing (${displayPath(root, planFile)}); nothing to compare. Run it in the clone that holds your personal data, or pass --root <that clone>.`);
     return 2;
   }
   const env = goldenEnv('personal', { root });
-  if (!env.extractDir) console.warn('golden:bake --personal: no data/apple-health/extract — the personal golden holds the empty-extract shapes.');
+  if (!env.extractDir) console.warn(`golden:bake --personal: no ${displayPath(root, dataPaths({ repoRoot: root }).extractDir)} — the personal golden holds the empty-extract shapes.`);
   const actual = goldenBakes(env);
   const file = path.join(root, path.relative(ROOT, FIXTURES.personal));
   const expected = readJson(file);

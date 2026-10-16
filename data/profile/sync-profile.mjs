@@ -23,12 +23,14 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as common from '../apple-health/sync-common.mjs'
 import { isMain } from '../../scripts/lib/is-main.mjs'
+import { dataPaths } from '../../lib/paths.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// Default: lib/paths.mjs profileDir (data/profile, or <HC_DATA_DIR>/profile).
 // SYNC_PROFILE_OUT_DIR / INGEST_ENV_FILE exist ONLY so the child-process tests can point main()
 // at a disposable tmp dir / env file — unset in production.
-const OUT = process.env.SYNC_PROFILE_OUT_DIR || __dirname
+const defaultOut = (env) => env.SYNC_PROFILE_OUT_DIR || dataPaths({ repoRoot: path.resolve(__dirname, '..', '..'), env }).profileDir
 const PROFILE_JSON = 'strava-profile.json'
 const AVATAR_FILE = 'avatar.jpg'
 const MAX_AVATAR_BYTES = 60 * 1024
@@ -217,7 +219,7 @@ services/loop-ingest/.env).`
 
 // The CLI entry; env / log / error / fetchImpl / outDir are injectable for tests. Returns the exit code: 1 on
 // a missing token, an unreachable service or a failed write.
-async function main ({ env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = OUT } = {}) {
+async function main ({ env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = defaultOut(env) } = {}) {
   const baseUrl = common.readBaseUrl(env)
   const token = common.readIngestToken(env)
   if (!token) {

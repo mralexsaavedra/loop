@@ -24,8 +24,10 @@ import { buildDayPlans, fmtFactor } from '../../lib/nutrition/scale.mjs';
 import { buildReference } from '../../lib/nutrition/reference.mjs';
 import { ingName } from '../../lib/nutrition/names.mjs';
 import { writeAtomic, runCli } from '../apple-health/sync-common.mjs';
+import { dataPaths } from '../../lib/paths.mjs';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.dirname(path.dirname(DIR));
 
 const readJson = (file, name) => {
   try {
@@ -38,8 +40,10 @@ const readJson = (file, name) => {
 
 /** Reads ingredients.json + the plan from `dir` and builds the nutrition model; throws one-line errors on a
  * missing or malformed file. The personal plan-data.json is gitignored, so a fresh clone falls back to the
- * tracked plan-data.example.json, with a warning (it validates / regenerates the PUBLIC example plan). */
-export function load({ dir = DIR, env = process.env, warn = console.warn } = {}) {
+ * tracked plan-data.example.json, with a warning (it validates / regenerates the PUBLIC example plan).
+ * `personalPlan`: the personal plan's file, by default where lib/paths.mjs puts it for this clone and `env`
+ * (data/nutrition/plan-data.json, or cache/plan.json under HC_DATA_DIR); `dir`/plan-data.json for another dir. */
+export function load({ dir = DIR, env = process.env, warn = console.warn, personalPlan = dir === DIR ? dataPaths({ repoRoot: ROOT, env }).documents.plan : path.join(dir, 'plan-data.json') } = {}) {
   const ingPath = path.join(dir, 'ingredients.json');
   if (!fs.existsSync(ingPath)) {
     throw new Error('ingredients.json not found at ' + ingPath + ' — it is the public food DB the plan depends on. A fresh clone ships it; do not delete it.');
@@ -48,7 +52,7 @@ export function load({ dir = DIR, env = process.env, warn = console.warn } = {})
   if (!ingFile || !ingFile.ingredients || typeof ingFile.ingredients !== 'object') {
     throw new Error('ingredients.json must contain a top-level "ingredients" object.');
   }
-  const personal = path.join(dir, 'plan-data.json');
+  const personal = personalPlan;
   const PLAN_PATH = fs.existsSync(personal) ? personal : path.join(dir, 'plan-data.example.json');
   if (PLAN_PATH !== personal) {
     if (!fs.existsSync(PLAN_PATH)) {

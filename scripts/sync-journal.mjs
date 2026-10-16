@@ -24,9 +24,11 @@ import { isIsoDate } from '../lib/date.mjs';
 import { JOURNAL_BEHAVIORS, JOURNAL_LIMITS, journalCsv, parseJournalCsv } from '../lib/journal/journal.mjs';
 import { JOURNAL_FILE } from '../lib/journal/bake.mjs';
 import { isMain } from './lib/is-main.mjs';
+import { dataPaths, displayPath } from '../lib/paths.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-export const DEFAULT_OUT = path.join(ROOT, 'data', 'apple-health', 'extract');
+/** The extract the journal lands in (lib/paths.mjs: data/apple-health/extract, or <HC_DATA_DIR>/extract). */
+export const defaultOut = (env = process.env) => dataPaths({ repoRoot: ROOT, env }).extractDir;
 export const META_FILE = 'journal-daily.meta.json';
 
 /** {from, to}: rangeDaysMax days inclusive, ending on the local date of `now`. */
@@ -86,7 +88,7 @@ export function syncJournal(dir, body, { now = new Date(), write = writeAtomic }
 }
 
 export async function main({ env = process.env, log = console.log, warn = console.warn, fetchImpl = fetch, now = new Date() } = {}) {
-  const dir = env.SYNC_JOURNAL_OUT_DIR || DEFAULT_OUT;
+  const dir = env.SYNC_JOURNAL_OUT_DIR || defaultOut(env);
   const base = readBaseUrl(env);
   let body;
   try {
@@ -98,7 +100,7 @@ export async function main({ env = process.env, log = console.log, warn = consol
   }
   try {
     const r = syncJournal(dir, body, { now });
-    log(`sync-journal: ${r.days} journaled days in the window${r.changed ? '' : ' (unchanged)'} -> ${path.relative(ROOT, path.join(dir, JOURNAL_FILE))}`);
+    log(`sync-journal: ${r.days} journaled days in the window${r.changed ? '' : ' (unchanged)'} -> ${displayPath(ROOT, path.join(dir, JOURNAL_FILE))}`);
     return 0;
   } catch (err) {
     warn(`ERROR: journal export could not be written (${err.message})`);

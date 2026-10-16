@@ -9,7 +9,8 @@
  *          all under the _meta.json.lock the syncs share (sync-common.mjs withLock), and ONLY after the whole
  *          file was read: a read error or an export without its closing </HealthData> (truncated: a copy
  *          still in progress, a full disk) exits 1 with one ERROR line and keeps the previous extract.
- * EXTRACT_DIR (tests only) replaces data/apple-health: <dir>/export.xml in, <dir>/extract out.
+ * HC_DATA_DIR (lib/paths.mjs) moves both: <data root>/files/import/export.xml in, <data root>/extract out.
+ * EXTRACT_DIR (tests only) replaces data/apple-health: <dir>/export.xml in, <dir>/extract out (wins over HC_DATA_DIR).
  *
  * Streams line by line (never loads the file whole). Each <Record>/<Workout> opening
  * tag carries the attributes we need on a single line, so a per-line regex is enough.
@@ -26,12 +27,14 @@ import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { isMain } from '../../scripts/lib/is-main.mjs';
 import { writeAtomic, runCli, withLock } from './sync-common.mjs';
+import { dataPaths } from '../../lib/paths.mjs';
 // shared with sync-shortcut.mjs so export- and Shortcut-derived rows are formatted identically
 import { APPLE_WATCH_RE, derivedRestingHr, csvSource, pickEnergySource, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights, sleepStage } from '../../lib/extract/samples.mjs';
 
-const DIR = process.env.EXTRACT_DIR || path.dirname(fileURLToPath(import.meta.url));
-const SRC = path.join(DIR, 'export.xml');
-const OUT = path.join(DIR, 'extract');
+const DIR = process.env.EXTRACT_DIR;
+const PATHS = dataPaths({ repoRoot: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..') });
+const SRC = DIR ? path.join(DIR, 'export.xml') : PATHS.exportXml;
+const OUT = DIR ? path.join(DIR, 'extract') : PATHS.extractDir;
 
 const attr = (s, name) => { const m = s.match(new RegExp(' ' + name + '="([^"]*)"')); return m ? m[1] : null; };
 
@@ -347,6 +350,7 @@ const USAGE = `Usage: node data/apple-health/extract.mjs
 
 Streams data/apple-health/export.xml into the per-metric CSVs + _meta.json of data/apple-health/extract/.
   -h, --help   this help
-Env: EXTRACT_DIR (tests only) replaces data/apple-health: <dir>/export.xml in, <dir>/extract out.`;
+Env: HC_DATA_DIR (the data root: <root>/files/import/export.xml in, <root>/extract out; HC_FILES_DIR moves files/);
+EXTRACT_DIR (tests only) replaces data/apple-health: <dir>/export.xml in, <dir>/extract out.`;
 
 if (isMain(import.meta.url)) runCli(() => main(), { usage: USAGE });

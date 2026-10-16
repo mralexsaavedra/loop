@@ -10,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as strava from './sync-strava.mjs';
 import * as samples from '../../lib/extract/samples.mjs';
 import * as zones from '../../lib/training/hr-zones.mjs';
+import { dataPaths } from '../../lib/paths.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -685,4 +686,29 @@ test('main() in-process: missing token / unreachable / 404 -> returns 1, nothing
     assert.match(h.err.pop(), /rebuild\/restart the loop-ingest container/);
     assert.ok(!fs.existsSync(outDir));
   } finally { h.cleanup(); }
+});
+
+// ---- the defaults: lib/paths.mjs (HC_DATA_DIR); SYNC_STRAVA_OUT_DIR / SYNC_STRAVA_PROFILE still win ------------
+
+test('main() in-process: HC_DATA_DIR redirects the extract and the profile read; SYNC_STRAVA_OUT_DIR / SYNC_STRAVA_PROFILE win over it', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-strava-root-'));
+  const fetchImpl = async () => ({ ok: true, status: 200, headers: new Headers(), json: async () => [ZRUN] });
+  const io = { log: () => {}, error: () => {} };
+  const env = (extra) => ({ INGEST_URL: 'http://127.0.0.1:9', INGEST_TOKEN: 't', INGEST_ENV_FILE: path.join(root, 'no.env'), ...extra });
+  try {
+    const paths = dataPaths({ repoRoot: '/repo', env: { HC_DATA_DIR: root } });
+    fs.mkdirSync(path.dirname(paths.documents.profile), { recursive: true });
+    fs.writeFileSync(paths.documents.profile, JSON.stringify({ maxHr: 200 }));
+    assert.equal(await strava.main({ env: env({ HC_DATA_DIR: root }), ...io, fetchImpl }), 0);
+    assert.match(fs.readFileSync(path.join(paths.extractDir, zones.ZONES_CSV), 'utf8'), /,200,profile,/, 'cache/profile.json maxHr, written to <data root>/extract');
+    assert.ok(fs.existsSync(path.join(paths.extractDir, 'workouts.csv')));
+    const own = path.join(root, 'own');
+    const ownProfile = path.join(root, 'own-profile.json');
+    fs.writeFileSync(ownProfile, JSON.stringify({ maxHr: 210 }));
+    assert.equal(await strava.main({ env: env({ HC_DATA_DIR: path.join(root, 'other'), SYNC_STRAVA_OUT_DIR: own, SYNC_STRAVA_PROFILE: ownProfile }), ...io, fetchImpl }), 0);
+    assert.match(fs.readFileSync(path.join(own, zones.ZONES_CSV), 'utf8'), /,210,profile,/);
+    assert.equal(fs.existsSync(path.join(root, 'other')), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });

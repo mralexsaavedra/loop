@@ -9,6 +9,7 @@ data out of git. Using the project rather than changing it? Start at the [docume
 - [Commands](#commands)
 - [Tests](#tests)
 - [Generated files](#generated-files)
+- [Where the data files live](#where-the-data-files-live)
 - [Guards](#guards)
 - [Workflow](#workflow)
 - [Releasing](#releasing)
@@ -76,6 +77,26 @@ flags with `parseCli` / `runCli` (`data/apple-health/sync-common.mjs`); `scripts
 parser with the same rules. `--help` prints the usage, and an unknown flag (a typo such as `--chek`, `--mod`
 or `--updte`), a flag without its value or a stray argument exits 2 before anything is read or written.
 Numeric flags are validated the same way (`make-demo-data --days abc` exits 2 instead of writing empty CSVs).
+
+## Where the data files live
+
+`lib/paths.mjs` is the one place that knows where every personal and generated data file lives:
+`dataPaths({ repoRoot, env })` returns them all as absolute paths (pure path math, no `fs`). Every sync, the page
+build (`lib/load/inputs.mjs`, `lib/profile/read.mjs`, `lib/nutrition/read.mjs`), `data/nutrition/generate.mjs`,
+`data/apple-health/extract.mjs`, the documents CLI (`scripts/lib/documents.mjs`), `publish:manuals`, `golden:bake`
+and the test fixture build resolve their defaults through it. Never join `data/...` paths for these files again.
+
+| Env var | Effect |
+| --- | --- |
+| `HC_DATA_DIR` (unset) | The **legacy layout**: today's paths in the clone (`data/apple-health/extract/`, `data/apple-health/export.xml`, `data/nutrition/foodlog-daily.*`, `data/profile/*`, `profile/profile.json`, `data/nutrition/plan-data.json`, `data/training/training-data.json`, `data/profile/documents-sync.json`, `data/gear/`) |
+| `HC_DATA_DIR=<dir>` | The **data-root layout** under `<dir>`: `extract/`, `foodlog/`, `profile/`, `cache/{profile,plan,training}.json` + `cache/.sync-state.json` (the document copies), `files/{import,manuals,documents}` (`import/export.xml`) |
+| `HC_FILES_DIR=<dir>` | With `HC_DATA_DIR` only: replaces `<data root>/files` (the owner files folder: Health export, device manuals, coach PDFs) |
+
+A relative value resolves against the repo root (never the working directory); an empty one is unset. Example
+mode always reads the tracked repo files, and `ingredients.json`, `plan-tables.md`, `web/dist/` and `backups/`
+stay in the clone. The per-script test hooks (`EXTRACT_DIR`, `SYNC_*_OUT_DIR`, `SYNC_STRAVA_PROFILE`,
+`SYNC_DOCUMENTS_ROOT`, an injected `outDir`) still win over the data root. The module header has the full table;
+`lib/paths.test.mjs` pins both layouts path by path.
 
 ## Guards
 
