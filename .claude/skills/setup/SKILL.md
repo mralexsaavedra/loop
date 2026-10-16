@@ -110,9 +110,19 @@ Needs a Linux host with Docker (compose), systemd and Node 22. Follow the ordere
   authorize URL, copy the code, token exchange — easiest with `node scripts/strava-auth.js` from
   `services/loop-ingest`, which writes the refresh token into `.env` itself); the user types
   `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` into `services/loop-ingest/.env` themselves. Then `docker compose up -d` there, `npm run sync`.
+  On a loop-server install (`docker/`, preview) the two values go into `docker/.env`, then
+  `docker compose up -d` and `docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print`,
+  which prints the `STRAVA_REFRESH_TOKEN=` line the user pastes into `docker/.env` (then `docker compose up -d`).
 - **Knowledge base**: `docs/knowledge-base.md`, `knowledge/README.md`. `yt-dlp` is optional; content is
   for personal use only. Ingest with `scripts/ingest-youtube.mjs`, then register each source in
   `profile/coaches.md`.
+
+## A coach clone of a loop-server install (preview)
+
+The server (`docker/docker-compose.yml`) owns the data; the clone opened in Claude Code is its client. In the clone:
+`INGEST_URL=http://<server>:<INGEST_PORT>` and the server's `INGEST_TOKEN` (env, never shown in the chat), then
+`npm run sync`: it must print `Client mode: ...` and a `Mirror: ...` count line (`docs/data-pipeline.md` → Coach as a
+client of a LOOP server). A `401` error = wrong token. Documents and manuals go into the server's files folder.
 
 ## Updating an install
 

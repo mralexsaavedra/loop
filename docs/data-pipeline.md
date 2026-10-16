@@ -532,7 +532,8 @@ server is the source, never a client of itself.
    `files/documents/` is removed by the next client sync. Never touched: `cache/`, `files/import/`, hidden, temp,
    lock or backup files, symlinks, and anything outside those folders. A manifest naming any path outside the
    allowlist is refused as a whole (`ERROR:`, nothing written or removed). It ends with one line:
-   `Mirror: <n> files on the server: <d> downloaded, <u> unchanged, <r> removed[, <f> failed]`; a second run with
-   nothing new downloads nothing.
+   `Mirror: <n> files on the server: <d> downloaded, <u> unchanged, <r> removed[, <f> failed]`. A second
+   `--no-refresh` run downloads nothing; with the refresh, the server's own pass rewrites its `fetchedAt` stamps
+   (`extract/journal-daily.meta.json`, sometimes `_meta.json`), so one or two small files come down each time.
 
 Exit code: 1 when the documents sync or the mirror failed (every step still runs), else 0.

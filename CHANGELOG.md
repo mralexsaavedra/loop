@@ -13,6 +13,26 @@ every push and pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-16 — Server images, step 6: a coach clone is a client of the LOOP server
+
+With the server in the `loop-server` image (container mode), the processed data lives in its `/data` volume, and a
+clone of the repo opened in Claude Code becomes its client instead of folding the Shortcut payloads and Strava
+activities a second time. The data service gets two bearer-token routes, mounted only in container mode (elsewhere
+they are the plain 404 of an unknown path) and never proxied by loop-web: `GET /export/files`, the sorted manifest
+(path, size, sha256, mtimeMs) of an allowlist of the data root (`extract/`, `profile/`, `foodlog/`,
+`files/documents/`, `files/manuals/`; never `cache/`, `files/import/`, `import-work/`, state, hidden, temp, lock or
+backup files, symlinks) plus the last publish's `processedSeq`, with sha256 cached by (size, mtimeMs); and
+`GET /export/file?path=`, which streams one path that is in the manifest at request time and refuses `..`,
+absolute paths, backslashes, NUL and symlinks. Logs carry counts and bytes, never a path. `npm run sync` detects such
+a server (the manifest answers 200; 404 keeps every sync script as before; 401 is an error naming `INGEST_TOKEN`),
+asks it to refresh and waits for that seq (`HC_SYNC_WAIT`, default 120 s, then a WARNING and the pull anyway;
+`--no-refresh` skips it), pulls the documents with their local-edit protection, and mirrors the allowlist by sha256:
+atomic writes verified after download, files the server no longer lists removed, nothing else touched. The server's
+own refresh (`HC_BUILD=container`) never mirrors itself. The Strava auth helper now ships in the image, and
+`--print` prints the refresh token line for `docker/.env` instead of writing a file
+(`docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print`); the host mode is
+unchanged.
+
 ## 2026-10-16 — Server images, step 5: the Apple Health import folder
 
 A new export no longer needs unzipping by hand: `npm run import:health` (`scripts/import-health.mjs`) takes the
