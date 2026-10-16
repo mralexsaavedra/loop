@@ -4,13 +4,22 @@
  * and `;` both loses the exit code and is shell-specific. The Strava and Shortcut syncs both write
  * _meta.json, so running them one after another (not in parallel) avoids a write race.
  *
- * Run: node scripts/sync-all.mjs [--full]   (--full reaches the Shortcut sync only: it rebuilds its cache)
+ * CLIENT MODE (scripts/sync-client.mjs): first it asks the ingest service for its files manifest (GET /export/files,
+ * bearer token). A LOOP server in container mode answers it: then this clone is its client and, instead of the
+ * scripts, it asks the server to refresh (POST /sync) and waits for it (HC_SYNC_WAIT, default 120 s; --no-refresh
+ * skips that), pulls the documents (sync-documents.mjs, with its local-edit protection) and mirrors the server's data
+ * root. A 404 (a host-mode or older server), no token or no answer keeps today's behaviour; a 401 is an error naming
+ * the token. Inside the server itself (HC_BUILD=container: scripts/refresh.mjs runs this) the scripts always run.
+ *
+ * Run: node scripts/sync-all.mjs [--full] [--no-refresh]   (--full reaches the Shortcut sync only: it rebuilds its cache)
  */
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './lib/is-main.mjs';
-import { runCli } from '../data/apple-health/sync-common.mjs';
+import { runCli, readIngestToken, readBaseUrl } from '../data/apple-health/sync-common.mjs';
+import { dataPaths, displayPath } from '../lib/paths.mjs';
+import { detectServer, waitForSeq, mirrorFiles, syncWaitSeconds } from './sync-client.mjs';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.dirname(DIR);
@@ -40,6 +49,7 @@ export const SCRIPTS = [
 ];
 
 const SHORTCUT = path.join(ROOT, 'data', 'apple-health', 'sync-shortcut.mjs');
+const DOCUMENTS = SCRIPTS[0];
 
 /** The argv each script gets from sync-all's own flags: --full is the Shortcut sync's (every script parses
  * its flags strictly, so an unknown one would fail it). */
@@ -67,13 +77,54 @@ function realSpawn (cmd, spawnArgs) {
   return spawnSync(cmd, spawnArgs, { stdio: 'inherit' });
 }
 
-const USAGE = `Usage: node scripts/sync-all.mjs [--full]
+/**
+ * `npm run sync`: client mode against a container-mode LOOP server, else every script (see the header). Returns the
+ * exit code. `deps` are injected by the tests (scripts/sync-client.test.mjs); SYNC_CLIENT_ROOT = the clone root the
+ * data root resolves against (tests), default this clone.
+ * @param {{ full?: boolean, 'no-refresh'?: boolean }} [values]
+ * @param {{ env?: Record<string, string | undefined>, spawn?: (cmd: string, args: string[]) => { status: number | null }, fetchImpl?: typeof fetch, sleep?: (ms: number) => Promise<void>, log?: (m: string) => void, warn?: (m: string) => void }} [deps]
+ */
+export async function main ({ full = false, 'no-refresh': noRefresh = false } = {}, {
+  env = process.env, spawn = realSpawn, fetchImpl = fetch, sleep, log = console.log, warn = console.error,
+} = {}) {
+  const hostSyncs = () => runAll(SCRIPTS, scriptArgs({ full }), spawn);
+  // the server's own refresh: it IS the source, never a client of itself
+  if (String(env.HC_BUILD ?? '').trim() === 'container') return hostSyncs();
+  const token = readIngestToken(env);
+  if (!token) return hostSyncs();
+  const waitSeconds = syncWaitSeconds(env);
+  const base = readBaseUrl(env);
+  const server = await detectServer({ base, token, fetchImpl });
+  if (server.mode === 'unauthorized') {
+    warn(`ERROR: ${base} refused the ingest token (HTTP 401): set INGEST_TOKEN (or INGEST_TOKEN in services/loop-ingest/.env) to the server's INGEST_TOKEN (docker/.env on a LOOP server)`);
+    return 1;
+  }
+  if (server.mode === 'host') {
+    if (noRefresh) log('Note: --no-refresh only applies to a client of a LOOP server; running every sync');
+    return hostSyncs();
+  }
+  const repoRoot = env.SYNC_CLIENT_ROOT || ROOT;
+  const paths = dataPaths({ repoRoot, env });
+  log(`Client mode: ${base} is a LOOP server (container mode); mirroring its data into ${displayPath(repoRoot, paths.root)}`);
+  if (full) log('Note: --full is ignored in client mode (the server keeps the Shortcut cache)');
+  let manifest = server.manifest;
+  if (!noRefresh) ({ manifest } = await waitForSeq({ base, token, waitSeconds, fetchImpl, ...(sleep ? { sleep } : {}), log, warn }));
+  const documents = runAll([DOCUMENTS], [], spawn);
+  const mirror = await mirrorFiles({ base, token, manifest, root: paths.root, filesDir: paths.filesDir, fetchImpl, log, warn });
+  return Math.max(documents, mirror);
+}
+
+const USAGE = `Usage: node scripts/sync-all.mjs [--full] [--no-refresh]
 
 Runs every sync (Strava, Shortcut, profile, settings, onboarding, food log, journal) in order, even when
-one fails; exits 1 if any failed.
-  --full       the Shortcut sync ignores its cache and rebuilds it
-  -h, --help   this help`;
+one fails; exits 1 if any failed. Against a LOOP server in container mode (it answers GET /export/files)
+this clone is its client instead: it asks the server to refresh (POST /sync) and waits for it, pulls the
+documents, then mirrors the server's extract/, profile/, foodlog/, files/documents/ and files/manuals/.
+  --full         the Shortcut sync ignores its cache and rebuilds it (not in client mode)
+  --no-refresh   client mode: mirror what the server has now, without asking it to refresh first
+  -h, --help     this help
+Env: INGEST_URL, INGEST_TOKEN, HC_DATA_DIR, HC_SYNC_WAIT (client mode: seconds to wait for the server, default 120).`;
 
 if (isMain(import.meta.url)) {
-  runCli((values) => runAll(SCRIPTS, scriptArgs(values), realSpawn), { usage: USAGE, options: { full: { type: 'boolean' } } });
+  runCli((values) => main(values), { usage: USAGE, options: { full: { type: 'boolean' }, 'no-refresh': { type: 'boolean' } } });
 }

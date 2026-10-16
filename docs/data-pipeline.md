@@ -27,6 +27,7 @@ for the documents, `files/import/export.xml` for the Health export); `lib/paths.
   - [Per-workout HR zones (`workout-zones.csv`)](#per-workout-hr-zones-workout-zonescsv)
 - [Journal export (`scripts/sync-journal.mjs`, part of `npm run sync`)](#journal-export-scriptssync-journalmjs-part-of-npm-run-sync)
 - [Owner documents (`scripts/sync-documents.mjs`, first step of `npm run sync`)](#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync)
+- [Coach as a client of a LOOP server](#coach-as-a-client-of-a-loop-server)
 
 ## Apple Health extract + iOS Shortcut sync
 
@@ -457,7 +458,8 @@ and, in a clone, in the files the build, the other syncs and the coach read:
 | `training` | `loop-data/cache/training.json` |
 
 **Changing one** (the coach does this for you): `npm run sync`, edit the file, then
-`npm run documents -- push <profile|plan|training|all>`. The first push of a document is its import.
+`npm run documents -- push <profile|plan|training|all>`. The first push of a document is its import: it saves at
+revision `0` (the revision a document has before its first save).
 
 - **push** checks the file with the full rules the page build applies (`validateNutrition` with
   `ingredients.json`, `validateProgram`, `validateManual`) and sends nothing when one fails. It saves at the
@@ -486,3 +488,51 @@ and, in a clone, in the files the build, the other syncs and the coach read:
   build): nothing reads it any more, so edits there are ignored; `npm run migrate:data-root` moves it.
 - No token, an unreachable / old service (404, 503, 401) or a body that is not the document's shape = one
   `WARNING:` line per document, the file kept, exit 0; only a failed write exits 1 (the other documents still sync).
+
+## Coach as a client of a LOOP server
+
+On a LOOP server installed with the images (`docker/docker-compose.yml`, `HC_BUILD=container`) the server owns the
+processed data: its own refresh folds the Shortcut payloads and Strava activities into the extract in its `/data`
+volume. A coach clone (the repo opened in Claude Code, on a laptop or on the server) does not fold anything itself:
+`npm run sync` MIRRORS the server's data root (`scripts/sync-client.mjs`, wired in `scripts/sync-all.mjs`).
+
+**Setup.** In the clone, point `INGEST_URL` at the server's data port (`INGEST_PORT` of its `docker/.env`, e.g.
+`http://192.168.1.10:8088`) and set `INGEST_TOKEN` to the server's `INGEST_TOKEN` (as environment variables, or
+`INGEST_TOKEN=` / `INGEST_PORT=` in the clone's `services/loop-ingest/.env` for a server on the same machine). Then
+`npm run sync` as always.
+
+**Detection.** `npm run sync` first asks `GET /export/files` with the token
+([`services/loop-ingest/README.md` → Files export](../services/loop-ingest/README.md#files-export-exportfiles-and-exportfile-container-mode)):
+
+| Answer | What `npm run sync` does |
+| --- | --- |
+| `200` (a container-mode server) | client mode, below |
+| `404` (a host-mode server, or an image from before this route) | every sync script, as before |
+| `401` | stops with `ERROR: ... refused the ingest token (HTTP 401)`, naming `INGEST_TOKEN`; exit 1 |
+| no answer, no token | every sync script, which warn as before |
+
+Inside the server itself (`HC_BUILD=container`, its refresh runs `scripts/sync-all.mjs`) the scripts always run: the
+server is the source, never a client of itself.
+
+**Client mode**, in order:
+
+1. **Refresh.** `POST /sync` (what the page's Sync button does), then the manifest is polled every 2 s until the
+   server's published `processedSeq` reaches the returned seq, so the mirror holds the data of this very moment. At
+   most `HC_SYNC_WAIT` seconds (default 120): after that, or when the server's page build failed for that seq, one
+   `WARNING:` and the data is pulled anyway. `npm run sync -- --no-refresh` skips this step (mirror what the server
+   has now). `--full` is ignored (the server keeps the Shortcut cache).
+2. **Documents.** `scripts/sync-documents.mjs`, exactly as above: `loop-data/cache/` keeps its local-edit protection
+   (an edit not pushed yet is kept with its `WARNING:`).
+3. **Mirror.** The allowlisted folders of the server's data root: `extract/`, `profile/`, `foodlog/`,
+   `files/documents/` and `files/manuals/` (in the clone `files/` is `HC_FILES_DIR` when set). A file is downloaded
+   only when its sha256 differs from the local copy, into a hidden temp file next to it, checked against the
+   manifest's size and sha256 and only then renamed into place (a mismatch keeps the local file: `WARNING:`, exit 1;
+   run the sync again). A file in those folders that the server no longer lists is removed, so **the server's
+   `files/` folder is the one to add documents and manuals to**: one added only in the clone's
+   `files/documents/` is removed by the next client sync. Never touched: `cache/`, `files/import/`, hidden, temp,
+   lock or backup files, symlinks, and anything outside those folders. A manifest naming any path outside the
+   allowlist is refused as a whole (`ERROR:`, nothing written or removed). It ends with one line:
+   `Mirror: <n> files on the server: <d> downloaded, <u> unchanged, <r> removed[, <f> failed]`; a second run with
+   nothing new downloads nothing.
+
+Exit code: 1 when the documents sync or the mirror failed (every step still runs), else 0.
