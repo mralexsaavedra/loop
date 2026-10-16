@@ -40,6 +40,9 @@ COPY data ./data
 COPY scripts ./scripts
 COPY services/loop-ingest/src ./services/loop-ingest/src
 COPY services/loop-ingest/sql ./services/loop-ingest/sql
+# the Strava first-auth helper: `docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print`
+# prints the refresh token line for docker/.env (the image's files are read-only, so it never writes one)
+COPY services/loop-ingest/scripts/strava-auth.js ./services/loop-ingest/scripts/strava-auth.js
 
 # The code stays root-owned and read-only for the `node` user; it writes only the volumes and Astro's caches
 # (.astro, web/.astro, web/node_modules/.astro + .vite: tmpfs under a read-only root filesystem,

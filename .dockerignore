@@ -26,6 +26,7 @@
 !services/loop-ingest/package-lock.json
 !services/loop-ingest/src/**
 !services/loop-ingest/sql/**
+!services/loop-ingest/scripts/strava-auth.js
 
 # the page server (loop-web): exactly the audited nginx template and its hosts map renderer
 !services/loop-web/nginx.conf.template

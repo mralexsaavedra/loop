@@ -585,7 +585,16 @@ statement after 30 s.
 3. **Exchange the code for a refresh token** within a few minutes (the code is single-use and expires).
    Easiest: put `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` in `.env` and run `node scripts/strava-auth.js`
    from this folder; it asks for the code and writes the refresh token into `.env` (then skip to step 4's
-   `docker compose up -d`). By hand:
+   `docker compose up -d`). On a **loop-server** install (`docker/docker-compose.yml`, whose image files are read-only)
+   put both in `docker/.env`, `docker compose up -d`, then run the same helper inside the container with `--print`:
+
+   ```sh
+   docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print
+   ```
+
+   It reads the two values from the container's environment, asks for the code and prints the
+   `STRAVA_REFRESH_TOKEN=...` line instead of writing a file: put it in `docker/.env` and `docker compose up -d`
+   (step 4). By hand:
 
    ```sh
    curl -s -X POST https://www.strava.com/oauth/token \
