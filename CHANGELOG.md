@@ -13,6 +13,16 @@ every push and pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-16 (evening) — Server images, step 1c: the coach pushes the documents, a hand edit is never lost
+
+`npm run documents -- push|pull <profile|plan|training|all> [--force]` (`scripts/documents.mjs`): push validates a
+file with the full build rules (validateNutrition, validateProgram, validateManual) and saves it at the revision of
+the last sync or push, so a database changed since then is never overwritten (`--force` replaces it); the first push
+is the import. The document sync now keeps a sync state (`data/profile/documents-sync.json`: revision + content hash
+per document) and never overwrites a file with an edit that is not in the database: it warns and names `push` and
+`pull --force` (which backs the file up to `backups/<path>.documents.bak` first). `/setup` imports the files on
+Level 2; the docs that say to edit the files name the push.
+
 ## 2026-10-16 (later) — Server images, step 1b: `npm run sync` writes the owner's documents
 
 `scripts/sync-documents.mjs` (`npm run sync:documents`, the FIRST step of `npm run sync`, because sync-strava reads

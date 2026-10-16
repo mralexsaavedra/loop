@@ -83,7 +83,10 @@ Needs a Linux host with Docker (compose), systemd and Node 22. Follow the ordere
 3. Verify: `curl -s -o /dev/null -w '%{http_code}\n' "http://$IA:$IP/healthz"` → 200; the loop-web smoke test from its README.
    The page's own onboarding assistant then opens on the first visit (no profile and no goal on the
    server): a user without Claude Code sets up profile and targets there (`docs/profile.md`).
-4. `npm run sync`: each `WARNING:` line names a source not refreshed; report it.
+4. `npm run documents -- push all`: imports the profile, plan and program files into the data service (from now
+   on the coach edits a file and pushes it; `docs/data-pipeline.md` → Owner documents). A refused file lists
+   the rules it breaks: fix it and push again.
+5. `npm run sync`: each `WARNING:` line names a source not refreshed; report it.
 
 ## Level 3 — live sync and knowledge base
 

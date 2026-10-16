@@ -409,9 +409,9 @@ consumers never query Postgres.
 
 ## Owner documents (`scripts/sync-documents.mjs`, first step of `npm run sync`)
 
-The profile, the nutrition plan and the training program can live in the data service's database
-(`GET /documents/:kind`, [`services/loop-ingest/README.md` → Documents](../services/loop-ingest/README.md#documents-documentskind)).
-This step writes each saved one to the file the build, the other syncs and the coach read:
+The profile, the nutrition plan and the training program live in the data service's database
+(`/documents/:kind`, [`services/loop-ingest/README.md` → Documents](../services/loop-ingest/README.md#documents-documentskind))
+and, in a clone, in the files the build, the other syncs and the coach read:
 
 | Document | File |
 | --- | --- |
@@ -419,12 +419,26 @@ This step writes each saved one to the file the build, the other syncs and the c
 | `plan` | `data/nutrition/plan-data.json` |
 | `training` | `data/training/training-data.json` |
 
-- It runs first (`npm run sync:documents` alone): `sync-strava.mjs` reads `maxHr` from `profile.json`.
-- Bearer token (`INGEST_TOKEN`, else the service's `.env`, like the Shortcut sync).
-- **Once a document is saved in the database, the database wins**: a file whose content differs is replaced on the
-  next sync, so a hand edit of that file is lost. A document never saved (`null`) leaves its file alone.
-- A file is rewritten only when its content changed (compared as parsed JSON: the same content in another
-  formatting is left untouched), atomically, as 2-space JSON in the document's key order.
+**Changing one** (the coach does this for you): `npm run sync`, edit the file, then
+`npm run documents -- push <profile|plan|training|all>`. The first push of a document is its import.
+
+- **push** checks the file with the full rules the page build applies (`validateNutrition` with
+  `ingredients.json`, `validateProgram`, `validateManual`) and sends nothing when one fails. It saves at the
+  revision of your last sync or push, so a database changed since then (another clone, the other machine) is
+  never overwritten: the push refuses and names both ways out, `pull <kind> --force` (take the database's;
+  your file is backed up) or `push <kind> --force` (replace the database's). A file equal to the database's
+  only records the state.
+- **pull** (`npm run documents -- pull <kind|all> [--force]`) is the sync for the named documents, but exits 1
+  when one could not be written.
+- **The sync** (`npm run sync:documents` alone) runs first, because `sync-strava.mjs` reads `maxHr` from
+  `profile.json`. With the bearer token (`INGEST_TOKEN`, else the service's `.env`), each saved document is
+  written to its file, atomically, as 2-space JSON in the document's key order, and only when the content
+  changed (compared as parsed JSON: the same content in another formatting is left untouched). A document
+  never saved (`null`) leaves its file alone.
+- **A hand edit is never lost.** The sync state (`data/profile/documents-sync.json`, gitignored) records the
+  revision and content hash of each document as last synced or pushed. A file that differs from it AND from
+  the database (an edit not pushed yet, a file from before the documents existed, a broken file) is kept, with a
+  `WARNING:` naming `push` and `pull --force`. `--force` backs the file up to
+  `backups/<same path>.documents.bak` (the newest only) before replacing it.
 - No token, an unreachable / old service (404, 503, 401) or a body that is not the document's shape = one
   `WARNING:` line per document, the file kept, exit 0; only a failed write exits 1 (the other documents still sync).
-
