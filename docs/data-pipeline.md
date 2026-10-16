@@ -35,9 +35,33 @@ for the documents, `files/import/export.xml` for the Health export); `lib/paths.
 - **Read the cached extract first**: `loop-data/extract/*.csv` (weight, bodyfat, rhr, vo2max,
   hrv, steps-daily, active/basal-energy-daily, dietary-daily, sleep-daily, workouts) + `_meta.json`
   (ranges, row counts, caveats).
-- Regenerate after a new export is dropped: `node data/apple-health/extract.mjs` (no flags; `--help` prints the
-  usage, any other argument exits 2 before reading the export).
-- The raw `export.xml` is ~700 MB — only stream/grep it directly for a series not in the cache.
+- **A new export, the easy way: `npm run import:health`** (`scripts/import-health.mjs`; the loop-server image runs it
+  before every sync). Drop the iPhone's zip (Health → profile → Export All Health Data) into
+  `loop-data/files/import/` as it is, then run it:
+  - it takes the NEWEST `*.zip` (or a plain `export.xml`) in that folder by modification time, and skips it when its
+    sha256 equals the last successful import (`loop-data/import-state.json`); `--force` imports it again;
+  - from a zip it streams the export entry (`apple_health_export/exportación.xml` on a Spanish iPhone,
+    `export.xml` in English: matched accent- and case-insensitively, since the iPhone writes the name in decomposed
+    UTF-8 without the zip's UTF-8 flag; else the one other `.xml` next to `export_cda.xml`) into
+    `loop-data/import-work/export.xml.<pid>.tmp`, checking its CRC-32 (`scripts/lib/zip.mjs`, Node's zlib: no
+    `unzip` binary, zip64 for an export over 4 GB). The work file lives on the data root, never in the files folder
+    (it may be read-only), and is removed in every outcome; the zip is never modified, moved or deleted;
+  - it refuses a truncated export (no closing `</HealthData>`), then runs `extract.mjs --source <that file>`: the
+    same code path as the manual way below, so the extract is byte-identical;
+  - it records `{file, sha256, size, importedAt, exportLastDate, rows}` in `import-state.json` and prints counts
+    only. Exit 0 also for nothing to do (no import folder, nothing in it, already imported); exit 1 for a corrupt
+    zip, a zip without an export, a truncated export or a failed extract: the previous extract is untouched and
+    `import-state.json` gets `lastError {at, file, sha256, code, message}` (`corrupt`, `no-export`, `truncated`,
+    `extract`, `interrupted` for a SIGTERM; the next import that succeeds clears it). A file that failed is tried
+    again on the next run.
+  - Then `npm run sync` layers the iOS Shortcut data on top, exactly as after the manual way (below: a re-extract
+    drops the Shortcut rows and the ledger, the next sync restores them from the cache); pinned by
+    `scripts/import-health.test.mjs`.
+- **The manual way** (still works): unzip the export yourself, put `export.xml` (renamed from `exportación.xml` on a
+  Spanish iPhone) in `loop-data/files/import/`, then `node data/apple-health/extract.mjs` (`--source <file>` reads
+  another file; `--help` prints the usage, any other argument exits 2 before reading the export), then
+  `npm run sync`.
+- The raw `export.xml` is ~700 MB-1 GB — only stream/grep it directly for a series not in the cache.
 - **Body metrics** carry a `source` column. Weight mixes scales — compare body fat within one scale only.
 - **Source cells** (`source` of the readings, steps, sleep and workouts) go through one helper,
   `csvSource` in `lib/extract/samples.mjs`, on both the export and the Shortcut path: XML entities (`&amp;`,

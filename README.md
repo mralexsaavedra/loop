@@ -120,10 +120,11 @@ through it: it checks what is already in place, then goes one step at a time.
    npm ci
    ```
 
-3. **Export Apple Health:** iPhone → Health → your photo → *Export All Health Data*. Unzip and put
-   `export.xml` in `loop-data/files/import/` (`mkdir -p loop-data/files/import` first; `loop-data/` is the
-   gitignored folder that holds all your personal data), then run `node data/apple-health/extract.mjs` (it caches small
-   per-metric CSVs; re-run after each new export). No export yet? See the demo first: `npm run build:example` and open `web/dist/example/index.html`.
+3. **Export Apple Health:** iPhone → Health → your photo → *Export All Health Data*. Put the zip, as it is, in
+   `loop-data/files/import/` (`mkdir -p loop-data/files/import` first; `loop-data/` is the gitignored folder that
+   holds all your personal data), then run `npm run import:health` (it caches small per-metric CSVs; re-run after each
+   new export, the same zip twice is skipped). Unzipped it yourself? Put `export.xml` there and run
+   `node data/apple-health/extract.mjs`. No export yet? See the demo first: `npm run build:example` and open `web/dist/example/index.html`.
 4. **Start Claude Code and say hi** (`claude` inside the folder). With no profile yet it runs the
    onboarding interview and writes `profile/about-me.md`, `profile/baseline.md` and `profile/coaches.md`
    for you (all gitignored). Prefer to fill them yourself? Copy each `*.example.md` → `*.md`.

@@ -33,7 +33,8 @@
     "sync:documents": "node scripts/sync-documents.mjs",
     "documents": "node scripts/documents.mjs",
     "migrate:data-root": "node scripts/migrate-data-root.mjs",
-    "sync:foodlog": "node data/nutrition/sync-foodlog.mjs"
+    "sync:foodlog": "node data/nutrition/sync-foodlog.mjs",
+    "import:health": "node scripts/import-health.mjs"
   },
   "dependencies": {
     "astro": "7.3.8",

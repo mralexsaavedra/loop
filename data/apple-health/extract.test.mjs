@@ -378,3 +378,27 @@ test('HC_DATA_DIR: export.xml read from <data root>/files/import (HC_FILES_DIR m
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('--source <file> reads that export instead of <files>/import/export.xml (scripts/import-health.mjs passes its work file); output byte-identical to the default path', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-source-'));
+  const xml = ['<HealthData locale="en_GB">', later('2030-01-02'), later('2030-01-03'), '</HealthData>', ''].join('\n');
+  const env = (extra) => { const e = { ...process.env }; delete e.EXTRACT_DIR; delete e.HC_FILES_DIR; return { ...e, ...extra }; };
+  const snapshot = (dir) => Object.fromEntries(fs.readdirSync(dir).sort().map((f) => [f, fs.readFileSync(path.join(dir, f), 'utf8')]));
+  try {
+    fs.mkdirSync(path.join(root, 'a', 'files', 'import'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'a', 'files', 'import', 'export.xml'), xml);
+    assert.equal(spawnSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { encoding: 'utf8', env: env({ HC_DATA_DIR: path.join(root, 'a') }) }).status, 0);
+    const work = path.join(root, 'work', 'export.xml.123.tmp');
+    fs.mkdirSync(path.dirname(work));
+    fs.writeFileSync(work, xml);
+    const r = spawnSync(process.execPath, [path.join(__dirname, 'extract.mjs'), '--source', work], { encoding: 'utf8', env: env({ HC_DATA_DIR: path.join(root, 'b') }) });
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(snapshot(path.join(root, 'b', 'extract')), snapshot(path.join(root, 'a', 'extract')));
+    const miss = spawnSync(process.execPath, [path.join(__dirname, 'extract.mjs'), '--source', path.join(root, 'nope.xml')], { encoding: 'utf8', env: env({ HC_DATA_DIR: path.join(root, 'c') }) });
+    assert.equal(miss.status, 1);
+    assert.ok(miss.stderr.includes(path.join(root, 'nope.xml')), miss.stderr);
+    assert.equal(fs.existsSync(path.join(root, 'c', 'extract')), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
