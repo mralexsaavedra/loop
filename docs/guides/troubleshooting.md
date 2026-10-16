@@ -78,6 +78,8 @@ ports (page 8090, data service 8088). An older host-mode install (the services r
   `"event":"unauthorized"` with a running `count`, never the token); `400` with `"code":"nul_character"`
   means the payload holds a `\u0000` character, which the database cannot store.
 - `curl -s localhost:8088/sync/status` — `lastShortcutAt` should move after each run.
+- An error on the iPhone itself ("Puedes permitir su ejecución en Ajustes", "No se ha encontrado ninguna
+  muestra"): [`docs/ios-shortcut.md` → Troubleshooting](../ios-shortcut.md#troubleshooting).
 
 **Fix**
 
@@ -234,6 +236,6 @@ ports (page 8090, data service 8088). An older host-mode install (the services r
 ## Still stuck?
 
 - [LOOP server reference](../lan-services.md) — the images, the sync protocol, error codes and security.
-- [iOS Shortcut](../ios-shortcut.md) — every payload key, Gotchas and Verify.
+- [iOS Shortcut](../ios-shortcut.md) — every payload key, Gotchas, Troubleshooting and Verify.
 - [loop-ingest README](../../services/loop-ingest/README.md) — endpoints, Strava, configuration.
 - [loop-web README](../../services/loop-web/README.md) — host mode: install steps, smoke test, second install.
