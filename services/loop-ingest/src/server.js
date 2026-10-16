@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -8,7 +9,7 @@ import { createAthleteExportHandler } from './athlete.js'
 import { createSyncStatus } from './status.js'
 import { createTriggerWriter, createSyncTrigger, readTriggerSeq } from './trigger.js'
 import { createSyncRoutes } from './sync-routes.js'
-import { buildMode, createBuilder, createRefreshSpawner, readPublishedSeq, DEFAULT_SITE_DIR } from './builder.js'
+import { buildMode, createBuilder, createRefreshSpawner, readPublishedSeq, DEFAULT_SITE_DIR, DEFAULT_REFRESH_SCRIPT } from './builder.js'
 import { createFoodStore } from './food-db.js'
 import { createFoodRoutes } from './food.js'
 import { createOffClient } from './off.js'
@@ -313,6 +314,11 @@ async function main () {
   // a numeric variable that is set but invalid throws here: one startup_failed line, exit 1 (the catch below)
   const { port: PORT, maxBodyBytes: MAX_BODY_BYTES, stravaSyncMinutes } = envConfig(process.env)
   const build = buildConfig(process.env)
+  // container mode needs the repo's refresh script next to the service (the loop-server image); the plain
+  // loop-ingest image does not ship it, so HC_BUILD=container there is a configuration error, not a failing build
+  if (build.mode === 'container' && !fs.existsSync(DEFAULT_REFRESH_SCRIPT)) {
+    throw new Error(`HC_BUILD=container needs ${DEFAULT_REFRESH_SCRIPT} (the loop-server image); this image only supports the trigger file`)
+  }
   if (!INGEST_TOKEN || INGEST_TOKEN.length < 32) {
     console.error('INGEST_TOKEN missing or shorter than 32 characters')
     process.exit(1)

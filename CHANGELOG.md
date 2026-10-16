@@ -23,7 +23,7 @@ validation + page build under a timeout, sanity check, atomic publish into the `
 (`commit` is now the image version, never git; error codes `build` / `sanity` / `lock`), then the device manuals.
 Builds run one at a time and clicks during a build coalesce onto one follow-up run; the sequence protocol, the
 coalescing and the 60 s deferral are unchanged, and a failed build shows as `lastTriggerError: build`. A personal
-build without a plan document (a fresh install) now uses the example plan, the onboarding's targets and one
+build without a plan document (a fresh install) now uses the example plan, the onboarding's targets and a
 `WARNING` line instead of failing. The repo-root `.dockerignore` is default-deny (only the code and the tracked
 seeds reach the build context, a test pins that no personal path does). Nothing changes for existing installs:
 without `HC_BUILD` the service writes the trigger file as before and `refresh.sh` keeps publishing; loop-web serving
