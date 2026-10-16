@@ -109,18 +109,34 @@ test('resolveLocale: an explicit locale (CLI --locale or LOCALE env) wins over p
   }
 });
 
-test('a missing personal plan (fresh clone, seeds not copied) becomes ONE readable line, not a stack trace', () => {
+test('a missing input file (no plan document AND no example seed) becomes ONE readable line, not a stack trace', () => {
   const root = fixtureRepo();
   fs.rmSync(path.join(root, 'loop-data', 'cache', 'plan.json'));
+  fs.rmSync(path.join(root, 'data', 'nutrition', 'plan-data.example.json'));
   try {
     let err;
     try { resolveLocale({ repoRoot: root, mode: 'personal', explicitLocale: null }); } catch (e) { err = e; }
-    assert.ok(err, 'resolveLocale throws without the personal plan');
+    assert.ok(err, 'resolveLocale throws without any plan');
     const line = inputErrorLine(err);
-    assert.match(line, /^build-web: .*loop-data\/cache\/plan\.json not found\. Copy plan-data\.example\.json -> loop-data\/cache\/plan\.json/);
+    assert.match(line, /^build-web: .*plan-data\.example\.json not found\. Neither the plan document \(loop-data\/cache\/plan\.json\)/);
     assert.ok(!line.includes('\n'), 'one line');
     assert.equal(inputErrorLine(new Error('something else')), null, 'any other error is not swallowed');
   } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('no plan document (a fresh server install): the personal build resolves with the example plan and warns', () => {
+  const root = fixtureRepo();
+  fs.rmSync(path.join(root, 'loop-data', 'cache', 'plan.json'));
+  const warn = console.warn;
+  const warns = [];
+  console.warn = (m) => warns.push(m);
+  try {
+    assert.equal(resolveLocale({ repoRoot: root, mode: 'personal', explicitLocale: null }), 'en', 'the example plan\'s locale');
+    assert.ok(warns.some((w) => /^WARNING: no plan document/.test(w)));
+  } finally {
+    console.warn = warn;
     fs.rmSync(root, { recursive: true, force: true });
   }
 });

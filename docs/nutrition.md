@@ -153,6 +153,13 @@ weight trend after 2–3 weeks.
 builds from the tracked seeds plus the synthetic demo extract `data/demo/extract/` — no personal files; a
 pipeline sanity check on a bare clone.
 
+**No plan document yet.** A personal build without `loop-data/cache/plan.json` (a fresh server install: nobody has
+pushed a plan document, so `npm run sync` wrote none) does not fail: the page is built with the tracked
+`plan-data.example.json`, the onboarding's targets still replace its targets when the page's onboarding was
+completed, the rest stays personal (extract, profile, food log), and each step that loads the inputs (the plan
+check and the page build) prints `WARNING: no plan document (…): building with the example plan (…)`. Push your own with
+`npm run documents -- push plan`, then `npm run sync`. Only a missing `plan-data.example.json` as well is an error.
+
 **Viewing the plan.** Edit the JSON → `npm run generate` → open `web/dist/personal/index.html`, or let the
 LAN page pick it up ([`lan-services.md`](lan-services.md)). The output is one CSP-safe file (no external
 refs, no `<script type="module">`, every script `is:inline`), so a static copy works anywhere.

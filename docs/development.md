@@ -37,6 +37,7 @@ suite and dependencies (`npm run test:services`).
 | `npm run golden:bake` | Compare every build-time bake (`web/src/bakes.mjs`) for the example + an empty extract against `web/test/fixtures/bake-golden.*.json` (`-- --update` rewrites them after a deliberate change; `-- --personal` writes/compares the gitignored `web/test/.golden/` personal golden, paths only, exit 2 without personal inputs; `-- --personal --root <clone>` reads that clone's data + golden with this checkout's code, read-only there) |
 | `npm run migrate:data-root` | Move a clone's personal files from the old paths into the data root `loop-data/` (backup tarball, copy, sha256 verify, then remove; `-- --dry-run` writes nothing) — [Where the data files live](#where-the-data-files-live) |
 | `npm run migrate:data-root` | Move a clone's personal files from the old paths into the data root `loop-data/` (backup tarball, copy, sha256 verify, then remove; `-- --dry-run` writes nothing) — [Where the data files live](#where-the-data-files-live) |
+| `HC_SITE_DIR=<dir> node scripts/refresh.mjs [--seq N] [--wait-lock]` | The loop-server image's page refresh (the container port of `services/loop-web/refresh.sh`): sync (non-fatal), validate + build the personal page (under a timeout), sanity check, atomic publish into `HC_SITE_DIR` with `status.json` (`commit` = the image version: `HC_VERSION`, else `package.json`; error codes `build` / `sanity` / `lock`), then the device manuals. The ingest service runs it in container mode ([`services/loop-ingest/README.md`](../services/loop-ingest/README.md#container-mode)); `--help` for the env variables |
 | `npm run demo:data` | Regenerate the synthetic demo extract `data/demo/extract/` (`scripts/make-demo-data.mjs`; `-- --end YYYY-MM-DD --days N --seed N`, `--days` a whole number 2-3650) |
 | `npm run gen:food-calc` | Regenerate `services/loop-ingest/src/food-calc.js` from `lib/nutrition/foodlog.mjs` (a test fails while it is stale) |
 | `npm run gen:journal-calc` | Regenerate `services/loop-ingest/src/journal-calc.js` from `lib/journal/journal.mjs` (a test fails while it is stale) |
@@ -172,6 +173,12 @@ Checklist for a release:
 Base images (`node`, `postgres`, `nginx`) and the GitHub Actions are pinned by digest or commit SHA, with the
 readable tag beside them; Dependabot ([`.github/dependabot.yml`](../.github/dependabot.yml)) proposes the updates
 weekly, together with the npm dependencies.
+
+The `loop-server` image (preview, [`lan-services.md` → Server image](lan-services.md#server-image-preview--docker))
+is not released yet: `docker build -f docker/loop-server.Dockerfile --build-arg VERSION=<x.y.z> .` from the repo
+root builds it locally (only production dependencies: `astro` and `esbuild` are `dependencies` because the page
+build runs in the image), and `scripts/loop-server-compose.test.mjs` / `scripts/dockerignore.test.mjs` pin the
+Dockerfile, the compose file and the default-deny build context.
 
 ## Contributor-only tools
 

@@ -51,7 +51,7 @@ up -d` in `services/loop-web`). `refresh.sh` rebuilds and publishes it hourly (c
 - **Security + exposure.** `POST /sync` and `GET /sync/status` are UNAUTHENTICATED on purpose (a
   static page cannot hold a secret): the trigger only schedules work the services already do on a
   timer, reads no body and returns only a seq; status returns timestamps, seqs and COARSE codes
-  (`strava_auth`, `strava_network`, `strava_other`, `strava_token_save`, `trigger_write`), cached 5 s,
+  (`strava_auth`, `strava_network`, `strava_other`, `strava_token_save`, `trigger_write`, `build` in the server image's container mode), cached 5 s,
   never health data or raw error text (messages stay in logs; tests pin the key set and no leaks).
   loop-web nginx proxies EXACTLY `/api/sync` + `/api/sync/status` (exact-match, method-restricted;
   `POST /api/sync` deliberately needs no custom CSRF header, unlike `/api/food/*` and `/api/journal/*`: a
@@ -153,3 +153,32 @@ loop-ingest_default`, which the same command with `--force-recreate` repairs), t
 network is left unused: `docker network rm loop-web_default` (a second install's is
 `loop-web-<instance>_default`). `INGEST_PORT` in `services/loop-web/.env` is no longer read and can be deleted. Pinned by `scripts/loop-web-config.test.mjs` (both
 compose files agree on the name, no `host.docker.internal` proxy left).
+
+## Server image (preview) — `docker/`
+
+A no-clone install is on its way: the `loop-server` image (`docker/loop-server.Dockerfile`, built from the repo
+root) carries the data service AND the page toolchain, and builds + publishes the page **inside the container**
+(`HC_BUILD=container`). No Node, cron, systemd unit, `refresh.sh` or branch guard on the host. Today it is a
+preview: the page is published into the `loop-site` volume, which loop-web will serve in the next step; install
+docs come with the release. The host path above (trigger file + `refresh.sh`) keeps working unchanged.
+
+- **Build loop.** `POST /sync` and an in-process timer (`HC_REFRESH_MINUTES`, default 60, plus one build 5 s after
+  start) run `scripts/refresh.mjs` as a child process, one at a time, clicks during a build coalescing onto one
+  follow-up run. Same sequence protocol, coalescing and deferral as the trigger file
+  ([`services/loop-ingest/README.md` → Container mode](../services/loop-ingest/README.md#container-mode)).
+- **One pass** (`scripts/refresh.mjs`, [`development.md` → Commands](development.md#commands)): sync from the
+  service (non-fatal), validate the plan and build the personal page (each under a timeout), sanity check, atomic
+  publish of `index.html` and then `status.json` (`publishedAt`, `commit` = the image version, `processedSeq`;
+  `error` `build` / `sanity` / `lock` with `errorSeq` keeps the last good page), then the device manuals from
+  `files/manuals/` into `manuales/`, best effort.
+- **No plan document yet** (a fresh install): the page is built with the example plan and the onboarding's
+  targets, with a build `WARNING` ([`nutrition.md` → Build, check and generated files](nutrition.md#build-check-and-generated-files)).
+- **Storage.** `/data` (volume `loop-server-data`): the data root (`HC_DATA_DIR`: extract, food log, profile,
+  document copies). `/site` (volume `loop-site`): the published page. `${HC_FILES_LOCATION:-./files}` → `/data/files`:
+  the owner files folder on the host (`import/`, `manuals/`, `documents/`). The database keeps today's volume name
+  (`loop-db-data`), so an install's data carries over.
+- **Compose** (`docker/docker-compose.yml` + `docker/.env.example`): `loop-db` + `loop-server`, the same
+  `HC_INSTANCE` naming, `INGEST_PORT` / `INGEST_BIND` and hardening as today (read-only root filesystem with tmpfs for
+  `/tmp` and Astro's caches, no capability, `init`, limits), pinned by `scripts/loop-server-compose.test.mjs`. The
+  repo-root `.dockerignore` is default-deny, so no personal file reaches the build context
+  (`scripts/dockerignore.test.mjs`).

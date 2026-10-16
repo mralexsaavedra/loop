@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -8,6 +9,7 @@ import { createAthleteExportHandler } from './athlete.js'
 import { createSyncStatus } from './status.js'
 import { createTriggerWriter, createSyncTrigger, readTriggerSeq } from './trigger.js'
 import { createSyncRoutes } from './sync-routes.js'
+import { buildMode, createBuilder, createRefreshSpawner, readPublishedSeq, DEFAULT_SITE_DIR, DEFAULT_REFRESH_SCRIPT } from './builder.js'
 import { createFoodStore } from './food-db.js'
 import { createFoodRoutes } from './food.js'
 import { createOffClient } from './off.js'
@@ -83,6 +85,21 @@ export function envConfig (env) {
     maxBodyBytes: maxBodyBytes(env),
     // at least a minute (Strava's rate limits), at most a week (setInterval overflows past ~24.8 days)
     stravaSyncMinutes: numericEnv(env, 'STRAVA_SYNC_MINUTES', { def: 30, min: 1, max: 10_080 })
+  }
+}
+
+/**
+ * How the page gets rebuilt (builder.js): `mode` 'trigger' (HC_BUILD unset: write TRIGGER_DIR/refresh for the host)
+ * or 'container' (HC_BUILD=container: run scripts/refresh.mjs in this container, publishing into `siteDir` =
+ * HC_SITE_DIR, default /site, on POST /sync and every `refreshMinutes` = HC_REFRESH_MINUTES, default 60, 5-1440).
+ * Throws on an invalid value, like envConfig.
+ */
+export function buildConfig (env) {
+  const mode = buildMode(env)
+  return {
+    mode,
+    siteDir: String(env.HC_SITE_DIR ?? '').trim() || DEFAULT_SITE_DIR,
+    refreshMinutes: numericEnv(env, 'HC_REFRESH_MINUTES', { def: 60, min: 5, max: 1440 })
   }
 }
 
@@ -296,6 +313,12 @@ const INGEST_TOKEN = process.env.INGEST_TOKEN
 async function main () {
   // a numeric variable that is set but invalid throws here: one startup_failed line, exit 1 (the catch below)
   const { port: PORT, maxBodyBytes: MAX_BODY_BYTES, stravaSyncMinutes } = envConfig(process.env)
+  const build = buildConfig(process.env)
+  // container mode needs the repo's refresh script next to the service (the loop-server image); the plain
+  // loop-ingest image does not ship it, so HC_BUILD=container there is a configuration error, not a failing build
+  if (build.mode === 'container' && !fs.existsSync(DEFAULT_REFRESH_SCRIPT)) {
+    throw new Error(`HC_BUILD=container needs ${DEFAULT_REFRESH_SCRIPT} (the loop-server image); this image only supports the trigger file`)
+  }
   if (!INGEST_TOKEN || INGEST_TOKEN.length < 32) {
     console.error('INGEST_TOKEN missing or shorter than 32 characters')
     process.exit(1)
@@ -319,11 +342,14 @@ async function main () {
   const STRAVA_ENABLED = stravaConfigured(process.env)
   // POST /sync writes TRIGGER_DIR/refresh (see below); its sequence number seeds
   // the status so the sequence never goes backwards even if the DB row is lost.
+  // In container mode there is no trigger file: the last publish's processedSeq (HC_SITE_DIR/status.json) seeds it.
   const TRIGGER_DIR = process.env.TRIGGER_DIR ?? '/trigger'
+  const container = build.mode === 'container'
+  const fileSeq = () => (container ? readPublishedSeq(build.siteDir) : readTriggerSeq(TRIGGER_DIR))
   const syncStatus = createSyncStatus({
     pool,
     stravaConfigured: STRAVA_ENABLED,
-    readTriggerSeq: () => readTriggerSeq(TRIGGER_DIR)
+    readTriggerSeq: fileSeq
   })
   const stravaSync = STRAVA_ENABLED ? createStravaSync(pool, process.env, { status: syncStatus }) : null
   let stravaLoop = null
@@ -336,9 +362,18 @@ async function main () {
   // write gets a deferred seq, written when the window closes, so a Shortcut
   // payload that lands right after a rebuild still gets published.
   // Unauthenticated; see sync-routes.js.
+  // Container mode (HC_BUILD=container, builder.js): the writer runs the in-container build for the seq instead,
+  // one child at a time, clicks during a build coalescing onto one follow-up run; a failed build is reported as
+  // lastTriggerError 'build'. The same seq protocol, coalescing and deferral apply (createSyncTrigger is unchanged).
+  const builder = container
+    ? createBuilder({
+      spawnRefresh: createRefreshSpawner({ env: { ...process.env, HC_SITE_DIR: build.siteDir }, port: PORT }),
+      onFailure: (seq) => syncStatus.recordTriggerError(seq, 'build')
+    })
+    : null
   const syncTrigger = createSyncTrigger({
     runStrava: stravaSync ? () => stravaSync.runOnce() : null,
-    writeTrigger: createTriggerWriter({ dir: TRIGGER_DIR }),
+    writeTrigger: builder ? builder.writeTrigger : createTriggerWriter({ dir: TRIGGER_DIR }),
     status: syncStatus
   })
   const syncRoutes = createSyncRoutes({ status: syncStatus, trigger: syncTrigger })
@@ -421,17 +456,23 @@ async function main () {
     // A seq handed out but never written (crash before the write) leaves the DB
     // ahead of the trigger file: write it once, shortly after boot, so the host
     // rebuild processes it and a waiting client completes.
-    syncTrigger.recover({
-      fileSeq: await readTriggerSeq(TRIGGER_DIR),
-      lastWrittenAt: syncStatus.lastTriggerAtMs()
-    })
+    // Container mode needs no recovery: the boot build (builder.startTimer, after listen) publishes the current seq.
+    if (!builder) {
+      syncTrigger.recover({
+        fileSeq: await fileSeq(),
+        lastWrittenAt: syncStatus.lastTriggerAtMs()
+      })
+    }
     if (stravaSync) {
       stravaLoop = startSyncLoop(stravaSync, {
         intervalMinutes: stravaSyncMinutes
       })
     }
-    server.listen(PORT, () =>
-      console.log(JSON.stringify({ event: 'listening', port: PORT, strava: STRAVA_ENABLED })))
+    server.listen(PORT, () => {
+      console.log(JSON.stringify({ event: 'listening', port: PORT, strava: STRAVA_ENABLED, build: build.mode }))
+      // after listen: the build's syncs call back into this service
+      builder?.startTimer({ intervalMs: build.refreshMinutes * 60_000, currentSeq: () => syncStatus.currentSeq() })
+    })
   }
 
   // Graceful stop (docker compose stop / restart sends SIGTERM): stop the Strava loop, stop accepting, let
@@ -442,7 +483,7 @@ async function main () {
   const shutdown = createShutdown({
     server,
     pool,
-    stop: () => stravaLoop?.stop(),
+    stop: () => { stravaLoop?.stop(); builder?.stop() },
     flush: () => Promise.race([syncTrigger.flush(), new Promise((resolve) => setTimeout(resolve, 3_000).unref())])
   })
   for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, shutdown)
