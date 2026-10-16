@@ -174,11 +174,14 @@ Base images (`node`, `postgres`, `nginx`) and the GitHub Actions are pinned by d
 readable tag beside them; Dependabot ([`.github/dependabot.yml`](../.github/dependabot.yml)) proposes the updates
 weekly, together with the npm dependencies.
 
-The `loop-server` image (preview, [`lan-services.md` → Server image](lan-services.md#server-image-preview--docker))
-is not released yet: `docker build -f docker/loop-server.Dockerfile --build-arg VERSION=<x.y.z> .` from the repo
-root builds it locally (only production dependencies: `astro` and `esbuild` are `dependencies` because the page
-build runs in the image), and `scripts/loop-server-compose.test.mjs` / `scripts/dockerignore.test.mjs` pin the
-Dockerfile, the compose file and the default-deny build context.
+The `loop-server` and `loop-web` images (preview, [`lan-services.md` → Server image](lan-services.md#server-image-preview--docker))
+are not released yet: `docker build -f docker/loop-server.Dockerfile --build-arg VERSION=<x.y.z> .` and
+`docker build -f docker/loop-web.Dockerfile --build-arg VERSION=<x.y.z> .` from the repo root build them locally
+(`loop-server`: only production dependencies, `astro` and `esbuild` are `dependencies` because the page build runs in
+the image; `loop-web`: nginx with `services/loop-web/nginx.conf.template` and `hosts.sh` copied in, so a change to
+the audited config reaches both stacks). `scripts/loop-server-compose.test.mjs` / `scripts/dockerignore.test.mjs` pin
+both Dockerfiles, the compose file and the default-deny build context; `docker compose -f docker/docker-compose.yml
+up -d --build` with a `docker/.env` runs the whole stack from a clone.
 
 ## Contributor-only tools
 

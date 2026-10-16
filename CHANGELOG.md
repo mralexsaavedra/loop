@@ -13,6 +13,22 @@ every push and pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-16 — Server images, step 4: the loop-web image serves the page from the site volume
+
+`docker/loop-web.Dockerfile` builds the page server from the repo root: the same digest-pinned nginx as
+`services/loop-web`, with its audited `nginx.conf.template` and `hosts.sh` copied in unchanged (one source, no bind
+mounts; the root `.dockerignore` lets exactly those two files in). `docker/docker-compose.yml` now runs three
+containers: `loop-web` serves the `loop-site` volume read-only on `PLAN_WEB_PORT` (default 8090, `PLAN_WEB_BIND`,
+`PLAN_WEB_EXTRA_HOSTS` as in host mode) with the host-mode hardening (read-only root, tmpfs for `conf.d` / cache /
+`/run` / `/tmp`, only `CHOWN`, `SETGID`, `SETUID`, no privilege gain) and starts once `loop-server` is healthy;
+`loop-server` carries the network alias `loop-ingest`, so the template's upstream and the service's Host allowlist are
+unchanged. The image's html folder is owned by uid 1000, because Docker seeds a new named volume from the first
+container that mounts it: a smoke run where `loop-web` mounted the empty volume first left it root-owned and
+`loop-server` could not publish. A full-stack smoke test on throwaway containers passed: page and `status.json`
+(no-store) with the security headers, Sync advancing `processedSeq`, food, journal, the Shortcut route (202 with the
+token, 401 without), `/documents` and `/export` never proxied (404), a manual named by the profile document served
+from `/manuales/`, any other Host refused with 421. Existing installs are unchanged.
+
 ## 2026-10-16 — Server images, step 3: the loop-server image builds the page in the container
 
 A preview of the no-clone server: `docker/loop-server.Dockerfile` (built from the repo root) packs the data service

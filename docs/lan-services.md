@@ -156,11 +156,12 @@ compose files agree on the name, no `host.docker.internal` proxy left).
 
 ## Server image (preview) — `docker/`
 
-A no-clone install is on its way: the `loop-server` image (`docker/loop-server.Dockerfile`, built from the repo
-root) carries the data service AND the page toolchain, and builds + publishes the page **inside the container**
-(`HC_BUILD=container`). No Node, cron, systemd unit, `refresh.sh` or branch guard on the host. Today it is a
-preview: the page is published into the `loop-site` volume, which loop-web will serve in the next step; install
-docs come with the release. The host path above (trigger file + `refresh.sh`) keeps working unchanged.
+A no-clone install is on its way: three containers from `docker/docker-compose.yml`, the official `postgres`
+(`loop-db`), the `loop-server` image (`docker/loop-server.Dockerfile`, built from the repo root), which carries the
+data service AND the page toolchain and builds + publishes the page **inside the container** (`HC_BUILD=container`),
+and the `loop-web` image (`docker/loop-web.Dockerfile`), nginx serving that page on the LAN. No Node, cron, systemd
+unit, `refresh.sh` or branch guard on the host. Today it is a preview (not released; install docs come with the
+release). The host path above (trigger file + `refresh.sh`) keeps working unchanged.
 
 - **Build loop.** `POST /sync` and an in-process timer (`HC_REFRESH_MINUTES`, default 60, plus one build 5 s after
   start) run `scripts/refresh.mjs` as a child process, one at a time, clicks during a build coalescing onto one
@@ -177,8 +178,22 @@ docs come with the release. The host path above (trigger file + `refresh.sh`) ke
   document copies). `/site` (volume `loop-site`): the published page. `${HC_FILES_LOCATION:-./files}` → `/data/files`:
   the owner files folder on the host (`import/`, `manuals/`, `documents/`). The database keeps today's volume name
   (`loop-db-data`), so an install's data carries over.
-- **Compose** (`docker/docker-compose.yml` + `docker/.env.example`): `loop-db` + `loop-server`, the same
-  `HC_INSTANCE` naming, `INGEST_PORT` / `INGEST_BIND` and hardening as today (read-only root filesystem with tmpfs for
-  `/tmp` and Astro's caches, no capability, `init`, limits), pinned by `scripts/loop-server-compose.test.mjs`. The
-  repo-root `.dockerignore` is default-deny, so no personal file reaches the build context
+- **loop-web.** The same digest-pinned `nginx:alpine` as `services/loop-web`, with `services/loop-web/nginx.conf.template`
+  and `hosts.sh` **copied in unchanged** (one source: the audited config above, never a second copy under `docker/`,
+  never a bind mount). It mounts only the `loop-site` volume, read-only, so nothing else of the server's data is
+  reachable over HTTP, and proxies exactly the routes listed above. `loop-server` carries the network alias
+  `loop-ingest` on `loop-net`, so the template's upstream (`loop-ingest:8088`) and the data service's Host allowlist
+  stay as they are. `PLAN_WEB_PORT` (default 8090), `PLAN_WEB_BIND` and `PLAN_WEB_EXTRA_HOSTS` work as in host mode
+  (mirror the names in `FOOD_ALLOWED_HOSTS`). The image's html folder is owned by uid 1000: Docker seeds an empty
+  named volume from the first container that mounts it, and `loop-server` (the `node` user) must be able to publish
+  into it whichever container compose creates first.
+- **Compose** (`docker/docker-compose.yml` + `docker/.env.example`): `loop-db` + `loop-server` + `loop-web` (which
+  starts once `loop-server` is healthy), the same `HC_INSTANCE` naming (containers, volumes, `loop-net`),
+  `INGEST_PORT` / `INGEST_BIND` and hardening as today: read-only root filesystems; `loop-server` with tmpfs for `/tmp`
+  and Astro's caches, no capability, `init`; `loop-web` with tmpfs for `conf.d`, nginx's cache, `/run` and `/tmp`, only
+  `CHOWN`, `SETGID`, `SETUID`; no privilege gain and limits on all three. `scripts/loop-server-compose.test.mjs` pins
+  it (including one `docker compose config` render). The repo-root `.dockerignore` is default-deny, so no personal
+  file reaches the build context; from `services/loop-web` only the template and `hosts.sh` get in
   (`scripts/dockerignore.test.mjs`).
+- **Same-host rule.** The container names (`loop-db`, `loop-web`) and `loop-net` are the host-mode ones on purpose:
+  the old and the new stack of one install can never run side by side on one host.

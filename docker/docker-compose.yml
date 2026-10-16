@@ -1,7 +1,7 @@
-# LOOP server (preview, docs/lan-services.md -> Server image): the database + the loop-server image, which ingests
+# LOOP server (preview, docs/lan-services.md -> Server image): the database, the loop-server image, which ingests
 # the iOS Shortcut / Strava data AND builds + publishes the page in the container (no clone, Node, cron or systemd
-# on the host). loop-web (nginx serving the site volume) joins in a later step; until then this stack serves the
-# data API only. Copy .env.example to .env next to this file, fill it in, then `docker compose up -d`.
+# on the host), and the loop-web image (nginx with the audited services/loop-web config) serving that page on the LAN
+# and proxying its few data routes. Copy .env.example to .env next to this file, fill it in, then `docker compose up -d`.
 #
 # HC_INSTANCE (in .env, empty by default) names a second install on the same host, e.g. `second`: it suffixes the
 # compose project, the container names, the volumes and the network, so two installs never share any of them.
@@ -94,7 +94,7 @@ services:
     volumes:
       # internal state: the processed extract, the document copies, the sync state
       - loop-server-data:/data
-      # the published page + status.json (loop-web serves it read-only, next step)
+      # the published page + status.json + manuales/ (loop-web serves it read-only)
       - loop-site:/site
       # the owner files folder on the host (import/ Health exports, manuals/ device manuals, documents/ coach PDFs)
       - ${HC_FILES_LOCATION:-./files}:/data/files
@@ -103,6 +103,11 @@ services:
     # hardening; Docker-published ports bypass ufw / firewalld. Unset = every address.
     ports:
       - "${INGEST_BIND:+${INGEST_BIND}:}${INGEST_PORT:?set INGEST_PORT in docker/.env}:8088"
+    networks:
+      default:
+        # loop-web's nginx template proxies to loop-ingest:8088 and the service's Host allowlist names loop-ingest:
+        # the alias keeps both unchanged (single source with the host-mode stack)
+        aliases: [loop-ingest]
     depends_on:
       loop-db:
         condition: service_healthy
@@ -111,6 +116,56 @@ services:
       interval: 30s
       timeout: 5s
       start_period: 20s
+      retries: 3
+
+  loop-web:
+    # the published image (Docker Hub); `docker compose up -d --build` builds it from a clone instead. The nginx
+    # template and hosts.sh are baked in from services/loop-web (docker/loop-web.Dockerfile), never bind-mounted.
+    image: mralexandersaavedra/loop-web:${HC_VERSION:-1.0.0}
+    build:
+      context: ..
+      dockerfile: docker/loop-web.Dockerfile
+      args:
+        VERSION: ${HC_VERSION:-1.0.0}
+    container_name: loop-web${HC_INSTANCE:+-${HC_INSTANCE}}
+    restart: unless-stopped
+    # The same hardening as services/loop-web/docker-compose.yml: a read-only root filesystem; tmpfs for what the
+    # entrypoint and nginx write (the rendered template + hosts map in conf.d, the pid file, the temp dirs); only
+    # the capabilities the nginx master needs to own the workers' temp dirs (CHOWN) and drop the workers to the
+    # nginx user (SETUID, SETGID; without any of the three it does not serve); port 80 needs no NET_BIND_SERVICE
+    # (Docker >= 20.10 lets containers bind low ports); no privilege gain; limits; rotated logs.
+    read_only: true
+    tmpfs:
+      - /etc/nginx/conf.d:size=1m
+      - /var/cache/nginx:size=32m
+      - /run:size=1m
+      - /tmp:size=16m
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 128
+    logging: *logging
+    environment:
+      # extra host names the page may be reached by (besides IP literals and localhost), comma or space separated;
+      # rendered by hosts.sh. Mirror them in FOOD_ALLOWED_HOSTS (loop-server).
+      PLAN_WEB_EXTRA_HOSTS: ${PLAN_WEB_EXTRA_HOSTS:-}
+    volumes:
+      # only the published page is served, read-only: nothing else of the server's data is reachable over HTTP
+      - loop-site:/usr/share/nginx/html:ro
+    # PLAN_WEB_BIND (optional, e.g. the LAN IP or 127.0.0.1; an IPv6 address in brackets) publishes on that address
+    # only: Docker-published ports bypass ufw / firewalld. Unset = every address (the page is the LAN entry).
+    ports:
+      - "${PLAN_WEB_BIND:+${PLAN_WEB_BIND}:}${PLAN_WEB_PORT:-8090}:80"
+    depends_on:
+      loop-server:
+        condition: service_healthy
+    healthcheck:
+      # nginx answers /nginx-health itself (nginx.conf.template), whatever the site volume holds
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/nginx-health"]
+      interval: 30s
+      timeout: 5s
       retries: 3
 
 volumes:
@@ -124,5 +179,5 @@ volumes:
 
 networks:
   default:
-    # a fixed name (not <project>_default), so loop-web can join it and reach loop-server:8088
+    # a fixed name (not <project>_default), the one services/loop-ingest + services/loop-web use today
     name: loop-net${HC_INSTANCE:+-${HC_INSTANCE}}
