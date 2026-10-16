@@ -7,19 +7,24 @@
  * Handles what the iPhone writes: data descriptors (sizes only in the central directory), entry names in UTF-8
  * without the UTF-8 flag (`exportación.xml`, NFD), and zip64 (an export over 4 GB uncompressed). Methods: stored (0)
  * and deflate (8). Encrypted entries, other methods and multi-disk archives are refused. Every refusal is a
- * ZipError with code 'corrupt' (the import's error code for a zip it cannot read).
+ * ZipError with code 'corrupt' (the import's error code for a zip it cannot read), except an entry over the caller's
+ * byte cap: code 'too-large' (zip64 can declare ~2^53 bytes; the cap keeps a hostile zip from filling the disk).
  *
  *   listZip(file)                    -> [{ name, method, flags, crc32, compressedSize, size, localOffset }]
- *   extractEntry(file, entry, dest)  -> writes dest (exclusive create, 0600), rejects on a CRC / size mismatch */
+ *   extractEntry(file, entry, dest, { maxBytes, onChunk })
+ *                                    -> writes dest (exclusive create, 0600), rejects on a CRC / size mismatch; an
+ *                                       entry declared over maxBytes is refused before dest is created, and the
+ *                                       output is cut off at maxBytes while streaming; onChunk sees every inflated
+ *                                       chunk (the import's scan for <Record, no second read) */
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
 export class ZipError extends Error {
-  constructor(message) {
+  constructor(message, code = 'corrupt') {
     super(message);
-    this.code = 'corrupt';
+    this.code = code;
   }
 }
 
@@ -126,8 +131,12 @@ export async function listZip(file) {
   }
 }
 
-/** Streams `entry` of `file` into `dest` (created exclusively, mode 0600; the caller removes it on failure). */
-export async function extractEntry(file, entry, dest) {
+/** Streams `entry` of `file` into `dest` (created exclusively, mode 0600; the caller removes it on failure).
+ * @param {{ maxBytes?: number, onChunk?: (chunk: Buffer) => void }} [opts] */
+export async function extractEntry(file, entry, dest, opts = {}) {
+  const { maxBytes = Infinity, onChunk } = opts;
+  const tooLarge = () => new ZipError(`${entry.name} is larger than the ${maxBytes}-byte cap`, 'too-large');
+  if (entry.size > maxBytes) throw tooLarge();
   if (entry.flags & 0x1) throw new ZipError(`${entry.name} is encrypted`);
   if (entry.method !== 0 && entry.method !== 8) throw new ZipError(`${entry.name} uses compression method ${entry.method} (only stored and deflate are supported)`);
   const fd = fs.openSync(file, 'r');
@@ -148,8 +157,12 @@ export async function extractEntry(file, entry, dest) {
     transform(chunk, _enc, cb) {
       crc = zlib.crc32(chunk, crc);
       written += chunk.length;
-      if (written > entry.size) cb(new ZipError(`${entry.name} inflates past its recorded size`));
-      else cb(null, chunk);
+      if (written > maxBytes) cb(tooLarge());
+      else if (written > entry.size) cb(new ZipError(`${entry.name} inflates past its recorded size`));
+      else {
+        if (onChunk) onChunk(chunk);
+        cb(null, chunk);
+      }
     },
   });
   const source = entry.compressedSize > 0 ? fs.createReadStream(file, { start, end: start + entry.compressedSize - 1 }) : Readable.from([]);

@@ -30,6 +30,11 @@ extract and records `lastError`; the work file is removed in every outcome and t
 logged only, never a `status.json` error. The compose file mounts the owner files folder read-only (it is only read).
 Container test on throwaway infrastructure: a synthetic 48 MB zip and a copy of the real zip each imported (~29-31 s),
 synced and built the page; a second Sync skipped the import; memory peak ~470 MB. Existing installs are unchanged.
+Hardened after the independent verification: the export taken out of a zip is capped at `HC_IMPORT_MAX_BYTES`
+(default 10 GiB) before and while streaming (`too-large`; zip64 can declare ~2^53 bytes); a zip with two exports
+(`export.xml` and `exportación.xml`) is refused as ambiguous instead of first-wins; an export with no `<Record` is
+refused as `empty` (scanned while streaming or hashing); skipping the last import clears a stale `lastError`; and the
+same name + size + mtime skips without re-hashing (`mtimeMs` is now in `import-state.json`).
 
 ## 2026-10-16 — Server images, step 4: the loop-web image serves the page from the site volume
 

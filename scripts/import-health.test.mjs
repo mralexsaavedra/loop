@@ -212,7 +212,7 @@ test('import: the newest iPhone zip is extracted byte-identical to the manual fl
     assert.equal(r.status, 0, r.stderr);
     assert.deepEqual(x.snapshot(), manual.snapshot(), 'extract CSVs + _meta.json identical to unzip -> extract.mjs');
     const st = x.state();
-    assert.deepEqual(Object.keys(st).sort(), ['exportLastDate', 'file', 'importedAt', 'rows', 'sha256', 'size']);
+    assert.deepEqual(Object.keys(st).sort(), ['exportLastDate', 'file', 'importedAt', 'mtimeMs', 'rows', 'sha256', 'size']);
     assert.equal(st.file, 'exportar.zip');
     assert.equal(st.sha256, sha(buf));
     assert.equal(st.size, buf.length);
@@ -361,4 +361,131 @@ test('layering: import -> Shortcut sync gives the same extract as the manual flo
     assert.deepEqual(strip(x.snapshot()), strip(manual.snapshot()));
     assert.ok(x.snapshot()['hrv.csv'].includes('2030-01-04,45,Shortcut'), 'the Shortcut rows layer on the imported extract');
   } finally { x.cleanup(); manual.cleanup(); }
+});
+
+// ---- hardening (verifier advisories A1-A5) ----
+
+test('A1 zip: an entry declared over maxBytes is refused before anything is written (code too-large)', async () => {
+  const x = setup();
+  try {
+    const zip = x.put('exportar.zip', iphoneZip());
+    const entry = (await listZip(zip))[1];
+    const dest = path.join(x.root, 'out.xml');
+    await assert.rejects(extractEntry(zip, entry, dest, { maxBytes: entry.size - 1 }), { code: 'too-large' });
+    assert.equal(fs.existsSync(dest), false, 'nothing written');
+    await extractEntry(zip, entry, dest, { maxBytes: entry.size });
+    assert.equal(fs.statSync(dest).size, entry.size);
+  } finally { x.cleanup(); }
+});
+
+test('A1 import: an export over HC_IMPORT_MAX_BYTES -> exit 1, lastError too-large, no work file, extract untouched; a bad value exits 2', () => {
+  const x = setup();
+  try {
+    x.put('exportar.zip', iphoneZip(), new Date('2030-01-03T12:00:00Z'));
+    assert.equal(x.run().status, 0);
+    const good = x.snapshot();
+    x.put('big.zip', iphoneZip(exportXml({ days: ['2030-01-01', '2030-01-02', '2030-01-03', '2030-01-04'] })), new Date('2030-01-05T12:00:00Z'));
+    x.env.HC_IMPORT_MAX_BYTES = '100';
+    const r = x.run();
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    assert.match(r.stderr, /HC_IMPORT_MAX_BYTES/);
+    assert.equal(x.state().lastError.code, 'too-large');
+    assert.equal(x.state().file, 'exportar.zip');
+    assert.deepEqual(x.work(), []);
+    assert.deepEqual(x.snapshot(), good);
+    x.env.HC_IMPORT_MAX_BYTES = 'lots';
+    const bad = x.run();
+    assert.equal(bad.status, 2);
+    assert.match(bad.stderr, /HC_IMPORT_MAX_BYTES/);
+    delete x.env.HC_IMPORT_MAX_BYTES;
+    assert.equal(x.run().status, 0);
+    assert.equal(x.state().file, 'big.zip');
+  } finally { x.cleanup(); }
+});
+
+test('A2: two entries that both match the export name are ambiguous (null / no-export), never first-wins', () => {
+  const e = (...names) => names.map((name) => ({ name }));
+  assert.equal(exportEntry(e('apple_health_export/export.xml', 'apple_health_export/exportación.xml')), null);
+  assert.equal(exportEntry(e('apple_health_export/export.xml', 'apple_health_export/export.xml')), null);
+  assert.equal(exportEntry(e('export.xml', 'apple_health_export/Export.xml')), null);
+  const x = setup();
+  try {
+    x.put('two.zip', zipBuffer([{ name: 'apple_health_export/export.xml', data: exportXml() }, { name: ACCENTED, data: exportXml() }]));
+    const r = x.run();
+    assert.equal(r.status, 1);
+    assert.equal(x.state().lastError.code, 'no-export');
+  } finally { x.cleanup(); }
+});
+
+test('A3: an export without any <Record (zip or plain export.xml) is refused as empty and the extract is kept', () => {
+  const x = setup();
+  try {
+    x.put('exportar.zip', iphoneZip(), new Date('2030-01-03T12:00:00Z'));
+    assert.equal(x.run().status, 0);
+    const good = x.snapshot();
+    const empty = '<?xml version="1.0" encoding="UTF-8"?>\n<HealthData locale="es_ES">\n<ExportDate value="2030-01-03 08:00:00 +0100"/>\n</HealthData>\n';
+    let t = Date.parse('2030-02-01T00:00:00Z');
+    for (const [name, buf] of [['empty.zip', iphoneZip(empty)], ['export.xml', Buffer.from(empty)]]) {
+      t += 86_400_000;
+      x.put(name, buf, new Date(t));
+      const r = x.run();
+      assert.equal(r.status, 1, `${name}: ${r.stdout}${r.stderr}`);
+      assert.equal(x.state().lastError.code, 'empty', name);
+      assert.equal(x.state().file, 'exportar.zip');
+      assert.deepEqual(x.snapshot(), good, name);
+      assert.deepEqual(x.work(), []);
+      fs.rmSync(path.join(x.importDir, name));
+    }
+  } finally { x.cleanup(); }
+});
+
+test('A4: skipping the newest file because it is the last successful import clears a stale lastError', () => {
+  const x = setup();
+  try {
+    x.put('exportar.zip', iphoneZip(), new Date('2030-01-03T12:00:00Z'));
+    assert.equal(x.run().status, 0);
+    const ok = x.state();
+    x.put('bad.zip', 'not a zip', new Date('2030-01-04T12:00:00Z'));
+    assert.equal(x.run().status, 1);
+    assert.equal(x.state().lastError.code, 'corrupt');
+    fs.rmSync(path.join(x.importDir, 'bad.zip'));
+    const r = x.run();
+    assert.equal(r.status, 0);
+    assert.match(r.stdout, /already imported/);
+    assert.deepEqual(x.state(), ok);
+  } finally { x.cleanup(); }
+});
+
+test('A5: same name + size + mtime as the last import is skipped without hashing; a new mtime is hashed; --force still imports', () => {
+  const x = setup();
+  try {
+    const mtime = new Date('2030-01-03T12:00:00Z');
+    const xml = exportXml();
+    const f = x.put('export.xml', xml, mtime);
+    assert.equal(x.run().status, 0);
+    const st = x.state();
+    assert.equal(st.mtimeMs, mtime.getTime());
+    // same length, different bytes, same mtime: the fast path does not read it
+    const other = xml.replace('value="1000"', 'value="2000"');
+    assert.equal(other.length, xml.length);
+    fs.writeFileSync(f, other);
+    fs.utimesSync(f, mtime, mtime);
+    const skip = x.run();
+    assert.equal(skip.status, 0);
+    assert.match(skip.stdout, /already imported/);
+    assert.deepEqual(x.state(), st);
+    // a new mtime -> hashed -> new content imported
+    const later = new Date('2030-01-04T12:00:00Z');
+    fs.utimesSync(f, later, later);
+    assert.equal(x.run().status, 0);
+    assert.notEqual(x.state().sha256, st.sha256);
+    assert.equal(x.state().mtimeMs, later.getTime());
+    // a touched but identical file is hashed, matches and is skipped
+    fs.utimesSync(f, mtime, mtime);
+    const same = x.run();
+    assert.match(same.stdout, /already imported/);
+    const forced = x.run('--force');
+    assert.equal(forced.status, 0, forced.stderr);
+    assert.match(forced.stdout, /imported in/);
+  } finally { x.cleanup(); }
 });
