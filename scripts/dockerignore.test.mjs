@@ -1,4 +1,4 @@
-/* The repo-root .dockerignore (the build context of docker/loop-server.Dockerfile) is DEFAULT DENY: every personal
+/* The repo-root .dockerignore (the build context of docker/loop-server.Dockerfile and docker/loop-web.Dockerfile) is DEFAULT DENY: every personal
  * path stays out of the context sent to the Docker daemon, while the code and the tracked seeds the image needs get
  * in. Evaluated the way Docker does: the patterns in order, the last one that matches the path or one of its parent
  * folders wins, a leading `!` lets the path back in. */
@@ -60,6 +60,7 @@ const NEEDED = [
   'data/nutrition/plan-data.example.json', 'data/training/training-data.example.json', 'data/apple-health/sync-shortcut.mjs',
   'data/profile/sync-profile.mjs', 'services/loop-ingest/package.json', 'services/loop-ingest/package-lock.json',
   'services/loop-ingest/src/server.js', 'services/loop-ingest/sql/012_documents.sql',
+  'services/loop-web/nginx.conf.template', 'services/loop-web/hosts.sh',
 ];
 
 test('.dockerignore starts by denying everything', () => {
@@ -83,4 +84,15 @@ test('every tracked file the image would get is code or a tracked seed (no data/
   const tracked = fs.readdirSync(path.join(ROOT, 'data'), { recursive: true }).map((f) => `data/${String(f).split(path.sep).join('/')}`);
   const inData = tracked.filter((p) => fs.statSync(path.join(ROOT, p)).isFile() && !excluded(p));
   for (const p of inData) assert.match(p, /\.mjs$|^data\/nutrition\/ingredients\.json$|\.example\.json$/, p);
+});
+
+test('.dockerignore lets in exactly the nginx template and hosts.sh from services/loop-web (the loop-web image), nothing else there', () => {
+  const dir = path.join(ROOT, 'services', 'loop-web');
+  const files = fs.readdirSync(dir, { recursive: true }).map((f) => `services/loop-web/${String(f).split(path.sep).join('/')}`)
+    .filter((p) => fs.statSync(path.join(ROOT, p)).isFile());
+  assert.deepEqual(files.filter((p) => !excluded(p)).sort(), ['services/loop-web/hosts.sh', 'services/loop-web/nginx.conf.template']);
+  for (const p of ['services/loop-web/.env', 'services/loop-web/site/status.json', 'services/loop-web/site/manuales/x.pdf',
+    'services/loop-web/refresh.sh', 'services/loop-web/docker-compose.yml', 'services/loop-web/systemd/loop-web-refresh.service']) {
+    assert.ok(excluded(p), p);
+  }
 });

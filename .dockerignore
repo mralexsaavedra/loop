@@ -1,7 +1,7 @@
-# Build context of the loop-server image (docker/loop-server.Dockerfile, context = the repo root). DEFAULT DENY:
-# only the code and the tracked seeds the image needs are sent to the Docker daemon; everything else stays out,
-# above all every personal file (loop-data/, profile/*.md, data/** personal files, backups/, knowledge/, local/,
-# analysis/reports/, .env*, the built pages). scripts/dockerignore.test.mjs pins it.
+# Build context of the loop-server and loop-web images (docker/loop-server.Dockerfile, docker/loop-web.Dockerfile,
+# context = the repo root). DEFAULT DENY: only the code and the tracked seeds the images need are sent to the Docker
+# daemon; everything else stays out, above all every personal file (loop-data/, profile/*.md, data/** personal
+# files, backups/, knowledge/, local/, analysis/reports/, .env*, the built pages). scripts/dockerignore.test.mjs pins it.
 *
 
 # the page toolchain
@@ -26,6 +26,10 @@
 !services/loop-ingest/package-lock.json
 !services/loop-ingest/src/**
 !services/loop-ingest/sql/**
+
+# the page server (loop-web): exactly the audited nginx template and its hosts map renderer
+!services/loop-web/nginx.conf.template
+!services/loop-web/hosts.sh
 
 # never, even inside a folder let in above: tests, dependencies, secrets, build caches
 **/*.test.mjs
