@@ -4,14 +4,47 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
-## [1.0.0] - 2026-10-15
+## [1.0.0] - UNRELEASED
 
-First versioned release. The data service ships as a Docker Hub image, `mralexandersaavedra/loop-ingest:1.0.0`
-(amd64 and arm64): `docker compose pull loop-ingest && docker compose up -d` in `services/loop-ingest` runs it, and
-`up -d --build` still builds it from the clone. Base images are pinned by digest, CI runs lint, the typecheck and all three test suites (including the data service against a real Postgres) on
-every push and pull request, Dependabot proposes
-dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
-(`CONTRIBUTING.md`). The dated entries below are the pre-release history.
+First versioned release. LOOP installs in two pieces:
+
+- **The server**, two Docker Hub images (`linux/amd64` and `linux/arm64`) plus the official `postgres`:
+  `mralexandersaavedra/loop-server:1.0.0`, the data service (food log, journal, settings, documents, the iOS
+  Shortcut endpoint, Strava) that also builds and publishes the page inside the container (hourly and on the Sync
+  button, the Apple Health export zip imported from a files folder), and `mralexandersaavedra/loop-web:1.0.0`, nginx
+  with the audited configuration serving that page on the LAN. An install is `docker/docker-compose.yml` +
+  `docker/.env.example` in a folder of their own and `docker compose up -d`: no clone, no Node.js, cron, systemd
+  unit or `refresh.sh` on the host. Hardened containers (read-only root filesystems, dropped capabilities, limits),
+  the data port on loopback by default, a second install per host through `HC_INSTANCE`.
+- **The coach**, this repository opened in Claude Code: `npm run sync` mirrors the server's data into the clone
+  (client mode), then the onboarding interview, `/analysis` and the coach subagents work on it. Without a server
+  it still works from an Apple Health export alone.
+
+The earlier host mode (`services/loop-ingest` + `services/loop-web` run from a clone, the page built by
+`refresh.sh`) stays for development and for installs not yet moved to the images; its `loop-ingest` image is no
+longer published. A `vX.Y.Z` tag publishes both images only when the tag, `package.json`, the compose file's
+`HC_VERSION` default and a dated CHANGELOG heading agree. Base images are pinned by digest, CI runs lint, the
+typecheck and all three test suites (including the data service against a real Postgres) on every push and pull
+request, Dependabot proposes dependency updates, and the repository has a security policy (`SECURITY.md`) and a
+contributing guide (`CONTRIBUTING.md`). Install: README → Setup; update: `docs/guides/upgrading.md`. The dated
+entries below are the pre-release history.
+
+## 2026-10-16 — Server images, step 7: release both images, install docs for the server and the coach
+
+The release workflow publishes `loop-server` and `loop-web` (multi-arch, `X.Y.Z`, `X.Y`, `latest`, the OCI version
+label from the `VERSION` build argument) instead of `loop-ingest`, after a `check` job that refuses a tag differing
+from `package.json`, from the `HC_VERSION` default of `docker/docker-compose.yml` or `docker/.env.example`, or a
+CHANGELOG entry still marked `UNRELEASED`; `scripts/release.test.mjs` runs that check against good and bad copies.
+Dependabot now moves the digests in `docker/` too. The README's setup is two paths (server from the images, coach
+clone) and `docs/lan-services.md` leads with the stack, host mode in a short development / legacy section; the
+upgrading and troubleshooting guides, the onboarding, the profile doc and the `/setup` skill follow. Every server
+command in them was run on a throwaway stack started from only the two compose files in a scratch folder (images
+built locally from a clean archive: start, health, page, Shortcut upload and Sync through loop-web, Health zip
+import, Strava `--print`, database backup and restore into an empty database, a coach clone's `npm run sync`); the
+`docker compose pull` of the published images waits for the first tag. `docs/ios-shortcut.md` gains a
+Troubleshooting section ("Puedes permitir su ejecución en Ajustes": the Shortcuts large-data switch, the
+per-shortcut privacy allowance, Health access; "No se ha encontrado ninguna muestra"; a `401` from another
+install's token) and the blocks a Mi Fitness user drops or re-filters.
 
 ## 2026-10-16 — Server images, step 6: a coach clone is a client of the LOOP server
 
