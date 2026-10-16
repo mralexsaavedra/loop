@@ -20,7 +20,7 @@ import { createHash } from 'node:crypto'
 
 export const CORE_MIGRATIONS = ['001_init.sql', '002_strava.sql', '003_sync.sql', '004_athlete.sql', '005_athlete_refresh.sql', '008_strava_hr.sql', '009_strava_hr_retry.sql']
 // optional groups: a failure disables only that feature (its routes answer 503)
-export const OPTIONAL_MIGRATIONS = { food: ['006_food.sql'], settings: ['007_settings.sql'], profile: ['011_profile.sql'], journal: ['010_journal.sql'] }
+export const OPTIONAL_MIGRATIONS = { food: ['006_food.sql'], settings: ['007_settings.sql'], profile: ['011_profile.sql'], journal: ['010_journal.sql'], documents: ['012_documents.sql'] }
 
 /** pg_advisory_lock key of the migration run ('LOOP' as a 32-bit integer). */
 export const MIGRATION_LOCK_KEY = 0x4c4f4f50

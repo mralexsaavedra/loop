@@ -20,7 +20,7 @@ test('migration 006_food.sql is registered (as the optional food group) and is i
   // the lists live in migrations.js, which (unlike db.js) does not load pg
   const { CORE_MIGRATIONS, OPTIONAL_MIGRATIONS } = (await import('../src/migrations.js'))
   assert.ok(!CORE_MIGRATIONS.includes('006_food.sql') && !CORE_MIGRATIONS.includes('007_settings.sql'), 'core list: food stays out of it')
-  assert.deepEqual(OPTIONAL_MIGRATIONS, { food: ['006_food.sql'], settings: ['007_settings.sql'], profile: ['011_profile.sql'], journal: ['010_journal.sql'] }, 'the food tables and the settings are isolated, optional groups')
+  assert.deepEqual(OPTIONAL_MIGRATIONS, { food: ['006_food.sql'], settings: ['007_settings.sql'], profile: ['011_profile.sql'], journal: ['010_journal.sql'], documents: ['012_documents.sql'] }, 'the food tables and the settings are isolated, optional groups')
   const sql = await readFile(fileURLToPath(new URL('../sql/006_food.sql', import.meta.url)), 'utf8')
   for (const table of ['food_product', 'food_recipe', 'food_log']) {
     assert.match(sql, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}\\b`))
