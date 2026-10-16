@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* The coach's side of the owner's documents (the profile, the nutrition plan, the training program; the
  * database copy is services/loop-ingest/src/documents.js, the files are scripts/lib/documents.mjs documentLayout:
- * DOCUMENT_FILES in the clone, or cache/ under HC_DATA_DIR).
+ * cache/ of the data root: loop-data/ in the clone (DOCUMENT_FILES), or HC_DATA_DIR).
  *
  *   npm run documents -- push <kind|all> [--force]   file -> database
  *   npm run documents -- pull <kind|all> [--force]   database -> file (what `npm run sync` does for all)

@@ -7,7 +7,7 @@
  *
  * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/loop-ingest/.env>, else :8088), INGEST_TOKEN (falls back to
  *          services/loop-ingest/.env, same file sync-shortcut.mjs reads).
- * Writes : data/apple-health/extract/workouts.csv + rides.csv (ride windows + power flag for the
+ * Writes : loop-data/extract/workouts.csv + rides.csv (ride windows + power flag for the
  *          active-energy correction, see rideRow) + workout-zones.csv (per-activity time in HR
  *          zone 0-5 from the ingest's HR histograms, see lib/training/hr-zones.mjs) + _meta.json
  *          (each via temp file + rename; _meta.json first, belt and braces — see the orphan-safety note below). Nothing is
@@ -43,8 +43,8 @@ const DIR = path.dirname(fileURLToPath(import.meta.url))
 const STRAVA_SOURCE = 'Strava API'
 // SYNC_STRAVA_OUT_DIR / INGEST_ENV_FILE overrides exist ONLY so the child-process error-path
 // tests below can point main() at a disposable tmp dir / tmp env file instead of the real
-// personal data/apple-health/extract or services/loop-ingest/.env — unset in production.
-// Default: the extract and profile of lib/paths.mjs (today's clone paths, or the HC_DATA_DIR data root).
+// personal loop-data/extract or services/loop-ingest/.env — unset in production.
+// Default: the extract and profile of lib/paths.mjs (loop-data/, or the HC_DATA_DIR data root).
 const ROOT = path.resolve(DIR, '..', '..')
 const defaultOut = (env) => env.SYNC_STRAVA_OUT_DIR || dataPaths({ repoRoot: ROOT, env }).extractDir
 const WORKOUTS_CSV = 'workouts.csv'

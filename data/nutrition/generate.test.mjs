@@ -2,7 +2,7 @@
  * runner:  node --test  (from data/nutrition/) or  npm test.
  * Importing generate.mjs reads and writes nothing: load() reads, main() (behind isMain) writes.
  * The generator merges two files: ingredients.json (public food DB) +
- * plan-data.json (personal plan). These tests exercise the merged result. */
+ * the personal plan (loop-data/cache/plan.json). These tests exercise the merged result. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -18,15 +18,23 @@ const REPO = path.join(__dirname, '..', '..');
 
 // Mirrors the repo structure generate.mjs statically imports (data/nutrition/generate.mjs +
 // ../../lib/nutrition/*.mjs + ../../lib/date.mjs + ../../lib/paths.mjs + ../../scripts/lib/is-main.mjs) into a temp root, WITHOUT ever copying
-// the real (possibly personal) plan-data.json. `files` are the data/nutrition seeds to copy next to it.
+// the real (possibly personal) plan. `files` are the data/nutrition seeds to copy next to it; 'plan-data.json'
+// stands for the personal plan and lands where lib/paths.mjs puts it (loop-data/cache/plan.json).
 // Returns the temp data/nutrition dir.
+const personalOr = (nutDir, name) => {
+  if (name !== 'plan-data.json') return path.join(nutDir, name);
+  const file = path.join(nutDir, '..', '..', 'loop-data', 'cache', 'plan.json');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  return file;
+};
+
 function mirrorTree(root, files) {
   const nutDir = path.join(root, 'data', 'nutrition');
   fs.mkdirSync(nutDir, { recursive: true });
   fs.mkdirSync(path.join(root, 'lib', 'nutrition'), { recursive: true });
   fs.mkdirSync(path.join(root, 'scripts', 'lib'), { recursive: true });
   fs.copyFileSync(path.join(__dirname, 'generate.mjs'), path.join(nutDir, 'generate.mjs'));
-  for (const [from, to] of files) fs.copyFileSync(from, path.join(nutDir, to));
+  for (const [from, to] of files) fs.copyFileSync(from, personalOr(nutDir, to));
   // the whole lib/nutrition module set (macros.mjs imports its siblings), tests left out
   for (const f of fs.readdirSync(path.join(REPO, 'lib', 'nutrition'))) {
     if (!f.endsWith('.mjs') || f.endsWith('.test.mjs')) continue;
@@ -83,7 +91,7 @@ test('generate.mjs fails clearly when ingredients.json is missing', () => {
   }
 });
 
-test('generate.mjs falls back to plan-data.example.json (with a clear warning) when the personal plan-data.json is absent — fresh clone with no seeds copied', () => {
+test('generate.mjs falls back to plan-data.example.json (with a clear warning) when the personal plan (loop-data/cache/plan.json) is absent — fresh clone with no seeds copied', () => {
   // Only ingredients.json + the tracked .example seed, exactly like a fresh `git clone` with no
   // bootstrap step run.
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-no-personal-'));
@@ -235,12 +243,13 @@ test('a malformed plan-data.json / ingredients.json is one ERROR line and exit 1
         [path.join(__dirname, 'ingredients.json'), 'ingredients.json'],
         [path.join(__dirname, 'plan-data.example.json'), 'plan-data.json'],
       ]);
-      fs.writeFileSync(path.join(nutDir, bad), '{ "not": json');
+      fs.writeFileSync(personalOr(nutDir, bad), '{ "not": json');
       const r = spawnSync(process.execPath, ['generate.mjs'], { cwd: nutDir, encoding: 'utf8' });
       assert.equal(r.status, 1, bad);
       const lines = r.stderr.trim().split('\n');
       assert.equal(lines.length, 1, r.stderr);
-      assert.match(lines[0], new RegExp(`^ERROR: ${bad.replace('.', '\\.')} is not valid JSON`));
+      const name = bad === 'plan-data.json' ? 'loop-data/cache/plan.json' : bad;
+      assert.match(lines[0], new RegExp(`^ERROR: ${name.replace(/[./]/g, '\\$&')} is not valid JSON`));
       assert.ok(!fs.existsSync(path.join(nutDir, 'plan-tables.md')));
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
@@ -296,7 +305,7 @@ test('load(): HC_DATA_DIR reads the personal plan from <data root>/cache/plan.js
     // an empty data root: the tracked example plan, with the fresh-clone warning
     const empty = gen.load({ env: { HC_DATA_DIR: path.join(data, 'none') }, warn: (w) => warns.push(w) });
     assert.equal(empty.PLAN_PATH, path.join(__dirname, 'plan-data.example.json'));
-    assert.match(warns[0], /personal plan-data\.json not found/);
+    assert.match(warns[0], /personal plan .*none.*cache.*plan\.json not found/);
   } finally {
     fs.rmSync(data, { recursive: true, force: true });
   }

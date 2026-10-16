@@ -1,4 +1,4 @@
-/* Integration check for plan-data.json's `page.hideTabs[]` (four-tab layout) — see lib/nav/tabs.mjs for
+/* Integration check for the plan's `page.hideTabs[]` (four-tab layout) — see lib/nav/tabs.mjs for
  * the unit-tested pure logic.
  * Top-level keys (home/entreno/health/nutricion) remove a nav button; the section keys
  * (hoy/dia/tablas/dash) hide the matching SECTION inside a tab; `registro` (the removed day
@@ -25,10 +25,12 @@ const WEB_ROOT = path.dirname(here);
 const REPO_ROOT = path.dirname(WEB_ROOT);
 const personalHtmlPath = path.join(WEB_ROOT, '.test-dist', 'es-personal', 'index.html');
 const exampleHtmlPath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html');
-const personalPlanPath = path.join(REPO_ROOT, 'data', 'nutrition', 'plan-data.json');
+// the personal plan where the build reads it (lib/paths.mjs: loop-data/cache/plan.json, or HC_DATA_DIR's)
+const personalPlanPath = dataPaths({ repoRoot: REPO_ROOT }).documents.plan;
 const examplePlanPath = path.join(REPO_ROOT, 'data', 'nutrition', 'plan-data.example.json');
 
 import { TAB_KEYS, SECTION_TAB, sectionsOf } from '../../lib/nav/tabs.mjs';
+import { dataPaths } from '../../lib/paths.mjs';
 
 // Every top-level nav key -> its nav <button id> (see web/pages/index.astro's TABS_ALL).
 const NAV_ID = Object.fromEntries(TAB_KEYS.map((k) => [k, 't-' + k]));
@@ -88,7 +90,7 @@ function assertHonours(html, hideTabs) {
 }
 
 test('personal build honours plan-data.json\'s page.hideTabs (nav buttons + sections)', {
-  skip: !fs.existsSync(personalHtmlPath) && 'personal fixture not built (no plan-data.json — run npm run pretest)',
+  skip: !fs.existsSync(personalHtmlPath) && 'personal fixture not built (no personal plan — run npm run pretest)',
 }, () => {
   assertHonours(fs.readFileSync(personalHtmlPath, 'utf8'), readHideTabs(personalPlanPath));
 });

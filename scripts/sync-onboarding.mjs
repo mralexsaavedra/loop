@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /* Pulls the in-page onboarding document (GET <INGEST_URL>/food/profile, the profile + accepted nutrition
- * targets of a user without an AI coach) into data/profile/onboarding.json, which the build reads.
+ * targets of a user without an AI coach) into loop-data/profile/onboarding.json, which the build reads.
  *
  * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/loop-ingest/.env>, else
  *          :8088). No token: /food/* is the unauthenticated, LAN-only layer (header X-HC-Food: 1).
- * Output : data/profile/onboarding.json (gitignored), replaced atomically and only when it changed. A wizard
+ * Output : loop-data/profile/onboarding.json (gitignored), replaced atomically and only when it changed. A wizard
  *          never completed (profile null) writes nothing.
  * Errors : a missing / old service (404, 503) or a malformed body only WARNS and keeps the previous file
  *          (exit 0), like the settings sync; a write failure exits 1. */
@@ -65,7 +65,7 @@ export async function main({ env = process.env, log = console.log, warn = consol
 
 const USAGE = `Usage: node scripts/sync-onboarding.mjs
 
-Pulls the in-page onboarding document from the ingest service into data/profile/onboarding.json.
+Pulls the in-page onboarding document from the ingest service into loop-data/profile/onboarding.json.
   -h, --help   this help
 Env: INGEST_URL, INGEST_ENV_FILE (default services/loop-ingest/.env, for its INGEST_PORT).`;
 

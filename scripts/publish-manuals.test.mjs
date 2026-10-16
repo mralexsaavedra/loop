@@ -50,7 +50,7 @@ test('main: without flags the profile and the manuals folder come from lib/paths
   assert.equal(calls[1].gearDir, path.join(root, 'owner', 'manuals'));
   const repo = path.dirname(path.dirname(SCRIPT));
   assert.equal(main({ out: path.join(root, 'site') }, { publish, ...io, env: {} }), 0);
-  assert.deepEqual([calls[2].profileFile, calls[2].gearDir], [path.join(repo, 'profile', 'profile.json'), path.join(repo, 'data', 'gear')], 'today\'s defaults');
+  assert.deepEqual([calls[2].profileFile, calls[2].gearDir], [path.join(repo, 'loop-data', 'cache', 'profile.json'), path.join(repo, 'loop-data', 'files', 'manuals')], 'the default data root');
   assert.equal(main({ out: path.join(root, 'site'), gear: path.join(root, 'g'), profile: path.join(root, 'p.json') }, { publish, ...io, env: { HC_DATA_DIR: root } }), 0);
   assert.deepEqual([calls[3].profileFile, calls[3].gearDir], [path.join(root, 'p.json'), path.join(root, 'g')]);
 });

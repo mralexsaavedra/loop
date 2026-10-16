@@ -8,7 +8,7 @@
  *
  * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/loop-ingest/.env>, else :8088), INGEST_TOKEN (falls back to
  *          services/loop-ingest/.env), SHORTCUT_AUTOMATION (default "atajo-salud").
- * Writes : data/apple-health/extract/<csv of each METRICS entry> + _meta.json + .shortcut-cache.json
+ * Writes : loop-data/extract/<csv of each METRICS entry> + _meta.json + .shortcut-cache.json
  *          (each via temp file + rename; nothing is written if the service can't be read)
  *
  * Payload: one JSON object per run; each metric is a newline-joined string, a key is omitted
@@ -39,7 +39,7 @@ import { dataPaths } from '../../lib/paths.mjs';
 const SHORTCUT_SOURCE = 'Shortcut';
 const DEFAULT_AUTOMATION = 'atajo-salud';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-// the extract this clone writes (lib/paths.mjs: data/apple-health/extract, or <HC_DATA_DIR>/extract)
+// the extract this clone writes (lib/paths.mjs: loop-data/extract, or <HC_DATA_DIR>/extract)
 const defaultOut = (env) => dataPaths({ repoRoot: ROOT, env }).extractDir;
 
 // Per-metric table. Adding a metric = one entry (+ a new `kind` only if its line shape is new).

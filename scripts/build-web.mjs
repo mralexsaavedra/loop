@@ -31,6 +31,7 @@ import { checkManualProfile } from '../lib/profile/read.mjs';
 import { dataPaths } from '../lib/paths.mjs';
 import { resolveEnv } from '../web/src/env.mjs';
 import { isMain } from './lib/is-main.mjs';
+import { oldDocumentsWarning } from './lib/old-paths.mjs';
 import { parseCli } from '../data/apple-health/sync-common.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -56,8 +57,16 @@ export function checkTraining({ repoRoot, mode, env = process.env }) {
   return validateProgram(training);
 }
 
+/** Personal mode: warns (one line) when a document file still sits at its pre-data-root path, where the build
+ * no longer reads it (scripts/lib/old-paths.mjs). Returns whether it warned. */
+export function warnOldDocuments({ repoRoot, mode, env = process.env, warn = console.warn }) {
+  const line = mode === 'example' ? null : oldDocumentsWarning({ repoRoot, env });
+  if (line) warn(line);
+  return Boolean(line);
+}
+
 /** Prints the manual-profile check and returns the exit code: the BUILD only warns on a malformed
- * profile/profile.json and ignores it, so `npm run check` is where it fails, with the reason. */
+ * loop-data/cache/profile.json and ignores it, so `npm run check` is where it fails, with the reason. */
 export function reportProfileCheck(res, mode, { log = console.log, error = console.error } = {}) {
   if (res.error) {
     error(`build-web --check: ERROR: ${res.error}`);
@@ -159,7 +168,7 @@ Builds the single-file plan page into web/dist/<mode>/index.html (staged, then r
   --mode       personal (default) or example; env DATA_MODE is equivalent
   --locale     es or en (default: the plan's locale, else en); env LOCALE is equivalent
   --outdir     build into <dir> instead of web/dist/<mode> (the test fixtures)
-  --check      validate training-data.json and profile/profile.json only, no build
+  --check      validate the training program and the profile (cache/ of the data root) only, no build
   -h, --help   this help`;
 
 const CLI_OPTIONS = { mode: { type: 'string' }, locale: { type: 'string' }, outdir: { type: 'string' }, check: { type: 'boolean' } };
@@ -178,6 +187,7 @@ export function parseBuildArgs(argv) {
 function main(args) {
   const mode = args.mode || process.env.DATA_MODE || 'personal';
   const explicitLocale = args.locale || process.env.LOCALE || null;
+  warnOldDocuments({ repoRoot: ROOT, mode });
 
   if (args.check) {
     const res = checkTraining({ repoRoot: ROOT, mode });

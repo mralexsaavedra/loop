@@ -74,9 +74,9 @@ test('push all imports the three files (revision 1) and records the sync state; 
   const r = await cli(svc, root, ['push', 'all']);
   assert.equal(r.code, 0, r.warns.join('\n'));
   assert.deepEqual(r.logs, [
-    'Documents: profile pushed from profile/profile.json (revision 1)',
-    'Documents: plan pushed from data/nutrition/plan-data.json (revision 1)',
-    'Documents: training pushed from data/training/training-data.json (revision 1)',
+    'Documents: profile pushed from loop-data/cache/profile.json (revision 1)',
+    'Documents: plan pushed from loop-data/cache/plan.json (revision 1)',
+    'Documents: training pushed from loop-data/cache/training.json (revision 1)',
   ]);
   assert.equal(JSON.stringify(svc.rows.get('plan').data), JSON.stringify(PLAN));
   const again = await cli(svc, root, ['push', 'all']);
@@ -93,7 +93,7 @@ test('the edit loop: sync, edit the file, push; the next sync leaves it alone', 
   const edited = { ...PLAN, page: { ...PLAN.page, title: 'Edited' } };
   fs.writeFileSync(path.join(root, DOCUMENT_FILES.plan), JSON.stringify(edited, null, 2));
   const r = await cli(svc, root, ['push', 'plan']);
-  assert.deepEqual([r.code, r.logs], [0, ['Documents: plan pushed from data/nutrition/plan-data.json (revision 2)']]);
+  assert.deepEqual([r.code, r.logs], [0, ['Documents: plan pushed from loop-data/cache/plan.json (revision 2)']]);
   assert.equal(svc.rows.get('plan').data.page.title, 'Edited');
   const logs = []; const warns = [];
   await sync({ env: { SYNC_DOCUMENTS_ROOT: root, INGEST_URL: svc.url, INGEST_TOKEN: TOKEN }, log: (l) => logs.push(l), warn: (w) => warns.push(w), kinds: ['plan'] });
@@ -108,19 +108,19 @@ test('a file that breaks the build rules is never sent (plan: validateNutrition;
   const r = await cli(svc, root, ['push', 'all']);
   assert.equal(r.code, 1);
   assert.equal(r.warns.length, 3);
-  assert.match(r.warns[0], /^ERROR: profile not pushed: profile\/profile\.json breaks the rules the page build applies:\n {2}- heightCm must be a number of centimetres/);
-  assert.match(r.warns[1], /^ERROR: plan not pushed: data\/nutrition\/plan-data\.json breaks the rules the page build applies:\n {2}- plan-data\.json validation failed/);
+  assert.match(r.warns[0], /^ERROR: profile not pushed: loop-data\/cache\/profile\.json breaks the rules the page build applies:\n {2}- heightCm must be a number of centimetres/);
+  assert.match(r.warns[1], /^ERROR: plan not pushed: loop-data\/cache\/plan\.json breaks the rules the page build applies:\n {2}- plan-data\.json validation failed/);
   assert.match(r.warns[2], /^ERROR: training not pushed: .*day key "not-a-date" is not an ISO date/s);
   assert.equal(svc.rows.size, 0);
   // broken JSON is refused the same way; a missing file is skipped by `push all` but an error when named alone
   const empty = clone({ training: '{broken' });
   const e = await cli(svc, empty, ['push', 'all']);
   assert.equal(e.code, 1);
-  assert.deepEqual(e.logs, ['Documents: profile skipped (profile/profile.json does not exist)', 'Documents: plan skipped (data/nutrition/plan-data.json does not exist)']);
+  assert.deepEqual(e.logs, ['Documents: profile skipped (loop-data/cache/profile.json does not exist)', 'Documents: plan skipped (loop-data/cache/plan.json does not exist)']);
   assert.deepEqual(e.warns.length, 1);
-  assert.match(e.warns[0], /^ERROR: training not pushed: data\/training\/training-data\.json is not valid JSON/);
+  assert.match(e.warns[0], /^ERROR: training not pushed: loop-data\/cache\/training\.json is not valid JSON/);
   const named = await cli(svc, empty, ['push', 'profile']);
-  assert.deepEqual([named.code, named.warns], [1, ['ERROR: profile not pushed: profile/profile.json does not exist']]);
+  assert.deepEqual([named.code, named.warns], [1, ['ERROR: profile not pushed: loop-data/cache/profile.json does not exist']]);
   assert.equal(svc.rows.size, 0);
 });
 
@@ -141,7 +141,7 @@ test('a database changed since the last sync is never overwritten: push refuses,
   assert.match(r.warns[0], /^ERROR: profile not pushed: the database changed since your last sync \(revision 2, yours 1\)\. Take the database's with `npm run documents -- pull profile --force`/);
   assert.equal(svc.rows.get('profile').data.city, 'Other');
   const forced = await cli(svc, mine, ['push', 'profile', '--force']);
-  assert.deepEqual([forced.code, forced.logs], [0, ['Documents: profile pushed from profile/profile.json (revision 3)']]);
+  assert.deepEqual([forced.code, forced.logs], [0, ['Documents: profile pushed from loop-data/cache/profile.json (revision 3)']]);
   assert.equal(svc.rows.get('profile').data.city, 'Mine');
 });
 
@@ -166,7 +166,7 @@ test('pull: writes the database document; with a local edit it keeps the file an
   const forced = await cli(svc, root, ['pull', 'plan', '--force']);
   assert.equal(forced.code, 0);
   assert.equal(JSON.stringify(fileOf(root, 'plan')), JSON.stringify(PLAN));
-  assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'backups', 'data', 'nutrition', 'plan-data.json.documents.bak'), 'utf8')).page.title, 'local');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'backups', 'loop-data', 'cache', 'plan.json.documents.bak'), 'utf8')).page.title, 'local');
 });
 
 test('no token: nothing pushed, exit 1; a wrong token: the service refusal is reported', async (t) => {
@@ -198,7 +198,7 @@ test('a database reset since the last sync (document gone) takes the push withou
   await cli(svc, root, ['push', 'training']);
   svc.rows.clear();
   const r = await cli(svc, root, ['push', 'training']);
-  assert.deepEqual([r.code, r.logs], [0, ['Documents: training pushed from data/training/training-data.json (revision 1)']]);
+  assert.deepEqual([r.code, r.logs], [0, ['Documents: training pushed from loop-data/cache/training.json (revision 1)']]);
 });
 
 test('a push that loses a race to another writer names both ways out', async (t) => {
@@ -235,7 +235,7 @@ test('HC_DATA_DIR: push reads <data root>/cache and records cache/.sync-state.js
   assert.equal(r.code, 0, r.warns.join('\n'));
   assert.deepEqual(r.logs, [`Documents: plan pushed from ${path.join(data, 'cache', 'plan.json')} (revision 1)`]);
   assert.equal(JSON.parse(fs.readFileSync(path.join(data, 'cache', '.sync-state.json'), 'utf8')).plan.revision, 1);
-  assert.equal(fs.existsSync(path.join(root, 'data', 'profile', 'documents-sync.json')), false);
+  assert.equal(fs.existsSync(path.join(root, 'loop-data', 'cache', '.sync-state.json')), false);
   const missing = await cli(svc, root, ['push', 'training'], { HC_DATA_DIR: data });
   assert.equal(missing.code, 1);
   assert.match(missing.warns[0], new RegExp(`training not pushed: ${path.join(data, 'cache', 'training.json').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} does not exist`));

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /* Profile sync — pulls the Strava athlete snapshot the self-hosted ingest service stores
- * (services/loop-ingest, GET /export/athlete) into data/profile/, for the page's profile sheet.
+ * (services/loop-ingest, GET /export/athlete) into loop-data/profile/, for the page's profile sheet.
  *
  *   node data/profile/sync-profile.mjs     (part of `npm run sync`, after the Strava sync)
  *
  * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/loop-ingest/.env>, else :8088), INGEST_TOKEN (falls back to
  *          services/loop-ingest/.env, like the other syncs).
- * Writes : data/profile/strava-profile.json (only when its content changed, temp file + rename)
- *          and data/profile/avatar.jpg (Strava's `profile_medium`: only from Strava's photo hosts,
+ * Writes : loop-data/profile/strava-profile.json (only when its content changed, temp file + rename)
+ *          and loop-data/profile/avatar.jpg (Strava's `profile_medium`: only from Strava's photo hosts,
  *          https, no redirects, image/jpeg|png + JPEG/PNG magic bytes, streamed with a hard
  *          MAX_AVATAR_BYTES cap). The snapshot's `avatarSourceUrl` = the URL the saved photo came
  *          from, set only after a successful download (photo written first, then the JSON); a
@@ -212,7 +212,7 @@ function errorMessage (err, baseUrl) {
 
 const USAGE = `Usage: node data/profile/sync-profile.mjs
 
-Snapshots the Strava athlete (profile, gear, avatar) from the ingest service into data/profile/.
+Snapshots the Strava athlete (profile, gear, avatar) from the ingest service into loop-data/profile/.
   -h, --help   this help
 Env: INGEST_URL, INGEST_TOKEN (else from the service .env), INGEST_ENV_FILE (default
 services/loop-ingest/.env).`

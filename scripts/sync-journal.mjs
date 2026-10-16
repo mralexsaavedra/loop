@@ -27,7 +27,7 @@ import { isMain } from './lib/is-main.mjs';
 import { dataPaths, displayPath } from '../lib/paths.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-/** The extract the journal lands in (lib/paths.mjs: data/apple-health/extract, or <HC_DATA_DIR>/extract). */
+/** The extract the journal lands in (lib/paths.mjs: loop-data/extract, or <HC_DATA_DIR>/extract). */
 export const defaultOut = (env = process.env) => dataPaths({ repoRoot: ROOT, env }).extractDir;
 export const META_FILE = 'journal-daily.meta.json';
 

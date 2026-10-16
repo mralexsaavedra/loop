@@ -13,7 +13,7 @@
  *                                       the first run writes it, later runs compare (exit 1 on a diff),
  *                                       `--personal --update` rewrites it. Prints only counts and JSON
  *                                       paths, never personal values. Exit 2 when the personal inputs
- *                                       (data/nutrition/plan-data.json) are missing.
+ *                                       (the personal plan, loop-data/cache/plan.json) are missing.
  *   npm run golden:bake -- --personal --root <clone>   (or --root=<clone>)
  *                                       the same, but the personal data AND the golden file come from
  *                                       another clone (e.g. the main clone) while THIS checkout's code

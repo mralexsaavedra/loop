@@ -35,7 +35,9 @@ function build({ mode, files = {} }) {
     fs.copyFileSync(path.join(REPO_ROOT, 'data', 'nutrition', 'ingredients.json'), path.join(tmp, 'data', 'nutrition', 'ingredients.json'));
     fs.copyFileSync(path.join(REPO_ROOT, 'data', 'training', 'training-data.example.json'), path.join(tmp, 'data', 'training', 'training-data.example.json'));
     const plan = path.join(REPO_ROOT, 'data', 'nutrition', 'plan-data.example.json');
-    fs.copyFileSync(plan, path.join(tmp, 'data', 'nutrition', mode === 'example' ? 'plan-data.example.json' : 'plan-data.json'));
+    const planTo = mode === 'example' ? path.join(tmp, 'data', 'nutrition', 'plan-data.example.json') : path.join(tmp, 'loop-data', 'cache', 'plan.json');
+    fs.mkdirSync(path.dirname(planTo), { recursive: true });
+    fs.copyFileSync(plan, planTo);
     for (const [rel, content] of Object.entries(files)) {
       fs.mkdirSync(path.dirname(path.join(tmp, rel)), { recursive: true });
       fs.writeFileSync(path.join(tmp, rel), content);
@@ -89,9 +91,9 @@ test('build-level: a photo is inlined ONCE as a data URI in the button; PROFILE 
   const { r, html } = build({
     mode: 'personal',
     files: {
-      'profile/profile.json': JSON.stringify({ birthdate: '1990-01-02', heightCm: 170 }),
-      'data/profile/strava-profile.json': JSON.stringify({ fetchedAt: '2030-01-01T00:00:00Z', firstname: 'Pat', lastname: 'Demo', bikes: [], shoes: [], devices: [] }),
-      'data/profile/avatar.jpg': JPEG,
+      'loop-data/cache/profile.json': JSON.stringify({ birthdate: '1990-01-02', heightCm: 170 }),
+      'loop-data/profile/strava-profile.json': JSON.stringify({ fetchedAt: '2030-01-01T00:00:00Z', firstname: 'Pat', lastname: 'Demo', bikes: [], shoes: [], devices: [] }),
+      'loop-data/profile/avatar.jpg': JPEG,
     },
   });
   assert.equal(r.status, 0, r.stderr);
@@ -109,12 +111,12 @@ test('build-level: no profile data at all -> a generic icon and hasData false (t
   assert.equal(baked(html).hasData, false);
 });
 
-test('build-level: a malformed profile/profile.json does NOT fail the build: a clear warning, the file ignored, Strava data kept', () => {
+test('build-level: a malformed loop-data/cache/profile.json does NOT fail the build: a clear warning, the file ignored, Strava data kept', () => {
   const { r, html } = build({
     mode: 'personal',
     files: {
-      'profile/profile.json': JSON.stringify({ heightCm: 'tall', name: 'Ignored Name' }),
-      'data/profile/strava-profile.json': JSON.stringify({ fetchedAt: '2030-01-01T00:00:00Z', firstname: 'Pat', lastname: 'Demo', bikes: [], shoes: [], devices: [] }),
+      'loop-data/cache/profile.json': JSON.stringify({ heightCm: 'tall', name: 'Ignored Name' }),
+      'loop-data/profile/strava-profile.json': JSON.stringify({ fetchedAt: '2030-01-01T00:00:00Z', firstname: 'Pat', lastname: 'Demo', bikes: [], shoes: [], devices: [] }),
     },
   });
   assert.equal(r.status, 0, r.stderr);

@@ -31,9 +31,9 @@ const read = (dir, kind) => fs.readFileSync(path.join(dir, DOCUMENT_FILES[kind])
 
 test('the three documents and the clone files they become', () => {
   assert.deepEqual(DOCUMENT_FILES, {
-    profile: 'profile/profile.json',
-    plan: 'data/nutrition/plan-data.json',
-    training: 'data/training/training-data.json',
+    profile: 'loop-data/cache/profile.json',
+    plan: 'loop-data/cache/plan.json',
+    training: 'loop-data/cache/training.json',
   });
 });
 
@@ -45,12 +45,12 @@ test('each document is fetched with the bearer token and written to its file (2-
   assert.deepEqual(Object.keys(JSON.parse(read(r.dir, 'plan')).data), ['postre', 'desayuno']);
   assert.deepEqual(JSON.parse(read(r.dir, 'training')), TRAINING);
   assert.deepEqual(JSON.parse(read(r.dir, 'profile')), PROFILE);
-  assert.deepEqual(r.logs, ['Documents: profile written -> profile/profile.json', 'Documents: plan written -> data/nutrition/plan-data.json', 'Documents: training written -> data/training/training-data.json']);
+  assert.deepEqual(r.logs, ['Documents: profile written -> loop-data/cache/profile.json', 'Documents: plan written -> loop-data/cache/plan.json', 'Documents: training written -> loop-data/cache/training.json']);
 });
 
 test('a file with the same content is never rewritten, even with other formatting', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-documents-'));
-  fs.mkdirSync(path.join(dir, 'data', 'nutrition'), { recursive: true });
+  fs.mkdirSync(path.join(dir, 'loop-data', 'cache'), { recursive: true });
   const hand = '{"data":{"postre":[1],"desayuno":[2]},\n  "targets":{},"dayPlan":{}}\n';
   const file = path.join(dir, DOCUMENT_FILES.plan);
   fs.writeFileSync(file, hand);
@@ -66,7 +66,7 @@ test('a changed document replaces the file', async () => {
   const next = { ...PLAN, page: { title: 'new' } };
   const r = await run({ ...all(), plan: body('plan', next, 2) }, { root: first.dir });
   assert.deepEqual(JSON.parse(read(r.dir, 'plan')), next);
-  assert.ok(r.logs.includes('Documents: plan written -> data/nutrition/plan-data.json'));
+  assert.ok(r.logs.includes('Documents: plan written -> loop-data/cache/plan.json'));
 });
 
 test('a document never saved (null) keeps the existing file and writes none', async () => {
@@ -74,10 +74,11 @@ test('a document never saved (null) keeps the existing file and writes none', as
   const r = await run({ plan: body('plan', null, 0), training: body('training', null, 0), profile: body('profile', PROFILE) }, { root: first.dir });
   assert.equal(r.code, 0);
   assert.deepEqual(JSON.parse(read(r.dir, 'plan')), PLAN);
-  assert.ok(r.logs.includes('Documents: plan not in the database yet; data/nutrition/plan-data.json kept'));
+  assert.ok(r.logs.includes('Documents: plan not in the database yet; loop-data/cache/plan.json kept'));
   const empty = await run({ plan: body('plan', null, 0), training: body('training', null, 0), profile: body('profile', null, 0) });
-  assert.equal(fs.existsSync(path.join(empty.dir, 'data')), false);
-  assert.equal(fs.existsSync(path.join(empty.dir, 'profile')), false);
+  assert.equal(fs.existsSync(path.join(empty.dir, 'loop-data', 'cache', 'plan.json')), false);
+  assert.equal(fs.existsSync(path.join(empty.dir, 'loop-data', 'cache', 'training.json')), false);
+  assert.equal(fs.existsSync(path.join(empty.dir, 'loop-data', 'cache', 'profile.json')), false);
 });
 
 test('an old service (404), an unavailable group (503) or a malformed body only warns and keeps the files', async () => {
@@ -85,7 +86,7 @@ test('an old service (404), an unavailable group (503) or a malformed body only 
   for (const bad of [{ status: 404 }, { status: 503 }, { body: { kind: 'plan', document: [] } }, { body: { kind: 'plan', document: { targets: {} } } }, { body: null }]) {
     const r = await run({ ...all(), plan: bad }, { root: first.dir });
     assert.equal(r.code, 0, JSON.stringify(bad));
-    assert.match(r.warns[0], /^WARNING: plan document sync skipped \(.+\); data\/nutrition\/plan-data\.json is kept$/);
+    assert.match(r.warns[0], /^WARNING: plan document sync skipped \(.+\); loop-data\/cache\/plan\.json is kept$/);
     assert.deepEqual(JSON.parse(read(r.dir, 'plan')), PLAN);
   }
 });
@@ -109,10 +110,11 @@ test('a 401 (wrong token) warns per document and keeps the files', async () => {
 
 test('a write failure is an ERROR and exit 1; the other documents still sync', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-documents-'));
-  fs.writeFileSync(path.join(dir, 'profile'), 'not a dir');
+  // a directory where the atomic write puts its temporary file (sync-common writeAtomic: <file>.<pid>.tmp)
+  fs.mkdirSync(path.join(dir, 'loop-data', 'cache', `profile.json.${process.pid}.tmp`, 'x'), { recursive: true });
   const r = await run(all(), { root: dir });
   assert.equal(r.code, 1);
-  assert.match(r.warns[0], /^ERROR: profile document sync could not write profile\/profile\.json/);
+  assert.match(r.warns[0], /^ERROR: profile document sync could not write loop-data\/cache\/profile\.json/);
   assert.deepEqual(JSON.parse(read(dir, 'plan')), PLAN);
 });
 
@@ -126,7 +128,7 @@ test('a hand edit not pushed yet is kept with a warning, never overwritten', asy
   assert.equal(same.code, 0);
   assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), edited);
   assert.equal(same.warns.length, 1);
-  assert.match(same.warns[0], /^WARNING: data\/nutrition\/plan-data\.json has changes that are not in the database; kept\. Send them with `npm run documents -- push plan`, or take the database's with `npm run documents -- pull plan --force`/);
+  assert.match(same.warns[0], /^WARNING: loop-data\/cache\/plan\.json has changes that are not in the database; kept\. Send them with `npm run documents -- push plan`, or take the database's with `npm run documents -- pull plan --force`/);
   // nor when the database moved on
   const moved = await run({ ...all(), plan: body('plan', { ...PLAN, page: { title: 'theirs' } }, 2) }, { root: first.dir });
   assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), edited);
@@ -135,11 +137,11 @@ test('a hand edit not pushed yet is kept with a warning, never overwritten', asy
 
 test('a file from before the documents existed (no sync state) that differs is kept too', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-documents-'));
-  fs.mkdirSync(path.join(dir, 'profile'));
+  fs.mkdirSync(path.join(dir, 'loop-data', 'cache'), { recursive: true });
   fs.writeFileSync(path.join(dir, DOCUMENT_FILES.profile), JSON.stringify({ birthdate: '1980-01-01' }));
   const r = await run(all(), { root: dir });
   assert.deepEqual(JSON.parse(read(dir, 'profile')), { birthdate: '1980-01-01' });
-  assert.match(r.warns[0], /^WARNING: profile\/profile\.json has changes that are not in the database/);
+  assert.match(r.warns[0], /^WARNING: loop-data\/cache\/profile\.json has changes that are not in the database/);
   // a broken file is kept the same way
   fs.writeFileSync(path.join(dir, DOCUMENT_FILES.profile), '{broken');
   const broken = await run(all(), { root: dir });
@@ -159,14 +161,14 @@ test('force takes the database document over a local edit, backing the file up f
   });
   assert.equal(r, 0);
   assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), PLAN);
-  const bak = path.join(first.dir, 'backups', 'data', 'nutrition', 'plan-data.json.documents.bak');
+  const bak = path.join(first.dir, 'backups', 'loop-data', 'cache', 'plan.json.documents.bak');
   assert.equal(fs.readFileSync(bak, 'utf8'), '{"mine":1}');
-  assert.deepEqual(logs, ['Documents: plan written -> data/nutrition/plan-data.json (your version backed up to backups/data/nutrition/plan-data.json.documents.bak)']);
+  assert.deepEqual(logs, ['Documents: plan written -> loop-data/cache/plan.json (your version backed up to backups/loop-data/cache/plan.json.documents.bak)']);
   assert.deepEqual(warns, []);
 });
 test('the sync state records each document\'s revision and content hash', async () => {
   const r = await run(all());
-  const state = JSON.parse(fs.readFileSync(path.join(r.dir, 'data', 'profile', 'documents-sync.json'), 'utf8'));
+  const state = JSON.parse(fs.readFileSync(path.join(r.dir, 'loop-data', 'cache', '.sync-state.json'), 'utf8'));
   assert.deepEqual(Object.keys(state), ['profile', 'plan', 'training']);
   assert.equal(state.plan.revision, 1);
   assert.match(state.plan.hash, /^[0-9a-f]{64}$/);
@@ -182,8 +184,8 @@ test('HC_DATA_DIR: the documents land in <data root>/cache, the state in cache/.
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(data, 'cache', 'training.json'), 'utf8')), TRAINING);
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(data, 'cache', 'profile.json'), 'utf8')), PROFILE);
     assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(path.join(data, 'cache', '.sync-state.json'), 'utf8'))), ['profile', 'plan', 'training']);
-    assert.equal(fs.existsSync(path.join(r.dir, DOCUMENT_FILES.plan)), false, 'nothing at today\'s paths');
-    assert.equal(fs.existsSync(path.join(r.dir, 'data', 'profile', 'documents-sync.json')), false);
+    assert.equal(fs.existsSync(path.join(r.dir, DOCUMENT_FILES.plan)), false, 'nothing under the default data root');
+    assert.equal(fs.existsSync(path.join(r.dir, 'loop-data', 'cache', '.sync-state.json')), false);
     assert.equal(r.logs[1], `Documents: plan written -> ${paths.documents.plan}`);
     // a local edit, then a forced pull: backed up inside the clone, under the path relative to the data root
     fs.writeFileSync(paths.documents.plan, '{"mine":1}');
@@ -198,4 +200,29 @@ test('HC_DATA_DIR: the documents land in <data root>/cache, the state in cache/.
   } finally {
     fs.rmSync(data, { recursive: true, force: true });
   }
+});
+
+test('a document file left at its old path is one WARNING (edits there are ignored); the sync still runs', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-documents-'));
+  fs.mkdirSync(path.join(dir, 'profile'));
+  fs.writeFileSync(path.join(dir, 'profile', 'profile.json'), '{}');
+  const r = await run(all(), { root: dir });
+  assert.equal(r.code, 0);
+  assert.deepEqual(r.warns, ['WARNING: profile/profile.json is at the old path, but the data root loop-data is in use: edits there are ignored; run npm run migrate:data-root']);
+  assert.deepEqual(JSON.parse(read(dir, 'profile')), PROFILE, 'the data root copy is the one written');
+  assert.equal(fs.readFileSync(path.join(dir, 'profile', 'profile.json'), 'utf8'), '{}', 'the old file is left alone');
+  // all three, under an HC_DATA_DIR outside the clone
+  for (const rel of ['data/nutrition/plan-data.json', 'data/training/training-data.json']) {
+    fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+    fs.writeFileSync(path.join(dir, rel), '{}');
+  }
+  const data = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-documents-root-'));
+  try {
+    const three = await run(all(), { root: dir, env: { HC_DATA_DIR: data } });
+    assert.deepEqual(three.warns, [`WARNING: profile/profile.json, data/nutrition/plan-data.json, data/training/training-data.json are at the old paths, but the data root ${data} is in use: edits there are ignored; run npm run migrate:data-root`]);
+  } finally {
+    fs.rmSync(data, { recursive: true, force: true });
+  }
+  // no old file: no warning
+  assert.deepEqual((await run(all())).warns, []);
 });

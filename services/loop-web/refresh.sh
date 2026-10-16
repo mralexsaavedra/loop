@@ -162,7 +162,7 @@ refresh_once() {
     write_status '' || { log "could not write status.json"; return 1; }
   log "published $PUBLISHED_AT (processedSeq $processed)"
 
-  # Device manuals (profile.json devices[].manual, PDFs from data/gear/) into
+  # Device manuals (profile.json devices[].manual, PDFs from loop-data/files/manuals/) into
   # site/manuales/, served by nginx as /manuales/<file>.pdf. Runs AFTER
   # status.json (a waiting Sync has already completed) under its own short
   # timeout; best effort: a failure is logged, never an error code.

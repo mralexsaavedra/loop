@@ -1,6 +1,7 @@
 /* HC_DATA_DIR end to end at the build's composition root (web/src/env.mjs resolveEnv + web/src/bakes.mjs
  * computeBakes, the code path the page runs): a personal build reads its plan, training, profile, onboarding,
- * extract and food log from the data root (lib/paths.mjs), never from the clone's legacy files, while
+ * extract and food log from the data root (lib/paths.mjs; <clone>/loop-data by default), never from the clone's
+ * pre-data-root files, while
  * ingredients.json and the example mode keep reading the tracked repo files. SYNTHETIC inputs only. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -27,7 +28,7 @@ function fixture() {
     put(path.join(repo, rel), fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
   }
   const plan = seed('data/nutrition/plan-data.example.json');
-  // decoys at today's paths: a build that still reads them shows locale en / name Legacy / no weight
+  // decoys at the old paths: a build that still reads them shows locale en / name Legacy / weight 99
   put(path.join(repo, 'data/nutrition/plan-data.json'), { ...plan, locale: 'en' });
   put(path.join(repo, 'profile/profile.json'), { name: 'Legacy Person' });
   put(path.join(repo, 'data/apple-health/extract/weight.csv'), 'date,value,source\n2030-01-01,99,Legacy\n');
@@ -58,16 +59,18 @@ test('personal build with HC_DATA_DIR: plan, training, profile, extract and food
   }
 });
 
-test('the same clone without HC_DATA_DIR still reads today\'s paths (the decoys)', () => {
+test('without HC_DATA_DIR: the clone\'s loop-data/ (the default data root), never the old paths (the decoys)', () => {
   const f = fixture();
   try {
+    fs.cpSync(f.data, path.join(f.repo, 'loop-data'), { recursive: true });
+    put(path.join(f.repo, 'loop-data', 'cache', 'profile.json'), { name: 'Default Root', birthdate: '1990-01-01' });
     const env = resolveEnv({ HC_REPO_ROOT: f.repo, DATA_MODE: 'personal' });
-    assert.equal(env.locale, 'en');
-    assert.equal(env.extractDir, path.join(f.repo, 'data', 'apple-health', 'extract'));
+    assert.equal(env.locale, 'es');
+    assert.equal(env.extractDir, path.join(f.repo, 'loop-data', 'extract'));
     const bakes = computeBakes(env);
-    assert.equal(bakes.profile.name, 'Legacy Person');
-    assert.equal(bakes.profile.weight.kg, 99);
-    assert.equal(bakes.intake.log.asOf, null);
+    assert.equal(bakes.profile.name, 'Default Root');
+    assert.equal(bakes.profile.weight.kg, 71.5);
+    assert.equal(bakes.intake.log.asOf, '2030-01-03');
   } finally {
     f.cleanup();
   }

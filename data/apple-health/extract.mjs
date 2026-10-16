@@ -4,8 +4,8 @@
  *
  *   node data/apple-health/extract.mjs
  *
- * Reads  : data/apple-health/export.xml   (gitignored — personal data)
- * Writes : data/apple-health/extract/*.csv + _meta.json  (gitignored), each atomically (temp file + rename),
+ * Reads  : loop-data/files/import/export.xml   (gitignored — personal data)
+ * Writes : loop-data/extract/*.csv + _meta.json  (gitignored), each atomically (temp file + rename),
  *          all under the _meta.json.lock the syncs share (sync-common.mjs withLock), and ONLY after the whole
  *          file was read: a read error or an export without its closing </HealthData> (truncated: a copy
  *          still in progress, a full disk) exits 1 with one ERROR line and keeps the previous extract.
@@ -348,7 +348,7 @@ export function main() {
 
 const USAGE = `Usage: node data/apple-health/extract.mjs
 
-Streams data/apple-health/export.xml into the per-metric CSVs + _meta.json of data/apple-health/extract/.
+Streams loop-data/files/import/export.xml into the per-metric CSVs + _meta.json of loop-data/extract/.
   -h, --help   this help
 Env: HC_DATA_DIR (the data root: <root>/files/import/export.xml in, <root>/extract out; HC_FILES_DIR moves files/);
 EXTRACT_DIR (tests only) replaces data/apple-health: <dir>/export.xml in, <dir>/extract out.`;

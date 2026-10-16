@@ -1,11 +1,12 @@
 # Data pipeline — Apple Health extract, Shortcut sync, Strava sync
 
-How the raw sources become the CSVs in `data/apple-health/extract/` that every page and analysis reads.
+How the raw sources become the CSVs in `loop-data/extract/` that every page and analysis reads.
 
-The paths below are the default (legacy) layout. With `HC_DATA_DIR` set, every script writes and reads under
-that data root instead (`extract/`, `foodlog/`, `profile/`, `cache/` for the documents, `files/import/export.xml`
-for the Health export); `lib/paths.mjs` and [`development.md`](development.md#where-the-data-files-live) have the
-table.
+The paths below are under the default data root `loop-data/` (gitignored). With `HC_DATA_DIR` set, every
+script writes and reads under that data root instead (same layout: `extract/`, `foodlog/`, `profile/`, `cache/`
+for the documents, `files/import/export.xml` for the Health export); `lib/paths.mjs` and
+[`development.md`](development.md#where-the-data-files-live) have the table and the one-time
+`npm run migrate:data-root` for a clone from before it.
 
 > **Reference** — how this area is built, for anyone changing it (keep it in sync with the code in the same
 > commit). Setting up or using the page? Start at the [documentation index](README.md).
@@ -31,7 +32,7 @@ table.
 
 ### Apple Health export and extract
 
-- **Read the cached extract first**: `data/apple-health/extract/*.csv` (weight, bodyfat, rhr, vo2max,
+- **Read the cached extract first**: `loop-data/extract/*.csv` (weight, bodyfat, rhr, vo2max,
   hrv, steps-daily, active/basal-energy-daily, dietary-daily, sleep-daily, workouts) + `_meta.json`
   (ranges, row counts, caveats).
 - Regenerate after a new export is dropped: `node data/apple-health/extract.mjs` (no flags; `--help` prints the
@@ -380,7 +381,7 @@ Zone model (`lib/training/hr-zones.mjs`, the reference's), % of max HR:
 | % max HR | < 50 % | 50–60 | 60–70 | 70–80 | 80–90 | ≥ 90 % (above the max counts as Z5) |
 
 - The lower bound is inclusive and the comparison exact (no rounding).
-- Max HR = `profile/profile.json` `maxHr` when set (source `profile`, read by `lib/profile/read.mjs`
+- Max HR = `loop-data/cache/profile.json` `maxHr` when set (source `profile`, read by `lib/profile/read.mjs`
   `readProfileMaxHr`; an invalid value is warned about and ignored), else the highest Strava
   `max_heartrate` of the 365 days ending at the newest activity (source `observed`; anchored to the
   data, not the clock, so a re-run writes the same bytes). Every row records the max HR it used.
@@ -400,7 +401,7 @@ build (`lib/journal/bake.mjs`: the My journal card's checks and the behaviour in
 consumers never query Postgres.
 
 - `GET <INGEST_URL>/journal/summary` (header `X-HC-Journal: 1`) for the last 366 days ending on the
-  local date → `data/apple-health/extract/journal-daily.csv` (gitignored with the extract).
+  local date → `loop-data/extract/journal-daily.csv` (gitignored with the extract).
 - Header `date,<behaviour keys…>,notes`, one row per journaled day: `1` / `0` for a yes / no behaviour,
   the drinks count as is, blank = not answered, the note quoted (`lib/journal/journal.mjs`
   `journalCsv` / `parseJournalCsv`).
@@ -420,9 +421,9 @@ and, in a clone, in the files the build, the other syncs and the coach read:
 
 | Document | File |
 | --- | --- |
-| `profile` | `profile/profile.json` |
-| `plan` | `data/nutrition/plan-data.json` |
-| `training` | `data/training/training-data.json` |
+| `profile` | `loop-data/cache/profile.json` |
+| `plan` | `loop-data/cache/plan.json` |
+| `training` | `loop-data/cache/training.json` |
 
 **Changing one** (the coach does this for you): `npm run sync`, edit the file, then
 `npm run documents -- push <profile|plan|training|all>`. The first push of a document is its import.
@@ -440,14 +441,17 @@ and, in a clone, in the files the build, the other syncs and the coach read:
   kind alone is an error. A database without the document (a first import, or a database reset) takes the
   push whatever the sync state says.
 - **The sync** (`npm run sync:documents` alone) runs first, because `sync-strava.mjs` reads `maxHr` from
-  `profile.json`. With the bearer token (`INGEST_TOKEN`, else the service's `.env`), each saved document is
+  `loop-data/cache/profile.json`. With the bearer token (`INGEST_TOKEN`, else the service's `.env`), each saved document is
   written to its file, atomically, as 2-space JSON in the document's key order, and only when the content
   changed (compared as parsed JSON: the same content in another formatting is left untouched). A document
   never saved (`null`) leaves its file alone.
-- **A hand edit is never lost.** The sync state (`data/profile/documents-sync.json`, gitignored) records the
+- **A hand edit is never lost.** The sync state (`loop-data/cache/.sync-state.json`, gitignored) records the
   revision and content hash of each document as last synced or pushed. A file that differs from it AND from
   the database (an edit not pushed yet, a file from before the documents existed, a broken file) is kept, with a
   `WARNING:` naming `push` and `pull --force`. `--force` backs the file up to
   `backups/<same path>.documents.bak` (the newest only) before replacing it.
+- **A document left at its old path** (`profile/profile.json`, `data/nutrition/plan-data.json`,
+  `data/training/training-data.json`, a clone not migrated yet) is one `WARNING:` per sync (and per personal page
+  build): nothing reads it any more, so edits there are ignored; `npm run migrate:data-root` moves it.
 - No token, an unreachable / old service (404, 503, 401) or a body that is not the document's shape = one
   `WARNING:` line per document, the file kept, exit 0; only a failed write exits 1 (the other documents still sync).

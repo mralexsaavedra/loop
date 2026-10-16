@@ -2,7 +2,7 @@
   "program": "My Hybrid Program",
   "coach": "Coach name",
   "source": "your-program.pdf",
-  "_README": "Copy this file to training-data.json (gitignored) and replace these example days with your real program. Keys are ISO dates (YYYY-MM-DD); a date with no entry renders as a rest / unprogrammed day. Each day has: kind ('gym' or 'run'), a short focus chip, and blocks. A block has an optional label (A/B/C…), a title, and lines. Then run `npm run generate`.",
+  "_README": "Copy this file to loop-data/cache/training.json (gitignored; once the services run, the training document's copy: send edits with npm run documents -- push training) and replace these example days with your real program. Keys are ISO dates (YYYY-MM-DD); a date with no entry renders as a rest / unprogrammed day. Each day has: kind ('gym' or 'run'), a short focus chip, and blocks. A block has an optional label (A/B/C…), a title, and lines. Then run `npm run generate`.",
   "days": {
     "2026-01-05": {
       "kind": "gym",

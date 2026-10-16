@@ -28,13 +28,15 @@ suite and dependencies (`npm run test:services`).
 | `npm test` | Full suite (`node --test`); `pretest` builds the example (+ personal, if present) fixtures |
 | `npm run test:services` | The `services/loop-ingest` suite (not part of `npm test`, which stays dependency-free): `npm ci` there from its lockfile, then its `node --test` |
 | `TEST_DATABASE_URL=postgres://… npm run test:pg` | The data service against a real Postgres (`services/loop-ingest/test/pg/`): the real migrations on a fresh empty database per file, the ledger + lock, the main DB paths. Needs a Postgres 17 where the user may `CREATE DATABASE` (a throwaway `docker run --rm -e POSTGRES_PASSWORD=x -p 127.0.0.1:5544:5432 postgres:17-alpine` does); without the variable the tests skip. CI runs it in the `postgres` job |
-| `npm run check` | Validators only, no build (plan, ingredients, `training-data.json`, `profile/profile.json`) |
+| `npm run check` | Validators only, no build (plan, ingredients, `loop-data/cache/training.json`, `loop-data/cache/profile.json`) |
 | `npm run lint` | ESLint over the whole repo ([`eslint.config.mjs`](../eslint.config.mjs)): correctness rules only (unused / undefined names, redeclarations, useless assignments), never formatting; CI runs it |
 | `npm run typecheck` | TypeScript over `lib/**/*.mjs`, `data/**/*.mjs` and `scripts/*.mjs` (tests excluded) as JavaScript ([`jsconfig.json`](../jsconfig.json), `checkJs`, no emit): a wrong property, argument count or shape fails; types come from JSDoc (`@param`, `@type`, `@returns`), never `// @ts-ignore`; CI runs it |
 | `npm run build:example` | Example page from the tracked seeds + the synthetic demo extract, no personal files |
 | `node scripts/build-web.mjs [--mode personal\|example] [--locale es\|en] [--outdir <dir>] [--check]` | Build one page variant into `web/dist/<mode>/index.html` (`--help` for the flags) |
 | `npm run test:css:update` | Regenerate `web/test/fixtures/css-expected.json` from the example build after a deliberate CSS change (keeps key order, appends new, drops stale; `-- --check` writes nothing) |
 | `npm run golden:bake` | Compare every build-time bake (`web/src/bakes.mjs`) for the example + an empty extract against `web/test/fixtures/bake-golden.*.json` (`-- --update` rewrites them after a deliberate change; `-- --personal` writes/compares the gitignored `web/test/.golden/` personal golden, paths only, exit 2 without personal inputs; `-- --personal --root <clone>` reads that clone's data + golden with this checkout's code, read-only there) |
+| `npm run migrate:data-root` | Move a clone's personal files from the old paths into the data root `loop-data/` (backup tarball, copy, sha256 verify, then remove; `-- --dry-run` writes nothing) — [Where the data files live](#where-the-data-files-live) |
+| `npm run migrate:data-root` | Move a clone's personal files from the old paths into the data root `loop-data/` (backup tarball, copy, sha256 verify, then remove; `-- --dry-run` writes nothing) — [Where the data files live](#where-the-data-files-live) |
 | `npm run demo:data` | Regenerate the synthetic demo extract `data/demo/extract/` (`scripts/make-demo-data.mjs`; `-- --end YYYY-MM-DD --days N --seed N`, `--days` a whole number 2-3650) |
 | `npm run gen:food-calc` | Regenerate `services/loop-ingest/src/food-calc.js` from `lib/nutrition/foodlog.mjs` (a test fails while it is stale) |
 | `npm run gen:journal-calc` | Regenerate `services/loop-ingest/src/journal-calc.js` from `lib/journal/journal.mjs` (a test fails while it is stale) |
@@ -88,15 +90,32 @@ and the test fixture build resolve their defaults through it. Never join `data/.
 
 | Env var | Effect |
 | --- | --- |
-| `HC_DATA_DIR` (unset) | The **legacy layout**: today's paths in the clone (`data/apple-health/extract/`, `data/apple-health/export.xml`, `data/nutrition/foodlog-daily.*`, `data/profile/*`, `profile/profile.json`, `data/nutrition/plan-data.json`, `data/training/training-data.json`, `data/profile/documents-sync.json`, `data/gear/`) |
-| `HC_DATA_DIR=<dir>` | The **data-root layout** under `<dir>`: `extract/`, `foodlog/`, `profile/`, `cache/{profile,plan,training}.json` + `cache/.sync-state.json` (the document copies), `files/{import,manuals,documents}` (`import/export.xml`) |
-| `HC_FILES_DIR=<dir>` | With `HC_DATA_DIR` only: replaces `<data root>/files` (the owner files folder: Health export, device manuals, coach PDFs) |
+| `HC_DATA_DIR` (unset) | The **data root** is `<repo>/loop-data/` (gitignored, `/loop-data/` in `.gitignore`) |
+| `HC_DATA_DIR=<dir>` | The data root is `<dir>` |
+| `HC_FILES_DIR=<dir>` | Replaces `<data root>/files` (the owner files folder: Health export, device manuals, coach PDFs; a bind mount) |
+
+The data-root layout: `extract/` (the Apple Health extract + `_meta.json`, `.shortcut-cache.json`, `journal-daily.*`),
+`foodlog/` (`foodlog-daily.csv` + `.meta.json`), `profile/` (`settings.json`, `onboarding.json`,
+`strava-profile.json`, `avatar.jpg`), `cache/{profile,plan,training}.json` + `cache/.sync-state.json` (the copies
+of the database documents and their sync state), `files/import/` (`export.xml`, Health zips), `files/manuals/`
+(device manuals the page links), `files/documents/` (training programs, nutritionist and clinical reports; coach-only).
+
+**Migrating a clone from the old paths** (`data/apple-health/extract/`, `data/apple-health/export.xml`,
+`data/nutrition/foodlog-daily.*`, `data/profile/*`, `profile/profile.json`, `data/nutrition/plan-data.json`,
+`data/training/training-data.json`, `data/profile/documents-sync.json`, `data/gear/`, the coach PDFs in
+`data/training/`, `data/nutritionist/`, `data/clinical/`; `legacyPaths` in `lib/paths.mjs`): run
+`npm run migrate:data-root` (`-- --dry-run` first to see the counts) right after updating, before the next
+`npm run sync`. It writes a backup tarball `backups/data-root-before-<UTC stamp>.tar`, copies every file
+(fsync, mtime kept), verifies every copy by sha256 and only then removes the sources; a target that already
+exists with other content stops it before anything is written (exit 1, each conflict named), and a second run
+has nothing to move. Tracked files and `*.example.json` never move. Until then, `npm run sync` and the page
+build print one `WARNING:` per run naming a document file still at its old path (edits there are ignored).
 
 A relative value resolves against the repo root (never the working directory); an empty one is unset. Example
 mode always reads the tracked repo files, and `ingredients.json`, `plan-tables.md`, `web/dist/` and `backups/`
 stay in the clone. The per-script test hooks (`EXTRACT_DIR`, `SYNC_*_OUT_DIR`, `SYNC_STRAVA_PROFILE`,
-`SYNC_DOCUMENTS_ROOT`, an injected `outDir`) still win over the data root. The module header has the full table;
-`lib/paths.test.mjs` pins both layouts path by path.
+`SYNC_DOCUMENTS_ROOT`, `MIGRATE_REPO_ROOT`, an injected `outDir`) still win over the data root. The module header
+has the full table; `lib/paths.test.mjs` pins both layouts path by path.
 
 ## Guards
 

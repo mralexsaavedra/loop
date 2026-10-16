@@ -15,6 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { dataPaths } from '../../lib/paths.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.dirname(path.dirname(here)); // web/test -> web -> repo root
@@ -63,10 +64,11 @@ function buildAllowlist() {
  * are not the "personal prose" this guard targets — the page block is). */
 function personalStrings() {
   const out = new Set();
-  const plan = readJsonIfExists(path.join(ROOT, 'data', 'nutrition', 'plan-data.json'));
+  const personal = dataPaths({ repoRoot: ROOT }).documents; // where the build reads them (lib/paths.mjs)
+  const plan = readJsonIfExists(personal.plan);
   if (plan?.page) collectStrings(plan.page, out);
 
-  const training = readJsonIfExists(path.join(ROOT, 'data', 'training', 'training-data.json'));
+  const training = readJsonIfExists(personal.training);
   if (training) {
     for (const field of ['coach', 'program', 'source']) {
       if (typeof training[field] === 'string' && training[field].length >= MIN_LEN) out.add(training[field]);
