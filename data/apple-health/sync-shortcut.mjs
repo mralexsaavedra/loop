@@ -51,8 +51,10 @@ const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'extract');
 //                   the stamp is the bucket's first sample, normalised to the hour start). Keyed by
 //                   local hour + offset, so a DST fall-back night keeps both 02:00 hours.
 //   kind interval : "start;end;stage"        -> one row per night    (sleep-daily schema)
-//   kind hrSamples : "start;bpm" (ungrouped Watch heart-rate samples) -> one row per CLOCK HOUR of
-//                   aggregates (lib/health/hr-hourly.mjs); samples deduped by their exact instant, later payload wins.
+//   kind hrSamples : "start;bpm" (ungrouped heart-rate samples) -> one row per CLOCK HOUR of
+//                   aggregates (lib/health/hr-hourly.mjs); samples deduped by their exact instant, later
+//                   payload wins: a payload's samples at an instant REPLACE the cached ones there, so a
+//                   band's several hour-stamped records survive and a re-sent hour never doubles (foldHr).
 //                   Also read from the loop-free parallel lists `hr_t` (Start Dates) + `hr_v` (Values),
 //                   zipped by index (HR.mergeHrSamples); lists of different lengths are dropped with a warning
 //   payloadKeys   : every payload key the metric reads, when not just its own name (hrSamples)
@@ -118,7 +120,7 @@ const METRICS = {
     fields: { diet_kcal: 'kcal', diet_protein: 'protein', diet_carbs: 'carbs', diet_fat: 'fat' },
     row: (date, f) => [date, Math.round(f.kcal), ...['protein', 'carbs', 'fat'].map(k => (f[k] != null ? f[k].toFixed(1) : ''))].join(',') },
   sleep:    { kind: 'interval', csv: 'sleep-daily.csv', header: S.SLEEP_HEADER, metaKey: 'sleep' },
-  // Watch heart-rate samples (Heart Rate, Source = the watch, NO grouping, last 1 day): only hourly
+  // Heart-rate samples (Heart Rate, Source = the watch or a band's app, NO grouping, last 1 day): only hourly
   // aggregates reach the CSV (lib/health/hr-hourly.mjs), the raw samples live in the local cache. Feeds day
   // strain (lib/score/strain.mjs). Tagged "Shortcut", so every row is rebuilt each run.
   hr_samples: { kind: 'hrSamples', payloadKeys: ['hr_samples', HR.HR_TIMES_KEY, HR.HR_VALUES_KEY], csv: HR.HR_HOURLY_CSV, header: HR.HR_HOURLY_HEADER, metaKey: 'hr_hourly', sourceCol: 9 },
@@ -315,6 +317,7 @@ function foldPayloads(cache, items, warnings = []) {
     for (const w of itemWarnings) warnings.push(`payload ${item.id}: ${w}`);
     for (const [metric, parsed] of Object.entries(parsedPayload)) {
       const def = METRICS[metric], kind = def.kind;
+      if (kind === 'hrSamples') { foldHr(out.samples[metric] || (out.samples[metric] = {}), parsed); continue; }
       // zeros still mark the window start, so drop the truncated oldest day BEFORE the zeros
       let samples = isDailyKind(kind) ? dropTruncatedOldest(parsed) : kind === 'hourly' ? dropTruncatedOldestHour(parsed) : parsed;
       if (def.skipZero) samples = samples.filter(x => x.value > 0);
@@ -329,6 +332,19 @@ function foldPayloads(cache, items, warnings = []) {
     out.payloads++;
   }
   return out;
+}
+// Heart-rate samples of one payload into the cache map. Key = the instant (epoch ms) for the first
+// value there, `<ms>#<k>` for the k-th further one: a Watch never repeats an instant, so its cache is
+// keyed exactly as before (one value per instant, later payload wins). A band such as Mi Fitness
+// stamps several records of an hour at hh:00:00: the payload's whole set at that instant replaces the
+// cached set (exact repeats from an overlapping payload never double; equal values are kept).
+function foldHr(seen, samples) {
+  const groups = new Map();
+  for (const s of samples) { const k = DEDUP_KEY.hrSamples(s); const g = groups.get(k); if (g) g.push(s); else groups.set(k, [s]); }
+  for (const [k, g] of groups) {
+    g.forEach((s, i) => { seen[i ? `${k}#${i}` : k] = s; });
+    for (let i = g.length; `${k}#${i}` in seen; i++) delete seen[`${k}#${i}`];
+  }
 }
 // ---- phantom profile weights --------------------------------------------------------------
 // A weight entered by DATE only (the Health profile, or a manual entry without a time) is stored at
@@ -349,6 +365,20 @@ function dropPhantomWeights(weights, bodyfat) {
   });
 }
 const PRUNE = { weight: all => dropPhantomWeights(all.weight, all.bodyfat) };
+
+// ---- derived resting HR (a band that writes heart rate but no resting HR) -------------------
+// The export's rule (samples.mjs derivedRestingHr, same function and thresholds) on the cached
+// heart-rate samples, ONLY while the Shortcut has never delivered a measured resting HR (no rhr point
+// in the cache, which keeps every payload's): an Apple Watch Shortcut sends its rhr, so its rhr.csv
+// never changes. Rows are tagged "Shortcut (derived)" (owned: rebuilt every run) and, like every
+// Shortcut row, fill only dates with no export row, so a measured (or export-derived) value wins.
+const DERIVED_RHR_SOURCE = SHORTCUT_SOURCE + S.DERIVED_SUFFIX;
+function derivedRhrRows(all) {
+  if ((all.rhr || []).length) return [];
+  return S.derivedRestingHr((all.hr_samples || []).map(s => ({ start: s.start, value: s.value, source: SHORTCUT_SOURCE })))
+    .map(r => ({ date: r.date, line: S.readingRow({ date: r.date, value: METRICS.rhr.fmt(r.value), source: r.source }) }));
+}
+const DERIVE = { rhr: derivedRhrRows };
 
 const samplesOf = cache => Object.fromEntries(Object.entries(cache.samples).map(([m, byKey]) => [m, Object.values(byKey)]));
 
@@ -421,6 +451,8 @@ function mergeCsv(existingText, header, rows, opts = {}) {
 const range = dates => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a');
 const SYNC_NOTE = 'iOS Shortcut rows (npm run sync) fill only dates the export does not cover and are rebuilt on every sync; they are tagged source=Shortcut, except body fat / lean mass (real scale source) and energy (no source column) — shortcutSync.owned lists every date the sync wrote per CSV. Shortcut sleep = union of the main-sleep asleep intervals per wake-up night (naps excluded, samples.mjs sleepNights), plus the stage columns (REM / deep / core / unspecified / awake / in bed, same rule as extract.mjs); in-bed-only nights are never estimated here (export only: the payload has no per-sample source to leave the iPhone\'s Sleep Schedule out); Shortcut energy = iOS day totals; Shortcut steps = MAX(watch, phone) day totals, source = "Shortcut Watch"/"Shortcut iPhone" (mirrors max-per-device; the legacy merged steps key double-counted and is ignored). Shortcut active_energy_hourly = Watch active energy per clock hour (active-energy-hourly.csv, Shortcut-only; feeds the power-meter ride correction in lib/health/ride-energy.mjs). Shortcut hr_samples = ungrouped Watch heart-rate samples, as "ISO;bpm" lines and/or the loop-free parallel lists hr_t (Start Dates) + hr_v (Values) zipped by index (lists of different lengths are dropped with a sync warning, never mis-paired) (deduped by exact timestamp, 25-240 bpm) aggregated per clock hour into hr-hourly.csv (avg/max/min/n, covered minutes = each sample until the next, max 10 min; act_min + the per-bpm histogram leave the Strava activity windows of workout-zones.csv out; feeds day strain, lib/score/strain.mjs). Shortcut dietary = diet_kcal/diet_protein/diet_carbs/diet_fat day totals joined into one row per day (no kcal = no row). Shortcut exercise/distance/flights = Watch-filtered day totals (exercise_watch/distance_watch/flights_watch; 0 = no data; distance in km). Day totals: the export\'s last date (exportLastDate, a partial day) is never treated as covered: the Shortcut row wins it, and the export row is dropped when there is none.';
 
+const DERIVED_RHR_NOTE = `rhr.csv rows with source "${DERIVED_RHR_SOURCE}" are resting HR DERIVED from the Shortcut heart-rate samples (hr_samples / hr_t + hr_v) with the export's rule (samples.mjs derivedRestingHr: lowest 30-min rolling mean, >= 4 samples, 00:00-07:00, >= 3 clock hours), written only while the Shortcut has never delivered a measured resting HR (rhr key) and only on dates with no export row.`;
+
 // Pure: refresh the rows/ranges extract.mjs wrote for the touched CSVs + record the sync.
 // Deterministic (no timestamps) so re-running an unchanged sync rewrites identical bytes.
 function updateMeta(meta, stats, info) {
@@ -441,6 +473,9 @@ function updateMeta(meta, stats, info) {
   out.notes = Array.isArray(out.notes) ? out.notes : [];
   for (const n of out.notes.filter(n => /iOS Shortcut|source=Shortcut/.test(n) && n !== SYNC_NOTE)) out.notes.splice(out.notes.indexOf(n), 1);
   if (!out.notes.includes(SYNC_NOTE)) out.notes.push(SYNC_NOTE);
+  // the derived-RHR note only while rhr.csv carries such rows (an Apple Watch _meta.json is unchanged)
+  out.notes = out.notes.filter(n => n !== DERIVED_RHR_NOTE);
+  if (info.derivedRhr) out.notes.push(DERIVED_RHR_NOTE);
   return out;
 }
 
@@ -474,6 +509,7 @@ function planSync(items, readFile, { full = false } = {}) {
   for (const [metric, def] of Object.entries(METRICS)) {
     const existing = readFile(def.csv);
     const rows = buildRows(metric, PRUNE[metric] ? PRUNE[metric](samples) : samples[metric] || [], ctx);
+    if (DERIVE[metric]) rows.push(...DERIVE[metric](samples));
     const merged = mergeCsv(existing, def.header, rows, { sourceCol: sourceColOf(def), ownedDates: [...(ledger[def.csv] || []), ...(def.total ? partialDay : [])] });
     stats[metric] = merged;
     if (existing == null && !rows.length) { merged.written = false; continue; } // never create an empty CSV
@@ -483,7 +519,8 @@ function planSync(items, readFile, { full = false } = {}) {
   if (cacheText !== prev.text && (prev.text != null || cache.payloads > 0)) writes[CACHE_FILE] = cacheText;
   if (prevMeta || Object.keys(writes).length) {
     const base = prevMeta || { extractedFrom: null, rows: {}, ranges: {}, notes: [] };
-    const meta = updateMeta(base, stats, { payloads: cache.payloads, lastPayloadId: cache.lastPayloadId });
+    const derivedRhr = stats.rhr && stats.rhr.written !== false && (stats.rhr.text || '').includes(`,${DERIVED_RHR_SOURCE}\n`);
+    const meta = updateMeta(base, stats, { payloads: cache.payloads, lastPayloadId: cache.lastPayloadId, derivedRhr });
     const text = JSON.stringify(meta, null, 2) + '\n';
     if (text !== metaText) writes['_meta.json'] = text;
   }

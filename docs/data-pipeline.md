@@ -54,9 +54,12 @@ How the raw sources become the CSVs in `data/apple-health/extract/` that every p
     that wrote any `RestingHeartRate`, none from an Apple Watch. A Watch user's measured rows are unchanged;
     an older non-Watch band's night heart rate (e.g. a Zepp band before the Watch, when nothing measured
     resting HR) also yields derived rows on those dates.
-  - Export only for now: the Shortcut's `hr_samples` are deduped by exact timestamp (Mi Fitness's
-    hour-stamped records collapse to one per hour) and the guide filters them to the Watch, so the sync
-    derives nothing; between two exports a non-Watch user has no resting HR from the Shortcut.
+  - The Shortcut sync derives it too, with the same function and thresholds, from the cached heart-rate
+    samples (`hr_t` / `hr_v` pointed at the band's app, see [ios-shortcut.md](ios-shortcut.md)), but ONLY
+    while the Shortcut has never delivered a measured resting HR (no `rhr` point in its cache, which keeps
+    every payload's): an Apple Watch Shortcut sends `rhr`, so its output is byte-identical. Rows are tagged
+    `Shortcut (derived)` (sync-owned, rebuilt every run, `_meta.json` gets a note while any exist) and,
+    like every Shortcut row, fill only dates with no export row, so a measured or export-derived value wins.
 
 ### Energy source precedence
 
@@ -189,8 +192,13 @@ the iPhone's Sleep Schedule InBed would be one "Shortcut" source. Estimated nigh
 - A value's leading number is the bpm (`72`, `72 count/min`, `72 lpm` or `72,5`).
 - Lists of different lengths are dropped whole with a sync `WARNING`, never mis-paired. A blank line
   counts unless it is blank in both.
-- Samples are deduped by their exact instant across payloads (the later payload wins) and must be
-  25–240 bpm.
+- Samples are deduped by their exact instant across payloads: a later payload's samples at an instant
+  replace the cached ones there, so an overlapping run never counts a sample twice. Several values at
+  ONE instant all survive (a band such as Mi Fitness stamps every record of an hour at `hh:00:00`; a
+  Watch never repeats an instant, and its cache is keyed exactly as before). A cache filled before this
+  rule kept one value per band hour: `npm run sync -- --full` refetches the payloads and recovers them.
+  Samples must be 25–240 bpm.
+- Several samples at one instant share that instant's coverage (to the next instant, max 10 min) evenly.
 - The raw samples stay in the local cache; the CSV is rebuilt every run from the whole cache.
 
 **Output** (`lib/health/hr-hourly.mjs`): one row of aggregates per clock hour, keyed by local hour +
