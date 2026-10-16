@@ -107,8 +107,8 @@ the host rebuild processes it and a waiting page completes.
 the newest payload's `received_at`, the last Strava success, the last Strava
 failure as a **coarse code** (`strava_auth`, `strava_network`, `strava_other`,
 or `strava_token_save` when a rotated refresh token could not be stored),
-the last trigger time, `lastTriggerError` (`trigger_write`) with the seq it
-failed for, the current `triggerSeq`, and whether Strava is configured. Raw
+the last trigger time, `lastTriggerError` (`trigger_write`, or `build` in
+[container mode](#container-mode)) with the seq it failed for, the current `triggerSeq`, and whether Strava is configured. Raw
 error messages only go to the logs. The snapshot is cached for 5 s. State is
 kept in memory and in the single-row `sync_status` table (`sql/003_sync.sql`),
 so a restart keeps it; a failed DB read at startup is retried on the next
@@ -143,6 +143,30 @@ attempts and growing backoff; if all fail it is kept in memory, status reports
 `strava_token_save`, and the save is retried on the next refresh. A failed read
 of the stored token is retried on the next refresh too (the env token is used
 meanwhile).
+
+### Container mode
+
+`HC_BUILD=container` (the `loop-server` image, [`docker/`](../../docker/)) builds the page **inside the container**
+instead of on the host: no trigger file, no systemd path unit, no cron, no `refresh.sh`. Unset (the default, this
+folder's image and compose file) keeps the trigger file above, unchanged.
+
+- The writer of step 3 becomes "run the builder for `seq`": a child process
+  `node scripts/refresh.mjs --seq <seq> --wait-lock` from the repo root the image ships
+  ([`docs/development.md` → Commands](../../docs/development.md#commands)). It syncs from this service
+  (`INGEST_URL`, default `http://127.0.0.1:<PORT>`, and `INGEST_TOKEN` from the environment), validates the plan,
+  builds the page, checks it and publishes it atomically into `HC_SITE_DIR` (default `/site`) with `status.json`
+  (`commit` = the image version, error codes `build` / `sanity` / `lock`), then the device manuals.
+- One child at a time: a request during a build is queued, and every request meanwhile coalesces onto ONE follow-up
+  run for the highest seq. The writer counts as "written" once the run is started or queued, so the
+  coalescing, deferral and 60 s window above apply unchanged, and `POST /sync` / `GET /sync/status` answer
+  exactly as before.
+- A child that exits non-zero or cannot start is logged (`build_failed`, `build_spawn_failed`) and exposed as
+  `lastTriggerError: build` with its seq; the page shows the precise reason from `status.json`.
+- An in-process timer replaces the host's hourly cron line: one build 5 s after the service listens (an empty site
+  volume gets its page, and a seq handed out before a crash is published, so there is no boot recovery), then one
+  every `HC_REFRESH_MINUTES` (default 60), each for the current seq. At startup the sequence resumes from the
+  max of the DB value and the last publish's `processedSeq`. `SIGTERM` stops the timer and the running child
+  (the publish is atomic: the last good page stays).
 
 ## Food log: `/food/*`
 
@@ -602,6 +626,9 @@ token). `.env` is gitignored and must stay that way.
 | `STRAVA_SYNC_MINUTES` | Minutes between Strava pulls, default `30`; a number from 1 to 10080 (a week) |
 | `PORT`              | The port inside the container, default `8088` (compose sets it; an integer 1–65535). `DB_PORT` (outside compose, default `5432`) is checked the same way |
 | `TRIGGER_DIR`       | Where `POST /sync` writes `refresh`; compose sets `/trigger` (bind mount of `./trigger`) |
+| `HC_BUILD`          | Unset (default): `POST /sync` writes the trigger file for the host. `container`: build the page in this container ([Container mode](#container-mode)); any other value stops the service at start |
+| `HC_SITE_DIR`       | Container mode: where the page and `status.json` are published, default `/site` |
+| `HC_REFRESH_MINUTES` | Container mode: minutes between the timer's builds, default `60`; a number from 5 to 1440 |
 | `FOOD_ALLOWED_HOSTS` | Extra host names (comma / space separated) the `/food/*` and `/journal/*` Host + Origin checks accept besides IP literals, `localhost`, `loop-ingest` and `host.docker.internal`; empty by default. Mirror loop-web's `PLAN_WEB_EXTRA_HOSTS` |
 
 A numeric variable that is set but not valid (`STRAVA_SYNC_MINUTES=0`, `MAX_BODY_BYTES=8m`, `PORT=abc`) stops

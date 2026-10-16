@@ -62,7 +62,7 @@ test('an empty database reports nulls and seq 0, not errors', async () => {
 })
 
 test('status codes are the fixed coarse set', () => {
-  assert.deepEqual([...STATUS_CODES].sort(), ['strava_auth', 'strava_network', 'strava_other', 'strava_token_save', 'trigger_write'])
+  assert.deepEqual([...STATUS_CODES].sort(), ['build', 'strava_auth', 'strava_network', 'strava_other', 'strava_token_save', 'trigger_write'])
 })
 
 test('Strava errors are exposed ONLY as coarse codes; no raw error text ever leaks', async () => {
@@ -259,4 +259,23 @@ test('lastTriggerAtMs: the persisted last trigger write as epoch ms, null when n
   const status = createSyncStatus({ pool, stravaConfigured: false, now: () => T0 })
   await status.load()
   assert.equal(status.lastTriggerAtMs(), T0 - 60_000)
+})
+
+test('container mode: recordTriggerError(seq, build) is exposed and persisted, survives a restart, unknown codes coerce to trigger_write', async () => {
+  const pool = fakePool()
+  const status = createSyncStatus({ pool, stravaConfigured: false, now: () => T0 })
+  await status.recordTriggerError(6, 'build')
+  let snap = await status.snapshot()
+  assert.equal(snap.lastTriggerError, 'build')
+  assert.equal(snap.lastTriggerErrorSeq, 6)
+  const write = pool.calls.filter((c) => /UPDATE sync_status/.test(c.sql)).pop()
+  assert.ok(write.values.includes('build'), 'persisted')
+  const fresh = createSyncStatus({ pool: fakePool(), stravaConfigured: false, now: () => T0 + 10_000 })
+  await fresh.recordTriggerError(7, 'Error: ENOENT /secret/path')
+  assert.equal((await fresh.snapshot()).lastTriggerError, 'trigger_write', 'never raw text')
+  const restarted = createSyncStatus({ pool: fakePool({ state: { trigger_seq: 6, last_trigger_error: 'build', last_trigger_error_seq: 6 } }), stravaConfigured: false, now: () => T0 })
+  await restarted.load()
+  snap = await restarted.snapshot()
+  assert.equal(snap.lastTriggerError, 'build')
+  assert.equal(snap.lastTriggerErrorSeq, 6)
 })

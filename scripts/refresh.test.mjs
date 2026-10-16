@@ -242,3 +242,8 @@ test('CLI: --help prints the usage, an unknown flag exits 2 before anything runs
   const bad = spawnSync(process.execPath, [SCRIPT, '--nope'], { encoding: 'utf8', env: { ...process.env, HC_SITE_DIR: '' } });
   assert.equal(bad.status, 2);
 });
+
+test('every error code refresh.mjs writes, and the ingest build code, has a human reason in the page copy (es + en)', async () => {
+  const { es, en } = await import('../web/src/i18n/sync-templates.mjs');
+  for (const code of [...ERROR_CODES, 'build']) assert.ok(es.errors[code] && en.errors[code], code);
+});

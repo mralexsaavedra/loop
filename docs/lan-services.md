@@ -51,7 +51,7 @@ up -d` in `services/loop-web`). `refresh.sh` rebuilds and publishes it hourly (c
 - **Security + exposure.** `POST /sync` and `GET /sync/status` are UNAUTHENTICATED on purpose (a
   static page cannot hold a secret): the trigger only schedules work the services already do on a
   timer, reads no body and returns only a seq; status returns timestamps, seqs and COARSE codes
-  (`strava_auth`, `strava_network`, `strava_other`, `strava_token_save`, `trigger_write`), cached 5 s,
+  (`strava_auth`, `strava_network`, `strava_other`, `strava_token_save`, `trigger_write`, `build` in the server image's container mode), cached 5 s,
   never health data or raw error text (messages stay in logs; tests pin the key set and no leaks).
   loop-web nginx proxies EXACTLY `/api/sync` + `/api/sync/status` (exact-match, method-restricted;
   `POST /api/sync` deliberately needs no custom CSRF header, unlike `/api/food/*` and `/api/journal/*`: a

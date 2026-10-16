@@ -12,7 +12,10 @@
  */
 export const STRAVA_STALE_MS = 6 * 3_600_000
 export const SNAPSHOT_TTL_MS = 5000
-export const STATUS_CODES = new Set(['strava_auth', 'strava_network', 'strava_other', 'strava_token_save', 'trigger_write'])
+export const STATUS_CODES = new Set(['strava_auth', 'strava_network', 'strava_other', 'strava_token_save', 'trigger_write', 'build'])
+// the trigger's codes: trigger_write = the host trigger file could not be written; build = the in-container build
+// (container mode, builder.js) exited non-zero or could not start
+const TRIGGER_CODES = new Set(['trigger_write', 'build'])
 const STRAVA_PULL_CODES = new Set(['strava_auth', 'strava_network', 'strava_other'])
 
 function toIso (value) {
@@ -85,8 +88,8 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
       }
       state.triggerAt = state.triggerAt ?? toIso(row.last_trigger_at)
       state.triggerSeq = Math.max(state.triggerSeq, toSeq(row.trigger_seq))
-      if (state.triggerError == null && row.last_trigger_error === 'trigger_write') {
-        state.triggerError = 'trigger_write'
+      if (state.triggerError == null && TRIGGER_CODES.has(row.last_trigger_error)) {
+        state.triggerError = row.last_trigger_error
         state.triggerErrorSeq = row.last_trigger_error_seq == null ? null : toSeq(row.last_trigger_error_seq)
       }
       state.tokenSaveFailed = state.tokenSaveFailed || row.strava_token_save_failed === true
@@ -151,8 +154,9 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
       await persist()
     },
 
-    async recordTriggerError (seq) {
-      state.triggerError = 'trigger_write'
+    /** `code`: trigger_write (default) or build; anything else is coerced to trigger_write. */
+    async recordTriggerError (seq, code = 'trigger_write') {
+      state.triggerError = TRIGGER_CODES.has(code) ? code : 'trigger_write'
       state.triggerErrorSeq = seq
       changed()
       await persist()
