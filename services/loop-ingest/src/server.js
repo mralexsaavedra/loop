@@ -13,7 +13,9 @@ import { createFoodRoutes } from './food.js'
 import { createOffClient } from './off.js'
 import { createJournalStore } from './journal-db.js'
 import { createJournalRoutes } from './journal.js'
-import { writeJson as send, parseAllowedHosts } from './http.js'
+import { writeJson as send, parseAllowedHosts, containsNul } from './http.js'
+import { createDocumentStore } from './documents-db.js'
+import { createDocumentRoutes } from './documents.js'
 
 /**
  * Read the body with a hard ceiling. Health Auto Export can be told to batch
@@ -47,24 +49,8 @@ function readBody (req, limit) {
   })
 }
 
-/** Whether any string (value or object key) in a parsed JSON value holds U+0000. Iterative: no recursion limit. */
-export function containsNul (value) {
-  const stack = [value]
-  while (stack.length > 0) {
-    const v = stack.pop()
-    if (typeof v === 'string') {
-      if (v.includes('\0')) return true
-    } else if (Array.isArray(v)) {
-      for (const item of v) stack.push(item)
-    } else if (v !== null && typeof v === 'object') {
-      for (const [k, item] of Object.entries(v)) {
-        if (k.includes('\0')) return true
-        stack.push(item)
-      }
-    }
-  }
-  return false
-}
+// containsNul lives in http.js (documents.js shares it); re-exported for the existing importers
+export { containsNul }
 
 /** The upload ceiling: MAX_BODY_BYTES, else 8 MB, the most loop-web forwards (its client_max_body_size 8m). */
 export const DEFAULT_MAX_BODY_BYTES = 8 * 1024 * 1024
@@ -116,6 +102,7 @@ export function createHandler ({
   stravaSync,
   foodRoutes,
   journalRoutes = { handle: async () => false },
+  documentRoutes = { handle: async () => false },
   syncRoutes,
   handleExport,
   handleStravaExport,
@@ -186,6 +173,7 @@ export function createHandler ({
 
       if (await foodRoutes.handle(req, res, url)) return
       if (await journalRoutes.handle(req, res, url)) return
+      if (await documentRoutes.handle(req, res, url)) return
 
       if (req.method === 'POST' && url.pathname === '/sync') {
         req.resume() // any body is ignored: drain it, never buffer it
@@ -381,6 +369,16 @@ async function main () {
     allowedHosts: parseAllowedHosts(process.env.FOOD_ALLOWED_HOSTS)
   })
 
+  // The owner's plan, training program and profile (sql/012_documents.sql) under /documents/:kind: bearer
+  // token only, like /export/* (the coach and the server's own build are the clients, never the page), so
+  // loop-web's nginx never proxies them. Its own optional group -> 503 until 012 ran. See documents.js.
+  let documentsReady = false
+  const documentRoutes = createDocumentRoutes({
+    store: createDocumentStore(pool),
+    available: () => documentsReady,
+    checkBearer
+  })
+
   const server = http.createServer(createHandler({
     token: INGEST_TOKEN,
     checkBearer,
@@ -393,6 +391,7 @@ async function main () {
     stravaSync,
     foodRoutes,
     journalRoutes,
+    documentRoutes,
     syncRoutes,
     handleExport,
     handleStravaExport,
@@ -407,6 +406,7 @@ async function main () {
     settingsReady = optional.settings === true
     profileReady = optional.profile === true
     journalReady = optional.journal === true
+    documentsReady = optional.documents === true
     await syncStatus.load() // never throws: a failed load is retried on the next status read
     // A seq handed out but never written (crash before the write) leaves the DB
     // ahead of the trigger file: write it once, shortly after boot, so the host

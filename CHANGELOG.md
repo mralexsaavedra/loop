@@ -13,6 +13,16 @@ every push and pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-16 — Server images, step 1: the owner's documents in the database (API)
+
+First step of making the server installable from images with no clone: the nutrition plan, the training program
+and the profile, today hand-edited JSON files in the clone, get a home in the data service. New table
+`app_document` (`sql/012_documents.sql`, optional group `documents`, a `json` column so key order survives) and
+`GET / PUT /documents/:kind` (`plan`, `training`, `profile`): bearer token only, never proxied by loop-web, a
+revision compare-and-set (`409 revision_conflict`, one winner per race), structural validation (the full rules run
+in the coach and the build), 256 KB bodies (`readJson` takes a per-route limit; the page routes keep 16 KB).
+Nothing reads or writes the documents yet: the sync, the coach's push and the import of the existing files follow.
+
 ## 2026-10-15 (non-Watch) — Sleep and resting HR for bands that write only "in bed" and raw heart rate
 
 A second install's band (Mi Fitness) writes to Apple Health only "in bed" sleep records and raw heart rate: no asleep

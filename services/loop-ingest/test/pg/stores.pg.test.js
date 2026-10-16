@@ -14,6 +14,7 @@ import { createFoodStore } from '../../src/food-db.js'
 import { createFoodRoutes } from '../../src/food.js'
 import { createJournalStore } from '../../src/journal-db.js'
 import { createJournalRoutes } from '../../src/journal.js'
+import { createDocumentStore } from '../../src/documents-db.js'
 import { upsertActivities, lastSyncedStart, createTokenStore } from '../../src/strava.js'
 import { saveHr, saveFailure, pendingHrActivities } from '../../src/hr-zones.js'
 import { saveAthlete, loadAthlete, listDevices } from '../../src/athlete.js'
@@ -102,6 +103,28 @@ test('journal store: a day upserts, lists by range, deletes; the disabled list r
   assert.deepEqual(await store.getDisabled(), [])
   assert.deepEqual(await store.setDisabled(['alcohol']), ['alcohol'])
   assert.deepEqual(await store.getDisabled(), ['alcohol'])
+})
+
+test('document store: compare-and-set on the revision, key order kept, one winner per race', { skip }, async () => {
+  const store = createDocumentStore(pool)
+  assert.equal(await store.get('plan'), null)
+  // keys deliberately out of sorted order: JSONB would reorder them, the JSON column must not
+  const doc = { zeta: 1, data: { postre: [1], desayuno: [2], a: 3 }, targets: {}, dayPlan: {} }
+  const first = await store.put('plan', doc, 0)
+  assert.equal(first.revision, 1)
+  assert.match(first.updatedAt, /^\d{4}-\d{2}-\d{2}T/)
+  const got = await store.get('plan')
+  assert.equal(JSON.stringify(got.data), JSON.stringify(doc))
+  assert.equal(got.revision, 1)
+  assert.equal(await store.put('plan', doc, 0), null, 'a second first-save loses')
+  assert.equal(await store.put('plan', doc, 5), null, 'a wrong revision loses')
+  assert.equal((await store.get('plan')).revision, 1)
+  const results = await Promise.all([store.put('plan', { ...doc, n: 1 }, 1), store.put('plan', { ...doc, n: 2 }, 1)])
+  assert.equal(results.filter(Boolean).length, 1, 'exactly one concurrent save wins')
+  assert.equal((await store.get('plan')).revision, 2)
+  // kinds are independent and the CHECK refuses others
+  assert.equal(await store.get('training'), null)
+  await assert.rejects(store.put('settings', {}, 0))
 })
 
 test('strava: activities upsert (an edit replaces the payload), the token rotates, HR rows and their retry state, the athlete snapshot', { skip }, async () => {

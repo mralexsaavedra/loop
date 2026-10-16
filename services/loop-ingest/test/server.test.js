@@ -4,11 +4,13 @@ import http from 'node:http'
 import { createHandler, maxBodyBytes } from '../src/server.js'
 import { createFoodRoutes } from '../src/food.js'
 import { createJournalRoutes } from '../src/journal.js'
+import { createDocumentRoutes } from '../src/documents.js'
+import { createBearerCheck } from '../src/auth.js'
 
 const TOKEN = 'x'.repeat(40)
 
 /** Every dependency stubbed: no Postgres, no Strava, no network beyond 127.0.0.1. */
-function setup ({ stravaSync = null, foodRoutes, journalRoutes } = {}) {
+function setup ({ stravaSync = null, foodRoutes, journalRoutes, documentRoutes } = {}) {
   const calls = []
   const mark = (name, status = 200) => async (req, res) => {
     calls.push(name)
@@ -32,6 +34,7 @@ function setup ({ stravaSync = null, foodRoutes, journalRoutes } = {}) {
       }
     },
     ...(journalRoutes ? { journalRoutes } : {}),
+    ...(documentRoutes ? { documentRoutes } : {}),
     syncRoutes: { handleSync: mark('sync', 202), handleStatus: mark('syncStatus') },
     handleExport: mark('exportRaw'),
     handleStravaExport: mark('exportStrava'),
@@ -130,6 +133,19 @@ test('/journal/* reaches the real journal routes (503 while its migration is mis
   const plain = await setup()
   t.after(plain.close)
   assert.deepEqual((await plain.call('GET', '/journal/settings', { headers: h })).body, { error: 'not found' })
+})
+
+test('/documents/* reaches the real document routes (401 without the token, 503 while its migration is missing)', async (t) => {
+  const documentRoutes = createDocumentRoutes({ store: {}, available: () => false, checkBearer: createBearerCheck(TOKEN, { log: () => {} }), log: () => {} })
+  const s = await setup({ documentRoutes })
+  t.after(s.close)
+  assert.deepEqual((await s.call('GET', '/documents/plan')).body, { error: 'unauthorized' })
+  const auth = { authorization: `Bearer ${TOKEN}` }
+  assert.deepEqual((await s.call('GET', '/documents/plan', { headers: auth })).body, { error: 'documents_unavailable' })
+  // without document routes wired, the outer router still answers its own 404
+  const plain = await setup()
+  t.after(plain.close)
+  assert.deepEqual((await plain.call('GET', '/documents/plan', { headers: auth })).body, { error: 'not found' })
 })
 
 test('POST /ingest/health-auto-export: bearer, empty / bad / oversized body, then stored', async (t) => {

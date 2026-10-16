@@ -38,6 +38,7 @@ parses it into the extract CSVs. A parsing fix later is a re-sync, not a re-impo
 | GET / PUT | `/food/settings`           | header | `200` `{settings: {goal, targetWeightKg, updatedAt}}`; PUT = partial update `{goal?, targetWeightKg?}` (`null` clears the target); `503 settings_unavailable` when its migration failed |
 | GET / PUT | `/food/profile`            | header | the in-page onboarding document: `200` `{profile: {name?, sex, birthdate, heightCm, weightKg, activity, goals, targets, updatedAt} \| null}`; PUT replaces it (adult birthdate, height 120–230, weight 30–250, `activity` sedentary / light / active, `goals` = the goals the safety screen allowed, all twelve `targets` cells `{kcal, p, f}` as integers); its own optional migration group (`sql/011_profile.sql`): a failure only answers `503 profile_unavailable` here |
 | GET    | `/export/athlete`             | bearer | `200` with the latest athlete snapshot: `{fetchedAt, firstname, lastname, city, state, country, profile, profileMedium, measurementPreference, athleteType, bikes, shoes, gearScopeMissing, devices}` (nulls / empty lists when nothing is stored) |
+| GET / PUT | `/documents/:kind`         | bearer | the owner's documents, `kind` = `plan` / `training` / `profile` (see "Documents" below): GET `200` `{kind, document, revision, updatedAt}` (`document: null, revision: 0` before the first save); PUT `{revision, document}` `200` `{kind, revision, updatedAt}`, `409 revision_conflict` with the current `revision`, `400 invalid` + `field`, `413` over 256 KB; `503 documents_unavailable` when its migration failed |
 | GET    | `/journal/day?date=YYYY-MM-DD` | journal | `200` `{day: {date, answers, notes, updatedAt}}` (empty when never journaled) |
 | PUT    | `/journal/day`                | journal | full replace of one day `{date, answers, notes?}`; no answer and no note removes the day |
 | GET    | `/journal/summary?from=&to=`  | journal | `200` `{from, to, days: [{date, answers, notes}]}` (≤ 366 days) |
@@ -260,6 +261,31 @@ duplicate.
 **Rollout.** `docker compose up -d --build loop-ingest` (runs `006_food.sql`),
 then restart loop-web so its nginx picks up the `/api/food/` proxy
 (`services/loop-web/README.md`).
+
+## Documents: `/documents/:kind`
+
+The owner's nutrition plan (`plan`, the file `data/nutrition/plan-data.json` in a clone), training program (`training`,
+`data/training/training-data.json`) and profile (`profile`, `profile/profile.json`) live in
+the table `app_document` (`sql/012_documents.sql`, its own optional group `documents`), one row per kind.
+
+- **Clients.** The coach and the server's own page build, never the browser: the routes take the bearer token
+  (`INGEST_TOKEN`, checked first, so a client without it learns nothing, not even whether a kind exists; its 401
+  closes the connection, so an unauthenticated upload is never read), and
+  loop-web's nginx never proxies them (`scripts/loop-web-config.test.mjs` pins that).
+- **Revisions.** Each save increments `revision`. A PUT names the revision it read (`0` before the first
+  save); when another save happened in between it gets `409 revision_conflict` with the current revision and
+  nothing changes, so two writers never overwrite each other silently. Concurrent saves at the same revision:
+  exactly one wins.
+- **Validation.** Structural here: the document is a JSON object, a plan has the objects `data`, `targets` and
+  `dayPlan`, a program has `days`, and no string or key holds `\u0000`; unknown body keys are refused. The full
+  rules (`lib/nutrition/macros.mjs` `validateNutrition`, which needs `ingredients.json`; `lib/training/program.mjs`
+  `validateProgram`; `lib/profile/profile.mjs` `validateManual`) cannot run in this image: the coach runs them
+  before a PUT and the page build runs them again.
+- **Storage.** `data` is a Postgres `json` column, not `jsonb` (which sorts keys): the key order the page lists
+  meals and options in survives a round trip. Values come back as parsed JSON, the way the build reads a file:
+  `1.0` is `1`, `1e2` is `100`, and integer-like keys come first.
+- **Size.** Up to 256 KB per request (a personal plan is about 36 KB), above the 16 KB of the page routes.
+- **Logs.** A save logs `{"event":"document_saved","kind","revision","bytes"}`, never the content.
 
 ## iOS Shortcut ingestion
 
@@ -537,7 +563,7 @@ On every start the service applies the `sql/` files listed in `src/migrations.js
   run, the lock wait included (`SET statement_timeout = 0`); the client gets it back (`RESET`) before it returns
   to the pool.
 - **Optional groups.** A failing core file fails the start; a failing optional group (`food`, `settings`,
-  `profile`, `journal`) is rolled back, logged (`<group>_migration_failed`), left unrecorded and retried on
+  `profile`, `journal`, `documents`) is rolled back, logged (`<group>_migration_failed`), left unrecorded and retried on
   the next start, and only its routes answer `503` meanwhile.
 - **Installs from before the ledger** (before the release that added it) have every file applied and none
   recorded: on their first start with the ledger every file runs once more (each is idempotent: `IF NOT

@@ -1,5 +1,5 @@
 /**
- * Shared HTTP helpers for the route modules (food.js, journal.js, athlete.js, export.js, sync-routes.js,
+ * Shared HTTP helpers for the route modules (food.js, journal.js, documents.js, athlete.js, export.js, sync-routes.js,
  * server.js). No dependencies and no state: response writing, the capped JSON body reader, the coarse
  * error object and the LAN-only Host / Origin checks the unauthenticated page routes share (the
  * security model is documented in food.js's header).
@@ -49,10 +49,13 @@ export function isJson (req) {
   return ct === 'application/json'
 }
 
-/** The parsed JSON body; 413 payload_too_large over JSON_BODY_LIMIT (declared or counted), 400 bad_json. */
-export function readJson (req) {
+/**
+ * The parsed JSON body; 413 payload_too_large over `limit` (declared or counted; JSON_BODY_LIMIT unless a
+ * route with bigger documents passes its own, documents.js), 400 bad_json.
+ */
+export function readJson (req, limit = JSON_BODY_LIMIT) {
   const declared = Number(req.headers['content-length'])
-  if (Number.isFinite(declared) && declared > JSON_BODY_LIMIT) return Promise.reject(httpError(413, 'payload_too_large'))
+  if (Number.isFinite(declared) && declared > limit) return Promise.reject(httpError(413, 'payload_too_large'))
   return new Promise((resolve, reject) => {
     const chunks = []
     let size = 0
@@ -60,7 +63,7 @@ export function readJson (req) {
     req.on('data', (chunk) => {
       if (over) return
       size += chunk.length
-      if (size > JSON_BODY_LIMIT) {
+      if (size > limit) {
         over = true
         reject(httpError(413, 'payload_too_large'))
         return
@@ -77,6 +80,25 @@ export function readJson (req) {
     })
     req.on('error', reject)
   })
+}
+
+/** Whether any string (value or object key) in a parsed JSON value holds U+0000. Iterative: no recursion limit. */
+export function containsNul (value) {
+  const stack = [value]
+  while (stack.length > 0) {
+    const v = stack.pop()
+    if (typeof v === 'string') {
+      if (v.includes('\0')) return true
+    } else if (Array.isArray(v)) {
+      for (const item of v) stack.push(item)
+    } else if (v !== null && typeof v === 'object') {
+      for (const [k, item] of Object.entries(v)) {
+        if (k.includes('\0')) return true
+        stack.push(item)
+      }
+    }
+  }
+  return false
 }
 
 // U+0000 (Postgres text and jsonb cannot store it: 22021 / 22P05, a 500) and the other C0 controls, but tab,
