@@ -269,7 +269,8 @@ The owner's nutrition plan (`plan`, the file `data/nutrition/plan-data.json` in 
 the table `app_document` (`sql/012_documents.sql`, its own optional group `documents`), one row per kind.
 
 - **Clients.** The coach and the server's own page build, never the browser: the routes take the bearer token
-  (`INGEST_TOKEN`, checked first, so a client without it learns nothing, not even whether a kind exists), and
+  (`INGEST_TOKEN`, checked first, so a client without it learns nothing, not even whether a kind exists; its 401
+  closes the connection, so an unauthenticated upload is never read), and
   loop-web's nginx never proxies them (`scripts/loop-web-config.test.mjs` pins that).
 - **Revisions.** Each save increments `revision`. A PUT names the revision it read (`0` before the first
   save); when another save happened in between it gets `409 revision_conflict` with the current revision and
@@ -280,8 +281,9 @@ the table `app_document` (`sql/012_documents.sql`, its own optional group `docum
   rules (`lib/nutrition/macros.mjs` `validateNutrition`, which needs `ingredients.json`; `lib/training/program.mjs`
   `validateProgram`; `lib/profile/profile.mjs` `validateManual`) cannot run in this image: the coach runs them
   before a PUT and the page build runs them again.
-- **Storage.** `data` is a Postgres `json` column, not `jsonb`: it keeps the document's text, so the key order
-  the page lists meals and options in survives a round trip.
+- **Storage.** `data` is a Postgres `json` column, not `jsonb` (which sorts keys): the key order the page lists
+  meals and options in survives a round trip. Values come back as parsed JSON, the way the build reads a file:
+  `1.0` is `1`, `1e2` is `100`, and integer-like keys come first.
 - **Size.** Up to 256 KB per request (a personal plan is about 36 KB), above the 16 KB of the page routes.
 - **Logs.** A save logs `{"event":"document_saved","kind","revision","bytes"}`, never the content.
 

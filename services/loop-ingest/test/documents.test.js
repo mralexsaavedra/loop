@@ -81,6 +81,10 @@ test('every route needs the bearer token, checked before anything else', async (
   }
   const wrong = await s.call('GET', '/documents/plan', { headers: { authorization: 'Bearer nope' } })
   assert.equal(wrong.status, 401)
+  // an unauthenticated upload is never read: the answer closes the connection
+  const upload = await s.call('PUT', '/documents/plan', { headers: { 'content-type': 'application/json' }, body: { revision: 0, document: PLAN } })
+  assert.equal(upload.status, 401)
+  assert.equal(upload.headers.get('connection'), 'close')
 })
 
 test('an unknown kind is 404, another method 405 with Allow', async (t) => {
@@ -143,6 +147,9 @@ test('a stale revision is 409 revision_conflict with the current revision; nothi
     assert.deepEqual(r.body, { error: 'revision_conflict', revision: 1 })
   }
   assert.deepEqual(s.store.rows.get('training'), before)
+  // the INTEGER ceiling itself is a well-formed (if stale) revision
+  const ceiling = await s.call('PUT', '/documents/training', { headers: JSON_AUTH, body: { revision: 2 ** 31 - 1, document: TRAINING } })
+  assert.deepEqual([ceiling.status, ceiling.body], [409, { error: 'revision_conflict', revision: 1 }])
   const next = await s.call('PUT', '/documents/training', { headers: JSON_AUTH, body: { revision: 1, document: { days: {} } } })
   assert.equal(next.body.revision, 2)
 })
@@ -153,7 +160,7 @@ test('PUT body checks: JSON content type, valid JSON, revision, document shape, 
   const put = (body, headers = JSON_AUTH) => s.call('PUT', '/documents/profile', { headers, body })
   assert.deepEqual(await put({ revision: 0, document: PROFILE }, { ...AUTH, 'content-type': 'text/plain' }).then((r) => [r.status, r.body]), [415, { error: 'unsupported_media_type' }])
   assert.deepEqual(await put('{nope').then((r) => [r.status, r.body]), [400, { error: 'bad_json' }])
-  for (const revision of [undefined, -1, 1.5, '0', null]) {
+  for (const revision of [undefined, -1, 1.5, '0', null, 2 ** 31, 2 ** 40]) {
     const r = await put({ revision, document: PROFILE })
     assert.deepEqual([r.status, r.body], [400, { error: 'invalid', field: 'revision' }], String(revision))
   }

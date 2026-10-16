@@ -27,6 +27,8 @@ export const DOCUMENT_KINDS = Object.freeze(['plan', 'training', 'profile'])
 export const DOCUMENT_BODY_LIMIT = 256 * 1024
 
 const PATH_RE = /^\/documents\/([^/]+)$/
+// the INTEGER column's ceiling: a bigger revision can never match, and Postgres would refuse it with a 500
+const MAX_REVISION = 2 ** 31 - 1
 const METHODS = ['GET', 'PUT']
 // the top-level objects each kind cannot do without (lib/load/inputs.mjs, lib/nutrition/macros.mjs,
 // lib/training/program.mjs); a profile may be empty
@@ -50,7 +52,7 @@ function parsePut (kind, body) {
   if (!isObject(body)) throw invalid('document')
   for (const key of Object.keys(body)) if (key !== 'revision' && key !== 'document') throw invalid(key)
   const { revision, document } = body
-  if (!Number.isInteger(revision) || revision < 0) throw invalid('revision')
+  if (!Number.isInteger(revision) || revision < 0 || revision > MAX_REVISION) throw invalid('revision')
   const field = validateDocument(kind, document)
   if (field) throw invalid(field)
   if (containsNul(document)) throw invalid('document', 'nul_character')
@@ -64,10 +66,10 @@ function sendError (err, req, res, log) {
     if (err.field) body.field = err.field
     if (err.reason) body.reason = err.reason
     if (err.revision != null) body.revision = err.revision
-    if (err.status === 413) {
-      // stop reading an oversized upload: answer, then drop the connection
+    if (err.status === 413 || err.status === 401) {
+      // stop reading an oversized or unauthenticated upload: answer, then drop the connection
       res.on('finish', () => req.destroy())
-      send(res, 413, body, { connection: 'close' })
+      send(res, err.status, body, { connection: 'close' })
       return
     }
     req.resume()
