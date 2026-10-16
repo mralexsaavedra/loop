@@ -66,7 +66,7 @@ test('runAll() treats a null status (spawn itself failed) as a failure', () => {
 test('npm run sync runs Strava before the Shortcut sync (its activity windows feed hr-hourly.csv), then profile, settings, the onboarding document, food log', async () => {
   const { SCRIPTS } = await import('./sync-all.mjs');
   const names = SCRIPTS.map((s) => s.split(/[\\/]/).slice(-2).join('/'));
-  assert.deepEqual(names, ['apple-health/sync-strava.mjs', 'apple-health/sync-shortcut.mjs', 'profile/sync-profile.mjs', 'profile/sync-settings.mjs', 'scripts/sync-onboarding.mjs', 'nutrition/sync-foodlog.mjs', 'scripts/sync-journal.mjs']);
+  assert.deepEqual(names, ['scripts/sync-documents.mjs', 'apple-health/sync-strava.mjs', 'apple-health/sync-shortcut.mjs', 'profile/sync-profile.mjs', 'profile/sync-settings.mjs', 'scripts/sync-onboarding.mjs', 'nutrition/sync-foodlog.mjs', 'scripts/sync-journal.mjs']);
 });
 
 test('runAll() takes per-script argv as a function of the script path', () => {
@@ -79,6 +79,6 @@ test('scriptArgs: `npm run sync -- --full` reaches the Shortcut sync only (the o
   const { SCRIPTS, scriptArgs } = await import('./sync-all.mjs');
   const full = scriptArgs({ full: true });
   assert.deepEqual(SCRIPTS.filter((s) => full(s).length).map((s) => path.basename(s)), ['sync-shortcut.mjs']);
-  assert.deepEqual(full(SCRIPTS[1]), ['--full']);
+  assert.deepEqual(full(SCRIPTS[2]), ['--full']);
   assert.deepEqual(SCRIPTS.map(scriptArgs({})), SCRIPTS.map(() => []));
 });
