@@ -88,6 +88,7 @@ All optional, read by `lib/profile/read.mjs` `loadProfile` and merged by the pur
 ### `profile.json` schema and validation
 
 `profile/profile.json` (gitignored; tracked template `profile/profile.example.json`, synthetic).
+With the LAN data service, this file mirrors a document in its database: after editing it, run `npm run documents -- push profile` (an edit not pushed is kept, and `npm run sync` warns about it); [`data-pipeline.md` → Owner documents](data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync).
 
 | Field | Rule |
 | --- | --- |

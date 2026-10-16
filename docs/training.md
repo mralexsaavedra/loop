@@ -283,6 +283,7 @@ Whatever the user's coach / app provides: a coach PDF, a spreadsheet, or a login
 - Copy `data/training/training-data.example.json` → `training-data.json`, edit in the real program, then
   `npm run generate` (part of the shared bootstrap, README → Setup; one `npm run generate` builds all 4
   tabs together).
+- With the LAN data service, this file mirrors a document in its database: after editing it, run `npm run documents -- push training` (an edit not pushed is kept, and `npm run sync` warns about it); [`data-pipeline.md` → Owner documents](data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync).
 - Optional: skipping it (or deleting `training-data.json` later) still builds, with Hoy permanently in its
   rest / unprogrammed state.
 - `npm run check` validates `training-data.json` when it exists (`build-web.mjs --check`).

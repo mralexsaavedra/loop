@@ -66,7 +66,10 @@ commands, the generated files and their generators, the guards, and the workflow
 
 Fresh-clone bootstrap (copy the `.example` seeds, `npm ci && npm run generate`): README → Setup.
 **To change a plan number, edit `plan-data.json` (servings/day plan) or `ingredients.json` (a food's
-macros/label) — never the generated files** ([`docs/nutrition.md`](docs/nutrition.md)).
+macros/label) — never the generated files** ([`docs/nutrition.md`](docs/nutrition.md)). With the LAN data
+service, `plan-data.json`, `training-data.json` and `profile/profile.json` mirror documents in its database: after
+editing one, `npm run documents -- push <plan|training|profile>` ([`docs/data-pipeline.md`](docs/data-pipeline.md)
+→ Owner documents).
 
 ## Viewing the page
 

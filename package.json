@@ -31,6 +31,7 @@
     "sync:settings": "node data/profile/sync-settings.mjs",
     "sync:onboarding": "node scripts/sync-onboarding.mjs",
     "sync:documents": "node scripts/sync-documents.mjs",
+    "documents": "node scripts/documents.mjs",
     "sync:foodlog": "node data/nutrition/sync-foodlog.mjs"
   },
   "dependencies": {

@@ -68,6 +68,7 @@ Drinks with alcohol (`cerveza`, `cerveza1906`, `clara`) carry kcal above their m
 `ingredients.json` keys; macros are COMPUTED, never hand-typed. Items with no single label use a `manual`
 macro block (legumes, soup, pintxo), kept verbatim. **To change a plan number, edit `plan-data.json`
 (servings/day plan) or `ingredients.json` (a food's macros/label) — never the generated files.**
+With the LAN data service, this file mirrors a document in its database: after editing it, run `npm run documents -- push plan` (an edit not pushed is kept, and `npm run sync` warns about it); [`data-pipeline.md` → Owner documents](data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync).
 `npm run check` (`validateNutrition`) reports a malformed plan as validation messages, never a crash: `data`
 and `extras` must be objects (`{}` when the plan has none), and every breakfast in `data.desayuno` but the
 `none` row needs a `recipe` (the breakfast tables list its ingredients, so a `manual` block is refused there).

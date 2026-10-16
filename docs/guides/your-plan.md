@@ -22,6 +22,8 @@ assistant, the plan file's targets are used.
 
 1. Copy the example: `data/nutrition/plan-data.example.json` → `data/nutrition/plan-data.json`.
 2. Open `plan-data.json`. Two parts matter most.
+3. Running the LAN data service? Save each change in it with `npm run documents -- push plan`; otherwise the
+   next `npm run sync` keeps your edit but warns that it is not in the database yet ([Owner documents](../data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync)).
 
 **`targets.byGoal`** — the daily targets per goal (`maintain`, `cut`, `bulk`) and day type:
 
@@ -100,7 +102,8 @@ No server? Create `data/profile/settings.json` yourself:
 ## 5. The training plan
 
 1. Copy `data/training/training-data.example.json` → `data/training/training-data.json` (optional:
-   without it the page simply shows no programmed session).
+   without it the page simply shows no programmed session). With the LAN data service, save each change with
+   `npm run documents -- push training` ([Owner documents](../data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync)).
 2. Add one entry per date (`YYYY-MM-DD`). `kind` is `gym`, `run` or `bike`; `durationMin` is optional
    (minutes); `focus` is a short label; `blocks` hold the session:
 
