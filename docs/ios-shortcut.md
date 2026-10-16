@@ -68,11 +68,13 @@ there:
    stops the whole Shortcut with "No se ha encontrado ninguna muestra" ("No samples found"), so nothing is
    sent. Check what the app writes in Health → your photo → *Apps* → the app → *Data*, and delete each search
    block (and its JSON field) for a type it does not write. Mi Fitness, for example, writes no HRV and no resting
-   HR: delete the `hrv` and `rhr` blocks; keep `sleep` and the heart-rate samples (`hr_t` / `hr_v`).
+   HR: delete the `hrv` and `rhr` blocks; keep `sleep` and the heart-rate samples (`hr_t` / `hr_v`), and
+   point that heart-rate search (*Source is*) at the band's app (e.g. Mi Fitness) instead of a watch.
 4. Expect less than with an Apple Watch: steps, energy, heart rate and sleep usually arrive; HRV, wrist
    temperature, respiratory rate and sleep stages depend on the device and its app. A band that writes only
-   "in bed" sleep gets ESTIMATED nights (time in bed, labelled on the page) and one without resting HR gets it
-   derived from the night's heart rate, both from the Apple Health export only, never from this Shortcut
+   "in bed" sleep gets ESTIMATED nights (time in bed, labelled on the page; from the Apple Health export only),
+   and one without resting HR gets it derived from the night's heart rate: from the export, and from this
+   Shortcut's `hr_t` / `hr_v` as long as the Shortcut sends no `rhr`
    ([`docs/data-pipeline.md` → Resting HR](data-pipeline.md#apple-health-export-and-extract)). Without HRV the
    recovery score is partial (resting HR and sleep) and says so; stress stays empty or partial.
 
@@ -203,7 +205,7 @@ Decimal commas (`42,1`) are accepted.
 | `diet_carbs` | Carbohydrates | day total | **yes** | no | 8 days | `dietary-daily.csv` (carbs_g) |
 | `diet_fat` | Total Fat | day total | **yes** | no | 8 days | `dietary-daily.csv` (fat_g) |
 | `sleep` | Sleep (Sleep Analysis) — keep ALL stages in the search, Awake and In Bed included (In Bed comes from the iPhone) | sleep | no | no | 3 days | `sleep-daily.csv` |
-| `hr_t` | Heart Rate, *Source is* your watch | samples: Start Dates (ISO 8601), one per line | no: **no grouping** | **filter** by source | 1 day | `hr-hourly.csv` |
+| `hr_t` | Heart Rate, *Source is* your watch (a band: its app, e.g. Mi Fitness) | samples: Start Dates (ISO 8601), one per line | no: **no grouping** | **filter** by source | 1 day | `hr-hourly.csv` |
 | `hr_v` | the same search | samples: Values (bpm), same line order as `hr_t` | no: **no grouping** | **filter** by source | 1 day | `hr-hourly.csv` |
 | `hr_samples` | the same search (older, loop-based alternative to `hr_t` + `hr_v`) | samples (`ISO;bpm`) | no: **no grouping** | **filter** by source | 1 day | `hr-hourly.csv` |
 
@@ -234,8 +236,8 @@ while it records one), so build this key **without a loop**: two lists taken str
 search result, paired by line number on the sync side.
 
 1. **Find Health Samples** (*Buscar muestras de Salud*): *Type* **Heart Rate** (*Frecuencia
-   cardiaca*), *Source is* your watch, *Start Date is in the last* **1 day**, **no** *Group By*
-   (raw samples).
+   cardiaca*), *Source is* your watch (a band: its app, e.g. **Mi Fitness**), *Start Date is in the
+   last* **1 day**, **no** *Group By* (raw samples).
 2. **Text** (*Texto*) with the magic variable **Health Samples** (*Muestras de Salud*); tap it and
    pick the property **Start Date** (*Fecha de inicio*), *Date Format* (*Formato de fecha*)
    **ISO 8601**. Then **Combine Text** (*Combinar texto*) with **New Lines** (*Saltos de línea*).
@@ -249,7 +251,7 @@ recipe (**Repeat with Each** (*Repetir con cada*) → **Text** `<Start Date ISO 
 **Combine Text** → field `hr_samples`) is still accepted, but it loops once per sample and is very
 slow on workout days. A workout day of about 5,000 samples is roughly 150 KB of `hr_t` plus 25 KB
 of `hr_v`, well under the 8 MB loop-web accepts on that path (ingest's own `MAX_BODY_BYTES` defaults to 8 MB as well). The 1-day
-window overlaps between runs on purpose: the sync dedupes by timestamp, so nothing is counted
+window overlaps between runs on purpose: the sync dedupes by timestamp (a band's several records at one hour-stamp are kept), so nothing is counted
 twice and a missed run leaves no gap as long as the next one comes within a day. After adding it
 run `npm run sync -- --full` once.
 

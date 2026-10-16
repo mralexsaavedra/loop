@@ -26,8 +26,12 @@ on a new export.
 Resting HR: where no device measures it, the extractor derives it from the night's heart rate (the lowest 30-minute
 mean between 00:00 and 07:00, at least 4 samples per window and 3 night hours), source `<app> (derived)`; a measured
 value always wins and an Apple Watch never gets one. An older non-Watch band's night heart rate (e.g. a Zepp band
-before a Watch, when nothing measured resting HR) also yields derived rows on those dates. Export only for now (the
-Shortcut's heart-rate samples cannot carry it). Recovery without HRV says so: "Partial: no HRV" on the card, scored
+before a Watch, when nothing measured resting HR) also yields derived rows on those dates. The daily Shortcut sync
+derives it too (same rule), source `Shortcut (derived)`, but only while the Shortcut has never sent a measured `rhr`,
+so an Apple Watch Shortcut's output is byte-identical; for that its heart-rate cache now keeps every value at one
+timestamp (Mi Fitness stamps all of an hour's records `hh:00:00`; they used to collapse to one) while overlapping runs
+still never count a sample twice, and those values share the instant's coverage in `hr-hourly.csv`. A band user
+points the Shortcut's `hr_t` / `hr_v` search at the band's app and runs `npm run sync -- --full` once. Recovery without HRV says so: "Partial: no HRV" on the card, scored
 on resting HR and sleep; the ⓘ tells a device without HRV apart from an HRV baseline still building up (under 14 days).
 The Shortcut guide now says that a search for a type the device never writes stops the Shortcut with "No se ha
 encontrado ninguna muestra", and to delete those blocks (for Mi Fitness: HRV and resting HR).
