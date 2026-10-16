@@ -58,3 +58,9 @@ test('activityWindows: rows without a start or elapsed time (older files) are sk
   assert.deepEqual(H.activityWindows('date,activity_id\n2030-01-02,1,Running,190,observed,,,0,0,0,0,0,0,Strava API\n'), []);
   assert.deepEqual(H.activityWindows('h\n2030-01-02,1,R,190,o,,,0,0,0,0,0,0,S,,600\n'), []);
 });
+
+test('hourlyRows: several samples at ONE instant (a band stamps every record at hh:00:00) share its coverage evenly', () => {
+  // three records at 09:00 then one at 09:30: the 10-min cap is split 1/3 each, never all to one value
+  const [line] = H.hourlyRows([s('09:00', 60), s('09:00', 66), s('09:00', 60), s('09:30', 70)], [], 'Shortcut').map(r => r.line);
+  assert.deepEqual(cols(line), ['2030-01-02', '2030-01-02T09:00:00+01:00', '64.0', '70', '60', '4', '10.0', '0.0', '60:400 66:200', 'Shortcut']);
+});

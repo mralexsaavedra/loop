@@ -7,6 +7,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
+import * as S from '../../lib/extract/samples.mjs';
 import * as sync from './sync-shortcut.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -1090,4 +1092,87 @@ test('sleep: in-bed estimation is export-only — a Shortcut payload with only I
   // asleep data still builds its night as before
   const w = collectSamples([{ sleep: '2030-01-01T23:00:00+01:00;2030-01-02T07:00:00+01:00;Core' }]);
   assert.equal(buildRows('sleep', w.sleep).length, 1);
+});
+
+// ---- heart rate of a band (several records per hour-stamp) + derived resting HR -----------
+
+const pad2 = n => String(n).padStart(2, '0');
+const sha16 = t => crypto.createHash('sha256').update(t).digest('hex').slice(0, 16);
+
+// Apple Watch-style: ungrouped samples at distinct instants, every 10 min from 00:03:17
+const watchNight = (d, from = 0, to = 48) => Array.from({ length: to - from }, (_, k) => {
+  const i = from + k, min = i * 10 + 3;
+  return [`${d}T${pad2(Math.floor(min / 60))}:${pad2(min % 60)}:17+02:00`, 50 + (i * 7) % 13];
+});
+const hrLines = xs => xs.map(([t, v]) => `${t};${v}`).join('\n');
+const WATCH_PAYLOADS = [
+  { id: '1', payload: { hr_samples: hrLines(watchNight('2030-06-01')), rhr: '2030-06-01T07:12:00+02:00;52' } },
+  // overlaps the end of the 1st night (one re-sent instant carries a corrected value), loop-free lists
+  { id: '2', payload: { hr_t: [...watchNight('2030-06-01', 40), ...watchNight('2030-06-02', 0, 30)].map(x => x[0]).join('\n'),
+    hr_v: [...watchNight('2030-06-01', 40).map(([, v], k) => (k === 3 ? v + 4 : v)), ...watchNight('2030-06-02', 0, 30).map(x => x[1])].map(v => `${v} lpm`).join('\n'),
+    rhr: '2030-06-02T06:40:00+02:00;51' } },
+  { id: '3', payload: { hr_samples: hrLines(watchNight('2030-06-02', 20)), rhr: '2030-06-02T06:40:00+02:00;50\n2030-06-03T06:40:00+02:00;49' } },
+];
+const WATCH_EXTRACT = {
+  'rhr.csv': 'date,value,source\n2030-05-31,53,Apple Watch\n',
+  '_meta.json': JSON.stringify({ extractedFrom: 'export.xml', exportLastDate: '2030-05-31', rows: { rhr: 1 }, ranges: {}, notes: [] }, null, 2) + '\n',
+};
+
+test('Apple Watch payloads (distinct instants + a measured rhr): every file written is byte-identical to the pre-band sync', () => {
+  const files = { ...WATCH_EXTRACT };
+  const read = n => (n in files ? files[n] : null);
+  const hashes = w => Object.fromEntries(Object.keys(w).sort().map(k => [k, sha16(w[k])]));
+  const a = planSync(WATCH_PAYLOADS.slice(0, 2), read);
+  Object.assign(files, a.writes);
+  const b = planSync(WATCH_PAYLOADS.slice(2), read);
+  // sha256 prefixes of the files the sync wrote at 7fc52ef (before the band changes), same fixture
+  assert.deepEqual(hashes(a.writes), {
+    '.shortcut-cache.json': '7ad8ceccac1677bd', '_meta.json': 'd86854962565a16e', 'hr-hourly.csv': '642cde8ebcf0256b', 'rhr.csv': 'de760e9d94217ef5',
+  });
+  assert.deepEqual(hashes(b.writes), {
+    '.shortcut-cache.json': '7dbc3a368ba1341b', '_meta.json': '38bcb0d1bc4a1872', 'hr-hourly.csv': 'bea0eb4ece2b01a6', 'rhr.csv': '1fa028a3f30d3402',
+  });
+  assert.equal(b.writes['rhr.csv'], 'date,value,source\n2030-05-31,53,Apple Watch\n2030-06-01,52,Shortcut\n2030-06-02,50,Shortcut\n2030-06-03,49,Shortcut\n');
+});
+
+// a band (Mi Fitness): every record of an hour stamped hh:00:00, five per hour, equal values included
+const bandNight = (d, base) => Array.from({ length: 7 }, (_, h) =>
+  [0, 0, 2, 4, 6].map(dv => [`${d}T${pad2(h)}:00:00+02:00`, base + Math.abs(h - 3) * 3 + dv])).flat();
+const bandPayload = xs => ({ hr_t: xs.map(x => x[0]).join('\n'), hr_v: xs.map(x => `${x[1]} lpm`).join('\n') });
+
+test('band hr samples: several values at one hour-stamp all survive the fold; an overlapping payload re-sending them adds nothing', () => {
+  const n1 = bandNight('2030-06-01', 55);
+  const s = collectSamples([bandPayload(n1), bandPayload([...n1.slice(25), ...bandNight('2030-06-02', 57)])]);
+  assert.equal(s.hr_samples.length, 70);
+  const rows = buildRows('hr_samples', s.hr_samples).map(r => r.line.split(','));
+  assert.equal(rows.length, 14);
+  assert.ok(rows.every(c => c[5] === '5'), 'n = the 5 records of every hour');
+});
+
+test('band hr samples, no rhr ever delivered: rhr.csv gets derived rows ("Shortcut (derived)"), the same values as the export path', () => {
+  const nights = [...bandNight('2030-06-01', 55), ...bandNight('2030-06-02', 57)];
+  const files = { 'rhr.csv': 'date,value,source\n2030-06-02,61,Zepp\n' }; // an export row wins its date
+  const plan = planSync([{ id: '1', payload: bandPayload(nights) }], n => files[n] ?? null);
+  const exportPath = S.derivedRestingHr(nights.map(([t, v]) => ({ start: S.isoToExportStamp(t), value: v, source: 'Mi Fitness' })));
+  assert.deepEqual(exportPath.map(r => r.date), ['2030-06-01', '2030-06-02']);
+  assert.equal(plan.writes['rhr.csv'], `date,value,source\n2030-06-01,${exportPath[0].value},Shortcut (derived)\n2030-06-02,61,Zepp\n`);
+  const meta = JSON.parse(plan.writes['_meta.json']);
+  assert.deepEqual(meta.shortcutSync.owned['rhr.csv'], ['2030-06-01']);
+  assert.ok(meta.notes.some(n => /Shortcut \(derived\)/.test(n)));
+  // without the export row the 2nd night is derived too, and a later run rebuilds the same rows (owned)
+  const fresh = planSync([{ id: '1', payload: bandPayload(nights) }], () => null);
+  assert.equal(fresh.writes['rhr.csv'], ['date,value,source', ...exportPath.map(r => `${r.date},${r.value},Shortcut (derived)`), ''].join('\n'));
+});
+
+test('band hr samples + ANY measured rhr ever delivered by the Shortcut: no derived row on any date (measured always wins)', () => {
+  const nights = [...bandNight('2030-06-01', 55), ...bandNight('2030-06-02', 57)];
+  const plan = planSync([
+    { id: '1', payload: { ...bandPayload(nights), rhr: '2030-06-02T06:40:00+02:00;50' } },
+  ], () => null);
+  assert.equal(plan.writes['rhr.csv'], 'date,value,source\n2030-06-02,50,Shortcut\n');
+  // the measured point may arrive in an EARLIER payload than the heart rate: still no derived rows
+  const files = {};
+  Object.assign(files, planSync([{ id: '1', payload: { rhr: '2030-05-20T06:40:00+02:00;50' } }], n => files[n] ?? null).writes);
+  const later = planSync([{ id: '2', payload: bandPayload(nights) }], n => files[n] ?? null);
+  assert.ok(!String(later.writes['rhr.csv'] ?? files['rhr.csv']).includes('derived'));
 });
