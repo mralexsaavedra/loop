@@ -291,7 +291,7 @@ npm run sync        # prints rows added per key; exits non-zero if the service i
 npm run generate    # rebuilds the page
 ```
 
-`data/apple-health/extract/_meta.json` → `shortcutSync.owned` lists every date the sync wrote
+`loop-data/extract/_meta.json` → `shortcutSync.owned` lists every date the sync wrote
 per CSV. `npm run sync -- --full` rebuilds the local sample cache from every stored payload.
 
 **After adding new keys** (e.g. `waist`, `diet_*`): run `npm run sync -- --full` once. The

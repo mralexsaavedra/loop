@@ -16,7 +16,7 @@
 export const es = {
   sourceLabel: 'Fuente:',
   afterLastMsg: 'No hay sesión programada para hoy. El plan cargado llega hasta el {last}. Suelta el PDF del mes siguiente y regenera.',
-  beforeFirstMsg: 'Aún no hay sesión programada. Son datos de ejemplo — sustitúyelos por tu propio programa (training-data.json) y regenera.',
+  beforeFirstMsg: 'Aún no hay sesión programada. Son datos de ejemplo — sustitúyelos por tu propio programa (loop-data/cache/training.json) y regenera.',
   restDayMsg: 'Hoy no hay sesión programada — día de descanso.',
   goalLineRe: '^objetivo',
   // the detail sheet that opens from the programmed row of Inicio's "Actividades de hoy"
@@ -26,7 +26,7 @@ export const es = {
 export const en = {
   sourceLabel: 'Source:',
   afterLastMsg: 'No session scheduled for today. The loaded plan runs to {last}. Drop next month\'s PDF and regenerate.',
-  beforeFirstMsg: 'No session scheduled yet. This is sample data — replace it with your own program (training-data.json), then regenerate.',
+  beforeFirstMsg: 'No session scheduled yet. This is sample data — replace it with your own program (loop-data/cache/training.json), then regenerate.',
   restDayMsg: 'No session scheduled today — rest day.',
   goalLineRe: '^(target|goal)',
   // the detail sheet that opens from the programmed row of Inicio's "Today's activities"

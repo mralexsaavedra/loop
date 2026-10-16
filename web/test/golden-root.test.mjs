@@ -20,7 +20,8 @@ function fakeClone() {
   const nut = path.join(root, 'data', 'nutrition');
   fs.mkdirSync(nut, { recursive: true });
   fs.copyFileSync(path.join(ROOT, 'data', 'nutrition', 'ingredients.json'), path.join(nut, 'ingredients.json'));
-  fs.copyFileSync(path.join(ROOT, 'data', 'nutrition', 'plan-data.example.json'), path.join(nut, 'plan-data.json'));
+  fs.mkdirSync(path.join(root, 'loop-data', 'cache'), { recursive: true });
+  fs.copyFileSync(path.join(ROOT, 'data', 'nutrition', 'plan-data.example.json'), path.join(root, 'loop-data', 'cache', 'plan.json'));
   return { root, golden: path.join(root, path.relative(ROOT, FIXTURES.personal)) };
 }
 

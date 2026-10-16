@@ -63,10 +63,10 @@ Drinks with alcohol (`cerveza`, `cerveza1906`, `clara`) carry kcal above their m
 
 ## The plan file (`plan-data.json`)
 
-`data/nutrition/plan-data.json` (GITIGNORED, **personal**) = `data`/`dayPlan`/`extras`/`quesoKeys`/
+`loop-data/cache/plan.json` (GITIGNORED, **personal**) = `data`/`dayPlan`/`extras`/`quesoKeys`/
 `vegKeys`/`legumeKeys`/`legumePlate`/`page`. Each item's `recipe` (`[{ing, amt}]`) references
 `ingredients.json` keys; macros are COMPUTED, never hand-typed. Items with no single label use a `manual`
-macro block (legumes, soup, pintxo), kept verbatim. **To change a plan number, edit `plan-data.json`
+macro block (legumes, soup, pintxo), kept verbatim. **To change a plan number, edit `loop-data/cache/plan.json`
 (servings/day plan) or `ingredients.json` (a food's macros/label) — never the generated files.**
 With the LAN data service, this file mirrors a document in its database: after editing it, run `npm run documents -- push plan` (an edit not pushed is kept, and `npm run sync` warns about it); [`data-pipeline.md` → Owner documents](data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync).
 `npm run check` (`validateNutrition`) reports a malformed plan as validation messages, never a crash: `data`
@@ -89,10 +89,10 @@ all twelve cells once you know your TDEE.
 
 - Default goal = `page.goal`, else `maintain`. A plan without `targets.byGoal` / `page.goal` uses these
   code defaults, and scaling is decided by food category, so old plans need no migration.
-- **Precedence:** the in-page onboarding's accepted targets (`data/profile/onboarding.json`, when they pass
+- **Precedence:** the in-page onboarding's accepted targets (`loop-data/profile/onboarding.json`, when they pass
   `checkTargets`; its height 120–230 cm and weight 30–250 kg, the wizard's own `validatePerson` bounds, are
   checked when it is synced, and the profile fields it supplies must also pass `validateManual` or the build
-  warns and keeps `profile.json`) > the plan's `targets.byGoal` > `DEFAULT_BY_GOAL` (`lib/load/inputs.mjs`; docs/profile.md).
+  warns and keeps `loop-data/cache/profile.json`) > the plan's `targets.byGoal` > `DEFAULT_BY_GOAL` (`lib/load/inputs.mjs`; docs/profile.md).
 
 ### Computed starting targets (`lib/nutrition/energy.mjs`)
 
@@ -129,14 +129,14 @@ weight trend after 2–3 weeks.
 ## Build, check and generated files
 
 - `data/nutrition/generate.mjs` only VALIDATES the merged plan and writes `plan-tables.md` (atomically); it
-  emits no HTML. A missing or malformed `ingredients.json` / `plan-data.json` is one `ERROR:` line and exit 1;
+  emits no HTML. A missing or malformed `ingredients.json` / `loop-data/cache/plan.json` is one `ERROR:` line and exit 1;
   an unknown flag (`--chek`) exits 2 before anything is read or written (`--help` for the usage). Importing it
   reads nothing: `load()` reads the two files.
 - `npm run generate` (= `node data/nutrition/generate.mjs && node scripts/build-web.mjs`, idempotent):
   validate, write `plan-tables.md`, build `web/dist/personal/index.html`.
 - `npm run check` — validators only: `generate.mjs --check` (unknown-ingredient refs, every `{ing}` line's
   `amt` a number > 0, every meal an object with a `parts` array, day totals vs the kcal band, Atwater, ambiguous
-  matches) + `build-web.mjs --check` (training-data.json integrity). Ingredients
+  matches) + `build-web.mjs --check` (`loop-data/cache/training.json` integrity). Ingredients
   unused by the plan are a non-fatal WARNING (expected for a shared DB).
 - `npm test` — `node --test`, zero deps beyond `astro`; `pretest` builds the example (+ personal, if
   present) fixtures the web/ tests read.
@@ -146,10 +146,10 @@ weight trend after 2–3 weeks.
   plans at the default ride minutes); "Food reference (fixed values per natural unit)", the
   [Tables](#tables) rows (legumes per 100 g cooked instead of a ~300 g plate).
 
-**Fresh-clone bootstrap.** `ingredients.json` and the `.example` seeds are tracked. Copy
-`data/nutrition/plan-data.example.json` → `plan-data.json` and `data/training/training-data.example.json` →
-`training-data.json`, edit both, then `npm ci && npm run generate`. The real `plan-data.json` /
-`training-data.json` / `plan-tables.md` / `web/dist/personal/` stay gitignored. `npm run build:example`
+**Fresh-clone bootstrap.** `ingredients.json` and the `.example` seeds are tracked. `mkdir -p loop-data/cache`, copy
+`data/nutrition/plan-data.example.json` → `loop-data/cache/plan.json` and `data/training/training-data.example.json` →
+`loop-data/cache/training.json`, edit both, then `npm ci && npm run generate`. The real `loop-data/cache/plan.json` /
+`loop-data/cache/training.json` / `plan-tables.md` / `web/dist/personal/` stay gitignored. `npm run build:example`
 builds from the tracked seeds plus the synthetic demo extract `data/demo/extract/` — no personal files; a
 pipeline sanity check on a bare clone.
 
@@ -201,7 +201,7 @@ lib, the page and the built page.
 | programmed `TRAINING[today]` | `kind: "bike"` by optional `durationMin`, same ride thresholds (absent = bike); other kinds → gym |
 | none | rest |
 
-- A zero / junk duration is dropped. `training-data.json` accepts `kind: "bike"` + `durationMin`.
+- A zero / junk duration is dropped. `loop-data/cache/training.json` accepts `kind: "bike"` + `durationMin`.
 - **Per-person sports** — the onboarding's `sports` add endurance modalities (`enduranceOf`: running →
   `run`, swimming → `other`), baked as `NUTRI.detect.endurance` only when there are some: such a session,
   done or programmed with `durationMin`, of ≥ 75 min is a bike day and ≥ 150 min a bikeLong day (minutes
@@ -438,7 +438,7 @@ API).
 
 ## Supplements
 
-Optional `supplements: [{ name, dose?, meal }]` in `profile/profile.json` (`meal` = breakfast | lunch |
+Optional `supplements: [{ name, dose?, meal }]` in `loop-data/cache/profile.json` (`meal` = breakfast | lunch |
 preworkout | postworkout | dinner | snack, `lib/nutrition/slots.mjs` `MEAL_SLOTS`; validated by
 `validateManual`), also listed in the profile sheet. A discreet "name dose" line (no macros; a small pill
 SVG icon, no emoji) under the guide card of that slot: breakfast / lunch / dinner in their card, other
@@ -471,7 +471,7 @@ Bike day types only. `lib/nutrition/fuel.mjs` is the ONE implementation, run by 
 Optional `fuel.items: [{ name: {es, en} | string, carbs: <g per piece, 0–100>, fat?: <g ≥ 0>, kind?: "fast"
 | "slow" }]` in the plan, validated by `npm run check` (`validateFuelItems`, from `validateNutrition`: a
 malformed item is an error naming the field), baked localized as `NUTRI.fuel.items = [{n, c, f, k}]` only
-when present (absent = generic output). Personal items live only in the gitignored plan-data.json; the
+when present (absent = generic output). Personal items live only in the gitignored plan (`loop-data/cache/plan.json`); the
 example plan has none (tests use synthetic items).
 
 - During shows the PIECE MIX (`fuel.mjs` `ownDuring`, via `HC_FUEL`, pinned by `FUEL_CASES`): eating starts

@@ -25,10 +25,12 @@ detail lives in the linked docs: read them, do not copy them into chat.
 ```sh
 node -v; node -p "require('./package.json').engines.node"
 test -d node_modules && echo "deps: yes" || echo "deps: no"
-for f in profile/about-me.md profile/baseline.md profile/coaches.md profile/profile.json \
-  data/nutrition/plan-data.json data/training/training-data.json data/apple-health/export.xml \
-  data/apple-health/extract/_meta.json web/dist/personal/index.html services/loop-ingest/.env; do
+for f in profile/about-me.md profile/baseline.md profile/coaches.md loop-data/cache/profile.json \
+  loop-data/cache/plan.json loop-data/cache/training.json loop-data/files/import/export.xml \
+  loop-data/extract/_meta.json web/dist/personal/index.html services/loop-ingest/.env; do
   test -e "$f" && echo "yes $f" || echo "no  $f"; done
+# personal files at the old paths (a clone from before the data root loop-data/): counts only
+npm run -s migrate:data-root -- --dry-run
 command -v docker >/dev/null && docker compose version || echo "docker: no"
 # the ports each install uses (not secrets; defaults 8088 / 8090 when the env files do not set them)
 # (only the digits of that one line ever come out)
@@ -43,26 +45,29 @@ curl -s -m 3 -o /dev/null -w "loop-web %{http_code}\n" "http://$WA:$WP/status.js
 ```
 
 Use `$IP` / `$WP` (never a hard-coded port) in every later check. Report a short checklist (`000` = not
-running) and propose the next level. Node below `engines` →
+running) and propose the next level. The dry run says "would move N files" → the clone predates `loop-data/`:
+before anything else, `npm run migrate:data-root` (`docs/guides/upgrading.md` → Your personal files move to
+`loop-data/`). Node below `engines` →
 stop until upgraded.
 
 ## Level 1 — Apple Health + Claude (local)
 
 1. `npm ci`.
 2. **Apple Health export** (iPhone): Health → profile picture (top right) → *Export All Health Data* →
-   Export → send the zip to the computer. Unzip; put `export.xml` in `data/apple-health/`.
-   Run `node data/apple-health/extract.mjs`; verify `data/apple-health/extract/_meta.json` exists.
+   Export → send the zip to the computer. Unzip; put `export.xml` in `loop-data/files/import/`
+   (`mkdir -p loop-data/files/import`).
+   Run `node data/apple-health/extract.mjs`; verify `loop-data/extract/_meta.json` exists.
 3. **Onboarding**: no `profile/about-me.md` → run `docs/onboarding.md` (writes `profile/about-me.md`,
    `profile/baseline.md`, `profile/coaches.md`).
-4. **Seeds** (skip any that exist): `data/nutrition/plan-data.example.json` →
-   `data/nutrition/plan-data.json`; optional `data/training/training-data.example.json` →
-   `data/training/training-data.json` (`docs/training.md`), `profile/profile.example.json` →
-   `profile/profile.json`. `npm run check`.
+4. **Seeds** (skip any that exist; `mkdir -p loop-data/cache`, `cp -n`): `data/nutrition/plan-data.example.json` →
+   `loop-data/cache/plan.json`; optional `data/training/training-data.example.json` →
+   `loop-data/cache/training.json` (`docs/training.md`), `profile/profile.example.json` →
+   `loop-data/cache/profile.json`. `npm run check`.
 5. `npm run generate`; open `web/dist/personal/index.html` (`open` on macOS, `xdg-open` on Linux; it is
    self-contained, no server).
 6. Goal without Level 2: ask their goal (cut / maintain / bulk) and target weight and write
-   `data/profile/settings.json` = `{"goal": "...", "targetWeightKg": N}` (gitignored; Level 2's sync
-   overwrites it later). Spanish speaker? set `"locale": "es"` in `plan-data.json` and regenerate.
+   `loop-data/profile/settings.json` = `{"goal": "...", "targetWeightKg": N}` (gitignored; Level 2's sync
+   overwrites it later). Spanish speaker? set `"locale": "es"` in `loop-data/cache/plan.json` and regenerate.
 7. Offer the first analysis: the `/analysis` skill (`.claude/skills/analysis/SKILL.md`).
 
 ## Level 2 — food log + live page on the LAN (Docker)
@@ -108,8 +113,9 @@ Needs a Linux host with Docker (compose), systemd and Node 22. Follow the ordere
 
 ## Updating an install
 
-`docs/guides/upgrading.md`, step by step: pull `main`, `npm ci`, rebuild the data service (it applies new
-database migrations on start), restart the page service, refresh, verify. A second install is updated the same
+`docs/guides/upgrading.md`, step by step: pull `main`, `npm ci`, `npm run migrate:data-root` when the dry run
+finds files at the old paths (before any Sync), rebuild the data service (it applies new database migrations on
+start), restart the page service, refresh, verify. A second install is updated the same
 way in its own clone.
 
 ## A second install (another person, same host)

@@ -162,7 +162,8 @@ Common → Language; else the language they write in),
 opens with a short "why now / what changed since the last report" paragraph, and contains:
 
 0. **Data freshness & limits** — a table with the newest date of every source used
-   (`_meta.json`, each CSV, `foodlog-daily.meta.json`, `journal-daily.meta.json`, `settings.json` `fetchedAt`) and what is
+   (`_meta.json`, each CSV, `foodlog-daily.meta.json`, `journal-daily.meta.json`, `settings.json` `fetchedAt`; all under
+   the data root `loop-data/`) and what is
    missing or partial. Read first: it bounds every conclusion below.
 1. **Snapshot** — current metrics vs baseline vs last report, and vs the live goal / target weight.
 2. **Trends** — weight / body comp, nutrition (only if food data exists; otherwise state the gap),

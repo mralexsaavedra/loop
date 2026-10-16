@@ -3,10 +3,10 @@
  * validation a document passes before it is pushed, and the sync state that tells a hand edit not pushed yet
  * from a file that only lags behind the database.
  *
- * Where the files live: lib/paths.mjs dataPaths (documentLayout below): today the clone files DOCUMENT_FILES /
- * STATE_FILE name, under HC_DATA_DIR <data root>/cache/{profile,plan,training}.json + cache/.sync-state.json.
+ * Where the files live: lib/paths.mjs dataPaths (documentLayout below): <data root>/cache/{profile,plan,training}.json
+ * + cache/.sync-state.json, the data root being <repo>/loop-data (DOCUMENT_FILES / STATE_FILE) or HC_DATA_DIR.
  *
- * State (data/profile/documents-sync.json, gitignored): per kind, the revision and the content hash of the
+ * State (cache/.sync-state.json, gitignored with the data root): per kind, the revision and the content hash of the
  * document as last synced or pushed. A file whose hash is the recorded one has no local edits, so the database
  * may replace it; any other file is a local edit (or a file from before the documents existed) and is never
  * overwritten silently.
@@ -21,15 +21,15 @@ import { validateDocument } from '../../services/loop-ingest/src/documents.js';
 import { writeAtomic } from '../../data/apple-health/sync-common.mjs';
 import { dataPaths, displayPath } from '../../lib/paths.mjs';
 
-/** kind -> the clone file it becomes without HC_DATA_DIR (the legacy layout), in sync order (profile first:
+/** kind -> the clone file it becomes without HC_DATA_DIR (the default data root), in sync order (profile first:
  * sync-strava reads its maxHr). */
 export const DOCUMENT_FILES = Object.freeze({
-  profile: 'profile/profile.json',
-  plan: 'data/nutrition/plan-data.json',
-  training: 'data/training/training-data.json',
+  profile: 'loop-data/cache/profile.json',
+  plan: 'loop-data/cache/plan.json',
+  training: 'loop-data/cache/training.json',
 });
 export const KINDS = Object.freeze(Object.keys(DOCUMENT_FILES));
-export const STATE_FILE = 'data/profile/documents-sync.json';
+export const STATE_FILE = 'loop-data/cache/.sync-state.json';
 
 /** The content hash of a parsed document: formatting never counts, key order and values do. */
 export function contentHash(doc) {

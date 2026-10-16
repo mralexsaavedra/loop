@@ -27,6 +27,8 @@ docker exec loop-db pg_dump -U health health > "backups/loop-db-$(date +%F).sql"
    ```
 
 2. **Dependencies.** `npm ci` (the hourly refresh also does it on its own when the lockfile changed).
+   Coming from before the data root `loop-data/`? Move your personal files now, before the next Sync
+   ([release note below](#your-personal-files-move-to-loop-data)): `npm run migrate:data-root`.
 
 3. **The data service.** Rebuild it from your clone; on start it applies any new database migrations:
 
@@ -75,6 +77,27 @@ If something is off, see [troubleshooting](troubleshooting.md). Release notes li
 [`CHANGELOG.md`](../../CHANGELOG.md).
 
 ## Release notes for existing installs
+
+### Your personal files move to `loop-data/`
+
+Every personal file of a clone now lives in one gitignored folder, the data root `loop-data/` (`HC_DATA_DIR`
+moves it): the Apple Health extract (`loop-data/extract/`), the food log export (`loop-data/foodlog/`), the
+profile snapshots (`loop-data/profile/`), the copies of the profile, plan and training documents
+(`loop-data/cache/{profile,plan,training}.json`), the Health export (`loop-data/files/import/`), the device
+manuals (`loop-data/files/manuals/`) and the coach PDFs (`loop-data/files/documents/`). The old paths are no
+longer read. Right after `git pull`, BEFORE the next Sync (a sync writes into `loop-data/`, and a file there that
+differs from the old one stops the move):
+
+1. `npm run migrate:data-root -- --dry-run` prints how many files would move (nothing is written).
+2. `npm run migrate:data-root` writes a backup tarball `backups/data-root-before-<UTC stamp>.tar`, copies every
+   file, verifies each copy by sha256 and only then removes the old ones. A conflict (a target with other
+   content) stops it before anything is written, naming each file: keep one version and run it again. A second
+   run says there is nothing to move.
+3. Press **Sync** (or `services/loop-web/refresh.sh`): the page is built from `loop-data/`.
+
+Edit your documents in their new place from now on (`loop-data/cache/plan.json`, then
+`npm run documents -- push plan`). A document file still at its old path makes `npm run sync` and the build print
+one `WARNING:` (edits there are ignored). A second install runs the same in its own clone.
 
 ### loop-web reaches the data service over `loop-net`
 

@@ -10,16 +10,17 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { checkTraining, inputErrorLine, resolveLocale, sweepStaleStaging } from './build-web.mjs';
+import { checkTraining, inputErrorLine, resolveLocale, sweepStaleStaging, warnOldDocuments } from './build-web.mjs';
 
 function fixtureRepo({ trainingDays, personalLocale = 'es', withTraining = true } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-buildweb-check-'));
   fs.mkdirSync(path.join(root, 'data', 'nutrition'), { recursive: true });
   fs.mkdirSync(path.join(root, 'data', 'training'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'loop-data', 'cache'), { recursive: true });
   fs.writeFileSync(path.join(root, 'data', 'nutrition', 'ingredients.json'), JSON.stringify({ ingredients: { egg: { per: 100, k: 155, p: 13, c: 1.1, g: 11, unit: 'ud' } } }));
-  fs.writeFileSync(path.join(root, 'data', 'nutrition', 'plan-data.json'), JSON.stringify({ locale: personalLocale, data: {}, extras: {} }));
+  fs.writeFileSync(path.join(root, 'loop-data', 'cache', 'plan.json'), JSON.stringify({ locale: personalLocale, data: {}, extras: {} }));
   fs.writeFileSync(path.join(root, 'data', 'nutrition', 'plan-data.example.json'), JSON.stringify({ locale: 'en', data: {}, extras: {} }));
-  if (withTraining) fs.writeFileSync(path.join(root, 'data', 'training', 'training-data.json'), JSON.stringify({ days: trainingDays ?? {} }));
+  if (withTraining) fs.writeFileSync(path.join(root, 'loop-data', 'cache', 'training.json'), JSON.stringify({ days: trainingDays ?? {} }));
   fs.writeFileSync(path.join(root, 'data', 'training', 'training-data.example.json'), JSON.stringify({ days: {} }));
   return root;
 }
@@ -108,15 +109,15 @@ test('resolveLocale: an explicit locale (CLI --locale or LOCALE env) wins over p
   }
 });
 
-test('a missing plan-data.json (fresh clone, seeds not copied) becomes ONE readable line, not a stack trace', () => {
+test('a missing personal plan (fresh clone, seeds not copied) becomes ONE readable line, not a stack trace', () => {
   const root = fixtureRepo();
-  fs.rmSync(path.join(root, 'data', 'nutrition', 'plan-data.json'));
+  fs.rmSync(path.join(root, 'loop-data', 'cache', 'plan.json'));
   try {
     let err;
     try { resolveLocale({ repoRoot: root, mode: 'personal', explicitLocale: null }); } catch (e) { err = e; }
-    assert.ok(err, 'resolveLocale throws without plan-data.json');
+    assert.ok(err, 'resolveLocale throws without the personal plan');
     const line = inputErrorLine(err);
-    assert.match(line, /^build-web: .*plan-data\.json not found\. Copy plan-data\.example\.json -> plan-data\.json/);
+    assert.match(line, /^build-web: .*loop-data\/cache\/plan\.json not found\. Copy plan-data\.example\.json -> loop-data\/cache\/plan\.json/);
     assert.ok(!line.includes('\n'), 'one line');
     assert.equal(inputErrorLine(new Error('something else')), null, 'any other error is not swallowed');
   } finally {
@@ -280,4 +281,19 @@ test('swapIntoPlace: a failed rename-in puts the previous output back and rethro
   assert.equal(fs.readFileSync(path.join(out, 'index.html'), 'utf8'), 'good', 'the last good page is back');
   assert.deepEqual(fs.readdirSync(dir).sort(), ['.staging-example-1', 'example']);
   fs.rmSync(dir, { recursive: true });
+});
+
+test('warnOldDocuments: personal mode warns once when a document is still at its old path; example mode never', () => {
+  const root = fixtureRepo();
+  try {
+    const warns = [];
+    assert.equal(warnOldDocuments({ repoRoot: root, mode: 'personal', env: {}, warn: (w) => warns.push(w) }), false, 'nothing at the old paths');
+    fs.writeFileSync(path.join(root, 'data', 'training', 'training-data.json'), '{"days":{}}');
+    assert.equal(warnOldDocuments({ repoRoot: root, mode: 'personal', env: {}, warn: (w) => warns.push(w) }), true);
+    assert.deepEqual(warns, ['WARNING: data/training/training-data.json is at the old path, but the data root loop-data is in use: edits there are ignored; run npm run migrate:data-root']);
+    assert.equal(warnOldDocuments({ repoRoot: root, mode: 'example', env: {}, warn: (w) => warns.push(w) }), false);
+    assert.equal(warns.length, 1);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });

@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /* Pulls the owner's documents (GET <INGEST_URL>/documents/:kind, services/loop-ingest/src/documents.js) into the
- * files the build, the syncs and the coach read: profile -> profile/profile.json, plan ->
- * data/nutrition/plan-data.json, training -> data/training/training-data.json (under HC_DATA_DIR:
- * <data root>/cache/{profile,plan,training}.json, lib/paths.mjs). Runs FIRST in `npm run sync`:
- * sync-strava reads maxHr from profile.json.
+ * files the build, the syncs and the coach read: <data root>/cache/{profile,plan,training}.json (the data root is
+ * <repo>/loop-data or HC_DATA_DIR, lib/paths.mjs). Runs FIRST in `npm run sync`: sync-strava reads maxHr from
+ * cache/profile.json. A document file left at its pre-data-root path (profile/profile.json,
+ * data/nutrition/plan-data.json, data/training/training-data.json) is one WARNING: edits there are ignored until
+ * `npm run migrate:data-root` moves it.
  *
  * The database is the source once a document is saved there, but a hand edit is never lost: the sync state
- * (scripts/lib/documents.mjs, data/profile/documents-sync.json) records what was last synced or pushed, and a
+ * (scripts/lib/documents.mjs, cache/.sync-state.json) records what was last synced or pushed, and a
  * file that differs from it AND from the database is a local edit not pushed yet: kept, with a warning naming
  * `npm run documents -- push <kind>` (send it) and `npm run documents -- pull <kind> --force` (take the
  * database's, the file backed up to backups/<same path>.documents.bak first).
@@ -29,6 +30,7 @@ import {
   DOCUMENT_FILES, KINDS, documentLayout, contentHash, readState, recordState, readDocumentFile, writeDocumentFile, backupDocumentFile,
 } from './lib/documents.mjs';
 import { isMain } from './lib/is-main.mjs';
+import { oldDocumentsWarning } from './lib/old-paths.mjs';
 
 export { DOCUMENT_FILES };
 export const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -57,6 +59,8 @@ export function fetchDocument(base, token, kind, fetchImpl) {
  */
 export async function main({ env = process.env, log = console.log, warn = console.warn, fetchImpl = fetch, kinds = KINDS, force = false, strict = false } = {}) {
   const docs = documentLayout(env.SYNC_DOCUMENTS_ROOT || ROOT, env);
+  const old = oldDocumentsWarning({ repoRoot: docs.root, env });
+  if (old) warn(old);
   const token = readIngestToken(env);
   if (!token) {
     warn('WARNING: document sync skipped (no ingest token: set INGEST_TOKEN or create services/loop-ingest/.env); the files are kept');
@@ -115,8 +119,7 @@ export async function main({ env = process.env, log = console.log, warn = consol
 const USAGE = `Usage: node scripts/sync-documents.mjs
 
 Pulls the owner's documents (profile, nutrition plan, training program) from the ingest service into
-profile/profile.json, data/nutrition/plan-data.json and data/training/training-data.json (with HC_DATA_DIR:
-cache/profile.json, cache/plan.json and cache/training.json under it). A file with
+cache/profile.json, cache/plan.json and cache/training.json of the data root (loop-data/, or HC_DATA_DIR). A file with
 changes that are not in the database is kept (see npm run documents).
   -h, --help   this help
 Env: INGEST_URL, INGEST_TOKEN, INGEST_ENV_FILE (default services/loop-ingest/.env, for INGEST_PORT and INGEST_TOKEN),

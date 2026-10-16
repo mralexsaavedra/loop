@@ -11,10 +11,11 @@ function fixtureRepo() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-env-fixture-'));
   fs.mkdirSync(path.join(root, 'data', 'nutrition'), { recursive: true });
   fs.mkdirSync(path.join(root, 'data', 'training'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'loop-data', 'cache'), { recursive: true });
   fs.writeFileSync(path.join(root, 'data', 'nutrition', 'ingredients.json'), JSON.stringify({ ingredients: {} }));
-  fs.writeFileSync(path.join(root, 'data', 'nutrition', 'plan-data.json'), JSON.stringify({ locale: 'es' }));
+  fs.writeFileSync(path.join(root, 'loop-data', 'cache', 'plan.json'), JSON.stringify({ locale: 'es' }));
   fs.writeFileSync(path.join(root, 'data', 'nutrition', 'plan-data.example.json'), JSON.stringify({ locale: 'en' }));
-  fs.writeFileSync(path.join(root, 'data', 'training', 'training-data.json'), JSON.stringify({ days: {} }));
+  fs.writeFileSync(path.join(root, 'loop-data', 'cache', 'training.json'), JSON.stringify({ days: {} }));
   fs.writeFileSync(path.join(root, 'data', 'training', 'training-data.example.json'), JSON.stringify({ days: {} }));
   return root;
 }

@@ -61,7 +61,7 @@ facts" table names.
 | Section | Keys |
 | --- | --- |
 | `## Common` | **Language** (default reply language), **Locale / jurisdiction**, **Section labels** (optional) |
-| `## cycling-coach` | **Knowledge sources** table (name, short name, type, folder, how to cite), **Commercial ties**, **FTP stance** (optional), **Gear** table (device → manual under `data/gear/`) |
+| `## cycling-coach` | **Knowledge sources** table (name, short name, type, folder, how to cite), **Commercial ties**, **FTP stance** (optional), **Gear** table (device → manual under `loop-data/files/manuals/`) |
 | `## hybrid-coach` | **Knowledge folder** (default `knowledge/hybrid/`), **Knowledge sources** in reading order (syntheses, podcasts, past programs, current program), events / rulebook pointers |
 | `## nutrition-coach` | **Knowledge folder** (default `knowledge/nutrition/`), **Evidence folder** (default `<knowledge folder>/evidence/`, `evidencia/` also found), evidence base list, **Practitioner sources** table, **Cross-domain passages** (optional), **Jurisdiction rules** |
 | `## training-coach` | **Sports**, **Knowledge folder** (default `knowledge/training/`), **Knowledge sources** table (optional; name, short name, sport, folder, how to cite), **Commercial ties** |

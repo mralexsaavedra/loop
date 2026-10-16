@@ -11,12 +11,12 @@ from seeded random generators. They are nobody's health data, and every row carr
 | `extract/hr-hourly.csv` | Watch heart rate per clock hour for the last four weeks, leaving the workout windows out like the Shortcut sync; with the zones it calibrates the day strain dial (daytime heart rate 58–70 bpm, so stress and the energy bank show ordinary days) |
 | `extract/journal-daily.csv` | An invented behaviour journal (drinks mostly at weekends, mobility on rest days…) for My journal and its insights; any association with the demo recovery is chance |
 | `extract/foodlog-daily.csv` | An invented food log in the sync's format (`data/nutrition/sync-foodlog.mjs`) around the example plan's maintain targets, a few days missing a dinner or a macro, for the nutrition score; the personal build reads `data/nutrition/` instead |
-| `strava-profile.json` | A hand-written Strava athlete snapshot (name, gear, devices) for the example's profile sheet, in place of the gitignored `data/profile/strava-profile.json` |
+| `strava-profile.json` | A hand-written Strava athlete snapshot (name, gear, devices) for the example's profile sheet, in place of the gitignored `loop-data/profile/strava-profile.json` |
 
 ## Why it exists
 
 `npm run build:example` (`DATA_MODE=example`) reads this folder in place of your real,
-gitignored `data/apple-health/extract/`. That way the example page shows every section
+gitignored `loop-data/extract/`. That way the example page shows every section
 (the Home dials, Health, Training, the intake rings) on a fresh clone, before you drop your own
 export.
 
@@ -34,4 +34,4 @@ The test `scripts/make-demo-data.test.mjs` fails if these files drift from the g
 ## Rules
 
 - Never put real measurements here: this folder is tracked and public.
-- Your own data goes in `data/apple-health/` (gitignored), never in `data/demo/`.
+- Your own data goes in the data root `loop-data/` (gitignored), never in `data/demo/`.

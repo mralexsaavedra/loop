@@ -354,12 +354,12 @@ What it shows: the viewer's weekly goals (`#my-plan`, `client/home-week.js`,
 - Expanded: one row per goal — uppercase label + its basis, `done/target`, ▲ `--up` on pace / ▼
   `--down` behind (on pace = done ≥ target × days elapsed / 7), a small bar.
 - % accomplished = the mean of min(1, done / target) over the shown rows.
-- Goals (profile.json has no goals block, so these are the documented defaults in `GOALS`):
+- Goals (the profile document has no goals block, so these are the documented defaults in `GOALS`):
 
   | Row | Done (this week, up to today) | Target | Source | Hidden when |
   | --- | --- | --- | --- | --- |
   | Nights ≥ 7:30 | nights (dated the wake-up day) asleep ≥ the sleep target | 5 | `DETAIL.metrics.sleep` | no sleep metric, or `DETAIL.asOf` > 3 days old |
-  | Training days | distinct dates with a session | the days programmed this week, else the usual week | `DETAIL.sessions` (display rule) + `TRAINING` (training-data.json) | stale as above; no programme AND < 3 complete weeks of data (of the last 6) or a usual week of 0 |
+  | Training days | distinct dates with a session | the days programmed this week, else the usual week | `DETAIL.sessions` (display rule) + `TRAINING` (`loop-data/cache/training.json`) | stale as above; no programme AND < 3 complete weeks of data (of the last 6) or a usual week of 0 |
   | Days with food logged | days with ≥ 1 food log entry | 7 | `HCAdherence.state().days` (the Constancia summary, LAN page only) | no summary (static / example page) |
   | Days on kcal target | days whose Constancia state is `on` (complete, within ±10 % of the day's target) | 5 | `HCAdherence.dayState` + `HCNutri.targetFor` | no summary, or no `HCNutri.targetFor` |
 
@@ -520,7 +520,7 @@ What it shows: last night's recovery as a % rank (headline), with the 7-day tren
   ```sh
   node --input-type=module -e "import { readExtract } from './lib/extract/read.mjs';
     import { measureSigma } from './lib/score/recovery.mjs';
-    const I = readExtract('data/apple-health/extract');
+    const I = readExtract('loop-data/extract');
     console.log(measureSigma({ hrv: I.series.hrv, rhr: I.series.rhr, sleep: I.sleep }))"
   ```
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Settings sync — snapshots the user's goal + target weight that the LAN page stores on the ingest
  * service (services/loop-ingest, GET /food/settings, sql/007_settings.sql) into
- * data/profile/settings.json, so read-only consumers (the coach subagents, which only read files)
+ * loop-data/profile/settings.json, so read-only consumers (the coach subagents, which only read files)
  * see the same goal the page uses.
  *
  *   node data/profile/sync-settings.mjs     (part of `npm run sync`, after the profile sync)
@@ -9,10 +9,10 @@
  * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/loop-ingest/.env>, else :8088). No token: /food/* is the unauthenticated,
  *          LAN-only food layer; the request carries `X-HC-Food: 1` and the URL's Host must be one the
  *          service accepts (an IP literal, localhost, or a name in its FOOD_ALLOWED_HOSTS).
- * Writes : data/profile/settings.json = {goal, targetWeightKg, updatedAt, fetchedAt} (temp file +
+ * Writes : loop-data/profile/settings.json = {goal, targetWeightKg, updatedAt, fetchedAt} (temp file +
  *          rename), only when goal / target / updatedAt changed or the stored fetchedAt is from an
  *          earlier UTC day (so fetchedAt stays an honest "last seen" at day precision without a
- *          rewrite on every run). Gitignored (data/profile/*).
+ *          rewrite on every run). Gitignored (loop-data/profile/*).
  * Errors : unreachable service, 404 (an image without the endpoint), 503 (settings migration
  *          unavailable), 421 (host not allowed) or a malformed body -> one `WARNING:` line, the old
  *          file kept, exit 0: the settings are optional and must never fail `npm run sync`. Only a
@@ -93,7 +93,7 @@ function warning (err, baseUrl) {
 
 const USAGE = `Usage: node data/profile/sync-settings.mjs
 
-Snapshots the page's settings (goal, target weight) from the ingest service into data/profile/settings.json.
+Snapshots the page's settings (goal, target weight) from the ingest service into loop-data/profile/settings.json.
   -h, --help   this help
 Env: INGEST_URL, INGEST_ENV_FILE (default services/loop-ingest/.env, for its INGEST_PORT).`
 

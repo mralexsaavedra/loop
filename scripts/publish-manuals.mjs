@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Publishes the device manuals profile/profile.json names (devices[].manual) from data/gear/ into the
+/* Publishes the device manuals loop-data/cache/profile.json names (devices[].manual) from loop-data/files/manuals/ into the
  * LAN page's site folder (lib/profile/manuals.mjs has the rules). Called by
  * services/loop-web/refresh.sh as `npm run -s publish:manuals -- --out <site>/manuales`; a missing / refused
  * file is a warning (exit 0), only an unusable output folder or an unexpected error exits 1. Strict flags
@@ -17,8 +17,8 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 export const USAGE = `Usage: node scripts/publish-manuals.mjs [--profile <file>] [--gear <dir>] [--out <dir>]
 
 Copies the device manuals profile.json names from the gear folder into the LAN page's site folder.
-  --profile <file>  the profile (default profile/profile.json; cache/profile.json under HC_DATA_DIR)
-  --gear <dir>      the manuals' folder (default data/gear; files/manuals under HC_DATA_DIR / HC_FILES_DIR)
+  --profile <file>  the profile (default loop-data/cache/profile.json; cache/profile.json under HC_DATA_DIR)
+  --gear <dir>      the manuals' folder (default loop-data/files/manuals/; files/manuals under HC_DATA_DIR / HC_FILES_DIR)
   --out <dir>       the published folder (default services/loop-web/site/manuales)
   --help, -h        this text`;
 

@@ -55,6 +55,6 @@ before logging what you cannot see (bread, oil, sauce).
 ## Reporting the day
 
 `GET /api/food/log?date=YYYY-MM-DD` returns the entries and `totals`. Compare them with the day's target — the
-goal from `data/profile/settings.json` and the day type the page detects (its "Hoy comes" card, or
+goal from `loop-data/profile/settings.json` and the day type the page detects (its "Hoy comes" card, or
 `data/nutrition/plan-tables.md`) — and give kcal and protein left in one or two lines. Ground any advice in
 `analysis/methodology.md`.

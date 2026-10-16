@@ -13,6 +13,23 @@ every push and pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-16 — Server images, step 2b: every personal file moves into `loop-data/`
+
+The data root is now the default: without `HC_DATA_DIR` every sync, the page build, `generate.mjs`, `extract.mjs`,
+the documents CLI and `publish:manuals` read and write `<clone>/loop-data/` (`extract/`, `foodlog/`, `profile/`,
+`cache/{profile,plan,training}.json` + `cache/.sync-state.json`, `files/{import,manuals,documents}`), one
+gitignored folder instead of personal files scattered next to the code. The old paths are no longer read
+(`lib/paths.mjs` keeps them as `legacyPaths` for the move). `npm run migrate:data-root` (`-- --dry-run` to
+preview) moves a clone's files once: a backup tarball in `backups/` first, then copy, sha256 verify and only then
+remove; a conflicting target stops it before anything is written, a second run has nothing to move, and tracked
+files never move. It also moves the Health zips, the device manuals and the coach PDFs (`data/training/*.pdf`,
+`data/nutritionist/`, `data/clinical/` → `files/documents/`). A document file left at its old path makes
+`npm run sync` and the personal build print one `WARNING:` (edits there are ignored). `.gitignore` gains
+`/loop-data/` (every old pattern stays, for clones not migrated yet) and the guard hook's fallback list knows it.
+The coach agents, skills, `CLAUDE.md`, the README and the docs point at the new paths; editing a document is now
+`loop-data/cache/<kind>.json` then `npm run documents -- push <kind>`. Existing installs: run the migration right
+after updating, before the next Sync ([`docs/guides/upgrading.md`](docs/guides/upgrading.md)).
+
 ## 2026-10-16 (late night) — Server images, step 2a: one module knows where the data files live
 
 Every personal and generated data path now comes from `lib/paths.mjs` `dataPaths({ repoRoot, env })` (pure, no

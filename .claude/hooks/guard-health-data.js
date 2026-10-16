@@ -80,6 +80,9 @@ const PERSONAL = [
   'services/plan-web/',
   'services/health-ingest/',
   'web/.test-dist/',
+  // The data root (lib/paths.mjs, the default when HC_DATA_DIR is unset): extract, food log, profile
+  // snapshots, document copies and the owner files.
+  'loop-data/',
 ];
 
 // Fallback exceptions (the "!" rules in .gitignore), anchored to their

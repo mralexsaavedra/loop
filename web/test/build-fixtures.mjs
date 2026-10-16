@@ -2,7 +2,7 @@
 /* Pretest fixture builder — wired into `npm run pretest` (which `npm test`
  * depends on via the `pretest` npm lifecycle hook). Builds the example-mode
  * page (always) and the personal-mode page (only if the user's gitignored
- * plan-data.json exists — fresh clones / CI without it just skip), so
+ * plan (loop-data/cache/plan.json) exists — fresh clones / CI without it just skip), so
  * web/test/*.test.mjs can assert against already-built static files
  * instead of invoking Astro's build pipeline inside every test run. See
  * design's Testing Strategy: "pretest builds fixtures once ...
@@ -31,7 +31,7 @@ execFileSync(process.execPath, [buildScript, '--mode', 'example', '--locale', 'e
   cwd: ROOT,
 });
 
-// the personal plan where the build will look for it (lib/paths.mjs: today's path, or the HC_DATA_DIR data root)
+// the personal plan where the build will look for it (lib/paths.mjs: loop-data/cache/plan.json, or HC_DATA_DIR's)
 const personalPlanPath = dataPaths({ repoRoot: ROOT }).documents.plan;
 if (fs.existsSync(personalPlanPath)) {
   execFileSync(process.execPath, [buildScript, '--mode', 'personal', '--locale', 'es', '--outdir', path.join(testDistDir, 'es-personal')], {
@@ -39,5 +39,5 @@ if (fs.existsSync(personalPlanPath)) {
     cwd: ROOT,
   });
 } else {
-  console.log('build-fixtures: no personal plan-data.json — skipping the personal-mode fixture.');
+  console.log('build-fixtures: no personal plan (cache/plan.json of the data root) — skipping the personal-mode fixture.');
 }

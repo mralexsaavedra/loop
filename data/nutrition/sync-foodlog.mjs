@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Food log export — snapshots the per-day sums of the food log the LAN page writes to the ingest
  * service (services/loop-ingest, GET /food/log/summary, the shared daySummaries formula of
- * lib/nutrition/foodlog.mjs) into data/nutrition/foodlog-daily.csv, so read-only consumers (the
+ * lib/nutrition/foodlog.mjs) into loop-data/foodlog/foodlog-daily.csv, so read-only consumers (the
  * nutrition-coach subagent, which only reads files) see what the user actually logged.
  *
  *   node data/nutrition/sync-foodlog.mjs     (part of `npm run sync`, after the settings sync)
@@ -164,7 +164,7 @@ function warning (err, baseUrl) {
 
 const USAGE = `Usage: node data/nutrition/sync-foodlog.mjs
 
-Snapshots the food log's per-day sums from the ingest service into data/nutrition/foodlog-daily.csv.
+Snapshots the food log's per-day sums from the ingest service into loop-data/foodlog/foodlog-daily.csv.
   -h, --help   this help
 Env: INGEST_URL, INGEST_ENV_FILE (default services/loop-ingest/.env, for its INGEST_PORT).`
 

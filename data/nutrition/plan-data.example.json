@@ -1,5 +1,5 @@
 {
-  "_doc": "EXAMPLE plan data. A fresh clone already ships the public food DB in ingredients.json; copy THIS file to plan-data.json, then edit each item recipe (amt in the ingredient unit) and the day plan to match your own diet. SINGLE SOURCE: ingredient labels/macros live in ingredients.json (per-100g/ml/ud; verified=real product label); plan-data.json holds only your personal plan (data/dayPlan/extras). generate.mjs MERGES both and COMPUTES per-serving k/p/c/g, writing plan-tables.md; npm run generate then builds web/dist/. Items with manual are ranges/estimates with no single label — kept verbatim. The ingredient keys referenced here MUST exist in ingredients.json.",
+  "_doc": "EXAMPLE plan data. A fresh clone already ships the public food DB in ingredients.json; copy THIS file to loop-data/cache/plan.json (gitignored; once the services run, the plan document's copy: send edits with npm run documents -- push plan), then edit each item recipe (amt in the ingredient unit) and the day plan to match your own diet. SINGLE SOURCE: ingredient labels/macros live in ingredients.json (per-100g/ml/ud; verified=real product label); your plan holds only your personal plan (data/dayPlan/extras). generate.mjs MERGES both and COMPUTES per-serving k/p/c/g, writing plan-tables.md; npm run generate then builds web/dist/. Items with manual are ranges/estimates with no single label — kept verbatim. The ingredient keys referenced here MUST exist in ingredients.json.",
   "data": {
     "desayuno": [
       {
@@ -854,7 +854,7 @@
     "sub": "Nutrition, training and recovery, driven by real data — not guesswork.",
     "footerHtml": "Data from Apple Health, Strava and your own plan and training program. Figures are for guidance only — not medical advice. For clinical questions, consult a professional.",
     "notes": {
-      "dia.footnote": "Example cutting plan. Replace these foods, targets and notes with your own data in <code>plan-data.json</code>, then run <code>npm run generate</code>.",
+      "dia.footnote": "Example cutting plan. Replace these foods, targets and notes with your own plan, then run <code>npm run generate</code>.",
       "tablas.desayunos": "Pick the breakfast that fits the day. Target ~35–40 g protein. The protein anchor options live in the <button class=\"lnk\" onclick=\"jump('acc-anclaje')\">🥛 Protein anchor</button> table.",
       "tablas.carboComida": "Rice and pasta per 100 g dry. Pasta shape does not matter: same dry weight = same macros.",
       "tablas.carboCena": "Potato and the like per 100 g cooked/ready to eat.",

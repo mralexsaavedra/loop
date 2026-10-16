@@ -87,7 +87,7 @@ All optional, read by `lib/profile/read.mjs` `loadProfile` and merged by the pur
 
 ### `profile.json` schema and validation
 
-`profile/profile.json` (gitignored; tracked template `profile/profile.example.json`, synthetic).
+`loop-data/cache/profile.json` (gitignored; tracked template `profile/profile.example.json`, synthetic).
 With the LAN data service, this file mirrors a document in its database: after editing it, run `npm run documents -- push profile` (an edit not pushed is kept, and `npm run sync` warns about it); [`data-pipeline.md` → Owner documents](data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync).
 
 | Field | Rule |
@@ -96,7 +96,7 @@ With the LAN data service, this file mirrors a document in its database: after e
 | `heightCm` | number |
 | `sex` | optional, `male` \| `female`: picks the sex-specific reference curve of the fitness age (see `docs/health-tab.md` "Fitness age"); absent = no fitness age |
 | `maxHr` | optional, bpm 100–230: the max HR of the per-workout HR zones (see [`data-pipeline.md` → Per-workout HR zones](data-pipeline.md#per-workout-hr-zones-workout-zonescsv)) |
-| `devices` | `[{name, type: watch\|bike-computer\|ems\|other, since?: YYYY-MM, manual?: "<file>.pdf"}]`; `manual` = a bare file name in `data/gear/` (`MANUAL_FILE_RE`: no folders, no `..`) |
+| `devices` | `[{name, type: watch\|bike-computer\|ems\|other, since?: YYYY-MM, manual?: "<file>.pdf"}]`; `manual` = a bare file name in `loop-data/files/manuals/` (`MANUAL_FILE_RE`: no folders, no `..`) |
 | `hiddenDevices` | `[name]`: left out of Devices, case-insensitive, manual and Strava-derived alike; applied at build time, never baked (for a device Strava saw once) |
 | `supplements` | `[{name, dose?, meal}]` (see [`nutrition.md` → Supplements](nutrition.md#supplements)) |
 | `events` | `[{name, date: YYYY-MM-DD, type?: hyrox\|race\|sportive\|other, location?}]`: upcoming races; baked sorted by date (`EVENT_TYPES`) |
@@ -110,7 +110,7 @@ Validated by `validateManual`:
 
 ### Strava snapshot (`strava-profile.json` + `avatar.jpg`)
 
-`data/profile/strava-profile.json` + `data/profile/avatar.jpg` (gitignored), written by
+`loop-data/profile/strava-profile.json` + `loop-data/profile/avatar.jpg` (gitignored), written by
 `data/profile/sync-profile.mjs` (`npm run sync:profile`, part of `npm run sync`, before the settings sync) from
 the ingest service's `GET /export/athlete`.
 
@@ -153,21 +153,21 @@ Read as FILES by the read-only coach subagents (see [`knowledge-base.md`](knowle
 | Fact | Source |
 | --- | --- |
 | Weight | `weight.csv` (live) |
-| Name, sex, height, birthdate, devices, supplements, events | `profile/profile.json` |
-| Goal + target weight | `data/profile/settings.json` |
+| Name, sex, height, birthdate, devices, supplements, events | `loop-data/cache/profile.json` |
+| Goal + target weight | `loop-data/profile/settings.json` |
 | Stable context (injuries, history, preferences) | `profile/about-me.md` — never numbers in prose |
 
 In the data service, name, sex, birthdate and height are stored ONCE, in the profile document (the database
-copy of `profile.json`, [`data-pipeline.md` → Owner documents](data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync)),
+copy of `loop-data/cache/profile.json`, [`data-pipeline.md` → Owner documents](data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync)),
 whoever writes them: the coach's `npm run documents -- push profile` or the page's onboarding wizard, whose save
 the service splits (its own fields to `app_profile`, the identity merged into the profile document at the next
 revision; `services/loop-ingest/src/profile-db.js`). `GET /food/profile` composes them back, so `onboarding.json`
-carries the same values as `profile.json`. An onboarding saved before this layout has its identity moved into
+carries the same values as `loop-data/cache/profile.json`. An onboarding saved before this layout has its identity moved into
 the document when the service starts (a value the document already has wins; the onboarding values it replaces are named in the `profile_identity_moved` log line).
 
 ### `settings.json`
 
-`data/profile/settings.json` (gitignored, `data/profile/*`) = `{goal, targetWeightKg, updatedAt, fetchedAt}`.
+`loop-data/profile/settings.json` (gitignored with the data root) = `{goal, targetWeightKg, updatedAt, fetchedAt}`.
 
 - Written by `data/profile/sync-settings.mjs` (`npm run sync:settings`, step of `npm run sync` before
   `sync:foodlog`) from the ingest service's `GET /food/settings` (the server-side goal,
@@ -183,7 +183,7 @@ the document when the service starts (a value the document already has wins; the
 
 ### `onboarding.json`
 
-`data/profile/onboarding.json` (gitignored, `data/profile/*`) = the in-page onboarding document (profile +
+`loop-data/profile/onboarding.json` (gitignored with the data root) = the in-page onboarding document (profile +
 accepted nutrition targets of a user without an AI coach).
 
 - Written by `scripts/sync-onboarding.mjs` (`npm run sync:onboarding`, step of `npm run sync` right after the
@@ -192,14 +192,14 @@ accepted nutrition targets of a user without an AI coach).
 - A wizard never completed writes nothing; a missing / old service or a malformed body is a `WARNING:`, the old
   file kept, exit 0.
 - **The build uses it** (personal only, `lib/load/inputs.mjs`):
-  - its name / sex / birthdate / height win over `profile.json` (`loadProfile({onboarding})`): with the data
+  - its name / sex / birthdate / height win over `loop-data/cache/profile.json` (`loadProfile({onboarding})`): with the data
     service both come from the same stored values (above), so they agree; devices, events, supplements and max
     HR stay in the file;
   - its accepted targets replace the plan's `targets.byGoal`;
   - the goal setting offers only the goals its safety screen allowed (`goalOptions(targets, allowed)`).
 - Targets outside `lib/nutrition/energy.mjs` `checkTargets` hard bounds, or a malformed file → a build
   `WARNING:` and ignored (the plan's own targets are used).
-- No file → the page is built from `profile.json` and the plan alone.
+- No file → the page is built from `loop-data/cache/profile.json` and the plan alone.
 
 ## Ingest side: Strava athlete and gear scope
 
@@ -247,7 +247,7 @@ accepted nutrition targets of a user without an AI coach).
 
 ## Device manuals (LAN page only)
 
-The user's PDFs live in `data/gear/` (gitignored); only the file names are baked.
+The user's PDFs live in `loop-data/files/manuals/` (gitignored); only the file names are baked.
 
 ### Publishing
 
@@ -255,10 +255,10 @@ The user's PDFs live in `data/gear/` (gitignored); only the file names are baked
 PDFs named by the visible devices' `manual` into `services/loop-web/site/manuales/` and removes everything else
 there.
 
-- A file is copied only if it is a regular file directly in `data/gear/` (opened `O_NOFOLLOW`, a symlink
+- A file is copied only if it is a regular file directly in `loop-data/files/manuals/` (opened `O_NOFOLLOW`, a symlink
   refused), starts with `%PDF-`, and is ≤ `MAX_MANUAL_BYTES` (50 MB).
 - Copies are atomic and skipped when identical.
-- A missing / refused file = a warning (exit 0); a broken / invalid profile.json leaves the folder untouched; a
+- A missing / refused file = a warning (exit 0); a broken / invalid profile document leaves the folder untouched; a
   symlinked output folder = exit 1.
 - `refresh.sh` runs it after writing `status.json` (a waiting Sync is already done), under its own 30 s timeout
   (`PLAN_WEB_MANUALS_TIMEOUT`), best effort (logged, never an error code).

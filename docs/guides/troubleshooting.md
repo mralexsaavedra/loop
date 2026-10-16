@@ -12,7 +12,7 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
   older than 24 h, red older than 72 h.
 - `cat /path/to/loop/services/loop-web/site/status.json` — `publishedAt` and `commit` are the
   last good build; an `error` field means the last run stopped early (next section).
-- `data/apple-health/extract/_meta.json` — `exportLastDate` is a partial day; `shortcutSync.owned`
+- `loop-data/extract/_meta.json` — `exportLastDate` is a partial day; `shortcutSync.owned`
   lists the dates the Shortcut wrote.
 
 **Fix**
@@ -120,9 +120,9 @@ a symptom, what to **check** (1–3 places or commands), and the **fix**. Comman
 
 **Fix**
 
-- Copy the seeds: `data/nutrition/plan-data.example.json` → `plan-data.json` (optionally
-  `data/training/training-data.example.json` → `training-data.json` and `profile/profile.example.json`
-  → `profile.json`), then `npm ci && npm run generate`.
+- Copy the seeds (`mkdir -p loop-data/cache` first; `loop-data/` is the gitignored data root): `data/nutrition/plan-data.example.json` → `loop-data/cache/plan.json` (optionally
+  `data/training/training-data.example.json` → `loop-data/cache/training.json` and `profile/profile.example.json`
+  → `loop-data/cache/profile.json`), then `npm ci && npm run generate`.
 - Just want to look? `npm run build:example` builds the demo page from synthetic data, no personal files.
 
 ## A second install shows the other person's data, or the wrong port

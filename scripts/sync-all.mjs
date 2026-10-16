@@ -26,12 +26,12 @@ export const SCRIPTS = [
   path.join(ROOT, 'data', 'apple-health', 'sync-strava.mjs'),
   path.join(ROOT, 'data', 'apple-health', 'sync-shortcut.mjs'),
   path.join(ROOT, 'data', 'profile', 'sync-profile.mjs'),
-  // the settings snapshot (data/profile/settings.json) never fails the run: a missing / old ingest
+  // the settings snapshot (loop-data/profile/settings.json) never fails the run: a missing / old ingest
   // service is only a warning (exit 0)
   path.join(ROOT, 'data', 'profile', 'sync-settings.mjs'),
-  // the in-page onboarding document (data/profile/onboarding.json) likewise only warns (exit 0)
+  // the in-page onboarding document (loop-data/profile/onboarding.json) likewise only warns (exit 0)
   path.join(ROOT, 'scripts', 'sync-onboarding.mjs'),
-  // the food log export (data/nutrition/foodlog-daily.csv) likewise only warns (exit 0) when the
+  // the food log export (loop-data/foodlog/foodlog-daily.csv) likewise only warns (exit 0) when the
   // ingest service is missing / old
   path.join(ROOT, 'data', 'nutrition', 'sync-foodlog.mjs'),
   // the behaviour journal export (journal-daily.csv in the extract, scripts/sync-journal.mjs) likewise

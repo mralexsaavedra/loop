@@ -35,7 +35,7 @@ It writes `web/dist/<mode>/index.html`.
   example / en: the tracked `.example` seeds plus the tracked, clearly SYNTHETIC demo extract in
   `data/demo/extract/` (no personal files needed; shows every dial and section).
 - `DATA_MODE=personal|example` selects the mode (env var or `--mode`).
-- `LOCALE`: env var → `plan.locale` → `en` (the user's `plan-data.json` sets `locale:"es"`).
+- `LOCALE`: env var → `plan.locale` → `en` (the user's `loop-data/cache/plan.json` sets `locale:"es"`).
 - Optional data (Apple Health extract CSVs) renders a defined empty state when absent, in either mode —
   the build never fails on missing optional data.
 
@@ -100,7 +100,7 @@ shared by the Astro build, `data/nutrition/generate.mjs` and the test suite — 
 - Compute modules take their data as arguments and never import `fs`. Disk I/O is confined to the area readers `lib/<area>/read.mjs` (`health`, `journal`, `nutrition`,
   `profile`, `score`, `training`) plus two named exceptions: `lib/load/inputs.mjs` (the build-input loader)
   and `lib/profile/manuals.mjs` (write-side manual publisher).
-- The HR zone model `lib/training/hr-zones.mjs` is pure; the `profile.json` max HR the Strava sync cuts
+- The HR zone model `lib/training/hr-zones.mjs` is pure; the `loop-data/cache/profile.json` max HR the Strava sync cuts
   zones with is read by `lib/profile/read.mjs` `readProfileMaxHr`.
 - `lib/fs-boundary.test.mjs` pins that exact set (a new compute module that imports `fs` fails the suite)
   and that no compute module imports a reader: only the `read.mjs` files (`lib/extract/read.mjs`
@@ -158,7 +158,7 @@ clone that holds the data.
 
 | Command | Behaviour |
 | --- | --- |
-| `npm run golden:bake -- --personal` | First run writes `web/test/.golden/bake-golden.personal.json` (gitignored, never commit it); later runs compare (exit 1 on a diff, paths and counts only, never values); exit 2 when `data/nutrition/plan-data.json` is missing |
+| `npm run golden:bake -- --personal` | First run writes `web/test/.golden/bake-golden.personal.json` (gitignored, never commit it); later runs compare (exit 1 on a diff, paths and counts only, never values); exit 2 when `loop-data/cache/plan.json` is missing |
 | `… --personal --update` | Rewrites it |
 | `… --personal --root <clone>` (or `--root=<clone>`) | From a branch worktree without personal data: reads the data AND the golden from `<clone>` (e.g. the main clone, where the golden was just written) while this checkout's code computes the bakes; never writes into `<clone>` (a missing golden there is exit 2) unless `--update` is passed |
 
@@ -250,7 +250,7 @@ Every nutrition global is emitted by `lib/nutrition/client.mjs` `clientSource()`
 ### Personal copy
 
 All personal COPY (page title/kicker/h1/sub/footer, per-slot notes, which tabs/sections to hide) lives in
-`plan-data.json`'s `page` block (`page.notes.<slotId>`, `page.hideTabs: ["hoy"]`, etc.) — never hardcoded
+`loop-data/cache/plan.json`'s `page` block (`page.notes.<slotId>`, `page.hideTabs: ["hoy"]`, etc.) — never hardcoded
 in tracked Astro/JS source, which stays fully generic.
 
 ### No hero header

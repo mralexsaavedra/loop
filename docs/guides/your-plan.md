@@ -20,8 +20,9 @@ assistant, the plan file's targets are used.
 
 ## 2. Edit the nutrition plan file
 
-1. Copy the example: `data/nutrition/plan-data.example.json` → `data/nutrition/plan-data.json`.
-2. Open `plan-data.json`. Two parts matter most.
+1. Copy the example: `data/nutrition/plan-data.example.json` → `loop-data/cache/plan.json` (`mkdir -p loop-data/cache`
+   first; `loop-data/` is the gitignored folder that holds your personal data).
+2. Open `loop-data/cache/plan.json`. Two parts matter most.
 3. Running the LAN data service? Save each change in it with `npm run documents -- push plan`; otherwise the
    next `npm run sync` keeps your edit but warns that it is not in the database yet ([Owner documents](../data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync)).
 
@@ -65,10 +66,10 @@ Parts marked `"flex": "carb"` are scaled by the page so the day lands on your ca
 4. Run `npm run check` — it validates the plan and tells you what is wrong, without building.
 5. Run `npm run generate` — it rebuilds the tables and the page (`web/dist/personal/index.html`).
 
-Want the page in Spanish? Add `"locale": "es"` to `plan-data.json` and generate again.
+Want the page in Spanish? Add `"locale": "es"` to `loop-data/cache/plan.json` and generate again.
 
 **Never edit the generated files** (`data/nutrition/plan-tables.md`, anything in `web/dist/`): the next
-`npm run generate` overwrites them. Change `plan-data.json` and regenerate.
+`npm run generate` overwrites them. Change `loop-data/cache/plan.json` and regenerate.
 
 ## 3. Foods
 
@@ -91,9 +92,9 @@ Want the page in Spanish? Add `"locale": "es"` to `plan-data.json` and generate 
 1. Open the profile sheet (the avatar button) on the page and pick your goal: maintain, lose (cut) or
    gain (bulk). The page switches its targets at once.
 2. On the LAN page you can also set a target weight; both are stored on the server.
-3. `npm run sync` copies them into `data/profile/settings.json`, which Claude reads for its analyses.
+3. `npm run sync` copies them into `loop-data/profile/settings.json`, which Claude reads for its analyses.
 
-No server? Create `data/profile/settings.json` yourself:
+No server? Create `loop-data/profile/settings.json` yourself:
 
 ```json
 { "goal": "cut", "targetWeightKg": 70 }
@@ -101,7 +102,7 @@ No server? Create `data/profile/settings.json` yourself:
 
 ## 5. The training plan
 
-1. Copy `data/training/training-data.example.json` → `data/training/training-data.json` (optional:
+1. Copy `data/training/training-data.example.json` → `loop-data/cache/training.json` (optional:
    without it the page simply shows no programmed session). With the LAN data service, save each change with
    `npm run documents -- push training` ([Owner documents](../data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync)).
 2. Add one entry per date (`YYYY-MM-DD`). `kind` is `gym`, `run` or `bike`; `durationMin` is optional
@@ -130,7 +131,7 @@ Have a coach's PDF or an app's sessions? Claude Code can transcribe them (see be
 Open `claude` in the repo folder and just ask:
 
 - "Lower my cut rest-day calories to 1900 and regenerate."
-- "Transcribe this week from `data/training/my-program.pdf` into training-data.json."
+- "Transcribe this week from `loop-data/files/documents/training/my-program.pdf` into loop-data/cache/training.json."
 - "Log 200 g of chicken breast for lunch" — the `/food-log` skill logs it on the LAN page's food log.
 - "Add this product from the label" (with a photo) — also `/food-log`.
 

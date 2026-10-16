@@ -8,7 +8,7 @@ folder** you leave out falls back to the default written next to it.
 
 Rules: list only sources that exist under `knowledge/` (ingest them first, see `knowledge/README.md`);
 leave a section out rather than guess. Facts that go stale (weight, goal, event dates) do NOT go
-here — they live in `profile/profile.json`, `data/profile/settings.json` and the extract.
+here — they live in `loop-data/cache/profile.json`, `loop-data/profile/settings.json` and the extract.
 
 ## Common
 
@@ -38,7 +38,7 @@ here — they live in `profile/profile.json`, `data/profile/settings.json` and t
 
 | Device | Manual (optional, a local text / Markdown file) |
 | --- | --- |
-| <bike computer, power meter, smart trainer…> | <`data/gear/<manual>.txt` or "none"> |
+| <bike computer, power meter, smart trainer…> | <`loop-data/files/manuals/<manual>.txt` or "none"> |
 
 ## hybrid-coach
 
@@ -53,11 +53,11 @@ here — they live in `profile/profile.json`, `data/profile/settings.json` and t
 3. <past coach / program name, dates you followed it> — <folder and file layout>. Cite: file +
    month / week / day.
 4. **Current program** — <where it lives: a `knowledge/hybrid/<program>/` folder, or sessions in
-   `data/training/training-data.json`; note any availability window>.
+   `loop-data/cache/training.json`; note any availability window>.
 
 ### Events / goals pointers
 
-- Race dates: `profile/profile.json` `events`; which program you followed when: `profile/about-me.md`.
+- Race dates: `loop-data/cache/profile.json` `events`; which program you followed when: `profile/about-me.md`.
 - <rulebook / division / season to check, e.g. the current official HYROX rulebook for your division>.
 
 ## nutrition-coach
