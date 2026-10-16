@@ -18,6 +18,8 @@
  * backups/<same path>.documents.bak first.
  *
  * Env: INGEST_URL, INGEST_TOKEN, INGEST_ENV_FILE (as `npm run sync`); SYNC_DOCUMENTS_ROOT (tests).
+ * `push all` skips a document whose file does not exist (an install without a training program); naming that
+ * kind alone is an error.
  * Exit: 0 done, 1 a document was refused or could not be sent / written, 2 bad usage.
  */
 import { parseArgs } from 'node:util';
@@ -61,7 +63,7 @@ async function putDocument(base, token, kind, revision, document, fetchImpl) {
   }
 }
 
-async function pushOne({ root, base, token, kind, force, fetchImpl, log, warn }) {
+async function pushOne({ root, base, token, kind, force, all, fetchImpl, log, warn }) {
   const rel = DOCUMENT_FILES[kind];
   let local;
   try {
@@ -71,6 +73,11 @@ async function pushOne({ root, base, token, kind, force, fetchImpl, log, warn })
     return 1;
   }
   if (!local) {
+    // `push all` on an install without an optional file (no training program yet): nothing to send, not an error
+    if (all) {
+      log(`Documents: ${kind} skipped (${rel} does not exist)`);
+      return 0;
+    }
     warn(`ERROR: ${kind} not pushed: ${rel} does not exist`);
     return 1;
   }
@@ -92,8 +99,9 @@ async function pushOne({ root, base, token, kind, force, fetchImpl, log, warn })
     return 0;
   }
   const known = readState(root)[kind];
-  // the revision this file was based on: the last sync / push, or none for a first import
-  const against = force ? remote.revision : known ? known.revision : 0;
+  // the revision this file was based on: the last sync / push, or none for a first import. A database without
+  // the document (a first import, or a database reset since the last sync) has nothing to lose: save at 0.
+  const against = force || remote.doc === null ? remote.revision : known ? known.revision : 0;
   if (!force && against !== remote.revision) {
     warn(`ERROR: ${kind} not pushed: the database changed since your last sync (revision ${remote.revision}, yours ${against}). `
       + `Take the database's with \`npm run documents -- pull ${kind} --force\` (your file is backed up) and redo your change, `
@@ -108,7 +116,9 @@ async function pushOne({ root, base, token, kind, force, fetchImpl, log, warn })
     return 1;
   }
   if (res.status === 409) {
-    warn(`ERROR: ${kind} not pushed: the database changed while pushing (revision ${res.body?.revision}); run the push again`);
+    warn(`ERROR: ${kind} not pushed: the database changed while pushing (revision ${res.body?.revision}). `
+      + `Take the database's with \`npm run documents -- pull ${kind} --force\` (your file is backed up) and redo your change, `
+      + `or replace it with \`npm run documents -- push ${kind} --force\``);
     return 1;
   }
   if (res.status !== 200 || !Number.isInteger(res.body?.revision)) {
@@ -134,7 +144,7 @@ export function parseCommand(argv) {
   if (!['push', 'pull'].includes(command) || !(target === 'all' || KINDS.includes(target)) || rest.length) {
     return { exit: 2, err: `ERROR: expected push or pull and one of ${KINDS.join(', ')}, all\n\n${USAGE}` };
   }
-  return { command, kinds: target === 'all' ? [...KINDS] : [target], force: parsed.values.force === true };
+  return { command, kinds: target === 'all' ? [...KINDS] : [target], all: target === 'all', force: parsed.values.force === true };
 }
 
 export async function main({ argv = process.argv.slice(2), env = process.env, log = console.log, warn = console.warn, fetchImpl = fetch } = {}) {
@@ -153,7 +163,7 @@ export async function main({ argv = process.argv.slice(2), env = process.env, lo
   const base = readBaseUrl(env);
   let code = 0;
   for (const kind of cmd.kinds) {
-    code = Math.max(code, await pushOne({ root, base, token, kind, force: cmd.force, fetchImpl, log, warn }));
+    code = Math.max(code, await pushOne({ root, base, token, kind, force: cmd.force, all: cmd.all, fetchImpl, log, warn }));
   }
   return code;
 }

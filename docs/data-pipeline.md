@@ -429,7 +429,10 @@ and, in a clone, in the files the build, the other syncs and the coach read:
   your file is backed up) or `push <kind> --force` (replace the database's). A file equal to the database's
   only records the state.
 - **pull** (`npm run documents -- pull <kind|all> [--force]`) is the sync for the named documents, but exits 1
-  when one could not be written.
+  when one was not written (no token, a service error, a local edit kept) or could not be.
+- `push all` skips a document whose file does not exist (an install without a training program); naming that
+  kind alone is an error. A database without the document (a first import, or a database reset) takes the
+  push whatever the sync state says.
 - **The sync** (`npm run sync:documents` alone) runs first, because `sync-strava.mjs` reads `maxHr` from
   `profile.json`. With the bearer token (`INGEST_TOKEN`, else the service's `.env`), each saved document is
   written to its file, atomically, as 2-space JSON in the document's key order, and only when the content

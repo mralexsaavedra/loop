@@ -57,8 +57,8 @@ async function cli(svc, root, argv, env = {}) {
 const fileOf = (root, kind) => JSON.parse(fs.readFileSync(path.join(root, DOCUMENT_FILES[kind]), 'utf8'));
 
 test('usage: push / pull + a kind or all, --force; anything else is exit 2', () => {
-  assert.deepEqual(parseCommand(['push', 'plan']), { command: 'push', kinds: ['plan'], force: false });
-  assert.deepEqual(parseCommand(['pull', 'all', '--force']), { command: 'pull', kinds: ['profile', 'plan', 'training'], force: true });
+  assert.deepEqual(parseCommand(['push', 'plan']), { command: 'push', kinds: ['plan'], all: false, force: false });
+  assert.deepEqual(parseCommand(['pull', 'all', '--force']), { command: 'pull', kinds: ['profile', 'plan', 'training'], all: true, force: true });
   for (const bad of [[], ['push'], ['push', 'settings'], ['send', 'plan'], ['push', 'plan', 'extra'], ['push', 'plan', '--nope']]) {
     const r = parseCommand(bad);
     assert.equal(r.exit, 2, bad.join(' '));
@@ -112,11 +112,15 @@ test('a file that breaks the build rules is never sent (plan: validateNutrition;
   assert.match(r.warns[1], /^ERROR: plan not pushed: data\/nutrition\/plan-data\.json breaks the rules the page build applies:\n {2}- plan-data\.json validation failed/);
   assert.match(r.warns[2], /^ERROR: training not pushed: .*day key "not-a-date" is not an ISO date/s);
   assert.equal(svc.rows.size, 0);
-  // a missing file or broken JSON is refused the same way
+  // broken JSON is refused the same way; a missing file is skipped by `push all` but an error when named alone
   const empty = clone({ training: '{broken' });
   const e = await cli(svc, empty, ['push', 'all']);
-  assert.match(e.warns[0], /^ERROR: profile not pushed: profile\/profile\.json does not exist$/);
-  assert.match(e.warns[2], /^ERROR: training not pushed: data\/training\/training-data\.json is not valid JSON/);
+  assert.equal(e.code, 1);
+  assert.deepEqual(e.logs, ['Documents: profile skipped (profile/profile.json does not exist)', 'Documents: plan skipped (data/nutrition/plan-data.json does not exist)']);
+  assert.deepEqual(e.warns.length, 1);
+  assert.match(e.warns[0], /^ERROR: training not pushed: data\/training\/training-data\.json is not valid JSON/);
+  const named = await cli(svc, empty, ['push', 'profile']);
+  assert.deepEqual([named.code, named.warns], [1, ['ERROR: profile not pushed: profile/profile.json does not exist']]);
   assert.equal(svc.rows.size, 0);
 });
 
@@ -177,4 +181,44 @@ test('no token: nothing pushed, exit 1; a wrong token: the service refusal is re
   assert.equal(svc.rows.size, 0);
   const pullNone = await cli(svc, root, ['pull', 'profile'], { INGEST_TOKEN: '', INGEST_ENV_FILE: '/nonexistent/.env' });
   assert.equal(pullNone.code, 1);
+});
+
+test('push all on an install with only some files imports those and exits 0', async (t) => {
+  const svc = await service();
+  t.after(svc.close);
+  const r = await cli(svc, clone({ plan: PLAN }), ['push', 'all']);
+  assert.equal(r.code, 0, r.warns.join('\n'));
+  assert.deepEqual([...svc.rows.keys()], ['plan']);
+});
+
+test('a database reset since the last sync (document gone) takes the push without --force', async (t) => {
+  const svc = await service();
+  t.after(svc.close);
+  const root = clone({ training: TRAINING });
+  await cli(svc, root, ['push', 'training']);
+  svc.rows.clear();
+  const r = await cli(svc, root, ['push', 'training']);
+  assert.deepEqual([r.code, r.logs], [0, ['Documents: training pushed from data/training/training-data.json (revision 1)']]);
+});
+
+test('a push that loses a race to another writer names both ways out', async (t) => {
+  const svc = await service();
+  t.after(svc.close);
+  const root = clone({ profile: PROFILE });
+  await cli(svc, root, ['push', 'profile']);
+  fs.writeFileSync(path.join(root, DOCUMENT_FILES.profile), JSON.stringify({ ...PROFILE, city: 'Mine' }));
+  // another writer saves between this push's read and its write
+  const env = { SYNC_DOCUMENTS_ROOT: root, INGEST_URL: svc.url, INGEST_TOKEN: TOKEN };
+  const warns = [];
+  const racing = async (url, init) => {
+    if (init?.method === 'PUT') {
+      const row = svc.rows.get('profile');
+      svc.rows.set('profile', { ...row, data: { ...row.data, city: 'Theirs' }, revision: row.revision + 1 });
+    }
+    return fetch(url, init);
+  };
+  const code = await main({ argv: ['push', 'profile'], env, log: () => {}, warn: (w) => warns.push(w), fetchImpl: racing });
+  assert.equal(code, 1);
+  assert.match(warns[0], /^ERROR: profile not pushed: the database changed while pushing \(revision 2\)\. Take the database's with `npm run documents -- pull profile --force`.*or replace it with `npm run documents -- push profile --force`$/);
+  assert.equal(svc.rows.get('profile').data.city, 'Theirs');
 });
