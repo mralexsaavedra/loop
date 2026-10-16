@@ -9,7 +9,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
-  refresh, imageVersion, readPublished, pageIsSane, tryLock, acquireLock, runNode, main, ERROR_CODES, secondsEnv,
+  refresh, imageVersion, readPublished, pageIsSane, tryLock, acquireLock, runNode, main, ERROR_CODES, secondsEnv, realSteps, DEFAULTS,
 } from './refresh.mjs';
 
 const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'refresh.mjs');
@@ -28,11 +28,12 @@ function setup() {
 }
 
 /** Stub steps: `page` is what generate writes (null = nothing), each step's result is configurable, calls are logged. */
-function stubSteps(env, { sync = true, generate = true, manuals = true, page = GOOD, onManuals = () => {} } = {}) {
+function stubSteps(env, { importOk = true, sync = true, generate = true, manuals = true, page = GOOD, onManuals = () => {}, onImport = async () => {} } = {}) {
   const calls = [];
   return {
     calls,
     steps: {
+      import: async () => { calls.push('import'); await onImport(); return importOk; },
       sync: async () => { calls.push('sync'); return sync; },
       generate: async () => {
         calls.push('generate');
@@ -54,7 +55,7 @@ test('a pass publishes the page and status.json {publishedAt, commit: <version>,
     const { steps, calls } = stubSteps(env, { onManuals: () => { statusAtManuals = status(env); } });
     const r = await run(env, steps, { seq: 7 });
     assert.deepEqual(r, { ok: true, processedSeq: 7 });
-    assert.deepEqual(calls, ['sync', 'generate', 'manuals']);
+    assert.deepEqual(calls, ['import', 'sync', 'generate', 'manuals']);
     assert.equal(fs.readFileSync(path.join(env.siteDir, 'index.html'), 'utf8'), GOOD);
     assert.deepEqual(status(env), { publishedAt: '2026-10-16T10:00:00Z', commit: '1.2.3', processedSeq: 7 });
     assert.deepEqual(statusAtManuals, status(env), 'status.json is written BEFORE the manuals');
@@ -83,7 +84,7 @@ test('generate failing -> error build with errorSeq; the last good page and publ
     assert.deepEqual(r, { ok: false, code: 'build' });
     assert.deepEqual(status(env), { ...before, error: 'build', errorSeq: 5 });
     assert.equal(fs.readFileSync(path.join(env.siteDir, 'index.html'), 'utf8'), GOOD, 'previous page kept');
-    assert.deepEqual(calls, ['sync', 'generate'], 'no manuals after a failed build');
+    assert.deepEqual(calls, ['import', 'sync', 'generate'], 'no manuals after a failed build');
   } finally { env.cleanup(); }
 });
 
@@ -246,4 +247,63 @@ test('CLI: --help prints the usage, an unknown flag exits 2 before anything runs
 test('every error code refresh.mjs writes, and the ingest build code, has a human reason in the page copy (es + en)', async () => {
   const { es, en } = await import('../web/src/i18n/sync-templates.mjs');
   for (const code of [...ERROR_CODES, 'build']) assert.ok(es.errors[code] && en.errors[code], code);
+});
+
+test('the Health import runs before the sync; a failed import is logged only: the page is published, status.json has no error', async () => {
+  const env = setup();
+  try {
+    const logs = [];
+    const { steps, calls } = stubSteps(env, { importOk: false });
+    const r = await run(env, steps, { seq: 4, log: (m) => logs.push(m) });
+    assert.deepEqual(r, { ok: true, processedSeq: 4 });
+    assert.deepEqual(calls, ['import', 'sync', 'generate', 'manuals']);
+    assert.deepEqual(status(env), { publishedAt: '2026-10-16T10:00:00Z', commit: '1.2.3', processedSeq: 4 }, 'no error code for an import failure');
+    assert.ok(logs.some((m) => /import failed, keeping the last extract/.test(m)), logs.join('\n'));
+  } finally { env.cleanup(); }
+});
+
+test('the lock stays fresh while a long import runs (a refresh older than LOCK_STALE_MS would be taken over)', async () => {
+  const env = setup();
+  try {
+    let fresh = null;
+    let takenOver = null;
+    const { steps } = stubSteps(env, {
+      onImport: async () => {
+        await new Promise((r) => setTimeout(r, 400));
+        fresh = Date.now() - fs.statSync(env.lockFile).mtimeMs;
+        takenOver = tryLock(env.lockFile, { staleMs: 200 });
+      },
+    });
+    assert.equal((await run(env, steps, { seq: 1, lockTouchMs: 50 })).ok, true);
+    assert.ok(fresh < 200, `lock touched while the import ran (age ${fresh} ms)`);
+    assert.equal(takenOver, null, 'a second refresh cannot take the lock over during the import');
+  } finally { env.cleanup(); }
+});
+
+test('CLI: HC_IMPORT_TIMEOUT (default 1800 s) is the import step\'s own timeout; a bad value is refused', async () => {
+  const env = setup();
+  try {
+    assert.equal(DEFAULTS.importTimeoutS, 1800);
+    let got = null;
+    const stepsFor = (o) => { got = o; return stubSteps({ buildDir: o.buildDir }).steps; };
+    const cliEnv = { HC_SITE_DIR: env.siteDir, HC_BUILD_DIR: env.buildDir };
+    assert.equal(await main({}, { env: cliEnv, stepsFor }), 0);
+    assert.equal(got.importTimeoutMs, 1_800_000);
+    assert.equal(got.stepTimeoutMs, 300_000);
+    assert.equal(await main({}, { env: { ...cliEnv, HC_IMPORT_TIMEOUT: '60' }, stepsFor }), 0);
+    assert.equal(got.importTimeoutMs, 60_000);
+    await assert.rejects(main({}, { env: { ...cliEnv, HC_IMPORT_TIMEOUT: '30m' }, stepsFor }), /invalid HC_IMPORT_TIMEOUT="30m"/);
+  } finally { env.cleanup(); }
+});
+
+test('realSteps: the import step runs scripts/import-health.mjs (no import folder -> success, nothing written)', async () => {
+  const env = setup();
+  try {
+    const data = path.join(env.root, 'data');
+    const e = { ...process.env, HC_DATA_DIR: data };
+    delete e.HC_FILES_DIR;
+    const steps = realSteps({ buildDir: env.buildDir, siteDir: env.siteDir, stepTimeoutMs: 5000, manualsTimeoutMs: 5000, importTimeoutMs: 20_000, env: e });
+    assert.equal(await steps.import(), true);
+    assert.equal(fs.existsSync(data), false);
+  } finally { env.cleanup(); }
 });

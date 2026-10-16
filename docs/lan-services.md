@@ -167,16 +167,27 @@ release). The host path above (trigger file + `refresh.sh`) keeps working unchan
   start) run `scripts/refresh.mjs` as a child process, one at a time, clicks during a build coalescing onto one
   follow-up run. Same sequence protocol, coalescing and deferral as the trigger file
   ([`services/loop-ingest/README.md` → Container mode](../services/loop-ingest/README.md#container-mode)).
-- **One pass** (`scripts/refresh.mjs`, [`development.md` → Commands](development.md#commands)): sync from the
-  service (non-fatal), validate the plan and build the personal page (each under a timeout), sanity check, atomic
+- **One pass** (`scripts/refresh.mjs`, [`development.md` → Commands](development.md#commands)): the Apple Health
+  import (non-fatal, below), sync from the service (non-fatal), validate the plan and build the personal page (each under a timeout), sanity check, atomic
   publish of `index.html` and then `status.json` (`publishedAt`, `commit` = the image version, `processedSeq`;
   `error` `build` / `sanity` / `lock` with `errorSeq` keeps the last good page), then the device manuals from
   `files/manuals/` into `manuales/`, best effort.
+- **Apple Health import.** Drop the iPhone's export zip, as it is, into the files folder's `import/` on the host
+  (`${HC_FILES_LOCATION}/import/`); the next pass (the Sync button, or the hourly timer) imports it with
+  `scripts/import-health.mjs` ([`data-pipeline.md` → Apple Health export and extract](data-pipeline.md#apple-health-export-and-extract)):
+  newest zip, skipped when its sha256 was already imported, streamed into `/data/import-work/` (the data volume:
+  plan for about the export's uncompressed size, ~1 GB, free there while it runs), extracted, then synced on top.
+  It runs under its own `HC_IMPORT_TIMEOUT` (default 1800 s); a failure or timeout is logged and recorded in
+  `/data/import-state.json` (`lastError`), never a `status.json` error: the page is rebuilt from the last extract.
+  The refresh lock stays fresh meanwhile. A real ~44 MB iPhone zip (~920 MB export) took ~31 s to import and the
+  whole pass ~45 s, the container's memory peaking at ~470 MB (limit 1536 MB). By hand:
+  `docker exec loop-server npm run import:health` (`-- --force` re-imports the same zip).
 - **No plan document yet** (a fresh install): the page is built with the example plan and the onboarding's
   targets, with a build `WARNING` ([`nutrition.md` → Build, check and generated files](nutrition.md#build-check-and-generated-files)).
 - **Storage.** `/data` (volume `loop-server-data`): the data root (`HC_DATA_DIR`: extract, food log, profile,
-  document copies). `/site` (volume `loop-site`): the published page. `${HC_FILES_LOCATION:-./files}` → `/data/files`:
-  the owner files folder on the host (`import/`, `manuals/`, `documents/`). The database keeps today's volume name
+  document copies). `/site` (volume `loop-site`): the published page. `${HC_FILES_LOCATION:-./files}` → `/data/files`,
+  **read-only**: the owner files folder on the host (`import/`, `manuals/`, `documents/`), only ever read, so a
+  folder Docker created root-owned works; the import's state and work file live in `/data`. The database keeps today's volume name
   (`loop-db-data`), so an install's data carries over.
 - **loop-web.** The same digest-pinned `nginx:alpine` as `services/loop-web`, with `services/loop-web/nginx.conf.template`
   and `hosts.sh` **copied in unchanged** (one source: the audited config above, never a second copy under `docker/`,

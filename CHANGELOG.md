@@ -13,6 +13,24 @@ every push and pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-16 — Server images, step 5: the Apple Health import folder
+
+A new export no longer needs unzipping by hand: `npm run import:health` (`scripts/import-health.mjs`) takes the
+newest iPhone zip (or a plain `export.xml`) in `<files>/import/`, skips it when its sha256 equals the last successful
+import (`<data root>/import-state.json`; `--force` re-imports), streams the export entry into
+`<data root>/import-work/` and runs `extract.mjs --source` on it, the same code path as the manual flow (a copy of a
+real ~44 MB zip gave an extract byte-identical to unzip + `extract.mjs`). The entry is matched accent- and
+case-insensitively: the iPhone writes `exportación.xml` in decomposed UTF-8 without the zip's UTF-8 flag, which is why
+a literal-name unzip once produced an empty file. The zip is read by a small Node reader (`scripts/lib/zip.mjs`: central
+directory, data descriptors, zip64, CRC-32 checked) instead of busybox `unzip`, so the import behaves the same in the
+image and on any clone and a damaged zip is always detected (`unzip -p` with a name that matches nothing writes an
+empty file and exits 0). A corrupt zip, a zip without an export or a truncated export exits 1, keeps the previous
+extract and records `lastError`; the work file is removed in every outcome and the zip is never touched.
+`scripts/refresh.mjs` runs the import before the sync under its own `HC_IMPORT_TIMEOUT` (default 1800 s); a failure is
+logged only, never a `status.json` error. The compose file mounts the owner files folder read-only (it is only read).
+Container test on throwaway infrastructure: a synthetic 48 MB zip and a copy of the real zip each imported (~29-31 s),
+synced and built the page; a second Sync skipped the import; memory peak ~470 MB. Existing installs are unchanged.
+
 ## 2026-10-16 — Server images, step 4: the loop-web image serves the page from the site volume
 
 `docker/loop-web.Dockerfile` builds the page server from the repo root: the same digest-pinned nginx as

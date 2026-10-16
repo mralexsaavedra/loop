@@ -2,7 +2,7 @@
 /* The page refresh of the loop-server image (docker/loop-server.Dockerfile): the Node port of the container-relevant
  * part of services/loop-web/refresh.sh, which keeps serving the host installs unchanged. One pass:
  *
- *   sync (non-fatal) -> generate (validate the plan + build the page, under a timeout) -> sanity check of the built
+ *   Health import (non-fatal) -> sync (non-fatal) -> generate (validate the plan + build the page, under a timeout) -> sanity check of the built
  *   page -> atomic publish into HC_SITE_DIR -> status.json -> device manuals (best effort)
  *
  * Sequence protocol (the page's Sync button waits on it, web/src/client/freshness.js): the ingest service runs
@@ -18,6 +18,12 @@
  *   lock    --wait-lock and another refresh still held the lock after HC_REFRESH_LOCK_WAIT seconds
  * Without --wait-lock a busy lock skips the run (exit 0, no error): the running pass publishes the newer data.
  *
+ * The Health import (scripts/import-health.mjs: the newest iPhone zip in <files>/import, skipped when already
+ * imported) runs first, under its own HC_IMPORT_TIMEOUT (default 1800 s: a first import of a large export takes
+ * minutes); a failed or timed-out import is logged (and recorded in <data root>/import-state.json by the import
+ * itself), never an error code: the page is rebuilt from the last extract. The lock stays fresh while it runs (the
+ * holder touches it every LOCK_TOUCH_MS, LOCK_STALE_MS is far shorter than the import).
+ *
  * Resilience rules (as refresh.sh): a failed sync still rebuilds from the files already on disk; sync and generate
  * each run under HC_REFRESH_STEP_TIMEOUT (default 300 s), the manuals under HC_REFRESH_MANUALS_TIMEOUT (30 s) AFTER
  * status.json (a waiting Sync has already completed; a failure there is logged, never an error code); one refresh at
@@ -26,7 +32,7 @@
  * Usage: node scripts/refresh.mjs [--seq N] [--wait-lock]
  * Env:   HC_SITE_DIR (required: the published folder), HC_BUILD_DIR (the build output, default
  *        <tmp>/loop-build/personal), HC_VERSION, HC_DATA_DIR / INGEST_URL / INGEST_TOKEN (read by the syncs and the
- *        build), HC_REFRESH_STEP_TIMEOUT, HC_REFRESH_MANUALS_TIMEOUT, HC_REFRESH_LOCK_WAIT (seconds).
+ *        build), HC_IMPORT_TIMEOUT, HC_REFRESH_STEP_TIMEOUT, HC_REFRESH_MANUALS_TIMEOUT, HC_REFRESH_LOCK_WAIT (seconds).
  * Exit:  0 published (or skipped: lock busy without --wait-lock), 1 failed (status.json carries the code), 2 usage. */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -40,7 +46,7 @@ import { runCli } from '../data/apple-health/sync-common.mjs';
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
 export const ERROR_CODES = Object.freeze(['build', 'sanity', 'lock']);
-export const DEFAULTS = Object.freeze({ stepTimeoutS: 300, manualsTimeoutS: 30, lockWaitS: 900 });
+export const DEFAULTS = Object.freeze({ importTimeoutS: 1800, stepTimeoutS: 300, manualsTimeoutS: 30, lockWaitS: 900 });
 // a lock file not refreshed for this long belongs to a dead holder (the holder touches it every LOCK_TOUCH_MS)
 export const LOCK_STALE_MS = 2 * 60_000;
 const LOCK_TOUCH_MS = 30_000;
@@ -107,13 +113,13 @@ export function defaultLockFile(siteDir) {
 
 /** Takes the lock now, or returns null when a live holder has it. A lock file whose pid is gone, or that was not
  * refreshed for `staleMs`, is taken over. Returns { release }; the holder's mtime is refreshed while held. */
-export function tryLock(file, { staleMs = LOCK_STALE_MS, now = Date.now } = {}) {
+export function tryLock(file, { staleMs = LOCK_STALE_MS, now = Date.now, touchMs = LOCK_TOUCH_MS } = {}) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const fd = fs.openSync(file, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_NOFOLLOW, 0o600);
       fs.writeSync(fd, `${process.pid}\n`);
       fs.closeSync(fd);
-      const touch = setInterval(() => { try { const t = new Date(); fs.utimesSync(file, t, t); } catch {} }, LOCK_TOUCH_MS);
+      const touch = setInterval(() => { try { const t = new Date(); fs.utimesSync(file, t, t); } catch {} }, touchMs);
       touch.unref();
       return { release() { clearInterval(touch); try { fs.unlinkSync(file); } catch {} } };
     } catch (err) {
@@ -133,10 +139,10 @@ export function tryLock(file, { staleMs = LOCK_STALE_MS, now = Date.now } = {}) 
 }
 
 /** tryLock, retried every `pollMs` for up to `waitMs` (0 = one attempt). */
-export async function acquireLock(file, { waitMs = 0, pollMs = 1000, staleMs = LOCK_STALE_MS } = {}) {
+export async function acquireLock(file, { waitMs = 0, pollMs = 1000, staleMs = LOCK_STALE_MS, touchMs = LOCK_TOUCH_MS } = {}) {
   const deadline = Date.now() + waitMs;
   for (;;) {
-    const lock = tryLock(file, { staleMs });
+    const lock = tryLock(file, { staleMs, touchMs });
     if (lock || Date.now() >= deadline) return lock;
     await new Promise((r) => setTimeout(r, Math.min(pollMs, Math.max(1, deadline - Date.now()))));
   }
@@ -172,11 +178,12 @@ export function runNode(args, { timeoutMs, cwd = ROOT, env = process.env, log = 
   });
 }
 
-/** The real steps (each resolves true on success): the syncs, the plan validation + page build into `buildDir`,
+/** The real steps (each resolves true on success): the Health import, the syncs, the plan validation + page build into `buildDir`,
  * the manuals into <site>/manuales. */
-export function realSteps({ buildDir, siteDir, stepTimeoutMs, manualsTimeoutMs, env = process.env }) {
+export function realSteps({ buildDir, siteDir, stepTimeoutMs, manualsTimeoutMs, importTimeoutMs = DEFAULTS.importTimeoutS * 1000, env = process.env }) {
   const run = (args, timeoutMs) => runNode(args, { timeoutMs, env });
   return {
+    import: () => run(['scripts/import-health.mjs'], importTimeoutMs),
     sync: () => run(['scripts/sync-all.mjs'], stepTimeoutMs),
     // generate.mjs --check validates the plan without writing plan-tables.md (the image's code is read-only)
     generate: async () =>
@@ -187,7 +194,7 @@ export function realSteps({ buildDir, siteDir, stepTimeoutMs, manualsTimeoutMs, 
 }
 
 /**
- * One refresh pass for `seq` (see the header). `steps` = { sync, generate, manuals }, async, each resolving true on
+ * One refresh pass for `seq` (see the header). `steps` = { import?, sync, generate, manuals }, async, each resolving true on
  * success (injected by the tests). Returns { ok, code?, skipped?, processedSeq? }.
  */
 export async function refresh({
@@ -199,6 +206,7 @@ export async function refresh({
   waitLock = false,
   lockWaitMs = DEFAULTS.lockWaitS * 1000,
   lockFile = defaultLockFile(siteDir),
+  lockTouchMs = LOCK_TOUCH_MS,
   now = () => new Date(),
   log = (m) => console.error(`refresh: ${m}`),
 }) {
@@ -213,7 +221,7 @@ export async function refresh({
     return { ok: false, code };
   };
 
-  const lock = await acquireLock(lockFile, { waitMs: waitLock ? lockWaitMs : 0 });
+  const lock = await acquireLock(lockFile, { waitMs: waitLock ? lockWaitMs : 0, touchMs: lockTouchMs });
   if (!lock) {
     const at = seq ?? readPublished(siteDir)?.processedSeq ?? 0;
     if (waitLock) return fail('lock', at, 'previous run still active after waiting, giving up');
@@ -223,6 +231,7 @@ export async function refresh({
   try {
     // no --seq (a manual run): publish without advancing the sequence
     const start = seq ?? readPublished(siteDir)?.processedSeq ?? 0;
+    if (steps.import && !(await steps.import())) log('Health import failed, keeping the last extract (the reason is in <data root>/import-state.json lastError)');
     if (!(await steps.sync())) log('sync failed, rebuilding from the files already on disk');
     if (!(await steps.generate())) return fail('build', start, 'generate failed, keeping previous page');
 
@@ -260,7 +269,7 @@ Syncs, builds the personal page and publishes it into HC_SITE_DIR with status.js
   --seq N       the sync sequence this run publishes (default: keep the published one)
   --wait-lock   wait for a running refresh (up to HC_REFRESH_LOCK_WAIT s) instead of skipping
   -h, --help    this help
-Env: HC_SITE_DIR (required), HC_BUILD_DIR, HC_VERSION, HC_REFRESH_STEP_TIMEOUT, HC_REFRESH_MANUALS_TIMEOUT,
+Env: HC_SITE_DIR (required), HC_BUILD_DIR, HC_VERSION, HC_IMPORT_TIMEOUT (default 1800), HC_REFRESH_STEP_TIMEOUT, HC_REFRESH_MANUALS_TIMEOUT,
 HC_REFRESH_LOCK_WAIT (seconds); the syncs read INGEST_URL / INGEST_TOKEN, the build HC_DATA_DIR.`;
 
 /** A positive whole number of seconds from env `name`, else `def`. */
@@ -282,13 +291,14 @@ export async function main({ seq, 'wait-lock': waitLock = false } = {}, { env = 
   const siteDir = path.resolve(site);
   const buildDir = path.resolve(String(env.HC_BUILD_DIR ?? '').trim() || path.join(os.tmpdir(), 'loop-build', 'personal'));
   const stepTimeoutMs = secondsEnv(env, 'HC_REFRESH_STEP_TIMEOUT', DEFAULTS.stepTimeoutS) * 1000;
+  const importTimeoutMs = secondsEnv(env, 'HC_IMPORT_TIMEOUT', DEFAULTS.importTimeoutS) * 1000;
   const manualsTimeoutMs = secondsEnv(env, 'HC_REFRESH_MANUALS_TIMEOUT', DEFAULTS.manualsTimeoutS) * 1000;
   const lockWaitMs = secondsEnv(env, 'HC_REFRESH_LOCK_WAIT', DEFAULTS.lockWaitS) * 1000;
   const r = await refresh({
     seq: seq === undefined ? null : Number(seq),
     siteDir,
     buildDir,
-    steps: stepsFor({ buildDir, siteDir, stepTimeoutMs, manualsTimeoutMs, env }),
+    steps: stepsFor({ buildDir, siteDir, stepTimeoutMs, manualsTimeoutMs, importTimeoutMs, env }),
     version: imageVersion({ env }),
     waitLock,
     lockWaitMs,
