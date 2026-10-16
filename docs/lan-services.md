@@ -207,5 +207,17 @@ release). The host path above (trigger file + `refresh.sh`) keeps working unchan
   it (including one `docker compose config` render). The repo-root `.dockerignore` is default-deny, so no personal
   file reaches the build context; from `services/loop-web` only the template and `hosts.sh` get in
   (`scripts/dockerignore.test.mjs`).
+- **Coach clones are clients.** The server owns the processed data in `/data`; a clone of the repo opened in
+  Claude Code (on a laptop or on the server) points `INGEST_URL` at `INGEST_PORT` and sets `INGEST_TOKEN` to the
+  server's, and its `npm run sync` then MIRRORS the server instead of syncing on its own: `POST /sync`, wait for the
+  server's `processedSeq` (`HC_SYNC_WAIT`, default 120 s), the documents, then `extract/`, `profile/`, `foodlog/`,
+  `files/documents/` and `files/manuals/` by sha256 ([`data-pipeline.md` → Coach as a client](data-pipeline.md#coach-as-a-client-of-a-loop-server)).
+  It reads them through `GET /export/files` + `GET /export/file`, bearer-token routes that only container mode
+  serves and loop-web never proxies ([`services/loop-ingest/README.md` → Files export](../services/loop-ingest/README.md#files-export-exportfiles-and-exportfile-container-mode)).
+  Documents and manuals go into the server's files folder (`${HC_FILES_LOCATION}`), not the clone's.
+- **Strava's first authorization.** Put `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` in `docker/.env`,
+  `docker compose up -d`, then `docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print`:
+  it asks for the code and prints the `STRAVA_REFRESH_TOKEN=...` line for `docker/.env` (the image writes no file);
+  `docker compose up -d` again ([`services/loop-ingest/README.md` → Getting the Strava credentials](../services/loop-ingest/README.md#getting-the-strava-credentials-once-5-minutes)).
 - **Same-host rule.** The container names (`loop-db`, `loop-web`) and `loop-net` are the host-mode ones on purpose:
   the old and the new stack of one install can never run side by side on one host.

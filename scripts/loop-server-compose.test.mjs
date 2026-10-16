@@ -48,6 +48,10 @@ test('Dockerfile: container mode on, data and site volumes, production deps only
   assert.doesNotMatch(dockerfile, /^COPY \. /m, 'never the whole context');
 });
 
+test('Dockerfile: the Strava first-auth helper ships (docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print)', () => {
+  assert.match(dockerfile, /^COPY services\/loop-ingest\/scripts\/strava-auth\.js \.\/services\/loop-ingest\/scripts\/strava-auth\.js$/m);
+});
+
 test('compose: the image + a build from the repo root, the volumes, the owner files bind mount, required port, HC_INSTANCE naming', () => {
   const b = serviceBlock(compose, 'loop-server');
   assert.match(b, /^\s+image: mralexandersaavedra\/loop-server:\$\{HC_VERSION:-[\d.]+\}$/m);

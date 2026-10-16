@@ -26,6 +26,10 @@ you MUST follow for any number you produce).
 
 Every personal file lives under the data root `loop-data/` (gitignored; `HC_DATA_DIR` moves it,
 [`docs/development.md`](docs/development.md) → Where the data files live). A clone from before it: `npm run migrate:data-root`.
+**A coach clone of a LOOP server** (the `loop-server` image, `INGEST_URL` pointing at it): `npm run sync` mirrors the
+server's `extract/`, `profile/`, `foodlog/` and `files/` (documents, manuals) into `loop-data/` and pulls the documents
+into `cache/`; the server is the source, so its freshness is the server's
+([`docs/data-pipeline.md`](docs/data-pipeline.md) → Coach as a client of a LOOP server).
 
 - **Live facts** (same sources the coach subagents use): `loop-data/cache/profile.json` (height, birthdate →
   age from today, devices, supplements, upcoming `events`), `loop-data/profile/settings.json` (`goal`,
@@ -57,7 +61,7 @@ Every personal file lives under the data root `loop-data/` (gitignored; `HC_DATA
 
 | Command | What it does |
 | --- | --- |
-| `npm run sync` | Pull Shortcut payloads, Strava, profile, food log, settings, onboarding, journal from `services/loop-ingest` into the extract (`-- --full` rebuilds the Shortcut cache) |
+| `npm run sync` | Pull Shortcut payloads, Strava, profile, food log, settings, onboarding, journal from `services/loop-ingest` into the extract (`-- --full` rebuilds the Shortcut cache); against a LOOP server in container mode it mirrors the server's data instead (`-- --no-refresh`: without asking it to refresh first) |
 | `npm run generate` | Validate the plan, write `data/nutrition/plan-tables.md`, build `web/dist/personal/index.html` (idempotent) |
 | `npm run check` | Validators only, no build (plan, ingredients, `loop-data/cache/training.json`, `loop-data/cache/profile.json`) |
 | `npm run migrate:data-root` | One time on a clone from before the data root: move the personal files from the old paths into `loop-data/` (backup first; `-- --dry-run` to preview) |

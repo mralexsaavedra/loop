@@ -76,6 +76,8 @@ test('nginx: everything else under /api is a 404; data endpoints are never named
   assert.match(api.body, /return 404;/);
   const directives = nginx.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
   assert.doesNotMatch(directives, /\/export|\/sync\/strava|\/healthz|\/documents/, 'no data export, Strava pull, health or documents endpoint is ever named');
+  // the coach clone's mirror of the server's data root (services/loop-ingest/src/files-export.js): bearer only, never proxied
+  for (const route of ['/export/files', '/export/file']) assert.ok(!directives.includes(route), `${route} is never named`);
   const specs = locations(nginx).map((l) => l.spec);
   assert.ok(!specs.some((s) => /^(\^~\s+|~\*?\s+)?\/ingest\/?$/.test(s) || /^(\^~\s+)?\/ingest\//.test(s)), 'no /ingest/ prefix or regex location: other /ingest/* paths stay 404');
   assert.deepEqual(specs.filter((s) => /ingest/.test(s)), ['= /ingest/health-auto-export'], 'the only ingest location is the exact Shortcut route');

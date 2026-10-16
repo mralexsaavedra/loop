@@ -13,6 +13,36 @@ every push and pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-16 — Server images, step 6: a coach clone is a client of the LOOP server
+
+With the server in the `loop-server` image (container mode), the processed data lives in its `/data` volume, and a
+clone of the repo opened in Claude Code becomes its client instead of folding the Shortcut payloads and Strava
+activities a second time. The data service gets two bearer-token routes, mounted only in container mode (elsewhere
+they are the plain 404 of an unknown path) and never proxied by loop-web: `GET /export/files`, the sorted manifest
+(path, size, sha256, mtimeMs) of an allowlist of the data root (`extract/`, `profile/`, `foodlog/`,
+`files/documents/`, `files/manuals/`; never `cache/`, `files/import/`, `import-work/`, state, hidden, temp, lock or
+backup files, symlinks) plus the last publish's `processedSeq`, with sha256 cached by (size, mtimeMs); and
+`GET /export/file?path=`, which streams one path that is in the manifest at request time and refuses `..`,
+absolute paths, backslashes, NUL and symlinks. Logs carry counts and bytes, never a path. `npm run sync` detects such
+a server (the manifest answers 200; 404 keeps every sync script as before; 401 is an error naming `INGEST_TOKEN`),
+asks it to refresh and waits for that seq (`HC_SYNC_WAIT`, default 120 s, then a WARNING and the pull anyway;
+`--no-refresh` skips it), pulls the documents with their local-edit protection, and mirrors the allowlist by sha256:
+atomic writes verified after download, files the server no longer lists removed, nothing else touched. The server's
+own refresh (`HC_BUILD=container`) never mirrors itself. The Strava auth helper now ships in the image, and
+`--print` prints the refresh token line for `docker/.env` instead of writing a file
+(`docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print`); the host mode is
+unchanged.
+
+Hardened after an independent check: `O_NOFOLLOW` covers only the last path component, so a folder swapped for a
+symlink between the listing and the open (`extract/sub` → an outside folder) served the outside file under a race.
+The server now proves every opened file is inside its folder before sending a byte or hashing it (the listed inode,
+and the kernel's `/proc/self/fd` path with no symlink below the data root; a component `lstat` walk without `/proc`):
+a 30 s probe of 20 parallel downloads against a swapping loop served 0 outside files (56 in 15 s before). The client
+applies the server's listing rules to the manifest (a hidden, temp, lock or backup name refuses it as a whole),
+refuses an empty manifest while it has mirrored files (`--allow-empty`) and a run removing more than half of its
+files and more than 5 (`--allow-removals`), refuses a symlinked allowlisted folder in the clone, and prints each
+removed path (`--verbose`: each downloaded one too).
+
 ## 2026-10-16 — Server images, step 5: the Apple Health import folder
 
 A new export no longer needs unzipping by hand: `npm run import:health` (`scripts/import-health.mjs`) takes the

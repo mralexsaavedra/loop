@@ -19,6 +19,7 @@ import { writeJson as send, parseAllowedHosts, containsNul } from './http.js'
 import { createDocumentStore } from './documents-db.js'
 import { moveIdentityToDocument } from './profile-db.js'
 import { createDocumentRoutes } from './documents.js'
+import { createFilesExportRoutes } from './files-export.js'
 
 /**
  * Read the body with a hard ceiling. Health Auto Export can be told to batch
@@ -54,6 +55,9 @@ function readBody (req, limit) {
 
 // containsNul lives in http.js (documents.js shares it); re-exported for the existing importers
 export { containsNul }
+
+/** The data root of the loop-server image (its HC_DATA_DIR) when HC_DATA_DIR is unset. */
+export const DEFAULT_DATA_DIR = '/data'
 
 /** The upload ceiling: MAX_BODY_BYTES, else 8 MB, the most loop-web forwards (its client_max_body_size 8m). */
 export const DEFAULT_MAX_BODY_BYTES = 8 * 1024 * 1024
@@ -92,14 +96,21 @@ export function envConfig (env) {
  * How the page gets rebuilt (builder.js): `mode` 'trigger' (HC_BUILD unset: write TRIGGER_DIR/refresh for the host)
  * or 'container' (HC_BUILD=container: run scripts/refresh.mjs in this container, publishing into `siteDir` =
  * HC_SITE_DIR, default /site, on POST /sync and every `refreshMinutes` = HC_REFRESH_MINUTES, default 60, 5-1440).
+ * `dataDir` / `filesDir`: the data root the container-mode files export lists (files-export.js), as lib/paths.mjs
+ * resolves it: HC_DATA_DIR (default /data, the image's), files/ = HC_FILES_DIR when set (else null = <dataDir>/files);
+ * a relative value resolves against the repo root the image ships (/app).
  * Throws on an invalid value, like envConfig.
  */
 export function buildConfig (env) {
   const mode = buildMode(env)
+  const repoRoot = path.resolve(path.dirname(DEFAULT_REFRESH_SCRIPT), '..')
+  const setting = (name) => String(env[name] ?? '').trim()
   return {
     mode,
-    siteDir: String(env.HC_SITE_DIR ?? '').trim() || DEFAULT_SITE_DIR,
-    refreshMinutes: numericEnv(env, 'HC_REFRESH_MINUTES', { def: 60, min: 5, max: 1440 })
+    siteDir: setting('HC_SITE_DIR') || DEFAULT_SITE_DIR,
+    refreshMinutes: numericEnv(env, 'HC_REFRESH_MINUTES', { def: 60, min: 5, max: 1440 }),
+    dataDir: path.resolve(repoRoot, setting('HC_DATA_DIR') || DEFAULT_DATA_DIR),
+    filesDir: setting('HC_FILES_DIR') ? path.resolve(repoRoot, setting('HC_FILES_DIR')) : null
   }
 }
 
@@ -121,6 +132,8 @@ export function createHandler ({
   foodRoutes,
   journalRoutes = { handle: async () => false },
   documentRoutes = { handle: async () => false },
+  // container mode only (files-export.js); outside it nothing handles /export/files, so it is the plain 404
+  filesExportRoutes = { handle: async () => false },
   syncRoutes,
   handleExport,
   handleStravaExport,
@@ -192,6 +205,7 @@ export function createHandler ({
       if (await foodRoutes.handle(req, res, url)) return
       if (await journalRoutes.handle(req, res, url)) return
       if (await documentRoutes.handle(req, res, url)) return
+      if (await filesExportRoutes.handle(req, res, url)) return
 
       if (req.method === 'POST' && url.pathname === '/sync') {
         req.resume() // any body is ignored: drain it, never buffer it
@@ -415,6 +429,16 @@ async function main () {
     checkBearer
   })
 
+  // The processed data a coach clone mirrors (files-export.js): GET /export/files + /export/file, bearer token only,
+  // container mode only (the server owns the data root there); loop-web's nginx never proxies them.
+  const filesExportRoutes = createFilesExportRoutes({
+    available: () => container,
+    dataDir: build.dataDir,
+    filesDir: build.filesDir,
+    siteDir: build.siteDir,
+    checkBearer
+  })
+
   const server = http.createServer(createHandler({
     token: INGEST_TOKEN,
     checkBearer,
@@ -428,6 +452,7 @@ async function main () {
     foodRoutes,
     journalRoutes,
     documentRoutes,
+    filesExportRoutes,
     syncRoutes,
     handleExport,
     handleStravaExport,

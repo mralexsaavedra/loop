@@ -50,6 +50,7 @@ const PERSONAL = [
   '.env', 'services/loop-ingest/.env', 'services/loop-web/.env', 'docker/.env', 'docker/files/import/export.zip',
   'analysis/reports/2026-10-16.md', 'web/dist/personal/index.html', 'web/test/.golden/bake-golden.personal.json',
   'services/loop-web/site/index.html', 'services/loop-web/.refresh-state', 'services/loop-ingest/trigger/refresh',
+  'services/loop-ingest/scripts/strava-app-icon.png', 'services/loop-ingest/test/strava-auth.test.js',
   'odd/tasks/server-images.md', 'node_modules/astro/package.json', 'services/loop-ingest/node_modules/pg/package.json',
   'web/node_modules/.vite/x.js', '.astro/content.d.ts', 'web/.astro/types.d.ts',
 ];
@@ -59,7 +60,8 @@ const NEEDED = [
   'scripts/sync-all.mjs', 'scripts/lib/is-main.mjs', 'data/nutrition/generate.mjs', 'data/nutrition/ingredients.json',
   'data/nutrition/plan-data.example.json', 'data/training/training-data.example.json', 'data/apple-health/sync-shortcut.mjs',
   'data/profile/sync-profile.mjs', 'services/loop-ingest/package.json', 'services/loop-ingest/package-lock.json',
-  'services/loop-ingest/src/server.js', 'services/loop-ingest/sql/012_documents.sql',
+  'services/loop-ingest/src/server.js', 'services/loop-ingest/src/files-export.js', 'services/loop-ingest/sql/012_documents.sql',
+  'services/loop-ingest/scripts/strava-auth.js',
   'services/loop-web/nginx.conf.template', 'services/loop-web/hosts.sh',
 ];
 
