@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { normalizeSummary, mergedCsv, syncJournal, main, windowFor, META_FILE } from './sync-journal.mjs';
 import { parseJournalCsv } from '../lib/journal/journal.mjs';
+import { dataPaths } from '../lib/paths.mjs';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'sync-journal-'));
 const BODY = { from: '2030-01-01', to: '2030-01-31', days: [
@@ -60,5 +61,25 @@ test('syncJournal writes the CSV + meta; main warns and keeps the old files when
     assert.equal(seen.init.headers['x-hc-journal'], '1');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('main: HC_DATA_DIR redirects the default output to <data root>/extract; SYNC_JOURNAL_OUT_DIR wins over it', async () => {
+  const root = tmp();
+  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => BODY });
+  const logs = [];
+  try {
+    assert.equal(await main({ env: { HC_DATA_DIR: root, INGEST_URL: 'http://127.0.0.1:9' }, log: (l) => logs.push(l), warn: () => {}, now: new Date(2030, 0, 31), fetchImpl }), 0);
+    const paths = dataPaths({ repoRoot: '/repo', env: { HC_DATA_DIR: root } });
+    assert.equal(parseJournalCsv(fs.readFileSync(paths.journalCsv, 'utf8')).length, 2, 'where the build reads it');
+    assert.ok(fs.existsSync(paths.journalMeta));
+    assert.ok(logs[0].endsWith(`-> ${paths.journalCsv}`), 'a path outside the clone is printed absolute');
+    const own = tmp();
+    assert.equal(await main({ env: { HC_DATA_DIR: path.join(root, 'other'), SYNC_JOURNAL_OUT_DIR: own, INGEST_URL: 'http://127.0.0.1:9' }, log: () => {}, warn: () => {}, now: new Date(2030, 0, 31), fetchImpl }), 0);
+    assert.ok(fs.existsSync(path.join(own, 'journal-daily.csv')));
+    assert.equal(fs.existsSync(path.join(root, 'other')), false);
+    fs.rmSync(own, { recursive: true });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });

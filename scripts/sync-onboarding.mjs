@@ -14,9 +14,11 @@ import { fileURLToPath } from 'node:url';
 import { readBaseUrl, fetchJson, writeAtomic, runCli } from '../data/apple-health/sync-common.mjs';
 import { ONBOARDING_JSON, normalizeOnboarding } from '../lib/profile/onboarding.mjs';
 import { isMain } from './lib/is-main.mjs';
+import { dataPaths, displayPath } from '../lib/paths.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-export const DEFAULT_OUT = path.join(ROOT, 'data', 'profile');
+/** The folder onboarding.json lands in (lib/paths.mjs: data/profile, or <HC_DATA_DIR>/profile). */
+export const defaultOut = (env = process.env) => dataPaths({ repoRoot: ROOT, env }).profileDir;
 
 async function fetchProfile(baseUrl, { fetchImpl = fetch, timeoutMs = 10000 } = {}) {
   try {
@@ -30,7 +32,7 @@ async function fetchProfile(baseUrl, { fetchImpl = fetch, timeoutMs = 10000 } = 
 }
 
 export async function main({ env = process.env, log = console.log, warn = console.warn, fetchImpl = fetch } = {}) {
-  const dir = env.SYNC_PROFILE_OUT_DIR || DEFAULT_OUT;
+  const dir = env.SYNC_PROFILE_OUT_DIR || defaultOut(env);
   const base = readBaseUrl(env);
   let doc;
   try {
@@ -53,7 +55,7 @@ export async function main({ env = process.env, log = console.log, warn = consol
     }
     fs.mkdirSync(dir, { recursive: true });
     writeAtomic(file, text);
-    log(`Onboarding: written -> ${path.relative(ROOT, file)}`);
+    log(`Onboarding: written -> ${displayPath(ROOT, file)}`);
     return 0;
   } catch (err) {
     warn(`ERROR: onboarding sync could not write ${ONBOARDING_JSON} (${err.message})`);

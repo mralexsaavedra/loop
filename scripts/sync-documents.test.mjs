@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { main, DOCUMENT_FILES } from './sync-documents.mjs';
+import { dataPaths } from '../lib/paths.mjs';
 
 const PLAN = { data: { postre: [1], desayuno: [2] }, targets: {}, dayPlan: {} };
 const TRAINING = { days: { '2030-01-01': { focus: 'x', blocks: [{ title: 't', lines: ['l'] }] } } };
@@ -169,4 +170,32 @@ test('the sync state records each document\'s revision and content hash', async 
   assert.deepEqual(Object.keys(state), ['profile', 'plan', 'training']);
   assert.equal(state.plan.revision, 1);
   assert.match(state.plan.hash, /^[0-9a-f]{64}$/);
+});
+
+test('HC_DATA_DIR: the documents land in <data root>/cache, the state in cache/.sync-state.json, a forced pull backs up to backups/cache/', async () => {
+  const data = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-documents-root-'));
+  try {
+    const r = await run(all(), { env: { HC_DATA_DIR: data } });
+    assert.equal(r.code, 0);
+    const paths = dataPaths({ repoRoot: r.dir, env: { HC_DATA_DIR: data } });
+    assert.deepEqual(JSON.parse(fs.readFileSync(paths.documents.plan, 'utf8')), PLAN);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(data, 'cache', 'training.json'), 'utf8')), TRAINING);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(data, 'cache', 'profile.json'), 'utf8')), PROFILE);
+    assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(path.join(data, 'cache', '.sync-state.json'), 'utf8'))), ['profile', 'plan', 'training']);
+    assert.equal(fs.existsSync(path.join(r.dir, DOCUMENT_FILES.plan)), false, 'nothing at today\'s paths');
+    assert.equal(fs.existsSync(path.join(r.dir, 'data', 'profile', 'documents-sync.json')), false);
+    assert.equal(r.logs[1], `Documents: plan written -> ${paths.documents.plan}`);
+    // a local edit, then a forced pull: backed up inside the clone, under the path relative to the data root
+    fs.writeFileSync(paths.documents.plan, '{"mine":1}');
+    const logs = [];
+    assert.equal(await main({
+      env: { SYNC_DOCUMENTS_ROOT: r.dir, HC_DATA_DIR: data, INGEST_URL: 'http://x', INGEST_TOKEN: 't' },
+      log: (l) => logs.push(l), warn: () => {}, kinds: ['plan'], force: true,
+      fetchImpl: async () => ({ ok: true, status: 200, json: async () => body('plan', PLAN).body }),
+    }), 0);
+    assert.equal(fs.readFileSync(path.join(r.dir, 'backups', 'cache', 'plan.json.documents.bak'), 'utf8'), '{"mine":1}');
+    assert.deepEqual(logs, [`Documents: plan written -> ${paths.documents.plan} (your version backed up to ${path.join('backups', 'cache', 'plan.json.documents.bak')})`]);
+  } finally {
+    fs.rmSync(data, { recursive: true, force: true });
+  }
 });

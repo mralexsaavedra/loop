@@ -28,6 +28,7 @@ import { execFileSync } from 'node:child_process';
 import { loadInputs } from '../lib/load/inputs.mjs';
 import { validateProgram } from '../lib/training/program.mjs';
 import { checkManualProfile } from '../lib/profile/read.mjs';
+import { dataPaths } from '../lib/paths.mjs';
 import { resolveEnv } from '../web/src/env.mjs';
 import { isMain } from './lib/is-main.mjs';
 import { parseCli } from '../data/apple-health/sync-common.mjs';
@@ -46,12 +47,12 @@ const ASTRO_BIN = path.join(ROOT, 'node_modules', '.bin', 'astro');
  * deliberately has no programmed-training file). A file that EXISTS but is
  * empty/malformed still fails validation normally — only true absence is
  * optional. */
-export function checkTraining({ repoRoot, mode }) {
+export function checkTraining({ repoRoot, mode, env = process.env }) {
   if (mode !== 'example') {
-    const trainingPath = path.join(repoRoot, 'data', 'training', 'training-data.json');
+    const trainingPath = dataPaths({ repoRoot, env }).documents.training;
     if (!fs.existsSync(trainingPath)) return { ok: true, skipped: true };
   }
-  const { training } = loadInputs({ repoRoot, dataMode: mode });
+  const { training } = loadInputs({ repoRoot, dataMode: mode, env });
   return validateProgram(training);
 }
 
@@ -74,8 +75,9 @@ export function reportProfileCheck(res, mode, { log = console.log, error = conso
  * never drift from the Astro build's own resolution again. `explicitLocale`
  * is the CLI `--locale` flag or a pre-existing `LOCALE` env var; pass
  * null/undefined when neither was given. */
-export function resolveLocale({ repoRoot, mode, explicitLocale }) {
-  return resolveEnv({ HC_REPO_ROOT: repoRoot, DATA_MODE: mode, LOCALE: explicitLocale || undefined }).locale;
+export function resolveLocale({ repoRoot, mode, explicitLocale, env = process.env }) {
+  // the data root (HC_DATA_DIR / HC_FILES_DIR, lib/paths.mjs) is the one the Astro build will read
+  return resolveEnv({ ...env, HC_REPO_ROOT: repoRoot, DATA_MODE: mode, LOCALE: explicitLocale || undefined }).locale;
 }
 
 const DEFAULT_STALE_STAGING_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes

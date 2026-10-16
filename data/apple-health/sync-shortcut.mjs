@@ -34,10 +34,13 @@ import { HOURLY_CSV, HOURLY_HEADER } from '../../lib/health/ride-energy.mjs';
 import { ZONES_CSV } from '../../lib/training/hr-zones.mjs';
 import * as common from './sync-common.mjs';
 import { isMain } from '../../scripts/lib/is-main.mjs';
+import { dataPaths } from '../../lib/paths.mjs';
 
 const SHORTCUT_SOURCE = 'Shortcut';
 const DEFAULT_AUTOMATION = 'atajo-salud';
-const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'extract');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+// the extract this clone writes (lib/paths.mjs: data/apple-health/extract, or <HC_DATA_DIR>/extract)
+const defaultOut = (env) => dataPaths({ repoRoot: ROOT, env }).extractDir;
 
 // Per-metric table. Adding a metric = one entry (+ a new `kind` only if its line shape is new).
 //   kind point    : "start;value[;source]"   -> one row per sample   (date,value,source)
@@ -569,7 +572,7 @@ services/loop-ingest/.env), SHORTCUT_AUTOMATION (default "atajo-salud").`;
 
 // The CLI entry (runCli passes the parsed flags); env / log / error / fetchImpl / outDir are injectable for
 // tests. Returns the exit code: 1 on a missing token, a bad cache or an unreachable service (no file touched).
-async function main({ full = false, env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = OUT } = {}) {
+async function main({ full = false, env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = defaultOut(env) } = {}) {
   const baseUrl = common.readBaseUrl(env);
   const automation = env.SHORTCUT_AUTOMATION || DEFAULT_AUTOMATION;
   const token = common.readIngestToken(env);

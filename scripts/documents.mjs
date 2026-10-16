@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* The coach's side of the owner's documents (the profile, the nutrition plan, the training program; the
- * database copy is services/loop-ingest/src/documents.js, the files are scripts/lib/documents.mjs DOCUMENT_FILES).
+ * database copy is services/loop-ingest/src/documents.js, the files are scripts/lib/documents.mjs documentLayout:
+ * DOCUMENT_FILES in the clone, or cache/ under HC_DATA_DIR).
  *
  *   npm run documents -- push <kind|all> [--force]   file -> database
  *   npm run documents -- pull <kind|all> [--force]   database -> file (what `npm run sync` does for all)
@@ -17,14 +18,15 @@
  * local edit kept) exits 1; --force takes the database's document over a local edit, the file backed up to
  * backups/<same path>.documents.bak first.
  *
- * Env: INGEST_URL, INGEST_TOKEN, INGEST_ENV_FILE (as `npm run sync`); SYNC_DOCUMENTS_ROOT (tests).
+ * Env: INGEST_URL, INGEST_TOKEN, INGEST_ENV_FILE (as `npm run sync`); HC_DATA_DIR (the data root, lib/paths.mjs);
+ * SYNC_DOCUMENTS_ROOT (tests).
  * `push all` skips a document whose file does not exist (an install without a training program); naming that
  * kind alone is an error.
  * Exit: 0 done, 1 a document was refused or could not be sent / written, 2 bad usage.
  */
 import { parseArgs } from 'node:util';
 import { readBaseUrl, readIngestToken } from '../data/apple-health/sync-common.mjs';
-import { DOCUMENT_FILES, KINDS, contentHash, readState, recordState, readDocumentFile, documentProblems } from './lib/documents.mjs';
+import { KINDS, documentLayout, contentHash, readState, recordState, readDocumentFile, documentProblems } from './lib/documents.mjs';
 import { main as pull, fetchDocument, ROOT } from './sync-documents.mjs';
 import { isMain } from './lib/is-main.mjs';
 
@@ -36,7 +38,7 @@ export const USAGE = `Usage: npm run documents -- <push|pull> <profile|plan|trai
            pull: replace a file with changes that are not in the database (backed up first)
   -h, --help   this help
 
-Files: ${KINDS.map((k) => `${k} = ${DOCUMENT_FILES[k]}`).join(', ')}
+Files: ${KINDS.map((k) => `${k} = ${documentLayout(ROOT).rel(k)}`).join(', ')}
 Env: INGEST_URL, INGEST_TOKEN, INGEST_ENV_FILE (default services/loop-ingest/.env).`;
 
 /** PUT /documents/:kind {revision, document}: {status, body}. */
@@ -63,11 +65,11 @@ async function putDocument(base, token, kind, revision, document, fetchImpl) {
   }
 }
 
-async function pushOne({ root, base, token, kind, force, all, fetchImpl, log, warn }) {
-  const rel = DOCUMENT_FILES[kind];
+async function pushOne({ root, docs, base, token, kind, force, all, fetchImpl, log, warn }) {
+  const rel = docs.rel(kind);
   let local;
   try {
-    local = readDocumentFile(root, kind);
+    local = readDocumentFile(docs, kind);
   } catch (err) {
     warn(`ERROR: ${kind} not pushed: ${err.message}`);
     return 1;
@@ -94,11 +96,11 @@ async function pushOne({ root, base, token, kind, force, all, fetchImpl, log, wa
     return 1;
   }
   if (remote.doc !== null && contentHash(remote.doc) === local.hash) {
-    recordState(root, kind, remote.revision, local.hash);
+    recordState(docs, kind, remote.revision, local.hash);
     log(`Documents: ${kind} already in the database (revision ${remote.revision})`);
     return 0;
   }
-  const known = readState(root)[kind];
+  const known = readState(docs)[kind];
   // the revision this file was based on: the last sync / push, or none for a first import. A database without
   // the document (a first import, or a database reset since the last sync) has nothing to lose: save at 0.
   const against = force || remote.doc === null ? remote.revision : known ? known.revision : 0;
@@ -126,7 +128,7 @@ async function pushOne({ root, base, token, kind, force, all, fetchImpl, log, wa
     warn(`ERROR: ${kind} not pushed: the data service answered HTTP ${res.status}, ${why}`);
     return 1;
   }
-  recordState(root, kind, res.body.revision, local.hash);
+  recordState(docs, kind, res.body.revision, local.hash);
   log(`Documents: ${kind} pushed from ${rel} (revision ${res.body.revision})`);
   return 0;
 }
@@ -155,6 +157,7 @@ export async function main({ argv = process.argv.slice(2), env = process.env, lo
   }
   if (cmd.command === 'pull') return pull({ env, log, warn, fetchImpl, kinds: cmd.kinds, force: cmd.force, strict: true });
   const root = env.SYNC_DOCUMENTS_ROOT || ROOT;
+  const docs = documentLayout(root, env);
   const token = readIngestToken(env);
   if (!token) {
     warn('ERROR: no ingest token: set INGEST_TOKEN or create services/loop-ingest/.env. Nothing pushed.');
@@ -163,7 +166,7 @@ export async function main({ argv = process.argv.slice(2), env = process.env, lo
   const base = readBaseUrl(env);
   let code = 0;
   for (const kind of cmd.kinds) {
-    code = Math.max(code, await pushOne({ root, base, token, kind, force: cmd.force, all: cmd.all, fetchImpl, log, warn }));
+    code = Math.max(code, await pushOne({ root, docs, base, token, kind, force: cmd.force, all: cmd.all, fetchImpl, log, warn }));
   }
   return code;
 }

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /* Pulls the owner's documents (GET <INGEST_URL>/documents/:kind, services/loop-ingest/src/documents.js) into the
  * files the build, the syncs and the coach read: profile -> profile/profile.json, plan ->
- * data/nutrition/plan-data.json, training -> data/training/training-data.json. Runs FIRST in `npm run sync`:
+ * data/nutrition/plan-data.json, training -> data/training/training-data.json (under HC_DATA_DIR:
+ * <data root>/cache/{profile,plan,training}.json, lib/paths.mjs). Runs FIRST in `npm run sync`:
  * sync-strava reads maxHr from profile.json.
  *
  * The database is the source once a document is saved there, but a hand edit is never lost: the sync state
@@ -12,7 +13,8 @@
  *
  * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/loop-ingest/.env>, else
  *          :8088), INGEST_TOKEN (else from that .env): the routes take the bearer token.
- *          SYNC_DOCUMENTS_ROOT: the root the files are written under (tests), default this clone.
+ *          HC_DATA_DIR / HC_FILES_DIR: the data root (lib/paths.mjs).
+ *          SYNC_DOCUMENTS_ROOT: the clone root the files are resolved against (tests), default this clone.
  * Output : each file replaced atomically and only when its content changed (compared as parsed JSON, so a file
  *          with the same content in another formatting is left alone); 2-space JSON, the document's key order.
  *          A document never saved (null) writes nothing and keeps the file. The state file is updated.
@@ -24,7 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { readBaseUrl, readIngestToken, fetchJson, runCli } from '../data/apple-health/sync-common.mjs';
 import { validateDocument } from '../services/loop-ingest/src/documents.js';
 import {
-  DOCUMENT_FILES, KINDS, contentHash, readState, recordState, readDocumentFile, writeDocumentFile, backupDocumentFile,
+  DOCUMENT_FILES, KINDS, documentLayout, contentHash, readState, recordState, readDocumentFile, writeDocumentFile, backupDocumentFile,
 } from './lib/documents.mjs';
 import { isMain } from './lib/is-main.mjs';
 
@@ -54,18 +56,18 @@ export function fetchDocument(base, token, kind, fetchImpl) {
  * `npm run documents -- pull`) also when a document was skipped (no token, a service error, a local edit kept).
  */
 export async function main({ env = process.env, log = console.log, warn = console.warn, fetchImpl = fetch, kinds = KINDS, force = false, strict = false } = {}) {
-  const root = env.SYNC_DOCUMENTS_ROOT || ROOT;
+  const docs = documentLayout(env.SYNC_DOCUMENTS_ROOT || ROOT, env);
   const token = readIngestToken(env);
   if (!token) {
     warn('WARNING: document sync skipped (no ingest token: set INGEST_TOKEN or create services/loop-ingest/.env); the files are kept');
     return strict ? 1 : 0;
   }
   const base = readBaseUrl(env);
-  const state = readState(root);
+  const state = readState(docs);
   let code = 0;
   let skipped = 0;
   for (const kind of kinds) {
-    const rel = DOCUMENT_FILES[kind];
+    const rel = docs.rel(kind);
     let remote;
     try {
       remote = await fetchDocument(base, token, kind, fetchImpl);
@@ -83,12 +85,12 @@ export async function main({ env = process.env, log = console.log, warn = consol
       const hash = contentHash(remote.doc);
       let local;
       try {
-        local = readDocumentFile(root, kind);
+        local = readDocumentFile(docs, kind);
       } catch {
         local = { doc: undefined, hash: null }; // a broken file is a local state like any other edit
       }
       if (local?.hash === hash) {
-        if (state[kind]?.revision !== remote.revision || state[kind]?.hash !== hash) recordState(root, kind, remote.revision, hash);
+        if (state[kind]?.revision !== remote.revision || state[kind]?.hash !== hash) recordState(docs, kind, remote.revision, hash);
         log(`Documents: ${kind} unchanged`);
         continue;
       }
@@ -98,9 +100,9 @@ export async function main({ env = process.env, log = console.log, warn = consol
         skipped += 1;
         continue;
       }
-      const backup = untouched ? null : backupDocumentFile(root, kind);
-      writeDocumentFile(root, kind, remote.doc);
-      recordState(root, kind, remote.revision, hash);
+      const backup = untouched ? null : backupDocumentFile(docs, kind);
+      writeDocumentFile(docs, kind, remote.doc);
+      recordState(docs, kind, remote.revision, hash);
       log(`Documents: ${kind} written -> ${rel}${backup ? ` (your version backed up to ${backup})` : ''}`);
     } catch (err) {
       warn(`ERROR: ${kind} document sync could not write ${rel} (${err.message})`);
@@ -113,9 +115,11 @@ export async function main({ env = process.env, log = console.log, warn = consol
 const USAGE = `Usage: node scripts/sync-documents.mjs
 
 Pulls the owner's documents (profile, nutrition plan, training program) from the ingest service into
-profile/profile.json, data/nutrition/plan-data.json and data/training/training-data.json. A file with
+profile/profile.json, data/nutrition/plan-data.json and data/training/training-data.json (with HC_DATA_DIR:
+cache/profile.json, cache/plan.json and cache/training.json under it). A file with
 changes that are not in the database is kept (see npm run documents).
   -h, --help   this help
-Env: INGEST_URL, INGEST_TOKEN, INGEST_ENV_FILE (default services/loop-ingest/.env, for INGEST_PORT and INGEST_TOKEN).`;
+Env: INGEST_URL, INGEST_TOKEN, INGEST_ENV_FILE (default services/loop-ingest/.env, for INGEST_PORT and INGEST_TOKEN),
+HC_DATA_DIR (the data root).`;
 
 if (isMain(import.meta.url)) runCli(() => main(), { usage: USAGE });

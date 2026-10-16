@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { dataPaths } from '../../lib/paths.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.dirname(path.dirname(here)); // web/test -> web -> repo root
@@ -30,7 +31,8 @@ execFileSync(process.execPath, [buildScript, '--mode', 'example', '--locale', 'e
   cwd: ROOT,
 });
 
-const personalPlanPath = path.join(ROOT, 'data', 'nutrition', 'plan-data.json');
+// the personal plan where the build will look for it (lib/paths.mjs: today's path, or the HC_DATA_DIR data root)
+const personalPlanPath = dataPaths({ repoRoot: ROOT }).documents.plan;
 if (fs.existsSync(personalPlanPath)) {
   execFileSync(process.execPath, [buildScript, '--mode', 'personal', '--locale', 'es', '--outdir', path.join(testDistDir, 'es-personal')], {
     stdio: 'inherit',

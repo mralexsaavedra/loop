@@ -10,6 +10,7 @@ import http from 'node:http';
 import { execFileSync, execFile } from 'node:child_process';
 import * as sp from './sync-profile.mjs';
 import { fileURLToPath } from 'node:url';
+import { dataPaths } from '../../lib/paths.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -321,4 +322,28 @@ test('main() in-process: missing token / unreachable / failed write -> returns 1
     assert.equal(await sp.main({ env, ...h.io, fetchImpl: h.answer(200, {}), outDir: h.unwritable }), 1);
     assert.match(h.err.pop(), /^ERROR: profile sync failed/);
   } finally { h.cleanup(); }
+});
+
+// ---- the default output: lib/paths.mjs (HC_DATA_DIR), SYNC_PROFILE_OUT_DIR still wins -------------------------
+
+test('main() in-process: HC_DATA_DIR redirects the snapshot + avatar to <data root>/profile; SYNC_PROFILE_OUT_DIR wins over it', async () => {
+  const root = tmpDir('data-root');
+  const fetchImpl = async (url) => (String(url).endsWith('/export/athlete')
+    ? { ok: true, status: 200, json: async () => BODY }
+    : imgRes(JPEG));
+  const io = { log: () => {}, error: () => {} };
+  const env = (extra) => ({ INGEST_URL: 'http://127.0.0.1:9', INGEST_TOKEN: 't', INGEST_ENV_FILE: path.join(root, 'no.env'), ...extra });
+  try {
+    assert.equal(await sp.main({ env: env({ HC_DATA_DIR: root }), ...io, fetchImpl }), 0);
+    const paths = dataPaths({ repoRoot: '/repo', env: { HC_DATA_DIR: root } });
+    assert.equal(JSON.parse(fs.readFileSync(paths.stravaProfile, 'utf8')).firstname, 'Alex', 'where the build reads it');
+    assert.ok(fs.existsSync(paths.avatar));
+    const own = tmpDir('override');
+    assert.equal(await sp.main({ env: env({ HC_DATA_DIR: path.join(root, 'other'), SYNC_PROFILE_OUT_DIR: own }), ...io, fetchImpl }), 0);
+    assert.equal(readJson(own).firstname, 'Alex');
+    assert.equal(fs.existsSync(path.join(root, 'other')), false);
+    fs.rmSync(own, { recursive: true });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });

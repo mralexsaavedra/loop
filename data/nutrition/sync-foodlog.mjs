@@ -30,11 +30,13 @@ import { fileURLToPath } from 'node:url'
 import * as common from '../apple-health/sync-common.mjs'
 import { isIsoDate } from '../../lib/date.mjs'
 import { isMain } from '../../scripts/lib/is-main.mjs'
+import { dataPaths } from '../../lib/paths.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// Default: lib/paths.mjs foodlogDir (data/nutrition, or <HC_DATA_DIR>/foodlog).
 // SYNC_FOODLOG_OUT_DIR exists ONLY so the child-process tests can point main() at a tmp dir
-const OUT = process.env.SYNC_FOODLOG_OUT_DIR || __dirname
+const defaultOut = (env) => env.SYNC_FOODLOG_OUT_DIR || dataPaths({ repoRoot: path.resolve(__dirname, '..', '..'), env }).foodlogDir
 const CSV_FILE = 'foodlog-daily.csv'
 const META_FILE = 'foodlog-daily.meta.json'
 // copy of lib/nutrition/foodlog.mjs FOOD_LIMITS.summaryDaysMax (a test pins it equal)
@@ -168,7 +170,7 @@ Env: INGEST_URL, INGEST_ENV_FILE (default services/loop-ingest/.env, for its ING
 
 // The CLI entry; env / log / error / fetchImpl / outDir are injectable for tests. Returns the exit code: an
 // unreachable service or a malformed body is a warning (0), a failed write 1.
-async function main ({ env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = OUT, now = new Date() } = {}) {
+async function main ({ env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = defaultOut(env), now = new Date() } = {}) {
   const baseUrl = common.readBaseUrl(env)
   /** @type {any} */
   let body

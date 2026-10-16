@@ -349,3 +349,32 @@ test('a Mi Fitness export: resting HR is DERIVED from the night\'s hour-bucket h
     assert.equal(x.read('hrv.csv'), 'date,value,source\n');
   } finally { x.cleanup(); }
 });
+
+test('HC_DATA_DIR: export.xml read from <data root>/files/import (HC_FILES_DIR moves it), the extract written to <data root>/extract; EXTRACT_DIR still wins', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-data-root-'));
+  const xml = ['<HealthData locale="en_GB">', later('2030-01-02'), later('2030-01-03'), '</HealthData>', ''].join('\n');
+  const env = (extra) => { const e = { ...process.env }; delete e.EXTRACT_DIR; delete e.HC_FILES_DIR; return { ...e, ...extra }; };
+  try {
+    fs.mkdirSync(path.join(root, 'files', 'import'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'files', 'import', 'export.xml'), xml);
+    const r = spawnSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { encoding: 'utf8', env: env({ HC_DATA_DIR: root }) });
+    assert.equal(r.status, 0, r.stderr);
+    assert.ok(fs.existsSync(path.join(root, 'extract', '_meta.json')));
+    // HC_FILES_DIR: the export is looked for in <files>/import, so a data root without it reports that path
+    const owner = path.join(root, 'owner');
+    const miss = spawnSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { encoding: 'utf8', env: env({ HC_DATA_DIR: root, HC_FILES_DIR: owner }) });
+    assert.equal(miss.status, 1);
+    assert.ok(miss.stderr.includes(path.join(owner, 'import', 'export.xml')), miss.stderr);
+    // EXTRACT_DIR (the test hook) wins over the data root
+    const own = path.join(root, 'own');
+    fs.mkdirSync(own);
+    fs.writeFileSync(path.join(own, 'export.xml'), xml);
+    fs.rmSync(path.join(root, 'extract'), { recursive: true });
+    const hook = spawnSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { encoding: 'utf8', env: env({ HC_DATA_DIR: root, EXTRACT_DIR: own }) });
+    assert.equal(hook.status, 0, hook.stderr);
+    assert.ok(fs.existsSync(path.join(own, 'extract', '_meta.json')));
+    assert.equal(fs.existsSync(path.join(root, 'extract')), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

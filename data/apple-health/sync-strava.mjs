@@ -36,6 +36,7 @@ import { WORKOUTS_HEADER } from '../../lib/extract/samples.mjs'
 import * as zones from '../../lib/training/hr-zones.mjs'
 import { readProfileMaxHr } from '../../lib/profile/read.mjs'
 import { isMain } from '../../scripts/lib/is-main.mjs'
+import { dataPaths } from '../../lib/paths.mjs'
 
 const DIR = path.dirname(fileURLToPath(import.meta.url))
 
@@ -43,7 +44,9 @@ const STRAVA_SOURCE = 'Strava API'
 // SYNC_STRAVA_OUT_DIR / INGEST_ENV_FILE overrides exist ONLY so the child-process error-path
 // tests below can point main() at a disposable tmp dir / tmp env file instead of the real
 // personal data/apple-health/extract or services/loop-ingest/.env — unset in production.
-const OUT = process.env.SYNC_STRAVA_OUT_DIR || path.join(DIR, 'extract')
+// Default: the extract and profile of lib/paths.mjs (today's clone paths, or the HC_DATA_DIR data root).
+const ROOT = path.resolve(DIR, '..', '..')
+const defaultOut = (env) => env.SYNC_STRAVA_OUT_DIR || dataPaths({ repoRoot: ROOT, env }).extractDir
 const WORKOUTS_CSV = 'workouts.csv'
 
 // sport_type -> workouts.csv `type` (matches extract.mjs's HKWorkoutActivityType-derived strings, so
@@ -342,7 +345,7 @@ function staleZonesWarning (activities) {
     '(docker compose up -d --build loop-ingest) and re-run once the backfill has fetched some streams.'
 }
 
-const PROFILE_JSON = process.env.SYNC_STRAVA_PROFILE || path.join(DIR, '..', '..', 'profile', 'profile.json')
+const defaultProfile = (env) => env.SYNC_STRAVA_PROFILE || dataPaths({ repoRoot: ROOT, env }).documents.profile
 
 const USAGE = `Usage: node data/apple-health/sync-strava.mjs
 
@@ -354,7 +357,7 @@ services/loop-ingest/.env).`
 
 // The CLI entry; env / log / error / fetchImpl / outDir / profileJson are injectable for tests. Returns the
 // exit code: 1 on a missing token or an unreachable / old service (no file touched).
-async function main ({ env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = OUT, profileJson = PROFILE_JSON } = {}) {
+async function main ({ env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = defaultOut(env), profileJson = defaultProfile(env) } = {}) {
   const t0 = Date.now()
   const baseUrl = common.readBaseUrl(env)
   const token = common.readIngestToken(env)

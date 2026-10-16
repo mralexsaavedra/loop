@@ -23,11 +23,13 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as common from '../apple-health/sync-common.mjs'
 import { isMain } from '../../scripts/lib/is-main.mjs'
+import { dataPaths } from '../../lib/paths.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// Default: lib/paths.mjs profileDir (data/profile, or <HC_DATA_DIR>/profile).
 // SYNC_PROFILE_OUT_DIR exists ONLY so the child-process tests can point main() at a tmp dir
-const OUT = process.env.SYNC_PROFILE_OUT_DIR || __dirname
+const defaultOut = (env) => env.SYNC_PROFILE_OUT_DIR || dataPaths({ repoRoot: path.resolve(__dirname, '..', '..'), env }).profileDir
 const SETTINGS_JSON = 'settings.json'
 // copies of lib/nutrition/foodlog.mjs SETTINGS_GOALS / FOOD_LIMITS.targetWeight* (a test pins them equal)
 const GOALS = ['maintain', 'cut', 'bulk']
@@ -97,7 +99,7 @@ Env: INGEST_URL, INGEST_ENV_FILE (default services/loop-ingest/.env, for its ING
 
 // The CLI entry; env / log / error / fetchImpl / outDir are injectable for tests. Returns the exit code: an
 // unreachable service is a warning (0), a failed write 1.
-async function main ({ env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = OUT } = {}) {
+async function main ({ env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = defaultOut(env) } = {}) {
   const baseUrl = common.readBaseUrl(env)
   let body
   try {

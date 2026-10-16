@@ -1176,3 +1176,19 @@ test('band hr samples + ANY measured rhr ever delivered by the Shortcut: no deri
   const later = planSync([{ id: '2', payload: bandPayload(nights) }], n => files[n] ?? null);
   assert.ok(!String(later.writes['rhr.csv'] ?? files['rhr.csv']).includes('derived'));
 });
+
+test('main() in-process: HC_DATA_DIR redirects the default output to <data root>/extract; an injected outDir still wins', async () => {
+  const h = mainHarness('sync-shortcut-root-');
+  try {
+    const items = [{ id: '1', payload: { hrv: '2030-01-02T08:00:00+01:00;42' } }];
+    const env = { ...h.env, INGEST_TOKEN: 't', HC_DATA_DIR: h.dir };
+    assert.equal(await sync.main({ env, ...h.io, fetchImpl: h.answer(200, items) }), 0);
+    const extract = path.join(h.dir, 'extract');
+    assert.ok(fs.existsSync(path.join(extract, 'hrv.csv')));
+    assert.ok(fs.existsSync(path.join(extract, CACHE_FILE)));
+    const own = path.join(h.dir, 'own');
+    assert.equal(await sync.main({ env: { ...env, HC_DATA_DIR: path.join(h.dir, 'other') }, ...h.io, fetchImpl: h.answer(200, items), outDir: own }), 0);
+    assert.ok(fs.existsSync(path.join(own, 'hrv.csv')));
+    assert.equal(fs.existsSync(path.join(h.dir, 'other')), false);
+  } finally { h.cleanup(); }
+});
