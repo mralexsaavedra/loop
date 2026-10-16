@@ -314,3 +314,85 @@ test('exportPathError: the strict path rules (null = acceptable syntax)', () => 
 test('EXPORT_DIRS is the design allowlist', () => {
   assert.deepEqual([...EXPORT_DIRS], ['extract', 'profile', 'foodlog', 'files/documents', 'files/manuals'])
 })
+
+/* ---------- B1: a folder swapped for a symlink between the listing and the open ---------- */
+
+/** extract/sub/deep.csv inside, and an outside folder with the same name a swap would expose. */
+function swapFixture (s) {
+  s.put('extract/sub/deep.csv', 'inside\n')
+  const outside = path.join(s.dir, 'outside')
+  fs.mkdirSync(outside, { recursive: true })
+  fs.writeFileSync(path.join(outside, 'deep.csv'), 'OUTSIDE SECRET\n')
+  const sub = path.join(s.root, 'extract', 'sub')
+  return {
+    // what the attacker does between the listing and the open: the folder becomes a symlink to the outside one
+    swap () {
+      fs.renameSync(sub, `${sub}-real`)
+      fs.symlinkSync(outside, sub)
+    }
+  }
+}
+
+for (const [label, extra] of [['/proc/self/fd', {}], ['the portable fallback (no /proc)', { fdDir: '/nonexistent-proc/self/fd' }]]) {
+  test(`GET /export/file never serves a file outside the folder when an intermediate folder is swapped for a symlink after the listing (${label})`, async () => {
+    let fx
+    let swapped = 0
+    const s = await setup({ ...extra, beforeOpen: (abs) => { if (abs.endsWith('deep.csv') && !swapped++) fx.swap() } })
+    fx = swapFixture(s)
+    try {
+      const res = await s.get(filePath('extract/sub/deep.csv'))
+      assert.equal(swapped, 1)
+      assert.equal(res.status, 404)
+      assert.ok(!res.buf.toString().includes('OUTSIDE'), res.buf.toString())
+    } finally {
+      await s.close()
+    }
+  })
+
+  test(`GET /export/files never lists the size or sha256 of an outside file reached through a swapped folder (${label})`, async () => {
+    let fx
+    let swapped = 0
+    const s = await setup({ ...extra, beforeOpen: (abs) => { if (abs.endsWith('deep.csv') && !swapped++) fx.swap() } })
+    fx = swapFixture(s)
+    try {
+      const files = (await s.get('/export/files')).json().files
+      assert.equal(swapped, 1)
+      assert.ok(!files.some((f) => f.sha256 === sha(Buffer.from('OUTSIDE SECRET\n'))), JSON.stringify(files))
+      assert.ok(!files.some((f) => f.path === 'extract/sub/deep.csv'), JSON.stringify(files))
+    } finally {
+      await s.close()
+    }
+  })
+
+  test(`a nested file is listed and served normally when nothing is swapped (${label})`, async () => {
+    const s = await setup(extra)
+    s.put('extract/sub/deep.csv', 'inside\n')
+    try {
+      const files = (await s.get('/export/files')).json().files
+      assert.equal(files.find((f) => f.path === 'extract/sub/deep.csv')?.sha256, sha(Buffer.from('inside\n')))
+      const res = await s.get(filePath('extract/sub/deep.csv'))
+      assert.equal(res.status, 200)
+      assert.equal(res.buf.toString(), 'inside\n')
+    } finally {
+      await s.close()
+    }
+  })
+}
+
+test('GET /export/file refuses a file replaced by another one after the listing (the opened inode must be the listed one)', async () => {
+  let swapped = 0
+  const s = await setup({
+    beforeOpen: (abs) => {
+      if (!abs.endsWith('weight.csv') || swapped++) return
+      // a different file now sits at the same path (same folder, no symlink): not what was listed
+      fs.writeFileSync(`${abs}.new`, 'replaced')
+      fs.renameSync(`${abs}.new`, abs)
+    }
+  })
+  try {
+    assert.equal((await s.get(filePath('extract/weight.csv'))).status, 404)
+    assert.equal(swapped, 1)
+  } finally {
+    await s.close()
+  }
+})

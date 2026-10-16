@@ -332,6 +332,15 @@ In container mode (`HC_BUILD=container`, the `loop-server` image) the server own
 - **Download.** `GET /export/file?path=` serves one path that is in the manifest at request time (listed again on
   every request), opened without following a symlink, streamed with its `content-length`. A malformed path is
   `400 invalid_path`; anything else not listed (a folder, `cache/plan.json`, a file deleted since) is `404 not_found`.
+- **Inside the folder, proven after the open.** `O_NOFOLLOW` only covers the last path component, so the opened
+  file is checked before a byte is sent: it must be the inode the listing saw (dev, ino) and sit at the listed place
+  with no symlink below the data root (the kernel's path in `/proc/self/fd/<fd>`; without `/proc`, a component
+  `lstat` walk). A folder swapped for a symlink between the listing and the open (`extract/sub` → an outside folder)
+  is a `404`, never served; the manifest opens each file the same way before hashing it, so it never carries an
+  outside file's size or sha256. The listing itself never descends into a symlinked folder.
+- **The base may be a mount.** The data root and the files folder itself (`HC_FILES_DIR`, `/data/files`) may be a
+  bind mount or a symlink, by design (the owner's mounts): their real path is the reference, and the rules above
+  apply to everything below them.
 - **Security.** The bearer token (`INGEST_TOKEN`), checked first: no token is `401` even for a bad path. Outside
   container mode the routes are not mounted, so a host-mode server answers the plain `404` of an unknown path, which
   is how a clone tells the two apart. loop-web's nginx never proxies them (`scripts/loop-web-config.test.mjs`).

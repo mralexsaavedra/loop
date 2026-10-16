@@ -20,7 +20,12 @@
  * 404 of an unknown path (that is how a clone tells a host-mode server apart). GET /export/file serves only a path
  * that is in the manifest at request time (listed again, no hashing): a path with `..`, `.`, an empty segment, a
  * backslash, NUL, a leading `/` or over 1024 characters is 400; anything not listed (a folder, a symlink, a cache
- * file, a file gone since) is 404. The file is opened with O_NOFOLLOW and checked to be a regular file again.
+ * file, a file gone since) is 404. The file is opened with O_NOFOLLOW, then proven to be inside its folder
+ * (openInside): a regular file, the very inode the listing saw (dev, ino), and at the listed place with no symlink
+ * below the data root / files folder (the kernel's /proc/self/fd/<fd> path; a component lstat walk without /proc),
+ * so a folder swapped for a symlink between the listing and the open is 404, never served. The manifest opens each
+ * file the same way before hashing it, so it never carries the size or sha256 of a file outside the allowlist.
+ * The data root and the files folder themselves may be bind mounts or symlinks (their real path is the reference).
  *
  * sha256 is cached per path, keyed by (size, mtimeMs): a manifest polled every 2 s by a waiting client stats the
  * files but hashes only what changed. Logs carry counts and byte sizes, never a path (document names are
@@ -65,18 +70,20 @@ function absDir (dir, { dataDir, filesDir }) {
 }
 
 /**
- * The sha256 cache: get(file, stat) -> hex, re-hashing only when size or mtimeMs changed. `onHash` (tests) sees each hash.
+ * The sha256 cache: get(file, stat, handle) -> hex, re-hashing only when size or mtimeMs changed; the bytes are read
+ * from the already verified `handle` (openInside), never by path. `onHash` (tests) sees each hash.
  * @param {{ onHash?: (file: string) => void }} [opts]
  */
 export function createHashCache ({ onHash = (_file) => {} } = {}) {
   const entries = new Map()
   return {
-    async get (file, st) {
+    async get (file, st, handle) {
       const hit = entries.get(file)
       if (hit && hit.size === st.size && hit.mtimeMs === st.mtimeMs) return hit.sha256
       onHash(file)
       const hash = createHash('sha256')
-      await pipeline(fs.createReadStream(file), hash)
+      // exactly the stat'ed size, the bytes GET /export/file would send
+      if (st.size > 0) await pipeline(handle.createReadStream({ start: 0, end: st.size - 1, autoClose: false }), hash)
       const sha256 = hash.digest('hex')
       entries.set(file, { size: st.size, mtimeMs: st.mtimeMs, sha256 })
       return sha256
@@ -100,7 +107,9 @@ async function walk (absRoot, rel, depth, out) {
     if (!exportableName(e.name)) continue
     const abs = path.join(absRoot, e.name)
     const r = `${rel}/${e.name}`
-    // Dirent types come from lstat: a symlink is neither a file nor a directory here, so it is skipped
+    // Dirent types come from lstat: a symlink is neither a file nor a directory here, so it is skipped (never
+    // descended into). A folder swapped for a symlink DURING the walk can still be read through: openInside is
+    // what keeps such a file out of the manifest and the download.
     if (e.isDirectory()) {
       if (depth < MAX_DEPTH) await walk(abs, r, depth + 1, out)
     } else if (e.isFile()) {
@@ -109,12 +118,72 @@ async function walk (absRoot, rel, depth, out) {
   }
 }
 
+/** The real (symlink-free) path of the base an allowlisted dir lives in, and the dir relative to it. */
+function baseOf (dir, { dataDir, filesDir }) {
+  if (dir.startsWith('files/')) return { base: filesDir ?? path.join(dataDir, 'files'), sub: dir.slice('files/'.length) }
+  return { base: dataDir, sub: dir }
+}
+
+const PROC_FD = '/proc/self/fd'
+
 /**
- * Every exportable file: [{path, abs, size, mtimeMs, sha256?}] sorted by path. With `cache` each gets its sha256;
- * without it only the listing (GET /export/file's membership check). An allowlisted folder that is itself a
- * symlink, or missing, contributes nothing.
+ * Opens a listed file and proves the opened file IS inside its allowlisted folder: O_NOFOLLOW (the last component is
+ * no symlink), a regular file, and its real location equals `expected` (the real base + the relative path, no
+ * symlink anywhere below the base). On Linux the location is the kernel's own (readlink of /proc/self/fd/<fd>, which
+ * cannot be raced); without /proc (`fdDir` missing) a portable fallback lstat-walks every component from the base
+ * (each a real folder, no symlink) and requires the final one to be the opened inode (dev, ino). `want` (dev, ino),
+ * when given, must match too. Returns {handle, st} or null (closed) for anything else.
  */
-export async function listExportFiles ({ dataDir, filesDir = null, cache = null }) {
+export async function openInside ({ abs, expected, base, rel, want = null, fdDir = PROC_FD, beforeOpen = null }) {
+  if (beforeOpen) await beforeOpen(abs)
+  let handle
+  try {
+    handle = await fs.promises.open(abs, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0))
+  } catch (err) {
+    if (['ENOENT', 'ELOOP', 'ENOTDIR', 'EACCES', 'EISDIR'].includes(err.code)) return null
+    throw err
+  }
+  let ok = false
+  try {
+    const st = await handle.stat()
+    if (!st.isFile()) return null
+    if (want && (st.dev !== want.dev || st.ino !== want.ino)) return null
+    let real = null
+    try {
+      real = await fs.promises.readlink(`${fdDir}/${handle.fd}`)
+    } catch {}
+    if (real !== null) {
+      if (real !== expected) return null
+    } else {
+      // portable fallback: every folder below the base is a real folder, and the path leads to the opened inode
+      let cur = base
+      const segs = rel.split('/')
+      for (let i = 0; i < segs.length; i += 1) {
+        cur = path.join(cur, segs[i])
+        let ls
+        try {
+          ls = await fs.promises.lstat(cur)
+        } catch {
+          return null
+        }
+        if (ls.isSymbolicLink()) return null
+        if (i < segs.length - 1 ? !ls.isDirectory() : ls.dev !== st.dev || ls.ino !== st.ino) return null
+      }
+    }
+    ok = true
+    return { handle, st }
+  } finally {
+    if (!ok) await handle.close().catch(() => {})
+  }
+}
+
+/**
+ * Every exportable file: [{path, abs, expected, base, rel, dev, ino, size, mtimeMs, sha256?}] sorted by path. With
+ * `cache` each file is opened through openInside (a file reached through a swapped folder is left out) and gets its
+ * sha256; without it only the listing (GET /export/file's membership check, which opens and verifies itself). An
+ * allowlisted folder that is itself a symlink, or missing, contributes nothing.
+ */
+export async function listExportFiles ({ dataDir, filesDir = null, cache = null, fdDir = PROC_FD, beforeOpen = null }) {
   const found = []
   for (const dir of EXPORT_DIRS) {
     const abs = absDir(dir, { dataDir, filesDir })
@@ -125,29 +194,47 @@ export async function listExportFiles ({ dataDir, filesDir = null, cache = null 
       continue
     }
     if (!st.isDirectory()) continue
-    // the parent of files/<x> (the files folder) may be a bind mount, but never a symlink chain we follow
+    // the base (the data root, or the files folder) may be a bind mount or a symlink by design: its real path is the
+    // reference; nothing below it may be a symlink
+    const { base, sub } = baseOf(dir, { dataDir, filesDir })
+    let realBase
+    try {
+      realBase = await fs.promises.realpath(base)
+    } catch {
+      continue
+    }
+    const before = found.length
     await walk(abs, dir, 1, found)
+    for (const f of found.slice(before)) {
+      f.rel = path.posix.join(sub, f.path.slice(dir.length + 1))
+      f.base = realBase
+      f.expected = path.join(realBase, f.rel)
+    }
   }
   found.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
   const out = []
   for (const f of found) {
-    let st
-    try {
-      st = await fs.promises.lstat(f.abs)
-    } catch {
-      continue // removed while listing
-    }
-    if (!st.isFile()) continue
-    const entry = { path: f.path, abs: f.abs, size: st.size, mtimeMs: Math.trunc(st.mtimeMs) }
-    if (cache) {
+    if (!cache) {
+      let st
       try {
-        entry.sha256 = await cache.get(f.abs, st)
-      } catch (err) {
-        if (err.code === 'ENOENT') continue
-        throw err
+        st = await fs.promises.lstat(f.abs)
+      } catch {
+        continue // removed while listing
       }
+      if (!st.isFile()) continue
+      out.push({ ...f, dev: st.dev, ino: st.ino, size: st.size, mtimeMs: Math.trunc(st.mtimeMs) })
+      continue
     }
-    out.push(entry)
+    const opened = await openInside({ ...f, fdDir, beforeOpen })
+    if (!opened) continue
+    try {
+      const { st, handle } = opened
+      const entry = { ...f, dev: st.dev, ino: st.ino, size: st.size, mtimeMs: Math.trunc(st.mtimeMs) }
+      entry.sha256 = await cache.get(f.abs, st, handle)
+      out.push(entry)
+    } finally {
+      await opened.handle.close().catch(() => {})
+    }
   }
   if (cache) cache.keep(new Set(out.map((f) => f.abs)))
   return out
@@ -167,12 +254,12 @@ export function readSiteStatus (siteDir) {
   }
 }
 
-export function createFilesExportRoutes ({ available, dataDir, filesDir = null, siteDir, checkBearer, hashCache = createHashCache(), log = console.log }) {
+export function createFilesExportRoutes ({ available, dataDir, filesDir = null, siteDir, checkBearer, hashCache = createHashCache(), log = console.log, fdDir = PROC_FD, beforeOpen = null }) {
   const fail = (res, status, error, extra = {}) => writeJson(res, status, { error }, { ...NO_STORE, ...extra })
 
   async function manifest (req, res) {
     req.resume()
-    const files = await listExportFiles({ dataDir, filesDir, cache: hashCache })
+    const files = await listExportFiles({ dataDir, filesDir, cache: hashCache, fdDir, beforeOpen })
     const body = { files: files.map(({ path: p, size, sha256, mtimeMs }) => ({ path: p, size, sha256, mtimeMs })), site: readSiteStatus(siteDir) }
     log(JSON.stringify({ event: 'export_files', count: files.length, bytes: files.reduce((n, f) => n + f.size, 0) }))
     writeJson(res, 200, body, NO_STORE)
@@ -186,16 +273,11 @@ export function createFilesExportRoutes ({ available, dataDir, filesDir = null, 
     if (!exportDirOf(p)) return fail(res, 404, 'not_found')
     const listed = (await listExportFiles({ dataDir, filesDir })).find((f) => f.path === p)
     if (!listed) return fail(res, 404, 'not_found')
-    let handle
+    // the opened file must be the listed inode AND sit at the listed place (no folder swapped for a symlink since)
+    const opened = await openInside({ ...listed, want: { dev: listed.dev, ino: listed.ino }, fdDir, beforeOpen })
+    if (!opened) return fail(res, 404, 'not_found')
+    const { handle, st } = opened
     try {
-      handle = await fs.promises.open(listed.abs, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0))
-    } catch (err) {
-      if (err.code === 'ENOENT' || err.code === 'ELOOP') return fail(res, 404, 'not_found')
-      throw err
-    }
-    try {
-      const st = await handle.stat()
-      if (!st.isFile()) return fail(res, 404, 'not_found')
       res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': st.size, ...NO_STORE })
       if (st.size > 0) {
         // exactly the size announced: a file growing meanwhile can never send more than content-length
