@@ -13,6 +13,15 @@ every push and pull request, Dependabot proposes
 dependency updates, and the repository has a security policy (`SECURITY.md`) and a contributing guide
 (`CONTRIBUTING.md`). The dated entries below are the pre-release history.
 
+## 2026-10-16 (night) — Server images, step 1d: one stored copy of name, sex, birthdate and height
+
+The page's onboarding wizard and the profile document both held name, sex, birthdate and height. Now the profile
+document is the only stored copy: `PUT /food/profile` keeps its own fields (weight, activity, sports, goals, targets)
+in `app_profile` and merges the identity into the profile document at its next revision, in one transaction (a coach
+push of an older copy is then refused, never a silent undo); `GET /food/profile` composes them back, so the page and
+`onboarding.json` are unchanged. On start the service moves the identity of an onboarding saved before (the second
+install's) into the document, once (`profile_identity_moved`); `/food/profile` needs both migration groups.
+
 ## 2026-10-16 (evening) — Server images, step 1c: the coach pushes the documents, a hand edit is never lost
 
 `npm run documents -- push|pull <profile|plan|training|all> [--force]` (`scripts/documents.mjs`): push validates a

@@ -424,7 +424,8 @@ and, in a clone, in the files the build, the other syncs and the coach read:
 
 - **push** checks the file with the full rules the page build applies (`validateNutrition` with
   `ingredients.json`, `validateProgram`, `validateManual`) and sends nothing when one fails. It saves at the
-  revision of your last sync or push, so a database changed since then (another clone, the other machine) is
+  revision of your last sync or push, so a database changed since then (another clone, the other machine, the
+  page's onboarding wizard, which saves name / sex / birthdate / height into the profile) is
   never overwritten: the push refuses and names both ways out, `pull <kind> --force` (take the database's;
   your file is backed up) or `push <kind> --force` (replace the database's). A file equal to the database's
   only records the state.
